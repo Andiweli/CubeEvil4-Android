@@ -16,7 +16,7 @@
 
 namespace {
 std::string root;
-bool ready = true, failCapture;
+bool ready = true, titleReady, failCapture;
 unsigned commits, restores;
 std::vector<unsigned char> source(0x12000), restored;
 uint32_t crc(const unsigned char* p, size_t n)
@@ -53,6 +53,10 @@ extern "C" void re4_log(const char*, ...) {}
 extern "C" int re4_instant_game_ready()
 {
     return ready;
+}
+extern "C" int re4_instant_game_can_load()
+{
+    return ready || titleReady;
 }
 extern "C" unsigned re4_instant_game_chapter(unsigned n)
 {
@@ -156,6 +160,11 @@ int main(int argc, char** argv)
            !info.canSave);
     assert(re4_instant_perform(RE4_INSTANT_SAVE, &info) == RE4_INSTANT_BUSY && read(slot) == good);
     assert(re4_instant_perform(RE4_INSTANT_LOAD, &info) == RE4_INSTANT_BUSY);
+    titleReady = true;
+    assert(re4_instant_perform(RE4_INSTANT_STATUS, &info) == 0 && info.canLoad && !info.canSave);
+    assert(re4_instant_perform(RE4_INSTANT_SAVE, &info) == RE4_INSTANT_BUSY && read(slot) == good);
+    assert(re4_instant_perform(RE4_INSTANT_LOAD, &info) == 0 && restored == source);
+    titleReady = false;
     ready = true;
     assert(mkdir((slot + ".tmp").c_str(), 0775) == 0); // deterministic write failure, even as root
     assert(re4_instant_perform(RE4_INSTANT_SAVE, &info) == RE4_INSTANT_IO && read(slot) == good &&
@@ -164,7 +173,7 @@ int main(int argc, char** argv)
     auto bad = good;
     bad[1000] ^= 0x80;
     write(slot, bad);
-    assert(re4_instant_perform(RE4_INSTANT_LOAD, &info) == RE4_INSTANT_BAD && restores == 1);
+    assert(re4_instant_perform(RE4_INSTANT_LOAD, &info) == RE4_INSTANT_BAD && restores == 2);
     bad = good;
     bad.resize(31);
     write(slot, bad);

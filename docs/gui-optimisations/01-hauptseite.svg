@@ -16,59 +16,60 @@
 <path d="M1234 0 L1256 0 L1274 720 L1216 720 Z" fill="#0c130f" opacity=".65"/>
 <path d="M1234 210L1344 80" stroke="#17201a"/>
 <rect x="0" y="0" width="1280" height="720" rx="0" fill="#080b09" stroke="none" opacity=".46"/>
-<text x="144" y="29" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">CUBEEVIL4  /  GUI-KONZEPT 01</text>
+<text x="144" y="29" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">CUBEEVIL4  /  GUI-KONZEPT 01</text>
 <text x="1136" y="29" font-size="11" fill="#a6afa3" font-weight="500" text-anchor="end">ENTWURF · BEISPIELDATEN</text>
-<g opacity=".85">
+<g opacity=".90">
 <rect x="140" y="48" width="1000" height="626" rx="12" fill="#050806" stroke="none" opacity=".6" transform="translate(0 8)"/>
 <rect x="140" y="48" width="1000" height="626" rx="10" fill="#191f1c" stroke="#414b41" />
 <rect x="140" y="48" width="1000" height="4" rx="0" fill="#d7bc7d" stroke="none" />
 <text x="174" y="101" font-size="28" fill="#f0eee5" font-weight="600" >CubeEvil4 Ingame-Menü</text>
-<text x="174" y="126" font-size="13" fill="#a6afa3" font-weight="400" ></text>
+<text x="174" y="126" font-size="15" fill="#a6afa3" font-weight="400" ></text>
 <g class="button " role="button" tabindex="0" aria-label="Weiter spielen" aria-disabled="false" data-action="resume" opacity="1">
 <rect x="925" y="76" width="181" height="44" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="1015.5" y="104.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Weiter spielen</text>
 </g>
 <path d="M174 148H1106" stroke="#414b41"/>
 <path d="M174 620H1106" stroke="#414b41"/>
-<text x="178" y="650" font-size="12" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
-<text x="1102" y="650" font-size="12" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zum Spiel     SELECT / START  Zum Spiel</text>
+<text x="178" y="650" font-size="15" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
+<text x="1102" y="650" font-size="15" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zum Spiel     SELECT / START  Zum Spiel</text>
 <text x="570" y="100" font-size="15" fill="#a6afa3" font-weight="400" >(v0.90.1-beta)</text>
-<text x="178" y="180" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">INSTANT-SPIELSTAND</text>
-<rect x="174" y="196" width="932" height="174" rx="6" fill="#202720" stroke="#414b41" />
+<text x="178" y="180" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">INSTANT-SPIELSTAND</text>
+<rect x="174" y="196" width="932" height="136" rx="6" fill="#202720" stroke="#414b41" />
 <text x="198" y="229" font-size="21" fill="#f0eee5" font-weight="600" >Speicherslot</text>
-<text x="198" y="256" font-size="14" fill="#a6afa3" font-weight="400" >Kapitel 1–1 · r100 · Spielzeit 00:12:34</text>
-<text x="1082" y="256" font-size="13" fill="#a6afa3" font-weight="400" text-anchor="end" id="save-meta">Zuletzt gespeichert: 24.10.2026, 12:24</text>
+<text x="198" y="256" font-size="15" fill="#a6afa3" font-weight="400" >Kapitel 1–1 · r100 · Spielzeit 00:12:34</text>
+<text x="198" y="283" font-size="15" fill="#a6afa3" font-weight="400" id="save-meta">Zuletzt gespeichert: 24.10.2026, 12:24</text>
 <g class="button selected" role="button" tabindex="0" aria-label="Speichern" aria-disabled="false" data-action="save" opacity="1">
-<rect x="198" y="302" width="430" height="48" rx="6" fill="#45432e" stroke="#d7bc7d" />
-<text x="413.0" y="332.0" font-size="17" fill="#d7bc7d" font-weight="600" text-anchor="middle">Speichern</text>
+<rect x="870" y="208" width="212" height="48" rx="6" fill="#45432e" stroke="#d7bc7d" />
+<text x="976.0" y="238.0" font-size="17" fill="#d7bc7d" font-weight="600" text-anchor="middle">Speichern</text>
 </g>
 <g class="button " role="button" tabindex="0" aria-label="Laden" aria-disabled="false" data-action="load" opacity="1">
-<rect x="642" y="302" width="440" height="48" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="862.0" y="332.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Laden</text>
+<rect x="870" y="264" width="212" height="48" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="976.0" y="294.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Laden</text>
 </g>
-<text x="178" y="430" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">EINSTELLUNGEN &amp; VERWALTUNG</text>
+<text x="178" y="358" font-size="15" fill="#a6afa3" font-weight="400" >Bereit.</text>
+<text x="178" y="399" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">EINSTELLUNGEN &amp; VERWALTUNG</text>
 <g class="button nav" role="button" tabindex="0" aria-label="Anzeige" data-action="display">
-<rect x="174" y="447" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="194" y="474" font-size="21" fill="#f0eee5" font-weight="600" >Anzeige</text>
-<text x="194" y="496" font-size="13" fill="#a6afa3" font-weight="400" >Auflösung, Bildformat &amp; Effekte</text>
-<text x="604" y="487" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
+<rect x="174" y="416" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="194" y="444" font-size="23" fill="#f0eee5" font-weight="700" >Anzeige</text>
+<text x="194" y="467" font-size="15" fill="#a6afa3" font-weight="400" >Auflösung, Bildformat &amp; Effekte</text>
+<text x="604" y="456" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
 </g>
 <g class="button nav" role="button" tabindex="0" aria-label="Steuerung" data-action="controls">
-<rect x="648" y="447" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="668" y="474" font-size="21" fill="#f0eee5" font-weight="600" >Steuerung</text>
-<text x="668" y="496" font-size="13" fill="#a6afa3" font-weight="400" >Touch, Gyro &amp; Komfortsteuerung</text>
-<text x="1078" y="487" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
+<rect x="648" y="416" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="668" y="444" font-size="23" fill="#f0eee5" font-weight="700" >Steuerung</text>
+<text x="668" y="467" font-size="15" fill="#a6afa3" font-weight="400" >Touch, Gyro &amp; Komfortsteuerung</text>
+<text x="1078" y="456" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
 </g>
 <g class="button nav" role="button" tabindex="0" aria-label="Performance" data-action="performance">
-<rect x="174" y="527" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="194" y="554" font-size="21" fill="#f0eee5" font-weight="600" >Performance</text>
-<text x="194" y="576" font-size="13" fill="#a6afa3" font-weight="400" >Leistungskerne, 60 FPS &amp; Anzeige</text>
-<text x="604" y="567" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
+<rect x="174" y="496" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="194" y="524" font-size="23" fill="#f0eee5" font-weight="700" >Performance</text>
+<text x="194" y="547" font-size="15" fill="#a6afa3" font-weight="400" >Leistungskerne, 60 FPS &amp; Anzeige</text>
+<text x="604" y="536" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
 </g>
 <g class="button nav" role="button" tabindex="0" aria-label="Management" data-action="management">
-<rect x="648" y="527" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="668" y="554" font-size="21" fill="#f0eee5" font-weight="600" >Management</text>
-<text x="668" y="576" font-size="13" fill="#a6afa3" font-weight="400" >Speicherkarte, Berichte &amp; Quelle</text>
-<text x="1078" y="567" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
+<rect x="648" y="496" width="458" height="66" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="668" y="524" font-size="23" fill="#f0eee5" font-weight="700" >Management</text>
+<text x="668" y="547" font-size="15" fill="#a6afa3" font-weight="400" >Speicherkarte, Berichte &amp; Quelle</text>
+<text x="1078" y="536" font-size="28" fill="#d7bc7d" font-weight="400" >›</text>
 </g>
 </g></svg>

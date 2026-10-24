@@ -16,9 +16,9 @@
 <path d="M1234 0 L1256 0 L1274 720 L1216 720 Z" fill="#0c130f" opacity=".65"/>
 <path d="M1234 210L1344 80" stroke="#17201a"/>
 <rect x="0" y="0" width="1280" height="720" rx="0" fill="#080b09" stroke="none" opacity=".46"/>
-<text x="144" y="29" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">CUBEEVIL4  /  GUI-KONZEPT 01</text>
+<text x="144" y="29" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">CUBEEVIL4  /  GUI-KONZEPT 01</text>
 <text x="1136" y="29" font-size="11" fill="#a6afa3" font-weight="500" text-anchor="end">ENTWURF · BEISPIELDATEN</text>
-<g opacity=".85">
+<g opacity=".90">
 <rect x="140" y="48" width="1000" height="626" rx="12" fill="#050806" stroke="none" opacity=".6" transform="translate(0 8)"/>
 <rect x="140" y="48" width="1000" height="626" rx="10" fill="#191f1c" stroke="#414b41" />
 <rect x="140" y="48" width="1000" height="4" rx="0" fill="#d7bc7d" stroke="none" />
@@ -27,16 +27,16 @@
 <text x="233.0" y="102.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">‹  Zurück</text>
 </g>
 <text x="330" y="101" font-size="28" fill="#f0eee5" font-weight="600" >Performance</text>
-<text x="330" y="126" font-size="13" fill="#a6afa3" font-weight="400" >Leistung &amp; Bildausgabe</text>
+<text x="330" y="126" font-size="15" fill="#a6afa3" font-weight="400" >Leistung &amp; Bildausgabe</text>
 <g class="button " role="button" tabindex="0" aria-label="Weiter spielen" aria-disabled="false" data-action="resume" opacity="1">
 <rect x="925" y="76" width="181" height="44" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="1015.5" y="104.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Weiter spielen</text>
 </g>
 <path d="M174 148H1106" stroke="#414b41"/>
 <path d="M174 620H1106" stroke="#414b41"/>
-<text x="178" y="650" font-size="12" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
-<text x="1102" y="650" font-size="12" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
-<text x="178" y="179" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">PROZESSOR</text>
+<text x="178" y="650" font-size="15" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
+<text x="1102" y="650" font-size="15" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
+<text x="178" y="179" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">PROZESSOR</text>
 <text x="178" y="229" font-size="17" fill="#f0eee5" font-weight="400" >Leistung erzwingen</text>
 <g class="button selected" role="button" tabindex="0" aria-label="Standard" aria-disabled="false"  data-group="fastCores" data-value="0" aria-pressed="true" opacity="1">
 <rect x="452.0" y="199" width="321.0" height="48" rx="6" fill="#45432e" stroke="#d7bc7d" />
@@ -46,19 +46,22 @@
 <rect x="781.0" y="199" width="321.0" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="941.5" y="229.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Leistungskerne nutzen</text>
 </g>
-<text x="452" y="269" font-size="13" fill="#a6afa3" font-weight="400" >Standard: Android entscheidet über die verwendeten Kerne.</text>
-<text x="452" y="293" font-size="12" fill="#a6afa3" font-weight="400" >Leistungskerne können helfen, benötigen mehr Energie und erzeugen mehr Wärme.</text>
+<text x="452" y="269" font-size="15" fill="#a6afa3" font-weight="400" >Standard: Android entscheidet über die verwendeten Kerne.</text>
+<text x="452" y="293" font-size="15" fill="#a6afa3" font-weight="400" >Leistungskerne können helfen, benötigen mehr Energie und erzeugen mehr Wärme.</text>
 <text x="178" y="401" font-size="17" fill="#f0eee5" font-weight="400" >Bildausgabe</text>
-<g class="button toggle " role="button" tabindex="0" aria-label="60 FPS (experimentell)" aria-pressed="false" data-group="smooth60" data-toggle="true">
+<g class="button toggle " role="button" tabindex="0" aria-label="FPS-Anzeige unten links" aria-pressed="false" data-group="fps" data-toggle="true">
 <rect x="452" y="368" width="650" height="54" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="470" y="401" font-size="17" fill="#f0eee5" font-weight="500" >60 FPS (experimentell)</text>
+<text x="470" y="401" font-size="17" fill="#f0eee5" font-weight="500" >FPS-Anzeige unten links</text>
 <text x="1084" y="401" font-size="12" fill="#a6afa3" font-weight="700" text-anchor="end" class="state">AUS</text>
 </g>
-<text x="452" y="448" font-size="13" fill="#a6afa3" font-weight="400" >Zusätzliche Zwischenbilder im Renderer.</text>
-<text x="452" y="470" font-size="13" fill="#a6afa3" font-weight="400" >Die Spiellogik bleibt bei 30 Bildern/s.</text>
-<g class="button toggle " role="button" tabindex="0" aria-label="FPS-Anzeige unten links" aria-pressed="false" data-group="fps" data-toggle="true">
-<rect x="452" y="518" width="650" height="54" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="470" y="551" font-size="17" fill="#f0eee5" font-weight="500" >FPS-Anzeige unten links</text>
-<text x="1084" y="551" font-size="12" fill="#a6afa3" font-weight="700" text-anchor="end" class="state">AUS</text>
+<g class="button " role="button" tabindex="-1" aria-label="Frame-Skip" aria-disabled="true"  opacity="0.4">
+<rect x="452" y="434" width="650" height="54" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="777.0" y="467.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Frame-Skip</text>
 </g>
+<g class="button toggle " role="button" tabindex="0" aria-label="60 FPS (experimentell)" aria-pressed="false" data-group="smooth60" data-toggle="true">
+<rect x="452" y="500" width="650" height="54" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="470" y="533" font-size="17" fill="#f0eee5" font-weight="500" >60 FPS (experimentell)</text>
+<text x="1084" y="533" font-size="12" fill="#a6afa3" font-weight="700" text-anchor="end" class="state">AUS</text>
+</g>
+<text x="452" y="579" font-size="15" fill="#a6afa3" font-weight="400" >Zusätzliche Zwischenbilder. Spiellogik weiterhin 30 Bilder/s.</text>
 </g></svg>

@@ -58,6 +58,40 @@ von der tatsächlich auslassbaren Zeichenarbeit ab. **Nur geprüft, nicht
 implementiert; kein Gerätevergleich und keine gemessene Beschleunigung.**
 App und Übersetzungen bleiben gegenüber der Layout-Nachkorrektur unverändert.
 
+### Lesbarkeit, kompakter Slot und Umbruch (24.10.2026)
+
+Gesamtes Menü jetzt mit 90 % Deckkraft (10 % Transparenz). Hauptseiten-Buttons:
+19-sp-Titel fett, 15-sp-Unterzeile normal; übrige Buttons 16 sp und Infotexte
+überwiegend 15 sp. Im niedrigeren Speicherslot stehen Titel, Kapitel/Raum/
+Spielzeit und Speicherzeit links untereinander, Speichern/Laden rechts
+untereinander. Bei wenig Platz rücken die Aktionen unter die Informationen.
+`MenuLayout` passt Auswahlspalten an reale verfügbare Breite und Textlänge an;
+Einstellungszeilen, Gyro, Slot und Kopf berücksichtigen auch die Systemschrift.
+Größenänderungen des App-Fensters passen das offene Menü an. Der größere
+Navigationshinweis scrollt mit. Alle bisherigen Sprachressourcen erhalten.
+Aktualisierte breite Screendesigns, PDF und Vorschau. Keine Änderung an
+Instant-Dateiformat.
+
+**Ergänzungen:** Patch 0112 veröffentlicht den ruhenden Titelzustand und
+übernimmt Instant-Laden über den originalen Titel-Ladeweg (GameLoad,
+titleExit, GameTask, gameInit). Laden ist dort auch ohne Spieler und zuvor
+geöffneten normalen Spielstand erlaubt; Speichern bleibt gesperrt. Logos,
+Demo-Filme, Karten-Zugriff und laufende Übergänge erlauben keine neue Ladung.
+Frame-Skip ist nur als deaktivierter, übersetzter Button eingefügt: Reihenfolge
+FPS-Anzeige → Frame-Skip → 60 FPS experimentell. Keine Frame-Skip-Funktion.
+
+Prüfungen: drei Android-View-Tests bestanden (750 Layouts über fünf Seiten,
+zehn Sprachen, vier Breiten und drei Schriftgrößen, inklusive RTL/Größenwechsel;
+zusätzlich Schriftgewicht und Startmenü-/Platzhalterzustand). 117 Texte und
+ein Plural je Sprache geprüft. x86_64- und i686/QEMU-Kernprüfung einschließlich
+Original-Erfassung und Titel-Freigaben sowie Instant-Dateitests bestanden.
+ARM32 und ARM64, je 114 Module, fehlerfrei gebaut. SDK-Ressourcen, alle Java-
+Quellen, DEX und signierte Debug-APK erfolgreich gebaut und verifiziert.
+Android-Lint direkt mit dem coreDebug-Projektmodell: 0 Fehler.
+Finaler Gradle-Lauf durch gesperrte lokale Build-Verbindung in der Cloud
+blockiert; View-Tests direkt mit JUnit ausgeführt. Gerätetest auf dem Retroid
+mit echten Disc-Daten für den vollständigen Titel-Ladeablauf noch offen.
+
 ## Kurzstand
 
 | Meilenstein | Stand |

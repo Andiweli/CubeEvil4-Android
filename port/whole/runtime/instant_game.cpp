@@ -13,6 +13,7 @@
 #include "main_sub.h"
 #include "snd.h"
 #include "sce.h"
+#include "title.h"
 #include "re4_instant.h"
 #include <dolphin/os.h>
 #include <math.h>
@@ -30,6 +31,8 @@ u8 gRestore[0x12000] __attribute__((aligned(32)));
 SAVE_DATA_HEAD gHead;
 bool gClockPaused;
 bool gRestorePending;
+bool gRestoreFromTitle;
+TITLE_WORK* gTitle;
 
 bool live(const void* p)
 {
@@ -41,6 +44,15 @@ bool shapeFits()
 {
     return RoomData.getSaveDataSize() >= 0x10 && RoomData.getSaveDataSize() <= 0x7EA0 &&
            SscrnDataSize() == 4 && MerchantDataSize() <= 0x324 && ItemMgr.saveDataSize() == 0x1204;
+}
+
+bool titleReady()
+{
+    // Only the idle main title menu, after buffers/managers and the card check are initialized.
+    // STA_TITLE is checked before the pointer: titleExit frees TITLE_WORK before chaining tasks.
+    return !gRestorePending && live(pG) && StaFlagChk(pG, STA_TITLE) && live(gTitle) &&
+           gTitle->Rno0 == 5 && gTitle->Rno1 == 1 && live(pSaveData) && live(pSys) &&
+           !SysFlagChk(pG, SYS_CARD_ACCESS) && shapeFits();
 }
 
 void header()
@@ -70,7 +82,7 @@ extern "C" unsigned re4_instant_game_chapter(unsigned number)
 extern "C" int re4_instant_game_ready(void)
 {
     // Same event/menu restrictions as the game's pause menu, plus a live player and save image.
-    if (gRestorePending || !live(pG) || pG->Rno0 != 3 || !live(pPL) || !live(pSaveData) || !live(pSys) ||
+    if (gRestorePending || !live(pG) || StaFlagChk(pG, STA_TITLE) || pG->Rno0 != 3 || !live(pPL) || !live(pSaveData) || !live(pSys) ||
         !OptionOpenCheck() || SubScreenWk.open_flag != SS_OPEN_NULL || StaFlagChk(pG, STA_DIEDEMO) ||
         StaFlagChk(pG, STA_EVENT) || SysFlagChk(pG, SYS_CARD_ACCESS) || SysFlagChk(pG, SYS_TRANS_STOP) ||
         !pG->pl_life || pPL->r_no_0 != 0)
@@ -79,10 +91,15 @@ extern "C" int re4_instant_game_ready(void)
            isfinite(pPL->ang.y);
 }
 
+extern "C" int re4_instant_game_can_load(void)
+{
+    return re4_instant_game_ready() || titleReady();
+}
+
 extern "C" void re4_instant_game_pause(int on)
 {
     if (on) {
-        gClockPaused = live(pG) && pG->Rno0 == 3;
+        gClockPaused = live(pG) && !StaFlagChk(pG, STA_TITLE) && pG->Rno0 == 3;
         if (gClockPaused)
             SetGameTime();
     } else if (gClockPaused) {
@@ -132,7 +149,7 @@ extern "C" void re4_instant_game_saved(void)
 
 extern "C" int re4_instant_game_restore(const unsigned char* in)
 {
-    if (!re4_instant_game_ready())
+    if (!re4_instant_game_can_load())
         return RE4_INSTANT_BUSY;
     memcpy(gData, in, sizeof(gData));
     header();
@@ -141,19 +158,18 @@ extern "C" int re4_instant_game_restore(const unsigned char* in)
     if (roomBytes != RoomData.getSaveDataSize())
         return RE4_INSTANT_BAD;
     memcpy(gRestore, gData, sizeof(gRestore));
+    gRestoreFromTitle = titleReady();
     gRestorePending = true;
     // Loading can read a different weapon archive and sleep. Never run that inside PADRead's
-    // pause callback. Patch 0111 services it on GameTask after the app closes the menu instead.
+    // pause callback. Patches 0111/0112 service it on the game/title task after menu dismissal.
     return RE4_INSTANT_OK;
 }
 
-extern "C" int re4_instant_game_tick(void)
+namespace {
+void installRestore()
 {
-    if (!gRestorePending)
-        return 0;
     gRestorePending = false;
     memcpy(gData, gRestore, sizeof(gData));
-    pG->Stop_flg = 0xFFFFFFFF;
     u32 roomBytes;
     memcpy(&roomBytes, gData + 0x6930, 4);
     // Use the existing checkpoint's allocated sections. They remain pointer-bearing only in RAM.
@@ -165,6 +181,33 @@ extern "C" int re4_instant_game_tick(void)
     memcpy(pSaveData->pMr, gData + 0xE7D4, MerchantDataSize());
     memcpy(pSys, gData + 0x11E40, sizeof(SYSTEM_SAVE_WORK));
     SndAllFadeOut();
+}
+}
+
+extern "C" void re4_instant_title_tick(void* work)
+{
+    gTitle = (TITLE_WORK*) work;
+    if (!gRestorePending || !gRestoreFromTitle)
+        return;
+    // Mark the transition before calls that may yield, so a second menu cannot queue another load.
+    gTitle->Rno0 = 7;
+    gTitle->Rno1 = 0;
+    installRestore();
+    gRestoreFromTitle = false;
+    // Use the same route as CardLoad in the title, without GameContinue's existing-room teardown.
+    SysFlagOff(pG, SYS_NEW_GAME);
+    SysFlagOff(pG, SYS_OMAKE_ADA_GAME);
+    SysFlagOff(pG, SYS_OMAKE_ETC_GAME);
+    GameLoad();
+    // Original titleExit cleans up the title and chains into GameTask / gameInit.
+}
+
+extern "C" int re4_instant_game_tick(void)
+{
+    if (!gRestorePending || gRestoreFromTitle)
+        return 0;
+    pG->Stop_flg = 0xFFFFFFFF;
+    installRestore();
     // The game's own option-menu load path: rebuild the room at the saved position, then
     // restore the saved play time/counters (GameContinue alone intentionally keeps current time).
     GameContinue(1);

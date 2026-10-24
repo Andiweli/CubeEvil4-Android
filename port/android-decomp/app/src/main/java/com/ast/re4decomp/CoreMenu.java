@@ -1,6 +1,7 @@
 package com.ast.re4decomp;
 
 import android.app.AlertDialog;
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -16,6 +17,7 @@ import android.os.Looper;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -70,10 +72,10 @@ final class CoreMenu extends Dialog {
   private final SharedPreferences graphics, input;
   private boolean tools;
   private final int screenWidth, screenHeight;
-  private final boolean wide;
-  private final LinearLayout root, body, top;
+  private final View hostDecor;
+  private final LinearLayout root, body;
   private final ScrollView scroll;
-  private final TextView title, versionText;
+  private final TextView title;
   private final Button back, resume;
   private final Handler main = new Handler(Looper.getMainLooper());
   private final int[] scrollY = new int[5];
@@ -82,6 +84,9 @@ final class CoreMenu extends Dialog {
   private boolean working, slotPresent;
   private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus;
   private Button exportAll, saveSlot, loadSlot;
+  private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+    if (r - l != oldR - oldL || b - t != oldB - oldT) resizeWindow();
+  };
 
   CoreMenu(Context context, Host host, boolean tools, int screenWidth, int screenHeight) {
     super(context);
@@ -89,32 +94,17 @@ final class CoreMenu extends Dialog {
     this.tools = tools;
     this.screenWidth = screenWidth;
     this.screenHeight = screenHeight;
+    hostDecor = context instanceof Activity ? ((Activity) context).getWindow().getDecorView() : null;
     graphics = context.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, Context.MODE_PRIVATE);
     input = context.getSharedPreferences(CoreActivity.INPUT_PREFS, Context.MODE_PRIVATE);
-    wide = context.getResources().getDisplayMetrics().widthPixels
-        / context.getResources().getDisplayMetrics().density >= 700;
     requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
     root = column();
     root.setPadding(dp(20), dp(16), dp(20), dp(12));
     root.setBackground(shape(PANEL, BORDER, 10));
-    top = wide ? row() : column();
-    LinearLayout topActions = wide ? top : row();
-    back = action(topActions, s(R.string.ingame_return), v -> goBack(), false);
-    LinearLayout titles = row();
+    back = button(s(R.string.ingame_return), v -> goBack());
     title = text("", 22, true);
-    titles.addView(title, wide ? new LinearLayout.LayoutParams(-2, -2)
-        : new LinearLayout.LayoutParams(-1, -2));
-    versionText = text("", 13, false);
-    versionText.setPaddingRelative(dp(8), 0, dp(8), 0);
-    String version = version();
-    if (version != null) versionText.setText(String.format(Locale.ROOT, "(v%s)", version));
-    titles.addView(versionText);
-    top.addView(titles, wide ? new LinearLayout.LayoutParams(0, -2, 1)
-        : new LinearLayout.LayoutParams(-1, -2));
-    if (!wide) topActions.addView(new View(context), new LinearLayout.LayoutParams(0, 1, 1));
-    resume = action(topActions, s(R.string.ingame_back), v -> close(), false);
-    if (!wide) top.addView(topActions);
-    root.addView(top);
+    resume = button(s(R.string.ingame_back), v -> close());
+    root.addView(new MenuLayout.Header(context, back, title, resume), new LinearLayout.LayoutParams(-1, -2));
     separator(root);
     scroll = new ScrollView(context);
     scroll.setFillViewport(false);
@@ -122,10 +112,6 @@ final class CoreMenu extends Dialog {
     body.setPadding(0, dp(4), 0, dp(8));
     scroll.addView(body);
     root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-    separator(root);
-    TextView footer = text(s(R.string.ingame_navigation), 11, false);
-    footer.setPadding(0, dp(8), 0, 0);
-    root.addView(footer);
     setContentView(root);
     setCanceledOnTouchOutside(false);
     showPage(HOME, false);
@@ -155,17 +141,15 @@ final class CoreMenu extends Dialog {
     state.addState(new int[] {android.R.attr.state_pressed}, shape(ACTIVE, GOLD, 6));
     state.addState(new int[] {android.R.attr.state_selected}, shape(ACTIVE, GOLD, 6));
     state.addState(new int[0], shape(SURFACE, BORDER, 6));
-    b.setBackground(state); b.setAllCaps(false); b.setTextSize(14); b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    b.setBackground(state); b.setAllCaps(false); b.setTextSize(16); b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
     b.setTextColor(new ColorStateList(new int[][] {new int[] {-android.R.attr.state_enabled},
         new int[] {android.R.attr.state_selected}, new int[0]}, new int[] {0xff70796f, GOLD, INK}));
     b.setPadding(dp(12), dp(8), dp(12), dp(8)); b.setMinHeight(dp(48)); b.setMinimumHeight(dp(48));
     b.setMinWidth(0); b.setMinimumWidth(0); b.setId(View.generateViewId());
   }
-  private Button action(LinearLayout parent, String label, View.OnClickListener click, boolean weighted) {
+  private Button button(String label, View.OnClickListener click) {
     Button b = new Button(getContext()); style(b); b.setText(label); b.setOnClickListener(click);
-    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(weighted ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT, weighted ? 1 : 0);
-    lp.setMargins(dp(3), dp(4), dp(3), dp(4)); parent.addView(b, lp); return b;
+    return b;
   }
   private void separator(LinearLayout parent) {
     View v = new View(getContext()); v.setBackgroundColor(BORDER);
@@ -173,55 +157,50 @@ final class CoreMenu extends Dialog {
     lp.setMargins(0, dp(10), 0, dp(8)); parent.addView(v, lp);
   }
   private void heading(int id) {
-    TextView v = text(s(id).toUpperCase(Locale.getDefault()), 12, true); v.setTextColor(MUTED); v.setLetterSpacing(.12f);
+    TextView v = text(s(id).toUpperCase(Locale.getDefault()), 14, true); v.setTextColor(MUTED); v.setLetterSpacing(.08f);
     v.setPadding(0, dp(16), 0, dp(8)); body.addView(v);
   }
   private void help(int id) { help(body, id); }
   private void help(LinearLayout parent, int id) {
-    TextView t = text(s(id), 12, false); t.setPadding(0, dp(4), 0, dp(8)); parent.addView(t);
+    TextView t = text(s(id), 15, false); t.setPadding(0, dp(4), 0, dp(8)); parent.addView(t);
   }
   /** Align a stack of buttons with the choices' option column; label 0 leaves the caption empty. */
   private LinearLayout labelledOptions(int label) {
-    LinearLayout outer = wide ? row() : column();
+    LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, label == 0);
     outer.setGravity(Gravity.TOP);
     if (label != 0) {
-      TextView caption = text(s(label), 14, true);
-      caption.setPadding(0, wide ? dp(18) : 0, 0, 0);
-      outer.addView(caption, new LinearLayout.LayoutParams(wide ? dp(170) : ViewGroup.LayoutParams.MATCH_PARENT,
-          ViewGroup.LayoutParams.WRAP_CONTENT));
-    } else if (wide) outer.addView(new View(getContext()), new LinearLayout.LayoutParams(dp(170), 1));
+      TextView caption = text(s(label), 16, true);
+      caption.setPadding(0, dp(8), dp(8), 0);
+      outer.addView(caption);
+    } else outer.addView(new View(getContext()));
     LinearLayout options = column();
-    outer.addView(options, wide ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)
-        : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    outer.addView(options);
     outer.setPadding(0, dp(3), 0, dp(3)); body.addView(outer);
     return options;
   }
-  private LinearLayout buttonsRow(LinearLayout parent) {
-    LinearLayout row = wide ? row() : column(); parent.addView(row); return row;
+  private MenuLayout.Buttons buttonsRow(LinearLayout parent) {
+    MenuLayout.Buttons buttons = new MenuLayout.Buttons(getContext(), 2);
+    parent.addView(buttons, new LinearLayout.LayoutParams(-1, -2)); return buttons;
   }
-  private Button cellAction(LinearLayout parent, String label, View.OnClickListener click) {
-    if (wide) return action(parent, label, click, true);
-    Button b = action(parent, label, click, false);
-    b.getLayoutParams().width = ViewGroup.LayoutParams.MATCH_PARENT; return b;
+  private Button cellAction(MenuLayout.Buttons parent, String label, View.OnClickListener click) {
+    Button b = button(label, click); parent.addButton(b); return b;
   }
   private void choices(int label, String[] labels, int[] values, int selected, int limit, Changed<Integer> changed) {
-    LinearLayout outer = wide ? row() : column();
-    TextView caption = text(s(label), 14, true);
-    outer.addView(caption, new LinearLayout.LayoutParams(wide ? dp(170) : ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
-    LinearLayout options = row();
-    outer.addView(options, wide ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)
-        : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, false);
+    TextView caption = text(s(label), 16, true); caption.setPadding(0, 0, dp(8), 0);
+    outer.addView(caption);
+    MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), labels.length);
+    outer.addView(options);
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
       final int index = i;
-      Button b = action(options, labels[i], v -> {
+      Button b = cellAction(options, labels[i], v -> {
         for (int k = 0; k < buttons.length; k++) {
           buttons[k].setSelected(k == index);
           buttons[k].setContentDescription(labels[k] + ", " + s(k == index ? R.string.ingame_on : R.string.ingame_off));
         }
         changed.accept(values[index]);
-      }, true);
+      });
       b.setSelected(values[i] == selected); b.setEnabled(limit >= values[i]);
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       buttons[i] = b;
@@ -233,7 +212,7 @@ final class CoreMenu extends Dialog {
       graphics.edit().putInt(key, value).apply(); host.graphicsChanged(); showGraphics();
     });
   }
-  private Button toggle(LinearLayout parent, int label, boolean on, Changed<Boolean> changed) {
+  private Button toggle(MenuLayout.Buttons parent, int label, boolean on, Changed<Boolean> changed) {
     Button b = cellAction(parent, "", v -> {
       Button pressed = (Button) v; boolean next = !pressed.isSelected();
       toggleLabel(pressed, label, next); changed.accept(next);
@@ -256,18 +235,20 @@ final class CoreMenu extends Dialog {
     scrollY[page] = scroll.getScrollY(); page = next; ++requestSerial;
     body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null;
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
-    title.setPaddingRelative(page != HOME && wide ? dp(16) : 0, 0, 0, 0);
-    versionText.setVisibility(page == HOME && wide ? View.VISIBLE : View.GONE);
     int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_controls_page,
         R.string.ingame_performance, R.string.ingame_management};
-    if (page == HOME && !wide && version() != null) {
+    if (page == HOME && version() != null) {
       SpannableStringBuilder t = new SpannableStringBuilder(s(titles[page]));
       int start = t.length(); t.append(" (v").append(version()).append(")");
       t.setSpan(new RelativeSizeSpan(.6f), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+      t.setSpan(new StyleSpan(Typeface.NORMAL), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
       title.setText(t);
     } else title.setText(s(titles[page]));
     if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == CONTROLS) controls();
     else if (page == PERFORMANCE) performance(); else management();
+    separator(body);
+    TextView footer = text(s(R.string.ingame_navigation), 14, false);
+    footer.setPadding(0, dp(8), 0, 0); body.addView(footer);
     main.post(() -> {
       scroll.scrollTo(0, scrollY[page]);
       if (focus) { if (page == HOME) resume.requestFocus(); else back.requestFocus(); }
@@ -287,39 +268,43 @@ final class CoreMenu extends Dialog {
   @android.annotation.SuppressLint("RtlHardcoded") // requested physical left/right slot metadata
   private void home() {
     heading(R.string.ingame_instant);
-    LinearLayout slot = column(); slot.setPadding(dp(16), dp(12), dp(16), dp(12));
+    LinearLayout slot = new MenuLayout.Columns(getContext(), -180, 620, false);
+    slot.setPadding(dp(12), dp(6), dp(12), dp(6));
     slot.setBackground(shape(0xff202720, BORDER, 6));
-    slot.addView(text(s(R.string.ingame_slot), 18, true));
-    LinearLayout metadata = wide ? row() : column();
-    slotDetails = text("", 13, false); slotDate = text("", 13, false);
-    // Requested physical left/right alignment; Arabic text within each field still uses its locale.
-    slotDetails.setGravity(Gravity.LEFT); slotDate.setGravity(Gravity.RIGHT);
-    metadata.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-    if (wide) {
-      metadata.addView(slotDetails, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-      metadata.addView(slotDate, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-    } else { metadata.addView(slotDetails); metadata.addView(slotDate, new LinearLayout.LayoutParams(-1, -2)); }
-    metadata.setPadding(0, dp(10), 0, dp(10)); slot.addView(metadata);
-    LinearLayout actions = row();
-    saveSlot = action(actions, s(R.string.ingame_instant_save), v -> confirmInstant(1), true); saveSlot.setSelected(true);
-    loadSlot = action(actions, s(R.string.ingame_instant_load), v -> confirmInstant(2), true);
+    LinearLayout metadata = column(); metadata.setPadding(0, dp(4), dp(12), dp(4));
+    metadata.addView(text(s(R.string.ingame_slot), 18, true));
+    slotDetails = text("", 15, false); slotDate = text("", 15, false);
+    // Metadata stays physically left aligned; Arabic text still uses its locale.
+    slotDetails.setGravity(Gravity.LEFT); slotDate.setGravity(Gravity.LEFT);
+    slot.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+    // Keep the requested physical columns; text itself still follows the selected locale.
+    metadata.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
+    metadata.addView(slotDetails); metadata.addView(slotDate); slot.addView(metadata);
+    MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 1);
+    actions.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
+    saveSlot = cellAction(actions, s(R.string.ingame_instant_save), v -> confirmInstant(1)); saveSlot.setSelected(true);
+    loadSlot = cellAction(actions, s(R.string.ingame_instant_load), v -> confirmInstant(2));
     saveSlot.setEnabled(false); loadSlot.setEnabled(false); slot.addView(actions); body.addView(slot);
-    slotStatus = text(s(R.string.ingame_instant_checking), 12, false); slotStatus.setPadding(0, dp(6), 0, dp(6));
+    slotStatus = text(s(R.string.ingame_instant_checking), 15, false); slotStatus.setPadding(0, dp(6), 0, dp(6));
     slotStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); body.addView(slotStatus);
     heading(R.string.ingame_settings);
-    LinearLayout first = buttonsRow(body), second = buttonsRow(body);
+    MenuLayout.Buttons first = buttonsRow(body), second = buttonsRow(body);
     navigation[DISPLAY] = nav(first, R.string.ingame_display, R.string.ingame_display_summary, DISPLAY);
     navigation[CONTROLS] = nav(first, R.string.ingame_controls_page, R.string.ingame_controls_summary, CONTROLS);
     navigation[PERFORMANCE] = nav(second, R.string.ingame_performance, R.string.ingame_performance_summary, PERFORMANCE);
     navigation[MANAGEMENT] = nav(second, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
     main.post(() -> { if (isShowing() && page == HOME && !working) refreshInstant(); });
   }
-  private Button nav(LinearLayout parent, int title, int summary, int target) {
+  private Button nav(MenuLayout.Buttons parent, int title, int summary, int target) {
     SpannableStringBuilder label = new SpannableStringBuilder(s(title) + "   ›\n");
     int from = label.length(); label.append(s(summary));
-    label.setSpan(new RelativeSizeSpan(.78f), from, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    label.setSpan(new StyleSpan(Typeface.BOLD), 0, from, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    label.setSpan(new RelativeSizeSpan(15f / 19f), from, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    label.setSpan(new StyleSpan(Typeface.NORMAL), from, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
     Button b = cellAction(parent, label.toString(), v -> showPage(target, true));
-    b.setText(label); b.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); b.setMinHeight(dp(66)); return b;
+    b.setTypeface(Typeface.DEFAULT, Typeface.NORMAL); b.setTextSize(19);
+    b.setText(label); b.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+    b.setMinHeight(dp(66)); b.setMinimumHeight(dp(66)); return b;
   }
 
   private void display() {
@@ -330,7 +315,7 @@ final class CoreMenu extends Dialog {
     int anisotropy = info == null ? 1 : Math.max(1, info[1]);
     graphicChoices(R.string.ingame_resolution, "scale", new String[] {s(R.string.ingame_dynamic), "1×", "2×", "3×", "4×"},
         new int[] {0, 1, 2, 3, 4}, 0, Integer.MAX_VALUE);
-    graphicsLine = text("", 12, false); body.addView(graphicsLine); showGraphics();
+    graphicsLine = text("", 15, false); body.addView(graphicsLine); showGraphics();
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
         new int[] {1, 2, 4}, 1, samples);
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
@@ -347,28 +332,29 @@ final class CoreMenu extends Dialog {
         new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input), Integer.MAX_VALUE,
         mode -> host.touchModeChanged(mode));
     help(R.string.ingame_touch_help); heading(R.string.ingame_comfort);
-    LinearLayout first = buttonsRow(body);
+    MenuLayout.Buttons first = buttonsRow(body);
     toggle(first, R.string.ingame_alternate, input.getBoolean(CoreActivity.ALT_CONTROLS, false), on -> host.alternateChanged(on));
     toggle(first, R.string.ingame_knife_swipe, input.getBoolean(CoreActivity.KNIFE_SWIPE, true), on -> host.knifeSwipeChanged(on));
-    LinearLayout second = buttonsRow(body);
+    MenuLayout.Buttons second = buttonsRow(body);
     toggle(second, R.string.ingame_latch, input.getBoolean(CoreActivity.TOUCH_LATCH, false), on -> host.latchChanged(on));
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
     boolean gyro = GyroAim.available(getContext()), on = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
-    LinearLayout third = buttonsRow(body);
+    LinearLayout third = new MenuLayout.Columns(getContext(), 0, 540, false);
+    body.addView(third);
     LinearLayout sensitivityBox = column();
-    SeekBar sensitivity = new SeekBar(getContext()); TextView valueText = text("", 14, false);
-    Button gyroButton = toggle(third, gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, on, enabled -> {
+    SeekBar sensitivity = new SeekBar(getContext()); TextView valueText = text("", 15, false);
+    Button gyroButton = toggle(buttonsRow(third), gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, on, enabled -> {
       host.gyroChanged(enabled); sensitivity.setEnabled(enabled); valueText.setEnabled(enabled);
     });
     gyroButton.setEnabled(gyro);
-    TextView sensitivityTitle = text(s(R.string.ingame_gyro_sensitivity), 13, false);
+    TextView sensitivityTitle = text(s(R.string.ingame_gyro_sensitivity), 15, false);
     sensitivityTitle.setGravity(Gravity.CENTER_HORIZONTAL);
     sensitivityBox.addView(sensitivityTitle, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT));
     LinearLayout slider = row();
     slider.addView(sensitivity, new LinearLayout.LayoutParams(0, dp(48), 1)); slider.addView(valueText);
     sensitivityBox.addView(slider);
-    third.addView(sensitivityBox, wide ? new LinearLayout.LayoutParams(0, -2, 1) : new LinearLayout.LayoutParams(-1, -2));
+    third.addView(sensitivityBox);
     int steps = Math.round((GyroAim.MAX_SENSITIVITY - GyroAim.MIN_SENSITIVITY) / GyroAim.SENSITIVITY_STEP);
     float stored = GyroAim.clampSensitivity(input.getFloat(CoreActivity.GYRO_SENSITIVITY, 1f));
     sensitivity.setMax(steps); sensitivity.setProgress(Math.round((stored - GyroAim.MIN_SENSITIVITY) / GyroAim.SENSITIVITY_STEP));
@@ -393,25 +379,27 @@ final class CoreMenu extends Dialog {
         });
     help(R.string.ingame_perf_help);
     LinearLayout output = labelledOptions(R.string.ingame_output);
+    toggle(buttonsRow(output), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
+      graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
+    });
+    Button frameSkip = cellAction(buttonsRow(output), s(R.string.ingame_frame_skip), null);
+    frameSkip.setEnabled(false); // reserved placement only; no preference, callback or renderer change
     toggle(buttonsRow(output), R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
       graphics.edit().putBoolean("smooth60", on).apply(); CoreBridge.setSmooth(on);
     });
     help(output, R.string.ingame_smooth_help);
-    toggle(buttonsRow(output), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
-      graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
-    });
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);
-    cardLine = text("", 12, false); body.addView(cardLine);
-    LinearLayout cardButtons = buttonsRow(body);
+    cardLine = text("", 15, false); body.addView(cardLine);
+    MenuLayout.Buttons cardButtons = buttonsRow(body);
     exportAll = cellAction(cardButtons, s(R.string.ingame_export), v -> host.exportAll());
     cellAction(cardButtons, s(R.string.ingame_import), v -> host.importFiles()); refreshCard();
     heading(R.string.ingame_log); help(R.string.ingame_log_help);
-    LinearLayout log = buttonsRow(body);
+    MenuLayout.Buttons log = buttonsRow(body);
     toggle(log, R.string.ingame_log_record, CoreLog.enabled(getContext()), on -> host.logChanged(on));
     toggle(log, R.string.ingame_log_capture, tools, on -> { tools = on; host.toolsChanged(on); });
-    LinearLayout reports = buttonsRow(body);
+    MenuLayout.Buttons reports = buttonsRow(body);
     cellAction(reports, s(R.string.ingame_report_send), v -> host.shareReport());
     cellAction(reports, s(R.string.ingame_report_save), v -> host.saveReport());
     heading(R.string.ingame_source);
@@ -465,7 +453,7 @@ final class CoreMenu extends Dialog {
     if (data[0] == -5) status = R.string.ingame_instant_unsupported;
     else if (data[0] == -3) status = R.string.ingame_instant_damaged;
     else if (data[0] == -4) status = R.string.ingame_instant_failed;
-    else if (data[0] == -1 || data[2] == 0) status = R.string.ingame_instant_unavailable;
+    else if (data[0] == -1 || (data[2] == 0 && data[3] == 0)) status = R.string.ingame_instant_unavailable;
     slotStatus.setText(s(status));
   }
   void refreshCard() {
@@ -553,17 +541,28 @@ final class CoreMenu extends Dialog {
   @Override protected void onStart() {
     super.onStart();
     if (getWindow() != null) {
-      android.util.DisplayMetrics d = getContext().getResources().getDisplayMetrics();
       getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-      getWindow().setLayout(Math.min(dp(1000), Math.round(d.widthPixels * .96f)),
-          Math.min(dp(650), Math.round(d.heightPixels * .94f)));
+      resizeWindow();
       getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
       WindowManager.LayoutParams attrs = getWindow().getAttributes(); attrs.dimAmount = .72f;
-      attrs.alpha = .85f; // Entire app-menu window: 15% transparency, 85% opacity.
+      attrs.alpha = .90f; // Entire app-menu window: 10% transparency, 90% opacity.
       getWindow().setAttributes(attrs);
     }
+    if (hostDecor != null) hostDecor.addOnLayoutChangeListener(windowLayout);
     resume.requestFocus();
     if (page == HOME && !working) refreshInstant();
+  }
+  private void resizeWindow() {
+    if (getWindow() == null) return;
+    android.util.DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+    int width = hostDecor != null && hostDecor.getWidth() > 0 ? hostDecor.getWidth() : metrics.widthPixels;
+    int height = hostDecor != null && hostDecor.getHeight() > 0 ? hostDecor.getHeight() : metrics.heightPixels;
+    getWindow().setLayout(Math.min(dp(1000), Math.round(width * .96f)),
+        Math.min(dp(650), Math.round(height * .94f)));
+  }
+  @Override protected void onStop() {
+    if (hostDecor != null) hostDecor.removeOnLayoutChangeListener(windowLayout);
+    super.onStop();
   }
   @Override public boolean dispatchKeyEvent(KeyEvent event) {
     int key = event.getKeyCode();

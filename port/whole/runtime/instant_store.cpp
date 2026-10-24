@@ -108,18 +108,20 @@ extern "C" int re4_instant_perform(int operation, Re4InstantInfo* info)
     const int previous = readSlot(path, file, info);
     const bool ready = re4_instant_game_ready() != 0;
     info->canSave = ready;
-    info->canLoad = ready && previous == RE4_INSTANT_OK;
+    info->canLoad = re4_instant_game_can_load() && previous == RE4_INSTANT_OK;
     if (operation == RE4_INSTANT_STATUS)
         return previous == RE4_INSTANT_EMPTY ? RE4_INSTANT_OK : previous;
-    if (!ready)
-        return RE4_INSTANT_BUSY;
     if (operation == RE4_INSTANT_LOAD) {
+        if (!re4_instant_game_can_load())
+            return RE4_INSTANT_BUSY;
         if (previous != RE4_INSTANT_OK)
             return previous;
         return re4_instant_game_restore(file + kHeader);
     }
     if (operation != RE4_INSTANT_SAVE)
         return RE4_INSTANT_BAD;
+    if (!ready)
+        return RE4_INSTANT_BUSY;
     memset(file, 0, kFileBytes);
     unsigned char* p = file;
     const int capture = re4_instant_game_capture(p + kHeader);

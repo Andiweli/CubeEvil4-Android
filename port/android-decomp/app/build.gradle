@@ -89,9 +89,12 @@ android {
     // size stays about the same (only the device's ABI is extracted).
     packaging { jniLibs { useLegacyPackaging = true } }
     lint { abortOnError true }
+    testOptions { unitTests.includeAndroidResources = true }
 }
 
 dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
     // RetroTouch (MIT, github.com/Andiweli/RetroTouch): the touch controls of the core mode
     // (TouchControls). An update replaces libs/retrotouch.aar; the file name carries no version.
     implementation files('libs/retrotouch.aar')

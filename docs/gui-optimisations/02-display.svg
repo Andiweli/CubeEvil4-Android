@@ -16,9 +16,9 @@
 <path d="M1234 0 L1256 0 L1274 720 L1216 720 Z" fill="#0c130f" opacity=".65"/>
 <path d="M1234 210L1344 80" stroke="#17201a"/>
 <rect x="0" y="0" width="1280" height="720" rx="0" fill="#080b09" stroke="none" opacity=".46"/>
-<text x="144" y="29" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">CUBEEVIL4  /  GUI-KONZEPT 01</text>
+<text x="144" y="29" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">CUBEEVIL4  /  GUI-KONZEPT 01</text>
 <text x="1136" y="29" font-size="11" fill="#a6afa3" font-weight="500" text-anchor="end">ENTWURF · BEISPIELDATEN</text>
-<g opacity=".85">
+<g opacity=".90">
 <rect x="140" y="48" width="1000" height="626" rx="12" fill="#050806" stroke="none" opacity=".6" transform="translate(0 8)"/>
 <rect x="140" y="48" width="1000" height="626" rx="10" fill="#191f1c" stroke="#414b41" />
 <rect x="140" y="48" width="1000" height="4" rx="0" fill="#d7bc7d" stroke="none" />
@@ -27,16 +27,16 @@
 <text x="233.0" y="102.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">‹  Zurück</text>
 </g>
 <text x="330" y="101" font-size="28" fill="#f0eee5" font-weight="600" >Anzeige</text>
-<text x="330" y="126" font-size="13" fill="#a6afa3" font-weight="400" >Bildqualität &amp; Darstellung</text>
+<text x="330" y="126" font-size="15" fill="#a6afa3" font-weight="400" >Bildqualität &amp; Darstellung</text>
 <g class="button " role="button" tabindex="0" aria-label="Weiter spielen" aria-disabled="false" data-action="resume" opacity="1">
 <rect x="925" y="76" width="181" height="44" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="1015.5" y="104.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Weiter spielen</text>
 </g>
 <path d="M174 148H1106" stroke="#414b41"/>
 <path d="M174 620H1106" stroke="#414b41"/>
-<text x="178" y="650" font-size="12" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
-<text x="1102" y="650" font-size="12" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
-<text x="178" y="179" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">BILDQUALITÄT</text>
+<text x="178" y="650" font-size="15" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
+<text x="1102" y="650" font-size="15" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
+<text x="178" y="179" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">BILDQUALITÄT</text>
 <text x="178" y="226" font-size="17" fill="#f0eee5" font-weight="400" >Auflösung</text>
 <g class="button selected" role="button" tabindex="0" aria-label="Dynamisch" aria-disabled="false"  data-group="scale" data-value="0" aria-pressed="true" opacity="1">
 <rect x="452.0" y="196" width="123.6" height="48" rx="6" fill="#45432e" stroke="#d7bc7d" />
@@ -58,7 +58,7 @@
 <rect x="978.4" y="196" width="123.6" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="1040.2" y="226.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">4×</text>
 </g>
-<text x="452" y="264" font-size="12" fill="#a6afa3" font-weight="400" >Beispiel: 1280 × 672 Pixel · Dynamisch · Bildschirm 1920 × 1080</text>
+<text x="452" y="264" font-size="15" fill="#a6afa3" font-weight="400" >Beispiel: 1280 × 672 Pixel · Dynamisch · Bildschirm 1920 × 1080</text>
 <text x="178" y="313" font-size="17" fill="#f0eee5" font-weight="400" >Kantenglättung</text>
 <g class="button selected" role="button" tabindex="0" aria-label="Aus" aria-disabled="false"  data-group="samples" data-value="0" aria-pressed="true" opacity="1">
 <rect x="452.0" y="283" width="211.33333333333334" height="48" rx="6" fill="#45432e" stroke="#d7bc7d" />
@@ -93,7 +93,7 @@
 <rect x="978.4" y="346" width="123.6" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="1040.2" y="376.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">16×</text>
 </g>
-<text x="178" y="429" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">DARSTELLUNG</text>
+<text x="178" y="429" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">DARSTELLUNG</text>
 <text x="178" y="476" font-size="17" fill="#f0eee5" font-weight="400" >Bildformat</text>
 <g class="button " role="button" tabindex="0" aria-label="4:3 (GC)" aria-disabled="false"  data-group="aspect" data-value="0" aria-pressed="false" opacity="1">
 <rect x="452.0" y="446" width="156.5" height="48" rx="6" fill="#222a25" stroke="#414b41" />
@@ -116,5 +116,5 @@
 <text x="470" y="547" font-size="17" fill="#f0eee5" font-weight="500" >Tiefenschärfe</text>
 <text x="1084" y="547" font-size="12" fill="#d7bc7d" font-weight="700" text-anchor="end" class="state">AN</text>
 </g>
-<text x="178" y="598" font-size="12" fill="#a6afa3" font-weight="400" >Auflösung, Kantenglättung und Filter gelten nach dem Schließen des Menüs.</text>
+<text x="178" y="598" font-size="15" fill="#a6afa3" font-weight="400" >Auflösung, Kantenglättung und Filter gelten nach dem Schließen des Menüs.</text>
 </g></svg>

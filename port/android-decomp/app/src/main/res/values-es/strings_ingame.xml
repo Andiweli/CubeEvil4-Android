@@ -131,4 +131,5 @@
     <string name="ingame_instant_overwrite">¿Sustituir el guardado instantáneo anterior por tu progreso actual?</string>
     <string name="ingame_instant_load_warning">Se perderá el progreso sin guardar. ¿Cargar el guardado instantáneo?</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_frame_skip">Salto de fotogramas</string>
 </resources>

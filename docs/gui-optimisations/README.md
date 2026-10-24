@@ -10,7 +10,15 @@ Menü und Instant-Speichern/Laden sind inzwischen implementiert: siehe
 enthalten die anschließend gewünschten Titel- und Slot-Änderungen.
 
 Zusätzlich geprüft: [Frame Skip unter Performance – Machbarkeit und Grenzen](FRAME-SKIP.md).
-Die Option ist noch nicht implementiert.
+Die Funktion ist noch nicht implementiert; im Menü steht ein deaktivierter Platzhalter.
+
+Aktueller Menüstand: 10 % Transparenz, größere fette Navigationstitel mit
+kleineren normalen Unterzeilen, größere Infotexte und kompakter Speicherslot
+mit Informationen links und Aktionen rechts. Die App passt die Spalten an
+Fensterbreite, Textlänge und Systemschrift an; die SVG-Entwürfe zeigen eine
+breite Beispielansicht.
+Instant-Laden ist außerdem direkt im ruhenden Startmenü freigegeben. Speichern
+bleibt auf eine laufende, steuerbare Spielsituation beschränkt.
 
 ## Die fünf Entwürfe
 

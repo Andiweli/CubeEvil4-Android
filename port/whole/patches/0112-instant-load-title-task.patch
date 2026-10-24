@@ -1,0 +1,18 @@
+# Instant loading is also available from the idle title menu, before any room/player exists.
+# Publish the initialized title state at the task boundary; a staged load uses the original
+# titleExit -> GameTask -> gameInit load path after the Android menu releases the pause.
+--- a/src/game/title.cpp
++++ b/src/game/title.cpp
+@@ -88,5 +88,6 @@
+ // The title screen task (scheduler slot after boot): allocates the save buffer, item manager, the
+ // core / option data, then runs the title state machine (TITLE_WORK Rno0) every frame until
+ // titleExit chains into GameTask.
++extern "C" void re4_instant_title_tick(void*);
+ void Title_task()
+ {
+@@ -102,4 +103,5 @@
+     w = (TITLE_WORK*) MEM_CALLOC(sizeof(TITLE_WORK), 1, 13);
+     for (;;) {
++        re4_instant_title_tick(w);
+         titleFuncTbl[w->Rno0](w);
+         TaskSleep(1);

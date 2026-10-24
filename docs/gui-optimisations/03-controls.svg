@@ -16,9 +16,9 @@
 <path d="M1234 0 L1256 0 L1274 720 L1216 720 Z" fill="#0c130f" opacity=".65"/>
 <path d="M1234 210L1344 80" stroke="#17201a"/>
 <rect x="0" y="0" width="1280" height="720" rx="0" fill="#080b09" stroke="none" opacity=".46"/>
-<text x="144" y="29" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">CUBEEVIL4  /  GUI-KONZEPT 01</text>
+<text x="144" y="29" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">CUBEEVIL4  /  GUI-KONZEPT 01</text>
 <text x="1136" y="29" font-size="11" fill="#a6afa3" font-weight="500" text-anchor="end">ENTWURF · BEISPIELDATEN</text>
-<g opacity=".85">
+<g opacity=".90">
 <rect x="140" y="48" width="1000" height="626" rx="12" fill="#050806" stroke="none" opacity=".6" transform="translate(0 8)"/>
 <rect x="140" y="48" width="1000" height="626" rx="10" fill="#191f1c" stroke="#414b41" />
 <rect x="140" y="48" width="1000" height="4" rx="0" fill="#d7bc7d" stroke="none" />
@@ -27,15 +27,15 @@
 <text x="233.0" y="102.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">‹  Zurück</text>
 </g>
 <text x="330" y="101" font-size="28" fill="#f0eee5" font-weight="600" >Steuerung</text>
-<text x="330" y="126" font-size="13" fill="#a6afa3" font-weight="400" >Touch, Controller &amp; Zielen</text>
+<text x="330" y="126" font-size="15" fill="#a6afa3" font-weight="400" >Touch, Controller &amp; Zielen</text>
 <g class="button " role="button" tabindex="0" aria-label="Weiter spielen" aria-disabled="false" data-action="resume" opacity="1">
 <rect x="925" y="76" width="181" height="44" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="1015.5" y="104.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Weiter spielen</text>
 </g>
 <path d="M174 148H1106" stroke="#414b41"/>
 <path d="M174 620H1106" stroke="#414b41"/>
-<text x="178" y="650" font-size="12" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
-<text x="1102" y="650" font-size="12" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
+<text x="178" y="650" font-size="15" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
+<text x="1102" y="650" font-size="15" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
 <text x="178" y="206" font-size="17" fill="#f0eee5" font-weight="400" >Touchsteuerung</text>
 <g class="button selected" role="button" tabindex="0" aria-label="Auto" aria-disabled="false"  data-group="touch" data-value="0" aria-pressed="true" opacity="1">
 <rect x="452.0" y="176" width="211.33333333333334" height="48" rx="6" fill="#45432e" stroke="#d7bc7d" />
@@ -49,8 +49,8 @@
 <rect x="890.6666666666667" y="176" width="211.33333333333334" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="996.3333333333334" y="206.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Unterdrücken</text>
 </g>
-<text x="178" y="251" font-size="12" fill="#a6afa3" font-weight="400" >Auto: ohne Controller / nach Antippen. Erzwingen: immer. Unterdrücken: bei Controller aus.</text>
-<text x="178" y="287" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">KOMFORTSTEUERUNG · UNABHÄNGIG KOMBINIERBAR</text>
+<text x="178" y="251" font-size="15" fill="#a6afa3" font-weight="400" >Auto: ohne Controller / nach Antippen. Erzwingen: immer. Unterdrücken: bei Controller aus.</text>
+<text x="178" y="287" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">KOMFORTSTEUERUNG · UNABHÄNGIG KOMBINIERBAR</text>
 <g class="button toggle " role="button" tabindex="0" aria-label="Alternative Steuerung" aria-pressed="false" data-group="alternate" data-toggle="true">
 <rect x="174" y="305" width="458" height="54" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="192" y="338" font-size="17" fill="#f0eee5" font-weight="500" >Alternative Steuerung</text>
@@ -81,7 +81,7 @@
 <path d="M666 479H810" stroke="#d7bc7d"/>
 <g role="slider" tabindex="0" aria-label="Gyro-Empfindlichkeit" aria-valuemin="0.5" aria-valuemax="3" aria-valuenow="1" data-slider="true"><rect x="666" y="464" width="334" height="30" fill="none" pointer-events="all"/><rect class="thumb" x="727" y="468" width="12" height="22" rx="3" fill="#d7bc7d"/></g>
 <text x="1090" y="484" font-size="18" fill="#f0eee5" font-weight="500" text-anchor="end" id="sensitivity-value">1×</text>
-<text x="178" y="531" font-size="12" fill="#a6afa3" font-weight="400" >Alternative Steuerung: L1 Messer · L2 Zielen / rechter Stick · R1 Inventar · R2 Aktion · Y Karte.</text>
-<text x="178" y="555" font-size="12" fill="#a6afa3" font-weight="400" >Einrasten: einmal drücken hält L/R oder B, erneut drücken löst. Gilt auch für Controller.</text>
-<text x="178" y="579" font-size="12" fill="#a6afa3" font-weight="400" >Messer per Wischen: schnell über das Spielbild wischen; vertikal bestimmt die Schnitthöhe.</text>
+<text x="178" y="531" font-size="15" fill="#a6afa3" font-weight="400" >Alternative Steuerung: L1 Messer · L2 Zielen / rechter Stick · R1 Inventar · R2 Aktion · Y Karte.</text>
+<text x="178" y="555" font-size="15" fill="#a6afa3" font-weight="400" >Einrasten: einmal drücken hält L/R oder B, erneut drücken löst. Gilt auch für Controller.</text>
+<text x="178" y="579" font-size="15" fill="#a6afa3" font-weight="400" >Messer per Wischen: schnell über das Spielbild wischen; vertikal bestimmt die Schnitthöhe.</text>
 </g></svg>

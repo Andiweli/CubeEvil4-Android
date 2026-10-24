@@ -12,6 +12,7 @@
 #include "merchant.h"
 #include "sscrn.h"
 #include "main.h"
+#include "title.h"
 #include "../runtime/re4_instant.h"
 #include <string.h>
 
@@ -119,6 +120,30 @@ extern "C" int re4probe_instant_game_test()
     StaFlagOff(pG, STA_EVENT);
     pG->pl_life = 0;
     CHECK_INSTANT(!re4_instant_game_ready());
+    // Cold title: no player/room was entered. Loading and saving have separate eligibility.
+    TITLE_WORK* title = (TITLE_WORK*) (mem + 0x18000);
+    title->Rno0 = 5;
+    title->Rno1 = 1;
+    StaFlagOn(pG, STA_TITLE);
+    pPL = 0;
+    re4_instant_title_tick(title);
+    CHECK_INSTANT(re4_instant_game_can_load());
+    CHECK_INSTANT(!re4_instant_game_ready());
+    CHECK_INSTANT(re4_instant_game_capture(out) == RE4_INSTANT_BUSY);
+    title->Rno1 = 6; // demo movie
+    CHECK_INSTANT(!re4_instant_game_can_load());
+    title->Rno1 = 7; // normal card loading
+    CHECK_INSTANT(!re4_instant_game_can_load());
+    title->Rno1 = 1;
+    SysFlagOn(pG, SYS_CARD_ACCESS);
+    CHECK_INSTANT(!re4_instant_game_can_load());
+    SysFlagOff(pG, SYS_CARD_ACCESS);
+    u32 badRoomSize = 1;
+    memcpy(out + 0x6930, &badRoomSize, 4);
+    CHECK_INSTANT(re4_instant_game_restore(out) == RE4_INSTANT_BAD);
+    CHECK_INSTANT(re4_instant_game_can_load()); // invalid payload never queues a load
+    StaFlagOff(pG, STA_TITLE);
+    CHECK_INSTANT(!re4_instant_game_can_load());
     RoomData = oldRoom;
     ItemMgr = oldItems;
     SubScreenWk = oldScreen;

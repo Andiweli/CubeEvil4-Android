@@ -16,9 +16,9 @@
 <path d="M1234 0 L1256 0 L1274 720 L1216 720 Z" fill="#0c130f" opacity=".65"/>
 <path d="M1234 210L1344 80" stroke="#17201a"/>
 <rect x="0" y="0" width="1280" height="720" rx="0" fill="#080b09" stroke="none" opacity=".46"/>
-<text x="144" y="29" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">CUBEEVIL4  /  GUI-KONZEPT 01</text>
+<text x="144" y="29" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">CUBEEVIL4  /  GUI-KONZEPT 01</text>
 <text x="1136" y="29" font-size="11" fill="#a6afa3" font-weight="500" text-anchor="end">ENTWURF · BEISPIELDATEN</text>
-<g opacity=".85">
+<g opacity=".90">
 <rect x="140" y="48" width="1000" height="626" rx="12" fill="#050806" stroke="none" opacity=".6" transform="translate(0 8)"/>
 <rect x="140" y="48" width="1000" height="626" rx="10" fill="#191f1c" stroke="#414b41" />
 <rect x="140" y="48" width="1000" height="4" rx="0" fill="#d7bc7d" stroke="none" />
@@ -27,17 +27,17 @@
 <text x="233.0" y="102.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">‹  Zurück</text>
 </g>
 <text x="330" y="101" font-size="28" fill="#f0eee5" font-weight="600" >Management</text>
-<text x="330" y="126" font-size="13" fill="#a6afa3" font-weight="400" >Speicherkarte, Diagnose &amp; Projekt</text>
+<text x="330" y="126" font-size="15" fill="#a6afa3" font-weight="400" >Speicherkarte, Diagnose &amp; Projekt</text>
 <g class="button " role="button" tabindex="0" aria-label="Weiter spielen" aria-disabled="false" data-action="resume" opacity="1">
 <rect x="925" y="76" width="181" height="44" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="1015.5" y="104.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Weiter spielen</text>
 </g>
 <path d="M174 148H1106" stroke="#414b41"/>
 <path d="M174 620H1106" stroke="#414b41"/>
-<text x="178" y="650" font-size="12" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
-<text x="1102" y="650" font-size="12" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
-<text x="178" y="179" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">SPEICHERKARTE · STECKPLATZ A</text>
-<text x="178" y="206" font-size="13" fill="#a6afa3" font-weight="400" >Schreibmaschinen-Spielstände als .gci für Dolphin oder GameCube.</text>
+<text x="178" y="650" font-size="15" fill="#a6afa3" font-weight="400" >D-PAD  Navigieren     A  Auswählen</text>
+<text x="1102" y="650" font-size="15" fill="#a6afa3" font-weight="400" text-anchor="end">B  Zurück     SELECT / START  Zum Spiel</text>
+<text x="178" y="179" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">SPEICHERKARTE · STECKPLATZ A</text>
+<text x="178" y="206" font-size="15" fill="#a6afa3" font-weight="400" >Schreibmaschinen-Spielstände als .gci für Dolphin oder GameCube.</text>
 <g class="button " role="button" tabindex="0" aria-label="Spielstände exportieren (.gci)" aria-disabled="false" data-action="export" opacity="1">
 <rect x="174" y="223" width="458" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="403.0" y="253.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Spielstände exportieren (.gci)</text>
@@ -46,7 +46,7 @@
 <rect x="648" y="223" width="458" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="877.0" y="253.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Spielstände importieren (.gci)</text>
 </g>
-<text x="178" y="309" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">FEHLERPROTOKOLL</text>
+<text x="178" y="309" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">FEHLERPROTOKOLL</text>
 <g class="button toggle selected" role="button" tabindex="0" aria-label="Fehlerprotokoll aufzeichnen" aria-pressed="true" data-group="log" data-toggle="true">
 <rect x="174" y="327" width="458" height="54" rx="6" fill="#45432e" stroke="#d7bc7d" />
 <text x="192" y="360" font-size="17" fill="#f0eee5" font-weight="500" >Fehlerprotokoll aufzeichnen</text>
@@ -57,7 +57,7 @@
 <text x="666" y="360" font-size="17" fill="#f0eee5" font-weight="500" >R3 = Grafikaufnahme</text>
 <text x="1088" y="360" font-size="12" fill="#a6afa3" font-weight="700" text-anchor="end" class="state">AUS</text>
 </g>
-<text x="178" y="405" font-size="13" fill="#a6afa3" font-weight="400" >Berichte enthalten das Protokoll dieses und des vorigen Laufs.</text>
+<text x="178" y="405" font-size="15" fill="#a6afa3" font-weight="400" >Berichte enthalten das Protokoll dieses und des vorigen Laufs.</text>
 <g class="button " role="button" tabindex="0" aria-label="Bericht senden …" aria-disabled="false" data-action="report-send" opacity="1">
 <rect x="174" y="423" width="458" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="403.0" y="453.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Bericht senden …</text>
@@ -66,7 +66,7 @@
 <rect x="648" y="423" width="458" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="877.0" y="453.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Bericht speichern …</text>
 </g>
-<text x="178" y="510" font-size="12" fill="#a6afa3" font-weight="600" letter-spacing="1.8">QUELLE</text>
+<text x="178" y="510" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">QUELLE</text>
 <g class="button " role="button" tabindex="0" aria-label="GitHub · Andiweli / CubeEvil4-Android  ↗" aria-disabled="false" data-action="source" opacity="1">
 <rect x="174" y="529" width="932" height="48" rx="6" fill="#222a25" stroke="#414b41" />
 <text x="640.0" y="559.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">GitHub · Andiweli / CubeEvil4-Android  ↗</text>

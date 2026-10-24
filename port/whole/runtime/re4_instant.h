@@ -30,11 +30,13 @@ int re4_core_instant(int operation, Re4InstantInfo* info);
 int re4_instant_perform(int operation, Re4InstantInfo* info);
 // Fixed original save-file payloads, host byte order. Capture does not replace the Continue image.
 int re4_instant_game_ready(void);
+int re4_instant_game_can_load(void);
 unsigned re4_instant_game_chapter(unsigned number);
 int re4_instant_game_capture(unsigned char* data);
 int re4_instant_game_restore(const unsigned char* data);
 void re4_instant_game_saved(void);
 int re4_instant_game_tick(void);
+void re4_instant_title_tick(void* work);
 void re4_instant_game_pause(int on);
 #ifdef __cplusplus
 }

@@ -1,7 +1,9 @@
 # Frame Skip: Machbarkeitsprüfung
 
 Stand: 24.10.2026, Branch `gui-optimisations`, geprüfter App-Stand `54e8704`.
-**Ergebnis: grundsätzlich möglich, noch nicht implementiert.** Ein belastbarer
+**Ergebnis: grundsätzlich möglich, Funktion noch nicht implementiert.** Im
+Menü steht inzwischen ein deaktivierter Platzhalter nach der FPS-Anzeige und
+vor den experimentellen 60 FPS; er verändert keine Einstellung. Ein belastbarer
 Leistungsgewinn muss auf einem schwachen Gerät gemessen werden.
 
 ## Erwartetes Verhalten
@@ -63,6 +65,6 @@ einem schwachen Android-Gerät mit identischer Szene und Einstellung. Die
 vorhandene Diagnose `GX core: ... waiting for the renderer` hilft, Grafikwartezeit
 von anderer Prozessorarbeit zu unterscheiden. Ton und Spielzeit dabei mitprüfen.
 
-Diese Prüfung ist eine Quellcodeanalyse. Es wurden keine Frame-Skip-Option und
-keine neuen Übersetzungen eingebaut und keine Leistungswerte auf einem Gerät
-gemessen. Der zuvor erfolgreiche APK-/Lint-Lauf betrifft die Menüanpassungen.
+Diese Prüfung ist eine Quellcodeanalyse. Der nachträglich gewünschte Platzhalter
+ist in allen zehn Menüsprachen vorhanden; eine Frame-Skip-Funktion wurde nicht
+eingebaut und keine Leistungswerte auf einem Gerät gemessen.

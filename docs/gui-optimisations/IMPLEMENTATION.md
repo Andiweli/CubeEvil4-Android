@@ -13,8 +13,9 @@ Anzeige, Steuerung, Performance und Management.
 
 - Haupttitel **CubeEvil4 Ingame-Menü**, tatsächliche App-Version klein daneben in
   Klammern. Der alte Pausen-/SELECT-Hinweis entfällt.
-- **Speicherslot**, darunter Kapitel/Raum/Spielzeit links und das letzte
-  Speicherdatum rechts. Keine zusätzliche Erklärung zur Trennung von der Karte.
+- **Speicherslot**, darunter Kapitel/Raum/Spielzeit und das letzte Speicherdatum
+  links untereinander; Speichern/Laden rechts untereinander. Bei wenig Platz
+  stehen die Aktionen unter den Informationen.
 - Dunkles Anthrazit/Oliv und gedecktes Gold wie im abgestimmten Design; leicht
   gerundete Buttons und ein eigener heller Fokusrahmen für den Controller.
 - Einfachauswahl für Auflösung, MSAA, Filter, Bildformat, Touch-Modus und CPU-Modus.
@@ -31,7 +32,8 @@ Anzeige, Steuerung, Performance und Management.
 
 ## Layout-Anpassungen vom 24.10.2026
 
-Das gesamte Menüfenster hat 85 % Deckkraft (15 % Transparenz).
+Das gesamte Menüfenster hat jetzt 90 % Deckkraft (10 % Transparenz; ersetzt die
+erste Nachkorrektur mit 15 %).
 Tiefenschärfe beginnt in der Optionsspalte unter „4:3 (GC)“. Unter Performance
 stehen 60 FPS und die FPS-Anzeige in derselben eingerückten Optionsspalte;
 „Bildausgabe“ ist links als Zeilenbeschriftung angeordnet. Auf schmalen
@@ -41,6 +43,30 @@ haben 16 dp zusätzlichen Abstand zur Zurück-Schaltfläche. Die deutschen
 Menünamen lauten „Anzeige“ und „Steuerung“. Die übrigen neun Sprachen nutzen
 weiter ihre bereits vorhandenen Übersetzungen; die Auswahl erfolgt weiterhin
 nach der Geräte-/App-Sprache.
+
+Die Hauptseiten-Buttons haben 19-sp-Titel in Fettschrift und normale
+15-sp-Unterzeilen. Allgemeine Buttontexte stehen in 16 sp, Infotexte überwiegend
+in 15 sp statt 12–13 sp. Keine verkleinernde automatische Schriftanpassung oder
+Auslassungszeichen: längere Texte umbrechen und vergrößern ihre Zeile.
+
+`MenuLayout` misst die tatsächlich verfügbare Breite der jeweiligen Reihe.
+Auswahlbuttons nutzen so viele gleich breite Spalten, wie ihre Beschriftungen
+zulassen. Einstellungsbeschriftung/Optionen, Gyro und Speicherslot werden bei
+wenig Platz oder großer Systemschrift untereinander angeordnet. Im schmalen
+Kopf stehen Titel und Aktionen auf getrennten Zeilen. Ein Größenwechsel des
+App-Fensters passt auch das geöffnete Menü an; Buttons und laufende
+Speicheranfragen bleiben dieselben Objekte. Der Navigationshinweis scrollt am
+Ende mit, damit er auf niedrigen Displays keinen Platz für Optionen blockiert.
+RTL wird unterstützt; die gewünschte physische Links-/Rechtsanordnung des
+Speicherslots bleibt erhalten.
+
+Die fünf breiten Screendesigns, PDF und Vorschau wurden nachgezogen. SVGs sind
+feste Designansichten; die native App führt den beschriebenen Umbruch aus.
+
+Unter Performance / Bildausgabe lautet die Reihenfolge: FPS-Anzeige,
+Frame-Skip, 60 FPS (experimentell). Frame-Skip ist ein deaktivierter Platzhalter
+ohne gespeicherte Einstellung oder Rückruf in den Renderer; alle zehn Sprachen
+enthalten die Beschriftung.
 
 ## Instant-Speicher
 
@@ -87,11 +113,38 @@ das nächste Bild des alten Raums und verwendet den bestehenden Ladeweg aus
 dem Original-Pausemenü (`GameContinue(1)` und `GameLoad`). `src/` und `include/`
 bleiben im Repository unverändert.
 
-Verfügbar ist der Slot bei einem lebenden, steuerbaren Spieler in einer
-stabilen Spielsituation. Laden/Übergänge, aktive Ereignisse, Tod, geöffnete
-Spiel-Untermenüs und Karten-Zugriff sperren die Aktionen mit einem übersetzten
-Hinweis. Es ist ein Original-Spielstand; kurzfristige Animationen oder
+Speichern ist bei einem lebenden, steuerbaren Spieler in einer stabilen
+Spielsituation verfügbar. Laden ist zusätzlich im ruhenden Startmenü erlaubt,
+ohne zuvor ein normales Spiel oder einen Schreibmaschinen-Spielstand zu öffnen.
+`re4_instant_game_can_load` prüft diese Freigabe unabhängig von der Speicherfreigabe.
+**Patch 0112** übernimmt den Auftrag auf der Titelaufgabe: Nutzdaten installieren,
+`GameLoad`, dann original `titleExit` → `GameTask` → `gameInit`. Der Titel räumt
+seine Grafik und Daten selbst auf; der Raum wird regulär initialisiert.
+Während Logos, Demo-Filmen, Karten-Zugriff und anderen Übergängen bleibt Laden
+gesperrt. Eine begonnene Titel-Ladung sperrt weitere Anfragen, bevor sie auf
+Spielaufgaben warten kann. Es ist ein Original-Spielstand; kurzfristige Animationen oder
 fliegende Projektile sind kein vollständiger RAM-Schnappschuss.
+
+## Nachprüfung von Lesbarkeit, Umbruch und Startmenü-Laden
+
+- Drei Android-View-Tests mit Robolectric erfolgreich: 750 Messungen der fünf
+  Seiten in zehn Sprachen, 320/480/700/960 dp Breite und 1/1,5/2-facher Schrift.
+  Auch Verkleinern/Vergrößern, RTL, vollständige Texthöhen, Überlappungen und
+  horizontale Grenzen geprüft. Weitere Tests prüfen Schriftgewicht, getrennte
+  Speichern-/Ladenfreigabe im UI sowie Reihenfolge und Inaktivität von Frame-Skip.
+- Übersetzungsprüfung: 117 Texte und ein Plural je Sprache, zehn Sprachen, bestanden.
+- Linux x86_64 und i686/QEMU: Kernprüfung einschließlich echter Original-
+  Spielstanderfassung und kaltem Titel ohne Spieler bestanden; Dateitest mit
+  nur erlaubtem Laden, gesperrtem Speichern, Neustart und Fehlerfällen bestanden.
+- Android-Kern: ARM32 und ARM64, je 114 Module, fehlerfrei gebaut.
+- Vollständige Java-Kompilierung, Ressourcen-Linken, DEX und Debug-APK über die
+  Android-SDK-Werkzeuge erfolgreich; Ausrichtung und Signatur verifiziert.
+  Android-Lint direkt mit dem bestehenden coreDebug-Projektmodell: 0 Fehler.
+  Der abschließende Gradle-Lauf wurde hier durch die gesperrte lokale
+  Netzwerkverbindung zwischen Build-Prozessen blockiert. Die View-Tests liefen
+  deshalb direkt über JUnit mit denselben Android-Ressourcen und Abhängigkeiten.
+- Der komplette Ladeablauf vom Startmenü mit echten Disc-Daten sowie Darstellung
+  und Controllerbedienung auf dem Retroid bleiben als Gerätetest offen.
 
 ## Prüfungen
 
