@@ -268,9 +268,9 @@ final class CoreMenu extends Dialog {
   @android.annotation.SuppressLint("RtlHardcoded") // requested physical left/right slot metadata
   private void home() {
     heading(R.string.ingame_instant);
-    LinearLayout slot = new MenuLayout.Columns(getContext(), 0, 620, false);
-    // Equal halves match the two navigation tiles below, including the buttons' outer margins.
-    slot.setPadding(0, dp(6), 0, dp(6));
+    MenuLayout.Columns slot = new MenuLayout.Columns(getContext(), 0, 620, false);
+    slot.setFillEndHeight(true);
+    slot.setPadding(0, dp(8), 0, dp(8));
     slot.setGravity(Gravity.CENTER_VERTICAL);
     slot.setBackground(shape(0xff202720, BORDER, 6));
     LinearLayout metadata = column(); metadata.setPadding(dp(12), dp(4), dp(12), dp(4));
@@ -283,6 +283,8 @@ final class CoreMenu extends Dialog {
     metadata.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
     metadata.addView(slotDetails); metadata.addView(slotDate); slot.addView(metadata);
     MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 2);
+    // The button's 3 dp outer margin plus 9 dp here match the metadata's 12 dp left inset.
+    actions.setPadding(0, 0, dp(9), 0);
     actions.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
     saveSlot = cellAction(actions, s(R.string.ingame_instant_save), v -> confirmInstant(1)); saveSlot.setSelected(true);
     loadSlot = cellAction(actions, s(R.string.ingame_instant_load), v -> confirmInstant(2));

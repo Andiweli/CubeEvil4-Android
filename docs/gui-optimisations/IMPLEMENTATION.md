@@ -63,15 +63,20 @@ Speicherslots bleibt erhalten.
 Die fünf breiten Screendesigns, PDF und Vorschau wurden nachgezogen. SVGs sind
 feste Designansichten; die native App führt den beschriebenen Umbruch aus.
 
-Die Instant-Aktionen teilen sich jetzt die rechte Hälfte der Kachel und
-spannen gemeinsam dieselbe Breite wie „Steuerung“ darunter auf. Links bleiben
+Die Instant-Aktionen teilen sich die rechte Hälfte der Kachel. Der rechte
+Abstand entspricht mit 12 dp dem linken Abstand der Überschrift „Speicherslot“.
+Beide Buttons füllen die verfügbare Kachelhöhe mit 12 dp Rand oben/unten;
+die Höhe folgt den Metadaten und deren Umbruch. Links bleiben
 Titel, Kapitel/Raum/Spielzeit und Speicherzeit vollständig erhalten. Die
 Statuszeile „Bereit.“ ist ausgeblendet und beansprucht keinen Platz. Fortschritt,
 Speicherbestätigung und Fehlermeldungen blenden die Zeile bei Bedarf wieder ein.
 Schmale Fenster und größere Systemschrift behalten den vorhandenen Umbruch.
-Die Nachprüfung umfasst auch die gemeinsame Buttonbreite und das Wiederanzeigen
+Die Nachprüfung umfasst auch Abstände, volle Buttonhöhe und das Wiederanzeigen
 von Fortschritt/Fehlern: drei View-Tests mit 750 Layouts bestanden, zehn Sprachen
 geprüft, SDK-Debug-APK und Android-Lint (0 Fehler) erfolgreich. Keine Kernänderung.
+Nachtrag vom 25.10.2026: Auch der vollständige Gradle-Lauf mit
+`assembleCoreDebug testCoreDebugUnitTest lintCoreDebug` ist erfolgreich; dabei
+sind die erweiterten Rand-/Höhenprüfungen enthalten.
 
 Unter Performance / Bildausgabe lautet die Reihenfolge: FPS-Anzeige,
 Frame-Skip, 60 FPS (experimentell). Frame-Skip ist ein deaktivierter Platzhalter

@@ -109,6 +109,22 @@ bestanden. Vollständige SDK-Debug-APK gebaut, Ausrichtung/Signatur verifiziert;
 Android-Lint: 0 Fehler. Der Spielkern bleibt auf dem bereits gebauten Stand.
 Die neue Anordnung ist noch nicht auf dem Retroid visuell geprüft.
 
+### Instant-Slot: Innenrand und volle Buttonhöhe (25.10.2026)
+
+Der rechte Außenrand der Instant-Aktionen beträgt nun 12 dp und entspricht
+links dem Innenrand der Überschrift „Speicherslot“. Beide Buttons bleiben
+nebeneinander in der rechten Hälfte und füllen die Kachelhöhe mit jeweils
+12 dp Abstand oben und unten aus. Die Höhe folgt auch mehrzeiligen Metadaten.
+`MenuLayout.Columns` kann dafür gezielt die letzte Spalte auf Innenhöhe
+strecken; andere Reihen behalten ihr bisheriges Verhalten. Bei schmalem
+Fenster/großer Schrift bleibt die Stapelung mit natürlicher Höhe erhalten.
+Vorhandene Layoutprüfungen auf Randgleichheit und volle Buttonhöhe erweitert;
+Screendesign, Vorschau und PDF aktualisiert. Keine Kern-/Speicherformat- oder
+Sprachänderung. Alle drei View-Tests (750 Layoutmessungen), die Prüfung der
+zehn Sprachen und der vollständige Gradle-Lauf mit `assembleCoreDebug`,
+`testCoreDebugUnitTest` und `lintCoreDebug` bestanden (1 min 14 s).
+Sichtprüfung auf dem Retroid noch offen.
+
 ## Kurzstand
 
 | Meilenstein | Stand |

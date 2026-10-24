@@ -106,12 +106,16 @@ public class CoreMenuLayoutTest {
               Button save = (Button) field(menu, "saveSlot"), load = (Button) field(menu, "loadSlot");
               MenuLayout.Buttons actions = (MenuLayout.Buttons) save.getParent();
               LinearLayout slot = (LinearLayout) actions.getParent();
-              Button controls = ((Button[]) field(menu, "navigation"))[2];
-              if (slot.getOrientation() == LinearLayout.HORIZONTAL && actions.getColumnCount() == 2 &&
-                  ((MenuLayout.Buttons) controls.getParent()).getColumnCount() == 2) {
-                int span = Math.max(save.getRight(), load.getRight()) - Math.min(save.getLeft(), load.getLeft());
-                assertEquals("Save/load share the controls tile width", controls.getWidth(), span, 1);
+              if (slot.getOrientation() == LinearLayout.HORIZONTAL && actions.getColumnCount() == 2) {
+                ViewGroup details = (ViewGroup) slot.getChildAt(0);
+                int headingInset = details.getLeft() + details.getChildAt(0).getLeft();
+                int rightInset = slot.getWidth() - actions.getLeft() - Math.max(save.getRight(), load.getRight());
+                assertEquals("Right edge matches the slot heading's left inset", headingInset, rightInset, 1);
                 assertEquals("Save/load stay side by side", save.getTop(), load.getTop());
+                assertEquals("Both actions fill the same height", save.getHeight(), load.getHeight());
+                assertEquals("Actions keep the same top inset", headingInset, actions.getTop() + save.getTop(), 1);
+                assertEquals("Actions keep the same bottom inset", headingInset,
+                    slot.getHeight() - actions.getTop() - save.getBottom(), 1);
                 assertTrue("Actions stay in the right half", actions.getLeft() >= slot.getWidth() / 2 - 1);
               }
               assertEquals(View.GONE, ((TextView) field(menu, "slotStatus")).getVisibility());

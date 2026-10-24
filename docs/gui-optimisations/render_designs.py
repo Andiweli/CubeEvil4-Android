@@ -85,8 +85,8 @@ def home():
     txt(198,229,'Speicherslot',21,INK,600)
     txt(198,256,'Kapitel 1–1 · r100 · Spielzeit 00:12:34',15,MUTED)
     txt(198,283,'Zuletzt gespeichert: 24.10.2026, 12:24',15,MUTED,400,'id="save-meta"')
-    button(648,228,225,'Speichern',True,'save')
-    button(881,228,225,'Laden',False,'load')
+    button(648,212,213,'Speichern',True,'save',h=80)
+    button(869,212,213,'Laden',False,'load',h=80)
     small(178,355,'EINSTELLUNGEN & VERWALTUNG')
     for x,y,n,sub,action in [(174,372,'Anzeige','Auflösung, Bildformat & Effekte','display'),(648,372,'Steuerung','Touch, Gyro & Komfortsteuerung','controls'),(174,452,'Performance','Leistungskerne, 60 FPS & Anzeige','performance'),(648,452,'Management','Speicherkarte, Berichte & Quelle','management')]:
         raw(f'<g class="button nav" role="button" tabindex="0" aria-label="{n}" data-action="{action}">')

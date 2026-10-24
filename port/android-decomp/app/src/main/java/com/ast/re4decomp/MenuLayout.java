@@ -65,6 +65,7 @@ final class MenuLayout {
   static final class Columns extends LinearLayout {
     private final int fixedWidth, minimumWidth;
     private final boolean emptyCaption;
+    private boolean fillEndHeight;
 
     Columns(Context context, int fixedWidth, int minimumWidth, boolean emptyCaption) {
       super(context);
@@ -72,6 +73,12 @@ final class MenuLayout {
       this.minimumWidth = minimumWidth;
       this.emptyCaption = emptyCaption;
       setBaselineAligned(false);
+    }
+
+    /** In two-column mode the end column fills the height set by the taller content. */
+    void setFillEndHeight(boolean fill) {
+      fillEndHeight = fill;
+      requestLayout();
     }
 
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
@@ -85,7 +92,8 @@ final class MenuLayout {
         boolean fixed = fixedWidth > 0 ? i == 0 : fixedWidth < 0 && i == getChildCount() - 1;
         lp.width = sideBySide ? (fixed ? dp(getContext(), Math.abs(fixedWidth) * textScale) : 0)
             : LayoutParams.MATCH_PARENT;
-        lp.height = LayoutParams.WRAP_CONTENT;
+        lp.height = sideBySide && fillEndHeight && i == getChildCount() - 1
+            ? LayoutParams.MATCH_PARENT : LayoutParams.WRAP_CONTENT;
         lp.weight = sideBySide && !fixed ? 1 : 0;
       }
       super.onMeasure(widthSpec, heightSpec);

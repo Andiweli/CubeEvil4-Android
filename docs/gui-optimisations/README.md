@@ -16,7 +16,8 @@ Aktueller Menüstand: 10 % Transparenz, größere fette Navigationstitel mit
 kleineren normalen Unterzeilen, größere Infotexte und kompakter Speicherslot
 mit Informationen links und Aktionen rechts.
 Die beiden Instant-Aktionen stehen nebeneinander in der rechten Hälfte der
-Kachel, zusammen so breit wie „Steuerung“ darunter. „Bereit.“ entfällt ohne
+Kachel. Ihr rechter Abstand entspricht dem linken Abstand von „Speicherslot“;
+beide nutzen die Kachelhöhe mit Rand oben/unten aus. „Bereit.“ entfällt ohne
 Leerraum; Fortschritts- und Fehlermeldungen bleiben sichtbar. Die App passt die Spalten
 an Fensterbreite, Textlänge und Systemschrift an; die SVG-Entwürfe zeigen eine
 breite Beispielansicht.

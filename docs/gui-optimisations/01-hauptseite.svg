@@ -39,12 +39,12 @@
 <text x="198" y="256" font-size="15" fill="#a6afa3" font-weight="400" >Kapitel 1–1 · r100 · Spielzeit 00:12:34</text>
 <text x="198" y="283" font-size="15" fill="#a6afa3" font-weight="400" id="save-meta">Zuletzt gespeichert: 24.10.2026, 12:24</text>
 <g class="button selected" role="button" tabindex="0" aria-label="Speichern" aria-disabled="false" data-action="save" opacity="1">
-<rect x="648" y="228" width="225" height="48" rx="6" fill="#45432e" stroke="#d7bc7d" />
-<text x="760.5" y="258.0" font-size="17" fill="#d7bc7d" font-weight="600" text-anchor="middle">Speichern</text>
+<rect x="648" y="212" width="213" height="80" rx="6" fill="#45432e" stroke="#d7bc7d" />
+<text x="754.5" y="258.0" font-size="17" fill="#d7bc7d" font-weight="600" text-anchor="middle">Speichern</text>
 </g>
 <g class="button " role="button" tabindex="0" aria-label="Laden" aria-disabled="false" data-action="load" opacity="1">
-<rect x="881" y="228" width="225" height="48" rx="6" fill="#222a25" stroke="#414b41" />
-<text x="993.5" y="258.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Laden</text>
+<rect x="869" y="212" width="213" height="80" rx="6" fill="#222a25" stroke="#414b41" />
+<text x="975.5" y="258.0" font-size="17" fill="#f0eee5" font-weight="600" text-anchor="middle">Laden</text>
 </g>
 <text x="178" y="355" font-size="14" fill="#a6afa3" font-weight="600" letter-spacing="1.2">EINSTELLUNGEN &amp; VERWALTUNG</text>
 <g class="button nav" role="button" tabindex="0" aria-label="Anzeige" data-action="display">
