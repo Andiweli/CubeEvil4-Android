@@ -268,10 +268,12 @@ final class CoreMenu extends Dialog {
   @android.annotation.SuppressLint("RtlHardcoded") // requested physical left/right slot metadata
   private void home() {
     heading(R.string.ingame_instant);
-    LinearLayout slot = new MenuLayout.Columns(getContext(), -180, 620, false);
-    slot.setPadding(dp(12), dp(6), dp(12), dp(6));
+    LinearLayout slot = new MenuLayout.Columns(getContext(), 0, 620, false);
+    // Equal halves match the two navigation tiles below, including the buttons' outer margins.
+    slot.setPadding(0, dp(6), 0, dp(6));
+    slot.setGravity(Gravity.CENTER_VERTICAL);
     slot.setBackground(shape(0xff202720, BORDER, 6));
-    LinearLayout metadata = column(); metadata.setPadding(0, dp(4), dp(12), dp(4));
+    LinearLayout metadata = column(); metadata.setPadding(dp(12), dp(4), dp(12), dp(4));
     metadata.addView(text(s(R.string.ingame_slot), 18, true));
     slotDetails = text("", 15, false); slotDate = text("", 15, false);
     // Metadata stays physically left aligned; Arabic text still uses its locale.
@@ -280,7 +282,7 @@ final class CoreMenu extends Dialog {
     // Keep the requested physical columns; text itself still follows the selected locale.
     metadata.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
     metadata.addView(slotDetails); metadata.addView(slotDate); slot.addView(metadata);
-    MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 1);
+    MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 2);
     actions.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
     saveSlot = cellAction(actions, s(R.string.ingame_instant_save), v -> confirmInstant(1)); saveSlot.setSelected(true);
     loadSlot = cellAction(actions, s(R.string.ingame_instant_load), v -> confirmInstant(2));
@@ -423,7 +425,7 @@ final class CoreMenu extends Dialog {
     final int serial = ++requestSerial;
     working = true; saveSlot.setEnabled(false); loadSlot.setEnabled(false);
     resume.setEnabled(false);
-    slotStatus.setText(s(operation == 0 ? R.string.ingame_instant_checking : R.string.ingame_instant_working));
+    showSlotStatus(operation == 0 ? R.string.ingame_instant_checking : R.string.ingame_instant_working);
     new Thread(() -> {
       long[] result;
       try { result = CoreBridge.instant(operation); }
@@ -432,10 +434,10 @@ final class CoreMenu extends Dialog {
       main.post(() -> {
         working = false; resume.setEnabled(true);
         if (!isShowing() || serial != requestSerial || page != HOME) return;
-        if (done == null || done.length < 8) { slotStatus.setText(s(R.string.ingame_instant_failed)); return; }
+        if (done == null || done.length < 8) { showSlotStatus(R.string.ingame_instant_failed); return; }
         showInstant(done);
         if (operation == 2 && done[0] == 0) close();
-        else if (operation == 1 && done[0] == 0) slotStatus.setText(s(R.string.ingame_instant_saved));
+        else if (operation == 1 && done[0] == 0) showSlotStatus(R.string.ingame_instant_saved);
       });
     }, "InstantSlot").start();
   }
@@ -454,7 +456,12 @@ final class CoreMenu extends Dialog {
     else if (data[0] == -3) status = R.string.ingame_instant_damaged;
     else if (data[0] == -4) status = R.string.ingame_instant_failed;
     else if (data[0] == -1 || (data[2] == 0 && data[3] == 0)) status = R.string.ingame_instant_unavailable;
-    slotStatus.setText(s(status));
+    showSlotStatus(status);
+  }
+  private void showSlotStatus(int message) {
+    slotStatus.setText(s(message));
+    // Ready adds no information beyond the enabled buttons; keep useful progress/errors visible.
+    slotStatus.setVisibility(message == R.string.ingame_instant_ready ? View.GONE : View.VISIBLE);
   }
   void refreshCard() {
     if (cardLine == null || exportAll == null) return;

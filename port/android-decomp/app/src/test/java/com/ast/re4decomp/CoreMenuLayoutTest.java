@@ -12,6 +12,7 @@ import android.text.style.StyleSpan;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import java.lang.reflect.Field;
@@ -101,6 +102,20 @@ public class CoreMenuLayoutTest {
             int pxHeight = Math.round(300 * activity.getResources().getDisplayMetrics().density);
             measure(root, pxWidth, pxHeight);
             checkBounds(root, language + "/" + scale + "/" + width + "/page " + page);
+            if (page == 0) {
+              Button save = (Button) field(menu, "saveSlot"), load = (Button) field(menu, "loadSlot");
+              MenuLayout.Buttons actions = (MenuLayout.Buttons) save.getParent();
+              LinearLayout slot = (LinearLayout) actions.getParent();
+              Button controls = ((Button[]) field(menu, "navigation"))[2];
+              if (slot.getOrientation() == LinearLayout.HORIZONTAL && actions.getColumnCount() == 2 &&
+                  ((MenuLayout.Buttons) controls.getParent()).getColumnCount() == 2) {
+                int span = Math.max(save.getRight(), load.getRight()) - Math.min(save.getLeft(), load.getLeft());
+                assertEquals("Save/load share the controls tile width", controls.getWidth(), span, 1);
+                assertEquals("Save/load stay side by side", save.getTop(), load.getTop());
+                assertTrue("Actions stay in the right half", actions.getLeft() >= slot.getWidth() / 2 - 1);
+              }
+              assertEquals(View.GONE, ((TextView) field(menu, "slotStatus")).getVisibility());
+            }
           }
         }
       }
@@ -128,8 +143,14 @@ public class CoreMenuLayoutTest {
       metadata.invoke(menu, (Object) new long[] {0, 1, 0, 1, 0x100, 101, 1234, 1792841040});
       assertFalse(((Button) field(menu, "saveSlot")).isEnabled());
       assertTrue(((Button) field(menu, "loadSlot")).isEnabled());
-      assertEquals(controller.get().getString(R.string.ingame_instant_ready),
-          ((TextView) field(menu, "slotStatus")).getText().toString());
+      TextView status = (TextView) field(menu, "slotStatus");
+      assertEquals(View.GONE, status.getVisibility());
+      Method feedback = CoreMenu.class.getDeclaredMethod("showSlotStatus", int.class); feedback.setAccessible(true);
+      feedback.invoke(menu, R.string.ingame_instant_working);
+      assertEquals(View.VISIBLE, status.getVisibility());
+      metadata.invoke(menu, (Object) new long[] {-4, 1, 0, 0, 0x100, 101, 1234, 1792841040});
+      assertEquals(View.VISIBLE, status.getVisibility());
+      assertEquals(controller.get().getString(R.string.ingame_instant_failed), status.getText().toString());
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       show.invoke(menu, 3, false);
       ViewGroup body = (ViewGroup) field(menu, "body");

@@ -14,8 +14,11 @@ Die Funktion ist noch nicht implementiert; im Menü steht ein deaktivierter Plat
 
 Aktueller Menüstand: 10 % Transparenz, größere fette Navigationstitel mit
 kleineren normalen Unterzeilen, größere Infotexte und kompakter Speicherslot
-mit Informationen links und Aktionen rechts. Die App passt die Spalten an
-Fensterbreite, Textlänge und Systemschrift an; die SVG-Entwürfe zeigen eine
+mit Informationen links und Aktionen rechts.
+Die beiden Instant-Aktionen stehen nebeneinander in der rechten Hälfte der
+Kachel, zusammen so breit wie „Steuerung“ darunter. „Bereit.“ entfällt ohne
+Leerraum; Fortschritts- und Fehlermeldungen bleiben sichtbar. Die App passt die Spalten
+an Fensterbreite, Textlänge und Systemschrift an; die SVG-Entwürfe zeigen eine
 breite Beispielansicht.
 Instant-Laden ist außerdem direkt im ruhenden Startmenü freigegeben. Speichern
 bleibt auf eine laufende, steuerbare Spielsituation beschränkt.

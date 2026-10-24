@@ -92,6 +92,23 @@ Finaler Gradle-Lauf durch gesperrte lokale Build-Verbindung in der Cloud
 blockiert; View-Tests direkt mit JUnit ausgeführt. Gerätetest auf dem Retroid
 mit echten Disc-Daten für den vollständigen Titel-Ladeablauf noch offen.
 
+### Instant-Slot: Aktionen in einer Reihe (24.10.2026)
+
+Speichern und Laden stehen jetzt nebeneinander in der rechten Hälfte der
+Speicherslot-Kachel. Beide zusammen sind so breit wie die Steuerung-Kachel
+in der zweispaltigen Navigation darunter. Links bleiben alle Metadaten erhalten.
+Die Kachel ist niedriger; „Bereit.“ entfällt samt Platzbedarf. Fortschritt,
+Speicherbestätigung und Fehler blenden ihre Statuszeile bei Bedarf weiterhin
+sichtbar ein. Schmale Fenster und große Systemschrift behalten den Umbruch.
+Keine Änderung am Spielkern, Speicherformat oder an Sprachressourcen.
+Screendesign, Vorschau und PDF angepasst. Die vorhandenen Android-View-Tests
+prüfen auch die gemeinsame Breite, die Anordnung und die Rückkehr von
+Fortschritts-/Fehlermeldungen nach verstecktem Bereitschaftsstatus.
+Alle drei View-Tests mit 750 Layoutmessungen und die Prüfung der zehn Sprachen
+bestanden. Vollständige SDK-Debug-APK gebaut, Ausrichtung/Signatur verifiziert;
+Android-Lint: 0 Fehler. Der Spielkern bleibt auf dem bereits gebauten Stand.
+Die neue Anordnung ist noch nicht auf dem Retroid visuell geprüft.
+
 ## Kurzstand
 
 | Meilenstein | Stand |
