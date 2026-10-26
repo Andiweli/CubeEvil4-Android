@@ -13,16 +13,28 @@
 # and the title looked for ss/ger/title.dat). A port patch for retail data.
 --- a/src/game/main.cpp
 +++ b/src/game/main.cpp
-@@ -427,6 +427,8 @@
+@@ -115,6 +115,8 @@
  
- // Default global state: debug mode, start room r120 (Part 0), Leon, game mode 5, costumes 0,
- // user name buffer and language 1.
+ // Program entry: systemStartInit, then on every soft reset restores the reset-keep block (pRK),
+ // starts the title task and runs the frame loop until systemResetCheck sees the next soft reset.
 +extern "C" int re4_game_language_value(void); /* port: runtime/game_language.cpp */
 +
- void systemWorkInit()
+ /* port: entry called by the platform launcher (Linux host, Android activity) */
+ extern "C" int re4_game_main()
  {
-     systemScreenInit();
-@@ -443,6 +445,11 @@
+@@ -131,6 +133,11 @@
+             pSys->language = pRK->language;
+             pSys->eff_country = pRK->eff_country;
+             pG->game_country = pRK->game_country;
++            /* port: with the European discs the app's language, also after a soft reset (the app's
++               "Restart" for a new language, runtime/game_language.cpp) */
++            if (re4_game_language_value() >= 0) {
++                setLanguage();
++            }
+             pSys->Extra_flg = pRK->Extra_flg;
+             for (i = 0; i < 16; i += 4) {
+                 U32SetOfs(pSys->MercSysRoom, i, U32GetOfs(pRK->MercSysRoom, i));
+@@ -443,6 +450,11 @@
      pSys->language = 1;
      pSys->eff_country = 1;
      pG->game_country = 1;
@@ -34,7 +46,7 @@
  }
  
  // Frames per game update in vsyncs (1 = 60 Hz, 2 = 30 Hz).
-@@ -583,6 +590,11 @@
+@@ -583,6 +595,11 @@
  void setLanguage()
  {
      pSys->language = 1;
