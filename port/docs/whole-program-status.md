@@ -36,11 +36,29 @@ entfernen). Entscheidungen (26.10.2026): Standard ist die Handy-Sprache, ein Wec
   der EU-`title.dat`) ausgeblendet.
 - Ein Wechsel im laufenden Spiel stellt die Textsprache sofort um und liest `option.dat` neu; Untermenüs, Speicherkarte
   und Kapitelbilder lesen ihren Sprachordner beim nächsten Öffnen. Der Titel liest seine `title.dat` beim nächsten Start
-  des Titels.
+  des Titels; ein Wechsel, während der Titel läuft, stellt dort nur die Texte um, Titelbild und Optionsmenü des Titels
+  folgen beim nächsten Titelstart bzw. die Optionsdaten im Spiel (dort wird `option.dat` neu gelesen; im Titel nicht,
+  weil das Optionsmenü des Titels sie gerade benutzen kann).
 - App: Eintrag „Game language“ auf der Startseite des Ingame-Menüs, nur mit EU-Discs: „Device language“ (Standard:
   de → Deutsch, fr → Französisch, es → Spanisch, it → Italienisch, sonst Englisch), English, Deutsch, Français, Español,
   Italiano. Gespeichert in `core_game`/`gameLanguage`; beim Start als `RE4_GAME_LANGUAGE`, danach über
   `CoreBridge.setLanguage`. Texte in allen 10 Sprachen (`check_translations.py` ok).
+
+**Prüfungen (PC, WSL2)**
+- Stand `81d133db` (0121, 0122): EU-Abbilder Deutsch i686 „ALLES OK“, Italienisch x86_64 „ALLES OK“, Englisch
+  (Kartenprüfung) „ALLES OK“, Debug-Discs „ALLES OK“; Systemdatei mit Sprache 3 bzw. 6 bzw. 2 gespeichert und wieder
+  geladen. Vorher (Stand `f7a079b1`): Deutsch endete beim Start in r120 (Optionsdaten in Leons Daten), Französisch
+  hing im Speicherbildschirm; beides behoben.
+- Stand `b90d8c55` (mit 0123), Funkspruch-Test (EU-Daten plus `debug/roomInfo.dat`, nur für den Test): Französisch,
+  Deutsch, Spanisch, Italienisch je „ALLES OK“; GX-Bilder: Funkspruch und Untertitel der Filmsequenz (Autofahrt) in
+  der gewählten Sprache, scharf und richtig gesetzt. Gegenprobe Debug-Discs mit diesem Stand „ALLES OK“.
+- Titelmenü (GX-Bild, Deutsch): START, LADEN, OPTIONEN, kein „LANGUAGE SELECT“; Warnhinweis und
+  Speicherkarten-Meldungen deutsch. Mit neuer Karte keine Meldung beim Start (Karte formatiert angelegt, Systemdatei
+  still erstellt), mit kaputter Karte dieselbe Startprüfung wie mit den Debug-Discs (Code -6, weiter zum Titel ohne
+  Tastendruck; formatiert wird über die Abfrage des Spiels beim Speichern, Entscheidung vom 17.10.2026).
+- App: `CoreMenuLayoutTest` 3/3 (alle 10 Sprachen, mit „Game language“), Android-Kern armeabi-v7a und arm64-v8a je
+  0 Fehler, APK `app-core-debug.apk` gebaut. **Nicht geprüft:** Gerät (Retroid), ARM unter qemu, ein Sprachwechsel
+  im laufenden Spiel (nur der Startwert lief am PC).
 
 ## Retail-Discs (EU), Schritte R0 und R1 (26.10.2026 abends, lokal, WSL2, Branch `retail-eu`)
 

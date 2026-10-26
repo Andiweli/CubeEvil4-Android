@@ -165,7 +165,8 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, ein Cheat-Menü im
    Ingame-Menü kommt später gesondert; alle Sprachen der EU-Discs spielbar, Schritt R7, gewählt im
    Ingame-Menü der App, „LANGUAGE SELECT“ aus dem Titelmenü entfernt). Plan und
-   Schritte R0–R8: `port/docs/retail-eu-plan.md`, Branch `retail-eu`; R0 und R1 ✅ (26.10.2026)
+   Schritte R0–R8: `port/docs/retail-eu-plan.md`, Branch `retail-eu`; R0, R1, R2 ✅ (26.10.2026);
+   R4 (App-Import) und R7 (Sprachen) gebaut und am PC geprüft, Gerätetest offen
 
 ## Git
 
