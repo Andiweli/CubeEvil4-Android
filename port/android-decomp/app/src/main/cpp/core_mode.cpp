@@ -91,7 +91,7 @@ struct CoreApi {
   void (*depth)(const unsigned *, unsigned){};  // optional (cores since 26.10.2026): the depth for the game's GXPeekZ
   void (*setLetterbox)(int){};  // optional (cores since 22.10.2026): 4:3 without the bars
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
-  void (*setLanguage)(int){};   // optional (cores since 26.10.2026): the game's language (European discs)
+  void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -420,7 +420,7 @@ void loadCore(JNIEnv *env) {
   api.depth = reinterpret_cast<void (*)(const unsigned *, unsigned)>(dlsym(api.main, "re4_core_gx_depth"));
   api.setLetterbox = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_letterbox"));
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
-  api.setLanguage = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_language"));
+  api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -627,11 +627,6 @@ int renderPlaced = 0;  // the render thread set up
 std::atomic<int> optFastCores{0};
 int fastSent = -1;    // what the core was told last (-1: nothing yet)
 int renderFast = -1;  // the setting the render thread runs with (-1: none yet)
-// The menu's "Game language" with the European discs (CoreBridge.setLanguage, decision of the
-// project owner, 26.10.2026; port/docs/retail-eu-plan.md R7): 2 English .. 6 Italian, applies at
-// once; -1 nothing asked (the start setting RE4_GAME_LANGUAGE holds the language at the start).
-std::atomic<int> optLanguage{-1};
-int languageSent = -1;  // what the core was told last
 
 // Shader programs made ahead on a thread of its own (decision of the project owner, 23.10.2026):
 // the cache's keys and the app's list (gx-programs.keys, CoreActivity) that lack a binary are
@@ -1402,11 +1397,6 @@ bool drawGx() {
       api.setFastCores(fast);
       fastSent = fast;
     }
-    const int language = optLanguage.load();
-    if (api.setLanguage && language >= 0 && language != languageSent) {
-      api.setLanguage(language);
-      languageSent = language;
-    }
     if (fast != renderFast) {
       const bool first = renderFast < 0;
       renderFast = fast;
@@ -1743,7 +1733,7 @@ void useCoreProcess(const std::string &why) {
   api.depth = re4ipc_gx_depth;
   api.setLetterbox = re4ipc_set_letterbox;
   api.setFastCores = re4ipc_set_fast_cores;
-  api.setLanguage = re4ipc_set_language;
+  api.restartGame = re4ipc_restart_game;
   api.touch = re4ipc_touch;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -2085,9 +2075,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores
   if (optFastCores.exchange(want) != want) LOG("Force Performance: %s", want ? "use performance cores" : "default");
 }
 
-// The menu's "Game language" with the European discs (drawGx tells the core).
-extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLanguage(JNIEnv *, jclass, jint language) {
-  if (optLanguage.exchange(language) != language) LOG("game language: %d", static_cast<int>(language));
+// The menu's "Game language" with the European discs (decisions of the project owner, 26./27.10.2026;
+// port/docs/retail-eu-plan.md R7): the core takes the language and restarts the game (its soft reset).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_restartGame(JNIEnv *, jclass, jint language) {
+  LOG("game language %d: restart", static_cast<int>(language));
+  if (api.restartGame) api.restartGame(language);
 }
 
 // Frame skip (the menu): while the renderer is behind, chunks are left out (GxRenderer::Skip).

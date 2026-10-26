@@ -140,5 +140,9 @@
     <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
     <string name="ingame_game_language">Язык игры</string>
     <string name="ingame_language_device">Язык устройства</string>
-    <string name="ingame_language_help">Язык текстов и субтитров игры. Язык устройства: язык устройства, если он есть в игре, иначе английский. Изменение действует сразу; некоторые экраны покажут его при следующем открытии.</string>
+    <string name="ingame_language_help">Язык текстов и субтитров игры. Язык устройства: язык устройства, если он есть в игре, иначе английский. Изменение перезапускает игру.</string>
+    <string name="ingame_language_restart_title">Перезапустить игру?</string>
+    <string name="ingame_language_restart_text">Новый язык применится после перезапуска игры. Прогресс после последнего сохранения будет потерян.</string>
+    <string name="ingame_restart">Перезапустить</string>
+    <string name="ingame_cancel">Отмена</string>
 </resources>

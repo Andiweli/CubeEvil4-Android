@@ -25,7 +25,7 @@ public final class ImportManager {
   private Listener listener;
   public volatile boolean busy;
   /** The status before anything happened (the core launcher shows its own heading instead). */
-  public static final String PROMPT = "Select ISO/GCM files of the November 25, 2004 debug build or of the European release.";
+  public static final String PROMPT = "Select ISO/GCM files of the debug build or of the European release.";
   public volatile String status = PROMPT;
   public final File root;
   public ImportManager(Context context) {

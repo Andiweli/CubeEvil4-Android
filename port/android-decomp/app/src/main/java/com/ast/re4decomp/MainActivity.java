@@ -35,22 +35,14 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     int p = dp(20); body.setPadding(p, core ? dp(12) : p, p, core ? dp(12) : p);
     if (core) {
       // the launcher of the core mode (project owner, 17.10.2026): title and author centred, a line,
-      // Start game, then the controls and the disc import, each under a centred heading between lines
+      // Start game, then the disc import under a centred heading between lines (the controls left
+      // the launcher, 27.10.2026; a swap of A/B and X/Y saved before stays in force)
       centered(body, getString(R.string.core_title), 28, true, 0);
       centered(body, getString(R.string.core_author), 15, false, dp(4));
       // under the name (CubeEvil4 since 18.10.2026): own discs needed, not the original's maker
       centered(body, getString(R.string.core_notice), 12, false, dp(2));
       line(body, dp(10));
       start = button(body, getString(R.string.core_start), this::startOriginalTitle);
-      heading(body, getString(R.string.core_controls_heading));
-      // the controller of the core mode (CoreActivity, CoreInput): the layout and its one switch
-      centered(body, getString(R.string.core_controls), 14, false, 0);
-      final android.content.SharedPreferences input = getSharedPreferences(CoreActivity.INPUT_PREFS, MODE_PRIVATE);
-      CheckBox swap = new CheckBox(this); swap.setText(R.string.core_swap_face);
-      swap.setChecked(input.getBoolean(CoreActivity.SWAP_FACE, false));
-      swap.setOnCheckedChangeListener((v, on) -> input.edit().putBoolean(CoreActivity.SWAP_FACE, on).apply());
-      LinearLayout.LayoutParams middle = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-      middle.gravity = Gravity.CENTER_HORIZONTAL; middle.topMargin = dp(4); body.addView(swap, middle);
       heading(body, getString(R.string.core_import_heading));
     } else {
       // the variant "classic" (own game modules): its name and real version, so it is not taken for

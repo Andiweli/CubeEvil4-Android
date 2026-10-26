@@ -139,5 +139,9 @@
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
     <string name="ingame_game_language">Lingua del gioco</string>
     <string name="ingame_language_device">Lingua del dispositivo</string>
-    <string name="ingame_language_help">La lingua dei testi e dei sottotitoli del gioco. Lingua del dispositivo: quella del dispositivo se il gioco la offre, altrimenti l\'inglese. Una modifica vale subito; alcune schermate la mostrano alla prossima apertura.</string>
+    <string name="ingame_language_help">La lingua dei testi e dei sottotitoli del gioco. Lingua del dispositivo: quella del dispositivo se il gioco la offre, altrimenti l\'inglese. Una modifica riavvia il gioco.</string>
+    <string name="ingame_language_restart_title">Riavviare il gioco?</string>
+    <string name="ingame_language_restart_text">La nuova lingua vale dopo un riavvio del gioco. I progressi dall\'ultimo salvataggio vanno persi.</string>
+    <string name="ingame_restart">Riavvia</string>
+    <string name="ingame_cancel">Annulla</string>
 </resources>

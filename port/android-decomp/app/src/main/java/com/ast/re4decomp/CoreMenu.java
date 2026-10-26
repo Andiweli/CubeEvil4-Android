@@ -64,7 +64,10 @@ final class CoreMenu extends Dialog {
     void knifeSwipeChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
     boolean gameLanguages();
-    /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it). */
+    /** The game's language of a "Game language" choice (2..6; 0 the device's). */
+    int gameLanguageOf(int choice);
+    /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it); the
+     *  game restarts when its language changes (the menu asked first). */
     void gameLanguageChanged(int choice);
   }
 
@@ -195,18 +198,20 @@ final class CoreMenu extends Dialog {
     Button b = button(label, click); parent.addButton(b); return b;
   }
   private void choices(int label, String[] labels, int[] values, int selected, int limit, Changed<Integer> changed) {
+    choices(label, labels, values, selected, limit, labels.length, changed);
+  }
+  /** At most `columns` buttons a row (fewer when narrow); further rows line up under the first. */
+  private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
+                           Changed<Integer> changed) {
     LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, false);
     outer.addView(rowLabel(s(label)));
-    MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), labels.length);
+    MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), columns);
     outer.addView(options);
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
       final int index = i;
       Button b = cellAction(options, labels[i], v -> {
-        for (int k = 0; k < buttons.length; k++) {
-          buttons[k].setSelected(k == index);
-          buttons[k].setContentDescription(labels[k] + ", " + s(k == index ? R.string.ingame_on : R.string.ingame_off));
-        }
+        select(buttons, labels, index);
         changed.accept(values[index]);
       });
       b.setSelected(values[i] == selected); b.setEnabled(limit >= values[i]);
@@ -214,6 +219,13 @@ final class CoreMenu extends Dialog {
       buttons[i] = b;
     }
     outer.setPadding(0, dp(3), 0, dp(3)); body.addView(outer);
+    return buttons;
+  }
+  private void select(Button[] buttons, String[] labels, int index) {
+    for (int k = 0; k < buttons.length; k++) {
+      buttons[k].setSelected(k == index);
+      buttons[k].setContentDescription(labels[k] + ", " + s(k == index ? R.string.ingame_on : R.string.ingame_off));
+    }
   }
   private void graphicChoices(int label, String key, String[] labels, int[] values, int fallback, int limit) {
     choices(label, labels, values, graphics.getInt(key, fallback), limit, value -> {
@@ -305,17 +317,37 @@ final class CoreMenu extends Dialog {
     navigation[CONTROLS] = nav(first, R.string.ingame_controls_page, R.string.ingame_controls_summary, CONTROLS);
     navigation[PERFORMANCE] = nav(second, R.string.ingame_performance, R.string.ingame_performance_summary, PERFORMANCE);
     navigation[MANAGEMENT] = nav(second, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
-    if (host != null && host.gameLanguages()) {
-      // the languages of the European discs, each in its own language
-      heading(R.string.ingame_game_language);
-      int chosen = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
-          .getInt(CoreActivity.GAME_LANGUAGE, 0);
-      choices(R.string.ingame_game_language, new String[] {s(R.string.ingame_language_device), "English", "Deutsch",
-          "Français", "Español", "Italiano"}, new int[] {0, 2, 3, 4, 5, 6}, chosen, Integer.MAX_VALUE,
-          value -> host.gameLanguageChanged(value));
-      help(R.string.ingame_language_help);
-    }
+    if (host != null && host.gameLanguages()) gameLanguage();
     main.post(() -> { if (isShowing() && page == HOME && !working) refreshInstant(); });
+  }
+  /** "Game language" with the European discs: the languages each in its own language, three a row; a
+   *  new language restarts the game after a question, "Cancel" keeps the one before (decisions of the
+   *  project owner, 27.10.2026). */
+  private void gameLanguage() {
+    heading(R.string.ingame_game_language);
+    final String[] labels = {s(R.string.ingame_language_device), "English", "Deutsch", "Français", "Español", "Italiano"};
+    final int[] values = {0, 2, 3, 4, 5, 6};
+    final int[] current = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
+        .getInt(CoreActivity.GAME_LANGUAGE, 0)};
+    final Button[][] buttons = new Button[1][];
+    buttons[0] = choices(R.string.ingame_game_language, labels, values, current[0], Integer.MAX_VALUE, 3, value -> {
+      if (value == current[0]) return;
+      if (host.gameLanguageOf(value) == host.gameLanguageOf(current[0])) {
+        current[0] = value; host.gameLanguageChanged(value); return;
+      }
+      Runnable keep = () -> { for (int i = 0; i < values.length; i++) if (values[i] == current[0]) select(buttons[0], labels, i); };
+      AlertDialog dialog = new AlertDialog.Builder(getContext())
+          .setTitle(R.string.ingame_language_restart_title)
+          .setMessage(R.string.ingame_language_restart_text)
+          .setNegativeButton(R.string.ingame_cancel, (d, w) -> keep.run())
+          .setPositiveButton(R.string.ingame_restart, (d, w) -> {
+            current[0] = value; host.gameLanguageChanged(value); close();
+          }).create();
+      dialog.setOnCancelListener(d -> keep.run());
+      dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+      dialog.show();
+    });
+    help(R.string.ingame_language_help);
   }
   private Button nav(MenuLayout.Buttons parent, int title, int summary, int target) {
     SpannableStringBuilder label = new SpannableStringBuilder(s(title) + "   ›\n");

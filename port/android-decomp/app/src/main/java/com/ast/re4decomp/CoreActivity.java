@@ -122,6 +122,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the language at the start or the last change (onConfigurationChanged)
   private String shownLanguage = "";
   private boolean retailEu;  // the European discs are imported: the menu offers the game's language
+  private int gameLanguageNow;  // the language the game runs with (European discs)
   // the menu (SELECT) and the debug menu (SELECT held)
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
@@ -175,9 +176,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
     retailEu = imports.root != null && com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(
         com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1")));
+    gameLanguageNow = gameLanguage(this);
     if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
-      coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguage(this);
-      Log.i(TAG, "game language: " + gameLanguage(this));
+      coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
+      Log.i(TAG, "game language: " + gameLanguageNow);
     }
     // the app's own folder on the shared storage, where test switches write (RE4_AUDIO_WAV)
     getExternalFilesDir(null);
@@ -573,11 +575,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public boolean gameLanguages() { return retailEu; }
 
+    @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
+
     @Override public void gameLanguageChanged(int choice) {
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(GAME_LANGUAGE, choice).apply();
-      int language = gameLanguage(CoreActivity.this);
-      Log.i(TAG, "game language: " + language + (choice == 0 ? " (the device's)" : ""));
-      CoreBridge.setLanguage(language);
+      int language = gameLanguageOf(choice);
+      Log.i(TAG, "game language: " + language + (choice == 0 ? " (the device's)" : "")
+          + (language != gameLanguageNow ? ", the game restarts" : ""));
+      if (language != gameLanguageNow) {
+        gameLanguageNow = language;
+        CoreBridge.restartGame(language);
+      }
     }
 
     @Override public void alternateChanged(boolean on) {
@@ -1333,7 +1341,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
    */
   static int gameLanguage(Context context) {
-    int chosen = context.getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(GAME_LANGUAGE, 0);
+    return gameLanguageOf(context.getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(GAME_LANGUAGE, 0));
+  }
+
+  /** The game's language of a menu choice: 2..6 as they are, 0 the device's. */
+  static int gameLanguageOf(int chosen) {
     if (chosen >= 2 && chosen <= 6) return chosen;
     switch (Locale.getDefault().getLanguage()) {
       case "de": return 3;

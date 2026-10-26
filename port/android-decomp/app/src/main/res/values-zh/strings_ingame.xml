@@ -138,5 +138,9 @@
     <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
     <string name="ingame_game_language">游戏语言</string>
     <string name="ingame_language_device">设备语言</string>
-    <string name="ingame_language_help">游戏文字和字幕的语言。设备语言：如果游戏支持设备的语言就使用它，否则使用英语。更改立即生效；部分画面在下次打开时才会显示新语言。</string>
+    <string name="ingame_language_help">游戏文字和字幕的语言。设备语言：如果游戏支持设备的语言就使用它，否则使用英语。更改后游戏会重新启动。</string>
+    <string name="ingame_language_restart_title">重新启动游戏？</string>
+    <string name="ingame_language_restart_text">新语言将在游戏重新启动后生效。上次存档之后的进度将会丢失。</string>
+    <string name="ingame_restart">重新启动</string>
+    <string name="ingame_cancel">取消</string>
 </resources>

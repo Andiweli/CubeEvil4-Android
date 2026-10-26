@@ -147,5 +147,9 @@
     <string name="ingame_skip_or_smooth">‏تخطي الإطارات و60 إطارًا في الثانية لا يعملان معًا: تشغيل أحدهما يوقف الآخر.</string>
     <string name="ingame_game_language">لغة اللعبة</string>
     <string name="ingame_language_device">لغة الجهاز</string>
-    <string name="ingame_language_help">لغة نصوص اللعبة وترجماتها. لغة الجهاز: لغة الجهاز إذا كانت اللعبة تدعمها، وإلا فالإنجليزية. يسري التغيير فورًا؛ وتعرضها بعض الشاشات عند فتحها في المرة التالية.</string>
+    <string name="ingame_language_help">لغة نصوص اللعبة وترجماتها. لغة الجهاز: لغة الجهاز إذا كانت اللعبة تدعمها، وإلا فالإنجليزية. يؤدي التغيير إلى إعادة تشغيل اللعبة.</string>
+    <string name="ingame_language_restart_title">إعادة تشغيل اللعبة؟</string>
+    <string name="ingame_language_restart_text">تُطبَّق اللغة الجديدة بعد إعادة تشغيل اللعبة. يضيع التقدم منذ آخر حفظ.</string>
+    <string name="ingame_restart">إعادة التشغيل</string>
+    <string name="ingame_cancel">إلغاء</string>
 </resources>

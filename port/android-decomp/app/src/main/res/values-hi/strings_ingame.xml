@@ -138,5 +138,9 @@
     <string name="ingame_skip_or_smooth">फ़्रेम स्किप और 60 FPS साथ नहीं चलते: एक को चालू करने पर दूसरा बंद हो जाता है।</string>
     <string name="ingame_game_language">गेम की भाषा</string>
     <string name="ingame_language_device">डिवाइस की भाषा</string>
-    <string name="ingame_language_help">गेम के टेक्स्ट और सबटाइटल की भाषा। डिवाइस की भाषा: अगर गेम में डिवाइस की भाषा है तो वही, नहीं तो अंग्रेज़ी। बदलाव तुरंत लागू होता है; कुछ स्क्रीन इसे अगली बार खुलने पर दिखाती हैं।</string>
+    <string name="ingame_language_help">गेम के टेक्स्ट और सबटाइटल की भाषा। डिवाइस की भाषा: अगर गेम में डिवाइस की भाषा है तो वही, नहीं तो अंग्रेज़ी। बदलाव करने पर गेम फिर से शुरू होता है।</string>
+    <string name="ingame_language_restart_title">गेम फिर से शुरू करें?</string>
+    <string name="ingame_language_restart_text">नई भाषा गेम दोबारा शुरू होने के बाद लागू होगी। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
+    <string name="ingame_restart">फिर से शुरू करें</string>
+    <string name="ingame_cancel">रद्द करें</string>
 </resources>

@@ -153,5 +153,9 @@
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_game_language">Game language</string>
     <string name="ingame_language_device">Device language</string>
-    <string name="ingame_language_help">The language of the game\'s texts and subtitles. Device language: the device\'s language if the game has it, English otherwise. A change applies at once; some screens show it the next time they open.</string>
+    <string name="ingame_language_help">The language of the game\'s texts and subtitles. Device language: the device\'s language if the game has it, English otherwise. A change restarts the game.</string>
+    <string name="ingame_language_restart_title">Restart the game?</string>
+    <string name="ingame_language_restart_text">The new language is used after a restart of the game. Progress since your last save is lost.</string>
+    <string name="ingame_restart">Restart</string>
+    <string name="ingame_cancel">Cancel</string>
 </resources>

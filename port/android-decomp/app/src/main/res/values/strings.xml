@@ -5,16 +5,13 @@
     <string name="development_notice">Development build: Explore rooms with original lighting and fog, and jump through windows in r100/r101. Leon has infinite health in playtests. The full campaign is in development.</string>
     <string name="test_title">Original texture · Graphics and controller test</string>
     <string name="swap_layout">Swap A/B and X/Y (alternate controller layout)</string>
-    <string name="core_controls">Controls as on the GameCube: A, B, X, Y by their labels · left stick: control stick · right stick: C stick · D-pad · START · R2: R (ready weapon) · L2: L (knife) · R1: Z (map) · SELECT: menu (graphics, memory card, error log) · hold SELECT: the game\'s debug menu</string>
     <string name="core_title">CubeEvil4</string>
     <string name="core_author">By Andreas ‘Andiweli’ Stürmer</string>
     <string name="core_notice">Requires your own game discs. Not affiliated with Capcom.</string>
     <string name="core_start">Start game</string>
-    <string name="core_controls_heading">Controls</string>
-    <string name="core_import_heading">Select ISO/GCM files of the November 25, 2004 debug build or of the European release</string>
+    <string name="core_import_heading">Select ISO/GCM files of the debug build or of the European release</string>
     <string name="core_disc_state">Disc %1$d Data is %2$s</string>
     <string name="core_disc_ready">ready (%1$s)</string>
-    <string name="core_swap_face">Swap A/B and X/Y (when the buttons do not act as labeled)</string>
     <string name="controller_prompt">Connect a controller and press a button.</string>
     <string name="controller_status">%1$s\n%2$s</string>
     <string name="disc_status">Disc 1: %1$s\nDisc 2: %2$s</string>

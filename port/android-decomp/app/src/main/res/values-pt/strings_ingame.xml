@@ -140,5 +140,9 @@
     <string name="ingame_skip_or_smooth">Salto de quadros e 60 FPS se excluem: ativar um desativa o outro.</string>
     <string name="ingame_game_language">Idioma do jogo</string>
     <string name="ingame_language_device">Idioma do aparelho</string>
-    <string name="ingame_language_help">O idioma dos textos e legendas do jogo. Idioma do aparelho: o do aparelho, se o jogo tiver, senão inglês. Uma mudança vale na hora; algumas telas mostram na próxima vez que abrirem.</string>
+    <string name="ingame_language_help">O idioma dos textos e legendas do jogo. Idioma do aparelho: o do aparelho, se o jogo tiver, senão inglês. Uma mudança reinicia o jogo.</string>
+    <string name="ingame_language_restart_title">Reiniciar o jogo?</string>
+    <string name="ingame_language_restart_text">O novo idioma vale após reiniciar o jogo. O progresso desde o último salvamento é perdido.</string>
+    <string name="ingame_restart">Reiniciar</string>
+    <string name="ingame_cancel">Cancelar</string>
 </resources>

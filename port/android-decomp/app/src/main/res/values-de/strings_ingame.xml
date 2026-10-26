@@ -138,5 +138,9 @@
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
     <string name="ingame_game_language">Spielsprache</string>
     <string name="ingame_language_device">Gerätesprache</string>
-    <string name="ingame_language_help">Die Sprache der Texte und Untertitel im Spiel. Gerätesprache: die Sprache des Geräts, wenn das Spiel sie hat, sonst Englisch. Eine Änderung gilt sofort; manche Bildschirme zeigen sie erst, wenn sie das nächste Mal öffnen.</string>
+    <string name="ingame_language_help">Die Sprache der Texte und Untertitel im Spiel. Gerätesprache: die Sprache des Geräts, wenn das Spiel sie hat, sonst Englisch. Eine Änderung startet das Spiel neu.</string>
+    <string name="ingame_language_restart_title">Spiel neu starten?</string>
+    <string name="ingame_language_restart_text">Die neue Sprache gilt nach einem Neustart des Spiels. Fortschritt seit dem letzten Speichern geht verloren.</string>
+    <string name="ingame_restart">Neu starten</string>
+    <string name="ingame_cancel">Abbruch</string>
 </resources>
