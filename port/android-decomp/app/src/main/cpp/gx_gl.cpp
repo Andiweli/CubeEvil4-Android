@@ -899,6 +899,7 @@ struct GxRenderer::Impl {
     std::uint32_t data = 0;   // into recFloats: rows x 4 position, rows x 3 normal, 6 projection floats
     std::uint32_t vertexOffset = 0, vertexCount = 0, stride = 0, layout = 0;
     bool perspective = false;
+    std::uint64_t look = 0;  // a particle's signature without its textures (0: not a particle)
   };
   bool recordDraws = false;
   bool recValid = false;            // rec describes the chunk run last
@@ -908,7 +909,7 @@ struct GxRenderer::Impl {
   bool interpPass = false;
   float interpT = 0.5f;
   const Re4GxChunk *interpPrev = nullptr;  // the chunk rec describes (its vertices)
-  std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> recBySig;
+  std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> recBySig, recByLook;
   std::vector<std::uint8_t> recUsed;
   std::unordered_map<std::uint32_t, Copy> interpCopies;  // the pass's own EFB copies
   std::unordered_set<std::uint32_t> interpCopied;         // addresses it copied to
@@ -918,15 +919,24 @@ struct GxRenderer::Impl {
   // the pass's counts: perspective draws, matched, turned more than 20 degrees
   unsigned ipDraws = 0, ipMatched = 0, ipTurned = 0;
   // The camera's move from the picture before to the next one in the pass (view space: next =
-  // cam * before), read off two large draws of a look of their own whose moves agree (the room,
-  // which stands still; camCand: the first, waiting for a second to confirm it). MatchDraw takes
-  // it out of the distances, so that a particle is matched by its own move, not the camera's.
-  float cam[3][4] = {}, camCand[3][4] = {};
-  bool camValid = false, camCandValid = false;
+  // cam * before), read off the large draws of a look of their own: each proposes its move, and
+  // another object (another matrix) that moved the same way votes for it; the move with the most
+  // votes, at least two, counts (the room, of many pieces that stand still). MatchDraw takes it out
+  // of a particle's distances, so that it is matched by its own move, not the camera's.
+  struct CamGuess {
+    float c[3][4];
+    float t[3];  // the proposing draw's translation (its parts with the same matrix do not vote)
+    unsigned votes;
+  };
+  CamGuess camGuess[4] = {};
+  unsigned camGuesses = 0, camVotes = 0;
+  float cam[3][4] = {};
+  bool camValid = false;
 
   // What identifies a draw from one picture to the next: its shader (the program of the same
-  // registers), primitive, vertex layout and count, matrix indices and the textures it samples.
-  std::uint64_t DrawSig(const Re4GxDraw &d, const ShaderKey &k) const {
+  // registers), primitive, vertex layout and count, matrix indices and the textures it samples
+  // (without them: a particle's look, see BlendDraw).
+  std::uint64_t DrawSig(const Re4GxDraw &d, const ShaderKey &k, bool textures = true) const {
     std::uint64_t h = 1469598103934665603ull;
     auto mix = [&h](std::uint64_t v) {
       h ^= v;
@@ -941,7 +951,7 @@ struct GxRenderer::Impl {
     mix(d.matrices[0]);
     mix(d.matrices[1]);
     mix(d.matrices[2]);
-    for (int m = 0; m < 8; m++)
+    for (int m = 0; textures && m < 8; m++)
       if (k.texMaps & (1u << m))
         mix(boundKey[m]);
     return h;
@@ -971,6 +981,8 @@ struct GxRenderer::Impl {
     r.stride = d.stride;
     r.layout = d.layout;
     r.perspective = !k.orthographic;
+    if (r.rows == 3 && d.vertexCount <= 16)
+      r.look = DrawSig(d, k, false);
     if (r.rows) {
       for (int c = 0; c < 3; c++)
         r.t[c] = xf.posTex[r.posRow + c][3];
@@ -999,18 +1011,17 @@ struct GxRenderer::Impl {
   // taking another's place. Only particles: the camera's move is the room's, and the parts of Leon
   // turn with the camera; matched by it, two alike parts of him swapped places and their blended
   // vertices drew a long bar at the bottom of the picture (Retroid report 26.10.2026, fast turns).
-  const DrawRec *MatchDraw(std::uint64_t sig, const float *t, std::uint32_t rows, std::uint32_t vertexCount) {
-    auto it = recBySig.find(sig);
-    if (it == recBySig.end())
-      return nullptr;
+  // (flat: a 2D draw, in screen units; by the game's order)
+  const DrawRec *MatchDraw(const std::vector<std::uint32_t> &candidates, const float *t, std::uint32_t rows,
+                           std::uint32_t vertexCount, bool flat = false) {
     const float reach = rows ? std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]) : 0.0f;
-    const bool particle = rows == 3 && vertexCount <= 16, moved = particle && camValid;
+    const bool particle = !flat && rows == 3 && vertexCount <= 16, moved = particle && camValid;
     const float limit = moved ? 0.05f * reach + 300.0f : 0.25f * reach + 400.0f;
     const float close = 0.02f * reach + 50.0f;
     int first = -1, best = -1;
     float firstDist = 0.0f, bestDist = 0.0f;
     unsigned looked = 0;
-    for (std::uint32_t i : it->second) {
+    for (std::uint32_t i : candidates) {
       if (recUsed[i])
         continue;
       const DrawRec &r = rec[i];
@@ -1068,59 +1079,99 @@ struct GxRenderer::Impl {
   }
 
   // A large draw of a look of its own (one of it in the picture before), matched: its move is the
-  // camera's when the room stands still. Taken once a second such draw moved the same way.
+  // camera's when it stands still. It votes for a move proposed before that takes its position
+  // before to where it is now (when it has a matrix of its own: two parts of one object that moved
+  // agreed with each other, Retroid series 26.10.2026 at the merchant), else proposes its own.
   void NoteCamera(std::uint64_t sig, const float *before, const float (&now)[3][4]) {
     auto it = recBySig.find(sig);
     if (it == recBySig.end() || it->second.size() != 1)
       return;
-    float c[3][4];
-    if (!CameraMove(before, now, c))
-      return;
-    if (camCandValid) {
-      // the move noted first, on this draw: where its position before goes, against where it is
-      const float beforeT[3] = {before[3], before[7], before[11]}, nowT[3] = {now[0][3], now[1][3], now[2][3]};
+    const float beforeT[3] = {before[3], before[7], before[11]}, nowT[3] = {now[0][3], now[1][3], now[2][3]};
+    const float reach = std::sqrt(nowT[0] * nowT[0] + nowT[1] * nowT[1] + nowT[2] * nowT[2]);
+    for (unsigned g = 0; g < camGuesses; g++) {
+      CamGuess &q = camGuess[g];
       float p[3];
-      CameraApply(camCand, beforeT, p);
-      const float reach = std::sqrt(nowT[0] * nowT[0] + nowT[1] * nowT[1] + nowT[2] * nowT[2]);
+      CameraApply(q.c, beforeT, p);
       const float dx = p[0] - nowT[0], dy = p[1] - nowT[1], dz = p[2] - nowT[2];
-      if (std::sqrt(dx * dx + dy * dy + dz * dz) <= 0.02f * reach + 50.0f) {
-        std::memcpy(cam, camCand, sizeof(cam));
+      if (std::sqrt(dx * dx + dy * dy + dz * dz) > 0.02f * reach + 50.0f)
+        continue;
+      const float sx = nowT[0] - q.t[0], sy = nowT[1] - q.t[1], sz = nowT[2] - q.t[2];
+      if (sx * sx + sy * sy + sz * sz >= 1.0f && ++q.votes > camVotes) {
+        std::memcpy(cam, q.c, sizeof(cam));
+        camVotes = q.votes;
         camValid = true;
-        return;
       }
+      return;
     }
-    std::memcpy(camCand, c, sizeof(camCand));
-    camCandValid = true;
+    if (camGuesses < 4) {
+      CamGuess &q = camGuess[camGuesses];
+      if (!CameraMove(before, now, q.c))
+        return;
+      std::memcpy(q.t, nowT, sizeof(q.t));
+      q.votes = 1;
+      camGuesses++;
+    }
   }
 
   // The in-between pass, before a draw: its rows (and vertices) between the picture before (a)
   // and now; how many rows to put back afterwards (BlendRestore).
+  // 2D (the HUD, full-screen passes, a glow laid over a flame in screen space) as in the next picture,
+  // unless it has a matrix of its own that only moved, by at most a quarter of the picture
+  // (kFlatMove, screen units): then between the two too, without lights and projection. Retroid
+  // series 26.10.2026: the glow of the merchant's brazier, a 2D square 418 units wide, moved 23
+  // units a game picture while the camera turned and jumped in the in-between pictures. Not when it
+  // turned or changed its size: r224 lays a copy of the picture over itself through a square that
+  // turns 10 degrees a game picture (its texture coordinates come from the square's corners), and
+  // half turned it showed the room twice.
+  static constexpr float kFlatMove = 128.0f;
   std::uint32_t BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re4GxChunk &chunk) {
-    if (k.orthographic)
-      return 0; // 2D: as in the next picture
-    ipDraws++;
+    const bool flat = k.orthographic;
     std::uint32_t first = 0, rows = 0;
     bool lights = false;
     DrawRows(d, &first, &rows);
+    if (flat && rows != 3)
+      return 0;
+    if (!flat)
+      ipDraws++;
     float t[3] = {};
     if (rows)
       for (int c = 0; c < 3; c++)
         t[c] = xf.posTex[first + c][3];
     const std::uint64_t sig = DrawSig(d, k);
-    const DrawRec *a = MatchDraw(sig, t, rows, d.vertexCount);
-    if (a && !camValid && rows == 3 && a->rows == 3 && a->posRow == first && d.vertexCount >= 64) {
+    auto it = recBySig.find(sig);
+    const DrawRec *a = it != recBySig.end() ? MatchDraw(it->second, t, rows, d.vertexCount, flat) : nullptr;
+    // a particle with none of its look: by the look without its textures. Flames show a new picture
+    // of their animation, a texture of its own, every game picture (Retroid report 26.10.2026, the
+    // merchant's brazier: unmatched, the flames were drawn where they are in the next picture and
+    // lagged behind the brazier while the camera turned). The texture stays the next picture's.
+    if (!a && !flat && rows == 3 && d.vertexCount <= 16) {
+      auto look = recByLook.find(DrawSig(d, k, false));
+      if (look != recByLook.end())
+        a = MatchDraw(look->second, t, rows, d.vertexCount);
+    }
+    if (a && !flat && rows == 3 && a->rows == 3 && a->posRow == first && d.vertexCount >= 64) {
       float now[3][4];
       std::memcpy(now, xf.posTex[first], sizeof(now));
       NoteCamera(sig, recFloats.data() + a->data, now);
     }
     if (!a)
       return 0;
-    ipMatched++;
     const float s = interpT;
     const float *src = recFloats.data() + a->data;
+    if (flat) {
+      const float dx = xf.posTex[first][3] - src[3], dy = xf.posTex[first + 1][3] - src[7];
+      if (a->rows != 3 || a->posRow != first || !(dx * dx + dy * dy <= kFlatMove * kFlatMove))
+        return 0;
+      for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+          if (!(std::fabs(xf.posTex[first + r][c] - src[r * 4 + c]) <= 1e-3f * std::max(1.0f, std::fabs(src[r * 4 + c]))))
+            return 0;
+    } else {
+      ipMatched++;
+    }
     if (rows && a->rows == rows && a->posRow == first) {
       // turned more than 20 degrees: a cut of the camera, most likely (Interpolate counts them)
-      if (rows == 3) {
+      if (rows == 3 && !flat) {
         float lowest = 1.0f;
         for (int r = 0; r < 3; r++) {
           const float *pa = src + r * 4, *pb = xf.posTex[first + r];
@@ -1140,7 +1191,7 @@ struct GxRenderer::Impl {
           xf.posTex[first + r][c] = src[r * 4 + c] + (xf.posTex[first + r][c] - src[r * 4 + c]) * s;
       // the lights (in view space, as the game loaded them for the next picture) moved with the
       // camera between the two: tester's report 24.10.2026, light pools that swam in 60 FPS
-      if (rows == 3 && BlendLights(now, xf.posTex[first]))
+      if (rows == 3 && !flat && BlendLights(now, xf.posTex[first]))
         lights = true;
       const float *nrm = src + rows * 4;
       for (std::uint32_t r = 0; r < rows; r++)
@@ -1187,9 +1238,10 @@ struct GxRenderer::Impl {
             fb[c] = fa[c] + (fb[c] - fa[c]) * s;
           std::memcpy(blendVertices.data() + v * d.stride, fb, normals ? 24 : 12);
         }
-        // more than 1500 units in one game picture: not the same figure. The blended vertices go to a
-        // place of blendVbo no draw has used in this pass: no waiting, no copy of the buffer
-        if (far <= 1500.0f) {
+        // more than 1500 units in one game picture (2D: kFlatMove): not the same figure. The blended
+        // vertices go to a place of blendVbo no draw has used in this pass: no waiting, no copy of
+        // the buffer
+        if (far <= (flat ? kFlatMove : 1500.0f)) {
           const std::size_t at = (blendUsed + d.stride - 1) / d.stride * d.stride;
           if (blendMap && at + bytes <= blendCap) {
             std::memcpy(blendMap + at, blendVertices.data(), bytes);
@@ -4006,11 +4058,16 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
     tlut = m.tlut;
   // the noted draws by signature, in their order
   m.recBySig.clear();
-  for (std::uint32_t i = 0; i < m.rec.size(); i++)
+  m.recByLook.clear();
+  for (std::uint32_t i = 0; i < m.rec.size(); i++) {
     m.recBySig[m.rec[i].sig].push_back(i);
+    if (m.rec[i].look)
+      m.recByLook[m.rec[i].look].push_back(i);
+  }
   m.recUsed.assign(m.rec.size(), 0);
   m.ipDraws = m.ipMatched = m.ipTurned = 0;
-  m.camValid = m.camCandValid = false;
+  m.camValid = false;
+  m.camGuesses = m.camVotes = 0;
   m.interpCopied.clear();
   m.interpUploads.clear();
   // the store for the pass's blended vertices: the next quarter of the mapped ring once the GPU is

@@ -4,6 +4,38 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Sechster Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid): der weiße Balken ist weg ✅. Flammen und Fackeln flackern beim schnellen
+Drehen mit 60 FPS noch; vier R3-Serien an der blauen Feuerschale des Händlers (Kamera dreht sich).
+
+- **Messung:** Im Zwischenbild (Anteil 0) stand der ganze Raum richtig, nur die Flamme und ihr Lichtschein standen
+  schon an der Stelle des nächsten Bildes: beim Drehen hinkten sie der Schale hinterher. Drei Ursachen:
+  1. **Flammen ohne Gegenstück:** jedes Flammen-Viereck zeigt pro Spielbild ein anderes Einzelbild seiner
+     Animation, also eine andere Textur; die Textur gehört zur Signatur (`DrawSig`), es gab nie ein Gegenstück.
+     Neu: Teilchen (eigene Matrix, höchstens 16 Ecken) ohne Gegenstück suchen eins mit gleichem Aussehen ohne
+     Texturen (`DrawRec::look`, `recByLook`); die Textur bleibt die des nächsten Bildes.
+  2. **Kamerabewegung falsch abgelesen:** zwei Teile eines bewegten Gegenstands mit derselben Matrix
+     „bestätigten“ einander (Serie 01, Bild 5: 44 Flammen-Teilchen abgewiesen). Neu (`NoteCamera`): jedes große
+     Teil eigenen Aussehens schlägt eine Bewegung vor oder stimmt für eine; eine Stimme zählt nur von einem
+     Teil mit anderer Matrix; es gilt die Bewegung mit den meisten Stimmen (mindestens zwei), also der Raum.
+  3. **Lichtschein als 2D-Viereck:** der Schein ist ein flaches Viereck (418 Einheiten breit), das das Spiel
+     jedes Bild in Bildschirmkoordinaten über die Flamme legt; beim Drehen wanderte es 23 Einheiten je
+     Spielbild, flache Teile kamen bisher immer aus dem nächsten Bild. Neu: ein flaches Teil mit eigener Matrix
+     wird gemischt, wenn es sich nur verschoben hat, höchstens um ein Viertel des Bildes (`kFlatMove`, 128).
+     Nicht, wenn es sich gedreht oder seine Größe geändert hat: r224 legt ein Abbild der Szene durch ein
+     Vollbild-Viereck über sich, das sich 10 Grad je Spielbild dreht (Texturkoordinaten aus den Ecken); halb
+     gedreht zeigte es den Raum doppelt (erster Versuch: r224 von 1,10 auf 13,29, behoben).
+- **Messung über elf Serien** (mittlere Abweichung des Zwischenbilds mit Anteil 0, vor heute → 0.91-Kandidat
+  `3077f24` → neu): Händler 13,1/12,8/10,1/3,4 → gleich → 1,8/0,9/1,3/0,9; r224 4,0 → 1,1 → 1,1; die übrigen
+  1,6–3,5 → 1,6–3,5 → 0,1–3,5; stark abweichende Bildpunkte am Händler 64 353 → 9 031; echte Bilder byte-gleich.
+- **Tests:** `TestInterpolationEffects` (neu: Flamme mit neuer Textur halbwegs; flacher Schein halbwegs; ein
+  flaches Viereck mit Sprung und eins mit neuer Größe wie im nächsten Bild), `TestInterpolationParticles`
+  erweitert (vor dem Raum ein fliegender Gegenstand aus zwei Teilen mit einer Matrix; die Raumteile mit eigenen
+  Matrizen). Gegenproben je Regel (ohne Aussehen ohne Textur, ohne 2D, ohne Sprunggrenze, Stimmen gleicher
+  Matrix, ohne Dreh-/Größenregel) jeweils rot. `gx_gl_check` 0 Fehler. Kern unverändert.
+- **Nicht getestet:** auf dem Gerät.
+
 ## Fünfter Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
 
 Bericht des Projektinhabers (Retroid, Bericht 15:03, Foto): Rauch ruckelt mit 60 FPS nicht mehr, Flammen und Fackeln

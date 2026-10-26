@@ -1549,7 +1549,8 @@ std::vector<std::uint8_t> XfbPixels(re4gx::GxRenderer &r) {
 
 // Particles (60 FPS, Retroid report 26.10.2026, r224: the smoke and fire flickered): quads of
 // the same look, each with a matrix of its own, 2500 units apart at 20000. From picture A to B the
-// camera moves 1500 units (the two room draws show it), every particle 500 units of its own; the
+// camera moves 1500 units (the two room pieces show it, not the flying object before them), every
+// particle 500 units of its own; the
 // first one dies, a new one starts far to the left. The in-between picture places each particle
 // halfway along its own move (before: the second took the first's place; nearest without the
 // camera's move: the third's), the new one as in B.
@@ -1560,21 +1561,29 @@ void ParticleScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *
   const float n = 100.0f, f = 1000000.0f, depth = 20000.0f, camera = second ? 1500.0f : 0.0f;
   b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
   b.Xf(0x1026, {0});
-  // the room: two large draws of a look of their own (64 and 68 vertices) in a band at the top
+  // large draws of a look of their own (64 to 76 vertices) in a band at the top: first an object of
+  // two parts with one matrix that flies 5000 units (its parts agree with each other, but it is not
+  // the camera: the merchant's series, 26.10.2026), then the room, two pieces with matrices of their
+  // own that move with the camera
   const std::uint8_t blue[4] = {0, 0, 255, 255}, red[4] = {255, 0, 0, 255};
-  b.XfF(0, {1, 0, 0, camera, 0, 1, 0, 0, 0, 0, 1, -30000.0f});
-  for (int piece = 0; piece < 2; piece++) {
+  auto piece = [&](unsigned quads, float y0, const std::uint8_t *c) {
     std::vector<std::uint8_t> v;
-    const unsigned quads = piece ? 17 : 16;
     for (unsigned q = 0; q < quads; q++) {
-      const float x0 = -20000.0f + 2400.0f * static_cast<float>(q), y0 = piece ? 15000.0f : 17000.0f;
-      V(v, x0, y0, 0.0f, piece ? red : blue);
-      V(v, x0 + 2000.0f, y0, 0.0f, piece ? red : blue);
-      V(v, x0 + 2000.0f, y0 + 1500.0f, 0.0f, piece ? red : blue);
-      V(v, x0, y0 + 1500.0f, 0.0f, piece ? red : blue);
+      const float x0 = -8000.0f + 900.0f * static_cast<float>(q);
+      V(v, x0, y0, 0.0f, c);
+      V(v, x0 + 700.0f, y0, 0.0f, c);
+      V(v, x0 + 700.0f, y0 + 1500.0f, 0.0f, c);
+      V(v, x0, y0 + 1500.0f, 0.0f, c);
     }
     b.Draw(RE4_GX_V_COLOR0, 16, v, quads * 4, 0x80);
-  }
+  };
+  b.XfF(0, {1, 0, 0, second ? 5000.0f : 0.0f, 0, 1, 0, 0, 0, 0, 1, -30000.0f});
+  piece(16, 17000.0f, red);
+  piece(17, 15000.0f, red);
+  b.XfF(0, {1, 0, 0, camera - 4000.0f, 0, 1, 0, 0, 0, 0, 1, -30000.0f});
+  piece(18, 17000.0f, blue);
+  b.XfF(0, {1, 0, 0, camera + 4000.0f, 0, 1, 0, 0, 0, 0, 1, -32000.0f});
+  piece(19, 15000.0f, blue);
   // the particles: a small quad each, placed by its matrix
   auto particle = [&](float x) {
     b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -depth});
@@ -1697,6 +1706,113 @@ void TestInterpolationLooks() {
   r.Run(b);
   Check(Near(TexPixel(r.Xfb(nullptr, nullptr), px(-1200.0f), 264), 0, 0, 200, 3), "looks: picture B after it (blue)");
   Check(glGetError() == GL_NO_ERROR, "looks: no GL error");
+  r.Release();
+}
+
+// Effects in the in-between picture (Retroid series 26.10.2026 at the merchant's brazier): a flame
+// shows a new picture of its animation every game picture (another texture), and its glow is a 2D
+// square the game lays over it in screen units. The flame moves 600 units at 3000 (texture red in
+// A, blue in B): halfway, blue. The glow moves 60 screen units: halfway. A 2D square that jumps
+// 220 units (more than a quarter of the picture), and one that grows from 60 to 100 units wide
+// (turned or resized: r224's copy of the picture laid over itself), stand where they are in B.
+std::vector<std::uint8_t> SolidRgba8(int r, int g, int b) {
+  std::vector<std::uint8_t> tex(64);
+  for (int i = 0; i < 16; i++) {
+    tex[i * 2] = 255;
+    tex[i * 2 + 1] = static_cast<std::uint8_t>(r);
+    tex[32 + i * 2] = static_cast<std::uint8_t>(g);
+    tex[32 + i * 2 + 1] = static_cast<std::uint8_t>(b);
+  }
+  return tex;
+}
+
+void EffectsScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  // 2D (the orthographic projection of Baseline): the glow, unit square scaled by its matrix
+  auto square = [&](float x, float w, unsigned layers) {
+    b.XfF(0, {w, 0, 0, x, 0, 40.0f, 0, 244.0f, 0, 0, 1, 0});
+    std::vector<std::uint8_t> v;
+    for (unsigned l = 0; l < layers; l++) {
+      V(v, 0, 0, -0.5f, kGreen);
+      V(v, 1, 0, -0.5f, kGreen);
+      V(v, 1, 1, -0.5f, kGreen);
+      V(v, 0, 1, -0.5f, kGreen);
+    }
+    b.Draw(RE4_GX_V_COLOR0, 16, v, layers * 4, 0x80);
+  };
+  square(second ? 160.0f : 100.0f, 60.0f, 1);
+  square(second ? 520.0f : 300.0f, 60.0f, 2);
+  square(20.0f, second ? 100.0f : 60.0f, 3);
+  // 3D: the flame, a textured square with a matrix of its own
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  b.Bp(0x00, 1u | 1u << 4);
+  b.Xf(0x103F, {1});
+  b.Xf(0x1040, {5u << 7});
+  b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  b.Bp(0x80, 0);
+  b.Bp(0x84, 0);
+  b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+  b.Bp(0x30, 3);
+  b.Bp(0x31, 3);
+  if (second)
+    b.Texture(0, 0x2222, 0, 0x120000, 4, 4, 6, SolidRgba8(0, 0, 200));
+  else
+    b.Texture(0, 0x1111, 0, 0x110000, 4, 4, 6, SolidRgba8(200, 0, 0));
+  // (on screen row 400, below the 2D squares of row 264)
+  b.XfF(0, {1, 0, 0, second ? 600.0f : 0.0f, 0, 1, 0, (264.0f - 400.0f) / 264.0f * 3000.0f, 0, 0, 1, -3000.0f});
+  std::vector<std::uint8_t> v;
+  VT(v, -100.0f, -100.0f, 0.0f, kWhite, 0, 0);
+  VT(v, 100.0f, -100.0f, 0.0f, kWhite, 1, 0);
+  VT(v, 100.0f, 100.0f, 0.0f, kWhite, 1, 1);
+  VT(v, -100.0f, 100.0f, 0.0f, kWhite, 0, 1);
+  b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationEffects() {
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  EffectsScene(ba, 1, false, &a);
+  EffectsScene(bb, 2, true, &b);
+  r.Run(a);
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 3000.0f * 320.0f)); };
+  const GLuint xfbA = r.Xfb(nullptr, nullptr);
+  const auto flameA = TexPixel(xfbA, px(0.0f), 400), glowA = TexPixel(xfbA, 105, 264);
+  Check(Near(flameA, 200, 0, 0, 3) && Near(glowA, 0, 255, 0), "effects: picture A (the flame red, the glow at 100)");
+  if (!Near(flameA, 200, 0, 0, 3) || !Near(glowA, 0, 255, 0))
+    Print("flameA", flameA), Print("glowA", glowA);
+  Check(r.Interpolate(a, b, 0.5f), "effects: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  // the flame: halfway (300), with B's picture of the animation; not where it is in B (600)
+  const auto flame = TexPixel(xfb, px(300.0f), 400), flameB = TexPixel(xfb, px(600.0f), 400);
+  Check(Near(flame, 0, 0, 200, 3) && Near(flameB, 0, 0, 0), "effects: a flame with a new texture goes halfway");
+  // the glow: 130..190 between 100..160 and 160..220
+  const auto glow = TexPixel(xfb, 135, 264), glowB = TexPixel(xfb, 215, 264);
+  Check(Near(glow, 0, 255, 0) && Near(glowB, 0, 0, 0), "effects: a 2D glow that moved a little goes halfway");
+  // the jump of 220: where it is in B (520..580), not halfway (410..470)
+  const auto jump = TexPixel(xfb, 550, 264), jumpMid = TexPixel(xfb, 440, 264);
+  Check(Near(jump, 0, 255, 0) && Near(jumpMid, 0, 0, 0), "effects: a 2D square that jumped stands where it is in B");
+  // the one that grew: 20..120 as in B, not 20..100
+  const auto grown = TexPixel(xfb, 110, 264);
+  Check(Near(grown, 0, 255, 0), "effects: a 2D square that changed its size stands as in B");
+  if (!Near(grown, 0, 255, 0))
+    Print("grown", grown);
+  if (!Near(flame, 0, 0, 200, 3) || !Near(flameB, 0, 0, 0) || !Near(glow, 0, 255, 0) || !Near(glowB, 0, 0, 0) ||
+      !Near(jump, 0, 255, 0) || !Near(jumpMid, 0, 0, 0))
+    Print("flame", flame), Print("flameB", flameB), Print("glow", glow), Print("glowB", glowB), Print("jump", jump),
+        Print("jumpMid", jumpMid);
+  Check(glGetError() == GL_NO_ERROR, "effects: no GL error");
   r.Release();
 }
 
@@ -2228,6 +2344,7 @@ int main() {
   TestInterpolation();
   TestInterpolationParticles();
   TestInterpolationLooks();
+  TestInterpolationEffects();
   TestInterpolatedLights();
   // MSAA in its own buffers (the devices without the extensions, RE4_GX_MSAA_TILES=0)
   TestOptions(false, false);
