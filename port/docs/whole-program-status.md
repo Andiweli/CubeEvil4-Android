@@ -10,6 +10,8 @@ Plan: `port/docs/retail-eu-plan.md` (Meilenstein „Retail-Discs (EU)“, Auftra
 GitHub-Arbeit auf einem neuen Branch von `beta-updates`). Grundsatzentscheidungen des Projektinhabers
 (26.10.2026, nach R1): parallel zur Debug-Disc, Debug-Menü mit EU-Discs ausblenden (Cheat-Menü im Ingame-Menü
 später gesondert), alle Sprachen der EU-Discs in R7, Aufnahme als **M13** in `CLAUDE.md`.
+Nachtrag (26.10.2026, nach dem Bildschirmfoto des EU-Titelmenüs mit „LANGUAGE SELECT“): die Sprachwahl erfolgt im
+Ingame-Menü der App, der Punkt wird aus dem Titelmenü entfernt (R7).
 
 **R0 Prüfstrecke**
 - `port/tools/disc_release.py`: welche Version ein Disc-Kopf ist. Debug-Build = G4BE08 mit der Dateitabelle bei
