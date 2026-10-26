@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(__ANDROID__) && __SIZEOF_POINTER__ != 4
+#if defined(__ANDROID__)
 #include <android/dlext.h>
 #include <sys/mman.h>
 #endif
@@ -52,6 +52,66 @@ void* openInWindow(const char* path, void** range, unsigned long* rangeSize)
 }
 #endif
 
+#if defined(__ANDROID__) && __SIZEOF_POINTER__ == 4
+// 32 bit on Android: the game tells its own data from offsets by bit 31 of an address, so a module
+// must lie above 0x80000000. On a 32-bit process that address space fills up (graphics driver,
+// buffers): moto e6s, 24.10.2026, "libre4_st1_0.so loaded at 0x7d142000, below 0x80000000". The
+// core reserves a window for the modules above 0x80000000 at its start (re4_module_window_reserve)
+// and the linker loads each module into blocks of it.
+const unsigned long kBlock = 2ul << 20;
+const int kBlocks = 32;
+char* gWindow;
+unsigned char gUsed[kBlocks];
+
+void* openInWindow(const char* path, void** range, unsigned long* rangeSize)
+{
+    if (!gWindow) {
+        return 0;
+    }
+    // a module of up to 2 MB, then of up to 8 MB (a contiguous run of blocks)
+    for (int n = 1; n <= 4; n *= 4) {
+        for (int first = 0; first + n <= kBlocks; first++) {
+            int free = 1;
+            for (int k = 0; k < n && free; k++) {
+                free = !gUsed[first + k];
+            }
+            if (!free) {
+                continue;
+            }
+            void* at = gWindow + (unsigned long) first * kBlock;
+            android_dlextinfo info;
+            memset(&info, 0, sizeof(info));
+            info.flags = ANDROID_DLEXT_RESERVED_ADDRESS;
+            info.reserved_addr = at;
+            info.reserved_size = n * kBlock;
+            if (void* handle = android_dlopen_ext(path, RTLD_NOW | RTLD_LOCAL, &info)) {
+                for (int k = 0; k < n; k++) {
+                    gUsed[first + k] = 1;
+                }
+                *range = at;
+                *rangeSize = n * kBlock;
+                return handle;
+            }
+            break;  // does not fit here: a larger run
+        }
+    }
+    return 0;
+}
+
+void closeInWindow(void* range, unsigned long rangeSize)
+{
+    if (!range || !gWindow) {
+        return;
+    }
+    // the linker leaves the range mapped: reserve it again
+    mmap(range, rangeSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_NORESERVE, -1, 0);
+    int first = (int) (((char*) range - gWindow) / kBlock);
+    for (unsigned long k = 0; k < rangeSize / kBlock; k++) {
+        gUsed[first + k] = 0;
+    }
+}
+#endif
+
 char gModuleDir[1024] = ".";
 Loaded gLoaded[128];
 int gLoadedCount;
@@ -67,6 +127,29 @@ int findLoaded(const char* name)
 }
 
 }  // namespace
+
+extern "C" void re4_module_window_reserve(void)
+{
+#if defined(__ANDROID__) && __SIZEOF_POINTER__ == 4
+    if (gWindow) {
+        return;
+    }
+    const unsigned long size = kBlocks * kBlock;
+    for (unsigned long hint = 0x83000000ul; hint + size <= 0xF0000000ul; hint += size) {
+        void* at = mmap((void*) hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+        if (at == MAP_FAILED) {
+            continue;
+        }
+        if ((unsigned long) at >= 0x80000000ul && (unsigned long) at + size > (unsigned long) at) {
+            gWindow = (char*) at;
+            re4_log("modules: window of %lu MB at %p, above 0x80000000", size >> 20, at);
+            return;
+        }
+        munmap(at, size);  // the kernel put it below 0x80000000: try the next hint
+    }
+    re4_log("modules: no window above 0x80000000 for %lu MB; the linker places them", (kBlocks * kBlock) >> 20);
+#endif
+}
 
 extern "C" void re4_set_module_dir(const char* dir)
 {
@@ -123,8 +206,13 @@ extern "C" void* re4_module_load(const char* name)
     // RELs duplicated (em_wrap.cpp, st2.cpp, ...), exactly as on the GameCube.
     void* range = 0;
     unsigned long rangeSize = 0;
-#if defined(__ANDROID__) && __SIZEOF_POINTER__ != 4
+#if defined(__ANDROID__)
     void* handle = openInWindow(path, &range, &rangeSize);
+#if __SIZEOF_POINTER__ == 4
+    if (!handle) {
+        handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);  // no window: where the linker puts it
+    }
+#endif
 #else
     void* handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 #endif
@@ -160,6 +248,8 @@ extern "C" void re4_module_unload(const char* name)
     if (gLoaded[i].range) {
         munmap(gLoaded[i].range, gLoaded[i].rangeSize);
     }
+#elif defined(__ANDROID__)
+    closeInWindow(gLoaded[i].range, gLoaded[i].rangeSize);
 #endif
     free((void*) gLoaded[i].name);
     // Keep load order: the newest module wins in re4_try_resolve_import.

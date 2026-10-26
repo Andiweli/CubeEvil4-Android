@@ -1,0 +1,15 @@
+# TOOL_ERR (the light tool's error line) reads pTool->Flag; pTool (LightToolPtr) is only set once the light
+# editor was opened. The debug menu's "SCE ITEM" tool (tSceItemInit -> SetToolLight -> cDbLit::fileLoad) reports
+# a missing .lit file of the developer's PC through it before that: a read of address 0x14 on the GameCube
+# (readable low memory, harmless), a SIGSEGV on Android (galaxy A02s 24.10.2026, Redmi Note 14 Pro). A port patch.
+--- a/src/tools/db_light.cpp
++++ b/src/tools/db_light.cpp
+@@ -157,7 +157,7 @@
+ // Debug heap pointers are checked for the MEM1 range (VALID_PTR) before use.
+ // Error messages go through pLog when bit 5 is set.
+ #define TOOL_ERR(args...)            \
+-    if (pTool->Flag & 0x20) {       \
++    if (pTool && (pTool->Flag & 0x20)) { \
+         pLog->err(0, 0, args);       \
+     }
+ 

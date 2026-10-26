@@ -87,6 +87,8 @@ void* re4_window_map(unsigned long size, int prot);
 int re4_in_window(const void* p);
 void re4_check_window(const char* what, const void* p);
 void re4_window_report(void);
+/* 32 bit on Android: reserve the address range the REL modules are loaded into (module_loader.cpp) */
+void re4_module_window_reserve(void);
 
 /* Folder with the extracted disc files (dvd.cpp): <dir>/disc0, <dir>/disc1,
  * each with sys/fst.bin, sys/boot.bin and files/. Set by the launcher. */

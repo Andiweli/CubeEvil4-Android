@@ -108,6 +108,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final CoreInput input = new CoreInput();
   private final CoreAudio audio = new CoreAudio(this);
   private final Set<Integer> seenDevices = new HashSet<>();
+  private final ControllerLog controllerLog = new ControllerLog();
   private GLSurfaceView surface;
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
@@ -800,8 +801,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       card.append(CoreBridge.cardFreeBlocks()).append(" blocks free\n");
     }
     String map = CoreBridge.addressMap();
-    if (map == null || map.isEmpty()) return new String[][] {{"memory-card.txt", card.toString()}};
-    return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}};
+    String controllers = controllerList();
+    if (map == null || map.isEmpty()) return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}};
+    return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers}};
   }
 
   /** The error report to an app of the tester's choice (mail, messenger, cloud). */
@@ -842,17 +844,62 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
   }
 
-  /** Once per device: what it reports (name, sources, axes), for the device test's log. */
-  private void noteDevice(InputDevice d) {
-    if (d == null || !seenDevices.add(d.getId())) return;
+  /** The keys the game maps or the app uses: which of them a device reports. */
+  private static final int[] WATCHED_KEYS = {
+      KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
+      KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
+      KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR, KeyEvent.KEYCODE_BUTTON_START,
+      KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_MODE, KeyEvent.KEYCODE_BUTTON_C,
+      KeyEvent.KEYCODE_BUTTON_Z, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+      KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT};
+
+  /** One line about a device: name, ids, sources, axes and which of the watched keys it has. */
+  private static String describeDevice(InputDevice d) {
     StringBuilder axes = new StringBuilder();
     for (InputDevice.MotionRange r : d.getMotionRanges()) {
       axes.append(' ').append(MotionEvent.axisToString(r.getAxis()))
           .append(String.format(Locale.ROOT, "(%.2f..%.2f flat %.3f)", r.getMin(), r.getMax(), r.getFlat()));
     }
-    Log.i(TAG, String.format(Locale.ROOT, "device %d \"%s\" vendor %04x product %04x sources 0x%x%s axes:%s",
-        d.getId(), d.getName(), d.getVendorId(), d.getProductId(), d.getSources(),
-        d.isVirtual() ? " virtual" : "", axes.length() == 0 ? " none" : axes.toString()));
+    StringBuilder keys = new StringBuilder();
+    boolean[] has = d.hasKeys(WATCHED_KEYS);
+    for (int i = 0; i < WATCHED_KEYS.length; i++) {
+      if (has[i]) keys.append(' ').append(KeyEvent.keyCodeToString(WATCHED_KEYS[i]).replace("KEYCODE_", ""));
+    }
+    return String.format(Locale.ROOT, "device %d \"%s\" vendor %04x product %04x descriptor %s sources 0x%x%s%s keys:%s axes:%s",
+        d.getId(), d.getName(), d.getVendorId(), d.getProductId(), d.getDescriptor(), d.getSources(),
+        d.isVirtual() ? " virtual" : "", d.isExternal() ? " external" : "",
+        keys.length() == 0 ? " none" : keys.toString(), axes.length() == 0 ? " none" : axes.toString());
+  }
+
+  /** Once per device: what it reports (name, sources, axes), for the device test's log. */
+  private void noteDevice(InputDevice d) {
+    if (d == null || !seenDevices.add(d.getId())) return;
+    Log.i(TAG, describeDevice(d));
+  }
+
+  /** Game controllers and gamepad-like devices, for the connect lines and controllers.txt. */
+  private static boolean gameDevice(InputDevice d) {
+    if (d == null || d.isVirtual()) return false;
+    int s = d.getSources();
+    return (s & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+        || (s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+        || (s & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
+  }
+
+  /** A device that is plugged in or changed: described at once, not only at its first mapped key. */
+  private void noteConnected(int id) {
+    InputDevice d = InputDevice.getDevice(id);
+    if (gameDevice(d) && controllerLog.firstDevice(id)) Log.i(TAG, "connected: " + describeDevice(d));
+  }
+
+  /** controllers.txt of the error report: every game controller connected now. */
+  private String controllerList() {
+    StringBuilder out = new StringBuilder();
+    for (int id : InputDevice.getDeviceIds()) {
+      InputDevice d = InputDevice.getDevice(id);
+      if (gameDevice(d)) out.append(describeDevice(d)).append('\n');
+    }
+    return out.length() == 0 ? "(no game controller connected)\n" : out.toString();
   }
 
   @Override
@@ -903,7 +950,27 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         return true;
       }
     }
+    // a key nothing here handles (a rare controller's extra buttons): named once per device and code
+    if (down && controller(e) && controllerLog.firstKey(e.getDeviceId(), code)) {
+      InputDevice d = e.getDevice();
+      Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ", scan " + e.getScanCode() + ", device "
+          + e.getDeviceId() + (d == null ? "" : " \"" + d.getName() + "\"") + ") -> not mapped, passed on to Android");
+    }
     return super.dispatchKeyEvent(e);
+  }
+
+  /** An axis the game does not read moved past half its range: named once per device. */
+  private void noteUnreadAxes(MotionEvent e, InputDevice d) {
+    if (d == null) return;
+    for (InputDevice.MotionRange r : d.getMotionRanges()) {
+      int a = r.getAxis();
+      if (ControllerLog.readAxis(a) || r.getRange() <= 0) continue;
+      float v = e.getAxisValue(a);
+      if (Math.abs(2 * (v - r.getMin()) / r.getRange() - 1) > 0.5f && controllerLog.firstAxis(e.getDeviceId(), a)) {
+        Log.i(TAG, String.format(Locale.ROOT, "axis %s moved to %.2f on device %d \"%s\" -> not read by the game",
+            MotionEvent.axisToString(a), v, e.getDeviceId(), d.getName()));
+      }
+    }
   }
 
   /** An axis of `e` in -1..1 (sticks, hat) or 0..1 (triggers); 0 when the device lacks it. */
@@ -930,6 +997,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       float l = Math.max(axis(e, d, MotionEvent.AXIS_LTRIGGER, true), axis(e, d, MotionEvent.AXIS_BRAKE, true));
       float r = Math.max(axis(e, d, MotionEvent.AXIS_RTRIGGER, true), axis(e, d, MotionEvent.AXIS_GAS, true));
       float hx = axis(e, d, MotionEvent.AXIS_HAT_X, false), hy = axis(e, d, MotionEvent.AXIS_HAT_Y, false);
+      noteUnreadAxes(e, d);
       input.motion(e.getDeviceId(), lx, ly, rx, ry, l, r, hx, hy);
       // a stick, trigger or hat moved on purpose: the touch controls go again (TouchShowRule)
       if (TouchShowRule.moved(lx, ly, rx, ry, l, r, hx, hy)) touchControls.controllerUsed();
@@ -1018,14 +1086,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   }
 
-  @Override public void onInputDeviceAdded(int id) { touchControls.update(); }
+  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); }
   @Override public void onInputDeviceChanged(int id) {
     input.remove(id);
     seenDevices.remove(id);
+    controllerLog.forget(id);
+    noteConnected(id);
     send();
     touchControls.update();
   }
   @Override public void onInputDeviceRemoved(int id) {
+    controllerLog.forget(id);
     input.remove(id);
     send();
     touchControls.update();

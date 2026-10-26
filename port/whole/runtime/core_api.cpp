@@ -432,6 +432,7 @@ int re4_core_reserve(const char* dataDir, const char* moduleDir)
         pthread_mutex_unlock(&gLock);
         return 0;
     }
+    re4_module_window_reserve();  // 32 bit on Android: the room modules go above 0x80000000
     // The game tells its own data from offsets by bit 31 of the address
     // (re4_check_game_address aborts; here the app shows the reason instead).
     Dl_info info;

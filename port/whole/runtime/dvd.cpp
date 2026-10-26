@@ -386,7 +386,23 @@ s32 readFile(DVDFileInfo* fi, void* dst, s32 length, s32 offset)
     if (fseek(f, offset, SEEK_SET) == 0) {
         got = fread(dst, 1, (size_t) length, f);
     }
+    long fileSize = -1;
+    if (fseek(f, 0, SEEK_END) == 0) {
+        fileSize = ftell(f);
+    }
     fclose(f);
+    if (length == 0x400) {
+        // a part table that came back as zeros (patch 0113 reads it again): say where it came from
+        static int toldZero;
+        bool zeros = got > 0;
+        for (size_t i = 0; i < got && zeros; i++) {
+            zeros = ((const unsigned char*) dst)[i] == 0;
+        }
+        if (zeros && toldZero++ < 8) {
+            re4_log("DVD: %s: 0x400 bytes at 0x%x read as zeros (got %u; the file is %ld bytes on the device, "
+                    "%u on the disc)", path, (unsigned) offset, (unsigned) got, fileSize, (unsigned) fi->length);
+        }
+    }
     if (got < (size_t) length) {
         memset((char*) dst + got, 0, (size_t) length - got);
         // inside the file's length on the disc, the file on the device is shorter: an import
