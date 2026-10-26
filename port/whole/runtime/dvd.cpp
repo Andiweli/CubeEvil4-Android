@@ -368,6 +368,11 @@ s32 readFile(DVDFileInfo* fi, void* dst, s32 length, s32 offset)
     }
     s32 entry = entryForStart(*d, fi->startAddr, fi->length);
     if (entry < 0) {
+        static int toldEntry;
+        if (toldEntry++ < 8) {
+            re4_log("DVD: read of 0x%x bytes at 0x%x refused: no file starts at 0x%x with %u bytes",
+                    (unsigned) length, (unsigned) offset, (unsigned) fi->startAddr, (unsigned) fi->length);
+        }
         return -1;
     }
     char path[2048];
@@ -401,6 +406,47 @@ s32 readFile(DVDFileInfo* fi, void* dst, s32 length, s32 offset)
 }  // namespace
 
 extern "C" {
+
+// A part table (0x400 bytes, host byte order, 32 entries of 8 words) must end in TRANS_EOF and may
+// only hold known part types; entry 0 is the file's own record (patch 0113, cDvdQueue::readInit).
+// 0 = good, 1 = read it again, 2 = give up. The counter belongs to the one table in flight: the
+// game's header_buff is shared by all queues.
+int re4_dvd_header_check(const void* table, const char* name, unsigned offset, unsigned length, int depth)
+{
+    static int retries;
+    const u32* w = (const u32*) table;
+    bool eof = false, known = true;
+    for (int i = 1; i < 32 && !eof; i++) {
+        u32 type = w[i * 8];
+        if (type == 0xFFFFFFFFu) {
+            eof = true;
+        } else if (type > 4 && type != 0xFFFFFFFEu) {
+            known = false;
+        }
+    }
+    if (eof && known) {
+        retries = 0;
+        return 0;
+    }
+    bool zeros = true;
+    for (int i = 0; i < 256 && zeros; i++) {
+        zeros = w[i] == 0;
+    }
+    char head[3 * 32 + 1];
+    for (int i = 0; i < 32; i++) {
+        snprintf(head + i * 3, 4, "%02x ", ((const unsigned char*) table)[i]);
+    }
+    re4_log("DVD: %s (depth %d, at 0x%x, file length %u): the part table is %s (%s); first bytes %s(try %d)",
+            name ? name : "?", depth, (unsigned) offset, (unsigned) length,
+            zeros ? "all zeros" : "no good", eof ? "unknown part type" : "no end marker", head, retries + 1);
+    if (++retries < 3) {
+        return 1;
+    }
+    retries = 0;
+    re4_log("DVD: %s: giving up; import the disc again (the file on the device is damaged or unreadable)",
+            name ? name : "?");
+    return 2;
+}
 
 void re4_set_data_dir(const char* dir)
 {

@@ -1,0 +1,42 @@
+# A part table that has no end marker (all zeros: a file of the device that reads as zeros, or a
+# read that failed unseen) made the part walk run past header_buff and the read never end; the
+# whole game stood (st2/r222.das after the door of r210, Infinix X6725 and Galaxy S20 FE, 25.10.2026;
+# r325 on the Xiaomi 2109119DG). The port checks the table (runtime/dvd.cpp re4_dvd_header_check),
+# reads it again up to three times, then ends the read with an error, an on-screen line and a
+# detailed line in the error log. A port patch, not a bug of the prototype (a disc is never short).
+--- a/src/game/dvd.cpp
++++ b/src/game/dvd.cpp
+@@ -320,6 +320,7 @@
+ extern DvdSndStrWork Snd_str_work[4];   // game/snd_ram.cpp SND_STR Snd_str_work[SND_STR_MAX], seen through the view struct above
+ 
+ extern "C" void re4_swap32_words(void* p, u32 bytes);  /* port: runtime/byte_order.cpp */
++extern "C" int re4_dvd_header_check(const void* table, const char* name, u32 offset, u32 length, int depth);  /* port: runtime/dvd.cpp */
+ 
+ #define DVD_BUFF ((void*) 0x80350000)
+ #define DVD_BUFF2 ((void*) 0x80360000)
+@@ -532,6 +533,25 @@
+         /* port: the part table comes from disc in big-endian order; every
+            DvdHeader field is a 32-bit word. */
+         re4_swap32_words(&header_buff[m_NestDepth << 10], 0x400);
++        /* port: a part table without an end marker (all zeros: a file of the device that reads as
++           zeros, or a read that failed unseen) made the walks below run past header_buff and the
++           read never end (st2/r222.das, reports of 25.10.2026). Read it again, then end the read
++           with an error and say so on the screen. */
++        switch (re4_dvd_header_check(&header_buff[m_NestDepth << 10], m_Name, m_BaseOffset[m_NestDepth], length,
++                                     m_NestDepth)) {
++        case 1:
++            m_Rno1 = 1;
++            return;
++        case 2:
++            if (pLog) {
++                pLog->err(0, 0, "DISC FILE DAMAGED: %s - import the disc again", m_Name);
++            }
++            m_Rno0 = 3;
++            m_Rno1 = 0;
++            SetFlag(0x200000);
++            m_ResultCode = -1;
++            return;
++        }
+         if (CkFlag(0x6) && m_NestDepth == 0) {
+             m_Rno1++;
+         } else {

@@ -6,8 +6,9 @@ mkdir -p "$task_build/java"
 
 # Pure-Java contracts require no Android runtime. Optional arguments retain
 # the original DiscTests route: Disc1, Disc2 and an empty extraction directory.
-javac -d "$task_build/java" "$task_root"/app/src/main/java/com/ast/re4decomp/disc/*.java "$task_root/tests/DiscTests.java"
+javac -d "$task_build/java" "$task_root"/app/src/main/java/com/ast/re4decomp/disc/*.java "$task_root/tests/DiscTests.java" "$task_root/tests/RoomFileCheckTests.java"
 java -cp "$task_build/java" DiscTests
+java -cp "$task_build/java" RoomFileCheckTests
 if [[ $# -eq 3 ]]; then
     java -cp "$task_build/java" DiscTests "$task_root/app/src/main/assets/references.tsv" "$1" "$2" "$3"
 fi

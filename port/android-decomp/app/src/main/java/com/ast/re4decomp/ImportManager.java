@@ -37,9 +37,25 @@ public final class ImportManager {
     else
       try {
         DiscInstaller.recover(root);
+        status = installedWarning(status);
       } catch (IOException e) {
         status = e.getMessage();
       }
+  }
+  /** Imports of older versions never compared the room files with the verified disc: do it from their manifest. */
+  private String installedWarning(String otherwise) {
+    for (int n = 1; n <= 2; n++) {
+      File disc = new File(root, "disc" + n);
+      if (!DiscInstaller.ready(disc, n))
+        continue;
+      try {
+        String warning = RoomFileCheck.verify(disc, context.getAssets().open("rooms.tsv"), n).warning(n);
+        if (warning != null)
+          return warning;
+      } catch (IOException | RuntimeException ignored) { /* the check is optional */
+      }
+    }
+    return otherwise;
   }
   public void attach(Listener l) {
     listener = l;
@@ -127,6 +143,15 @@ public final class ImportManager {
             });
         status =
             "Disc " + expectedDisc + " verified and imported successfully.";
+        // The room files are not part of the code check; a damaged image shows only when the game
+        // enters a room whose file is wrong (St2/r222.das). Non-blocking: say it, do not refuse.
+        try {
+          RoomFileCheck rooms = RoomFileCheck.verify(new File(root, "disc" + expectedDisc),
+              context.getAssets().open("rooms.tsv"), expectedDisc);
+          String warning = rooms.warning(expectedDisc);
+          if (warning != null) status = warning;
+        } catch (IOException | RuntimeException ignored) { /* the check is optional */
+        }
       } catch (IOException | RuntimeException e) {
         status =
             e.getMessage() == null ? "Import failed" : e.getMessage();

@@ -656,6 +656,18 @@ int dvdQueueMain()
     gTitleFrames = readFrames("ss/eng/title.dat");
     gPacedFrames = readFrames("hdr.dat");
     CHECK(gFastFrames == 1 && gTitleFrames == 1 && gPacedFrames >= 8 && gPacedFrames < 100);
+    // a part table of zeros (a damaged file of the device; patch 0113): read again, then the read ends
+    // with an error instead of walking past the table for ever
+    int zeroReq = DvdReadN("zero.dat", 0, 0, 0, 0, 0x8000 | 0x4, __FILE__, __LINE__);
+    int zeroResult = 0, zeroFrames = 0;
+    for (int frame = 1; zeroReq >= 0 && frame <= 100 && zeroResult == 0; frame++) {
+        Dvd.Watcher();
+        TaskScheduler();
+        iTaskScheduler();
+        zeroResult = Dvd.ReadCheck(zeroReq, &info);
+        zeroFrames = frame;
+    }
+    CHECK(zeroReq >= 0 && zeroResult < 0 && zeroFrames < 100);
     gQueueOk = ok;
     return 0;
 }
@@ -692,13 +704,16 @@ static void testDvdQueue()
     }
     std::vector<FstEntry> fst = {{true, "ss", 0, 4}, {true, "eng", 1, 4},
                                  {false, "title.dat", 0x2000, (unsigned) file.size()},
-                                 {false, "hdr.dat", 0x1000, (unsigned) file.size()}};
+                                 {false, "hdr.dat", 0x1000, (unsigned) file.size()},
+                                 {false, "zero.dat", 0x3000, (unsigned) file.size()}};
     std::vector<unsigned char> f = buildFst(fst);
     unsigned char boot[0x40] = "G4BE08";
     CHECK(makeDirs(gQueueDir + "/disc0/sys") && makeDirs(gQueueDir + "/disc0/files"));
     CHECK(writeFile(gQueueDir + "/disc0/sys/fst.bin", f.data(), f.size()));
     CHECK(writeFile(gQueueDir + "/disc0/sys/boot.bin", boot, sizeof(boot)));
     CHECK(writeFile(gQueueDir + "/disc0/files/hdr.dat", file.data(), file.size()));
+    std::vector<unsigned char> zeros(file.size(), 0);
+    CHECK(writeFile(gQueueDir + "/disc0/files/zero.dat", zeros.data(), zeros.size()));
     CHECK(makeDirs(gQueueDir + "/disc0/files/ss/eng"));
     CHECK(writeFile(gQueueDir + "/disc0/files/ss/eng/title.dat", file.data(), file.size()));
     char saved[1024];

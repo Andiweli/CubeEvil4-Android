@@ -430,7 +430,7 @@ final class CoreMenu extends Dialog {
     if (working) return;
     final int serial = ++requestSerial;
     // Disabling a focused button drops the controller focus; remember it and give it back afterwards.
-    final View focused = findFocus();
+    final View focused = getCurrentFocus();
     working = true; saveSlot.setEnabled(false); loadSlot.setEnabled(false);
     showSlotStatus(operation == 0 ? R.string.ingame_instant_checking : R.string.ingame_instant_working);
     new Thread(() -> {

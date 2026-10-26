@@ -107,6 +107,7 @@ int re4_dvd_inserted_disc(void);
 /* The start's reads without the frame pace (patch 0085): 1 while the next
    step of a read may follow at once, the end at the first title.dat. */
 int re4_dvd_boot_fast(void);
+int re4_dvd_header_check(const void* table, const char* name, unsigned offset, unsigned length, int depth);
 void re4_dvd_read_done(const char* name);
 
 /* Byte order (byte_order.cpp): in-place swaps of big-endian disc data. */
