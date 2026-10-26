@@ -199,6 +199,32 @@ bool parseFst(Disc& d)
     return true;
 }
 
+// Which release a disc header belongs to (the rule of port/tools/disc_release.py): G4BE08 with
+// the file system table at 0x28FE00 is the debug build of 2004-11-25 the port's code is (its
+// main.dol is 2554432 bytes), G4BP08 the European release (port/docs/retail-eu-plan.md), G4BE08
+// with the table elsewhere the US release (never tested). A header without the table's place
+// (only the port's tests write one) counts as the debug build, as the port assumed until then.
+int releaseOf(const unsigned char* boot, u32 size)
+{
+    if (size >= 6 && memcmp(boot, "G4BP08", 6) == 0) {
+        return RE4_DISC_RETAIL_EU;
+    }
+    if (size < 6 || memcmp(boot, "G4BE08", 6) != 0) {
+        return RE4_DISC_UNKNOWN;
+    }
+    if (size < 0x428) {
+        return RE4_DISC_DEBUG;
+    }
+    return be32(boot + 0x424) == 0x28FE00 ? RE4_DISC_DEBUG : RE4_DISC_RETAIL_US;
+}
+
+const char* releaseName(int release)
+{
+    static const char* const names[] = {"debug build G4BE08", "European release G4BP08",
+                                        "US release G4BE08 (untested)", "unknown game"};
+    return names[release >= 0 && release <= RE4_DISC_UNKNOWN ? release : RE4_DISC_UNKNOWN];
+}
+
 bool loadDisc(int no)
 {
     Disc& d = gDiscs[no];
@@ -250,32 +276,6 @@ bool loadDisc(int no)
                 releaseName(gDiscs[0].release), releaseName(gDiscs[1].release));
     }
     return true;
-}
-
-// Which release a disc header belongs to (the rule of port/tools/disc_release.py): G4BE08 with
-// the file system table at 0x28FE00 is the debug build of 2004-11-25 the port's code is (its
-// main.dol is 2554432 bytes), G4BP08 the European release (port/docs/retail-eu-plan.md), G4BE08
-// with the table elsewhere the US release (never tested). A header without the table's place
-// (only the port's tests write one) counts as the debug build, as the port assumed until then.
-int releaseOf(const unsigned char* boot, u32 size)
-{
-    if (size >= 6 && memcmp(boot, "G4BP08", 6) == 0) {
-        return RE4_DISC_RETAIL_EU;
-    }
-    if (size < 6 || memcmp(boot, "G4BE08", 6) != 0) {
-        return RE4_DISC_UNKNOWN;
-    }
-    if (size < 0x428) {
-        return RE4_DISC_DEBUG;
-    }
-    return be32(boot + 0x424) == 0x28FE00 ? RE4_DISC_DEBUG : RE4_DISC_RETAIL_US;
-}
-
-const char* releaseName(int release)
-{
-    static const char* const names[] = {"debug build G4BE08", "European release G4BP08",
-                                        "US release G4BE08 (untested)", "unknown game"};
-    return names[release >= 0 && release <= RE4_DISC_UNKNOWN ? release : RE4_DISC_UNKNOWN];
 }
 
 // Makes disc `no` the inserted one: disc id at 0x80000000, FST at the top of MEM1.
