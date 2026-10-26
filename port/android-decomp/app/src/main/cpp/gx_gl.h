@@ -40,6 +40,7 @@ struct GxStats {
   unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
+  unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
   unsigned limitedCopies = 0;    // texture copies that repeat the last drawn row below the picture (letterbox)
   unsigned resets = 0;
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
@@ -131,6 +132,11 @@ public:
   // size (the copies and the display copy drawn over, scaled); programs, textures and the GX state
   // stay. The EFB starts cleared, as after a display copy.
   void Rescale(int scale);
+  // Another renderer replaces this one (new picture options, the same GL context): this one's EFB
+  // copies go over to `to` (after its Init), at `to`'s scale. The game copies some pictures once (a
+  // room's start) and reads them on: a new renderer without them drew those textures white until
+  // the next room (Retroid 26.10.2026: 306 missing after three changes of the resolution in r223).
+  void HandOverCopies(GxRenderer &to);
   // Before Init: the picture options (default: none).
   void SetOptions(const GxOptions &options);
   // After Init: the multisampling and the filtering in use.
@@ -152,7 +158,8 @@ public:
   // 26.10.2026 the port answered "far" and the glow shone through walls). The core marks the chunk
   // that peeks (BP 0x5B); at that chunk's display copy the depth of the picture goes, at half the
   // resolution (kDepthWidth x kDepthHeight cells, row 0 = the EFB's row 0, GX's 24-bit values), to the
-  // sink: a frame later, once the GPU is through (a fence, no stall). The sink runs on the thread that
+  // sink: a frame later, once the GPU is through (a fence, no stall), with the marker's value (the
+  // core's number of the picture, by which it judges the map's age). The sink runs on the thread that
   // calls Run. None: no snapshots.
   static constexpr int kDepthWidth = 320, kDepthHeight = 264;
   using DepthSink = std::function<void(const std::uint32_t *cells, std::uint32_t serial)>;
@@ -175,8 +182,8 @@ public:
   // the queue and the next one drawn in the same refresh.
   // CanSkip: false when `a` starts over, is held or black, marked, ends without a display copy, or
   // makes an EFB copy for a texture that `b` could still read (unless `b` copies to the same place
-  // before its first draw: then `a`'s copy is never seen). The in-between pictures (SetRecording)
-  // and Skip exclude each other: the caller skips only while they are off.
+  // before its first draw: then `a`'s copy is never seen). With the in-between pictures on
+  // (SetRecording) a skipped chunk gets none: Interpolate refuses until the next real Run.
   bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const;
   void Skip(const Re4GxChunk &a);
   // 60 FPS (experimental, decision of the project owner 22.10.2026): on, every Run notes how each

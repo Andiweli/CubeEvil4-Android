@@ -606,6 +606,7 @@ const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
 // Frame skip: the chunk after the one that was skipped or drawn (taken to look at it, drawn next)
 const Re4GxChunk *skipNext = nullptr;
 std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
+unsigned gxBetweenDropped = 0;      // in-between pictures left out because the renderer was behind
 unsigned gxSkipped = 0;             // chunks left out since the start of this renderer
 bool smoothTooSlow = false;
 // "Dynamic" in the menu's resolution: the EFB level follows the GPU (gx_auto_level.h); on for a renderer
@@ -1072,10 +1073,12 @@ bool drawGx() {
     LOG("view: %s", gxMode ? "GX" : "bridge");
   }
   if (gxMode == 0) return false;
+  // the renderer before new picture options: it hands its EFB copies to the new one, then goes
+  std::unique_ptr<re4gx::GxRenderer> previous;
   if (gx && optSerial.load() != optApplied && !corePaused.load()) {
-    // new picture options: the renderer anew, the core sends everything again
-    gx->Release();
-    gx.reset();
+    // new picture options: the renderer anew, the core sends everything again (not the EFB copies:
+    // those the game made once, at a room's start, come from the renderer before)
+    previous = std::move(gx);
     smoothDrop();
     if (api.gxDetach) api.gxDetach();
   }
@@ -1132,8 +1135,15 @@ bool drawGx() {
     if (!gx->Init(scale, &error)) {
       LOG("GX renderer: %s; the bridge draws", error.c_str());
       gx.reset();
+      if (previous) previous->Release();
       gxMode = 0;
       return false;
+    }
+    if (previous) {
+      previous->HandOverCopies(*gx);
+      previous->Release();
+      previous.reset();
+      if (gx->Stats().handedCopies) LOG("GX: %u EFB copies taken over from the renderer before", gx->Stats().handedCopies);
     }
     // linked shader programs from earlier runs (RE4_GX_PROGRAM_CACHE, set by CoreActivity)
     const char *cache = getenv("RE4_GX_PROGRAM_CACHE");
@@ -1252,18 +1262,26 @@ bool drawGx() {
   const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
   if (chunk == skipNext)
     skipNext = nullptr;
-  // Frame skip: the renderer is behind when the core has two chunks finished. The first is then
-  // not drawn (its state and textures are applied, GxRenderer::Skip) and the second drawn at once:
-  // the game keeps its pace instead of waiting for a slow GPU. Not while a graphics capture is on
-  // its way or with 60 FPS (the in-between pictures need every chunk).
-  if (chunk && !deferred && optFrameSkip.load() != 0 && !smoothOn && !gxDumpWanted && !gxDumpSeriesLeft &&
+  // Behind: the core has finished the next chunk already. Then the in-between picture (60 FPS) is
+  // left out first: it is a picture more for the screen, and drawing it while behind made the game
+  // wait for the renderer (Retroid 26.10.2026: 17-19, with the stalls of the blended vertices 3-5
+  // game pictures a second). With Frame skip the chunk is also not drawn (its state and textures are
+  // applied, GxRenderer::Skip) and the next one drawn at once: the game keeps its pace instead of
+  // waiting for a slow GPU. Not while a graphics capture is on its way.
+  bool behind = false;
+  if (chunk && !deferred && (optFrameSkip.load() != 0 || smoothOn) && !gxDumpWanted && !gxDumpSeriesLeft &&
       !gxHitShotsLeft && !gxHitSeriesPending) {
     if (const Re4GxChunk *next = api.gxAcquire()) {
-      if (gx->CanSkip(*chunk, *next)) {
+      behind = true;
+      if (optFrameSkip.load() != 0 && gx->CanSkip(*chunk, *next)) {
         gx->Skip(*chunk);
         api.gxRelease(chunk);
         chunk = next;
         gxSkipped++;
+        if (smoothPrev) {
+          api.gxRelease(smoothPrev);  // no in-between picture across the chunk left out
+          smoothPrev = nullptr;
+        }
         if (gxSkipped == 1 || gxSkipped % 500 == 0)
           LOG("frame skip: %u chunks left out so far (the renderer was behind)", gxSkipped);
       } else {
@@ -1334,7 +1352,9 @@ bool drawGx() {
     // the in-between picture first when the switch is on and nothing records this chunk's picture;
     // Run(chunk) then at the next refresh
     bool between = false;
-    if (smoothOn && !deferred && smoothPrev && !path[0] && !seriesShot[0] && !gxHitShotsLeft) {
+    if (smoothOn && !deferred && smoothPrev && behind)
+      gxBetweenDropped++;  // behind: this chunk at once, without the picture between
+    if (smoothOn && !deferred && smoothPrev && !behind && !path[0] && !seriesShot[0] && !gxHitShotsLeft) {
       between = gx->Interpolate(*smoothPrev, *chunk, 0.5f);
       if (between) {
         api.gxRelease(smoothPrev);
@@ -1412,7 +1432,7 @@ bool drawGx() {
       const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
                                         st.behindChecks,
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring,
-                                        &why);
+                                        &why, smoothOn ? gxBetweenDropped : 0);
       if (level != gx->Scale()) {
         LOG("%s", why.c_str());
         smoothDrop();  // no in-between picture across the change
@@ -1460,8 +1480,9 @@ bool drawGx() {
       if (optSmooth.load() && !smoothTooSlow) {
         const unsigned checks = s.behindChecks - gxWork.behindChecks;
         const double behind = checks ? static_cast<double>(s.behindSum - gxWork.behindSum) / checks : 0.0;
-        LOG("60 FPS: %u in-between pictures, %u cuts, %u of %u 3D draws matched so far; the GPU %.1f Runs behind",
-            s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, behind);
+        LOG("60 FPS: %u in-between pictures, %u cuts, %u of %u 3D draws matched so far, %u left out (the renderer "
+            "behind); the GPU %.1f Runs behind",
+            s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, gxBetweenDropped, behind);
         if (behind > 2.5) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");

@@ -1154,8 +1154,12 @@ void testPause()
     report("pause", ok);
 }
 
-// GXPeekZ answers from the depth map the renderer hands over (runtime/gx_fifo.cpp): far without a
-// map and when the renderer stays behind, else the cell of the pixel (half the EFB's resolution).
+// GXPeekZ answers from the depth map the renderer hands over (runtime/gx_fifo.cpp) with the number of
+// the picture that peeked: far without any map, the cell of the pixel (half the EFB's resolution) from
+// a map at most 8 pictures old, "in front" from an older one (the peeks start when a torch comes into
+// view: the glow waits for the new map instead of flashing through the wall, Retroid 26.10.2026), and
+// far again when no fresh map comes for 60 peeking pictures. Maps the renderer leaves out (the GPU
+// behind, a renderer made anew when the resolution changes) do not add up: the next map counts again.
 extern "C" unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z);
 
 void testPeekDepth()
@@ -1174,7 +1178,8 @@ void testPeekDepth()
     CHECK(marked == marked0 + 1);
     cells[(60 >> 1) * RE4_GX_DEPTH_W + (100 >> 1)] = 0x123456;
     cells[(RE4_GX_DEPTH_H - 1) * RE4_GX_DEPTH_W + RE4_GX_DEPTH_W - 1] = 0xFF00ABCD;  // only 24 bits count
-    re4_core_gx_depth(cells, 1);
+    // the map of this picture, handed over a picture later
+    re4_core_gx_depth(cells, re4_gx_peek_picture());
     re4_gx_peek_new_frame();
     CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
     CHECK(re4_gx_efb_peek(101, 61, 1) == 0x123456);  // the 2 x 2 pixels of a cell
@@ -1183,13 +1188,31 @@ void testPeekDepth()
     CHECK(re4_gx_efb_peek(0, 0, 1) == 0);               // a cell the renderer drew nothing in (0)
     re4_gx_peek_stats(&answered, &far, &marked);
     CHECK(answered == answered0 + 5);
-    // the renderer stays behind: the pictures that asked run more than 8 ahead of its maps
-    for (int i = 0; i < 9; i++) {
+    // 8 pictures old: still answers
+    for (int i = 0; i < 7; i++) {
+        re4_gx_peek_new_frame();
+    }
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    // older (the torch comes back into view after a while): in front, not far
+    const unsigned hidden0 = re4_gx_peek_hidden();
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0);
+    CHECK(re4_gx_peek_hidden() == hidden0 + 1);
+    // the renderer left maps out (a new renderer after a change of the resolution): the next map counts
+    for (int i = 0; i < 30; i++) {
+        re4_gx_peek_new_frame();
+        re4_gx_efb_peek(100, 60, 1);
+    }
+    re4_core_gx_depth(cells, re4_gx_peek_picture() - 1);
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    // no fresh map for more than 60 peeking pictures: far, as without maps
+    for (int i = 0; i < 70; i++) {
         re4_gx_peek_new_frame();
         re4_gx_efb_peek(100, 60, 1);
     }
     CHECK(re4_gx_efb_peek(100, 60, 1) == 0x00FFFFFF);
-    re4_core_gx_depth(cells, 100);  // it caught up
+    re4_core_gx_depth(cells, re4_gx_peek_picture());  // it delivers again
     CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
     report("peek depth", ok);
 }

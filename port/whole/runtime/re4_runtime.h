@@ -92,18 +92,22 @@ void re4_module_window_reserve(void);
 
 /* The depth the renderer took of the last pictures (the app's GX renderer, at the display copy of a
  * picture whose chunk carries the marker BP 0x5B, which the first peek of a picture writes into the
- * stream): RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of the 24-bit GX depth at half the EFB's resolution,
- * row 0 = the EFB's row 0. GXPeekZ answers from it, a picture late; without a map, or when the
- * renderer stays more than 8 pictures behind, it answers "far" (0xFFFFFF) as before. */
+ * stream with the picture's number): RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of the 24-bit GX depth at
+ * half the EFB's resolution, row 0 = the EFB's row 0. GXPeekZ answers from a map at most 8 pictures
+ * old; from an older one "in front" (0: the glow waits for the map of the new view), and "far"
+ * (0xFFFFFF) as before when there was never a map or none fresh came for 60 peeking pictures. */
 #define RE4_GX_DEPTH_W 320
 #define RE4_GX_DEPTH_H 264
-/* The renderer's map (any thread): copied. `serial` counts the maps the renderer took (rises). */
+/* The renderer's map (any thread): copied. `serial` is the picture number of the marker (24 bits). */
 void re4_gx_depth_put(const unsigned int* cells, unsigned int serial);
 /* The map lives elsewhere (the core process: shared memory the app writes): `cells` and `serial`
  * stay valid for the process's life. */
 void re4_gx_depth_source(const unsigned int* cells, const unsigned int* serial);
-/* A display copy went out: the next peek marks the next picture. */
+/* A display copy went out: the next picture (its number for the marker), the next peek marks it. */
 void re4_gx_peek_new_frame(void);
+/* (tests) the number of the picture being made, the peeks answered "in front" from an old map */
+unsigned int re4_gx_peek_picture(void);
+unsigned int re4_gx_peek_hidden(void);
 /* (tests) peeks answered from a map / answered "far", and pictures marked */
 void re4_gx_peek_stats(unsigned int* answered, unsigned int* far, unsigned int* marked);
 

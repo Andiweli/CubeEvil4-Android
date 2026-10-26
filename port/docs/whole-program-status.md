@@ -4,6 +4,47 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Zweiter Nachtest 0.91.0 (26.10.2026 mittags, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, vier Fehlerberichte, R3-Aufnahmen r223): 60 FPS mit „Dynamisch“ bleibt auf
+Stufe 2 bei 17–19 Bildern/s, Frame-Skip wirkt nicht, mit beiden 3–5 Bilder/s; C-Stick soll ein gelber Analogstick
+sein; Fackelschein blitzt kurz hinter Wänden auf und scheint nach einem Auflösungswechsel wieder durch Wände.
+
+- **Fackelschein:** Der Kern verglich die Zahl seiner Marker mit der Zahl gelieferter Tiefenbilder. Jedes ausgelassene
+  Tiefenbild (GPU im Rückstand, neuer Renderer beim Auflösungswechsel) vergrößerte den Abstand für immer; ab 8 hieß es
+  nur noch „fern“. Neu: Der Marker BP 0x5B trägt die **Bildnummer** des Kerns (24 bit), der Renderer gibt seine Karte
+  mit dieser Nummer zurück (`peekPicture`, `peekSlotPicture`). Karte höchstens 8 Bilder alt: Antwort aus der Karte;
+  älter: „davor“ (0, der Schein wartet ein, zwei Bilder auf die neue Karte statt durch die Wand zu blitzen); 60 Bilder
+  lang keine frische Karte oder nie eine: „fern“ wie früher (`gx_fifo.cpp`). Tests: `core-test peek depth` (neu
+  geschrieben), `TestDepthMap` (Nummer kommt zurück), `core_remote_test` (die Karte jedes markierten Bildes mit seiner
+  Nummer über den gemeinsamen Speicher).
+- **60 FPS stockte:** Zwischenbilder schrieben die überblendeten Eckpunkte der Figuren mit `glBufferSubData` mitten im
+  Bild in den Eckpunkt-Puffer, den die GPU für dieses Bild noch las: der Treiber kopierte oder wartete bei jeder Figur
+  (Bericht: 74 ms je Bild, davon 57 ms Warten). Neu: eigener Puffer `blendVbo` je Zwischenbild, jede Figur an eigener
+  Stelle, ohne Warten geschrieben (`GL_MAP_UNSYNCHRONIZED_BIT`); das echte Bild danach lädt seine Eckpunkte nicht noch
+  einmal hoch (`uploadedBy`). Messung in der Cloud (llvmpipe, 60 Figuren mit je 4000 Eckpunkten): 31 ms statt 49–54 ms
+  je Bildpaar.
+- **Zwischenbilder nur, wenn Zeit ist:** Liegt beim Zeichnen schon das nächste Bild des Kerns bereit, entfällt das
+  Zwischenbild (`gxBetweenDropped`, im Protokoll „left out“); das Spiel wartet nicht mehr auf den Renderer.
+- **Frame-Skip auch mit 60 FPS:** `CanSkip` lehnt beim Mitschreiben nicht mehr ab; nach einem ausgelassenen Bild kein
+  Zwischenbild (`Skip` setzt `recValid` zurück). Test in `TestInterpolation`.
+- **Dynamische Auflösung mit 60 FPS:** Ein Fenster, in dem mehr als ein Viertel der Zwischenbilder entfiel, während die
+  GPU zurückliegt, zählt als langsam; hoch erst wieder, wenn fast keines entfällt (`gx_auto_level.h`,
+  `kDroppedDown`/`kDroppedUp`). Liegt nur der Prozessor zurück, bleibt die Stufe (eine kleinere Auflösung hilft dort
+  nicht). Tests in `TestAutoLevel`.
+- **C-Stick als Analogstick:** RetroTouch **1.0.0-beta.7** (aus dem beta.6-Quelltext im RetroTouch-Repository, in der
+  Cloud gebaut, `docs/retrotouch-1.0.0-beta.7.patch`): Stick-Aktionen (`registerStickAction`), im Editor ADD und dann
+  ACTION bis „C“ macht aus der Taste einen Stick, gemeldet über `RetroTouchStickListener.onStick`. Die App: `cstick`
+  in GameCube-Gelb (0xF7C81E), wirkt wie die rechte Touch-Fläche (die weitere Neigung zählt); die vier C-Tasten vom
+  Vormittag entfallen. Tests: `CoreTouchTests` (283), App-Java gegen beta.7 übersetzt. **Der RetroTouch-Quelltext muss
+  noch in dessen Repository** (die Sitzung darf dort nicht schreiben).
+- **Fehlende Texturen nach Grafik-Optionen:** Der neue Renderer übernimmt die EFB-Kopien des alten
+  (`GxRenderer::HandOverCopies`, skaliert); Kopien, die das Spiel nur beim Raumstart macht, fehlten sonst bis zum
+  nächsten Raum (Bericht: 306 fehlende in r223 nach drei Wechseln). Test `TestHandOverCopies` (ohne Übergabe 3 Fehler).
+- **Shader-Liste:** 8936 Programme (868 neu aus den sieben Berichten des Tages).
+- **Nicht getestet:** alles auf dem Gerät (Tempo von 60 FPS, Frame-Skip, Fackelschein, C-Stick im Editor). RetroTouch
+  selbst lässt sich ohne Android nicht ausführen (nur übersetzt und Code-Durchsicht).
+
 ## Nachtest 0.91.0 auf dem Retroid (26.10.2026, Cloud-Korrektur)
 
 Bericht des Projektinhabers (Retroid Pocket Flip 2, 64 bit, Logcat, drei Fehlerberichte, R3-Aufnahmen in r22c, r21d, r10a):

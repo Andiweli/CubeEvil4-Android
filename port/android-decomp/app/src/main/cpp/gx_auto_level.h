@@ -10,6 +10,10 @@
 // idle and the level as it is. Up again one level after 5 windows in a row (10 s) at 29.5
 // pictures a second or more with the GPU keeping up (under 0.1 behind), at the earliest 30 s after
 // the last step down; down again within 15 s of a step up doubles that wait (at most 5 minutes).
+// With 60 FPS the in-between pictures the renderer left out because it was behind (core_mode.cpp)
+// count as well: a window with more than a quarter of them left out while the GPU is behind is slow
+// too (the game keeps its pace then, the GPU still does not keep up: Retroid 26.10.2026, level 2 with
+// 60 FPS stayed at 17-19 pictures a second), and up again only with almost none left out.
 // core_mode.cpp applies a new level between two Runs (GxRenderer::Rescale).
 #pragma once
 
@@ -32,6 +36,8 @@ public:
   static constexpr double kFirstHold = 30.0;  // seconds after a step down before a step up
   static constexpr double kMostHold = 300.0;
   static constexpr double kBounce = 15.0;     // down again this soon after up: the wait doubles
+  static constexpr double kDroppedDown = 0.25; // share of the chunks without their in-between picture
+  static constexpr double kDroppedUp = 0.05;
 
   // A renderer started at `top` (the screen's level, its highest) at `t` seconds.
   void Start(int top, double t) {
@@ -42,15 +48,18 @@ public:
   }
 
   // After each real chunk: the time, the GPU's fences so far (GxStats::behindSum / behindChecks),
-  // and whether the level may change now (no menu open, no R3 series running). The level to use from
-  // the next chunk on; on a change `why` says why (a log line).
-  int Chunk(double t, unsigned long long behindSum, unsigned behindChecks, bool mayChange, std::string *why) {
+  // whether the level may change now (no menu open, no R3 series running), and the in-between
+  // pictures left out so far (60 FPS; 0 without). The level to use from the next chunk on; on a change
+  // `why` says why (a log line).
+  int Chunk(double t, unsigned long long behindSum, unsigned behindChecks, bool mayChange, std::string *why,
+            unsigned long long dropped = 0) {
     if (!started_)
       return level_;
     if (!windowOpen_) {
       windowOpen_ = true;
       behindSum_ = behindSum;
       behindChecks_ = behindChecks;
+      dropped_ = dropped;
     }
     chunks_++;
     const double seconds = t - since_;
@@ -59,16 +68,18 @@ public:
     const double rate = chunks_ / seconds;
     const unsigned checks = behindChecks - behindChecks_;
     const double behind = checks ? static_cast<double>(behindSum - behindSum_) / checks : 0.0;
+    const double droppedShare = static_cast<double>(dropped - dropped_) / chunks_;
     since_ = t;
     chunks_ = 0;
     behindSum_ = behindSum;
     behindChecks_ = behindChecks;
+    dropped_ = dropped;
     if (!mayChange) {
       good_ = bad_ = 0;
       return level_;
     }
-    char line[160];
-    const bool slow = rate < kSlow && behind >= kBehindDown && level_ > 1;
+    char line[256];
+    const bool slow = (rate < kSlow || droppedShare > kDroppedDown) && behind >= kBehindDown && level_ > 1;
     bad_ = slow ? bad_ + 1 : 0;
     if (slow && bad_ < kBadWindows) {
       good_ = 0;
@@ -83,15 +94,16 @@ public:
       holdUntil_ = t + hold_;
       good_ = 0;
       std::snprintf(line, sizeof(line),
-                    "dynamic resolution: level %d -> %d (%.1f game pictures/s, the GPU %.1f chunks behind)", level_,
-                    level_ - 1, rate, behind);
+                    "dynamic resolution: level %d -> %d (%.1f game pictures/s, the GPU %.1f chunks behind, %.0f %% "
+                    "without their in-between picture)",
+                    level_, level_ - 1, rate, behind, droppedShare * 100.0);
       level_--;
       downs_++;
       if (why)
         *why = line;
       return level_;
     }
-    if (rate >= kFast && behind < kBehindUp && level_ < top_) {
+    if (rate >= kFast && behind < kBehindUp && droppedShare < kDroppedUp && level_ < top_) {
       if (++good_ >= kGoodWindows && t >= holdUntil_) {
         good_ = 0;
         upAt_ = t;
@@ -120,7 +132,7 @@ private:
   int top_ = 1, level_ = 1;
   double since_ = 0.0;
   unsigned chunks_ = 0;
-  unsigned long long behindSum_ = 0;
+  unsigned long long behindSum_ = 0, dropped_ = 0;
   unsigned behindChecks_ = 0;
   int good_ = 0, bad_ = 0;
   double upAt_ = -1.0, holdUntil_ = 0.0, hold_ = kFirstHold;

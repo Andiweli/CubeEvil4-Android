@@ -382,10 +382,6 @@ struct Copy {
 
 } // namespace
 
-// counts the depth maps of every renderer of this process: a new renderer (the resolution changed) goes on
-// from there, the core compares it with the pictures that asked (runtime/gx_fifo.cpp)
-std::uint32_t gPeekSerial = 0;
-
 struct GxRenderer::Impl {
   int scale = 1;
   GxStats stats;
@@ -429,6 +425,8 @@ struct GxRenderer::Impl {
   // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
   DepthSink depthSink;
   bool peekWanted = false, peekFailed = false;
+  // the number of the picture that peeked (the marker's value) and of the picture in each read-back slot
+  std::uint32_t peekPicture = 0, peekSlotPicture[2] = {0, 0};
   GLuint peekProgram = 0, peekFbo = 0, peekTex = 0, peekPbo[2] = {0, 0};
   GLsync peekFence[2] = {nullptr, nullptr};
   GLint peekSizeLoc = -1, peekScaleLoc = -1;
@@ -436,6 +434,17 @@ struct GxRenderer::Impl {
   bool holdXfb = false;  // this chunk's display copy is not shown (RE4_GX_CHUNK_HOLD)
   bool viBlack = false;  // the VI shows black (RE4_GX_CHUNK_BLACK, VISetBlack): Present draws black
   GLuint vao = 0, vbo = 0, ibo = 0;
+  // the in-between pass's blended vertices (60 FPS): a buffer of their own, each draw's at a place of
+  // its own, written without waiting (the pass draws from vbo meanwhile). Written into vbo they were
+  // before 26.10.2026: a buffer the GPU still read from in that picture, the driver copied or waited
+  // for it at every figure (Retroid: 74 ms a picture, 3 to 5 pictures a second)
+  GLuint blendVbo = 0;
+  std::size_t blendCap = 0, blendUsed = 0;
+  std::int64_t blendAt = -1;  // the draw's vertices in blendVbo (byte offset), -1: from vbo
+  // the chunk whose vertices and indices the in-between pass uploaded: its Run right after draws
+  // from them (vbo is no longer changed by the pass) instead of uploading them again
+  const Re4GxChunk *uploadedBy = nullptr;
+  std::uint32_t uploadedSequence = 0;
   GLuint xfUbo[kXfParts] = {}, pxUbo = 0;
   GLuint copyProgram = 0, presentProgram = 0, paletteProgram = 0;
   GLint presentRows = -1;
@@ -502,6 +511,7 @@ struct GxRenderer::Impl {
   bool vaoBound = false;
   std::uint32_t attribMask = 0;      // enabled vertex attributes of vao
   std::uint32_t attribLayout = ~0u, attribStride = 0, attribBase = ~0u;
+  GLuint attribBuffer = 0;
   // glDrawElementsBaseVertex (GLES 3.2 / OES / EXT): one attribute setup for
   // all draws of a layout; null: pointers per draw
   using DrawBaseVertex = void (*)(GLenum, GLsizei, GLenum, const void *, GLint);
@@ -1027,12 +1037,25 @@ struct GxRenderer::Impl {
             fb[c] = fa[c] + (fb[c] - fa[c]) * s;
           std::memcpy(blendVertices.data() + v * d.stride, fb, normals ? 24 : 12);
         }
-        // more than 1500 units in one game picture: not the same figure
+        // more than 1500 units in one game picture: not the same figure. The blended vertices go to a
+        // place of blendVbo no draw has used in this pass: no waiting, no copy of the buffer
         if (far <= 1500.0f) {
-          glBindBuffer(GL_ARRAY_BUFFER, vbo);
-          glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(d.vertexOffset), static_cast<GLsizeiptr>(bytes),
-                          blendVertices.data());
-          stats.interpVertexBlends++;
+          const std::size_t at = (blendUsed + d.stride - 1) / d.stride * d.stride;
+          if (at + bytes <= blendCap) {
+            glBindBuffer(GL_ARRAY_BUFFER, blendVbo);
+            void *dst = glMapBufferRange(GL_ARRAY_BUFFER, static_cast<GLintptr>(at), static_cast<GLsizeiptr>(bytes),
+                                         GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+            if (dst) {
+              std::memcpy(dst, blendVertices.data(), bytes);
+              glUnmapBuffer(GL_ARRAY_BUFFER);
+            } else {
+              glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(at), static_cast<GLsizeiptr>(bytes),
+                              blendVertices.data());
+            }
+            blendUsed = at + bytes;
+            blendAt = static_cast<std::int64_t>(at);
+            stats.interpVertexBlends++;
+          }
         }
       }
     }
@@ -1161,8 +1184,10 @@ struct GxRenderer::Impl {
     }
     if (action && reg == 0x5A && !skipDraws)
       Autofocus(value);
-    if (action && reg == 0x5B && !interpPass && !skipDraws)
+    if (action && reg == 0x5B && !interpPass && !skipDraws) {
       peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
+      peekPicture = value & 0xFFFFFF;  // with the picture's number (the core answers by the map's age)
+    }
   }
 
   void Dirty(int lo, int hi) {
@@ -2146,8 +2171,8 @@ struct GxRenderer::Impl {
 
   // Vertex attribute pointers of vao for a layout (re4_gx_frame.h) and stride,
   // the first vertex at byte `base` of vbo; only changed enables are switched.
-  void SetAttributes(std::uint32_t layout, std::uint32_t stride, std::uint32_t base) {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  void SetAttributes(std::uint32_t layout, std::uint32_t stride, std::uint32_t base, GLuint buffer) {
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     const GLsizei s = static_cast<GLsizei>(stride);
     const auto at = [&](unsigned offset) { return reinterpret_cast<const void *>(static_cast<std::uintptr_t>(base + offset)); };
     std::uint32_t mask = 1;
@@ -2194,6 +2219,7 @@ struct GxRenderer::Impl {
     attribLayout = layout;
     attribStride = stride;
     attribBase = base;
+    attribBuffer = buffer;
   }
 
   void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk) {
@@ -2275,14 +2301,18 @@ struct GxRenderer::Impl {
       glBindVertexArray(vao);
       vaoBound = true;
     }
-    std::uint32_t base = d.vertexOffset;
+    // (an in-between picture's blended vertices: from blendVbo)
+    const GLuint buffer = blendAt >= 0 ? blendVbo : vbo;
+    const std::uint32_t at = blendAt >= 0 ? static_cast<std::uint32_t>(blendAt) : d.vertexOffset;
+    blendAt = -1;
+    std::uint32_t base = at;
     GLint baseVertex = 0;
     if (drawBaseVertex && d.stride) {
-      base = d.vertexOffset % d.stride;
-      baseVertex = static_cast<GLint>(d.vertexOffset / d.stride);
+      base = at % d.stride;
+      baseVertex = static_cast<GLint>(at / d.stride);
     }
-    if (d.layout != attribLayout || d.stride != attribStride || base != attribBase) {
-      SetAttributes(d.layout, d.stride, base);
+    if (d.layout != attribLayout || d.stride != attribStride || base != attribBase || buffer != attribBuffer) {
+      SetAttributes(d.layout, d.stride, base, buffer);
       stats.attributeSetups++;
     }
     const GLenum mode = primitive == RE4_GX_LINES ? GL_LINES : primitive == RE4_GX_POINTS ? GL_POINTS : GL_TRIANGLES;
@@ -2639,7 +2669,7 @@ struct GxRenderer::Impl {
       const void *data = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, kDepthWidth * kDepthHeight * 4, GL_MAP_READ_BIT);
       if (data) {
         if (depthSink)
-          depthSink(static_cast<const std::uint32_t *>(data), ++gPeekSerial);
+          depthSink(static_cast<const std::uint32_t *>(data), peekSlotPicture[i]);
         stats.depthDelivered++;
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
       }
@@ -2678,6 +2708,7 @@ struct GxRenderer::Impl {
     glReadPixels(0, 0, kDepthWidth, kDepthHeight, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     peekFence[slot] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    peekSlotPicture[slot] = peekPicture;
     stats.depthSnapshots++;
     BindFbo(DrawFbo());
     current = nullptr;
@@ -3381,6 +3412,51 @@ bool GxRenderer::Init(int scale, std::string *error) {
   return true;
 }
 
+void GxRenderer::HandOverCopies(GxRenderer &to) {
+  Impl &m = *impl_, &n = *to.impl_;
+  if (&m == &n || m.copies.empty())
+    return;
+  m.Touched();
+  n.Touched();
+  GLuint from = 0, dst = 0;
+  glGenFramebuffers(1, &from);
+  glGenFramebuffers(1, &dst);
+  unsigned moved = 0;
+  for (auto &c : m.copies) {
+    Copy copy = c.second;
+    if (!copy.id || n.copies.count(c.first))
+      continue;
+    if (m.scale != n.scale) {
+      // at the new scale: a texture of the new size, the old one drawn over it scaled
+      GLuint made = 0;
+      glGenTextures(1, &made);
+      glBindTexture(GL_TEXTURE_2D, made);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(copy.width) * n.scale,
+                   static_cast<GLsizei>(copy.height) * n.scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, from);
+      glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, copy.id, 0);
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst);
+      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, made, 0);
+      glBlitFramebuffer(0, 0, static_cast<GLint>(copy.width) * m.scale, static_cast<GLint>(copy.height) * m.scale, 0, 0,
+                        static_cast<GLint>(copy.width) * n.scale, static_cast<GLint>(copy.height) * n.scale,
+                        GL_COLOR_BUFFER_BIT, GL_LINEAR);
+      glDeleteTextures(1, &copy.id);
+      copy.id = made;
+    }
+    copy.serial = ++n.copySerial;
+    n.copies[c.first] = copy;
+    c.second.id = 0;  // the new renderer's now: this one's Release leaves it
+    moved++;
+  }
+  m.copies.clear();
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  glDeleteFramebuffers(1, &from);
+  glDeleteFramebuffers(1, &dst);
+  n.stats.handedCopies += moved;
+}
+
 void GxRenderer::Rescale(int scale) {
   Impl &m = *impl_;
   scale = std::max(1, scale);
@@ -3517,11 +3593,17 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   }
   // this chunk's vertices and indices
   glBindVertexArray(m.vao);
-  if (!m.skipDraws) {
+  const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
+  m.uploadedBy = nullptr;
+  if (!m.skipDraws && !uploaded) {
     glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
     glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+    if (m.interpPass) {
+      m.uploadedBy = &chunk;
+      m.uploadedSequence = chunk.sequence;
+    }
   }
   // the app drew the screen since the last chunk: a new pass
   m.efbLeft = true;
@@ -3622,7 +3704,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
 bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
   const Impl &m = *impl_;
   const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
-  if (m.recordDraws || m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
+  if (m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
       (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
     return false;
   // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them)
@@ -3683,6 +3765,7 @@ void GxRenderer::Skip(const Re4GxChunk &a) {
   impl_->skipDraws = true;
   Run(a);
   impl_->skipDraws = false;
+  impl_->recValid = false;  // 60 FPS: no in-between picture across a chunk left out
 }
 
 void GxRenderer::SetRecording(bool on) {
@@ -3741,10 +3824,19 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   m.ipDraws = m.ipMatched = m.ipTurned = 0;
   m.interpCopied.clear();
   m.interpUploads.clear();
+  // a fresh store for the pass's blended vertices (the last pass's may still be read by the GPU)
+  if (!m.blendVbo)
+    glGenBuffers(1, &m.blendVbo);
+  m.blendCap = std::max<std::size_t>(next.vertexBytes, 65536);
+  glBindBuffer(GL_ARRAY_BUFFER, m.blendVbo);
+  glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m.blendCap), nullptr, GL_STREAM_DRAW);
+  m.blendUsed = 0;
+  m.blendAt = -1;
   m.interpPass = true;
   m.interpT = t;
   m.interpPrev = &prev;
   Run(next);
+  m.blendAt = -1;
   m.interpPass = false;
   m.interpPrev = nullptr;
   m.skipInterpUploads = true;
@@ -4037,6 +4129,9 @@ void GxRenderer::Release() {
   glDeleteRenderbuffers(2, renderbuffers);
   const GLuint buffers[] = {m.vbo, m.ibo, m.pxUbo};
   glDeleteBuffers(3, buffers);
+  if (m.blendVbo)
+    glDeleteBuffers(1, &m.blendVbo);
+  m.blendVbo = 0;
   glDeleteBuffers(kXfParts, m.xfUbo);
   m.StreamRelease();
   m.FenceRelease();

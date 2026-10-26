@@ -104,6 +104,9 @@ struct Receiver {
     uint64_t audioTaken = 0;
     unsigned snapshots = 0, snapshotBad = 0;
     uint32_t lastSerial = 0;
+    // as the app's renderer: the depth map of each picture that peeked (BP 0x5B), with its number
+    const std::vector<unsigned>* depthCells = nullptr;
+    unsigned depthMaps = 0;
     unsigned vsyncs = 0, gyros = 0;
 
     void step()
@@ -127,7 +130,18 @@ struct Receiver {
             }
             lastSequence = c->sequence;
             chunks++;
+            uint32_t peeked = 0;
+            for (uint32_t i = 0; i < c->opWords; i += 1 + (c->ops[i] >> 8)) {
+                if ((c->ops[i] & 0xFF) == RE4_GX_OP_BP && (c->ops[i] >> 8) >= 1 && i + 1 < c->opWords &&
+                    (c->ops[i + 1] >> 24) == 0x5B) {
+                    peeked = c->ops[i + 1] & 0xFFFFFF;
+                }
+            }
             re4ipc_gx_release(c);
+            if (peeked && depthCells) {
+                re4ipc_gx_depth(depthCells->data(), peeked);
+                depthMaps++;
+            }
         }
         // as CoreAudio with its AudioTrack: 256 frames per read, until the track's buffer (2560
         // frames) is full, then in bursts as the mixer takes its periods (here 3 reads each 24 ms)
@@ -342,12 +356,12 @@ void mainRun(const char* modules, const char* gciPath)
     re4ipc_set_letterbox(0);
     r.run(0.5);
     // the depth of the picture for the game's GXPeekZ: the cell at (100, 60) of the map the renderer writes
-    {
-        std::vector<unsigned> cells(320 * 264, 0x00FFFFFF);
-        cells[(60 >> 1) * 320 + (100 >> 1)] = 0xABCDE;
-        re4ipc_gx_depth(cells.data(), 1000000);
-    }
+    // (the map of each picture that peeked, with the picture's number, as the renderer hands it over)
+    std::vector<unsigned> cells(320 * 264, 0x00FFFFFF);
+    cells[(60 >> 1) * 320 + (100 >> 1)] = 0xABCDE;
+    r.depthCells = &cells;
     r.run(0.5);
+    CHECK(r.depthMaps > 0);
     // the end: START
     pad(0x1000);
     CHECK(waitFor(20, &r, [] { return re4ipc_state() != RE4_CORE_RUNNING; }));

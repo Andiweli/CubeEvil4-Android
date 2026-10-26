@@ -635,6 +635,59 @@ void TestShownRowsCopy(re4gx::GxRenderer &r, bool viaXfb, bool crop) {
   r.SetShownRows(0, 1 << 16);
 }
 
+// New picture options make a new renderer (core_mode.cpp): the EFB copies of the renderer before go
+// over to it at its scale (HandOverCopies). A copy the game made once (a room's start) is read on
+// without a new copy: before 26.10.2026 it was missing (white) until the next room.
+void TestHandOverCopies() {
+  std::string error;
+  re4gx::GxRenderer a, b;
+  Require(a.Init(1, &error), error.c_str());
+  {
+    Builder c;
+    Baseline(c);
+    DisplayCopy(c, true, kBlack);
+    Quad(c, 0, 0, 640, 528, 0, kRed);
+    c.Bp(0x49, 0);
+    c.Bp(0x4A, 255 | 255u << 10);
+    c.Bp(0x4D, 16);
+    c.Bp(0x4B, 0x500000 >> 5);
+    c.Bp(0x52, 6u << 4 | 1u << 9); // RGBA8 to a texture, 256 x 256
+    DisplayCopy(c, false, kBlack);
+    a.Run(c.Chunk());
+  }
+  Require(b.Init(2, &error), error.c_str());
+  a.HandOverCopies(b);
+  a.Release();
+  Check(b.Stats().handedCopies == 1, "hand over: the copy goes to the new renderer");
+  Builder d;
+  Baseline(d);
+  DisplayCopy(d, true, kBlack);
+  d.Bp(0x00, 1u | 1u << 4);
+  d.Xf(0x103F, {1});
+  d.Xf(0x1040, {5u << 7});
+  d.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  d.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  d.Bp(0x88, 255 | 255 << 10 | 6u << 20);
+  d.Bp(0x30, 255);
+  d.Bp(0x31, 255);
+  d.Texture(0, 0x500000ull | 3ull << 32, RE4_GX_TEX_COPY, 0x500000, 256, 256, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 0, 0, kWhite, 0, 0);
+  VT(v, 256, 0, 0, kWhite, 1, 0);
+  VT(v, 256, 256, 0, kWhite, 1, 1);
+  VT(v, 0, 256, 0, kWhite, 0, 1);
+  d.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  d.Bp(0x49, 0);
+  d.Bp(0x4A, 639 | 527u << 10);
+  DisplayCopy(d, false, kBlack);
+  b.Run(d.Chunk());
+  Check(b.Stats().missingTextures == 0, "hand over: the copy is not missing in the new renderer");
+  Check(Near(TexPixel(b.Xfb(nullptr, nullptr), 100 * 2, 100 * 2), 255, 0, 0),
+        "hand over: the copy drawn at the new scale (red)");
+  Check(glGetError() == GL_NO_ERROR, "hand over: no GL error");
+  b.Release();
+}
+
 // The game's GXPeekZ (a torch's glow hides itself behind a wall by reading the depth around it): the
 // core marks the chunk with BP 0x5B; at its display copy the depth goes, half the resolution, to the
 // sink once the GPU is through (the next chunk). A quad at depth 0.5 on the left, cleared (far) elsewhere.
@@ -652,7 +705,7 @@ void TestDepthMap(re4gx::GxRenderer &r, bool viaDeferred) {
     Baseline(b);
     DisplayCopy(b, true, kBlack);
     Quad(b, 0, 0, 320, 528, -0.5f, kRed);
-    b.Bp(0x5B, 1);
+    b.Bp(0x5B, 4242);  // the marker with the number of the picture
     DisplayCopy(b, false, kBlack);
     r.Run(b.Chunk());
   }
@@ -663,7 +716,7 @@ void TestDepthMap(re4gx::GxRenderer &r, bool viaDeferred) {
     DisplayCopy(b, false, kBlack);
     r.Run(b.Chunk());
   }
-  Check(!got.empty() && serial >= 1, "depth map: delivered to the sink");
+  Check(!got.empty() && serial == 4242, "depth map: delivered to the sink with the number of the picture that peeked");
   if (!got.empty()) {
     const std::uint32_t half = 8388607, far = 16777215;
     const std::uint32_t left = got[60 * re4gx::GxRenderer::kDepthWidth + 50];
@@ -875,15 +928,19 @@ struct AutoRun {
   double t = 0.0;
   unsigned long long sum = 0;
   unsigned checks = 0;
+  unsigned long long dropped = 0;  // 60 FPS: in-between pictures left out
   std::vector<std::string> lines;
-  void Play(double seconds, double rate, unsigned behind, bool mayChange = true) {
+  // `droppedEvery`: one in-between picture left out each so many chunks (0: none)
+  void Play(double seconds, double rate, unsigned behind, bool mayChange = true, unsigned droppedEvery = 0) {
     const double end = t + seconds;
     while (t < end) {
       t += 1.0 / rate;
       sum += behind;
       checks++;
+      if (droppedEvery && checks % droppedEvery == 0)
+        dropped++;
       std::string why;
-      a.Chunk(t, sum, checks, mayChange, &why);
+      a.Chunk(t, sum, checks, mayChange, &why, dropped);
       if (!why.empty())
         lines.push_back(why);
     }
@@ -942,6 +999,29 @@ void TestAutoLevel() {
     Check(r.a.Level() == 2, "auto level: one level down after two slow windows");
     r.Play(6.5, 20.0, 1);
     Check(r.a.Level() == 1, "auto level: down one level each two windows while the GPU stays behind");
+  }
+  {
+    // 60 FPS: the game keeps 30 pictures a second because the renderer leaves in-between pictures out
+    AutoRun r;
+    r.a.Start(2, 0.0);
+    r.Play(6.5, 30.0, 1, true, 2);
+    Check(r.a.Level() == 1 && r.a.Downs() == 1,
+          "auto level: 60 FPS, half the in-between pictures left out, the GPU behind: one level down");
+    Check(!r.lines.empty() && r.lines.back().find("% without their in-between picture") != std::string::npos,
+          "auto level: the share left out logged");
+    AutoRun idle;
+    idle.a.Start(2, 0.0);
+    idle.Play(20.0, 30.0, 0, true, 2);
+    Check(idle.a.Level() == 2, "auto level: 60 FPS, pictures left out with the GPU idle (the processor): stays");
+    AutoRun few;
+    few.a.Start(2, 0.0);
+    few.Play(6.5, 20.0, 1);
+    while (few.a.Ups() == 0 && few.t < 200.0)
+      few.Play(0.5, 30.0, 0, true, 5);
+    Check(few.a.Ups() == 0, "auto level: 60 FPS, not up again while a fifth of the in-between pictures is left out");
+    while (few.a.Ups() == 0 && few.t < 400.0)
+      few.Play(0.5, 30.0, 0);
+    Check(few.a.Ups() == 1, "auto level: 60 FPS, up again once (almost) none is left out");
   }
 }
 
@@ -1493,6 +1573,23 @@ void TestInterpolation() {
   for (std::size_t i = 0; i < onePx.size() && i < withoutPx.size(); i++)
     differ += std::abs(static_cast<int>(onePx[i]) - static_cast<int>(withoutPx[i])) > 2;
   Check(onePx.size() == withoutPx.size() && differ == 0, "interpolation at t = 1: the picture of B");
+  // Frame skip with 60 FPS (26.10.2026): a chunk may be left out while the draws are noted; the
+  // chunk after it gets no in-between picture
+  {
+    re4gx::GxRenderer sk;
+    Require(sk.Init(1, &error), error.c_str());
+    sk.SetRecording(true);
+    Builder bd;
+    Re4GxChunk d;
+    InterpScene(bd, 3, 50.0f, 450.0f, 0.0f, &d);
+    sk.Run(a);
+    Check(sk.CanSkip(b, d), "frame skip with 60 FPS: a chunk may be left out while the draws are noted");
+    sk.Skip(b);
+    Check(!sk.Interpolate(b, d, 0.5f), "frame skip with 60 FPS: no in-between picture after a chunk left out");
+    sk.Run(d);
+    Check(sk.Interpolate(d, d, 0.5f) == false && glGetError() == GL_NO_ERROR, "frame skip with 60 FPS: no GL error");
+    sk.Release();
+  }
   // not recorded, or not the next chunk: nothing drawn
   Check(!plain.Interpolate(a, b, 0.5f), "interpolation: nothing without notes of the picture before");
   Check(!one.Interpolate(a, c, 0.5f), "interpolation: nothing between chunks that do not follow each other");
@@ -1874,6 +1971,7 @@ int main() {
   TestPrewarm();
   TestRescale();
   TestAutoLevel();
+  TestHandOverCopies();
   // twice: as the app runs it, and with the copy targets, the blur and the focus painted magenta
   // where the GPU may forget them (GPU step b): every picture must stay the same
   for (int poison = 0; poison < 2; poison++) {

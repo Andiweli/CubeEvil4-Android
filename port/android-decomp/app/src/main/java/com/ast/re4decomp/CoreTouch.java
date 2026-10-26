@@ -28,14 +28,18 @@ import java.util.Set;
  * back when the finger lifts. RetroTouch does not say which finger looks, so
  * TouchControls names the fingers that went down inside the look zone without
  * pressing a control (fingerDown).
+ *
+ * The C stick can also be an analog stick of its own (wish of the project
+ * owner, 26.10.2026; until then four buttons C-up .. C-right): the editor's
+ * ADD, then ACTION to "C" (RetroTouch's stick action, 1.0.0-beta.7), in the
+ * GameCube's yellow. It does what the look zone does; the further tilt wins.
  */
 final class CoreTouch {
   // the actions registered with RetroTouch (the layout's contract: lower case, never renamed)
   static final String A = "a", B = "b", X = "x", Y = "y", Z = "z", L = "l", R = "r",
       START = "start", MENU = "menu", R3 = "r3",
-      // the C stick as four buttons (wish of the project owner, 26.10.2026): RetroTouch reports one stick only
-      // (onMove does not say which), so the editor adds the C stick as C-up, C-down, C-left and C-right
-      C_UP = "cstick_up", C_DOWN = "cstick_down", C_LEFT = "cstick_left", C_RIGHT = "cstick_right";
+      // the C stick as an analog stick the editor adds (RetroTouch's stick action, registerStickAction)
+      C_STICK = "cstick";
   // the D-pad's directions (RetroTouchNavigation)
   static final String UP = "nav_up", DOWN = "nav_down", LEFT = "nav_left", RIGHT = "nav_right";
   /** This way of a looking finger (share of the screen's shorter side) tilts the C stick fully. */
@@ -47,14 +51,20 @@ final class CoreTouch {
    * graphics capture for error reports, as on a controller; not in the default layout, the editor
    * adds it.
    */
-  static final String[] ACTIONS = {A, B, X, Y, Z, L, R, START, MENU, R3, C_UP, C_DOWN, C_LEFT, C_RIGHT};
-  static final String[] LABELS = {"A", "B", "X", "Y", "Z", "L", "R", "START", "MENU", "R3", "C\u2191", "C\u2193", "C\u2190", "C\u2192"};
+  static final String[] ACTIONS = {A, B, X, Y, Z, L, R, START, MENU, R3, C_STICK};
+  static final String[] LABELS = {"A", "B", "X", "Y", "Z", "L", "R", "START", "MENU", "R3", "C"};
   // the GameCube's official colours (the project owner's palette, 19.10.2026): A green, B red,
-  // Z purple, the others grey (RetroTouch writes dark labels on the light grey)
+  // Z purple, the C stick yellow, the others grey (RetroTouch writes dark labels on the light grey
+  // and the yellow)
   static final int GC_GREEN = rgb(0x10, 0x9B, 0x61), GC_RED = rgb(0xF6, 0x39, 0x2C), GC_PURPLE = rgb(0x6B, 0x5C, 0xB1),
-      GC_GREY = rgb(0xDD, 0xDD, 0xDD);
+      GC_GREY = rgb(0xDD, 0xDD, 0xDD), GC_YELLOW = rgb(0xF7, 0xC8, 0x1E);
   static final int[] COLOURS = {GC_GREEN, GC_RED, GC_GREY, GC_GREY, GC_PURPLE, GC_GREY, GC_GREY, GC_GREY, GC_GREY, GC_GREY,
-      GC_GREY, GC_GREY, GC_GREY, GC_GREY};
+      GC_YELLOW};
+
+  /** Whether an action is an analog stick (RetroTouch's stick action), not a button. */
+  static boolean isStick(String action) {
+    return C_STICK.equals(action);
+  }
 
   // the kinds of RetroTouchControl
   static final int BUTTON = 0, STICK = 1, LOOK = 2, DPAD = 3;
@@ -163,12 +173,6 @@ final class CoreTouch {
     if (down) answered = true;
     if (MENU.equals(action)) {
       host.select(down);
-    } else if (C_UP.equals(action) || C_DOWN.equals(action) || C_LEFT.equals(action) || C_RIGHT.equals(action)) {
-      if (C_UP.equals(action)) cUp = down;
-      else if (C_DOWN.equals(action)) cDown = down;
-      else if (C_LEFT.equals(action)) cLeft = down;
-      else cRight = down;
-      updateC();
     } else if (R3.equals(action)) {
       host.r3(down);
     } else if (latch && (L.equals(action) || R.equals(action))) {
@@ -206,14 +210,22 @@ final class CoreTouch {
     updateC();
   }
 
-  // the C stick buttons (the editor's C-up .. C-right), held while the finger is on them
-  private boolean cUp, cDown, cLeft, cRight;
+  // the C stick of the editor (RetroTouch's stick action), -1..1 with y down
+  private float cx, cy;
 
-  /** The C stick: the C buttons at full tilt or the looking finger, whichever tilts further. */
+  /** RetroTouch's onStick: the C stick the editor added, -1..1 with y down (0, 0: let go). */
+  void stick(String action, float x, float y) {
+    if (!C_STICK.equals(action)) return;
+    answered = true;  // a finger on the C stick does not look (fingerDown), even in its centre
+    cx = x;
+    cy = y;
+    updateC();
+  }
+
+  /** The C stick: the C stick control or the looking finger, whichever tilts further. */
   private void updateC() {
-    float bx = (cRight ? 1 : 0) - (cLeft ? 1 : 0), by = (cDown ? 1 : 0) - (cUp ? 1 : 0);
     float lx = lookFingers.isEmpty() ? 0 : lookX / LOOK_RANGE, ly = lookFingers.isEmpty() ? 0 : lookY / LOOK_RANGE;
-    if (bx * bx + by * by >= lx * lx + ly * ly) input.touchStick(true, bx, by);
+    if (cx * cx + cy * cy >= lx * lx + ly * ly) input.touchStick(true, cx, cy);
     else input.touchStick(true, lx, ly);
   }
 
@@ -290,7 +302,8 @@ final class CoreTouch {
     lookFingers.clear();
     lookX = 0;
     lookY = 0;
-    cUp = cDown = cLeft = cRight = false;
+    cx = 0;
+    cy = 0;
     if (l) host.latched(L, false);
     if (r) host.latched(R, false);
     if (b) host.latched(B, false);
