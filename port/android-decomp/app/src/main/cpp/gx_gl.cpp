@@ -3707,14 +3707,26 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
   if (m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
       (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
     return false;
-  // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them)
+  // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them); and
+  // which copy each texture map holds (0: none), from the chunk run last on
   std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
+  std::uint32_t mapCopy[8];
+  for (int i = 0; i < 8; i++)
+    mapCopy[i] = (m.boundKey[i] >> 63) ? static_cast<std::uint32_t>(m.boundKey[i]) : 0;
+  auto texture = [&](const std::uint32_t *p, std::uint32_t n, Re4GxTexture *t) {
+    if (n * 4 < sizeof(Re4GxTexture))
+      return false;
+    std::memcpy(t, p, sizeof(*t));
+    mapCopy[t->map & 7] = (t->flags & RE4_GX_TEX_COPY) ? t->address : 0;
+    return true;
+  };
   for (std::uint32_t at = 0; at < a.opWords;) {
     const std::uint32_t head = a.ops[at];
     const std::uint32_t op = head & 0xFF, n = head >> 8;
     if (at + 1 + n > a.opWords)
       return false;
     const std::uint32_t *p = a.ops + at + 1;
+    Re4GxTexture t;
     if (op == RE4_GX_OP_BP && n >= 1) {
       const unsigned reg = p[0] >> 24;
       bp[reg] = p[0] & 0xFFFFFF;
@@ -3723,38 +3735,53 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
     } else if (op == RE4_GX_OP_BP_STATE) {
       for (std::uint32_t r = 0; r < n && r < 256; r++)
         bp[r] = p[r] & 0xFFFFFF;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      texture(p, n, &t);
     }
     at += 1 + n;
   }
   if (pending.empty())
     return true;
-  // `b` may read one before it writes it: a texture op for it, or any draw (a map still bound to the old
-  // copy). It copies there again before its first draw: `a`'s copy is never seen.
+  auto isPending = [&](std::uint32_t address) {
+    return address && std::find(pending.begin(), pending.end(), address) != pending.end();
+  };
+  // `b` must copy to each of them again (else a later chunk reads a copy `a` never made), and must not
+  // read one before: a texture op for it, or a draw whose TEV stages sample a map still holding it
+  // (until 26.10.2026 any draw counted: almost every picture of a room makes a copy, shadows and the
+  // depth of field, and draws before it copies, so Frame skip almost never skipped)
   for (std::uint32_t at = 0; at < b.opWords && !pending.empty();) {
     const std::uint32_t head = b.ops[at];
     const std::uint32_t op = head & 0xFF, n = head >> 8;
     if (at + 1 + n > b.opWords)
       return false;
     const std::uint32_t *p = b.ops + at + 1;
-    if (op == RE4_GX_OP_DRAW)
-      return false;
-    if (op == RE4_GX_OP_TEXTURE && n * 4 >= sizeof(Re4GxTexture)) {
-      Re4GxTexture t;
-      std::memcpy(&t, p, sizeof(t));
-      if (t.flags & RE4_GX_TEX_COPY)
+    Re4GxTexture t;
+    if (op == RE4_GX_OP_DRAW) {
+      const std::uint32_t gen = bp[0x00];
+      const unsigned stages = ((gen >> 10) & 15) + 1, indStages = (gen >> 16) & 7;
+      for (unsigned st = 0; st < stages; st++) {
+        const std::uint32_t o = bp[0x28 + st / 2] >> ((st & 1) ? 12 : 0);
+        if (((o >> 6) & 1) && isPending(mapCopy[o & 7]))
+          return false;
+      }
+      for (unsigned st = 0; st < indStages && st < 4; st++)
+        if (isPending(mapCopy[(bp[0x27] >> (6 * st)) & 7]))
+          return false;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      if (!texture(p, n, &t))
         return false;
-    }
-    if (op == RE4_GX_OP_BP && n >= 1) {
+      if ((t.flags & RE4_GX_TEX_COPY) && isPending(t.address))
+        return false;
+    } else if (op == RE4_GX_OP_BP && n >= 1) {
       const unsigned reg = p[0] >> 24;
       bp[reg] = p[0] & 0xFFFFFF;
       if (reg == 0x52 && !((bp[0x52] >> 14) & 1)) {
         const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
-        for (std::size_t i = 0; i < pending.size();)
-          if (pending[i] == dest)
-            pending.erase(pending.begin() + static_cast<std::ptrdiff_t>(i));
-          else
-            i++;
+        pending.erase(std::remove(pending.begin(), pending.end(), dest), pending.end());
       }
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
     }
     at += 1 + n;
   }

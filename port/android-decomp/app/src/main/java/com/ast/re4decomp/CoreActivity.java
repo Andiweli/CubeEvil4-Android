@@ -869,7 +869,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     return String.format(Locale.ROOT, "device %d \"%s\" vendor %04x product %04x descriptor %s sources 0x%x%s%s keys:%s axes:%s",
         d.getId(), d.getName(), d.getVendorId(), d.getProductId(), d.getDescriptor(), d.getSources(),
-        d.isVirtual() ? " virtual" : "", d.isExternal() ? " external" : "",
+        d.isVirtual() ? " virtual" : "", Build.VERSION.SDK_INT < 29 ? "" : d.isExternal() ? " external" : " built-in",
         keys.length() == 0 ? " none" : keys.toString(), axes.length() == 0 ? " none" : axes.toString());
   }
 

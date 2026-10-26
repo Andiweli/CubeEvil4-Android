@@ -471,8 +471,9 @@ final class CoreMenu extends Dialog {
     if (data[0] == -5) status = R.string.ingame_instant_unsupported;
     else if (data[0] == -3) status = R.string.ingame_instant_damaged;
     else if (data[0] == -4) status = R.string.ingame_instant_failed;
+    // saving refused at this place: said so even when the slot is empty (loading is not possible then either)
+    else if (data[0] != -1 && data[2] == 0 && data.length > 8 && data[8] != 0) status = R.string.ingame_instant_no_save;
     else if (data[0] == -1 || (data[2] == 0 && data[3] == 0)) status = R.string.ingame_instant_unavailable;
-    else if (data[2] == 0 && data.length > 8 && data[8] != 0) status = R.string.ingame_instant_no_save;
     showSlotStatus(status);
   }
   private void showSlotStatus(int message) {

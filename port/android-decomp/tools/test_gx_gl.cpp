@@ -853,6 +853,35 @@ void TestFrameSkip(re4gx::GxRenderer &r) {
   copyTo(readsFirst, 0x300000);
   DisplayCopy(readsFirst, true, kBlack);
   Check(!r.CanSkip(withCopy.Chunk(), readsFirst.Chunk()), "frame skip: the next chunk reads the copy first");
+  // as in a room: the next chunk draws its scene (no map holds the copy) and copies afterwards (the
+  // shadows, the depth of field): skipped (until 26.10.2026 any draw before the copy refused it)
+  Builder drawsThenCopies;
+  drawsThenCopies.flags = RE4_GX_CHUNK_XFB;
+  Quad(drawsThenCopies, 0, 0, 10, 10, 0, kRed);
+  copyTo(drawsThenCopies, 0x300000);
+  DisplayCopy(drawsThenCopies, true, kBlack);
+  Check(r.CanSkip(withCopy.Chunk(), drawsThenCopies.Chunk()),
+        "frame skip: the next chunk draws without the copy, then copies there: skipped");
+  // `a` binds its copy to map 0 and draws with it; `b` draws with map 0 sampled (still the copy) first
+  Builder usesCopy;
+  usesCopy.flags = RE4_GX_CHUNK_XFB;
+  copyTo(usesCopy, 0x300000);
+  usesCopy.Texture(0, 0x300000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x300000, 32, 32, 6, {});
+  DisplayCopy(usesCopy, true, kBlack);
+  Builder samplesMap0;
+  samplesMap0.flags = RE4_GX_CHUNK_XFB;
+  samplesMap0.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);  // stage 0 samples map 0
+  Quad(samplesMap0, 0, 0, 10, 10, 0, kRed);
+  copyTo(samplesMap0, 0x300000);
+  DisplayCopy(samplesMap0, true, kBlack);
+  Check(!r.CanSkip(usesCopy.Chunk(), samplesMap0.Chunk()),
+        "frame skip: the next chunk samples a map that still holds the copy: not skipped");
+  Builder neverCopies;
+  neverCopies.flags = RE4_GX_CHUNK_XFB;
+  Quad(neverCopies, 0, 0, 10, 10, 0, kRed);
+  DisplayCopy(neverCopies, true, kBlack);
+  Check(!r.CanSkip(withCopy.Chunk(), neverCopies.Chunk()),
+        "frame skip: the next chunk does not copy there again (a later one may read it): not skipped");
 }
 
 // Auto in the app menu: the EFB scale changes between two Runs (GxRenderer::Rescale). At scale 2 a

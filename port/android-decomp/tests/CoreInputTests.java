@@ -102,6 +102,12 @@ public final class CoreInputTests {
     check(in.pad()[0] == 0 && in.pad()[6] == 0 && in.pad()[5] == 0);
     in.motion(1, 0, 0, 0, 0, 0, 0.6f, 0, 0);
     check(in.pad()[0] == CoreInput.GC_A && in.pad()[5] == 0 && in.gcButton(R2) == CoreInput.GC_A);
+    in.motion(1, 0, 0, 0, 0, 0, 0.45f, 0, 0);  // resting near half way: still the same shot, no new press
+    check(in.pad()[0] == CoreInput.GC_A);
+    in.motion(1, 0, 0, 0, 0, 0, 0.3f, 0, 0);
+    check(in.pad()[0] == 0);
+    in.motion(1, 0, 0, 0, 0, 0, 0.45f, 0, 0);
+    check(in.pad()[0] == 0);
     in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     // L2/R2 as keys
     in.key(1, L2, true);
@@ -208,6 +214,19 @@ public final class CoreInputTests {
     check(p[5] == 255 && clampTrigger(p[5]) == 150 && p[0] == (CoreInput.GC_L | CoreInput.GC_R));
     in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     check(in.pad()[0] == 0 && in.pad()[5] == 0);
+    // a trigger held near the click: R stays pressed until below 70 % (jitter is no new press, which
+    // the core would show as a frame without R, 26.10.2026), and is pressed again only at 85 %
+    in.motion(1, 0, 0, 0, 0, 0, 0.86f, 0, 0);
+    check(in.pad()[0] == CoreInput.GC_R);
+    in.motion(1, 0, 0, 0, 0, 0, 0.80f, 0, 0);
+    check(in.pad()[0] == CoreInput.GC_R);
+    in.motion(1, 0, 0, 0, 0, 0, 0.86f, 0, 0);
+    check(in.pad()[0] == CoreInput.GC_R);
+    in.motion(1, 0, 0, 0, 0, 0, 0.65f, 0, 0);
+    check(in.pad()[0] == 0 && in.pad()[6] == Math.round(0.65f * 255));  // the analog value stays
+    in.motion(1, 0, 0, 0, 0, 0, 0.80f, 0, 0);
+    check(in.pad()[0] == 0);
+    in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     // L2/R2 as keys (digital triggers): fully pressed
     in.key(1, R2, true);
     p = in.pad();

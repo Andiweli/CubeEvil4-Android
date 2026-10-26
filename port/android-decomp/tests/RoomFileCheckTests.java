@@ -16,6 +16,11 @@ public final class RoomFileCheckTests {
     RoomFileCheck bad = RoomFileCheck.verify(new StringReader(damaged), new StringReader(rooms), 1);
     check(bad.bad.size() == 1 && bad.bad.get(0).equals("St2/r222.das"), "a differing hash is named");
     check(bad.warning(1).contains("1 of 2") && bad.warning(1).contains("St2/r222.das"), "warning text");
+    // as GameCubeDisc writes manifest.tsv: the paths of the disc folder (files/...), the folder's case
+    String imported = "aaaa\t5\tfiles/St1/r100.das\nBBBB\t5\tfiles/st2/R222.das\ncccc\t5\tfiles/St3/r300.das\n"
+        + "1234\t5\tsys/boot.bin\n";
+    RoomFileCheck real = RoomFileCheck.verify(new StringReader(imported), new StringReader(rooms), 1);
+    check(real.checked == 2 && real.bad.isEmpty(), "the manifest's files/ paths match rooms.tsv (bug of 26.10.2026: every room flagged)");
     RoomFileCheck missing = RoomFileCheck.verify(new StringReader("aaaa\t5\tSt1/r100.das\n"), new StringReader(rooms), 1);
     check(missing.bad.size() == 1, "a missing file counts");
     RoomFileCheck second = RoomFileCheck.verify(new StringReader(good), new StringReader(rooms), 2);

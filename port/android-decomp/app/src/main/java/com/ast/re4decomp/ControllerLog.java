@@ -33,8 +33,9 @@ final class ControllerLog {
   /** A changed or removed device is reported again. */
   synchronized void forget(int device) {
     devices.remove(device);
-    keys.removeIf(k -> (int) (k >> 32) == device);
-    axes.removeIf(k -> (int) (k >> 32) == device);
+    // (no removeIf: Android 6, the core's minSdk 23, does not have it)
+    for (java.util.Iterator<Long> i = keys.iterator(); i.hasNext();) if ((int) (i.next() >> 32) == device) i.remove();
+    for (java.util.Iterator<Long> i = axes.iterator(); i.hasNext();) if ((int) (i.next() >> 32) == device) i.remove();
   }
 
   /** The axes the game reads (sticks, triggers, hat): everything else is "not read". */

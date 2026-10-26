@@ -27,7 +27,7 @@ public final class RoomFileCheck {
       while ((line = r.readLine()) != null) {
         if (line.isEmpty() || line.startsWith("#")) continue;
         String[] f = line.split("\t");
-        if (f.length == 3) actual.put(f[2], f[0]);
+        if (f.length == 3) actual.put(key(f[2]), f[0]);
       }
     }
     List<String> bad = new ArrayList<>();
@@ -40,11 +40,21 @@ public final class RoomFileCheck {
         if (f.length != 5) throw new IOException("Invalid room verification catalog");
         if (!f[0].equals(Integer.toString(disc))) continue;
         checked++;
-        String hash = actual.get(f[1]);
+        String hash = actual.get(key(f[1]));
         if (hash == null || !hash.equalsIgnoreCase(f[4])) bad.add(f[1]);
       }
     }
     return new RoomFileCheck(checked, bad);
+  }
+
+  /**
+   * A path of either list in one form: the manifest names the extracted files as they lie in the disc
+   * folder (files/St1/r100.das, GameCubeDisc), rooms.tsv as on the disc (St1/r100.das); case aside.
+   */
+  static String key(String path) {
+    String p = path.replace('\\', '/');
+    if (p.startsWith("files/")) p = p.substring(6);
+    return p.toLowerCase(Locale.ROOT);
   }
 
   public static RoomFileCheck verify(File discDir, InputStream rooms, int disc) throws IOException {

@@ -1432,10 +1432,15 @@ bool drawGx() {
       const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
                                         st.behindChecks,
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring,
-                                        &why, smoothOn ? gxBetweenDropped : 0);
+                                        &why, gxBetweenDropped);  // (counts only while 60 FPS is on; never falls back)
       if (level != gx->Scale()) {
         LOG("%s", why.c_str());
-        smoothDrop();  // no in-between picture across the change
+        // no in-between picture across the change (a chunk taken ahead, skipNext, is not run yet:
+        // it stays and is drawn at the next refresh; the core sends only what changed)
+        if (smoothPrev) {
+          api.gxRelease(smoothPrev);
+          smoothPrev = nullptr;
+        }
         gx->Rescale(level);
         infoScale = level;
       }

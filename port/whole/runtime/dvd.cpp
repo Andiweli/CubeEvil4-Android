@@ -430,6 +430,8 @@ extern "C" {
 int re4_dvd_header_check(const void* table, const char* name, unsigned offset, unsigned length, int depth)
 {
     static int retries;
+    static unsigned retryOffset;  // the table the retries count for (a read cancelled meanwhile starts over)
+    static char retryName[64];
     const u32* w = (const u32*) table;
     bool eof = false, known = true;
     for (int i = 1; i < 32 && !eof; i++) {
@@ -444,6 +446,11 @@ int re4_dvd_header_check(const void* table, const char* name, unsigned offset, u
         retries = 0;
         return 0;
     }
+    if (retries && (retryOffset != offset || strncmp(retryName, name ? name : "", sizeof(retryName) - 1) != 0)) {
+        retries = 0;
+    }
+    retryOffset = offset;
+    snprintf(retryName, sizeof(retryName), "%s", name ? name : "");
     bool zeros = true;
     for (int i = 0; i < 256 && zeros; i++) {
         zeros = w[i] == 0;

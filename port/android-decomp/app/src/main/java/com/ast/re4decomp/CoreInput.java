@@ -60,10 +60,15 @@ public final class CoreInput {
    * GameCube.
    */
   static final float MAIN_RAW = 101f, C_RAW = 92f;
-  /** Where an analog trigger also presses the digital L/R (the click of a GameCube trigger). */
-  static final float TRIGGER_CLICK = 0.85f;
-  /** Alternate controls: where R2 presses A (fire). */
-  static final float FIRE_PRESS = 0.5f;
+  /**
+   * Where an analog trigger also presses the digital L/R (the click of a GameCube trigger), and
+   * where it lets go again: a trigger held near the click that jitters across it gave a press after
+   * every jitter, and the core gives a new press a frame without the button (pad.cpp, every tap
+   * counts since 26.10.2026): the weapon went down for a frame.
+   */
+  static final float TRIGGER_CLICK = 0.85f, TRIGGER_UNCLICK = 0.70f;
+  /** Alternate controls: where R2 presses A (fire), and where it lets go (the same reason). */
+  static final float FIRE_PRESS = 0.5f, FIRE_RELEASE = 0.35f;
   /** A trigger value the game takes as pressed (PADClamp: past 30 of 255). */
   static final int TRIGGER_PRESSED = 31;
   /** Latching: a trigger past this counts as a press, below LATCH_RELEASE as let go again. */
@@ -84,6 +89,7 @@ public final class CoreInput {
   private boolean latchLR, latchB;               // the menu's switches
   private boolean latchedL, latchedR, latchedB;  // held by the controller's latching
   private boolean pressedL, pressedR, pressedB;  // the controller's L, R, B at the last pad()
+  private boolean clickL, clickR, fire;          // the triggers' digital L/R and fire at the last pad()
 
   /** The menu's "Latch L and R" and "Latch B" for the controller (see above). */
   public void setLatch(boolean lr, boolean b) {
@@ -285,7 +291,7 @@ public final class CoreInput {
     boolean aiming = alternate
         && (Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
     int buttons = padB ? GC_B : 0;
-    float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR;
+    float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
     for (Map.Entry<Integer, Device> e : devices.entrySet()) {
       Device d = e.getValue();
       boolean touch = e.getKey() == TOUCH;
@@ -308,15 +314,19 @@ public final class CoreInput {
       if (touch) {
         lt = Math.max(lt, l2);
         rt = Math.max(rt, r2);
-      } else if (alternate && r2 >= FIRE_PRESS) {
+      } else if (alternate) {
         // (L1 = L and L2 = R above) R2 = A
-        buttons |= GC_A;
+        fireR2 = Math.max(fireR2, r2);
       }
     }
+    fire = alternate && fireR2 >= (fire ? FIRE_RELEASE : FIRE_PRESS);
+    if (fire) buttons |= GC_A;
     // the triggers' digital L/R: only at the end stop, the game reads the analog
     // value (PadRead: any value past the dead zone counts as L/R)
-    if (lt >= TRIGGER_CLICK) buttons |= GC_L;
-    if (rt >= TRIGGER_CLICK) buttons |= GC_R;
+    clickL = lt >= (clickL ? TRIGGER_UNCLICK : TRIGGER_CLICK);
+    clickR = rt >= (clickR ? TRIGGER_UNCLICK : TRIGGER_CLICK);
+    if (clickL) buttons |= GC_L;
+    if (clickR) buttons |= GC_R;
     return new int[] {buttons, raw(lx, MAIN_RAW), raw(-ly, MAIN_RAW), raw(rx, C_RAW),
         raw(-ry, C_RAW), Math.round(lt * 255f), Math.round(rt * 255f)};
   }

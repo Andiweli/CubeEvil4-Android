@@ -44,6 +44,25 @@ sein; Fackelschein blitzt kurz hinter Wänden auf und scheint nach einem Auflös
 - **Shader-Liste:** 8936 Programme (868 neu aus den sieben Berichten des Tages).
 - **Nicht getestet:** alles auf dem Gerät (Tempo von 60 FPS, Frame-Skip, Fackelschein, C-Stick im Editor). RetroTouch
   selbst lässt sich ohne Android nicht ausführen (nur übersetzt und Code-Durchsicht).
+- **Unabhängige Durchsicht aller Änderungen des Tages** (zweiter Agent, nur lesend), acht Befunde, alle nachgeprüft:
+  1. Stufenwechsel der dynamischen Auflösung warf ein vorab geholtes, ungezeichnetes Bild weg (`smoothDrop` gab
+     `skipNext` frei, ohne dass der Kern neu sendet: fehlende Texturen, falscher GX-Zustand) – behoben (nur noch das
+     Vorbild der Zwischenbilder geht).
+  2. **Raumdatei-Prüfung meldete jede Raumdatei als beschädigt** (`manifest.tsv` nennt `files/St1/r100.das`,
+     `rooms.tsv` `St1/r100.das`) – behoben (`RoomFileCheck.key`), Test mit echten Pfaden.
+  3. Neue Tastenzählung (pad.cpp) + analoge Schwellen ohne Rastung: ein R2, das um 85 % zittert, hätte R ein Bild
+     losgelassen (Waffe sinkt); alternatives Feuer bei 50 % gab Zusatzschüsse – behoben mit Rastung in `CoreInput`
+     (L/R ab 85 %, los unter 70 %; Feuer ab 50 %, los unter 35 %), Tests (149).
+  4. `Collection.removeIf` (ab Android 7) und `InputDevice.isExternal` (ab Android 10) im Controller-Protokoll bei
+     minSdk 23 – ersetzt bzw. abgefragt.
+  5. **Frame-Skip übersprang im Spiel fast nie** (jede Zeichnung vor der neuen Kopie galt als Lesen) – `CanSkip`
+     verfolgt jetzt, welche Kopie an welchem Texturplatz hängt, und lehnt nur ab, wenn eine TEV-Stufe sie liest oder
+     das nächste Bild die Kopie nicht neu macht. Drei neue Testfälle.
+  6. Zähler der ausgelassenen Zwischenbilder fiel beim Abschalten von 60 FPS auf 0 (Unterlauf) – jetzt fortlaufend.
+  7. Menü zeigte bei gesperrtem Speichern und leerem Platz „nicht verfügbar“ statt „hier nicht möglich“ – Reihenfolge.
+  8. Wiederholungszähler der Part-Tabellen-Prüfung (dvd.cpp) zählt jetzt je Datei.
+  Nicht geändert: der Text „Speichern hier nicht möglich“ nennt Mercenaries, dort erscheint aber „nicht verfügbar“
+  (unschädlich, Übersetzungen bleiben).
 
 ## Nachtest 0.91.0 auf dem Retroid (26.10.2026, Cloud-Korrektur)
 
