@@ -290,6 +290,19 @@ bool insertDisc(int no)
         return true;
     }
     memcpy((void*) (unsigned long) RE4_MEM1_BASE, d.id, sizeof(d.id));
+    if (d.release == RE4_DISC_RETAIL_EU) {
+        // The European discs carry G4BP08. The game's code is the debug build's, which writes its
+        // saves itself: the memory card ties each file to the game id of the disc (CARD __CARDAccess),
+        // so with the European id the saves of the debug discs (and the .gci of the app's menu,
+        // runtime/gci.cpp) would be another game's. cDvd::DiscChange asks for "G4BE" as well. The
+        // game sees the debug build's id; disc number and version stay the disc's.
+        memcpy((void*) (unsigned long) RE4_MEM1_BASE, "G4BE08", 6);
+        static bool told;
+        if (!told) {
+            told = true;
+            re4_log("DVD: European discs: the game sees the debug build's id G4BE08 (memory card, disc change)");
+        }
+    }
     // the top of retail memory (ILP32), on LP64 above the higher heap end
     u32 top = RE4_MEM1_FST_ADDR + RE4_MEM1_FST_MAX;
     u32 fstAddr = (top - d.fstSize) & ~31u;

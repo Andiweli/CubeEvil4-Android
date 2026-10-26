@@ -430,8 +430,8 @@ static void testDiscRelease()
         CHECK(writeFile(dir + "/disc0/files/a.dat", "A", 1));
         re4_set_data_dir(dir.c_str());
         CHECK(re4_disc_release() == c.release);
-        // the game sees the header's id unchanged (cDvd::DiscChange compares it)
-        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.id, 4) == 0);
+        // the game sees the header's id, the debug build's for the European discs (memory card files)
+        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.release == RE4_DISC_RETAIL_EU ? "G4BE" : c.id, 4) == 0);
     }
     re4_set_data_dir((base + "/none").c_str());
     CHECK(re4_disc_release() == RE4_DISC_UNKNOWN);

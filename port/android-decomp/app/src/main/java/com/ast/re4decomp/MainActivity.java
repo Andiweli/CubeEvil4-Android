@@ -173,7 +173,15 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     updateOpenState();
   }
   /** The game may start: Disc 1, and in the core mode both discs (project owner, 17.10.2026). */
-  private boolean gameReady() { return discReady(1) && (!core || discReady(2)); }
+  private boolean gameReady() {
+    // core mode: both discs of one release (port/docs/retail-eu-plan.md: debug build or European discs)
+    return discReady(1) && (!core || (discReady(2) && DiscInstaller.sameRelease(imports.root)));
+  }
+  /** "ready (European release)" ... in the core launcher, "missing" without the disc. */
+  private String discState(int number) {
+    if (!discReady(number)) return getString(R.string.missing);
+    return getString(R.string.core_disc_ready, ImportManager.releaseName(DiscInstaller.release(new File(imports.root, "disc" + number))));
+  }
   private boolean discReady(int number) {
     if (imports.root == null) return false;
     File disc = new File(imports.root, "disc" + number);
@@ -250,8 +258,11 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     disc1.setEnabled(imports.root != null && !imports.busy && !loading); disc2.setEnabled(imports.root != null && !imports.busy && !loading); cancel.setEnabled(imports.busy);
     if (core) {
       cancel.setVisibility(imports.busy ? View.VISIBLE : View.GONE);  // the launcher's two buttons, Cancel while importing
-      disc1State.setText(getString(R.string.core_disc_state, 1, getString(discReady(1) ? R.string.ready : R.string.missing)));
-      disc2State.setText(getString(R.string.core_disc_state, 2, getString(discReady(2) ? R.string.ready : R.string.missing)));
+      disc1State.setText(getString(R.string.core_disc_state, 1, discState(1)));
+      disc2State.setText(getString(R.string.core_disc_state, 2, discState(2)));
+      // two discs of different releases: say so, whatever the last import said
+      String mixed = imports.busy ? null : imports.mixedReleases();
+      if (mixed != null && !loading) status.setText(mixed);
       // no empty line between the import heading and its buttons
       status.setVisibility(status.getText().length() == 0 ? View.GONE : View.VISIBLE);
     }

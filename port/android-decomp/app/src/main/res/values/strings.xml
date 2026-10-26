@@ -11,8 +11,9 @@
     <string name="core_notice">Requires your own game discs. Not affiliated with Capcom.</string>
     <string name="core_start">Start game</string>
     <string name="core_controls_heading">Controls</string>
-    <string name="core_import_heading">Select ISO/GCM files of the November 25, 2004 debug build</string>
+    <string name="core_import_heading">Select ISO/GCM files of the November 25, 2004 debug build or of the European release</string>
     <string name="core_disc_state">Disc %1$d Data is %2$s</string>
+    <string name="core_disc_ready">ready (%1$s)</string>
     <string name="core_swap_face">Swap A/B and X/Y (when the buttons do not act as labeled)</string>
     <string name="controller_prompt">Connect a controller and press a button.</string>
     <string name="controller_status">%1$s\n%2$s</string>

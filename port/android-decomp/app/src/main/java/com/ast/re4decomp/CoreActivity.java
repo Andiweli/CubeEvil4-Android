@@ -402,8 +402,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     rooms.execute(() -> {
       String path = "", error = "";
       String id = String.format(Locale.ROOT, "r%03x", room);
-      try (Reader rows = new InputStreamReader(getAssets().open("rooms.tsv"), StandardCharsets.UTF_8);
-           Reader blocks = new InputStreamReader(getAssets().open("blocks.tsv"), StandardCharsets.UTF_8)) {
+      // the verified rooms of the imported release (rooms.tsv / rooms-eu.tsv)
+      String release = com.ast.re4decomp.disc.DiscInstaller.release(new File(root, "disc1"));
+      if (release == null) release = com.ast.re4decomp.disc.GameCubeDisc.DEBUG;
+      try (Reader rows = new InputStreamReader(getAssets().open(com.ast.re4decomp.disc.GameCubeDisc.catalog("rooms", release)),
+               StandardCharsets.UTF_8);
+           Reader blocks = new InputStreamReader(getAssets().open(com.ast.re4decomp.disc.GameCubeDisc.catalog("blocks", release)),
+               StandardCharsets.UTF_8)) {
         RoomRepository repository = new RoomRepository(root, cache, rows, blocks,
             (source, output) -> NativeBridge.decodeRoom(source.getAbsolutePath(), output.getAbsolutePath()));
         path = repository.prepare(id).getAbsolutePath();
