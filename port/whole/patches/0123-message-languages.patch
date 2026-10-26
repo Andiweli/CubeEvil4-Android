@@ -1,0 +1,53 @@
+# Retail data (port/docs/retail-eu-plan.md, R7): the message languages German, French, Spanish and
+# Italian. MessageControl::setLayout picks the font size, char spacing and line gap of a message
+# slot from a table with two rows, Japanese and English, by the message language; 2..5 read past it
+# and drew the radio subtitles with huge, smeared letters (French run, 26.10.2026). The European
+# setLayout (main.dol 0x80023610, table 0x801F8E04, also two rows) takes the Japanese row for
+# pSys->language 0 and the English row for every other language; so does this one.
+# MessageControl::setLanguage chose the block of the six-language tables: the European ones are
+# Japanese, English, French, German, Italian, Spanish (block sizes of the codec texts; the French
+# run showed German radio texts), the European setLanguage (0x800236d4) maps 3 -> 3, 4 -> 2,
+# 5 -> 5, 6 -> 4; this build mapped 3..6 to 2..5. The debug build's discs hold placeholders in
+# blocks 2..5 and play with language 1: nothing changes with them. A bug of the prototype as well
+# (its debug menu offers languages 2..7).
+--- a/src/game/mes.cpp
++++ b/src/game/mes.cpp
+@@ -307,7 +307,10 @@
+     };
+     static s8* p_layout;
+ 
+-    p_layout = layout_tbl[MesData.getLanguage()][type];
++    /* port: the table has the Japanese and the English layout only; the message languages 2..5
++       (German, French, Spanish, Italian) read past it. The European setLayout (main.dol
++       0x80023610) takes the English layout for every language but Japanese. */
++    p_layout = layout_tbl[pSys->language == 0 ? 0 : 1][type];
+     setFontSize(no, p_layout[0], p_layout[1]);
+     setFontGap(no, p_layout[3]);
+     setLineGap(no, p_layout[5]);
+@@ -324,17 +327,21 @@
+     case 1:
+         MesData.setLanguage(lang);
+         break;
++    /* port: the blocks of the European six-language tables are Japanese, English, French, German,
++       Italian, Spanish; the European setLanguage (main.dol 0x800236d4) maps 3 -> 3, 4 -> 2, 5 -> 5,
++       6 -> 4. This build mapped 3..6 to 2..5 (French on the German block ...); the debug build's
++       discs hold placeholders in blocks 2..5 */
+     case 3:
++        MesData.setLanguage(3);
++        break;
++    case 4:
+         MesData.setLanguage(2);
+         break;
+-    case 4:
+-        MesData.setLanguage(3);
+-        break;
+     case 5:
+-        MesData.setLanguage(4);
++        MesData.setLanguage(5);
+         break;
+     case 6:
+-        MesData.setLanguage(5);
++        MesData.setLanguage(4);
+         break;
+     case 2:
+         MesData.setLanguage(1);

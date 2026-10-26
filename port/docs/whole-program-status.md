@@ -4,6 +4,44 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## M13 Retail-Discs (EU), Schritt R7: Spielsprache (26.10.2026 spätabends, lokal, Branch `retail-eu`)
+
+Auftrag des Projektinhabers: R7 vorziehen (Sprachwahl im Ingame-Menü, „LANGUAGE SELECT“ aus dem Titelmenü
+entfernen). Entscheidungen (26.10.2026): Standard ist die Handy-Sprache, ein Wechsel gilt sofort.
+
+**Wie die EU-Discs ihre Sprachen ablegen** (anders als im Plan angenommen)
+- Kern, Räume, Speicherkarte und Funk: Sechs-Sprachen-Tabellen wie in der Debug-Version, aber in der Reihenfolge
+  Japanisch, Englisch, Französisch, Deutsch, Italienisch, Spanisch (die Debug-Discs haben in den Plätzen 2–5 nur
+  Platzhalter; die Debug-Version ordnete 3–6 den Plätzen 2–5 zu: im französischen Lauf kam der Funkspruch deutsch).
+  Patch 0123 übernimmt die Zuordnung der EU-Fassung.
+- Untermenüs, Titel, Kapitel, Optionen: ein Ordner je Sprache (`ss/Eng`, `ss/Ger`, `ss/Fra`, `ss/Esp`, `ss/Ita`), darin
+  145 **einsprachige** Texttabellen (nur der Textblock, ohne den Sechs-Sprachen-Kopf). Die Debug-Version las sie als
+  sechs Sprachen und nahm Text von falschen Stellen; die EU-Fassung von `getAddr`/`getMesNum` erkennt sie. Patch 0122
+  und der Umwandler (`formats_mes.cpp`) lesen beide Formen; Kerntest `one-language mdt`.
+- Sprachnummern (`pSys->language`): 1 US-Englisch (Debug, fest: ohne Untertitel in Filmsequenzen, zwei
+  Schwierigkeitsgrade), 2 Englisch (EU), 3 Deutsch, 4 Französisch, 5 Spanisch, 6 Italienisch. Die EU-Fassung nimmt die
+  Systemsprache der Konsole (`OSGetLanguage` + 2). Der Debug-Code kennt alle sieben (Ordnernamen, Speicherkarten-Layout
+  `save_<e|g|f|s|i>.dat`, Textpositionen).
+- Die deutschen, französischen, spanischen und italienischen `option.dat` sind größer als der feste Platz der
+  Optionsdaten (0x44000 bis 0x4C2C0 statt höchstens 0x40000 Byte; die EU-Fassung liest sie nach 0x80784000 ohne
+  Grenze). Sie liefen in Leons Daten: Absturz beim Start in r120 (Deutsch) bzw. hängender Speicherbildschirm
+  (Französisch). Ein größeres `option.dat` kommt jetzt nach 0x81F00000 (`re4_option_data_place`, `runtime/dvd.cpp`;
+  der zweite Platz des Kerns aus Patch 0117 ist dafür auf 3 MB begrenzt, der EU-Kern braucht 2,3 MB).
+
+**Umsetzung**
+- Kern: `runtime/game_language.cpp` (Sprache der App, auch nach dem Lesen der Systemdatei und jedes Bild in Titel und
+  Spiel), `re4_core_set_language` (`core_api.cpp`, auch über den eigenen Kern-Prozess: `kSetLanguage`), Startwert
+  `RE4_GAME_LANGUAGE` (eng/ger/fra/esp/ita oder 2–6). Patch 0121: `setLanguage`, `systemWorkInit` (jeder Start und
+  Soft-Reset), Systemdatei, Bild-Takt in Titel und Spiel, Optionsdaten-Platz, „LANGUAGE SELECT“ (Einheiten 11 und 12
+  der EU-`title.dat`) ausgeblendet.
+- Ein Wechsel im laufenden Spiel stellt die Textsprache sofort um und liest `option.dat` neu; Untermenüs, Speicherkarte
+  und Kapitelbilder lesen ihren Sprachordner beim nächsten Öffnen. Der Titel liest seine `title.dat` beim nächsten Start
+  des Titels.
+- App: Eintrag „Game language“ auf der Startseite des Ingame-Menüs, nur mit EU-Discs: „Device language“ (Standard:
+  de → Deutsch, fr → Französisch, es → Spanisch, it → Italienisch, sonst Englisch), English, Deutsch, Français, Español,
+  Italiano. Gespeichert in `core_game`/`gameLanguage`; beim Start als `RE4_GAME_LANGUAGE`, danach über
+  `CoreBridge.setLanguage`. Texte in allen 10 Sprachen (`check_translations.py` ok).
+
 ## Retail-Discs (EU), Schritte R0 und R1 (26.10.2026 abends, lokal, WSL2, Branch `retail-eu`)
 
 Plan: `port/docs/retail-eu-plan.md` (Meilenstein „Retail-Discs (EU)“, Auftrag des Projektinhabers: R0 und R1;
@@ -632,7 +670,7 @@ Sichtprüfung auf dem Retroid noch offen.
 | 0.45.1-alpha | **nicht veröffentlicht, in 0.46.0 aufgegangen** (Entscheidung des Projektinhabers, 23.10.2026). 23.10.2026 (Branch `claude/re4-start-controls` mit `performance` zusammengeführt, versionCode 71, Releasetext `port/android-decomp/docs/releases/v0.45.1-alpha.md`; Entscheidung des Projektinhabers: die weiteren Performance-Optimierungen als 0.45.1): „Auto“ regelt die Auflösung nach dem Grafikchip (`GxRenderer::Rescale`), Spiel- und Zeichen-Thread weg von den langsamsten Kernen und Androids Leistungshinweis, Shader auf eigenem Thread mit Liste in der App (70 Programme, wächst mit den Schlüsseln der Berichte); -O3 geprüft und verworfen. **Auf dem Gerät noch nicht getestet** |
 | 0.46.0-alpha | 23.10.2026 (Branch `claude/re4-start-controls`, versionCode 72, Releasetext `port/android-decomp/docs/releases/v0.46.0-alpha.md`; Entscheidung des Projektinhabers nach seinem Gerätetest 16:09: „Die Umschaltung klappt sauber“): „Dynamisch“ statt „Auto“ (erst nach zwei schlechten Fenstern tiefer), Auflösung in der FPS-Anzeige, Einrasten L/R und B in der Komfortsteuerung auch für den Controller, Menüzeilen ohne Grundlinien-Ausrichtung, Gyro mit der Harpune, Shader-Liste 627 Programme |
 | 0.9.0-beta | 23.10.2026 (Branch `claude/re4-start-controls`, auch `performance` und `master`, versionCode 73, Releasetext `port/android-decomp/docs/releases/v0.9.0-beta.md`; Entscheidung des Projektinhabers: „Beta jetzt“, nachdem der SCV40-Tester das Spiel durchgespielt hat): erste Beta; seit 0.46.0 nur die Shader-Liste (1928 statt 627 Programme), Version, Releasetext und README (Status „Beta“). Alle 1928 Programme bauen auf Mesa ohne Fehler (mit und ohne MSAA). **Gerätetest der APK offen** |
-| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“), R4 (App-Import, vorgezogen) gebaut und am PC geprüft, Gerätetest offen. Offen: R3, R5–R8. Als **M13** in `CLAUDE.md` aufgenommen |
+| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“), R4 (App-Import, vorgezogen) gebaut und am PC geprüft, Gerätetest offen. R7 (Sprachen, vorgezogen; Patches 0121–0123, „Game language“ im Ingame-Menü) gebaut und am PC mit allen fünf Sprachen geprüft, Gerätetest offen. Offen: R3, R5, R6, R8. Als **M13** in `CLAUDE.md` aufgenommen |
 | Reihenfolge | Entscheidungen des Projektinhabers: erst M9 Videos und M10 Speichern/Laden (16.10.2026), dann **M11 vor dem Raum-Rundgang 10b** (17.10.2026: die APK soll an Tester gehen), dann **M12 ARM64 vor 10b** (17.10.2026: ein Tester hat ein Gerät nur für 64-bit-Apps). Gestrichen: Baum-Kollision in r100 (G17) |
 
 **Entscheidung des Projektinhabers (14.10.2026):** Endprodukt ist
@@ -8467,6 +8505,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0118 `eprintf.cpp` | Ohne die Debug-Schrift `etc/moji8.tpl` (fehlt auf den europäischen Discs) legte `EprintfInit` keine Puffer an; `eprintf` und `EprintfDrawing` prüfen `eprintf_init`, `EprintfBufferClear` (jedes Bild über `EprintfFlush`) nicht und schrieb über einen Nullzeiger: das Spiel endete im ersten Bild. Jetzt bleibt der Debug-Text ohne Schrift aus. Port-Patch für Verkaufsdaten (R1) |
 | 0119 `main.cpp` | Ersatz für `debug/roomInfo.dat` (fehlt auf den europäischen Discs): jedes „Neues Spiel“ der Debug-Version läuft über das Debug-Startmenü, das die Tabelle liest (`titleExit`, `cRoomJmp`), und endete dort. `systemRestartInit` legt dann eine Tabelle mit einem Eintrag an: der vorgewählte Raum (`pG->room_id`, r120 wie beim neuen Spiel) ohne Position (wie der r120-Eintrag der Debug-Tabelle), in der Form, die der Umwandler aus der Disc-Datei macht. `re4_room_info_stand_in` (`runtime/dolphin_os.cpp`) meldet das und lehnt einen anderen Debug-Startraum (`RE4_START_ROOM`) ab: das neue Spiel beginnt in r120 und läuft von selbst nach r100. Port-Patch für Verkaufsdaten (R1) |
 | 0120 `ss_model.cpp`, `ss_term.cpp` | Funkspruch mit den europäischen Discs (Verkaufsdaten, R2, 26.10.2026): `ss/eng/ss_term.dat` hat dort 10 statt 11 Teile, die zweite Textur der Funkgerät-Teile fehlt (die EU-Dateien hängen sie an jede `ss/cmn/ss_ocNNN.dat` an, Teil 16), die Bewegung liegt auf 13 statt 14. Aus der europäischen `Sscrn.rel` abgelesen: `tel00ModelInit` nimmt die Textur aus der Datei des Gesprächspartners (`pTelDat`, 16), `termMotionCancel` die Bewegung von 13. Vorher endete das Spiel beim ersten Funkspruch in r100. Mit den Debug-Discs unverändert (`re4_disc_retail_eu`). Port-Patch für Verkaufsdaten |
+| 0121 `main.cpp`, `card.cpp`, `game.cpp`, `title.cpp` | Spielsprache mit den europäischen Discs (R7, Entscheidungen des Projektinhabers, 26.10.2026: Wahl im Ingame-Menü der App, bis dahin die Handy-Sprache, eine Änderung gilt sofort, „LANGUAGE SELECT“ raus aus dem Titelmenü). Die EU-Fassung nimmt in `setLanguage` die Systemsprache der Konsole (2 Englisch … 6 Italienisch), diese Version fest 1 (US: keine Untertitel in Filmsequenzen, zwei Schwierigkeitsgrade). `setLanguage` und das Lesen der Systemdatei (`card.cpp`, sie trägt die Sprache, mit der sie gespeichert wurde) nehmen die Sprache der App, Titel und Spiel fragen jedes Bild (`re4_game_language_tick`, `runtime/game_language.cpp`: Textsprache sofort, `SS/<lang>/option.dat` neu im Spiel). `titleMenuInit` blendet die Einheiten 11 und 12 der europäischen `title.dat` aus (Textur 248, „LANGUAGE SELECT“, für Code, den diese Version nicht hat). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0122 `mes.cpp` | Einsprachige Texttabellen der europäischen Discs (R7): die Untermenü-Texte liegen dort je Sprache in `ss/<lang>/*.dat` (145 Tabellen) als ein einzelner Textblock ohne den Kopf der Sechs-Sprachen-Tabellen (6, Offsets ab 0x1C). Die EU-Fassung von `getAddr`/`getMesNum` (main.dol 0x80023564/0x800235b4) liest so eine Tabelle direkt; diese Version las sie als sechs Sprachen und nahm Text von falschen Stellen. Jede Sechs-Sprachen-Tabelle beider Fassungen beginnt mit 6, 0x1C (217 Debug, 184 EU), daran entscheidet `mesBlock`. Der Umwandler (`formats_mes.cpp` `convertMdt`) dreht solche Tabellen als einen Block. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0123 `mes.cpp` | Textsprachen Deutsch, Französisch, Spanisch, Italienisch (R7). `MessageControl::setLayout` nimmt Schriftgröße, Zeichen- und Zeilenabstand aus einer Tabelle mit zwei Zeilen (Japanisch, Englisch), ausgewählt nach der Textsprache; 2–5 lasen dahinter, die Untertitel des Funkspruchs kamen als riesige, verschmierte Buchstaben. Die EU-Fassung (main.dol 0x80023610, Tabelle 0x801F8E04, ebenfalls zwei Zeilen) nimmt für `pSys->language` 0 die japanische, sonst die englische Zeile; so jetzt auch hier. `MessageControl::setLanguage` wählt den Block der Sechs-Sprachen-Tabellen: die der EU-Discs sind Japanisch, Englisch, Französisch, Deutsch, Italienisch, Spanisch (Blockgrößen der Funktexte; im französischen Lauf kam der Funkspruch deutsch), die EU-Fassung (0x800236d4) ordnet 3 → 3, 4 → 2, 5 → 5, 6 → 4 zu, diese Version 3–6 → 2–5. Die Debug-Discs haben in den Blöcken 2–5 nur Platzhalter und spielen mit Sprache 1: mit ihnen unverändert. Zugleich ein Fehler des Prototyps (sein Debug-Menü bietet die Sprachen 2–7 an) |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
