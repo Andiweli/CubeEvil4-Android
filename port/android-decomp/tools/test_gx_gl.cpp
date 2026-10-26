@@ -529,6 +529,58 @@ void TestCopyAndPalette(re4gx::GxRenderer &r, bool viaXfb = false) {
   Check(Near(pixel(420, 320), 0, 255, 0), "paletted texture: C8 through an RGB565 palette");
 }
 
+// The game draws only the letterbox rows (56..391) and copies rows 56..447 at half size for water and
+// heat haze; the rows below the picture must repeat the last drawn row, not read black (dark waves
+// at the bottom edge). The copy is read back through a texture quad (bottom of the quad = last copy row).
+void TestLetterboxCopy(re4gx::GxRenderer &r, bool viaXfb, bool letterbox) {
+  Builder b;
+  Baseline(b);
+  DisplayCopy(b, true, kBlack);
+  if (letterbox) {
+    b.Bp(0x20, (342u << 12) | (342 + 56));
+    b.Bp(0x21, ((342u + 639) << 12) | (342 + 391));
+  }
+  Quad(b, 0, letterbox ? 56 : 0, 640, letterbox ? 392 : 528, 0, kRed);
+  b.Bp(0x20, 342u << 12 | 342);
+  b.Bp(0x21, ((342u + 639) << 12) | (342 + 527));
+  const unsigned before = r.Stats().limitedCopies;
+  b.Bp(0x49, 0 | 56u << 10);
+  b.Bp(0x4A, 511 | 391u << 10);
+  b.Bp(0x4D, 32);
+  b.Bp(0x4B, 0x400000 >> 5);
+  b.Bp(0x52, 6u << 4 | 2u << 15 | 1u << 9); // RGBA8 to a texture, half size: 256 x 196
+  b.Bp(0x4A, 639 | 527u << 10);
+  b.Bp(0x00, 1u | 1u << 4);
+  b.Xf(0x103F, {1});
+  b.Xf(0x1040, {5u << 7});
+  b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  b.Bp(0x88, 255 | 195 << 10 | 6u << 20);
+  b.Bp(0x30, 255);
+  b.Bp(0x31, 195);
+  b.Texture(0, 0x400000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x400000, 256, 196, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 300, 0, kWhite, 0, 0);
+  VT(v, 256, 300, 0, kWhite, 1, 0);
+  VT(v, 256, 496, 0, kWhite, 1, 1);
+  VT(v, 0, 496, 0, kWhite, 0, 1);
+  b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  if (viaXfb) {
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+  }
+  r.Run(b.Chunk());
+  auto pixel = [&](int x, int y) { return viaXfb ? TexPixel(r.Xfb(nullptr, nullptr), x, y) : EfbPixel(r, x, y); };
+  const char *how = letterbox ? "letterbox copy" : "full picture copy";
+  // copy row 20 (quad row 320): drawn in both; copy row 190 (quad row 490): below the letterbox picture
+  Check(Near(pixel(128, 320), 255, 0, 0), (std::string(how) + ": the drawn rows are copied").c_str());
+  Check(Near(pixel(128, 490), 255, 0, 0),
+        (std::string(how) + ": rows below the drawn picture repeat the last drawn row, not black").c_str());
+  Check((r.Stats().limitedCopies - before == 1) == letterbox,
+        (std::string(how) + ": the row limit is used only for a letterbox picture").c_str());
+}
+
 // Auto in the app menu: the EFB scale changes between two Runs (GxRenderer::Rescale). At scale 2 a
 // red EFB copy is made and drawn as a texture; at scale 1 and then 3 a chunk draws with map 0 still
 // bound to that copy (no new texture load): the copy came along, scaled, and the display copy has
@@ -1115,6 +1167,7 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
     Check(between > 20, "multisampled: the slanted edge is smoothed");
   }
   TestCopyAndPalette(r, true);  // EFB copy to a texture (resolved first), palette
+  TestLetterboxCopy(r, true, true);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
   TestAutofocus(r, r.Samples() > 1);
   TestPassBreak(r, r.TiledMsaa() ? (lose ? "on the tiles, everything lost" : "on the tiles") : "multisampled");
@@ -1612,6 +1665,8 @@ int main() {
     TestTev(renderer);
     TestLighting(renderer);
     TestCopyAndPalette(renderer);
+    TestLetterboxCopy(renderer, false, true);
+    TestLetterboxCopy(renderer, false, false);
     TestFog(renderer);
     TestShaderVariety(renderer);
     TestCopyFilter(renderer);

@@ -35,6 +35,7 @@ struct GxStats {
   unsigned textureCopies = 0;    // EFB copies to a texture
   unsigned displayCopies = 0;    // EFB copies to the XFB
   unsigned heldCopies = 0;       // of them not shown: the VI kept the picture before (RE4_GX_CHUNK_HOLD)
+  unsigned limitedCopies = 0;    // texture copies that repeat the last drawn row below the picture (letterbox)
   unsigned resets = 0;
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
   unsigned missingTextures = 0;  // bound keys the renderer did not have

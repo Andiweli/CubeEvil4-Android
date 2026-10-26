@@ -423,7 +423,10 @@ struct GxRenderer::Impl {
   GLuint xfUbo[kXfParts] = {}, pxUbo = 0;
   GLuint copyProgram = 0, presentProgram = 0, paletteProgram = 0;
   GLint presentRows = -1;
-  GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1;
+  GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1, copyLimit = -1;
+  // lowest EFB row (+1) a draw under a full-width scissor reached since the last display copy: the
+  // rows below it were never drawn (the game's letterbox)
+  int sceneBottom = 0;
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint quadVao = 0;
   GLuint whiteTex = 0;
@@ -1824,6 +1827,13 @@ struct GxRenderer::Impl {
   }
 
   void ApplyState(unsigned primitive) {
+    // the picture's extent: the full-width scissors the draws of this picture ran under
+    {
+      const int xo = static_cast<int>(bp[0x59] & 0x3FF) * 2, yo = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+      const int sx0 = static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xo, sx1 = static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xo + 1;
+      if (sx1 - sx0 >= 500)
+        sceneBottom = std::max(sceneBottom, std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yo + 1));
+    }
     // the registers below, as last applied: nothing to do while they hold
     const std::uint32_t sig[10] = {bp[0x20],     bp[0x21],     bp[0x59],       bp[0x40] & 0x1F, bp[0x41] & 0xFFFF,
                                    bp[0x43] & 7, (bp[0x00] >> 14) & 3, bp[0x22] & 0xFF, primitive, bp[0x42] & 0x1FF};
@@ -2325,6 +2335,7 @@ struct GxRenderer::Impl {
       SaveAndPlainState();
       BindFbo(DrawFbo());
       ClearAfterCopy(control, x, y, w, h);
+      sceneBottom = 0;
       return;
     }
     GLuint target = 0;
@@ -2391,11 +2402,24 @@ struct GxRenderer::Impl {
     glUniform2f(copySize, static_cast<float>(kEfbWidth * scale), static_cast<float>(kEfbHeight * scale));
     glUniform1i(copyHalf, half ? 1 : 0);
     glUniform1f(copyGain, depth ? 1.0f : CopyFilterGain());
+    // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
+    // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
+    // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew
+    // (black) would show as dark waves at the bottom edge. Repeat the last drawn row below it.
+    const int bottom = sceneBottom;
+    const bool limited = !toXfb && !depth && half && x == 0 && w >= 500 && bottom > y + h / 2 && bottom < y + h;
+    glUniform1f(copyLimit, limited ? static_cast<float>(bottom * scale) : 1e9f);
+    if (limited)
+      stats.limitedCopies++;
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    if (limited)
+      glUniform1f(copyLimit, 1e9f);
     current = nullptr;
     BindFbo(DrawFbo());
     ClearAfterCopy(control, x, y, w, h);
+    if (toXfb)
+      sceneBottom = 0;
   }
 
   // The app's gameplay autofocus (BP 0x5A: the core marks the place,
@@ -2556,6 +2580,7 @@ struct GxRenderer::Impl {
     glUniform2f(copySize, static_cast<float>(fw), static_cast<float>(fh));
     glUniform1i(copyHalf, 0);
     glUniform1f(copyGain, 1.0f);
+    glUniform1f(copyLimit, 1e9f);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     current = nullptr;
@@ -2828,11 +2853,12 @@ struct GxRenderer::Impl {
     static const char kCopyFs[] =
         "#version 300 es\nprecision highp float;\nprecision highp int;\n"
         "uniform sampler2D src;\nuniform int mode;\nuniform vec4 rect;\nuniform vec2 size;\nuniform int halfScale;\n"
-        "uniform float gain;\n"
+        "uniform float gain;\nuniform float limitY;\n"
         "in vec2 vUv;\nout vec4 o;\n"
         "vec4 fetch(vec2 p) { return texture(src, p / size); }\n"
         "void main() {\n"
         "  vec2 p = rect.xy + vUv * rect.zw;\n"
+        "  p.y = min(p.y, limitY - 1.0);\n"
         "  vec4 c = halfScale != 0 ? 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
         "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5))) : fetch(p);\n"
         "  if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
@@ -2891,6 +2917,8 @@ struct GxRenderer::Impl {
     copySize = glGetUniformLocation(copyProgram, "size");
     copyHalf = glGetUniformLocation(copyProgram, "halfScale");
     copyGain = glGetUniformLocation(copyProgram, "gain");
+    copyLimit = glGetUniformLocation(copyProgram, "limitY");
+    glUniform1f(copyLimit, 1e9f);
     paletteProgram = Link(kQuadVs, kPaletteFs, &log);
     if (!paletteProgram) {
       *error = "palette shader: " + log;

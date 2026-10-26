@@ -1,0 +1,22 @@
+# A Ganado kicked off its feet (push priority 3, em10.cpp Dm_Blow) and a door (priority 3, emdoor.cpp) tie in
+# priorityCheck (a body is pushed only by a higher priority): the flying Ganado is never pushed out of the door's
+# box and passes the closed door of the r100 house (a bug of the prototype, confirmed in Dolphin by the project owner,
+# 26.10.2026). While it is in the air it is pushed by doors like a Ganado on its feet. em10 (id 0x10) and doors (0x41) only.
+--- a/src/game/at_mod.cpp
++++ b/src/game/at_mod.cpp
+@@ -127,7 +127,15 @@
+     }
+     for (m = EmMgr.getActiveWork(); m != 0; m = EmMgr.getNext(m)) {
+         if ((m->atari.m_flag & 0x200) && m != pMod && m->atari.m_radius2 != 0.0f) {
++            u8 flag = pMod->atari.m_flag;
++            /* port, a bug of the prototype: a Ganado knocked off its feet (priority 3) and a door (priority 3)
++               tie, and priorityCheck lets neither push the other: the Ganado flies through the closed door.
++               In the air a Ganado is pushed by a door like one on its feet (priority 2). */
++            if (pMod->id == 0x10 && m->id == 0x41 && (flag & 0x18) == 0x18) {
++                pMod->atari.m_flag = (flag & ~0x18) | 0x10;
++            }
+             __em_at_core(pMod, m);
++            pMod->atari.m_flag = flag;
+         }
+     }
+     for (m = EmMgr.getActiveWork(); m != 0; m = EmMgr.getNext(m)) {
