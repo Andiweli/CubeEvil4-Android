@@ -432,6 +432,7 @@ struct GxRenderer::Impl {
   GLuint peekProgram = 0, peekFbo = 0, peekTex = 0, peekPbo[2] = {0, 0};
   GLsync peekFence[2] = {nullptr, nullptr};
   GLint peekSizeLoc = -1, peekScaleLoc = -1;
+  bool skipDraws = false;  // Skip: this chunk's draws, EFB copies and markers are left out
   bool holdXfb = false;  // this chunk's display copy is not shown (RE4_GX_CHUNK_HOLD)
   bool viBlack = false;  // the VI shows black (RE4_GX_CHUNK_BLACK, VISetBlack): Present draws black
   GLuint vao = 0, vbo = 0, ibo = 0;
@@ -1143,11 +1144,22 @@ struct GxRenderer::Impl {
         dst[1] = Signed11(value >> 12);
       }
     }
-    if (action && reg == 0x52)
-      EfbCopy(value);
-    if (action && reg == 0x5A)
+    if (action && reg == 0x52) {
+      if (!skipDraws) {
+        EfbCopy(value);
+      } else if ((value >> 14) & 1) {
+        // a skipped picture: nothing to show, only the clear of the EFB that the next picture needs
+        stats.skippedChunks++;
+        SaveAndPlainState();
+        BindFbo(DrawFbo());
+        ClearAfterCopy(value, static_cast<int>(bp[0x49] & 0x3FF), static_cast<int>((bp[0x49] >> 10) & 0x3FF),
+                       static_cast<int>(bp[0x4A] & 0x3FF) + 1, static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1);
+        sceneBottom = 0;
+      } // a copy for a texture: CanSkip said the next chunk copies there first, nobody reads this one
+    }
+    if (action && reg == 0x5A && !skipDraws)
       Autofocus(value);
-    if (action && reg == 0x5B && !interpPass)
+    if (action && reg == 0x5B && !interpPass && !skipDraws)
       peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
   }
 
@@ -3489,10 +3501,12 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   }
   // this chunk's vertices and indices
   glBindVertexArray(m.vao);
-  glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
-  glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+  if (!m.skipDraws) {
+    glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
+    glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+  }
   // the app drew the screen since the last chunk: a new pass
   m.efbLeft = true;
   m.BindFbo(m.DrawFbo());
@@ -3552,7 +3566,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
         m.Forget(static_cast<std::uint64_t>(p[1]) << 32 | p[0]);
       break;
     case RE4_GX_OP_DRAW:
-      if (n * 4 >= sizeof(Re4GxDraw)) {
+      if (!m.skipDraws && n * 4 >= sizeof(Re4GxDraw)) {
         Re4GxDraw d;
         std::memcpy(&d, p, sizeof(d));
         m.Draw(d, chunk);
@@ -3587,6 +3601,72 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.Touched();
   m.SaveAndPlainState();
   m.BindFbo(0);
+}
+
+bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
+  const Impl &m = *impl_;
+  const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
+  if (m.recordDraws || m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
+      (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
+    return false;
+  // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them)
+  std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
+  for (std::uint32_t at = 0; at < a.opWords;) {
+    const std::uint32_t head = a.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > a.opWords)
+      return false;
+    const std::uint32_t *p = a.ops + at + 1;
+    if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1))
+        pending.push_back((bp[0x4B] & 0x1FFFFF) << 5);
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
+    }
+    at += 1 + n;
+  }
+  if (pending.empty())
+    return true;
+  // `b` may read one before it writes it: a texture op for it, or any draw (a map still bound to the old
+  // copy). It copies there again before its first draw: `a`'s copy is never seen.
+  for (std::uint32_t at = 0; at < b.opWords && !pending.empty();) {
+    const std::uint32_t head = b.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > b.opWords)
+      return false;
+    const std::uint32_t *p = b.ops + at + 1;
+    if (op == RE4_GX_OP_DRAW)
+      return false;
+    if (op == RE4_GX_OP_TEXTURE && n * 4 >= sizeof(Re4GxTexture)) {
+      Re4GxTexture t;
+      std::memcpy(&t, p, sizeof(t));
+      if (t.flags & RE4_GX_TEX_COPY)
+        return false;
+    }
+    if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1)) {
+        const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
+        for (std::size_t i = 0; i < pending.size();)
+          if (pending[i] == dest)
+            pending.erase(pending.begin() + static_cast<std::ptrdiff_t>(i));
+          else
+            i++;
+      }
+    }
+    at += 1 + n;
+  }
+  return pending.empty();
+}
+
+void GxRenderer::Skip(const Re4GxChunk &a) {
+  impl_->skipDraws = true;
+  Run(a);
+  impl_->skipDraws = false;
 }
 
 void GxRenderer::SetRecording(bool on) {

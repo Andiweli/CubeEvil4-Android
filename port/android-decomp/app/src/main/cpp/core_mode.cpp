@@ -595,6 +595,7 @@ struct Bench {
 };
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
+std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 // pictures put on the screen so far, each once: the game's and the in-between ones (the FPS display)
 std::atomic<long long> picturesMade{0};
@@ -602,6 +603,10 @@ std::atomic<long long> picturesMade{0};
 // vertices), and the next one, whose in-between picture is on the screen and which runs at the
 // next refresh; off for this renderer when the GPU does not keep up
 const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
+// Frame skip: the chunk after the one that was skipped or drawn (taken to look at it, drawn next)
+const Re4GxChunk *skipNext = nullptr;
+std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
+unsigned gxSkipped = 0;             // chunks left out since the start of this renderer
 bool smoothTooSlow = false;
 // "Dynamic" in the menu's resolution: the EFB level follows the GPU (gx_auto_level.h); on for a renderer
 // that started at the screen's level
@@ -687,7 +692,9 @@ void smoothDrop() {
     api.gxRelease(smoothNext);
   if (smoothPrev && api.gxRelease)
     api.gxRelease(smoothPrev);
-  smoothNext = smoothPrev = nullptr;
+  if (skipNext && api.gxRelease)
+    api.gxRelease(skipNext);
+  smoothNext = smoothPrev = skipNext = nullptr;
 }
 
 // A number from a file of the kernel (the GPU's clock and load, where the device lets an app read
@@ -1235,13 +1242,36 @@ bool drawGx() {
   // the screen runs now (it was taken, dumped and counted at the refresh before)
   const bool smoothOn = optSmooth.load() != 0 && !smoothTooSlow;
   gx->SetRecording(smoothOn);
+  gx->SetFxaa(optFxaa.load() != 0);
   if (!smoothOn && smoothPrev) {
     api.gxRelease(smoothPrev);
     smoothPrev = nullptr;
   }
   const Re4GxChunk *deferred = smoothNext;
   smoothNext = nullptr;
-  if (const Re4GxChunk *chunk = deferred ? deferred : api.gxAcquire()) {
+  const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
+  if (chunk == skipNext)
+    skipNext = nullptr;
+  // Frame skip: the renderer is behind when the core has two chunks finished. The first is then
+  // not drawn (its state and textures are applied, GxRenderer::Skip) and the second drawn at once:
+  // the game keeps its pace instead of waiting for a slow GPU. Not while a graphics capture is on
+  // its way or with 60 FPS (the in-between pictures need every chunk).
+  if (chunk && !deferred && optFrameSkip.load() != 0 && !smoothOn && !gxDumpWanted && !gxDumpSeriesLeft &&
+      !gxHitShotsLeft && !gxHitSeriesPending) {
+    if (const Re4GxChunk *next = api.gxAcquire()) {
+      if (gx->CanSkip(*chunk, *next)) {
+        gx->Skip(*chunk);
+        api.gxRelease(chunk);
+        chunk = next;
+        gxSkipped++;
+        if (gxSkipped == 1 || gxSkipped % 500 == 0)
+          LOG("frame skip: %u chunks left out so far (the renderer was behind)", gxSkipped);
+      } else {
+        skipNext = next;  // drawn at the next refresh
+      }
+    }
+  }
+  if (chunk) {
     char path[512];
     path[0] = 0;
     char seriesShot[512];
@@ -1395,12 +1425,13 @@ bool drawGx() {
       const double seconds = std::chrono::duration<double>(now - gxSince).count();
       LOG("GX: %u chunks, %u draws (%u per chunk), run %.1f ms (max %.1f), shown %.1f/s, %u programs, %u textures, "
           "%u copies, %u held pictures, %u missing, %u shader errors, %u inexact dst alpha, %u programs from the cache, "
-          "%u ahead of their first draw, base vertex %s, %u autofocus passes, %u EFB restores (MSAA on the tiles)",
+          "%u ahead of their first draw, base vertex %s, %u autofocus passes, %u EFB restores (MSAA on the tiles), "
+          "%u skipped",
           s.chunks, s.draws, gxRunCount ? (s.draws - gxDraws) / gxRunCount : 0, gxRunCount ? gxRunMs / gxRunCount : 0.0,
           gxRunMax, seconds > 0 ? gxFrames / seconds : 0.0, s.programs, s.textures, s.textureCopies, s.heldCopies,
           s.missingTextures, s.shaderErrors, s.dstAlphaApprox, s.programsLoaded, s.programsAhead,
           gx->BaseVertex() ? "yes" : "no",
-          s.autofocus, s.efbRestores);
+          s.autofocus, s.efbRestores, s.skippedChunks);
       // the GL work per chunk since the last line, and the GPU time when the driver measures it
       if (gxRunCount) {
         const double n = gxRunCount;
@@ -1975,14 +2006,14 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_hasMenu(
   return api.pause && api.cardList ? JNI_TRUE : JNI_FALSE;
 }
 
-// Result, present, canSave, canLoad, room, chapter, playTime, Unix save time (seconds).
+// Result, present, canSave, canLoad, room, chapter, playTime, Unix save time (seconds), saving refused here (1).
 extern "C" JNIEXPORT jlongArray JNICALL Java_com_ast_re4decomp_CoreBridge_instant(JNIEnv *env, jclass, jint operation) {
   Re4InstantInfo info = {};
   const int result = api.instant ? api.instant(operation, &info) : RE4_INSTANT_UNSUPPORTED;
   const jlong fields[] = {result, info.present, info.canSave, info.canLoad, info.room, info.chapter,
-                         info.playTime, info.savedAt};
-  jlongArray out = env->NewLongArray(8);
-  if (out) env->SetLongArrayRegion(out, 0, 8, fields);
+                         info.playTime, info.savedAt, info.reserved};
+  jlongArray out = env->NewLongArray(9);
+  if (out) env->SetLongArrayRegion(out, 0, 9, fields);
   return out;
 }
 
@@ -2008,6 +2039,18 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDof(JNIEn
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFastCores.exchange(want) != want) LOG("Force Performance: %s", want ? "use performance cores" : "default");
+}
+
+// Frame skip (the menu): while the renderer is behind, chunks are left out (GxRenderer::Skip).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optFrameSkip.exchange(want) != want) LOG("frame skip: %s", want ? "on (chunks are left out while the renderer is behind)" : "off");
+}
+
+// FXAA (the menu): an edge smoothing pass over every picture (GxRenderer::SetFxaa).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optFxaa.exchange(want) != want) LOG("FXAA: %s", want ? "on" : "off");
 }
 
 // 60 FPS (experimental): in-between pictures of the renderer (drawGx).

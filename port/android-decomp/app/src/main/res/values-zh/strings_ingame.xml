@@ -132,4 +132,7 @@
     <string name="ingame_instant_load_warning">未保存的进度将丢失。是否读取即时存档？</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">跳帧</string>
+    <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_fxaa_help">在最后一步平滑锯齿边缘。可与 MSAA 同时使用或单独使用；画面会略微变柔和。</string>
+    <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
 </resources>

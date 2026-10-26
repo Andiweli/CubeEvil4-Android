@@ -140,7 +140,7 @@ public class CoreMenuLayoutTest {
     }
   }
 
-  @Test public void titleCanLoadWithoutEnablingSaveAndFrameSkipStaysInert() throws Exception {
+  @Test public void titleCanLoadWithoutEnablingSaveAndFrameSkipIsAToggle() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       CoreMenu menu = new CoreMenu(controller.get(), null, false, 1920, 1080);
       Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
@@ -164,8 +164,8 @@ public class CoreMenuLayoutTest {
       Button skip = (Button) ((ViewGroup) options.getChildAt(1)).getChildAt(0);
       Button smooth = (Button) ((ViewGroup) options.getChildAt(2)).getChildAt(0);
       assertTrue(fps.getText().toString().contains(controller.get().getString(R.string.ingame_fps_display)));
-      assertEquals(controller.get().getString(R.string.ingame_frame_skip), skip.getText().toString());
-      assertFalse(skip.isEnabled()); assertFalse(skip.hasOnClickListeners());
+      assertTrue(skip.getText().toString().contains(controller.get().getString(R.string.ingame_frame_skip)));
+      assertTrue(skip.isEnabled()); assertTrue(skip.hasOnClickListeners());
       assertTrue(smooth.getText().toString().contains(controller.get().getString(R.string.ingame_smooth60)));
     }
   }

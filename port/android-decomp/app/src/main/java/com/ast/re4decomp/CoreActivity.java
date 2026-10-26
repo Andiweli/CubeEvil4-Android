@@ -229,6 +229,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
       CoreBridge.setDof(g.getBoolean("dof", true));
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
+      CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
+      CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
     }
     setContentView(root);

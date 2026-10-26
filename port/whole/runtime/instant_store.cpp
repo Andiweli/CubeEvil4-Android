@@ -108,6 +108,7 @@ extern "C" int re4_instant_perform(int operation, Re4InstantInfo* info)
     const int previous = readSlot(path, file, info);
     const bool ready = re4_instant_game_ready() != 0;
     info->canSave = ready;
+    info->reserved = !ready && re4_instant_game_save_blocked() ? 1 : 0;
     info->canLoad = re4_instant_game_can_load() && previous == RE4_INSTANT_OK;
     if (operation == RE4_INSTANT_STATUS)
         return previous == RE4_INSTANT_EMPTY ? RE4_INSTANT_OK : previous;

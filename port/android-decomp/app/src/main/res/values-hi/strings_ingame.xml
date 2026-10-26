@@ -132,4 +132,7 @@
     <string name="ingame_instant_load_warning">बिना सेव की प्रगति खो जाएगी। तुरंत सेव लोड करें?</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">फ़्रेम स्किप</string>
+    <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_fxaa_help">आख़िरी चरण में दाँतेदार किनारों को चिकना करता है। MSAA के साथ या बिना काम करता है; तस्वीर थोड़ी नरम हो जाती है।</string>
+    <string name="ingame_frame_skip_help">ग्राफ़िक्स पिछड़ने पर एक फ़्रेम छोड़ देता है ताकि गेम सामान्य गति से चले। कम फ़्रेम दिखते हैं, कुछ धीमा नहीं होता।</string>
 </resources>

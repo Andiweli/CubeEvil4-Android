@@ -100,6 +100,13 @@ public final class CoreBridge {
    */
   public static native void setSmooth(boolean on);
   /**
+   * Frame skip: while the renderer is behind (the core has two pictures finished), the first is not
+   * drawn and the second drawn at once, so the game keeps its pace on a slow graphics chip.
+   */
+  public static native void setFrameSkip(boolean on);
+  /** FXAA: an edge smoothing pass over every finished picture. */
+  public static native void setFxaa(boolean on);
+  /**
    * Gyro aiming (GyroAim): the device's turn rates in rad/s about the screen's axes (yaw, pitch);
    * the core turns the aim by them while Leon aims a gun. 0, 0: still.
    */

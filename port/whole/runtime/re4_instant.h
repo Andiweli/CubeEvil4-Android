@@ -31,6 +31,7 @@ int re4_instant_perform(int operation, Re4InstantInfo* info);
 // Fixed original save-file payloads, host byte order. Capture does not replace the Continue image.
 int re4_instant_game_ready(void);
 int re4_instant_game_can_load(void);
+int re4_instant_game_save_blocked(void); /* in the game, where saving is refused: Re4InstantInfo.reserved = 1 */
 unsigned re4_instant_game_chapter(unsigned number);
 int re4_instant_game_capture(unsigned char* data);
 int re4_instant_game_restore(const unsigned char* data);

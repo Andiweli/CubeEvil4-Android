@@ -141,4 +141,7 @@
     <string name="ingame_instant_load_warning">‏سيُفقد التقدم غير المحفوظ. هل تريد تحميل الحفظ الفوري؟</string>
     <string name="ingame_toggle_value">&#x200F;%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">‏تخطي الإطارات</string>
+    <string name="ingame_fxaa">‏FXAA</string>
+    <string name="ingame_fxaa_help">‏يُنعّم الحواف المسنّنة في خطوة أخيرة. يعمل مع MSAA أو بدونه؛ تصبح الصورة أنعم قليلًا.</string>
+    <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
 </resources>

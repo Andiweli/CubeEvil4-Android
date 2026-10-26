@@ -326,6 +326,10 @@ final class CoreMenu extends Dialog {
     graphicsLine = text("", 15, false); graphicsLine.setPadding(0, dp(4), 0, dp(10)); body.addView(graphicsLine); showGraphics();
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
         new int[] {1, 2, 4}, 1, samples);
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_fxaa, graphics.getBoolean("fxaa", false), on -> {
+      graphics.edit().putBoolean("fxaa", on).apply(); CoreBridge.setFxaa(on);
+    });
+    help(R.string.ingame_fxaa_help);
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
     heading(R.string.ingame_picture);
@@ -390,11 +394,13 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(output), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
       graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
     });
-    Button frameSkip = cellAction(buttonsRow(output), s(R.string.ingame_frame_skip), null);
-    frameSkip.setEnabled(false); // reserved placement only; no preference, callback or renderer change
+    toggle(buttonsRow(output), R.string.ingame_frame_skip, graphics.getBoolean("frameskip", false), on -> {
+      graphics.edit().putBoolean("frameskip", on).apply(); CoreBridge.setFrameSkip(on);
+    });
     toggle(buttonsRow(output), R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
       graphics.edit().putBoolean("smooth60", on).apply(); CoreBridge.setSmooth(on);
     });
+    help(output, R.string.ingame_frame_skip_help);
     help(output, R.string.ingame_smooth_help);
   }
   private void management() {
@@ -466,7 +472,7 @@ final class CoreMenu extends Dialog {
     else if (data[0] == -3) status = R.string.ingame_instant_damaged;
     else if (data[0] == -4) status = R.string.ingame_instant_failed;
     else if (data[0] == -1 || (data[2] == 0 && data[3] == 0)) status = R.string.ingame_instant_unavailable;
-    else if (data[2] == 0) status = R.string.ingame_instant_no_save;
+    else if (data[2] == 0 && data.length > 8 && data[8] != 0) status = R.string.ingame_instant_no_save;
     showSlotStatus(status);
   }
   private void showSlotStatus(int message) {

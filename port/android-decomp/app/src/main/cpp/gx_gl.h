@@ -36,6 +36,7 @@ struct GxStats {
   unsigned textureCopies = 0;    // EFB copies to a texture
   unsigned displayCopies = 0;    // EFB copies to the XFB
   unsigned heldCopies = 0;       // of them not shown: the VI kept the picture before (RE4_GX_CHUNK_HOLD)
+  unsigned skippedChunks = 0;    // chunks run without drawing (Frame skip): state and textures only
   unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
@@ -161,6 +162,18 @@ public:
   // Xfb() and Present show that. Works with or without MSAA and at any resolution; takes effect with
   // the next display copy. Costs one pass over the XFB per picture (the in-between pictures too).
   void SetFxaa(bool on);
+  // Frame skip (the app menu, 26.10.2026). The renderer is behind when the core has finished two
+  // chunks: `a` need not be drawn when `b` (the next one) is drawn at once. Skip runs `a` without its
+  // draws and its display copy: the register and texture state the game builds on (BP, XF, palettes,
+  // texture uploads and bindings) is applied, vertices are not uploaded, nothing is drawn, the EFB is
+  // cleared as the display copy would. The game itself is not slowed down: the chunk is taken out of
+  // the queue and the next one drawn in the same refresh.
+  // CanSkip: false when `a` starts over, is held or black, marked, ends without a display copy, or
+  // makes an EFB copy for a texture that `b` could still read (unless `b` copies to the same place
+  // before its first draw: then `a`'s copy is never seen). The in-between pictures (SetRecording)
+  // and Skip exclude each other: the caller skips only while they are off.
+  bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const;
+  void Skip(const Re4GxChunk &a);
   // 60 FPS (experimental, decision of the project owner 22.10.2026): on, every Run notes how each
   // of its draws was drawn (the position and normal matrices, the projection) for Interpolate.
   void SetRecording(bool on);

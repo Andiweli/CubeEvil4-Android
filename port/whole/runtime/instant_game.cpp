@@ -129,6 +129,12 @@ extern "C" int re4_instant_game_ready(void)
     return pauseReady() && !unsafePlace();
 }
 
+// In the game, but at a place where saving is refused (boat, ladder, boss fight ...): the menu says so.
+extern "C" int re4_instant_game_save_blocked(void)
+{
+    return pauseReady() && unsafePlace();
+}
+
 extern "C" int re4_instant_game_can_load(void)
 {
     return pauseReady() || titleReady();

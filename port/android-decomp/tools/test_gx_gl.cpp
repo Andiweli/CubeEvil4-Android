@@ -676,6 +676,78 @@ void TestFxaa(re4gx::GxRenderer &r) {
   Check(r.Xfb(nullptr, nullptr) == plain, "FXAA: off, the plain display copy is shown again");
 }
 
+// Frame skip: a chunk that is not drawn (the renderer is behind and the next chunk is there). The state
+// it carries is applied, the EFB cleared as its display copy would, the shown picture stays; the rules
+// for when it may be skipped.
+void TestFrameSkip(re4gx::GxRenderer &r) {
+  // the picture before: red on the EFB, which stays (no clear)
+  {
+    Builder z;
+    Baseline(z);
+    Quad(z, 0, 0, 320, 264, 0, kRed);
+    DisplayCopy(z, false, kBlack);
+    r.Run(z.Chunk());
+  }
+  GLuint xfb = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfb, 100, 100), 255, 0, 0), "frame skip: the picture before is red");
+  Builder a, b;
+  a.flags = RE4_GX_CHUNK_XFB;
+  Quad(a, 0, 0, 640, 528, 0, kGreen);
+  DisplayCopy(a, true, kBlack);
+  b.flags = RE4_GX_CHUNK_XFB;
+  Quad(b, 400, 300, 500, 400, 0, kBlue);
+  DisplayCopy(b, true, kBlack);
+  Check(r.CanSkip(a.Chunk(), b.Chunk()), "frame skip: a plain chunk may be skipped");
+  const unsigned skipped = r.Stats().skippedChunks, shown = r.Stats().displayCopies;
+  r.Skip(a.Chunk());
+  Check(r.Stats().skippedChunks == skipped + 1 && r.Stats().displayCopies == shown, "frame skip: no display copy made");
+  Check(Near(TexPixel(r.Xfb(nullptr, nullptr), 100, 100), 255, 0, 0), "frame skip: the picture shown stays");
+  r.Run(b.Chunk());
+  xfb = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfb, 450, 350), 0, 0, 255), "frame skip: the next chunk draws as usual");
+  Check(Near(TexPixel(xfb, 600, 500), 0, 0, 0), "frame skip: the skipped chunk's draws are left out");
+  Check(Near(TexPixel(xfb, 100, 100), 0, 0, 0), "frame skip: the EFB was cleared (the red before is gone)");
+  // the rules
+  Builder reset;
+  Baseline(reset);
+  DisplayCopy(reset, true, kBlack);
+  Check(!r.CanSkip(reset.Chunk(), b.Chunk()), "frame skip: a chunk that starts over is not skipped");
+  Builder held;
+  held.flags = RE4_GX_CHUNK_XFB | RE4_GX_CHUNK_HOLD;
+  DisplayCopy(held, true, kBlack);
+  Check(!r.CanSkip(held.Chunk(), b.Chunk()), "frame skip: a held picture is not skipped");
+  Builder noCopy;
+  noCopy.flags = 0; // not a chunk that ends with a display copy
+  Quad(noCopy, 0, 0, 10, 10, 0, kRed);
+  Check(!r.CanSkip(noCopy.Chunk(), b.Chunk()), "frame skip: a chunk without a display copy is not skipped");
+  // an EFB copy for a texture in `a`
+  auto copyTo = [](Builder &c, unsigned dest) {
+    c.Bp(0x49, 0);
+    c.Bp(0x4A, 31 | 31u << 10);
+    c.Bp(0x4D, 32);
+    c.Bp(0x4B, dest >> 5);
+    c.Bp(0x52, 6u << 4 | 2u << 15);
+    c.Bp(0x4A, 639 | 527u << 10);
+  };
+  Builder withCopy;
+  withCopy.flags = RE4_GX_CHUNK_XFB;
+  copyTo(withCopy, 0x300000);
+  DisplayCopy(withCopy, true, kBlack);
+  Check(!r.CanSkip(withCopy.Chunk(), b.Chunk()), "frame skip: a texture copy the next chunk may read is not skipped");
+  Builder overwrites;
+  overwrites.flags = RE4_GX_CHUNK_XFB;
+  copyTo(overwrites, 0x300000);
+  Quad(overwrites, 0, 0, 10, 10, 0, kRed);
+  DisplayCopy(overwrites, true, kBlack);
+  Check(r.CanSkip(withCopy.Chunk(), overwrites.Chunk()), "frame skip: the next chunk copies there before it draws");
+  Builder readsFirst;
+  readsFirst.flags = RE4_GX_CHUNK_XFB;
+  readsFirst.Texture(0, 0x300000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x300000, 32, 32, 6, {});
+  copyTo(readsFirst, 0x300000);
+  DisplayCopy(readsFirst, true, kBlack);
+  Check(!r.CanSkip(withCopy.Chunk(), readsFirst.Chunk()), "frame skip: the next chunk reads the copy first");
+}
+
 // Auto in the app menu: the EFB scale changes between two Runs (GxRenderer::Rescale). At scale 2 a
 // red EFB copy is made and drawn as a texture; at scale 1 and then 3 a chunk draws with map 0 still
 // bound to that copy (no new texture load): the copy came along, scaled, and the display copy has
@@ -1265,6 +1337,7 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestLetterboxCopy(r, true, true);
   TestDepthMap(r, true);
   TestFxaa(r);
+  TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
   TestAutofocus(r, r.Samples() > 1);
   TestPassBreak(r, r.TiledMsaa() ? (lose ? "on the tiles, everything lost" : "on the tiles") : "multisampled");
@@ -1766,6 +1839,7 @@ int main() {
     TestLetterboxCopy(renderer, false, false);
     TestDepthMap(renderer, false);
     TestFxaa(renderer);
+    TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);
     TestCopyFilter(renderer);
