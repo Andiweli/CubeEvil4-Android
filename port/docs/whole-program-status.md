@@ -4,6 +4,32 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Analyse nach den Tester-Meldungen (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
+
+Nur Analyse, nichts gebaut, nichts auf dem Gerät geprüft. Einzelheiten und Plan:
+[`analyse-2026-10-26.md`](analyse-2026-10-26.md). Kurz:
+
+- `gui-optimisations`: Bundle = GitHub `c4f79e9`, konfliktfrei mit `master` zusammenführbar; weder
+  er noch `beta-optimisations` ist in `master`. Beschriftungen der Anzeige-Seite oben statt mittig
+  (`CoreMenu.choices()` ohne senkrechte Ausrichtung). Instant Save: Laden überschreibt die
+  Systemdaten, Mercenaries/Ada nicht gesperrt, Fokus springt, Patches 0111/0112 unscharf und nicht
+  in der Patch-Tabelle, Version unverändert.
+- **Hänger r222** (Infinix X6725, Galaxy S20 FE, „lava corridor“): die Teile-Tabelle von
+  `st2/r222.das` ist leer, `readInit` zählt über das Puffer-Ende, `readMain` bleibt stehen.
+  Vermutlich beschädigte Datei auf dem Gerät (Import prüft keine Raumdateien), sonst stiller
+  Lesefehler im Port. Gleiches Muster wie r325.
+- **Lichtschein durch Wände:** Ursache gefunden. `GXPeekZ` (Patch 0030 → `re4_gx_efb_peek`,
+  `runtime/gx_fifo.cpp`) antwortet immer „fern“; die Leucht-Effekte (esp0e, espgen01, esp45)
+  verstecken sich nur über diese Abfrage. Die Einschätzung „sehr wahrscheinlich Original“ in den
+  Abschnitten vom 24.10. ist widerlegt (Dolphin-Video des Projektinhabers).
+- **Schwarze Wellen unten:** Kopie der Zeilen 56–447 wird ganz gebunden, ungezeichnete Zeilen
+  unter dem Balken sind schwarz.
+- 32 bit: moto e6s bricht ab, weil ein Raum-Modul unter 0x80000000 geladen wird (kein
+  Modul-Fenster auf 32 bit). Debug-Werkzeug „SCE ITEM“ stürzt ab (`LightToolPtr` leer).
+- Salazar-Statue r226: kein Fehler (L+R verlangt). Planken r11c: wohl Absicht (nur Schrotflinte
+  & Co.). Tür-Kick r100: Schiebe-Vorrang, Patch möglich.
+- Gerätetabelle mit 22 Geräten (Benchmarks aus der Websuche) für den Projektinhaber erstellt.
+
 ## GUI-Optimierungen und Instant-Spielstand (24.10.2026)
 
 Branch `gui-optimisations`, von `beta-optimisations` bei `19bd01c` abgezweigt.
