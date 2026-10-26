@@ -822,6 +822,48 @@ void testEmptyTables()
     report("empty tables", ok);
 }
 
+// The European discs' sub screen texts (ss/<lang>/*.dat, retail-eu-plan.md R7): an MDT entry that
+// is a single message block (x0, count, offsets from 8 + 4 * count, u16 codes) without the
+// six-language header. Turned as one block (formats_mes.cpp, patch 0122); a six-language table
+// beside it as before.
+void testOneLanguageMdt()
+{
+    bool ok = true;
+    unsigned char* arc = (unsigned char*) (unsigned long) 0x82360000u;
+    memset(arc, 0, 0x100);
+    put32be(arc + 0x00, 2);
+    put32be(arc + 0x10, 0x20);
+    put32be(arc + 0x14, 0x40);
+    memcpy(arc + 0x18, "MDT\0", 4);
+    memcpy(arc + 0x1C, "MDT\0", 4);
+    unsigned char* one = arc + 0x20;  // two messages
+    put32be(one + 0x00, 0);
+    put32be(one + 0x04, 2);
+    put32be(one + 0x08, 0x10);
+    put32be(one + 0x0C, 0x14);
+    put32be(one + 0x10, 0x01020304u);
+    put32be(one + 0x14, 0x05060708u);
+    unsigned char* six = arc + 0x40;  // six languages, all on one block of one message
+    put32be(six, 6);
+    for (int k = 1; k <= 6; k++) {
+        put32be(six + k * 4, 0x1C);
+    }
+    put32be(six + 0x1C, 0);
+    put32be(six + 0x20, 1);
+    put32be(six + 0x24, 0xC);
+    put32be(six + 0x28, 0x0A0B0C0Du);
+    Header h = { 0, 0x80, 0, 0, 0, 0, 0, 0 };
+    re4_formats_part_loaded("ss/ger/ss_test.dat", 0, 0, &h, 0x82360000u);
+    unsigned short code[4];
+    memcpy(code, one + 0x10, 8);
+    CHECK(get32(one) == 0 && get32(one + 4) == 2 && get32(one + 8) == 0x10 && get32(one + 0xC) == 0x14);
+    CHECK(code[0] == 0x0102 && code[1] == 0x0304 && code[2] == 0x0506 && code[3] == 0x0708);
+    memcpy(code, six + 0x28, 4);
+    CHECK(get32(six) == 6 && get32(six + 4) == 0x1C && get32(six + 0x20) == 1 && get32(six + 0x24) == 0xC);
+    CHECK(code[0] == 0x0A0B && code[1] == 0x0C0D);
+    report("one-language mdt", ok);
+}
+
 // An effect model whose motion slot holds a texture with its zero bytes stored as 0x20, as r10b's
 // effect model 0x7c (st1/r10b.das #7, the room tour 22.10.2026): EFF version 0xB with one effect
 // model (id 0x7c, motion table of one entry). The motion converter read 175 joints from it and
@@ -1232,6 +1274,7 @@ int re4_core_tests()
     testCamera();
     testEvent();
     testEmptyTables();
+    testOneLanguageMdt();
     testEffectTextureMotion();
     testMorph();
     {

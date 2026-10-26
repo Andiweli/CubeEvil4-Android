@@ -140,8 +140,13 @@ int re4_disc_retail_eu(void);
 /* A larger etc/core.das than the debug build's fixed place holds (the European release, patch
  * 0117): it is read here instead, in the development half of MEM1 that nothing else uses. */
 #define RE4_MEM1_CORE_ALT_ADDR 0x81C00000u
-#define RE4_MEM1_CORE_ALT_MAX 0x00400000u
+#define RE4_MEM1_CORE_ALT_MAX 0x00300000u
 void* re4_core_data_place(const char* name, unsigned fixedMax);
+/* A larger SS/<lang>/option.dat than the debug build's fixed place holds (the European discs'
+ * German, French, Spanish and Italian ones, patch 0121): behind the core's second place. */
+#define RE4_MEM1_OPTION_ALT_ADDR 0x81F00000u
+#define RE4_MEM1_OPTION_ALT_MAX 0x00100000u
+void* re4_option_data_place(const char* name, unsigned fixedMax);
 /* The start's reads without the frame pace (patch 0085): 1 while the next
    step of a read may follow at once, the end at the first title.dat. */
 int re4_dvd_boot_fast(void);

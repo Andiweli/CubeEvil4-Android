@@ -597,6 +597,33 @@ void* re4_core_data_place(const char* name, unsigned fixedMax)
     return (void*) (unsigned long) RE4_MEM1_CORE_ALT_ADDR;
 }
 
+// The place of the option menu's data (patch 0121, read.cpp OptionDataRead): the debug build reads
+// SS/<lang>/option.dat to the fixed 0x807AC000 with room for OPTION_DATA_MAX (0x40000) bytes, up to
+// the player data at 0x807EC000. On the European discs only the English one fits (0x3FBA0 bytes);
+// German, French, Spanish and Italian are 0x44000 to 0x4C2C0 (the European OptionDataRead reads to
+// 0x80784000 and has no limit). A larger one goes behind the core's second place
+// (RE4_MEM1_OPTION_ALT_ADDR); 0 keeps the fixed place. The file is read whole.
+void* re4_option_data_place(const char* name, unsigned fixedMax)
+{
+    Disc* d = current();
+    s32 entry = d ? lookup(*d, name) : -1;
+    if (entry < 0 || isDir(*d, (u32) entry)) {
+        return 0;
+    }
+    u32 size = word(*d, (u32) entry, 2);
+    if (size <= fixedMax) {
+        return 0;
+    }
+    if (size > RE4_MEM1_OPTION_ALT_MAX) {
+        re4_log("DVD: %s: option data of %u bytes, larger than the %u bytes of either place", name, size,
+                RE4_MEM1_OPTION_ALT_MAX);
+        return 0;
+    }
+    re4_log("DVD: %s: option data of %u bytes (fixed place %u, %s), read to 0x%08x", name, size, fixedMax,
+            releaseName(d->release), RE4_MEM1_OPTION_ALT_ADDR);
+    return (void*) (unsigned long) RE4_MEM1_OPTION_ALT_ADDR;
+}
+
 // The start without the frame pace (patch 0085, cDvd::readProcMain; wish of
 // the project owner, 19.10.2026): until the first SS/<lang>/title.dat is in,
 // the game's read queue takes its next step at once instead of the next
