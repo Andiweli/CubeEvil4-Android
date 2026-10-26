@@ -3,6 +3,11 @@
 Stand: 26.10.2026. Vorschlag, noch nicht in die Meilensteinliste von `CLAUDE.md` aufgenommen
 (Entscheidung des Projektinhabers steht aus).
 
+**Fortschritt:** R0 ✅ und R1 ✅ (26.10.2026, Branch `retail-eu`): die r100-Prüfung läuft mit den
+unveränderten EU-Discs ohne Absturz durch, die Debug-Discs bleiben „ALLES OK“. Einzelheiten und offene
+Punkte: `whole-program-status.md`, Abschnitt „Retail-Discs (EU), Schritte R0 und R1“. Befunde 2–4 der
+Tabelle unten sind behoben (Patches 0117–0119), Befund 12 (`config.txt`) ist ohne Folge.
+
 Ziel: CubeEvil4 spielt das Spiel auch mit den europäischen Verkaufs-Discs (`G4BP08`, Disc 1 und 2),
 nicht nur mit der Debug-Disc (`G4BE08`, 2004-11-25). Der Spielcode bleibt der der Debug-Version
 (`src/`); angepasst werden nur Import, Plattformschicht und kleine geprüfte Patches.

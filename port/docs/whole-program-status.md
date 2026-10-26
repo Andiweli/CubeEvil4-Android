@@ -4,6 +4,56 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Retail-Discs (EU), Schritte R0 und R1 (26.10.2026 abends, lokal, WSL2, Branch `retail-eu`)
+
+Plan: `port/docs/retail-eu-plan.md` (Meilenstein „Retail-Discs (EU)“, Auftrag des Projektinhabers: R0 und R1;
+GitHub-Arbeit auf einem neuen Branch von `beta-updates`). Die Grundsatzfragen des Plans sind noch offen.
+
+**R0 Prüfstrecke**
+- `port/tools/disc_release.py`: welche Version ein Disc-Kopf ist. Debug-Build = G4BE08 mit der Dateitabelle bei
+  0x28FE00, europäische Verkaufsversion = G4BP08, G4BE08 sonst = US-Verkaufsversion (ungetestet, abgelehnt).
+- `whole_disc_folder.py` nimmt G4BP08 an, lehnt gemischte Versionen ab; `--check DIR --disc ...` erkennt einen
+  Ordner, der aus anderen Abbildern entpackt wurde. `whole_r100_check.sh` nutzt das (Debug- und EU-Läufe teilen
+  den Arbeitsordner: wechselt die Version, wird neu entpackt; vorher lief ein EU-Aufruf still mit den alten
+  Debug-Dateien) und nennt die Version im Bericht („Version: retail-eu“). Tests: `test_whole_disc_folder.py`
+  (4 Fälle, neu EU, Mischung, US).
+- `port/tools/retail_compare.py` (Test `test_retail_compare.py`, beide in `whole_build.sh`): Dateilisten,
+  REL-Modulnummern je Datei und der Aufbau jedes Archivs (same / appended / shifted / fewer / evd-missing).
+  Mit den echten Discs: genau die Tabelle des Plans (4 verschobene Archive `pl0a.drs`, `map_obj4g.dat`,
+  `ss_wep40.dat`, `ss_term.dat`; `r204s00.evd`/`s204s00.evd` ohne `s00_012.lit`; 127/124 Dateien mit Modulen,
+  0 mit anderer Nummer).
+- Kern: `runtime/dvd.cpp` erkennt die Version aus `sys/boot.bin` nach derselben Regel
+  (`re4_disc_release()`, `RE4_DISC_*` in `re4_runtime.h`), schreibt sie ins Log („DVD: disc 0: …, European
+  release G4BP08“) und warnt bei gemischten Discs. Laufzeittest `disc release`.
+
+**R1 Starten** (Patches 0117–0119, Tabelle unten)
+- 0117: größerer Kern (`etc/core.das`, EU 0x23AC40 Byte) nach 0x81C00000 statt über die Optionsdaten.
+- 0118: ohne Debug-Schrift `etc/moji8.tpl` kein Absturz mehr, der Debug-Text bleibt aus.
+- 0119: ohne `debug/roomInfo.dat` eine Ersatztabelle mit dem Raum des neuen Spiels (r120); ein anderer
+  Debug-Startraum (`RE4_START_ROOM`) wird abgelehnt und gemeldet, das Spiel läuft wie beim Start in r120.
+- `debug/config.txt` fehlt auf den EU-Discs: geprüft, ohne Folge. Alle Werte, die die Datei der Debug-Disc setzt
+  (Sprache USA, Helligkeit 64, Spielmodus NORMAL, Startraum r120, Debug-Seite 1, Balken an), sind auch ohne sie
+  so (`systemWorkInit`, `systemRestartInit`); nur `PlMode` (3 statt 0) und der Benutzername weichen ab, beide
+  werden nirgends gelesen.
+
+**Prüfungen (i686, Stand `da62a6e6`)**
+- EU-Abbilder unverändert (`--data E:\…\RE4-DiscdataEuro`, entpackt durch die Prüfstrecke): Build 0 Fehler,
+  alle Tests 0 Fehler, Formatvergleich 407 Dateien ohne Fehler. Spiellauf: **kein Absturz, Hauptschleife bei
+  Bild 499 (r120), 10 000 Bilder**; über die Testhilfe nach r100, dort etwa 4 700 Bilder Spiel, Soft-Reset,
+  Titel neu. Log: Kern bei 0x81C00000, Ersatztabelle, `RE4_START_ROOM=100` abgelehnt. Alle 12 Filme der EU-Discs ohne Fehler.
+- **Gegenprobe Debug-Discs**, derselbe Build: „ALLES OK“ (Spiellauf r100, Speicherkarte, Filme); keine der
+  neuen Stellen greift (Kern am alten Platz, `roomInfo.dat` gelesen).
+- **Vergleichslauf** Debug-Discs mit Start in r120 gegen den EU-Lauf: über alle 10 499 Bilder gleiche Räume,
+  Positionen, Gegner und Zufallswerte; Unterschiede nur in den GX-Zählern und der Heap-Belegung (andere Daten) und
+  in 18 Bildern beim Titel-Timing nach dem Soft-Reset. Der Weg r120 → r100 ist das Verhalten der Prüfstrecke beim
+  Start in r120, kein Unterschied der Daten.
+- **64 bit (x86_64, steht für arm64-v8a)** mit den EU-Abbildern: Build 0 Fehler, alle Tests 0 Fehler,
+  Formatvergleich ohne Fehler, Spiellauf wie bei i686 (kein Absturz, Hauptschleife bei Bild 499, 10 000 Bilder).
+- **Offen:** der Speicherkarten-Teil der Prüfstrecke mit EU-Daten scheitert: er startet über `RE4_START_ROOM=0x100`
+  (mit EU-Daten nicht möglich, das Spiel bleibt in r120) und der Speicherbildschirm blieb in der Dateiliste stehen
+  (`card: save: file list`, bis Bild 30 000). Ob das an den EU-Menüdaten liegt (R3, z. B. „IDSystem work full“)
+  oder am Start in r120, ist nicht geklärt. Nicht geprüft: ARM32/ARM64 unter qemu, Android-Build, Gerät.
+
 ## Branches aufgeräumt (26.10.2026 abends)
 
 Entscheidung des Projektinhabers: Arbeitsbranch ist jetzt **`beta-updates`** (Stand `a5eed0f`, gleich dem bisherigen
@@ -498,6 +548,7 @@ Sichtprüfung auf dem Retroid noch offen.
 | 0.45.1-alpha | **nicht veröffentlicht, in 0.46.0 aufgegangen** (Entscheidung des Projektinhabers, 23.10.2026). 23.10.2026 (Branch `claude/re4-start-controls` mit `performance` zusammengeführt, versionCode 71, Releasetext `port/android-decomp/docs/releases/v0.45.1-alpha.md`; Entscheidung des Projektinhabers: die weiteren Performance-Optimierungen als 0.45.1): „Auto“ regelt die Auflösung nach dem Grafikchip (`GxRenderer::Rescale`), Spiel- und Zeichen-Thread weg von den langsamsten Kernen und Androids Leistungshinweis, Shader auf eigenem Thread mit Liste in der App (70 Programme, wächst mit den Schlüsseln der Berichte); -O3 geprüft und verworfen. **Auf dem Gerät noch nicht getestet** |
 | 0.46.0-alpha | 23.10.2026 (Branch `claude/re4-start-controls`, versionCode 72, Releasetext `port/android-decomp/docs/releases/v0.46.0-alpha.md`; Entscheidung des Projektinhabers nach seinem Gerätetest 16:09: „Die Umschaltung klappt sauber“): „Dynamisch“ statt „Auto“ (erst nach zwei schlechten Fenstern tiefer), Auflösung in der FPS-Anzeige, Einrasten L/R und B in der Komfortsteuerung auch für den Controller, Menüzeilen ohne Grundlinien-Ausrichtung, Gyro mit der Harpune, Shader-Liste 627 Programme |
 | 0.9.0-beta | 23.10.2026 (Branch `claude/re4-start-controls`, auch `performance` und `master`, versionCode 73, Releasetext `port/android-decomp/docs/releases/v0.9.0-beta.md`; Entscheidung des Projektinhabers: „Beta jetzt“, nachdem der SCV40-Tester das Spiel durchgespielt hat): erste Beta; seit 0.46.0 nur die Shader-Liste (1928 statt 627 Programme), Version, Releasetext und README (Status „Beta“). Alle 1928 Programme bauen auf Mesa ohne Fehler (mit und ohne MSAA). **Gerätetest der APK offen** |
+| Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“). Offen: Speicherkarten-Teil mit EU-Daten, R2–R8, Grundsatzfragen des Plans |
 | Reihenfolge | Entscheidungen des Projektinhabers: erst M9 Videos und M10 Speichern/Laden (16.10.2026), dann **M11 vor dem Raum-Rundgang 10b** (17.10.2026: die APK soll an Tester gehen), dann **M12 ARM64 vor 10b** (17.10.2026: ein Tester hat ein Gerät nur für 64-bit-Apps). Gestrichen: Baum-Kollision in r100 (G17) |
 
 **Entscheidung des Projektinhabers (14.10.2026):** Endprodukt ist
@@ -8328,6 +8379,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0114 `db_light.cpp` | `TOOL_ERR` liest `pTool->Flag`, `pTool` ist ohne geöffneten Licht-Editor leer; das Debug-Werkzeug „SCE ITEM“ stürzte so ab (GameCube: lesbarer Speicher bei Adresse 0x14; Galaxy A02s, Redmi Note 14 Pro). Port-Patch |
 | 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2). Das gemerkte `m_flag` ist 16 bit (die erste Fassung mit `u8` löschte Bits 0x100/0x200: Leon lief durch Türen, Nachtest 26.10.2026); Test `runtime-test em at flags` |
 | 0116 `db_menu.cpp` | Das Debug-Menü (SELECT gehalten, Patch 0061) zeigt nur AREA JUMP und DEBUG OPTION, in einer Spalte am linken Rand, immer an derselben Stelle (Wunsch des Projektinhabers, 26.10.2026; das Original listet 34 Werkzeuge in zwei Spalten um x = 176 und lässt sich mit dem C-Stick verschieben). Hoch/runter wählt, A startet, B oder START schließt wie bisher; die Menütabelle bleibt (ein mit `DbMenuSetExecTool` vorgemerktes Werkzeug startet weiter über seinen Namen) |
+| 0117 `read.cpp` | Kern-Archiv an einem zweiten Platz, wenn es größer ist als der feste (Verkaufsdaten, `retail-eu-plan.md` R1, 26.10.2026): `etc/core.das` der europäischen Discs hat 0x23AC40 Byte, der Platz der Debug-Version bei 0x80578000 fasst 0x234000 (`CORE_DATA_MAX`) bis zu den Optionsdaten bei 0x807AC000; das Lesen lief hinein („CORE_DATA IS TOO LARGE“). `CoreDataRead` fragt `re4_core_data_place` (`runtime/dvd.cpp`: Größe des Körpers aus der Teile-Tabelle, bei yz2 die entpackte); ein größerer Kern kommt nach 0x81C00000 (4 MB in der Entwicklerhälfte von MEM1, sonst unbenutzt, `RE4_MEM1_CORE_ALT_ADDR`), der Kern der Debug-Version bleibt an seinem Platz. Port-Patch für Verkaufsdaten |
+| 0118 `eprintf.cpp` | Ohne die Debug-Schrift `etc/moji8.tpl` (fehlt auf den europäischen Discs) legte `EprintfInit` keine Puffer an; `eprintf` und `EprintfDrawing` prüfen `eprintf_init`, `EprintfBufferClear` (jedes Bild über `EprintfFlush`) nicht und schrieb über einen Nullzeiger: das Spiel endete im ersten Bild. Jetzt bleibt der Debug-Text ohne Schrift aus. Port-Patch für Verkaufsdaten (R1) |
+| 0119 `main.cpp` | Ersatz für `debug/roomInfo.dat` (fehlt auf den europäischen Discs): jedes „Neues Spiel“ der Debug-Version läuft über das Debug-Startmenü, das die Tabelle liest (`titleExit`, `cRoomJmp`), und endete dort. `systemRestartInit` legt dann eine Tabelle mit einem Eintrag an: der vorgewählte Raum (`pG->room_id`, r120 wie beim neuen Spiel) ohne Position (wie der r120-Eintrag der Debug-Tabelle), in der Form, die der Umwandler aus der Disc-Datei macht. `re4_room_info_stand_in` (`runtime/dolphin_os.cpp`) meldet das und lehnt einen anderen Debug-Startraum (`RE4_START_ROOM`) ab: das neue Spiel beginnt in r120 und läuft von selbst nach r100. Port-Patch für Verkaufsdaten (R1) |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
