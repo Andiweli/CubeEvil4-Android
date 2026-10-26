@@ -11,6 +11,9 @@ R2 ✅ (26.10.2026): Befunde 5, 8 und 9 behoben (Patch 0120; Umsortierung von `p
 beim Laden), Befund 10 ohne Folge; der hängende Speicherbildschirm lag an der Prüfstrecke (Speichern in r120),
 nicht an den EU-Daten. Neu für R3: die Untertitel-Leiste des Funkspruchs fehlt („IDSystem work full“). Neu für
 R4/R8: Spielstände tragen die Disc-Kennung (G4BP08/G4BE08), Austausch zwischen den Fassungen ungeprüft.
+R4 (vorgezogen, Wunsch des Projektinhabers, 26.10.2026): die App importiert die EU-Discs (eigene Prüfkataloge,
+Version je Disc, gemischte Discs blockieren den Start); das Spiel sieht mit den EU-Discs die Kennung G4BE08, damit
+Spielstände und `.gci` zwischen beiden Fassungen gemeinsam bleiben. Am PC geprüft, **Gerätetest offen**.
 
 Ziel: CubeEvil4 spielt das Spiel auch mit den europäischen Verkaufs-Discs (`G4BP08`, Disc 1 und 2),
 nicht nur mit der Debug-Disc (`G4BE08`, 2004-11-25). Der Spielcode bleibt der der Debug-Version

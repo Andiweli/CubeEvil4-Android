@@ -56,6 +56,42 @@ später gesondert), alle Sprachen der EU-Discs in R7, Aufnahme als **M13** in `C
   (`card: save: file list`, bis Bild 30 000). Ob das an den EU-Menüdaten liegt (R3, z. B. „IDSystem work full“)
   oder am Start in r120, ist nicht geklärt. Nicht geprüft: ARM32/ARM64 unter qemu, Android-Build, Gerät.
 
+## M13 Retail-Discs (EU), Schritt R4: App-Import (26.10.2026 abends, lokal, Branch `retail-eu`)
+
+Auftrag des Projektinhabers: R4 vor R3 ziehen, damit die EU-Discs auf dem Retroid getestet werden können.
+
+- **Import (`disc/GameCubeDisc.java`):** nimmt G4BE08 mit der Dateitabelle bei 0x28FE00 (Debug-Build) und G4BP08
+  (europäische Verkaufsversion, nur im Kernmodus: `retailAllowed`, gesetzt in `Re4Application`); die US-Fassung
+  (G4BE08, Tabelle woanders) wird mit eigener Meldung abgelehnt. `release` je Disc, `ready.properties` schreibt
+  `id`, `release` und die Zahl der geprüften Code-Stücke.
+- **Prüfkataloge je Version:** `references.tsv`/`rooms.tsv`/`blocks.tsv` (Debug) und neu `references-eu.tsv`
+  (134 Code-Stücke: `main.dol`, `Rel/*.rel`, die REL-Module in `em/*.drs`), `rooms-eu.tsv` (128 Räume), `blocks-eu.tsv`
+  (gleich den Debug-Blöcken). Erzeugt mit `port/android-decomp/tools/make_disc_catalogs.py` (nur Namen, Größen,
+  Prüfsummen); das Werkzeug erzeugt die Debug-Raum- und Blockkataloge der App identisch, ihr Code-Katalog (116) ist eine
+  Teilmenge dessen, was es findet (143). `ReferenceCatalog` verlangt nicht mehr genau 116 Zeilen.
+- **Gemischte Discs:** `DiscInstaller.release`/`sameRelease`; der Import einer Disc der anderen Version wird nicht
+  verweigert (sonst ginge kein Wechsel), aber die Startseite sagt „Disc 1 is the European release, Disc 2 the debug
+  build: import both discs of one release.“ und „Start game“ bleibt aus, bis beide passen. Jede Disc zeigt ihre Version
+  („Disc 1 Data is ready (European release)“). Importe vor diesem Stand gelten als Debug-Build.
+- **Räume der Zustandsbrücke** (`CoreActivity.prepareRoom`) und die Raumprüfung nach dem Import nehmen den Katalog der
+  importierten Version.
+- **Kern (`runtime/dvd.cpp`):** mit den EU-Discs sieht das Spiel die Kennung G4BE08 der Debug-Version. Die Speicherkarte
+  bindet jede Datei an die Kennung der Disc (`__CARDAccess`): mit G4BP08 wären die Spielstände der Debug-Discs (und die
+  `.gci` des App-Menüs, `gci.cpp`) die eines anderen Spiels gewesen; der Spielcode und damit das Spielstand-Format sind
+  dieselben. `cDvd::DiscChange` fragt ebenfalls nach „G4BE“. Laufzeittest `disc release` angepasst.
+
+**Prüfungen**
+- Java (Windows, JDK 11): `DiscTests` synthetisch 19 Prüfungen (neu: EU, US, Mischung, `ready`/`release`), mit den echten
+  Debug-Discs 4 501 Prüfungen (Prüfsummen, Entpacken, Manifest), mit den echten EU-Discs im Kernmodus 5 249 Prüfungen,
+  `RoomFileCheckTests` ok. Dabei behoben: der Test las `manifest.tsv` im Windows-Zeichensatz (eine Datei der Debug-Disc
+  hat einen japanischen Namen) und zählte die zwei Systemdateien nicht mit; beides nur im Test.
+- PC-Prüfung, Stand `2f711a61`: EU-Abbilder i686 „ALLES OK“ (Spielstände jetzt `bh4_system`/`bh4_data00` mit G4BE08),
+  Debug-Discs i686 „ALLES OK“.
+- Android-Build (`whole_build_android.sh --abi all` in `~/re4-build`, dann `gradlew.bat :app:clean :app:assembleCoreDebug`
+  mit dem Java von Android Studio): armeabi-v7a und arm64-v8a je 0 Fehler, Platzhalter wie erwartet; APK
+  `app-core-debug.apk` 18,9 MB, `0.91.0-beta-core` (Versionscode 75, unverändert), beide ABIs, die EU-Kataloge, signiert
+  mit dem Debug-Schlüssel des PCs. **Gerätetest offen** (Anleitung an den Projektinhaber, 26.10.2026).
+
 ## M13 Retail-Discs (EU), Schritt R2: verschobene Archiv-Plätze (26.10.2026 abends, lokal, Branch `retail-eu`)
 
 Vorgehen: für jedes der vier verschobenen Archive (Werkzeug `retail_compare.py`) den Code der Verkaufsversion
@@ -594,7 +630,7 @@ Sichtprüfung auf dem Retroid noch offen.
 | 0.45.1-alpha | **nicht veröffentlicht, in 0.46.0 aufgegangen** (Entscheidung des Projektinhabers, 23.10.2026). 23.10.2026 (Branch `claude/re4-start-controls` mit `performance` zusammengeführt, versionCode 71, Releasetext `port/android-decomp/docs/releases/v0.45.1-alpha.md`; Entscheidung des Projektinhabers: die weiteren Performance-Optimierungen als 0.45.1): „Auto“ regelt die Auflösung nach dem Grafikchip (`GxRenderer::Rescale`), Spiel- und Zeichen-Thread weg von den langsamsten Kernen und Androids Leistungshinweis, Shader auf eigenem Thread mit Liste in der App (70 Programme, wächst mit den Schlüsseln der Berichte); -O3 geprüft und verworfen. **Auf dem Gerät noch nicht getestet** |
 | 0.46.0-alpha | 23.10.2026 (Branch `claude/re4-start-controls`, versionCode 72, Releasetext `port/android-decomp/docs/releases/v0.46.0-alpha.md`; Entscheidung des Projektinhabers nach seinem Gerätetest 16:09: „Die Umschaltung klappt sauber“): „Dynamisch“ statt „Auto“ (erst nach zwei schlechten Fenstern tiefer), Auflösung in der FPS-Anzeige, Einrasten L/R und B in der Komfortsteuerung auch für den Controller, Menüzeilen ohne Grundlinien-Ausrichtung, Gyro mit der Harpune, Shader-Liste 627 Programme |
 | 0.9.0-beta | 23.10.2026 (Branch `claude/re4-start-controls`, auch `performance` und `master`, versionCode 73, Releasetext `port/android-decomp/docs/releases/v0.9.0-beta.md`; Entscheidung des Projektinhabers: „Beta jetzt“, nachdem der SCV40-Tester das Spiel durchgespielt hat): erste Beta; seit 0.46.0 nur die Shader-Liste (1928 statt 627 Programme), Version, Releasetext und README (Status „Beta“). Alle 1928 Programme bauen auf Mesa ohne Fehler (mit und ohne MSAA). **Gerätetest der APK offen** |
-| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“). Offen: R3–R8. Als **M13** in `CLAUDE.md` aufgenommen |
+| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“), R4 (App-Import, vorgezogen) gebaut und am PC geprüft, Gerätetest offen. Offen: R3, R5–R8. Als **M13** in `CLAUDE.md` aufgenommen |
 | Reihenfolge | Entscheidungen des Projektinhabers: erst M9 Videos und M10 Speichern/Laden (16.10.2026), dann **M11 vor dem Raum-Rundgang 10b** (17.10.2026: die APK soll an Tester gehen), dann **M12 ARM64 vor 10b** (17.10.2026: ein Tester hat ein Gerät nur für 64-bit-Apps). Gestrichen: Baum-Kollision in r100 (G17) |
 
 **Entscheidung des Projektinhabers (14.10.2026):** Endprodukt ist
