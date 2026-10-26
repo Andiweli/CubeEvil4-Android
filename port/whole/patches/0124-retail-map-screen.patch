@@ -1,0 +1,27 @@
+--- a/src/Sscrn/ss_map.cpp
++++ b/src/Sscrn/ss_map.cpp
+@@ -2435,6 +2435,8 @@
+ 
+ // Builds the map screen: the zoom and mode widgets, id textures, unit groups, lights, SsMapWork,
+ // viewport and camera. Button hints for marks not yet available are hidden.
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ void SsMapMain::init(SUB_SCREEN* wk)
+ {
+     focus = new MapFocus;
+@@ -2471,6 +2473,15 @@
+     IdSub.unitPtr(0x10, IDC_SSCRN_NEAR_0)->be_flag &= ~8;
+     IdSub.unitPtr(0, IDC_SSCRN_NEAR_0)->be_flag &= ~8;
+     IdSub.unitPtr(0, IDC_SSCRN_NEAR_0)->rev_flag |= 0xF;
++    /* port: the European layout draws unit 253 (the copy of the screen) after the map's background,
++       its SsMapMain::init (Sscrn.rel) shows it in r22c only (patch 0124) */
++    if (re4_disc_retail_eu()) {
++        if (wk->room_no == 0x22C) {
++            IdSub.unitPtr(0xFD, IDC_SSCRN_NEAR_0)->be_flag |= 8;
++        } else {
++            IdSub.unitPtr(0xFD, IDC_SSCRN_NEAR_0)->be_flag &= ~8;
++        }
++    }
+     sscrnLightCreate(wk, (cLit*) SS_ARC_PTR(wk->pCmmn, 0x13));
+ #line 3409 "D:/Bio4/Prog/ss_map.cpp"
+     wk->map = (SsMapWork*) MEM_ALLOC(sizeof(SsMapWork), 1, 0xD);
