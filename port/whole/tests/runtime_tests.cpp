@@ -386,6 +386,61 @@ static void testDvd()
     report("dvd", ok);
 }
 
+// The release from each disc header (port/docs/retail-eu-plan.md): debug build, European and US
+// release, a header without the table's place (the test above), another game.
+static void testDiscRelease()
+{
+    bool ok = true;
+    char tmpl[] = "/tmp/re4-release-test-XXXXXX";
+    const char* root = mkdtemp(tmpl);
+    CHECK(root != 0);
+    if (!root) {
+        report("disc release", false);
+        return;
+    }
+    std::string base = root;
+    std::vector<unsigned char> fst = buildFst({{false, "a.dat", 0x1000, 1}});
+    char saved[1024];
+    snprintf(saved, sizeof(saved), "%s", re4_data_dir());
+    struct Case {
+        const char* id;
+        unsigned fstOffset;
+        unsigned size;
+        int release;
+    } cases[] = {
+        {"G4BE08", 0x28FE00, 0x440, RE4_DISC_DEBUG},  {"G4BP08", 0x236500, 0x440, RE4_DISC_RETAIL_EU},
+        {"G4BE08", 0x236500, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
+        {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},
+    };
+    int n = 0;
+    for (const Case& c : cases) {
+        std::string dir = base + "/case" + std::to_string(n++);
+        unsigned char boot[0x440];
+        memset(boot, 0, sizeof(boot));
+        memcpy(boot, c.id, 6);
+        if (c.size >= 0x428) {
+            boot[0x424] = (unsigned char) (c.fstOffset >> 24);
+            boot[0x425] = (unsigned char) (c.fstOffset >> 16);
+            boot[0x426] = (unsigned char) (c.fstOffset >> 8);
+            boot[0x427] = (unsigned char) c.fstOffset;
+        }
+        CHECK(makeDirs(dir + "/disc0/sys") && makeDirs(dir + "/disc0/files"));
+        CHECK(writeFile(dir + "/disc0/sys/fst.bin", fst.data(), fst.size()));
+        CHECK(writeFile(dir + "/disc0/sys/boot.bin", boot, c.size));
+        CHECK(writeFile(dir + "/disc0/files/a.dat", "A", 1));
+        re4_set_data_dir(dir.c_str());
+        CHECK(re4_disc_release() == c.release);
+        // the game sees the header's id unchanged (cDvd::DiscChange compares it)
+        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.id, 4) == 0);
+    }
+    re4_set_data_dir((base + "/none").c_str());
+    CHECK(re4_disc_release() == RE4_DISC_UNKNOWN);
+    re4_set_data_dir(saved);
+    std::string cmd = "rm -rf '" + base + "'";
+    CHECK(system(cmd.c_str()) == 0);
+    report("disc release", ok);
+}
+
 // --- yz2 ----------------------------------------------------------------------
 
 // The game's set-up half (src/game/yz2code.cpp, in libre4_main).
@@ -1960,6 +2015,7 @@ int re4_runtime_tests()
     gFailures = 0;
     testLink();
     testDvd();
+    testDiscRelease();
     testYz2();
     testDvdQueue();
     testStream();

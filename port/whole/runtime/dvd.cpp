@@ -103,6 +103,7 @@ struct Disc {
     bool loaded;
     char root[1100];          // folder holding sys/ and files/
     unsigned char id[0x20];   // first 32 bytes of boot.bin
+    int release;              // RE4_DISC_DEBUG ... (releaseOf)
     unsigned char* fst;       // big-endian FST, host copy
     u32 fstSize;
     u32 count;                // FST entries
@@ -233,15 +234,48 @@ bool loadDisc(int no)
     memset(d.id, 0, sizeof(d.id));
     if (boot && bootSize >= sizeof(d.id)) {
         memcpy(d.id, boot, sizeof(d.id));
+        d.release = releaseOf(boot, bootSize);
     } else {
-        // No header: assume the US release, disc `no`.
+        // No header: assume the debug build's id (G4BE08), disc `no`.
         memcpy(d.id, "G4BE08", 6);
         d.id[6] = (unsigned char) no;
+        d.release = RE4_DISC_DEBUG;
     }
     free(boot);
     d.loaded = true;
-    re4_log("DVD: disc %d: %s, %u FST entries", no, d.root, d.count);
+    re4_log("DVD: disc %d: %s, %u FST entries, %s", no, d.root, d.count, releaseName(d.release));
+    const Disc& other = gDiscs[no ^ 1];
+    if (other.loaded && other.release != d.release) {
+        re4_log("DVD: the discs are of different releases (%s, %s): import both discs of one release",
+                releaseName(gDiscs[0].release), releaseName(gDiscs[1].release));
+    }
     return true;
+}
+
+// Which release a disc header belongs to (the rule of port/tools/disc_release.py): G4BE08 with
+// the file system table at 0x28FE00 is the debug build of 2004-11-25 the port's code is (its
+// main.dol is 2554432 bytes), G4BP08 the European release (port/docs/retail-eu-plan.md), G4BE08
+// with the table elsewhere the US release (never tested). A header without the table's place
+// (only the port's tests write one) counts as the debug build, as the port assumed until then.
+int releaseOf(const unsigned char* boot, u32 size)
+{
+    if (size >= 6 && memcmp(boot, "G4BP08", 6) == 0) {
+        return RE4_DISC_RETAIL_EU;
+    }
+    if (size < 6 || memcmp(boot, "G4BE08", 6) != 0) {
+        return RE4_DISC_UNKNOWN;
+    }
+    if (size < 0x428) {
+        return RE4_DISC_DEBUG;
+    }
+    return be32(boot + 0x424) == 0x28FE00 ? RE4_DISC_DEBUG : RE4_DISC_RETAIL_US;
+}
+
+const char* releaseName(int release)
+{
+    static const char* const names[] = {"debug build G4BE08", "European release G4BP08",
+                                        "US release G4BE08 (untested)", "unknown game"};
+    return names[release >= 0 && release <= RE4_DISC_UNKNOWN ? release : RE4_DISC_UNKNOWN];
 }
 
 // Makes disc `no` the inserted one: disc id at 0x80000000, FST at the top of MEM1.
@@ -490,6 +524,59 @@ const char* re4_data_dir(void)
 int re4_dvd_inserted_disc(void)
 {
     return current() ? gCurrent : -1;
+}
+
+int re4_disc_release(void)
+{
+    Disc* d = current();
+    return d ? d->release : RE4_DISC_UNKNOWN;
+}
+
+// The place of the core archive (patch 0117, read.cpp CoreDataRead): the debug build reads
+// etc/core.das to the fixed 0x80578000 with room for CORE_DATA_MAX (0x234000) bytes, up to the
+// option data at 0x807AC000. The European release's core is 0x23AC40 bytes: there it overran
+// the option data ("CORE_DATA IS TOO LARGE", 26.10.2026). A larger core goes to a range of the
+// development half of MEM1 nothing else uses (RE4_MEM1_CORE_ALT_ADDR); 0 keeps the fixed place,
+// so the debug build's core stays where it was. The size is the body's (part 0 of the part
+// table, unpacked size of a yz2 body), what the game's read writes to memory.
+void* re4_core_data_place(const char* name, unsigned fixedMax)
+{
+    Disc* d = current();
+    s32 entry = d ? lookup(*d, name) : -1;
+    if (entry < 0 || isDir(*d, (u32) entry)) {
+        return 0;
+    }
+    char path[1400];
+    entryPath(*d, (u32) entry, path, sizeof(path));
+    unsigned char head[0x440];
+    FILE* f = fopen(path, "rb");
+    size_t got = f ? fread(head, 1, sizeof(head), f) : 0;
+    if (f) {
+        fclose(f);
+    }
+    if (got < 0x440 || be32(head + 0x20) != 0) {
+        return 0;  // no part table with the body first: the game's read reports it
+    }
+    u32 size = be32(head + 0x24);
+    unsigned long packed = 0, unpacked = 0;
+    char text[0x40];
+    memcpy(text, head + 0x400, sizeof(text) - 1);
+    text[sizeof(text) - 1] = 0;
+    if (isxdigit((unsigned char) text[0]) && strchr(text, '\t') && strchr(text, '\n') &&
+        sscanf(text, "%lx\t%lx", &packed, &unpacked) == 2 && unpacked > 0) {
+        size = (u32) unpacked;  // a yz2 body: its header names the unpacked size
+    }
+    if (size <= fixedMax) {
+        return 0;
+    }
+    if (size > RE4_MEM1_CORE_ALT_MAX) {
+        re4_log("DVD: %s: core of %u bytes, larger than the %u bytes of either place", name, size,
+                RE4_MEM1_CORE_ALT_MAX);
+        return 0;
+    }
+    re4_log("DVD: %s: core of %u bytes (fixed place %u, %s), read to 0x%08x", name, size, fixedMax,
+            releaseName(d->release), RE4_MEM1_CORE_ALT_ADDR);
+    return (void*) (unsigned long) RE4_MEM1_CORE_ALT_ADDR;
 }
 
 // The start without the frame pace (patch 0085, cDvd::readProcMain; wish of

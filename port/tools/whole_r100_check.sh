@@ -234,7 +234,11 @@ else
     mapfile -t images < <(find "$data" -maxdepth 2 -type f \( -iname '*.iso' -o -iname '*.gcm' \) | sort)
     if [ ${#images[@]} -gt 0 ]; then
         layout="$work/disc"; kind="Disc-Abbilder: ${images[*]##*/}"
-        if ! python3 "$src/port/tools/whole_disc_folder.py" --check "$layout" > /dev/null 2>&1; then
+        # the folder must hold exactly these discs: a run with the debug discs and one with the
+        # European ones (port/docs/retail-eu-plan.md) share the work folder
+        checks=()
+        for i in "${images[@]}"; do checks+=(--disc "$i"); done
+        if ! python3 "$src/port/tools/whole_disc_folder.py" --check "$layout" "${checks[@]}" > /dev/null 2>&1; then
             echo "Disc-Abbilder werden einmalig nach $layout entpackt ..."
             args=()
             for i in "${images[@]}"; do args+=(--disc "$i"); done
@@ -252,6 +256,10 @@ if [ -z "$layout" ]; then
     exit 1
 fi
 say "Form:    $kind"
+# which release the discs are (port/tools/disc_release.py, the same rule as runtime/dvd.cpp)
+release=$(python3 -c 'import os, sys; sys.path.insert(0, sys.argv[1]); from disc_release import release
+print(next((release(open(b, "rb").read(0x440)) for b in sys.argv[2:] if os.path.isfile(b)), ""))'     "$src/port/tools" "$layout"/disc0/sys/boot.bin "$layout"/sys/boot.bin 2>/dev/null)
+say "Version: ${release:-unbekannt} (debug = Debug-Build G4BE08, retail-eu = europäische Verkaufsversion G4BP08)"
 if [ "$game_ok" -eq 0 ]; then
     say "Hinweis: sys/boot.bin und sys/fst.bin fehlen; der Spiellauf braucht sie (Disc-Abbilder angeben oder"
     say "         mit Dolphin \"Gesamte Disc extrahieren\"). Der Formatvergleich läuft trotzdem."

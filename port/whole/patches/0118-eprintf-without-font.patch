@@ -1,0 +1,20 @@
+# Retail data (port/docs/retail-eu-plan.md, R1): the European discs lack the debug text font
+# etc/moji8.tpl. EprintfInit then allocates no buffers and leaves eprintf_init 0; eprintf and
+# EprintfDrawing check that, EprintfBufferClear (every frame through EprintfFlush) wrote through a
+# null pointer: the game ended at its first frame. Debug text stays off without the font. A port
+# patch for retail data, not a bug of the prototype.
+--- a/src/game/eprintf.cpp
++++ b/src/game/eprintf.cpp
+@@ -152,6 +152,12 @@
+ void EprintfBufferClear()
+ {
+     int i;
++    /* port: without etc/moji8.tpl (not on the European discs) EprintfInit leaves eprintf_init 0
++       and allocates no buffers; eprintf / EprintfDrawing check it, this clear (every frame,
++       EprintfFlush) did not and wrote through a null pointer */
++    if (!eprintf_init) {
++        return;
++    }
+     for (i = 0; i < MESS_PTR_NUM; i++) {
+         *(u32*) (mess_ptr_buff + i * 4) = 0;
+     }

@@ -128,6 +128,18 @@ void re4_host_file_close(int fd);
 const char* re4_host_file_error(void);
 /* Disc number in the virtual drive (0/1), -1 when no disc folder was found. */
 int re4_dvd_inserted_disc(void);
+/* The release of the disc in the drive, from its header sys/boot.bin (the rule of
+ * port/tools/disc_release.py; port/docs/retail-eu-plan.md). */
+#define RE4_DISC_DEBUG 0     /* G4BE08, the debug build of 2004-11-25: the port's code */
+#define RE4_DISC_RETAIL_EU 1 /* G4BP08, the European release */
+#define RE4_DISC_RETAIL_US 2 /* G4BE08 with another layout, the US release (untested) */
+#define RE4_DISC_UNKNOWN 3   /* another game, or no disc folder */
+int re4_disc_release(void);
+/* A larger etc/core.das than the debug build's fixed place holds (the European release, patch
+ * 0117): it is read here instead, in the development half of MEM1 that nothing else uses. */
+#define RE4_MEM1_CORE_ALT_ADDR 0x81C00000u
+#define RE4_MEM1_CORE_ALT_MAX 0x00400000u
+void* re4_core_data_place(const char* name, unsigned fixedMax);
 /* The start's reads without the frame pace (patch 0085): 1 while the next
    step of a read may follow at once, the end at the first title.dat. */
 int re4_dvd_boot_fast(void);
