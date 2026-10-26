@@ -7,10 +7,12 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 ## Branches aufgeräumt (26.10.2026 abends)
 
 Entscheidung des Projektinhabers: Arbeitsbranch ist jetzt **`beta-updates`** (Stand `a5eed0f`, gleich dem bisherigen
-`claude/adoring-pasteur-h5s2fw`). Gelöscht: `claude/adoring-pasteur-h5s2fw`, `gui-optimisations`,
+`claude/adoring-pasteur-h5s2fw`). Zum Löschen freigegeben: `claude/adoring-pasteur-h5s2fw`, `gui-optimisations`,
 `beta-optimisations` (jeder ihrer Commits liegt in `beta-updates`). `master` bleibt unverändert (seine drei
 README-Commits vom 24.10. heben sich auf). `ouya-discarded` und `re4-standalone` bleiben als Branches. Der Tag
-`0.91.0-beta` zeigt jetzt auf `a5eed0f` (vorher auf `master`, `ac3c0e2`). Befehle: `port/docs/lokal-bauen.md`.
+`0.91.0-beta` soll auf `a5eed0f` zeigen (bisher auf `master`, `ac3c0e2`). Löschen und Tag verschieben verweigert
+GitHub der Cloud-Sitzung (nur neue Branches erlaubt); der Projektinhaber erledigt beides per PowerShell vom PC.
+Befehle: `port/docs/lokal-bauen.md`.
 
 ## Debug-Menü aufgeräumt (26.10.2026 abends, Cloud)
 
