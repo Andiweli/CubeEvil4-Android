@@ -41,6 +41,16 @@ die Version heißt **0.92.0** (versionCode 75, `v0.92.0-beta.md`). Cloud ✅ (si
   übersprungen würde). Menü: Schalter unter MSAA und unter „Leistung“, 10 Sprachen. Tests `TestFxaa`, `TestFrameSkip`.
 - **C-Stick per Touch:** vier optionale Tasten C↑ C↓ C← C→ im Editor (`CoreTouch`), mit dem Umsehen-Finger
   zusammen (der stärkere zählt). Ein echter zweiter Analog-Stick braucht eine neue RetroTouch (Callback mit Stick-Kennung).
+- **Salazar-Statue r226, „A schnell drücken“ (Video des Testers, 26.10.2026):** `ButtonCount` (`r226.cpp`) füllt die
+  Laufanzeige nur mit Druck-Flanken (`Key.trg`, A aus im Bild davor); ab Schwierigkeitsrang 8 (`Game_level`, dynamisch)
+  ist das Fenster 3 Spielbilder (`r226_buttonAdj = -2`): nötig ist ein Druck mindestens jedes dritte Bild (10/s). Der
+  Tester drückte im Mittel alle 3,9 Bilder; nachgerechnet mit seinen Drücken: Rang 8–10 Laufstufe 1,4 von 4 (Leon
+  kommt nicht vom Fleck), Rang 1–7 Stufe 3,4. Dazu verlor der Port schnelle Taps: ein neuer Druck, während das Spiel
+  den alten noch gehalten sah, wurde zu einem langen Druck (`pad.cpp`, `g_pressed`), Bildtipps bei Mash-Anzeigen hielten
+  A zwei Bilder (`qte_touch.cpp`). Jetzt: jeder Druck eine eigene Flanke (ein Bild aus, dann an; Zähler je Taste,
+  höchstens 4 offen), Mash-Tipps ein Bild an, ein Bild aus, aufgereiht. Tests `core-test pad`, `runtime-test qtetouch`.
+  Rang 8+ bleibt so schwer wie im Original-Code (eine Hilfe, z. B. „A halten = schnell drücken“, wäre eine Entscheidung
+  des Projektinhabers).
 - **Tür-Tritt r100:** Patch 0115. **Nicht angefasst:** Zombie außerhalb von r100 (Eintrag unbekannt), Planken in der Hütte (wohl Absicht),
   Salazar-Statue (kein Fehler: L+R verlangt), rechteckiger Rauch und Flackern (Aufnahmen nötig).
 - **Prüfungen (Cloud):** x86_64 ✅ (Bau 0 Fehler, `core-test`, `runtime-test`, `instant-store-test`, Formatvergleich);
