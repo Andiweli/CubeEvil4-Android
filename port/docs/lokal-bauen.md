@@ -2,7 +2,7 @@
 
 Wunsch des Projektinhabers (22.10.2026): Jede Sitzung schickt nach Änderungen, die in die App
 gehören, diese Befehle mit. Ordner: Repository `E:\Development\Android\RE4-Fixed`, Branch
-`claude/adoring-pasteur-h5s2fw` (seit der Beta 0.90.0, 24.10.2026; vorher `claude/re4-start-controls`).
+`claude/adoring-pasteur-h5s2fw` (Arbeitsbranch für 0.92.0 seit 26.10.2026, aufgesetzt auf `gui-optimisations`; vorher `beta-optimisations`).
 
 ## 1. Stand von GitHub holen (PowerShell)
 
@@ -41,8 +41,8 @@ verbundenen Retroid). Laufen gerade Gerätetests eines Chats über ADB, erst dan
 
 ## Wechsel auf `claude/adoring-pasteur-h5s2fw` (einmal)
 
-Wer noch auf `claude/re4-start-controls` oder `performance` steht (beide sind in
-`claude/adoring-pasteur-h5s2fw` enthalten und können gelöscht werden):
+Wer noch auf `beta-optimisations`, `gui-optimisations`, `claude/re4-start-controls` oder `performance` steht (alle sind in
+`claude/adoring-pasteur-h5s2fw` enthalten):
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
