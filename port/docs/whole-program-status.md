@@ -4,6 +4,51 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Umsetzung nach der Analyse: Version 0.92.0-beta (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
+
+Entscheidungen des Projektinhabers (26.10.2026): `gui-optimisations` ist der Ausgangspunkt, der Grafikteil
+meldet dem Kern die Tiefe zurück (neuer Rückweg Renderer → Kern), unsichere Stellen sperren das Speichern,
+die Version heißt **0.92.0** (versionCode 75, `v0.92.0-beta.md`). Cloud ✅ (siehe unten), **Gerätetest offen**.
+
+- **Instant-Spielstand:** Laden schreibt die Systemdaten nicht mehr zurück (Optionen und Mercenaries-Werte
+  bleiben); Speichern gesperrt in Mercenaries, Assignment Ada, Ashley-Abschnitten, in den Räumen
+  r10b/r11b (Del Lago), r10f (Gondel), r11f (Mendez), r21b/r223 (Lore), r221, r226/r228 (Statuen-Jagd),
+  r31c/r317 (Krauser), r332/r333 (Aufzug, Saddler, Jetski) und bei Boot, Schwimmen, Leiter, Gondel, Festhalten,
+  Quick-Time, Händler, Zielfernrohr, Fernglas, Bulldozer (`unsafePlace()`, `instant_game.cpp`); Laden bleibt an
+  diesen Stellen erlaubt, nicht in Mercenaries/Ada/Ashley. Die Raumliste ist aus den Quelltext-Namen
+  geschätzt (Hinweis: Raum-Nummern der Bosse nicht gegen die Disc geprüft). Menü: Fokus bleibt nach Speichern/Laden,
+  eigene Zeile „Speichern hier nicht möglich“ (`Re4InstantInfo.reserved`), Beschriftungen mittig. Patches 0111/0112 neu.
+- **r222-Hänger:** Patch 0113 (siehe Patch-Tabelle), Protokollzeilen für stille Lesefehler und Null-Tabellen
+  (`runtime/dvd.cpp`), Raumdateien gegen `rooms.tsv` prüfen (`RoomFileCheck`, nach dem Import und bei jedem Start,
+  nur eine Warnung). Test: `runtime_tests` (Tabelle aus Nullen endet mit Fehler statt Stillstand).
+- **32 bit:** Modul-Fenster über 0x80000000 (`re4_module_window_reserve`, `module_loader.cpp`), Patch 0114.
+  Nur auf dem Papier geprüft (Syntax mit Ersatz-Header für 32 und 64 bit; der NDK fehlt in der Cloud). Die
+  SIGBUS-Abstürze des Galaxy A02s nach dem Laden von r229 sind **nicht** behoben (Bericht ohne Protokoll).
+- **Controller-Protokoll:** `ControllerLog` (Tasten und Achsen einmal je Gerät), `controllers.txt` im Bericht.
+- **Dunkle Wellen unten:** `GxRenderer` merkt sich, bis zu welcher Zeile unter Vollbreiten-Scissors gezeichnet
+  wurde (`sceneBottom`) und wiederholt bei halbgroßen Textur-Kopien die letzte gezeichnete Zeile (`limitY` im
+  Kopier-Shader). Test `TestLetterboxCopy` (`gx_gl_check`).
+- **Lichtschein durch Wände:** `GXPeekZ` (`re4_gx_efb_peek`) schreibt beim ersten Aufruf je Bild den Marker
+  BP 0x5B in den Strom; der Renderer liest an der Anzeige-Kopie die Tiefe (320 × 264 Zellen, 24 Bit) in einen
+  PBO und gibt sie ein Bild später über `re4_core_gx_depth` an den Kern zurück (im Kernprozess über den
+  gemeinsamen Speicher, `Control.depthSerial`, `kVersion` 4). Ohne Karte oder bei mehr als 8 Bildern Rückstand
+  antwortet er „fern“ wie bisher. `RE4_GX_NO_DEPTH_MAP=1` schaltet es ab. Tests: `TestDepthMap`, `core-test peek depth`,
+  `core_remote_test` (i686). Die frühere Einschätzung „Fackel des Händlers leuchtet durch Wände: sehr wahrscheinlich
+  Original“ (Abschnitte 24.10.) ist damit **widerlegt**.
+- **FXAA und Frame-Skip:** FXAA-Durchgang nach der Anzeige-Kopie (`GxRenderer::SetFxaa`), Frame-Skip
+  (`CanSkip`/`Skip`: liegen zwei Pakete bereit, wird das erste nur verarbeitet, nicht gezeichnet; nie bei RESET,
+  HOLD, BLACK, MARK, 60 FPS, laufender Aufnahme, und nur wenn kein später gelesener Textur-Kopierauftrag
+  übersprungen würde). Menü: Schalter unter MSAA und unter „Leistung“, 10 Sprachen. Tests `TestFxaa`, `TestFrameSkip`.
+- **C-Stick per Touch:** vier optionale Tasten C↑ C↓ C← C→ im Editor (`CoreTouch`), mit dem Umsehen-Finger
+  zusammen (der stärkere zählt). Ein echter zweiter Analog-Stick braucht eine neue RetroTouch (Callback mit Stick-Kennung).
+- **Tür-Tritt r100:** Patch 0115. **Nicht angefasst:** Zombie außerhalb von r100 (Eintrag unbekannt), Planken in der Hütte (wohl Absicht),
+  Salazar-Statue (kein Fehler: L+R verlangt), rechteckiger Rauch und Flackern (Aufnahmen nötig).
+- **Prüfungen (Cloud):** x86_64 ✅ (Bau 0 Fehler, `core-test`, `runtime-test`, `instant-store-test`, Formatvergleich);
+  `gx_gl_check` auf Mesa ✅ (0 failed, mit allen neuen Tests); `re4decomp_link_check` (ganze native App-Bibliothek auf dem Host) ✅;
+  Java: `CoreTouchTests` 297, `ControllerLogTests`, `RoomFileCheckTests`, `check_translations.py` (121 Texte, 10 Sprachen);
+  die Java-Klassen kompilieren gegen android-all (15). **Nicht gelaufen:** Robolectric-Tests (`CoreMenuLayoutTest`),
+  Gradle/APK-Bau, NDK-Bau, jeder Test auf einem Gerät.
+
 ## Analyse nach den Tester-Meldungen (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
 
 Nur Analyse, nichts gebaut, nichts auf dem Gerät geprüft. Einzelheiten und Plan:
@@ -8017,6 +8062,10 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0108 `debug.cpp` | `proc_tick` (die eigene Zeitmessung eines Spielbilds, `ProcessTickGet` in `main.cpp`) nicht mehr `static` (Anpassung des Ports, 22.10.2026): `runtime/state_trace.cpp` mittelt daraus die Abschnitte eines Bilds und schreibt alle 600 Spielbilder die Zeile `frame: … logic …, drawing …, rest …, frame end …, waiting …` in den Bericht (wohin die Zeit eines schwachen Geräts geht). Nur die Sichtbarkeit ändert sich, die Reihenfolge in `.bss` bleibt |
 | 0109 `em10.cpp` | `em10DmSetWep09` (Schrotflinten, Magnum, Gewehre) fragt vor `Dm_Blow` auch `em10RoofDmCk` (Fehler des Prototyps, 24.10.2026): Ganados von Dach, Seilbahn, Mauer oder Brüstung fallen mit dem Fallschrei (`Dm_Roof`, `Se_tbl[14]`) statt stumm über die Kante; nicht für Explosionen (`mag`) |
 | 0110 `em3e.cpp` | Zielscheiben und Tore (`cEmMark`) tragen `EM_STATUS_ASHLEY_NO_HELP` (Fehler des Prototyps, 24.10.2026): in der Schießbude r22c zählten die beiden Tore (em 0x3E, hp 1000, an 0 0 0) als Gegner neben der wartenden Ashley, sie rief alle 151 Bilder „Help!“, sobald Leon mehr als 2 m weg war |
+| 0111 `game.cpp`, 0112 `title.cpp` | Instant-Spielstand laden: `gameMainLoop` und `Title_task` rufen `re4_instant_game_tick` / `re4_instant_title_tick` (neu erzeugt mit `whole_make_patch.py`, 26.10.2026; vorher von Hand und nur mit Unschärfe anwendbar) |
+| 0113 `dvd.cpp` | Teile-Tabelle prüfen (`re4_dvd_header_check`): eine Tabelle ohne Ende-Eintrag (nur Nullen: Raumdatei auf dem Gerät beschädigt oder stiller Lesefehler) ließ `readInit`/`readMain` über `header_buff` hinauslaufen, das ganze Spiel stand (r222 nach der Tür von r210, Infinix X6725 und Galaxy S20 FE, 25.10.2026; r325 auf dem Xiaomi 2109119DG). Der Port liest die Tabelle bis zu dreimal neu, beendet dann das Lesen mit Fehler, einer Bildschirmzeile „DISC FILE DAMAGED“ und einer ausführlichen Zeile im Fehlerprotokoll. Kein Fehler des Prototyps |
+| 0114 `db_light.cpp` | `TOOL_ERR` liest `pTool->Flag`, `pTool` ist ohne geöffneten Licht-Editor leer; das Debug-Werkzeug „SCE ITEM“ stürzte so ab (GameCube: lesbarer Speicher bei Adresse 0x14; Galaxy A02s, Redmi Note 14 Pro). Port-Patch |
+| 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2) |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

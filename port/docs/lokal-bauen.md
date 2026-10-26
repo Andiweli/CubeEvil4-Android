@@ -2,19 +2,19 @@
 
 Wunsch des Projektinhabers (22.10.2026): Jede Sitzung schickt nach Änderungen, die in die App
 gehören, diese Befehle mit. Ordner: Repository `E:\Development\Android\RE4-Fixed`, Branch
-`beta-optimisations` (seit der Beta 0.90.0, 24.10.2026; vorher `claude/re4-start-controls`).
+`claude/adoring-pasteur-h5s2fw` (seit der Beta 0.90.0, 24.10.2026; vorher `claude/re4-start-controls`).
 
 ## 1. Stand von GitHub holen (PowerShell)
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
 git status
-git pull --no-rebase origin beta-optimisations
+git pull --no-rebase origin claude/adoring-pasteur-h5s2fw
 ```
 
 - `git status` zeigt geänderte Dateien (`modified: …`)? Dann arbeitet gerade ein anderer Chat in
   diesem Ordner. Ihn bitten, seine Änderungen zu committen, mit `git pull --no-rebase origin
-  beta-optimisations` zu mischen und zu pushen; danach `git pull` hier noch einmal.
+  claude/adoring-pasteur-h5s2fw` zu mischen und zu pushen; danach `git pull` hier noch einmal.
   Unversionierte Dateien (`Untracked files: AGENTS.md, core/, …/src/core/assets/`) stören nicht.
 - Steht beim `git pull` **CONFLICT** in der Ausgabe: nicht weitermachen, die Ausgabe an den Chat
   schicken.
@@ -39,15 +39,15 @@ In Android Studio wie gewohnt bauen (Variante „core“) und auf den Retroid in
 verbundenen Retroid). Laufen gerade Gerätetests eines Chats über ADB, erst danach installieren
 (`port/docs/adb-coordination.md`).
 
-## Wechsel auf `beta-optimisations` (einmal)
+## Wechsel auf `claude/adoring-pasteur-h5s2fw` (einmal)
 
 Wer noch auf `claude/re4-start-controls` oder `performance` steht (beide sind in
-`beta-optimisations` enthalten und können gelöscht werden):
+`claude/adoring-pasteur-h5s2fw` enthalten und können gelöscht werden):
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
 git status
-git fetch origin beta-optimisations
-git switch beta-optimisations
-git pull --no-rebase origin beta-optimisations
+git fetch origin claude/adoring-pasteur-h5s2fw
+git switch claude/adoring-pasteur-h5s2fw
+git pull --no-rebase origin claude/adoring-pasteur-h5s2fw
 ```
