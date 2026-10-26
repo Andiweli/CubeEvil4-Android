@@ -36,9 +36,10 @@ selbst gebaute `RetroTouch-1.0.0-beta.7.aar` (Commit `d987f4b`).
   voll erst, wenn das Spiel ohne es fest 30 Bilder/s schafft (kleinere Auflösung oder „Dynamisch“).
 - **Nicht getestet:** alles auf dem Gerät (Tempo mit dem Ring, kein Flackern mehr an der Schreibmaschine, die
   Umschaltung im Menü).
-- **Tests:** `whole_build.sh` x86_64: 0 Fehler beim Bauen, `runtime-test` und `core-test` 0 Fehler (auch mit
-  `RE4_GX_THREADS=0`); i686, armhf, aarch64 laufen noch. `gx_gl_check` 0 Fehler, alle Java-Tests
-  (`test_host.sh`, Java-Teil) grün, `check_translations.py` 122 Texte in 10 Sprachen.
+- **Tests (Stand `68ecb61`):** `whole_build.sh` x86_64, i686, armhf, aarch64: 0 Fehler beim Bauen, `runtime-test`
+  (auch mit `RE4_GX_THREADS=0`) und `core-test` überall 0 Fehler, `core_remote_test` grün (main, crash, missing).
+  `gx_gl_check` 0 Fehler, alle Java-Tests (`test_host.sh`, Java-Teil) grün, `check_translations.py` 122 Texte in
+  10 Sprachen.
 
 ## Zweiter Nachtest 0.91.0 (26.10.2026 mittags, Cloud-Korrektur)
 
