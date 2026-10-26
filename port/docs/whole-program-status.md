@@ -63,6 +63,11 @@ sein; Fackelschein blitzt kurz hinter Wänden auf und scheint nach einem Auflös
   8. Wiederholungszähler der Part-Tabellen-Prüfung (dvd.cpp) zählt jetzt je Datei.
   Nicht geändert: der Text „Speichern hier nicht möglich“ nennt Mercenaries, dort erscheint aber „nicht verfügbar“
   (unschädlich, Übersetzungen bleiben).
+- **Tests danach (Stand nach `a74301c`):** `whole_build.sh` x86_64, i686, armhf, aarch64: 0 Fehler beim Bauen, alle
+  Prüfungen grün bis auf einen einmaligen Ausfall von `re4_host --runtime-test` mit `RE4_GX_THREADS=0` unter
+  qemu-aarch64 („1 failed“, welcher Teiltest ist nicht festgehalten); neun Wiederholungen mit denselben Einstellungen
+  alle grün (vermutlich der bekannte zeitabhängige Teiltest bei Überlast). `gx_gl_check` 0 Fehler, alle Java-Tests
+  (`test_host.sh`, Java-Teil) grün, App-Java gegen RetroTouch beta.7 übersetzt.
 
 ## Nachtest 0.91.0 auf dem Retroid (26.10.2026, Cloud-Korrektur)
 
