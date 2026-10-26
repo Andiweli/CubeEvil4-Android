@@ -4,6 +4,38 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Vierter Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, Bericht 14:14, R3-Serie in r224, dem Lavaraum): 60 FPS läuft jetzt mit
+knapp 60 Bildern/s und flüssig (Protokoll: 60,0/s gezeigt, 13 von rund 8500 Zwischenbildern ausgelassen), aber
+Nebel, Rauch und Flammen ruckeln und flackern.
+
+- **Ursache:** Rauch- und Feuerteilchen sind kleine Vierecke gleichen Aussehens mit je eigener Matrix, einige
+  tausend Einheiten auseinander. `MatchDraw` nahm das erste noch freie Teilchen des Bildes davor, solange es
+  innerhalb eines Viertels seiner Entfernung plus 400 Einheiten lag (bei 20 000 Einheiten: 5400). Stirbt ein
+  Teilchen oder entsteht eines, verschiebt sich die Reihenfolge, und Nachbarn tauschten im Zwischenbild die Plätze
+  (in der Serie: Paare mit 3000–4400 Einheiten Abstand statt 20–130).
+- **Neu (`gx_gl.cpp` `MatchDraw`):** Das erste freie gilt weiter (die Reihenfolge des Spiels), außer ein anderes der
+  ersten 32 freien liegt deutlich näher (um mehr als 2 % der Entfernung plus 50 Einheiten). Dazu die
+  **Kamerabewegung** zwischen den beiden Bildern (`NoteCamera`, `CameraMove`): abgelesen an zwei großen Zeichnungen
+  eigenen Aussehens (mindestens 64 Ecken, je eine im Bild davor; der Raum), die sich gleich bewegt haben. Mit ihr
+  werden die Positionen des Bildes davor erst um die Kamerabewegung verschoben, und ein kleines Teilchen (höchstens
+  16 Ecken) darf sich nur 5 % seiner Entfernung plus 300 Einheiten selbst bewegen: ein neu entstandenes nimmt nicht
+  den Platz eines anderen ein, es steht wie im nächsten Bild.
+- **Messung an der Serie (Zwischenbild mit Anteil 0, muss dem Bild davor gleichen):** stark abweichende
+  Bildpunkte im ersten Zwischenbild 1103 → 4, in den übrigen bis 834 → höchstens 31. Die echten Bilder bleiben
+  byte-gleich (138 Vergleiche); die sechs älteren Serien (Dorf u. a.) unverändert gut (keine Verschlechterung,
+  eine von 3 auf 0).
+- **Geprüft und verworfen:** Texturmatrizen im Zwischenbild mitzumischen (fließende Lava, ziehender Nebel) zeigte in
+  r224 keine messbare Wirkung (die Teilchen ändern dort nur eine ungenutzte dritte Zeile); nicht eingebaut. Was
+  bleibt, sind Farbwechsel (Glühen der Lavaplatten, Ein- und Ausblenden der Teilchen): sie wechseln mit den
+  30 Bildern des Spiels.
+- **Shader-Liste:** 9000 Programme (64 neu aus dem Bericht).
+- **Tests:** `TestInterpolationParticles` (neu: fünf Teilchen, Kamera 1500, eigene Bewegung 500, eines stirbt,
+  eines entsteht; ohne Kamerabewegung 2 Prüfungen rot, mit der alten Zuordnung 1), `TestInterpolation` und alle
+  übrigen: `gx_gl_check` 0 Fehler. Kern unverändert (kein Kern-Build nötig).
+- **Nicht getestet:** auf dem Gerät.
+
 ## Dritter Nachtest 0.91.0 (26.10.2026 nachmittags, Cloud-Korrektur)
 
 Bericht des Projektinhabers (Retroid, Video): C-Stick, Fackelschein hinter Wänden und Intro-Wellen ✅ bestätigt.

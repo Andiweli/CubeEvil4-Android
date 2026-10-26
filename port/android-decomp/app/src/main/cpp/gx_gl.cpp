@@ -917,6 +917,12 @@ struct GxRenderer::Impl {
   std::vector<std::uint8_t> blendVertices;
   // the pass's counts: perspective draws, matched, turned more than 20 degrees
   unsigned ipDraws = 0, ipMatched = 0, ipTurned = 0;
+  // The camera's move from the picture before to the next one in the pass (view space: next =
+  // cam * before), read off two large draws of a look of their own whose moves agree (the room,
+  // which stands still; camCand: the first, waiting for a second to confirm it). MatchDraw takes
+  // it out of the distances, so that a particle is matched by its own move, not the camera's.
+  float cam[3][4] = {}, camCand[3][4] = {};
+  bool camValid = false, camCandValid = false;
 
   // What identifies a draw from one picture to the next: its shader (the program of the same
   // registers), primitive, vertex layout and count, matrix indices and the textures it samples.
@@ -979,39 +985,108 @@ struct GxRenderer::Impl {
   }
 
   // The noted draw of the picture before that this one is: the same signature; the first one not
-  // yet taken when it lies near enough (the game draws in the same order from one picture to the
-  // next), else of the first eight the nearest that does; none when no one moved less than a
-  // quarter of its distance plus 400 units (another object of the same look).
-  const DrawRec *MatchDraw(std::uint64_t sig, const float *t, std::uint32_t rows) {
+  // yet taken (the game draws in the same order from one picture to the next) unless another of
+  // the first 32 not taken lies clearly nearer (by more than 2 % of its distance plus 50 units);
+  // none when no one moved less than a quarter of its distance plus 400 units (another object of
+  // the same look). Not simply the first within that reach: the particles of smoke and fire look
+  // alike, lie a few thousand units apart, and one that dies or starts shifts the order (Retroid
+  // report 26.10.2026, r224: neighbours swapped places in the in-between pictures, the smoke
+  // flickered). With the camera's move known (cam), the positions before are moved by it first,
+  // and a small draw (a particle, at most 16 vertices) may move only 5 % of its distance plus 300
+  // units: one that has just started is drawn as in the next picture instead of taking another's
+  // place.
+  const DrawRec *MatchDraw(std::uint64_t sig, const float *t, std::uint32_t rows, std::uint32_t vertexCount) {
     auto it = recBySig.find(sig);
     if (it == recBySig.end())
       return nullptr;
     const float reach = rows ? std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]) : 0.0f;
-    const float limit = 0.25f * reach + 400.0f;
-    int best = -1;
-    float bestDist = 0.0f;
+    const bool moved = camValid && rows != 0;
+    const float limit = moved && vertexCount <= 16 ? 0.05f * reach + 300.0f : 0.25f * reach + 400.0f;
+    const float close = 0.02f * reach + 50.0f;
+    int first = -1, best = -1;
+    float firstDist = 0.0f, bestDist = 0.0f;
     unsigned looked = 0;
     for (std::uint32_t i : it->second) {
       if (recUsed[i])
         continue;
       const DrawRec &r = rec[i];
-      const float dx = r.t[0] - t[0], dy = r.t[1] - t[1], dz = r.t[2] - t[2];
+      float p[3] = {r.t[0], r.t[1], r.t[2]};
+      if (moved)
+        CameraApply(cam, r.t, p);
+      const float dx = p[0] - t[0], dy = p[1] - t[1], dz = p[2] - t[2];
       const float dist = rows ? std::sqrt(dx * dx + dy * dy + dz * dz) : 0.0f;
-      if (looked++ == 0 && dist <= limit) {
-        best = static_cast<int>(i);
-        break;
+      if (first < 0) {
+        first = static_cast<int>(i);
+        firstDist = dist;
+        if (dist <= close)
+          break;  // where it was: no need to look further
       }
       if (dist <= limit && (best < 0 || dist < bestDist)) {
         best = static_cast<int>(i);
         bestDist = dist;
       }
-      if (looked >= 8)
+      if (++looked >= 32)
         break;
     }
+    if (first >= 0 && firstDist <= limit && (best < 0 || firstDist <= bestDist + close))
+      best = first;
     if (best < 0)
       return nullptr;
     recUsed[static_cast<std::size_t>(best)] = 1;
     return &rec[static_cast<std::size_t>(best)];
+  }
+
+  // q moved by the camera's move c (a point in view space before -> after).
+  static void CameraApply(const float (&c)[3][4], const float *q, float *out) {
+    for (int r = 0; r < 3; r++)
+      out[r] = c[r][0] * q[0] + c[r][1] * q[1] + c[r][2] * q[2] + c[r][3];
+  }
+
+  // c = n * p^-1 for two 3 x 4 modelviews of the same object (p: row-major, 12 floats); false when
+  // p has no inverse.
+  static bool CameraMove(const float *p, const float (&n)[3][4], float (&c)[3][4]) {
+    const float det = p[0] * (p[5] * p[10] - p[6] * p[9]) - p[1] * (p[4] * p[10] - p[6] * p[8]) +
+                      p[2] * (p[4] * p[9] - p[5] * p[8]);
+    if (!(std::fabs(det) > 1e-12f))
+      return false;
+    const float inv[3][3] = {{(p[5] * p[10] - p[6] * p[9]) / det, (p[2] * p[9] - p[1] * p[10]) / det,
+                              (p[1] * p[6] - p[2] * p[5]) / det},
+                             {(p[6] * p[8] - p[4] * p[10]) / det, (p[0] * p[10] - p[2] * p[8]) / det,
+                              (p[2] * p[4] - p[0] * p[6]) / det},
+                             {(p[4] * p[9] - p[5] * p[8]) / det, (p[1] * p[8] - p[0] * p[9]) / det,
+                              (p[0] * p[5] - p[1] * p[4]) / det}};
+    for (int r = 0; r < 3; r++) {
+      for (int k = 0; k < 3; k++)
+        c[r][k] = n[r][0] * inv[0][k] + n[r][1] * inv[1][k] + n[r][2] * inv[2][k];
+      c[r][3] = n[r][3] - (c[r][0] * p[3] + c[r][1] * p[7] + c[r][2] * p[11]);
+    }
+    return true;
+  }
+
+  // A large draw of a look of its own (one of it in the picture before), matched: its move is the
+  // camera's when the room stands still. Taken once a second such draw moved the same way.
+  void NoteCamera(std::uint64_t sig, const float *before, const float (&now)[3][4]) {
+    auto it = recBySig.find(sig);
+    if (it == recBySig.end() || it->second.size() != 1)
+      return;
+    float c[3][4];
+    if (!CameraMove(before, now, c))
+      return;
+    if (camCandValid) {
+      // the move noted first, on this draw: where its position before goes, against where it is
+      const float beforeT[3] = {before[3], before[7], before[11]}, nowT[3] = {now[0][3], now[1][3], now[2][3]};
+      float p[3];
+      CameraApply(camCand, beforeT, p);
+      const float reach = std::sqrt(nowT[0] * nowT[0] + nowT[1] * nowT[1] + nowT[2] * nowT[2]);
+      const float dx = p[0] - nowT[0], dy = p[1] - nowT[1], dz = p[2] - nowT[2];
+      if (std::sqrt(dx * dx + dy * dy + dz * dz) <= 0.02f * reach + 50.0f) {
+        std::memcpy(cam, camCand, sizeof(cam));
+        camValid = true;
+        return;
+      }
+    }
+    std::memcpy(camCand, c, sizeof(camCand));
+    camCandValid = true;
   }
 
   // The in-between pass, before a draw: its rows (and vertices) between the picture before (a)
@@ -1027,7 +1102,13 @@ struct GxRenderer::Impl {
     if (rows)
       for (int c = 0; c < 3; c++)
         t[c] = xf.posTex[first + c][3];
-    const DrawRec *a = MatchDraw(DrawSig(d, k), t, rows);
+    const std::uint64_t sig = DrawSig(d, k);
+    const DrawRec *a = MatchDraw(sig, t, rows, d.vertexCount);
+    if (a && !camValid && rows == 3 && a->rows == 3 && a->posRow == first && d.vertexCount >= 64) {
+      float now[3][4];
+      std::memcpy(now, xf.posTex[first], sizeof(now));
+      NoteCamera(sig, recFloats.data() + a->data, now);
+    }
     if (!a)
       return 0;
     ipMatched++;
@@ -3912,6 +3993,7 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
     m.recBySig[m.rec[i].sig].push_back(i);
   m.recUsed.assign(m.rec.size(), 0);
   m.ipDraws = m.ipMatched = m.ipTurned = 0;
+  m.camValid = m.camCandValid = false;
   m.interpCopied.clear();
   m.interpUploads.clear();
   // the store for the pass's blended vertices: the next quarter of the mapped ring once the GPU is

@@ -1547,6 +1547,86 @@ std::vector<std::uint8_t> XfbPixels(re4gx::GxRenderer &r) {
   return px;
 }
 
+// Particles (60 FPS, Retroid report 26.10.2026, r224: the smoke and fire flickered): quads of
+// the same look, each with a matrix of its own, 2500 units apart at 20000. From picture A to B the
+// camera moves 1500 units (the two room draws show it), every particle 500 units of its own; the
+// first one dies, a new one starts far to the left. The in-between picture places each particle
+// halfway along its own move (before: the second took the first's place; nearest without the
+// camera's move: the third's), the new one as in B.
+void ParticleScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f, depth = 20000.0f, camera = second ? 1500.0f : 0.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  // the room: two large draws of a look of their own (64 and 68 vertices) in a band at the top
+  const std::uint8_t blue[4] = {0, 0, 255, 255}, red[4] = {255, 0, 0, 255};
+  b.XfF(0, {1, 0, 0, camera, 0, 1, 0, 0, 0, 0, 1, -30000.0f});
+  for (int piece = 0; piece < 2; piece++) {
+    std::vector<std::uint8_t> v;
+    const unsigned quads = piece ? 17 : 16;
+    for (unsigned q = 0; q < quads; q++) {
+      const float x0 = -20000.0f + 2400.0f * static_cast<float>(q), y0 = piece ? 15000.0f : 17000.0f;
+      V(v, x0, y0, 0.0f, piece ? red : blue);
+      V(v, x0 + 2000.0f, y0, 0.0f, piece ? red : blue);
+      V(v, x0 + 2000.0f, y0 + 1500.0f, 0.0f, piece ? red : blue);
+      V(v, x0, y0 + 1500.0f, 0.0f, piece ? red : blue);
+    }
+    b.Draw(RE4_GX_V_COLOR0, 16, v, quads * 4, 0x80);
+  }
+  // the particles: a small quad each, placed by its matrix
+  auto particle = [&](float x) {
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -depth});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  };
+  for (int i = second ? 2 : 1; i <= 5; i++)
+    particle(-5000.0f + 2500.0f * static_cast<float>(i - 1) + (second ? camera + 500.0f : 0.0f));
+  if (second)
+    particle(-7000.0f);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationParticles() {
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  ParticleScene(ba, 1, false, &a);
+  ParticleScene(bb, 2, true, &b);
+  r.Run(a);
+  // screen x of a view-space x at 20000 (the viewport of Baseline: 320 + x / 20000 * 320)
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  const GLuint xfbA = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfbA, px(-5000.0f), 264), 0, 255, 0) && Near(TexPixel(xfbA, px(-2500.0f), 264), 0, 255, 0),
+        "particles: picture A (the first two particles)");
+  Check(r.Interpolate(a, b, 0.5f), "particles: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  // the second particle: A -2500, B -500; halfway -1500. Taking the first's place (A -5000) it
+  // would sit at -2750, taking the third's (A 0, nearest without the camera's move) at -250
+  const auto own = TexPixel(xfb, px(-1500.0f), 264), wrong = TexPixel(xfb, px(-2750.0f), 264),
+             third = TexPixel(xfb, px(-250.0f), 264);
+  Check(Near(own, 0, 255, 0) && Near(wrong, 0, 0, 0) && Near(third, 0, 0, 0),
+        "particles: each halfway along its own move");
+  // the new one: as in B (-7000); halfway to the dead first one's place it would be at -6000
+  const auto fresh = TexPixel(xfb, px(-7000.0f), 264), between = TexPixel(xfb, px(-6000.0f), 264);
+  Check(Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0), "particles: one that has just started stands where it is in B");
+  if (!Near(own, 0, 255, 0) || !Near(wrong, 0, 0, 0) || !Near(third, 0, 0, 0) || !Near(fresh, 0, 255, 0) ||
+      !Near(between, 0, 0, 0))
+    Print("own", own), Print("wrong", wrong), Print("third", third), Print("fresh", fresh), Print("between", between);
+  Check(glGetError() == GL_NO_ERROR, "particles: no GL error");
+  r.Release();
+}
+
 void TestInterpolation() {
   std::string error;
   re4gx::GxRenderer r, plain;
@@ -2073,6 +2153,7 @@ int main() {
     TestOptions(poison != 0, true);
   }
   TestInterpolation();
+  TestInterpolationParticles();
   TestInterpolatedLights();
   // MSAA in its own buffers (the devices without the extensions, RE4_GX_MSAA_TILES=0)
   TestOptions(false, false);
