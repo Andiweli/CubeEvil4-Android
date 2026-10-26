@@ -8,7 +8,7 @@
      }
      for (m = EmMgr.getActiveWork(); m != 0; m = EmMgr.getNext(m)) {
          if ((m->atari.m_flag & 0x200) && m != pMod && m->atari.m_radius2 != 0.0f) {
-+            u8 flag = pMod->atari.m_flag;
++            u16 flag = pMod->atari.m_flag;
 +            /* port, a bug of the prototype: a Ganado knocked off its feet (priority 3) and a door (priority 3)
 +               tie, and priorityCheck lets neither push the other: the Ganado flies through the closed door.
 +               In the air a Ganado is pushed by a door like one on its feet (priority 2). */

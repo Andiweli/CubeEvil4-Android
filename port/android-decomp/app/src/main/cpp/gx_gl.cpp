@@ -443,6 +443,8 @@ struct GxRenderer::Impl {
   // lowest EFB row (+1) a draw under a full-width scissor reached since the last display copy: the
   // rows below it were never drawn (the game's letterbox)
   int sceneBottom = 0;
+  // the EFB rows the app shows (GxRenderer::SetShownRows): all, or 56..391 in the 16:9 formats
+  std::atomic<int> shownTop{0}, shownBottom{kEfbHeight};
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint quadVao = 0;
   GLuint whiteTex = 0;
@@ -2437,15 +2439,29 @@ struct GxRenderer::Impl {
     // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
     // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew
     // (black) would show as dark waves at the bottom edge. Repeat the last drawn row below it.
-    const int bottom = sceneBottom;
-    const bool limited = !toXfb && !depth && half && x == 0 && w >= 500 && bottom > y + h / 2 && bottom < y + h;
-    glUniform1f(copyLimit, limited ? static_cast<float>(bottom * scale) : 1e9f);
+    // In the 16:9 formats the app shows rows 56..391 only: there a copy of the whole picture (the
+    // shimmer of the logos at the start, IdShimmerTrans: rows 0..447, a movie drawn into 56..391
+    // under a full scissor; the depth of field at the edge) repeats the edge rows of what is shown
+    // instead of reading the unseen bars (black waves at the bottom of the intro, 0.91.0 test).
+    int top = 0, bottom = kEfbHeight;
+    if (!toXfb && !depth && x == 0 && w >= 500) {
+      if (half && sceneBottom > y + h / 2 && sceneBottom < y + h)
+        bottom = sceneBottom;
+      const int shownT = shownTop.load(std::memory_order_relaxed), shownB = shownBottom.load(std::memory_order_relaxed);
+      if (shownB > y + h / 2 && shownB < y + h)
+        bottom = std::min(bottom, shownB);
+      if (shownT > y && shownT < y + h / 2)
+        top = shownT;
+    }
+    const bool limited = top > 0 || bottom < kEfbHeight;
+    glUniform2f(copyLimit, limited ? static_cast<float>(top * scale) : -1e9f,
+                limited && bottom < kEfbHeight ? static_cast<float>(bottom * scale) : 1e9f);
     if (limited)
       stats.limitedCopies++;
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     if (limited)
-      glUniform1f(copyLimit, 1e9f);
+      glUniform2f(copyLimit, -1e9f, 1e9f);
     current = nullptr;
     BindFbo(DrawFbo());
     if (toXfb)
@@ -2843,7 +2859,7 @@ struct GxRenderer::Impl {
     glUniform2f(copySize, static_cast<float>(fw), static_cast<float>(fh));
     glUniform1i(copyHalf, 0);
     glUniform1f(copyGain, 1.0f);
-    glUniform1f(copyLimit, 1e9f);
+    glUniform2f(copyLimit, -1e9f, 1e9f);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     current = nullptr;
@@ -3116,12 +3132,12 @@ struct GxRenderer::Impl {
     static const char kCopyFs[] =
         "#version 300 es\nprecision highp float;\nprecision highp int;\n"
         "uniform sampler2D src;\nuniform int mode;\nuniform vec4 rect;\nuniform vec2 size;\nuniform int halfScale;\n"
-        "uniform float gain;\nuniform float limitY;\n"
+        "uniform float gain;\nuniform vec2 limitY;\n"
         "in vec2 vUv;\nout vec4 o;\n"
         "vec4 fetch(vec2 p) { return texture(src, p / size); }\n"
         "void main() {\n"
         "  vec2 p = rect.xy + vUv * rect.zw;\n"
-        "  p.y = min(p.y, limitY - 1.0);\n"
+        "  p.y = clamp(p.y, limitY.x + 1.0, limitY.y - 1.0);\n"
         "  vec4 c = halfScale != 0 ? 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
         "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5))) : fetch(p);\n"
         "  if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
@@ -3181,7 +3197,7 @@ struct GxRenderer::Impl {
     copyHalf = glGetUniformLocation(copyProgram, "halfScale");
     copyGain = glGetUniformLocation(copyProgram, "gain");
     copyLimit = glGetUniformLocation(copyProgram, "limitY");
-    glUniform1f(copyLimit, 1e9f);
+    glUniform2f(copyLimit, -1e9f, 1e9f);
     paletteProgram = Link(kQuadVs, kPaletteFs, &log);
     if (!paletteProgram) {
       *error = "palette shader: " + log;
@@ -3822,6 +3838,10 @@ GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
 void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
+void GxRenderer::SetShownRows(int top, int bottom) {
+  impl_->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
+  impl_->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);
+}
 
 int GxRenderer::Samples() const { return impl_->samples; }
 

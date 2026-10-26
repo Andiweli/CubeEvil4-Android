@@ -162,6 +162,11 @@ public:
   // Xfb() and Present show that. Works with or without MSAA and at any resolution; takes effect with
   // the next display copy. Costs one pass over the XFB per picture (the in-between pictures too).
   void SetFxaa(bool on);
+  // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
+  // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
+  // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:
+  // black waves at the bottom of the intro and under water). Default: all rows. Any thread.
+  void SetShownRows(int top, int bottom);
   // Frame skip (the app menu, 26.10.2026). The renderer is behind when the core has finished two
   // chunks: `a` need not be drawn when `b` (the next one) is drawn at once. Skip runs `a` without its
   // draws and its display copy: the register and texture state the game builds on (BP, XF, palettes,

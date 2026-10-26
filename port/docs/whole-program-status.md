@@ -4,11 +4,33 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Nachtest 0.91.0 auf dem Retroid (26.10.2026, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid Pocket Flip 2, 64 bit, Logcat, drei Fehlerberichte, R3-Aufnahmen in r22c, r21d, r10a):
+durch Türen laufen, außerhalb des Spielbereichs landen, bergab in der Luft weiterlaufen; schwarze Wellen im Intro weiter da.
+
+- **Durch Türen / in der Luft: Fehler in Patch 0115 (von mir).** Der Patch merkte sich `atari.m_flag` (16 bit) in einem
+  `u8` und schrieb es nach jeder Prüfung zurück: Bits 0x100 (Kollision mit der Umgebung) und 0x200 (mit Figuren) waren
+  danach bei jedem weg, der `EmAtCheck` ruft – Leon (`player.cpp:372`), Türen (`emdoor.cpp:1373`), Ashley/Luis,
+  Kisten, Felsen. Im Logcat bleibt Leons Höhe in ganz r10a bei 7346 und in r21d bei -3959; die R3-Bilder zeigen ihn in
+  Türen. Behoben (`u16`). Neuer Test `runtime-test em at flags` (`game_probe.cpp re4probe_em_at_flags`): Ganado in der
+  Luft wird aus der Tür geschoben, jede Figur behält ihr ganzes `m_flag` (0xC308 bleibt 0xC308). Gegenprobe: mit dem
+  alten `u8` schlägt der Test fehl (i686, 26.10.2026). **Instant-Spielstände aus dem fehlerhaften Testbau** tragen
+  den Fehler im Speicherabbild (Leon ohne Kollision) und sollten gelöscht werden.
+- **Schwarze Wellen im Intro:** Die Logos am Anfang flimmern über `IdShimmerTrans` (`id_sys.cpp:1314`): Kopie des
+  ganzen Bildes (Zeilen 0–447, 256 × 224, ohne Kürzung gelesen), der Film füllt nur die Zeilen 56–391, die Scissors
+  sind voll – die Regel vom Vormittag (`sceneBottom`, nur bei Letterbox-Scissors) griff nicht. Neu:
+  `GxRenderer::SetShownRows` (in `core_mode.cpp` je Bild: 56–392 in 16:9 und „Gestreckt“, sonst alle Zeilen).
+  Volle Textur-Kopien wiederholen dann oben und unten die Randzeilen des gezeigten Ausschnitts, statt die Balken zu
+  lesen (auch Unterwasser und die Tiefenschärfe am Rand). In 4:3 bleibt es wie auf dem GameCube. Test
+  `TestShownRowsCopy` (`gx_gl_check`, 16:9 und 4:3, auch mit MSAA). Die R3-Aufnahmen dieses Berichts zeigen das
+  Intro nicht; Gerätetest offen.
+
 ## Umsetzung nach der Analyse: Version 0.91.0-beta (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
 
 Entscheidungen des Projektinhabers (26.10.2026): `gui-optimisations` ist der Ausgangspunkt, der Grafikteil
 meldet dem Kern die Tiefe zurück (neuer Rückweg Renderer → Kern), unsichere Stellen sperren das Speichern,
-die Version heißt **0.91.0** (versionCode 75, `v0.91.0-beta.md`; zuerst 0.91.0 genannt, vom Projektinhaber am 26.10.2026 auf 0.91.0 berichtigt, da 0.90.1 die aktuelle Version ist). Cloud ✅ (siehe unten), **Gerätetest offen**.
+die Version heißt **0.91.0** (versionCode 75, `v0.91.0-beta.md`; zuerst 0.92.0 genannt, vom Projektinhaber am 26.10.2026 auf 0.91.0 berichtigt, da 0.90.1 die aktuelle Version ist). Cloud ✅ (siehe unten), **Gerätetest offen**.
 
 - **Instant-Spielstand:** Laden schreibt die Systemdaten nicht mehr zurück (Optionen und Mercenaries-Werte
   bleiben); Speichern gesperrt in Mercenaries, Assignment Ada, Ashley-Abschnitten, in den Räumen
@@ -8075,7 +8097,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0111 `game.cpp`, 0112 `title.cpp` | Instant-Spielstand laden: `gameMainLoop` und `Title_task` rufen `re4_instant_game_tick` / `re4_instant_title_tick` (neu erzeugt mit `whole_make_patch.py`, 26.10.2026; vorher von Hand und nur mit Unschärfe anwendbar) |
 | 0113 `dvd.cpp` | Teile-Tabelle prüfen (`re4_dvd_header_check`): eine Tabelle ohne Ende-Eintrag (nur Nullen: Raumdatei auf dem Gerät beschädigt oder stiller Lesefehler) ließ `readInit`/`readMain` über `header_buff` hinauslaufen, das ganze Spiel stand (r222 nach der Tür von r210, Infinix X6725 und Galaxy S20 FE, 25.10.2026; r325 auf dem Xiaomi 2109119DG). Der Port liest die Tabelle bis zu dreimal neu, beendet dann das Lesen mit Fehler, einer Bildschirmzeile „DISC FILE DAMAGED“ und einer ausführlichen Zeile im Fehlerprotokoll. Kein Fehler des Prototyps |
 | 0114 `db_light.cpp` | `TOOL_ERR` liest `pTool->Flag`, `pTool` ist ohne geöffneten Licht-Editor leer; das Debug-Werkzeug „SCE ITEM“ stürzte so ab (GameCube: lesbarer Speicher bei Adresse 0x14; Galaxy A02s, Redmi Note 14 Pro). Port-Patch |
-| 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2) |
+| 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2). Das gemerkte `m_flag` ist 16 bit (die erste Fassung mit `u8` löschte Bits 0x100/0x200: Leon lief durch Türen, Nachtest 26.10.2026); Test `runtime-test em at flags` |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

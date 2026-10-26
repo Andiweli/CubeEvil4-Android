@@ -581,6 +581,60 @@ void TestLetterboxCopy(re4gx::GxRenderer &r, bool viaXfb, bool letterbox) {
         (std::string(how) + ": the row limit is used only for a letterbox picture").c_str());
 }
 
+// The shimmer of the logos at the start (IdShimmerTrans): the whole picture (rows 0..447) copied at
+// half size and read whole, while a movie fills only rows 56..391 under a full scissor (no letterbox
+// scissor: the rule above does not see the bars). In the 16:9 formats the app shows rows 56..391
+// (SetShownRows): the copy repeats the shown edge rows, so a distortion near the edge reads picture,
+// not the black bars (black waves at the bottom of the intro, 0.91.0 test of 26.10.2026). All rows
+// shown (4:3): as on the GameCube, the bars stay black in the copy.
+void TestShownRowsCopy(re4gx::GxRenderer &r, bool viaXfb, bool crop) {
+  r.SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
+  Builder b;
+  Baseline(b);
+  DisplayCopy(b, true, kBlack);
+  Quad(b, 0, 56, 640, 392, 0, kRed);
+  const unsigned before = r.Stats().limitedCopies;
+  b.Bp(0x49, 0);
+  b.Bp(0x4A, 511 | 447u << 10);
+  b.Bp(0x4D, 32);
+  b.Bp(0x4B, 0x480000 >> 5);
+  b.Bp(0x52, 6u << 4 | 2u << 15 | 1u << 9); // RGBA8 to a texture, half size: 256 x 224
+  b.Bp(0x4A, 639 | 527u << 10);
+  b.Bp(0x00, 1u | 1u << 4);
+  b.Xf(0x103F, {1});
+  b.Xf(0x1040, {5u << 7});
+  b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  b.Bp(0x88, 255 | 223 << 10 | 6u << 20);
+  b.Bp(0x30, 255);
+  b.Bp(0x31, 223);
+  b.Texture(0, 0x480000ull | 2ull << 32, RE4_GX_TEX_COPY, 0x480000, 256, 224, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 300, 0, kWhite, 0, 0);
+  VT(v, 256, 300, 0, kWhite, 1, 0);
+  VT(v, 256, 524, 0, kWhite, 1, 1);
+  VT(v, 0, 524, 0, kWhite, 0, 1);
+  b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  if (viaXfb) {
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+  }
+  r.Run(b.Chunk());
+  auto EfbPixel = [&](re4gx::GxRenderer &rr, int x, int y) {
+    return viaXfb ? TexPixel(rr.Xfb(nullptr, nullptr), x, y) : ::EfbPixel(rr, x, y);
+  };
+  const char *how = crop ? "16:9 (rows 56..391 shown)" : "4:3 (all rows shown)";
+  // quad row 400: copy row 100 (EFB 200, drawn); 310: copy row 10 (EFB 20, above the movie);
+  // 500: copy row 200 (EFB 400, below it)
+  Check(Near(EfbPixel(r, 128, 400), 255, 0, 0), (std::string("whole copy, ") + how + ": the drawn rows are copied").c_str());
+  const bool topRed = Near(EfbPixel(r, 128, 310), 255, 0, 0), bottomRed = Near(EfbPixel(r, 128, 500), 255, 0, 0);
+  Check(topRed == crop, (std::string("whole copy, ") + how + (crop ? ": rows above the shown part repeat its top row" : ": rows above the movie stay black")).c_str());
+  Check(bottomRed == crop, (std::string("whole copy, ") + how + (crop ? ": rows below the shown part repeat its last row" : ": rows below the movie stay black")).c_str());
+  Check((r.Stats().limitedCopies - before == 1) == crop, (std::string("whole copy, ") + how + ": the row limit only while cropped").c_str());
+  r.SetShownRows(0, 1 << 16);
+}
+
 // The game's GXPeekZ (a torch's glow hides itself behind a wall by reading the depth around it): the
 // core marks the chunk with BP 0x5B; at its display copy the depth goes, half the resolution, to the
 // sink once the GPU is through (the next chunk). A quad at depth 0.5 on the left, cleared (far) elsewhere.
@@ -1335,6 +1389,8 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   }
   TestCopyAndPalette(r, true);  // EFB copy to a texture (resolved first), palette
   TestLetterboxCopy(r, true, true);
+  TestShownRowsCopy(r, true, true);
+  TestShownRowsCopy(r, true, false);
   TestDepthMap(r, true);
   TestFxaa(r);
   TestFrameSkip(r);
@@ -1837,6 +1893,8 @@ int main() {
     TestCopyAndPalette(renderer);
     TestLetterboxCopy(renderer, false, true);
     TestLetterboxCopy(renderer, false, false);
+    TestShownRowsCopy(renderer, false, true);
+    TestShownRowsCopy(renderer, false, false);
     TestDepthMap(renderer, false);
     TestFxaa(renderer);
     TestFrameSkip(renderer);

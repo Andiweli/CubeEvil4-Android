@@ -1498,6 +1498,10 @@ bool drawGx() {
     api.setLetterbox(noBars);
     letterboxSent = noBars;
   }
+  // the rows shown: in the 16:9 formats (0, 2) the crop below leaves the game's letterbox bars out,
+  // and texture copies repeat the shown edge rows instead of reading the bars (GxRenderer::SetShownRows)
+  const bool crop = !(format == 3 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
+  gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
   if (format == 3) {
     // 4:3 without the bars: the picture's lines fill the height (device test 22.10.2026: in a 4:3
     // frame of 480 lines thin bars stayed above and below on the Retroid), in their own shape

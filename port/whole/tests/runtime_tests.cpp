@@ -982,6 +982,7 @@ int re4probe_light05(void);
 int re4probe_luis_damage(void);
 int re4probe_route_far(void);
 void re4probe_enemy_log(void);
+int re4probe_em_at_flags(void);
 void re4probe_death_log(void);
 int re4probe_arc(void);
 int re4probe_partner_damage(void);
@@ -1493,6 +1494,17 @@ static void testRoute()
     report("route", ok);
 }
 
+// Patch 0115 (game_probe.cpp re4probe_em_at_flags): a Ganado in the air is pushed out of a door,
+// and every body keeps its whole collision flag (the 0.91.0 test: Leon walked through doors)
+static void testEmAtFlags()
+{
+    int r = re4probe_em_at_flags();
+    if (r != 0) {
+        re4_log("  em at flags: faults 0x%x (1/4 not pushed, 2/8/16 flag changed)", r);
+    }
+    report("em at flags", r == 0);
+}
+
 // The error log's enemy and menu lines (state_trace.cpp, game_probe.cpp re4probe_enemy_log): a
 // Ganado appears, is hit on the head, changes its routine, loses its head, is hidden, jumps, holds
 // back and follows again (tester report 22.10.2026) and goes, a weapon work flies as dynamite and explodes (no hit lines for it); the C stick moves a
@@ -1927,6 +1939,7 @@ int re4_runtime_tests()
     testPartner();
     testRoute();
     testLogFile();
+    testEmAtFlags();
     testEnemyLog();
     testDeathLog();
     testArc();

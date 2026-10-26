@@ -15,6 +15,7 @@
 #include "esp.h"
 #include "path.h"
 #include "at_sub.h"
+#include "at_mod.h"
 #include "cam_extra.h"
 #include "obj.h"
 #include "light.h"
@@ -506,6 +507,74 @@ extern "C" void re4probe_enemy_log(void)
     EmMgr.nArray = keepCount;
     EmMgr.size = keepSize;
     re4_state_trace_enemy_frame(1009);  // the old array again: starts over without a line
+}
+
+// Patch 0115 (at_mod.cpp EmAtCheck) over two fake works of EmMgr in MEM1: a door (0x41, box,
+// priority 3) at the origin and one body overlapping it. A Ganado in the air (0x10, priority 3)
+// is pushed out of the door like one on its feet, and EmAtCheck gives every body its m_flag back
+// whole: the high bits too (0x100 scenery, 0x200 bodies, 0xC000), whose loss let Leon walk through
+// doors and on in the air (0.91.0 test of 26.10.2026). Bits of the faults: 1 the flying Ganado not
+// pushed, 2 its flag changed, 4 the Ganado on its feet not pushed, 8 its flag changed, 16 another
+// body's flag changed (far from the door).
+extern "C" int re4probe_em_at_flags(void)
+{
+    u8* works = (u8*) (unsigned long) 0x82E20000ul;
+    const u32 stride = (u32) sizeof(cEm10);
+    cEm* keepArray = EmMgr.pArray;
+    u32 keepCount = EmMgr.nArray, keepSize = EmMgr.size;
+    cEm* keepAlive = EmMgr.pAlive;
+    cObj* keepObj = ObjMgr.pAlive;
+    static const struct {
+        u8 id;
+        u16 flag;
+        f32 z;
+        int notPushed, flagChanged;
+    } cases[] = {
+        {0x10, 0x0318, 30.0f, 1, 2},
+        {0x10, 0x0310, 30.0f, 4, 8},
+        {0x00, 0xC308, 5000.0f, 0, 16},
+    };
+    int bad = 0;
+
+    for (const auto& c : cases) {
+        memset(works, 0, 2 * stride);
+        EmMgr.pArray = (cEm*) works;
+        EmMgr.nArray = 2;
+        EmMgr.size = stride;
+        ObjMgr.pAlive = 0;
+        cEm* door = (cEm*) works;
+        cEm* body = (cEm*) (works + stride);
+        door->be_flag = 1;
+        door->id = 0x41;
+        door->atari.m_flag = 0x0200 | 0x18 | 2;
+        door->atari.m_radius = 100.0f;
+        door->atari.m_radius2 = 20.0f;
+        door->atari.m_height = 200.0f;
+        door->setNext(body);
+        body->be_flag = 1;
+        body->id = c.id;
+        body->atari.m_flag = c.flag;
+        body->atari.m_radius = 50.0f;
+        body->atari.m_radius2 = 50.0f;
+        body->atari.m_height = 100.0f;
+        body->atari.m_stat = 1;
+        body->pos.z = c.z;
+        body->setNext(0);
+        EmMgr.pAlive = door;
+        EmAtCheck(body);
+        if (c.notPushed && body->pos.z < 69.0f) {
+            bad |= c.notPushed;
+        }
+        if (body->atari.m_flag != c.flag || door->atari.m_flag != (0x0200 | 0x18 | 2)) {
+            bad |= c.flagChanged;
+        }
+    }
+    EmMgr.pArray = keepArray;
+    EmMgr.nArray = keepCount;
+    EmMgr.size = keepSize;
+    EmMgr.pAlive = keepAlive;
+    ObjMgr.pAlive = keepObj;
+    return bad;
 }
 
 extern cPlayer* pPL;
