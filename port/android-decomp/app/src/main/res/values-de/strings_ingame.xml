@@ -121,6 +121,7 @@
     <string name="ingame_instant_ready">Bereit.</string>
     <string name="ingame_instant_empty">Noch kein Instant-Spielstand vorhanden.</string>
     <string name="ingame_instant_unavailable">Beim Laden, während Ereignissen oder in diesem Spielzustand nicht verfügbar. Menü schließen und im Spiel erneut versuchen.</string>
+    <string name="ingame_instant_no_save">Speichern ist hier nicht möglich (Boot, Leiter, Bosskampf, Mercenaries o. Ä.). Laden geht weiterhin.</string>
     <string name="ingame_instant_unsupported">Für Instant-Speichern bitte den Spielkern aktualisieren.</string>
     <string name="ingame_instant_damaged">Der Instant-Spielstand ist beschädigt oder inkompatibel. Du kannst ihn durch einen neuen ersetzen.</string>
     <string name="ingame_instant_failed">Der Instant-Spielstand konnte nicht gelesen oder geschrieben werden.</string>

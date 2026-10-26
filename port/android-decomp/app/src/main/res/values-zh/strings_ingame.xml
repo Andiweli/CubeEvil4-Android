@@ -121,6 +121,7 @@
     <string name="ingame_instant_ready">就绪。</string>
     <string name="ingame_instant_empty">尚无即时存档。</string>
     <string name="ingame_instant_unavailable">载入、事件期间或当前状态下不可用。请关闭菜单，在游戏中重试。</string>
+    <string name="ingame_instant_no_save">此处无法保存（船、梯子、Boss战、佣兵模式等情形）。仍可读取。</string>
     <string name="ingame_instant_unsupported">请更新游戏核心以使用即时存档。</string>
     <string name="ingame_instant_damaged">即时存档已损坏或不兼容。你可以用新存档替换它。</string>
     <string name="ingame_instant_failed">无法读取或写入即时存档。</string>

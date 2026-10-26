@@ -124,6 +124,7 @@
     <string name="ingame_instant_ready">Prêt.</string>
     <string name="ingame_instant_empty">Aucune sauvegarde instantanée.</string>
     <string name="ingame_instant_unavailable">Indisponible pendant un chargement, un événement ou dans cet état. Ferme le menu et réessaie en jeu.</string>
+    <string name="ingame_instant_no_save">Sauvegarde impossible ici (bateau, échelle, boss, Mercenaires ou situation similaire). Tu peux encore charger.</string>
     <string name="ingame_instant_unsupported">Mets à jour le moteur pour utiliser la sauvegarde instantanée.</string>
     <string name="ingame_instant_damaged">La sauvegarde instantanée est endommagée ou incompatible. Tu peux la remplacer par une nouvelle.</string>
     <string name="ingame_instant_failed">Impossible de lire ou écrire la sauvegarde instantanée.</string>

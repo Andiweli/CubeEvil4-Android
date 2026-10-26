@@ -123,6 +123,7 @@
     <string name="ingame_instant_ready">Готово.</string>
     <string name="ingame_instant_empty">Мгновенного сохранения пока нет.</string>
     <string name="ingame_instant_unavailable">Недоступно при загрузке, во время событий или в этом состоянии. Закрой меню и повтори попытку в игре.</string>
+    <string name="ingame_instant_no_save">Здесь сохранение невозможно (лодка, лестница, бой с боссом, «Наёмники» и т. п.). Загрузка по-прежнему доступна.</string>
     <string name="ingame_instant_unsupported">Для мгновенного сохранения обнови ядро игры.</string>
     <string name="ingame_instant_damaged">Мгновенное сохранение повреждено или несовместимо. Можно заменить его новым.</string>
     <string name="ingame_instant_failed">Не удалось прочитать или записать мгновенное сохранение.</string>

@@ -130,6 +130,7 @@
     <string name="ingame_instant_ready">‏جاهز.</string>
     <string name="ingame_instant_empty">‏لا يوجد حفظ فوري بعد.</string>
     <string name="ingame_instant_unavailable">‏غير متاح أثناء التحميل أو الأحداث أو في هذه الحالة. أغلق القائمة وحاول مجددًا أثناء اللعب.</string>
+    <string name="ingame_instant_no_save">‏لا يمكن الحفظ هنا (قارب أو سلّم أو قتال زعيم أو وضع المرتزقة أو حالة مشابهة). لا يزال بإمكانك التحميل.</string>
     <string name="ingame_instant_unsupported">‏حدّث نواة اللعبة لاستخدام الحفظ الفوري.</string>
     <string name="ingame_instant_damaged">‏الحفظ الفوري تالف أو غير متوافق. يمكنك استبداله بحفظ جديد.</string>
     <string name="ingame_instant_failed">‏تعذرت قراءة الحفظ الفوري أو كتابته.</string>

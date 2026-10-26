@@ -109,6 +109,28 @@ extern "C" int re4probe_instant_game_test()
     CHECK_INSTANT(memcmp(out + 0x11E40, pSys, sizeof(*pSys)) == 0);
     re4_instant_game_saved();
     CHECK_INSTANT(pG->save_cnt == 8);
+    // Unsafe places refuse saving but not loading; the other game modes refuse both.
+    const u16 room = pG->room_id;
+    pG->room_id = 0x10B; // Del Lago
+    CHECK_INSTANT(!re4_instant_game_ready() && re4_instant_game_can_load());
+    CHECK_INSTANT(re4_instant_game_capture(out) == RE4_INSTANT_BUSY);
+    pG->room_id = room;
+    StaFlagOn(pG, STA_PL_BOAT);
+    CHECK_INSTANT(!re4_instant_game_ready() && re4_instant_game_can_load());
+    StaFlagOff(pG, STA_PL_BOAT);
+    StaFlagOn(pG, STA_PL_LADDER);
+    CHECK_INSTANT(!re4_instant_game_ready() && re4_instant_game_can_load());
+    StaFlagOff(pG, STA_PL_LADDER);
+    SysFlagOn(pG, SYS_OMAKE_ETC_GAME); // Mercenaries
+    CHECK_INSTANT(!re4_instant_game_ready() && !re4_instant_game_can_load());
+    SysFlagOff(pG, SYS_OMAKE_ETC_GAME);
+    SysFlagOn(pG, SYS_OMAKE_ADA_GAME); // Assignment Ada
+    CHECK_INSTANT(!re4_instant_game_ready() && !re4_instant_game_can_load());
+    SysFlagOff(pG, SYS_OMAKE_ADA_GAME);
+    pG->pl_type = 1; // Ashley section
+    CHECK_INSTANT(!re4_instant_game_ready() && !re4_instant_game_can_load());
+    pG->pl_type = 0;
+    CHECK_INSTANT(re4_instant_game_ready());
     pG->Rno0 = 2;
     CHECK_INSTANT(!re4_instant_game_ready());
     pG->Rno0 = 3;

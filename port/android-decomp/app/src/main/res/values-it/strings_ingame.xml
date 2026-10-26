@@ -122,6 +122,7 @@
     <string name="ingame_instant_ready">Pronto.</string>
     <string name="ingame_instant_empty">Nessun salvataggio istantaneo.</string>
     <string name="ingame_instant_unavailable">Non disponibile durante caricamenti, eventi o in questo stato. Chiudi il menu e riprova durante il gioco.</string>
+    <string name="ingame_instant_no_save">Qui non si può salvare (barca, scala, boss, Mercenari o simili). Puoi comunque caricare.</string>
     <string name="ingame_instant_unsupported">Aggiorna il motore per usare il salvataggio istantaneo.</string>
     <string name="ingame_instant_damaged">Il salvataggio istantaneo è danneggiato o incompatibile. Puoi sostituirlo con uno nuovo.</string>
     <string name="ingame_instant_failed">Impossibile leggere o scrivere il salvataggio istantaneo.</string>

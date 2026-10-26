@@ -136,6 +136,7 @@
     <string name="ingame_instant_ready">Ready.</string>
     <string name="ingame_instant_empty">No instant save yet.</string>
     <string name="ingame_instant_unavailable">Unavailable during loading, events or an unsafe game state. Close the menu and try again during play.</string>
+    <string name="ingame_instant_no_save">Saving is not possible here (boat, ladder, boss fight, Mercenaries or a similar situation). You can still load.</string>
     <string name="ingame_instant_unsupported">Update the game core to use instant saving.</string>
     <string name="ingame_instant_damaged">The instant save is damaged or incompatible. You can replace it with a new save.</string>
     <string name="ingame_instant_failed">Could not read or write the instant save.</string>

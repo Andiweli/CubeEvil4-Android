@@ -55,6 +55,36 @@ bool titleReady()
            !SysFlagChk(pG, SYS_CARD_ACCESS) && shapeFits();
 }
 
+// The instant slot is a typewriter-style save at the current position: enemies, Ashley and timers are
+// not stored. Refuse where that would leave the player dead or stuck after loading.
+bool unsafePlace()
+{
+    static const u16 rooms[] = {
+        0x10B, 0x11B, // Del Lago (boat, lake)
+        0x10F,        // gondola
+        0x11F,        // Mendez
+        0x21B, 0x223, // mine cart
+        0x221,        // insect boss
+        0x226, 0x228, // statue chase and Salazar
+        0x31C, 0x317, // Krauser
+        0x332, 0x333, // elevator, Saddler and the jet ski escape
+    };
+    for (unsigned i = 0; i < sizeof(rooms) / sizeof(rooms[0]); ++i)
+        if (pG->room_id == rooms[i])
+            return true;
+    return StaFlagChk(pG, STA_PL_BOAT) || StaFlagChk(pG, STA_PL_SWIM) || StaFlagChk(pG, STA_PL_LADDER) ||
+           StaFlagChk(pG, STA_SUB_LADDER) || StaFlagChk(pG, STA_RIDE_GONDOLA) || StaFlagChk(pG, STA_PL_CATCHED) ||
+           StaFlagChk(pG, STA_PL_CATCHHOLD) || StaFlagChk(pG, STA_SUB_CATCHED) || StaFlagChk(pG, STA_CRITICAL) ||
+           StaFlagChk(pG, STA_PL_EM_ACTION) || StaFlagChk(pG, STA_INTO_SHOP) || StaFlagChk(pG, STA_SCOPE_CAMERA) ||
+           StaFlagChk(pG, STA_BINOCULAR) || StaFlagChk(pG, STA_SUB_BULLDOZER) || StaFlagChk(pG, STA_WATER_CAMERA);
+}
+
+// The main game with Leon only: no Mercenaries, Assignment Ada, or Ashley/Ada/Hunk sections.
+bool mainGameLeon()
+{
+    return !SysFlagChk(pG, SYS_OMAKE_ADA_GAME) && !SysFlagChk(pG, SYS_OMAKE_ETC_GAME) && pG->pl_type == 0;
+}
+
 void header()
 {
     memset(&gHead, 0, sizeof(gHead));
@@ -79,21 +109,29 @@ extern "C" unsigned re4_instant_game_chapter(unsigned number)
     return chapter * 100 + section;
 }
 
-extern "C" int re4_instant_game_ready(void)
+// Where a slot may be loaded: the game's pause-menu rules, main game as Leon (the in-game load does
+// not clear the Mercenaries/Ada flags the way the title path does).
+static int pauseReady()
 {
     // Same event/menu restrictions as the game's pause menu, plus a live player and save image.
     if (gRestorePending || !live(pG) || StaFlagChk(pG, STA_TITLE) || pG->Rno0 != 3 || !live(pPL) || !live(pSaveData) || !live(pSys) ||
         !OptionOpenCheck() || SubScreenWk.open_flag != SS_OPEN_NULL || StaFlagChk(pG, STA_DIEDEMO) ||
         StaFlagChk(pG, STA_EVENT) || SysFlagChk(pG, SYS_CARD_ACCESS) || SysFlagChk(pG, SYS_TRANS_STOP) ||
-        !pG->pl_life || pPL->r_no_0 != 0)
+        !pG->pl_life || pPL->r_no_0 != 0 || !mainGameLeon())
         return 0;
     return shapeFits() && isfinite(pPL->pos.x) && isfinite(pPL->pos.y) && isfinite(pPL->pos.z) &&
            isfinite(pPL->ang.y);
 }
 
+// Saving is stricter than loading: it needs a place that survives a reload without its enemies.
+extern "C" int re4_instant_game_ready(void)
+{
+    return pauseReady() && !unsafePlace();
+}
+
 extern "C" int re4_instant_game_can_load(void)
 {
-    return re4_instant_game_ready() || titleReady();
+    return pauseReady() || titleReady();
 }
 
 extern "C" void re4_instant_game_pause(int on)
@@ -179,7 +217,8 @@ void installRestore()
     memcpy(pSaveData->pRm, gData + 0x6930, roomBytes);
     memcpy(pSaveData->pSs, gData + 0xE7D0, SscrnDataSize());
     memcpy(pSaveData->pMr, gData + 0xE7D4, MerchantDataSize());
-    memcpy(pSys, gData + 0x11E40, sizeof(SYSTEM_SAVE_WORK));
+    // The system data (options, Mercenaries records) stays as it is: it belongs to the memory card, not to
+    // the point in the game. The slot only keeps it for the file check.
     SndAllFadeOut();
 }
 }

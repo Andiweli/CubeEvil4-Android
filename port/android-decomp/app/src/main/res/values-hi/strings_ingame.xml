@@ -121,6 +121,7 @@
     <string name="ingame_instant_ready">तैयार।</string>
     <string name="ingame_instant_empty">अभी कोई तुरंत सेव नहीं है।</string>
     <string name="ingame_instant_unavailable">लोडिंग, घटनाओं या इस स्थिति में उपलब्ध नहीं है। मेन्यू बंद करें और खेलते समय फिर कोशिश करें।</string>
+    <string name="ingame_instant_no_save">यहाँ सेव करना संभव नहीं है (नाव, सीढ़ी, बॉस फाइट, मर्सिनरीज़ या ऐसी स्थिति)। लोड फिर भी किया जा सकता है।</string>
     <string name="ingame_instant_unsupported">तुरंत सेव के लिए गेम कोर अपडेट करें।</string>
     <string name="ingame_instant_damaged">तुरंत सेव खराब है या मेल नहीं खाता। आप इसे नए सेव से बदल सकते हैं।</string>
     <string name="ingame_instant_failed">तुरंत सेव पढ़ा या लिखा नहीं जा सका।</string>

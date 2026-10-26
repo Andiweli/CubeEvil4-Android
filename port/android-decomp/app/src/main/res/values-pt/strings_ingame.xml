@@ -123,6 +123,7 @@
     <string name="ingame_instant_ready">Pronto.</string>
     <string name="ingame_instant_empty">Nenhum salvamento instantâneo.</string>
     <string name="ingame_instant_unavailable">Indisponível durante carregamentos, eventos ou neste estado. Feche o menu e tente de novo durante o jogo.</string>
+    <string name="ingame_instant_no_save">Não é possível salvar aqui (barco, escada, chefe, Mercenários ou situação semelhante). Você ainda pode carregar.</string>
     <string name="ingame_instant_unsupported">Atualize o núcleo para usar o salvamento instantâneo.</string>
     <string name="ingame_instant_damaged">O salvamento instantâneo está danificado ou é incompatível. Você pode substituí-lo por um novo.</string>
     <string name="ingame_instant_failed">Não foi possível ler ou gravar o salvamento instantâneo.</string>

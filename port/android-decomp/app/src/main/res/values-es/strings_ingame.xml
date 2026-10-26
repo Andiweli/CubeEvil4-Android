@@ -122,6 +122,7 @@
     <string name="ingame_instant_ready">Listo.</string>
     <string name="ingame_instant_empty">Aún no hay un guardado instantáneo.</string>
     <string name="ingame_instant_unavailable">No disponible al cargar, durante eventos o en este estado. Cierra el menú y vuelve a intentarlo durante el juego.</string>
+    <string name="ingame_instant_no_save">No se puede guardar aquí (bote, escalera, jefe, Mercenarios o similar). Aún puedes cargar.</string>
     <string name="ingame_instant_unsupported">Actualiza el núcleo para usar el guardado instantáneo.</string>
     <string name="ingame_instant_damaged">El guardado instantáneo está dañado o es incompatible. Puedes sustituirlo por uno nuevo.</string>
     <string name="ingame_instant_failed">No se pudo leer o escribir el guardado instantáneo.</string>

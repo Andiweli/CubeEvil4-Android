@@ -164,14 +164,19 @@ final class CoreMenu extends Dialog {
   private void help(LinearLayout parent, int id) {
     TextView t = text(s(id), 15, false); t.setPadding(0, dp(4), 0, dp(8)); parent.addView(t);
   }
+  /** Row label as tall as one button row (48 dp minimum + 2 x 4 dp margin), centred on the first row. */
+  private TextView rowLabel(String label) {
+    TextView caption = text(label, 16, true);
+    caption.setPadding(0, 0, dp(8), 0); caption.setMinHeight(dp(56)); caption.setMinimumHeight(dp(56));
+    caption.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+    return caption;
+  }
   /** Align a stack of buttons with the choices' option column; label 0 leaves the caption empty. */
   private LinearLayout labelledOptions(int label) {
     LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, label == 0);
     outer.setGravity(Gravity.TOP);
     if (label != 0) {
-      TextView caption = text(s(label), 16, true);
-      caption.setPadding(0, dp(8), dp(8), 0);
-      outer.addView(caption);
+      outer.addView(rowLabel(s(label)));
     } else outer.addView(new View(getContext()));
     LinearLayout options = column();
     outer.addView(options);
@@ -187,8 +192,7 @@ final class CoreMenu extends Dialog {
   }
   private void choices(int label, String[] labels, int[] values, int selected, int limit, Changed<Integer> changed) {
     LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, false);
-    TextView caption = text(s(label), 16, true); caption.setPadding(0, 0, dp(8), 0);
-    outer.addView(caption);
+    outer.addView(rowLabel(s(label)));
     MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), labels.length);
     outer.addView(options);
     Button[] buttons = new Button[labels.length];
@@ -319,7 +323,7 @@ final class CoreMenu extends Dialog {
     int anisotropy = info == null ? 1 : Math.max(1, info[1]);
     graphicChoices(R.string.ingame_resolution, "scale", new String[] {s(R.string.ingame_dynamic), "1×", "2×", "3×", "4×"},
         new int[] {0, 1, 2, 3, 4}, 0, Integer.MAX_VALUE);
-    graphicsLine = text("", 15, false); body.addView(graphicsLine); showGraphics();
+    graphicsLine = text("", 15, false); graphicsLine.setPadding(0, dp(4), 0, dp(10)); body.addView(graphicsLine); showGraphics();
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
         new int[] {1, 2, 4}, 1, samples);
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
@@ -425,8 +429,9 @@ final class CoreMenu extends Dialog {
   private void instant(int operation) {
     if (working) return;
     final int serial = ++requestSerial;
+    // Disabling a focused button drops the controller focus; remember it and give it back afterwards.
+    final View focused = findFocus();
     working = true; saveSlot.setEnabled(false); loadSlot.setEnabled(false);
-    resume.setEnabled(false);
     showSlotStatus(operation == 0 ? R.string.ingame_instant_checking : R.string.ingame_instant_working);
     new Thread(() -> {
       long[] result;
@@ -434,18 +439,21 @@ final class CoreMenu extends Dialog {
       catch (RuntimeException | UnsatisfiedLinkError e) { result = new long[] {-5, 0, 0, 0, 0, 0, 0, 0}; }
       final long[] done = result;
       main.post(() -> {
-        working = false; resume.setEnabled(true);
+        working = false;
         if (!isShowing() || serial != requestSerial || page != HOME) return;
-        if (done == null || done.length < 8) { showSlotStatus(R.string.ingame_instant_failed); return; }
-        showInstant(done);
+        if (done == null || done.length < 8) showSlotStatus(R.string.ingame_instant_failed);
+        else showInstant(done);
+        if (focused != null) { if (focused.isEnabled()) focused.requestFocus(); else resume.requestFocus(); }
+        if (done == null || done.length < 8) return;
         if (operation == 2 && done[0] == 0) close();
         else if (operation == 1 && done[0] == 0) showSlotStatus(R.string.ingame_instant_saved);
       });
     }, "InstantSlot").start();
   }
   private void showInstant(long[] data) {
-    slotPresent = data[1] != 0;
     saveSlot.setEnabled(data[2] != 0); loadSlot.setEnabled(data[3] != 0);
+    if (data[0] == -1) { showSlotStatus(R.string.ingame_instant_unavailable); return; } // busy: keep the slot details shown
+    slotPresent = data[1] != 0;
     if (slotPresent) {
       String room = String.format(Locale.ROOT, "r%03x", data[4]);
         String play = String.format(Locale.ROOT, "%02d:%02d:%02d", data[6] / 3600, data[6] / 60 % 60, data[6] % 60);
@@ -458,6 +466,7 @@ final class CoreMenu extends Dialog {
     else if (data[0] == -3) status = R.string.ingame_instant_damaged;
     else if (data[0] == -4) status = R.string.ingame_instant_failed;
     else if (data[0] == -1 || (data[2] == 0 && data[3] == 0)) status = R.string.ingame_instant_unavailable;
+    else if (data[2] == 0) status = R.string.ingame_instant_no_save;
     showSlotStatus(status);
   }
   private void showSlotStatus(int message) {

@@ -4,9 +4,11 @@
 # menu load path before any manager runs the old room's next frame. No change to src/ in git.
 --- a/src/game/game.cpp
 +++ b/src/game/game.cpp
-@@ -561,8 +561,10 @@
+@@ -560,8 +560,11 @@
+ 
  // Rno0 == 3: one frame of play, running every manager in turn. The Z button opens the option
  // screen (Rno0 = 6) when OptionOpenCheck allows.
++// instant slot (patch 0111)
 +extern "C" int re4_instant_game_tick(void);
  void gameMainLoop()
  {
