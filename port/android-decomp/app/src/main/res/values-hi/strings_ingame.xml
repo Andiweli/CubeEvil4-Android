@@ -135,4 +135,5 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_fxaa_help">आख़िरी चरण में दाँतेदार किनारों को चिकना करता है। MSAA के साथ या बिना काम करता है; तस्वीर थोड़ी नरम हो जाती है।</string>
     <string name="ingame_frame_skip_help">ग्राफ़िक्स पिछड़ने पर एक फ़्रेम छोड़ देता है ताकि गेम सामान्य गति से चले। कम फ़्रेम दिखते हैं, कुछ धीमा नहीं होता।</string>
+    <string name="ingame_skip_or_smooth">फ़्रेम स्किप और 60 FPS साथ नहीं चलते: एक को चालू करने पर दूसरा बंद हो जाता है।</string>
 </resources>

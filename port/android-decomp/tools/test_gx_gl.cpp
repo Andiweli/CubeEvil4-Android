@@ -1619,6 +1619,32 @@ void TestInterpolation() {
     Check(sk.Interpolate(d, d, 0.5f) == false && glGetError() == GL_NO_ERROR, "frame skip with 60 FPS: no GL error");
     sk.Release();
   }
+  // A menu screen of the game (RE4_GX_CHUNK_STILL, 26.10.2026: the load screen at the typewriter
+  // flickered while its list scrolled): no in-between picture into it, within it or out of it
+  {
+    re4gx::GxRenderer st;
+    Require(st.Init(1, &error), error.c_str());
+    st.SetRecording(true);
+    Re4GxChunk menuB = b, menuC = b, out = b;
+    menuB.flags |= RE4_GX_CHUNK_STILL;
+    menuC.flags |= RE4_GX_CHUNK_STILL;
+    menuC.sequence = 3;
+    out.sequence = 4;
+    st.Run(a);
+    Check(!st.Interpolate(a, menuB, 0.5f), "menu screen: no in-between picture into it");
+    st.Run(menuB);
+    Check(!st.Interpolate(menuB, menuC, 0.5f), "menu screen: no in-between picture within it");
+    st.Run(menuC);
+    Check(!st.Interpolate(menuC, out, 0.5f), "menu screen: no in-between picture out of it");
+    st.Run(out);
+    Builder be;
+    Re4GxChunk e;
+    InterpScene(be, 5, 50.0f, 450.0f, 0.0f, &e);
+    Check(st.Interpolate(out, e, 0.5f) && st.Stats().interpPictures == 1,
+          "menu screen: in-between pictures again after it");
+    Check(glGetError() == GL_NO_ERROR, "menu screen: no GL error");
+    st.Release();
+  }
   // not recorded, or not the next chunk: nothing drawn
   Check(!plain.Interpolate(a, b, 0.5f), "interpolation: nothing without notes of the picture before");
   Check(!one.Interpolate(a, c, 0.5f), "interpolation: nothing between chunks that do not follow each other");

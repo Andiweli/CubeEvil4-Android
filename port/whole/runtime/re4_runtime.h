@@ -276,6 +276,10 @@ long long re4_cri_timer(void);
  * the core thread) and lets the next one start over: the app keeps the
  * pictures from there. */
 void re4_gx_mark(void);
+/* A menu screen of the game is open (1) or not (0): the chunks closed from
+ * now on carry RE4_GX_CHUNK_STILL (runtime/gx_decode.cpp). Set every frame by
+ * runtime/picture.cpp (sub screens, the memory card screens). */
+void re4_gx_still(int on);
 
 #ifdef __cplusplus
 }

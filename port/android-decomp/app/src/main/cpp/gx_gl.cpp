@@ -440,7 +440,18 @@ struct GxRenderer::Impl {
   // for it at every figure (Retroid: 74 ms a picture, 3 to 5 pictures a second)
   GLuint blendVbo = 0;
   std::size_t blendCap = 0, blendUsed = 0;
-  std::int64_t blendAt = -1;  // the draw's vertices in blendVbo (byte offset), -1: from vbo
+  std::int64_t blendAt = -1;  // the draw's vertices in blendVbo / blendRing (byte offset), -1: from vbo
+  // With EXT_buffer_storage the blended vertices go into a ring mapped once for good, a quarter per
+  // in-between pass with a fence after it: a memcpy per draw, no GL call. A map and an unmap per
+  // blended draw cost the Retroid's driver more than the draws (r104: 233 blended draws per
+  // in-between picture; 60 FPS stayed at a few pictures a second more, 26.10.2026).
+  static constexpr unsigned kBlendParts = 4;
+  static constexpr std::size_t kBlendPart = std::size_t(6) << 20;
+  GLuint blendRing = 0;
+  std::uint8_t *blendMap = nullptr;
+  bool blendRingTried = false;
+  unsigned blendPart = 0;
+  GLsync blendFence[kBlendParts] = {};
   // the chunk whose vertices and indices the in-between pass uploaded: its Run right after draws
   // from them (vbo is no longer changed by the pass) instead of uploading them again
   const Re4GxChunk *uploadedBy = nullptr;
@@ -667,6 +678,49 @@ struct GxRenderer::Impl {
     }
     GXLOG("GX uniform stream: %u MB, %s, offsets aligned to %u", static_cast<unsigned>(size >> 20),
           streamMap ? "persistent mapping" : "a map per block", static_cast<unsigned>(streamAlign));
+  }
+
+  // The ring for the in-between passes' blended vertices (EXT_buffer_storage, persistent and
+  // coherent); without it blendVbo with a map per draw. RE4_GX_PERSISTENT=0: never.
+  void BlendRingInit() {
+    blendRingTried = true;
+    const char *ext = reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
+    using BufferStorage = void (*)(GLenum, GLsizeiptr, const void *, GLbitfield);
+    BufferStorage storage = nullptr;
+    if (ext && std::strstr(ext, "GL_EXT_buffer_storage"))
+      storage = reinterpret_cast<BufferStorage>(GlExtension("glBufferStorageEXT"));
+    const char *persistent = std::getenv("RE4_GX_PERSISTENT");
+    if (!storage || (persistent && *persistent == '0'))
+      return;
+    const GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT_EXT | GL_MAP_COHERENT_BIT_EXT;
+    const std::size_t size = kBlendParts * kBlendPart;
+    glGenBuffers(1, &blendRing);
+    glBindBuffer(GL_ARRAY_BUFFER, blendRing);
+    storage(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(size), nullptr, flags);
+    blendMap = static_cast<std::uint8_t *>(glMapBufferRange(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(size), flags));
+    if (!blendMap) {
+      glDeleteBuffers(1, &blendRing);
+      blendRing = 0;
+    }
+    GXLOG("GX in-between vertices: %s", blendMap ? "a ring of 24 MB, mapped for good" : "a map per draw");
+  }
+
+  void BlendRingRelease() {
+    for (GLsync &f : blendFence) {
+      if (f)
+        glDeleteSync(f);
+      f = nullptr;
+    }
+    if (blendRing) {
+      if (blendMap) {
+        glBindBuffer(GL_ARRAY_BUFFER, blendRing);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+      }
+      glDeleteBuffers(1, &blendRing);
+    }
+    blendRing = 0;
+    blendMap = nullptr;
+    blendRingTried = false;
   }
 
   void StreamRelease() {
@@ -1041,7 +1095,12 @@ struct GxRenderer::Impl {
         // place of blendVbo no draw has used in this pass: no waiting, no copy of the buffer
         if (far <= 1500.0f) {
           const std::size_t at = (blendUsed + d.stride - 1) / d.stride * d.stride;
-          if (at + bytes <= blendCap) {
+          if (blendMap && at + bytes <= blendCap) {
+            std::memcpy(blendMap + at, blendVertices.data(), bytes);
+            blendUsed = at + bytes;
+            blendAt = static_cast<std::int64_t>(at);
+            stats.interpVertexBlends++;
+          } else if (!blendMap && at + bytes <= blendCap) {
             glBindBuffer(GL_ARRAY_BUFFER, blendVbo);
             void *dst = glMapBufferRange(GL_ARRAY_BUFFER, static_cast<GLintptr>(at), static_cast<GLsizeiptr>(bytes),
                                          GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
@@ -2302,7 +2361,7 @@ struct GxRenderer::Impl {
       vaoBound = true;
     }
     // (an in-between picture's blended vertices: from blendVbo)
-    const GLuint buffer = blendAt >= 0 ? blendVbo : vbo;
+    const GLuint buffer = blendAt >= 0 ? (blendMap ? blendRing : blendVbo) : vbo;
     const std::uint32_t at = blendAt >= 0 ? static_cast<std::uint32_t>(blendAt) : d.vertexOffset;
     blendAt = -1;
     std::uint32_t base = at;
@@ -3807,7 +3866,11 @@ void GxRenderer::SetRecording(bool on) {
 
 bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) {
   Impl &m = *impl_;
-  const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
+  // (STILL: a menu screen of the game, its scrolling text lists; also when prev was one: the cut out of it)
+  const std::uint32_t refuse =
+      RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK | RE4_GX_CHUNK_STILL;
+  if (prev.flags & RE4_GX_CHUNK_STILL)
+    return false;
   if (!m.recordDraws || !m.recValid || m.recSequence != prev.sequence || next.sequence != prev.sequence + 1 ||
       (next.flags & refuse) || !(next.flags & RE4_GX_CHUNK_XFB) || next.version != RE4_GX_FRAME_VERSION ||
       m.viBlack || m.rec.empty())
@@ -3851,19 +3914,36 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   m.ipDraws = m.ipMatched = m.ipTurned = 0;
   m.interpCopied.clear();
   m.interpUploads.clear();
-  // a fresh store for the pass's blended vertices (the last pass's may still be read by the GPU)
-  if (!m.blendVbo)
-    glGenBuffers(1, &m.blendVbo);
-  m.blendCap = std::max<std::size_t>(next.vertexBytes, 65536);
-  glBindBuffer(GL_ARRAY_BUFFER, m.blendVbo);
-  glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m.blendCap), nullptr, GL_STREAM_DRAW);
-  m.blendUsed = 0;
+  // the store for the pass's blended vertices: the next quarter of the mapped ring once the GPU is
+  // through with it, else a fresh buffer (the last pass's may still be read by the GPU)
+  if (!m.blendRingTried)
+    m.BlendRingInit();
+  if (m.blendMap) {
+    m.blendPart = (m.blendPart + 1) % Impl::kBlendParts;
+    if (GLsync fence = m.blendFence[m.blendPart]) {
+      if (glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0) == GL_TIMEOUT_EXPIRED)
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000ull);
+      glDeleteSync(fence);
+      m.blendFence[m.blendPart] = nullptr;
+    }
+    m.blendUsed = m.blendPart * Impl::kBlendPart;
+    m.blendCap = m.blendUsed + Impl::kBlendPart;
+  } else {
+    if (!m.blendVbo)
+      glGenBuffers(1, &m.blendVbo);
+    m.blendCap = std::max<std::size_t>(next.vertexBytes, 65536);
+    glBindBuffer(GL_ARRAY_BUFFER, m.blendVbo);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m.blendCap), nullptr, GL_STREAM_DRAW);
+    m.blendUsed = 0;
+  }
   m.blendAt = -1;
   m.interpPass = true;
   m.interpT = t;
   m.interpPrev = &prev;
   Run(next);
   m.blendAt = -1;
+  if (m.blendMap)
+    m.blendFence[m.blendPart] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
   m.interpPass = false;
   m.interpPrev = nullptr;
   m.skipInterpUploads = true;
@@ -4159,6 +4239,7 @@ void GxRenderer::Release() {
   if (m.blendVbo)
     glDeleteBuffers(1, &m.blendVbo);
   m.blendVbo = 0;
+  m.BlendRingRelease();
   glDeleteBuffers(kXfParts, m.xfUbo);
   m.StreamRelease();
   m.FenceRelease();

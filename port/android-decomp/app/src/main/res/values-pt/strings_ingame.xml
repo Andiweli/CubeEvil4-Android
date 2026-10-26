@@ -137,4 +137,5 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_fxaa_help">Suaviza bordas serrilhadas em uma etapa final. Funciona com ou sem MSAA; a imagem fica um pouco mais suave.</string>
     <string name="ingame_frame_skip_help">Se os gráficos atrasam, pula um quadro para o jogo manter a velocidade normal. Menos quadros são exibidos, nada fica mais lento.</string>
+    <string name="ingame_skip_or_smooth">Salto de quadros e 60 FPS se excluem: ativar um desativa o outro.</string>
 </resources>

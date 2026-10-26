@@ -266,6 +266,7 @@ int gCurrent = -1;  // slot being filled (core thread); -1: not recording
 int gPending = -1;  // slot waiting for the game's VIFlush (kPending); -1: none
 u32 gViNext;        // physical address of the XFB the VI shows next (0: never set)
 bool gViBlack;      // the VI outputs black (VISetBlack, from VIFlush on): RE4_GX_CHUNK_BLACK
+std::atomic<bool> gStill(false);  // a menu screen of the game (re4_gx_still): RE4_GX_CHUNK_STILL
 u32 gSequence;
 bool gNeedReset = true;
 
@@ -622,6 +623,9 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         Re4GxChunk& v = c->view;
         v.version = RE4_GX_FRAME_VERSION;
         v.flags |= RE4_GX_CHUNK_XFB;
+        if (gStill.load()) {
+            v.flags |= RE4_GX_CHUNK_STILL;
+        }
         v.ops = c->ops.data();
         v.opWords = (u32) c->ops.size();
         v.vertices = c->vertices.data();
@@ -2301,6 +2305,11 @@ void re4_gx_mark(void)
         c->view.flags |= RE4_GX_CHUNK_MARK;
     }
     gNeedReset = true;
+}
+
+void re4_gx_still(int on)
+{
+    gStill.store(on != 0);
 }
 
 void re4_gx_host_order_list(const void* list, unsigned int size)

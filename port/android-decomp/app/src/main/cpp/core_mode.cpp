@@ -1273,7 +1273,8 @@ bool drawGx() {
       !gxHitShotsLeft && !gxHitSeriesPending) {
     if (const Re4GxChunk *next = api.gxAcquire()) {
       behind = true;
-      if (optFrameSkip.load() != 0 && gx->CanSkip(*chunk, *next)) {
+      // (Frame skip and 60 FPS are one or the other, CoreMenu; with both set, 60 FPS wins)
+      if (optFrameSkip.load() != 0 && !smoothOn && gx->CanSkip(*chunk, *next)) {
         gx->Skip(*chunk);
         api.gxRelease(chunk);
         chunk = next;

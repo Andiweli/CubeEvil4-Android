@@ -138,4 +138,5 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_fxaa_help">Lisse les bords crénelés lors d’une dernière passe. Fonctionne avec ou sans MSAA ; l’image devient un peu plus douce.</string>
     <string name="ingame_frame_skip_help">Si le rendu est à la traîne, saute une image pour que le jeu garde sa vitesse normale. Moins d’images s’affichent, rien n’est ralenti.</string>
+    <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
 </resources>

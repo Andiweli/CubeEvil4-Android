@@ -394,14 +394,26 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(output), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
       graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
     });
-    toggle(buttonsRow(output), R.string.ingame_frame_skip, graphics.getBoolean("frameskip", false), on -> {
+    // Frame skip leaves pictures out, 60 FPS adds pictures between: one or the other (wish of the
+    // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off
+    final Button[] skipAndSmooth = new Button[2];
+    skipAndSmooth[0] = toggle(buttonsRow(output), R.string.ingame_frame_skip, graphics.getBoolean("frameskip", false), on -> {
       graphics.edit().putBoolean("frameskip", on).apply(); CoreBridge.setFrameSkip(on);
+      if (on && skipAndSmooth[1].isSelected()) {
+        toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
+        graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
+      }
     });
-    toggle(buttonsRow(output), R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
+    skipAndSmooth[1] = toggle(buttonsRow(output), R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
       graphics.edit().putBoolean("smooth60", on).apply(); CoreBridge.setSmooth(on);
+      if (on && skipAndSmooth[0].isSelected()) {
+        toggleLabel(skipAndSmooth[0], R.string.ingame_frame_skip, false);
+        graphics.edit().putBoolean("frameskip", false).apply(); CoreBridge.setFrameSkip(false);
+      }
     });
     help(output, R.string.ingame_frame_skip_help);
     help(output, R.string.ingame_smooth_help);
+    help(output, R.string.ingame_skip_or_smooth);
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);

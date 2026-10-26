@@ -924,6 +924,36 @@ static void testGx()
         }
         re4_core_gx_detach();
     }
+    // a menu screen of the game (re4_gx_still, runtime/picture.cpp): the chunks closed while it is
+    // open carry RE4_GX_CHUNK_STILL (the app's 60 FPS leaves out the pictures between them)
+    {
+        void* fifo = (void*) (unsigned long) 0x82800000u;
+        void* xfb = (void*) (unsigned long) 0x82830000u;
+        re4_core_gx_acquire();  // attach
+        re4probe_gx_produce(fifo, xfb, 2, 0);
+        while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+            re4_core_gx_release(c);
+        }
+        // one frame at a time, taking what is queued after each (4 slots: a renderer that takes
+        // none for a second loses the queue)
+        unsigned still = 0, chunks = 0, last = 0;
+        for (int i = 0; i < 4; i++) {
+            re4_gx_still(i < 2);
+            re4probe_gx_produce(fifo, xfb, 1, 0);
+            while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+                chunks++;
+                still += (c->flags & RE4_GX_CHUNK_STILL) ? 1 : 0;
+                last = c->flags;
+                re4_core_gx_release(c);
+            }
+        }
+        re4_gx_still(0);
+        CHECK(still == 2 && chunks >= 3 && !(last & RE4_GX_CHUNK_STILL));
+        if (still != 2 || chunks < 3 || (last & RE4_GX_CHUNK_STILL)) {
+            re4_log("  gx still: %u of %u chunks marked, the last 0x%x", still, chunks, last);
+        }
+        re4_core_gx_detach();
+    }
     // RE4_GX_BENCH=N: the decoder's time for N village-like frames (120 000 vertices each)
     if (const char* bench = getenv("RE4_GX_BENCH")) {
         unsigned us = re4probe_gx_bench((void*) (unsigned long) 0x82800000u, (void*) (unsigned long) 0x82900000u,
@@ -989,6 +1019,7 @@ int re4probe_partner_damage(void);
 int re4probe_case_free_place(void);
 int re4probe_menu_touch(void);
 int re4probe_letterbox(void);
+int re4probe_picture_still(void);
 int re4probe_knife_swipe(void);
 int re4probe_qte_touch(void);
 int re4probe_gyro_boat(void);
@@ -1649,10 +1680,11 @@ static void testMenuTouch()
     report("menutouch", ok);
 }
 
-// The picture format "4:3 without bars" (patch 0105): when the letterbox stays away
+// The picture format "4:3 without bars" (patch 0105): when the letterbox stays away; and the menu
+// screens without in-between pictures (runtime/picture.cpp re4_picture_still)
 static void testLetterbox()
 {
-    const int bad = re4probe_letterbox();
+    const int bad = re4probe_letterbox() | re4probe_picture_still() << 8;
     if (bad) {
         re4_log("  letterbox: failed checks 0x%x", bad);
     }

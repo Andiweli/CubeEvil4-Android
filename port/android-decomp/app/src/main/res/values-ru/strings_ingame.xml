@@ -137,4 +137,5 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_fxaa_help">Сглаживает зубчатые края на последнем шаге. Работает с MSAA и без него; картинка становится чуть мягче.</string>
     <string name="ingame_frame_skip_help">Если графика не успевает, пропускает кадр, чтобы игра шла с обычной скоростью. Показывается меньше кадров, ничего не замедляется.</string>
+    <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
 </resources>

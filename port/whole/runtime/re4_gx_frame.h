@@ -146,9 +146,14 @@ enum Re4GxChunkFlags {
                                      picture before */
     RE4_GX_CHUNK_MARK = 1u << 3,  /* the core marked it (re4_gx_mark: a hit on the
                                      player); the chunk after it starts over */
-    RE4_GX_CHUNK_BLACK = 1u << 4  /* the VI shows black (VISetBlack): run it, show
+    RE4_GX_CHUNK_BLACK = 1u << 4, /* the VI shows black (VISetBlack): run it, show
                                      black instead of its picture until a chunk
                                      without the flag */
+    RE4_GX_CHUNK_STILL = 1u << 5  /* a menu screen of the game (a sub screen, the
+                                     memory card screens; re4_gx_still): no
+                                     picture between it and the one before (the
+                                     app's 60 FPS; its text lists scroll, the
+                                     letters cannot be told apart) */
 };
 
 typedef struct Re4GxChunk {

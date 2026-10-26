@@ -4,6 +4,42 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Dritter Nachtest 0.91.0 (26.10.2026 nachmittags, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, Video): C-Stick, Fackelschein hinter Wänden und Intro-Wellen ✅ bestätigt.
+Offen: 60 FPS und Frame-Skip zusammen ruckeln hin und her; mit 60 FPS flackert die Liste des Ladebildschirms an der
+Schreibmaschine beim Hochscrollen; 60 FPS bringt auf dem Retroid nur 2–3 Bilder/s mehr. Dazu die vom Projektinhaber
+selbst gebaute `RetroTouch-1.0.0-beta.7.aar` (Commit `d987f4b`).
+
+- **60 FPS und Frame-Skip schließen sich aus** (Wunsch des Projektinhabers; ersetzt „Frame-Skip auch mit 60 FPS“ vom
+  Mittag): Einschalten des einen schaltet das andere aus, darunter der Hinweis `ingame_skip_or_smooth` (10 Sprachen,
+  `check_translations.py` 122 Texte). Waren beim Start beide an (alte Einstellungen), bleibt 60 FPS und Frame-Skip
+  geht aus (`CoreActivity`). `core_mode.cpp` lässt Bilder nur ohne 60 FPS aus.
+- **Flackern an der Schreibmaschine:** Die Liste zeichnet jeden Buchstaben mit gleich aussehenden Zeichenbefehlen.
+  Das Zwischenbild ordnet die Zeichnungen zweier Bilder nach ihrer Reihenfolge einander zu; scrollt die Liste,
+  rutschen die Buchstaben an andere Plätze und das Zwischenbild mischt sie. Neu: Kennzeichen
+  **`RE4_GX_CHUNK_STILL`** (`re4_gx_frame.h`). `runtime/picture.cpp` prüft jedes Bild (`re4_add_frame_hook`), ob ein
+  Untermenü (`STA_SUB_SCRN`: Koffer, Karte, Händler, Akten) oder ein Speicherkarten-Bildschirm (`SYS_TYPEWRITER`,
+  `CardMainTask`: Laden, Speichern, Startprüfung) offen ist, und meldet es `re4_gx_still` (`gx_decode.cpp`); die
+  Bilder tragen dann das Kennzeichen, `GxRenderer::Interpolate` macht kein Zwischenbild hinein, darin und heraus.
+  Die Menüs laufen mit 60 FPS also mit den 30 Bildern des Spiels. Wechsel ins Fehlerprotokoll
+  („picture: a menu screen: no pictures between“). Tests: `TestInterpolation` (vier Fälle, ohne die Sperre alle vier
+  rot), `runtime-test gx` (die Bilder bei offenem Menü tragen das Kennzeichen, danach nicht mehr), `runtime-test
+  letterbox` (`re4probe_picture_still`: Untermenü, Kartenbildschirm, keins).
+- **Tempo von 60 FPS:** Jedes überblendete Figurenmodell kostete im Zwischenbild ein Abbilden und Freigeben des
+  Puffers beim Treiber (r104: 233 je Zwischenbild). Neu: mit `EXT_buffer_storage` ein Ring von 24 MB, einmal dauerhaft
+  abgebildet, je Zwischenbild ein Viertel mit Zaun (`BlendRingInit`, `blendFence`): je Figur nur noch ein Kopieren,
+  kein GL-Aufruf; ohne die Erweiterung der bisherige Weg (`RE4_GX_PERSISTENT=0` erzwingt ihn). Die r104-Aufnahmen
+  vom Gerät zeichnen auf beiden Wegen dasselbe. **Grenze:** Ein Zwischenbild ist ein ganzes zusätzliches Bild für
+  die GPU. Schafft das Gerät die 30 Bilder des Spiels nur knapp, bleibt keine Zeit dafür; dann entfallen die
+  Zwischenbilder (siehe „Zwischenbilder nur, wenn Zeit ist“) und es kommen nur wenige Bilder/s dazu. 60 FPS wirkt
+  voll erst, wenn das Spiel ohne es fest 30 Bilder/s schafft (kleinere Auflösung oder „Dynamisch“).
+- **Nicht getestet:** alles auf dem Gerät (Tempo mit dem Ring, kein Flackern mehr an der Schreibmaschine, die
+  Umschaltung im Menü).
+- **Tests:** `whole_build.sh` x86_64: 0 Fehler beim Bauen, `runtime-test` und `core-test` 0 Fehler (auch mit
+  `RE4_GX_THREADS=0`); i686, armhf, aarch64 laufen noch. `gx_gl_check` 0 Fehler, alle Java-Tests
+  (`test_host.sh`, Java-Teil) grün, `check_translations.py` 122 Texte in 10 Sprachen.
+
 ## Zweiter Nachtest 0.91.0 (26.10.2026 mittags, Cloud-Korrektur)
 
 Bericht des Projektinhabers (Retroid, vier Fehlerberichte, R3-Aufnahmen r223): 60 FPS mit „Dynamisch“ bleibt auf

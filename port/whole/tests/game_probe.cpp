@@ -819,6 +819,7 @@ extern "C" void re4_touch_sscrn_moved(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, S
                                       SsMapMain* map, SsFileMain* file);
 extern "C" void re4_core_set_letterbox(int off);
 extern "C" int re4_letterbox_open(void);
+extern "C" int re4_picture_still(void);
 
 namespace {
 
@@ -1287,6 +1288,30 @@ extern "C" int re4probe_snd_bank(void)
     memcpy(Snd_req_work, keep, sizeof keep);
     Snd_ctrl_work.req_push_idx = keepPush;
     Snd_ctrl_work.reset_flag = keepReset;
+    return bad;
+}
+
+// The menu screens without in-between pictures (runtime/picture.cpp re4_picture_still): a sub
+// screen or a memory card screen. Bits: each failed case.
+extern "C" int re4probe_picture_still(void)
+{
+    const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0, keepCard = SysFlagChk(pG, SYS_TYPEWRITER) != 0;
+    int bad = 0;
+    StaFlagOff(pG, STA_SUB_SCRN);
+    SysFlagOff(pG, SYS_TYPEWRITER);
+    bad |= re4_picture_still() ? 1 : 0;
+    StaFlagOn(pG, STA_SUB_SCRN);
+    bad |= re4_picture_still() ? 0 : 2;
+    StaFlagOff(pG, STA_SUB_SCRN);
+    SysFlagOn(pG, SYS_TYPEWRITER);
+    bad |= re4_picture_still() ? 0 : 4;
+    SysFlagOff(pG, SYS_TYPEWRITER);
+    if (keepSub) {
+        StaFlagOn(pG, STA_SUB_SCRN);
+    }
+    if (keepCard) {
+        SysFlagOn(pG, SYS_TYPEWRITER);
+    }
     return bad;
 }
 
