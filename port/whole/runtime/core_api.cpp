@@ -730,13 +730,14 @@ static int parseLanguage(const char* v)
     return n >= 2 && n <= 6 ? n : -1;
 }
 
-void re4_core_set_language(int language)
+void re4_game_restart(void);  // runtime/game_language.cpp
+
+void re4_core_restart_game(int language)
 {
     int value = language >= 2 && language <= 6 ? language : -1;
-    if (gLanguageWanted != value) {
-        re4_log("core: game language %d asked by the app (European discs: 2 English .. 6 Italian)", value);
-    }
+    re4_log("core: restart with game language %d asked by the app (European discs: 2 English .. 6 Italian)", value);
     gLanguageWanted = value;
+    re4_game_restart();
 }
 
 int re4_core_language_wanted(void)

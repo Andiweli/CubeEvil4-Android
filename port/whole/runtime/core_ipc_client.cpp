@@ -934,9 +934,9 @@ void re4ipc_set_fast_cores(int on)
     post(kSetFastCores, on, 0, 0);
 }
 
-void re4ipc_set_language(int language)
+void re4ipc_restart_game(int language)
 {
-    post(kSetLanguage, language, 0, 0);
+    post(kRestartGame, language, 0, 0);
 }
 
 void re4ipc_swipe(int dir)

@@ -1,35 +1,39 @@
 // The game's language with the European discs (port/docs/retail-eu-plan.md, R7). Compiled with
-// game flags; all calls run on the game thread.
+// game flags; the game's functions run on the game thread.
 //
 // The European release has every language on its discs: the six-language message tables (core,
 // rooms, memory card, codec) and the folders ss/Eng, ss/Ger, ss/Fra, ss/Esp, ss/Ita. Its setLanguage
 // (European main.dol 0x80125354) starts from the console's system language (OSGetLanguage + 2:
 // 2 English, 3 German, 4 French, 5 Spanish, 6 Italian; Dutch is English), its title menu has a
 // "LANGUAGE SELECT". The debug build fixes language 1 (the US release: no event subtitles, two
-// difficulties). Decisions of the project owner (26.10.2026): the language is chosen in the app's
-// in-game menu, the phone's language until then, "LANGUAGE SELECT" leaves the title menu
-// (patch 0121), a change applies at once.
+// difficulties). Decisions of the project owner: the language is chosen in the app's in-game menu,
+// the phone's language until then, "LANGUAGE SELECT" leaves the title menu (patch 0121; 26.10.2026);
+// a change restarts the game after a question (27.10.2026; switching while the game ran left the
+// title and the loaded screens in the old language).
 //
 // The app's choice comes as re4_core_language_wanted (runtime/core_api.cpp: RE4_GAME_LANGUAGE at the
-// start, re4_core_set_language while the game runs). Patch 0121 asks here at boot (setLanguage),
-// after the system file of the memory card was read (it holds the language it was saved with) and
-// every frame of the title and of play (re4_game_language_tick). A change switches the message
-// language at once; the sub screens read their language folder when they open, the title its
-// title.dat when it starts; the option menu's data (SS/<lang>/option.dat) is read again in play,
-// where no option screen is open (gameMainLoop runs in Rno0 3 only).
+// start, re4_core_restart_game later). Patch 0121 asks here at boot (setLanguage), at every start
+// and soft reset (systemWorkInit) and after the system file of the memory card was read (it holds
+// the language it was saved with).
 #include "types.h"
 #include "global.h"
 #include "main.h"
-#include "mes.h"
-#include "read.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 extern "C" int re4_disc_retail_eu(void);       // runtime/dvd.cpp
 extern "C" int re4_core_language_wanted(void);  // runtime/core_api.cpp: 2..6, or -1
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
+extern "C" int re4_game_language_value(void);
+extern "C" void re4_core_restart_game(int language);  // runtime/core_api.cpp
 
 namespace {
 
-bool gOptionStale;  // option.dat is of another language than pSys->language
+int gRestartHooked;
+int gRestartAsked;  // the app asked for a restart (re4_game_restart)
 
 const char* name(int language)
 {
@@ -44,11 +48,58 @@ void setFields(int language)
     pG->game_country = (u8) language;
 }
 
+void restartHook(unsigned frame)
+{
+    if (__atomic_exchange_n(&gRestartAsked, 0, __ATOMIC_ACQ_REL)) {
+        re4_log("language: the game restarts (soft reset at frame %u, language %s asked)", frame,
+                name(re4_game_language_value()));
+        SysFlagOn(pG, SYS_SOFT_RESET);
+    }
+}
+
+// RE4_TEST_LANGUAGE_RESTART="N:LANG" (the PC check): at game frame N what the app's "Restart" asks
+// for, with LANG (eng, ger, fra, esp, ita or 2..6).
+long gTestFrame = -1;
+int gTestLanguage;
+
+void testHook(unsigned frame)
+{
+    if (gTestFrame >= 0 && (long) frame >= gTestFrame) {
+        gTestFrame = -1;
+        re4_log("language: restart with language %d (RE4_TEST_LANGUAGE_RESTART) at frame %u", gTestLanguage, frame);
+        re4_core_restart_game(gTestLanguage);
+    }
+}
+
+void testSetUp()
+{
+    static bool done;
+    if (done) {
+        return;
+    }
+    done = true;
+    const char* v = getenv("RE4_TEST_LANGUAGE_RESTART");
+    const char* colon = v ? strchr(v, ':') : 0;
+    if (!colon) {
+        return;
+    }
+    static const char* const names[] = {"eng", "ger", "fra", "esp", "ita"};
+    gTestLanguage = atoi(colon + 1);
+    for (int i = 0; i < 5; i++) {
+        if (strcasecmp(colon + 1, names[i]) == 0) {
+            gTestLanguage = i + 2;
+        }
+    }
+    gTestFrame = atol(v);
+    re4_add_frame_hook(testHook);
+}
+
 }  // namespace
 
 // The language the game gets with the European discs (2..6), -1 with the debug build's discs.
 extern "C" int re4_game_language_value(void)
 {
+    testSetUp();
     if (!re4_disc_retail_eu()) {
         return -1;
     }
@@ -76,21 +127,14 @@ extern "C" void re4_game_language_after_card(void)
     }
 }
 
-// Every frame of the title (inPlay 0) and of play (inPlay 1): a changed choice of the app.
-extern "C" void re4_game_language_tick(int inPlay)
+// The app's "Restart" after a new language (re4_core_restart_game, any thread): the game's own soft
+// reset, asked for at the next game frame (a frame hook, called in PADRead on the game thread).
+// systemResetCheck runs it at the end of that frame unless a memory card access holds it (then
+// later), as the reset combo does; the title then starts with setLanguage's new choice.
+extern "C" void re4_game_restart(void)
 {
-    int language = re4_game_language_value();
-    if (language < 0) {
-        return;
+    if (!__atomic_exchange_n(&gRestartHooked, 1, __ATOMIC_ACQ_REL)) {
+        re4_add_frame_hook(restartHook);
     }
-    if (pSys->language != language) {
-        re4_log("language: %s -> %s (%s)", name(pSys->language), name(language), inPlay ? "in play" : "title");
-        setFields(language);
-        cMes.setLanguage(language);
-        gOptionStale = true;
-    }
-    if (gOptionStale && inPlay) {
-        gOptionStale = false;
-        OptionDataRead();
-    }
+    __atomic_store_n(&gRestartAsked, 1, __ATOMIC_RELEASE);
 }

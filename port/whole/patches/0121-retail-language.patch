@@ -1,16 +1,16 @@
 # Retail data (port/docs/retail-eu-plan.md, R7): the language with the European discs. The European
 # setLanguage takes the console's system language (2 English .. 6 Italian), this build fixes 1 (the US
-# release: no event subtitles, two difficulties). Decisions of the project owner (26.10.2026): the app's
-# in-game menu chooses it (the phone's language until then), a change applies at once, the title menu's
-# "LANGUAGE SELECT" (European title.dat, units 11 and 12) goes. setLanguage, systemWorkInit (every start
-# and soft reset, before the title reads its language's data) and the system file's load (card.cpp)
-# take the app's language, the title and play ask every frame (runtime/game_language.cpp). The
-# European German, French, Spanish and Italian SS/<lang>/option.dat are larger than the fixed place of
-# OptionDataRead (0x44000 to 0x4C2C0 of 0x40000 bytes: they ran into the player data, the game ended
-# at the start of r120): a larger one is read to another place (runtime/dvd.cpp re4_option_data_place).
-# With the debug build's discs the language stays 1, also after a system file saved with the European
-# discs (it holds their language; the debug discs have English sub screens only and the title looked
-# for ss/ger/title.dat). A port patch for retail data.
+# release: no event subtitles, two difficulties). Decisions of the project owner: the app's in-game menu
+# chooses it (the phone's language until then), the title menu's "LANGUAGE SELECT" (European title.dat,
+# units 11 and 12) goes (26.10.2026); a change restarts the game after a question (27.10.2026: the
+# game's soft reset, runtime/game_language.cpp). setLanguage, systemWorkInit (every start and soft
+# reset, before the title reads its language's data) and the system file's load (card.cpp) take the
+# app's language. The European German, French, Spanish and Italian SS/<lang>/option.dat are larger
+# than the fixed place of OptionDataRead (0x44000 to 0x4C2C0 of 0x40000 bytes: they ran into the player
+# data, the game ended at the start of r120): a larger one is read to another place (runtime/dvd.cpp
+# re4_option_data_place). With the debug build's discs the language stays 1, also after a system file
+# saved with the European discs (it holds their language; the debug discs have English sub screens only
+# and the title looked for ss/ger/title.dat). A port patch for retail data.
 --- a/src/game/main.cpp
 +++ b/src/game/main.cpp
 @@ -427,6 +427,8 @@
@@ -66,39 +66,9 @@
          pG->CardStatus |= 1;
          SndSetOutputMode(pSys->SndMode, 1);
          m_Rno1++;
---- a/src/game/game.cpp
-+++ b/src/game/game.cpp
-@@ -562,9 +562,11 @@
- // screen (Rno0 = 6) when OptionOpenCheck allows.
- // instant slot (patch 0111)
- extern "C" int re4_instant_game_tick(void);
-+extern "C" void re4_game_language_tick(int in_play); /* port: runtime/game_language.cpp */
- void gameMainLoop()
- {
-     if (re4_instant_game_tick()) return;
-+    re4_game_language_tick(1); /* port: the app's language (European discs) */
-     static int other_slow = 3;
-     static int preb_slow_flg = 1;
-     static f32 player_Seq_speed = 0.6f;
 --- a/src/game/title.cpp
 +++ b/src/game/title.cpp
-@@ -91,6 +91,7 @@
- // core / option data, then runs the title state machine (TITLE_WORK Rno0) every frame until
- // titleExit chains into GameTask.
- extern "C" void re4_instant_title_tick(void*);
-+extern "C" void re4_game_language_tick(int in_play); /* port: runtime/game_language.cpp */
- void Title_task()
- {
-     static void (*titleFuncTbl[8])(TITLE_WORK*) = {
-@@ -106,6 +107,7 @@
-     w = (TITLE_WORK*) MEM_CALLOC(sizeof(TITLE_WORK), 1, 13);
-     for (;;) {
-         re4_instant_title_tick(w);
-+        re4_game_language_tick(0); /* port: the app's language (European discs) */
-         titleFuncTbl[w->Rno0](w);
-         TaskSleep(1);
-     }
-@@ -382,6 +384,7 @@
+@@ -382,6 +382,7 @@
  // Loads the main menu id layout: 5 entries (new game, Ada, Mercenaries, load, options) once all
  // is unlocked, else 3 (new game, load, options); cursor on "load".
  extern "C" int re4_debug_start_room_set(void); /* port: runtime/dolphin_os.cpp */
@@ -106,7 +76,7 @@
  
  void titleMenuInit(TITLE_WORK* w)
  {
-@@ -402,6 +405,18 @@
+@@ -402,6 +403,18 @@
          w->p_menu[1] = IdSys.unitPtr(5, IDC_TITLE_MENU);
          w->p_menu[2] = IdSys.unitPtr(3, IDC_TITLE_MENU);
          w->cursor = 1;
