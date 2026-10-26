@@ -305,7 +305,7 @@ final class CoreMenu extends Dialog {
     navigation[CONTROLS] = nav(first, R.string.ingame_controls_page, R.string.ingame_controls_summary, CONTROLS);
     navigation[PERFORMANCE] = nav(second, R.string.ingame_performance, R.string.ingame_performance_summary, PERFORMANCE);
     navigation[MANAGEMENT] = nav(second, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
-    if (host.gameLanguages()) {
+    if (host != null && host.gameLanguages()) {
       // the languages of the European discs, each in its own language
       heading(R.string.ingame_game_language);
       int chosen = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
