@@ -154,6 +154,34 @@ public final class CoreTouchTests {
     t.move(0, 0);
     check(in.pad()[1] == 0 && in.pad()[2] == 0);
 
+    // the C stick as four editor buttons (not in the default layout): full tilt while held; both
+    // directions of an axis cancel; with the look zone the one that tilts further counts
+    check(CoreTouch.label(CoreTouch.C_UP).length() <= 5 && CoreTouch.label(CoreTouch.C_RIGHT).startsWith("C"));
+    t.action(CoreTouch.C_RIGHT, true);
+    check(in.pad()[0] == 0 && in.pad()[3] == 92 && in.pad()[4] == 0);
+    t.action(CoreTouch.C_UP, true);
+    check(in.pad()[3] == 92 && in.pad()[4] == 92 && host.calls.isEmpty());
+    t.action(CoreTouch.C_LEFT, true);  // left and right cancel
+    check(in.pad()[3] == 0 && in.pad()[4] == 92);
+    t.action(CoreTouch.C_LEFT, false);
+    t.action(CoreTouch.C_UP, false);
+    t.action(CoreTouch.C_RIGHT, false);
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
+    t.action(CoreTouch.C_DOWN, true);
+    check(in.pad()[4] == -92);
+    t.reset();  // everything let go
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
+    t.action(CoreTouch.C_RIGHT, true);
+    t.beginEvent();
+    t.fingerDown(5, true);
+    t.look(CoreTouch.LOOK_RANGE / 2, 0);  // the look zone tilts less than the button: the button stays
+    check(in.pad()[3] == 92);
+    t.look(0, 0);
+    t.action(CoreTouch.C_RIGHT, false);
+    check(in.pad()[3] == 46);  // the looking finger shows through again
+    t.fingerUp(5);
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
+
     // the look zone: a finger that went down there (no control answered) tilts the C stick by its way
     t.beginEvent();
     t.fingerDown(3, true);
@@ -253,7 +281,8 @@ public final class CoreTouchTests {
       // short labels: RetroTouch shrinks the text to the button, five letters stay readable
       check(!CoreTouch.LABELS[i].isEmpty() && CoreTouch.LABELS[i].length() <= 5);
       check(CoreTouch.label(a).equals(CoreTouch.LABELS[i]));
-      check(a.equals(CoreTouch.MENU) || a.equals(CoreTouch.R3) ? CoreTouch.gcButton(a) == 0 : CoreTouch.gcButton(a) != 0);
+      boolean noButton = a.equals(CoreTouch.MENU) || a.equals(CoreTouch.R3) || a.startsWith("cstick_");  // app / C stick actions
+      check(noButton ? CoreTouch.gcButton(a) == 0 : CoreTouch.gcButton(a) != 0);
     }
     Set<String> ids = new HashSet<>(), used = new HashSet<>();
     int buttons = 0, sticks = 0, looks = 0, pads = 0;
@@ -274,7 +303,11 @@ public final class CoreTouchTests {
     // RetroTouch's limits (RetroTouchLayout.validate), with room for R3
     Set<String> placed = new HashSet<>(registered);
     placed.remove(CoreTouch.R3);
-    check(used.equals(placed) && buttons + 1 <= 16 && sticks == 1 && looks == 1 && pads == 1);
+    placed.remove(CoreTouch.C_UP);
+    placed.remove(CoreTouch.C_DOWN);
+    placed.remove(CoreTouch.C_LEFT);
+    placed.remove(CoreTouch.C_RIGHT);
+    check(used.equals(placed) && buttons + 5 <= 16 && sticks == 1 && looks == 1 && pads == 1);
     // one move stick: RetroTouch's onMove does not say which stick moved
 
     // the touch areas: a button and the stick an ellipse of half the width and height times

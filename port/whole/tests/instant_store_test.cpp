@@ -54,6 +54,11 @@ extern "C" int re4_instant_game_ready()
 {
     return ready;
 }
+extern "C" int re4_instant_game_save_blocked()
+{
+    return 0;
+}
+
 extern "C" int re4_instant_game_can_load()
 {
     return ready || titleReady;

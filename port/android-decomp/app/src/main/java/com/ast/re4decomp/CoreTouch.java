@@ -32,7 +32,10 @@ import java.util.Set;
 final class CoreTouch {
   // the actions registered with RetroTouch (the layout's contract: lower case, never renamed)
   static final String A = "a", B = "b", X = "x", Y = "y", Z = "z", L = "l", R = "r",
-      START = "start", MENU = "menu", R3 = "r3";
+      START = "start", MENU = "menu", R3 = "r3",
+      // the C stick as four buttons (wish of the project owner, 26.10.2026): RetroTouch reports one stick only
+      // (onMove does not say which), so the editor adds the C stick as C-up, C-down, C-left and C-right
+      C_UP = "cstick_up", C_DOWN = "cstick_down", C_LEFT = "cstick_left", C_RIGHT = "cstick_right";
   // the D-pad's directions (RetroTouchNavigation)
   static final String UP = "nav_up", DOWN = "nav_down", LEFT = "nav_left", RIGHT = "nav_right";
   /** This way of a looking finger (share of the screen's shorter side) tilts the C stick fully. */
@@ -44,13 +47,14 @@ final class CoreTouch {
    * graphics capture for error reports, as on a controller; not in the default layout, the editor
    * adds it.
    */
-  static final String[] ACTIONS = {A, B, X, Y, Z, L, R, START, MENU, R3};
-  static final String[] LABELS = {"A", "B", "X", "Y", "Z", "L", "R", "START", "MENU", "R3"};
+  static final String[] ACTIONS = {A, B, X, Y, Z, L, R, START, MENU, R3, C_UP, C_DOWN, C_LEFT, C_RIGHT};
+  static final String[] LABELS = {"A", "B", "X", "Y", "Z", "L", "R", "START", "MENU", "R3", "C\u2191", "C\u2193", "C\u2190", "C\u2192"};
   // the GameCube's official colours (the project owner's palette, 19.10.2026): A green, B red,
   // Z purple, the others grey (RetroTouch writes dark labels on the light grey)
   static final int GC_GREEN = rgb(0x10, 0x9B, 0x61), GC_RED = rgb(0xF6, 0x39, 0x2C), GC_PURPLE = rgb(0x6B, 0x5C, 0xB1),
       GC_GREY = rgb(0xDD, 0xDD, 0xDD);
-  static final int[] COLOURS = {GC_GREEN, GC_RED, GC_GREY, GC_GREY, GC_PURPLE, GC_GREY, GC_GREY, GC_GREY, GC_GREY, GC_GREY};
+  static final int[] COLOURS = {GC_GREEN, GC_RED, GC_GREY, GC_GREY, GC_PURPLE, GC_GREY, GC_GREY, GC_GREY, GC_GREY, GC_GREY,
+      GC_GREY, GC_GREY, GC_GREY, GC_GREY};
 
   // the kinds of RetroTouchControl
   static final int BUTTON = 0, STICK = 1, LOOK = 2, DPAD = 3;
@@ -159,6 +163,12 @@ final class CoreTouch {
     if (down) answered = true;
     if (MENU.equals(action)) {
       host.select(down);
+    } else if (C_UP.equals(action) || C_DOWN.equals(action) || C_LEFT.equals(action) || C_RIGHT.equals(action)) {
+      if (C_UP.equals(action)) cUp = down;
+      else if (C_DOWN.equals(action)) cDown = down;
+      else if (C_LEFT.equals(action)) cLeft = down;
+      else cRight = down;
+      updateC();
     } else if (R3.equals(action)) {
       host.r3(down);
     } else if (latch && (L.equals(action) || R.equals(action))) {
@@ -193,7 +203,18 @@ final class CoreTouch {
       lookX *= LOOK_RANGE / way;
       lookY *= LOOK_RANGE / way;
     }
-    input.touchStick(true, lookX / LOOK_RANGE, lookY / LOOK_RANGE);
+    updateC();
+  }
+
+  // the C stick buttons (the editor's C-up .. C-right), held while the finger is on them
+  private boolean cUp, cDown, cLeft, cRight;
+
+  /** The C stick: the C buttons at full tilt or the looking finger, whichever tilts further. */
+  private void updateC() {
+    float bx = (cRight ? 1 : 0) - (cLeft ? 1 : 0), by = (cDown ? 1 : 0) - (cUp ? 1 : 0);
+    float lx = lookFingers.isEmpty() ? 0 : lookX / LOOK_RANGE, ly = lookFingers.isEmpty() ? 0 : lookY / LOOK_RANGE;
+    if (bx * bx + by * by >= lx * lx + ly * ly) input.touchStick(true, bx, by);
+    else input.touchStick(true, lx, ly);
   }
 
   /** Before RetroTouch gets a touch event. */
@@ -261,7 +282,7 @@ final class CoreTouch {
   private void centreLook() {
     lookX = 0;
     lookY = 0;
-    input.touchStick(true, 0, 0);
+    updateC();
   }
 
   /** Everything let go (pause, the controls hidden, the editor), latched L, R and B too. */
@@ -269,6 +290,7 @@ final class CoreTouch {
     lookFingers.clear();
     lookX = 0;
     lookY = 0;
+    cUp = cDown = cLeft = cRight = false;
     if (l) host.latched(L, false);
     if (r) host.latched(R, false);
     if (b) host.latched(B, false);
