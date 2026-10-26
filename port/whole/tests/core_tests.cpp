@@ -1030,6 +1030,53 @@ void testPad()
     PADRead(pads);
     PADRead(pads);
     CHECK((re4_core_rumble() & 0xF) == 0);
+    // the live controller (the app): every press reaches the game as a press of its own, also a
+    // fast mash where the button is let go and pressed again between two reads (r226, 25.10.2026)
+    {
+        Re4CorePad live;
+        memset(&live, 0, sizeof(live));
+        auto read = [&]() {
+            PadStatus p[4];
+            PADRead(p);
+            return p[0].button;
+        };
+        re4_core_pad(&live);
+        read();
+        live.buttons = 0x0100;
+        re4_core_pad(&live);
+        CHECK(read() == 0x0100);  // pressed
+        live.buttons = 0;
+        re4_core_pad(&live);
+        live.buttons = 0x0100;
+        re4_core_pad(&live);       // let go and pressed again before the next read
+        CHECK(read() == 0);        // a frame off ...
+        CHECK(read() == 0x0100);   // ... then the second press
+        CHECK(read() == 0x0100);   // held
+        live.buttons = 0;
+        re4_core_pad(&live);
+        live.buttons = 0x0100;
+        re4_core_pad(&live);
+        live.buttons = 0;
+        re4_core_pad(&live);       // a tap shorter than a frame
+        CHECK(read() == 0);        // (held at the read before: off first)
+        CHECK(read() == 0x0100);   // the tap
+        CHECK(read() == 0);
+        live.triggerL = 200;
+        live.buttons = 0x0040;
+        re4_core_pad(&live);
+        read();
+        live.buttons = 0;
+        live.triggerL = 0;
+        re4_core_pad(&live);
+        live.buttons = 0x0040;
+        live.triggerL = 200;
+        re4_core_pad(&live);
+        PadStatus p[4];
+        PADRead(p);
+        CHECK(p[0].button == 0 && p[0].triggerLeft == 0);  // L off with its trigger value
+        CHECK(read() == 0x0040);
+        re4_core_pad(nullptr);
+    }
     report("pad", ok);
 }
 

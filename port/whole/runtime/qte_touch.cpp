@@ -8,8 +8,9 @@
 // CoreActivity.watchTap only passes taps beside the touch controls, so a player with a controller
 // does not tap) while such a prompt is shown presses its buttons for the next two game frames, on
 // top of the controller (a frame hook in PADRead, pad.cpp re4_pad_add), as a player would: L and R,
-// A and B (the dodges, the knife fight), A or B alone (the mashes: each tap is one press; the
-// shake-off counts A too), X, Y, Z, L or R. The plain A prompt (doors, ladders, kicks: the touch
+// A and B (the dodges, the knife fight), A or B alone (the mashes: each tap is one press of one
+// frame with a frame off after it, taps in quick succession are kept and pressed one after the other,
+// so a fast mash is not merged into one long press; the shake-off counts A too), X, Y, Z, L or R. The plain A prompt (doors, ladders, kicks: the touch
 // controls have A) and the stick prompts (the jet ski, the levers) are left to the controls. A tap
 // older than 400 ms, in a sub screen or without a prompt does nothing.
 #include "types.h"
@@ -41,6 +42,8 @@ u32 gSeen;
 bool gHooked;
 u16 gButtons;       // being pressed
 unsigned gLeft;     // frames
+unsigned gQueued;   // mash taps not pressed yet (a press each second frame)
+bool gPressedLast;  // the mash pressed in the frame before (this one is its release)
 unsigned gTaps;
 u8 gLogged[17];     // one line per prompt kind
 
@@ -76,29 +79,54 @@ const char* names(u16 b)
     return "?";
 }
 
+bool mash(u8 shown)
+{
+    return shown == DISP_A_RAPID || shown == DISP_B_RAPID || shown == DISP_GACHA;
+}
+
 void qteHook(unsigned)
 {
     const u32 seq = __atomic_load_n(&gSeq, __ATOMIC_ACQUIRE);
+    const u8 shown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
     if (seq != gSeen) {
+        const u32 taps = seq - gSeen;
         gSeen = seq;
         const bool fresh = nowMs() - __atomic_load_n(&gWhen, __ATOMIC_RELAXED) <= kTapAgeMs;
-        const u8 shown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
         if (fresh && !StaFlagChk(pG, STA_SUB_SCRN) && ActBtn.isActive()) {
             const u16 b = re4_qte_buttons(shown);
-            if (b) {
+            if (b && mash(shown)) {
+                gButtons = b;
+                gQueued = gQueued + taps > 4 ? 4 : gQueued + taps;
+                gTaps += taps;
+            } else if (b) {
                 gButtons = b;
                 gLeft = kPressFrames;
                 gTaps++;
-                if (shown < sizeof gLogged && !gLogged[shown]) {
-                    gLogged[shown] = 1;
-                    re4_log("qte: a tap pressed %s for the prompt (kind %d), %u taps so far", names(b), shown, gTaps);
-                }
+            }
+            if (b && shown < sizeof gLogged && !gLogged[shown]) {
+                gLogged[shown] = 1;
+                re4_log("qte: a tap pressed %s for the prompt (kind %d), %u taps so far", names(b), shown, gTaps);
             }
         }
     }
-    if (gLeft) {
+    if (gQueued && !mash(shown)) {
+        gQueued = 0;  // the mash is over
+    }
+    if (gQueued) {
+        // one frame pressed, one released: every tap is a press of its own
+        if (gPressedLast) {
+            gPressedLast = false;
+        } else {
+            re4_pad_add(gButtons);
+            gPressedLast = true;
+            gQueued--;
+        }
+    } else if (gLeft) {
         gLeft--;
         re4_pad_add(gButtons);
+        gPressedLast = false;
+    } else {
+        gPressedLast = false;
     }
 }
 

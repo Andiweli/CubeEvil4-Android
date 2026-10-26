@@ -264,15 +264,25 @@ void re4_pad_add(u16 buttons)
 static std::mutex g_liveLock;
 static Re4CorePad g_live;
 static bool g_hasLive;
-// buttons pressed since the last PADRead: a tap shorter than a game frame
-// (33 ms, longer while the game stutters) still reaches the game once
-static u16 g_pressed;
+// Presses of each button the game has not seen as a press yet (re4_pad_live counts every down). The
+// game counts a press where a button is on in a frame and was off in the one before (Key.trg, game/
+// pad.cpp). A tap shorter than a game frame (33 ms, longer while the game stutters) still reaches the
+// game once; and a new tap while the game still saw the last one held (a fast mash: release and press
+// again between two reads) first gets a frame with the button off, so it counts too (r226, the run
+// from the statue, report 25.10.2026 by video: "A rapidly" with fast taps, the game saw few presses).
+static u8 g_presses[16];
+static u16 g_reported;  // buttons the game got at the last read
 
 void re4_pad_live(const Re4CorePad* pad)
 {
     std::lock_guard<std::mutex> lock(g_liveLock);
     if (pad) {
-        g_pressed |= pad->buttons & ~g_live.buttons;
+        const u16 down = pad->buttons & ~g_live.buttons;
+        for (int i = 0; i < 16; i++) {
+            if ((down >> i & 1) && g_presses[i] < 4) {
+                g_presses[i]++;
+            }
+        }
         g_live = *pad;
         g_hasLive = true;
     } else {
@@ -328,14 +338,28 @@ u32 PADRead(PADStatus* status)
     if (!gScriptLen) {
         std::lock_guard<std::mutex> lock(g_liveLock);
         if (g_hasLive) {
-            status[0].button = g_live.buttons | g_pressed;
-            g_pressed = 0;
+            u16 buttons = g_live.buttons, released = 0;
+            for (int i = 0; i < 16; i++) {
+                const u16 bit = (u16) (1u << i);
+                if (!g_presses[i]) {
+                    continue;
+                }
+                if (g_reported & bit) {
+                    buttons &= ~bit;  // held at the last read: off for one frame, the press next frame
+                    released |= bit;
+                } else {
+                    buttons |= bit;
+                    g_presses[i]--;
+                }
+            }
+            status[0].button = buttons;
             status[0].stickX = g_live.stickX;
             status[0].stickY = g_live.stickY;
             status[0].substickX = g_live.substickX;
             status[0].substickY = g_live.substickY;
-            status[0].triggerLeft = g_live.triggerL;
-            status[0].triggerRight = g_live.triggerR;
+            // a trigger counts as pressed by its value too (game/pad.cpp): off with its button
+            status[0].triggerLeft = (released & 0x0040) ? 0 : g_live.triggerL;
+            status[0].triggerRight = (released & 0x0020) ? 0 : g_live.triggerR;
             // analog A/B like a real pad: full when pressed
             status[0].analogA = (status[0].button & 0x0100) ? 0xFF : 0;
             status[0].analogB = (status[0].button & 0x0200) ? 0xFF : 0;
@@ -354,6 +378,7 @@ u32 PADRead(PADStatus* status)
         }
         g_add = 0;
     }
+    g_reported = status[0].button;
     // every change of the buttons (scripted or from the device)
     static u16 lastButtons;
     if (status[0].button != lastButtons && status[0].button) {

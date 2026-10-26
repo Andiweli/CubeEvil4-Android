@@ -1505,6 +1505,24 @@ extern "C" int re4probe_qte_touch(void)
         }
     }
     bad |= presses != 3 ? 4 : 0;
+    // a fast mash: a tap in every frame (and two in one) still gives one press each, one frame
+    // pressed and one released, instead of one long press (r226, 25.10.2026)
+    presses = 0;
+    {
+        u16 last = 0;
+        for (int f = 0; f < 12; f++) {
+            if (f < 3) {
+                re4_qte_tap();
+            }
+            if (f == 1) {
+                re4_qte_tap();  // two taps before one frame
+            }
+            const u16 b = frame();
+            presses += b == 0x0100 && last != 0x0100;
+            last = b;
+        }
+    }
+    bad |= presses != 4 ? 0x80 : 0;
     // the plain A prompt (a door): nothing
     Cckpt.m_ActBttn.setDispFlag(DISP_A_NORMAL);
     re4_qte_tap();
