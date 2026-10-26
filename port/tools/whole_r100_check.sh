@@ -1144,15 +1144,17 @@ run_memcard() {
     # Discs without debug/roomInfo.dat (the European ones, patch 0119): no debug start in r100, the
     # new game stays in r120, and saving there never leaves the file list (the debug discs alike,
     # 26.10.2026). Leon is put at the door to r100 as in the game run, the save follows there.
-    local card_save="free+60,72,stop" card_place=""
+    local card_save="free+60,72,stop" card_place="" card_free="A@90-600/30 START@900-3000/120"
     if [ -z "$(find "$layout"/disc0/files/Debug "$layout"/files/Debug -maxdepth 1 -iname roominfo.dat 2> /dev/null)" ]; then
+        # the keys of the game run take him through (B at free+300, the room changes at once)
         card_save="free+700,72,stop"
         card_place="free+1:-82910,860,-38480,1.75"
+        card_free="Z@30 B@300 A@760-1300/30 START@1600-3400/120"
         say "  (ohne debug/roomInfo.dat: neues Spiel in r120, an der Tür nach r100 abgesetzt, dort gespeichert)"
     fi
     run_card_game karte-speichern "$limit" "$dir" RE4_START_ROOM=0x100 RE4_ROOM_MENU=1 RE4_STOP_AT_FRAME=30000 \
         RE4_PAD_SCRIPT="A@100-60000/60 START@130-60000/60" RE4_TEST_SAVE="$card_save" RE4_TEST_PLACE="$card_place" \
-        RE4_PAD_FREE_SCRIPT="A@90-600/30 START@900-3000/120"
+        RE4_PAD_FREE_SCRIPT="$card_free"
     code=$?
     local made saved
     made=$(grep -c "card: boot check: making the system file" "$run/karte-speichern.log")
