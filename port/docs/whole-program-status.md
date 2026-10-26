@@ -4,6 +4,26 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Debug-Menü aufgeräumt (26.10.2026 abends, Cloud)
+
+Wunsch des Projektinhabers: im Debug-Menü (SELECT lang) nur AREA JUMP und DEBUG OPTION, linksbündig, ohne die
+flackernden senkrechten Balken.
+
+- **Menü:** Patch 0116 (`db_menu.cpp` `move`): eine Spalte „TOOL MENU“, darunter die beiden Einträge bei x = 32,
+  Zeiger bei x = 20, ab Zeile 72 (bleibt im 16:9-Ausschnitt, Zeilen 56–391); der C-Stick verschiebt nichts mehr.
+  Hoch/runter wechselt (mit Umlauf), A startet, B/START schließt.
+- **Balken:** die Zeitbalken und der Controller-Monitor (`DBG_PROC_BAR`, `DBG_PAD_INFO`) schaltete
+  `state_trace.cpp` bisher nur einmal ab; im letzten Bericht stand diese Zeile, trotzdem sah der Projektinhaber
+  die Balken wieder. Was sie wieder einschaltet, ist offen (im Spiel nur der Flag-Editor und das Untermenü, das
+  den Zustand von vorher zurücksetzt). Jetzt hält die Laufzeit sie bei `RE4_DEBUG_HUD=0` jedes Bild aus und
+  schreibt jedes Wiedereinschalten ins Fehlerprotokoll („run: the debug bars were on again, switched off
+  (rXXX, tool menu open/closed)“, höchstens zehnmal).
+- **60 FPS:** das Debug-Menü und seine Werkzeuge (`DBG_TEST_MODE`) bekommen keine Zwischenbilder mehr
+  (`re4_picture_still`, wie Untermenü und Schreibmaschine): Listen aus Debug-Text über einem angehaltenen Spiel.
+  Falls die Balken ein Mischfehler der Buchstaben waren, sind sie damit auch weg.
+- **Tests:** Kerntest `letterbox` prüft den neuen Fall (Bit 8 in `re4probe_picture_still`). Das Menü selbst
+  braucht die Schrift von der Disc, darum **nicht in der Cloud getestet**, nur gebaut.
+
 ## Sechster Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
 
 Bericht des Projektinhabers (Retroid): der weiße Balken ist weg ✅. Flammen und Fackeln flackern beim schnellen
@@ -8294,6 +8314,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0113 `dvd.cpp` | Teile-Tabelle prüfen (`re4_dvd_header_check`): eine Tabelle ohne Ende-Eintrag (nur Nullen: Raumdatei auf dem Gerät beschädigt oder stiller Lesefehler) ließ `readInit`/`readMain` über `header_buff` hinauslaufen, das ganze Spiel stand (r222 nach der Tür von r210, Infinix X6725 und Galaxy S20 FE, 25.10.2026; r325 auf dem Xiaomi 2109119DG). Der Port liest die Tabelle bis zu dreimal neu, beendet dann das Lesen mit Fehler, einer Bildschirmzeile „DISC FILE DAMAGED“ und einer ausführlichen Zeile im Fehlerprotokoll. Kein Fehler des Prototyps |
 | 0114 `db_light.cpp` | `TOOL_ERR` liest `pTool->Flag`, `pTool` ist ohne geöffneten Licht-Editor leer; das Debug-Werkzeug „SCE ITEM“ stürzte so ab (GameCube: lesbarer Speicher bei Adresse 0x14; Galaxy A02s, Redmi Note 14 Pro). Port-Patch |
 | 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2). Das gemerkte `m_flag` ist 16 bit (die erste Fassung mit `u8` löschte Bits 0x100/0x200: Leon lief durch Türen, Nachtest 26.10.2026); Test `runtime-test em at flags` |
+| 0116 `db_menu.cpp` | Das Debug-Menü (SELECT gehalten, Patch 0061) zeigt nur AREA JUMP und DEBUG OPTION, in einer Spalte am linken Rand, immer an derselben Stelle (Wunsch des Projektinhabers, 26.10.2026; das Original listet 34 Werkzeuge in zwei Spalten um x = 176 und lässt sich mit dem C-Stick verschieben). Hoch/runter wählt, A startet, B oder START schließt wie bisher; die Menütabelle bleibt (ein mit `DbMenuSetExecTool` vorgemerktes Werkzeug startet weiter über seinen Namen) |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

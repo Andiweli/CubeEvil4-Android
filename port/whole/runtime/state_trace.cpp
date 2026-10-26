@@ -424,11 +424,11 @@ unsigned long g_stopAfter;
 // db_menu.cpp) is open, debug_mode is left on: their lines are debug text.
 // The bars that come with it (DebugControl: process time bars at the left
 // edge, primitive buffer and heap bars, the pad monitor; ConfigSet switches
-// DBG_PROC_BAR and DBG_PAD_INFO on at boot) are switched off once, the first
-// frame they are on (wish of the project owner, 17.10.2026: only the text);
-// the flag editor of the tool menu can switch them on again.
+// DBG_PROC_BAR and DBG_PAD_INFO on at boot) are kept off, every frame (wish
+// of the project owner, 17.10.2026: only the text; 26.10.2026: the flickering
+// bars in the tool menu again, whatever switched them on).
 bool g_hideDebugHud;
-bool g_debugBarsOff;
+unsigned g_debugBarsOff;  // times they were found on and switched off
 unsigned long g_roomFrames;  // frames since the first main loop frame
 unsigned long g_loopFrames;  // of them in step 3
 // RE4_TEST_SOFT_RESET="free+N": N frames after the player is free, the soft
@@ -1002,11 +1002,15 @@ void frame(unsigned n)
     // the debug start menu (patch 0043) draws its lines with the debug text;
     // the tool menu (SELECT held in the app, patch 0061; db_menu.cpp DbMenuExec) sets its
     // own page and puts the old one back when it closes (DBG_TEST_MODE)
-    if (g_hideDebugHud && !g_debugBarsOff && (DbgFlagChk(g, DBG_PROC_BAR) || DbgFlagChk(g, DBG_PAD_INFO))) {
+    if (g_hideDebugHud && (DbgFlagChk(g, DBG_PROC_BAR) || DbgFlagChk(g, DBG_PAD_INFO))) {
         DbgFlagOff(g, DBG_PROC_BAR);
         DbgFlagOff(g, DBG_PAD_INFO);
-        g_debugBarsOff = true;
-        re4_log("run: the debug bars (process time, pad monitor) switched off (RE4_DEBUG_HUD=0)");
+        if (g_debugBarsOff++ == 0) {
+            re4_log("run: the debug bars (process time, pad monitor) switched off (RE4_DEBUG_HUD=0)");
+        } else if (g_debugBarsOff <= 10) {
+            re4_log("run: the debug bars were on again, switched off (r%03x, tool menu %s)", g->room_id,
+                    DbgFlagChk(g, DBG_TEST_MODE) ? "open" : "closed");
+        }
     }
     if (g_hideDebugHud && !DbgFlagChk(g, DBG_TEST_MODE)) {
         int page = re4_title_room_menu_open() ? 1 : 0;

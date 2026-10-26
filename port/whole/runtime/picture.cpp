@@ -32,11 +32,16 @@ extern "C" int re4_letterbox_open(void)
 // flickered while it scrolled): no picture between two of a menu screen. The game's sub screens
 // (inventory, map, merchant, files: STA_SUB_SCRN) and the memory card screens (load, save, the
 // boot check: SYS_TYPEWRITER, card.cpp CardMainTask) draw their lists letter by letter with the
-// same draws; the renderer cannot tell which letter moved where and mixed them up. Every frame
-// (re4_add_frame_hook); the GX chunks carry it (RE4_GX_CHUNK_STILL, runtime/gx_decode.cpp).
+// same draws; the renderer cannot tell which letter moved where and mixed them up. The same for
+// the tool menu (SELECT held, patch 0116) and its tools (DBG_TEST_MODE): lists of debug text over a
+// frozen game. Every frame (re4_add_frame_hook); the GX chunks carry it (RE4_GX_CHUNK_STILL,
+// runtime/gx_decode.cpp).
 extern "C" int re4_picture_still(void)
 {
-    return pG && (StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TYPEWRITER)) ? 1 : 0;
+    if (!pG) {
+        return 0;
+    }
+    return StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TYPEWRITER) || DbgFlagChk(pG, DBG_TEST_MODE) ? 1 : 0;
 }
 
 namespace {

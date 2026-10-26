@@ -1292,13 +1292,15 @@ extern "C" int re4probe_snd_bank(void)
 }
 
 // The menu screens without in-between pictures (runtime/picture.cpp re4_picture_still): a sub
-// screen or a memory card screen. Bits: each failed case.
+// screen, a memory card screen or the tool menu. Bits: each failed case.
 extern "C" int re4probe_picture_still(void)
 {
     const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0, keepCard = SysFlagChk(pG, SYS_TYPEWRITER) != 0;
+    const int keepTool = DbgFlagChk(pG, DBG_TEST_MODE) != 0;
     int bad = 0;
     StaFlagOff(pG, STA_SUB_SCRN);
     SysFlagOff(pG, SYS_TYPEWRITER);
+    DbgFlagOff(pG, DBG_TEST_MODE);
     bad |= re4_picture_still() ? 1 : 0;
     StaFlagOn(pG, STA_SUB_SCRN);
     bad |= re4_picture_still() ? 0 : 2;
@@ -1306,11 +1308,17 @@ extern "C" int re4probe_picture_still(void)
     SysFlagOn(pG, SYS_TYPEWRITER);
     bad |= re4_picture_still() ? 0 : 4;
     SysFlagOff(pG, SYS_TYPEWRITER);
+    DbgFlagOn(pG, DBG_TEST_MODE);
+    bad |= re4_picture_still() ? 0 : 8;
+    DbgFlagOff(pG, DBG_TEST_MODE);
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
     }
     if (keepCard) {
         SysFlagOn(pG, SYS_TYPEWRITER);
+    }
+    if (keepTool) {
+        DbgFlagOn(pG, DBG_TEST_MODE);
     }
     return bad;
 }
