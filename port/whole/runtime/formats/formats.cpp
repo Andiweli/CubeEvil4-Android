@@ -634,6 +634,63 @@ void normalise(const char* in, char* out, size_t size)
 
 char g_packedName[64];
 
+// Archives the European release orders differently (port/docs/retail-eu-plan.md, R2): the same
+// entries, a few at other places. The game's code (the debug build's) takes entries by index
+// (PL_ARC, SS_ARC_PTR); the table of such an archive is put back into the debug build's order
+// before anything reads it. Found by comparing the European code with the debug build's:
+//  - em/pl0a.drs (Krauser): the texture the debug build has at entry 7 is the European entry 12,
+//    the five models behind it moved up by one (cPlKlauser::setModel / setHead, the sub screen's
+//    klauserModelInit / wep36Init read 0xA/0x10, 0xD, 0xE/0xF, 0xB there);
+//  - ss/cmn/ss_wep40.dat (Ada's semi-auto rifle): the European file has a second rifle model at
+//    entry 2 (wep40Init picks entry 1 or 2), hand and motion follow at 3 and 4; the second rifle
+//    goes to the end, where the debug build's wep40Init does not look.
+// Each rule checks the European order first (count and the tags of the moved entries), so a
+// debug disc, or a table already put back, is left alone.
+struct RetailOrder {
+    const char* name;
+    u32 count;
+    u32 first;        // the moved range: entries first .. first + n - 1
+    u32 n;
+    const char* euTags;  // their tags in the European order, 4 bytes each
+    u8 from[8];       // debug entry first + i is the European entry first + from[i]
+};
+
+const RetailOrder kRetailOrder[] = {
+    { "em/pl0a.drs", 146, 6, 8, "BIN\0BIN\0BIN\0BIN\0BIN\0TPL\0TPL\0TPL\0", { 0, 6, 1, 2, 3, 4, 5, 7 } },
+    { "ss/cmn/ss_wep40.dat", 5, 1, 4, "BIN\0BIN\0BIN\0FCV\0", { 0, 2, 3, 1 } },
+};
+
+void retailOrder(Blob& b, const char* name)
+{
+    for (const RetailOrder& r : kRetailOrder) {
+        if (strcmp(name, r.name) != 0) {
+            continue;
+        }
+        if (b.size < 0x10 + r.count * 8 || be32(b, 0) != r.count) {
+            return;
+        }
+        u8* offs = b.data + 0x10 + r.first * 4;
+        u8* tags = b.data + 0x10 + r.count * 4 + r.first * 4;
+        if (memcmp(tags, r.euTags, r.n * 4) != 0) {
+            return;  // not the European order: the debug build's, or already put back
+        }
+        u8 o[32], t[32];
+        memcpy(o, offs, r.n * 4);
+        memcpy(t, tags, r.n * 4);
+        for (u32 i = 0; i < r.n; i++) {
+            memcpy(offs + i * 4, o + r.from[i] * 4, 4);
+            memcpy(tags + i * 4, t + r.from[i] * 4, 4);
+        }
+        char key[96];
+        snprintf(key, sizeof(key), "retail order %s", name);
+        if (firstReport(key)) {
+            re4_log("formats: %s: entries %u..%u put into the debug build's order (European release)", name,
+                    (unsigned) r.first, (unsigned) (r.first + r.n - 1));
+        }
+        return;
+    }
+}
+
 }  // namespace
 
 extern "C" void re4_formats_part_loaded(const char* rawName, int nest, int index, const void* header, unsigned addr)
@@ -657,6 +714,9 @@ extern "C" void re4_formats_part_loaded(const char* rawName, int nest, int index
     if (h->type == TRANS_SND_BLK) {
         convertSoundBlock(b, part);
         return;
+    }
+    if (re4_disc_release() == RE4_DISC_RETAIL_EU) {
+        retailOrder(b, name);
     }
     for (const Rule& r : kRules) {
         if (fnmatch(r.pattern, name, 0) == 0) {

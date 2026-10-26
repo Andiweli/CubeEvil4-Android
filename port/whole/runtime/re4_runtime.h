@@ -135,6 +135,8 @@ int re4_dvd_inserted_disc(void);
 #define RE4_DISC_RETAIL_US 2 /* G4BE08 with another layout, the US release (untested) */
 #define RE4_DISC_UNKNOWN 3   /* another game, or no disc folder */
 int re4_disc_release(void);
+/* 1 with the European discs: the switch of the game patches for their data (patch 0120). */
+int re4_disc_retail_eu(void);
 /* A larger etc/core.das than the debug build's fixed place holds (the European release, patch
  * 0117): it is read here instead, in the development half of MEM1 that nothing else uses. */
 #define RE4_MEM1_CORE_ALT_ADDR 0x81C00000u

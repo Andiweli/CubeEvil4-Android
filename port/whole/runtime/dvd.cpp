@@ -532,6 +532,11 @@ int re4_disc_release(void)
     return d ? d->release : RE4_DISC_UNKNOWN;
 }
 
+int re4_disc_retail_eu(void)
+{
+    return re4_disc_release() == RE4_DISC_RETAIL_EU;
+}
+
 // The place of the core archive (patch 0117, read.cpp CoreDataRead): the debug build reads
 // etc/core.das to the fixed 0x80578000 with room for CORE_DATA_MAX (0x234000) bytes, up to the
 // option data at 0x807AC000. The European release's core is 0x23AC40 bytes: there it overran
