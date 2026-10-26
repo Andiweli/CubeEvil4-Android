@@ -56,6 +56,12 @@ entfernen). Entscheidungen (26.10.2026): Standard ist die Handy-Sprache, ein Wec
   Speicherkarten-Meldungen deutsch. Mit neuer Karte keine Meldung beim Start (Karte formatiert angelegt, Systemdatei
   still erstellt), mit kaputter Karte dieselbe Startprüfung wie mit den Debug-Discs (Code -6, weiter zum Titel ohne
   Tastendruck; formatiert wird über die Abfrage des Spiels beim Speichern, Entscheidung vom 17.10.2026).
+- Spielstände zwischen den Fassungen (Stand `868521ec`, Ladelauf wie Lauf B der Prüfstrecke): Spielstand der
+  Debug-Discs mit den EU-Discs (Französisch) geladen, r100 läuft, „Retry“ geht; Spielstand der EU-Discs (Deutsch) mit
+  den Debug-Discs ebenso. Dabei gefunden und behoben: die Systemdatei der EU-Discs trägt deren Sprache, die Debug-Version
+  übernahm sie und suchte `ss/ger/title.dat` (die Debug-Discs haben nur `ss/Eng`), der Titel blieb stehen; mit den
+  Debug-Discs bleibt die Sprache jetzt 1. Debug-Discs mit diesem Stand „ALLES OK“. Eine neue Disc-Installation ersetzt nur
+  `disc1`/`disc2`, die Speicherkarte der App (`memcard/`) bleibt.
 - App: `CoreMenuLayoutTest` 3/3 (alle 10 Sprachen, mit „Game language“), Android-Kern armeabi-v7a und arm64-v8a je
   0 Fehler, APK `app-core-debug.apk` gebaut. **Nicht geprüft:** Gerät (Retroid), ARM unter qemu, ein Sprachwechsel
   im laufenden Spiel (nur der Startwert lief am PC).

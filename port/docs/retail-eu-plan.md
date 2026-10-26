@@ -19,6 +19,7 @@ EU-Discs; Standard die Handy-Sprache, ein Wechsel gilt sofort), „LANGUAGE SELE
 Sprachen liegen anders als angenommen: die Untermenü-Texte als einsprachige Tabellen in `ss/<Sprache>` (Patch 0122),
 die Optionsdaten der vier weiteren Sprachen sind größer als ihr fester Platz (Patch 0121), die Schrift-Einstellung
 der Texte kannte nur Japanisch und Englisch (Patch 0123). Am PC geprüft (alle fünf Sprachen), **Gerätetest offen**.
+Spielstände laden am PC in beide Richtungen (Debug-Spielstand mit EU-Discs und umgekehrt).
 Einzelheiten: `whole-program-status.md`, Abschnitt „Schritt R7“.
 
 Ziel: CubeEvil4 spielt das Spiel auch mit den europäischen Verkaufs-Discs (`G4BP08`, Disc 1 und 2),
