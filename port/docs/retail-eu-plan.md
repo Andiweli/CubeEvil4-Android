@@ -15,7 +15,7 @@ R4 (vorgezogen, Wunsch des Projektinhabers, 26.10.2026): die App importiert die 
 Version je Disc, gemischte Discs blockieren den Start); das Spiel sieht mit den EU-Discs die Kennung G4BE08, damit
 Spielstände und `.gci` zwischen beiden Fassungen gemeinsam bleiben. Am PC geprüft, **Gerätetest offen**.
 R7 (vorgezogen, Wunsch des Projektinhabers, 26.10.2026): Sprachwahl „Game language“ im Ingame-Menü der App (nur mit
-EU-Discs; Standard die Handy-Sprache, ein Wechsel gilt sofort), „LANGUAGE SELECT“ im Titelmenü ausgeblendet. Die
+EU-Discs; Standard die Handy-Sprache, ein Wechsel startet das Spiel nach einer Frage neu), „LANGUAGE SELECT“ im Titelmenü ausgeblendet. Die
 Sprachen liegen anders als angenommen: die Untermenü-Texte als einsprachige Tabellen in `ss/<Sprache>` (Patch 0122),
 die Optionsdaten der vier weiteren Sprachen sind größer als ihr fester Platz (Patch 0121), die Schrift-Einstellung
 der Texte kannte nur Japanisch und Englisch (Patch 0123). Am PC geprüft (alle fünf Sprachen), **Gerätetest offen**.
