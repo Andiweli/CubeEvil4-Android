@@ -4,11 +4,11 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
-## Umsetzung nach der Analyse: Version 0.92.0-beta (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
+## Umsetzung nach der Analyse: Version 0.91.0-beta (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
 
 Entscheidungen des Projektinhabers (26.10.2026): `gui-optimisations` ist der Ausgangspunkt, der Grafikteil
 meldet dem Kern die Tiefe zurück (neuer Rückweg Renderer → Kern), unsichere Stellen sperren das Speichern,
-die Version heißt **0.92.0** (versionCode 75, `v0.92.0-beta.md`). Cloud ✅ (siehe unten), **Gerätetest offen**.
+die Version heißt **0.91.0** (versionCode 75, `v0.91.0-beta.md`; zuerst 0.91.0 genannt, vom Projektinhaber am 26.10.2026 auf 0.91.0 berichtigt, da 0.90.1 die aktuelle Version ist). Cloud ✅ (siehe unten), **Gerätetest offen**.
 
 - **Instant-Spielstand:** Laden schreibt die Systemdaten nicht mehr zurück (Optionen und Mercenaries-Werte
   bleiben); Speichern gesperrt in Mercenaries, Assignment Ada, Ashley-Abschnitten, in den Räumen

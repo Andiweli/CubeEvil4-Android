@@ -47,9 +47,9 @@ android {
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
         // number, a hotfix the last; versionCode counts on. After 0.46.0-alpha the beta 0.90.0
         // (decision of the project owner, 23.10.2026: the game was played through; published as
-        // 0.90.0), then 0.90.1 (branch beta-optimisations), then 0.92.0 (decision of the project owner,
+        // 0.90.0), then 0.90.1 (branch beta-optimisations), then 0.91.0 (decision of the project owner,
         // 26.10.2026: with the new menu and the instant save of gui-optimisations)
-        versionName '0.92.0-beta'
+        versionName '0.91.0-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

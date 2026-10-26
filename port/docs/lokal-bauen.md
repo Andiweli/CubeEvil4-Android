@@ -2,7 +2,7 @@
 
 Wunsch des Projektinhabers (22.10.2026): Jede Sitzung schickt nach Änderungen, die in die App
 gehören, diese Befehle mit. Ordner: Repository `E:\Development\Android\RE4-Fixed`, Branch
-`claude/adoring-pasteur-h5s2fw` (Arbeitsbranch für 0.92.0 seit 26.10.2026, aufgesetzt auf `gui-optimisations`; vorher `beta-optimisations`).
+`claude/adoring-pasteur-h5s2fw` (Arbeitsbranch für 0.91.0 seit 26.10.2026, aufgesetzt auf `gui-optimisations`; vorher `beta-optimisations`).
 
 ## 1. Stand von GitHub holen (PowerShell)
 
