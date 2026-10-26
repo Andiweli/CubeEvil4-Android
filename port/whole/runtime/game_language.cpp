@@ -56,13 +56,22 @@ extern "C" int re4_game_language_value(void)
     return wanted >= 2 && wanted <= 6 ? wanted : 2;
 }
 
-// After the system file was read into pSys (card.cpp): the app's language, not the saved one.
+// After the system file was read into pSys (card.cpp): the app's language, not the saved one. With
+// the debug build's discs the build's own language 1 (setLanguage): they hold the sub screens in
+// English only (ss/Eng), and a system file saved with the European discs holds their language
+// (3 German ...): the title then looked for ss/ger/title.dat and stopped (26.10.2026, a European save
+// loaded with the debug discs).
 extern "C" void re4_game_language_after_card(void)
 {
     int language = re4_game_language_value();
-    if (language >= 0 && pSys->language != language) {
-        re4_log("language: the system file holds %s, the game keeps %s (the app's choice)", name(pSys->language),
-                name(language));
+    const char* why = "the app's choice";
+    if (language < 0) {
+        language = 1;
+        why = "the debug build's discs";
+    }
+    if (pSys->language != language) {
+        re4_log("language: the system file holds %s, the game keeps %s (%s)", name(pSys->language), name(language),
+                why);
         setFields(language);
     }
 }

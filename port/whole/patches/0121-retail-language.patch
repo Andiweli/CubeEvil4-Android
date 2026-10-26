@@ -8,7 +8,9 @@
 # European German, French, Spanish and Italian SS/<lang>/option.dat are larger than the fixed place of
 # OptionDataRead (0x44000 to 0x4C2C0 of 0x40000 bytes: they ran into the player data, the game ended
 # at the start of r120): a larger one is read to another place (runtime/dvd.cpp re4_option_data_place).
-# Nothing changes with the debug build's discs. A port patch for retail data.
+# With the debug build's discs the language stays 1, also after a system file saved with the European
+# discs (it holds their language; the debug discs have English sub screens only and the title looked
+# for ss/ger/title.dat). A port patch for retail data.
 --- a/src/game/main.cpp
 +++ b/src/game/main.cpp
 @@ -427,6 +427,8 @@
@@ -58,8 +60,8 @@
          break;
      case 2:
          *pSys = *(SYSTEM_SAVE_WORK*) (buf + SYS_WORK);
-+        /* port: the system file holds the language it was saved with; with the European discs the
-+           app's choice stays (runtime/game_language.cpp) */
++        /* port: the system file holds the language it was saved with; the European discs keep the
++           app's choice, the debug build's discs language 1 (runtime/game_language.cpp) */
 +        re4_game_language_after_card();
          pG->CardStatus |= 1;
          SndSetOutputMode(pSys->SndMode, 1);
