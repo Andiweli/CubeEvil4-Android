@@ -647,6 +647,16 @@ void re4ipc_gyro(float yaw, float pitch)
     ring(c->inputBell);
 }
 
+void re4ipc_gx_depth(const unsigned* cells, unsigned serial)
+{
+    Control* c = control();
+    if (!c || !c->depthOffset) {
+        return;
+    }
+    memcpy((char*) c + c->depthOffset, cells, 320 * 264 * sizeof(uint32_t));
+    c->depthSerial.store(serial, std::memory_order_release);
+}
+
 // the sound's way through the core process, for the log (every 2000 reads)
 unsigned gAudioReads, gAudioWaits, gAudioShort, gAudioWaitMax;
 

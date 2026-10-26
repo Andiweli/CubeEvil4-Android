@@ -47,6 +47,11 @@ size_t audioOffset()
     return align64(snapshotOffset() + 3 * sizeof(Re4CoreSnapshot));
 }
 
+size_t depthOffset()
+{
+    return align64(audioOffset() + kAudioFrames * kAudioMaxChannels * sizeof(int16_t));
+}
+
 // FNV-1a, 64 bit
 struct Hash {
     uint64_t h = 0xcbf29ce484222325ull;
@@ -63,7 +68,7 @@ struct Hash {
 
 size_t controlBytes()
 {
-    return audioOffset() + align64(kAudioFrames * kAudioMaxChannels * sizeof(int16_t));
+    return depthOffset() + align64(320 * 264 * sizeof(uint32_t));  // RE4_GX_DEPTH_W x RE4_GX_DEPTH_H
 }
 
 void controlInit(Control* c, uint32_t pid)
@@ -75,6 +80,7 @@ void controlInit(Control* c, uint32_t pid)
     c->pid = pid;
     c->snapshotOffset = (uint32_t) snapshotOffset();
     c->audioOffset = (uint32_t) audioOffset();
+    c->depthOffset = (uint32_t) depthOffset();
     c->audioChannels = 6;
     c->audioRate = 32000;
     c->snapshotMiddle.store(1);

@@ -79,6 +79,8 @@ void re4ipc_swipe(int dir);
 void re4ipc_slash(float tilt);
 void re4ipc_set_fast_cores(int on);
 void re4ipc_gyro(float yaw, float pitch);
+// The renderer's depth map for the game's GXPeekZ (RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells): into the shared memory the core process reads
+void re4ipc_gx_depth(const unsigned* cells, unsigned serial);
 int re4ipc_card_list(Re4CardFile* out, int max);
 int re4ipc_card_free_blocks(void);
 int re4ipc_card_file_name(int index, char* out, int size);

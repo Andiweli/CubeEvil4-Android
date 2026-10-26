@@ -301,11 +301,69 @@ void* re4_gx_cached(unsigned int physical)
     return (void*) (uintptr_t) (RE4_MEM1_BASE + physical);
 }
 
+}  // extern "C"
+
+namespace {
+// The depth map GXPeekZ answers from (re4_gx_frame.h, BP 0x5B). The core thread reads single cells
+// while the renderer's thread writes the next map over them: a cell is one word, a mix of two
+// pictures' cells is harmless.
+unsigned int gDepthOwn[RE4_GX_DEPTH_W * RE4_GX_DEPTH_H];
+unsigned int gDepthOwnSerial;
+const unsigned int* gDepthCells = gDepthOwn;
+const unsigned int* gDepthSerial = &gDepthOwnSerial;
+unsigned int gPeekMarkers;  // pictures that peeked and wrote the marker (core thread)
+bool gPeekMarked;           // this picture has its marker
+unsigned int gPeekAnswered, gPeekFar;
+}  // namespace
+
+extern "C" {
+
+void re4_gx_depth_put(const unsigned int* cells, unsigned int serial)
+{
+    memcpy(gDepthOwn, cells, sizeof(gDepthOwn));
+    __atomic_store_n(&gDepthOwnSerial, serial, __ATOMIC_RELEASE);
+}
+
+void re4_gx_depth_source(const unsigned int* cells, const unsigned int* serial)
+{
+    gDepthCells = cells ? cells : gDepthOwn;
+    gDepthSerial = serial ? serial : &gDepthOwnSerial;
+}
+
+void re4_gx_peek_new_frame(void)
+{
+    gPeekMarked = false;
+}
+
+void re4_gx_peek_stats(unsigned int* answered, unsigned int* far, unsigned int* marked)
+{
+    *answered = gPeekAnswered;
+    *far = gPeekFar;
+    *marked = gPeekMarkers;
+}
+
 unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z)
 {
-    (void) x;
-    (void) y;
-    return z ? 0x00FFFFFF : 0;  // depth far, colour black
+    if (!z) {
+        return 0;  // colour: black
+    }
+    // the first depth peek of a picture asks the renderer for the picture's depth: a marker in the
+    // stream, a BP register the GameCube does not have (like 0x5A, the autofocus's)
+    if (!gPeekMarked) {
+        gPeekMarked = true;
+        gPeekMarkers++;
+        re4_gx_put_u8(0x61);
+        re4_gx_put_u32(0x5Bu << 24 | 1);
+    }
+    const unsigned int serial = __atomic_load_n(gDepthSerial, __ATOMIC_ACQUIRE);
+    if (serial == 0 || (int) (gPeekMarkers - serial) > 8) {
+        gPeekFar++;
+        return 0x00FFFFFF;  // no map (yet, any more): depth far, nothing in front
+    }
+    const unsigned cx = (x >= RE4_GX_DEPTH_W * 2 ? RE4_GX_DEPTH_W * 2 - 1 : x) >> 1;
+    const unsigned cy = (y >= RE4_GX_DEPTH_H * 2 ? RE4_GX_DEPTH_H * 2 - 1 : y) >> 1;
+    gPeekAnswered++;
+    return gDepthCells[cy * RE4_GX_DEPTH_W + cx] & 0x00FFFFFF;
 }
 
 void re4_gx_deliver_interrupts(void)

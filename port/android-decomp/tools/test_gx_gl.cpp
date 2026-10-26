@@ -581,6 +581,101 @@ void TestLetterboxCopy(re4gx::GxRenderer &r, bool viaXfb, bool letterbox) {
         (std::string(how) + ": the row limit is used only for a letterbox picture").c_str());
 }
 
+// The game's GXPeekZ (a torch's glow hides itself behind a wall by reading the depth around it): the
+// core marks the chunk with BP 0x5B; at its display copy the depth goes, half the resolution, to the
+// sink once the GPU is through (the next chunk). A quad at depth 0.5 on the left, cleared (far) elsewhere.
+void TestDepthMap(re4gx::GxRenderer &r, bool viaDeferred) {
+  (void) viaDeferred;
+  std::vector<std::uint32_t> got;
+  std::uint32_t serial = 0;
+  r.SetDepthSink([&](const std::uint32_t *cells, std::uint32_t s) {
+    got.assign(cells, cells + re4gx::GxRenderer::kDepthWidth * re4gx::GxRenderer::kDepthHeight);
+    serial = s;
+  });
+  const unsigned before = r.Stats().depthSnapshots;
+  {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 320, 528, -0.5f, kRed);
+    b.Bp(0x5B, 1);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  }
+  Check(r.Stats().depthSnapshots == before + 1, "depth map: the marked picture is taken");
+  for (int i = 0; i < 5 && got.empty(); i++) { // the next chunks hand it over once the GPU is through
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  }
+  Check(!got.empty() && serial >= 1, "depth map: delivered to the sink");
+  if (!got.empty()) {
+    const std::uint32_t half = 8388607, far = 16777215;
+    const std::uint32_t left = got[60 * re4gx::GxRenderer::kDepthWidth + 50];
+    const std::uint32_t right = got[60 * re4gx::GxRenderer::kDepthWidth + 250];
+    Check(left + 64 >= half && left <= half + 64, "depth map: the quad's depth (about 0.5) at the cell");
+    Check(right == far, "depth map: cleared depth reads far (0xFFFFFF)");
+  }
+  // an unmarked picture takes none
+  const unsigned snapshots = r.Stats().depthSnapshots;
+  {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 320, 528, -0.5f, kRed);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  }
+  Check(r.Stats().depthSnapshots == snapshots, "depth map: a picture without the marker takes none");
+  r.SetDepthSink(nullptr);
+}
+
+// FXAA (the app menu's switch): the display copy goes through one more pass. A red triangle on blue has
+// a hard slanted edge; with FXAA the shown picture has in-between colours along it, flat areas and the
+// EFB stay as they are, and switched off the picture is the plain copy again.
+void TestFxaa(re4gx::GxRenderer &r) {
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    std::vector<std::uint8_t> v;
+    V(v, 200, 100, 0, kRed);
+    V(v, 300, 160, 0, kRed);
+    V(v, 200, 160, 0, kRed);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 3);
+    DisplayCopy(b, false, kBlue);
+    r.Run(b.Chunk());
+  };
+  auto between = [&](GLuint xfb) {
+    int n = 0;
+    const int f = r.Scale();
+    for (int x = 200; x < 300; x++) {
+      const int y = 100 + (x - 200) * 60 / 100; // on the edge
+      for (int dy = -1; dy <= 1; dy++) {
+        auto px = TexPixel(xfb, x * f, (y + dy) * f);
+        n += px[0] > 20 && px[0] < 235 && px[2] > 20 && px[2] < 235;
+      }
+    }
+    return n;
+  };
+  scene();
+  GLuint plain = r.Xfb(nullptr, nullptr);
+  const int hard = between(plain);
+  const unsigned before = r.Stats().fxaaPasses;
+  r.SetFxaa(true);
+  scene();
+  GLuint smooth = r.Xfb(nullptr, nullptr);
+  Check(r.Stats().fxaaPasses == before + 2, "FXAA: one pass per display copy (the scene has two)");
+  Check(smooth != plain && smooth != 0, "FXAA: the shown picture is the smoothed copy");
+  Check(between(smooth) > hard + 20, "FXAA: the slanted edge gets in-between colours");
+  Check(Near(TexPixel(smooth, 100 * r.Scale(), 300 * r.Scale()), 0, 0, 255), "FXAA: a flat area stays as it is");
+  Check(Near(TexPixel(smooth, 220 * r.Scale(), 155 * r.Scale()), 255, 0, 0), "FXAA: inside the shape stays red");
+  r.SetFxaa(false);
+  scene();
+  Check(r.Xfb(nullptr, nullptr) == plain, "FXAA: off, the plain display copy is shown again");
+}
+
 // Auto in the app menu: the EFB scale changes between two Runs (GxRenderer::Rescale). At scale 2 a
 // red EFB copy is made and drawn as a texture; at scale 1 and then 3 a chunk draws with map 0 still
 // bound to that copy (no new texture load): the copy came along, scaled, and the display copy has
@@ -1168,6 +1263,8 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   }
   TestCopyAndPalette(r, true);  // EFB copy to a texture (resolved first), palette
   TestLetterboxCopy(r, true, true);
+  TestDepthMap(r, true);
+  TestFxaa(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
   TestAutofocus(r, r.Samples() > 1);
   TestPassBreak(r, r.TiledMsaa() ? (lose ? "on the tiles, everything lost" : "on the tiles") : "multisampled");
@@ -1667,6 +1764,8 @@ int main() {
     TestCopyAndPalette(renderer);
     TestLetterboxCopy(renderer, false, true);
     TestLetterboxCopy(renderer, false, false);
+    TestDepthMap(renderer, false);
+    TestFxaa(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);
     TestCopyFilter(renderer);

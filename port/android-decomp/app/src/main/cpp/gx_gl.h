@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -35,6 +36,9 @@ struct GxStats {
   unsigned textureCopies = 0;    // EFB copies to a texture
   unsigned displayCopies = 0;    // EFB copies to the XFB
   unsigned heldCopies = 0;       // of them not shown: the VI kept the picture before (RE4_GX_CHUNK_HOLD)
+  unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
+  unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
+  unsigned depthDelivered = 0;   // of them handed to the core
   unsigned limitedCopies = 0;    // texture copies that repeat the last drawn row below the picture (letterbox)
   unsigned resets = 0;
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
@@ -142,6 +146,21 @@ public:
   static void Limits(int *maxSamples, float *maxAnisotropy);
   // Runs one chunk (in sequence order).
   void Run(const Re4GxChunk &chunk);
+  // The depth of the picture for the game's GXPeekZ (the glow of a torch or the merchant's fire hides
+  // itself behind a wall by reading the depth at points around it; Dolphin, a GameCube: hidden; before
+  // 26.10.2026 the port answered "far" and the glow shone through walls). The core marks the chunk
+  // that peeks (BP 0x5B); at that chunk's display copy the depth of the picture goes, at half the
+  // resolution (kDepthWidth x kDepthHeight cells, row 0 = the EFB's row 0, GX's 24-bit values), to the
+  // sink: a frame later, once the GPU is through (a fence, no stall). The sink runs on the thread that
+  // calls Run. None: no snapshots.
+  static constexpr int kDepthWidth = 320, kDepthHeight = 264;
+  using DepthSink = std::function<void(const std::uint32_t *cells, std::uint32_t serial)>;
+  void SetDepthSink(DepthSink sink);
+  // FXAA (the app menu, 26.10.2026): while on, every display copy goes through one more pass, an edge
+  // smoothing of the finished picture (FXAA 3.x, luma edges, a few taps) into a texture of its own, and
+  // Xfb() and Present show that. Works with or without MSAA and at any resolution; takes effect with
+  // the next display copy. Costs one pass over the XFB per picture (the in-between pictures too).
+  void SetFxaa(bool on);
   // 60 FPS (experimental, decision of the project owner 22.10.2026): on, every Run notes how each
   // of its draws was drawn (the position and normal matrices, the projection) for Interpolate.
   void SetRecording(bool on);

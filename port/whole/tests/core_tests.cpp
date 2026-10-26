@@ -1107,6 +1107,46 @@ void testPause()
     report("pause", ok);
 }
 
+// GXPeekZ answers from the depth map the renderer hands over (runtime/gx_fifo.cpp): far without a
+// map and when the renderer stays behind, else the cell of the pixel (half the EFB's resolution).
+extern "C" unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z);
+
+void testPeekDepth()
+{
+    bool ok = true;
+    static unsigned cells[RE4_GX_DEPTH_W * RE4_GX_DEPTH_H];
+    unsigned answered0, far0, marked0, answered, far, marked;
+    re4_gx_peek_stats(&answered0, &far0, &marked0);
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x00FFFFFF);  // no map yet: far, as before
+    CHECK(re4_gx_efb_peek(100, 60, 0) == 0);           // colour: black
+    re4_gx_peek_stats(&answered, &far, &marked);
+    CHECK(marked == marked0 + 1 && far == far0 + 1);   // the picture's first peek marked it, once
+    CHECK(re4_gx_efb_peek(101, 61, 1) == 0x00FFFFFF);
+    re4_gx_peek_stats(&answered, &far, &marked);
+    CHECK(marked == marked0 + 1);
+    cells[(60 >> 1) * RE4_GX_DEPTH_W + (100 >> 1)] = 0x123456;
+    cells[(RE4_GX_DEPTH_H - 1) * RE4_GX_DEPTH_W + RE4_GX_DEPTH_W - 1] = 0xFF00ABCD;  // only 24 bits count
+    re4_core_gx_depth(cells, 1);
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    CHECK(re4_gx_efb_peek(101, 61, 1) == 0x123456);  // the 2 x 2 pixels of a cell
+    CHECK(re4_gx_efb_peek(639, 527, 1) == 0x00ABCD);
+    CHECK(re4_gx_efb_peek(2000, 2000, 1) == 0x00ABCD);  // beyond the EFB: the last cell
+    CHECK(re4_gx_efb_peek(0, 0, 1) == 0);               // a cell the renderer drew nothing in (0)
+    re4_gx_peek_stats(&answered, &far, &marked);
+    CHECK(answered == answered0 + 5);
+    // the renderer stays behind: the pictures that asked run more than 8 ahead of its maps
+    for (int i = 0; i < 9; i++) {
+        re4_gx_peek_new_frame();
+        re4_gx_efb_peek(100, 60, 1);
+    }
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x00FFFFFF);
+    re4_core_gx_depth(cells, 100);  // it caught up
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    report("peek depth", ok);
+}
+
 }  // namespace
 
 int re4_core_tests()
@@ -1154,6 +1194,7 @@ int re4_core_tests()
         report("instant-game", failed == 0);
     }
     testPause();
+    testPeekDepth();
     re4_log("core-test: %d failed", gFailures);
     return gFailures;
 }

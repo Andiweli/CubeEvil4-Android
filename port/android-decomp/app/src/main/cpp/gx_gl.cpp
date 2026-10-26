@@ -382,6 +382,10 @@ struct Copy {
 
 } // namespace
 
+// counts the depth maps of every renderer of this process: a new renderer (the resolution changed) goes on
+// from there, the core compares it with the pictures that asked (runtime/gx_fifo.cpp)
+std::uint32_t gPeekSerial = 0;
+
 struct GxRenderer::Impl {
   int scale = 1;
   GxStats stats;
@@ -417,6 +421,17 @@ struct GxRenderer::Impl {
   GLuint xfbFbo = 0, xfbTex = 0;
   unsigned xfbWidth = 0, xfbHeight = 0;
   bool haveXfb = false;
+  // FXAA (GxRenderer::SetFxaa): the smoothed copy of the XFB, shown instead of it while fxaaShown
+  bool fxaaOn = false, fxaaShown = false;
+  GLuint fxaaTex = 0, fxaaFbo = 0, fxaaProgram = 0;
+  unsigned fxaaTexW = 0, fxaaTexH = 0;
+  GLint fxaaTexelLoc = -1;
+  // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
+  DepthSink depthSink;
+  bool peekWanted = false, peekFailed = false;
+  GLuint peekProgram = 0, peekFbo = 0, peekTex = 0, peekPbo[2] = {0, 0};
+  GLsync peekFence[2] = {nullptr, nullptr};
+  GLint peekSizeLoc = -1, peekScaleLoc = -1;
   bool holdXfb = false;  // this chunk's display copy is not shown (RE4_GX_CHUNK_HOLD)
   bool viBlack = false;  // the VI shows black (RE4_GX_CHUNK_BLACK, VISetBlack): Present draws black
   GLuint vao = 0, vbo = 0, ibo = 0;
@@ -1132,6 +1147,8 @@ struct GxRenderer::Impl {
       EfbCopy(value);
     if (action && reg == 0x5A)
       Autofocus(value);
+    if (action && reg == 0x5B && !interpPass)
+      peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
   }
 
   void Dirty(int lo, int hi) {
@@ -2334,6 +2351,8 @@ struct GxRenderer::Impl {
       stats.heldCopies++;
       SaveAndPlainState();
       BindFbo(DrawFbo());
+      if (peekWanted)
+        SnapshotDepth();
       ClearAfterCopy(control, x, y, w, h);
       sceneBottom = 0;
       return;
@@ -2417,9 +2436,241 @@ struct GxRenderer::Impl {
       glUniform1f(copyLimit, 1e9f);
     current = nullptr;
     BindFbo(DrawFbo());
+    if (toXfb)
+      Fxaa(w * scale, h * scale);
+    if (toXfb && peekWanted)
+      SnapshotDepth();  // the picture is complete, the clear comes next
     ClearAfterCopy(control, x, y, w, h);
     if (toXfb)
       sceneBottom = 0;
+  }
+
+  // --- FXAA ------------------------------------------------------------------------------------
+
+  bool MakeFxaa() {
+    static const char kVs[] = "#version 300 es\n"
+                              "out vec2 vUv;\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  vUv = p;\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // Edge smoothing along the luma gradient: the direction of the edge from the four corners'
+    // luma, two taps along it (each between samples) and a wider pair; the wider mix is dropped when
+    // it leaves the range of the neighbourhood's luma (a thin line stays a line).
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform sampler2D src;\nuniform vec2 texel;\nin vec2 vUv;\nout vec4 o;\n"
+        "const vec3 kLuma = vec3(0.299, 0.587, 0.114);\n"
+        "void main() {\n"
+        "  vec3 nw = texture(src, vUv + vec2(-1.0, -1.0) * texel).rgb;\n"
+        "  vec3 ne = texture(src, vUv + vec2(1.0, -1.0) * texel).rgb;\n"
+        "  vec3 sw = texture(src, vUv + vec2(-1.0, 1.0) * texel).rgb;\n"
+        "  vec3 se = texture(src, vUv + vec2(1.0, 1.0) * texel).rgb;\n"
+        "  vec3 m = texture(src, vUv).rgb;\n"
+        "  float lnw = dot(nw, kLuma), lne = dot(ne, kLuma), lsw = dot(sw, kLuma), lse = dot(se, kLuma), lm = dot(m, kLuma);\n"
+        "  float lmin = min(lm, min(min(lnw, lne), min(lsw, lse)));\n"
+        "  float lmax = max(lm, max(max(lnw, lne), max(lsw, lse)));\n"
+        "  vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), (lnw + lsw) - (lne + lse));\n"
+        "  float reduce = max((lnw + lne + lsw + lse) * 0.25 * 0.125, 1.0 / 128.0);\n"
+        "  dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + reduce), vec2(-8.0), vec2(8.0)) * texel;\n"
+        "  vec3 a = 0.5 * (texture(src, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture(src, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);\n"
+        "  vec3 b = a * 0.5 + 0.25 * (texture(src, vUv + dir * -0.5).rgb + texture(src, vUv + dir * 0.5).rgb);\n"
+        "  float lb = dot(b, kLuma);\n"
+        "  o = vec4((lb < lmin || lb > lmax) ? a : b, 1.0);\n"
+        "}\n";
+    std::string log;
+    fxaaProgram = Link(kVs, kFs, &log);
+    if (!fxaaProgram) {
+      GXLOG("FXAA: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(fxaaProgram);
+    glUniform1i(glGetUniformLocation(fxaaProgram, "src"), 0);
+    fxaaTexelLoc = glGetUniformLocation(fxaaProgram, "texel");
+    glGenFramebuffers(1, &fxaaFbo);
+    return true;
+  }
+
+  // The display copy just made (xfbTex, w x h texels) through FXAA into fxaaTex: that is shown now.
+  void Fxaa(int w, int h) {
+    fxaaShown = false;
+    if (!fxaaOn || !xfbTex || w < 16 || h < 16)
+      return;
+    if (!fxaaProgram && !MakeFxaa()) {
+      fxaaOn = false;  // no shader on this driver: off for good (the menu's switch stays)
+      return;
+    }
+    if (!fxaaTex || fxaaTexW != static_cast<unsigned>(w) || fxaaTexH != static_cast<unsigned>(h)) {
+      if (fxaaTex)
+        glDeleteTextures(1, &fxaaTex);
+      glGenTextures(1, &fxaaTex);
+      glBindTexture(GL_TEXTURE_2D, fxaaTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      fxaaTexW = static_cast<unsigned>(w);
+      fxaaTexH = static_cast<unsigned>(h);
+    }
+    Touched();
+    SaveAndPlainState();
+    BindFbo(fxaaFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxaaTex, 0);
+    ForgetColor();  // all of it is drawn over
+    glViewport(0, 0, w, h);
+    glUseProgram(fxaaProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, xfbTex);
+    glBindSampler(0, 0);
+    glUniform2f(fxaaTexelLoc, 1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h));
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    BindFbo(DrawFbo());
+    current = nullptr;
+    fxaaShown = true;
+    stats.fxaaPasses++;
+  }
+
+  GLuint ShownXfb() const { return fxaaShown && fxaaTex ? fxaaTex : xfbTex; }
+
+  void FxaaRelease() {
+    if (fxaaTex)
+      glDeleteTextures(1, &fxaaTex);
+    if (fxaaFbo)
+      glDeleteFramebuffers(1, &fxaaFbo);
+    if (fxaaProgram)
+      glDeleteProgram(fxaaProgram);
+    fxaaTex = fxaaFbo = fxaaProgram = 0;
+    fxaaTexW = fxaaTexH = 0;
+    fxaaShown = false;
+  }
+
+  // --- the depth for the game's GXPeekZ ------------------------------------------------------
+
+  bool MakePeek() {
+    static const char kVs[] = "#version 300 es\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // cell (x, y) of kDepthWidth x kDepthHeight: the depth at the EFB pixel (2x + 1, 2y + 1) (the
+    // game peeks single pixels; the centre of a 2 x 2 block stands for it), as GX's 24 bits in
+    // r (low byte), g, b (a 0: a cell is the 24-bit value)
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\nprecision highp int;\n"
+        "uniform highp sampler2D depths;\nuniform vec2 size;\nuniform float scale;\nout vec4 o;\n"
+        "void main() {\n"
+        "  vec2 c = floor(gl_FragCoord.xy);\n"
+        "  ivec2 t = ivec2(min((c * 2.0 + 1.0) * scale, size - 1.0));\n"
+        "  uint z = min(uint(texelFetch(depths, t, 0).r * 16777215.0 + 0.5), 16777215u);\n"
+        "  o = vec4(float(z & 255u), float((z >> 8) & 255u), float((z >> 16) & 255u), 0.0) / 255.0;\n"
+        "}\n";
+    std::string log;
+    peekProgram = Link(kVs, kFs, &log);
+    if (!peekProgram) {
+      GXLOG("depth map for GXPeekZ: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(peekProgram);
+    glUniform1i(glGetUniformLocation(peekProgram, "depths"), 0);
+    peekSizeLoc = glGetUniformLocation(peekProgram, "size");
+    peekScaleLoc = glGetUniformLocation(peekProgram, "scale");
+    glGenTextures(1, &peekTex);
+    glBindTexture(GL_TEXTURE_2D, peekTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kDepthWidth, kDepthHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glGenFramebuffers(1, &peekFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, peekFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, peekTex, 0);
+    const bool ok = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glGenBuffers(2, peekPbo);
+    for (GLuint pbo : peekPbo) {
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+      glBufferData(GL_PIXEL_PACK_BUFFER, kDepthWidth * kDepthHeight * 4, nullptr, GL_STREAM_READ);
+    }
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    if (!ok)
+      GXLOG("depth map for GXPeekZ: the frame buffer is not complete");
+    return ok;
+  }
+
+  // The depth maps the GPU is through with go to the core (a fence per map; no waiting).
+  void DeliverDepth() {
+    for (int i = 0; i < 2; i++) {
+      if (!peekFence[i])
+        continue;
+      const GLenum r = glClientWaitSync(peekFence[i], 0, 0);
+      if (r != GL_ALREADY_SIGNALED && r != GL_CONDITION_SATISFIED)
+        continue;
+      glDeleteSync(peekFence[i]);
+      peekFence[i] = nullptr;
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, peekPbo[i]);
+      const void *data = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, kDepthWidth * kDepthHeight * 4, GL_MAP_READ_BIT);
+      if (data) {
+        if (depthSink)
+          depthSink(static_cast<const std::uint32_t *>(data), ++gPeekSerial);
+        stats.depthDelivered++;
+        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+      }
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    }
+  }
+
+  // At the display copy of a picture whose chunk peeked (the marker): the depth of the picture.
+  void SnapshotDepth() {
+    peekWanted = false;
+    if (!depthSink || peekFailed)
+      return;
+    if (!peekProgram && !MakePeek()) {
+      peekFailed = true;
+      return;
+    }
+    DeliverDepth();
+    const int slot = peekFence[0] ? (peekFence[1] ? -1 : 1) : 0;
+    if (slot < 0)
+      return;  // the GPU is two maps behind: the core keeps the last one (it ages out there)
+    Touched();
+    // MSAA in own buffers: the depth of the picture's 512 x 448 (the game peeks inside it)
+    Resolve(0, 0, 512 * scale, 448 * scale, true);
+    SaveAndPlainState();
+    BindFbo(peekFbo);
+    glViewport(0, 0, kDepthWidth, kDepthHeight);
+    glUseProgram(peekProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, efbDepth);
+    glBindSampler(0, 0);
+    glUniform2f(peekSizeLoc, static_cast<float>(kEfbWidth * scale), static_cast<float>(kEfbHeight * scale));
+    glUniform1f(peekScaleLoc, static_cast<float>(scale));
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, peekPbo[slot]);
+    glReadPixels(0, 0, kDepthWidth, kDepthHeight, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    peekFence[slot] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    stats.depthSnapshots++;
+    BindFbo(DrawFbo());
+    current = nullptr;
+  }
+
+  void PeekRelease() {
+    for (GLsync &f : peekFence) {
+      if (f)
+        glDeleteSync(f);
+      f = nullptr;
+    }
+    if (peekPbo[0])
+      glDeleteBuffers(2, peekPbo);
+    peekPbo[0] = peekPbo[1] = 0;
+    if (peekFbo)
+      glDeleteFramebuffers(1, &peekFbo);
+    if (peekTex)
+      glDeleteTextures(1, &peekTex);
+    if (peekProgram)
+      glDeleteProgram(peekProgram);
+    peekFbo = peekTex = peekProgram = 0;
   }
 
   // The app's gameplay autofocus (BP 0x5A: the core marks the place,
@@ -3182,6 +3433,12 @@ void GxRenderer::Rescale(int scale) {
   };
   if (m.xfbTex)
     m.xfbTex = rescaled(m.xfbTex, m.xfbWidth, m.xfbHeight, true);
+  if (m.fxaaTex) { // the smoothed copy is of the old size: the next display copy makes it anew
+    glDeleteTextures(1, &m.fxaaTex);
+    m.fxaaTex = 0;
+    m.fxaaTexW = m.fxaaTexH = 0;
+    m.fxaaShown = false;
+  }
   for (auto &c : m.copies) {
     if (!c.second.id)
       continue;
@@ -3219,6 +3476,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     m.recFloatsNew.clear();
   }
   m.Touched();
+  if (!m.interpPass && m.peekProgram)
+    m.DeliverDepth();  // the depth maps the GPU finished since the last chunk go to the core
   if (m.stream)
     m.StreamChunkBegin();
   m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
@@ -3438,7 +3697,7 @@ GLuint GxRenderer::Xfb(unsigned *width, unsigned *height) const {
     *width = impl_->xfbWidth;
   if (height)
     *height = impl_->xfbHeight;
-  return impl_->haveXfb ? impl_->xfbTex : 0;
+  return impl_->haveXfb ? impl_->ShownXfb() : 0;
 }
 
 bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows) {
@@ -3467,7 +3726,7 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
   else
     glUniform2f(m.presentRows, static_cast<float>(top) / lines, static_cast<float>(rows) / lines);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, m.xfbTex);
+  glBindTexture(GL_TEXTURE_2D, m.ShownXfb());
   glBindSampler(0, 0);
   glBindVertexArray(m.quadVao);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -3481,6 +3740,8 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
 GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
+void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
+void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
 
 int GxRenderer::Samples() const { return impl_->samples; }
 
@@ -3679,6 +3940,8 @@ void GxRenderer::Release() {
   glDeleteBuffers(kXfParts, m.xfUbo);
   m.StreamRelease();
   m.FenceRelease();
+  m.PeekRelease();
+  m.FxaaRelease();
   if (m.timerOn) {
     glDeleteQueries(Impl::TimerPool::kQueries, m.chunkTimer.query);
     glDeleteQueries(Impl::TimerPool::kQueries, m.presentTimer.query);

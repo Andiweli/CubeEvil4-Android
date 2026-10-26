@@ -88,6 +88,7 @@ struct CoreApi {
   void (*debugMenu)(void){};
   void (*setDof)(int){};
   void (*gyro)(float, float){};  // optional (cores since 19.10.2026): gyro aiming
+  void (*depth)(const unsigned *, unsigned){};  // optional (cores since 26.10.2026): the depth for the game's GXPeekZ
   void (*setLetterbox)(int){};  // optional (cores since 22.10.2026): 4:3 without the bars
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
@@ -415,6 +416,7 @@ void loadCore(JNIEnv *env) {
   api.debugMenu = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_debug_menu"));
   api.setDof = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_dof"));
   api.gyro = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_gyro"));
+  api.depth = reinterpret_cast<void (*)(const unsigned *, unsigned)>(dlsym(api.main, "re4_core_gx_depth"));
   api.setLetterbox = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_letterbox"));
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
@@ -1115,6 +1117,10 @@ bool drawGx() {
     options.tiledMsaa = optTiled.load() != 0;
     options.halfDof = optHalfDof.load() != 0;
     gx->SetOptions(options);
+    // the depth of the pictures whose chunks peeked (GXPeekZ), to the core: the glow of torches stays
+    // behind walls (a GameCube; before 26.10.2026 it shone through them)
+    if (api.depth && !getenv("RE4_GX_NO_DEPTH_MAP"))
+      gx->SetDepthSink([](const std::uint32_t *cells, std::uint32_t serial) { api.depth(cells, serial); });
     std::string error;
     if (!gx->Init(scale, &error)) {
       LOG("GX renderer: %s; the bridge draws", error.c_str());
@@ -1660,6 +1666,7 @@ void useCoreProcess(const std::string &why) {
   api.debugMenu = re4ipc_debug_menu;
   api.setDof = re4ipc_set_dof;
   api.gyro = re4ipc_gyro;
+  api.depth = re4ipc_gx_depth;
   api.setLetterbox = re4ipc_set_letterbox;
   api.setFastCores = re4ipc_set_fast_cores;
   api.touch = re4ipc_touch;

@@ -32,7 +32,7 @@
 namespace re4ipc {
 
 const uint32_t kMagic = 0x43344552;  // "RE4C"
-const uint32_t kVersion = 3;
+const uint32_t kVersion = 4;
 // the socket in the core process: file 3, inherited
 const int kSocketFd = 3;
 
@@ -118,6 +118,7 @@ struct Control {
     uint32_t pid;
     uint32_t snapshotOffset;  // three Re4CoreSnapshot from here
     uint32_t audioOffset;     // kAudioFrames * audioChannels int16 from here
+    uint32_t depthOffset;     // RE4_GX_DEPTH_W * RE4_GX_DEPTH_H uint32 from here (the app writes)
     // 6 per frame: the stereo (re4_core_audio), then front left, front right, rear left, rear
     // right (re4_core_audio4, Dolby Pro Logic II): one read of the core for both, the app plays one
     uint32_t audioChannels, audioRate;
@@ -141,6 +142,10 @@ struct Control {
     // the state frames: the index of the middle buffer | kSnapshotNew
     std::atomic<uint32_t> snapshotMiddle;
     uint32_t snapshotHashLo[3], snapshotHashHi[3];  // RE4_CORE_IPC_CHECK=1
+
+    // the depth of the last picture for the game's GXPeekZ: the app's renderer writes the cells at
+    // depthOffset, then the serial (re4_gx_frame.h, runtime/gx_fifo.cpp); the core process reads cells
+    alignas(64) std::atomic<uint32_t> depthSerial;
 
     // GX: the app's detach count, and the count and time (ms) of its last poll
     alignas(64) std::atomic<uint32_t> appEpoch, pollEpoch, pollMs;

@@ -2023,7 +2023,7 @@ void tlutLoad()
 // autofocus (runtime/dof.cpp): sent each time like the registers that act
 bool isAction(u8 reg)
 {
-    return reg == 0x52 || reg == 0x55 || reg == 0x56 || reg == 0x5A || (reg >= 0x60 && reg <= 0x63) ||
+    return reg == 0x52 || reg == 0x55 || reg == 0x56 || reg == 0x5A || reg == 0x5B || (reg >= 0x60 && reg <= 0x63) ||
            reg == 0x66 || reg == 0x67;
 }
 
@@ -2034,6 +2034,7 @@ void efbCopy(u32 control)
     u32 height = ((gGp.bp[0x4A] >> 10) & 0x3FF) + 1;
     if (control & (1u << 14)) {
         gStats.xfbCopies++;
+        re4_gx_peek_new_frame();  // the next GXPeekZ marks the next picture
         chunkBoundary(dest, width, height);
         return;
     }

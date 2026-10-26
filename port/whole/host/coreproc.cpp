@@ -107,6 +107,7 @@ struct Core {
     void (*swipe)(int);
     void (*slash)(float);
     void (*gyro)(float, float);
+    void (*depthSource)(const unsigned*, const unsigned*);
     int (*cardList)(Re4CardFile*, int);
     int (*cardFree)(void);
     int (*cardName)(int, char*, int);
@@ -717,6 +718,7 @@ bool loadCore(std::string& problem)
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
     bind(core.gyro, "re4_core_gyro");
+    bind(core.depthSource, "re4_core_gx_depth_source", false);
     bind(core.instant, "re4_core_instant");
     bind(core.cardList, "re4_core_card_list");
     bind(core.cardFree, "re4_core_card_free_blocks");
@@ -1012,6 +1014,11 @@ int main(int argc, char** argv)
     }
     controlInit(gControl, (uint32_t) getpid());
     gControl->check = gCheck ? 1 : 0;
+    // the game's GXPeekZ reads the depth map the app's renderer writes into the shared memory
+    if (core.depthSource) {
+        core.depthSource((const unsigned*) ((char*) gControl + gControl->depthOffset),
+                         (const unsigned*) &gControl->depthSerial);
+    }
     installCrashHandler();
     say("ready (pid %d, MEM1 placeholder %s, libre4_main.so loaded%s)", (int) getpid(), placeholder,
         gCheck ? ", checks on" : "");

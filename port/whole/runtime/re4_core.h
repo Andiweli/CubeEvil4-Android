@@ -264,6 +264,13 @@ void re4_core_set_letterbox(int off);
  * performance hint (re4_cpu_info.h), 0 (the default) leaves them to Android.
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_fast_cores(int on);
+/* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
+ * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
+ * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the
+ * EFB's resolution, row 0 = the EFB's row 0; `serial` rises with every map. Any thread. */
+void re4_core_gx_depth(const unsigned* cells, unsigned serial);
+/* The core process (host/coreproc.cpp): the map is in shared memory the app writes. */
+void re4_core_gx_depth_source(const unsigned* cells, const unsigned* serial);
 int re4_letterbox_off(void);
 /* A tap on the picture (cores since 22.10.2026; runtime/menu_touch.cpp): u
  * across the game's 512 x 448 picture, v down it, both 0..1. Used at the next

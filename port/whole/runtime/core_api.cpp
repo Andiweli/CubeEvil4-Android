@@ -695,6 +695,16 @@ void re4_core_set_fast_cores(int on)
     re4_gx_set_fast_cores(on);
 }
 
+void re4_core_gx_depth(const unsigned* cells, unsigned serial)
+{
+    re4_gx_depth_put(cells, serial);
+}
+
+void re4_core_gx_depth_source(const unsigned* cells, const unsigned* serial)
+{
+    re4_gx_depth_source(cells, serial);
+}
+
 int re4_letterbox_off(void)
 {
     return gLetterboxOff;

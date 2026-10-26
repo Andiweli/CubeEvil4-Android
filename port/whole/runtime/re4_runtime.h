@@ -90,6 +90,24 @@ void re4_window_report(void);
 /* 32 bit on Android: reserve the address range the REL modules are loaded into (module_loader.cpp) */
 void re4_module_window_reserve(void);
 
+/* The depth the renderer took of the last pictures (the app's GX renderer, at the display copy of a
+ * picture whose chunk carries the marker BP 0x5B, which the first peek of a picture writes into the
+ * stream): RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of the 24-bit GX depth at half the EFB's resolution,
+ * row 0 = the EFB's row 0. GXPeekZ answers from it, a picture late; without a map, or when the
+ * renderer stays more than 8 pictures behind, it answers "far" (0xFFFFFF) as before. */
+#define RE4_GX_DEPTH_W 320
+#define RE4_GX_DEPTH_H 264
+/* The renderer's map (any thread): copied. `serial` counts the maps the renderer took (rises). */
+void re4_gx_depth_put(const unsigned int* cells, unsigned int serial);
+/* The map lives elsewhere (the core process: shared memory the app writes): `cells` and `serial`
+ * stay valid for the process's life. */
+void re4_gx_depth_source(const unsigned int* cells, const unsigned int* serial);
+/* A display copy went out: the next peek marks the next picture. */
+void re4_gx_peek_new_frame(void);
+/* (tests) peeks answered from a map / answered "far", and pictures marked */
+void re4_gx_peek_stats(unsigned int* answered, unsigned int* far, unsigned int* marked);
+
+
 /* Folder with the extracted disc files (dvd.cpp): <dir>/disc0, <dir>/disc1,
  * each with sys/fst.bin, sys/boot.bin and files/. Set by the launcher. */
 void re4_set_data_dir(const char* dir);

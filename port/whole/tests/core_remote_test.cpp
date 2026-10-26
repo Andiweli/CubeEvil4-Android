@@ -341,6 +341,13 @@ void mainRun(const char* modules, const char* gciPath)
     re4ipc_set_dof(1);
     re4ipc_set_letterbox(0);
     r.run(0.5);
+    // the depth of the picture for the game's GXPeekZ: the cell at (100, 60) of the map the renderer writes
+    {
+        std::vector<unsigned> cells(320 * 264, 0x00FFFFFF);
+        cells[(60 >> 1) * 320 + (100 >> 1)] = 0xABCDE;
+        re4ipc_gx_depth(cells.data(), 1000000);
+    }
+    r.run(0.5);
     // the end: START
     pad(0x1000);
     CHECK(waitFor(20, &r, [] { return re4ipc_state() != RE4_CORE_RUNNING; }));
@@ -356,6 +363,13 @@ void mainRun(const char* modules, const char* gciPath)
     CHECK(number(probe, "B frames ") == 1);
     CHECK(probe.find("dof changes 2 (now 1)") != std::string::npos);
     CHECK(tail.find("remote-probe: letterbox changes 2 (now 0)") != std::string::npos);
+    {
+        const size_t peek = tail.find("remote-probe: peek far");
+        const std::string pl = peek == std::string::npos ? "" : tail.substr(peek, tail.find('\n', peek) - peek);
+        CHECK(number(pl, "far ") > 0);                          // before the map came: far, as before
+        CHECK(number(pl, "hits ") > 0);                         // after it: answered from the shared memory
+        CHECK(pl.find("last 0xabcde") != std::string::npos);    // the cell the check put there
+    }
     CHECK(tail.find("touch: taps on the picture reach the sub screens") != std::string::npos);
     CHECK(tail.find("touch: swipes change the tab of the sub screen") != std::string::npos);
     CHECK(tail.find("knife: swipes draw the knife and slash") != std::string::npos);
