@@ -56,6 +56,50 @@ später gesondert), alle Sprachen der EU-Discs in R7, Aufnahme als **M13** in `C
   (`card: save: file list`, bis Bild 30 000). Ob das an den EU-Menüdaten liegt (R3, z. B. „IDSystem work full“)
   oder am Start in r120, ist nicht geklärt. Nicht geprüft: ARM32/ARM64 unter qemu, Android-Build, Gerät.
 
+## M13 Retail-Discs (EU), Schritt R2: verschobene Archiv-Plätze (26.10.2026 abends, lokal, Branch `retail-eu`)
+
+Vorgehen: für jedes der vier verschobenen Archive (Werkzeug `retail_compare.py`) den Code der Verkaufsversion
+mit dem der Debug-Version verglichen. Die Funktionen wurden in den REL-Modulen beider Discs über ihre
+Befehlsfolgen gefunden (Adressen der Debug-Symbole in `config/G4BE08`) und mit `llvm-objdump` (PowerPC)
+nebeneinander gelesen; die Werkzeuge dafür lagen außerhalb des Repositorys.
+
+- **Funkspruch (`ss/eng/ss_term.dat`, 10 statt 11 Teile):** Patch 0120 (Tabelle unten). Die fehlende Textur liegt
+  in der EU an jeder `ss_ocNNN.dat` als Teil 16 (dort „appended“).
+- **Krauser (`em/pl0a.drs`):** dieselben Teile, acht davon in anderer Reihenfolge (die Textur von Debug-Teil 7
+  steht in der EU auf 12, die fünf Modelle dahinter rücken einen Platz vor). Die EU-Fassung liest in
+  `cPlKlauser::setModel`/`setHead` und im Untermenü (`klauserModelInit`, `wep36Init`) entsprechend andere Plätze;
+  Hände und Waffen sind gleich.
+- **Adas Gewehr (`ss/cmn/ss_wep40.dat`):** die EU hat ein zweites Gewehrmodell auf Teil 2 (`wep40Init` wählt 1 oder 2),
+  Hand und Bewegung folgen auf 3 und 4.
+- Für Krauser und das Gewehr setzt der Umwandler die Tabelle beim Laden in die Reihenfolge der Debug-Version
+  zurück (`runtime/formats/formats.cpp` `retailOrder`, nur mit EU-Discs und nur, wenn die EU-Reihenfolge erkannt
+  wird; das zweite Gewehrmodell kommt ans Ende). Geprüft an den echten Dateien: danach ist die Teile-Liste gleich
+  der der Debug-Version, jedes verschobene Teil hat genau die Größe seines Debug-Gegenstücks. Laufzeittest
+  `retail order`. So passt auch Code, der nicht einzeln verglichen wurde (Krausers Angriffe, `wep07`).
+- **Inselkarte (`ss/cmn/map_obj4g.dat`):** kein Handlungsbedarf. Die EU füllt leere Plätze; der Debug-Code nutzt dort
+  nur Plätze mit derselben Art Teil oder nimmt Ersatzmodelle (`mark_model_tbl`, `map_door_tbl`).
+- **Speicherbildschirm:** das Hängen in der Dateiliste liegt nicht an den EU-Daten. Mit den Debug-Discs hängt es in
+  r120 genauso (eigener Lauf, `RE4_START_ROOM=0x120`). Die Kartenprüfung von `whole_r100_check.sh` setzt Leon ohne
+  `debug/roomInfo.dat` jetzt wie der Spiellauf an die Tür nach r100 (B nach 300 Bildern) und speichert dort.
+
+**Prüfungen (i686)**
+- Funkspruch-Test: EU-Daten, nur für den Test ergänzt um `debug/roomInfo.dat` der Debug-Disc (Start direkt in r100,
+  wie beim Debug-Start): Funkspruch öffnet bei Bild 1756, schließt bei 2620, Leon frei bei Bild 2923 (wie mit den
+  Debug-Discs); die ganze Prüfstrecke „ALLES OK“, auch Speichern und Laden. Bild des Funkspruchs: Hunnigan, Leon
+  und Text richtig; **die dunkle Leiste hinter dem Untertitel fehlt** („IDSystem::set() work full“, drei Bausteine,
+  gehört zu R3).
+- EU-Abbilder unverändert, Kartenprüfung (`--card-only`): „ALLES OK“ (Systemdatei, Speichern in r100, Laden, „Retry“).
+- Prüfkette, Stand `6a9c8c25`: EU-Abbilder unverändert i686 **„ALLES OK“** (erstmals mit EU-Daten: Spiellauf,
+  Filme, Speichern und Laden), Gegenprobe Debug-Discs i686 **„ALLES OK“**, EU-Abbilder x86_64 (steht für
+  arm64-v8a) **„ALLES OK“**; Laufzeittest `retail order` grün auf beiden. Nicht geprüft: ARM unter qemu,
+  Android-Build, Gerät.
+
+**Offen / neu gefunden**
+- Spielstände tragen die Kennung der eingelegten Disc (`bh4_data00` mit G4BP08 bei den EU-Discs, G4BE08 bei den
+  Debug-Discs). Ob ein Spielstand der einen Fassung mit der anderen geladen werden kann, ist nicht geprüft (R4/R8).
+- Krauser und Adas Gewehr laufen in keiner Prüfung (Mercenaries/Ada); geprüft ist die Umsortierung an den Dateien und
+  im Laufzeittest, nicht im Spiel.
+
 ## Branches aufgeräumt (26.10.2026 abends)
 
 Entscheidung des Projektinhabers: Arbeitsbranch ist jetzt **`beta-updates`** (Stand `a5eed0f`, gleich dem bisherigen
@@ -550,7 +594,7 @@ Sichtprüfung auf dem Retroid noch offen.
 | 0.45.1-alpha | **nicht veröffentlicht, in 0.46.0 aufgegangen** (Entscheidung des Projektinhabers, 23.10.2026). 23.10.2026 (Branch `claude/re4-start-controls` mit `performance` zusammengeführt, versionCode 71, Releasetext `port/android-decomp/docs/releases/v0.45.1-alpha.md`; Entscheidung des Projektinhabers: die weiteren Performance-Optimierungen als 0.45.1): „Auto“ regelt die Auflösung nach dem Grafikchip (`GxRenderer::Rescale`), Spiel- und Zeichen-Thread weg von den langsamsten Kernen und Androids Leistungshinweis, Shader auf eigenem Thread mit Liste in der App (70 Programme, wächst mit den Schlüsseln der Berichte); -O3 geprüft und verworfen. **Auf dem Gerät noch nicht getestet** |
 | 0.46.0-alpha | 23.10.2026 (Branch `claude/re4-start-controls`, versionCode 72, Releasetext `port/android-decomp/docs/releases/v0.46.0-alpha.md`; Entscheidung des Projektinhabers nach seinem Gerätetest 16:09: „Die Umschaltung klappt sauber“): „Dynamisch“ statt „Auto“ (erst nach zwei schlechten Fenstern tiefer), Auflösung in der FPS-Anzeige, Einrasten L/R und B in der Komfortsteuerung auch für den Controller, Menüzeilen ohne Grundlinien-Ausrichtung, Gyro mit der Harpune, Shader-Liste 627 Programme |
 | 0.9.0-beta | 23.10.2026 (Branch `claude/re4-start-controls`, auch `performance` und `master`, versionCode 73, Releasetext `port/android-decomp/docs/releases/v0.9.0-beta.md`; Entscheidung des Projektinhabers: „Beta jetzt“, nachdem der SCV40-Tester das Spiel durchgespielt hat): erste Beta; seit 0.46.0 nur die Shader-Liste (1928 statt 627 Programme), Version, Releasetext und README (Status „Beta“). Alle 1928 Programme bauen auf Mesa ohne Fehler (mit und ohne MSAA). **Gerätetest der APK offen** |
-| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“). Offen: Speicherkarten-Teil mit EU-Daten, R2–R8. Als **M13** in `CLAUDE.md` aufgenommen |
+| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“). Offen: R3–R8. Als **M13** in `CLAUDE.md` aufgenommen |
 | Reihenfolge | Entscheidungen des Projektinhabers: erst M9 Videos und M10 Speichern/Laden (16.10.2026), dann **M11 vor dem Raum-Rundgang 10b** (17.10.2026: die APK soll an Tester gehen), dann **M12 ARM64 vor 10b** (17.10.2026: ein Tester hat ein Gerät nur für 64-bit-Apps). Gestrichen: Baum-Kollision in r100 (G17) |
 
 **Entscheidung des Projektinhabers (14.10.2026):** Endprodukt ist
@@ -8384,6 +8428,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0117 `read.cpp` | Kern-Archiv an einem zweiten Platz, wenn es größer ist als der feste (Verkaufsdaten, `retail-eu-plan.md` R1, 26.10.2026): `etc/core.das` der europäischen Discs hat 0x23AC40 Byte, der Platz der Debug-Version bei 0x80578000 fasst 0x234000 (`CORE_DATA_MAX`) bis zu den Optionsdaten bei 0x807AC000; das Lesen lief hinein („CORE_DATA IS TOO LARGE“). `CoreDataRead` fragt `re4_core_data_place` (`runtime/dvd.cpp`: Größe des Körpers aus der Teile-Tabelle, bei yz2 die entpackte); ein größerer Kern kommt nach 0x81C00000 (4 MB in der Entwicklerhälfte von MEM1, sonst unbenutzt, `RE4_MEM1_CORE_ALT_ADDR`), der Kern der Debug-Version bleibt an seinem Platz. Port-Patch für Verkaufsdaten |
 | 0118 `eprintf.cpp` | Ohne die Debug-Schrift `etc/moji8.tpl` (fehlt auf den europäischen Discs) legte `EprintfInit` keine Puffer an; `eprintf` und `EprintfDrawing` prüfen `eprintf_init`, `EprintfBufferClear` (jedes Bild über `EprintfFlush`) nicht und schrieb über einen Nullzeiger: das Spiel endete im ersten Bild. Jetzt bleibt der Debug-Text ohne Schrift aus. Port-Patch für Verkaufsdaten (R1) |
 | 0119 `main.cpp` | Ersatz für `debug/roomInfo.dat` (fehlt auf den europäischen Discs): jedes „Neues Spiel“ der Debug-Version läuft über das Debug-Startmenü, das die Tabelle liest (`titleExit`, `cRoomJmp`), und endete dort. `systemRestartInit` legt dann eine Tabelle mit einem Eintrag an: der vorgewählte Raum (`pG->room_id`, r120 wie beim neuen Spiel) ohne Position (wie der r120-Eintrag der Debug-Tabelle), in der Form, die der Umwandler aus der Disc-Datei macht. `re4_room_info_stand_in` (`runtime/dolphin_os.cpp`) meldet das und lehnt einen anderen Debug-Startraum (`RE4_START_ROOM`) ab: das neue Spiel beginnt in r120 und läuft von selbst nach r100. Port-Patch für Verkaufsdaten (R1) |
+| 0120 `ss_model.cpp`, `ss_term.cpp` | Funkspruch mit den europäischen Discs (Verkaufsdaten, R2, 26.10.2026): `ss/eng/ss_term.dat` hat dort 10 statt 11 Teile, die zweite Textur der Funkgerät-Teile fehlt (die EU-Dateien hängen sie an jede `ss/cmn/ss_ocNNN.dat` an, Teil 16), die Bewegung liegt auf 13 statt 14. Aus der europäischen `Sscrn.rel` abgelesen: `tel00ModelInit` nimmt die Textur aus der Datei des Gesprächspartners (`pTelDat`, 16), `termMotionCancel` die Bewegung von 13. Vorher endete das Spiel beim ersten Funkspruch in r100. Mit den Debug-Discs unverändert (`re4_disc_retail_eu`). Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

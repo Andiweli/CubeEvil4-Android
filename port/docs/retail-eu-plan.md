@@ -7,6 +7,10 @@ Projektinhabers, 26.10.2026).
 unveränderten EU-Discs ohne Absturz durch, die Debug-Discs bleiben „ALLES OK“. Einzelheiten und offene
 Punkte: `whole-program-status.md`, Abschnitt „Retail-Discs (EU), Schritte R0 und R1“. Befunde 2–4 der
 Tabelle unten sind behoben (Patches 0117–0119), Befund 12 (`config.txt`) ist ohne Folge.
+R2 ✅ (26.10.2026): Befunde 5, 8 und 9 behoben (Patch 0120; Umsortierung von `pl0a.drs` und `ss_wep40.dat`
+beim Laden), Befund 10 ohne Folge; der hängende Speicherbildschirm lag an der Prüfstrecke (Speichern in r120),
+nicht an den EU-Daten. Neu für R3: die Untertitel-Leiste des Funkspruchs fehlt („IDSystem work full“). Neu für
+R4/R8: Spielstände tragen die Disc-Kennung (G4BP08/G4BE08), Austausch zwischen den Fassungen ungeprüft.
 
 Ziel: CubeEvil4 spielt das Spiel auch mit den europäischen Verkaufs-Discs (`G4BP08`, Disc 1 und 2),
 nicht nur mit der Debug-Disc (`G4BE08`, 2004-11-25). Der Spielcode bleibt der der Debug-Version
