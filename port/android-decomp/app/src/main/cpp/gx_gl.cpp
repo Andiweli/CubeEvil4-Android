@@ -981,27 +981,31 @@ struct GxRenderer::Impl {
       recFloatsNew.insert(recFloatsNew.end(), xf.normal[(r.posRow + i) & 31], xf.normal[(r.posRow + i) & 31] + 3);
     for (int i = 0; i < 6; i++)
       recFloatsNew.push_back(xf.proj[i / 4][i % 4]);
+    recFloatsNew.insert(recFloatsNew.end(), &xf.matAmb[0][0], &xf.matAmb[0][0] + 16);
     recNew.push_back(r);
   }
 
   // The noted draw of the picture before that this one is: the same signature; the first one not
-  // yet taken (the game draws in the same order from one picture to the next) unless another of
-  // the first 32 not taken lies clearly nearer (by more than 2 % of its distance plus 50 units);
-  // none when no one moved less than a quarter of its distance plus 400 units (another object of
-  // the same look). Not simply the first within that reach: the particles of smoke and fire look
-  // alike, lie a few thousand units apart, and one that dies or starts shifts the order (Retroid
-  // report 26.10.2026, r224: neighbours swapped places in the in-between pictures, the smoke
-  // flickered). With the camera's move known (cam), the positions before are moved by it first,
-  // and a small draw (a particle, at most 16 vertices) may move only 5 % of its distance plus 300
-  // units: one that has just started is drawn as in the next picture instead of taking another's
-  // place.
+  // yet taken when it lies near enough (the game draws in the same order from one picture to the
+  // next), else of the first eight the nearest that does; none when no one moved less than a
+  // quarter of its distance plus 400 units (another object of the same look).
+  // A particle (a small draw with a matrix of its own, at most 16 vertices) instead: the first one
+  // not taken unless another of the first 32 lies clearly nearer (by more than 2 % of its distance
+  // plus 50 units). The particles of smoke and fire look alike, lie a few thousand units apart,
+  // and one that dies or starts shifts the order (Retroid report 26.10.2026, r224: neighbours
+  // swapped places in the in-between pictures, the smoke flickered). With the camera's move known
+  // (cam), their positions before are moved by it first, and a particle may move only 5 % of its
+  // distance plus 300 units: one that has just started is drawn as in the next picture instead of
+  // taking another's place. Only particles: the camera's move is the room's, and the parts of Leon
+  // turn with the camera; matched by it, two alike parts of him swapped places and their blended
+  // vertices drew a long bar at the bottom of the picture (Retroid report 26.10.2026, fast turns).
   const DrawRec *MatchDraw(std::uint64_t sig, const float *t, std::uint32_t rows, std::uint32_t vertexCount) {
     auto it = recBySig.find(sig);
     if (it == recBySig.end())
       return nullptr;
     const float reach = rows ? std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]) : 0.0f;
-    const bool moved = camValid && rows != 0;
-    const float limit = moved && vertexCount <= 16 ? 0.05f * reach + 300.0f : 0.25f * reach + 400.0f;
+    const bool particle = rows == 3 && vertexCount <= 16, moved = particle && camValid;
+    const float limit = moved ? 0.05f * reach + 300.0f : 0.25f * reach + 400.0f;
     const float close = 0.02f * reach + 50.0f;
     int first = -1, best = -1;
     float firstDist = 0.0f, bestDist = 0.0f;
@@ -1018,17 +1022,17 @@ struct GxRenderer::Impl {
       if (first < 0) {
         first = static_cast<int>(i);
         firstDist = dist;
-        if (dist <= close)
-          break;  // where it was: no need to look further
+        if (dist <= (particle ? close : limit))
+          break;  // near enough (a particle: where it was): no need to look further
       }
       if (dist <= limit && (best < 0 || dist < bestDist)) {
         best = static_cast<int>(i);
         bestDist = dist;
       }
-      if (++looked >= 32)
+      if (++looked >= (particle ? 32u : 8u))
         break;
     }
-    if (first >= 0 && firstDist <= limit && (best < 0 || firstDist <= bestDist + close))
+    if (first >= 0 && firstDist <= limit && (!particle || best < 0 || firstDist <= bestDist + close))
       best = first;
     if (best < 0)
       return nullptr;
@@ -1152,6 +1156,17 @@ struct GxRenderer::Impl {
         xf.proj[i / 4][i % 4] = proj[i] + (xf.proj[i / 4][i % 4] - proj[i]) * s;
       Dirty(206, 208);
     }
+    // the material and ambient colours: between the two (particles fade in and out by their
+    // material colour; Retroid report 26.10.2026: the flames changed only with the game's 30
+    // pictures a second). FillXfRegs puts them back after the draw.
+    bool colors = false;
+    const float *mat = src + a->rows * 4 + a->rows * 3 + 6;
+    if (std::memcmp(mat, &xf.matAmb[0][0], sizeof(xf.matAmb)) != 0) {
+      for (int i = 0; i < 16; i++)
+        xf.matAmb[i / 4][i % 4] = mat[i] + (xf.matAmb[i / 4][i % 4] - mat[i]) * s;
+      Dirty(200, 204);
+      colors = true;
+    }
     // vertices the game moved itself (skinning): positions and normals between the two
     if (interpPrev && a->vertexCount == d.vertexCount && a->stride == d.stride && a->layout == d.layout &&
         d.stride >= 12 && a->vertexOffset + static_cast<std::uint64_t>(a->vertexCount) * a->stride <=
@@ -1199,8 +1214,8 @@ struct GxRenderer::Impl {
         }
       }
     }
-    // 0x100000: only the projection; 0x200000: the lights too
-    return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u);
+    // 0x100000: only the projection; 0x200000: the lights too; 0x400000: the colours
+    return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u) | (colors ? 0x400000u : 0u);
   }
 
   // The lights of the next picture into the in-between one: the modelview `mid` of a draw (blended)
@@ -1262,7 +1277,9 @@ struct GxRenderer::Impl {
         XfMemToBlock(a);
       Dirty(160, 200);
     }
-    xfRegsDirty = true; // FillXfRegs puts the projection back
+    if (blended & 0x400000)
+      Dirty(200, 204);
+    xfRegsDirty = true; // FillXfRegs puts the projection (and the colours) back
     Dirty(206, 208);
   }
 

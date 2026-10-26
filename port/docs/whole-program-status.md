@@ -4,6 +4,36 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Fünfter Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, Bericht 15:03, Foto): Rauch ruckelt mit 60 FPS nicht mehr, Flammen und Fackeln
+noch; bei schnellen Drehungen Leons ein weißer schräger Balken unten in der Bildmitte (nur mit 60 FPS). Die
+R3-Serien des Berichts (r224, r22c, r220) kamen nicht mit.
+
+- **Weißer Balken (von `607b4f5` eingeführt, nie in einem Release):** `MatchDraw` verglich seit dem Nachtest am Abend
+  alle Zeichnungen mit der Kamerabewegung und nahm bei gleichem Aussehen das deutlich nähere statt des ersten. Die
+  Kamerabewegung ist die des Raums; Leons Teile drehen sich mit der Kamera mit. Bei schnellen Drehungen sah daher ein
+  anderes gleich aussehendes Teil Leons näher aus, die beiden tauschten die Plätze, und ihre gemischten Ecken (CPU-
+  Skinning, `far <= 1500`) zogen einen langen Balken. Nachgewiesen an den älteren Serien: Zeichnungen mit 96 bis
+  2281 Ecken wurden anders zugeordnet als vorher. Neu: Die neue Zuordnung (Kamerabewegung, das nähere, enge
+  Grenze) gilt nur für **Teilchen** (eigene Matrix, höchstens 16 Ecken); alles andere wieder genau wie vorher (das
+  erste innerhalb der Reichweite, sonst das nächste der ersten acht).
+- **Flammen:** In r224 werden die Feuerteilchen richtig zugeordnet und bewegt (gemessen: Drehung und Größe bleiben
+  gleich), aber 38 % von ihnen ändern von Bild zu Bild ihre **Materialfarbe** (XF 0x100C, vor allem die Deckkraft:
+  sie blenden ein und aus, z. B. 0,14 → 0,02). Das Zwischenbild nahm die Farbe des nächsten Bildes; das Glimmen lief
+  mit 30 Schritten. Neu: Material- und Umgebungsfarben (`xf.matAmb`) werden mit der Zeichnung notiert und im
+  Zwischenbild gemischt; `FillXfRegs` setzt sie danach aus den Registern zurück.
+- **Messung (Zwischenbild mit Anteil 0 gegen das Bild davor, sieben Serien):** r224 mittlere Abweichung 2,23 → 1,10
+  (vor heute 4,01), Zaun-Serie r223 3,3 → 2,6; stark abweichende Bildpunkte überall wie vorher oder weniger; die
+  echten Bilder byte-gleich.
+- **Shader-Liste:** 9006 Programme (6 neu aus dem Bericht).
+- **Tests:** `TestInterpolationLooks` (neu: zwei gleich aussehende Teile mit 20 Ecken, das eine liegt dem Platz des
+  anderen näher, bleiben in der Reihenfolge; die Materialfarbe eines Teilchens geht von Rot nach Blau über Lila; das
+  echte Bild danach wieder Blau). Gegenproben: alles als Teilchen behandelt → Reihenfolge-Prüfung rot; ohne
+  Farbmischen → Farb-Prüfung rot. `gx_gl_check` 0 Fehler. Kern unverändert.
+- **Nicht getestet:** auf dem Gerät; Fackeln anderer Räume (keine Aufnahme davon; die Farbmischung gilt für alle
+  Teilchen).
+
 ## Vierter Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
 
 Bericht des Projektinhabers (Retroid, Bericht 14:14, R3-Serie in r224, dem Lavaraum): 60 FPS läuft jetzt mit
@@ -15,8 +45,8 @@ Nebel, Rauch und Flammen ruckeln und flackern.
   innerhalb eines Viertels seiner Entfernung plus 400 Einheiten lag (bei 20 000 Einheiten: 5400). Stirbt ein
   Teilchen oder entsteht eines, verschiebt sich die Reihenfolge, und Nachbarn tauschten im Zwischenbild die Plätze
   (in der Serie: Paare mit 3000–4400 Einheiten Abstand statt 20–130).
-- **Neu (`gx_gl.cpp` `MatchDraw`):** Das erste freie gilt weiter (die Reihenfolge des Spiels), außer ein anderes der
-  ersten 32 freien liegt deutlich näher (um mehr als 2 % der Entfernung plus 50 Einheiten). Dazu die
+- **Neu (`gx_gl.cpp` `MatchDraw`; seit dem fünften Nachtest nur noch für Teilchen):** Das erste freie gilt weiter
+  (die Reihenfolge des Spiels), außer ein anderes der ersten 32 freien liegt deutlich näher (um mehr als 2 % der Entfernung plus 50 Einheiten). Dazu die
   **Kamerabewegung** zwischen den beiden Bildern (`NoteCamera`, `CameraMove`): abgelesen an zwei großen Zeichnungen
   eigenen Aussehens (mindestens 64 Ecken, je eine im Bild davor; der Raum), die sich gleich bewegt haben. Mit ihr
   werden die Positionen des Bildes davor erst um die Kamerabewegung verschoben, und ein kleines Teilchen (höchstens

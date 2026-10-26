@@ -1627,6 +1627,79 @@ void TestInterpolationParticles() {
   r.Release();
 }
 
+// Larger draws of the same look keep the game's order (Retroid report 26.10.2026: with fast turns
+// a long bar at the bottom of the picture; two alike parts of Leon had swapped places). Two draws of
+// 20 vertices at 3000 units: X moves from 0 to 300, Y from 400 to 700. X lies nearer to Y's place
+// before than to its own, but stays X: halfway at 150 and 550, not both at 350. And a particle's
+// material colour (its fade) goes halfway too: red in A, blue in B, purple between.
+void LooksScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  auto part = [&](float x) {
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -3000.0f});
+    std::vector<std::uint8_t> v;
+    for (int q = 0; q < 5; q++) {
+      const float y0 = -150.0f + 60.0f * static_cast<float>(q);
+      V(v, -60.0f, y0, 0.0f, kGreen);
+      V(v, 60.0f, y0, 0.0f, kGreen);
+      V(v, 60.0f, y0 + 60.0f, 0.0f, kGreen);
+      V(v, -60.0f, y0 + 60.0f, 0.0f, kGreen);
+    }
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 20, 0x80);
+  };
+  part(second ? 300.0f : 0.0f);
+  part(second ? 700.0f : 400.0f);
+  // the particle: colour from the material register (XF 0x100C), not from its vertices
+  b.Xf(0x100E, {0});
+  b.Xf(0x1010, {0});
+  b.Xf(0x100C, {second ? 0x0000C8FFu : 0xC80000FFu});
+  b.XfF(0, {1, 0, 0, -1200.0f, 0, 1, 0, 0, 0, 0, 1, -3000.0f});
+  std::vector<std::uint8_t> v;
+  V(v, -100.0f, -100.0f, 0.0f, kWhite);
+  V(v, 100.0f, -100.0f, 0.0f, kWhite);
+  V(v, 100.0f, 100.0f, 0.0f, kWhite);
+  V(v, -100.0f, 100.0f, 0.0f, kWhite);
+  b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  b.Xf(0x100E, {1});
+  b.Xf(0x1010, {1});
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationLooks() {
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  LooksScene(ba, 1, false, &a);
+  LooksScene(bb, 2, true, &b);
+  r.Run(a);
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 3000.0f * 320.0f)); };
+  const GLuint xfbA = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfbA, px(-1200.0f), 264), 200, 0, 0, 3), "looks: picture A (the particle red)");
+  Check(r.Interpolate(a, b, 0.5f), "looks: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  const auto x = TexPixel(xfb, px(150.0f), 264), y = TexPixel(xfb, px(550.0f), 264), swapped = TexPixel(xfb, px(350.0f), 264);
+  Check(Near(x, 0, 255, 0) && Near(y, 0, 255, 0) && Near(swapped, 0, 0, 0),
+        "looks: larger draws of the same look keep the game's order");
+  const auto colour = TexPixel(xfb, px(-1200.0f), 264);
+  Check(Near(colour, 100, 0, 100, 3), "looks: a particle's material colour goes halfway");
+  if (!Near(x, 0, 255, 0) || !Near(y, 0, 255, 0) || !Near(swapped, 0, 0, 0) || !Near(colour, 100, 0, 100, 3))
+    Print("x", x), Print("y", y), Print("swapped", swapped), Print("colour", colour);
+  // the real picture after it: B's colour (blue), the material register put back
+  r.Run(b);
+  Check(Near(TexPixel(r.Xfb(nullptr, nullptr), px(-1200.0f), 264), 0, 0, 200, 3), "looks: picture B after it (blue)");
+  Check(glGetError() == GL_NO_ERROR, "looks: no GL error");
+  r.Release();
+}
+
 void TestInterpolation() {
   std::string error;
   re4gx::GxRenderer r, plain;
@@ -2154,6 +2227,7 @@ int main() {
   }
   TestInterpolation();
   TestInterpolationParticles();
+  TestInterpolationLooks();
   TestInterpolatedLights();
   // MSAA in its own buffers (the devices without the extensions, RE4_GX_MSAA_TILES=0)
   TestOptions(false, false);
