@@ -660,19 +660,19 @@ const RetailOrder kRetailOrder[] = {
     { "ss/cmn/ss_wep40.dat", 5, 1, 4, "BIN\0BIN\0BIN\0FCV\0", { 0, 2, 3, 1 } },
 };
 
-void retailOrder(Blob& b, const char* name)
+bool retailOrder(Blob& b, const char* name)
 {
     for (const RetailOrder& r : kRetailOrder) {
         if (strcmp(name, r.name) != 0) {
             continue;
         }
         if (b.size < 0x10 + r.count * 8 || be32(b, 0) != r.count) {
-            return;
+            return false;
         }
         u8* offs = b.data + 0x10 + r.first * 4;
         u8* tags = b.data + 0x10 + r.count * 4 + r.first * 4;
         if (memcmp(tags, r.euTags, r.n * 4) != 0) {
-            return;  // not the European order: the debug build's, or already put back
+            return false;  // not the European order: the debug build's, or already put back
         }
         u8 o[32], t[32];
         memcpy(o, offs, r.n * 4);
@@ -687,11 +687,19 @@ void retailOrder(Blob& b, const char* name)
             re4_log("formats: %s: entries %u..%u put into the debug build's order (European release)", name,
                     (unsigned) r.first, (unsigned) (r.first + r.n - 1));
         }
-        return;
+        return true;
     }
+    return false;
 }
 
 }  // namespace
+
+// The step above alone, on a big-endian archive body (the runtime tests): 1 when reordered.
+extern "C" int re4_formats_retail_order(void* data, unsigned size, const char* name)
+{
+    Blob b = blob(data, size, name);
+    return retailOrder(b, name) ? 1 : 0;
+}
 
 extern "C" void re4_formats_part_loaded(const char* rawName, int nest, int index, const void* header, unsigned addr)
 {

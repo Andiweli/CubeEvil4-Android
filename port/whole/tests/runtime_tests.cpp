@@ -441,6 +441,81 @@ static void testDiscRelease()
     report("disc release", ok);
 }
 
+extern "C" int re4_formats_retail_order(void* data, unsigned size, const char* name);
+
+// A big-endian archive body (count, rel, 0, 0, offsets, tags) with entries 0x20 apart.
+static std::vector<unsigned char> retailBody(const std::vector<std::string>& tags)
+{
+    unsigned n = (unsigned) tags.size(), first = (0x10 + n * 8 + 0x1F) & ~0x1Fu;
+    std::vector<unsigned char> b(first + n * 0x20);
+    auto put = [&](unsigned at, unsigned v) {
+        b[at] = (unsigned char) (v >> 24);
+        b[at + 1] = (unsigned char) (v >> 16);
+        b[at + 2] = (unsigned char) (v >> 8);
+        b[at + 3] = (unsigned char) v;
+    };
+    put(0, n);
+    for (unsigned i = 0; i < n; i++) {
+        put(0x10 + i * 4, first + i * 0x20);
+        memcpy(&b[0x10 + n * 4 + i * 4], tags[i].c_str(), tags[i].size());
+    }
+    return b;
+}
+
+static unsigned bodyOffset(const std::vector<unsigned char>& b, unsigned i)
+{
+    const unsigned char* p = &b[0x10 + i * 4];
+    return (unsigned) p[0] << 24 | (unsigned) p[1] << 16 | (unsigned) p[2] << 8 | p[3];
+}
+
+static std::string bodyTag(const std::vector<unsigned char>& b, unsigned n, unsigned i)
+{
+    return std::string((const char*) &b[0x10 + n * 4 + i * 4]);
+}
+
+// The European archive order put back into the debug build's (formats.cpp retailOrder,
+// port/docs/retail-eu-plan.md R2): Ada's rifle and Krauser, a table already in the debug order and
+// one of another size left alone.
+static void testRetailOrder()
+{
+    bool ok = true;
+    std::vector<unsigned char> w = retailBody({"TPL", "BIN", "BIN", "BIN", "FCV"});
+    unsigned o[5];
+    for (unsigned i = 0; i < 5; i++) {
+        o[i] = bodyOffset(w, i);
+    }
+    CHECK(re4_formats_retail_order(w.data(), (unsigned) w.size(), "ss/cmn/ss_wep40.dat") == 1);
+    CHECK(bodyOffset(w, 0) == o[0] && bodyOffset(w, 1) == o[1] && bodyOffset(w, 2) == o[3] &&
+          bodyOffset(w, 3) == o[4] && bodyOffset(w, 4) == o[2]);
+    CHECK(bodyTag(w, 5, 2) == "BIN" && bodyTag(w, 5, 3) == "FCV" && bodyTag(w, 5, 4) == "BIN");
+    CHECK(re4_formats_retail_order(w.data(), (unsigned) w.size(), "ss/cmn/ss_wep40.dat") == 0);  // put back already
+    std::vector<unsigned char> d = retailBody({"TPL", "BIN", "BIN", "FCV"});  // the debug build's file
+    std::vector<unsigned char> d0 = d;
+    CHECK(re4_formats_retail_order(d.data(), (unsigned) d.size(), "ss/cmn/ss_wep40.dat") == 0 && d == d0);
+
+    std::vector<std::string> kt(146, "FCV");
+    const char* eu[] = {"BIN", "TPL", "BIN", "TPL", "BIN", "TPL", "BIN", "BIN", "BIN", "BIN", "BIN", "TPL", "TPL", "TPL"};
+    for (unsigned i = 0; i < 14; i++) {
+        kt[i] = eu[i];
+    }
+    std::vector<unsigned char> k = retailBody(kt);
+    unsigned ko[146];
+    for (unsigned i = 0; i < 146; i++) {
+        ko[i] = bodyOffset(k, i);
+    }
+    CHECK(re4_formats_retail_order(k.data(), (unsigned) k.size(), "em/pl0a.drs") == 1);
+    const unsigned from[8] = {6, 12, 7, 8, 9, 10, 11, 13};
+    const char* dbg[8] = {"BIN", "TPL", "BIN", "BIN", "BIN", "BIN", "TPL", "TPL"};
+    for (unsigned i = 0; i < 8; i++) {
+        CHECK(bodyOffset(k, 6 + i) == ko[from[i]] && bodyTag(k, 146, 6 + i) == dbg[i]);
+    }
+    CHECK(bodyOffset(k, 5) == ko[5] && bodyOffset(k, 14) == ko[14]);
+    std::vector<unsigned char> s = retailBody({"BIN", "TPL"});  // another archive: no rule
+    std::vector<unsigned char> s0 = s;
+    CHECK(re4_formats_retail_order(s.data(), (unsigned) s.size(), "em/pl00.drs") == 0 && s == s0);
+    report("retail order", ok);
+}
+
 // --- yz2 ----------------------------------------------------------------------
 
 // The game's set-up half (src/game/yz2code.cpp, in libre4_main).
@@ -2016,6 +2091,7 @@ int re4_runtime_tests()
     testLink();
     testDvd();
     testDiscRelease();
+    testRetailOrder();
     testYz2();
     testDvdQueue();
     testStream();
