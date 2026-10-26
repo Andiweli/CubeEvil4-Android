@@ -55,6 +55,9 @@ Drehen mit 60 FPS noch; vier R3-Serien an der blauen Feuerschale des Händlers (
   Matrizen). Gegenproben je Regel (ohne Aussehen ohne Textur, ohne 2D, ohne Sprunggrenze, Stimmen gleicher
   Matrix, ohne Dreh-/Größenregel) jeweils rot. `gx_gl_check` 0 Fehler. Kern unverändert.
 - **Nicht getestet:** auf dem Gerät.
+- **Bekannter Fehler im Releasetext 0.91.0** (Wunsch des Projektinhabers, 26.10.2026): Fackeln und Feuer
+  können mit 60 FPS ungleichmäßig flackern; ihre Animation (ein Einzelbild je Textur) hat kein Zwischenbild,
+  sie wechselt weiter 30-mal je Sekunde. Die Zeile „Fixed“ nennt darum nur noch Rauch und Nebel.
 
 ## Fünfter Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
 
