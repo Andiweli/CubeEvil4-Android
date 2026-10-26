@@ -136,4 +136,7 @@
     <string name="ingame_fxaa_help">在最后一步平滑锯齿边缘。可与 MSAA 同时使用或单独使用；画面会略微变柔和。</string>
     <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
     <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
+    <string name="ingame_game_language">游戏语言</string>
+    <string name="ingame_language_device">设备语言</string>
+    <string name="ingame_language_help">游戏文字和字幕的语言。设备语言：如果游戏支持设备的语言就使用它，否则使用英语。更改立即生效；部分画面在下次打开时才会显示新语言。</string>
 </resources>

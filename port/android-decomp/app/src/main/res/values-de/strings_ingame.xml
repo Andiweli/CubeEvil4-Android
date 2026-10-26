@@ -136,4 +136,7 @@
     <string name="ingame_fxaa_help">Glättet Kanten in einem letzten Schritt. Geht mit und ohne MSAA; das Bild wird etwas weicher.</string>
     <string name="ingame_frame_skip_help">Überspringt bei ruckelnder Grafik ein Bild, damit das Spiel nicht in Zeitlupe läuft. Es werden weniger Bilder gezeigt, nichts wird langsamer.</string>
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
+    <string name="ingame_game_language">Spielsprache</string>
+    <string name="ingame_language_device">Gerätesprache</string>
+    <string name="ingame_language_help">Die Sprache der Texte und Untertitel im Spiel. Gerätesprache: die Sprache des Geräts, wenn das Spiel sie hat, sonst Englisch. Eine Änderung gilt sofort; manche Bildschirme zeigen sie erst, wenn sie das nächste Mal öffnen.</string>
 </resources>

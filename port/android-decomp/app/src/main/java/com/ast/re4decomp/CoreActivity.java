@@ -99,6 +99,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String KNIFE_SWIPE = "knifeSwipe";
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
   static final String GRAPHICS_PREFS = "core_graphics";
+  /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
+  static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
   private static final long SELECT_HOLD_MS = 1000;
@@ -119,6 +121,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private volatile boolean destroyed;
   // the language at the start or the last change (onConfigurationChanged)
   private String shownLanguage = "";
+  private boolean retailEu;  // the European discs are imported: the menu offers the game's language
   // the menu (SELECT) and the debug menu (SELECT held)
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
@@ -169,6 +172,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     String programList = programList();
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
+    // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
+    retailEu = imports.root != null && com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(
+        com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1")));
+    if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
+      coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguage(this);
+      Log.i(TAG, "game language: " + gameLanguage(this));
+    }
     // the app's own folder on the shared storage, where test switches write (RE4_AUDIO_WAV)
     getExternalFilesDir(null);
     applyGraphics();
@@ -559,6 +569,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(KNIFE_SWIPE, on).apply();
       knifeSwipe = on;
       Log.i(TAG, "touch: swipes " + (on ? "draw the knife and slash" : "leave the knife alone"));
+    }
+
+    @Override public boolean gameLanguages() { return retailEu; }
+
+    @Override public void gameLanguageChanged(int choice) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(GAME_LANGUAGE, choice).apply();
+      int language = gameLanguage(CoreActivity.this);
+      Log.i(TAG, "game language: " + language + (choice == 0 ? " (the device's)" : ""));
+      CoreBridge.setLanguage(language);
     }
 
     @Override public void alternateChanged(boolean on) {
@@ -1306,6 +1325,23 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     releaseAll();
     surface.onPause();
     super.onPause();
+  }
+
+  /**
+   * The game's language with the European discs (decision of the project owner, 26.10.2026): the
+   * menu's choice, else the device's (the menu's language) if the discs have it, else English.
+   * 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
+   */
+  static int gameLanguage(Context context) {
+    int chosen = context.getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(GAME_LANGUAGE, 0);
+    if (chosen >= 2 && chosen <= 6) return chosen;
+    switch (Locale.getDefault().getLanguage()) {
+      case "de": return 3;
+      case "fr": return 4;
+      case "es": return 5;
+      case "it": return 6;
+      default: return 2;
+    }
   }
 
   /** "language de" / "language ar, right to left": the menu's language (the phone's or the app's own). */

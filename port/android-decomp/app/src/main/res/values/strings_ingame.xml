@@ -151,4 +151,7 @@
     <string name="ingame_fxaa_help">Smooths jagged edges in a last step. Works with or without MSAA; the picture gets slightly softer.</string>
     <string name="ingame_frame_skip_help">While the graphics lag, skips a picture so the game keeps its normal speed. Fewer pictures are shown, nothing is slowed down.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
+    <string name="ingame_game_language">Game language</string>
+    <string name="ingame_language_device">Device language</string>
+    <string name="ingame_language_help">The language of the game\'s texts and subtitles. Device language: the device\'s language if the game has it, English otherwise. A change applies at once; some screens show it the next time they open.</string>
 </resources>

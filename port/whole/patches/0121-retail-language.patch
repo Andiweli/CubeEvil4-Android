@@ -1,0 +1,105 @@
+# Retail data (port/docs/retail-eu-plan.md, R7): the language with the European discs. The European
+# setLanguage takes the console's system language (2 English .. 6 Italian), this build fixes 1 (the US
+# release: no event subtitles, two difficulties). Decisions of the project owner (26.10.2026): the app's
+# in-game menu chooses it (the phone's language until then), a change applies at once, the title menu's
+# "LANGUAGE SELECT" (European title.dat, units 11 and 12) goes. setLanguage and the system file's load
+# (card.cpp) take the app's language, the title and play ask every frame (runtime/game_language.cpp).
+# Nothing changes with the debug build's discs. A port patch for retail data.
+--- a/src/game/main.cpp
++++ b/src/game/main.cpp
+@@ -580,9 +580,16 @@
+ }
+ 
+ // Fixed language 1 / region 1 for this build.
++extern "C" int re4_game_language_value(void); /* port: runtime/game_language.cpp */
++
+ void setLanguage()
+ {
+     pSys->language = 1;
++    /* port: with the European discs the language the European setLanguage takes from the console
++       (2 English .. 6 Italian): here the app's choice */
++    if (re4_game_language_value() >= 0) {
++        pSys->language = (u8) re4_game_language_value();
++    }
+     pSys->eff_country = pSys->language;
+     pG->game_country = pSys->language;
+ }
+--- a/src/game/card.cpp
++++ b/src/game/card.cpp
+@@ -2014,6 +2014,7 @@
+ }
+ 
+ extern "C" int re4_card_boot_message(void); /* port: runtime/memcard.cpp */
++extern "C" void re4_game_language_after_card(void); /* port: runtime/game_language.cpp */
+ 
+ // Rno0 == 1 (first check): reads the system file (sysfileRead) and applies its settings; a
+ // missing / broken one leads to the create-system-file prompt or the error screen.
+@@ -2043,6 +2044,9 @@
+         break;
+     case 2:
+         *pSys = *(SYSTEM_SAVE_WORK*) (buf + SYS_WORK);
++        /* port: the system file holds the language it was saved with; with the European discs the
++           app's choice stays (runtime/game_language.cpp) */
++        re4_game_language_after_card();
+         pG->CardStatus |= 1;
+         SndSetOutputMode(pSys->SndMode, 1);
+         m_Rno1++;
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -562,9 +562,11 @@
+ // screen (Rno0 = 6) when OptionOpenCheck allows.
+ // instant slot (patch 0111)
+ extern "C" int re4_instant_game_tick(void);
++extern "C" void re4_game_language_tick(int in_play); /* port: runtime/game_language.cpp */
+ void gameMainLoop()
+ {
+     if (re4_instant_game_tick()) return;
++    re4_game_language_tick(1); /* port: the app's language (European discs) */
+     static int other_slow = 3;
+     static int preb_slow_flg = 1;
+     static f32 player_Seq_speed = 0.6f;
+--- a/src/game/title.cpp
++++ b/src/game/title.cpp
+@@ -91,6 +91,7 @@
+ // core / option data, then runs the title state machine (TITLE_WORK Rno0) every frame until
+ // titleExit chains into GameTask.
+ extern "C" void re4_instant_title_tick(void*);
++extern "C" void re4_game_language_tick(int in_play); /* port: runtime/game_language.cpp */
+ void Title_task()
+ {
+     static void (*titleFuncTbl[8])(TITLE_WORK*) = {
+@@ -106,6 +107,7 @@
+     w = (TITLE_WORK*) MEM_CALLOC(sizeof(TITLE_WORK), 1, 13);
+     for (;;) {
+         re4_instant_title_tick(w);
++        re4_game_language_tick(0); /* port: the app's language (European discs) */
+         titleFuncTbl[w->Rno0](w);
+         TaskSleep(1);
+     }
+@@ -382,6 +384,7 @@
+ // Loads the main menu id layout: 5 entries (new game, Ada, Mercenaries, load, options) once all
+ // is unlocked, else 3 (new game, load, options); cursor on "load".
+ extern "C" int re4_debug_start_room_set(void); /* port: runtime/dolphin_os.cpp */
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
+ 
+ void titleMenuInit(TITLE_WORK* w)
+ {
+@@ -402,6 +405,18 @@
+         w->p_menu[1] = IdSys.unitPtr(5, IDC_TITLE_MENU);
+         w->p_menu[2] = IdSys.unitPtr(3, IDC_TITLE_MENU);
+         w->cursor = 1;
++    }
++    /* port: the European title.dat adds "LANGUAGE SELECT" to both menus (units 11 and 12, texture
++       248) for code this build lacks; the language is chosen in the app's in-game menu (decision of
++       the project owner, 26.10.2026): the entry is hidden like the codec screen hides its units */
++    if (re4_disc_retail_eu()) {
++        for (int id = 11; id <= 12; id++) {
++            ID_UNIT* u = IdSys.unitPtr(id, IDC_TITLE_MENU);
++            if (u) {
++                u->be_flag &= ~8;
++                u->rev_flag |= 0xF;
++            }
++        }
+     }
+     if (re4_debug_start_room_set()) {  /* port: debug start (RE4_START_ROOM) picks the new game */
+         w->cursor = 0;

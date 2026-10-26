@@ -934,6 +934,11 @@ void re4ipc_set_fast_cores(int on)
     post(kSetFastCores, on, 0, 0);
 }
 
+void re4ipc_set_language(int language)
+{
+    post(kSetLanguage, language, 0, 0);
+}
+
 void re4ipc_swipe(int dir)
 {
     post(kSwipe, dir, 0, 0);

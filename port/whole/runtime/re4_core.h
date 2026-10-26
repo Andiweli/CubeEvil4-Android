@@ -264,6 +264,12 @@ void re4_core_set_letterbox(int off);
  * performance hint (re4_cpu_info.h), 0 (the default) leaves them to Android.
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_fast_cores(int on);
+/* The game's language with the European discs (cores since 26.10.2026, port/docs/retail-eu-plan.md
+ * R7): 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
+ * The app menu's choice; the game switches at its next frame of the title or of play
+ * (runtime/game_language.cpp). Before the start the environment variable RE4_GAME_LANGUAGE does the
+ * same (eng, ger, fra, esp, ita or the number). Ignored with the debug build's discs. Any thread. */
+void re4_core_set_language(int language);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the

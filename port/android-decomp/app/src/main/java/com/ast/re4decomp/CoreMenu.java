@@ -62,6 +62,10 @@ final class CoreMenu extends Dialog {
     void gyroSensitivityChanged(float value);
     /** The switch "Knife by Swipe" (the preferences hold it). */
     void knifeSwipeChanged(boolean on);
+    /** The European discs are imported: the home page offers "Game language". */
+    boolean gameLanguages();
+    /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it). */
+    void gameLanguageChanged(int choice);
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -301,6 +305,16 @@ final class CoreMenu extends Dialog {
     navigation[CONTROLS] = nav(first, R.string.ingame_controls_page, R.string.ingame_controls_summary, CONTROLS);
     navigation[PERFORMANCE] = nav(second, R.string.ingame_performance, R.string.ingame_performance_summary, PERFORMANCE);
     navigation[MANAGEMENT] = nav(second, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
+    if (host.gameLanguages()) {
+      // the languages of the European discs, each in its own language
+      heading(R.string.ingame_game_language);
+      int chosen = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
+          .getInt(CoreActivity.GAME_LANGUAGE, 0);
+      choices(R.string.ingame_game_language, new String[] {s(R.string.ingame_language_device), "English", "Deutsch",
+          "Français", "Español", "Italiano"}, new int[] {0, 2, 3, 4, 5, 6}, chosen, Integer.MAX_VALUE,
+          value -> host.gameLanguageChanged(value));
+      help(R.string.ingame_language_help);
+    }
     main.post(() -> { if (isShowing() && page == HOME && !working) refreshInstant(); });
   }
   private Button nav(MenuLayout.Buttons parent, int title, int summary, int target) {

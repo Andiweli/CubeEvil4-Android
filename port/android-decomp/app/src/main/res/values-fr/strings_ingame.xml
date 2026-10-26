@@ -139,4 +139,7 @@
     <string name="ingame_fxaa_help">Lisse les bords crénelés lors d’une dernière passe. Fonctionne avec ou sans MSAA ; l’image devient un peu plus douce.</string>
     <string name="ingame_frame_skip_help">Si le rendu est à la traîne, saute une image pour que le jeu garde sa vitesse normale. Moins d’images s’affichent, rien n’est ralenti.</string>
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
+    <string name="ingame_game_language">Langue du jeu</string>
+    <string name="ingame_language_device">Langue de l\'appareil</string>
+    <string name="ingame_language_help">La langue des textes et des sous-titres du jeu. Langue de l\'appareil : celle de l\'appareil si le jeu la propose, sinon l\'anglais. Un changement s\'applique tout de suite ; certains écrans l\'affichent à leur prochaine ouverture.</string>
 </resources>

@@ -103,6 +103,7 @@ struct Core {
     void (*setDof)(int);
     void (*setLetterbox)(int);
     void (*setFastCores)(int);
+    void (*setLanguage)(int);
     void (*touch)(float, float);
     void (*swipe)(int);
     void (*slash)(float);
@@ -714,6 +715,7 @@ bool loadCore(std::string& problem)
     bind(core.setDof, "re4_core_set_dof");
     bind(core.setLetterbox, "re4_core_set_letterbox");
     bind(core.setFastCores, "re4_core_set_fast_cores");
+    bind(core.setLanguage, "re4_core_set_language");
     bind(core.touch, "re4_core_touch");
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
@@ -825,6 +827,9 @@ void serve()
             break;
         case kSetFastCores:
             core.setFastCores(h.a);
+            break;
+        case kSetLanguage:
+            core.setLanguage(h.a);
             break;
         case kSwipe:
             core.swipe(h.a);

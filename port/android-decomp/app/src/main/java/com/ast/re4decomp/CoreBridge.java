@@ -95,6 +95,11 @@ public final class CoreBridge {
    */
   public static native void setFastCores(boolean on);
   /**
+   * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,
+   * 6 Italian; applies at once (the start setting RE4_GAME_LANGUAGE holds the one at the start).
+   */
+  public static native void setLanguage(int language);
+  /**
    * 60 FPS (experimental): the renderer draws an in-between picture of two game pictures at each
    * second display refresh; the game itself stays at 30 pictures a second.
    */

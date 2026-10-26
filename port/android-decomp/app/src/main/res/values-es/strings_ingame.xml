@@ -137,4 +137,7 @@
     <string name="ingame_fxaa_help">Suaviza los bordes dentados en un último paso. Funciona con o sin MSAA; la imagen queda algo más suave.</string>
     <string name="ingame_frame_skip_help">Si los gráficos van lentos, omite una imagen para que el juego mantenga su velocidad. Se muestran menos imágenes, nada se ralentiza.</string>
     <string name="ingame_skip_or_smooth">El salto de fotogramas y los 60 FPS se excluyen: al activar uno se desactiva el otro.</string>
+    <string name="ingame_game_language">Idioma del juego</string>
+    <string name="ingame_language_device">Idioma del dispositivo</string>
+    <string name="ingame_language_help">El idioma de los textos y subtítulos del juego. Idioma del dispositivo: el del dispositivo si el juego lo tiene; si no, inglés. Un cambio se aplica al instante; algunas pantallas lo muestran la próxima vez que se abran.</string>
 </resources>

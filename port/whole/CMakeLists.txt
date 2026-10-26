@@ -279,7 +279,7 @@ string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_formats_obj>\n")
 # (runtime/knife_swipe.cpp) and the quick-time events by a tap (runtime/qte_touch.cpp), and the instant save payload (runtime/instant_game.cpp).
 add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge.cpp runtime/movie_status.cpp
     runtime/dof.cpp runtime/gyro.cpp runtime/menu_touch.cpp runtime/picture.cpp runtime/knife_swipe.cpp
-    runtime/qte_touch.cpp runtime/instant_game.cpp)
+    runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")

@@ -82,7 +82,9 @@ public class CoreMenuLayoutTest {
   @Test public void allPagesFitAcrossLanguagesWidthsAndFontScales() throws Exception {
     String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi"};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
-        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> null);
+        new Class<?>[] {CoreMenu.Host.class},
+        // gameLanguages: the home page with the European discs' "Game language" too
+        (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
     for (String language : languages) for (float scale : new float[] {1f, 1.5f, 2f}) {

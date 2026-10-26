@@ -14,6 +14,7 @@
 #include "re4_runtime.h"
 
 #include <dlfcn.h>
+#include <strings.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -708,6 +709,42 @@ void re4_core_gx_depth_source(const unsigned* cells, const unsigned* serial)
 int re4_letterbox_off(void)
 {
     return gLetterboxOff;
+}
+
+// The language of the European discs (re4_core.h, runtime/game_language.cpp): the app's choice,
+// at first from RE4_GAME_LANGUAGE (eng/ger/fra/esp/ita or 2..6); -1 none (English).
+volatile int gLanguageWanted = -100;  // -100: not read yet
+
+static int parseLanguage(const char* v)
+{
+    static const char* const names[] = {"eng", "ger", "fra", "esp", "ita"};
+    if (!v || !*v) {
+        return -1;
+    }
+    for (int i = 0; i < 5; i++) {
+        if (strcasecmp(v, names[i]) == 0) {
+            return i + 2;
+        }
+    }
+    int n = atoi(v);
+    return n >= 2 && n <= 6 ? n : -1;
+}
+
+void re4_core_set_language(int language)
+{
+    int value = language >= 2 && language <= 6 ? language : -1;
+    if (gLanguageWanted != value) {
+        re4_log("core: game language %d asked by the app (European discs: 2 English .. 6 Italian)", value);
+    }
+    gLanguageWanted = value;
+}
+
+int re4_core_language_wanted(void)
+{
+    if (gLanguageWanted == -100) {
+        gLanguageWanted = parseLanguage(getenv("RE4_GAME_LANGUAGE"));
+    }
+    return gLanguageWanted;
 }
 
 // patch 0061 (src/game/game.cpp gameDebug), every game frame
