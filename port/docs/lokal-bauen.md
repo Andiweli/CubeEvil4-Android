@@ -2,19 +2,20 @@
 
 Wunsch des Projektinhabers (22.10.2026): Jede Sitzung schickt nach Änderungen, die in die App
 gehören, diese Befehle mit. Ordner: Repository `E:\Development\Android\RE4-Fixed`, Branch
-`claude/adoring-pasteur-h5s2fw` (Arbeitsbranch für 0.91.0 seit 26.10.2026, aufgesetzt auf `gui-optimisations`; vorher `beta-optimisations`).
+`beta-updates` (Arbeitsbranch seit 26.10.2026, Entscheidung des Projektinhabers; vorher
+`claude/adoring-pasteur-h5s2fw`, davor `gui-optimisations` und `beta-optimisations`, alle darin enthalten).
 
 ## 1. Stand von GitHub holen (PowerShell)
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
 git status
-git pull --no-rebase origin claude/adoring-pasteur-h5s2fw
+git pull --no-rebase origin beta-updates
 ```
 
 - `git status` zeigt geänderte Dateien (`modified: …`)? Dann arbeitet gerade ein anderer Chat in
   diesem Ordner. Ihn bitten, seine Änderungen zu committen, mit `git pull --no-rebase origin
-  claude/adoring-pasteur-h5s2fw` zu mischen und zu pushen; danach `git pull` hier noch einmal.
+  beta-updates` zu mischen und zu pushen; danach `git pull` hier noch einmal.
   Unversionierte Dateien (`Untracked files: AGENTS.md, core/, …/src/core/assets/`) stören nicht.
 - Steht beim `git pull` **CONFLICT** in der Ausgabe: nicht weitermachen, die Ausgabe an den Chat
   schicken.
@@ -39,15 +40,16 @@ In Android Studio wie gewohnt bauen (Variante „core“) und auf den Retroid in
 verbundenen Retroid). Laufen gerade Gerätetests eines Chats über ADB, erst danach installieren
 (`port/docs/adb-coordination.md`).
 
-## Wechsel auf `claude/adoring-pasteur-h5s2fw` (einmal)
+## Wechsel auf `beta-updates` (einmal)
 
-Wer noch auf `beta-optimisations`, `gui-optimisations`, `claude/re4-start-controls` oder `performance` steht (alle sind in
-`claude/adoring-pasteur-h5s2fw` enthalten):
+Wer noch auf `claude/adoring-pasteur-h5s2fw`, `beta-optimisations`, `gui-optimisations`,
+`claude/re4-start-controls` oder `performance` steht (alle sind in `beta-updates` enthalten; die alten
+Branches gibt es auf GitHub nicht mehr, ein `git pull` darauf schlägt fehl):
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
 git status
-git fetch origin claude/adoring-pasteur-h5s2fw
-git switch claude/adoring-pasteur-h5s2fw
-git pull --no-rebase origin claude/adoring-pasteur-h5s2fw
+git fetch origin beta-updates
+git switch beta-updates
+git pull --no-rebase origin beta-updates
 ```

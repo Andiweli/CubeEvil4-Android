@@ -4,6 +4,14 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Branches aufgeräumt (26.10.2026 abends)
+
+Entscheidung des Projektinhabers: Arbeitsbranch ist jetzt **`beta-updates`** (Stand `a5eed0f`, gleich dem bisherigen
+`claude/adoring-pasteur-h5s2fw`). Gelöscht: `claude/adoring-pasteur-h5s2fw`, `gui-optimisations`,
+`beta-optimisations` (jeder ihrer Commits liegt in `beta-updates`). `master` bleibt unverändert (seine drei
+README-Commits vom 24.10. heben sich auf). `ouya-discarded` und `re4-standalone` bleiben als Branches. Der Tag
+`0.91.0-beta` zeigt jetzt auf `a5eed0f` (vorher auf `master`, `ac3c0e2`). Befehle: `port/docs/lokal-bauen.md`.
+
 ## Debug-Menü aufgeräumt (26.10.2026 abends, Cloud)
 
 Wunsch des Projektinhabers: im Debug-Menü (SELECT lang) nur AREA JUMP und DEBUG OPTION, linksbündig, ohne die
