@@ -1,7 +1,7 @@
-# Meilenstein „Retail-Discs (EU)“ – Plan
+# Meilenstein 13 „Retail-Discs (EU)“ – Plan
 
-Stand: 26.10.2026. Vorschlag, noch nicht in die Meilensteinliste von `CLAUDE.md` aufgenommen
-(Entscheidung des Projektinhabers steht aus).
+Stand: 26.10.2026. Als **M13** in die Meilensteinliste von `CLAUDE.md` aufgenommen (Entscheidung des
+Projektinhabers, 26.10.2026).
 
 **Fortschritt:** R0 ✅ und R1 ✅ (26.10.2026, Branch `retail-eu`): die r100-Prüfung läuft mit den
 unveränderten EU-Discs ohne Absturz durch, die Debug-Discs bleiben „ALLES OK“. Einzelheiten und offene
@@ -48,16 +48,17 @@ Werkzeuge und Berichte der Analyse lagen außerhalb des Repositorys (`~/re4-eu` 
 Nicht geprüft: alles nach dem ersten Funkspruch in r100 (der Rest des Spiels), die US-Verkaufs-Disc,
 die japanische Disc.
 
-## Grundsatzfragen vor dem Start (Projektinhaber)
+## Grundsatzentscheidungen (Projektinhaber, 26.10.2026)
 
-1. **Parallel statt Ersatz** (Vorschlag): Die Debug-Disc bleibt Referenz und voll unterstützt; die
-   EU-Discs kommen als zweite Quelle dazu. Beide Discs müssen aus derselben Version stammen
-   (kein Mischen von Debug-Disc 1 mit EU-Disc 2).
-2. **Debug-Menü mit EU-Discs** (SELECT 1 Sekunde): ausblenden (Vorschlag, wenig Aufwand) oder
-   nachbauen (Raumliste aus `src/game/roomdata.cpp`, Ersatzschrift für `moji8.tpl`).
-3. **Sprachen**: Deutsch, Französisch, Spanisch, Italienisch mit EU-Discs anbieten (Schritt R7,
-   optional) oder vorerst nur Englisch.
-4. Aufnahme als Meilenstein in `CLAUDE.md` (Nummer und Platz in der Reihenfolge, z. B. nach M12).
+1. **Parallel:** Die Debug-Disc bleibt Referenz und voll unterstützt; die EU-Discs kommen als zweite
+   Quelle dazu. Beide Discs müssen aus derselben Version stammen (kein Mischen von Debug-Disc 1 mit
+   EU-Disc 2).
+2. **Debug-Menü mit EU-Discs ausblenden** (SELECT 1 Sekunde öffnet dann nichts). Später soll ein
+   Cheat-Menü im Ingame-Menü der App kommen; das ist ein eigenes Vorhaben, nicht Teil dieses
+   Meilensteins.
+3. **Alle Sprachen der EU-Discs sollen spielbar sein** (Deutsch, Französisch, Spanisch, Italienisch,
+   Englisch); das gehört fest zum Meilenstein, reicht aber in Schritt R7.
+4. **Aufnahme als M13** in `CLAUDE.md`.
 
 ## Schritte
 
@@ -72,11 +73,11 @@ Windows-PC mit WSL und Disc-Daten; die Cloud hat keine Disc-Daten.
 | R3 Menüs und Texte | einsprachige MDT der EU (7) lesen; `IDSystem`-Speicher vergrößern (6); Titel, Optionen, Inventar, Karte, Dateien, Händler, Rätsel per GX-Bild mit der Debug-Version vergleichen | lokal | 2–3 | alle Untermenüs ohne Fehlermeldung, Texte vollständig (Bildvergleich) |
 | R4 App-Import | `G4BP08` annehmen; eigener Prüfkatalog für die EU-Discs (Prüfsummen gegen beschädigte Abbilder, wie `rooms.tsv`); Version in `ready.properties`; Mischen der Versionen ablehnen; Sprachordner mit importieren | Cloud (Java) + Retroid | 1 | Import beider EU-Discs auf dem Retroid; Debug-Import unverändert |
 | R5 Raum-Rundgang EU | `--rooms all` mit EU-Daten, Ergebnis gegen den Rundgang mit Debug-Daten; neue Abstürze beheben (u. a. r204, Befund 11) | lokal | 2–4 (offen) | jeder Raum mit EU-Daten so weit wie mit Debug-Daten |
-| R6 Debug-Menü | je nach Grundsatzfrage 2: ausblenden oder nachbauen | lokal | 0,5–1 | SELECT-Halten mit EU-Daten führt nicht zum Absturz |
-| R7 Sprachen (optional) | Spielsprache aus der App (`pSys->language`), Schriften, Speicherdaten, Untertitel der Filme und Ereignisse prüfen | lokal + Retroid | 2 | Deutsch spielbar von Titel bis r101 mit vollständigen Texten |
+| R6 Debug-Menü | mit EU-Discs ausblenden (Entscheidung 2) | lokal | 0,5 | SELECT-Halten mit EU-Daten öffnet nichts und führt nicht zum Absturz |
+| R7 Sprachen | alle Sprachen der EU-Discs (Entscheidung 3): Spielsprache aus der App (`pSys->language`), Schriften, Speicherdaten, Untertitel der Filme und Ereignisse prüfen | lokal + Retroid | 2 | jede Sprache spielbar von Titel bis r101 mit vollständigen Texten |
 | R8 Gerät und Freigabe | ARM32 und ARM64 auf dem Retroid mit EU-Discs, Release-Text | Retroid | 1 | Spielstart, Speichern/Laden und ein Kapitel mit EU-Discs auf dem Gerät |
 
-Gesamt: etwa 10–15 Sitzungen ohne R7, mit R7 etwa 12–17. R5 ist am schwersten abzuschätzen: Die
+Gesamt: etwa 12–16 Sitzungen mit R7 (R0 und R1 erledigt). R5 ist am schwersten abzuschätzen: Die
 Analyse hat nur den Anfang des Spiels gespielt.
 
 ## Regeln für die Umsetzung

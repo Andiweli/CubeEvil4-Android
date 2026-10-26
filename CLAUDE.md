@@ -160,6 +160,11 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
 10b. Raum-Rundgang: viele Räume per Raumauswahl anspielen, Abstürze und
    Grafikfehler sammeln (Entscheidung des Projektinhabers, 16.10.2026: nach
    Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12)
+13. Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
+   parallel zur Debug-Disc, die Referenz bleibt (Entscheidungen des Projektinhabers, 26.10.2026:
+   parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, ein Cheat-Menü im
+   Ingame-Menü kommt später gesondert; alle Sprachen der EU-Discs spielbar, Schritt R7). Plan und
+   Schritte R0–R8: `port/docs/retail-eu-plan.md`, Branch `retail-eu`; R0 und R1 ✅ (26.10.2026)
 
 ## Git
 
