@@ -89,9 +89,11 @@ Kurzliste für den Überblick; Einzelheiten in `whole-program-status.md` (M13-Ab
 | Karte im Inventar | Element 253 zuletzt (leere Karte); achte Händler-Markierung („H“ mitten auf der Karte) | 0124, 0129 |
 | Funkspruch | gemeinsame Menütabellen sprengen `IdSub` (keine dunkle Leiste); drei neue Bildgruppen | 0126 |
 | Raumtexte | r221 ab Text 6 verschoben; r101 falscher Text (Fehler des Prototyps, beide Fassungen) | 0128, 0127; übrige Räume, `memcard.das`, `ss_cmmn.dat` ohne Folge |
-| Stage 4 | Raummodul `st4_0.rel` nur auf Disc 2 (Debug: auf beiden) | im Spiel ohne Folge, nur Grenze der Prüfstrecke |
-| Ereignisse | `r204s00.evd`/`s204s00.evd` ohne einen Lichtdatensatz | noch nicht im Spiel geprüft |
-| Noch offen | im EU-Rundgang drei Spielmeldungen ohne Absturz (`Msg[04] Address Error`, `mapModelInit … SHAPE_MODEL`, `IDSystem::unitPtr … Not found`) | Vergleich mit einem Debug-Rundgang fehlt |
+| Stage 4 | Raummodul `st4_0.rel` nur auf Disc 2 (Debug: auf beiden); die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese nur für Stage 3 | 0131 (10b: im Spiel ein Fehler, nicht nur der Prüfstrecke) |
+| Ereignisse | `r204s00.evd`/`s204s00.evd` ohne einen Lichtdatensatz | ohne Folge (10b: Ereignis, Kapitelende 3-1 und Funkspruch 14 am PC mit EU-Daten) |
+| Ereignis-Untertitel | Englisch ist bei der EU Sprache 2 und hat keine Untertitel; diese Version blendet nur bei Sprache 1 aus (zeigte „14-09LE“) | 0132 |
+| Burg-Händler r204 | die EU-Fassung setzt beim Umzug `SCF_R204_MERCHANT_MOVE` (für die achte Händler-Markierung) | 0133 |
+| Spielmeldungen (10b) | `Msg[04] Address Error` (die Ereignis-Untertitel, oben); `mapModelInit … SHAPE_MODEL` kommt mit beiden Disc-Arten in denselben 11 Räumen (Kartendaten, die EU-Fassung räumt das Merkmal genauso auf, nur ohne Meldung); `IDSystem::unitPtr … Not found` kam von der ersten Fassung von 0126 | 0132; die übrigen ohne Eingriff |
 
 Gleich in beiden Fassungen (geprüft): Speicherkarte beim Start, Filme, Raum-Archive (vier mit Zusatzteilen am Ende),
 REL-Modulnummern, der Ton der Kamera-Fokus-Szenen.

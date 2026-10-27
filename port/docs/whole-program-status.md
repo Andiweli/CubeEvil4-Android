@@ -4,6 +4,55 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Raum-Rundgang 10b mit beiden Disc-Arten (27.10.2026 nachmittags, lokal, Branch `retail-eu-testrun`)
+
+Auftrag des Projektinhabers: Rundgang über alle 126 Räume mit Debug- (G4BE08) und EU-Discs (G4BP08), Stage 4 mit EU-Daten
+in die Prüfstrecke, die drei Spielmeldungen des EU-Rundgangs, das Ungetestete aus M13, gefundene Fehler beheben (mit den
+Debug-Discs bleibt alles gleich).
+
+**1. Rundgänge (i686, je 6000 Bilder ab der Hauptschleife, Stand `69510fa5`):** Debug-Discs **126 von 126** ohne Fehler;
+EU-Discs **126 von 126** (vorher 108: Stage 4 scheiterte an „RelDataReadError! rel/st4_0.rel“, behoben mit Patch 0131, ein
+echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese nur für Stage 3). Vergleich Debug/EU: in
+5 Räumen nur andere Todeszahlen (r113, r21d, r301, r332, r40f; Gegner verhalten sich mit den EU-Daten leicht anders).
+- Prüfstrecke: `whole_r100_check.sh --room-info DATEI` gibt EU-Discs für den Debug-Start die `debug/roomInfo.dat` der
+  Debug-Disc dazu (Ordner mit Verweisen `WORK/disc-ri`, im Inhaltsverzeichnis `sys/fst.bin` jeder Disc ein Ordner „Debug“
+  angehängt; die Discs bleiben unverändert). Die Ergebnisse bleiben je Disc-Art getrennt (`rundgang-i686-O2.json`,
+  `rundgang-i686-O2-eu.json`; vorher überschrieb der EU-Rundgang den Debug-Rundgang), ein EU-Rundgang wird mit dem
+  Debug-Rundgang verglichen, dazu die Spielmeldungen, die nur eine Disc-Art gibt (`room_tour_report.py --compare
+  --messages`). Ein Rundgang mit `RE4_CHEATS` bleibt ebenso getrennt (`-cheats7`) und wird mit dem ohne verglichen.
+- Neue Testhilfen: `RE4_TEST_PLACE="free+N:area=A"` (Leon in die Mitte von Auslösebereich A des Raums),
+  `RE4_TEST_SCF="free+N:F,F"` (Szenario-Merkmale setzen), `RE4_GAME_LOG_STACK=Text` (PC: bei einer Spielmeldung, die so
+  beginnt, die Aufrufer ins Log).
+
+**2. Die drei Spielmeldungen des EU-Rundgangs**
+- „Message::init() Msg[04] Address Error“ (15 Räume, nur EU): die **Untertitel der Zwischensequenzen auf Englisch**. Mit den
+  EU-Discs ist Englisch Sprache 2; die Debug-Version blendet Ereignis-Untertitel nur bei Sprache 1 aus, die EU-Discs haben
+  für Englisch keine. Das Spiel zeigte ersatzweise Text 0 der Kerntabelle: „14-09LE“ unter Leon und Luis in r104 (GX-Bild).
+  Patch 0132 wie die EU-Fassung (bei Sprache 2 keine). Danach die 15 Räume ohne Fehler und **keine Spielmeldung mehr, die
+  nur mit EU-Discs kommt**; Deutsch zeigt seinen Untertitel („Vom Regen in die Traufe.“).
+- „mapModelInit(): R105 flag SHAPE_MODEL clear“ (11 Räume, r315–r327): kommt mit den Debug-Discs in denselben Räumen. Ein
+  Kartenmodell der Insel hat das Merkmal gesetzt; beide Fassungen löschen es, die EU-Fassung nur ohne Meldung. Kein Eingriff.
+  Nebenbei gesehen: die EU-Fassung blendet in `mapModelInit` Räume mit Farbe 4 aus (weder offen noch betreten, oder versteckt),
+  diese Version zeichnet sie in Farbe 4. Nicht weiter untersucht (Karten auf dem Retroid ohne Befund).
+- „IDSystem::unitPtr(m[00],c[00]): Not found.“ (10 Räume): kam von der ersten Fassung von Patch 0126 (Funkspruch ohne
+  Hauptmenü, aber `sscrnMainMenuInit` noch aufgerufen); mit der endgültigen Fassung im neuen Rundgang nicht mehr.
+
+**3. Aus M13 nachgeholt (PC, GX-Bilder, EU-Discs auf Deutsch, Debug-Discs zum Vergleich)**
+- **Funksprüche 13, 14, 15, 17** (r207, r204, r20b, r229; r204 über Bereich 2: Ereignis `r204s00` ohne den Lichtdatensatz der
+  EU, Kapitelende 3-1 mit „Speichern? Ja/Nein“, dann der Funkspruch; r20b über Bereich 0x16): 13 – Hunnigans Bild wird zu
+  Rauschen (Debug: bleibt); 14 – beginnt mit Rauschen, dann Salazar (Debug: sofort Salazar); 15 – Salazar legt auf, Rauschen;
+  17 – Salazar geht, Rauschen (Debug: sein Bild gleitet hinaus, ein Rest bleibt am Rand). Alle wie der EU-Code (Patch 0126).
+- **Achte Händler-Markierung:** die Debug-Fassung setzt `SCF_R204_MERCHANT_MOVE` nie (der Händler zieht in r204 trotzdem um),
+  die EU-Fassung in `R204Init`: Patch 0133. Karte in r204 (Übersicht): ohne das Merkmal die alte Markierung, mit
+  (`RE4_TEST_SCF=free+10:88,174`) die achte ein Stück daneben, die alte weg. Der Umzug selbst im Spiel nicht nachgespielt.
+- **Cheats** (EU-Rundgang über alle 126 Räume mit `RE4_CHEATS=7`, 126 von 126): Leon 1-mal getroffen (ohne Cheats 1 854),
+  Gegner bei 158 von 202 Treffern sofort besiegt (ohne: 65 von 257). Treffer mit Rest: Fässer/Kisten (0x46), Gegner, die sich
+  verwandeln (Leben steigt), ein Treffer mit „mindestens 1 lassen“ und Schaden ohne Leons Waffe. Leon starb noch 12-mal in 9
+  Räumen, jedes Mal ohne vorherigen Treffer: Fallen und Bereiche (r203, r208, r30f, r311), Sturz (r215), Szenen (r104, r227,
+  r333) und ein Fang-Angriff im Söldner-Raum r404 (Leben 1200 → 0 in einem Zug) – die Grenzen aus `cheat-menu-plan.md`.
+  **Nicht geprüft:** Bosskämpfe (im Zufalls-Rundgang praktisch nicht getroffen), der Knopf bei offenem Menü, Gerät.
+- **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
+
 ## M13 abgeschlossen (27.10.2026 nachmittags, Branch `retail-eu`)
 
 **Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch):** zwei Kapitel vom Start an ohne Befund durchgespielt;
@@ -8720,6 +8769,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0128 `r221.cpp` | Raumtexte von r221 mit den EU-Discs (R3): die EU-Tabelle hat ab Text 6 alles einen Platz tiefer (Text für Text verglichen); der Code dieser Version fragt 6 („C'mon, c'mon!“ am Aufzug), 7 (nur Japanisch), 8 (Stickstofftank), 9 (Rollladen-Schalter) und 0xA (nach dem Rollladen), mit EU-Daten kamen ein leerer Text, der Tank-Text am Schalter, ein Wartehinweis danach. Die EU-Fassung (`st2_3.rel`) fragt an denselben Stellen 5–9; mit den EU-Discs jetzt ebenso. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0129 `ss_map.cpp` (Sscrn) | Händler-Markierungen der Karte mit den EU-Discs (R3, 27.10.2026): die EU-Kartendaten (`ss_map.dat` Teil 6) haben eine achte Händler-Markierung (Baustein 0xB mit „H“) für den Burg-Händler nach seinem Umzug (`SCF_R204_MERCHANT_MOVE`). Die EU-Fassung zeigt acht Markierungen (`getMerchantMarkNo` 7 → 0xB) und blendet in Bereich 2 Markierung 2 nach dem Umzug aus, Markierung 7 davor (ihr `GLOBAL_WK` hat `Scenario_flg` 0xC weiter hinten). Diese Version setzte Baustein 0xB nie: ein „H“ stand mitten auf der Karte und blieb beim Verschieben stehen (Video des Projektinhabers). Jetzt wie die EU-Fassung. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0130 `item.cpp` | Cheat-Menü der App (`port/docs/cheat-menu-plan.md`, Entscheidung 6 des Projektinhabers, 27.10.2026): mit `DBG_INF_BULLET` antwortete `cItemMgr::bulletNum(cItem*)` für jeden Platz 100, die Anzeige unten rechts zeigte „100“. Jetzt die echte Magazinzahl (`runtime/cheats.cpp` hält das Magazin der ausgerüsteten Waffe voll, das Bit selbst lässt `trigger` nichts verbrauchen); 100 nur, wo die echte Zahl 0 ist, wie bisher. Ohne das Bit unverändert. Port-Patch für das Cheat-Menü |
+| 0131 `game.cpp` | Stage 4 mit den EU-Discs (Raum-Rundgang 10b, 27.10.2026): das Raummodul `rel/st4_0.rel` (r400–r411, darunter die Söldner-Räume) liegt bei der EU nur auf Disc 2, bei den Debug-Discs auf beiden. `gameStageInit` wechselt in dieser Version nur für Stage 3 auf Disc 2; ein Stage-4-Raum mit eingelegter Disc 1 endete in „RelDataReadError! rel/st4_0.rel“ (18 Räume im EU-Rundgang). Die EU-Fassung (main.dol 0x80118a28) wechselt für Stage 3 und 4; mit den EU-Discs jetzt ebenso. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0132 `event.cpp` | Ereignis-Untertitel auf Englisch mit den EU-Discs (10b): die Debug-Version zeigt bei Sprache 1 (US-Englisch) keine; mit den EU-Discs ist Englisch Sprache 2 (`runtime/game_language.cpp`), und ihre Untertitel-Dateien haben keine englischen Texte. `Event::MesSet` zeigte sie trotzdem an: `Message::init` meldete „Msg[04] Address Error“ (15 Räume im EU-Rundgang) und zeigte Text 0 der Kerntabelle („14-09LE“ unter Leon und Luis in r104, GX-Bild). Die EU-Fassung (main.dol 0x8010f968) zeigt bei Sprache 2 keine; mit den EU-Discs jetzt ebenso. Deutsch zeigt weiter seine Untertitel („Vom Regen in die Traufe.“). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0133 `r204.cpp` | Umzug des Burg-Händlers mit den EU-Discs (10b): beide Fassungen lassen den Händler in r204 nach Raum-Merkmal 1 an einer neuen Stelle stehen (Gegnerliste 3: Eintrag 0x59 weg, 0x55 bleibt). Die EU-Fassung (`R204Init`, `st2_1.rel`) setzt dabei die Szenario-Merkmale 88 (`SCF_R204_MERCHANT_MOVE`) und 174; ihre Karte fragt 88 für die achte Händler-Markierung (Patch 0129). Diese Version setzte sie nie: mit den EU-Discs zeigte die Karte den Händler nach dem Umzug an der alten Stelle. Jetzt wie die EU-Fassung. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

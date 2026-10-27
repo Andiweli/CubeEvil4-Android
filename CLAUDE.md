@@ -162,7 +162,10 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
 10b. Raum-Rundgang: viele Räume per Raumauswahl anspielen, Abstürze und
    Grafikfehler sammeln (Entscheidung des Projektinhabers, 16.10.2026: nach
    Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12; seit 27.10.2026 mit beiden Disc-Arten, Branch
-   `retail-eu-testrun`)
+   `retail-eu-testrun`). Stand 27.10.2026: Rundgang am PC mit Debug- und EU-Discs je 126/126 (Stage 4 mit EU-Daten,
+   Patch 0131), die drei EU-Spielmeldungen geklärt (0132 Ereignis-Untertitel auf Englisch), Funksprüche 13/14/15/17,
+   achte Händler-Markierung (0133) und Cheats im Rundgang am PC geprüft; offen: Gerätetests (ARM32 Speichern/Laden,
+   Bosskämpfe mit Cheats)
 13. ✅ Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
    parallel zur Debug-Disc, die Referenz bleibt (Entscheidungen des Projektinhabers, 26.10.2026:
    parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, dafür ein Cheat-Menü im
