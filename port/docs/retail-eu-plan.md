@@ -23,7 +23,8 @@ Spielstände laden am PC in beide Richtungen (Debug-Spielstand mit EU-Discs und 
 Einzelheiten: `whole-program-status.md`, Abschnitt „Schritt R7“. R4 und R7 am 27.10.2026 auf dem Retroid bestätigt.
 R3 (27.10.2026): alle Texttabellen beider Fassungen Text für Text und die Textnummern aller Raummodule verglichen; nur
 r221 verschoben (Patch 0128), r101 ein Prototyp-Fehler (0127), `memcard.das`, `ss_cmmn.dat` und die übrigen Räume ohne
-Eingriff; die Funkspruch-Leiste fehlte, weil das Untermenü voll war (Patch 0126). Am PC geprüft. Die Bildvergleiche aller
+Eingriff. Die Funkspruch-Leiste fehlt, weil das Untermenü voll ist; mehr Platz lässt aber mit den EU-Daten Hunnigans Bild
+verschwinden – offen (Gebiet von Patch 0120). Am PC geprüft. Die Bildvergleiche aller
 Untermenüs (Inventar, Dateien, Händler, Rätsel) per GX-Bild stehen noch aus.
 R6 (27.10.2026): SELECT-Halten öffnet mit EU-Discs nichts (App und Kern), Laufzeittest. Gerätetest offen.
 Einzelheiten: `whole-program-status.md`, Abschnitt „Fehlerberichte, Gyro-Richtung, R3 und R6“.

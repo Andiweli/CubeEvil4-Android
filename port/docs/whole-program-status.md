@@ -38,19 +38,29 @@ war aber nicht zu hören. Am PC (neue Testhilfe `RE4_TEST_STREAM=free+N:B:S`, Mi
 r100 hörbar (−26 dB statt −56 dB ohne), die Statuen-Szene selbst (Leon per `RE4_TEST_PLACE` in Bereich 24 von r226 gesetzt)
 mit Debug- und EU-Daten, i686 und x86_64 deutlich hörbar (−15 dB, 7 s, davor und danach Stille). Der Kern mischt den Ton am PC
 also richtig. Nebenbei behoben: der PC-Mitschnitt endete nach 1 s (die Blöcke wurden verworfen, bevor sie in die WAV kamen,
-weil am PC niemand den Ring liest). **Offen:** warum das Gerät ihn nicht spielt (Gerätelauf mit Mitschnitt, siehe unten).
+weil am PC niemand den Ring liest). **Gerätelauf (Retroid, EU-Discs, 64 bit, 27.10.2026, `test-core-app.ps1 -AudioWav 560
+-CoreSettings RE4_TEST_STREAM=free+11400:0:0x16`):** der Stream lief 7,8 s, und der Ton-Mitschnitt des Kerns auf dem Gerät
+enthält ihn laut (−15 dB statt −35 dB, 7 s) – der Projektinhaber hörte zur selben Zeit aber nichts. Der Kern mischt den Ton also
+auch auf ARM64; verloren geht er danach (Ring der App, AudioTrack) oder es ist nicht der gemeinte Ton (Ausschnitt
+`retroid-stream-0x16.wav` an den Projektinhaber geschickt, Antwort offen). **Offen.** Nebenbei: `-CoreSettings` neu im
+Geräteskript; das Skript bricht ab, wenn man seine Ausgabe mit `2>&1`/`*>` umleitet (die Meldung von `adb pull` gilt dann als
+Fehler) – ohne Umleitung starten. Ein erster Gerätelauf (`free+60`) löste den Stream während des Vorfilms aus: die Erkennung
+„Leon frei“ übersieht Filme (bleibt so, die EU-Prüfstrecke baut darauf auf).
 
 **3. Gyro-Richtung:** Ingame-Menü, Seite Steuerung, zwei Schalter „Invert vertical“ / „Invert horizontal“ unter dem Regler
 (gespeichert in `input` als `gyroInvertVertical` / `gyroInvertHorizontal`, wirken sofort: `GyroAim.setInvert`), nur
 bedienbar mit Gyro an. 10 Sprachen. **Nicht geprüft:** `CoreMenuLayoutTest` und Gerät (siehe Prüfungen).
 
 **4. R3 Menüs und Texte**
-- **Dunkle Leiste hinter dem Funkspruch-Untertitel:** Patch 0126. Neue Diagnose: bei „IDSystem::set() work full“ schreibt
-  der Kern die Belegung von `IdSys`/`IdSub`/`IdNum` je Klasse ins Log (`re4_idsys_report`). Mit EU-Daten war `IdSub` beim
-  Funkspruch 128 von 128 belegt. Erste Fassung (die vier gemeinsamen Tabellen weglassen wie die EU-Fassung): Leiste da, aber
-  Hunnigans Bild fehlte (Projektinhaber am Retroid und GX-Bild am PC, 27.10.2026). Jetzt: der Funkspruch bekommt mit den
-  EU-Discs 512 Plätze wie die anderen Untermenüs – ebenfalls ohne Hunnigan (das größere `IdSub` überlagert `ss_oc101.dat`).
-  Endgültig: nur die Hauptmenü-Tabelle weglassen (46 Bausteine, beim Funkspruch ohnehin ausgeblendet).
+- **Dunkle Leiste hinter dem Funkspruch-Untertitel: offen.** Neue Diagnose: bei „IDSystem::set() work full“ schreibt der Kern
+  die Belegung von `IdSys`/`IdSub`/`IdNum` je Klasse ins Log (`re4_idsys_report`). Mit EU-Daten ist `IdSub` beim Funkspruch
+  128 von 128 belegt (46 Hauptmenü, 31 Bausteine des Funkspruchs fehlen); die EU-Fassung (`SubScreenExec`, main.dol
+  0x8005a920) setzt beim Funkspruch die vier gemeinsamen Tabellen aus `ss_cmmn.dat` nicht. Drei Fassungen eines Patches
+  probiert (alle vier weglassen wie die EU; 512 Plätze; nur das Hauptmenü weglassen): jedes Mal erscheint die Leiste, aber
+  Hunnigans Bild verschwindet (Projektinhaber am Retroid, GX-Bilder am PC). Mit den Debug-Discs zeigt derselbe Funkspruch
+  Leiste und Hunnigan. Hunnigans Bild hängt also an einem der Bausteine, die bisher keinen Platz bekamen, bzw. an der Textur,
+  die die EU an `ss_oc101.dat` anhängt (Gebiet von Patch 0120). Kein Patch eingebaut (Stand wie beim Gerätetest: Hunnigan da,
+  Leiste fehlt); nächster Schritt: `ss_term`/`tel`-Code der EU-Fassung (Sscrn.rel) mit `retail_code.py` vergleichen.
 - **Texttabellen** (alle Tabellen beider Fassungen Text für Text verglichen, neues Werkzeug `port/tools/retail_messages.py`,
   dazu die Textnummern aller `SceMesSet`-Aufrufe der Raummodule beider Fassungen): `etc/memcard.das` hat dieselben Nummern
   0–0x2C, neu nur 0x2D (Platzwarnung) und 0x2E (Sprachwahl beim Start, durch das App-Menü ersetzt) → nichts zu tun;
@@ -67,9 +77,22 @@ bedienbar mit Gyro an. 10 Sprachen. **Nicht geprüft:** `CoreMenuLayoutTest` und
 **5. R6 Debug-Menü:** mit EU-Discs öffnet SELECT-Halten nichts (App: `CoreActivity.selectHold`; Kern: `re4_core_debug_menu`
 ignoriert die Anfrage, auch für ältere Apps). Laufzeittest `disc release` prüft es für alle Disc-Arten.
 
-**Prüfungen (PC, WSL2):** Debug-Discs i686 „ALLES OK“ (Stand `e72b0c04`, mit Aufgabe 1); Funkspruch-Test EU (roomInfo,
-Deutsch) i686 und Debug-Discs mit Stand `09573d45` (0126) je „ALLES OK“; EU 64 bit (x86_64) Stream-Test „ALLES OK“.
-Die Läufe der Endprüfung stehen unten im Abschnitt.
+**6. R5 Raum-Rundgang mit EU-Daten** (`--rooms all`, EU-Abbilder plus `debug/roomInfo.dat` nur für den Debug-Start, i686):
+**108 von 126 Räumen ohne Fehler**. Die 18 übrigen sind alle Stage 4 (r400–r411): „RelDataReadError! rel/st4_0.rel“ – das
+Raummodul liegt bei der EU nur auf Disc 2, der Debug-Start der Prüfstrecke beginnt auf Disc 1 (bei den Debug-Discs liegt es auf
+beiden). Grenze der Prüfstrecke, im Spiel nicht geprüft. Spielmeldungen, die im Debug-Rundgang des 22.10. nicht notiert sind:
+„Message::init() Msg[04] Address Error“ (14 Räume), „mapModelInit(): R105 flag SHAPE_MODEL clear“ (11), „IDSystem::unitPtr(m[00],
+c[00]): Not found.“ (10) – ohne Absturz, noch nicht untersucht (ein Debug-Rundgang zum Vergleich fehlt, die alte Rundgang-Datei
+wurde überschrieben).
+
+**Prüfungen (PC, WSL2):** Stand `a88a61da` (Aufgaben 1–3, 0127, 0128, R6, erste Fassung von 0126): EU-Abbilder Deutsch i686
+„ALLES OK“, Debug-Discs i686 „ALLES OK“, Funkspruch-Test EU (roomInfo, Französisch) „ALLES OK“; davor Debug-Discs `e72b0c04`
+„ALLES OK“, EU 64 bit (x86_64) Stream-Test „ALLES OK“. Statuen-Szene r226 (Leon in Bereich 24): Debug und EU, i686 und x86_64
+hörbar. App: `CoreMenuLayoutTest` 3/3, `RoomFileCheckTests`, `DiscTests` (synthetisch 19, echte Discs Debug 4 531 / EU 5 251),
+Texte 10 Sprachen ok, Android-Kern beide ABIs 0 Fehler, APK gebaut und auf dem Retroid gelaufen (Vorfilm, Funkspruch, r100).
+Endstand ohne 0126: siehe Commit-Liste; **nicht auf dem Gerät geprüft:** Meldung „Disc-Datei nicht lesbar“, Import mit
+Zurücklesen, Gyro-Schalter, r101/r221-Texte, R6. Gemeldet vom Projektinhaber beim Gerätelauf: zweimal Knacken im Ton des
+Vorfilms (noch nicht untersucht).
 
 ## M13 Retail-Discs (EU): Gerätetest 26.10.2026 und Korrekturen (27.10.2026 nachts, lokal, Branch `retail-eu`)
 
@@ -8638,7 +8661,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0123 `mes.cpp` | Textsprachen Deutsch, Französisch, Spanisch, Italienisch (R7). `MessageControl::setLayout` nimmt Schriftgröße, Zeichen- und Zeilenabstand aus einer Tabelle mit zwei Zeilen (Japanisch, Englisch), ausgewählt nach der Textsprache; 2–5 lasen dahinter, die Untertitel des Funkspruchs kamen als riesige, verschmierte Buchstaben. Die EU-Fassung (main.dol 0x80023610, Tabelle 0x801F8E04, ebenfalls zwei Zeilen) nimmt für `pSys->language` 0 die japanische, sonst die englische Zeile; so jetzt auch hier. `MessageControl::setLanguage` wählt den Block der Sechs-Sprachen-Tabellen: die der EU-Discs sind Japanisch, Englisch, Französisch, Deutsch, Italienisch, Spanisch (Blockgrößen der Funktexte; im französischen Lauf kam der Funkspruch deutsch), die EU-Fassung (0x800236d4) ordnet 3 → 3, 4 → 2, 5 → 5, 6 → 4 zu, diese Version 3–6 → 2–5. Die Debug-Discs haben in den Blöcken 2–5 nur Platzhalter und spielen mit Sprache 1: mit ihnen unverändert. Zugleich ein Fehler des Prototyps (sein Debug-Menü bietet die Sprachen 2–7 an) `MessageData::getAddr`: die EU-Kern-Texttabelle hat ab 0x56 15 Texte mehr; mit den EU-Discs wird jede Nummer ab 0x56 um 15 verschoben (Optionsmenü zeigte „ZOOM“, Gerätetest 26.10.2026) |
 | 0124 `ss_map.cpp` (Sscrn) | Karte im Untermenü mit den EU-Discs: deren Bildschirmbeschreibung (`SS/<lang>/ss_map.dat` Eintrag 3) führt Element 253 (Kopie des Bildschirms) zuletzt statt vor dem Hintergrund; mit dieser Version blieb die Karte leer (Gerät und PC, 26.10.2026). Die EU-Fassung (`SsMapMain::init`, Sscrn.rel Text 0x111ac) blendet es außer in r22c aus; so jetzt mit den EU-Discs. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0125 `cockpit.cpp` | Namensschilder der Lebensanzeige mit den EU-Discs: sechs (0x40–0x45) in beiden Fassungen, diese Version blendet 0x40–0x42 aus; auf den EU-Discs tragen 0x43–0x45 Namen und lagen über Leons („KiLeonr“, Retroid 26.10.2026). Wie die EU-Fassung (`LifeMeter::roomInit`, main.dol 0x800c05a8): alle ausblenden, 0x45 für Spielertyp 3, 0x43 für 4, 0x44 für 5. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
-| 0126 `sscrn.cpp` | Funkspruch mit den EU-Discs (R3, 27.10.2026): `SubScreenExec` gibt dem Funkspruch (`open_flag` 0x20) ein `IdSub` mit 128 Plätzen und setzt vier gemeinsame Id-Tabellen aus `ss_cmmn.dat` (Peseten, Hauptmenü, Sonstiges, Hintergrund), das Hauptmenü gleich ausgeblendet. Die EU-Tabellen sind größer: alle 128 belegt (46 Hauptmenü, 31 fehlten), die eigenen Bausteine des Funkspruchs, darunter die dunkle Leiste hinter dem Untertitel, fanden keinen Platz („IDSystem::set() work full“). Jetzt lässt der Funkspruch mit den EU-Discs das Hauptmenü weg. Verworfen: alle vier weglassen wie die EU-Fassung (main.dol 0x8005a920) und 512 Plätze für den Funkspruch – beide nahmen Hunnigans Bild mit (Gerät und PC-Bild; das größere `IdSub` überlagerte `ss_oc101.dat`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0126 | frei (27.10.2026: drei Fassungen für die Funkspruch-Leiste mit den EU-Discs verworfen, siehe Abschnitt „Fehlerberichte, Gyro-Richtung, R3 und R6“) |
 | 0127 `r101.cpp` | Fehler des Prototyps: nach dem Aufheben des Schlüssels zur Tür nach r102 zeigt `r101_checkDoor102KeyUse` Raumtext 0xB („Das Regal ist an die Wand genagelt …“, in beiden Fassungen); „Du hast … benutzt“ ist 0x14. Die EU-Fassung (`st1_1.rel`) nimmt 0x14, jetzt auch diese (beide Fassungen) |
 | 0128 `r221.cpp` | Raumtexte von r221 mit den EU-Discs (R3): die EU-Tabelle hat ab Text 6 alles einen Platz tiefer (Text für Text verglichen); der Code dieser Version fragt 6 („C'mon, c'mon!“ am Aufzug), 7 (nur Japanisch), 8 (Stickstofftank), 9 (Rollladen-Schalter) und 0xA (nach dem Rollladen), mit EU-Daten kamen ein leerer Text, der Tank-Text am Schalter, ein Wartehinweis danach. Die EU-Fassung (`st2_3.rel`) fragt an denselben Stellen 5–9; mit den EU-Discs jetzt ebenso. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 
