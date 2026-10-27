@@ -390,6 +390,30 @@ public final class CoreInputTests {
       o.pad();
       o.key(1, Y, false);
       check(o.pad()[0] == CoreInput.GC_B);
+      o.setLatch(false, false);
+      o.clear();
+      // the game's menus keep the default layout (the core's bit 4 of the rumble): the action on R2,
+      // in a menu A is A again
+      o.setBindings(CoreInput.assign(null, CoreInput.F_A, R2));
+      o.setMenu(true);
+      check(o.menu() && o.key(1, A, true) && o.pad()[0] == CoreInput.GC_A && o.gcButton(A) == CoreInput.GC_A);
+      // held across the change: in play A is aiming (R) now, its old key; released in play: nothing stuck
+      o.setMenu(false);
+      int[] q2 = o.pad();
+      check((q2[0] & CoreInput.GC_A) == 0 && q2[6] == 255);
+      o.key(1, A, false);
+      check(o.pad()[0] == 0 && o.pad()[6] == 0);
+      // pressed in play, released in a menu
+      o.key(1, X, true);
+      o.setMenu(true);
+      check(o.pad()[0] == CoreInput.GC_X);
+      o.key(1, X, false);
+      check(o.pad()[0] == 0);
+      // the app's menu key in a game menu: SELECT as always
+      o.setBindings(CoreInput.assign(null, CoreInput.F_MENU, L1));
+      check(o.appFunctionOf(SELECT) == CoreInput.APP_MENU);
+      o.setMenu(false);
+      check(o.appFunctionOf(L1) == CoreInput.APP_MENU);
     }
     System.out.println("Core controller: layout, swap, alternate controls, own bindings, sticks and triggers through "
         + "PADClamp, devices: " + checks + " checks PASS");

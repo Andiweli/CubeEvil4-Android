@@ -201,7 +201,10 @@ const char* re4_core_message(void);
 void re4_core_pad(const Re4CorePad* pad);
 /* The rumble motor of channel 0 as the game drives it: bits 0-3 = motor on in
  * the last four frames (bit 0 the newest), bits 8-31 = frames so far (the app
- * stops vibrating when they stand still). */
+ * stops vibrating when they stand still). Bit 4: the game shows a menu in the
+ * last frame (the title and its menus, loading, a sub screen: inventory, map,
+ * files, merchant, options, radio, typewriter); the app's own controller
+ * bindings apply only outside (27.10.2026). */
 unsigned re4_core_rumble(void);
 /* A vsync of the device's display at `ns` (CLOCK_MONOTONIC, e.g. the
  * Choreographer's frame time), any thread, every vsync while the game is

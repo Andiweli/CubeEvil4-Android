@@ -143,6 +143,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private boolean askSixty;
   // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator
   private Vibrator vibrator;
+  private static final int RUMBLE_PULSE_MS = 170;  // each start of the motor (120 until 27.10.2026)
   private boolean amplitudeControl, vibrating;
   private int rumbleFrames = -1, rumbleLevel;
   private long rumbleSeen, rumbleUntil;
@@ -1132,6 +1133,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         return true;
       }
     }
+    // a controller's button without a function (the own bindings can leave one free): kept from Android,
+    // which would make B "back" and ask to quit the game (device test 27.10.2026)
+    boolean dpad = code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN
+        || code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT;
+    if (controller(e) && (KeyEvent.isGamepadButton(code) || dpad)) {
+      if (down && controllerLog.firstKey(e.getDeviceId(), code)) {
+        Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ", device " + e.getDeviceId()
+            + ") -> no function, not passed on");
+      }
+      return true;
+    }
     // a key nothing here handles (a rare controller's extra buttons): named once per device and code
     if (down && controller(e) && controllerLog.firstKey(e.getDeviceId(), code)) {
       InputDevice d = e.getDevice();
@@ -1321,6 +1333,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (destroyed || !resumed) return;
       int r = CoreBridge.rumble();
       long now = SystemClock.uptimeMillis();
+      // bit 4: the game shows a menu; the own controller bindings apply only in play (re4_core.h)
+      boolean menu = (r & 0x10) != 0;
+      if (menu != input.menu()) {
+        input.setMenu(menu);
+        send();
+      }
       int frames = r >>> 8;
       if (frames != rumbleFrames) {
         rumbleFrames = frames;
@@ -1328,7 +1346,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       int level = now - rumbleSeen < 200 ? Integer.bitCount(r & 0xF) : 0;
       // A shot rumbles for 3-5 game frames only (device test 24.10.2026: nothing felt in play, only
-      // the long rumble of the options screen): each start runs its 120 ms out at least, a stronger
+      // the long rumble of the options screen): each start runs its pulse out at least, a stronger
       // level starts at once, a weaker one waits for the running one; no cancel when it ends.
       if (now >= rumbleUntil) {
         vibrating = false;
@@ -1337,7 +1355,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (level > 0 && (!vibrating || level > rumbleLevel || now >= rumbleUntil - 40)) {
         vibrate(level);
         rumbleLevel = level;
-        rumbleUntil = now + 120;
+        rumbleUntil = now + RUMBLE_PULSE_MS;
         vibrating = true;
       }
       main.postDelayed(this, 16);
@@ -1349,16 +1367,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (vibrator == null) return;
     try {
       if (Build.VERSION.SDK_INT >= 26) {
-        // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid)
-        int strength = amplitudeControl ? 150 + 105 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
-        VibrationEffect effect = VibrationEffect.createOneShot(120, strength);
+        // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid; 150 still
+        // hardly felt, device test 27.10.2026: now 210 up to the strongest, and each pulse longer)
+        int strength = amplitudeControl ? 210 + 45 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
+        VibrationEffect effect = VibrationEffect.createOneShot(RUMBLE_PULSE_MS, strength);
         if (Build.VERSION.SDK_INT >= 33) {
           vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
         } else {
           vibrator.vibrate(effect, new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).build());
         }
       } else {
-        vibrator.vibrate(120);
+        vibrator.vibrate(RUMBLE_PULSE_MS);
       }
     } catch (RuntimeException e) {
       Log.w(TAG, "rumble: " + e);

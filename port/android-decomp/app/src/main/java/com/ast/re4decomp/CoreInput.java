@@ -39,8 +39,9 @@ import java.util.Map;
  *
  * Own bindings (the menu's "Controller configuration", wish of the project owner, 27.10.2026): each
  * function (the GameCube buttons and the app's menu) on any key of the controller, one key each;
- * null keeps the layout above. They apply while the alternate controls are off (those keep their own
- * layout and aiming). A function on L2 or R2 reads the trigger: L and R as the analog value, the
+ * null keeps the layout above. They apply in play while the alternate controls are off (those keep
+ * their own layout and aiming); the game's menus (the title, sub screens: the core's bit 4 of
+ * re4_core_rumble, setMenu) keep the layout above (wish of the project owner, 27.10.2026). A function on L2 or R2 reads the trigger: L and R as the analog value, the
  * others pressed past half way. The D-pad of the hat axes counts as the D-pad keys.
  */
 public final class CoreInput {
@@ -150,6 +151,27 @@ public final class CoreInput {
   private boolean clickL, clickR, fire;          // the triggers' digital L/R and fire at the last pad()
   private int[] bindings;                        // own bindings, null: the layout above
   private final boolean[] held = new boolean[FUNCTIONS];  // own bindings: a function on a trigger, pressed
+  private boolean menu;                          // the game shows a menu: the layout above (setMenu)
+
+  /**
+   * The game shows a menu (true) or is played: the own bindings apply only in play. The keys held
+   * now count on in the layout that applies from now on.
+   */
+  public void setMenu(boolean on) {
+    if (on == menu) return;
+    menu = on;
+    for (Device d : devices.values()) {
+      int bits = 0;
+      for (int code : d.keys) {
+        // (L1, L2, R2: their own flags, held in both layouts)
+        if (code != KEYCODE_BUTTON_L1 && code != KEYCODE_BUTTON_L2 && code != KEYCODE_BUTTON_R2) bits |= layoutButton(code);
+      }
+      d.buttons = bits;
+    }
+    java.util.Arrays.fill(held, false);
+  }
+
+  public boolean menu() { return menu; }
 
   /** Own bindings (FUNCTIONS keys, F_A .. F_MENU); null or the default layout: the layout above. */
   public void setBindings(int[] b) {
@@ -161,7 +183,7 @@ public final class CoreInput {
   public int[] bindings() { return bindings == null ? null : bindings.clone(); }
 
   /** Own bindings apply (set, and the alternate controls off). */
-  private boolean own() { return bindings != null && !alternate; }
+  private boolean own() { return bindings != null && !alternate && !menu; }
 
   /** The function on `keyCode` with the own bindings, -1 for none. */
   private int functionOf(int keyCode) {
@@ -206,6 +228,11 @@ public final class CoreInput {
       int f = functionOf(keyCode);
       return f < 0 ? 0 : FUNCTION_BITS[f];
     }
+    return layoutButton(keyCode);
+  }
+
+  /** The GameCube button of a key in the layout above (no own bindings). */
+  private int layoutButton(int keyCode) {
     int label = keyCode;
     if (swapFace) {
       switch (keyCode) {
@@ -271,11 +298,16 @@ public final class CoreInput {
   /** A key of `device` went down or up; false when it is no game button. */
   public boolean key(int device, int keyCode, boolean down) {
     Device d = device(device);
+    // the keys held, in either layout (setMenu changes between them while a key is held)
+    if (down) d.keys.add(keyCode); else d.keys.remove(keyCode);
     if (own()) {
       if (keyCode == KEYCODE_BUTTON_L1) d.l1Key = down;
       if (keyCode == KEYCODE_BUTTON_L2) d.l2Key = down;
       if (keyCode == KEYCODE_BUTTON_R2) d.r2Key = down;
-      if (down) d.keys.add(keyCode); else d.keys.remove(keyCode);
+      int bit = layoutButton(keyCode);
+      if (bit != 0 && keyCode != KEYCODE_BUTTON_L1 && keyCode != KEYCODE_BUTTON_L2 && keyCode != KEYCODE_BUTTON_R2) {
+        d.buttons = down ? d.buttons | bit : d.buttons & ~bit;
+      }
       int f = functionOf(keyCode);
       return f >= 0 && f != F_MENU;
     }

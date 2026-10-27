@@ -1477,6 +1477,19 @@ extern "C" void re4_trace_snd_look(int reset, unsigned out[3])
     out[2] = g_sndFull;
 }
 
+// The game shows a menu (runtime/pad.cpp: bit 4 of re4_core_rumble): no room's main loop (the
+// title and its menus, loading, the room set-up) or a sub screen open (inventory, map, files,
+// merchant, options, radio, typewriter). The app's own controller bindings apply only outside
+// (wish of the project owner, 27.10.2026: the menus keep the default layout).
+extern "C" int re4_game_menu_open(void)
+{
+    GLOBAL_WK* g = pG;
+    if (!live(g)) {
+        return 1;
+    }
+    return g->Rno0 != 3 || StaFlagChk(g, STA_SUB_SCRN) != 0;
+}
+
 // The enemy and menu lines of one frame on their own (runtime test "enemylog", game_probe.cpp).
 extern "C" void re4_state_trace_enemy_frame(unsigned n)
 {

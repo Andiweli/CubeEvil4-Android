@@ -194,6 +194,45 @@ public class CoreMenuLayoutTest {
     }
   }
 
+  private static int top(View v, View root) {
+    int y = 0;
+    for (View at = v; at != root && at != null; at = (View) at.getParent()) y += at.getTop();
+    return y;
+  }
+
+  private static Button findButton(View view, String start) {
+    if (view instanceof Button && ((Button) view).getText().toString().startsWith(start)) return (Button) view;
+    if (view instanceof ViewGroup) {
+      ViewGroup g = (ViewGroup) view;
+      for (int i = 0; i < g.getChildCount(); i++) {
+        Button b = findButton(g.getChildAt(i), start);
+        if (b != null) return b;
+      }
+    }
+    return null;
+  }
+
+  @Test public void gyroSwitchKeepsTheSameGapAboveAndBelow() throws Exception {
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 2, false);
+      View root = (View) field(menu, "root");
+      ViewGroup body = (ViewGroup) field(menu, "body");
+      measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
+          Math.round(300 * activity.getResources().getDisplayMetrics().density));
+      Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
+      Button above = findButton(body, activity.getString(R.string.ingame_latch).split(" ")[0]);
+      Button below = findButton(body, activity.getString(R.string.ingame_gyro_invert_v).split(" ")[0]);
+      assertNotNull(gyro); assertNotNull(above); assertNotNull(below);
+      int gapAbove = top(gyro, body) - (top(above, body) + above.getHeight());
+      int gapBelow = top(below, body) - (top(gyro, body) + gyro.getHeight());
+      assertTrue("a gap above", gapAbove > 0);
+      assertEquals("the same gap above and below the gyro switch", gapBelow, gapAbove, 2);
+    }
+  }
+
   @Test public void controllerConfigurationAssignsAKeyAndSwaps() throws Exception {
     final int[][] sent = {null};
     final boolean[] controller = {false};

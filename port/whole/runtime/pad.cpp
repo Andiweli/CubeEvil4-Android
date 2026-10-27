@@ -210,13 +210,23 @@ u32 re4_pad_rumble(void)
     return g_rumble;
 }
 
-// the frame that just ended into the rumble record (PADRead)
+// runtime/state_trace.cpp (the game's state; absent in tools without the game)
+extern "C" int re4_game_menu_open(void) __attribute__((weak));
+
+// the frame that just ended into the rumble record (PADRead), bit 4 the menu (re4_core.h)
 static void noteRumble()
 {
     static u32 offFrames = 30, starts;
     const u32 before = g_rumble;
     const u32 on = g_motor == 1;
-    g_rumble = ((gFrame + 1) << 8) | (((before << 1) | on) & 0xF);
+    const u32 menu = re4_game_menu_open && re4_game_menu_open() ? 0x10u : 0u;
+    static u32 menuLines;
+    if (menu != (before & 0x10u) && menuLines < 60) {
+        menuLines++;
+        re4_log("pad: game menu %s at frame %u (the app's own controller bindings %s)", menu ? "shown" : "closed",
+                gFrame, menu ? "paused" : "apply");
+    }
+    g_rumble = ((gFrame + 1) << 8) | menu | (((before << 1) | on) & 0xF);
     if (on && offFrames >= 30 && starts < 16) {
         starts++;
         re4_log("pad: rumble from frame %u", gFrame);

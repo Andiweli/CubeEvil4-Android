@@ -460,6 +460,9 @@ final class CoreMenu extends Dialog {
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
     boolean gyro = GyroAim.available(getContext()), on = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
     LinearLayout third = new MenuLayout.Columns(getContext(), 0, 540, false);
+    // the gyro switch in the middle of the row the slider makes taller: as far from the row above as
+    // from the row below (wish of the project owner, 27.10.2026)
+    third.setGravity(Gravity.CENTER_VERTICAL);
     body.addView(third);
     LinearLayout sensitivityBox = column();
     SeekBar sensitivity = new SeekBar(getContext()); TextView valueText = text("", 15, false);
