@@ -1337,7 +1337,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (destroyed || !resumed) return;
       int r = CoreBridge.rumble();
       long now = SystemClock.uptimeMillis();
-      // bit 4: the game shows a menu; the own controller bindings apply only in play (re4_core.h)
+      // bit 4: the game shows a menu or a button prompt; the own controller bindings apply only in play
+      // (re4_core.h)
       boolean menu = (r & 0x10) != 0;
       if (menu != input.menu()) {
         input.setMenu(menu);

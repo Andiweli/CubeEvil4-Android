@@ -40,8 +40,9 @@ import java.util.Map;
  * Own bindings (the menu's "Controller configuration", wish of the project owner, 27.10.2026): each
  * function (the GameCube buttons and the app's menu) on any key of the controller, one key each;
  * null keeps the layout above. They apply in play while the alternate controls are off (those keep
- * their own layout and aiming); the game's menus (the title, sub screens: the core's bit 4 of
- * re4_core_rumble, setMenu) keep the layout above (wish of the project owner, 27.10.2026). A function on L2 or R2 reads the trigger: L and R as the analog value, the
+ * their own layout and aiming); the game's menus and button prompts (the title, sub screens, "A Open",
+ * the quick-time events: the core's bit 4 of re4_core_rumble, setMenu) keep the layout above, so a
+ * prompt's button is the one it shows (wishes of the project owner, 27.10.2026). A function on L2 or R2 reads the trigger: L and R as the analog value, the
  * others pressed past half way. The D-pad of the hat axes counts as the D-pad keys.
  */
 public final class CoreInput {

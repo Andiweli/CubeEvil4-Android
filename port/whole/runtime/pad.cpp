@@ -228,12 +228,14 @@ static void noteRumble()
     static u32 offFrames = 30, starts;
     const u32 before = g_rumble;
     const u32 on = g_motor == 1;
-    const u32 menu = g_menuProbe && g_menuProbe() ? 0x10u : 0u;
+    const int probe = g_menuProbe ? g_menuProbe() : 0;  // 1 a menu, 2 a button prompt
+    const u32 menu = probe ? 0x10u : 0u;
     static u32 menuLines;
     if (menu != (before & 0x10u) && menuLines < 60) {
         menuLines++;
-        re4_log("pad: game menu %s at frame %u (the app's own controller bindings %s)", menu ? "shown" : "closed",
-                gFrame, menu ? "paused" : "apply");
+        re4_log("pad: game %s at frame %u (the app's own controller bindings %s)",
+                menu ? (probe == 2 ? "button prompt shown" : "menu shown") : "menu or prompt closed", gFrame,
+                menu ? "paused" : "apply");
     }
     g_rumble = ((gFrame + 1) << 8) | menu | (((before << 1) | on) & 0xF);
     if (on && offFrames >= 30 && starts < 16) {

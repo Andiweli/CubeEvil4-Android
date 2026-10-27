@@ -159,6 +159,8 @@
 #include "light.h"
 #include "dmg.h"
 #include "atari.h"
+#include "act_btn.h"
+#include "cockpit.h"
 #include <dolphin/os/OSAlloc.h>
 
 #include <math.h>
@@ -1477,17 +1479,24 @@ extern "C" void re4_trace_snd_look(int reset, unsigned out[3])
     out[2] = g_sndFull;
 }
 
-// The game shows a menu (runtime/pad.cpp: bit 4 of re4_core_rumble): no room's main loop (the
-// title and its menus, loading, the room set-up) or a sub screen open (inventory, map, files,
-// merchant, options, radio, typewriter). The app's own controller bindings apply only outside
-// (wish of the project owner, 27.10.2026: the menus keep the default layout).
+// The game shows a menu or a button prompt (runtime/pad.cpp: bit 4 of re4_core_rumble): no room's
+// main loop (the title and its menus, loading, the room set-up), a sub screen open (inventory,
+// map, files, merchant, options, radio, typewriter), or the action button's prompt (game/act_btn.cpp:
+// "A Open", the quick-time events "A+B", "L+R", "A" again and again ...; the cockpit's icon,
+// Cckpt.m_ActBttn, as runtime/qte_touch.cpp reads it). The app's own controller bindings apply only
+// outside (wishes of the project owner, 27.10.2026: the menus keep the default layout, and a prompt's
+// button is the one it shows).
 extern "C" int re4_game_menu_open(void)
 {
     GLOBAL_WK* g = pG;
     if (!live(g)) {
         return 1;
     }
-    return g->Rno0 != 3 || StaFlagChk(g, STA_SUB_SCRN) != 0;
+    if (g->Rno0 != 3 || StaFlagChk(g, STA_SUB_SCRN) != 0) {
+        return 1;
+    }
+    const u8 shown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    return shown != DISP_OFF && ActBtn.isActive() ? 2 : 0;
 }
 
 // handed to the platform layer when this library loads (runtime/pad.cpp)
