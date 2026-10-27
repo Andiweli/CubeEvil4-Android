@@ -110,6 +110,25 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   Knopf nur mit Controller, Zuweisen mit Tausch, Loslassen geschluckt, zweimal derselbe Knopf, Zurück zur Steuerung; die
   neue Seite in 10 Sprachen, 3 Schriftgrößen, 5 Breiten ohne Überlappung), Texte 10 Sprachen ok, APK gebaut. **Nicht
   geprüft:** Gerät.
+- **Gerätetest der Controller-Konfiguration (Retroid, 27.10.2026 17:06 und 17:08, `senden-1.zip`, `senden-2.zip`) und
+  Korrekturen (Wünsche des Projektinhabers):**
+  - **B beendete das Spiel:** durch die Tausche war die Taste B keiner Funktion mehr zugeordnet (`A = BUTTON_R2, B = BUTTON_A,
+    … Z = BUTTON_Y`), die App reichte sie an Android weiter (`KEYCODE_BUTTON_B … not mapped, passed on to Android`), Android
+    machte daraus „Zurück“, die Frage „Spiel beenden?“ wurde bestätigt (`System.exit`). Neu: im Spiel geht keine Taste eines
+    Controllers ohne Funktion mehr an Android (`CoreActivity.dispatchKeyEvent`, Protokoll `… -> no function, not passed on`).
+  - **Eigene Belegung nur im Spiel:** in den Menüs des Spiels gilt die Standardbelegung. Der Kern meldet „das Spiel zeigt ein
+    Menü“ in Bit 4 von `re4_core_rumble` (die App fragt es ohnehin jedes Bild, auch über den eigenen Kern-Prozess; keine neue
+    Schnittstelle): `re4_game_menu_open` (`runtime/state_trace.cpp`) = keine Hauptschleife eines Raums (Titel und seine Menüs,
+    Laden) oder ein Untermenü offen (`STA_SUB_SCRN`: Inventar, Karte, Akten, Händler, Optionen, Funk, Schreibmaschine).
+    Zwischensequenzen, Reaktionstasten und das Kapitelende zählen als Spiel. `CoreInput.setMenu`: jedes Gerät merkt sich
+    seine gehaltenen Tasten, beim Wechsel zählen sie in der neuen Belegung weiter (nichts bleibt hängen). Protokoll des Kerns
+    `pad: game menu shown/closed at frame N` (höchstens 60 Zeilen).
+  - **Abstand in „Steuerung“:** die Gyro-Zeile ist so hoch wie der Regler daneben; der Knopf steht jetzt senkrecht in ihrer
+    Mitte, über und unter ihm gleich viel Abstand (`CoreMenuLayoutTest.gyroSwitchKeepsTheSameGapAboveAndBelow`, schlägt ohne
+    die Korrektur an).
+  - **Vibration stärker:** Stärke 210–255 statt 150–255, jeder Impuls 170 statt 120 ms (`RUMBLE_PULSE_MS`).
+  - **Geprüft:** `CoreInputTests` 179 Prüfungen (neu: Menü mit Standardbelegung, Taste über den Wechsel gehalten, App-Menü in
+    Menüs auf SELECT), `CoreMenuLayoutTest` 7/7.
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
