@@ -20,7 +20,13 @@ Sprachen liegen anders als angenommen: die Untermenü-Texte als einsprachige Tab
 die Optionsdaten der vier weiteren Sprachen sind größer als ihr fester Platz (Patch 0121), die Schrift-Einstellung
 der Texte kannte nur Japanisch und Englisch (Patch 0123). Am PC geprüft (alle fünf Sprachen), **Gerätetest offen**.
 Spielstände laden am PC in beide Richtungen (Debug-Spielstand mit EU-Discs und umgekehrt).
-Einzelheiten: `whole-program-status.md`, Abschnitt „Schritt R7“.
+Einzelheiten: `whole-program-status.md`, Abschnitt „Schritt R7“. R4 und R7 am 27.10.2026 auf dem Retroid bestätigt.
+R3 (27.10.2026): alle Texttabellen beider Fassungen Text für Text und die Textnummern aller Raummodule verglichen; nur
+r221 verschoben (Patch 0128), r101 ein Prototyp-Fehler (0127), `memcard.das`, `ss_cmmn.dat` und die übrigen Räume ohne
+Eingriff; die Funkspruch-Leiste fehlte, weil das Untermenü voll war (Patch 0126). Am PC geprüft. Die Bildvergleiche aller
+Untermenüs (Inventar, Dateien, Händler, Rätsel) per GX-Bild stehen noch aus.
+R6 (27.10.2026): SELECT-Halten öffnet mit EU-Discs nichts (App und Kern), Laufzeittest. Gerätetest offen.
+Einzelheiten: `whole-program-status.md`, Abschnitt „Fehlerberichte, Gyro-Richtung, R3 und R6“.
 
 Ziel: CubeEvil4 spielt das Spiel auch mit den europäischen Verkaufs-Discs (`G4BP08`, Disc 1 und 2),
 nicht nur mit der Debug-Disc (`G4BE08`, 2004-11-25). Der Spielcode bleibt der der Debug-Version

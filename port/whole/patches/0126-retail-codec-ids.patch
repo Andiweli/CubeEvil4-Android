@@ -1,11 +1,12 @@
 # Retail data (port/docs/retail-eu-plan.md, R3): the radio screen's subtitle bar with the European discs.
-# SubScreenExec sets four shared id tables of ss_cmmn.dat (pesetas, main menu, etc., background) for
-# every sub screen and hides them again for the radio screen (open_flag 0x20), whose IdSub has 128
-# units. The European tables are larger: set, they filled all 128 and the radio's own units, the dark
-# bar behind the subtitle among them, found no room ("IDSystem::set() work full", PC runs 26./27.10.2026:
-# IdSub 128 of 128, 46 of them main menu). The European SubScreenExec (main.dol 0x8005a920) does not
-# set them for the radio screen; so does this one with the European discs. Nothing changes with the
-# debug build's discs. A port patch for retail data.
+# SubScreenExec gives the radio screen (open_flag 0x20) an IdSub of 128 units, every other sub screen 512,
+# and sets four shared id tables of ss_cmmn.dat (pesetas, main menu, etc., background) for each. The
+# European tables are larger: they filled all 128 units of the radio screen and its own units, the dark
+# bar behind the subtitle among them, found no room ("IDSystem::set() work full", PC runs 27.10.2026:
+# IdSub 128 of 128, 46 of them main menu). Leaving the four tables out, as the European SubScreenExec
+# (main.dol 0x8005a920) does, lost Hunnigan's picture (device and PC, 27.10.2026). With the European
+# discs the radio screen gets the 512 units of the other screens. Nothing changes with the debug
+# build's discs. A port patch for retail data.
 --- a/src/game/sscrn.cpp
 +++ b/src/game/sscrn.cpp
 @@ -313,6 +313,8 @@
@@ -17,22 +18,15 @@
  void SubScreenExec()
  {
      SubScreenWork* wk = &SubScreenWk;
-@@ -471,12 +473,18 @@
+@@ -460,7 +462,10 @@
+             }
+             cMes.setLayout(1, LAYOUT_SUBSCRN);
+             cMes.setLayout(7, LAYOUT_SUBSCRN);
+-            if (wk->open_flag == 0x20) {
++            /* port: with the European discs the radio screen's 128 units ran full (the shared tables of
++               ss_cmmn.dat are larger there): the subtitle bar found no room. It gets the room of the
++               other sub screens. */
++            if (wk->open_flag == 0x20 && !re4_disc_retail_eu()) {
+                 IdSub.gameInit(0x80);
              } else {
-                 IdNum.gameInit(0x1B2);
-             }
-+            /* port: the radio screen (0x20) hides these four tables at once; the European
-+               SubScreenExec (main.dol 0x8005a920) does not set them for it. Their European versions
-+               are larger: set, they filled the screen's 128 units and the radio's subtitle bar found
-+               no room ("IDSystem::set() work full") */
-+            if (wk->open_flag != 0x20 || !re4_disc_retail_eu()) {
-             IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 7), 0xFF, IDC_SSCRN_PESETA, 0x13, 7, 0);
-             if (!(wk->open_flag & 0x10)) {
-                 IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 0xB), 0xFF, IDC_SSCRN_MAIN_MENU, 0xF, 0, 0);
-             }
-             IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 0x11), 0xFF, IDC_SSCRN_ETC, 0x13, 9, 0);
-             IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 9), 0xFF, IDC_SSCRN_BACK_GROUND, 9, 3, 0);
-+            }
-             switch (wk->open_flag) {
-             case 2:
-                 IdSys.dispSw(IDC_LIFE_METER, 0);
+                 IdSub.gameInit(0x200);
