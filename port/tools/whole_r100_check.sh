@@ -264,8 +264,12 @@ if [ -z "$layout" ]; then
     exit 1
 fi
 # --room-info: a folder of links to the discs plus the debug build's debug/roomInfo.dat (the
-# European discs lack it; the debug start of the tour needs it), made again when its source changes
-if [ -n "$room_info" ] && [ -z "$(find "$layout"/disc*/files/Debug "$layout"/files/Debug -maxdepth 1         -iname roominfo.dat 2> /dev/null)" ]; then
+# European discs lack it; the debug start of the tour needs it), made again when its source changes.
+# The runtime finds a file through the disc's file table (sys/fst.bin), so each disc's copy of it
+# gets a folder "Debug" with "roomInfo.dat" appended to the root (disc offset 0: the port reads
+# the file from files/)
+if [ -n "$room_info" ] && [ -z "$(find "$layout"/disc*/files/Debug "$layout"/files/Debug -maxdepth 1 \
+        -iname roominfo.dat 2> /dev/null)" ]; then
     if [ ! -f "$room_info" ] || [ ! -f "$layout/disc0/sys/fst.bin" ]; then
         say "FEHLER: --room-info braucht die Datei ($room_info) und Discs in der Form disc0, disc1"
         exit 1
@@ -276,8 +280,23 @@ if [ -n "$room_info" ] && [ -z "$(find "$layout"/disc*/files/Debug "$layout"/fil
         rm -rf "${ri:?}"
         for d in "$layout"/disc*; do
             n=${d##*/}
-            mkdir -p "$ri/$n/files/Debug"
-            ln -s "$(readlink -f "$d/sys")" "$ri/$n/sys"
+            mkdir -p "$ri/$n/files/Debug" "$ri/$n/sys"
+            for e in "$d"/sys/*; do
+                [ "${e##*/}" = fst.bin ] || ln -s "$(readlink -f "$e")" "$ri/$n/sys/"
+            done
+            python3 - "$d/sys/fst.bin" "$ri/$n/sys/fst.bin" "$(stat -L -c %s "$room_info")" <<'PY'
+import struct, sys
+fst = bytearray(open(sys.argv[1], "rb").read())
+size = int(sys.argv[3])
+n = struct.unpack_from(">I", fst, 8)[0]
+entries, names = fst[:n * 12], fst[n * 12:]
+# the folder (parent: the root, next: past its one file) and the file, names at the end
+entries += struct.pack(">III", 1 << 24 | len(names), 0, n + 2)
+entries += struct.pack(">III", len(names) + 6, 0, size)
+names += b"Debug\0roomInfo.dat\0"
+struct.pack_into(">I", entries, 8, n + 2)
+open(sys.argv[2], "wb").write(entries + names)
+PY
             for e in "$d"/files/*; do
                 case "${e##*/}" in [Dd][Ee][Bb][Uu][Gg]) continue ;; esac
                 ln -s "$(readlink -f "$e")" "$ri/$n/files/"
