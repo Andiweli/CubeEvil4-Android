@@ -155,8 +155,12 @@ public class CoreMenuLayoutTest {
       health.performClick(); assertEquals(1, sent[0]);
       oneHit.performClick(); assertEquals(5, sent[0]);
       health.performClick(); assertEquals(4, sent[0]);
-      assertTrue(((Button) actions.getChildAt(0)).getText().toString()
-          .contains(activity.getString(R.string.ingame_cheat_killer7)));
+      Button killer7 = (Button) actions.getChildAt(0);
+      assertTrue(killer7.getText().toString().contains(activity.getString(R.string.ingame_cheat_killer7)));
+      // a button lights up for a moment after a press
+      killer7.performClick(); assertTrue(killer7.isSelected());
+      org.robolectric.shadows.ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS);
+      assertFalse(killer7.isSelected());
     }
   }
 

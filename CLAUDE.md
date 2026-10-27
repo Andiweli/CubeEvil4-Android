@@ -160,7 +160,7 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
 10b. Raum-Rundgang: viele Räume per Raumauswahl anspielen, Abstürze und
    Grafikfehler sammeln (Entscheidung des Projektinhabers, 16.10.2026: nach
    Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12)
-13. Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
+13. ✅ Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
    parallel zur Debug-Disc, die Referenz bleibt (Entscheidungen des Projektinhabers, 26.10.2026:
    parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, dafür ein Cheat-Menü im
    Ingame-Menü, am PC geprüft 27.10.2026, `port/docs/cheat-menu-plan.md`; alle Sprachen der EU-Discs spielbar, Schritt R7, gewählt im
@@ -168,7 +168,9 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    Schritte R0–R8: `port/docs/retail-eu-plan.md`, Branch `retail-eu`; R0, R1, R2 ✅ (26.10.2026);
    R4 (App-Import) und R7 (Sprachen) auf dem Retroid bestätigt (27.10.2026); R3 (Texttabellen,
    Funkspruch-Leiste) auf dem Retroid bestätigt, R6 (kein Debug-Menü) am PC geprüft, R5 108/126 Räume (Stage 4
-   offen), R8 weitgehend: ARM32 und ARM64 auf dem Retroid, Version 0.92.0-beta (27.10.2026)
+   offen), R8 weitgehend: ARM32 und ARM64 auf dem Retroid, Version 0.92.0-beta (27.10.2026); abgeschlossen 27.10.2026: zwei Kapitel mit
+   EU-Discs auf Deutsch auf dem Retroid ohne Befund durchgespielt, Cheat-Menü auf dem Retroid bestätigt;
+   Stage 4 mit EU-Daten in der Prüfstrecke und drei Spielmeldungen gehen in den Raum-Rundgang 10b
 
 ## Git
 

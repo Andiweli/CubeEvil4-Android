@@ -79,6 +79,7 @@ final class CoreMenu extends Dialog {
 
   private interface Changed<T> { void accept(T value); }
   private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4;
+  private static final long CHEAT_FLASH_MS = 1500;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
@@ -515,7 +516,11 @@ final class CoreMenu extends Dialog {
     final int[] actionLabels = {R.string.ingame_cheat_killer7, R.string.ingame_cheat_case, R.string.ingame_cheat_money};
     for (int i = 0; i < actionLabels.length; i++) {
       final int what = i + 1, label = actionLabels[i];
-      cellAction(actions, s(label), v -> cheatAction(what, label));
+      // lit up for a moment after a press (wish of the project owner, 27.10.2026: they gave no sign)
+      cellAction(actions, s(label), v -> {
+        v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
+        cheatAction(what, label);
+      });
     }
     cheatStatus = text("", 15, false); cheatStatus.setPadding(0, dp(6), 0, dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);

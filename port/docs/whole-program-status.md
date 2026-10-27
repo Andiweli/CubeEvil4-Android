@@ -4,6 +4,17 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## M13 abgeschlossen (27.10.2026 nachmittags, Branch `retail-eu`)
+
+**Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch):** zwei Kapitel vom Start an ohne Befund durchgespielt;
+Cheats funktionieren. Einziger Wunsch: die drei Cheat-Knöpfe gaben beim Drücken kein Zeichen – sie leuchten jetzt
+1,5 Sekunden auf (`CoreMenu.CHEAT_FLASH_MS`, `CoreMenuLayoutTest` prüft An und Aus). Damit ist M13 erreicht.
+
+**In den Raum-Rundgang 10b übernommen:** Stage 4 (r400–r411) mit EU-Daten in der Prüfstrecke (Raummodul `st4_0.rel`
+nur auf Disc 2; R5 steht bei 108/126 Räumen), die drei Spielmeldungen ohne Absturz aus dem EU-Rundgang
+(`retail-eu-plan.md`, „Noch offen“), Funksprüche 13/14/15/17 (Bildwechsel), die achte Händler-Markierung nach dem
+Umzug (r204), Speichern/Laden mit ARM32, Schaden/Treffer mit den Cheats in Kämpfen und Bossräumen.
+
 ## Cheat-Menü im Ingame-Menü (27.10.2026 mittags, lokal, Branch `retail-eu`)
 
 Wunsch und Entscheidungen des Projektinhabers: `port/docs/cheat-menu-plan.md`. Mit beiden Disc-Arten.
@@ -864,7 +875,7 @@ Sichtprüfung auf dem Retroid noch offen.
 | 0.45.1-alpha | **nicht veröffentlicht, in 0.46.0 aufgegangen** (Entscheidung des Projektinhabers, 23.10.2026). 23.10.2026 (Branch `claude/re4-start-controls` mit `performance` zusammengeführt, versionCode 71, Releasetext `port/android-decomp/docs/releases/v0.45.1-alpha.md`; Entscheidung des Projektinhabers: die weiteren Performance-Optimierungen als 0.45.1): „Auto“ regelt die Auflösung nach dem Grafikchip (`GxRenderer::Rescale`), Spiel- und Zeichen-Thread weg von den langsamsten Kernen und Androids Leistungshinweis, Shader auf eigenem Thread mit Liste in der App (70 Programme, wächst mit den Schlüsseln der Berichte); -O3 geprüft und verworfen. **Auf dem Gerät noch nicht getestet** |
 | 0.46.0-alpha | 23.10.2026 (Branch `claude/re4-start-controls`, versionCode 72, Releasetext `port/android-decomp/docs/releases/v0.46.0-alpha.md`; Entscheidung des Projektinhabers nach seinem Gerätetest 16:09: „Die Umschaltung klappt sauber“): „Dynamisch“ statt „Auto“ (erst nach zwei schlechten Fenstern tiefer), Auflösung in der FPS-Anzeige, Einrasten L/R und B in der Komfortsteuerung auch für den Controller, Menüzeilen ohne Grundlinien-Ausrichtung, Gyro mit der Harpune, Shader-Liste 627 Programme |
 | 0.9.0-beta | 23.10.2026 (Branch `claude/re4-start-controls`, auch `performance` und `master`, versionCode 73, Releasetext `port/android-decomp/docs/releases/v0.9.0-beta.md`; Entscheidung des Projektinhabers: „Beta jetzt“, nachdem der SCV40-Tester das Spiel durchgespielt hat): erste Beta; seit 0.46.0 nur die Shader-Liste (1928 statt 627 Programme), Version, Releasetext und README (Status „Beta“). Alle 1928 Programme bauen auf Mesa ohne Fehler (mit und ohne MSAA). **Gerätetest der APK offen** |
-| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“), R4 (App-Import, vorgezogen) gebaut und am PC geprüft, Gerätetest offen. R7 (Sprachen, vorgezogen; Patches 0121–0123, „Game language“ im Ingame-Menü) gebaut und am PC mit allen fünf Sprachen geprüft, Gerätetest offen. Offen: R3, R5, R6, R8. Als **M13** in `CLAUDE.md` aufgenommen |
+| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“), R4 (App-Import, vorgezogen) gebaut und am PC geprüft, Gerätetest offen. R7 (Sprachen, vorgezogen; Patches 0121–0123, „Game language“ im Ingame-Menü) gebaut und am PC mit allen fünf Sprachen geprüft, Gerätetest offen. Offen: R3, R5, R6, R8. Als **M13** in `CLAUDE.md` aufgenommen **✅ abgeschlossen 27.10.2026** (zwei Kapitel EU-Discs auf Deutsch auf dem Retroid, Cheat-Menü; Reste in 10b, Abschnitt „M13 abgeschlossen“) |
 | Reihenfolge | Entscheidungen des Projektinhabers: erst M9 Videos und M10 Speichern/Laden (16.10.2026), dann **M11 vor dem Raum-Rundgang 10b** (17.10.2026: die APK soll an Tester gehen), dann **M12 ARM64 vor 10b** (17.10.2026: ein Tester hat ein Gerät nur für 64-bit-Apps). Gestrichen: Baum-Kollision in r100 (G17) |
 
 **Entscheidung des Projektinhabers (14.10.2026):** Endprodukt ist
