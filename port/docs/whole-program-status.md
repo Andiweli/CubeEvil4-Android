@@ -16,6 +16,10 @@ geprüfte Stand. Kein Branch gelöscht (Wunsch des Projektinhabers).
 dynamische Auflösung mit Warteregel, stärkere Vibration, aufleuchtende Cheat-Knöpfe). Bekanntes Problem nur noch
 „Unendlich Gesundheit“ gegen Sofort-Tode; One-Hit-Kill wirkte im Gerätetest auch bei Bossen (10b).
 
+**Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `e706c541`, das Zusammenführen) und EU-Discs mit `--room-info` (Stand
+`de7fcfb8`, die Version) je „ALLES OK“; Android-Kern beide ABIs 0 Fehler (Stand `de7fcfb8`), `CoreMenuLayoutTest` 7/7, APK
+`app-core-debug.apk` 19,3 MB, versionCode 77, `0.93.0-beta-core`. **Gerät:** Kurztest auf dem Retroid steht aus.
+
 
 ## Raum-Rundgang 10b mit beiden Disc-Arten (27.10.2026 nachmittags, lokal, Branch `retail-eu-testrun`)
 
