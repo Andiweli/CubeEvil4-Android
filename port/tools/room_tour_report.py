@@ -26,11 +26,13 @@ guard (ARC_CALL). Each is listed once with the rooms it came from.
 
     port/tools/room_tour_report.py DIR --rooms "100 101 ..." [--details FILE] [--json FILE]
         [--title TEXT]
-    port/tools/room_tour_report.py --compare A.json B.json [--names i686,aarch64]
+    port/tools/room_tour_report.py --compare A.json B.json [--names i686,aarch64] [--messages]
     port/tools/room_tour_report.py --merge NEW.json KEEP.json
 
---compare lists the rooms of B whose result differs from A (say i686 and aarch64); --merge puts the
-rooms of a tour into the kept results of its build, replacing only those rooms.
+--compare lists the rooms of B whose result differs from A (say i686 and aarch64); with --messages
+also the game's messages (pLog) that only one of the two gave, with their rooms (the debug and the
+European discs). --merge puts the rooms of a tour into the kept results of its build, replacing only
+those rooms.
 """
 
 import argparse
@@ -337,7 +339,7 @@ def report(results, out, details, title):
     return 1 if bad else 0
 
 
-def compare(a_path, b_path, names):
+def compare(a_path, b_path, names, messages=False):
     a = {r["room"]: r for r in json.loads(Path(a_path).read_text())}
     b = {r["room"]: r for r in json.loads(Path(b_path).read_text())}
     na, nb = names
@@ -359,6 +361,22 @@ def compare(a_path, b_path, names):
             print(f"  r{room}: {na}: {room_line(x)}")
             print(f"  {' ' * len(room)}  {nb}: {room_line(y)}")
     print(f"  {diff} Räume verschieden" if diff else "  alle Räume gleich beurteilt")
+    if messages:
+        # only the rooms both tours ran
+        both = [room for room in sorted(b) if room in a]
+        ga = {k: (line, rooms) for k, line, rooms in grouped([a[room] for room in both], "game")}
+        gb = {k: (line, rooms) for k, line, rooms in grouped([b[room] for room in both], "game")}
+        for x, y, name in ((gb, ga, nb), (ga, gb, na)):
+            rows = []
+            for k, (line, rooms) in x.items():
+                other = set(y.get(k, ("", []))[1])
+                only = [room for room in rooms if room not in other]
+                if only:
+                    rows.append((only, line))
+            rows.sort(key=lambda row: (-len(row[0]), row[1]))
+            print(f"  Meldungen des Spiels nur mit {name}: {len(rows)} verschiedene" + (":" if rows else ""))
+            for only, line in rows[:40]:
+                print(f"    [{len(only)} Räume: {rooms_text(only)}] {line[:300]}")
     return 1 if diff else 0
 
 
@@ -384,12 +402,13 @@ def main():
     ap.add_argument("--title", default="")
     ap.add_argument("--compare", nargs=2)
     ap.add_argument("--names", default="A,B")
+    ap.add_argument("--messages", action="store_true")
     ap.add_argument("--merge", nargs=2, metavar=("NEW", "KEEP"))
     args = ap.parse_args()
     if args.merge:
         return merge(*args.merge)
     if args.compare:
-        return compare(*args.compare, args.names.split(",", 1))
+        return compare(*args.compare, args.names.split(",", 1), args.messages)
     if not args.dir:
         ap.error("DIR fehlt")
     rooms = args.rooms.split() or sorted(p.stem[1:] for p in args.dir.glob("r*.meta"))

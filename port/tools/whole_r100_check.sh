@@ -43,6 +43,12 @@
 #              build folder whole-<target>-O2-san): AddressSanitizer stops at a
 #              bad memory access, UndefinedBehaviorSanitizer names undefined
 #              operations
+# --room-info FILE  the debug build's debug/roomInfo.dat, for a round of rooms with discs that lack
+#              it (the European ones): the debug start needs it for any room but r120 (patch 0119).
+#              The run reads a folder of links to the discs (WORK/disc-ri) that holds the file as
+#              well; the discs and the data folder stay as they are. The tour results are kept per
+#              release (rundgang-<target>[-eu].json) and a European tour is compared with the
+#              debug discs' one
 # --compare    the 32/64-bit comparison (milestone 12) instead of the normal steps: builds i686
 #              and x86_64, plays both with the same keys (start room as --room, default 120:
 #              the opening movie, the car ride, r100; 30000 frames unless --frames), records the
@@ -80,6 +86,7 @@ rooms=""
 tour_frames=6000
 tour_jobs=""
 tour_script="wander"
+room_info=""
 reload_weapon=""
 compare=0
 sanitize=0
@@ -105,6 +112,7 @@ while [ $# -gt 0 ]; do
     --tour-frames) tour_frames="$2"; shift 2 ;;
     --tour-jobs) tour_jobs="$2"; shift 2 ;;
     --tour-script) tour_script="$2"; shift 2 ;;
+    --room-info) room_info="$2"; shift 2 ;;
     --reload) reload_weapon="$2"; shift 2 ;;
     *) echo "unbekannte Angabe: $1" >&2; exit 2 ;;
     esac
@@ -254,6 +262,31 @@ fi
 if [ -z "$layout" ]; then
     say "FEHLER: In $data liegen weder entpackte Disc-Dateien (sys/, files/) noch Disc-Abbilder (.iso/.gcm)."
     exit 1
+fi
+# --room-info: a folder of links to the discs plus the debug build's debug/roomInfo.dat (the
+# European discs lack it; the debug start of the tour needs it), made again when its source changes
+if [ -n "$room_info" ] && [ -z "$(find "$layout"/disc*/files/Debug "$layout"/files/Debug -maxdepth 1         -iname roominfo.dat 2> /dev/null)" ]; then
+    if [ ! -f "$room_info" ] || [ ! -f "$layout/disc0/sys/fst.bin" ]; then
+        say "FEHLER: --room-info braucht die Datei ($room_info) und Discs in der Form disc0, disc1"
+        exit 1
+    fi
+    ri="$work/disc-ri"
+    ri_source="$(readlink -f "$layout") $(sha1sum < "$room_info" | cut -c1-40)"
+    if [ "$(cat "$ri/.source" 2> /dev/null)" != "$ri_source" ]; then
+        rm -rf "${ri:?}"
+        for d in "$layout"/disc*; do
+            n=${d##*/}
+            mkdir -p "$ri/$n/files/Debug"
+            ln -s "$(readlink -f "$d/sys")" "$ri/$n/sys"
+            for e in "$d"/files/*; do
+                case "${e##*/}" in [Dd][Ee][Bb][Uu][Gg]) continue ;; esac
+                ln -s "$(readlink -f "$e")" "$ri/$n/files/"
+            done
+            cp "$room_info" "$ri/$n/files/Debug/roomInfo.dat"
+        done
+        echo "$ri_source" > "$ri/.source"
+    fi
+    layout="$ri"; kind="$kind, dazu debug/roomInfo.dat für den Debug-Start ($room_info)"
 fi
 say "Form:    $kind"
 # which release the discs are (port/tools/disc_release.py, the same rule as runtime/dvd.cpp)
@@ -1376,10 +1409,19 @@ run_tour() {
     # the results of each build stay in the work folder, room by room (a tour of a few rooms
     # replaces only those); a tour of another target is compared with the i686 results (same keys,
     # so the same rooms should give the same result)
-    python3 "$src/port/tools/room_tour_report.py" --merge "$json" "$work/rundgang-$host$bsuf.json"
-    local ref="$work/rundgang-i686$opt.json"
+    # (per release: the European discs' results in rundgang-<target>-eu.json, compared with the
+    # debug discs' of the same target: the game's messages that only one release gives as well)
+    local rel_suffix=""
+    [ "$release" = retail-eu ] && rel_suffix="-eu"
+    python3 "$src/port/tools/room_tour_report.py" --merge "$json" "$work/rundgang-$host$bsuf$rel_suffix.json"
+    local ref="$work/rundgang-i686$opt$rel_suffix.json"
     if [ "$host$bsuf" != "i686$opt" ] && [ -f "$ref" ]; then
         python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "i686,$host$bsuf" |
+            tee -a "$report"
+    fi
+    ref="$work/rundgang-$host$bsuf.json"
+    if [ -n "$rel_suffix" ] && [ -f "$ref" ]; then
+        python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "debug,eu" --messages |
             tee -a "$report"
     fi
     if [ -s "$run/rundgang-einzelheiten.txt" ]; then
