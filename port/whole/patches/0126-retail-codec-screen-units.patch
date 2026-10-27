@@ -1,0 +1,127 @@
+# Retail data (port/docs/retail-eu-plan.md, R3): the radio screen with the European discs, as the European
+# code has it. (1) SubScreenExec sets four shared id tables of ss_cmmn.dat (pesetas, main menu, etc.,
+# background) for every sub screen and hides them for the radio screen (open_flag 0x20), whose IdSub has
+# 128 units; the European tables are larger and the radio's own units, the dark bar behind the subtitle
+# among them, found no room ("IDSystem::set() work full"). The European SubScreenExec (main.dol
+# 0x8005a920) does not set them for the radio screen, the European SsTermMain::init no main menu either.
+# (2) The European radio table (ss_term.dat sub-file 9, 78 units instead of 46) has three more picture
+# groups, 0x15..0x17, at the partner's picture; the European init hides them (0x16 not for call 14) and
+# OpeMesMove switches them, and 0x12, at a frame of calls 13, 14, 15 and 17. Without (2) they lay over
+# Hunnigan as soon as (1) gave them room (device and PC, 27.10.2026). Found with port/tools/retail_code.py
+# in the European Sscrn.rel (SsTermMain::init, OpeMesMove; frames from its data section 20 +0x1200).
+# Nothing changes with the debug build's discs. A port patch for retail data.
+--- a/src/game/sscrn.cpp
++++ b/src/game/sscrn.cpp
+@@ -313,6 +313,8 @@
+ // heap swapped to ARAM and the sub screen data swapped in (MemorySwap), fonts and shared id data
+ // set up for the screen type, the Sscrn REL linked, then TaskChain into its prolog (the DLL runs
+ // the screen and calls SubScreenExit when done).
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ void SubScreenExec()
+ {
+     SubScreenWork* wk = &SubScreenWk;
+@@ -471,12 +473,18 @@
+             } else {
+                 IdNum.gameInit(0x1B2);
+             }
++            /* port: the radio screen (0x20) hides these four tables at once; the European
++               SubScreenExec (main.dol 0x8005a920) does not set them for it. Their European versions
++               are larger: set, they filled the radio screen's 128 units ("IDSystem::set() work full")
++               and its subtitle bar found no room */
++            if (wk->open_flag != 0x20 || !re4_disc_retail_eu()) {
+             IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 7), 0xFF, IDC_SSCRN_PESETA, 0x13, 7, 0);
+             if (!(wk->open_flag & 0x10)) {
+                 IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 0xB), 0xFF, IDC_SSCRN_MAIN_MENU, 0xF, 0, 0);
+             }
+             IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 0x11), 0xFF, IDC_SSCRN_ETC, 0x13, 9, 0);
+             IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 9), 0xFF, IDC_SSCRN_BACK_GROUND, 9, 3, 0);
++            }
+             switch (wk->open_flag) {
+             case 2:
+                 IdSys.dispSw(IDC_LIFE_METER, 0);
+--- a/src/Sscrn/ss_term.cpp
++++ b/src/Sscrn/ss_term.cpp
+@@ -518,6 +518,48 @@
+ // then plays the talking motions and shows the frame units; fires every OpeMesSeq entry whose time
+ // has come (OpeSeqMove). B (Key bit 18) skips: the stream stops and A/B step the remaining entries
+ // by hand. Returns 1 when the sequence ended (arg == -1 entry).
++/* port: the European radio screen (ss/<lang>/ss_term.dat sub-file 9) has three more picture groups,
++   units 0x15, 0x16 and 0x17 (partner pictures of calls 14 and 15), and the European Sscrn.rel switches
++   them, and 0x12, at a frame of the call: call 13 shows 0x12 at frame 600, call 14 swaps 0x16 for
++   0x15 at frame 5, call 15 shows 0x17 at frame 1215, call 17 shows 0x12 at frame 444 (the table of
++   the European data section 20 +0x1200, OpeMesMove after seqCnt++). */
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
++static void termRetailShow(u8 mark)
++{
++    ID_UNIT* u = IdSub.unitPtr(mark, IDC_SSCRN_NEAR_0);
++    u->be_flag |= 8;
++    u->rev_flag &= 0xF0;
++    IdSub.setTime(u, 0);
++}
++
++static void termRetailPictures(int frame)
++{
++    switch (SubScreenWk.opeMdtNo) {
++    case 13:
++        if (frame == 600) {
++            termRetailShow(0x12);
++        }
++        break;
++    case 14:
++        if (frame == 5) {
++            IdSub.unitPtr(0x16, IDC_SSCRN_NEAR_0)->be_flag &= ~8;
++            termRetailShow(0x15);
++        }
++        break;
++    case 15:
++        if (frame == 1215) {
++            termRetailShow(0x17);
++        }
++        break;
++    case 17:
++        if (frame == 444) {
++            termRetailShow(0x12);
++        }
++        break;
++    }
++}
++
+ int SsTermMain::OpeMesMove()
+ {
+     if (ope.seqCnt == 0 && ope.str == 0) {
+@@ -564,6 +606,9 @@
+             }
+         }
+         ope.seqCnt++;
++        if (re4_disc_retail_eu()) {
++            termRetailPictures(ope.seqCnt);
++        }
+     } else {
+         if ((Key.trg & 0x80000) || (Key.trg & 0x40000)) {
+             if (OpeSeqMove(&ope.seq[ope.seqIdx]) == 0) {
+@@ -842,7 +887,22 @@
+     u = IdSub.unitPtr(0x14, IDC_SSCRN_NEAR_0);
+     u->be_flag &= ~8;
+     u->rev_flag |= 0xF;
+-    sscrnMainMenuInit(wk, 0);
++    /* port: the European init (Sscrn.rel) hides the three new picture groups too (0x16 not for call
++       14, which starts with it) and sets no main menu; shown, 0x15..0x17 lay over the partner's picture
++       (Hunnigan missing, 27.10.2026) */
++    if (re4_disc_retail_eu()) {
++        static const u8 hide[3] = {0x15, 0x16, 0x17};
++        for (int i = 0; i < 3; i++) {
++            if (hide[i] == 0x16 && wk->opeMdtNo == 14) {
++                continue;
++            }
++            u = IdSub.unitPtr(hide[i], IDC_SSCRN_NEAR_0);
++            u->be_flag &= ~8;
++            u->rev_flag |= 0xF;
++        }
++    } else {
++        sscrnMainMenuInit(wk, 0);
++    }
+     x10 = 0;
+     if (pSys->language == 0) {
+         cMes.setupFont(0x1C, 0x1C, (u8*) SS_ARC_PTR(wk->pTermDat, 4), 3);
