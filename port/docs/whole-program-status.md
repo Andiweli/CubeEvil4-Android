@@ -55,7 +55,7 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
 EU-Discs i686 (Stand `b744b0d8`) je „ALLES OK“ (die Filmprüfung folgt jetzt den Verweisen des `disc-ri`-Ordners, ein erster
-Lauf fand dort keine Filme); Rundgänge wie oben; ARM32-Kern unter qemu, Speicherkarte mit EU-Discs: ARMHF_ERGEBNIS.
+Lauf fand dort keine Filme); Rundgänge wie oben; ARM32-Kern unter qemu-arm, Speicherkarte mit den unveränderten EU-Discs (`--armhf --card-only`, Stand `e1b1fd9e`; die Kartenprüfung startet die ARM-Ziele jetzt unter qemu, vorher scheiterte schon das Formatieren): Systemdatei, Speichern in r100, Neustart, Laden, „Retry“ – „ALLES OK“.
 Android-Kern beide ABIs 0 Fehler (Stand `152fdc2c`), APK `app-core-debug.apk` 19,2 MB mit beiden ABIs (0.92.0-beta-core,
 App-Code unverändert). **Nicht geprüft:** Gerät (Englisch ohne „14-09LE“, Bosskämpfe mit Cheats, Speichern/Laden mit ARM32,
 der Händler nach dem Umzug im Spiel).
