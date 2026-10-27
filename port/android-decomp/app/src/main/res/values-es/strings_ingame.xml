@@ -167,4 +167,23 @@
     <string name="ingame_cheat_no_room">No hay sitio en el maletín.</string>
     <string name="ingame_cheat_queued">Se hará en cuanto el juego siga.</string>
     <string name="ingame_cheat_unsupported">Este núcleo del juego no tiene trucos.</string>
+    <string name="ingame_controller_config">Configuración del mando</string>
+    <string name="ingame_controller_config_help">Configuración del mando: asigna cada función del juego a cualquier botón de tu mando. Solo con un mando conectado.</string>
+    <string name="ingame_controller_press">Pulsa un botón…</string>
+    <string name="ingame_controller_default">Configuración predeterminada</string>
+    <string name="ingame_controller_help">Elige el botón de una función y pulsa el nuevo botón en el mando. Si otra función tenía ese botón, se intercambian. Pulsa el mismo botón otra vez para conservar el anterior.</string>
+    <string name="ingame_controller_alternate_note">Los controles alternativos están activados: esta asignación se aplica cuando estén desactivados.</string>
+    <string name="ingame_fn_action">Acción / Disparar (A)</string>
+    <string name="ingame_fn_run">Correr / Cancelar (B)</string>
+    <string name="ingame_fn_ashley">Ashley: Esperar / Seguir (X)</string>
+    <string name="ingame_fn_inventory">Inventario (Y)</string>
+    <string name="ingame_fn_map">Mapa (Z)</string>
+    <string name="ingame_fn_knife">Cuchillo (L)</string>
+    <string name="ingame_fn_aim">Apuntar (R)</string>
+    <string name="ingame_fn_start">Opciones / Saltar (START)</string>
+    <string name="ingame_fn_up">Cruceta arriba</string>
+    <string name="ingame_fn_down">Cruceta abajo</string>
+    <string name="ingame_fn_left">Cruceta izquierda</string>
+    <string name="ingame_fn_right">Cruceta derecha</string>
+    <string name="ingame_fn_menu">Menú de la app (SELECT)</string>
 </resources>

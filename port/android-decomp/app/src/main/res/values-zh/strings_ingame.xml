@@ -166,4 +166,23 @@
     <string name="ingame_cheat_no_room">手提箱里没有空位。</string>
     <string name="ingame_cheat_queued">游戏继续后就会完成。</string>
     <string name="ingame_cheat_unsupported">这个游戏核心没有作弊功能。</string>
+    <string name="ingame_controller_config">手柄配置</string>
+    <string name="ingame_controller_config_help">手柄配置：将游戏的每个功能设置到手柄的任意按键上。仅在连接手柄时可用。</string>
+    <string name="ingame_controller_press">请按下按键…</string>
+    <string name="ingame_controller_default">默认配置</string>
+    <string name="ingame_controller_help">选择某个功能的按钮，然后在手柄上按下新的按键。如果该按键已属于其他功能，两者会互换。再按一次同一按钮则保留原按键。</string>
+    <string name="ingame_controller_alternate_note">替代操作已开启：关闭后此配置才会生效。</string>
+    <string name="ingame_fn_action">动作 / 射击 (A)</string>
+    <string name="ingame_fn_run">奔跑 / 取消 (B)</string>
+    <string name="ingame_fn_ashley">阿什莉：等待 / 跟随 (X)</string>
+    <string name="ingame_fn_inventory">物品栏 (Y)</string>
+    <string name="ingame_fn_map">地图 (Z)</string>
+    <string name="ingame_fn_knife">小刀 (L)</string>
+    <string name="ingame_fn_aim">瞄准 (R)</string>
+    <string name="ingame_fn_start">选项 / 跳过 (START)</string>
+    <string name="ingame_fn_up">方向键上</string>
+    <string name="ingame_fn_down">方向键下</string>
+    <string name="ingame_fn_left">方向键左</string>
+    <string name="ingame_fn_right">方向键右</string>
+    <string name="ingame_fn_menu">应用菜单 (SELECT)</string>
 </resources>

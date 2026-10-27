@@ -168,4 +168,23 @@
     <string name="ingame_cheat_no_room">В кейсе нет места.</string>
     <string name="ingame_cheat_queued">Будет сделано, как только игра продолжится.</string>
     <string name="ingame_cheat_unsupported">В этом ядре игры нет читов.</string>
+    <string name="ingame_controller_config">Настройка контроллера</string>
+    <string name="ingame_controller_config_help">Настройка контроллера: назначьте любую функцию игры на любую кнопку контроллера. Только с подключённым контроллером.</string>
+    <string name="ingame_controller_press">Нажмите кнопку…</string>
+    <string name="ingame_controller_default">Стандартная раскладка</string>
+    <string name="ingame_controller_help">Выберите кнопку функции, затем нажмите новую кнопку на контроллере. Если эта кнопка была у другой функции, они поменяются. Повторное нажатие той же кнопки оставляет старую.</string>
+    <string name="ingame_controller_alternate_note">Альтернативное управление включено: эта раскладка действует, когда оно выключено.</string>
+    <string name="ingame_fn_action">Действие / выстрел (A)</string>
+    <string name="ingame_fn_run">Бег / отмена (B)</string>
+    <string name="ingame_fn_ashley">Эшли: ждать / следовать (X)</string>
+    <string name="ingame_fn_inventory">Инвентарь (Y)</string>
+    <string name="ingame_fn_map">Карта (Z)</string>
+    <string name="ingame_fn_knife">Нож (L)</string>
+    <string name="ingame_fn_aim">Прицеливание (R)</string>
+    <string name="ingame_fn_start">Настройки / пропуск (START)</string>
+    <string name="ingame_fn_up">Крестовина вверх</string>
+    <string name="ingame_fn_down">Крестовина вниз</string>
+    <string name="ingame_fn_left">Крестовина влево</string>
+    <string name="ingame_fn_right">Крестовина вправо</string>
+    <string name="ingame_fn_menu">Меню приложения (SELECT)</string>
 </resources>

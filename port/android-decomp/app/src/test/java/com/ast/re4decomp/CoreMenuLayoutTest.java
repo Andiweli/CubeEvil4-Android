@@ -96,7 +96,7 @@ public class CoreMenuLayoutTest {
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         View root = (View) field(menu, "root");
         root.setLayoutDirection(config.getLayoutDirection());
-        for (int page = 0; page < 5; page++) {
+        for (int page = 0; page < 6; page++) {  // 5: the controller configuration
           show.invoke(menu, page, false);
           if (page == 0) metadata.invoke(menu, (Object) new long[] {0, 1, 1, 1, 0x100, 101, 123456, 1792841040});
           if (page == 4) {
@@ -170,6 +170,11 @@ public class CoreMenuLayoutTest {
       String[] labels = {activity.getString(R.string.ingame_dynamic), "1×", "2×", "3×", "4×", "1.5×", "2.5×", "3.5×"};
       for (int i = 0; i < 8; i++) assertEquals(labels[i], ((Button) keys.getChildAt(i)).getText().toString());
       assertTrue("3x chosen before stays chosen", keys.getChildAt(3).isSelected());
+      for (int i = 1; i < 8; i++) {
+        Button key = (Button) keys.getChildAt(i), first = (Button) keys.getChildAt(0);
+        assertEquals("the same text size on every key", first.getTextSize(), key.getTextSize(), 0.01f);
+        assertEquals("the same typeface on every key", first.getTypeface(), key.getTypeface());
+      }
       View[] k = new View[8];
       for (int i = 0; i < 8; i++) k[i] = keys.getChildAt(i);
       for (int i = 1; i < 5; i++) assertEquals("the whole levels in one row", k[0].getTop(), k[i].getTop());
@@ -186,6 +191,60 @@ public class CoreMenuLayoutTest {
       assertEquals(3, CoreMenu.scaleHalves(g));
       assertTrue(k[5].isSelected()); assertFalse(k[3].isSelected());
       assertEquals(1, changed[0]);
+    }
+  }
+
+  @Test public void controllerConfigurationAssignsAKeyAndSwaps() throws Exception {
+    final int[][] sent = {null};
+    final boolean[] controller = {false};
+    final int[] calls = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("bindingsChanged")) { sent[0] = (int[]) args[0]; calls[0]++; }
+          if (method.getName().equals("controllerConnected")) return controller[0];
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+        });
+    try (var controllerActivity = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controllerActivity.get();
+      activity.getSharedPreferences(CoreActivity.INPUT_PREFS, 0).edit().clear().apply();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      // on the controls page, at the bottom: only with a controller
+      show.invoke(menu, 2, false);
+      Button open = (Button) field(menu, "controllerButton");
+      assertNotNull(open);
+      assertFalse("without a controller", open.isEnabled());
+      controller[0] = true;
+      show.invoke(menu, 2, false);
+      open = (Button) field(menu, "controllerButton");
+      assertTrue("with a controller", open.isEnabled());
+      assertTrue(open.getText().toString().startsWith(activity.getString(R.string.ingame_controller_config)));
+      open.performClick();
+      Button[] keys = (Button[]) field(menu, "bindingButtons");
+      assertEquals(13, keys.length);
+      assertEquals("A", keys[CoreInput.F_A].getText().toString());
+      assertEquals("R1", keys[CoreInput.F_Z].getText().toString());
+      assertEquals("SELECT", keys[CoreInput.F_MENU].getText().toString());
+      // the map (Z) on Y: inventory (Y) takes R1
+      keys[CoreInput.F_Z].performClick();
+      assertEquals(activity.getString(R.string.ingame_controller_press), keys[CoreInput.F_Z].getText().toString());
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_Y));
+      assertTrue("the release is swallowed", menu.dispatchKeyEvent(
+          new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_BUTTON_Y)));
+      assertEquals(1, calls[0]);
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_Y, sent[0][CoreInput.F_Z]);
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_R1, sent[0][CoreInput.F_Y]);
+      assertEquals("Y", keys[CoreInput.F_Z].getText().toString());
+      assertEquals("R1", keys[CoreInput.F_Y].getText().toString());
+      // the same button twice: nothing changes
+      keys[CoreInput.F_A].performClick(); keys[CoreInput.F_A].performClick();
+      assertEquals("A", keys[CoreInput.F_A].getText().toString());
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_X));
+      assertEquals(1, calls[0]);
+      // back goes to the controls page
+      Method back = CoreMenu.class.getDeclaredMethod("goBack"); back.setAccessible(true);
+      back.invoke(menu);
+      assertEquals(2, (int) (Integer) field(menu, "page"));
     }
   }
 

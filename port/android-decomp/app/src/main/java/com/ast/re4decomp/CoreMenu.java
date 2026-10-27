@@ -54,6 +54,10 @@ final class CoreMenu extends Dialog {
     void gyroChanged(boolean on);
     /** The switch "Alternate Controls" (the preferences hold it). */
     void alternateChanged(boolean on);
+    /** The controller configuration's own bindings (CoreInput; null: the default layout); the host keeps them. */
+    void bindingsChanged(int[] bindings);
+    /** A physical game controller is connected (the controller configuration can be used). */
+    boolean controllerConnected();
     /** The comfort control "Latch L and R", touch and controller (the preferences hold it). */
     void latchChanged(boolean on);
     /** The comfort control "Latch B", touch and controller (the preferences hold it). */
@@ -78,7 +82,7 @@ final class CoreMenu extends Dialog {
   }
 
   private interface Changed<T> { void accept(T value); }
-  private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4;
+  private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4, CONTROLLER = 5;
   private static final long CHEAT_FLASH_MS = 1500;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
@@ -92,8 +96,12 @@ final class CoreMenu extends Dialog {
   private final TextView title;
   private final Button back, resume;
   private final Handler main = new Handler(Looper.getMainLooper());
-  private final int[] scrollY = new int[5];
+  private final int[] scrollY = new int[6];
   private final Button[] navigation = new Button[5];
+  // the controller configuration: the button of each function, the function waiting for its new key (-1: none)
+  private Button[] bindingButtons;
+  private Button controllerButton;
+  private int capturing = -1, assignedKey = -1;  // assignedKey: its release is swallowed too
   private int page, requestSerial;
   private boolean working, slotPresent;
   private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus;
@@ -304,9 +312,10 @@ final class CoreMenu extends Dialog {
     if (working) return;
     scrollY[page] = scroll.getScrollY(); page = next; ++requestSerial;
     body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null; cheatStatus = null;
+    bindingButtons = null; controllerButton = null; capturing = -1;
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
     int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_controls_page,
-        R.string.ingame_performance, R.string.ingame_management};
+        R.string.ingame_performance, R.string.ingame_management, R.string.ingame_controller_config};
     if (page == HOME && version() != null) {
       SpannableStringBuilder t = new SpannableStringBuilder(s(titles[page]));
       int start = t.length(); t.append(" (v").append(version()).append(")");
@@ -315,7 +324,7 @@ final class CoreMenu extends Dialog {
       title.setText(t);
     } else title.setText(s(titles[page]));
     if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == CONTROLS) controls();
-    else if (page == PERFORMANCE) performance(); else management();
+    else if (page == PERFORMANCE) performance(); else if (page == CONTROLLER) controller(); else management();
     separator(body);
     TextView footer = text(s(R.string.ingame_navigation), 14, false);
     footer.setPadding(0, dp(8), 0, 0); body.addView(footer);
@@ -327,7 +336,11 @@ final class CoreMenu extends Dialog {
   private void goBack() {
     if (working) return;
     if (page == HOME) close();
-    else {
+    else if (page == CONTROLLER) {
+      // back to the controls, on the button that opened it
+      showPage(CONTROLS, false);
+      main.post(() -> { if (controllerButton != null) controllerButton.requestFocus(); });
+    } else {
       int from = page; showPage(HOME, false);
       main.post(() -> { if (navigation[from] != null) navigation[from].requestFocus(); });
     }
@@ -486,6 +499,111 @@ final class CoreMenu extends Dialog {
         value -> host.gyroInvertChanged(false, value));
     for (Button b : invert) b.setEnabled(on);
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_knife_swipe_help);
+    // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller
+    controllerButton = cellAction(buttonsRow(body), s(R.string.ingame_controller_config) + "   ›",
+        v -> showPage(CONTROLLER, true));
+    controllerButton.setEnabled(host != null && host.controllerConnected());
+    help(R.string.ingame_controller_config_help);
+  }
+
+  /** The functions of the controller configuration, in CoreInput's order (F_A .. F_MENU). */
+  private static final int[] FUNCTION_LABELS = {R.string.ingame_fn_action, R.string.ingame_fn_run,
+      R.string.ingame_fn_ashley, R.string.ingame_fn_inventory, R.string.ingame_fn_map, R.string.ingame_fn_knife,
+      R.string.ingame_fn_aim, R.string.ingame_fn_start, R.string.ingame_fn_up, R.string.ingame_fn_down,
+      R.string.ingame_fn_left, R.string.ingame_fn_right, R.string.ingame_fn_menu};
+
+  /** The bindings in the preferences (the default layout without own ones). */
+  private int[] bindings() {
+    int[] b = CoreInput.decode(input.getString(CoreActivity.BINDINGS, null));
+    return b == null ? CoreInput.defaultBindings() : b;
+  }
+
+  /** A key's name on its button: the controller's labels, the D-pad as arrows, else Android's name. */
+  static String keyName(int keyCode) {
+    switch (keyCode) {
+      case KeyEvent.KEYCODE_BUTTON_A: return "A";
+      case KeyEvent.KEYCODE_BUTTON_B: return "B";
+      case KeyEvent.KEYCODE_BUTTON_X: return "X";
+      case KeyEvent.KEYCODE_BUTTON_Y: return "Y";
+      case KeyEvent.KEYCODE_BUTTON_L1: return "L1";
+      case KeyEvent.KEYCODE_BUTTON_R1: return "R1";
+      case KeyEvent.KEYCODE_BUTTON_L2: return "L2";
+      case KeyEvent.KEYCODE_BUTTON_R2: return "R2";
+      case KeyEvent.KEYCODE_BUTTON_THUMBL: return "L3";
+      case KeyEvent.KEYCODE_BUTTON_THUMBR: return "R3";
+      case KeyEvent.KEYCODE_BUTTON_START: return "START";
+      case KeyEvent.KEYCODE_BUTTON_SELECT: return "SELECT";
+      case KeyEvent.KEYCODE_DPAD_UP: return "✚ ↑";
+      case KeyEvent.KEYCODE_DPAD_DOWN: return "✚ ↓";
+      case KeyEvent.KEYCODE_DPAD_LEFT: return "✚ ←";
+      case KeyEvent.KEYCODE_DPAD_RIGHT: return "✚ →";
+      default: return KeyEvent.keyCodeToString(keyCode).replace("KEYCODE_BUTTON_", "").replace("KEYCODE_", "");
+    }
+  }
+
+  /**
+   * "Controller configuration": each function of the game on the left, its key on the right; a press
+   * on that button waits for the next key of the controller (a second press: no change). A key another
+   * function had swaps with it (CoreInput.assign).
+   */
+  private void controller() {
+    if (input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
+    int[] current = bindings();
+    bindingButtons = new Button[FUNCTION_LABELS.length];
+    for (int f = 0; f < FUNCTION_LABELS.length; f++) {
+      final int function = f;
+      LinearLayout line = new MenuLayout.Columns(getContext(), -170, 420, false);
+      line.addView(rowLabel(s(FUNCTION_LABELS[f])));
+      MenuLayout.Buttons box = new MenuLayout.Buttons(getContext(), 1);
+      line.addView(box);
+      bindingButtons[f] = cellAction(box, keyName(current[f]), v -> capture(function));
+      line.setPadding(0, dp(1), 0, dp(1)); body.addView(line);
+    }
+    cellAction(buttonsRow(body), s(R.string.ingame_controller_default), v -> {
+      capturing = -1; host.bindingsChanged(null); showBindings(CoreInput.defaultBindings());
+    });
+    help(R.string.ingame_controller_help);
+  }
+
+  private void capture(int function) {
+    int was = capturing;
+    showBindings(bindings());
+    capturing = was == function ? -1 : function;  // the same button again: no change
+    if (capturing >= 0) {
+      bindingButtons[function].setText(s(R.string.ingame_controller_press));
+      bindingButtons[function].setSelected(true);
+    }
+  }
+
+  private void showBindings(int[] b) {
+    capturing = -1;
+    if (bindingButtons == null) return;
+    for (int f = 0; f < bindingButtons.length; f++) {
+      bindingButtons[f].setText(keyName(b[f]));
+      bindingButtons[f].setSelected(false);
+    }
+  }
+
+  /** While a function waits: a key of the controller becomes its key (consumed). */
+  private boolean captured(KeyEvent event) {
+    int key = event.getKeyCode();
+    if (key == assignedKey && event.getAction() == KeyEvent.ACTION_UP) {
+      assignedKey = -1;
+      return true;
+    }
+    if (capturing < 0 || page != CONTROLLER || key == KeyEvent.KEYCODE_BACK) return false;
+    boolean pad = KeyEvent.isGamepadButton(key) || key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN
+        || key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT;
+    if (!pad) return false;
+    if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+      int function = capturing;
+      int[] b = CoreInput.assign(bindings(), function, key);
+      host.bindingsChanged(b);
+      showBindings(b);
+      assignedKey = key;
+      bindingButtons[function].requestFocus();
+    }
+    return true;
   }
   private void performance() {
     heading(R.string.ingame_force_performance);
@@ -764,6 +882,7 @@ final class CoreMenu extends Dialog {
     super.onStop();
   }
   @Override public boolean dispatchKeyEvent(KeyEvent event) {
+    if (captured(event)) return true;
     int key = event.getKeyCode();
     if (key == KeyEvent.KEYCODE_BUTTON_B || key == KeyEvent.KEYCODE_BACK) {
       if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) goBack(); return true;

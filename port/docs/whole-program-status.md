@@ -86,6 +86,30 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   speichert 3; alle Seiten in 10 Sprachen, 3 Schriftgrößen, 5 Breiten ohne Überlappung); Texte 10 Sprachen ok
   (`ingame_resolution_line`: die Stufe als Text `%3$s`); APK gebaut. **Nicht geprüft:** Gerät (Bild bei 1,5×/2,5×/3,5×,
   Dynamisch in halben Schritten am See).
+- **Gerätetest (Retroid, 64 bit, 27.10.2026 16:47, Bericht `senden.zip`):** Dynamisch ging im Regen (r117/r118, Nacht) von 2× auf
+  1,5× (`22.0 game pictures/s … the render thread waiting 33.0 ms a chunk`) und blieb dort, solange es regnete (Projektinhaber).
+  Im Regen 650–1 080 Zeichenaufträge je Bild statt ~180, ~2 200 Uniform-Blöcke (2,2 MB), 9 Bildkopien, mit 4× MSAA; der
+  Renderer rechnet 7–8 ms und wartet den Rest auf den Grafikchip (die GPU-Zeitmessung ist mit 4× MSAA auf dem Adreno unbrauchbar:
+  1 154 ms). **Offen:** wo genau die Zeit im Regen liegt (GX-Serie per R3 im Regen, GPU-Messreihe), mögliche Schritte:
+  durchsichtige Partikel mit weniger Abtastpunkten, weniger Auflösungen des MSAA-Puffers für die Kopien, Zeichenaufträge
+  zusammenfassen. Die Schrift der Auflösungs-Knöpfe ist überall gleich (16 sp fett; im Test nun geprüft), der Eindruck kommt
+  von den längeren Texten.
+- **Controller-Konfiguration (Wunsch des Projektinhabers, 27.10.2026):** Menü → Steuerung, ganz unten „Controller-Konfiguration ›“
+  (nur bedienbar mit angeschlossenem Controller: `CoreActivity.gameDevice`). Die Seite listet 13 Funktionen (Aktion/Schießen A,
+  Rennen/Abbrechen B, Ashley X, Inventar Y, Karte Z, Messer L, Zielen R, Optionen/Überspringen START, Steuerkreuz ↑↓←→,
+  App-Menü SELECT), rechts je ein Knopf mit der Taste; ein Druck wartet auf die nächste Controller-Taste („Taste drücken …“),
+  derselbe Knopf noch einmal lässt alles, wie es war. Hatte eine andere Funktion die Taste, tauschen die beiden
+  (`CoreInput.assign`: jede Funktion behält eine Taste). „Standardbelegung“ stellt zurück. Gespeichert als `bindings` in
+  `core_input` (fehlt bei der Standardbelegung). `CoreInput`: mit eigener Belegung ein eigener Weg (gehaltene Tasten je
+  Gerät, Steuerkreuz der Hat-Achsen als Steuerkreuz-Tasten; L und R auf L2/R2 analog, andere Funktionen auf einem Trigger ab
+  halbem Druck; „L und R / B einrasten“ wirken weiter; das App-Menü auf seiner Taste, R3 nimmt Grafikdaten nur, wenn keine
+  Funktion darauf liegt), ohne eigene Belegung der bisherige Weg unverändert. Mit der alternativen Steuerung gilt deren feste
+  Belegung (Hinweis auf der Seite). Protokoll: `layout: own bindings (controller configuration): A = BUTTON_A, …`. 19 neue
+  Texte in 10 Sprachen. **Geprüft:** `CoreInputTests` 172 Prüfungen (neu: Tausch, Trigger mit Schwelle, L analog, Hat als
+  Steuerkreuz, Menü auf L1, R3 mit Funktion, alternative Steuerung geht vor, Einrasten), `CoreMenuLayoutTest` 6/6 (neu:
+  Knopf nur mit Controller, Zuweisen mit Tausch, Loslassen geschluckt, zweimal derselbe Knopf, Zurück zur Steuerung; die
+  neue Seite in 10 Sprachen, 3 Schriftgrößen, 5 Breiten ohne Überlappung), Texte 10 Sprachen ok, APK gebaut. **Nicht
+  geprüft:** Gerät.
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte

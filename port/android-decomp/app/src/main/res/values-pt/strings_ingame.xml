@@ -168,4 +168,23 @@
     <string name="ingame_cheat_no_room">Sem espaço na maleta.</string>
     <string name="ingame_cheat_queued">Será feito assim que o jogo continuar.</string>
     <string name="ingame_cheat_unsupported">Este núcleo do jogo não tem trapaças.</string>
+    <string name="ingame_controller_config">Configuração do controle</string>
+    <string name="ingame_controller_config_help">Configuração do controle: coloque cada função do jogo em qualquer botão do seu controle. Só com um controle conectado.</string>
+    <string name="ingame_controller_press">Pressione um botão…</string>
+    <string name="ingame_controller_default">Configuração padrão</string>
+    <string name="ingame_controller_help">Escolha o botão de uma função e pressione o novo botão no controle. Se outra função tinha esse botão, as duas trocam. Pressione o mesmo botão de novo para manter o anterior.</string>
+    <string name="ingame_controller_alternate_note">Os controles alternativos estão ativados: esta configuração vale quando estiverem desativados.</string>
+    <string name="ingame_fn_action">Ação / Atirar (A)</string>
+    <string name="ingame_fn_run">Correr / Cancelar (B)</string>
+    <string name="ingame_fn_ashley">Ashley: Esperar / Seguir (X)</string>
+    <string name="ingame_fn_inventory">Inventário (Y)</string>
+    <string name="ingame_fn_map">Mapa (Z)</string>
+    <string name="ingame_fn_knife">Faca (L)</string>
+    <string name="ingame_fn_aim">Mirar (R)</string>
+    <string name="ingame_fn_start">Opções / Pular (START)</string>
+    <string name="ingame_fn_up">Direcional para cima</string>
+    <string name="ingame_fn_down">Direcional para baixo</string>
+    <string name="ingame_fn_left">Direcional para a esquerda</string>
+    <string name="ingame_fn_right">Direcional para a direita</string>
+    <string name="ingame_fn_menu">Menu do app (SELECT)</string>
 </resources>

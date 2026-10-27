@@ -181,4 +181,23 @@
     <string name="ingame_cheat_no_room">No room in the attaché case.</string>
     <string name="ingame_cheat_queued">Will be done as soon as the game runs.</string>
     <string name="ingame_cheat_unsupported">This game core has no cheats.</string>
+    <string name="ingame_controller_config">Controller Configuration</string>
+    <string name="ingame_controller_config_help">Controller Configuration: put every function of the game on any button of your controller. Only with a controller connected.</string>
+    <string name="ingame_controller_press">Press a button…</string>
+    <string name="ingame_controller_default">Default Layout</string>
+    <string name="ingame_controller_help">Choose a function\'s button, then press the new button on the controller. A button another function had swaps with it. Press the same button again to keep the old one.</string>
+    <string name="ingame_controller_alternate_note">Alternate Controls are on: this layout applies once they are off.</string>
+    <string name="ingame_fn_action">Action / Fire (A)</string>
+    <string name="ingame_fn_run">Run / Cancel (B)</string>
+    <string name="ingame_fn_ashley">Ashley: Wait / Follow (X)</string>
+    <string name="ingame_fn_inventory">Inventory (Y)</string>
+    <string name="ingame_fn_map">Map (Z)</string>
+    <string name="ingame_fn_knife">Knife (L)</string>
+    <string name="ingame_fn_aim">Aim (R)</string>
+    <string name="ingame_fn_start">Options / Skip (START)</string>
+    <string name="ingame_fn_up">D-Pad Up</string>
+    <string name="ingame_fn_down">D-Pad Down</string>
+    <string name="ingame_fn_left">D-Pad Left</string>
+    <string name="ingame_fn_right">D-Pad Right</string>
+    <string name="ingame_fn_menu">App Menu (SELECT)</string>
 </resources>

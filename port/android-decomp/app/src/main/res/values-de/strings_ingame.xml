@@ -166,4 +166,23 @@
     <string name="ingame_cheat_no_room">Kein Platz im Aktenkoffer.</string>
     <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
     <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
+    <string name="ingame_controller_config">Controller-Konfiguration</string>
+    <string name="ingame_controller_config_help">Controller-Konfiguration: jede Funktion des Spiels auf eine beliebige Taste deines Controllers legen. Nur mit angeschlossenem Controller.</string>
+    <string name="ingame_controller_press">Taste drücken …</string>
+    <string name="ingame_controller_default">Standardbelegung</string>
+    <string name="ingame_controller_help">Den Knopf einer Funktion wählen, dann die neue Taste am Controller drücken. Hatte eine andere Funktion diese Taste, tauschen die beiden. Denselben Knopf noch einmal drücken behält die alte Taste.</string>
+    <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: diese Belegung gilt, sobald sie aus ist.</string>
+    <string name="ingame_fn_action">Aktion / Schießen (A)</string>
+    <string name="ingame_fn_run">Rennen / Abbrechen (B)</string>
+    <string name="ingame_fn_ashley">Ashley: Warten / Folgen (X)</string>
+    <string name="ingame_fn_inventory">Inventar (Y)</string>
+    <string name="ingame_fn_map">Karte (Z)</string>
+    <string name="ingame_fn_knife">Messer (L)</string>
+    <string name="ingame_fn_aim">Zielen (R)</string>
+    <string name="ingame_fn_start">Optionen / Überspringen (START)</string>
+    <string name="ingame_fn_up">Steuerkreuz oben</string>
+    <string name="ingame_fn_down">Steuerkreuz unten</string>
+    <string name="ingame_fn_left">Steuerkreuz links</string>
+    <string name="ingame_fn_right">Steuerkreuz rechts</string>
+    <string name="ingame_fn_menu">App-Menü (SELECT)</string>
 </resources>

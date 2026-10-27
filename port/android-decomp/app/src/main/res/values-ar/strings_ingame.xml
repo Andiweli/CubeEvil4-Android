@@ -175,4 +175,23 @@
     <string name="ingame_cheat_no_room">لا توجد مساحة في الحقيبة.</string>
     <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
     <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
+    <string name="ingame_controller_config">إعدادات وحدة التحكم</string>
+    <string name="ingame_controller_config_help">إعدادات وحدة التحكم: ضع كل وظيفة في اللعبة على أي زر في وحدة التحكم. فقط عند توصيل وحدة تحكم.</string>
+    <string name="ingame_controller_press">اضغط زرًا…</string>
+    <string name="ingame_controller_default">التوزيع الافتراضي</string>
+    <string name="ingame_controller_help">اختر زر الوظيفة ثم اضغط الزر الجديد في وحدة التحكم. إذا كان الزر لوظيفة أخرى تتبادلان. اضغط الزر نفسه مرة أخرى للإبقاء على القديم.</string>
+    <string name="ingame_controller_alternate_note">التحكم البديل مفعّل: يُطبَّق هذا التوزيع عند إيقافه.</string>
+    <string name="ingame_fn_action">إجراء / إطلاق النار (A)</string>
+    <string name="ingame_fn_run">الجري / إلغاء (B)</string>
+    <string name="ingame_fn_ashley">آشلي: انتظري / اتبعيني (X)</string>
+    <string name="ingame_fn_inventory">الحقيبة (Y)</string>
+    <string name="ingame_fn_map">الخريطة (Z)</string>
+    <string name="ingame_fn_knife">السكين (L)</string>
+    <string name="ingame_fn_aim">التصويب (R)</string>
+    <string name="ingame_fn_start">الخيارات / تخطي (START)</string>
+    <string name="ingame_fn_up">أزرار الاتجاه لأعلى</string>
+    <string name="ingame_fn_down">أزرار الاتجاه لأسفل</string>
+    <string name="ingame_fn_left">أزرار الاتجاه لليسار</string>
+    <string name="ingame_fn_right">أزرار الاتجاه لليمين</string>
+    <string name="ingame_fn_menu">قائمة التطبيق (SELECT)</string>
 </resources>

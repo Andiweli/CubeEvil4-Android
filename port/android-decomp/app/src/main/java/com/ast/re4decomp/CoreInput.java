@@ -36,6 +36,12 @@ import java.util.Map;
  * (the trigger past half way, with the alternate controls L1 and L2) holds it fully until the next
  * press, a press of B holds B (Leon keeps running). The touch controls latch their own buttons
  * (CoreTouch).
+ *
+ * Own bindings (the menu's "Controller configuration", wish of the project owner, 27.10.2026): each
+ * function (the GameCube buttons and the app's menu) on any key of the controller, one key each;
+ * null keeps the layout above. They apply while the alternate controls are off (those keep their own
+ * layout and aiming). A function on L2 or R2 reads the trigger: L and R as the analog value, the
+ * others pressed past half way. The D-pad of the hat axes counts as the D-pad keys.
  */
 public final class CoreInput {
   // GameCube pad bits (PAD_BUTTON_*)
@@ -44,6 +50,12 @@ public final class CoreInput {
       GC_Y = 0x0800, GC_START = 0x1000;
   // what a key does for the app instead of the game
   public static final int APP_NONE = 0, APP_MENU = 1, APP_GX_DUMP = 2;
+  // the functions of the controller configuration, in the order of its page
+  public static final int F_A = 0, F_B = 1, F_X = 2, F_Y = 3, F_Z = 4, F_L = 5, F_R = 6, F_START = 7,
+      F_UP = 8, F_DOWN = 9, F_LEFT = 10, F_RIGHT = 11, F_MENU = 12, FUNCTIONS = 13;
+  /** The GameCube button of each function (F_MENU: none, the app's). */
+  static final int[] FUNCTION_BITS = {GC_A, GC_B, GC_X, GC_Y, GC_Z, GC_L, GC_R, GC_START, GC_UP, GC_DOWN,
+      GC_LEFT, GC_RIGHT, 0};
 
   // android.view.KeyEvent key codes
   static final int KEYCODE_DPAD_UP = 19, KEYCODE_DPAD_DOWN = 20, KEYCODE_DPAD_LEFT = 21,
@@ -52,6 +64,51 @@ public final class CoreInput {
       KEYCODE_BUTTON_R1 = 103, KEYCODE_BUTTON_L2 = 104, KEYCODE_BUTTON_R2 = 105,
       KEYCODE_BUTTON_THUMBL = 106, KEYCODE_BUTTON_THUMBR = 107, KEYCODE_BUTTON_START = 108,
       KEYCODE_BUTTON_SELECT = 109;
+
+  /** The layout above as bindings (one key per function, F_A .. F_MENU). */
+  public static int[] defaultBindings() {
+    return new int[] {KEYCODE_BUTTON_A, KEYCODE_BUTTON_B, KEYCODE_BUTTON_X, KEYCODE_BUTTON_Y, KEYCODE_BUTTON_R1,
+        KEYCODE_BUTTON_L2, KEYCODE_BUTTON_R2, KEYCODE_BUTTON_START, KEYCODE_DPAD_UP, KEYCODE_DPAD_DOWN,
+        KEYCODE_DPAD_LEFT, KEYCODE_DPAD_RIGHT, KEYCODE_BUTTON_SELECT};
+  }
+
+  /** Bindings as kept in the preferences ("96,97,…"); null for the default layout. */
+  public static String encode(int[] bindings) {
+    if (bindings == null || java.util.Arrays.equals(bindings, defaultBindings())) return null;
+    StringBuilder s = new StringBuilder();
+    for (int i = 0; i < bindings.length; i++) s.append(i == 0 ? "" : ",").append(bindings[i]);
+    return s.toString();
+  }
+
+  /** The preferences' text back; null when there is none or it is not FUNCTIONS distinct keys. */
+  public static int[] decode(String text) {
+    if (text == null || text.isEmpty()) return null;
+    String[] parts = text.split(",");
+    if (parts.length != FUNCTIONS) return null;
+    int[] b = new int[FUNCTIONS];
+    try {
+      for (int i = 0; i < FUNCTIONS; i++) b[i] = Integer.parseInt(parts[i].trim());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+    for (int i = 0; i < FUNCTIONS; i++) {
+      if (b[i] <= 0) return null;
+      for (int k = 0; k < i; k++) if (b[k] == b[i]) return null;
+    }
+    return b;
+  }
+
+  /**
+   * `function` on `keyCode`: a function that had this key takes the old key of `function` (the two
+   * swap, so every function keeps a key). Returns the new bindings.
+   */
+  public static int[] assign(int[] bindings, int function, int keyCode) {
+    int[] b = (bindings == null ? defaultBindings() : bindings).clone();
+    int old = b[function];
+    for (int i = 0; i < b.length; i++) if (b[i] == keyCode) b[i] = old;
+    b[function] = keyCode;
+    return b;
+  }
 
   /**
    * Deflection of a genuine controller at its gate in raw units: main stick
@@ -82,6 +139,7 @@ public final class CoreInput {
     int hats;               // D-pad from the hat axes
     float lx, ly, rx, ry;   // sticks -1..1, y down as Android reports it
     float lt, rt;           // analog triggers 0..1
+    final java.util.Set<Integer> keys = new java.util.HashSet<>();  // keys held (own bindings)
   }
 
   private final Map<Integer, Device> devices = new HashMap<>();
@@ -90,6 +148,26 @@ public final class CoreInput {
   private boolean latchedL, latchedR, latchedB;  // held by the controller's latching
   private boolean pressedL, pressedR, pressedB;  // the controller's L, R, B at the last pad()
   private boolean clickL, clickR, fire;          // the triggers' digital L/R and fire at the last pad()
+  private int[] bindings;                        // own bindings, null: the layout above
+  private final boolean[] held = new boolean[FUNCTIONS];  // own bindings: a function on a trigger, pressed
+
+  /** Own bindings (FUNCTIONS keys, F_A .. F_MENU); null or the default layout: the layout above. */
+  public void setBindings(int[] b) {
+    clear();
+    bindings = b == null || b.length != FUNCTIONS || java.util.Arrays.equals(b, defaultBindings()) ? null : b.clone();
+  }
+
+  /** The own bindings in use, null without. */
+  public int[] bindings() { return bindings == null ? null : bindings.clone(); }
+
+  /** Own bindings apply (set, and the alternate controls off). */
+  private boolean own() { return bindings != null && !alternate; }
+
+  /** The function on `keyCode` with the own bindings, -1 for none. */
+  private int functionOf(int keyCode) {
+    for (int i = 0; i < FUNCTIONS; i++) if (bindings[i] == keyCode) return i;
+    return -1;
+  }
 
   /** The menu's "Latch L and R" and "Latch B" for the controller (see above). */
   public void setLatch(boolean lr, boolean b) {
@@ -124,6 +202,10 @@ public final class CoreInput {
    * R2, with the alternate controls L1 and L2, the one they drive).
    */
   public int gcButton(int keyCode) {
+    if (own()) {
+      int f = functionOf(keyCode);
+      return f < 0 ? 0 : FUNCTION_BITS[f];
+    }
     int label = keyCode;
     if (swapFace) {
       switch (keyCode) {
@@ -161,6 +243,14 @@ public final class CoreInput {
     }
   }
 
+  /** What a key does for the app, with the own bindings (the menu on its key; R3 when it has no function). */
+  public int appFunctionOf(int keyCode) {
+    if (!own()) return appFunction(keyCode);
+    int f = functionOf(keyCode);
+    if (f == F_MENU) return APP_MENU;
+    return f < 0 && keyCode == KEYCODE_BUTTON_THUMBR ? APP_GX_DUMP : APP_NONE;
+  }
+
   /**
    * Keys the game controller takes without a function (L1 but with the
    * alternate controls, L3): consumed so Android does not act on them.
@@ -181,6 +271,14 @@ public final class CoreInput {
   /** A key of `device` went down or up; false when it is no game button. */
   public boolean key(int device, int keyCode, boolean down) {
     Device d = device(device);
+    if (own()) {
+      if (keyCode == KEYCODE_BUTTON_L1) d.l1Key = down;
+      if (keyCode == KEYCODE_BUTTON_L2) d.l2Key = down;
+      if (keyCode == KEYCODE_BUTTON_R2) d.r2Key = down;
+      if (down) d.keys.add(keyCode); else d.keys.remove(keyCode);
+      int f = functionOf(keyCode);
+      return f >= 0 && f != F_MENU;
+    }
     if (keyCode == KEYCODE_BUTTON_L1) {
       d.l1Key = down;
       return alternate;
@@ -251,6 +349,17 @@ public final class CoreInput {
     devices.clear();
     latchedL = latchedR = latchedB = false;
     pressedL = pressedR = pressedB = false;
+    java.util.Arrays.fill(held, false);
+  }
+
+  /** Own bindings: how far `device` presses the key of `function` (a trigger 0..1, a key 0 or 1). */
+  private float value(Device d, int function) {
+    int code = bindings[function];
+    if (code == KEYCODE_BUTTON_L2) return d.l2Key ? 1f : d.lt;
+    if (code == KEYCODE_BUTTON_R2) return d.r2Key ? 1f : d.rt;
+    int hat = code == KEYCODE_DPAD_UP ? GC_UP : code == KEYCODE_DPAD_DOWN ? GC_DOWN
+        : code == KEYCODE_DPAD_LEFT ? GC_LEFT : code == KEYCODE_DPAD_RIGHT ? GC_RIGHT : 0;
+    return d.keys.contains(code) || (d.hats & hat) != 0 ? 1f : 0f;
   }
 
   /**
@@ -263,8 +372,25 @@ public final class CoreInput {
     // at its end stop and L2 = R; then latched where the menu says so
     float padL = 0, padR = 0;
     boolean padB = false;
+    boolean own = own();
+    int ownButtons = 0;  // own bindings: the controller's buttons but L, R, B
+    if (own) {
+      float[] most = new float[FUNCTIONS];
+      for (Map.Entry<Integer, Device> e : devices.entrySet()) {
+        if (e.getKey() == TOUCH) continue;
+        for (int f = 0; f < F_MENU; f++) most[f] = Math.max(most[f], value(e.getValue(), f));
+      }
+      padL = most[F_L];
+      padR = most[F_R];
+      for (int f = 0; f < F_MENU; f++) {
+        if (f == F_L || f == F_R) continue;
+        held[f] = most[f] >= (held[f] ? FIRE_RELEASE : FIRE_PRESS);
+        if (held[f] && f != F_B) ownButtons |= FUNCTION_BITS[f];
+      }
+      padB = held[F_B];
+    }
     for (Map.Entry<Integer, Device> e : devices.entrySet()) {
-      if (e.getKey() == TOUCH) continue;
+      if (own || e.getKey() == TOUCH) continue;
       Device d = e.getValue();
       float l2 = d.l2Key ? 1f : d.lt, r2 = d.r2Key ? 1f : d.rt;
       padL = Math.max(padL, alternate ? (d.l1Key ? 1f : 0f) : l2);
@@ -290,12 +416,13 @@ public final class CoreInput {
     // device: the built-in controller may report the trigger and the sticks apart)
     boolean aiming = alternate
         && (Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
-    int buttons = padB ? GC_B : 0;
+    int buttons = (padB ? GC_B : 0) | ownButtons;
     float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
     for (Map.Entry<Integer, Device> e : devices.entrySet()) {
       Device d = e.getValue();
       boolean touch = e.getKey() == TOUCH;
-      buttons |= (touch ? d.buttons : d.buttons & ~GC_B) | d.hats;
+      if (touch) buttons |= d.buttons | d.hats;
+      else if (!own) buttons |= (d.buttons & ~GC_B) | d.hats;
       float mainX = d.lx, mainY = d.ly, cX = d.rx, cY = d.ry;
       if (aiming && !touch) {
         mainX = d.rx;
@@ -314,7 +441,7 @@ public final class CoreInput {
       if (touch) {
         lt = Math.max(lt, l2);
         rt = Math.max(rt, r2);
-      } else if (alternate) {
+      } else if (alternate && !own) {
         // (L1 = L and L2 = R above) R2 = A
         fireR2 = Math.max(fireR2, r2);
       }

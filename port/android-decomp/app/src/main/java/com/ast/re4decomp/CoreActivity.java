@@ -89,6 +89,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_AIM = "gyroAiming";
   // the menu's switch "Alternate Controls" (CoreInput.setAlternate)
   static final String ALT_CONTROLS = "alternateControls";
+  // the menu's "Controller configuration": own bindings (CoreInput.encode; absent: the default layout)
+  static final String BINDINGS = "bindings";
   // the menu's comfort control "Latch L and R" (CoreTouch.setLatch, CoreInput.setLatch; off: held
   // while touched or pressed); the touch controls' only until 23.10.2026, the name stays
   static final String TOUCH_LATCH = "touchLatchLR";
@@ -199,6 +201,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences inputPrefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
     input.setSwapFace(inputPrefs.getBoolean(SWAP_FACE, false));
     input.setAlternate(inputPrefs.getBoolean(ALT_CONTROLS, false));
+    input.setBindings(CoreInput.decode(inputPrefs.getString(BINDINGS, null)));
     input.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false), inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     knifeSwipe = inputPrefs.getBoolean(KNIFE_SWIPE, true);
     // R3 saves graphics data with the test scripts (RE4_APP_TOOLS=1) or when the menu switched it on
@@ -681,9 +684,33 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       send();
       logLayout();
     }
+
+    @Override public void bindingsChanged(int[] bindings) {
+      String text = CoreInput.encode(bindings);
+      SharedPreferences.Editor e = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit();
+      if (text == null) e.remove(BINDINGS); else e.putString(BINDINGS, text);
+      e.apply();
+      input.setBindings(bindings);
+      send();
+      logLayout();
+    }
+
+    @Override public boolean controllerConnected() {
+      for (int id : InputDevice.getDeviceIds()) if (gameDevice(InputDevice.getDevice(id))) return true;
+      return false;
+    }
   };
 
   private void logLayout() {
+    int[] own = input.bindings();
+    if (own != null && !input.alternate()) {
+      StringBuilder s = new StringBuilder("layout: own bindings (controller configuration):");
+      String[] names = {"A", "B", "X", "Y", "Z", "L", "R", "START", "UP", "DOWN", "LEFT", "RIGHT", "menu"};
+      for (int i = 0; i < own.length; i++) s.append(i == 0 ? " " : ", ").append(names[i]).append(" = ")
+          .append(KeyEvent.keyCodeToString(own[i]).replace("KEYCODE_", ""));
+      Log.i(TAG, s + ", R3 " + (tools ? "graphics capture" : "unused") + (menuSupported ? "" : "; this core has no menu functions"));
+      return;
+    }
     Log.i(TAG, "layout: A B X Y by label" + (input.swapFace() ? ", A/B and X/Y swapped" : "")
         + (input.alternate() ? ", alternate controls: L1 = L, L2 = R, R1 = Y, R2 = A, Y = Z, aiming with the right stick"
             : ", R2 = R, L2 = L, R1 = Z")
@@ -1062,7 +1089,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int code = e.getKeyCode();
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
-    int function = CoreInput.appFunction(code);
+    int function = input.appFunctionOf(code);
     if (function != CoreInput.APP_NONE && first) {
       String what = function == CoreInput.APP_MENU ? "menu" : tools ? "graphics capture" : "nothing (tools off)";
       Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ") -> app " + what);
