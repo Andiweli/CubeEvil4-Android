@@ -142,6 +142,20 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   Steinschleuder“): Stärke 230–255, Dauer je Stoß nach Stärke 190–310 ms (`CoreActivity.rumblePulseMs`). Geprüft:
   Prüfstrecke Debug-Discs „ALLES OK“ (Stand `0f74de5f`), PC-Lauf r204 wie oben, Android-Kern beide ABIs 0 Fehler,
   `CoreMenuLayoutTest` 7/7, APK gebaut. **Nicht geprüft:** Gerät.
+- **Dritter Gerätetest (Retroid, 27.10.2026 18:37, `senden.zip`):** die Menü-Meldung kommt jetzt an (`pad: game menu
+  shown/closed` bei jedem Menü), Abstände und Vibration passen (Projektinhaber). Neu gewünscht: Hinweise wie „A Öffnen“ und die
+  Reaktionstasten (A, A+B, L+R …) zeigen die GameCube-Tasten, mit eigener Belegung lagen diese aber woanders. **Entscheidung des
+  Projektinhabers (27.10.2026):** solange ein Hinweis gezeigt wird, gilt die Standardbelegung (die gezeigte Taste ist die zu
+  drückende; Türen, Gegenstände usw. dann mit A, auch wenn „Aktion“ sonst woanders liegt). Umgesetzt: `re4_game_menu_open`
+  meldet auch den Hinweis des Aktionsknopfs (`Cckpt.m_ActBttn` ≠ `DISP_OFF` und `ActBtn.isActive()`, wie `qte_touch.cpp`;
+  Rückgabe 2), Protokoll `pad: game button prompt shown`. Geprüft: Prüfstrecke Debug-Discs „ALLES OK“ (Stand `e263bd0d`),
+  PC-Lauf r100 (Leon in den Tür-Bereich 0 gesetzt: `button prompt shown` bei Bild 2925), Android-Kern beide ABIs 0 Fehler,
+  `CoreMenuLayoutTest` 7/7, APK gebaut. **Nicht geprüft:** Gerät.
+- **Bericht eines Testers (HONOR LGN-NX3, 0.91.0, `cubeevil4-report-20261026-231441.zip`, „r210 lädt nicht“):** r210 lädt
+  einwandfrei; durch die Tür nach r222 liest das Spiel `st2/r222.das`, deren erste 0x400 Byte auf dem Gerät Nullen sind
+  („DISC FILE DAMAGED: st2/r222.das“). Derselbe Bericht wie „Lesefehler `st2/r222.das`“ oben (M13): 0.92.0 prüft beim Import
+  jede Datei gegen den Katalog, liest sie zurück und meldet eine unlesbare Datei im Spiel mit Ursache und Abhilfe. Kein neuer
+  Eingriff; der Tester muss mit 0.92.0 neu importieren (bzw. ein unbeschädigtes Abbild nehmen, wenn die Prüfung das meldet).
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
