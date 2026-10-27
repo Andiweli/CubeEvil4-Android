@@ -1076,7 +1076,7 @@ run_movies() {
             else
                 rm -f "$run/film-$name.wav"
             fi
-        done < <(find "$layout/disc$disc/files" -iname '*.sfd' | sort)
+        done < <(find -L "$layout/disc$disc/files" -iname '*.sfd' | sort)
     done
     if [ "$n" -eq 0 ]; then
         say "Keine .sfd-Dateien gefunden."
