@@ -28,8 +28,8 @@ Eingriff. Die Funkspruch-Leiste fehlte, weil das Untermenü voll war; Patch 0126
 Untermenüs (Inventar, Dateien, Händler, Rätsel) per GX-Bild stehen noch aus.
 R6 (27.10.2026): SELECT-Halten öffnet mit EU-Discs nichts (App und Kern), Laufzeittest. Gerätetest offen.
 R8 (27.10.2026): ARM32 (automatischer Lauf bis r100) und ARM64 (Projektinhaber: Speichern/Laden, Menüs, Karte, r226) auf
-dem Retroid mit EU-Discs ohne Befund nach Patch 0129; Version 0.92.0-beta mit Releasetext. Offen: ein ganzes Kapitel, ARM32 mit
-Speichern/Laden.
+dem Retroid mit EU-Discs ohne Befund nach Patch 0129; Version 0.92.0-beta mit Releasetext. Später erledigt: zwei Kapitel mit
+EU-Discs (M13), ARM32 mit Speichern/Laden auf dem Retroid (10b, 27.10.2026).
 Einzelheiten: `whole-program-status.md`, Abschnitt „Fehlerberichte, Gyro-Richtung, R3 und R6“.
 
 Ziel: CubeEvil4 spielt das Spiel auch mit den europäischen Verkaufs-Discs (`G4BP08`, Disc 1 und 2),

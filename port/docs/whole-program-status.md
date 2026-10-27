@@ -6,6 +6,10 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 ## Raum-Rundgang 10b mit beiden Disc-Arten (27.10.2026 nachmittags, lokal, Branch `retail-eu-testrun`)
 
+**Abgeschlossen 27.10.2026 abends:** Rundgänge am PC mit beiden Disc-Arten je 126/126, die Punkte aus M13 nachgeholt, auf
+dem Retroid zwei Kapitel, Bosse mit Cheats, Zwischenstufen der Auflösung, Controller-Konfiguration und Speichern/Laden mit
+ARM32 bestätigt (Einzelheiten unten).
+
 Auftrag des Projektinhabers: Rundgang über alle 126 Räume mit Debug- (G4BE08) und EU-Discs (G4BP08), Stage 4 mit EU-Daten
 in die Prüfstrecke, die drei Spielmeldungen des EU-Rundgangs, das Ungetestete aus M13, gefundene Fehler beheben (mit den
 Debug-Discs bleibt alles gleich).
@@ -193,13 +197,22 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   jede Datei gegen den Katalog, liest sie zurück und meldet eine unlesbare Datei im Spiel mit Ursache und Abhilfe. Kein neuer
   Eingriff; der Tester muss mit 0.92.0 neu importieren (bzw. ein unbeschädigtes Abbild nehmen, wenn die Prüfung das meldet).
   **Erledigt:** nach einer Neuinstallation läuft es beim Tester (Rückmeldung 27.10.2026).
-- **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
+- **Speichern/Laden mit ARM32 auf dem Retroid (Projektinhaber, 27.10.2026 20:11, APK 0.92.0-beta-core mit beiden ABIs,
+  installiert als `armeabi-v7a`, Debug-Discs):** Lauf 1 lud zwei Spielstände, die die 64-bit-App gespeichert hatte (r117,
+  12-mal gespeichert; r11b, 8-mal), und speicherte an der Schreibmaschine in r11b in den freien Platz FILE 05 (Karte danach:
+  8 Dateien, alle Prüfsummen ok, Systemdatei ok, 194 von 251 Blöcken frei); Lauf 2 (32 bit, neu gestartet) lud FILE 05
+  problemlos, Lauf 3 (wieder 64 bit, von Hand gestartet) ebenso. Damit lesen und schreiben beide Varianten dieselbe Karte.
+  (Die Zeile „GPU 4295.0 ms“ im Bericht ist die Obergrenze der 32-bit-Zeitmessung des Grafikchips, wenn er Bilder
+  vorausarbeitet; schon früher so gesehen, keine Auswirkung.)
+- **Hinweis zum Testen:** „Run“ in Android Studio legt keine `app-core-debug.apk` in `app\build\outputs` ab; mit
+  `-SkipApk` bricht `test-core-app.ps1` dann mit „APK fehlt“ ab. Ohne `-SkipApk` baut das Skript sie selbst (1–2 Minuten).
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
 EU-Discs i686 (Stand `b744b0d8`) je „ALLES OK“ (die Filmprüfung folgt jetzt den Verweisen des `disc-ri`-Ordners, ein erster
 Lauf fand dort keine Filme); Rundgänge wie oben; ARM32-Kern unter qemu-arm, Speicherkarte mit den unveränderten EU-Discs (`--armhf --card-only`, Stand `e1b1fd9e`; die Kartenprüfung startet die ARM-Ziele jetzt unter qemu, vorher scheiterte schon das Formatieren): Systemdatei, Speichern in r100, Neustart, Laden, „Retry“ – „ALLES OK“.
 Android-Kern beide ABIs 0 Fehler (Stand `152fdc2c`), APK `app-core-debug.apk` 19,2 MB mit beiden ABIs (0.92.0-beta-core,
-App-Code unverändert). **Nicht geprüft auf dem Gerät:** Englisch ohne „14-09LE“, Speichern/Laden mit ARM32, der Händler nach dem Umzug im Spiel;
+App-Code unverändert). **Nicht geprüft auf dem Gerät:** Englisch ohne „14-09LE“, der Händler nach dem Umzug im Spiel (beide am PC geprüft);
+Speichern/Laden mit ARM32 auf dem Retroid bestätigt (oben);
 Bosskämpfe mit Cheats und zwei weitere Kapitel auf dem Retroid bestätigt (oben).
 
 ## M13 abgeschlossen (27.10.2026 nachmittags, Branch `retail-eu`)
