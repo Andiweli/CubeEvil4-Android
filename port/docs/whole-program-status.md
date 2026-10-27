@@ -18,7 +18,9 @@ dynamische Auflösung mit Warteregel, stärkere Vibration, aufleuchtende Cheat-K
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `e706c541`, das Zusammenführen) und EU-Discs mit `--room-info` (Stand
 `de7fcfb8`, die Version) je „ALLES OK“; Android-Kern beide ABIs 0 Fehler (Stand `de7fcfb8`), `CoreMenuLayoutTest` 7/7, APK
-`app-core-debug.apk` 19,3 MB, versionCode 77, `0.93.0-beta-core`. **Gerät:** Kurztest auf dem Retroid steht aus.
+`app-core-debug.apk` 19,3 MB, versionCode 77, `0.93.0-beta-core`. **Gerät (Retroid, 27.10.2026 21:13, 64 bit):** App
+`0.93.0-beta-core`, Spielstand in r117 geladen, Leon frei, keine Abstürze, 0 Shader-Fehler; Projektinhaber: „Passt alles“.
+Releasetext zeigt alle Änderungen seit 0.91.0 (Wunsch des Projektinhabers). Danach `master` gepusht, kein Branch gelöscht.
 
 
 ## Raum-Rundgang 10b mit beiden Disc-Arten (27.10.2026 nachmittags, lokal, Branch `retail-eu-testrun`)
