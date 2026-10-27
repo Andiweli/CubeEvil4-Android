@@ -1490,6 +1490,12 @@ extern "C" int re4_game_menu_open(void)
     return g->Rno0 != 3 || StaFlagChk(g, STA_SUB_SCRN) != 0;
 }
 
+// handed to the platform layer when this library loads (runtime/pad.cpp)
+extern "C" void re4_pad_menu_probe(int (*probe)(void));
+static struct MenuProbeInstall {
+    MenuProbeInstall() { re4_pad_menu_probe(re4_game_menu_open); }
+} gMenuProbeInstall;
+
 // The enemy and menu lines of one frame on their own (runtime test "enemylog", game_probe.cpp).
 extern "C" void re4_state_trace_enemy_frame(unsigned n)
 {

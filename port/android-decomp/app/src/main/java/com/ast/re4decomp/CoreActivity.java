@@ -143,7 +143,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private boolean askSixty;
   // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator
   private Vibrator vibrator;
-  private static final int RUMBLE_PULSE_MS = 170;  // each start of the motor (120 until 27.10.2026)
+  /**
+   * Each start of the motor by its level 1..4 (the game's motor in the last four frames): 190 up to
+   * 310 ms (120 until 27.10.2026, then 170: a shotgun still felt like a slingshot, device test).
+   */
+  static int rumblePulseMs(int level) { return 150 + 40 * Math.max(1, Math.min(4, level)); }
   private boolean amplitudeControl, vibrating;
   private int rumbleFrames = -1, rumbleLevel;
   private long rumbleSeen, rumbleUntil;
@@ -1355,7 +1359,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (level > 0 && (!vibrating || level > rumbleLevel || now >= rumbleUntil - 40)) {
         vibrate(level);
         rumbleLevel = level;
-        rumbleUntil = now + RUMBLE_PULSE_MS;
+        rumbleUntil = now + rumblePulseMs(level);
         vibrating = true;
       }
       main.postDelayed(this, 16);
@@ -1367,17 +1371,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (vibrator == null) return;
     try {
       if (Build.VERSION.SDK_INT >= 26) {
-        // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid; 150 still
-        // hardly felt, device test 27.10.2026: now 210 up to the strongest, and each pulse longer)
-        int strength = amplitudeControl ? 210 + 45 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
-        VibrationEffect effect = VibrationEffect.createOneShot(RUMBLE_PULSE_MS, strength);
+        // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid; 150 and
+        // then 210 still too weak, device tests 27.10.2026: now 230 up to the strongest, and longer)
+        int strength = amplitudeControl ? 230 + 25 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
+        VibrationEffect effect = VibrationEffect.createOneShot(rumblePulseMs(level), strength);
         if (Build.VERSION.SDK_INT >= 33) {
           vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
         } else {
           vibrator.vibrate(effect, new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).build());
         }
       } else {
-        vibrator.vibrate(RUMBLE_PULSE_MS);
+        vibrator.vibrate(rumblePulseMs(level));
       }
     } catch (RuntimeException e) {
       Log.w(TAG, "rumble: " + e);
