@@ -108,6 +108,24 @@ void play(u32 addr, u32 length)
     if (!block || frames == 0) {
         return;
     }
+    // the WAV of a check gets every block, also when nothing reads the ring (the PC runs: before
+    // 27.10.2026 it ended after the first second, when the ring was full)
+    if (gWav) {
+        for (u32 i = 0; i < frames; i++) {
+            const int16_t lr[2] = { block[i * 2 + 1], block[i * 2] };
+            fwrite(lr, sizeof(lr), 1, gWav);
+        }
+        gWavFrames += frames;
+        if (gWavLimit && gWavFrames >= gWavLimit) {
+            wavHeader(gWav, gWavFrames);
+            fclose(gWav);
+            gWav = 0;
+            re4_log("audio: WAV complete, %u s", gWavFrames / 32000);
+        } else if ((gWavFrames & 0x7FFF) < frames) {
+            wavHeader(gWav, gWavFrames);
+            fflush(gWav);
+        }
+    }
     u32 w = gWrite.load(std::memory_order_relaxed);
     const u32 r = gRead.load(std::memory_order_acquire);
     if (w - r + frames > kRing) {
@@ -137,22 +155,6 @@ void play(u32 addr, u32 length)
         gSurroundAt = gBlocks;
     }
     gWrite.store(w + frames, std::memory_order_release);
-    if (gWav) {
-        for (u32 i = 0; i < frames; i++) {
-            const int16_t lr[2] = { block[i * 2 + 1], block[i * 2] };
-            fwrite(lr, sizeof(lr), 1, gWav);
-        }
-        gWavFrames += frames;
-        if (gWavLimit && gWavFrames >= gWavLimit) {
-            wavHeader(gWav, gWavFrames);
-            fclose(gWav);
-            gWav = 0;
-            re4_log("audio: WAV complete, %u s", gWavFrames / 32000);
-        } else if ((gWavFrames & 0x7FFF) < frames) {
-            wavHeader(gWav, gWavFrames);
-            fflush(gWav);
-        }
-    }
 }
 
 // One AI block (5 ms): the next block starts, its DMA interrupt runs the
