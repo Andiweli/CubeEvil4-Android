@@ -12,7 +12,8 @@ Ingame-Menüs der App, mit Schaltern für:
 
 Hintergrund: mit den EU-Discs ist das Debug-Menü des Spiels ausgeblendet (M13, Entscheidung vom 26.10.2026);
 das Cheat-Menü war dafür als eigenes Vorhaben vorgesehen (`retail-eu-plan.md`). Diese Datei hält fest, was der
-Spielcode dafür schon mitbringt, was neu gebaut werden müsste und was noch zu entscheiden ist. **Noch nichts gebaut.**
+Spielcode dafür schon mitbringt, was neu gebaut werden müsste und wie der Projektinhaber entschieden hat (am Ende).
+**Noch nichts gebaut.**
 
 ## Ergebnis in Kürze
 
@@ -104,7 +105,7 @@ nur wenn kein Untermenü offen ist (`STA_SUB_SCRN` aus).
 
 - Geld steht in `pG->peseta`; `addMoney` deckelt bei 99 999 999. Im Ashley-Abschnitt tauscht das Spiel
   `peseta` und `peseta_bak` (`PlSelect`), deshalb nur, wenn Leon spielt.
-- Offen: jedes Drücken +1.000.000, oder einmal „auf mindestens 1.000.000“.
+- Entschieden: jeder Druck `addMoney(1000000)`.
 
 ## Umsetzung (Vorschlag, wie die Spielsprache in R7)
 
@@ -124,12 +125,13 @@ nur wenn kein Untermenü offen ist (`STA_SUB_SCRN` aus).
 - **Prüfen:** Laufzeittest mit Testhilfe (`RE4_TEST_CHEATS`), PC-Läufe in r100 (Schaden, Schießen, Treffer) und in
   den Bossräumen, die Koffer-Erweiterung als GX-Bild, Prüfstrecke Debug- und EU-Discs, Gerät.
 
-## Offene Entscheidungen (Projektinhaber)
+## Entscheidungen des Projektinhabers (27.10.2026)
 
-1. Killer7, Koffer L und Geld als **einmalige Knöpfe** statt Schalter? (Empfehlung: ja, weil sie den Spielstand
-   dauerhaft ändern.)
-2. Geld: **+1.000.000 je Druck** oder **auf mindestens 1.000.000**? (Empfehlung: +1.000.000 je Druck.)
-3. Unendlich Gesundheit mit der Grenze „Sofort-Tode in Szenen bleiben“ annehmen? (Empfehlung: ja.)
-4. Schalter über App-Neustarts **gespeichert** wie die übrigen Einstellungen? (Empfehlung: ja.)
-5. Auch mit den Debug-Discs anbieten? (Empfehlung: ja; dort hat zusätzlich das Debug-Menü „NO DEATH“ und
-   „INF BULLET“.)
+1. Killer7, Koffer L und Geld sind **einmalige Knöpfe**, keine Schalter (sie ändern den Spielstand dauerhaft).
+2. Geld: **+1.000.000 Peseten je Druck** (Obergrenze des Spiels 99 999 999).
+3. Unendlich Gesundheit **mit der Grenze** „Sofort-Tode in Szenen bleiben“.
+4. Die drei Schalter werden **gespeichert** wie die übrigen Einstellungen des Ingame-Menüs (gelten nach einem
+   App-Neustart weiter).
+5. Das Cheat-Menü gibt es **mit beiden Disc-Arten** (mit den Debug-Discs kann das Debug-Menü des Spiels die Bits
+   weiter selbst schalten).
+6. Munitionsanzeige mit „Unendlich Munition“: **echte Magazinzahl** statt „100“ (Port-Patch auf `bulletNum`).
