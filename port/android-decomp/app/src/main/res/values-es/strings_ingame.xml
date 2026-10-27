@@ -39,6 +39,8 @@
     <string name="ingame_latch">Fijar L y R</string>
     <string name="ingame_latch_b">Fijar B</string>
     <string name="ingame_gyro_sensitivity">Sensibilidad del giroscopio</string>
+    <string name="ingame_gyro_invert_v">Invertir vertical</string>
+    <string name="ingame_gyro_invert_h">Invertir horizontal</string>
     <string name="ingame_alternate_help">Controles alternativos: L1 = Cuchillo, L2 = Apuntar (con el stick derecho), R1 = Inventario (Armas/Curación), R2 = Disparar / usar el cuchillo, Y = Mapa. A, B, X (Ashley) y START como antes.</string>
     <string name="ingame_knife_swipe">Cuchillo deslizando</string>
     <string name="ingame_knife_swipe_help">Cuchillo deslizando: un deslizamiento rápido sobre la imagen saca el cuchillo y corta; desliza hacia arriba o hacia abajo para cortar alto o bajo.</string>

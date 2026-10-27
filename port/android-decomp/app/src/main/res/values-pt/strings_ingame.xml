@@ -40,6 +40,8 @@
     <string name="ingame_latch">Travar L e R</string>
     <string name="ingame_latch_b">Travar B</string>
     <string name="ingame_gyro_sensitivity">Sensibilidade do giroscópio</string>
+    <string name="ingame_gyro_invert_v">Inverter vertical</string>
+    <string name="ingame_gyro_invert_h">Inverter horizontal</string>
     <string name="ingame_alternate_help">Controles alternativos: L1 = Faca, L2 = Mirar (com o analógico direito), R1 = Inventário (Armas/Cura), R2 = Atirar / usar a faca, Y = Mapa. A, B, X (Ashley) e START como antes.</string>
     <string name="ingame_knife_swipe">Faca ao deslizar</string>
     <string name="ingame_knife_swipe_help">Faca ao deslizar: um deslize rápido sobre a imagem saca a faca e golpeia; deslize para cima ou para baixo para golpear alto ou baixo.</string>

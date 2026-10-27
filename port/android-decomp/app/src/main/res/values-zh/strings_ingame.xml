@@ -40,6 +40,8 @@
     <string name="ingame_latch">锁定 L 和 R</string>
     <string name="ingame_latch_b">锁定 B</string>
     <string name="ingame_gyro_sensitivity">陀螺仪灵敏度</string>
+    <string name="ingame_gyro_invert_v">反转垂直方向</string>
+    <string name="ingame_gyro_invert_h">反转水平方向</string>
     <string name="ingame_alternate_help">替代操作：L1 = 小刀，L2 = 瞄准（用右摇杆瞄准），R1 = 物品栏（武器/回复），R2 = 射击 / 使用小刀，Y = 地图。A、B、X（阿什莉）和 START 保持不变。</string>
     <string name="ingame_knife_swipe">滑动出刀</string>
     <string name="ingame_knife_swipe_help">滑动出刀：在画面上快速滑动即可拔刀挥砍；向上或向下滑动可向高处或低处挥砍。</string>

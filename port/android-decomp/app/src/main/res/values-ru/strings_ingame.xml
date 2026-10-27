@@ -39,6 +39,8 @@
     <string name="ingame_latch">Фиксация L и R</string>
     <string name="ingame_latch_b">Фиксация B</string>
     <string name="ingame_gyro_sensitivity">Чувствительность гироскопа</string>
+    <string name="ingame_gyro_invert_v">Инвертировать по вертикали</string>
+    <string name="ingame_gyro_invert_h">Инвертировать по горизонтали</string>
     <string name="ingame_alternate_help">Альтернативное управление: L1 = нож, L2 = прицеливание (правым стиком), R1 = инвентарь (оружие/лечение), R2 = выстрел / удар ножом, Y = карта. A, B, X (Эшли) и START — как раньше.</string>
     <string name="ingame_knife_swipe">Нож свайпом</string>
     <string name="ingame_knife_swipe_help">Нож свайпом: быстрый свайп по изображению достаёт нож и наносит удар; свайп вверх или вниз — удар выше или ниже.</string>

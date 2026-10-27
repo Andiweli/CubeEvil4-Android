@@ -39,6 +39,8 @@
     <string name="ingame_latch">L und R einrasten</string>
     <string name="ingame_latch_b">B einrasten</string>
     <string name="ingame_gyro_sensitivity">Gyro-Empfindlichkeit</string>
+    <string name="ingame_gyro_invert_v">Vertikal umkehren</string>
+    <string name="ingame_gyro_invert_h">Horizontal umkehren</string>
     <string name="ingame_alternate_help">Alternative Steuerung: L1 = Messer, L2 = Zielen (mit dem rechten Stick), R1 = Inventar (Waffen/Heilung), R2 = Schießen / Messer benutzen, Y = Karte. A, B, X (Ashley) und START wie bisher.</string>
     <string name="ingame_knife_swipe">Messer per Wischen</string>
     <string name="ingame_knife_swipe_help">Messer per Wischen: Ein schnelles Wischen über das Bild zückt das Messer und schneidet; nach oben oder unten wischen schneidet hoch oder tief.</string>

@@ -49,6 +49,8 @@
     <string name="ingame_latch">Latch L and R</string>
     <string name="ingame_latch_b">Latch B</string>
     <string name="ingame_gyro_sensitivity">Gyro sensitivity</string>
+    <string name="ingame_gyro_invert_v">Invert vertical</string>
+    <string name="ingame_gyro_invert_h">Invert horizontal</string>
     <string name="ingame_alternate_help">Alternate Controls: L1 = Knife, L2 = Aim (aim with the right stick), R1 = Inventory (Weapons/Recovery), R2 = Fire / use the knife, Y = Map. A, B, X (Ashley) and START as before.</string>
     <string name="ingame_knife_swipe">Knife by Swipe</string>
     <string name="ingame_knife_swipe_help">Knife by Swipe: a quick swipe across the picture draws the knife and slashes; swipe upward or downward to slash high or low.</string>

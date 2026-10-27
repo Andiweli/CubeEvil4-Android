@@ -96,6 +96,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String TOUCH_LATCH_B = "touchLatchB";
   // the menu's slider of gyro aiming (GyroAim.setSensitivity, a float, 1 = as before)
   static final String GYRO_SENSITIVITY = "gyroSensitivity";
+  // the menu's switches "Invert vertical" / "Invert horizontal" of gyro aiming (GyroAim.setInvert; off)
+  static final String GYRO_INVERT_V = "gyroInvertVertical", GYRO_INVERT_H = "gyroInvertHorizontal";
   // the menu's switch "Knife by Swipe" (watchTap: a swipe while playing draws the knife and slashes; on)
   static final String KNIFE_SWIPE = "knifeSwipe";
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
@@ -239,6 +241,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.setLatchB(inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     gyroAim = new GyroAim(this, main);
     gyroAim.setSensitivity(inputPrefs.getFloat(GYRO_SENSITIVITY, 1f));
+    gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
@@ -616,6 +619,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void gyroSensitivityChanged(float value) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(GYRO_SENSITIVITY, value).apply();
       gyroAim.setSensitivity(value);
+    }
+
+    @Override public void gyroInvertChanged(boolean vertical, boolean on) {
+      SharedPreferences prefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
+      prefs.edit().putBoolean(vertical ? GYRO_INVERT_V : GYRO_INVERT_H, on).apply();
+      gyroAim.setInvert(prefs.getBoolean(GYRO_INVERT_V, false), prefs.getBoolean(GYRO_INVERT_H, false));
     }
 
     @Override public void knifeSwipeChanged(boolean on) {

@@ -39,6 +39,8 @@
     <string name="ingame_latch">Blocca L e R</string>
     <string name="ingame_latch_b">Blocca B</string>
     <string name="ingame_gyro_sensitivity">Sensibilità del giroscopio</string>
+    <string name="ingame_gyro_invert_v">Inverti verticale</string>
+    <string name="ingame_gyro_invert_h">Inverti orizzontale</string>
     <string name="ingame_alternate_help">Comandi alternativi: L1 = Coltello, L2 = Mira (con la levetta destra), R1 = Inventario (Armi/Cure), R2 = Spara / usa il coltello, Y = Mappa. A, B, X (Ashley) e START come prima.</string>
     <string name="ingame_knife_swipe">Coltello con swipe</string>
     <string name="ingame_knife_swipe_help">Coltello con swipe: uno swipe rapido sull’immagine estrae il coltello e colpisce; scorri verso l’alto o verso il basso per colpire in alto o in basso.</string>

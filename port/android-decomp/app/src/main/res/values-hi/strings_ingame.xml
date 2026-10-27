@@ -39,6 +39,8 @@
     <string name="ingame_latch">L और R लॉक करें</string>
     <string name="ingame_latch_b">B लॉक करें</string>
     <string name="ingame_gyro_sensitivity">जाइरो संवेदनशीलता</string>
+    <string name="ingame_gyro_invert_v">वर्टिकल उलटें</string>
+    <string name="ingame_gyro_invert_h">हॉरिज़ॉन्टल उलटें</string>
     <string name="ingame_alternate_help">वैकल्पिक नियंत्रण: L1 = चाकू, L2 = निशाना (दाएँ स्टिक से), R1 = इन्वेंटरी (हथियार/उपचार), R2 = फ़ायर / चाकू चलाएँ, Y = नक्शा। A, B, X (एश्ली) और START पहले जैसे।</string>
     <string name="ingame_knife_swipe">स्वाइप से चाकू</string>
     <string name="ingame_knife_swipe_help">स्वाइप से चाकू: तस्वीर पर तेज़ स्वाइप चाकू निकालकर वार करता है; ऊपर या नीचे स्वाइप करने पर ऊँचा या नीचा वार होता है।</string>

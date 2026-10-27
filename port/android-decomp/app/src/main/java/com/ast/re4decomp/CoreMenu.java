@@ -60,6 +60,8 @@ final class CoreMenu extends Dialog {
     void latchBChanged(boolean on);
     /** The slider of gyro aiming: the turn rates times `value` (the preferences hold it). */
     void gyroSensitivityChanged(float value);
+    /** The switches "Invert vertical" (`vertical`) and "Invert horizontal" of gyro aiming (the preferences hold them). */
+    void gyroInvertChanged(boolean vertical, boolean on);
     /** The switch "Knife by Swipe" (the preferences hold it). */
     void knifeSwipeChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
@@ -401,8 +403,10 @@ final class CoreMenu extends Dialog {
     body.addView(third);
     LinearLayout sensitivityBox = column();
     SeekBar sensitivity = new SeekBar(getContext()); TextView valueText = text("", 15, false);
+    Button[] invert = new Button[2];
     Button gyroButton = toggle(buttonsRow(third), gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, on, enabled -> {
       host.gyroChanged(enabled); sensitivity.setEnabled(enabled); valueText.setEnabled(enabled);
+      for (Button b : invert) b.setEnabled(enabled);
     });
     gyroButton.setEnabled(gyro);
     TextView sensitivityTitle = text(s(R.string.ingame_gyro_sensitivity), 15, false);
@@ -427,6 +431,13 @@ final class CoreMenu extends Dialog {
       @Override public void onStartTrackingTouch(SeekBar bar) {}
       @Override public void onStopTrackingTouch(SeekBar bar) {}
     });
+    // the gyro's directions (wish of the project owner, 27.10.2026): at once in GyroAim
+    MenuLayout.Buttons fourth = buttonsRow(body);
+    invert[0] = toggle(fourth, R.string.ingame_gyro_invert_v, input.getBoolean(CoreActivity.GYRO_INVERT_V, false),
+        value -> host.gyroInvertChanged(true, value));
+    invert[1] = toggle(fourth, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
+        value -> host.gyroInvertChanged(false, value));
+    for (Button b : invert) b.setEnabled(on);
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_knife_swipe_help);
   }
   private void performance() {

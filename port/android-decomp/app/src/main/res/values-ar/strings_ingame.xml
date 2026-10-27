@@ -43,6 +43,8 @@
     <string name="ingame_latch">تثبيت L و R</string>
     <string name="ingame_latch_b">تثبيت B</string>
     <string name="ingame_gyro_sensitivity">حساسية الجيروسكوب</string>
+    <string name="ingame_gyro_invert_v">عكس الاتجاه الرأسي</string>
+    <string name="ingame_gyro_invert_h">عكس الاتجاه الأفقي</string>
     <string name="ingame_alternate_help">التحكم البديل: L1 = السكين، L2 = التصويب (بالعصا اليمنى)، R1 = الحقيبة (الأسلحة/العلاج)، R2 = إطلاق النار / استخدام السكين، Y = الخريطة. A و B و X (آشلي) و START كما كانت.</string>
     <string name="ingame_knife_swipe">السكين بالسحب</string>
     <string name="ingame_knife_swipe_help">السكين بالسحب: سحبة سريعة على الصورة تُخرج السكين وتضرب؛ اسحب للأعلى أو للأسفل للضرب عاليًا أو منخفضًا.</string>
