@@ -143,4 +143,10 @@
     <string name="ingame_language_restart_text">Die neue Sprache gilt nach einem Neustart des Spiels. Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="ingame_restart">Neu starten</string>
     <string name="ingame_cancel">Abbruch</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">Eine Disc-Datei ist nicht lesbar</string>
+    <string name="ingame_disc_image">Das Spiel hält bei %1$s (Disc %2$d) an: Im importierten Disc-Abbild weicht diese Datei von der Original-Disc ab, das Abbild ist beschädigt. Lies Disc %2$d neu aus (oder nimm eine andere, intakte Kopie) und importiere sie auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
+    <string name="ingame_disc_device">Das Spiel hält bei %1$s (Disc %2$d) an: Die Kopie dieser Datei auf diesem Gerät ist beschädigt (sie hat sich nach dem Import verändert). Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
+    <string name="ingame_disc_read">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei ist in Ordnung, aber das Lesen ist fehlgeschlagen. Bitte schicke den Fehlerbericht und starte das Spiel dann neu.</string>
+    <string name="ingame_disc_unknown">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei auf diesem Gerät ist beschädigt oder fehlt. Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
 </resources>

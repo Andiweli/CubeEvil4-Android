@@ -271,6 +271,11 @@ void re4_core_set_fast_cores(int on);
  * variable RE4_GAME_LANGUAGE gives it (eng, ger, fra, esp, ita or the number). The language is
  * ignored with the debug build's discs. Any thread. */
 void re4_core_restart_game(int language);
+/* The first disc file the game could not read (cores since 27.10.2026, runtime/dvd.cpp): "" while
+ * every read went well, else "<disc>\t<path on the disc>\t<why>" (disc 1 or 2, the path as in the
+ * disc's file table, e.g. "St2/r222.das"). The game stands at such a file; the app says which file
+ * and what to do. Any thread. */
+const char* re4_core_disc_problem(void);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the

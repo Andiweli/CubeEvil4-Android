@@ -804,6 +804,8 @@ int dvdQueueMain()
 
 }  // namespace
 
+extern "C" const char* re4_core_disc_problem(void);  // runtime/dvd.cpp
+
 static void testDvdQueue()
 {
     bool ok = true;
@@ -857,6 +859,10 @@ static void testDvdQueue()
         re4_log("  reads at the start: %d and %d frames (title.dat), after it: %d", gFastFrames, gTitleFrames,
                 gPacedFrames);
     }
+    // the app learns which file it was and why (re4_core_disc_problem, the in-game message)
+    const char* problem = re4_core_disc_problem();
+    re4_log("  disc problem for the app: %s", problem);
+    CHECK(strncmp(problem, "1\tzero.dat\t", 11) == 0 && strstr(problem, "zeros") != 0);
     report("dvdq", ok && gQueueOk);
 }
 

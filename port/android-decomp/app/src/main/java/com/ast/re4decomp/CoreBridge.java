@@ -64,6 +64,11 @@ public final class CoreBridge {
   public static native String coreProcess();
   /** Why the core process ended while the app runs (a crash); "" while it runs or without one. */
   public static native String coreProblem();
+  /**
+   * The first disc file the game could not read: "disc\tpath on the disc\twhy" (St2/r222.das), ""
+   * while every read went well (runtime/dvd.cpp re4_core_disc_problem).
+   */
+  public static native String discProblem();
   /** Diagnostic text: core state, frame, room, models, last log lines. */
   public static native String status();
   /** Saves the graphics data of the next picture into `folder` (diagnosis; R3). */

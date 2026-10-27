@@ -31,6 +31,8 @@
 #include <strings.h>
 #include <dirent.h>
 
+#include <atomic>
+
 namespace {
 
 typedef unsigned u32;
@@ -112,6 +114,11 @@ struct Disc {
 
 Disc gDiscs[2];
 int gCurrent = -1;
+
+// The first disc file the game could not read, for the app's message (re4_core_disc_problem):
+// "<disc>\t<path on the disc>\t<why>"; written once on the game thread, read by any thread.
+char gProblem[768];
+std::atomic<int> gProblemSet(0);
 
 u32 be32(const unsigned char* p)
 {
@@ -337,6 +344,24 @@ void entryPath(const Disc& d, u32 i, char* out, size_t outSize)
     }
 }
 
+// The first unreadable file: the app tells the player which file and what to do (reports of
+// 25./26.10.2026: st2/r222.das read as zeros, the picture stood without a word).
+void noteProblem(const Disc& d, const char* devicePath, const char* why)
+{
+    if (gProblemSet.load(std::memory_order_acquire)) {
+        return;
+    }
+    char files[1200];
+    snprintf(files, sizeof(files), "%s/files/", d.root);
+    const char* onDisc = devicePath;
+    if (strncmp(devicePath, files, strlen(files)) == 0) {
+        onDisc = devicePath + strlen(files);
+    }
+    snprintf(gProblem, sizeof(gProblem), "%d\t%s\t%s", d.id[6] + 1, onDisc, why);
+    gProblemSet.store(1, std::memory_order_release);
+    re4_log("DVD: disc %d, %s: %s (said to the app)", d.id[6] + 1, onDisc, why);
+}
+
 bool sameName(const char* a, size_t alen, const char* b)
 {
     size_t i = 0;
@@ -427,6 +452,7 @@ s32 readFile(DVDFileInfo* fi, void* dst, s32 length, s32 offset)
     FILE* f = fopen(path, "rb");
     if (!f) {
         re4_log("DVD: cannot open %s", path);
+        noteProblem(*d, path, "missing on this device (it cannot be opened)");
         return -1;
     }
     size_t got = 0;
@@ -461,6 +487,12 @@ s32 readFile(DVDFileInfo* fi, void* dst, s32 length, s32 offset)
             re4_log("DVD: %s: only %u of %u bytes at 0x%x on the device (the file has %u on the disc): "
                     "import the disc again",
                     path, (unsigned) got, (unsigned) length, (unsigned) offset, (unsigned) fi->length);
+        }
+        if ((u32) offset + got < fi->length) {
+            char why[160];
+            snprintf(why, sizeof(why), "shorter on this device than on the disc (%ld of %u bytes)", fileSize,
+                     (unsigned) fi->length);
+            noteProblem(*d, path, why);
         }
     }
     return length;
@@ -515,6 +547,14 @@ int re4_dvd_header_check(const void* table, const char* name, unsigned offset, u
     retries = 0;
     re4_log("DVD: %s: giving up; import the disc again (the file on the device is damaged or unreadable)",
             name ? name : "?");
+    Disc* d = current();
+    s32 entry = d && name ? lookup(*d, name) : -1;
+    if (entry > 0) {
+        char path[2048];
+        entryPath(*d, (u32) entry, path, sizeof(path));
+        noteProblem(*d, path, zeros ? "its start reads as zeros on this device (the file is damaged)"
+                                    : "its start is damaged on this device (no valid part table)");
+    }
     return 2;
 }
 
@@ -532,6 +572,11 @@ void re4_set_data_dir(const char* dir)
 const char* re4_data_dir(void)
 {
     return gDataDir;
+}
+
+const char* re4_core_disc_problem(void)
+{
+    return gProblemSet.load(std::memory_order_acquire) ? gProblem : "";
 }
 
 int re4_dvd_inserted_disc(void)

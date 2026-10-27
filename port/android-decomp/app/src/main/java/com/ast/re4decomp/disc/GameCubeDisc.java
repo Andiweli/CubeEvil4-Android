@@ -246,22 +246,34 @@ public final class GameCubeDisc implements Closeable {
           throw new IOException("Unsafe destination path");
         if (!f.getParentFile().isDirectory() && !f.getParentFile().mkdirs())
           throw new IOException("Could not create directory");
-        MessageDigest md = newDigest("SHA-256");
-        input.seek(e.offset);
-        long remaining = e.size;
-        try (FileOutputStream w = new FileOutputStream(f)) {
-          while (remaining > 0) {
-            int n = (int)Math.min(buffer.length, remaining);
-            input.readFully(buffer, 0, n);
-            w.write(buffer, 0, n);
-            md.update(buffer, 0, n);
-            remaining -= n;
-            done += n;
-            progress.update("Disc " + discNumber + ": Extracting", done, total);
+        String hash = null;
+        // read back what the device stored: a file the storage did not keep is written once more,
+        // then the import stops (St2/r222.das read as zeros on three phones, 25./26.10.2026)
+        for (int attempt = 0; attempt < 2 && hash == null; attempt++) {
+          MessageDigest md = newDigest("SHA-256");
+          input.seek(e.offset);
+          long remaining = e.size;
+          try (FileOutputStream w = new FileOutputStream(f)) {
+            while (remaining > 0) {
+              int n = (int)Math.min(buffer.length, remaining);
+              input.readFully(buffer, 0, n);
+              w.write(buffer, 0, n);
+              md.update(buffer, 0, n);
+              remaining -= n;
+              if (attempt == 0) done += n;
+              progress.update("Disc " + discNumber + ": Extracting", done, total);
+            }
+            w.getFD().sync();
           }
-          w.getFD().sync();
+          String wrote = hex(md.digest());
+          if (wrote.equals(stored(f, e.size, buffer)))
+            hash = wrote;
         }
-        manifest.write(hex(md.digest()) + "\t" + e.size + "\t" + e.path + "\n");
+        if (hash == null)
+          throw new IOException("This device did not store " + e.path.replaceFirst("^files/", "")
+              + " correctly (it reads back differently than it was written). Free some storage, restart"
+              + " the phone and import Disc " + discNumber + " again; if it happens again, send the error report.");
+        manifest.write(hash + "\t" + e.size + "\t" + e.path + "\n");
       }
       // The disc header and the file system table, as Dolphin's "Extract
       // Entire Disc" writes them: the original game core (core mode) mounts
@@ -290,6 +302,21 @@ public final class GameCubeDisc implements Closeable {
     MessageDigest md = newDigest("SHA-256");
     md.update(bytes);
     manifest.write(hex(md.digest()) + "\t" + size + "\t" + path + "\n");
+  }
+  /** The SHA-256 of the file as the device returns it, or null when it is not `size` bytes long. */
+  private static String stored(File f, long size, byte[] buffer) throws IOException {
+    if (f.length() != size)
+      return null;
+    MessageDigest md = newDigest("SHA-256");
+    long n = 0;
+    try (InputStream in = new FileInputStream(f)) {
+      int k;
+      while ((k = in.read(buffer)) >= 0) {
+        md.update(buffer, 0, k);
+        n += k;
+      }
+    }
+    return n == size ? hex(md.digest()) : null;
   }
   private String digest(long offset, long size, String algorithm,
                         Progress progress) throws IOException {

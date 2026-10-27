@@ -939,6 +939,21 @@ void re4ipc_restart_game(int language)
     post(kRestartGame, language, 0, 0);
 }
 
+// The core process's first unreadable disc file; kept once known (it does not change)
+const char* re4ipc_disc_problem(void)
+{
+    static char copy[768];
+    static std::mutex copyLock;
+    std::lock_guard<std::mutex> l(copyLock);
+    if (!copy[0]) {
+        Reply r;
+        if (call(kDiscProblem, 0, 0, 0, nullptr, 0, 1000, &r)) {
+            snprintf(copy, sizeof(copy), "%s", r.text());
+        }
+    }
+    return copy;
+}
+
 void re4ipc_swipe(int dir)
 {
     post(kSwipe, dir, 0, 0);

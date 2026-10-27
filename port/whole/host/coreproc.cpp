@@ -104,6 +104,7 @@ struct Core {
     void (*setLetterbox)(int);
     void (*setFastCores)(int);
     void (*restartGame)(int);
+    const char* (*discProblem)(void);
     void (*touch)(float, float);
     void (*swipe)(int);
     void (*slash)(float);
@@ -716,6 +717,7 @@ bool loadCore(std::string& problem)
     bind(core.setLetterbox, "re4_core_set_letterbox");
     bind(core.setFastCores, "re4_core_set_fast_cores");
     bind(core.restartGame, "re4_core_restart_game");
+    bind(core.discProblem, "re4_core_disc_problem");
     bind(core.touch, "re4_core_touch");
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
@@ -830,6 +832,9 @@ void serve()
             break;
         case kRestartGame:
             core.restartGame(h.a);
+            break;
+        case kDiscProblem:
+            reply(h.id, 0, core.discProblem());
             break;
         case kSwipe:
             core.swipe(h.a);

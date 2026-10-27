@@ -40,6 +40,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.ast.re4decomp.disc.RoomFileCheck;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -152,6 +153,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private static final long HANG_MS = 8000;
   // the core in a process of its own ended (CoreBridge.coreProblem): shown once
   private boolean coreEndShown;
+  // a disc file the game could not read (CoreBridge.discProblem): checked and shown once; the
+  // check's line goes into the error report (disc-check.txt)
+  private boolean discProblemSeen;
+  private volatile String discCheck = "";
 
   @Override
   @SuppressLint("ClickableViewAccessibility")
@@ -291,6 +296,51 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         .setCancelable(false).show();
   }
 
+  /**
+   * A disc file the game could not read (the core gives up on it and the game stands, reports of
+   * 25./26.10.2026: St2/r222.das read as zeros): which file, whether the disc image or the copy on the
+   * device is at fault (RoomFileCheck.diagnose against the import's manifest and files.tsv), and what
+   * to do, once.
+   */
+  private void checkDiscProblem() {
+    if (discProblemSeen || !startProblem.isEmpty()) return;
+    String problem = CoreBridge.discProblem();
+    if (problem == null || problem.isEmpty()) return;
+    discProblemSeen = true;
+    String[] f = problem.split("\t", 3);
+    if (f.length < 3) return;
+    final int disc = f[0].equals("2") ? 2 : 1;
+    final String path = f[1], why = f[2];
+    Log.e(TAG, "disc file: disc " + disc + " " + path + ": " + why);
+    final ImportManager imports = ((Re4Application) getApplication()).imports;
+    rooms.execute(() -> {
+      File folder = new File(imports.root, "disc" + disc);
+      InputStream catalog = null;
+      try {
+        catalog = imports.roomCatalog(folder);
+      } catch (IOException ignored) { /* diagnosed without the catalog */
+      }
+      RoomFileCheck.Diagnosis d = RoomFileCheck.diagnose(folder, path, catalog, disc);
+      discCheck = "core: " + why + "\n" + d.cause + ": " + d.detail + "\n";
+      Log.e(TAG, "disc file check: " + d.cause + ": " + d.detail);
+      main.post(() -> showDiscProblem(d.cause, path, disc));
+    });
+  }
+
+  private void showDiscProblem(RoomFileCheck.Cause cause, String path, int disc) {
+    if (destroyed) return;
+    int text = cause == RoomFileCheck.Cause.IMAGE ? R.string.ingame_disc_image
+        : cause == RoomFileCheck.Cause.DEVICE ? R.string.ingame_disc_device
+        : cause == RoomFileCheck.Cause.READ ? R.string.ingame_disc_read : R.string.ingame_disc_unknown;
+    new AlertDialog.Builder(this)
+        .setTitle(R.string.ingame_disc_title)
+        .setMessage(getString(text, path, disc))
+        .setPositiveButton(R.string.ingame_send_report, (dlg, w) -> shareReport())
+        .setNegativeButton(R.string.ingame_quit, (dlg, w) -> quit())
+        .setNeutralButton(R.string.ingame_continue, null)
+        .setCancelable(false).show();
+  }
+
   /** The menu's picture options to the renderer (applied at the next picture while the game runs). */
   private void applyGraphics() {
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
@@ -321,6 +371,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     updateFps();
     checkHang();
     checkCoreProcess();
+    checkDiscProblem();
     int room = CoreBridge.wantedRoom();
     if (room >= 0 && room != preparedRoom && !roomBusy) prepareRoom(room);
     main.postDelayed(this::tick, 500);
@@ -839,8 +890,39 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     String map = CoreBridge.addressMap();
     String controllers = controllerList();
-    if (map == null || map.isEmpty()) return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}};
-    return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers}};
+    String discs = discCheckText();
+    if (map == null || map.isEmpty())
+      return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs}};
+    return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers},
+        {"disc-check.txt", discs}};
+  }
+
+  /** The report's disc-check.txt: each imported disc against the original's files, and a file the game could not read. */
+  private String discCheckText() {
+    ImportManager imports = ((Re4Application) getApplication()).imports;
+    StringBuilder t = new StringBuilder();
+    for (int n = 1; n <= 2 && imports.root != null; n++) {
+      File folder = new File(imports.root, "disc" + n);
+      t.append("Disc ").append(n).append(": ");
+      if (!com.ast.re4decomp.disc.DiscInstaller.ready(folder, n)) {
+        t.append("not imported\n");
+        continue;
+      }
+      t.append(ImportManager.releaseName(com.ast.re4decomp.disc.DiscInstaller.release(folder))).append(", ");
+      try (InputStream catalog = imports.roomCatalog(folder)) {
+        RoomFileCheck c = RoomFileCheck.verify(folder, catalog, n);
+        t.append(c.checked).append(c.everyFile ? " files" : " room files").append(" checked (the import's hashes), ");
+        t.append(c.bad.isEmpty() ? "all as on the original disc" : c.bad.size() + " differ: " + String.join(", ",
+            c.bad.subList(0, Math.min(20, c.bad.size()))));
+      } catch (IOException | RuntimeException e) {
+        t.append("no check: ").append(e);
+      }
+      t.append('\n');
+    }
+    String problem = CoreBridge.discProblem();
+    t.append("Read problem: ").append(problem == null || problem.isEmpty() ? "none" : problem.replace('\t', ' ')).append('\n');
+    t.append(discCheck);
+    return t.toString();
   }
 
   /** The error report to an app of the tester's choice (mail, messenger, cloud). */

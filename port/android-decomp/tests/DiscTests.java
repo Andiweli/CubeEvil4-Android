@@ -150,6 +150,15 @@ public final class DiscTests {
           check(DiscInstaller.ready(new File(root, "disc" + n), n),
                 "real extraction ready");
           verifyManifest(new File(root, "disc" + n), expectedFiles);
+          if (coreImport) {
+            // every file as on the original disc (files.tsv / files-eu.tsv next to references*.tsv)
+            String release = DiscInstaller.release(new File(root, "disc" + n));
+            File files = new File(new File(args[0]).getParentFile(), GameCubeDisc.catalog("files", release));
+            RoomFileCheck all = RoomFileCheck.verify(new File(root, "disc" + n), new FileInputStream(files), n);
+            check(all.everyFile && all.checked == expectedFiles - 1 && all.bad.isEmpty(),
+                "every file of disc " + n + " as in " + files.getName() + " (" + all.checked + " checked, "
+                    + all.bad.size() + " differ" + (all.bad.isEmpty() ? "" : ", first " + all.bad.get(0)) + ")");
+          }
           if (!coreImport)
             verifyEnglishAssets(new File(root, "disc" + n));
           System.out.println("Disc " + n +

@@ -144,4 +144,10 @@
     <string name="ingame_language_restart_text">El nuevo idioma se aplica tras reiniciar el juego. Se pierde el progreso desde la última vez que guardaste.</string>
     <string name="ingame_restart">Reiniciar</string>
     <string name="ingame_cancel">Cancelar</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">No se puede leer un archivo del disco</string>
+    <string name="ingame_disc_image">El juego se detuvo en %1$s (disco %2$d): en la imagen de disco importada, este archivo es distinto del disco original, así que la imagen está dañada. Vuelve a volcar el disco %2$d (o usa otra copia intacta) e impórtalo de nuevo en la pantalla de inicio. Tus partidas guardadas se conservan.</string>
+    <string name="ingame_disc_device">El juego se detuvo en %1$s (disco %2$d): la copia de este archivo en este dispositivo está dañada (cambió después de la importación). Vuelve a importar el disco %2$d en la pantalla de inicio. Tus partidas guardadas se conservan.</string>
+    <string name="ingame_disc_read">El juego se detuvo en %1$s (disco %2$d): el archivo está intacto, pero no se pudo leer. Envía el informe de errores y vuelve a iniciar el juego.</string>
+    <string name="ingame_disc_unknown">El juego se detuvo en %1$s (disco %2$d): el archivo en este dispositivo está dañado o falta. Vuelve a importar el disco %2$d en la pantalla de inicio. Tus partidas guardadas se conservan.</string>
 </resources>

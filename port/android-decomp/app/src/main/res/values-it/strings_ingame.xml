@@ -144,4 +144,10 @@
     <string name="ingame_language_restart_text">La nuova lingua vale dopo un riavvio del gioco. I progressi dall\'ultimo salvataggio vanno persi.</string>
     <string name="ingame_restart">Riavvia</string>
     <string name="ingame_cancel">Annulla</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">Un file del disco non è leggibile</string>
+    <string name="ingame_disc_image">Il gioco si è fermato a %1$s (disco %2$d): nell’immagine del disco importata questo file è diverso dal disco originale, quindi l’immagine è danneggiata. Estrai di nuovo il disco %2$d (o usa un’altra copia integra) e importalo di nuovo dalla schermata iniziale. I tuoi salvataggi restano.</string>
+    <string name="ingame_disc_device">Il gioco si è fermato a %1$s (disco %2$d): la copia di questo file su questo dispositivo è danneggiata (è cambiata dopo l’importazione). Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
+    <string name="ingame_disc_read">Il gioco si è fermato a %1$s (disco %2$d): il file è integro, ma la lettura non è riuscita. Invia il rapporto errori, poi riavvia il gioco.</string>
+    <string name="ingame_disc_unknown">Il gioco si è fermato a %1$s (disco %2$d): il file su questo dispositivo è danneggiato o manca. Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
 </resources>

@@ -146,4 +146,10 @@
     <string name="ingame_language_restart_text">La nouvelle langue s\'applique après un redémarrage du jeu. La progression depuis la dernière sauvegarde est perdue.</string>
     <string name="ingame_restart">Redémarrer</string>
     <string name="ingame_cancel">Annuler</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">Un fichier du disque est illisible</string>
+    <string name="ingame_disc_image">Le jeu s’est arrêté à %1$s (disque %2$d) : dans l’image disque importée, ce fichier diffère du disque original, l’image est donc endommagée. Extrayez de nouveau le disque %2$d (ou prenez une autre copie intacte) et importez-le à nouveau depuis l’écran de démarrage. Vos sauvegardes sont conservées.</string>
+    <string name="ingame_disc_device">Le jeu s’est arrêté à %1$s (disque %2$d) : la copie de ce fichier sur cet appareil est endommagée (elle a changé après l’importation). Importez de nouveau le disque %2$d depuis l’écran de démarrage. Vos sauvegardes sont conservées.</string>
+    <string name="ingame_disc_read">Le jeu s’est arrêté à %1$s (disque %2$d) : le fichier est intact, mais sa lecture a échoué. Envoyez le rapport d’erreur, puis relancez le jeu.</string>
+    <string name="ingame_disc_unknown">Le jeu s’est arrêté à %1$s (disque %2$d) : le fichier sur cet appareil est endommagé ou absent. Importez de nouveau le disque %2$d depuis l’écran de démarrage. Vos sauvegardes sont conservées.</string>
 </resources>

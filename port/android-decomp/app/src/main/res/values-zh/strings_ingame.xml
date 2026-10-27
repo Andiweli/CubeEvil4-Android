@@ -143,4 +143,10 @@
     <string name="ingame_language_restart_text">新语言将在游戏重新启动后生效。上次存档之后的进度将会丢失。</string>
     <string name="ingame_restart">重新启动</string>
     <string name="ingame_cancel">取消</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">无法读取光盘文件</string>
+    <string name="ingame_disc_image">游戏停在 %1$s（光盘 %2$d）：您导入的光盘镜像中，此文件与原版光盘不同，镜像已损坏。请重新转储光盘 %2$d（或使用另一份完好的副本），然后在开始界面重新导入。您的存档会保留。</string>
+    <string name="ingame_disc_device">游戏停在 %1$s（光盘 %2$d）：此文件在本设备上的副本已损坏（导入后发生了变化）。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
+    <string name="ingame_disc_read">游戏停在 %1$s（光盘 %2$d）：文件完好，但读取失败。请发送错误报告，然后重新启动游戏。</string>
+    <string name="ingame_disc_unknown">游戏停在 %1$s（光盘 %2$d）：本设备上的文件已损坏或缺失。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
 </resources>

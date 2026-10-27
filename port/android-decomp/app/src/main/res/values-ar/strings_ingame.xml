@@ -152,4 +152,10 @@
     <string name="ingame_language_restart_text">تُطبَّق اللغة الجديدة بعد إعادة تشغيل اللعبة. يضيع التقدم منذ آخر حفظ.</string>
     <string name="ingame_restart">إعادة التشغيل</string>
     <string name="ingame_cancel">إلغاء</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">تعذّرت قراءة ملف من القرص</string>
+    <string name="ingame_disc_image">توقفت اللعبة عند %1$s (القرص %2$d): في صورة القرص التي استوردتها يختلف هذا الملف عن القرص الأصلي، لذا فالصورة تالفة. انسخ القرص %2$d من جديد (أو استخدم نسخة سليمة أخرى) واستورده مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
+    <string name="ingame_disc_device">توقفت اللعبة عند %1$s (القرص %2$d): نسخة هذا الملف على هذا الجهاز تالفة (تغيّرت بعد الاستيراد). استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
+    <string name="ingame_disc_read">توقفت اللعبة عند %1$s (القرص %2$d): الملف سليم، لكن قراءته فشلت. أرسل تقرير الأخطاء من فضلك، ثم شغّل اللعبة من جديد.</string>
+    <string name="ingame_disc_unknown">توقفت اللعبة عند %1$s (القرص %2$d): الملف على هذا الجهاز تالف أو مفقود. استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
 </resources>

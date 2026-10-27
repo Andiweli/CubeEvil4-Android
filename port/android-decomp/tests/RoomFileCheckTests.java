@@ -1,3 +1,4 @@
+import com.ast.re4decomp.disc.GameCubeDisc;
 import com.ast.re4decomp.disc.RoomFileCheck;
 import java.io.*;
 
@@ -29,7 +30,49 @@ public final class RoomFileCheckTests {
       RoomFileCheck.verify(new StringReader(good), new StringReader("1\tonly\tthree\n"), 1);
       check(false, "invalid catalog throws");
     } catch (IOException expected) { }
+    // files.tsv (since 27.10.2026): every file of the disc, its paths as in the manifest
+    String files = "# disc\tpath\tbytes\tsha256\n1\tfiles/St1/r100.das\t5\tAAAA\n1\tfiles/St2/r222.das\t5\tBBBB\n"
+        + "1\tsys/main.dol\t5\tDDDD\n2\tfiles/St3/r300.das\t5\tCCCC\n";
+    RoomFileCheck all = RoomFileCheck.verify(new StringReader(imported + "dddd\t5\tsys/main.dol\n"), new StringReader(files), 1);
+    check(all.checked == 3 && all.bad.isEmpty() && all.everyFile, "files.tsv: every file of disc 1 matches");
+    RoomFileCheck dol = RoomFileCheck.verify(new StringReader(imported), new StringReader(files), 1);
+    check(dol.bad.size() == 1 && dol.bad.get(0).equals("sys/main.dol") && dol.warning(1).contains("1 of 3 files"),
+        "files.tsv: a file missing from the manifest is named");
+
+    // diagnose: the file on the device against the import's manifest and the original disc
+    File dir = new File(System.getProperty("java.io.tmpdir"), "roomcheck-" + System.nanoTime());
+    File room = new File(dir, "files/St2/r222.das");
+    room.getParentFile().mkdirs();
+    byte[] original = "original room".getBytes("UTF-8");
+    String sum = sha256(original);
+    write(room, new byte[original.length]);  // as on the phones: the right size, zeros
+    write(new File(dir, "manifest.tsv"), ("# sha256\tbytes\tpath\n" + sum + "\t13\tfiles/St2/r222.das\n").getBytes("UTF-8"));
+    String catalog = "# disc\tpath\tbytes\tsha256\n1\tfiles/St2/r222.das\t13\t" + sum + "\n";
+    RoomFileCheck.Diagnosis device = RoomFileCheck.diagnose(dir, "st2/r222.das", in(catalog), 1);
+    check(device.cause == RoomFileCheck.Cause.DEVICE && device.detail.contains("all zeros"),
+        "diagnose: the import wrote the original, the device holds zeros -> device (" + device.detail + ")");
+    write(new File(dir, "manifest.tsv"), ("# sha256\tbytes\tpath\n" + sha256(new byte[13]) + "\t13\tfiles/St2/r222.das\n").getBytes("UTF-8"));
+    RoomFileCheck.Diagnosis image = RoomFileCheck.diagnose(dir, "St2/r222.das", in(catalog), 1);
+    check(image.cause == RoomFileCheck.Cause.IMAGE, "diagnose: the image itself held zeros -> image");
+    write(room, original);
+    write(new File(dir, "manifest.tsv"), ("# sha256\tbytes\tpath\n" + sum + "\t13\tfiles/St2/r222.das\n").getBytes("UTF-8"));
+    RoomFileCheck.Diagnosis read = RoomFileCheck.diagnose(dir, "St2/r222.das", in(catalog), 1);
+    check(read.cause == RoomFileCheck.Cause.READ && read.detail.contains("no zeros at the start"), "diagnose: all intact -> read");
+    room.delete();
+    RoomFileCheck.Diagnosis gone = RoomFileCheck.diagnose(dir, "St2/r222.das", in(catalog), 1);
+    check(gone.cause == RoomFileCheck.Cause.DEVICE && gone.detail.contains("missing"), "diagnose: a missing file -> device");
+    RoomFileCheck.Diagnosis none = RoomFileCheck.diagnose(new File(dir, "nothing"), "St2/r222.das", null, 1);
+    check(none.cause == RoomFileCheck.Cause.UNKNOWN, "diagnose: no manifest, no catalog -> unknown");
     if (failures != 0) { System.err.println(failures + " failures"); System.exit(1); }
     System.out.println("RoomFileCheckTests: ok");
+  }
+  static String sha256(byte[] b) {
+    return GameCubeDisc.hex(GameCubeDisc.newDigest("SHA-256").digest(b));
+  }
+  static void write(File f, byte[] b) throws IOException {
+    try (FileOutputStream w = new FileOutputStream(f)) { w.write(b); }
+  }
+  static InputStream in(String s) throws IOException {
+    return new ByteArrayInputStream(s.getBytes("UTF-8"));
   }
 }

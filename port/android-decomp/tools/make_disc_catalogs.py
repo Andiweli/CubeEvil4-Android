@@ -2,6 +2,7 @@
 """The app's disc catalogs from an extracted disc set (port/docs/retail-eu-plan.md, R4).
 
     make_disc_catalogs.py --data DIR [--out DIR] [--suffix -eu]
+    make_disc_catalogs.py --iso DISC1.iso DISC2.iso --out DIR [--suffix -eu]
 
 DIR: disc folders as port/tools/whole_disc_folder.py writes them (disc0/, disc1/ with sys/ and
 files/) or the app's import folder (disc1/, disc2/). Writes into --out (default: print a summary):
@@ -12,6 +13,13 @@ files/) or the app's import folder (disc1/, disc2/). Writes into --out (default:
   rooms<suffix>.tsv       disc, path, unpacked size, SHA-256 unpacked, SHA-256 of the file for every
                           St*/r*.das (RoomRepository, RoomFileCheck)
   blocks<suffix>.tsv      the same for the room block archives St*/r*_*.dat (stored unpacked)
+
+With --iso (the disc images themselves; the app's import names its files from them):
+
+  files<suffix>.tsv       disc, path, bytes, SHA-256 of every file the import writes, named as in its
+                          manifest.tsv (files/..., sys/main.dol, sys/fst.bin; not the disc header):
+                          RoomFileCheck compares a whole import with it (a damaged image or a file
+                          the device lost: reports of 25./26.10.2026, St2/r222.das)
 
 A file on both discs is listed once, on the first disc that has it, as in the debug build's
 catalogs; rooms are listed per disc. The catalogs hold names, sizes and hashes only, no disc data.
@@ -120,15 +128,75 @@ def write(path: Path, header: str, rows):
             w.write("\t".join(str(x) for x in r) + "\n")
 
 
+def iso_files(iso: Path):
+    """(disc, path, bytes, sha256) of every file GameCubeDisc.extract writes, in its order."""
+    import struct
+    with open(iso, "rb") as f:
+        head = f.read(0x440)
+        disc = head[6] + 1
+        dol, fst_off, fst_size = struct.unpack(">III", head[0x420:0x42C])
+        f.seek(fst_off)
+        fst = f.read(fst_size)
+        count = struct.unpack(">I", fst[8:12])[0]
+        names = count * 12
+
+        def name(i):
+            o = names + (struct.unpack(">I", fst[i * 12:i * 12 + 4])[0] & 0xFFFFFF)
+            return fst[o:fst.index(b"\0", o)].decode("shift_jis")
+
+        def digest(offset, size):
+            h = hashlib.sha256()
+            f.seek(offset)
+            while size > 0:
+                b = f.read(min(size, 1 << 20))
+                h.update(b)
+                size -= len(b)
+            return h.hexdigest()
+
+        rows, stack = [], [(count, "")]
+        for i in range(1, count):
+            while i >= stack[-1][0]:
+                stack.pop()
+            kind = fst[i * 12]
+            a, b = struct.unpack(">II", fst[i * 12 + 4:i * 12 + 12])
+            path = (stack[-1][1] + "/" if stack[-1][1] else "") + name(i)
+            if kind == 1:
+                stack.append((b, path))
+            else:
+                rows.append((disc, "files/" + path, b, digest(a, b)))
+        f.seek(dol)
+        dh = f.read(0x100)
+        dol_size = 0x100
+        for i in range(18):
+            off, size = struct.unpack(">I", dh[i * 4:i * 4 + 4])[0], struct.unpack(">I", dh[0x90 + i * 4:0x94 + i * 4])[0]
+            if size:
+                dol_size = max(dol_size, off + size)
+        rows.append((disc, "sys/main.dol", dol_size, digest(dol, dol_size)))
+        rows.append((disc, "sys/fst.bin", fst_size, digest(fst_off, fst_size)))
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--data", type=Path, required=True)
+    ap.add_argument("--data", type=Path)
+    ap.add_argument("--iso", type=Path, nargs="+", help="the disc images: write files<suffix>.tsv")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--suffix", default="")
     ap.add_argument("--jobs", type=int, default=max(1, min(8, (os.cpu_count() or 2) // 2)))
     ap.add_argument("--check-debug", action="store_true",
                     help="compare with the debug build's catalogs of the app (as sets of rows)")
     args = ap.parse_args()
+    if args.iso:
+        rows = [r for iso in args.iso for r in iso_files(iso)]
+        rows.sort(key=lambda r: r[0])
+        print(f"files: {len(rows)} ({', '.join(f'disc {n}: {sum(1 for r in rows if r[0] == n)}' for n in sorted({r[0] for r in rows}))})")
+        if args.out:
+            args.out.mkdir(parents=True, exist_ok=True)
+            write(args.out / f"files{args.suffix}.tsv", "# disc\tpath\tbytes\tsha256", rows)
+        if not args.data:
+            return 0
+    if not args.data:
+        ap.error("--data or --iso is needed")
     sets = discs(args.data.resolve())
     refs = references(sets)
     room_rows, block_rows = rooms(sets, args.jobs)

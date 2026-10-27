@@ -92,6 +92,7 @@ struct CoreApi {
   void (*setLetterbox)(int){};  // optional (cores since 22.10.2026): 4:3 without the bars
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
+  const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -421,6 +422,7 @@ void loadCore(JNIEnv *env) {
   api.setLetterbox = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_letterbox"));
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
+  api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -1734,6 +1736,7 @@ void useCoreProcess(const std::string &why) {
   api.setLetterbox = re4ipc_set_letterbox;
   api.setFastCores = re4ipc_set_fast_cores;
   api.restartGame = re4ipc_restart_game;
+  api.discProblem = re4ipc_disc_problem;
   api.touch = re4ipc_touch;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -2080,6 +2083,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_restartGame(JNIEnv *, jclass, jint language) {
   LOG("game language %d: restart", static_cast<int>(language));
   if (api.restartGame) api.restartGame(language);
+}
+
+// The first disc file the game could not read: "<disc>\t<path>\t<why>", "" while all went well.
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_discProblem(JNIEnv *env, jclass) {
+  const char *problem = api.discProblem ? api.discProblem() : "";
+  return env->NewStringUTF(problem ? problem : "");
 }
 
 // Frame skip (the menu): while the renderer is behind, chunks are left out (GxRenderer::Skip).

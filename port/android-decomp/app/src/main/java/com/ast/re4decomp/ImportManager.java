@@ -60,10 +60,14 @@ public final class ImportManager {
     }
     return otherwise;
   }
-  /** The verified room hashes of the release of an imported disc (rooms.tsv, rooms-eu.tsv). */
+  /**
+   * The verified hashes of the release of an imported disc: every file (files.tsv, files-eu.tsv) when the
+   * import takes every file (core mode), else the room files (rooms.tsv, rooms-eu.tsv).
+   */
   public InputStream roomCatalog(File disc) throws IOException {
     String release = DiscInstaller.release(disc);
-    return context.getAssets().open(GameCubeDisc.catalog("rooms", release == null ? GameCubeDisc.DEBUG : release));
+    return context.getAssets().open(GameCubeDisc.catalog(GameCubeDisc.importEverything ? "files" : "rooms",
+        release == null ? GameCubeDisc.DEBUG : release));
   }
   /** The name of a release for the launcher's texts. */
   public static String releaseName(String release) {
@@ -167,8 +171,8 @@ public final class ImportManager {
         File imported = new File(root, "disc" + expectedDisc);
         status = "Disc " + expectedDisc + " (" + releaseName(DiscInstaller.release(imported))
             + ") verified and imported successfully.";
-        // The room files are not part of the code check; a damaged image shows only when the game
-        // enters a room whose file is wrong (St2/r222.das). Non-blocking: say it, do not refuse.
+        // The code check covers the program only; a damaged image shows only when the game reads a
+        // file that is wrong (St2/r222.das): every file against the catalog. Non-blocking: say it, do not refuse.
         try {
           RoomFileCheck rooms = RoomFileCheck.verify(imported, roomCatalog(imported), expectedDisc);
           String warning = rooms.warning(expectedDisc);

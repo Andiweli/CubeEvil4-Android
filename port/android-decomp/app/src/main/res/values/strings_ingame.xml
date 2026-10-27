@@ -158,4 +158,10 @@
     <string name="ingame_language_restart_text">The new language is used after a restart of the game. Progress since your last save is lost.</string>
     <string name="ingame_restart">Restart</string>
     <string name="ingame_cancel">Cancel</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">A disc file cannot be read</string>
+    <string name="ingame_disc_image">The game stopped at %1$s (Disc %2$d): in the disc image you imported, this file differs from the original disc, so the image is damaged. Dump your Disc %2$d again (or take another intact copy) and import it again on the start screen. Your saves stay.</string>
+    <string name="ingame_disc_device">The game stopped at %1$s (Disc %2$d): the copy of this file on this device is damaged (it changed after the import). Import Disc %2$d again on the start screen. Your saves stay.</string>
+    <string name="ingame_disc_read">The game stopped at %1$s (Disc %2$d): the file is intact, but reading it failed. Please send the error report, then start the game again.</string>
+    <string name="ingame_disc_unknown">The game stopped at %1$s (Disc %2$d): the file on this device is damaged or missing. Import Disc %2$d again on the start screen. Your saves stay.</string>
 </resources>
