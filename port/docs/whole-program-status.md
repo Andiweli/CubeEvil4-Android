@@ -3,6 +3,14 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## 60 FPS ohne Flackern: Plan (27.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
+
+Wunsch des Projektinhabers: 60 FPS ohne flackernde Fackeln, Wasser und Texturen. Vorschlag in
+`port/docs/60fps-plan.md`: Namensmarken aus `ExecOt` (ein Kern-Patch, neue GX-Nachricht `RE4_GX_OP_OWNER`), damit
+das Zwischenbild jede Zeichnung sicher wiederfindet; dann auch Texturmatrizen, Farben und Licht mischen; gleichmäßiger
+Takt statt einzelner Lücken. **Wartet auf die Entscheidung des Projektinhabers** (Kernänderung). Noch nichts gebaut
+oder getestet.
+
 ## Testerbericht: Mercenaries mit Hunk stürzt ab (27.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
 
 Meldung eines Testers: „Mercenaries mode still finishes the game with the Hunk, on all maps.“ Gemeint ist: Mercenaries
