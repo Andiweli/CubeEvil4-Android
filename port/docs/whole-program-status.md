@@ -90,7 +90,8 @@ wurde überschrieben).
 „ALLES OK“, EU 64 bit (x86_64) Stream-Test „ALLES OK“. Statuen-Szene r226 (Leon in Bereich 24): Debug und EU, i686 und x86_64
 hörbar. App: `CoreMenuLayoutTest` 3/3, `RoomFileCheckTests`, `DiscTests` (synthetisch 19, echte Discs Debug 4 531 / EU 5 251),
 Texte 10 Sprachen ok, Android-Kern beide ABIs 0 Fehler, APK gebaut und auf dem Retroid gelaufen (Vorfilm, Funkspruch, r100).
-Endstand ohne 0126: siehe Commit-Liste; **nicht auf dem Gerät geprüft:** Meldung „Disc-Datei nicht lesbar“, Import mit
+Endstand ohne 0126 (Stand `688d0371`): EU-Abbilder Deutsch i686 „ALLES OK“, Debug-Discs i686 „ALLES OK“, Android-Kern beide ABIs
+0 Fehler, APK gebaut; der Projektinhaber erkannte den Ausschnitt als den gesuchten Ton; **nicht auf dem Gerät geprüft:** Meldung „Disc-Datei nicht lesbar“, Import mit
 Zurücklesen, Gyro-Schalter, r101/r221-Texte, R6. Gemeldet vom Projektinhaber beim Gerätelauf: zweimal Knacken im Ton des
 Vorfilms (noch nicht untersucht).
 
