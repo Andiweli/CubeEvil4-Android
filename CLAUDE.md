@@ -150,16 +150,19 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    Fehlerprotokoll, Tiefenschärfe mit Autofokus), SELECT 1 Sekunde halten =
    Debug-Menü des Spiels, Diagnose-Anzeige ausgebaut, Leistung, Nachladen der
    Super Magnum geklärt (Retroid und PC-Prüfung, 17.10.2026)
-12. ARM64: Zeiger-Kürzungen beheben, eine APK für 32- und 64-bit-Geräte
+12. ✅ ARM64: Zeiger-Kürzungen beheben, eine APK für 32- und 64-bit-Geräte
    (vor 10b, Entscheidung des Projektinhabers, 17.10.2026: ein Tester hat ein
    Gerät, das nur 64-bit-Apps ausführt; erst M11 abschließen). Weg
    (Entscheidung des Projektinhabers, 17.10.2026, nach der Bestandsaufnahme
    `port/docs/arm64-bestandsaufnahme.md`): **Weg A, nativ 64 bit** – alles,
    worauf der Spielcode zeigt, liegt unter 4 GB; Strukturen mit fester Form
    (feste Plätze, Spielstand, Daten von der Disc) behalten ihre 32-bit-Form
+   (abgeschlossen nach Entscheidung des Projektinhabers, 27.10.2026: eine APK mit beiden ABIs seit
+   0.9.0-beta, ARM64 auf dem Retroid gespielt)
 10b. Raum-Rundgang: viele Räume per Raumauswahl anspielen, Abstürze und
    Grafikfehler sammeln (Entscheidung des Projektinhabers, 16.10.2026: nach
-   Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12)
+   Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12; seit 27.10.2026 mit beiden Disc-Arten, Branch
+   `retail-eu-testrun`)
 13. ✅ Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
    parallel zur Debug-Disc, die Referenz bleibt (Entscheidungen des Projektinhabers, 26.10.2026:
    parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, dafür ein Cheat-Menü im
