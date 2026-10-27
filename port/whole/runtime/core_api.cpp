@@ -648,6 +648,11 @@ int re4_core_instant(int operation, Re4InstantInfo* info)
 
 void re4_core_debug_menu(void)
 {
+    // the European discs: no debug menu (port/docs/retail-eu-plan.md, decision 2; R6)
+    if (re4_disc_retail_eu()) {
+        re4_log("core: debug menu asked for (SELECT held), none with the European discs");
+        return;
+    }
     gDebugMenuWanted = 1;
     re4_log("core: debug menu asked for (SELECT held)");
 }

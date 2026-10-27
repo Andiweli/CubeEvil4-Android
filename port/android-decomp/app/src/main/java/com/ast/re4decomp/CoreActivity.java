@@ -506,6 +506,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final Runnable selectHold = () -> {
     if (!selectDown || menu != null) return;
     selectHeld = true;
+    // the European discs have no debug menu (decision of the project owner, 26.10.2026; a cheat menu
+    // of the in-game menu comes later): holding SELECT opens nothing
+    if (retailEu) {
+      Log.i(TAG, "SELECT held: no debug menu with the European discs");
+      return;
+    }
     if (!menuSupported) {
       Toast.makeText(this, R.string.ingame_no_debug_menu,
           Toast.LENGTH_SHORT).show();

@@ -388,6 +388,9 @@ static void testDvd()
 
 // The release from each disc header (port/docs/retail-eu-plan.md): debug build, European and US
 // release, a header without the table's place (the test above), another game.
+extern "C" void re4_core_debug_menu(void);    // runtime/core_api.cpp
+extern "C" int re4_debug_menu_request(void);
+
 static void testDiscRelease()
 {
     bool ok = true;
@@ -432,6 +435,9 @@ static void testDiscRelease()
         CHECK(re4_disc_release() == c.release);
         // the game sees the header's id, the debug build's for the European discs (memory card files)
         CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.release == RE4_DISC_RETAIL_EU ? "G4BE" : c.id, 4) == 0);
+        // SELECT held (the app): the debug menu, none with the European discs (R6)
+        re4_core_debug_menu();
+        CHECK(re4_debug_menu_request() == (c.release == RE4_DISC_RETAIL_EU ? 0 : 1));
     }
     re4_set_data_dir((base + "/none").c_str());
     CHECK(re4_disc_release() == RE4_DISC_UNKNOWN);
