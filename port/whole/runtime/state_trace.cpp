@@ -31,7 +31,10 @@
 //                          place without steering there (r100: the first
 //                          house, where the s03 event starts);
 //                          "free+F:x,y,z,a" counts from the moment the player
-//                          is free (below)
+//                          is free (below); "[free+]F:area=N" puts him at the
+//                          centre of the room's trigger area N (SceAtPtr, the
+//                          number of the room script's SceAtDataSet_* calls),
+//                          facing 0: its event starts as if he walked in
 //   RE4_TEST_SOFT_RESET="free+N"  N frames after the player is free, the
 //                          soft reset of "game over" -> "no"; the log follows
 //                          the game steps afterwards ("run: after the soft
@@ -454,6 +457,7 @@ bool g_place;
 bool g_placeFree;
 unsigned long g_placeFrame;
 float g_placePos[3], g_placeAng;
+int g_placeArea = -1;  // "area=N": the centre of trigger area N
 long g_roomStart = -1;  // frame the room started loading
 // The player is free: main loop, no event (STA_EVENT), no sub screen
 // (STA_SUB_SCRN) for kFreeFrames frames in a row (the opening event and the
@@ -1139,6 +1143,15 @@ void frame(unsigned n)
         g_place = false;
         Vec pos = { g_placePos[0], g_placePos[1], g_placePos[2] };
         Vec ang = { 0.0f, g_placeAng, 0.0f };
+        if (g_placeArea >= 0) {
+            SCE_AT_DATA* at = SceAtPtr(g_placeArea);
+            if (at) {
+                AreaGetCenterPos(&pos, &at->area);
+            } else {
+                re4_log("run: RE4_TEST_PLACE: room r%03x has no trigger area %d", (unsigned) g->room_id,
+                        g_placeArea);
+            }
+        }
         pPL->setPos(&pos);
         pPL->setAng(&ang);
         re4_log("run: player placed at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
@@ -1324,9 +1337,10 @@ void configure()
     if (place && *place) {
         g_placeFree = strncmp(place, "free+", 5) == 0;
         g_place = sscanf(place + (g_placeFree ? 5 : 0), "%lu:%f,%f,%f,%f", &g_placeFrame, &g_placePos[0],
-                         &g_placePos[1], &g_placePos[2], &g_placeAng) == 5;
+                         &g_placePos[1], &g_placePos[2], &g_placeAng) == 5 ||
+                  sscanf(place + (g_placeFree ? 5 : 0), "%lu:area=%d", &g_placeFrame, &g_placeArea) == 2;
         if (!g_place) {
-            re4_log("run: RE4_TEST_PLACE \"%s\" not understood ([free+]F:x,y,z,a)", place);
+            re4_log("run: RE4_TEST_PLACE \"%s\" not understood ([free+]F:x,y,z,a or [free+]F:area=N)", place);
         }
     }
     const char* reset = getenv("RE4_TEST_SOFT_RESET");
