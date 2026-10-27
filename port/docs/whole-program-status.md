@@ -50,15 +50,17 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   verwandeln (Leben steigt), ein Treffer mit „mindestens 1 lassen“ und Schaden ohne Leons Waffe. Leon starb noch 12-mal in 9
   Räumen, jedes Mal ohne vorherigen Treffer: Fallen und Bereiche (r203, r208, r30f, r311), Sturz (r215), Szenen (r104, r227,
   r333) und ein Fang-Angriff im Söldner-Raum r404 (Leben 1200 → 0 in einem Zug) – die Grenzen aus `cheat-menu-plan.md`.
-  **Nicht geprüft:** Bosskämpfe (im Zufalls-Rundgang praktisch nicht getroffen), der Knopf bei offenem Menü, Gerät.
+  **Gerät (Projektinhaber, Retroid, 27.10.2026 nachmittags, Stand `7f06f542`):** zwei weitere Kapitel ohne Probleme gespielt,
+  Bosskämpfe enden mit One-Hit-Kill nach einem Schuss. Vereinzelt sanken die Bilder/s von 30 auf 22 (Bericht
+  `cubeevil4-report-20261027-144449.zip` und GX-Dumps noch nicht ausgewertet). **Nicht geprüft:** der Knopf bei offenem Menü.
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
 EU-Discs i686 (Stand `b744b0d8`) je „ALLES OK“ (die Filmprüfung folgt jetzt den Verweisen des `disc-ri`-Ordners, ein erster
 Lauf fand dort keine Filme); Rundgänge wie oben; ARM32-Kern unter qemu-arm, Speicherkarte mit den unveränderten EU-Discs (`--armhf --card-only`, Stand `e1b1fd9e`; die Kartenprüfung startet die ARM-Ziele jetzt unter qemu, vorher scheiterte schon das Formatieren): Systemdatei, Speichern in r100, Neustart, Laden, „Retry“ – „ALLES OK“.
 Android-Kern beide ABIs 0 Fehler (Stand `152fdc2c`), APK `app-core-debug.apk` 19,2 MB mit beiden ABIs (0.92.0-beta-core,
-App-Code unverändert). **Nicht geprüft:** Gerät (Englisch ohne „14-09LE“, Bosskämpfe mit Cheats, Speichern/Laden mit ARM32,
-der Händler nach dem Umzug im Spiel).
+App-Code unverändert). **Nicht geprüft auf dem Gerät:** Englisch ohne „14-09LE“, Speichern/Laden mit ARM32, der Händler nach dem Umzug im Spiel;
+Bosskämpfe mit Cheats und zwei weitere Kapitel auf dem Retroid bestätigt (oben).
 
 ## M13 abgeschlossen (27.10.2026 nachmittags, Branch `retail-eu`)
 
