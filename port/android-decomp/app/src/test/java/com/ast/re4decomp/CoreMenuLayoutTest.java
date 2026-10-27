@@ -133,6 +133,62 @@ public class CoreMenuLayoutTest {
     }
   }
 
+  private static MenuLayout.Keys findKeys(View view) {
+    if (view instanceof MenuLayout.Keys) return (MenuLayout.Keys) view;
+    if (view instanceof ViewGroup) {
+      ViewGroup group = (ViewGroup) view;
+      for (int i = 0; i < group.getChildCount(); i++) {
+        MenuLayout.Keys found = findKeys(group.getChildAt(i));
+        if (found != null) return found;
+      }
+    }
+    return null;
+  }
+
+  @Test public void resolutionLevelsSitLikeAPianoAndKeepHalves() throws Exception {
+    final int[] changed = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("graphicsChanged")) changed[0]++;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      // a choice of the old whole levels (until 27.10.2026): 3x
+      android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
+      g.edit().clear().putInt("scale", 3).apply();
+      assertEquals(6, CoreMenu.scaleHalves(g));
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 1, false);
+      View root = (View) field(menu, "root");
+      measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
+          Math.round(300 * activity.getResources().getDisplayMetrics().density));
+      MenuLayout.Keys keys = findKeys(root);
+      assertNotNull(keys);
+      assertEquals(8, keys.getChildCount());
+      String[] labels = {activity.getString(R.string.ingame_dynamic), "1×", "2×", "3×", "4×", "1.5×", "2.5×", "3.5×"};
+      for (int i = 0; i < 8; i++) assertEquals(labels[i], ((Button) keys.getChildAt(i)).getText().toString());
+      assertTrue("3x chosen before stays chosen", keys.getChildAt(3).isSelected());
+      View[] k = new View[8];
+      for (int i = 0; i < 8; i++) k[i] = keys.getChildAt(i);
+      for (int i = 1; i < 5; i++) assertEquals("the whole levels in one row", k[0].getTop(), k[i].getTop());
+      for (int i = 5; i < 8; i++) {
+        assertTrue("the in-between levels below", k[i].getTop() >= k[0].getBottom());
+        assertEquals("as wide as the others", k[1].getWidth(), k[i].getWidth(), 1);
+        View left = k[i - 4], right = k[i - 3];  // 1.5x between 1x and 2x ...
+        float line = (left.getRight() + right.getLeft()) / 2f, centre = (k[i].getLeft() + k[i].getRight()) / 2f;
+        assertEquals("half a key offset: centred on the line between " + labels[i - 4] + " and " + labels[i - 3],
+            line, centre, 1.5f);
+      }
+      k[5].performClick();
+      assertEquals(3, g.getInt("scaleHalves", -1));
+      assertEquals(3, CoreMenu.scaleHalves(g));
+      assertTrue(k[5].isSelected()); assertFalse(k[3].isSelected());
+      assertEquals(1, changed[0]);
+    }
+  }
+
   @Test public void cheatsComeFirstOnManagementAndSwitchesSendTheirBits() throws Exception {
     final int[] sent = {-1};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),

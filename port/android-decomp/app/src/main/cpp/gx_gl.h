@@ -127,11 +127,14 @@ public:
   // Creates the GL objects (a GLES 3.0 context is current). `scale`: EFB
   // resolution multiple (1 = the GameCube's 640x528).
   bool Init(int scale, std::string *error);
+  // The same in halves of the GameCube's resolution (2: 1x, 3: 1.5x ... 8: 4x).
+  bool InitHalves(int halves, std::string *error);
   // Between two Runs: the EFB at another scale (the app menu's Auto follows the GPU). The EFB,
   // its MSAA buffers, the autofocus's buffers, the display copy and every EFB copy anew at the new
   // size (the copies and the display copy drawn over, scaled); programs, textures and the GX state
   // stay. The EFB starts cleared, as after a display copy.
   void Rescale(int scale);
+  void RescaleHalves(int halves);
   // Another renderer replaces this one (new picture options, the same GL context): this one's EFB
   // copies go over to `to` (after its Init), at `to`'s scale. The game copies some pictures once (a
   // room's start) and reads them on: a new renderer without them drew those textures white until
@@ -205,7 +208,8 @@ public:
   bool Present(int x, int y, int w, int h, unsigned top = 0, unsigned rows = 0);
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
-  int Scale() const;
+  int Scale() const;   // whole multiples (1.5x: 1)
+  int Halves() const;  // in halves (1.5x: 3)
   const GxStats &Stats() const;
   // True when draws use glDrawElementsBaseVertex (one attribute setup per layout).
   bool BaseVertex() const;

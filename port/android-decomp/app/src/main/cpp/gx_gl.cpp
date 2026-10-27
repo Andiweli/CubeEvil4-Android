@@ -383,7 +383,15 @@ struct Copy {
 } // namespace
 
 struct GxRenderer::Impl {
-  int scale = 1;
+  // the EFB scale in halves of the GameCube's resolution (2: 1x, 3: 1.5x ... 8: 4x; the app menu's
+  // in-between levels, wish of the project owner, 27.10.2026). Lo / Hi: EFB pixels (the
+  // GameCube's) to pixels here, rounded down / up. A region runs from Lo(x) to Lo(x + w), so
+  // scissors, viewports and clears of neighbouring regions meet without a gap; a copy has Hi(w)
+  // pixels (its texture), and the copy shader reads its source rectangle exactly (Sf).
+  int halves = 2;
+  int Lo(int v) const { return v * halves / 2; }
+  int Hi(int v) const { return (v * halves + 1) / 2; }
+  float Sf(int v) const { return static_cast<float>(v) * static_cast<float>(halves) * 0.5f; }
   GxStats stats;
 
   // register state
@@ -1553,7 +1561,7 @@ struct GxRenderer::Impl {
               got > 1;
     // d2: the second set, the same samples
     if (ok) {
-      const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+      const int w = Lo(kEfbWidth), h = Lo(kEfbHeight);
       MakeEfbTextures(w, h, &spareColor, &spareDepth);
       glGenFramebuffers(1, &spareFbo);
       glBindFramebuffer(GL_FRAMEBUFFER, spareFbo);
@@ -1646,7 +1654,7 @@ struct GxRenderer::Impl {
       glBindFramebuffer(GL_FRAMEBUFFER, efbFbo);
       glDeleteFramebuffers(1, &fbo);
     }
-    glViewport(0, 0, kEfbWidth * scale, kEfbHeight * scale);
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_ALWAYS);
     glUseProgram(restoreProgram);
@@ -1666,7 +1674,7 @@ struct GxRenderer::Impl {
   // MSAA in separate multisampled buffers (msaaFbo), resolved into efbColor / efbDepth before
   // every copy; false when the device cannot (single-sampled then).
   bool OwnMsaa(int want) {
-    const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+    const int w = Lo(kEfbWidth), h = Lo(kEfbHeight);
     while (glGetError() != GL_NO_ERROR) {
     }
     glGenRenderbuffers(1, &msaaColor);
@@ -1830,9 +1838,10 @@ struct GxRenderer::Impl {
   void Resolve(int x, int y, int w, int h, bool depth) {
     if (!msaaFbo)
       return;
-    const int fw = kEfbWidth * scale, fh = kEfbHeight * scale;
-    int x0 = std::max(0, x - scale), y0 = std::max(0, y - scale);
-    int x1 = std::min(fw, x + w + scale), y1 = std::min(fh, y + h + scale);
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
+    const int pad = Hi(1);
+    int x0 = std::max(0, x - pad), y0 = std::max(0, y - pad);
+    int x1 = std::min(fw, x + w + pad), y1 = std::min(fh, y + h + pad);
     if (options.fullResolve) {
       x0 = y0 = 0;
       x1 = fw;
@@ -2108,7 +2117,7 @@ struct GxRenderer::Impl {
     stateValid = true;
     stats.stateChanges++;
     BindFbo(DrawFbo());
-    glViewport(0, 0, kEfbWidth * scale, kEfbHeight * scale);
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
     // scissor: registers in EFB pixels + 342, minus the scissor offset (BP 0x59, in 2 pixels)
     const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
     const int x0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
@@ -2116,7 +2125,7 @@ struct GxRenderer::Impl {
     const int x1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
     const int y1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
     glEnable(GL_SCISSOR_TEST);
-    glScissor(x0 * scale, y0 * scale, std::max(0, x1 - x0) * scale, std::max(0, y1 - y0) * scale);
+    glScissor(Lo(x0), Lo(y0), std::max(0, Lo(x1) - Lo(x0)), std::max(0, Lo(y1) - Lo(y0)));
     // depth
     const std::uint32_t z = bp[0x40];
     if (z & 1) {
@@ -2198,7 +2207,7 @@ struct GxRenderer::Impl {
       glCullFace(cull == 1 ? GL_BACK : cull == 2 ? GL_FRONT : GL_FRONT_AND_BACK);
     }
     // lines and points: width in 1/6 pixel
-    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * Sf(1);
     glLineWidth(std::max(1.0f, lineWidth));
   }
 
@@ -2449,7 +2458,7 @@ struct GxRenderer::Impl {
     const unsigned primitive = d.primitive & 0xFF;
     UseEfb();
     ApplyState(primitive);
-    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * Sf(1);
     if (xf.proj[1][3] != pointSize) {
       xf.proj[1][3] = pointSize;
       Dirty(207, 208);
@@ -2617,7 +2626,7 @@ struct GxRenderer::Impl {
           glDeleteTextures(1, &xfbTex);
         glGenTextures(1, &xfbTex);
         glBindTexture(GL_TEXTURE_2D, xfbTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w * scale, h * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(w), Hi(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -2639,7 +2648,7 @@ struct GxRenderer::Impl {
           glDeleteTextures(1, &c.id);
         glGenTextures(1, &c.id);
         glBindTexture(GL_TEXTURE_2D, c.id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ow * scale, oh * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(ow), Hi(oh), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         c.width = static_cast<unsigned>(ow);
         c.height = static_cast<unsigned>(oh);
@@ -2656,22 +2665,21 @@ struct GxRenderer::Impl {
       }
     }
     // render the EFB region into the target
-    Resolve(x * scale, y * scale, w * scale, h * scale, depth);
+    Resolve(Lo(x), Lo(y), Hi(x + w) - Lo(x), Hi(y + h) - Lo(y), depth);
     BindFbo(xfbFbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
     SaveAndPlainState();
     // the copy draws over all of its target (the viewport is the texture)
     ForgetColor();
     const int tw = toXfb ? w : ow, th = toXfb ? h : oh;
-    glViewport(0, 0, tw * scale, th * scale);
+    glViewport(0, 0, Hi(tw), Hi(th));
     glUseProgram(copyProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depth ? efbDepth : efbColor);
     glBindSampler(0, 0);
     glUniform1i(copyMode, toXfb ? 0 : mode);
-    glUniform4f(copyRect, static_cast<float>(x * scale), static_cast<float>(y * scale), static_cast<float>(w * scale),
-                static_cast<float>(h * scale));
-    glUniform2f(copySize, static_cast<float>(kEfbWidth * scale), static_cast<float>(kEfbHeight * scale));
+    glUniform4f(copyRect, Sf(x), Sf(y), Sf(w), Sf(h));
+    glUniform2f(copySize, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
     glUniform1i(copyHalf, half ? 1 : 0);
     glUniform1f(copyGain, depth ? 1.0f : CopyFilterGain());
     // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
@@ -2693,8 +2701,7 @@ struct GxRenderer::Impl {
         top = shownT;
     }
     const bool limited = top > 0 || bottom < kEfbHeight;
-    glUniform2f(copyLimit, limited ? static_cast<float>(top * scale) : -1e9f,
-                limited && bottom < kEfbHeight ? static_cast<float>(bottom * scale) : 1e9f);
+    glUniform2f(copyLimit, limited ? Sf(top) : -1e9f, limited && bottom < kEfbHeight ? Sf(bottom) : 1e9f);
     if (limited)
       stats.limitedCopies++;
     glBindVertexArray(quadVao);
@@ -2704,7 +2711,7 @@ struct GxRenderer::Impl {
     current = nullptr;
     BindFbo(DrawFbo());
     if (toXfb)
-      Fxaa(w * scale, h * scale);
+      Fxaa(Hi(w), Hi(h));
     if (toXfb && peekWanted)
       SnapshotDepth();  // the picture is complete, the clear comes next
     ClearAfterCopy(control, x, y, w, h);
@@ -2901,7 +2908,7 @@ struct GxRenderer::Impl {
       return;  // the GPU is two maps behind: the core keeps the last one (it ages out there)
     Touched();
     // MSAA in own buffers: the depth of the picture's 512 x 448 (the game peeks inside it)
-    Resolve(0, 0, 512 * scale, 448 * scale, true);
+    Resolve(0, 0, Lo(512), Lo(448), true);
     SaveAndPlainState();
     BindFbo(peekFbo);
     glViewport(0, 0, kDepthWidth, kDepthHeight);
@@ -2909,8 +2916,8 @@ struct GxRenderer::Impl {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, efbDepth);
     glBindSampler(0, 0);
-    glUniform2f(peekSizeLoc, static_cast<float>(kEfbWidth * scale), static_cast<float>(kEfbHeight * scale));
-    glUniform1f(peekScaleLoc, static_cast<float>(scale));
+    glUniform2f(peekSizeLoc, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
+    glUniform1f(peekScaleLoc, Sf(1));
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, peekPbo[slot]);
@@ -2962,7 +2969,7 @@ struct GxRenderer::Impl {
     if (autofocusFailed || !havePerspective)
       return;
     Touched(); // its own passes
-    const int fw = kEfbWidth * scale, fh = kEfbHeight * scale;
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
     if (!blurProgram && !MakeAutofocus(fw, fh)) {
       autofocusFailed = true;
       GXLOG("gameplay autofocus could not be set up; left out");
@@ -2983,15 +2990,15 @@ struct GxRenderer::Impl {
       x1 = kEfbWidth;
       y1 = kEfbHeight;
     }
-    const float rx = static_cast<float>(x0 * scale), ry = static_cast<float>(y0 * scale);
-    const float rw = static_cast<float>((x1 - x0) * scale), rh = static_cast<float>((y1 - y0) * scale);
+    const float rx = static_cast<float>(Lo(x0)), ry = static_cast<float>(Lo(y0));
+    const float rw = static_cast<float>(Lo(x1) - Lo(x0)), rh = static_cast<float>(Lo(y1) - Lo(y0));
     float zRange = AsFloat(xfReg[0x1C]);
     if (!(std::fabs(zRange) > 1.0f))
       zRange = 16777215.0f;
     const float zFar = AsFloat(xfReg[0x1F]);
     // only the picture is read (the focus, the blur's taps stay inside it)
-    Resolve(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale, false);
-    Resolve(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale, true);
+    Resolve(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0), false);
+    Resolve(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0), true);
     SaveAndPlainState();
     glDepthMask(GL_FALSE);
     glBindVertexArray(quadVao);
@@ -3026,8 +3033,8 @@ struct GxRenderer::Impl {
     if (options.halfDof && halfProgram) {
       // GPU step e: the blur at half the resolution (a quarter of the pixels, each of them the
       // four EFB texels around its centre and the taps behind the focus)
-      const int hx0 = x0 * scale / 2, hy0 = y0 * scale / 2;
-      const int hx1 = (x1 * scale + 1) / 2, hy1 = (y1 * scale + 1) / 2;
+      const int hx0 = Lo(x0) / 2, hy0 = Lo(y0) / 2;
+      const int hx1 = (Lo(x1) + 1) / 2, hy1 = (Lo(y1) + 1) / 2;
       BindFbo(halfFbo);
       ForgetColor();  // only the picture's region is drawn, and the mix reads only it
       glViewport(hx0, hy0, hx1 - hx0, hy1 - hy0);
@@ -3051,7 +3058,7 @@ struct GxRenderer::Impl {
       BindFbo(msaaFbo ? msaaFbo : colorFbo);
       if (!msaaFbo)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, efbColor, 0);
-      glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+      glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
       glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
       glEnable(GL_BLEND);
       glBlendEquation(GL_FUNC_ADD);
@@ -3073,7 +3080,7 @@ struct GxRenderer::Impl {
     // the blurred picture into blurTex
     BindFbo(blurFbo);
     ForgetColor();  // only the picture's region is drawn, and only it is copied back
-    glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+    glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
     glUseProgram(blurProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, efbColor);
@@ -3089,7 +3096,7 @@ struct GxRenderer::Impl {
     // back into the EFB: colour only, alpha and depth stay
     BindFbo(DrawFbo());
     UseEfb();
-    glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+    glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     glUseProgram(copyProgram);
     glActiveTexture(GL_TEXTURE0);
@@ -3338,7 +3345,7 @@ struct GxRenderer::Impl {
       if (color || alpha || zupdate)
         UseEfb();  // MSAA on the tiles: the EFB back first, the clear is only the copy's region
       glEnable(GL_SCISSOR_TEST);
-      glScissor(x * scale, y * scale, w * scale, h * scale);
+      glScissor(Lo(x), Lo(y), Lo(x + w) - Lo(x), Lo(y + h) - Lo(y));
       glColorMask(color, color, color, alpha);
       glDepthMask(zupdate ? GL_TRUE : GL_FALSE);
       const float r = static_cast<float>(bp[0x4F] & 255) / 255.0f, a = static_cast<float>((bp[0x4F] >> 8) & 255) / 255.0f;
@@ -3482,12 +3489,14 @@ GxRenderer::GxRenderer() : impl_(new Impl) {}
 
 GxRenderer::~GxRenderer() = default;
 
-bool GxRenderer::Init(int scale, std::string *error) {
+bool GxRenderer::Init(int scale, std::string *error) { return InitHalves(2 * std::max(1, scale), error); }
+
+bool GxRenderer::InitHalves(int halves, std::string *error) {
   Impl &m = *impl_;
   std::string dummy;
   if (!error)
     error = &dummy;
-  m.scale = std::max(1, scale);
+  m.halves = std::max(2, halves);
   // glDrawElementsBaseVertex: GLES 3.2, or the OES / EXT extension
   // (RE4_GX_BASEVERTEX=0 keeps the per-draw attribute setup)
   {
@@ -3527,7 +3536,7 @@ bool GxRenderer::Init(int scale, std::string *error) {
     for (std::size_t i = 0; i < pieces; i++)
       GXLOG("GPU extensions (%zu/%zu): %s", i + 1, pieces, all.substr(i * piece, piece).c_str());
   }
-  const int w = kEfbWidth * m.scale, h = kEfbHeight * m.scale;
+  const int w = m.Lo(kEfbWidth), h = m.Lo(kEfbHeight);
   Impl::MakeEfbTextures(w, h, &m.efbColor, &m.efbDepth);
   glGenFramebuffers(1, &m.efbFbo);
   glBindFramebuffer(GL_FRAMEBUFFER, m.efbFbo);
@@ -3635,21 +3644,21 @@ void GxRenderer::HandOverCopies(GxRenderer &to) {
     Copy copy = c.second;
     if (!copy.id || n.copies.count(c.first))
       continue;
-    if (m.scale != n.scale) {
+    if (m.halves != n.halves) {
       // at the new scale: a texture of the new size, the old one drawn over it scaled
       GLuint made = 0;
       glGenTextures(1, &made);
       glBindTexture(GL_TEXTURE_2D, made);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(copy.width) * n.scale,
-                   static_cast<GLsizei>(copy.height) * n.scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, n.Hi(static_cast<int>(copy.width)),
+                   n.Hi(static_cast<int>(copy.height)), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
       glBindFramebuffer(GL_READ_FRAMEBUFFER, from);
       glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, copy.id, 0);
       glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst);
       glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, made, 0);
-      glBlitFramebuffer(0, 0, static_cast<GLint>(copy.width) * m.scale, static_cast<GLint>(copy.height) * m.scale, 0, 0,
-                        static_cast<GLint>(copy.width) * n.scale, static_cast<GLint>(copy.height) * n.scale,
-                        GL_COLOR_BUFFER_BIT, GL_LINEAR);
+      glBlitFramebuffer(0, 0, m.Hi(static_cast<int>(copy.width)), m.Hi(static_cast<int>(copy.height)), 0, 0,
+                        n.Hi(static_cast<int>(copy.width)), n.Hi(static_cast<int>(copy.height)), GL_COLOR_BUFFER_BIT,
+                        GL_LINEAR);
       glDeleteTextures(1, &copy.id);
       copy.id = made;
     }
@@ -3666,12 +3675,14 @@ void GxRenderer::HandOverCopies(GxRenderer &to) {
   n.stats.handedCopies += moved;
 }
 
-void GxRenderer::Rescale(int scale) {
+void GxRenderer::Rescale(int scale) { RescaleHalves(2 * std::max(1, scale)); }
+
+void GxRenderer::RescaleHalves(int halves) {
   Impl &m = *impl_;
-  scale = std::max(1, scale);
-  if (scale == m.scale)
+  halves = std::max(2, halves);
+  if (halves == m.halves)
     return;
-  const int old = m.scale;
+  const int old = m.halves;
   m.stats.rescales++;
   // the MSAA buffers go (as Init found them: on the tiles or in own buffers)
   const bool wasTiled = m.tiledMsaa;
@@ -3685,8 +3696,8 @@ void GxRenderer::Rescale(int scale) {
     m.samples = 1;
   }
   // the EFB's textures at the new size (the same names: the framebuffers that hold them stay)
-  m.scale = scale;
-  const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+  m.halves = halves;
+  const int w = m.Lo(kEfbWidth), h = m.Lo(kEfbHeight);
   glBindTexture(GL_TEXTURE_2D, m.efbColor);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
   glBindTexture(GL_TEXTURE_2D, m.efbDepth);
@@ -3725,8 +3736,8 @@ void GxRenderer::Rescale(int scale) {
     GLuint made = 0;
     glGenTextures(1, &made);
     glBindTexture(GL_TEXTURE_2D, made);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(cw) * scale, static_cast<GLsizei>(ch) * scale, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m.Hi(static_cast<int>(cw)), m.Hi(static_cast<int>(ch)), 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, nullptr);
     if (linear) {
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -3739,8 +3750,8 @@ void GxRenderer::Rescale(int scale) {
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, id, 0);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, to);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, made, 0);
-    glBlitFramebuffer(0, 0, static_cast<GLint>(cw) * old, static_cast<GLint>(ch) * old, 0, 0,
-                      static_cast<GLint>(cw) * scale, static_cast<GLint>(ch) * scale, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, (static_cast<GLint>(cw) * old + 1) / 2, (static_cast<GLint>(ch) * old + 1) / 2, 0, 0,
+                      m.Hi(static_cast<int>(cw)), m.Hi(static_cast<int>(ch)), GL_COLOR_BUFFER_BIT, GL_LINEAR);
     glDeleteTextures(1, &id);
     return made;
   };
@@ -4221,7 +4232,8 @@ void GxRenderer::Limits(int *maxSamples, float *maxAnisotropy) {
   }
 }
 
-int GxRenderer::Scale() const { return impl_->scale; }
+int GxRenderer::Scale() const { return impl_->halves / 2; }
+int GxRenderer::Halves() const { return impl_->halves; }
 
 const GxStats &GxRenderer::Stats() const { return impl_->stats; }
 

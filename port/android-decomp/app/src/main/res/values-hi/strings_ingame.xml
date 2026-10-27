@@ -23,8 +23,8 @@
     <string name="ingame_perf_default">डिफ़ॉल्ट</string>
     <string name="ingame_perf_cores">परफ़ॉर्मेंस कोर इस्तेमाल करें</string>
     <string name="ingame_perf_help">परफ़ॉर्मेंस कोर: गेम और ग्राफ़िक्स डिवाइस के सबसे तेज़ कोर पर चलते हैं और Android से ऊँची क्लॉक माँगते हैं। कई डिवाइस पर ज़्यादा स्मूद, लेकिन इसमें ज़्यादा CPU पावर लगती है और डिवाइस ज़्यादा गर्म होता है। डिफ़ॉल्ट: Android तय करता है।</string>
-    <string name="ingame_resolution_line">रिज़ॉल्यूशन: %1$d × %2$d पिक्सेल (स्तर %3$d) · स्क्रीन %4$d × %5$d · मेनू बंद होने पर लागू होता है। ऊँचे स्तरों को ज़्यादा क्षमता चाहिए।</string>
-    <string name="ingame_resolution_line_auto">रिज़ॉल्यूशन: %1$d × %2$d पिक्सेल (स्तर %3$d, डायनैमिक) · स्क्रीन %4$d × %5$d · मेनू बंद होने पर लागू होता है। जब तक GPU साथ नहीं दे पाता, डायनैमिक एक स्तर नीचे रहता है।</string>
+    <string name="ingame_resolution_line">रिज़ॉल्यूशन: %1$d × %2$d पिक्सेल (स्तर %3$s) · स्क्रीन %4$d × %5$d · मेनू बंद होने पर लागू होता है। ऊँचे स्तरों को ज़्यादा क्षमता चाहिए।</string>
+    <string name="ingame_resolution_line_auto">रिज़ॉल्यूशन: %1$d × %2$d पिक्सेल (स्तर %3$s, डायनैमिक) · स्क्रीन %4$d × %5$d · मेनू बंद होने पर लागू होता है। जब तक GPU साथ नहीं दे पाता, डायनैमिक एक स्तर नीचे रहता है।</string>
 
     <string name="ingame_controls">नियंत्रण</string>
     <string name="ingame_touch_controls">टच नियंत्रण</string>

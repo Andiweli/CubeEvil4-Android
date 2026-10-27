@@ -177,6 +177,7 @@ public final class CoreBridge {
    * the game's letterbox bars while playing); applied at the
    * next picture while the game runs.
    */
+  /** scale in halves: 0 Dynamic, 2 = 1×, 3 = 1.5× … 8 = 4× (CoreMenu.scaleHalves). */
   public static native void setGraphics(int scale, int samples, int anisotropy, int aspect);
   /** {most samples, strongest anisotropy, scale, samples, anisotropy in use}; null before the first picture. */
   public static native int[] graphicsInfo();

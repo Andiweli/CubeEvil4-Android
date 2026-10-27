@@ -27,8 +27,8 @@
     <string name="ingame_perf_default">افتراضي</string>
     <string name="ingame_perf_cores">استخدام أنوية الأداء</string>
     <string name="ingame_perf_help">أنوية الأداء: تعمل اللعبة والرسومات على أسرع أنوية الجهاز وتطلب من Android ترددات أعلى. أكثر سلاسة على كثير من الأجهزة، لكنها تحتاج إلى قدرة معالج أكبر ويصبح الجهاز أكثر حرارة. افتراضي: يقرر Android.</string>
-    <string name="ingame_resolution_line">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$d) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. المستويات الأعلى تتطلب أداءً أعلى.</string>
-    <string name="ingame_resolution_line_auto">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$d، ديناميكي) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. يخفض الوضع الديناميكي المستوى درجة ما دام معالج الرسوميات لا يواكب.</string>
+    <string name="ingame_resolution_line">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$s) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. المستويات الأعلى تتطلب أداءً أعلى.</string>
+    <string name="ingame_resolution_line_auto">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$s، ديناميكي) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. يخفض الوضع الديناميكي المستوى درجة ما دام معالج الرسوميات لا يواكب.</string>
 
     <string name="ingame_controls">التحكم</string>
     <string name="ingame_touch_controls">التحكم باللمس</string>

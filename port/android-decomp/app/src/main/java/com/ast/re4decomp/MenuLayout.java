@@ -61,6 +61,81 @@ final class MenuLayout {
     }
   }
 
+  /**
+   * Buttons as a piano (the resolution, wish of the project owner, 27.10.2026): the first `whites`
+   * children in a row of equal width, the others below it, each one as wide and centred on the line
+   * between white `firstGap + k` and the next (black keys). Too narrow for a row of whites: all of
+   * them in rows of equal-width cells, in the order `order` gives (child indices).
+   */
+  static final class Keys extends ViewGroup {
+    private final int whites, firstGap;
+    private final int[] order;
+    private int columns, cell, rowHeight;
+
+    Keys(Context context, int whites, int firstGap, int[] order) {
+      super(context);
+      this.whites = whites;
+      this.firstGap = firstGap;
+      this.order = order;
+    }
+
+    void addButton(View button) {
+      MarginLayoutParams lp = new MarginLayoutParams(0, LayoutParams.WRAP_CONTENT);
+      lp.setMargins(dp(getContext(), 3), dp(getContext(), 4), dp(getContext(), 3), dp(getContext(), 4));
+      addView(button, lp);
+    }
+
+    private boolean piano() { return columns == whites; }
+
+    @Override protected void onMeasure(int widthSpec, int heightSpec) {
+      int width = Math.max(1, MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight());
+      int margins = dp(getContext(), 6);
+      int needed = dp(getContext(), 64);
+      for (int i = 0; i < getChildCount(); i++) {
+        View child = getChildAt(i);
+        child.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        needed = Math.max(needed, child.getMeasuredWidth() + margins);
+      }
+      columns = Math.max(1, Math.min(whites, width / needed));
+      cell = width / columns;
+      rowHeight = 0;
+      for (int i = 0; i < getChildCount(); i++) {
+        View child = getChildAt(i);
+        child.measure(MeasureSpec.makeMeasureSpec(Math.max(0, cell - margins), MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        rowHeight = Math.max(rowHeight, child.getMeasuredHeight() + dp(getContext(), 8));
+      }
+      for (int i = 0; i < getChildCount(); i++) {  // one height for all, as the grid's rows
+        View child = getChildAt(i);
+        child.measure(MeasureSpec.makeMeasureSpec(Math.max(0, cell - margins), MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(rowHeight - dp(getContext(), 8), MeasureSpec.EXACTLY));
+      }
+      int rows = piano() ? (getChildCount() > whites ? 2 : 1) : (getChildCount() + columns - 1) / columns;
+      setMeasuredDimension(MeasureSpec.getSize(widthSpec), rows * rowHeight + getPaddingTop() + getPaddingBottom());
+    }
+
+    @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
+      int left = getPaddingLeft(), top = getPaddingTop(), side = dp(getContext(), 3), up = dp(getContext(), 4);
+      for (int i = 0; i < getChildCount(); i++) {
+        int x, y;
+        if (piano()) {
+          // a black key's left edge half a cell before the line it is centred on
+          x = i < whites ? i * cell : (firstGap + i - whites + 1) * cell - cell / 2;
+          y = i < whites ? 0 : rowHeight;
+        } else {
+          int at = 0;
+          while (at < order.length && order[at] != i) at++;
+          x = (at % columns) * cell;
+          y = (at / columns) * rowHeight;
+        }
+        View child = getChildAt(i);
+        child.layout(left + x + side, top + y + up, left + x + side + child.getMeasuredWidth(),
+            top + y + up + child.getMeasuredHeight());
+      }
+    }
+  }
+
   /** Two columns when there is room, otherwise a vertical stack. Negative fixedWidth fixes the end. */
   static final class Columns extends LinearLayout {
     private final int fixedWidth, minimumWidth;

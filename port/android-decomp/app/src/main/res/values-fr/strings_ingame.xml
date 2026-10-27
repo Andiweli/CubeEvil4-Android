@@ -25,8 +25,8 @@
     <string name="ingame_perf_default">Par défaut</string>
     <string name="ingame_perf_cores">Utiliser les cœurs performants</string>
     <string name="ingame_perf_help">Cœurs performants : le jeu et les graphismes tournent sur les cœurs les plus rapides de l\'appareil et demandent à Android des fréquences plus élevées. Plus fluide sur de nombreux appareils, mais cela demande plus de puissance processeur et l\'appareil chauffe davantage. Par défaut : Android décide.</string>
-    <string name="ingame_resolution_line">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$d) · écran %4$d × %5$d · s’applique à la fermeture du menu. Les niveaux plus élevés demandent plus de puissance.</string>
-    <string name="ingame_resolution_line_auto">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$d, Dynamique) · écran %4$d × %5$d · s’applique à la fermeture du menu. Dynamique descend d’un niveau tant que le GPU ne suit pas.</string>
+    <string name="ingame_resolution_line">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s) · écran %4$d × %5$d · s’applique à la fermeture du menu. Les niveaux plus élevés demandent plus de puissance.</string>
+    <string name="ingame_resolution_line_auto">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s, Dynamique) · écran %4$d × %5$d · s’applique à la fermeture du menu. Dynamique descend d’un niveau tant que le GPU ne suit pas.</string>
 
     <string name="ingame_controls">Commandes</string>
     <string name="ingame_touch_controls">Commandes tactiles</string>

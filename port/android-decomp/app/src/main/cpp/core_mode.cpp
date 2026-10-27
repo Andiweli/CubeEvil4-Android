@@ -51,6 +51,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -494,6 +495,7 @@ int gxMode = -1;  // -1 undecided, 0 bridge, 1 GX
 // the menu's picture options (M11, any thread -> GL thread): a change builds
 // the renderer anew at the next picture while the game runs (the core then
 // starts over with the full state); 0 scale: automatic
+// optScale: the EFB scale in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x; the menu's in-between levels)
 std::atomic<int> optScale{0}, optSamples{1}, optAnisotropy{1}, optAspect{-1};
 int letterboxSent = -1;  // what the core was told last (drawGx; -1: nothing yet)
 // Where drawGx showed the last picture, for taps (CoreBridge.tap): left and top on the surface (y
@@ -521,7 +523,14 @@ std::atomic<unsigned> optSerial{0};
 unsigned optApplied = ~0u;
 std::atomic<bool> corePaused{false};
 // what the device can do and what the renderer uses (CoreBridge.graphicsInfo)
-std::atomic<int> infoMaxSamples{0}, infoMaxAnisotropy{0}, infoScale{0}, infoSamples{0}, infoAnisotropy{0};
+std::atomic<int> infoMaxSamples{0}, infoMaxAnisotropy{0}, infoScale{0}, infoSamples{0}, infoAnisotropy{0};  // infoScale in halves
+
+// an EFB scale in halves as the log writes it: "2" or "1.5"
+std::string ScaleName(int halves) {
+  char s[16];
+  std::snprintf(s, sizeof(s), halves % 2 ? "%d.5" : "%d", halves / 2);
+  return s;
+}
 unsigned gxChunks = 0;
 // timing of the GX view since the last log line
 std::chrono::steady_clock::time_point gxSince;
@@ -738,7 +747,7 @@ double gpuBusyPercent() {
 }
 
 void benchApply(const BenchStep &step) {
-  optScale = step.scale;
+  optScale = step.scale * 2;
   optSamples = step.samples;
   optAnisotropy = step.anisotropy;
   optInvalidate = step.invalidate;
@@ -883,11 +892,11 @@ void benchTick(std::chrono::steady_clock::time_point now) {
   if (gx->TiledMsaa())
     std::snprintf(tiles, sizeof(tiles), " on the tiles (EFB drawn back %.1fx per picture)",
                   chunks ? static_cast<double>(s.efbRestores - bench.at.efbRestores) / chunks : 0.0);
-  LOG("GPU bench %d/%zu: scale %d, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s: "
+  LOG("GPU bench %d/%zu: scale %s, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s: "
       "GPU %s per picture, "
       "present %s, %.1f pictures/s, %.1f presents/s, renderer CPU %.1f ms, GPU clock %s, load %s, "
       "work (load x clock) %s, GPU behind %s, %.0f draws per picture",
-      bench.index + 1, bench.steps.size(), infoScale.load(), gx->Samples(),
+      bench.index + 1, bench.steps.size(), ScaleName(infoScale.load()).c_str(), gx->Samples(),
       gx->Samples() > 1 ? (gx->TiledMsaa() ? tiles : " in own buffers") : "", gx->Anisotropy(),
       step.dof ? "on" : "off",
       step.dof ? (gx->HalfDof() ? " (blur at half resolution)" : " (blur at full resolution)") : "",
@@ -981,7 +990,7 @@ void SaveShot(const char *path) { SaveShot(*gx, path); }
 // 20.10.2026). Once per process; the game waits meanwhile.
 bool gxReplayDone = false;
 
-void replayGx(int scale) {
+void replayGx(int halves) {
   if (gxReplayDone) return;
   gxReplayDone = true;
   const char *dir = getenv("RE4_GX_REPLAY");
@@ -1020,7 +1029,7 @@ void replayGx(int scale) {
   static const Variant kVariants[] = {{"s2old", 2, false, false, 3}, {"s2cen", 2, true, false, 2},
                                       {"s2full", 2, false, true, 1}, {"s1", 1, true, false, 1},
                                       {"s4cen", 4, true, false, 1}};
-  LOG("GX replay: %zu chunks from %s, EFB scale %d", chunks.size(), dir, scale);
+  LOG("GX replay: %zu chunks from %s, EFB scale %s", chunks.size(), dir, ScaleName(halves).c_str());
   const char *cache = getenv("RE4_GX_PROGRAM_CACHE");
   unsigned pictures = 0;
   for (const Variant &v : kVariants) {
@@ -1046,7 +1055,7 @@ void replayGx(int scale) {
           options.halfDof = optHalfDof.load() != 0;
           r->SetOptions(options);
           std::string error;
-          if (!r->Init(scale, &error)) {
+          if (!r->InitHalves(halves, &error)) {
             LOG("GX replay %s: renderer: %s", v.name, error.c_str());
             r.reset();
             continue;
@@ -1102,18 +1111,19 @@ bool drawGx() {
     gxRunCpuNs = 0;
     gxRunOnKind[0] = gxRunOnKind[1] = gxRunOnKind[2] = 0;
     gxSince = std::chrono::steady_clock::now();
+    // in halves (2: 1x, 3: 1.5x ... 8: 4x); RE4_GX_SCALE (tests) as a multiple, "1.5" too
     int scale = optScale.load();
-    if (scale < 1 || scale > 4) {
+    if (scale < 2 || scale > 8) {
       const char *scaleText = getenv("RE4_GX_SCALE");
-      scale = scaleText ? std::atoi(scaleText) : 0;
+      scale = scaleText ? static_cast<int>(std::lround(std::atof(scaleText) * 2.0)) : 0;
     }
-    autoLevelOn = scale < 1 || scale > 4;
-    if (scale < 1 || scale > 4) {
+    autoLevelOn = scale < 2 || scale > 8;
+    if (scale < 2 || scale > 8) {
       // automatic: one level below the one whose 336 picture rows come closest to the screen's
       // rows (wish of the project owner, 19.10.2026: the Retroid's 1080 rows take 2, not 3;
       // CoreMenu.autoScale is the same)
       const int rows = std::min(height, width * 9 / 16);
-      scale = std::max(1, std::min(3, (rows + 168) / 336) - 1);
+      scale = 2 * std::max(1, std::min(3, (rows + 168) / 336) - 1);
     }
     // once per run: does this GPU compute the movie colours like the GameCube (gx_selfcheck.cpp;
     // the Galaxy A36 showed them green and brown)? Before any renderer, on a renderer of its own;
@@ -1141,7 +1151,7 @@ bool drawGx() {
     if (api.depth && !getenv("RE4_GX_NO_DEPTH_MAP"))
       gx->SetDepthSink([](const std::uint32_t *cells, std::uint32_t serial) { api.depth(cells, serial); });
     std::string error;
-    if (!gx->Init(scale, &error)) {
+    if (!gx->InitHalves(scale, &error)) {
       LOG("GX renderer: %s; the bridge draws", error.c_str());
       gx.reset();
       if (previous) previous->Release();
@@ -1174,9 +1184,9 @@ bool drawGx() {
     infoScale = scale;
     infoSamples = gx->Samples();
     infoAnisotropy = static_cast<int>(gx->Anisotropy());
-    LOG("GX renderer ready, EFB scale %d, %d samples (of %d)%s, anisotropy %.0f (of %.0f), depth of field's blur "
+    LOG("GX renderer ready, EFB scale %s, %d samples (of %d)%s, anisotropy %.0f (of %.0f), depth of field's blur "
         "at %s resolution, program cache %s",
-        scale, gx->Samples(), maxSamples,
+        ScaleName(scale).c_str(), gx->Samples(), maxSamples,
         gx->Samples() > 1 ? (gx->TiledMsaa() ? " on the tiles" : " in own buffers") : "", gx->Anisotropy(),
         maxAnisotropy, gx->HalfDof() ? "half" : "full", cached ? cache : "off");
     char layout[256];
@@ -1189,8 +1199,11 @@ bool drawGx() {
       renderFast = -1;
     }
     if (autoLevelOn) {
-      autoLevel.Start(scale, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count());
-      LOG("dynamic resolution: from level %d (the screen's), a level lower while the GPU falls behind", scale);
+      // in half steps down to 1x (wish of the project owner, 27.10.2026: 2x straight to 1x lost too much)
+      autoLevel.Start(scale, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(),
+                      2, true);
+      LOG("dynamic resolution: from level %sx (the screen's), half a level lower while the GPU falls behind",
+          ScaleName(scale).c_str());
     }
   }
   // one chunk per displayed frame: every picture the game makes is shown (a
@@ -1447,7 +1460,7 @@ bool drawGx() {
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring,
                                         &why, gxBetweenDropped,  // (counts only while 60 FPS is on; never falls back)
                                         gxRunWaitMs);
-      if (level != gx->Scale()) {
+      if (level != gx->Halves()) {
         LOG("%s", why.c_str());
         // no in-between picture across the change (a chunk taken ahead, skipNext, is not run yet:
         // it stays and is drawn at the next refresh; the core sends only what changed)
@@ -1455,7 +1468,7 @@ bool drawGx() {
           api.gxRelease(smoothPrev);
           smoothPrev = nullptr;
         }
-        gx->Rescale(level);
+        gx->RescaleHalves(level);
         infoScale = level;
       }
     }
@@ -2217,6 +2230,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_cardNote(
 // The picture options: scale 0 (automatic) or 1-4, samples 1/2/4, anisotropy
 // 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched) or 3 (4:3 without the bars while playing).
 // Applied at the next picture while the game runs.
+// scale: in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(JNIEnv *, jclass, jint scale,
                                                                                jint samples, jint anisotropy,
                                                                                jint aspect) {
@@ -2226,11 +2240,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(
   optAnisotropy = anisotropy;
   optAspect = aspect;
   if (rebuild) optSerial++;
-  LOG("picture options: scale %d, %d samples, anisotropy %d, %s", scale, samples, anisotropy,
+  LOG("picture options: scale %s, %d samples, anisotropy %d, %s", scale ? ScaleName(scale).c_str() : "dynamic",
+      samples, anisotropy,
       aspect == 1 ? "4:3" : aspect == 2 ? "stretched" : aspect == 3 ? "4:3 without the bars" : "16:9");
 }
 
-// {most samples, strongest anisotropy, scale, samples, anisotropy in use}; null before the renderer started.
+// {most samples, strongest anisotropy, scale (in halves), samples, anisotropy in use}; null before the renderer started.
 extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_graphicsInfo(JNIEnv *env, jclass) {
   if (!infoMaxSamples.load()) return nullptr;
   const jint v[5] = {infoMaxSamples.load(), infoMaxAnisotropy.load(), infoScale.load(), infoSamples.load(),

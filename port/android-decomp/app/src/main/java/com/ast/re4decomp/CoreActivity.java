@@ -355,7 +355,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The menu's picture options to the renderer (applied at the next picture while the game runs). */
   private void applyGraphics() {
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
-    CoreBridge.setGraphics(g.getInt("scale", 0), g.getInt("samples", 1), g.getInt("anisotropy", 1),
+    CoreBridge.setGraphics(CoreMenu.scaleHalves(g), g.getInt("samples", 1), g.getInt("anisotropy", 1),
         g.getInt("aspect", 0));
   }
 
@@ -401,10 +401,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   private String resolution() {
     int[] info = CoreBridge.graphicsInfo();
-    if (info == null || info[2] < 1) return "";
+    if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
     int rows = aspect == 1 || aspect == 3 ? 448 : 336;
-    return String.format(Locale.ROOT, " · %d×%d (%d×)", 640 * info[2], rows * info[2], info[2]);
+    return String.format(Locale.ROOT, " · %d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
+        CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }
 
   /** " · 60 Hz": the screen's rate as measured (FramePacing), else as Android says; "" unknown. */

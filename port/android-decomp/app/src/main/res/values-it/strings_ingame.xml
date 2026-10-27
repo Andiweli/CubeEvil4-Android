@@ -23,8 +23,8 @@
     <string name="ingame_perf_default">Predefinito</string>
     <string name="ingame_perf_cores">Usa core ad alte prestazioni</string>
     <string name="ingame_perf_help">Core ad alte prestazioni: il gioco e la grafica girano sui core più veloci del dispositivo e chiedono ad Android frequenze più alte. Più fluido su molti dispositivi, ma richiede più potenza della CPU e il dispositivo si scalda di più. Predefinito: decide Android.</string>
-    <string name="ingame_resolution_line">Risoluzione: %1$d × %2$d pixel (livello %3$d) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
-    <string name="ingame_resolution_line_auto">Risoluzione: %1$d × %2$d pixel (livello %3$d, Dinamica) · schermo %4$d × %5$d · si applica alla chiusura del menu. Dinamica scende di un livello finché la GPU non tiene il passo.</string>
+    <string name="ingame_resolution_line">Risoluzione: %1$d × %2$d pixel (livello %3$s) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
+    <string name="ingame_resolution_line_auto">Risoluzione: %1$d × %2$d pixel (livello %3$s, Dinamica) · schermo %4$d × %5$d · si applica alla chiusura del menu. Dinamica scende di un livello finché la GPU non tiene il passo.</string>
 
     <string name="ingame_controls">Comandi</string>
     <string name="ingame_touch_controls">Comandi touch</string>

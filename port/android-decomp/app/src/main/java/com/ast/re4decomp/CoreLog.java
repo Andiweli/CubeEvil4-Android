@@ -210,8 +210,8 @@ final class CoreLog {
     b.append("Graphics: ").append(g.getAll()).append('\n');
     int[] info = CoreBridge.graphicsInfo();
     if (info != null) {
-      b.append(String.format(Locale.ROOT, "Graphics in use: level %d, %d samples (up to %d), anisotropy %d (up to %d)\n",
-          info[2], info[3], info[0], info[4], info[1]));
+      b.append(String.format(Locale.ROOT, "Graphics in use: level %s, %d samples (up to %d), anisotropy %d (up to %d)\n",
+          CoreMenu.scaleNumber(info[2], Locale.ROOT), info[3], info[0], info[4], info[1]));
     }
     b.append("Switches: ").append(settings == null || settings.isEmpty() ? "-" : settings).append('\n');
     // whether the error log records (the menu's switch) and whether logcat runs now

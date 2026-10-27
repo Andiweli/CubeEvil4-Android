@@ -234,6 +234,49 @@ final class CoreMenu extends Dialog {
       buttons[k].setContentDescription(labels[k] + ", " + s(k == index ? R.string.ingame_on : R.string.ingame_off));
     }
   }
+  /**
+   * The resolution as a piano (wish of the project owner, 27.10.2026): Dynamic and the whole levels
+   * in a row, the in-between levels 1.5×, 2.5×, 3.5× below, each between the two it lies between.
+   * Kept in halves ("scaleHalves").
+   */
+  private void resolutionChoices() {
+    LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, false);
+    outer.addView(rowLabel(s(R.string.ingame_resolution)));
+    int[] values = {0, 2, 4, 6, 8, 3, 5, 7};
+    // the buttons' order by level when the row does not fit
+    MenuLayout.Keys keys = new MenuLayout.Keys(getContext(), 5, 1, new int[] {0, 1, 5, 2, 6, 3, 7, 4});
+    outer.addView(keys);
+    String[] labels = new String[values.length];
+    for (int i = 0; i < values.length; i++) labels[i] = values[i] == 0 ? s(R.string.ingame_dynamic) : scaleLabel(values[i]);
+    Button[] buttons = new Button[values.length];
+    int selected = scaleHalves(graphics);
+    for (int i = 0; i < values.length; i++) {
+      final int index = i;
+      Button b = button(labels[i], v -> {
+        select(buttons, labels, index);
+        graphics.edit().putInt("scaleHalves", values[index]).apply(); host.graphicsChanged(); showGraphics();
+      });
+      b.setSelected(values[i] == selected);
+      b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
+      keys.addButton(b); buttons[i] = b;
+    }
+    outer.setPadding(0, dp(3), 0, dp(3)); body.addView(outer);
+  }
+  /** The chosen resolution in halves (0: Dynamic; 2: 1×, 3: 1.5× … 8: 4×); until 27.10.2026 "scale" in whole levels. */
+  static int scaleHalves(SharedPreferences g) {
+    if (g.contains("scaleHalves")) return g.getInt("scaleHalves", 0);
+    int whole = g.getInt("scale", 0);
+    return whole >= 1 && whole <= 4 ? 2 * whole : 0;
+  }
+  /** A level in halves as a number: "2", "1.5" (Locale.ROOT) or with the language's decimal separator. */
+  static String scaleNumber(int halves, Locale locale) {
+    if (halves % 2 == 0) return String.valueOf(halves / 2);
+    char separator = locale == null ? '.' : java.text.DecimalFormatSymbols.getInstance(locale).getDecimalSeparator();
+    return (halves / 2) + String.valueOf(separator) + "5";
+  }
+  private String scaleLabel(int halves) {
+    return scaleNumber(halves, Locale.getDefault()) + "×";
+  }
   private void graphicChoices(int label, String key, String[] labels, int[] values, int fallback, int limit) {
     choices(label, labels, values, graphics.getInt(key, fallback), limit, value -> {
       graphics.edit().putInt(key, value).apply(); host.graphicsChanged(); showGraphics();
@@ -374,8 +417,7 @@ final class CoreMenu extends Dialog {
     // Unknown GPU capabilities must not enable unsupported samples or anisotropy.
     int samples = info == null ? 1 : Math.max(1, info[0]);
     int anisotropy = info == null ? 1 : Math.max(1, info[1]);
-    graphicChoices(R.string.ingame_resolution, "scale", new String[] {s(R.string.ingame_dynamic), "1×", "2×", "3×", "4×"},
-        new int[] {0, 1, 2, 3, 4}, 0, Integer.MAX_VALUE);
+    resolutionChoices();
     graphicsLine = text("", 15, false); graphicsLine.setPadding(0, dp(4), 0, dp(10)); body.addView(graphicsLine); showGraphics();
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
         new int[] {1, 2, 4}, 1, samples);
@@ -658,14 +700,15 @@ final class CoreMenu extends Dialog {
 
   /** The resolution the chosen level gives. */
   private void showGraphics() {
-    int chosen = graphics.getInt("scale", 0), scale = chosen;
-    if (scale < 1 || scale > 4) scale = autoScale(screenWidth, screenHeight);
+    int chosen = scaleHalves(graphics), halves = chosen;
+    if (halves < 2 || halves > 8) halves = 2 * autoScale(screenWidth, screenHeight);
     int aspect = graphics.getInt("aspect", 0);
     boolean original = aspect == 1 || aspect == 3;
-    // the numbers as digits 0..9 in every language (Locale.ROOT)
+    // the numbers as digits 0..9 in every language (Locale.ROOT), the level with the language's separator
     if (graphicsLine == null) return;
     graphicsLine.setText(String.format(Locale.ROOT, s(chosen == 0 ? R.string.ingame_resolution_line_auto
-        : R.string.ingame_resolution_line), 640 * scale, (original ? 448 : 336) * scale, scale, screenWidth, screenHeight));
+        : R.string.ingame_resolution_line), 640 * halves / 2, (original ? 448 : 336) * halves / 2,
+        scaleNumber(halves, Locale.getDefault()), screenWidth, screenHeight));
   }
 
   /**

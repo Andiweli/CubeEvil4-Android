@@ -64,6 +64,28 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   hoch nur unter 5 ms. In den 140 Zehn-Sekunden-Fenstern des Berichts warteten die ruckelnden 11–35 ms, alle flüssigen höchstens
   8,4 ms. Ohne Thread-Uhr (`CLOCK_THREAD_CPUTIME_ID`) zählt kein Warten. `gx_gl_check` mit neuen Fällen 0 Fehler (mit
   abgeschalteter Regel schlagen sie an), APK neu gebaut. **Nicht geprüft:** ob Stufe 1 am See wieder 30 Bilder/s schafft (Gerät).
+- **Gerätetest der Regel (Retroid, 27.10.2026 16:25 und 16:29, Berichte `senden-arm64.zip`, `senden_arm32.zip`):** sie greift mit
+  64 und 32 bit: `dynamic resolution: level 2 -> 1 (24.0 game pictures/s, the GPU 0.0 chunks behind, the render thread waiting
+  31.2 ms a chunk …)`, danach 30 Bilder/s; nach 30 s wieder Stufe 2, kurz darauf wieder 1 (die Wartezeit verdoppelt sich wie
+  vorgesehen). 32 bit: Spielstand in r117 geladen (`save loaded … room r117`), **gespeichert wurde in diesem Lauf nicht**.
+  Projektinhaber: der Sprung von 2× auf 1× ist an der Bildqualität deutlich zu sehen.
+- **Zwischenstufen der Auflösung (Wunsch des Projektinhabers, 27.10.2026):** 1,5×, 2,5×, 3,5× zusätzlich zu 1×–4×. Im Menü
+  (Anzeige → Auflösung) wie eine Klaviertastatur: oben Dynamisch, 1×, 2×, 3×, 4×, darunter die drei Zwischenstufen, jede so
+  breit wie die oberen und mittig auf der Linie zwischen den beiden, zwischen denen sie liegt (`MenuLayout.Keys`; ist die
+  Zeile zu schmal, stehen alle acht in Zeilen gleicher Breite der Größe nach). Die Wahl steht in halben Stufen in
+  `scaleHalves` (0 Dynamisch, 2 = 1× … 8 = 4×); eine Wahl der alten Einstellung `scale` wird übernommen. Die Zahl mit dem
+  Dezimalzeichen der Sprache („1,5×“). Renderer (`gx_gl.cpp`): die Stufe in halben Schritten (`Impl::halves`), Bildspeicher
+  bei 1,5× 960 × 792; Ausschnitte, Bildbereiche und Löschen von `Lo(x)` bis `Lo(x + w)` (abgerundet, Nachbarn ohne Lücke),
+  eine Kopie hat `Hi(w)` Pixel (aufgerundet), der Kopier-Shader liest ihren Ausschnitt genau (`Sf`). Bei ganzen Stufen
+  rechnet alles wie vorher. Neue Schnittstelle `InitHalves`/`RescaleHalves`/`Halves` (die ganzzahlige bleibt für Tests und
+  Werkzeuge). **Dynamisch** geht jetzt in halben Schritten (2× → 1,5× → 1×; `AutoLevel::Start(…, bottom 2, halves)`, Log
+  `level 2x -> 1.5x`). `CoreBridge.setGraphics` und `graphicsInfo()[2]` in halben Stufen, Fehlerbericht `level 1.5`.
+- **Geprüft:** `gx_gl_check` 0 Fehler mit neuen Fällen (Stufenwechsel auf 1,5× und 2,5×: Bildgröße, mitgenommene Kopie,
+  Löschfarbe; bei 1,5× eine Kopie an ungerader Stelle mit ungerader Größe; Dynamisch in halben Schritten bis 1× und nicht
+  tiefer); `CoreMenuLayoutTest` 5/5 (neu: Klavier-Anordnung, Übernahme der alten Wahl 3× → `scaleHalves` 6, Druck auf 1,5×
+  speichert 3; alle Seiten in 10 Sprachen, 3 Schriftgrößen, 5 Breiten ohne Überlappung); Texte 10 Sprachen ok
+  (`ingame_resolution_line`: die Stufe als Text `%3$s`); APK gebaut. **Nicht geprüft:** Gerät (Bild bei 1,5×/2,5×/3,5×,
+  Dynamisch in halben Schritten am See).
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte

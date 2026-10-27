@@ -945,7 +945,43 @@ void TestRescale() {
     Check(Near(TexPixel(xfb, 320 * scale, 320 * scale), 255, 0, 0), (at + ": the copy still bound, scaled along").c_str());
     Check(Near(TexPixel(xfb, 100 * scale, 400 * scale), 0, 0, 255), (at + ": the clear colour elsewhere").c_str());
   }
-  Check(r.Stats().rescales == 2, "rescale: counted");
+  // the menu's in-between levels (1.5x, 2.5x: in halves 3, 5): the EFB 960 x 792 and 1600 x 1320
+  for (int halves : {3, 5}) {
+    r.RescaleHalves(halves);
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    textured(b, false);
+    r.Run(b.Chunk());
+    unsigned w = 0, h = 0;
+    const GLuint xfb = r.Xfb(&w, &h);
+    const std::string at = "rescale to " + std::to_string(halves) + " halves";
+    Check(r.Halves() == halves && r.Scale() == halves / 2, (at + ": the renderer's level").c_str());
+    Check(w == 640 && h == 528 &&
+              Near(TexPixel(xfb, static_cast<int>(w) * halves / 2 - 4, static_cast<int>(h) * halves / 2 - 4), 0, 0, 255),
+          (at + ": the display copy has the new size").c_str());
+    Check(Near(TexPixel(xfb, 320 * halves / 2, 320 * halves / 2), 255, 0, 0),
+          (at + ": the copy still bound, scaled along").c_str());
+    Check(Near(TexPixel(xfb, 100 * halves / 2, 400 * halves / 2), 0, 0, 255), (at + ": the clear colour elsewhere").c_str());
+  }
+  {
+    // at 1.5x a copy at an odd place and of an odd size (its texture Hi(w) pixels, the source read exactly)
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 640, 528, 0, kRed);
+    b.Bp(0x49, 33 | 17u << 10);
+    b.Bp(0x4A, 30 | 30u << 10);  // 31 x 31 at (33, 17)
+    b.Bp(0x4D, 32);
+    b.Bp(0x4B, 0x210000 >> 5);
+    b.Bp(0x52, 6u << 4 | 2u << 15);
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    Check(Near(TexPixel(r.Xfb(nullptr, nullptr), 480, 396), 255, 0, 0), "1.5x: an odd copy, the picture still drawn");
+  }
+  Check(r.Stats().rescales == 4, "rescale: counted");
   Check(glGetError() == GL_NO_ERROR, "rescale: no GL error");
   r.Release();
 }
@@ -1075,6 +1111,18 @@ void TestAutoLevel() {
     while (r.a.Ups() == 0 && r.t < 400.0)
       r.Play(0.5, 30.0, 0, true, 0, 2.0);
     Check(r.a.Ups() == 1, "auto level: up again once it hardly waits");
+  }
+  {
+    // in halves (the app): from 2x (4) half a level at a time, never below 1x (2), named "1.5x"
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true);
+    r.Play(6.5, 20.0, 1);
+    Check(r.a.Level() == 3 && !r.lines.empty() && r.lines.back().find("level 2x -> 1.5x") != std::string::npos,
+          "auto level in halves: 2x -> 1.5x");
+    r.Play(6.5, 20.0, 1);
+    Check(r.a.Level() == 2, "auto level in halves: 1.5x -> 1x");
+    r.Play(10.0, 20.0, 1);
+    Check(r.a.Level() == 2, "auto level in halves: never below 1x");
   }
 }
 

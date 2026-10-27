@@ -20,7 +20,9 @@
 // MSAA: 22-25 pictures a second, the render thread waiting 11-35 ms a chunk, never more than 8.4 ms
 // in the smooth parts). A slow window with at least kWaitDown ms of such waiting on average counts as
 // the GPU behind; up again only with less than kWaitUp.
-// core_mode.cpp applies a new level between two Runs (GxRenderer::Rescale).
+// core_mode.cpp applies a new level between two Runs (GxRenderer::RescaleHalves). It counts the levels in
+// halves (Start's `halves`: 4 is 2x, 3 is 1.5x; the app menu's in-between levels, wish of the project
+// owner, 27.10.2026: from 2x straight to 1x the picture lost too much), down to `bottom` (2: 1x).
 #pragma once
 
 #include <algorithm>
@@ -47,10 +49,13 @@ public:
   static constexpr double kWaitDown = 10.0;    // ms a chunk the render thread waits for the GPU
   static constexpr double kWaitUp = 5.0;
 
-  // A renderer started at `top` (the screen's level, its highest) at `t` seconds.
-  void Start(int top, double t) {
+  // A renderer started at `top` (the screen's level, its highest) at `t` seconds; never below `bottom`;
+  // `halves`: the levels are halves (only how the log line writes them).
+  void Start(int top, double t, int bottom = 1, bool halves = false) {
     *this = AutoLevel();
-    top_ = level_ = std::max(1, top);
+    bottom_ = std::max(1, bottom);
+    top_ = level_ = std::max(bottom_, top);
+    halves_ = halves;
     since_ = t;
     started_ = true;
   }
@@ -92,7 +97,7 @@ public:
     }
     char line[256];
     const bool slow =
-        (rate < kSlow || droppedShare > kDroppedDown) && (behind >= kBehindDown || wait >= kWaitDown) && level_ > 1;
+        (rate < kSlow || droppedShare > kDroppedDown) && (behind >= kBehindDown || wait >= kWaitDown) && level_ > bottom_;
     bad_ = slow ? bad_ + 1 : 0;
     if (slow && bad_ < kBadWindows) {
       good_ = 0;
@@ -107,9 +112,9 @@ public:
       holdUntil_ = t + hold_;
       good_ = 0;
       std::snprintf(line, sizeof(line),
-                    "dynamic resolution: level %d -> %d (%.1f game pictures/s, the GPU %.1f chunks behind, the render "
+                    "dynamic resolution: level %s -> %s (%.1f game pictures/s, the GPU %.1f chunks behind, the render "
                     "thread waiting %.1f ms a chunk, %.0f %% without their in-between picture)",
-                    level_, level_ - 1, rate, behind, wait, droppedShare * 100.0);
+                    Name(level_).c_str(), Name(level_ - 1).c_str(), rate, behind, wait, droppedShare * 100.0);
       level_--;
       downs_++;
       if (why)
@@ -121,8 +126,8 @@ public:
         good_ = 0;
         upAt_ = t;
         std::snprintf(line, sizeof(line),
-                      "dynamic resolution: level %d -> %d (%.0f s at %.1f game pictures/s, the GPU keeping up)", level_,
-                      level_ + 1, kGoodWindows * kWindow, rate);
+                      "dynamic resolution: level %s -> %s (%.0f s at %.1f game pictures/s, the GPU keeping up)",
+                      Name(level_).c_str(), Name(level_ + 1).c_str(), kGoodWindows * kWindow, rate);
         level_++;
         ups_++;
         if (why)
@@ -139,10 +144,20 @@ public:
   unsigned Downs() const { return downs_; }
   unsigned Ups() const { return ups_; }
   double Hold() const { return hold_; }
+  // a level as the log writes it: "2" or, in halves, "1.5x"
+  std::string Name(int level) const {
+    char s[16];
+    if (halves_)
+      std::snprintf(s, sizeof(s), level % 2 ? "%d.5x" : "%dx", level / 2);
+    else
+      std::snprintf(s, sizeof(s), "%d", level);
+    return s;
+  }
 
 private:
   bool started_ = false, windowOpen_ = false;
-  int top_ = 1, level_ = 1;
+  int top_ = 1, level_ = 1, bottom_ = 1;
+  bool halves_ = false;
   double since_ = 0.0;
   unsigned chunks_ = 0;
   unsigned long long behindSum_ = 0, dropped_ = 0;
