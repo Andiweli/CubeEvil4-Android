@@ -6,6 +6,11 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 ## M13: Fehlerberichte, Gyro-Richtung, R3 und R6 (27.10.2026 vormittags, lokal, Branch `retail-eu`)
 
+**Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch, 64 bit, Stand `f2599d51`, 27.10.2026 10:37):** Spiel startet in
+der gewählten Sprache, beide Vorfilme laufen; erster Funkspruch mit Hunnigan und dunkler Leiste hinter dem Untertitel (Patch
+0126 bestätigt); Spielstand in r226 geladen, der Statuen-Ton ist zu hören (leise, das Sample selbst ist leise; bestätigt, dass
+der frühere Bericht am Pegel lag, nicht an der Wiedergabe); Gyro-Schalter „Vertikal/Horizontal umkehren“ im Log wirksam.
+
 **1. Lesefehler `st2/r222.das` (Bericht HONOR LGN-NX3, Android 16, 64 bit, Debug-Discs, 26.10.2026).** Kern-Log: die
 Datei ist auf dem Gerät so groß wie auf der Disc (3 064 768 Byte), ihre ersten 0x400 Byte sind aber Nullen; Patch 0113
 gab nach drei Versuchen auf, das Bild blieb stehen (die Meldung „DISC FILE DAMAGED“ ging nur ins Log). Auf unserer
