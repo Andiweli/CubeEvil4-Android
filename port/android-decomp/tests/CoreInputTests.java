@@ -326,63 +326,69 @@ public final class CoreInputTests {
       check((q[0] & CoreInput.GC_R) != 0 && q[6] == 255 && q[1] > 0 && q[3] == 0);
     }
     {
-      // extra keys (the menu's controller configuration, 27.10.2026): only on free keys, the layout stays
-      check(CoreInput.freeKey(L1, false) && !CoreInput.freeKey(L1, true) && CoreInput.freeKey(L3, false)
-          && CoreInput.freeKey(R3, true) && !CoreInput.freeKey(A, false) && !CoreInput.freeKey(R1, false)
-          && !CoreInput.freeKey(L2, false) && !CoreInput.freeKey(SELECT, false) && !CoreInput.freeKey(UP, false));
-      check(CoreInput.encode(null) == null && CoreInput.encode(new int[CoreInput.FUNCTIONS]) == null);
-      check(CoreInput.decode("1,2") == null && CoreInput.decode("96,0,0,0,0,0,0,0,0,0,0,0,0") == null
-          && CoreInput.decode("102,0,0,0,102,0,0,0,0,0,0,0,0") == null);
-      int[] e = CoreInput.assign(null, CoreInput.F_Z, L1);  // the map also on L1
-      check(e[CoreInput.F_Z] == L1 && java.util.Arrays.equals(CoreInput.decode(CoreInput.encode(e)), e));
-      CoreInput x = new CoreInput();
-      x.setExtraKeys(e);
-      check(x.key(1, L1, true) && x.pad()[0] == CoreInput.GC_Z && x.gcButton(L1) == CoreInput.GC_Z);
-      x.key(1, L1, false);
-      check(x.pad()[0] == 0);
-      // R1 is still the map, A still A: the layout stays
-      check(x.key(1, R1, true) && x.pad()[0] == CoreInput.GC_Z);
-      x.key(1, R1, false);
-      check(x.key(1, A, true) && x.pad()[0] == CoreInput.GC_A);
-      x.key(1, A, false);
-      // L1 to another function: the map loses it; the same key again: no extra key
-      e = CoreInput.assign(e, CoreInput.F_B, L1);
-      check(e[CoreInput.F_B] == L1 && e[CoreInput.F_Z] == 0);
-      check(CoreInput.assign(e, CoreInput.F_B, L1)[CoreInput.F_B] == 0);
-      // B (run) on L1, latching works through it
-      x.setExtraKeys(e);
-      check(x.key(1, L1, true) && x.pad()[0] == CoreInput.GC_B);
-      x.key(1, L1, false);
-      x.setLatch(false, true);
-      x.key(1, L1, true);
-      x.pad();
-      x.key(1, L1, false);
-      check(x.pad()[0] == CoreInput.GC_B);
-      x.setLatch(false, false);
-      x.clear();
-      // aiming (R) on L3: the trigger fully, digital R too
-      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_R, L3));
-      x.key(1, L3, true);
-      int[] q = x.pad();
+      // free keys (the menu's controller configuration, 27.10.2026): A, B, L2, R2, START, SELECT and the
+      // D-pad fixed; X, Y, L1, R1, L3, R3 take any function
+      int[] def = CoreInput.defaultKeyMap();
+      check(CoreInput.encode(def) == null && CoreInput.decode(CoreInput.encode(def)) == null);
+      check(CoreInput.decode("1,2") == null && CoreInput.decode("2,3,-1,4,-1,99") == null);
+      check(CoreInput.movable(A) < 0 && CoreInput.movable(L2) < 0 && CoreInput.movable(UP) < 0
+          && CoreInput.movable(SELECT) < 0 && CoreInput.movable(L3) >= 0);
+      check(CoreInput.missing(def).length == 0);
+      int xi = CoreInput.movable(X), yi = CoreInput.movable(Y), l1 = CoreInput.movable(L1), r1 = CoreInput.movable(R1),
+          l3 = CoreInput.movable(L3), r3 = CoreInput.movable(R3);
+      // the map (Z) on L1: R1 had it and takes L1's old function (none)
+      int[] m = CoreInput.assign(null, l1, CoreInput.F_Z);
+      check(m[l1] == CoreInput.F_Z && m[r1] == CoreInput.F_NONE && CoreInput.missing(m).length == 0);
+      check(java.util.Arrays.equals(CoreInput.decode(CoreInput.encode(m)), m));
+      // aiming (R) on R1 as well: R2 stays R
+      m = CoreInput.assign(m, r1, CoreInput.F_R);
+      CoreInput k = new CoreInput();
+      k.setKeyMap(m);
+      check(k.key(1, L1, true) && k.pad()[0] == CoreInput.GC_Z && k.gcButton(L1) == CoreInput.GC_Z);
+      k.key(1, L1, false);
+      check(k.key(1, R1, true));
+      int[] q = k.pad();
       check(q[6] == 255 && (q[0] & CoreInput.GC_R) != 0);
-      x.key(1, L3, false);
-      check(x.pad()[6] == 0);
-      // the app's menu on R3: no graphics capture there; SELECT still the menu
-      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_MENU, R3));
-      check(x.appFunctionOf(R3) == CoreInput.APP_MENU && x.appFunctionOf(SELECT) == CoreInput.APP_MENU);
-      check(!x.key(1, R3, true));
-      // a game function on R3: no capture, the function
-      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_X, R3));
-      check(x.appFunctionOf(R3) == CoreInput.APP_NONE && x.key(1, R3, true) && x.pad()[0] == CoreInput.GC_X);
-      x.key(1, R3, false);
-      // with the alternate controls L1 is theirs (the knife): an extra key there does nothing
-      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_Z, L1));
-      x.setAlternate(true);
-      x.key(1, L1, true);
-      q = x.pad();
-      check((q[0] & CoreInput.GC_Z) == 0 && q[5] == 255);
+      k.key(1, R1, false);
+      check(k.key(1, R2, true) && k.pad()[6] == 255);
+      k.key(1, R2, false);
+      // A, B, START, the D-pad as always
+      check(k.key(1, A, true) && k.pad()[0] == CoreInput.GC_A);
+      k.key(1, A, false);
+      check(k.key(1, UP, true) && k.pad()[0] == CoreInput.GC_UP);
+      k.key(1, UP, false);
+      check(k.pad()[0] == 0);
+      // inventory (Y) on X: they swap
+      m = CoreInput.assign(m, xi, CoreInput.F_Y);
+      check(m[xi] == CoreInput.F_Y && m[yi] == CoreInput.F_X);
+      // running (B) on L3, latching through it
+      m = CoreInput.assign(m, l3, CoreInput.F_B);
+      k.setKeyMap(m);
+      k.setLatch(false, true);
+      k.key(1, L3, true);
+      k.pad();
+      k.key(1, L3, false);
+      check(k.pad()[0] == CoreInput.GC_B);
+      k.setLatch(false, false);
+      k.clear();
+      // no function on Y's key: inventory is missing, the key does nothing
+      int[] gone = CoreInput.assign(m, xi, CoreInput.F_NONE);
+      check(CoreInput.missing(gone).length == 1 && CoreInput.missing(gone)[0] == CoreInput.F_Y);
+      k.setKeyMap(gone);
+      check(!k.key(1, X, true) && k.pad()[0] == 0);
+      // R3: the graphics capture without a function, the app's menu or a game function with one
+      check(k.appFunctionOf(R3) == CoreInput.APP_GX_DUMP && k.appFunctionOf(SELECT) == CoreInput.APP_MENU);
+      k.setKeyMap(CoreInput.assign(null, r3, CoreInput.F_MENU));
+      check(k.appFunctionOf(R3) == CoreInput.APP_MENU && !k.key(1, R3, true));
+      k.setKeyMap(CoreInput.assign(null, r3, CoreInput.F_X));
+      check(k.appFunctionOf(R3) == CoreInput.APP_NONE && k.key(1, R3, true) && k.pad()[0] == CoreInput.GC_X);
+      k.key(1, R3, false);
+      // the alternate controls keep their layout: L1 the knife, R1 the inventory
+      k.setKeyMap(CoreInput.assign(null, l1, CoreInput.F_Z));
+      k.setAlternate(true);
+      check(k.gcButton(R1) == CoreInput.GC_Y && k.gcButton(L1) == CoreInput.GC_L);
     }
-    System.out.println("Core controller: layout, swap, alternate controls, extra keys, sticks and triggers through "
+    System.out.println("Core controller: layout, swap, alternate controls, free keys, sticks and triggers through "
         + "PADClamp, devices: " + checks + " checks PASS");
   }
 }

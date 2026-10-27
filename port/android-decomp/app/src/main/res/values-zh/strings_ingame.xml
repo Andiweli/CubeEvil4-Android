@@ -167,11 +167,10 @@
     <string name="ingame_cheat_queued">游戏继续后就会完成。</string>
     <string name="ingame_cheat_unsupported">这个游戏核心没有作弊功能。</string>
     <string name="ingame_controller_config">手柄配置</string>
-    <string name="ingame_controller_config_help">手柄配置：将游戏功能额外设置到手柄的空闲按键上（Retroid 上为 L1、L3、R3）。原有配置保持不变。仅在连接手柄时可用。</string>
-    <string name="ingame_controller_press">空闲按键…</string>
-    <string name="ingame_controller_default">清除额外按键</string>
-    <string name="ingame_controller_help">选择某个功能的按钮，然后按下一个空闲按键（例如 L1、L3 或 R3）。该功能保留原按键，并额外位于新按键上。再按一次同一按键则取消；按 A 取消操作。</string>
-    <string name="ingame_controller_alternate_note">替代操作已开启：L1 归其所用，L1 上的额外按键在关闭后才生效。</string>
+    <string name="ingame_controller_config_help">手柄配置：选择手柄空闲按键（X、Y、L1、R1、L3、R3）的功能。仅在连接手柄时可用。</string>
+    <string name="ingame_controller_default">默认配置</string>
+    <string name="ingame_controller_help">选择一个按键，然后选择其功能。如果阿什莉、物品栏或地图在另一个按键上，两者会互换。一个功能也可以位于多个按键上。</string>
+    <string name="ingame_controller_alternate_note">替代操作已开启：它保留自己的配置；关闭后此配置才会生效。</string>
     <string name="ingame_fn_action">动作 / 射击 (A)</string>
     <string name="ingame_fn_run">奔跑 / 取消 (B)</string>
     <string name="ingame_fn_ashley">阿什莉：等待 / 跟随 (X)</string>
@@ -185,4 +184,7 @@
     <string name="ingame_fn_left">方向键左</string>
     <string name="ingame_fn_right">方向键右</string>
     <string name="ingame_fn_menu">应用菜单 (SELECT)</string>
+    <string name="ingame_controller_fixed">固定：A、B、L2、R2、START、SELECT 和方向键保持其功能（游戏的提示和菜单使用它们）。</string>
+    <string name="ingame_controller_missing">不在任何按键上：%1$s</string>
+    <string name="ingame_fn_none">无功能</string>
 </resources>

@@ -169,6 +169,23 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   (neu: freie Tasten, Karte auf L1 und R1 bleibt Karte, A bleibt A, Wechsel und Wegnehmen, Rennen auf L1 mit Einrasten,
   Zielen auf L3, App-Menü und X auf R3, alternative Steuerung belegt L1), `CoreMenuLayoutTest` 7/7 (neu: belegte Taste
   abgelehnt, L1 angenommen, Wechsel zwischen Funktionen), Texte 10 Sprachen ok, APK gebaut. **Nicht geprüft:** Gerät.
+- **Fünfter Gerätetest (Retroid, 27.10.2026) und dritte Fassung (Vorschlag des Projektinhabers):** mit Zusatztasten waren
+  nur L1, L3, R3 belegbar. Neu: **A, B, L2, R2, START, SELECT und das Steuerkreuz sind fest** (die Hinweise und Dialoge des
+  Spiels fragen A, B, L, R; seine Menüs bewegen sich mit dem Steuerkreuz), **X, Y, L1, R1, L3, R3 sind frei belegbar**
+  (`CoreInput.MOVABLE`, eine Funktion oder keine je Taste; Standard X = Ashley, Y = Inventar, R1 = Karte, L1/L3/R3 keine).
+  Der Controller meldet auch C, Z und MODE; beim Retroid sind das keine echten Tasten, sie bleiben außen vor. Wählt man
+  Ashley, Inventar oder Karte für eine Taste, tauscht die Taste, die sie hatte (`CoreInput.assign`); fehlt eine davon (durch
+  „Keine Funktion“), zeigt die Seite „Auf keiner Taste: …“. Andere Funktionen dürfen auf mehreren Tasten liegen (z. B. Zielen
+  auch auf R1). L und R auf einer freien Taste drücken den Trigger ganz; „Einrasten“ wirkt; R3 nimmt Grafikdaten nur ohne
+  Funktion; das App-Menü kann auf einer freien Taste liegen. Mit der alternativen Steuerung gilt deren Belegung. Seite: links
+  die Taste, rechts ihre Funktion, ein Druck öffnet eine Unterseite mit „Keine Funktion“ und den 13 Funktionen (mit dem
+  Controller bedienbar wie das übrige Menü), „Standardbelegung“. Gespeichert als `keyMap` in `core_input`; die Einträge der
+  zwei ersten Fassungen (`bindings`, `extraKeys`) werden gelöscht. Protokoll `free keys (controller configuration): BUTTON_X
+  = X, …`. Texte 10 Sprachen (neu „Fest: …“, „Auf keiner Taste: …“, „Keine Funktion“). **Geprüft:** `CoreInputTests` 170
+  Prüfungen (neu: feste Tasten, Karte auf L1 mit Tausch, Zielen auch auf R1 und R2 weiter, A/Steuerkreuz unverändert, Tausch
+  X/Y, Rennen auf L3 mit Einrasten, fehlende Funktion, R3 mit Aufnahme/Menü/Funktion, alternative Steuerung),
+  `CoreMenuLayoutTest` 7/7 (neu: die Seite, die Auswahl, Tausch, Warnung, Standardbelegung; beide Seiten in 10 Sprachen, 3
+  Schriftgrößen, 5 Breiten), Texte ok, APK gebaut. **Nicht geprüft:** Gerät.
 - **Bericht eines Testers (HONOR LGN-NX3, 0.91.0, `cubeevil4-report-20261026-231441.zip`, „r210 lädt nicht“):** r210 lädt
   einwandfrei; durch die Tür nach r222 liest das Spiel `st2/r222.das`, deren erste 0x400 Byte auf dem Gerät Nullen sind
   („DISC FILE DAMAGED: st2/r222.das“). Derselbe Bericht wie „Lesefehler `st2/r222.das`“ oben (M13): 0.92.0 prüft beim Import

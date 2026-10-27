@@ -54,8 +54,8 @@ final class CoreMenu extends Dialog {
     void gyroChanged(boolean on);
     /** The switch "Alternate Controls" (the preferences hold it). */
     void alternateChanged(boolean on);
-    /** The controller configuration's extra keys (CoreInput, 0: none); the host keeps them. */
-    void extraKeysChanged(int[] keys);
+    /** The controller configuration's key map (CoreInput: a function for each free key); the host keeps it. */
+    void keyMapChanged(int[] map);
     /** A physical game controller is connected (the controller configuration can be used). */
     boolean controllerConnected();
     /** The comfort control "Latch L and R", touch and controller (the preferences hold it). */
@@ -82,7 +82,8 @@ final class CoreMenu extends Dialog {
   }
 
   private interface Changed<T> { void accept(T value); }
-  private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4, CONTROLLER = 5;
+  private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4, CONTROLLER = 5,
+      CHOOSE = 6;
   private static final long CHEAT_FLASH_MS = 1500;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
@@ -96,12 +97,14 @@ final class CoreMenu extends Dialog {
   private final TextView title;
   private final Button back, resume;
   private final Handler main = new Handler(Looper.getMainLooper());
-  private final int[] scrollY = new int[6];
+  private final int[] scrollY = new int[7];
   private final Button[] navigation = new Button[5];
-  // the controller configuration: the button of each function, the function waiting for its new key (-1: none)
+  // the controller configuration: the button of each free key, the free key whose function is chosen
+  // (the CHOOSE page), the map shown
   private Button[] bindingButtons;
   private Button controllerButton;
-  private int capturing = -1, assignedKey = -1;  // assignedKey: its release is swallowed too
+  private int chooseKey;
+  private int[] shownMap;
   private int page, requestSerial;
   private boolean working, slotPresent;
   private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus;
@@ -312,7 +315,7 @@ final class CoreMenu extends Dialog {
     if (working) return;
     scrollY[page] = scroll.getScrollY(); page = next; ++requestSerial;
     body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null; cheatStatus = null;
-    bindingButtons = null; controllerButton = null; capturing = -1;
+    bindingButtons = null; controllerButton = null;
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
     int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_controls_page,
         R.string.ingame_performance, R.string.ingame_management, R.string.ingame_controller_config};
@@ -322,9 +325,11 @@ final class CoreMenu extends Dialog {
       t.setSpan(new RelativeSizeSpan(.6f), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
       t.setSpan(new StyleSpan(Typeface.NORMAL), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
       title.setText(t);
-    } else title.setText(s(titles[page]));
+    } else if (page == CHOOSE) title.setText(keyName(CoreInput.MOVABLE[chooseKey]));
+    else title.setText(s(titles[page]));
     if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == CONTROLS) controls();
-    else if (page == PERFORMANCE) performance(); else if (page == CONTROLLER) controller(); else management();
+    else if (page == PERFORMANCE) performance(); else if (page == CONTROLLER) controller();
+    else if (page == CHOOSE) chooseFunction(); else management();
     separator(body);
     TextView footer = text(s(R.string.ingame_navigation), 14, false);
     footer.setPadding(0, dp(8), 0, 0); body.addView(footer);
@@ -340,6 +345,11 @@ final class CoreMenu extends Dialog {
       // back to the controls, on the button that opened it
       showPage(CONTROLS, false);
       main.post(() -> { if (controllerButton != null) controllerButton.requestFocus(); });
+    } else if (page == CHOOSE) {
+      // back to the free keys, on the key chosen
+      int key = chooseKey;
+      showPage(CONTROLLER, false);
+      main.post(() -> { if (bindingButtons != null) bindingButtons[key].requestFocus(); });
     } else {
       int from = page; showPage(HOME, false);
       main.post(() -> { if (navigation[from] != null) navigation[from].requestFocus(); });
@@ -515,10 +525,10 @@ final class CoreMenu extends Dialog {
       R.string.ingame_fn_aim, R.string.ingame_fn_start, R.string.ingame_fn_up, R.string.ingame_fn_down,
       R.string.ingame_fn_left, R.string.ingame_fn_right, R.string.ingame_fn_menu};
 
-  /** The extra keys in the preferences (0: none). */
-  private int[] extraKeys() {
-    int[] b = CoreInput.decode(input.getString(CoreActivity.EXTRA_KEYS, null));
-    return b == null ? new int[CoreInput.FUNCTIONS] : b;
+  /** The key map in the preferences (the default without one). */
+  private int[] keyMap() {
+    int[] m = CoreInput.decode(input.getString(CoreActivity.KEY_MAP, null));
+    return m == null ? CoreInput.defaultKeyMap() : m;
   }
 
   /** A key's name on its button: the controller's labels, the D-pad as arrows, else Android's name. */
@@ -545,79 +555,65 @@ final class CoreMenu extends Dialog {
     }
   }
 
+  /** A function's name on a free key's button; "No function" for none. */
+  private String functionName(int function) {
+    return function < 0 ? s(R.string.ingame_fn_none) : s(FUNCTION_LABELS[function]);
+  }
+
   /**
-   * "Controller configuration" (decision of the project owner, 27.10.2026: extra keys only): each function
-   * of the game on the left, its extra key on the right ("—": none); a press on that button waits for a
-   * free key of the controller (CoreInput.freeKey). A key another function had moves over; the same key
-   * again takes it away (CoreInput.assign). The layout itself stays.
+   * "Controller configuration" (proposal of the project owner, 27.10.2026): A, B, L2, R2, START, SELECT and
+   * the D-pad keep their functions; each free key (CoreInput.MOVABLE: X, Y, L1, R1, L3, R3) on the left,
+   * its function on the right, a press on it chooses another (the CHOOSE page).
    */
   private void controller() {
     if (input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
-    int[] current = extraKeys();
-    bindingButtons = new Button[FUNCTION_LABELS.length];
-    for (int f = 0; f < FUNCTION_LABELS.length; f++) {
-      final int function = f;
-      LinearLayout line = new MenuLayout.Columns(getContext(), -170, 420, false);
-      line.addView(rowLabel(s(FUNCTION_LABELS[f])));
+    help(R.string.ingame_controller_fixed);
+    if (shownMap == null) shownMap = keyMap();
+    int[] missing = CoreInput.missing(shownMap);
+    if (missing.length > 0) {
+      StringBuilder names = new StringBuilder();
+      for (int f : missing) names.append(names.length() == 0 ? "" : ", ").append(s(FUNCTION_LABELS[f]));
+      TextView warn = text(getContext().getString(R.string.ingame_controller_missing, names), 15, true);
+      warn.setTextColor(GOLD); warn.setPadding(0, dp(4), 0, dp(8)); body.addView(warn);
+    }
+    bindingButtons = new Button[CoreInput.MOVABLE.length];
+    for (int i = 0; i < CoreInput.MOVABLE.length; i++) {
+      final int key = i;
+      LinearLayout line = new MenuLayout.Columns(getContext(), -300, 420, false);
+      line.addView(rowLabel(keyName(CoreInput.MOVABLE[i])));
       MenuLayout.Buttons box = new MenuLayout.Buttons(getContext(), 1);
       line.addView(box);
-      bindingButtons[f] = cellAction(box, keyName(current[f]), v -> capture(function));
+      bindingButtons[i] = cellAction(box, functionName(shownMap[i]) + "   ›", v -> {
+        chooseKey = key; showPage(CHOOSE, true);
+      });
       line.setPadding(0, dp(1), 0, dp(1)); body.addView(line);
     }
     cellAction(buttonsRow(body), s(R.string.ingame_controller_default), v -> {
-      capturing = -1; host.extraKeysChanged(null); showBindings(new int[CoreInput.FUNCTIONS]);
+      shownMap = CoreInput.defaultKeyMap(); host.keyMapChanged(null); showPage(CONTROLLER, false);
     });
     help(R.string.ingame_controller_help);
   }
 
-  private void capture(int function) {
-    int was = capturing;
-    showBindings(extraKeys());
-    capturing = was == function ? -1 : function;  // the same button again (A on it): no change
-    if (capturing >= 0) {
-      bindingButtons[function].setText(s(R.string.ingame_controller_press));
-      bindingButtons[function].setSelected(true);
+  /** The functions for the free key `chooseKey`: "No function" and each of the game's; the chosen one goes back. */
+  private void chooseFunction() {
+    if (shownMap == null) shownMap = keyMap();
+    MenuLayout.Buttons list = new MenuLayout.Buttons(getContext(), 2);
+    body.addView(list, new LinearLayout.LayoutParams(-1, -2));
+    Button first = null;
+    for (int f = CoreInput.F_NONE; f < CoreInput.FUNCTIONS; f++) {
+      final int function = f;
+      Button b = cellAction(list, functionName(f), v -> {
+        shownMap = CoreInput.assign(shownMap, chooseKey, function);
+        host.keyMapChanged(shownMap);
+        goBack();
+      });
+      b.setSelected(shownMap[chooseKey] == f);
+      if (b.isSelected()) first = b;
     }
+    final Button focus = first;
+    main.post(() -> { if (focus != null) focus.requestFocus(); });
   }
 
-  private void showBindings(int[] b) {
-    capturing = -1;
-    if (bindingButtons == null) return;
-    for (int f = 0; f < bindingButtons.length; f++) {
-      bindingButtons[f].setText(keyName(b[f]));
-      bindingButtons[f].setSelected(false);
-    }
-  }
-
-  /**
-   * While a function waits: a free key of the controller becomes its extra key (consumed). Another key
-   * ends the waiting and does what it does in the menu (B back, the D-pad moves; A on the waiting
-   * button presses it again: no change).
-   */
-  private boolean captured(KeyEvent event) {
-    int key = event.getKeyCode();
-    if (key == assignedKey && event.getAction() == KeyEvent.ACTION_UP) {
-      assignedKey = -1;
-      return true;
-    }
-    if (capturing < 0 || page != CONTROLLER || key == KeyEvent.KEYCODE_BACK) return false;
-    boolean pad = KeyEvent.isGamepadButton(key) || key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN
-        || key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT;
-    if (!pad) return false;
-    if (!CoreInput.freeKey(key, input.getBoolean(CoreActivity.ALT_CONTROLS, false))) {
-      if (key != KeyEvent.KEYCODE_BUTTON_A) showBindings(extraKeys());
-      return false;
-    }
-    if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-      int function = capturing;
-      int[] b = CoreInput.assign(extraKeys(), function, key);
-      host.extraKeysChanged(b);
-      showBindings(b);
-      assignedKey = key;
-      bindingButtons[function].requestFocus();
-    }
-    return true;
-  }
   private void performance() {
     heading(R.string.ingame_force_performance);
     choices(R.string.ingame_force_performance, new String[] {s(R.string.ingame_perf_default), s(R.string.ingame_perf_cores)},
@@ -895,7 +891,6 @@ final class CoreMenu extends Dialog {
     super.onStop();
   }
   @Override public boolean dispatchKeyEvent(KeyEvent event) {
-    if (captured(event)) return true;
     int key = event.getKeyCode();
     if (key == KeyEvent.KEYCODE_BUTTON_B || key == KeyEvent.KEYCODE_BACK) {
       if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) goBack(); return true;

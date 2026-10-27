@@ -167,11 +167,10 @@
     <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
     <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
     <string name="ingame_controller_config">Controller-Konfiguration</string>
-    <string name="ingame_controller_config_help">Controller-Konfiguration: Funktionen des Spiels zusätzlich auf freie Tasten deines Controllers legen (beim Retroid L1, L3, R3). Die normale Belegung bleibt. Nur mit angeschlossenem Controller.</string>
-    <string name="ingame_controller_press">Freie Taste …</string>
-    <string name="ingame_controller_default">Zusatztasten löschen</string>
-    <string name="ingame_controller_help">Den Knopf einer Funktion wählen, dann eine freie Taste drücken (z. B. L1, L3 oder R3). Die Funktion bleibt auf ihrer Taste und liegt zusätzlich auf der neuen. Dieselbe Taste noch einmal nimmt sie wieder weg; A bricht ab.</string>
-    <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: L1 gehört ihr, eine Zusatztaste auf L1 gilt erst, wenn sie aus ist.</string>
+    <string name="ingame_controller_config_help">Controller-Konfiguration: die Funktion der freien Tasten deines Controllers wählen (X, Y, L1, R1, L3, R3). Nur mit angeschlossenem Controller.</string>
+    <string name="ingame_controller_default">Standardbelegung</string>
+    <string name="ingame_controller_help">Eine Taste wählen, dann ihre Funktion. Hatte eine andere Taste Ashley, Inventar oder Karte, tauschen die beiden. Eine Funktion darf auch auf mehreren Tasten liegen.</string>
+    <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: sie behält ihre eigene Belegung; diese gilt, sobald sie aus ist.</string>
     <string name="ingame_fn_action">Aktion / Schießen (A)</string>
     <string name="ingame_fn_run">Rennen / Abbrechen (B)</string>
     <string name="ingame_fn_ashley">Ashley: Warten / Folgen (X)</string>
@@ -185,4 +184,7 @@
     <string name="ingame_fn_left">Steuerkreuz links</string>
     <string name="ingame_fn_right">Steuerkreuz rechts</string>
     <string name="ingame_fn_menu">App-Menü (SELECT)</string>
+    <string name="ingame_controller_fixed">Fest: A, B, L2, R2, START, SELECT und das Steuerkreuz behalten ihre Funktion (die Hinweise und Menüs des Spiels nutzen sie).</string>
+    <string name="ingame_controller_missing">Auf keiner Taste: %1$s</string>
+    <string name="ingame_fn_none">Keine Funktion</string>
 </resources>

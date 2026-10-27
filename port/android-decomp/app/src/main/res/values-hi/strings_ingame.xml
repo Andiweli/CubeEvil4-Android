@@ -167,11 +167,10 @@
     <string name="ingame_cheat_queued">गेम चलते ही हो जाएगा।</string>
     <string name="ingame_cheat_unsupported">इस गेम कोर में चीट्स नहीं हैं।</string>
     <string name="ingame_controller_config">कंट्रोलर कॉन्फ़िगरेशन</string>
-    <string name="ingame_controller_config_help">कंट्रोलर कॉन्फ़िगरेशन: खेल के फ़ंक्शन अपने कंट्रोलर के खाली बटनों पर भी रखें (Retroid पर L1, L3, R3)। सामान्य लेआउट बना रहता है। केवल कंट्रोलर जुड़ा होने पर।</string>
-    <string name="ingame_controller_press">खाली बटन…</string>
-    <string name="ingame_controller_default">अतिरिक्त बटन हटाएँ</string>
-    <string name="ingame_controller_help">किसी फ़ंक्शन का बटन चुनें, फिर कोई खाली बटन दबाएँ (जैसे L1, L3 या R3)। फ़ंक्शन अपने बटन पर रहता है और नए बटन पर भी। वही बटन फिर दबाने से हट जाता है; A रद्द करता है।</string>
-    <string name="ingame_controller_alternate_note">वैकल्पिक नियंत्रण चालू है: L1 उसका है; L1 पर अतिरिक्त बटन उसे बंद करने पर लागू होगा।</string>
+    <string name="ingame_controller_config_help">कंट्रोलर कॉन्फ़िगरेशन: अपने कंट्रोलर के खाली बटनों (X, Y, L1, R1, L3, R3) का फ़ंक्शन चुनें। केवल कंट्रोलर जुड़ा होने पर।</string>
+    <string name="ingame_controller_default">डिफ़ॉल्ट लेआउट</string>
+    <string name="ingame_controller_help">कोई बटन चुनें, फिर उसका फ़ंक्शन। अगर ऐशली, इन्वेंटरी या नक्शा किसी दूसरे बटन पर था, तो दोनों अदला-बदली कर लेते हैं। एक फ़ंक्शन कई बटनों पर भी हो सकता है।</string>
+    <string name="ingame_controller_alternate_note">वैकल्पिक नियंत्रण चालू है: वह अपना लेआउट रखता है; यह उसे बंद करने पर लागू होगा।</string>
     <string name="ingame_fn_action">क्रिया / फ़ायर (A)</string>
     <string name="ingame_fn_run">दौड़ें / रद्द करें (B)</string>
     <string name="ingame_fn_ashley">ऐशली: रुको / साथ चलो (X)</string>
@@ -185,4 +184,7 @@
     <string name="ingame_fn_left">डी-पैड बाएँ</string>
     <string name="ingame_fn_right">डी-पैड दाएँ</string>
     <string name="ingame_fn_menu">ऐप मेनू (SELECT)</string>
+    <string name="ingame_controller_fixed">स्थिर: A, B, L2, R2, START, SELECT और डी-पैड अपने फ़ंक्शन रखते हैं (खेल के संकेत और मेनू इनका उपयोग करते हैं)।</string>
+    <string name="ingame_controller_missing">किसी बटन पर नहीं: %1$s</string>
+    <string name="ingame_fn_none">कोई फ़ंक्शन नहीं</string>
 </resources>

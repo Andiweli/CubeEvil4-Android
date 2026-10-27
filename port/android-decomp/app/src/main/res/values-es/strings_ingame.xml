@@ -168,11 +168,10 @@
     <string name="ingame_cheat_queued">Se hará en cuanto el juego siga.</string>
     <string name="ingame_cheat_unsupported">Este núcleo del juego no tiene trucos.</string>
     <string name="ingame_controller_config">Configuración del mando</string>
-    <string name="ingame_controller_config_help">Configuración del mando: asigna además funciones del juego a botones libres de tu mando (en la Retroid L1, L3, R3). La asignación habitual se mantiene. Solo con un mando conectado.</string>
-    <string name="ingame_controller_press">Botón libre…</string>
-    <string name="ingame_controller_default">Borrar botones extra</string>
-    <string name="ingame_controller_help">Elige el botón de una función y pulsa un botón libre (p. ej. L1, L3 o R3). La función conserva su botón y queda también en el nuevo. El mismo botón otra vez la quita; A cancela.</string>
-    <string name="ingame_controller_alternate_note">Los controles alternativos están activados: L1 les pertenece; un botón extra en L1 se aplica cuando estén desactivados.</string>
+    <string name="ingame_controller_config_help">Configuración del mando: elige la función de los botones libres de tu mando (X, Y, L1, R1, L3, R3). Solo con un mando conectado.</string>
+    <string name="ingame_controller_default">Configuración predeterminada</string>
+    <string name="ingame_controller_help">Elige un botón y luego su función. Si otro botón tenía Ashley, Inventario o Mapa, se intercambian. Una función puede estar también en varios botones.</string>
+    <string name="ingame_controller_alternate_note">Los controles alternativos están activados: mantienen su propia asignación; esta se aplica cuando estén desactivados.</string>
     <string name="ingame_fn_action">Acción / Disparar (A)</string>
     <string name="ingame_fn_run">Correr / Cancelar (B)</string>
     <string name="ingame_fn_ashley">Ashley: Esperar / Seguir (X)</string>
@@ -186,4 +185,7 @@
     <string name="ingame_fn_left">Cruceta izquierda</string>
     <string name="ingame_fn_right">Cruceta derecha</string>
     <string name="ingame_fn_menu">Menú de la app (SELECT)</string>
+    <string name="ingame_controller_fixed">Fijos: A, B, L2, R2, START, SELECT y la cruceta conservan su función (los avisos y menús del juego los usan).</string>
+    <string name="ingame_controller_missing">En ningún botón: %1$s</string>
+    <string name="ingame_fn_none">Ninguna función</string>
 </resources>

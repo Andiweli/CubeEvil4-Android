@@ -169,11 +169,10 @@
     <string name="ingame_cheat_queued">Será feito assim que o jogo continuar.</string>
     <string name="ingame_cheat_unsupported">Este núcleo do jogo não tem trapaças.</string>
     <string name="ingame_controller_config">Configuração do controle</string>
-    <string name="ingame_controller_config_help">Configuração do controle: coloque também funções do jogo em botões livres do seu controle (no Retroid L1, L3, R3). A configuração normal continua. Só com um controle conectado.</string>
-    <string name="ingame_controller_press">Botão livre…</string>
-    <string name="ingame_controller_default">Apagar botões extras</string>
-    <string name="ingame_controller_help">Escolha o botão de uma função e pressione um botão livre (por ex. L1, L3 ou R3). A função continua no seu botão e fica também no novo. O mesmo botão de novo a remove; A cancela.</string>
-    <string name="ingame_controller_alternate_note">Os controles alternativos estão ativados: L1 pertence a eles; um botão extra em L1 vale quando estiverem desativados.</string>
+    <string name="ingame_controller_config_help">Configuração do controle: escolha a função dos botões livres do seu controle (X, Y, L1, R1, L3, R3). Só com um controle conectado.</string>
+    <string name="ingame_controller_default">Configuração padrão</string>
+    <string name="ingame_controller_help">Escolha um botão e depois a sua função. Se outro botão tinha Ashley, Inventário ou Mapa, os dois trocam. Uma função também pode ficar em vários botões.</string>
+    <string name="ingame_controller_alternate_note">Os controles alternativos estão ativados: mantêm a sua própria configuração; esta vale quando estiverem desativados.</string>
     <string name="ingame_fn_action">Ação / Atirar (A)</string>
     <string name="ingame_fn_run">Correr / Cancelar (B)</string>
     <string name="ingame_fn_ashley">Ashley: Esperar / Seguir (X)</string>
@@ -187,4 +186,7 @@
     <string name="ingame_fn_left">Direcional para a esquerda</string>
     <string name="ingame_fn_right">Direcional para a direita</string>
     <string name="ingame_fn_menu">Menu do app (SELECT)</string>
+    <string name="ingame_controller_fixed">Fixos: A, B, L2, R2, START, SELECT e o direcional mantêm a sua função (as dicas e os menus do jogo os usam).</string>
+    <string name="ingame_controller_missing">Em nenhum botão: %1$s</string>
+    <string name="ingame_fn_none">Nenhuma função</string>
 </resources>

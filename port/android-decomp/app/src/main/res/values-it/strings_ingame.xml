@@ -168,11 +168,10 @@
     <string name="ingame_cheat_queued">Verrà fatto appena il gioco riprende.</string>
     <string name="ingame_cheat_unsupported">Questo nucleo di gioco non ha trucchi.</string>
     <string name="ingame_controller_config">Configurazione controller</string>
-    <string name="ingame_controller_config_help">Configurazione controller: assegna in più funzioni del gioco ai tasti liberi del tuo controller (sul Retroid L1, L3, R3). La configurazione normale resta. Solo con un controller collegato.</string>
-    <string name="ingame_controller_press">Tasto libero…</string>
-    <string name="ingame_controller_default">Cancella tasti extra</string>
-    <string name="ingame_controller_help">Scegli il pulsante di una funzione, poi premi un tasto libero (ad es. L1, L3 o R3). La funzione resta sul suo tasto e si trova anche sul nuovo. Lo stesso tasto di nuovo la toglie; A annulla.</string>
-    <string name="ingame_controller_alternate_note">I comandi alternativi sono attivi: L1 appartiene a loro, un tasto extra su L1 vale quando sono disattivati.</string>
+    <string name="ingame_controller_config_help">Configurazione controller: scegli la funzione dei tasti liberi del tuo controller (X, Y, L1, R1, L3, R3). Solo con un controller collegato.</string>
+    <string name="ingame_controller_default">Configurazione predefinita</string>
+    <string name="ingame_controller_help">Scegli un tasto, poi la sua funzione. Se un altro tasto aveva Ashley, Inventario o Mappa, i due si scambiano. Una funzione può stare anche su più tasti.</string>
+    <string name="ingame_controller_alternate_note">I comandi alternativi sono attivi: mantengono la propria configurazione; questa vale quando sono disattivati.</string>
     <string name="ingame_fn_action">Azione / Spara (A)</string>
     <string name="ingame_fn_run">Corri / Annulla (B)</string>
     <string name="ingame_fn_ashley">Ashley: Aspetta / Segui (X)</string>
@@ -186,4 +185,7 @@
     <string name="ingame_fn_left">Croce direzionale sinistra</string>
     <string name="ingame_fn_right">Croce direzionale destra</string>
     <string name="ingame_fn_menu">Menu dell\'app (SELECT)</string>
+    <string name="ingame_controller_fixed">Fissi: A, B, L2, R2, START, SELECT e la croce direzionale mantengono la loro funzione (li usano i suggerimenti e i menu del gioco).</string>
+    <string name="ingame_controller_missing">Su nessun tasto: %1$s</string>
+    <string name="ingame_fn_none">Nessuna funzione</string>
 </resources>

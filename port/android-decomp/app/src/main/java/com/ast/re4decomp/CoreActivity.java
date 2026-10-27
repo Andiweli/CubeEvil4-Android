@@ -89,9 +89,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_AIM = "gyroAiming";
   // the menu's switch "Alternate Controls" (CoreInput.setAlternate)
   static final String ALT_CONTROLS = "alternateControls";
-  // the menu's "Controller configuration": extra keys (CoreInput.encode; absent: none); "bindings" held
-  // the own bindings of a first version (27.10.2026), dropped
-  static final String EXTRA_KEYS = "extraKeys";
+  // the menu's "Controller configuration": the free keys' functions (CoreInput.encode; absent: the
+  // default); "bindings" and "extraKeys" held the two first versions (27.10.2026), dropped
+  static final String KEY_MAP = "keyMap";
   // the menu's comfort control "Latch L and R" (CoreTouch.setLatch, CoreInput.setLatch; off: held
   // while touched or pressed); the touch controls' only until 23.10.2026, the name stays
   static final String TOUCH_LATCH = "touchLatchLR";
@@ -207,8 +207,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences inputPrefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
     input.setSwapFace(inputPrefs.getBoolean(SWAP_FACE, false));
     input.setAlternate(inputPrefs.getBoolean(ALT_CONTROLS, false));
-    input.setExtraKeys(CoreInput.decode(inputPrefs.getString(EXTRA_KEYS, null)));
-    if (inputPrefs.contains("bindings")) inputPrefs.edit().remove("bindings").apply();
+    input.setKeyMap(CoreInput.decode(inputPrefs.getString(KEY_MAP, null)));
+    if (inputPrefs.contains("bindings") || inputPrefs.contains("extraKeys")) {
+      inputPrefs.edit().remove("bindings").remove("extraKeys").apply();
+    }
     input.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false), inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     knifeSwipe = inputPrefs.getBoolean(KNIFE_SWIPE, true);
     // R3 saves graphics data with the test scripts (RE4_APP_TOOLS=1) or when the menu switched it on
@@ -692,12 +694,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       logLayout();
     }
 
-    @Override public void extraKeysChanged(int[] keys) {
-      String text = CoreInput.encode(keys);
+    @Override public void keyMapChanged(int[] map) {
+      String text = CoreInput.encode(map);
       SharedPreferences.Editor e = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit();
-      if (text == null) e.remove(EXTRA_KEYS); else e.putString(EXTRA_KEYS, text);
+      if (text == null) e.remove(KEY_MAP); else e.putString(KEY_MAP, text);
       e.apply();
-      input.setExtraKeys(keys);
+      input.setKeyMap(map);
       send();
       logLayout();
     }
@@ -709,15 +711,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   };
 
   private void logLayout() {
-    // the extra keys of the controller configuration (those the layout leaves free)
+    // the free keys' functions of the controller configuration (not with the alternate controls)
     StringBuilder extra = new StringBuilder();
     String[] names = {"A", "B", "X", "Y", "Z", "L", "R", "START", "UP", "DOWN", "LEFT", "RIGHT", "menu"};
-    int[] keys = input.extraKeys();
-    for (int i = 0; i < keys.length; i++) {
-      if (keys[i] == 0) continue;
-      extra.append(extra.length() == 0 ? ", extra keys: " : ", ").append(names[i]).append(" also on ")
-          .append(KeyEvent.keyCodeToString(keys[i]).replace("KEYCODE_", ""))
-          .append(CoreInput.freeKey(keys[i], input.alternate()) ? "" : " (not now: taken by the layout)");
+    int[] map = input.keyMap();
+    if (map != null && !input.alternate()) {
+      extra.append(", free keys (controller configuration):");
+      for (int i = 0; i < map.length; i++) {
+        extra.append(i == 0 ? " " : ", ").append(KeyEvent.keyCodeToString(CoreInput.MOVABLE[i]).replace("KEYCODE_", ""))
+            .append(" = ").append(map[i] < 0 ? "none" : names[map[i]]);
+      }
     }
     Log.i(TAG, "layout: A B X Y by label" + (input.swapFace() ? ", A/B and X/Y swapped" : "")
         + (input.alternate() ? ", alternate controls: L1 = L, L2 = R, R1 = Y, R2 = A, Y = Z, aiming with the right stick"
