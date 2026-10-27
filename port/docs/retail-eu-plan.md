@@ -69,6 +69,30 @@ Werkzeuge und Berichte der Analyse lagen außerhalb des Repositorys (`~/re4-eu` 
 Nicht geprüft: alles nach dem ersten Funkspruch in r100 (der Rest des Spiels), die US-Verkaufs-Disc,
 die japanische Disc.
 
+## Unterschiede Debug ↔ EU, bisher gefunden (Stand 27.10.2026)
+
+Kurzliste für den Überblick; Einzelheiten in `whole-program-status.md` (M13-Abschnitte, Patch-Tabelle).
+
+| Bereich | Unterschied der EU-Discs | Lösung |
+| --- | --- | --- |
+| Kennung | `G4BP08` statt `G4BE08` | das Spiel sieht `G4BE08`: Spielstände in beide Richtungen ladbar (R4) |
+| Debug-Dateien | `moji8.tpl`, `debug/roomInfo.dat`, `debug/config.txt`, Debug-Werkzeuge fehlen | 0118, 0119; kein Debug-Startraum, Debug-Menü aus (R6) |
+| Kern-Archiv | `etc/core.das` größer (0x23AC40 Byte) | 0117: eigener Platz |
+| Archive mit anderer Teile-Ordnung | Funkgerät `ss_term.dat`, Krauser `pl0a.drs`, Adas Gewehr `ss_wep40.dat` (zweites Modell), Inselkarte `map_obj4g.dat` | 0120; Umsortieren beim Laden; Inselkarte ohne Folge |
+| Sprachen | fünf echte Sprachen; Sechs-Sprachen-Tabellen in anderer Reihenfolge; Untermenü-Texte einsprachig je Ordner; größere `option.dat`; „LANGUAGE SELECT“ im Titel | 0121–0123, Sprachwahl im App-Menü (R7) |
+| Englisch | Debug-Version spielt US-Englisch fest (keine Untertitel in Filmsequenzen, zwei Schwierigkeitsgrade), die EU hat Untertitel | mit den EU-Discs die gewählte Sprache |
+| Kern-Texte | 15 Texte mehr ab 0x56 (Optionsmenü zeigte „ZOOM“) | 0123: Nummern verschieben |
+| Lebensanzeige | Namensschilder 0x43–0x45 tragen Namen („KiLeonr“) | 0125 |
+| Karte im Inventar | Element 253 zuletzt (leere Karte); achte Händler-Markierung („H“ mitten auf der Karte) | 0124, 0129 |
+| Funkspruch | gemeinsame Menütabellen sprengen `IdSub` (keine dunkle Leiste); drei neue Bildgruppen | 0126 |
+| Raumtexte | r221 ab Text 6 verschoben; r101 falscher Text (Fehler des Prototyps, beide Fassungen) | 0128, 0127; übrige Räume, `memcard.das`, `ss_cmmn.dat` ohne Folge |
+| Stage 4 | Raummodul `st4_0.rel` nur auf Disc 2 (Debug: auf beiden) | im Spiel ohne Folge, nur Grenze der Prüfstrecke |
+| Ereignisse | `r204s00.evd`/`s204s00.evd` ohne einen Lichtdatensatz | noch nicht im Spiel geprüft |
+| Noch offen | im EU-Rundgang drei Spielmeldungen ohne Absturz (`Msg[04] Address Error`, `mapModelInit … SHAPE_MODEL`, `IDSystem::unitPtr … Not found`) | Vergleich mit einem Debug-Rundgang fehlt |
+
+Gleich in beiden Fassungen (geprüft): Speicherkarte beim Start, Filme, Raum-Archive (vier mit Zusatzteilen am Ende),
+REL-Modulnummern, der Ton der Kamera-Fokus-Szenen.
+
 ## Grundsatzentscheidungen (Projektinhaber, 26.10.2026)
 
 1. **Parallel:** Die Debug-Disc bleibt Referenz und voll unterstützt; die EU-Discs kommen als zweite
@@ -76,7 +100,7 @@ die japanische Disc.
    EU-Disc 2).
 2. **Debug-Menü mit EU-Discs ausblenden** (SELECT 1 Sekunde öffnet dann nichts). Später soll ein
    Cheat-Menü im Ingame-Menü der App kommen; das ist ein eigenes Vorhaben, nicht Teil dieses
-   Meilensteins.
+   Meilensteins (Machbarkeit und Vorschlag: `cheat-menu-plan.md`, 27.10.2026).
 3. **Alle Sprachen der EU-Discs sollen spielbar sein** (Deutsch, Französisch, Spanisch, Italienisch,
    Englisch); das gehört fest zum Meilenstein, reicht aber in Schritt R7. **Die Sprachwahl erfolgt im
    Ingame-Menü der App, „LANGUAGE SELECT“ wird aus dem Titelmenü entfernt** (Entscheidung des
