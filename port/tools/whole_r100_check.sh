@@ -1411,17 +1411,25 @@ run_tour() {
     # so the same rooms should give the same result)
     # (per release: the European discs' results in rundgang-<target>-eu.json, compared with the
     # debug discs' of the same target: the game's messages that only one release gives as well)
-    local rel_suffix=""
+    local rel_suffix="" cheats=""
     [ "$release" = retail-eu ] && rel_suffix="-eu"
-    python3 "$src/port/tools/room_tour_report.py" --merge "$json" "$work/rundgang-$host$bsuf$rel_suffix.json"
-    local ref="$work/rundgang-i686$opt$rel_suffix.json"
+    # a tour with the cheats of the app's menu (RE4_CHEATS=<bits>, runtime/cheats.cpp) keeps its
+    # results apart as well (-cheatsN) and is compared with the tour without them
+    [ "${RE4_CHEATS:-0}" != 0 ] && cheats="-cheats$RE4_CHEATS"
+    python3 "$src/port/tools/room_tour_report.py" --merge "$json" "$work/rundgang-$host$bsuf$rel_suffix$cheats.json"
+    local ref="$work/rundgang-i686$opt$rel_suffix$cheats.json"
     if [ "$host$bsuf" != "i686$opt" ] && [ -f "$ref" ]; then
         python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "i686,$host$bsuf" |
             tee -a "$report"
     fi
-    ref="$work/rundgang-$host$bsuf.json"
+    ref="$work/rundgang-$host$bsuf$cheats.json"
     if [ -n "$rel_suffix" ] && [ -f "$ref" ]; then
         python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "debug,eu" --messages |
+            tee -a "$report"
+    fi
+    ref="$work/rundgang-$host$bsuf$rel_suffix.json"
+    if [ -n "$cheats" ] && [ -f "$ref" ]; then
+        python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "ohne,cheats" |
             tee -a "$report"
     fi
     if [ -s "$run/rundgang-einzelheiten.txt" ]; then
