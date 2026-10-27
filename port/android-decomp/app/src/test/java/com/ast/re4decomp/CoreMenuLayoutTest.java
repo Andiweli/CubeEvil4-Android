@@ -233,19 +233,20 @@ public class CoreMenuLayoutTest {
     }
   }
 
-  @Test public void controllerConfigurationAssignsAKeyAndSwaps() throws Exception {
+  @Test public void controllerConfigurationPutsFunctionsOnFreeKeysAsWell() throws Exception {
     final int[][] sent = {null};
     final boolean[] controller = {false};
     final int[] calls = {0};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
-          if (method.getName().equals("bindingsChanged")) { sent[0] = (int[]) args[0]; calls[0]++; }
+          if (method.getName().equals("extraKeysChanged")) { sent[0] = (int[]) args[0]; calls[0]++; }
           if (method.getName().equals("controllerConnected")) return controller[0];
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
         });
     try (var controllerActivity = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controllerActivity.get();
-      activity.getSharedPreferences(CoreActivity.INPUT_PREFS, 0).edit().clear().apply();
+      android.content.SharedPreferences prefs = activity.getSharedPreferences(CoreActivity.INPUT_PREFS, 0);
+      prefs.edit().clear().apply();
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       // on the controls page, at the bottom: only with a controller
@@ -261,25 +262,32 @@ public class CoreMenuLayoutTest {
       open.performClick();
       Button[] keys = (Button[]) field(menu, "bindingButtons");
       assertEquals(13, keys.length);
-      assertEquals("A", keys[CoreInput.F_A].getText().toString());
-      assertEquals("R1", keys[CoreInput.F_Z].getText().toString());
-      assertEquals("SELECT", keys[CoreInput.F_MENU].getText().toString());
-      // the map (Z) on Y: inventory (Y) takes R1
+      for (Button b : keys) assertEquals("no extra key yet", "—", b.getText().toString());
+      // the map (Z) also on L1
       keys[CoreInput.F_Z].performClick();
       assertEquals(activity.getString(R.string.ingame_controller_press), keys[CoreInput.F_Z].getText().toString());
+      // a key of the layout (Y) is not taken: the waiting ends, nothing changes
       menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_Y));
+      assertEquals(0, calls[0]);
+      assertEquals("—", keys[CoreInput.F_Z].getText().toString());
+      keys[CoreInput.F_Z].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L1));
       assertTrue("the release is swallowed", menu.dispatchKeyEvent(
-          new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_BUTTON_Y)));
+          new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_BUTTON_L1)));
       assertEquals(1, calls[0]);
-      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_Y, sent[0][CoreInput.F_Z]);
-      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_R1, sent[0][CoreInput.F_Y]);
-      assertEquals("Y", keys[CoreInput.F_Z].getText().toString());
-      assertEquals("R1", keys[CoreInput.F_Y].getText().toString());
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_L1, sent[0][CoreInput.F_Z]);
+      assertEquals("L1", keys[CoreInput.F_Z].getText().toString());
+      prefs.edit().putString(CoreActivity.EXTRA_KEYS, CoreInput.encode(sent[0])).apply();
+      // L1 to running (B): the map loses it
+      keys[CoreInput.F_B].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L1));
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_L1, sent[0][CoreInput.F_B]);
+      assertEquals(0, sent[0][CoreInput.F_Z]);
+      assertEquals("L1", keys[CoreInput.F_B].getText().toString());
+      assertEquals("—", keys[CoreInput.F_Z].getText().toString());
       // the same button twice: nothing changes
       keys[CoreInput.F_A].performClick(); keys[CoreInput.F_A].performClick();
-      assertEquals("A", keys[CoreInput.F_A].getText().toString());
-      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_X));
-      assertEquals(1, calls[0]);
+      assertEquals("—", keys[CoreInput.F_A].getText().toString());
       // back goes to the controls page
       Method back = CoreMenu.class.getDeclaredMethod("goBack"); back.setAccessible(true);
       back.invoke(menu);

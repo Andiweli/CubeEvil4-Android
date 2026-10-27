@@ -167,11 +167,11 @@
     <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
     <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
     <string name="ingame_controller_config">Controller-Konfiguration</string>
-    <string name="ingame_controller_config_help">Controller-Konfiguration: jede Funktion des Spiels auf eine beliebige Taste deines Controllers legen. Nur mit angeschlossenem Controller.</string>
-    <string name="ingame_controller_press">Taste drücken …</string>
-    <string name="ingame_controller_default">Standardbelegung</string>
-    <string name="ingame_controller_help">Den Knopf einer Funktion wählen, dann die neue Taste am Controller drücken. Hatte eine andere Funktion diese Taste, tauschen die beiden. Denselben Knopf noch einmal drücken behält die alte Taste.</string>
-    <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: diese Belegung gilt, sobald sie aus ist.</string>
+    <string name="ingame_controller_config_help">Controller-Konfiguration: Funktionen des Spiels zusätzlich auf freie Tasten deines Controllers legen (beim Retroid L1, L3, R3). Die normale Belegung bleibt. Nur mit angeschlossenem Controller.</string>
+    <string name="ingame_controller_press">Freie Taste …</string>
+    <string name="ingame_controller_default">Zusatztasten löschen</string>
+    <string name="ingame_controller_help">Den Knopf einer Funktion wählen, dann eine freie Taste drücken (z. B. L1, L3 oder R3). Die Funktion bleibt auf ihrer Taste und liegt zusätzlich auf der neuen. Dieselbe Taste noch einmal nimmt sie wieder weg; A bricht ab.</string>
+    <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: L1 gehört ihr, eine Zusatztaste auf L1 gilt erst, wenn sie aus ist.</string>
     <string name="ingame_fn_action">Aktion / Schießen (A)</string>
     <string name="ingame_fn_run">Rennen / Abbrechen (B)</string>
     <string name="ingame_fn_ashley">Ashley: Warten / Folgen (X)</string>

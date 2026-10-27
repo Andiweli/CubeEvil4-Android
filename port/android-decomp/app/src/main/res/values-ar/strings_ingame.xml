@@ -176,11 +176,11 @@
     <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
     <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
     <string name="ingame_controller_config">إعدادات وحدة التحكم</string>
-    <string name="ingame_controller_config_help">إعدادات وحدة التحكم: ضع كل وظيفة في اللعبة على أي زر في وحدة التحكم. فقط عند توصيل وحدة تحكم.</string>
-    <string name="ingame_controller_press">اضغط زرًا…</string>
-    <string name="ingame_controller_default">التوزيع الافتراضي</string>
-    <string name="ingame_controller_help">اختر زر الوظيفة ثم اضغط الزر الجديد في وحدة التحكم. إذا كان الزر لوظيفة أخرى تتبادلان. اضغط الزر نفسه مرة أخرى للإبقاء على القديم.</string>
-    <string name="ingame_controller_alternate_note">التحكم البديل مفعّل: يُطبَّق هذا التوزيع عند إيقافه.</string>
+    <string name="ingame_controller_config_help">إعدادات وحدة التحكم: ضع وظائف اللعبة أيضًا على أزرار حرة في وحدة التحكم (في Retroid ‏L1 و L3 و R3). يبقى التوزيع المعتاد. فقط عند توصيل وحدة تحكم.</string>
+    <string name="ingame_controller_press">زر حر…</string>
+    <string name="ingame_controller_default">حذف الأزرار الإضافية</string>
+    <string name="ingame_controller_help">اختر زر الوظيفة ثم اضغط زرًا حرًا (مثل L1 أو L3 أو R3). تبقى الوظيفة على زرها وتصبح أيضًا على الزر الجديد. الضغط على الزر نفسه مرة أخرى يزيلها؛ A للإلغاء.</string>
+    <string name="ingame_controller_alternate_note">التحكم البديل مفعّل: الزر L1 له، والزر الإضافي على L1 يُطبَّق عند إيقافه.</string>
     <string name="ingame_fn_action">إجراء / إطلاق النار (A)</string>
     <string name="ingame_fn_run">الجري / إلغاء (B)</string>
     <string name="ingame_fn_ashley">آشلي: انتظري / اتبعيني (X)</string>

@@ -326,96 +326,63 @@ public final class CoreInputTests {
       check((q[0] & CoreInput.GC_R) != 0 && q[6] == 255 && q[1] > 0 && q[3] == 0);
     }
     {
-      // own bindings (the menu's controller configuration, 27.10.2026)
-      int[] def = CoreInput.defaultBindings();
-      check(CoreInput.encode(def) == null && CoreInput.encode(null) == null && CoreInput.decode(null) == null);
-      check(CoreInput.decode("1,2,3") == null && CoreInput.decode("96,96,99,100,103,104,105,108,19,20,21,22,109") == null);
-      CoreInput o = new CoreInput();
-      o.setBindings(def);
-      check(o.bindings() == null);  // the default layout: the layout of before
-      // the action (A) on B: the two swap
-      int[] b = CoreInput.assign(null, CoreInput.F_A, B);
-      check(b[CoreInput.F_A] == B && b[CoreInput.F_B] == A);
-      check(java.util.Arrays.equals(CoreInput.decode(CoreInput.encode(b)), b));
-      o.setBindings(b);
-      check(o.key(1, B, true) && o.pad()[0] == CoreInput.GC_A && o.gcButton(B) == CoreInput.GC_A);
-      o.key(1, B, false);
-      check(o.key(1, A, true) && o.pad()[0] == CoreInput.GC_B);
-      o.key(1, A, false);
-      check(o.pad()[0] == 0);
-      // the action on R2 (the trigger: past half way), aiming (R) takes R2's old key... R2 had R: R on A's old key
-      b = CoreInput.assign(null, CoreInput.F_A, R2);
-      check(b[CoreInput.F_R] == A);
-      o.setBindings(b);
-      o.motion(1, 0, 0, 0, 0, 0, 0.6f, 0, 0);
-      check(o.pad()[0] == CoreInput.GC_A && o.pad()[6] == 0);
-      o.motion(1, 0, 0, 0, 0, 0, 0.4f, 0, 0);
-      check(o.pad()[0] == CoreInput.GC_A);  // held until below 0.35
-      o.motion(1, 0, 0, 0, 0, 0, 0.3f, 0, 0);
-      check(o.pad()[0] == 0);
-      // R on the A key: the trigger at its end stop, digital R too
-      o.key(1, A, true);
-      int[] q = o.pad();
+      // extra keys (the menu's controller configuration, 27.10.2026): only on free keys, the layout stays
+      check(CoreInput.freeKey(L1, false) && !CoreInput.freeKey(L1, true) && CoreInput.freeKey(L3, false)
+          && CoreInput.freeKey(R3, true) && !CoreInput.freeKey(A, false) && !CoreInput.freeKey(R1, false)
+          && !CoreInput.freeKey(L2, false) && !CoreInput.freeKey(SELECT, false) && !CoreInput.freeKey(UP, false));
+      check(CoreInput.encode(null) == null && CoreInput.encode(new int[CoreInput.FUNCTIONS]) == null);
+      check(CoreInput.decode("1,2") == null && CoreInput.decode("96,0,0,0,0,0,0,0,0,0,0,0,0") == null
+          && CoreInput.decode("102,0,0,0,102,0,0,0,0,0,0,0,0") == null);
+      int[] e = CoreInput.assign(null, CoreInput.F_Z, L1);  // the map also on L1
+      check(e[CoreInput.F_Z] == L1 && java.util.Arrays.equals(CoreInput.decode(CoreInput.encode(e)), e));
+      CoreInput x = new CoreInput();
+      x.setExtraKeys(e);
+      check(x.key(1, L1, true) && x.pad()[0] == CoreInput.GC_Z && x.gcButton(L1) == CoreInput.GC_Z);
+      x.key(1, L1, false);
+      check(x.pad()[0] == 0);
+      // R1 is still the map, A still A: the layout stays
+      check(x.key(1, R1, true) && x.pad()[0] == CoreInput.GC_Z);
+      x.key(1, R1, false);
+      check(x.key(1, A, true) && x.pad()[0] == CoreInput.GC_A);
+      x.key(1, A, false);
+      // L1 to another function: the map loses it; the same key again: no extra key
+      e = CoreInput.assign(e, CoreInput.F_B, L1);
+      check(e[CoreInput.F_B] == L1 && e[CoreInput.F_Z] == 0);
+      check(CoreInput.assign(e, CoreInput.F_B, L1)[CoreInput.F_B] == 0);
+      // B (run) on L1, latching works through it
+      x.setExtraKeys(e);
+      check(x.key(1, L1, true) && x.pad()[0] == CoreInput.GC_B);
+      x.key(1, L1, false);
+      x.setLatch(false, true);
+      x.key(1, L1, true);
+      x.pad();
+      x.key(1, L1, false);
+      check(x.pad()[0] == CoreInput.GC_B);
+      x.setLatch(false, false);
+      x.clear();
+      // aiming (R) on L3: the trigger fully, digital R too
+      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_R, L3));
+      x.key(1, L3, true);
+      int[] q = x.pad();
       check(q[6] == 255 && (q[0] & CoreInput.GC_R) != 0);
-      o.key(1, A, false);
-      // L stays analog on L2
-      o.motion(1, 0, 0, 0, 0, 0.5f, 0, 0, 0);
-      q = o.pad();
-      check(q[5] == 128 && (q[0] & CoreInput.GC_L) == 0);
-      o.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
-      // the hat's D-pad goes through the D-pad's functions: map (Z) on D-pad up
-      o.setBindings(CoreInput.assign(null, CoreInput.F_Z, UP));
-      o.motion(1, 0, 0, 0, 0, 0, 0, 0, -1f);
-      check(o.pad()[0] == CoreInput.GC_Z);
-      o.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
-      check(o.key(1, R1, true) && o.pad()[0] == CoreInput.GC_UP);  // D-pad up took R1, the map's old key
-      o.key(1, R1, false);
-      // the app's menu on L1: SELECT has no function any more, R3 still the graphics capture
-      o.setBindings(CoreInput.assign(null, CoreInput.F_MENU, L1));
-      check(o.appFunctionOf(L1) == CoreInput.APP_MENU && o.appFunctionOf(SELECT) == CoreInput.APP_NONE);
-      check(!o.key(1, L1, true) && !o.key(1, SELECT, true) && o.pad()[0] == 0);
-      check(o.appFunctionOf(R3) == CoreInput.APP_GX_DUMP);
-      // a game function on R3: no graphics capture there
-      o.setBindings(CoreInput.assign(null, CoreInput.F_X, R3));
-      check(o.appFunctionOf(R3) == CoreInput.APP_NONE && o.key(1, R3, true) && o.pad()[0] == CoreInput.GC_X);
-      // the alternate controls keep their own layout
-      o.setAlternate(true);
-      check(o.gcButton(R1) == CoreInput.GC_Y && o.appFunctionOf(SELECT) == CoreInput.APP_MENU);
-      o.setAlternate(false);
-      check(o.gcButton(R3) == CoreInput.GC_X);
-      // latching works through the own bindings: B (run) on Y
-      o.setBindings(CoreInput.assign(null, CoreInput.F_B, Y));
-      o.setLatch(false, true);
-      o.key(1, Y, true);
-      o.pad();
-      o.key(1, Y, false);
-      check(o.pad()[0] == CoreInput.GC_B);
-      o.setLatch(false, false);
-      o.clear();
-      // the game's menus keep the default layout (the core's bit 4 of the rumble): the action on R2,
-      // in a menu A is A again
-      o.setBindings(CoreInput.assign(null, CoreInput.F_A, R2));
-      o.setMenu(true);
-      check(o.menu() && o.key(1, A, true) && o.pad()[0] == CoreInput.GC_A && o.gcButton(A) == CoreInput.GC_A);
-      // held across the change: in play A is aiming (R) now, its old key; released in play: nothing stuck
-      o.setMenu(false);
-      int[] q2 = o.pad();
-      check((q2[0] & CoreInput.GC_A) == 0 && q2[6] == 255);
-      o.key(1, A, false);
-      check(o.pad()[0] == 0 && o.pad()[6] == 0);
-      // pressed in play, released in a menu
-      o.key(1, X, true);
-      o.setMenu(true);
-      check(o.pad()[0] == CoreInput.GC_X);
-      o.key(1, X, false);
-      check(o.pad()[0] == 0);
-      // the app's menu key in a game menu: SELECT as always
-      o.setBindings(CoreInput.assign(null, CoreInput.F_MENU, L1));
-      check(o.appFunctionOf(SELECT) == CoreInput.APP_MENU);
-      o.setMenu(false);
-      check(o.appFunctionOf(L1) == CoreInput.APP_MENU);
+      x.key(1, L3, false);
+      check(x.pad()[6] == 0);
+      // the app's menu on R3: no graphics capture there; SELECT still the menu
+      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_MENU, R3));
+      check(x.appFunctionOf(R3) == CoreInput.APP_MENU && x.appFunctionOf(SELECT) == CoreInput.APP_MENU);
+      check(!x.key(1, R3, true));
+      // a game function on R3: no capture, the function
+      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_X, R3));
+      check(x.appFunctionOf(R3) == CoreInput.APP_NONE && x.key(1, R3, true) && x.pad()[0] == CoreInput.GC_X);
+      x.key(1, R3, false);
+      // with the alternate controls L1 is theirs (the knife): an extra key there does nothing
+      x.setExtraKeys(CoreInput.assign(null, CoreInput.F_Z, L1));
+      x.setAlternate(true);
+      x.key(1, L1, true);
+      q = x.pad();
+      check((q[0] & CoreInput.GC_Z) == 0 && q[5] == 255);
     }
-    System.out.println("Core controller: layout, swap, alternate controls, own bindings, sticks and triggers through "
+    System.out.println("Core controller: layout, swap, alternate controls, extra keys, sticks and triggers through "
         + "PADClamp, devices: " + checks + " checks PASS");
   }
 }

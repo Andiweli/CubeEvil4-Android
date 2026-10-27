@@ -170,11 +170,11 @@
     <string name="ingame_cheat_queued">Ce sera fait dès que le jeu reprendra.</string>
     <string name="ingame_cheat_unsupported">Ce cœur de jeu n’a pas de triches.</string>
     <string name="ingame_controller_config">Configuration de la manette</string>
-    <string name="ingame_controller_config_help">Configuration de la manette\u00A0: placez chaque fonction du jeu sur n\'importe quel bouton de votre manette. Seulement avec une manette connectée.</string>
-    <string name="ingame_controller_press">Appuyez sur un bouton…</string>
-    <string name="ingame_controller_default">Disposition par défaut</string>
-    <string name="ingame_controller_help">Choisissez le bouton d\'une fonction, puis appuyez sur le nouveau bouton de la manette. Si une autre fonction avait ce bouton, les deux s\'échangent. Appuyez à nouveau sur le même bouton pour garder l\'ancien.</string>
-    <string name="ingame_controller_alternate_note">Les commandes alternatives sont activées\u00A0: cette disposition s\'applique dès qu\'elles sont désactivées.</string>
+    <string name="ingame_controller_config_help">Configuration de la manette\u00A0: placez en plus des fonctions du jeu sur des boutons libres de votre manette (sur la Retroid L1, L3, R3). La disposition habituelle reste. Seulement avec une manette connectée.</string>
+    <string name="ingame_controller_press">Bouton libre…</string>
+    <string name="ingame_controller_default">Effacer les boutons supplémentaires</string>
+    <string name="ingame_controller_help">Choisissez le bouton d\'une fonction, puis appuyez sur un bouton libre (par ex. L1, L3 ou R3). La fonction garde son bouton et se trouve aussi sur le nouveau. Le même bouton à nouveau la retire\u00A0; A annule.</string>
+    <string name="ingame_controller_alternate_note">Les commandes alternatives sont activées\u00A0: L1 leur appartient, un bouton supplémentaire sur L1 s\'applique dès qu\'elles sont désactivées.</string>
     <string name="ingame_fn_action">Action / Tirer (A)</string>
     <string name="ingame_fn_run">Courir / Annuler (B)</string>
     <string name="ingame_fn_ashley">Ashley\u00A0: Attendre / Suivre (X)</string>

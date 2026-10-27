@@ -168,11 +168,11 @@
     <string name="ingame_cheat_queued">Verrà fatto appena il gioco riprende.</string>
     <string name="ingame_cheat_unsupported">Questo nucleo di gioco non ha trucchi.</string>
     <string name="ingame_controller_config">Configurazione controller</string>
-    <string name="ingame_controller_config_help">Configurazione controller: assegna ogni funzione del gioco a qualsiasi tasto del tuo controller. Solo con un controller collegato.</string>
-    <string name="ingame_controller_press">Premi un tasto…</string>
-    <string name="ingame_controller_default">Configurazione predefinita</string>
-    <string name="ingame_controller_help">Scegli il pulsante di una funzione, poi premi il nuovo tasto sul controller. Se un\'altra funzione aveva quel tasto, i due si scambiano. Premi di nuovo lo stesso pulsante per tenere quello vecchio.</string>
-    <string name="ingame_controller_alternate_note">I comandi alternativi sono attivi: questa configurazione vale quando sono disattivati.</string>
+    <string name="ingame_controller_config_help">Configurazione controller: assegna in più funzioni del gioco ai tasti liberi del tuo controller (sul Retroid L1, L3, R3). La configurazione normale resta. Solo con un controller collegato.</string>
+    <string name="ingame_controller_press">Tasto libero…</string>
+    <string name="ingame_controller_default">Cancella tasti extra</string>
+    <string name="ingame_controller_help">Scegli il pulsante di una funzione, poi premi un tasto libero (ad es. L1, L3 o R3). La funzione resta sul suo tasto e si trova anche sul nuovo. Lo stesso tasto di nuovo la toglie; A annulla.</string>
+    <string name="ingame_controller_alternate_note">I comandi alternativi sono attivi: L1 appartiene a loro, un tasto extra su L1 vale quando sono disattivati.</string>
     <string name="ingame_fn_action">Azione / Spara (A)</string>
     <string name="ingame_fn_run">Corri / Annulla (B)</string>
     <string name="ingame_fn_ashley">Ashley: Aspetta / Segui (X)</string>

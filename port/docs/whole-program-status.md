@@ -151,6 +151,24 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   Rückgabe 2), Protokoll `pad: game button prompt shown`. Geprüft: Prüfstrecke Debug-Discs „ALLES OK“ (Stand `e263bd0d`),
   PC-Lauf r100 (Leon in den Tür-Bereich 0 gesetzt: `button prompt shown` bei Bild 2925), Android-Kern beide ABIs 0 Fehler,
   `CoreMenuLayoutTest` 7/7, APK gebaut. **Nicht geprüft:** Gerät.
+- **Vierter Gerätetest (Retroid, 27.10.2026 19:25) und Neuausrichtung:** das Umschalten nach Menü/Hinweis machte die eigene
+  Belegung unbrauchbar: bei jedem Hinweis, der kam und ging, wechselte dieselbe Taste ihre Bedeutung (in 13 s über 15 Wechsel;
+  R2 mal „Zielen“, mal „A“); Leon blieb beim Rennen stehen, wenn er über einen Gegenstand lief (Rennen lag auf A); der
+  Ja/Nein-Dialog beim Aufheben ist weder Untermenü noch Hinweis. **Entscheidung des Projektinhabers (27.10.2026): nur
+  Zusatztasten.** Die Belegung (A, B, X, Y, L, R, Z, START, Steuerkreuz, SELECT; mit oder ohne alternative Steuerung) bleibt
+  überall gleich, die Anzeigen des Spiels stimmen immer; die Konfiguration legt Funktionen nur zusätzlich auf freie Tasten
+  (`CoreInput.freeKey`: alle außer Gesichtstasten, START, SELECT, R1, L2, R2, Steuerkreuz; L1 nicht mit der alternativen
+  Steuerung; beim Retroid L1, L3, R3). Eine Funktion je Zusatztaste; dieselbe Taste noch einmal nimmt sie weg; L und R auf einer
+  Zusatztaste drücken den Trigger ganz; „Einrasten“ wirkt; R3 nimmt Grafikdaten nur ohne Funktion; das App-Menü kann
+  zusätzlich auf einer freien Taste liegen. `CoreInput` wieder auf dem Stand vor der eigenen Belegung, darauf die Zusatztasten
+  (`setExtraKeys`, `assign`, `encode`/`decode`, `appFunctionOf`); die App schaltet nicht mehr nach Menü/Hinweis um (das Bit 4
+  des Kerns bleibt als Protokoll `pad: game menu/button prompt …`). Gespeichert als `extraKeys` in `core_input`, der alte
+  Eintrag `bindings` wird gelöscht. Seite: rechts die Zusatztaste („—“ ohne), „Freie Taste …“ beim Warten; eine belegte Taste
+  beendet das Warten und tut ihr Normales (B zurück, A auf dem wartenden Knopf bricht ab); „Zusatztasten löschen“; Texte in
+  10 Sprachen angepasst. Freie Tasten ohne Funktion gehen weiter nicht an Android. **Geprüft:** `CoreInputTests` 167 Prüfungen
+  (neu: freie Tasten, Karte auf L1 und R1 bleibt Karte, A bleibt A, Wechsel und Wegnehmen, Rennen auf L1 mit Einrasten,
+  Zielen auf L3, App-Menü und X auf R3, alternative Steuerung belegt L1), `CoreMenuLayoutTest` 7/7 (neu: belegte Taste
+  abgelehnt, L1 angenommen, Wechsel zwischen Funktionen), Texte 10 Sprachen ok, APK gebaut. **Nicht geprüft:** Gerät.
 - **Bericht eines Testers (HONOR LGN-NX3, 0.91.0, `cubeevil4-report-20261026-231441.zip`, „r210 lädt nicht“):** r210 lädt
   einwandfrei; durch die Tür nach r222 liest das Spiel `st2/r222.das`, deren erste 0x400 Byte auf dem Gerät Nullen sind
   („DISC FILE DAMAGED: st2/r222.das“). Derselbe Bericht wie „Lesefehler `st2/r222.das`“ oben (M13): 0.92.0 prüft beim Import

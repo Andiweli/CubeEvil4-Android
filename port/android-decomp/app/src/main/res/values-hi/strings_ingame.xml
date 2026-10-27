@@ -167,11 +167,11 @@
     <string name="ingame_cheat_queued">गेम चलते ही हो जाएगा।</string>
     <string name="ingame_cheat_unsupported">इस गेम कोर में चीट्स नहीं हैं।</string>
     <string name="ingame_controller_config">कंट्रोलर कॉन्फ़िगरेशन</string>
-    <string name="ingame_controller_config_help">कंट्रोलर कॉन्फ़िगरेशन: खेल के हर फ़ंक्शन को अपने कंट्रोलर के किसी भी बटन पर रखें। केवल कंट्रोलर जुड़ा होने पर।</string>
-    <string name="ingame_controller_press">कोई बटन दबाएँ…</string>
-    <string name="ingame_controller_default">डिफ़ॉल्ट लेआउट</string>
-    <string name="ingame_controller_help">किसी फ़ंक्शन का बटन चुनें, फिर कंट्रोलर पर नया बटन दबाएँ। अगर वह बटन किसी दूसरे फ़ंक्शन का था, तो दोनों अदला-बदली कर लेते हैं। पुराना बटन रखने के लिए वही बटन फिर दबाएँ।</string>
-    <string name="ingame_controller_alternate_note">वैकल्पिक नियंत्रण चालू है: यह लेआउट उसे बंद करने पर लागू होगा।</string>
+    <string name="ingame_controller_config_help">कंट्रोलर कॉन्फ़िगरेशन: खेल के फ़ंक्शन अपने कंट्रोलर के खाली बटनों पर भी रखें (Retroid पर L1, L3, R3)। सामान्य लेआउट बना रहता है। केवल कंट्रोलर जुड़ा होने पर।</string>
+    <string name="ingame_controller_press">खाली बटन…</string>
+    <string name="ingame_controller_default">अतिरिक्त बटन हटाएँ</string>
+    <string name="ingame_controller_help">किसी फ़ंक्शन का बटन चुनें, फिर कोई खाली बटन दबाएँ (जैसे L1, L3 या R3)। फ़ंक्शन अपने बटन पर रहता है और नए बटन पर भी। वही बटन फिर दबाने से हट जाता है; A रद्द करता है।</string>
+    <string name="ingame_controller_alternate_note">वैकल्पिक नियंत्रण चालू है: L1 उसका है; L1 पर अतिरिक्त बटन उसे बंद करने पर लागू होगा।</string>
     <string name="ingame_fn_action">क्रिया / फ़ायर (A)</string>
     <string name="ingame_fn_run">दौड़ें / रद्द करें (B)</string>
     <string name="ingame_fn_ashley">ऐशली: रुको / साथ चलो (X)</string>

@@ -54,8 +54,8 @@ final class CoreMenu extends Dialog {
     void gyroChanged(boolean on);
     /** The switch "Alternate Controls" (the preferences hold it). */
     void alternateChanged(boolean on);
-    /** The controller configuration's own bindings (CoreInput; null: the default layout); the host keeps them. */
-    void bindingsChanged(int[] bindings);
+    /** The controller configuration's extra keys (CoreInput, 0: none); the host keeps them. */
+    void extraKeysChanged(int[] keys);
     /** A physical game controller is connected (the controller configuration can be used). */
     boolean controllerConnected();
     /** The comfort control "Latch L and R", touch and controller (the preferences hold it). */
@@ -515,15 +515,16 @@ final class CoreMenu extends Dialog {
       R.string.ingame_fn_aim, R.string.ingame_fn_start, R.string.ingame_fn_up, R.string.ingame_fn_down,
       R.string.ingame_fn_left, R.string.ingame_fn_right, R.string.ingame_fn_menu};
 
-  /** The bindings in the preferences (the default layout without own ones). */
-  private int[] bindings() {
-    int[] b = CoreInput.decode(input.getString(CoreActivity.BINDINGS, null));
-    return b == null ? CoreInput.defaultBindings() : b;
+  /** The extra keys in the preferences (0: none). */
+  private int[] extraKeys() {
+    int[] b = CoreInput.decode(input.getString(CoreActivity.EXTRA_KEYS, null));
+    return b == null ? new int[CoreInput.FUNCTIONS] : b;
   }
 
   /** A key's name on its button: the controller's labels, the D-pad as arrows, else Android's name. */
   static String keyName(int keyCode) {
     switch (keyCode) {
+      case 0: return "—";  // no extra key
       case KeyEvent.KEYCODE_BUTTON_A: return "A";
       case KeyEvent.KEYCODE_BUTTON_B: return "B";
       case KeyEvent.KEYCODE_BUTTON_X: return "X";
@@ -545,13 +546,14 @@ final class CoreMenu extends Dialog {
   }
 
   /**
-   * "Controller configuration": each function of the game on the left, its key on the right; a press
-   * on that button waits for the next key of the controller (a second press: no change). A key another
-   * function had swaps with it (CoreInput.assign).
+   * "Controller configuration" (decision of the project owner, 27.10.2026: extra keys only): each function
+   * of the game on the left, its extra key on the right ("—": none); a press on that button waits for a
+   * free key of the controller (CoreInput.freeKey). A key another function had moves over; the same key
+   * again takes it away (CoreInput.assign). The layout itself stays.
    */
   private void controller() {
     if (input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
-    int[] current = bindings();
+    int[] current = extraKeys();
     bindingButtons = new Button[FUNCTION_LABELS.length];
     for (int f = 0; f < FUNCTION_LABELS.length; f++) {
       final int function = f;
@@ -563,15 +565,15 @@ final class CoreMenu extends Dialog {
       line.setPadding(0, dp(1), 0, dp(1)); body.addView(line);
     }
     cellAction(buttonsRow(body), s(R.string.ingame_controller_default), v -> {
-      capturing = -1; host.bindingsChanged(null); showBindings(CoreInput.defaultBindings());
+      capturing = -1; host.extraKeysChanged(null); showBindings(new int[CoreInput.FUNCTIONS]);
     });
     help(R.string.ingame_controller_help);
   }
 
   private void capture(int function) {
     int was = capturing;
-    showBindings(bindings());
-    capturing = was == function ? -1 : function;  // the same button again: no change
+    showBindings(extraKeys());
+    capturing = was == function ? -1 : function;  // the same button again (A on it): no change
     if (capturing >= 0) {
       bindingButtons[function].setText(s(R.string.ingame_controller_press));
       bindingButtons[function].setSelected(true);
@@ -587,7 +589,11 @@ final class CoreMenu extends Dialog {
     }
   }
 
-  /** While a function waits: a key of the controller becomes its key (consumed). */
+  /**
+   * While a function waits: a free key of the controller becomes its extra key (consumed). Another key
+   * ends the waiting and does what it does in the menu (B back, the D-pad moves; A on the waiting
+   * button presses it again: no change).
+   */
   private boolean captured(KeyEvent event) {
     int key = event.getKeyCode();
     if (key == assignedKey && event.getAction() == KeyEvent.ACTION_UP) {
@@ -598,10 +604,14 @@ final class CoreMenu extends Dialog {
     boolean pad = KeyEvent.isGamepadButton(key) || key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN
         || key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT;
     if (!pad) return false;
+    if (!CoreInput.freeKey(key, input.getBoolean(CoreActivity.ALT_CONTROLS, false))) {
+      if (key != KeyEvent.KEYCODE_BUTTON_A) showBindings(extraKeys());
+      return false;
+    }
     if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
       int function = capturing;
-      int[] b = CoreInput.assign(bindings(), function, key);
-      host.bindingsChanged(b);
+      int[] b = CoreInput.assign(extraKeys(), function, key);
+      host.extraKeysChanged(b);
       showBindings(b);
       assignedKey = key;
       bindingButtons[function].requestFocus();
