@@ -3,6 +3,29 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Testerbericht: Mercenaries mit Hunk stürzt ab (27.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
+
+Meldung eines Testers: „Mercenaries mode still finishes the game with the Hunk, on all maps.“ Gemeint ist: Mercenaries
+mit Hunk **beendet die App** (Absturz), auf jeder Karte. Bericht `cubeevil4-report-20261026-172119` (Xiaomi 23129RA5FL,
+Android 15, 0.91.0-beta-core, **64 bit**, Debug-Discs):
+- Drei Abstürze am 26.10. (17:14, 17:15, 17:19), alle in `HermiteInterpolation` (Bewegungsdaten auswerten). Zwei schon
+  beim Raumstart: `cPlHunk::cPlHunk` → `startUp` → `pl_R1_Footwork` → `cPlNeck::init` → `MotionSetCore` (Adresse
+  0x7bfcde0d); einer 3 s nach dem Start in r402 (`pl06` „HUNK prolog Ok“, `wep29`) beim Gehen, direkt nach
+  „MotionMoveCore(): Pl, Invalid parts 152.“ (Adresse 0x9800). Schon am 22.10. ein gleicher Absturz in `pl_R1_Footwork`
+  (wohl ebenfalls Hunk, daher „still“).
+- Gemeinsam: die **Nacken-Bewegungen** (Kopf zum Gegner drehen). Jede Mercenaries-Figur übernimmt Leons Tabelle;
+  `pl_R1_Footwork`/`Walk`/`Run` (`player.cpp:423/472/568`) holen sie als `PL_ARC 0x40..0x45` aus dem Figurenarchiv, hier
+  `em/pl06.drs`. Die Daten dort sind offenbar keine (umgewandelte) Bewegung: Gelenknummer 152 gibt es nicht
+  (`pl00_mirror` hat 80 Plätze).
+- Verdacht (nicht geprüft, Disc-Daten fehlen in der Cloud): `pl06.drs` hat an 0x40..0x45 keine FCV-Bewegungen oder weniger
+  Einträge. Liest das Spiel hinter der Tabelle, nimmt es die Kennungen („FCV\0“ …) als Abstand: auf dem GameCube
+  (big-endian, z. B. 0x46435600) zeigt das außerhalb des Speichers, `VALID_PTR2` verwirft es, der Nacken bleibt still; in der
+  App (little-endian, 0x00564346) zeigt es in den Speicher und wird als Bewegung gelesen. Das wäre ein Fehler des Ports.
+- Neues Werkzeug `port/tools/archive_dump.py` (nur lesen): listet die Einträge eines Archivs (Kennung, Abstand, Größe, erste
+  Bytes, auch Plätze hinter der Tabelle mit beiden Byte-Ordnungen). Nächster Schritt am PC:
+  `wsl python3 port/tools/archive_dump.py --data /mnt/e/Development/Android/RE4-Discdata --file em/pl06.drs --file em/pl00.drs --entries 0x3E-0x51`.
+  Danach die Behebung (Patch oder Regel), Mercenaries mit allen Figuren prüfen. Nicht getestet: alles im Spiel.
+
 ## Meilenstein 14: alles in `master`, Release 0.93.0-beta (27.10.2026 abends, lokal)
 
 **Zusammenführen:** lokaler `master` zuerst auf `origin/master` nachgezogen (444 Commits zurück), dann
