@@ -958,18 +958,22 @@ struct AutoRun {
   unsigned long long sum = 0;
   unsigned checks = 0;
   unsigned long long dropped = 0;  // 60 FPS: in-between pictures left out
+  double waited = 0.0;             // ms the render thread waited for the GPU in its Runs
   std::vector<std::string> lines;
-  // `droppedEvery`: one in-between picture left out each so many chunks (0: none)
-  void Play(double seconds, double rate, unsigned behind, bool mayChange = true, unsigned droppedEvery = 0) {
+  // `droppedEvery`: one in-between picture left out each so many chunks (0: none); `wait`: ms the
+  // render thread waits in each Run
+  void Play(double seconds, double rate, unsigned behind, bool mayChange = true, unsigned droppedEvery = 0,
+            double wait = 0.0) {
     const double end = t + seconds;
     while (t < end) {
       t += 1.0 / rate;
       sum += behind;
       checks++;
+      waited += wait;
       if (droppedEvery && checks % droppedEvery == 0)
         dropped++;
       std::string why;
-      a.Chunk(t, sum, checks, mayChange, &why, dropped);
+      a.Chunk(t, sum, checks, mayChange, &why, dropped, waited);
       if (!why.empty())
         lines.push_back(why);
     }
@@ -1051,6 +1055,26 @@ void TestAutoLevel() {
     while (few.a.Ups() == 0 && few.t < 400.0)
       few.Play(0.5, 30.0, 0);
     Check(few.a.Ups() == 1, "auto level: 60 FPS, up again once (almost) none is left out");
+  }
+  {
+    // the render thread waits for the GPU inside the driver: no fence behind, the game still slow
+    // (Retroid 27.10.2026: the lake at level 2, 24 pictures a second, 35 ms waiting a chunk)
+    AutoRun r;
+    r.a.Start(2, 0.0);
+    r.Play(20.0, 30.0, 0, true, 0, 8.0);
+    Check(r.a.Level() == 2, "auto level: 30 pictures/s with the render thread waiting a little: stays");
+    r.Play(20.0, 25.0, 0, true, 0, 3.0);
+    Check(r.a.Level() == 2, "auto level: slow without waiting for the GPU (the processor): stays");
+    r.Play(6.5, 24.0, 0, true, 0, 30.0);
+    Check(r.a.Level() == 1 && r.a.Downs() == 1, "auto level: slow, the render thread waiting for the GPU: one level down");
+    Check(!r.lines.empty() && r.lines.back().find("waiting 30.0 ms") != std::string::npos,
+          "auto level: the waiting logged");
+    while (r.a.Ups() == 0 && r.t < 200.0)
+      r.Play(0.5, 30.0, 0, true, 0, 7.0);
+    Check(r.a.Ups() == 0, "auto level: not up again while the render thread still waits 7 ms a chunk");
+    while (r.a.Ups() == 0 && r.t < 400.0)
+      r.Play(0.5, 30.0, 0, true, 0, 2.0);
+    Check(r.a.Ups() == 1, "auto level: up again once it hardly waits");
   }
 }
 

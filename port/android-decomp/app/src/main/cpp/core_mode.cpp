@@ -527,6 +527,7 @@ unsigned gxChunks = 0;
 std::chrono::steady_clock::time_point gxSince;
 double gxRunMs = 0, gxRunMax = 0;
 long long gxRunCpuNs = 0;        // the render thread's processor time in Run since the last line
+double gxRunWaitMs = 0.0;        // the render thread's waiting in Run (run time minus processor time), all along
 unsigned gxRunOnKind[3] = {};    // where Run ended: slow, middle, fast cores (re4_cpu_info.h)
 unsigned gxRunCount = 0, gxFrames = 0, gxDraws = 0;
 re4gx::GxStats gxWork;  // the counters at the last log line
@@ -1427,7 +1428,10 @@ bool drawGx() {
     gxRunMs += ms;
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;
-    gxRunCpuNs += re4cpu::ThreadNs() - cpuNow;
+    const long long cpuNs = re4cpu::ThreadNs() - cpuNow;
+    gxRunCpuNs += cpuNs;
+    if (cpuNow)  // (0: no thread clock on this device, no waiting known)
+      gxRunWaitMs += std::max(0.0, ms - cpuNs / 1e6);
     gxRunOnKind[re4cpu::GetLayout().Kind(sched_getcpu())]++;
     if (bench.measuring) {
       bench.runMs += ms;
@@ -1441,7 +1445,8 @@ bool drawGx() {
       const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
                                         st.behindChecks,
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring,
-                                        &why, gxBetweenDropped);  // (counts only while 60 FPS is on; never falls back)
+                                        &why, gxBetweenDropped,  // (counts only while 60 FPS is on; never falls back)
+                                        gxRunWaitMs);
       if (level != gx->Scale()) {
         LOG("%s", why.c_str());
         // no in-between picture across the change (a chunk taken ahead, skipNext, is not run yet:

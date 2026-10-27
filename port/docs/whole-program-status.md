@@ -51,8 +51,19 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   Räumen, jedes Mal ohne vorherigen Treffer: Fallen und Bereiche (r203, r208, r30f, r311), Sturz (r215), Szenen (r104, r227,
   r333) und ein Fang-Angriff im Söldner-Raum r404 (Leben 1200 → 0 in einem Zug) – die Grenzen aus `cheat-menu-plan.md`.
   **Gerät (Projektinhaber, Retroid, 27.10.2026 nachmittags, Stand `7f06f542`):** zwei weitere Kapitel ohne Probleme gespielt,
-  Bosskämpfe enden mit One-Hit-Kill nach einem Schuss. Vereinzelt sanken die Bilder/s von 30 auf 22 (Bericht
-  `cubeevil4-report-20261027-144449.zip` und GX-Dumps noch nicht ausgewertet). **Nicht geprüft:** der Knopf bei offenem Menü.
+  Bosskämpfe enden mit One-Hit-Kill nach einem Schuss. Vereinzelt sanken die Bilder/s von 30 auf 22 (unten). **Nicht
+  geprüft:** der Knopf bei offenem Menü.
+- **Ruckler 30 → 22 Bilder/s** (Bericht `cubeevil4-report-20261027-144449.zip`, 64 bit, EU-Discs, Stufe 2 „Dynamisch“, 2× MSAA,
+  FXAA, Anisotropie 16; dazu drei GX-Serien am See): nur an Orten mit vielen Zeichenaufträgen (r101, r108, r10a, r10b; 600–1000
+  je Bild, ~8 Bildkopien). Dort wartete der Spielkern 18–22 ms je Bild auf den Renderer (`GX core: 42 ms each, of it 22 ms
+  waiting for the renderer`), und der Renderer wartete im Treiber auf den Grafikchip: 30–43 ms Laufzeit bei 7–8 ms
+  Rechenzeit je Bild (GPU-Zeit 18–29 ms). Die dynamische Auflösung blieb trotzdem auf Stufe 2: sie erkannte einen zu langsamen
+  Grafikchip nur an Zäunen, die nach dem nächsten Bild noch offen sind, und die waren alle erreicht, weil der Renderer selbst
+  wartete. **Neu (`gx_auto_level.h`):** ein langsames Fenster (unter 28,5 Bilder/s) zählt auch dann als „Grafikchip zu
+  langsam“, wenn der Renderer im Schnitt mindestens 10 ms je Bild wartet (Laufzeit minus Rechenzeit, `core_mode.cpp`); wieder
+  hoch nur unter 5 ms. In den 140 Zehn-Sekunden-Fenstern des Berichts warteten die ruckelnden 11–35 ms, alle flüssigen höchstens
+  8,4 ms. Ohne Thread-Uhr (`CLOCK_THREAD_CPUTIME_ID`) zählt kein Warten. `gx_gl_check` mit neuen Fällen 0 Fehler (mit
+  abgeschalteter Regel schlagen sie an), APK neu gebaut. **Nicht geprüft:** ob Stufe 1 am See wieder 30 Bilder/s schafft (Gerät).
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
