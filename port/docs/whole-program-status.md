@@ -4,6 +4,71 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## M13: Fehlerberichte, Gyro-Richtung, R3 und R6 (27.10.2026 vormittags, lokal, Branch `retail-eu`)
+
+**1. Lesefehler `st2/r222.das` (Bericht HONOR LGN-NX3, Android 16, 64 bit, Debug-Discs, 26.10.2026).** Kern-Log: die
+Datei ist auf dem Gerät so groß wie auf der Disc (3 064 768 Byte), ihre ersten 0x400 Byte sind aber Nullen; Patch 0113
+gab nach drei Versuchen auf, das Bild blieb stehen (die Meldung „DISC FILE DAMAGED“ ging nur ins Log). Auf unserer
+Debug-Disc beginnt die Datei mit der Teile-Tabelle (SHA-256 wie `rooms.tsv`). Dieselbe Datei meldeten schon zwei andere
+Geräte (25.10.2026): vermutlich ein verbreitetes beschädigtes Abbild, sonst ein Schreibfehler des Geräts – aus dem Bericht
+allein nicht zu unterscheiden (der Import von 0.91 prüfte nur die Raumdateien und nur die Prüfsummen beim Lesen des
+Abbilds, nicht was auf dem Gerät ankam; eine Warnung stand höchstens als Zeile auf dem Startbildschirm). Neu:
+- **Import prüft jede Datei:** neue Kataloge `files.tsv` / `files-eu.tsv` (alle 2 248 / 2 608 Dateien beider Discs außer
+  dem Disc-Kopf, Name, Größe, SHA-256; erzeugt mit `make_disc_catalogs.py --iso`). `RoomFileCheck` liest beide Formen;
+  im Kernmodus vergleicht die App nach dem Import und bei jedem Start das ganze Manifest mit dem Katalog.
+- **Zurücklesen:** `GameCubeDisc.extract` liest jede geschriebene Datei vom Gerät zurück und vergleicht die SHA-256; weicht
+  sie ab, wird sie noch einmal geschrieben, sonst bricht der Import mit einer klaren Meldung ab (Datei, „Speicher frei
+  machen, neu starten, neu importieren“).
+- **Meldung im Spiel:** der Kern merkt sich die erste unlesbare Datei mit Grund (`re4_core_disc_problem`, `runtime/dvd.cpp`:
+  Teile-Tabelle aus Nullen / beschädigt, Datei fehlt, Datei kürzer; auch über den eigenen Kern-Prozess, `kDiscProblem`).
+  `CoreActivity` fragt zweimal pro Sekunde, prüft die Datei (`RoomFileCheck.diagnose`: Gerät gegen Manifest und Katalog)
+  und zeigt einmal „A disc file cannot be read“ mit Datei und Disc und je nach Ursache: Abbild beschädigt (neu auslesen),
+  Kopie auf dem Gerät beschädigt (neu importieren), Datei in Ordnung aber Lesen fehlgeschlagen (Bericht schicken),
+  unbekannt (neu importieren); Knöpfe Bericht / Beenden / Weiter. 10 Sprachen (`check_translations.py` ok).
+- **Fehlerbericht:** neue Datei `disc-check.txt` (jede Disc gegen den Katalog, der Lesefehler des Kerns, die Diagnose).
+- Tests: `RoomFileCheckTests` (neu: Katalog aller Dateien, Diagnose Gerät/Abbild/Lesen/fehlt/unbekannt), `DiscTests` mit den
+  echten Discs im Kernmodus (Debug 4 531, EU 5 251 Prüfungen; jede Datei wie im Katalog; Import mit Zurücklesen etwa 35 s
+  je Disc am PC), Laufzeittest `dvdq` (der Kern meldet `zero.dat` mit „zeros“). **Nicht geprüft:** Gerät.
+
+**2. Fehlender Ton bei Kamera-Fokus-Szenen (Bericht des Projektinhabers, Retroid, EU-Discs, Deutsch; laut Projektinhaber
+auch an anderen Stellen).** Der Ton ist ein Stream der Musikdatei `bgm/bio4bgm.sbb`, den der Raumcode beim Kameraschwenk
+startet: r226 `R226EventRoboWatchMain` → `SndStrReq(0, 0x16, 0x80000003)` (Stereo, 7,7 s); ebenso r104, r108, r11d, r200,
+r201, r209, r20b, r21a, r221, r222, r22c u. a. Am Gerät lief der Stream (er endete nach seiner Länge, „SND: STREAM 0 STOP“),
+war aber nicht zu hören. Am PC (neue Testhilfe `RE4_TEST_STREAM=free+N:B:S`, Mitschnitt `RE4_AUDIO_WAV`): Stream 0x16 in
+r100 hörbar (−26 dB statt −56 dB ohne), die Statuen-Szene selbst (Leon per `RE4_TEST_PLACE` in Bereich 24 von r226 gesetzt)
+mit Debug- und EU-Daten, i686 und x86_64 deutlich hörbar (−15 dB, 7 s, davor und danach Stille). Der Kern mischt den Ton am PC
+also richtig. Nebenbei behoben: der PC-Mitschnitt endete nach 1 s (die Blöcke wurden verworfen, bevor sie in die WAV kamen,
+weil am PC niemand den Ring liest). **Offen:** warum das Gerät ihn nicht spielt (Gerätelauf mit Mitschnitt, siehe unten).
+
+**3. Gyro-Richtung:** Ingame-Menü, Seite Steuerung, zwei Schalter „Invert vertical“ / „Invert horizontal“ unter dem Regler
+(gespeichert in `input` als `gyroInvertVertical` / `gyroInvertHorizontal`, wirken sofort: `GyroAim.setInvert`), nur
+bedienbar mit Gyro an. 10 Sprachen. **Nicht geprüft:** `CoreMenuLayoutTest` und Gerät (siehe Prüfungen).
+
+**4. R3 Menüs und Texte**
+- **Dunkle Leiste hinter dem Funkspruch-Untertitel:** Patch 0126. Neue Diagnose: bei „IDSystem::set() work full“ schreibt
+  der Kern die Belegung von `IdSys`/`IdSub`/`IdNum` je Klasse ins Log (`re4_idsys_report`). Mit EU-Daten war `IdSub` beim
+  Funkspruch 128 von 128 belegt; die EU-Fassung lädt dort die vier gemeinsamen Tabellen nicht. Nach dem Patch kein „work full“
+  mehr (Funkspruch-Test Deutsch).
+- **Texttabellen** (alle Tabellen beider Fassungen Text für Text verglichen, neues Werkzeug `port/tools/retail_messages.py`,
+  dazu die Textnummern aller `SceMesSet`-Aufrufe der Raummodule beider Fassungen): `etc/memcard.das` hat dieselben Nummern
+  0–0x2C, neu nur 0x2D (Platzwarnung) und 0x2E (Sprachwahl beim Start, durch das App-Menü ersetzt) → nichts zu tun;
+  `ss/eng/ss_cmmn.dat` dieselben Nummern (die Debug-Fassung hatte 0x22 doppelt, die EU den richtigen Kräutertext), neu nur
+  am Ende → nichts zu tun; die Räume r100, r105, r111, r203, r214, r300, r308, r30b, r311, r31c, r333, r40e: nur überarbeitete
+  Texte oder neue am Ende, der Code fragt dieselben Nummern → nichts zu tun. r22c: die Ausgangstür fragt mit EU-Daten
+  „Leave target practice?“ statt „Quit…“ (gleiche Bedeutung), 0xA/0xB sind die Debug-Stufenwahl → bleibt so. **r221**: ab
+  Text 6 verschoben → Patch 0128. **r101**: der Debug-Code nimmt nach dem Schlüssel den falschen Text (Prototyp-Fehler) →
+  Patch 0127. Die übrigen Unterschiede der Aufruflisten sind neue oder entfernte Aufrufe der EU-Fassung, keine Verschiebungen.
+- Werkzeuge aus der letzten Sitzung geordnet übernommen: `port/tools/retail_code.py` (DOL/REL-Funktion in der anderen
+  Fassung finden, nebeneinander disassemblieren, Funktion um eine Adresse, Aufrufer mit Konstanten, Text-Verweise,
+  Befehlswörter) und `port/tools/retail_messages.py` (Tabellen, nebeneinander, Aufruflisten).
+
+**5. R6 Debug-Menü:** mit EU-Discs öffnet SELECT-Halten nichts (App: `CoreActivity.selectHold`; Kern: `re4_core_debug_menu`
+ignoriert die Anfrage, auch für ältere Apps). Laufzeittest `disc release` prüft es für alle Disc-Arten.
+
+**Prüfungen (PC, WSL2):** Debug-Discs i686 „ALLES OK“ (Stand `e72b0c04`, mit Aufgabe 1); Funkspruch-Test EU (roomInfo,
+Deutsch) i686 und Debug-Discs mit Stand `09573d45` (0126) je „ALLES OK“; EU 64 bit (x86_64) Stream-Test „ALLES OK“.
+Die Läufe der Endprüfung stehen unten im Abschnitt.
+
 ## M13 Retail-Discs (EU): Gerätetest 26.10.2026 und Korrekturen (27.10.2026 nachts, lokal, Branch `retail-eu`)
 
 Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch; Bildschirmfotos, Bericht, GX-Mitschnitt, Logcat):
