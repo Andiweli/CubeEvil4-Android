@@ -179,8 +179,13 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    offen), R8 weitgehend: ARM32 und ARM64 auf dem Retroid, Version 0.92.0-beta (27.10.2026); abgeschlossen 27.10.2026: zwei Kapitel mit
    EU-Discs auf Deutsch auf dem Retroid ohne Befund durchgespielt, Cheat-Menü auf dem Retroid bestätigt;
    Stage 4 mit EU-Daten in der Prüfstrecke und drei Spielmeldungen gehen in den Raum-Rundgang 10b
+14. Alles in `master` (Entscheidung des Projektinhabers, 27.10.2026): `retail-eu-testrun` (mit `beta-updates`
+   und `retail-eu`) in `master` zusammengeführt, die drei Branches bleiben vorerst stehen (nicht löschen);
+   danach Release 0.93.0-beta aus `master`
 
 ## Git
 
-Arbeitsbranch nach Vorgabe der Sitzung. Nach jedem abgeschlossenen Schritt
+`master` ist seit Meilenstein 14 (27.10.2026) der Arbeitsstand; `beta-updates`, `retail-eu` und
+`retail-eu-testrun` sind darin enthalten und bleiben bis auf Weiteres stehen. Arbeitsbranch nach
+Vorgabe der Sitzung. Nach jedem abgeschlossenen Schritt
 committen und pushen. Commit-Nachrichten auf Englisch, kurz und beschreibend.

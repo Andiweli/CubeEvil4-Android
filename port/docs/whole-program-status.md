@@ -3,6 +3,19 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Meilenstein 14: alles in `master`, Release 0.93.0-beta (27.10.2026 abends, lokal)
+
+**Zusammenführen:** lokaler `master` zuerst auf `origin/master` nachgezogen (444 Commits zurück), dann
+`retail-eu-testrun` (Stand `6469ba28`) mit `--no-ff` hineingeführt (`e706c541`). `beta-updates` und `retail-eu` hatten
+nichts, was `retail-eu-testrun` nicht schon enthält; die drei README-Commits von `master` waren ebenfalls schon darin.
+Der Baum von `master` ist danach **gleich dem von `retail-eu-testrun`** (`git diff` leer), also genau der in 10b
+geprüfte Stand. Kein Branch gelöscht (Wunsch des Projektinhabers).
+
+**Release 0.93.0-beta:** `versionCode` 77, Releasetext `port/android-decomp/docs/releases/v0.93.0-beta.md`
+(Controller-Konfiguration, Auflösungs-Zwischenstufen, Stage 4 mit EU-Discs, keine „14-09LE“-Untertitel, Händler-Markierung,
+dynamische Auflösung mit Warteregel, stärkere Vibration, aufleuchtende Cheat-Knöpfe). Bekanntes Problem nur noch
+„Unendlich Gesundheit“ gegen Sofort-Tode; One-Hit-Kill wirkte im Gerätetest auch bei Bossen (10b).
+
 
 ## Raum-Rundgang 10b mit beiden Disc-Arten (27.10.2026 nachmittags, lokal, Branch `retail-eu-testrun`)
 
