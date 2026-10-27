@@ -128,7 +128,9 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
     die Korrektur an).
   - **Vibration stärker:** Stärke 210–255 statt 150–255, jeder Impuls 170 statt 120 ms (`RUMBLE_PULSE_MS`).
   - **Geprüft:** `CoreInputTests` 179 Prüfungen (neu: Menü mit Standardbelegung, Taste über den Wechsel gehalten, App-Menü in
-    Menüs auf SELECT), `CoreMenuLayoutTest` 7/7.
+    Menüs auf SELECT), `CoreMenuLayoutTest` 7/7; PC-Lauf r204 (EU): `game menu shown` am Titel, `closed` mit der Hauptschleife,
+    `shown`/`closed` mit der Karte, `shown` mit dem START-Menü; Prüfstrecke Debug-Discs und EU (roomInfo), Stand `2212f1a1`,
+    je „ALLES OK“; Android-Kern beide ABIs 0 Fehler, APK gebaut. **Nicht geprüft:** Gerät.
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
