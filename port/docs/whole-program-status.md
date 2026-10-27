@@ -131,6 +131,17 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
     Menüs auf SELECT), `CoreMenuLayoutTest` 7/7; PC-Lauf r204 (EU): `game menu shown` am Titel, `closed` mit der Hauptschleife,
     `shown`/`closed` mit der Karte, `shown` mit dem START-Menü; Prüfstrecke Debug-Discs und EU (roomInfo), Stand `2212f1a1`,
     je „ALLES OK“; Android-Kern beide ABIs 0 Fehler, APK gebaut. **Nicht geprüft:** Gerät.
+- **Zweiter Gerätetest (Retroid, 27.10.2026 17:32, `senden.zip`):** Abstände in „Steuerung“ passen (Projektinhaber). Mit A
+  anders belegt ging die Navigation im Optionsmenü (START) nicht: im Protokoll fehlte jede Zeile `pad: game menu`, die
+  Menü-Meldung kam auf dem Gerät nie an. Ursache: `pad.cpp` (libre4_platform) fragte `re4_game_menu_open` (libre4_main) über eine
+  schwache Verknüpfung; Androids Linker sucht sie nur in den Bibliotheken, die libre4_platform braucht, und die braucht
+  libre4_main nicht – der Zeiger blieb leer (am PC löst das Testprogramm ihn auf). Neu: `state_trace.cpp` übergibt seine
+  Abfrage beim Laden der Bibliothek an `re4_pad_menu_probe` (libre4_main braucht libre4_platform, `llvm-readelf`: das Symbol
+  aufgelöst, keine schwache Verknüpfung mehr). (Die schwache Verknüpfung `re4_idsys_report` in `log.cpp`, nur Diagnose bei
+  „IDSystem work full“, hat dasselbe Problem; nicht geändert.) **Vibration:** noch zu schwach („Schrotflinte wie
+  Steinschleuder“): Stärke 230–255, Dauer je Stoß nach Stärke 190–310 ms (`CoreActivity.rumblePulseMs`). Geprüft:
+  Prüfstrecke Debug-Discs „ALLES OK“ (Stand `0f74de5f`), PC-Lauf r204 wie oben, Android-Kern beide ABIs 0 Fehler,
+  `CoreMenuLayoutTest` 7/7, APK gebaut. **Nicht geprüft:** Gerät.
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
