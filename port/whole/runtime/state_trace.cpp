@@ -129,6 +129,8 @@
 #include "sce_at.h"
 #include "snd_drv.h"
 #include "snd.h"
+#include "id_sys.h"
+#include "ss_main.h"
 #include "card.h"
 #include "main.h"
 #include "scheduler.h"
@@ -158,6 +160,38 @@
 extern GLOBAL_WK* pG;
 extern cPlayer* pPL;
 extern cEmMgr EmMgr;
+
+// An id system ran full (runtime/log.cpp, "IDSystem::set() work full"): how many units of each class
+// IdSys, IdSub and IdNum hold, so a check sees which screen part took the room.
+extern "C" void re4_idsys_report(void)
+{
+    struct {
+        const char* name;
+        IDSystem* sys;
+    } all[] = {{"IdSys", &IdSys}, {"IdSub", &IdSub}, {"IdNum", &IdNum}};
+    for (auto& s : all) {
+        int max = *(const s32*) s.sys;  // m_maxId (private, the first word)
+        if (!s.sys->m_IdUnit || max <= 0 || max > 0x1000) {
+            continue;
+        }
+        unsigned count[256] = {};
+        int used = 0;
+        for (int i = 0; i < max; i++) {
+            if (s.sys->m_IdUnit[i].be_flag != 0xFF) {
+                count[s.sys->m_IdUnit[i].classNo]++;
+                used++;
+            }
+        }
+        char line[1024];
+        int n = snprintf(line, sizeof(line), "check: %s holds %d of %d units:", s.name, used, max);
+        for (int c = 0; c < 256 && n < (int) sizeof(line) - 16; c++) {
+            if (count[c]) {
+                n += snprintf(line + n, sizeof(line) - n, " class %d: %u", c, count[c]);
+            }
+        }
+        re4_log("%s", line);
+    }
+}
 
 extern "C" void re4_set_frame_hook(void (*hook)(unsigned));
 extern "C" void re4_pad_script_stop(void);

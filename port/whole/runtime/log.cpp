@@ -202,6 +202,9 @@ extern "C" int re4_log_tail(char* out, int size)
     return len;
 }
 
+// runtime/state_trace.cpp (the game's id systems; absent in tools without the game)
+extern "C" void re4_idsys_report(void) __attribute__((weak));
+
 // The game's own log lines (pLog->err / warn / mes, db_log.cpp, patch 0076): on
 // the GameCube they went to the screen and the console. Here each message
 // (by its format string) is logged the first 3 times, then every 1000th time
@@ -231,6 +234,10 @@ extern "C" void re4_game_log(const char* format, const char* text)
     }
     if (count <= 3) {
         re4_log("game: %s", text);
+        // who holds the units when an id system is full (R3: the radio's subtitle bar with the European discs)
+        if (strncmp(text, "IDSystem::set() work full", 25) == 0 && re4_idsys_report) {
+            re4_idsys_report();
+        }
     } else if (count % 1000 == 0) {
         re4_log("game: %s (%u times)", text, count);
     }
