@@ -165,9 +165,9 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    `retail-eu-testrun`). Stand 27.10.2026: Rundgang am PC mit Debug- und EU-Discs je 126/126 (Stage 4 mit EU-Daten,
    Patch 0131), die drei EU-Spielmeldungen geklärt (0132 Ereignis-Untertitel auf Englisch), Funksprüche 13/14/15/17,
    achte Händler-Markierung (0133) und Cheats im Rundgang am PC geprüft; auf dem Retroid zwei weitere
-   Kapitel ohne Befund, Bosse mit One-Hit-Kill bestätigt; offen: ARM32 Speichern/Laden auf dem Gerät, ARM32 Speichern auf dem
-   Gerät, Controller-Konfiguration
-   (A, B, L2, R2, START, SELECT, Steuerkreuz fest; X, Y, L1, R1, L3, R3 frei; Vorschlag des Projektinhabers 27.10.2026) im Ingame-Menü auf dem Gerät (Zwischenstufen 1,5×/2,5×/3,5× und Ruckler-Korrektur auf dem Retroid bestätigt)
+   Kapitel ohne Befund, Bosse mit One-Hit-Kill bestätigt; Controller-Konfiguration
+   (A, B, L2, R2, START, SELECT, Steuerkreuz fest; X, Y, L1, R1, L3, R3 frei; Vorschlag des Projektinhabers 27.10.2026) auf
+   dem Retroid bestätigt; offen: ARM32 Speichern/Laden auf dem Gerät (Zwischenstufen 1,5×/2,5×/3,5× und Ruckler-Korrektur auf dem Retroid bestätigt)
 13. ✅ Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
    parallel zur Debug-Disc, die Referenz bleibt (Entscheidungen des Projektinhabers, 26.10.2026:
    parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, dafür ein Cheat-Menü im

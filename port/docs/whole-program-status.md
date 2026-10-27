@@ -185,12 +185,14 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   Prüfungen (neu: feste Tasten, Karte auf L1 mit Tausch, Zielen auch auf R1 und R2 weiter, A/Steuerkreuz unverändert, Tausch
   X/Y, Rennen auf L3 mit Einrasten, fehlende Funktion, R3 mit Aufnahme/Menü/Funktion, alternative Steuerung),
   `CoreMenuLayoutTest` 7/7 (neu: die Seite, die Auswahl, Tausch, Warnung, Standardbelegung; beide Seiten in 10 Sprachen, 3
-  Schriftgrößen, 5 Breiten), Texte ok, APK gebaut. **Nicht geprüft:** Gerät.
+  Schriftgrößen, 5 Breiten), Texte ok, APK gebaut. **Auf dem Retroid bestätigt** (Projektinhaber, 27.10.2026: „das klappt
+  nun mit den Tasten, das lassen wir so“).
 - **Bericht eines Testers (HONOR LGN-NX3, 0.91.0, `cubeevil4-report-20261026-231441.zip`, „r210 lädt nicht“):** r210 lädt
   einwandfrei; durch die Tür nach r222 liest das Spiel `st2/r222.das`, deren erste 0x400 Byte auf dem Gerät Nullen sind
   („DISC FILE DAMAGED: st2/r222.das“). Derselbe Bericht wie „Lesefehler `st2/r222.das`“ oben (M13): 0.92.0 prüft beim Import
   jede Datei gegen den Katalog, liest sie zurück und meldet eine unlesbare Datei im Spiel mit Ursache und Abhilfe. Kein neuer
   Eingriff; der Tester muss mit 0.92.0 neu importieren (bzw. ein unbeschädigtes Abbild nehmen, wenn die Prüfung das meldet).
+  **Erledigt:** nach einer Neuinstallation läuft es beim Tester (Rückmeldung 27.10.2026).
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
 **Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
