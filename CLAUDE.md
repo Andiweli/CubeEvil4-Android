@@ -167,7 +167,8 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    Ingame-Menü der App, „LANGUAGE SELECT“ aus dem Titelmenü entfernt). Plan und
    Schritte R0–R8: `port/docs/retail-eu-plan.md`, Branch `retail-eu`; R0, R1, R2 ✅ (26.10.2026);
    R4 (App-Import) und R7 (Sprachen) auf dem Retroid bestätigt (27.10.2026); R3 (Texttabellen,
-   Funkspruch-Leiste) auf dem Retroid bestätigt, R6 (kein Debug-Menü) am PC geprüft (27.10.2026)
+   Funkspruch-Leiste) auf dem Retroid bestätigt, R6 (kein Debug-Menü) am PC geprüft, R5 108/126 Räume (Stage 4
+   offen), R8 weitgehend: ARM32 und ARM64 auf dem Retroid, Version 0.92.0-beta (27.10.2026)
 
 ## Git
 

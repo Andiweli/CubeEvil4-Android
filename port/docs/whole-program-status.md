@@ -6,6 +6,14 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 ## M13: Fehlerberichte, Gyro-Richtung, R3 und R6 (27.10.2026 vormittags, lokal, Branch `retail-eu`)
 
+**R8 Gerät und Freigabe (27.10.2026 mittags):** ARM32 auf dem Retroid (`test-core-app.ps1 -SkipCore -Abi armeabi-v7a
+-Seconds 600`, EU-Discs, Deutsch, APK 0.92.0-beta-core, ohne Speicherkarte): Vorfilm, Autofahrt, Funkspruch (Hunnigan,
+dunkle Leiste, deutscher Untertitel) und r100 ohne Absturz, Kern im App-Prozess, 0 Voice Drops. ARM64 hat der Projektinhaber
+selbst gespielt (Start, Funkspruch, Speichern/Laden an der Schreibmaschine, Menüs, Inventar, Karte, Spielstand in r226).
+Version 0.92.0-beta (versionCode 76, Zählregel: mittlere Nummer je Release), Releasetext
+`port/android-decomp/docs/releases/v0.92.0-beta.md`. **Offen für R8:** ein ganzes Kapitel mit EU-Discs, Speichern/Laden
+mit ARM32; Veröffentlichung durch den Projektinhaber.
+
 **Zweiter Gerätetest (27.10.2026 10:52, Video):** Knacken im Vorfilm nicht wieder aufgetreten (nur beim allerersten Start);
 Speichern und Laden an der Schreibmaschine, alle Menüpunkte und Hilfetexte deutsch und richtig, Inventar ohne Befund – bis auf
 ein „H“, das mitten auf der Karte stand und beim Verschieben stehen blieb: Patch 0129 (achte Händler-Markierung der EU-Daten).
