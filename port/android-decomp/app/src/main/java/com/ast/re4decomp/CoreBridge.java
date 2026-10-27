@@ -106,6 +106,17 @@ public final class CoreBridge {
    */
   public static native void restartGame(int language);
   /**
+   * The cheat menu's switches (port/docs/cheat-menu-plan.md): 1 infinite health, 2 infinite ammo,
+   * 4 one-hit kill; the game sets them in every frame while on.
+   */
+  public static native void setCheats(int bits);
+  /**
+   * A cheat menu button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1,000,000 pesetas.
+   * 1 done, 2 already so, 0 not now (not Leon, a sub screen, a movie), -1 no room in the case,
+   * 3 done by the next game frame, -2 the core has no cheat menu.
+   */
+  public static native int cheatAction(int what);
+  /**
    * 60 FPS (experimental): the renderer draws an in-between picture of two game pictures at each
    * second display refresh; the game itself stays at 30 pictures a second.
    */

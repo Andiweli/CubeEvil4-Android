@@ -113,7 +113,7 @@
     <string name="ingame_display_summary">Auflösung, Bildformat &amp; Effekte</string>
     <string name="ingame_controls_summary">Touch, Gyro &amp; Komfortsteuerung</string>
     <string name="ingame_performance_summary">Leistungskerne, 60 FPS &amp; Anzeige</string>
-    <string name="ingame_management_summary">Speicherkarte, Berichte &amp; Quelle</string>
+    <string name="ingame_management_summary">Cheats, Speicherkarte, Berichte &amp; Quelle</string>
     <string name="ingame_output">Bildausgabe</string>
     <string name="ingame_smooth_help">Zusätzliche Zwischenbilder. Die Spiellogik bleibt bei 30 Bildern/s.</string>
     <string name="ingame_instant_save">Speichern</string>
@@ -151,4 +151,19 @@
     <string name="ingame_disc_device">Das Spiel hält bei %1$s (Disc %2$d) an: Die Kopie dieser Datei auf diesem Gerät ist beschädigt (sie hat sich nach dem Import verändert). Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
     <string name="ingame_disc_read">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei ist in Ordnung, aber das Lesen ist fehlgeschlagen. Bitte schicke den Fehlerbericht und starte das Spiel dann neu.</string>
     <string name="ingame_disc_unknown">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei auf diesem Gerät ist beschädigt oder fehlt. Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
+    <string name="ingame_cheats">Cheats</string>
+    <string name="ingame_cheat_health">Unendlich Gesundheit</string>
+    <string name="ingame_cheat_ammo">Unendlich Munition</string>
+    <string name="ingame_cheat_onehit">One-Hit-Kill</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Aktenkoffer L</string>
+    <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; der Spielstand merkt sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Die Knöpfe ändern dein Spiel: Waffe, Koffer und Geld bleiben im nächsten Spielstand.</string>
+    <string name="ingame_cheat_done">Erledigt: %1$s.</string>
+    <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 schon vorhanden: jetzt auf den höchsten Stufen.</string>
+    <string name="ingame_cheat_not_now">Gerade nicht: nur während Leon spielt, nicht im Koffer, auf der Karte oder in einem Film.</string>
+    <string name="ingame_cheat_no_room">Kein Platz im Aktenkoffer.</string>
+    <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
+    <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
 </resources>

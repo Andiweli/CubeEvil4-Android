@@ -122,7 +122,7 @@
     <string name="ingame_display_summary">‏الدقة وأبعاد الصورة والمؤثرات</string>
     <string name="ingame_controls_summary">‏اللمس والجيروسكوب وخيارات الراحة</string>
     <string name="ingame_performance_summary">‏أنوية الأداء و60 FPS وعرض الإطارات</string>
-    <string name="ingame_management_summary">‏بطاقة الذاكرة والتقارير والمصدر</string>
+    <string name="ingame_management_summary">‏الغش وبطاقة الذاكرة والتقارير والمصدر</string>
     <string name="ingame_output">‏إخراج الصورة</string>
     <string name="ingame_smooth_help">‏إطارات وسيطة إضافية. يظل منطق اللعبة عند 30 إطارًا في الثانية.</string>
     <string name="ingame_instant_save">‏حفظ</string>
@@ -160,4 +160,19 @@
     <string name="ingame_disc_device">توقفت اللعبة عند %1$s (القرص %2$d): نسخة هذا الملف على هذا الجهاز تالفة (تغيّرت بعد الاستيراد). استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
     <string name="ingame_disc_read">توقفت اللعبة عند %1$s (القرص %2$d): الملف سليم، لكن قراءته فشلت. أرسل تقرير الأخطاء من فضلك، ثم شغّل اللعبة من جديد.</string>
     <string name="ingame_disc_unknown">توقفت اللعبة عند %1$s (القرص %2$d): الملف على هذا الجهاز تالف أو مفقود. استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
+    <string name="ingame_cheats">الغش</string>
+    <string name="ingame_cheat_health">صحة لا نهائية</string>
+    <string name="ingame_cheat_ammo">ذخيرة لا نهائية</string>
+    <string name="ingame_cheat_onehit">القتل بضربة واحدة</string>
+    <string name="ingame_cheat_killer7">‏Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">الحقيبة L</string>
+    <string name="ingame_cheat_money">‏+1,000,000 PTAS</string>
+    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا يحفظها ملف الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). تغيّر الأزرار لعبتك: يبقى السلاح والحقيبة والمال في الحفظ التالي.</string>
+    <string name="ingame_cheat_done">تم: %1$s.</string>
+    <string name="ingame_cheat_already">موجود بالفعل: %1$s.</string>
+    <string name="ingame_cheat_raised">‏Killer7 موجود بالفعل: أصبح الآن في أعلى المستويات.</string>
+    <string name="ingame_cheat_not_now">ليس الآن: فقط أثناء لعب ليون، وليس في الحقيبة أو الخريطة أو مقطع فيديو.</string>
+    <string name="ingame_cheat_no_room">لا توجد مساحة في الحقيبة.</string>
+    <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
+    <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
 </resources>

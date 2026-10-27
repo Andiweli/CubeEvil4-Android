@@ -69,6 +69,8 @@ enum MsgType : uint32_t {
     kSetFastCores = 27,  // a = on: Force Performance (no reply)
     kRestartGame = 29,   // a = the game's language with the European discs, 2..6: restart with it (no reply)
     kDiscProblem = 30,   // -> text: re4_core_disc_problem
+    kSetCheats = 31,     // a = the cheat switches (no reply)
+    kCheatAction = 32,   // a = the cheat button -> a = result (re4_core_cheat_action)
 };
 
 struct MsgHeader {

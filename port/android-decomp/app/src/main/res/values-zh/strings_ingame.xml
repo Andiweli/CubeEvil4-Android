@@ -113,7 +113,7 @@
     <string name="ingame_display_summary">分辨率、画面比例与效果</string>
     <string name="ingame_controls_summary">触控、陀螺仪与便捷操作</string>
     <string name="ingame_performance_summary">性能核心、60 FPS 与帧率显示</string>
-    <string name="ingame_management_summary">记忆卡、报告与源代码</string>
+    <string name="ingame_management_summary">作弊、记忆卡、报告与源代码</string>
     <string name="ingame_output">图像输出</string>
     <string name="ingame_smooth_help">生成额外的中间帧。游戏逻辑仍以每秒 30 帧运行。</string>
     <string name="ingame_instant_save">保存</string>
@@ -151,4 +151,19 @@
     <string name="ingame_disc_device">游戏停在 %1$s（光盘 %2$d）：此文件在本设备上的副本已损坏（导入后发生了变化）。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
     <string name="ingame_disc_read">游戏停在 %1$s（光盘 %2$d）：文件完好，但读取失败。请发送错误报告，然后重新启动游戏。</string>
     <string name="ingame_disc_unknown">游戏停在 %1$s（光盘 %2$d）：本设备上的文件已损坏或缺失。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
+    <string name="ingame_cheats">作弊</string>
+    <string name="ingame_cheat_health">无限生命</string>
+    <string name="ingame_cheat_ammo">无限弹药</string>
+    <string name="ingame_cheat_onehit">一击必杀</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">手提箱 L</string>
+    <string name="ingame_cheat_money">+1,000,000 PTAS</string>
+    <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。</string>
+    <string name="ingame_cheat_done">完成：%1$s。</string>
+    <string name="ingame_cheat_already">已经有了：%1$s。</string>
+    <string name="ingame_cheat_raised">已有 Killer7：现已升到最高等级。</string>
+    <string name="ingame_cheat_not_now">现在不行：只能在里昂游玩时使用，不能在手提箱、地图或影片中。</string>
+    <string name="ingame_cheat_no_room">手提箱里没有空位。</string>
+    <string name="ingame_cheat_queued">游戏继续后就会完成。</string>
+    <string name="ingame_cheat_unsupported">这个游戏核心没有作弊功能。</string>
 </resources>

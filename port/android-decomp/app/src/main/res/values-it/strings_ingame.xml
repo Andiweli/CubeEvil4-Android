@@ -114,7 +114,7 @@
     <string name="ingame_display_summary">Risoluzione, formato ed effetti</string>
     <string name="ingame_controls_summary">Touch, giroscopio e comodità</string>
     <string name="ingame_performance_summary">Core prestanti, 60 FPS e indicatore</string>
-    <string name="ingame_management_summary">Scheda, rapporti e sorgenti</string>
+    <string name="ingame_management_summary">Trucchi, scheda, rapporti e sorgenti</string>
     <string name="ingame_output">Uscita video</string>
     <string name="ingame_smooth_help">Fotogrammi intermedi aggiuntivi. La logica resta a 30 fotogrammi/s.</string>
     <string name="ingame_instant_save">Salva</string>
@@ -152,4 +152,19 @@
     <string name="ingame_disc_device">Il gioco si è fermato a %1$s (disco %2$d): la copia di questo file su questo dispositivo è danneggiata (è cambiata dopo l’importazione). Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
     <string name="ingame_disc_read">Il gioco si è fermato a %1$s (disco %2$d): il file è integro, ma la lettura non è riuscita. Invia il rapporto errori, poi riavvia il gioco.</string>
     <string name="ingame_disc_unknown">Il gioco si è fermato a %1$s (disco %2$d): il file su questo dispositivo è danneggiato o manca. Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
+    <string name="ingame_cheats">Trucchi</string>
+    <string name="ingame_cheat_health">Salute infinita</string>
+    <string name="ingame_cheat_ammo">Munizioni infinite</string>
+    <string name="ingame_cheat_onehit">Uccisione con un colpo</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Valigetta L</string>
+    <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; il salvataggio non li conserva. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). I pulsanti cambiano la partita: l’arma, la valigetta e il denaro restano nel prossimo salvataggio.</string>
+    <string name="ingame_cheat_done">Fatto: %1$s.</string>
+    <string name="ingame_cheat_already">Già presente: %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 già posseduta: ora ai livelli massimi.</string>
+    <string name="ingame_cheat_not_now">Non ora: solo mentre gioca Leon, non nella valigetta, nella mappa o in un filmato.</string>
+    <string name="ingame_cheat_no_room">Non c’è spazio nella valigetta.</string>
+    <string name="ingame_cheat_queued">Verrà fatto appena il gioco riprende.</string>
+    <string name="ingame_cheat_unsupported">Questo nucleo di gioco non ha trucchi.</string>
 </resources>

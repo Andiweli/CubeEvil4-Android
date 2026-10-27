@@ -105,6 +105,8 @@ struct Core {
     void (*setFastCores)(int);
     void (*restartGame)(int);
     const char* (*discProblem)(void);
+    void (*setCheats)(int);
+    int (*cheatAction)(int);
     void (*touch)(float, float);
     void (*swipe)(int);
     void (*slash)(float);
@@ -718,6 +720,8 @@ bool loadCore(std::string& problem)
     bind(core.setFastCores, "re4_core_set_fast_cores");
     bind(core.restartGame, "re4_core_restart_game");
     bind(core.discProblem, "re4_core_disc_problem");
+    bind(core.setCheats, "re4_core_set_cheats");
+    bind(core.cheatAction, "re4_core_cheat_action");
     bind(core.touch, "re4_core_touch");
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
@@ -835,6 +839,12 @@ void serve()
             break;
         case kDiscProblem:
             reply(h.id, 0, core.discProblem());
+            break;
+        case kSetCheats:
+            core.setCheats(h.a);
+            break;
+        case kCheatAction:
+            reply(h.id, core.cheatAction(h.a), "");
             break;
         case kSwipe:
             core.swipe(h.a);

@@ -114,7 +114,7 @@
     <string name="ingame_display_summary">Resolución, formato y efectos</string>
     <string name="ingame_controls_summary">Táctil, giroscopio y comodidad</string>
     <string name="ingame_performance_summary">Núcleos de rendimiento, 60 FPS e indicador</string>
-    <string name="ingame_management_summary">Tarjeta, informes y código fuente</string>
+    <string name="ingame_management_summary">Trucos, tarjeta, informes y código fuente</string>
     <string name="ingame_output">Salida de imagen</string>
     <string name="ingame_smooth_help">Imágenes intermedias adicionales. La lógica del juego sigue a 30 imágenes/s.</string>
     <string name="ingame_instant_save">Guardar</string>
@@ -152,4 +152,19 @@
     <string name="ingame_disc_device">El juego se detuvo en %1$s (disco %2$d): la copia de este archivo en este dispositivo está dañada (cambió después de la importación). Vuelve a importar el disco %2$d en la pantalla de inicio. Tus partidas guardadas se conservan.</string>
     <string name="ingame_disc_read">El juego se detuvo en %1$s (disco %2$d): el archivo está intacto, pero no se pudo leer. Envía el informe de errores y vuelve a iniciar el juego.</string>
     <string name="ingame_disc_unknown">El juego se detuvo en %1$s (disco %2$d): el archivo en este dispositivo está dañado o falta. Vuelve a importar el disco %2$d en la pantalla de inicio. Tus partidas guardadas se conservan.</string>
+    <string name="ingame_cheats">Trucos</string>
+    <string name="ingame_cheat_health">Salud infinita</string>
+    <string name="ingame_cheat_ammo">Munición infinita</string>
+    <string name="ingame_cheat_onehit">Muerte de un golpe</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Maletín L</string>
+    <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; la partida guardada no los conserva. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Los botones cambian tu partida: el arma, el maletín y el dinero quedan en tu próxima partida guardada.</string>
+    <string name="ingame_cheat_done">Hecho: %1$s.</string>
+    <string name="ingame_cheat_already">Ya lo tienes: %1$s.</string>
+    <string name="ingame_cheat_raised">Ya tienes la Killer7: ahora con sus niveles máximos.</string>
+    <string name="ingame_cheat_not_now">Ahora no: solo mientras juega Leon, fuera del maletín, el mapa y las secuencias.</string>
+    <string name="ingame_cheat_no_room">No hay sitio en el maletín.</string>
+    <string name="ingame_cheat_queued">Se hará en cuanto el juego siga.</string>
+    <string name="ingame_cheat_unsupported">Este núcleo del juego no tiene trucos.</string>
 </resources>

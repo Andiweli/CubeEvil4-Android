@@ -104,6 +104,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GRAPHICS_PREFS = "core_graphics";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
+  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill; off). */
+  static final String CHEATS = "cheats";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
   private static final long SELECT_HOLD_MS = 1000;
@@ -255,6 +257,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
+      // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
+      int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
+      if (!settings.contains("RE4_CHEATS=")) {
+        if (cheats != 0) Log.i(TAG, "cheats: " + cheats);
+        CoreBridge.setCheats(cheats);
+      }
     }
     setContentView(root);
     preferSixtyHz();
@@ -652,6 +660,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         gameLanguageNow = language;
         CoreBridge.restartGame(language);
       }
+    }
+
+    @Override public void cheatsChanged(int bits) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
+      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill)");
+      CoreBridge.setCheats(bits);
+    }
+
+    @Override public int cheatAction(int what) {
+      int result = CoreBridge.cheatAction(what);
+      Log.i(TAG, "cheat button " + what + ": " + result);
+      return result;
     }
 
     @Override public void alternateChanged(boolean on) {

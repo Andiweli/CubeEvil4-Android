@@ -276,6 +276,16 @@ void re4_core_restart_game(int language);
  * disc's file table, e.g. "St2/r222.das"). The game stands at such a file; the app says which file
  * and what to do. Any thread. */
 const char* re4_core_disc_problem(void);
+/* The cheat menu (cores since 27.10.2026, runtime/cheats.cpp, port/docs/cheat-menu-plan.md), with
+ * both kinds of discs. The switches, kept by the app like its other settings (at the start also the
+ * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill; set in
+ * every game frame while on. Any thread. */
+void re4_core_set_cheats(int bits);
+/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas. While the
+ * app's menu holds the game it is done right away: 1 done, 2 already so (Killer7 owned: raised to the
+ * highest levels; case L or XL), 0 not now (not Leon, not in a room's play, a sub screen or a movie),
+ * -1 no free room in the case. Else the next game frame does it: 3. */
+int re4_core_cheat_action(int what);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the

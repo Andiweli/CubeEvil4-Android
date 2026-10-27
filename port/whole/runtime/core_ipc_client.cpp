@@ -954,6 +954,17 @@ const char* re4ipc_disc_problem(void)
     return copy;
 }
 
+void re4ipc_set_cheats(int bits)
+{
+    post(kSetCheats, bits, 0, 0);
+}
+
+int re4ipc_cheat_action(int what)
+{
+    Reply r;
+    return call(kCheatAction, what, 0, 0, nullptr, 0, 5000, &r) ? r.header.a : 0;
+}
+
 void re4ipc_swipe(int dir)
 {
     post(kSwipe, dir, 0, 0);

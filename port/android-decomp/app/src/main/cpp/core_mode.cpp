@@ -93,6 +93,8 @@ struct CoreApi {
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
+  void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
+  int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -423,6 +425,8 @@ void loadCore(JNIEnv *env) {
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
+  api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
+  api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -1737,6 +1741,8 @@ void useCoreProcess(const std::string &why) {
   api.setFastCores = re4ipc_set_fast_cores;
   api.restartGame = re4ipc_restart_game;
   api.discProblem = re4ipc_disc_problem;
+  api.setCheats = re4ipc_set_cheats;
+  api.cheatAction = re4ipc_cheat_action;
   api.touch = re4ipc_touch;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -2089,6 +2095,17 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_restartGame(
 extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_discProblem(JNIEnv *env, jclass) {
   const char *problem = api.discProblem ? api.discProblem() : "";
   return env->NewStringUTF(problem ? problem : "");
+}
+
+// The cheat menu (port/docs/cheat-menu-plan.md): the switches (1 health, 2 ammo, 4 one-hit kill) and a
+// button (1 Killer7, 2 case L, 3 money -> 1 done, 2 already, 0 not now, -1 no room, 3 queued; -2 without
+// a core that has it).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setCheats(JNIEnv *, jclass, jint bits) {
+  if (api.setCheats) api.setCheats(bits);
+}
+
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_cheatAction(JNIEnv *, jclass, jint what) {
+  return api.cheatAction ? api.cheatAction(what) : -2;
 }
 
 // Frame skip (the menu): while the renderer is behind, chunks are left out (GxRenderer::Skip).

@@ -115,7 +115,7 @@
     <string name="ingame_display_summary">Resolução, formato e efeitos</string>
     <string name="ingame_controls_summary">Toque, giroscópio e conforto</string>
     <string name="ingame_performance_summary">Núcleos de desempenho, 60 FPS e indicador</string>
-    <string name="ingame_management_summary">Cartão, relatórios e código-fonte</string>
+    <string name="ingame_management_summary">Trapaças, cartão, relatórios e código-fonte</string>
     <string name="ingame_output">Saída de imagem</string>
     <string name="ingame_smooth_help">Quadros intermediários extras. A lógica permanece a 30 quadros/s.</string>
     <string name="ingame_instant_save">Salvar</string>
@@ -153,4 +153,19 @@
     <string name="ingame_disc_device">O jogo parou em %1$s (disco %2$d): a cópia deste arquivo neste aparelho está danificada (mudou depois da importação). Importe o disco %2$d novamente na tela inicial. Seus jogos salvos são mantidos.</string>
     <string name="ingame_disc_read">O jogo parou em %1$s (disco %2$d): o arquivo está intacto, mas a leitura falhou. Envie o relatório de erros e depois inicie o jogo de novo.</string>
     <string name="ingame_disc_unknown">O jogo parou em %1$s (disco %2$d): o arquivo neste aparelho está danificado ou não existe. Importe o disco %2$d novamente na tela inicial. Seus jogos salvos são mantidos.</string>
+    <string name="ingame_cheats">Trapaças</string>
+    <string name="ingame_cheat_health">Saúde infinita</string>
+    <string name="ingame_cheat_ammo">Munição infinita</string>
+    <string name="ingame_cheat_onehit">Morte com um golpe</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Maleta L</string>
+    <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheats_help">Os interruptores ficam ligados até você desligá-los; o save não os guarda. Alguns ataques ainda matam Leon na hora (motosserra, agarrão, pedra). Os botões mudam seu jogo: a arma, a maleta e o dinheiro ficam no seu próximo save.</string>
+    <string name="ingame_cheat_done">Feito: %1$s.</string>
+    <string name="ingame_cheat_already">Já existe: %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 já obtida: agora nos níveis máximos.</string>
+    <string name="ingame_cheat_not_now">Agora não: só enquanto Leon joga, fora da maleta, do mapa e dos vídeos.</string>
+    <string name="ingame_cheat_no_room">Sem espaço na maleta.</string>
+    <string name="ingame_cheat_queued">Será feito assim que o jogo continuar.</string>
+    <string name="ingame_cheat_unsupported">Este núcleo do jogo não tem trapaças.</string>
 </resources>

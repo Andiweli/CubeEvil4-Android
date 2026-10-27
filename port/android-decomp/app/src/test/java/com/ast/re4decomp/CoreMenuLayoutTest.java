@@ -99,6 +99,11 @@ public class CoreMenuLayoutTest {
         for (int page = 0; page < 5; page++) {
           show.invoke(menu, page, false);
           if (page == 0) metadata.invoke(menu, (Object) new long[] {0, 1, 1, 1, 0x100, 101, 123456, 1792841040});
+          if (page == 4) {
+            // the cheat buttons' longest answer shown under them
+            TextView answer = (TextView) field(menu, "cheatStatus");
+            answer.setText(activity.getString(R.string.ingame_cheat_not_now)); answer.setVisibility(View.VISIBLE);
+          }
           for (int width : new int[] {960, 320, 480, 700, 960}) {
             int pxWidth = Math.round(width * activity.getResources().getDisplayMetrics().density);
             int pxHeight = Math.round(300 * activity.getResources().getDisplayMetrics().density);
@@ -125,6 +130,33 @@ public class CoreMenuLayoutTest {
           }
         }
       }
+    }
+  }
+
+  @Test public void cheatsComeFirstOnManagementAndSwitchesSendTheirBits() throws Exception {
+    final int[] sent = {-1};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 4, false);
+      ViewGroup body = (ViewGroup) field(menu, "body");
+      assertTrue(((TextView) body.getChildAt(0)).getText().toString()
+          .equalsIgnoreCase(activity.getString(R.string.ingame_cheats)));
+      ViewGroup switches = (ViewGroup) body.getChildAt(1), actions = (ViewGroup) body.getChildAt(2);
+      assertEquals(3, switches.getChildCount()); assertEquals(3, actions.getChildCount());
+      Button health = (Button) switches.getChildAt(0), oneHit = (Button) switches.getChildAt(2);
+      assertFalse(health.isSelected());
+      health.performClick(); assertEquals(1, sent[0]);
+      oneHit.performClick(); assertEquals(5, sent[0]);
+      health.performClick(); assertEquals(4, sent[0]);
+      assertTrue(((Button) actions.getChildAt(0)).getText().toString()
+          .contains(activity.getString(R.string.ingame_cheat_killer7)));
     }
   }
 

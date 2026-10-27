@@ -113,7 +113,7 @@
     <string name="ingame_display_summary">रिज़ॉल्यूशन, चित्र और प्रभाव</string>
     <string name="ingame_controls_summary">टच, जाइरो और सुविधाजनक नियंत्रण</string>
     <string name="ingame_performance_summary">तेज़ कोर, 60 FPS और जानकारी</string>
-    <string name="ingame_management_summary">मेमोरी कार्ड, रिपोर्ट और सोर्स</string>
+    <string name="ingame_management_summary">चीट्स, मेमोरी कार्ड, रिपोर्ट और सोर्स</string>
     <string name="ingame_output">चित्र आउटपुट</string>
     <string name="ingame_smooth_help">अतिरिक्त बीच के फ़्रेम। गेम लॉजिक 30 फ़्रेम/सेकंड पर रहता है।</string>
     <string name="ingame_instant_save">सेव करें</string>
@@ -151,4 +151,19 @@
     <string name="ingame_disc_device">गेम %1$s (डिस्क %2$d) पर रुक गया: इस डिवाइस पर इस फ़ाइल की कॉपी खराब है (इम्पोर्ट के बाद बदल गई)। स्टार्ट स्क्रीन पर डिस्क %2$d फिर से इम्पोर्ट करें। आपके सेव बने रहेंगे।</string>
     <string name="ingame_disc_read">गेम %1$s (डिस्क %2$d) पर रुक गया: फ़ाइल सही है, लेकिन उसे पढ़ना विफल रहा। कृपया त्रुटि रिपोर्ट भेजें, फिर गेम दोबारा शुरू करें।</string>
     <string name="ingame_disc_unknown">गेम %1$s (डिस्क %2$d) पर रुक गया: इस डिवाइस पर फ़ाइल खराब है या मौजूद नहीं है। स्टार्ट स्क्रीन पर डिस्क %2$d फिर से इम्पोर्ट करें। आपके सेव बने रहेंगे।</string>
+    <string name="ingame_cheats">चीट्स</string>
+    <string name="ingame_cheat_health">अनंत हेल्थ</string>
+    <string name="ingame_cheat_ammo">अनंत गोला-बारूद</string>
+    <string name="ingame_cheat_onehit">एक वार में खत्म</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">अटैची केस L</string>
+    <string name="ingame_cheat_money">+1,000,000 PTAS</string>
+    <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखता। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं।</string>
+    <string name="ingame_cheat_done">हो गया: %1$s।</string>
+    <string name="ingame_cheat_already">पहले से है: %1$s।</string>
+    <string name="ingame_cheat_raised">Killer7 पहले से है: अब सबसे ऊँचे लेवल पर।</string>
+    <string name="ingame_cheat_not_now">अभी नहीं: सिर्फ़ जब Leon खेल रहा हो, केस, मैप या वीडियो में नहीं।</string>
+    <string name="ingame_cheat_no_room">अटैची केस में जगह नहीं है।</string>
+    <string name="ingame_cheat_queued">गेम चलते ही हो जाएगा।</string>
+    <string name="ingame_cheat_unsupported">इस गेम कोर में चीट्स नहीं हैं।</string>
 </resources>

@@ -128,7 +128,7 @@
     <string name="ingame_display_summary">Resolution, picture &amp; effects</string>
     <string name="ingame_controls_summary">Touch, gyro &amp; comfort controls</string>
     <string name="ingame_performance_summary">Performance cores, 60 FPS &amp; display</string>
-    <string name="ingame_management_summary">Memory card, reports &amp; source</string>
+    <string name="ingame_management_summary">Cheats, memory card, reports &amp; source</string>
     <string name="ingame_output">Picture output</string>
     <string name="ingame_smooth_help">Extra in-between pictures. The game logic stays at 30 frames/s.</string>
     <string name="ingame_instant_save">Save</string>
@@ -166,4 +166,19 @@
     <string name="ingame_disc_device">The game stopped at %1$s (Disc %2$d): the copy of this file on this device is damaged (it changed after the import). Import Disc %2$d again on the start screen. Your saves stay.</string>
     <string name="ingame_disc_read">The game stopped at %1$s (Disc %2$d): the file is intact, but reading it failed. Please send the error report, then start the game again.</string>
     <string name="ingame_disc_unknown">The game stopped at %1$s (Disc %2$d): the file on this device is damaged or missing. Import Disc %2$d again on the start screen. Your saves stay.</string>
+    <string name="ingame_cheats">Cheats</string>
+    <string name="ingame_cheat_health">Infinite health</string>
+    <string name="ingame_cheat_ammo">Infinite ammo</string>
+    <string name="ingame_cheat_onehit">One-hit kill</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Attaché case L</string>
+    <string name="ingame_cheat_money">+1,000,000 PTAS</string>
+    <string name="ingame_cheats_help">The switches stay on until you switch them off; your save does not keep them. Some attacks still kill Leon at once (a chainsaw, a grab, a boulder). The buttons change your game: the weapon, the case and the money stay in your next save.</string>
+    <string name="ingame_cheat_done">Done: %1$s.</string>
+    <string name="ingame_cheat_already">Already there: %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 already owned: now at its highest levels.</string>
+    <string name="ingame_cheat_not_now">Not now: only while Leon plays, not in the case, the map or a movie.</string>
+    <string name="ingame_cheat_no_room">No room in the attaché case.</string>
+    <string name="ingame_cheat_queued">Will be done as soon as the game runs.</string>
+    <string name="ingame_cheat_unsupported">This game core has no cheats.</string>
 </resources>

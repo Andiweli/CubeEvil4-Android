@@ -40,6 +40,10 @@
 //                          of stream block B starts as a room script starts it
 //                          (SndStrReq(B, S, 0x80000003): r226's statue camera
 //                          plays 0:0x16), for the sound checks (RE4_AUDIO_WAV)
+//   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
+//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money)
+//                          one a frame, as the app's menu presses them while the
+//                          game runs (runtime/cheats.cpp; the switches: RE4_CHEATS)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is
 //                          free in the room: main loop, no event and no sub
 //                          screen for 300 frames in a row ("run: player free"
@@ -192,6 +196,9 @@ extern "C" void re4_idsys_report(void)
         re4_log("%s", line);
     }
 }
+
+extern "C" void re4_cheats_install(void);  // runtime/cheats.cpp
+extern "C" int re4_cheat_queue(int what);
 
 extern "C" void re4_set_frame_hook(void (*hook)(unsigned));
 extern "C" void re4_pad_script_stop(void);
@@ -482,6 +489,8 @@ long g_saveAfter = -1;
 int g_saveBrightness = -1;
 bool g_saveOpened, g_saveStop, g_saveRunning;
 bool g_cardYes;              // RE4_TEST_CARD_YES
+long g_cheatAfter = -1;      // RE4_TEST_CHEATS
+int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
 int g_streamBlock, g_streamNo;
 long g_continueAfter = -1;   // RE4_TEST_CONTINUE
@@ -1196,6 +1205,12 @@ void frame(unsigned n)
         SysFlagOn(g, SYS_SOFT_RESET);
         re4_log("run: soft reset requested (RE4_TEST_SOFT_RESET) at frame %u, step %u", n, (unsigned) g->Rno0);
     }
+    if (g_cheatAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_cheatAfter &&
+        (long) n < g_freeAt + g_cheatAfter + g_cheatCount) {
+        int what = g_cheatActions[n - (g_freeAt + g_cheatAfter)];
+        re4_log("run: cheat button %d (RE4_TEST_CHEATS) at frame %u", what, n);
+        re4_cheat_queue(what);
+    }
     if (g_streamAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_streamAfter) {
         u32 id = SndStrReq(g_streamBlock, g_streamNo, (int) 0x80000003, 0, 0, 0.0f);
         re4_log("run: stream %d:0x%x started (RE4_TEST_STREAM) at frame %u: id %u", g_streamBlock, g_streamNo, n,
@@ -1326,6 +1341,17 @@ void configure()
             g_saveBrightness = (int) strtol(end + 1, &end, 0);
         }
         g_saveStop = end && strstr(end, ",stop") != 0;
+    }
+    // the cheat menu's switches and buttons in every game frame (runtime/cheats.cpp)
+    re4_cheats_install();
+    const char* cheats = getenv("RE4_TEST_CHEATS");
+    if (cheats && strncmp(cheats, "free+", 5) == 0) {
+        char* end = 0;
+        g_cheatAfter = strtol(cheats + 5, &end, 10);
+        g_cheatCount = 0;
+        while (end && *end && g_cheatCount < 8) {
+            g_cheatActions[g_cheatCount++] = (int) strtol(end + 1, &end, 10);
+        }
     }
     const char* stream = getenv("RE4_TEST_STREAM");
     if (stream && strncmp(stream, "free+", 5) == 0 &&

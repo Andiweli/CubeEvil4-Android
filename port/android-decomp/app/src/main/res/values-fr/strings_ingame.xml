@@ -116,7 +116,7 @@
     <string name="ingame_display_summary">Résolution, format et effets</string>
     <string name="ingame_controls_summary">Tactile, gyroscope et confort</string>
     <string name="ingame_performance_summary">Cœurs performants, 60 FPS et compteur</string>
-    <string name="ingame_management_summary">Carte mémoire, rapports et sources</string>
+    <string name="ingame_management_summary">Triches, carte mémoire, rapports et sources</string>
     <string name="ingame_output">Sortie vidéo</string>
     <string name="ingame_smooth_help">Images intermédiaires supplémentaires. La logique du jeu reste à 30 images/s.</string>
     <string name="ingame_instant_save">Sauvegarder</string>
@@ -154,4 +154,19 @@
     <string name="ingame_disc_device">Le jeu s’est arrêté à %1$s (disque %2$d) : la copie de ce fichier sur cet appareil est endommagée (elle a changé après l’importation). Importez de nouveau le disque %2$d depuis l’écran de démarrage. Vos sauvegardes sont conservées.</string>
     <string name="ingame_disc_read">Le jeu s’est arrêté à %1$s (disque %2$d) : le fichier est intact, mais sa lecture a échoué. Envoyez le rapport d’erreur, puis relancez le jeu.</string>
     <string name="ingame_disc_unknown">Le jeu s’est arrêté à %1$s (disque %2$d) : le fichier sur cet appareil est endommagé ou absent. Importez de nouveau le disque %2$d depuis l’écran de démarrage. Vos sauvegardes sont conservées.</string>
+    <string name="ingame_cheats">Triches</string>
+    <string name="ingame_cheat_health">Santé infinie</string>
+    <string name="ingame_cheat_ammo">Munitions infinies</string>
+    <string name="ingame_cheat_onehit">Tué en un coup</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Mallette L</string>
+    <string name="ingame_cheat_money">+1 000 000 PTAS</string>
+    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez ; la sauvegarde ne les garde pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Les boutons modifient votre partie : l’arme, la mallette et l’argent restent dans votre prochaine sauvegarde.</string>
+    <string name="ingame_cheat_done">Fait : %1$s.</string>
+    <string name="ingame_cheat_already">Déjà là : %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 déjà possédé : maintenant à ses niveaux maximaux.</string>
+    <string name="ingame_cheat_not_now">Pas maintenant : seulement quand Leon joue, hors mallette, carte et cinématique.</string>
+    <string name="ingame_cheat_no_room">Pas de place dans la mallette.</string>
+    <string name="ingame_cheat_queued">Ce sera fait dès que le jeu reprendra.</string>
+    <string name="ingame_cheat_unsupported">Ce cœur de jeu n’a pas de triches.</string>
 </resources>

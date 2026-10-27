@@ -28,6 +28,11 @@ extern "C" unsigned re4_pad_rumble(void);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));
 extern "C" int re4_log_tail(char* out, int size);
 extern "C" void re4_state_trace_reconfigure(void);
+// runtime/cheats.cpp
+extern "C" void re4_cheats_set(int bits);
+extern "C" int re4_cheats_wanted(void);
+extern "C" int re4_cheat_queue(int what);
+extern "C" int re4_cheat_perform(int what);
 // the card library's control blocks (src/lib/__card.h, CARDControl): the
 // first word of slot A's says whether the library has the card mounted
 extern "C" char __CARDBlock[];
@@ -62,6 +67,9 @@ bool gPauseWanted, gPaused;
 int gInstantPending = -1, gInstantResult;
 bool gInstantBusy, gInstantDone;
 Re4InstantInfo gInstantInfo;
+// a cheat button while the menu holds the game (runtime/cheats.cpp)
+int gCheatPending, gCheatResult;
+bool gCheatDone;
 // SELECT held in the app: the debug menu (patch 0061, re4_debug_menu_request)
 volatile int gDebugMenuWanted;
 
@@ -73,8 +81,17 @@ void pausePoint()
         gPaused = true;
         pthread_cond_broadcast(&gPauseCond);
         re4_log("core: paused (the app's menu)");
-        while (gPauseWanted || gInstantPending >= 0) {
-            if (gInstantPending >= 0) {
+        while (gPauseWanted || gInstantPending >= 0 || gCheatPending) {
+            if (gCheatPending) {
+                const int what = gCheatPending;
+                pthread_mutex_unlock(&gPauseLock);
+                const int result = re4_cheat_perform(what);
+                pthread_mutex_lock(&gPauseLock);
+                gCheatResult = result;
+                gCheatPending = 0;
+                gCheatDone = true;
+                pthread_cond_broadcast(&gPauseCond);
+            } else if (gInstantPending >= 0) {
                 const int operation = gInstantPending;
                 // Only this thread can touch game objects, including while the menu is paused.
                 pthread_mutex_unlock(&gPauseLock);
@@ -642,6 +659,34 @@ int re4_core_instant(int operation, Re4InstantInfo* info)
     *info = gInstantInfo;
     const int result = gInstantResult;
     gInstantBusy = false;
+    pthread_mutex_unlock(&gPauseLock);
+    return result;
+}
+
+// The cheat menu (port/docs/cheat-menu-plan.md): the switches every game frame, a button right away
+// while the menu holds the game (the answer shows in the menu), else by the next game frame.
+void re4_core_set_cheats(int bits)
+{
+    if (re4_cheats_wanted() != (bits & 7)) {
+        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill)", bits & 7);
+    }
+    re4_cheats_set(bits);
+}
+
+int re4_core_cheat_action(int what)
+{
+    if (what < 1 || what > 3) return 0;
+    pthread_mutex_lock(&gPauseLock);
+    if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {
+        pthread_mutex_unlock(&gPauseLock);
+        re4_log("core: cheat button %d for the next game frame", what);
+        return re4_cheat_queue(what);
+    }
+    gCheatDone = false;
+    gCheatPending = what;
+    pthread_cond_broadcast(&gPauseCond);
+    while (!gCheatDone) pthread_cond_wait(&gPauseCond, &gPauseLock);
+    const int result = gCheatResult;
     pthread_mutex_unlock(&gPauseLock);
     return result;
 }

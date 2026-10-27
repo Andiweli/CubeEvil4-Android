@@ -71,6 +71,10 @@ final class CoreMenu extends Dialog {
     /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it); the
      *  game restarts when its language changes (the menu asked first). */
     void gameLanguageChanged(int choice);
+    /** The cheat switches: bit 1 infinite health, 2 infinite ammo, 4 one-hit kill (CoreActivity.CHEATS holds them). */
+    void cheatsChanged(int bits);
+    /** A cheat button (1 Killer7, 2 attache case L, 3 money), off the main thread: CoreBridge.cheatAction's answer. */
+    int cheatAction(int what);
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -91,7 +95,7 @@ final class CoreMenu extends Dialog {
   private final Button[] navigation = new Button[5];
   private int page, requestSerial;
   private boolean working, slotPresent;
-  private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus;
+  private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus;
   private Button exportAll, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
     if (r - l != oldR - oldL || b - t != oldB - oldT) resizeWindow();
@@ -255,7 +259,7 @@ final class CoreMenu extends Dialog {
   private void showPage(int next, boolean focus) {
     if (working) return;
     scrollY[page] = scroll.getScrollY(); page = next; ++requestSerial;
-    body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null;
+    body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null; cheatStatus = null;
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
     int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_controls_page,
         R.string.ingame_performance, R.string.ingame_management};
@@ -473,6 +477,7 @@ final class CoreMenu extends Dialog {
     help(output, R.string.ingame_skip_or_smooth);
   }
   private void management() {
+    cheats();
     heading(R.string.ingame_card); help(R.string.ingame_card_help);
     cardLine = text("", 15, false); body.addView(cardLine);
     MenuLayout.Buttons cardButtons = buttonsRow(body);
@@ -487,6 +492,58 @@ final class CoreMenu extends Dialog {
     cellAction(reports, s(R.string.ingame_report_save), v -> host.saveReport());
     heading(R.string.ingame_source);
     cellAction(buttonsRow(body), getContext().getString(R.string.ingame_source_line, SOURCE_URL), v -> openSource());
+  }
+
+  /** "Cheats" at the top of Management (wish and decisions of the project owner, 27.10.2026;
+   *  port/docs/cheat-menu-plan.md): three switches, kept like the other settings, and three buttons
+   *  that change the game once (the weapon, the case and the money stay in the next save). */
+  private void cheats() {
+    heading(R.string.ingame_cheats);
+    final int[] bits = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
+        .getInt(CoreActivity.CHEATS, 0)};
+    MenuLayout.Buttons switches = new MenuLayout.Buttons(getContext(), 3);
+    body.addView(switches, new LinearLayout.LayoutParams(-1, -2));
+    final int[] switchLabels = {R.string.ingame_cheat_health, R.string.ingame_cheat_ammo, R.string.ingame_cheat_onehit};
+    for (int i = 0; i < switchLabels.length; i++) {
+      final int bit = 1 << i;
+      toggle(switches, switchLabels[i], (bits[0] & bit) != 0, on -> {
+        bits[0] = on ? bits[0] | bit : bits[0] & ~bit; host.cheatsChanged(bits[0]);
+      });
+    }
+    MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 3);
+    body.addView(actions, new LinearLayout.LayoutParams(-1, -2));
+    final int[] actionLabels = {R.string.ingame_cheat_killer7, R.string.ingame_cheat_case, R.string.ingame_cheat_money};
+    for (int i = 0; i < actionLabels.length; i++) {
+      final int what = i + 1, label = actionLabels[i];
+      cellAction(actions, s(label), v -> cheatAction(what, label));
+    }
+    cheatStatus = text("", 15, false); cheatStatus.setPadding(0, dp(6), 0, dp(2));
+    cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
+    body.addView(cheatStatus);
+    help(R.string.ingame_cheats_help);
+  }
+  /** The game is held while the menu is open: the core does a button at once and answers. */
+  private void cheatAction(int what, int label) {
+    if (working) return;
+    final int serial = requestSerial;
+    new Thread(() -> {
+      int result;
+      try { result = host.cheatAction(what); }
+      catch (RuntimeException | UnsatisfiedLinkError e) { result = -2; }
+      final int done = result;
+      main.post(() -> {
+        if (!isShowing() || serial != requestSerial || page != MANAGEMENT || cheatStatus == null) return;
+        String text;
+        if (done == 1) text = getContext().getString(R.string.ingame_cheat_done, s(label));
+        else if (done == 2 && what == 1) text = s(R.string.ingame_cheat_raised);
+        else if (done == 2) text = getContext().getString(R.string.ingame_cheat_already, s(label));
+        else if (done == 0) text = s(R.string.ingame_cheat_not_now);
+        else if (done == -1) text = s(R.string.ingame_cheat_no_room);
+        else if (done == 3) text = s(R.string.ingame_cheat_queued);
+        else text = s(R.string.ingame_cheat_unsupported);
+        cheatStatus.setText(text); cheatStatus.setVisibility(View.VISIBLE);
+      });
+    }, "Cheat").start();
   }
 
   private void refreshInstant() { instant(0); }
