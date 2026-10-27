@@ -171,6 +171,17 @@ inline int ThreadId()
     return static_cast<int>(syscall(SYS_gettid));
 }
 
+// The cores KeepOffSlowCores gave the calling thread (KeepOnFastCores puts it back there).
+struct WantedCores {
+    cpu_set_t set;
+    bool on;
+};
+inline WantedCores& Wanted()
+{
+    static thread_local WantedCores w;
+    return w;
+}
+
 // Keeps the calling thread off the slowest kind of core (decision of the project owner,
 // 23.10.2026): the game's thread and the renderer's each need a whole core, and Android put them
 // on the slow ones at times (Retroid: the core thread 40 % of the pictures on them at the title;
@@ -217,7 +228,41 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size)
     if (len < static_cast<int>(size)) {
         snprintf(out + len, size - len, ", off the slowest (at most %u MHz)", l.slowest / 1000);
     }
+    Wanted().set = set;
+    Wanted().on = true;
     return true;
+}
+
+// The calling thread back on every core Android allows (the menu's "Force Performance: Default"
+// after "Use performance cores").
+inline void ReleaseCores()
+{
+    Wanted().on = false;
+    cpu_set_t all;
+    CPU_ZERO(&all);
+    const long n = sysconf(_SC_NPROCESSORS_CONF);
+    for (long cpu = 0; cpu < n && cpu < CPU_SETSIZE; cpu++) {
+        CPU_SET(cpu, &all);
+    }
+    sched_setaffinity(0, sizeof(all), &all);
+}
+
+// Android gives a thread all the cores of its group again when it moves the app between its
+// groups (cpusets: a dialog, the app menu, the screen; realme reports 24.10.2026: the game thread
+// placed on the fast cores ran 90 % on the slow ones a minute later). Called now and then by a
+// thread KeepOffSlowCores placed: back on its cores. true when it had to.
+inline bool KeepOnFastCores()
+{
+    WantedCores& w = Wanted();
+    if (!w.on) {
+        return false;
+    }
+    cpu_set_t now;
+    CPU_ZERO(&now);
+    if (sched_getaffinity(0, sizeof(now), &now) != 0 || CPU_EQUAL(&now, &w.set)) {
+        return false;
+    }
+    return sched_setaffinity(0, sizeof(w.set), &w.set) == 0;
 }
 
 inline bool KeepOffSlowCores(char* out, size_t size)

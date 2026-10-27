@@ -10,6 +10,8 @@ public final class Re4Application extends Application {
       // Core mode: complete imports, and the game core is loaded (and its
       // memory at 0x80000000 reserved) before any Activity or GL work.
       GameCubeDisc.importEverything = true;
+      // the core runs the European discs too (port/docs/retail-eu-plan.md)
+      GameCubeDisc.retailAllowed = true;
       CoreBridge.load();
     }
     imports = new ImportManager(this);

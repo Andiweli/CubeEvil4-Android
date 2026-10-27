@@ -1,0 +1,34 @@
+# Retail data (port/docs/retail-eu-plan.md): the map of the sub screen with the European discs. The
+# map screen's layout (SS/<lang>/ss_map.dat entry 3, IDC_SSCRN_NEAR_0) has the same 48 units in both
+# releases, but the European one lists unit 253 (the copy of the screen over the map) last instead of
+# before the background; with this build's drawing the map stayed empty (frame and legend only, rooms,
+# marks and Leon's arrow missing; Retroid and PC, r226 and r100, 26.10.2026). The European
+# SsMapMain::init (Sscrn.rel text 0x111ac) hides unit 253 except in r22c; so does this one with the
+# European discs. Nothing changes with the debug build's discs. A port patch for retail data.
+--- a/src/Sscrn/ss_map.cpp
++++ b/src/Sscrn/ss_map.cpp
+@@ -2435,6 +2435,8 @@
+ 
+ // Builds the map screen: the zoom and mode widgets, id textures, unit groups, lights, SsMapWork,
+ // viewport and camera. Button hints for marks not yet available are hidden.
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ void SsMapMain::init(SUB_SCREEN* wk)
+ {
+     focus = new MapFocus;
+@@ -2471,6 +2473,15 @@
+     IdSub.unitPtr(0x10, IDC_SSCRN_NEAR_0)->be_flag &= ~8;
+     IdSub.unitPtr(0, IDC_SSCRN_NEAR_0)->be_flag &= ~8;
+     IdSub.unitPtr(0, IDC_SSCRN_NEAR_0)->rev_flag |= 0xF;
++    /* port: the European map layout has unit 253 (the copy of the screen) last, the European
++       SsMapMain::init (Sscrn.rel) shows it in r22c only; shown, it hid the map (patch 0124) */
++    if (re4_disc_retail_eu()) {
++        if (wk->room_no == 0x22C) {
++            IdSub.unitPtr(0xFD, IDC_SSCRN_NEAR_0)->be_flag |= 8;
++        } else {
++            IdSub.unitPtr(0xFD, IDC_SSCRN_NEAR_0)->be_flag &= ~8;
++        }
++    }
+     sscrnLightCreate(wk, (cLit*) SS_ARC_PTR(wk->pCmmn, 0x13));
+ #line 3409 "D:/Bio4/Prog/ss_map.cpp"
+     wk->map = (SsMapWork*) MEM_ALLOC(sizeof(SsMapWork), 1, 0xD);

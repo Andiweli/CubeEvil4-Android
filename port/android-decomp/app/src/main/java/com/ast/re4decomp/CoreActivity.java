@@ -40,6 +40,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.ast.re4decomp.disc.RoomFileCheck;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -88,6 +89,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_AIM = "gyroAiming";
   // the menu's switch "Alternate Controls" (CoreInput.setAlternate)
   static final String ALT_CONTROLS = "alternateControls";
+  // the menu's "Controller configuration": the free keys' functions (CoreInput.encode; absent: the
+  // default); "bindings" and "extraKeys" held the two first versions (27.10.2026), dropped
+  static final String KEY_MAP = "keyMap";
   // the menu's comfort control "Latch L and R" (CoreTouch.setLatch, CoreInput.setLatch; off: held
   // while touched or pressed); the touch controls' only until 23.10.2026, the name stays
   static final String TOUCH_LATCH = "touchLatchLR";
@@ -95,10 +99,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String TOUCH_LATCH_B = "touchLatchB";
   // the menu's slider of gyro aiming (GyroAim.setSensitivity, a float, 1 = as before)
   static final String GYRO_SENSITIVITY = "gyroSensitivity";
+  // the menu's switches "Invert vertical" / "Invert horizontal" of gyro aiming (GyroAim.setInvert; off)
+  static final String GYRO_INVERT_V = "gyroInvertVertical", GYRO_INVERT_H = "gyroInvertHorizontal";
   // the menu's switch "Knife by Swipe" (watchTap: a swipe while playing draws the knife and slashes; on)
   static final String KNIFE_SWIPE = "knifeSwipe";
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
   static final String GRAPHICS_PREFS = "core_graphics";
+  /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
+  static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
+  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill; off). */
+  static final String CHEATS = "cheats";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
   private static final long SELECT_HOLD_MS = 1000;
@@ -108,6 +118,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final CoreInput input = new CoreInput();
   private final CoreAudio audio = new CoreAudio(this);
   private final Set<Integer> seenDevices = new HashSet<>();
+  private final ControllerLog controllerLog = new ControllerLog();
   private GLSurfaceView surface;
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
@@ -118,6 +129,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private volatile boolean destroyed;
   // the language at the start or the last change (onConfigurationChanged)
   private String shownLanguage = "";
+  private boolean retailEu;  // the European discs are imported: the menu offers the game's language
+  private int gameLanguageNow;  // the language the game runs with (European discs)
   // the menu (SELECT) and the debug menu (SELECT held)
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
@@ -131,6 +144,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private boolean askSixty;
   // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator
   private Vibrator vibrator;
+  /**
+   * Each start of the motor by its level 1..4 (the game's motor in the last four frames): 190 up to
+   * 310 ms (120 until 27.10.2026, then 170: a shotgun still felt like a slingshot, device test).
+   */
+  static int rumblePulseMs(int level) { return 150 + 40 * Math.max(1, Math.min(4, level)); }
   private boolean amplitudeControl, vibrating;
   private int rumbleFrames = -1, rumbleLevel;
   private long rumbleSeen, rumbleUntil;
@@ -147,6 +165,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private static final long HANG_MS = 8000;
   // the core in a process of its own ended (CoreBridge.coreProblem): shown once
   private boolean coreEndShown;
+  // a disc file the game could not read (CoreBridge.discProblem): checked and shown once; the
+  // check's line goes into the error report (disc-check.txt)
+  private boolean discProblemSeen;
+  private volatile String discCheck = "";
 
   @Override
   @SuppressLint("ClickableViewAccessibility")
@@ -168,6 +190,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     String programList = programList();
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
+    // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
+    retailEu = imports.root != null && com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(
+        com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1")));
+    gameLanguageNow = gameLanguage(this);
+    if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
+      coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
+      Log.i(TAG, "game language: " + gameLanguageNow);
+    }
     // the app's own folder on the shared storage, where test switches write (RE4_AUDIO_WAV)
     getExternalFilesDir(null);
     applyGraphics();
@@ -177,6 +207,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences inputPrefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
     input.setSwapFace(inputPrefs.getBoolean(SWAP_FACE, false));
     input.setAlternate(inputPrefs.getBoolean(ALT_CONTROLS, false));
+    input.setKeyMap(CoreInput.decode(inputPrefs.getString(KEY_MAP, null)));
+    if (inputPrefs.contains("bindings") || inputPrefs.contains("extraKeys")) {
+      inputPrefs.edit().remove("bindings").remove("extraKeys").apply();
+    }
     input.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false), inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     knifeSwipe = inputPrefs.getBoolean(KNIFE_SWIPE, true);
     // R3 saves graphics data with the test scripts (RE4_APP_TOOLS=1) or when the menu switched it on
@@ -221,13 +255,26 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.setLatchB(inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     gyroAim = new GyroAim(this, main);
     gyroAim.setSensitivity(inputPrefs.getFloat(GYRO_SENSITIVITY, 1f));
+    gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
     if (startProblem.isEmpty()) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
       CoreBridge.setDof(g.getBoolean("dof", true));
+      // one or the other (CoreMenu): saved with both on before 26.10.2026, 60 FPS stays
+      if (g.getBoolean("smooth60", false) && g.getBoolean("frameskip", false))
+        g.edit().putBoolean("frameskip", false).apply();
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
+      CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
+      CoreBridge.setFxaa(g.getBoolean("fxaa", false));
+      CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
+      // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
+      int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
+      if (!settings.contains("RE4_CHEATS=")) {
+        if (cheats != 0) Log.i(TAG, "cheats: " + cheats);
+        CoreBridge.setCheats(cheats);
+      }
     }
     setContentView(root);
     preferSixtyHz();
@@ -272,10 +319,55 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         .setCancelable(false).show();
   }
 
+  /**
+   * A disc file the game could not read (the core gives up on it and the game stands, reports of
+   * 25./26.10.2026: St2/r222.das read as zeros): which file, whether the disc image or the copy on the
+   * device is at fault (RoomFileCheck.diagnose against the import's manifest and files.tsv), and what
+   * to do, once.
+   */
+  private void checkDiscProblem() {
+    if (discProblemSeen || !startProblem.isEmpty()) return;
+    String problem = CoreBridge.discProblem();
+    if (problem == null || problem.isEmpty()) return;
+    discProblemSeen = true;
+    String[] f = problem.split("\t", 3);
+    if (f.length < 3) return;
+    final int disc = f[0].equals("2") ? 2 : 1;
+    final String path = f[1], why = f[2];
+    Log.e(TAG, "disc file: disc " + disc + " " + path + ": " + why);
+    final ImportManager imports = ((Re4Application) getApplication()).imports;
+    rooms.execute(() -> {
+      File folder = new File(imports.root, "disc" + disc);
+      InputStream catalog = null;
+      try {
+        catalog = imports.roomCatalog(folder);
+      } catch (IOException ignored) { /* diagnosed without the catalog */
+      }
+      RoomFileCheck.Diagnosis d = RoomFileCheck.diagnose(folder, path, catalog, disc);
+      discCheck = "core: " + why + "\n" + d.cause + ": " + d.detail + "\n";
+      Log.e(TAG, "disc file check: " + d.cause + ": " + d.detail);
+      main.post(() -> showDiscProblem(d.cause, path, disc));
+    });
+  }
+
+  private void showDiscProblem(RoomFileCheck.Cause cause, String path, int disc) {
+    if (destroyed) return;
+    int text = cause == RoomFileCheck.Cause.IMAGE ? R.string.ingame_disc_image
+        : cause == RoomFileCheck.Cause.DEVICE ? R.string.ingame_disc_device
+        : cause == RoomFileCheck.Cause.READ ? R.string.ingame_disc_read : R.string.ingame_disc_unknown;
+    new AlertDialog.Builder(this)
+        .setTitle(R.string.ingame_disc_title)
+        .setMessage(getString(text, path, disc))
+        .setPositiveButton(R.string.ingame_send_report, (dlg, w) -> shareReport())
+        .setNegativeButton(R.string.ingame_quit, (dlg, w) -> quit())
+        .setNeutralButton(R.string.ingame_continue, null)
+        .setCancelable(false).show();
+  }
+
   /** The menu's picture options to the renderer (applied at the next picture while the game runs). */
   private void applyGraphics() {
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
-    CoreBridge.setGraphics(g.getInt("scale", 0), g.getInt("samples", 1), g.getInt("anisotropy", 1),
+    CoreBridge.setGraphics(CoreMenu.scaleHalves(g), g.getInt("samples", 1), g.getInt("anisotropy", 1),
         g.getInt("aspect", 0));
   }
 
@@ -302,6 +394,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     updateFps();
     checkHang();
     checkCoreProcess();
+    checkDiscProblem();
     int room = CoreBridge.wantedRoom();
     if (room >= 0 && room != preparedRoom && !roomBusy) prepareRoom(room);
     main.postDelayed(this::tick, 500);
@@ -320,10 +413,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   private String resolution() {
     int[] info = CoreBridge.graphicsInfo();
-    if (info == null || info[2] < 1) return "";
+    if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
     int rows = aspect == 1 || aspect == 3 ? 448 : 336;
-    return String.format(Locale.ROOT, " · %d×%d (%d×)", 640 * info[2], rows * info[2], info[2]);
+    return String.format(Locale.ROOT, " · %d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
+        CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }
 
   /** " · 60 Hz": the screen's rate as measured (FramePacing), else as Android says; "" unknown. */
@@ -395,8 +489,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     rooms.execute(() -> {
       String path = "", error = "";
       String id = String.format(Locale.ROOT, "r%03x", room);
-      try (Reader rows = new InputStreamReader(getAssets().open("rooms.tsv"), StandardCharsets.UTF_8);
-           Reader blocks = new InputStreamReader(getAssets().open("blocks.tsv"), StandardCharsets.UTF_8)) {
+      // the verified rooms of the imported release (rooms.tsv / rooms-eu.tsv)
+      String release = com.ast.re4decomp.disc.DiscInstaller.release(new File(root, "disc1"));
+      if (release == null) release = com.ast.re4decomp.disc.GameCubeDisc.DEBUG;
+      try (Reader rows = new InputStreamReader(getAssets().open(com.ast.re4decomp.disc.GameCubeDisc.catalog("rooms", release)),
+               StandardCharsets.UTF_8);
+           Reader blocks = new InputStreamReader(getAssets().open(com.ast.re4decomp.disc.GameCubeDisc.catalog("blocks", release)),
+               StandardCharsets.UTF_8)) {
         RoomRepository repository = new RoomRepository(root, cache, rows, blocks,
             (source, output) -> NativeBridge.decodeRoom(source.getAbsolutePath(), output.getAbsolutePath()));
         path = repository.prepare(id).getAbsolutePath();
@@ -428,6 +527,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final Runnable selectHold = () -> {
     if (!selectDown || menu != null) return;
     selectHeld = true;
+    // the European discs have no debug menu (decision of the project owner, 26.10.2026; a cheat menu
+    // of the in-game menu comes later): holding SELECT opens nothing
+    if (retailEu) {
+      Log.i(TAG, "SELECT held: no debug menu with the European discs");
+      return;
+    }
     if (!menuSupported) {
       Toast.makeText(this, R.string.ingame_no_debug_menu,
           Toast.LENGTH_SHORT).show();
@@ -543,10 +648,43 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       gyroAim.setSensitivity(value);
     }
 
+    @Override public void gyroInvertChanged(boolean vertical, boolean on) {
+      SharedPreferences prefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
+      prefs.edit().putBoolean(vertical ? GYRO_INVERT_V : GYRO_INVERT_H, on).apply();
+      gyroAim.setInvert(prefs.getBoolean(GYRO_INVERT_V, false), prefs.getBoolean(GYRO_INVERT_H, false));
+    }
+
     @Override public void knifeSwipeChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(KNIFE_SWIPE, on).apply();
       knifeSwipe = on;
       Log.i(TAG, "touch: swipes " + (on ? "draw the knife and slash" : "leave the knife alone"));
+    }
+
+    @Override public boolean gameLanguages() { return retailEu; }
+
+    @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
+
+    @Override public void gameLanguageChanged(int choice) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(GAME_LANGUAGE, choice).apply();
+      int language = gameLanguageOf(choice);
+      Log.i(TAG, "game language: " + language + (choice == 0 ? " (the device's)" : "")
+          + (language != gameLanguageNow ? ", the game restarts" : ""));
+      if (language != gameLanguageNow) {
+        gameLanguageNow = language;
+        CoreBridge.restartGame(language);
+      }
+    }
+
+    @Override public void cheatsChanged(int bits) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
+      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill)");
+      CoreBridge.setCheats(bits);
+    }
+
+    @Override public int cheatAction(int what) {
+      int result = CoreBridge.cheatAction(what);
+      Log.i(TAG, "cheat button " + what + ": " + result);
+      return result;
     }
 
     @Override public void alternateChanged(boolean on) {
@@ -555,13 +693,39 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       send();
       logLayout();
     }
+
+    @Override public void keyMapChanged(int[] map) {
+      String text = CoreInput.encode(map);
+      SharedPreferences.Editor e = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit();
+      if (text == null) e.remove(KEY_MAP); else e.putString(KEY_MAP, text);
+      e.apply();
+      input.setKeyMap(map);
+      send();
+      logLayout();
+    }
+
+    @Override public boolean controllerConnected() {
+      for (int id : InputDevice.getDeviceIds()) if (gameDevice(InputDevice.getDevice(id))) return true;
+      return false;
+    }
   };
 
   private void logLayout() {
+    // the free keys' functions of the controller configuration (not with the alternate controls)
+    StringBuilder extra = new StringBuilder();
+    String[] names = {"A", "B", "X", "Y", "Z", "L", "R", "START", "UP", "DOWN", "LEFT", "RIGHT", "menu"};
+    int[] map = input.keyMap();
+    if (map != null && !input.alternate()) {
+      extra.append(", free keys (controller configuration):");
+      for (int i = 0; i < map.length; i++) {
+        extra.append(i == 0 ? " " : ", ").append(KeyEvent.keyCodeToString(CoreInput.MOVABLE[i]).replace("KEYCODE_", ""))
+            .append(" = ").append(map[i] < 0 ? "none" : names[map[i]]);
+      }
+    }
     Log.i(TAG, "layout: A B X Y by label" + (input.swapFace() ? ", A/B and X/Y swapped" : "")
         + (input.alternate() ? ", alternate controls: L1 = L, L2 = R, R1 = Y, R2 = A, Y = Z, aiming with the right stick"
             : ", R2 = R, L2 = L, R1 = Z")
-        + ", SELECT menu (held: debug menu), R3 " + (tools ? "graphics capture" : "unused")
+        + ", SELECT menu (held: debug menu), R3 " + (tools ? "graphics capture" : "unused") + extra
         + (menuSupported ? "" : "; this core has no menu functions"));
   }
 
@@ -579,7 +743,26 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void editing(boolean on) { touchEditing(on); }
 
     @Override public void send() { CoreActivity.this.send(); }
+
+    @Override public void r3(boolean down) {
+      Log.i(TAG, "touch R3 -> app " + (tools ? "graphics capture" : "nothing (tools off)"));
+      if (down) capture();
+    }
   };
+
+  /**
+   * R3 (the controller's right stick pressed, or the touch controls' R3): the graphics data of the
+   * next pictures for the diagnosis in the cloud (files/gx-dumps, test-core-app.ps1 /
+   * pull-gx-dumps.ps1 fetch them); only with "R3 = Graphics capture" or the test scripts' tools.
+   */
+  private void capture() {
+    if (!tools) return;
+    File dir = getExternalFilesDir(null);
+    if (dir != null) {
+      CoreBridge.gxDump(new File(dir, "gx-dumps").getAbsolutePath());
+      Toast.makeText(this, R.string.ingame_capture_saved, Toast.LENGTH_SHORT).show();
+    }
+  }
 
   /** RetroTouch's editor (its gear) opened or closed: the game stands while the player arranges the controls. */
   private void touchEditing(boolean on) {
@@ -780,8 +963,40 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       card.append(CoreBridge.cardFreeBlocks()).append(" blocks free\n");
     }
     String map = CoreBridge.addressMap();
-    if (map == null || map.isEmpty()) return new String[][] {{"memory-card.txt", card.toString()}};
-    return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}};
+    String controllers = controllerList();
+    String discs = discCheckText();
+    if (map == null || map.isEmpty())
+      return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs}};
+    return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers},
+        {"disc-check.txt", discs}};
+  }
+
+  /** The report's disc-check.txt: each imported disc against the original's files, and a file the game could not read. */
+  private String discCheckText() {
+    ImportManager imports = ((Re4Application) getApplication()).imports;
+    StringBuilder t = new StringBuilder();
+    for (int n = 1; n <= 2 && imports.root != null; n++) {
+      File folder = new File(imports.root, "disc" + n);
+      t.append("Disc ").append(n).append(": ");
+      if (!com.ast.re4decomp.disc.DiscInstaller.ready(folder, n)) {
+        t.append("not imported\n");
+        continue;
+      }
+      t.append(ImportManager.releaseName(com.ast.re4decomp.disc.DiscInstaller.release(folder))).append(", ");
+      try (InputStream catalog = imports.roomCatalog(folder)) {
+        RoomFileCheck c = RoomFileCheck.verify(folder, catalog, n);
+        t.append(c.checked).append(c.everyFile ? " files" : " room files").append(" checked (the import's hashes), ");
+        t.append(c.bad.isEmpty() ? "all as on the original disc" : c.bad.size() + " differ: " + String.join(", ",
+            c.bad.subList(0, Math.min(20, c.bad.size()))));
+      } catch (IOException | RuntimeException e) {
+        t.append("no check: ").append(e);
+      }
+      t.append('\n');
+    }
+    String problem = CoreBridge.discProblem();
+    t.append("Read problem: ").append(problem == null || problem.isEmpty() ? "none" : problem.replace('\t', ' ')).append('\n');
+    t.append(discCheck);
+    return t.toString();
   }
 
   /** The error report to an app of the tester's choice (mail, messenger, cloud). */
@@ -822,17 +1037,62 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
   }
 
-  /** Once per device: what it reports (name, sources, axes), for the device test's log. */
-  private void noteDevice(InputDevice d) {
-    if (d == null || !seenDevices.add(d.getId())) return;
+  /** The keys the game maps or the app uses: which of them a device reports. */
+  private static final int[] WATCHED_KEYS = {
+      KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
+      KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
+      KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR, KeyEvent.KEYCODE_BUTTON_START,
+      KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_BUTTON_MODE, KeyEvent.KEYCODE_BUTTON_C,
+      KeyEvent.KEYCODE_BUTTON_Z, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+      KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT};
+
+  /** One line about a device: name, ids, sources, axes and which of the watched keys it has. */
+  private static String describeDevice(InputDevice d) {
     StringBuilder axes = new StringBuilder();
     for (InputDevice.MotionRange r : d.getMotionRanges()) {
       axes.append(' ').append(MotionEvent.axisToString(r.getAxis()))
           .append(String.format(Locale.ROOT, "(%.2f..%.2f flat %.3f)", r.getMin(), r.getMax(), r.getFlat()));
     }
-    Log.i(TAG, String.format(Locale.ROOT, "device %d \"%s\" vendor %04x product %04x sources 0x%x%s axes:%s",
-        d.getId(), d.getName(), d.getVendorId(), d.getProductId(), d.getSources(),
-        d.isVirtual() ? " virtual" : "", axes.length() == 0 ? " none" : axes.toString()));
+    StringBuilder keys = new StringBuilder();
+    boolean[] has = d.hasKeys(WATCHED_KEYS);
+    for (int i = 0; i < WATCHED_KEYS.length; i++) {
+      if (has[i]) keys.append(' ').append(KeyEvent.keyCodeToString(WATCHED_KEYS[i]).replace("KEYCODE_", ""));
+    }
+    return String.format(Locale.ROOT, "device %d \"%s\" vendor %04x product %04x descriptor %s sources 0x%x%s%s keys:%s axes:%s",
+        d.getId(), d.getName(), d.getVendorId(), d.getProductId(), d.getDescriptor(), d.getSources(),
+        d.isVirtual() ? " virtual" : "", Build.VERSION.SDK_INT < 29 ? "" : d.isExternal() ? " external" : " built-in",
+        keys.length() == 0 ? " none" : keys.toString(), axes.length() == 0 ? " none" : axes.toString());
+  }
+
+  /** Once per device: what it reports (name, sources, axes), for the device test's log. */
+  private void noteDevice(InputDevice d) {
+    if (d == null || !seenDevices.add(d.getId())) return;
+    Log.i(TAG, describeDevice(d));
+  }
+
+  /** Game controllers and gamepad-like devices, for the connect lines and controllers.txt. */
+  private static boolean gameDevice(InputDevice d) {
+    if (d == null || d.isVirtual()) return false;
+    int s = d.getSources();
+    return (s & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+        || (s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+        || (s & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
+  }
+
+  /** A device that is plugged in or changed: described at once, not only at its first mapped key. */
+  private void noteConnected(int id) {
+    InputDevice d = InputDevice.getDevice(id);
+    if (gameDevice(d) && controllerLog.firstDevice(id)) Log.i(TAG, "connected: " + describeDevice(d));
+  }
+
+  /** controllers.txt of the error report: every game controller connected now. */
+  private String controllerList() {
+    StringBuilder out = new StringBuilder();
+    for (int id : InputDevice.getDeviceIds()) {
+      InputDevice d = InputDevice.getDevice(id);
+      if (gameDevice(d)) out.append(describeDevice(d)).append('\n');
+    }
+    return out.length() == 0 ? "(no game controller connected)\n" : out.toString();
   }
 
   @Override
@@ -840,7 +1100,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int code = e.getKeyCode();
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
-    int function = CoreInput.appFunction(code);
+    int function = input.appFunctionOf(code);
     if (function != CoreInput.APP_NONE && first) {
       String what = function == CoreInput.APP_MENU ? "menu" : tools ? "graphics capture" : "nothing (tools off)";
       Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ") -> app " + what);
@@ -858,13 +1118,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       case CoreInput.APP_GX_DUMP:
         // R3 (right stick pressed): the graphics data of the next pictures for the
         // diagnosis in the cloud (files/gx-dumps, test-core-app.ps1 / pull-gx-dumps.ps1 fetch them)
-        if (first && tools) {
-          File dir = getExternalFilesDir(null);
-          if (dir != null) {
-            CoreBridge.gxDump(new File(dir, "gx-dumps").getAbsolutePath());
-            Toast.makeText(this, R.string.ingame_capture_saved, Toast.LENGTH_SHORT).show();
-          }
-        }
+        if (first) capture();
         return true;
       default:
         break;
@@ -889,7 +1143,38 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         return true;
       }
     }
+    // a controller's button without a function (L1, L3, R3 without an extra key): kept from Android,
+    // which would make B "back" and ask to quit the game (device test 27.10.2026)
+    boolean dpad = code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN
+        || code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT;
+    if (controller(e) && (KeyEvent.isGamepadButton(code) || dpad)) {
+      if (down && controllerLog.firstKey(e.getDeviceId(), code)) {
+        Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ", device " + e.getDeviceId()
+            + ") -> no function, not passed on");
+      }
+      return true;
+    }
+    // a key nothing here handles (a rare controller's extra buttons): named once per device and code
+    if (down && controller(e) && controllerLog.firstKey(e.getDeviceId(), code)) {
+      InputDevice d = e.getDevice();
+      Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ", scan " + e.getScanCode() + ", device "
+          + e.getDeviceId() + (d == null ? "" : " \"" + d.getName() + "\"") + ") -> not mapped, passed on to Android");
+    }
     return super.dispatchKeyEvent(e);
+  }
+
+  /** An axis the game does not read moved past half its range: named once per device. */
+  private void noteUnreadAxes(MotionEvent e, InputDevice d) {
+    if (d == null) return;
+    for (InputDevice.MotionRange r : d.getMotionRanges()) {
+      int a = r.getAxis();
+      if (ControllerLog.readAxis(a) || r.getRange() <= 0) continue;
+      float v = e.getAxisValue(a);
+      if (Math.abs(2 * (v - r.getMin()) / r.getRange() - 1) > 0.5f && controllerLog.firstAxis(e.getDeviceId(), a)) {
+        Log.i(TAG, String.format(Locale.ROOT, "axis %s moved to %.2f on device %d \"%s\" -> not read by the game",
+            MotionEvent.axisToString(a), v, e.getDeviceId(), d.getName()));
+      }
+    }
   }
 
   /** An axis of `e` in -1..1 (sticks, hat) or 0..1 (triggers); 0 when the device lacks it. */
@@ -916,6 +1201,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       float l = Math.max(axis(e, d, MotionEvent.AXIS_LTRIGGER, true), axis(e, d, MotionEvent.AXIS_BRAKE, true));
       float r = Math.max(axis(e, d, MotionEvent.AXIS_RTRIGGER, true), axis(e, d, MotionEvent.AXIS_GAS, true));
       float hx = axis(e, d, MotionEvent.AXIS_HAT_X, false), hy = axis(e, d, MotionEvent.AXIS_HAT_Y, false);
+      noteUnreadAxes(e, d);
       input.motion(e.getDeviceId(), lx, ly, rx, ry, l, r, hx, hy);
       // a stick, trigger or hat moved on purpose: the touch controls go again (TouchShowRule)
       if (TouchShowRule.moved(lx, ly, rx, ry, l, r, hx, hy)) touchControls.controllerUsed();
@@ -1004,14 +1290,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   }
 
-  @Override public void onInputDeviceAdded(int id) { touchControls.update(); }
+  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); }
   @Override public void onInputDeviceChanged(int id) {
     input.remove(id);
     seenDevices.remove(id);
+    controllerLog.forget(id);
+    noteConnected(id);
     send();
     touchControls.update();
   }
   @Override public void onInputDeviceRemoved(int id) {
+    controllerLog.forget(id);
     input.remove(id);
     send();
     touchControls.update();
@@ -1061,7 +1350,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       int level = now - rumbleSeen < 200 ? Integer.bitCount(r & 0xF) : 0;
       // A shot rumbles for 3-5 game frames only (device test 24.10.2026: nothing felt in play, only
-      // the long rumble of the options screen): each start runs its 120 ms out at least, a stronger
+      // the long rumble of the options screen): each start runs its pulse out at least, a stronger
       // level starts at once, a weaker one waits for the running one; no cancel when it ends.
       if (now >= rumbleUntil) {
         vibrating = false;
@@ -1070,7 +1359,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (level > 0 && (!vibrating || level > rumbleLevel || now >= rumbleUntil - 40)) {
         vibrate(level);
         rumbleLevel = level;
-        rumbleUntil = now + 120;
+        rumbleUntil = now + rumblePulseMs(level);
         vibrating = true;
       }
       main.postDelayed(this, 16);
@@ -1082,16 +1371,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (vibrator == null) return;
     try {
       if (Build.VERSION.SDK_INT >= 26) {
-        // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid)
-        int strength = amplitudeControl ? 150 + 105 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
-        VibrationEffect effect = VibrationEffect.createOneShot(120, strength);
+        // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid; 150 and
+        // then 210 still too weak, device tests 27.10.2026: now 230 up to the strongest, and longer)
+        int strength = amplitudeControl ? 230 + 25 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
+        VibrationEffect effect = VibrationEffect.createOneShot(rumblePulseMs(level), strength);
         if (Build.VERSION.SDK_INT >= 33) {
           vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
         } else {
           vibrator.vibrate(effect, new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).build());
         }
       } else {
-        vibrator.vibrate(120);
+        vibrator.vibrate(rumblePulseMs(level));
       }
     } catch (RuntimeException e) {
       Log.w(TAG, "rumble: " + e);
@@ -1211,6 +1501,27 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     releaseAll();
     surface.onPause();
     super.onPause();
+  }
+
+  /**
+   * The game's language with the European discs (decision of the project owner, 26.10.2026): the
+   * menu's choice, else the device's (the menu's language) if the discs have it, else English.
+   * 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
+   */
+  static int gameLanguage(Context context) {
+    return gameLanguageOf(context.getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(GAME_LANGUAGE, 0));
+  }
+
+  /** The game's language of a menu choice: 2..6 as they are, 0 the device's. */
+  static int gameLanguageOf(int chosen) {
+    if (chosen >= 2 && chosen <= 6) return chosen;
+    switch (Locale.getDefault().getLanguage()) {
+      case "de": return 3;
+      case "fr": return 4;
+      case "es": return 5;
+      case "it": return 6;
+      default: return 2;
+    }
   }
 
   /** "language de" / "language ar, right to left": the menu's language (the phone's or the app's own). */

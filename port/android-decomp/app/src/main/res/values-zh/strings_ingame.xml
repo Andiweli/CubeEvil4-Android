@@ -2,7 +2,7 @@
 <!-- Chinese, Simplified (简体中文; Android uses it for zh-Hans: China, Singapore): the texts of
      values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 选项</string>
+    <string name="ingame_title">CubeEvil4 游戏内菜单</string>
     <string name="ingame_hint">SELECT（短按）= 本菜单  ·  SELECT（长按）= 游戏的调试菜单</string>
     <string name="ingame_back">返回游戏</string>
 
@@ -20,8 +20,12 @@
     <string name="ingame_dof">景深</string>
     <string name="ingame_fps_display">在左下角显示 FPS</string>
     <string name="ingame_smooth60">60 帧（实验性）</string>
-    <string name="ingame_resolution_line">分辨率：%1$d × %2$d 像素（等级 %3$d）· 屏幕 %4$d × %5$d · 关闭菜单后生效。等级越高，对性能要求越高。</string>
-    <string name="ingame_resolution_line_auto">分辨率：%1$d × %2$d 像素（等级 %3$d，动态）· 屏幕 %4$d × %5$d · 关闭菜单后生效。动态模式会在 GPU 跟不上时降低一级。</string>
+    <string name="ingame_force_performance">强制性能</string>
+    <string name="ingame_perf_default">默认</string>
+    <string name="ingame_perf_cores">使用性能核心</string>
+    <string name="ingame_perf_help">性能核心：游戏和图形在设备最快的核心上运行，并请求 Android 提高频率。在许多设备上更流畅，但需要更多 CPU 性能，设备也会更热。默认：由 Android 决定。</string>
+    <string name="ingame_resolution_line">分辨率：%1$d × %2$d 像素（等级 %3$s）· 屏幕 %4$d × %5$d · 关闭菜单后生效。等级越高，对性能要求越高。</string>
+    <string name="ingame_resolution_line_auto">分辨率：%1$d × %2$d 像素（等级 %3$s，动态）· 屏幕 %4$d × %5$d · 关闭菜单后生效。动态模式会在 GPU 跟不上时降低一级。</string>
 
     <string name="ingame_controls">操作</string>
     <string name="ingame_touch_controls">触屏操作</string>
@@ -36,6 +40,8 @@
     <string name="ingame_latch">锁定 L 和 R</string>
     <string name="ingame_latch_b">锁定 B</string>
     <string name="ingame_gyro_sensitivity">陀螺仪灵敏度</string>
+    <string name="ingame_gyro_invert_v">反转垂直方向</string>
+    <string name="ingame_gyro_invert_h">反转水平方向</string>
     <string name="ingame_alternate_help">替代操作：L1 = 小刀，L2 = 瞄准（用右摇杆瞄准），R1 = 物品栏（武器/回复），R2 = 射击 / 使用小刀，Y = 地图。A、B、X（阿什莉）和 START 保持不变。</string>
     <string name="ingame_knife_swipe">滑动出刀</string>
     <string name="ingame_knife_swipe_help">滑动出刀：在画面上快速滑动即可拔刀挥砍；向上或向下滑动可向高处或低处挥砍。</string>
@@ -90,4 +96,95 @@
     <string name="ingame_report_chooser">发送错误报告</string>
     <string name="ingame_report_failed">无法生成报告：%1$s</string>
     <string name="ingame_capture_saved">图形捕获已保存</string>
+
+    <!-- Five-page button menu and the app-owned instant slot (gui-optimisations). -->
+    <string name="ingame_return">返回</string>
+    <string name="ingame_on">开</string>
+    <string name="ingame_display">显示</string>
+    <string name="ingame_controls_page">控制</string>
+    <string name="ingame_performance">性能</string>
+    <string name="ingame_management">管理</string>
+    <string name="ingame_navigation">方向键：导航  ·  A：选择  ·  B：返回  ·  SELECT / START：回到游戏</string>
+    <string name="ingame_instant">即时存档</string>
+    <string name="ingame_slot">存档槽</string>
+    <string name="ingame_slot_details">章节 %1$s  ·  %2$s  ·  游戏时间 %3$s</string>
+    <string name="ingame_slot_date">上次保存：%1$s</string>
+    <string name="ingame_settings">设置与管理</string>
+    <string name="ingame_display_summary">分辨率、画面比例与效果</string>
+    <string name="ingame_controls_summary">触控、陀螺仪与便捷操作</string>
+    <string name="ingame_performance_summary">性能核心、60 FPS 与帧率显示</string>
+    <string name="ingame_management_summary">作弊、记忆卡、报告与源代码</string>
+    <string name="ingame_output">图像输出</string>
+    <string name="ingame_smooth_help">生成额外的中间帧。游戏逻辑仍以每秒 30 帧运行。</string>
+    <string name="ingame_instant_save">保存</string>
+    <string name="ingame_instant_load">读取</string>
+    <string name="ingame_instant_checking">正在检查存档槽…</string>
+    <string name="ingame_instant_working">请稍候…</string>
+    <string name="ingame_instant_ready">就绪。</string>
+    <string name="ingame_instant_empty">尚无即时存档。</string>
+    <string name="ingame_instant_unavailable">载入、事件期间或当前状态下不可用。请关闭菜单，在游戏中重试。</string>
+    <string name="ingame_instant_no_save">此处无法保存（船、梯子、Boss战、佣兵模式等情形）。仍可读取。</string>
+    <string name="ingame_instant_unsupported">请更新游戏核心以使用即时存档。</string>
+    <string name="ingame_instant_damaged">即时存档已损坏或不兼容。你可以用新存档替换它。</string>
+    <string name="ingame_instant_failed">无法读取或写入即时存档。</string>
+    <string name="ingame_instant_saved">即时存档已保存。</string>
+    <string name="ingame_instant_overwrite_title">覆盖即时存档？</string>
+    <string name="ingame_instant_load_title">读取即时存档？</string>
+    <string name="ingame_instant_overwrite">用当前进度替换原有即时存档？</string>
+    <string name="ingame_instant_load_warning">未保存的进度将丢失。是否读取即时存档？</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_frame_skip">跳帧</string>
+    <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_fxaa_help">在最后一步平滑锯齿边缘。可与 MSAA 同时使用或单独使用；画面会略微变柔和。</string>
+    <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
+    <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
+    <string name="ingame_game_language">游戏语言</string>
+    <string name="ingame_language_device">设备语言</string>
+    <string name="ingame_language_help">游戏文字和字幕的语言。设备语言：如果游戏支持设备的语言就使用它，否则使用英语。更改后游戏会重新启动。</string>
+    <string name="ingame_language_restart_title">重新启动游戏？</string>
+    <string name="ingame_language_restart_text">新语言将在游戏重新启动后生效。上次存档之后的进度将会丢失。</string>
+    <string name="ingame_restart">重新启动</string>
+    <string name="ingame_cancel">取消</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">无法读取光盘文件</string>
+    <string name="ingame_disc_image">游戏停在 %1$s（光盘 %2$d）：您导入的光盘镜像中，此文件与原版光盘不同，镜像已损坏。请重新转储光盘 %2$d（或使用另一份完好的副本），然后在开始界面重新导入。您的存档会保留。</string>
+    <string name="ingame_disc_device">游戏停在 %1$s（光盘 %2$d）：此文件在本设备上的副本已损坏（导入后发生了变化）。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
+    <string name="ingame_disc_read">游戏停在 %1$s（光盘 %2$d）：文件完好，但读取失败。请发送错误报告，然后重新启动游戏。</string>
+    <string name="ingame_disc_unknown">游戏停在 %1$s（光盘 %2$d）：本设备上的文件已损坏或缺失。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
+    <string name="ingame_cheats">作弊</string>
+    <string name="ingame_cheat_health">无限生命</string>
+    <string name="ingame_cheat_ammo">无限弹药</string>
+    <string name="ingame_cheat_onehit">一击必杀</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">手提箱 L</string>
+    <string name="ingame_cheat_money">+1,000,000 PTAS</string>
+    <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。</string>
+    <string name="ingame_cheat_done">完成：%1$s。</string>
+    <string name="ingame_cheat_already">已经有了：%1$s。</string>
+    <string name="ingame_cheat_raised">已有 Killer7：现已升到最高等级。</string>
+    <string name="ingame_cheat_not_now">现在不行：只能在里昂游玩时使用，不能在手提箱、地图或影片中。</string>
+    <string name="ingame_cheat_no_room">手提箱里没有空位。</string>
+    <string name="ingame_cheat_queued">游戏继续后就会完成。</string>
+    <string name="ingame_cheat_unsupported">这个游戏核心没有作弊功能。</string>
+    <string name="ingame_controller_config">手柄配置</string>
+    <string name="ingame_controller_config_help">手柄配置：选择手柄空闲按键（X、Y、L1、R1、L3、R3）的功能。仅在连接手柄时可用。</string>
+    <string name="ingame_controller_default">默认配置</string>
+    <string name="ingame_controller_help">选择一个按键，然后选择其功能。如果阿什莉、物品栏或地图在另一个按键上，两者会互换。一个功能也可以位于多个按键上。</string>
+    <string name="ingame_controller_alternate_note">替代操作已开启：它保留自己的配置；关闭后此配置才会生效。</string>
+    <string name="ingame_fn_action">动作 / 射击 (A)</string>
+    <string name="ingame_fn_run">奔跑 / 取消 (B)</string>
+    <string name="ingame_fn_ashley">阿什莉：等待 / 跟随 (X)</string>
+    <string name="ingame_fn_inventory">物品栏 (Y)</string>
+    <string name="ingame_fn_map">地图 (Z)</string>
+    <string name="ingame_fn_knife">小刀 (L)</string>
+    <string name="ingame_fn_aim">瞄准 (R)</string>
+    <string name="ingame_fn_start">选项 / 跳过 (START)</string>
+    <string name="ingame_fn_up">方向键上</string>
+    <string name="ingame_fn_down">方向键下</string>
+    <string name="ingame_fn_left">方向键左</string>
+    <string name="ingame_fn_right">方向键右</string>
+    <string name="ingame_fn_menu">应用菜单 (SELECT)</string>
+    <string name="ingame_controller_fixed">固定：A、B、L2、R2、START、SELECT 和方向键保持其功能（游戏的提示和菜单使用它们）。</string>
+    <string name="ingame_controller_missing">不在任何按键上：%1$s</string>
+    <string name="ingame_fn_none">无功能</string>
 </resources>

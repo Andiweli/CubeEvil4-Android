@@ -36,7 +36,8 @@
 # qemu-aarch64 when it is installed. Then the port's runtime files
 # are compiled against libc++, the NDK's C++ library (whole_libcxx_check.py:
 # what only the Android build would notice), and the disc folder tool is
-# tested (port/tools/test_whole_disc_folder.py, synthetic images). Needs
+# tested (port/tools/test_whole_disc_folder.py, synthetic images), as is
+# the release comparison (test_retail_compare.py, synthetic folders). Needs
 # clang, lld, cmake, ninja, python3, the lib32 C/C++ libraries,
 # g++-arm-linux-gnueabihf and qemu-user: sudo port/tools/whole_setup_linux.sh
 # (cloud sessions run it through .claude/hooks/session-start.sh).
@@ -137,6 +138,13 @@ for t in "${targets[@]}"; do
         echo "  re4_host $check: exit $code | $(echo "$out" | grep -E 'self-test:|check-modules:|runtime-test|core-test' | tr '\n' ' ' | sed 's/\[re4\] //g')"
         [ "$code" -ne 0 ] && status=1
     done
+    instant_runner=""
+    [ "$t" = armhf ] && instant_runner="$(command -v qemu-arm)"
+    [ "$t" = aarch64 ] && instant_runner="$(command -v qemu-aarch64)"
+    out=$(RE4_INSTANT_TEST_RUNNER="$instant_runner" "${run[@]}" "$build/re4_instant_store_test" 2>&1)
+    code=$?
+    echo "  instant slot file tests: exit $code | $out"
+    [ "$code" -ne 0 ] && status=1
     # the GX decoder with its vertices on the core thread alone (RE4_GX_THREADS=0; the run above
     # puts them on 3 more threads): the same chunks byte for byte
     out=$(cd "$build" && RE4_GX_THREADS=0 timeout 300 "${run[@]}" ./re4_host --runtime-test 2>&1)
@@ -228,6 +236,12 @@ if python3 "$root/port/tools/test_whole_disc_folder.py" > "$root/port/build/disc
     echo "disc folder tool: ok"
 else
     echo "disc folder tool: FAILED (log: port/build/disc-folder-test.log)"
+    status=1
+fi
+if python3 "$root/port/tools/test_retail_compare.py" > "$root/port/build/retail-compare-test.log" 2>&1; then
+    echo "retail compare tool: ok"
+else
+    echo "retail compare tool: FAILED (log: port/build/retail-compare-test.log)"
     status=1
 fi
 if python3 "$root/port/tools/test_emlist_dump.py" > "$root/port/build/emlist-dump-test.log" 2>&1; then

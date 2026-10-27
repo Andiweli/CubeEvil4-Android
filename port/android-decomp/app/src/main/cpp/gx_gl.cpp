@@ -383,7 +383,15 @@ struct Copy {
 } // namespace
 
 struct GxRenderer::Impl {
-  int scale = 1;
+  // the EFB scale in halves of the GameCube's resolution (2: 1x, 3: 1.5x ... 8: 4x; the app menu's
+  // in-between levels, wish of the project owner, 27.10.2026). Lo / Hi: EFB pixels (the
+  // GameCube's) to pixels here, rounded down / up. A region runs from Lo(x) to Lo(x + w), so
+  // scissors, viewports and clears of neighbouring regions meet without a gap; a copy has Hi(w)
+  // pixels (its texture), and the copy shader reads its source rectangle exactly (Sf).
+  int halves = 2;
+  int Lo(int v) const { return v * halves / 2; }
+  int Hi(int v) const { return (v * halves + 1) / 2; }
+  float Sf(int v) const { return static_cast<float>(v) * static_cast<float>(halves) * 0.5f; }
   GxStats stats;
 
   // register state
@@ -417,13 +425,54 @@ struct GxRenderer::Impl {
   GLuint xfbFbo = 0, xfbTex = 0;
   unsigned xfbWidth = 0, xfbHeight = 0;
   bool haveXfb = false;
+  // FXAA (GxRenderer::SetFxaa): the smoothed copy of the XFB, shown instead of it while fxaaShown
+  bool fxaaOn = false, fxaaShown = false;
+  GLuint fxaaTex = 0, fxaaFbo = 0, fxaaProgram = 0;
+  unsigned fxaaTexW = 0, fxaaTexH = 0;
+  GLint fxaaTexelLoc = -1;
+  // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
+  DepthSink depthSink;
+  bool peekWanted = false, peekFailed = false;
+  // the number of the picture that peeked (the marker's value) and of the picture in each read-back slot
+  std::uint32_t peekPicture = 0, peekSlotPicture[2] = {0, 0};
+  GLuint peekProgram = 0, peekFbo = 0, peekTex = 0, peekPbo[2] = {0, 0};
+  GLsync peekFence[2] = {nullptr, nullptr};
+  GLint peekSizeLoc = -1, peekScaleLoc = -1;
+  bool skipDraws = false;  // Skip: this chunk's draws, EFB copies and markers are left out
   bool holdXfb = false;  // this chunk's display copy is not shown (RE4_GX_CHUNK_HOLD)
   bool viBlack = false;  // the VI shows black (RE4_GX_CHUNK_BLACK, VISetBlack): Present draws black
   GLuint vao = 0, vbo = 0, ibo = 0;
+  // the in-between pass's blended vertices (60 FPS): a buffer of their own, each draw's at a place of
+  // its own, written without waiting (the pass draws from vbo meanwhile). Written into vbo they were
+  // before 26.10.2026: a buffer the GPU still read from in that picture, the driver copied or waited
+  // for it at every figure (Retroid: 74 ms a picture, 3 to 5 pictures a second)
+  GLuint blendVbo = 0;
+  std::size_t blendCap = 0, blendUsed = 0;
+  std::int64_t blendAt = -1;  // the draw's vertices in blendVbo / blendRing (byte offset), -1: from vbo
+  // With EXT_buffer_storage the blended vertices go into a ring mapped once for good, a quarter per
+  // in-between pass with a fence after it: a memcpy per draw, no GL call. A map and an unmap per
+  // blended draw cost the Retroid's driver more than the draws (r104: 233 blended draws per
+  // in-between picture; 60 FPS stayed at a few pictures a second more, 26.10.2026).
+  static constexpr unsigned kBlendParts = 4;
+  static constexpr std::size_t kBlendPart = std::size_t(6) << 20;
+  GLuint blendRing = 0;
+  std::uint8_t *blendMap = nullptr;
+  bool blendRingTried = false;
+  unsigned blendPart = 0;
+  GLsync blendFence[kBlendParts] = {};
+  // the chunk whose vertices and indices the in-between pass uploaded: its Run right after draws
+  // from them (vbo is no longer changed by the pass) instead of uploading them again
+  const Re4GxChunk *uploadedBy = nullptr;
+  std::uint32_t uploadedSequence = 0;
   GLuint xfUbo[kXfParts] = {}, pxUbo = 0;
   GLuint copyProgram = 0, presentProgram = 0, paletteProgram = 0;
   GLint presentRows = -1;
-  GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1;
+  GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1, copyLimit = -1;
+  // lowest EFB row (+1) a draw under a full-width scissor reached since the last display copy: the
+  // rows below it were never drawn (the game's letterbox)
+  int sceneBottom = 0;
+  // the EFB rows the app shows (GxRenderer::SetShownRows): all, or 56..391 in the 16:9 formats
+  std::atomic<int> shownTop{0}, shownBottom{kEfbHeight};
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint quadVao = 0;
   GLuint whiteTex = 0;
@@ -481,6 +530,7 @@ struct GxRenderer::Impl {
   bool vaoBound = false;
   std::uint32_t attribMask = 0;      // enabled vertex attributes of vao
   std::uint32_t attribLayout = ~0u, attribStride = 0, attribBase = ~0u;
+  GLuint attribBuffer = 0;
   // glDrawElementsBaseVertex (GLES 3.2 / OES / EXT): one attribute setup for
   // all draws of a layout; null: pointers per draw
   using DrawBaseVertex = void (*)(GLenum, GLsizei, GLenum, const void *, GLint);
@@ -636,6 +686,49 @@ struct GxRenderer::Impl {
     }
     GXLOG("GX uniform stream: %u MB, %s, offsets aligned to %u", static_cast<unsigned>(size >> 20),
           streamMap ? "persistent mapping" : "a map per block", static_cast<unsigned>(streamAlign));
+  }
+
+  // The ring for the in-between passes' blended vertices (EXT_buffer_storage, persistent and
+  // coherent); without it blendVbo with a map per draw. RE4_GX_PERSISTENT=0: never.
+  void BlendRingInit() {
+    blendRingTried = true;
+    const char *ext = reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
+    using BufferStorage = void (*)(GLenum, GLsizeiptr, const void *, GLbitfield);
+    BufferStorage storage = nullptr;
+    if (ext && std::strstr(ext, "GL_EXT_buffer_storage"))
+      storage = reinterpret_cast<BufferStorage>(GlExtension("glBufferStorageEXT"));
+    const char *persistent = std::getenv("RE4_GX_PERSISTENT");
+    if (!storage || (persistent && *persistent == '0'))
+      return;
+    const GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT_EXT | GL_MAP_COHERENT_BIT_EXT;
+    const std::size_t size = kBlendParts * kBlendPart;
+    glGenBuffers(1, &blendRing);
+    glBindBuffer(GL_ARRAY_BUFFER, blendRing);
+    storage(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(size), nullptr, flags);
+    blendMap = static_cast<std::uint8_t *>(glMapBufferRange(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(size), flags));
+    if (!blendMap) {
+      glDeleteBuffers(1, &blendRing);
+      blendRing = 0;
+    }
+    GXLOG("GX in-between vertices: %s", blendMap ? "a ring of 24 MB, mapped for good" : "a map per draw");
+  }
+
+  void BlendRingRelease() {
+    for (GLsync &f : blendFence) {
+      if (f)
+        glDeleteSync(f);
+      f = nullptr;
+    }
+    if (blendRing) {
+      if (blendMap) {
+        glBindBuffer(GL_ARRAY_BUFFER, blendRing);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+      }
+      glDeleteBuffers(1, &blendRing);
+    }
+    blendRing = 0;
+    blendMap = nullptr;
+    blendRingTried = false;
   }
 
   void StreamRelease() {
@@ -814,6 +907,7 @@ struct GxRenderer::Impl {
     std::uint32_t data = 0;   // into recFloats: rows x 4 position, rows x 3 normal, 6 projection floats
     std::uint32_t vertexOffset = 0, vertexCount = 0, stride = 0, layout = 0;
     bool perspective = false;
+    std::uint64_t look = 0;  // a particle's signature without its textures (0: not a particle)
   };
   bool recordDraws = false;
   bool recValid = false;            // rec describes the chunk run last
@@ -823,7 +917,7 @@ struct GxRenderer::Impl {
   bool interpPass = false;
   float interpT = 0.5f;
   const Re4GxChunk *interpPrev = nullptr;  // the chunk rec describes (its vertices)
-  std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> recBySig;
+  std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> recBySig, recByLook;
   std::vector<std::uint8_t> recUsed;
   std::unordered_map<std::uint32_t, Copy> interpCopies;  // the pass's own EFB copies
   std::unordered_set<std::uint32_t> interpCopied;         // addresses it copied to
@@ -832,10 +926,25 @@ struct GxRenderer::Impl {
   std::vector<std::uint8_t> blendVertices;
   // the pass's counts: perspective draws, matched, turned more than 20 degrees
   unsigned ipDraws = 0, ipMatched = 0, ipTurned = 0;
+  // The camera's move from the picture before to the next one in the pass (view space: next =
+  // cam * before), read off the large draws of a look of their own: each proposes its move, and
+  // another object (another matrix) that moved the same way votes for it; the move with the most
+  // votes, at least two, counts (the room, of many pieces that stand still). MatchDraw takes it out
+  // of a particle's distances, so that it is matched by its own move, not the camera's.
+  struct CamGuess {
+    float c[3][4];
+    float t[3];  // the proposing draw's translation (its parts with the same matrix do not vote)
+    unsigned votes;
+  };
+  CamGuess camGuess[4] = {};
+  unsigned camGuesses = 0, camVotes = 0;
+  float cam[3][4] = {};
+  bool camValid = false;
 
   // What identifies a draw from one picture to the next: its shader (the program of the same
-  // registers), primitive, vertex layout and count, matrix indices and the textures it samples.
-  std::uint64_t DrawSig(const Re4GxDraw &d, const ShaderKey &k) const {
+  // registers), primitive, vertex layout and count, matrix indices and the textures it samples
+  // (without them: a particle's look, see BlendDraw).
+  std::uint64_t DrawSig(const Re4GxDraw &d, const ShaderKey &k, bool textures = true) const {
     std::uint64_t h = 1469598103934665603ull;
     auto mix = [&h](std::uint64_t v) {
       h ^= v;
@@ -850,7 +959,7 @@ struct GxRenderer::Impl {
     mix(d.matrices[0]);
     mix(d.matrices[1]);
     mix(d.matrices[2]);
-    for (int m = 0; m < 8; m++)
+    for (int m = 0; textures && m < 8; m++)
       if (k.texMaps & (1u << m))
         mix(boundKey[m]);
     return h;
@@ -880,6 +989,8 @@ struct GxRenderer::Impl {
     r.stride = d.stride;
     r.layout = d.layout;
     r.perspective = !k.orthographic;
+    if (r.rows == 3 && d.vertexCount <= 16)
+      r.look = DrawSig(d, k, false);
     if (r.rows) {
       for (int c = 0; c < 3; c++)
         r.t[c] = xf.posTex[r.posRow + c][3];
@@ -890,6 +1001,7 @@ struct GxRenderer::Impl {
       recFloatsNew.insert(recFloatsNew.end(), xf.normal[(r.posRow + i) & 31], xf.normal[(r.posRow + i) & 31] + 3);
     for (int i = 0; i < 6; i++)
       recFloatsNew.push_back(xf.proj[i / 4][i % 4]);
+    recFloatsNew.insert(recFloatsNew.end(), &xf.matAmb[0][0], &xf.matAmb[0][0] + 16);
     recNew.push_back(r);
   }
 
@@ -897,60 +1009,177 @@ struct GxRenderer::Impl {
   // yet taken when it lies near enough (the game draws in the same order from one picture to the
   // next), else of the first eight the nearest that does; none when no one moved less than a
   // quarter of its distance plus 400 units (another object of the same look).
-  const DrawRec *MatchDraw(std::uint64_t sig, const float *t, std::uint32_t rows) {
-    auto it = recBySig.find(sig);
-    if (it == recBySig.end())
-      return nullptr;
+  // A particle (a small draw with a matrix of its own, at most 16 vertices) instead: the first one
+  // not taken unless another of the first 32 lies clearly nearer (by more than 2 % of its distance
+  // plus 50 units). The particles of smoke and fire look alike, lie a few thousand units apart,
+  // and one that dies or starts shifts the order (Retroid report 26.10.2026, r224: neighbours
+  // swapped places in the in-between pictures, the smoke flickered). With the camera's move known
+  // (cam), their positions before are moved by it first, and a particle may move only 5 % of its
+  // distance plus 300 units: one that has just started is drawn as in the next picture instead of
+  // taking another's place. Only particles: the camera's move is the room's, and the parts of Leon
+  // turn with the camera; matched by it, two alike parts of him swapped places and their blended
+  // vertices drew a long bar at the bottom of the picture (Retroid report 26.10.2026, fast turns).
+  // (flat: a 2D draw, in screen units; by the game's order)
+  const DrawRec *MatchDraw(const std::vector<std::uint32_t> &candidates, const float *t, std::uint32_t rows,
+                           std::uint32_t vertexCount, bool flat = false) {
     const float reach = rows ? std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]) : 0.0f;
-    const float limit = 0.25f * reach + 400.0f;
-    int best = -1;
-    float bestDist = 0.0f;
+    const bool particle = !flat && rows == 3 && vertexCount <= 16, moved = particle && camValid;
+    const float limit = moved ? 0.05f * reach + 300.0f : 0.25f * reach + 400.0f;
+    const float close = 0.02f * reach + 50.0f;
+    int first = -1, best = -1;
+    float firstDist = 0.0f, bestDist = 0.0f;
     unsigned looked = 0;
-    for (std::uint32_t i : it->second) {
+    for (std::uint32_t i : candidates) {
       if (recUsed[i])
         continue;
       const DrawRec &r = rec[i];
-      const float dx = r.t[0] - t[0], dy = r.t[1] - t[1], dz = r.t[2] - t[2];
+      float p[3] = {r.t[0], r.t[1], r.t[2]};
+      if (moved)
+        CameraApply(cam, r.t, p);
+      const float dx = p[0] - t[0], dy = p[1] - t[1], dz = p[2] - t[2];
       const float dist = rows ? std::sqrt(dx * dx + dy * dy + dz * dz) : 0.0f;
-      if (looked++ == 0 && dist <= limit) {
-        best = static_cast<int>(i);
-        break;
+      if (first < 0) {
+        first = static_cast<int>(i);
+        firstDist = dist;
+        if (dist <= (particle ? close : limit))
+          break;  // near enough (a particle: where it was): no need to look further
       }
       if (dist <= limit && (best < 0 || dist < bestDist)) {
         best = static_cast<int>(i);
         bestDist = dist;
       }
-      if (looked >= 8)
+      if (++looked >= (particle ? 32u : 8u))
         break;
     }
+    if (first >= 0 && firstDist <= limit && (!particle || best < 0 || firstDist <= bestDist + close))
+      best = first;
     if (best < 0)
       return nullptr;
     recUsed[static_cast<std::size_t>(best)] = 1;
     return &rec[static_cast<std::size_t>(best)];
   }
 
+  // q moved by the camera's move c (a point in view space before -> after).
+  static void CameraApply(const float (&c)[3][4], const float *q, float *out) {
+    for (int r = 0; r < 3; r++)
+      out[r] = c[r][0] * q[0] + c[r][1] * q[1] + c[r][2] * q[2] + c[r][3];
+  }
+
+  // c = n * p^-1 for two 3 x 4 modelviews of the same object (p: row-major, 12 floats); false when
+  // p has no inverse.
+  static bool CameraMove(const float *p, const float (&n)[3][4], float (&c)[3][4]) {
+    const float det = p[0] * (p[5] * p[10] - p[6] * p[9]) - p[1] * (p[4] * p[10] - p[6] * p[8]) +
+                      p[2] * (p[4] * p[9] - p[5] * p[8]);
+    if (!(std::fabs(det) > 1e-12f))
+      return false;
+    const float inv[3][3] = {{(p[5] * p[10] - p[6] * p[9]) / det, (p[2] * p[9] - p[1] * p[10]) / det,
+                              (p[1] * p[6] - p[2] * p[5]) / det},
+                             {(p[6] * p[8] - p[4] * p[10]) / det, (p[0] * p[10] - p[2] * p[8]) / det,
+                              (p[2] * p[4] - p[0] * p[6]) / det},
+                             {(p[4] * p[9] - p[5] * p[8]) / det, (p[1] * p[8] - p[0] * p[9]) / det,
+                              (p[0] * p[5] - p[1] * p[4]) / det}};
+    for (int r = 0; r < 3; r++) {
+      for (int k = 0; k < 3; k++)
+        c[r][k] = n[r][0] * inv[0][k] + n[r][1] * inv[1][k] + n[r][2] * inv[2][k];
+      c[r][3] = n[r][3] - (c[r][0] * p[3] + c[r][1] * p[7] + c[r][2] * p[11]);
+    }
+    return true;
+  }
+
+  // A large draw of a look of its own (one of it in the picture before), matched: its move is the
+  // camera's when it stands still. It votes for a move proposed before that takes its position
+  // before to where it is now (when it has a matrix of its own: two parts of one object that moved
+  // agreed with each other, Retroid series 26.10.2026 at the merchant), else proposes its own.
+  void NoteCamera(std::uint64_t sig, const float *before, const float (&now)[3][4]) {
+    auto it = recBySig.find(sig);
+    if (it == recBySig.end() || it->second.size() != 1)
+      return;
+    const float beforeT[3] = {before[3], before[7], before[11]}, nowT[3] = {now[0][3], now[1][3], now[2][3]};
+    const float reach = std::sqrt(nowT[0] * nowT[0] + nowT[1] * nowT[1] + nowT[2] * nowT[2]);
+    for (unsigned g = 0; g < camGuesses; g++) {
+      CamGuess &q = camGuess[g];
+      float p[3];
+      CameraApply(q.c, beforeT, p);
+      const float dx = p[0] - nowT[0], dy = p[1] - nowT[1], dz = p[2] - nowT[2];
+      if (std::sqrt(dx * dx + dy * dy + dz * dz) > 0.02f * reach + 50.0f)
+        continue;
+      const float sx = nowT[0] - q.t[0], sy = nowT[1] - q.t[1], sz = nowT[2] - q.t[2];
+      if (sx * sx + sy * sy + sz * sz >= 1.0f && ++q.votes > camVotes) {
+        std::memcpy(cam, q.c, sizeof(cam));
+        camVotes = q.votes;
+        camValid = true;
+      }
+      return;
+    }
+    if (camGuesses < 4) {
+      CamGuess &q = camGuess[camGuesses];
+      if (!CameraMove(before, now, q.c))
+        return;
+      std::memcpy(q.t, nowT, sizeof(q.t));
+      q.votes = 1;
+      camGuesses++;
+    }
+  }
+
   // The in-between pass, before a draw: its rows (and vertices) between the picture before (a)
   // and now; how many rows to put back afterwards (BlendRestore).
+  // 2D (the HUD, full-screen passes, a glow laid over a flame in screen space) as in the next picture,
+  // unless it has a matrix of its own that only moved, by at most a quarter of the picture
+  // (kFlatMove, screen units): then between the two too, without lights and projection. Retroid
+  // series 26.10.2026: the glow of the merchant's brazier, a 2D square 418 units wide, moved 23
+  // units a game picture while the camera turned and jumped in the in-between pictures. Not when it
+  // turned or changed its size: r224 lays a copy of the picture over itself through a square that
+  // turns 10 degrees a game picture (its texture coordinates come from the square's corners), and
+  // half turned it showed the room twice.
+  static constexpr float kFlatMove = 128.0f;
   std::uint32_t BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re4GxChunk &chunk) {
-    if (k.orthographic)
-      return 0; // 2D: as in the next picture
-    ipDraws++;
+    const bool flat = k.orthographic;
     std::uint32_t first = 0, rows = 0;
     bool lights = false;
     DrawRows(d, &first, &rows);
+    if (flat && rows != 3)
+      return 0;
+    if (!flat)
+      ipDraws++;
     float t[3] = {};
     if (rows)
       for (int c = 0; c < 3; c++)
         t[c] = xf.posTex[first + c][3];
-    const DrawRec *a = MatchDraw(DrawSig(d, k), t, rows);
+    const std::uint64_t sig = DrawSig(d, k);
+    auto it = recBySig.find(sig);
+    const DrawRec *a = it != recBySig.end() ? MatchDraw(it->second, t, rows, d.vertexCount, flat) : nullptr;
+    // a particle with none of its look: by the look without its textures. Flames show a new picture
+    // of their animation, a texture of its own, every game picture (Retroid report 26.10.2026, the
+    // merchant's brazier: unmatched, the flames were drawn where they are in the next picture and
+    // lagged behind the brazier while the camera turned). The texture stays the next picture's.
+    if (!a && !flat && rows == 3 && d.vertexCount <= 16) {
+      auto look = recByLook.find(DrawSig(d, k, false));
+      if (look != recByLook.end())
+        a = MatchDraw(look->second, t, rows, d.vertexCount);
+    }
+    if (a && !flat && rows == 3 && a->rows == 3 && a->posRow == first && d.vertexCount >= 64) {
+      float now[3][4];
+      std::memcpy(now, xf.posTex[first], sizeof(now));
+      NoteCamera(sig, recFloats.data() + a->data, now);
+    }
     if (!a)
       return 0;
-    ipMatched++;
     const float s = interpT;
     const float *src = recFloats.data() + a->data;
+    if (flat) {
+      const float dx = xf.posTex[first][3] - src[3], dy = xf.posTex[first + 1][3] - src[7];
+      if (a->rows != 3 || a->posRow != first || !(dx * dx + dy * dy <= kFlatMove * kFlatMove))
+        return 0;
+      for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+          if (!(std::fabs(xf.posTex[first + r][c] - src[r * 4 + c]) <= 1e-3f * std::max(1.0f, std::fabs(src[r * 4 + c]))))
+            return 0;
+    } else {
+      ipMatched++;
+    }
     if (rows && a->rows == rows && a->posRow == first) {
       // turned more than 20 degrees: a cut of the camera, most likely (Interpolate counts them)
-      if (rows == 3) {
+      if (rows == 3 && !flat) {
         float lowest = 1.0f;
         for (int r = 0; r < 3; r++) {
           const float *pa = src + r * 4, *pb = xf.posTex[first + r];
@@ -970,7 +1199,7 @@ struct GxRenderer::Impl {
           xf.posTex[first + r][c] = src[r * 4 + c] + (xf.posTex[first + r][c] - src[r * 4 + c]) * s;
       // the lights (in view space, as the game loaded them for the next picture) moved with the
       // camera between the two: tester's report 24.10.2026, light pools that swam in 60 FPS
-      if (rows == 3 && BlendLights(now, xf.posTex[first]))
+      if (rows == 3 && !flat && BlendLights(now, xf.posTex[first]))
         lights = true;
       const float *nrm = src + rows * 4;
       for (std::uint32_t r = 0; r < rows; r++)
@@ -985,6 +1214,17 @@ struct GxRenderer::Impl {
       for (int i = 0; i < 6; i++)
         xf.proj[i / 4][i % 4] = proj[i] + (xf.proj[i / 4][i % 4] - proj[i]) * s;
       Dirty(206, 208);
+    }
+    // the material and ambient colours: between the two (particles fade in and out by their
+    // material colour; Retroid report 26.10.2026: the flames changed only with the game's 30
+    // pictures a second). FillXfRegs puts them back after the draw.
+    bool colors = false;
+    const float *mat = src + a->rows * 4 + a->rows * 3 + 6;
+    if (std::memcmp(mat, &xf.matAmb[0][0], sizeof(xf.matAmb)) != 0) {
+      for (int i = 0; i < 16; i++)
+        xf.matAmb[i / 4][i % 4] = mat[i] + (xf.matAmb[i / 4][i % 4] - mat[i]) * s;
+      Dirty(200, 204);
+      colors = true;
     }
     // vertices the game moved itself (skinning): positions and normals between the two
     if (interpPrev && a->vertexCount == d.vertexCount && a->stride == d.stride && a->layout == d.layout &&
@@ -1006,17 +1246,36 @@ struct GxRenderer::Impl {
             fb[c] = fa[c] + (fb[c] - fa[c]) * s;
           std::memcpy(blendVertices.data() + v * d.stride, fb, normals ? 24 : 12);
         }
-        // more than 1500 units in one game picture: not the same figure
-        if (far <= 1500.0f) {
-          glBindBuffer(GL_ARRAY_BUFFER, vbo);
-          glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(d.vertexOffset), static_cast<GLsizeiptr>(bytes),
-                          blendVertices.data());
-          stats.interpVertexBlends++;
+        // more than 1500 units in one game picture (2D: kFlatMove): not the same figure. The blended
+        // vertices go to a place of blendVbo no draw has used in this pass: no waiting, no copy of
+        // the buffer
+        if (far <= (flat ? kFlatMove : 1500.0f)) {
+          const std::size_t at = (blendUsed + d.stride - 1) / d.stride * d.stride;
+          if (blendMap && at + bytes <= blendCap) {
+            std::memcpy(blendMap + at, blendVertices.data(), bytes);
+            blendUsed = at + bytes;
+            blendAt = static_cast<std::int64_t>(at);
+            stats.interpVertexBlends++;
+          } else if (!blendMap && at + bytes <= blendCap) {
+            glBindBuffer(GL_ARRAY_BUFFER, blendVbo);
+            void *dst = glMapBufferRange(GL_ARRAY_BUFFER, static_cast<GLintptr>(at), static_cast<GLsizeiptr>(bytes),
+                                         GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+            if (dst) {
+              std::memcpy(dst, blendVertices.data(), bytes);
+              glUnmapBuffer(GL_ARRAY_BUFFER);
+            } else {
+              glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(at), static_cast<GLsizeiptr>(bytes),
+                              blendVertices.data());
+            }
+            blendUsed = at + bytes;
+            blendAt = static_cast<std::int64_t>(at);
+            stats.interpVertexBlends++;
+          }
         }
       }
     }
-    // 0x100000: only the projection; 0x200000: the lights too
-    return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u);
+    // 0x100000: only the projection; 0x200000: the lights too; 0x400000: the colours
+    return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u) | (colors ? 0x400000u : 0u);
   }
 
   // The lights of the next picture into the in-between one: the modelview `mid` of a draw (blended)
@@ -1078,7 +1337,9 @@ struct GxRenderer::Impl {
         XfMemToBlock(a);
       Dirty(160, 200);
     }
-    xfRegsDirty = true; // FillXfRegs puts the projection back
+    if (blended & 0x400000)
+      Dirty(200, 204);
+    xfRegsDirty = true; // FillXfRegs puts the projection (and the colours) back
     Dirty(206, 208);
   }
 
@@ -1125,10 +1386,25 @@ struct GxRenderer::Impl {
         dst[1] = Signed11(value >> 12);
       }
     }
-    if (action && reg == 0x52)
-      EfbCopy(value);
-    if (action && reg == 0x5A)
+    if (action && reg == 0x52) {
+      if (!skipDraws) {
+        EfbCopy(value);
+      } else if ((value >> 14) & 1) {
+        // a skipped picture: nothing to show, only the clear of the EFB that the next picture needs
+        stats.skippedChunks++;
+        SaveAndPlainState();
+        BindFbo(DrawFbo());
+        ClearAfterCopy(value, static_cast<int>(bp[0x49] & 0x3FF), static_cast<int>((bp[0x49] >> 10) & 0x3FF),
+                       static_cast<int>(bp[0x4A] & 0x3FF) + 1, static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1);
+        sceneBottom = 0;
+      } // a copy for a texture: CanSkip said the next chunk copies there first, nobody reads this one
+    }
+    if (action && reg == 0x5A && !skipDraws)
       Autofocus(value);
+    if (action && reg == 0x5B && !interpPass && !skipDraws) {
+      peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
+      peekPicture = value & 0xFFFFFF;  // with the picture's number (the core answers by the map's age)
+    }
   }
 
   void Dirty(int lo, int hi) {
@@ -1285,7 +1561,7 @@ struct GxRenderer::Impl {
               got > 1;
     // d2: the second set, the same samples
     if (ok) {
-      const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+      const int w = Lo(kEfbWidth), h = Lo(kEfbHeight);
       MakeEfbTextures(w, h, &spareColor, &spareDepth);
       glGenFramebuffers(1, &spareFbo);
       glBindFramebuffer(GL_FRAMEBUFFER, spareFbo);
@@ -1378,7 +1654,7 @@ struct GxRenderer::Impl {
       glBindFramebuffer(GL_FRAMEBUFFER, efbFbo);
       glDeleteFramebuffers(1, &fbo);
     }
-    glViewport(0, 0, kEfbWidth * scale, kEfbHeight * scale);
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_ALWAYS);
     glUseProgram(restoreProgram);
@@ -1398,7 +1674,7 @@ struct GxRenderer::Impl {
   // MSAA in separate multisampled buffers (msaaFbo), resolved into efbColor / efbDepth before
   // every copy; false when the device cannot (single-sampled then).
   bool OwnMsaa(int want) {
-    const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+    const int w = Lo(kEfbWidth), h = Lo(kEfbHeight);
     while (glGetError() != GL_NO_ERROR) {
     }
     glGenRenderbuffers(1, &msaaColor);
@@ -1562,9 +1838,10 @@ struct GxRenderer::Impl {
   void Resolve(int x, int y, int w, int h, bool depth) {
     if (!msaaFbo)
       return;
-    const int fw = kEfbWidth * scale, fh = kEfbHeight * scale;
-    int x0 = std::max(0, x - scale), y0 = std::max(0, y - scale);
-    int x1 = std::min(fw, x + w + scale), y1 = std::min(fh, y + h + scale);
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
+    const int pad = Hi(1);
+    int x0 = std::max(0, x - pad), y0 = std::max(0, y - pad);
+    int x1 = std::min(fw, x + w + pad), y1 = std::min(fh, y + h + pad);
     if (options.fullResolve) {
       x0 = y0 = 0;
       x1 = fw;
@@ -1824,6 +2101,13 @@ struct GxRenderer::Impl {
   }
 
   void ApplyState(unsigned primitive) {
+    // the picture's extent: the full-width scissors the draws of this picture ran under
+    {
+      const int xo = static_cast<int>(bp[0x59] & 0x3FF) * 2, yo = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+      const int sx0 = static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xo, sx1 = static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xo + 1;
+      if (sx1 - sx0 >= 500)
+        sceneBottom = std::max(sceneBottom, std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yo + 1));
+    }
     // the registers below, as last applied: nothing to do while they hold
     const std::uint32_t sig[10] = {bp[0x20],     bp[0x21],     bp[0x59],       bp[0x40] & 0x1F, bp[0x41] & 0xFFFF,
                                    bp[0x43] & 7, (bp[0x00] >> 14) & 3, bp[0x22] & 0xFF, primitive, bp[0x42] & 0x1FF};
@@ -1833,7 +2117,7 @@ struct GxRenderer::Impl {
     stateValid = true;
     stats.stateChanges++;
     BindFbo(DrawFbo());
-    glViewport(0, 0, kEfbWidth * scale, kEfbHeight * scale);
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
     // scissor: registers in EFB pixels + 342, minus the scissor offset (BP 0x59, in 2 pixels)
     const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
     const int x0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
@@ -1841,7 +2125,7 @@ struct GxRenderer::Impl {
     const int x1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
     const int y1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
     glEnable(GL_SCISSOR_TEST);
-    glScissor(x0 * scale, y0 * scale, std::max(0, x1 - x0) * scale, std::max(0, y1 - y0) * scale);
+    glScissor(Lo(x0), Lo(y0), std::max(0, Lo(x1) - Lo(x0)), std::max(0, Lo(y1) - Lo(y0)));
     // depth
     const std::uint32_t z = bp[0x40];
     if (z & 1) {
@@ -1923,7 +2207,7 @@ struct GxRenderer::Impl {
       glCullFace(cull == 1 ? GL_BACK : cull == 2 ? GL_FRONT : GL_FRONT_AND_BACK);
     }
     // lines and points: width in 1/6 pixel
-    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * Sf(1);
     glLineWidth(std::max(1.0f, lineWidth));
   }
 
@@ -2105,8 +2389,8 @@ struct GxRenderer::Impl {
 
   // Vertex attribute pointers of vao for a layout (re4_gx_frame.h) and stride,
   // the first vertex at byte `base` of vbo; only changed enables are switched.
-  void SetAttributes(std::uint32_t layout, std::uint32_t stride, std::uint32_t base) {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  void SetAttributes(std::uint32_t layout, std::uint32_t stride, std::uint32_t base, GLuint buffer) {
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     const GLsizei s = static_cast<GLsizei>(stride);
     const auto at = [&](unsigned offset) { return reinterpret_cast<const void *>(static_cast<std::uintptr_t>(base + offset)); };
     std::uint32_t mask = 1;
@@ -2153,6 +2437,7 @@ struct GxRenderer::Impl {
     attribLayout = layout;
     attribStride = stride;
     attribBase = base;
+    attribBuffer = buffer;
   }
 
   void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk) {
@@ -2173,7 +2458,7 @@ struct GxRenderer::Impl {
     const unsigned primitive = d.primitive & 0xFF;
     UseEfb();
     ApplyState(primitive);
-    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * Sf(1);
     if (xf.proj[1][3] != pointSize) {
       xf.proj[1][3] = pointSize;
       Dirty(207, 208);
@@ -2234,14 +2519,18 @@ struct GxRenderer::Impl {
       glBindVertexArray(vao);
       vaoBound = true;
     }
-    std::uint32_t base = d.vertexOffset;
+    // (an in-between picture's blended vertices: from blendVbo)
+    const GLuint buffer = blendAt >= 0 ? (blendMap ? blendRing : blendVbo) : vbo;
+    const std::uint32_t at = blendAt >= 0 ? static_cast<std::uint32_t>(blendAt) : d.vertexOffset;
+    blendAt = -1;
+    std::uint32_t base = at;
     GLint baseVertex = 0;
     if (drawBaseVertex && d.stride) {
-      base = d.vertexOffset % d.stride;
-      baseVertex = static_cast<GLint>(d.vertexOffset / d.stride);
+      base = at % d.stride;
+      baseVertex = static_cast<GLint>(at / d.stride);
     }
-    if (d.layout != attribLayout || d.stride != attribStride || base != attribBase) {
-      SetAttributes(d.layout, d.stride, base);
+    if (d.layout != attribLayout || d.stride != attribStride || base != attribBase || buffer != attribBuffer) {
+      SetAttributes(d.layout, d.stride, base, buffer);
       stats.attributeSetups++;
     }
     const GLenum mode = primitive == RE4_GX_LINES ? GL_LINES : primitive == RE4_GX_POINTS ? GL_POINTS : GL_TRIANGLES;
@@ -2324,7 +2613,10 @@ struct GxRenderer::Impl {
       stats.heldCopies++;
       SaveAndPlainState();
       BindFbo(DrawFbo());
+      if (peekWanted)
+        SnapshotDepth();
       ClearAfterCopy(control, x, y, w, h);
+      sceneBottom = 0;
       return;
     }
     GLuint target = 0;
@@ -2334,7 +2626,7 @@ struct GxRenderer::Impl {
           glDeleteTextures(1, &xfbTex);
         glGenTextures(1, &xfbTex);
         glBindTexture(GL_TEXTURE_2D, xfbTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w * scale, h * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(w), Hi(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -2356,7 +2648,7 @@ struct GxRenderer::Impl {
           glDeleteTextures(1, &c.id);
         glGenTextures(1, &c.id);
         glBindTexture(GL_TEXTURE_2D, c.id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ow * scale, oh * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(ow), Hi(oh), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         c.width = static_cast<unsigned>(ow);
         c.height = static_cast<unsigned>(oh);
@@ -2373,29 +2665,287 @@ struct GxRenderer::Impl {
       }
     }
     // render the EFB region into the target
-    Resolve(x * scale, y * scale, w * scale, h * scale, depth);
+    Resolve(Lo(x), Lo(y), Hi(x + w) - Lo(x), Hi(y + h) - Lo(y), depth);
     BindFbo(xfbFbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
     SaveAndPlainState();
     // the copy draws over all of its target (the viewport is the texture)
     ForgetColor();
     const int tw = toXfb ? w : ow, th = toXfb ? h : oh;
-    glViewport(0, 0, tw * scale, th * scale);
+    glViewport(0, 0, Hi(tw), Hi(th));
     glUseProgram(copyProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depth ? efbDepth : efbColor);
     glBindSampler(0, 0);
     glUniform1i(copyMode, toXfb ? 0 : mode);
-    glUniform4f(copyRect, static_cast<float>(x * scale), static_cast<float>(y * scale), static_cast<float>(w * scale),
-                static_cast<float>(h * scale));
-    glUniform2f(copySize, static_cast<float>(kEfbWidth * scale), static_cast<float>(kEfbHeight * scale));
+    glUniform4f(copyRect, Sf(x), Sf(y), Sf(w), Sf(h));
+    glUniform2f(copySize, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
     glUniform1i(copyHalf, half ? 1 : 0);
     glUniform1f(copyGain, depth ? 1.0f : CopyFilterGain());
+    // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
+    // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
+    // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew
+    // (black) would show as dark waves at the bottom edge. Repeat the last drawn row below it.
+    // In the 16:9 formats the app shows rows 56..391 only: there a copy of the whole picture (the
+    // shimmer of the logos at the start, IdShimmerTrans: rows 0..447, a movie drawn into 56..391
+    // under a full scissor; the depth of field at the edge) repeats the edge rows of what is shown
+    // instead of reading the unseen bars (black waves at the bottom of the intro, 0.91.0 test).
+    int top = 0, bottom = kEfbHeight;
+    if (!toXfb && !depth && x == 0 && w >= 500) {
+      if (half && sceneBottom > y + h / 2 && sceneBottom < y + h)
+        bottom = sceneBottom;
+      const int shownT = shownTop.load(std::memory_order_relaxed), shownB = shownBottom.load(std::memory_order_relaxed);
+      if (shownB > y + h / 2 && shownB < y + h)
+        bottom = std::min(bottom, shownB);
+      if (shownT > y && shownT < y + h / 2)
+        top = shownT;
+    }
+    const bool limited = top > 0 || bottom < kEfbHeight;
+    glUniform2f(copyLimit, limited ? Sf(top) : -1e9f, limited && bottom < kEfbHeight ? Sf(bottom) : 1e9f);
+    if (limited)
+      stats.limitedCopies++;
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    if (limited)
+      glUniform2f(copyLimit, -1e9f, 1e9f);
     current = nullptr;
     BindFbo(DrawFbo());
+    if (toXfb)
+      Fxaa(Hi(w), Hi(h));
+    if (toXfb && peekWanted)
+      SnapshotDepth();  // the picture is complete, the clear comes next
     ClearAfterCopy(control, x, y, w, h);
+    if (toXfb)
+      sceneBottom = 0;
+  }
+
+  // --- FXAA ------------------------------------------------------------------------------------
+
+  bool MakeFxaa() {
+    static const char kVs[] = "#version 300 es\n"
+                              "out vec2 vUv;\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  vUv = p;\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // Edge smoothing along the luma gradient: the direction of the edge from the four corners'
+    // luma, two taps along it (each between samples) and a wider pair; the wider mix is dropped when
+    // it leaves the range of the neighbourhood's luma (a thin line stays a line).
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform sampler2D src;\nuniform vec2 texel;\nin vec2 vUv;\nout vec4 o;\n"
+        "const vec3 kLuma = vec3(0.299, 0.587, 0.114);\n"
+        "void main() {\n"
+        "  vec3 nw = texture(src, vUv + vec2(-1.0, -1.0) * texel).rgb;\n"
+        "  vec3 ne = texture(src, vUv + vec2(1.0, -1.0) * texel).rgb;\n"
+        "  vec3 sw = texture(src, vUv + vec2(-1.0, 1.0) * texel).rgb;\n"
+        "  vec3 se = texture(src, vUv + vec2(1.0, 1.0) * texel).rgb;\n"
+        "  vec3 m = texture(src, vUv).rgb;\n"
+        "  float lnw = dot(nw, kLuma), lne = dot(ne, kLuma), lsw = dot(sw, kLuma), lse = dot(se, kLuma), lm = dot(m, kLuma);\n"
+        "  float lmin = min(lm, min(min(lnw, lne), min(lsw, lse)));\n"
+        "  float lmax = max(lm, max(max(lnw, lne), max(lsw, lse)));\n"
+        "  vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), (lnw + lsw) - (lne + lse));\n"
+        "  float reduce = max((lnw + lne + lsw + lse) * 0.25 * 0.125, 1.0 / 128.0);\n"
+        "  dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + reduce), vec2(-8.0), vec2(8.0)) * texel;\n"
+        "  vec3 a = 0.5 * (texture(src, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture(src, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);\n"
+        "  vec3 b = a * 0.5 + 0.25 * (texture(src, vUv + dir * -0.5).rgb + texture(src, vUv + dir * 0.5).rgb);\n"
+        "  float lb = dot(b, kLuma);\n"
+        "  o = vec4((lb < lmin || lb > lmax) ? a : b, 1.0);\n"
+        "}\n";
+    std::string log;
+    fxaaProgram = Link(kVs, kFs, &log);
+    if (!fxaaProgram) {
+      GXLOG("FXAA: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(fxaaProgram);
+    glUniform1i(glGetUniformLocation(fxaaProgram, "src"), 0);
+    fxaaTexelLoc = glGetUniformLocation(fxaaProgram, "texel");
+    glGenFramebuffers(1, &fxaaFbo);
+    return true;
+  }
+
+  // The display copy just made (xfbTex, w x h texels) through FXAA into fxaaTex: that is shown now.
+  void Fxaa(int w, int h) {
+    fxaaShown = false;
+    if (!fxaaOn || !xfbTex || w < 16 || h < 16)
+      return;
+    if (!fxaaProgram && !MakeFxaa()) {
+      fxaaOn = false;  // no shader on this driver: off for good (the menu's switch stays)
+      return;
+    }
+    if (!fxaaTex || fxaaTexW != static_cast<unsigned>(w) || fxaaTexH != static_cast<unsigned>(h)) {
+      if (fxaaTex)
+        glDeleteTextures(1, &fxaaTex);
+      glGenTextures(1, &fxaaTex);
+      glBindTexture(GL_TEXTURE_2D, fxaaTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      fxaaTexW = static_cast<unsigned>(w);
+      fxaaTexH = static_cast<unsigned>(h);
+    }
+    Touched();
+    SaveAndPlainState();
+    BindFbo(fxaaFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxaaTex, 0);
+    ForgetColor();  // all of it is drawn over
+    glViewport(0, 0, w, h);
+    glUseProgram(fxaaProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, xfbTex);
+    glBindSampler(0, 0);
+    glUniform2f(fxaaTexelLoc, 1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h));
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    BindFbo(DrawFbo());
+    current = nullptr;
+    fxaaShown = true;
+    stats.fxaaPasses++;
+  }
+
+  GLuint ShownXfb() const { return fxaaShown && fxaaTex ? fxaaTex : xfbTex; }
+
+  void FxaaRelease() {
+    if (fxaaTex)
+      glDeleteTextures(1, &fxaaTex);
+    if (fxaaFbo)
+      glDeleteFramebuffers(1, &fxaaFbo);
+    if (fxaaProgram)
+      glDeleteProgram(fxaaProgram);
+    fxaaTex = fxaaFbo = fxaaProgram = 0;
+    fxaaTexW = fxaaTexH = 0;
+    fxaaShown = false;
+  }
+
+  // --- the depth for the game's GXPeekZ ------------------------------------------------------
+
+  bool MakePeek() {
+    static const char kVs[] = "#version 300 es\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // cell (x, y) of kDepthWidth x kDepthHeight: the depth at the EFB pixel (2x + 1, 2y + 1) (the
+    // game peeks single pixels; the centre of a 2 x 2 block stands for it), as GX's 24 bits in
+    // r (low byte), g, b (a 0: a cell is the 24-bit value)
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\nprecision highp int;\n"
+        "uniform highp sampler2D depths;\nuniform vec2 size;\nuniform float scale;\nout vec4 o;\n"
+        "void main() {\n"
+        "  vec2 c = floor(gl_FragCoord.xy);\n"
+        "  ivec2 t = ivec2(min((c * 2.0 + 1.0) * scale, size - 1.0));\n"
+        "  uint z = min(uint(texelFetch(depths, t, 0).r * 16777215.0 + 0.5), 16777215u);\n"
+        "  o = vec4(float(z & 255u), float((z >> 8) & 255u), float((z >> 16) & 255u), 0.0) / 255.0;\n"
+        "}\n";
+    std::string log;
+    peekProgram = Link(kVs, kFs, &log);
+    if (!peekProgram) {
+      GXLOG("depth map for GXPeekZ: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(peekProgram);
+    glUniform1i(glGetUniformLocation(peekProgram, "depths"), 0);
+    peekSizeLoc = glGetUniformLocation(peekProgram, "size");
+    peekScaleLoc = glGetUniformLocation(peekProgram, "scale");
+    glGenTextures(1, &peekTex);
+    glBindTexture(GL_TEXTURE_2D, peekTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kDepthWidth, kDepthHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glGenFramebuffers(1, &peekFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, peekFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, peekTex, 0);
+    const bool ok = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glGenBuffers(2, peekPbo);
+    for (GLuint pbo : peekPbo) {
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+      glBufferData(GL_PIXEL_PACK_BUFFER, kDepthWidth * kDepthHeight * 4, nullptr, GL_STREAM_READ);
+    }
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    if (!ok)
+      GXLOG("depth map for GXPeekZ: the frame buffer is not complete");
+    return ok;
+  }
+
+  // The depth maps the GPU is through with go to the core (a fence per map; no waiting).
+  void DeliverDepth() {
+    for (int i = 0; i < 2; i++) {
+      if (!peekFence[i])
+        continue;
+      const GLenum r = glClientWaitSync(peekFence[i], 0, 0);
+      if (r != GL_ALREADY_SIGNALED && r != GL_CONDITION_SATISFIED)
+        continue;
+      glDeleteSync(peekFence[i]);
+      peekFence[i] = nullptr;
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, peekPbo[i]);
+      const void *data = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, kDepthWidth * kDepthHeight * 4, GL_MAP_READ_BIT);
+      if (data) {
+        if (depthSink)
+          depthSink(static_cast<const std::uint32_t *>(data), peekSlotPicture[i]);
+        stats.depthDelivered++;
+        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+      }
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    }
+  }
+
+  // At the display copy of a picture whose chunk peeked (the marker): the depth of the picture.
+  void SnapshotDepth() {
+    peekWanted = false;
+    if (!depthSink || peekFailed)
+      return;
+    if (!peekProgram && !MakePeek()) {
+      peekFailed = true;
+      return;
+    }
+    DeliverDepth();
+    const int slot = peekFence[0] ? (peekFence[1] ? -1 : 1) : 0;
+    if (slot < 0)
+      return;  // the GPU is two maps behind: the core keeps the last one (it ages out there)
+    Touched();
+    // MSAA in own buffers: the depth of the picture's 512 x 448 (the game peeks inside it)
+    Resolve(0, 0, Lo(512), Lo(448), true);
+    SaveAndPlainState();
+    BindFbo(peekFbo);
+    glViewport(0, 0, kDepthWidth, kDepthHeight);
+    glUseProgram(peekProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, efbDepth);
+    glBindSampler(0, 0);
+    glUniform2f(peekSizeLoc, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
+    glUniform1f(peekScaleLoc, Sf(1));
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, peekPbo[slot]);
+    glReadPixels(0, 0, kDepthWidth, kDepthHeight, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    peekFence[slot] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    peekSlotPicture[slot] = peekPicture;
+    stats.depthSnapshots++;
+    BindFbo(DrawFbo());
+    current = nullptr;
+  }
+
+  void PeekRelease() {
+    for (GLsync &f : peekFence) {
+      if (f)
+        glDeleteSync(f);
+      f = nullptr;
+    }
+    if (peekPbo[0])
+      glDeleteBuffers(2, peekPbo);
+    peekPbo[0] = peekPbo[1] = 0;
+    if (peekFbo)
+      glDeleteFramebuffers(1, &peekFbo);
+    if (peekTex)
+      glDeleteTextures(1, &peekTex);
+    if (peekProgram)
+      glDeleteProgram(peekProgram);
+    peekFbo = peekTex = peekProgram = 0;
   }
 
   // The app's gameplay autofocus (BP 0x5A: the core marks the place,
@@ -2419,7 +2969,7 @@ struct GxRenderer::Impl {
     if (autofocusFailed || !havePerspective)
       return;
     Touched(); // its own passes
-    const int fw = kEfbWidth * scale, fh = kEfbHeight * scale;
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
     if (!blurProgram && !MakeAutofocus(fw, fh)) {
       autofocusFailed = true;
       GXLOG("gameplay autofocus could not be set up; left out");
@@ -2440,15 +2990,15 @@ struct GxRenderer::Impl {
       x1 = kEfbWidth;
       y1 = kEfbHeight;
     }
-    const float rx = static_cast<float>(x0 * scale), ry = static_cast<float>(y0 * scale);
-    const float rw = static_cast<float>((x1 - x0) * scale), rh = static_cast<float>((y1 - y0) * scale);
+    const float rx = static_cast<float>(Lo(x0)), ry = static_cast<float>(Lo(y0));
+    const float rw = static_cast<float>(Lo(x1) - Lo(x0)), rh = static_cast<float>(Lo(y1) - Lo(y0));
     float zRange = AsFloat(xfReg[0x1C]);
     if (!(std::fabs(zRange) > 1.0f))
       zRange = 16777215.0f;
     const float zFar = AsFloat(xfReg[0x1F]);
     // only the picture is read (the focus, the blur's taps stay inside it)
-    Resolve(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale, false);
-    Resolve(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale, true);
+    Resolve(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0), false);
+    Resolve(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0), true);
     SaveAndPlainState();
     glDepthMask(GL_FALSE);
     glBindVertexArray(quadVao);
@@ -2483,8 +3033,8 @@ struct GxRenderer::Impl {
     if (options.halfDof && halfProgram) {
       // GPU step e: the blur at half the resolution (a quarter of the pixels, each of them the
       // four EFB texels around its centre and the taps behind the focus)
-      const int hx0 = x0 * scale / 2, hy0 = y0 * scale / 2;
-      const int hx1 = (x1 * scale + 1) / 2, hy1 = (y1 * scale + 1) / 2;
+      const int hx0 = Lo(x0) / 2, hy0 = Lo(y0) / 2;
+      const int hx1 = (Lo(x1) + 1) / 2, hy1 = (Lo(y1) + 1) / 2;
       BindFbo(halfFbo);
       ForgetColor();  // only the picture's region is drawn, and the mix reads only it
       glViewport(hx0, hy0, hx1 - hx0, hy1 - hy0);
@@ -2508,7 +3058,7 @@ struct GxRenderer::Impl {
       BindFbo(msaaFbo ? msaaFbo : colorFbo);
       if (!msaaFbo)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, efbColor, 0);
-      glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+      glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
       glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
       glEnable(GL_BLEND);
       glBlendEquation(GL_FUNC_ADD);
@@ -2530,7 +3080,7 @@ struct GxRenderer::Impl {
     // the blurred picture into blurTex
     BindFbo(blurFbo);
     ForgetColor();  // only the picture's region is drawn, and only it is copied back
-    glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+    glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
     glUseProgram(blurProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, efbColor);
@@ -2546,7 +3096,7 @@ struct GxRenderer::Impl {
     // back into the EFB: colour only, alpha and depth stay
     BindFbo(DrawFbo());
     UseEfb();
-    glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+    glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     glUseProgram(copyProgram);
     glActiveTexture(GL_TEXTURE0);
@@ -2556,6 +3106,7 @@ struct GxRenderer::Impl {
     glUniform2f(copySize, static_cast<float>(fw), static_cast<float>(fh));
     glUniform1i(copyHalf, 0);
     glUniform1f(copyGain, 1.0f);
+    glUniform2f(copyLimit, -1e9f, 1e9f);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     current = nullptr;
@@ -2794,7 +3345,7 @@ struct GxRenderer::Impl {
       if (color || alpha || zupdate)
         UseEfb();  // MSAA on the tiles: the EFB back first, the clear is only the copy's region
       glEnable(GL_SCISSOR_TEST);
-      glScissor(x * scale, y * scale, w * scale, h * scale);
+      glScissor(Lo(x), Lo(y), Lo(x + w) - Lo(x), Lo(y + h) - Lo(y));
       glColorMask(color, color, color, alpha);
       glDepthMask(zupdate ? GL_TRUE : GL_FALSE);
       const float r = static_cast<float>(bp[0x4F] & 255) / 255.0f, a = static_cast<float>((bp[0x4F] >> 8) & 255) / 255.0f;
@@ -2828,11 +3379,12 @@ struct GxRenderer::Impl {
     static const char kCopyFs[] =
         "#version 300 es\nprecision highp float;\nprecision highp int;\n"
         "uniform sampler2D src;\nuniform int mode;\nuniform vec4 rect;\nuniform vec2 size;\nuniform int halfScale;\n"
-        "uniform float gain;\n"
+        "uniform float gain;\nuniform vec2 limitY;\n"
         "in vec2 vUv;\nout vec4 o;\n"
         "vec4 fetch(vec2 p) { return texture(src, p / size); }\n"
         "void main() {\n"
         "  vec2 p = rect.xy + vUv * rect.zw;\n"
+        "  p.y = clamp(p.y, limitY.x + 1.0, limitY.y - 1.0);\n"
         "  vec4 c = halfScale != 0 ? 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
         "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5))) : fetch(p);\n"
         "  if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
@@ -2891,6 +3443,8 @@ struct GxRenderer::Impl {
     copySize = glGetUniformLocation(copyProgram, "size");
     copyHalf = glGetUniformLocation(copyProgram, "halfScale");
     copyGain = glGetUniformLocation(copyProgram, "gain");
+    copyLimit = glGetUniformLocation(copyProgram, "limitY");
+    glUniform2f(copyLimit, -1e9f, 1e9f);
     paletteProgram = Link(kQuadVs, kPaletteFs, &log);
     if (!paletteProgram) {
       *error = "palette shader: " + log;
@@ -2935,12 +3489,14 @@ GxRenderer::GxRenderer() : impl_(new Impl) {}
 
 GxRenderer::~GxRenderer() = default;
 
-bool GxRenderer::Init(int scale, std::string *error) {
+bool GxRenderer::Init(int scale, std::string *error) { return InitHalves(2 * std::max(1, scale), error); }
+
+bool GxRenderer::InitHalves(int halves, std::string *error) {
   Impl &m = *impl_;
   std::string dummy;
   if (!error)
     error = &dummy;
-  m.scale = std::max(1, scale);
+  m.halves = std::max(2, halves);
   // glDrawElementsBaseVertex: GLES 3.2, or the OES / EXT extension
   // (RE4_GX_BASEVERTEX=0 keeps the per-draw attribute setup)
   {
@@ -2980,7 +3536,7 @@ bool GxRenderer::Init(int scale, std::string *error) {
     for (std::size_t i = 0; i < pieces; i++)
       GXLOG("GPU extensions (%zu/%zu): %s", i + 1, pieces, all.substr(i * piece, piece).c_str());
   }
-  const int w = kEfbWidth * m.scale, h = kEfbHeight * m.scale;
+  const int w = m.Lo(kEfbWidth), h = m.Lo(kEfbHeight);
   Impl::MakeEfbTextures(w, h, &m.efbColor, &m.efbDepth);
   glGenFramebuffers(1, &m.efbFbo);
   glBindFramebuffer(GL_FRAMEBUFFER, m.efbFbo);
@@ -3074,12 +3630,59 @@ bool GxRenderer::Init(int scale, std::string *error) {
   return true;
 }
 
-void GxRenderer::Rescale(int scale) {
-  Impl &m = *impl_;
-  scale = std::max(1, scale);
-  if (scale == m.scale)
+void GxRenderer::HandOverCopies(GxRenderer &to) {
+  Impl &m = *impl_, &n = *to.impl_;
+  if (&m == &n || m.copies.empty())
     return;
-  const int old = m.scale;
+  m.Touched();
+  n.Touched();
+  GLuint from = 0, dst = 0;
+  glGenFramebuffers(1, &from);
+  glGenFramebuffers(1, &dst);
+  unsigned moved = 0;
+  for (auto &c : m.copies) {
+    Copy copy = c.second;
+    if (!copy.id || n.copies.count(c.first))
+      continue;
+    if (m.halves != n.halves) {
+      // at the new scale: a texture of the new size, the old one drawn over it scaled
+      GLuint made = 0;
+      glGenTextures(1, &made);
+      glBindTexture(GL_TEXTURE_2D, made);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, n.Hi(static_cast<int>(copy.width)),
+                   n.Hi(static_cast<int>(copy.height)), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, from);
+      glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, copy.id, 0);
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst);
+      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, made, 0);
+      glBlitFramebuffer(0, 0, m.Hi(static_cast<int>(copy.width)), m.Hi(static_cast<int>(copy.height)), 0, 0,
+                        n.Hi(static_cast<int>(copy.width)), n.Hi(static_cast<int>(copy.height)), GL_COLOR_BUFFER_BIT,
+                        GL_LINEAR);
+      glDeleteTextures(1, &copy.id);
+      copy.id = made;
+    }
+    copy.serial = ++n.copySerial;
+    n.copies[c.first] = copy;
+    c.second.id = 0;  // the new renderer's now: this one's Release leaves it
+    moved++;
+  }
+  m.copies.clear();
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  glDeleteFramebuffers(1, &from);
+  glDeleteFramebuffers(1, &dst);
+  n.stats.handedCopies += moved;
+}
+
+void GxRenderer::Rescale(int scale) { RescaleHalves(2 * std::max(1, scale)); }
+
+void GxRenderer::RescaleHalves(int halves) {
+  Impl &m = *impl_;
+  halves = std::max(2, halves);
+  if (halves == m.halves)
+    return;
+  const int old = m.halves;
   m.stats.rescales++;
   // the MSAA buffers go (as Init found them: on the tiles or in own buffers)
   const bool wasTiled = m.tiledMsaa;
@@ -3093,8 +3696,8 @@ void GxRenderer::Rescale(int scale) {
     m.samples = 1;
   }
   // the EFB's textures at the new size (the same names: the framebuffers that hold them stay)
-  m.scale = scale;
-  const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+  m.halves = halves;
+  const int w = m.Lo(kEfbWidth), h = m.Lo(kEfbHeight);
   glBindTexture(GL_TEXTURE_2D, m.efbColor);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
   glBindTexture(GL_TEXTURE_2D, m.efbDepth);
@@ -3133,8 +3736,8 @@ void GxRenderer::Rescale(int scale) {
     GLuint made = 0;
     glGenTextures(1, &made);
     glBindTexture(GL_TEXTURE_2D, made);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(cw) * scale, static_cast<GLsizei>(ch) * scale, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m.Hi(static_cast<int>(cw)), m.Hi(static_cast<int>(ch)), 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, nullptr);
     if (linear) {
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -3147,13 +3750,19 @@ void GxRenderer::Rescale(int scale) {
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, id, 0);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, to);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, made, 0);
-    glBlitFramebuffer(0, 0, static_cast<GLint>(cw) * old, static_cast<GLint>(ch) * old, 0, 0,
-                      static_cast<GLint>(cw) * scale, static_cast<GLint>(ch) * scale, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, (static_cast<GLint>(cw) * old + 1) / 2, (static_cast<GLint>(ch) * old + 1) / 2, 0, 0,
+                      m.Hi(static_cast<int>(cw)), m.Hi(static_cast<int>(ch)), GL_COLOR_BUFFER_BIT, GL_LINEAR);
     glDeleteTextures(1, &id);
     return made;
   };
   if (m.xfbTex)
     m.xfbTex = rescaled(m.xfbTex, m.xfbWidth, m.xfbHeight, true);
+  if (m.fxaaTex) { // the smoothed copy is of the old size: the next display copy makes it anew
+    glDeleteTextures(1, &m.fxaaTex);
+    m.fxaaTex = 0;
+    m.fxaaTexW = m.fxaaTexH = 0;
+    m.fxaaShown = false;
+  }
   for (auto &c : m.copies) {
     if (!c.second.id)
       continue;
@@ -3191,6 +3800,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     m.recFloatsNew.clear();
   }
   m.Touched();
+  if (!m.interpPass && m.peekProgram)
+    m.DeliverDepth();  // the depth maps the GPU finished since the last chunk go to the core
   if (m.stream)
     m.StreamChunkBegin();
   m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
@@ -3202,10 +3813,18 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   }
   // this chunk's vertices and indices
   glBindVertexArray(m.vao);
-  glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
-  glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+  const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
+  m.uploadedBy = nullptr;
+  if (!m.skipDraws && !uploaded) {
+    glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
+    glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+    if (m.interpPass) {
+      m.uploadedBy = &chunk;
+      m.uploadedSequence = chunk.sequence;
+    }
+  }
   // the app drew the screen since the last chunk: a new pass
   m.efbLeft = true;
   m.BindFbo(m.DrawFbo());
@@ -3265,7 +3884,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
         m.Forget(static_cast<std::uint64_t>(p[1]) << 32 | p[0]);
       break;
     case RE4_GX_OP_DRAW:
-      if (n * 4 >= sizeof(Re4GxDraw)) {
+      if (!m.skipDraws && n * 4 >= sizeof(Re4GxDraw)) {
         Re4GxDraw d;
         std::memcpy(&d, p, sizeof(d));
         m.Draw(d, chunk);
@@ -3302,6 +3921,100 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.BindFbo(0);
 }
 
+bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
+  const Impl &m = *impl_;
+  const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
+  if (m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
+      (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
+    return false;
+  // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them); and
+  // which copy each texture map holds (0: none), from the chunk run last on
+  std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
+  std::uint32_t mapCopy[8];
+  for (int i = 0; i < 8; i++)
+    mapCopy[i] = (m.boundKey[i] >> 63) ? static_cast<std::uint32_t>(m.boundKey[i]) : 0;
+  auto texture = [&](const std::uint32_t *p, std::uint32_t n, Re4GxTexture *t) {
+    if (n * 4 < sizeof(Re4GxTexture))
+      return false;
+    std::memcpy(t, p, sizeof(*t));
+    mapCopy[t->map & 7] = (t->flags & RE4_GX_TEX_COPY) ? t->address : 0;
+    return true;
+  };
+  for (std::uint32_t at = 0; at < a.opWords;) {
+    const std::uint32_t head = a.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > a.opWords)
+      return false;
+    const std::uint32_t *p = a.ops + at + 1;
+    Re4GxTexture t;
+    if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1))
+        pending.push_back((bp[0x4B] & 0x1FFFFF) << 5);
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      texture(p, n, &t);
+    }
+    at += 1 + n;
+  }
+  if (pending.empty())
+    return true;
+  auto isPending = [&](std::uint32_t address) {
+    return address && std::find(pending.begin(), pending.end(), address) != pending.end();
+  };
+  // `b` must copy to each of them again (else a later chunk reads a copy `a` never made), and must not
+  // read one before: a texture op for it, or a draw whose TEV stages sample a map still holding it
+  // (until 26.10.2026 any draw counted: almost every picture of a room makes a copy, shadows and the
+  // depth of field, and draws before it copies, so Frame skip almost never skipped)
+  for (std::uint32_t at = 0; at < b.opWords && !pending.empty();) {
+    const std::uint32_t head = b.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > b.opWords)
+      return false;
+    const std::uint32_t *p = b.ops + at + 1;
+    Re4GxTexture t;
+    if (op == RE4_GX_OP_DRAW) {
+      const std::uint32_t gen = bp[0x00];
+      const unsigned stages = ((gen >> 10) & 15) + 1, indStages = (gen >> 16) & 7;
+      for (unsigned st = 0; st < stages; st++) {
+        const std::uint32_t o = bp[0x28 + st / 2] >> ((st & 1) ? 12 : 0);
+        if (((o >> 6) & 1) && isPending(mapCopy[o & 7]))
+          return false;
+      }
+      for (unsigned st = 0; st < indStages && st < 4; st++)
+        if (isPending(mapCopy[(bp[0x27] >> (6 * st)) & 7]))
+          return false;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      if (!texture(p, n, &t))
+        return false;
+      if ((t.flags & RE4_GX_TEX_COPY) && isPending(t.address))
+        return false;
+    } else if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1)) {
+        const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
+        pending.erase(std::remove(pending.begin(), pending.end(), dest), pending.end());
+      }
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
+    }
+    at += 1 + n;
+  }
+  return pending.empty();
+}
+
+void GxRenderer::Skip(const Re4GxChunk &a) {
+  impl_->skipDraws = true;
+  Run(a);
+  impl_->skipDraws = false;
+  impl_->recValid = false;  // 60 FPS: no in-between picture across a chunk left out
+}
+
 void GxRenderer::SetRecording(bool on) {
   Impl &m = *impl_;
   m.recordDraws = on;
@@ -3314,7 +4027,11 @@ void GxRenderer::SetRecording(bool on) {
 
 bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) {
   Impl &m = *impl_;
-  const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
+  // (STILL: a menu screen of the game, its scrolling text lists; also when prev was one: the cut out of it)
+  const std::uint32_t refuse =
+      RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK | RE4_GX_CHUNK_STILL;
+  if (prev.flags & RE4_GX_CHUNK_STILL)
+    return false;
   if (!m.recordDraws || !m.recValid || m.recSequence != prev.sequence || next.sequence != prev.sequence + 1 ||
       (next.flags & refuse) || !(next.flags & RE4_GX_CHUNK_XFB) || next.version != RE4_GX_FRAME_VERSION ||
       m.viBlack || m.rec.empty())
@@ -3352,16 +4069,48 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
     tlut = m.tlut;
   // the noted draws by signature, in their order
   m.recBySig.clear();
-  for (std::uint32_t i = 0; i < m.rec.size(); i++)
+  m.recByLook.clear();
+  for (std::uint32_t i = 0; i < m.rec.size(); i++) {
     m.recBySig[m.rec[i].sig].push_back(i);
+    if (m.rec[i].look)
+      m.recByLook[m.rec[i].look].push_back(i);
+  }
   m.recUsed.assign(m.rec.size(), 0);
   m.ipDraws = m.ipMatched = m.ipTurned = 0;
+  m.camValid = false;
+  m.camGuesses = m.camVotes = 0;
   m.interpCopied.clear();
   m.interpUploads.clear();
+  // the store for the pass's blended vertices: the next quarter of the mapped ring once the GPU is
+  // through with it, else a fresh buffer (the last pass's may still be read by the GPU)
+  if (!m.blendRingTried)
+    m.BlendRingInit();
+  if (m.blendMap) {
+    m.blendPart = (m.blendPart + 1) % Impl::kBlendParts;
+    if (GLsync fence = m.blendFence[m.blendPart]) {
+      if (glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0) == GL_TIMEOUT_EXPIRED)
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000ull);
+      glDeleteSync(fence);
+      m.blendFence[m.blendPart] = nullptr;
+    }
+    m.blendUsed = m.blendPart * Impl::kBlendPart;
+    m.blendCap = m.blendUsed + Impl::kBlendPart;
+  } else {
+    if (!m.blendVbo)
+      glGenBuffers(1, &m.blendVbo);
+    m.blendCap = std::max<std::size_t>(next.vertexBytes, 65536);
+    glBindBuffer(GL_ARRAY_BUFFER, m.blendVbo);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m.blendCap), nullptr, GL_STREAM_DRAW);
+    m.blendUsed = 0;
+  }
+  m.blendAt = -1;
   m.interpPass = true;
   m.interpT = t;
   m.interpPrev = &prev;
   Run(next);
+  m.blendAt = -1;
+  if (m.blendMap)
+    m.blendFence[m.blendPart] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
   m.interpPass = false;
   m.interpPrev = nullptr;
   m.skipInterpUploads = true;
@@ -3410,7 +4159,7 @@ GLuint GxRenderer::Xfb(unsigned *width, unsigned *height) const {
     *width = impl_->xfbWidth;
   if (height)
     *height = impl_->xfbHeight;
-  return impl_->haveXfb ? impl_->xfbTex : 0;
+  return impl_->haveXfb ? impl_->ShownXfb() : 0;
 }
 
 bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows) {
@@ -3439,7 +4188,7 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
   else
     glUniform2f(m.presentRows, static_cast<float>(top) / lines, static_cast<float>(rows) / lines);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, m.xfbTex);
+  glBindTexture(GL_TEXTURE_2D, m.ShownXfb());
   glBindSampler(0, 0);
   glBindVertexArray(m.quadVao);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -3453,6 +4202,12 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
 GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
+void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
+void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
+void GxRenderer::SetShownRows(int top, int bottom) {
+  impl_->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
+  impl_->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);
+}
 
 int GxRenderer::Samples() const { return impl_->samples; }
 
@@ -3477,7 +4232,8 @@ void GxRenderer::Limits(int *maxSamples, float *maxAnisotropy) {
   }
 }
 
-int GxRenderer::Scale() const { return impl_->scale; }
+int GxRenderer::Scale() const { return impl_->halves / 2; }
+int GxRenderer::Halves() const { return impl_->halves; }
 
 const GxStats &GxRenderer::Stats() const { return impl_->stats; }
 
@@ -3648,9 +4404,15 @@ void GxRenderer::Release() {
   glDeleteRenderbuffers(2, renderbuffers);
   const GLuint buffers[] = {m.vbo, m.ibo, m.pxUbo};
   glDeleteBuffers(3, buffers);
+  if (m.blendVbo)
+    glDeleteBuffers(1, &m.blendVbo);
+  m.blendVbo = 0;
+  m.BlendRingRelease();
   glDeleteBuffers(kXfParts, m.xfUbo);
   m.StreamRelease();
   m.FenceRelease();
+  m.PeekRelease();
+  m.FxaaRelease();
   if (m.timerOn) {
     glDeleteQueries(Impl::TimerPool::kQueries, m.chunkTimer.query);
     glDeleteQueries(Impl::TimerPool::kQueries, m.presentTimer.query);

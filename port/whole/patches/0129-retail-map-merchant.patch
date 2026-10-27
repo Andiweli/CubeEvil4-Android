@@ -1,0 +1,70 @@
+# Retail data (port/docs/retail-eu-plan.md, R3): the merchant marks of the map with the European discs.
+# The European map layout (SS/<lang>/ss_map.dat sub-file 6, IDC_SSCRN_0) has an eighth merchant mark,
+# unit 0xB with its "H": the castle merchant after he moved (SCF_R204_MERCHANT_MOVE). The European
+# Sscrn.rel shows marks 0..7 (getMerchantMarkNo 7 -> 0xB, markMerchantDisp eight) and in area 2 hides mark
+# 2 once the merchant moved and mark 7 before (markMerchantPosition; its GLOBAL_WK has Scenario_flg 0xC
+# further on). This build never placed or hid unit 0xB: an "H" stood in the middle of the map and stayed
+# there while the map moved (device video, 27.10.2026). Nothing changes with the debug build's discs. A
+# port patch for retail data.
+--- a/src/Sscrn/ss_map.cpp
++++ b/src/Sscrn/ss_map.cpp
+@@ -750,6 +750,12 @@
+ 
+ // Merchant mark `no` of the area: stage 1 picks the parts by the stage flags, the others use the
+ // parts in order.
++/* port: the European map has an eighth merchant mark (ss_map.dat sub-file 6 unit 0xB with its "H"):
++   the castle merchant after he moved (SCF_R204_MERCHANT_MOVE). The European Sscrn.rel shows marks
++   0..7 (getMerchantMarkNo 7 -> 0xB) and in area 2 hides mark 2 once he moved, mark 7 before.
++   Unplaced, unit 0xB stood in the middle of the map (device video, 27.10.2026). */
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ int markMerchantPosition(SUB_SCREEN* wk, int no, Vec* pos)
+ {
+     int st1a[2] = {0x22, 0};
+@@ -804,6 +810,11 @@
+     } else {
+         cModel* mdl = m->pMerchant;
+ 
++        if (m->area == 2 && re4_disc_retail_eu()) {
++            if (ScfFlagChk(pG, SCF_R204_MERCHANT_MOVE) ? no == 2 : no == 7) {
++                return 0;
++            }
++        }
+         if (no < mdl->nParts) {
+             p = mdl->getPartsPtr(no);
+             *pos = p->pos;
+@@ -840,6 +851,9 @@
+     case 6:
+         id = 0xA;
+         break;
++    case 7:
++        id = 0xB; /* port: the European eighth mark */
++        break;
+     }
+     return id;
+ }
+@@ -848,20 +862,21 @@
+ void markMerchantDisp(SUB_SCREEN* wk, int sw)
+ {
+     ID_UNIT* u;
++    int marks = re4_disc_retail_eu() ? 8 : 7; /* port: the European eighth mark */
+ 
+     if (!sw) {
+         int i;
+ 
+-        for (i = 0; i < 7; i++) {
++        for (i = 0; i < marks; i++) {
+             u = IdSub.unitPtr(getMerchantMarkNo(i), IDC_SSCRN_0);
+             u->be_flag &= ~8;
+         }
+     } else {
+-        Vec pos[7];
++        Vec pos[8];
+         Vec scr;
+         int i;
+ 
+-        for (i = 0; i < 7; i++) {
++        for (i = 0; i < marks; i++) {
+             u = IdSub.unitPtr(getMerchantMarkNo(i), IDC_SSCRN_0);
+             if (markMerchantPosition(wk, i, &pos[i]) && mapPos2screenPos(&pos[i], &scr)) {
+                 u->pos0 = scr;

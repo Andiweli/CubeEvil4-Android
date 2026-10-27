@@ -43,6 +43,12 @@
 #              build folder whole-<target>-O2-san): AddressSanitizer stops at a
 #              bad memory access, UndefinedBehaviorSanitizer names undefined
 #              operations
+# --room-info FILE  the debug build's debug/roomInfo.dat, for a round of rooms with discs that lack
+#              it (the European ones): the debug start needs it for any room but r120 (patch 0119).
+#              The run reads a folder of links to the discs (WORK/disc-ri) that holds the file as
+#              well; the discs and the data folder stay as they are. The tour results are kept per
+#              release (rundgang-<target>[-eu].json) and a European tour is compared with the
+#              debug discs' one
 # --compare    the 32/64-bit comparison (milestone 12) instead of the normal steps: builds i686
 #              and x86_64, plays both with the same keys (start room as --room, default 120:
 #              the opening movie, the car ride, r100; 30000 frames unless --frames), records the
@@ -80,6 +86,7 @@ rooms=""
 tour_frames=6000
 tour_jobs=""
 tour_script="wander"
+room_info=""
 reload_weapon=""
 compare=0
 sanitize=0
@@ -105,6 +112,7 @@ while [ $# -gt 0 ]; do
     --tour-frames) tour_frames="$2"; shift 2 ;;
     --tour-jobs) tour_jobs="$2"; shift 2 ;;
     --tour-script) tour_script="$2"; shift 2 ;;
+    --room-info) room_info="$2"; shift 2 ;;
     --reload) reload_weapon="$2"; shift 2 ;;
     *) echo "unbekannte Angabe: $1" >&2; exit 2 ;;
     esac
@@ -234,7 +242,11 @@ else
     mapfile -t images < <(find "$data" -maxdepth 2 -type f \( -iname '*.iso' -o -iname '*.gcm' \) | sort)
     if [ ${#images[@]} -gt 0 ]; then
         layout="$work/disc"; kind="Disc-Abbilder: ${images[*]##*/}"
-        if ! python3 "$src/port/tools/whole_disc_folder.py" --check "$layout" > /dev/null 2>&1; then
+        # the folder must hold exactly these discs: a run with the debug discs and one with the
+        # European ones (port/docs/retail-eu-plan.md) share the work folder
+        checks=()
+        for i in "${images[@]}"; do checks+=(--disc "$i"); done
+        if ! python3 "$src/port/tools/whole_disc_folder.py" --check "$layout" "${checks[@]}" > /dev/null 2>&1; then
             echo "Disc-Abbilder werden einmalig nach $layout entpackt ..."
             args=()
             for i in "${images[@]}"; do args+=(--disc "$i"); done
@@ -251,7 +263,55 @@ if [ -z "$layout" ]; then
     say "FEHLER: In $data liegen weder entpackte Disc-Dateien (sys/, files/) noch Disc-Abbilder (.iso/.gcm)."
     exit 1
 fi
+# --room-info: a folder of links to the discs plus the debug build's debug/roomInfo.dat (the
+# European discs lack it; the debug start of the tour needs it), made again when its source changes.
+# The runtime finds a file through the disc's file table (sys/fst.bin), so each disc's copy of it
+# gets a folder "Debug" with "roomInfo.dat" appended to the root (disc offset 0: the port reads
+# the file from files/)
+if [ -n "$room_info" ] && [ -z "$(find "$layout"/disc*/files/Debug "$layout"/files/Debug -maxdepth 1 \
+        -iname roominfo.dat 2> /dev/null)" ]; then
+    if [ ! -f "$room_info" ] || [ ! -f "$layout/disc0/sys/fst.bin" ]; then
+        say "FEHLER: --room-info braucht die Datei ($room_info) und Discs in der Form disc0, disc1"
+        exit 1
+    fi
+    ri="$work/disc-ri"
+    ri_source="$(readlink -f "$layout") $(sha1sum < "$room_info" | cut -c1-40)"
+    if [ "$(cat "$ri/.source" 2> /dev/null)" != "$ri_source" ]; then
+        rm -rf "${ri:?}"
+        for d in "$layout"/disc*; do
+            n=${d##*/}
+            mkdir -p "$ri/$n/files/Debug" "$ri/$n/sys"
+            for e in "$d"/sys/*; do
+                [ "${e##*/}" = fst.bin ] || ln -s "$(readlink -f "$e")" "$ri/$n/sys/"
+            done
+            python3 - "$d/sys/fst.bin" "$ri/$n/sys/fst.bin" "$(stat -L -c %s "$room_info")" <<'PY'
+import struct, sys
+fst = bytearray(open(sys.argv[1], "rb").read())
+size = int(sys.argv[3])
+n = struct.unpack_from(">I", fst, 8)[0]
+entries, names = fst[:n * 12], fst[n * 12:]
+# the folder (parent: the root, next: past its one file) and the file, names at the end
+entries += struct.pack(">III", 1 << 24 | len(names), 0, n + 2)
+entries += struct.pack(">III", len(names) + 6, 0, size)
+names += b"Debug\0roomInfo.dat\0"
+struct.pack_into(">I", entries, 8, n + 2)
+open(sys.argv[2], "wb").write(entries + names)
+PY
+            for e in "$d"/files/*; do
+                case "${e##*/}" in [Dd][Ee][Bb][Uu][Gg]) continue ;; esac
+                ln -s "$(readlink -f "$e")" "$ri/$n/files/"
+            done
+            cp "$room_info" "$ri/$n/files/Debug/roomInfo.dat"
+        done
+        echo "$ri_source" > "$ri/.source"
+    fi
+    layout="$ri"; kind="$kind, dazu debug/roomInfo.dat für den Debug-Start ($room_info)"
+fi
 say "Form:    $kind"
+# which release the discs are (port/tools/disc_release.py, the same rule as runtime/dvd.cpp)
+release=$(python3 -c 'import os, sys; sys.path.insert(0, sys.argv[1]); from disc_release import release
+print(next((release(open(b, "rb").read(0x440)) for b in sys.argv[2:] if os.path.isfile(b)), ""))'     "$src/port/tools" "$layout"/disc0/sys/boot.bin "$layout"/sys/boot.bin 2>/dev/null)
+say "Version: ${release:-unbekannt} (debug = Debug-Build G4BE08, retail-eu = europäische Verkaufsversion G4BP08)"
 if [ "$game_ok" -eq 0 ]; then
     say "Hinweis: sys/boot.bin und sys/fst.bin fehlen; der Spiellauf braucht sie (Disc-Abbilder angeben oder"
     say "         mit Dolphin \"Gesamte Disc extrahieren\"). Der Formatvergleich läuft trotzdem."
@@ -1016,7 +1076,7 @@ run_movies() {
             else
                 rm -f "$run/film-$name.wav"
             fi
-        done < <(find "$layout/disc$disc/files" -iname '*.sfd' | sort)
+        done < <(find -L "$layout/disc$disc/files" -iname '*.sfd' | sort)
     done
     if [ "$n" -eq 0 ]; then
         say "Keine .sfd-Dateien gefunden."
@@ -1058,9 +1118,9 @@ run_card_game() {
     local name="$1" limit="$2" dir="$3" log="$run/$1.log"
     shift 3
     (cd "$dir" && exec env RE4_VI_FAST=1 RE4_MEMCARD="$card" RE4_PAD_UNTIL_ROOM=1 RE4_TEST_CARD_YES=1 "$@" \
-        ./re4_host --data "$layout") > "$log" 2>&1 &
+        "${CARD_RUNNER[@]}" ./re4_host --data "$layout") > "$log" 2>&1 &
     local pid=$! start=$SECONDS last_note=$SECONDS reason="" size last_size=-1 last_change=$SECONDS
-    local stall="${RE4_CHECK_CARD_STALL:-120}"
+    local stall=$((${RE4_CHECK_CARD_STALL:-120} * CARD_SLOW))
     while kill -0 "$pid" 2> /dev/null; do
         sleep 2
         size=$(stat -c %s "$log" 2> /dev/null || echo 0)
@@ -1117,7 +1177,12 @@ card_stop() {
 }
 run_memcard() {
     local dir="$src/port/build/whole-$host$bsuf" card="$run/speicherkarte-a.bin" bad=0 code
-    local limit="${RE4_CHECK_CARD_LIMIT:-900}"
+    # the ARM targets (--armhf, --aarch64) run under qemu-user, with longer limits (as the tour)
+    set_runner "$host"
+    CARD_RUNNER=("${RUNNER[@]}")
+    CARD_SLOW=1
+    [ ${#CARD_RUNNER[@]} -gt 0 ] && CARD_SLOW=${RE4_TOUR_SLOW:-8}
+    local limit=$((${RE4_CHECK_CARD_LIMIT:-900} * CARD_SLOW))
     section "7. Speicherkarte: Systemdatei anlegen, im Raum speichern, Neustart, im Titel laden"
     if [ ! -x "$dir/re4_host" ]; then
         say "FEHLER: $dir/re4_host fehlt (Build fehlgeschlagen?)"
@@ -1125,7 +1190,7 @@ run_memcard() {
         return
     fi
     rm -f "$card"
-    if ! (cd "$dir" && ./re4_host --memcard-format "$card") > "$run/karte-formatieren.log" 2>&1; then
+    if ! (cd "$dir" && "${CARD_RUNNER[@]}" ./re4_host --memcard-format "$card") > "$run/karte-formatieren.log" 2>&1; then
         say "FEHLER: die Karte ließ sich nicht formatieren (karte-formatieren.log)"
         tail -n 5 "$run/karte-formatieren.log" | sed 's/^/  /' | tee -a "$report"
         overall=1
@@ -1133,9 +1198,20 @@ run_memcard() {
     fi
     say "Karte: speicherkarte-a.bin (2 MB, formatiert, leer)"
     say "Lauf A: Systemdatei anlegen, neues Spiel in r100, dort speichern (Datei 1)"
+    # Discs without debug/roomInfo.dat (the European ones, patch 0119): no debug start in r100, the
+    # new game stays in r120, and saving there never leaves the file list (the debug discs alike,
+    # 26.10.2026). Leon is put at the door to r100 as in the game run, the save follows there.
+    local card_save="free+60,72,stop" card_place="" card_free="A@90-600/30 START@900-3000/120"
+    if [ -z "$(find "$layout"/disc0/files/Debug "$layout"/files/Debug -maxdepth 1 -iname roominfo.dat 2> /dev/null)" ]; then
+        # the keys of the game run take him through (B at free+300, the room changes at once)
+        card_save="free+700,72,stop"
+        card_place="free+1:-82910,860,-38480,1.75"
+        card_free="Z@30 B@300 A@760-1300/30 START@1600-3400/120"
+        say "  (ohne debug/roomInfo.dat: neues Spiel in r120, an der Tür nach r100 abgesetzt, dort gespeichert)"
+    fi
     run_card_game karte-speichern "$limit" "$dir" RE4_START_ROOM=0x100 RE4_ROOM_MENU=1 RE4_STOP_AT_FRAME=30000 \
-        RE4_PAD_SCRIPT="A@100-60000/60 START@130-60000/60" RE4_TEST_SAVE="free+60,72,stop" \
-        RE4_PAD_FREE_SCRIPT="A@90-600/30 START@900-3000/120"
+        RE4_PAD_SCRIPT="A@100-60000/60 START@130-60000/60" RE4_TEST_SAVE="$card_save" RE4_TEST_PLACE="$card_place" \
+        RE4_PAD_FREE_SCRIPT="$card_free"
     code=$?
     local made saved
     made=$(grep -c "card: boot check: making the system file" "$run/karte-speichern.log")
@@ -1357,10 +1433,27 @@ run_tour() {
     # the results of each build stay in the work folder, room by room (a tour of a few rooms
     # replaces only those); a tour of another target is compared with the i686 results (same keys,
     # so the same rooms should give the same result)
-    python3 "$src/port/tools/room_tour_report.py" --merge "$json" "$work/rundgang-$host$bsuf.json"
-    local ref="$work/rundgang-i686$opt.json"
+    # (per release: the European discs' results in rundgang-<target>-eu.json, compared with the
+    # debug discs' of the same target: the game's messages that only one release gives as well)
+    local rel_suffix="" cheats=""
+    [ "$release" = retail-eu ] && rel_suffix="-eu"
+    # a tour with the cheats of the app's menu (RE4_CHEATS=<bits>, runtime/cheats.cpp) keeps its
+    # results apart as well (-cheatsN) and is compared with the tour without them
+    [ "${RE4_CHEATS:-0}" != 0 ] && cheats="-cheats$RE4_CHEATS"
+    python3 "$src/port/tools/room_tour_report.py" --merge "$json" "$work/rundgang-$host$bsuf$rel_suffix$cheats.json"
+    local ref="$work/rundgang-i686$opt$rel_suffix$cheats.json"
     if [ "$host$bsuf" != "i686$opt" ] && [ -f "$ref" ]; then
         python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "i686,$host$bsuf" |
+            tee -a "$report"
+    fi
+    ref="$work/rundgang-$host$bsuf$cheats.json"
+    if [ -n "$rel_suffix" ] && [ -f "$ref" ]; then
+        python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "debug,eu" --messages |
+            tee -a "$report"
+    fi
+    ref="$work/rundgang-$host$bsuf$rel_suffix.json"
+    if [ -n "$cheats" ] && [ -f "$ref" ]; then
+        python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "ohne,cheats" |
             tee -a "$report"
     fi
     if [ -s "$run/rundgang-einzelheiten.txt" ]; then

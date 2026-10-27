@@ -98,13 +98,20 @@ struct Core {
     void (*gxNotify)(void (*)(void));
     void (*vsync)(int64_t);
     int (*pause)(int, int);
+    int (*instant)(int, Re4InstantInfo*);
     void (*debugMenu)(void);
     void (*setDof)(int);
     void (*setLetterbox)(int);
+    void (*setFastCores)(int);
+    void (*restartGame)(int);
+    const char* (*discProblem)(void);
+    void (*setCheats)(int);
+    int (*cheatAction)(int);
     void (*touch)(float, float);
     void (*swipe)(int);
     void (*slash)(float);
     void (*gyro)(float, float);
+    void (*depthSource)(const unsigned*, const unsigned*);
     int (*cardList)(Re4CardFile*, int);
     int (*cardFree)(void);
     int (*cardName)(int, char*, int);
@@ -710,10 +717,17 @@ bool loadCore(std::string& problem)
     bind(core.debugMenu, "re4_core_debug_menu");
     bind(core.setDof, "re4_core_set_dof");
     bind(core.setLetterbox, "re4_core_set_letterbox");
+    bind(core.setFastCores, "re4_core_set_fast_cores");
+    bind(core.restartGame, "re4_core_restart_game");
+    bind(core.discProblem, "re4_core_disc_problem");
+    bind(core.setCheats, "re4_core_set_cheats");
+    bind(core.cheatAction, "re4_core_cheat_action");
     bind(core.touch, "re4_core_touch");
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
     bind(core.gyro, "re4_core_gyro");
+    bind(core.depthSource, "re4_core_gx_depth_source", false);
+    bind(core.instant, "re4_core_instant");
     bind(core.cardList, "re4_core_card_list");
     bind(core.cardFree, "re4_core_card_free_blocks");
     bind(core.cardName, "re4_core_card_file_name");
@@ -802,6 +816,12 @@ void serve()
         case kPause:
             reply(h.id, core.pause(h.a, h.b), "");
             break;
+        case kInstant: {
+            Re4InstantInfo info = {};
+            const int result = core.instant(h.a, &info);
+            reply(h.id, result, "", &info, sizeof(info));
+            break;
+        }
         case kDebugMenu:
             core.debugMenu();
             break;
@@ -810,6 +830,21 @@ void serve()
             break;
         case kSetLetterbox:
             core.setLetterbox(h.a);
+            break;
+        case kSetFastCores:
+            core.setFastCores(h.a);
+            break;
+        case kRestartGame:
+            core.restartGame(h.a);
+            break;
+        case kDiscProblem:
+            reply(h.id, 0, core.discProblem());
+            break;
+        case kSetCheats:
+            core.setCheats(h.a);
+            break;
+        case kCheatAction:
+            reply(h.id, core.cheatAction(h.a), "");
             break;
         case kSwipe:
             core.swipe(h.a);
@@ -999,6 +1034,11 @@ int main(int argc, char** argv)
     }
     controlInit(gControl, (uint32_t) getpid());
     gControl->check = gCheck ? 1 : 0;
+    // the game's GXPeekZ reads the depth map the app's renderer writes into the shared memory
+    if (core.depthSource) {
+        core.depthSource((const unsigned*) ((char*) gControl + gControl->depthOffset),
+                         (const unsigned*) &gControl->depthSerial);
+    }
     installCrashHandler();
     say("ready (pid %d, MEM1 placeholder %s, libre4_main.so loaded%s)", (int) getpid(), placeholder,
         gCheck ? ", checks on" : "");

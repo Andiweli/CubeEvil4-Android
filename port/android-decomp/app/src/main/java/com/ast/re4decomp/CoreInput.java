@@ -36,6 +36,14 @@ import java.util.Map;
  * (the trigger past half way, with the alternate controls L1 and L2) holds it fully until the next
  * press, a press of B holds B (Leon keeps running). The touch controls latch their own buttons
  * (CoreTouch).
+ *
+ * Free keys (the menu's "Controller configuration", proposal of the project owner, 27.10.2026): A, B,
+ * L2, R2, START, SELECT and the D-pad keep their functions (the game's prompts and dialogs name A, B,
+ * L and R, its menus move with the D-pad); X, Y, L1, R1, L3 and R3 can each take any function or none
+ * (MOVABLE, a key map; default X = X, Y = Y, R1 = Z, the others none). L and R on such a key press
+ * the trigger fully. The map applies while the alternate controls are off (they keep their layout).
+ * Two first versions moved every function, also in the game's prompts and menus, or only added
+ * functions to L1, L3, R3 (device tests 27.10.2026).
  */
 public final class CoreInput {
   // GameCube pad bits (PAD_BUTTON_*)
@@ -44,6 +52,12 @@ public final class CoreInput {
       GC_Y = 0x0800, GC_START = 0x1000;
   // what a key does for the app instead of the game
   public static final int APP_NONE = 0, APP_MENU = 1, APP_GX_DUMP = 2;
+  // the functions a free key can take, in the order of the configuration's list
+  public static final int F_A = 0, F_B = 1, F_X = 2, F_Y = 3, F_Z = 4, F_L = 5, F_R = 6, F_START = 7,
+      F_UP = 8, F_DOWN = 9, F_LEFT = 10, F_RIGHT = 11, F_MENU = 12, FUNCTIONS = 13, F_NONE = -1;
+  /** The GameCube button of each function (F_MENU: none, the app's). */
+  static final int[] FUNCTION_BITS = {GC_A, GC_B, GC_X, GC_Y, GC_Z, GC_L, GC_R, GC_START, GC_UP, GC_DOWN,
+      GC_LEFT, GC_RIGHT, 0};
 
   // android.view.KeyEvent key codes
   static final int KEYCODE_DPAD_UP = 19, KEYCODE_DPAD_DOWN = 20, KEYCODE_DPAD_LEFT = 21,
@@ -53,6 +67,72 @@ public final class CoreInput {
       KEYCODE_BUTTON_THUMBL = 106, KEYCODE_BUTTON_THUMBR = 107, KEYCODE_BUTTON_START = 108,
       KEYCODE_BUTTON_SELECT = 109;
 
+  /** The keys of the key map, in the order of the configuration's page. */
+  public static final int[] MOVABLE = {KEYCODE_BUTTON_X, KEYCODE_BUTTON_Y, KEYCODE_BUTTON_L1, KEYCODE_BUTTON_R1,
+      KEYCODE_BUTTON_THUMBL, KEYCODE_BUTTON_THUMBR};
+
+  /** The function of each MOVABLE key in the layout above: X, Y, Z (R1), none. */
+  public static int[] defaultKeyMap() {
+    return new int[] {F_X, F_Y, F_NONE, F_Z, F_NONE, F_NONE};
+  }
+
+  /** The place of `keyCode` in MOVABLE, -1 for a fixed key. */
+  public static int movable(int keyCode) {
+    for (int i = 0; i < MOVABLE.length; i++) if (MOVABLE[i] == keyCode) return i;
+    return -1;
+  }
+
+  /** A key map as kept in the preferences ("2,3,-1,4,-1,-1"); null for the default. */
+  public static String encode(int[] map) {
+    if (map == null || java.util.Arrays.equals(map, defaultKeyMap())) return null;
+    StringBuilder s = new StringBuilder();
+    for (int i = 0; i < map.length; i++) s.append(i == 0 ? "" : ",").append(map[i]);
+    return s.toString();
+  }
+
+  /** The preferences' text back; null when there is none, it is the default or not MOVABLE functions. */
+  public static int[] decode(String text) {
+    if (text == null || text.isEmpty()) return null;
+    String[] parts = text.split(",");
+    if (parts.length != MOVABLE.length) return null;
+    int[] m = new int[MOVABLE.length];
+    try {
+      for (int i = 0; i < m.length; i++) m[i] = Integer.parseInt(parts[i].trim());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+    for (int f : m) if (f < F_NONE || f >= FUNCTIONS) return null;
+    return java.util.Arrays.equals(m, defaultKeyMap()) ? null : m;
+  }
+
+  /**
+   * `function` (or F_NONE) on free key `key` (its place in MOVABLE). X, Y and Z live on the free keys
+   * alone: when another free key had the chosen one of them, it takes the key's old function (they
+   * swap). Returns the new map.
+   */
+  public static int[] assign(int[] map, int key, int function) {
+    int[] m = (map == null ? defaultKeyMap() : map).clone();
+    int old = m[key];
+    if (function == F_X || function == F_Y || function == F_Z) {
+      for (int i = 0; i < m.length; i++) if (i != key && m[i] == function) m[i] = old;
+    }
+    m[key] = function;
+    return m;
+  }
+
+  /** Of X, Y and Z (the functions only the free keys have) those on no key of `map`. */
+  public static int[] missing(int[] map) {
+    int[] m = map == null ? defaultKeyMap() : map;
+    int[] out = new int[3];
+    int n = 0;
+    for (int f : new int[] {F_X, F_Y, F_Z}) {
+      boolean found = false;
+      for (int g : m) found |= g == f;
+      if (!found) out[n++] = f;
+    }
+    return java.util.Arrays.copyOf(out, n);
+  }
+
   /**
    * Deflection of a genuine controller at its gate in raw units: main stick
    * about 101, C stick about 92 (averages over real controllers, 0.794 and
@@ -60,10 +140,15 @@ public final class CoreInput {
    * GameCube.
    */
   static final float MAIN_RAW = 101f, C_RAW = 92f;
-  /** Where an analog trigger also presses the digital L/R (the click of a GameCube trigger). */
-  static final float TRIGGER_CLICK = 0.85f;
-  /** Alternate controls: where R2 presses A (fire). */
-  static final float FIRE_PRESS = 0.5f;
+  /**
+   * Where an analog trigger also presses the digital L/R (the click of a GameCube trigger), and
+   * where it lets go again: a trigger held near the click that jitters across it gave a press after
+   * every jitter, and the core gives a new press a frame without the button (pad.cpp, every tap
+   * counts since 26.10.2026): the weapon went down for a frame.
+   */
+  static final float TRIGGER_CLICK = 0.85f, TRIGGER_UNCLICK = 0.70f;
+  /** Alternate controls: where R2 presses A (fire), and where it lets go (the same reason). */
+  static final float FIRE_PRESS = 0.5f, FIRE_RELEASE = 0.35f;
   /** A trigger value the game takes as pressed (PADClamp: past 30 of 255). */
   static final int TRIGGER_PRESSED = 31;
   /** Latching: a trigger past this counts as a press, below LATCH_RELEASE as let go again. */
@@ -74,6 +159,8 @@ public final class CoreInput {
     int buttons;            // GameCube bits held through keys
     boolean l2Key, r2Key;   // L2/R2 as keys (triggers without an axis)
     boolean l1Key;          // L1 (the alternate controls' knife)
+    int mapButtons;         // GameCube bits held through the key map (B, L, R: below)
+    boolean mapL, mapR, mapB;
     int hats;               // D-pad from the hat axes
     float lx, ly, rx, ry;   // sticks -1..1, y down as Android reports it
     float lt, rt;           // analog triggers 0..1
@@ -84,6 +171,25 @@ public final class CoreInput {
   private boolean latchLR, latchB;               // the menu's switches
   private boolean latchedL, latchedR, latchedB;  // held by the controller's latching
   private boolean pressedL, pressedR, pressedB;  // the controller's L, R, B at the last pad()
+  private boolean clickL, clickR, fire;          // the triggers' digital L/R and fire at the last pad()
+  private int[] keyMap;                          // the free keys' functions, null: the layout above
+
+  /** The key map (a function or F_NONE for each MOVABLE key); null or the default: the layout above. */
+  public void setKeyMap(int[] map) {
+    clear();
+    keyMap = map == null || map.length != MOVABLE.length || java.util.Arrays.equals(map, defaultKeyMap())
+        ? null : map.clone();
+  }
+
+  /** The key map in use, null without. */
+  public int[] keyMap() { return keyMap == null ? null : keyMap.clone(); }
+
+  /** The function of a free key with the key map (F_NONE: none), or -2 when the map does not decide it. */
+  private int mapped(int keyCode) {
+    if (keyMap == null || alternate) return -2;
+    int i = movable(keyCode);
+    return i < 0 ? -2 : keyMap[i];
+  }
 
   /** The menu's "Latch L and R" and "Latch B" for the controller (see above). */
   public void setLatch(boolean lr, boolean b) {
@@ -118,6 +224,8 @@ public final class CoreInput {
    * R2, with the alternate controls L1 and L2, the one they drive).
    */
   public int gcButton(int keyCode) {
+    int f = mapped(keyCode);
+    if (f != -2) return f < 0 ? 0 : FUNCTION_BITS[f];
     int label = keyCode;
     if (swapFace) {
       switch (keyCode) {
@@ -155,6 +263,14 @@ public final class CoreInput {
     }
   }
 
+  /** What a key does for the app, with the key map (the menu on a free key; R3 with a function: none). */
+  public int appFunctionOf(int keyCode) {
+    int f = mapped(keyCode);
+    if (f == -2) return appFunction(keyCode);
+    if (f == F_MENU) return APP_MENU;
+    return f == F_NONE && keyCode == KEYCODE_BUTTON_THUMBR ? APP_GX_DUMP : APP_NONE;
+  }
+
   /**
    * Keys the game controller takes without a function (L1 but with the
    * alternate controls, L3): consumed so Android does not act on them.
@@ -175,6 +291,15 @@ public final class CoreInput {
   /** A key of `device` went down or up; false when it is no game button. */
   public boolean key(int device, int keyCode, boolean down) {
     Device d = device(device);
+    int f = mapped(keyCode);
+    if (f != -2) {
+      if (f == F_NONE || f == F_MENU) return false;  // nothing, or the app's (appFunctionOf)
+      if (f == F_L) d.mapL = down;
+      else if (f == F_R) d.mapR = down;
+      else if (f == F_B) d.mapB = down;
+      else d.mapButtons = down ? d.mapButtons | FUNCTION_BITS[f] : d.mapButtons & ~FUNCTION_BITS[f];
+      return true;
+    }
     if (keyCode == KEYCODE_BUTTON_L1) {
       d.l1Key = down;
       return alternate;
@@ -263,7 +388,9 @@ public final class CoreInput {
       float l2 = d.l2Key ? 1f : d.lt, r2 = d.r2Key ? 1f : d.rt;
       padL = Math.max(padL, alternate ? (d.l1Key ? 1f : 0f) : l2);
       padR = Math.max(padR, alternate ? l2 : r2);
-      padB |= (d.buttons & GC_B) != 0;
+      if (d.mapL) padL = 1f;
+      if (d.mapR) padR = 1f;
+      padB |= (d.buttons & GC_B) != 0 || d.mapB;
     }
     if (latchLR) {
       boolean downL = padL >= (pressedL ? LATCH_RELEASE : LATCH_PRESS);
@@ -285,11 +412,11 @@ public final class CoreInput {
     boolean aiming = alternate
         && (Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
     int buttons = padB ? GC_B : 0;
-    float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR;
+    float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
     for (Map.Entry<Integer, Device> e : devices.entrySet()) {
       Device d = e.getValue();
       boolean touch = e.getKey() == TOUCH;
-      buttons |= (touch ? d.buttons : d.buttons & ~GC_B) | d.hats;
+      buttons |= (touch ? d.buttons : d.buttons & ~GC_B) | d.hats | d.mapButtons;
       float mainX = d.lx, mainY = d.ly, cX = d.rx, cY = d.ry;
       if (aiming && !touch) {
         mainX = d.rx;
@@ -308,15 +435,19 @@ public final class CoreInput {
       if (touch) {
         lt = Math.max(lt, l2);
         rt = Math.max(rt, r2);
-      } else if (alternate && r2 >= FIRE_PRESS) {
+      } else if (alternate) {
         // (L1 = L and L2 = R above) R2 = A
-        buttons |= GC_A;
+        fireR2 = Math.max(fireR2, r2);
       }
     }
+    fire = alternate && fireR2 >= (fire ? FIRE_RELEASE : FIRE_PRESS);
+    if (fire) buttons |= GC_A;
     // the triggers' digital L/R: only at the end stop, the game reads the analog
     // value (PadRead: any value past the dead zone counts as L/R)
-    if (lt >= TRIGGER_CLICK) buttons |= GC_L;
-    if (rt >= TRIGGER_CLICK) buttons |= GC_R;
+    clickL = lt >= (clickL ? TRIGGER_UNCLICK : TRIGGER_CLICK);
+    clickR = rt >= (clickR ? TRIGGER_UNCLICK : TRIGGER_CLICK);
+    if (clickL) buttons |= GC_L;
+    if (clickR) buttons |= GC_R;
     return new int[] {buttons, raw(lx, MAIN_RAW), raw(-ly, MAIN_RAW), raw(rx, C_RAW),
         raw(-ry, C_RAW), Math.round(lt * 255f), Math.round(rt * 255f)};
   }

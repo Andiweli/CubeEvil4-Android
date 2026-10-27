@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -35,6 +36,12 @@ struct GxStats {
   unsigned textureCopies = 0;    // EFB copies to a texture
   unsigned displayCopies = 0;    // EFB copies to the XFB
   unsigned heldCopies = 0;       // of them not shown: the VI kept the picture before (RE4_GX_CHUNK_HOLD)
+  unsigned skippedChunks = 0;    // chunks run without drawing (Frame skip): state and textures only
+  unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
+  unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
+  unsigned depthDelivered = 0;   // of them handed to the core
+  unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
+  unsigned limitedCopies = 0;    // texture copies that repeat the last drawn row below the picture (letterbox)
   unsigned resets = 0;
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
   unsigned missingTextures = 0;  // bound keys the renderer did not have
@@ -120,11 +127,19 @@ public:
   // Creates the GL objects (a GLES 3.0 context is current). `scale`: EFB
   // resolution multiple (1 = the GameCube's 640x528).
   bool Init(int scale, std::string *error);
+  // The same in halves of the GameCube's resolution (2: 1x, 3: 1.5x ... 8: 4x).
+  bool InitHalves(int halves, std::string *error);
   // Between two Runs: the EFB at another scale (the app menu's Auto follows the GPU). The EFB,
   // its MSAA buffers, the autofocus's buffers, the display copy and every EFB copy anew at the new
   // size (the copies and the display copy drawn over, scaled); programs, textures and the GX state
   // stay. The EFB starts cleared, as after a display copy.
   void Rescale(int scale);
+  void RescaleHalves(int halves);
+  // Another renderer replaces this one (new picture options, the same GL context): this one's EFB
+  // copies go over to `to` (after its Init), at `to`'s scale. The game copies some pictures once (a
+  // room's start) and reads them on: a new renderer without them drew those textures white until
+  // the next room (Retroid 26.10.2026: 306 missing after three changes of the resolution in r223).
+  void HandOverCopies(GxRenderer &to);
   // Before Init: the picture options (default: none).
   void SetOptions(const GxOptions &options);
   // After Init: the multisampling and the filtering in use.
@@ -141,6 +156,39 @@ public:
   static void Limits(int *maxSamples, float *maxAnisotropy);
   // Runs one chunk (in sequence order).
   void Run(const Re4GxChunk &chunk);
+  // The depth of the picture for the game's GXPeekZ (the glow of a torch or the merchant's fire hides
+  // itself behind a wall by reading the depth at points around it; Dolphin, a GameCube: hidden; before
+  // 26.10.2026 the port answered "far" and the glow shone through walls). The core marks the chunk
+  // that peeks (BP 0x5B); at that chunk's display copy the depth of the picture goes, at half the
+  // resolution (kDepthWidth x kDepthHeight cells, row 0 = the EFB's row 0, GX's 24-bit values), to the
+  // sink: a frame later, once the GPU is through (a fence, no stall), with the marker's value (the
+  // core's number of the picture, by which it judges the map's age). The sink runs on the thread that
+  // calls Run. None: no snapshots.
+  static constexpr int kDepthWidth = 320, kDepthHeight = 264;
+  using DepthSink = std::function<void(const std::uint32_t *cells, std::uint32_t serial)>;
+  void SetDepthSink(DepthSink sink);
+  // FXAA (the app menu, 26.10.2026): while on, every display copy goes through one more pass, an edge
+  // smoothing of the finished picture (FXAA 3.x, luma edges, a few taps) into a texture of its own, and
+  // Xfb() and Present show that. Works with or without MSAA and at any resolution; takes effect with
+  // the next display copy. Costs one pass over the XFB per picture (the in-between pictures too).
+  void SetFxaa(bool on);
+  // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
+  // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
+  // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:
+  // black waves at the bottom of the intro and under water). Default: all rows. Any thread.
+  void SetShownRows(int top, int bottom);
+  // Frame skip (the app menu, 26.10.2026). The renderer is behind when the core has finished two
+  // chunks: `a` need not be drawn when `b` (the next one) is drawn at once. Skip runs `a` without its
+  // draws and its display copy: the register and texture state the game builds on (BP, XF, palettes,
+  // texture uploads and bindings) is applied, vertices are not uploaded, nothing is drawn, the EFB is
+  // cleared as the display copy would. The game itself is not slowed down: the chunk is taken out of
+  // the queue and the next one drawn in the same refresh.
+  // CanSkip: false when `a` starts over, is held or black, marked, ends without a display copy, or
+  // makes an EFB copy for a texture that `b` could still read (unless `b` copies to the same place
+  // before its first draw: then `a`'s copy is never seen). With the in-between pictures on
+  // (SetRecording) a skipped chunk gets none: Interpolate refuses until the next real Run.
+  bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const;
+  void Skip(const Re4GxChunk &a);
   // 60 FPS (experimental, decision of the project owner 22.10.2026): on, every Run notes how each
   // of its draws was drawn (the position and normal matrices, the projection) for Interpolate.
   void SetRecording(bool on);
@@ -160,7 +208,8 @@ public:
   bool Present(int x, int y, int w, int h, unsigned top = 0, unsigned rows = 0);
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
-  int Scale() const;
+  int Scale() const;   // whole multiples (1.5x: 1)
+  int Halves() const;  // in halves (1.5x: 3)
   const GxStats &Stats() const;
   // True when draws use glDrawElementsBaseVertex (one attribute setup per layout).
   bool BaseVertex() const;

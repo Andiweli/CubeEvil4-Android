@@ -5,7 +5,7 @@
      left-to-right mark &#x200E; keeps "1280 × 672" and ".gci" in their order. The FPS display
      stays left to right (CoreActivity). tools/check_translations.py checks all three. -->
 <resources>
-    <string name="ingame_title">خيارات CubeEvil4</string>
+    <string name="ingame_title">‏قائمة CubeEvil4 داخل اللعبة</string>
     <string name="ingame_hint">&#x200F;SELECT (ضغطة قصيرة) = هذه القائمة  ·  SELECT (ضغطة مطوّلة) = قائمة التصحيح في اللعبة</string>
     <string name="ingame_back">العودة إلى اللعبة</string>
 
@@ -23,8 +23,12 @@
     <string name="ingame_dof">عمق الميدان</string>
     <string name="ingame_fps_display">عرض FPS أسفل اليسار</string>
     <string name="ingame_smooth60">60 إطارًا في الثانية (تجريبي)</string>
-    <string name="ingame_resolution_line">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$d) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. المستويات الأعلى تتطلب أداءً أعلى.</string>
-    <string name="ingame_resolution_line_auto">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$d، ديناميكي) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. يخفض الوضع الديناميكي المستوى درجة ما دام معالج الرسوميات لا يواكب.</string>
+    <string name="ingame_force_performance">فرض الأداء</string>
+    <string name="ingame_perf_default">افتراضي</string>
+    <string name="ingame_perf_cores">استخدام أنوية الأداء</string>
+    <string name="ingame_perf_help">أنوية الأداء: تعمل اللعبة والرسومات على أسرع أنوية الجهاز وتطلب من Android ترددات أعلى. أكثر سلاسة على كثير من الأجهزة، لكنها تحتاج إلى قدرة معالج أكبر ويصبح الجهاز أكثر حرارة. افتراضي: يقرر Android.</string>
+    <string name="ingame_resolution_line">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$s) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. المستويات الأعلى تتطلب أداءً أعلى.</string>
+    <string name="ingame_resolution_line_auto">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$s، ديناميكي) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. يخفض الوضع الديناميكي المستوى درجة ما دام معالج الرسوميات لا يواكب.</string>
 
     <string name="ingame_controls">التحكم</string>
     <string name="ingame_touch_controls">التحكم باللمس</string>
@@ -39,6 +43,8 @@
     <string name="ingame_latch">تثبيت L و R</string>
     <string name="ingame_latch_b">تثبيت B</string>
     <string name="ingame_gyro_sensitivity">حساسية الجيروسكوب</string>
+    <string name="ingame_gyro_invert_v">عكس الاتجاه الرأسي</string>
+    <string name="ingame_gyro_invert_h">عكس الاتجاه الأفقي</string>
     <string name="ingame_alternate_help">التحكم البديل: L1 = السكين، L2 = التصويب (بالعصا اليمنى)، R1 = الحقيبة (الأسلحة/العلاج)، R2 = إطلاق النار / استخدام السكين، Y = الخريطة. A و B و X (آشلي) و START كما كانت.</string>
     <string name="ingame_knife_swipe">السكين بالسحب</string>
     <string name="ingame_knife_swipe_help">السكين بالسحب: سحبة سريعة على الصورة تُخرج السكين وتضرب؛ اسحب للأعلى أو للأسفل للضرب عاليًا أو منخفضًا.</string>
@@ -99,4 +105,95 @@
     <string name="ingame_report_chooser">إرسال تقرير الأخطاء</string>
     <string name="ingame_report_failed">تعذّر إنشاء التقرير: %1$s</string>
     <string name="ingame_capture_saved">تم حفظ لقطة الرسومات</string>
+
+    <!-- Five-page button menu and the app-owned instant slot (gui-optimisations). -->
+    <string name="ingame_return">‏رجوع</string>
+    <string name="ingame_on">‏تشغيل</string>
+    <string name="ingame_display">‏العرض</string>
+    <string name="ingame_controls_page">‏التحكم</string>
+    <string name="ingame_performance">‏الأداء</string>
+    <string name="ingame_management">‏الإدارة</string>
+    <string name="ingame_navigation">‏لوحة الاتجاهات: تنقّل  ·  A: اختيار  ·  B: رجوع  ·  SELECT / START: العودة للعبة</string>
+    <string name="ingame_instant">‏حفظ فوري</string>
+    <string name="ingame_slot">‏خانة الحفظ</string>
+    <string name="ingame_slot_details">‏الفصل %1$s  ·  %2$s  ·  وقت اللعب %3$s</string>
+    <string name="ingame_slot_date">‏آخر حفظ: %1$s</string>
+    <string name="ingame_settings">‏الإعدادات والإدارة</string>
+    <string name="ingame_display_summary">‏الدقة وأبعاد الصورة والمؤثرات</string>
+    <string name="ingame_controls_summary">‏اللمس والجيروسكوب وخيارات الراحة</string>
+    <string name="ingame_performance_summary">‏أنوية الأداء و60 FPS وعرض الإطارات</string>
+    <string name="ingame_management_summary">‏الغش وبطاقة الذاكرة والتقارير والمصدر</string>
+    <string name="ingame_output">‏إخراج الصورة</string>
+    <string name="ingame_smooth_help">‏إطارات وسيطة إضافية. يظل منطق اللعبة عند 30 إطارًا في الثانية.</string>
+    <string name="ingame_instant_save">‏حفظ</string>
+    <string name="ingame_instant_load">‏تحميل</string>
+    <string name="ingame_instant_checking">‏جارٍ فحص خانة الحفظ…</string>
+    <string name="ingame_instant_working">‏يرجى الانتظار…</string>
+    <string name="ingame_instant_ready">‏جاهز.</string>
+    <string name="ingame_instant_empty">‏لا يوجد حفظ فوري بعد.</string>
+    <string name="ingame_instant_unavailable">‏غير متاح أثناء التحميل أو الأحداث أو في هذه الحالة. أغلق القائمة وحاول مجددًا أثناء اللعب.</string>
+    <string name="ingame_instant_no_save">‏لا يمكن الحفظ هنا (قارب أو سلّم أو قتال زعيم أو وضع المرتزقة أو حالة مشابهة). لا يزال بإمكانك التحميل.</string>
+    <string name="ingame_instant_unsupported">‏حدّث نواة اللعبة لاستخدام الحفظ الفوري.</string>
+    <string name="ingame_instant_damaged">‏الحفظ الفوري تالف أو غير متوافق. يمكنك استبداله بحفظ جديد.</string>
+    <string name="ingame_instant_failed">‏تعذرت قراءة الحفظ الفوري أو كتابته.</string>
+    <string name="ingame_instant_saved">‏تم الحفظ الفوري.</string>
+    <string name="ingame_instant_overwrite_title">‏استبدال الحفظ الفوري؟</string>
+    <string name="ingame_instant_load_title">‏تحميل الحفظ الفوري؟</string>
+    <string name="ingame_instant_overwrite">‏هل تريد استبدال الحفظ الفوري السابق بتقدمك الحالي؟</string>
+    <string name="ingame_instant_load_warning">‏سيُفقد التقدم غير المحفوظ. هل تريد تحميل الحفظ الفوري؟</string>
+    <string name="ingame_toggle_value">&#x200F;%1$s   ·   %2$s</string>
+    <string name="ingame_frame_skip">‏تخطي الإطارات</string>
+    <string name="ingame_fxaa">‏FXAA</string>
+    <string name="ingame_fxaa_help">‏يُنعّم الحواف المسنّنة في خطوة أخيرة. يعمل مع MSAA أو بدونه؛ تصبح الصورة أنعم قليلًا.</string>
+    <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
+    <string name="ingame_skip_or_smooth">‏تخطي الإطارات و60 إطارًا في الثانية لا يعملان معًا: تشغيل أحدهما يوقف الآخر.</string>
+    <string name="ingame_game_language">لغة اللعبة</string>
+    <string name="ingame_language_device">لغة الجهاز</string>
+    <string name="ingame_language_help">لغة نصوص اللعبة وترجماتها. لغة الجهاز: لغة الجهاز إذا كانت اللعبة تدعمها، وإلا فالإنجليزية. يؤدي التغيير إلى إعادة تشغيل اللعبة.</string>
+    <string name="ingame_language_restart_title">إعادة تشغيل اللعبة؟</string>
+    <string name="ingame_language_restart_text">تُطبَّق اللغة الجديدة بعد إعادة تشغيل اللعبة. يضيع التقدم منذ آخر حفظ.</string>
+    <string name="ingame_restart">إعادة التشغيل</string>
+    <string name="ingame_cancel">إلغاء</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">تعذّرت قراءة ملف من القرص</string>
+    <string name="ingame_disc_image">توقفت اللعبة عند %1$s (القرص %2$d): في صورة القرص التي استوردتها يختلف هذا الملف عن القرص الأصلي، لذا فالصورة تالفة. انسخ القرص %2$d من جديد (أو استخدم نسخة سليمة أخرى) واستورده مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
+    <string name="ingame_disc_device">توقفت اللعبة عند %1$s (القرص %2$d): نسخة هذا الملف على هذا الجهاز تالفة (تغيّرت بعد الاستيراد). استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
+    <string name="ingame_disc_read">توقفت اللعبة عند %1$s (القرص %2$d): الملف سليم، لكن قراءته فشلت. أرسل تقرير الأخطاء من فضلك، ثم شغّل اللعبة من جديد.</string>
+    <string name="ingame_disc_unknown">توقفت اللعبة عند %1$s (القرص %2$d): الملف على هذا الجهاز تالف أو مفقود. استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
+    <string name="ingame_cheats">الغش</string>
+    <string name="ingame_cheat_health">صحة لا نهائية</string>
+    <string name="ingame_cheat_ammo">ذخيرة لا نهائية</string>
+    <string name="ingame_cheat_onehit">القتل بضربة واحدة</string>
+    <string name="ingame_cheat_killer7">‏Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">الحقيبة L</string>
+    <string name="ingame_cheat_money">‏+1,000,000 PTAS</string>
+    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا يحفظها ملف الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). تغيّر الأزرار لعبتك: يبقى السلاح والحقيبة والمال في الحفظ التالي.</string>
+    <string name="ingame_cheat_done">تم: %1$s.</string>
+    <string name="ingame_cheat_already">موجود بالفعل: %1$s.</string>
+    <string name="ingame_cheat_raised">‏Killer7 موجود بالفعل: أصبح الآن في أعلى المستويات.</string>
+    <string name="ingame_cheat_not_now">ليس الآن: فقط أثناء لعب ليون، وليس في الحقيبة أو الخريطة أو مقطع فيديو.</string>
+    <string name="ingame_cheat_no_room">لا توجد مساحة في الحقيبة.</string>
+    <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
+    <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
+    <string name="ingame_controller_config">إعدادات وحدة التحكم</string>
+    <string name="ingame_controller_config_help">إعدادات وحدة التحكم: اختر وظيفة الأزرار الحرة في وحدة التحكم (X و Y و L1 و R1 و L3 و R3). فقط عند توصيل وحدة تحكم.</string>
+    <string name="ingame_controller_default">التوزيع الافتراضي</string>
+    <string name="ingame_controller_help">اختر زرًا ثم وظيفته. إذا كانت آشلي أو الحقيبة أو الخريطة على زر آخر يتبادلان. يمكن أن تكون الوظيفة على عدة أزرار أيضًا.</string>
+    <string name="ingame_controller_alternate_note">التحكم البديل مفعّل: يحتفظ بتوزيعه الخاص؛ يُطبَّق هذا التوزيع عند إيقافه.</string>
+    <string name="ingame_fn_action">إجراء / إطلاق النار (A)</string>
+    <string name="ingame_fn_run">الجري / إلغاء (B)</string>
+    <string name="ingame_fn_ashley">آشلي: انتظري / اتبعيني (X)</string>
+    <string name="ingame_fn_inventory">الحقيبة (Y)</string>
+    <string name="ingame_fn_map">الخريطة (Z)</string>
+    <string name="ingame_fn_knife">السكين (L)</string>
+    <string name="ingame_fn_aim">التصويب (R)</string>
+    <string name="ingame_fn_start">الخيارات / تخطي (START)</string>
+    <string name="ingame_fn_up">أزرار الاتجاه لأعلى</string>
+    <string name="ingame_fn_down">أزرار الاتجاه لأسفل</string>
+    <string name="ingame_fn_left">أزرار الاتجاه لليسار</string>
+    <string name="ingame_fn_right">أزرار الاتجاه لليمين</string>
+    <string name="ingame_fn_menu">قائمة التطبيق (SELECT)</string>
+    <string name="ingame_controller_fixed">ثابتة: A و B و L2 و R2 و START و SELECT وأزرار الاتجاه تحتفظ بوظائفها (تستخدمها تلميحات اللعبة وقوائمها).</string>
+    <string name="ingame_controller_missing">ليست على أي زر: %1$s</string>
+    <string name="ingame_fn_none">بلا وظيفة</string>
 </resources>

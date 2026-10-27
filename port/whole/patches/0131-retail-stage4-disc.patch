@@ -1,0 +1,32 @@
+# Retail data (port/docs/retail-eu-plan.md, R5): the European discs hold the stage 4 rooms' program
+# rel/st4_0.rel (r400..r411, among them the Mercenaries rooms) on disc 2 alone, the debug build's discs
+# on both. This build's gameStageInit changes to disc 2 for stage 3 only, so a stage 4 room entered
+# with disc 1 inserted ended in "RelDataReadError! rel/st4_0.rel" (room tour 27.10.2026, 18 rooms).
+# The European gameStageInit (main.dol 0x80118a28) changes to disc 2 for stage 3 and 4; with the
+# European discs stage 4 does as well. Nothing changes with the debug build's discs. A port patch for
+# retail data.
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -289,6 +289,8 @@
+ // choice at r120 on a new game (unlocked extras), swaps to the disc of the stage (disc 2 from stage
+ // 3 on, except r22c), saves the game (GameSave.save) when allowed and starts the room load
+ // (StageSet); Rno0 = 2.
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ void gameStageInit()
+ {
+     pLog->warn(1, 0, "-- R%03x ----------", pG->room_id);
+@@ -336,6 +338,13 @@
+             break;
+         case 3:
+             if (Dvd.GetDiscNo() == 0) {
++                Dvd.DiscChange(1);
++            }
++            break;
++        case 4:
++            /* port: the European discs hold the stage 4 rooms' program (rel/st4_0.rel) on disc 2
++               alone; their gameStageInit (main.dol 0x80118a28) changes to disc 2 for stage 3 and 4 */
++            if (re4_disc_retail_eu() && Dvd.GetDiscNo() == 0) {
+                 Dvd.DiscChange(1);
+             }
+             break;

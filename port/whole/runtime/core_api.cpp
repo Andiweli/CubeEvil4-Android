@@ -9,10 +9,12 @@
 // other's work and a reader never sees a half-written frame.
 #include "re4_card_files.h"
 #include "re4_core.h"
+#include "re4_instant.h"
 #include "re4_gx_frame_io.h"
 #include "re4_runtime.h"
 
 #include <dlfcn.h>
+#include <strings.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -26,6 +28,11 @@ extern "C" unsigned re4_pad_rumble(void);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));
 extern "C" int re4_log_tail(char* out, int size);
 extern "C" void re4_state_trace_reconfigure(void);
+// runtime/cheats.cpp
+extern "C" void re4_cheats_set(int bits);
+extern "C" int re4_cheats_wanted(void);
+extern "C" int re4_cheat_queue(int what);
+extern "C" int re4_cheat_perform(int what);
 // the card library's control blocks (src/lib/__card.h, CARDControl): the
 // first word of slot A's says whether the library has the card mounted
 extern "C" char __CARDBlock[];
@@ -57,6 +64,12 @@ void setMessage(const char* text)
 pthread_mutex_t gPauseLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t gPauseCond = PTHREAD_COND_INITIALIZER;
 bool gPauseWanted, gPaused;
+int gInstantPending = -1, gInstantResult;
+bool gInstantBusy, gInstantDone;
+Re4InstantInfo gInstantInfo;
+// a cheat button while the menu holds the game (runtime/cheats.cpp)
+int gCheatPending, gCheatResult;
+bool gCheatDone;
 // SELECT held in the app: the debug menu (patch 0061, re4_debug_menu_request)
 volatile int gDebugMenuWanted;
 
@@ -64,12 +77,33 @@ void pausePoint()
 {
     pthread_mutex_lock(&gPauseLock);
     if (gPauseWanted) {
+        re4_instant_game_pause(1);
         gPaused = true;
         pthread_cond_broadcast(&gPauseCond);
         re4_log("core: paused (the app's menu)");
-        while (gPauseWanted) {
-            pthread_cond_wait(&gPauseCond, &gPauseLock);
+        while (gPauseWanted || gInstantPending >= 0 || gCheatPending) {
+            if (gCheatPending) {
+                const int what = gCheatPending;
+                pthread_mutex_unlock(&gPauseLock);
+                const int result = re4_cheat_perform(what);
+                pthread_mutex_lock(&gPauseLock);
+                gCheatResult = result;
+                gCheatPending = 0;
+                gCheatDone = true;
+                pthread_cond_broadcast(&gPauseCond);
+            } else if (gInstantPending >= 0) {
+                const int operation = gInstantPending;
+                // Only this thread can touch game objects, including while the menu is paused.
+                pthread_mutex_unlock(&gPauseLock);
+                const int result = re4_instant_perform(operation, &gInstantInfo);
+                pthread_mutex_lock(&gPauseLock);
+                gInstantResult = result;
+                gInstantPending = -1;
+                gInstantDone = true;
+                pthread_cond_broadcast(&gPauseCond);
+            } else pthread_cond_wait(&gPauseCond, &gPauseLock);
         }
+        re4_instant_game_pause(0);
         gPaused = false;
         re4_log("core: running again");
     }
@@ -416,6 +450,7 @@ int re4_core_reserve(const char* dataDir, const char* moduleDir)
         pthread_mutex_unlock(&gLock);
         return 0;
     }
+    re4_module_window_reserve();  // 32 bit on Android: the room modules go above 0x80000000
     // The game tells its own data from offsets by bit 31 of the address
     // (re4_check_game_address aborts; here the app shows the reason instead).
     Dl_info info;
@@ -605,8 +640,64 @@ int re4_core_pause(int on, int waitMs)
     return paused;
 }
 
+int re4_core_instant(int operation, Re4InstantInfo* info)
+{
+    if (!info || operation < RE4_INSTANT_STATUS || operation > RE4_INSTANT_LOAD) return RE4_INSTANT_BAD;
+    memset(info, 0, sizeof(*info));
+    pthread_mutex_lock(&gPauseLock);
+    int attached;
+    memcpy(&attached, __CARDBlock, sizeof(attached));
+    if (!gPaused || !gPauseWanted || gInstantBusy || attached) {
+        pthread_mutex_unlock(&gPauseLock);
+        return RE4_INSTANT_BUSY;
+    }
+    gInstantBusy = true;
+    gInstantDone = false;
+    gInstantPending = operation;
+    pthread_cond_broadcast(&gPauseCond);
+    while (!gInstantDone) pthread_cond_wait(&gPauseCond, &gPauseLock);
+    *info = gInstantInfo;
+    const int result = gInstantResult;
+    gInstantBusy = false;
+    pthread_mutex_unlock(&gPauseLock);
+    return result;
+}
+
+// The cheat menu (port/docs/cheat-menu-plan.md): the switches every game frame, a button right away
+// while the menu holds the game (the answer shows in the menu), else by the next game frame.
+void re4_core_set_cheats(int bits)
+{
+    if (re4_cheats_wanted() != (bits & 7)) {
+        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill)", bits & 7);
+    }
+    re4_cheats_set(bits);
+}
+
+int re4_core_cheat_action(int what)
+{
+    if (what < 1 || what > 3) return 0;
+    pthread_mutex_lock(&gPauseLock);
+    if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {
+        pthread_mutex_unlock(&gPauseLock);
+        re4_log("core: cheat button %d for the next game frame", what);
+        return re4_cheat_queue(what);
+    }
+    gCheatDone = false;
+    gCheatPending = what;
+    pthread_cond_broadcast(&gPauseCond);
+    while (!gCheatDone) pthread_cond_wait(&gPauseCond, &gPauseLock);
+    const int result = gCheatResult;
+    pthread_mutex_unlock(&gPauseLock);
+    return result;
+}
+
 void re4_core_debug_menu(void)
 {
+    // the European discs: no debug menu (port/docs/retail-eu-plan.md, decision 2; R6)
+    if (re4_disc_retail_eu()) {
+        re4_log("core: debug menu asked for (SELECT held), none with the European discs");
+        return;
+    }
     gDebugMenuWanted = 1;
     re4_log("core: debug menu asked for (SELECT held)");
 }
@@ -643,9 +734,68 @@ void re4_core_set_letterbox(int off)
     gLetterboxOff = off != 0;
 }
 
+extern "C" void re4_gx_set_fast_cores(int on);
+
+void re4_core_set_fast_cores(int on)
+{
+    static int told = -1;
+    if (told != (on != 0)) {
+        re4_log("core: Force Performance %s", on ? "on (use performance cores)" : "off (default: Android decides)");
+    }
+    told = on != 0;
+    re4_gx_set_fast_cores(on);
+}
+
+void re4_core_gx_depth(const unsigned* cells, unsigned serial)
+{
+    re4_gx_depth_put(cells, serial);
+}
+
+void re4_core_gx_depth_source(const unsigned* cells, const unsigned* serial)
+{
+    re4_gx_depth_source(cells, serial);
+}
+
 int re4_letterbox_off(void)
 {
     return gLetterboxOff;
+}
+
+// The language of the European discs (re4_core.h, runtime/game_language.cpp): the app's choice,
+// at first from RE4_GAME_LANGUAGE (eng/ger/fra/esp/ita or 2..6); -1 none (English).
+volatile int gLanguageWanted = -100;  // -100: not read yet
+
+static int parseLanguage(const char* v)
+{
+    static const char* const names[] = {"eng", "ger", "fra", "esp", "ita"};
+    if (!v || !*v) {
+        return -1;
+    }
+    for (int i = 0; i < 5; i++) {
+        if (strcasecmp(v, names[i]) == 0) {
+            return i + 2;
+        }
+    }
+    int n = atoi(v);
+    return n >= 2 && n <= 6 ? n : -1;
+}
+
+void re4_game_restart(void);  // runtime/game_language.cpp
+
+void re4_core_restart_game(int language)
+{
+    int value = language >= 2 && language <= 6 ? language : -1;
+    re4_log("core: restart with game language %d asked by the app (European discs: 2 English .. 6 Italian)", value);
+    gLanguageWanted = value;
+    re4_game_restart();
+}
+
+int re4_core_language_wanted(void)
+{
+    if (gLanguageWanted == -100) {
+        gLanguageWanted = parseLanguage(getenv("RE4_GAME_LANGUAGE"));
+    }
+    return gLanguageWanted;
 }
 
 // patch 0061 (src/game/game.cpp gameDebug), every game frame

@@ -2,19 +2,20 @@
 
 Wunsch des Projektinhabers (22.10.2026): Jede Sitzung schickt nach Änderungen, die in die App
 gehören, diese Befehle mit. Ordner: Repository `E:\Development\Android\RE4-Fixed`, Branch
-`claude/re4-start-controls`.
+`beta-updates` (Arbeitsbranch seit 26.10.2026, Entscheidung des Projektinhabers; vorher
+`claude/adoring-pasteur-h5s2fw`, davor `gui-optimisations` und `beta-optimisations`, alle darin enthalten).
 
 ## 1. Stand von GitHub holen (PowerShell)
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
 git status
-git pull --no-rebase origin claude/re4-start-controls
+git pull --no-rebase origin beta-updates
 ```
 
 - `git status` zeigt geänderte Dateien (`modified: …`)? Dann arbeitet gerade ein anderer Chat in
   diesem Ordner. Ihn bitten, seine Änderungen zu committen, mit `git pull --no-rebase origin
-  claude/re4-start-controls` zu mischen und zu pushen; danach `git pull` hier noch einmal.
+  beta-updates` zu mischen und zu pushen; danach `git pull` hier noch einmal.
   Unversionierte Dateien (`Untracked files: AGENTS.md, core/, …/src/core/assets/`) stören nicht.
 - Steht beim `git pull` **CONFLICT** in der Ausgabe: nicht weitermachen, die Ausgabe an den Chat
   schicken.
@@ -39,23 +40,16 @@ In Android Studio wie gewohnt bauen (Variante „core“) und auf den Retroid in
 verbundenen Retroid). Laufen gerade Gerätetests eines Chats über ADB, erst danach installieren
 (`port/docs/adb-coordination.md`).
 
-## Anderer Branch (z. B. `performance`)
+## Wechsel auf `beta-updates` (einmal)
 
-Arbeitet ein Chat auf einem anderen Branch (seit 23.10.2026 `performance`: Grafik auf mehreren
-Kernen, kleinere Uniform-Uploads), in Schritt 1 einmal auf diesen Branch wechseln und dann von dort
-holen; Schritt 2 und 3 bleiben gleich (der Kern-Build nimmt den Stand, der im Ordner ausgecheckt
-ist):
+Wer noch auf `claude/adoring-pasteur-h5s2fw`, `beta-optimisations`, `gui-optimisations`,
+`claude/re4-start-controls` oder `performance` steht (alle sind in `beta-updates` enthalten; die alten
+Branches gibt es auf GitHub nicht mehr, ein `git pull` darauf schlägt fehl):
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
 git status
-git fetch origin performance
-git switch performance
-git pull --no-rebase origin performance
+git fetch origin beta-updates
+git switch beta-updates
+git pull --no-rebase origin beta-updates
 ```
-
-Zurück zum bisherigen Stand: `git switch claude/re4-start-controls`.
-
-Seit 0.45.1 (23.10.2026) steckt `performance` wieder vollständig in `claude/re4-start-controls`. Wer noch
-auf `performance` steht, wechselt mit `git switch claude/re4-start-controls` zurück und holt dann
-wie in Schritt 1.

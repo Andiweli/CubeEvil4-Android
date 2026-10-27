@@ -529,6 +529,361 @@ void TestCopyAndPalette(re4gx::GxRenderer &r, bool viaXfb = false) {
   Check(Near(pixel(420, 320), 0, 255, 0), "paletted texture: C8 through an RGB565 palette");
 }
 
+// The game draws only the letterbox rows (56..391) and copies rows 56..447 at half size for water and
+// heat haze; the rows below the picture must repeat the last drawn row, not read black (dark waves
+// at the bottom edge). The copy is read back through a texture quad (bottom of the quad = last copy row).
+void TestLetterboxCopy(re4gx::GxRenderer &r, bool viaXfb, bool letterbox) {
+  Builder b;
+  Baseline(b);
+  DisplayCopy(b, true, kBlack);
+  if (letterbox) {
+    b.Bp(0x20, (342u << 12) | (342 + 56));
+    b.Bp(0x21, ((342u + 639) << 12) | (342 + 391));
+  }
+  Quad(b, 0, letterbox ? 56 : 0, 640, letterbox ? 392 : 528, 0, kRed);
+  b.Bp(0x20, 342u << 12 | 342);
+  b.Bp(0x21, ((342u + 639) << 12) | (342 + 527));
+  const unsigned before = r.Stats().limitedCopies;
+  b.Bp(0x49, 0 | 56u << 10);
+  b.Bp(0x4A, 511 | 391u << 10);
+  b.Bp(0x4D, 32);
+  b.Bp(0x4B, 0x400000 >> 5);
+  b.Bp(0x52, 6u << 4 | 2u << 15 | 1u << 9); // RGBA8 to a texture, half size: 256 x 196
+  b.Bp(0x4A, 639 | 527u << 10);
+  b.Bp(0x00, 1u | 1u << 4);
+  b.Xf(0x103F, {1});
+  b.Xf(0x1040, {5u << 7});
+  b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  b.Bp(0x88, 255 | 195 << 10 | 6u << 20);
+  b.Bp(0x30, 255);
+  b.Bp(0x31, 195);
+  b.Texture(0, 0x400000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x400000, 256, 196, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 300, 0, kWhite, 0, 0);
+  VT(v, 256, 300, 0, kWhite, 1, 0);
+  VT(v, 256, 496, 0, kWhite, 1, 1);
+  VT(v, 0, 496, 0, kWhite, 0, 1);
+  b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  if (viaXfb) {
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+  }
+  r.Run(b.Chunk());
+  auto pixel = [&](int x, int y) { return viaXfb ? TexPixel(r.Xfb(nullptr, nullptr), x, y) : EfbPixel(r, x, y); };
+  const char *how = letterbox ? "letterbox copy" : "full picture copy";
+  // copy row 20 (quad row 320): drawn in both; copy row 190 (quad row 490): below the letterbox picture
+  Check(Near(pixel(128, 320), 255, 0, 0), (std::string(how) + ": the drawn rows are copied").c_str());
+  Check(Near(pixel(128, 490), 255, 0, 0),
+        (std::string(how) + ": rows below the drawn picture repeat the last drawn row, not black").c_str());
+  Check((r.Stats().limitedCopies - before == 1) == letterbox,
+        (std::string(how) + ": the row limit is used only for a letterbox picture").c_str());
+}
+
+// The shimmer of the logos at the start (IdShimmerTrans): the whole picture (rows 0..447) copied at
+// half size and read whole, while a movie fills only rows 56..391 under a full scissor (no letterbox
+// scissor: the rule above does not see the bars). In the 16:9 formats the app shows rows 56..391
+// (SetShownRows): the copy repeats the shown edge rows, so a distortion near the edge reads picture,
+// not the black bars (black waves at the bottom of the intro, 0.91.0 test of 26.10.2026). All rows
+// shown (4:3): as on the GameCube, the bars stay black in the copy.
+void TestShownRowsCopy(re4gx::GxRenderer &r, bool viaXfb, bool crop) {
+  r.SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
+  Builder b;
+  Baseline(b);
+  DisplayCopy(b, true, kBlack);
+  Quad(b, 0, 56, 640, 392, 0, kRed);
+  const unsigned before = r.Stats().limitedCopies;
+  b.Bp(0x49, 0);
+  b.Bp(0x4A, 511 | 447u << 10);
+  b.Bp(0x4D, 32);
+  b.Bp(0x4B, 0x480000 >> 5);
+  b.Bp(0x52, 6u << 4 | 2u << 15 | 1u << 9); // RGBA8 to a texture, half size: 256 x 224
+  b.Bp(0x4A, 639 | 527u << 10);
+  b.Bp(0x00, 1u | 1u << 4);
+  b.Xf(0x103F, {1});
+  b.Xf(0x1040, {5u << 7});
+  b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  b.Bp(0x88, 255 | 223 << 10 | 6u << 20);
+  b.Bp(0x30, 255);
+  b.Bp(0x31, 223);
+  b.Texture(0, 0x480000ull | 2ull << 32, RE4_GX_TEX_COPY, 0x480000, 256, 224, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 300, 0, kWhite, 0, 0);
+  VT(v, 256, 300, 0, kWhite, 1, 0);
+  VT(v, 256, 524, 0, kWhite, 1, 1);
+  VT(v, 0, 524, 0, kWhite, 0, 1);
+  b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  if (viaXfb) {
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+  }
+  r.Run(b.Chunk());
+  auto EfbPixel = [&](re4gx::GxRenderer &rr, int x, int y) {
+    return viaXfb ? TexPixel(rr.Xfb(nullptr, nullptr), x, y) : ::EfbPixel(rr, x, y);
+  };
+  const char *how = crop ? "16:9 (rows 56..391 shown)" : "4:3 (all rows shown)";
+  // quad row 400: copy row 100 (EFB 200, drawn); 310: copy row 10 (EFB 20, above the movie);
+  // 500: copy row 200 (EFB 400, below it)
+  Check(Near(EfbPixel(r, 128, 400), 255, 0, 0), (std::string("whole copy, ") + how + ": the drawn rows are copied").c_str());
+  const bool topRed = Near(EfbPixel(r, 128, 310), 255, 0, 0), bottomRed = Near(EfbPixel(r, 128, 500), 255, 0, 0);
+  Check(topRed == crop, (std::string("whole copy, ") + how + (crop ? ": rows above the shown part repeat its top row" : ": rows above the movie stay black")).c_str());
+  Check(bottomRed == crop, (std::string("whole copy, ") + how + (crop ? ": rows below the shown part repeat its last row" : ": rows below the movie stay black")).c_str());
+  Check((r.Stats().limitedCopies - before == 1) == crop, (std::string("whole copy, ") + how + ": the row limit only while cropped").c_str());
+  r.SetShownRows(0, 1 << 16);
+}
+
+// New picture options make a new renderer (core_mode.cpp): the EFB copies of the renderer before go
+// over to it at its scale (HandOverCopies). A copy the game made once (a room's start) is read on
+// without a new copy: before 26.10.2026 it was missing (white) until the next room.
+void TestHandOverCopies() {
+  std::string error;
+  re4gx::GxRenderer a, b;
+  Require(a.Init(1, &error), error.c_str());
+  {
+    Builder c;
+    Baseline(c);
+    DisplayCopy(c, true, kBlack);
+    Quad(c, 0, 0, 640, 528, 0, kRed);
+    c.Bp(0x49, 0);
+    c.Bp(0x4A, 255 | 255u << 10);
+    c.Bp(0x4D, 16);
+    c.Bp(0x4B, 0x500000 >> 5);
+    c.Bp(0x52, 6u << 4 | 1u << 9); // RGBA8 to a texture, 256 x 256
+    DisplayCopy(c, false, kBlack);
+    a.Run(c.Chunk());
+  }
+  Require(b.Init(2, &error), error.c_str());
+  a.HandOverCopies(b);
+  a.Release();
+  Check(b.Stats().handedCopies == 1, "hand over: the copy goes to the new renderer");
+  Builder d;
+  Baseline(d);
+  DisplayCopy(d, true, kBlack);
+  d.Bp(0x00, 1u | 1u << 4);
+  d.Xf(0x103F, {1});
+  d.Xf(0x1040, {5u << 7});
+  d.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  d.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  d.Bp(0x88, 255 | 255 << 10 | 6u << 20);
+  d.Bp(0x30, 255);
+  d.Bp(0x31, 255);
+  d.Texture(0, 0x500000ull | 3ull << 32, RE4_GX_TEX_COPY, 0x500000, 256, 256, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 0, 0, kWhite, 0, 0);
+  VT(v, 256, 0, 0, kWhite, 1, 0);
+  VT(v, 256, 256, 0, kWhite, 1, 1);
+  VT(v, 0, 256, 0, kWhite, 0, 1);
+  d.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  d.Bp(0x49, 0);
+  d.Bp(0x4A, 639 | 527u << 10);
+  DisplayCopy(d, false, kBlack);
+  b.Run(d.Chunk());
+  Check(b.Stats().missingTextures == 0, "hand over: the copy is not missing in the new renderer");
+  Check(Near(TexPixel(b.Xfb(nullptr, nullptr), 100 * 2, 100 * 2), 255, 0, 0),
+        "hand over: the copy drawn at the new scale (red)");
+  Check(glGetError() == GL_NO_ERROR, "hand over: no GL error");
+  b.Release();
+}
+
+// The game's GXPeekZ (a torch's glow hides itself behind a wall by reading the depth around it): the
+// core marks the chunk with BP 0x5B; at its display copy the depth goes, half the resolution, to the
+// sink once the GPU is through (the next chunk). A quad at depth 0.5 on the left, cleared (far) elsewhere.
+void TestDepthMap(re4gx::GxRenderer &r, bool viaDeferred) {
+  (void) viaDeferred;
+  std::vector<std::uint32_t> got;
+  std::uint32_t serial = 0;
+  r.SetDepthSink([&](const std::uint32_t *cells, std::uint32_t s) {
+    got.assign(cells, cells + re4gx::GxRenderer::kDepthWidth * re4gx::GxRenderer::kDepthHeight);
+    serial = s;
+  });
+  const unsigned before = r.Stats().depthSnapshots;
+  {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 320, 528, -0.5f, kRed);
+    b.Bp(0x5B, 4242);  // the marker with the number of the picture
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  }
+  Check(r.Stats().depthSnapshots == before + 1, "depth map: the marked picture is taken");
+  for (int i = 0; i < 5 && got.empty(); i++) { // the next chunks hand it over once the GPU is through
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  }
+  Check(!got.empty() && serial == 4242, "depth map: delivered to the sink with the number of the picture that peeked");
+  if (!got.empty()) {
+    const std::uint32_t half = 8388607, far = 16777215;
+    const std::uint32_t left = got[60 * re4gx::GxRenderer::kDepthWidth + 50];
+    const std::uint32_t right = got[60 * re4gx::GxRenderer::kDepthWidth + 250];
+    Check(left + 64 >= half && left <= half + 64, "depth map: the quad's depth (about 0.5) at the cell");
+    Check(right == far, "depth map: cleared depth reads far (0xFFFFFF)");
+  }
+  // an unmarked picture takes none
+  const unsigned snapshots = r.Stats().depthSnapshots;
+  {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 320, 528, -0.5f, kRed);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  }
+  Check(r.Stats().depthSnapshots == snapshots, "depth map: a picture without the marker takes none");
+  r.SetDepthSink(nullptr);
+}
+
+// FXAA (the app menu's switch): the display copy goes through one more pass. A red triangle on blue has
+// a hard slanted edge; with FXAA the shown picture has in-between colours along it, flat areas and the
+// EFB stay as they are, and switched off the picture is the plain copy again.
+void TestFxaa(re4gx::GxRenderer &r) {
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    std::vector<std::uint8_t> v;
+    V(v, 200, 100, 0, kRed);
+    V(v, 300, 160, 0, kRed);
+    V(v, 200, 160, 0, kRed);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 3);
+    DisplayCopy(b, false, kBlue);
+    r.Run(b.Chunk());
+  };
+  auto between = [&](GLuint xfb) {
+    int n = 0;
+    const int f = r.Scale();
+    for (int x = 200; x < 300; x++) {
+      const int y = 100 + (x - 200) * 60 / 100; // on the edge
+      for (int dy = -1; dy <= 1; dy++) {
+        auto px = TexPixel(xfb, x * f, (y + dy) * f);
+        n += px[0] > 20 && px[0] < 235 && px[2] > 20 && px[2] < 235;
+      }
+    }
+    return n;
+  };
+  scene();
+  GLuint plain = r.Xfb(nullptr, nullptr);
+  const int hard = between(plain);
+  const unsigned before = r.Stats().fxaaPasses;
+  r.SetFxaa(true);
+  scene();
+  GLuint smooth = r.Xfb(nullptr, nullptr);
+  Check(r.Stats().fxaaPasses == before + 2, "FXAA: one pass per display copy (the scene has two)");
+  Check(smooth != plain && smooth != 0, "FXAA: the shown picture is the smoothed copy");
+  Check(between(smooth) > hard + 20, "FXAA: the slanted edge gets in-between colours");
+  Check(Near(TexPixel(smooth, 100 * r.Scale(), 300 * r.Scale()), 0, 0, 255), "FXAA: a flat area stays as it is");
+  Check(Near(TexPixel(smooth, 220 * r.Scale(), 155 * r.Scale()), 255, 0, 0), "FXAA: inside the shape stays red");
+  r.SetFxaa(false);
+  scene();
+  Check(r.Xfb(nullptr, nullptr) == plain, "FXAA: off, the plain display copy is shown again");
+}
+
+// Frame skip: a chunk that is not drawn (the renderer is behind and the next chunk is there). The state
+// it carries is applied, the EFB cleared as its display copy would, the shown picture stays; the rules
+// for when it may be skipped.
+void TestFrameSkip(re4gx::GxRenderer &r) {
+  // the picture before: red on the EFB, which stays (no clear)
+  {
+    Builder z;
+    Baseline(z);
+    Quad(z, 0, 0, 320, 264, 0, kRed);
+    DisplayCopy(z, false, kBlack);
+    r.Run(z.Chunk());
+  }
+  GLuint xfb = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfb, 100, 100), 255, 0, 0), "frame skip: the picture before is red");
+  Builder a, b;
+  a.flags = RE4_GX_CHUNK_XFB;
+  Quad(a, 0, 0, 640, 528, 0, kGreen);
+  DisplayCopy(a, true, kBlack);
+  b.flags = RE4_GX_CHUNK_XFB;
+  Quad(b, 400, 300, 500, 400, 0, kBlue);
+  DisplayCopy(b, true, kBlack);
+  Check(r.CanSkip(a.Chunk(), b.Chunk()), "frame skip: a plain chunk may be skipped");
+  const unsigned skipped = r.Stats().skippedChunks, shown = r.Stats().displayCopies;
+  r.Skip(a.Chunk());
+  Check(r.Stats().skippedChunks == skipped + 1 && r.Stats().displayCopies == shown, "frame skip: no display copy made");
+  Check(Near(TexPixel(r.Xfb(nullptr, nullptr), 100, 100), 255, 0, 0), "frame skip: the picture shown stays");
+  r.Run(b.Chunk());
+  xfb = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfb, 450, 350), 0, 0, 255), "frame skip: the next chunk draws as usual");
+  Check(Near(TexPixel(xfb, 600, 500), 0, 0, 0), "frame skip: the skipped chunk's draws are left out");
+  Check(Near(TexPixel(xfb, 100, 100), 0, 0, 0), "frame skip: the EFB was cleared (the red before is gone)");
+  // the rules
+  Builder reset;
+  Baseline(reset);
+  DisplayCopy(reset, true, kBlack);
+  Check(!r.CanSkip(reset.Chunk(), b.Chunk()), "frame skip: a chunk that starts over is not skipped");
+  Builder held;
+  held.flags = RE4_GX_CHUNK_XFB | RE4_GX_CHUNK_HOLD;
+  DisplayCopy(held, true, kBlack);
+  Check(!r.CanSkip(held.Chunk(), b.Chunk()), "frame skip: a held picture is not skipped");
+  Builder noCopy;
+  noCopy.flags = 0; // not a chunk that ends with a display copy
+  Quad(noCopy, 0, 0, 10, 10, 0, kRed);
+  Check(!r.CanSkip(noCopy.Chunk(), b.Chunk()), "frame skip: a chunk without a display copy is not skipped");
+  // an EFB copy for a texture in `a`
+  auto copyTo = [](Builder &c, unsigned dest) {
+    c.Bp(0x49, 0);
+    c.Bp(0x4A, 31 | 31u << 10);
+    c.Bp(0x4D, 32);
+    c.Bp(0x4B, dest >> 5);
+    c.Bp(0x52, 6u << 4 | 2u << 15);
+    c.Bp(0x4A, 639 | 527u << 10);
+  };
+  Builder withCopy;
+  withCopy.flags = RE4_GX_CHUNK_XFB;
+  copyTo(withCopy, 0x300000);
+  DisplayCopy(withCopy, true, kBlack);
+  Check(!r.CanSkip(withCopy.Chunk(), b.Chunk()), "frame skip: a texture copy the next chunk may read is not skipped");
+  Builder overwrites;
+  overwrites.flags = RE4_GX_CHUNK_XFB;
+  copyTo(overwrites, 0x300000);
+  Quad(overwrites, 0, 0, 10, 10, 0, kRed);
+  DisplayCopy(overwrites, true, kBlack);
+  Check(r.CanSkip(withCopy.Chunk(), overwrites.Chunk()), "frame skip: the next chunk copies there before it draws");
+  Builder readsFirst;
+  readsFirst.flags = RE4_GX_CHUNK_XFB;
+  readsFirst.Texture(0, 0x300000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x300000, 32, 32, 6, {});
+  copyTo(readsFirst, 0x300000);
+  DisplayCopy(readsFirst, true, kBlack);
+  Check(!r.CanSkip(withCopy.Chunk(), readsFirst.Chunk()), "frame skip: the next chunk reads the copy first");
+  // as in a room: the next chunk draws its scene (no map holds the copy) and copies afterwards (the
+  // shadows, the depth of field): skipped (until 26.10.2026 any draw before the copy refused it)
+  Builder drawsThenCopies;
+  drawsThenCopies.flags = RE4_GX_CHUNK_XFB;
+  Quad(drawsThenCopies, 0, 0, 10, 10, 0, kRed);
+  copyTo(drawsThenCopies, 0x300000);
+  DisplayCopy(drawsThenCopies, true, kBlack);
+  Check(r.CanSkip(withCopy.Chunk(), drawsThenCopies.Chunk()),
+        "frame skip: the next chunk draws without the copy, then copies there: skipped");
+  // `a` binds its copy to map 0 and draws with it; `b` draws with map 0 sampled (still the copy) first
+  Builder usesCopy;
+  usesCopy.flags = RE4_GX_CHUNK_XFB;
+  copyTo(usesCopy, 0x300000);
+  usesCopy.Texture(0, 0x300000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x300000, 32, 32, 6, {});
+  DisplayCopy(usesCopy, true, kBlack);
+  Builder samplesMap0;
+  samplesMap0.flags = RE4_GX_CHUNK_XFB;
+  samplesMap0.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);  // stage 0 samples map 0
+  Quad(samplesMap0, 0, 0, 10, 10, 0, kRed);
+  copyTo(samplesMap0, 0x300000);
+  DisplayCopy(samplesMap0, true, kBlack);
+  Check(!r.CanSkip(usesCopy.Chunk(), samplesMap0.Chunk()),
+        "frame skip: the next chunk samples a map that still holds the copy: not skipped");
+  Builder neverCopies;
+  neverCopies.flags = RE4_GX_CHUNK_XFB;
+  Quad(neverCopies, 0, 0, 10, 10, 0, kRed);
+  DisplayCopy(neverCopies, true, kBlack);
+  Check(!r.CanSkip(withCopy.Chunk(), neverCopies.Chunk()),
+        "frame skip: the next chunk does not copy there again (a later one may read it): not skipped");
+}
+
 // Auto in the app menu: the EFB scale changes between two Runs (GxRenderer::Rescale). At scale 2 a
 // red EFB copy is made and drawn as a texture; at scale 1 and then 3 a chunk draws with map 0 still
 // bound to that copy (no new texture load): the copy came along, scaled, and the display copy has
@@ -590,7 +945,43 @@ void TestRescale() {
     Check(Near(TexPixel(xfb, 320 * scale, 320 * scale), 255, 0, 0), (at + ": the copy still bound, scaled along").c_str());
     Check(Near(TexPixel(xfb, 100 * scale, 400 * scale), 0, 0, 255), (at + ": the clear colour elsewhere").c_str());
   }
-  Check(r.Stats().rescales == 2, "rescale: counted");
+  // the menu's in-between levels (1.5x, 2.5x: in halves 3, 5): the EFB 960 x 792 and 1600 x 1320
+  for (int halves : {3, 5}) {
+    r.RescaleHalves(halves);
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    textured(b, false);
+    r.Run(b.Chunk());
+    unsigned w = 0, h = 0;
+    const GLuint xfb = r.Xfb(&w, &h);
+    const std::string at = "rescale to " + std::to_string(halves) + " halves";
+    Check(r.Halves() == halves && r.Scale() == halves / 2, (at + ": the renderer's level").c_str());
+    Check(w == 640 && h == 528 &&
+              Near(TexPixel(xfb, static_cast<int>(w) * halves / 2 - 4, static_cast<int>(h) * halves / 2 - 4), 0, 0, 255),
+          (at + ": the display copy has the new size").c_str());
+    Check(Near(TexPixel(xfb, 320 * halves / 2, 320 * halves / 2), 255, 0, 0),
+          (at + ": the copy still bound, scaled along").c_str());
+    Check(Near(TexPixel(xfb, 100 * halves / 2, 400 * halves / 2), 0, 0, 255), (at + ": the clear colour elsewhere").c_str());
+  }
+  {
+    // at 1.5x a copy at an odd place and of an odd size (its texture Hi(w) pixels, the source read exactly)
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 640, 528, 0, kRed);
+    b.Bp(0x49, 33 | 17u << 10);
+    b.Bp(0x4A, 30 | 30u << 10);  // 31 x 31 at (33, 17)
+    b.Bp(0x4D, 32);
+    b.Bp(0x4B, 0x210000 >> 5);
+    b.Bp(0x52, 6u << 4 | 2u << 15);
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    Check(Near(TexPixel(r.Xfb(nullptr, nullptr), 480, 396), 255, 0, 0), "1.5x: an odd copy, the picture still drawn");
+  }
+  Check(r.Stats().rescales == 4, "rescale: counted");
   Check(glGetError() == GL_NO_ERROR, "rescale: no GL error");
   r.Release();
 }
@@ -602,15 +993,23 @@ struct AutoRun {
   double t = 0.0;
   unsigned long long sum = 0;
   unsigned checks = 0;
+  unsigned long long dropped = 0;  // 60 FPS: in-between pictures left out
+  double waited = 0.0;             // ms the render thread waited for the GPU in its Runs
   std::vector<std::string> lines;
-  void Play(double seconds, double rate, unsigned behind, bool mayChange = true) {
+  // `droppedEvery`: one in-between picture left out each so many chunks (0: none); `wait`: ms the
+  // render thread waits in each Run
+  void Play(double seconds, double rate, unsigned behind, bool mayChange = true, unsigned droppedEvery = 0,
+            double wait = 0.0) {
     const double end = t + seconds;
     while (t < end) {
       t += 1.0 / rate;
       sum += behind;
       checks++;
+      waited += wait;
+      if (droppedEvery && checks % droppedEvery == 0)
+        dropped++;
       std::string why;
-      a.Chunk(t, sum, checks, mayChange, &why);
+      a.Chunk(t, sum, checks, mayChange, &why, dropped, waited);
       if (!why.empty())
         lines.push_back(why);
     }
@@ -669,6 +1068,61 @@ void TestAutoLevel() {
     Check(r.a.Level() == 2, "auto level: one level down after two slow windows");
     r.Play(6.5, 20.0, 1);
     Check(r.a.Level() == 1, "auto level: down one level each two windows while the GPU stays behind");
+  }
+  {
+    // 60 FPS: the game keeps 30 pictures a second because the renderer leaves in-between pictures out
+    AutoRun r;
+    r.a.Start(2, 0.0);
+    r.Play(6.5, 30.0, 1, true, 2);
+    Check(r.a.Level() == 1 && r.a.Downs() == 1,
+          "auto level: 60 FPS, half the in-between pictures left out, the GPU behind: one level down");
+    Check(!r.lines.empty() && r.lines.back().find("% without their in-between picture") != std::string::npos,
+          "auto level: the share left out logged");
+    AutoRun idle;
+    idle.a.Start(2, 0.0);
+    idle.Play(20.0, 30.0, 0, true, 2);
+    Check(idle.a.Level() == 2, "auto level: 60 FPS, pictures left out with the GPU idle (the processor): stays");
+    AutoRun few;
+    few.a.Start(2, 0.0);
+    few.Play(6.5, 20.0, 1);
+    while (few.a.Ups() == 0 && few.t < 200.0)
+      few.Play(0.5, 30.0, 0, true, 5);
+    Check(few.a.Ups() == 0, "auto level: 60 FPS, not up again while a fifth of the in-between pictures is left out");
+    while (few.a.Ups() == 0 && few.t < 400.0)
+      few.Play(0.5, 30.0, 0);
+    Check(few.a.Ups() == 1, "auto level: 60 FPS, up again once (almost) none is left out");
+  }
+  {
+    // the render thread waits for the GPU inside the driver: no fence behind, the game still slow
+    // (Retroid 27.10.2026: the lake at level 2, 24 pictures a second, 35 ms waiting a chunk)
+    AutoRun r;
+    r.a.Start(2, 0.0);
+    r.Play(20.0, 30.0, 0, true, 0, 8.0);
+    Check(r.a.Level() == 2, "auto level: 30 pictures/s with the render thread waiting a little: stays");
+    r.Play(20.0, 25.0, 0, true, 0, 3.0);
+    Check(r.a.Level() == 2, "auto level: slow without waiting for the GPU (the processor): stays");
+    r.Play(6.5, 24.0, 0, true, 0, 30.0);
+    Check(r.a.Level() == 1 && r.a.Downs() == 1, "auto level: slow, the render thread waiting for the GPU: one level down");
+    Check(!r.lines.empty() && r.lines.back().find("waiting 30.0 ms") != std::string::npos,
+          "auto level: the waiting logged");
+    while (r.a.Ups() == 0 && r.t < 200.0)
+      r.Play(0.5, 30.0, 0, true, 0, 7.0);
+    Check(r.a.Ups() == 0, "auto level: not up again while the render thread still waits 7 ms a chunk");
+    while (r.a.Ups() == 0 && r.t < 400.0)
+      r.Play(0.5, 30.0, 0, true, 0, 2.0);
+    Check(r.a.Ups() == 1, "auto level: up again once it hardly waits");
+  }
+  {
+    // in halves (the app): from 2x (4) half a level at a time, never below 1x (2), named "1.5x"
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true);
+    r.Play(6.5, 20.0, 1);
+    Check(r.a.Level() == 3 && !r.lines.empty() && r.lines.back().find("level 2x -> 1.5x") != std::string::npos,
+          "auto level in halves: 2x -> 1.5x");
+    r.Play(6.5, 20.0, 1);
+    Check(r.a.Level() == 2, "auto level in halves: 1.5x -> 1x");
+    r.Play(10.0, 20.0, 1);
+    Check(r.a.Level() == 2, "auto level in halves: never below 1x");
   }
 }
 
@@ -1115,6 +1569,12 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
     Check(between > 20, "multisampled: the slanted edge is smoothed");
   }
   TestCopyAndPalette(r, true);  // EFB copy to a texture (resolved first), palette
+  TestLetterboxCopy(r, true, true);
+  TestShownRowsCopy(r, true, true);
+  TestShownRowsCopy(r, true, false);
+  TestDepthMap(r, true);
+  TestFxaa(r);
+  TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
   TestAutofocus(r, r.Samples() > 1);
   TestPassBreak(r, r.TiledMsaa() ? (lose ? "on the tiles, everything lost" : "on the tiles") : "multisampled");
@@ -1157,6 +1617,275 @@ std::vector<std::uint8_t> XfbPixels(re4gx::GxRenderer &r) {
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, xfb, 0);
   glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, px.data());
   return px;
+}
+
+// Particles (60 FPS, Retroid report 26.10.2026, r224: the smoke and fire flickered): quads of
+// the same look, each with a matrix of its own, 2500 units apart at 20000. From picture A to B the
+// camera moves 1500 units (the two room pieces show it, not the flying object before them), every
+// particle 500 units of its own; the
+// first one dies, a new one starts far to the left. The in-between picture places each particle
+// halfway along its own move (before: the second took the first's place; nearest without the
+// camera's move: the third's), the new one as in B.
+void ParticleScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f, depth = 20000.0f, camera = second ? 1500.0f : 0.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  // large draws of a look of their own (64 to 76 vertices) in a band at the top: first an object of
+  // two parts with one matrix that flies 5000 units (its parts agree with each other, but it is not
+  // the camera: the merchant's series, 26.10.2026), then the room, two pieces with matrices of their
+  // own that move with the camera
+  const std::uint8_t blue[4] = {0, 0, 255, 255}, red[4] = {255, 0, 0, 255};
+  auto piece = [&](unsigned quads, float y0, const std::uint8_t *c) {
+    std::vector<std::uint8_t> v;
+    for (unsigned q = 0; q < quads; q++) {
+      const float x0 = -8000.0f + 900.0f * static_cast<float>(q);
+      V(v, x0, y0, 0.0f, c);
+      V(v, x0 + 700.0f, y0, 0.0f, c);
+      V(v, x0 + 700.0f, y0 + 1500.0f, 0.0f, c);
+      V(v, x0, y0 + 1500.0f, 0.0f, c);
+    }
+    b.Draw(RE4_GX_V_COLOR0, 16, v, quads * 4, 0x80);
+  };
+  b.XfF(0, {1, 0, 0, second ? 5000.0f : 0.0f, 0, 1, 0, 0, 0, 0, 1, -30000.0f});
+  piece(16, 17000.0f, red);
+  piece(17, 15000.0f, red);
+  b.XfF(0, {1, 0, 0, camera - 4000.0f, 0, 1, 0, 0, 0, 0, 1, -30000.0f});
+  piece(18, 17000.0f, blue);
+  b.XfF(0, {1, 0, 0, camera + 4000.0f, 0, 1, 0, 0, 0, 0, 1, -32000.0f});
+  piece(19, 15000.0f, blue);
+  // the particles: a small quad each, placed by its matrix
+  auto particle = [&](float x) {
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -depth});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  };
+  for (int i = second ? 2 : 1; i <= 5; i++)
+    particle(-5000.0f + 2500.0f * static_cast<float>(i - 1) + (second ? camera + 500.0f : 0.0f));
+  if (second)
+    particle(-7000.0f);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationParticles() {
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  ParticleScene(ba, 1, false, &a);
+  ParticleScene(bb, 2, true, &b);
+  r.Run(a);
+  // screen x of a view-space x at 20000 (the viewport of Baseline: 320 + x / 20000 * 320)
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  const GLuint xfbA = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfbA, px(-5000.0f), 264), 0, 255, 0) && Near(TexPixel(xfbA, px(-2500.0f), 264), 0, 255, 0),
+        "particles: picture A (the first two particles)");
+  Check(r.Interpolate(a, b, 0.5f), "particles: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  // the second particle: A -2500, B -500; halfway -1500. Taking the first's place (A -5000) it
+  // would sit at -2750, taking the third's (A 0, nearest without the camera's move) at -250
+  const auto own = TexPixel(xfb, px(-1500.0f), 264), wrong = TexPixel(xfb, px(-2750.0f), 264),
+             third = TexPixel(xfb, px(-250.0f), 264);
+  Check(Near(own, 0, 255, 0) && Near(wrong, 0, 0, 0) && Near(third, 0, 0, 0),
+        "particles: each halfway along its own move");
+  // the new one: as in B (-7000); halfway to the dead first one's place it would be at -6000
+  const auto fresh = TexPixel(xfb, px(-7000.0f), 264), between = TexPixel(xfb, px(-6000.0f), 264);
+  Check(Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0), "particles: one that has just started stands where it is in B");
+  if (!Near(own, 0, 255, 0) || !Near(wrong, 0, 0, 0) || !Near(third, 0, 0, 0) || !Near(fresh, 0, 255, 0) ||
+      !Near(between, 0, 0, 0))
+    Print("own", own), Print("wrong", wrong), Print("third", third), Print("fresh", fresh), Print("between", between);
+  Check(glGetError() == GL_NO_ERROR, "particles: no GL error");
+  r.Release();
+}
+
+// Larger draws of the same look keep the game's order (Retroid report 26.10.2026: with fast turns
+// a long bar at the bottom of the picture; two alike parts of Leon had swapped places). Two draws of
+// 20 vertices at 3000 units: X moves from 0 to 300, Y from 400 to 700. X lies nearer to Y's place
+// before than to its own, but stays X: halfway at 150 and 550, not both at 350. And a particle's
+// material colour (its fade) goes halfway too: red in A, blue in B, purple between.
+void LooksScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  auto part = [&](float x) {
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -3000.0f});
+    std::vector<std::uint8_t> v;
+    for (int q = 0; q < 5; q++) {
+      const float y0 = -150.0f + 60.0f * static_cast<float>(q);
+      V(v, -60.0f, y0, 0.0f, kGreen);
+      V(v, 60.0f, y0, 0.0f, kGreen);
+      V(v, 60.0f, y0 + 60.0f, 0.0f, kGreen);
+      V(v, -60.0f, y0 + 60.0f, 0.0f, kGreen);
+    }
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 20, 0x80);
+  };
+  part(second ? 300.0f : 0.0f);
+  part(second ? 700.0f : 400.0f);
+  // the particle: colour from the material register (XF 0x100C), not from its vertices
+  b.Xf(0x100E, {0});
+  b.Xf(0x1010, {0});
+  b.Xf(0x100C, {second ? 0x0000C8FFu : 0xC80000FFu});
+  b.XfF(0, {1, 0, 0, -1200.0f, 0, 1, 0, 0, 0, 0, 1, -3000.0f});
+  std::vector<std::uint8_t> v;
+  V(v, -100.0f, -100.0f, 0.0f, kWhite);
+  V(v, 100.0f, -100.0f, 0.0f, kWhite);
+  V(v, 100.0f, 100.0f, 0.0f, kWhite);
+  V(v, -100.0f, 100.0f, 0.0f, kWhite);
+  b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  b.Xf(0x100E, {1});
+  b.Xf(0x1010, {1});
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationLooks() {
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  LooksScene(ba, 1, false, &a);
+  LooksScene(bb, 2, true, &b);
+  r.Run(a);
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 3000.0f * 320.0f)); };
+  const GLuint xfbA = r.Xfb(nullptr, nullptr);
+  Check(Near(TexPixel(xfbA, px(-1200.0f), 264), 200, 0, 0, 3), "looks: picture A (the particle red)");
+  Check(r.Interpolate(a, b, 0.5f), "looks: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  const auto x = TexPixel(xfb, px(150.0f), 264), y = TexPixel(xfb, px(550.0f), 264), swapped = TexPixel(xfb, px(350.0f), 264);
+  Check(Near(x, 0, 255, 0) && Near(y, 0, 255, 0) && Near(swapped, 0, 0, 0),
+        "looks: larger draws of the same look keep the game's order");
+  const auto colour = TexPixel(xfb, px(-1200.0f), 264);
+  Check(Near(colour, 100, 0, 100, 3), "looks: a particle's material colour goes halfway");
+  if (!Near(x, 0, 255, 0) || !Near(y, 0, 255, 0) || !Near(swapped, 0, 0, 0) || !Near(colour, 100, 0, 100, 3))
+    Print("x", x), Print("y", y), Print("swapped", swapped), Print("colour", colour);
+  // the real picture after it: B's colour (blue), the material register put back
+  r.Run(b);
+  Check(Near(TexPixel(r.Xfb(nullptr, nullptr), px(-1200.0f), 264), 0, 0, 200, 3), "looks: picture B after it (blue)");
+  Check(glGetError() == GL_NO_ERROR, "looks: no GL error");
+  r.Release();
+}
+
+// Effects in the in-between picture (Retroid series 26.10.2026 at the merchant's brazier): a flame
+// shows a new picture of its animation every game picture (another texture), and its glow is a 2D
+// square the game lays over it in screen units. The flame moves 600 units at 3000 (texture red in
+// A, blue in B): halfway, blue. The glow moves 60 screen units: halfway. A 2D square that jumps
+// 220 units (more than a quarter of the picture), and one that grows from 60 to 100 units wide
+// (turned or resized: r224's copy of the picture laid over itself), stand where they are in B.
+std::vector<std::uint8_t> SolidRgba8(int r, int g, int b) {
+  std::vector<std::uint8_t> tex(64);
+  for (int i = 0; i < 16; i++) {
+    tex[i * 2] = 255;
+    tex[i * 2 + 1] = static_cast<std::uint8_t>(r);
+    tex[32 + i * 2] = static_cast<std::uint8_t>(g);
+    tex[32 + i * 2 + 1] = static_cast<std::uint8_t>(b);
+  }
+  return tex;
+}
+
+void EffectsScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  // 2D (the orthographic projection of Baseline): the glow, unit square scaled by its matrix
+  auto square = [&](float x, float w, unsigned layers) {
+    b.XfF(0, {w, 0, 0, x, 0, 40.0f, 0, 244.0f, 0, 0, 1, 0});
+    std::vector<std::uint8_t> v;
+    for (unsigned l = 0; l < layers; l++) {
+      V(v, 0, 0, -0.5f, kGreen);
+      V(v, 1, 0, -0.5f, kGreen);
+      V(v, 1, 1, -0.5f, kGreen);
+      V(v, 0, 1, -0.5f, kGreen);
+    }
+    b.Draw(RE4_GX_V_COLOR0, 16, v, layers * 4, 0x80);
+  };
+  square(second ? 160.0f : 100.0f, 60.0f, 1);
+  square(second ? 520.0f : 300.0f, 60.0f, 2);
+  square(20.0f, second ? 100.0f : 60.0f, 3);
+  // 3D: the flame, a textured square with a matrix of its own
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  b.Bp(0x00, 1u | 1u << 4);
+  b.Xf(0x103F, {1});
+  b.Xf(0x1040, {5u << 7});
+  b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  b.Bp(0x80, 0);
+  b.Bp(0x84, 0);
+  b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+  b.Bp(0x30, 3);
+  b.Bp(0x31, 3);
+  if (second)
+    b.Texture(0, 0x2222, 0, 0x120000, 4, 4, 6, SolidRgba8(0, 0, 200));
+  else
+    b.Texture(0, 0x1111, 0, 0x110000, 4, 4, 6, SolidRgba8(200, 0, 0));
+  // (on screen row 400, below the 2D squares of row 264)
+  b.XfF(0, {1, 0, 0, second ? 600.0f : 0.0f, 0, 1, 0, (264.0f - 400.0f) / 264.0f * 3000.0f, 0, 0, 1, -3000.0f});
+  std::vector<std::uint8_t> v;
+  VT(v, -100.0f, -100.0f, 0.0f, kWhite, 0, 0);
+  VT(v, 100.0f, -100.0f, 0.0f, kWhite, 1, 0);
+  VT(v, 100.0f, 100.0f, 0.0f, kWhite, 1, 1);
+  VT(v, -100.0f, 100.0f, 0.0f, kWhite, 0, 1);
+  b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationEffects() {
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  EffectsScene(ba, 1, false, &a);
+  EffectsScene(bb, 2, true, &b);
+  r.Run(a);
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 3000.0f * 320.0f)); };
+  const GLuint xfbA = r.Xfb(nullptr, nullptr);
+  const auto flameA = TexPixel(xfbA, px(0.0f), 400), glowA = TexPixel(xfbA, 105, 264);
+  Check(Near(flameA, 200, 0, 0, 3) && Near(glowA, 0, 255, 0), "effects: picture A (the flame red, the glow at 100)");
+  if (!Near(flameA, 200, 0, 0, 3) || !Near(glowA, 0, 255, 0))
+    Print("flameA", flameA), Print("glowA", glowA);
+  Check(r.Interpolate(a, b, 0.5f), "effects: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  // the flame: halfway (300), with B's picture of the animation; not where it is in B (600)
+  const auto flame = TexPixel(xfb, px(300.0f), 400), flameB = TexPixel(xfb, px(600.0f), 400);
+  Check(Near(flame, 0, 0, 200, 3) && Near(flameB, 0, 0, 0), "effects: a flame with a new texture goes halfway");
+  // the glow: 130..190 between 100..160 and 160..220
+  const auto glow = TexPixel(xfb, 135, 264), glowB = TexPixel(xfb, 215, 264);
+  Check(Near(glow, 0, 255, 0) && Near(glowB, 0, 0, 0), "effects: a 2D glow that moved a little goes halfway");
+  // the jump of 220: where it is in B (520..580), not halfway (410..470)
+  const auto jump = TexPixel(xfb, 550, 264), jumpMid = TexPixel(xfb, 440, 264);
+  Check(Near(jump, 0, 255, 0) && Near(jumpMid, 0, 0, 0), "effects: a 2D square that jumped stands where it is in B");
+  // the one that grew: 20..120 as in B, not 20..100
+  const auto grown = TexPixel(xfb, 110, 264);
+  Check(Near(grown, 0, 255, 0), "effects: a 2D square that changed its size stands as in B");
+  if (!Near(grown, 0, 255, 0))
+    Print("grown", grown);
+  if (!Near(flame, 0, 0, 200, 3) || !Near(flameB, 0, 0, 0) || !Near(glow, 0, 255, 0) || !Near(glowB, 0, 0, 0) ||
+      !Near(jump, 0, 255, 0) || !Near(jumpMid, 0, 0, 0))
+    Print("flame", flame), Print("flameB", flameB), Print("glow", glow), Print("glowB", glowB), Print("jump", jump),
+        Print("jumpMid", jumpMid);
+  Check(glGetError() == GL_NO_ERROR, "effects: no GL error");
+  r.Release();
 }
 
 void TestInterpolation() {
@@ -1214,6 +1943,49 @@ void TestInterpolation() {
   for (std::size_t i = 0; i < onePx.size() && i < withoutPx.size(); i++)
     differ += std::abs(static_cast<int>(onePx[i]) - static_cast<int>(withoutPx[i])) > 2;
   Check(onePx.size() == withoutPx.size() && differ == 0, "interpolation at t = 1: the picture of B");
+  // Frame skip with 60 FPS (26.10.2026): a chunk may be left out while the draws are noted; the
+  // chunk after it gets no in-between picture
+  {
+    re4gx::GxRenderer sk;
+    Require(sk.Init(1, &error), error.c_str());
+    sk.SetRecording(true);
+    Builder bd;
+    Re4GxChunk d;
+    InterpScene(bd, 3, 50.0f, 450.0f, 0.0f, &d);
+    sk.Run(a);
+    Check(sk.CanSkip(b, d), "frame skip with 60 FPS: a chunk may be left out while the draws are noted");
+    sk.Skip(b);
+    Check(!sk.Interpolate(b, d, 0.5f), "frame skip with 60 FPS: no in-between picture after a chunk left out");
+    sk.Run(d);
+    Check(sk.Interpolate(d, d, 0.5f) == false && glGetError() == GL_NO_ERROR, "frame skip with 60 FPS: no GL error");
+    sk.Release();
+  }
+  // A menu screen of the game (RE4_GX_CHUNK_STILL, 26.10.2026: the load screen at the typewriter
+  // flickered while its list scrolled): no in-between picture into it, within it or out of it
+  {
+    re4gx::GxRenderer st;
+    Require(st.Init(1, &error), error.c_str());
+    st.SetRecording(true);
+    Re4GxChunk menuB = b, menuC = b, out = b;
+    menuB.flags |= RE4_GX_CHUNK_STILL;
+    menuC.flags |= RE4_GX_CHUNK_STILL;
+    menuC.sequence = 3;
+    out.sequence = 4;
+    st.Run(a);
+    Check(!st.Interpolate(a, menuB, 0.5f), "menu screen: no in-between picture into it");
+    st.Run(menuB);
+    Check(!st.Interpolate(menuB, menuC, 0.5f), "menu screen: no in-between picture within it");
+    st.Run(menuC);
+    Check(!st.Interpolate(menuC, out, 0.5f), "menu screen: no in-between picture out of it");
+    st.Run(out);
+    Builder be;
+    Re4GxChunk e;
+    InterpScene(be, 5, 50.0f, 450.0f, 0.0f, &e);
+    Check(st.Interpolate(out, e, 0.5f) && st.Stats().interpPictures == 1,
+          "menu screen: in-between pictures again after it");
+    Check(glGetError() == GL_NO_ERROR, "menu screen: no GL error");
+    st.Release();
+  }
   // not recorded, or not the next chunk: nothing drawn
   Check(!plain.Interpolate(a, b, 0.5f), "interpolation: nothing without notes of the picture before");
   Check(!one.Interpolate(a, c, 0.5f), "interpolation: nothing between chunks that do not follow each other");
@@ -1595,6 +2367,7 @@ int main() {
   TestPrewarm();
   TestRescale();
   TestAutoLevel();
+  TestHandOverCopies();
   // twice: as the app runs it, and with the copy targets, the blur and the focus painted magenta
   // where the GPU may forget them (GPU step b): every picture must stay the same
   for (int poison = 0; poison < 2; poison++) {
@@ -1612,6 +2385,13 @@ int main() {
     TestTev(renderer);
     TestLighting(renderer);
     TestCopyAndPalette(renderer);
+    TestLetterboxCopy(renderer, false, true);
+    TestLetterboxCopy(renderer, false, false);
+    TestShownRowsCopy(renderer, false, true);
+    TestShownRowsCopy(renderer, false, false);
+    TestDepthMap(renderer, false);
+    TestFxaa(renderer);
+    TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);
     TestCopyFilter(renderer);
@@ -1634,6 +2414,9 @@ int main() {
     TestOptions(poison != 0, true);
   }
   TestInterpolation();
+  TestInterpolationParticles();
+  TestInterpolationLooks();
+  TestInterpolationEffects();
   TestInterpolatedLights();
   // MSAA in its own buffers (the devices without the extensions, RE4_GX_MSAA_TILES=0)
   TestOptions(false, false);

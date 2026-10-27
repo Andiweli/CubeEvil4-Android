@@ -10,6 +10,8 @@ extern GLOBAL_WK* pG;
 
 extern "C" int re4_letterbox_off(void);
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" void re4_gx_still(int on);                      // runtime/gx_decode.cpp
+extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 
 extern "C" int re4_letterbox_open(void)
 {
@@ -25,3 +27,42 @@ extern "C" int re4_letterbox_open(void)
     last = open;
     return open;
 }
+
+// The app's 60 FPS (Retroid report, 25.10.2026: the list of the load screen at the typewriter
+// flickered while it scrolled): no picture between two of a menu screen. The game's sub screens
+// (inventory, map, merchant, files: STA_SUB_SCRN) and the memory card screens (load, save, the
+// boot check: SYS_TYPEWRITER, card.cpp CardMainTask) draw their lists letter by letter with the
+// same draws; the renderer cannot tell which letter moved where and mixed them up. The same for
+// the tool menu (SELECT held, patch 0116) and its tools (DBG_TEST_MODE): lists of debug text over a
+// frozen game. Every frame (re4_add_frame_hook); the GX chunks carry it (RE4_GX_CHUNK_STILL,
+// runtime/gx_decode.cpp).
+extern "C" int re4_picture_still(void)
+{
+    if (!pG) {
+        return 0;
+    }
+    return StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TYPEWRITER) || DbgFlagChk(pG, DBG_TEST_MODE) ? 1 : 0;
+}
+
+namespace {
+
+void stillHook(unsigned)
+{
+    const int still = re4_picture_still();
+    // each change into the error log (at most 40)
+    static int last;
+    static unsigned changes;
+    if (still != last && changes < 40) {
+        changes++;
+        re4_log("picture: %s (r%03x)", still ? "a menu screen: no pictures between" : "the menu screen closed",
+                pG ? pG->room_id : 0);
+    }
+    last = still;
+    re4_gx_still(still);
+}
+
+struct Install {
+    Install() { re4_add_frame_hook(stillHook); }
+} g_install;
+
+}  // namespace

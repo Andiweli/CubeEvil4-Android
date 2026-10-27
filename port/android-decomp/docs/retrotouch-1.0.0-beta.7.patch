@@ -1,0 +1,218 @@
+diff -ru -x out -x classes.jar a/CHANGELOG.md b/CHANGELOG.md
+--- a/CHANGELOG.md	2026-10-19 20:18:18.000000000 +0000
++++ b/CHANGELOG.md	2026-10-26 11:40:25.246805093 +0000
+@@ -1,5 +1,18 @@
+ # Changelog
+ 
++## 1.0.0-beta.7 - 2026-10-26
++
++- Stick actions: `registerStickAction(id, label, colors)` registers an action that is an analog
++  stick. In the editor a button whose action is cycled (`ACTION`) to a stick action becomes a stick
++  with that label and color; cycling on turns it back into a button. A layout keeps at most two
++  sticks and 16 buttons; `ACTION` skips what would break that.
++- Such sticks report through the new optional `RetroTouchStickListener.onStick(actionId, x, y)`
++  (-1..1, y down, 0/0 when released) that the listener implements next to `RetroTouchListener`;
++  the move stick keeps reporting through `onMove`. `isStickAction(id)` tells the kind.
++- A stick shows its label (one letter on the knob); the move stick still shows `MOVE`.
++- All beta.6 classes and methods remain and the saved-layout format is unchanged (format 2),
++  allowing an AAR-only update.
++
+ ## 1.0.0-beta.6 - 2026-10-19
+ 
+ - Button labels with exactly one character, such as `A`, `B`, `X`, `Y`, `Z`, `L` or `R`, are drawn
+diff -ru -x out -x classes.jar a/VERSION.txt b/VERSION.txt
+--- a/VERSION.txt	2026-10-19 20:18:18.000000000 +0000
++++ b/VERSION.txt	2026-10-26 11:40:25.232886897 +0000
+@@ -1 +1 @@
+-1.0.0-beta.6
++1.0.0-beta.7
+diff -ru -x out -x classes.jar a/retrotouch/build.gradle b/retrotouch/build.gradle
+--- a/retrotouch/build.gradle	2026-10-19 20:18:18.000000000 +0000
++++ b/retrotouch/build.gradle	2026-10-26 11:40:25.233067426 +0000
+@@ -35,7 +35,7 @@
+                 from components.release
+                 groupId = 'com.github.Andiweli'
+                 artifactId = 'retrotouch'
+-                version = '1.0.0-beta.6'
++                version = '1.0.0-beta.7'
+             }
+         }
+     }
+diff -ru -x out -x classes.jar a/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchControl.java b/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchControl.java
+--- a/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchControl.java	2026-10-19 20:18:18.000000000 +0000
++++ b/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchControl.java	2026-10-26 11:39:59.662687962 +0000
+@@ -94,6 +94,11 @@
+         this.label = label == null ? "" : label;
+     }
+ 
++    /** The editor turns a button into a stick and back when its action is a stick action. */
++    void setType(Type type) {
++        this.type = type;
++    }
++
+     void setColors(RetroTouchColors colors) {
+         this.colors = colors;
+     }
+Only in b/retrotouch/src/main/java/com/ast/retrotouch: RetroTouchStickListener.java
+diff -ru -x out -x classes.jar a/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchView.java b/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchView.java
+--- a/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchView.java	2026-10-19 20:18:18.000000000 +0000
++++ b/retrotouch/src/main/java/com/ast/retrotouch/RetroTouchView.java	2026-10-26 11:40:14.870449147 +0000
+@@ -59,6 +59,8 @@
+     private final List<RetroTouchControl> controls = new ArrayList<RetroTouchControl>();
+     private final Set<String> latchedActions = new HashSet<String>();
+     private final Set<String> lookWhileHoldingActions = new HashSet<String>();
++    // actions that are analog sticks (registerStickAction): a control with one is a stick
++    private final Set<String> stickActions = new HashSet<String>();
+ 
+     private RetroTouchListener listener = new RetroTouchAdapter();
+     private RetroTouchLayout gameplayLayout;
+@@ -108,8 +110,28 @@
+         invalidate();
+     }
+ 
++    /**
++     * Registers a stick action (1.0.0-beta.7): in the editor a button whose action is cycled to it
++     * becomes an analog stick with this label and these colors, and reports through
++     * RetroTouchStickListener.onStick (the listener implements it as well as RetroTouchListener).
++     * Cycling on turns it back into a button. The move stick stays as it is.
++     */
++    public void registerStickAction(String id, String label, RetroTouchColors colors) {
++        RetroTouchAction action = new RetroTouchAction(id, label, colors);
++        actions.put(action.getId(), action);
++        stickActions.add(action.getId());
++        refreshControlLabels();
++        invalidate();
++    }
++
++    /** Whether the action was registered as a stick action. */
++    public boolean isStickAction(String id) {
++        return id != null && stickActions.contains(id);
++    }
++
+     public void registerActions(List<RetroTouchAction> actionList) {
+         actions.clear();
++        stickActions.clear();
+         if (actionList != null) {
+             for (RetroTouchAction action : actionList) {
+                 if (action == null) throw new IllegalArgumentException("Action must not be null");
+@@ -506,6 +528,16 @@
+         return true;
+     }
+ 
++    /** A stick's position to the host: the move stick through onMove, a stick action through onStick. */
++    private void reportStick(RetroTouchControl control, float x, float y) {
++        String action = control.getActionId();
++        if (action.length() == 0) {
++            listener.onMove(x, y);
++        } else if (stickActions.contains(action) && listener instanceof RetroTouchStickListener) {
++            ((RetroTouchStickListener) listener).onStick(action, x, y);
++        }
++    }
++
+     private boolean movePointer(int pointerId, float x, float y) {
+         PointerState state = pointers.get(pointerId);
+         if (state == null) return false;
+@@ -572,7 +604,7 @@
+         if (control != null && control.getType() == RetroTouchControl.Type.BUTTON && state.actionPressed) {
+             listener.onAction(control.getActionId(), false);
+         } else if (control != null && control.getType() == RetroTouchControl.Type.MOVE_STICK) {
+-            listener.onMove(0.0f, 0.0f);
++            reportStick(control, 0.0f, 0.0f);
+         } else if (control != null && control.getType() == RetroTouchControl.Type.D_PAD && state.activeActionId != null) {
+             listener.onAction(state.activeActionId, false);
+         }
+@@ -596,7 +628,11 @@
+                 releasedActions.add(state.activeActionId);
+             }
+         }
+-        if (forceNeutralMove || pointers.size() > 0) listener.onMove(0.0f, 0.0f);
++        if (forceNeutralMove || pointers.size() > 0) {
++            listener.onMove(0.0f, 0.0f);
++            if (listener instanceof RetroTouchStickListener)
++                for (String action : stickActions) ((RetroTouchStickListener) listener).onStick(action, 0.0f, 0.0f);
++        }
+         pointers.clear();
+         invalidate();
+         return releasedActions;
+@@ -613,7 +649,7 @@
+         if (length > 1.0f) { dx /= length; dy /= length; }
+         if (Math.abs(dx) < 0.08f) dx = 0.0f;
+         if (Math.abs(dy) < 0.08f) dy = 0.0f;
+-        listener.onMove(dx, dy);
++        reportStick(control, dx, dy);
+     }
+ 
+     private void updateLook(PointerState state, float x, float y) {
+@@ -747,8 +783,15 @@
+         canvas.drawCircle(knobX, knobY, radius * 0.42f, paint);
+         paint.setColor(withAlpha(colors.getTextColor(), alpha));
+         paint.setTextAlign(Paint.Align.CENTER);
++        String label = control.getActionId().length() == 0 ? "MOVE" : normalizeLabel(control.getLabel());
++        if (label.codePointCount(0, label.length()) == 1) {
++            // a stick action's single letter (C) as large as on a button's knob
++            paint.setTextSize(radius * 0.42f);
++            drawCenteredGlyph(canvas, label, knobX, knobY, paint);
++            return;
++        }
+         paint.setTextSize(Math.max(dp(9), radius * 0.24f));
+-        drawCenteredText(canvas, "MOVE", cx, cy, paint);
++        drawCenteredText(canvas, label, cx, cy, paint);
+     }
+ 
+     private void drawDpad(Canvas canvas, RetroTouchControl control) {
+@@ -895,7 +938,8 @@
+         RetroTouchControl selected = findControl(selectedControlId);
+         boolean settingsSelected = POINTER_GEAR.equals(selectedControlId);
+         if (tool == 0) return actions.size() > 0 && buttonCount() < RetroTouchLayout.MAX_BUTTONS;
+-        if (tool == 1) return selected != null && selected.getType() == RetroTouchControl.Type.BUTTON;
++        if (tool == 1) return selected != null && (selected.getType() == RetroTouchControl.Type.BUTTON ||
++                (selected.getType() == RetroTouchControl.Type.MOVE_STICK && selected.getActionId().length() > 0));
+         if (tool >= 2 && tool <= 4) return selected != null || settingsSelected;
+         // SETTINGS is deliberately permanent: DELETE is visibly disabled and cannot remove it.
+         if (tool == 5) return selected != null;
+@@ -925,15 +969,30 @@
+         List<RetroTouchAction> list = new ArrayList<RetroTouchAction>(actions.values());
+         int current = -1;
+         for (int i = 0; i < list.size(); ++i) if (list.get(i).getId().equals(control.getActionId())) current = i;
+-        RetroTouchAction next = list.get((current + 1) % list.size());
+-        control.setAction(next.getId(), next.getLabel());
++        // the next action this control can take: a layout holds at most two sticks and MAX_BUTTONS buttons
++        int sticks = 0;
++        for (RetroTouchControl other : controls)
++            if (other != control && other.getType() == RetroTouchControl.Type.MOVE_STICK) ++sticks;
++        int buttons = buttonCount() - (control.getType() == RetroTouchControl.Type.BUTTON ? 1 : 0);
++        for (int step = 1; step <= list.size(); ++step) {
++            RetroTouchAction next = list.get((current + step) % list.size());
++            boolean stick = stickActions.contains(next.getId());
++            if (stick ? sticks >= 2 : buttons >= RetroTouchLayout.MAX_BUTTONS) continue;
++            control.setAction(next.getId(), next.getLabel());
++            control.setType(stick ? RetroTouchControl.Type.MOVE_STICK : RetroTouchControl.Type.BUTTON);
++            return;
++        }
+     }
+ 
+     private void refreshControlLabels() {
+         for (RetroTouchControl control : controls) {
+-            if (control.getType() != RetroTouchControl.Type.BUTTON) continue;
++            boolean stick = control.getType() == RetroTouchControl.Type.MOVE_STICK && control.getActionId().length() > 0;
++            if (control.getType() != RetroTouchControl.Type.BUTTON && !stick) continue;
+             RetroTouchAction action = actions.get(control.getActionId());
+-            if (action != null) control.setAction(action.getId(), action.getLabel());
++            if (action == null) continue;
++            control.setType(stickActions.contains(action.getId()) ? RetroTouchControl.Type.MOVE_STICK
++                    : RetroTouchControl.Type.BUTTON);
++            control.setAction(action.getId(), action.getLabel());
+         }
+     }
+ 
+@@ -949,8 +1008,8 @@
+     /** Resolves colors in this order: control, action, view-wide default, built-in grey. */
+     private RetroTouchColors colorsFor(RetroTouchControl control, RetroTouchColors builtIn) {
+         if (control.getColors() != null) return control.getColors();
+-        RetroTouchAction action = control.getType() == RetroTouchControl.Type.BUTTON ?
+-                actions.get(control.getActionId()) : null;
++        RetroTouchAction action = control.getType() == RetroTouchControl.Type.BUTTON ||
++                control.getType() == RetroTouchControl.Type.MOVE_STICK ? actions.get(control.getActionId()) : null;
+         if (action != null && action.getColors() != null) return action.getColors();
+         return defaultColors != null ? defaultColors : builtIn;
+     }

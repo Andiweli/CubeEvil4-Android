@@ -1,0 +1,46 @@
+# Retail data (port/docs/retail-eu-plan.md, R1): the European discs lack debug/roomInfo.dat, and
+# every new game of the debug build passes the debug start menu, which reads it (title.cpp
+# titleExit, cRoomJmp): the game ended at "new game". A stand-in table holds the new game's room
+# (r120) without a position, what the debug table's r120 record gives; the runtime logs it and
+# declines another debug start room (runtime/dolphin_os.cpp). A port patch for retail data, not a
+# bug of the prototype.
+--- a/src/game/main.cpp
++++ b/src/game/main.cpp
+@@ -317,6 +317,29 @@
+     cMes.init();
+ }
+ 
++extern "C" void re4_room_info_stand_in(unsigned room); /* port: runtime/dolphin_os.cpp */
++
++/* port: the European discs have no debug/roomInfo.dat, and every new game of this build goes
++   through the debug start menu that reads it (title.cpp titleExit, cRoomJmp). In its place a
++   table of one stage-1 record: the room the menu preselects (pG->room_id, r120 as the new game's),
++   without a position (flag 0: NextPos 0, as the debug table's r120 record gives). Laid out as
++   the port's converter leaves the disc's table (host order, 32-bit string offsets). */
++static void* roomInfoStandIn()
++{
++    u32* t = (u32*) MEM_CALLOC(0x40, 1, 13);
++    if (t == 0) {
++        return 0;
++    }
++    t[0] = 2;                          /* stages 0 and 1 */
++    t[1] = 0;                          /* stage 0: no rooms */
++    t[2] = 0xC;                        /* stage 1: its block at +0xC */
++    t[3] = 1;                          /* one record */
++    ((u16*) (t + 4))[1] = pG->room_id; /* CRoomInfo::roomNo */
++    t[4 + 5] = t[4 + 6] = t[4 + 7] = 0x30; /* name, person, person2: an empty string */
++    re4_room_info_stand_in(pG->room_id);
++    return t;
++}
++
+ // At boot and after every soft reset: pad, clears the game part of the global work, heap 1
+ // (game), the OT/fade/cinescope/id/message/data cache/temp buffers, room inits of every manager,
+ // filters, cloth, cockpit, room data, tex render, item/etc models, events, camera, view, sound,
+@@ -374,6 +397,7 @@
+     ret = DvdReadN("debug/roomInfo.dat", 0, 0, 0, 0, 5, __FILE__, __LINE__);
+     if (Dvd.ReadCheck(ret, 0, 0, &roomInfoAddr) < 0) {
+         roomInfoAddr = 0;
++        roomInfoAddr = roomInfoStandIn(); /* port: retail discs */
+     }
+     pLog->modeSet(200, 0, 150, 4);
+     SelfScreenShotInit();

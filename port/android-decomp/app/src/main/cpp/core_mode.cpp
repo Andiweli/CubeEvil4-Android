@@ -51,6 +51,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -88,10 +89,17 @@ struct CoreApi {
   void (*debugMenu)(void){};
   void (*setDof)(int){};
   void (*gyro)(float, float){};  // optional (cores since 19.10.2026): gyro aiming
+  void (*depth)(const unsigned *, unsigned){};  // optional (cores since 26.10.2026): the depth for the game's GXPeekZ
   void (*setLetterbox)(int){};  // optional (cores since 22.10.2026): 4:3 without the bars
+  void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
+  void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
+  const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
+  void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
+  int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
+  int (*instant)(int, Re4InstantInfo *){};
   int (*cardList)(Re4CardFile *, int){};
   int (*cardFree)(void){};
   int (*cardName)(int, char *, int){};
@@ -413,10 +421,17 @@ void loadCore(JNIEnv *env) {
   api.debugMenu = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_debug_menu"));
   api.setDof = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_dof"));
   api.gyro = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_gyro"));
+  api.depth = reinterpret_cast<void (*)(const unsigned *, unsigned)>(dlsym(api.main, "re4_core_gx_depth"));
   api.setLetterbox = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_letterbox"));
+  api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
+  api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
+  api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
+  api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
+  api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
+  api.instant = reinterpret_cast<int (*)(int, Re4InstantInfo *)>(dlsym(api.main, "re4_core_instant"));
   api.cardList = reinterpret_cast<int (*)(Re4CardFile *, int)>(dlsym(api.main, "re4_core_card_list"));
   api.cardFree = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_card_free_blocks"));
   api.cardName = reinterpret_cast<int (*)(int, char *, int)>(dlsym(api.main, "re4_core_card_file_name"));
@@ -480,6 +495,7 @@ int gxMode = -1;  // -1 undecided, 0 bridge, 1 GX
 // the menu's picture options (M11, any thread -> GL thread): a change builds
 // the renderer anew at the next picture while the game runs (the core then
 // starts over with the full state); 0 scale: automatic
+// optScale: the EFB scale in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x; the menu's in-between levels)
 std::atomic<int> optScale{0}, optSamples{1}, optAnisotropy{1}, optAspect{-1};
 int letterboxSent = -1;  // what the core was told last (drawGx; -1: nothing yet)
 // Where drawGx showed the last picture, for taps (CoreBridge.tap): left and top on the surface (y
@@ -507,12 +523,20 @@ std::atomic<unsigned> optSerial{0};
 unsigned optApplied = ~0u;
 std::atomic<bool> corePaused{false};
 // what the device can do and what the renderer uses (CoreBridge.graphicsInfo)
-std::atomic<int> infoMaxSamples{0}, infoMaxAnisotropy{0}, infoScale{0}, infoSamples{0}, infoAnisotropy{0};
+std::atomic<int> infoMaxSamples{0}, infoMaxAnisotropy{0}, infoScale{0}, infoSamples{0}, infoAnisotropy{0};  // infoScale in halves
+
+// an EFB scale in halves as the log writes it: "2" or "1.5"
+std::string ScaleName(int halves) {
+  char s[16];
+  std::snprintf(s, sizeof(s), halves % 2 ? "%d.5" : "%d", halves / 2);
+  return s;
+}
 unsigned gxChunks = 0;
 // timing of the GX view since the last log line
 std::chrono::steady_clock::time_point gxSince;
 double gxRunMs = 0, gxRunMax = 0;
 long long gxRunCpuNs = 0;        // the render thread's processor time in Run since the last line
+double gxRunWaitMs = 0.0;        // the render thread's waiting in Run (run time minus processor time), all along
 unsigned gxRunOnKind[3] = {};    // where Run ended: slow, middle, fast cores (re4_cpu_info.h)
 unsigned gxRunCount = 0, gxFrames = 0, gxDraws = 0;
 re4gx::GxStats gxWork;  // the counters at the last log line
@@ -589,6 +613,7 @@ struct Bench {
 };
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
+std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 // pictures put on the screen so far, each once: the game's and the in-between ones (the FPS display)
 std::atomic<long long> picturesMade{0};
@@ -596,6 +621,11 @@ std::atomic<long long> picturesMade{0};
 // vertices), and the next one, whose in-between picture is on the screen and which runs at the
 // next refresh; off for this renderer when the GPU does not keep up
 const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
+// Frame skip: the chunk after the one that was skipped or drawn (taken to look at it, drawn next)
+const Re4GxChunk *skipNext = nullptr;
+std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
+unsigned gxBetweenDropped = 0;      // in-between pictures left out because the renderer was behind
+unsigned gxSkipped = 0;             // chunks left out since the start of this renderer
 bool smoothTooSlow = false;
 // "Dynamic" in the menu's resolution: the EFB level follows the GPU (gx_auto_level.h); on for a renderer
 // that started at the screen's level
@@ -607,6 +637,12 @@ bool autoLevelOn = false;
 // the background), then each chunk's Run against 33.3 ms
 re4cpu::PerfHint renderHint;
 int renderPlaced = 0;  // the render thread set up
+// The menu's "Force Performance" (CoreBridge.setFastCores, wish of the project owner, 24.10.2026):
+// 1 "Use performance cores" (the render thread and, through the core, the game thread on the fast
+// cores with Android's performance hint), 0 "Default" (the default: Android decides).
+std::atomic<int> optFastCores{0};
+int fastSent = -1;    // what the core was told last (-1: nothing yet)
+int renderFast = -1;  // the setting the render thread runs with (-1: none yet)
 
 // Shader programs made ahead on a thread of its own (decision of the project owner, 23.10.2026):
 // the cache's keys and the app's list (gx-programs.keys, CoreActivity) that lack a binary are
@@ -675,7 +711,9 @@ void smoothDrop() {
     api.gxRelease(smoothNext);
   if (smoothPrev && api.gxRelease)
     api.gxRelease(smoothPrev);
-  smoothNext = smoothPrev = nullptr;
+  if (skipNext && api.gxRelease)
+    api.gxRelease(skipNext);
+  smoothNext = smoothPrev = skipNext = nullptr;
 }
 
 // A number from a file of the kernel (the GPU's clock and load, where the device lets an app read
@@ -709,7 +747,7 @@ double gpuBusyPercent() {
 }
 
 void benchApply(const BenchStep &step) {
-  optScale = step.scale;
+  optScale = step.scale * 2;
   optSamples = step.samples;
   optAnisotropy = step.anisotropy;
   optInvalidate = step.invalidate;
@@ -854,11 +892,11 @@ void benchTick(std::chrono::steady_clock::time_point now) {
   if (gx->TiledMsaa())
     std::snprintf(tiles, sizeof(tiles), " on the tiles (EFB drawn back %.1fx per picture)",
                   chunks ? static_cast<double>(s.efbRestores - bench.at.efbRestores) / chunks : 0.0);
-  LOG("GPU bench %d/%zu: scale %d, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s: "
+  LOG("GPU bench %d/%zu: scale %s, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s: "
       "GPU %s per picture, "
       "present %s, %.1f pictures/s, %.1f presents/s, renderer CPU %.1f ms, GPU clock %s, load %s, "
       "work (load x clock) %s, GPU behind %s, %.0f draws per picture",
-      bench.index + 1, bench.steps.size(), infoScale.load(), gx->Samples(),
+      bench.index + 1, bench.steps.size(), ScaleName(infoScale.load()).c_str(), gx->Samples(),
       gx->Samples() > 1 ? (gx->TiledMsaa() ? tiles : " in own buffers") : "", gx->Anisotropy(),
       step.dof ? "on" : "off",
       step.dof ? (gx->HalfDof() ? " (blur at half resolution)" : " (blur at full resolution)") : "",
@@ -952,7 +990,7 @@ void SaveShot(const char *path) { SaveShot(*gx, path); }
 // 20.10.2026). Once per process; the game waits meanwhile.
 bool gxReplayDone = false;
 
-void replayGx(int scale) {
+void replayGx(int halves) {
   if (gxReplayDone) return;
   gxReplayDone = true;
   const char *dir = getenv("RE4_GX_REPLAY");
@@ -991,7 +1029,7 @@ void replayGx(int scale) {
   static const Variant kVariants[] = {{"s2old", 2, false, false, 3}, {"s2cen", 2, true, false, 2},
                                       {"s2full", 2, false, true, 1}, {"s1", 1, true, false, 1},
                                       {"s4cen", 4, true, false, 1}};
-  LOG("GX replay: %zu chunks from %s, EFB scale %d", chunks.size(), dir, scale);
+  LOG("GX replay: %zu chunks from %s, EFB scale %s", chunks.size(), dir, ScaleName(halves).c_str());
   const char *cache = getenv("RE4_GX_PROGRAM_CACHE");
   unsigned pictures = 0;
   for (const Variant &v : kVariants) {
@@ -1017,7 +1055,7 @@ void replayGx(int scale) {
           options.halfDof = optHalfDof.load() != 0;
           r->SetOptions(options);
           std::string error;
-          if (!r->Init(scale, &error)) {
+          if (!r->InitHalves(halves, &error)) {
             LOG("GX replay %s: renderer: %s", v.name, error.c_str());
             r.reset();
             continue;
@@ -1053,10 +1091,12 @@ bool drawGx() {
     LOG("view: %s", gxMode ? "GX" : "bridge");
   }
   if (gxMode == 0) return false;
+  // the renderer before new picture options: it hands its EFB copies to the new one, then goes
+  std::unique_ptr<re4gx::GxRenderer> previous;
   if (gx && optSerial.load() != optApplied && !corePaused.load()) {
-    // new picture options: the renderer anew, the core sends everything again
-    gx->Release();
-    gx.reset();
+    // new picture options: the renderer anew, the core sends everything again (not the EFB copies:
+    // those the game made once, at a room's start, come from the renderer before)
+    previous = std::move(gx);
     smoothDrop();
     if (api.gxDetach) api.gxDetach();
   }
@@ -1071,18 +1111,19 @@ bool drawGx() {
     gxRunCpuNs = 0;
     gxRunOnKind[0] = gxRunOnKind[1] = gxRunOnKind[2] = 0;
     gxSince = std::chrono::steady_clock::now();
+    // in halves (2: 1x, 3: 1.5x ... 8: 4x); RE4_GX_SCALE (tests) as a multiple, "1.5" too
     int scale = optScale.load();
-    if (scale < 1 || scale > 4) {
+    if (scale < 2 || scale > 8) {
       const char *scaleText = getenv("RE4_GX_SCALE");
-      scale = scaleText ? std::atoi(scaleText) : 0;
+      scale = scaleText ? static_cast<int>(std::lround(std::atof(scaleText) * 2.0)) : 0;
     }
-    autoLevelOn = scale < 1 || scale > 4;
-    if (scale < 1 || scale > 4) {
+    autoLevelOn = scale < 2 || scale > 8;
+    if (scale < 2 || scale > 8) {
       // automatic: one level below the one whose 336 picture rows come closest to the screen's
       // rows (wish of the project owner, 19.10.2026: the Retroid's 1080 rows take 2, not 3;
       // CoreMenu.autoScale is the same)
       const int rows = std::min(height, width * 9 / 16);
-      scale = std::max(1, std::min(3, (rows + 168) / 336) - 1);
+      scale = 2 * std::max(1, std::min(3, (rows + 168) / 336) - 1);
     }
     // once per run: does this GPU compute the movie colours like the GameCube (gx_selfcheck.cpp;
     // the Galaxy A36 showed them green and brown)? Before any renderer, on a renderer of its own;
@@ -1105,12 +1146,23 @@ bool drawGx() {
     options.tiledMsaa = optTiled.load() != 0;
     options.halfDof = optHalfDof.load() != 0;
     gx->SetOptions(options);
+    // the depth of the pictures whose chunks peeked (GXPeekZ), to the core: the glow of torches stays
+    // behind walls (a GameCube; before 26.10.2026 it shone through them)
+    if (api.depth && !getenv("RE4_GX_NO_DEPTH_MAP"))
+      gx->SetDepthSink([](const std::uint32_t *cells, std::uint32_t serial) { api.depth(cells, serial); });
     std::string error;
-    if (!gx->Init(scale, &error)) {
+    if (!gx->InitHalves(scale, &error)) {
       LOG("GX renderer: %s; the bridge draws", error.c_str());
       gx.reset();
+      if (previous) previous->Release();
       gxMode = 0;
       return false;
+    }
+    if (previous) {
+      previous->HandOverCopies(*gx);
+      previous->Release();
+      previous.reset();
+      if (gx->Stats().handedCopies) LOG("GX: %u EFB copies taken over from the renderer before", gx->Stats().handedCopies);
     }
     // linked shader programs from earlier runs (RE4_GX_PROGRAM_CACHE, set by CoreActivity)
     const char *cache = getenv("RE4_GX_PROGRAM_CACHE");
@@ -1132,9 +1184,9 @@ bool drawGx() {
     infoScale = scale;
     infoSamples = gx->Samples();
     infoAnisotropy = static_cast<int>(gx->Anisotropy());
-    LOG("GX renderer ready, EFB scale %d, %d samples (of %d)%s, anisotropy %.0f (of %.0f), depth of field's blur "
+    LOG("GX renderer ready, EFB scale %s, %d samples (of %d)%s, anisotropy %.0f (of %.0f), depth of field's blur "
         "at %s resolution, program cache %s",
-        scale, gx->Samples(), maxSamples,
+        ScaleName(scale).c_str(), gx->Samples(), maxSamples,
         gx->Samples() > 1 ? (gx->TiledMsaa() ? " on the tiles" : " in own buffers") : "", gx->Anisotropy(),
         maxAnisotropy, gx->HalfDof() ? "half" : "full", cached ? cache : "off");
     char layout[256];
@@ -1142,17 +1194,16 @@ bool drawGx() {
     LOG("processor: %s", layout);
     const int tid = re4cpu::ThreadId();
     if (renderPlaced != tid) {
+      // a new render thread: placed by the menu's setting at its next run
       renderPlaced = tid;
-      char cores[160];
-      re4cpu::KeepOffSlowCores(cores, sizeof(cores));
-      LOG("cores: the render thread %s", cores);
-      const char *why = "";
-      renderHint.Open(&tid, 1, 33333333LL, &why);
-      LOG("performance hint: %s (the render thread, 33.3 ms a picture)", why);
+      renderFast = -1;
     }
     if (autoLevelOn) {
-      autoLevel.Start(scale, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count());
-      LOG("dynamic resolution: from level %d (the screen's), a level lower while the GPU falls behind", scale);
+      // in half steps down to 1x (wish of the project owner, 27.10.2026: 2x straight to 1x lost too much)
+      autoLevel.Start(scale, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(),
+                      2, true);
+      LOG("dynamic resolution: from level %sx (the screen's), half a level lower while the GPU falls behind",
+          ScaleName(scale).c_str());
     }
   }
   // one chunk per displayed frame: every picture the game makes is shown (a
@@ -1223,13 +1274,45 @@ bool drawGx() {
   // the screen runs now (it was taken, dumped and counted at the refresh before)
   const bool smoothOn = optSmooth.load() != 0 && !smoothTooSlow;
   gx->SetRecording(smoothOn);
+  gx->SetFxaa(optFxaa.load() != 0);
   if (!smoothOn && smoothPrev) {
     api.gxRelease(smoothPrev);
     smoothPrev = nullptr;
   }
   const Re4GxChunk *deferred = smoothNext;
   smoothNext = nullptr;
-  if (const Re4GxChunk *chunk = deferred ? deferred : api.gxAcquire()) {
+  const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
+  if (chunk == skipNext)
+    skipNext = nullptr;
+  // Behind: the core has finished the next chunk already. Then the in-between picture (60 FPS) is
+  // left out first: it is a picture more for the screen, and drawing it while behind made the game
+  // wait for the renderer (Retroid 26.10.2026: 17-19, with the stalls of the blended vertices 3-5
+  // game pictures a second). With Frame skip the chunk is also not drawn (its state and textures are
+  // applied, GxRenderer::Skip) and the next one drawn at once: the game keeps its pace instead of
+  // waiting for a slow GPU. Not while a graphics capture is on its way.
+  bool behind = false;
+  if (chunk && !deferred && (optFrameSkip.load() != 0 || smoothOn) && !gxDumpWanted && !gxDumpSeriesLeft &&
+      !gxHitShotsLeft && !gxHitSeriesPending) {
+    if (const Re4GxChunk *next = api.gxAcquire()) {
+      behind = true;
+      // (Frame skip and 60 FPS are one or the other, CoreMenu; with both set, 60 FPS wins)
+      if (optFrameSkip.load() != 0 && !smoothOn && gx->CanSkip(*chunk, *next)) {
+        gx->Skip(*chunk);
+        api.gxRelease(chunk);
+        chunk = next;
+        gxSkipped++;
+        if (smoothPrev) {
+          api.gxRelease(smoothPrev);  // no in-between picture across the chunk left out
+          smoothPrev = nullptr;
+        }
+        if (gxSkipped == 1 || gxSkipped % 500 == 0)
+          LOG("frame skip: %u chunks left out so far (the renderer was behind)", gxSkipped);
+      } else {
+        skipNext = next;  // drawn at the next refresh
+      }
+    }
+  }
+  if (chunk) {
     char path[512];
     path[0] = 0;
     char seriesShot[512];
@@ -1292,7 +1375,9 @@ bool drawGx() {
     // the in-between picture first when the switch is on and nothing records this chunk's picture;
     // Run(chunk) then at the next refresh
     bool between = false;
-    if (smoothOn && !deferred && smoothPrev && !path[0] && !seriesShot[0] && !gxHitShotsLeft) {
+    if (smoothOn && !deferred && smoothPrev && behind)
+      gxBetweenDropped++;  // behind: this chunk at once, without the picture between
+    if (smoothOn && !deferred && smoothPrev && !behind && !path[0] && !seriesShot[0] && !gxHitShotsLeft) {
       between = gx->Interpolate(*smoothPrev, *chunk, 0.5f);
       if (between) {
         api.gxRelease(smoothPrev);
@@ -1326,10 +1411,40 @@ bool drawGx() {
     }
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - now).count();
     renderHint.Report(static_cast<long long>(ms * 1e6));
+    // the menu's "Force Performance": to the core (the game thread) and for this thread
+    const int fast = optFastCores.load();
+    if (api.setFastCores && fast != fastSent) {
+      api.setFastCores(fast);
+      fastSent = fast;
+    }
+    if (fast != renderFast) {
+      const bool first = renderFast < 0;
+      renderFast = fast;
+      if (fast) {
+        char cores[160];
+        re4cpu::KeepOffSlowCores(cores, sizeof(cores));
+        LOG("cores: the render thread %s", cores);
+        const int tid = re4cpu::ThreadId();
+        const char *why = "";
+        renderHint.Open(&tid, 1, 33333333LL, &why);
+        LOG("performance hint: %s (the render thread, 33.3 ms a picture)", why);
+      } else {
+        renderHint.Close();
+        if (!first) re4cpu::ReleaseCores();
+        LOG("cores: the render thread left to Android (Force Performance: Default)");
+      }
+    }
+    // about once a second: back on the fast cores if Android moved the thread off them
+    static unsigned coreChecks, coreMoves;
+    if (fast && ++coreChecks % 30 == 0 && re4cpu::KeepOnFastCores() && ++coreMoves <= 4)
+      LOG("cores: the render thread put back on its cores (Android had moved it, %u times so far)", coreMoves);
     gxRunMs += ms;
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;
-    gxRunCpuNs += re4cpu::ThreadNs() - cpuNow;
+    const long long cpuNs = re4cpu::ThreadNs() - cpuNow;
+    gxRunCpuNs += cpuNs;
+    if (cpuNow)  // (0: no thread clock on this device, no waiting known)
+      gxRunWaitMs += std::max(0.0, ms - cpuNs / 1e6);
     gxRunOnKind[re4cpu::GetLayout().Kind(sched_getcpu())]++;
     if (bench.measuring) {
       bench.runMs += ms;
@@ -1343,11 +1458,17 @@ bool drawGx() {
       const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
                                         st.behindChecks,
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring,
-                                        &why);
-      if (level != gx->Scale()) {
+                                        &why, gxBetweenDropped,  // (counts only while 60 FPS is on; never falls back)
+                                        gxRunWaitMs);
+      if (level != gx->Halves()) {
         LOG("%s", why.c_str());
-        smoothDrop();  // no in-between picture across the change
-        gx->Rescale(level);
+        // no in-between picture across the change (a chunk taken ahead, skipNext, is not run yet:
+        // it stays and is drawn at the next refresh; the core sends only what changed)
+        if (smoothPrev) {
+          api.gxRelease(smoothPrev);
+          smoothPrev = nullptr;
+        }
+        gx->RescaleHalves(level);
         infoScale = level;
       }
     }
@@ -1356,12 +1477,13 @@ bool drawGx() {
       const double seconds = std::chrono::duration<double>(now - gxSince).count();
       LOG("GX: %u chunks, %u draws (%u per chunk), run %.1f ms (max %.1f), shown %.1f/s, %u programs, %u textures, "
           "%u copies, %u held pictures, %u missing, %u shader errors, %u inexact dst alpha, %u programs from the cache, "
-          "%u ahead of their first draw, base vertex %s, %u autofocus passes, %u EFB restores (MSAA on the tiles)",
+          "%u ahead of their first draw, base vertex %s, %u autofocus passes, %u EFB restores (MSAA on the tiles), "
+          "%u skipped",
           s.chunks, s.draws, gxRunCount ? (s.draws - gxDraws) / gxRunCount : 0, gxRunCount ? gxRunMs / gxRunCount : 0.0,
           gxRunMax, seconds > 0 ? gxFrames / seconds : 0.0, s.programs, s.textures, s.textureCopies, s.heldCopies,
           s.missingTextures, s.shaderErrors, s.dstAlphaApprox, s.programsLoaded, s.programsAhead,
           gx->BaseVertex() ? "yes" : "no",
-          s.autofocus, s.efbRestores);
+          s.autofocus, s.efbRestores, s.skippedChunks);
       // the GL work per chunk since the last line, and the GPU time when the driver measures it
       if (gxRunCount) {
         const double n = gxRunCount;
@@ -1390,8 +1512,9 @@ bool drawGx() {
       if (optSmooth.load() && !smoothTooSlow) {
         const unsigned checks = s.behindChecks - gxWork.behindChecks;
         const double behind = checks ? static_cast<double>(s.behindSum - gxWork.behindSum) / checks : 0.0;
-        LOG("60 FPS: %u in-between pictures, %u cuts, %u of %u 3D draws matched so far; the GPU %.1f Runs behind",
-            s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, behind);
+        LOG("60 FPS: %u in-between pictures, %u cuts, %u of %u 3D draws matched so far, %u left out (the renderer "
+            "behind); the GPU %.1f Runs behind",
+            s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, gxBetweenDropped, behind);
         if (behind > 2.5) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");
@@ -1428,6 +1551,10 @@ bool drawGx() {
     api.setLetterbox(noBars);
     letterboxSent = noBars;
   }
+  // the rows shown: in the 16:9 formats (0, 2) the crop below leaves the game's letterbox bars out,
+  // and texture copies repeat the shown edge rows instead of reading the bars (GxRenderer::SetShownRows)
+  const bool crop = !(format == 3 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
+  gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
   if (format == 3) {
     // 4:3 without the bars: the picture's lines fill the height (device test 22.10.2026: in a 4:3
     // frame of 480 lines thin bars stayed above and below on the Retroid), in their own shape
@@ -1627,10 +1754,17 @@ void useCoreProcess(const std::string &why) {
   api.debugMenu = re4ipc_debug_menu;
   api.setDof = re4ipc_set_dof;
   api.gyro = re4ipc_gyro;
+  api.depth = re4ipc_gx_depth;
   api.setLetterbox = re4ipc_set_letterbox;
+  api.setFastCores = re4ipc_set_fast_cores;
+  api.restartGame = re4ipc_restart_game;
+  api.discProblem = re4ipc_disc_problem;
+  api.setCheats = re4ipc_set_cheats;
+  api.cheatAction = re4ipc_cheat_action;
   api.touch = re4ipc_touch;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
+  api.instant = re4ipc_instant;
   api.cardList = re4ipc_card_list;
   api.cardFree = re4ipc_card_free_blocks;
   api.cardName = re4ipc_card_file_name;
@@ -1891,6 +2025,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   if (auto *s = currentScene()) s->contextCreated();
   lastDraw = {};
   letterboxSent = -1;
+  fastSent = -1;
   // a new GL context: the renderer's objects are gone; the core starts over
   // (full state, every texture again) once chunks are taken again
   gx.reset();
@@ -1932,6 +2067,17 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_hasMenu(
   return api.pause && api.cardList ? JNI_TRUE : JNI_FALSE;
 }
 
+// Result, present, canSave, canLoad, room, chapter, playTime, Unix save time (seconds), saving refused here (1).
+extern "C" JNIEXPORT jlongArray JNICALL Java_com_ast_re4decomp_CoreBridge_instant(JNIEnv *env, jclass, jint operation) {
+  Re4InstantInfo info = {};
+  const int result = api.instant ? api.instant(operation, &info) : RE4_INSTANT_UNSUPPORTED;
+  const jlong fields[] = {result, info.present, info.canSave, info.canLoad, info.room, info.chapter,
+                         info.playTime, info.savedAt, info.reserved};
+  jlongArray out = env->NewLongArray(9);
+  if (out) env->SetLongArrayRegion(out, 0, 9, fields);
+  return out;
+}
+
 // The game stops at its next frame (on) or runs on; true when it stands.
 extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_pause(JNIEnv *, jclass, jboolean on,
                                                                              jint waitMs) {
@@ -1948,6 +2094,48 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_debugMenu(JN
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDof(JNIEnv *, jclass, jboolean on) {
   optDof = on ? 1 : 0;
   if (api.setDof) api.setDof(on ? 1 : 0);
+}
+
+// The menu's "Force Performance" (drawGx tells the core and places the render thread).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optFastCores.exchange(want) != want) LOG("Force Performance: %s", want ? "use performance cores" : "default");
+}
+
+// The menu's "Game language" with the European discs (decisions of the project owner, 26./27.10.2026;
+// port/docs/retail-eu-plan.md R7): the core takes the language and restarts the game (its soft reset).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_restartGame(JNIEnv *, jclass, jint language) {
+  LOG("game language %d: restart", static_cast<int>(language));
+  if (api.restartGame) api.restartGame(language);
+}
+
+// The first disc file the game could not read: "<disc>\t<path>\t<why>", "" while all went well.
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_discProblem(JNIEnv *env, jclass) {
+  const char *problem = api.discProblem ? api.discProblem() : "";
+  return env->NewStringUTF(problem ? problem : "");
+}
+
+// The cheat menu (port/docs/cheat-menu-plan.md): the switches (1 health, 2 ammo, 4 one-hit kill) and a
+// button (1 Killer7, 2 case L, 3 money -> 1 done, 2 already, 0 not now, -1 no room, 3 queued; -2 without
+// a core that has it).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setCheats(JNIEnv *, jclass, jint bits) {
+  if (api.setCheats) api.setCheats(bits);
+}
+
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_cheatAction(JNIEnv *, jclass, jint what) {
+  return api.cheatAction ? api.cheatAction(what) : -2;
+}
+
+// Frame skip (the menu): while the renderer is behind, chunks are left out (GxRenderer::Skip).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optFrameSkip.exchange(want) != want) LOG("frame skip: %s", want ? "on (chunks are left out while the renderer is behind)" : "off");
+}
+
+// FXAA (the menu): an edge smoothing pass over every picture (GxRenderer::SetFxaa).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optFxaa.exchange(want) != want) LOG("FXAA: %s", want ? "on" : "off");
 }
 
 // 60 FPS (experimental): in-between pictures of the renderer (drawGx).
@@ -2042,6 +2230,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_cardNote(
 // The picture options: scale 0 (automatic) or 1-4, samples 1/2/4, anisotropy
 // 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched) or 3 (4:3 without the bars while playing).
 // Applied at the next picture while the game runs.
+// scale: in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(JNIEnv *, jclass, jint scale,
                                                                                jint samples, jint anisotropy,
                                                                                jint aspect) {
@@ -2051,11 +2240,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(
   optAnisotropy = anisotropy;
   optAspect = aspect;
   if (rebuild) optSerial++;
-  LOG("picture options: scale %d, %d samples, anisotropy %d, %s", scale, samples, anisotropy,
+  LOG("picture options: scale %s, %d samples, anisotropy %d, %s", scale ? ScaleName(scale).c_str() : "dynamic",
+      samples, anisotropy,
       aspect == 1 ? "4:3" : aspect == 2 ? "stretched" : aspect == 3 ? "4:3 without the bars" : "16:9");
 }
 
-// {most samples, strongest anisotropy, scale, samples, anisotropy in use}; null before the renderer started.
+// {most samples, strongest anisotropy, scale (in halves), samples, anisotropy in use}; null before the renderer started.
 extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_graphicsInfo(JNIEnv *env, jclass) {
   if (!infoMaxSamples.load()) return nullptr;
   const jint v[5] = {infoMaxSamples.load(), infoMaxAnisotropy.load(), infoScale.load(), infoSamples.load(),

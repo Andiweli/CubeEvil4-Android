@@ -1,0 +1,68 @@
+# Retail data (port/docs/retail-eu-plan.md, R3): the room messages of r221 with the European discs. The
+# European table (st2/r221.das, 11 messages) dropped the empty message 5 of this build's, its messages from
+# 6 on sit one place lower (aligned text by text). This build's code asks for 6 ("C'mon, c'mon!" at the
+# elevator), 7 (Japanese only), 8 (the liquid nitrogen tank), 9 (the shutter switch) and 0xA (after the
+# shutter); with the European table they showed an empty message, the tank's text at the shutter, a wait
+# message after it. The European code (st2_3.rel) asks for 5, 6, 7, 8, 9 at the same places; with the
+# European discs these numbers are moved down by one. Nothing changes with the debug build's discs. A port
+# patch for retail data.
+--- a/src/st2/r221.cpp
++++ b/src/st2/r221.cpp
+@@ -69,6 +69,12 @@
+ 
+ #define R221_MES_Y (0x150 - cMes.getLineGap(0) - cMes.getFontHeight(0) - 1)
+ 
++/* port: the European room table (st2/r221.das) dropped the empty message 5: from 6 on its messages sit
++   one place lower, and the European code (st2_3.rel) asks for 5, 6, 7, 8, 9 where this build asks for
++   6, 7, 8, 9, 0xA. With the European discs the numbers are moved down the same way. */
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++#define R221_MES(no) (re4_disc_retail_eu() ? (no) - 1 : (no))
++
+ void r221_setShutterEff(int on);
+ static void r221_checkShutterOpen_end();
+ void r221_checkShutterOpen();
+@@ -211,7 +217,7 @@
+ // Task: the shutter switch.
+ static void r221_checkShutter()
+ {
+-    SceMesSet(9, 0, 1, 0x64, R221_MES_Y);
++    SceMesSet(R221_MES(9), 0, 1, 0x64, R221_MES_Y);
+     switch (SceMesGetSelection()) {
+     case 1:
+     default:
+@@ -232,7 +238,7 @@
+     SceSleep(10);
+     em.setPtr(0x8C, -1, 1);
+     if (em.checkStatus(EM_STATUS_ACTIVE) == 1) {
+-        SceMesSet(0xA, 0x30, 1, 0x64, R221_MES_Y);
++        SceMesSet(R221_MES(0xA), 0x30, 1, 0x64, R221_MES_Y);
+         SceMesWait();
+     }
+     SceSetEventCancel(0, 0, 0, -1, 1);
+@@ -315,7 +321,7 @@
+ static void r221_checkDoor229()
+ {
+     if (pSys->language == 0) {
+-        SceMesSet(7, 0, 1, 0x64, R221_MES_Y);
++        SceMesSet(R221_MES(7), 0, 1, 0x64, R221_MES_Y);
+     }
+ }
+ 
+@@ -1000,7 +1006,7 @@
+         }
+         SceEventEnd(0);
+     } else if (RsfCheck(G_ROOM_ID, 6) == 0) {
+-        SceMesSet(6, 0, 1, 0x64, R221_MES_Y);
++        SceMesSet(R221_MES(6), 0, 1, 0x64, R221_MES_Y);
+     }
+ }
+ 
+@@ -1223,7 +1229,7 @@
+ static void r201_throwBonbe(int no)
+ {
+     if (RsfCheck(G_ROOM_ID, 3) == 0) {
+-        SceMesSet(8, 0, 1, 0x64, R221_MES_Y);
++        SceMesSet(R221_MES(8), 0, 1, 0x64, R221_MES_Y);
+         SceExit();
+     }
+     Vec pos = {0.0f, 0.0f, 0.0f};

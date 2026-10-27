@@ -1,0 +1,144 @@
+# Retail data (port/docs/retail-eu-plan.md, R7): the language with the European discs. The European
+# setLanguage takes the console's system language (2 English .. 6 Italian), this build fixes 1 (the US
+# release: no event subtitles, two difficulties). Decisions of the project owner: the app's in-game menu
+# chooses it (the phone's language until then), the title menu's "LANGUAGE SELECT" (European title.dat,
+# units 11 and 12) goes (26.10.2026); a change restarts the game after a question (27.10.2026: the
+# game's soft reset, runtime/game_language.cpp). setLanguage, systemWorkInit (every start and soft
+# reset, before the title reads its language's data) and the system file's load (card.cpp) take the
+# app's language. The European German, French, Spanish and Italian SS/<lang>/option.dat are larger
+# than the fixed place of OptionDataRead (0x44000 to 0x4C2C0 of 0x40000 bytes: they ran into the player
+# data, the game ended at the start of r120): a larger one is read to another place (runtime/dvd.cpp
+# re4_option_data_place). With the debug build's discs the language stays 1, also after a system file
+# saved with the European discs (it holds their language; the debug discs have English sub screens only
+# and the title looked for ss/ger/title.dat). A port patch for retail data.
+--- a/src/game/main.cpp
++++ b/src/game/main.cpp
+@@ -115,6 +115,8 @@
+ 
+ // Program entry: systemStartInit, then on every soft reset restores the reset-keep block (pRK),
+ // starts the title task and runs the frame loop until systemResetCheck sees the next soft reset.
++extern "C" int re4_game_language_value(void); /* port: runtime/game_language.cpp */
++
+ /* port: entry called by the platform launcher (Linux host, Android activity) */
+ extern "C" int re4_game_main()
+ {
+@@ -131,6 +133,11 @@
+             pSys->language = pRK->language;
+             pSys->eff_country = pRK->eff_country;
+             pG->game_country = pRK->game_country;
++            /* port: with the European discs the app's language, also after a soft reset (the app's
++               "Restart" for a new language, runtime/game_language.cpp) */
++            if (re4_game_language_value() >= 0) {
++                setLanguage();
++            }
+             pSys->Extra_flg = pRK->Extra_flg;
+             for (i = 0; i < 16; i += 4) {
+                 U32SetOfs(pSys->MercSysRoom, i, U32GetOfs(pRK->MercSysRoom, i));
+@@ -443,6 +450,11 @@
+     pSys->language = 1;
+     pSys->eff_country = 1;
+     pG->game_country = 1;
++    /* port: with the European discs the app's language (setLanguage below), before the title
++       reads its language's data */
++    if (re4_game_language_value() >= 0) {
++        setLanguage();
++    }
+ }
+ 
+ // Frames per game update in vsyncs (1 = 60 Hz, 2 = 30 Hz).
+@@ -583,6 +595,11 @@
+ void setLanguage()
+ {
+     pSys->language = 1;
++    /* port: with the European discs the language the European setLanguage takes from the console
++       (2 English .. 6 Italian): here the app's choice */
++    if (re4_game_language_value() >= 0) {
++        pSys->language = (u8) re4_game_language_value();
++    }
+     pSys->eff_country = pSys->language;
+     pG->game_country = pSys->language;
+ }
+--- a/src/game/card.cpp
++++ b/src/game/card.cpp
+@@ -2014,6 +2014,7 @@
+ }
+ 
+ extern "C" int re4_card_boot_message(void); /* port: runtime/memcard.cpp */
++extern "C" void re4_game_language_after_card(void); /* port: runtime/game_language.cpp */
+ 
+ // Rno0 == 1 (first check): reads the system file (sysfileRead) and applies its settings; a
+ // missing / broken one leads to the create-system-file prompt or the error screen.
+@@ -2043,6 +2044,9 @@
+         break;
+     case 2:
+         *pSys = *(SYSTEM_SAVE_WORK*) (buf + SYS_WORK);
++        /* port: the system file holds the language it was saved with; the European discs keep the
++           app's choice, the debug build's discs language 1 (runtime/game_language.cpp) */
++        re4_game_language_after_card();
+         pG->CardStatus |= 1;
+         SndSetOutputMode(pSys->SndMode, 1);
+         m_Rno1++;
+--- a/src/game/title.cpp
++++ b/src/game/title.cpp
+@@ -382,6 +382,7 @@
+ // Loads the main menu id layout: 5 entries (new game, Ada, Mercenaries, load, options) once all
+ // is unlocked, else 3 (new game, load, options); cursor on "load".
+ extern "C" int re4_debug_start_room_set(void); /* port: runtime/dolphin_os.cpp */
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
+ 
+ void titleMenuInit(TITLE_WORK* w)
+ {
+@@ -402,6 +403,18 @@
+         w->p_menu[1] = IdSys.unitPtr(5, IDC_TITLE_MENU);
+         w->p_menu[2] = IdSys.unitPtr(3, IDC_TITLE_MENU);
+         w->cursor = 1;
++    }
++    /* port: the European title.dat adds "LANGUAGE SELECT" to both menus (units 11 and 12, texture
++       248) for code this build lacks; the language is chosen in the app's in-game menu (decision of
++       the project owner, 26.10.2026): the entry is hidden like the codec screen hides its units */
++    if (re4_disc_retail_eu()) {
++        for (int id = 11; id <= 12; id++) {
++            ID_UNIT* u = IdSys.unitPtr(id, IDC_TITLE_MENU);
++            if (u) {
++                u->be_flag &= ~8;
++                u->rev_flag |= 0xF;
++            }
++        }
+     }
+     if (re4_debug_start_room_set()) {  /* port: debug start (RE4_START_ROOM) picks the new game */
+         w->cursor = 0;
+--- a/src/game/read.cpp
++++ b/src/game/read.cpp
+@@ -218,19 +218,29 @@
+ 
+ // Boot: reads the language-dependent "SS/<lang>/option.dat" (the option menu id data) to
+ // OPTION_DATA_ADDR (pG->pOption).
++extern "C" void* re4_option_data_place(const char* name, unsigned fixed_max); /* port: runtime/dvd.cpp */
++
+ void OptionDataRead()
+ {
+     DVD_READINFO info;
+     char name[64];
+     const char* lang[12] = { "jpn", "eng", "eng", "ger", "fra", "esp", "ita", "eng" };
+     int req;
++    void* addr;
+ 
+     sprintf(name, "SS/%3s/option.dat", lang[pSys->language]);
+-    pG->pOption = OPTION_DATA_ADDR;
++    /* port: the European discs' German, French, Spanish and Italian option.dat are larger than
++       this fixed place (they ran into the player data); re4_option_data_place names another
++       place for a larger one, 0 keeps this one */
++    addr = re4_option_data_place(name, OPTION_DATA_MAX);
++    if (addr == 0) {
++        addr = OPTION_DATA_ADDR;
++    }
++    pG->pOption = addr;
+ #line 262 "D:/Bio4/Prog/read.cpp"
+-    req = DVD_READ_N(name, OPTION_DATA_ADDR, 0, 0, 0, 0x11);
++    req = DVD_READ_N(name, addr, 0, 0, 0, 0x11);
+     Dvd.ReadCheck(req, &info);
+-    if (info.read_size[0][0] > OPTION_DATA_MAX) {
++    if (addr == OPTION_DATA_ADDR && info.read_size[0][0] > OPTION_DATA_MAX) {
+         pLog->err(0, 0, "OPTION_DAT IS TOO LARGE(%d/%d)", 0, OPTION_DATA_MAX);
+         TaskSleep(60);
+     }

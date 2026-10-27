@@ -25,7 +25,7 @@ public final class ImportManager {
   private Listener listener;
   public volatile boolean busy;
   /** The status before anything happened (the core launcher shows its own heading instead). */
-  public static final String PROMPT = "Select ISO/GCM files of the November 25, 2004 debug build.";
+  public static final String PROMPT = "Select ISO/GCM files of the debug build or of the European release.";
   public volatile String status = PROMPT;
   public final File root;
   public ImportManager(Context context) {
@@ -37,9 +37,51 @@ public final class ImportManager {
     else
       try {
         DiscInstaller.recover(root);
+        status = installedWarning(status);
       } catch (IOException e) {
         status = e.getMessage();
       }
+  }
+  /** Imports of older versions never compared the room files with the verified disc: do it from their manifest. */
+  private String installedWarning(String otherwise) {
+    String mixed = mixedReleases();
+    if (mixed != null)
+      return mixed;
+    for (int n = 1; n <= 2; n++) {
+      File disc = new File(root, "disc" + n);
+      if (!DiscInstaller.ready(disc, n))
+        continue;
+      try {
+        String warning = RoomFileCheck.verify(disc, roomCatalog(disc), n).warning(n);
+        if (warning != null)
+          return warning;
+      } catch (IOException | RuntimeException ignored) { /* the check is optional */
+      }
+    }
+    return otherwise;
+  }
+  /**
+   * The verified hashes of the release of an imported disc: every file (files.tsv, files-eu.tsv) when the
+   * import takes every file (core mode), else the room files (rooms.tsv, rooms-eu.tsv).
+   */
+  public InputStream roomCatalog(File disc) throws IOException {
+    String release = DiscInstaller.release(disc);
+    return context.getAssets().open(GameCubeDisc.catalog(GameCubeDisc.importEverything ? "files" : "rooms",
+        release == null ? GameCubeDisc.DEBUG : release));
+  }
+  /** The name of a release for the launcher's texts. */
+  public static String releaseName(String release) {
+    return GameCubeDisc.EUROPEAN.equals(release) ? "European release" : "debug build";
+  }
+  /** Null, or the line saying that the two imported discs are of different releases. */
+  public String mixedReleases() {
+    if (root == null)
+      return null;
+    String one = DiscInstaller.release(new File(root, "disc1")), two = DiscInstaller.release(new File(root, "disc2"));
+    if (one == null || two == null || one.equals(two))
+      return null;
+    return "Disc 1 is the " + releaseName(one) + ", Disc 2 the " + releaseName(two)
+        + ": import both discs of one release.";
   }
   public void attach(Listener l) {
     listener = l;
@@ -111,11 +153,12 @@ public final class ImportManager {
             w.getFD().sync();
           }
         }
-        ReferenceCatalog catalog =
-            new ReferenceCatalog(context.getAssets().open("references.tsv"));
         final long[] last = {0};
+        // the code check of the disc's own release (references.tsv / references-eu.tsv)
         DiscInstaller.install(
-            source, root, expectedDisc, catalog, (phase, done, total) -> {
+            source, root, expectedDisc,
+            release -> new ReferenceCatalog(context.getAssets().open(GameCubeDisc.catalog("references", release))),
+            (phase, done, total) -> {
               check();
               long now = System.nanoTime();
               if (now - last[0] > 200_000_000L || done == total) {
@@ -125,8 +168,20 @@ public final class ImportManager {
                 notifyUi();
               }
             });
-        status =
-            "Disc " + expectedDisc + " verified and imported successfully.";
+        File imported = new File(root, "disc" + expectedDisc);
+        status = "Disc " + expectedDisc + " (" + releaseName(DiscInstaller.release(imported))
+            + ") verified and imported successfully.";
+        // The code check covers the program only; a damaged image shows only when the game reads a
+        // file that is wrong (St2/r222.das): every file against the catalog. Non-blocking: say it, do not refuse.
+        try {
+          RoomFileCheck rooms = RoomFileCheck.verify(imported, roomCatalog(imported), expectedDisc);
+          String warning = rooms.warning(expectedDisc);
+          if (warning != null) status = warning;
+        } catch (IOException | RuntimeException ignored) { /* the check is optional */
+        }
+        // a debug disc next to a European one: the game does not start until both match
+        String mixed = mixedReleases();
+        if (mixed != null) status = mixed;
       } catch (IOException | RuntimeException e) {
         status =
             e.getMessage() == null ? "Import failed" : e.getMessage();

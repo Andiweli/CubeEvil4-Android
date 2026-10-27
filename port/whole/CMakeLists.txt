@@ -276,10 +276,11 @@ string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_formats_obj>\n")
 # field notes and gameplay autofocus (runtime/dof.cpp, patch 0065) and the
 # gyro aiming (runtime/gyro.cpp), the taps in the sub screens (runtime/menu_touch.cpp), the
 # picture format without the letterbox (runtime/picture.cpp), the knife by a swipe
-# (runtime/knife_swipe.cpp) and the quick-time events by a tap (runtime/qte_touch.cpp).
+# (runtime/knife_swipe.cpp) and the quick-time events by a tap (runtime/qte_touch.cpp), and the instant save payload (runtime/instant_game.cpp),
+# the game language (runtime/game_language.cpp) and the cheat menu (runtime/cheats.cpp).
 add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge.cpp runtime/movie_status.cpp
     runtime/dof.cpp runtime/gyro.cpp runtime/menu_touch.cpp runtime/picture.cpp runtime/knife_swipe.cpp
-    runtime/qte_touch.cpp)
+    runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp runtime/cheats.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")
@@ -290,6 +291,7 @@ string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")
 # (runtime/core_api.cpp, runtime/re4_core.h).
 add_library(re4_glue_obj OBJECT
     runtime/core_api.cpp
+    runtime/instant_store.cpp
     runtime/game_heap.cpp
     runtime/sn_runtime.cpp)
 target_include_directories(re4_glue_obj PRIVATE runtime)
@@ -570,9 +572,12 @@ endif()
 # loads libre4_host.so (the launcher and the runtime tests) and with it the
 # game libraries, which therefore lie above 0x80000000 as on Android.
 if(NOT ANDROID)
+    add_executable(re4_instant_store_test tests/instant_store_test.cpp runtime/instant_store.cpp runtime/gci.cpp)
+    target_include_directories(re4_instant_store_test PRIVATE runtime)
+    target_compile_features(re4_instant_store_test PRIVATE cxx_std_17)
     # tests/game_probe.cpp: checks that need the game's flags and headers
     add_library(re4_probe_obj OBJECT tests/game_probe.cpp tests/core_probe.cpp tests/stream_probe.cpp
-        tests/gx_probe.cpp tests/movie_probe.cpp tests/card_probe.cpp)
+        tests/gx_probe.cpp tests/movie_probe.cpp tests/card_probe.cpp tests/instant_game_probe.cpp)
     target_link_libraries(re4_probe_obj PRIVATE re4_game_flags)
     add_library(re4_hostlib SHARED host/main.cpp tests/runtime_tests.cpp tests/core_tests.cpp
         tests/core_remote_probe.cpp

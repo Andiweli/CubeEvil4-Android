@@ -3,6 +3,1048 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+
+## Raum-Rundgang 10b mit beiden Disc-Arten (27.10.2026 nachmittags, lokal, Branch `retail-eu-testrun`)
+
+**Abgeschlossen 27.10.2026 abends:** Rundgänge am PC mit beiden Disc-Arten je 126/126, die Punkte aus M13 nachgeholt, auf
+dem Retroid zwei Kapitel, Bosse mit Cheats, Zwischenstufen der Auflösung, Controller-Konfiguration und Speichern/Laden mit
+ARM32 bestätigt (Einzelheiten unten).
+
+Auftrag des Projektinhabers: Rundgang über alle 126 Räume mit Debug- (G4BE08) und EU-Discs (G4BP08), Stage 4 mit EU-Daten
+in die Prüfstrecke, die drei Spielmeldungen des EU-Rundgangs, das Ungetestete aus M13, gefundene Fehler beheben (mit den
+Debug-Discs bleibt alles gleich).
+
+**1. Rundgänge (i686, je 6000 Bilder ab der Hauptschleife, Stand `69510fa5`):** Debug-Discs **126 von 126** ohne Fehler;
+EU-Discs **126 von 126** (vorher 108: Stage 4 scheiterte an „RelDataReadError! rel/st4_0.rel“, behoben mit Patch 0131, ein
+echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese nur für Stage 3). Vergleich Debug/EU: in
+5 Räumen nur andere Todeszahlen (r113, r21d, r301, r332, r40f; Gegner verhalten sich mit den EU-Daten leicht anders).
+- Prüfstrecke: `whole_r100_check.sh --room-info DATEI` gibt EU-Discs für den Debug-Start die `debug/roomInfo.dat` der
+  Debug-Disc dazu (Ordner mit Verweisen `WORK/disc-ri`, im Inhaltsverzeichnis `sys/fst.bin` jeder Disc ein Ordner „Debug“
+  angehängt; die Discs bleiben unverändert). Die Ergebnisse bleiben je Disc-Art getrennt (`rundgang-i686-O2.json`,
+  `rundgang-i686-O2-eu.json`; vorher überschrieb der EU-Rundgang den Debug-Rundgang), ein EU-Rundgang wird mit dem
+  Debug-Rundgang verglichen, dazu die Spielmeldungen, die nur eine Disc-Art gibt (`room_tour_report.py --compare
+  --messages`). Ein Rundgang mit `RE4_CHEATS` bleibt ebenso getrennt (`-cheats7`) und wird mit dem ohne verglichen.
+- Neue Testhilfen: `RE4_TEST_PLACE="free+N:area=A"` (Leon in die Mitte von Auslösebereich A des Raums),
+  `RE4_TEST_SCF="free+N:F,F"` (Szenario-Merkmale setzen), `RE4_GAME_LOG_STACK=Text` (PC: bei einer Spielmeldung, die so
+  beginnt, die Aufrufer ins Log).
+
+**2. Die drei Spielmeldungen des EU-Rundgangs**
+- „Message::init() Msg[04] Address Error“ (15 Räume, nur EU): die **Untertitel der Zwischensequenzen auf Englisch**. Mit den
+  EU-Discs ist Englisch Sprache 2; die Debug-Version blendet Ereignis-Untertitel nur bei Sprache 1 aus, die EU-Discs haben
+  für Englisch keine. Das Spiel zeigte ersatzweise Text 0 der Kerntabelle: „14-09LE“ unter Leon und Luis in r104 (GX-Bild).
+  Patch 0132 wie die EU-Fassung (bei Sprache 2 keine). Danach die 15 Räume ohne Fehler und **keine Spielmeldung mehr, die
+  nur mit EU-Discs kommt**; Deutsch zeigt seinen Untertitel („Vom Regen in die Traufe.“).
+- „mapModelInit(): R105 flag SHAPE_MODEL clear“ (11 Räume, r315–r327): kommt mit den Debug-Discs in denselben Räumen. Ein
+  Kartenmodell der Insel hat das Merkmal gesetzt; beide Fassungen löschen es, die EU-Fassung nur ohne Meldung. Kein Eingriff.
+  Nebenbei gesehen: die EU-Fassung blendet in `mapModelInit` Räume mit Farbe 4 aus (weder offen noch betreten, oder versteckt),
+  diese Version zeichnet sie in Farbe 4. Nicht weiter untersucht (Karten auf dem Retroid ohne Befund).
+- „IDSystem::unitPtr(m[00],c[00]): Not found.“ (10 Räume): kam von der ersten Fassung von Patch 0126 (Funkspruch ohne
+  Hauptmenü, aber `sscrnMainMenuInit` noch aufgerufen); mit der endgültigen Fassung im neuen Rundgang nicht mehr.
+
+**3. Aus M13 nachgeholt (PC, GX-Bilder, EU-Discs auf Deutsch, Debug-Discs zum Vergleich)**
+- **Funksprüche 13, 14, 15, 17** (r207, r204, r20b, r229; r204 über Bereich 2: Ereignis `r204s00` ohne den Lichtdatensatz der
+  EU, Kapitelende 3-1 mit „Speichern? Ja/Nein“, dann der Funkspruch; r20b über Bereich 0x16): 13 – Hunnigans Bild wird zu
+  Rauschen (Debug: bleibt); 14 – beginnt mit Rauschen, dann Salazar (Debug: sofort Salazar); 15 – Salazar legt auf, Rauschen;
+  17 – Salazar geht, Rauschen (Debug: sein Bild gleitet hinaus, ein Rest bleibt am Rand). Alle wie der EU-Code (Patch 0126).
+- **Achte Händler-Markierung:** die Debug-Fassung setzt `SCF_R204_MERCHANT_MOVE` nie (der Händler zieht in r204 trotzdem um),
+  die EU-Fassung in `R204Init`: Patch 0133. Karte in r204 (Übersicht): ohne das Merkmal die alte Markierung, mit
+  (`RE4_TEST_SCF=free+10:88,174`) die achte ein Stück daneben, die alte weg. Der Umzug selbst im Spiel nicht nachgespielt.
+- **Cheats** (EU-Rundgang über alle 126 Räume mit `RE4_CHEATS=7`, 126 von 126): Leon 1-mal getroffen (ohne Cheats 1 854),
+  Gegner bei 158 von 202 Treffern sofort besiegt (ohne: 65 von 257). Treffer mit Rest: Fässer/Kisten (0x46), Gegner, die sich
+  verwandeln (Leben steigt), ein Treffer mit „mindestens 1 lassen“ und Schaden ohne Leons Waffe. Leon starb noch 12-mal in 9
+  Räumen, jedes Mal ohne vorherigen Treffer: Fallen und Bereiche (r203, r208, r30f, r311), Sturz (r215), Szenen (r104, r227,
+  r333) und ein Fang-Angriff im Söldner-Raum r404 (Leben 1200 → 0 in einem Zug) – die Grenzen aus `cheat-menu-plan.md`.
+  **Gerät (Projektinhaber, Retroid, 27.10.2026 nachmittags, Stand `7f06f542`):** zwei weitere Kapitel ohne Probleme gespielt,
+  Bosskämpfe enden mit One-Hit-Kill nach einem Schuss. Vereinzelt sanken die Bilder/s von 30 auf 22 (unten). **Nicht
+  geprüft:** der Knopf bei offenem Menü.
+- **Ruckler 30 → 22 Bilder/s** (Bericht `cubeevil4-report-20261027-144449.zip`, 64 bit, EU-Discs, Stufe 2 „Dynamisch“, 2× MSAA,
+  FXAA, Anisotropie 16; dazu drei GX-Serien am See): nur an Orten mit vielen Zeichenaufträgen (r101, r108, r10a, r10b; 600–1000
+  je Bild, ~8 Bildkopien). Dort wartete der Spielkern 18–22 ms je Bild auf den Renderer (`GX core: 42 ms each, of it 22 ms
+  waiting for the renderer`), und der Renderer wartete im Treiber auf den Grafikchip: 30–43 ms Laufzeit bei 7–8 ms
+  Rechenzeit je Bild (GPU-Zeit 18–29 ms). Die dynamische Auflösung blieb trotzdem auf Stufe 2: sie erkannte einen zu langsamen
+  Grafikchip nur an Zäunen, die nach dem nächsten Bild noch offen sind, und die waren alle erreicht, weil der Renderer selbst
+  wartete. **Neu (`gx_auto_level.h`):** ein langsames Fenster (unter 28,5 Bilder/s) zählt auch dann als „Grafikchip zu
+  langsam“, wenn der Renderer im Schnitt mindestens 10 ms je Bild wartet (Laufzeit minus Rechenzeit, `core_mode.cpp`); wieder
+  hoch nur unter 5 ms. In den 140 Zehn-Sekunden-Fenstern des Berichts warteten die ruckelnden 11–35 ms, alle flüssigen höchstens
+  8,4 ms. Ohne Thread-Uhr (`CLOCK_THREAD_CPUTIME_ID`) zählt kein Warten. `gx_gl_check` mit neuen Fällen 0 Fehler (mit
+  abgeschalteter Regel schlagen sie an), APK neu gebaut. **Nicht geprüft:** ob Stufe 1 am See wieder 30 Bilder/s schafft (Gerät).
+- **Gerätetest der Regel (Retroid, 27.10.2026 16:25 und 16:29, Berichte `senden-arm64.zip`, `senden_arm32.zip`):** sie greift mit
+  64 und 32 bit: `dynamic resolution: level 2 -> 1 (24.0 game pictures/s, the GPU 0.0 chunks behind, the render thread waiting
+  31.2 ms a chunk …)`, danach 30 Bilder/s; nach 30 s wieder Stufe 2, kurz darauf wieder 1 (die Wartezeit verdoppelt sich wie
+  vorgesehen). 32 bit: Spielstand in r117 geladen (`save loaded … room r117`), **gespeichert wurde in diesem Lauf nicht**.
+  Projektinhaber: der Sprung von 2× auf 1× ist an der Bildqualität deutlich zu sehen.
+- **Zwischenstufen der Auflösung (Wunsch des Projektinhabers, 27.10.2026):** 1,5×, 2,5×, 3,5× zusätzlich zu 1×–4×. Im Menü
+  (Anzeige → Auflösung) wie eine Klaviertastatur: oben Dynamisch, 1×, 2×, 3×, 4×, darunter die drei Zwischenstufen, jede so
+  breit wie die oberen und mittig auf der Linie zwischen den beiden, zwischen denen sie liegt (`MenuLayout.Keys`; ist die
+  Zeile zu schmal, stehen alle acht in Zeilen gleicher Breite der Größe nach). Die Wahl steht in halben Stufen in
+  `scaleHalves` (0 Dynamisch, 2 = 1× … 8 = 4×); eine Wahl der alten Einstellung `scale` wird übernommen. Die Zahl mit dem
+  Dezimalzeichen der Sprache („1,5×“). Renderer (`gx_gl.cpp`): die Stufe in halben Schritten (`Impl::halves`), Bildspeicher
+  bei 1,5× 960 × 792; Ausschnitte, Bildbereiche und Löschen von `Lo(x)` bis `Lo(x + w)` (abgerundet, Nachbarn ohne Lücke),
+  eine Kopie hat `Hi(w)` Pixel (aufgerundet), der Kopier-Shader liest ihren Ausschnitt genau (`Sf`). Bei ganzen Stufen
+  rechnet alles wie vorher. Neue Schnittstelle `InitHalves`/`RescaleHalves`/`Halves` (die ganzzahlige bleibt für Tests und
+  Werkzeuge). **Dynamisch** geht jetzt in halben Schritten (2× → 1,5× → 1×; `AutoLevel::Start(…, bottom 2, halves)`, Log
+  `level 2x -> 1.5x`). `CoreBridge.setGraphics` und `graphicsInfo()[2]` in halben Stufen, Fehlerbericht `level 1.5`.
+- **Geprüft:** `gx_gl_check` 0 Fehler mit neuen Fällen (Stufenwechsel auf 1,5× und 2,5×: Bildgröße, mitgenommene Kopie,
+  Löschfarbe; bei 1,5× eine Kopie an ungerader Stelle mit ungerader Größe; Dynamisch in halben Schritten bis 1× und nicht
+  tiefer); `CoreMenuLayoutTest` 5/5 (neu: Klavier-Anordnung, Übernahme der alten Wahl 3× → `scaleHalves` 6, Druck auf 1,5×
+  speichert 3; alle Seiten in 10 Sprachen, 3 Schriftgrößen, 5 Breiten ohne Überlappung); Texte 10 Sprachen ok
+  (`ingame_resolution_line`: die Stufe als Text `%3$s`); APK gebaut. **Nicht geprüft:** Gerät (Bild bei 1,5×/2,5×/3,5×,
+  Dynamisch in halben Schritten am See).
+- **Gerätetest (Retroid, 64 bit, 27.10.2026 16:47, Bericht `senden.zip`):** Dynamisch ging im Regen (r117/r118, Nacht) von 2× auf
+  1,5× (`22.0 game pictures/s … the render thread waiting 33.0 ms a chunk`) und blieb dort, solange es regnete (Projektinhaber).
+  Im Regen 650–1 080 Zeichenaufträge je Bild statt ~180, ~2 200 Uniform-Blöcke (2,2 MB), 9 Bildkopien, mit 4× MSAA; der
+  Renderer rechnet 7–8 ms und wartet den Rest auf den Grafikchip (die GPU-Zeitmessung ist mit 4× MSAA auf dem Adreno unbrauchbar:
+  1 154 ms). **Offen:** wo genau die Zeit im Regen liegt (GX-Serie per R3 im Regen, GPU-Messreihe), mögliche Schritte:
+  durchsichtige Partikel mit weniger Abtastpunkten, weniger Auflösungen des MSAA-Puffers für die Kopien, Zeichenaufträge
+  zusammenfassen. Die Schrift der Auflösungs-Knöpfe ist überall gleich (16 sp fett; im Test nun geprüft), der Eindruck kommt
+  von den längeren Texten.
+- **Controller-Konfiguration (Wunsch des Projektinhabers, 27.10.2026):** Menü → Steuerung, ganz unten „Controller-Konfiguration ›“
+  (nur bedienbar mit angeschlossenem Controller: `CoreActivity.gameDevice`). Die Seite listet 13 Funktionen (Aktion/Schießen A,
+  Rennen/Abbrechen B, Ashley X, Inventar Y, Karte Z, Messer L, Zielen R, Optionen/Überspringen START, Steuerkreuz ↑↓←→,
+  App-Menü SELECT), rechts je ein Knopf mit der Taste; ein Druck wartet auf die nächste Controller-Taste („Taste drücken …“),
+  derselbe Knopf noch einmal lässt alles, wie es war. Hatte eine andere Funktion die Taste, tauschen die beiden
+  (`CoreInput.assign`: jede Funktion behält eine Taste). „Standardbelegung“ stellt zurück. Gespeichert als `bindings` in
+  `core_input` (fehlt bei der Standardbelegung). `CoreInput`: mit eigener Belegung ein eigener Weg (gehaltene Tasten je
+  Gerät, Steuerkreuz der Hat-Achsen als Steuerkreuz-Tasten; L und R auf L2/R2 analog, andere Funktionen auf einem Trigger ab
+  halbem Druck; „L und R / B einrasten“ wirken weiter; das App-Menü auf seiner Taste, R3 nimmt Grafikdaten nur, wenn keine
+  Funktion darauf liegt), ohne eigene Belegung der bisherige Weg unverändert. Mit der alternativen Steuerung gilt deren feste
+  Belegung (Hinweis auf der Seite). Protokoll: `layout: own bindings (controller configuration): A = BUTTON_A, …`. 19 neue
+  Texte in 10 Sprachen. **Geprüft:** `CoreInputTests` 172 Prüfungen (neu: Tausch, Trigger mit Schwelle, L analog, Hat als
+  Steuerkreuz, Menü auf L1, R3 mit Funktion, alternative Steuerung geht vor, Einrasten), `CoreMenuLayoutTest` 6/6 (neu:
+  Knopf nur mit Controller, Zuweisen mit Tausch, Loslassen geschluckt, zweimal derselbe Knopf, Zurück zur Steuerung; die
+  neue Seite in 10 Sprachen, 3 Schriftgrößen, 5 Breiten ohne Überlappung), Texte 10 Sprachen ok, APK gebaut. **Nicht
+  geprüft:** Gerät.
+- **Gerätetest der Controller-Konfiguration (Retroid, 27.10.2026 17:06 und 17:08, `senden-1.zip`, `senden-2.zip`) und
+  Korrekturen (Wünsche des Projektinhabers):**
+  - **B beendete das Spiel:** durch die Tausche war die Taste B keiner Funktion mehr zugeordnet (`A = BUTTON_R2, B = BUTTON_A,
+    … Z = BUTTON_Y`), die App reichte sie an Android weiter (`KEYCODE_BUTTON_B … not mapped, passed on to Android`), Android
+    machte daraus „Zurück“, die Frage „Spiel beenden?“ wurde bestätigt (`System.exit`). Neu: im Spiel geht keine Taste eines
+    Controllers ohne Funktion mehr an Android (`CoreActivity.dispatchKeyEvent`, Protokoll `… -> no function, not passed on`).
+  - **Eigene Belegung nur im Spiel:** in den Menüs des Spiels gilt die Standardbelegung. Der Kern meldet „das Spiel zeigt ein
+    Menü“ in Bit 4 von `re4_core_rumble` (die App fragt es ohnehin jedes Bild, auch über den eigenen Kern-Prozess; keine neue
+    Schnittstelle): `re4_game_menu_open` (`runtime/state_trace.cpp`) = keine Hauptschleife eines Raums (Titel und seine Menüs,
+    Laden) oder ein Untermenü offen (`STA_SUB_SCRN`: Inventar, Karte, Akten, Händler, Optionen, Funk, Schreibmaschine).
+    Zwischensequenzen, Reaktionstasten und das Kapitelende zählen als Spiel. `CoreInput.setMenu`: jedes Gerät merkt sich
+    seine gehaltenen Tasten, beim Wechsel zählen sie in der neuen Belegung weiter (nichts bleibt hängen). Protokoll des Kerns
+    `pad: game menu shown/closed at frame N` (höchstens 60 Zeilen).
+  - **Abstand in „Steuerung“:** die Gyro-Zeile ist so hoch wie der Regler daneben; der Knopf steht jetzt senkrecht in ihrer
+    Mitte, über und unter ihm gleich viel Abstand (`CoreMenuLayoutTest.gyroSwitchKeepsTheSameGapAboveAndBelow`, schlägt ohne
+    die Korrektur an).
+  - **Vibration stärker:** Stärke 210–255 statt 150–255, jeder Impuls 170 statt 120 ms (`RUMBLE_PULSE_MS`).
+  - **Geprüft:** `CoreInputTests` 179 Prüfungen (neu: Menü mit Standardbelegung, Taste über den Wechsel gehalten, App-Menü in
+    Menüs auf SELECT), `CoreMenuLayoutTest` 7/7; PC-Lauf r204 (EU): `game menu shown` am Titel, `closed` mit der Hauptschleife,
+    `shown`/`closed` mit der Karte, `shown` mit dem START-Menü; Prüfstrecke Debug-Discs und EU (roomInfo), Stand `2212f1a1`,
+    je „ALLES OK“; Android-Kern beide ABIs 0 Fehler, APK gebaut. **Nicht geprüft:** Gerät.
+- **Zweiter Gerätetest (Retroid, 27.10.2026 17:32, `senden.zip`):** Abstände in „Steuerung“ passen (Projektinhaber). Mit A
+  anders belegt ging die Navigation im Optionsmenü (START) nicht: im Protokoll fehlte jede Zeile `pad: game menu`, die
+  Menü-Meldung kam auf dem Gerät nie an. Ursache: `pad.cpp` (libre4_platform) fragte `re4_game_menu_open` (libre4_main) über eine
+  schwache Verknüpfung; Androids Linker sucht sie nur in den Bibliotheken, die libre4_platform braucht, und die braucht
+  libre4_main nicht – der Zeiger blieb leer (am PC löst das Testprogramm ihn auf). Neu: `state_trace.cpp` übergibt seine
+  Abfrage beim Laden der Bibliothek an `re4_pad_menu_probe` (libre4_main braucht libre4_platform, `llvm-readelf`: das Symbol
+  aufgelöst, keine schwache Verknüpfung mehr). (Die schwache Verknüpfung `re4_idsys_report` in `log.cpp`, nur Diagnose bei
+  „IDSystem work full“, hat dasselbe Problem; nicht geändert.) **Vibration:** noch zu schwach („Schrotflinte wie
+  Steinschleuder“): Stärke 230–255, Dauer je Stoß nach Stärke 190–310 ms (`CoreActivity.rumblePulseMs`). Geprüft:
+  Prüfstrecke Debug-Discs „ALLES OK“ (Stand `0f74de5f`), PC-Lauf r204 wie oben, Android-Kern beide ABIs 0 Fehler,
+  `CoreMenuLayoutTest` 7/7, APK gebaut. **Nicht geprüft:** Gerät.
+- **Dritter Gerätetest (Retroid, 27.10.2026 18:37, `senden.zip`):** die Menü-Meldung kommt jetzt an (`pad: game menu
+  shown/closed` bei jedem Menü), Abstände und Vibration passen (Projektinhaber). Neu gewünscht: Hinweise wie „A Öffnen“ und die
+  Reaktionstasten (A, A+B, L+R …) zeigen die GameCube-Tasten, mit eigener Belegung lagen diese aber woanders. **Entscheidung des
+  Projektinhabers (27.10.2026):** solange ein Hinweis gezeigt wird, gilt die Standardbelegung (die gezeigte Taste ist die zu
+  drückende; Türen, Gegenstände usw. dann mit A, auch wenn „Aktion“ sonst woanders liegt). Umgesetzt: `re4_game_menu_open`
+  meldet auch den Hinweis des Aktionsknopfs (`Cckpt.m_ActBttn` ≠ `DISP_OFF` und `ActBtn.isActive()`, wie `qte_touch.cpp`;
+  Rückgabe 2), Protokoll `pad: game button prompt shown`. Geprüft: Prüfstrecke Debug-Discs „ALLES OK“ (Stand `e263bd0d`),
+  PC-Lauf r100 (Leon in den Tür-Bereich 0 gesetzt: `button prompt shown` bei Bild 2925), Android-Kern beide ABIs 0 Fehler,
+  `CoreMenuLayoutTest` 7/7, APK gebaut. **Nicht geprüft:** Gerät.
+- **Vierter Gerätetest (Retroid, 27.10.2026 19:25) und Neuausrichtung:** das Umschalten nach Menü/Hinweis machte die eigene
+  Belegung unbrauchbar: bei jedem Hinweis, der kam und ging, wechselte dieselbe Taste ihre Bedeutung (in 13 s über 15 Wechsel;
+  R2 mal „Zielen“, mal „A“); Leon blieb beim Rennen stehen, wenn er über einen Gegenstand lief (Rennen lag auf A); der
+  Ja/Nein-Dialog beim Aufheben ist weder Untermenü noch Hinweis. **Entscheidung des Projektinhabers (27.10.2026): nur
+  Zusatztasten.** Die Belegung (A, B, X, Y, L, R, Z, START, Steuerkreuz, SELECT; mit oder ohne alternative Steuerung) bleibt
+  überall gleich, die Anzeigen des Spiels stimmen immer; die Konfiguration legt Funktionen nur zusätzlich auf freie Tasten
+  (`CoreInput.freeKey`: alle außer Gesichtstasten, START, SELECT, R1, L2, R2, Steuerkreuz; L1 nicht mit der alternativen
+  Steuerung; beim Retroid L1, L3, R3). Eine Funktion je Zusatztaste; dieselbe Taste noch einmal nimmt sie weg; L und R auf einer
+  Zusatztaste drücken den Trigger ganz; „Einrasten“ wirkt; R3 nimmt Grafikdaten nur ohne Funktion; das App-Menü kann
+  zusätzlich auf einer freien Taste liegen. `CoreInput` wieder auf dem Stand vor der eigenen Belegung, darauf die Zusatztasten
+  (`setExtraKeys`, `assign`, `encode`/`decode`, `appFunctionOf`); die App schaltet nicht mehr nach Menü/Hinweis um (das Bit 4
+  des Kerns bleibt als Protokoll `pad: game menu/button prompt …`). Gespeichert als `extraKeys` in `core_input`, der alte
+  Eintrag `bindings` wird gelöscht. Seite: rechts die Zusatztaste („—“ ohne), „Freie Taste …“ beim Warten; eine belegte Taste
+  beendet das Warten und tut ihr Normales (B zurück, A auf dem wartenden Knopf bricht ab); „Zusatztasten löschen“; Texte in
+  10 Sprachen angepasst. Freie Tasten ohne Funktion gehen weiter nicht an Android. **Geprüft:** `CoreInputTests` 167 Prüfungen
+  (neu: freie Tasten, Karte auf L1 und R1 bleibt Karte, A bleibt A, Wechsel und Wegnehmen, Rennen auf L1 mit Einrasten,
+  Zielen auf L3, App-Menü und X auf R3, alternative Steuerung belegt L1), `CoreMenuLayoutTest` 7/7 (neu: belegte Taste
+  abgelehnt, L1 angenommen, Wechsel zwischen Funktionen), Texte 10 Sprachen ok, APK gebaut. **Nicht geprüft:** Gerät.
+- **Fünfter Gerätetest (Retroid, 27.10.2026) und dritte Fassung (Vorschlag des Projektinhabers):** mit Zusatztasten waren
+  nur L1, L3, R3 belegbar. Neu: **A, B, L2, R2, START, SELECT und das Steuerkreuz sind fest** (die Hinweise und Dialoge des
+  Spiels fragen A, B, L, R; seine Menüs bewegen sich mit dem Steuerkreuz), **X, Y, L1, R1, L3, R3 sind frei belegbar**
+  (`CoreInput.MOVABLE`, eine Funktion oder keine je Taste; Standard X = Ashley, Y = Inventar, R1 = Karte, L1/L3/R3 keine).
+  Der Controller meldet auch C, Z und MODE; beim Retroid sind das keine echten Tasten, sie bleiben außen vor. Wählt man
+  Ashley, Inventar oder Karte für eine Taste, tauscht die Taste, die sie hatte (`CoreInput.assign`); fehlt eine davon (durch
+  „Keine Funktion“), zeigt die Seite „Auf keiner Taste: …“. Andere Funktionen dürfen auf mehreren Tasten liegen (z. B. Zielen
+  auch auf R1). L und R auf einer freien Taste drücken den Trigger ganz; „Einrasten“ wirkt; R3 nimmt Grafikdaten nur ohne
+  Funktion; das App-Menü kann auf einer freien Taste liegen. Mit der alternativen Steuerung gilt deren Belegung. Seite: links
+  die Taste, rechts ihre Funktion, ein Druck öffnet eine Unterseite mit „Keine Funktion“ und den 13 Funktionen (mit dem
+  Controller bedienbar wie das übrige Menü), „Standardbelegung“. Gespeichert als `keyMap` in `core_input`; die Einträge der
+  zwei ersten Fassungen (`bindings`, `extraKeys`) werden gelöscht. Protokoll `free keys (controller configuration): BUTTON_X
+  = X, …`. Texte 10 Sprachen (neu „Fest: …“, „Auf keiner Taste: …“, „Keine Funktion“). **Geprüft:** `CoreInputTests` 170
+  Prüfungen (neu: feste Tasten, Karte auf L1 mit Tausch, Zielen auch auf R1 und R2 weiter, A/Steuerkreuz unverändert, Tausch
+  X/Y, Rennen auf L3 mit Einrasten, fehlende Funktion, R3 mit Aufnahme/Menü/Funktion, alternative Steuerung),
+  `CoreMenuLayoutTest` 7/7 (neu: die Seite, die Auswahl, Tausch, Warnung, Standardbelegung; beide Seiten in 10 Sprachen, 3
+  Schriftgrößen, 5 Breiten), Texte ok, APK gebaut. **Auf dem Retroid bestätigt** (Projektinhaber, 27.10.2026: „das klappt
+  nun mit den Tasten, das lassen wir so“).
+- **Bericht eines Testers (HONOR LGN-NX3, 0.91.0, `cubeevil4-report-20261026-231441.zip`, „r210 lädt nicht“):** r210 lädt
+  einwandfrei; durch die Tür nach r222 liest das Spiel `st2/r222.das`, deren erste 0x400 Byte auf dem Gerät Nullen sind
+  („DISC FILE DAMAGED: st2/r222.das“). Derselbe Bericht wie „Lesefehler `st2/r222.das`“ oben (M13): 0.92.0 prüft beim Import
+  jede Datei gegen den Katalog, liest sie zurück und meldet eine unlesbare Datei im Spiel mit Ursache und Abhilfe. Kein neuer
+  Eingriff; der Tester muss mit 0.92.0 neu importieren (bzw. ein unbeschädigtes Abbild nehmen, wenn die Prüfung das meldet).
+  **Erledigt:** nach einer Neuinstallation läuft es beim Tester (Rückmeldung 27.10.2026).
+- **Speichern/Laden mit ARM32 auf dem Retroid (Projektinhaber, 27.10.2026 20:11, APK 0.92.0-beta-core mit beiden ABIs,
+  installiert als `armeabi-v7a`, Debug-Discs):** Lauf 1 lud zwei Spielstände, die die 64-bit-App gespeichert hatte (r117,
+  12-mal gespeichert; r11b, 8-mal), und speicherte an der Schreibmaschine in r11b in den freien Platz FILE 05 (Karte danach:
+  8 Dateien, alle Prüfsummen ok, Systemdatei ok, 194 von 251 Blöcken frei); Lauf 2 (32 bit, neu gestartet) lud FILE 05
+  problemlos, Lauf 3 (wieder 64 bit, von Hand gestartet) ebenso. Damit lesen und schreiben beide Varianten dieselbe Karte.
+  (Die Zeile „GPU 4295.0 ms“ im Bericht ist die Obergrenze der 32-bit-Zeitmessung des Grafikchips, wenn er Bilder
+  vorausarbeitet; schon früher so gesehen, keine Auswirkung.)
+- **Hinweis zum Testen:** „Run“ in Android Studio legt keine `app-core-debug.apk` in `app\build\outputs` ab; mit
+  `-SkipApk` bricht `test-core-app.ps1` dann mit „APK fehlt“ ab. Ohne `-SkipApk` baut das Skript sie selbst (1–2 Minuten).
+
+**Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
+EU-Discs i686 (Stand `b744b0d8`) je „ALLES OK“ (die Filmprüfung folgt jetzt den Verweisen des `disc-ri`-Ordners, ein erster
+Lauf fand dort keine Filme); Rundgänge wie oben; ARM32-Kern unter qemu-arm, Speicherkarte mit den unveränderten EU-Discs (`--armhf --card-only`, Stand `e1b1fd9e`; die Kartenprüfung startet die ARM-Ziele jetzt unter qemu, vorher scheiterte schon das Formatieren): Systemdatei, Speichern in r100, Neustart, Laden, „Retry“ – „ALLES OK“.
+Android-Kern beide ABIs 0 Fehler (Stand `152fdc2c`), APK `app-core-debug.apk` 19,2 MB mit beiden ABIs (0.92.0-beta-core,
+App-Code unverändert). **Nicht geprüft auf dem Gerät:** Englisch ohne „14-09LE“, der Händler nach dem Umzug im Spiel (beide am PC geprüft);
+Speichern/Laden mit ARM32 auf dem Retroid bestätigt (oben);
+Bosskämpfe mit Cheats und zwei weitere Kapitel auf dem Retroid bestätigt (oben).
+
+## M13 abgeschlossen (27.10.2026 nachmittags, Branch `retail-eu`)
+
+**Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch):** zwei Kapitel vom Start an ohne Befund durchgespielt;
+Cheats funktionieren. Einziger Wunsch: die drei Cheat-Knöpfe gaben beim Drücken kein Zeichen – sie leuchten jetzt
+1,5 Sekunden auf (`CoreMenu.CHEAT_FLASH_MS`, `CoreMenuLayoutTest` prüft An und Aus). Damit ist M13 erreicht.
+
+**In den Raum-Rundgang 10b übernommen:** Stage 4 (r400–r411) mit EU-Daten in der Prüfstrecke (Raummodul `st4_0.rel`
+nur auf Disc 2; R5 steht bei 108/126 Räumen), die drei Spielmeldungen ohne Absturz aus dem EU-Rundgang
+(`retail-eu-plan.md`, „Noch offen“), Funksprüche 13/14/15/17 (Bildwechsel), die achte Händler-Markierung nach dem
+Umzug (r204), Speichern/Laden mit ARM32, Schaden/Treffer mit den Cheats in Kämpfen und Bossräumen.
+
+## Cheat-Menü im Ingame-Menü (27.10.2026 mittags, lokal, Branch `retail-eu`)
+
+Wunsch und Entscheidungen des Projektinhabers: `port/docs/cheat-menu-plan.md`. Mit beiden Disc-Arten.
+
+- **App:** Seite MANAGEMENT oben „Cheats“: drei Schalter (Unendlich Gesundheit, Unendlich Munition, One-Hit-Kill;
+  gespeichert in `core_game`/`cheats`, beim Start an den Kern; ein `RE4_CHEATS` des Testskripts geht vor) und drei
+  Knöpfe (Killer7 3/1/3/3, Aktenkoffer L, +1.000.000 PTAS) mit Antwortzeile darunter (erledigt, schon vorhanden,
+  gerade nicht, kein Platz). Texte in 10 Sprachen (`check_translations.py` ok), `CoreMenuLayoutTest` mit neuer Prüfung
+  (Cheats zuerst, Schalter senden ihre Bits).
+- **Kern:** `runtime/cheats.cpp` (Bild-Haken: Bits `DBG_NO_DEATH`, `DBG_INF_BULLET`, `DBG_EM_WEAK` in jedem Bild, Leben
+  von Leon und Partner voll, Magazin der ausgerüsteten Waffe voll; Knöpfe nur mit Leon, im Spiel, ohne Untermenü/Film),
+  `re4_core_set_cheats` / `re4_core_cheat_action` (`core_api.cpp`: bei offenem Menü sofort auf dem Spiel-Thread in
+  `pausePoint`, sonst im nächsten Bild), Nachrichten 31/32 für den eigenen Kern-Prozess, JNI `CoreBridge.setCheats` /
+  `cheatAction`. Testhilfen `RE4_CHEATS=<bits>`, `RE4_TEST_CHEATS="free+N:1,2,3"`. Patch 0130: echte Magazinzahl
+  statt „100“. Jede Aktion eine Zeile „cheat: …“ im Log.
+- **Geprüft (PC, Stand `751426dc`):** Prüfstrecke EU (roomInfo) und Debug-Discs je „ALLES OK“. r100 mit `RE4_CHEATS=7`
+  und den drei Knöpfen, beide Disc-Arten: Log „health on, ammo on, one-hit kill on“, Killer7 angelegt (Stufen 0x2022,
+  14 Schuss), Koffer L, 2 000 000 PTAS. GX-Bilder (EU, Deutsch): nach etwa zwölf Schüssen zeigt die Anzeige weiter „10“;
+  Koffer geöffnet: gewachsen, Killer7 mit 14, „1000000 PTAS“. Android-Kern beide ABIs, APK gebaut, alle Unit-Tests grün.
+- **Nicht geprüft:** Schaden mit „Unendlich Gesundheit“ und Treffer mit „One-Hit-Kill“ in einem echten Kampf, die
+  Bossräume, der Knopf bei offenem Menü auf dem Gerät (am PC nur der Weg „nächstes Bild“), Gerätetest.
+
+## M13: Fehlerberichte, Gyro-Richtung, R3 und R6 (27.10.2026 vormittags, lokal, Branch `retail-eu`)
+
+**R8 Gerät und Freigabe (27.10.2026 mittags):** ARM32 auf dem Retroid (`test-core-app.ps1 -SkipCore -Abi armeabi-v7a
+-Seconds 600`, EU-Discs, Deutsch, APK 0.92.0-beta-core, ohne Speicherkarte): Vorfilm, Autofahrt, Funkspruch (Hunnigan,
+dunkle Leiste, deutscher Untertitel) und r100 ohne Absturz, Kern im App-Prozess, 0 Voice Drops. ARM64 hat der Projektinhaber
+selbst gespielt (Start, Funkspruch, Speichern/Laden an der Schreibmaschine, Menüs, Inventar, Karte, Spielstand in r226).
+Version 0.92.0-beta (versionCode 76, Zählregel: mittlere Nummer je Release), Releasetext
+`port/android-decomp/docs/releases/v0.92.0-beta.md`. **Offen für R8:** ein ganzes Kapitel mit EU-Discs, Speichern/Laden
+mit ARM32; Veröffentlichung durch den Projektinhaber.
+
+**Zweiter Gerätetest (27.10.2026 10:52, Video):** Knacken im Vorfilm nicht wieder aufgetreten (nur beim allerersten Start);
+Speichern und Laden an der Schreibmaschine, alle Menüpunkte und Hilfetexte deutsch und richtig, Inventar ohne Befund – bis auf
+ein „H“, das mitten auf der Karte stand und beim Verschieben stehen blieb: Patch 0129 (achte Händler-Markierung der EU-Daten).
+GX-Bild r226 (EU, Deutsch) danach ohne das „H“; Prüfstrecke EU (roomInfo) und Debug-Discs, Stand `efb0a029`, je „ALLES OK“.
+
+**Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch, 64 bit, Stand `f2599d51`, 27.10.2026 10:37):** Spiel startet in
+der gewählten Sprache, beide Vorfilme laufen; erster Funkspruch mit Hunnigan und dunkler Leiste hinter dem Untertitel (Patch
+0126 bestätigt); Spielstand in r226 geladen, der Statuen-Ton ist zu hören (leise, das Sample selbst ist leise; bestätigt, dass
+der frühere Bericht am Pegel lag, nicht an der Wiedergabe); Gyro-Schalter „Vertikal/Horizontal umkehren“ im Log wirksam.
+
+**1. Lesefehler `st2/r222.das` (Bericht HONOR LGN-NX3, Android 16, 64 bit, Debug-Discs, 26.10.2026).** Kern-Log: die
+Datei ist auf dem Gerät so groß wie auf der Disc (3 064 768 Byte), ihre ersten 0x400 Byte sind aber Nullen; Patch 0113
+gab nach drei Versuchen auf, das Bild blieb stehen (die Meldung „DISC FILE DAMAGED“ ging nur ins Log). Auf unserer
+Debug-Disc beginnt die Datei mit der Teile-Tabelle (SHA-256 wie `rooms.tsv`). Dieselbe Datei meldeten schon zwei andere
+Geräte (25.10.2026): vermutlich ein verbreitetes beschädigtes Abbild, sonst ein Schreibfehler des Geräts – aus dem Bericht
+allein nicht zu unterscheiden (der Import von 0.91 prüfte nur die Raumdateien und nur die Prüfsummen beim Lesen des
+Abbilds, nicht was auf dem Gerät ankam; eine Warnung stand höchstens als Zeile auf dem Startbildschirm). Neu:
+- **Import prüft jede Datei:** neue Kataloge `files.tsv` / `files-eu.tsv` (alle 2 248 / 2 608 Dateien beider Discs außer
+  dem Disc-Kopf, Name, Größe, SHA-256; erzeugt mit `make_disc_catalogs.py --iso`). `RoomFileCheck` liest beide Formen;
+  im Kernmodus vergleicht die App nach dem Import und bei jedem Start das ganze Manifest mit dem Katalog.
+- **Zurücklesen:** `GameCubeDisc.extract` liest jede geschriebene Datei vom Gerät zurück und vergleicht die SHA-256; weicht
+  sie ab, wird sie noch einmal geschrieben, sonst bricht der Import mit einer klaren Meldung ab (Datei, „Speicher frei
+  machen, neu starten, neu importieren“).
+- **Meldung im Spiel:** der Kern merkt sich die erste unlesbare Datei mit Grund (`re4_core_disc_problem`, `runtime/dvd.cpp`:
+  Teile-Tabelle aus Nullen / beschädigt, Datei fehlt, Datei kürzer; auch über den eigenen Kern-Prozess, `kDiscProblem`).
+  `CoreActivity` fragt zweimal pro Sekunde, prüft die Datei (`RoomFileCheck.diagnose`: Gerät gegen Manifest und Katalog)
+  und zeigt einmal „A disc file cannot be read“ mit Datei und Disc und je nach Ursache: Abbild beschädigt (neu auslesen),
+  Kopie auf dem Gerät beschädigt (neu importieren), Datei in Ordnung aber Lesen fehlgeschlagen (Bericht schicken),
+  unbekannt (neu importieren); Knöpfe Bericht / Beenden / Weiter. 10 Sprachen (`check_translations.py` ok).
+- **Fehlerbericht:** neue Datei `disc-check.txt` (jede Disc gegen den Katalog, der Lesefehler des Kerns, die Diagnose).
+- Tests: `RoomFileCheckTests` (neu: Katalog aller Dateien, Diagnose Gerät/Abbild/Lesen/fehlt/unbekannt), `DiscTests` mit den
+  echten Discs im Kernmodus (Debug 4 531, EU 5 251 Prüfungen; jede Datei wie im Katalog; Import mit Zurücklesen etwa 35 s
+  je Disc am PC), Laufzeittest `dvdq` (der Kern meldet `zero.dat` mit „zeros“). **Nicht geprüft:** Gerät.
+
+**2. Fehlender Ton bei Kamera-Fokus-Szenen (Bericht des Projektinhabers, Retroid, EU-Discs, Deutsch; laut Projektinhaber
+auch an anderen Stellen).** Der Ton ist ein Stream der Musikdatei `bgm/bio4bgm.sbb`, den der Raumcode beim Kameraschwenk
+startet: r226 `R226EventRoboWatchMain` → `SndStrReq(0, 0x16, 0x80000003)` (Stereo, 7,7 s); ebenso r104, r108, r11d, r200,
+r201, r209, r20b, r21a, r221, r222, r22c u. a. Am Gerät lief der Stream (er endete nach seiner Länge, „SND: STREAM 0 STOP“),
+war aber nicht zu hören. Am PC (neue Testhilfe `RE4_TEST_STREAM=free+N:B:S`, Mitschnitt `RE4_AUDIO_WAV`): Stream 0x16 in
+r100 hörbar (−26 dB statt −56 dB ohne), die Statuen-Szene selbst (Leon per `RE4_TEST_PLACE` in Bereich 24 von r226 gesetzt)
+mit Debug- und EU-Daten, i686 und x86_64 deutlich hörbar (−15 dB, 7 s, davor und danach Stille). Der Kern mischt den Ton am PC
+also richtig. Nebenbei behoben: der PC-Mitschnitt endete nach 1 s (die Blöcke wurden verworfen, bevor sie in die WAV kamen,
+weil am PC niemand den Ring liest). **Gerätelauf (Retroid, EU-Discs, 64 bit, 27.10.2026, `test-core-app.ps1 -AudioWav 560
+-CoreSettings RE4_TEST_STREAM=free+11400:0:0x16`):** der Stream lief 7,8 s, und der Ton-Mitschnitt des Kerns auf dem Gerät
+enthält ihn laut (−15 dB statt −35 dB, 7 s) – der Projektinhaber hörte zur selben Zeit aber nichts. Der Kern mischt den Ton also
+auch auf ARM64; verloren geht er danach (Ring der App, AudioTrack) oder es ist nicht der gemeinte Ton (Ausschnitt
+`retroid-stream-0x16.wav` an den Projektinhaber geschickt, Antwort offen). **Offen.** Nebenbei: `-CoreSettings` neu im
+Geräteskript; das Skript bricht ab, wenn man seine Ausgabe mit `2>&1`/`*>` umleitet (die Meldung von `adb pull` gilt dann als
+Fehler) – ohne Umleitung starten. Ein erster Gerätelauf (`free+60`) löste den Stream während des Vorfilms aus: die Erkennung
+„Leon frei“ übersieht Filme (bleibt so, die EU-Prüfstrecke baut darauf auf).
+
+**3. Gyro-Richtung:** Ingame-Menü, Seite Steuerung, zwei Schalter „Invert vertical“ / „Invert horizontal“ unter dem Regler
+(gespeichert in `input` als `gyroInvertVertical` / `gyroInvertHorizontal`, wirken sofort: `GyroAim.setInvert`), nur
+bedienbar mit Gyro an. 10 Sprachen. **Nicht geprüft:** `CoreMenuLayoutTest` und Gerät (siehe Prüfungen).
+
+**4. R3 Menüs und Texte**
+- **Dunkle Leiste hinter dem Funkspruch-Untertitel: behoben (Patch 0126).** Neue Diagnose: bei „IDSystem::set() work full“
+  schreibt der Kern die Belegung von `IdSys`/`IdSub`/`IdNum` je Klasse ins Log (`re4_idsys_report`). Mit EU-Daten war `IdSub`
+  beim Funkspruch 128 von 128 belegt. Drei erste Fassungen (vier Tabellen weglassen; 512 Plätze; nur das Hauptmenü weglassen)
+  brachten die Leiste, aber Hunnigan verschwand (Projektinhaber am Retroid, GX-Bilder am PC). Ursache: die EU-Tabelle des
+  Funkspruchs hat drei neue Bildgruppen (0x15–0x17) an der Stelle des Partnerbilds, die nur die EU-Fassung ausblendet und
+  bei bestimmten Funksprüchen umschaltet (`retail_code.py` am EU-`Sscrn.rel`: `SsTermMain::init`, `OpeMesMove`). Patch 0126
+  übernimmt beides. GX-Bild (EU, Deutsch, Bild 2401): Hunnigan sichtbar, Untertitelbereich so dunkel wie mit den
+  Debug-Discs (Helligkeit 22 statt 45 ohne Leiste, Debug 21), kein „work full“; ebenso x86_64 (Italienisch). Prüfstrecke
+  Stand `fa80ce1d`: EU (roomInfo, Deutsch) i686, EU (roomInfo, Italienisch) x86_64 und Debug-Discs i686 je „ALLES OK“;
+  Android-Kern beide ABIs 0 Fehler, APK gebaut. **Nicht geprüft:** die Bildwechsel der
+  Funksprüche 13, 14, 15, 17 (später im Spiel) und das Gerät.
+- **Texttabellen** (alle Tabellen beider Fassungen Text für Text verglichen, neues Werkzeug `port/tools/retail_messages.py`,
+  dazu die Textnummern aller `SceMesSet`-Aufrufe der Raummodule beider Fassungen): `etc/memcard.das` hat dieselben Nummern
+  0–0x2C, neu nur 0x2D (Platzwarnung) und 0x2E (Sprachwahl beim Start, durch das App-Menü ersetzt) → nichts zu tun;
+  `ss/eng/ss_cmmn.dat` dieselben Nummern (die Debug-Fassung hatte 0x22 doppelt, die EU den richtigen Kräutertext), neu nur
+  am Ende → nichts zu tun; die Räume r100, r105, r111, r203, r214, r300, r308, r30b, r311, r31c, r333, r40e: nur überarbeitete
+  Texte oder neue am Ende, der Code fragt dieselben Nummern → nichts zu tun. r22c: die Ausgangstür fragt mit EU-Daten
+  „Leave target practice?“ statt „Quit…“ (gleiche Bedeutung), 0xA/0xB sind die Debug-Stufenwahl → bleibt so. **r221**: ab
+  Text 6 verschoben → Patch 0128. **r101**: der Debug-Code nimmt nach dem Schlüssel den falschen Text (Prototyp-Fehler) →
+  Patch 0127. Die übrigen Unterschiede der Aufruflisten sind neue oder entfernte Aufrufe der EU-Fassung, keine Verschiebungen.
+- Werkzeuge aus der letzten Sitzung geordnet übernommen: `port/tools/retail_code.py` (DOL/REL-Funktion in der anderen
+  Fassung finden, nebeneinander disassemblieren, Funktion um eine Adresse, Aufrufer mit Konstanten, Text-Verweise,
+  Befehlswörter) und `port/tools/retail_messages.py` (Tabellen, nebeneinander, Aufruflisten).
+
+**5. R6 Debug-Menü:** mit EU-Discs öffnet SELECT-Halten nichts (App: `CoreActivity.selectHold`; Kern: `re4_core_debug_menu`
+ignoriert die Anfrage, auch für ältere Apps). Laufzeittest `disc release` prüft es für alle Disc-Arten.
+
+**6. R5 Raum-Rundgang mit EU-Daten** (`--rooms all`, EU-Abbilder plus `debug/roomInfo.dat` nur für den Debug-Start, i686):
+**108 von 126 Räumen ohne Fehler**. Die 18 übrigen sind alle Stage 4 (r400–r411): „RelDataReadError! rel/st4_0.rel“ – das
+Raummodul liegt bei der EU nur auf Disc 2, der Debug-Start der Prüfstrecke beginnt auf Disc 1 (bei den Debug-Discs liegt es auf
+beiden). Grenze der Prüfstrecke, im Spiel nicht geprüft. Spielmeldungen, die im Debug-Rundgang des 22.10. nicht notiert sind:
+„Message::init() Msg[04] Address Error“ (14 Räume), „mapModelInit(): R105 flag SHAPE_MODEL clear“ (11), „IDSystem::unitPtr(m[00],
+c[00]): Not found.“ (10) – ohne Absturz, noch nicht untersucht (ein Debug-Rundgang zum Vergleich fehlt, die alte Rundgang-Datei
+wurde überschrieben).
+
+**Prüfungen (PC, WSL2):** Stand `a88a61da` (Aufgaben 1–3, 0127, 0128, R6, erste Fassung von 0126): EU-Abbilder Deutsch i686
+„ALLES OK“, Debug-Discs i686 „ALLES OK“, Funkspruch-Test EU (roomInfo, Französisch) „ALLES OK“; davor Debug-Discs `e72b0c04`
+„ALLES OK“, EU 64 bit (x86_64) Stream-Test „ALLES OK“. Statuen-Szene r226 (Leon in Bereich 24): Debug und EU, i686 und x86_64
+hörbar. App: `CoreMenuLayoutTest` 3/3, `RoomFileCheckTests`, `DiscTests` (synthetisch 19, echte Discs Debug 4 531 / EU 5 251),
+Texte 10 Sprachen ok, Android-Kern beide ABIs 0 Fehler, APK gebaut und auf dem Retroid gelaufen (Vorfilm, Funkspruch, r100).
+Endstand ohne 0126 (Stand `688d0371`): EU-Abbilder Deutsch i686 „ALLES OK“, Debug-Discs i686 „ALLES OK“, Android-Kern beide ABIs
+0 Fehler, APK gebaut; der Projektinhaber erkannte den Ausschnitt als den gesuchten Ton; **nicht auf dem Gerät geprüft:** Meldung „Disc-Datei nicht lesbar“, Import mit
+Zurücklesen, Gyro-Schalter, r101/r221-Texte, R6. Gemeldet vom Projektinhaber beim Gerätelauf: zweimal Knacken im Ton des
+Vorfilms (noch nicht untersucht).
+
+## M13 Retail-Discs (EU): Gerätetest 26.10.2026 und Korrekturen (27.10.2026 nachts, lokal, Branch `retail-eu`)
+
+Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch; Bildschirmfotos, Bericht, GX-Mitschnitt, Logcat):
+Titel, Untertitel, Funkspruch und Laden alter Spielstände liefen. Gefunden und behoben:
+- **Optionsmenü: Hilfetext fast immer „ZOOM“, bei „Messer“ der von „Helligkeit“.** Die EU-Kern-Texttabelle
+  (`etc/core.das` CORE_MESSAGE) hat 173 statt 153 Texte, 15 neue ab 0x56 (beide englischen Blöcke Text für Text
+  abgeglichen); der EU-Code fragt 0x90–0x94 und 0x9A/0x9B/0xA1/0x95, wo diese Version 0x81–0x85 und 0x8B/0x8C/0x92/0x86
+  fragt. Patch 0123 verschiebt mit den EU-Discs jede Nummer ab 0x56 um 15. GX-Bilder: alle Hilfetexte deutsch und richtig.
+- **Lebensanzeige „KiLeonr“.** Sechs Namensschilder (0x40–0x45) in beiden Fassungen, diese Version blendet nur drei aus;
+  auf den Debug-Discs sind die drei übrigen leer, auf den EU-Discs tragen sie Namen. Patch 0125 wie die EU-Fassung
+  (`LifeMeter::roomInit`, main.dol 0x800c05a8). GX-Bild: „Leon“.
+- **Karte im Inventar leer** (Rahmen und Legende, keine Räume, kein Pfeil; nicht nur in Räumen: auch die Dorfkarte).
+  Die EU-Bildschirmbeschreibung der Karte (`ss_map.dat` Eintrag 3) hat dieselben 48 Elemente, aber Element 253 (eine
+  Kopie des Bildschirms) zuletzt; mit dieser Version deckt es die Karte zu. Der EU-Code (`SsMapMain::init`, Sscrn.rel)
+  blendet es außer in r22c aus; Patch 0124 ebenso. PC-Lauf r226: Burgkarte mit Räumen, Pfeil, Schreibmaschine, Händler.
+- **Sprachwechsel erst nach Neustart sichtbar.** Entscheidung des Projektinhabers (27.10.2026): nach der Wahl eine
+  Frage „Neu starten“ / „Abbruch“; „Neu starten“ startet das Spiel neu, „Abbruch“ behält die bisherige Sprache.
+  Umgesetzt: `CoreBridge.restartGame` → `re4_core_restart_game` (über den Kern-Prozess `kRestartGame`) → der Spiel-Thread
+  setzt im nächsten Bild `SYS_SOFT_RESET` (der eigene Soft-Reset des Spiels; er wartet, solange die Speicherkarte
+  beschrieben wird). Das Umschalten im laufenden Bild entfällt. Patch 0121 nimmt die Sprache der App auch nach dem
+  Zurückholen aus dem Reset-Speicher. PC-Test (`RE4_TEST_LANGUAGE_RESTART=1000:fra`): Titel erst deutsch, nach dem
+  Neustart französisch („COMMENCER, CHARGER, OPTIONS“), `SS/fra/option.dat` und `title.dat` gelesen.
+- **Sprach-Schaltflächen:** drei pro Zeile (schmaler: weniger), weitere Zeilen stehen genau darunter.
+- **Startbildschirm:** Bereich „Controls“ entfernt (mit ihm der Schalter „A/B und X/Y tauschen“; eine gespeicherte
+  Einstellung gilt weiter), „November 25, 2004“ aus „Select ISO/GCM …“ entfernt.
+- **Speicherkarte beim Start** (Rückfrage des Projektinhabers): mit beiden Fassungen gleich, keine Meldung; eine
+  fehlende Karte legt die App formatiert an. Die Meldung auf einem Prüfbild kam von `RE4_MEMCARD=none`.
+
+**Prüfungen (PC, WSL2, Stand `a272110b`):** EU-Abbilder Deutsch i686 „ALLES OK“, Funkspruch-Test Italienisch „ALLES OK“
+(GX-Bild der Dorfkarte mit Räumen, Pfeil, Ziel, Schreibmaschine), Debug-Discs „ALLES OK“, EU-Abbilder Spanisch x86_64
+„ALLES OK“; Optionsmenü, Lebensanzeige, Burgkarte und Neustart mit Sprachwechsel als eigene GX-Läufe (oben). App:
+`CoreMenuLayoutTest` 3/3, Texte 10 Sprachen ok, Android-Kern beide ABIs 0 Fehler, APK gebaut. **Nicht geprüft:** Gerät.
+
+**Noch offen (gefunden beim Abgleich aller Texttabellen, für R3/R5):** in mehreren Räumen hat die EU-Texttabelle
+Texte mehr oder weniger (r100, r105, r111, r203, r214, r221, r22c, r300, r308, r30b, r311, r31c, r333, r40e), ebenso
+`etc/memcard.das` (45 → 47) und `ss/eng/ss_cmmn.dat` (ein Text verschoben); der Raumcode dieser Version nennt dort
+womöglich falsche Nummern. Nur raumweise am Code der EU-Fassung zu klären.
+
+## M13 Retail-Discs (EU), Schritt R7: Spielsprache (26.10.2026 spätabends, lokal, Branch `retail-eu`)
+
+Auftrag des Projektinhabers: R7 vorziehen (Sprachwahl im Ingame-Menü, „LANGUAGE SELECT“ aus dem Titelmenü
+entfernen). Entscheidungen (26.10.2026): Standard ist die Handy-Sprache, ein Wechsel gilt sofort; nach dem Gerätetest
+(27.10.2026): ein Wechsel startet das Spiel nach einer Frage neu.
+
+**Wie die EU-Discs ihre Sprachen ablegen** (anders als im Plan angenommen)
+- Kern, Räume, Speicherkarte und Funk: Sechs-Sprachen-Tabellen wie in der Debug-Version, aber in der Reihenfolge
+  Japanisch, Englisch, Französisch, Deutsch, Italienisch, Spanisch (die Debug-Discs haben in den Plätzen 2–5 nur
+  Platzhalter; die Debug-Version ordnete 3–6 den Plätzen 2–5 zu: im französischen Lauf kam der Funkspruch deutsch).
+  Patch 0123 übernimmt die Zuordnung der EU-Fassung.
+- Untermenüs, Titel, Kapitel, Optionen: ein Ordner je Sprache (`ss/Eng`, `ss/Ger`, `ss/Fra`, `ss/Esp`, `ss/Ita`), darin
+  145 **einsprachige** Texttabellen (nur der Textblock, ohne den Sechs-Sprachen-Kopf). Die Debug-Version las sie als
+  sechs Sprachen und nahm Text von falschen Stellen; die EU-Fassung von `getAddr`/`getMesNum` erkennt sie. Patch 0122
+  und der Umwandler (`formats_mes.cpp`) lesen beide Formen; Kerntest `one-language mdt`.
+- Sprachnummern (`pSys->language`): 1 US-Englisch (Debug, fest: ohne Untertitel in Filmsequenzen, zwei
+  Schwierigkeitsgrade), 2 Englisch (EU), 3 Deutsch, 4 Französisch, 5 Spanisch, 6 Italienisch. Die EU-Fassung nimmt die
+  Systemsprache der Konsole (`OSGetLanguage` + 2). Der Debug-Code kennt alle sieben (Ordnernamen, Speicherkarten-Layout
+  `save_<e|g|f|s|i>.dat`, Textpositionen).
+- Die deutschen, französischen, spanischen und italienischen `option.dat` sind größer als der feste Platz der
+  Optionsdaten (0x44000 bis 0x4C2C0 statt höchstens 0x40000 Byte; die EU-Fassung liest sie nach 0x80784000 ohne
+  Grenze). Sie liefen in Leons Daten: Absturz beim Start in r120 (Deutsch) bzw. hängender Speicherbildschirm
+  (Französisch). Ein größeres `option.dat` kommt jetzt nach 0x81F00000 (`re4_option_data_place`, `runtime/dvd.cpp`;
+  der zweite Platz des Kerns aus Patch 0117 ist dafür auf 3 MB begrenzt, der EU-Kern braucht 2,3 MB).
+
+**Umsetzung** (Stand nach dem Gerätetest, 27.10.2026)
+- Kern: `runtime/game_language.cpp` (Sprache der App beim Start, nach dem Lesen der Systemdatei und nach einem
+  Soft-Reset; Neustart auf Wunsch der App), `re4_core_restart_game` (`core_api.cpp`, auch über den eigenen
+  Kern-Prozess: `kRestartGame`), Startwert `RE4_GAME_LANGUAGE` (eng/ger/fra/esp/ita oder 2–6). Patch 0121: `setLanguage`,
+  `systemWorkInit` (jeder Start und Soft-Reset), Reset-Speicher, Systemdatei, Optionsdaten-Platz, „LANGUAGE SELECT“
+  (Einheiten 11 und 12 der EU-`title.dat`) ausgeblendet.
+- Ein Wechsel startet das Spiel neu (Frage „Neu starten“ / „Abbruch“; der Soft-Reset des Spiels): danach liest der Titel
+  `title.dat` und `option.dat` der neuen Sprache. Das erste Umschalten im laufenden Bild (26.10.2026) ließ Titel und
+  geladene Bildschirme in der alten Sprache und ist entfallen.
+- App: Eintrag „Game language“ auf der Startseite des Ingame-Menüs, nur mit EU-Discs: „Device language“ (Standard:
+  de → Deutsch, fr → Französisch, es → Spanisch, it → Italienisch, sonst Englisch), English, Deutsch, Français, Español,
+  Italiano, drei pro Zeile. Gespeichert in `core_game`/`gameLanguage`; beim Start als `RE4_GAME_LANGUAGE`, ein Wechsel
+  über `CoreBridge.restartGame`. Texte in allen 10 Sprachen (`check_translations.py` ok).
+
+**Prüfungen (PC, WSL2)**
+- Stand `81d133db` (0121, 0122): EU-Abbilder Deutsch i686 „ALLES OK“, Italienisch x86_64 „ALLES OK“, Englisch
+  (Kartenprüfung) „ALLES OK“, Debug-Discs „ALLES OK“; Systemdatei mit Sprache 3 bzw. 6 bzw. 2 gespeichert und wieder
+  geladen. Vorher (Stand `f7a079b1`): Deutsch endete beim Start in r120 (Optionsdaten in Leons Daten), Französisch
+  hing im Speicherbildschirm; beides behoben.
+- Stand `b90d8c55` (mit 0123), Funkspruch-Test (EU-Daten plus `debug/roomInfo.dat`, nur für den Test): Französisch,
+  Deutsch, Spanisch, Italienisch je „ALLES OK“; GX-Bilder: Funkspruch und Untertitel der Filmsequenz (Autofahrt) in
+  der gewählten Sprache, scharf und richtig gesetzt. Gegenprobe Debug-Discs mit diesem Stand „ALLES OK“.
+- Titelmenü (GX-Bild, Deutsch): START, LADEN, OPTIONEN, kein „LANGUAGE SELECT“; Warnhinweis und
+  Speicherkarten-Meldungen deutsch. Mit neuer Karte keine Meldung beim Start (Karte formatiert angelegt, Systemdatei
+  still erstellt), mit kaputter Karte dieselbe Startprüfung wie mit den Debug-Discs (Code -6, weiter zum Titel ohne
+  Tastendruck; formatiert wird über die Abfrage des Spiels beim Speichern, Entscheidung vom 17.10.2026).
+- Spielstände zwischen den Fassungen (Stand `868521ec`, Ladelauf wie Lauf B der Prüfstrecke): Spielstand der
+  Debug-Discs mit den EU-Discs (Französisch) geladen, r100 läuft, „Retry“ geht; Spielstand der EU-Discs (Deutsch) mit
+  den Debug-Discs ebenso. Dabei gefunden und behoben: die Systemdatei der EU-Discs trägt deren Sprache, die Debug-Version
+  übernahm sie und suchte `ss/ger/title.dat` (die Debug-Discs haben nur `ss/Eng`), der Titel blieb stehen; mit den
+  Debug-Discs bleibt die Sprache jetzt 1. Debug-Discs mit diesem Stand „ALLES OK“. Eine neue Disc-Installation ersetzt nur
+  `disc1`/`disc2`, die Speicherkarte der App (`memcard/`) bleibt.
+- App: `CoreMenuLayoutTest` 3/3 (alle 10 Sprachen, mit „Game language“), Android-Kern armeabi-v7a und arm64-v8a je
+  0 Fehler, APK `app-core-debug.apk` gebaut. **Nicht geprüft:** Gerät (Retroid), ARM unter qemu, ein Sprachwechsel
+  im laufenden Spiel (nur der Startwert lief am PC).
+
+## Retail-Discs (EU), Schritte R0 und R1 (26.10.2026 abends, lokal, WSL2, Branch `retail-eu`)
+
+Plan: `port/docs/retail-eu-plan.md` (Meilenstein „Retail-Discs (EU)“, Auftrag des Projektinhabers: R0 und R1;
+GitHub-Arbeit auf einem neuen Branch von `beta-updates`). Grundsatzentscheidungen des Projektinhabers
+(26.10.2026, nach R1): parallel zur Debug-Disc, Debug-Menü mit EU-Discs ausblenden (Cheat-Menü im Ingame-Menü
+später gesondert), alle Sprachen der EU-Discs in R7, Aufnahme als **M13** in `CLAUDE.md`.
+Nachtrag (26.10.2026, nach dem Bildschirmfoto des EU-Titelmenüs mit „LANGUAGE SELECT“): die Sprachwahl erfolgt im
+Ingame-Menü der App, der Punkt wird aus dem Titelmenü entfernt (R7).
+
+**R0 Prüfstrecke**
+- `port/tools/disc_release.py`: welche Version ein Disc-Kopf ist. Debug-Build = G4BE08 mit der Dateitabelle bei
+  0x28FE00, europäische Verkaufsversion = G4BP08, G4BE08 sonst = US-Verkaufsversion (ungetestet, abgelehnt).
+- `whole_disc_folder.py` nimmt G4BP08 an, lehnt gemischte Versionen ab; `--check DIR --disc ...` erkennt einen
+  Ordner, der aus anderen Abbildern entpackt wurde. `whole_r100_check.sh` nutzt das (Debug- und EU-Läufe teilen
+  den Arbeitsordner: wechselt die Version, wird neu entpackt; vorher lief ein EU-Aufruf still mit den alten
+  Debug-Dateien) und nennt die Version im Bericht („Version: retail-eu“). Tests: `test_whole_disc_folder.py`
+  (4 Fälle, neu EU, Mischung, US).
+- `port/tools/retail_compare.py` (Test `test_retail_compare.py`, beide in `whole_build.sh`): Dateilisten,
+  REL-Modulnummern je Datei und der Aufbau jedes Archivs (same / appended / shifted / fewer / evd-missing).
+  Mit den echten Discs: genau die Tabelle des Plans (4 verschobene Archive `pl0a.drs`, `map_obj4g.dat`,
+  `ss_wep40.dat`, `ss_term.dat`; `r204s00.evd`/`s204s00.evd` ohne `s00_012.lit`; 127/124 Dateien mit Modulen,
+  0 mit anderer Nummer).
+- Kern: `runtime/dvd.cpp` erkennt die Version aus `sys/boot.bin` nach derselben Regel
+  (`re4_disc_release()`, `RE4_DISC_*` in `re4_runtime.h`), schreibt sie ins Log („DVD: disc 0: …, European
+  release G4BP08“) und warnt bei gemischten Discs. Laufzeittest `disc release`.
+
+**R1 Starten** (Patches 0117–0119, Tabelle unten)
+- 0117: größerer Kern (`etc/core.das`, EU 0x23AC40 Byte) nach 0x81C00000 statt über die Optionsdaten.
+- 0118: ohne Debug-Schrift `etc/moji8.tpl` kein Absturz mehr, der Debug-Text bleibt aus.
+- 0119: ohne `debug/roomInfo.dat` eine Ersatztabelle mit dem Raum des neuen Spiels (r120); ein anderer
+  Debug-Startraum (`RE4_START_ROOM`) wird abgelehnt und gemeldet, das Spiel läuft wie beim Start in r120.
+- `debug/config.txt` fehlt auf den EU-Discs: geprüft, ohne Folge. Alle Werte, die die Datei der Debug-Disc setzt
+  (Sprache USA, Helligkeit 64, Spielmodus NORMAL, Startraum r120, Debug-Seite 1, Balken an), sind auch ohne sie
+  so (`systemWorkInit`, `systemRestartInit`); nur `PlMode` (3 statt 0) und der Benutzername weichen ab, beide
+  werden nirgends gelesen.
+
+**Prüfungen (i686, Stand `da62a6e6`)**
+- EU-Abbilder unverändert (`--data E:\…\RE4-DiscdataEuro`, entpackt durch die Prüfstrecke): Build 0 Fehler,
+  alle Tests 0 Fehler, Formatvergleich 407 Dateien ohne Fehler. Spiellauf: **kein Absturz, Hauptschleife bei
+  Bild 499 (r120), 10 000 Bilder**; über die Testhilfe nach r100, dort etwa 4 700 Bilder Spiel, Soft-Reset,
+  Titel neu. Log: Kern bei 0x81C00000, Ersatztabelle, `RE4_START_ROOM=100` abgelehnt. Alle 12 Filme der EU-Discs ohne Fehler.
+- **Gegenprobe Debug-Discs**, derselbe Build: „ALLES OK“ (Spiellauf r100, Speicherkarte, Filme); keine der
+  neuen Stellen greift (Kern am alten Platz, `roomInfo.dat` gelesen).
+- **Vergleichslauf** Debug-Discs mit Start in r120 gegen den EU-Lauf: über alle 10 499 Bilder gleiche Räume,
+  Positionen, Gegner und Zufallswerte; Unterschiede nur in den GX-Zählern und der Heap-Belegung (andere Daten) und
+  in 18 Bildern beim Titel-Timing nach dem Soft-Reset. Der Weg r120 → r100 ist das Verhalten der Prüfstrecke beim
+  Start in r120, kein Unterschied der Daten.
+- **64 bit (x86_64, steht für arm64-v8a)** mit den EU-Abbildern: Build 0 Fehler, alle Tests 0 Fehler,
+  Formatvergleich ohne Fehler, Spiellauf wie bei i686 (kein Absturz, Hauptschleife bei Bild 499, 10 000 Bilder).
+- **Offen:** der Speicherkarten-Teil der Prüfstrecke mit EU-Daten scheitert: er startet über `RE4_START_ROOM=0x100`
+  (mit EU-Daten nicht möglich, das Spiel bleibt in r120) und der Speicherbildschirm blieb in der Dateiliste stehen
+  (`card: save: file list`, bis Bild 30 000). Ob das an den EU-Menüdaten liegt (R3, z. B. „IDSystem work full“)
+  oder am Start in r120, ist nicht geklärt. Nicht geprüft: ARM32/ARM64 unter qemu, Android-Build, Gerät.
+
+## M13 Retail-Discs (EU), Schritt R4: App-Import (26.10.2026 abends, lokal, Branch `retail-eu`)
+
+Auftrag des Projektinhabers: R4 vor R3 ziehen, damit die EU-Discs auf dem Retroid getestet werden können.
+
+- **Import (`disc/GameCubeDisc.java`):** nimmt G4BE08 mit der Dateitabelle bei 0x28FE00 (Debug-Build) und G4BP08
+  (europäische Verkaufsversion, nur im Kernmodus: `retailAllowed`, gesetzt in `Re4Application`); die US-Fassung
+  (G4BE08, Tabelle woanders) wird mit eigener Meldung abgelehnt. `release` je Disc, `ready.properties` schreibt
+  `id`, `release` und die Zahl der geprüften Code-Stücke.
+- **Prüfkataloge je Version:** `references.tsv`/`rooms.tsv`/`blocks.tsv` (Debug) und neu `references-eu.tsv`
+  (134 Code-Stücke: `main.dol`, `Rel/*.rel`, die REL-Module in `em/*.drs`), `rooms-eu.tsv` (128 Räume), `blocks-eu.tsv`
+  (gleich den Debug-Blöcken). Erzeugt mit `port/android-decomp/tools/make_disc_catalogs.py` (nur Namen, Größen,
+  Prüfsummen); das Werkzeug erzeugt die Debug-Raum- und Blockkataloge der App identisch, ihr Code-Katalog (116) ist eine
+  Teilmenge dessen, was es findet (143). `ReferenceCatalog` verlangt nicht mehr genau 116 Zeilen.
+- **Gemischte Discs:** `DiscInstaller.release`/`sameRelease`; der Import einer Disc der anderen Version wird nicht
+  verweigert (sonst ginge kein Wechsel), aber die Startseite sagt „Disc 1 is the European release, Disc 2 the debug
+  build: import both discs of one release.“ und „Start game“ bleibt aus, bis beide passen. Jede Disc zeigt ihre Version
+  („Disc 1 Data is ready (European release)“). Importe vor diesem Stand gelten als Debug-Build.
+- **Räume der Zustandsbrücke** (`CoreActivity.prepareRoom`) und die Raumprüfung nach dem Import nehmen den Katalog der
+  importierten Version.
+- **Kern (`runtime/dvd.cpp`):** mit den EU-Discs sieht das Spiel die Kennung G4BE08 der Debug-Version. Die Speicherkarte
+  bindet jede Datei an die Kennung der Disc (`__CARDAccess`): mit G4BP08 wären die Spielstände der Debug-Discs (und die
+  `.gci` des App-Menüs, `gci.cpp`) die eines anderen Spiels gewesen; der Spielcode und damit das Spielstand-Format sind
+  dieselben. `cDvd::DiscChange` fragt ebenfalls nach „G4BE“. Laufzeittest `disc release` angepasst.
+
+**Prüfungen**
+- Java (Windows, JDK 11): `DiscTests` synthetisch 19 Prüfungen (neu: EU, US, Mischung, `ready`/`release`), mit den echten
+  Debug-Discs 4 501 Prüfungen (Prüfsummen, Entpacken, Manifest), mit den echten EU-Discs im Kernmodus 5 249 Prüfungen,
+  `RoomFileCheckTests` ok. Dabei behoben: der Test las `manifest.tsv` im Windows-Zeichensatz (eine Datei der Debug-Disc
+  hat einen japanischen Namen) und zählte die zwei Systemdateien nicht mit; beides nur im Test.
+- PC-Prüfung, Stand `2f711a61`: EU-Abbilder i686 „ALLES OK“ (Spielstände jetzt `bh4_system`/`bh4_data00` mit G4BE08),
+  Debug-Discs i686 „ALLES OK“.
+- Android-Build (`whole_build_android.sh --abi all` in `~/re4-build`, dann `gradlew.bat :app:clean :app:assembleCoreDebug`
+  mit dem Java von Android Studio): armeabi-v7a und arm64-v8a je 0 Fehler, Platzhalter wie erwartet; APK
+  `app-core-debug.apk` 18,9 MB, `0.91.0-beta-core` (Versionscode 75, unverändert), beide ABIs, die EU-Kataloge, signiert
+  mit dem Debug-Schlüssel des PCs. **Gerätetest offen** (Anleitung an den Projektinhaber, 26.10.2026).
+
+## M13 Retail-Discs (EU), Schritt R2: verschobene Archiv-Plätze (26.10.2026 abends, lokal, Branch `retail-eu`)
+
+Vorgehen: für jedes der vier verschobenen Archive (Werkzeug `retail_compare.py`) den Code der Verkaufsversion
+mit dem der Debug-Version verglichen. Die Funktionen wurden in den REL-Modulen beider Discs über ihre
+Befehlsfolgen gefunden (Adressen der Debug-Symbole in `config/G4BE08`) und mit `llvm-objdump` (PowerPC)
+nebeneinander gelesen; die Werkzeuge dafür lagen außerhalb des Repositorys.
+
+- **Funkspruch (`ss/eng/ss_term.dat`, 10 statt 11 Teile):** Patch 0120 (Tabelle unten). Die fehlende Textur liegt
+  in der EU an jeder `ss_ocNNN.dat` als Teil 16 (dort „appended“).
+- **Krauser (`em/pl0a.drs`):** dieselben Teile, acht davon in anderer Reihenfolge (die Textur von Debug-Teil 7
+  steht in der EU auf 12, die fünf Modelle dahinter rücken einen Platz vor). Die EU-Fassung liest in
+  `cPlKlauser::setModel`/`setHead` und im Untermenü (`klauserModelInit`, `wep36Init`) entsprechend andere Plätze;
+  Hände und Waffen sind gleich.
+- **Adas Gewehr (`ss/cmn/ss_wep40.dat`):** die EU hat ein zweites Gewehrmodell auf Teil 2 (`wep40Init` wählt 1 oder 2),
+  Hand und Bewegung folgen auf 3 und 4.
+- Für Krauser und das Gewehr setzt der Umwandler die Tabelle beim Laden in die Reihenfolge der Debug-Version
+  zurück (`runtime/formats/formats.cpp` `retailOrder`, nur mit EU-Discs und nur, wenn die EU-Reihenfolge erkannt
+  wird; das zweite Gewehrmodell kommt ans Ende). Geprüft an den echten Dateien: danach ist die Teile-Liste gleich
+  der der Debug-Version, jedes verschobene Teil hat genau die Größe seines Debug-Gegenstücks. Laufzeittest
+  `retail order`. So passt auch Code, der nicht einzeln verglichen wurde (Krausers Angriffe, `wep07`).
+- **Inselkarte (`ss/cmn/map_obj4g.dat`):** kein Handlungsbedarf. Die EU füllt leere Plätze; der Debug-Code nutzt dort
+  nur Plätze mit derselben Art Teil oder nimmt Ersatzmodelle (`mark_model_tbl`, `map_door_tbl`).
+- **Speicherbildschirm:** das Hängen in der Dateiliste liegt nicht an den EU-Daten. Mit den Debug-Discs hängt es in
+  r120 genauso (eigener Lauf, `RE4_START_ROOM=0x120`). Die Kartenprüfung von `whole_r100_check.sh` setzt Leon ohne
+  `debug/roomInfo.dat` jetzt wie der Spiellauf an die Tür nach r100 (B nach 300 Bildern) und speichert dort.
+
+**Prüfungen (i686)**
+- Funkspruch-Test: EU-Daten, nur für den Test ergänzt um `debug/roomInfo.dat` der Debug-Disc (Start direkt in r100,
+  wie beim Debug-Start): Funkspruch öffnet bei Bild 1756, schließt bei 2620, Leon frei bei Bild 2923 (wie mit den
+  Debug-Discs); die ganze Prüfstrecke „ALLES OK“, auch Speichern und Laden. Bild des Funkspruchs: Hunnigan, Leon
+  und Text richtig; **die dunkle Leiste hinter dem Untertitel fehlt** („IDSystem::set() work full“, drei Bausteine,
+  gehört zu R3).
+- EU-Abbilder unverändert, Kartenprüfung (`--card-only`): „ALLES OK“ (Systemdatei, Speichern in r100, Laden, „Retry“).
+- Prüfkette, Stand `6a9c8c25`: EU-Abbilder unverändert i686 **„ALLES OK“** (erstmals mit EU-Daten: Spiellauf,
+  Filme, Speichern und Laden), Gegenprobe Debug-Discs i686 **„ALLES OK“**, EU-Abbilder x86_64 (steht für
+  arm64-v8a) **„ALLES OK“**; Laufzeittest `retail order` grün auf beiden. Nicht geprüft: ARM unter qemu,
+  Android-Build, Gerät.
+
+**Offen / neu gefunden**
+- Spielstände tragen die Kennung der eingelegten Disc (`bh4_data00` mit G4BP08 bei den EU-Discs, G4BE08 bei den
+  Debug-Discs). Ob ein Spielstand der einen Fassung mit der anderen geladen werden kann, ist nicht geprüft (R4/R8).
+- Krauser und Adas Gewehr laufen in keiner Prüfung (Mercenaries/Ada); geprüft ist die Umsortierung an den Dateien und
+  im Laufzeittest, nicht im Spiel.
+
+## Branches aufgeräumt (26.10.2026 abends)
+
+Entscheidung des Projektinhabers: Arbeitsbranch ist jetzt **`beta-updates`** (Stand `a5eed0f`, gleich dem bisherigen
+`claude/adoring-pasteur-h5s2fw`). Zum Löschen freigegeben: `claude/adoring-pasteur-h5s2fw`, `gui-optimisations`,
+`beta-optimisations` (jeder ihrer Commits liegt in `beta-updates`). `master` bleibt unverändert (seine drei
+README-Commits vom 24.10. heben sich auf). `ouya-discarded` und `re4-standalone` bleiben als Branches. Der Tag
+`0.91.0-beta` soll auf `a5eed0f` zeigen (bisher auf `master`, `ac3c0e2`). Löschen und Tag verschieben verweigert
+GitHub der Cloud-Sitzung (nur neue Branches erlaubt); der Projektinhaber erledigt beides per PowerShell vom PC.
+Befehle: `port/docs/lokal-bauen.md`.
+
+## Debug-Menü aufgeräumt (26.10.2026 abends, Cloud)
+
+Wunsch des Projektinhabers: im Debug-Menü (SELECT lang) nur AREA JUMP und DEBUG OPTION, linksbündig, ohne die
+flackernden senkrechten Balken.
+
+- **Menü:** Patch 0116 (`db_menu.cpp` `move`): eine Spalte „TOOL MENU“, darunter die beiden Einträge bei x = 32,
+  Zeiger bei x = 20, ab Zeile 72 (bleibt im 16:9-Ausschnitt, Zeilen 56–391); der C-Stick verschiebt nichts mehr.
+  Hoch/runter wechselt (mit Umlauf), A startet, B/START schließt.
+- **Balken:** die Zeitbalken und der Controller-Monitor (`DBG_PROC_BAR`, `DBG_PAD_INFO`) schaltete
+  `state_trace.cpp` bisher nur einmal ab; im letzten Bericht stand diese Zeile, trotzdem sah der Projektinhaber
+  die Balken wieder. Was sie wieder einschaltet, ist offen (im Spiel nur der Flag-Editor und das Untermenü, das
+  den Zustand von vorher zurücksetzt). Jetzt hält die Laufzeit sie bei `RE4_DEBUG_HUD=0` jedes Bild aus und
+  schreibt jedes Wiedereinschalten ins Fehlerprotokoll („run: the debug bars were on again, switched off
+  (rXXX, tool menu open/closed)“, höchstens zehnmal).
+- **60 FPS:** das Debug-Menü und seine Werkzeuge (`DBG_TEST_MODE`) bekommen keine Zwischenbilder mehr
+  (`re4_picture_still`, wie Untermenü und Schreibmaschine): Listen aus Debug-Text über einem angehaltenen Spiel.
+  Falls die Balken ein Mischfehler der Buchstaben waren, sind sie damit auch weg.
+- **Tests:** Kerntest `letterbox` prüft den neuen Fall (Bit 8 in `re4probe_picture_still`). Das Menü selbst
+  braucht die Schrift von der Disc, darum **nicht in der Cloud getestet**, nur gebaut.
+
+## Sechster Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid): der weiße Balken ist weg ✅. Flammen und Fackeln flackern beim schnellen
+Drehen mit 60 FPS noch; vier R3-Serien an der blauen Feuerschale des Händlers (Kamera dreht sich).
+
+- **Messung:** Im Zwischenbild (Anteil 0) stand der ganze Raum richtig, nur die Flamme und ihr Lichtschein standen
+  schon an der Stelle des nächsten Bildes: beim Drehen hinkten sie der Schale hinterher. Drei Ursachen:
+  1. **Flammen ohne Gegenstück:** jedes Flammen-Viereck zeigt pro Spielbild ein anderes Einzelbild seiner
+     Animation, also eine andere Textur; die Textur gehört zur Signatur (`DrawSig`), es gab nie ein Gegenstück.
+     Neu: Teilchen (eigene Matrix, höchstens 16 Ecken) ohne Gegenstück suchen eins mit gleichem Aussehen ohne
+     Texturen (`DrawRec::look`, `recByLook`); die Textur bleibt die des nächsten Bildes.
+  2. **Kamerabewegung falsch abgelesen:** zwei Teile eines bewegten Gegenstands mit derselben Matrix
+     „bestätigten“ einander (Serie 01, Bild 5: 44 Flammen-Teilchen abgewiesen). Neu (`NoteCamera`): jedes große
+     Teil eigenen Aussehens schlägt eine Bewegung vor oder stimmt für eine; eine Stimme zählt nur von einem
+     Teil mit anderer Matrix; es gilt die Bewegung mit den meisten Stimmen (mindestens zwei), also der Raum.
+  3. **Lichtschein als 2D-Viereck:** der Schein ist ein flaches Viereck (418 Einheiten breit), das das Spiel
+     jedes Bild in Bildschirmkoordinaten über die Flamme legt; beim Drehen wanderte es 23 Einheiten je
+     Spielbild, flache Teile kamen bisher immer aus dem nächsten Bild. Neu: ein flaches Teil mit eigener Matrix
+     wird gemischt, wenn es sich nur verschoben hat, höchstens um ein Viertel des Bildes (`kFlatMove`, 128).
+     Nicht, wenn es sich gedreht oder seine Größe geändert hat: r224 legt ein Abbild der Szene durch ein
+     Vollbild-Viereck über sich, das sich 10 Grad je Spielbild dreht (Texturkoordinaten aus den Ecken); halb
+     gedreht zeigte es den Raum doppelt (erster Versuch: r224 von 1,10 auf 13,29, behoben).
+- **Messung über elf Serien** (mittlere Abweichung des Zwischenbilds mit Anteil 0, vor heute → 0.91-Kandidat
+  `3077f24` → neu): Händler 13,1/12,8/10,1/3,4 → gleich → 1,8/0,9/1,3/0,9; r224 4,0 → 1,1 → 1,1; die übrigen
+  1,6–3,5 → 1,6–3,5 → 0,1–3,5; stark abweichende Bildpunkte am Händler 64 353 → 9 031; echte Bilder byte-gleich.
+- **Tests:** `TestInterpolationEffects` (neu: Flamme mit neuer Textur halbwegs; flacher Schein halbwegs; ein
+  flaches Viereck mit Sprung und eins mit neuer Größe wie im nächsten Bild), `TestInterpolationParticles`
+  erweitert (vor dem Raum ein fliegender Gegenstand aus zwei Teilen mit einer Matrix; die Raumteile mit eigenen
+  Matrizen). Gegenproben je Regel (ohne Aussehen ohne Textur, ohne 2D, ohne Sprunggrenze, Stimmen gleicher
+  Matrix, ohne Dreh-/Größenregel) jeweils rot. `gx_gl_check` 0 Fehler. Kern unverändert.
+- **Nicht getestet:** auf dem Gerät.
+- **Bekannter Fehler im Releasetext 0.91.0** (Wunsch des Projektinhabers, 26.10.2026): Fackeln und Feuer
+  können mit 60 FPS ungleichmäßig flackern; ihre Animation (ein Einzelbild je Textur) hat kein Zwischenbild,
+  sie wechselt weiter 30-mal je Sekunde. Die Zeile „Fixed“ nennt darum nur noch Rauch und Nebel.
+
+## Fünfter Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, Bericht 15:03, Foto): Rauch ruckelt mit 60 FPS nicht mehr, Flammen und Fackeln
+noch; bei schnellen Drehungen Leons ein weißer schräger Balken unten in der Bildmitte (nur mit 60 FPS). Die
+R3-Serien des Berichts (r224, r22c, r220) kamen nicht mit.
+
+- **Weißer Balken (von `607b4f5` eingeführt, nie in einem Release):** `MatchDraw` verglich seit dem Nachtest am Abend
+  alle Zeichnungen mit der Kamerabewegung und nahm bei gleichem Aussehen das deutlich nähere statt des ersten. Die
+  Kamerabewegung ist die des Raums; Leons Teile drehen sich mit der Kamera mit. Bei schnellen Drehungen sah daher ein
+  anderes gleich aussehendes Teil Leons näher aus, die beiden tauschten die Plätze, und ihre gemischten Ecken (CPU-
+  Skinning, `far <= 1500`) zogen einen langen Balken. Nachgewiesen an den älteren Serien: Zeichnungen mit 96 bis
+  2281 Ecken wurden anders zugeordnet als vorher. Neu: Die neue Zuordnung (Kamerabewegung, das nähere, enge
+  Grenze) gilt nur für **Teilchen** (eigene Matrix, höchstens 16 Ecken); alles andere wieder genau wie vorher (das
+  erste innerhalb der Reichweite, sonst das nächste der ersten acht).
+- **Flammen:** In r224 werden die Feuerteilchen richtig zugeordnet und bewegt (gemessen: Drehung und Größe bleiben
+  gleich), aber 38 % von ihnen ändern von Bild zu Bild ihre **Materialfarbe** (XF 0x100C, vor allem die Deckkraft:
+  sie blenden ein und aus, z. B. 0,14 → 0,02). Das Zwischenbild nahm die Farbe des nächsten Bildes; das Glimmen lief
+  mit 30 Schritten. Neu: Material- und Umgebungsfarben (`xf.matAmb`) werden mit der Zeichnung notiert und im
+  Zwischenbild gemischt; `FillXfRegs` setzt sie danach aus den Registern zurück.
+- **Messung (Zwischenbild mit Anteil 0 gegen das Bild davor, sieben Serien):** r224 mittlere Abweichung 2,23 → 1,10
+  (vor heute 4,01), Zaun-Serie r223 3,3 → 2,6; stark abweichende Bildpunkte überall wie vorher oder weniger; die
+  echten Bilder byte-gleich.
+- **Shader-Liste:** 9006 Programme (6 neu aus dem Bericht).
+- **Tests:** `TestInterpolationLooks` (neu: zwei gleich aussehende Teile mit 20 Ecken, das eine liegt dem Platz des
+  anderen näher, bleiben in der Reihenfolge; die Materialfarbe eines Teilchens geht von Rot nach Blau über Lila; das
+  echte Bild danach wieder Blau). Gegenproben: alles als Teilchen behandelt → Reihenfolge-Prüfung rot; ohne
+  Farbmischen → Farb-Prüfung rot. `gx_gl_check` 0 Fehler. Kern unverändert.
+- **Nicht getestet:** auf dem Gerät; Fackeln anderer Räume (keine Aufnahme davon; die Farbmischung gilt für alle
+  Teilchen).
+
+## Vierter Nachtest 0.91.0 (26.10.2026 abends, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, Bericht 14:14, R3-Serie in r224, dem Lavaraum): 60 FPS läuft jetzt mit
+knapp 60 Bildern/s und flüssig (Protokoll: 60,0/s gezeigt, 13 von rund 8500 Zwischenbildern ausgelassen), aber
+Nebel, Rauch und Flammen ruckeln und flackern.
+
+- **Ursache:** Rauch- und Feuerteilchen sind kleine Vierecke gleichen Aussehens mit je eigener Matrix, einige
+  tausend Einheiten auseinander. `MatchDraw` nahm das erste noch freie Teilchen des Bildes davor, solange es
+  innerhalb eines Viertels seiner Entfernung plus 400 Einheiten lag (bei 20 000 Einheiten: 5400). Stirbt ein
+  Teilchen oder entsteht eines, verschiebt sich die Reihenfolge, und Nachbarn tauschten im Zwischenbild die Plätze
+  (in der Serie: Paare mit 3000–4400 Einheiten Abstand statt 20–130).
+- **Neu (`gx_gl.cpp` `MatchDraw`; seit dem fünften Nachtest nur noch für Teilchen):** Das erste freie gilt weiter
+  (die Reihenfolge des Spiels), außer ein anderes der ersten 32 freien liegt deutlich näher (um mehr als 2 % der Entfernung plus 50 Einheiten). Dazu die
+  **Kamerabewegung** zwischen den beiden Bildern (`NoteCamera`, `CameraMove`): abgelesen an zwei großen Zeichnungen
+  eigenen Aussehens (mindestens 64 Ecken, je eine im Bild davor; der Raum), die sich gleich bewegt haben. Mit ihr
+  werden die Positionen des Bildes davor erst um die Kamerabewegung verschoben, und ein kleines Teilchen (höchstens
+  16 Ecken) darf sich nur 5 % seiner Entfernung plus 300 Einheiten selbst bewegen: ein neu entstandenes nimmt nicht
+  den Platz eines anderen ein, es steht wie im nächsten Bild.
+- **Messung an der Serie (Zwischenbild mit Anteil 0, muss dem Bild davor gleichen):** stark abweichende
+  Bildpunkte im ersten Zwischenbild 1103 → 4, in den übrigen bis 834 → höchstens 31. Die echten Bilder bleiben
+  byte-gleich (138 Vergleiche); die sechs älteren Serien (Dorf u. a.) unverändert gut (keine Verschlechterung,
+  eine von 3 auf 0).
+- **Geprüft und verworfen:** Texturmatrizen im Zwischenbild mitzumischen (fließende Lava, ziehender Nebel) zeigte in
+  r224 keine messbare Wirkung (die Teilchen ändern dort nur eine ungenutzte dritte Zeile); nicht eingebaut. Was
+  bleibt, sind Farbwechsel (Glühen der Lavaplatten, Ein- und Ausblenden der Teilchen): sie wechseln mit den
+  30 Bildern des Spiels.
+- **Shader-Liste:** 9000 Programme (64 neu aus dem Bericht).
+- **Tests:** `TestInterpolationParticles` (neu: fünf Teilchen, Kamera 1500, eigene Bewegung 500, eines stirbt,
+  eines entsteht; ohne Kamerabewegung 2 Prüfungen rot, mit der alten Zuordnung 1), `TestInterpolation` und alle
+  übrigen: `gx_gl_check` 0 Fehler. Kern unverändert (kein Kern-Build nötig).
+- **Nicht getestet:** auf dem Gerät.
+
+## Dritter Nachtest 0.91.0 (26.10.2026 nachmittags, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, Video): C-Stick, Fackelschein hinter Wänden und Intro-Wellen ✅ bestätigt.
+Offen: 60 FPS und Frame-Skip zusammen ruckeln hin und her; mit 60 FPS flackert die Liste des Ladebildschirms an der
+Schreibmaschine beim Hochscrollen; 60 FPS bringt auf dem Retroid nur 2–3 Bilder/s mehr. Dazu die vom Projektinhaber
+selbst gebaute `RetroTouch-1.0.0-beta.7.aar` (Commit `d987f4b`).
+
+- **60 FPS und Frame-Skip schließen sich aus** (Wunsch des Projektinhabers; ersetzt „Frame-Skip auch mit 60 FPS“ vom
+  Mittag): Einschalten des einen schaltet das andere aus, darunter der Hinweis `ingame_skip_or_smooth` (10 Sprachen,
+  `check_translations.py` 122 Texte). Waren beim Start beide an (alte Einstellungen), bleibt 60 FPS und Frame-Skip
+  geht aus (`CoreActivity`). `core_mode.cpp` lässt Bilder nur ohne 60 FPS aus.
+- **Flackern an der Schreibmaschine:** Die Liste zeichnet jeden Buchstaben mit gleich aussehenden Zeichenbefehlen.
+  Das Zwischenbild ordnet die Zeichnungen zweier Bilder nach ihrer Reihenfolge einander zu; scrollt die Liste,
+  rutschen die Buchstaben an andere Plätze und das Zwischenbild mischt sie. Neu: Kennzeichen
+  **`RE4_GX_CHUNK_STILL`** (`re4_gx_frame.h`). `runtime/picture.cpp` prüft jedes Bild (`re4_add_frame_hook`), ob ein
+  Untermenü (`STA_SUB_SCRN`: Koffer, Karte, Händler, Akten) oder ein Speicherkarten-Bildschirm (`SYS_TYPEWRITER`,
+  `CardMainTask`: Laden, Speichern, Startprüfung) offen ist, und meldet es `re4_gx_still` (`gx_decode.cpp`); die
+  Bilder tragen dann das Kennzeichen, `GxRenderer::Interpolate` macht kein Zwischenbild hinein, darin und heraus.
+  Die Menüs laufen mit 60 FPS also mit den 30 Bildern des Spiels. Wechsel ins Fehlerprotokoll
+  („picture: a menu screen: no pictures between“). Tests: `TestInterpolation` (vier Fälle, ohne die Sperre alle vier
+  rot), `runtime-test gx` (die Bilder bei offenem Menü tragen das Kennzeichen, danach nicht mehr), `runtime-test
+  letterbox` (`re4probe_picture_still`: Untermenü, Kartenbildschirm, keins).
+- **Tempo von 60 FPS:** Jedes überblendete Figurenmodell kostete im Zwischenbild ein Abbilden und Freigeben des
+  Puffers beim Treiber (r104: 233 je Zwischenbild). Neu: mit `EXT_buffer_storage` ein Ring von 24 MB, einmal dauerhaft
+  abgebildet, je Zwischenbild ein Viertel mit Zaun (`BlendRingInit`, `blendFence`): je Figur nur noch ein Kopieren,
+  kein GL-Aufruf; ohne die Erweiterung der bisherige Weg (`RE4_GX_PERSISTENT=0` erzwingt ihn). Die r104-Aufnahmen
+  vom Gerät zeichnen auf beiden Wegen dasselbe. **Grenze:** Ein Zwischenbild ist ein ganzes zusätzliches Bild für
+  die GPU. Schafft das Gerät die 30 Bilder des Spiels nur knapp, bleibt keine Zeit dafür; dann entfallen die
+  Zwischenbilder (siehe „Zwischenbilder nur, wenn Zeit ist“) und es kommen nur wenige Bilder/s dazu. 60 FPS wirkt
+  voll erst, wenn das Spiel ohne es fest 30 Bilder/s schafft (kleinere Auflösung oder „Dynamisch“).
+- **Nicht getestet:** alles auf dem Gerät (Tempo mit dem Ring, kein Flackern mehr an der Schreibmaschine, die
+  Umschaltung im Menü).
+- **Tests (Stand `68ecb61`):** `whole_build.sh` x86_64, i686, armhf, aarch64: 0 Fehler beim Bauen, `runtime-test`
+  (auch mit `RE4_GX_THREADS=0`) und `core-test` überall 0 Fehler, `core_remote_test` grün (main, crash, missing).
+  `gx_gl_check` 0 Fehler, alle Java-Tests (`test_host.sh`, Java-Teil) grün, `check_translations.py` 122 Texte in
+  10 Sprachen.
+
+## Zweiter Nachtest 0.91.0 (26.10.2026 mittags, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid, vier Fehlerberichte, R3-Aufnahmen r223): 60 FPS mit „Dynamisch“ bleibt auf
+Stufe 2 bei 17–19 Bildern/s, Frame-Skip wirkt nicht, mit beiden 3–5 Bilder/s; C-Stick soll ein gelber Analogstick
+sein; Fackelschein blitzt kurz hinter Wänden auf und scheint nach einem Auflösungswechsel wieder durch Wände.
+
+- **Fackelschein:** Der Kern verglich die Zahl seiner Marker mit der Zahl gelieferter Tiefenbilder. Jedes ausgelassene
+  Tiefenbild (GPU im Rückstand, neuer Renderer beim Auflösungswechsel) vergrößerte den Abstand für immer; ab 8 hieß es
+  nur noch „fern“. Neu: Der Marker BP 0x5B trägt die **Bildnummer** des Kerns (24 bit), der Renderer gibt seine Karte
+  mit dieser Nummer zurück (`peekPicture`, `peekSlotPicture`). Karte höchstens 8 Bilder alt: Antwort aus der Karte;
+  älter: „davor“ (0, der Schein wartet ein, zwei Bilder auf die neue Karte statt durch die Wand zu blitzen); 60 Bilder
+  lang keine frische Karte oder nie eine: „fern“ wie früher (`gx_fifo.cpp`). Tests: `core-test peek depth` (neu
+  geschrieben), `TestDepthMap` (Nummer kommt zurück), `core_remote_test` (die Karte jedes markierten Bildes mit seiner
+  Nummer über den gemeinsamen Speicher).
+- **60 FPS stockte:** Zwischenbilder schrieben die überblendeten Eckpunkte der Figuren mit `glBufferSubData` mitten im
+  Bild in den Eckpunkt-Puffer, den die GPU für dieses Bild noch las: der Treiber kopierte oder wartete bei jeder Figur
+  (Bericht: 74 ms je Bild, davon 57 ms Warten). Neu: eigener Puffer `blendVbo` je Zwischenbild, jede Figur an eigener
+  Stelle, ohne Warten geschrieben (`GL_MAP_UNSYNCHRONIZED_BIT`); das echte Bild danach lädt seine Eckpunkte nicht noch
+  einmal hoch (`uploadedBy`). Messung in der Cloud (llvmpipe, 60 Figuren mit je 4000 Eckpunkten): 31 ms statt 49–54 ms
+  je Bildpaar.
+- **Zwischenbilder nur, wenn Zeit ist:** Liegt beim Zeichnen schon das nächste Bild des Kerns bereit, entfällt das
+  Zwischenbild (`gxBetweenDropped`, im Protokoll „left out“); das Spiel wartet nicht mehr auf den Renderer.
+- **Frame-Skip auch mit 60 FPS:** `CanSkip` lehnt beim Mitschreiben nicht mehr ab; nach einem ausgelassenen Bild kein
+  Zwischenbild (`Skip` setzt `recValid` zurück). Test in `TestInterpolation`.
+- **Dynamische Auflösung mit 60 FPS:** Ein Fenster, in dem mehr als ein Viertel der Zwischenbilder entfiel, während die
+  GPU zurückliegt, zählt als langsam; hoch erst wieder, wenn fast keines entfällt (`gx_auto_level.h`,
+  `kDroppedDown`/`kDroppedUp`). Liegt nur der Prozessor zurück, bleibt die Stufe (eine kleinere Auflösung hilft dort
+  nicht). Tests in `TestAutoLevel`.
+- **C-Stick als Analogstick:** RetroTouch **1.0.0-beta.7** (aus dem beta.6-Quelltext im RetroTouch-Repository, in der
+  Cloud gebaut, `docs/retrotouch-1.0.0-beta.7.patch`): Stick-Aktionen (`registerStickAction`), im Editor ADD und dann
+  ACTION bis „C“ macht aus der Taste einen Stick, gemeldet über `RetroTouchStickListener.onStick`. Die App: `cstick`
+  in GameCube-Gelb (0xF7C81E), wirkt wie die rechte Touch-Fläche (die weitere Neigung zählt); die vier C-Tasten vom
+  Vormittag entfallen. Tests: `CoreTouchTests` (283), App-Java gegen beta.7 übersetzt. **Der RetroTouch-Quelltext muss
+  noch in dessen Repository** (die Sitzung darf dort nicht schreiben).
+- **Fehlende Texturen nach Grafik-Optionen:** Der neue Renderer übernimmt die EFB-Kopien des alten
+  (`GxRenderer::HandOverCopies`, skaliert); Kopien, die das Spiel nur beim Raumstart macht, fehlten sonst bis zum
+  nächsten Raum (Bericht: 306 fehlende in r223 nach drei Wechseln). Test `TestHandOverCopies` (ohne Übergabe 3 Fehler).
+- **Shader-Liste:** 8936 Programme (868 neu aus den sieben Berichten des Tages).
+- **Nicht getestet:** alles auf dem Gerät (Tempo von 60 FPS, Frame-Skip, Fackelschein, C-Stick im Editor). RetroTouch
+  selbst lässt sich ohne Android nicht ausführen (nur übersetzt und Code-Durchsicht).
+- **Unabhängige Durchsicht aller Änderungen des Tages** (zweiter Agent, nur lesend), acht Befunde, alle nachgeprüft:
+  1. Stufenwechsel der dynamischen Auflösung warf ein vorab geholtes, ungezeichnetes Bild weg (`smoothDrop` gab
+     `skipNext` frei, ohne dass der Kern neu sendet: fehlende Texturen, falscher GX-Zustand) – behoben (nur noch das
+     Vorbild der Zwischenbilder geht).
+  2. **Raumdatei-Prüfung meldete jede Raumdatei als beschädigt** (`manifest.tsv` nennt `files/St1/r100.das`,
+     `rooms.tsv` `St1/r100.das`) – behoben (`RoomFileCheck.key`), Test mit echten Pfaden.
+  3. Neue Tastenzählung (pad.cpp) + analoge Schwellen ohne Rastung: ein R2, das um 85 % zittert, hätte R ein Bild
+     losgelassen (Waffe sinkt); alternatives Feuer bei 50 % gab Zusatzschüsse – behoben mit Rastung in `CoreInput`
+     (L/R ab 85 %, los unter 70 %; Feuer ab 50 %, los unter 35 %), Tests (149).
+  4. `Collection.removeIf` (ab Android 7) und `InputDevice.isExternal` (ab Android 10) im Controller-Protokoll bei
+     minSdk 23 – ersetzt bzw. abgefragt.
+  5. **Frame-Skip übersprang im Spiel fast nie** (jede Zeichnung vor der neuen Kopie galt als Lesen) – `CanSkip`
+     verfolgt jetzt, welche Kopie an welchem Texturplatz hängt, und lehnt nur ab, wenn eine TEV-Stufe sie liest oder
+     das nächste Bild die Kopie nicht neu macht. Drei neue Testfälle.
+  6. Zähler der ausgelassenen Zwischenbilder fiel beim Abschalten von 60 FPS auf 0 (Unterlauf) – jetzt fortlaufend.
+  7. Menü zeigte bei gesperrtem Speichern und leerem Platz „nicht verfügbar“ statt „hier nicht möglich“ – Reihenfolge.
+  8. Wiederholungszähler der Part-Tabellen-Prüfung (dvd.cpp) zählt jetzt je Datei.
+  Nicht geändert: der Text „Speichern hier nicht möglich“ nennt Mercenaries, dort erscheint aber „nicht verfügbar“
+  (unschädlich, Übersetzungen bleiben).
+- **Tests danach (Stand nach `a74301c`):** `whole_build.sh` x86_64, i686, armhf, aarch64: 0 Fehler beim Bauen, alle
+  Prüfungen grün bis auf einen einmaligen Ausfall von `re4_host --runtime-test` mit `RE4_GX_THREADS=0` unter
+  qemu-aarch64 („1 failed“, welcher Teiltest ist nicht festgehalten); neun Wiederholungen mit denselben Einstellungen
+  alle grün (vermutlich der bekannte zeitabhängige Teiltest bei Überlast). `gx_gl_check` 0 Fehler, alle Java-Tests
+  (`test_host.sh`, Java-Teil) grün, App-Java gegen RetroTouch beta.7 übersetzt.
+
+## Nachtest 0.91.0 auf dem Retroid (26.10.2026, Cloud-Korrektur)
+
+Bericht des Projektinhabers (Retroid Pocket Flip 2, 64 bit, Logcat, drei Fehlerberichte, R3-Aufnahmen in r22c, r21d, r10a):
+durch Türen laufen, außerhalb des Spielbereichs landen, bergab in der Luft weiterlaufen; schwarze Wellen im Intro weiter da.
+
+- **Durch Türen / in der Luft: Fehler in Patch 0115 (von mir).** Der Patch merkte sich `atari.m_flag` (16 bit) in einem
+  `u8` und schrieb es nach jeder Prüfung zurück: Bits 0x100 (Kollision mit der Umgebung) und 0x200 (mit Figuren) waren
+  danach bei jedem weg, der `EmAtCheck` ruft – Leon (`player.cpp:372`), Türen (`emdoor.cpp:1373`), Ashley/Luis,
+  Kisten, Felsen. Im Logcat bleibt Leons Höhe in ganz r10a bei 7346 und in r21d bei -3959; die R3-Bilder zeigen ihn in
+  Türen. Behoben (`u16`). Neuer Test `runtime-test em at flags` (`game_probe.cpp re4probe_em_at_flags`): Ganado in der
+  Luft wird aus der Tür geschoben, jede Figur behält ihr ganzes `m_flag` (0xC308 bleibt 0xC308). Gegenprobe: mit dem
+  alten `u8` schlägt der Test fehl (i686, 26.10.2026). **Instant-Spielstände aus dem fehlerhaften Testbau** tragen
+  den Fehler im Speicherabbild (Leon ohne Kollision) und sollten gelöscht werden.
+- **Schwarze Wellen im Intro:** Die Logos am Anfang flimmern über `IdShimmerTrans` (`id_sys.cpp:1314`): Kopie des
+  ganzen Bildes (Zeilen 0–447, 256 × 224, ohne Kürzung gelesen), der Film füllt nur die Zeilen 56–391, die Scissors
+  sind voll – die Regel vom Vormittag (`sceneBottom`, nur bei Letterbox-Scissors) griff nicht. Neu:
+  `GxRenderer::SetShownRows` (in `core_mode.cpp` je Bild: 56–392 in 16:9 und „Gestreckt“, sonst alle Zeilen).
+  Volle Textur-Kopien wiederholen dann oben und unten die Randzeilen des gezeigten Ausschnitts, statt die Balken zu
+  lesen (auch Unterwasser und die Tiefenschärfe am Rand). In 4:3 bleibt es wie auf dem GameCube. Test
+  `TestShownRowsCopy` (`gx_gl_check`, 16:9 und 4:3, auch mit MSAA). Die R3-Aufnahmen dieses Berichts zeigen das
+  Intro nicht; Gerätetest offen.
+
+## Umsetzung nach der Analyse: Version 0.91.0-beta (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
+
+Entscheidungen des Projektinhabers (26.10.2026): `gui-optimisations` ist der Ausgangspunkt, der Grafikteil
+meldet dem Kern die Tiefe zurück (neuer Rückweg Renderer → Kern), unsichere Stellen sperren das Speichern,
+die Version heißt **0.91.0** (versionCode 75, `v0.91.0-beta.md`; zuerst 0.92.0 genannt, vom Projektinhaber am 26.10.2026 auf 0.91.0 berichtigt, da 0.90.1 die aktuelle Version ist). Cloud ✅ (siehe unten), **Gerätetest offen**.
+
+- **Instant-Spielstand:** Laden schreibt die Systemdaten nicht mehr zurück (Optionen und Mercenaries-Werte
+  bleiben); Speichern gesperrt in Mercenaries, Assignment Ada, Ashley-Abschnitten, in den Räumen
+  r10b/r11b (Del Lago), r10f (Gondel), r11f (Mendez), r21b/r223 (Lore), r221, r226/r228 (Statuen-Jagd),
+  r31c/r317 (Krauser), r332/r333 (Aufzug, Saddler, Jetski) und bei Boot, Schwimmen, Leiter, Gondel, Festhalten,
+  Quick-Time, Händler, Zielfernrohr, Fernglas, Bulldozer (`unsafePlace()`, `instant_game.cpp`); Laden bleibt an
+  diesen Stellen erlaubt, nicht in Mercenaries/Ada/Ashley. Die Raumliste ist aus den Quelltext-Namen
+  geschätzt (Hinweis: Raum-Nummern der Bosse nicht gegen die Disc geprüft). Menü: Fokus bleibt nach Speichern/Laden,
+  eigene Zeile „Speichern hier nicht möglich“ (`Re4InstantInfo.reserved`), Beschriftungen mittig. Patches 0111/0112 neu.
+- **r222-Hänger:** Patch 0113 (siehe Patch-Tabelle), Protokollzeilen für stille Lesefehler und Null-Tabellen
+  (`runtime/dvd.cpp`), Raumdateien gegen `rooms.tsv` prüfen (`RoomFileCheck`, nach dem Import und bei jedem Start,
+  nur eine Warnung). Test: `runtime_tests` (Tabelle aus Nullen endet mit Fehler statt Stillstand).
+- **32 bit:** Modul-Fenster über 0x80000000 (`re4_module_window_reserve`, `module_loader.cpp`), Patch 0114.
+  Nur auf dem Papier geprüft (Syntax mit Ersatz-Header für 32 und 64 bit; der NDK fehlt in der Cloud). Die
+  SIGBUS-Abstürze des Galaxy A02s nach dem Laden von r229 sind **nicht** behoben (Bericht ohne Protokoll).
+- **Controller-Protokoll:** `ControllerLog` (Tasten und Achsen einmal je Gerät), `controllers.txt` im Bericht.
+- **Dunkle Wellen unten:** `GxRenderer` merkt sich, bis zu welcher Zeile unter Vollbreiten-Scissors gezeichnet
+  wurde (`sceneBottom`) und wiederholt bei halbgroßen Textur-Kopien die letzte gezeichnete Zeile (`limitY` im
+  Kopier-Shader). Test `TestLetterboxCopy` (`gx_gl_check`).
+- **Lichtschein durch Wände:** `GXPeekZ` (`re4_gx_efb_peek`) schreibt beim ersten Aufruf je Bild den Marker
+  BP 0x5B in den Strom; der Renderer liest an der Anzeige-Kopie die Tiefe (320 × 264 Zellen, 24 Bit) in einen
+  PBO und gibt sie ein Bild später über `re4_core_gx_depth` an den Kern zurück (im Kernprozess über den
+  gemeinsamen Speicher, `Control.depthSerial`, `kVersion` 4). Ohne Karte oder bei mehr als 8 Bildern Rückstand
+  antwortet er „fern“ wie bisher. `RE4_GX_NO_DEPTH_MAP=1` schaltet es ab. Tests: `TestDepthMap`, `core-test peek depth`,
+  `core_remote_test` (i686). Die frühere Einschätzung „Fackel des Händlers leuchtet durch Wände: sehr wahrscheinlich
+  Original“ (Abschnitte 24.10.) ist damit **widerlegt**.
+- **FXAA und Frame-Skip:** FXAA-Durchgang nach der Anzeige-Kopie (`GxRenderer::SetFxaa`), Frame-Skip
+  (`CanSkip`/`Skip`: liegen zwei Pakete bereit, wird das erste nur verarbeitet, nicht gezeichnet; nie bei RESET,
+  HOLD, BLACK, MARK, 60 FPS, laufender Aufnahme, und nur wenn kein später gelesener Textur-Kopierauftrag
+  übersprungen würde). Menü: Schalter unter MSAA und unter „Leistung“, 10 Sprachen. Tests `TestFxaa`, `TestFrameSkip`.
+- **C-Stick per Touch:** vier optionale Tasten C↑ C↓ C← C→ im Editor (`CoreTouch`), mit dem Umsehen-Finger
+  zusammen (der stärkere zählt). Ein echter zweiter Analog-Stick braucht eine neue RetroTouch (Callback mit Stick-Kennung).
+- **Salazar-Statue r226, „A schnell drücken“ (Video des Testers, 26.10.2026):** `ButtonCount` (`r226.cpp`) füllt die
+  Laufanzeige nur mit Druck-Flanken (`Key.trg`, A aus im Bild davor); ab Schwierigkeitsrang 8 (`Game_level`, dynamisch)
+  ist das Fenster 3 Spielbilder (`r226_buttonAdj = -2`): nötig ist ein Druck mindestens jedes dritte Bild (10/s). Der
+  Tester drückte im Mittel alle 3,9 Bilder; nachgerechnet mit seinen Drücken: Rang 8–10 Laufstufe 1,4 von 4 (Leon
+  kommt nicht vom Fleck), Rang 1–7 Stufe 3,4. Dazu verlor der Port schnelle Taps: ein neuer Druck, während das Spiel
+  den alten noch gehalten sah, wurde zu einem langen Druck (`pad.cpp`, `g_pressed`), Bildtipps bei Mash-Anzeigen hielten
+  A zwei Bilder (`qte_touch.cpp`). Jetzt: jeder Druck eine eigene Flanke (ein Bild aus, dann an; Zähler je Taste,
+  höchstens 4 offen), Mash-Tipps ein Bild an, ein Bild aus, aufgereiht. Tests `core-test pad`, `runtime-test qtetouch`.
+  Rang 8+ bleibt so schwer wie im Original-Code (eine Hilfe, z. B. „A halten = schnell drücken“, wäre eine Entscheidung
+  des Projektinhabers).
+- **Tür-Tritt r100:** Patch 0115. **Nicht angefasst:** Zombie außerhalb von r100 (Eintrag unbekannt), Planken in der Hütte (wohl Absicht),
+  Salazar-Statue (kein Fehler: L+R verlangt), rechteckiger Rauch und Flackern (Aufnahmen nötig).
+- **Prüfungen (Cloud):** x86_64 ✅ (Bau 0 Fehler, `core-test`, `runtime-test`, `instant-store-test`, Formatvergleich);
+  `gx_gl_check` auf Mesa ✅ (0 failed, mit allen neuen Tests); `re4decomp_link_check` (ganze native App-Bibliothek auf dem Host) ✅;
+  Java: `CoreTouchTests` 297, `ControllerLogTests`, `RoomFileCheckTests`, `check_translations.py` (121 Texte, 10 Sprachen);
+  die Java-Klassen kompilieren gegen android-all (15). **Nicht gelaufen:** Robolectric-Tests (`CoreMenuLayoutTest`),
+  Gradle/APK-Bau, NDK-Bau, jeder Test auf einem Gerät.
+
+## Analyse nach den Tester-Meldungen (26.10.2026, Cloud, Branch `claude/adoring-pasteur-h5s2fw` auf `gui-optimisations`)
+
+Nur Analyse, nichts gebaut, nichts auf dem Gerät geprüft. Einzelheiten und Plan:
+[`analyse-2026-10-26.md`](analyse-2026-10-26.md). Kurz:
+
+- `gui-optimisations`: Bundle = GitHub `c4f79e9`, konfliktfrei mit `master` zusammenführbar; weder
+  er noch `beta-optimisations` ist in `master`. Beschriftungen der Anzeige-Seite oben statt mittig
+  (`CoreMenu.choices()` ohne senkrechte Ausrichtung). Instant Save: Laden überschreibt die
+  Systemdaten, Mercenaries/Ada nicht gesperrt, Fokus springt, Patches 0111/0112 unscharf und nicht
+  in der Patch-Tabelle, Version unverändert.
+- **Hänger r222** (Infinix X6725, Galaxy S20 FE, „lava corridor“): die Teile-Tabelle von
+  `st2/r222.das` ist leer, `readInit` zählt über das Puffer-Ende, `readMain` bleibt stehen.
+  Vermutlich beschädigte Datei auf dem Gerät (Import prüft keine Raumdateien), sonst stiller
+  Lesefehler im Port. Gleiches Muster wie r325.
+- **Lichtschein durch Wände:** Ursache gefunden. `GXPeekZ` (Patch 0030 → `re4_gx_efb_peek`,
+  `runtime/gx_fifo.cpp`) antwortet immer „fern“; die Leucht-Effekte (esp0e, espgen01, esp45)
+  verstecken sich nur über diese Abfrage. Die Einschätzung „sehr wahrscheinlich Original“ in den
+  Abschnitten vom 24.10. ist widerlegt (Dolphin-Video des Projektinhabers).
+- **Schwarze Wellen unten:** Kopie der Zeilen 56–447 wird ganz gebunden, ungezeichnete Zeilen
+  unter dem Balken sind schwarz.
+- 32 bit: moto e6s bricht ab, weil ein Raum-Modul unter 0x80000000 geladen wird (kein
+  Modul-Fenster auf 32 bit). Debug-Werkzeug „SCE ITEM“ stürzt ab (`LightToolPtr` leer).
+- Salazar-Statue r226: kein Fehler (L+R verlangt). Planken r11c: wohl Absicht (nur Schrotflinte
+  & Co.). Tür-Kick r100: Schiebe-Vorrang, Patch möglich.
+- Gerätetabelle mit 22 Geräten (Benchmarks aus der Websuche) für den Projektinhaber erstellt.
+
+## GUI-Optimierungen und Instant-Spielstand (24.10.2026)
+
+Branch `gui-optimisations`, von `beta-optimisations` bei `19bd01c` abgezweigt.
+[Umsetzung und Prüfungen](../../docs/gui-optimisations/IMPLEMENTATION.md),
+[abgestimmte Screendesigns](../../docs/gui-optimisations/README.md).
+Fünf Seiten in derselben pausierten Menüinstanz: Hauptseite mit Instant-Slot,
+Display, Controls, Performance, Management. Buttons statt Radio-/Checkboxen,
+alle bisherigen Funktionen/Präferenzschlüssel und alle zehn Sprachen erhalten.
+Titel und Slot-Anordnung nach der Freigabe des Projektinhabers umgesetzt.
+
+Instant-Datei `<game>/instant/slot-0.ce4save` außerhalb der Speicherkarte:
+Original-GameSave-/Inventar-/Raum-/Händler-/Untermenü-/Systemdaten, aktuelle
+Position/Blickrichtung, CRCs, feste Byte-Reihenfolge und atomarer Dateitausch.
+Der normale Continue-Puffer bleibt beim Speichern erhalten. JNI und separater
+Kernprozess angebunden. **Patch 0111** startet den Original-Ladeweg auf der
+Spielaufgabe nach dem Schließen des Menüs; nicht aus PADRead oder Java.
+`src/` und `include/` unverändert. Neue Dateien `instant_game.cpp`,
+`instant_store.cpp`, `re4_instant.h`; neue gezielte Erfassungs-/Dateitests.
+
+Cloud: Übersetzungen, x86_64-Kernprüfungen inklusive Original-Erfassung und
+Dateifehlerfällen bestanden; ARM32-/ARM64-Kernbuilds (je 114 Module) fehlerfrei;
+komplette coreDebug-APK und Android-Lint erfolgreich. i686 unter QEMU:
+Kernprüfung, Instant-Dateitests mit Prozess-Neustart und separater Kernprozess
+(inkl. neuer Instant-Befehle) mit 0 Fehlern. Fester Dateipuffer vermeidet eine
+im Prozesstest gefundene STL-Bindung an den Spiel-Heap. Vorhandener Lint-Fehler
+im geschützten Spatializer-Helfer mit `@TargetApi(32)` gekennzeichnet.
+**Offen:** Spiel-/Gerätetest auf dem Retroid mit Disc-Daten, besonders Raum-/
+Waffenwechsel, Ereignisfortschritt, Standort, Touch/Controller und 4:3.
+
+### Menü-Layout-Nachkorrektur (24.10.2026)
+
+Auf `gui-optimisations`: gesamtes Ingame-Menü mit 85 % Deckkraft (15 %
+Transparenz). Tiefenschärfe in der Optionsspalte unter „4:3 (GC)“; 60 FPS und
+FPS-Anzeige ebenfalls eingerückt, mit „Bildausgabe“ als linker Beschriftung.
+Gyro-Regler mittig überschrieben, Untermenütitel mit 16 dp mehr Abstand nach
+„Zurück“. Deutsch: „Anzeige“ und „Steuerung“; übrige Menüsprachen weiter über
+Android-Ressourcen nach Geräte-/App-Sprache. Alle zehn Sprachen geprüft.
+Aktualisierte Screendesigns, PDF und Offline-Vorschau. APK-Build und
+`lintCoreDebug` bestanden; keine Kern-/Spielstandänderung. Visuelle Prüfung
+auf dem Retroid für diese Nachkorrektur noch offen.
+
+### Frame-Skip-Machbarkeit (24.10.2026)
+
+[Quellcodeanalyse und Umsetzungsvorschlag](../../docs/gui-optimisations/FRAME-SKIP.md).
+Grundsätzlich möglich: jedes zweite Spielbild beim Zeichnen auslassen, bei
+normalem 30-Hz-Spiel rund 15 sichtbare Bilder; Spiellogik, Eingaben und Ton
+behalten ihren Takt. Hilft vor allem bei langsamer Grafikberechnung. Der
+GX-Befehlsstrom enthält bildübergreifende Zustands-/Texturänderungen und
+Bildpufferkopien: ungeprüft ganze Bilder zu verwerfen ist nicht korrekt. Ein
+eigener Renderpfad mit erhaltenen Abhängigkeiten ist nötig; der Nutzen hängt
+von der tatsächlich auslassbaren Zeichenarbeit ab. **Nur geprüft, nicht
+implementiert; kein Gerätevergleich und keine gemessene Beschleunigung.**
+App und Übersetzungen bleiben gegenüber der Layout-Nachkorrektur unverändert.
+
+### Lesbarkeit, kompakter Slot und Umbruch (24.10.2026)
+
+Gesamtes Menü jetzt mit 90 % Deckkraft (10 % Transparenz). Hauptseiten-Buttons:
+19-sp-Titel fett, 15-sp-Unterzeile normal; übrige Buttons 16 sp und Infotexte
+überwiegend 15 sp. Im niedrigeren Speicherslot stehen Titel, Kapitel/Raum/
+Spielzeit und Speicherzeit links untereinander, Speichern/Laden rechts
+untereinander. Bei wenig Platz rücken die Aktionen unter die Informationen.
+`MenuLayout` passt Auswahlspalten an reale verfügbare Breite und Textlänge an;
+Einstellungszeilen, Gyro, Slot und Kopf berücksichtigen auch die Systemschrift.
+Größenänderungen des App-Fensters passen das offene Menü an. Der größere
+Navigationshinweis scrollt mit. Alle bisherigen Sprachressourcen erhalten.
+Aktualisierte breite Screendesigns, PDF und Vorschau. Keine Änderung an
+Instant-Dateiformat.
+
+**Ergänzungen:** Patch 0112 veröffentlicht den ruhenden Titelzustand und
+übernimmt Instant-Laden über den originalen Titel-Ladeweg (GameLoad,
+titleExit, GameTask, gameInit). Laden ist dort auch ohne Spieler und zuvor
+geöffneten normalen Spielstand erlaubt; Speichern bleibt gesperrt. Logos,
+Demo-Filme, Karten-Zugriff und laufende Übergänge erlauben keine neue Ladung.
+Frame-Skip ist nur als deaktivierter, übersetzter Button eingefügt: Reihenfolge
+FPS-Anzeige → Frame-Skip → 60 FPS experimentell. Keine Frame-Skip-Funktion.
+
+Prüfungen: drei Android-View-Tests bestanden (750 Layouts über fünf Seiten,
+zehn Sprachen, vier Breiten und drei Schriftgrößen, inklusive RTL/Größenwechsel;
+zusätzlich Schriftgewicht und Startmenü-/Platzhalterzustand). 117 Texte und
+ein Plural je Sprache geprüft. x86_64- und i686/QEMU-Kernprüfung einschließlich
+Original-Erfassung und Titel-Freigaben sowie Instant-Dateitests bestanden.
+ARM32 und ARM64, je 114 Module, fehlerfrei gebaut. SDK-Ressourcen, alle Java-
+Quellen, DEX und signierte Debug-APK erfolgreich gebaut und verifiziert.
+Android-Lint direkt mit dem coreDebug-Projektmodell: 0 Fehler.
+Finaler Gradle-Lauf durch gesperrte lokale Build-Verbindung in der Cloud
+blockiert; View-Tests direkt mit JUnit ausgeführt. Gerätetest auf dem Retroid
+mit echten Disc-Daten für den vollständigen Titel-Ladeablauf noch offen.
+
+### Instant-Slot: Aktionen in einer Reihe (24.10.2026)
+
+Speichern und Laden stehen jetzt nebeneinander in der rechten Hälfte der
+Speicherslot-Kachel. Beide zusammen sind so breit wie die Steuerung-Kachel
+in der zweispaltigen Navigation darunter. Links bleiben alle Metadaten erhalten.
+Die Kachel ist niedriger; „Bereit.“ entfällt samt Platzbedarf. Fortschritt,
+Speicherbestätigung und Fehler blenden ihre Statuszeile bei Bedarf weiterhin
+sichtbar ein. Schmale Fenster und große Systemschrift behalten den Umbruch.
+Keine Änderung am Spielkern, Speicherformat oder an Sprachressourcen.
+Screendesign, Vorschau und PDF angepasst. Die vorhandenen Android-View-Tests
+prüfen auch die gemeinsame Breite, die Anordnung und die Rückkehr von
+Fortschritts-/Fehlermeldungen nach verstecktem Bereitschaftsstatus.
+Alle drei View-Tests mit 750 Layoutmessungen und die Prüfung der zehn Sprachen
+bestanden. Vollständige SDK-Debug-APK gebaut, Ausrichtung/Signatur verifiziert;
+Android-Lint: 0 Fehler. Der Spielkern bleibt auf dem bereits gebauten Stand.
+Die neue Anordnung ist noch nicht auf dem Retroid visuell geprüft.
+
+### Instant-Slot: Innenrand und volle Buttonhöhe (25.10.2026)
+
+Der rechte Außenrand der Instant-Aktionen beträgt nun 12 dp und entspricht
+links dem Innenrand der Überschrift „Speicherslot“. Beide Buttons bleiben
+nebeneinander in der rechten Hälfte und füllen die Kachelhöhe mit jeweils
+12 dp Abstand oben und unten aus. Die Höhe folgt auch mehrzeiligen Metadaten.
+`MenuLayout.Columns` kann dafür gezielt die letzte Spalte auf Innenhöhe
+strecken; andere Reihen behalten ihr bisheriges Verhalten. Bei schmalem
+Fenster/großer Schrift bleibt die Stapelung mit natürlicher Höhe erhalten.
+Vorhandene Layoutprüfungen auf Randgleichheit und volle Buttonhöhe erweitert;
+Screendesign, Vorschau und PDF aktualisiert. Keine Kern-/Speicherformat- oder
+Sprachänderung. Alle drei View-Tests (750 Layoutmessungen), die Prüfung der
+zehn Sprachen und der vollständige Gradle-Lauf mit `assembleCoreDebug`,
+`testCoreDebugUnitTest` und `lintCoreDebug` bestanden (1 min 14 s).
+Sichtprüfung auf dem Retroid noch offen.
+
 ## Kurzstand
 
 | Meilenstein | Stand |
@@ -21,7 +1063,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 | M9 Videos | ✅ 16.10.2026 (Retroid, Branch `claude/re4-m9-videos`): die Filme laufen über die CRI-Middleware (ADX, Sofdec, MPEG) aus `src/lib`, Bild über die GX-Nachbildung, Ton synchron, START bricht ab; Vorfilm vor der Autofahrt und Demo-Filme des Titels auf dem Gerät, alle 13 Filme der Discs in der PC-Prüfung ohne Fehler. Dabei behoben: Ruckler (Takt an den 60-Hz-Bildschirm gekoppelt), abgebrochene Töne (SYN, Patch 0056, 0 Abbrüche), Helligkeit. **Nicht auf dem Gerät geprüft:** `VISetBlack` (der Titel blitzte vor dem Demo-Film kurz auf) („M9 Videos“) |
 | M10 Speichern/Laden | ✅ 17.10.2026 (Retroid und PC-Prüfung, Branch `claude/re4-m10-speichern`): die CARD-Bibliothek aus `src/lib` läuft auf einer nachgebildeten Speicherkarte (Datei im Speicher der App, nur für den Port); neue Karte vorformatiert, Startprüfung echt, aber ohne Meldungen (Systemdatei still angelegt); Speichern an der Schreibmaschine, Laden im Titel und im Pausemenü, „Retry“, Optionen über einen Neustart erhalten, Spielstände mit Banner und Symbol. Dabei behoben: Hänger beim Neustart eines Raums mit laufender Musik (Patch 0059) („M10 Speichern/Laden“) |
 | M11 Android-Feinschliff | ✅ 17.10.2026 (Retroid und PC-Prüfung, Branch `claude/nifty-feynman-jv729h`, Stand `093aa7a`): Menü der App über SELECT (Grafikoptionen, FPS-Anzeige, „Depth of field“ mit dem Autofokus der ersten App, Speicherkarte als `.gci` für Dolphin/GameCube, Fehlerprotokoll für Tester, alles auf Englisch), SELECT halten = Debug-Menü des Spiels, Diagnose-Anzeige ausgebaut, Spiel steht im Menü und im Hintergrund. Rundgang über alle Räume (PC mit Disc-Daten): 126 von 126 laufen (Patches 0062–0064). Super Magnum: kein Port-Fehler (Nachlade-Stufe Lv.5 aus dem Debug-Menü), mit Lv.1 bestätigt. Debug-Menü Waffenseite stürzte am Listenende ab (Patch 0066). Leistung: 60 Bilder/s, Kern 33,3 ms je Spielbild mit 13–15 ms Leerlauf, GPU um 20 ms („M11 Android-Feinschliff“) |
-| M12 ARM64 | in Arbeit (Branch `claude/re4-m12-arm64`, seit 18.10.2026 `claude/exciting-bohr-6akwfd`): A1 ✅ 64-bit-Linux (x86_64) baut und linkt; A2 ✅ Adressen unter 4 GB; A3 ✅ Strukturen, die auf 64 bit auseinanderlaufen: alle Prüfwerkzeuge 0 (Patches 0070–0073, Regel `lp64_sizes`); A4 ✅ alle Cloud-Tests grün auf i686, armhf, x86_64 und **aarch64 (neu, ARM64 unter qemu)**, auch Filme und Speicherkarte; A5 Android arm64 eingebaut, aber ungeprüft (kein NDK in der Cloud). 18.10.2026: PC-Prüfung `-Lp64` läuft r100 10.000 Bilder ohne Absturz, Speichern stürzte ab (Budget des Speicherbildschirms, behoben, unbestätigt); Neustart mit Bestandsaufnahme aller Prüfwerkzeuge (libclang statt Wörter, Selbsttest, `run_all.py` + `reviewed.json`), vier neue Werkzeuge, Patch 0082 (fünf echte Fehler), Vergleichslauf 32/64 bit (`-Compare`, in der Cloud mit dem synthetischen Film gleich; mit Disc-Daten offen). Offen: `-Compare` und `-Lp64` mit Disc-Daten, Gerätetest beider ABIs. Dabei gefunden: Puzzle-Untermenü las auch auf 32 bit falsche Felder (Patch 0073). Bestandsaufnahme `arm64-bestandsaufnahme.md`. **Entscheidung des Projektinhabers (17.10.2026): Weg A, nativ 64 bit** |
+| M12 ARM64 | **✅ abgeschlossen** (Entscheidung des Projektinhabers, 27.10.2026: eine APK mit beiden ABIs seit 0.9.0-beta, ARM64 auf dem Retroid gespielt). Verlauf: (Branch `claude/re4-m12-arm64`, seit 18.10.2026 `claude/exciting-bohr-6akwfd`): A1 ✅ 64-bit-Linux (x86_64) baut und linkt; A2 ✅ Adressen unter 4 GB; A3 ✅ Strukturen, die auf 64 bit auseinanderlaufen: alle Prüfwerkzeuge 0 (Patches 0070–0073, Regel `lp64_sizes`); A4 ✅ alle Cloud-Tests grün auf i686, armhf, x86_64 und **aarch64 (neu, ARM64 unter qemu)**, auch Filme und Speicherkarte; A5 Android arm64 eingebaut, aber ungeprüft (kein NDK in der Cloud). 18.10.2026: PC-Prüfung `-Lp64` läuft r100 10.000 Bilder ohne Absturz, Speichern stürzte ab (Budget des Speicherbildschirms, behoben, unbestätigt); Neustart mit Bestandsaufnahme aller Prüfwerkzeuge (libclang statt Wörter, Selbsttest, `run_all.py` + `reviewed.json`), vier neue Werkzeuge, Patch 0082 (fünf echte Fehler), Vergleichslauf 32/64 bit (`-Compare`, in der Cloud mit dem synthetischen Film gleich; mit Disc-Daten offen). Offen: `-Compare` und `-Lp64` mit Disc-Daten, Gerätetest beider ABIs. Dabei gefunden: Puzzle-Untermenü las auch auf 32 bit falsche Felder (Patch 0073). Bestandsaufnahme `arm64-bestandsaufnahme.md`. **Entscheidung des Projektinhabers (17.10.2026): Weg A, nativ 64 bit** |
 | 32-bit-Kernprozess | ✅ 20.10.2026 (Branch `claude/re4-32bit-kernprozess`, Release **0.40.0-alpha**): **Weg A, nur als Rückfall** (Entscheidungen des Projektinhabers): ist MEM1 im App-Prozess belegt (ART-Java-Speicher auf 32-bit-Geräten mit Android 14), läuft der Kern in `libre4_coreproc.so`; Bibliotheken werden dafür entpackt (`useLegacyPackaging = true`). Cloud ✅ (i686, armhf: `re4_core_remote_test`), Retroid ✅ (erzwungen mit `-CoreProcess`: Spiel, Filme, Ton, Laden/Speichern, Debug-Menü, 30 FPS), **Tester-Gerät ✅** (nur 32 bit, Android 14: das Spiel läuft, Projektinhaber 20.10.2026; ohne Bericht). Offen: Leistungszahlen vom Tester-Gerät, Raumklang mit Spatializer („32 bit: der Kern als eigener Prozess“) |
 | Hotfix 0.40.1-alpha | 20.10.2026 (Branch `claude/re4-luis-hotfix`, vom Stand `548b0f24` des Kernprozess-Branches): Patch 0087, Absturz auf 64 bit, wenn ein Ganado Luis in der Hütte packt (Abschnitt „Absturz, wenn ein Ganado Luis in der Hütte packt“); Touch-Tasten nach einem Tippen auch bei einem „Geister-Controller“ (21.10.2026, Abschnitt „Touch-Bedienung bleibt ohne Controller versteckt“). Cloud ✅, **Gerätetest offen** |
 | Menü mehrsprachig, 0.41.0-alpha | 21.10.2026 (Branch `claude/re4-menu-sprachen`, enthält den Hotfix): App-Menü im Spiel nach der Handy-Sprache, Englisch als Rückfall, Deutsch als erste Sprache (weitere liefert der Projektinhaber); Touchsteuerung Auto/Erzwingen/Unterdrücken, Komfortsteuerung. Cloud ✅, **Gerätetest offen** |
@@ -44,6 +1086,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 | 0.45.1-alpha | **nicht veröffentlicht, in 0.46.0 aufgegangen** (Entscheidung des Projektinhabers, 23.10.2026). 23.10.2026 (Branch `claude/re4-start-controls` mit `performance` zusammengeführt, versionCode 71, Releasetext `port/android-decomp/docs/releases/v0.45.1-alpha.md`; Entscheidung des Projektinhabers: die weiteren Performance-Optimierungen als 0.45.1): „Auto“ regelt die Auflösung nach dem Grafikchip (`GxRenderer::Rescale`), Spiel- und Zeichen-Thread weg von den langsamsten Kernen und Androids Leistungshinweis, Shader auf eigenem Thread mit Liste in der App (70 Programme, wächst mit den Schlüsseln der Berichte); -O3 geprüft und verworfen. **Auf dem Gerät noch nicht getestet** |
 | 0.46.0-alpha | 23.10.2026 (Branch `claude/re4-start-controls`, versionCode 72, Releasetext `port/android-decomp/docs/releases/v0.46.0-alpha.md`; Entscheidung des Projektinhabers nach seinem Gerätetest 16:09: „Die Umschaltung klappt sauber“): „Dynamisch“ statt „Auto“ (erst nach zwei schlechten Fenstern tiefer), Auflösung in der FPS-Anzeige, Einrasten L/R und B in der Komfortsteuerung auch für den Controller, Menüzeilen ohne Grundlinien-Ausrichtung, Gyro mit der Harpune, Shader-Liste 627 Programme |
 | 0.9.0-beta | 23.10.2026 (Branch `claude/re4-start-controls`, auch `performance` und `master`, versionCode 73, Releasetext `port/android-decomp/docs/releases/v0.9.0-beta.md`; Entscheidung des Projektinhabers: „Beta jetzt“, nachdem der SCV40-Tester das Spiel durchgespielt hat): erste Beta; seit 0.46.0 nur die Shader-Liste (1928 statt 627 Programme), Version, Releasetext und README (Status „Beta“). Alle 1928 Programme bauen auf Mesa ohne Fehler (mit und ohne MSAA). **Gerätetest der APK offen** |
+| M13 Retail-Discs (EU) | 26.10.2026 (lokal, Branch `retail-eu`, Plan `retail-eu-plan.md`): R0 ✅ (Prüfstrecke und Vergleichswerkzeug für G4BP08, Versionserkennung im Kern), R1 ✅ (Patches 0117–0119: r100-Prüfung mit unveränderten EU-Discs ohne Absturz, Debug-Discs „ALLES OK“), R2 ✅ (Patch 0120 Funkspruch, Umsortierung Krauser/Adas Gewehr im Umwandler, Kartenprüfung mit EU-Discs „ALLES OK“), R4 (App-Import, vorgezogen) gebaut und am PC geprüft, Gerätetest offen. R7 (Sprachen, vorgezogen; Patches 0121–0123, „Game language“ im Ingame-Menü) gebaut und am PC mit allen fünf Sprachen geprüft, Gerätetest offen. Offen: R3, R5, R6, R8. Als **M13** in `CLAUDE.md` aufgenommen **✅ abgeschlossen 27.10.2026** (zwei Kapitel EU-Discs auf Deutsch auf dem Retroid, Cheat-Menü; Reste in 10b, Abschnitt „M13 abgeschlossen“) |
 | Reihenfolge | Entscheidungen des Projektinhabers: erst M9 Videos und M10 Speichern/Laden (16.10.2026), dann **M11 vor dem Raum-Rundgang 10b** (17.10.2026: die APK soll an Tester gehen), dann **M12 ARM64 vor 10b** (17.10.2026: ein Tester hat ein Gerät nur für 64-bit-Apps). Gestrichen: Baum-Kollision in r100 (G17) |
 
 **Entscheidung des Projektinhabers (14.10.2026):** Endprodukt ist
@@ -5947,6 +6990,77 @@ Zwischenbild. Kein Eingriff in `src/` oder den Kern. Entwurf nach einer Analyse 
   Cloud `RE4_GX_INTERP=1 gx_chunk_render`), Wirkung und Kosten auf dem Gerät, Schnitte im echten
   Spiel (Schwellen eventuell nachstellen).
 
+### „Force Performance“ im App-Menü und R3 für die Touch-Steuerung (Wünsche des Projektinhabers, 24.10.2026, Cloud)
+
+- **Force Performance** (Grafik, nach der Auflösungszeile): „Default“ (Vorgabe, Entscheidung des
+  Projektinhabers: Android verteilt die Threads wie vor 0.45) oder „Use performance cores“ (Spiel-
+  und Zeichen-Thread auf den schnellen Kernen, Androids Leistungshinweis für Spiel-, Vertex- und
+  Zeichen-Thread, alle 30 Bilder zurück auf die schnellen Kerne). Darunter der Hinweis: mehr
+  CPU-Leistung, das Gerät wird wärmer. 10 Sprachen (`ingame_force_performance`,
+  `ingame_perf_default`, `ingame_perf_cores`, `ingame_perf_help`; `check_translations.py`: 82 Texte
+  je Sprache). Gespeichert als `fastCores` (0/1) in den Grafik-Einstellungen, ohne neuen Renderer.
+  Weg: `CoreBridge.setFastCores` → `core_mode.cpp` (`optFastCores`; der Zeichen-Thread setzt sich
+  bei der nächsten Run um und sagt es dem Kern) → `re4_core_set_fast_cores` (`core_api.cpp`, auch
+  über den eigenen Kern-Prozess: `kSetFastCores`) → `re4_gx_set_fast_cores` (`gx_decode.cpp`; der
+  Spiel-Thread setzt sich an der nächsten Spielbild-Grenze um). Zurück auf „Default“:
+  `re4cpu::ReleaseCores` (alle Kerne) und der Leistungshinweis geschlossen. Zeilen `core: Force
+  Performance on/off`, `cores: … left to Android (Force Performance: Default)`.
+- **R3 in der Touch-Steuerung:** Aktion `r3` (Beschriftung „R3“, grau) bei RetroTouch angemeldet,
+  nicht im Standard-Layout: der Editor (Zahnrad) fügt sie hinzu. Ein Druck löst wie R3 am
+  Controller die Grafik-Aufnahme aus (`CoreActivity.capture`, nur mit „R3 = Graphics capture“).
+- **Tests:** `CoreTouchTests` 267 Prüfungen bestanden (R3: kein GameCube-Knopf, Meldung an die App,
+  nicht im Standard-Layout, Platz unter RetroTouchs 16 Knöpfen); `CoreInputTests` 141; Java der App
+  übersetzt ohne Fehler; i686: 0 Baufehler, alle Tests 0 Fehler (auch der eigene Kern-Prozess);
+  App-Linkprüfung ohne Fehler. **Am Gerät nicht getestet.**
+
+### 0.90.1-beta auf dem Branch `beta-optimisations` (Entscheidung des Projektinhabers, 24.10.2026, Cloud)
+
+- **Veröffentlicht** hat der Projektinhaber die Beta als **0.90.0-beta** (Tag `0.90.0-beta` =
+  `97c5bf6`, 24.10.2026 00:31 UTC; im Repository hieß sie `0.9.0-beta`). Releasetext jetzt
+  `v0.90.0-beta.md` mit dem veröffentlichten Inhalt (4266 Shader).
+- **Nächste Version 0.90.1-beta** (versionCode 74, Releasetext `v0.90.1-beta.md`), Arbeit dafür auf
+  dem neuen Branch **`beta-optimisations`** (Wunsch des Projektinhabers): alles nach dem Tag, also
+  Shader-Liste 8068, Zeile für zu kurze Disc-Dateien, Threads zurück auf die schnellen Kerne.
+
+### Berichte realme RMX3710 (0.46.0, Mali-G52) und RMX3741 (0.9.0-beta, Mali-G68), 24.10.2026: Threads auf den langsamen Kernen (Cloud)
+
+- **Berichte:** RMX3710 (Android 15, 8 Kerne: 0–5 bis 1,8 GHz, 6–7 bis 2,0 GHz; Stufe 1) in r400/r404,
+  der Kern braucht 36–46 ms je Spielbild (unter 30 Bilder/s); RMX3741 (Android 15, 0–5 bis 2,0 GHz,
+  6–7 bis 2,6 GHz; Stufe 2/Dynamisch) im Dorf, 60 gezeigte Bilder/s. Kein Absturz in den Sitzungen;
+  `crash-system.txt` des RMX3710: `sceInLock` vom 22.10. 22:43 (ältere Version, Patch 0101).
+- **Gefunden:** beide setzen den Spiel-Thread beim Start auf die Kerne 6–7 (`cores: the game thread
+  on cores 6 7`), die Zeile `GX core` zeigt ihn eine bis zwei Minuten später zu 90–99 % auf den
+  langsamen Kernen (RMX3741: 26–30 ms Rechenzeit je Bild von 33,3 ms; RMX3710 ohne Menü
+  dazwischen). Android setzt die Kern-Zuordnung eines Threads zurück, wenn es die App zwischen seinen
+  Kern-Gruppen (cpusets) verschiebt.
+- **Geändert:** `re4cpu::KeepOnFastCores` (`re4_cpu_info.h`): der Thread merkt sich die Kerne von
+  `KeepOffSlowCores`; Spiel-Thread (`gx_decode.cpp`, je Spielbild-Grenze) und Zeichen-Thread
+  (`core_mode.cpp`, je Run) prüfen sie alle 30 Bilder (`sched_getaffinity`) und setzen sie neu, wenn
+  Android sie geändert hat; Zeile `cores: the game/render thread put back on its cores (… N times so
+  far)`, höchstens viermal. i686: 0 Baufehler, alle Tests 0 Fehler; App-Linkprüfung ohne Fehler.
+  **Am Gerät nicht getestet.**
+- **Shader-Liste:** **8068 Programme** (194 neu).
+
+### Bericht Xiaomi 2109119DG (0.46.0, 23.10.2026 22:15, Insel r316–r321): Hänger beim Laden von r325; Vibration bestätigt (Cloud)
+
+- **Vibration:** der Projektinhaber bestätigt sie im Spiel (Änderung `rumbleTick`, Stand `ea1aea9`).
+- **Bericht:** Xiaomi 11 Lite 5G NE (Android 14, 64 bit, Kern im App-Prozess), noch 0.46.0-alpha,
+  Stufe 2, gestreckt. Sitzungen 17:33–20:01 (r220 … r317) und 21:10–22:15 (r316 … r321).
+- **Hänger 22:12:48 beim Wechsel r321 → r325 (Tür):** `st3/r325.das` (Disc 2) gelesen, Teil 1 (Yz2,
+  0x24363E Byte) richtig, danach 31 Einträge der Teile-Tabelle `MRAM, Größe 0` (alle Nullen, Typ 0
+  = `TRANS_MRAM`) und kein Ende-Eintrag: das Spiel liest Teile der Größe 0, dann 8 s kein Bild
+  (`cDvdQueue::readMain`). Auf dem PC lief der Rundgang über alle Räume (r325 eingeschlossen) mit
+  denselben Disc-Daten; die App prüft beim Import jede Datei gegen die Referenzliste. Ursache
+  offen. Neu (`runtime/dvd.cpp readFile`): liest der Port innerhalb der Dateilänge weniger Bytes, als
+  die Disc nennt (Datei auf dem Gerät kürzer), steht eine Zeile `DVD: … only N of M bytes … import
+  the disc again` im Protokoll (höchstens 8). i686: 0 Baufehler, alle Tests 0 Fehler.
+- **Älterer Absturz 23.10. 17:33 (0.46.0, kein Protokoll der Sitzung):** `ScenarioMove` sprang an
+  0xC8003E4C (keine Funktion); offen, nur aus `crash-system.txt` bekannt. Die übrigen Abstürze dort
+  (20./21.10.: `cSubLuis::move`, `cEmMark::move`, `RefractShaderSetup`) stammen aus älteren Versionen.
+- **Shader-Liste:** **7874 Programme** (3608 neu, Insel r300–r321), alle bauen auf Mesa ohne Fehler
+  (mit und ohne MSAA; 6760 verschiedene Quellen). Erster Start: der Hintergrund-Thread baut sie in
+  einigen Minuten (SCV40 etwa 28 ms je Programm), der Releasetext sagt das.
+
 ### Gerätetest 24.10.2026 (Retroid, 0.9.0-beta neu gebaut, 5 Berichte, 5 R3-Folgen; Cloud)
 
 - **Bestätigt (Projektinhaber):** Ganados schreien beim Fallen (Patch 0109), QTEs per Tipp gehen,
@@ -7798,6 +8912,28 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0108 `debug.cpp` | `proc_tick` (die eigene Zeitmessung eines Spielbilds, `ProcessTickGet` in `main.cpp`) nicht mehr `static` (Anpassung des Ports, 22.10.2026): `runtime/state_trace.cpp` mittelt daraus die Abschnitte eines Bilds und schreibt alle 600 Spielbilder die Zeile `frame: … logic …, drawing …, rest …, frame end …, waiting …` in den Bericht (wohin die Zeit eines schwachen Geräts geht). Nur die Sichtbarkeit ändert sich, die Reihenfolge in `.bss` bleibt |
 | 0109 `em10.cpp` | `em10DmSetWep09` (Schrotflinten, Magnum, Gewehre) fragt vor `Dm_Blow` auch `em10RoofDmCk` (Fehler des Prototyps, 24.10.2026): Ganados von Dach, Seilbahn, Mauer oder Brüstung fallen mit dem Fallschrei (`Dm_Roof`, `Se_tbl[14]`) statt stumm über die Kante; nicht für Explosionen (`mag`) |
 | 0110 `em3e.cpp` | Zielscheiben und Tore (`cEmMark`) tragen `EM_STATUS_ASHLEY_NO_HELP` (Fehler des Prototyps, 24.10.2026): in der Schießbude r22c zählten die beiden Tore (em 0x3E, hp 1000, an 0 0 0) als Gegner neben der wartenden Ashley, sie rief alle 151 Bilder „Help!“, sobald Leon mehr als 2 m weg war |
+| 0111 `game.cpp`, 0112 `title.cpp` | Instant-Spielstand laden: `gameMainLoop` und `Title_task` rufen `re4_instant_game_tick` / `re4_instant_title_tick` (neu erzeugt mit `whole_make_patch.py`, 26.10.2026; vorher von Hand und nur mit Unschärfe anwendbar) |
+| 0113 `dvd.cpp` | Teile-Tabelle prüfen (`re4_dvd_header_check`): eine Tabelle ohne Ende-Eintrag (nur Nullen: Raumdatei auf dem Gerät beschädigt oder stiller Lesefehler) ließ `readInit`/`readMain` über `header_buff` hinauslaufen, das ganze Spiel stand (r222 nach der Tür von r210, Infinix X6725 und Galaxy S20 FE, 25.10.2026; r325 auf dem Xiaomi 2109119DG). Der Port liest die Tabelle bis zu dreimal neu, beendet dann das Lesen mit Fehler, einer Bildschirmzeile „DISC FILE DAMAGED“ und einer ausführlichen Zeile im Fehlerprotokoll. Kein Fehler des Prototyps |
+| 0114 `db_light.cpp` | `TOOL_ERR` liest `pTool->Flag`, `pTool` ist ohne geöffneten Licht-Editor leer; das Debug-Werkzeug „SCE ITEM“ stürzte so ab (GameCube: lesbarer Speicher bei Adresse 0x14; Galaxy A02s, Redmi Note 14 Pro). Port-Patch |
+| 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2). Das gemerkte `m_flag` ist 16 bit (die erste Fassung mit `u8` löschte Bits 0x100/0x200: Leon lief durch Türen, Nachtest 26.10.2026); Test `runtime-test em at flags` |
+| 0116 `db_menu.cpp` | Das Debug-Menü (SELECT gehalten, Patch 0061) zeigt nur AREA JUMP und DEBUG OPTION, in einer Spalte am linken Rand, immer an derselben Stelle (Wunsch des Projektinhabers, 26.10.2026; das Original listet 34 Werkzeuge in zwei Spalten um x = 176 und lässt sich mit dem C-Stick verschieben). Hoch/runter wählt, A startet, B oder START schließt wie bisher; die Menütabelle bleibt (ein mit `DbMenuSetExecTool` vorgemerktes Werkzeug startet weiter über seinen Namen) |
+| 0117 `read.cpp` | Kern-Archiv an einem zweiten Platz, wenn es größer ist als der feste (Verkaufsdaten, `retail-eu-plan.md` R1, 26.10.2026): `etc/core.das` der europäischen Discs hat 0x23AC40 Byte, der Platz der Debug-Version bei 0x80578000 fasst 0x234000 (`CORE_DATA_MAX`) bis zu den Optionsdaten bei 0x807AC000; das Lesen lief hinein („CORE_DATA IS TOO LARGE“). `CoreDataRead` fragt `re4_core_data_place` (`runtime/dvd.cpp`: Größe des Körpers aus der Teile-Tabelle, bei yz2 die entpackte); ein größerer Kern kommt nach 0x81C00000 (4 MB in der Entwicklerhälfte von MEM1, sonst unbenutzt, `RE4_MEM1_CORE_ALT_ADDR`), der Kern der Debug-Version bleibt an seinem Platz. Port-Patch für Verkaufsdaten |
+| 0118 `eprintf.cpp` | Ohne die Debug-Schrift `etc/moji8.tpl` (fehlt auf den europäischen Discs) legte `EprintfInit` keine Puffer an; `eprintf` und `EprintfDrawing` prüfen `eprintf_init`, `EprintfBufferClear` (jedes Bild über `EprintfFlush`) nicht und schrieb über einen Nullzeiger: das Spiel endete im ersten Bild. Jetzt bleibt der Debug-Text ohne Schrift aus. Port-Patch für Verkaufsdaten (R1) |
+| 0119 `main.cpp` | Ersatz für `debug/roomInfo.dat` (fehlt auf den europäischen Discs): jedes „Neues Spiel“ der Debug-Version läuft über das Debug-Startmenü, das die Tabelle liest (`titleExit`, `cRoomJmp`), und endete dort. `systemRestartInit` legt dann eine Tabelle mit einem Eintrag an: der vorgewählte Raum (`pG->room_id`, r120 wie beim neuen Spiel) ohne Position (wie der r120-Eintrag der Debug-Tabelle), in der Form, die der Umwandler aus der Disc-Datei macht. `re4_room_info_stand_in` (`runtime/dolphin_os.cpp`) meldet das und lehnt einen anderen Debug-Startraum (`RE4_START_ROOM`) ab: das neue Spiel beginnt in r120 und läuft von selbst nach r100. Port-Patch für Verkaufsdaten (R1) |
+| 0120 `ss_model.cpp`, `ss_term.cpp` | Funkspruch mit den europäischen Discs (Verkaufsdaten, R2, 26.10.2026): `ss/eng/ss_term.dat` hat dort 10 statt 11 Teile, die zweite Textur der Funkgerät-Teile fehlt (die EU-Dateien hängen sie an jede `ss/cmn/ss_ocNNN.dat` an, Teil 16), die Bewegung liegt auf 13 statt 14. Aus der europäischen `Sscrn.rel` abgelesen: `tel00ModelInit` nimmt die Textur aus der Datei des Gesprächspartners (`pTelDat`, 16), `termMotionCancel` die Bewegung von 13. Vorher endete das Spiel beim ersten Funkspruch in r100. Mit den Debug-Discs unverändert (`re4_disc_retail_eu`). Port-Patch für Verkaufsdaten |
+| 0121 `main.cpp`, `card.cpp`, `title.cpp`, `read.cpp` | Spielsprache mit den europäischen Discs (R7, Entscheidungen des Projektinhabers, 26.10.2026: Wahl im Ingame-Menü der App, bis dahin die Handy-Sprache, „LANGUAGE SELECT“ raus aus dem Titelmenü; 27.10.2026: ein Wechsel startet das Spiel nach einer Frage neu). Die EU-Fassung nimmt in `setLanguage` die Systemsprache der Konsole (2 Englisch … 6 Italienisch), diese Version fest 1 (US: keine Untertitel in Filmsequenzen, zwei Schwierigkeitsgrade). `setLanguage` und das Lesen der Systemdatei (`card.cpp`, sie trägt die Sprache, mit der sie gespeichert wurde) nehmen die Sprache der App, nach dem Zurückholen aus dem Reset-Speicher (`main`) ebenso; ein Wechsel startet das Spiel neu (Frage im App-Menü, Soft-Reset über `runtime/game_language.cpp`, Entscheidung des Projektinhabers vom 27.10.2026). `titleMenuInit` blendet die Einheiten 11 und 12 der europäischen `title.dat` aus (Textur 248, „LANGUAGE SELECT“, für Code, den diese Version nicht hat). `systemWorkInit` (jeder Start und Soft-Reset) nimmt sie ebenso. Größere `SS/<lang>/option.dat` (Deutsch, Französisch, Spanisch, Italienisch: 0x44000–0x4C2C0 statt höchstens 0x40000 Byte; sie liefen in Leons Daten) kommen an einen eigenen Platz (`OptionDataRead`, `re4_option_data_place`). Mit den Debug-Discs bleibt die Sprache 1, auch nach einer Systemdatei der EU-Discs. Port-Patch für Verkaufsdaten |
+| 0122 `mes.cpp` | Einsprachige Texttabellen der europäischen Discs (R7): die Untermenü-Texte liegen dort je Sprache in `ss/<lang>/*.dat` (145 Tabellen) als ein einzelner Textblock ohne den Kopf der Sechs-Sprachen-Tabellen (6, Offsets ab 0x1C). Die EU-Fassung von `getAddr`/`getMesNum` (main.dol 0x80023564/0x800235b4) liest so eine Tabelle direkt; diese Version las sie als sechs Sprachen und nahm Text von falschen Stellen. Jede Sechs-Sprachen-Tabelle beider Fassungen beginnt mit 6, 0x1C (217 Debug, 184 EU), daran entscheidet `mesBlock`. Der Umwandler (`formats_mes.cpp` `convertMdt`) dreht solche Tabellen als einen Block. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0123 `mes.cpp` | Textsprachen Deutsch, Französisch, Spanisch, Italienisch (R7). `MessageControl::setLayout` nimmt Schriftgröße, Zeichen- und Zeilenabstand aus einer Tabelle mit zwei Zeilen (Japanisch, Englisch), ausgewählt nach der Textsprache; 2–5 lasen dahinter, die Untertitel des Funkspruchs kamen als riesige, verschmierte Buchstaben. Die EU-Fassung (main.dol 0x80023610, Tabelle 0x801F8E04, ebenfalls zwei Zeilen) nimmt für `pSys->language` 0 die japanische, sonst die englische Zeile; so jetzt auch hier. `MessageControl::setLanguage` wählt den Block der Sechs-Sprachen-Tabellen: die der EU-Discs sind Japanisch, Englisch, Französisch, Deutsch, Italienisch, Spanisch (Blockgrößen der Funktexte; im französischen Lauf kam der Funkspruch deutsch), die EU-Fassung (0x800236d4) ordnet 3 → 3, 4 → 2, 5 → 5, 6 → 4 zu, diese Version 3–6 → 2–5. Die Debug-Discs haben in den Blöcken 2–5 nur Platzhalter und spielen mit Sprache 1: mit ihnen unverändert. Zugleich ein Fehler des Prototyps (sein Debug-Menü bietet die Sprachen 2–7 an) `MessageData::getAddr`: die EU-Kern-Texttabelle hat ab 0x56 15 Texte mehr; mit den EU-Discs wird jede Nummer ab 0x56 um 15 verschoben (Optionsmenü zeigte „ZOOM“, Gerätetest 26.10.2026) |
+| 0124 `ss_map.cpp` (Sscrn) | Karte im Untermenü mit den EU-Discs: deren Bildschirmbeschreibung (`SS/<lang>/ss_map.dat` Eintrag 3) führt Element 253 (Kopie des Bildschirms) zuletzt statt vor dem Hintergrund; mit dieser Version blieb die Karte leer (Gerät und PC, 26.10.2026). Die EU-Fassung (`SsMapMain::init`, Sscrn.rel Text 0x111ac) blendet es außer in r22c aus; so jetzt mit den EU-Discs. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0125 `cockpit.cpp` | Namensschilder der Lebensanzeige mit den EU-Discs: sechs (0x40–0x45) in beiden Fassungen, diese Version blendet 0x40–0x42 aus; auf den EU-Discs tragen 0x43–0x45 Namen und lagen über Leons („KiLeonr“, Retroid 26.10.2026). Wie die EU-Fassung (`LifeMeter::roomInit`, main.dol 0x800c05a8): alle ausblenden, 0x45 für Spielertyp 3, 0x43 für 4, 0x44 für 5. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0126 `sscrn.cpp`, `ss_term.cpp` (Sscrn) | Funkspruch mit den EU-Discs wie die EU-Fassung (R3, 27.10.2026): (1) `SubScreenExec` setzt die vier gemeinsamen Id-Tabellen aus `ss_cmmn.dat` (Peseten, Hauptmenü, Sonstiges, Hintergrund) beim Funkspruch (`open_flag` 0x20) nicht (EU: main.dol 0x8005a920), `SsTermMain::init` kein Hauptmenü; sonst war das `IdSub` (128 Plätze) voll und die dunkle Leiste hinter dem Untertitel fehlte („IDSystem::set() work full“). (2) Die EU-Funkspruch-Tabelle (`ss_term.dat` Teil 9, 78 statt 46 Bausteine) hat drei neue Bildgruppen 0x15–0x17 beim Partnerbild; die EU-Fassung blendet sie beim Start aus (0x16 nicht bei Funkspruch 14) und schaltet sie und 0x12 in `OpeMesMove` bei einem Bild des Funkspruchs um (13: 0x12 bei Bild 600; 14: 0x16 → 0x15 bei 5; 15: 0x17 bei 1215; 17: 0x12 bei 444; Tabelle im EU-Datenabschnitt 20 +0x1200). Ohne (2) lagen sie über Hunnigan, sobald (1) ihnen Platz gab (Gerät und PC, 27.10.2026; drei vorherige Fassungen verworfen). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0127 `r101.cpp` | Fehler des Prototyps: nach dem Aufheben des Schlüssels zur Tür nach r102 zeigt `r101_checkDoor102KeyUse` Raumtext 0xB („Das Regal ist an die Wand genagelt …“, in beiden Fassungen); „Du hast … benutzt“ ist 0x14. Die EU-Fassung (`st1_1.rel`) nimmt 0x14, jetzt auch diese (beide Fassungen) |
+| 0128 `r221.cpp` | Raumtexte von r221 mit den EU-Discs (R3): die EU-Tabelle hat ab Text 6 alles einen Platz tiefer (Text für Text verglichen); der Code dieser Version fragt 6 („C'mon, c'mon!“ am Aufzug), 7 (nur Japanisch), 8 (Stickstofftank), 9 (Rollladen-Schalter) und 0xA (nach dem Rollladen), mit EU-Daten kamen ein leerer Text, der Tank-Text am Schalter, ein Wartehinweis danach. Die EU-Fassung (`st2_3.rel`) fragt an denselben Stellen 5–9; mit den EU-Discs jetzt ebenso. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0129 `ss_map.cpp` (Sscrn) | Händler-Markierungen der Karte mit den EU-Discs (R3, 27.10.2026): die EU-Kartendaten (`ss_map.dat` Teil 6) haben eine achte Händler-Markierung (Baustein 0xB mit „H“) für den Burg-Händler nach seinem Umzug (`SCF_R204_MERCHANT_MOVE`). Die EU-Fassung zeigt acht Markierungen (`getMerchantMarkNo` 7 → 0xB) und blendet in Bereich 2 Markierung 2 nach dem Umzug aus, Markierung 7 davor (ihr `GLOBAL_WK` hat `Scenario_flg` 0xC weiter hinten). Diese Version setzte Baustein 0xB nie: ein „H“ stand mitten auf der Karte und blieb beim Verschieben stehen (Video des Projektinhabers). Jetzt wie die EU-Fassung. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0130 `item.cpp` | Cheat-Menü der App (`port/docs/cheat-menu-plan.md`, Entscheidung 6 des Projektinhabers, 27.10.2026): mit `DBG_INF_BULLET` antwortete `cItemMgr::bulletNum(cItem*)` für jeden Platz 100, die Anzeige unten rechts zeigte „100“. Jetzt die echte Magazinzahl (`runtime/cheats.cpp` hält das Magazin der ausgerüsteten Waffe voll, das Bit selbst lässt `trigger` nichts verbrauchen); 100 nur, wo die echte Zahl 0 ist, wie bisher. Ohne das Bit unverändert. Port-Patch für das Cheat-Menü |
+| 0131 `game.cpp` | Stage 4 mit den EU-Discs (Raum-Rundgang 10b, 27.10.2026): das Raummodul `rel/st4_0.rel` (r400–r411, darunter die Söldner-Räume) liegt bei der EU nur auf Disc 2, bei den Debug-Discs auf beiden. `gameStageInit` wechselt in dieser Version nur für Stage 3 auf Disc 2; ein Stage-4-Raum mit eingelegter Disc 1 endete in „RelDataReadError! rel/st4_0.rel“ (18 Räume im EU-Rundgang). Die EU-Fassung (main.dol 0x80118a28) wechselt für Stage 3 und 4; mit den EU-Discs jetzt ebenso. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0132 `event.cpp` | Ereignis-Untertitel auf Englisch mit den EU-Discs (10b): die Debug-Version zeigt bei Sprache 1 (US-Englisch) keine; mit den EU-Discs ist Englisch Sprache 2 (`runtime/game_language.cpp`), und ihre Untertitel-Dateien haben keine englischen Texte. `Event::MesSet` zeigte sie trotzdem an: `Message::init` meldete „Msg[04] Address Error“ (15 Räume im EU-Rundgang) und zeigte Text 0 der Kerntabelle („14-09LE“ unter Leon und Luis in r104, GX-Bild). Die EU-Fassung (main.dol 0x8010f968) zeigt bei Sprache 2 keine; mit den EU-Discs jetzt ebenso. Deutsch zeigt weiter seine Untertitel („Vom Regen in die Traufe.“). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0133 `r204.cpp` | Umzug des Burg-Händlers mit den EU-Discs (10b): beide Fassungen lassen den Händler in r204 nach Raum-Merkmal 1 an einer neuen Stelle stehen (Gegnerliste 3: Eintrag 0x59 weg, 0x55 bleibt). Die EU-Fassung (`R204Init`, `st2_1.rel`) setzt dabei die Szenario-Merkmale 88 (`SCF_R204_MERCHANT_MOVE`) und 174; ihre Karte fragt 88 für die achte Händler-Markierung (Patch 0129). Diese Version setzte sie nie: mit den EU-Discs zeigte die Karte den Händler nach dem Umzug an der alten Stelle. Jetzt wie die EU-Fassung. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

@@ -1,0 +1,29 @@
+# Retail data (port/docs/retail-eu-plan.md, R5): event subtitles in English with the European discs.
+# The debug build shows no event subtitles for language 1 (the US release, English voices); with the
+# European discs English is language 2 (runtime/game_language.cpp, as the European setLanguage), and
+# their event subtitle files have no English texts. The debug code showed them anyway: the text was
+# not there, Message::init logged "Msg[04] Address Error" and showed text 0 of the core table
+# ("14-09LE" under Leon and Luis in r104; 14 rooms in the room tour, 27.10.2026). The European
+# Event::MesSet (main.dol 0x8010f968) shows none for language 2; with the European discs this one does
+# the same. Nothing changes with the debug build's discs. A port patch for retail data.
+--- a/src/game/event.cpp
++++ b/src/game/event.cpp
+@@ -1857,11 +1857,17 @@
+ 
+ // Shows subtitle `no` (message file 0xF0, or 0xF2 with an event mdt) for `time` frames at (x, y);
+ // -1 ends the current one. Suppressed in Japanese (language 1).
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ void Event::MesSet(int noMes, int timer, int px, int py)
+ {
+     int i;
+ 
+-    if (pSys->language != 1) {
++    /* port: English is language 2 with the European discs (runtime/game_language.cpp), and they
++       hold no event subtitles for it; the European Event::MesSet (main.dol 0x8010f968) shows none
++       for language 2. With 1 here the subtitle file had no such text, and Message::init showed
++       text 0 of the core table instead ("14-09LE" in r104, room tour 27.10.2026) */
++    if (pSys->language != (re4_disc_retail_eu() ? 2 : 1)) {
+         DpfFlagOff(pG, DPF_MESSAGE);
+         if (noMes == -1) {
+             cMes.WaitEnd(0);

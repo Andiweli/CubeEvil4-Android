@@ -386,6 +386,142 @@ static void testDvd()
     report("dvd", ok);
 }
 
+// The release from each disc header (port/docs/retail-eu-plan.md): debug build, European and US
+// release, a header without the table's place (the test above), another game.
+extern "C" void re4_core_debug_menu(void);    // runtime/core_api.cpp
+extern "C" int re4_debug_menu_request(void);
+
+static void testDiscRelease()
+{
+    bool ok = true;
+    char tmpl[] = "/tmp/re4-release-test-XXXXXX";
+    const char* root = mkdtemp(tmpl);
+    CHECK(root != 0);
+    if (!root) {
+        report("disc release", false);
+        return;
+    }
+    std::string base = root;
+    std::vector<unsigned char> fst = buildFst({{false, "a.dat", 0x1000, 1}});
+    char saved[1024];
+    snprintf(saved, sizeof(saved), "%s", re4_data_dir());
+    struct Case {
+        const char* id;
+        unsigned fstOffset;
+        unsigned size;
+        int release;
+    } cases[] = {
+        {"G4BE08", 0x28FE00, 0x440, RE4_DISC_DEBUG},  {"G4BP08", 0x236500, 0x440, RE4_DISC_RETAIL_EU},
+        {"G4BE08", 0x236500, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
+        {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},
+    };
+    int n = 0;
+    for (const Case& c : cases) {
+        std::string dir = base + "/case" + std::to_string(n++);
+        unsigned char boot[0x440];
+        memset(boot, 0, sizeof(boot));
+        memcpy(boot, c.id, 6);
+        if (c.size >= 0x428) {
+            boot[0x424] = (unsigned char) (c.fstOffset >> 24);
+            boot[0x425] = (unsigned char) (c.fstOffset >> 16);
+            boot[0x426] = (unsigned char) (c.fstOffset >> 8);
+            boot[0x427] = (unsigned char) c.fstOffset;
+        }
+        CHECK(makeDirs(dir + "/disc0/sys") && makeDirs(dir + "/disc0/files"));
+        CHECK(writeFile(dir + "/disc0/sys/fst.bin", fst.data(), fst.size()));
+        CHECK(writeFile(dir + "/disc0/sys/boot.bin", boot, c.size));
+        CHECK(writeFile(dir + "/disc0/files/a.dat", "A", 1));
+        re4_set_data_dir(dir.c_str());
+        CHECK(re4_disc_release() == c.release);
+        // the game sees the header's id, the debug build's for the European discs (memory card files)
+        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.release == RE4_DISC_RETAIL_EU ? "G4BE" : c.id, 4) == 0);
+        // SELECT held (the app): the debug menu, none with the European discs (R6)
+        re4_core_debug_menu();
+        CHECK(re4_debug_menu_request() == (c.release == RE4_DISC_RETAIL_EU ? 0 : 1));
+    }
+    re4_set_data_dir((base + "/none").c_str());
+    CHECK(re4_disc_release() == RE4_DISC_UNKNOWN);
+    re4_set_data_dir(saved);
+    std::string cmd = "rm -rf '" + base + "'";
+    CHECK(system(cmd.c_str()) == 0);
+    report("disc release", ok);
+}
+
+extern "C" int re4_formats_retail_order(void* data, unsigned size, const char* name);
+
+// A big-endian archive body (count, rel, 0, 0, offsets, tags) with entries 0x20 apart.
+static std::vector<unsigned char> retailBody(const std::vector<std::string>& tags)
+{
+    unsigned n = (unsigned) tags.size(), first = (0x10 + n * 8 + 0x1F) & ~0x1Fu;
+    std::vector<unsigned char> b(first + n * 0x20);
+    auto put = [&](unsigned at, unsigned v) {
+        b[at] = (unsigned char) (v >> 24);
+        b[at + 1] = (unsigned char) (v >> 16);
+        b[at + 2] = (unsigned char) (v >> 8);
+        b[at + 3] = (unsigned char) v;
+    };
+    put(0, n);
+    for (unsigned i = 0; i < n; i++) {
+        put(0x10 + i * 4, first + i * 0x20);
+        memcpy(&b[0x10 + n * 4 + i * 4], tags[i].c_str(), tags[i].size());
+    }
+    return b;
+}
+
+static unsigned bodyOffset(const std::vector<unsigned char>& b, unsigned i)
+{
+    const unsigned char* p = &b[0x10 + i * 4];
+    return (unsigned) p[0] << 24 | (unsigned) p[1] << 16 | (unsigned) p[2] << 8 | p[3];
+}
+
+static std::string bodyTag(const std::vector<unsigned char>& b, unsigned n, unsigned i)
+{
+    return std::string((const char*) &b[0x10 + n * 4 + i * 4]);
+}
+
+// The European archive order put back into the debug build's (formats.cpp retailOrder,
+// port/docs/retail-eu-plan.md R2): Ada's rifle and Krauser, a table already in the debug order and
+// one of another size left alone.
+static void testRetailOrder()
+{
+    bool ok = true;
+    std::vector<unsigned char> w = retailBody({"TPL", "BIN", "BIN", "BIN", "FCV"});
+    unsigned o[5];
+    for (unsigned i = 0; i < 5; i++) {
+        o[i] = bodyOffset(w, i);
+    }
+    CHECK(re4_formats_retail_order(w.data(), (unsigned) w.size(), "ss/cmn/ss_wep40.dat") == 1);
+    CHECK(bodyOffset(w, 0) == o[0] && bodyOffset(w, 1) == o[1] && bodyOffset(w, 2) == o[3] &&
+          bodyOffset(w, 3) == o[4] && bodyOffset(w, 4) == o[2]);
+    CHECK(bodyTag(w, 5, 2) == "BIN" && bodyTag(w, 5, 3) == "FCV" && bodyTag(w, 5, 4) == "BIN");
+    CHECK(re4_formats_retail_order(w.data(), (unsigned) w.size(), "ss/cmn/ss_wep40.dat") == 0);  // put back already
+    std::vector<unsigned char> d = retailBody({"TPL", "BIN", "BIN", "FCV"});  // the debug build's file
+    std::vector<unsigned char> d0 = d;
+    CHECK(re4_formats_retail_order(d.data(), (unsigned) d.size(), "ss/cmn/ss_wep40.dat") == 0 && d == d0);
+
+    std::vector<std::string> kt(146, "FCV");
+    const char* eu[] = {"BIN", "TPL", "BIN", "TPL", "BIN", "TPL", "BIN", "BIN", "BIN", "BIN", "BIN", "TPL", "TPL", "TPL"};
+    for (unsigned i = 0; i < 14; i++) {
+        kt[i] = eu[i];
+    }
+    std::vector<unsigned char> k = retailBody(kt);
+    unsigned ko[146];
+    for (unsigned i = 0; i < 146; i++) {
+        ko[i] = bodyOffset(k, i);
+    }
+    CHECK(re4_formats_retail_order(k.data(), (unsigned) k.size(), "em/pl0a.drs") == 1);
+    const unsigned from[8] = {6, 12, 7, 8, 9, 10, 11, 13};
+    const char* dbg[8] = {"BIN", "TPL", "BIN", "BIN", "BIN", "BIN", "TPL", "TPL"};
+    for (unsigned i = 0; i < 8; i++) {
+        CHECK(bodyOffset(k, 6 + i) == ko[from[i]] && bodyTag(k, 146, 6 + i) == dbg[i]);
+    }
+    CHECK(bodyOffset(k, 5) == ko[5] && bodyOffset(k, 14) == ko[14]);
+    std::vector<unsigned char> s = retailBody({"BIN", "TPL"});  // another archive: no rule
+    std::vector<unsigned char> s0 = s;
+    CHECK(re4_formats_retail_order(s.data(), (unsigned) s.size(), "em/pl00.drs") == 0 && s == s0);
+    report("retail order", ok);
+}
+
 // --- yz2 ----------------------------------------------------------------------
 
 // The game's set-up half (src/game/yz2code.cpp, in libre4_main).
@@ -656,11 +792,25 @@ int dvdQueueMain()
     gTitleFrames = readFrames("ss/eng/title.dat");
     gPacedFrames = readFrames("hdr.dat");
     CHECK(gFastFrames == 1 && gTitleFrames == 1 && gPacedFrames >= 8 && gPacedFrames < 100);
+    // a part table of zeros (a damaged file of the device; patch 0113): read again, then the read ends
+    // with an error instead of walking past the table for ever
+    int zeroReq = DvdReadN("zero.dat", 0, 0, 0, 0, 0x8000 | 0x4, __FILE__, __LINE__);
+    int zeroResult = 0, zeroFrames = 0;
+    for (int frame = 1; zeroReq >= 0 && frame <= 100 && zeroResult == 0; frame++) {
+        Dvd.Watcher();
+        TaskScheduler();
+        iTaskScheduler();
+        zeroResult = Dvd.ReadCheck(zeroReq, &info);
+        zeroFrames = frame;
+    }
+    CHECK(zeroReq >= 0 && zeroResult < 0 && zeroFrames < 100);
     gQueueOk = ok;
     return 0;
 }
 
 }  // namespace
+
+extern "C" const char* re4_core_disc_problem(void);  // runtime/dvd.cpp
 
 static void testDvdQueue()
 {
@@ -692,13 +842,16 @@ static void testDvdQueue()
     }
     std::vector<FstEntry> fst = {{true, "ss", 0, 4}, {true, "eng", 1, 4},
                                  {false, "title.dat", 0x2000, (unsigned) file.size()},
-                                 {false, "hdr.dat", 0x1000, (unsigned) file.size()}};
+                                 {false, "hdr.dat", 0x1000, (unsigned) file.size()},
+                                 {false, "zero.dat", 0x3000, (unsigned) file.size()}};
     std::vector<unsigned char> f = buildFst(fst);
     unsigned char boot[0x40] = "G4BE08";
     CHECK(makeDirs(gQueueDir + "/disc0/sys") && makeDirs(gQueueDir + "/disc0/files"));
     CHECK(writeFile(gQueueDir + "/disc0/sys/fst.bin", f.data(), f.size()));
     CHECK(writeFile(gQueueDir + "/disc0/sys/boot.bin", boot, sizeof(boot)));
     CHECK(writeFile(gQueueDir + "/disc0/files/hdr.dat", file.data(), file.size()));
+    std::vector<unsigned char> zeros(file.size(), 0);
+    CHECK(writeFile(gQueueDir + "/disc0/files/zero.dat", zeros.data(), zeros.size()));
     CHECK(makeDirs(gQueueDir + "/disc0/files/ss/eng"));
     CHECK(writeFile(gQueueDir + "/disc0/files/ss/eng/title.dat", file.data(), file.size()));
     char saved[1024];
@@ -712,6 +865,10 @@ static void testDvdQueue()
         re4_log("  reads at the start: %d and %d frames (title.dat), after it: %d", gFastFrames, gTitleFrames,
                 gPacedFrames);
     }
+    // the app learns which file it was and why (re4_core_disc_problem, the in-game message)
+    const char* problem = re4_core_disc_problem();
+    re4_log("  disc problem for the app: %s", problem);
+    CHECK(strncmp(problem, "1\tzero.dat\t", 11) == 0 && strstr(problem, "zeros") != 0);
     report("dvdq", ok && gQueueOk);
 }
 
@@ -909,6 +1066,36 @@ static void testGx()
         }
         re4_core_gx_detach();
     }
+    // a menu screen of the game (re4_gx_still, runtime/picture.cpp): the chunks closed while it is
+    // open carry RE4_GX_CHUNK_STILL (the app's 60 FPS leaves out the pictures between them)
+    {
+        void* fifo = (void*) (unsigned long) 0x82800000u;
+        void* xfb = (void*) (unsigned long) 0x82830000u;
+        re4_core_gx_acquire();  // attach
+        re4probe_gx_produce(fifo, xfb, 2, 0);
+        while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+            re4_core_gx_release(c);
+        }
+        // one frame at a time, taking what is queued after each (4 slots: a renderer that takes
+        // none for a second loses the queue)
+        unsigned still = 0, chunks = 0, last = 0;
+        for (int i = 0; i < 4; i++) {
+            re4_gx_still(i < 2);
+            re4probe_gx_produce(fifo, xfb, 1, 0);
+            while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+                chunks++;
+                still += (c->flags & RE4_GX_CHUNK_STILL) ? 1 : 0;
+                last = c->flags;
+                re4_core_gx_release(c);
+            }
+        }
+        re4_gx_still(0);
+        CHECK(still == 2 && chunks >= 3 && !(last & RE4_GX_CHUNK_STILL));
+        if (still != 2 || chunks < 3 || (last & RE4_GX_CHUNK_STILL)) {
+            re4_log("  gx still: %u of %u chunks marked, the last 0x%x", still, chunks, last);
+        }
+        re4_core_gx_detach();
+    }
     // RE4_GX_BENCH=N: the decoder's time for N village-like frames (120 000 vertices each)
     if (const char* bench = getenv("RE4_GX_BENCH")) {
         unsigned us = re4probe_gx_bench((void*) (unsigned long) 0x82800000u, (void*) (unsigned long) 0x82900000u,
@@ -967,12 +1154,14 @@ int re4probe_light05(void);
 int re4probe_luis_damage(void);
 int re4probe_route_far(void);
 void re4probe_enemy_log(void);
+int re4probe_em_at_flags(void);
 void re4probe_death_log(void);
 int re4probe_arc(void);
 int re4probe_partner_damage(void);
 int re4probe_case_free_place(void);
 int re4probe_menu_touch(void);
 int re4probe_letterbox(void);
+int re4probe_picture_still(void);
 int re4probe_knife_swipe(void);
 int re4probe_qte_touch(void);
 int re4probe_gyro_boat(void);
@@ -1478,6 +1667,17 @@ static void testRoute()
     report("route", ok);
 }
 
+// Patch 0115 (game_probe.cpp re4probe_em_at_flags): a Ganado in the air is pushed out of a door,
+// and every body keeps its whole collision flag (the 0.91.0 test: Leon walked through doors)
+static void testEmAtFlags()
+{
+    int r = re4probe_em_at_flags();
+    if (r != 0) {
+        re4_log("  em at flags: faults 0x%x (1/4 not pushed, 2/8/16 flag changed)", r);
+    }
+    report("em at flags", r == 0);
+}
+
 // The error log's enemy and menu lines (state_trace.cpp, game_probe.cpp re4probe_enemy_log): a
 // Ganado appears, is hit on the head, changes its routine, loses its head, is hidden, jumps, holds
 // back and follows again (tester report 22.10.2026) and goes, a weapon work flies as dynamite and explodes (no hit lines for it); the C stick moves a
@@ -1622,10 +1822,11 @@ static void testMenuTouch()
     report("menutouch", ok);
 }
 
-// The picture format "4:3 without bars" (patch 0105): when the letterbox stays away
+// The picture format "4:3 without bars" (patch 0105): when the letterbox stays away; and the menu
+// screens without in-between pictures (runtime/picture.cpp re4_picture_still)
 static void testLetterbox()
 {
-    const int bad = re4probe_letterbox();
+    const int bad = re4probe_letterbox() | re4probe_picture_still() << 8;
     if (bad) {
         re4_log("  letterbox: failed checks 0x%x", bad);
     }
@@ -1901,6 +2102,8 @@ int re4_runtime_tests()
     gFailures = 0;
     testLink();
     testDvd();
+    testDiscRelease();
+    testRetailOrder();
     testYz2();
     testDvdQueue();
     testStream();
@@ -1912,6 +2115,7 @@ int re4_runtime_tests()
     testPartner();
     testRoute();
     testLogFile();
+    testEmAtFlags();
     testEnemyLog();
     testDeathLog();
     testArc();

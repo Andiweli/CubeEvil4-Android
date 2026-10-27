@@ -64,6 +64,11 @@ public final class CoreBridge {
   public static native String coreProcess();
   /** Why the core process ended while the app runs (a crash); "" while it runs or without one. */
   public static native String coreProblem();
+  /**
+   * The first disc file the game could not read: "disc\tpath on the disc\twhy" (St2/r222.das), ""
+   * while every read went well (runtime/dvd.cpp re4_core_disc_problem).
+   */
+  public static native String discProblem();
   /** Diagnostic text: core state, frame, room, models, last log lines. */
   public static native String status();
   /** Saves the graphics data of the next picture into `folder` (diagnosis; R3). */
@@ -76,6 +81,9 @@ public final class CoreBridge {
 
   /** The core has the menu's functions (pause, memory card). */
   public static native boolean hasMenu();
+  /** Instant slot: operation 0 status, 1 save, 2 load. Result and seven fixed-width metadata fields.
+   * Called on a worker while the app menu keeps the core paused. */
+  public static native long[] instant(int operation);
   /**
    * on: the game stops at its next frame and waits until pause(false);
    * waits up to waitMs for that. True when the game stands.
@@ -87,10 +95,39 @@ public final class CoreBridge {
    *  gameplay autofocus of the first Android port; on unless switched off. */
   public static native void setDof(boolean on);
   /**
+   * The menu's "Force Performance": true keeps the game and the graphics thread on the fast cores
+   * with Android's performance hint, false (the default) leaves them to Android.
+   */
+  public static native void setFastCores(boolean on);
+  /**
+   * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,
+   * 6 Italian. The core takes it and restarts the game (its own soft reset); the start setting
+   * RE4_GAME_LANGUAGE holds the one at the start.
+   */
+  public static native void restartGame(int language);
+  /**
+   * The cheat menu's switches (port/docs/cheat-menu-plan.md): 1 infinite health, 2 infinite ammo,
+   * 4 one-hit kill; the game sets them in every frame while on.
+   */
+  public static native void setCheats(int bits);
+  /**
+   * A cheat menu button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1,000,000 pesetas.
+   * 1 done, 2 already so, 0 not now (not Leon, a sub screen, a movie), -1 no room in the case,
+   * 3 done by the next game frame, -2 the core has no cheat menu.
+   */
+  public static native int cheatAction(int what);
+  /**
    * 60 FPS (experimental): the renderer draws an in-between picture of two game pictures at each
    * second display refresh; the game itself stays at 30 pictures a second.
    */
   public static native void setSmooth(boolean on);
+  /**
+   * Frame skip: while the renderer is behind (the core has two pictures finished), the first is not
+   * drawn and the second drawn at once, so the game keeps its pace on a slow graphics chip.
+   */
+  public static native void setFrameSkip(boolean on);
+  /** FXAA: an edge smoothing pass over every finished picture. */
+  public static native void setFxaa(boolean on);
   /**
    * Gyro aiming (GyroAim): the device's turn rates in rad/s about the screen's axes (yaw, pitch);
    * the core turns the aim by them while Leon aims a gun. 0, 0: still.
@@ -140,6 +177,7 @@ public final class CoreBridge {
    * the game's letterbox bars while playing); applied at the
    * next picture while the game runs.
    */
+  /** scale in halves: 0 Dynamic, 2 = 1×, 3 = 1.5× … 8 = 4× (CoreMenu.scaleHalves). */
   public static native void setGraphics(int scale, int samples, int anisotropy, int aspect);
   /** {most samples, strongest anisotropy, scale, samples, anisotropy in use}; null before the first picture. */
   public static native int[] graphicsInfo();

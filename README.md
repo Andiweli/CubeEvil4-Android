@@ -80,8 +80,8 @@ credits; saving at the typewriter and loading on 32- and 64-bit devices. On the 
 each of the game's 126 rooms without a crash, and a comparison run plays the 32- and 64-bit core
 with the same input through the first parts and finds every frame and every compared picture
 identical. An effect can stutter briefly the first time it appears while its shader is built; the
-app prepares the 4266 shaders it knows ahead (village, lake, much of the castle, the island's
-finale), the rest follows from testers' reports. Progress, test results and every patch are
+app prepares the 9006 shaders it knows ahead (village, lake, castle, much of the island), the
+rest follows from testers' reports. Progress, test results and every patch are
 recorded in `port/docs/whole-program-status.md` (German).
 
 > [!IMPORTANT]
@@ -117,7 +117,7 @@ leave the game (and a save made afterwards) in an odd state. Such problems come 
   Italian, Portuguese, Russian and Spanish so far; on Android 13 and later also per app under
   Settings → Apps → CubeEvil4 → Language): graphics (resolution Dynamic or 1×–4×,
   anti-aliasing, texture filter, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, FPS
-  display, 60 FPS (experimental)), controls (touch controls Auto, Force or Suppress; comfort
+  display, 60 FPS (experimental), Force Performance: Default or Use performance cores), controls (touch controls Auto, Force or Suppress; comfort
   controls: Alternate Controls, gyro aiming with its sensitivity, knife by swipe, Latch L and R,
   Latch B), memory card (export and import saves as `.gci` for Dolphin and the GameCube) and the
   error log (send or save a report; R3 = graphics capture). B returns to the game.
@@ -147,7 +147,8 @@ On screen: A, B, X, Y, Z, L, R, START, MENU (= SELECT), the D-pad, a move stick 
 screen shows them, a button hides them), **Force** (always shown) or **Suppress** (hidden while a
 controller is connected). In the inventory you can tap items, files and the map, and swipe left or
 right to change the tab. When a quick-time prompt flashes up (L+R, A+B, mash A …), a tap on it (or
-anywhere on the picture) presses its buttons; tap again and again to mash.
+anywhere on the picture) presses its buttons; tap again and again to mash. The editor (gear) can
+add an **R3** button (graphics capture for error reports, as on a controller).
 
 **Comfort controls** (app menu → Controls)
 

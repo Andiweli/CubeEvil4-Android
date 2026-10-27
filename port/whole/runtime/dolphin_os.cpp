@@ -387,9 +387,29 @@ void re4_keep_vtable(void* object)
     (void) object;
 }
 
+// Without debug/roomInfo.dat (the European discs) the debug start menu reads a stand-in table
+// with the new game's room alone (patch 0119, main.cpp systemRestartInit): no other room can be
+// preselected, and the game starts as the retail one, the opening (r120) runs into r100.
+static unsigned g_standInRoom;
+
+void re4_room_info_stand_in(unsigned room)
+{
+    if (!g_standInRoom) {
+        re4_log("debug: no debug/roomInfo.dat on these discs (debug build only): the debug start "
+                "menu holds the new game's room r%03x alone", room);
+    }
+    g_standInRoom = room;
+}
+
 void re4_debug_start_room(unsigned short* room_id)
 {
     if (unsigned long room = debugStartRoom()) {
+        if (g_standInRoom && room != g_standInRoom) {
+            re4_log("debug: start room r%03lx (RE4_START_ROOM) needs debug/roomInfo.dat; the new game "
+                    "starts in r%03x%s", room, g_standInRoom,
+                    room == 0x100 && g_standInRoom == 0x120 ? " and runs into r100 on its own" : "");
+            return;
+        }
         re4_log("debug: start room r%03lx preselected (RE4_START_ROOM)", room);
         *room_id = (unsigned short) room;
     }

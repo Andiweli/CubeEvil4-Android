@@ -1,0 +1,42 @@
+# Retail data (port/docs/retail-eu-plan.md, R7): the European discs keep the sub screen's texts as
+# one-language tables in a folder per language (145 of them: ss/<lang>/ss_cmmn, ss_pzzl, ss_file ...),
+# a single message block without the six-language header. The European getAddr/getMesNum (main.dol
+# 0x80023564, 0x800235b4) read such a table as it is; this build read it as six languages and took
+# texts from wrong places. Every six-language table of both releases starts 6, 0x1C (217 debug, 184
+# European), so the header decides. Nothing changes with the debug build's discs. A port patch for
+# retail data.
+--- a/src/game/mes.cpp
++++ b/src/game/mes.cpp
+@@ -237,10 +237,22 @@
+ 
+ // Text of message `no` in message file `type` (0 core, 1 room/event mdt, 2 core, 3 item names,
+ // 4 ...) for the current language; NULL when out of range.
++/* port: the European discs keep the sub screen's texts in a folder per language (ss/Eng, ss/Ger ...)
++   as one-language tables, a single MesTblBlock without the six-language header (count 6, offsets
++   from 0x1C); the European getAddr/getMesNum (main.dol 0x80023564/0x800235b4) take such a table as
++   it is (a flag per registered file). Every six-language table of both releases starts 6, 0x1C. */
++static inline MesTblBlock* mesBlock(u32* tbl, u32 language)
++{
++    if (tbl[0] != 6 || tbl[1] != 0x1C) {
++        return (MesTblBlock*) tbl;
++    }
++    return (MesTblBlock*) ((u8*) tbl + tbl[language + 1]);
++}
++
+ u16* MessageData::getAddr(int no, int data_type)
+ {
+     u32* tbl = (u32*) m_Data[data_type];
+-    MesTblBlock* blk = (MesTblBlock*) ((u8*) tbl + tbl[m_language + 1]);
++    MesTblBlock* blk = mesBlock(tbl, m_language);
+ 
+     if (no > (int) blk->count - 1) {
+         return NULL;
+@@ -252,7 +264,7 @@
+ int MessageData::getMesNum(int data_type)
+ {
+     u32* tbl = (u32*) m_Data[data_type];
+-    MesTblBlock* blk = (MesTblBlock*) ((u8*) tbl + tbl[m_language + 1]);
++    MesTblBlock* blk = mesBlock(tbl, m_language);
+ 
+     return blk->count;
+ }

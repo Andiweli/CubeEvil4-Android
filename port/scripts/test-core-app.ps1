@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Kernmodus der App RE4-Android-Decomp auf dem Retroid: Kern bauen, APK bauen,
 installieren, starten, Bildschirmfotos und Protokoll holen.
@@ -213,7 +213,8 @@ param(
     [int]$GxThreads = -1,
     [switch]$GxJobCheck,
     [switch]$NoFastCores,
-    [switch]$NoPerfHint
+    [switch]$NoPerfHint,
+    [string]$CoreSettings = ''
 )
 $ErrorActionPreference = 'Stop'
 # -Manual: you play yourself, 30 minutes unless -Seconds is given (Q ends earlier)
@@ -504,6 +505,8 @@ if ($WeaponTrace) {
     $settings = if ($settings) { "$settings;RE4_TRACE_WEAPON=1" } else { 'RE4_TRACE_WEAPON=1' }
 }
 $settings = if ($settings) { "$settings;RE4_APP_TOOLS=1" } else { 'RE4_APP_TOOLS=1' }
+# further core switches as NAME=VALUE;NAME=VALUE (e.g. RE4_TEST_STREAM=free+60:0:0x16 with -AudioWav)
+if ($CoreSettings) { $settings = "$settings;$CoreSettings" }
 # the vertex threads of the GX decoder (gx_decode.cpp): how many, and the check that memory a
 # draw reads does not change before its batch
 if ($GxThreads -ge 0) { $settings = "$settings;RE4_GX_THREADS=$GxThreads" }

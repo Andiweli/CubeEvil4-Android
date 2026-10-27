@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Russian (Русский): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">Настройки CubeEvil4</string>
+    <string name="ingame_title">CubeEvil4 · Игровое меню</string>
     <string name="ingame_hint">SELECT (коротко) = это меню  ·  SELECT (удерживать) = отладочное меню игры</string>
     <string name="ingame_back">Вернуться в игру</string>
 
@@ -19,8 +19,12 @@
     <string name="ingame_dof">Глубина резкости</string>
     <string name="ingame_fps_display">FPS внизу слева</string>
     <string name="ingame_smooth60">60 FPS (экспериментально)</string>
-    <string name="ingame_resolution_line">Разрешение: %1$d × %2$d пикс. (уровень %3$d) · экран %4$d × %5$d · применяется после закрытия меню. Более высокие уровни требуют больше ресурсов.</string>
-    <string name="ingame_resolution_line_auto">Разрешение: %1$d × %2$d пикс. (уровень %3$d, динамическое) · экран %4$d × %5$d · применяется после закрытия меню. Динамическое снижает уровень, пока графический процессор не успевает.</string>
+    <string name="ingame_force_performance">Принудительная производительность</string>
+    <string name="ingame_perf_default">По умолчанию</string>
+    <string name="ingame_perf_cores">Производительные ядра</string>
+    <string name="ingame_perf_help">Производительные ядра: игра и графика работают на самых быстрых ядрах устройства и просят Android повысить частоты. На многих устройствах плавнее, но требует больше мощности процессора, и устройство сильнее нагревается. По умолчанию: решает Android.</string>
+    <string name="ingame_resolution_line">Разрешение: %1$d × %2$d пикс. (уровень %3$s) · экран %4$d × %5$d · применяется после закрытия меню. Более высокие уровни требуют больше ресурсов.</string>
+    <string name="ingame_resolution_line_auto">Разрешение: %1$d × %2$d пикс. (уровень %3$s, динамическое) · экран %4$d × %5$d · применяется после закрытия меню. Динамическое снижает уровень, пока графический процессор не успевает.</string>
 
     <string name="ingame_controls">Управление</string>
     <string name="ingame_touch_controls">Сенсорное управление</string>
@@ -35,6 +39,8 @@
     <string name="ingame_latch">Фиксация L и R</string>
     <string name="ingame_latch_b">Фиксация B</string>
     <string name="ingame_gyro_sensitivity">Чувствительность гироскопа</string>
+    <string name="ingame_gyro_invert_v">Инвертировать по вертикали</string>
+    <string name="ingame_gyro_invert_h">Инвертировать по горизонтали</string>
     <string name="ingame_alternate_help">Альтернативное управление: L1 = нож, L2 = прицеливание (правым стиком), R1 = инвентарь (оружие/лечение), R2 = выстрел / удар ножом, Y = карта. A, B, X (Эшли) и START — как раньше.</string>
     <string name="ingame_knife_swipe">Нож свайпом</string>
     <string name="ingame_knife_swipe_help">Нож свайпом: быстрый свайп по изображению достаёт нож и наносит удар; свайп вверх или вниз — удар выше или ниже.</string>
@@ -92,4 +98,95 @@
     <string name="ingame_report_chooser">Отправить отчёт об ошибках</string>
     <string name="ingame_report_failed">Не удалось создать отчёт: %1$s</string>
     <string name="ingame_capture_saved">Снимок графики сохранён</string>
+
+    <!-- Five-page button menu and the app-owned instant slot (gui-optimisations). -->
+    <string name="ingame_return">Назад</string>
+    <string name="ingame_on">Вкл.</string>
+    <string name="ingame_display">Экран</string>
+    <string name="ingame_controls_page">Управление</string>
+    <string name="ingame_performance">Производительность</string>
+    <string name="ingame_management">Управление данными</string>
+    <string name="ingame_navigation">Крестовина: Навигация  ·  A: Выбор  ·  B: Назад  ·  SELECT / START: В игру</string>
+    <string name="ingame_instant">Мгновенное сохранение</string>
+    <string name="ingame_slot">Слот сохранения</string>
+    <string name="ingame_slot_details">Глава %1$s  ·  %2$s  ·  Время игры %3$s</string>
+    <string name="ingame_slot_date">Последнее сохранение: %1$s</string>
+    <string name="ingame_settings">Настройки и данные</string>
+    <string name="ingame_display_summary">Разрешение, формат и эффекты</string>
+    <string name="ingame_controls_summary">Сенсор, гироскоп и удобство</string>
+    <string name="ingame_performance_summary">Мощные ядра, 60 FPS и счётчик</string>
+    <string name="ingame_management_summary">Читы, карта памяти, отчёты и исходники</string>
+    <string name="ingame_output">Вывод изображения</string>
+    <string name="ingame_smooth_help">Дополнительные промежуточные кадры. Логика игры остаётся на 30 кадрах/с.</string>
+    <string name="ingame_instant_save">Сохранить</string>
+    <string name="ingame_instant_load">Загрузить</string>
+    <string name="ingame_instant_checking">Проверка слота …</string>
+    <string name="ingame_instant_working">Подожди …</string>
+    <string name="ingame_instant_ready">Готово.</string>
+    <string name="ingame_instant_empty">Мгновенного сохранения пока нет.</string>
+    <string name="ingame_instant_unavailable">Недоступно при загрузке, во время событий или в этом состоянии. Закрой меню и повтори попытку в игре.</string>
+    <string name="ingame_instant_no_save">Здесь сохранение невозможно (лодка, лестница, бой с боссом, «Наёмники» и т. п.). Загрузка по-прежнему доступна.</string>
+    <string name="ingame_instant_unsupported">Для мгновенного сохранения обнови ядро игры.</string>
+    <string name="ingame_instant_damaged">Мгновенное сохранение повреждено или несовместимо. Можно заменить его новым.</string>
+    <string name="ingame_instant_failed">Не удалось прочитать или записать мгновенное сохранение.</string>
+    <string name="ingame_instant_saved">Мгновенное сохранение записано.</string>
+    <string name="ingame_instant_overwrite_title">Перезаписать мгновенное сохранение?</string>
+    <string name="ingame_instant_load_title">Загрузить мгновенное сохранение?</string>
+    <string name="ingame_instant_overwrite">Заменить прежнее мгновенное сохранение текущим прогрессом?</string>
+    <string name="ingame_instant_load_warning">Несохранённый прогресс будет потерян. Загрузить мгновенное сохранение?</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_frame_skip">Пропуск кадров</string>
+    <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_fxaa_help">Сглаживает зубчатые края на последнем шаге. Работает с MSAA и без него; картинка становится чуть мягче.</string>
+    <string name="ingame_frame_skip_help">Если графика не успевает, пропускает кадр, чтобы игра шла с обычной скоростью. Показывается меньше кадров, ничего не замедляется.</string>
+    <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
+    <string name="ingame_game_language">Язык игры</string>
+    <string name="ingame_language_device">Язык устройства</string>
+    <string name="ingame_language_help">Язык текстов и субтитров игры. Язык устройства: язык устройства, если он есть в игре, иначе английский. Изменение перезапускает игру.</string>
+    <string name="ingame_language_restart_title">Перезапустить игру?</string>
+    <string name="ingame_language_restart_text">Новый язык применится после перезапуска игры. Прогресс после последнего сохранения будет потерян.</string>
+    <string name="ingame_restart">Перезапустить</string>
+    <string name="ingame_cancel">Отмена</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">Не удаётся прочитать файл диска</string>
+    <string name="ingame_disc_image">Игра остановилась на %1$s (диск %2$d): в импортированном образе диска этот файл отличается от оригинального диска, образ повреждён. Снова снимите образ диска %2$d (или возьмите другую целую копию) и импортируйте его заново на стартовом экране. Ваши сохранения останутся.</string>
+    <string name="ingame_disc_device">Игра остановилась на %1$s (диск %2$d): копия этого файла на устройстве повреждена (она изменилась после импорта). Импортируйте диск %2$d заново на стартовом экране. Ваши сохранения останутся.</string>
+    <string name="ingame_disc_read">Игра остановилась на %1$s (диск %2$d): файл в порядке, но прочитать его не удалось. Отправьте отчёт об ошибке и запустите игру снова.</string>
+    <string name="ingame_disc_unknown">Игра остановилась на %1$s (диск %2$d): файл на этом устройстве повреждён или отсутствует. Импортируйте диск %2$d заново на стартовом экране. Ваши сохранения останутся.</string>
+    <string name="ingame_cheats">Читы</string>
+    <string name="ingame_cheat_health">Бесконечное здоровье</string>
+    <string name="ingame_cheat_ammo">Бесконечные патроны</string>
+    <string name="ingame_cheat_onehit">Убийство с одного удара</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Кейс L</string>
+    <string name="ingame_cheat_money">+1 000 000 PTAS</string>
+    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранение их не запоминает. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении.</string>
+    <string name="ingame_cheat_done">Готово: %1$s.</string>
+    <string name="ingame_cheat_already">Уже есть: %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 уже есть: теперь на максимальных уровнях.</string>
+    <string name="ingame_cheat_not_now">Не сейчас: только пока играет Леон, не в кейсе, не на карте и не в ролике.</string>
+    <string name="ingame_cheat_no_room">В кейсе нет места.</string>
+    <string name="ingame_cheat_queued">Будет сделано, как только игра продолжится.</string>
+    <string name="ingame_cheat_unsupported">В этом ядре игры нет читов.</string>
+    <string name="ingame_controller_config">Настройка контроллера</string>
+    <string name="ingame_controller_config_help">Настройка контроллера: выберите функцию свободных кнопок контроллера (X, Y, L1, R1, L3, R3). Только с подключённым контроллером.</string>
+    <string name="ingame_controller_default">Стандартная раскладка</string>
+    <string name="ingame_controller_help">Выберите кнопку, затем её функцию. Если у другой кнопки были Эшли, инвентарь или карта, они поменяются. Функция может быть и на нескольких кнопках.</string>
+    <string name="ingame_controller_alternate_note">Альтернативное управление включено: у него своя раскладка; эта действует, когда оно выключено.</string>
+    <string name="ingame_fn_action">Действие / выстрел (A)</string>
+    <string name="ingame_fn_run">Бег / отмена (B)</string>
+    <string name="ingame_fn_ashley">Эшли: ждать / следовать (X)</string>
+    <string name="ingame_fn_inventory">Инвентарь (Y)</string>
+    <string name="ingame_fn_map">Карта (Z)</string>
+    <string name="ingame_fn_knife">Нож (L)</string>
+    <string name="ingame_fn_aim">Прицеливание (R)</string>
+    <string name="ingame_fn_start">Настройки / пропуск (START)</string>
+    <string name="ingame_fn_up">Крестовина вверх</string>
+    <string name="ingame_fn_down">Крестовина вниз</string>
+    <string name="ingame_fn_left">Крестовина влево</string>
+    <string name="ingame_fn_right">Крестовина вправо</string>
+    <string name="ingame_fn_menu">Меню приложения (SELECT)</string>
+    <string name="ingame_controller_fixed">Закреплены: A, B, L2, R2, START, SELECT и крестовина сохраняют свои функции (их используют подсказки и меню игры).</string>
+    <string name="ingame_controller_missing">Ни на одной кнопке: %1$s</string>
+    <string name="ingame_fn_none">Без функции</string>
 </resources>

@@ -15,6 +15,9 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#if defined(__GLIBC__)
+#include <execinfo.h>
+#endif
 #ifdef __ANDROID__
 #include <android/log.h>
 #endif
@@ -202,6 +205,31 @@ extern "C" int re4_log_tail(char* out, int size)
     return len;
 }
 
+// runtime/state_trace.cpp (the game's id systems; absent in tools without the game)
+extern "C" void re4_idsys_report(void) __attribute__((weak));
+
+// RE4_GAME_LOG_STACK=TEXT (PC builds): a game line that starts with TEXT also logs the call
+// stack that gave it (library and offset; addr2line -f -C -e LIBRARY OFFSET names the
+// function), to find which code a message of the room tour comes from (10b, 27.10.2026)
+static void gameLogStack(const char* text)
+{
+#if defined(__GLIBC__)
+    static const char* want = getenv("RE4_GAME_LOG_STACK");
+    if (!want || !*want || strncmp(text, want, strlen(want)) != 0) {
+        return;
+    }
+    void* frames[24];
+    int depth = backtrace(frames, 24);
+    char** names = backtrace_symbols(frames, depth);
+    for (int i = 2; names && i < depth; i++) {
+        re4_log("game:   at %s", names[i]);
+    }
+    free(names);
+#else
+    (void) text;
+#endif
+}
+
 // The game's own log lines (pLog->err / warn / mes, db_log.cpp, patch 0076): on
 // the GameCube they went to the screen and the console. Here each message
 // (by its format string) is logged the first 3 times, then every 1000th time
@@ -231,6 +259,11 @@ extern "C" void re4_game_log(const char* format, const char* text)
     }
     if (count <= 3) {
         re4_log("game: %s", text);
+        gameLogStack(text);
+        // who holds the units when an id system is full (R3: the radio's subtitle bar with the European discs)
+        if (strncmp(text, "IDSystem::set() work full", 25) == 0 && re4_idsys_report) {
+            re4_idsys_report();
+        }
     } else if (count % 1000 == 0) {
         re4_log("game: %s (%u times)", text, count);
     }

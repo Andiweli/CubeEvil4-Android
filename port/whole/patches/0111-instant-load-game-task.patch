@@ -1,0 +1,18 @@
+# Instant-slot loading belongs to the original game task, not PADRead or the Android thread:
+# GameContinue can read a changed weapon archive and sleep. The app validates and stages the
+# original typewriter payload while paused; after resume this hook enters the existing option-
+# menu load path before any manager runs the old room's next frame. No change to src/ in git.
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -560,8 +560,11 @@
+ 
+ // Rno0 == 3: one frame of play, running every manager in turn. The Z button opens the option
+ // screen (Rno0 = 6) when OptionOpenCheck allows.
++// instant slot (patch 0111)
++extern "C" int re4_instant_game_tick(void);
+ void gameMainLoop()
+ {
++    if (re4_instant_game_tick()) return;
+     static int other_slow = 3;
+     static int preb_slow_flg = 1;
+     static f32 player_Seq_speed = 0.6f;

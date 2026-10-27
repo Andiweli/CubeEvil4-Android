@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- German (Deutsch): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Optionen</string>
+    <string name="ingame_title">CubeEvil4 Ingame-Menü</string>
     <string name="ingame_hint">SELECT (kurz drücken) = dieses Menü  ·  SELECT (lang drücken) = Debug-Menü des Spiels</string>
     <string name="ingame_back">Zurück zum Spiel</string>
 
@@ -19,8 +19,12 @@
     <string name="ingame_dof">Tiefenschärfe</string>
     <string name="ingame_fps_display">FPS-Anzeige unten links</string>
     <string name="ingame_smooth60">60 FPS (experimentell)</string>
-    <string name="ingame_resolution_line">Auflösung: %1$d × %2$d Pixel (Stufe %3$d) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Höhere Stufen brauchen mehr Leistung.</string>
-    <string name="ingame_resolution_line_auto">Auflösung: %1$d × %2$d Pixel (Stufe %3$d, Dynamisch) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Dynamisch geht eine Stufe tiefer, solange der Grafikchip nicht mitkommt.</string>
+    <string name="ingame_force_performance">Leistung erzwingen</string>
+    <string name="ingame_perf_default">Standard</string>
+    <string name="ingame_perf_cores">Leistungskerne nutzen</string>
+    <string name="ingame_perf_help">Leistungskerne: Spiel und Grafik laufen auf den schnellsten Kernen des Geräts und bitten Android um höhere Taktraten. Auf vielen Geräten flüssiger, braucht aber mehr CPU-Leistung, und das Gerät wird wärmer. Standard: Android entscheidet.</string>
+    <string name="ingame_resolution_line">Auflösung: %1$d × %2$d Pixel (Stufe %3$s) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Höhere Stufen brauchen mehr Leistung.</string>
+    <string name="ingame_resolution_line_auto">Auflösung: %1$d × %2$d Pixel (Stufe %3$s, Dynamisch) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Dynamisch geht eine Stufe tiefer, solange der Grafikchip nicht mitkommt.</string>
 
     <string name="ingame_controls">Steuerung</string>
     <string name="ingame_touch_controls">Touchsteuerung</string>
@@ -35,6 +39,8 @@
     <string name="ingame_latch">L und R einrasten</string>
     <string name="ingame_latch_b">B einrasten</string>
     <string name="ingame_gyro_sensitivity">Gyro-Empfindlichkeit</string>
+    <string name="ingame_gyro_invert_v">Vertikal umkehren</string>
+    <string name="ingame_gyro_invert_h">Horizontal umkehren</string>
     <string name="ingame_alternate_help">Alternative Steuerung: L1 = Messer, L2 = Zielen (mit dem rechten Stick), R1 = Inventar (Waffen/Heilung), R2 = Schießen / Messer benutzen, Y = Karte. A, B, X (Ashley) und START wie bisher.</string>
     <string name="ingame_knife_swipe">Messer per Wischen</string>
     <string name="ingame_knife_swipe_help">Messer per Wischen: Ein schnelles Wischen über das Bild zückt das Messer und schneidet; nach oben oder unten wischen schneidet hoch oder tief.</string>
@@ -90,4 +96,95 @@
     <string name="ingame_report_chooser">Fehlerbericht senden</string>
     <string name="ingame_report_failed">Der Bericht konnte nicht erstellt werden: %1$s</string>
     <string name="ingame_capture_saved">Grafikaufnahme gespeichert</string>
+
+    <!-- Five-page button menu and the app-owned instant slot (gui-optimisations). -->
+    <string name="ingame_return">Zurück</string>
+    <string name="ingame_on">An</string>
+    <string name="ingame_display">Anzeige</string>
+    <string name="ingame_controls_page">Steuerung</string>
+    <string name="ingame_performance">Performance</string>
+    <string name="ingame_management">Management</string>
+    <string name="ingame_navigation">D-Pad: Navigieren  ·  A: Auswählen  ·  B: Zurück  ·  SELECT / START: Zum Spiel</string>
+    <string name="ingame_instant">Instant-Spielstand</string>
+    <string name="ingame_slot">Speicherslot</string>
+    <string name="ingame_slot_details">Kapitel %1$s  ·  %2$s  ·  Spielzeit %3$s</string>
+    <string name="ingame_slot_date">Zuletzt gespeichert: %1$s</string>
+    <string name="ingame_settings">Einstellungen &amp; Verwaltung</string>
+    <string name="ingame_display_summary">Auflösung, Bildformat &amp; Effekte</string>
+    <string name="ingame_controls_summary">Touch, Gyro &amp; Komfortsteuerung</string>
+    <string name="ingame_performance_summary">Leistungskerne, 60 FPS &amp; Anzeige</string>
+    <string name="ingame_management_summary">Cheats, Speicherkarte, Berichte &amp; Quelle</string>
+    <string name="ingame_output">Bildausgabe</string>
+    <string name="ingame_smooth_help">Zusätzliche Zwischenbilder. Die Spiellogik bleibt bei 30 Bildern/s.</string>
+    <string name="ingame_instant_save">Speichern</string>
+    <string name="ingame_instant_load">Laden</string>
+    <string name="ingame_instant_checking">Speicherslot wird geprüft …</string>
+    <string name="ingame_instant_working">Bitte warten …</string>
+    <string name="ingame_instant_ready">Bereit.</string>
+    <string name="ingame_instant_empty">Noch kein Instant-Spielstand vorhanden.</string>
+    <string name="ingame_instant_unavailable">Beim Laden, während Ereignissen oder in diesem Spielzustand nicht verfügbar. Menü schließen und im Spiel erneut versuchen.</string>
+    <string name="ingame_instant_no_save">Speichern ist hier nicht möglich (Boot, Leiter, Bosskampf, Mercenaries o. Ä.). Laden geht weiterhin.</string>
+    <string name="ingame_instant_unsupported">Für Instant-Speichern bitte den Spielkern aktualisieren.</string>
+    <string name="ingame_instant_damaged">Der Instant-Spielstand ist beschädigt oder inkompatibel. Du kannst ihn durch einen neuen ersetzen.</string>
+    <string name="ingame_instant_failed">Der Instant-Spielstand konnte nicht gelesen oder geschrieben werden.</string>
+    <string name="ingame_instant_saved">Instant-Spielstand gespeichert.</string>
+    <string name="ingame_instant_overwrite_title">Instant-Spielstand überschreiben?</string>
+    <string name="ingame_instant_load_title">Instant-Spielstand laden?</string>
+    <string name="ingame_instant_overwrite">Den bisherigen Instant-Spielstand durch Deinen aktuellen Fortschritt ersetzen?</string>
+    <string name="ingame_instant_load_warning">Nicht gespeicherter Fortschritt geht verloren. Instant-Spielstand laden?</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_frame_skip">Frame-Skip</string>
+    <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_fxaa_help">Glättet Kanten in einem letzten Schritt. Geht mit und ohne MSAA; das Bild wird etwas weicher.</string>
+    <string name="ingame_frame_skip_help">Überspringt bei ruckelnder Grafik ein Bild, damit das Spiel nicht in Zeitlupe läuft. Es werden weniger Bilder gezeigt, nichts wird langsamer.</string>
+    <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
+    <string name="ingame_game_language">Spielsprache</string>
+    <string name="ingame_language_device">Gerätesprache</string>
+    <string name="ingame_language_help">Die Sprache der Texte und Untertitel im Spiel. Gerätesprache: die Sprache des Geräts, wenn das Spiel sie hat, sonst Englisch. Eine Änderung startet das Spiel neu.</string>
+    <string name="ingame_language_restart_title">Spiel neu starten?</string>
+    <string name="ingame_language_restart_text">Die neue Sprache gilt nach einem Neustart des Spiels. Fortschritt seit dem letzten Speichern geht verloren.</string>
+    <string name="ingame_restart">Neu starten</string>
+    <string name="ingame_cancel">Abbruch</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">Eine Disc-Datei ist nicht lesbar</string>
+    <string name="ingame_disc_image">Das Spiel hält bei %1$s (Disc %2$d) an: Im importierten Disc-Abbild weicht diese Datei von der Original-Disc ab, das Abbild ist beschädigt. Lies Disc %2$d neu aus (oder nimm eine andere, intakte Kopie) und importiere sie auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
+    <string name="ingame_disc_device">Das Spiel hält bei %1$s (Disc %2$d) an: Die Kopie dieser Datei auf diesem Gerät ist beschädigt (sie hat sich nach dem Import verändert). Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
+    <string name="ingame_disc_read">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei ist in Ordnung, aber das Lesen ist fehlgeschlagen. Bitte schicke den Fehlerbericht und starte das Spiel dann neu.</string>
+    <string name="ingame_disc_unknown">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei auf diesem Gerät ist beschädigt oder fehlt. Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
+    <string name="ingame_cheats">Cheats</string>
+    <string name="ingame_cheat_health">Unendlich Gesundheit</string>
+    <string name="ingame_cheat_ammo">Unendlich Munition</string>
+    <string name="ingame_cheat_onehit">One-Hit-Kill</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Aktenkoffer L</string>
+    <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; der Spielstand merkt sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Die Knöpfe ändern dein Spiel: Waffe, Koffer und Geld bleiben im nächsten Spielstand.</string>
+    <string name="ingame_cheat_done">Erledigt: %1$s.</string>
+    <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 schon vorhanden: jetzt auf den höchsten Stufen.</string>
+    <string name="ingame_cheat_not_now">Gerade nicht: nur während Leon spielt, nicht im Koffer, auf der Karte oder in einem Film.</string>
+    <string name="ingame_cheat_no_room">Kein Platz im Aktenkoffer.</string>
+    <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
+    <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
+    <string name="ingame_controller_config">Controller-Konfiguration</string>
+    <string name="ingame_controller_config_help">Controller-Konfiguration: die Funktion der freien Tasten deines Controllers wählen (X, Y, L1, R1, L3, R3). Nur mit angeschlossenem Controller.</string>
+    <string name="ingame_controller_default">Standardbelegung</string>
+    <string name="ingame_controller_help">Eine Taste wählen, dann ihre Funktion. Hatte eine andere Taste Ashley, Inventar oder Karte, tauschen die beiden. Eine Funktion darf auch auf mehreren Tasten liegen.</string>
+    <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: sie behält ihre eigene Belegung; diese gilt, sobald sie aus ist.</string>
+    <string name="ingame_fn_action">Aktion / Schießen (A)</string>
+    <string name="ingame_fn_run">Rennen / Abbrechen (B)</string>
+    <string name="ingame_fn_ashley">Ashley: Warten / Folgen (X)</string>
+    <string name="ingame_fn_inventory">Inventar (Y)</string>
+    <string name="ingame_fn_map">Karte (Z)</string>
+    <string name="ingame_fn_knife">Messer (L)</string>
+    <string name="ingame_fn_aim">Zielen (R)</string>
+    <string name="ingame_fn_start">Optionen / Überspringen (START)</string>
+    <string name="ingame_fn_up">Steuerkreuz oben</string>
+    <string name="ingame_fn_down">Steuerkreuz unten</string>
+    <string name="ingame_fn_left">Steuerkreuz links</string>
+    <string name="ingame_fn_right">Steuerkreuz rechts</string>
+    <string name="ingame_fn_menu">App-Menü (SELECT)</string>
+    <string name="ingame_controller_fixed">Fest: A, B, L2, R2, START, SELECT und das Steuerkreuz behalten ihre Funktion (die Hinweise und Menüs des Spiels nutzen sie).</string>
+    <string name="ingame_controller_missing">Auf keiner Taste: %1$s</string>
+    <string name="ingame_fn_none">Keine Funktion</string>
 </resources>

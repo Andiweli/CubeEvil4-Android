@@ -36,7 +36,8 @@ public final class ReferenceCatalog {
         result.add(new Entry(s));
       }
     }
-    if (result.size() != 116)
+    // references.tsv (debug build) 116 rows, references-eu.tsv (European release) 134
+    if (result.isEmpty())
       throw new IOException("Incomplete reference catalogue");
     entries = Collections.unmodifiableList(result);
   }

@@ -31,11 +31,27 @@
 //                          place without steering there (r100: the first
 //                          house, where the s03 event starts);
 //                          "free+F:x,y,z,a" counts from the moment the player
-//                          is free (below)
+//                          is free (below); "[free+]F:area=N" puts him at the
+//                          centre of the room's trigger area N (SceAtPtr, the
+//                          number of the room script's SceAtDataSet_* calls),
+//                          facing 0: its event starts as if he walked in
+//   RE4_TEST_SCF="free+N:F[,F...]"  N frames after the player is free, the
+//                          scenario flags F (Scenario_flg, numbers as in
+//                          global.h) are set, as a room script sets them
+//                          (ScfFlagOn): a later state of the story without
+//                          playing there (the map's merchant marks, 10b)
 //   RE4_TEST_SOFT_RESET="free+N"  N frames after the player is free, the
 //                          soft reset of "game over" -> "no"; the log follows
 //                          the game steps afterwards ("run: after the soft
 //                          reset"), the title should come back
+//   RE4_TEST_STREAM="free+N:B:S"  N frames after the player is free, stream S
+//                          of stream block B starts as a room script starts it
+//                          (SndStrReq(B, S, 0x80000003): r226's statue camera
+//                          plays 0:0x16), for the sound checks (RE4_AUDIO_WAV)
+//   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
+//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money)
+//                          one a frame, as the app's menu presses them while the
+//                          game runs (runtime/cheats.cpp; the switches: RE4_CHEATS)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is
 //                          free in the room: main loop, no event and no sub
 //                          screen for 300 frames in a row ("run: player free"
@@ -124,6 +140,9 @@
 #include "room_data.h"
 #include "sce_at.h"
 #include "snd_drv.h"
+#include "snd.h"
+#include "id_sys.h"
+#include "ss_main.h"
 #include "card.h"
 #include "main.h"
 #include "scheduler.h"
@@ -140,6 +159,8 @@
 #include "light.h"
 #include "dmg.h"
 #include "atari.h"
+#include "act_btn.h"
+#include "cockpit.h"
 #include <dolphin/os/OSAlloc.h>
 
 #include <math.h>
@@ -153,6 +174,41 @@
 extern GLOBAL_WK* pG;
 extern cPlayer* pPL;
 extern cEmMgr EmMgr;
+
+// An id system ran full (runtime/log.cpp, "IDSystem::set() work full"): how many units of each class
+// IdSys, IdSub and IdNum hold, so a check sees which screen part took the room.
+extern "C" void re4_idsys_report(void)
+{
+    struct {
+        const char* name;
+        IDSystem* sys;
+    } all[] = {{"IdSys", &IdSys}, {"IdSub", &IdSub}, {"IdNum", &IdNum}};
+    for (auto& s : all) {
+        int max = *(const s32*) s.sys;  // m_maxId (private, the first word)
+        if (!s.sys->m_IdUnit || max <= 0 || max > 0x1000) {
+            continue;
+        }
+        unsigned count[256] = {};
+        int used = 0;
+        for (int i = 0; i < max; i++) {
+            if (s.sys->m_IdUnit[i].be_flag != 0xFF) {
+                count[s.sys->m_IdUnit[i].classNo]++;
+                used++;
+            }
+        }
+        char line[1024];
+        int n = snprintf(line, sizeof(line), "check: %s holds %d of %d units:", s.name, used, max);
+        for (int c = 0; c < 256 && n < (int) sizeof(line) - 16; c++) {
+            if (count[c]) {
+                n += snprintf(line + n, sizeof(line) - n, " class %d: %u", c, count[c]);
+            }
+        }
+        re4_log("%s", line);
+    }
+}
+
+extern "C" void re4_cheats_install(void);  // runtime/cheats.cpp
+extern "C" int re4_cheat_queue(int what);
 
 extern "C" void re4_set_frame_hook(void (*hook)(unsigned));
 extern "C" void re4_pad_script_stop(void);
@@ -408,6 +464,9 @@ bool g_place;
 bool g_placeFree;
 unsigned long g_placeFrame;
 float g_placePos[3], g_placeAng;
+int g_placeArea = -1;  // "area=N": the centre of trigger area N
+long g_scfAfter = -1;  // RE4_TEST_SCF
+int g_scf[8], g_scfCount;
 long g_roomStart = -1;  // frame the room started loading
 // The player is free: main loop, no event (STA_EVENT), no sub screen
 // (STA_SUB_SCRN) for kFreeFrames frames in a row (the opening event and the
@@ -424,11 +483,11 @@ unsigned long g_stopAfter;
 // db_menu.cpp) is open, debug_mode is left on: their lines are debug text.
 // The bars that come with it (DebugControl: process time bars at the left
 // edge, primitive buffer and heap bars, the pad monitor; ConfigSet switches
-// DBG_PROC_BAR and DBG_PAD_INFO on at boot) are switched off once, the first
-// frame they are on (wish of the project owner, 17.10.2026: only the text);
-// the flag editor of the tool menu can switch them on again.
+// DBG_PROC_BAR and DBG_PAD_INFO on at boot) are kept off, every frame (wish
+// of the project owner, 17.10.2026: only the text; 26.10.2026: the flickering
+// bars in the tool menu again, whatever switched them on).
 bool g_hideDebugHud;
-bool g_debugBarsOff;
+unsigned g_debugBarsOff;  // times they were found on and switched off
 unsigned long g_roomFrames;  // frames since the first main loop frame
 unsigned long g_loopFrames;  // of them in step 3
 // RE4_TEST_SOFT_RESET="free+N": N frames after the player is free, the soft
@@ -443,6 +502,10 @@ long g_saveAfter = -1;
 int g_saveBrightness = -1;
 bool g_saveOpened, g_saveStop, g_saveRunning;
 bool g_cardYes;              // RE4_TEST_CARD_YES
+long g_cheatAfter = -1;      // RE4_TEST_CHEATS
+int g_cheatActions[8], g_cheatCount;
+long g_streamAfter = -1;     // RE4_TEST_STREAM
+int g_streamBlock, g_streamNo;
 long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
 bool g_continueLeft;         // the room stopped running after the retry
@@ -1002,11 +1065,15 @@ void frame(unsigned n)
     // the debug start menu (patch 0043) draws its lines with the debug text;
     // the tool menu (SELECT held in the app, patch 0061; db_menu.cpp DbMenuExec) sets its
     // own page and puts the old one back when it closes (DBG_TEST_MODE)
-    if (g_hideDebugHud && !g_debugBarsOff && (DbgFlagChk(g, DBG_PROC_BAR) || DbgFlagChk(g, DBG_PAD_INFO))) {
+    if (g_hideDebugHud && (DbgFlagChk(g, DBG_PROC_BAR) || DbgFlagChk(g, DBG_PAD_INFO))) {
         DbgFlagOff(g, DBG_PROC_BAR);
         DbgFlagOff(g, DBG_PAD_INFO);
-        g_debugBarsOff = true;
-        re4_log("run: the debug bars (process time, pad monitor) switched off (RE4_DEBUG_HUD=0)");
+        if (g_debugBarsOff++ == 0) {
+            re4_log("run: the debug bars (process time, pad monitor) switched off (RE4_DEBUG_HUD=0)");
+        } else if (g_debugBarsOff <= 10) {
+            re4_log("run: the debug bars were on again, switched off (r%03x, tool menu %s)", g->room_id,
+                    DbgFlagChk(g, DBG_TEST_MODE) ? "open" : "closed");
+        }
     }
     if (g_hideDebugHud && !DbgFlagChk(g, DBG_TEST_MODE)) {
         int page = re4_title_room_menu_open() ? 1 : 0;
@@ -1085,10 +1152,26 @@ void frame(unsigned n)
         g_place = false;
         Vec pos = { g_placePos[0], g_placePos[1], g_placePos[2] };
         Vec ang = { 0.0f, g_placeAng, 0.0f };
+        if (g_placeArea >= 0) {
+            SCE_AT_DATA* at = SceAtPtr(g_placeArea);
+            if (at) {
+                AreaGetCenterPos(&pos, &at->area);
+            } else {
+                re4_log("run: RE4_TEST_PLACE: room r%03x has no trigger area %d", (unsigned) g->room_id,
+                        g_placeArea);
+            }
+        }
         pPL->setPos(&pos);
         pPL->setAng(&ang);
         re4_log("run: player placed at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
                 (double) pos.z, (double) g_placeAng, n);
+    }
+    if (g_scfAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_scfAfter && g->Rno0 == 3) {
+        g_scfAfter = -1;
+        for (int i = 0; i < g_scfCount; i++) {
+            ScfFlagOn(g, g_scf[i]);
+            re4_log("run: scenario flag %d set (RE4_TEST_SCF) at frame %u", g_scf[i], n);
+        }
     }
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
         g->Rno0 == 3 && live(pPL) && TaskStatus(2) == 0) {
@@ -1150,6 +1233,17 @@ void frame(unsigned n)
         g_resetStep = g->Rno0;
         SysFlagOn(g, SYS_SOFT_RESET);
         re4_log("run: soft reset requested (RE4_TEST_SOFT_RESET) at frame %u, step %u", n, (unsigned) g->Rno0);
+    }
+    if (g_cheatAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_cheatAfter &&
+        (long) n < g_freeAt + g_cheatAfter + g_cheatCount) {
+        int what = g_cheatActions[n - (g_freeAt + g_cheatAfter)];
+        re4_log("run: cheat button %d (RE4_TEST_CHEATS) at frame %u", what, n);
+        re4_cheat_queue(what);
+    }
+    if (g_streamAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_streamAfter) {
+        u32 id = SndStrReq(g_streamBlock, g_streamNo, (int) 0x80000003, 0, 0, 0.0f);
+        re4_log("run: stream %d:0x%x started (RE4_TEST_STREAM) at frame %u: id %u", g_streamBlock, g_streamNo, n,
+                (unsigned) id);
     }
     if (g_resetAt >= 0 && g->Rno0 != g_resetStep && g_resetSteps < 16) {
         g_resetStep = g->Rno0;
@@ -1259,9 +1353,18 @@ void configure()
     if (place && *place) {
         g_placeFree = strncmp(place, "free+", 5) == 0;
         g_place = sscanf(place + (g_placeFree ? 5 : 0), "%lu:%f,%f,%f,%f", &g_placeFrame, &g_placePos[0],
-                         &g_placePos[1], &g_placePos[2], &g_placeAng) == 5;
+                         &g_placePos[1], &g_placePos[2], &g_placeAng) == 5 ||
+                  sscanf(place + (g_placeFree ? 5 : 0), "%lu:area=%d", &g_placeFrame, &g_placeArea) == 2;
         if (!g_place) {
-            re4_log("run: RE4_TEST_PLACE \"%s\" not understood ([free+]F:x,y,z,a)", place);
+            re4_log("run: RE4_TEST_PLACE \"%s\" not understood ([free+]F:x,y,z,a or [free+]F:area=N)", place);
+        }
+    }
+    const char* scf = getenv("RE4_TEST_SCF");
+    if (scf && strncmp(scf, "free+", 5) == 0) {
+        char* p = 0;
+        g_scfAfter = strtol(scf + 5, &p, 10);
+        while (p && (*p == ':' || *p == ',') && g_scfCount < 8) {
+            g_scf[g_scfCount++] = (int) strtol(p + 1, &p, 10);
         }
     }
     const char* reset = getenv("RE4_TEST_SOFT_RESET");
@@ -1276,6 +1379,23 @@ void configure()
             g_saveBrightness = (int) strtol(end + 1, &end, 0);
         }
         g_saveStop = end && strstr(end, ",stop") != 0;
+    }
+    // the cheat menu's switches and buttons in every game frame (runtime/cheats.cpp)
+    re4_cheats_install();
+    const char* cheats = getenv("RE4_TEST_CHEATS");
+    if (cheats && strncmp(cheats, "free+", 5) == 0) {
+        char* end = 0;
+        g_cheatAfter = strtol(cheats + 5, &end, 10);
+        g_cheatCount = 0;
+        while (end && *end && g_cheatCount < 8) {
+            g_cheatActions[g_cheatCount++] = (int) strtol(end + 1, &end, 10);
+        }
+    }
+    const char* stream = getenv("RE4_TEST_STREAM");
+    if (stream && strncmp(stream, "free+", 5) == 0 &&
+        sscanf(stream + 5, "%ld:%i:%i", &g_streamAfter, &g_streamBlock, &g_streamNo) != 3) {
+        re4_log("run: RE4_TEST_STREAM \"%s\" not understood (free+N:B:S)", stream);
+        g_streamAfter = -1;
     }
     const char* retry = getenv("RE4_TEST_CONTINUE");
     if (retry && strncmp(retry, "free+", 5) == 0) {
@@ -1358,6 +1478,32 @@ extern "C" void re4_trace_snd_look(int reset, unsigned out[3])
     out[1] = g_sndOver;
     out[2] = g_sndFull;
 }
+
+// The game shows a menu or a button prompt (runtime/pad.cpp: bit 4 of re4_core_rumble): no room's
+// main loop (the title and its menus, loading, the room set-up), a sub screen open (inventory,
+// map, files, merchant, options, radio, typewriter), or the action button's prompt (game/act_btn.cpp:
+// "A Open", the quick-time events "A+B", "L+R", "A" again and again ...; the cockpit's icon,
+// Cckpt.m_ActBttn, as runtime/qte_touch.cpp reads it). The app's own controller bindings apply only
+// outside (wishes of the project owner, 27.10.2026: the menus keep the default layout, and a prompt's
+// button is the one it shows).
+extern "C" int re4_game_menu_open(void)
+{
+    GLOBAL_WK* g = pG;
+    if (!live(g)) {
+        return 1;
+    }
+    if (g->Rno0 != 3 || StaFlagChk(g, STA_SUB_SCRN) != 0) {
+        return 1;
+    }
+    const u8 shown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    return shown != DISP_OFF && ActBtn.isActive() ? 2 : 0;
+}
+
+// handed to the platform layer when this library loads (runtime/pad.cpp)
+extern "C" void re4_pad_menu_probe(int (*probe)(void));
+static struct MenuProbeInstall {
+    MenuProbeInstall() { re4_pad_menu_probe(re4_game_menu_open); }
+} gMenuProbeInstall;
 
 // The enemy and menu lines of one frame on their own (runtime test "enemylog", game_probe.cpp).
 extern "C" void re4_state_trace_enemy_frame(unsigned n)

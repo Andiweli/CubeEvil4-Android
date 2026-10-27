@@ -301,11 +301,114 @@ void* re4_gx_cached(unsigned int physical)
     return (void*) (uintptr_t) (RE4_MEM1_BASE + physical);
 }
 
+}  // extern "C"
+
+namespace {
+// The depth map GXPeekZ answers from (re4_gx_frame.h, BP 0x5B). The core thread reads single cells
+// while the renderer's thread writes the next map over them: a cell is one word, a mix of two
+// pictures' cells is harmless.
+unsigned int gDepthOwn[RE4_GX_DEPTH_W * RE4_GX_DEPTH_H];
+unsigned int gDepthOwnSerial;
+const unsigned int* gDepthCells = gDepthOwn;
+const unsigned int* gDepthSerial = &gDepthOwnSerial;
+// The pictures by number (24 bits, never 0): the marker carries the number of the picture that peeked,
+// and the renderer hands its map over with that number. Counting markers against maps instead drifted
+// apart with every map the renderer left out (the GPU behind, a renderer made anew when the resolution
+// changed): after 8 the answer stayed "far" for good, the glow shone through walls again (Retroid,
+// 26.10.2026).
+unsigned int gPeekPicture = 1;
+bool gPeekMarked;           // this picture has its marker
+bool gPeekStaleCounted;     // this picture counted in gPeekStaleRun
+unsigned int gPeekStaleRun; // pictures in a row that peeked without a fresh map
+unsigned int gPeekMarkers, gPeekAnswered, gPeekFar, gPeekHidden;
+// a map at most this many pictures old answers (the renderer hands it over a picture or two later)
+const unsigned int kPeekFresh = 8;
+// a renderer that hands over no fresh map for this many peeking pictures in a row (2 s) does not
+// deliver any more: "far" as without maps
+const unsigned int kPeekGiveUp = 60;
+}  // namespace
+
+extern "C" {
+
+void re4_gx_depth_put(const unsigned int* cells, unsigned int serial)
+{
+    memcpy(gDepthOwn, cells, sizeof(gDepthOwn));
+    __atomic_store_n(&gDepthOwnSerial, serial, __ATOMIC_RELEASE);
+}
+
+void re4_gx_depth_source(const unsigned int* cells, const unsigned int* serial)
+{
+    gDepthCells = cells ? cells : gDepthOwn;
+    gDepthSerial = serial ? serial : &gDepthOwnSerial;
+}
+
+void re4_gx_peek_new_frame(void)
+{
+    gPeekMarked = false;
+    gPeekStaleCounted = false;
+    gPeekPicture = (gPeekPicture + 1) & 0x00FFFFFF;
+    if (gPeekPicture == 0) {
+        gPeekPicture = 1;
+    }
+}
+
+unsigned int re4_gx_peek_picture(void)
+{
+    return gPeekPicture;
+}
+
+void re4_gx_peek_stats(unsigned int* answered, unsigned int* far, unsigned int* marked)
+{
+    *answered = gPeekAnswered;
+    *far = gPeekFar;
+    *marked = gPeekMarkers;
+}
+
+unsigned int re4_gx_peek_hidden(void)
+{
+    return gPeekHidden;
+}
+
 unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z)
 {
-    (void) x;
-    (void) y;
-    return z ? 0x00FFFFFF : 0;  // depth far, colour black
+    if (!z) {
+        return 0;  // colour: black
+    }
+    // the first depth peek of a picture asks the renderer for the picture's depth: a marker in the
+    // stream, a BP register the GameCube does not have (like 0x5A, the autofocus's), with the picture's
+    // number
+    if (!gPeekMarked) {
+        gPeekMarked = true;
+        gPeekMarkers++;
+        re4_gx_put_u8(0x61);
+        re4_gx_put_u32(0x5Bu << 24 | gPeekPicture);
+    }
+    const unsigned int serial = __atomic_load_n(gDepthSerial, __ATOMIC_ACQUIRE) & 0x00FFFFFF;
+    if (serial == 0) {
+        gPeekFar++;
+        return 0x00FFFFFF;  // no map (a renderer without them): depth far, nothing in front, as before
+    }
+    const unsigned int age = (gPeekPicture - serial) & 0x00FFFFFF;
+    if (age > kPeekFresh) {
+        // the map is of an older view (the peeks start when a torch comes into view: the last map is
+        // from when one was seen before): in front, the glow waits for the map of this view a picture
+        // or two later instead of flashing through the wall
+        if (!gPeekStaleCounted) {
+            gPeekStaleCounted = true;
+            gPeekStaleRun++;
+        }
+        if (gPeekStaleRun > kPeekGiveUp) {
+            gPeekFar++;
+            return 0x00FFFFFF;
+        }
+        gPeekHidden++;
+        return 0;
+    }
+    gPeekStaleRun = 0;
+    const unsigned cx = (x >= RE4_GX_DEPTH_W * 2 ? RE4_GX_DEPTH_W * 2 - 1 : x) >> 1;
+    const unsigned cy = (y >= RE4_GX_DEPTH_H * 2 ? RE4_GX_DEPTH_H * 2 - 1 : y) >> 1;
+    gPeekAnswered++;
+    return gDepthCells[cy * RE4_GX_DEPTH_W + cx] & 0x00FFFFFF;
 }
 
 void re4_gx_deliver_interrupts(void)

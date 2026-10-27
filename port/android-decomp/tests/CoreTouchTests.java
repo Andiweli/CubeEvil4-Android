@@ -26,6 +26,7 @@ public final class CoreTouchTests {
     final List<String> calls = new ArrayList<>();
     @Override public void select(boolean down) { calls.add("select " + down); }
     @Override public void latched(String action, boolean on) { calls.add(action + " " + on); }
+    @Override public void r3(boolean down) { calls.add("r3 " + down); }
   }
 
   public static void main(String[] args) {
@@ -46,6 +47,16 @@ public final class CoreTouchTests {
     }
     t.action("unknown", true);
     check(in.pad()[0] == 0);
+
+    // R3: the app's graphics capture, no GameCube button; offered to the editor with its label
+    host.calls.clear();
+    t.action(CoreTouch.R3, true);
+    t.action(CoreTouch.R3, false);
+    check(in.pad()[0] == 0 && host.calls.size() == 2 && host.calls.get(0).equals("r3 true")
+        && host.calls.get(1).equals("r3 false"));
+    check(CoreTouch.label(CoreTouch.R3).equals("R3")
+        && CoreTouch.ACTIONS.length == CoreTouch.LABELS.length && CoreTouch.LABELS.length == CoreTouch.COLOURS.length);
+    host.calls.clear();
 
     // L and R by default: held while the finger is on them (the trigger at its end stop), as real buttons
     check(!t.latch());
@@ -143,6 +154,34 @@ public final class CoreTouchTests {
     t.move(0, 0);
     check(in.pad()[1] == 0 && in.pad()[2] == 0);
 
+    // the C stick as an analog stick of the editor (RetroTouch's stick action, not in the default
+    // layout, wish of the project owner 26.10.2026): its tilt as it is, back when let go; with the look
+    // zone the one that tilts further counts; yellow as on the GameCube, no button of its own
+    check(CoreTouch.isStick(CoreTouch.C_STICK) && !CoreTouch.isStick(CoreTouch.A));
+    check(CoreTouch.label(CoreTouch.C_STICK).equals("C") && CoreTouch.gcButton(CoreTouch.C_STICK) == 0);
+    t.stick(CoreTouch.C_STICK, 1, 0);
+    check(in.pad()[0] == 0 && in.pad()[3] == 92 && in.pad()[4] == 0 && host.calls.isEmpty());
+    t.stick(CoreTouch.C_STICK, 0.5f, -1);
+    check(in.pad()[3] == 46 && in.pad()[4] == 92);
+    t.stick("other", 0, 0);  // another stick action: nothing
+    check(in.pad()[3] == 46 && in.pad()[4] == 92);
+    t.stick(CoreTouch.C_STICK, 0, 0);
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
+    t.stick(CoreTouch.C_STICK, 0, 1);
+    check(in.pad()[4] == -92);
+    t.reset();  // everything let go
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
+    t.stick(CoreTouch.C_STICK, 1, 0);
+    t.beginEvent();
+    t.fingerDown(5, true);
+    t.look(CoreTouch.LOOK_RANGE / 2, 0);  // the look zone tilts less than the stick: the stick stays
+    check(in.pad()[3] == 92);
+    t.look(0, 0);
+    t.stick(CoreTouch.C_STICK, 0, 0);
+    check(in.pad()[3] == 46);  // the looking finger shows through again
+    t.fingerUp(5);
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
+
     // the look zone: a finger that went down there (no control answered) tilts the C stick by its way
     t.beginEvent();
     t.fingerDown(3, true);
@@ -228,11 +267,11 @@ public final class CoreTouchTests {
   /** The default layout with RetroTouch's rules and geometry (RetroTouchView.contains, drawButton). */
   static void layout() {
     check(CoreTouch.ACTIONS.length == CoreTouch.LABELS.length && CoreTouch.ACTIONS.length == CoreTouch.COLOURS.length);
-    // the GameCube's colours: A green, B red, Z purple, every other button grey
+    // the GameCube's colours: A green, B red, Z purple, the C stick yellow, every other button grey
     for (int i = 0; i < CoreTouch.ACTIONS.length; i++) {
       String a = CoreTouch.ACTIONS[i];
       int want = a.equals(CoreTouch.A) ? 0xFF109B61 : a.equals(CoreTouch.B) ? 0xFFF6392C
-          : a.equals(CoreTouch.Z) ? 0xFF6B5CB1 : 0xFFDDDDDD;
+          : a.equals(CoreTouch.Z) ? 0xFF6B5CB1 : a.equals(CoreTouch.C_STICK) ? 0xFFF7C81E : 0xFFDDDDDD;
       check(CoreTouch.COLOURS[i] == want);
     }
     Set<String> registered = new HashSet<>();
@@ -242,7 +281,8 @@ public final class CoreTouchTests {
       // short labels: RetroTouch shrinks the text to the button, five letters stay readable
       check(!CoreTouch.LABELS[i].isEmpty() && CoreTouch.LABELS[i].length() <= 5);
       check(CoreTouch.label(a).equals(CoreTouch.LABELS[i]));
-      check(a.equals(CoreTouch.MENU) ? CoreTouch.gcButton(a) == 0 : CoreTouch.gcButton(a) != 0);
+      boolean noButton = a.equals(CoreTouch.MENU) || a.equals(CoreTouch.R3) || CoreTouch.isStick(a);  // app / C stick actions
+      check(noButton ? CoreTouch.gcButton(a) == 0 : CoreTouch.gcButton(a) != 0);
     }
     Set<String> ids = new HashSet<>(), used = new HashSet<>();
     int buttons = 0, sticks = 0, looks = 0, pads = 0;
@@ -259,9 +299,13 @@ public final class CoreTouchTests {
         pads++;
       }
     }
-    // every action has its button; RetroTouch's limits (RetroTouchLayout.validate)
-    check(used.equals(registered) && buttons <= 16 && sticks == 1 && looks == 1 && pads == 1);
-    // one move stick: RetroTouch's onMove does not say which stick moved
+    // every action has its button but R3 (the editor adds it, wish of the project owner, 24.10.2026);
+    // RetroTouch's limits (RetroTouchLayout.validate), with room for R3
+    Set<String> placed = new HashSet<>(registered);
+    placed.remove(CoreTouch.R3);
+    placed.remove(CoreTouch.C_STICK);
+    check(used.equals(placed) && buttons + 1 <= 16 && sticks == 1 && looks == 1 && pads == 1);
+    // one move stick in the default layout, room for the C stick (RetroTouch: at most two sticks)
 
     // the touch areas: a button and the stick an ellipse of half the width and height times
     // sqrt(1.15), the D-pad its rectangle; in shares of the screen a circle, whatever the screen

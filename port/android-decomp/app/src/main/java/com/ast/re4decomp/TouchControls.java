@@ -11,6 +11,7 @@ import com.ast.retrotouch.RetroTouchColors;
 import com.ast.retrotouch.RetroTouchControl;
 import com.ast.retrotouch.RetroTouchLayout;
 import com.ast.retrotouch.RetroTouchMode;
+import com.ast.retrotouch.RetroTouchStickListener;
 import com.ast.retrotouch.RetroTouchView;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,8 @@ final class TouchControls implements CoreTouch.Host {
     void editing(boolean on);
     /** The controller changed: to the core. */
     void send();
+    /** R3 of the touch controls went down or up: the graphics capture. */
+    void r3(boolean down);
   }
 
   /** The key of the saved layout (RetroTouch keeps the player's layout under it). */
@@ -59,12 +62,19 @@ final class TouchControls implements CoreTouch.Host {
     // shown by the controllers present, not hidden for a while by their keys
     view.setAutoHideOnController(false);
     for (int i = 0; i < CoreTouch.ACTIONS.length; i++) {
-      if (CoreTouch.COLOURS[i] == 0) view.registerAction(CoreTouch.ACTIONS[i], CoreTouch.LABELS[i]);
-      else view.registerAction(CoreTouch.ACTIONS[i], CoreTouch.LABELS[i], RetroTouchColors.of(CoreTouch.COLOURS[i]));
+      final RetroTouchColors colours = CoreTouch.COLOURS[i] == 0 ? null : RetroTouchColors.of(CoreTouch.COLOURS[i]);
+      // the C stick: an analog stick of its own (RetroTouch 1.0.0-beta.7's stick action)
+      if (CoreTouch.isStick(CoreTouch.ACTIONS[i])) view.registerStickAction(CoreTouch.ACTIONS[i], CoreTouch.LABELS[i], colours);
+      else view.registerAction(CoreTouch.ACTIONS[i], CoreTouch.LABELS[i], colours);
     }
     view.setGameplayLayout(layout());
     view.setMode(RetroTouchMode.OFF);  // hidden until update() decides
-    view.setListener(new RetroTouchAdapter() {
+    view.setListener(new Listener() {
+      @Override public void onStick(String action, float x, float y) {
+        touch.stick(action, x, y);
+        host.send();
+      }
+
       @Override public void onAction(String action, boolean pressed) {
         touch.action(action, pressed);
         host.send();
@@ -90,6 +100,9 @@ final class TouchControls implements CoreTouch.Host {
     });
     update();
   }
+
+  /** RetroTouch's callbacks and those of its sticks other than the move stick (the C stick). */
+  private abstract static class Listener extends RetroTouchAdapter implements RetroTouchStickListener {}
 
   private static RetroTouchLayout layout() {
     List<RetroTouchControl> controls = new ArrayList<>();
@@ -195,6 +208,8 @@ final class TouchControls implements CoreTouch.Host {
   @Override public void select(boolean down) { host.select(down, !quiet); }
 
   @Override public void latched(String action, boolean on) { view.setActionLatched(action, on); }
+
+  @Override public void r3(boolean down) { host.r3(down); }
 
   /** Before the window's touch event goes to the views (CoreActivity.dispatchTouchEvent). */
   void before(MotionEvent e) {

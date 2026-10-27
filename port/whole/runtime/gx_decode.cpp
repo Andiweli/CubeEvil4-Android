@@ -266,6 +266,7 @@ int gCurrent = -1;  // slot being filled (core thread); -1: not recording
 int gPending = -1;  // slot waiting for the game's VIFlush (kPending); -1: none
 u32 gViNext;        // physical address of the XFB the VI shows next (0: never set)
 bool gViBlack;      // the VI outputs black (VISetBlack, from VIFlush on): RE4_GX_CHUNK_BLACK
+std::atomic<bool> gStill(false);  // a menu screen of the game (re4_gx_still): RE4_GX_CHUNK_STILL
 u32 gSequence;
 bool gNeedReset = true;
 
@@ -494,11 +495,18 @@ std::atomic<int> gWorkerTids[8];   // the workers' thread ids, each as it starts
 std::atomic<int> gWorkerTidCount(0);
 
 // The game thread off the slowest cores and Android's performance hint for it and the vertex
-// threads (decision of the project owner, 23.10.2026; re4_cpu_info.h): set up at the first chunk
-// after the workers started, then after each chunk the game thread's work since the chunk before
-// (without its sleep for the retrace and its wait for the renderer) against 33.3 ms.
+// threads (decision of the project owner, 23.10.2026; re4_cpu_info.h), since 24.10.2026 only with
+// the app menu's "Force Performance: Use performance cores" (re4_core_set_fast_cores; the default
+// "Default" leaves the threads to Android: cooler, slower on some phones). The threads are known at
+// the first chunk after the workers started; a change of the setting takes effect at the next
+// chunk. While on: after each chunk the game thread's work since the chunk before (without its
+// sleep for the retrace and its wait for the renderer) against 33.3 ms, and about once a second
+// back on the fast cores if Android moved the thread (realme reports 24.10.2026).
 re4cpu::PerfHint gHint;
-int gHintState;                       // 0 not set up yet, 1 reporting, -1 no session
+int gHintState;                       // 0 the threads not known yet, 1 known
+int gHintTids[9], gHintTidCount;
+std::atomic<int> gFastWanted(0);      // the menu's setting (any thread)
+int gFastNow = -1;                    // the setting the threads run with (-1: none yet)
 long long gHintFrom, gHintIdle, gHintWait;  // ns: the chunk before, re4_idle_ns() then, the wait since
 
 void hintChunk()
@@ -508,24 +516,45 @@ void hintChunk()
         if (gWorkers < 0) {
             return;
         }
-        int tids[9];
         int n = 0;
-        tids[n++] = re4cpu::ThreadId();
+        gHintTids[n++] = re4cpu::ThreadId();
         for (int i = 0; i < (gJobsOn ? gWorkers : 0); i++) {
             const int tid = gWorkerTids[i].load();
             if (!tid) {
                 return;  // a worker not running yet: at the next chunk
             }
-            tids[n++] = tid;
+            gHintTids[n++] = tid;
         }
-        char cores[160];
-        re4cpu::KeepOffSlowCores(cores, sizeof(cores));
-        re4_log("cores: the game thread %s", cores);
-        const char* why = "";
-        gHintState = gHint.Open(tids, n, 33333333LL, &why) ? 1 : -1;
-        re4_log("performance hint: %s (the game thread and %d vertex threads, 33.3 ms a picture)", why, n - 1);
-    } else if (gHintState == 1 && gHintFrom) {
+        gHintTidCount = n;
+        gHintState = 1;
+    }
+    const int fast = gFastWanted.load() ? 1 : 0;
+    if (fast != gFastNow) {
+        const bool first = gFastNow < 0;
+        gFastNow = fast;
+        if (fast) {
+            char cores[160];
+            re4cpu::KeepOffSlowCores(cores, sizeof(cores));
+            re4_log("cores: the game thread %s", cores);
+            const char* why = "";
+            gHint.Open(gHintTids, gHintTidCount, 33333333LL, &why);
+            re4_log("performance hint: %s (the game thread and %d vertex threads, 33.3 ms a picture)", why,
+                    gHintTidCount - 1);
+        } else {
+            gHint.Close();
+            if (!first) {
+                re4cpu::ReleaseCores();
+            }
+            re4_log("cores: the game thread and the vertex threads left to Android (Force Performance: Default)");
+        }
+        gHintFrom = 0;
+    } else if (gHint.On() && gHintFrom) {
         gHint.Report(now - gHintFrom - (idle - gHintIdle) - gHintWait);
+    }
+    // about once a second: back on the fast cores if Android moved the thread off them
+    static unsigned checks, moves;
+    if (fast && ++checks % 30 == 0 && re4cpu::KeepOnFastCores() && ++moves <= 4) {
+        re4_log("cores: the game thread put back on its cores (Android had moved it, %u times so far)", moves);
     }
     gHintFrom = now;
     gHintIdle = idle;
@@ -594,6 +623,9 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         Re4GxChunk& v = c->view;
         v.version = RE4_GX_FRAME_VERSION;
         v.flags |= RE4_GX_CHUNK_XFB;
+        if (gStill.load()) {
+            v.flags |= RE4_GX_CHUNK_STILL;
+        }
         v.ops = c->ops.data();
         v.opWords = (u32) c->ops.size();
         v.vertices = c->vertices.data();
@@ -1995,7 +2027,7 @@ void tlutLoad()
 // autofocus (runtime/dof.cpp): sent each time like the registers that act
 bool isAction(u8 reg)
 {
-    return reg == 0x52 || reg == 0x55 || reg == 0x56 || reg == 0x5A || (reg >= 0x60 && reg <= 0x63) ||
+    return reg == 0x52 || reg == 0x55 || reg == 0x56 || reg == 0x5A || reg == 0x5B || (reg >= 0x60 && reg <= 0x63) ||
            reg == 0x66 || reg == 0x67;
 }
 
@@ -2006,6 +2038,7 @@ void efbCopy(u32 control)
     u32 height = ((gGp.bp[0x4A] >> 10) & 0x3FF) + 1;
     if (control & (1u << 14)) {
         gStats.xfbCopies++;
+        re4_gx_peek_new_frame();  // the next GXPeekZ marks the next picture
         chunkBoundary(dest, width, height);
         return;
     }
@@ -2257,6 +2290,13 @@ void feed(const uint8_t* bytes, size_t n)
 
 extern "C" {
 
+// The app menu's "Force Performance" (core_api.cpp re4_core_set_fast_cores): 1 the game thread and
+// the vertex threads on the fast cores with Android's performance hint, 0 left to Android.
+void re4_gx_set_fast_cores(int on)
+{
+    gFastWanted.store(on ? 1 : 0);
+}
+
 void re4_gx_mark(void)
 {
     // the chunk being recorded carries the mark; the next one starts over, so
@@ -2265,6 +2305,11 @@ void re4_gx_mark(void)
         c->view.flags |= RE4_GX_CHUNK_MARK;
     }
     gNeedReset = true;
+}
+
+void re4_gx_still(int on)
+{
+    gStill.store(on != 0);
 }
 
 void re4_gx_host_order_list(const void* list, unsigned int size)
