@@ -36,6 +36,10 @@
 //                          soft reset of "game over" -> "no"; the log follows
 //                          the game steps afterwards ("run: after the soft
 //                          reset"), the title should come back
+//   RE4_TEST_STREAM="free+N:B:S"  N frames after the player is free, stream S
+//                          of stream block B starts as a room script starts it
+//                          (SndStrReq(B, S, 0x80000003): r226's statue camera
+//                          plays 0:0x16), for the sound checks (RE4_AUDIO_WAV)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is
 //                          free in the room: main loop, no event and no sub
 //                          screen for 300 frames in a row ("run: player free"
@@ -124,6 +128,7 @@
 #include "room_data.h"
 #include "sce_at.h"
 #include "snd_drv.h"
+#include "snd.h"
 #include "card.h"
 #include "main.h"
 #include "scheduler.h"
@@ -443,6 +448,8 @@ long g_saveAfter = -1;
 int g_saveBrightness = -1;
 bool g_saveOpened, g_saveStop, g_saveRunning;
 bool g_cardYes;              // RE4_TEST_CARD_YES
+long g_streamAfter = -1;     // RE4_TEST_STREAM
+int g_streamBlock, g_streamNo;
 long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
 bool g_continueLeft;         // the room stopped running after the retry
@@ -1155,6 +1162,11 @@ void frame(unsigned n)
         SysFlagOn(g, SYS_SOFT_RESET);
         re4_log("run: soft reset requested (RE4_TEST_SOFT_RESET) at frame %u, step %u", n, (unsigned) g->Rno0);
     }
+    if (g_streamAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_streamAfter) {
+        u32 id = SndStrReq(g_streamBlock, g_streamNo, (int) 0x80000003, 0, 0, 0.0f);
+        re4_log("run: stream %d:0x%x started (RE4_TEST_STREAM) at frame %u: id %u", g_streamBlock, g_streamNo, n,
+                (unsigned) id);
+    }
     if (g_resetAt >= 0 && g->Rno0 != g_resetStep && g_resetSteps < 16) {
         g_resetStep = g->Rno0;
         g_resetSteps++;
@@ -1280,6 +1292,12 @@ void configure()
             g_saveBrightness = (int) strtol(end + 1, &end, 0);
         }
         g_saveStop = end && strstr(end, ",stop") != 0;
+    }
+    const char* stream = getenv("RE4_TEST_STREAM");
+    if (stream && strncmp(stream, "free+", 5) == 0 &&
+        sscanf(stream + 5, "%ld:%i:%i", &g_streamAfter, &g_streamBlock, &g_streamNo) != 3) {
+        re4_log("run: RE4_TEST_STREAM \"%s\" not understood (free+N:B:S)", stream);
+        g_streamAfter = -1;
     }
     const char* retry = getenv("RE4_TEST_CONTINUE");
     if (retry && strncmp(retry, "free+", 5) == 0) {
