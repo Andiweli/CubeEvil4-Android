@@ -13,7 +13,7 @@ Ingame-Menüs der App, mit Schaltern für:
 Hintergrund: mit den EU-Discs ist das Debug-Menü des Spiels ausgeblendet (M13, Entscheidung vom 26.10.2026);
 das Cheat-Menü war dafür als eigenes Vorhaben vorgesehen (`retail-eu-plan.md`). Diese Datei hält fest, was der
 Spielcode dafür schon mitbringt, was neu gebaut werden müsste und wie der Projektinhaber entschieden hat (am Ende).
-**Noch nichts gebaut.**
+**Umgesetzt am 27.10.2026** (Stand und Prüfungen: `whole-program-status.md`, Abschnitt „Cheat-Menü im Ingame-Menü“).
 
 ## Ergebnis in Kürze
 

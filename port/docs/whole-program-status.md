@@ -4,6 +4,28 @@ Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 
+## Cheat-Menü im Ingame-Menü (27.10.2026 mittags, lokal, Branch `retail-eu`)
+
+Wunsch und Entscheidungen des Projektinhabers: `port/docs/cheat-menu-plan.md`. Mit beiden Disc-Arten.
+
+- **App:** Seite MANAGEMENT oben „Cheats“: drei Schalter (Unendlich Gesundheit, Unendlich Munition, One-Hit-Kill;
+  gespeichert in `core_game`/`cheats`, beim Start an den Kern; ein `RE4_CHEATS` des Testskripts geht vor) und drei
+  Knöpfe (Killer7 3/1/3/3, Aktenkoffer L, +1.000.000 PTAS) mit Antwortzeile darunter (erledigt, schon vorhanden,
+  gerade nicht, kein Platz). Texte in 10 Sprachen (`check_translations.py` ok), `CoreMenuLayoutTest` mit neuer Prüfung
+  (Cheats zuerst, Schalter senden ihre Bits).
+- **Kern:** `runtime/cheats.cpp` (Bild-Haken: Bits `DBG_NO_DEATH`, `DBG_INF_BULLET`, `DBG_EM_WEAK` in jedem Bild, Leben
+  von Leon und Partner voll, Magazin der ausgerüsteten Waffe voll; Knöpfe nur mit Leon, im Spiel, ohne Untermenü/Film),
+  `re4_core_set_cheats` / `re4_core_cheat_action` (`core_api.cpp`: bei offenem Menü sofort auf dem Spiel-Thread in
+  `pausePoint`, sonst im nächsten Bild), Nachrichten 31/32 für den eigenen Kern-Prozess, JNI `CoreBridge.setCheats` /
+  `cheatAction`. Testhilfen `RE4_CHEATS=<bits>`, `RE4_TEST_CHEATS="free+N:1,2,3"`. Patch 0130: echte Magazinzahl
+  statt „100“. Jede Aktion eine Zeile „cheat: …“ im Log.
+- **Geprüft (PC, Stand `751426dc`):** Prüfstrecke EU (roomInfo) und Debug-Discs je „ALLES OK“. r100 mit `RE4_CHEATS=7`
+  und den drei Knöpfen, beide Disc-Arten: Log „health on, ammo on, one-hit kill on“, Killer7 angelegt (Stufen 0x2022,
+  14 Schuss), Koffer L, 2 000 000 PTAS. GX-Bilder (EU, Deutsch): nach etwa zwölf Schüssen zeigt die Anzeige weiter „10“;
+  Koffer geöffnet: gewachsen, Killer7 mit 14, „1000000 PTAS“. Android-Kern beide ABIs, APK gebaut, alle Unit-Tests grün.
+- **Nicht geprüft:** Schaden mit „Unendlich Gesundheit“ und Treffer mit „One-Hit-Kill“ in einem echten Kampf, die
+  Bossräume, der Knopf bei offenem Menü auf dem Gerät (am PC nur der Weg „nächstes Bild“), Gerätetest.
+
 ## M13: Fehlerberichte, Gyro-Richtung, R3 und R6 (27.10.2026 vormittags, lokal, Branch `retail-eu`)
 
 **R8 Gerät und Freigabe (27.10.2026 mittags):** ARM32 auf dem Retroid (`test-core-app.ps1 -SkipCore -Abi armeabi-v7a

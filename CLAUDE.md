@@ -162,8 +162,8 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12)
 13. Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
    parallel zur Debug-Disc, die Referenz bleibt (Entscheidungen des Projektinhabers, 26.10.2026:
-   parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, ein Cheat-Menü im
-   Ingame-Menü kommt später gesondert; alle Sprachen der EU-Discs spielbar, Schritt R7, gewählt im
+   parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, dafür ein Cheat-Menü im
+   Ingame-Menü, am PC geprüft 27.10.2026, `port/docs/cheat-menu-plan.md`; alle Sprachen der EU-Discs spielbar, Schritt R7, gewählt im
    Ingame-Menü der App, „LANGUAGE SELECT“ aus dem Titelmenü entfernt). Plan und
    Schritte R0–R8: `port/docs/retail-eu-plan.md`, Branch `retail-eu`; R0, R1, R2 ✅ (26.10.2026);
    R4 (App-Import) und R7 (Sprachen) auf dem Retroid bestätigt (27.10.2026); R3 (Texttabellen,
