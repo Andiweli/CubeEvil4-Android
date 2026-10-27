@@ -35,6 +35,11 @@
 //                          centre of the room's trigger area N (SceAtPtr, the
 //                          number of the room script's SceAtDataSet_* calls),
 //                          facing 0: its event starts as if he walked in
+//   RE4_TEST_SCF="free+N:F[,F...]"  N frames after the player is free, the
+//                          scenario flags F (Scenario_flg, numbers as in
+//                          global.h) are set, as a room script sets them
+//                          (ScfFlagOn): a later state of the story without
+//                          playing there (the map's merchant marks, 10b)
 //   RE4_TEST_SOFT_RESET="free+N"  N frames after the player is free, the
 //                          soft reset of "game over" -> "no"; the log follows
 //                          the game steps afterwards ("run: after the soft
@@ -458,6 +463,8 @@ bool g_placeFree;
 unsigned long g_placeFrame;
 float g_placePos[3], g_placeAng;
 int g_placeArea = -1;  // "area=N": the centre of trigger area N
+long g_scfAfter = -1;  // RE4_TEST_SCF
+int g_scf[8], g_scfCount;
 long g_roomStart = -1;  // frame the room started loading
 // The player is free: main loop, no event (STA_EVENT), no sub screen
 // (STA_SUB_SCRN) for kFreeFrames frames in a row (the opening event and the
@@ -1157,6 +1164,13 @@ void frame(unsigned n)
         re4_log("run: player placed at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
                 (double) pos.z, (double) g_placeAng, n);
     }
+    if (g_scfAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_scfAfter && g->Rno0 == 3) {
+        g_scfAfter = -1;
+        for (int i = 0; i < g_scfCount; i++) {
+            ScfFlagOn(g, g_scf[i]);
+            re4_log("run: scenario flag %d set (RE4_TEST_SCF) at frame %u", g_scf[i], n);
+        }
+    }
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
         g->Rno0 == 3 && live(pPL) && TaskStatus(2) == 0) {
         g_weaponAt = (long) n;
@@ -1341,6 +1355,14 @@ void configure()
                   sscanf(place + (g_placeFree ? 5 : 0), "%lu:area=%d", &g_placeFrame, &g_placeArea) == 2;
         if (!g_place) {
             re4_log("run: RE4_TEST_PLACE \"%s\" not understood ([free+]F:x,y,z,a or [free+]F:area=N)", place);
+        }
+    }
+    const char* scf = getenv("RE4_TEST_SCF");
+    if (scf && strncmp(scf, "free+", 5) == 0) {
+        char* p = 0;
+        g_scfAfter = strtol(scf + 5, &p, 10);
+        while (p && (*p == ':' || *p == ',') && g_scfCount < 8) {
+            g_scf[g_scfCount++] = (int) strtol(p + 1, &p, 10);
         }
     }
     const char* reset = getenv("RE4_TEST_SOFT_RESET");

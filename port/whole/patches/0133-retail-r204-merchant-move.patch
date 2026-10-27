@@ -1,0 +1,33 @@
+# Retail data (port/docs/retail-eu-plan.md, R5): the castle merchant's move in r204 with the European
+# discs. Both releases let the merchant of r204 stand at a new place once room flag 1 is set (enemy
+# list 3: entry 0x59 removed, 0x55 stays). The European R204Init (st2_1.rel) also sets the scenario
+# flags 88 (SCF_R204_MERCHANT_MOVE) and 174 (SCF_ae) when it removes the merchant at the old place;
+# their map asks flag 88 for its eighth merchant mark (patch 0129: in area 2 mark 7 instead of mark 2).
+# This build never set it, so with the European discs the map kept the merchant at the old place.
+# With the European discs the flags are set as there. Nothing changes with the debug build's discs. A
+# port patch for retail data.
+--- a/src/st2/r204.cpp
++++ b/src/st2/r204.cpp
+@@ -95,6 +95,8 @@
+ static const Vec r204_chandRot1 = {0.0f, 1.5707964f, 0.0f};
+ static const Vec r204_chandOfs = {0.0f, 5826.0f, 5610.0f};
+ 
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ // Room init for the chandelier hall. Arriving from r205 upstairs starts the mob chase, and until the
+ // player escapes the room holds the eleven torch Ganados and the chase task (nige_check).
+ void R204Init()
+@@ -236,6 +238,13 @@
+         em0 = setEm(0x59, -1, 1, 1, 1);
+         em1 = setEm(0x55, -1, 1, 1, 1);
+         if (RsfCheck(G_ROOM_ID, 1)) {
++            /* port: the European R204Init (st2_1.rel) marks the merchant's move here as well, what
++               its map asks for the eighth merchant mark (patch 0129): without it the map showed the
++               old place */
++            if (re4_disc_retail_eu() && em0 && (em0->be_flag & 0x201) == 1) {
++                ScfFlagOn(pG, SCF_R204_MERCHANT_MOVE);
++                ScfFlagOn(pG, SCF_ae);
++            }
+             EmMgr.destroy(em0);
+         } else {
+             EmMgr.destroy(em1);
