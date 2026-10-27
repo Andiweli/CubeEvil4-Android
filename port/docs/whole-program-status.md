@@ -53,6 +53,13 @@ echter Spielfehler: die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese
   **Nicht geprüft:** Bosskämpfe (im Zufalls-Rundgang praktisch nicht getroffen), der Knopf bei offenem Menü, Gerät.
 - **Speichern/Laden mit ARM32:** siehe Prüfungen unten; der Gerätetest bleibt beim Projektinhaber.
 
+**Prüfungen (PC, WSL2):** Debug-Discs i686 (Stand `82403ab6`) „ALLES OK“; EU-Discs mit `--room-info` und unveränderte
+EU-Discs i686 (Stand `b744b0d8`) je „ALLES OK“ (die Filmprüfung folgt jetzt den Verweisen des `disc-ri`-Ordners, ein erster
+Lauf fand dort keine Filme); Rundgänge wie oben; ARM32-Kern unter qemu, Speicherkarte mit EU-Discs: ARMHF_ERGEBNIS.
+Android-Kern beide ABIs 0 Fehler (Stand `152fdc2c`), APK `app-core-debug.apk` 19,2 MB mit beiden ABIs (0.92.0-beta-core,
+App-Code unverändert). **Nicht geprüft:** Gerät (Englisch ohne „14-09LE“, Bosskämpfe mit Cheats, Speichern/Laden mit ARM32,
+der Händler nach dem Umzug im Spiel).
+
 ## M13 abgeschlossen (27.10.2026 nachmittags, Branch `retail-eu`)
 
 **Gerätetest des Projektinhabers (Retroid, EU-Discs, Deutsch):** zwei Kapitel vom Start an ohne Befund durchgespielt;

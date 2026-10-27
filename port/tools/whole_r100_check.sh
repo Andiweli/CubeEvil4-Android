@@ -1118,9 +1118,9 @@ run_card_game() {
     local name="$1" limit="$2" dir="$3" log="$run/$1.log"
     shift 3
     (cd "$dir" && exec env RE4_VI_FAST=1 RE4_MEMCARD="$card" RE4_PAD_UNTIL_ROOM=1 RE4_TEST_CARD_YES=1 "$@" \
-        ./re4_host --data "$layout") > "$log" 2>&1 &
+        "${CARD_RUNNER[@]}" ./re4_host --data "$layout") > "$log" 2>&1 &
     local pid=$! start=$SECONDS last_note=$SECONDS reason="" size last_size=-1 last_change=$SECONDS
-    local stall="${RE4_CHECK_CARD_STALL:-120}"
+    local stall=$((${RE4_CHECK_CARD_STALL:-120} * CARD_SLOW))
     while kill -0 "$pid" 2> /dev/null; do
         sleep 2
         size=$(stat -c %s "$log" 2> /dev/null || echo 0)
@@ -1177,7 +1177,12 @@ card_stop() {
 }
 run_memcard() {
     local dir="$src/port/build/whole-$host$bsuf" card="$run/speicherkarte-a.bin" bad=0 code
-    local limit="${RE4_CHECK_CARD_LIMIT:-900}"
+    # the ARM targets (--armhf, --aarch64) run under qemu-user, with longer limits (as the tour)
+    set_runner "$host"
+    CARD_RUNNER=("${RUNNER[@]}")
+    CARD_SLOW=1
+    [ ${#CARD_RUNNER[@]} -gt 0 ] && CARD_SLOW=${RE4_TOUR_SLOW:-8}
+    local limit=$((${RE4_CHECK_CARD_LIMIT:-900} * CARD_SLOW))
     section "7. Speicherkarte: Systemdatei anlegen, im Raum speichern, Neustart, im Titel laden"
     if [ ! -x "$dir/re4_host" ]; then
         say "FEHLER: $dir/re4_host fehlt (Build fehlgeschlagen?)"
@@ -1185,7 +1190,7 @@ run_memcard() {
         return
     fi
     rm -f "$card"
-    if ! (cd "$dir" && ./re4_host --memcard-format "$card") > "$run/karte-formatieren.log" 2>&1; then
+    if ! (cd "$dir" && "${CARD_RUNNER[@]}" ./re4_host --memcard-format "$card") > "$run/karte-formatieren.log" 2>&1; then
         say "FEHLER: die Karte ließ sich nicht formatieren (karte-formatieren.log)"
         tail -n 5 "$run/karte-formatieren.log" | sed 's/^/  /' | tee -a "$report"
         overall=1
