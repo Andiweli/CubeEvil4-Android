@@ -18,7 +18,7 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sin
 6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
    R3-Serien vom Retroid offen**.
 
-## Gerätetest 28.10.2026 10:56 (0.94.0) und Version 0.94.1-beta (lokal, Branch `claude/determined-allen-36nj6r`)
+## Gerätetest 28.10.2026 10:56 (0.94.0) (lokal, Branch `claude/determined-allen-36nj6r`)
 
 Projektinhaber: deutsche Untertitel im Intro sichtbar, weißes Aufblitzen bei START behoben; Kapitelende und Hunk folgen.
 Protokoll: im Spiel 2 % der Teilchen ohne Gegenstück, 0,94 Mio. Zeichnungen über ihr Objekt, 0 neu belegte Plätze,
@@ -31,7 +31,7 @@ Serie), Teilchen ohne Gegenstück mit und ohne Marken gleich (echte neue). S3 er
 Objekt; in r226 je Zwischenbild 850–1200 Matrizen gemischt. Test `TestInterpolationExtras` erweitert (indirekte Matrix,
 Gegenprobe), `gx_gl_check` 0 Fehler. Nutzerbericht (0.93.0, Xiaomi 25078RA3EL, EU): Zeichen-Thread 9–13 ms Prozessorzeit je
 Bild bei 850–1000 MHz, GPU wartet – mit 60 FPS (jedes Bild zweimal) zu langsam; ein Frame-Skip-Zähler „636“ steht nicht in
-der App (im Protokoll nur „636 texture binds“), Bildschirmfoto erbeten. **Version 0.94.1-beta** (versionCode 79).
+der App (im Protokoll nur „636 texture binds“), Bildschirmfoto erbeten. Version bleibt 0.94.0-beta (versionCode 78; Projektinhaber: die APK ist noch bei keinem Tester).
 
 ## Gerätetest 28.10.2026 10:30 und Version 0.94.0-beta (lokal, Branch `claude/determined-allen-36nj6r`)
 
