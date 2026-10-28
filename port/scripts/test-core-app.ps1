@@ -768,6 +768,12 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
             }
         }
         $alive = ((& $Adb -s $Serial shell pidof $package) -join '').Trim()
+        # a single empty answer can be ADB's (Retroid 28.10.2026: the app ran on, the script stopped it):
+        # gone only when two more questions a second apart agree
+        for ($retry = 0; $firstPid -and $alive -ne $firstPid -and $retry -lt 2; $retry++) {
+            Start-Sleep -Seconds 1
+            $alive = ((& $Adb -s $Serial shell pidof $package) -join '').Trim()
+        }
         if ($alive -and -not $firstPid) { $firstPid = $alive }
         $gone = if ($firstPid) { $alive -ne $firstPid } else { $now -ge 10 }
         # the core process ended while the app runs (the app shows "The game core stopped")

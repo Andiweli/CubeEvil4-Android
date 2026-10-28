@@ -1850,29 +1850,37 @@ void TestInterpolationExtras() {
   }
 }
 
-// 60 FPS at an even pace (S4): single left-out pictures leave it on; three within 2 s stop the
-// in-between pictures for 5 s, then they come back.
+// 60 FPS at an even pace (S4): single left-out pictures and short bursts (the core a picture ahead
+// after a pause) leave it on; a quarter of the chunks left out over 4 s stops the in-between pictures
+// for 5 s, then they come back, and the first 2 s after it do not count.
 void TestSmoothPacer() {
   re4gx::SmoothPacer p;
   std::string why;
   double t = 0.0;
   bool all = true;
-  for (int i = 0; i < 300; i++, t += 1.0 / 30.0) {
-    const bool behind = i % 90 == 0;  // one every 3 s
-    const bool ok = p.Chunk(t, behind, &why);
-    all = all && (ok || behind);
+  for (int i = 0; i < 600; i++, t += 1.0 / 30.0) {
+    const bool behind = i % 90 == 0 || (i % 150) < 3;  // one every 3 s, a burst of 3 every 5 s
+    p.Chunk(t, behind, &why);
+    all = all && !p.Off();
   }
-  Check(all && !p.Off() && p.Offs() == 0, "pacer: one left out every 3 s: 60 FPS stays on");
+  Check(all && p.Offs() == 0, "pacer: single ones and short bursts left out: 60 FPS stays on");
   why.clear();
-  p.Chunk(t, true, &why);
-  p.Chunk(t + 0.5, true, &why);
-  p.Chunk(t + 1.0, true, &why);
-  Check(p.Off() && p.Offs() == 1 && why.find("no in-between pictures") != std::string::npos,
-        "pacer: three within 2 s: off, with a log line");
-  Check(!p.Chunk(t + 4.0, false, nullptr), "pacer: still off 3 s later");
+  bool off = false;
+  for (int i = 0; i < 150 && !off; i++, t += 1.0 / 30.0) {
+    p.Chunk(t, i % 3 == 0, &why);  // a third of the chunks for up to 5 s
+    off = p.Off();
+  }
+  Check(off && p.Offs() == 1 && why.find("no in-between pictures") != std::string::npos,
+        "pacer: a third left out over 4 s: off, with a log line");
+  Check(!p.Chunk(t + 3.0, false, nullptr), "pacer: still off 3 s later");
   why.clear();
-  Check(p.Chunk(t + 6.5, false, &why) && !p.Off() && why.find("on again") != std::string::npos,
+  t += 6.0;
+  Check(p.Chunk(t, false, &why) && !p.Off() && why.find("on again") != std::string::npos,
         "pacer: on again after 5 s, with a log line");
+  // right after it the core is a picture ahead: those first chunks do not start the next pause
+  for (int i = 0; i < 6; i++, t += 1.0 / 30.0)
+    p.Chunk(t, true, nullptr);
+  Check(!p.Off() && p.Offs() == 1, "pacer: the catch-up right after a pause does not count");
 }
 
 // Larger draws of the same look keep the game's order (Retroid report 26.10.2026: with fast turns

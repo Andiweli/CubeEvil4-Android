@@ -18,6 +18,17 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sin
 6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
    R3-Serien vom Retroid offen**.
 
+## Gerätetest 28.10.2026 11:33 (0.94.0): 30 FPS statt 60, App „beendet“ (lokal, Branch `claude/determined-allen-36nj6r`)
+
+Projektinhaber: trotz 60 FPS nur 30, die App beendete sich nach 35 s. **Takt-Regel S4 zu empfindlich:** nur 34
+Zwischenbilder ausgelassen, aber gehäuft – direkt nach jedem Wiedereinschalten ist der Kern ein Bild voraus, das gab
+sofort wieder „3 binnen 2 s“ und die nächste Pause (10 Pausen in 60 s). Neu: Pause erst, wenn in den letzten 4 s
+mindestens ein Viertel der Chunks (mindestens 60) ausgelassen wurde; nach einer Pause zählen die ersten 2 s nicht. Test
+`TestSmoothPacer` neu (einzelne und Dreier-Schübe: bleibt an; ein Drittel über 4 s: aus; Aufholen nach der Pause zählt
+nicht). **Das Beenden war kein Absturz:** Android vermerkt „USER REQUESTED / FORCE STOP“ von einem fremden Prozess
+(`dumpsys activity exit-info`), das war `test-core-app.ps1`: ein einziges leeres `pidof` (ADB-Aussetzer) galt als „läuft
+nicht mehr“. Jetzt fragt das Skript zweimal nach (je 1 s), bevor es aufgibt.
+
 ## Gerätetest 28.10.2026 10:56 (0.94.0) (lokal, Branch `claude/determined-allen-36nj6r`)
 
 Projektinhaber: deutsche Untertitel im Intro sichtbar, weißes Aufblitzen bei START behoben; Kapitelende und Hunk folgen.
