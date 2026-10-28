@@ -3,6 +3,28 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Offene Punkte aus den Testerberichten (Stand 28.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
+
+Gesammelt in einer Cloud-Sitzung (ohne Disc-Daten); weiter in einer lokalen Sitzung mit Disc-Daten. Projektinhaber:
+„Alles nach dem Hunk-Problem habe ich noch nicht getestet.“
+
+1. **Mercenaries mit Hunk stürzt ab** (alle Karten; Abschnitt „Testerbericht: Mercenaries mit Hunk“ unten): Verdacht
+   Nacken-Bewegungen `PL_ARC 0x40..0x45` in `em/pl06.drs`; `archive_dump.py` (jetzt mit Teile-Kopf) bestätigt oder
+   widerlegt es.
+2. **Kapitelende: vorderste Gegner-Ziffer läuft durch** (EU-Discs; Abschnitt unten): EU-`ChapterEnd::move` mit
+   `retail_code.py dis` lesen, Patch mit Versionsweiche.
+3. **Kapitelende mit 60 FPS: `%` zwischen zwei Zeilen**: behoben in `runtime/picture.cpp` (Ergebnis-Bildschirme ohne
+   Zwischenbilder), Cloud-Tests grün, **auf dem Gerät nicht getestet**, APK nicht gebaut.
+4. **Händler „BUY“: Leons Koffer sichtbar**: nach dem Code sehr wahrscheinlich das Original; Vergleich mit Dolphin offen.
+5. **Neu (Projektinhaber, 28.10.2026): im Intro-Film fehlen die Untertitel.** Nicht untersucht. Bekannt: die
+   Debug-Version spielt fest US-Englisch ohne Untertitel in Filmsequenzen, die EU-Fassung hat Untertitel
+   (`retail-eu-plan.md`, Tabelle „Unterschiede“, Zeile Englisch); der Debug-Code startet `movie/opening.sfd` in
+   `R120Event` (`src/st1/r120.cpp:74`) ohne Untertitel-Logik, `cSofdec` (`src/game/sofdec.cpp`) zeichnet nur das Bild.
+   Zu klären: mit welcher Disc-Art und Sprache, und wie die EU-Fassung die Untertitel zeichnet (EU-Code von `R120Event`
+   bzw. `cSofdec::draw`/`Move` mit `retail_code.py`, Dateien nur auf den EU-Discs, z. B. unter `movie/` oder `ss/<Sprache>/`).
+6. **60 FPS ohne Flackern** (Fackeln, Wasser, Texturen): Plan `port/docs/60fps-plan.md`, wartet auf die Entscheidung des
+   Projektinhabers (Kernänderung: Namensmarken aus `ExecOt`).
+
 ## Testerberichte 27.10.2026: Kapitelende flackert, Händler zeigt den Koffer (28.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
 
 Zwei Videos des Kapitelendes (Spanisch, EU-Discs, 0.93.0-beta; Kapitel 1-1 ohne 60 FPS, Kapitel 4-2 mit 60 FPS), ein
@@ -70,6 +92,12 @@ Android 15, 0.91.0-beta-core, **64 bit**, Debug-Discs):
   Bytes, auch Plätze hinter der Tabelle mit beiden Byte-Ordnungen). Nächster Schritt am PC:
   `wsl python3 port/tools/archive_dump.py --data /mnt/e/Development/Android/RE4-Discdata --file em/pl06.drs --file em/pl00.drs --entries 0x3E-0x51`.
   Danach die Behebung (Patch oder Regel), Mercenaries mit allen Figuren prüfen. Nicht getestet: alles im Spiel.
+- **Erster Lauf am PC (Projektinhaber, 28.10.2026):** „not an archive with a table (count 0x836e834a)“ für `pl06.drs`,
+  „0xcab6be20“ für `pl00.drs` (beide Debug-Discs gleich). `.drs`-Dateien sind **Behälter mit Teile-Kopf**
+  (`dvd.cpp cDvdQueue::readInit`: 1 KB vorn, ab +0x20 `DvdHeader`-Einträge zu 0x20 Byte, Typ 4 ein verschachtelter Kopf,
+  -1 Ende); das Archiv ist „part 0.0“ (so auch im Kern-Protokoll), der Ton „part 1.x“. `archive_dump.py` zerlegt solche
+  Dateien jetzt zuerst in ihre Teile und zeigt die Tabelle jedes MRAM-Teils (mit nachgebauter Datei geprüft, nicht mit
+  echten Daten). Derselbe Befehl noch einmal nach `git pull`.
 
 ## Meilenstein 14: alles in `master`, Release 0.93.0-beta (27.10.2026 abends, lokal)
 

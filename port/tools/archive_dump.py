@@ -3,6 +3,11 @@
 u32 count, u32 REL offset, two pad words, u32 offset per entry, 4-byte tag per
 entry; runtime/formats/formats_arc.cpp).
 
+Files with a part header (src/game/dvd.cpp cDvdQueue::readInit: 1 KB in front,
+DvdHeader entries of 0x20 bytes from +0x20: type, size, dest, ofs ...; type 4 a
+nested header at ofs, -2 skipped, -1 the end) are taken apart first: every part
+is listed ("part N.M" as in the core log), the archive parts with their table.
+
 Answers questions like "what does Hunk's player archive hold where the game
 takes Leon's neck motions (PL_ARC 0x40..0x45)?" without a build:
 
@@ -61,6 +66,34 @@ def parse_range(text):
     return lo, int(hi, 0) if hi else lo
 
 
+TRANS = {0: "MRAM", 1: "sound block", 2: "sound PCM", 3: "ARAM", 4: "nested header"}
+
+
+def parts(raw: bytes, base=0, nest=0):
+    """(nest, index, type, offset, size) of each part of a headered file; empty for a plain file."""
+    out = []
+    index = 0
+    for at in range(base + 0x20, min(base + 0x400, len(raw)) - 0x1F, 0x20):
+        kind, size, _dest, ofs = struct.unpack_from(">iIII", raw, at)
+        if kind == -1:
+            return out
+        if kind == -2:
+            continue
+        if kind not in TRANS or (kind != 4 and ofs + size > len(raw)):
+            return []  # not a part header
+        if kind == 4:
+            if nest > 0:
+                return []
+            inner = parts(raw, ofs, nest + 1)
+            if not inner:
+                return []
+            out += inner
+        else:
+            out.append((nest, index, kind, base + ofs if nest else ofs, size))
+        index += 1
+    return []
+
+
 def dump(raw: bytes, entries=None):
     """Lines describing the archive `raw` (big-endian, as on the disc)."""
     if len(raw) < 0x20:
@@ -105,8 +138,15 @@ def main():
         for where, raw in find_file(args.data, name):
             found += 1
             print(f"{name}: {where}")
-            for line in dump(raw, entries):
-                print(line)
+            found_parts = parts(raw)
+            if not found_parts:
+                for line in dump(raw, entries):
+                    print(line)
+            for nest, index, kind, ofs, size in found_parts:
+                print(f" part {nest}.{index}: {TRANS[kind]}, {size:#x} bytes at {ofs:#x}")
+                if kind == 0:
+                    for line in dump(raw[ofs:ofs + size], entries):
+                        print(line)
             print()
     if not found:
         print(f"nothing found in {args.data}", file=sys.stderr)
