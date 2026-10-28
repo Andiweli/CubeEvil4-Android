@@ -3,20 +3,224 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+> **Stand von `master` (28.10.2026, Entscheidung des Projektinhabers):** alles bis 0.94.0-beta (`a18204ac`) und dazu nur
+> der Treppen-Fix (Patch 0138) und die Schwierigkeitsauswahl der EU-Discs (Patches 0139–0141). Die übrigen Punkte von
+> 0.95.0-beta (weiße Texturen mit 60 FPS, RVZ-Import, Touch-Zielen, gesparte XF-Übergaben) liegen nur auf dem Branch
+> `claude/determined-allen-36nj6r`; die US-Discs auf `retail-us`. Diese Datei beschreibt den Stand des Arbeitsbranches.
+
 ## Offene Punkte aus den Testerberichten (Stand 28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
-Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sind nur noch Gerätetests:
+Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am Abend:
 
-1. **Mercenaries mit Hunk** – behoben (Patch 0134), am PC mit allen Figuren auf allen vier Karten geprüft;
-   **Retroid offen**.
-2. **Kapitelende EU: vorderste Gegner-Ziffer** – behoben (Patch 0135), GX-Bild am PC mit EU-Daten; **Retroid offen**.
-3. **Kapitelende mit 60 FPS (`%` zwischen den Zeilen)** – Korrektur von `c6716cb`, **Retroid offen**.
-4. **Intro-Film ohne Untertitel** – nachgebaut wie die EU-Fassung (Patch 0136), GX-Bilder am PC in allen EU-Sprachen;
-   **Retroid offen**.
+1. **Mercenaries mit Hunk** – behoben (Patch 0134), am PC mit allen Figuren geprüft; auf dem Gerät bestätigt
+   (Projektinhaber, 28.10.2026).
+2. **Kapitelende EU: vorderste Gegner-Ziffer** – behoben (Patch 0135); auf dem Retroid bestätigt (28.10.2026).
+3. **Kapitelende mit 60 FPS (`%` zwischen den Zeilen)** – Korrektur von `c6716cb`; auf dem Retroid bestätigt.
+4. **Intro-Film ohne Untertitel** – nachgebaut wie die EU-Fassung (Patch 0136); auf dem Retroid (Deutsch) bestätigt.
 5. **Händler „BUY“: Koffer sichtbar** – Dolphin ist auf dem PC nicht installiert, Vergleich offen (Projektinhaber);
    16:9 schneidet nur die Balken ab, ändert die Überdeckung nicht: weiter sehr wahrscheinlich Original.
-6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
-   R3-Serien vom Retroid offen**.
+6. **60 FPS ohne Flackern** – umgesetzt (Patch 0137, Renderer), auf dem Retroid weitgehend ruhig; vereinzeltes
+   Fackelflackern bleibt (Entscheidung des Projektinhabers). Der Projektinhaber hat das Spiel mit 0.94.0 durchgespielt.
+7. **Weiße Texturen mit 60 FPS** (Waffen und Kleidung der Ganados, Nutzer mit itel P661N und Samsung S24) – behoben
+   in 0.95.0-beta (Abschnitt darunter); **Gerätetest beim Nutzer offen**.
+8. **RVZ beim Disc-Import** (Wunsch des Projektinhabers, 28.10.2026) – eingebaut in 0.95.0-beta (Abschnitt darunter);
+   **Gerätetest mit einer RVZ aus Dolphin offen**.
+9. **Touch-Zielen** (Wunsch des Projektinhabers, 28.10.2026) – eingebaut in 0.95.0-beta (Abschnitt darunter);
+   **Gerätetest offen**.
+10. **Schalter „Nebel aus“** – nicht umgesetzt (Entscheidung des Projektinhabers, 28.10.2026: nur die
+    Leistungsvorschläge 1 und 2).
+11. **Labyrinth in r20b versperrt (EU-Discs)** – behoben (Patch 0138, Abschnitt darunter), am PC geprüft und auf
+    dem Retroid mit dem Spielstand des Nutzers bestätigt (Projektinhaber, 28.10.2026: Brüstung weg, Treppe begehbar).
+12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
+    darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
+
+## Schwierigkeitsauswahl und Easy-Zweige der EU-Discs (28.10.2026 nachts, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Auftrag:** Die EU-Fassung fragt beim neuen Spiel nach der Schwierigkeit, der Debug-Code nicht. Abfrage einbauen
+  wie im EU-Code und alle Stellen prüfen, an denen der EU-Code das „über Easy“-Byte liest.
+- **Wichtigster Befund:** Das Byte (EU `pG+0x4F9F`) ist **`game_country`** (Debug `0x4F93`; das EU-`GLOBAL_WK` ist dort
+  um 0xC verschoben). Die EU-Fassung macht daraus in `gameStageInit` (main.dol 0x80118a28) bei jedem Abschnittsstart
+  die Schwierigkeitsklasse: 0 = Easy, 1 = Normal/Professional (0 in den Bonusspielen nur mit japanischen Texten).
+  Damit schalten die Szenenbereichs-Flaggen der Daten „JPN“/„USA“ (`SceAtRoomSet`) auf Easy bzw. darüber ab,
+  `GameAddPoint` hält den Schwierigkeitswert nur über Easy bei mindestens 1000, und die Räume verzweigen selbst. Der Port
+  hatte dort die Sprache (2–6, Patch 0121) – also immer „über Easy“.
+- **Patch 0139** (`title.cpp`): Abfrage wie EU-`titleMain` (main.dol 0x80165d58, Menü 0x80165370/0x80165570): „New
+  Game“ öffnet immer Professional (nur wenn freigeschaltet, `EXT_HARD_MODE`) / Normal (Start) / Easy, A oder START
+  wählt (`game_mode` 6/5/3), der Cursor läuft rundum und überspringt Professional, B zurück auf „New Game“. Die
+  EU-Rückfrage danach (Kernmeldungen 0xA8–0xAA mit Ja/Nein) gibt es nur auf Japanisch (die EU-Sprachen haben dort
+  „aaa“) – weggelassen. Beim Debug-Start der Prüfungen (`RE4_START_ROOM`) keine Abfrage; neuer Prüfschalter
+  `RE4_TEST_GAME_MODE=N` (setzt die Schwierigkeit im Debug-Startmenü) und `game_mode`/`game_country` in der Zeile
+  „room: … runs“.
+- **Patch 0140** (`game.cpp` `gameStageInit`): `game_country = game_mode > 3` wie die EU-Fassung (nur EU-Discs).
+- **Patch 0141**: r203 (Normal: Meldungsbereich 6 an Tür 5 aus – im Port blieb er an der offenen Tür stehen; Easy: Tür 5
+  zu, Tür nach r201 ohne Schlüssel, weniger Ganados), r211 (Easy: erster Kelch eingesetzt, Modellgruppe 0x20 mit
+  eigener Kollision aus Raumarchiv-Eintrag 5; Normal: Gruppe 0x20 aus – im Port stand sie ohne Kollision da),
+  Karte (Easy: Objekte aus `SS/Esy`).
+- **Geprüft am PC** (i686, EU-Discs, frische Speicherkarte): Titel → START → Menü NORMAL/EASY (Bild), Easy →
+  `game_mode 3`, Normal und START → 5, B zurück und Umblättern (Normal→Easy) → 3. Debug-Discs: Spiel startet wie
+  bisher sofort (`game_mode 5`). Debug-Start r203: Normal Bereich 6 aus, Tür 5 offen; Easy Bereich 6 an, Tür 5 zu;
+  Debug-Discs ohne Bereich 6 wie bisher. r211 Easy: Bereich 4 aus (Kelch eingesetzt), Normal/Debug unverändert.
+  Karte auf Easy lädt `SS/esy/map_obj2a.dat`, auf Normal `SS/cmn/…`. r20b auf Easy läuft. Keine Fehlermeldungen.
+  **Nicht geprüft:** Gerät; Professional-Eintrag (braucht einen Spielstand mit Freischaltung); ob Bereich 6 in r203
+  die Tür im Port wirklich blockierte (die EU-Fassung schaltet ihn auf Normal ab, das genügt); ganze Kapitel auf Easy.
+- **US-Discs:** Der US-Code (Branch `retail-us`) fragt beim neuen Spiel nicht (wie der Debug-Code: direkt Normal,
+  Professional/Normal erst nach Freischaltung, A oder START), kennt kein Easy und setzt `game_country` nicht als
+  Schwierigkeitsklasse (keine Schreibstelle außer Sprache/Reset). Der Port verhält sich mit US-Discs damit schon wie
+  die US-Fassung; die Patches 0139–0141 gelten nur für EU-Discs. Entscheidung des Projektinhabers (28.10.2026): mit
+  US-Discs bleibt es wie im Original (kein Easy).
+- **Prüfliste der EU-Stellen** („Easy“ = nur auf Easy anders; die Normal-Seite entspricht dem Debug-Code; nicht
+  übernommen heißt: der Port spielt dort auch auf Easy die Normal-Fassung):
+
+| Stelle (EU) | Funktion | Befund |
+|---|---|---|
+| main 0x80118a28 (Schreiben) | `gameStageInit` | `game_country = game_mode > 3` → **Patch 0140** |
+| main 0x801680d0 / 0x80124fd4 / 0x801253ac / 0x801247e0 (Schreiben) | Titel-Ende / `systemWorkInit` / `setLanguage` / Reset-Rückholen | wie Debug (Sprache bzw. Rücksicherung), 0x801680d0 wie 0140 |
+| main 0x80004c3c | `CameraControl::areaHitCheck` | Ashley-Kamera nur mit japanischen Texten – EU-Sprachen wie Debug, nichts zu tun |
+| main 0x80118860 | `gameInit` | `game_mode` 0 → 3/5; nie erreicht (`systemWorkInit` setzt 5) |
+| main 0x80119cf4 / 0x80119ed8 | `clearGlobalSaveData` | Wert bleibt erhalten, wie Debug |
+| main 0x801251e4 | Reset-Sicherung (`pRK`) | wie Debug |
+| main 0x801521ac | `SceAtRoomSet` | Bereichs-Flaggen JPN/USA, gleicher Code; Bedeutung Easy/Normal → **Patch 0140** |
+| main 0x80155810 | `sceAtSetItem` | prüft die Flaggen schon vorab; Debug legt an und löscht gleich wieder – gleiches Ergebnis |
+| `st1_3` 0xc038 | `r11c_EventBesiegedStart` | Belagerung 9000 Bilder/40 (Normal = Debug), Easy 7200/30 – Easy, nicht übernommen |
+| `st2_0` 0xa558, 0xa5f8, 0xa6e0 | `R203Init` | Normal: Bereich 6 aus (**Sperre**), Easy: Tür 5 zu, Schlüsselflagge, weniger Ganados → **Patch 0141** |
+| `st2_1` 0x4af0, 0x4f88 | `R205Init`, `R205Main` | Ganados 0x6D/0x57, Wellen 106/111 nur über Easy – Easy |
+| `st2_1` 0xc8ec, 0xca40, 0xcbcc, 0xcda4, 0xd8d8 | `r209` zweiter Kampf, Armbrust, Brücke | weniger/spätere Gegner auf Easy – Easy |
+| `st2_1` 0x10f80, 0x1147c | `R20bInit` | Normal: Wand 0x1C/Brüstung 0xA6 weg (**Sperre**), Easy: Mondstein-Zustand → **Patch 0138** |
+| `st2_1` 0x148d4 | `R20cExecCageMain` | Raum-Flagge auf Easy oder niedrigem Rang – Easy |
+| `st2_1` 0x1cc38 | Gegnersatz r20f (EU 0x1cc14) | andere Gegner 0xDC–0xEC auf Easy – Easy |
+| `st2_2` 0x3524 | `R211Init` | Normal: Gruppe 0x20 aus, Easy: Kelch + Gruppe 0x20 mit Kollision → **Patch 0141** |
+| `st2_2` 0x80b4, 0x83d4, 0x84b0 | `R213SuBreakModel`, `R213EmSet` | weniger Gegner auf Easy – Easy |
+| `st2_2` 0xa448 | `R214Init` | Gegnersatz je Schwierigkeit in eigener Hilfsfunktion – Easy |
+| `st2_2` 0x1146c, 0x11a48, 0x11d90 | `R218Init`, `r218_checkClawManDead`, `r218_appearClawMan` | ein Garrador weniger auf Easy – Easy |
+| `st2_3` 0x3644, 0x38f4 | `R21aInit` (EU 0x3604) | Easy: Raum-Flagge, Bereich 8/Gruppe 0x41 aus – Easy |
+| `st2_3` 0x3ce0, 0x4194 | `R21aEmSetMain` | weniger Gegner auf Easy – Easy |
+| `st2_3` 0x62b0, 0x7240, 0x72dc, 0x73e8, 0x7440 | `r21b_HalfWayGanadoSet`, `r21d` Gegnersätze | Werte/Gegner nur über Easy – Easy |
+| `st2_3` 0xa128, 0xb5b0, 0xbde8 | `r221` Rolltor, Aufzug, Boss | Werte auf Easy – Easy |
+| `st2_3` 0xc4e4 | `r221_checkSwitchboard` | Easy eigener Hinweistext (0xA statt 4) – Easy |
+| `st2_3` 0x15770, 0x15db8, 0x1613c | `R226` Gegner, Roboter-Start | Werte auf Easy – Easy |
+| `st2_3` 0x1a414 | `r227_setEmOnElv1` | Ganados 0x85/0x86 nur über Easy – Easy |
+| `st3_2` 0x15db4, 0x16324 | `r31c_CountDownEnd`, `r31c_TowerExplodeEndProc` | Anzeige/Kamera auf Easy – Easy |
+| `Sscrn` 0x10fe4 | `mapAreaFilename` | Easy: Kartenobjekte aus `SS/Esy` → **Patch 0141** |
+
+  Zuordnung mit `retail_code.py`, den Relokationen der Module und einer Aufruf-Abstimmung (Hilfsskripte nur in der
+  Sitzung). Nur r20b und r203 hatten auf Normal eine Easy-Sperre der Daten aktiv; Patch 0138 liest weiter `game_mode`
+  (gleiches Ergebnis außer in den Bonusspielen, die r20b nicht betreten).
+
+## Testerbericht „Zugang zum Labyrinth versperrt“ (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Meldung:** Nutzer mit Xiaomi 2412DPC0AG (0.94.0, EU-Discs, Spanisch, Normal: `game_mode` 5 im Spielstand),
+  Spielstand `bh4_data00` in r20a; Bildschirmfoto: Leon auf dem Podest über der Treppe in r20b, an der Brüstung, das
+  Labyrinth unten. Der Projektinhaber hat es auf dem Retroid mit 0.94.0, EU-Discs (Deutsch) und dem Spielstand
+  nachgestellt: alle Szenen kommen, der Abgang ist versperrt.
+- **Ursache (Verkaufsdaten):** Die EU-Discs sperren in r20b die Treppe vom Podest ins Labyrinth für **Easy**:
+  Bereich 0x1C (Typ 0xB, eine unsichtbare Wand quer über ihr oberes Ende, (37900 −8064)…(37911 −7676), Höhe
+  3196–5066) und Modellgruppe 0xA6 (die Brüstung darüber). Die Debug-Discs haben beides nicht (dort ist die Treppe
+  frei; darum lief das Labyrinth mit ihnen). Die EU-Fassung von `R20bInit` (`st2_1.rel`, Text 0x10F44, mit
+  `retail_code.py` und den Relokationen des Moduls gelesen) öffnet sie über Easy: ein Byte (EU `pG+0x4F9F`, gesetzt
+  auf `game_mode > 3`, in den Bonusspielen 0) → `SceAtSetEnable(0x1C, 0)`, `SmdSetTrans(0xA6, 0)`. Auf Easy bleibt
+  das Labyrinth zu und der Raum tut, als sei das Mondstein-Tor schon offen (Raum-Flag 1; Truhen/Gegenstände 0x86–0x8A,
+  Bereiche 0x80–0x82 und 0x88, Kisten 9/10/14/15 weg; kein Funkspruch, keine Eingangskamera, keine Gegner). Der
+  Debug-Code hat keinen der beiden Zweige.
+- **Fix: Patch 0138** (`r20b.cpp`, nur mit Verkaufsdaten, `re4_disc_retail_eu`): beide Zweige wie der EU-Code, das
+  Byte aus `game_mode`. Der Originalweg (Komplettlösung StrategyWiki/Fandom: Kante, verschlossene Tür, Funkspruch
+  Salazars „do you like my garden?“, dann die Treppe hinunter zum Tor ins Labyrinth) ist damit wieder da.
+- **Geprüft am PC** (i686, EU- und Debug-Discs, Debug-Start in r20b, Normal): Leon läuft vom Podest (39700 4000 −7000)
+  die Treppe hinunter bis (39710 0 −21886) im Labyrinth; vorher blieb er bei z −7285 stehen. Keine Fehlermeldung
+  (`AT NOT FOUND` / `INVALID INDEX`) mit beiden Disc-Arten. **Auf dem Retroid bestätigt** (Projektinhaber,
+  28.10.2026, EU-Discs, Spielstand des Nutzers): Brüstung weg, Treppe begehbar. Easy: siehe Abschnitt
+  Schwierigkeitsauswahl (Patches 0139–0141).
+- **Weitere EU-Räume mit demselben Byte:** gelesen in `st2_0`, `st2_1` (11-mal), `st2_2`, `st2_3`, `st1_3`, `st3_2`
+  und `Sscrn` (EU) – geprüft, siehe Abschnitt Schwierigkeitsauswahl (das Byte ist `game_country`).
+- **Schwierigkeitsgrad:** Die Debug-Fassung fragt beim neuen Spiel nicht nach Leicht/Normal (Dolphin mit EU-Discs
+  zeigt die Abfrage nach START, Projektinhaber 28.10.2026) – mit EU-Discs eingebaut (Patch 0139).
+- **Neue Prüfschalter** (`state_trace.cpp`): `RE4_TRACE_AT=1` (Auslöse-Bereiche mit Türzielen, Kollisionswänden und
+  den Türen im Raum), `RE4_TRACE_POS=N` (Leons Ort alle N Bilder), `RE4_TEST_PLACE2="N:x,y,z,a"` (zweites Versetzen,
+  z. B. nach einer Szene), `RE4_TEST_AT_OFF`, `RE4_TEST_SMD_TRANS` (Bereiche / Modellgruppen schalten),
+  `RE4_FLOOR_MAP`, `RE4_FLOOR_FILL` (Boden-, Wand- und grobe Erreichbarkeitskarte; die Linienprüfung zählt Wände von
+  beiden Seiten, Leons Kugel nur von vorn).
+
+## Leistung: Vorschläge 1 und 2 gemessen (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+Auftrag des Projektinhabers: Vorschlag 1 (umgewandelte Modelle aufheben) und 2 (doppelte Uniform-Übergaben sparen).
+
+- **Vorschlag 2, eingebaut:** `gx_gl.cpp` `UploadXf` vergleicht die geänderten Zeilen eines XF-Teils mit dem zuletzt
+  gesendeten (`xfSent`) und lässt gleiche aus (`GxStats::uniformSame`, in „GX work per chunk“ als „the same not
+  sent“); ungültig nach jedem Wechsel des Ring-Viertels und zu Beginn jedes Chunks (die alten Plätze können
+  überschrieben sein). PX wurde schon so verglichen. `RE4_GX_UNIFORM_SAME=0` schaltet es ab (Gegenprobe). Messung mit
+  der Retroid-Serie r226 (`gx_chunk_render`, 48 Chunks): 2 011 von 43 345 Übergaben gespart (**knapp 5 %**, nicht „viele“
+  wie vermutet: die Spielwerte ändern sich fast bei jeder Zeichnung). Bilder mit und ohne pixelgleich: 48 Bilder, mit
+  60-FPS-Zwischenbildern 92 Bilder (44 Zwischenbilder). `gx_gl_check` 0 Fehler.
+- **Vorschlag 1, gemessen und verworfen:** ein Zwischenspeicher für die umgewandelten Eckpunkte jeder
+  Zeichenlisten-Zeichnung (gültig, solange die Listenbytes, das Vertexformat, die Arrays und deren gelesene Bytes per
+  Prüfsumme gleich sind). Korrekt (r100 mit `RE4_GX_DL_CHECK`, jeder Treffer zusätzlich umgewandelt und verglichen:
+  0 Abweichungen), aber nur 57–78 % Treffer, und Prüfen + Kopieren auf dem Kern-Thread kosten mehr als die schon auf
+  3 Threads verteilte Umwandlung: r100 am PC 4,2 → 8,0 ms Kern-Thread je Bild (Batches 1,9 → 0,7 ms), zusammen mehr
+  Prozessorzeit. Nicht eingebaut. Ein Weg mit Aussicht bräuchte Schreibüberwachung des Spielspeichers statt
+  Prüfsummen (aufwendig, eigene Entscheidung).
+- **Neu für Messungen am PC:** `RE4_GX_DRAIN=1` (`core_api.cpp`): jeder Chunk wird abgenommen und gleich
+  freigegeben, so zeichnet der Kern ohne Renderer jedes Bild auf wie mit der App (die „GX core“-Zeile im PC-Lauf).
+
+## Touch-Zielen (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Wunsch des Projektinhabers:** in STEUERUNG eine Option, mit der Touchfläche oder dem C-Stick zu zielen.
+- **Umsetzung:** Menü STEUERUNG, unter „L und R einrasten“/„B einrasten“: Auswahl **„Touch Aiming“** mit „Move Stick“
+  (Vorgabe, wie am GameCube), „Touch Area“ (die rechte Blickzone) und „C Stick“ (der Touch-C-Stick, den man über das
+  Zahnrad von RetroTouch hinzufügt), Hilfetext darunter; Texte in allen zehn Menüsprachen (`check_translations.py`
+  ohne Fehler). `CoreTouch` meldet Blickzone und Touch-C-Stick getrennt (`CoreInput.touchLook`); `CoreInput.pad`: solange
+  L oder R gehalten wird (Touch, eingerastet oder ein Controller), wird die gewählte Quelle zum Steuerstick (der weiter
+  ausgelenkte von ihr und dem Bewegungsstick zielt), die andere bleibt C-Stick; ohne L/R sind beide wie bisher der
+  C-Stick. Wie bei der Blickzone üblich: der Weg des Fingers seit dem Aufsetzen ist die Auslenkung (wie ein Stick,
+  weiter = schneller), Loslassen hält das Ziel an. Einstellung `touchAim` in den Eingabe-Einstellungen, Logzeile
+  „touch aiming: …“. Vorbild: die alternative Belegung (rechter Stick zielt, solange L1/L2 gehalten).
+- **Tests:** `CoreTouchTests` mit neuen Prüfungen (Vorgabe ändert nichts, Blickzone zielt und der C-Stick bleibt
+  C-Stick, umgekehrt mit „C Stick“, der weitere Weg zielt, R los: beide wieder C-Stick, falscher Wert = Vorgabe):
+  291 Prüfungen bestanden; `CoreInputTests` 170 bestanden. APK 0.95.0-beta gebaut.
+- **Nicht getestet:** auf dem Gerät (Gefühl beim Zielen, ob die Empfindlichkeit passt).
+
+## RVZ beim Disc-Import (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Wunsch des Projektinhabers:** RVZ (Dolphins gepacktes Format) neben ISO/GCM; beim Import ein Hinweis, dass das
+  Entpacken mehr Speicher braucht; vorher prüfen und bei zu wenig Speicher ablehnen, mit Verweis auf ISO/GCM.
+- **Umsetzung:** `app/src/main/cpp/disc_rvz.cpp` liest RVZ einer GameCube-Disc (Kopf, Tabellen der Rohdaten und
+  Gruppen, Gruppen gespeichert oder mit zstd, „gepackte“ Gruppen mit Daten- und Füllbyte-Läufen; die Füllbytes
+  erzeugt der Generator aus Dolphins `LaggedFibonacciGenerator` aus dem gespeicherten Startwert). zstd: der offizielle
+  Einzeldatei-Entpacker aus zstd 1.5.6 (BSD, `third_party/zstd/`, Prüfsumme des Release-Archivs geprüft). Eigene
+  Bibliothek `libre4rvz.so` (`disc_rvz_jni.cpp`, Java `disc/RvzImage.java`), weil `libre4decomp.so` beim Laden den Kern
+  lädt. `ImportManager`: erkennt RVZ an den ersten Bytes, prüft vor dem Kopieren den Platz für RVZ-Kopie + entpacktes
+  Abbild + entpackte Dateien (`RvzImage.storageNeeded`, etwa 2,9 GB plus RVZ-Größe bis zum Löschen der Kopie), packt
+  nach `source.gcm` aus (Fortschritt „unpacking RVZ“), löscht die RVZ-Kopie, dann der gewohnte Import mit Prüfung aller
+  Dateien. Zu wenig Speicher: „Import not possible …“ mit Bedarf und freiem Platz; der Verweis auf ISO/GCM sagt dazu,
+  dass auch sie zuerst kopiert werden und fast so viel brauchen. Abgelehnt mit Erklärung: Wii-Discs, bzip2/LZMA
+  (Hinweis: in Dolphin mit Zstandard neu umwandeln oder ISO/GCM), beschädigte Dateien. Überschrift der Startseite und
+  Starttext nennen RVZ und den Speicherbedarf.
+- **Tests:** `rvz_check` (`tools/test_rvz.cpp`, Host-Build): gespeicherte und zstd-Gruppen (zstd-Rahmen aus
+  Rohblöcken), gepackte Gruppen mit Füllbytes (gegen eine zweite, wörtliche Fassung von Dolphins Generator), eine
+  Null-Gruppe, kurze letzte Gruppe, Disc-Kopf, Fortschritt, Abbruch, vier Ablehnungen: 0 Fehler. Echte EU-Disc 1 als
+  RVZ verpackt (`tools/make_rvz.py`, zstd-Rahmen ohne Packen) und mit `rvz_check IN OUT` ausgepackt: SHA1 gleich der ISO,
+  1,5 Minuten am PC. APK mit `libre4rvz.so` für ARM32 und ARM64 gebaut.
+- **Nicht getestet:** eine RVZ, die Dolphin selbst geschrieben hat (echte zstd-Kompression, gepackte Füllbytes von
+  der Disc), und der Import auf dem Gerät. Die Füllbytes liegen nur zwischen den Dateien; ein Fehler dort fiele bei der
+  Dateiprüfung nicht auf, schadet aber auch nicht.
+
+## Weiße Texturen mit 60 FPS und Version 0.95.0-beta (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Meldung:** Nutzer mit itel P661N (Mali-G57 MC2, Debug-Discs, 60 FPS an): Ganados mit weißen Waffen, manche ganz
+  weiß. Seine Berichte (0.93.0 und 0.94.0): „missing“ in der GX-Zeile steigt nach 7–17 Minuten von 0 auf über 11.000
+  (r101, r104) und fällt nicht mehr; der Bericht vom Xiaomi (0.93.0, 60 FPS) zeigt 3–7, die Retroid-Berichte ohne
+  60 FPS 0. Eine fehlende Textur zeichnet der Renderer weiß (`BindTexture`, `whiteTex`).
+- **Ursache:** Der Kern vergisst Texturen zu Beginn eines Chunks (`gx_decode.cpp` `forgetTextures`: 600 Chunks
+  ungenutzt oder über dem Budget von 96 MB) und schickt eine davon im selben Chunk wieder mit, wenn das Spiel sie
+  gleich braucht. Mit 60 FPS läuft vor dem Chunk der Zwischenbild-Durchgang: Er lädt die Textur schon hoch und lässt das
+  Vergessen dem echten Durchgang. Der löschte sie dann und übersprang das Hochladen („schon vom Zwischenbild geladen“).
+  Danach fehlte die Textur für immer, denn der Kern hält sie für vorhanden und schickt nur noch den Schlüssel.
+- **Korrektur:** `gx_gl.cpp` (`RE4_GX_OP_FORGET`): nach dem Vergessen wird der Schlüssel aus `interpUploads`
+  genommen, die Textur im echten Durchgang also wieder hochgeladen. Test `TestInterpolationForget` (`gx_gl_check`):
+  vorher 3 fehlende Texturen und eine weiße Flamme, nachher 0 Fehler.
+- **Version 0.95.0-beta** (versionCode 79; zuerst 0.94.1, auf Wunsch des Projektinhabers 0.95.0, weil RVZ und
+  Touch-Zielen dazukommen): 0.94.0 ist schon bei diesem Nutzer. Releasetext
+  `port/android-decomp/docs/releases/v0.95.0-beta.md`.
+- **Nicht getestet:** auf dem Gerät (der Fehler tritt erst nach längerem Spiel auf; Nutzer bitten, mit 0.95.0 wieder
+  lange zu spielen und den Bericht zu schicken: „missing“ muss 0 bleiben).
 
 ## Gerätetest 28.10.2026 12:20 (0.94.0, 2x MSAA) und Abschluss 0.94.0-beta (lokal, Branch `claude/determined-allen-36nj6r`)
 
@@ -9152,6 +9356,10 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0135 `option.cpp` | Ergebnis-Bildschirme mit den EU-Discs wie ihr Code (`retail_code.py dis`): Kapitelende (`ChapterEnd::move`, EU 0x800422AC) mit vierstelliger Gegnerzahl, Tausender in Baustein 0x1B (Kapitel) bzw. 0x1C (gesamt), führende Nullen aus, Fortsetzungen höchstens 999; vorher liefen die zwei Bausteine durch alle Zeichen (Testervideos 27.10.2026). Spielende (`GameResult::move`, EU 0x80041E64): Fortsetzungen höchstens 999, Baustein 0 nie sichtbar. Mercenaries-Ergebnis in beiden Fassungen gleich. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0136 `sofdec.cpp` | Untertitel im Intro-Film mit den EU-Discs (Projektinhaber, 28.10.2026: fehlten). Nur der EU-`movie/opening.sfd` trägt im Kopf (privater Strom 0xBF) eine Tabelle `CRITAGS`/`USRINFS` Typ `SUBTITLE`: je Sprache ein Kanal (3 Deutsch … 6 Italienisch; Englisch hat keinen), je Eintrag Startzeit, Dauer, Textnummer; die Texte in `etc/movie.das` (MDT mit sechs Sprachen, dazu eine japanische Schrift). Wie die EU-Fassung (`cSofdec` 0x80161170 ff., `retail_code.py`): `initApp` lädt `etc/movie.das` als Meldungstabelle 2 und setzt das Layout von Meldung 0, `initWork` lässt die Meldungen während des Films an (`DPF_MESSAGE`), `draw` zeigt zur Filmzeit den Text (`MesSet` x 100 unten, Attribut 0x01001054) und nimmt ihn danach weg, `finishMovie` räumt auf. Ihre neuere CRI-Bibliothek sucht die Zeit im laufenden Film; hier liest `runtime/movie_status.cpp` die Tabelle aus dem Kopf, den `initApp` ohnehin liest, und vergleicht mit `mwPlyGetTime`. Abweichung: Tabelle 2 wird danach zurückgesetzt (die EU-Fassung zeigt danach auf die freigegebenen Texte). Dazu `FNT`-Einträge in Archiven umwandeln (`formats_arc.cpp`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0137 `trans_ot.cpp` | 60 FPS ohne Flackern, Schritt S1 (`60fps-plan.md`, Entscheidung des Projektinhabers 28.10.2026): `ExecOt` meldet vor jedem Eintrag einer Ordnungstabelle Objekt, Funktion und Tabelle (`runtime/gx_owner.cpp` → `gx_fifo.cpp` `re4_gx_put_owner`, Port-Befehl 0x02 im GX-Strom → `RE4_GX_OP_OWNER` im Chunk; bei Teilchen aus dem Effekt-Pool dazu Effekt-Nummer und Lebenszähler), nach der Tabelle „kein Objekt“. Spiellogik und Bild unverändert; ältere Renderer überspringen die Nachricht. Kosten: in r204 etwa 290 Marken je Bild (4–5 KB). Port-Patch |
+| 0138 `r20b.cpp` | Labyrinth mit den EU-Discs (Testerbericht 28.10.2026): ihre Daten sperren die Treppe vom Podest für Easy (Bereich 0x1C als Wand, Modellgruppe 0xA6 als Brüstung; die Debug-Discs haben beides nicht). Wie die EU-Fassung von `R20bInit` (`st2_1.rel` 0x10F44): über Easy (`game_mode > 3`, nicht in den Bonusspielen) Bereich 0x1C aus und Gruppe 0xA6 unsichtbar; auf Easy Raum-Flag 1 (Mondstein-Tor offen), Gruppen 0x86–0x8A unsichtbar, Bereiche 0x80–0x82 und 0x88 aus, Kisten 9/10/14/15 weg, kein Funkspruch, keine Eingangskamera, keine Gegner. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0139 `title.cpp` | Schwierigkeitsauswahl mit den EU-Discs wie ihr `titleMain`: „New Game“ fragt immer Professional (nur freigeschaltet) / Normal / Easy, A oder START, Cursor rundum, B zurück; die japanische Rückfrage danach nicht. Nicht beim Debug-Start (`RE4_START_ROOM`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0140 `game.cpp` | `gameStageInit` setzt mit den EU-Discs `game_country = game_mode > 3` wie ihre Fassung (das EU-„Easy-Byte“ `pG+0x4F9F` ist `game_country`): Bereichs-Flaggen JPN/USA, Schwierigkeitswert-Untergrenze und Raumzweige richten sich nach Easy/Normal statt nach der Sprache. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0141 `r203.cpp`, `r211.cpp`, `ss_map.cpp` | Easy-/Normal-Zweige der EU-Räume, die dem Debug-Code fehlen: r203 (Normal Meldungsbereich 6 an Tür 5 aus; Easy Tür 5 zu, kein Schlüssel nötig, weniger Ganados), r211 (Easy erster Kelch und Gruppe 0x20 mit Kollision; Normal Gruppe 0x20 aus), Karte auf Easy aus `SS/Esy`. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
