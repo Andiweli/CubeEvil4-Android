@@ -25,6 +25,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <dlfcn.h>
 #include <link.h>
 #include <stdint.h>
 #include <string.h>
@@ -740,6 +741,36 @@ int re4_valid_port_ptr(const void* p)
         uintptr_t address, begin, end;
         bool found;
     } search = {a, 0, 0, false};
+#if defined(__ANDROID__) && defined(__arm__) && __ANDROID_API__ < 21
+    // Android 4.x (API 16, the OUYA branch) has no dl_iterate_phdr on ARM: the
+    // library that holds the address, and its extent from the program headers
+    // its first segment maps at the load base
+    Dl_info info;
+    if (dladdr((const void*) a, &info) && info.dli_fname && strstr(info.dli_fname, "libre4_") && info.dli_fbase) {
+        const ElfW(Ehdr)* eh = (const ElfW(Ehdr)*) info.dli_fbase;
+        const ElfW(Phdr)* phdr = (const ElfW(Phdr)*) ((const char*) eh + eh->e_phoff);
+        uintptr_t first = UINTPTR_MAX;
+        for (int i = 0; i < eh->e_phnum; i++) {
+            if (phdr[i].p_type == PT_LOAD && phdr[i].p_vaddr < first) {
+                first = phdr[i].p_vaddr;
+            }
+        }
+        const uintptr_t bias = (uintptr_t) info.dli_fbase - (first & ~(uintptr_t) 0xFFF);
+        uintptr_t lo = UINTPTR_MAX, hi = 0;
+        for (int i = 0; i < eh->e_phnum; i++) {
+            if (phdr[i].p_type == PT_LOAD) {
+                const uintptr_t b = bias + phdr[i].p_vaddr;
+                lo = b < lo ? b : lo;
+                hi = b + phdr[i].p_memsz > hi ? b + phdr[i].p_memsz : hi;
+            }
+        }
+        if (a >= lo && a < hi) {
+            search.begin = lo;
+            search.end = hi;
+            search.found = true;
+        }
+    }
+#else
     dl_iterate_phdr(
         [](struct dl_phdr_info* info, size_t, void* data) -> int {
             Search* s = (Search*) data;
@@ -768,6 +799,7 @@ int re4_valid_port_ptr(const void* p)
             return 0;
         },
         &search);
+#endif
     if (!search.found) {
         return 0;
     }

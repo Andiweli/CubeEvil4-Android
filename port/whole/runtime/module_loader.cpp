@@ -65,6 +65,15 @@ unsigned char gUsed[kBlocks];
 
 void* openInWindow(const char* path, void** range, unsigned long* rangeSize)
 {
+#if __ANDROID_API__ < 21
+    // Android 4.x (API 16, the OUYA branch) has no android_dlopen_ext: no window
+    // (re4_module_window_reserve), the linker places the modules (on the OUYA above
+    // 0x80000000, stage O1 of port/docs/ouya-machbarkeit.md)
+    (void) path;
+    (void) range;
+    (void) rangeSize;
+    return 0;
+#else
     if (!gWindow) {
         return 0;
     }
@@ -96,6 +105,7 @@ void* openInWindow(const char* path, void** range, unsigned long* rangeSize)
         }
     }
     return 0;
+#endif
 }
 
 void closeInWindow(void* range, unsigned long rangeSize)
@@ -130,7 +140,7 @@ int findLoaded(const char* name)
 
 extern "C" void re4_module_window_reserve(void)
 {
-#if defined(__ANDROID__) && __SIZEOF_POINTER__ == 4
+#if defined(__ANDROID__) && __SIZEOF_POINTER__ == 4 && __ANDROID_API__ >= 21  // (openInWindow)
     if (gWindow) {
         return;
     }
