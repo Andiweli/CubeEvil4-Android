@@ -22,8 +22,9 @@ Gesammelt in einer Cloud-Sitzung (ohne Disc-Daten); weiter in einer lokalen Sitz
    `R120Event` (`src/st1/r120.cpp:74`) ohne Untertitel-Logik, `cSofdec` (`src/game/sofdec.cpp`) zeichnet nur das Bild.
    Zu klären: mit welcher Disc-Art und Sprache, und wie die EU-Fassung die Untertitel zeichnet (EU-Code von `R120Event`
    bzw. `cSofdec::draw`/`Move` mit `retail_code.py`, Dateien nur auf den EU-Discs, z. B. unter `movie/` oder `ss/<Sprache>/`).
-6. **60 FPS ohne Flackern** (Fackeln, Wasser, Texturen): Plan `port/docs/60fps-plan.md`, wartet auf die Entscheidung des
-   Projektinhabers (Kernänderung: Namensmarken aus `ExecOt`).
+6. **60 FPS ohne Flackern** (Fackeln, Wasser, Texturen): Plan `port/docs/60fps-plan.md`, **freigegeben (Entscheidung des
+   Projektinhabers, 28.10.2026: so umsetzen wie vorgeschlagen**, mit der Kernänderung: Namensmarken aus `ExecOt`).
+   Umsetzung S0–S5 in der lokalen Sitzung.
 
 ## Testerberichte 27.10.2026: Kapitelende flackert, Händler zeigt den Koffer (28.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
 
@@ -67,7 +68,7 @@ Dolphin (gleiche Stelle, gleicher Kauf) nötig. Kein Bericht dazu (der Bericht v
 Wunsch des Projektinhabers: 60 FPS ohne flackernde Fackeln, Wasser und Texturen. Vorschlag in
 `port/docs/60fps-plan.md`: Namensmarken aus `ExecOt` (ein Kern-Patch, neue GX-Nachricht `RE4_GX_OP_OWNER`), damit
 das Zwischenbild jede Zeichnung sicher wiederfindet; dann auch Texturmatrizen, Farben und Licht mischen; gleichmäßiger
-Takt statt einzelner Lücken. **Wartet auf die Entscheidung des Projektinhabers** (Kernänderung). Noch nichts gebaut
+Takt statt einzelner Lücken. **Freigegeben am 28.10.2026** (Entscheidung des Projektinhabers: so umsetzen). Noch nichts gebaut
 oder getestet.
 
 ## Testerbericht: Mercenaries mit Hunk stürzt ab (27.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)

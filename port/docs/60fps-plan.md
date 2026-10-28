@@ -1,8 +1,8 @@
-# 60 FPS ohne Flackern: Plan (Vorschlag, 27.10.2026, Cloud)
+# 60 FPS ohne Flackern: Plan (27.10.2026, Cloud; freigegeben 28.10.2026)
 
-Wunsch des Projektinhabers: 60 FPS ohne flackernde Fackeln, Wasser und Texturen. Dieser Plan ist ein
-**Vorschlag**; Schritt 1 ändert den Kern (ein Patch, eine neue GX-Nachricht) und wartet auf die Entscheidung des
-Projektinhabers.
+Wunsch des Projektinhabers: 60 FPS ohne flackernde Fackeln, Wasser und Texturen. **Entscheidung des
+Projektinhabers (28.10.2026): so umsetzen, wie hier vorgeschlagen**, einschließlich der Kernänderung in Schritt 1
+(ein Patch in `ExecOt`, eine neue GX-Nachricht). Umsetzung in einer lokalen Sitzung (Gerätetests mit dem Retroid).
 
 ## Wie 60 FPS heute entsteht
 
