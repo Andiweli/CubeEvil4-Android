@@ -717,6 +717,31 @@ extern "C" int re4probe_arc(void)
     return bad;
 }
 
+// Patch 0134 (re4_whole_prelude.h re4_arc_entry): an archive index past the table reads its word
+// as the GameCube does. A table of two entries and their tags ("FCV\0", "SEQ\0"): bits 1 an entry
+// inside the table moved, 2 the tags past it are not read big-endian, 4 a header that is not
+// table-shaped (a nonzero pad word) was changed, 8 index 0..3 (the header words) changed.
+extern "C" int re4probe_arc_table(void)
+{
+    static PlArc arc;
+    static PlArc other;
+    int bad = 0;
+    memset(&arc, 0, sizeof(arc));
+    arc.ofs[0] = 2;
+    arc.ofs[4] = 0x20;
+    arc.ofs[5] = 0x30;
+    memcpy(&arc.ofs[6], "FCV\0SEQ\0", 8);
+    u32 base = (u32) (size_t) &arc;
+    if ((u32) (size_t) PL_ARC_PTR(&arc, 4) != base + 0x20 || (u32) (size_t) PL_ARC_PTR(&arc, 5) != base + 0x30) bad |= 1;
+    if ((u32) (size_t) PL_ARC_PTR(&arc, 6) != base + 0x46435600u || (u32) (size_t) PL_ARC_PTR(&arc, 7) != base + 0x53455100u) bad |= 2;
+    memcpy(&other, &arc, sizeof(other));
+    other.ofs[2] = 1;
+    u32 obase = (u32) (size_t) &other;
+    if ((u32) (size_t) PL_ARC_PTR(&other, 6) != obase + other.ofs[6]) bad |= 4;
+    if ((u32) (size_t) PL_ARC_PTR(&arc, 0) != base + 2 || (u32) (size_t) PL_ARC_PTR(&arc, 3) != base) bad |= 8;
+    return bad;
+}
+
 // Patch 0098: the partner's damage handler (pAuxDm, the bulldozer's Sub_dm_bull while Ashley drives)
 // gets the partner as its argument, as on the GameCube (r3 = this). A partner in plain memory:
 // moveDamage reads only pAuxDm before the call.

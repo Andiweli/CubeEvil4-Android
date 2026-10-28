@@ -335,6 +335,33 @@ extern "C" unsigned re4_arc_clamp_count(void)
     return gArcClamps.load();
 }
 
+// An archive index past its table (re4_whole_prelude.h re4_arc_entry, patch 0134): each archive
+// address and index once (at most 32 lines), with what the word gives as on the GameCube.
+extern "C" void re4_arc_past_table(unsigned base, unsigned no, unsigned count, unsigned word)
+{
+    static std::atomic<unsigned> seen[32][2];
+    static std::atomic<unsigned> used{0};
+    unsigned n = used.load();
+    for (unsigned i = 0; i < n && i < 32; i++) {
+        if (seen[i][0].load() == base && seen[i][1].load() == no) {
+            return;
+        }
+    }
+    if (n >= 32) {
+        return;
+    }
+    unsigned slot = used++;
+    if (slot >= 32) {
+        return;
+    }
+    seen[slot][0] = base;
+    seen[slot][1] = no;
+    unsigned ptr = base + word;
+    re4_log("formats: archive at 0x%08x (%u entries) read at index 0x%x, past its table: word 0x%08x as "
+            "on the GameCube, 0x%08x%s", base, count, no, word, ptr,
+            ptr - 0x80000000u <= 0x02FFFFFFu ? "" : " (outside the game memory, VALID_PTR2 drops it)");
+}
+
 extern "C" void re4_stub_hit(const char* const* names, unsigned char* seen, int index)
 {
     if (!seen[index]) {

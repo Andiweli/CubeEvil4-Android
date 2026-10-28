@@ -99,6 +99,12 @@
 //                          when the player's routine changes while he holds
 //                          a weapon: the reload as played on the device
 //                          (test-core-app.ps1 -WeaponTrace)
+//   RE4_TEST_PLAYER=T      the debug start menu (RE4_START_ROOM, RE4_ROOM_MENU=1)
+//                          starts the room with player type T (title.cpp
+//                          titleDebugMenu line 0: 0 Leon, 1 Ashley, 2 Ada,
+//                          3 HUNK, 4 Krauser, 5 Wesker), as LEFT/RIGHT pick it
+//                          there: the character's archive and REL load as in
+//                          the game (Mercenaries with HUNK crashed, 27.10.2026)
 //
 // Always logged (the memory card, M10): the end of the boot card check with
 // the options then in force, and a save loaded from the card. Since
@@ -502,6 +508,7 @@ long g_saveAfter = -1;
 int g_saveBrightness = -1;
 bool g_saveOpened, g_saveStop, g_saveRunning;
 bool g_cardYes;              // RE4_TEST_CARD_YES
+int g_testPlayer = -1;       // RE4_TEST_PLAYER
 long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
@@ -1062,6 +1069,11 @@ void frame(unsigned n)
     if (g_cardYes && SysFlagChk(g, SYS_TYPEWRITER)) {
         cMes.SetCursor(0, 0);
     }
+    if (g_testPlayer >= 0 && re4_title_room_menu_open() && g->pl_type != g_testPlayer) {
+        g->pl_type = (u8) g_testPlayer;
+        g->pl_costume = 0;
+        re4_log("run: debug start with player type %d (RE4_TEST_PLAYER)", g_testPlayer);
+    }
     // the debug start menu (patch 0043) draws its lines with the debug text;
     // the tool menu (SELECT held in the app, patch 0061; db_menu.cpp DbMenuExec) sets its
     // own page and puts the old one back when it closes (DBG_TEST_MODE)
@@ -1430,6 +1442,11 @@ void configure()
     g_hideDebugHud = hud && *hud == '0';
     // (always: the memory card lines)
     (void) freeScript;
+    const char* player = getenv("RE4_TEST_PLAYER");
+    g_testPlayer = player && *player ? (int) strtol(player, 0, 0) : -1;
+    if (g_testPlayer > 5) {
+        g_testPlayer = -1;
+    }
     re4_set_frame_hook(frame);
 }
 

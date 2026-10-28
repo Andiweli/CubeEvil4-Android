@@ -77,6 +77,38 @@ template <class B, class T> struct Re4OwnWork : B {
      __builtin_offsetof(Re4OwnWork<B, T>, re4_first))
 #endif
 
+/* Entry `no` of an archive with a table (PL_ARC_PTR, patch 0134): u32 count, u32 REL offset, two
+ * zero words, then the entries' offsets; the game indexes from the start, so entry k is index
+ * k + 4. Some code reads indexes past the table, into the tags behind it ("EFF\0", "BIN\0" ...):
+ * Hunk's machine gun (wep29, 48 entries) takes its neck motions from indexes 0x34..0x39, both
+ * releases (Leon's TMP, wep11, has them). The GameCube reads those tags big-endian, as offsets of
+ * about 1 GB: the pointer lies outside its memory and VALID_PTR2 drops it (cPlNeck::init, the
+ * head stays still). The converted archive holds host-order offsets, but the tags are bytes; read
+ * little-endian they are offsets of a few MB, a pointer into memory, read as a motion: Mercenaries
+ * with Hunk crashed in HermiteInterpolation (tester report 26.10.2026). An index past the count
+ * of a table-shaped header reads its word as the GameCube does. Logged once per place
+ * (runtime/formats/formats_arc.cpp). */
+#ifdef __cplusplus
+extern "C" {
+#endif
+void re4_arc_past_table(unsigned int base, unsigned int no, unsigned int count, unsigned int word);
+#ifdef __cplusplus
+}
+#endif
+static inline void* re4_arc_entry(const void* table, const void* arc, unsigned int no)
+{
+    const unsigned int* ofs = (const unsigned int*) table;
+    unsigned int base = (unsigned int) (size_t) arc;
+    unsigned int v = ofs[no];
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    if (no >= 4 && no - 4 >= ofs[0] && ofs[0] < 0x1000 && ofs[2] == 0 && ofs[3] == 0) {
+        v = __builtin_bswap32(v);
+        re4_arc_past_table(base, no, ofs[0], v);
+    }
+#endif
+    return (void*) (size_t) (unsigned int) (v + base);
+}
+
 /* C equivalents of the Gekko instructions of the replaced inline asm. */
 #include "re4_ppc.h"
 

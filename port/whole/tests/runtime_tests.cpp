@@ -1157,6 +1157,7 @@ void re4probe_enemy_log(void);
 int re4probe_em_at_flags(void);
 void re4probe_death_log(void);
 int re4probe_arc(void);
+int re4probe_arc_table(void);
 int re4probe_partner_damage(void);
 int re4probe_case_free_place(void);
 int re4probe_menu_touch(void);
@@ -1756,6 +1757,25 @@ static void testArc()
     report("arc", bad == 0);
 }
 
+// An archive index past the table reads its word as the GameCube does (patch 0134, game_probe.cpp
+// re4probe_arc_table: the bits name what failed), and the log names it
+static void testArcTable()
+{
+    bool ok = true;
+    int bad = re4probe_arc_table();
+    if (bad) {
+        re4_log("  arctable: failed checks 0x%x", bad);
+        ok = false;
+    }
+    static char tail[24 * 160];
+    re4_log_tail(tail, sizeof tail);
+    if (!strstr(tail, "(2 entries) read at index 0x6, past its table: word 0x46435600 as on the GameCube")) {
+        re4_log("  arctable: the log line is missing");
+        ok = false;
+    }
+    report("arctable", ok);
+}
+
 // Ashley's damage handler on the bulldozer gets Ashley (patch 0098, game_probe.cpp)
 static void testPartnerDamage()
 {
@@ -2119,6 +2139,7 @@ int re4_runtime_tests()
     testEnemyLog();
     testDeathLog();
     testArc();
+    testArcTable();
     testCpuInfo();
     testPartnerDamage();
     testCaseFreePlace();
