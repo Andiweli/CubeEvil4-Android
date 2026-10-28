@@ -5,18 +5,38 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 ## Offene Punkte aus den Testerberichten (Stand 28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
-Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sind nur noch Gerätetests:
+Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am Abend:
 
-1. **Mercenaries mit Hunk** – behoben (Patch 0134), am PC mit allen Figuren auf allen vier Karten geprüft;
-   **Retroid offen**.
-2. **Kapitelende EU: vorderste Gegner-Ziffer** – behoben (Patch 0135), GX-Bild am PC mit EU-Daten; **Retroid offen**.
-3. **Kapitelende mit 60 FPS (`%` zwischen den Zeilen)** – Korrektur von `c6716cb`, **Retroid offen**.
-4. **Intro-Film ohne Untertitel** – nachgebaut wie die EU-Fassung (Patch 0136), GX-Bilder am PC in allen EU-Sprachen;
-   **Retroid offen**.
+1. **Mercenaries mit Hunk** – behoben (Patch 0134), am PC mit allen Figuren geprüft; auf dem Gerät bestätigt
+   (Projektinhaber, 28.10.2026).
+2. **Kapitelende EU: vorderste Gegner-Ziffer** – behoben (Patch 0135); auf dem Retroid bestätigt (28.10.2026).
+3. **Kapitelende mit 60 FPS (`%` zwischen den Zeilen)** – Korrektur von `c6716cb`; auf dem Retroid bestätigt.
+4. **Intro-Film ohne Untertitel** – nachgebaut wie die EU-Fassung (Patch 0136); auf dem Retroid (Deutsch) bestätigt.
 5. **Händler „BUY“: Koffer sichtbar** – Dolphin ist auf dem PC nicht installiert, Vergleich offen (Projektinhaber);
    16:9 schneidet nur die Balken ab, ändert die Überdeckung nicht: weiter sehr wahrscheinlich Original.
-6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
-   R3-Serien vom Retroid offen**.
+6. **60 FPS ohne Flackern** – umgesetzt (Patch 0137, Renderer), auf dem Retroid weitgehend ruhig; vereinzeltes
+   Fackelflackern bleibt (Entscheidung des Projektinhabers). Der Projektinhaber hat das Spiel mit 0.94.0 durchgespielt.
+7. **Weiße Texturen mit 60 FPS** (Waffen und Kleidung der Ganados, Nutzer mit itel P661N) – behoben in 0.94.1-beta
+   (Abschnitt darunter); **Gerätetest beim Nutzer offen**.
+
+## Weiße Texturen mit 60 FPS und Version 0.94.1-beta (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Meldung:** Nutzer mit itel P661N (Mali-G57 MC2, Debug-Discs, 60 FPS an): Ganados mit weißen Waffen, manche ganz
+  weiß. Seine Berichte (0.93.0 und 0.94.0): „missing“ in der GX-Zeile steigt nach 7–17 Minuten von 0 auf über 11.000
+  (r101, r104) und fällt nicht mehr; der Bericht vom Xiaomi (0.93.0, 60 FPS) zeigt 3–7, die Retroid-Berichte ohne
+  60 FPS 0. Eine fehlende Textur zeichnet der Renderer weiß (`BindTexture`, `whiteTex`).
+- **Ursache:** Der Kern vergisst Texturen zu Beginn eines Chunks (`gx_decode.cpp` `forgetTextures`: 600 Chunks
+  ungenutzt oder über dem Budget von 96 MB) und schickt eine davon im selben Chunk wieder mit, wenn das Spiel sie
+  gleich braucht. Mit 60 FPS läuft vor dem Chunk der Zwischenbild-Durchgang: Er lädt die Textur schon hoch und lässt das
+  Vergessen dem echten Durchgang. Der löschte sie dann und übersprang das Hochladen („schon vom Zwischenbild geladen“).
+  Danach fehlte die Textur für immer, denn der Kern hält sie für vorhanden und schickt nur noch den Schlüssel.
+- **Korrektur:** `gx_gl.cpp` (`RE4_GX_OP_FORGET`): nach dem Vergessen wird der Schlüssel aus `interpUploads`
+  genommen, die Textur im echten Durchgang also wieder hochgeladen. Test `TestInterpolationForget` (`gx_gl_check`):
+  vorher 3 fehlende Texturen und eine weiße Flamme, nachher 0 Fehler.
+- **Version 0.94.1-beta** (versionCode 79): 0.94.0 ist schon bei diesem Nutzer. Releasetext
+  `port/android-decomp/docs/releases/v0.94.1-beta.md`.
+- **Nicht getestet:** auf dem Gerät (der Fehler tritt erst nach längerem Spiel auf; Nutzer bitten, mit 0.94.1 wieder
+  lange zu spielen und den Bericht zu schicken: „missing“ muss 0 bleiben).
 
 ## Gerätetest 28.10.2026 12:20 (0.94.0, 2x MSAA) und Abschluss 0.94.0-beta (lokal, Branch `claude/determined-allen-36nj6r`)
 

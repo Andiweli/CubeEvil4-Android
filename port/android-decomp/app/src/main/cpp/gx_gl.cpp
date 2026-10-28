@@ -4167,9 +4167,15 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
         m.SetOwner(p);
       break;
     case RE4_GX_OP_FORGET:
-      // the real Run forgets (the in-between pass runs before it)
-      if (n >= 2 && !m.interpPass)
-        m.Forget(static_cast<std::uint64_t>(p[1]) << 32 | p[0]);
+      // the real Run forgets (the in-between pass runs before it). A texture the core sends again in
+      // this chunk (it forgot it for its budget) the in-between pass uploaded already: after the forget
+      // it is uploaded again, else it stays gone and draws white (itel P661N, 28.10.2026: Ganados with
+      // white weapons after some 20 minutes with 60 FPS)
+      if (n >= 2 && !m.interpPass) {
+        const std::uint64_t key = static_cast<std::uint64_t>(p[1]) << 32 | p[0];
+        m.Forget(key);
+        m.interpUploads.erase(key);
+      }
       break;
     case RE4_GX_OP_DRAW:
       if (!m.skipDraws && n * 4 >= sizeof(Re4GxDraw)) {

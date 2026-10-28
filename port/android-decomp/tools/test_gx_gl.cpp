@@ -2040,7 +2040,9 @@ std::vector<std::uint8_t> SolidRgba8(int r, int g, int b) {
   return tex;
 }
 
-void EffectsScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+// reuse (with `second`): 1 = the core forgot A's flame texture (0x1111) and sends it again in this chunk,
+// 2 = binds it by key alone (the renderer should still have it)
+void EffectsScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out, int reuse = 0) {
   Baseline(b);
   b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
   DisplayCopy(b, true, kBlack);
@@ -2073,7 +2075,13 @@ void EffectsScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *o
   b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
   b.Bp(0x30, 3);
   b.Bp(0x31, 3);
-  if (second)
+  if (second && reuse == 1) {
+    const std::uint32_t forget[2] = {0x1111, 0};
+    b.Op(RE4_GX_OP_FORGET, forget, 2);
+    b.Texture(0, 0x1111, 0, 0x110000, 4, 4, 6, SolidRgba8(200, 0, 0));
+  } else if (second && reuse == 2)
+    b.Texture(0, 0x1111, 0, 0x110000, 4, 4, 6, {});
+  else if (second)
     b.Texture(0, 0x2222, 0, 0x120000, 4, 4, 6, SolidRgba8(0, 0, 200));
   else
     b.Texture(0, 0x1111, 0, 0x110000, 4, 4, 6, SolidRgba8(200, 0, 0));
@@ -2127,6 +2135,37 @@ void TestInterpolationEffects() {
     Print("flame", flame), Print("flameB", flameB), Print("glow", glow), Print("glowB", glowB), Print("jump", jump),
         Print("jumpMid", jumpMid);
   Check(glGetError() == GL_NO_ERROR, "effects: no GL error");
+  r.Release();
+}
+
+// The core forgets a texture at the start of a chunk and sends it again in the same chunk (its budget,
+// gx_decode.cpp). The in-between pass uploads it ahead and leaves the forget to the real Run; that Run
+// must upload it again after the forget, else the texture is gone for good and draws white (itel P661N,
+// 28.10.2026: Ganados with white weapons after some 20 minutes with 60 FPS).
+void TestInterpolationForget() {
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb, bc;
+  Re4GxChunk a, b, c;
+  EffectsScene(ba, 1, false, &a);
+  EffectsScene(bb, 2, true, &b, 1);
+  EffectsScene(bc, 3, true, &c, 2);
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 3000.0f * 320.0f)); };
+  r.Run(a);
+  r.Interpolate(a, b, 0.5f);
+  r.Run(b);
+  const auto flameB = TexPixel(r.Xfb(nullptr, nullptr), px(600.0f), 400);
+  r.Interpolate(b, c, 0.5f);
+  r.Run(c);
+  const auto flameC = TexPixel(r.Xfb(nullptr, nullptr), px(600.0f), 400);
+  Check(Near(flameB, 200, 0, 0, 3) && Near(flameC, 200, 0, 0, 3) && r.Stats().missingTextures == 0,
+        "forget: a texture forgotten and sent again in one chunk stays after the in-between picture");
+  if (!Near(flameB, 200, 0, 0, 3) || !Near(flameC, 200, 0, 0, 3) || r.Stats().missingTextures)
+    Print("flameB", flameB), Print("flameC", flameC),
+        std::printf("  missing textures: %u\n", r.Stats().missingTextures);
+  Check(glGetError() == GL_NO_ERROR, "forget: no GL error");
   r.Release();
 }
 
@@ -2659,6 +2698,7 @@ int main() {
   TestInterpolationParticles();
   TestInterpolationLooks();
   TestInterpolationEffects();
+  TestInterpolationForget();
   TestInterpolationOwners();
   TestInterpolationTrail();
   TestInterpolationExtras();
