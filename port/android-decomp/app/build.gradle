@@ -52,7 +52,7 @@ android {
         // the European discs, by the numbering above), then 0.93.0 (milestone 14: everything merged into
         // master, with the room tour 10b), then 0.94.0 (decision of the project owner, 28.10.2026: for further
         // tests; Hunk, the European chapter end and opening subtitles, 60 FPS by object)
-        versionName '0.94.1-beta'
+        versionName '0.95.0-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

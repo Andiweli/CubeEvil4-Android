@@ -234,6 +234,35 @@ public final class CoreTouchTests {
     t.cancel();
     check(!t.looking() && in.pad()[4] == 0);
 
+    // touch aiming (the menu's "Touch Aiming"): while R is held the chosen way moves the control
+    // stick, the other stays the C stick; without R both are the C stick
+    t.reset();
+    check(in.touchAim() == CoreInput.AIM_MOVE_STICK);
+    t.beginEvent();
+    t.fingerDown(2, true);
+    t.look(CoreTouch.LOOK_RANGE, 0);
+    t.action(CoreTouch.R, true);
+    int[] p = in.pad();
+    check(p[1] == 0 && p[3] == 92);  // the default: aiming as on the GameCube, the look zone looks
+    in.setTouchAim(CoreInput.AIM_LOOK);
+    p = in.pad();
+    check(p[1] > 0 && p[2] == 0 && p[3] == 0 && p[0] == CoreInput.GC_R);  // the look zone aims right
+    t.stick(CoreTouch.C_STICK, 0, -1);
+    p = in.pad();
+    check(p[1] > 0 && p[3] == 0 && p[4] == 92);  // the C stick control stays the C stick
+    t.move(-0.2f, 0);
+    check(in.pad()[1] > 0);  // the further way aims
+    t.move(0, 0);
+    in.setTouchAim(CoreInput.AIM_C_STICK);
+    p = in.pad();
+    check(p[2] > 0 && p[1] == 0 && p[3] == 92 && p[4] == 0);  // now the C stick control aims up, the zone looks
+    t.action(CoreTouch.R, false);
+    p = in.pad();
+    check(p[1] == 0 && p[2] == 0 && p[4] == 92);  // R let go: both the C stick again
+    in.setTouchAim(9);
+    check(in.touchAim() == CoreInput.AIM_MOVE_STICK);
+    t.reset();
+
     // the touch controls next to a real controller: buttons of both, the stick moved furthest
     in.key(1, 96, true);  // KEYCODE_BUTTON_A
     t.action(CoreTouch.B, true);

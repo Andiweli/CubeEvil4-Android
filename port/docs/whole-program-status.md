@@ -17,11 +17,30 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 6. **60 FPS ohne Flackern** – umgesetzt (Patch 0137, Renderer), auf dem Retroid weitgehend ruhig; vereinzeltes
    Fackelflackern bleibt (Entscheidung des Projektinhabers). Der Projektinhaber hat das Spiel mit 0.94.0 durchgespielt.
 7. **Weiße Texturen mit 60 FPS** (Waffen und Kleidung der Ganados, Nutzer mit itel P661N und Samsung S24) – behoben
-   in 0.94.1-beta (Abschnitt darunter); **Gerätetest beim Nutzer offen**.
-8. **RVZ beim Disc-Import** (Wunsch des Projektinhabers, 28.10.2026) – eingebaut in 0.94.1-beta (Abschnitt darunter);
+   in 0.95.0-beta (Abschnitt darunter); **Gerätetest beim Nutzer offen**.
+8. **RVZ beim Disc-Import** (Wunsch des Projektinhabers, 28.10.2026) – eingebaut in 0.95.0-beta (Abschnitt darunter);
    **Gerätetest mit einer RVZ aus Dolphin offen**.
-9. **Wünsche für danach:** Zielen über den rechten Touch-Bereich oder den C-Stick wählbar; Schalter „Nebel aus“
-   (Einschätzung: kaum Tempogewinn, Nebel verdeckt das Ende der Sichtweite; Entscheidung des Projektinhabers offen).
+9. **Touch-Zielen** (Wunsch des Projektinhabers, 28.10.2026) – eingebaut in 0.95.0-beta (Abschnitt darunter);
+   **Gerätetest offen**.
+10. **Schalter „Nebel aus“** – Wunsch offen (Einschätzung: kaum Tempogewinn, Nebel verdeckt das Ende der Sichtweite;
+    Entscheidung des Projektinhabers offen).
+
+## Touch-Zielen (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Wunsch des Projektinhabers:** in STEUERUNG eine Option, mit der Touchfläche oder dem C-Stick zu zielen.
+- **Umsetzung:** Menü STEUERUNG, unter „L und R einrasten“/„B einrasten“: Auswahl **„Touch Aiming“** mit „Move Stick“
+  (Vorgabe, wie am GameCube), „Touch Area“ (die rechte Blickzone) und „C Stick“ (der Touch-C-Stick, den man über das
+  Zahnrad von RetroTouch hinzufügt), Hilfetext darunter; Texte in allen zehn Menüsprachen (`check_translations.py`
+  ohne Fehler). `CoreTouch` meldet Blickzone und Touch-C-Stick getrennt (`CoreInput.touchLook`); `CoreInput.pad`: solange
+  L oder R gehalten wird (Touch, eingerastet oder ein Controller), wird die gewählte Quelle zum Steuerstick (der weiter
+  ausgelenkte von ihr und dem Bewegungsstick zielt), die andere bleibt C-Stick; ohne L/R sind beide wie bisher der
+  C-Stick. Wie bei der Blickzone üblich: der Weg des Fingers seit dem Aufsetzen ist die Auslenkung (wie ein Stick,
+  weiter = schneller), Loslassen hält das Ziel an. Einstellung `touchAim` in den Eingabe-Einstellungen, Logzeile
+  „touch aiming: …“. Vorbild: die alternative Belegung (rechter Stick zielt, solange L1/L2 gehalten).
+- **Tests:** `CoreTouchTests` mit neuen Prüfungen (Vorgabe ändert nichts, Blickzone zielt und der C-Stick bleibt
+  C-Stick, umgekehrt mit „C Stick“, der weitere Weg zielt, R los: beide wieder C-Stick, falscher Wert = Vorgabe):
+  291 Prüfungen bestanden; `CoreInputTests` 170 bestanden. APK 0.95.0-beta gebaut.
+- **Nicht getestet:** auf dem Gerät (Gefühl beim Zielen, ob die Empfindlichkeit passt).
 
 ## RVZ beim Disc-Import (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
@@ -48,7 +67,7 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
   der Disc), und der Import auf dem Gerät. Die Füllbytes liegen nur zwischen den Dateien; ein Fehler dort fiele bei der
   Dateiprüfung nicht auf, schadet aber auch nicht.
 
-## Weiße Texturen mit 60 FPS und Version 0.94.1-beta (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+## Weiße Texturen mit 60 FPS und Version 0.95.0-beta (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
 - **Meldung:** Nutzer mit itel P661N (Mali-G57 MC2, Debug-Discs, 60 FPS an): Ganados mit weißen Waffen, manche ganz
   weiß. Seine Berichte (0.93.0 und 0.94.0): „missing“ in der GX-Zeile steigt nach 7–17 Minuten von 0 auf über 11.000
@@ -62,9 +81,10 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 - **Korrektur:** `gx_gl.cpp` (`RE4_GX_OP_FORGET`): nach dem Vergessen wird der Schlüssel aus `interpUploads`
   genommen, die Textur im echten Durchgang also wieder hochgeladen. Test `TestInterpolationForget` (`gx_gl_check`):
   vorher 3 fehlende Texturen und eine weiße Flamme, nachher 0 Fehler.
-- **Version 0.94.1-beta** (versionCode 79): 0.94.0 ist schon bei diesem Nutzer. Releasetext
-  `port/android-decomp/docs/releases/v0.94.1-beta.md`.
-- **Nicht getestet:** auf dem Gerät (der Fehler tritt erst nach längerem Spiel auf; Nutzer bitten, mit 0.94.1 wieder
+- **Version 0.95.0-beta** (versionCode 79; zuerst 0.94.1, auf Wunsch des Projektinhabers 0.95.0, weil RVZ und
+  Touch-Zielen dazukommen): 0.94.0 ist schon bei diesem Nutzer. Releasetext
+  `port/android-decomp/docs/releases/v0.95.0-beta.md`.
+- **Nicht getestet:** auf dem Gerät (der Fehler tritt erst nach längerem Spiel auf; Nutzer bitten, mit 0.95.0 wieder
   lange zu spielen und den Bericht zu schicken: „missing“ muss 0 bleiben).
 
 ## Gerätetest 28.10.2026 12:20 (0.94.0, 2x MSAA) und Abschluss 0.94.0-beta (lokal, Branch `claude/determined-allen-36nj6r`)

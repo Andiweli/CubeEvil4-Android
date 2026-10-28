@@ -222,11 +222,13 @@ final class CoreTouch {
     updateC();
   }
 
-  /** The C stick: the C stick control or the looking finger, whichever tilts further. */
+  /**
+   * The C stick: the C stick control or the looking finger, whichever tilts further (CoreInput.touchLook;
+   * with touch aiming one of them aims while L or R is held).
+   */
   private void updateC() {
     float lx = lookFingers.isEmpty() ? 0 : lookX / LOOK_RANGE, ly = lookFingers.isEmpty() ? 0 : lookY / LOOK_RANGE;
-    if (cx * cx + cy * cy >= lx * lx + ly * ly) input.touchStick(true, cx, cy);
-    else input.touchStick(true, lx, ly);
+    input.touchLook(lx, ly, cx, cy);
   }
 
   /** Before RetroTouch gets a touch event. */

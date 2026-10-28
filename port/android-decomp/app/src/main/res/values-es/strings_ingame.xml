@@ -38,6 +38,11 @@
     <string name="ingame_alternate">Controles alternativos</string>
     <string name="ingame_latch">Fijar L y R</string>
     <string name="ingame_latch_b">Fijar B</string>
+    <string name="ingame_touch_aim">Apuntar táctil</string>
+    <string name="ingame_aim_move_stick">Stick de movimiento</string>
+    <string name="ingame_aim_touch_area">Zona táctil</string>
+    <string name="ingame_aim_c_stick">Stick C</string>
+    <string name="ingame_touch_aim_help">Apuntar táctil: mientras L o R mantiene un arma lista, la zona táctil (desliza en la mitad derecha) o el stick C táctil (añádelo con el engranaje de arriba a la derecha) mueve la mira. Stick de movimiento: como en GameCube.</string>
     <string name="ingame_gyro_sensitivity">Sensibilidad del giroscopio</string>
     <string name="ingame_gyro_invert_v">Invertir vertical</string>
     <string name="ingame_gyro_invert_h">Invertir horizontal</string>

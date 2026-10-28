@@ -38,6 +38,11 @@
     <string name="ingame_alternate">वैकल्पिक नियंत्रण</string>
     <string name="ingame_latch">L और R लॉक करें</string>
     <string name="ingame_latch_b">B लॉक करें</string>
+    <string name="ingame_touch_aim">टच से निशाना</string>
+    <string name="ingame_aim_move_stick">मूव स्टिक</string>
+    <string name="ingame_aim_touch_area">टच क्षेत्र</string>
+    <string name="ingame_aim_c_stick">C स्टिक</string>
+    <string name="ingame_touch_aim_help">टच से निशाना: जब तक L या R हथियार तैयार रखता है, टच क्षेत्र (दाएँ आधे भाग पर खींचें) या टच C स्टिक (ऊपर दाईं ओर के गियर से जोड़ें) निशाना घुमाता है। मूव स्टिक: GameCube जैसा।</string>
     <string name="ingame_gyro_sensitivity">जाइरो संवेदनशीलता</string>
     <string name="ingame_gyro_invert_v">वर्टिकल उलटें</string>
     <string name="ingame_gyro_invert_h">हॉरिज़ॉन्टल उलटें</string>

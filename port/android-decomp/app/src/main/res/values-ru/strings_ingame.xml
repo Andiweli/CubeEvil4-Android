@@ -38,6 +38,11 @@
     <string name="ingame_alternate">Альтернативное управление</string>
     <string name="ingame_latch">Фиксация L и R</string>
     <string name="ingame_latch_b">Фиксация B</string>
+    <string name="ingame_touch_aim">Прицеливание касанием</string>
+    <string name="ingame_aim_move_stick">Стик движения</string>
+    <string name="ingame_aim_touch_area">Сенсорная зона</string>
+    <string name="ingame_aim_c_stick">C-стик</string>
+    <string name="ingame_touch_aim_help">Прицеливание касанием: пока L или R держит оружие наготове, прицел двигает сенсорная зона (проведите по правой половине) или сенсорный C-стик (добавьте его шестерёнкой справа вверху). Стик движения: как на GameCube.</string>
     <string name="ingame_gyro_sensitivity">Чувствительность гироскопа</string>
     <string name="ingame_gyro_invert_v">Инвертировать по вертикали</string>
     <string name="ingame_gyro_invert_h">Инвертировать по горизонтали</string>
