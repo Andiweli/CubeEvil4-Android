@@ -93,6 +93,7 @@ Kurzliste für den Überblick; Einzelheiten in `whole-program-status.md` (M13-Ab
 | Ereignisse | `r204s00.evd`/`s204s00.evd` ohne einen Lichtdatensatz | ohne Folge (10b: Ereignis, Kapitelende 3-1 und Funkspruch 14 am PC mit EU-Daten) |
 | Ereignis-Untertitel | Englisch ist bei der EU Sprache 2 und hat keine Untertitel; diese Version blendet nur bei Sprache 1 aus (zeigte „14-09LE“) | 0132 |
 | Ergebnis-Bildschirme | Kapitelende: Gegnerzahl vierstellig (Bausteine 0x1B/0x1C), die Debug-Version setzt drei Stellen, die vierte lief durch alle Zeichen; Spielende: Fortsetzungen ≤ 999, Baustein 0 aus; Mercenaries gleich | 0135 (28.10.2026: GX-Bild des Kapitelendes 1-1 am PC mit EU-Daten) |
+| Film-Untertitel | nur EU-`opening.sfd` hat eine Untertitel-Tabelle im Kopf (Kanäle 3–6 = Deutsch–Italienisch, Englisch keiner), Texte in `etc/movie.das`; die EU-Fassung zeigt sie über das Meldungssystem | 0136 (28.10.2026: GX-Bilder am PC in Deutsch, Französisch, Spanisch, Italienisch; Englisch ohne, wie das Original) |
 | Burg-Händler r204 | die EU-Fassung setzt beim Umzug `SCF_R204_MERCHANT_MOVE` (für die achte Händler-Markierung) | 0133 |
 | Spielmeldungen (10b) | `Msg[04] Address Error` (die Ereignis-Untertitel, oben); `mapModelInit … SHAPE_MODEL` kommt mit beiden Disc-Arten in denselben 11 Räumen (Kartendaten, die EU-Fassung räumt das Merkmal genauso auf, nur ohne Meldung); `IDSystem::unitPtr … Not found` kam von der ersten Fassung von 0126 | 0132; die übrigen ohne Eingriff |
 

@@ -26,6 +26,8 @@ const TagRule kTags[] = {
     { "EFF", convertEffect },
     { "TEX", convertTexSet },
     { "VIB", convertVibration },
+    // a message font inside an archive (etc/movie.das of the European discs: the movie subtitles)
+    { "FNT", convertFont },
     // models and motions
     { "BIN", convertBin },
     { "FCV", convertMotion },
