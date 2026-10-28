@@ -29,6 +29,22 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
     darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
 
+## Ingame-Menü: Dreierreihen in Vierteln (28.10.2026, Cloud, Branch `golden-master`)
+
+- **Auftrag (Projektinhaber):** Unter STEUERUNG die Knöpfe „Touch-Zielen“ mit demselben Abstand zu den Knöpfen
+  darüber wie die Zweierreihen untereinander, und je zwei der drei Knöpfe so breit wie ein großer Knopf darüber;
+  die Knöpfe der Spielsprache genauso zu den großen Knöpfen (Leistung, Verwaltung …).
+- **Umsetzung:** `CoreMenu.quarterChoices`: Beschriftung im ersten Viertel der Zeile, jeder Knopf ein Viertel
+  (`MenuLayout.Columns.setWeights(1, 3)`), ohne den zusätzlichen Rand von 3 dp oben und unten (nur die 4 dp der
+  Knöpfe, wie zwischen den Zweierreihen). Damit liegen Knopf 2 und 3 genau unter dem rechten großen Knopf, Knopf 1
+  unter der rechten Hälfte des linken. Gilt für Spielsprache, Touch-Zielen und – damit die beiden Dreierreihen der
+  Seite übereinander stehen – auch für Touch-Steuerung. Lange Übersetzungen brechen dort erst auf zwei Zeilen um,
+  bevor die Reihe einen Knopf verliert (`MenuLayout.Buttons(…, lines)`); schmale Fenster (unter 640 dp) stapeln wie
+  bisher.
+- **Geprüft (Cloud):** alle Java-Quellen der App mit javac gegen die Android-Klassen (Robolectric `android-all` 14)
+  und die RetroTouch-AAR übersetzt (0 Fehler); `check_translations.py` ok. **Nicht getestet:** auf dem Gerät
+  (Aussehen, lange Übersetzungen); ein Messtest mit Robolectric scheiterte am gesperrten Google-Maven.
+
 ## Schwierigkeitsauswahl und Easy-Zweige der EU-Discs (28.10.2026 nachts, lokal, Branch `claude/determined-allen-36nj6r`)
 
 - **Auftrag:** Die EU-Fassung fragt beim neuen Spiel nach der Schwierigkeit, der Debug-Code nicht. Abfrage einbauen

@@ -14,14 +14,22 @@ final class MenuLayout {
     return Math.round(value * context.getResources().getDisplayMetrics().density);
   }
 
-  /** Equal-width buttons; long translations reduce the column count before their text wraps. */
+  /**
+   * Equal-width buttons; long translations reduce the column count before their text needs more than
+   * `lines` lines.
+   */
   static final class Buttons extends GridLayout {
-    private final int maxColumns;
+    private final int maxColumns, lines;
     private int measuredColumns;
 
     Buttons(Context context, int maxColumns) {
+      this(context, maxColumns, 1);
+    }
+
+    Buttons(Context context, int maxColumns, int lines) {
       super(context);
       this.maxColumns = maxColumns;
+      this.lines = lines;
       setAlignmentMode(ALIGN_MARGINS);
     }
 
@@ -40,7 +48,9 @@ final class MenuLayout {
         View child = getChildAt(i);
         child.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-        needed = Math.max(needed, child.getMeasuredWidth() + dp(getContext(), 6));
+        int padding = child.getPaddingLeft() + child.getPaddingRight();
+        int text = child.getMeasuredWidth() - padding;
+        needed = Math.max(needed, (text + lines - 1) / lines + padding + dp(getContext(), 6));
       }
       int columns = Math.max(1, Math.min(Math.min(maxColumns, getChildCount()), available / needed));
       // Clear auto-assigned spans before changing column count (also supports resizing back up).
@@ -141,6 +151,7 @@ final class MenuLayout {
     private final int fixedWidth, minimumWidth;
     private final boolean emptyCaption;
     private boolean fillEndHeight;
+    private float startWeight, endWeight;
 
     Columns(Context context, int fixedWidth, int minimumWidth, boolean emptyCaption) {
       super(context);
@@ -153,6 +164,13 @@ final class MenuLayout {
     /** In two-column mode the end column fills the height set by the taller content. */
     void setFillEndHeight(boolean fill) {
       fillEndHeight = fill;
+      requestLayout();
+    }
+
+    /** In two-column mode the columns share the width start : end instead of a fixed start column. */
+    void setWeights(float start, float end) {
+      startWeight = start;
+      endWeight = end;
       requestLayout();
     }
 
@@ -170,6 +188,10 @@ final class MenuLayout {
         lp.height = sideBySide && fillEndHeight && i == getChildCount() - 1
             ? LayoutParams.MATCH_PARENT : LayoutParams.WRAP_CONTENT;
         lp.weight = sideBySide && !fixed ? 1 : 0;
+        if (sideBySide && startWeight > 0) {
+          lp.width = 0;
+          lp.weight = i == 0 ? startWeight : endWeight;
+        }
       }
       super.onMeasure(widthSpec, heightSpec);
     }

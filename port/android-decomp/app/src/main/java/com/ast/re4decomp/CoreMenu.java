@@ -223,9 +223,23 @@ final class CoreMenu extends Dialog {
   /** At most `columns` buttons a row (fewer when narrow); further rows line up under the first. */
   private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
                            Changed<Integer> changed) {
-    LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, false);
+    return choices(label, labels, values, selected, limit, columns, false, changed);
+  }
+  /**
+   * Three options a row in quarters (wish of the project owner, 28.10.2026): the label takes the first
+   * quarter and each option one, so two options side by side are as wide as one button of the rows of
+   * two above them, and the rows keep the same gap as those rows.
+   */
+  private Button[] quarterChoices(int label, String[] labels, int[] values, int selected, Changed<Integer> changed) {
+    return choices(label, labels, values, selected, Integer.MAX_VALUE, 3, true, changed);
+  }
+  private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
+                           boolean quarters, Changed<Integer> changed) {
+    MenuLayout.Columns outer = new MenuLayout.Columns(getContext(), quarters ? 0 : 170, 640, false);
+    if (quarters) outer.setWeights(1, 3);
     outer.addView(rowLabel(s(label)));
-    MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), columns);
+    // in quarters a long translation wraps onto two lines before the row loses a column
+    MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), columns, quarters ? 2 : 1);
     outer.addView(options);
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
@@ -238,7 +252,9 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       buttons[i] = b;
     }
-    outer.setPadding(0, dp(3), 0, dp(3)); body.addView(outer);
+    // the buttons' own 4 dp margins alone: the gap of the rows of two
+    if (!quarters) outer.setPadding(0, dp(3), 0, dp(3));
+    body.addView(outer);
     return buttons;
   }
   private void select(Button[] buttons, String[] labels, int index) {
@@ -405,7 +421,7 @@ final class CoreMenu extends Dialog {
     final int[] current = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
         .getInt(CoreActivity.GAME_LANGUAGE, 0)};
     final Button[][] buttons = new Button[1][];
-    buttons[0] = choices(R.string.ingame_game_language, labels, values, current[0], Integer.MAX_VALUE, 3, value -> {
+    buttons[0] = quarterChoices(R.string.ingame_game_language, labels, values, current[0], value -> {
       if (value == current[0]) return;
       if (host.gameLanguageOf(value) == host.gameLanguageOf(current[0])) {
         current[0] = value; host.gameLanguageChanged(value); return;
@@ -460,8 +476,8 @@ final class CoreMenu extends Dialog {
     });
   }
   private void controls() {
-    choices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
-        new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input), Integer.MAX_VALUE,
+    quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
+        new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input),
         mode -> host.touchModeChanged(mode));
     help(R.string.ingame_touch_help); heading(R.string.ingame_comfort);
     MenuLayout.Buttons first = buttonsRow(body);
@@ -471,9 +487,9 @@ final class CoreMenu extends Dialog {
     toggle(second, R.string.ingame_latch, input.getBoolean(CoreActivity.TOUCH_LATCH, false), on -> host.latchChanged(on));
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held
-    choices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
+    quarterChoices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
-        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), Integer.MAX_VALUE, mode -> host.touchAimChanged(mode));
+        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), mode -> host.touchAimChanged(mode));
     boolean gyro = GyroAim.available(getContext()), on = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
     LinearLayout third = new MenuLayout.Columns(getContext(), 0, 540, false);
     // the gyro switch in the middle of the row the slider makes taller: as far from the row above as
