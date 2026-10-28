@@ -1189,6 +1189,8 @@ struct DrawArrays {
     Array a[12];
 };
 
+u32 convertCompact(const Format& f, const DrawArrays& arrays, const u8* in, u32 count, bool be, u8* out);
+
 // The vertices of one draw: `count` of them from the stream bytes at `in` (and the arrays) into
 // `out` (count * f.stride bytes, cleared here). First where each attribute of each vertex comes
 // from and the matrix indices, then each attribute of a block at once. Returns how many vertices

@@ -57,7 +57,7 @@ for room in 100 101; do
         RE4_PAD_FREE_SCRIPT="STICKUP@30-400/1 STICKLEFT@400-440/1 STICKUP@440-900/1 STICKRIGHT@900-960/1 STICKUP@960-1500/1" \
         RE4_STOP_AFTER="$frames" RE4_TRACE="$dump/trace.jsonl" RE4_GX_DUMP="$dump" \
         RE4_GX_DUMP_FREE="150,151,152,600,1200" RE4_GX_DUMP_AT="3600,3601,3602,4800" \
-        RE4_GX_COMPACT=1 RE4_GX_THREAD=1 ./re4_host --data "$data") > "$dump/game.log" 2>&1
+        RE4_GX_COMPACT=1 ./re4_host --data "$data") > "$dump/game.log" 2>&1
     echo "  exit $?, $(ls "$dump"/gx-*.bin 2> /dev/null | wc -l) frames"
     for f in "$dump"/gx-*.bin; do
         [ -e "$f" ] && cp "$f" "$frameDir/gx-r$room-$(basename "$f" .bin | sed 's/^gx-//').bin"

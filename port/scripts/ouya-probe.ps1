@@ -19,12 +19,13 @@ Drei Schritte:
        r100          Debug-Start in r100, Echtzeit wie im Spiel (30 Bilder/s als Ziel)
        r101          dasselbe im Dorf (viele Gegner, die schwerste Stelle)
        r100-schnell  r100 ohne Warten auf den Bildschirm: so schnell der Kern kann
-       ...-gp        derselbe Lauf mit dem Grafik-Decoder auf einem eigenen Thread
-                     (RE4_GX_THREAD=1, port/whole/runtime/gx_thread.cpp): r100-gp,
-                     r101-gp, r100-schnell-gp
-                     Mit Grafik-Thread prueft der Decoder Texturen nur stichprobenweise
-                     (RE4_GX_TEXTURE_CHECK=sampled) und schreibt die Punkte im kompakten
-                     Format der GameCube (RE4_GX_COMPACT=1); beides nur fuer die OUYA.
+       ...-gp        derselbe Lauf mit den OUYA-Einstellungen: der Decoder prueft
+                     Texturen nur stichprobenweise (RE4_GX_TEXTURE_CHECK=sampled) und
+                     schreibt die Punkte im kompakten Format der GameCube
+                     (RE4_GX_COMPACT=1): r100-gp, r101-gp, r100-schnell-gp. Den eigenen
+                     Grafik-Thread von frueher gibt es seit dem Abgleich mit master
+                     (28.10.2026) nicht mehr; die Punkte rechnen dort bis zu 3 Hilfs-Threads
+                     um (RE4_GX_THREADS, Standard: Prozessorkerne minus 3).
        ...-ohnekopie die Grafikpakete werden nur abgenommen, nicht kopiert (wie --no-copy):
                      zeigt, wie sehr die Kopie die Speicherbandbreite belastet
        ...-gleitkomma  die Punkte im bisherigen Format (Gleitkomma, wie die Haupt-App):
@@ -326,9 +327,10 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
         # 21.10.2026: open for the whole run): B every 2 s from 10 s after the room loaded
         if ($room -eq '101') { $settings += "RE4_PAD_ROOM_SCRIPT='B@300-9000/60'" }
         if ($fast) { $settings += 'RE4_VI_FAST=1' }
-        # the GX decoder on a thread of its own (port/whole/runtime/gx_thread.cpp), textures
-        # checked by samples from frame to frame (gx_decode.cpp: 18 % of its time otherwise)
-        if ($gp) { $settings += 'RE4_GX_THREAD=1'; $settings += 'RE4_GX_TEXTURE_CHECK=sampled' }
+        # textures checked by samples from frame to frame (gx_decode.cpp: 18 % of the decoder's
+        # time otherwise; the GP thread of the first measurements is gone since the merge with
+        # master, 28.10.2026: master's vertex jobs instead)
+        if ($gp) { $settings += 'RE4_GX_TEXTURE_CHECK=sampled' }
         # the compact vertex (re4_gx_frame.h): about half the bytes; -gleitkomma: the float vertex
         $float = $run -like '*-gleitkomma'
         if ($gp -and -not $float) { $settings += 'RE4_GX_COMPACT=1' }
@@ -341,7 +343,7 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
             "--seconds $Seconds$copyArg --profile $profileRemote 2>&1"
         $log = Join-Path $OutDir "probe-$run.log"
         $label = if ($fast) { 'ohne Bremse' } else { 'Echtzeit' }
-        if ($gp) { $label += ', Grafik-Thread' }
+        if ($gp) { $label += ', OUYA-Einstellungen' }
         if ($runNoCopy) { $label += ', ohne Kopie' }
         if ($float) { $label += ', Gleitkomma-Punkte' } elseif ($gp) { $label += ', kompakte Punkte' }
         Say "4. Lauf $run ($label): $Seconds s ..."
@@ -412,7 +414,7 @@ $verdictCpu = $null
 foreach ($entry in $results.Values) {
     Say ''
     $mode = if ($entry.fast) { 'ohne Bremse: so schnell der Kern kann' } else { 'Echtzeit wie im Spiel' }
-    if ($entry.gp) { $mode += '; Grafik-Decoder auf eigenem Thread' }
+    if ($entry.gp) { $mode += '; OUYA-Einstellungen (Textur-Stichprobe)' }
     if ($entry.noCopy) { $mode += '; Grafikpakete nicht kopiert' }
     if ($entry.gp) { $mode += $(if ($entry.float) { '; Punkte als Gleitkomma' } else { '; kompakte Punkte' }) }
     Say "Lauf $($entry.run) ($mode)"
@@ -439,8 +441,6 @@ foreach ($entry in $results.Values) {
         if ([double]$r.vertices -gt 0) {
             Say "   Grafik-Thread je Punkt:          $([math]::Round([double]$r.gp_cpu_ms * 1000000 / [double]$r.vertices)) ns"
         }
-    } elseif ($entry.gp) {
-        Say '   PROBLEM: der Grafik-Thread war nicht an (alter Build?).'
     }
     if (-not $entry.fast) {
         Say "   Leerlauf je Bild:                $($r.idle_ms) ms"
