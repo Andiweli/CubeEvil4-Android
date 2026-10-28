@@ -3,28 +3,55 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Offene Punkte aus den Testerberichten (Stand 28.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
+## Offene Punkte aus den Testerberichten (Stand 28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
-Gesammelt in einer Cloud-Sitzung (ohne Disc-Daten); weiter in einer lokalen Sitzung mit Disc-Daten. Projektinhaber:
-„Alles nach dem Hunk-Problem habe ich noch nicht getestet.“
+Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sind nur noch Gerätetests:
 
-1. **Mercenaries mit Hunk stürzt ab** (alle Karten; Abschnitt „Testerbericht: Mercenaries mit Hunk“ unten): Verdacht
-   Nacken-Bewegungen `PL_ARC 0x40..0x45` in `em/pl06.drs`; `archive_dump.py` (jetzt mit Teile-Kopf) bestätigt oder
-   widerlegt es.
-2. **Kapitelende: vorderste Gegner-Ziffer läuft durch** (EU-Discs; Abschnitt unten): EU-`ChapterEnd::move` mit
-   `retail_code.py dis` lesen, Patch mit Versionsweiche.
-3. **Kapitelende mit 60 FPS: `%` zwischen zwei Zeilen**: behoben in `runtime/picture.cpp` (Ergebnis-Bildschirme ohne
-   Zwischenbilder), Cloud-Tests grün, **auf dem Gerät nicht getestet**, APK nicht gebaut.
-4. **Händler „BUY“: Leons Koffer sichtbar**: nach dem Code sehr wahrscheinlich das Original; Vergleich mit Dolphin offen.
-5. **Neu (Projektinhaber, 28.10.2026): im Intro-Film fehlen die Untertitel.** Nicht untersucht. Bekannt: die
-   Debug-Version spielt fest US-Englisch ohne Untertitel in Filmsequenzen, die EU-Fassung hat Untertitel
-   (`retail-eu-plan.md`, Tabelle „Unterschiede“, Zeile Englisch); der Debug-Code startet `movie/opening.sfd` in
-   `R120Event` (`src/st1/r120.cpp:74`) ohne Untertitel-Logik, `cSofdec` (`src/game/sofdec.cpp`) zeichnet nur das Bild.
-   Zu klären: mit welcher Disc-Art und Sprache, und wie die EU-Fassung die Untertitel zeichnet (EU-Code von `R120Event`
-   bzw. `cSofdec::draw`/`Move` mit `retail_code.py`, Dateien nur auf den EU-Discs, z. B. unter `movie/` oder `ss/<Sprache>/`).
-6. **60 FPS ohne Flackern** (Fackeln, Wasser, Texturen): Plan `port/docs/60fps-plan.md`, **freigegeben (Entscheidung des
-   Projektinhabers, 28.10.2026: so umsetzen wie vorgeschlagen**, mit der Kernänderung: Namensmarken aus `ExecOt`).
-   Umsetzung S0–S5 in der lokalen Sitzung.
+1. **Mercenaries mit Hunk** – behoben (Patch 0134), am PC mit allen Figuren auf allen vier Karten geprüft;
+   **Retroid offen**.
+2. **Kapitelende EU: vorderste Gegner-Ziffer** – behoben (Patch 0135), GX-Bild am PC mit EU-Daten; **Retroid offen**.
+3. **Kapitelende mit 60 FPS (`%` zwischen den Zeilen)** – Korrektur von `c6716cb`, **Retroid offen**.
+4. **Intro-Film ohne Untertitel** – nachgebaut wie die EU-Fassung (Patch 0136), GX-Bilder am PC in allen EU-Sprachen;
+   **Retroid offen**.
+5. **Händler „BUY“: Koffer sichtbar** – Dolphin ist auf dem PC nicht installiert, Vergleich offen (Projektinhaber);
+   16:9 schneidet nur die Balken ab, ändert die Überdeckung nicht: weiter sehr wahrscheinlich Original.
+6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
+   R3-Serien vom Retroid offen**.
+
+## Lokale Sitzung 28.10.2026: Hunk, Kapitelende, Film-Untertitel, 60 FPS (Branch `claude/determined-allen-36nj6r`)
+
+**Mercenaries mit Hunk (Patch 0134).** `archive_dump.py` mit den echten Discs: `pl06.drs` hat an `PL_ARC 0x40..0x45`
+dieselben Nacken-Bewegungen wie `pl00.drs` – der Verdacht galt dem falschen Archiv. Wichtig: `PL_ARC(n)`/`WEP_ARC(n)`
+ist Eintrag n−4 (die ersten vier Wörter sind der Kopf). Am PC nachgestellt (neue Testoption `RE4_TEST_PLAYER`, wählt im
+Debug-Startmenü die Figur): Hunk stürzt in r402 genau wie beim Tester ab. Ursache: Hunks Maschinenpistole `wep29` hat
+48 Einträge, der gemeinsame Code der Maschinenpistole (`objMachinegun.cpp setMotion`, auch Leons `wep11` mit 54) holt
+die Nacken-Bewegungen von 0x34..0x39, also hinter der Tabelle (EU-Discs gleich). Der GameCube liest dort die
+Kennungen big-endian als Abstand von etwa 1 GB (Zeiger ungültig, `VALID_PTR2` verwirft ihn), die App little-endian als
+wenige MB. Behebung allgemein in `PL_ARC_PTR` (`re4_arc_entry`, Prelude): hinter der Tabelle wie der GameCube, mit
+Protokollzeile. Prüfungen: `runtime-test` (neu `arctable`) 0 Fehler; Mercenaries-Karten r400/r402/r403/r404 mit Leon,
+Ada, Hunk, Krauser, Wesker, Debug- und EU-Discs: 40/40 ohne Absturz, nur Hunk liest hinter seine Tabelle (6 Stellen);
+Raum-Rundgang „set“ (27 Räume) „ALLES OK“, keine weiteren Lesestellen hinter Tabellen.
+
+**Kapitelende/Spielende EU (Patch 0135).** EU-`ChapterEnd::move` (0x800422AC) gelesen: Gegnerzahlen vierstellig mit
+Tausender in Baustein 0x1B/0x1C, führende Nullen aus, Fortsetzungen ≤ 999; EU-`GameResult::move`: Fortsetzungen ≤ 999,
+Baustein 0 immer aus (dazu schließt es sich nach einer Zeit selbst – nicht übernommen). Mercenaries-Ergebnis gleich.
+GX-Bild am PC (r106, Ende Kapitel 1-1, EU-Daten): „0“ ohne laufende Ziffer; mit Debug-Discs unverändert.
+
+**Intro-Film-Untertitel (Patch 0136).** Nur der EU-`opening.sfd` hat im Kopf eine Untertitel-Tabelle (`CRITAGS/USRINFS`,
+Kanäle 3–6 = Deutsch…Italienisch, 11 Einträge, Englisch keiner); Texte in `etc/movie.das`. Mit Debug-Discs gibt es
+also keine. Nachgebaut wie EU-`cSofdec` (siehe Patch-Tabelle), Tabelle aus dem Filmkopf (`runtime/movie_status.cpp`),
+`FNT` in Archiven umgewandelt. GX-Bilder am PC: Deutsch, Französisch, Spanisch, Italienisch richtig (mit Akzenten),
+Englisch ohne (wie das Original); Lücken ohne Zeile; nach dem Film läuft das Spiel weiter. Test `runtime-test
+moviesubtitles`.
+
+**Händler-Koffer.** Dolphin nicht installiert (nur der Benutzerordner), Vergleich nicht möglich; offen für den
+Projektinhaber.
+
+**60 FPS ohne Flackern (S0–S4, `60fps-plan.md` „Umsetzung“).** Patch 0137 (Marken aus `ExecOt`), Renderer: Zuordnung nach
+Objekt, neu belegte Teilchen-Plätze, Texturmatrizen (mit Umbruch), TEV- und Lichtfarben, gleichmäßiger Takt
+(`SmoothPacer`), Zähler je Art im Fehlerprotokoll. Prüfungen: `runtime-test gx` ok, `gx_gl_check` 0 Fehler (neu
+`TestInterpolationOwners`, `TestInterpolationExtras` je mit Gegenprobe ohne Marken, `TestSmoothPacer`), `core_mode.cpp`
+mit dem NDK fehlerfrei übersetzt, Android-Kern beide ABIs 0 Fehler, Raum-Rundgang „set“ mit Marken 27/27 „ALLES OK“. Nicht getestet: auf dem Gerät (S5), R3-Serien.
 
 ## Testerberichte 27.10.2026: Kapitelende flackert, Händler zeigt den Koffer (28.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
 
