@@ -1776,6 +1776,65 @@ static void testArcTable()
     report("arctable", ok);
 }
 
+// The subtitle table of a movie header (patch 0136, runtime/movie_status.cpp): a pack, then the
+// private stream 0xBF with the tags as the European opening.sfd has them; one entry on channel 3,
+// none on channel 2 (English), none in a header without the table
+extern "C" int re4_movie_subtitles(const void* head, int size, int channel);
+
+static int putTag(unsigned char* b, int at, const char* name, const char* value, int len)
+{
+    memset(b + at, 0, 8);
+    memcpy(b + at, name, strlen(name));
+    snprintf((char*) b + at + 8, 8, "%07x", len);
+    if (value) {
+        memcpy(b + at + 16, value, len);
+    }
+    return at + 16 + (value ? len : 0);
+}
+
+static void testMovieSubtitles()
+{
+    static unsigned char head[0x400];
+    unsigned char t[0x200];
+    memset(head, 0, sizeof head);
+    memset(t, 0, sizeof t);
+    // tags from the inside out: TIMEDAT, CHDAT, USRINFS, CRITAGS
+    unsigned char td[0x60];
+    int n = putTag(td, 0, "INTIME", "1000\0", 5);
+    n = putTag(td, n, "DURTIME", "500\0", 4);
+    n = putTag(td, n, "CONTENT", "7\0", 2);
+    unsigned char ch[0x100];
+    int c = putTag(ch, 0, "CHNO", "3\0", 2);
+    c = putTag(ch, c, "TUNIT", "29970\0", 6);
+    c = putTag(ch, c, "TIMEDAT", 0, n);
+    memcpy(ch + c, td, n);
+    c += n;
+    unsigned char ui[0x180];
+    int u = putTag(ui, 0, "TYPE", "SUBTITLE\0", 9);
+    u = putTag(ui, u, "CHDAT", 0, c);
+    memcpy(ui + u, ch, c);
+    u += c;
+    int k = putTag(t, 0, "CRITAGS", 0, u + 16);
+    k = putTag(t, k, "USRINFS", 0, u);
+    memcpy(t + k, ui, u);
+    k += u;
+    k = putTag(t, k, "CRITAGE", "", 0);
+    // MPEG-1 pack (12 bytes), then the PES packet of stream 0xBF
+    const unsigned char pack[12] = {0, 0, 1, 0xBA, 0x21, 0, 1, 0, 1, 0x80, 0, 1};
+    memcpy(head, pack, 12);
+    head[12] = 0;
+    head[13] = 0;
+    head[14] = 1;
+    head[15] = 0xBF;
+    head[16] = (unsigned char) (k >> 8);
+    head[17] = (unsigned char) k;
+    memcpy(head + 18, t, k);
+    bool ok = re4_movie_subtitles(head, sizeof head, 3) == 1 && re4_movie_subtitles(head, sizeof head, 2) == 0;
+    head[15] = 0xBE;  // the same bytes as padding: no table
+    ok = ok && re4_movie_subtitles(head, sizeof head, 3) == 0;
+    report("moviesubtitles", ok);
+}
+
 // Ashley's damage handler on the bulldozer gets Ashley (patch 0098, game_probe.cpp)
 static void testPartnerDamage()
 {
@@ -2140,6 +2199,7 @@ int re4_runtime_tests()
     testDeathLog();
     testArc();
     testArcTable();
+    testMovieSubtitles();
     testCpuInfo();
     testPartnerDamage();
     testCaseFreePlace();
