@@ -16,8 +16,37 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
    16:9 schneidet nur die Balken ab, ändert die Überdeckung nicht: weiter sehr wahrscheinlich Original.
 6. **60 FPS ohne Flackern** – umgesetzt (Patch 0137, Renderer), auf dem Retroid weitgehend ruhig; vereinzeltes
    Fackelflackern bleibt (Entscheidung des Projektinhabers). Der Projektinhaber hat das Spiel mit 0.94.0 durchgespielt.
-7. **Weiße Texturen mit 60 FPS** (Waffen und Kleidung der Ganados, Nutzer mit itel P661N) – behoben in 0.94.1-beta
-   (Abschnitt darunter); **Gerätetest beim Nutzer offen**.
+7. **Weiße Texturen mit 60 FPS** (Waffen und Kleidung der Ganados, Nutzer mit itel P661N und Samsung S24) – behoben
+   in 0.94.1-beta (Abschnitt darunter); **Gerätetest beim Nutzer offen**.
+8. **RVZ beim Disc-Import** (Wunsch des Projektinhabers, 28.10.2026) – eingebaut in 0.94.1-beta (Abschnitt darunter);
+   **Gerätetest mit einer RVZ aus Dolphin offen**.
+9. **Wünsche für danach:** Zielen über den rechten Touch-Bereich oder den C-Stick wählbar; Schalter „Nebel aus“
+   (Einschätzung: kaum Tempogewinn, Nebel verdeckt das Ende der Sichtweite; Entscheidung des Projektinhabers offen).
+
+## RVZ beim Disc-Import (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Wunsch des Projektinhabers:** RVZ (Dolphins gepacktes Format) neben ISO/GCM; beim Import ein Hinweis, dass das
+  Entpacken mehr Speicher braucht; vorher prüfen und bei zu wenig Speicher ablehnen, mit Verweis auf ISO/GCM.
+- **Umsetzung:** `app/src/main/cpp/disc_rvz.cpp` liest RVZ einer GameCube-Disc (Kopf, Tabellen der Rohdaten und
+  Gruppen, Gruppen gespeichert oder mit zstd, „gepackte“ Gruppen mit Daten- und Füllbyte-Läufen; die Füllbytes
+  erzeugt der Generator aus Dolphins `LaggedFibonacciGenerator` aus dem gespeicherten Startwert). zstd: der offizielle
+  Einzeldatei-Entpacker aus zstd 1.5.6 (BSD, `third_party/zstd/`, Prüfsumme des Release-Archivs geprüft). Eigene
+  Bibliothek `libre4rvz.so` (`disc_rvz_jni.cpp`, Java `disc/RvzImage.java`), weil `libre4decomp.so` beim Laden den Kern
+  lädt. `ImportManager`: erkennt RVZ an den ersten Bytes, prüft vor dem Kopieren den Platz für RVZ-Kopie + entpacktes
+  Abbild + entpackte Dateien (`RvzImage.storageNeeded`, etwa 2,9 GB plus RVZ-Größe bis zum Löschen der Kopie), packt
+  nach `source.gcm` aus (Fortschritt „unpacking RVZ“), löscht die RVZ-Kopie, dann der gewohnte Import mit Prüfung aller
+  Dateien. Zu wenig Speicher: „Import not possible …“ mit Bedarf und freiem Platz; der Verweis auf ISO/GCM sagt dazu,
+  dass auch sie zuerst kopiert werden und fast so viel brauchen. Abgelehnt mit Erklärung: Wii-Discs, bzip2/LZMA
+  (Hinweis: in Dolphin mit Zstandard neu umwandeln oder ISO/GCM), beschädigte Dateien. Überschrift der Startseite und
+  Starttext nennen RVZ und den Speicherbedarf.
+- **Tests:** `rvz_check` (`tools/test_rvz.cpp`, Host-Build): gespeicherte und zstd-Gruppen (zstd-Rahmen aus
+  Rohblöcken), gepackte Gruppen mit Füllbytes (gegen eine zweite, wörtliche Fassung von Dolphins Generator), eine
+  Null-Gruppe, kurze letzte Gruppe, Disc-Kopf, Fortschritt, Abbruch, vier Ablehnungen: 0 Fehler. Echte EU-Disc 1 als
+  RVZ verpackt (`tools/make_rvz.py`, zstd-Rahmen ohne Packen) und mit `rvz_check IN OUT` ausgepackt: SHA1 gleich der ISO,
+  1,5 Minuten am PC. APK mit `libre4rvz.so` für ARM32 und ARM64 gebaut.
+- **Nicht getestet:** eine RVZ, die Dolphin selbst geschrieben hat (echte zstd-Kompression, gepackte Füllbytes von
+  der Disc), und der Import auf dem Gerät. Die Füllbytes liegen nur zwischen den Dateien; ein Fehler dort fiele bei der
+  Dateiprüfung nicht auf, schadet aber auch nicht.
 
 ## Weiße Texturen mit 60 FPS und Version 0.94.1-beta (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
