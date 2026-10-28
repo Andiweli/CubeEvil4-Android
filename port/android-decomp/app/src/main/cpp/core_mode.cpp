@@ -625,10 +625,8 @@ const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
 const Re4GxChunk *skipNext = nullptr;
 std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
 re4gx::SmoothPacer smoothPacer;
-// when the last chunks came (seconds): 60 a second is the game's own pace (movies, title)
-constexpr unsigned kChunkTimes = 64;
-double chunkTimes[kChunkTimes] = {};
-unsigned chunkTimeAt = 0;  // 60 FPS: the in-between pictures pause when the renderer is behind again and again
+// when the last chunks came: 60 a second is the game's own pace (movies, title)
+re4gx::ChunkRate chunkRate;  // 60 FPS: the in-between pictures pause when the renderer is behind again and again
 unsigned gxBetweenDropped = 0;      // in-between pictures left out because the renderer was behind
 unsigned gxSkipped = 0;             // chunks left out since the start of this renderer
 bool smoothTooSlow = false;
@@ -1384,13 +1382,13 @@ bool drawGx() {
     // leave no room for in-between pictures; the next chunk is always there already, which is not
     // the renderer behind (Retroid 28.10.2026: in the opening movie every chunk counted as left out,
     // 60 FPS paused again and again and the dynamic resolution went from 2x to 1x)
+    // (each chunk once: one with an in-between picture comes here again for its own picture at the
+    // next refresh, `deferred`; counted twice, 30 game pictures a second looked like 60 and every
+    // second in-between picture was left out: Retroid 28.10.2026, 45 pictures a second)
     const double chunkAt = std::chrono::duration<double>(now.time_since_epoch()).count();
-    chunkTimes[chunkTimeAt] = chunkAt;
-    chunkTimeAt = (chunkTimeAt + 1) % kChunkTimes;
-    unsigned lastSecond = 0;
-    for (double c : chunkTimes)
-      lastSecond += chunkAt - c < 1.0 ? 1u : 0u;
-    const bool stream60 = lastSecond >= 45;
+    if (!deferred)
+      chunkRate.Note(chunkAt);
+    const bool stream60 = chunkRate.Sixty(chunkAt);
     if (smoothOn && !deferred && smoothPrev && behind && !stream60)
       gxBetweenDropped++;  // behind: this chunk at once, without the picture between
     // an even pace (60fps-plan.md S4): behind again and again, the in-between pictures pause

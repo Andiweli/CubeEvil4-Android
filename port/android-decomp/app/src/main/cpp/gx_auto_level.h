@@ -242,4 +242,32 @@ public:
   }
 };
 
+// The game's own pace for 60 FPS (core_mode.cpp): its movies and the title come at the screen's 60
+// chunks a second, which leaves no room for in-between pictures (and is not the renderer behind).
+// Note() each new chunk once; Sixty(): at least 45 in the last second.
+class ChunkRate {
+public:
+  static constexpr unsigned kRing = 64;
+  void Note(double t) {
+    times_[at_] = t;
+    at_ = (at_ + 1) % kRing;
+  }
+  bool Sixty(double t) const {
+    unsigned n = 0;
+    for (double c : times_)
+      n += t - c < 1.0 ? 1u : 0u;
+    return n >= 45;
+  }
+
+private:
+  double times_[kRing] = {};
+  unsigned at_ = 0;
+
+public:
+  ChunkRate() {
+    for (double &d : times_)
+      d = -1e9;
+  }
+};
+
 } // namespace re4gx

@@ -1853,6 +1853,18 @@ void TestInterpolationExtras() {
 // 60 FPS at an even pace (S4): single left-out pictures and short bursts (the core a picture ahead
 // after a pause) leave it on; a quarter of the chunks left out over 4 s stops the in-between pictures
 // for 5 s, then they come back, and the first 2 s after it do not count.
+// The game's own pace (ChunkRate): 30 chunks a second are not 60 (each noted once), 60 are.
+void TestChunkRate() {
+  re4gx::ChunkRate r;
+  double t = 0.0;
+  for (int i = 0; i < 90; i++, t += 1.0 / 30.0)
+    r.Note(t);
+  Check(!r.Sixty(t), "chunk rate: 30 game pictures a second are not the game's own 60");
+  for (int i = 0; i < 90; i++, t += 1.0 / 60.0)
+    r.Note(t);
+  Check(r.Sixty(t), "chunk rate: 60 chunks a second (a movie, the title) are");
+}
+
 void TestSmoothPacer() {
   re4gx::SmoothPacer p;
   std::string why;
@@ -2595,6 +2607,7 @@ int main() {
   TestInterpolationOwners();
   TestInterpolationExtras();
   TestSmoothPacer();
+  TestChunkRate();
   TestInterpolatedLights();
   // MSAA in its own buffers (the devices without the extensions, RE4_GX_MSAA_TILES=0)
   TestOptions(false, false);

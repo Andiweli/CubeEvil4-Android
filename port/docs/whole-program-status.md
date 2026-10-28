@@ -18,6 +18,14 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sin
 6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
    R3-Serien vom Retroid offen**.
 
+## Gerätetest 28.10.2026 11:50 (0.94.0): 45 statt 60 Bilder/s (lokal, Branch `claude/determined-allen-36nj6r`)
+
+Projektinhaber: mit 60 FPS oft stabil 45. Ursache: die 60-Hz-Erkennung (Film/Titel) zählte jeden Chunk mit Zwischenbild
+zweimal (er kommt für sein eigenes Bild ein zweites Mal durch dieselbe Stelle, `deferred`); bei 30 Spielbildern sah das
+wie 60 aus, jedes zweite Zwischenbild fiel weg (Protokoll: ~14 Zwischenbilder/s, nur 174 ausgelassen). Jetzt zählt
+`ChunkRate` (`gx_auto_level.h`) jeden Chunk einmal; Test `TestChunkRate`. Sonst im Protokoll: Zeichen-Thread 2–7 ms je
+Chunk, Teilchen 1,8 %, Raum 1 % ohne Gegenstück, 1,3 Mio. Texturmatrizen gemischt, 2 Pausen (Folge desselben Fehlers).
+
 ## Gerätetest 28.10.2026 11:33 (0.94.0): 30 FPS statt 60, App „beendet“ (lokal, Branch `claude/determined-allen-36nj6r`)
 
 Projektinhaber: trotz 60 FPS nur 30, die App beendete sich nach 35 s. **Takt-Regel S4 zu empfindlich:** nur 34
