@@ -24,8 +24,8 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
    **Gerätetest offen**.
 10. **Schalter „Nebel aus“** – nicht umgesetzt (Entscheidung des Projektinhabers, 28.10.2026: nur die
     Leistungsvorschläge 1 und 2).
-11. **Labyrinth in r20b versperrt (EU-Discs)** – behoben (Patch 0138, Abschnitt darunter), am PC geprüft;
-    **Gerätetest mit dem Spielstand des Nutzers offen**.
+11. **Labyrinth in r20b versperrt (EU-Discs)** – behoben (Patch 0138, Abschnitt darunter), am PC geprüft und auf
+    dem Retroid mit dem Spielstand des Nutzers bestätigt (Projektinhaber, 28.10.2026: Brüstung weg, Treppe begehbar).
 
 ## Testerbericht „Zugang zum Labyrinth versperrt“ (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
@@ -47,8 +47,9 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
   Salazars „do you like my garden?“, dann die Treppe hinunter zum Tor ins Labyrinth) ist damit wieder da.
 - **Geprüft am PC** (i686, EU- und Debug-Discs, Debug-Start in r20b, Normal): Leon läuft vom Podest (39700 4000 −7000)
   die Treppe hinunter bis (39710 0 −21886) im Labyrinth; vorher blieb er bei z −7285 stehen. Keine Fehlermeldung
-  (`AT NOT FOUND` / `INVALID INDEX`) mit beiden Disc-Arten. **Nicht geprüft:** Easy (der Port hat keine Abfrage des
-  Schwierigkeitsgrads, siehe unten), der ganze Weg mit dem Spielstand des Nutzers auf dem Gerät.
+  (`AT NOT FOUND` / `INVALID INDEX`) mit beiden Disc-Arten. **Auf dem Retroid bestätigt** (Projektinhaber,
+  28.10.2026, EU-Discs, Spielstand des Nutzers): Brüstung weg, Treppe begehbar. **Nicht geprüft:** Easy (der Port hat
+  keine Abfrage des Schwierigkeitsgrads, siehe unten).
 - **Weitere EU-Räume mit demselben Byte:** gelesen in `st2_0`, `st2_1` (11-mal), `st2_2`, `st2_3`, `st1_3`, `st3_2`
   und `Sscrn` (EU). Ob dort weitere Easy-Sperren der Verkaufsdaten in Normal stehen bleiben, ist **nicht geprüft**.
 - **Schwierigkeitsgrad:** Die Debug-Fassung fragt beim neuen Spiel nicht nach Leicht/Normal (Dolphin mit EU-Discs
