@@ -92,6 +92,7 @@ Kurzliste für den Überblick; Einzelheiten in `whole-program-status.md` (M13-Ab
 | Stage 4 | Raummodul `st4_0.rel` nur auf Disc 2 (Debug: auf beiden); die EU-Fassung wechselt für Stage 3 und 4 auf Disc 2, diese nur für Stage 3 | 0131 (10b: im Spiel ein Fehler, nicht nur der Prüfstrecke) |
 | Ereignisse | `r204s00.evd`/`s204s00.evd` ohne einen Lichtdatensatz | ohne Folge (10b: Ereignis, Kapitelende 3-1 und Funkspruch 14 am PC mit EU-Daten) |
 | Ereignis-Untertitel | Englisch ist bei der EU Sprache 2 und hat keine Untertitel; diese Version blendet nur bei Sprache 1 aus (zeigte „14-09LE“) | 0132 |
+| Ergebnis-Bildschirme | Kapitelende: Gegnerzahl vierstellig (Bausteine 0x1B/0x1C), die Debug-Version setzt drei Stellen, die vierte lief durch alle Zeichen; Spielende: Fortsetzungen ≤ 999, Baustein 0 aus; Mercenaries gleich | 0135 (28.10.2026: GX-Bild des Kapitelendes 1-1 am PC mit EU-Daten) |
 | Burg-Händler r204 | die EU-Fassung setzt beim Umzug `SCF_R204_MERCHANT_MOVE` (für die achte Händler-Markierung) | 0133 |
 | Spielmeldungen (10b) | `Msg[04] Address Error` (die Ereignis-Untertitel, oben); `mapModelInit … SHAPE_MODEL` kommt mit beiden Disc-Arten in denselben 11 Räumen (Kartendaten, die EU-Fassung räumt das Merkmal genauso auf, nur ohne Meldung); `IDSystem::unitPtr … Not found` kam von der ersten Fassung von 0126 | 0132; die übrigen ohne Eingriff |
 

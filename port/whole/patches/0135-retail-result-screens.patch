@@ -1,0 +1,93 @@
+# Retail data (port/docs/retail-eu-plan.md): the result screens with the European discs, as their code
+# has them (main.dol G4BP08, read with retail_code.py dis against the debug build).
+# - Chapter end (their ChapterEnd::move at 0x800422AC): the template (SS/esp/chapNN.dat) shows the
+#   kills with four digits, units 0x1B (this chapter) and 0x1C (the game) hold the thousands in front
+#   of 0x0E..0x10 and 0x11..0x13. This build sets three digits, so the two units kept the IDSystem's
+#   texture animation (idSysMove04: without tex_flag 0x2 texNo counts on every frame) and ran through
+#   0-9, % and - (tester videos 27.10.2026, Spanish, chapters 1-1 and 4-2). Now four digits, leading
+#   zeros hidden; the continues at most 999.
+# - Game end (their GameResult::move at 0x80041E64): the continues at most 999, unit 0 hidden on every
+#   run. (Their screen also closes by itself after a time; not taken over, A closes it as here.)
+# - Mercenaries results (MercResult::move): the same digits in both releases, nothing to do.
+# Nothing changes with the debug build's discs. A port patch for retail data.
+--- a/src/game/option.cpp
++++ b/src/game/option.cpp
+@@ -991,6 +991,8 @@
+     }
+ }
+ 
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ // Game clear result screen: replaces the cockpit ids with the result id archive `d` (IDC_TITLE).
+ void GameResult::init(void* d)
+ {
+@@ -1022,7 +1024,8 @@
+     }
+     num(hit, 3, 1, 1, IDC_TITLE, 0);
+     num(pG->g_kill_cnt, 4, 1, 0x11, IDC_TITLE, 0);
+-    num(pG->g_continue_cnt, 3, 1, 0x21, IDC_TITLE, 0);
++    /* port: with the European discs as their GameResult::move: the continues at most 999 */
++    num(re4_disc_retail_eu() && pG->g_continue_cnt > 998 ? 999 : pG->g_continue_cnt, 3, 1, 0x21, IDC_TITLE, 0);
+     SecToTime(pG->play_time, &h, &m, &s);
+     num(h, 2, 0, 0x35, IDC_TITLE, 0);
+     num(m, 2, 0, 0x33, IDC_TITLE, 0);
+@@ -1032,7 +1035,8 @@
+     u->be_flag |= 8;
+     u->tex_flag |= 2;
+     u = IdSys.unitPtr(0, IDC_TITLE);
+-    if (pG->game_cnt > 1) {
++    /* port: their GameResult::move hides unit 0 (the "2nd run" mark here) on every run */
++    if (pG->game_cnt > 1 && !re4_disc_retail_eu()) {
+         u->be_flag |= 8;
+     } else {
+         u->be_flag &= ~8;
+@@ -1078,6 +1082,31 @@
+     IdTexDataLoad(DATA_PTR(_addr, 0x10), TEX_OWNER_ID_TITLE);
+     IdSys.set((ID_FILE_HEADER*) DATA_PTR(_addr, 0x14), 0xFF, IDC_TITLE, 0x13, 6, 0);
+     _chapter = (CHAPTER_NO) no;
++}
++
++/* port: a kill count on the European chapter end template (its ChapterEnd::move): four digits,
++   the thousands on unit `top`, then the hundreds, tens and ones on bottom - 2 .. bottom; leading
++   zeros hidden as num() does */
++static void re4_chapter_kills(int no, int top, int bottom)
++{
++    int d[4];
++    int show = 0;
++
++    for (int j = 0; j < 4; j++) {
++        d[j] = no % 10;
++        no /= 10;
++    }
++    for (int i = 3; i >= 0; i--) {
++        ID_UNIT* u = IdSys.unitPtr((u8) (i == 3 ? top : bottom - i), IDC_TITLE);
++        if (show == 0 && d[i] == 0 && i != 0) {
++            u->be_flag &= ~8;
++        } else {
++            u->be_flag |= 8;
++            show = 1;
++            u->tex_flag |= 2;
++            u->texNo = d[i];
++        }
++    }
+ }
+ 
+ // Fills the chapter result: this chapter / next chapter numbers ("chap-sec"), chapter and total hit
+@@ -1138,6 +1167,17 @@
+     u = IdSys.unitPtr(0xD, IDC_TITLE);
+     u->tex_flag |= 2;
+     u->texNo = char_per;
++    /* port: the European template (SS/esp/chapNN.dat) has a fourth digit for the kills, units
++       0x1B and 0x1C; this build never sets them, so they kept animating through all digits
++       (tester videos 27.10.2026). With the European discs as their ChapterEnd::move: four digits,
++       leading zeros hidden, continues at most 999 */
++    if (re4_disc_retail_eu()) {
++        re4_chapter_kills(pG->c_kill_cnt, 0x1B, 0x10);
++        re4_chapter_kills(pG->g_kill_cnt, 0x1C, 0x13);
++        num(pG->c_continue_cnt > 998 ? 999 : pG->c_continue_cnt, 3, 1, 0x16, IDC_TITLE, 1);
++        num(pG->g_continue_cnt > 998 ? 999 : pG->g_continue_cnt, 3, 1, 0x19, IDC_TITLE, 1);
++        return 0;
++    }
+     num(pG->c_kill_cnt, 3, 1, 0x10, IDC_TITLE, 1);
+     num(pG->g_kill_cnt, 3, 1, 0x13, IDC_TITLE, 1);
+     num(pG->c_continue_cnt, 3, 1, 0x16, IDC_TITLE, 1);
