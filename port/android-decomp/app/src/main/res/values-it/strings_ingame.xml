@@ -38,6 +38,11 @@
     <string name="ingame_alternate">Comandi alternativi</string>
     <string name="ingame_latch">Blocca L e R</string>
     <string name="ingame_latch_b">Blocca B</string>
+    <string name="ingame_touch_aim">Mira touch</string>
+    <string name="ingame_aim_move_stick">Stick di movimento</string>
+    <string name="ingame_aim_touch_area">Area touch</string>
+    <string name="ingame_aim_c_stick">Stick C</string>
+    <string name="ingame_touch_aim_help">Mira touch: finché L o R tiene un\'arma pronta, l\'area touch (scorri sulla metà destra) o lo stick C touch (aggiungilo con l\'ingranaggio in alto a destra) muove la mira. Stick di movimento: come su GameCube.</string>
     <string name="ingame_gyro_sensitivity">Sensibilità del giroscopio</string>
     <string name="ingame_gyro_invert_v">Inverti verticale</string>
     <string name="ingame_gyro_invert_h">Inverti orizzontale</string>

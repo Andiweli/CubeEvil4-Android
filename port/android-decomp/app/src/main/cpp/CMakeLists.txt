@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(re4_android LANGUAGES CXX)
+project(re4_android LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(re4_platform STATIC environment.cpp room_lighting.cpp input.cpp texture.cpp archive.cpp smx.cpp sat.cpp collision_query.cpp walk_probe.cpp smd.cpp gx_stream.cpp scene.cpp materials.cpp ports/rnd.cpp ports/yz2.cpp)
@@ -59,6 +59,12 @@ set_source_files_properties(grab_rules.cpp melee_rules.cpp PROPERTIES COMPILE_OP
 set_source_files_properties(hit_geometry.cpp leon_preview.cpp enemy_encounter.cpp collision_query.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 set_target_properties(re4_platform PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(re4_platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# RVZ disc images at the import (disc_rvz.cpp): the zstd decompressor (third_party/zstd, BSD,
+# zstd 1.5.6 single-file decoder) and the reader
+add_library(re4_rvz STATIC disc_rvz.cpp third_party/zstd/zstddeclib.c)
+set_target_properties(re4_rvz PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_options(re4_rvz PRIVATE -O2)
+target_include_directories(re4_rvz PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(re4_platform PRIVATE -Wall -Wextra -Werror -fno-fast-math)
 # Core mode (Gradle flavor "core", armeabi-v7a and since milestone 12
 # arm64-v8a): the original game core
@@ -85,6 +91,10 @@ if(ANDROID)
         target_link_libraries(re4decomp PRIVATE dl EGL)
     endif()
     target_link_options(re4decomp PRIVATE "-Wl,-z,max-page-size=16384")
+    # a library of its own for the import (RvzImage.java): libre4decomp loads the game core
+    add_library(re4rvz SHARED disc_rvz_jni.cpp)
+    target_link_libraries(re4rvz PRIVATE re4_rvz)
+    target_link_options(re4rvz PRIVATE "-Wl,-z,max-page-size=16384")
     # Test APKs otherwise build the native resource parsers and motion engine
     # with -O0. Keep symbols/assertions, and the original floating-point rules,
     # while preparing imported rooms and actors with optimized native code.
@@ -93,6 +103,10 @@ if(ANDROID)
     endforeach()
 else()
     enable_testing()
+    add_executable(rvz_check ../../../../tools/test_rvz.cpp)
+    target_link_libraries(rvz_check PRIVATE re4_rvz)
+    target_compile_options(rvz_check PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+    add_test(NAME rvz_check COMMAND rvz_check)
     add_executable(room_item_events_check ../../../../tools/test_room_item_events.cpp)
     target_link_libraries(room_item_events_check PRIVATE re4_platform)
     target_compile_options(room_item_events_check PRIVATE -Wall -Wextra -Werror -UNDEBUG)

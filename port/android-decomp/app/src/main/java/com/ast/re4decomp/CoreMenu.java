@@ -62,6 +62,8 @@ final class CoreMenu extends Dialog {
     void latchChanged(boolean on);
     /** The comfort control "Latch B", touch and controller (the preferences hold it). */
     void latchBChanged(boolean on);
+    /** The choice "Touch Aiming": CoreInput.AIM_MOVE_STICK, AIM_LOOK or AIM_C_STICK (the preferences hold it). */
+    void touchAimChanged(int mode);
     /** The slider of gyro aiming: the turn rates times `value` (the preferences hold it). */
     void gyroSensitivityChanged(float value);
     /** The switches "Invert vertical" (`vertical`) and "Invert horizontal" of gyro aiming (the preferences hold them). */
@@ -468,6 +470,10 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons second = buttonsRow(body);
     toggle(second, R.string.ingame_latch, input.getBoolean(CoreActivity.TOUCH_LATCH, false), on -> host.latchChanged(on));
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
+    // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held
+    choices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
+        s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
+        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), Integer.MAX_VALUE, mode -> host.touchAimChanged(mode));
     boolean gyro = GyroAim.available(getContext()), on = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
     LinearLayout third = new MenuLayout.Columns(getContext(), 0, 540, false);
     // the gyro switch in the middle of the row the slider makes taller: as far from the row above as
@@ -511,7 +517,8 @@ final class CoreMenu extends Dialog {
     invert[1] = toggle(fourth, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
         value -> host.gyroInvertChanged(false, value));
     for (Button b : invert) b.setEnabled(on);
-    help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_knife_swipe_help);
+    help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_touch_aim_help);
+    help(R.string.ingame_knife_swipe_help);
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller
     controllerButton = cellAction(buttonsRow(body), s(R.string.ingame_controller_config) + "   ›",
         v -> showPage(CONTROLLER, true));

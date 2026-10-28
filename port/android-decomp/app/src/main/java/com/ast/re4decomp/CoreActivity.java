@@ -97,6 +97,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String TOUCH_LATCH = "touchLatchLR";
   // the menu's comfort control "Latch B" (the same; on: Leon keeps running)
   static final String TOUCH_LATCH_B = "touchLatchB";
+  static final String TOUCH_AIM = "touchAim";
   // the menu's slider of gyro aiming (GyroAim.setSensitivity, a float, 1 = as before)
   static final String GYRO_SENSITIVITY = "gyroSensitivity";
   // the menu's switches "Invert vertical" / "Invert horizontal" of gyro aiming (GyroAim.setInvert; off)
@@ -212,6 +213,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       inputPrefs.edit().remove("bindings").remove("extraKeys").apply();
     }
     input.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false), inputPrefs.getBoolean(TOUCH_LATCH_B, false));
+    input.setTouchAim(inputPrefs.getInt(TOUCH_AIM, CoreInput.AIM_MOVE_STICK));
     knifeSwipe = inputPrefs.getBoolean(KNIFE_SWIPE, true);
     // R3 saves graphics data with the test scripts (RE4_APP_TOOLS=1) or when the menu switched it on
     tools = settings.contains("RE4_APP_TOOLS=1") || inputPrefs.getBoolean(R3_CAPTURE, false);
@@ -641,6 +643,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       input.setLatch(input.latchLR(), on);
       send();
       Log.i(TAG, "comfort controls: B " + (on ? "latches on a tap or a press" : "held while touched or pressed"));
+    }
+
+    @Override public void touchAimChanged(int mode) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(TOUCH_AIM, mode).apply();
+      input.setTouchAim(mode);
+      send();
+      Log.i(TAG, "touch aiming: " + (mode == CoreInput.AIM_LOOK ? "the touch area" : mode == CoreInput.AIM_C_STICK
+          ? "the touch C stick" : "the move stick") + " aims while L or R is held");
     }
 
     @Override public void gyroSensitivityChanged(float value) {

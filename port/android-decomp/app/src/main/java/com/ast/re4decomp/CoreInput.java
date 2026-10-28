@@ -164,6 +164,8 @@ public final class CoreInput {
     int hats;               // D-pad from the hat axes
     float lx, ly, rx, ry;   // sticks -1..1, y down as Android reports it
     float lt, rt;           // analog triggers 0..1
+    // the touch controls' two ways to the C stick (touchLook): the look zone and the C stick control
+    float lookX, lookY, cStickX, cStickY;
   }
 
   private final Map<Integer, Device> devices = new HashMap<>();
@@ -218,6 +220,21 @@ public final class CoreInput {
   }
 
   public boolean alternate() { return alternate; }
+
+  /**
+   * Touch aiming (the menu's "Touch Aiming", wish of the project owner, 28.10.2026): while L or R
+   * holds a weapon ready, the look zone (AIM_LOOK) or the touch C stick (AIM_C_STICK) moves the aim,
+   * i.e. the control stick, as the move stick does on the GameCube (AIM_MOVE_STICK, the default);
+   * the other one stays the C stick. Not aiming, both are the C stick as before.
+   */
+  static final int AIM_MOVE_STICK = 0, AIM_LOOK = 1, AIM_C_STICK = 2;
+  private int touchAim = AIM_MOVE_STICK;
+
+  public void setTouchAim(int mode) {
+    touchAim = mode == AIM_LOOK || mode == AIM_C_STICK ? mode : AIM_MOVE_STICK;
+  }
+
+  public int touchAim() { return touchAim; }
 
   /**
    * The GameCube button of an Android key, 0 for none (the triggers: L2 and
@@ -359,6 +376,21 @@ public final class CoreInput {
     }
   }
 
+  /**
+   * The touch controls' look zone and C stick control, -1..1 with y down: the C stick is the one that
+   * tilts further; with touch aiming one of them aims while L or R is held (pad).
+   */
+  public void touchLook(float lookX, float lookY, float cStickX, float cStickY) {
+    Device d = device(TOUCH);
+    d.lookX = clamp(lookX, -1, 1);
+    d.lookY = clamp(lookY, -1, 1);
+    d.cStickX = clamp(cStickX, -1, 1);
+    d.cStickY = clamp(cStickY, -1, 1);
+    boolean look = d.lookX * d.lookX + d.lookY * d.lookY > d.cStickX * d.cStickX + d.cStickY * d.cStickY;
+    d.rx = look ? d.lookX : d.cStickX;
+    d.ry = look ? d.lookY : d.cStickY;
+  }
+
   /** The touch controls hold nothing any more. */
   public void touchClear() { devices.remove(TOUCH); }
 
@@ -411,6 +443,11 @@ public final class CoreInput {
     // device: the built-in controller may report the trigger and the sticks apart)
     boolean aiming = alternate
         && (Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
+    // touch aiming: L or R held, on the touch controls or any controller
+    Device touchDevice = devices.get(TOUCH);
+    boolean touchAiming = touchAim != AIM_MOVE_STICK
+        && (touchDevice != null && (touchDevice.l2Key || touchDevice.r2Key)
+            || Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
     int buttons = padB ? GC_B : 0;
     float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
     for (Map.Entry<Integer, Device> e : devices.entrySet()) {
@@ -422,6 +459,16 @@ public final class CoreInput {
         mainX = d.rx;
         mainY = d.ry;
         cX = cY = 0;
+      }
+      if (touchAiming && touch) {
+        // the chosen way aims (the move stick too: the further wins), the other stays the C stick
+        float aimX = touchAim == AIM_LOOK ? d.lookX : d.cStickX, aimY = touchAim == AIM_LOOK ? d.lookY : d.cStickY;
+        if (aimX * aimX + aimY * aimY > mainX * mainX + mainY * mainY) {
+          mainX = aimX;
+          mainY = aimY;
+        }
+        cX = touchAim == AIM_LOOK ? d.cStickX : d.lookX;
+        cY = touchAim == AIM_LOOK ? d.cStickY : d.lookY;
       }
       if (mainX * mainX + mainY * mainY > lx * lx + ly * ly) {
         lx = mainX;

@@ -3,11 +3,6 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-> **Stand von `master` (28.10.2026, Entscheidung des Projektinhabers):** alles bis 0.94.0-beta (`a18204ac`) und dazu nur
-> der Treppen-Fix (Patch 0138) und die Schwierigkeitsauswahl der EU-Discs (Patches 0139–0141). Die übrigen Punkte von
-> 0.95.0-beta (weiße Texturen mit 60 FPS, RVZ-Import, Touch-Zielen, gesparte XF-Übergaben) liegen nur auf dem Branch
-> `claude/determined-allen-36nj6r`; die US-Discs auf `retail-us`. Diese Datei beschreibt den Stand des Arbeitsbranches.
-
 ## Offene Punkte aus den Testerberichten (Stand 28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
 Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am Abend:

@@ -887,6 +887,10 @@ struct GxRenderer::Impl {
   // per-draw caches
   const Program *current = nullptr;
   XfBlock xf = {};
+  // the XF parts as last sent (UploadXf): a part the game wrote again with the same values is not
+  // sent again (about 5 % of the uploads of a village picture, Retroid series r226, 28.10.2026)
+  XfBlock xfSent = {};
+  bool xfSentValid[kXfParts] = {};
   PixelBlock px = {};
   PixelBlock pxSent = {};
   bool pxValid = false;
@@ -1702,11 +1706,29 @@ struct GxRenderer::Impl {
         streamMoved = false;
         Dirty(0, kXfPartRow[kXfParts]);
         pxValid = false;
+        for (bool &v : xfSentValid)
+          v = false;
       }
       for (int i = 0; i < kXfParts; i++) {
         if (dirtyLo[i] >= dirtyHi[i])
           continue;
         const std::size_t first = static_cast<std::size_t>(kXfPartRow[i]) * 16;
+        const std::size_t partBytes = static_cast<std::size_t>(kXfPartRow[i + 1] - kXfPartRow[i]) * 16;
+        const auto *now = reinterpret_cast<const std::uint8_t *>(&xf) + first;
+        auto *sent = reinterpret_cast<std::uint8_t *>(&xfSent) + first;
+        // the rows that changed are as sent: the part bound now still holds them (in the stream
+        // a part is never written again in place; the small buffers keep what they got)
+        const std::size_t lo = static_cast<std::size_t>(dirtyLo[i]) * 16, hi = static_cast<std::size_t>(dirtyHi[i]) * 16;
+        // RE4_GX_UNIFORM_SAME=0: every changed part sent (the counter-check)
+        static const bool sendSame = std::getenv("RE4_GX_UNIFORM_SAME") && *std::getenv("RE4_GX_UNIFORM_SAME") == '0';
+        if (!sendSame && xfSentValid[i] && std::memcmp(now + (lo - first), sent + (lo - first), hi - lo) == 0) {
+          stats.uniformSame++;
+          dirtyLo[i] = kXfPartRow[kXfParts];
+          dirtyHi[i] = 0;
+          continue;
+        }
+        std::memcpy(sent, now, partBytes);
+        xfSentValid[i] = true;
         UploadBlock(kXfPartBinding[i], xfUbo[i], reinterpret_cast<const std::uint8_t *>(&xf) + first,
                     static_cast<std::size_t>(dirtyLo[i]) * 16 - first,
                     static_cast<std::size_t>(dirtyHi[i] - dirtyLo[i]) * 16,
@@ -4120,6 +4142,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     // both blocks again into the stream at the first draw: the places bound
     // last may since have been written over
     m.Dirty(0, static_cast<int>(sizeof(XfBlock) / 16));
+    for (bool &v : m.xfSentValid)
+      v = false;
     m.pxDirty = true;
     m.pxValid = false;
   } else {
@@ -4167,9 +4191,15 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
         m.SetOwner(p);
       break;
     case RE4_GX_OP_FORGET:
-      // the real Run forgets (the in-between pass runs before it)
-      if (n >= 2 && !m.interpPass)
-        m.Forget(static_cast<std::uint64_t>(p[1]) << 32 | p[0]);
+      // the real Run forgets (the in-between pass runs before it). A texture the core sends again in
+      // this chunk (it forgot it for its budget) the in-between pass uploaded already: after the forget
+      // it is uploaded again, else it stays gone and draws white (itel P661N, 28.10.2026: Ganados with
+      // white weapons after some 20 minutes with 60 FPS)
+      if (n >= 2 && !m.interpPass) {
+        const std::uint64_t key = static_cast<std::uint64_t>(p[1]) << 32 | p[0];
+        m.Forget(key);
+        m.interpUploads.erase(key);
+      }
       break;
     case RE4_GX_OP_DRAW:
       if (!m.skipDraws && n * 4 >= sizeof(Re4GxDraw)) {

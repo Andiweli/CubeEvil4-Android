@@ -40,6 +40,11 @@
     <string name="ingame_alternate">Commandes alternatives</string>
     <string name="ingame_latch">Verrouiller L et R</string>
     <string name="ingame_latch_b">Verrouiller B</string>
+    <string name="ingame_touch_aim">Visée tactile</string>
+    <string name="ingame_aim_move_stick">Stick de déplacement</string>
+    <string name="ingame_aim_touch_area">Zone tactile</string>
+    <string name="ingame_aim_c_stick">Stick C</string>
+    <string name="ingame_touch_aim_help">Visée tactile : tant que L ou R tient une arme prête, la zone tactile (glissez sur la moitié droite) ou le stick C tactile (ajoutez-le avec l\'engrenage en haut à droite) déplace la visée. Stick de déplacement : comme sur GameCube.</string>
     <string name="ingame_gyro_sensitivity">Sensibilité du gyroscope</string>
     <string name="ingame_gyro_invert_v">Inverser la verticale</string>
     <string name="ingame_gyro_invert_h">Inverser l’horizontale</string>

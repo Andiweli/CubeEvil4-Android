@@ -39,6 +39,11 @@
     <string name="ingame_alternate">替代操作</string>
     <string name="ingame_latch">锁定 L 和 R</string>
     <string name="ingame_latch_b">锁定 B</string>
+    <string name="ingame_touch_aim">触控瞄准</string>
+    <string name="ingame_aim_move_stick">移动摇杆</string>
+    <string name="ingame_aim_touch_area">触控区域</string>
+    <string name="ingame_aim_c_stick">C 摇杆</string>
+    <string name="ingame_touch_aim_help">触控瞄准：按住 L 或 R 举起武器时，由触控区域（在右半屏滑动）或触控 C 摇杆（用右上角的齿轮添加）移动准星。移动摇杆：与 GameCube 相同。</string>
     <string name="ingame_gyro_sensitivity">陀螺仪灵敏度</string>
     <string name="ingame_gyro_invert_v">反转垂直方向</string>
     <string name="ingame_gyro_invert_h">反转水平方向</string>
