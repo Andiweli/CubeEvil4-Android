@@ -54,8 +54,17 @@ public final class DiscTests {
     try (GameCubeDisc d = new GameCubeDisc(new File(tmp, "good.gcm"))) {
       check(GameCubeDisc.DEBUG.equals(d.release), "debug build recognised by its FST place");
     }
-    rejected(tmp, synthetic("a", "G4BE08", 0x500), "US release refused");
+    // the US release (port/docs/retail-us-plan.md): G4BE08 with the table elsewhere, core mode only
+    File us = new File(tmp, "us.gcm");
+    Files.write(us.toPath(), synthetic("a", "G4BE08", 0x500));
+    try (GameCubeDisc d = new GameCubeDisc(us)) {
+      check(GameCubeDisc.US.equals(d.release) && d.files.size() == 2, "US disc parsed");
+    }
+    GameCubeDisc.retailAllowed = false;
+    rejected(tmp, synthetic("a", "G4BE08", 0x500), "US disc refused outside the core mode");
+    GameCubeDisc.retailAllowed = true;
     check(GameCubeDisc.catalog("rooms", GameCubeDisc.EUROPEAN).equals("rooms-eu.tsv")
+          && GameCubeDisc.catalog("files", GameCubeDisc.US).equals("files-us.tsv")
           && GameCubeDisc.catalog("references", GameCubeDisc.DEBUG).equals("references.tsv"), "catalog names");
     // a European extraction writes its release and id; ready() takes them, sameRelease() compares
     File root = new File(tmp, "releases");
@@ -76,6 +85,19 @@ public final class DiscTests {
       String text = new String(Files.readAllBytes(new File(dst, "ready.properties").toPath()), StandardCharsets.UTF_8);
       check(text.contains("id=G4BP08") && text.contains("release=eu"), "European extraction marks its release");
     }
+    try (GameCubeDisc d = new GameCubeDisc(us)) {
+      File dst = new File(tmp, "us-extract");
+      d.extract(dst, (phase, done, total) -> {});
+      String text = new String(Files.readAllBytes(new File(dst, "ready.properties").toPath()), StandardCharsets.UTF_8);
+      check(text.contains("id=G4BE08") && text.contains("release=us"), "US extraction marks its release");
+      check(GameCubeDisc.US.equals(DiscInstaller.release(dst)), "release of a US import");
+    }
+    // a US disc next to a debug disc: both G4BE08, still two releases
+    writeReady(d1, "format=1\nlanguage=eng\ndisc=1\nid=G4BE08\nrelease=us\nreferences=129\n");
+    writeReady(d2, "format=1\nlanguage=eng\ndisc=2\nid=G4BE08\nreferences=5\n");
+    check(!DiscInstaller.sameRelease(root), "US and debug discs noticed as mixed");
+    writeReady(d2, "format=1\nlanguage=eng\ndisc=2\nid=G4BE08\nrelease=us\nreferences=5\n");
+    check(DiscInstaller.sameRelease(root), "both US discs");
   }
   private static void rejected(File dir, byte[] b, String label)
       throws Exception {

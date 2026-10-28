@@ -684,7 +684,7 @@ bool retailOrder(Blob& b, const char* name)
         char key[96];
         snprintf(key, sizeof(key), "retail order %s", name);
         if (firstReport(key)) {
-            re4_log("formats: %s: entries %u..%u put into the debug build's order (European release)", name,
+            re4_log("formats: %s: entries %u..%u put into the debug build's order (retail release)", name,
                     (unsigned) r.first, (unsigned) (r.first + r.n - 1));
         }
         return true;
@@ -723,7 +723,7 @@ extern "C" void re4_formats_part_loaded(const char* rawName, int nest, int index
         convertSoundBlock(b, part);
         return;
     }
-    if (re4_disc_release() == RE4_DISC_RETAIL_EU) {
+    if (re4_disc_retail()) {  // the European and the US release order them alike
         retailOrder(b, name);
     }
     for (const Rule& r : kRules) {

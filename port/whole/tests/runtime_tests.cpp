@@ -412,7 +412,7 @@ static void testDiscRelease()
         int release;
     } cases[] = {
         {"G4BE08", 0x28FE00, 0x440, RE4_DISC_DEBUG},  {"G4BP08", 0x236500, 0x440, RE4_DISC_RETAIL_EU},
-        {"G4BE08", 0x236500, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
+        {"G4BE08", 0x231A00, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
         {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},
     };
     int n = 0;
@@ -433,11 +433,13 @@ static void testDiscRelease()
         CHECK(writeFile(dir + "/disc0/files/a.dat", "A", 1));
         re4_set_data_dir(dir.c_str());
         CHECK(re4_disc_release() == c.release);
+        CHECK(re4_disc_retail() == (c.release == RE4_DISC_RETAIL_EU || c.release == RE4_DISC_RETAIL_US));
+        CHECK(re4_disc_retail_us() == (c.release == RE4_DISC_RETAIL_US));
         // the game sees the header's id, the debug build's for the European discs (memory card files)
         CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.release == RE4_DISC_RETAIL_EU ? "G4BE" : c.id, 4) == 0);
-        // SELECT held (the app): the debug menu, none with the European discs (R6)
+        // SELECT held (the app): the debug menu, none with the European or US discs (R6)
         re4_core_debug_menu();
-        CHECK(re4_debug_menu_request() == (c.release == RE4_DISC_RETAIL_EU ? 0 : 1));
+        CHECK(re4_debug_menu_request() == (re4_disc_retail() ? 0 : 1));
     }
     re4_set_data_dir((base + "/none").c_str());
     CHECK(re4_disc_release() == RE4_DISC_UNKNOWN);

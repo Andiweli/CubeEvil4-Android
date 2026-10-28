@@ -6,13 +6,15 @@
 # This build never set it, so with the European discs the map kept the merchant at the old place.
 # With the European discs the flags are set as there. Nothing changes with the debug build's discs. A
 # port patch for retail data.
+# US release (port/docs/retail-us-plan.md): its map asks for the flag as the European one (patch 0129):
+# both retail releases (re4_disc_retail).
 --- a/src/st2/r204.cpp
 +++ b/src/st2/r204.cpp
 @@ -95,6 +95,8 @@
  static const Vec r204_chandRot1 = {0.0f, 1.5707964f, 0.0f};
  static const Vec r204_chandOfs = {0.0f, 5826.0f, 5610.0f};
  
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
 +
  // Room init for the chandelier hall. Arriving from r205 upstairs starts the mob chase, and until the
  // player escapes the room holds the eleven torch Ganados and the chase task (nige_check).
@@ -24,7 +26,7 @@
 +            /* port: the European R204Init (st2_1.rel) marks the merchant's move here as well, what
 +               its map asks for the eighth merchant mark (patch 0129): without it the map showed the
 +               old place */
-+            if (re4_disc_retail_eu() && em0 && (em0->be_flag & 0x201) == 1) {
++            if (re4_disc_retail() && em0 && (em0->be_flag & 0x201) == 1) {
 +                ScfFlagOn(pG, SCF_R204_MERCHANT_MOVE);
 +                ScfFlagOn(pG, SCF_ae);
 +            }

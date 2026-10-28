@@ -15,13 +15,15 @@
 # and 0x9A/0x9B/0xA1/0x95 where this build asks for 0x81..0x85 and 0x8B/0x8C/0x92/0x86): numbers
 # from 0x56 on are moved up by 15 with the European discs (the option screen's help line showed
 # "ZOOM", device test 26.10.2026).
+# US release (port/docs/retail-us-plan.md): its core table has the same 15 messages from 0x56 on (168
+# messages; language 1 as the debug build): the move by 15 with both retail releases (re4_disc_retail).
 --- a/src/game/mes.cpp
 +++ b/src/game/mes.cpp
 @@ -249,11 +249,19 @@
      return (MesTblBlock*) ((u8*) tbl + tbl[language + 1]);
  }
  
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
 +
  u16* MessageData::getAddr(int no, int data_type)
  {
@@ -31,7 +33,7 @@
 +    /* port: the European core table (etc/core.das CORE_MESSAGE, 173 messages instead of 153) has 15
 +       more from 0x56 on: the European code asks for 0x90.. where this build asks for 0x81.. (the
 +       option screen showed "ZOOM" for most of its help lines) */
-+    if (no >= 0x56 && (void*) tbl == CORE_ARC(CORE_MESSAGE) && re4_disc_retail_eu()) {
++    if (no >= 0x56 && (void*) tbl == CORE_ARC(CORE_MESSAGE) && re4_disc_retail()) {
 +        no += 15;
 +    }
      if (no > (int) blk->count - 1) {

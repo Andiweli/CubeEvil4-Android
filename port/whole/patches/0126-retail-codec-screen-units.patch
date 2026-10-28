@@ -10,13 +10,15 @@
 # Hunnigan as soon as (1) gave them room (device and PC, 27.10.2026). Found with port/tools/retail_code.py
 # in the European Sscrn.rel (SsTermMain::init, OpeMesMove; frames from its data section 20 +0x1200).
 # Nothing changes with the debug build's discs. A port patch for retail data.
+# US release (port/docs/retail-us-plan.md): ss/eng/ss_term.dat sub-files 2, 5 and 9 are byte for byte the
+# European ones: both retail releases (re4_disc_retail).
 --- a/src/game/sscrn.cpp
 +++ b/src/game/sscrn.cpp
 @@ -313,6 +313,8 @@
  // heap swapped to ARAM and the sub screen data swapped in (MemorySwap), fonts and shared id data
  // set up for the screen type, the Sscrn REL linked, then TaskChain into its prolog (the DLL runs
  // the screen and calls SubScreenExit when done).
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
 +
  void SubScreenExec()
  {
@@ -29,7 +31,7 @@
 +               SubScreenExec (main.dol 0x8005a920) does not set them for it. Their European versions
 +               are larger: set, they filled the radio screen's 128 units ("IDSystem::set() work full")
 +               and its subtitle bar found no room */
-+            if (wk->open_flag != 0x20 || !re4_disc_retail_eu()) {
++            if (wk->open_flag != 0x20 || !re4_disc_retail()) {
              IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 7), 0xFF, IDC_SSCRN_PESETA, 0x13, 7, 0);
              if (!(wk->open_flag & 0x10)) {
                  IdSub.set((ID_FILE_HEADER*) SS_ARC_PTR(wk->pCmmn, 0xB), 0xFF, IDC_SSCRN_MAIN_MENU, 0xF, 0, 0);
@@ -51,7 +53,7 @@
 +   them, and 0x12, at a frame of the call: call 13 shows 0x12 at frame 600, call 14 swaps 0x16 for
 +   0x15 at frame 5, call 15 shows 0x17 at frame 1215, call 17 shows 0x12 at frame 444 (the table of
 +   the European data section 20 +0x1200, OpeMesMove after seqCnt++). */
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
 +
 +static void termRetailShow(u8 mark)
 +{
@@ -95,7 +97,7 @@
              }
          }
          ope.seqCnt++;
-+        if (re4_disc_retail_eu()) {
++        if (re4_disc_retail()) {
 +            termRetailPictures(ope.seqCnt);
 +        }
      } else {
@@ -109,7 +111,7 @@
 +    /* port: the European init (Sscrn.rel) hides the three new picture groups too (0x16 not for call
 +       14, which starts with it) and sets no main menu; shown, 0x15..0x17 lay over the partner's picture
 +       (Hunnigan missing, 27.10.2026) */
-+    if (re4_disc_retail_eu()) {
++    if (re4_disc_retail()) {
 +        static const u8 hide[3] = {0x15, 0x16, 0x17};
 +        for (int i = 0; i < 3; i++) {
 +            if (hide[i] == 0x16 && wk->opeMdtNo == 14) {

@@ -10,13 +10,17 @@
 #   run. (Their screen also closes by itself after a time; not taken over, A closes it as here.)
 # - Mercenaries results (MercResult::move): the same digits in both releases, nothing to do.
 # Nothing changes with the debug build's discs. A port patch for retail data.
+# US release (port/docs/retail-us-plan.md): its ss/eng/chapNN.dat are the European templates and its
+# ChapterEnd::move (main.dol 0x80041860) the European one; its GameResult::move (0x80041470) hides unit 0
+# on every run but does not cap the continues (its result.dat is the debug build's): the chapter end and
+# unit 0 with both retail releases (re4_disc_retail), the cap with the European discs alone.
 --- a/src/game/option.cpp
 +++ b/src/game/option.cpp
 @@ -991,6 +991,8 @@
      }
  }
  
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail(void); /* port: runtime/dvd.cpp */
 +
  // Game clear result screen: replaces the cockpit ids with the result id archive `d` (IDC_TITLE).
  void GameResult::init(void* d)
@@ -37,7 +41,7 @@
      u = IdSys.unitPtr(0, IDC_TITLE);
 -    if (pG->game_cnt > 1) {
 +    /* port: their GameResult::move hides unit 0 (the "2nd run" mark here) on every run */
-+    if (pG->game_cnt > 1 && !re4_disc_retail_eu()) {
++    if (pG->game_cnt > 1 && !re4_disc_retail()) {
          u->be_flag |= 8;
      } else {
          u->be_flag &= ~8;
@@ -81,7 +85,7 @@
 +       0x1B and 0x1C; this build never sets them, so they kept animating through all digits
 +       (tester videos 27.10.2026). With the European discs as their ChapterEnd::move: four digits,
 +       leading zeros hidden, continues at most 999 */
-+    if (re4_disc_retail_eu()) {
++    if (re4_disc_retail()) {
 +        re4_chapter_kills(pG->c_kill_cnt, 0x1B, 0x10);
 +        re4_chapter_kills(pG->g_kill_cnt, 0x1C, 0x13);
 +        num(pG->c_continue_cnt > 998 ? 999 : pG->c_continue_cnt, 3, 1, 0x16, IDC_TITLE, 1);

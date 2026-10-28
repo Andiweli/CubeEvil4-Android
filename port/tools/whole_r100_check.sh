@@ -47,8 +47,8 @@
 #              it (the European ones): the debug start needs it for any room but r120 (patch 0119).
 #              The run reads a folder of links to the discs (WORK/disc-ri) that holds the file as
 #              well; the discs and the data folder stay as they are. The tour results are kept per
-#              release (rundgang-<target>[-eu].json) and a European tour is compared with the
-#              debug discs' one
+#              release (rundgang-<target>[-eu|-us].json) and a European or US tour is compared
+#              with the debug discs' one
 # --compare    the 32/64-bit comparison (milestone 12) instead of the normal steps: builds i686
 #              and x86_64, plays both with the same keys (start room as --room, default 120:
 #              the opening movie, the car ride, r100; 30000 frames unless --frames), records the
@@ -311,7 +311,7 @@ say "Form:    $kind"
 # which release the discs are (port/tools/disc_release.py, the same rule as runtime/dvd.cpp)
 release=$(python3 -c 'import os, sys; sys.path.insert(0, sys.argv[1]); from disc_release import release
 print(next((release(open(b, "rb").read(0x440)) for b in sys.argv[2:] if os.path.isfile(b)), ""))'     "$src/port/tools" "$layout"/disc0/sys/boot.bin "$layout"/sys/boot.bin 2>/dev/null)
-say "Version: ${release:-unbekannt} (debug = Debug-Build G4BE08, retail-eu = europäische Verkaufsversion G4BP08)"
+say "Version: ${release:-unbekannt} (debug = Debug-Build G4BE08, retail-eu = europäische Verkaufsversion G4BP08, retail-us = US-Verkaufsversion G4BE08)"
 if [ "$game_ok" -eq 0 ]; then
     say "Hinweis: sys/boot.bin und sys/fst.bin fehlen; der Spiellauf braucht sie (Disc-Abbilder angeben oder"
     say "         mit Dolphin \"Gesamte Disc extrahieren\"). Der Formatvergleich läuft trotzdem."
@@ -1437,6 +1437,7 @@ run_tour() {
     # debug discs' of the same target: the game's messages that only one release gives as well)
     local rel_suffix="" cheats=""
     [ "$release" = retail-eu ] && rel_suffix="-eu"
+    [ "$release" = retail-us ] && rel_suffix="-us"
     # a tour with the cheats of the app's menu (RE4_CHEATS=<bits>, runtime/cheats.cpp) keeps its
     # results apart as well (-cheatsN) and is compared with the tour without them
     [ "${RE4_CHEATS:-0}" != 0 ] && cheats="-cheats$RE4_CHEATS"
@@ -1448,7 +1449,7 @@ run_tour() {
     fi
     ref="$work/rundgang-$host$bsuf$cheats.json"
     if [ -n "$rel_suffix" ] && [ -f "$ref" ]; then
-        python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "debug,eu" --messages |
+        python3 "$src/port/tools/room_tour_report.py" --compare "$ref" "$json" --names "debug,${rel_suffix#-}" --messages |
             tee -a "$report"
     fi
     ref="$work/rundgang-$host$bsuf$rel_suffix.json"

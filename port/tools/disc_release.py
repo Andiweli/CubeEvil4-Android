@@ -6,14 +6,14 @@ The same rule as runtime/dvd.cpp (re4_disc_release); it reads only the disc head
     debug       G4BE08 with the file system table at 0x28FE00: the debug build of
                 2004-11-25 (its main.dol is 2554432 bytes), the build the port's code is
     retail-eu   G4BP08: the European release (port/docs/retail-eu-plan.md)
-    retail-us   G4BE08 with the table elsewhere: the US release, never tested
+    retail-us   G4BE08 with the table elsewhere: the US release (port/docs/retail-us-plan.md)
     unknown     anything else
 """
 import struct
 
 DEBUG_FST_OFFSET = 0x28FE00
 RELEASES = ("debug", "retail-eu", "retail-us", "unknown")
-SUPPORTED = ("debug", "retail-eu")
+SUPPORTED = ("debug", "retail-eu", "retail-us")
 
 
 def release(boot: bytes) -> str:

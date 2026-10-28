@@ -5,13 +5,15 @@
 # 0x44 for 5 as well. On the debug build's discs the three plates are empty, on the European ones they
 # carry names and lay over Leon's ("KiLeonr" on the Retroid, 26.10.2026). With the European discs the
 # three are handled as there. Nothing changes with the debug build's discs. A port patch for retail data.
+# US release (port/docs/retail-us-plan.md): its LifeMeter::roomInit is the European one (main.dol
+# 0x800bf4b8, every instruction alike): both retail releases (re4_disc_retail).
 --- a/src/game/cockpit.cpp
 +++ b/src/game/cockpit.cpp
 @@ -106,6 +106,8 @@
  // Creates the life meter ids (player, and the partner's when Ashley is present), reads the
  // colour templates (units 0x0F..0x11: fine / caution / danger) and starts the smoothed values at
  // the current life.
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
 +
  void LifeMeter::roomInit()
  {
@@ -24,7 +26,7 @@
 +    /* port: the European life meter has three more name plates the European LifeMeter::roomInit
 +       (main.dol 0x800c05a8) hides as well: 0x43 for player type 4, 0x44 for 5, 0x45 for 3; shown,
 +       they lay over Leon's ("KiLeonr", device test 26.10.2026) */
-+    if (re4_disc_retail_eu()) {
++    if (re4_disc_retail()) {
 +        IdSys.unitPtr(0x43, IDC_LIFE_METER)->be_flag &= ~8;
 +        IdSys.unitPtr(0x44, IDC_LIFE_METER)->be_flag &= ~8;
 +        IdSys.unitPtr(0x45, IDC_LIFE_METER)->be_flag &= ~8;

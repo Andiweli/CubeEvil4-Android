@@ -9,13 +9,13 @@ import java.util.*;
 /** Bounded reader for raw GameCube ISO/GCM images. Not an ISO9660 reader. */
 public final class GameCubeDisc implements Closeable {
   /**
-   * The releases the app takes (port/docs/retail-eu-plan.md): the debug build of 2004-11-25
-   * (G4BE08, its file system table at 0x28FE00; the US release has the same id, the table elsewhere)
-   * and the European release (G4BP08). The rule of port/tools/disc_release.py.
+   * The releases the app takes (port/docs/retail-eu-plan.md, retail-us-plan.md): the debug build of
+   * 2004-11-25 (G4BE08, its file system table at 0x28FE00), the US release (the same id, the table
+   * elsewhere) and the European release (G4BP08). The rule of port/tools/disc_release.py.
    */
-  public static final String DEBUG = "debug", EUROPEAN = "eu";
+  public static final String DEBUG = "debug", EUROPEAN = "eu", US = "us";
   private static final long DEBUG_FST_OFFSET = 0x28FE00L;
-  /** Core mode: the European discs too (the classic mode's own game modules know the debug build only). */
+  /** Core mode: the European and US discs too (the classic mode's own game modules know the debug build only). */
   public static volatile boolean retailAllowed;
   private static final String[] UNUSED_LANGUAGES = {"jpn", "ger", "fra", "esp", "ita"};
   private static final Set<String> UNUSED_CARD_ASSETS = new HashSet<>(Arrays.asList(
@@ -43,7 +43,7 @@ public final class GameCubeDisc implements Closeable {
   private final long length;
   private long fstOffset, fstSize;
   public final int discNumber;
-  /** DEBUG or EUROPEAN. */
+  /** DEBUG, EUROPEAN or US. */
   public final String release;
   /** References of this disc checked by validate (0 before). */
   private int validated;
@@ -63,13 +63,15 @@ public final class GameCubeDisc implements Closeable {
           throw new IOException("European discs (G4BP08) need CubeEvil4's core mode");
         release = EUROPEAN;
       } else if (id.equals("G4BE08")) {
-        if (be32(header, 0x424) != DEBUG_FST_OFFSET)
-          throw new IOException("This is the US release (G4BE08): only the debug build of November 25, 2004"
-              + " and the European release (G4BP08) are supported");
-        release = DEBUG;
+        if (be32(header, 0x424) == DEBUG_FST_OFFSET)
+          release = DEBUG;
+        else if (!retailAllowed)
+          throw new IOException("US discs (G4BE08) need CubeEvil4's core mode");
+        else
+          release = US;
       } else
         throw new IOException("Wrong disc ID " + id.replaceAll("[^A-Za-z0-9]", "?")
-            + "; the debug build (G4BE08) or the European release (G4BP08) is required");
+            + "; the debug build or the US release (G4BE08), or the European release (G4BP08) is required");
       discNumber = (header[6] & 255) + 1;
       if (discNumber < 1 || discNumber > 2 || header[7] != 0)
         throw new IOException("Unsupported disc/revision");
@@ -193,14 +195,29 @@ public final class GameCubeDisc implements Closeable {
         throw new IOException("Truncated original module: " + r.path);
       String hash = digest(e.offset + r.offset, r.size, "SHA-1", null);
       if (!hash.equals(r.sha1))
-        throw new IOException((DEBUG.equals(release) ? "Debug build" : "European release") + " mismatch: " + r.path);
-      progress.update(DEBUG.equals(release) ? "Verify debug build" : "Verify European release", ++done, total);
+        throw new IOException(releaseTitle(release) + " mismatch: " + r.path);
+      progress.update(DEBUG.equals(release) ? "Verify debug build" : "Verify " + releaseTitle(release), ++done, total);
     }
     validated = total;
   }
-  /** The app's catalog `name` of a release: rooms.tsv for the debug build, rooms-eu.tsv for the European. */
+  /** "Debug build", "European release" or "US release". */
+  public static String releaseTitle(String release) {
+    return EUROPEAN.equals(release) ? "European release" : US.equals(release) ? "US release" : "Debug build";
+  }
+  /** The game id a release's discs carry: G4BP08 for the European, G4BE08 for the debug build and the US release. */
+  public static String gameId(String release) {
+    return EUROPEAN.equals(release) ? "G4BP08" : "G4BE08";
+  }
+  /** The size of a release's sys/main.dol. */
+  public static long dolSize(String release) {
+    return EUROPEAN.equals(release) ? 2187552 : US.equals(release) ? 2168544 : 2554432;
+  }
+  /**
+   * The app's catalog `name` of a release: rooms.tsv for the debug build, rooms-eu.tsv for the European,
+   * rooms-us.tsv for the US release.
+   */
   public static String catalog(String name, String release) {
-    return EUROPEAN.equals(release) ? name + "-eu.tsv" : name + ".tsv";
+    return EUROPEAN.equals(release) ? name + "-eu.tsv" : US.equals(release) ? name + "-us.tsv" : name + ".tsv";
   }
   public long extractionSize() {
     long n = 0x440 + fstSize;  // sys/boot.bin, sys/fst.bin
@@ -283,7 +300,7 @@ public final class GameCubeDisc implements Closeable {
     }
     try (FileOutputStream w =
              new FileOutputStream(new File(destination, "ready.properties"))) {
-      w.write(("format=1\nlanguage=eng\ndisc=" + discNumber + "\nid=" + (EUROPEAN.equals(release) ? "G4BP08" : "G4BE08")
+      w.write(("format=1\nlanguage=eng\ndisc=" + discNumber + "\nid=" + gameId(release)
                + "\nrelease=" + release + "\nreferences=" + validated + "\n")
                   .getBytes(StandardCharsets.UTF_8));
       w.getFD().sync();

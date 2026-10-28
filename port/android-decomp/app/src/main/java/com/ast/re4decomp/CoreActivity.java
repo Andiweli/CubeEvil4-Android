@@ -131,6 +131,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the language at the start or the last change (onConfigurationChanged)
   private String shownLanguage = "";
   private boolean retailEu;  // the European discs are imported: the menu offers the game's language
+  private boolean retail;  // the European or the US discs: no debug menu (retail-us-plan.md)
   private int gameLanguageNow;  // the language the game runs with (European discs)
   // the menu (SELECT) and the debug menu (SELECT held)
   private CoreMenu menu;
@@ -192,8 +193,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
     // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
-    retailEu = imports.root != null && com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(
-        com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1")));
+    String release = imports.root == null ? null
+        : com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1"));
+    retailEu = com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(release);
+    retail = retailEu || com.ast.re4decomp.disc.GameCubeDisc.US.equals(release);
     gameLanguageNow = gameLanguage(this);
     if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
       coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
@@ -529,10 +532,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final Runnable selectHold = () -> {
     if (!selectDown || menu != null) return;
     selectHeld = true;
-    // the European discs have no debug menu (decision of the project owner, 26.10.2026; a cheat menu
-    // of the in-game menu comes later): holding SELECT opens nothing
-    if (retailEu) {
-      Log.i(TAG, "SELECT held: no debug menu with the European discs");
+    // the European and US discs have no debug menu (decision of the project owner, 26.10.2026; the
+    // cheat menu of the in-game menu instead; the US discs lack the debug tools as well): holding
+    // SELECT opens nothing
+    if (retail) {
+      Log.i(TAG, "SELECT held: no debug menu with the retail discs");
       return;
     }
     if (!menuSupported) {

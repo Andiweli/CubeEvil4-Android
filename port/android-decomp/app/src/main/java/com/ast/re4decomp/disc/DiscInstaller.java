@@ -37,14 +37,14 @@ public final class DiscInstaller {
     boolean debug = GameCubeDisc.DEBUG.equals(release);
     String references = p.getProperty("references", "");
     return "1".equals(p.getProperty("format")) &&
-        (debug ? "G4BE08" : "G4BP08").equals(p.getProperty("id")) &&
+        GameCubeDisc.gameId(release).equals(p.getProperty("id")) &&
         Integer.toString(number).equals(p.getProperty("disc")) &&
         (debug ? Integer.toString(number == 1 ? 111 : 5).equals(references) : references.matches("[1-9][0-9]{0,4}")) &&
-        new File(disc, "sys/main.dol").length() == (debug ? 2554432 : 2187552) &&
+        new File(disc, "sys/main.dol").length() == GameCubeDisc.dolSize(release) &&
         new File(disc, "manifest.tsv").isFile();
   }
   /**
-   * The release of an imported disc folder (GameCubeDisc.DEBUG or EUROPEAN); imports before the
+   * The release of an imported disc folder (GameCubeDisc.DEBUG, EUROPEAN or US); imports before the
    * European discs (26.10.2026) name none and are the debug build's. Null without an import.
    */
   public static String release(File disc) {
@@ -52,7 +52,8 @@ public final class DiscInstaller {
     if (p == null)
       return null;
     String release = p.getProperty("release", GameCubeDisc.DEBUG);
-    return GameCubeDisc.DEBUG.equals(release) || GameCubeDisc.EUROPEAN.equals(release) ? release : null;
+    return GameCubeDisc.DEBUG.equals(release) || GameCubeDisc.EUROPEAN.equals(release) ||
+        GameCubeDisc.US.equals(release) ? release : null;
   }
   private static Properties properties(File disc) {
     Properties p = new Properties();
