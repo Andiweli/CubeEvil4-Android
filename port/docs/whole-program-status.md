@@ -18,6 +18,21 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sin
 6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
    R3-Serien vom Retroid offen**.
 
+## Gerätetest 28.10.2026 10:56 (0.94.0) und Version 0.94.1-beta (lokal, Branch `claude/determined-allen-36nj6r`)
+
+Projektinhaber: deutsche Untertitel im Intro sichtbar, weißes Aufblitzen bei START behoben; Kapitelende und Hunk folgen.
+Protokoll: im Spiel 2 % der Teilchen ohne Gegenstück, 0,94 Mio. Zeichnungen über ihr Objekt, 0 neu belegte Plätze,
+Texturmatrizen 1,8 Mio. gemischt (2879 am Rand gelassen). **Befund:** In Titel und Intro-Film liefert der Kern 60 Bilder/s
+(Bildschirmtakt); jedes zählte als „Renderer hinten“: 4482 ausgelassen, 23 Pausen, die dynamische Auflösung fiel im Film
+von 2x auf 1x. Jetzt erkennt `core_mode.cpp` 60 Chunks/s (≥ 45 in der letzten Sekunde) als eigenen Takt des Spiels: weder
+ausgelassen noch Pause. Fünf R3-Serien (r226) nachgezeichnet: mit Marken 0 Raumteile ohne Gegenstück (ohne Marken 11 je
+Serie), Teilchen ohne Gegenstück mit und ohne Marken gleich (echte neue). S3 ergänzt: Nach-Transformations-Matrizen (XF
+0x500, Wasser/Nebel laufen dort) und indirekte Matrizen (BP 0x06–0x0E, bei gleichem Maßstab) bei Zuordnung über das
+Objekt; in r226 je Zwischenbild 850–1200 Matrizen gemischt. Test `TestInterpolationExtras` erweitert (indirekte Matrix,
+Gegenprobe), `gx_gl_check` 0 Fehler. Nutzerbericht (0.93.0, Xiaomi 25078RA3EL, EU): Zeichen-Thread 9–13 ms Prozessorzeit je
+Bild bei 850–1000 MHz, GPU wartet – mit 60 FPS (jedes Bild zweimal) zu langsam; ein Frame-Skip-Zähler „636“ steht nicht in
+der App (im Protokoll nur „636 texture binds“), Bildschirmfoto erbeten. **Version 0.94.1-beta** (versionCode 79).
+
 ## Gerätetest 28.10.2026 10:30 und Version 0.94.0-beta (lokal, Branch `claude/determined-allen-36nj6r`)
 
 Bericht `cubeevil4-report-20261028-103732`, `senden.zip`, fünf R3-Serien. **Auf dem Retroid lief noch die alte APK

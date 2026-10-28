@@ -102,4 +102,5 @@ abwechselnd 60 und 30) und meldet das im Fehlerprotokoll.
 - **S4 Takt:** `SmoothPacer` (`gx_auto_level.h`): die dynamische Auflösung reagiert zuerst (wie bisher); liegt der
   Renderer trotzdem 3-mal binnen 2 s zurück, gibt es 5 s keine Zwischenbilder (gleichmäßig 30), mit Zeile im
   Fehlerprotokoll. Test `TestSmoothPacer`.
-- **S5 Gerät:** offen (Projektinhaber: Fackeln, Wasser, Texturen, Tempo, Menüs; R3-Serien).
+- **S4 Nachtrag (0.94.1):** 60 Chunks/s (Film, Titel) zählen nicht als „hinten“.
+- **S5 Gerät:** 0.94.0 auf dem Retroid (28.10.2026): „wesentlich besser“, START-Menü ohne Aufblitzen; Rest offen.

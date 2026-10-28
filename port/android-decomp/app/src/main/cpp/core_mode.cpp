@@ -624,7 +624,11 @@ const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
 // Frame skip: the chunk after the one that was skipped or drawn (taken to look at it, drawn next)
 const Re4GxChunk *skipNext = nullptr;
 std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
-re4gx::SmoothPacer smoothPacer;  // 60 FPS: the in-between pictures pause when the renderer is behind again and again
+re4gx::SmoothPacer smoothPacer;
+// when the last chunks came (seconds): 60 a second is the game's own pace (movies, title)
+constexpr unsigned kChunkTimes = 64;
+double chunkTimes[kChunkTimes] = {};
+unsigned chunkTimeAt = 0;  // 60 FPS: the in-between pictures pause when the renderer is behind again and again
 unsigned gxBetweenDropped = 0;      // in-between pictures left out because the renderer was behind
 unsigned gxSkipped = 0;             // chunks left out since the start of this renderer
 bool smoothTooSlow = false;
@@ -1376,11 +1380,22 @@ bool drawGx() {
     // the in-between picture first when the switch is on and nothing records this chunk's picture;
     // Run(chunk) then at the next refresh
     bool between = false;
-    if (smoothOn && !deferred && smoothPrev && behind)
+    // the game's own pace: 60 chunks a second (its movies and the title follow the screen, 60 Hz)
+    // leave no room for in-between pictures; the next chunk is always there already, which is not
+    // the renderer behind (Retroid 28.10.2026: in the opening movie every chunk counted as left out,
+    // 60 FPS paused again and again and the dynamic resolution went from 2x to 1x)
+    const double chunkAt = std::chrono::duration<double>(now.time_since_epoch()).count();
+    chunkTimes[chunkTimeAt] = chunkAt;
+    chunkTimeAt = (chunkTimeAt + 1) % kChunkTimes;
+    unsigned lastSecond = 0;
+    for (double c : chunkTimes)
+      lastSecond += chunkAt - c < 1.0 ? 1u : 0u;
+    const bool stream60 = lastSecond >= 45;
+    if (smoothOn && !deferred && smoothPrev && behind && !stream60)
       gxBetweenDropped++;  // behind: this chunk at once, without the picture between
     // an even pace (60fps-plan.md S4): behind again and again, the in-between pictures pause
-    bool paced = true;
-    if (smoothOn && !deferred && smoothPrev) {
+    bool paced = !stream60;
+    if (smoothOn && !deferred && smoothPrev && !stream60) {
       std::string why;
       paced = smoothPacer.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), behind, &why);
       if (!why.empty())

@@ -1799,6 +1799,10 @@ void ExtrasScene(Builder &b, std::uint32_t sequence, bool second, bool tags, flo
   // TEV colour register c0 (BP 0xE2 RA, 0xE3 BG): red in A, blue in B
   b.Bp(0xE2, second ? 0x000000u : 0x0FF000u);
   b.Bp(0xE3, second ? 0x0FF000u : 0x000000u);
+  // indirect matrix 0 (BP 0x06..0x08), the same scale: element 0 from 16 to 48
+  b.Bp(0x06, second ? 0x000030u : 0x000010u);
+  b.Bp(0x07, 0x000000u);
+  b.Bp(0x08, 0x000000u);
   std::vector<std::uint8_t> v;
   V(v, -2000.0f, -2000.0f, 0.0f, kGreen);
   V(v, 2000.0f, -2000.0f, 0.0f, kGreen);
@@ -1836,6 +1840,9 @@ void TestInterpolationExtras() {
     Check(st.interpTexBlends == c.blends && st.interpTexWraps == c.wraps, c.what);
     Check(st.interpTevBlends == (c.tags ? 1u : 0u),
           c.tags ? "extras: the TEV colours of the same object between the two" : "extras: without tags the TEV colours as in B");
+    Check(st.interpIndBlends == (c.tags ? 1u : 0u),
+          c.tags ? "extras: the indirect matrix of the same object between the two"
+                 : "extras: without tags the indirect matrix as in B");
     if (st.interpTexBlends != c.blends || st.interpTexWraps != c.wraps)
       std::printf("    texture matrices %u blended, %u over the edge\n", st.interpTexBlends, st.interpTexWraps);
     Check(glGetError() == GL_NO_ERROR, "extras: no GL error");

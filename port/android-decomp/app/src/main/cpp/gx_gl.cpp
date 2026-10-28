@@ -930,9 +930,11 @@ struct GxRenderer::Impl {
   std::uint32_t ownerLife = ~0u, ownerDraws = 0, curLife = ~0u;
   std::unordered_map<std::uint64_t, std::uint32_t> recByOwner;
   // what a blended draw changed beyond its position rows (BlendRestore puts it back): texture
-  // matrix rows, 0x100 for the TEV colours (tevSave: before the blend)
+  // matrix rows, 0x100 for the TEV colours (tevSave: before the blend), 0x200 + row for a post-transform
+  // matrix, 0x300 for the indirect matrices (indSave: the BP words before the blend)
   std::vector<std::uint32_t> texRowsBlended;
   std::int32_t tevSave[2][4][4] = {};
+  std::uint32_t indSave[9] = {};
   std::vector<std::uint8_t> recUsed;
   std::unordered_map<std::uint32_t, Copy> interpCopies;  // the pass's own EFB copies
   std::unordered_set<std::uint32_t> interpCopied;         // addresses it copied to
@@ -1037,6 +1039,22 @@ struct GxRenderer::Impl {
       recFloatsNew.insert(recFloatsNew.end(), tev, tev + 32);
       for (int l = 0; l < 8; l++)
         recFloatsNew.insert(recFloatsNew.end(), xf.light[l][0], xf.light[l][0] + 4);
+      // the post-transform matrices of the coordinates (dual texture: water and fog scroll there)
+      for (int n = 0; n < 8; n++) {
+        const std::uint32_t row = k.dualTex ? k.postGen[n] & 63 : 64;
+        for (std::uint32_t i = 0; i < 3; i++) {
+          if (row + i < 64)
+            recFloatsNew.insert(recFloatsNew.end(), xf.post[row + i], xf.post[row + i] + 4);
+          else
+            recFloatsNew.insert(recFloatsNew.end(), 4, 0.0f);
+        }
+      }
+      // the indirect matrices (BP 0x06..0x0E: the distortion of water and heat haze)
+      for (int i = 0; i < 9; i++) {
+        float w;
+        std::memcpy(&w, &bp[0x06 + i], 4);
+        recFloatsNew.push_back(w);
+      }
     }
     recNew.push_back(r);
   }
@@ -1365,6 +1383,69 @@ struct GxRenderer::Impl {
         extras = true;
         texRowsBlended.push_back(0x100);
       }
+      // post-transform matrices, as the texture matrices
+      for (int n = 0; k.dualTex && n < 8; n++) {
+        const std::uint32_t row = k.postGen[n] & 63;
+        if (row + 3 > 64 ||
+            std::find(texRowsBlended.begin(), texRowsBlended.end(), 0x200 + row) != texRowsBlended.end())
+          continue;
+        const float *was = ex + 160 + n * 12;
+        bool same = true, jump = false;
+        for (int r = 0; r < 3; r++) {
+          for (int c = 0; c < 4; c++) {
+            const float diff = xf.post[row + r][c] - was[r * 4 + c];
+            same = same && diff == 0.0f;
+            if (c == 3 && r < 2 && std::fabs(diff) > 0.5f)
+              jump = true;
+          }
+        }
+        if (same)
+          continue;
+        if (jump) {
+          stats.interpTexWraps++;
+          continue;
+        }
+        for (int r = 0; r < 3; r++)
+          for (int c = 0; c < 4; c++)
+            xf.post[row + r][c] = was[r * 4 + c] + (xf.post[row + r][c] - was[r * 4 + c]) * s;
+        texRowsBlended.push_back(0x200 + row);
+        Dirty(static_cast<int>(96 + row), static_cast<int>(96 + row + 3));
+        stats.interpTexBlends++;
+        extras = true;
+      }
+      // the indirect matrices, each element between the two when the scale stayed (it is shared by
+      // the matrix's three words; a new scale is a new matrix: as in the next picture)
+      {
+        std::uint32_t was[9];
+        std::memcpy(was, ex + 256, sizeof(was));
+        bool changed = false;
+        for (int i = 0; i < 9; i++)
+          changed = changed || (was[i] & 0xFFFFFF) != (bp[0x06 + i] & 0xFFFFFF);
+        if (changed) {
+          std::memcpy(indSave, &bp[0x06], sizeof(indSave));
+          for (int m = 0; m < 3; m++) {
+            bool sameScale = true;
+            for (int w = 0; w < 3; w++)
+              sameScale = sameScale && ((was[3 * m + w] >> 22) & 3) == ((bp[0x06 + 3 * m + w] >> 22) & 3);
+            if (!sameScale)
+              continue;
+            for (int w = 0; w < 3; w++) {
+              const std::uint32_t a = was[3 * m + w], b = bp[0x06 + 3 * m + w];
+              std::uint32_t v = b & ~0x3FFFFFu;
+              for (int half = 0; half < 2; half++) {
+                const int ea = Signed11(a >> (11 * half)), eb = Signed11(b >> (11 * half));
+                const int e = static_cast<int>(std::lround(ea + (eb - ea) * s));
+                v |= (static_cast<std::uint32_t>(e) & 0x7FFu) << (11 * half);
+              }
+              bp[0x06 + 3 * m + w] = v;
+            }
+          }
+          pxDirty = true;
+          texRowsBlended.push_back(0x300);
+          stats.interpIndBlends++;
+          extras = true;
+        }
+      }
       const float *lc = ex + 128;
       bool lightsDiffer = false;
       for (int l = 0; l < 8 && !lightsDiffer; l++)
@@ -1499,6 +1580,19 @@ struct GxRenderer::Impl {
           std::memcpy(tevColor, tevSave[0], sizeof(tevColor));
           std::memcpy(tevKonst, tevSave[1], sizeof(tevKonst));
           pxDirty = true;
+          continue;
+        }
+        if (row == 0x300) {
+          std::memcpy(&bp[0x06], indSave, sizeof(indSave));
+          pxDirty = true;
+          continue;
+        }
+        if (row >= 0x200) {
+          const std::uint32_t pr = row - 0x200;
+          for (std::uint32_t r = 0; r < 3; r++)
+            for (std::uint32_t c = 0; c < 4; c++)
+              XfMemToBlock(0x500 + (pr + r) * 4 + c);
+          Dirty(static_cast<int>(96 + pr), static_cast<int>(96 + pr + 3));
           continue;
         }
         for (std::uint32_t r = 0; r < 3; r++)

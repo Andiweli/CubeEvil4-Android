@@ -80,7 +80,7 @@ struct GxStats {
   // colours and light colours blended
   unsigned interpKind[4] = {}, interpKindUnmatched[4] = {};
   unsigned interpOwned = 0, interpOwnedNew = 0, interpTexBlends = 0, interpTexWraps = 0, interpTevBlends = 0,
-           interpLightBlends = 0;
+           interpLightBlends = 0, interpIndBlends = 0;
 };
 
 // Picture options of the app's menu (M11), applied by Init: multisampling of
