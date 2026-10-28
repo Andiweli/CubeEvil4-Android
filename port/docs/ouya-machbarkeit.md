@@ -7,6 +7,10 @@ noch 65–78 ms (Abschnitt „Ergebnisse auf der OUYA“). Die ganze OUYA-Arbeit
 `ouya-discarded` (Stand des Branches `claude/adoring-mendel-vclbu8`); sie wird nicht
 weitergeführt und nicht in die Haupt-App übernommen.
 
+**Wieder aufgenommen am 28.10.2026 (Wunsch des Projektinhabers):** `ouya-discarded` mit
+`master` abgeglichen, um auf dem neuen Stand weiterzutesten (Abschnitt „Abgleich mit master“
+am Ende). Nichts davon geht in die Haupt-App.
+
 Stand 21.10.2026, Branch `claude/adoring-mendel-vclbu8`. Nur Bestandsaufnahme
 in der Cloud: nichts gebaut, nichts auf einer OUYA geprüft. Die Angaben zum
 Gerät stammen aus den bekannten technischen Daten der OUYA, nicht aus einer
@@ -340,3 +344,37 @@ müsste beim TEV ungenauer werden (Näherung statt Nachbildung auf die Stufe gen
 Auflösung senken und Geometrie sparen (das hieße: ins Spiel eingreifen, z. B. Sichtweite).
 **Entscheidung des Projektinhabers (22.10.2026): der OUYA-Versuch endet hier**, die OUYA ist
 eindeutig zu schwach; die Arbeit liegt im Branch `ouya-discarded`.
+
+## Abgleich mit master (28.10.2026)
+
+`master` (Stand `f1554a06`, 0.95.0-beta, 224 Commits seit dem OUYA-Branch) in `ouya-discarded`
+zusammengeführt. **Entscheidung des Projektinhabers (28.10.2026): master ist die Basis.**
+
+- **Kern (GX-Umrechnung):** beide Seiten hatten sie unabhängig umgebaut. Übernommen ist
+  master's Fassung: Punkte in Blöcken, Hilfs-Threads für die Punkte (bis zu 3,
+  `RE4_GX_THREADS`, Standard: Prozessorkerne minus 3, auf der OUYA also 1), dazu alles Neue
+  (Owner-Befehl für 60 FPS, Tiefenkarte für `GXPeekZ` …). **Der eigene Grafik-Thread der OUYA
+  (`gx_thread.cpp`, `RE4_GX_THREAD=1`) entfällt**; ob master's Hilfs-Threads auf der OUYA
+  genauso viel bringen, ist noch nicht gemessen.
+- **Neu auf master's Umrechnung aufgesetzt:** das Kompaktformat der Punkte
+  (`RE4_GX_COMPACT=1`; sein Befehl hat jetzt die Nummer 9, master belegt 8 mit `OWNER`) und
+  die Textur-Stichprobe (`RE4_GX_TEXTURE_CHECK=sampled`), je mit ihrem Selbsttest aus dem
+  OUYA-Branch (Kompaktformat zurückgerechnet = Gleitkomma-Punkte, Bit für Bit; Stichprobe
+  erkennt geänderte Texturen).
+- **Bleibt aus dem OUYA-Branch:** die Bau-Anpassungen für Android 4.1 (`ai.cpp`,
+  `stack_context.cpp`, `watch.cpp`, Prelude, CMake mit `re4_probe` und `--hash-style=both`,
+  `whole_build_android.sh --ouya`, `ndk23_check.sh`), die Kern-Probe `host/probe.cpp`
+  (meldet ohne Grafik-Thread keine eigene Grafik-Zeit mehr), der GLES-2-Renderer `port/ouya`
+  und die Skripte. `ouya-probe.ps1`: die „-gp“-Läufe heißen weiter so, schalten aber nur
+  noch Kompaktformat und Textur-Stichprobe ein.
+- **Geprüft (PC, WSL):** Kern i686 `-O2` mit `whole_build.sh`: gebaut ohne Fehler, alle
+  Prüfungen bestanden bis auf `runtime-test deathlog`, der auf master genauso scheitert (die
+  Raum-Logzeile hat dort `game_mode`/`game_country` dazubekommen, die Testerwartung nicht);
+  die GX-Prüfsumme und die beiden neuen Selbsttests bestehen mit 3 Hilfs-Threads und ohne.
+  `port/ouya/tools/check.sh`: 22 künstliche Szenen in allen drei Läufen bestanden, der
+  Renderer übersetzt für Android 4.1. Kern für Android 4.1 (`whole_build_android.sh
+  --ouya`): gebaut ohne Fehler (114 Module, Stubs wie erwartet), nachdem zwei Stellen von master angepasst sind, die es erst ab Android 5.0 gibt: das Modul-Fenster über `android_dlopen_ext` (ohne Fenster legt der Linker die Module, wie bei O1) und die Bereiche der Spielbibliotheken über `dl_iterate_phdr` (über `dladdr`, wie im OUYA-Branch schon einmal); keine Systemfunktion fehlt unter Android 4.1 (alle 119 Dateien gegen die Bibliotheken von API 16 geprüft). **Auf der OUYA selbst noch nicht gelaufen.**
+- **Vor dem nächsten Gerätelauf nötig:** die Spielbild-Mitschnitte neu machen
+  (`port/ouya/tools/compare_frames.sh --data …`): die alten tragen das Kompaktformat unter
+  Nummer 8, die jetzt `OWNER` heißt; dann `ouya-probe.ps1` (Kern auf der OUYA, mit master's
+  Hilfs-Threads) und `ouya-gx-render.ps1` (Grafik).
