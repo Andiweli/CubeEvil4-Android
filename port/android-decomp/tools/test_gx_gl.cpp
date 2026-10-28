@@ -1787,6 +1787,55 @@ void TestInterpolationOwners() {
   }
 }
 
+// An object whose number of quads changes from one picture to the next (a flame's trail of sprites):
+// not matched by "n-th draw of the object" (its sprites would take each other's places), the old way
+// instead; with the same number as before by its object as usual.
+void TrailScene(Builder &b, std::uint32_t sequence, unsigned quads, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  b.Owner(0x80300000u, 0x81234580u, 0x12, 0x00070000u | sequence);
+  for (unsigned q = 0; q < quads; q++) {
+    b.XfF(0, {1, 0, 0, -3000.0f + 2000.0f * static_cast<float>(q), 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  }
+  b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationTrail() {
+  for (unsigned second = 2; second <= 3; second++) {
+    std::string error;
+    re4gx::GxRenderer r;
+    Require(r.Init(1, &error), error.c_str());
+    r.SetRecording(true);
+    Builder ba, bb;
+    Re4GxChunk a, b;
+    TrailScene(ba, 1, 2, &a);
+    TrailScene(bb, 2, second, &b);
+    r.Run(a);
+    r.Interpolate(a, b, 0.5f);
+    const auto &st = r.Stats();
+    if (second == 2)
+      Check(st.interpOwned == 2 && st.interpOwnedRecount == 0, "trail: the same number of quads: matched by the object");
+    else
+      Check(st.interpOwned == 0 && st.interpOwnedRecount == 3,
+            "trail: another number of quads: not by \"n-th draw\", the old way");
+    Check(glGetError() == GL_NO_ERROR, "trail: no GL error");
+    r.Release();
+  }
+}
+
 // With the object sure (S3): a texture matrix between the two (0.1 -> 0.3: blended once), not over
 // the texture's edge (0.9 -> 0.05: left out), and the TEV colours between the two; without the tags
 // none of it (counter-check).
@@ -2611,6 +2660,7 @@ int main() {
   TestInterpolationLooks();
   TestInterpolationEffects();
   TestInterpolationOwners();
+  TestInterpolationTrail();
   TestInterpolationExtras();
   TestSmoothPacer();
   TestChunkRate();

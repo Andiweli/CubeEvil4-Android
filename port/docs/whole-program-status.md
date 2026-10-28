@@ -18,6 +18,18 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sin
 6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
    R3-Serien vom Retroid offen**.
 
+## Gerätetest 28.10.2026 12:20 (0.94.0, 2x MSAA) und Abschluss 0.94.0-beta (lokal, Branch `claude/determined-allen-36nj6r`)
+
+Projektinhaber: großteils stabil 60 FPS (MSAA auf 2x gesenkt); vereinzelt flackern große Fackeln wie ein fehlerhaftes Bild.
+Dynamische Auflösung ging wie gewollt 2x → 1.5x (15 % ohne Zwischenbild), danach 58 ausgelassen in ~90 s, 1 Pause.
+Vier R3-Serien (r226): Lebenszähler der Teilchen korrekt (langlebige Fackel-Teilchen, kein Platz neu belegt). Ursache:
+manche Teilchen-Objekte zeichnen von Bild zu Bild eine andere Zahl Vierecke (bis 5 je Serie), dann verschob „n-te
+Zeichnung des Objekts“ die Zuordnung, Vierecke tauschten die Plätze. Jetzt zählt `Interpolate` die Zeichnungen je Objekt im
+nächsten Chunk vorab; weicht die Zahl vom vorigen ab, wird das Objekt nicht über die Marke, sondern wie früher zugeordnet
+(`interpOwnedRecount`). Jede Zeichen-Nachricht zählt dafür, auch eine verworfene. Test `TestInterpolationTrail`, `gx_gl_check`
+0 Fehler, Serien weiter 11/11 Zwischenbilder gezeigt. **0.94.0-beta fertig** (Wunsch des Projektinhabers): Releasetext
+`port/android-decomp/docs/releases/v0.94.0-beta.md`. Offen: Kapitelende auf dem Gerät, Hunk über einen Tester.
+
 ## Gerätetest 28.10.2026 12:03 (0.94.0): r226 mit 60 FPS (lokal, Branch `claude/determined-allen-36nj6r`)
 
 Nach der Zähl-Korrektur etwa 25 Zwischenbilder/s (vorher ~14); Teilchen 1,6 %, Raum 0,9 % ohne Gegenstück, 1,33 Mio. über

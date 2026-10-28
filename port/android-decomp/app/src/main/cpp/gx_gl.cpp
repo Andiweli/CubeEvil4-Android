@@ -929,6 +929,11 @@ struct GxRenderer::Impl {
   std::uint64_t ownerBase = 0, curOwner = 0;
   std::uint32_t ownerLife = ~0u, ownerDraws = 0, curLife = ~0u;
   std::unordered_map<std::uint64_t, std::uint32_t> recByOwner;
+  // draws per object (ownerBase): of the chunk noted (recOwnerDraws, filled while recording) and of the
+  // next one (nextOwnerDraws, counted ahead by Interpolate). An object that draws more or fewer quads
+  // than before (a flame's trail of sprites growing) is not matched by "n-th draw": its sprites would
+  // take each other's places (Retroid 28.10.2026, big torches: now and then a wrong in-between picture)
+  std::unordered_map<std::uint64_t, std::uint32_t> recOwnerDraws, recOwnerDrawsNew, nextOwnerDraws;
   // what a blended draw changed beyond its position rows (BlendRestore puts it back): texture
   // matrix rows, 0x100 for the TEV colours (tevSave: before the blend), 0x200 + row for a post-transform
   // matrix, 0x300 for the indirect matrices (indSave: the BP words before the blend)
@@ -1069,17 +1074,18 @@ struct GxRenderer::Impl {
   }
 
   // the owner tag (RE4_GX_OP_OWNER): object, function, table (0xFF: none), life word
-  void SetOwner(const std::uint32_t *p) {
-    if (!p[0] || (p[2] & 0xFF) == 0xFF) {
-      ownerBase = 0;
-    } else {
-      std::uint64_t h = 1469598103934665603ull;
-      for (int i = 0; i < 3; i++) {
-        h ^= p[i];
-        h *= 1099511628211ull;
-      }
-      ownerBase = h | 1;
+  static std::uint64_t OwnerKey(const std::uint32_t *p) {
+    if (!p[0] || (p[2] & 0xFF) == 0xFF)
+      return 0;
+    std::uint64_t h = 1469598103934665603ull;
+    for (int i = 0; i < 3; i++) {
+      h ^= p[i];
+      h *= 1099511628211ull;
     }
+    return h | 1;
+  }
+  void SetOwner(const std::uint32_t *p) {
+    ownerBase = OwnerKey(p);
     ownerLife = p[3];
     ownerDraws = 0;
   }
@@ -1233,7 +1239,14 @@ struct GxRenderer::Impl {
     // slot used anew (another effect, fewer life frames) is a new one, drawn as in the next picture
     const DrawRec *a = nullptr;
     bool owned = false;
+    bool sameCount = false;
     if (curOwner) {
+      auto pc = recOwnerDraws.find(ownerBase), nc = nextOwnerDraws.find(ownerBase);
+      sameCount = pc != recOwnerDraws.end() && nc != nextOwnerDraws.end() && pc->second == nc->second;
+      if (!sameCount)
+        stats.interpOwnedRecount++;
+    }
+    if (curOwner && sameCount) {
       auto o = recByOwner.find(curOwner);
       if (o != recByOwner.end() && !recUsed[o->second] && rec[o->second].shape == DrawSig(d, k, false)) {
         const DrawRec &c = rec[o->second];
@@ -2704,6 +2717,11 @@ struct GxRenderer::Impl {
   }
 
   void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk) {
+    // (every draw op counts for "n-th draw of its object", as Interpolate counts them ahead)
+    curOwner = ownerBase ? (ownerBase ^ (static_cast<std::uint64_t>(ownerDraws++) + 1) * 0x9E3779B97F4A7C15ull) | 1 : 0;
+    curLife = ownerLife;
+    if (ownerBase && recordDraws && !interpPass)
+      recOwnerDrawsNew[ownerBase]++;
     if (d.indexCount == 0 || d.vertexOffset + static_cast<std::uint64_t>(d.vertexCount) * d.stride > chunk.vertexBytes ||
         d.indexOffset + d.indexCount > chunk.indexCount)
       return;
@@ -2729,8 +2747,6 @@ struct GxRenderer::Impl {
     if (xfRegsDirty)
       FillXfRegs();
     std::uint32_t blended = 0;
-    curOwner = ownerBase ? (ownerBase ^ (static_cast<std::uint64_t>(ownerDraws++) + 1) * 0x9E3779B97F4A7C15ull) | 1 : 0;
-    curLife = ownerLife;
     if (interpPass)
       blended = BlendDraw(d, k, chunk);
     else if (recordDraws)
@@ -4063,6 +4079,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   if (record) {
     m.recNew.clear();
     m.recFloatsNew.clear();
+    m.recOwnerDrawsNew.clear();
   }
   m.Touched();
   if (!m.interpPass && m.peekProgram)
@@ -4170,6 +4187,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.FenceAfterChunk();
   if (record) {
     m.rec.swap(m.recNew);
+    m.recOwnerDraws.swap(m.recOwnerDrawsNew);
     m.recFloats.swap(m.recFloatsNew);
     m.recSequence = chunk.sequence;
     m.recValid = true;
@@ -4342,6 +4360,20 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   m.recBySig.clear();
   m.recByLook.clear();
   m.recByOwner.clear();
+  m.nextOwnerDraws.clear();
+  {
+    std::uint64_t owner = 0;
+    for (std::uint32_t at = 0; at < next.opWords;) {
+      const std::uint32_t head = next.ops[at], op = head & 0xFF, n = head >> 8;
+      if (at + 1 + n > next.opWords)
+        break;
+      if (op == RE4_GX_OP_OWNER && n >= 4)
+        owner = Impl::OwnerKey(next.ops + at + 1);
+      else if (op == RE4_GX_OP_DRAW && owner)
+        m.nextOwnerDraws[owner]++;
+      at += 1 + n;
+    }
+  }
   for (std::uint32_t i = 0; i < m.rec.size(); i++) {
     if (m.rec[i].owner)
       m.recByOwner.emplace(m.rec[i].owner, i);
