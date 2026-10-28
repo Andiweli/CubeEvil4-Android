@@ -29,6 +29,9 @@ nächsten Chunk vorab; weicht die Zahl vom vorigen ab, wird das Objekt nicht üb
 (`interpOwnedRecount`). Jede Zeichen-Nachricht zählt dafür, auch eine verworfene. Test `TestInterpolationTrail`, `gx_gl_check`
 0 Fehler, Serien weiter 11/11 Zwischenbilder gezeigt. **0.94.0-beta fertig** (Wunsch des Projektinhabers): Releasetext
 `port/android-decomp/docs/releases/v0.94.0-beta.md`. Offen: Kapitelende auf dem Gerät, Hunk über einen Tester.
+Nachtest des Projektinhabers mit dem fertigen Stand: große Fackeln flackern noch vereinzelt; bleibt so (60 FPS ist
+„experimental“, Entscheidung des Projektinhabers 28.10.2026). Ansatz für später: Einzelbild-Animationen der Flammen
+(`m_Ptn_no`) überblenden oder Teilchen mit wechselnder Viereck-Zahl einzeln über ihren Abstand zuordnen.
 
 ## Gerätetest 28.10.2026 12:03 (0.94.0): r226 mit 60 FPS (lokal, Branch `claude/determined-allen-36nj6r`)
 
