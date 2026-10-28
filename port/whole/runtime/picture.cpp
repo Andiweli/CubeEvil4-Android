@@ -39,13 +39,16 @@ extern "C" int re4_letterbox_open(void)
 // 60 FPS: a "%" stood halfway between two rows): the chapter end, the game's end, the Mercenaries and
 // the shooting range results set a table of the id class IDC_TITLE over a stopped game (option.cpp
 // ChapterEnd/GameResult, mercenaries.cpp, r22c.cpp); their digits and signs are alike draws as well.
+// And the option screen START opens over the paused game (game.cpp gameOption, Rno0 6; Retroid
+// 28.10.2026 with 60 FPS: the screen flashed white for a moment when it opened).
 // Every frame (re4_add_frame_hook); the GX chunks carry it (RE4_GX_CHUNK_STILL, runtime/gx_decode.cpp).
 extern "C" int re4_picture_still(void)
 {
     if (!pG) {
         return 0;
     }
-    if (StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TYPEWRITER) || DbgFlagChk(pG, DBG_TEST_MODE)) {
+    if (StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TYPEWRITER) || DbgFlagChk(pG, DBG_TEST_MODE) ||
+        pG->Rno0 == 6) {
         return 1;
     }
     return pG->Rno0 == 3 && IdSys.setCk(IDC_TITLE) ? 1 : 0;

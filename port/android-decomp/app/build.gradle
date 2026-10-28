@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 77
+        versionCode 78
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -50,8 +50,9 @@ android {
         // 0.90.0), then 0.90.1 (branch beta-optimisations), then 0.91.0 (decision of the project owner,
         // 26.10.2026: with the new menu and the instant save of gui-optimisations), then 0.92.0 (milestone 13:
         // the European discs, by the numbering above), then 0.93.0 (milestone 14: everything merged into
-        // master, with the room tour 10b)
-        versionName '0.93.0-beta'
+        // master, with the room tour 10b), then 0.94.0 (decision of the project owner, 28.10.2026: for further
+        // tests; Hunk, the European chapter end and opening subtitles, 60 FPS by object)
+        versionName '0.94.0-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

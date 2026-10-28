@@ -1350,6 +1350,9 @@ extern "C" int re4probe_picture_still(void)
         IdSys.kill(0xFF, IDC_TITLE);
         pG->Rno0 = 3;
         bad |= re4_picture_still() ? 0x80 : 0;
+        // the option screen of START (gameOption)
+        pG->Rno0 = 6;
+        bad |= re4_picture_still() ? 0 : 0x100;
         pG->Rno0 = keepStep;
     }
     if (keepSub) {
