@@ -25,6 +25,27 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 10. **Schalter „Nebel aus“** – Wunsch offen (Einschätzung: kaum Tempogewinn, Nebel verdeckt das Ende der Sichtweite;
     Entscheidung des Projektinhabers offen).
 
+## Leistung: Vorschläge 1 und 2 gemessen (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+Auftrag des Projektinhabers: Vorschlag 1 (umgewandelte Modelle aufheben) und 2 (doppelte Uniform-Übergaben sparen).
+
+- **Vorschlag 2, eingebaut:** `gx_gl.cpp` `UploadXf` vergleicht die geänderten Zeilen eines XF-Teils mit dem zuletzt
+  gesendeten (`xfSent`) und lässt gleiche aus (`GxStats::uniformSame`, in „GX work per chunk“ als „the same not
+  sent“); ungültig nach jedem Wechsel des Ring-Viertels und zu Beginn jedes Chunks (die alten Plätze können
+  überschrieben sein). PX wurde schon so verglichen. `RE4_GX_UNIFORM_SAME=0` schaltet es ab (Gegenprobe). Messung mit
+  der Retroid-Serie r226 (`gx_chunk_render`, 48 Chunks): 2 011 von 43 345 Übergaben gespart (**knapp 5 %**, nicht „viele“
+  wie vermutet: die Spielwerte ändern sich fast bei jeder Zeichnung). Bilder mit und ohne pixelgleich: 48 Bilder, mit
+  60-FPS-Zwischenbildern 92 Bilder (44 Zwischenbilder). `gx_gl_check` 0 Fehler.
+- **Vorschlag 1, gemessen und verworfen:** ein Zwischenspeicher für die umgewandelten Eckpunkte jeder
+  Zeichenlisten-Zeichnung (gültig, solange die Listenbytes, das Vertexformat, die Arrays und deren gelesene Bytes per
+  Prüfsumme gleich sind). Korrekt (r100 mit `RE4_GX_DL_CHECK`, jeder Treffer zusätzlich umgewandelt und verglichen:
+  0 Abweichungen), aber nur 57–78 % Treffer, und Prüfen + Kopieren auf dem Kern-Thread kosten mehr als die schon auf
+  3 Threads verteilte Umwandlung: r100 am PC 4,2 → 8,0 ms Kern-Thread je Bild (Batches 1,9 → 0,7 ms), zusammen mehr
+  Prozessorzeit. Nicht eingebaut. Ein Weg mit Aussicht bräuchte Schreibüberwachung des Spielspeichers statt
+  Prüfsummen (aufwendig, eigene Entscheidung).
+- **Neu für Messungen am PC:** `RE4_GX_DRAIN=1` (`core_api.cpp`): jeder Chunk wird abgenommen und gleich
+  freigegeben, so zeichnet der Kern ohne Renderer jedes Bild auf wie mit der App (die „GX core“-Zeile im PC-Lauf).
+
 ## Touch-Zielen (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
 - **Wunsch des Projektinhabers:** in STEUERUNG eine Option, mit der Touchfläche oder dem C-Stick zu zielen.

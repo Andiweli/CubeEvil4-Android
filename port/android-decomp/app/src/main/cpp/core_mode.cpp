@@ -1513,9 +1513,10 @@ bool drawGx() {
         char gpu[32] = "not measured";
         if (timed)
           std::snprintf(gpu, sizeof(gpu), "%.1f ms", (s.gpuMicros - gxWork.gpuMicros) / 1000.0 / timed);
-        LOG("GX work per chunk: %.0f uniform uploads (%.0f KB), %.0f program switches, %.0f texture binds, "
+        LOG("GX work per chunk: %.0f uniform uploads (%.0f KB, %.0f the same not sent), %.0f program switches, %.0f texture binds, "
             "%.0f state changes, %u stream waits, %u stream switches (%u inside a chunk), GPU %s",
             (s.uniformUploads - gxWork.uniformUploads) / n, (s.uniformBytes - gxWork.uniformBytes) / n / 1024.0,
+            (s.uniformSame - gxWork.uniformSame) / n,
             (s.programSwitches - gxWork.programSwitches) / n, (s.textureBinds - gxWork.textureBinds) / n,
             (s.stateChanges - gxWork.stateChanges) / n, s.streamWaits - gxWork.streamWaits,
             s.streamSwitches - gxWork.streamSwitches, s.streamSplits - gxWork.streamSplits, gpu);

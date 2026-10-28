@@ -52,6 +52,7 @@ struct GxStats {
   // GL work per draw (what costs driver time): uniform block uploads and their
   // bytes, program switches, texture and sampler binds, render state changes,
   // vertex attribute setups
+  unsigned uniformSame = 0;  // XF parts written again with the values already sent: not uploaded
   unsigned uniformUploads = 0, uniformBytes = 0, programSwitches = 0, textureBinds = 0, stateChanges = 0,
            attributeSetups = 0;
   unsigned streamWaits = 0;  // the uniform stream waited for the GPU before reusing a quarter

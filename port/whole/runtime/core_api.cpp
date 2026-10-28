@@ -408,6 +408,15 @@ void gxDumpHook(unsigned frame)
     }
 }
 
+// RE4_GX_DRAIN=1 (a check without a renderer): every chunk taken and let go at once, so the
+// decoder records each picture as with the app (its "GX core" line, the display list cache)
+void gxDrainHook(unsigned)
+{
+    while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+        re4_core_gx_release(c);
+    }
+}
+
 struct DumpInstall {
     DumpInstall()
     {
@@ -422,6 +431,10 @@ struct DumpInstall {
         if (dir && *dir) {
             snprintf(gSnapDir, sizeof(gSnapDir), "%s", dir);
             re4_add_frame_hook(snapshotHook);
+        }
+        const char* drain = getenv("RE4_GX_DRAIN");
+        if (drain && *drain == '1') {
+            re4_add_frame_hook(gxDrainHook);
         }
         const char* gx = getenv("RE4_GX_DUMP");
         if (gx && *gx) {
