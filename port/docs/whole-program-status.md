@@ -3,6 +3,43 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Testerberichte 27.10.2026: Kapitelende flackert, Händler zeigt den Koffer (28.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
+
+Zwei Videos des Kapitelendes (Spanisch, EU-Discs, 0.93.0-beta; Kapitel 1-1 ohne 60 FPS, Kapitel 4-2 mit 60 FPS), ein
+Bericht (`cubeevil4-report-20261027-232444`, Xiaomi 2109119DG, EU-Discs, 64 bit) und ein Bildschirmfoto des Händlers
+(anderer Tester, „BUY“, Spielbildformat 16:9, ohne 60 FPS).
+
+**Kapitelende, zwei getrennte Fehler:**
+1. **Die vorderste Ziffer bei „Enemigos eliminados“ läuft durch alle Zeichen** (beide Spalten gleich, mit und ohne
+   60 FPS). Gemessen im Video ohne 60 FPS (10 Bilder/s ausgelesen): `-`, 2, 5, 8, `-` … und `%`, 1, 4, 7, `%` … – also
+   eins weiter je Spielbild durch 12 Zeichen (0–9, `%`, `-`). Das ist die Texturanimation des IDSystem
+   (`idSysMove04`, `id_sys.cpp:966`): Ein Baustein ohne `tex_flag` 0x2 zählt `texNo` jedes Bild weiter.
+   `ChapterEnd::move` (`option.cpp:1086`, einmal beim Öffnen) setzt mit `num(…, 3, …)` je drei Stellen für die
+   Gegnerzahlen (Bausteine 0x0E–0x10 und 0x11–0x13) und hält sie damit an; die EU-Vorlage (`SS/esp/chap01.dat`) hat
+   offenbar eine **vierte Stelle** (Tausender), die der Debug-Code nicht kennt, also nie anhält. Welche Bausteinnummer und
+   wie die EU-Fassung sie setzt, steht im EU-`main.dol` (nicht in der Cloud). Kopfzeile „1-1“ ist richtig (die
+   umrandete Schrift lässt die 1 wie eine schmale 0 aussehen; in 4-2 stimmt sie sichtbar). Mit Debug-Discs nicht geprüft.
+2. **Mit 60 FPS steht ein `%` zwischen zwei Zeilen** (Video 4-2, z. B. Bild 30: „84“, darunter halb versetzt „%“, dann
+   „40“). Das Zwischenbild ordnet gleich aussehende 2D-Zeichnungen nach ihrer Reihenfolge zu; zeigt die laufende Stelle
+   gerade `%`, gibt es ein `%` mehr, und ein `%` wird mit dem einer anderen Zeile gemischt. **Behoben** (Laufzeit, kein
+   Patch): `re4_picture_still` (`runtime/picture.cpp`) zählt jetzt auch die Ergebnis-Bildschirme als Menü (in der
+   Hauptschleife eine IDSystem-Tabelle der Klasse `IDC_TITLE`: Kapitelende, Spielende, Mercenaries- und
+   Schießstand-Ergebnis); dort gibt es keine Zwischenbilder mehr, es bewegt sich ohnehin nichts. Test: `runtime-test
+   letterbox` (`re4probe_picture_still`, neue Fälle: leere `IDC_TITLE`-Tabelle in der Hauptschleife ja, außerhalb nein,
+   nach `kill` nein).
+- **Nächster Schritt (PC):** `retail_code.py` liest jetzt auch Disc-Abbilder (`.gcm`/`.iso`: deren `main.dol`) und zeigt
+  bei `dis` die ganze Funktion der anderen Fassung. Befehl:
+  `retail_code.py dis <Debug-Disc1.gcm> <EU-Disc1> 0x80047B40 0x3A8` (`ChapterEnd::move`). Danach Patch mit
+  Versionsweiche (EU: die vierte Stelle wie die EU-Fassung setzen).
+
+**Händler („BUY“, Koffer sichtbar):** sehr wahrscheinlich das Original. `SsShopMain::move` (`ss_shop.cpp:564`) zeichnet
+in jedem Bild den Koffer mit Inhalt (`caseModelMove(0)`, `pieceModelDisp`) an der Stelle, die der Hintergrund-Baustein
+0xFE des Untermenüs vorgibt, nach einem Z-Löschen in OT 0xF (`shopClearZ`); die Händler-Tafeln liegen in OT 0x13 darüber,
+das gezeigte Modell nach einem zweiten Z-Löschen in OT 0x14. Genau diese Schichten zeigt das Foto (Hintergrund, Koffer,
+links die Tafeln darüber). `BuyItemNum::init` fährt die Liste weg (Baustein 0xFA rückwärts), darum ist die Tafel bei
+„Buy? Yes/No“ leer. Ob Lage und Überdeckung genau wie auf dem GameCube sind, ist **nicht geprüft**: Vergleich mit
+Dolphin (gleiche Stelle, gleicher Kauf) nötig. Kein Bericht dazu (der Bericht vom 27.10. enthält keinen Händler).
+
 ## 60 FPS ohne Flackern: Plan (27.10.2026, Cloud, Branch `claude/determined-allen-36nj6r`)
 
 Wunsch des Projektinhabers: 60 FPS ohne flackernde Fackeln, Wasser und Texturen. Vorschlag in

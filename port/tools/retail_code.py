@@ -12,8 +12,11 @@ both side by side. Read-only; nothing of the discs is written or kept.
   retail_code.py str   FILE TEXT                  where a string lies and the lis/addi pairs that build it
   retail_code.py word  FILE MASK VALUE            instruction words with word & MASK == VALUE (hex)
 
-FILE is a main.dol or a .rel (its text section; addresses are then offsets into it). Used for patches
-0117-0126 (R1, R2, R3, R7: e.g. the European SubScreenExec skips four id tables for the radio screen).
+FILE is a main.dol, a .rel (its text section; addresses are then offsets into it) or a disc image
+(.gcm/.iso: its main.dol, read with the bounded reader of original_import.gcm). `dis` shows the other
+release's whole function (up to its blr), so code the other release added at the end is not cut off.
+Used for patches 0117-0126 (R1, R2, R3, R7: e.g. the European SubScreenExec skips four id tables for the
+radio screen).
 """
 import re
 import shutil
@@ -24,9 +27,18 @@ import tempfile
 from pathlib import Path
 
 
+def load(path):
+    """The bytes of a DOL or REL, or the main.dol of a disc image."""
+    if str(path).lower().endswith((".gcm", ".iso")):
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from original_import.gcm import Disc
+        return bytes(Disc(path).dol)
+    return Path(path).read_bytes()
+
+
 def spans(path):
     """(file offset, address, size) of the code: the DOL's text sections, or a REL's text section at 0."""
-    d = Path(path).read_bytes()
+    d = load(path)
     if str(path).lower().endswith(".rel"):
         nsec, sio = struct.unpack_from(">II", d, 0x0C)
         for i in range(nsec):
@@ -69,7 +81,9 @@ def find(debug, other, addr, size):
             score = sum(1 for k in range(len(want)) if words[i + k] == want[k])
             if score > best[0]:
                 best = (score, a + i * 4)
-    return best[1], best[0], len(want), read(d, sd, addr, size), read(e, se, best[1], size + 0x40)
+    # the other release's function to its end (its blr before the next prologue), at least as long as ours
+    _, other_size = func(other, best[1])
+    return best[1], best[0], len(want), read(d, sd, addr, size), read(e, se, best[1], max(size, other_size))
 
 
 def disassemble(code):
@@ -179,7 +193,8 @@ def main():
     cmd, a = sys.argv[1], sys.argv[2:]
     if cmd in ("find", "dis"):
         at, score, n, mine, theirs = find(a[0], a[1], int(a[2], 16), int(a[3], 16))
-        print(f"debug {int(a[2], 16):#x}: best match {at:#x}, {score} of {n} words equal")
+        print(f"debug {int(a[2], 16):#x}: best match {at:#x}, {score} of {n} words equal, "
+              f"{len(theirs):#x} bytes there")
         if cmd == "dis":
             left, right = disassemble(mine), disassemble(theirs)
             for k in range(max(len(left), len(right))):

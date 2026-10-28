@@ -1292,11 +1292,13 @@ extern "C" int re4probe_snd_bank(void)
 }
 
 // The menu screens without in-between pictures (runtime/picture.cpp re4_picture_still): a sub
-// screen, a memory card screen or the tool menu. Bits: each failed case.
+// screen, a memory card screen, the tool menu or a result screen (an id table of class IDC_TITLE in
+// the main loop; here an empty one: the flag only, no units). Bits: each failed case.
 extern "C" int re4probe_picture_still(void)
 {
     const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0, keepCard = SysFlagChk(pG, SYS_TYPEWRITER) != 0;
     const int keepTool = DbgFlagChk(pG, DBG_TEST_MODE) != 0;
+    const u8 keepStep = pG->Rno0;
     int bad = 0;
     StaFlagOff(pG, STA_SUB_SCRN);
     SysFlagOff(pG, SYS_TYPEWRITER);
@@ -1311,6 +1313,20 @@ extern "C" int re4probe_picture_still(void)
     DbgFlagOn(pG, DBG_TEST_MODE);
     bad |= re4_picture_still() ? 0 : 8;
     DbgFlagOff(pG, DBG_TEST_MODE);
+    // a result screen: only in the main loop; a result table the game holds now is left as it is
+    if (!IdSys.setCk(IDC_TITLE)) {
+        static const ID_FILE_HEADER empty = { { '2', '.', '0', '0' }, 0, 0, { 0, 0 } };
+        pG->Rno0 = 3;
+        bad |= re4_picture_still() ? 0x10 : 0;
+        IdSys.set((ID_FILE_HEADER*) &empty, 0xFF, IDC_TITLE, 0x13, 6, 0);
+        bad |= re4_picture_still() ? 0 : 0x20;
+        pG->Rno0 = 2;
+        bad |= re4_picture_still() ? 0x40 : 0;
+        IdSys.kill(0xFF, IDC_TITLE);
+        pG->Rno0 = 3;
+        bad |= re4_picture_still() ? 0x80 : 0;
+        pG->Rno0 = keepStep;
+    }
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
     }

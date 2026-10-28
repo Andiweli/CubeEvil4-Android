@@ -5,6 +5,7 @@
 // sub screen, no event (events keep their letterbox, SceEventStart sets the scissor for them).
 #include "types.h"
 #include "global.h"
+#include "id_sys.h"
 
 extern GLOBAL_WK* pG;
 
@@ -34,14 +35,20 @@ extern "C" int re4_letterbox_open(void)
 // boot check: SYS_TYPEWRITER, card.cpp CardMainTask) draw their lists letter by letter with the
 // same draws; the renderer cannot tell which letter moved where and mixed them up. The same for
 // the tool menu (SELECT held, patch 0116) and its tools (DBG_TEST_MODE): lists of debug text over a
-// frozen game. Every frame (re4_add_frame_hook); the GX chunks carry it (RE4_GX_CHUNK_STILL,
-// runtime/gx_decode.cpp).
+// frozen game. The result screens of the game too (tester's video 27.10.2026, the chapter end with
+// 60 FPS: a "%" stood halfway between two rows): the chapter end, the game's end, the Mercenaries and
+// the shooting range results set a table of the id class IDC_TITLE over a stopped game (option.cpp
+// ChapterEnd/GameResult, mercenaries.cpp, r22c.cpp); their digits and signs are alike draws as well.
+// Every frame (re4_add_frame_hook); the GX chunks carry it (RE4_GX_CHUNK_STILL, runtime/gx_decode.cpp).
 extern "C" int re4_picture_still(void)
 {
     if (!pG) {
         return 0;
     }
-    return StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TYPEWRITER) || DbgFlagChk(pG, DBG_TEST_MODE) ? 1 : 0;
+    if (StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TYPEWRITER) || DbgFlagChk(pG, DBG_TEST_MODE)) {
+        return 1;
+    }
+    return pG->Rno0 == 3 && IdSys.setCk(IDC_TITLE) ? 1 : 0;
 }
 
 namespace {
