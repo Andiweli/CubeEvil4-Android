@@ -61,7 +61,8 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 - **US-Discs:** Der US-Code (Branch `retail-us`) fragt beim neuen Spiel nicht (wie der Debug-Code: direkt Normal,
   Professional/Normal erst nach Freischaltung, A oder START), kennt kein Easy und setzt `game_country` nicht als
   Schwierigkeitsklasse (keine Schreibstelle außer Sprache/Reset). Der Port verhält sich mit US-Discs damit schon wie
-  die US-Fassung; die Patches 0139–0141 gelten nur für EU-Discs.
+  die US-Fassung; die Patches 0139–0141 gelten nur für EU-Discs. Entscheidung des Projektinhabers (28.10.2026): mit
+  US-Discs bleibt es wie im Original (kein Easy).
 - **Prüfliste der EU-Stellen** („Easy“ = nur auf Easy anders; die Normal-Seite entspricht dem Debug-Code; nicht
   übernommen heißt: der Port spielt dort auch auf Easy die Normal-Fassung):
 
