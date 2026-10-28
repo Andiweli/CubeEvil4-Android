@@ -18,6 +18,15 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sin
 6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
    R3-Serien vom Retroid offen**.
 
+## Gerätetest 28.10.2026 12:03 (0.94.0): r226 mit 60 FPS (lokal, Branch `claude/determined-allen-36nj6r`)
+
+Nach der Zähl-Korrektur etwa 25 Zwischenbilder/s (vorher ~14); Teilchen 1,6 %, Raum 0,9 % ohne Gegenstück, 1,33 Mio. über
+das Objekt, 2,5 Mio. Texturmatrizen und 0,66 Mio. Lichtfarben gemischt; Zeichen-Thread 7–8 ms je Chunk. In r226 bei 2x mit
+4x MSAA blieb die GPU ein Bild zurück (Zaun „1.0 Runs behind“), etwa **ein Fünftel** der Zwischenbilder fiel weg (60 und 30
+im Wechsel), 2 Pausen; die dynamische Auflösung blieb bei 2x, weil sie erst ab einem Viertel herunterging. Jetzt ab einem
+Zehntel (`AutoLevel::kDroppedDown` 0,10; hoch weiter erst unter 5 %); Test `TestAutoLevel` (neu: ein Fünftel → eine Stufe
+tiefer).
+
 ## Gerätetest 28.10.2026 11:50 (0.94.0): 45 statt 60 Bilder/s (lokal, Branch `claude/determined-allen-36nj6r`)
 
 Projektinhaber: mit 60 FPS oft stabil 45. Ursache: die 60-Hz-Erkennung (Film/Titel) zählte jeden Chunk mit Zwischenbild

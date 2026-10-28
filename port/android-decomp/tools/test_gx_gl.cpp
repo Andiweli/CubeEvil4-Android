@@ -1078,6 +1078,12 @@ void TestAutoLevel() {
           "auto level: 60 FPS, half the in-between pictures left out, the GPU behind: one level down");
     Check(!r.lines.empty() && r.lines.back().find("% without their in-between picture") != std::string::npos,
           "auto level: the share left out logged");
+    // a fifth left out with the GPU behind (Retroid 28.10.2026, r226 at 2x with 4x MSAA): one level down
+    AutoRun fifth;
+    fifth.a.Start(2, 0.0);
+    fifth.Play(6.5, 30.0, 1, true, 5);
+    Check(fifth.a.Level() == 1 && fifth.a.Downs() == 1,
+          "auto level: 60 FPS, a fifth of the in-between pictures left out, the GPU behind: one level down");
     AutoRun idle;
     idle.a.Start(2, 0.0);
     idle.Play(20.0, 30.0, 0, true, 2);

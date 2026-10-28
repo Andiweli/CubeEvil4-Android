@@ -11,9 +11,10 @@
 // pictures a second or more with the GPU keeping up (under 0.1 behind), at the earliest 30 s after
 // the last step down; down again within 15 s of a step up doubles that wait (at most 5 minutes).
 // With 60 FPS the in-between pictures the renderer left out because it was behind (core_mode.cpp)
-// count as well: a window with more than a quarter of them left out while the GPU is behind is slow
+// count as well: a window with more than a tenth of them left out while the GPU is behind is slow
 // too (the game keeps its pace then, the GPU still does not keep up: Retroid 26.10.2026, level 2 with
-// 60 FPS stayed at 17-19 pictures a second), and up again only with almost none left out.
+// 60 FPS stayed at 17-19 pictures a second; a quarter until 28.10.2026, when r226 at 2x with 4x MSAA left
+// out a fifth, 60 and 30 side by side, and the level stayed), and up again only with almost none left out.
 // The GPU is also too slow when the render thread waits for it inside the driver (its Run takes much
 // longer than its processor time): then the fences are all reached, the GPU is not "behind", and the
 // game still waits for the renderer (Retroid 27.10.2026, the village and the lake at level 2 with 2x
@@ -44,7 +45,7 @@ public:
   static constexpr double kFirstHold = 30.0;  // seconds after a step down before a step up
   static constexpr double kMostHold = 300.0;
   static constexpr double kBounce = 15.0;     // down again this soon after up: the wait doubles
-  static constexpr double kDroppedDown = 0.25; // share of the chunks without their in-between picture
+  static constexpr double kDroppedDown = 0.10; // share of the chunks without their in-between picture
   static constexpr double kDroppedUp = 0.05;
   static constexpr double kWaitDown = 10.0;    // ms a chunk the render thread waits for the GPU
   static constexpr double kWaitUp = 5.0;
