@@ -1,0 +1,59 @@
+# The app's cheat menu (port/docs/cheat-menu-plan.md, decision 6 of the project owner, 27.10.2026): with
+# DBG_INF_BULLET cItemMgr::bulletNum(cItem*) answered 100 for every slot, so the counter at the bottom right
+# showed "100". Now it shows the slot's real rounds (runtime/cheats.cpp keeps the armed magazine full; the
+# bit itself makes trigger use nothing); 100 only where the real count is 0, as before. Without the bit unchanged.
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -2824,33 +2824,43 @@
+ {
+     int n;
+ 
+-    if (!DbgFlagChk(pG, DBG_INF_BULLET2) && (DbgFlagChk(pG, DBG_INF_BULLET))) {
+-        return 100;
+-    }
++    /* port: the app's cheat menu "Infinite ammo" (DBG_INF_BULLET; runtime/cheats.cpp keeps the armed
++       magazine full): the counter shows the real rounds, not 100 (decision of the project owner,
++       27.10.2026). 100 stays where there are none, so an empty slot still fires. */
+     if (p == 0) {
+-        return 0;
++        n = 0;
++        goto done;
+     }
+     switch (itemType(p->id)) {
+     case 1:
+         if (p->id == 0x52) {
+-            return num(0x72);
++            n = num(0x72);
++            goto done;
+         }
+         n = BULLET(p);
+         break;
+     case 3:
+-        return p->num;
++        n = p->num;
++        break;
+     case 6:
+         switch (p->id) {
+         case 8:
+         case 9:
+         case 10:
+-            return p->num;
++            n = p->num;
++            break;
+         default:
+-            return 0;
+-        }
++            n = 0;
++            break;
++        }
++        break;
+     default:
+         n = 0;
+         break;
++    }
++done:
++    if (n == 0 && !DbgFlagChk(pG, DBG_INF_BULLET2) && (DbgFlagChk(pG, DBG_INF_BULLET))) {
++        return 100;
+     }
+     return n;
+ }

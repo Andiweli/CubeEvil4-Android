@@ -102,6 +102,12 @@ public final class CoreInputTests {
     check(in.pad()[0] == 0 && in.pad()[6] == 0 && in.pad()[5] == 0);
     in.motion(1, 0, 0, 0, 0, 0, 0.6f, 0, 0);
     check(in.pad()[0] == CoreInput.GC_A && in.pad()[5] == 0 && in.gcButton(R2) == CoreInput.GC_A);
+    in.motion(1, 0, 0, 0, 0, 0, 0.45f, 0, 0);  // resting near half way: still the same shot, no new press
+    check(in.pad()[0] == CoreInput.GC_A);
+    in.motion(1, 0, 0, 0, 0, 0, 0.3f, 0, 0);
+    check(in.pad()[0] == 0);
+    in.motion(1, 0, 0, 0, 0, 0, 0.45f, 0, 0);
+    check(in.pad()[0] == 0);
     in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     // L2/R2 as keys
     in.key(1, L2, true);
@@ -208,6 +214,19 @@ public final class CoreInputTests {
     check(p[5] == 255 && clampTrigger(p[5]) == 150 && p[0] == (CoreInput.GC_L | CoreInput.GC_R));
     in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     check(in.pad()[0] == 0 && in.pad()[5] == 0);
+    // a trigger held near the click: R stays pressed until below 70 % (jitter is no new press, which
+    // the core would show as a frame without R, 26.10.2026), and is pressed again only at 85 %
+    in.motion(1, 0, 0, 0, 0, 0, 0.86f, 0, 0);
+    check(in.pad()[0] == CoreInput.GC_R);
+    in.motion(1, 0, 0, 0, 0, 0, 0.80f, 0, 0);
+    check(in.pad()[0] == CoreInput.GC_R);
+    in.motion(1, 0, 0, 0, 0, 0, 0.86f, 0, 0);
+    check(in.pad()[0] == CoreInput.GC_R);
+    in.motion(1, 0, 0, 0, 0, 0, 0.65f, 0, 0);
+    check(in.pad()[0] == 0 && in.pad()[6] == Math.round(0.65f * 255));  // the analog value stays
+    in.motion(1, 0, 0, 0, 0, 0, 0.80f, 0, 0);
+    check(in.pad()[0] == 0);
+    in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     // L2/R2 as keys (digital triggers): fully pressed
     in.key(1, R2, true);
     p = in.pad();
@@ -242,7 +261,134 @@ public final class CoreInputTests {
     check(CoreInput.names(CoreInput.GC_A | CoreInput.GC_B | CoreInput.GC_START).equals("A+B+START")
         && CoreInput.names(0).equals("-"));
 
-    System.out.println("Core controller: layout, swap, alternate controls, sticks and triggers through PADClamp, "
-        + "devices: " + checks + " checks PASS");
+    // latching (the menu's comfort controls): a press of R2 holds R fully until the next press, an
+    // analog trigger only past half way (and let go below a quarter), B the same; clear lets go
+    {
+      CoreInput l = new CoreInput();
+      l.setLatch(true, true);
+      l.key(2, R2, true);
+      int[] q = l.pad();
+      check((q[0] & CoreInput.GC_R) != 0 && q[6] == 255);
+      l.key(2, R2, false);
+      q = l.pad();
+      check((q[0] & CoreInput.GC_R) != 0 && q[6] == 255);  // still held
+      l.key(2, R2, true);
+      l.pad();
+      l.key(2, R2, false);
+      q = l.pad();
+      check((q[0] & CoreInput.GC_R) == 0 && q[6] == 0);  // the second press lets go
+      l.motion(2, 0, 0, 0, 0, 0.4f, 0, 0, 0);  // L2 not past half way: no press
+      check(l.pad()[5] == 0);
+      l.motion(2, 0, 0, 0, 0, 0.6f, 0, 0, 0);
+      q = l.pad();
+      check((q[0] & CoreInput.GC_L) != 0 && q[5] == 255);
+      l.motion(2, 0, 0, 0, 0, 0.3f, 0, 0, 0);  // above a quarter: still the same press
+      l.pad();
+      l.motion(2, 0, 0, 0, 0, 0.6f, 0, 0, 0);
+      check(l.pad()[5] == 255);  // no new press: stays latched
+      l.motion(2, 0, 0, 0, 0, 0.1f, 0, 0, 0);
+      l.pad();
+      l.motion(2, 0, 0, 0, 0, 0.6f, 0, 0, 0);
+      check(l.pad()[5] == 0);  // let go and pressed again: released
+      l.motion(2, 0, 0, 0, 0, 0, 0, 0, 0);
+      l.key(2, B, true);
+      check((l.pad()[0] & CoreInput.GC_B) != 0);
+      l.key(2, B, false);
+      check((l.pad()[0] & CoreInput.GC_B) != 0);  // Leon keeps running
+      l.key(2, B, true);
+      l.pad();
+      l.key(2, B, false);
+      check((l.pad()[0] & CoreInput.GC_B) == 0);
+      // the touch controls' own buttons are not latched here (CoreTouch latches them)
+      l.touchButton(CoreInput.GC_R, true);
+      check(l.pad()[6] == 255);
+      l.touchButton(CoreInput.GC_R, false);
+      check(l.pad()[6] == 0);
+      // clear (focus lost): the latched buttons go too
+      l.key(2, R2, true);
+      l.pad();
+      l.clear();
+      check(l.pad()[6] == 0 && l.pad()[0] == 0);
+      // switched off: as before
+      l.setLatch(false, false);
+      l.key(2, R2, true);
+      check(l.pad()[6] == 255);
+      l.key(2, R2, false);
+      check(l.pad()[6] == 0);
+      // the alternate controls: L2 latches R (the weapon ready) and the right stick aims meanwhile
+      l.setAlternate(true);
+      l.setLatch(true, false);
+      l.key(2, L2, true);
+      l.pad();
+      l.key(2, L2, false);
+      l.motion(2, 0, 0, 1f, 0, 0, 0, 0, 0);
+      q = l.pad();
+      check((q[0] & CoreInput.GC_R) != 0 && q[6] == 255 && q[1] > 0 && q[3] == 0);
+    }
+    {
+      // free keys (the menu's controller configuration, 27.10.2026): A, B, L2, R2, START, SELECT and the
+      // D-pad fixed; X, Y, L1, R1, L3, R3 take any function
+      int[] def = CoreInput.defaultKeyMap();
+      check(CoreInput.encode(def) == null && CoreInput.decode(CoreInput.encode(def)) == null);
+      check(CoreInput.decode("1,2") == null && CoreInput.decode("2,3,-1,4,-1,99") == null);
+      check(CoreInput.movable(A) < 0 && CoreInput.movable(L2) < 0 && CoreInput.movable(UP) < 0
+          && CoreInput.movable(SELECT) < 0 && CoreInput.movable(L3) >= 0);
+      check(CoreInput.missing(def).length == 0);
+      int xi = CoreInput.movable(X), yi = CoreInput.movable(Y), l1 = CoreInput.movable(L1), r1 = CoreInput.movable(R1),
+          l3 = CoreInput.movable(L3), r3 = CoreInput.movable(R3);
+      // the map (Z) on L1: R1 had it and takes L1's old function (none)
+      int[] m = CoreInput.assign(null, l1, CoreInput.F_Z);
+      check(m[l1] == CoreInput.F_Z && m[r1] == CoreInput.F_NONE && CoreInput.missing(m).length == 0);
+      check(java.util.Arrays.equals(CoreInput.decode(CoreInput.encode(m)), m));
+      // aiming (R) on R1 as well: R2 stays R
+      m = CoreInput.assign(m, r1, CoreInput.F_R);
+      CoreInput k = new CoreInput();
+      k.setKeyMap(m);
+      check(k.key(1, L1, true) && k.pad()[0] == CoreInput.GC_Z && k.gcButton(L1) == CoreInput.GC_Z);
+      k.key(1, L1, false);
+      check(k.key(1, R1, true));
+      int[] q = k.pad();
+      check(q[6] == 255 && (q[0] & CoreInput.GC_R) != 0);
+      k.key(1, R1, false);
+      check(k.key(1, R2, true) && k.pad()[6] == 255);
+      k.key(1, R2, false);
+      // A, B, START, the D-pad as always
+      check(k.key(1, A, true) && k.pad()[0] == CoreInput.GC_A);
+      k.key(1, A, false);
+      check(k.key(1, UP, true) && k.pad()[0] == CoreInput.GC_UP);
+      k.key(1, UP, false);
+      check(k.pad()[0] == 0);
+      // inventory (Y) on X: they swap
+      m = CoreInput.assign(m, xi, CoreInput.F_Y);
+      check(m[xi] == CoreInput.F_Y && m[yi] == CoreInput.F_X);
+      // running (B) on L3, latching through it
+      m = CoreInput.assign(m, l3, CoreInput.F_B);
+      k.setKeyMap(m);
+      k.setLatch(false, true);
+      k.key(1, L3, true);
+      k.pad();
+      k.key(1, L3, false);
+      check(k.pad()[0] == CoreInput.GC_B);
+      k.setLatch(false, false);
+      k.clear();
+      // no function on Y's key: inventory is missing, the key does nothing
+      int[] gone = CoreInput.assign(m, xi, CoreInput.F_NONE);
+      check(CoreInput.missing(gone).length == 1 && CoreInput.missing(gone)[0] == CoreInput.F_Y);
+      k.setKeyMap(gone);
+      check(!k.key(1, X, true) && k.pad()[0] == 0);
+      // R3: the graphics capture without a function, the app's menu or a game function with one
+      check(k.appFunctionOf(R3) == CoreInput.APP_GX_DUMP && k.appFunctionOf(SELECT) == CoreInput.APP_MENU);
+      k.setKeyMap(CoreInput.assign(null, r3, CoreInput.F_MENU));
+      check(k.appFunctionOf(R3) == CoreInput.APP_MENU && !k.key(1, R3, true));
+      k.setKeyMap(CoreInput.assign(null, r3, CoreInput.F_X));
+      check(k.appFunctionOf(R3) == CoreInput.APP_NONE && k.key(1, R3, true) && k.pad()[0] == CoreInput.GC_X);
+      k.key(1, R3, false);
+      // the alternate controls keep their layout: L1 the knife, R1 the inventory
+      k.setKeyMap(CoreInput.assign(null, l1, CoreInput.F_Z));
+      k.setAlternate(true);
+      check(k.gcButton(R1) == CoreInput.GC_Y && k.gcButton(L1) == CoreInput.GC_L);
+    }
+    System.out.println("Core controller: layout, swap, alternate controls, free keys, sticks and triggers through "
+        + "PADClamp, devices: " + checks + " checks PASS");
   }
 }

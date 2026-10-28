@@ -78,8 +78,13 @@ add_compile_options(-ffp-contract=off)
 # with --no-undefined.
 set(RE4_SANITIZE "" CACHE STRING "sanitizers of a check build (-fsanitize=LIST; empty = none)")
 if(RE4_SANITIZE)
-    set(RE4_SANITIZE_FLAGS -fsanitize=${RE4_SANITIZE} -fno-omit-frame-pointer
-        -fno-sanitize=vptr,function,return,null,nonnull-attribute,returns-nonnull-attribute,pointer-overflow,object-size,alignment,float-cast-overflow)
+    set(san_off vptr,function,return,null,nonnull-attribute,returns-nonnull-attribute,pointer-overflow,object-size,float-cast-overflow)
+    # alignment only when asked for by name (RE4_SANITIZE=alignment): the search for misaligned
+    # floats and pointers, which armv7 reads with vldr / ldrd / ldm and which then fault (patch 0102)
+    if(NOT RE4_SANITIZE MATCHES "alignment")
+        string(APPEND san_off ",alignment")
+    endif()
+    set(RE4_SANITIZE_FLAGS -fsanitize=${RE4_SANITIZE} -fno-omit-frame-pointer -fno-sanitize=${san_off})
     # (line tables: file and line in the reports)
     add_compile_options(${RE4_SANITIZE_FLAGS} -gline-tables-only)
     # clang's runtime for the target, its folder in each program and library (no
@@ -206,7 +211,6 @@ add_library(re4_platform_obj OBJECT
     runtime/gci.cpp
     runtime/gx_fifo.cpp
     runtime/gx_decode.cpp
-    runtime/gx_thread.cpp
     runtime/host_file.cpp
     runtime/log.cpp
     runtime/mem1.cpp
@@ -270,9 +274,14 @@ string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_formats_obj>\n")
 # libre4_main: the per-frame state trace (RE4_TRACE), the snapshot of the
 # core bridge for the app's renderer (runtime/re4_core.h) and the depth of
 # field notes and gameplay autofocus (runtime/dof.cpp, patch 0065) and the
-# gyro aiming (runtime/gyro.cpp).
+# gyro aiming (runtime/gyro.cpp), the taps in the sub screens (runtime/menu_touch.cpp), the
+# picture format without the letterbox (runtime/picture.cpp), the knife by a swipe
+# (runtime/knife_swipe.cpp) and the quick-time events by a tap (runtime/qte_touch.cpp), and the instant save payload (runtime/instant_game.cpp),
+# the game language (runtime/game_language.cpp) and the cheat menu (runtime/cheats.cpp).
 add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge.cpp runtime/movie_status.cpp
-    runtime/dof.cpp runtime/gyro.cpp)
+    runtime/dof.cpp runtime/gyro.cpp runtime/menu_touch.cpp runtime/picture.cpp runtime/knife_swipe.cpp
+    runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp runtime/cheats.cpp
+    runtime/gx_owner.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")
@@ -283,6 +292,7 @@ string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")
 # (runtime/core_api.cpp, runtime/re4_core.h).
 add_library(re4_glue_obj OBJECT
     runtime/core_api.cpp
+    runtime/instant_store.cpp
     runtime/game_heap.cpp
     runtime/sn_runtime.cpp)
 target_include_directories(re4_glue_obj PRIVATE runtime)
@@ -580,9 +590,12 @@ endif()
 # loads libre4_host.so (the launcher and the runtime tests) and with it the
 # game libraries, which therefore lie above 0x80000000 as on Android.
 if(NOT ANDROID)
+    add_executable(re4_instant_store_test tests/instant_store_test.cpp runtime/instant_store.cpp runtime/gci.cpp)
+    target_include_directories(re4_instant_store_test PRIVATE runtime)
+    target_compile_features(re4_instant_store_test PRIVATE cxx_std_17)
     # tests/game_probe.cpp: checks that need the game's flags and headers
     add_library(re4_probe_obj OBJECT tests/game_probe.cpp tests/core_probe.cpp tests/stream_probe.cpp
-        tests/gx_probe.cpp tests/movie_probe.cpp tests/card_probe.cpp)
+        tests/gx_probe.cpp tests/movie_probe.cpp tests/card_probe.cpp tests/instant_game_probe.cpp)
     target_link_libraries(re4_probe_obj PRIVATE re4_game_flags)
     add_library(re4_hostlib SHARED host/main.cpp tests/runtime_tests.cpp tests/core_tests.cpp
         tests/core_remote_probe.cpp

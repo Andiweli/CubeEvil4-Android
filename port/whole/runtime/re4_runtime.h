@@ -87,6 +87,30 @@ void* re4_window_map(unsigned long size, int prot);
 int re4_in_window(const void* p);
 void re4_check_window(const char* what, const void* p);
 void re4_window_report(void);
+/* 32 bit on Android: reserve the address range the REL modules are loaded into (module_loader.cpp) */
+void re4_module_window_reserve(void);
+
+/* The depth the renderer took of the last pictures (the app's GX renderer, at the display copy of a
+ * picture whose chunk carries the marker BP 0x5B, which the first peek of a picture writes into the
+ * stream with the picture's number): RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of the 24-bit GX depth at
+ * half the EFB's resolution, row 0 = the EFB's row 0. GXPeekZ answers from a map at most 8 pictures
+ * old; from an older one "in front" (0: the glow waits for the map of the new view), and "far"
+ * (0xFFFFFF) as before when there was never a map or none fresh came for 60 peeking pictures. */
+#define RE4_GX_DEPTH_W 320
+#define RE4_GX_DEPTH_H 264
+/* The renderer's map (any thread): copied. `serial` is the picture number of the marker (24 bits). */
+void re4_gx_depth_put(const unsigned int* cells, unsigned int serial);
+/* The map lives elsewhere (the core process: shared memory the app writes): `cells` and `serial`
+ * stay valid for the process's life. */
+void re4_gx_depth_source(const unsigned int* cells, const unsigned int* serial);
+/* A display copy went out: the next picture (its number for the marker), the next peek marks it. */
+void re4_gx_peek_new_frame(void);
+/* (tests) the number of the picture being made, the peeks answered "in front" from an old map */
+unsigned int re4_gx_peek_picture(void);
+unsigned int re4_gx_peek_hidden(void);
+/* (tests) peeks answered from a map / answered "far", and pictures marked */
+void re4_gx_peek_stats(unsigned int* answered, unsigned int* far, unsigned int* marked);
+
 
 /* Folder with the extracted disc files (dvd.cpp): <dir>/disc0, <dir>/disc1,
  * each with sys/fst.bin, sys/boot.bin and files/. Set by the launcher. */
@@ -104,9 +128,29 @@ void re4_host_file_close(int fd);
 const char* re4_host_file_error(void);
 /* Disc number in the virtual drive (0/1), -1 when no disc folder was found. */
 int re4_dvd_inserted_disc(void);
+/* The release of the disc in the drive, from its header sys/boot.bin (the rule of
+ * port/tools/disc_release.py; port/docs/retail-eu-plan.md). */
+#define RE4_DISC_DEBUG 0     /* G4BE08, the debug build of 2004-11-25: the port's code */
+#define RE4_DISC_RETAIL_EU 1 /* G4BP08, the European release */
+#define RE4_DISC_RETAIL_US 2 /* G4BE08 with another layout, the US release (untested) */
+#define RE4_DISC_UNKNOWN 3   /* another game, or no disc folder */
+int re4_disc_release(void);
+/* 1 with the European discs: the switch of the game patches for their data (patch 0120). */
+int re4_disc_retail_eu(void);
+/* A larger etc/core.das than the debug build's fixed place holds (the European release, patch
+ * 0117): it is read here instead, in the development half of MEM1 that nothing else uses. */
+#define RE4_MEM1_CORE_ALT_ADDR 0x81C00000u
+#define RE4_MEM1_CORE_ALT_MAX 0x00300000u
+void* re4_core_data_place(const char* name, unsigned fixedMax);
+/* A larger SS/<lang>/option.dat than the debug build's fixed place holds (the European discs'
+ * German, French, Spanish and Italian ones, patch 0121): behind the core's second place. */
+#define RE4_MEM1_OPTION_ALT_ADDR 0x81F00000u
+#define RE4_MEM1_OPTION_ALT_MAX 0x00100000u
+void* re4_option_data_place(const char* name, unsigned fixedMax);
 /* The start's reads without the frame pace (patch 0085): 1 while the next
    step of a read may follow at once, the end at the first title.dat. */
 int re4_dvd_boot_fast(void);
+int re4_dvd_header_check(const void* table, const char* name, unsigned offset, unsigned length, int depth);
 void re4_dvd_read_done(const char* name);
 
 /* Byte order (byte_order.cpp): in-place swaps of big-endian disc data. */
@@ -141,21 +185,10 @@ int re4_os_hw_interrupt(short interrupt);
 /* VALID_PTR outside MEM1 (patch 0037): 1 for the host stacks of the OS
  * threads and the static data of the game libraries. */
 int re4_valid_port_ptr(const void* p);
-/* only the game's libraries, safe on any thread (the GP thread, gx_thread.cpp) */
-int re4_game_library_ptr(const void* p);
 /* The emulated graphics processor (gx_fifo.cpp): its pending PE interrupts
  * (draw done, token) are delivered when a thread starts waiting and with the
- * video retraces, the moments the GP would have caught up on the GameCube.
- * re4_gx_deliver_interrupts first lets the GP catch up with all the game sent
- * (with the GP on a thread of its own, gx_thread.cpp: waits for it);
- * re4_gx_deliver_pending delivers what it raised so far (OSSleepThread, the
- * retrace: the game's thread does not wait for the GP thread there). */
+ * video retraces, the moments the GP would have caught up on the GameCube. */
 void re4_gx_deliver_interrupts(void);
-void re4_gx_deliver_pending(void);
-/* The dispatcher's idle (vi.cpp) waits up to `ns` for the next retrace: with
- * the GP thread also until it raises an interrupt (1; 0: the time is up). -1:
- * no GP thread, nothing waited. */
-int re4_gx_idle_wait(long long ns);
 /* EXI (exi.cpp, M10): the memory card's pending transfer ends and "done"
  * interrupts, and the due OS alarms (alarm.cpp), delivered at the interrupt
  * points (re4_os_idle, OSSleepThread). */
@@ -181,9 +214,12 @@ void re4_os_run_deferred(void);
 /* AI (ai.cpp): the audio blocks of one video field (5 ms each, 200 per
  * second; vi.cpp calls it with every retrace), one block at once (tests), the
  * blocks so far. Each block runs AX's DMA callback (the DSP mixes the next,
- * runtime/dsp.cpp; the game's audio frame) and goes to the sound output. */
+ * runtime/dsp.cpp; the game's audio frame) and goes to the sound output; a
+ * hook of the game side runs before that callback (state_trace.cpp counts the
+ * sound requests waiting for the game's audio frame). */
 void re4_ai_field(void);
 void re4_ai_block(void);
+void re4_ai_set_block_hook(void (*hook)(void));
 unsigned re4_ai_blocks(void);
 /* The sound output (ai.cpp): stereo frames at 32 kHz for the device (any
  * thread; always fills `out`, returns the frames the game played), and the
@@ -223,6 +259,9 @@ void re4_set_frame_hook(void (*hook)(unsigned));
 void re4_pad_script_stop(void);
 /* The player is free in the room: RE4_PAD_FREE_SCRIPT starts (pad.cpp). */
 void re4_pad_script_free(void);
+/* Buttons (PAD_BUTTON_* bits) a frame hook adds to channel 0 for the frame it
+ * runs in, on top of the controller (pad.cpp; the knife swipe, knife_swipe.cpp). */
+void re4_pad_add(unsigned short buttons);
 
 /* Every OS thread and where it waits (os_thread.cpp; RE4_WAIT_TRACE=1 records
  * the places): the hang search of host/main.cpp on SIGUSR1. */
@@ -256,6 +295,10 @@ long long re4_cri_timer(void);
  * the core thread) and lets the next one start over: the app keeps the
  * pictures from there. */
 void re4_gx_mark(void);
+/* A menu screen of the game is open (1) or not (0): the chunks closed from
+ * now on carry RE4_GX_CHUNK_STILL (runtime/gx_decode.cpp). Set every frame by
+ * runtime/picture.cpp (sub screens, the memory card screens). */
+void re4_gx_still(int on);
 
 #ifdef __cplusplus
 }

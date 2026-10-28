@@ -15,6 +15,9 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#if defined(__GLIBC__)
+#include <execinfo.h>
+#endif
 #ifdef __ANDROID__
 #include <android/log.h>
 #endif
@@ -213,6 +216,31 @@ extern "C" int re4_log_tail(char* out, int size)
     return len;
 }
 
+// runtime/state_trace.cpp (the game's id systems; absent in tools without the game)
+extern "C" void re4_idsys_report(void) __attribute__((weak));
+
+// RE4_GAME_LOG_STACK=TEXT (PC builds): a game line that starts with TEXT also logs the call
+// stack that gave it (library and offset; addr2line -f -C -e LIBRARY OFFSET names the
+// function), to find which code a message of the room tour comes from (10b, 27.10.2026)
+static void gameLogStack(const char* text)
+{
+#if defined(__GLIBC__)
+    static const char* want = getenv("RE4_GAME_LOG_STACK");
+    if (!want || !*want || strncmp(text, want, strlen(want)) != 0) {
+        return;
+    }
+    void* frames[24];
+    int depth = backtrace(frames, 24);
+    char** names = backtrace_symbols(frames, depth);
+    for (int i = 2; names && i < depth; i++) {
+        re4_log("game:   at %s", names[i]);
+    }
+    free(names);
+#else
+    (void) text;
+#endif
+}
+
 // The game's own log lines (pLog->err / warn / mes, db_log.cpp, patch 0076): on
 // the GameCube they went to the screen and the console. Here each message
 // (by its format string) is logged the first 3 times, then every 1000th time
@@ -242,6 +270,11 @@ extern "C" void re4_game_log(const char* format, const char* text)
     }
     if (count <= 3) {
         re4_log("game: %s", text);
+        gameLogStack(text);
+        // who holds the units when an id system is full (R3: the radio's subtitle bar with the European discs)
+        if (strncmp(text, "IDSystem::set() work full", 25) == 0 && re4_idsys_report) {
+            re4_idsys_report();
+        }
     } else if (count % 1000 == 0) {
         re4_log("game: %s (%u times)", text, count);
     }
@@ -311,6 +344,33 @@ extern "C" void re4_arc_clamped(float x)
 extern "C" unsigned re4_arc_clamp_count(void)
 {
     return gArcClamps.load();
+}
+
+// An archive index past its table (re4_whole_prelude.h re4_arc_entry, patch 0134): each archive
+// address and index once (at most 32 lines), with what the word gives as on the GameCube.
+extern "C" void re4_arc_past_table(unsigned base, unsigned no, unsigned count, unsigned word)
+{
+    static std::atomic<unsigned> seen[32][2];
+    static std::atomic<unsigned> used{0};
+    unsigned n = used.load();
+    for (unsigned i = 0; i < n && i < 32; i++) {
+        if (seen[i][0].load() == base && seen[i][1].load() == no) {
+            return;
+        }
+    }
+    if (n >= 32) {
+        return;
+    }
+    unsigned slot = used++;
+    if (slot >= 32) {
+        return;
+    }
+    seen[slot][0] = base;
+    seen[slot][1] = no;
+    unsigned ptr = base + word;
+    re4_log("formats: archive at 0x%08x (%u entries) read at index 0x%x, past its table: word 0x%08x as "
+            "on the GameCube, 0x%08x%s", base, count, no, word, ptr,
+            ptr - 0x80000000u <= 0x02FFFFFFu ? "" : " (outside the game memory, VALID_PTR2 drops it)");
 }
 
 extern "C" void re4_stub_hit(const char* const* names, unsigned char* seen, int index)

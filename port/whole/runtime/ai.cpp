@@ -55,6 +55,7 @@ u32 gFieldAccumulator;
 u32 gBlocks;
 u32 gPeakCycles;                // AX's highest DSP estimate since the last log line
 u32 gOverBudget;                // blocks in which AX stopped voices over its budget
+void (*gBlockHook)(void);       // re4_ai_set_block_hook: a look before each block's callback
 
 // the ring: interleaved left/right, written by the game thread, read by the app
 int16_t gRing[kRing * 2];
@@ -113,6 +114,24 @@ void play(u32 addr, u32 length)
     if (!block || frames == 0) {
         return;
     }
+    // the WAV of a check gets every block, also when nothing reads the ring (the PC runs: before
+    // 27.10.2026 it ended after the first second, when the ring was full)
+    if (gWav) {
+        for (u32 i = 0; i < frames; i++) {
+            const int16_t lr[2] = { block[i * 2 + 1], block[i * 2] };
+            fwrite(lr, sizeof(lr), 1, gWav);
+        }
+        gWavFrames += frames;
+        if (gWavLimit && gWavFrames >= gWavLimit) {
+            wavHeader(gWav, gWavFrames);
+            fclose(gWav);
+            gWav = 0;
+            re4_log("audio: WAV complete, %u s", gWavFrames / 32000);
+        } else if ((gWavFrames & 0x7FFF) < frames) {
+            wavHeader(gWav, gWavFrames);
+            fflush(gWav);
+        }
+    }
     u32 w = gWrite.load(std::memory_order_relaxed);
     const u32 r = gRead.load(std::memory_order_acquire);
     if (w - r + frames > kRing) {
@@ -142,22 +161,6 @@ void play(u32 addr, u32 length)
         gSurroundAt = gBlocks;
     }
     gWrite.store(w + frames, std::memory_order_release);
-    if (gWav) {
-        for (u32 i = 0; i < frames; i++) {
-            const int16_t lr[2] = { block[i * 2 + 1], block[i * 2] };
-            fwrite(lr, sizeof(lr), 1, gWav);
-        }
-        gWavFrames += frames;
-        if (gWavLimit && gWavFrames >= gWavLimit) {
-            wavHeader(gWav, gWavFrames);
-            fclose(gWav);
-            gWav = 0;
-            re4_log("audio: WAV complete, %u s", gWavFrames / 32000);
-        } else if ((gWavFrames & 0x7FFF) < frames) {
-            wavHeader(gWav, gWavFrames);
-            fflush(gWav);
-        }
-    }
 }
 
 // One AI block (5 ms): the next block starts, its DMA interrupt runs the
@@ -184,6 +187,9 @@ void tick()
         gPeakCycles = 0;
     }
     if (gCallback) {
+        if (gBlockHook) {
+            gBlockHook();
+        }
         gCallback();
         // AX's estimate of the DSP's work for this frame (__AXSyncPBs): at or
         // over its budget it stopped voices (runtime/dsp.cpp DSPAddTask)
@@ -213,6 +219,13 @@ void re4_ai_field(void)
         gFieldAccumulator -= 60000;
         tick();
     }
+}
+
+// A function the game side runs before each block's callback (the sound driver's frame), on the
+// game thread: state_trace.cpp counts the sound requests waiting for it.
+void re4_ai_set_block_hook(void (*hook)(void))
+{
+    gBlockHook = hook;
 }
 
 // One AI block at once (tests).

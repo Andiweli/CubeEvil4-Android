@@ -20,6 +20,14 @@
 //
 // RE4_GX_SAMPLES=2 (or 4): with MSAA, on the tiles where the GPU can (GPU step d;
 // RE4_GX_MSAA_TILES=0: in own buffers); a line on stderr says which.
+//
+// RE4_GX_INTERP=1 (60 FPS, experimental): before each chunk that follows the one before, the
+// in-between picture of the two (GxRenderer::Interpolate, RE4_GX_INTERP_T, default 0.5) as
+// OUTPUT_DIR/<name>-zw.ppm, with a line: shown or a cut, the 3D draws and how many were matched.
+// The real pictures must stay the same as without it. A second line counts the draws without a
+// counterpart by kind (particles, figures, room, 2D), those found by their object (owner tags,
+// patch 0137) and the texture matrices / TEV colours blended (60fps-plan.md S0-S3).
+// RE4_GX_NO_OWNERS=1: the owner tags left out (the counter-check: the in-between pictures as before).
 #include "gx_gl.h"
 #include "re4_gx_frame_io.h"
 
@@ -77,13 +85,26 @@ int main(int argc, char **argv) {
   glGenFramebuffers(1, &fbo);
   std::unique_ptr<re4gx::GxRenderer> renderer;
   uint32_t lastSequence = 0, lastFrame = 0;
+  const char *interpText = std::getenv("RE4_GX_INTERP");
+  const bool interp = interpText && *interpText == '1';
+  const char *interpTText = std::getenv("RE4_GX_INTERP_T");
+  const float interpT = interpTText ? static_cast<float>(std::atof(interpTText)) : 0.5f;
+  // the chunk run last (its vertices for the in-between picture)
+  std::unique_ptr<re4gxio::Loaded> previous;
   // RE4_GX_SCALE: the EFB resolution of the app (-Scale; 1 = the GameCube's);
   // the pictures then have that many times the pixels
   const char *scaleText = std::getenv("RE4_GX_SCALE");
-  const int scale = scaleText && std::atoi(scaleText) >= 1 && std::atoi(scaleText) <= 4 ? std::atoi(scaleText) : 1;
+  int scale = scaleText && std::atoi(scaleText) >= 1 && std::atoi(scaleText) <= 4 ? std::atoi(scaleText) : 1;
+  // RE4_GX_RESCALE=K:S: before the K-th file (from 0) the running renderer goes to scale S
+  // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels
+  int rescaleAt = -1, rescaleTo = 0;
+  if (const char *rescale = std::getenv("RE4_GX_RESCALE"))
+    if (std::sscanf(rescale, "%d:%d", &rescaleAt, &rescaleTo) != 2 || rescaleTo < 1 || rescaleTo > 4)
+      rescaleAt = -1;
   for (int i = 2; i < argc; i++) {
     const std::string path = argv[i];
-    re4gxio::Loaded loaded;
+    auto loadedHere = std::make_unique<re4gxio::Loaded>();
+    re4gxio::Loaded &loaded = *loadedHere;
     FILE *f = std::fopen(path.c_str(), "rb");
     const bool ok = f && re4gxio::Read(f, loaded);
     if (f)
@@ -92,6 +113,19 @@ int main(int argc, char **argv) {
       std::printf("%s: nicht lesbar\n", Stem(path).c_str());
       failures++;
       continue;
+    }
+    static const bool noOwners = std::getenv("RE4_GX_NO_OWNERS") && *std::getenv("RE4_GX_NO_OWNERS") == '1';
+    if (noOwners) {
+      std::vector<uint32_t> kept;
+      for (std::size_t at = 0; at < loaded.ops.size();) {
+        const uint32_t n = 1 + (loaded.ops[at] >> 8);
+        if ((loaded.ops[at] & 0xFF) != RE4_GX_OP_OWNER)
+          kept.insert(kept.end(), loaded.ops.begin() + at, loaded.ops.begin() + std::min(loaded.ops.size(), at + n));
+        at += n;
+      }
+      loaded.ops.swap(kept);
+      loaded.chunk.ops = loaded.ops.data();
+      loaded.chunk.opWords = static_cast<uint32_t>(loaded.ops.size());
     }
     Re4GxChunk chunk = loaded.chunk;
     const bool follows = renderer && chunk.sequence == lastSequence + 1 && loaded.frame == lastFrame + 1;
@@ -123,6 +157,7 @@ int main(int argc, char **argv) {
       const char *full = std::getenv("RE4_GX_FULL_RESOLVE");
       options.fullResolve = full && *full == '1';
       renderer->SetOptions(options);
+      renderer->SetRecording(interp);
       std::string error;
       if (!renderer->Init(scale, &error)) {
         std::printf("%s: Renderer: %s\n", Stem(path).c_str(), error.c_str());
@@ -133,6 +168,11 @@ int main(int argc, char **argv) {
       if (options.samples > 1)
         std::fprintf(stderr, "MSAA: %d samples %s\n", renderer->Samples(),
                      renderer->TiledMsaa() ? "on the tiles" : "in own buffers");
+      // RE4_GX_PROGRAM_CACHE: the programs kept there (binary and key) as in the app; the keys of
+      // device captures for the app's list (port/tools/gx_program_list.py)
+      if (const char *cache = std::getenv("RE4_GX_PROGRAM_CACHE"))
+        if (*cache && !renderer->SetProgramCache(cache))
+          std::fprintf(stderr, "program cache: the driver keeps no binaries\n");
     }
     lastSequence = chunk.sequence;
     lastFrame = loaded.frame;
@@ -141,6 +181,47 @@ int main(int argc, char **argv) {
     const bool held = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
     if (!follows)
       chunk.flags &= ~RE4_GX_CHUNK_HOLD;
+    if (interp && follows && previous) {
+      const re4gx::GxStats was = renderer->Stats();
+      const bool shown = renderer->Interpolate(previous->chunk, chunk, interpT);
+      const re4gx::GxStats &now = renderer->Stats();
+      std::printf("%s: Zwischenbild %s, %u 3D-Zeichenaufträge, %u zugeordnet, %u mit gemischten Ecken\n",
+                  Stem(path).c_str(), shown ? "gezeigt" : "nicht gezeigt (Schnitt)", now.interpDraws - was.interpDraws,
+                  now.interpMatched - was.interpMatched, now.interpVertexBlends - was.interpVertexBlends);
+      std::printf("%s: ohne Gegenstück Teilchen %u/%u, Figuren %u/%u, Raum %u/%u, 2D %u/%u; über das Objekt %u "
+                  "(%u neu belegt); Texturmatrizen %u (%u über den Rand), TEV-Farben %u, Lichtfarben %u\n",
+                  Stem(path).c_str(), now.interpKindUnmatched[0] - was.interpKindUnmatched[0],
+                  now.interpKind[0] - was.interpKind[0], now.interpKindUnmatched[1] - was.interpKindUnmatched[1],
+                  now.interpKind[1] - was.interpKind[1], now.interpKindUnmatched[2] - was.interpKindUnmatched[2],
+                  now.interpKind[2] - was.interpKind[2], now.interpKindUnmatched[3] - was.interpKindUnmatched[3],
+                  now.interpKind[3] - was.interpKind[3], now.interpOwned - was.interpOwned,
+                  now.interpOwnedNew - was.interpOwnedNew, now.interpTexBlends - was.interpTexBlends,
+                  now.interpTexWraps - was.interpTexWraps, now.interpTevBlends - was.interpTevBlends,
+                  now.interpLightBlends - was.interpLightBlends);
+      unsigned iw = 0, ih = 0;
+      const GLuint between = renderer->Xfb(&iw, &ih);
+      if (shown && between && iw && ih) {
+        iw *= static_cast<unsigned>(scale);
+        ih *= static_cast<unsigned>(scale);
+        std::vector<unsigned char> rgba(static_cast<std::size_t>(iw) * ih * 4);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, between, 0);
+        glReadPixels(0, 0, static_cast<GLsizei>(iw), static_cast<GLsizei>(ih), GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+        const std::string file = out + "/" + Stem(path) + "-zw.ppm";
+        if (FILE *p = std::fopen(file.c_str(), "wb")) {
+          std::fprintf(p, "P6\n%u %u\n255\n", iw, ih);
+          for (unsigned y = 0; y < ih; y++)
+            for (unsigned x = 0; x < iw; x++)
+              std::fwrite(&rgba[(static_cast<std::size_t>(y) * iw + x) * 4], 1, 3, p);
+          std::fclose(p);
+        }
+      }
+    }
+    if (i - 2 == rescaleAt && renderer) {
+      renderer->Rescale(rescaleTo);
+      scale = renderer->Scale();
+      std::printf("%s: EFB-Stufe %d (Rescale)\n", Stem(path).c_str(), scale);
+    }
     const re4gx::GxStats before = renderer->Stats();
     renderer->Run(chunk);
     if (held)
@@ -158,9 +239,10 @@ int main(int argc, char **argv) {
                 s.missingTextures > before.missingTextures ? ", fehlende Texturen" : "",
                 s.shaderErrors > before.shaderErrors ? ", FEHLER: Shader" : "");
     if (std::getenv("RE4_GX_WORK"))
-      std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
+      std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB, %u gleiche ausgelassen), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
                   "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild)\n",
                   s.uniformUploads - before.uniformUploads, (s.uniformBytes - before.uniformBytes) / 1024,
+                  s.uniformSame - before.uniformSame,
                   s.programSwitches - before.programSwitches, s.textureBinds - before.textureBinds,
                   s.stateChanges - before.stateChanges, s.attributeSetups - before.attributeSetups,
                   s.streamSwitches - before.streamSwitches, s.streamSplits - before.streamSplits);
@@ -183,6 +265,7 @@ int main(int argc, char **argv) {
         std::fclose(p);
       }
     }
+    previous = std::move(loadedHere);
   }
   if (renderer && std::getenv("RE4_GX_WORK")) {
     glFinish();

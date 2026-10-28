@@ -1,0 +1,16 @@
+# The game's own timing of a frame's sections (ProcessTickGet in main.cpp: render setup, the task
+# scheduler, the drawing up to SndWatcher, the CPU part, the draw remainder, the total) readable for
+# the port (22.10.2026): proc_tick loses its `static`, runtime/state_trace.cpp averages the sections
+# and logs them ("frame: ..."), so a report shows where a weak device's frame time goes.
+--- a/src/game/debug.cpp
++++ b/src/game/debug.cpp
+@@ -45,7 +45,8 @@
+     u8 pad_16[0xA];
+ };
+ 
+-static u32 proc_tick[32];
++/* PORT (patch 0108): not static, runtime/state_trace.cpp logs the frame's sections */
++u32 proc_tick[32];
+ const char* proc_name[32];   // not declared in debug.h: .bss order proc_tick, proc_name
+ u32 zero_tick;
+ int proc_tick_idx;

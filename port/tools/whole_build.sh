@@ -15,8 +15,6 @@
 #   re4_host --self-test       cross-module trampolines pass arguments intact
 #   re4_host --check-modules   every module loads, every cross-module import resolves
 #   re4_host --runtime-test    OSLink, DVD folder and yz2 work without disc data
-#   ... --runtime-test, --core-test once more with RE4_GX_THREAD=1 (the GP on a
-#                              thread of its own, runtime/gx_thread.cpp)
 #   re4_host --core-test       the embedding interface of the app (core thread,
 #                              controller, snapshots) without disc data, the
 #                              memory card library on a card file
@@ -40,7 +38,8 @@
 # qemu-aarch64 when it is installed. Then the port's runtime files
 # are compiled against libc++, the NDK's C++ library (whole_libcxx_check.py:
 # what only the Android build would notice), and the disc folder tool is
-# tested (port/tools/test_whole_disc_folder.py, synthetic images). Needs
+# tested (port/tools/test_whole_disc_folder.py, synthetic images), as is
+# the release comparison (test_retail_compare.py, synthetic folders). Needs
 # clang, lld, cmake, ninja, python3, the lib32 C/C++ libraries,
 # g++-arm-linux-gnueabihf and qemu-user: sudo port/tools/whole_setup_linux.sh
 # (cloud sessions run it through .claude/hooks/session-start.sh).
@@ -59,7 +58,7 @@ if [ -n "${RE4_SANITIZE:-}" ]; then
     # frames (11 MB for each of the game's stacks: the 32-bit address space ran out in the room tour,
     # r106); every report with its call chain
     export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:detect_odr_violation=0:detect_stack_use_after_return=0:handle_segv=0:handle_sigbus=0:handle_sigfpe=0}"
-    export UBSAN_OPTIONS="${UBSAN_OPTIONS:-print_stacktrace=1}"
+    export UBSAN_OPTIONS="${UBSAN_OPTIONS:-print_stacktrace=1:handle_segv=0:handle_sigbus=0:handle_sigfpe=0}"
 fi
 for t in "${targets[@]}"; do
     name="whole-$t$suffix"
@@ -141,15 +140,19 @@ for t in "${targets[@]}"; do
         echo "  re4_host $check: exit $code | $(echo "$out" | grep -E 'self-test:|check-modules:|runtime-test|core-test' | tr '\n' ' ' | sed 's/\[re4\] //g')"
         [ "$code" -ne 0 ] && status=1
     done
-    # the same with the GP on a thread of its own (runtime/gx_thread.cpp, RE4_GX_THREAD=1):
-    # the decoder's fingerprint and the chunks of the core test unchanged
-    for check in --runtime-test --core-test; do
-        out=$(cd "$build" && RE4_GX_THREAD=1 RE4_CARD_TEST_FILE="$build/card-test-gp.bin" \
-            RE4_GCI_TEST_FILE="$build/card-test-gp.gci" timeout 300 "${run[@]}" ./re4_host "$check" 2>&1)
-        code=$?
-        echo "  re4_host $check (GP thread): exit $code | $(echo "$out" | grep -E 'runtime-test|core-test' | grep -vE ': ok$' | tr '\n' ' ' | sed 's/\[re4\] //g')"
-        [ "$code" -ne 0 ] && { echo "$out" | grep -E 'failed|FAILED' | head -n 10 | sed 's/^/    /'; status=1; }
-    done
+    instant_runner=""
+    [ "$t" = armhf ] && instant_runner="$(command -v qemu-arm)"
+    [ "$t" = aarch64 ] && instant_runner="$(command -v qemu-aarch64)"
+    out=$(RE4_INSTANT_TEST_RUNNER="$instant_runner" "${run[@]}" "$build/re4_instant_store_test" 2>&1)
+    code=$?
+    echo "  instant slot file tests: exit $code | $out"
+    [ "$code" -ne 0 ] && status=1
+    # the GX decoder with its vertices on the core thread alone (RE4_GX_THREADS=0; the run above
+    # puts them on 3 more threads): the same chunks byte for byte
+    out=$(cd "$build" && RE4_GX_THREADS=0 timeout 300 "${run[@]}" ./re4_host --runtime-test 2>&1)
+    code=$?
+    echo "  re4_host --runtime-test, GX vertices on the core thread: exit $code | $(echo "$out" | grep -E 'runtime-test (gx|sections):|runtime-test: [0-9]+ failed' | tr '\n' ' ' | sed 's/\[re4\] //g')"
+    [ "$code" -ne 0 ] && status=1
     out=$(python3 "$root/port/tools/memcard_list.py" "$card" --expect-system --expect-save 0 2>&1)
     code=$?
     echo "  memcard_list.py (the card of the core test): exit $code | $(echo "$out" | grep -cE '^  file ') files, $(echo "$out" | grep -oE 'CRC[^;,]*' | tr '\n' ' ')"
@@ -178,20 +181,18 @@ for t in "${targets[@]}"; do
     # the entry of the core process check instead of the game: frames counted, GX chunks taken
     # and copied, the sound read in real time, the summary line the PC script reads
     if [ -x "$build/re4_probe" ]; then
-        for gp in 0 1; do  # 1: the GP on a thread of its own (RE4_GX_THREAD)
-            out=$(cd "$build" && RE4_GX_THREAD=$gp RE4_CORE_TEST_ENTRY=remote timeout 120 "${run[@]}" ./re4_probe --seconds 4 --report 2 2>&1)
-            code=$?
-            result=$(echo "$out" | grep -E '^probe-result: set=all ')
-            value() { echo "$result" | grep -oE " $1=[0-9.]+" | cut -d= -f2 | cut -d. -f1; }
-            frames=$(value frames)
-            vertices=$(value vertices)
-            sound=$(value sound_from_game_pct)
-            echo "  re4_probe (test entry$([ $gp = 1 ] && echo ", GP thread")): exit $code | frames ${frames:-?}, fps $(value fps), vertices per chunk ${vertices:-?}, sound from the game ${sound:-?} %"
-            if [ "$code" -ne 0 ] || [ "${frames:-0}" -lt 100 ] || [ "${vertices:-0}" -lt 1 ] || [ "${sound:-0}" -lt 50 ]; then
-                echo "$out" | grep -v '^map: ' | tail -n 30 | sed 's/^/    /'
-                status=1
-            fi
-        done
+        out=$(cd "$build" && RE4_CORE_TEST_ENTRY=remote timeout 120 "${run[@]}" ./re4_probe --seconds 4 --report 2 2>&1)
+        code=$?
+        result=$(echo "$out" | grep -E '^probe-result: set=all ')
+        value() { echo "$result" | grep -oE " $1=[0-9.]+" | cut -d= -f2 | cut -d. -f1; }
+        frames=$(value frames)
+        vertices=$(value vertices)
+        sound=$(value sound_from_game_pct)
+        echo "  re4_probe (test entry): exit $code | frames ${frames:-?}, fps $(value fps), vertices per chunk ${vertices:-?}, sound from the game ${sound:-?} %"
+        if [ "$code" -ne 0 ] || [ "${frames:-0}" -lt 100 ] || [ "${vertices:-0}" -lt 1 ] || [ "${sound:-0}" -lt 50 ]; then
+            echo "$out" | grep -v '^map: ' | tail -n 30 | sed 's/^/    /'
+            status=1
+        fi
     fi
     if command -v llvm-dwarfdump > /dev/null; then
         out=$(python3 "$root/port/tools/save_layout.py" "$build" --check 2>&1)
@@ -254,6 +255,18 @@ if python3 "$root/port/tools/test_whole_disc_folder.py" > "$root/port/build/disc
     echo "disc folder tool: ok"
 else
     echo "disc folder tool: FAILED (log: port/build/disc-folder-test.log)"
+    status=1
+fi
+if python3 "$root/port/tools/test_retail_compare.py" > "$root/port/build/retail-compare-test.log" 2>&1; then
+    echo "retail compare tool: ok"
+else
+    echo "retail compare tool: FAILED (log: port/build/retail-compare-test.log)"
+    status=1
+fi
+if python3 "$root/port/tools/test_emlist_dump.py" > "$root/port/build/emlist-dump-test.log" 2>&1; then
+    echo "enemy list tool: ok"
+else
+    echo "enemy list tool: FAILED (log: port/build/emlist-dump-test.log)"
     status=1
 fi
 exit $status

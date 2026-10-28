@@ -22,7 +22,6 @@
 #include "re4_runtime.h"
 #include "stack_context.h"
 
-#include <dlfcn.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,7 +35,6 @@
 #endif
 
 #include <memory>
-#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -291,89 +289,6 @@ void releaseContext(Host* h)
             h->context.reset();
         }
     }
-}
-
-// Whether `a` lies in a library of the game (libre4_main, libre4_<module>):
-// the spans found so far, else the loader's list (a new span is kept)
-bool inGameLibrary(uintptr_t a, uintptr_t (*spans)[2], int* spanCount)
-{
-    for (int i = 0; i < *spanCount; i++) {
-        if (a >= spans[i][0] && a < spans[i][1]) {
-            return true;
-        }
-    }
-    struct Search {
-        uintptr_t address, begin, end;
-        bool found;
-    } search = {a, 0, 0, false};
-#if defined(__ANDROID__) && defined(__arm__) && __ANDROID_API__ < 21
-    // Android 4.x (API 16, the OUYA) has no dl_iterate_phdr on ARM: the
-    // library that holds the address, and its extent from the program headers
-    // its first segment maps at the load base
-    Dl_info info;
-    if (dladdr((const void*) a, &info) && info.dli_fname && strstr(info.dli_fname, "libre4_") && info.dli_fbase) {
-        const ElfW(Ehdr)* eh = (const ElfW(Ehdr)*) info.dli_fbase;
-        const ElfW(Phdr)* phdr = (const ElfW(Phdr)*) ((const char*) eh + eh->e_phoff);
-        uintptr_t first = UINTPTR_MAX;
-        for (int i = 0; i < eh->e_phnum; i++) {
-            if (phdr[i].p_type == PT_LOAD && phdr[i].p_vaddr < first) {
-                first = phdr[i].p_vaddr;
-            }
-        }
-        const uintptr_t bias = (uintptr_t) info.dli_fbase - (first & ~(uintptr_t) 0xFFF);
-        uintptr_t lo = UINTPTR_MAX, hi = 0;
-        for (int i = 0; i < eh->e_phnum; i++) {
-            if (phdr[i].p_type == PT_LOAD) {
-                const uintptr_t b = bias + phdr[i].p_vaddr;
-                lo = b < lo ? b : lo;
-                hi = b + phdr[i].p_memsz > hi ? b + phdr[i].p_memsz : hi;
-            }
-        }
-        if (a >= lo && a < hi) {
-            search.begin = lo;
-            search.end = hi;
-            search.found = true;
-        }
-    }
-#else
-    dl_iterate_phdr(
-        [](struct dl_phdr_info* info, size_t, void* data) -> int {
-            Search* s = (Search*) data;
-            if (!info->dlpi_name || !strstr(info->dlpi_name, "libre4_")) {
-                return 0;
-            }
-            uintptr_t lo = UINTPTR_MAX, hi = 0;
-            for (int i = 0; i < info->dlpi_phnum; i++) {
-                const ElfW(Phdr)& ph = info->dlpi_phdr[i];
-                if (ph.p_type == PT_LOAD) {
-                    uintptr_t b = info->dlpi_addr + ph.p_vaddr;
-                    if (b < lo) {
-                        lo = b;
-                    }
-                    if (b + ph.p_memsz > hi) {
-                        hi = b + ph.p_memsz;
-                    }
-                }
-            }
-            if (s->address >= lo && s->address < hi) {
-                s->begin = lo;
-                s->end = hi;
-                s->found = true;
-                return 1;
-            }
-            return 0;
-        },
-        &search);
-#endif
-    if (!search.found) {
-        return false;
-    }
-    if (*spanCount < 256) {
-        spans[*spanCount][0] = search.begin;
-        spans[*spanCount][1] = search.end;
-        (*spanCount)++;
-    }
-    return true;
 }
 
 }  // namespace
@@ -637,16 +552,8 @@ void OSSleepThread(OSThreadQueue* q)
     t->state = kWaiting;
     enqueue(q, t);
     // While the CPU waits the graphics processor catches up (gx_fifo.cpp): its
-    // "draw done" interrupt may wake this very thread (GXWaitDrawDone). The GP
-    // on a thread of its own (gx_thread.cpp) goes on meanwhile; when every
-    // thread waits, the idle waits for its interrupts too (vi.cpp). Without the
-    // dispatcher (tests) nothing else runs: the GP catches up at once (else
-    // the caller's loop would queue this thread a second time).
-    if (gDispatching) {
-        re4_gx_deliver_pending();
-    } else {
-        re4_gx_deliver_interrupts();
-    }
+    // "draw done" interrupt may wake this very thread (GXWaitDrawDone).
+    re4_gx_deliver_interrupts();
     // ... and the memory card's transfers end (runtime/exi.cpp)
     re4_exi_deliver();
     if (t->state == kReady) {
@@ -823,19 +730,53 @@ int re4_valid_port_ptr(const void* p)
     // found so far, else the loader's list
     static uintptr_t spans[256][2];
     static int spanCount;
-    return inGameLibrary((uintptr_t) p, spans, &spanCount);
-}
-
-// The same for the GP thread (gx_thread.cpp, display lists of the game's
-// static data): only the game's libraries, with a cache of its own (the
-// threads' stacks belong to the game's thread)
-int re4_game_library_ptr(const void* p)
-{
-    static std::mutex lock;
-    static uintptr_t spans[256][2];
-    static int spanCount;
-    std::lock_guard<std::mutex> guard(lock);
-    return p && inGameLibrary((uintptr_t) p, spans, &spanCount);
+    uintptr_t a = (uintptr_t) p;
+    for (int i = 0; i < spanCount; i++) {
+        if (a >= spans[i][0] && a < spans[i][1]) {
+            return 1;
+        }
+    }
+    struct Search {
+        uintptr_t address, begin, end;
+        bool found;
+    } search = {a, 0, 0, false};
+    dl_iterate_phdr(
+        [](struct dl_phdr_info* info, size_t, void* data) -> int {
+            Search* s = (Search*) data;
+            if (!info->dlpi_name || !strstr(info->dlpi_name, "libre4_")) {
+                return 0;
+            }
+            uintptr_t lo = UINTPTR_MAX, hi = 0;
+            for (int i = 0; i < info->dlpi_phnum; i++) {
+                const ElfW(Phdr)& ph = info->dlpi_phdr[i];
+                if (ph.p_type == PT_LOAD) {
+                    uintptr_t b = info->dlpi_addr + ph.p_vaddr;
+                    if (b < lo) {
+                        lo = b;
+                    }
+                    if (b + ph.p_memsz > hi) {
+                        hi = b + ph.p_memsz;
+                    }
+                }
+            }
+            if (s->address >= lo && s->address < hi) {
+                s->begin = lo;
+                s->end = hi;
+                s->found = true;
+                return 1;
+            }
+            return 0;
+        },
+        &search);
+    if (!search.found) {
+        return 0;
+    }
+    if (spanCount < 256) {
+        spans[spanCount][0] = search.begin;
+        spans[spanCount][1] = search.end;
+        spanCount++;
+    }
+    return 1;
 }
 
 }  // extern "C"

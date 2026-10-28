@@ -200,8 +200,6 @@ extern "C" {
 void GXLoadPosMtxIndx(u16 index, u32 id);
 void re4_gx_put_u8(unsigned char v);
 void re4_gx_put_u16(unsigned short v);
-void re4_gx_put_u32(unsigned int v);
-void re4_gx_put_f32(float v);
 unsigned re4_gx_xf(unsigned address);
 unsigned int re4_gx_physical(const void* pointer);
 void re4_gx_host_order_list(const void* list, unsigned int size);
@@ -209,22 +207,15 @@ void VISetNextFrameBuffer(void* fb);
 void VIFlush(void);
 void VISetBlack(int black);
 void re4_dof_autofocus_mark(void* w);
-void re4_gx_sync(void);
 int re4_gx_texture_check(int sampled);
 int re4_gx_compact(int on);
-}
-
-// A chunk the GP finished: with the GP on its own thread (gx_thread.cpp) once
-// it caught up with what the test sent
-static const Re4GxChunk* take()
-{
-    re4_gx_sync();
-    return re4_core_gx_acquire();
 }
 
 namespace {
 
 // What a chunk holds, in op order.
+extern "C" void re4_log(const char* format, ...);
+
 struct Parsed {
     const Re4GxDraw* draws[16];
     int drawCount;
@@ -238,6 +229,8 @@ struct Parsed {
     int xfCount;
     bool bpStateFirst;
     int unknown;
+    const uint32_t* owner;  // the first owner tag (patch 0137) and the draw it precedes
+    int ownerBefore;
 };
 
 void parse(const Re4GxChunk* c, Parsed& p)
@@ -264,6 +257,11 @@ void parse(const Re4GxChunk* c, Parsed& p)
         } else if (op == RE4_GX_OP_XF && p.xfCount < 64) {
             p.xfWords[p.xfCount] = n - 1;
             p.xf[p.xfCount++] = payload;
+        } else if (op == RE4_GX_OP_OWNER && n == 4) {
+            if (!p.owner) {
+                p.owner = payload;
+                p.ownerBefore = p.drawCount;
+            }
         } else if (op < RE4_GX_OP_BP || op > RE4_GX_OP_BP_STATE) {
             p.unknown++;
         }
@@ -340,11 +338,11 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     memset(m, 0, 0x3000);
 
     GXInit(fifo, 0x10000);
-    if (take() != 0) {  // attaches; nothing built yet
+    if (re4_core_gx_acquire() != 0) {  // attaches; nothing built yet
         failed |= 0x1;
     }
     copyDisp(xfb);  // the chunk starts at this frame boundary
-    if (take() != 0) {
+    if (re4_core_gx_acquire() != 0) {
         failed |= 0x1;
     }
 
@@ -386,6 +384,9 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
         re4_gx_put_u16((u16) (3 - i));
         GXTexCoord2f32(0.25f * i, 0.5f);
     }
+
+    // the owner of the draws that follow (ExecOt, patch 0137): before the strip
+    re4_gx_put_owner(0x80123450u, 0x81000010u, 7, 0x00050003u);
 
     // a triangle strip with the same texture: no new texture op
     GXClearVtxDesc();
@@ -446,7 +447,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     triangle();
 
     copyDisp(xfb);
-    const Re4GxChunk* c1 = take();
+    const Re4GxChunk* c1 = re4_core_gx_acquire();
     if (!c1 || c1->version != RE4_GX_FRAME_VERSION || c1->flags != (RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB) ||
         c1->xfbAddress != re4_gx_physical(xfb) || c1->xfbWidth != 640 || c1->xfbHeight != 448) {
         return failed | 0x2;
@@ -462,6 +463,12 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     // five GXBegins, four draws: the display list joins the strip before it
     if (!p.bpStateFirst || p.unknown != 0 || p.drawCount != 4) {
         failed |= 0x2;
+    }
+    // the owner tag in the chunk, in its place: after the quad, before the strip
+    if (!p.owner || p.ownerBefore != 1 || p.owner[0] != 0x80123450u || p.owner[1] != 0x81000010u || p.owner[2] != 7 ||
+        p.owner[3] != 0x00050003u) {
+        failed |= 0x2;
+        re4_log("  gx: the owner tag is missing or out of place (before draw %d)", p.owner ? p.ownerBefore : -1);
     }
     // the matrix
     bool matrix = false;
@@ -568,7 +575,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     GXLoadTexObj(&tex, 0);
     triangle();
     copyDisp(xfb);
-    const Re4GxChunk* c2 = take();
+    const Re4GxChunk* c2 = re4_core_gx_acquire();
     if (!c2 || c2->flags != RE4_GX_CHUNK_XFB || c2->sequence != c1->sequence + 1) {
         failed |= 0x800;
     } else {
@@ -588,7 +595,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     // is run but held; the next one shown is not
     triangle();
     copyDisp(xfb + 0x100, false);
-    const Re4GxChunk* c3 = take();
+    const Re4GxChunk* c3 = re4_core_gx_acquire();
     if (!c3 || c3->flags != (RE4_GX_CHUNK_XFB | RE4_GX_CHUNK_HOLD)) {
         failed |= 0x2000;
     }
@@ -597,7 +604,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     }
     triangle();
     copyDisp(xfb + 0x100);
-    const Re4GxChunk* c4 = take();
+    const Re4GxChunk* c4 = re4_core_gx_acquire();
     if (!c4 || c4->flags != RE4_GX_CHUNK_XFB) {
         failed |= 0x2000;
     }
@@ -609,7 +616,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     VISetBlack(1);
     triangle();
     copyDisp(xfb);
-    const Re4GxChunk* c5 = take();
+    const Re4GxChunk* c5 = re4_core_gx_acquire();
     if (!c5 || c5->flags != (RE4_GX_CHUNK_XFB | RE4_GX_CHUNK_BLACK)) {
         failed |= 0x4000;
     }
@@ -619,7 +626,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     VISetBlack(0);
     triangle();
     copyDisp(xfb);
-    const Re4GxChunk* c6 = take();
+    const Re4GxChunk* c6 = re4_core_gx_acquire();
     if (!c6 || c6->flags != RE4_GX_CHUNK_XFB) {
         failed |= 0x4000;
     }
@@ -633,7 +640,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     triangle();
     re4_dof_autofocus_mark(0);
     copyDisp(xfb);
-    const Re4GxChunk* c7 = take();
+    const Re4GxChunk* c7 = re4_core_gx_acquire();
     {
         int marks = 0;
         for (uint32_t at = 0; c7 && at < c7->opWords; at += 1 + (c7->ops[at] >> 8)) {
@@ -648,7 +655,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     }
     re4_core_gx_detach();
     copyDisp(xfb);  // no renderer: nothing is built
-    if (take() != 0) {
+    if (re4_core_gx_acquire() != 0) {
         failed |= 0x1000;
     }
     re4_core_gx_detach();
@@ -680,6 +687,7 @@ extern "C" void re4probe_gx_produce(void* fifo, void* xfb, int frames, int init)
 
 extern "C" void re4_gx_put_u32(unsigned int v);
 extern "C" void re4_log(const char* format, ...);
+extern "C" void re4_gx_wait_jobs(void);
 
 namespace {
 
@@ -848,8 +856,6 @@ void vertices(Stream& s, Rng& r, const Fmt& f, uint32_t count, uint32_t entries)
 
 }  // namespace
 
-// `fifo`: 64 KB for the GX FIFO, `mem`: 1 MB of 32-byte aligned MEM1 scratch
-// memory, `xfb`: a display copy target. Returns the hash of `frames` chunks.
 // every chunk of the fingerprint's stream, for the compact vertex's check
 void (*gFingerprintChunk)(const Re4GxChunk* c);
 // the EFB copies of the stream: each leaves a marker with a serial number in
@@ -857,6 +863,8 @@ void (*gFingerprintChunk)(const Re4GxChunk* c);
 // from run to run (the compact vertex's check compares two runs: without them)
 bool gFingerprintCopies = true;
 
+// `fifo`: 64 KB for the GX FIFO, `mem`: 1 MB of 32-byte aligned MEM1 scratch
+// memory, `xfb`: a display copy target. Returns the hash of `frames` chunks.
 extern "C" unsigned long long re4probe_gx_fingerprint(void* fifo, void* mem, void* xfb, int frames)
 {
     static u8 bytes[0x40000];
@@ -878,9 +886,9 @@ extern "C" unsigned long long re4probe_gx_fingerprint(void* fifo, void* mem, voi
             re4_gx_put_u8(bytes[i]);
         }
     }
-    take();  // attach
+    re4_core_gx_acquire();  // attach
     copyDisp(xfb);
-    if (const Re4GxChunk* c = take()) {
+    if (const Re4GxChunk* c = re4_core_gx_acquire()) {
         re4_core_gx_release(c);
     }
     u8* m = (u8*) mem;
@@ -983,13 +991,12 @@ extern "C" unsigned long long re4probe_gx_fingerprint(void* fifo, void* mem, voi
                 vertices(s, r, f, count, entries);
             }
             if (list && listAt + (s.n - listStart) + 64 < 0x100000) {
-                // the draws as a display list in memory, called from the FIFO
+                // the draws as a display list in memory, called from the FIFO. The indices beyond
+                // an array reach up to here: a draw before may still read this memory (the vertex
+                // jobs of gx_decode.cpp convert a little after the command, as the GameCube's GP
+                // read); like a game after GXDrawDone, the test writes it once the GP is done
+                re4_gx_wait_jobs();
                 size_t size = (s.n - listStart + 31) & ~(size_t) 31;
-                // the GP on its own thread (gx_thread.cpp) may not have read what
-                // is there yet: indices beyond an array reach into this area, and
-                // the GP reads memory when it gets to the command, as on the
-                // GameCube (a game overwrites only what the GP is done with)
-                re4_gx_sync();
                 memcpy(m + listAt, bytes + listStart, s.n - listStart);
                 memset(m + listAt + (s.n - listStart), 0, size - (s.n - listStart));
                 s.n = listStart;
@@ -1008,7 +1015,7 @@ extern "C" unsigned long long re4probe_gx_fingerprint(void* fifo, void* mem, voi
             re4_gx_stats(st);
             re4_log("  gx fingerprint frame %d: %u vertices so far", frame, st[kVertices]);
         }
-        const Re4GxChunk* c = take();
+        const Re4GxChunk* c = re4_core_gx_acquire();
         if (!c) {
             hash = fnv(hash, "none", 4);
             continue;
@@ -1050,13 +1057,13 @@ extern "C" unsigned long long re4probe_gx_fingerprint(void* fifo, void* mem, voi
 // texture coordinate index16 s16, position matrix index), called from the
 // FIFO. Returns the decoder's time per frame in microseconds (RE4_GX_BENCH,
 // runtime test "gx": the speed of the decoder on this host).
-extern "C" unsigned re4probe_gx_bench(void* fifo, void* mem, void* xfb, int frames, unsigned* untilDone)
+extern "C" unsigned re4probe_gx_bench(void* fifo, void* mem, void* xfb, int frames)
 {
     static u8 bytes[64];
     GXInit(fifo, 0x10000);
-    take();  // attach
+    re4_core_gx_acquire();  // attach
     copyDisp(xfb);
-    if (const Re4GxChunk* c = take()) {
+    if (const Re4GxChunk* c = re4_core_gx_acquire()) {
         re4_core_gx_release(c);
     }
     u8* m = (u8*) mem;
@@ -1065,15 +1072,19 @@ extern "C" unsigned re4probe_gx_bench(void* fifo, void* mem, void* xfb, int fram
     for (uint32_t i = 0; i < 0x20000; i++) {  // arrays: positions, normals, texture coordinates, matrices
         m[i] = r.byte();
     }
-    // the list: 1500 strips of 20 vertices, a matrix load before each
+    // the list: 1500 strips of 20 vertices, a matrix load before each (RE4_GX_BENCH_STRIP=N:
+    // strips of N vertices, as many as make 30 000; the forest of r100 has about 8 per GXBegin)
+    const char* stripEnv = getenv("RE4_GX_BENCH_STRIP");
+    const int strip = stripEnv && atoi(stripEnv) >= 3 && atoi(stripEnv) <= 1000 ? atoi(stripEnv) : 20;
+    const int strips = 30000 / strip;
     const uint32_t listAt = 0x20000;
     Stream l = {m + listAt, 0};
-    for (int k = 0; k < 1500; k++) {
+    for (int k = 0; k < strips; k++) {
         l.u8_(0x20);
         l.u32_(r.below(64) << 16 | 11u << 12 | (r.below(8) * 12));
         l.u8_(0x98);
-        l.u16_(20);
-        for (int v = 0; v < 20; v++) {
+        l.u16_((u16) strip);
+        for (int v = 0; v < strip; v++) {
             l.u8_(r.below(8) * 3);
             l.u16_(r.below(2000));
             l.u16_(r.below(2000));
@@ -1082,7 +1093,7 @@ extern "C" unsigned re4probe_gx_bench(void* fifo, void* mem, void* xfb, int fram
     }
     const uint32_t listSize = (uint32_t) ((l.n + 31) & ~(size_t) 31);
     memset(m + listAt + l.n, 0, listSize - l.n);
-    double total = 0, caughtUp = 0;
+    double total = 0;
     for (int frame = 0; frame < frames; frame++) {
         Stream s = {bytes, 0};
         cp(s, 0x50, 1 | 3u << 9 | 3u << 11);       // PNMTXIDX, position and normal index16
@@ -1110,72 +1121,19 @@ extern "C" unsigned re4probe_gx_bench(void* fifo, void* mem, void* xfb, int fram
                 re4_gx_put_u8(bytes[i]);
             }
         }
+        // the display copy ends the chunk: with the vertex jobs (RE4_GX_THREADS) it waits for them
+        copyDisp(xfb);
         clock_gettime(CLOCK_MONOTONIC, &t1);
         total += (t1.tv_sec - t0.tv_sec) * 1e6 + (t1.tv_nsec - t0.tv_nsec) / 1e3;
-        re4_gx_sync();  // the GP thread (gx_thread.cpp) caught up
-        clock_gettime(CLOCK_MONOTONIC, &t1);
-        caughtUp += (t1.tv_sec - t0.tv_sec) * 1e6 + (t1.tv_nsec - t0.tv_nsec) / 1e3;
-        copyDisp(xfb);
-        if (const Re4GxChunk* c = take()) {
+        if (const Re4GxChunk* c = re4_core_gx_acquire()) {
             re4_core_gx_release(c);
         }
     }
     re4_core_gx_detach();
-    *untilDone = frames ? (unsigned) (caughtUp / frames) : 0;
     return frames ? (unsigned) (total / frames) : 0;
 }
 
-// Draws the CPU puts into the FIFO itself (GXPosition3f32 ...: effects, shadows,
-// the HUD): 2000 quads per frame of position f32, color RGBA8 and texture
-// coordinate f32, each value a call of re4_gx_put_*. Returns the time per frame
-// in microseconds (RE4_GX_BENCH, tests/runtime_tests.cpp).
-extern "C" unsigned re4probe_gx_bench_fifo(void* fifo, void* xfb, int frames, unsigned* untilDone)
-{
-    static u8 bytes[64];
-    GXInit(fifo, 0x10000);
-    take();  // attach
-    copyDisp(xfb);
-    if (const Re4GxChunk* c = take()) {
-        re4_core_gx_release(c);
-    }
-    Stream s = {bytes, 0};
-    cp(s, 0x50, 1u << 9 | 1u << 13);                                           // position, color 0: direct
-    cp(s, 0x60, 1);                                                             // texture coordinate 0: direct
-    cp(s, 0x70, 1 | 4u << 1 | 1u << 13 | 5u << 14 | 1u << 21 | 4u << 22);  // xyz f32, RGBA8, st f32
-    for (size_t i = 0; i < s.n; i++) {
-        re4_gx_put_u8(bytes[i]);
-    }
-    Rng r = {0x51F0u};
-    double total = 0, caughtUp = 0;
-    for (int frame = 0; frame < frames; frame++) {
-        struct timespec t0, t1;
-        clock_gettime(CLOCK_MONOTONIC, &t0);
-        for (int q = 0; q < 2000; q++) {
-            re4_gx_put_u8(0x80);  // quads, vertex format 0
-            re4_gx_put_u16(4);
-            for (int v = 0; v < 4; v++) {
-                re4_gx_put_f32((float) r.below(1000) * 0.5f);
-                re4_gx_put_f32((float) r.below(1000) * 0.5f);
-                re4_gx_put_f32((float) r.below(1000) * 0.5f);
-                re4_gx_put_u32(r.next());
-                re4_gx_put_f32((float) (v & 1));
-                re4_gx_put_f32((float) (v >> 1));
-            }
-        }
-        clock_gettime(CLOCK_MONOTONIC, &t1);
-        total += (t1.tv_sec - t0.tv_sec) * 1e6 + (t1.tv_nsec - t0.tv_nsec) / 1e3;
-        re4_gx_sync();  // the GP thread (gx_thread.cpp) caught up
-        clock_gettime(CLOCK_MONOTONIC, &t1);
-        caughtUp += (t1.tv_sec - t0.tv_sec) * 1e6 + (t1.tv_nsec - t0.tv_nsec) / 1e3;
-        copyDisp(xfb);
-        if (const Re4GxChunk* c = take()) {
-            re4_core_gx_release(c);
-        }
-    }
-    re4_core_gx_detach();
-    *untilDone = frames ? (unsigned) (caughtUp / frames) : 0;
-    return frames ? (unsigned) (total / frames) : 0;
-}
+#include <stdlib.h>
 
 // RE4_GX_TEXTURE_CHECK=sampled (gx_decode.cpp): a texture keeps its key from
 // chunk to chunk while its texels stay; rewritten it gets a new one at once; a
@@ -1186,9 +1144,9 @@ extern "C" int re4probe_gx_texture_check_test(void* fifo, void* mem, void* xfb)
     int failed = 0;
     const int was = re4_gx_texture_check(1);
     GXInit(fifo, 0x10000);
-    take();  // attach
+    re4_core_gx_acquire();  // attach
     copyDisp(xfb);
-    if (const Re4GxChunk* c = take()) {
+    if (const Re4GxChunk* c = re4_core_gx_acquire()) {
         re4_core_gx_release(c);
     }
     u8* texels = (u8*) mem;  // 64x64 RGB5A3: 8192 bytes
@@ -1206,7 +1164,7 @@ extern "C" int re4probe_gx_texture_check_test(void* fifo, void* mem, void* xfb)
         triangle();
         copyDisp(xfb);
         uint64_t key = 0;
-        if (const Re4GxChunk* c = take()) {
+        if (const Re4GxChunk* c = re4_core_gx_acquire()) {
             Parsed p;
             parse(c, p);
             for (int i = 0; i < p.textureCount; i++) {

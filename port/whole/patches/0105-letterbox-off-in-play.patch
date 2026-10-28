@@ -1,0 +1,58 @@
+# 4:3 screens (Anbernic RG 477V report, 0.42.1, 22.10.2026): the game letterboxes its picture
+# twice. Every room start switches SYS_SCISSOR_ON on (game.cpp gameRoomInit, unless the debug
+# switch DBG_SCISSOR_OFF), Render then limits all drawing to rows 56..392 (STA_SCISSOR,
+# SetScissorState), and at the end of every frame Draw_cinesco paints two black bars over rows
+# 0..56 and 393..449 of the 512 x 448 picture (only DBG_CINESCO_OFF leaves them out). The 3D
+# projection is 4:3 over the whole height (camera.cpp), so a 4:3 screen showed the letterbox, as a
+# 4:3 television did. The app's picture format "4:3 without bars" (re4_core_set_letterbox) asks
+# re4_letterbox_open (runtime/picture.cpp): while it is on and the player plays (main loop Rno0 3,
+# no sub screen, no event), Render leaves the scissor out and Draw_cinesco is skipped, as the two
+# debug switches of the game do. In events (SceEventStart sets SYS_SCISSOR_ON too) and sub
+# screens, and with every other picture format, both stay as in the original. (First version of
+# 0105 skipped only the bars: the Retroid showed the same picture as "4:3 (Original)", the rows
+# under the bars were never drawn.)
+--- a/src/game/main.cpp
++++ b/src/game/main.cpp
+@@ -111,6 +111,7 @@
+ 
+ static void systemScreenInit();
+ extern "C" void re4_wait_interrupt();  /* port: runtime/vi.cpp */
++extern "C" int re4_letterbox_open(void);  /* port: runtime/picture.cpp (patch 0105) */
+ 
+ // Program entry: systemStartInit, then on every soft reset restores the reset-keep block (pRK),
+ // starts the title task and runs the frame loop until systemResetCheck sees the next soft reset.
+@@ -184,7 +185,10 @@
+             cMes.Move();
+             cMes.Trans();
+             CinescoMove();
+-            if (!DbgFlagChk(pG, DBG_CINESCO_OFF)) {
++            /* PORT (patch 0105): the app's picture format "4:3 without bars" leaves the
++               letterbox out while the player plays (Anbernic RG 477V report, 22.10.2026: a 4:3
++               screen); Render draws the whole height then */
++            if (!DbgFlagChk(pG, DBG_CINESCO_OFF) && !re4_letterbox_open()) {
+                 Draw_cinesco();
+             }
+             FadeControl(1);
+--- a/src/game/trans.cpp
++++ b/src/game/trans.cpp
+@@ -901,6 +901,8 @@
+ #undef w
+     return cnt;
+ }
++
++extern "C" int re4_letterbox_open(void);  /* port: runtime/picture.cpp (patch 0105) */
+ 
+ // Per frame, the draw pass: runs the ordering tables in order (render textures, shadow setup,
+ // far sub screen, scroll, sub screen, models, shadow draw, near sub screen, effects, world, VU1
+@@ -915,7 +917,10 @@
+     g_prev_tpl_addr = (void*) -1;
+     g_prev_add_tpl_addr = (void*) -1;
+     GXSetCurrentGXThread();
+-    if (SysFlagChk(pG, SYS_SCISSOR_ON)) {
++    /* PORT (patch 0105): no scissor to the letterbox rows while the app's "4:3 without bars"
++       shows the whole height in play (the game's own debug switch DBG_SCISSOR_OFF does the
++       same at the room start) */
++    if (SysFlagChk(pG, SYS_SCISSOR_ON) && !re4_letterbox_open()) {
+         StaFlagOn(pG, STA_SCISSOR);
+         SetScissorState();
+     }

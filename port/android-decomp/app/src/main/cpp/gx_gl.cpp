@@ -5,14 +5,19 @@
 #include "re4_gx_frame.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include <dirent.h>
 #include <dlfcn.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #ifndef GL_MAP_PERSISTENT_BIT_EXT
 #define GL_MAP_PERSISTENT_BIT_EXT 0x0040
@@ -162,6 +167,14 @@ GLuint Link(const std::string &vs, const std::string &fs, std::string *log, bool
   return p;
 }
 
+// A file written under this name first and renamed when complete: one per thread (the render
+// thread and the one of WarmProgramCache may store the same program at once).
+std::string TempName(const std::string &path) {
+  char tail[32];
+  std::snprintf(tail, sizeof(tail), ".part%ld", static_cast<long>(syscall(SYS_gettid)));
+  return path + tail;
+}
+
 // Linked programs kept on disk (GxRenderer::SetProgramCache): one file per
 // shader pair, named by a hash of both sources and the driver; a binary the
 // driver no longer takes is linked anew.
@@ -208,7 +221,7 @@ void StoreProgram(const std::string &path, std::uint64_t check, GLuint p) {
   glGetProgramBinary(p, bytes, &written, &format, binary.data());
   if (written <= 0)
     return;
-  const std::string temp = path + ".part";
+  const std::string temp = TempName(path);
   FILE *f = std::fopen(temp.c_str(), "wb");
   if (!f)
     return;
@@ -219,6 +232,40 @@ void StoreProgram(const std::string &path, std::uint64_t check, GLuint p) {
     std::rename(temp.c_str(), path.c_str());
   else
     std::remove(temp.c_str());
+}
+
+// Next to each program binary its ShaderKey (<hash>.key): GxRenderer::Prewarm makes the programs
+// this device used before ahead of their first draw. A key file whose struct size differs is
+// ignored.
+struct KeyFile {
+  char magic[4];
+  std::uint32_t bytes; // sizeof(ShaderKey)
+};
+
+void StoreKey(const std::string &path, const ShaderKey &k) {
+  if (access(path.c_str(), F_OK) == 0)
+    return;
+  const std::string temp = TempName(path);
+  FILE *f = std::fopen(temp.c_str(), "wb");
+  if (!f)
+    return;
+  KeyFile head{{'R', 'E', '4', 'K'}, static_cast<std::uint32_t>(sizeof(k))};
+  const bool ok = std::fwrite(&head, sizeof(head), 1, f) == 1 && std::fwrite(&k, sizeof(k), 1, f) == 1;
+  if (std::fclose(f) == 0 && ok)
+    std::rename(temp.c_str(), path.c_str());
+  else
+    std::remove(temp.c_str());
+}
+
+bool LoadKey(const std::string &path, ShaderKey *k) {
+  FILE *f = std::fopen(path.c_str(), "rb");
+  if (!f)
+    return false;
+  KeyFile head{};
+  const bool ok = std::fread(&head, sizeof(head), 1, f) == 1 && std::memcmp(head.magic, "RE4K", 4) == 0 &&
+                  head.bytes == sizeof(*k) && std::fread(k, sizeof(*k), 1, f) == 1;
+  std::fclose(f);
+  return ok;
 }
 
 struct Program {
@@ -233,6 +280,89 @@ struct KeyHash {
 struct KeyEqual {
   bool operator()(const ShaderKey &a, const ShaderKey &b) const { return std::memcmp(&a, &b, sizeof(a)) == 0; }
 };
+
+// The driver a binary belongs to: GL renderer and version of the current context.
+std::string DriverTag() {
+  const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+  const char *version = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+  return std::string(renderer ? renderer : "") + "|" + (version ? version : "");
+}
+
+// A program's files in `cache` without .bin/.key: a hash of both sources and the driver; in
+// *check a second hash of the sources (in the binary's head).
+std::string ProgramStem(const std::string &cache, const std::string &tag, const std::string &vs, const std::string &fs,
+                        std::uint64_t *check) {
+  std::uint64_t h = Fnv(tag.data(), tag.size());
+  h = Fnv(vs.data(), vs.size(), h);
+  h = Fnv(fs.data(), fs.size(), h ^ 0x5Au);
+  *check = Fnv(fs.data(), fs.size(), Fnv(vs.data(), vs.size(), 0x9E3779B97F4A7C15ull));
+  char name[32];
+  std::snprintf(name, sizeof(name), "/%016llx", static_cast<unsigned long long>(h));
+  return cache + name;
+}
+
+// A key list file: "RE4L", the size of a key, the count, the keys (WriteProgramKeyList, the app's
+// asset gx-programs.keys; port/tools/gx_program_list.py). A list of another key size is ignored.
+struct KeyListHead {
+  char magic[4];
+  std::uint32_t keyBytes, count;
+};
+
+bool ReadKeyList(const std::string &path, std::vector<ShaderKey> *keys) {
+  FILE *f = std::fopen(path.c_str(), "rb");
+  if (!f)
+    return false;
+  KeyListHead head{};
+  bool ok = std::fread(&head, sizeof(head), 1, f) == 1 && std::memcmp(head.magic, "RE4L", 4) == 0 &&
+            head.keyBytes == sizeof(ShaderKey) && head.count < 1000000;
+  if (ok) {
+    const std::size_t at = keys->size();
+    keys->resize(at + head.count);
+    ok = std::fread(keys->data() + at, sizeof(ShaderKey), head.count, f) == head.count;
+    if (!ok)
+      keys->resize(at);
+  }
+  std::fclose(f);
+  return ok;
+}
+
+bool WriteKeyList(const std::string &path, const std::vector<ShaderKey> &keys) {
+  const std::string temp = TempName(path);
+  FILE *f = std::fopen(temp.c_str(), "wb");
+  if (!f)
+    return false;
+  const KeyListHead head{{'R', 'E', '4', 'L'}, static_cast<std::uint32_t>(sizeof(ShaderKey)),
+                         static_cast<std::uint32_t>(keys.size())};
+  bool ok = std::fwrite(&head, sizeof(head), 1, f) == 1 &&
+            std::fwrite(keys.data(), sizeof(ShaderKey), keys.size(), f) == keys.size();
+  ok = std::fclose(f) == 0 && ok;
+  if (ok)
+    std::rename(temp.c_str(), path.c_str());
+  else
+    std::remove(temp.c_str());
+  return ok;
+}
+
+// The cache's key files: each key with its files' stem.
+std::vector<std::pair<ShaderKey, std::string>> CacheKeys(const std::string &cache) {
+  std::vector<std::pair<ShaderKey, std::string>> out;
+  DIR *dir = opendir(cache.c_str());
+  if (!dir)
+    return out;
+  while (const dirent *e = readdir(dir)) {
+    const std::string name = e->d_name;
+    if (name.size() != 20 || name.compare(16, 4, ".key") != 0)
+      continue;
+    std::pair<ShaderKey, std::string> k;
+    k.second = cache + "/" + name.substr(0, 16);
+    if (LoadKey(k.second + ".key", &k.first))
+      out.push_back(k);
+  }
+  closedir(dir);
+  return out;
+}
+
+std::atomic<int> gWarming{0};  // WarmProgramCache runs
 
 // A texture as the renderer keeps it: decoded RGBA8 with its levels.
 struct Texture {
@@ -253,7 +383,15 @@ struct Copy {
 } // namespace
 
 struct GxRenderer::Impl {
-  int scale = 1;
+  // the EFB scale in halves of the GameCube's resolution (2: 1x, 3: 1.5x ... 8: 4x; the app menu's
+  // in-between levels, wish of the project owner, 27.10.2026). Lo / Hi: EFB pixels (the
+  // GameCube's) to pixels here, rounded down / up. A region runs from Lo(x) to Lo(x + w), so
+  // scissors, viewports and clears of neighbouring regions meet without a gap; a copy has Hi(w)
+  // pixels (its texture), and the copy shader reads its source rectangle exactly (Sf).
+  int halves = 2;
+  int Lo(int v) const { return v * halves / 2; }
+  int Hi(int v) const { return (v * halves + 1) / 2; }
+  float Sf(int v) const { return static_cast<float>(v) * static_cast<float>(halves) * 0.5f; }
   GxStats stats;
 
   // register state
@@ -263,8 +401,8 @@ struct GxRenderer::Impl {
   std::vector<std::uint8_t> tlut = std::vector<std::uint8_t>(kTlutBytes);
   std::int32_t tevColor[4][4] = {};
   std::int32_t tevKonst[4][4] = {};
-  // XF block rows (vec4) that changed since the last upload
-  int dirtyLo = 0, dirtyHi = static_cast<int>(sizeof(XfBlock) / 16);
+  // XF block rows (vec4) that changed since the last upload, per part (kXfParts)
+  int dirtyLo[kXfParts] = {}, dirtyHi[kXfParts] = {};
 
   // GL objects
   GLuint efbFbo = 0, efbColor = 0, efbDepth = 0;
@@ -287,13 +425,54 @@ struct GxRenderer::Impl {
   GLuint xfbFbo = 0, xfbTex = 0;
   unsigned xfbWidth = 0, xfbHeight = 0;
   bool haveXfb = false;
+  // FXAA (GxRenderer::SetFxaa): the smoothed copy of the XFB, shown instead of it while fxaaShown
+  bool fxaaOn = false, fxaaShown = false;
+  GLuint fxaaTex = 0, fxaaFbo = 0, fxaaProgram = 0;
+  unsigned fxaaTexW = 0, fxaaTexH = 0;
+  GLint fxaaTexelLoc = -1;
+  // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
+  DepthSink depthSink;
+  bool peekWanted = false, peekFailed = false;
+  // the number of the picture that peeked (the marker's value) and of the picture in each read-back slot
+  std::uint32_t peekPicture = 0, peekSlotPicture[2] = {0, 0};
+  GLuint peekProgram = 0, peekFbo = 0, peekTex = 0, peekPbo[2] = {0, 0};
+  GLsync peekFence[2] = {nullptr, nullptr};
+  GLint peekSizeLoc = -1, peekScaleLoc = -1;
+  bool skipDraws = false;  // Skip: this chunk's draws, EFB copies and markers are left out
   bool holdXfb = false;  // this chunk's display copy is not shown (RE4_GX_CHUNK_HOLD)
   bool viBlack = false;  // the VI shows black (RE4_GX_CHUNK_BLACK, VISetBlack): Present draws black
   GLuint vao = 0, vbo = 0, ibo = 0;
-  GLuint xfUbo = 0, pxUbo = 0;
+  // the in-between pass's blended vertices (60 FPS): a buffer of their own, each draw's at a place of
+  // its own, written without waiting (the pass draws from vbo meanwhile). Written into vbo they were
+  // before 26.10.2026: a buffer the GPU still read from in that picture, the driver copied or waited
+  // for it at every figure (Retroid: 74 ms a picture, 3 to 5 pictures a second)
+  GLuint blendVbo = 0;
+  std::size_t blendCap = 0, blendUsed = 0;
+  std::int64_t blendAt = -1;  // the draw's vertices in blendVbo / blendRing (byte offset), -1: from vbo
+  // With EXT_buffer_storage the blended vertices go into a ring mapped once for good, a quarter per
+  // in-between pass with a fence after it: a memcpy per draw, no GL call. A map and an unmap per
+  // blended draw cost the Retroid's driver more than the draws (r104: 233 blended draws per
+  // in-between picture; 60 FPS stayed at a few pictures a second more, 26.10.2026).
+  static constexpr unsigned kBlendParts = 4;
+  static constexpr std::size_t kBlendPart = std::size_t(6) << 20;
+  GLuint blendRing = 0;
+  std::uint8_t *blendMap = nullptr;
+  bool blendRingTried = false;
+  unsigned blendPart = 0;
+  GLsync blendFence[kBlendParts] = {};
+  // the chunk whose vertices and indices the in-between pass uploaded: its Run right after draws
+  // from them (vbo is no longer changed by the pass) instead of uploading them again
+  const Re4GxChunk *uploadedBy = nullptr;
+  std::uint32_t uploadedSequence = 0;
+  GLuint xfUbo[kXfParts] = {}, pxUbo = 0;
   GLuint copyProgram = 0, presentProgram = 0, paletteProgram = 0;
   GLint presentRows = -1;
-  GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1;
+  GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1, copyLimit = -1;
+  // lowest EFB row (+1) a draw under a full-width scissor reached since the last display copy: the
+  // rows below it were never drawn (the game's letterbox)
+  int sceneBottom = 0;
+  // the EFB rows the app shows (GxRenderer::SetShownRows): all, or 56..391 in the 16:9 formats
+  std::atomic<int> shownTop{0}, shownBottom{kEfbHeight};
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint quadVao = 0;
   GLuint whiteTex = 0;
@@ -334,12 +513,24 @@ struct GxRenderer::Impl {
   std::uint32_t stateSig[10] = {};   // ApplyState's registers as last applied
   std::string programCache;          // folder of linked programs ("" = none)
   std::string driverTag;             // GL renderer and version: binaries only for this driver
+  // Prewarm: the cache's key files (read at its first call), the next one, its time so far
+  struct AheadKey {
+    ShaderKey key;
+    bool listed = false; // from the app's list (SetProgramList): for the MSAA setting in use
+  };
+  std::string programList;  // the app's key list (SetProgramList)
+  bool aheadRead = false;
+  std::vector<AheadKey> ahead;
+  std::size_t aheadNext = 0;
+  double aheadMs = 0.0;
+  unsigned aheadLoaded = 0, aheadLinked = 0, aheadListed = 0;
   bool stateValid = false;
   GLuint unitTex[8] = {}, unitSampler[8] = {};
   bool unitsValid = false;
   bool vaoBound = false;
   std::uint32_t attribMask = 0;      // enabled vertex attributes of vao
   std::uint32_t attribLayout = ~0u, attribStride = 0, attribBase = ~0u;
+  GLuint attribBuffer = 0;
   // glDrawElementsBaseVertex (GLES 3.2 / OES / EXT): one attribute setup for
   // all draws of a layout; null: pointers per draw
   using DrawBaseVertex = void (*)(GLenum, GLsizei, GLenum, const void *, GLint);
@@ -385,11 +576,13 @@ struct GxRenderer::Impl {
   std::size_t streamPos = 0, streamAlign = 256;
   unsigned streamPart = 0;
   GLsync streamFence[kStreamParts] = {};
+  bool streamMoved = false;          // StreamNextPart since the last draw's uploads (UploadXf)
   std::size_t streamChunkBytes = 0;  // what the running chunk took of the stream so far
   std::size_t streamChunkMost = 0;   // the most a chunk took
 
   // The next quarter, once the GPU is done with what used it last.
   void StreamNextPart() {
+    streamMoved = true;
     streamFence[streamPart] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     streamPart = (streamPart + 1) % kStreamParts;
     if (GLsync fence = streamFence[streamPart]) {
@@ -493,6 +686,49 @@ struct GxRenderer::Impl {
     }
     GXLOG("GX uniform stream: %u MB, %s, offsets aligned to %u", static_cast<unsigned>(size >> 20),
           streamMap ? "persistent mapping" : "a map per block", static_cast<unsigned>(streamAlign));
+  }
+
+  // The ring for the in-between passes' blended vertices (EXT_buffer_storage, persistent and
+  // coherent); without it blendVbo with a map per draw. RE4_GX_PERSISTENT=0: never.
+  void BlendRingInit() {
+    blendRingTried = true;
+    const char *ext = reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
+    using BufferStorage = void (*)(GLenum, GLsizeiptr, const void *, GLbitfield);
+    BufferStorage storage = nullptr;
+    if (ext && std::strstr(ext, "GL_EXT_buffer_storage"))
+      storage = reinterpret_cast<BufferStorage>(GlExtension("glBufferStorageEXT"));
+    const char *persistent = std::getenv("RE4_GX_PERSISTENT");
+    if (!storage || (persistent && *persistent == '0'))
+      return;
+    const GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT_EXT | GL_MAP_COHERENT_BIT_EXT;
+    const std::size_t size = kBlendParts * kBlendPart;
+    glGenBuffers(1, &blendRing);
+    glBindBuffer(GL_ARRAY_BUFFER, blendRing);
+    storage(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(size), nullptr, flags);
+    blendMap = static_cast<std::uint8_t *>(glMapBufferRange(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(size), flags));
+    if (!blendMap) {
+      glDeleteBuffers(1, &blendRing);
+      blendRing = 0;
+    }
+    GXLOG("GX in-between vertices: %s", blendMap ? "a ring of 24 MB, mapped for good" : "a map per draw");
+  }
+
+  void BlendRingRelease() {
+    for (GLsync &f : blendFence) {
+      if (f)
+        glDeleteSync(f);
+      f = nullptr;
+    }
+    if (blendRing) {
+      if (blendMap) {
+        glBindBuffer(GL_ARRAY_BUFFER, blendRing);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+      }
+      glDeleteBuffers(1, &blendRing);
+    }
+    blendRing = 0;
+    blendMap = nullptr;
+    blendRingTried = false;
   }
 
   void StreamRelease() {
@@ -651,10 +887,741 @@ struct GxRenderer::Impl {
   // per-draw caches
   const Program *current = nullptr;
   XfBlock xf = {};
+  // the XF parts as last sent (UploadXf): a part the game wrote again with the same values is not
+  // sent again (about 5 % of the uploads of a village picture, Retroid series r226, 28.10.2026)
+  XfBlock xfSent = {};
+  bool xfSentValid[kXfParts] = {};
   PixelBlock px = {};
   PixelBlock pxSent = {};
   bool pxValid = false;
   std::uint32_t copySerial = 0;
+
+  // --- in-between pictures (60 FPS, experimental; GxRenderer::Interpolate) ----------------
+  // A real Run notes each draw: what identifies it (DrawSig), the view-space translation of its
+  // position matrix, the position and normal rows it used and the projection. The in-between pass
+  // runs the next chunk once more; a draw that matches a noted one is drawn with its rows (and,
+  // when they changed, its vertices: the figures the game skins on the CPU) blended between the
+  // two pictures. Everything the pass changes is put back afterwards (Interpolate).
+  std::uint64_t boundKey[8] = {};  // what each map holds: texture key, or copy address | 1 << 63
+  struct DrawRec {
+    std::uint64_t sig = 0;
+    float t[3] = {};          // view-space translation of the draw's (first) position matrix
+    std::uint32_t posRow = 0; // first position row noted (pi)
+    std::uint32_t rows = 0;   // 3, 30 with matrix indices per vertex, 0 with the identity
+    std::uint32_t data = 0;   // into recFloats: rows x 4 position, rows x 3 normal, 6 projection floats
+    std::uint32_t vertexOffset = 0, vertexCount = 0, stride = 0, layout = 0;
+    bool perspective = false;
+    std::uint64_t look = 0;  // a particle's signature without its textures (0: not a particle)
+    // the object's draw (RE4_GX_OP_OWNER, patch 0137: object, function, table and the n-th draw of
+    // the object; 0: none), its shape (the signature without the textures), a particle's id << 16 |
+    // life frames (~0: none), and for an owned draw where its texture matrices (8 x 12 floats), the
+    // TEV colours (32 words) and the light colours (8 x 4 floats) lie in recFloats (~0: not kept)
+    std::uint64_t owner = 0, shape = 0;
+    std::uint32_t life = ~0u, extra = ~0u;
+  };
+  bool recordDraws = false;
+  bool recValid = false;            // rec describes the chunk run last
+  std::uint32_t recSequence = 0;
+  std::vector<DrawRec> rec, recNew;
+  std::vector<float> recFloats, recFloatsNew;
+  bool interpPass = false;
+  float interpT = 0.5f;
+  const Re4GxChunk *interpPrev = nullptr;  // the chunk rec describes (its vertices)
+  std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> recBySig, recByLook;
+  // owner tags (60fps-plan.md S1/S2): the object of the draws that follow (0: none), its tag's life
+  // word, how many of its draws came; the draw's own key (object and n-th draw) while it is drawn
+  std::uint64_t ownerBase = 0, curOwner = 0;
+  std::uint32_t ownerLife = ~0u, ownerDraws = 0, curLife = ~0u;
+  std::unordered_map<std::uint64_t, std::uint32_t> recByOwner;
+  // draws per object (ownerBase): of the chunk noted (recOwnerDraws, filled while recording) and of the
+  // next one (nextOwnerDraws, counted ahead by Interpolate). An object that draws more or fewer quads
+  // than before (a flame's trail of sprites growing) is not matched by "n-th draw": its sprites would
+  // take each other's places (Retroid 28.10.2026, big torches: now and then a wrong in-between picture)
+  std::unordered_map<std::uint64_t, std::uint32_t> recOwnerDraws, recOwnerDrawsNew, nextOwnerDraws;
+  // what a blended draw changed beyond its position rows (BlendRestore puts it back): texture
+  // matrix rows, 0x100 for the TEV colours (tevSave: before the blend), 0x200 + row for a post-transform
+  // matrix, 0x300 for the indirect matrices (indSave: the BP words before the blend)
+  std::vector<std::uint32_t> texRowsBlended;
+  std::int32_t tevSave[2][4][4] = {};
+  std::uint32_t indSave[9] = {};
+  std::vector<std::uint8_t> recUsed;
+  std::unordered_map<std::uint32_t, Copy> interpCopies;  // the pass's own EFB copies
+  std::unordered_set<std::uint32_t> interpCopied;         // addresses it copied to
+  std::unordered_set<std::uint64_t> interpUploads;        // textures it uploaded (Run(next) skips them)
+  bool skipInterpUploads = false;
+  std::vector<std::uint8_t> blendVertices;
+  // the pass's counts: perspective draws, matched, turned more than 20 degrees
+  unsigned ipDraws = 0, ipMatched = 0, ipTurned = 0;
+  // The camera's move from the picture before to the next one in the pass (view space: next =
+  // cam * before), read off the large draws of a look of their own: each proposes its move, and
+  // another object (another matrix) that moved the same way votes for it; the move with the most
+  // votes, at least two, counts (the room, of many pieces that stand still). MatchDraw takes it out
+  // of a particle's distances, so that it is matched by its own move, not the camera's.
+  struct CamGuess {
+    float c[3][4];
+    float t[3];  // the proposing draw's translation (its parts with the same matrix do not vote)
+    unsigned votes;
+  };
+  CamGuess camGuess[4] = {};
+  unsigned camGuesses = 0, camVotes = 0;
+  float cam[3][4] = {};
+  bool camValid = false;
+
+  // What identifies a draw from one picture to the next: its shader (the program of the same
+  // registers), primitive, vertex layout and count, matrix indices and the textures it samples
+  // (without them: a particle's look, see BlendDraw).
+  std::uint64_t DrawSig(const Re4GxDraw &d, const ShaderKey &k, bool textures = true) const {
+    std::uint64_t h = 1469598103934665603ull;
+    auto mix = [&h](std::uint64_t v) {
+      h ^= v;
+      h *= 1099511628211ull;
+    };
+    mix(reinterpret_cast<std::uintptr_t>(keyProgram));
+    mix(d.primitive);
+    mix(d.layout);
+    mix(d.stride);
+    mix(d.vertexCount);
+    mix(d.indexCount);
+    mix(d.matrices[0]);
+    mix(d.matrices[1]);
+    mix(d.matrices[2]);
+    for (int m = 0; textures && m < 8; m++)
+      if (k.texMaps & (1u << m))
+        mix(boundKey[m]);
+    return h;
+  }
+
+  // The position rows a draw transforms with: 3 from its matrix index, all 30 when its vertices
+  // carry indices, none with the identity (60) or a texture row.
+  static void DrawRows(const Re4GxDraw &d, std::uint32_t *first, std::uint32_t *count) {
+    if (d.layout & RE4_GX_V_MATRIX) {
+      *first = 0;
+      *count = 30;
+      return;
+    }
+    const std::uint32_t pi = d.matrices[0] & 63;
+    *first = pi;
+    *count = pi + 2 < 30 ? 3 : 0;
+  }
+
+  // a real Run: the draw as it is drawn now
+  void RecordDraw(const Re4GxDraw &d, const ShaderKey &k) {
+    DrawRec r;
+    r.sig = DrawSig(d, k);
+    DrawRows(d, &r.posRow, &r.rows);
+    r.data = static_cast<std::uint32_t>(recFloatsNew.size());
+    r.vertexOffset = d.vertexOffset;
+    r.vertexCount = d.vertexCount;
+    r.stride = d.stride;
+    r.layout = d.layout;
+    r.perspective = !k.orthographic;
+    if (r.rows == 3 && d.vertexCount <= 16)
+      r.look = DrawSig(d, k, false);
+    if (r.rows) {
+      for (int c = 0; c < 3; c++)
+        r.t[c] = xf.posTex[r.posRow + c][3];
+    }
+    for (std::uint32_t i = 0; i < r.rows; i++)
+      recFloatsNew.insert(recFloatsNew.end(), xf.posTex[r.posRow + i], xf.posTex[r.posRow + i] + 4);
+    for (std::uint32_t i = 0; i < r.rows; i++)
+      recFloatsNew.insert(recFloatsNew.end(), xf.normal[(r.posRow + i) & 31], xf.normal[(r.posRow + i) & 31] + 3);
+    for (int i = 0; i < 6; i++)
+      recFloatsNew.push_back(xf.proj[i / 4][i % 4]);
+    recFloatsNew.insert(recFloatsNew.end(), &xf.matAmb[0][0], &xf.matAmb[0][0] + 16);
+    r.owner = curOwner;
+    r.life = curLife;
+    r.shape = DrawSig(d, k, false);
+    if (curOwner) {
+      r.extra = static_cast<std::uint32_t>(recFloatsNew.size());
+      for (int n = 0; n < 8; n++) {
+        const std::uint32_t row = TexRow(d, n);
+        for (std::uint32_t i = 0; i < 3; i++) {
+          if (row < 60 && row + i < 64)
+            recFloatsNew.insert(recFloatsNew.end(), xf.posTex[row + i], xf.posTex[row + i] + 4);
+          else
+            recFloatsNew.insert(recFloatsNew.end(), 4, 0.0f);
+        }
+      }
+      float tev[32];
+      std::memcpy(tev, tevColor, sizeof(tevColor));
+      std::memcpy(tev + 16, tevKonst, sizeof(tevKonst));
+      recFloatsNew.insert(recFloatsNew.end(), tev, tev + 32);
+      for (int l = 0; l < 8; l++)
+        recFloatsNew.insert(recFloatsNew.end(), xf.light[l][0], xf.light[l][0] + 4);
+      // the post-transform matrices of the coordinates (dual texture: water and fog scroll there)
+      for (int n = 0; n < 8; n++) {
+        const std::uint32_t row = k.dualTex ? k.postGen[n] & 63 : 64;
+        for (std::uint32_t i = 0; i < 3; i++) {
+          if (row + i < 64)
+            recFloatsNew.insert(recFloatsNew.end(), xf.post[row + i], xf.post[row + i] + 4);
+          else
+            recFloatsNew.insert(recFloatsNew.end(), 4, 0.0f);
+        }
+      }
+      // the indirect matrices (BP 0x06..0x0E: the distortion of water and heat haze)
+      for (int i = 0; i < 9; i++) {
+        float w;
+        std::memcpy(&w, &bp[0x06 + i], 4);
+        recFloatsNew.push_back(w);
+      }
+    }
+    recNew.push_back(r);
+  }
+
+  // The XF row of texture coordinate n's matrix from the draw's defaults (60: the identity; with
+  // indices in the vertices: 60, not looked at).
+  static std::uint32_t TexRow(const Re4GxDraw &d, int n) {
+    if (d.layout & RE4_GX_V_MATRIX)
+      return 60;
+    const std::uint32_t w = n < 3 ? d.matrices[0] >> (8 * (n + 1)) : n < 7 ? d.matrices[1] >> (8 * (n - 3)) : d.matrices[2];
+    return w & 63;
+  }
+
+  // the owner tag (RE4_GX_OP_OWNER): object, function, table (0xFF: none), life word
+  static std::uint64_t OwnerKey(const std::uint32_t *p) {
+    if (!p[0] || (p[2] & 0xFF) == 0xFF)
+      return 0;
+    std::uint64_t h = 1469598103934665603ull;
+    for (int i = 0; i < 3; i++) {
+      h ^= p[i];
+      h *= 1099511628211ull;
+    }
+    return h | 1;
+  }
+  void SetOwner(const std::uint32_t *p) {
+    ownerBase = OwnerKey(p);
+    ownerLife = p[3];
+    ownerDraws = 0;
+  }
+
+  // The noted draw of the picture before that this one is: the same signature; the first one not
+  // yet taken when it lies near enough (the game draws in the same order from one picture to the
+  // next), else of the first eight the nearest that does; none when no one moved less than a
+  // quarter of its distance plus 400 units (another object of the same look).
+  // A particle (a small draw with a matrix of its own, at most 16 vertices) instead: the first one
+  // not taken unless another of the first 32 lies clearly nearer (by more than 2 % of its distance
+  // plus 50 units). The particles of smoke and fire look alike, lie a few thousand units apart,
+  // and one that dies or starts shifts the order (Retroid report 26.10.2026, r224: neighbours
+  // swapped places in the in-between pictures, the smoke flickered). With the camera's move known
+  // (cam), their positions before are moved by it first, and a particle may move only 5 % of its
+  // distance plus 300 units: one that has just started is drawn as in the next picture instead of
+  // taking another's place. Only particles: the camera's move is the room's, and the parts of Leon
+  // turn with the camera; matched by it, two alike parts of him swapped places and their blended
+  // vertices drew a long bar at the bottom of the picture (Retroid report 26.10.2026, fast turns).
+  // (flat: a 2D draw, in screen units; by the game's order)
+  const DrawRec *MatchDraw(const std::vector<std::uint32_t> &candidates, const float *t, std::uint32_t rows,
+                           std::uint32_t vertexCount, bool flat = false) {
+    const float reach = rows ? std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]) : 0.0f;
+    const bool particle = !flat && rows == 3 && vertexCount <= 16, moved = particle && camValid;
+    const float limit = moved ? 0.05f * reach + 300.0f : 0.25f * reach + 400.0f;
+    const float close = 0.02f * reach + 50.0f;
+    int first = -1, best = -1;
+    float firstDist = 0.0f, bestDist = 0.0f;
+    unsigned looked = 0;
+    for (std::uint32_t i : candidates) {
+      if (recUsed[i])
+        continue;
+      const DrawRec &r = rec[i];
+      float p[3] = {r.t[0], r.t[1], r.t[2]};
+      if (moved)
+        CameraApply(cam, r.t, p);
+      const float dx = p[0] - t[0], dy = p[1] - t[1], dz = p[2] - t[2];
+      const float dist = rows ? std::sqrt(dx * dx + dy * dy + dz * dz) : 0.0f;
+      if (first < 0) {
+        first = static_cast<int>(i);
+        firstDist = dist;
+        if (dist <= (particle ? close : limit))
+          break;  // near enough (a particle: where it was): no need to look further
+      }
+      if (dist <= limit && (best < 0 || dist < bestDist)) {
+        best = static_cast<int>(i);
+        bestDist = dist;
+      }
+      if (++looked >= (particle ? 32u : 8u))
+        break;
+    }
+    if (first >= 0 && firstDist <= limit && (!particle || best < 0 || firstDist <= bestDist + close))
+      best = first;
+    if (best < 0)
+      return nullptr;
+    recUsed[static_cast<std::size_t>(best)] = 1;
+    return &rec[static_cast<std::size_t>(best)];
+  }
+
+  // q moved by the camera's move c (a point in view space before -> after).
+  static void CameraApply(const float (&c)[3][4], const float *q, float *out) {
+    for (int r = 0; r < 3; r++)
+      out[r] = c[r][0] * q[0] + c[r][1] * q[1] + c[r][2] * q[2] + c[r][3];
+  }
+
+  // c = n * p^-1 for two 3 x 4 modelviews of the same object (p: row-major, 12 floats); false when
+  // p has no inverse.
+  static bool CameraMove(const float *p, const float (&n)[3][4], float (&c)[3][4]) {
+    const float det = p[0] * (p[5] * p[10] - p[6] * p[9]) - p[1] * (p[4] * p[10] - p[6] * p[8]) +
+                      p[2] * (p[4] * p[9] - p[5] * p[8]);
+    if (!(std::fabs(det) > 1e-12f))
+      return false;
+    const float inv[3][3] = {{(p[5] * p[10] - p[6] * p[9]) / det, (p[2] * p[9] - p[1] * p[10]) / det,
+                              (p[1] * p[6] - p[2] * p[5]) / det},
+                             {(p[6] * p[8] - p[4] * p[10]) / det, (p[0] * p[10] - p[2] * p[8]) / det,
+                              (p[2] * p[4] - p[0] * p[6]) / det},
+                             {(p[4] * p[9] - p[5] * p[8]) / det, (p[1] * p[8] - p[0] * p[9]) / det,
+                              (p[0] * p[5] - p[1] * p[4]) / det}};
+    for (int r = 0; r < 3; r++) {
+      for (int k = 0; k < 3; k++)
+        c[r][k] = n[r][0] * inv[0][k] + n[r][1] * inv[1][k] + n[r][2] * inv[2][k];
+      c[r][3] = n[r][3] - (c[r][0] * p[3] + c[r][1] * p[7] + c[r][2] * p[11]);
+    }
+    return true;
+  }
+
+  // A large draw of a look of its own (one of it in the picture before), matched: its move is the
+  // camera's when it stands still. It votes for a move proposed before that takes its position
+  // before to where it is now (when it has a matrix of its own: two parts of one object that moved
+  // agreed with each other, Retroid series 26.10.2026 at the merchant), else proposes its own.
+  void NoteCamera(std::uint64_t sig, const float *before, const float (&now)[3][4]) {
+    auto it = recBySig.find(sig);
+    if (it == recBySig.end() || it->second.size() != 1)
+      return;
+    const float beforeT[3] = {before[3], before[7], before[11]}, nowT[3] = {now[0][3], now[1][3], now[2][3]};
+    const float reach = std::sqrt(nowT[0] * nowT[0] + nowT[1] * nowT[1] + nowT[2] * nowT[2]);
+    for (unsigned g = 0; g < camGuesses; g++) {
+      CamGuess &q = camGuess[g];
+      float p[3];
+      CameraApply(q.c, beforeT, p);
+      const float dx = p[0] - nowT[0], dy = p[1] - nowT[1], dz = p[2] - nowT[2];
+      if (std::sqrt(dx * dx + dy * dy + dz * dz) > 0.02f * reach + 50.0f)
+        continue;
+      const float sx = nowT[0] - q.t[0], sy = nowT[1] - q.t[1], sz = nowT[2] - q.t[2];
+      if (sx * sx + sy * sy + sz * sz >= 1.0f && ++q.votes > camVotes) {
+        std::memcpy(cam, q.c, sizeof(cam));
+        camVotes = q.votes;
+        camValid = true;
+      }
+      return;
+    }
+    if (camGuesses < 4) {
+      CamGuess &q = camGuess[camGuesses];
+      if (!CameraMove(before, now, q.c))
+        return;
+      std::memcpy(q.t, nowT, sizeof(q.t));
+      q.votes = 1;
+      camGuesses++;
+    }
+  }
+
+  // The in-between pass, before a draw: its rows (and vertices) between the picture before (a)
+  // and now; how many rows to put back afterwards (BlendRestore).
+  // 2D (the HUD, full-screen passes, a glow laid over a flame in screen space) as in the next picture,
+  // unless it has a matrix of its own that only moved, by at most a quarter of the picture
+  // (kFlatMove, screen units): then between the two too, without lights and projection. Retroid
+  // series 26.10.2026: the glow of the merchant's brazier, a 2D square 418 units wide, moved 23
+  // units a game picture while the camera turned and jumped in the in-between pictures. Not when it
+  // turned or changed its size: r224 lays a copy of the picture over itself through a square that
+  // turns 10 degrees a game picture (its texture coordinates come from the square's corners), and
+  // half turned it showed the room twice.
+  static constexpr float kFlatMove = 128.0f;
+  std::uint32_t BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re4GxChunk &chunk) {
+    const bool flat = k.orthographic;
+    std::uint32_t first = 0, rows = 0;
+    bool lights = false;
+    DrawRows(d, &first, &rows);
+    if (flat && rows != 3)
+      return 0;
+    if (!flat)
+      ipDraws++;
+    float t[3] = {};
+    if (rows)
+      for (int c = 0; c < 3; c++)
+        t[c] = xf.posTex[first + c][3];
+    const std::uint64_t sig = DrawSig(d, k);
+    // its kind for the counts (60fps-plan.md S0): 0 a particle, 1 a figure (matrices per vertex),
+    // 2 the room and other 3D, 3 2D
+    const int kind = flat ? 3 : rows == 30 ? 1 : rows == 3 && d.vertexCount <= 16 ? 0 : 2;
+    stats.interpKind[kind]++;
+    // the object's draw of the picture before (S2): the same object, the same shape; a particle's
+    // slot used anew (another effect, fewer life frames) is a new one, drawn as in the next picture
+    const DrawRec *a = nullptr;
+    bool owned = false;
+    bool sameCount = false;
+    if (curOwner) {
+      auto pc = recOwnerDraws.find(ownerBase), nc = nextOwnerDraws.find(ownerBase);
+      sameCount = pc != recOwnerDraws.end() && nc != nextOwnerDraws.end() && pc->second == nc->second;
+      if (!sameCount)
+        stats.interpOwnedRecount++;
+    }
+    if (curOwner && sameCount) {
+      auto o = recByOwner.find(curOwner);
+      if (o != recByOwner.end() && !recUsed[o->second] && rec[o->second].shape == DrawSig(d, k, false)) {
+        const DrawRec &c = rec[o->second];
+        recUsed[o->second] = 1;
+        if (c.life != ~0u && curLife != ~0u &&
+            ((c.life >> 16) != (curLife >> 16) || (curLife & 0xFFFF) < (c.life & 0xFFFF))) {
+          stats.interpOwnedNew++;
+          stats.interpKindUnmatched[kind]++;
+          return 0;
+        }
+        a = &c;
+        owned = true;
+        stats.interpOwned++;
+      }
+    }
+    auto it = recBySig.find(sig);
+    if (!a)
+      a = it != recBySig.end() ? MatchDraw(it->second, t, rows, d.vertexCount, flat) : nullptr;
+    // a particle with none of its look: by the look without its textures. Flames show a new picture
+    // of their animation, a texture of its own, every game picture (Retroid report 26.10.2026, the
+    // merchant's brazier: unmatched, the flames were drawn where they are in the next picture and
+    // lagged behind the brazier while the camera turned). The texture stays the next picture's.
+    if (!a && !flat && rows == 3 && d.vertexCount <= 16) {
+      auto look = recByLook.find(DrawSig(d, k, false));
+      if (look != recByLook.end())
+        a = MatchDraw(look->second, t, rows, d.vertexCount);
+    }
+    if (a && !flat && rows == 3 && a->rows == 3 && a->posRow == first && d.vertexCount >= 64) {
+      float now[3][4];
+      std::memcpy(now, xf.posTex[first], sizeof(now));
+      NoteCamera(sig, recFloats.data() + a->data, now);
+    }
+    if (!a) {
+      stats.interpKindUnmatched[kind]++;
+      return 0;
+    }
+    const float s = interpT;
+    const float *src = recFloats.data() + a->data;
+    if (flat) {
+      const float dx = xf.posTex[first][3] - src[3], dy = xf.posTex[first + 1][3] - src[7];
+      if (a->rows != 3 || a->posRow != first || !(dx * dx + dy * dy <= kFlatMove * kFlatMove))
+        return 0;
+      for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+          if (!(std::fabs(xf.posTex[first + r][c] - src[r * 4 + c]) <= 1e-3f * std::max(1.0f, std::fabs(src[r * 4 + c]))))
+            return 0;
+    } else {
+      ipMatched++;
+    }
+    if (rows && a->rows == rows && a->posRow == first) {
+      // turned more than 20 degrees: a cut of the camera, most likely (Interpolate counts them)
+      if (rows == 3 && !flat) {
+        float lowest = 1.0f;
+        for (int r = 0; r < 3; r++) {
+          const float *pa = src + r * 4, *pb = xf.posTex[first + r];
+          const float la = std::sqrt(pa[0] * pa[0] + pa[1] * pa[1] + pa[2] * pa[2]);
+          const float lb = std::sqrt(pb[0] * pb[0] + pb[1] * pb[1] + pb[2] * pb[2]);
+          if (la > 0.0f && lb > 0.0f)
+            lowest = std::min(lowest, (pa[0] * pb[0] + pa[1] * pb[1] + pa[2] * pb[2]) / (la * lb));
+        }
+        if (lowest < 0.94f)
+          ipTurned++;
+      }
+      float now[3][4] = {};
+      if (rows == 3)
+        std::memcpy(now, xf.posTex[first], sizeof(now));
+      for (std::uint32_t r = 0; r < rows; r++)
+        for (int c = 0; c < 4; c++)
+          xf.posTex[first + r][c] = src[r * 4 + c] + (xf.posTex[first + r][c] - src[r * 4 + c]) * s;
+      // the lights (in view space, as the game loaded them for the next picture) moved with the
+      // camera between the two: tester's report 24.10.2026, light pools that swam in 60 FPS
+      if (rows == 3 && !flat && BlendLights(now, xf.posTex[first]))
+        lights = true;
+      const float *nrm = src + rows * 4;
+      for (std::uint32_t r = 0; r < rows; r++)
+        for (int c = 0; c < 3; c++)
+          xf.normal[(first + r) & 31][c] = nrm[r * 3 + c] + (xf.normal[(first + r) & 31][c] - nrm[r * 3 + c]) * s;
+      Dirty(static_cast<int>(first), static_cast<int>(first + rows));
+      Dirty(64, 96);
+    }
+    // the projection (a zoom): between the two
+    const float *proj = src + rows * 4 + rows * 3;
+    if (a->perspective && (a->rows == rows)) {
+      for (int i = 0; i < 6; i++)
+        xf.proj[i / 4][i % 4] = proj[i] + (xf.proj[i / 4][i % 4] - proj[i]) * s;
+      Dirty(206, 208);
+    }
+    // the material and ambient colours: between the two (particles fade in and out by their
+    // material colour; Retroid report 26.10.2026: the flames changed only with the game's 30
+    // pictures a second). FillXfRegs puts them back after the draw.
+    bool colors = false;
+    const float *mat = src + a->rows * 4 + a->rows * 3 + 6;
+    if (std::memcmp(mat, &xf.matAmb[0][0], sizeof(xf.matAmb)) != 0) {
+      for (int i = 0; i < 16; i++)
+        xf.matAmb[i / 4][i % 4] = mat[i] + (xf.matAmb[i / 4][i % 4] - mat[i]) * s;
+      Dirty(200, 204);
+      colors = true;
+    }
+    // with the object sure (an owned draw, S3): its texture matrices (flowing water, lava, drifting
+    // fog) unless a coordinate jumped by more than half the texture (it ran over its edge and
+    // starts again), the TEV colours (a glow) and the light colours (torchlight) between the two
+    bool extras = false;
+    if (owned && a->extra != ~0u) {
+      const float *ex = recFloats.data() + a->extra;
+      texRowsBlended.clear();
+      for (int n = 0; n < 8; n++) {
+        const std::uint32_t row = TexRow(d, n);
+        if (row >= 60 || row + 3 > 64)
+          continue;
+        const float *was = ex + n * 12;
+        bool same = true, jump = false;
+        for (int r = 0; r < 3; r++) {
+          for (int c = 0; c < 4; c++) {
+            const float diff = xf.posTex[row + r][c] - was[r * 4 + c];
+            same = same && diff == 0.0f;
+            if (c == 3 && r < 2 && std::fabs(diff) > 0.5f)
+              jump = true;
+          }
+        }
+        if (same || std::find(texRowsBlended.begin(), texRowsBlended.end(), row) != texRowsBlended.end())
+          continue;
+        if (jump) {
+          stats.interpTexWraps++;
+          continue;
+        }
+        for (int r = 0; r < 3; r++)
+          for (int c = 0; c < 4; c++)
+            xf.posTex[row + r][c] = was[r * 4 + c] + (xf.posTex[row + r][c] - was[r * 4 + c]) * s;
+        texRowsBlended.push_back(row);
+        Dirty(static_cast<int>(row), static_cast<int>(row + 3));
+        stats.interpTexBlends++;
+        extras = true;
+      }
+      std::int32_t tev[2][4][4];
+      std::memcpy(tev, ex + 96, sizeof(tev));
+      if (std::memcmp(tev[0], tevColor, sizeof(tevColor)) != 0 || std::memcmp(tev[1], tevKonst, sizeof(tevKonst)) != 0) {
+        std::memcpy(tevSave[0], tevColor, sizeof(tevColor));
+        std::memcpy(tevSave[1], tevKonst, sizeof(tevKonst));
+        for (int i = 0; i < 4; i++) {
+          for (int c = 0; c < 4; c++) {
+            tevColor[i][c] = static_cast<std::int32_t>(std::lround(tev[0][i][c] + (tevColor[i][c] - tev[0][i][c]) * s));
+            tevKonst[i][c] = static_cast<std::int32_t>(std::lround(tev[1][i][c] + (tevKonst[i][c] - tev[1][i][c]) * s));
+          }
+        }
+        pxDirty = true;
+        stats.interpTevBlends++;
+        extras = true;
+        texRowsBlended.push_back(0x100);
+      }
+      // post-transform matrices, as the texture matrices
+      for (int n = 0; k.dualTex && n < 8; n++) {
+        const std::uint32_t row = k.postGen[n] & 63;
+        if (row + 3 > 64 ||
+            std::find(texRowsBlended.begin(), texRowsBlended.end(), 0x200 + row) != texRowsBlended.end())
+          continue;
+        const float *was = ex + 160 + n * 12;
+        bool same = true, jump = false;
+        for (int r = 0; r < 3; r++) {
+          for (int c = 0; c < 4; c++) {
+            const float diff = xf.post[row + r][c] - was[r * 4 + c];
+            same = same && diff == 0.0f;
+            if (c == 3 && r < 2 && std::fabs(diff) > 0.5f)
+              jump = true;
+          }
+        }
+        if (same)
+          continue;
+        if (jump) {
+          stats.interpTexWraps++;
+          continue;
+        }
+        for (int r = 0; r < 3; r++)
+          for (int c = 0; c < 4; c++)
+            xf.post[row + r][c] = was[r * 4 + c] + (xf.post[row + r][c] - was[r * 4 + c]) * s;
+        texRowsBlended.push_back(0x200 + row);
+        Dirty(static_cast<int>(96 + row), static_cast<int>(96 + row + 3));
+        stats.interpTexBlends++;
+        extras = true;
+      }
+      // the indirect matrices, each element between the two when the scale stayed (it is shared by
+      // the matrix's three words; a new scale is a new matrix: as in the next picture)
+      {
+        std::uint32_t was[9];
+        std::memcpy(was, ex + 256, sizeof(was));
+        bool changed = false;
+        for (int i = 0; i < 9; i++)
+          changed = changed || (was[i] & 0xFFFFFF) != (bp[0x06 + i] & 0xFFFFFF);
+        if (changed) {
+          std::memcpy(indSave, &bp[0x06], sizeof(indSave));
+          for (int m = 0; m < 3; m++) {
+            bool sameScale = true;
+            for (int w = 0; w < 3; w++)
+              sameScale = sameScale && ((was[3 * m + w] >> 22) & 3) == ((bp[0x06 + 3 * m + w] >> 22) & 3);
+            if (!sameScale)
+              continue;
+            for (int w = 0; w < 3; w++) {
+              const std::uint32_t a = was[3 * m + w], b = bp[0x06 + 3 * m + w];
+              std::uint32_t v = b & ~0x3FFFFFu;
+              for (int half = 0; half < 2; half++) {
+                const int ea = Signed11(a >> (11 * half)), eb = Signed11(b >> (11 * half));
+                const int e = static_cast<int>(std::lround(ea + (eb - ea) * s));
+                v |= (static_cast<std::uint32_t>(e) & 0x7FFu) << (11 * half);
+              }
+              bp[0x06 + 3 * m + w] = v;
+            }
+          }
+          pxDirty = true;
+          texRowsBlended.push_back(0x300);
+          stats.interpIndBlends++;
+          extras = true;
+        }
+      }
+      const float *lc = ex + 128;
+      bool lightsDiffer = false;
+      for (int l = 0; l < 8 && !lightsDiffer; l++)
+        lightsDiffer = std::memcmp(lc + l * 4, xf.light[l][0], 4 * sizeof(float)) != 0;
+      if (lightsDiffer) {
+        for (int l = 0; l < 8; l++)
+          for (int c = 0; c < 4; c++)
+            xf.light[l][0][c] = lc[l * 4 + c] + (xf.light[l][0][c] - lc[l * 4 + c]) * s;
+        Dirty(160, 200);
+        lights = true;
+        stats.interpLightBlends++;
+      }
+    }
+    // vertices the game moved itself (skinning): positions and normals between the two
+    if (interpPrev && a->vertexCount == d.vertexCount && a->stride == d.stride && a->layout == d.layout &&
+        d.stride >= 12 && a->vertexOffset + static_cast<std::uint64_t>(a->vertexCount) * a->stride <=
+                              interpPrev->vertexBytes) {
+      const std::uint8_t *pa = interpPrev->vertices + a->vertexOffset, *pb = chunk.vertices + d.vertexOffset;
+      const std::size_t bytes = static_cast<std::size_t>(d.vertexCount) * d.stride;
+      if (std::memcmp(pa, pb, bytes) != 0) {
+        blendVertices.assign(pb, pb + bytes);
+        const bool normals = (d.layout & RE4_GX_V_NORMAL) != 0 && d.stride >= 24;
+        float far = 0.0f;
+        for (std::uint32_t v = 0; v < d.vertexCount; v++) {
+          float fa[6], fb[6];
+          std::memcpy(fa, pa + v * d.stride, normals ? 24 : 12);
+          std::memcpy(fb, pb + v * d.stride, normals ? 24 : 12);
+          for (int c = 0; c < 3; c++)
+            far = std::max(far, std::fabs(fb[c] - fa[c]));
+          for (int c = 0; c < (normals ? 6 : 3); c++)
+            fb[c] = fa[c] + (fb[c] - fa[c]) * s;
+          std::memcpy(blendVertices.data() + v * d.stride, fb, normals ? 24 : 12);
+        }
+        // more than 1500 units in one game picture (2D: kFlatMove): not the same figure. The blended
+        // vertices go to a place of blendVbo no draw has used in this pass: no waiting, no copy of
+        // the buffer
+        if (far <= (flat ? kFlatMove : 1500.0f)) {
+          const std::size_t at = (blendUsed + d.stride - 1) / d.stride * d.stride;
+          if (blendMap && at + bytes <= blendCap) {
+            std::memcpy(blendMap + at, blendVertices.data(), bytes);
+            blendUsed = at + bytes;
+            blendAt = static_cast<std::int64_t>(at);
+            stats.interpVertexBlends++;
+          } else if (!blendMap && at + bytes <= blendCap) {
+            glBindBuffer(GL_ARRAY_BUFFER, blendVbo);
+            void *dst = glMapBufferRange(GL_ARRAY_BUFFER, static_cast<GLintptr>(at), static_cast<GLsizeiptr>(bytes),
+                                         GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+            if (dst) {
+              std::memcpy(dst, blendVertices.data(), bytes);
+              glUnmapBuffer(GL_ARRAY_BUFFER);
+            } else {
+              glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(at), static_cast<GLsizeiptr>(bytes),
+                              blendVertices.data());
+            }
+            blendUsed = at + bytes;
+            blendAt = static_cast<std::int64_t>(at);
+            stats.interpVertexBlends++;
+          }
+        }
+      }
+    }
+    // 0x100000: only the projection; 0x200000: the lights too; 0x400000: the colours; 0x800000:
+    // texture matrices or TEV colours (texRowsBlended)
+    return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u) | (colors ? 0x400000u : 0u) |
+           (extras ? 0x800000u : 0u);
+  }
+
+  // The lights of the next picture into the in-between one: the modelview `mid` of a draw (blended)
+  // against `now` (the next picture's) gives the camera's move between the two, C = mid * now^-1;
+  // positions take all of it, directions its turn. False when `now` has no inverse.
+  bool BlendLights(const float (&now)[3][4], const float *mid) {
+    const float(&n)[3][4] = now;
+    const float det = n[0][0] * (n[1][1] * n[2][2] - n[1][2] * n[2][1]) -
+                      n[0][1] * (n[1][0] * n[2][2] - n[1][2] * n[2][0]) +
+                      n[0][2] * (n[1][0] * n[2][1] - n[1][1] * n[2][0]);
+    if (!(std::fabs(det) > 1e-12f))
+      return false;
+    float inv[3][3];
+    inv[0][0] = (n[1][1] * n[2][2] - n[1][2] * n[2][1]) / det;
+    inv[0][1] = (n[0][2] * n[2][1] - n[0][1] * n[2][2]) / det;
+    inv[0][2] = (n[0][1] * n[1][2] - n[0][2] * n[1][1]) / det;
+    inv[1][0] = (n[1][2] * n[2][0] - n[1][0] * n[2][2]) / det;
+    inv[1][1] = (n[0][0] * n[2][2] - n[0][2] * n[2][0]) / det;
+    inv[1][2] = (n[0][2] * n[1][0] - n[0][0] * n[1][2]) / det;
+    inv[2][0] = (n[1][0] * n[2][1] - n[1][1] * n[2][0]) / det;
+    inv[2][1] = (n[0][1] * n[2][0] - n[0][0] * n[2][1]) / det;
+    inv[2][2] = (n[0][0] * n[1][1] - n[0][1] * n[1][0]) / det;
+    // C's turn: mid's 3x3 times inv; C's shift: mid's shift minus C's turn of now's shift
+    float rot[3][3], shift[3];
+    for (int r = 0; r < 3; r++) {
+      for (int c = 0; c < 3; c++)
+        rot[r][c] = mid[r * 4 + 0] * inv[0][c] + mid[r * 4 + 1] * inv[1][c] + mid[r * 4 + 2] * inv[2][c];
+    }
+    for (int r = 0; r < 3; r++)
+      shift[r] = mid[r * 4 + 3] - (rot[r][0] * n[0][3] + rot[r][1] * n[1][3] + rot[r][2] * n[2][3]);
+    for (int l = 0; l < 8; l++) {
+      float p[3], dir[3];
+      std::memcpy(p, xf.light[l][3], sizeof(p));
+      std::memcpy(dir, xf.light[l][4], sizeof(dir));
+      for (int r = 0; r < 3; r++) {
+        xf.light[l][3][r] = rot[r][0] * p[0] + rot[r][1] * p[1] + rot[r][2] * p[2] + shift[r];
+        xf.light[l][4][r] = rot[r][0] * dir[0] + rot[r][1] * dir[1] + rot[r][2] * dir[2];
+      }
+    }
+    Dirty(160, 200);
+    return true;
+  }
+
+  // After the draw: the rows from XF memory again (the projection from the registers).
+  void BlendRestore(std::uint32_t blended) {
+    const std::uint32_t first = (blended >> 8) & 0xFF, rows = blended & 0xFF;
+    for (std::uint32_t r = 0; r < rows; r++)
+      for (std::uint32_t c = 0; c < 4; c++)
+        XfMemToBlock((first + r) * 4 + c);
+    for (std::uint32_t r = 0; r < rows; r++)
+      for (std::uint32_t c = 0; c < 3; c++)
+        XfMemToBlock(0x400 + ((first + r) & 31) * 3 + c);
+    if (rows) {
+      Dirty(static_cast<int>(first), static_cast<int>(first + rows));
+      Dirty(64, 96);
+    }
+    if (blended & 0x200000) {
+      for (std::uint32_t a = 0x600; a < 0x680; a++)
+        XfMemToBlock(a);
+      Dirty(160, 200);
+    }
+    if (blended & 0x400000)
+      Dirty(200, 204);
+    if (blended & 0x800000) {
+      for (std::uint32_t row : texRowsBlended) {
+        if (row == 0x100) {
+          std::memcpy(tevColor, tevSave[0], sizeof(tevColor));
+          std::memcpy(tevKonst, tevSave[1], sizeof(tevKonst));
+          pxDirty = true;
+          continue;
+        }
+        if (row == 0x300) {
+          std::memcpy(&bp[0x06], indSave, sizeof(indSave));
+          pxDirty = true;
+          continue;
+        }
+        if (row >= 0x200) {
+          const std::uint32_t pr = row - 0x200;
+          for (std::uint32_t r = 0; r < 3; r++)
+            for (std::uint32_t c = 0; c < 4; c++)
+              XfMemToBlock(0x500 + (pr + r) * 4 + c);
+          Dirty(static_cast<int>(96 + pr), static_cast<int>(96 + pr + 3));
+          continue;
+        }
+        for (std::uint32_t r = 0; r < 3; r++)
+          for (std::uint32_t c = 0; c < 4; c++)
+            XfMemToBlock((row + r) * 4 + c);
+        Dirty(static_cast<int>(row), static_cast<int>(row + 3));
+      }
+      texRowsBlended.clear();
+    }
+    xfRegsDirty = true; // FillXfRegs puts the projection (and the colours) back
+    Dirty(206, 208);
+  }
 
   // --- state -----------------------------------------------------------------
 
@@ -699,15 +1666,79 @@ struct GxRenderer::Impl {
         dst[1] = Signed11(value >> 12);
       }
     }
-    if (action && reg == 0x52)
-      EfbCopy(value);
-    if (action && reg == 0x5A)
+    if (action && reg == 0x52) {
+      if (!skipDraws) {
+        EfbCopy(value);
+      } else if ((value >> 14) & 1) {
+        // a skipped picture: nothing to show, only the clear of the EFB that the next picture needs
+        stats.skippedChunks++;
+        SaveAndPlainState();
+        BindFbo(DrawFbo());
+        ClearAfterCopy(value, static_cast<int>(bp[0x49] & 0x3FF), static_cast<int>((bp[0x49] >> 10) & 0x3FF),
+                       static_cast<int>(bp[0x4A] & 0x3FF) + 1, static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1);
+        sceneBottom = 0;
+      } // a copy for a texture: CanSkip said the next chunk copies there first, nobody reads this one
+    }
+    if (action && reg == 0x5A && !skipDraws)
       Autofocus(value);
+    if (action && reg == 0x5B && !interpPass && !skipDraws) {
+      peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
+      peekPicture = value & 0xFFFFFF;  // with the picture's number (the core answers by the map's age)
+    }
   }
 
   void Dirty(int lo, int hi) {
-    dirtyLo = std::min(dirtyLo, lo);
-    dirtyHi = std::max(dirtyHi, hi);
+    for (int i = 0; i < kXfParts; i++) {
+      const int a = std::max(lo, kXfPartRow[i]), b = std::min(hi, kXfPartRow[i + 1]);
+      if (a < b) {
+        dirtyLo[i] = std::min(dirtyLo[i], a);
+        dirtyHi[i] = std::max(dirtyHi[i], b);
+      }
+    }
+  }
+
+  // The parts of the XF block that changed since the last draw, to the GPU. In the stream a part
+  // goes whole into a new place; after the stream moved to its next quarter every part goes again
+  // (a part bound in an old quarter could be written over before the GPU reads it).
+  void UploadXf() {
+    for (int round = 0; round < 2; round++) {
+      if (streamMoved) {
+        streamMoved = false;
+        Dirty(0, kXfPartRow[kXfParts]);
+        pxValid = false;
+        for (bool &v : xfSentValid)
+          v = false;
+      }
+      for (int i = 0; i < kXfParts; i++) {
+        if (dirtyLo[i] >= dirtyHi[i])
+          continue;
+        const std::size_t first = static_cast<std::size_t>(kXfPartRow[i]) * 16;
+        const std::size_t partBytes = static_cast<std::size_t>(kXfPartRow[i + 1] - kXfPartRow[i]) * 16;
+        const auto *now = reinterpret_cast<const std::uint8_t *>(&xf) + first;
+        auto *sent = reinterpret_cast<std::uint8_t *>(&xfSent) + first;
+        // the rows that changed are as sent: the part bound now still holds them (in the stream
+        // a part is never written again in place; the small buffers keep what they got)
+        const std::size_t lo = static_cast<std::size_t>(dirtyLo[i]) * 16, hi = static_cast<std::size_t>(dirtyHi[i]) * 16;
+        // RE4_GX_UNIFORM_SAME=0: every changed part sent (the counter-check)
+        static const bool sendSame = std::getenv("RE4_GX_UNIFORM_SAME") && *std::getenv("RE4_GX_UNIFORM_SAME") == '0';
+        if (!sendSame && xfSentValid[i] && std::memcmp(now + (lo - first), sent + (lo - first), hi - lo) == 0) {
+          stats.uniformSame++;
+          dirtyLo[i] = kXfPartRow[kXfParts];
+          dirtyHi[i] = 0;
+          continue;
+        }
+        std::memcpy(sent, now, partBytes);
+        xfSentValid[i] = true;
+        UploadBlock(kXfPartBinding[i], xfUbo[i], reinterpret_cast<const std::uint8_t *>(&xf) + first,
+                    static_cast<std::size_t>(dirtyLo[i]) * 16 - first,
+                    static_cast<std::size_t>(dirtyHi[i] - dirtyLo[i]) * 16,
+                    static_cast<std::size_t>(kXfPartRow[i + 1] - kXfPartRow[i]) * 16);
+        dirtyLo[i] = kXfPartRow[kXfParts];
+        dirtyHi[i] = 0;
+      }
+      if (!streamMoved)
+        break;
+    }
   }
 
   // The XF block rows an XF address touches.
@@ -828,7 +1859,7 @@ struct GxRenderer::Impl {
               got > 1;
     // d2: the second set, the same samples
     if (ok) {
-      const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+      const int w = Lo(kEfbWidth), h = Lo(kEfbHeight);
       MakeEfbTextures(w, h, &spareColor, &spareDepth);
       glGenFramebuffers(1, &spareFbo);
       glBindFramebuffer(GL_FRAMEBUFFER, spareFbo);
@@ -921,7 +1952,7 @@ struct GxRenderer::Impl {
       glBindFramebuffer(GL_FRAMEBUFFER, efbFbo);
       glDeleteFramebuffers(1, &fbo);
     }
-    glViewport(0, 0, kEfbWidth * scale, kEfbHeight * scale);
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_ALWAYS);
     glUseProgram(restoreProgram);
@@ -941,7 +1972,7 @@ struct GxRenderer::Impl {
   // MSAA in separate multisampled buffers (msaaFbo), resolved into efbColor / efbDepth before
   // every copy; false when the device cannot (single-sampled then).
   bool OwnMsaa(int want) {
-    const int w = kEfbWidth * scale, h = kEfbHeight * scale;
+    const int w = Lo(kEfbWidth), h = Lo(kEfbHeight);
     while (glGetError() != GL_NO_ERROR) {
     }
     glGenRenderbuffers(1, &msaaColor);
@@ -1105,9 +2136,10 @@ struct GxRenderer::Impl {
   void Resolve(int x, int y, int w, int h, bool depth) {
     if (!msaaFbo)
       return;
-    const int fw = kEfbWidth * scale, fh = kEfbHeight * scale;
-    int x0 = std::max(0, x - scale), y0 = std::max(0, y - scale);
-    int x1 = std::min(fw, x + w + scale), y1 = std::min(fh, y + h + scale);
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
+    const int pad = Hi(1);
+    int x0 = std::max(0, x - pad), y0 = std::max(0, y - pad);
+    int x1 = std::min(fw, x + w + pad), y1 = std::min(fh, y + h + pad);
     if (options.fullResolve) {
       x0 = y0 = 0;
       x1 = fw;
@@ -1280,8 +2312,12 @@ struct GxRenderer::Impl {
     b.height = t.height ? t.height : 1;
     b.levels = 1;
     if (t.flags & RE4_GX_TEX_COPY) {
-      auto it = copies.find(t.address);
-      if (it == copies.end()) {
+      boundKey[map] = 1ull << 63 | t.address;
+      // the in-between pass reads its own copies, and the real ones of the picture before
+      const bool own = interpPass && interpCopied.count(t.address);
+      auto &from = own ? interpCopies : copies;
+      auto it = from.find(t.address);
+      if (it == from.end()) {
         stats.missingTextures++;
         return;
       }
@@ -1297,10 +2333,14 @@ struct GxRenderer::Impl {
       return;
     }
     const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
+    boundKey[map] = key;
     if (key == 0)
       return;
-    if (t.dataBytes)
+    // a texture the in-between pass uploaded already (the same key: the same texels)
+    if (t.dataBytes && !(skipInterpUploads && interpUploads.count(key)))
       Upload(t, chunk);
+    if (interpPass && t.dataBytes)
+      interpUploads.insert(key);
     auto it = textures.find(key);
     if (it == textures.end()) {
       stats.missingTextures++;
@@ -1359,6 +2399,13 @@ struct GxRenderer::Impl {
   }
 
   void ApplyState(unsigned primitive) {
+    // the picture's extent: the full-width scissors the draws of this picture ran under
+    {
+      const int xo = static_cast<int>(bp[0x59] & 0x3FF) * 2, yo = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+      const int sx0 = static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xo, sx1 = static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xo + 1;
+      if (sx1 - sx0 >= 500)
+        sceneBottom = std::max(sceneBottom, std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yo + 1));
+    }
     // the registers below, as last applied: nothing to do while they hold
     const std::uint32_t sig[10] = {bp[0x20],     bp[0x21],     bp[0x59],       bp[0x40] & 0x1F, bp[0x41] & 0xFFFF,
                                    bp[0x43] & 7, (bp[0x00] >> 14) & 3, bp[0x22] & 0xFF, primitive, bp[0x42] & 0x1FF};
@@ -1368,7 +2415,7 @@ struct GxRenderer::Impl {
     stateValid = true;
     stats.stateChanges++;
     BindFbo(DrawFbo());
-    glViewport(0, 0, kEfbWidth * scale, kEfbHeight * scale);
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
     // scissor: registers in EFB pixels + 342, minus the scissor offset (BP 0x59, in 2 pixels)
     const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
     const int x0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
@@ -1376,7 +2423,7 @@ struct GxRenderer::Impl {
     const int x1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
     const int y1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
     glEnable(GL_SCISSOR_TEST);
-    glScissor(x0 * scale, y0 * scale, std::max(0, x1 - x0) * scale, std::max(0, y1 - y0) * scale);
+    glScissor(Lo(x0), Lo(y0), std::max(0, Lo(x1) - Lo(x0)), std::max(0, Lo(y1) - Lo(y0)));
     // depth
     const std::uint32_t z = bp[0x40];
     if (z & 1) {
@@ -1458,7 +2505,7 @@ struct GxRenderer::Impl {
       glCullFace(cull == 1 ? GL_BACK : cull == 2 ? GL_FRONT : GL_FRONT_AND_BACK);
     }
     // lines and points: width in 1/6 pixel
-    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * Sf(1);
     glLineWidth(std::max(1.0f, lineWidth));
   }
 
@@ -1506,6 +2553,35 @@ struct GxRenderer::Impl {
     return k;
   }
 
+  // A program's files in the cache without .bin/.key: a hash of both sources and the driver; in
+  // *check a second hash of the sources (in the binary's head).
+  std::string CacheStem(const std::string &vs, const std::string &fs, std::uint64_t *check) const {
+    return ProgramStem(programCache, driverTag, vs, fs, check);
+  }
+
+  // The cache's key files and the app's list, once (Prewarm).
+  void ReadAhead() {
+    aheadRead = true;
+    std::unordered_set<ShaderKey, KeyHash, KeyEqual> seen;
+    for (const auto &k : CacheKeys(programCache)) {
+      if (seen.insert(k.first).second) {
+        AheadKey a;
+        a.key = k.first;
+        ahead.push_back(a);
+      }
+    }
+    std::vector<ShaderKey> listed;
+    if (!programList.empty())
+      ReadKeyList(programList, &listed);
+    for (const ShaderKey &k : listed) {
+      AheadKey a;
+      a.key = k;
+      a.listed = true;
+      ahead.push_back(a);
+    }
+    aheadListed = static_cast<unsigned>(listed.size());
+  }
+
   const Program *ProgramFor(const ShaderKey &k) {
     auto it = programs.find(k);
     if (it != programs.end())
@@ -1516,13 +2592,7 @@ struct GxRenderer::Impl {
     std::string cachePath;
     std::uint64_t check = 0;
     if (!programCache.empty()) {
-      std::uint64_t h = Fnv(driverTag.data(), driverTag.size());
-      h = Fnv(vs.data(), vs.size(), h);
-      h = Fnv(fs.data(), fs.size(), h ^ 0x5Au);
-      check = Fnv(fs.data(), fs.size(), Fnv(vs.data(), vs.size(), 0x9E3779B97F4A7C15ull));
-      char name[32];
-      std::snprintf(name, sizeof(name), "/%016llx.bin", static_cast<unsigned long long>(h));
-      cachePath = programCache + name;
+      cachePath = CacheStem(vs, fs, &check) + ".bin";
       p.id = LoadProgram(cachePath, check);
       if (p.id)
         stats.programsLoaded++;
@@ -1532,15 +2602,19 @@ struct GxRenderer::Impl {
       if (p.id && !cachePath.empty())
         StoreProgram(cachePath, check, p.id);
     }
+    if (p.id && !cachePath.empty())
+      StoreKey(cachePath.substr(0, cachePath.size() - 4) + ".key", k);
     if (!p.id) {
       stats.shaderErrors++;
       if (stats.shaderErrors <= 4)
         GXLOG("shader failed: %s\n--- vertex ---\n%s\n--- fragment ---\n%s", log.c_str(), vs.c_str(), fs.c_str());
     } else {
       stats.programs++;
-      GLuint xfIndex = glGetUniformBlockIndex(p.id, "XF");
-      if (xfIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(p.id, xfIndex, kXfBinding);
+      for (int i = 0; i < kXfParts; i++) {
+        const GLuint xfIndex = glGetUniformBlockIndex(p.id, kXfPartName[i]);
+        if (xfIndex != GL_INVALID_INDEX)
+          glUniformBlockBinding(p.id, xfIndex, kXfPartBinding[i]);
+      }
       GLuint pxIndex = glGetUniformBlockIndex(p.id, "PX");
       if (pxIndex != GL_INVALID_INDEX)
         glUniformBlockBinding(p.id, pxIndex, kPixelBinding);
@@ -1613,8 +2687,8 @@ struct GxRenderer::Impl {
 
   // Vertex attribute pointers of vao for a layout (re4_gx_frame.h) and stride,
   // the first vertex at byte `base` of vbo; only changed enables are switched.
-  void SetAttributes(std::uint32_t layout, std::uint32_t stride, std::uint32_t base) {
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+  void SetAttributes(std::uint32_t layout, std::uint32_t stride, std::uint32_t base, GLuint buffer) {
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     const GLsizei s = static_cast<GLsizei>(stride);
     const auto at = [&](unsigned offset) { return reinterpret_cast<const void *>(static_cast<std::uintptr_t>(base + offset)); };
     std::uint32_t mask = 1;
@@ -1661,9 +2735,15 @@ struct GxRenderer::Impl {
     attribLayout = layout;
     attribStride = stride;
     attribBase = base;
+    attribBuffer = buffer;
   }
 
   void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk) {
+    // (every draw op counts for "n-th draw of its object", as Interpolate counts them ahead)
+    curOwner = ownerBase ? (ownerBase ^ (static_cast<std::uint64_t>(ownerDraws++) + 1) * 0x9E3779B97F4A7C15ull) | 1 : 0;
+    curLife = ownerLife;
+    if (ownerBase && recordDraws && !interpPass)
+      recOwnerDrawsNew[ownerBase]++;
     if (d.indexCount == 0 || d.vertexOffset + static_cast<std::uint64_t>(d.vertexCount) * d.stride > chunk.vertexBytes ||
         d.indexOffset + d.indexCount > chunk.indexCount)
       return;
@@ -1681,20 +2761,20 @@ struct GxRenderer::Impl {
     const unsigned primitive = d.primitive & 0xFF;
     UseEfb();
     ApplyState(primitive);
-    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * Sf(1);
     if (xf.proj[1][3] != pointSize) {
       xf.proj[1][3] = pointSize;
       Dirty(207, 208);
     }
     if (xfRegsDirty)
       FillXfRegs();
-    if (dirtyLo < dirtyHi) {
-      UploadBlock(kXfBinding, xfUbo, &xf, static_cast<std::size_t>(dirtyLo) * 16,
-                  static_cast<std::size_t>(dirtyHi - dirtyLo) * 16, sizeof(XfBlock));
-      dirtyLo = static_cast<int>(sizeof(XfBlock) / 16);
-      dirtyHi = 0;
-    }
-    if (pxDirty) {
+    std::uint32_t blended = 0;
+    if (interpPass)
+      blended = BlendDraw(d, k, chunk);
+    else if (recordDraws)
+      RecordDraw(d, k);
+    UploadXf();
+    if (pxDirty || !pxValid) {
       FillPixel(k);
       pxDirty = false;
       if (!pxValid || std::memcmp(&px, &pxSent, sizeof(px)) != 0) {
@@ -1742,14 +2822,18 @@ struct GxRenderer::Impl {
       glBindVertexArray(vao);
       vaoBound = true;
     }
-    std::uint32_t base = d.vertexOffset;
+    // (an in-between picture's blended vertices: from blendVbo)
+    const GLuint buffer = blendAt >= 0 ? (blendMap ? blendRing : blendVbo) : vbo;
+    const std::uint32_t at = blendAt >= 0 ? static_cast<std::uint32_t>(blendAt) : d.vertexOffset;
+    blendAt = -1;
+    std::uint32_t base = at;
     GLint baseVertex = 0;
     if (drawBaseVertex && d.stride) {
-      base = d.vertexOffset % d.stride;
-      baseVertex = static_cast<GLint>(d.vertexOffset / d.stride);
+      base = at % d.stride;
+      baseVertex = static_cast<GLint>(at / d.stride);
     }
-    if (d.layout != attribLayout || d.stride != attribStride || base != attribBase) {
-      SetAttributes(d.layout, d.stride, base);
+    if (d.layout != attribLayout || d.stride != attribStride || base != attribBase || buffer != attribBuffer) {
+      SetAttributes(d.layout, d.stride, base, buffer);
       stats.attributeSetups++;
     }
     const GLenum mode = primitive == RE4_GX_LINES ? GL_LINES : primitive == RE4_GX_POINTS ? GL_POINTS : GL_TRIANGLES;
@@ -1761,6 +2845,8 @@ struct GxRenderer::Impl {
     stats.draws++;
     if (mode == GL_TRIANGLES)
       stats.triangles += d.indexCount / 3;
+    if (blended)
+      BlendRestore(blended);
   }
 
   // --- EFB copies -------------------------------------------------------------------
@@ -1830,7 +2916,10 @@ struct GxRenderer::Impl {
       stats.heldCopies++;
       SaveAndPlainState();
       BindFbo(DrawFbo());
+      if (peekWanted)
+        SnapshotDepth();
       ClearAfterCopy(control, x, y, w, h);
+      sceneBottom = 0;
       return;
     }
     GLuint target = 0;
@@ -1840,7 +2929,7 @@ struct GxRenderer::Impl {
           glDeleteTextures(1, &xfbTex);
         glGenTextures(1, &xfbTex);
         glBindTexture(GL_TEXTURE_2D, xfbTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w * scale, h * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(w), Hi(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1852,13 +2941,17 @@ struct GxRenderer::Impl {
       haveXfb = true;
       stats.displayCopies++;
     } else {
-      Copy &c = copies[dest];
+      // the in-between pass copies into its own textures: the next real Run still reads what the
+      // picture before copied (effects that blend the last picture in)
+      if (interpPass)
+        interpCopied.insert(dest);
+      Copy &c = interpPass ? interpCopies[dest] : copies[dest];
       if (!c.id || c.width != static_cast<unsigned>(ow) || c.height != static_cast<unsigned>(oh)) {
         if (c.id)
           glDeleteTextures(1, &c.id);
         glGenTextures(1, &c.id);
         glBindTexture(GL_TEXTURE_2D, c.id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ow * scale, oh * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(ow), Hi(oh), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         c.width = static_cast<unsigned>(ow);
         c.height = static_cast<unsigned>(oh);
@@ -1867,36 +2960,295 @@ struct GxRenderer::Impl {
       c.kind = kind;
       target = c.id;
       stats.textureCopies++;
-      // copies read through a palette are made anew from this copy
-      for (auto it = paletted.begin(); it != paletted.end();) {
+      // copies read through a palette are made anew from this copy (their key holds the copy's
+      // serial: those of the in-between pass's own copies stay apart)
+      for (auto it = paletted.begin(); !interpPass && it != paletted.end();) {
         glDeleteTextures(1, &it->second.id);
         it = paletted.erase(it);
       }
     }
     // render the EFB region into the target
-    Resolve(x * scale, y * scale, w * scale, h * scale, depth);
+    Resolve(Lo(x), Lo(y), Hi(x + w) - Lo(x), Hi(y + h) - Lo(y), depth);
     BindFbo(xfbFbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
     SaveAndPlainState();
     // the copy draws over all of its target (the viewport is the texture)
     ForgetColor();
     const int tw = toXfb ? w : ow, th = toXfb ? h : oh;
-    glViewport(0, 0, tw * scale, th * scale);
+    glViewport(0, 0, Hi(tw), Hi(th));
     glUseProgram(copyProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depth ? efbDepth : efbColor);
     glBindSampler(0, 0);
     glUniform1i(copyMode, toXfb ? 0 : mode);
-    glUniform4f(copyRect, static_cast<float>(x * scale), static_cast<float>(y * scale), static_cast<float>(w * scale),
-                static_cast<float>(h * scale));
-    glUniform2f(copySize, static_cast<float>(kEfbWidth * scale), static_cast<float>(kEfbHeight * scale));
+    glUniform4f(copyRect, Sf(x), Sf(y), Sf(w), Sf(h));
+    glUniform2f(copySize, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
     glUniform1i(copyHalf, half ? 1 : 0);
     glUniform1f(copyGain, depth ? 1.0f : CopyFilterGain());
+    // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
+    // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
+    // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew
+    // (black) would show as dark waves at the bottom edge. Repeat the last drawn row below it.
+    // In the 16:9 formats the app shows rows 56..391 only: there a copy of the whole picture (the
+    // shimmer of the logos at the start, IdShimmerTrans: rows 0..447, a movie drawn into 56..391
+    // under a full scissor; the depth of field at the edge) repeats the edge rows of what is shown
+    // instead of reading the unseen bars (black waves at the bottom of the intro, 0.91.0 test).
+    int top = 0, bottom = kEfbHeight;
+    if (!toXfb && !depth && x == 0 && w >= 500) {
+      if (half && sceneBottom > y + h / 2 && sceneBottom < y + h)
+        bottom = sceneBottom;
+      const int shownT = shownTop.load(std::memory_order_relaxed), shownB = shownBottom.load(std::memory_order_relaxed);
+      if (shownB > y + h / 2 && shownB < y + h)
+        bottom = std::min(bottom, shownB);
+      if (shownT > y && shownT < y + h / 2)
+        top = shownT;
+    }
+    const bool limited = top > 0 || bottom < kEfbHeight;
+    glUniform2f(copyLimit, limited ? Sf(top) : -1e9f, limited && bottom < kEfbHeight ? Sf(bottom) : 1e9f);
+    if (limited)
+      stats.limitedCopies++;
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    if (limited)
+      glUniform2f(copyLimit, -1e9f, 1e9f);
     current = nullptr;
     BindFbo(DrawFbo());
+    if (toXfb)
+      Fxaa(Hi(w), Hi(h));
+    if (toXfb && peekWanted)
+      SnapshotDepth();  // the picture is complete, the clear comes next
     ClearAfterCopy(control, x, y, w, h);
+    if (toXfb)
+      sceneBottom = 0;
+  }
+
+  // --- FXAA ------------------------------------------------------------------------------------
+
+  bool MakeFxaa() {
+    static const char kVs[] = "#version 300 es\n"
+                              "out vec2 vUv;\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  vUv = p;\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // Edge smoothing along the luma gradient: the direction of the edge from the four corners'
+    // luma, two taps along it (each between samples) and a wider pair; the wider mix is dropped when
+    // it leaves the range of the neighbourhood's luma (a thin line stays a line).
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform sampler2D src;\nuniform vec2 texel;\nin vec2 vUv;\nout vec4 o;\n"
+        "const vec3 kLuma = vec3(0.299, 0.587, 0.114);\n"
+        "void main() {\n"
+        "  vec3 nw = texture(src, vUv + vec2(-1.0, -1.0) * texel).rgb;\n"
+        "  vec3 ne = texture(src, vUv + vec2(1.0, -1.0) * texel).rgb;\n"
+        "  vec3 sw = texture(src, vUv + vec2(-1.0, 1.0) * texel).rgb;\n"
+        "  vec3 se = texture(src, vUv + vec2(1.0, 1.0) * texel).rgb;\n"
+        "  vec3 m = texture(src, vUv).rgb;\n"
+        "  float lnw = dot(nw, kLuma), lne = dot(ne, kLuma), lsw = dot(sw, kLuma), lse = dot(se, kLuma), lm = dot(m, kLuma);\n"
+        "  float lmin = min(lm, min(min(lnw, lne), min(lsw, lse)));\n"
+        "  float lmax = max(lm, max(max(lnw, lne), max(lsw, lse)));\n"
+        "  vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), (lnw + lsw) - (lne + lse));\n"
+        "  float reduce = max((lnw + lne + lsw + lse) * 0.25 * 0.125, 1.0 / 128.0);\n"
+        "  dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + reduce), vec2(-8.0), vec2(8.0)) * texel;\n"
+        "  vec3 a = 0.5 * (texture(src, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture(src, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);\n"
+        "  vec3 b = a * 0.5 + 0.25 * (texture(src, vUv + dir * -0.5).rgb + texture(src, vUv + dir * 0.5).rgb);\n"
+        "  float lb = dot(b, kLuma);\n"
+        "  o = vec4((lb < lmin || lb > lmax) ? a : b, 1.0);\n"
+        "}\n";
+    std::string log;
+    fxaaProgram = Link(kVs, kFs, &log);
+    if (!fxaaProgram) {
+      GXLOG("FXAA: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(fxaaProgram);
+    glUniform1i(glGetUniformLocation(fxaaProgram, "src"), 0);
+    fxaaTexelLoc = glGetUniformLocation(fxaaProgram, "texel");
+    glGenFramebuffers(1, &fxaaFbo);
+    return true;
+  }
+
+  // The display copy just made (xfbTex, w x h texels) through FXAA into fxaaTex: that is shown now.
+  void Fxaa(int w, int h) {
+    fxaaShown = false;
+    if (!fxaaOn || !xfbTex || w < 16 || h < 16)
+      return;
+    if (!fxaaProgram && !MakeFxaa()) {
+      fxaaOn = false;  // no shader on this driver: off for good (the menu's switch stays)
+      return;
+    }
+    if (!fxaaTex || fxaaTexW != static_cast<unsigned>(w) || fxaaTexH != static_cast<unsigned>(h)) {
+      if (fxaaTex)
+        glDeleteTextures(1, &fxaaTex);
+      glGenTextures(1, &fxaaTex);
+      glBindTexture(GL_TEXTURE_2D, fxaaTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      fxaaTexW = static_cast<unsigned>(w);
+      fxaaTexH = static_cast<unsigned>(h);
+    }
+    Touched();
+    SaveAndPlainState();
+    BindFbo(fxaaFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxaaTex, 0);
+    ForgetColor();  // all of it is drawn over
+    glViewport(0, 0, w, h);
+    glUseProgram(fxaaProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, xfbTex);
+    glBindSampler(0, 0);
+    glUniform2f(fxaaTexelLoc, 1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h));
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    BindFbo(DrawFbo());
+    current = nullptr;
+    fxaaShown = true;
+    stats.fxaaPasses++;
+  }
+
+  GLuint ShownXfb() const { return fxaaShown && fxaaTex ? fxaaTex : xfbTex; }
+
+  void FxaaRelease() {
+    if (fxaaTex)
+      glDeleteTextures(1, &fxaaTex);
+    if (fxaaFbo)
+      glDeleteFramebuffers(1, &fxaaFbo);
+    if (fxaaProgram)
+      glDeleteProgram(fxaaProgram);
+    fxaaTex = fxaaFbo = fxaaProgram = 0;
+    fxaaTexW = fxaaTexH = 0;
+    fxaaShown = false;
+  }
+
+  // --- the depth for the game's GXPeekZ ------------------------------------------------------
+
+  bool MakePeek() {
+    static const char kVs[] = "#version 300 es\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // cell (x, y) of kDepthWidth x kDepthHeight: the depth at the EFB pixel (2x + 1, 2y + 1) (the
+    // game peeks single pixels; the centre of a 2 x 2 block stands for it), as GX's 24 bits in
+    // r (low byte), g, b (a 0: a cell is the 24-bit value)
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\nprecision highp int;\n"
+        "uniform highp sampler2D depths;\nuniform vec2 size;\nuniform float scale;\nout vec4 o;\n"
+        "void main() {\n"
+        "  vec2 c = floor(gl_FragCoord.xy);\n"
+        "  ivec2 t = ivec2(min((c * 2.0 + 1.0) * scale, size - 1.0));\n"
+        "  uint z = min(uint(texelFetch(depths, t, 0).r * 16777215.0 + 0.5), 16777215u);\n"
+        "  o = vec4(float(z & 255u), float((z >> 8) & 255u), float((z >> 16) & 255u), 0.0) / 255.0;\n"
+        "}\n";
+    std::string log;
+    peekProgram = Link(kVs, kFs, &log);
+    if (!peekProgram) {
+      GXLOG("depth map for GXPeekZ: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(peekProgram);
+    glUniform1i(glGetUniformLocation(peekProgram, "depths"), 0);
+    peekSizeLoc = glGetUniformLocation(peekProgram, "size");
+    peekScaleLoc = glGetUniformLocation(peekProgram, "scale");
+    glGenTextures(1, &peekTex);
+    glBindTexture(GL_TEXTURE_2D, peekTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kDepthWidth, kDepthHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glGenFramebuffers(1, &peekFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, peekFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, peekTex, 0);
+    const bool ok = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glGenBuffers(2, peekPbo);
+    for (GLuint pbo : peekPbo) {
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+      glBufferData(GL_PIXEL_PACK_BUFFER, kDepthWidth * kDepthHeight * 4, nullptr, GL_STREAM_READ);
+    }
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    if (!ok)
+      GXLOG("depth map for GXPeekZ: the frame buffer is not complete");
+    return ok;
+  }
+
+  // The depth maps the GPU is through with go to the core (a fence per map; no waiting).
+  void DeliverDepth() {
+    for (int i = 0; i < 2; i++) {
+      if (!peekFence[i])
+        continue;
+      const GLenum r = glClientWaitSync(peekFence[i], 0, 0);
+      if (r != GL_ALREADY_SIGNALED && r != GL_CONDITION_SATISFIED)
+        continue;
+      glDeleteSync(peekFence[i]);
+      peekFence[i] = nullptr;
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, peekPbo[i]);
+      const void *data = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, kDepthWidth * kDepthHeight * 4, GL_MAP_READ_BIT);
+      if (data) {
+        if (depthSink)
+          depthSink(static_cast<const std::uint32_t *>(data), peekSlotPicture[i]);
+        stats.depthDelivered++;
+        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+      }
+      glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    }
+  }
+
+  // At the display copy of a picture whose chunk peeked (the marker): the depth of the picture.
+  void SnapshotDepth() {
+    peekWanted = false;
+    if (!depthSink || peekFailed)
+      return;
+    if (!peekProgram && !MakePeek()) {
+      peekFailed = true;
+      return;
+    }
+    DeliverDepth();
+    const int slot = peekFence[0] ? (peekFence[1] ? -1 : 1) : 0;
+    if (slot < 0)
+      return;  // the GPU is two maps behind: the core keeps the last one (it ages out there)
+    Touched();
+    // MSAA in own buffers: the depth of the picture's 512 x 448 (the game peeks inside it)
+    Resolve(0, 0, Lo(512), Lo(448), true);
+    SaveAndPlainState();
+    BindFbo(peekFbo);
+    glViewport(0, 0, kDepthWidth, kDepthHeight);
+    glUseProgram(peekProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, efbDepth);
+    glBindSampler(0, 0);
+    glUniform2f(peekSizeLoc, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
+    glUniform1f(peekScaleLoc, Sf(1));
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, peekPbo[slot]);
+    glReadPixels(0, 0, kDepthWidth, kDepthHeight, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    peekFence[slot] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    peekSlotPicture[slot] = peekPicture;
+    stats.depthSnapshots++;
+    BindFbo(DrawFbo());
+    current = nullptr;
+  }
+
+  void PeekRelease() {
+    for (GLsync &f : peekFence) {
+      if (f)
+        glDeleteSync(f);
+      f = nullptr;
+    }
+    if (peekPbo[0])
+      glDeleteBuffers(2, peekPbo);
+    peekPbo[0] = peekPbo[1] = 0;
+    if (peekFbo)
+      glDeleteFramebuffers(1, &peekFbo);
+    if (peekTex)
+      glDeleteTextures(1, &peekTex);
+    if (peekProgram)
+      glDeleteProgram(peekProgram);
+    peekFbo = peekTex = peekProgram = 0;
   }
 
   // The app's gameplay autofocus (BP 0x5A: the core marks the place,
@@ -1920,7 +3272,7 @@ struct GxRenderer::Impl {
     if (autofocusFailed || !havePerspective)
       return;
     Touched(); // its own passes
-    const int fw = kEfbWidth * scale, fh = kEfbHeight * scale;
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
     if (!blurProgram && !MakeAutofocus(fw, fh)) {
       autofocusFailed = true;
       GXLOG("gameplay autofocus could not be set up; left out");
@@ -1941,15 +3293,15 @@ struct GxRenderer::Impl {
       x1 = kEfbWidth;
       y1 = kEfbHeight;
     }
-    const float rx = static_cast<float>(x0 * scale), ry = static_cast<float>(y0 * scale);
-    const float rw = static_cast<float>((x1 - x0) * scale), rh = static_cast<float>((y1 - y0) * scale);
+    const float rx = static_cast<float>(Lo(x0)), ry = static_cast<float>(Lo(y0));
+    const float rw = static_cast<float>(Lo(x1) - Lo(x0)), rh = static_cast<float>(Lo(y1) - Lo(y0));
     float zRange = AsFloat(xfReg[0x1C]);
     if (!(std::fabs(zRange) > 1.0f))
       zRange = 16777215.0f;
     const float zFar = AsFloat(xfReg[0x1F]);
     // only the picture is read (the focus, the blur's taps stay inside it)
-    Resolve(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale, false);
-    Resolve(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale, true);
+    Resolve(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0), false);
+    Resolve(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0), true);
     SaveAndPlainState();
     glDepthMask(GL_FALSE);
     glBindVertexArray(quadVao);
@@ -1958,8 +3310,11 @@ struct GxRenderer::Impl {
     // the focus: distance (16 bits in r, g), strength (b) in the first texel, the last two
     // measurements behind it. It follows the measurements step by step from the one before when
     // the autofocus ran in the chunk before, else (the first, after a pause) it starts anew
-    const bool restart = focusChunk + 1 != stats.chunks;
-    focusChunk = stats.chunks;
+    // (the in-between pass is not counted: it follows the measurements as Run(next) will, and
+    // Interpolate puts focusCur back afterwards)
+    const bool restart = focusChunk + 1 != stats.chunks + (interpPass ? 1u : 0u);
+    if (!interpPass)
+      focusChunk = stats.chunks;
     const int next = focusCur ^ 1;
     BindFbo(focusFbo[next]);
     ForgetColor();  // its texels are drawn over
@@ -1981,8 +3336,8 @@ struct GxRenderer::Impl {
     if (options.halfDof && halfProgram) {
       // GPU step e: the blur at half the resolution (a quarter of the pixels, each of them the
       // four EFB texels around its centre and the taps behind the focus)
-      const int hx0 = x0 * scale / 2, hy0 = y0 * scale / 2;
-      const int hx1 = (x1 * scale + 1) / 2, hy1 = (y1 * scale + 1) / 2;
+      const int hx0 = Lo(x0) / 2, hy0 = Lo(y0) / 2;
+      const int hx1 = (Lo(x1) + 1) / 2, hy1 = (Lo(y1) + 1) / 2;
       BindFbo(halfFbo);
       ForgetColor();  // only the picture's region is drawn, and the mix reads only it
       glViewport(hx0, hy0, hx1 - hx0, hy1 - hy0);
@@ -2006,7 +3361,7 @@ struct GxRenderer::Impl {
       BindFbo(msaaFbo ? msaaFbo : colorFbo);
       if (!msaaFbo)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, efbColor, 0);
-      glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+      glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
       glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
       glEnable(GL_BLEND);
       glBlendEquation(GL_FUNC_ADD);
@@ -2028,7 +3383,7 @@ struct GxRenderer::Impl {
     // the blurred picture into blurTex
     BindFbo(blurFbo);
     ForgetColor();  // only the picture's region is drawn, and only it is copied back
-    glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+    glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
     glUseProgram(blurProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, efbColor);
@@ -2044,7 +3399,7 @@ struct GxRenderer::Impl {
     // back into the EFB: colour only, alpha and depth stay
     BindFbo(DrawFbo());
     UseEfb();
-    glViewport(x0 * scale, y0 * scale, (x1 - x0) * scale, (y1 - y0) * scale);
+    glViewport(Lo(x0), Lo(y0), Lo(x1) - Lo(x0), Lo(y1) - Lo(y0));
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     glUseProgram(copyProgram);
     glActiveTexture(GL_TEXTURE0);
@@ -2054,6 +3409,7 @@ struct GxRenderer::Impl {
     glUniform2f(copySize, static_cast<float>(fw), static_cast<float>(fh));
     glUniform1i(copyHalf, 0);
     glUniform1f(copyGain, 1.0f);
+    glUniform2f(copyLimit, -1e9f, 1e9f);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     current = nullptr;
@@ -2292,7 +3648,7 @@ struct GxRenderer::Impl {
       if (color || alpha || zupdate)
         UseEfb();  // MSAA on the tiles: the EFB back first, the clear is only the copy's region
       glEnable(GL_SCISSOR_TEST);
-      glScissor(x * scale, y * scale, w * scale, h * scale);
+      glScissor(Lo(x), Lo(y), Lo(x + w) - Lo(x), Lo(y + h) - Lo(y));
       glColorMask(color, color, color, alpha);
       glDepthMask(zupdate ? GL_TRUE : GL_FALSE);
       const float r = static_cast<float>(bp[0x4F] & 255) / 255.0f, a = static_cast<float>((bp[0x4F] >> 8) & 255) / 255.0f;
@@ -2326,11 +3682,12 @@ struct GxRenderer::Impl {
     static const char kCopyFs[] =
         "#version 300 es\nprecision highp float;\nprecision highp int;\n"
         "uniform sampler2D src;\nuniform int mode;\nuniform vec4 rect;\nuniform vec2 size;\nuniform int halfScale;\n"
-        "uniform float gain;\n"
+        "uniform float gain;\nuniform vec2 limitY;\n"
         "in vec2 vUv;\nout vec4 o;\n"
         "vec4 fetch(vec2 p) { return texture(src, p / size); }\n"
         "void main() {\n"
         "  vec2 p = rect.xy + vUv * rect.zw;\n"
+        "  p.y = clamp(p.y, limitY.x + 1.0, limitY.y - 1.0);\n"
         "  vec4 c = halfScale != 0 ? 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
         "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5))) : fetch(p);\n"
         "  if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
@@ -2389,6 +3746,8 @@ struct GxRenderer::Impl {
     copySize = glGetUniformLocation(copyProgram, "size");
     copyHalf = glGetUniformLocation(copyProgram, "halfScale");
     copyGain = glGetUniformLocation(copyProgram, "gain");
+    copyLimit = glGetUniformLocation(copyProgram, "limitY");
+    glUniform2f(copyLimit, -1e9f, 1e9f);
     paletteProgram = Link(kQuadVs, kPaletteFs, &log);
     if (!paletteProgram) {
       *error = "palette shader: " + log;
@@ -2433,12 +3792,14 @@ GxRenderer::GxRenderer() : impl_(new Impl) {}
 
 GxRenderer::~GxRenderer() = default;
 
-bool GxRenderer::Init(int scale, std::string *error) {
+bool GxRenderer::Init(int scale, std::string *error) { return InitHalves(2 * std::max(1, scale), error); }
+
+bool GxRenderer::InitHalves(int halves, std::string *error) {
   Impl &m = *impl_;
   std::string dummy;
   if (!error)
     error = &dummy;
-  m.scale = std::max(1, scale);
+  m.halves = std::max(2, halves);
   // glDrawElementsBaseVertex: GLES 3.2, or the OES / EXT extension
   // (RE4_GX_BASEVERTEX=0 keeps the per-draw attribute setup)
   {
@@ -2478,7 +3839,7 @@ bool GxRenderer::Init(int scale, std::string *error) {
     for (std::size_t i = 0; i < pieces; i++)
       GXLOG("GPU extensions (%zu/%zu): %s", i + 1, pieces, all.substr(i * piece, piece).c_str());
   }
-  const int w = kEfbWidth * m.scale, h = kEfbHeight * m.scale;
+  const int w = m.Lo(kEfbWidth), h = m.Lo(kEfbHeight);
   Impl::MakeEfbTextures(w, h, &m.efbColor, &m.efbDepth);
   glGenFramebuffers(1, &m.efbFbo);
   glBindFramebuffer(GL_FRAMEBUFFER, m.efbFbo);
@@ -2530,10 +3891,13 @@ bool GxRenderer::Init(int scale, std::string *error) {
   glBindVertexArray(m.vao);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
   glBindVertexArray(0);
-  glGenBuffers(1, &m.xfUbo);
-  glBindBuffer(GL_UNIFORM_BUFFER, m.xfUbo);
-  glBufferData(GL_UNIFORM_BUFFER, sizeof(XfBlock), nullptr, GL_DYNAMIC_DRAW);
-  glBindBufferBase(GL_UNIFORM_BUFFER, kXfBinding, m.xfUbo);
+  glGenBuffers(kXfParts, m.xfUbo);
+  for (int i = 0; i < kXfParts; i++) {
+    glBindBuffer(GL_UNIFORM_BUFFER, m.xfUbo[i]);
+    glBufferData(GL_UNIFORM_BUFFER, static_cast<GLsizeiptr>(kXfPartRow[i + 1] - kXfPartRow[i]) * 16, nullptr,
+                 GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_UNIFORM_BUFFER, kXfPartBinding[i], m.xfUbo[i]);
+  }
   glGenBuffers(1, &m.pxUbo);
   glBindBuffer(GL_UNIFORM_BUFFER, m.pxUbo);
   glBufferData(GL_UNIFORM_BUFFER, sizeof(PixelBlock), nullptr, GL_DYNAMIC_DRAW);
@@ -2569,27 +3933,202 @@ bool GxRenderer::Init(int scale, std::string *error) {
   return true;
 }
 
+void GxRenderer::HandOverCopies(GxRenderer &to) {
+  Impl &m = *impl_, &n = *to.impl_;
+  if (&m == &n || m.copies.empty())
+    return;
+  m.Touched();
+  n.Touched();
+  GLuint from = 0, dst = 0;
+  glGenFramebuffers(1, &from);
+  glGenFramebuffers(1, &dst);
+  unsigned moved = 0;
+  for (auto &c : m.copies) {
+    Copy copy = c.second;
+    if (!copy.id || n.copies.count(c.first))
+      continue;
+    if (m.halves != n.halves) {
+      // at the new scale: a texture of the new size, the old one drawn over it scaled
+      GLuint made = 0;
+      glGenTextures(1, &made);
+      glBindTexture(GL_TEXTURE_2D, made);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, n.Hi(static_cast<int>(copy.width)),
+                   n.Hi(static_cast<int>(copy.height)), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+      glBindFramebuffer(GL_READ_FRAMEBUFFER, from);
+      glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, copy.id, 0);
+      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst);
+      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, made, 0);
+      glBlitFramebuffer(0, 0, m.Hi(static_cast<int>(copy.width)), m.Hi(static_cast<int>(copy.height)), 0, 0,
+                        n.Hi(static_cast<int>(copy.width)), n.Hi(static_cast<int>(copy.height)), GL_COLOR_BUFFER_BIT,
+                        GL_LINEAR);
+      glDeleteTextures(1, &copy.id);
+      copy.id = made;
+    }
+    copy.serial = ++n.copySerial;
+    n.copies[c.first] = copy;
+    c.second.id = 0;  // the new renderer's now: this one's Release leaves it
+    moved++;
+  }
+  m.copies.clear();
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  glDeleteFramebuffers(1, &from);
+  glDeleteFramebuffers(1, &dst);
+  n.stats.handedCopies += moved;
+}
+
+void GxRenderer::Rescale(int scale) { RescaleHalves(2 * std::max(1, scale)); }
+
+void GxRenderer::RescaleHalves(int halves) {
+  Impl &m = *impl_;
+  halves = std::max(2, halves);
+  if (halves == m.halves)
+    return;
+  const int old = m.halves;
+  m.stats.rescales++;
+  // the MSAA buffers go (as Init found them: on the tiles or in own buffers)
+  const bool wasTiled = m.tiledMsaa;
+  if (m.tiledMsaa)
+    m.DropTiles();
+  if (m.msaaFbo) {
+    glDeleteFramebuffers(1, &m.msaaFbo);
+    const GLuint renderbuffers[] = {m.msaaColor, m.msaaDepth};
+    glDeleteRenderbuffers(2, renderbuffers);
+    m.msaaFbo = m.msaaColor = m.msaaDepth = 0;
+    m.samples = 1;
+  }
+  // the EFB's textures at the new size (the same names: the framebuffers that hold them stay)
+  m.halves = halves;
+  const int w = m.Lo(kEfbWidth), h = m.Lo(kEfbHeight);
+  glBindTexture(GL_TEXTURE_2D, m.efbColor);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  glBindTexture(GL_TEXTURE_2D, m.efbDepth);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, w, h, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+  if (m.wantSamples > 1 && wasTiled)
+    m.TiledMsaa(m.wantSamples);
+  if (m.wantSamples > 1 && !m.tiledMsaa)
+    m.OwnMsaa(m.wantSamples);
+  for (GLuint fbo : {m.efbFbo, m.spareFbo, m.msaaFbo}) {
+    if (!fbo)
+      continue;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, w, h);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+    glClearColor(0, 0, 0, 0);
+    glClearDepthf(1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  }
+  // the autofocus's blur at the new size (its focus stays)
+  if (m.blurTex) {
+    glBindTexture(GL_TEXTURE_2D, m.blurTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  }
+  if (m.halfTex) {
+    glBindTexture(GL_TEXTURE_2D, m.halfTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w / 2, h / 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  }
+  // the display copy and the EFB copies: new textures, the old ones drawn over scaled (an effect
+  // that reads the picture before, the picture the VI holds)
+  GLuint from = 0, to = 0;
+  glGenFramebuffers(1, &from);
+  glGenFramebuffers(1, &to);
+  auto rescaled = [&](GLuint id, unsigned cw, unsigned ch, bool linear) {
+    GLuint made = 0;
+    glGenTextures(1, &made);
+    glBindTexture(GL_TEXTURE_2D, made);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m.Hi(static_cast<int>(cw)), m.Hi(static_cast<int>(ch)), 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, nullptr);
+    if (linear) {
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    } else {
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+    }
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, from);
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, id, 0);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, to);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, made, 0);
+    glBlitFramebuffer(0, 0, (static_cast<GLint>(cw) * old + 1) / 2, (static_cast<GLint>(ch) * old + 1) / 2, 0, 0,
+                      m.Hi(static_cast<int>(cw)), m.Hi(static_cast<int>(ch)), GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glDeleteTextures(1, &id);
+    return made;
+  };
+  if (m.xfbTex)
+    m.xfbTex = rescaled(m.xfbTex, m.xfbWidth, m.xfbHeight, true);
+  if (m.fxaaTex) { // the smoothed copy is of the old size: the next display copy makes it anew
+    glDeleteTextures(1, &m.fxaaTex);
+    m.fxaaTex = 0;
+    m.fxaaTexW = m.fxaaTexH = 0;
+    m.fxaaShown = false;
+  }
+  for (auto &c : m.copies) {
+    if (!c.second.id)
+      continue;
+    const GLuint was = c.second.id;
+    c.second.id = rescaled(was, c.second.width, c.second.height, false);
+    // a map still bound to the copy (the game loads a texture once and draws on with it)
+    for (auto &b : m.bound)
+      if (b.id == was)
+        b.id = c.second.id;
+  }
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+  glDeleteFramebuffers(1, &from);
+  glDeleteFramebuffers(1, &to);
+  // (the copies read through a palette have the copy's size in EFB pixels, at every scale)
+  for (auto &c : m.interpCopies)
+    glDeleteTextures(1, &c.second.id);
+  m.interpCopies.clear();
+  m.stateValid = false;
+  m.efbLeft = m.restorePending = false;
+  glBindFramebuffer(GL_FRAMEBUFFER, m.DrawFbo());
+  m.Touched();
+}
+
 void GxRenderer::Run(const Re4GxChunk &chunk) {
   Impl &m = *impl_;
   if (chunk.version != RE4_GX_FRAME_VERSION)
     return;
-  m.stats.chunks++;
+  if (!m.interpPass)
+    m.stats.chunks++;
+  // a real Run notes its draws for the in-between picture after it
+  const bool record = m.recordDraws && !m.interpPass;
+  if (record) {
+    m.recNew.clear();
+    m.recFloatsNew.clear();
+    m.recOwnerDrawsNew.clear();
+  }
   m.Touched();
+  if (!m.interpPass && m.peekProgram)
+    m.DeliverDepth();  // the depth maps the GPU finished since the last chunk go to the core
   if (m.stream)
     m.StreamChunkBegin();
   m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
   if (chunk.flags & RE4_GX_CHUNK_XFB)
     m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
-  if (chunk.flags & RE4_GX_CHUNK_RESET) {
+  if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
     m.stats.resets++;
     m.DropTextures();
   }
   // this chunk's vertices and indices
   glBindVertexArray(m.vao);
-  glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
-  glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+  const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
+  m.uploadedBy = nullptr;
+  if (!m.skipDraws && !uploaded) {
+    glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
+    glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+    if (m.interpPass) {
+      m.uploadedBy = &chunk;
+      m.uploadedSequence = chunk.sequence;
+    }
+  }
   // the app drew the screen since the last chunk: a new pass
   m.efbLeft = true;
   m.BindFbo(m.DrawFbo());
@@ -2603,14 +4142,19 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     // both blocks again into the stream at the first draw: the places bound
     // last may since have been written over
     m.Dirty(0, static_cast<int>(sizeof(XfBlock) / 16));
+    for (bool &v : m.xfSentValid)
+      v = false;
     m.pxDirty = true;
     m.pxValid = false;
   } else {
-    glBindBufferBase(GL_UNIFORM_BUFFER, kXfBinding, m.xfUbo);
+    for (int i = 0; i < kXfParts; i++)
+      glBindBufferBase(GL_UNIFORM_BUFFER, kXfPartBinding[i], m.xfUbo[i]);
     glBindBufferBase(GL_UNIFORM_BUFFER, kPixelBinding, m.pxUbo);
   }
   m.TimerBegin();
   m.current = nullptr;
+  m.ownerBase = 0;
+  m.ownerLife = ~0u;
   std::uint32_t at = 0;
   while (at < chunk.opWords) {
     const std::uint32_t head = chunk.ops[at];
@@ -2642,12 +4186,23 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
         m.BindTexture(t, chunk);
       }
       break;
+    case RE4_GX_OP_OWNER:
+      if (n >= 4)
+        m.SetOwner(p);
+      break;
     case RE4_GX_OP_FORGET:
-      if (n >= 2)
-        m.Forget(static_cast<std::uint64_t>(p[1]) << 32 | p[0]);
+      // the real Run forgets (the in-between pass runs before it). A texture the core sends again in
+      // this chunk (it forgot it for its budget) the in-between pass uploaded already: after the forget
+      // it is uploaded again, else it stays gone and draws white (itel P661N, 28.10.2026: Ganados with
+      // white weapons after some 20 minutes with 60 FPS)
+      if (n >= 2 && !m.interpPass) {
+        const std::uint64_t key = static_cast<std::uint64_t>(p[1]) << 32 | p[0];
+        m.Forget(key);
+        m.interpUploads.erase(key);
+      }
       break;
     case RE4_GX_OP_DRAW:
-      if (n * 4 >= sizeof(Re4GxDraw)) {
+      if (!m.skipDraws && n * 4 >= sizeof(Re4GxDraw)) {
         Re4GxDraw d;
         std::memcpy(&d, p, sizeof(d));
         m.Draw(d, chunk);
@@ -2660,6 +4215,20 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   }
   m.TimerEnd();
   m.FenceAfterChunk();
+  if (record) {
+    m.rec.swap(m.recNew);
+    m.recOwnerDraws.swap(m.recOwnerDrawsNew);
+    m.recFloats.swap(m.recFloatsNew);
+    m.recSequence = chunk.sequence;
+    m.recValid = true;
+  } else if (!m.interpPass) {
+    m.recValid = false;
+  }
+  if (!m.interpPass) {
+    // the in-between pass's uploads served this Run
+    m.skipInterpUploads = false;
+    m.interpUploads.clear();
+  }
   // leave GL as the app's other renderers expect it
   glBindVertexArray(0);
   for (GLuint unit = 0; unit < 8; unit++)
@@ -2671,12 +4240,262 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.BindFbo(0);
 }
 
+bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
+  const Impl &m = *impl_;
+  const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
+  if (m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
+      (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
+    return false;
+  // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them); and
+  // which copy each texture map holds (0: none), from the chunk run last on
+  std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
+  std::uint32_t mapCopy[8];
+  for (int i = 0; i < 8; i++)
+    mapCopy[i] = (m.boundKey[i] >> 63) ? static_cast<std::uint32_t>(m.boundKey[i]) : 0;
+  auto texture = [&](const std::uint32_t *p, std::uint32_t n, Re4GxTexture *t) {
+    if (n * 4 < sizeof(Re4GxTexture))
+      return false;
+    std::memcpy(t, p, sizeof(*t));
+    mapCopy[t->map & 7] = (t->flags & RE4_GX_TEX_COPY) ? t->address : 0;
+    return true;
+  };
+  for (std::uint32_t at = 0; at < a.opWords;) {
+    const std::uint32_t head = a.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > a.opWords)
+      return false;
+    const std::uint32_t *p = a.ops + at + 1;
+    Re4GxTexture t;
+    if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1))
+        pending.push_back((bp[0x4B] & 0x1FFFFF) << 5);
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      texture(p, n, &t);
+    }
+    at += 1 + n;
+  }
+  if (pending.empty())
+    return true;
+  auto isPending = [&](std::uint32_t address) {
+    return address && std::find(pending.begin(), pending.end(), address) != pending.end();
+  };
+  // `b` must copy to each of them again (else a later chunk reads a copy `a` never made), and must not
+  // read one before: a texture op for it, or a draw whose TEV stages sample a map still holding it
+  // (until 26.10.2026 any draw counted: almost every picture of a room makes a copy, shadows and the
+  // depth of field, and draws before it copies, so Frame skip almost never skipped)
+  for (std::uint32_t at = 0; at < b.opWords && !pending.empty();) {
+    const std::uint32_t head = b.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > b.opWords)
+      return false;
+    const std::uint32_t *p = b.ops + at + 1;
+    Re4GxTexture t;
+    if (op == RE4_GX_OP_DRAW) {
+      const std::uint32_t gen = bp[0x00];
+      const unsigned stages = ((gen >> 10) & 15) + 1, indStages = (gen >> 16) & 7;
+      for (unsigned st = 0; st < stages; st++) {
+        const std::uint32_t o = bp[0x28 + st / 2] >> ((st & 1) ? 12 : 0);
+        if (((o >> 6) & 1) && isPending(mapCopy[o & 7]))
+          return false;
+      }
+      for (unsigned st = 0; st < indStages && st < 4; st++)
+        if (isPending(mapCopy[(bp[0x27] >> (6 * st)) & 7]))
+          return false;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      if (!texture(p, n, &t))
+        return false;
+      if ((t.flags & RE4_GX_TEX_COPY) && isPending(t.address))
+        return false;
+    } else if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1)) {
+        const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
+        pending.erase(std::remove(pending.begin(), pending.end(), dest), pending.end());
+      }
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
+    }
+    at += 1 + n;
+  }
+  return pending.empty();
+}
+
+void GxRenderer::Skip(const Re4GxChunk &a) {
+  impl_->skipDraws = true;
+  Run(a);
+  impl_->skipDraws = false;
+  impl_->recValid = false;  // 60 FPS: no in-between picture across a chunk left out
+}
+
+void GxRenderer::SetRecording(bool on) {
+  Impl &m = *impl_;
+  m.recordDraws = on;
+  if (!on) {
+    m.recValid = false;
+    m.rec.clear();
+    m.recFloats.clear();
+  }
+}
+
+bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) {
+  Impl &m = *impl_;
+  // (STILL: a menu screen of the game, its scrolling text lists; also when prev was one: the cut out of it)
+  const std::uint32_t refuse =
+      RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK | RE4_GX_CHUNK_STILL;
+  if (prev.flags & RE4_GX_CHUNK_STILL)
+    return false;
+  if (!m.recordDraws || !m.recValid || m.recSequence != prev.sequence || next.sequence != prev.sequence + 1 ||
+      (next.flags & refuse) || !(next.flags & RE4_GX_CHUNK_XFB) || next.version != RE4_GX_FRAME_VERSION ||
+      m.viBlack || m.rec.empty())
+    return false;
+  // nothing in perspective noted (title, movies, 2D menus): nothing to place between
+  bool any3d = false;
+  for (const Impl::DrawRec &r : m.rec)
+    any3d = any3d || r.perspective;
+  if (!any3d)
+    return false;
+  // what the pass changes and Run(next) expects as after prev
+  std::vector<std::uint32_t> bp(m.bp, m.bp + 256), xfMem(m.xfMem, m.xfMem + 0x800), xfReg(m.xfReg, m.xfReg + 0x58);
+  std::int32_t tevColor[4][4], tevKonst[4][4];
+  std::memcpy(tevColor, m.tevColor, sizeof(tevColor));
+  std::memcpy(tevKonst, m.tevKonst, sizeof(tevKonst));
+  Impl::Bound bound[8];
+  std::uint64_t boundKey[8];
+  for (int i = 0; i < 8; i++) {
+    bound[i] = m.bound[i];
+    boundKey[i] = m.boundKey[i];
+  }
+  const float perspA = m.perspA, perspB = m.perspB;
+  const bool havePerspective = m.havePerspective, holdXfb = m.holdXfb, viBlack = m.viBlack;
+  const int focusCur = m.focusCur;
+  const unsigned focusChunk = m.focusChunk;
+  // palette loads of next (TMEM): only then the palettes
+  bool tlutLoads = false;
+  for (std::uint32_t at = 0; at < next.opWords;) {
+    const std::uint32_t head = next.ops[at];
+    tlutLoads = tlutLoads || (head & 0xFF) == RE4_GX_OP_TLUT;
+    at += 1 + (head >> 8);
+  }
+  std::vector<std::uint8_t> tlut;
+  if (tlutLoads)
+    tlut = m.tlut;
+  // the noted draws by signature, in their order
+  m.recBySig.clear();
+  m.recByLook.clear();
+  m.recByOwner.clear();
+  m.nextOwnerDraws.clear();
+  {
+    std::uint64_t owner = 0;
+    for (std::uint32_t at = 0; at < next.opWords;) {
+      const std::uint32_t head = next.ops[at], op = head & 0xFF, n = head >> 8;
+      if (at + 1 + n > next.opWords)
+        break;
+      if (op == RE4_GX_OP_OWNER && n >= 4)
+        owner = Impl::OwnerKey(next.ops + at + 1);
+      else if (op == RE4_GX_OP_DRAW && owner)
+        m.nextOwnerDraws[owner]++;
+      at += 1 + n;
+    }
+  }
+  for (std::uint32_t i = 0; i < m.rec.size(); i++) {
+    if (m.rec[i].owner)
+      m.recByOwner.emplace(m.rec[i].owner, i);
+    m.recBySig[m.rec[i].sig].push_back(i);
+    if (m.rec[i].look)
+      m.recByLook[m.rec[i].look].push_back(i);
+  }
+  m.recUsed.assign(m.rec.size(), 0);
+  m.ipDraws = m.ipMatched = m.ipTurned = 0;
+  m.camValid = false;
+  m.camGuesses = m.camVotes = 0;
+  m.interpCopied.clear();
+  m.interpUploads.clear();
+  // the store for the pass's blended vertices: the next quarter of the mapped ring once the GPU is
+  // through with it, else a fresh buffer (the last pass's may still be read by the GPU)
+  if (!m.blendRingTried)
+    m.BlendRingInit();
+  if (m.blendMap) {
+    m.blendPart = (m.blendPart + 1) % Impl::kBlendParts;
+    if (GLsync fence = m.blendFence[m.blendPart]) {
+      if (glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0) == GL_TIMEOUT_EXPIRED)
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000ull);
+      glDeleteSync(fence);
+      m.blendFence[m.blendPart] = nullptr;
+    }
+    m.blendUsed = m.blendPart * Impl::kBlendPart;
+    m.blendCap = m.blendUsed + Impl::kBlendPart;
+  } else {
+    if (!m.blendVbo)
+      glGenBuffers(1, &m.blendVbo);
+    m.blendCap = std::max<std::size_t>(next.vertexBytes, 65536);
+    glBindBuffer(GL_ARRAY_BUFFER, m.blendVbo);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m.blendCap), nullptr, GL_STREAM_DRAW);
+    m.blendUsed = 0;
+  }
+  m.blendAt = -1;
+  m.interpPass = true;
+  m.interpT = t;
+  m.interpPrev = &prev;
+  Run(next);
+  m.blendAt = -1;
+  if (m.blendMap)
+    m.blendFence[m.blendPart] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+  m.interpPass = false;
+  m.interpPrev = nullptr;
+  m.skipInterpUploads = true;
+  // back to the state after prev
+  std::memcpy(m.bp, bp.data(), sizeof(m.bp));
+  std::memcpy(m.xfMem, xfMem.data(), sizeof(m.xfMem));
+  std::memcpy(m.xfReg, xfReg.data(), sizeof(m.xfReg));
+  std::memcpy(m.tevColor, tevColor, sizeof(tevColor));
+  std::memcpy(m.tevKonst, tevKonst, sizeof(tevKonst));
+  for (int i = 0; i < 8; i++) {
+    m.bound[i] = bound[i];
+    m.boundKey[i] = boundKey[i];
+  }
+  if (tlutLoads)
+    m.tlut.swap(tlut);
+  m.perspA = perspA;
+  m.perspB = perspB;
+  m.havePerspective = havePerspective;
+  m.holdXfb = holdXfb;
+  m.viBlack = viBlack;
+  m.focusCur = focusCur;
+  m.focusChunk = focusChunk;
+  for (std::uint32_t a = 0; a < 0x800; a++)
+    m.XfMemToBlock(a);
+  m.FillXfRegs();
+  m.Dirty(0, static_cast<int>(sizeof(XfBlock) / 16));
+  m.keyDirty = true;
+  m.keyLayout = ~0u;
+  m.pxDirty = true;
+  m.pxValid = false;
+  m.Touched();
+  // a cut: few draws found again, or most of them turned (the camera jumped)
+  m.stats.interpDraws += m.ipDraws;
+  m.stats.interpMatched += m.ipMatched;
+  const bool cut = m.ipDraws == 0 || m.ipMatched * 2 < m.ipDraws || m.ipTurned * 10 > m.ipMatched * 3;
+  if (cut) {
+    m.stats.interpCuts++;
+    return false;
+  }
+  m.stats.interpPictures++;
+  return true;
+}
+
 GLuint GxRenderer::Xfb(unsigned *width, unsigned *height) const {
   if (width)
     *width = impl_->xfbWidth;
   if (height)
     *height = impl_->xfbHeight;
-  return impl_->haveXfb ? impl_->xfbTex : 0;
+  return impl_->haveXfb ? impl_->ShownXfb() : 0;
 }
 
 bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows) {
@@ -2705,7 +4524,7 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
   else
     glUniform2f(m.presentRows, static_cast<float>(top) / lines, static_cast<float>(rows) / lines);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, m.xfbTex);
+  glBindTexture(GL_TEXTURE_2D, m.ShownXfb());
   glBindSampler(0, 0);
   glBindVertexArray(m.quadVao);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -2719,6 +4538,12 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
 GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
+void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
+void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
+void GxRenderer::SetShownRows(int top, int bottom) {
+  impl_->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
+  impl_->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);
+}
 
 int GxRenderer::Samples() const { return impl_->samples; }
 
@@ -2743,7 +4568,8 @@ void GxRenderer::Limits(int *maxSamples, float *maxAnisotropy) {
   }
 }
 
-int GxRenderer::Scale() const { return impl_->scale; }
+int GxRenderer::Scale() const { return impl_->halves / 2; }
+int GxRenderer::Halves() const { return impl_->halves; }
 
 const GxStats &GxRenderer::Stats() const { return impl_->stats; }
 
@@ -2761,6 +4587,132 @@ bool GxRenderer::SetProgramCache(const std::string &folder) {
   m.driverTag = std::string(renderer ? renderer : "") + "|" + (version ? version : "");
   m.programCache = folder;
   return true;
+}
+
+bool GxRenderer::Prewarm(double budgetMs) {
+  Impl &m = *impl_;
+  if (m.programCache.empty())
+    return false;
+  if (!m.aheadRead) {
+    m.ReadAhead();
+    if (!m.ahead.empty())
+      GXLOG("GX programs ahead of their first draw: %zu keys (%u of them from the app's list)", m.ahead.size(),
+            m.aheadListed);
+  }
+  if (m.aheadNext >= m.ahead.size())
+    return false;
+  const auto start = std::chrono::steady_clock::now();
+  const std::uint32_t centroid = m.options.centroid && m.samples > 1 ? 1 : 0;
+  double ms = 0.0;
+  bool made = false;
+  while (m.aheadNext < m.ahead.size() && !(made && ms >= budgetMs)) {
+    Impl::AheadKey &a = m.ahead[m.aheadNext];
+    if (a.listed)
+      a.key.centroid = centroid;  // the list holds each program once, for every MSAA setting
+    // another MSAA setting's program, or drawn already
+    if (a.key.centroid != centroid || m.programs.count(a.key)) {
+      m.aheadNext++;
+      continue;
+    }
+    // only from the cache: WarmProgramCache links on a thread of its own; while it runs, its binary
+    // may come yet (this key again later), else the program is made at its first draw
+    std::uint64_t check = 0;
+    if (access((m.CacheStem(GxVertexShader(a.key), GxFragmentShader(a.key), &check) + ".bin").c_str(), F_OK) != 0) {
+      if (ProgramCacheWarming())
+        break;
+      m.aheadNext++;
+      continue;
+    }
+    m.aheadNext++;
+    const unsigned loaded = m.stats.programsLoaded;
+    m.ProgramFor(a.key);
+    made = true;
+    m.stats.programsAhead++;
+    if (m.stats.programsLoaded != loaded)
+      m.aheadLoaded++;
+    else
+      m.aheadLinked++;
+    ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+  }
+  m.aheadMs += ms;
+  if (m.aheadNext >= m.ahead.size())
+    GXLOG("GX programs ahead of their first draw: %u from the cache, %u linked anew, %.0f ms in all", m.aheadLoaded,
+          m.aheadLinked, m.aheadMs);
+  return m.aheadNext < m.ahead.size();
+}
+
+void GxRenderer::SetProgramList(const std::string &path) { impl_->programList = path; }
+
+bool ProgramCacheWarming() { return gWarming.load() > 0; }
+
+unsigned WriteProgramKeyList(const std::string &cache, const std::string &path) {
+  std::vector<ShaderKey> keys;
+  std::unordered_set<ShaderKey, KeyHash, KeyEqual> seen;
+  for (const auto &k : CacheKeys(cache))
+    if (seen.insert(k.first).second)
+      keys.push_back(k.first);
+  return WriteKeyList(path, keys) ? static_cast<unsigned>(keys.size()) : 0;
+}
+
+GxWarmResult WarmProgramCache(const std::string &cache, const std::string &list, std::uint32_t centroid,
+                              const std::atomic<bool> *stop) {
+  GxWarmResult r;
+  GLint formats = 0;
+  glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &formats);
+  if (cache.empty() || formats <= 0)
+    return r;
+  gWarming++;
+  const auto start = std::chrono::steady_clock::now();
+  const std::string tag = DriverTag();
+  // the device's own keys (each with the stem it was kept under) and the app's list
+  std::vector<std::pair<ShaderKey, std::string>> work = CacheKeys(cache);
+  std::vector<ShaderKey> listed;
+  if (!list.empty())
+    ReadKeyList(list, &listed);
+  for (const ShaderKey &k : listed)
+    work.emplace_back(k, std::string());
+  std::unordered_set<ShaderKey, KeyHash, KeyEqual> done;
+  for (auto &w : work) {
+    if (stop && stop->load())
+      break;
+    ShaderKey &k = w.first;
+    const bool fromList = w.second.empty();
+    if (fromList)
+      k.centroid = centroid;
+    if (k.centroid != centroid)
+      continue;  // another MSAA setting's program: left as it is
+    const std::string vs = GxVertexShader(k), fs = GxFragmentShader(k);
+    std::uint64_t check = 0;
+    const std::string stem = ProgramStem(cache, tag, vs, fs, &check);
+    if (done.insert(k).second) {
+      r.keys++;
+      r.listed += fromList ? 1 : 0;
+      if (access((stem + ".bin").c_str(), F_OK) == 0) {
+        r.had++;
+      } else {
+        std::string log;
+        const GLuint p = Link(vs, fs, &log, true);
+        if (p) {
+          StoreProgram(stem + ".bin", check, p);
+          glDeleteProgram(p);
+          r.linked++;
+        } else {
+          r.failed++;
+        }
+      }
+      if (access((stem + ".bin").c_str(), F_OK) == 0)
+        StoreKey(stem + ".key", k);
+    }
+    // kept under another name (the sources or the driver changed since): the old files go
+    if (!fromList && w.second != stem) {
+      std::remove((w.second + ".bin").c_str());
+      std::remove((w.second + ".key").c_str());
+      r.stale++;
+    }
+  }
+  r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+  gWarming--;
+  return r;
 }
 
 void GxRenderer::Release() {
@@ -2786,10 +4738,17 @@ void GxRenderer::Release() {
   glDeleteFramebuffers(3, fbos);
   const GLuint renderbuffers[] = {m.msaaColor, m.msaaDepth};
   glDeleteRenderbuffers(2, renderbuffers);
-  const GLuint buffers[] = {m.vbo, m.ibo, m.xfUbo, m.pxUbo};
-  glDeleteBuffers(4, buffers);
+  const GLuint buffers[] = {m.vbo, m.ibo, m.pxUbo};
+  glDeleteBuffers(3, buffers);
+  if (m.blendVbo)
+    glDeleteBuffers(1, &m.blendVbo);
+  m.blendVbo = 0;
+  m.BlendRingRelease();
+  glDeleteBuffers(kXfParts, m.xfUbo);
   m.StreamRelease();
   m.FenceRelease();
+  m.PeekRelease();
+  m.FxaaRelease();
   if (m.timerOn) {
     glDeleteQueries(Impl::TimerPool::kQueries, m.chunkTimer.query);
     glDeleteQueries(Impl::TimerPool::kQueries, m.presentTimer.query);

@@ -1,0 +1,40 @@
+# Retail data (port/docs/retail-eu-plan.md, R1): the European release's etc/core.das is 0x23AC40
+# bytes, the debug build's fixed place at 0x80578000 holds 0x234000 (CORE_DATA_MAX) up to the option
+# data at 0x807AC000; the read ran over it ("CORE_DATA IS TOO LARGE", 26.10.2026). A larger core is
+# read to a range of MEM1 nothing else uses (runtime/dvd.cpp re4_core_data_place). The debug
+# build's core keeps its place. A port patch for retail data, not a bug of the prototype.
+--- a/src/game/read.cpp
++++ b/src/game/read.cpp
+@@ -189,19 +189,28 @@
+ 
+ // Boot: reads the core archive (file 3) to CORE_DATA_ADDR (pG->pCore) and initialises the
+ // specular / illumination textures from it.
++extern "C" void* re4_core_data_place(const char* name, unsigned fixed_max); /* port: runtime/dvd.cpp */
++
+ void CoreDataRead()
+ {
+     DVD_READINFO info;
+     int req;
+-
+-    pG->pCore = (ArcFile*) CORE_DATA_ADDR;
++    /* port: the European release's etc/core.das is larger than this fixed place (it ran into
++       the option data); re4_core_data_place names another place for a larger core, 0 keeps
++       this one (the debug build's core) */
++    void* addr = re4_core_data_place(FileTbl[3].name, CORE_DATA_MAX);
++
++    if (addr == 0) {
++        addr = CORE_DATA_ADDR;
++    }
++    pG->pCore = (ArcFile*) addr;
+ #line 219 "D:/Bio4/Prog/read.cpp"
+-    req = DVD_READ(3, CORE_DATA_ADDR, 0, 0, 0, 0x8001);
++    req = DVD_READ(3, addr, 0, 0, 0, 0x8001);
+     Dvd.ReadCheck(req, &info);
+     SpecularInit((TEXPalette*) CORE_ARC(CORE_SPECULAR_0), (TEXPalette*) CORE_ARC(CORE_SPECULAR_1), (TEXPalette*) CORE_ARC(CORE_SPECULAR_2),
+                  (TEXPalette*) CORE_ARC(CORE_SPECULAR_3));
+     GlobalIlmTexInit((TEXPalette*) CORE_ARC(CORE_GLOBAL_ILLUMINATION));
+-    if (info.read_size[0][0] > CORE_DATA_MAX) {
++    if (addr == CORE_DATA_ADDR && info.read_size[0][0] > CORE_DATA_MAX) {
+         pLog->err(0, 0, "CORE_DATA IS TOO LARGE(%d/%d)", 0, CORE_DATA_MAX);
+         TaskSleep(60);
+     }

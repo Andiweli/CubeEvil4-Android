@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Italian (Italiano): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">Opzioni di CubeEvil4</string>
+    <string name="ingame_title">CubeEvil4 · Menu di gioco</string>
     <string name="ingame_hint">SELECT (pressione breve) = questo menu  ·  SELECT (pressione lunga) = menu di debug del gioco</string>
     <string name="ingame_back">Torna al gioco</string>
 
     <string name="ingame_graphics">Grafica</string>
     <string name="ingame_resolution">Risoluzione</string>
-    <string name="ingame_auto">Auto</string>
+    <string name="ingame_dynamic">Dinamica</string>
     <string name="ingame_antialiasing">Antialiasing</string>
     <string name="ingame_off">Disattivato</string>
     <string name="ingame_texture_filter">Filtro texture</string>
     <string name="ingame_picture">Formato immagine</string>
-    <string name="ingame_original_43">4:3 (originale)</string>
+    <string name="ingame_original_43">4:3 (GC)</string>
+    <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Allungata</string>
     <string name="ingame_other_options">Altre opzioni</string>
     <string name="ingame_dof">Profondità di campo</string>
     <string name="ingame_fps_display">Mostra gli FPS in basso a sinistra</string>
-    <string name="ingame_resolution_line">Risoluzione: %1$d × %2$d pixel (livello %3$d) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
-    <string name="ingame_resolution_line_auto">Risoluzione: %1$d × %2$d pixel (livello %3$d, Auto) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
+    <string name="ingame_smooth60">60 FPS (sperimentale)</string>
+    <string name="ingame_force_performance">Forza prestazioni</string>
+    <string name="ingame_perf_default">Predefinito</string>
+    <string name="ingame_perf_cores">Usa core ad alte prestazioni</string>
+    <string name="ingame_perf_help">Core ad alte prestazioni: il gioco e la grafica girano sui core più veloci del dispositivo e chiedono ad Android frequenze più alte. Più fluido su molti dispositivi, ma richiede più potenza della CPU e il dispositivo si scalda di più. Predefinito: decide Android.</string>
+    <string name="ingame_resolution_line">Risoluzione: %1$d × %2$d pixel (livello %3$s) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
+    <string name="ingame_resolution_line_auto">Risoluzione: %1$d × %2$d pixel (livello %3$s, Dinamica) · schermo %4$d × %5$d · si applica alla chiusura del menu. Dinamica scende di un livello finché la GPU non tiene il passo.</string>
 
     <string name="ingame_controls">Comandi</string>
     <string name="ingame_touch_controls">Comandi touch</string>
@@ -28,12 +34,22 @@
     <string name="ingame_comfort">Comandi comfort</string>
     <string name="ingame_gyro">Mira con il giroscopio</string>
     <string name="ingame_gyro_none">Mira con il giroscopio (nessun giroscopio)</string>
-    <string name="ingame_touch_help">Auto: visibili senza controller, un tocco li mostra, un tasto li nasconde. Forza: sempre visibili. Nascondi: nascosti finché è collegato un controller. MENU = SELECT. Blocca: un tocco tiene premuto L, R o B fino al tocco successivo (con B bloccato Leon corre sempre).</string>
+    <string name="ingame_touch_help">Auto: visibili senza controller, un tocco li mostra, un tasto li nasconde. Forza: sempre visibili. Nascondi: nascosti finché è collegato un controller. MENU = SELECT.</string>
     <string name="ingame_alternate">Comandi alternativi</string>
-    <string name="ingame_latch">Blocca L e R (touch)</string>
-    <string name="ingame_latch_b">Blocca B (touch)</string>
+    <string name="ingame_latch">Blocca L e R</string>
+    <string name="ingame_latch_b">Blocca B</string>
+    <string name="ingame_touch_aim">Mira touch</string>
+    <string name="ingame_aim_move_stick">Stick di movimento</string>
+    <string name="ingame_aim_touch_area">Area touch</string>
+    <string name="ingame_aim_c_stick">Stick C</string>
+    <string name="ingame_touch_aim_help">Mira touch: finché L o R tiene un\'arma pronta, l\'area touch (scorri sulla metà destra) o lo stick C touch (aggiungilo con l\'ingranaggio in alto a destra) muove la mira. Stick di movimento: come su GameCube.</string>
     <string name="ingame_gyro_sensitivity">Sensibilità del giroscopio</string>
+    <string name="ingame_gyro_invert_v">Inverti verticale</string>
+    <string name="ingame_gyro_invert_h">Inverti orizzontale</string>
     <string name="ingame_alternate_help">Comandi alternativi: L1 = Coltello, L2 = Mira (con la levetta destra), R1 = Inventario (Armi/Cure), R2 = Spara / usa il coltello, Y = Mappa. A, B, X (Ashley) e START come prima.</string>
+    <string name="ingame_knife_swipe">Coltello con swipe</string>
+    <string name="ingame_knife_swipe_help">Coltello con swipe: uno swipe rapido sull’immagine estrae il coltello e colpisce; scorri verso l’alto o verso il basso per colpire in alto o in basso.</string>
+    <string name="ingame_latch_help">Blocca: una pressione (tasto o tocco) tiene premuto L, R o B fino alla successiva (con B bloccato Leon corre sempre).</string>
 
     <string name="ingame_card">Memory Card (slot A)</string>
     <string name="ingame_card_help">Esporta e importa i salvataggi come .gci (per Dolphin o GameCube).</string>
@@ -55,6 +71,7 @@
 
     <string name="ingame_fps_none">-- FPS (gioco)</string>
     <string name="ingame_fps">%1$d FPS (gioco)</string>
+    <string name="ingame_fps_smooth">%1$d FPS (gioco) · %2$d FPS (schermo)</string>
 
     <string name="ingame_core_not_started">Il core del gioco non si è avviato:\n%1$s</string>
     <string name="ingame_core_stopped">Il core del gioco si è fermato:\n%1$s</string>
@@ -85,4 +102,95 @@
     <string name="ingame_report_chooser">Invia il rapporto errori</string>
     <string name="ingame_report_failed">Impossibile creare il rapporto: %1$s</string>
     <string name="ingame_capture_saved">Cattura grafica salvata</string>
+
+    <!-- Five-page button menu and the app-owned instant slot (gui-optimisations). -->
+    <string name="ingame_return">Indietro</string>
+    <string name="ingame_on">Attivo</string>
+    <string name="ingame_display">Schermo</string>
+    <string name="ingame_controls_page">Comandi</string>
+    <string name="ingame_performance">Prestazioni</string>
+    <string name="ingame_management">Gestione</string>
+    <string name="ingame_navigation">Croce: Naviga  ·  A: Seleziona  ·  B: Indietro  ·  SELECT / START: Riprendi</string>
+    <string name="ingame_instant">Salvataggio istantaneo</string>
+    <string name="ingame_slot">Slot di salvataggio</string>
+    <string name="ingame_slot_details">Capitolo %1$s  ·  %2$s  ·  Tempo %3$s</string>
+    <string name="ingame_slot_date">Ultimo salvataggio: %1$s</string>
+    <string name="ingame_settings">Impostazioni e gestione</string>
+    <string name="ingame_display_summary">Risoluzione, formato ed effetti</string>
+    <string name="ingame_controls_summary">Touch, giroscopio e comodità</string>
+    <string name="ingame_performance_summary">Core prestanti, 60 FPS e indicatore</string>
+    <string name="ingame_management_summary">Trucchi, scheda, rapporti e sorgenti</string>
+    <string name="ingame_output">Uscita video</string>
+    <string name="ingame_smooth_help">Fotogrammi intermedi aggiuntivi. La logica resta a 30 fotogrammi/s.</string>
+    <string name="ingame_instant_save">Salva</string>
+    <string name="ingame_instant_load">Carica</string>
+    <string name="ingame_instant_checking">Controllo dello slot …</string>
+    <string name="ingame_instant_working">Attendi …</string>
+    <string name="ingame_instant_ready">Pronto.</string>
+    <string name="ingame_instant_empty">Nessun salvataggio istantaneo.</string>
+    <string name="ingame_instant_unavailable">Non disponibile durante caricamenti, eventi o in questo stato. Chiudi il menu e riprova durante il gioco.</string>
+    <string name="ingame_instant_no_save">Qui non si può salvare (barca, scala, boss, Mercenari o simili). Puoi comunque caricare.</string>
+    <string name="ingame_instant_unsupported">Aggiorna il motore per usare il salvataggio istantaneo.</string>
+    <string name="ingame_instant_damaged">Il salvataggio istantaneo è danneggiato o incompatibile. Puoi sostituirlo con uno nuovo.</string>
+    <string name="ingame_instant_failed">Impossibile leggere o scrivere il salvataggio istantaneo.</string>
+    <string name="ingame_instant_saved">Salvataggio istantaneo memorizzato.</string>
+    <string name="ingame_instant_overwrite_title">Sovrascrivere il salvataggio istantaneo?</string>
+    <string name="ingame_instant_load_title">Caricare il salvataggio istantaneo?</string>
+    <string name="ingame_instant_overwrite">Sostituire il salvataggio istantaneo precedente con i progressi attuali?</string>
+    <string name="ingame_instant_load_warning">I progressi non salvati andranno persi. Caricare il salvataggio istantaneo?</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_frame_skip">Salto fotogrammi</string>
+    <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_fxaa_help">Attenua i bordi seghettati in un passaggio finale. Funziona con o senza MSAA; l’immagine diventa un po’ più morbida.</string>
+    <string name="ingame_frame_skip_help">Se la grafica è in ritardo, salta un’immagine per mantenere la velocità normale del gioco. Si vedono meno immagini, nulla rallenta.</string>
+    <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
+    <string name="ingame_game_language">Lingua del gioco</string>
+    <string name="ingame_language_device">Lingua del dispositivo</string>
+    <string name="ingame_language_help">La lingua dei testi e dei sottotitoli del gioco. Lingua del dispositivo: quella del dispositivo se il gioco la offre, altrimenti l\'inglese. Una modifica riavvia il gioco.</string>
+    <string name="ingame_language_restart_title">Riavviare il gioco?</string>
+    <string name="ingame_language_restart_text">La nuova lingua vale dopo un riavvio del gioco. I progressi dall\'ultimo salvataggio vanno persi.</string>
+    <string name="ingame_restart">Riavvia</string>
+    <string name="ingame_cancel">Annulla</string>
+    <!-- a disc file the game cannot read (CoreActivity.checkDiscProblem) -->
+    <string name="ingame_disc_title">Un file del disco non è leggibile</string>
+    <string name="ingame_disc_image">Il gioco si è fermato a %1$s (disco %2$d): nell’immagine del disco importata questo file è diverso dal disco originale, quindi l’immagine è danneggiata. Estrai di nuovo il disco %2$d (o usa un’altra copia integra) e importalo di nuovo dalla schermata iniziale. I tuoi salvataggi restano.</string>
+    <string name="ingame_disc_device">Il gioco si è fermato a %1$s (disco %2$d): la copia di questo file su questo dispositivo è danneggiata (è cambiata dopo l’importazione). Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
+    <string name="ingame_disc_read">Il gioco si è fermato a %1$s (disco %2$d): il file è integro, ma la lettura non è riuscita. Invia il rapporto errori, poi riavvia il gioco.</string>
+    <string name="ingame_disc_unknown">Il gioco si è fermato a %1$s (disco %2$d): il file su questo dispositivo è danneggiato o manca. Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
+    <string name="ingame_cheats">Trucchi</string>
+    <string name="ingame_cheat_health">Salute infinita</string>
+    <string name="ingame_cheat_ammo">Munizioni infinite</string>
+    <string name="ingame_cheat_onehit">Uccisione con un colpo</string>
+    <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
+    <string name="ingame_cheat_case">Valigetta L</string>
+    <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; il salvataggio non li conserva. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). I pulsanti cambiano la partita: l’arma, la valigetta e il denaro restano nel prossimo salvataggio.</string>
+    <string name="ingame_cheat_done">Fatto: %1$s.</string>
+    <string name="ingame_cheat_already">Già presente: %1$s.</string>
+    <string name="ingame_cheat_raised">Killer7 già posseduta: ora ai livelli massimi.</string>
+    <string name="ingame_cheat_not_now">Non ora: solo mentre gioca Leon, non nella valigetta, nella mappa o in un filmato.</string>
+    <string name="ingame_cheat_no_room">Non c’è spazio nella valigetta.</string>
+    <string name="ingame_cheat_queued">Verrà fatto appena il gioco riprende.</string>
+    <string name="ingame_cheat_unsupported">Questo nucleo di gioco non ha trucchi.</string>
+    <string name="ingame_controller_config">Configurazione controller</string>
+    <string name="ingame_controller_config_help">Configurazione controller: scegli la funzione dei tasti liberi del tuo controller (X, Y, L1, R1, L3, R3). Solo con un controller collegato.</string>
+    <string name="ingame_controller_default">Configurazione predefinita</string>
+    <string name="ingame_controller_help">Scegli un tasto, poi la sua funzione. Se un altro tasto aveva Ashley, Inventario o Mappa, i due si scambiano. Una funzione può stare anche su più tasti.</string>
+    <string name="ingame_controller_alternate_note">I comandi alternativi sono attivi: mantengono la propria configurazione; questa vale quando sono disattivati.</string>
+    <string name="ingame_fn_action">Azione / Spara (A)</string>
+    <string name="ingame_fn_run">Corri / Annulla (B)</string>
+    <string name="ingame_fn_ashley">Ashley: Aspetta / Segui (X)</string>
+    <string name="ingame_fn_inventory">Inventario (Y)</string>
+    <string name="ingame_fn_map">Mappa (Z)</string>
+    <string name="ingame_fn_knife">Coltello (L)</string>
+    <string name="ingame_fn_aim">Mira (R)</string>
+    <string name="ingame_fn_start">Opzioni / Salta (START)</string>
+    <string name="ingame_fn_up">Croce direzionale su</string>
+    <string name="ingame_fn_down">Croce direzionale giù</string>
+    <string name="ingame_fn_left">Croce direzionale sinistra</string>
+    <string name="ingame_fn_right">Croce direzionale destra</string>
+    <string name="ingame_fn_menu">Menu dell\'app (SELECT)</string>
+    <string name="ingame_controller_fixed">Fissi: A, B, L2, R2, START, SELECT e la croce direzionale mantengono la loro funzione (li usano i suggerimenti e i menu del gioco).</string>
+    <string name="ingame_controller_missing">Su nessun tasto: %1$s</string>
+    <string name="ingame_fn_none">Nessuna funzione</string>
 </resources>

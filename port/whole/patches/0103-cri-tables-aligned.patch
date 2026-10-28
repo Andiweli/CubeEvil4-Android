@@ -1,0 +1,47 @@
+# UTY_MemcpyDword (CRI, memcpyd.c) copies whole words; the MPEG decoder's setup hands it four byte
+# tables: mpvbdec_bitmsk (Uint16[16], 8 words), mpvbdec_zigzag and mpvbdec_dfl_iqm (64 bytes, 16
+# words) and mpv_clip_0_255_tbl (1 KB, 0x100 words). On the GameCube they lie word-aligned
+# (0x80250AE0, 0x8030F9B8, 0x8030F978, 0x80309C64); clang may give a byte table any address. For 16
+# words and more the armv7 build copies with ldm/stm, which fault at an unaligned address (SIGBUS on
+# a 64-bit kernel, as the room tour found for cCtrl in r222, patch 0102): every movie start on the
+# 32-bit core. The alignment search of the room tour (22.10.2026, RE4_SANITIZE=alignment) saw
+# mpvbdec_bitmsk at an address 2 past a word; the armhf build has them aligned by chance. The port
+# aligns all four to a word, as on the GameCube.
+--- a/src/lib/mpv_bdec.c
++++ b/src/lib/mpv_bdec.c
+@@ -15,7 +15,10 @@ void DCT_FsriInitScanTbl(Sint8 *seq, Sint8 *scan);
+ void UTY_MemcpyDword(void *dst, const void *src, Sint32 ndword);
+ void *memcpy(void *dst, const void *src, Uint32 n);
+ 
+-static const Uint16 mpvbdec_bitmsk[16] = {
++/* PORT (patch 0103): the tables UTY_MemcpyDword copies word-aligned, as on the GameCube (bitmsk
++   0x80250AE0, dfl_iqm 0x8030F978, zigzag 0x8030F9B8): it copies by words, on armv7 sixteen at a time
++   with ldm, which faults at an unaligned address */
++static const Uint16 mpvbdec_bitmsk[16] __attribute__((aligned(4))) = {
+ 	0xFFFF, 0x7FFF, 0x3FFF, 0x1FFF, 0x0FFF, 0x07FF, 0x03FF, 0x01FF,
+ 	0x00FF, 0x007F, 0x003F, 0x001F, 0x000F, 0x0007, 0x0003, 0x0001,
+ };
+@@ -39,8 +42,8 @@ static const Uint8 group_tbl[32] = {
+ 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ };
+ 
+-Uint8 mpvbdec_dfl_iqm[64];
+-Sint8 mpvbdec_zigzag[64]; /* Bio4.sym says local, but mpv_hdec imports it */
++Uint8 mpvbdec_dfl_iqm[64] __attribute__((aligned(4)));
++Sint8 mpvbdec_zigzag[64] __attribute__((aligned(4))); /* Bio4.sym says local, but mpv_hdec imports it */
+ 
+ /* dead-stripped by the linker; its reference puts mpvbdec_dfl_iqm first in .bss */
+ Uint8 *MPVBDEC_GetDflIqm(void)
+--- a/src/lib/mpv_lib.c
++++ b/src/lib/mpv_lib.c
+@@ -179,7 +179,9 @@ const Sint32 mpvlib_siz_mpvobj = MPV_OBJ_SIZE_REAL;
+ const Sint32 mpvlib_siz_mpvixa = MPV_IXA_SIZE;
+ 
+ static Sint32 mpvlib_use_lc;
+-Uint8 mpv_clip_0_255_tbl[0x400];
++/* PORT (patch 0103): word-aligned as on the GameCube (0x80309C64): UTY_MemcpyDword copies it by words,
++   on armv7 with ldm */
++Uint8 mpv_clip_0_255_tbl[0x400] __attribute__((aligned(4)));
+ static Uint8 *mpv_clip_0_255_base;
+ static MPV mpvlib_mpvobj;
+ static Sint32 mpvlib_oix;

@@ -77,6 +77,8 @@ void convertIdLayout(Blob& b, const Part& part);  // UWF
 
 // formats_eff.cpp
 void convertEffect(Blob& b, const Part& part);     // EFF
+void convertPath(Blob& b, u32 o);                  // path.cpp Path at o (EFF, PTH)
+void convertPathEntry(Blob& b, const Part& part);  // PTH (an archive entry: one Path)
 void convertTexSet(Blob& b, const Part& part);     // TEX
 void convertVibration(Blob& b, const Part& part);  // VIB
 

@@ -1,5 +1,6 @@
 #ifndef RE4_CORE_H
 #define RE4_CORE_H
+#include "re4_instant.h"
 
 /* Embedding interface of the game core (libre4_main): what the Android app
  * (RE4-Android-Decomp, core mode) calls through dlsym, and what the Linux
@@ -200,7 +201,11 @@ const char* re4_core_message(void);
 void re4_core_pad(const Re4CorePad* pad);
 /* The rumble motor of channel 0 as the game drives it: bits 0-3 = motor on in
  * the last four frames (bit 0 the newest), bits 8-31 = frames so far (the app
- * stops vibrating when they stand still). */
+ * stops vibrating when they stand still). Bit 4: the game shows a menu in the
+ * last frame (the title and its menus, loading, a sub screen: inventory, map,
+ * files, merchant, options, radio, typewriter) or a button prompt ("A Open",
+ * the quick-time events); the app's own controller bindings apply only
+ * outside (27.10.2026). */
 unsigned re4_core_rumble(void);
 /* A vsync of the device's display at `ns` (CLOCK_MONOTONIC, e.g. the
  * Choreographer's frame time), any thread, every vsync while the game is
@@ -252,6 +257,61 @@ void re4_core_debug_menu(void);
  * the GX stream). re4_dof_enabled is what the patched game code reads. */
 void re4_core_set_dof(int on);
 int re4_dof_enabled(void);
+/* The picture format "4:3 without bars" (cores since 22.10.2026): off = 1
+ * leaves out the game's letterbox (the scissor of Render to rows 56..392 and the
+ * bars of cinesco.cpp Draw_cinesco, patch 0105) while the player plays: not in
+ * events or sub screens. re4_letterbox_off is the switch, re4_letterbox_open
+ * (runtime/picture.cpp) what the patched game code reads. */
+void re4_core_set_letterbox(int off);
+/* The app menu's "Force Performance" (cores since 24.10.2026): on = 1 keeps
+ * the game thread and the vertex threads on the fast cores with Android's
+ * performance hint (re4_cpu_info.h), 0 (the default) leaves them to Android.
+ * Takes effect at the next picture. Any thread. */
+void re4_core_set_fast_cores(int on);
+/* The game's language with the European discs (cores since 26.10.2026, port/docs/retail-eu-plan.md
+ * R7): 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
+ * The app menu's choice: the game takes it and restarts (its own soft reset at the next game frame,
+ * once no memory card access holds it; runtime/game_language.cpp). At the start the environment
+ * variable RE4_GAME_LANGUAGE gives it (eng, ger, fra, esp, ita or the number). The language is
+ * ignored with the debug build's discs. Any thread. */
+void re4_core_restart_game(int language);
+/* The first disc file the game could not read (cores since 27.10.2026, runtime/dvd.cpp): "" while
+ * every read went well, else "<disc>\t<path on the disc>\t<why>" (disc 1 or 2, the path as in the
+ * disc's file table, e.g. "St2/r222.das"). The game stands at such a file; the app says which file
+ * and what to do. Any thread. */
+const char* re4_core_disc_problem(void);
+/* The cheat menu (cores since 27.10.2026, runtime/cheats.cpp, port/docs/cheat-menu-plan.md), with
+ * both kinds of discs. The switches, kept by the app like its other settings (at the start also the
+ * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill; set in
+ * every game frame while on. Any thread. */
+void re4_core_set_cheats(int bits);
+/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas. While the
+ * app's menu holds the game it is done right away: 1 done, 2 already so (Killer7 owned: raised to the
+ * highest levels; case L or XL), 0 not now (not Leon, not in a room's play, a sub screen or a movie),
+ * -1 no free room in the case. Else the next game frame does it: 3. */
+int re4_core_cheat_action(int what);
+/* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
+ * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
+ * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the
+ * EFB's resolution, row 0 = the EFB's row 0; `serial` rises with every map. Any thread. */
+void re4_core_gx_depth(const unsigned* cells, unsigned serial);
+/* The core process (host/coreproc.cpp): the map is in shared memory the app writes. */
+void re4_core_gx_depth_source(const unsigned* cells, const unsigned* serial);
+int re4_letterbox_off(void);
+/* A tap on the picture (cores since 22.10.2026; runtime/menu_touch.cpp): u
+ * across the game's 512 x 448 picture, v down it, both 0..1. Used at the next
+ * game frame while a sub screen is open (tabs, the attache case and its
+ * command menu), ignored elsewhere. Any thread. */
+void re4_core_touch(float u, float v);
+/* A swipe across the picture (cores since 22.10.2026): dir 1 the next tab of
+ * the sub screen (a swipe to the left), -1 the one before, nothing beyond the
+ * first and the last; ignored outside the normal inventory. Any thread. */
+void re4_core_swipe(int dir);
+/* A swipe while playing (cores since 22.10.2026, knife_swipe.cpp): Leon draws
+ * the knife and slashes; tilt -1..1 how steep the swipe went (1 straight up,
+ * -1 straight down) moves the slash up or down. Ignored in sub screens, events
+ * and where L would not draw the knife. Any thread. */
+void re4_core_slash(float tilt);
 /* Game frames so far (one per PADRead) and the game's host thread id: the
  * app notices a game that stands without a pause and samples where it is. */
 unsigned re4_core_frame_count(void);

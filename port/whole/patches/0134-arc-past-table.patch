@@ -1,0 +1,25 @@
+# Mercenaries with HUNK crashed on every map (tester report 26.10.2026, HermiteInterpolation after
+# "MotionMoveCore(): Pl, Invalid parts"). The machine gun's code (wep/objMachinegun.cpp setMotion,
+# shared by Leon's TMP wep11 and Hunk's wep29) takes the neck motions from weapon archive indexes
+# 0x34..0x39. wep11 has them; wep29 has 48 entries (indexes 4..0x33), in both releases, so the game
+# reads past the table, into the entry tags ("EFF\0", "TPL\0", "BIN\0" ...). The GameCube reads them
+# big-endian, as offsets of about 1 GB: the pointers lie outside its memory and VALID_PTR2 drops them
+# (cPlNeck::init, the head stays still). In the converted archive the tags stay bytes, read
+# little-endian they are offsets of a few MB: pointers into memory, read as motions. PL_ARC_PTR now
+# goes through re4_arc_entry (re4_whole_prelude.h): an index past the count of a table-shaped header
+# reads its word as the GameCube does, and the first time each is logged. Indexes inside the table
+# are unchanged. A port bug (byte order), not a bug of the prototype: the European discs hold the
+# same wep29.
+--- a/include/global.h
++++ b/include/global.h
+@@ -20,7 +20,9 @@
+ struct PlArc {
+     u32 ofs[0x100];   // pl_knife indexes up to 0x87
+ };
+-#define PL_ARC_PTR(arc, no) ((void*) ((arc)->ofs[no] + (u32) (arc)))
++/* port: an index past the table reads its word as the GameCube does (re4_whole_prelude.h
++   re4_arc_entry): Hunk's machine gun takes its neck motions from there */
++#define PL_ARC_PTR(arc, no) re4_arc_entry((arc)->ofs, (arc), (no))
+ // Model / motion data `no` of the player archive.
+ #define PL_ARC(no) PL_ARC_PTR(pG->pPlayer, no)
+ // Weapon archive (read: ReadWepData) at pG->pWepArc, indexed like the player archive.

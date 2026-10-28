@@ -1,0 +1,60 @@
+# Touch in the sub screens (wish of the project owner, 22.10.2026: the tabs and the items of the
+# attache case with a finger). The game keeps the current screen widget in a local of
+# SubScreenTask; once per frame, before cur->move reads Key, the task hands it and the four main
+# widgets (attache case, key items, map, files; 0 for the merchant and the radio, which create
+# none) to re4_touch_sscrn (runtime/menu_touch.cpp). That turns a tap of the app into the
+# cursor and keys of this frame: the case cursor and the combine target (a tap moves the cursor,
+# a tap on the piece under it is A), the command menu and its question (a tap selects, a second
+# tap is A), the key items and the files; a swipe into a change of the tab (B until the tab row
+# has the focus, menu_next and its highlight, A). Right after cur->move, before the frame is
+# drawn, re4_touch_sscrn_moved puts the highlight on the chosen tab in the frame the row got the
+# focus (the case's B puts it on the exit; device test 22.10.2026 21:22). Without taps and
+# swipes nothing changes.
+--- a/src/Sscrn/ss_main.cpp
++++ b/src/Sscrn/ss_main.cpp
+@@ -64,6 +64,11 @@
+ int weaponChangeMoveCheck();
+ 
+ static void weaponChangeTask();
++/* port (patch 0106): taps on the picture in the sub screens, runtime/menu_touch.cpp */
++extern "C" void re4_touch_sscrn(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, SsPzzlMain* pzzl, SsItemMain* item,
++                                SsMapMain* map, SsFileMain* file);
++extern "C" void re4_touch_sscrn_moved(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, SsPzzlMain* pzzl, SsItemMain* item,
++                                      SsMapMain* map, SsFileMain* file);
+ static void sscrnModelTrans(cModel* m);
+ 
+ // REL entry: runs the module's static constructors (.ctors), then the sub screen main loop
+@@ -189,13 +194,15 @@
+     SsExitInit* exitInit = new SsExitInit;
+     SsExitMain* exitMain;
+     SsPzzlInit* pzzlInit;
+-    SsPzzlMain* pzzlMain;
++    /* PORT (patch 0106): the four main widgets start at 0 (the merchant and the radio create
++       none), re4_touch_sscrn below compares them with cur */
++    SsPzzlMain* pzzlMain = 0;
+     SsItemInit* itemInit;
+-    SsItemMain* itemMain;
++    SsItemMain* itemMain = 0;
+     SsMapInit* mapInit;
+-    SsMapMain* mapMain;
++    SsMapMain* mapMain = 0;
+     SsFileInit* fileInit;
+-    SsFileMain* fileMain;
++    SsFileMain* fileMain = 0;
+     SsCapInit* capInit;
+     SsCapMain* capMain;
+     Widget<SUB_SCREEN>* cur;
+@@ -346,7 +353,13 @@
+                 }
+             }
+         }
++        /* PORT (patch 0106): a tap on the picture (the app's touch) becomes this frame's cursor
++           and keys before the screen reads them (wish of the project owner, 22.10.2026) */
++        re4_touch_sscrn(wk, cur, pzzlMain, itemMain, mapMain, fileMain);
+         cur->move(wk);
++        /* PORT (patch 0106): the tab a swipe chose highlighted in the frame the row got the focus,
++           before it is drawn (device test 22.10.2026 21:22: from the case the exit flashed) */
++        re4_touch_sscrn_moved(wk, cur, pzzlMain, itemMain, mapMain, fileMain);
+         cur = cur->cur;
+         SscrnDebugMenu(wk);
+         LightMgr.move();

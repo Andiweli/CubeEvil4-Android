@@ -25,6 +25,8 @@ void re4_gx_put_s8(signed char v);
 void re4_gx_put_s16(short v);
 void re4_gx_put_s32(int v);
 void re4_gx_put_f32(float v);
+/* The owner of the draws that follow (patch 0137, re4_gx_frame.h RE4_GX_OP_OWNER). */
+void re4_gx_put_owner(unsigned int object, unsigned int function, unsigned int table, unsigned int life);
 
 /* The register block at physical address `paddr` (0x0C000000 CP, 0x0C001000
  * PE, 0x0C003000 PI, 0x0C004000 MEM). */

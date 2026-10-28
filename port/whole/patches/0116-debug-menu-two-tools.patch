@@ -1,0 +1,85 @@
+# The tool menu (SELECT held in the app, patch 0061; DbMenuExec) shows only
+# AREA JUMP and DEBUG OPTION, in one column at the left edge, always at the
+# same place (wish of the project owner, 26.10.2026): the original lists 34
+# tools in two columns around x = 176 and moves with the C stick. Up/down
+# picks one of the two, A starts it, B or START closes the menu as before.
+# The menu table stays as it is (dbMenuGetMenuNo, a tool queued by
+# DbMenuSetExecTool starts by its name).
+--- a/src/game/db_menu.cpp
++++ b/src/game/db_menu.cpp
+@@ -254,52 +254,41 @@
+ // Menu per frame: draws the tool list with the cursor, C-stick / D-pad moves it, B closes, A (or
+ // a queued tool) starts the tool: a REL tool is read from "tools/<name>" into the debug heap,
+ // linked and its prolog run; a built-in tool is chained as the task.
++/* port: the app shows only the tools it needs, one column at the left edge, always at the same
++ * place (wish of the project owner, 26.10.2026); the sub-stick no longer moves the menu. A tool
++ * queued by DbMenuSetExecTool still starts by its name. */
++static const char* const shownTools[] = {"AREA JUMP", "DEBUG OPTION"};
++#define SHOWN_NUM ((int) (sizeof(shownTools) / sizeof(shownTools[0])))
++#define SHOWN_X 16
++#define SHOWN_Y 72
++
+ static void move(TEST* t)
+ {
+     JOY* joy;
+     int i;
+-    int n = sizeof(menu) / sizeof(menu[0]);
+-    int color;
++    int row;
+     u32 h, m, s;
+ 
+     joy = GetBugCheckController();
+-    t->x += joy->substickX / 16;
+-    t->y -= joy->substickY / 16;
+     GetGameTime(&h, &m, &s);
+-    eprintf(t->x, t->y, 0, 0, "WELCOME TO TOOL MENU");
+-    eprintf(t->x + 160, t->y + 405, 0, 0, "MOVE BY SUB-STICK");
+-    for (i = 0; i < n; i++) {
+-        color = ((i / 2) & 1) ? 0x18 : 0;
+-        eprintf(t->x + ((i & 1) * 20 - 4) * 8, t->y + (i / 2 + 2) * 15, color, 0, "%s", menu[i].name);
+-    }
+-    eprintf(t->x + ((t->sel & 1) * 20 - 5) * 8, t->y + (t->sel / 2 + 2) * 15, 0, 0, ">");
+-    if (joy->rep & 0x80008) {
+-        t->sel -= 2;
+-        if (t->sel < 0) {
+-            // COMPILER-DIFF: candidate (jump2-only deleted arm). The target keeps a dead
+-            // `andi. r11,r9,1` (sel & 1 on the register) whose jump was deleted in jump2, then
+-            // re-reads sel for the value-form test `xori; andi.; beq; li r0,1; cmpwi; li 32; bne;
+-            // li 33` = `(!(sel & 1) && !(n & 1)) ? n - 2 : n - 1` (n the local: cprop folds the
+-            // second operand to `li 1`, combine leaves the compare). The parity test's arm must hold
+-            // an insn flow2 keeps and jump2 removes: two identical codeless "=m" asms in both arms
+-            // are cross-jumped, the condjump becomes a jump-to-next and only the compare survives;
+-            // their memory output also keeps cse from folding the re-read (fresh `lbz`). Both asms must
+-            // sit on ONE source line: ASM_OPERANDS carries the line number and rtx_equal_p compares it.
+-            if (t->sel & 1) { asm("" : "=m"(t->sel)); } else { asm("" : "=m"(t->sel)); }
+-            t->sel = (!(t->sel & 1) && !(n & 1)) ? n - 2 : n - 1;
++    row = 0;
++    for (i = 0; i < SHOWN_NUM; i++) {
++        if (dbMenuGetMenuNo(shownTools[i]) == t->sel) {
++            row = i;
+         }
+     }
+-    if (joy->rep & 0x40004) {
+-        t->sel += 2;
+-        if (t->sel >= n) {
+-            t->sel = t->sel & 1;
+-        }
++    eprintf(SHOWN_X, SHOWN_Y, 0, 0, "TOOL MENU");
++    for (i = 0; i < SHOWN_NUM; i++) {
++        eprintf(SHOWN_X + 16, SHOWN_Y + (i + 2) * 15, 0, 0, "%s", shownTools[i]);
+     }
+-    if (joy->rep & 0x30003) {
+-        t->sel ^= 1;
+-        if (t->sel >= n) {
+-            t->sel ^= 1;
++    eprintf(SHOWN_X + 4, SHOWN_Y + (row + 2) * 15, 0, 0, ">");
++    if (joy->rep & 0xC000C) {
++        if (joy->rep & 0x80008) {
++            row = (row + SHOWN_NUM - 1) % SHOWN_NUM;
++        } else {
++            row = (row + 1) % SHOWN_NUM;
+         }
++        t->sel = dbMenuGetMenuNo(shownTools[row]);
+     }
+     if (joy->trg & 0x1200) {
+         exit(t);

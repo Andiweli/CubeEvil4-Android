@@ -1,0 +1,38 @@
+# A bug of the prototype (Nov 2004 debug build; the code matches the GameCube SHA1). A Ganado shot
+# off a roof, a cable car, a wall or a parapet falls with a long cry through damage routine 2/7
+# (Dm_Roof: em10_R1_Dm_Roof plays Se_tbl[14], the fall cry). Only the damage handlers of the
+# handguns, rifles' light kinds and knives (em10DmSetWep02/03/23) ask em10RoofDmCk; the heavy
+# handler em10DmSetWep09 (shotguns, magnum, rifles; table Em10DmSetWep_tbl) sends the Ganado to
+# Dm_Blow (2/4), which drops it over the edge without a voice. Tester's report 23.10.2026
+# (Retroid, 0.9.0-beta, r10f): four cable-car Ganados (sets 0x2C/0x2D/0x31) killed with the
+# shotgun fell for up to 6 s in silence; in 95 minutes no Ganado entered 2/7. The final game lets
+# them fall crying. Fixed: em10DmSetWep09 asks em10RoofDmCk too, before its Dm_Blow (dead and
+# alive), but not for blasts (mag: rocket, grenades, mine keep their own reactions).
+# Decision of the project owner 22.10.2026: prototype bugs that the final game does not have are
+# fixed.
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -1765,6 +1765,12 @@
+                     return;
+                 }
+             }
++            /* PORT (patch 0109, a bug of the prototype): over the edge with the fall cry
++               (Dm_Roof), as em10DmSetWep02 does for the handgun. */
++            if (mag == 0 && em10RoofDmCk(em)) {
++                em10BloodSet(em, 0);
++                return;
++            }
+             if (em->hp <= 0 && part->parts_no == 5 && mag == 0) {
+                 em10LostHead(em, 1, 0);
+                 GameAddPoint(LVADD_CRITICALHIT);
+@@ -1836,6 +1842,10 @@
+             }
+         }
+         em10BloodSet(em, 0);
++        /* PORT (patch 0109, a bug of the prototype): see above. */
++        if (mag == 0 && em10RoofDmCk(em)) {
++            return;
++        }
+         em->setRno(2, 4, 0, 0);
+     }
+ }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Kernmodus der App RE4-Android-Decomp auf dem Retroid: Kern bauen, APK bauen,
 installieren, starten, Bildschirmfotos und Protokoll holen.
@@ -144,6 +144,22 @@ Ergebnis in -OutDir (Standard: Desktop\RE4-Kern-App): bericht.txt, logcat.txt,
 bild-*.png, kern-build.log, apk-build.log, nach einem Absturz absturz-system.txt und
 absturz-stapel.txt. Bitte bericht.txt, logcat.txt und die Bilder schicken.
 
+-SkipApk nimmt die APK aus app\build\outputs\apk\core\debug, wie sie ist. Run in Android Studio
+erneuert diese Datei nicht (es installiert aus app\build\intermediates); deshalb vergleicht das
+Skript ihre Version mit app\build.gradle und bricht bei einer alten APK ab. Ohne -SkipApk baut
+es sie selbst.
+
+Schnelle Kerne (Branch performance): Spiel- und Zeichen-Thread bleiben von den langsamsten
+Kernen fern, und Android bekommt ab Version 13 einen Leistungshinweis (33,3 ms je Bild). Zum
+Vergleich -NoFastCores (Kerne wie vorher) bzw. -NoPerfHint (ohne Hinweis); der Bericht zeigt die
+Zeilen "cores: ..." und "performance hint: ...".
+
+Mehrere Kerne (seit 0.45.0): Die Eckpunkte der Grafik rechnen Helfer-Threads um.
+-GxThreads N legt ihre Anzahl fest (0: alles auf dem Spiel-Thread wie bis 0.44; ohne Angabe
+Kerne minus 3, hoechstens 3). -GxJobCheck rechnet zur Fehlersuche jeden Zeichenauftrag
+zusaetzlich sofort um und meldet im Bericht "GX job check", wenn sich Speicher geaendert hat,
+bevor ein Helfer ihn las (kostet Leistung, nur zur Pruefung).
+
 Kernprozess (32 bit, port/docs/32bit-kernprozess.md): Auf 32-bit-Geraeten, bei denen der
 Java-Speicher von Android schon auf dem Speicher des Spiels (0x80000000) liegt (Android 14),
 laeuft der Spielkern in einem eigenen Prozess ohne Java (libre4_coreproc.so). -CoreProcess
@@ -193,7 +209,12 @@ param(
     [string]$GxReplay = '',
     [string]$GxReplaySeries = '00',
     [ValidateSet('auto', 'armeabi-v7a', 'arm64-v8a')][string]$Abi = 'auto',
-    [switch]$CoreProcess
+    [switch]$CoreProcess,
+    [int]$GxThreads = -1,
+    [switch]$GxJobCheck,
+    [switch]$NoFastCores,
+    [switch]$NoPerfHint,
+    [string]$CoreSettings = ''
 )
 $ErrorActionPreference = 'Stop'
 # -Manual: you play yourself, 30 minutes unless -Seconds is given (Q ends earlier)
@@ -364,6 +385,34 @@ if (-not $SkipApk) {
 }
 if (-not (Test-Path -LiteralPath $apk)) { throw "APK fehlt: $apk" }
 Say "APK: $apk ($([math]::Round((Get-Item -LiteralPath $apk).Length / 1MB, 1)) MB)"
+# The version the repository's state builds (build.gradle) against the APK's: Run in Android
+# Studio installs from app\build\intermediates and leaves this file as it was, so with -SkipApk an
+# old APK would go on the device (23.10.2026: 0.43.1 instead of 0.45.0, installed over it)
+$gradleFile = Join-Path $app 'app\build.gradle'
+$wantVersion = if ((Get-Content -LiteralPath $gradleFile -Raw) -match "versionName '([^']+)'") { $Matches[1] } else { '' }
+$apkVersion = ''
+$sdkDir = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
+$aapt = Get-ChildItem -Path (Join-Path $sdkDir 'build-tools') -Recurse -Include 'aapt2.exe', 'aapt.exe' -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending | Select-Object -First 1
+if ($aapt) {
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $badging = (& $aapt.FullName dump badging $apk 2>$null) -join "`n"
+    $ErrorActionPreference = $previousPreference
+    if ($badging -match "versionName='([^']+)'") { $apkVersion = $Matches[1] }
+}
+if ($apkVersion) {
+    Say "   APK-Version: $apkVersion (Stand im Repository: $wantVersion)"
+    if ($wantVersion -and -not $apkVersion.StartsWith($wantVersion)) {
+        throw ("Die APK ist $apkVersion, der Stand im Repository ${wantVersion}: sie ist veraltet. Das Skript " +
+            "ohne -SkipApk starten (es baut sie dann selbst) oder in Android Studio Build > Build App Bundle(s) / " +
+            "APK(s) > Build APK(s) waehlen (Run in Android Studio erneuert diese Datei nicht).")
+    }
+} elseif ((Get-Item -LiteralPath $apk).LastWriteTime -lt (Get-Item -LiteralPath $gradleFile).LastWriteTime) {
+    throw ("Die APK ist aelter als app\build.gradle (Stand $wantVersion) und damit wohl veraltet. Das Skript " +
+        "ohne -SkipApk starten (es baut sie dann selbst) oder in Android Studio Build > Build App Bundle(s) / " +
+        "APK(s) > Build APK(s) waehlen (Run in Android Studio erneuert diese Datei nicht).")
+}
 
 # ---- 3. the device ------------------------------------------------------------------------
 if ($SkipDevice) {
@@ -456,6 +505,16 @@ if ($WeaponTrace) {
     $settings = if ($settings) { "$settings;RE4_TRACE_WEAPON=1" } else { 'RE4_TRACE_WEAPON=1' }
 }
 $settings = if ($settings) { "$settings;RE4_APP_TOOLS=1" } else { 'RE4_APP_TOOLS=1' }
+# further core switches as NAME=VALUE;NAME=VALUE (e.g. RE4_TEST_STREAM=free+60:0:0x16 with -AudioWav)
+if ($CoreSettings) { $settings = "$settings;$CoreSettings" }
+# the vertex threads of the GX decoder (gx_decode.cpp): how many, and the check that memory a
+# draw reads does not change before its batch
+if ($GxThreads -ge 0) { $settings = "$settings;RE4_GX_THREADS=$GxThreads" }
+if ($GxJobCheck) { $settings = "$settings;RE4_GX_JOB_CHECK=1" }
+# the game and render threads off the slowest cores, Android's performance hint (re4_cpu_info.h):
+# switched off for a comparison
+if ($NoFastCores) { $settings = "$settings;RE4_FAST_CORES=0" }
+if ($NoPerfHint) { $settings = "$settings;RE4_PERF_HINT=0" }
 if ($CoreProcess) {
     # the core in a process of its own also with MEM1 free (32 bit only; core_mode.cpp)
     if ($Abi -ne 'armeabi-v7a') { Say 'Hinweis: -CoreProcess wirkt nur mit 32 bit (-Abi armeabi-v7a).' }
@@ -490,6 +549,11 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
     $runAbi = if ($info -match 'primaryCpuAbi=(\S+)') { $Matches[1] } else { '?' }
     if ($Abi -ne 'auto' -and $runAbi -ne $Abi) { throw "Die App laeuft als $runAbi statt $Abi." }
     Say "   App installiert ($runAbi$(if ($runAbi -eq 'arm64-v8a') { ', 64 bit' } elseif ($runAbi -eq 'armeabi-v7a') { ', 32 bit' }))"
+    $installed = if ($info -match 'versionName=(\S+)') { $Matches[1] } else { '?' }
+    Say "   App-Version auf dem Geraet: $installed"
+    if ($wantVersion -and -not $installed.StartsWith($wantVersion)) {
+        Say "   ACHTUNG: nicht der Stand im Repository ($wantVersion)."
+    }
     # The import runs inside the app (several minutes per disc): the test waits for it instead of
     # stopping the app, because stopping it cancels the import.
     $game = "/sdcard/Android/data/$package/files/game"
@@ -704,6 +768,12 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
             }
         }
         $alive = ((& $Adb -s $Serial shell pidof $package) -join '').Trim()
+        # a single empty answer can be ADB's (Retroid 28.10.2026: the app ran on, the script stopped it):
+        # gone only when two more questions a second apart agree
+        for ($retry = 0; $firstPid -and $alive -ne $firstPid -and $retry -lt 2; $retry++) {
+            Start-Sleep -Seconds 1
+            $alive = ((& $Adb -s $Serial shell pidof $package) -join '').Trim()
+        }
         if ($alive -and -not $firstPid) { $firstPid = $alive }
         $gone = if ($firstPid) { $alive -ne $firstPid } else { $now -ge 10 }
         # the core process ended while the app runs (the app shows "The game core stopped")

@@ -154,18 +154,42 @@ Bauen und prüfen: `port/tools/whole_build.sh`.
    Fehlerprotokoll, Tiefenschärfe mit Autofokus), SELECT 1 Sekunde halten =
    Debug-Menü des Spiels, Diagnose-Anzeige ausgebaut, Leistung, Nachladen der
    Super Magnum geklärt (Retroid und PC-Prüfung, 17.10.2026)
-12. ARM64: Zeiger-Kürzungen beheben, eine APK für 32- und 64-bit-Geräte
+12. ✅ ARM64: Zeiger-Kürzungen beheben, eine APK für 32- und 64-bit-Geräte
    (vor 10b, Entscheidung des Projektinhabers, 17.10.2026: ein Tester hat ein
    Gerät, das nur 64-bit-Apps ausführt; erst M11 abschließen). Weg
    (Entscheidung des Projektinhabers, 17.10.2026, nach der Bestandsaufnahme
    `port/docs/arm64-bestandsaufnahme.md`): **Weg A, nativ 64 bit** – alles,
    worauf der Spielcode zeigt, liegt unter 4 GB; Strukturen mit fester Form
    (feste Plätze, Spielstand, Daten von der Disc) behalten ihre 32-bit-Form
-10b. Raum-Rundgang: viele Räume per Raumauswahl anspielen, Abstürze und
+   (abgeschlossen nach Entscheidung des Projektinhabers, 27.10.2026: eine APK mit beiden ABIs seit
+   0.9.0-beta, ARM64 auf dem Retroid gespielt)
+10b. ✅ Raum-Rundgang: viele Räume per Raumauswahl anspielen, Abstürze und
    Grafikfehler sammeln (Entscheidung des Projektinhabers, 16.10.2026: nach
-   Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12)
+   Ton, Videos und Speichern/Laden; seit 17.10.2026 nach M11 und M12; seit 27.10.2026 mit beiden Disc-Arten, Branch
+   `retail-eu-testrun`). Stand 27.10.2026: Rundgang am PC mit Debug- und EU-Discs je 126/126 (Stage 4 mit EU-Daten,
+   Patch 0131), die drei EU-Spielmeldungen geklärt (0132 Ereignis-Untertitel auf Englisch), Funksprüche 13/14/15/17,
+   achte Händler-Markierung (0133) und Cheats im Rundgang am PC geprüft; auf dem Retroid zwei weitere
+   Kapitel ohne Befund, Bosse mit One-Hit-Kill bestätigt; Controller-Konfiguration
+   (A, B, L2, R2, START, SELECT, Steuerkreuz fest; X, Y, L1, R1, L3, R3 frei; Vorschlag des Projektinhabers 27.10.2026) auf
+   dem Retroid bestätigt; ARM32 Speichern/Laden auf dem Retroid bestätigt, abgeschlossen 27.10.2026 (Zwischenstufen 1,5×/2,5×/3,5× und Ruckler-Korrektur auf dem Retroid bestätigt)
+13. ✅ Retail-Discs (EU): CubeEvil4 spielt auch mit den europäischen Verkaufs-Discs (`G4BP08`),
+   parallel zur Debug-Disc, die Referenz bleibt (Entscheidungen des Projektinhabers, 26.10.2026:
+   parallel, kein Mischen der Versionen; Debug-Menü mit EU-Discs ausgeblendet, dafür ein Cheat-Menü im
+   Ingame-Menü, am PC geprüft 27.10.2026, `port/docs/cheat-menu-plan.md`; alle Sprachen der EU-Discs spielbar, Schritt R7, gewählt im
+   Ingame-Menü der App, „LANGUAGE SELECT“ aus dem Titelmenü entfernt). Plan und
+   Schritte R0–R8: `port/docs/retail-eu-plan.md`, Branch `retail-eu`; R0, R1, R2 ✅ (26.10.2026);
+   R4 (App-Import) und R7 (Sprachen) auf dem Retroid bestätigt (27.10.2026); R3 (Texttabellen,
+   Funkspruch-Leiste) auf dem Retroid bestätigt, R6 (kein Debug-Menü) am PC geprüft, R5 108/126 Räume (Stage 4
+   offen), R8 weitgehend: ARM32 und ARM64 auf dem Retroid, Version 0.92.0-beta (27.10.2026); abgeschlossen 27.10.2026: zwei Kapitel mit
+   EU-Discs auf Deutsch auf dem Retroid ohne Befund durchgespielt, Cheat-Menü auf dem Retroid bestätigt;
+   Stage 4 mit EU-Daten in der Prüfstrecke und drei Spielmeldungen gehen in den Raum-Rundgang 10b
+14. ✅ Alles in `master` (Entscheidung des Projektinhabers, 27.10.2026): `retail-eu-testrun` (mit `beta-updates`
+   und `retail-eu`) in `master` zusammengeführt, die drei Branches bleiben vorerst stehen (nicht löschen);
+   danach Release 0.93.0-beta aus `master` (PC-Prüfung beider Disc-Arten, Kurztest auf dem Retroid, 27.10.2026)
 
 ## Git
 
-Arbeitsbranch nach Vorgabe der Sitzung. Nach jedem abgeschlossenen Schritt
+`master` ist seit Meilenstein 14 (27.10.2026) der Arbeitsstand; `beta-updates`, `retail-eu` und
+`retail-eu-testrun` sind darin enthalten und bleiben bis auf Weiteres stehen. Arbeitsbranch nach
+Vorgabe der Sitzung. Nach jedem abgeschlossenen Schritt
 committen und pushen. Commit-Nachrichten auf Englisch, kurz und beschreibend.

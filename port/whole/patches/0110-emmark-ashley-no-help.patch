@@ -1,0 +1,22 @@
+# A bug of the prototype (Nov 2004 debug build; the code matches the GameCube SHA1). Ashley waiting
+# (F_STAY) calls "Help!" every 151 frames while a living enemy is within 4 m and Leon is more than
+# 2 m away (cSubChar::moveFootwork, pl_npc.cpp; the enemy count skips ids above 0x3F, hp 0 and
+# EM_STATUS_ASHLEY_NO_HELP). The shooting range r22c parks Ashley at (-1600, 0, -270) next to its
+# two gates, built as targets (cEmMark, em 0x3E, hp 1000, at 0 0 0): they count as enemies, so she
+# called for help in the range's anteroom as soon as Leon walked off (tester's report 24.10.2026
+# 00:12, Retroid, 0.9.0-beta; the merchant em18 sets the flag, the targets did not). The final
+# game keeps her quiet there. Fixed: targets carry EM_STATUS_ASHLEY_NO_HELP too (they are never a
+# danger to her). Decision of the project owner 22.10.2026: prototype bugs that the final game
+# does not have are fixed.
+--- a/src/em3e/em3e.cpp
++++ b/src/em3e/em3e.cpp
+@@ -37,6 +37,9 @@
+ cEmMark::cEmMark()
+ {
+     setStatus(EM_STATUS_LOCKOFF);
++    /* PORT (patch 0110, a bug of the prototype): a target or a gate of the shooting range is no
++       enemy for Ashley's call for help (cSubChar's S_EM_NEAR2, pl_npc.cpp). */
++    setStatus(EM_STATUS_ASHLEY_NO_HELP);
+ }
+ 
+ // Room entry: init from an EmMarkData record (type, instruction list, integer position).

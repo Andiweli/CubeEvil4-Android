@@ -95,6 +95,7 @@ final class CoreAudio {
   }
 
   /** Android's Spatializer (API 32): its level and whether it takes our 5.1 for the output now. */
+  @android.annotation.TargetApi(32)
   private static final class Spatial {
     static String state(Context context) {
       final AudioManager manager = context.getSystemService(AudioManager.class);

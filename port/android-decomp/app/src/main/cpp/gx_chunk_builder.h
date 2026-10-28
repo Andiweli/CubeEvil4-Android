@@ -46,9 +46,15 @@ struct Builder {
       blob.push_back(0);
     return at;
   }
-  // vertices: floats/bytes as the layout says; one triangle list or quads
+  // the owner of the draws that follow (RE4_GX_OP_OWNER, patch 0137)
+  void Owner(std::uint32_t object, std::uint32_t function, std::uint32_t table, std::uint32_t life = ~0u) {
+    const std::uint32_t w[4] = {object, function, table, life};
+    Op(RE4_GX_OP_OWNER, w, 4);
+  }
+  // vertices: floats/bytes as the layout says; one triangle list or quads (`tex0Row`: the XF row of
+  // texture coordinate 0's matrix, 60 the identity)
   void Draw(std::uint32_t layout, std::uint32_t stride, const std::vector<std::uint8_t> &v, unsigned count,
-            unsigned gxPrimitive = 0x90, std::uint32_t primitive = RE4_GX_TRIANGLES) {
+            unsigned gxPrimitive = 0x90, std::uint32_t primitive = RE4_GX_TRIANGLES, std::uint32_t tex0Row = 60) {
     Re4GxDraw d{};
     d.primitive = primitive | gxPrimitive << 8;
     d.layout = layout;
@@ -69,7 +75,7 @@ struct Builder {
         indices.push_back(static_cast<std::uint16_t>(i));
     }
     d.indexCount = static_cast<std::uint32_t>(indices.size()) - d.indexOffset;
-    d.matrices[0] = 0 | 60u << 8 | 60u << 16 | 60u << 24; // PNMTX0, identity texture matrices
+    d.matrices[0] = 0 | tex0Row << 8 | 60u << 16 | 60u << 24; // PNMTX0, identity texture matrices
     d.matrices[1] = 60u | 60u << 8 | 60u << 16 | 60u << 24;
     d.matrices[2] = 60u;
     Op(RE4_GX_OP_DRAW, reinterpret_cast<const std::uint32_t *>(&d), sizeof(d) / 4);

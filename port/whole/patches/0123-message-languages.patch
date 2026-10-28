@@ -1,0 +1,78 @@
+# Retail data (port/docs/retail-eu-plan.md, R7): the message languages German, French, Spanish and
+# Italian. MessageControl::setLayout picks the font size, char spacing and line gap of a message
+# slot from a table with two rows, Japanese and English, by the message language; 2..5 read past it
+# and drew the radio subtitles with huge, smeared letters (French run, 26.10.2026). The European
+# setLayout (main.dol 0x80023610, table 0x801F8E04, also two rows) takes the Japanese row for
+# pSys->language 0 and the English row for every other language; so does this one.
+# MessageControl::setLanguage chose the block of the six-language tables: the European ones are
+# Japanese, English, French, German, Italian, Spanish (block sizes of the codec texts; the French
+# run showed German radio texts), the European setLanguage (0x800236d4) maps 3 -> 3, 4 -> 2,
+# 5 -> 5, 6 -> 4; this build mapped 3..6 to 2..5. The debug build's discs hold placeholders in
+# blocks 2..5 and play with language 1: nothing changes with them. A bug of the prototype as well
+# (its debug menu offers languages 2..7). MessageData::getAddr: the European core message table
+# (etc/core.das CORE_MESSAGE) has 173 messages instead of 153, 15 of them new at 0x56 (the English
+# blocks of both tables aligned message by message; the European option screen asks for 0x90..0x94
+# and 0x9A/0x9B/0xA1/0x95 where this build asks for 0x81..0x85 and 0x8B/0x8C/0x92/0x86): numbers
+# from 0x56 on are moved up by 15 with the European discs (the option screen's help line showed
+# "ZOOM", device test 26.10.2026).
+--- a/src/game/mes.cpp
++++ b/src/game/mes.cpp
+@@ -249,11 +249,19 @@
+     return (MesTblBlock*) ((u8*) tbl + tbl[language + 1]);
+ }
+ 
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ u16* MessageData::getAddr(int no, int data_type)
+ {
+     u32* tbl = (u32*) m_Data[data_type];
+     MesTblBlock* blk = mesBlock(tbl, m_language);
+ 
++    /* port: the European core table (etc/core.das CORE_MESSAGE, 173 messages instead of 153) has 15
++       more from 0x56 on: the European code asks for 0x90.. where this build asks for 0x81.. (the
++       option screen showed "ZOOM" for most of its help lines) */
++    if (no >= 0x56 && (void*) tbl == CORE_ARC(CORE_MESSAGE) && re4_disc_retail_eu()) {
++        no += 15;
++    }
+     if (no > (int) blk->count - 1) {
+         return NULL;
+     }
+@@ -307,7 +315,10 @@
+     };
+     static s8* p_layout;
+ 
+-    p_layout = layout_tbl[MesData.getLanguage()][type];
++    /* port: the table has the Japanese and the English layout only; the message languages 2..5
++       (German, French, Spanish, Italian) read past it. The European setLayout (main.dol
++       0x80023610) takes the English layout for every language but Japanese. */
++    p_layout = layout_tbl[pSys->language == 0 ? 0 : 1][type];
+     setFontSize(no, p_layout[0], p_layout[1]);
+     setFontGap(no, p_layout[3]);
+     setLineGap(no, p_layout[5]);
+@@ -324,17 +335,21 @@
+     case 1:
+         MesData.setLanguage(lang);
+         break;
++    /* port: the blocks of the European six-language tables are Japanese, English, French, German,
++       Italian, Spanish; the European setLanguage (main.dol 0x800236d4) maps 3 -> 3, 4 -> 2, 5 -> 5,
++       6 -> 4. This build mapped 3..6 to 2..5 (French on the German block ...); the debug build's
++       discs hold placeholders in blocks 2..5 */
+     case 3:
++        MesData.setLanguage(3);
++        break;
++    case 4:
+         MesData.setLanguage(2);
+         break;
+-    case 4:
+-        MesData.setLanguage(3);
+-        break;
+     case 5:
+-        MesData.setLanguage(4);
++        MesData.setLanguage(5);
+         break;
+     case 6:
+-        MesData.setLanguage(5);
++        MesData.setLanguage(4);
+         break;
+     case 2:
+         MesData.setLanguage(1);

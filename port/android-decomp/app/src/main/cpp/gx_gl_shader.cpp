@@ -5,6 +5,7 @@
 // texture coordinate generation as the XF unit does them.
 #include "gx_gl_shader.h"
 
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
 
@@ -20,11 +21,17 @@ void Add(std::string &out, const char *format, ...) {
   out += buffer;
 }
 
+// The XF block in three parts (kXfParts, gx_gl_shader.h): a draw uploads only the parts that
+// changed (the matrices of each model; not the post matrices and lights every time).
 const char kUniformBlocks[] =
-    "layout(std140) uniform XF {\n"
+    "layout(std140) uniform XFM {\n"
     "  vec4 posTex[64];\n"
     "  vec4 nrmMtx[32];\n"
+    "};\n"
+    "layout(std140) uniform XFP {\n"
     "  vec4 postMtx[64];\n"
+    "};\n"
+    "layout(std140) uniform XFL {\n"
     "  vec4 lights[40];\n"
     "  vec4 matAmb[4];\n"
     "  vec4 vp[2];\n"
@@ -272,18 +279,47 @@ std::string Swizzle(std::uint32_t table) {
   return s;
 }
 
+std::atomic<int> gTevMath{kTevMathShift};
+
 // (d + bias) op lerp(a, b, c), scaled, with the hardware's rounding: c is
 // widened to 0..256, a scale above one moves inside the lerp, and a rounding
 // bias is added before the division by 256 (not with the halving scale).
+// Written as SetTevMath says; all of them give the same numbers.
 std::string Regular(const char *comp, unsigned bias, unsigned op, unsigned scale) {
   static const char *biasStr[4] = {"", " + 128", " - 128", ""};
   static const char *left[4] = {"", " << 1", " << 2", ""};
+  static const char *times[4] = {"", " * 2", " * 4", ""};
+  static const char *timesF[4] = {"", " * 2.0", " * 4.0", ""};
   static const char *right[4] = {"", "", "", " >> 1"};
   const std::string c = comp;
+  const bool vec = c.size() > 1;
   const std::string d = "((tevin_d." + c + biasStr[bias] + ")" + left[scale] + ")";
-  const std::string lerp = "(((tevin_a." + c + " << 8) + (tevin_b." + c + " - tevin_a." + c + ") * (tevin_c." + c +
-                           " + (tevin_c." + c + " >> 7)))" + left[scale] + ")";
-  const std::string rounded = "((" + lerp + (scale != 3 ? (op ? " + 127" : " + 128") : "") + ") >> 8)";
+  const std::string a = "tevin_a." + c, diff = "(tevin_b." + c + " - tevin_a." + c + ")",
+                    factor = "(tevin_c." + c + " + (tevin_c." + c + " >> 7))";
+  const char *round = scale != 3 ? (op ? " + 127" : " + 128") : "";
+  std::string rounded;
+  switch (gTevMath.load()) {
+  case kTevMathNoShift:
+    rounded = "((" + a + times[scale] + ") + (((" + diff + " * " + factor + ")" + times[scale] + round + ") >> 8))";
+    break;
+  case kTevMathFloat: {
+    const std::string f = vec ? "vec3" : "float", i = vec ? "ivec3" : "int";
+    rounded = i + "(floor(((" + f + "(" + a + ") * 256.0 + " + f + "(" + diff + ") * " + f + "(" + factor + "))" +
+              timesF[scale] + (scale != 3 ? (op ? " + 127.0" : " + 128.0") : "") + ") / 256.0))";
+    break;
+  }
+  case kTevMathBroken16: {
+    const std::string shifted = "(((" + a + " << 8) << 16) >> 16)";
+    const std::string lerp = "((" + shifted + " + " + diff + " * " + factor + ")" + left[scale] + ")";
+    rounded = "((" + lerp + round + ") >> 8)";
+    break;
+  }
+  default: {
+    const std::string lerp = "(((" + a + " << 8) + " + diff + " * " + factor + ")" + left[scale] + ")";
+    rounded = "((" + lerp + round + ") >> 8)";
+    break;
+  }
+  }
   return "((" + d + (op ? " - " : " + ") + rounded + ")" + right[scale] + ")";
 }
 
@@ -505,13 +541,35 @@ std::string GxFragmentShader(const ShaderKey &k) {
       else if (fsel == 7)
         out += "  fog = 1.0 - fog;\n  fog = exp2(-8.0 * fog * fog);\n";
       out += "  int ifog = int(round(fog * 256.0));\n";
-      out += "  prev.rgb = (prev.rgb * (256 - ifog) + ivec3(fogParam[1].xyz) * ifog) >> 8;\n";
+      if (gTevMath.load() == kTevMathShift || gTevMath.load() == kTevMathBroken16)
+        out += "  prev.rgb = (prev.rgb * (256 - ifog) + ivec3(fogParam[1].xyz) * ifog) >> 8;\n";
+      else // the same numbers without prev * 256 (SetTevMath)
+        out += "  prev.rgb += ((ivec3(fogParam[1].xyz) - prev.rgb) * ifog) >> 8;\n";
     }
   }
   out += "  oColor = vec4(prev) / 255.0;\n";
   // destination alpha (GXSetDstAlpha) when the renderer lets the shader write it
   out += "  if (alphaRef.z >= 0) oColor.a = float(alphaRef.z) / 255.0;\n}\n";
   return out;
+}
+
+void SetTevMath(int mode) { gTevMath = mode >= kTevMathShift && mode <= kTevMathBroken16 ? mode : kTevMathShift; }
+
+int GetTevMath() { return gTevMath.load(); }
+
+const char *TevMathName(int mode) {
+  switch (mode) {
+  case kTevMathShift:
+    return "the lerp as the hardware computes it";
+  case kTevMathNoShift:
+    return "the lerp without the shift by 8";
+  case kTevMathFloat:
+    return "the lerp in floats";
+  case kTevMathBroken16:
+    return "the lerp broken to 16 bits (test)";
+  default:
+    return "?";
+  }
 }
 
 } // namespace re4gx

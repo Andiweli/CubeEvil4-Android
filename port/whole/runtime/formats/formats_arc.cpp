@@ -26,6 +26,8 @@ const TagRule kTags[] = {
     { "EFF", convertEffect },
     { "TEX", convertTexSet },
     { "VIB", convertVibration },
+    // a message font inside an archive (etc/movie.das of the European discs: the movie subtitles)
+    { "FNT", convertFont },
     // models and motions
     { "BIN", convertBin },
     { "FCV", convertMotion },
@@ -54,6 +56,7 @@ const TagRule kTags[] = {
     { "DSE", convertDoorSe },
     { "STB", convertSoundInfo },
     { "RTP", convertRoute },
+    { "PTH", convertPathEntry },
     { "OSD", convertUnread },
     { "EMI", convertEmi },
     // the map screen's rooms (SS/cmn/map_objNN.dat, Sscrn ss_map.cpp)

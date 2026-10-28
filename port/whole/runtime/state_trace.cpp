@@ -31,11 +31,27 @@
 //                          place without steering there (r100: the first
 //                          house, where the s03 event starts);
 //                          "free+F:x,y,z,a" counts from the moment the player
-//                          is free (below)
+//                          is free (below); "[free+]F:area=N" puts him at the
+//                          centre of the room's trigger area N (SceAtPtr, the
+//                          number of the room script's SceAtDataSet_* calls),
+//                          facing 0: its event starts as if he walked in
+//   RE4_TEST_SCF="free+N:F[,F...]"  N frames after the player is free, the
+//                          scenario flags F (Scenario_flg, numbers as in
+//                          global.h) are set, as a room script sets them
+//                          (ScfFlagOn): a later state of the story without
+//                          playing there (the map's merchant marks, 10b)
 //   RE4_TEST_SOFT_RESET="free+N"  N frames after the player is free, the
 //                          soft reset of "game over" -> "no"; the log follows
 //                          the game steps afterwards ("run: after the soft
 //                          reset"), the title should come back
+//   RE4_TEST_STREAM="free+N:B:S"  N frames after the player is free, stream S
+//                          of stream block B starts as a room script starts it
+//                          (SndStrReq(B, S, 0x80000003): r226's statue camera
+//                          plays 0:0x16), for the sound checks (RE4_AUDIO_WAV)
+//   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
+//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money)
+//                          one a frame, as the app's menu presses them while the
+//                          game runs (runtime/cheats.cpp; the switches: RE4_CHEATS)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is
 //                          free in the room: main loop, no event and no sub
 //                          screen for 300 frames in a row ("run: player free"
@@ -83,21 +99,43 @@
 //                          when the player's routine changes while he holds
 //                          a weapon: the reload as played on the device
 //                          (test-core-app.ps1 -WeaponTrace)
+//   RE4_TEST_PLAYER=T      the debug start menu (RE4_START_ROOM, RE4_ROOM_MENU=1)
+//                          starts the room with player type T (title.cpp
+//                          titleDebugMenu line 0: 0 Leon, 1 Ashley, 2 Ada,
+//                          3 HUNK, 4 Krauser, 5 Wesker), as LEFT/RIGHT pick it
+//                          there: the character's archive and REL load as in
+//                          the game (Mercenaries with HUNK crashed, 27.10.2026)
+//   RE4_TEST_GAME_MODE=N   the same for the difficulty (game_mode: 3 Easy, 5 Normal,
+//                          6 Professional), as the debug start menu's line sets it; the
+//                          European title's choice (patch 0139) is skipped by a debug start
+//   RE4_TRACE_AT=1, RE4_TRACE_POS=N, RE4_TEST_PLACE2="N:x,y,z,a",
+//   RE4_TEST_AT_OFF="N,..", RE4_TEST_SMD_TRANS="ID=0|1,..", RE4_FLOOR_MAP,
+//   RE4_FLOOR_FILL         a room's trigger areas, doors and collision walls,
+//                          Leon's place, a second placement, areas or model
+//                          groups switched, floor / wall maps (the r20b
+//                          maze stairs, 28.10.2026; each at its code below)
 //
 // Always logged (the memory card, M10): the end of the boot card check with
 // the options then in force, and a save loaded from the card. Since
 // 21.10.2026 also the enemies and the menu cursor, one line per change (the
 // testers' error log, core-log.txt; enemyLog / menuLog below):
 //
-//   em: + s12 0x1a/3 set 5 hp 300 at (x y z) in r209    a work comes alive
+//   em: + s12 0x1a/3 list 5 set 0x24 f 0x00020000 hp 300 at (x y z) in r209    a work comes alive
+//       [its entry of the enemy list (emset_no), cEm::set and cEm::flag from the list: for
+//        Ganados f bit 0x20000 = dynamite in the hand, 0x2000 = at the waist, 0x10000 = endless]
 //   em: - s12 0x1a/3 hp 0 r 3/1/0/0 at (x y z) after 812 frames
 //   em: hit s12 0x1a/3 hp 300 -> 100 part 5 wep 0x10 r 1/16/0/0
 //       [Ganados, ids 0x10..0x1f: Be_flg, weapon kind, class, parasite core, cEm::flag]
 //   em: s12 r 2/4/0/0                       its routine, for 90 frames after a hit
 //   em: s12 head lost                       a Ganado's Be_flg bit 0x80 (em10LostHead)
+//   em: s12 at / leaves the dynamite post (list 247)   em10 R1 0x50 FixBomber (thrower)
+//   em: s12 lights a dynamite stick (2 so far)         its fuse (r_no_2 4), the first 5
 //   em: s12 hidden / shown                  be_flag bit1 (drawn)
 //   em: s12 jumps (x y z) -> (x y z)        more than 3000 in one frame
 //   em: s12 position is not a number, last at (x y z)
+//   em: s79 dynamite thrown by s27 at (x y z)       a weapon work (0x42) starts flying as dynamite
+//   em: s79 dynamite exploded at (x y z)           (emwep.cpp routine 9 BombThrow; setLost after
+//       [or "fell into the water", "stopped (routine N)"]    the blast, setFall in water)
 //   pad: menu frame N rep 0x.. stick (x y) c (x y)   the cursor moves in a sub screen
 //
 // Since 22.10.2026 Leon's side of a death (playerLog below) and the sub screen and hit lines
@@ -110,12 +148,16 @@
 #include "types.h"
 #include "em.h"
 #include "em10.h"
+#include "emwep.h"
 #include "global.h"
 #include "player.h"
 #include "cam_ctrl.h"
 #include "room_data.h"
 #include "sce_at.h"
 #include "snd_drv.h"
+#include "snd.h"
+#include "id_sys.h"
+#include "ss_main.h"
 #include "card.h"
 #include "main.h"
 #include "scheduler.h"
@@ -132,6 +174,12 @@
 #include "light.h"
 #include "dmg.h"
 #include "atari.h"
+#include "emdoor.h"
+#include "etc_model.h"
+#include "scroll.h"
+#include "area.h"
+#include "act_btn.h"
+#include "cockpit.h"
 #include <dolphin/os/OSAlloc.h>
 
 #include <math.h>
@@ -146,6 +194,41 @@ extern GLOBAL_WK* pG;
 extern cPlayer* pPL;
 extern cEmMgr EmMgr;
 
+// An id system ran full (runtime/log.cpp, "IDSystem::set() work full"): how many units of each class
+// IdSys, IdSub and IdNum hold, so a check sees which screen part took the room.
+extern "C" void re4_idsys_report(void)
+{
+    struct {
+        const char* name;
+        IDSystem* sys;
+    } all[] = {{"IdSys", &IdSys}, {"IdSub", &IdSub}, {"IdNum", &IdNum}};
+    for (auto& s : all) {
+        int max = *(const s32*) s.sys;  // m_maxId (private, the first word)
+        if (!s.sys->m_IdUnit || max <= 0 || max > 0x1000) {
+            continue;
+        }
+        unsigned count[256] = {};
+        int used = 0;
+        for (int i = 0; i < max; i++) {
+            if (s.sys->m_IdUnit[i].be_flag != 0xFF) {
+                count[s.sys->m_IdUnit[i].classNo]++;
+                used++;
+            }
+        }
+        char line[1024];
+        int n = snprintf(line, sizeof(line), "check: %s holds %d of %d units:", s.name, used, max);
+        for (int c = 0; c < 256 && n < (int) sizeof(line) - 16; c++) {
+            if (count[c]) {
+                n += snprintf(line + n, sizeof(line) - n, " class %d: %u", c, count[c]);
+            }
+        }
+        re4_log("%s", line);
+    }
+}
+
+extern "C" void re4_cheats_install(void);  // runtime/cheats.cpp
+extern "C" int re4_cheat_queue(int what);
+
 extern "C" void re4_set_frame_hook(void (*hook)(unsigned));
 extern "C" void re4_pad_script_stop(void);
 extern "C" void re4_pad_script_free(void);
@@ -156,6 +239,10 @@ extern "C" void re4_memcard_flush(int force);
 extern "C" unsigned re4_rnd_state(void);          // game/rnd.cpp (patch 0081)
 extern "C" unsigned re4_heap_fail_count(void);    // runtime/log.cpp (patch 0081)
 extern "C" void re4_gx_stats(unsigned out[11]);   // runtime/gx_decode.cpp
+extern "C" void re4_ai_set_block_hook(void (*hook)(void));  // runtime/ai.cpp
+extern u32 proc_tick[32];         // game/debug.cpp (patch 0108): ProcessTickGet of the last frame
+extern const char* proc_name[32];
+extern int proc_tick_idx_bak;
 extern "C" void re4_gx_stats2(unsigned out[9]);
 
 namespace {
@@ -396,6 +483,9 @@ bool g_place;
 bool g_placeFree;
 unsigned long g_placeFrame;
 float g_placePos[3], g_placeAng;
+int g_placeArea = -1;  // "area=N": the centre of trigger area N
+long g_scfAfter = -1;  // RE4_TEST_SCF
+int g_scf[8], g_scfCount;
 long g_roomStart = -1;  // frame the room started loading
 // The player is free: main loop, no event (STA_EVENT), no sub screen
 // (STA_SUB_SCRN) for kFreeFrames frames in a row (the opening event and the
@@ -412,11 +502,11 @@ unsigned long g_stopAfter;
 // db_menu.cpp) is open, debug_mode is left on: their lines are debug text.
 // The bars that come with it (DebugControl: process time bars at the left
 // edge, primitive buffer and heap bars, the pad monitor; ConfigSet switches
-// DBG_PROC_BAR and DBG_PAD_INFO on at boot) are switched off once, the first
-// frame they are on (wish of the project owner, 17.10.2026: only the text);
-// the flag editor of the tool menu can switch them on again.
+// DBG_PROC_BAR and DBG_PAD_INFO on at boot) are kept off, every frame (wish
+// of the project owner, 17.10.2026: only the text; 26.10.2026: the flickering
+// bars in the tool menu again, whatever switched them on).
 bool g_hideDebugHud;
-bool g_debugBarsOff;
+unsigned g_debugBarsOff;  // times they were found on and switched off
 unsigned long g_roomFrames;  // frames since the first main loop frame
 unsigned long g_loopFrames;  // of them in step 3
 // RE4_TEST_SOFT_RESET="free+N": N frames after the player is free, the soft
@@ -431,6 +521,12 @@ long g_saveAfter = -1;
 int g_saveBrightness = -1;
 bool g_saveOpened, g_saveStop, g_saveRunning;
 bool g_cardYes;              // RE4_TEST_CARD_YES
+int g_testPlayer = -1;       // RE4_TEST_PLAYER
+int g_testGameMode = -1;     // RE4_TEST_GAME_MODE
+long g_cheatAfter = -1;      // RE4_TEST_CHEATS
+int g_cheatActions[8], g_cheatCount;
+long g_streamAfter = -1;     // RE4_TEST_STREAM
+int g_streamBlock, g_streamNo;
 long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
 bool g_continueLeft;         // the room stopped running after the retry
@@ -520,6 +616,8 @@ std::atomic<unsigned> g_playerHits(0);  // re4_core_player_hits
 // frames (about a minute), so that a flood cannot push everything else out of core-log.txt
 // (2 x 4 MB): the late part of a long session counts as much as the start.
 const unsigned kSlots = 512, kFollowFrames = 90, kWindowFrames = 1800, kWindowLines = 1500, kMenuWindowLines = 600;
+// a Ganado's "stays back" line at most every 10 s, "follows again" after 3 s and more of it
+const unsigned kStayLineFrames = 300, kStayFollowFrames = 90;
 
 struct EnemySeen {
     bool alive;
@@ -533,6 +631,10 @@ struct EnemySeen {
     unsigned born;
     unsigned follow;    // frames left to log routine changes (after a hit)
     unsigned visLines;  // hidden / shown lines of this life
+    bool post;          // a Ganado at its dynamite thrower post (R1 0x50 FixBomber)
+    u8 fuses;           // fuses it lit (lines for the first 5)
+    unsigned stayFrom;  // a Ganado holding back (R1 0x1B Stay): the frame it began, and of its last line
+    unsigned stayLine;
 };
 
 EnemySeen g_seen[kSlots];
@@ -600,6 +702,54 @@ void enemyHit(unsigned slot, const cEm* e, const EnemySeen& was)
             (unsigned) e->r_no_3, ganado);
 }
 
+// A weapon work (0x42) starts or ends its flight as dynamite (cEmWep::setBombThrow sets routine 9,
+// the blast setLost routine 2, water setFall routine 4); the thrower's slot from pEm_old. Testers
+// missed the dynamite Ganados in r104 (22.10.2026): these lines show whether they throw.
+void dynamiteLine(unsigned slot, const cEm* e, const cEm* arr, u32 count, u32 stride)
+{
+    if (e->r_no_1 == 9) {
+        const u8* by = (const u8*) EMWEP_WK(e)->pEm_old;
+        char who[24] = "";
+        if (by >= (const u8*) arr && by < (const u8*) arr + count * stride &&
+            (u32) (by - (const u8*) arr) % stride == 0) {
+            snprintf(who, sizeof who, " by s%u", (unsigned) ((by - (const u8*) arr) / stride));
+        }
+        re4_log("em: s%u dynamite thrown%s at (%.0f %.0f %.0f)", slot, who, (double) e->pos.x, (double) e->pos.y,
+                (double) e->pos.z);
+        return;
+    }
+    char what[32];
+    if (e->r_no_1 == 2) {
+        snprintf(what, sizeof what, "exploded");
+    } else if (e->r_no_1 == 4) {
+        snprintf(what, sizeof what, "fell into the water");
+    } else {
+        snprintf(what, sizeof what, "stopped (routine %u)", (unsigned) e->r_no_1);
+    }
+    re4_log("em: s%u dynamite %s at (%.0f %.0f %.0f)", slot, what, (double) e->pos.x, (double) e->pos.y,
+            (double) e->pos.z);
+}
+
+// A Ganado begins to hold back (Stay): its distance to Leon, along the route, the Ganados nearer
+// to him on the route (em10StayCk's count), and Leon's distance from its guard post with the
+// guard radius.
+void stayLine(unsigned slot, const cEm* e, const cEm* arr, u32 count, u32 stride)
+{
+    const FREE_EM10* w = EM10_WK(e);
+    unsigned nearer = 0;
+    for (u32 k = 0; k < count; k++) {
+        cEm* o = (cEm*) ((const u8*) arr + k * stride);
+        if (o != e && o->isAlive() && o->id > 0xF && o->id <= 0x20 && o->hp > 0 && o->checkStatus(EM_STATUS_ACTIVE) &&
+            EM10_WK(o)->L_pl_route < w->L_pl_route) {
+            nearer++;
+        }
+    }
+    re4_log("em: s%u stays back (Stay): %.1f m from Leon, %.1f m on the route, %u Ganados nearer on the route; "
+            "Leon %.1f m from its post, guard radius %.1f m",
+            slot, sqrt((double) e->l_pl) / 1000.0, (double) w->L_pl_route / 1000.0, nearer,
+            (double) w->L_pl_guard / 1000.0, (double) e->Guard_r / 1000.0);
+}
+
 void enemyLog(unsigned n, GLOBAL_WK* g)
 {
     const cEm* arr = EmMgr.pArray;
@@ -635,15 +785,21 @@ void enemyLog(unsigned n, GLOBAL_WK* g)
         bool headLost = isGanado(e) && (EM10_WK(e)->Be_flg & 0x80);
         if (!s.alive) {
             if (enemyLine()) {
-                re4_log("em: + s%u 0x%02x/%u set %u hp %d at (%.0f %.0f %.0f) in r%03x%s", (unsigned) i,
-                        (unsigned) e->id, (unsigned) e->type, (unsigned) e->emset_no, (int) e->hp, (double) e->pos.x,
-                        (double) e->pos.y, (double) e->pos.z, (unsigned) g->room_id, shown ? "" : ", hidden");
+                re4_log("em: + s%u 0x%02x/%u list %u set 0x%02x f 0x%08x hp %d at (%.0f %.0f %.0f) in r%03x%s",
+                        (unsigned) i, (unsigned) e->id, (unsigned) e->type, (unsigned) e->emset_no, (unsigned) e->set,
+                        (unsigned) e->flag, (int) e->hp, (double) e->pos.x, (double) e->pos.y, (double) e->pos.z,
+                        (unsigned) g->room_id, shown ? "" : ", hidden");
             }
             memset(&s, 0, sizeof s);
             s.alive = true;
             s.born = n;
         } else {
-            if (e->hp != s.hp) {
+            // the throw sets hp 1, the blast hp 0: one dynamite line instead of a hit line
+            if (e->id == 0x42 && (e->r_no_1 == 9) != (s.r[1] == 9)) {
+                if (enemyLine()) {
+                    dynamiteLine(i, e, arr, count, stride);
+                }
+            } else if (e->hp != s.hp) {
                 if (enemyLine()) {
                     enemyHit(i, e, s);
                 }
@@ -656,6 +812,37 @@ void enemyLog(unsigned n, GLOBAL_WK* g)
             if (headLost && !s.headLost && enemyLine()) {
                 re4_log("em: s%u head lost", (unsigned) i);
             }
+            // the dynamite throwers (em10 R1 0x50 FixBomber, sets 0x24/0x25/0x2B): at the post,
+            // each fuse lit (r_no_2 4 before em10BombThrow), when they leave it (Guard_r)
+            const bool post = isGanado(e) && e->r_no_0 == 1 && e->r_no_1 == 0x50;
+            if (post != s.post && enemyLine()) {
+                re4_log("em: s%u %s the dynamite post (list %u)", (unsigned) i, post ? "at" : "leaves",
+                        (unsigned) e->emset_no);
+            }
+            // a Ganado holding back (em10 R1 0x1B Stay; em10StayCk lets the nearest few on the route
+            // attack and keeps the others waiting, and those whose guard area Leon left): when it
+            // begins, with what the rule weighs, and after how long it follows again (tester report
+            // 22.10.2026: "people stopped following, I stayed there, then I moved and they started
+            // following me again")
+            const bool stay = isGanado(e) && e->r_no_0 == 1 && e->r_no_1 == 0x1B;
+            const bool stayed = s.r[0] == 1 && s.r[1] == 0x1B;
+            if (stay && !stayed) {
+                s.stayFrom = n;
+                if ((!s.stayLine || n - s.stayLine >= kStayLineFrames) && enemyLine()) {
+                    s.stayLine = n;
+                    stayLine(i, e, arr, count, stride);
+                }
+            } else if (!stay && stayed && s.stayFrom && n - s.stayFrom >= kStayFollowFrames && enemyLine()) {
+                re4_log("em: s%u follows again after %.1f s (r %u/%u)", (unsigned) i, (n - s.stayFrom) / 30.0,
+                        (unsigned) e->r_no_0, (unsigned) e->r_no_1);
+            }
+            if (post && e->r_no_2 == 4 && s.r[2] != 4) {
+                s.fuses++;
+                if (s.fuses <= 5 && enemyLine()) {
+                    re4_log("em: s%u lights a dynamite stick (%u so far)", (unsigned) i, (unsigned) s.fuses);
+                }
+            }
+            s.post = post;
             if (shown != s.shown && s.visLines < 20 && enemyLine()) {
                 s.visLines++;
                 re4_log("em: s%u %s", (unsigned) i, shown ? "shown" : "hidden");
@@ -732,11 +919,45 @@ void playerLog(unsigned n, GLOBAL_WK* g)
         g_player.dying = false;
         g_player.lost = false;
         g_player.start = n;
-        re4_log("room: r%03x runs (frame %u), Leon at (%.0f %.0f %.0f) facing %.2f, life %d/%d, weapon 0x%02x%s",
+        re4_log("room: r%03x runs (frame %u), Leon at (%.0f %.0f %.0f) facing %.2f, life %d/%d, weapon 0x%02x, "
+                "game_mode %u, game_country %u%s",
                 (unsigned) g->room_id, n, (double) p.x, (double) p.y, (double) p.z, (double) pPL->ang.y,
-                (int) (s16) g->pl_life, (int) (s16) g->pl_life_max, (unsigned) g->weapon_no,
+                (int) (s16) g->pl_life, (int) (s16) g->pl_life_max, (unsigned) g->weapon_no, (unsigned) g->game_mode,
+                (unsigned) g->game_country,
                 g_player.died ? ", continue after a death" : "");
         g_player.died = false;
+        // RE4_TRACE_AT=1: the room's trigger areas (AEV records and those the room code made)
+        static const char* traceAt = getenv("RE4_TRACE_AT");
+        if (traceAt && *traceAt == '1') {
+            SCE_AT_DATA* w = sceAtSetOtStart();
+            while ((w = sceAtGetOtAddr(w)) != 0) {
+                const AREA_XZ4& a = w->area.xz4;
+                re4_log("at: no %u id %u be 0x%02x trg 0x%02x target 0x%02x area %u floor %.0f height %.0f "
+                        "points (%.0f %.0f) (%.0f %.0f) (%.0f %.0f) (%.0f %.0f)",
+                        (unsigned) w->no, (unsigned) w->id, (unsigned) w->be_flg, (unsigned) w->trg_type,
+                        (unsigned) w->target_type, (unsigned) w->area.type, (double) a.floor, (double) a.height,
+                        (double) a.p[0].x, (double) a.p[0].z, (double) a.p[1].x, (double) a.p[1].z, (double) a.p[2].x,
+                        (double) a.p[2].z, (double) a.p[3].x, (double) a.p[3].z);
+                if (w->id == SCEAT_ID_DOOR) {
+                    re4_log("at: no %u door to r%x%02x at (%.0f %.0f %.0f), key %u flag %u", (unsigned) w->no,
+                            (unsigned) w->door.next_stage_no, (unsigned) w->door.next_room_no,
+                            (double) w->door.next_pos.x, (double) w->door.next_pos.y, (double) w->door.next_pos.z,
+                            (unsigned) w->door.key_id, (unsigned) w->door.key_flg);
+                }
+                if (w->id == SCEAT_ID_SCR_AT) {
+                    re4_log("at: no %u collision: set %u, sat attr 0x%x, eat attr 0x%x, ctrl 0x%x, sat flag 0x%x",
+                            (unsigned) w->no, (unsigned) w->scr_at.set_flg, (unsigned) w->scr_at.sat_attr,
+                            (unsigned) w->scr_at.eat_attr, (unsigned) w->scr_at.ctrl_flag,
+                            (unsigned) w->scr_at.sat_flag);
+                }
+            }
+        }
+    }
+    // RE4_TRACE_POS=N: Leon's place every N frames (where a walk of a test script got to)
+    static const long tracePos = getenv("RE4_TRACE_POS") ? strtol(getenv("RE4_TRACE_POS"), 0, 10) : 0;
+    if (tracePos > 0 && (n - g_player.start) % (unsigned long) tracePos == 0) {
+        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f", (unsigned) g->room_id, n, (double) p.x,
+                (double) p.y, (double) p.z, (double) pPL->ang.y);
     }
     bool dying = StaFlagChk(g, STA_DIEDEMO) != 0;
     if (dying && !g_player.dying) {
@@ -780,6 +1001,99 @@ void playerLog(unsigned n, GLOBAL_WK* g)
     g_player.lost = lost;
 }
 
+// --- the sound driver's requests (patch 0107) ---
+//
+//   sound: up to N requests for one audio frame (bank of 256, the GameCube's 64): M audio frames
+//       over 64, K full, in r105
+//
+// Before each audio frame (ai.cpp re4_ai_set_block_hook) the requests pushed since the last one
+// wait in Snd_req_work[req_push_idx]. More than 64 would have filled the GameCube's bank, whose
+// full bank refuses a new sound without a word (suspected cause of the silent death cries in
+// busy fights, device test 22.10.2026 23:41). A line every 10 s while it happens.
+unsigned g_sndPeak, g_sndOver, g_sndFull, g_sndOverLogged, g_sndFullLogged;
+
+void sndBankLook()
+{
+    const int bank = Snd_ctrl_work.req_push_idx & 1;
+    unsigned used = 0;
+    for (int i = 0; i < SND_REQ_MAX; i++) {
+        used += Snd_req_work[bank][i].be_flag != 0;
+    }
+    g_sndPeak = used > g_sndPeak ? used : g_sndPeak;
+    g_sndOver += used > 64;
+    g_sndFull += used >= SND_REQ_MAX;
+}
+
+void sndLog(unsigned n, GLOBAL_WK* g)
+{
+    static bool hooked;
+    if (!hooked) {
+        hooked = true;
+        re4_ai_set_block_hook(sndBankLook);
+    }
+    if (n % 300 != 0) {
+        return;
+    }
+    if ((g_sndOver != g_sndOverLogged || g_sndFull != g_sndFullLogged) &&
+        g_runWindow.take(n, kRunWindowLines, "run")) {
+        re4_log("sound: up to %u requests for one audio frame (bank of %u, the GameCube's 64): %u audio frames over "
+                "64, %u full, in r%03x",
+                g_sndPeak, (unsigned) SND_REQ_MAX, g_sndOver, g_sndFull, (unsigned) g->room_id);
+        g_sndOverLogged = g_sndOver;
+        g_sndFullLogged = g_sndFull;
+    }
+    g_sndPeak = 0;
+}
+
+// --- the sections of a frame (patch 0108) ---
+//
+//   frame: 600 frames in r105: logic 6.1 ms, drawing 9.8 ms, rest 2.0 ms, frame end 1.2 ms,
+//       waiting 14.2 ms (averages; the longest frame 41.0 ms)
+//
+// The game's own timing (main.cpp ProcessTickGet, wall time from the frame's start): logic = the
+// task scheduler (Leon, enemies, effects, cameras, the room), drawing = IdSys, Trans (the models'
+// GX commands, which the port's graphics decoder converts at once) up to SndWatcher, rest = text,
+// the cinema bars and the ordering table (more GX commands), frame end = Render_done and the
+// checks, waiting = for the retrace (the frame's pace). Every 600 frames of play (wishes of the
+// project owner, 22.10.2026: where a weak device's time goes).
+struct FrameSections {
+    double logic, drawing, rest, end, waiting, longest;
+    unsigned frames;
+};
+FrameSections g_sections;
+
+void sectionLog(unsigned n, GLOBAL_WK* g)
+{
+    // the last frame's marks: 4 setup, 5 TaskScheduler, 6 SndWatcher, 2 CPU, 3 draw remain, 0 total
+    if (proc_tick_idx_bak != 2 || !proc_name[5] || !proc_name[6] || strcmp(proc_name[5], "TaskScheduler") != 0 ||
+        strcmp(proc_name[6], "SndWatcher") != 0 || g->Rno0 != 3) {
+        return;
+    }
+    const double ms = 1000.0 / (162000000.0 / 4);  // OSGetTick: the bus clock / 4
+    const u32* t = proc_tick;
+    if (!(t[4] <= t[5] && t[5] <= t[6] && t[6] <= t[2] && t[2] <= t[3] && t[3] <= t[0])) {
+        return;
+    }
+    FrameSections& s = g_sections;
+    s.logic += (t[5] - t[4]) * ms;
+    s.drawing += (t[6] - t[5]) * ms;
+    s.rest += (t[2] - t[6]) * ms;
+    s.end += (t[3] - t[2]) * ms;
+    s.waiting += (t[0] - t[3]) * ms;
+    s.longest = t[0] * ms > s.longest ? t[0] * ms : s.longest;
+    if (++s.frames < 600) {
+        return;
+    }
+    if (g_runWindow.take(n, kRunWindowLines, "run")) {
+        const double f = s.frames;
+        re4_log("frame: %u frames in r%03x: logic %.1f ms, drawing %.1f ms, rest %.1f ms, frame end %.1f ms, "
+                "waiting %.1f ms (averages; the longest frame %.1f ms)",
+                s.frames, (unsigned) g->room_id, s.logic / f, s.drawing / f, s.rest / f, s.end / f, s.waiting / f,
+                s.longest);
+    }
+    s = FrameSections();
+}
+
 void frame(unsigned n)
 {
     trace(n);
@@ -803,14 +1117,27 @@ void frame(unsigned n)
     if (g_cardYes && SysFlagChk(g, SYS_TYPEWRITER)) {
         cMes.SetCursor(0, 0);
     }
+    if (g_testPlayer >= 0 && re4_title_room_menu_open() && g->pl_type != g_testPlayer) {
+        g->pl_type = (u8) g_testPlayer;
+        g->pl_costume = 0;
+        re4_log("run: debug start with player type %d (RE4_TEST_PLAYER)", g_testPlayer);
+    }
+    if (g_testGameMode > 0 && re4_title_room_menu_open() && g->game_mode != g_testGameMode) {
+        g->game_mode = (u8) g_testGameMode;
+        re4_log("run: debug start with game_mode %d (RE4_TEST_GAME_MODE)", g_testGameMode);
+    }
     // the debug start menu (patch 0043) draws its lines with the debug text;
     // the tool menu (SELECT held in the app, patch 0061; db_menu.cpp DbMenuExec) sets its
     // own page and puts the old one back when it closes (DBG_TEST_MODE)
-    if (g_hideDebugHud && !g_debugBarsOff && (DbgFlagChk(g, DBG_PROC_BAR) || DbgFlagChk(g, DBG_PAD_INFO))) {
+    if (g_hideDebugHud && (DbgFlagChk(g, DBG_PROC_BAR) || DbgFlagChk(g, DBG_PAD_INFO))) {
         DbgFlagOff(g, DBG_PROC_BAR);
         DbgFlagOff(g, DBG_PAD_INFO);
-        g_debugBarsOff = true;
-        re4_log("run: the debug bars (process time, pad monitor) switched off (RE4_DEBUG_HUD=0)");
+        if (g_debugBarsOff++ == 0) {
+            re4_log("run: the debug bars (process time, pad monitor) switched off (RE4_DEBUG_HUD=0)");
+        } else if (g_debugBarsOff <= 10) {
+            re4_log("run: the debug bars were on again, switched off (r%03x, tool menu %s)", g->room_id,
+                    DbgFlagChk(g, DBG_TEST_MODE) ? "open" : "closed");
+        }
     }
     if (g_hideDebugHud && !DbgFlagChk(g, DBG_TEST_MODE)) {
         int page = re4_title_room_menu_open() ? 1 : 0;
@@ -839,6 +1166,8 @@ void frame(unsigned n)
         re4_log("run: sub screen %s at frame %u", sub ? "open" : "closed", n);
     }
     subOpen = sub;
+    sndLog(n, g);
+    sectionLog(n, g);
     enemyLog(n, g);
     menuLog(n, g);
     playerLog(n, g);
@@ -880,6 +1209,147 @@ void frame(unsigned n)
             re4_log("run: player free (no event, no sub screen for %u frames) at frame %u, %ld after the room start",
                     kFreeFrames, n, (long) n - g_roomStart);
             re4_pad_script_free();
+            // RE4_TEST_AT_OFF="N[,N...]": switch these trigger / collision areas off once the player is free
+            if (const char* off = getenv("RE4_TEST_AT_OFF")) {
+                for (const char* q = off; *q;) {
+                    char* end;
+                    long no = strtol(q, &end, 0);
+                    if (end == q) {
+                        break;
+                    }
+                    if (SceAtPtr((int) no)) {
+                        SceAtSetEnable((int) no, 0);
+                        re4_log("run: trigger area %ld switched off (RE4_TEST_AT_OFF)", no);
+                    }
+                    q = *end == ',' ? end + 1 : end;
+                }
+            }
+            // RE4_TEST_SMD_TRANS="ID=0|1[,...]": show / hide room model groups once the player is free
+            if (const char* smd = getenv("RE4_TEST_SMD_TRANS")) {
+                for (const char* q = smd; *q;) {
+                    char* end;
+                    long id = strtol(q, &end, 0);
+                    if (end == q || *end != '=') {
+                        break;
+                    }
+                    long on = strtol(end + 1, &end, 0);
+                    SmdSetTrans((u32) id, (int) on);
+                    re4_log("run: room model group 0x%lx set to %ld (RE4_TEST_SMD_TRANS)", id, on);
+                    q = *end == ',' ? end + 1 : end;
+                }
+            }
+            // RE4_TRACE_AT=1: the room's doors that open in place (cEmDoor) once the player is free
+            if (getenv("RE4_TRACE_AT")) {
+                for (int i = 0; i < 32; i++) {
+                    cEmDoor* door = 0;
+                    if (getRoomEtcDoor(i, &door, 0) && door) {
+                        re4_log("at: etc door %d at (%.0f %.0f %.0f) facing %.2f, flags 0x%x", i, (double) door->pos.x,
+                                (double) door->pos.y, (double) door->pos.z, (double) door->ang.y,
+                                (unsigned) EMDOOR_WK(door)->Be_flg);
+                    }
+                }
+            }
+            // RE4_FLOOR_MAP="x0,z0,x1,z1,step[,y]": the room's floor below y (default 12000) on a grid,
+            // one line per z row, heights in hundreds ("." nothing below), once the player is free
+            if (const char* map = getenv("RE4_FLOOR_MAP")) {
+                float x0, z0, x1, z1, step, top = 12000.0f;
+                if (sscanf(map, "%f,%f,%f,%f,%f,%f", &x0, &z0, &x1, &z1, &step, &top) >= 5 && step > 0) {
+                    for (float z = z1; z >= z0; z -= step) {
+                        char row[1024];
+                        int len = snprintf(row, sizeof(row), "floor: z %6.0f |", (double) z);
+                        for (float x = x0; x <= x1 && len < (int) sizeof(row) - 8; x += step) {
+                            Vec at = { x, top, z };
+                            f32 y = SatMgr.getFloor(&at, 0, 0.0f, 30000.0f, 0);
+                            len += y < -50000.0f ? snprintf(row + len, sizeof(row) - len, "   .")
+                                                 : snprintf(row + len, sizeof(row) - len, "%4.0f", (double) (y / 100.0f));
+                        }
+                        re4_log("%s", row);
+                    }
+                    // the walls 300 above that floor: "|" towards the next point in x, "-" in z, "+" both
+                    // (a line test hits both sides; the player's sphere only the front of a wall; with
+                    // RE4_FLOOR_EAT=1 the effect pieces)
+                    for (float z = z1; z >= z0; z -= step) {
+                        char row[1024];
+                        int len = snprintf(row, sizeof(row), "walls: z %6.0f |", (double) z);
+                        for (float x = x0; x <= x1 && len < (int) sizeof(row) - 2; x += step) {
+                            Vec at = { x, top, z };
+                            f32 y = SatMgr.getFloor(&at, 0, 0.0f, 30000.0f, 0) + 300.0f;
+                            Vec a = { x, y, z }, east = { x + step, y, z }, north = { x, y, z + step }, hit;
+                            cSatMgr& mgr = getenv("RE4_FLOOR_EAT") ? (cSatMgr&) EatMgr : SatMgr;
+                            bool e = mgr.hitCheck(&a, &east, &hit, 0, 0, 0) != 0;
+                            bool n = mgr.hitCheck(&a, &north, &hit, 0, 0, 0) != 0;
+                            row[len++] = e && n ? '+' : e ? '|' : n ? '-' : ' ';
+                            row[len] = 0;
+                        }
+                        re4_log("%s", row);
+                    }
+                }
+            }
+            // RE4_FLOOR_FILL="x0,z0,x1,z1,step[,area[,x,y,z]]": a rough guess which grid points Leon can
+            // walk to from where he stands or from x,y,z (walls counted from both sides; no wall between neighbours 300 above the floor, steps below 400); "o"
+            // reachable, "." floor not reachable, "A"/"a" the same inside trigger area `area`
+            if (const char* fill = getenv("RE4_FLOOR_FILL")) {
+                float x0, z0, x1, z1, step;
+                int areaNo = -1;
+                float from[3] = { pPL->pos.x, pPL->pos.y, pPL->pos.z };
+                // the C heap, not the game's operator new (its own heap); once per run, kept
+                static float* fillY = (float*) malloc(0x10000 * sizeof(float));
+                static char* seen = (char*) malloc(0x10000);
+                static int* todo = (int*) malloc(0x10000 * sizeof(int));
+                int todoNum = 0;
+                if (fillY && seen && todo && sscanf(fill, "%f,%f,%f,%f,%f,%d,%f,%f,%f", &x0, &z0, &x1, &z1, &step, &areaNo, &from[0], &from[1],
+                           &from[2]) >= 5 &&
+                    step > 0 &&
+                    ((int) ((x1 - x0) / step) + 1) * ((int) ((z1 - z0) / step) + 1) <= 0x10000 &&
+                    (int) ((x1 - x0) / step) + 1 < 1000) {
+                    const int nx = (int) ((x1 - x0) / step) + 1, nz = (int) ((z1 - z0) / step) + 1;
+                    memset(seen, 0, 0x10000);
+                    int sx = (int) ((from[0] - x0) / step + 0.5f), sz = (int) ((from[2] - z0) / step + 0.5f);
+                    if (sx >= 0 && sx < nx && sz >= 0 && sz < nz) {
+                        fillY[(size_t) sz * nx + sx] = from[1];
+                        seen[(size_t) sz * nx + sx] = 1;
+                        todo[todoNum++] = sz * nx + sx;
+                    }
+                    while (todoNum > 0) {
+                        int c = todo[--todoNum];
+                        int cx = c % nx, cz = c / nx;
+                        float cf = fillY[c];
+                        static const int kDir[4][2] = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+                        for (const auto& d : kDir) {
+                            int ox = cx + d[0], oz = cz + d[1];
+                            if (ox < 0 || ox >= nx || oz < 0 || oz >= nz || seen[(size_t) oz * nx + ox]) {
+                                continue;
+                            }
+                            Vec at = { x0 + ox * step, cf + 600.0f, z0 + oz * step };
+                            f32 of = SatMgr.getFloor(&at, 0, 0.0f, 1000.0f, 0);
+                            if (of < -50000.0f || fabsf(of - cf) > 400.0f) {
+                                continue;
+                            }
+                            Vec a = { x0 + cx * step, cf + 300.0f, z0 + cz * step }, b = { at.x, of + 300.0f, at.z }, hit;
+                            if (SatMgr.hitCheck(&a, &b, &hit, 0, 0, 0) != 0) {
+                                continue;
+                            }
+                            fillY[(size_t) oz * nx + ox] = of;
+                            seen[(size_t) oz * nx + ox] = 1;
+                            todo[todoNum++] = oz * nx + ox;
+                        }
+                    }
+                    SCE_AT_DATA* area = areaNo >= 0 ? SceAtPtr(areaNo) : 0;
+                    for (int z = nz - 1; z >= 0; z--) {
+                        char row[1024];
+                        for (int x = 0; x < nx; x++) {
+                            Vec at = { x0 + x * step, 12000.0f, z0 + z * step };
+                            bool reach = seen[(size_t) z * nx + x] != 0;
+                            f32 top = reach ? fillY[(size_t) z * nx + x] : SatMgr.getFloor(&at, 0, 0.0f, 30000.0f, 0);
+                            at.y = top + 10.0f;
+                            bool in = area && top > -50000.0f && AreaHitCheck(&area->area, &at);
+                            row[x] = reach ? (in ? 'A' : 'o') : top < -50000.0f ? ' ' : (in ? 'a' : '.');
+                        }
+                        row[nx] = 0;
+                        re4_log("fill: z %6.0f |%s", (double) (z0 + z * step), row);
+                    }
+                }
+            }
         }
     }
     long placeBase = g_placeFree ? g_freeAt : g_roomStart;
@@ -887,10 +1357,41 @@ void frame(unsigned n)
         g_place = false;
         Vec pos = { g_placePos[0], g_placePos[1], g_placePos[2] };
         Vec ang = { 0.0f, g_placeAng, 0.0f };
+        if (g_placeArea >= 0) {
+            SCE_AT_DATA* at = SceAtPtr(g_placeArea);
+            if (at) {
+                AreaGetCenterPos(&pos, &at->area);
+            } else {
+                re4_log("run: RE4_TEST_PLACE: room r%03x has no trigger area %d", (unsigned) g->room_id,
+                        g_placeArea);
+            }
+        }
         pPL->setPos(&pos);
         pPL->setAng(&ang);
         re4_log("run: player placed at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
                 (double) pos.z, (double) g_placeAng, n);
+    }
+    // RE4_TEST_PLACE2="N:x,y,z,a": a second placement at frame N (after an event the first one started)
+    static const char* place2 = getenv("RE4_TEST_PLACE2");
+    static unsigned long place2Frame;
+    static float place2Pos[4];
+    static bool place2Ok = place2 && sscanf(place2, "%lu:%f,%f,%f,%f", &place2Frame, &place2Pos[0], &place2Pos[1],
+                                            &place2Pos[2], &place2Pos[3]) == 5;
+    if (place2Ok && n >= place2Frame && live(pPL) && g->Rno0 == 3 && !StaFlagChk(g, STA_EVENT)) {
+        place2Ok = false;
+        Vec pos = { place2Pos[0], place2Pos[1], place2Pos[2] };
+        Vec ang = { 0.0f, place2Pos[3], 0.0f };
+        pPL->setPos(&pos);
+        pPL->setAng(&ang);
+        re4_log("run: player placed again at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
+                (double) pos.z, (double) place2Pos[3], n);
+    }
+    if (g_scfAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_scfAfter && g->Rno0 == 3) {
+        g_scfAfter = -1;
+        for (int i = 0; i < g_scfCount; i++) {
+            ScfFlagOn(g, g_scf[i]);
+            re4_log("run: scenario flag %d set (RE4_TEST_SCF) at frame %u", g_scf[i], n);
+        }
     }
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
         g->Rno0 == 3 && live(pPL) && TaskStatus(2) == 0) {
@@ -952,6 +1453,17 @@ void frame(unsigned n)
         g_resetStep = g->Rno0;
         SysFlagOn(g, SYS_SOFT_RESET);
         re4_log("run: soft reset requested (RE4_TEST_SOFT_RESET) at frame %u, step %u", n, (unsigned) g->Rno0);
+    }
+    if (g_cheatAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_cheatAfter &&
+        (long) n < g_freeAt + g_cheatAfter + g_cheatCount) {
+        int what = g_cheatActions[n - (g_freeAt + g_cheatAfter)];
+        re4_log("run: cheat button %d (RE4_TEST_CHEATS) at frame %u", what, n);
+        re4_cheat_queue(what);
+    }
+    if (g_streamAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_streamAfter) {
+        u32 id = SndStrReq(g_streamBlock, g_streamNo, (int) 0x80000003, 0, 0, 0.0f);
+        re4_log("run: stream %d:0x%x started (RE4_TEST_STREAM) at frame %u: id %u", g_streamBlock, g_streamNo, n,
+                (unsigned) id);
     }
     if (g_resetAt >= 0 && g->Rno0 != g_resetStep && g_resetSteps < 16) {
         g_resetStep = g->Rno0;
@@ -1061,9 +1573,18 @@ void configure()
     if (place && *place) {
         g_placeFree = strncmp(place, "free+", 5) == 0;
         g_place = sscanf(place + (g_placeFree ? 5 : 0), "%lu:%f,%f,%f,%f", &g_placeFrame, &g_placePos[0],
-                         &g_placePos[1], &g_placePos[2], &g_placeAng) == 5;
+                         &g_placePos[1], &g_placePos[2], &g_placeAng) == 5 ||
+                  sscanf(place + (g_placeFree ? 5 : 0), "%lu:area=%d", &g_placeFrame, &g_placeArea) == 2;
         if (!g_place) {
-            re4_log("run: RE4_TEST_PLACE \"%s\" not understood ([free+]F:x,y,z,a)", place);
+            re4_log("run: RE4_TEST_PLACE \"%s\" not understood ([free+]F:x,y,z,a or [free+]F:area=N)", place);
+        }
+    }
+    const char* scf = getenv("RE4_TEST_SCF");
+    if (scf && strncmp(scf, "free+", 5) == 0) {
+        char* p = 0;
+        g_scfAfter = strtol(scf + 5, &p, 10);
+        while (p && (*p == ':' || *p == ',') && g_scfCount < 8) {
+            g_scf[g_scfCount++] = (int) strtol(p + 1, &p, 10);
         }
     }
     const char* reset = getenv("RE4_TEST_SOFT_RESET");
@@ -1078,6 +1599,23 @@ void configure()
             g_saveBrightness = (int) strtol(end + 1, &end, 0);
         }
         g_saveStop = end && strstr(end, ",stop") != 0;
+    }
+    // the cheat menu's switches and buttons in every game frame (runtime/cheats.cpp)
+    re4_cheats_install();
+    const char* cheats = getenv("RE4_TEST_CHEATS");
+    if (cheats && strncmp(cheats, "free+", 5) == 0) {
+        char* end = 0;
+        g_cheatAfter = strtol(cheats + 5, &end, 10);
+        g_cheatCount = 0;
+        while (end && *end && g_cheatCount < 8) {
+            g_cheatActions[g_cheatCount++] = (int) strtol(end + 1, &end, 10);
+        }
+    }
+    const char* stream = getenv("RE4_TEST_STREAM");
+    if (stream && strncmp(stream, "free+", 5) == 0 &&
+        sscanf(stream + 5, "%ld:%i:%i", &g_streamAfter, &g_streamBlock, &g_streamNo) != 3) {
+        re4_log("run: RE4_TEST_STREAM \"%s\" not understood (free+N:B:S)", stream);
+        g_streamAfter = -1;
     }
     const char* retry = getenv("RE4_TEST_CONTINUE");
     if (retry && strncmp(retry, "free+", 5) == 0) {
@@ -1112,6 +1650,13 @@ void configure()
     g_hideDebugHud = hud && *hud == '0';
     // (always: the memory card lines)
     (void) freeScript;
+    const char* player = getenv("RE4_TEST_PLAYER");
+    g_testPlayer = player && *player ? (int) strtol(player, 0, 0) : -1;
+    if (g_testPlayer > 5) {
+        g_testPlayer = -1;
+    }
+    const char* gameMode = getenv("RE4_TEST_GAME_MODE");
+    g_testGameMode = gameMode && *gameMode ? (int) strtol(gameMode, 0, 0) : -1;
     re4_set_frame_hook(frame);
 }
 
@@ -1139,6 +1684,53 @@ extern "C" long re4_trace_free_at(void)
 {
     return g_freeAt;
 }
+
+// One frame's sections into the averages (runtime test "sections", game_probe.cpp).
+extern "C" void re4_trace_sections(unsigned n)
+{
+    if (live(pG)) {
+        sectionLog(n, pG);
+    }
+}
+
+// The sound request count before an audio frame and its counters (peak, over 64, full), for the
+// runtime test "sndbank" (game_probe.cpp re4probe_snd_bank); `reset` clears them first.
+extern "C" void re4_trace_snd_look(int reset, unsigned out[3])
+{
+    if (reset) {
+        g_sndPeak = g_sndOver = g_sndFull = 0;
+    }
+    sndBankLook();
+    out[0] = g_sndPeak;
+    out[1] = g_sndOver;
+    out[2] = g_sndFull;
+}
+
+// The game shows a menu or a button prompt (runtime/pad.cpp: bit 4 of re4_core_rumble): no room's
+// main loop (the title and its menus, loading, the room set-up), a sub screen open (inventory,
+// map, files, merchant, options, radio, typewriter), or the action button's prompt (game/act_btn.cpp:
+// "A Open", the quick-time events "A+B", "L+R", "A" again and again ...; the cockpit's icon,
+// Cckpt.m_ActBttn, as runtime/qte_touch.cpp reads it). The app's own controller bindings apply only
+// outside (wishes of the project owner, 27.10.2026: the menus keep the default layout, and a prompt's
+// button is the one it shows).
+extern "C" int re4_game_menu_open(void)
+{
+    GLOBAL_WK* g = pG;
+    if (!live(g)) {
+        return 1;
+    }
+    if (g->Rno0 != 3 || StaFlagChk(g, STA_SUB_SCRN) != 0) {
+        return 1;
+    }
+    const u8 shown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    return shown != DISP_OFF && ActBtn.isActive() ? 2 : 0;
+}
+
+// handed to the platform layer when this library loads (runtime/pad.cpp)
+extern "C" void re4_pad_menu_probe(int (*probe)(void));
+static struct MenuProbeInstall {
+    MenuProbeInstall() { re4_pad_menu_probe(re4_game_menu_open); }
+} gMenuProbeInstall;
 
 // The enemy and menu lines of one frame on their own (runtime test "enemylog", game_probe.cpp).
 extern "C" void re4_state_trace_enemy_frame(unsigned n)

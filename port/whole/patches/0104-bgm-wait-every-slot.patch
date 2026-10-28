@@ -1,0 +1,30 @@
+# The elevator after Saddler (r332 -> r331, SCV40 tester, 0.43.0, 22.10.2026): OSPanic in
+# snd_seq2.cpp "SND SEQ data error : 07 63 00" 20 ms after "BGM0 seq 2 play" in r331. At a room
+# change nextRoomBgmCheck asks both BGM slots that still play to fade out (stop_req) and resets
+# the BGM bank area: the next room's banks are placed from mram_base_addr_bgm /
+# aram_base_addr_bgm down again, over the banks of the room before (r332: BGM1 at MRAM
+# 0x8039a180..0x8039c400, ARAM 0x5f60c0..; r331's BGM0 at 0x8039af80..0x8039d200, ARAM
+# 0x664680..). SndRoomBgmLoad waited only for the slot it loads: after Saddler's event BGM 0 had
+# already stopped, BGM 1 was still fading, the new bank overwrote its sequence and samples and
+# BGM 1's sequencer read the new bytes as MIDI. On the way through r331/r332 without the event
+# both slots played, the wait for slot 0 covered slot 1 (0.42.1 log 19:54: BGM 1 stopped 1 s
+# before BGM 0). The port reads a room in a few milliseconds where the disc took much longer, so
+# the fade is still running. SndRoomBgmLoad now waits until no BGM slot is fading (after patch
+# 0059, which delivers the AX interrupt in that loop).
+--- a/src/game/snd.cpp
++++ b/src/game/snd.cpp
+@@ -1708,7 +1708,13 @@
+         u16 b = (u16) (pSnd->room_bgm_tbl[0] >> (i * 16));
+         if (b & 0x8000) {
+             BGM_STAT* w = &pSnd->bgm_state[i];
+-            while (w->stop_req != 0) {
++            /* PORT (patch 0104): the new bank goes where the previous room's banks were (both
++               slots, from mram_base_addr_bgm / aram_base_addr_bgm down), so wait for every
++               fading BGM, not only this slot's: in r332 after Saddler's event BGM 0 had stopped
++               and BGM 1 was still fading when the elevator's room change reached r331; its
++               sequencer read the new bank's bytes ("SND SEQ data error : 07 63 00", OSPanic,
++               SCV40 tester 22.10.2026). The port loads a room in a fraction of the disc's time. */
++            while (pSnd->bgm_state[0].stop_req != 0 || pSnd->bgm_state[1].stop_req != 0) {
+                 SndWatcher();
+                 /* port: the fade that ends the stop request runs in the AX
+                    interrupt, delivered while the CPU waits (runtime/vi.cpp) */

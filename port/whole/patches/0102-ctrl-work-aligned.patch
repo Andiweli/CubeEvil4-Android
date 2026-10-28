@@ -1,0 +1,25 @@
+# cCtrl (the small per-room helper objects of game/ctrl.cpp, sizeof 0x214) keeps its per-type work
+# at offset 0x13, so every work (CTRL11_WK, CTRL12_FREE, CTRL14_FREE, light.cpp LightCtrlWork,
+# ctrl01's s32) starts at an odd address. The GameCube's lwz/stw take that; on armv7 clang may join
+# two word accesses to such a struct into strd/ldrd (or use ldm/stm, vldr/vstr), which need 4-byte
+# alignment: GetCtrlDragon (r222, the castle hall with the dragon head statues) stored pDragon[3/4]
+# with strd at c+0x1F and the armhf room tour (22.10.2026, qemu-arm) ended with SIGBUS. A 64-bit
+# kernel does not fix such an access up for a 32-bit app before Linux 6.1, so the 32-bit core on
+# the devices crashes the same way. No disc data or save holds a cCtrl; the port moves the work
+# one byte later (pad 7 bytes, the object stays 0x214), aligned on every target.
+--- a/include/ctrl.h
++++ b/include/ctrl.h
+@@ -13,8 +13,11 @@ class cModel;
+ class cCtrl : public cUnit {
+ public:
+     u8 Id;                  // 0x0C  construct id (light: 1 = electric power path control)
+-    u8 pad_D[6];
+-    u8 work[0x214 - 0x13];  // 0x13  per-type work area
++    /* PORT (patch 0102): the work area one byte later, at 0x14 (the original has it at 0x13, the
++       size stays 0x214): the per-type works hold words and pointers, and armv7 needs strd, ldrd,
++       ldm, stm, vldr and vstr 4-byte aligned (SIGBUS in r222, GetCtrlDragon) */
++    u8 pad_D[7];
++    u8 work[0x214 - 0x14];  // 0x14  per-type work area
+
+     virtual ~cCtrl() {}
+     virtual void move();

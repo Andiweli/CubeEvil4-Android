@@ -71,10 +71,19 @@ enum Re4GxOp {
     /* payload 256 words: all BP registers (the start of a RESET chunk), no
      * side effects. */
     RE4_GX_OP_BP_STATE = 7,
+    /* payload 4 words (patch 0137, port/docs/60fps-plan.md): the game object whose draws follow,
+     * until the next OWNER. ExecOt (src/game/trans_ot.cpp) sends one before each entry of an
+     * ordering table: [0] the entry's data (the object: a figure, a room part, a particle cEsp ...),
+     * [1] its function, [2] the table (0..22; 0xFF: after the table, no object), [3] for a particle
+     * its effect id << 16 | life frames (cEsp::m_Id, m_Life_time; a slot the game used anew has
+     * another id or fewer frames), else 0xFFFFFFFF. The same object in two pictures is the same
+     * thing, whatever its draws look like (a flame's next texture). A renderer that does not know
+     * the op skips it by its length. */
+    RE4_GX_OP_OWNER = 8,
     /* payload RE4_GX_COMPACT_ATTRS words: the vertex format of the draws with
      * RE4_GX_V_COMPACT that follow, until the next such op (only with
-     * RE4_GX_COMPACT=1, see Re4GxCompactAttr). */
-    RE4_GX_OP_COMPACT_FORMAT = 8
+     * RE4_GX_COMPACT=1, the OUYA branch; see Re4GxCompactAttrIndex). */
+    RE4_GX_OP_COMPACT_FORMAT = 9
 };
 
 /* Primitive classes (Re4GxDraw.primitive bits 0-7). Quads, strips and fans
@@ -192,9 +201,14 @@ enum Re4GxChunkFlags {
                                      picture before */
     RE4_GX_CHUNK_MARK = 1u << 3,  /* the core marked it (re4_gx_mark: a hit on the
                                      player); the chunk after it starts over */
-    RE4_GX_CHUNK_BLACK = 1u << 4  /* the VI shows black (VISetBlack): run it, show
+    RE4_GX_CHUNK_BLACK = 1u << 4, /* the VI shows black (VISetBlack): run it, show
                                      black instead of its picture until a chunk
                                      without the flag */
+    RE4_GX_CHUNK_STILL = 1u << 5  /* a menu screen of the game (a sub screen, the
+                                     memory card screens; re4_gx_still): no
+                                     picture between it and the one before (the
+                                     app's 60 FPS; its text lists scroll, the
+                                     letters cannot be told apart) */
 };
 
 typedef struct Re4GxChunk {

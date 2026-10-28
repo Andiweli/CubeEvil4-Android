@@ -2,7 +2,7 @@
 
 # CubeEvil4
 
-![Work in progress](https://img.shields.io/badge/Status-Work%20in%20progress-E67E22)
+![Beta](https://img.shields.io/badge/Status-Beta-E67E22)
 ![Android 6.0+](https://img.shields.io/badge/Android-6.0%2B-3DDC84?logo=android&logoColor=white)
 ![ARM 32/64-bit](https://img.shields.io/badge/ARM-32%2F64--bit-0091BD?logo=arm&logoColor=white)
 ![OpenGL ES 3.0+](https://img.shields.io/badge/OpenGL%20ES-3.0%2B-5586A4?logo=opengl&logoColor=white)
@@ -11,17 +11,26 @@
 [![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
 [![Support via PayPal](https://img.shields.io/badge/Support%20via-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/andiweli)
 
-**[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [ALPHA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
+**[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
 **CubeEvil4** is an unofficial, native Android port of the GameCube debug build of Resident Evil 4
 (`G4BE08`, the "Nov 25 2004" prototype on two discs). It does not recreate the game: the app runs
-the original game code, compiled from the complete decompilation in this repository for ARM. It is
-not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware, and it contains no game
-data: you need your own images of both debug discs.
+the original game code, compiled from the complete decompilation in this repository for ARM.
+Since v0.92.0 it also plays the **European retail release** (`G4BP08`, two discs) in English,
+German, French, Spanish and Italian; the code stays the debug build's, with small patches where the
+retail data needs them. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
+and it contains no game data: you need your own images of both discs of one of the two releases.
 
 <!--
 <p align="center"><img src="port/android-decomp/app/src/main/res/drawable-nodpi/icon_cubeevil4.png" width="160" alt="CubeEvil4 icon"></p>
 -->
+
+## Reviews
+
+- [Gamesworld Channel](https://www.youtube.com/watch?v=PvpjyH123YI) (Youtube)  
+- [EightiesJapan's Channel](https://www.youtube.com/shorts/afU4VWHp1uQ) (Youtube)  
+- [Android Gamer's Channel](https://www.youtube.com/watch?v=m-XGtGydIVg) (Youtube)  
+
 
 ## What the app does
 
@@ -33,11 +42,15 @@ data: you need your own images of both debug discs.
   anisotropic filtering and depth of field.
 - Sound: the original SDK sound libraries with an emulated DSP; movies through the original CRI
   middleware with picture and ADX sound.
+- Two releases: the debug build (`G4BE08`) and the European retail release (`G4BP08`) with its five
+  languages, chosen in the app menu (default: your phone's language). Both use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube).
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
-  aiming with the right stick); touch controls when no controller is connected; gyro aiming.
-  SELECT opens the app menu (graphics, controls, memory card, error report); holding SELECT
-  opens the game's own debug menu.
+  aiming with the right stick); touch controls when no controller is connected, with touch in the
+  inventory; comfort controls: gyro aiming, knife by swipe, latching L, R and B; with a controller,
+  X, Y, L1, R1, L3 and R3 can take other functions (Controller Configuration).
+  SELECT opens the app menu (graphics, controls, cheats, memory card, error report); with the
+  debug build, holding SELECT opens the game's own debug menu.
 - Android 6.0 or later, OpenGL ES 3.0.
 
 ## Requirements
@@ -51,7 +64,7 @@ data: you need your own images of both debug discs.
 | Free storage | about 3 GB, to import both discs | – |
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
-| Game data | your own disc images (ISO or GCM) of **both** discs of the GameCube debug build from November 25, 2004 (`G4BE08`) | – |
+| Game data | your own disc images (ISO or GCM) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`) or the European retail release (`G4BP08`) | – |
 
 > [!NOTE]
 > **32-bit-only devices:** some of them cannot start the game. One with Android 14 showed
@@ -61,24 +74,29 @@ data: you need your own images of both debug discs.
 
 ## Status
 
-Work in progress.  
+Beta: the whole game can be played from start to finish.  
 Tested on the following devices:
 - Retroid Pocket Flip 2 (Android 13)
 - POCO X7 Pro (Android 16)
+- Samsung Galaxy S10 (SCV40, Android 10): played from the village to the end credits
 
-32 and 64 bit: title, opening movie, the police car ride and the village of chapter 1; saving at
-the typewriter and loading on 32- and 64-bit devices. Testers have played on to the church (its
-light puzzle works since v0.38.2). On the PC, a comparison run plays the 32- and 64-bit core
+Played through on a 64-bit phone: title, movies, every chapter up to the jet ski ride and the end
+credits; saving at the typewriter and loading on 32- and 64-bit devices. With the European discs,
+the first chapters were played in German on the Retroid, boss fights included. On the PC, a tour
+starts each of the game's 126 rooms without a crash, with the debug discs and with the European
+discs, and a comparison run plays the 32- and 64-bit core
 with the same input through the first parts and finds every frame and every compared picture
-identical. Later chapters have not been played through yet; that is the next step (a tour of
-many rooms). Progress, test results and every patch are recorded in
-`port/docs/whole-program-status.md` (German).
+identical. An effect can stutter briefly the first time it appears while its shader is built; the
+app prepares the 9006 shaders it knows ahead (village, lake, castle, much of the island), the
+rest follows from testers' reports. Progress, test results and every patch are
+recorded in `port/docs/whole-program-status.md` (German).
 
 > [!IMPORTANT]
-> The game is the debug build, and its debug menu is still switched on for the test runs: holding
+> With the debug discs, the game's debug menu is still switched on for the test runs: holding
 SELECT opens it (rooms are chosen there). Use the debug menu with care: it is
 the developers' internal tool from 2004, and some of its options can hang or crash the game or
 leave the game (and a save made afterwards) in an odd state. Such problems come from the debug build itself, not from the port.
+With the European discs there is no debug menu; the app menu has cheats instead (Management).
 
 ## How to use?
 
@@ -90,13 +108,15 @@ leave the game (and a save made afterwards) in an odd state. Such problems come 
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
   Controls: Auto, Force or Suppress).
 - Your own disc images (ISO or GCM) of **both** discs of the GameCube debug build from
-  November 25, 2004 (`G4BE08`), and enough free storage to import them.
+  November 25, 2004 (`G4BE08`) or of the European retail release (`G4BP08`), and enough free
+  storage to import them. Both discs must be of the same release.
 
 **First start**
 
 1. Install the APK and open **CubeEvil4**.
 2. Choose **Import Disc 1** and **Import Disc 2** and pick the image files. The game starts only
-   once both discs are imported.
+   once both discs are imported. The import checks every file against the original disc and
+   reports a damaged image right away.
 3. Choose **Start game**. If your controller's face buttons are labelled the other way round,
    tick "Swap A/B and X/Y" on the start screen.
 
@@ -105,13 +125,17 @@ leave the game (and a save made afterwards) in an odd state. Such problems come 
 - **Press SELECT** (with touch controls: **MENU**): the app menu, in your phone's language where
   there is a translation (English otherwise; Arabic, Chinese (simplified), French, German, Hindi,
   Italian, Portuguese, Russian and Spanish so far; on Android 13 and later also per app under
-  Settings → Apps → CubeEvil4 → Language): graphics (resolution, anti-aliasing, texture filter,
-  16:9 or 4:3 picture, FPS display, depth of field), controls (touch controls Auto, Force or
-  Suppress, Latch L and R; comfort controls: Alternate Controls, gyro aiming), memory card (export
+  Settings → Apps → CubeEvil4 → Language); with the European discs also the game language
+  (a change restarts the game); graphics (resolution Dynamic or 1×–4× in half steps,
+  anti-aliasing, texture filter, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, FPS
+  display, 60 FPS (experimental), Force Performance: Default or Use performance cores), controls (touch controls Auto, Force or Suppress; comfort
+  controls: Alternate Controls, gyro aiming with its sensitivity and inversion, knife by swipe,
+  Latch L and R, Latch B; Controller Configuration), cheats (infinite health, infinite ammo,
+  one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export
   and import saves as `.gci` for Dolphin and the GameCube) and the error log (send or save a
-  report). B returns to the game.
-- **Hold SELECT for a second:** the game's own debug menu (use with care, see Status: some of
-  its options can break the game in ways the port has nothing to do with).
+  report; R3 = graphics capture). B returns to the game.
+- **Hold SELECT for a second** (debug discs only): the game's own debug menu (use with care, see
+  Status: some of its options can break the game in ways the port has nothing to do with).
 
 **Buttons**
 
@@ -126,10 +150,34 @@ leave the game (and a save made afterwards) in an odd state. Such problems come 
 | L2 | L | knife | ready weapon (aim) |
 | R1 | Z | map | inventory (weapons and recovery) |
 | L1 | – | | ready the knife |
-| SELECT | – | app menu (hold: debug menu) | as before |
+| SELECT | – | app menu (hold: debug menu, debug discs only) | as before |
+| R3 | – | graphics capture for error reports (only when "R3 = Graphics capture" is on) | as before |
 
-Alternate Controls is a switch in the app menu (Controls). With gyro aiming switched on, turning
-the device left, right, up or down moves the aim while you aim a gun.
+**Controller Configuration** (app menu → Controls, with a controller connected): X, Y, L1, R1, L3
+and R3 can each take any function or none; A, B, L2, R2, START, SELECT and the D-pad keep theirs, so
+the game's button prompts and menus always match. Giving Ashley, the inventory or the map to
+another button swaps the two buttons. With Alternate Controls on, their own layout applies.
+
+**Touch controls**
+
+On screen: A, B, X, Y, Z, L, R, START, MENU (= SELECT), the D-pad, a move stick and a look zone
+(the C stick). App menu → Touch Controls: **Auto** (shown without a controller; a tap on the
+screen shows them, a button hides them), **Force** (always shown) or **Suppress** (hidden while a
+controller is connected). In the inventory you can tap items, files and the map, and swipe left or
+right to change the tab. When a quick-time prompt flashes up (L+R, A+B, mash A …), a tap on it (or
+anywhere on the picture) presses its buttons; tap again and again to mash. The editor (gear) can
+add an **R3** button (graphics capture for error reports, as on a controller).
+
+**Comfort controls** (app menu → Controls)
+
+- **Alternate Controls:** the second layout of the table above.
+- **Gyro aiming:** turning the device left, right, up or down moves the aim while you aim a gun,
+  look through a scope or aim the harpoon in the boat at the lake; a slider sets the sensitivity.
+- **Knife by swipe:** a quick swipe across the picture draws the knife and slashes; swipe upward
+  or downward to slash high or low.
+- **Latch L and R** and **Latch B:** one press (button or touch) holds L, R or B until the next
+  press, on the touch controls and on a controller (R latched: Leon keeps the weapon ready; B
+  latched: Leon keeps running).
 
 The controller (or the device) vibrates where the game uses the rumble, if it can.
 
@@ -145,7 +193,7 @@ No disc images or game files ever go into the repository.
 2. Open `port/android-decomp` in Android Studio, choose the build variant **coreRelease** and
    build a signed APK (Build → Generate Signed App Bundle or APK).
 3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO or GCM of the debug
-   build).
+   build or of the European retail release).
 
 `port/scripts/test-core-app.ps1` builds, installs and tests the app on a device in one go;
 `port/tools/whole_build.sh` and `port/tools/whole_r100_check.sh` check the core on Linux.

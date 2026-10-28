@@ -647,6 +647,16 @@ void re4ipc_gyro(float yaw, float pitch)
     ring(c->inputBell);
 }
 
+void re4ipc_gx_depth(const unsigned* cells, unsigned serial)
+{
+    Control* c = control();
+    if (!c || !c->depthOffset) {
+        return;
+    }
+    memcpy((char*) c + c->depthOffset, cells, 320 * 264 * sizeof(uint32_t));
+    c->depthSerial.store(serial, std::memory_order_release);
+}
+
 // the sound's way through the core process, for the log (every 2000 reads)
 unsigned gAudioReads, gAudioWaits, gAudioShort, gAudioWaitMax;
 
@@ -894,6 +904,16 @@ int re4ipc_pause(int on, int waitMs)
     return call(kPause, on, waitMs, 0, nullptr, 0, (waitMs > 0 ? waitMs : 0) + 5000, &r) ? r.header.a : 0;
 }
 
+int re4ipc_instant(int operation, Re4InstantInfo* info)
+{
+    memset(info, 0, sizeof(*info));
+    Reply r;
+    if (!call(kInstant, operation, 0, 0, nullptr, 0, 30000, &r)) return RE4_INSTANT_IO;
+    if (r.dataBytes() != sizeof(*info)) return RE4_INSTANT_BAD;
+    memcpy(info, r.data(), sizeof(*info));
+    return r.header.a;
+}
+
 void re4ipc_debug_menu(void)
 {
     post(kDebugMenu, 0, 0, 0);
@@ -902,6 +922,67 @@ void re4ipc_debug_menu(void)
 void re4ipc_set_dof(int on)
 {
     post(kSetDof, on, 0, 0);
+}
+
+void re4ipc_set_letterbox(int off)
+{
+    post(kSetLetterbox, off, 0, 0);
+}
+
+void re4ipc_set_fast_cores(int on)
+{
+    post(kSetFastCores, on, 0, 0);
+}
+
+void re4ipc_restart_game(int language)
+{
+    post(kRestartGame, language, 0, 0);
+}
+
+// The core process's first unreadable disc file; kept once known (it does not change)
+const char* re4ipc_disc_problem(void)
+{
+    static char copy[768];
+    static std::mutex copyLock;
+    std::lock_guard<std::mutex> l(copyLock);
+    if (!copy[0]) {
+        Reply r;
+        if (call(kDiscProblem, 0, 0, 0, nullptr, 0, 1000, &r)) {
+            snprintf(copy, sizeof(copy), "%s", r.text());
+        }
+    }
+    return copy;
+}
+
+void re4ipc_set_cheats(int bits)
+{
+    post(kSetCheats, bits, 0, 0);
+}
+
+int re4ipc_cheat_action(int what)
+{
+    Reply r;
+    return call(kCheatAction, what, 0, 0, nullptr, 0, 5000, &r) ? r.header.a : 0;
+}
+
+void re4ipc_swipe(int dir)
+{
+    post(kSwipe, dir, 0, 0);
+}
+
+void re4ipc_slash(float tilt)
+{
+    int32_t a;
+    memcpy(&a, &tilt, 4);
+    post(kSlash, a, 0, 0);
+}
+
+void re4ipc_touch(float u, float v)
+{
+    int32_t a, b;
+    memcpy(&a, &u, 4);
+    memcpy(&b, &v, 4);
+    post(kTouch, a, b, 0);
 }
 
 int re4ipc_card_list(Re4CardFile* out, int max)

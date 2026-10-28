@@ -203,7 +203,7 @@ uniform float roomScale;
 uniform sampler2D image, alphaImage, sceneImage;
 uniform float alphaReference, materialAlpha, refractPower, refractRatio;
 uniform vec2 uvOffset, viewport;
-uniform int liquid, textureAlpha, refract;
+uniform int liquid, textureAlpha, refractOn;
 void main() {
   vec2 st=texcoord+uvOffset;
   vec4 c=unlit!=0?vec4(1):(vertexColors!=0 || roomLightingEnabled!=0)?rasterColor:vec4(1);
@@ -222,7 +222,7 @@ void main() {
       if(floor(a*255.0+.5)<=alphaReference)discard;
       color.a=a;
     }
-    if(refract!=0) {
+    if(refractOn!=0) {
       // GLES adapter of RefractShaderSetup type 2. The source matrix columns
       // use indirect texture A/B/G with signed offsets; room power is /512.
       vec3 ind=t.abg-vec3(128.0/255.0);
@@ -903,7 +903,7 @@ void DrawSceneGl(int w, int h, float horizontal, float vertical, float zoom,
                   fragment ? fragment->color[3]
                     : liquid ? water->colorAlpha / 255.f : 1.f);
       glUniform1i(
-          glGetUniformLocation(program, "refract"),
+          glGetUniformLocation(program, "refractOn"),
           liquid && water->shader == 2 && screenImage && !normalView ? 1 : 0);
       glUniform1f(glGetUniformLocation(program, "refractPower"),
                   liquid ? water->refractPower / 512.f : 0.f);
@@ -1238,7 +1238,7 @@ void DrawSceneGl(int w, int h, float horizontal, float vertical, float zoom,
                        GL_FALSE, identity3);
     glUniform1i(glGetUniformLocation(program, "background"), 0);
     glUniform1i(glGetUniformLocation(program, "liquid"), 0);
-    glUniform1i(glGetUniformLocation(program, "refract"), 0);
+    glUniform1i(glGetUniformLocation(program, "refractOn"), 0);
     glUniform1i(glGetUniformLocation(program,"unlit"),0);
     glUniform1f(glGetUniformLocation(program, "materialAlpha"), 1);
     if (probe && !event) {

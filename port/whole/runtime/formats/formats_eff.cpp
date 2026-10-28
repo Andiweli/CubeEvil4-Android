@@ -145,6 +145,16 @@ void convertSeqTable(Blob& b, u32 o)
     }
 }
 
+void reportOnce(bool& done, const char* what, const char* where)
+{
+    if (!done) {
+        done = true;
+        re4_log("formats: %s (first in %s): no converter yet, left big-endian", what, where);
+    }
+}
+
+}  // namespace
+
 // path.cpp Path: u16 count, then PATH_UNIT records (floats and bytes).
 void convertPath(Blob& b, u32 o)
 {
@@ -161,15 +171,13 @@ void convertPath(Blob& b, u32 o)
     }
 }
 
-void reportOnce(bool& done, const char* what, const char* where)
+// PTH, a room archive entry: one Path (r333's jet ski rail, pl0e.cpp cPl0e::setRail; em36's).
+// Without it the ride read big-endian floats: the ski and the camera at (0 0 0), then at 2e28,
+// most of the ending's picture gone (SCV40 report 23.10.2026 10:31).
+void convertPathEntry(Blob& b, const Part&)
 {
-    if (!done) {
-        done = true;
-        re4_log("formats: %s (first in %s): no converter yet, left big-endian", what, where);
-    }
+    convertPath(b, 0);
 }
-
-}  // namespace
 
 void convertEffect(Blob& b, const Part&)
 {

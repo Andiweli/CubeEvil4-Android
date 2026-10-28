@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Lay out the G4BE08 disc files for the whole-program port (runtime/dvd.cpp).
+"""Lay out the disc files for the whole-program port (runtime/dvd.cpp): the debug
+build (G4BE08) or the European release (G4BP08, port/docs/retail-eu-plan.md).
 
 The port reads the disc from a folder, one subfolder per disc, in the layout
 Dolphin's "Extract Entire Disc" writes:
@@ -16,9 +17,13 @@ Sources, reusing the earlier port's import (port/tools/original_import):
     whole_disc_folder.py --store STORE --out DIR
         materialises a private store written by import_original.py
         (manifest.json + blobs/<sha256>, every blob checked against its hash);
-    whole_disc_folder.py --check DIR
+    whole_disc_folder.py --check DIR [--disc IMAGE ...]
         verifies an existing folder (also one extracted with Dolphin): every
-        FST file present with its FST size.
+        FST file present with its FST size; with images also that the folder
+        holds exactly these discs (header and FST), not another release.
+
+Both discs of a folder come from the same release (disc_release.py); a debug
+disc next to a European one is refused.
 
 Disc data is never written into the repository; --out must lie outside it.
 """
@@ -32,10 +37,10 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from disc_release import SUPPORTED, release  # noqa: E402
 from original_import.gcm import Disc, parse_fst  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-GAME_ID = "G4BE08"
 
 
 def outside_repository(path: Path) -> Path:
@@ -74,17 +79,30 @@ def copy_span(image: Path, offset: int, size: int, target: Path) -> None:
     os.replace(tmp, target)
 
 
+def one_release(named: list) -> str:
+    """The release of (name, boot.bin) pairs; exits on an unsupported one or a mix."""
+    kinds = {}
+    for name, boot in named:
+        kind = release(boot)
+        if kind not in SUPPORTED:
+            sys.exit(f"{name}: game id {boot[:6].decode('ascii', 'replace')} ({kind}), "
+                     f"the port needs G4BE08 (debug build) or G4BP08 (European release)")
+        kinds.setdefault(kind, name)
+    if len(kinds) > 1:
+        sys.exit("discs of different releases: " + ", ".join(f"{n} is {k}" for k, n in kinds.items()))
+    return next(iter(kinds))
+
+
 def from_images(images: list, out: Path) -> None:
     seen = set()
-    for image in images:
-        disc = Disc(image)  # bounded checks of header, DOL and FST
-        game_id, number = disc.info["game_id"], disc.info["disc_number"]
-        if game_id != GAME_ID:
-            sys.exit(f"{image}: game id {game_id}, the port needs {GAME_ID}")
+    discs = [Disc(image) for image in images]  # bounded checks of header, DOL and FST
+    kind = one_release([(str(d.path), d.header) for d in discs])
+    for disc in discs:
+        image, number = disc.path, disc.info["disc_number"]
         if number in seen:
             sys.exit(f"{image}: disc {number + 1} given twice")
         seen.add(number)
-        if not disc.info["build_date_evidence"]:
+        if kind == "debug" and not disc.info["build_date_evidence"]:
             print(f"warning: {image}: main.dol carries no 'Nov 25 2004' build date; "
                   f"the port's code matches the debug build of that date", file=sys.stderr)
         base = out / f"disc{number}"
@@ -112,10 +130,10 @@ def blob(store: Path, digest: str) -> bytes:
 
 def from_store(store: Path, out: Path) -> None:
     manifest = json.loads((store / "manifest.json").read_text())
+    one_release([(f"store disc {d['disc_number'] + 1}", blob(store, d["system_blobs"]["boot"]))
+                 for d in manifest["discs"]])
     for disc in manifest["discs"]:
         number = disc["disc_number"]
-        if disc["game_id"] != GAME_ID:
-            sys.exit(f"store disc {number + 1}: game id {disc['game_id']}")
         base = out / f"disc{number}"
         names = {"boot": "boot.bin", "bi2": "bi2.bin", "apploader": "apploader.img",
                  "dol": "main.dol", "fst": "fst.bin"}
@@ -132,9 +150,20 @@ def from_store(store: Path, out: Path) -> None:
         print(f"disc {number + 1}: {len(files)} files -> {base}")
 
 
-def check(out: Path) -> int:
+def check(out: Path, images: list = ()) -> int:
     bases = [out / d for d in ("disc0", "disc1") if (out / d).is_dir()] or [out]
     problems = 0
+    kind = one_release([(str(b), (b / "sys" / "boot.bin").read_bytes()) for b in bases])
+    for image in images:
+        disc = Disc(image)
+        base = out / f"disc{disc.info['disc_number']}"
+        if not base.is_dir():
+            print(f"missing: {base} (disc {disc.info['disc_number'] + 1} of {image})")
+            problems += 1
+        elif ((base / "sys" / "boot.bin").read_bytes() != disc.header or
+              (base / "sys" / "fst.bin").read_bytes() != disc.fst):
+            print(f"other disc: {base} was not laid out from {image}")
+            problems += 1
     for base in bases:
         fst = (base / "sys" / "fst.bin").read_bytes()
         boot = (base / "sys" / "boot.bin").read_bytes()
@@ -148,21 +177,22 @@ def check(out: Path) -> int:
             elif path.stat().st_size != e["size"]:
                 print(f"size differs: {path} ({path.stat().st_size}, FST {e['size']})")
                 problems += 1
-        print(f"{base}: {boot[:6].decode('ascii', 'replace')} disc {boot[6] + 1}, "
+        print(f"{base}: {boot[:6].decode('ascii', 'replace')} ({kind}) disc {boot[6] + 1}, "
               f"{len(files)} files, {problems} problems")
     return 1 if problems else 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("--disc", action="append", type=Path, help="GameCube disc image (.iso/.gcm), once per disc")
-    src.add_argument("--store", type=Path, help="private store of import_original.py")
-    src.add_argument("--check", type=Path, help="verify an existing disc folder")
+    ap.add_argument("--disc", action="append", type=Path, help="GameCube disc image (.iso/.gcm), once per disc")
+    ap.add_argument("--store", type=Path, help="private store of import_original.py")
+    ap.add_argument("--check", type=Path, help="verify an existing disc folder (with --disc: made from these)")
     ap.add_argument("--out", type=Path, help="target folder (outside the repository)")
     args = ap.parse_args()
+    if not args.check and bool(args.disc) == bool(args.store):
+        ap.error("give --disc images or --store (or --check)")
     if args.check:
-        return check(args.check)
+        return check(args.check, args.disc or ())
     if not args.out:
         ap.error("--out is required")
     out = outside_repository(args.out)

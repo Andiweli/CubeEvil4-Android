@@ -20,7 +20,6 @@
 #include "gx_internal.h"
 #include "re4_runtime.h"
 
-#include <atomic>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -52,28 +51,23 @@ bool linked()
 const u32 kAliasBase = 0x03000000;
 const u32 kAliasWindow = 0x00100000;
 const int kAliasSlots = 16;
-// host address of each window, 0 = free: written by the game's thread, read
-// also by the GP thread (gx_thread.cpp)
-std::atomic<uintptr_t> gAlias[kAliasSlots];
-
-inline uintptr_t alias(int s)
-{
-    return gAlias[s].load(std::memory_order_relaxed);
-}
+uintptr_t gAlias[kAliasSlots];  // host address of each window, 0 = free
 bool gAliasFullLogged;
+uint32_t gAliasGeneration;      // windows given out (re4gx::aliasGeneration)
 
 u32 aliasOf(uintptr_t pointer)
 {
     uintptr_t window = pointer & ~(uintptr_t) (kAliasWindow - 1);
     for (int s = 0; s < kAliasSlots; s++) {
-        if (alias(s) == window) {
+        if (gAlias[s] == window) {
             return kAliasBase + (u32) s * kAliasWindow + (u32) (pointer - window);
         }
     }
     for (int s = 0; s + 1 < kAliasSlots; s += 2) {
-        if (alias(s) == 0 && alias(s + 1) == 0) {
-            gAlias[s + 1].store(window + kAliasWindow, std::memory_order_relaxed);
-            gAlias[s].store(window, std::memory_order_relaxed);
+        if (gAlias[s] == 0 && gAlias[s + 1] == 0) {
+            gAlias[s] = window;
+            gAlias[s + 1] = window + kAliasWindow;
+            gAliasGeneration++;
             return kAliasBase + (u32) s * kAliasWindow + (u32) (pointer - window);
         }
     }
@@ -90,11 +84,12 @@ u32 gPiSet = 0xFFFFFFFF;  // PI write pointer as this file last wrote it
 u32 gWrite;               // byte-exact physical write position
 bool gOverflow;
 
-// out of line: put()'s path to the GP stays a few instructions
-__attribute__((noinline)) void toMemory(const u8* bytes, int n)
+void toMemory(const u8* bytes, int n)
 {
     if (gPi[5] != gPiSet) {
-        // the library attached another FIFO (GXSetCPUFifo): start at its pointer
+        // the library attached another FIFO (GXSetCPUFifo): start at its pointer (a list may be
+        // recorded over one the vertex jobs still read)
+        re4gx::finishJobs();
         gWrite = gPi[5] & 0x03FFFFE0;
         gOverflow = false;
     }
@@ -114,17 +109,10 @@ __attribute__((noinline)) void toMemory(const u8* bytes, int n)
     gPiSet = gPi[5];
 }
 
-// inlined into each re4_gx_put_*: `n` is then known and the copy into the GP
-// thread's ring a plain store (not inlined, a memcpy call of the C library for
-// every value: the OUYA, 21.10.2026)
-__attribute__((always_inline)) inline void put(const u8* bytes, int n)
+void put(const u8* bytes, int n)
 {
     if (linked()) {
-        if (re4gx::gThreaded) {
-            re4gx::ringPut(bytes, (size_t) n);
-        } else {
-            re4gx::feed(bytes, (size_t) n);
-        }
+        re4gx::feed(bytes, (size_t) n);
     } else {
         toMemory(bytes, n);
     }
@@ -132,10 +120,9 @@ __attribute__((always_inline)) inline void put(const u8* bytes, int n)
 
 // --- the PE -------------------------------------------------------------------
 
-// raised by the GP (the GP thread, gx_thread.cpp), taken by the game's thread
-std::atomic<bool> gPendingFinish{false};
-std::atomic<bool> gPendingToken{false};
-std::atomic<u16> gToken{0};
+bool gPendingFinish;
+bool gPendingToken;
+u16 gToken;
 bool gDelivering;
 
 }  // namespace
@@ -153,19 +140,24 @@ uint8_t* memory(uint32_t physical, uint32_t size)
     if (physical >= kAliasBase && physical < kAliasBase + kAliasSlots * kAliasWindow) {
         u32 s = (physical - kAliasBase) / kAliasWindow;
         u32 offset = (physical - kAliasBase) % kAliasWindow;
-        if (alias(s) == 0) {
+        if (gAlias[s] == 0) {
             return nullptr;
         }
         u32 available = kAliasWindow - offset;
-        if (s + 1 < kAliasSlots && alias(s + 1) == alias(s) + kAliasWindow) {
+        if (s + 1 < kAliasSlots && gAlias[s + 1] == gAlias[s] + kAliasWindow) {
             available += kAliasWindow;
         }
         if (size > available) {
             return nullptr;
         }
-        return (uint8_t*) (alias(s) + offset);
+        return (uint8_t*) (gAlias[s] + offset);
     }
     return nullptr;
+}
+
+uint32_t aliasGeneration()
+{
+    return gAliasGeneration;
 }
 
 uint8_t* memorySpan(uint32_t physical, uint32_t* available)
@@ -178,15 +170,15 @@ uint8_t* memorySpan(uint32_t physical, uint32_t* available)
     if (physical >= kAliasBase && physical < kAliasBase + kAliasSlots * kAliasWindow) {
         u32 s = (physical - kAliasBase) / kAliasWindow;
         u32 offset = (physical - kAliasBase) % kAliasWindow;
-        if (alias(s) == 0) {
+        if (gAlias[s] == 0) {
             return nullptr;
         }
         u32 span = kAliasWindow - offset;
-        if (s + 1 < kAliasSlots && alias(s + 1) == alias(s) + kAliasWindow) {
+        if (s + 1 < kAliasSlots && gAlias[s + 1] == gAlias[s] + kAliasWindow) {
             span += kAliasWindow;
         }
         *available = span;
-        return (uint8_t*) (alias(s) + offset);
+        return (uint8_t*) (gAlias[s] + offset);
     }
     return nullptr;
 }
@@ -208,10 +200,7 @@ uint8_t* listMemory(uint32_t address, uint32_t size)
         return nullptr;
     }
     const uint8_t* list = (const uint8_t*) (uintptr_t) address;
-    // on the GP thread (gx_thread.cpp) only the game's libraries: the check of
-    // the threads' stacks belongs to the game's thread
-    int (*valid)(const void*) = re4gx::gThreaded ? re4_game_library_ptr : re4_valid_port_ptr;
-    if (!valid(list) || !valid(list + size - 1)) {
+    if (!re4_valid_port_ptr(list) || !re4_valid_port_ptr(list + size - 1)) {
         return nullptr;
     }
     return (uint8_t*) list;
@@ -219,28 +208,17 @@ uint8_t* listMemory(uint32_t address, uint32_t size)
 
 void peFinish()
 {
-    gPendingFinish.store(true);
-    if (gThreaded) {
-        raised();
-    }
+    gPendingFinish = true;
 }
 
 void peToken(uint16_t token, bool interrupt)
 {
     if (interrupt) {
-        gToken.store(token);
-        gPendingToken.store(true);
-        if (gThreaded) {
-            raised();
-        }
+        gToken = token;
+        gPendingToken = true;
     } else {
-        __atomic_store_n(&gPe[7], token, __ATOMIC_RELAXED);  // the GP thread: the game may read it meanwhile
+        gPe[7] = token;
     }
-}
-
-bool interruptPending()
-{
-    return gPendingFinish.load() || gPendingToken.load();
 }
 
 }  // namespace re4gx
@@ -264,33 +242,37 @@ void re4_gx_put_u32(unsigned int v)
     put(b, 4);
 }
 
-// each with a put() of its own: one call less for every value the game puts
-// (a call between exported functions goes through the PLT)
+// The owner of the draws that follow (re4_gx_frame.h RE4_GX_OP_OWNER, patch 0137): a command of
+// the port, byte 0x02 (the GameCube's command processor has none), and four words.
+void re4_gx_put_owner(unsigned int object, unsigned int function, unsigned int table, unsigned int life)
+{
+    re4_gx_put_u8(0x02);
+    re4_gx_put_u32(object);
+    re4_gx_put_u32(function);
+    re4_gx_put_u32(table);
+    re4_gx_put_u32(life);
+}
+
 void re4_gx_put_s8(signed char v)
 {
-    const u8 b = (u8) v;
-    put(&b, 1);
+    re4_gx_put_u8((unsigned char) v);
 }
 
 void re4_gx_put_s16(short v)
 {
-    const u8 b[2] = {(u8) ((u16) v >> 8), (u8) v};
-    put(b, 2);
+    re4_gx_put_u16((unsigned short) v);
 }
 
 void re4_gx_put_s32(int v)
 {
-    const u32 u = (u32) v;
-    const u8 b[4] = {(u8) (u >> 24), (u8) (u >> 16), (u8) (u >> 8), (u8) u};
-    put(b, 4);
+    re4_gx_put_u32((unsigned int) v);
 }
 
 void re4_gx_put_f32(float v)
 {
-    u32 u;
-    memcpy(&u, &v, 4);
-    const u8 b[4] = {(u8) (u >> 24), (u8) (u >> 16), (u8) (u >> 8), (u8) u};
-    put(b, 4);
+    u32 bits;
+    memcpy(&bits, &v, 4);
+    re4_gx_put_u32(bits);
 }
 
 void* re4_gx_register_block(unsigned int paddr)
@@ -330,27 +312,115 @@ void* re4_gx_cached(unsigned int physical)
     return (void*) (uintptr_t) (RE4_MEM1_BASE + physical);
 }
 
-unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z)
-{
-    (void) x;
-    (void) y;
-    return z ? 0x00FFFFFF : 0;  // depth far, colour black
-}
+}  // extern "C"
 
 namespace {
+// The depth map GXPeekZ answers from (re4_gx_frame.h, BP 0x5B). The core thread reads single cells
+// while the renderer's thread writes the next map over them: a cell is one word, a mix of two
+// pictures' cells is harmless.
+unsigned int gDepthOwn[RE4_GX_DEPTH_W * RE4_GX_DEPTH_H];
+unsigned int gDepthOwnSerial;
+const unsigned int* gDepthCells = gDepthOwn;
+const unsigned int* gDepthSerial = &gDepthOwnSerial;
+// The pictures by number (24 bits, never 0): the marker carries the number of the picture that peeked,
+// and the renderer hands its map over with that number. Counting markers against maps instead drifted
+// apart with every map the renderer left out (the GPU behind, a renderer made anew when the resolution
+// changed): after 8 the answer stayed "far" for good, the glow shone through walls again (Retroid,
+// 26.10.2026).
+unsigned int gPeekPicture = 1;
+bool gPeekMarked;           // this picture has its marker
+bool gPeekStaleCounted;     // this picture counted in gPeekStaleRun
+unsigned int gPeekStaleRun; // pictures in a row that peeked without a fresh map
+unsigned int gPeekMarkers, gPeekAnswered, gPeekFar, gPeekHidden;
+// a map at most this many pictures old answers (the renderer hands it over a picture or two later)
+const unsigned int kPeekFresh = 8;
+// a renderer that hands over no fresh map for this many peeking pictures in a row (2 s) does not
+// deliver any more: "far" as without maps
+const unsigned int kPeekGiveUp = 60;
+}  // namespace
 
-void deliverRaised()
+extern "C" {
+
+void re4_gx_depth_put(const unsigned int* cells, unsigned int serial)
 {
-    if (gPendingToken.exchange(false)) {
-        gPe[7] = gToken.load();
-        re4_os_hw_interrupt(0x12);  // __OS_INTERRUPT_PI_PE_TOKEN
-    }
-    if (gPendingFinish.exchange(false)) {
-        re4_os_hw_interrupt(0x13);  // __OS_INTERRUPT_PI_PE_FINISH
+    memcpy(gDepthOwn, cells, sizeof(gDepthOwn));
+    __atomic_store_n(&gDepthOwnSerial, serial, __ATOMIC_RELEASE);
+}
+
+void re4_gx_depth_source(const unsigned int* cells, const unsigned int* serial)
+{
+    gDepthCells = cells ? cells : gDepthOwn;
+    gDepthSerial = serial ? serial : &gDepthOwnSerial;
+}
+
+void re4_gx_peek_new_frame(void)
+{
+    gPeekMarked = false;
+    gPeekStaleCounted = false;
+    gPeekPicture = (gPeekPicture + 1) & 0x00FFFFFF;
+    if (gPeekPicture == 0) {
+        gPeekPicture = 1;
     }
 }
 
-}  // namespace
+unsigned int re4_gx_peek_picture(void)
+{
+    return gPeekPicture;
+}
+
+void re4_gx_peek_stats(unsigned int* answered, unsigned int* far, unsigned int* marked)
+{
+    *answered = gPeekAnswered;
+    *far = gPeekFar;
+    *marked = gPeekMarkers;
+}
+
+unsigned int re4_gx_peek_hidden(void)
+{
+    return gPeekHidden;
+}
+
+unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z)
+{
+    if (!z) {
+        return 0;  // colour: black
+    }
+    // the first depth peek of a picture asks the renderer for the picture's depth: a marker in the
+    // stream, a BP register the GameCube does not have (like 0x5A, the autofocus's), with the picture's
+    // number
+    if (!gPeekMarked) {
+        gPeekMarked = true;
+        gPeekMarkers++;
+        re4_gx_put_u8(0x61);
+        re4_gx_put_u32(0x5Bu << 24 | gPeekPicture);
+    }
+    const unsigned int serial = __atomic_load_n(gDepthSerial, __ATOMIC_ACQUIRE) & 0x00FFFFFF;
+    if (serial == 0) {
+        gPeekFar++;
+        return 0x00FFFFFF;  // no map (a renderer without them): depth far, nothing in front, as before
+    }
+    const unsigned int age = (gPeekPicture - serial) & 0x00FFFFFF;
+    if (age > kPeekFresh) {
+        // the map is of an older view (the peeks start when a torch comes into view: the last map is
+        // from when one was seen before): in front, the glow waits for the map of this view a picture
+        // or two later instead of flashing through the wall
+        if (!gPeekStaleCounted) {
+            gPeekStaleCounted = true;
+            gPeekStaleRun++;
+        }
+        if (gPeekStaleRun > kPeekGiveUp) {
+            gPeekFar++;
+            return 0x00FFFFFF;
+        }
+        gPeekHidden++;
+        return 0;
+    }
+    gPeekStaleRun = 0;
+    const unsigned cx = (x >= RE4_GX_DEPTH_W * 2 ? RE4_GX_DEPTH_W * 2 - 1 : x) >> 1;
+    const unsigned cy = (y >= RE4_GX_DEPTH_H * 2 ? RE4_GX_DEPTH_H * 2 - 1 : y) >> 1;
+    gPeekAnswered++;
+    return gDepthCells[cy * RE4_GX_DEPTH_W + cx] & 0x00FFFFFF;
+}
 
 void re4_gx_deliver_interrupts(void)
 {
@@ -358,31 +428,16 @@ void re4_gx_deliver_interrupts(void)
         return;
     }
     gDelivering = true;
-    // the GP catches up first: on the game's thread what has arrived, on the GP
-    // thread (gx_thread.cpp) everything sent so far
-    if (re4gx::gThreaded) {
-        re4gx::sync();
-    } else {
-        re4gx::drain();
+    re4gx::drain();
+    if (gPendingToken) {
+        gPendingToken = false;
+        gPe[7] = gToken;
+        re4_os_hw_interrupt(0x12);  // __OS_INTERRUPT_PI_PE_TOKEN
     }
-    deliverRaised();
-    gDelivering = false;
-}
-
-void re4_gx_deliver_pending(void)
-{
-    if (gDelivering) {
-        return;
+    if (gPendingFinish) {
+        gPendingFinish = false;
+        re4_os_hw_interrupt(0x13);  // __OS_INTERRUPT_PI_PE_FINISH
     }
-    gDelivering = true;
-    // the GP thread goes on meanwhile: what it raised so far (the game's thread
-    // waits for it only in the dispatcher's idle, re4_gx_idle_wait)
-    if (re4gx::gThreaded) {
-        re4gx::flush();  // what the GP thread has not been handed yet (it may be "draw done")
-    } else {
-        re4gx::drain();
-    }
-    deliverRaised();
     gDelivering = false;
 }
 

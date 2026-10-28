@@ -35,7 +35,7 @@ ANDROID = "{http://schemas.android.com/apk/res/android}"
 # languages written right to left (Android's folder names)
 RTL = {"ar", "fa", "he", "iw", "ur"}
 # shown left to right in every language (the FPS display, CoreActivity)
-LTR_TEXTS = {"ingame_fps", "ingame_fps_none"}
+LTR_TEXTS = {"ingame_fps", "ingame_fps_none", "ingame_fps_smooth"}
 LRM, RLM = "\u200e", "\u200f"
 
 

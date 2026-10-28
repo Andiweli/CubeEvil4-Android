@@ -167,9 +167,8 @@ void deliver()
     }
     // the audio blocks of this field (runtime/ai.cpp: AX, the sound driver's tick)
     re4_ai_field();
-    // the graphics processor's interrupts of what it finished meanwhile (the GP
-    // thread, gx_thread.cpp, is not waited for: it goes on next to the game)
-    re4_gx_deliver_pending();
+    // the graphics processor's interrupts of what it finished meanwhile
+    re4_gx_deliver_interrupts();
     re4_os_interrupt_end();
     gDelivering = false;
 }
@@ -211,27 +210,15 @@ void re4_os_idle(void)
     // first: the card library continues its transfers in those handlers
     re4_exi_deliver();
     if (gFast) {
-        // the GP thread (gx_thread.cpp) catches up first: its "draw done" may
-        // be what every thread waits for
-        re4_gx_deliver_interrupts();
         deliver();
         return;
     }
     long long now = nowNs();
     if (now < gNextRetrace) {
         long long wait = gNextRetrace - now;
-        // with the GP on a thread of its own also until it raises an interrupt
-        // (GXDrawDone, draw sync): the waiting thread goes on before the retrace
-        const int raised = re4_gx_idle_wait(wait);
-        if (raised < 0) {
-            struct timespec ts = {(time_t) (wait / 1000000000LL), (long) (wait % 1000000000LL)};
-            nanosleep(&ts, 0);
-        }
+        struct timespec ts = {(time_t) (wait / 1000000000LL), (long) (wait % 1000000000LL)};
+        nanosleep(&ts, 0);
         gIdleNs += nowNs() - now;
-        if (raised > 0) {
-            re4_gx_deliver_pending();
-            return;
-        }
     }
     re4_interrupt_point();
 }

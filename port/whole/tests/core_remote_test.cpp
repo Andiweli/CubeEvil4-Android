@@ -104,6 +104,9 @@ struct Receiver {
     uint64_t audioTaken = 0;
     unsigned snapshots = 0, snapshotBad = 0;
     uint32_t lastSerial = 0;
+    // as the app's renderer: the depth map of each picture that peeked (BP 0x5B), with its number
+    const std::vector<unsigned>* depthCells = nullptr;
+    unsigned depthMaps = 0;
     unsigned vsyncs = 0, gyros = 0;
 
     void step()
@@ -127,7 +130,18 @@ struct Receiver {
             }
             lastSequence = c->sequence;
             chunks++;
+            uint32_t peeked = 0;
+            for (uint32_t i = 0; i < c->opWords; i += 1 + (c->ops[i] >> 8)) {
+                if ((c->ops[i] & 0xFF) == RE4_GX_OP_BP && (c->ops[i] >> 8) >= 1 && i + 1 < c->opWords &&
+                    (c->ops[i + 1] >> 24) == 0x5B) {
+                    peeked = c->ops[i + 1] & 0xFFFFFF;
+                }
+            }
             re4ipc_gx_release(c);
+            if (peeked && depthCells) {
+                re4ipc_gx_depth(depthCells->data(), peeked);
+                depthMaps++;
+            }
         }
         // as CoreAudio with its AudioTrack: 256 frames per read, until the track's buffer (2560
         // frames) is full, then in bursts as the mixer takes its periods (here 3 reads each 24 ms)
@@ -298,6 +312,12 @@ void mainRun(const char* modules, const char* gciPath)
     Re4CardFile files[8];
     CHECK(re4ipc_card_list(files, 8) == 0);  // a new card
     CHECK(re4ipc_card_free_blocks() == 251);
+    Re4InstantInfo instant = {};
+    const int instantStatus = re4ipc_instant(RE4_INSTANT_STATUS, &instant);
+    CHECK(instantStatus == RE4_INSTANT_OK || instantStatus == RE4_INSTANT_IO);
+    CHECK(!instant.canSave && !instant.canLoad); // the probe does not run playable game logic
+    CHECK(re4ipc_instant(RE4_INSTANT_SAVE, &instant) == RE4_INSTANT_BUSY);
+    CHECK(re4ipc_frame_count() == frames); // servicing an instant command must keep the game paused
     char note[256] = "";
     std::vector<unsigned char> out(RE4_GCI_HEADER + 251 * RE4_CARD_BLOCK);
     CHECK(re4ipc_card_export(0, out.data(), (unsigned) out.size(), note, sizeof(note)) == RE4_CARD_NOFILE);
@@ -320,6 +340,10 @@ void mainRun(const char* modules, const char* gciPath)
     pad(0x0200);
     pad(0);
     re4ipc_set_dof(0);
+    re4ipc_set_letterbox(1);
+    re4ipc_touch(0.5f, 0.25f);
+    re4ipc_swipe(1);
+    re4ipc_slash(-0.5f);
     re4ipc_debug_menu();
     sleepMs(100);
     re4ipc_pause(0, 0);
@@ -329,7 +353,15 @@ void mainRun(const char* modules, const char* gciPath)
     CHECK(re4ipc_frame_count() > frames);
     CHECK(re4ipc_card_free_blocks() == RE4_CARD_BUSY);  // only while the game stands
     re4ipc_set_dof(1);
+    re4ipc_set_letterbox(0);
     r.run(0.5);
+    // the depth of the picture for the game's GXPeekZ: the cell at (100, 60) of the map the renderer writes
+    // (the map of each picture that peeked, with the picture's number, as the renderer hands it over)
+    std::vector<unsigned> cells(320 * 264, 0x00FFFFFF);
+    cells[(60 >> 1) * 320 + (100 >> 1)] = 0xABCDE;
+    r.depthCells = &cells;
+    r.run(0.5);
+    CHECK(r.depthMaps > 0);
     // the end: START
     pad(0x1000);
     CHECK(waitFor(20, &r, [] { return re4ipc_state() != RE4_CORE_RUNNING; }));
@@ -344,6 +376,17 @@ void mainRun(const char* modules, const char* gciPath)
     CHECK(number(probe, "pad at ") > 0 && number(probe, "pad at ") != ~0u);
     CHECK(number(probe, "B frames ") == 1);
     CHECK(probe.find("dof changes 2 (now 1)") != std::string::npos);
+    CHECK(tail.find("remote-probe: letterbox changes 2 (now 0)") != std::string::npos);
+    {
+        const size_t peek = tail.find("remote-probe: peek far");
+        const std::string pl = peek == std::string::npos ? "" : tail.substr(peek, tail.find('\n', peek) - peek);
+        CHECK(number(pl, "far ") > 0);                          // before the map came: far, as before
+        CHECK(number(pl, "hits ") > 0);                         // after it: answered from the shared memory
+        CHECK(pl.find("last 0xabcde") != std::string::npos);    // the cell the check put there
+    }
+    CHECK(tail.find("touch: taps on the picture reach the sub screens") != std::string::npos);
+    CHECK(tail.find("touch: swipes change the tab of the sub screen") != std::string::npos);
+    CHECK(tail.find("knife: swipes draw the knife and slash") != std::string::npos);
     CHECK(number(probe, "debug menu ") == 1);
     unsigned checked, mismatches, snaps, snapMismatches;
     re4ipc::checkCounts(&checked, &mismatches, &snaps, &snapMismatches);

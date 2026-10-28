@@ -34,6 +34,8 @@ final class GyroAim implements SensorEventListener {
   private boolean enabled, listening, resumed;
   private float yaw, pitch;
   private volatile float sensitivity = 1f;
+  // the menu's "Invert vertical" / "Invert horizontal": -1 turns that rate round
+  private volatile float pitchSign = 1f, yawSign = 1f;
 
   GyroAim(Activity activity, Handler handler) {
     this.activity = activity;
@@ -58,6 +60,14 @@ final class GyroAim implements SensorEventListener {
   void setSensitivity(float value) {
     sensitivity = clampSensitivity(value);
     Log.i(CoreActivity.TAG, "gyro aiming: sensitivity " + sensitivity);
+  }
+
+  /** The menu's switches "Invert vertical" (the pitch) and "Invert horizontal" (the yaw): from the next reading. */
+  void setInvert(boolean vertical, boolean horizontal) {
+    pitchSign = vertical ? -1f : 1f;
+    yawSign = horizontal ? -1f : 1f;
+    Log.i(CoreActivity.TAG, "gyro aiming: vertical " + (vertical ? "inverted" : "normal") + ", horizontal "
+        + (horizontal ? "inverted" : "normal"));
   }
 
   /** The menu's switch. */
@@ -115,6 +125,6 @@ final class GyroAim implements SensorEventListener {
     yaw += .35f * (y - yaw);
     pitch += .35f * (p - pitch);
     float s = sensitivity;
-    CoreBridge.gyro(Math.abs(yaw) < .006f ? 0 : yaw * s, Math.abs(pitch) < .006f ? 0 : pitch * s);
+    CoreBridge.gyro(Math.abs(yaw) < .006f ? 0 : yaw * s * yawSign, Math.abs(pitch) < .006f ? 0 : pitch * s * pitchSign);
   }
 }

@@ -1,0 +1,26 @@
+# The sound driver's request bank: 256 slots instead of 64 (port adaptation, 22.10.2026). The
+# game queues every sound request (a new sound, a stop, the per-frame update of each positional
+# sound) into Snd_req_work[bank][SND_REQ_MAX]; the sound driver's frame executes one bank and
+# swaps them. On the GameCube that frame runs from the audio interrupt every 5 ms, so a game
+# frame's requests spread over several banks; the port delivers the audio frames between two
+# game frames (runtime/vi.cpp re4_os_idle, runtime/ai.cpp), so a whole game frame's requests go
+# into one bank, and a full bank refuses a sound without a word (Snd_open_req_work returns 0).
+# All uses go through the macro (snd_ram.cpp, snd_sub2.cpp, snd_iss1/2.cpp, snd_seq0.cpp).
+--- a/include/snd_drv.h
++++ b/include/snd_drv.h
+@@ -12,7 +12,14 @@
+ #endif
+ 
+ #define SND_REQ_BANK_MAX 2
+-#define SND_REQ_MAX 64
++/* PORT (patch 0107): 256 instead of 64. On the GameCube the audio interrupt runs the sound
++   driver's frame every 5 ms, in the middle of the game's frame, and each run takes the requests
++   of those 5 ms; the port runs the audio frames between two game frames (runtime/vi.cpp
++   re4_os_idle), so one bank takes the requests of a whole game frame: every positional sound's
++   update (sndSurroundCalc) and every new sound and stop of the frame. A full bank refuses a new
++   sound without a word (Snd_open_req_work); suspected cause of the silent death cries in busy
++   fights (device test 22.10.2026 23:41), counted by the line "sound: ..." (state_trace.cpp). */
++#define SND_REQ_MAX 256
+ #define SND_VOICE_MAX 64
+ #define SND_AXV_MAX 64
+ #define SND_ISS_BLK_MAX 14

@@ -57,6 +57,7 @@ extern "C" int re4probe_axfx_test(void);
 extern "C" int re4probe_movie_test(void);
 extern "C" int re4_formats_entry_status(const void* entry);
 extern "C" int re4probe_card_test(void);
+extern "C" int re4probe_instant_game_test(void);
 
 namespace {
 
@@ -821,6 +822,48 @@ void testEmptyTables()
     report("empty tables", ok);
 }
 
+// The European discs' sub screen texts (ss/<lang>/*.dat, retail-eu-plan.md R7): an MDT entry that
+// is a single message block (x0, count, offsets from 8 + 4 * count, u16 codes) without the
+// six-language header. Turned as one block (formats_mes.cpp, patch 0122); a six-language table
+// beside it as before.
+void testOneLanguageMdt()
+{
+    bool ok = true;
+    unsigned char* arc = (unsigned char*) (unsigned long) 0x82360000u;
+    memset(arc, 0, 0x100);
+    put32be(arc + 0x00, 2);
+    put32be(arc + 0x10, 0x20);
+    put32be(arc + 0x14, 0x40);
+    memcpy(arc + 0x18, "MDT\0", 4);
+    memcpy(arc + 0x1C, "MDT\0", 4);
+    unsigned char* one = arc + 0x20;  // two messages
+    put32be(one + 0x00, 0);
+    put32be(one + 0x04, 2);
+    put32be(one + 0x08, 0x10);
+    put32be(one + 0x0C, 0x14);
+    put32be(one + 0x10, 0x01020304u);
+    put32be(one + 0x14, 0x05060708u);
+    unsigned char* six = arc + 0x40;  // six languages, all on one block of one message
+    put32be(six, 6);
+    for (int k = 1; k <= 6; k++) {
+        put32be(six + k * 4, 0x1C);
+    }
+    put32be(six + 0x1C, 0);
+    put32be(six + 0x20, 1);
+    put32be(six + 0x24, 0xC);
+    put32be(six + 0x28, 0x0A0B0C0Du);
+    Header h = { 0, 0x80, 0, 0, 0, 0, 0, 0 };
+    re4_formats_part_loaded("ss/ger/ss_test.dat", 0, 0, &h, 0x82360000u);
+    unsigned short code[4];
+    memcpy(code, one + 0x10, 8);
+    CHECK(get32(one) == 0 && get32(one + 4) == 2 && get32(one + 8) == 0x10 && get32(one + 0xC) == 0x14);
+    CHECK(code[0] == 0x0102 && code[1] == 0x0304 && code[2] == 0x0506 && code[3] == 0x0708);
+    memcpy(code, six + 0x28, 4);
+    CHECK(get32(six) == 6 && get32(six + 4) == 0x1C && get32(six + 0x20) == 1 && get32(six + 0x24) == 0xC);
+    CHECK(code[0] == 0x0A0B && code[1] == 0x0C0D);
+    report("one-language mdt", ok);
+}
+
 // An effect model whose motion slot holds a texture with its zero bytes stored as 0x20, as r10b's
 // effect model 0x7c (st1/r10b.das #7, the room tour 22.10.2026): EFF version 0xB with one effect
 // model (id 0x7c, motion table of one entry). The motion converter read 175 joints from it and
@@ -1029,6 +1072,53 @@ void testPad()
     PADRead(pads);
     PADRead(pads);
     CHECK((re4_core_rumble() & 0xF) == 0);
+    // the live controller (the app): every press reaches the game as a press of its own, also a
+    // fast mash where the button is let go and pressed again between two reads (r226, 25.10.2026)
+    {
+        Re4CorePad live;
+        memset(&live, 0, sizeof(live));
+        auto read = [&]() {
+            PadStatus p[4];
+            PADRead(p);
+            return p[0].button;
+        };
+        re4_core_pad(&live);
+        read();
+        live.buttons = 0x0100;
+        re4_core_pad(&live);
+        CHECK(read() == 0x0100);  // pressed
+        live.buttons = 0;
+        re4_core_pad(&live);
+        live.buttons = 0x0100;
+        re4_core_pad(&live);       // let go and pressed again before the next read
+        CHECK(read() == 0);        // a frame off ...
+        CHECK(read() == 0x0100);   // ... then the second press
+        CHECK(read() == 0x0100);   // held
+        live.buttons = 0;
+        re4_core_pad(&live);
+        live.buttons = 0x0100;
+        re4_core_pad(&live);
+        live.buttons = 0;
+        re4_core_pad(&live);       // a tap shorter than a frame
+        CHECK(read() == 0);        // (held at the read before: off first)
+        CHECK(read() == 0x0100);   // the tap
+        CHECK(read() == 0);
+        live.triggerL = 200;
+        live.buttons = 0x0040;
+        re4_core_pad(&live);
+        read();
+        live.buttons = 0;
+        live.triggerL = 0;
+        re4_core_pad(&live);
+        live.buttons = 0x0040;
+        live.triggerL = 200;
+        re4_core_pad(&live);
+        PadStatus p[4];
+        PADRead(p);
+        CHECK(p[0].button == 0 && p[0].triggerLeft == 0);  // L off with its trigger value
+        CHECK(read() == 0x0040);
+        re4_core_pad(nullptr);
+    }
     report("pad", ok);
 }
 
@@ -1069,6 +1159,12 @@ void testPause()
     CHECK(gPauseFrames == 0);  // stands in its first PADRead
     CHECK(re4_core_card_list(files, 4) == 0);
     CHECK(re4_core_card_free_blocks() == 251);
+    Re4InstantInfo instant = {};
+    const int slot = re4_core_instant(RE4_INSTANT_STATUS, &instant);
+    CHECK(slot == RE4_INSTANT_OK || slot == RE4_INSTANT_BAD || slot == RE4_INSTANT_IO);
+    CHECK(instant.canSave == 0 && instant.canLoad == 0); // synthetic state is not playable
+    CHECK(re4_core_instant(RE4_INSTANT_SAVE, &instant) == RE4_INSTANT_BUSY);
+    CHECK(gPauseFrames == 0); // commands were serviced without advancing the game
     char note[128];
     unsigned char out[64];
     CHECK(re4_core_card_export(0, out, sizeof(out), note, sizeof(note)) == RE4_CARD_NOFILE);
@@ -1077,12 +1173,19 @@ void testPause()
     CHECK(gPauseFrames == 3);
     CHECK(re4_core_pause(0, 0) == 0);
     CHECK(re4_core_card_free_blocks() == RE4_CARD_BUSY);
+    CHECK(re4_core_instant(RE4_INSTANT_STATUS, &instant) == RE4_INSTANT_BUSY);
     // the menu's depth of field switch (patch 0065 reads it)
     CHECK(re4_dof_enabled() == 1);
     re4_core_set_dof(0);
     CHECK(re4_dof_enabled() == 0);
     re4_core_set_dof(1);
     CHECK(re4_dof_enabled() == 1);
+    // the picture format "4:3 without bars" (patch 0105 reads it)
+    CHECK(re4_letterbox_off() == 0);
+    re4_core_set_letterbox(1);
+    CHECK(re4_letterbox_off() == 1);
+    re4_core_set_letterbox(0);
+    CHECK(re4_letterbox_off() == 0);
     // SELECT held: the debug menu at the next frame, once
     CHECK(re4_debug_menu_request() == 0);
     re4_core_debug_menu();
@@ -1091,6 +1194,69 @@ void testPause()
     re4_memcard_open(0);
     unlink(path);
     report("pause", ok);
+}
+
+// GXPeekZ answers from the depth map the renderer hands over (runtime/gx_fifo.cpp) with the number of
+// the picture that peeked: far without any map, the cell of the pixel (half the EFB's resolution) from
+// a map at most 8 pictures old, "in front" from an older one (the peeks start when a torch comes into
+// view: the glow waits for the new map instead of flashing through the wall, Retroid 26.10.2026), and
+// far again when no fresh map comes for 60 peeking pictures. Maps the renderer leaves out (the GPU
+// behind, a renderer made anew when the resolution changes) do not add up: the next map counts again.
+extern "C" unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z);
+
+void testPeekDepth()
+{
+    bool ok = true;
+    static unsigned cells[RE4_GX_DEPTH_W * RE4_GX_DEPTH_H];
+    unsigned answered0, far0, marked0, answered, far, marked;
+    re4_gx_peek_stats(&answered0, &far0, &marked0);
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x00FFFFFF);  // no map yet: far, as before
+    CHECK(re4_gx_efb_peek(100, 60, 0) == 0);           // colour: black
+    re4_gx_peek_stats(&answered, &far, &marked);
+    CHECK(marked == marked0 + 1 && far == far0 + 1);   // the picture's first peek marked it, once
+    CHECK(re4_gx_efb_peek(101, 61, 1) == 0x00FFFFFF);
+    re4_gx_peek_stats(&answered, &far, &marked);
+    CHECK(marked == marked0 + 1);
+    cells[(60 >> 1) * RE4_GX_DEPTH_W + (100 >> 1)] = 0x123456;
+    cells[(RE4_GX_DEPTH_H - 1) * RE4_GX_DEPTH_W + RE4_GX_DEPTH_W - 1] = 0xFF00ABCD;  // only 24 bits count
+    // the map of this picture, handed over a picture later
+    re4_core_gx_depth(cells, re4_gx_peek_picture());
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    CHECK(re4_gx_efb_peek(101, 61, 1) == 0x123456);  // the 2 x 2 pixels of a cell
+    CHECK(re4_gx_efb_peek(639, 527, 1) == 0x00ABCD);
+    CHECK(re4_gx_efb_peek(2000, 2000, 1) == 0x00ABCD);  // beyond the EFB: the last cell
+    CHECK(re4_gx_efb_peek(0, 0, 1) == 0);               // a cell the renderer drew nothing in (0)
+    re4_gx_peek_stats(&answered, &far, &marked);
+    CHECK(answered == answered0 + 5);
+    // 8 pictures old: still answers
+    for (int i = 0; i < 7; i++) {
+        re4_gx_peek_new_frame();
+    }
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    // older (the torch comes back into view after a while): in front, not far
+    const unsigned hidden0 = re4_gx_peek_hidden();
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0);
+    CHECK(re4_gx_peek_hidden() == hidden0 + 1);
+    // the renderer left maps out (a new renderer after a change of the resolution): the next map counts
+    for (int i = 0; i < 30; i++) {
+        re4_gx_peek_new_frame();
+        re4_gx_efb_peek(100, 60, 1);
+    }
+    re4_core_gx_depth(cells, re4_gx_peek_picture() - 1);
+    re4_gx_peek_new_frame();
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    // no fresh map for more than 60 peeking pictures: far, as without maps
+    for (int i = 0; i < 70; i++) {
+        re4_gx_peek_new_frame();
+        re4_gx_efb_peek(100, 60, 1);
+    }
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x00FFFFFF);
+    re4_core_gx_depth(cells, re4_gx_peek_picture());  // it delivers again
+    CHECK(re4_gx_efb_peek(100, 60, 1) == 0x123456);
+    report("peek depth", ok);
 }
 
 }  // namespace
@@ -1108,6 +1274,7 @@ int re4_core_tests()
     testCamera();
     testEvent();
     testEmptyTables();
+    testOneLanguageMdt();
     testEffectTextureMotion();
     testMorph();
     {
@@ -1134,7 +1301,13 @@ int re4_core_tests()
         gFailures += failed;
         report("card", failed == 0);
     }
+    {
+        int failed = re4probe_instant_game_test();
+        gFailures += failed;
+        report("instant-game", failed == 0);
+    }
     testPause();
+    testPeekDepth();
     re4_log("core-test: %d failed", gFailures);
     return gFailures;
 }

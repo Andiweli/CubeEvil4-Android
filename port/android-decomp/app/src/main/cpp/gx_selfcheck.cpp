@@ -3,6 +3,7 @@
 
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
+#include "gx_gl_shader.h"
 
 #include <GLES3/gl3.h>
 
@@ -178,17 +179,13 @@ void DefaultState() {
 
 } // namespace
 
-std::string MovieColourCheck(int *wrong) {
+int MovieColourPixels(std::string *detail, std::string *error) {
   int bad = 0;
-  std::string detail;
   {
     GxRenderer r;
-    std::string error;
-    if (!r.Init(1, &error)) {
+    if (!r.Init(1, error)) {
       DefaultState();
-      if (wrong)
-        *wrong = -1;
-      return "GPU check (movie colours): no renderer (" + error + ")";
+      return -1;
     }
     Builder b;
     Build(b);
@@ -208,13 +205,13 @@ std::string MovieColourCheck(int *wrong) {
           continue;
         bad++;
         // every wrong pixel of the full movie shader, a few of the shorter ones
-        if (stages == 4 || shown < 4) {
+        if (detail && (stages == 4 || shown < 4)) {
           shown += stages == 4 ? 0 : 1;
           char line[160];
           std::snprintf(line, sizeof(line), "; %d stage%s, Y %d U %d V %d: %d %d %d %d, want %d %d %d %d", stages,
                         stages > 1 ? "s" : "", kColours[i].y, kColours[i].u, kColours[i].v, got[0], got[1], got[2],
                         got[3], want[0], want[1], want[2], want[3]);
-          detail += line;
+          *detail += line;
         }
       }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -222,13 +219,44 @@ std::string MovieColourCheck(int *wrong) {
     r.Release();
   }
   DefaultState();
+  return bad;
+}
+
+std::string MovieColourCheck(int *wrong) {
+  // the lerp as the hardware computes it first; on a wrong pixel the other ways of writing it, the
+  // first one this GPU computes right stays (SetTevMath), else the one with the fewest wrong pixels
+  const int first = GetTevMath();
+  std::string detail, error;
+  const int bad = MovieColourPixels(&detail, &error);
   if (wrong)
     *wrong = bad;
+  if (bad < 0)
+    return "GPU check (movie colours): no renderer (" + error + ")";
   if (!bad)
     return "GPU check (movie colours): ok, 32 of 32 pixels as the GameCube computes them";
   char head[96];
   std::snprintf(head, sizeof(head), "GPU check (movie colours): %d of 32 pixels wrong", bad);
-  return head + detail;
+  std::string line = head + detail;
+  int best = first, bestBad = bad;
+  for (int mode : {kTevMathNoShift, kTevMathFloat}) {
+    if (mode == first)
+      continue;
+    SetTevMath(mode);
+    const int n = MovieColourPixels(nullptr, &error);
+    char part[128];
+    std::snprintf(part, sizeof(part), "; with %s: %d wrong", TevMathName(mode), n);
+    line += part;
+    if (n >= 0 && n < bestBad) {
+      best = mode;
+      bestBad = n;
+    }
+    if (n == 0)
+      break;
+  }
+  SetTevMath(best);
+  if (wrong)
+    *wrong = bestBad;
+  return line + "; in use: " + TevMathName(best) + (bestBad ? "" : " (the movies right)");
 }
 
 } // namespace re4gx

@@ -2,19 +2,20 @@
 
 Wunsch des Projektinhabers (22.10.2026): Jede Sitzung schickt nach Änderungen, die in die App
 gehören, diese Befehle mit. Ordner: Repository `E:\Development\Android\RE4-Fixed`, Branch
-`claude/re4-start-controls`.
+`beta-updates` (Arbeitsbranch seit 26.10.2026, Entscheidung des Projektinhabers; vorher
+`claude/adoring-pasteur-h5s2fw`, davor `gui-optimisations` und `beta-optimisations`, alle darin enthalten).
 
 ## 1. Stand von GitHub holen (PowerShell)
 
 ```powershell
 cd E:\Development\Android\RE4-Fixed
 git status
-git pull --no-rebase origin claude/re4-start-controls
+git pull --no-rebase origin beta-updates
 ```
 
 - `git status` zeigt geänderte Dateien (`modified: …`)? Dann arbeitet gerade ein anderer Chat in
   diesem Ordner. Ihn bitten, seine Änderungen zu committen, mit `git pull --no-rebase origin
-  claude/re4-start-controls` zu mischen und zu pushen; danach `git pull` hier noch einmal.
+  beta-updates` zu mischen und zu pushen; danach `git pull` hier noch einmal.
   Unversionierte Dateien (`Untracked files: AGENTS.md, core/, …/src/core/assets/`) stören nicht.
 - Steht beim `git pull` **CONFLICT** in der Ausgabe: nicht weitermachen, die Ausgabe an den Chat
   schicken.
@@ -38,3 +39,17 @@ wsl --exec bash -lc "if [ ! -d ~/re4-build/.git ]; then git -c safe.directory='*
 In Android Studio wie gewohnt bauen (Variante „core“) und auf den Retroid installieren (Run mit dem
 verbundenen Retroid). Laufen gerade Gerätetests eines Chats über ADB, erst danach installieren
 (`port/docs/adb-coordination.md`).
+
+## Wechsel auf `beta-updates` (einmal)
+
+Wer noch auf `claude/adoring-pasteur-h5s2fw`, `beta-optimisations`, `gui-optimisations`,
+`claude/re4-start-controls` oder `performance` steht (alle sind in `beta-updates` enthalten; die alten
+Branches gibt es auf GitHub nicht mehr, ein `git pull` darauf schlägt fehl):
+
+```powershell
+cd E:\Development\Android\RE4-Fixed
+git status
+git fetch origin beta-updates
+git switch beta-updates
+git pull --no-rebase origin beta-updates
+```
