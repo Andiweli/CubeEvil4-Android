@@ -25,6 +25,23 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 10. **Schalter „Nebel aus“** – Wunsch offen (Einschätzung: kaum Tempogewinn, Nebel verdeckt das Ende der Sichtweite;
     Entscheidung des Projektinhabers offen).
 
+## Testerbericht „Zugang zum Labyrinth versperrt“ (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Meldung:** Nutzer mit Xiaomi 2412DPC0AG (0.94.0, EU-Discs, Spanisch, Normal), Spielstand `bh4_data00` in r20a
+  (29-mal gespeichert), Bildschirmfoto: Leon auf der oberen Terrasse von r20b am Geländer, das Labyrinth unten.
+- **Spiellogik (`src/st2/r20b.cpp`):** Bis die Szene `r20bs00` gelaufen ist (Ende Kapitel 3-2, `RsfCheck(r20b, 0)`),
+  bleibt das Objekt 0x51 stehen und 0x52/0x53 fehlen; die Szene startet, sobald Leon den Bereich Nr. 2 betritt
+  (Typ 2, Auslöser „betreten“, nur Spieler, ohne Ashley-Bedingung): Viereck (31446 −5465) (35916 −3867) (29314 2684)
+  (27569 −1527) auf Höhe 4000, die Terrasse westlich der Stelle des Nutzers.
+- **Log des Nutzers:** `r20bs00.evd` geladen (Szene noch offen), Leon zuletzt bei (38209 4000 −6628), im Bereich Nr. 22
+  daneben, nie in Nr. 2; kein Fehler.
+- **PC-Prüfung mit EU-Daten** (Debug-Start in r20b, `RE4_TEST_PLACE=…:area=2`): die Szene startet sofort
+  (`EvtSndStrPlay`). Der Fußweg von seiner Stelle dorthin ließ sich per Pad-Skript nicht sauber nachstellen (im
+  Debug-Start öffnete sich das Untermenü), also **nicht geprüft**, ob dort etwas im Weg steht.
+- **Neu:** `RE4_TRACE_AT=1` (`state_trace.cpp`): beim Raumstart jeder Auslöse-Bereich (Nummer, Typ, Auslöser, Fläche).
+- **Antwort an den Nutzer:** auf der oberen Terrasse Richtung Treppe/Mitte laufen; dann kommt die Szene und der Weg ist
+  frei. Falls nicht: Rückmeldung mit neuem Bericht von genau dieser Stelle.
+
 ## Leistung: Vorschläge 1 und 2 gemessen (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
 Auftrag des Projektinhabers: Vorschlag 1 (umgewandelte Modelle aufheben) und 2 (doppelte Uniform-Übergaben sparen).

@@ -910,6 +910,20 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                 (int) (s16) g->pl_life, (int) (s16) g->pl_life_max, (unsigned) g->weapon_no,
                 g_player.died ? ", continue after a death" : "");
         g_player.died = false;
+        // RE4_TRACE_AT=1: the room's trigger areas (AEV records and those the room code made)
+        static const char* traceAt = getenv("RE4_TRACE_AT");
+        if (traceAt && *traceAt == '1') {
+            SCE_AT_DATA* w = sceAtSetOtStart();
+            while ((w = sceAtGetOtAddr(w)) != 0) {
+                const AREA_XZ4& a = w->area.xz4;
+                re4_log("at: no %u id %u be 0x%02x trg 0x%02x target 0x%02x area %u floor %.0f height %.0f "
+                        "points (%.0f %.0f) (%.0f %.0f) (%.0f %.0f) (%.0f %.0f)",
+                        (unsigned) w->no, (unsigned) w->id, (unsigned) w->be_flg, (unsigned) w->trg_type,
+                        (unsigned) w->target_type, (unsigned) w->area.type, (double) a.floor, (double) a.height,
+                        (double) a.p[0].x, (double) a.p[0].z, (double) a.p[1].x, (double) a.p[1].z, (double) a.p[2].x,
+                        (double) a.p[2].z, (double) a.p[3].x, (double) a.p[3].z);
+            }
+        }
     }
     bool dying = StaFlagChk(g, STA_DIEDEMO) != 0;
     if (dying && !g_player.dying) {
