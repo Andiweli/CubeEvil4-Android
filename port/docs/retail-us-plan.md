@@ -28,7 +28,7 @@ Größe von `main.dol` und die SHA-1 aller Code-Stücke gegen `references-us.tsv
 | Bereich | US-Discs | wie |
 | --- | --- | --- |
 | Debug-Dateien (`moji8.tpl`, `debug/roomInfo.dat`, `config.txt`, `Tools.rel`, `t_*.rel`) | fehlen | EU |
-| Kern-Archiv `etc/core.das` | entpackt größer als der feste Platz (0x269300 Byte Datei) | EU (Patch 0117 allgemein) |
+| Kern-Archiv `etc/core.das` | 0x269300 Byte, passt in den festen Platz der Debug-Fassung (kein Umzug im Log) | Debug (Patch 0117 greift nur bei Überlänge) |
 | umsortierte Archive (`pl0a.drs`, `ss_wep40.dat`, `ss_term.dat`, `map_obj4g.dat`) | dieselbe Ordnung | EU (`ss_wep40.dat` bytegleich) |
 | Zusatzteile am Ende (`pl11/15.drs`, `ss_ocNNN.dat`, r20f, r30c, r30e, r330) | dieselben | EU |
 | REL-Module | 128 / 124, alle mit denselben Modulnummern | EU und Debug |
@@ -36,7 +36,9 @@ Größe von `main.dol` und die SHA-1 aller Code-Stücke gegen `references-us.tsv
 | `ss/eng/title.dat`, `ss/eng/option.dat` | bytegleich mit Debug (kein „LANGUAGE SELECT“) | Debug |
 | Stage 4 (`rel/st4_0.rel`, `st4/*.das`, `adaend_*.sfd`) | auf beiden Discs | Debug |
 | Kern-Texte (`core.das` Tabelle 6) | 168 Texte, dieselben 15 neuen ab 0x56 | EU (0123) |
-| Raumtexte r221 | wie Debug (Text 5 noch da) | Debug |
+| Raumtexte r221 | Tabelle wie Debug (Text 5 noch da), `st2_3.rel` fragt dieselben Nummern | Debug |
+| r101, Schlüssel zur Tür nach r102 | `st1_1.rel` fragt Text 0xB wie der Prototyp (EU: 0x14) | Debug (Patch 0127 gilt für alle Discs) |
+| Textnummern der übrigen Raummodule | wie EU (`retail_messages.py calls`: nur `st2_4`, `st3_2`, `st4_0` anders als Debug, dieselben Stellen wie bei EU) | EU |
 | übrige Text-Tabellen | wie EU: nur überarbeitete Texte oder Texte am Ende | EU |
 | Kartenlayout `ss_map.dat` | Baustein 253 an der EU-Stelle; Händler-Markierung 0xB | EU |
 | Lebensanzeige (Namensschilder 0x43–0x45) | Code wie EU (`LifeMeter::roomInit` bei 0x800bf4b8, jede Anweisung gleich) | EU (0125) |
@@ -54,10 +56,11 @@ bleibt für das, was nur die EU-Discs haben.
 
 | Patch / Stelle | mit US-Discs |
 | --- | --- |
-| 0117 Kern-Archiv, 0118 ohne `moji8.tpl`, 0119 ohne `roomInfo.dat`, 0122 einsprachige MDT | gelten ohnehin (prüfen die Daten selbst) |
+| 0117 Kern-Archiv (bei US nicht nötig), 0118 ohne `moji8.tpl`, 0119 ohne `roomInfo.dat`, 0122 einsprachige MDT | gelten ohnehin (prüfen die Daten selbst) |
 | 0120, 0126 Funkgerät, 0123 Kern-Texte +15, 0124 Karte, 0125 Lebensanzeige, 0129 achte Händler-Markierung, 0133 r204 | jetzt `re4_disc_retail()` |
 | 0135 Ergebnis-Bildschirme | Kapitelende und Baustein 0 des Spielendes `re4_disc_retail()`, 999-Grenze des Spielendes nur EU |
 | 0121 Sprache, 0128 r221, 0131 Stage 4, 0132 Ereignis-Untertitel, 0136 Film-Untertitel | nur EU (US wie Debug) |
+| 0127 r101 (Fehler des Prototyps) | gilt für alle Discs; mit US zeigt CubeEvil4 den richtigen Text, das US-Original den falschen |
 | `formats.cpp` Umsortieren `pl0a.drs`/`ss_wep40.dat` | EU und US |
 | Debug-Menü (Kern `re4_core_debug_menu`, App `CoreActivity`) | aus mit EU und US |
 | Sprachwahl im Ingame-Menü | nur EU |

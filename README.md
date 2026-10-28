@@ -17,9 +17,10 @@
 (`G4BE08`, the "Nov 25 2004" prototype on two discs). It does not recreate the game: the app runs
 the original game code, compiled from the complete decompilation in this repository for ARM.
 Since v0.92.0 it also plays the **European retail release** (`G4BP08`, two discs) in English,
-German, French, Spanish and Italian; the code stays the debug build's, with small patches where the
-retail data needs them. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
-and it contains no game data: you need your own images of both discs of one of the two releases.
+German, French, Spanish and Italian, and the **US retail release** (`G4BE08` as well, two discs) in
+English; the code stays the debug build's, with small patches where the retail data needs them. It is
+not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware, and it contains no game data:
+you need your own images of both discs of one of the three releases.
 
 <!--
 <p align="center"><img src="port/android-decomp/app/src/main/res/drawable-nodpi/icon_cubeevil4.png" width="160" alt="CubeEvil4 icon"></p>
@@ -42,8 +43,9 @@ and it contains no game data: you need your own images of both discs of one of t
   anisotropic filtering and depth of field.
 - Sound: the original SDK sound libraries with an emulated DSP; movies through the original CRI
   middleware with picture and ADX sound.
-- Two releases: the debug build (`G4BE08`) and the European retail release (`G4BP08`) with its five
-  languages, chosen in the app menu (default: your phone's language). Both use the same memory card.
+- Three releases: the debug build (`G4BE08`), the US retail release (`G4BE08`, English) and the
+  European retail release (`G4BP08`) with its five languages, chosen in the app menu (default: your
+  phone's language). All use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube).
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
   aiming with the right stick); touch controls when no controller is connected, with touch in the
@@ -64,7 +66,7 @@ and it contains no game data: you need your own images of both discs of one of t
 | Free storage | about 3 GB, to import both discs | – |
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
-| Game data | your own disc images (ISO or GCM) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`) or the European retail release (`G4BP08`) | – |
+| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`), the US retail release (`G4BE08`) or the European retail release (`G4BP08`) | – |
 
 > [!NOTE]
 > **32-bit-only devices:** some of them cannot start the game. One with Android 14 showed
@@ -107,9 +109,9 @@ With the European discs there is no debug menu; the app menu has cheats instead 
 - A game controller (built in, USB or Bluetooth) or the touch screen: the touch controls appear
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
   Controls: Auto, Force or Suppress).
-- Your own disc images (ISO or GCM) of **both** discs of the GameCube debug build from
-  November 25, 2004 (`G4BE08`) or of the European retail release (`G4BP08`), and enough free
-  storage to import them. Both discs must be of the same release.
+- Your own disc images (ISO, GCM or RVZ) of **both** discs of the GameCube debug build from
+  November 25, 2004 (`G4BE08`), of the US retail release (`G4BE08`) or of the European retail
+  release (`G4BP08`), and enough free storage to import them. Both discs must be of the same release.
 
 **First start**
 
@@ -192,8 +194,8 @@ No disc images or game files ever go into the repository.
    `port/android-decomp/app/src/core/jniLibs/` (not in git).
 2. Open `port/android-decomp` in Android Studio, choose the build variant **coreRelease** and
    build a signed APK (Build → Generate Signed App Bundle or APK).
-3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO or GCM of the debug
-   build or of the European retail release).
+3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO, GCM or RVZ of the debug
+   build, the US or the European retail release).
 
 `port/scripts/test-core-app.ps1` builds, installs and tests the app on a device in one go;
 `port/tools/whole_build.sh` and `port/tools/whole_r100_check.sh` check the core on Linux.
