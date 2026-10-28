@@ -22,25 +22,43 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
    **Gerätetest mit einer RVZ aus Dolphin offen**.
 9. **Touch-Zielen** (Wunsch des Projektinhabers, 28.10.2026) – eingebaut in 0.95.0-beta (Abschnitt darunter);
    **Gerätetest offen**.
-10. **Schalter „Nebel aus“** – Wunsch offen (Einschätzung: kaum Tempogewinn, Nebel verdeckt das Ende der Sichtweite;
-    Entscheidung des Projektinhabers offen).
+10. **Schalter „Nebel aus“** – nicht umgesetzt (Entscheidung des Projektinhabers, 28.10.2026: nur die
+    Leistungsvorschläge 1 und 2).
+11. **Labyrinth in r20b versperrt (EU-Discs)** – behoben (Patch 0138, Abschnitt darunter), am PC geprüft;
+    **Gerätetest mit dem Spielstand des Nutzers offen**.
 
 ## Testerbericht „Zugang zum Labyrinth versperrt“ (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
-- **Meldung:** Nutzer mit Xiaomi 2412DPC0AG (0.94.0, EU-Discs, Spanisch, Normal), Spielstand `bh4_data00` in r20a
-  (29-mal gespeichert), Bildschirmfoto: Leon auf der oberen Terrasse von r20b am Geländer, das Labyrinth unten.
-- **Spiellogik (`src/st2/r20b.cpp`):** Bis die Szene `r20bs00` gelaufen ist (Ende Kapitel 3-2, `RsfCheck(r20b, 0)`),
-  bleibt das Objekt 0x51 stehen und 0x52/0x53 fehlen; die Szene startet, sobald Leon den Bereich Nr. 2 betritt
-  (Typ 2, Auslöser „betreten“, nur Spieler, ohne Ashley-Bedingung): Viereck (31446 −5465) (35916 −3867) (29314 2684)
-  (27569 −1527) auf Höhe 4000, die Terrasse westlich der Stelle des Nutzers.
-- **Log des Nutzers:** `r20bs00.evd` geladen (Szene noch offen), Leon zuletzt bei (38209 4000 −6628), im Bereich Nr. 22
-  daneben, nie in Nr. 2; kein Fehler.
-- **PC-Prüfung mit EU-Daten** (Debug-Start in r20b, `RE4_TEST_PLACE=…:area=2`): die Szene startet sofort
-  (`EvtSndStrPlay`). Der Fußweg von seiner Stelle dorthin ließ sich per Pad-Skript nicht sauber nachstellen (im
-  Debug-Start öffnete sich das Untermenü), also **nicht geprüft**, ob dort etwas im Weg steht.
-- **Neu:** `RE4_TRACE_AT=1` (`state_trace.cpp`): beim Raumstart jeder Auslöse-Bereich (Nummer, Typ, Auslöser, Fläche).
-- **Antwort an den Nutzer:** auf der oberen Terrasse Richtung Treppe/Mitte laufen; dann kommt die Szene und der Weg ist
-  frei. Falls nicht: Rückmeldung mit neuem Bericht von genau dieser Stelle.
+- **Meldung:** Nutzer mit Xiaomi 2412DPC0AG (0.94.0, EU-Discs, Spanisch, Normal: `game_mode` 5 im Spielstand),
+  Spielstand `bh4_data00` in r20a; Bildschirmfoto: Leon auf dem Podest über der Treppe in r20b, an der Brüstung, das
+  Labyrinth unten. Der Projektinhaber hat es auf dem Retroid mit 0.94.0, EU-Discs (Deutsch) und dem Spielstand
+  nachgestellt: alle Szenen kommen, der Abgang ist versperrt.
+- **Ursache (Verkaufsdaten):** Die EU-Discs sperren in r20b die Treppe vom Podest ins Labyrinth für **Easy**:
+  Bereich 0x1C (Typ 0xB, eine unsichtbare Wand quer über ihr oberes Ende, (37900 −8064)…(37911 −7676), Höhe
+  3196–5066) und Modellgruppe 0xA6 (die Brüstung darüber). Die Debug-Discs haben beides nicht (dort ist die Treppe
+  frei; darum lief das Labyrinth mit ihnen). Die EU-Fassung von `R20bInit` (`st2_1.rel`, Text 0x10F44, mit
+  `retail_code.py` und den Relokationen des Moduls gelesen) öffnet sie über Easy: ein Byte (EU `pG+0x4F9F`, gesetzt
+  auf `game_mode > 3`, in den Bonusspielen 0) → `SceAtSetEnable(0x1C, 0)`, `SmdSetTrans(0xA6, 0)`. Auf Easy bleibt
+  das Labyrinth zu und der Raum tut, als sei das Mondstein-Tor schon offen (Raum-Flag 1; Truhen/Gegenstände 0x86–0x8A,
+  Bereiche 0x80–0x82 und 0x88, Kisten 9/10/14/15 weg; kein Funkspruch, keine Eingangskamera, keine Gegner). Der
+  Debug-Code hat keinen der beiden Zweige.
+- **Fix: Patch 0138** (`r20b.cpp`, nur mit Verkaufsdaten, `re4_disc_retail_eu`): beide Zweige wie der EU-Code, das
+  Byte aus `game_mode`. Der Originalweg (Komplettlösung StrategyWiki/Fandom: Kante, verschlossene Tür, Funkspruch
+  Salazars „do you like my garden?“, dann die Treppe hinunter zum Tor ins Labyrinth) ist damit wieder da.
+- **Geprüft am PC** (i686, EU- und Debug-Discs, Debug-Start in r20b, Normal): Leon läuft vom Podest (39700 4000 −7000)
+  die Treppe hinunter bis (39710 0 −21886) im Labyrinth; vorher blieb er bei z −7285 stehen. Keine Fehlermeldung
+  (`AT NOT FOUND` / `INVALID INDEX`) mit beiden Disc-Arten. **Nicht geprüft:** Easy (der Port hat keine Abfrage des
+  Schwierigkeitsgrads, siehe unten), der ganze Weg mit dem Spielstand des Nutzers auf dem Gerät.
+- **Weitere EU-Räume mit demselben Byte:** gelesen in `st2_0`, `st2_1` (11-mal), `st2_2`, `st2_3`, `st1_3`, `st3_2`
+  und `Sscrn` (EU). Ob dort weitere Easy-Sperren der Verkaufsdaten in Normal stehen bleiben, ist **nicht geprüft**.
+- **Schwierigkeitsgrad:** Die Debug-Fassung fragt beim neuen Spiel nicht nach Leicht/Normal (Dolphin mit EU-Discs
+  zeigt die Abfrage nach START, Projektinhaber 28.10.2026); jedes neue Spiel läuft auf Normal (`game_mode` 5),
+  geladene Spielstände behalten ihren Wert.
+- **Neue Prüfschalter** (`state_trace.cpp`): `RE4_TRACE_AT=1` (Auslöse-Bereiche mit Türzielen, Kollisionswänden und
+  den Türen im Raum), `RE4_TRACE_POS=N` (Leons Ort alle N Bilder), `RE4_TEST_PLACE2="N:x,y,z,a"` (zweites Versetzen,
+  z. B. nach einer Szene), `RE4_TEST_AT_OFF`, `RE4_TEST_SMD_TRANS` (Bereiche / Modellgruppen schalten),
+  `RE4_FLOOR_MAP`, `RE4_FLOOR_FILL` (Boden-, Wand- und grobe Erreichbarkeitskarte; die Linienprüfung zählt Wände von
+  beiden Seiten, Leons Kugel nur von vorn).
 
 ## Leistung: Vorschläge 1 und 2 gemessen (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
@@ -9259,6 +9277,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0135 `option.cpp` | Ergebnis-Bildschirme mit den EU-Discs wie ihr Code (`retail_code.py dis`): Kapitelende (`ChapterEnd::move`, EU 0x800422AC) mit vierstelliger Gegnerzahl, Tausender in Baustein 0x1B (Kapitel) bzw. 0x1C (gesamt), führende Nullen aus, Fortsetzungen höchstens 999; vorher liefen die zwei Bausteine durch alle Zeichen (Testervideos 27.10.2026). Spielende (`GameResult::move`, EU 0x80041E64): Fortsetzungen höchstens 999, Baustein 0 nie sichtbar. Mercenaries-Ergebnis in beiden Fassungen gleich. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0136 `sofdec.cpp` | Untertitel im Intro-Film mit den EU-Discs (Projektinhaber, 28.10.2026: fehlten). Nur der EU-`movie/opening.sfd` trägt im Kopf (privater Strom 0xBF) eine Tabelle `CRITAGS`/`USRINFS` Typ `SUBTITLE`: je Sprache ein Kanal (3 Deutsch … 6 Italienisch; Englisch hat keinen), je Eintrag Startzeit, Dauer, Textnummer; die Texte in `etc/movie.das` (MDT mit sechs Sprachen, dazu eine japanische Schrift). Wie die EU-Fassung (`cSofdec` 0x80161170 ff., `retail_code.py`): `initApp` lädt `etc/movie.das` als Meldungstabelle 2 und setzt das Layout von Meldung 0, `initWork` lässt die Meldungen während des Films an (`DPF_MESSAGE`), `draw` zeigt zur Filmzeit den Text (`MesSet` x 100 unten, Attribut 0x01001054) und nimmt ihn danach weg, `finishMovie` räumt auf. Ihre neuere CRI-Bibliothek sucht die Zeit im laufenden Film; hier liest `runtime/movie_status.cpp` die Tabelle aus dem Kopf, den `initApp` ohnehin liest, und vergleicht mit `mwPlyGetTime`. Abweichung: Tabelle 2 wird danach zurückgesetzt (die EU-Fassung zeigt danach auf die freigegebenen Texte). Dazu `FNT`-Einträge in Archiven umwandeln (`formats_arc.cpp`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0137 `trans_ot.cpp` | 60 FPS ohne Flackern, Schritt S1 (`60fps-plan.md`, Entscheidung des Projektinhabers 28.10.2026): `ExecOt` meldet vor jedem Eintrag einer Ordnungstabelle Objekt, Funktion und Tabelle (`runtime/gx_owner.cpp` → `gx_fifo.cpp` `re4_gx_put_owner`, Port-Befehl 0x02 im GX-Strom → `RE4_GX_OP_OWNER` im Chunk; bei Teilchen aus dem Effekt-Pool dazu Effekt-Nummer und Lebenszähler), nach der Tabelle „kein Objekt“. Spiellogik und Bild unverändert; ältere Renderer überspringen die Nachricht. Kosten: in r204 etwa 290 Marken je Bild (4–5 KB). Port-Patch |
+| 0138 `r20b.cpp` | Labyrinth mit den EU-Discs (Testerbericht 28.10.2026): ihre Daten sperren die Treppe vom Podest für Easy (Bereich 0x1C als Wand, Modellgruppe 0xA6 als Brüstung; die Debug-Discs haben beides nicht). Wie die EU-Fassung von `R20bInit` (`st2_1.rel` 0x10F44): über Easy (`game_mode > 3`, nicht in den Bonusspielen) Bereich 0x1C aus und Gruppe 0xA6 unsichtbar; auf Easy Raum-Flag 1 (Mondstein-Tor offen), Gruppen 0x86–0x8A unsichtbar, Bereiche 0x80–0x82 und 0x88 aus, Kisten 9/10/14/15 weg, kein Funkspruch, keine Eingangskamera, keine Gegner. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

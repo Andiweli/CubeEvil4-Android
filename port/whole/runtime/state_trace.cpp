@@ -105,6 +105,12 @@
 //                          3 HUNK, 4 Krauser, 5 Wesker), as LEFT/RIGHT pick it
 //                          there: the character's archive and REL load as in
 //                          the game (Mercenaries with HUNK crashed, 27.10.2026)
+//   RE4_TRACE_AT=1, RE4_TRACE_POS=N, RE4_TEST_PLACE2="N:x,y,z,a",
+//   RE4_TEST_AT_OFF="N,..", RE4_TEST_SMD_TRANS="ID=0|1,..", RE4_FLOOR_MAP,
+//   RE4_FLOOR_FILL         a room's trigger areas, doors and collision walls,
+//                          Leon's place, a second placement, areas or model
+//                          groups switched, floor / wall maps (the r20b
+//                          maze stairs, 28.10.2026; each at its code below)
 //
 // Always logged (the memory card, M10): the end of the boot card check with
 // the options then in force, and a save loaded from the card. Since
@@ -165,6 +171,10 @@
 #include "light.h"
 #include "dmg.h"
 #include "atari.h"
+#include "emdoor.h"
+#include "etc_model.h"
+#include "scroll.h"
+#include "area.h"
 #include "act_btn.h"
 #include "cockpit.h"
 #include <dolphin/os/OSAlloc.h>
@@ -922,8 +932,26 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                         (unsigned) w->target_type, (unsigned) w->area.type, (double) a.floor, (double) a.height,
                         (double) a.p[0].x, (double) a.p[0].z, (double) a.p[1].x, (double) a.p[1].z, (double) a.p[2].x,
                         (double) a.p[2].z, (double) a.p[3].x, (double) a.p[3].z);
+                if (w->id == SCEAT_ID_DOOR) {
+                    re4_log("at: no %u door to r%x%02x at (%.0f %.0f %.0f), key %u flag %u", (unsigned) w->no,
+                            (unsigned) w->door.next_stage_no, (unsigned) w->door.next_room_no,
+                            (double) w->door.next_pos.x, (double) w->door.next_pos.y, (double) w->door.next_pos.z,
+                            (unsigned) w->door.key_id, (unsigned) w->door.key_flg);
+                }
+                if (w->id == SCEAT_ID_SCR_AT) {
+                    re4_log("at: no %u collision: set %u, sat attr 0x%x, eat attr 0x%x, ctrl 0x%x, sat flag 0x%x",
+                            (unsigned) w->no, (unsigned) w->scr_at.set_flg, (unsigned) w->scr_at.sat_attr,
+                            (unsigned) w->scr_at.eat_attr, (unsigned) w->scr_at.ctrl_flag,
+                            (unsigned) w->scr_at.sat_flag);
+                }
             }
         }
+    }
+    // RE4_TRACE_POS=N: Leon's place every N frames (where a walk of a test script got to)
+    static const long tracePos = getenv("RE4_TRACE_POS") ? strtol(getenv("RE4_TRACE_POS"), 0, 10) : 0;
+    if (tracePos > 0 && (n - g_player.start) % (unsigned long) tracePos == 0) {
+        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f", (unsigned) g->room_id, n, (double) p.x,
+                (double) p.y, (double) p.z, (double) pPL->ang.y);
     }
     bool dying = StaFlagChk(g, STA_DIEDEMO) != 0;
     if (dying && !g_player.dying) {
@@ -1171,6 +1199,147 @@ void frame(unsigned n)
             re4_log("run: player free (no event, no sub screen for %u frames) at frame %u, %ld after the room start",
                     kFreeFrames, n, (long) n - g_roomStart);
             re4_pad_script_free();
+            // RE4_TEST_AT_OFF="N[,N...]": switch these trigger / collision areas off once the player is free
+            if (const char* off = getenv("RE4_TEST_AT_OFF")) {
+                for (const char* q = off; *q;) {
+                    char* end;
+                    long no = strtol(q, &end, 0);
+                    if (end == q) {
+                        break;
+                    }
+                    if (SceAtPtr((int) no)) {
+                        SceAtSetEnable((int) no, 0);
+                        re4_log("run: trigger area %ld switched off (RE4_TEST_AT_OFF)", no);
+                    }
+                    q = *end == ',' ? end + 1 : end;
+                }
+            }
+            // RE4_TEST_SMD_TRANS="ID=0|1[,...]": show / hide room model groups once the player is free
+            if (const char* smd = getenv("RE4_TEST_SMD_TRANS")) {
+                for (const char* q = smd; *q;) {
+                    char* end;
+                    long id = strtol(q, &end, 0);
+                    if (end == q || *end != '=') {
+                        break;
+                    }
+                    long on = strtol(end + 1, &end, 0);
+                    SmdSetTrans((u32) id, (int) on);
+                    re4_log("run: room model group 0x%lx set to %ld (RE4_TEST_SMD_TRANS)", id, on);
+                    q = *end == ',' ? end + 1 : end;
+                }
+            }
+            // RE4_TRACE_AT=1: the room's doors that open in place (cEmDoor) once the player is free
+            if (getenv("RE4_TRACE_AT")) {
+                for (int i = 0; i < 32; i++) {
+                    cEmDoor* door = 0;
+                    if (getRoomEtcDoor(i, &door, 0) && door) {
+                        re4_log("at: etc door %d at (%.0f %.0f %.0f) facing %.2f, flags 0x%x", i, (double) door->pos.x,
+                                (double) door->pos.y, (double) door->pos.z, (double) door->ang.y,
+                                (unsigned) EMDOOR_WK(door)->Be_flg);
+                    }
+                }
+            }
+            // RE4_FLOOR_MAP="x0,z0,x1,z1,step[,y]": the room's floor below y (default 12000) on a grid,
+            // one line per z row, heights in hundreds ("." nothing below), once the player is free
+            if (const char* map = getenv("RE4_FLOOR_MAP")) {
+                float x0, z0, x1, z1, step, top = 12000.0f;
+                if (sscanf(map, "%f,%f,%f,%f,%f,%f", &x0, &z0, &x1, &z1, &step, &top) >= 5 && step > 0) {
+                    for (float z = z1; z >= z0; z -= step) {
+                        char row[1024];
+                        int len = snprintf(row, sizeof(row), "floor: z %6.0f |", (double) z);
+                        for (float x = x0; x <= x1 && len < (int) sizeof(row) - 8; x += step) {
+                            Vec at = { x, top, z };
+                            f32 y = SatMgr.getFloor(&at, 0, 0.0f, 30000.0f, 0);
+                            len += y < -50000.0f ? snprintf(row + len, sizeof(row) - len, "   .")
+                                                 : snprintf(row + len, sizeof(row) - len, "%4.0f", (double) (y / 100.0f));
+                        }
+                        re4_log("%s", row);
+                    }
+                    // the walls 300 above that floor: "|" towards the next point in x, "-" in z, "+" both
+                    // (a line test hits both sides; the player's sphere only the front of a wall; with
+                    // RE4_FLOOR_EAT=1 the effect pieces)
+                    for (float z = z1; z >= z0; z -= step) {
+                        char row[1024];
+                        int len = snprintf(row, sizeof(row), "walls: z %6.0f |", (double) z);
+                        for (float x = x0; x <= x1 && len < (int) sizeof(row) - 2; x += step) {
+                            Vec at = { x, top, z };
+                            f32 y = SatMgr.getFloor(&at, 0, 0.0f, 30000.0f, 0) + 300.0f;
+                            Vec a = { x, y, z }, east = { x + step, y, z }, north = { x, y, z + step }, hit;
+                            cSatMgr& mgr = getenv("RE4_FLOOR_EAT") ? (cSatMgr&) EatMgr : SatMgr;
+                            bool e = mgr.hitCheck(&a, &east, &hit, 0, 0, 0) != 0;
+                            bool n = mgr.hitCheck(&a, &north, &hit, 0, 0, 0) != 0;
+                            row[len++] = e && n ? '+' : e ? '|' : n ? '-' : ' ';
+                            row[len] = 0;
+                        }
+                        re4_log("%s", row);
+                    }
+                }
+            }
+            // RE4_FLOOR_FILL="x0,z0,x1,z1,step[,area[,x,y,z]]": a rough guess which grid points Leon can
+            // walk to from where he stands or from x,y,z (walls counted from both sides; no wall between neighbours 300 above the floor, steps below 400); "o"
+            // reachable, "." floor not reachable, "A"/"a" the same inside trigger area `area`
+            if (const char* fill = getenv("RE4_FLOOR_FILL")) {
+                float x0, z0, x1, z1, step;
+                int areaNo = -1;
+                float from[3] = { pPL->pos.x, pPL->pos.y, pPL->pos.z };
+                // the C heap, not the game's operator new (its own heap); once per run, kept
+                static float* fillY = (float*) malloc(0x10000 * sizeof(float));
+                static char* seen = (char*) malloc(0x10000);
+                static int* todo = (int*) malloc(0x10000 * sizeof(int));
+                int todoNum = 0;
+                if (fillY && seen && todo && sscanf(fill, "%f,%f,%f,%f,%f,%d,%f,%f,%f", &x0, &z0, &x1, &z1, &step, &areaNo, &from[0], &from[1],
+                           &from[2]) >= 5 &&
+                    step > 0 &&
+                    ((int) ((x1 - x0) / step) + 1) * ((int) ((z1 - z0) / step) + 1) <= 0x10000 &&
+                    (int) ((x1 - x0) / step) + 1 < 1000) {
+                    const int nx = (int) ((x1 - x0) / step) + 1, nz = (int) ((z1 - z0) / step) + 1;
+                    memset(seen, 0, 0x10000);
+                    int sx = (int) ((from[0] - x0) / step + 0.5f), sz = (int) ((from[2] - z0) / step + 0.5f);
+                    if (sx >= 0 && sx < nx && sz >= 0 && sz < nz) {
+                        fillY[(size_t) sz * nx + sx] = from[1];
+                        seen[(size_t) sz * nx + sx] = 1;
+                        todo[todoNum++] = sz * nx + sx;
+                    }
+                    while (todoNum > 0) {
+                        int c = todo[--todoNum];
+                        int cx = c % nx, cz = c / nx;
+                        float cf = fillY[c];
+                        static const int kDir[4][2] = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+                        for (const auto& d : kDir) {
+                            int ox = cx + d[0], oz = cz + d[1];
+                            if (ox < 0 || ox >= nx || oz < 0 || oz >= nz || seen[(size_t) oz * nx + ox]) {
+                                continue;
+                            }
+                            Vec at = { x0 + ox * step, cf + 600.0f, z0 + oz * step };
+                            f32 of = SatMgr.getFloor(&at, 0, 0.0f, 1000.0f, 0);
+                            if (of < -50000.0f || fabsf(of - cf) > 400.0f) {
+                                continue;
+                            }
+                            Vec a = { x0 + cx * step, cf + 300.0f, z0 + cz * step }, b = { at.x, of + 300.0f, at.z }, hit;
+                            if (SatMgr.hitCheck(&a, &b, &hit, 0, 0, 0) != 0) {
+                                continue;
+                            }
+                            fillY[(size_t) oz * nx + ox] = of;
+                            seen[(size_t) oz * nx + ox] = 1;
+                            todo[todoNum++] = oz * nx + ox;
+                        }
+                    }
+                    SCE_AT_DATA* area = areaNo >= 0 ? SceAtPtr(areaNo) : 0;
+                    for (int z = nz - 1; z >= 0; z--) {
+                        char row[1024];
+                        for (int x = 0; x < nx; x++) {
+                            Vec at = { x0 + x * step, 12000.0f, z0 + z * step };
+                            bool reach = seen[(size_t) z * nx + x] != 0;
+                            f32 top = reach ? fillY[(size_t) z * nx + x] : SatMgr.getFloor(&at, 0, 0.0f, 30000.0f, 0);
+                            at.y = top + 10.0f;
+                            bool in = area && top > -50000.0f && AreaHitCheck(&area->area, &at);
+                            row[x] = reach ? (in ? 'A' : 'o') : top < -50000.0f ? ' ' : (in ? 'a' : '.');
+                        }
+                        row[nx] = 0;
+                        re4_log("fill: z %6.0f |%s", (double) (z0 + z * step), row);
+                    }
+                }
+            }
         }
     }
     long placeBase = g_placeFree ? g_freeAt : g_roomStart;
@@ -1191,6 +1360,21 @@ void frame(unsigned n)
         pPL->setAng(&ang);
         re4_log("run: player placed at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
                 (double) pos.z, (double) g_placeAng, n);
+    }
+    // RE4_TEST_PLACE2="N:x,y,z,a": a second placement at frame N (after an event the first one started)
+    static const char* place2 = getenv("RE4_TEST_PLACE2");
+    static unsigned long place2Frame;
+    static float place2Pos[4];
+    static bool place2Ok = place2 && sscanf(place2, "%lu:%f,%f,%f,%f", &place2Frame, &place2Pos[0], &place2Pos[1],
+                                            &place2Pos[2], &place2Pos[3]) == 5;
+    if (place2Ok && n >= place2Frame && live(pPL) && g->Rno0 == 3 && !StaFlagChk(g, STA_EVENT)) {
+        place2Ok = false;
+        Vec pos = { place2Pos[0], place2Pos[1], place2Pos[2] };
+        Vec ang = { 0.0f, place2Pos[3], 0.0f };
+        pPL->setPos(&pos);
+        pPL->setAng(&ang);
+        re4_log("run: player placed again at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
+                (double) pos.z, (double) place2Pos[3], n);
     }
     if (g_scfAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_scfAfter && g->Rno0 == 3) {
         g_scfAfter = -1;

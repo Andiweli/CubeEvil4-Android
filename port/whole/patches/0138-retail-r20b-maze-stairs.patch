@@ -1,0 +1,99 @@
+# Retail data (port/docs/retail-eu-plan.md): r20b, the way down into the hedge maze. The European
+# discs' r20b closes the stairs from the ledge for Easy: trigger area 0x1C is a collision wall across
+# their top and room model group 0xA6 the railing over it (the debug build's discs have neither). The
+# European R20bInit (st2_1.rel, text 0x10F44, read with retail_code.py and the module's relocations)
+# opens them for the difficulties above Easy (a byte their game sets to game_mode > 3, cleared in the
+# bonus games): SceAtSetEnable(0x1C, 0), SmdSetTrans(0xA6, 0). On Easy the maze stays shut and the room
+# behaves as after the moonstone door: room flag 1, model groups 0x86..0x8A and item areas 0x80..0x82,
+# 0x88 off, the boxes 9, 10, 14, 15 destroyed, no radio call, entry camera or enemies. This build has
+# neither branch, so with the European discs nobody got down there (tester report and owner's test on
+# the Retroid, 28.10.2026). Both branches as their code, the byte read from game_mode. Nothing changes
+# with the debug build's discs. A port patch for retail data.
+--- a/src/st2/r20b.cpp
++++ b/src/st2/r20b.cpp
+@@ -85,6 +85,15 @@
+ void Evt_R20BS00_Func(Event* e, u32);
+ void EvtTexRenderCamTrans(Event* e, int cut);
+ 
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
++/* port: the European releases' "maze open" byte (pG + 0x4F9F there): above Easy, not in the bonus games
++   (patch 0138) */
++static int R20bMazeOpen()
++{
++    return pG->game_mode > 3 && !SysFlagChk(pG, SYS_OMAKE_ADA_GAME) && !SysFlagChk(pG, SYS_OMAKE_ETC_GAME);
++}
++
+ // Room init for the great hall. Until the s00 event has played, the room is pre-loaded with its
+ // enemy and area 2 runs the event. The locked door waits for its key.
+ void R20bInit()
+@@ -96,6 +105,38 @@
+ 
+ #line 60 "D:/Bio4/Prog/r20b.cpp"
+     r20b_work = (R20bWork*) MEM_CALLOC(sizeof(R20bWork), 1, 0xd);
++    /* port: the hedge maze by difficulty with retail data, as the European R20bInit (patch 0138) */
++    if (re4_disc_retail_eu()) {
++        if (R20bMazeOpen()) {
++            SceAtSetEnable(0x1C, 0);
++            SmdSetTrans(0xA6, 0);
++        } else {
++            cEmBox* box;
++
++            RsfSet(G_ROOM_ID, 1);
++            SmdSetTrans(0x86, 0);
++            SmdSetTrans(0x87, 0);
++            SmdSetTrans(0x88, 0);
++            SmdSetTrans(0x89, 0);
++            SmdSetTrans(0x8A, 0);
++            SceAtSetEnable(0x80, 0);
++            SceAtSetEnable(0x81, 0);
++            SceAtSetEnable(0x82, 0);
++            SceAtSetEnable(0x88, 0);
++            if (getRoomEtcBox(9, &box, 1)) {
++                EmMgr.destroy((cEm*) box);
++            }
++            if (getRoomEtcBox(0xA, &box, 1)) {
++                EmMgr.destroy((cEm*) box);
++            }
++            if (getRoomEtcBox(0xE, &box, 1)) {
++                EmMgr.destroy((cEm*) box);
++            }
++            if (getRoomEtcBox(0xF, &box, 1)) {
++                EmMgr.destroy((cEm*) box);
++            }
++        }
++    }
+     EvtMgr.SetFunc("evt_r20bs00_func", (void*) Evt_R20BS00_Func);
+     EvtMgr.SetFunc("evt_r20bs99_func", (void*) Evt_R20BS00_Func);
+     pG->Room_flg[0] &= 0x7FFFFFFF;
+@@ -145,16 +186,20 @@
+     SceSetItemEvent(0x14, 0x84, 0xF, 8, OpenBoxTreasure, OpenedBoxTreasure, (void*) 0x84, 0);
+     SceSetItemEvent(0x15, 0x87, 0x10, 7, OpenBoxTreasure, OpenedBoxTreasure, (void*) 0x87, 0);
+     SceSetItemEvent(0x18, 0x8D, 0x13, 0xB, OpenBoxTreasure, OpenedBoxTreasure, (void*) 0x8D, 0);
+-    if (RsfCheck(G_ROOM_ID, 17) == 0) {
+-        SceAtDataSet_exec(0x16, SCE_LEVEL10, 0, (TaskFunc) R20bOpenTerm, 0, 1);
+-    }
+-    if (RsfCheck(G_ROOM_ID, 21) == 0) {
+-        SceExec(0x12, (TaskFunc) R20bStartCameraMain, 0, 0, SCE_PRIO_DEF_2, 0);
+-    }
+-    if (!StaFlagChk(pG, STA_SUB_ASHLEY)) {
+-        r20b_work->cnt = 0;
+-        SceExec(0x12, (TaskFunc) R20bEmSetMain, 0, 0, SCE_PRIO_DEF_2, 0);
+-        SceExec(0x12, (TaskFunc) SceBgmCheck, 0, 0, SCE_PRIO_DEF_2, 0);
++    /* port: with retail data radio call, entry camera and enemies only with the maze open (European
++       R20bInit, patch 0138) */
++    if (!re4_disc_retail_eu() || R20bMazeOpen()) {
++        if (RsfCheck(G_ROOM_ID, 17) == 0) {
++            SceAtDataSet_exec(0x16, SCE_LEVEL10, 0, (TaskFunc) R20bOpenTerm, 0, 1);
++        }
++        if (RsfCheck(G_ROOM_ID, 21) == 0) {
++            SceExec(0x12, (TaskFunc) R20bStartCameraMain, 0, 0, SCE_PRIO_DEF_2, 0);
++        }
++        if (!StaFlagChk(pG, STA_SUB_ASHLEY)) {
++            r20b_work->cnt = 0;
++            SceExec(0x12, (TaskFunc) R20bEmSetMain, 0, 0, SCE_PRIO_DEF_2, 0);
++            SceExec(0x12, (TaskFunc) SceBgmCheck, 0, 0, SCE_PRIO_DEF_2, 0);
++        }
+     }
+     setTexRender();
+     TexRenderInit(&r20b_work->tex1, 0, 1);
