@@ -1,0 +1,26 @@
+# Retail data (port/docs/retail-eu-plan.md): game_country as the European difficulty class. The European
+# gameStageInit (main.dol 0x80118a28) sets game_country (their pG+0x4F9F, this build's 0x4F93) at every stage
+# start to game_mode > 3: 0 on Easy, 1 on Normal and Professional (0 in the bonus games with Japanese texts).
+# Their data and room code read it as such: SceAtRoomSet turns areas marked JPN off on Easy and those marked
+# USA above it, GameAddPoint keeps the difficulty point at 1000 or more above Easy only, the map screen takes
+# its objects from SS/Esy on Easy, and the rooms' own branches (patches 0138, 0141). This build keeps the
+# language there (2..6 with the European discs, patch 0121): every area flag acted as above Easy, also on Easy.
+# Nothing changes with the debug build's discs. A port patch for retail data.
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -293,6 +293,15 @@
+ 
+ void gameStageInit()
+ {
++    /* port: the European release turns game_country into the difficulty class at every stage start
++       (patch 0140; their gameStageInit, main.dol 0x80118a28): 0 on Easy, 1 above it, 0 in the bonus
++       games with Japanese texts */
++    if (re4_disc_retail_eu()) {
++        pG->game_country = pG->game_mode > 3;
++        if (pSys->language == 0 && (SysFlagChk(pG, SYS_OMAKE_ADA_GAME) || SysFlagChk(pG, SYS_OMAKE_ETC_GAME))) {
++            pG->game_country = 0;
++        }
++    }
+     pLog->warn(1, 0, "-- R%03x ----------", pG->room_id);
+     if (Flag54(0x80000) || Flag54(0x100)) {
+         SysFlagOn(pG, SYS_CONTINUE_AFTER);

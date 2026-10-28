@@ -105,6 +105,9 @@
 //                          3 HUNK, 4 Krauser, 5 Wesker), as LEFT/RIGHT pick it
 //                          there: the character's archive and REL load as in
 //                          the game (Mercenaries with HUNK crashed, 27.10.2026)
+//   RE4_TEST_GAME_MODE=N   the same for the difficulty (game_mode: 3 Easy, 5 Normal,
+//                          6 Professional), as the debug start menu's line sets it; the
+//                          European title's choice (patch 0139) is skipped by a debug start
 //   RE4_TRACE_AT=1, RE4_TRACE_POS=N, RE4_TEST_PLACE2="N:x,y,z,a",
 //   RE4_TEST_AT_OFF="N,..", RE4_TEST_SMD_TRANS="ID=0|1,..", RE4_FLOOR_MAP,
 //   RE4_FLOOR_FILL         a room's trigger areas, doors and collision walls,
@@ -519,6 +522,7 @@ int g_saveBrightness = -1;
 bool g_saveOpened, g_saveStop, g_saveRunning;
 bool g_cardYes;              // RE4_TEST_CARD_YES
 int g_testPlayer = -1;       // RE4_TEST_PLAYER
+int g_testGameMode = -1;     // RE4_TEST_GAME_MODE
 long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
@@ -915,9 +919,11 @@ void playerLog(unsigned n, GLOBAL_WK* g)
         g_player.dying = false;
         g_player.lost = false;
         g_player.start = n;
-        re4_log("room: r%03x runs (frame %u), Leon at (%.0f %.0f %.0f) facing %.2f, life %d/%d, weapon 0x%02x%s",
+        re4_log("room: r%03x runs (frame %u), Leon at (%.0f %.0f %.0f) facing %.2f, life %d/%d, weapon 0x%02x, "
+                "game_mode %u, game_country %u%s",
                 (unsigned) g->room_id, n, (double) p.x, (double) p.y, (double) p.z, (double) pPL->ang.y,
-                (int) (s16) g->pl_life, (int) (s16) g->pl_life_max, (unsigned) g->weapon_no,
+                (int) (s16) g->pl_life, (int) (s16) g->pl_life_max, (unsigned) g->weapon_no, (unsigned) g->game_mode,
+                (unsigned) g->game_country,
                 g_player.died ? ", continue after a death" : "");
         g_player.died = false;
         // RE4_TRACE_AT=1: the room's trigger areas (AEV records and those the room code made)
@@ -1115,6 +1121,10 @@ void frame(unsigned n)
         g->pl_type = (u8) g_testPlayer;
         g->pl_costume = 0;
         re4_log("run: debug start with player type %d (RE4_TEST_PLAYER)", g_testPlayer);
+    }
+    if (g_testGameMode > 0 && re4_title_room_menu_open() && g->game_mode != g_testGameMode) {
+        g->game_mode = (u8) g_testGameMode;
+        re4_log("run: debug start with game_mode %d (RE4_TEST_GAME_MODE)", g_testGameMode);
     }
     // the debug start menu (patch 0043) draws its lines with the debug text;
     // the tool menu (SELECT held in the app, patch 0061; db_menu.cpp DbMenuExec) sets its
@@ -1645,6 +1655,8 @@ void configure()
     if (g_testPlayer > 5) {
         g_testPlayer = -1;
     }
+    const char* gameMode = getenv("RE4_TEST_GAME_MODE");
+    g_testGameMode = gameMode && *gameMode ? (int) strtol(gameMode, 0, 0) : -1;
     re4_set_frame_hook(frame);
 }
 

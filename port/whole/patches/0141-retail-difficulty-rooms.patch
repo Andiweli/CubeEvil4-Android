@@ -1,0 +1,128 @@
+# Retail data (port/docs/retail-eu-plan.md): the European rooms' difficulty branches this build lacks (read
+# with retail_code.py and the modules' relocations; game_country is the difficulty class, patch 0140).
+# r203 (st2_0.rel R203Init): their data put a message area 6 ("locked") at etc door 5; above Easy it is off,
+# on Easy door 5 stays locked, the door to r201 needs no key and neither the three wandering Ganados nor the
+# key carrier's group come (this build kept area 6 on Normal at an open door). r211 (st2_2.rel R211Init): on
+# Easy the first cup is in place and model group 0x20 shows with its collision (room archive entry 5), above
+# Easy group 0x20 is off (this build showed it without collision). Map screen (Sscrn.rel, mapAreaFilename):
+# on Easy the map objects come from SS/Esy. Nothing changes with the debug build's discs. A port patch for
+# retail data.
+--- a/src/st2/r203.cpp
++++ b/src/st2/r203.cpp
+@@ -14,6 +14,8 @@
+ #include "sce_at.h"
+ #include "em.h"
+ #include "em_wrap.h"
++#include "emdoor.h" /* port: patch 0141 */
++#include "etc_model.h" /* port: patch 0141 */
+ #include "player.h"
+ #include "pl_npc.h"
+ #include "pl_sub.h"
+@@ -58,6 +60,8 @@
+ static void r203_StreamCheck();
+ void Evt_R203S00_Func(Event* e, u32);
+ 
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ // Room init: the Ganado set depends on whether the key item was taken, and without it area 0x8A
+ // starts the key pickup wave and the key-carrier's escape. Until Room_flg bit 3, area 3 is the
+ // reunion event with Ashley.
+@@ -70,9 +74,26 @@
+ 
+ #line 69 "D:/Bio4/Prog/r203.cpp"
+     r203_work = (R203Work*) MEM_CALLOC(sizeof(R203Work), 1, 0xd);
++    /* port: the European R203Init by difficulty (patch 0141): on Easy the door to r201 needs no key
++       and etc door 5 stays locked, above it their message area 6 at that door is off */
++    if (re4_disc_retail_eu()) {
++        if (pG->game_country == 0) {
++            cEmDoor* door;
++
++            KyfFlagOn(pG, KYF_R203_TO_R201_DOOR);
++            if (getRoomEtcDoor(5, &door, 1)) {
++                door->setCloseLock();
++            }
++        } else {
++            SceAtSetEnable(6, 0);
++        }
++    }
+     if (ScfFlagChk(pG, SCF_R201_EVENT00)) {
+         setEm(0x27, -1, 0, 1, 0);
+         setEm(0x29, -1, 0, 1, 0);
++        /* port: the European R203Init sets the three wandering Ganados only above Easy (patch 0141) */
++        if (re4_disc_retail_eu() && pG->game_country == 0) {
++        } else {
+         if (r203_work->em[0].setEm(0x34, 2, 0, 1, 0) == 1) {
+             SceExec(0x12, (TaskFunc) r203_GanadoWandering, 0, 0, SCE_PRIO_DEF_2, 0);
+         }
+@@ -82,6 +103,10 @@
+         if (r203_work->em[2].setEm(0x36, 2, 0, 1, 0) == 1) {
+             SceExec(0x12, (TaskFunc) r203_GanadoWandering, (void*) 2, 0, SCE_PRIO_DEF_2, 0);
+         }
++        }
++    } else if (re4_disc_retail_eu() && pG->game_country == 0) {
++        /* port: on Easy the European R203Init sets neither the key carrier's Ganados nor the key
++           pickup (the door needs no key there, patch 0141) */
+     } else {
+         u32 i;
+ 
+--- a/src/st2/r211.cpp
++++ b/src/st2/r211.cpp
+@@ -20,6 +20,7 @@
+ #include "esp.h"
+ #include "est.h"
+ #include "snd.h"
++#include <string.h> /* port: patch 0141 */
+ 
+ // Room 2-11 (D:/Bio4/Prog/r211.cpp): the castle room with the two statues that take the cup items
+ // (0x6E / 0x6F): each statue can be inspected (areas 4 / 5) and a task waits for its cup to be used;
+@@ -44,6 +45,8 @@
+ static void r211_ShelfOpen(int no);
+ static void r211_ShelfOpened(int no);
+ 
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ // Room init: each statue cup already placed (Room_flg bit 0 / 1) is shown as a scroll model with its area
+ // (4 / 5) off and the Room_flg[0] bit 31 / 30 set; otherwise the statue can be inspected and a task waits
+ // for the cup item (0x6E / 0x6F) to be used; the grate is open when bit 2; two shelf item events.
+@@ -51,6 +54,20 @@
+ {
+ #line 42 "D:/Bio4/Prog/r211.cpp"
+     r211_work = (R211Work*) MEM_CALLOC(sizeof(R211Work), 1, 0xd);
++    /* port: the European R211Init by difficulty (patch 0141): on Easy the first cup is in place and
++       model group 0x20 shows with its collision (room archive entry 5), above Easy group 0x20 is off */
++    if (re4_disc_retail_eu()) {
++        if (pG->game_country == 0) {
++            Vec pos;
++
++            RsfSet(G_ROOM_ID, 0);
++            memset(&pos, 0, sizeof(pos));
++            SmdSetTrans(0x20, 1);
++            SatMgr.create(ROOM_ARC_PTR(pG->pRoom, 5), 0, &pos, &pos, 1);
++        } else {
++            SmdSetTrans(0x20, 0);
++        }
++    }
+     if (RsfCheck(G_ROOM_ID, 0)) {
+         cObj* obj;
+ 
+--- a/src/Sscrn/ss_map.cpp
++++ b/src/Sscrn/ss_map.cpp
+@@ -107,6 +107,7 @@
+ 
+ #include "ss_main.h"
+ #include <stdio.h>
++#include <string.h> /* port: patch 0141 */
+ #include "pl_npc.h"
+ 
+ // One door model of an area (5 packed bytes).
+@@ -2366,6 +2367,10 @@
+         sprintf(name, "SS/cmn/map_obj4g.dat");
+         break;
+     }
++    /* port: on Easy the European discs' map objects are in SS/Esy (their mapAreaFilename, patch 0141) */
++    if (re4_disc_retail_eu() && pG->game_country == 0) {
++        memcpy(name + 3, "esy", 3);
++    }
+ }
+ 
+ // Map screen loader: skips the previous screen's exit (state 2) when opened directly as

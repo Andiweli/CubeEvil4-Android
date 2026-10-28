@@ -26,6 +26,79 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     Leistungsvorschläge 1 und 2).
 11. **Labyrinth in r20b versperrt (EU-Discs)** – behoben (Patch 0138, Abschnitt darunter), am PC geprüft und auf
     dem Retroid mit dem Spielstand des Nutzers bestätigt (Projektinhaber, 28.10.2026: Brüstung weg, Treppe begehbar).
+12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
+    darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
+
+## Schwierigkeitsauswahl und Easy-Zweige der EU-Discs (28.10.2026 nachts, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **Auftrag:** Die EU-Fassung fragt beim neuen Spiel nach der Schwierigkeit, der Debug-Code nicht. Abfrage einbauen
+  wie im EU-Code und alle Stellen prüfen, an denen der EU-Code das „über Easy“-Byte liest.
+- **Wichtigster Befund:** Das Byte (EU `pG+0x4F9F`) ist **`game_country`** (Debug `0x4F93`; das EU-`GLOBAL_WK` ist dort
+  um 0xC verschoben). Die EU-Fassung macht daraus in `gameStageInit` (main.dol 0x80118a28) bei jedem Abschnittsstart
+  die Schwierigkeitsklasse: 0 = Easy, 1 = Normal/Professional (0 in den Bonusspielen nur mit japanischen Texten).
+  Damit schalten die Szenenbereichs-Flaggen der Daten „JPN“/„USA“ (`SceAtRoomSet`) auf Easy bzw. darüber ab,
+  `GameAddPoint` hält den Schwierigkeitswert nur über Easy bei mindestens 1000, und die Räume verzweigen selbst. Der Port
+  hatte dort die Sprache (2–6, Patch 0121) – also immer „über Easy“.
+- **Patch 0139** (`title.cpp`): Abfrage wie EU-`titleMain` (main.dol 0x80165d58, Menü 0x80165370/0x80165570): „New
+  Game“ öffnet immer Professional (nur wenn freigeschaltet, `EXT_HARD_MODE`) / Normal (Start) / Easy, A oder START
+  wählt (`game_mode` 6/5/3), der Cursor läuft rundum und überspringt Professional, B zurück auf „New Game“. Die
+  EU-Rückfrage danach (Kernmeldungen 0xA8–0xAA mit Ja/Nein) gibt es nur auf Japanisch (die EU-Sprachen haben dort
+  „aaa“) – weggelassen. Beim Debug-Start der Prüfungen (`RE4_START_ROOM`) keine Abfrage; neuer Prüfschalter
+  `RE4_TEST_GAME_MODE=N` (setzt die Schwierigkeit im Debug-Startmenü) und `game_mode`/`game_country` in der Zeile
+  „room: … runs“.
+- **Patch 0140** (`game.cpp` `gameStageInit`): `game_country = game_mode > 3` wie die EU-Fassung (nur EU-Discs).
+- **Patch 0141**: r203 (Normal: Meldungsbereich 6 an Tür 5 aus – im Port blieb er an der offenen Tür stehen; Easy: Tür 5
+  zu, Tür nach r201 ohne Schlüssel, weniger Ganados), r211 (Easy: erster Kelch eingesetzt, Modellgruppe 0x20 mit
+  eigener Kollision aus Raumarchiv-Eintrag 5; Normal: Gruppe 0x20 aus – im Port stand sie ohne Kollision da),
+  Karte (Easy: Objekte aus `SS/Esy`).
+- **Geprüft am PC** (i686, EU-Discs, frische Speicherkarte): Titel → START → Menü NORMAL/EASY (Bild), Easy →
+  `game_mode 3`, Normal und START → 5, B zurück und Umblättern (Normal→Easy) → 3. Debug-Discs: Spiel startet wie
+  bisher sofort (`game_mode 5`). Debug-Start r203: Normal Bereich 6 aus, Tür 5 offen; Easy Bereich 6 an, Tür 5 zu;
+  Debug-Discs ohne Bereich 6 wie bisher. r211 Easy: Bereich 4 aus (Kelch eingesetzt), Normal/Debug unverändert.
+  Karte auf Easy lädt `SS/esy/map_obj2a.dat`, auf Normal `SS/cmn/…`. r20b auf Easy läuft. Keine Fehlermeldungen.
+  **Nicht geprüft:** Gerät; Professional-Eintrag (braucht einen Spielstand mit Freischaltung); ob Bereich 6 in r203
+  die Tür im Port wirklich blockierte (die EU-Fassung schaltet ihn auf Normal ab, das genügt); ganze Kapitel auf Easy.
+- **US-Discs:** Der US-Code (Branch `retail-us`) fragt beim neuen Spiel nicht (wie der Debug-Code: direkt Normal,
+  Professional/Normal erst nach Freischaltung, A oder START), kennt kein Easy und setzt `game_country` nicht als
+  Schwierigkeitsklasse (keine Schreibstelle außer Sprache/Reset). Der Port verhält sich mit US-Discs damit schon wie
+  die US-Fassung; die Patches 0139–0141 gelten nur für EU-Discs.
+- **Prüfliste der EU-Stellen** („Easy“ = nur auf Easy anders; die Normal-Seite entspricht dem Debug-Code; nicht
+  übernommen heißt: der Port spielt dort auch auf Easy die Normal-Fassung):
+
+| Stelle (EU) | Funktion | Befund |
+|---|---|---|
+| main 0x80118a28 (Schreiben) | `gameStageInit` | `game_country = game_mode > 3` → **Patch 0140** |
+| main 0x801680d0 / 0x80124fd4 / 0x801253ac / 0x801247e0 (Schreiben) | Titel-Ende / `systemWorkInit` / `setLanguage` / Reset-Rückholen | wie Debug (Sprache bzw. Rücksicherung), 0x801680d0 wie 0140 |
+| main 0x80004c3c | `CameraControl::areaHitCheck` | Ashley-Kamera nur mit japanischen Texten – EU-Sprachen wie Debug, nichts zu tun |
+| main 0x80118860 | `gameInit` | `game_mode` 0 → 3/5; nie erreicht (`systemWorkInit` setzt 5) |
+| main 0x80119cf4 / 0x80119ed8 | `clearGlobalSaveData` | Wert bleibt erhalten, wie Debug |
+| main 0x801251e4 | Reset-Sicherung (`pRK`) | wie Debug |
+| main 0x801521ac | `SceAtRoomSet` | Bereichs-Flaggen JPN/USA, gleicher Code; Bedeutung Easy/Normal → **Patch 0140** |
+| main 0x80155810 | `sceAtSetItem` | prüft die Flaggen schon vorab; Debug legt an und löscht gleich wieder – gleiches Ergebnis |
+| `st1_3` 0xc038 | `r11c_EventBesiegedStart` | Belagerung 9000 Bilder/40 (Normal = Debug), Easy 7200/30 – Easy, nicht übernommen |
+| `st2_0` 0xa558, 0xa5f8, 0xa6e0 | `R203Init` | Normal: Bereich 6 aus (**Sperre**), Easy: Tür 5 zu, Schlüsselflagge, weniger Ganados → **Patch 0141** |
+| `st2_1` 0x4af0, 0x4f88 | `R205Init`, `R205Main` | Ganados 0x6D/0x57, Wellen 106/111 nur über Easy – Easy |
+| `st2_1` 0xc8ec, 0xca40, 0xcbcc, 0xcda4, 0xd8d8 | `r209` zweiter Kampf, Armbrust, Brücke | weniger/spätere Gegner auf Easy – Easy |
+| `st2_1` 0x10f80, 0x1147c | `R20bInit` | Normal: Wand 0x1C/Brüstung 0xA6 weg (**Sperre**), Easy: Mondstein-Zustand → **Patch 0138** |
+| `st2_1` 0x148d4 | `R20cExecCageMain` | Raum-Flagge auf Easy oder niedrigem Rang – Easy |
+| `st2_1` 0x1cc38 | Gegnersatz r20f (EU 0x1cc14) | andere Gegner 0xDC–0xEC auf Easy – Easy |
+| `st2_2` 0x3524 | `R211Init` | Normal: Gruppe 0x20 aus, Easy: Kelch + Gruppe 0x20 mit Kollision → **Patch 0141** |
+| `st2_2` 0x80b4, 0x83d4, 0x84b0 | `R213SuBreakModel`, `R213EmSet` | weniger Gegner auf Easy – Easy |
+| `st2_2` 0xa448 | `R214Init` | Gegnersatz je Schwierigkeit in eigener Hilfsfunktion – Easy |
+| `st2_2` 0x1146c, 0x11a48, 0x11d90 | `R218Init`, `r218_checkClawManDead`, `r218_appearClawMan` | ein Garrador weniger auf Easy – Easy |
+| `st2_3` 0x3644, 0x38f4 | `R21aInit` (EU 0x3604) | Easy: Raum-Flagge, Bereich 8/Gruppe 0x41 aus – Easy |
+| `st2_3` 0x3ce0, 0x4194 | `R21aEmSetMain` | weniger Gegner auf Easy – Easy |
+| `st2_3` 0x62b0, 0x7240, 0x72dc, 0x73e8, 0x7440 | `r21b_HalfWayGanadoSet`, `r21d` Gegnersätze | Werte/Gegner nur über Easy – Easy |
+| `st2_3` 0xa128, 0xb5b0, 0xbde8 | `r221` Rolltor, Aufzug, Boss | Werte auf Easy – Easy |
+| `st2_3` 0xc4e4 | `r221_checkSwitchboard` | Easy eigener Hinweistext (0xA statt 4) – Easy |
+| `st2_3` 0x15770, 0x15db8, 0x1613c | `R226` Gegner, Roboter-Start | Werte auf Easy – Easy |
+| `st2_3` 0x1a414 | `r227_setEmOnElv1` | Ganados 0x85/0x86 nur über Easy – Easy |
+| `st3_2` 0x15db4, 0x16324 | `r31c_CountDownEnd`, `r31c_TowerExplodeEndProc` | Anzeige/Kamera auf Easy – Easy |
+| `Sscrn` 0x10fe4 | `mapAreaFilename` | Easy: Kartenobjekte aus `SS/Esy` → **Patch 0141** |
+
+  Zuordnung mit `retail_code.py`, den Relokationen der Module und einer Aufruf-Abstimmung (Hilfsskripte nur in der
+  Sitzung). Nur r20b und r203 hatten auf Normal eine Easy-Sperre der Daten aktiv; Patch 0138 liest weiter `game_mode`
+  (gleiches Ergebnis außer in den Bonusspielen, die r20b nicht betreten).
 
 ## Testerbericht „Zugang zum Labyrinth versperrt“ (28.10.2026 abends, lokal, Branch `claude/determined-allen-36nj6r`)
 
@@ -48,13 +121,12 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 - **Geprüft am PC** (i686, EU- und Debug-Discs, Debug-Start in r20b, Normal): Leon läuft vom Podest (39700 4000 −7000)
   die Treppe hinunter bis (39710 0 −21886) im Labyrinth; vorher blieb er bei z −7285 stehen. Keine Fehlermeldung
   (`AT NOT FOUND` / `INVALID INDEX`) mit beiden Disc-Arten. **Auf dem Retroid bestätigt** (Projektinhaber,
-  28.10.2026, EU-Discs, Spielstand des Nutzers): Brüstung weg, Treppe begehbar. **Nicht geprüft:** Easy (der Port hat
-  keine Abfrage des Schwierigkeitsgrads, siehe unten).
+  28.10.2026, EU-Discs, Spielstand des Nutzers): Brüstung weg, Treppe begehbar. Easy: siehe Abschnitt
+  Schwierigkeitsauswahl (Patches 0139–0141).
 - **Weitere EU-Räume mit demselben Byte:** gelesen in `st2_0`, `st2_1` (11-mal), `st2_2`, `st2_3`, `st1_3`, `st3_2`
-  und `Sscrn` (EU). Ob dort weitere Easy-Sperren der Verkaufsdaten in Normal stehen bleiben, ist **nicht geprüft**.
+  und `Sscrn` (EU) – geprüft, siehe Abschnitt Schwierigkeitsauswahl (das Byte ist `game_country`).
 - **Schwierigkeitsgrad:** Die Debug-Fassung fragt beim neuen Spiel nicht nach Leicht/Normal (Dolphin mit EU-Discs
-  zeigt die Abfrage nach START, Projektinhaber 28.10.2026); jedes neue Spiel läuft auf Normal (`game_mode` 5),
-  geladene Spielstände behalten ihren Wert.
+  zeigt die Abfrage nach START, Projektinhaber 28.10.2026) – mit EU-Discs eingebaut (Patch 0139).
 - **Neue Prüfschalter** (`state_trace.cpp`): `RE4_TRACE_AT=1` (Auslöse-Bereiche mit Türzielen, Kollisionswänden und
   den Türen im Raum), `RE4_TRACE_POS=N` (Leons Ort alle N Bilder), `RE4_TEST_PLACE2="N:x,y,z,a"` (zweites Versetzen,
   z. B. nach einer Szene), `RE4_TEST_AT_OFF`, `RE4_TEST_SMD_TRANS` (Bereiche / Modellgruppen schalten),
@@ -9279,6 +9351,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0136 `sofdec.cpp` | Untertitel im Intro-Film mit den EU-Discs (Projektinhaber, 28.10.2026: fehlten). Nur der EU-`movie/opening.sfd` trägt im Kopf (privater Strom 0xBF) eine Tabelle `CRITAGS`/`USRINFS` Typ `SUBTITLE`: je Sprache ein Kanal (3 Deutsch … 6 Italienisch; Englisch hat keinen), je Eintrag Startzeit, Dauer, Textnummer; die Texte in `etc/movie.das` (MDT mit sechs Sprachen, dazu eine japanische Schrift). Wie die EU-Fassung (`cSofdec` 0x80161170 ff., `retail_code.py`): `initApp` lädt `etc/movie.das` als Meldungstabelle 2 und setzt das Layout von Meldung 0, `initWork` lässt die Meldungen während des Films an (`DPF_MESSAGE`), `draw` zeigt zur Filmzeit den Text (`MesSet` x 100 unten, Attribut 0x01001054) und nimmt ihn danach weg, `finishMovie` räumt auf. Ihre neuere CRI-Bibliothek sucht die Zeit im laufenden Film; hier liest `runtime/movie_status.cpp` die Tabelle aus dem Kopf, den `initApp` ohnehin liest, und vergleicht mit `mwPlyGetTime`. Abweichung: Tabelle 2 wird danach zurückgesetzt (die EU-Fassung zeigt danach auf die freigegebenen Texte). Dazu `FNT`-Einträge in Archiven umwandeln (`formats_arc.cpp`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0137 `trans_ot.cpp` | 60 FPS ohne Flackern, Schritt S1 (`60fps-plan.md`, Entscheidung des Projektinhabers 28.10.2026): `ExecOt` meldet vor jedem Eintrag einer Ordnungstabelle Objekt, Funktion und Tabelle (`runtime/gx_owner.cpp` → `gx_fifo.cpp` `re4_gx_put_owner`, Port-Befehl 0x02 im GX-Strom → `RE4_GX_OP_OWNER` im Chunk; bei Teilchen aus dem Effekt-Pool dazu Effekt-Nummer und Lebenszähler), nach der Tabelle „kein Objekt“. Spiellogik und Bild unverändert; ältere Renderer überspringen die Nachricht. Kosten: in r204 etwa 290 Marken je Bild (4–5 KB). Port-Patch |
 | 0138 `r20b.cpp` | Labyrinth mit den EU-Discs (Testerbericht 28.10.2026): ihre Daten sperren die Treppe vom Podest für Easy (Bereich 0x1C als Wand, Modellgruppe 0xA6 als Brüstung; die Debug-Discs haben beides nicht). Wie die EU-Fassung von `R20bInit` (`st2_1.rel` 0x10F44): über Easy (`game_mode > 3`, nicht in den Bonusspielen) Bereich 0x1C aus und Gruppe 0xA6 unsichtbar; auf Easy Raum-Flag 1 (Mondstein-Tor offen), Gruppen 0x86–0x8A unsichtbar, Bereiche 0x80–0x82 und 0x88 aus, Kisten 9/10/14/15 weg, kein Funkspruch, keine Eingangskamera, keine Gegner. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0139 `title.cpp` | Schwierigkeitsauswahl mit den EU-Discs wie ihr `titleMain`: „New Game“ fragt immer Professional (nur freigeschaltet) / Normal / Easy, A oder START, Cursor rundum, B zurück; die japanische Rückfrage danach nicht. Nicht beim Debug-Start (`RE4_START_ROOM`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0140 `game.cpp` | `gameStageInit` setzt mit den EU-Discs `game_country = game_mode > 3` wie ihre Fassung (das EU-„Easy-Byte“ `pG+0x4F9F` ist `game_country`): Bereichs-Flaggen JPN/USA, Schwierigkeitswert-Untergrenze und Raumzweige richten sich nach Easy/Normal statt nach der Sprache. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0141 `r203.cpp`, `r211.cpp`, `ss_map.cpp` | Easy-/Normal-Zweige der EU-Räume, die dem Debug-Code fehlen: r203 (Normal Meldungsbereich 6 an Tür 5 aus; Easy Tür 5 zu, kein Schlüssel nötig, weniger Ganados), r211 (Easy erster Kelch und Gruppe 0x20 mit Kollision; Normal Gruppe 0x20 aus), Karte auf Easy aus `SS/Esy`. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
