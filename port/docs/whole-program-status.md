@@ -18,6 +18,19 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitt darunter). Offen sin
 6. **60 FPS ohne Flackern** – S0–S4 umgesetzt und in der Cloud-/PC-Prüfung grün (Patch 0137, Renderer); **S5 und
    R3-Serien vom Retroid offen**.
 
+## Gerätetest 28.10.2026 10:30 und Version 0.94.0-beta (lokal, Branch `claude/determined-allen-36nj6r`)
+
+Bericht `cubeevil4-report-20261028-103732`, `senden.zip`, fünf R3-Serien. **Auf dem Retroid lief noch die alte APK
+(0.93.0 vom 27.10. 20:48):** `test-core-app.ps1 -SkipApk` installierte die APK aus dem Build-Ordner, die nicht neu gebaut
+war (Protokollzeile „60 FPS: …“ im alten Format, keine Marken in den Serien, `etc/movie.das` nie gelesen). Untertitel und
+neues 60 FPS waren also nicht drauf; künftig `test-core-app.ps1` ohne `-SkipApk` (es baut die APK selbst).
+Projektinhaber: mit 60 FPS blitzt das Bild beim Öffnen des START-Menüs kurz weiß. Ursache: der Optionsbildschirm (`gameOption`,
+`Rno0 == 6`) zählte nicht als Menü-Bildschirm, zwischen Spielbild und erstem Menübild entstand ein Zwischenbild. Jetzt in
+`re4_picture_still` (Test `letterbox`, neuer Fall; PC: „a menu screen: no pictures between (r100)“ nach START).
+**Version 0.94.0-beta** (versionCode 78, Wunsch des Projektinhabers für weitere Tests), Releasetext
+`port/android-decomp/docs/releases/v0.94.0-beta.md`; APK am PC gebaut (20,1 MB, Kern und App-Code geprüft). Hunk testet ein
+Tester (kein Spielstand beim Projektinhaber).
+
 ## Lokale Sitzung 28.10.2026: Hunk, Kapitelende, Film-Untertitel, 60 FPS (Branch `claude/determined-allen-36nj6r`)
 
 **Mercenaries mit Hunk (Patch 0134).** `archive_dump.py` mit den echten Discs: `pl06.drs` hat an `PL_ARC 0x40..0x45`
