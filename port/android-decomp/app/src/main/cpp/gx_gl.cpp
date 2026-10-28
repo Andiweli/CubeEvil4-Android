@@ -908,6 +908,12 @@ struct GxRenderer::Impl {
     std::uint32_t vertexOffset = 0, vertexCount = 0, stride = 0, layout = 0;
     bool perspective = false;
     std::uint64_t look = 0;  // a particle's signature without its textures (0: not a particle)
+    // the object's draw (RE4_GX_OP_OWNER, patch 0137: object, function, table and the n-th draw of
+    // the object; 0: none), its shape (the signature without the textures), a particle's id << 16 |
+    // life frames (~0: none), and for an owned draw where its texture matrices (8 x 12 floats), the
+    // TEV colours (32 words) and the light colours (8 x 4 floats) lie in recFloats (~0: not kept)
+    std::uint64_t owner = 0, shape = 0;
+    std::uint32_t life = ~0u, extra = ~0u;
   };
   bool recordDraws = false;
   bool recValid = false;            // rec describes the chunk run last
@@ -918,6 +924,15 @@ struct GxRenderer::Impl {
   float interpT = 0.5f;
   const Re4GxChunk *interpPrev = nullptr;  // the chunk rec describes (its vertices)
   std::unordered_map<std::uint64_t, std::vector<std::uint32_t>> recBySig, recByLook;
+  // owner tags (60fps-plan.md S1/S2): the object of the draws that follow (0: none), its tag's life
+  // word, how many of its draws came; the draw's own key (object and n-th draw) while it is drawn
+  std::uint64_t ownerBase = 0, curOwner = 0;
+  std::uint32_t ownerLife = ~0u, ownerDraws = 0, curLife = ~0u;
+  std::unordered_map<std::uint64_t, std::uint32_t> recByOwner;
+  // what a blended draw changed beyond its position rows (BlendRestore puts it back): texture
+  // matrix rows, 0x100 for the TEV colours (tevSave: before the blend)
+  std::vector<std::uint32_t> texRowsBlended;
+  std::int32_t tevSave[2][4][4] = {};
   std::vector<std::uint8_t> recUsed;
   std::unordered_map<std::uint32_t, Copy> interpCopies;  // the pass's own EFB copies
   std::unordered_set<std::uint32_t> interpCopied;         // addresses it copied to
@@ -1002,7 +1017,53 @@ struct GxRenderer::Impl {
     for (int i = 0; i < 6; i++)
       recFloatsNew.push_back(xf.proj[i / 4][i % 4]);
     recFloatsNew.insert(recFloatsNew.end(), &xf.matAmb[0][0], &xf.matAmb[0][0] + 16);
+    r.owner = curOwner;
+    r.life = curLife;
+    r.shape = DrawSig(d, k, false);
+    if (curOwner) {
+      r.extra = static_cast<std::uint32_t>(recFloatsNew.size());
+      for (int n = 0; n < 8; n++) {
+        const std::uint32_t row = TexRow(d, n);
+        for (std::uint32_t i = 0; i < 3; i++) {
+          if (row < 60 && row + i < 64)
+            recFloatsNew.insert(recFloatsNew.end(), xf.posTex[row + i], xf.posTex[row + i] + 4);
+          else
+            recFloatsNew.insert(recFloatsNew.end(), 4, 0.0f);
+        }
+      }
+      float tev[32];
+      std::memcpy(tev, tevColor, sizeof(tevColor));
+      std::memcpy(tev + 16, tevKonst, sizeof(tevKonst));
+      recFloatsNew.insert(recFloatsNew.end(), tev, tev + 32);
+      for (int l = 0; l < 8; l++)
+        recFloatsNew.insert(recFloatsNew.end(), xf.light[l][0], xf.light[l][0] + 4);
+    }
     recNew.push_back(r);
+  }
+
+  // The XF row of texture coordinate n's matrix from the draw's defaults (60: the identity; with
+  // indices in the vertices: 60, not looked at).
+  static std::uint32_t TexRow(const Re4GxDraw &d, int n) {
+    if (d.layout & RE4_GX_V_MATRIX)
+      return 60;
+    const std::uint32_t w = n < 3 ? d.matrices[0] >> (8 * (n + 1)) : n < 7 ? d.matrices[1] >> (8 * (n - 3)) : d.matrices[2];
+    return w & 63;
+  }
+
+  // the owner tag (RE4_GX_OP_OWNER): object, function, table (0xFF: none), life word
+  void SetOwner(const std::uint32_t *p) {
+    if (!p[0] || (p[2] & 0xFF) == 0xFF) {
+      ownerBase = 0;
+    } else {
+      std::uint64_t h = 1469598103934665603ull;
+      for (int i = 0; i < 3; i++) {
+        h ^= p[i];
+        h *= 1099511628211ull;
+      }
+      ownerBase = h | 1;
+    }
+    ownerLife = p[3];
+    ownerDraws = 0;
   }
 
   // The noted draw of the picture before that this one is: the same signature; the first one not
@@ -1146,8 +1207,33 @@ struct GxRenderer::Impl {
       for (int c = 0; c < 3; c++)
         t[c] = xf.posTex[first + c][3];
     const std::uint64_t sig = DrawSig(d, k);
+    // its kind for the counts (60fps-plan.md S0): 0 a particle, 1 a figure (matrices per vertex),
+    // 2 the room and other 3D, 3 2D
+    const int kind = flat ? 3 : rows == 30 ? 1 : rows == 3 && d.vertexCount <= 16 ? 0 : 2;
+    stats.interpKind[kind]++;
+    // the object's draw of the picture before (S2): the same object, the same shape; a particle's
+    // slot used anew (another effect, fewer life frames) is a new one, drawn as in the next picture
+    const DrawRec *a = nullptr;
+    bool owned = false;
+    if (curOwner) {
+      auto o = recByOwner.find(curOwner);
+      if (o != recByOwner.end() && !recUsed[o->second] && rec[o->second].shape == DrawSig(d, k, false)) {
+        const DrawRec &c = rec[o->second];
+        recUsed[o->second] = 1;
+        if (c.life != ~0u && curLife != ~0u &&
+            ((c.life >> 16) != (curLife >> 16) || (curLife & 0xFFFF) < (c.life & 0xFFFF))) {
+          stats.interpOwnedNew++;
+          stats.interpKindUnmatched[kind]++;
+          return 0;
+        }
+        a = &c;
+        owned = true;
+        stats.interpOwned++;
+      }
+    }
     auto it = recBySig.find(sig);
-    const DrawRec *a = it != recBySig.end() ? MatchDraw(it->second, t, rows, d.vertexCount, flat) : nullptr;
+    if (!a)
+      a = it != recBySig.end() ? MatchDraw(it->second, t, rows, d.vertexCount, flat) : nullptr;
     // a particle with none of its look: by the look without its textures. Flames show a new picture
     // of their animation, a texture of its own, every game picture (Retroid report 26.10.2026, the
     // merchant's brazier: unmatched, the flames were drawn where they are in the next picture and
@@ -1162,8 +1248,10 @@ struct GxRenderer::Impl {
       std::memcpy(now, xf.posTex[first], sizeof(now));
       NoteCamera(sig, recFloats.data() + a->data, now);
     }
-    if (!a)
+    if (!a) {
+      stats.interpKindUnmatched[kind]++;
       return 0;
+    }
     const float s = interpT;
     const float *src = recFloats.data() + a->data;
     if (flat) {
@@ -1226,6 +1314,70 @@ struct GxRenderer::Impl {
       Dirty(200, 204);
       colors = true;
     }
+    // with the object sure (an owned draw, S3): its texture matrices (flowing water, lava, drifting
+    // fog) unless a coordinate jumped by more than half the texture (it ran over its edge and
+    // starts again), the TEV colours (a glow) and the light colours (torchlight) between the two
+    bool extras = false;
+    if (owned && a->extra != ~0u) {
+      const float *ex = recFloats.data() + a->extra;
+      texRowsBlended.clear();
+      for (int n = 0; n < 8; n++) {
+        const std::uint32_t row = TexRow(d, n);
+        if (row >= 60 || row + 3 > 64)
+          continue;
+        const float *was = ex + n * 12;
+        bool same = true, jump = false;
+        for (int r = 0; r < 3; r++) {
+          for (int c = 0; c < 4; c++) {
+            const float diff = xf.posTex[row + r][c] - was[r * 4 + c];
+            same = same && diff == 0.0f;
+            if (c == 3 && r < 2 && std::fabs(diff) > 0.5f)
+              jump = true;
+          }
+        }
+        if (same || std::find(texRowsBlended.begin(), texRowsBlended.end(), row) != texRowsBlended.end())
+          continue;
+        if (jump) {
+          stats.interpTexWraps++;
+          continue;
+        }
+        for (int r = 0; r < 3; r++)
+          for (int c = 0; c < 4; c++)
+            xf.posTex[row + r][c] = was[r * 4 + c] + (xf.posTex[row + r][c] - was[r * 4 + c]) * s;
+        texRowsBlended.push_back(row);
+        Dirty(static_cast<int>(row), static_cast<int>(row + 3));
+        stats.interpTexBlends++;
+        extras = true;
+      }
+      std::int32_t tev[2][4][4];
+      std::memcpy(tev, ex + 96, sizeof(tev));
+      if (std::memcmp(tev[0], tevColor, sizeof(tevColor)) != 0 || std::memcmp(tev[1], tevKonst, sizeof(tevKonst)) != 0) {
+        std::memcpy(tevSave[0], tevColor, sizeof(tevColor));
+        std::memcpy(tevSave[1], tevKonst, sizeof(tevKonst));
+        for (int i = 0; i < 4; i++) {
+          for (int c = 0; c < 4; c++) {
+            tevColor[i][c] = static_cast<std::int32_t>(std::lround(tev[0][i][c] + (tevColor[i][c] - tev[0][i][c]) * s));
+            tevKonst[i][c] = static_cast<std::int32_t>(std::lround(tev[1][i][c] + (tevKonst[i][c] - tev[1][i][c]) * s));
+          }
+        }
+        pxDirty = true;
+        stats.interpTevBlends++;
+        extras = true;
+        texRowsBlended.push_back(0x100);
+      }
+      const float *lc = ex + 128;
+      bool lightsDiffer = false;
+      for (int l = 0; l < 8 && !lightsDiffer; l++)
+        lightsDiffer = std::memcmp(lc + l * 4, xf.light[l][0], 4 * sizeof(float)) != 0;
+      if (lightsDiffer) {
+        for (int l = 0; l < 8; l++)
+          for (int c = 0; c < 4; c++)
+            xf.light[l][0][c] = lc[l * 4 + c] + (xf.light[l][0][c] - lc[l * 4 + c]) * s;
+        Dirty(160, 200);
+        lights = true;
+        stats.interpLightBlends++;
+      }
+    }
     // vertices the game moved itself (skinning): positions and normals between the two
     if (interpPrev && a->vertexCount == d.vertexCount && a->stride == d.stride && a->layout == d.layout &&
         d.stride >= 12 && a->vertexOffset + static_cast<std::uint64_t>(a->vertexCount) * a->stride <=
@@ -1274,8 +1426,10 @@ struct GxRenderer::Impl {
         }
       }
     }
-    // 0x100000: only the projection; 0x200000: the lights too; 0x400000: the colours
-    return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u) | (colors ? 0x400000u : 0u);
+    // 0x100000: only the projection; 0x200000: the lights too; 0x400000: the colours; 0x800000:
+    // texture matrices or TEV colours (texRowsBlended)
+    return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u) | (colors ? 0x400000u : 0u) |
+           (extras ? 0x800000u : 0u);
   }
 
   // The lights of the next picture into the in-between one: the modelview `mid` of a draw (blended)
@@ -1339,6 +1493,21 @@ struct GxRenderer::Impl {
     }
     if (blended & 0x400000)
       Dirty(200, 204);
+    if (blended & 0x800000) {
+      for (std::uint32_t row : texRowsBlended) {
+        if (row == 0x100) {
+          std::memcpy(tevColor, tevSave[0], sizeof(tevColor));
+          std::memcpy(tevKonst, tevSave[1], sizeof(tevKonst));
+          pxDirty = true;
+          continue;
+        }
+        for (std::uint32_t r = 0; r < 3; r++)
+          for (std::uint32_t c = 0; c < 4; c++)
+            XfMemToBlock((row + r) * 4 + c);
+        Dirty(static_cast<int>(row), static_cast<int>(row + 3));
+      }
+      texRowsBlended.clear();
+    }
     xfRegsDirty = true; // FillXfRegs puts the projection (and the colours) back
     Dirty(206, 208);
   }
@@ -2466,6 +2635,8 @@ struct GxRenderer::Impl {
     if (xfRegsDirty)
       FillXfRegs();
     std::uint32_t blended = 0;
+    curOwner = ownerBase ? (ownerBase ^ (static_cast<std::uint64_t>(ownerDraws++) + 1) * 0x9E3779B97F4A7C15ull) | 1 : 0;
+    curLife = ownerLife;
     if (interpPass)
       blended = BlendDraw(d, k, chunk);
     else if (recordDraws)
@@ -3847,6 +4018,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   }
   m.TimerBegin();
   m.current = nullptr;
+  m.ownerBase = 0;
+  m.ownerLife = ~0u;
   std::uint32_t at = 0;
   while (at < chunk.opWords) {
     const std::uint32_t head = chunk.ops[at];
@@ -3877,6 +4050,10 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
         std::memcpy(&t, p, sizeof(t));
         m.BindTexture(t, chunk);
       }
+      break;
+    case RE4_GX_OP_OWNER:
+      if (n >= 4)
+        m.SetOwner(p);
       break;
     case RE4_GX_OP_FORGET:
       // the real Run forgets (the in-between pass runs before it)
@@ -4070,7 +4247,10 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   // the noted draws by signature, in their order
   m.recBySig.clear();
   m.recByLook.clear();
+  m.recByOwner.clear();
   for (std::uint32_t i = 0; i < m.rec.size(); i++) {
+    if (m.rec[i].owner)
+      m.recByOwner.emplace(m.rec[i].owner, i);
     m.recBySig[m.rec[i].sig].push_back(i);
     if (m.rec[i].look)
       m.recByLook[m.rec[i].look].push_back(i);

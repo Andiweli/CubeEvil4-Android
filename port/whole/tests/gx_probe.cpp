@@ -212,6 +212,8 @@ void re4_dof_autofocus_mark(void* w);
 namespace {
 
 // What a chunk holds, in op order.
+extern "C" void re4_log(const char* format, ...);
+
 struct Parsed {
     const Re4GxDraw* draws[16];
     int drawCount;
@@ -225,6 +227,8 @@ struct Parsed {
     int xfCount;
     bool bpStateFirst;
     int unknown;
+    const uint32_t* owner;  // the first owner tag (patch 0137) and the draw it precedes
+    int ownerBefore;
 };
 
 void parse(const Re4GxChunk* c, Parsed& p)
@@ -251,6 +255,11 @@ void parse(const Re4GxChunk* c, Parsed& p)
         } else if (op == RE4_GX_OP_XF && p.xfCount < 64) {
             p.xfWords[p.xfCount] = n - 1;
             p.xf[p.xfCount++] = payload;
+        } else if (op == RE4_GX_OP_OWNER && n == 4) {
+            if (!p.owner) {
+                p.owner = payload;
+                p.ownerBefore = p.drawCount;
+            }
         } else if (op < RE4_GX_OP_BP || op > RE4_GX_OP_BP_STATE) {
             p.unknown++;
         }
@@ -374,6 +383,9 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
         GXTexCoord2f32(0.25f * i, 0.5f);
     }
 
+    // the owner of the draws that follow (ExecOt, patch 0137): before the strip
+    re4_gx_put_owner(0x80123450u, 0x81000010u, 7, 0x00050003u);
+
     // a triangle strip with the same texture: no new texture op
     GXClearVtxDesc();
     GXSetVtxDesc(9, 1);
@@ -449,6 +461,12 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     // five GXBegins, four draws: the display list joins the strip before it
     if (!p.bpStateFirst || p.unknown != 0 || p.drawCount != 4) {
         failed |= 0x2;
+    }
+    // the owner tag in the chunk, in its place: after the quad, before the strip
+    if (!p.owner || p.ownerBefore != 1 || p.owner[0] != 0x80123450u || p.owner[1] != 0x81000010u || p.owner[2] != 7 ||
+        p.owner[3] != 0x00050003u) {
+        failed |= 0x2;
+        re4_log("  gx: the owner tag is missing or out of place (before draw %d)", p.owner ? p.ownerBefore : -1);
     }
     // the matrix
     bool matrix = false;

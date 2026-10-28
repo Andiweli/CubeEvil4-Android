@@ -74,6 +74,13 @@ struct GxStats {
   // in-between pictures (60 FPS, Interpolate): shown, refused as a cut; their perspective draws,
   // of them matched to a draw of the picture before, and draws with blended vertices
   unsigned interpPictures = 0, interpCuts = 0, interpDraws = 0, interpMatched = 0, interpVertexBlends = 0;
+  // (60fps-plan.md S0-S3) draws of the in-between pass by kind (0 particles, 1 figures, 2 room and
+  // other 3D, 3 2D) and of them without a counterpart; draws found by their object (owner tags), of
+  // them a slot the game used anew; texture matrices blended, left out as a jump over the edge; TEV
+  // colours and light colours blended
+  unsigned interpKind[4] = {}, interpKindUnmatched[4] = {};
+  unsigned interpOwned = 0, interpOwnedNew = 0, interpTexBlends = 0, interpTexWraps = 0, interpTevBlends = 0,
+           interpLightBlends = 0;
 };
 
 // Picture options of the app's menu (M11), applied by Init: multisampling of

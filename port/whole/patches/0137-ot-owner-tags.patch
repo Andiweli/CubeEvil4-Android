@@ -1,0 +1,31 @@
+# 60 FPS without flicker (port/docs/60fps-plan.md, step S1; decision of the project owner, 28.10.2026):
+# ExecOt names the object of each ordering-table entry before its draws (runtime/gx_owner.cpp ->
+# gx_fifo.cpp re4_gx_put_owner, a port command 0x02 in the GX stream -> RE4_GX_OP_OWNER in the chunk),
+# and "no object" after the table. The app's in-between picture finds every draw of the picture before
+# by its object (a flame of its own cEsp, a figure, a room part) instead of guessing by look and
+# distance. The game's logic and picture stay as they are; a renderer that does not know the op skips
+# it. A port patch.
+--- a/src/game/trans_ot.cpp
++++ b/src/game/trans_ot.cpp
+@@ -274,6 +274,8 @@
+ // Runs table `type` from the farthest bucket to the nearest, calling each entry's func(data)
+ // (g_NowExecOtType / prev_kind tell the callbacks their context); alpha compare reset afterwards.
+ // Returns the number of entries drawn.
++extern "C" void re4_gx_owner(void* data, void* func, int table); /* port: runtime/gx_owner.cpp */
++
+ int ExecOt(int type)
+ {
+     OtWork* w = &g_OtWork[type];
+@@ -287,10 +289,12 @@
+         for (; p; p = p->next) {
+             if (p->data) {
+                 count++;
++                re4_gx_owner(p->data, (void*) p->func, type); /* port: the entry's object (patch 0137) */
+                 p->func(p->data);
+                 w->prev_kind = p->kind;
+             }
+         }
++        re4_gx_owner(0, 0, type); /* port: no object after the table */
+     }
+     GXSetAlphaCompare(7, 0, 1, 7, 0);
+     g_NowExecOtType = OT_MAX;

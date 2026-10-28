@@ -70,7 +70,16 @@ enum Re4GxOp {
     RE4_GX_OP_FORGET = 6,
     /* payload 256 words: all BP registers (the start of a RESET chunk), no
      * side effects. */
-    RE4_GX_OP_BP_STATE = 7
+    RE4_GX_OP_BP_STATE = 7,
+    /* payload 4 words (patch 0137, port/docs/60fps-plan.md): the game object whose draws follow,
+     * until the next OWNER. ExecOt (src/game/trans_ot.cpp) sends one before each entry of an
+     * ordering table: [0] the entry's data (the object: a figure, a room part, a particle cEsp ...),
+     * [1] its function, [2] the table (0..22; 0xFF: after the table, no object), [3] for a particle
+     * its effect id << 16 | life frames (cEsp::m_Id, m_Life_time; a slot the game used anew has
+     * another id or fewer frames), else 0xFFFFFFFF. The same object in two pictures is the same
+     * thing, whatever its draws look like (a flame's next texture). A renderer that does not know
+     * the op skips it by its length. */
+    RE4_GX_OP_OWNER = 8
 };
 
 /* Primitive classes (Re4GxDraw.primitive bits 0-7). Quads, strips and fans

@@ -1708,6 +1708,166 @@ void TestInterpolationParticles() {
   r.Release();
 }
 
+// Owner tags (60fps-plan.md S1/S2, patch 0137): two alike particles swap their order from A to B, each
+// moved 1000 to the left; by look and order they would take each other's places (both halfway at
+// -1500), by their objects each goes halfway along its own move (-500, -2500). A third one's slot is
+// used anew in B (fewer life frames): it stands where it is in B (+6000), not halfway (+4500). With
+// `tags` false the same scene without the tags (the counter-check: the old way).
+void OwnerScene(Builder &b, std::uint32_t sequence, bool second, bool tags, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  auto particle = [&](std::uint32_t object, std::uint32_t life, float x) {
+    if (tags)
+      b.Owner(object, 0x81234560u, 0x12, life);
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  };
+  if (!second) {
+    particle(0x80100000u, 0x00050010u, -2000.0f);
+    particle(0x80100150u, 0x00050011u, 0.0f);
+    particle(0x801002A0u, 0x00050028u, 3000.0f);
+  } else {
+    particle(0x80100150u, 0x00050012u, -1000.0f);
+    particle(0x80100000u, 0x00050011u, -3000.0f);
+    particle(0x801002A0u, 0x00050002u, 6000.0f);
+  }
+  if (tags)
+    b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationOwners() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  for (int tags = 1; tags >= 0; tags--) {
+    std::string error;
+    re4gx::GxRenderer r;
+    Require(r.Init(1, &error), error.c_str());
+    r.SetRecording(true);
+    Builder ba, bb;
+    Re4GxChunk a, b;
+    OwnerScene(ba, 1, false, tags != 0, &a);
+    OwnerScene(bb, 2, true, tags != 0, &b);
+    r.Run(a);
+    Check(r.Interpolate(a, b, 0.5f), tags ? "owners: the in-between picture is shown" : "owners: (without tags) shown");
+    const GLuint xfb = r.Xfb(nullptr, nullptr);
+    const auto own1 = TexPixel(xfb, px(-500.0f), 264), own2 = TexPixel(xfb, px(-2500.0f), 264),
+               swapped = TexPixel(xfb, px(-1500.0f), 264), fresh = TexPixel(xfb, px(6000.0f), 264),
+               between = TexPixel(xfb, px(4500.0f), 264);
+    const bool right = Near(own1, 0, 255, 0) && Near(own2, 0, 255, 0) && Near(swapped, 0, 0, 0) &&
+                       Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0);
+    if (tags) {
+      Check(right, "owners: alike particles keep their own objects, a slot used anew stands where it is in B");
+      Check(r.Stats().interpOwned == 2 && r.Stats().interpOwnedNew == 1, "owners: two found by their object, one new");
+      if (!right)
+        Print("own1", own1), Print("own2", own2), Print("swapped", swapped), Print("fresh", fresh),
+            Print("between", between);
+    } else {
+      // the counter-check: without the tags the old way takes the first alike one (both at -1500)
+      Check(!right && Near(swapped, 0, 255, 0), "owners: without tags the alike particles swap (counter-check)");
+    }
+    Check(glGetError() == GL_NO_ERROR, "owners: no GL error");
+    r.Release();
+  }
+}
+
+// With the object sure (S3): a texture matrix between the two (0.1 -> 0.3: blended once), not over
+// the texture's edge (0.9 -> 0.05: left out), and the TEV colours between the two; without the tags
+// none of it (counter-check).
+void ExtrasScene(Builder &b, std::uint32_t sequence, bool second, bool tags, float shift, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  if (tags)
+    b.Owner(0x80200000u, 0x81234570u, 3);
+  b.XfF(0, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+  // texture matrix 0 (XF rows 30..32): a shift in s
+  b.XfF(30 * 4, {1, 0, 0, shift, 0, 1, 0, 0, 0, 0, 1, 0});
+  // TEV colour register c0 (BP 0xE2 RA, 0xE3 BG): red in A, blue in B
+  b.Bp(0xE2, second ? 0x000000u : 0x0FF000u);
+  b.Bp(0xE3, second ? 0x0FF000u : 0x000000u);
+  std::vector<std::uint8_t> v;
+  V(v, -2000.0f, -2000.0f, 0.0f, kGreen);
+  V(v, 2000.0f, -2000.0f, 0.0f, kGreen);
+  V(v, 2000.0f, 2000.0f, 0.0f, kGreen);
+  V(v, -2000.0f, 2000.0f, 0.0f, kGreen);
+  b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80, RE4_GX_TRIANGLES, 30);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationExtras() {
+  struct Case {
+    bool tags;
+    float a, b;
+    unsigned blends, wraps;
+    const char *what;
+  } cases[] = {
+      {true, 0.1f, 0.3f, 1, 0, "extras: a texture matrix of the same object between the two"},
+      {true, 0.9f, 0.05f, 0, 1, "extras: a texture matrix over its edge left as in B"},
+      {false, 0.1f, 0.3f, 0, 0, "extras: without tags no texture matrix blended (counter-check)"},
+  };
+  for (const Case &c : cases) {
+    std::string error;
+    re4gx::GxRenderer r;
+    Require(r.Init(1, &error), error.c_str());
+    r.SetRecording(true);
+    Builder ba, bb;
+    Re4GxChunk a, b;
+    ExtrasScene(ba, 1, false, c.tags, c.a, &a);
+    ExtrasScene(bb, 2, true, c.tags, c.b, &b);
+    r.Run(a);
+    r.Interpolate(a, b, 0.5f);
+    const auto &st = r.Stats();
+    Check(st.interpTexBlends == c.blends && st.interpTexWraps == c.wraps, c.what);
+    Check(st.interpTevBlends == (c.tags ? 1u : 0u),
+          c.tags ? "extras: the TEV colours of the same object between the two" : "extras: without tags the TEV colours as in B");
+    if (st.interpTexBlends != c.blends || st.interpTexWraps != c.wraps)
+      std::printf("    texture matrices %u blended, %u over the edge\n", st.interpTexBlends, st.interpTexWraps);
+    Check(glGetError() == GL_NO_ERROR, "extras: no GL error");
+    r.Release();
+  }
+}
+
+// 60 FPS at an even pace (S4): single left-out pictures leave it on; three within 2 s stop the
+// in-between pictures for 5 s, then they come back.
+void TestSmoothPacer() {
+  re4gx::SmoothPacer p;
+  std::string why;
+  double t = 0.0;
+  bool all = true;
+  for (int i = 0; i < 300; i++, t += 1.0 / 30.0) {
+    const bool behind = i % 90 == 0;  // one every 3 s
+    const bool ok = p.Chunk(t, behind, &why);
+    all = all && (ok || behind);
+  }
+  Check(all && !p.Off() && p.Offs() == 0, "pacer: one left out every 3 s: 60 FPS stays on");
+  why.clear();
+  p.Chunk(t, true, &why);
+  p.Chunk(t + 0.5, true, &why);
+  p.Chunk(t + 1.0, true, &why);
+  Check(p.Off() && p.Offs() == 1 && why.find("no in-between pictures") != std::string::npos,
+        "pacer: three within 2 s: off, with a log line");
+  Check(!p.Chunk(t + 4.0, false, nullptr), "pacer: still off 3 s later");
+  why.clear();
+  Check(p.Chunk(t + 6.5, false, &why) && !p.Off() && why.find("on again") != std::string::npos,
+        "pacer: on again after 5 s, with a log line");
+}
+
 // Larger draws of the same look keep the game's order (Retroid report 26.10.2026: with fast turns
 // a long bar at the bottom of the picture; two alike parts of Leon had swapped places). Two draws of
 // 20 vertices at 3000 units: X moves from 0 to 300, Y from 400 to 700. X lies nearer to Y's place
@@ -2417,6 +2577,9 @@ int main() {
   TestInterpolationParticles();
   TestInterpolationLooks();
   TestInterpolationEffects();
+  TestInterpolationOwners();
+  TestInterpolationExtras();
+  TestSmoothPacer();
   TestInterpolatedLights();
   // MSAA in its own buffers (the devices without the extensions, RE4_GX_MSAA_TILES=0)
   TestOptions(false, false);

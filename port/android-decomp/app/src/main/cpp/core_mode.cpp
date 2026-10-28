@@ -624,6 +624,7 @@ const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
 // Frame skip: the chunk after the one that was skipped or drawn (taken to look at it, drawn next)
 const Re4GxChunk *skipNext = nullptr;
 std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
+re4gx::SmoothPacer smoothPacer;  // 60 FPS: the in-between pictures pause when the renderer is behind again and again
 unsigned gxBetweenDropped = 0;      // in-between pictures left out because the renderer was behind
 unsigned gxSkipped = 0;             // chunks left out since the start of this renderer
 bool smoothTooSlow = false;
@@ -1377,7 +1378,15 @@ bool drawGx() {
     bool between = false;
     if (smoothOn && !deferred && smoothPrev && behind)
       gxBetweenDropped++;  // behind: this chunk at once, without the picture between
-    if (smoothOn && !deferred && smoothPrev && !behind && !path[0] && !seriesShot[0] && !gxHitShotsLeft) {
+    // an even pace (60fps-plan.md S4): behind again and again, the in-between pictures pause
+    bool paced = true;
+    if (smoothOn && !deferred && smoothPrev) {
+      std::string why;
+      paced = smoothPacer.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), behind, &why);
+      if (!why.empty())
+        LOG("%s", why.c_str());
+    }
+    if (smoothOn && !deferred && smoothPrev && !behind && paced && !path[0] && !seriesShot[0] && !gxHitShotsLeft) {
       between = gx->Interpolate(*smoothPrev, *chunk, 0.5f);
       if (between) {
         api.gxRelease(smoothPrev);
@@ -1513,8 +1522,16 @@ bool drawGx() {
         const unsigned checks = s.behindChecks - gxWork.behindChecks;
         const double behind = checks ? static_cast<double>(s.behindSum - gxWork.behindSum) / checks : 0.0;
         LOG("60 FPS: %u in-between pictures, %u cuts, %u of %u 3D draws matched so far, %u left out (the renderer "
-            "behind); the GPU %.1f Runs behind",
-            s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, gxBetweenDropped, behind);
+            "behind), %u pauses; the GPU %.1f Runs behind",
+            s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, gxBetweenDropped, smoothPacer.Offs(), behind);
+        // (60fps-plan.md S0) without a counterpart, by kind; found by their object, slots used anew;
+        // texture matrices blended / left out at their edge, TEV and light colours blended
+        LOG("60 FPS draws without a counterpart: particles %u of %u, figures %u of %u, room %u of %u, 2D %u of %u; "
+            "by their object %u (%u new in an old slot); texture matrices %u (%u over the edge), TEV colours %u, "
+            "light colours %u",
+            s.interpKindUnmatched[0], s.interpKind[0], s.interpKindUnmatched[1], s.interpKind[1],
+            s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpOwned,
+            s.interpOwnedNew, s.interpTexBlends, s.interpTexWraps, s.interpTevBlends, s.interpLightBlends);
         if (behind > 2.5) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");

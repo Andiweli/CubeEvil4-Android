@@ -242,6 +242,17 @@ void re4_gx_put_u32(unsigned int v)
     put(b, 4);
 }
 
+// The owner of the draws that follow (re4_gx_frame.h RE4_GX_OP_OWNER, patch 0137): a command of
+// the port, byte 0x02 (the GameCube's command processor has none), and four words.
+void re4_gx_put_owner(unsigned int object, unsigned int function, unsigned int table, unsigned int life)
+{
+    re4_gx_put_u8(0x02);
+    re4_gx_put_u32(object);
+    re4_gx_put_u32(function);
+    re4_gx_put_u32(table);
+    re4_gx_put_u32(life);
+}
+
 void re4_gx_put_s8(signed char v)
 {
     re4_gx_put_u8((unsigned char) v);

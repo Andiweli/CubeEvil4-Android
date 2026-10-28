@@ -168,4 +168,57 @@ private:
   unsigned downs_ = 0, ups_ = 0;
 };
 
+// 60 FPS at an even pace (port/docs/60fps-plan.md S4, decision of the project owner, 28.10.2026): an
+// in-between picture the renderer leaves out because it is behind makes a stretch of 60 and 30
+// pictures a second side by side, which looks like flicker (Xiaomi report 26.10.2026: 21 % left out).
+// The dynamic resolution goes down first (AutoLevel counts the left-out ones); when that is not enough
+// and the renderer is still behind kDrops times within kSpan seconds, the in-between pictures stop for
+// kOff seconds: an even 30. Each change is a line for the error log.
+class SmoothPacer {
+public:
+  static constexpr unsigned kDrops = 3;
+  static constexpr double kSpan = 2.0;  // seconds
+  static constexpr double kOff = 5.0;   // seconds
+
+  // A chunk at `t` (seconds) that could get an in-between picture; `behind`: the renderer is behind
+  // with it (its picture is left out anyway). False: no in-between picture now. `why`: a log line
+  // when 60 FPS goes off or on again.
+  bool Chunk(double t, bool behind, std::string *why) {
+    if (offUntil_ >= 0.0) {
+      if (t < offUntil_)
+        return false;
+      offUntil_ = -1.0;
+      if (why)
+        *why = "60 FPS: in-between pictures on again";
+    }
+    if (!behind)
+      return true;
+    drops_[at_] = t;
+    at_ = (at_ + 1) % kDrops;
+    const double oldest = drops_[at_];
+    if (t - oldest <= kSpan) {
+      offUntil_ = t + kOff;
+      offs_++;
+      for (double &d : drops_)
+        d = -1e9;
+      if (why) {
+        char s[160];
+        std::snprintf(s, sizeof(s),
+                      "60 FPS: the renderer was behind %u times within %.0f s: no in-between pictures for %.0f s "
+                      "(an even 30, %u times so far)",
+                      kDrops, kSpan, kOff, offs_);
+        *why = s;
+      }
+    }
+    return false;
+  }
+  bool Off() const { return offUntil_ >= 0.0; }
+  unsigned Offs() const { return offs_; }
+
+private:
+  double drops_[kDrops] = {-1e9, -1e9, -1e9};
+  unsigned at_ = 0, offs_ = 0;
+  double offUntil_ = -1.0;
+};
+
 } // namespace re4gx

@@ -24,7 +24,10 @@
 // RE4_GX_INTERP=1 (60 FPS, experimental): before each chunk that follows the one before, the
 // in-between picture of the two (GxRenderer::Interpolate, RE4_GX_INTERP_T, default 0.5) as
 // OUTPUT_DIR/<name>-zw.ppm, with a line: shown or a cut, the 3D draws and how many were matched.
-// The real pictures must stay the same as without it.
+// The real pictures must stay the same as without it. A second line counts the draws without a
+// counterpart by kind (particles, figures, room, 2D), those found by their object (owner tags,
+// patch 0137) and the texture matrices / TEV colours blended (60fps-plan.md S0-S3).
+// RE4_GX_NO_OWNERS=1: the owner tags left out (the counter-check: the in-between pictures as before).
 #include "gx_gl.h"
 #include "re4_gx_frame_io.h"
 
@@ -111,6 +114,19 @@ int main(int argc, char **argv) {
       failures++;
       continue;
     }
+    static const bool noOwners = std::getenv("RE4_GX_NO_OWNERS") && *std::getenv("RE4_GX_NO_OWNERS") == '1';
+    if (noOwners) {
+      std::vector<uint32_t> kept;
+      for (std::size_t at = 0; at < loaded.ops.size();) {
+        const uint32_t n = 1 + (loaded.ops[at] >> 8);
+        if ((loaded.ops[at] & 0xFF) != RE4_GX_OP_OWNER)
+          kept.insert(kept.end(), loaded.ops.begin() + at, loaded.ops.begin() + std::min(loaded.ops.size(), at + n));
+        at += n;
+      }
+      loaded.ops.swap(kept);
+      loaded.chunk.ops = loaded.ops.data();
+      loaded.chunk.opWords = static_cast<uint32_t>(loaded.ops.size());
+    }
     Re4GxChunk chunk = loaded.chunk;
     const bool follows = renderer && chunk.sequence == lastSequence + 1 && loaded.frame == lastFrame + 1;
     if (!follows) {
@@ -172,6 +188,16 @@ int main(int argc, char **argv) {
       std::printf("%s: Zwischenbild %s, %u 3D-Zeichenaufträge, %u zugeordnet, %u mit gemischten Ecken\n",
                   Stem(path).c_str(), shown ? "gezeigt" : "nicht gezeigt (Schnitt)", now.interpDraws - was.interpDraws,
                   now.interpMatched - was.interpMatched, now.interpVertexBlends - was.interpVertexBlends);
+      std::printf("%s: ohne Gegenstück Teilchen %u/%u, Figuren %u/%u, Raum %u/%u, 2D %u/%u; über das Objekt %u "
+                  "(%u neu belegt); Texturmatrizen %u (%u über den Rand), TEV-Farben %u, Lichtfarben %u\n",
+                  Stem(path).c_str(), now.interpKindUnmatched[0] - was.interpKindUnmatched[0],
+                  now.interpKind[0] - was.interpKind[0], now.interpKindUnmatched[1] - was.interpKindUnmatched[1],
+                  now.interpKind[1] - was.interpKind[1], now.interpKindUnmatched[2] - was.interpKindUnmatched[2],
+                  now.interpKind[2] - was.interpKind[2], now.interpKindUnmatched[3] - was.interpKindUnmatched[3],
+                  now.interpKind[3] - was.interpKind[3], now.interpOwned - was.interpOwned,
+                  now.interpOwnedNew - was.interpOwnedNew, now.interpTexBlends - was.interpTexBlends,
+                  now.interpTexWraps - was.interpTexWraps, now.interpTevBlends - was.interpTevBlends,
+                  now.interpLightBlends - was.interpLightBlends);
       unsigned iw = 0, ih = 0;
       const GLuint between = renderer->Xfb(&iw, &ih);
       if (shown && between && iw && ih) {

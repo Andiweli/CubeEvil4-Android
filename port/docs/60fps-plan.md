@@ -79,3 +79,27 @@ abwechselnd 60 und 30) und meldet das im Fehlerprotokoll.
   jede Art Objekt wissen, wo dessen Lage steht, und die Zeichenfunktionen haben Nebenwirkungen (`EspCommonTrans`
   schreibt `esp->m_Mat`). Dazu doppelte Prozessorlast im Kern. Die Namensmarken bringen den größten Teil des Nutzens
   ohne das.
+
+## Umsetzung (28.10.2026, lokal, Branch `claude/determined-allen-36nj6r`)
+
+- **S0 Messen:** Zähler je Art im Fehlerprotokoll (Zeile „60 FPS draws without a counterpart: particles … figures …
+  room … 2D …“, dazu „by their object“, Texturmatrizen, TEV- und Lichtfarben) und in `gx_chunk_render` (zweite Zeile je
+  Zwischenbild). `gx_chunk_render` mit `RE4_GX_NO_OWNERS=1` lässt die Marken weg (Gegenprobe an derselben Serie). Die
+  PC-Aufnahmen des Kerns sind Einzelbilder mit vollem Zustand (RESET): daran lässt sich kein Zwischenbild rechnen; die
+  Messung braucht R3-Serien vom Gerät (Projektinhaber).
+- **S1 Marken im Kern:** Patch 0137 (`ExecOt`), `runtime/gx_owner.cpp`, Port-Befehl 0x02, `RE4_GX_OP_OWNER` (4 Wörter:
+  Objekt, Funktion, Tabelle, bei Teilchen `m_Id << 16 | m_Life_time`). Test `runtime-test gx` (Marke an ihrer Stelle vor
+  den Zeichnungen). `src/` unverändert, der GameCube-Build trifft weiter die SHA1. r204 am PC: etwa 290 Marken je Bild,
+  davon 190 Teilchen.
+- **S2 Zuordnung:** `BlendDraw` sucht zuerst die Zeichnung desselben Objekts (Objekt, Funktion, Tabelle, n-te
+  Zeichnung) mit gleicher Form (Signatur ohne Texturen) – auch bei neuer Flammen-Textur. Ein Teilchen-Platz mit anderer
+  Effekt-Nummer oder weniger Lebensbildern ist neu (steht wie im nächsten Bild). Ohne Marke oder ohne Gegenstück mit
+  Marke: der bisherige Weg. Test `TestInterpolationOwners` (zwei gleich aussehende Teilchen tauschen die Reihenfolge,
+  ein Platz wird neu belegt; Gegenprobe ohne Marken: sie tauschen).
+- **S3 Mehr mischen** (nur bei Zuordnung über das Objekt): Texturmatrizen der Zeichnung (nicht bei einem Sprung über
+  eine halbe Textur: Umbruch), TEV- und Konstantfarben, Lichtfarben. Nebel nicht (selten im Bild bewegt; offen).
+  Test `TestInterpolationExtras` (Verschiebung 0,1→0,3 gemischt, 0,9→0,05 nicht; Gegenprobe ohne Marken: nichts).
+- **S4 Takt:** `SmoothPacer` (`gx_auto_level.h`): die dynamische Auflösung reagiert zuerst (wie bisher); liegt der
+  Renderer trotzdem 3-mal binnen 2 s zurück, gibt es 5 s keine Zwischenbilder (gleichmäßig 30), mit Zeile im
+  Fehlerprotokoll. Test `TestSmoothPacer`.
+- **S5 Gerät:** offen (Projektinhaber: Fackeln, Wasser, Texturen, Tempo, Menüs; R3-Serien).
