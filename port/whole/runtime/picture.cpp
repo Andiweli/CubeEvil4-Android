@@ -54,6 +54,27 @@ extern "C" int re4_picture_still(void)
     return pG->Rno0 == 3 && IdSys.setCk(IDC_TITLE) ? 1 : 0;
 }
 
+static bool gCinescoHidden;  // re4_letterbox_frame turned the HUD's letterbox units off
+
+// The game letterboxes play a third time (Retroid report 29.10.2026, the GX capture of r104: the 3D
+// filled the height, then the last two draws of the picture laid two black strips over rows 0..56
+// and 392..448): the HUD's id class IDC_CINESCO, two units Cockpit::roomInit sets at every room
+// start (cockpit.cpp). While "4:3 without bars" is open they are hidden (IDSystem::dispSw), and shown
+// again when it closes (events, sub screens, other picture formats); every frame, as the room start
+// clears the switch. Returns 1 while they are hidden.
+extern "C" int re4_letterbox_frame(void)
+{
+    const int open = re4_letterbox_open();
+    if (open && IdSys.setCk(IDC_CINESCO)) {
+        IdSys.dispSw(IDC_CINESCO, 0);
+        gCinescoHidden = true;
+    } else if (!open && gCinescoHidden) {
+        IdSys.dispSw(IDC_CINESCO, 1);
+        gCinescoHidden = false;
+    }
+    return gCinescoHidden ? 1 : 0;
+}
+
 namespace {
 
 void stillHook(unsigned)
@@ -69,6 +90,7 @@ void stillHook(unsigned)
     }
     last = still;
     re4_gx_still(still);
+    re4_letterbox_frame();
 }
 
 struct Install {

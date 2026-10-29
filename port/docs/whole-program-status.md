@@ -55,9 +55,15 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     richtig), das Spiel meldet „draws without its letterbox (r104)“, trotzdem sind oben und unten je 136 Zeilen
     schwarz (= Zeilen 0..56 und 392..448), mit gerader Kante durch Wände und Türrahmen: das 3D wird an der alten
     Balkengrenze abgeschnitten, gemalt wird kein Balken. Im Code (`Render`, `SetScissorState`, `ScreenGXSet`, Filter,
-    Viewports, Kopie aufs XFB, Renderer: Schere, Auflösen, FXAA, gezeigte Zeilen) keine Ursache gefunden. **Nächster
-    Schritt:** Grafikaufnahme (R3) in dieser Lage, in der Cloud mit `gx_chunk_render` die Schere (BP 0x20/0x21) und den
-    Viewport der 3D-Zeichnungen ansehen.
+    Viewports, Kopie aufs XFB, Renderer: Schere, Auflösen, FXAA, gezeigte Zeilen) keine Ursache gefunden.
+    **Ursache gefunden (Grafikaufnahme des Projektinhabers, r104, Cloud 30.10.2026):** Schere 0..511 × 0..447 und
+    Viewport voll, das 3D füllt die Höhe (mit `gx_chunk_render` nachgezeichnet, bis Zeichnung 364 Zeilen 0..447). Die
+    letzten zwei Zeichnungen (365/366) sind zwei schwarze Streifen 640×60 bei y ±210: die Anzeige-Einheiten der Klasse
+    `IDC_CINESCO`, die `Cockpit::roomInit` bei jedem Raumstart setzt – der dritte Weg der Balken neben `Draw_cinesco`
+    und der Schere. **Behoben:** `runtime/picture.cpp re4_letterbox_frame` (jedes Bild, aus dem Bild-Haken): solange
+    „4:3“ offen ist, `IdSys.dispSw(IDC_CINESCO, 0)`, beim Schließen wieder an (Ereignisse, Untermenüs, andere
+    Bildformate wie bisher). Test `letterbox` erweitert (Einheiten aus bei offen, wieder an bei Rno0 2; Gegenprobe 1
+    Fehler). **Gerätetest offen.**
 18. **Inventar: Leons Messer fehlt am Modell rechts** (Nutzerbericht 30.10.2026, EU-Discs, OPPO CPH2127). Im Spiel
     lädt `cPlLeon::setModel` Eintrag 0xD (`Body->m_pKnife`, mit `setKnife(false)` auf 0 skaliert = Messer in der
     Hand), das Untermenü (`Sscrn/ss_model.cpp leonModelInit`) nur 4/5 und 0xA, 8, 6, 9. Ob das Messer an der Brust
