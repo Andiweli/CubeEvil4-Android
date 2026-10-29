@@ -175,8 +175,11 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 
 Wunsch des Projektinhabers (für die Tester): `versionName` 0.95.2-beta, `versionCode` 81, Releasetext
 `port/android-decomp/docs/releases/v0.95.2-beta.md` (seit 0.95.1: Patch 0145 r214/r20e, Patch 0146 Handcannon,
-168 Programme in der Liste der App, Aussetzer der Tonausgabe im Fehlerbericht). Japan/Korea (`retail-jp`) nicht
-enthalten (noch kein Gerätetest). Gebaut in einem eigenen Worktree, `RE4-Fixed` blieb unberührt.
+168 Programme in der Liste der App, Aussetzer der Tonausgabe im Fehlerbericht). **Mit Japan/Korea** (Wunsch des
+Projektinhabers, 30.10.2026: ein Tester in Korea soll es testen): `retail-jp` nach `golden-master` übernommen, README
+und Releasetext ergänzt. Geprüft vorher am zusammengeführten Stand (eigener WSL-Baum `~/re4-jp/RE4`, Bau mit 0
+Fehlern, alle Selbst-, Modul-, Laufzeit- und Kerntests grün): Prüfstrecke Japan, EU und Debug „ALLES OK“, Korea alles
+bis auf den bekannten Formatvergleich von `St1/r100.das` (Klassik-Leser). Gerät nicht getestet.
 
 ## Japanische und koreanische Discs, J0–J5 (30.10.2026 nachts, lokal, Branch `retail-jp`)
 
