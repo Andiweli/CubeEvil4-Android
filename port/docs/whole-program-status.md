@@ -106,6 +106,20 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 23. **Ashley durch Rüstungsstatuen (r20e)** – EU-Abschaltung ergänzt (Patch 0145); mit Debug-Discs Stand der
     Prototyp-Daten. Disc-Art des Nutzers offen.
 24. **Japanische und koreanische Discs** – analysiert (`retail-jp-plan.md`), Umsetzung J0–J7 offen.
+25. **Leistung 0.95.1 (Redmi 15C, Helio G81, EU-Discs, 29.10.2026 17:51, Nutzertext und Protokollanfang):** der Nutzer
+    sieht deutlich weniger Ruckler (Zeichen-Thread 40–50 % statt 62–72 % eines Bildstücks, Leerlauf des Kerns in r101
+    3–11 ms statt 0,7–2,2 ms). **Aber:** die Eckpunkt-Threads kamen gar nicht auf die langsamen Kerne – „cores: the 3
+    vertex threads left to Android (no slow core allowed to the app)“: `PutOnSlowCores` nimmt nur Kerne, die der
+    Thread schon darf, und die drei Threads durften zu dem Zeitpunkt nur 6 und 7 (woher die Einschränkung kommt, ist
+    offen). Die Verbesserung kommt also nicht von dieser Maßnahme. Ob sie wirksam gemacht werden soll (langsame Kerne
+    ohne die Schnittmenge mit der jetzigen Zuordnung setzen), entscheidet der Projektinhaber.
+    Dazu meldet der Nutzer wieder „heap: no room for 0x214b40 bytes in heap 4“ in r101 (17:54:24, vor einem Bildstück mit
+    923 Zeichnungen und 43 ms); die Zeile mit Datei und Zeilennummer fehlt im eingefügten Text. Solche Meldungen aus
+    `datactrl.cpp`/`cDataSwap.cpp` sind ein vorgesehener Ausweg des Spiels (Daten bleiben im ARAM, vgl. M12-Abschnitt
+    „Weitere Meldungen ohne Fehler“); 0x214b40 passt zu einer Ereignisdatei. **Offen:** der vollständige Bericht.
+26. **Dimensity 700: Einbrüche auf 20 FPS seit 0.95.1** (Nutzertext, 30.10.2026, ohne Protokoll). Verdacht zuerst
+    `PutOnSlowCores` (zwei schnelle Kerne); nach Punkt 25 greift die Maßnahme dort vermutlich ebenso wenig. Nutzer
+    gefragt (Force Performance aus, Bericht direkt nach einem Einbruch).
 
 ## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
 
