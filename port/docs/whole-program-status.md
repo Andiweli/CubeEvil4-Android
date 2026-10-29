@@ -31,8 +31,8 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 13. **Zielfernrohr: nur die senkrechte Linie des Fadenkreuzes sichtbar** (Nutzermeldung mit Bildschirmfoto,
     29.10.2026, Auflösung 1×, 640×336) – behoben im Renderer (Abschnitt „Pixelmitte wie der GameCube“), am PC geprüft;
     **Gerätetest offen**.
-14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – Ursache gefunden (Einheit 0x3F in
-    `BulletInfo::move` ohne gewähltes Sprachbild), Korrektur lokal mit dem EU-Programmcode (Startprompt im Chat).
+14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – behoben (Patch 0142, Abschnitt
+    „Lokale Sitzung 29.10.2026 abends“), am PC in allen fünf Sprachen geprüft; **Gerätetest offen**.
 15. **Minenwerfer mit Zielfernrohr: sofortiger Neustart** (Nutzerbericht 29.10.2026, realme RMX2001, 64 bit,
     **0.93.0-beta**, Debug-Discs; ohne Zielfernrohr kein Fehler). Drei Abstürze, alle gleich beim Ausrüsten:
     `HermiteInterpolation` ← `MotionSetCore` ← `cPlNeck::init` ← `pl_R1_Footwork`, davor „MotionMoveCore(): Pl, Invalid
@@ -55,14 +55,54 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     richtig), das Spiel meldet „draws without its letterbox (r104)“, trotzdem sind oben und unten je 136 Zeilen
     schwarz (= Zeilen 0..56 und 392..448), mit gerader Kante durch Wände und Türrahmen: das 3D wird an der alten
     Balkengrenze abgeschnitten, gemalt wird kein Balken. Im Code (`Render`, `SetScissorState`, `ScreenGXSet`, Filter,
-    Viewports, Kopie aufs XFB, Renderer: Schere, Auflösen, FXAA, gezeigte Zeilen) keine Ursache gefunden. **Nächster
-    Schritt:** Grafikaufnahme (R3) in dieser Lage, in der Cloud mit `gx_chunk_render` die Schere (BP 0x20/0x21) und den
-    Viewport der 3D-Zeichnungen ansehen.
+    Viewports, Kopie aufs XFB, Renderer: Schere, Auflösen, FXAA, gezeigte Zeilen) keine Ursache gefunden.
+    **Behoben (Patch 0143, lokale Sitzung 29.10.2026):** die Balken malt doch das Spiel, aber über die ID-Einheiten
+    der Klasse `IDC_CINESCO` (Cockpit), nicht über `Draw_cinesco`; am PC in r104 mit Bildvergleich geprüft;
+    **Gerätetest offen**.
 18. **Inventar: Leons Messer fehlt am Modell rechts** (Nutzerbericht 30.10.2026, EU-Discs, OPPO CPH2127). Im Spiel
     lädt `cPlLeon::setModel` Eintrag 0xD (`Body->m_pKnife`, mit `setKnife(false)` auf 0 skaliert = Messer in der
     Hand), das Untermenü (`Sscrn/ss_model.cpp leonModelInit`) nur 4/5 und 0xA, 8, 6, 9. Ob das Messer an der Brust
     im Körpermodell steckt oder die Verkaufsfassung ein Teil mehr lädt, zeigt nur der EU-Programmcode (`retail_code.py`,
-    Sscrn) – lokal; ebenso der Vergleich mit den Debug-Discs.
+    Sscrn) – lokal; ebenso der Vergleich mit den Debug-Discs. **Behoben (Patch 0144, Fehler des Prototyps):** die
+    EU-Fassung lädt ohne Jacke (Kostüm 1–3) Teil 0x10 dazu (Messer in der Scheide am Brustgurt), wie das Spiel; in
+    den Posen des Inventars liegt es fast ganz hinter Arm und Waffe (am PC gesehen). **Gerätetest offen.**
+
+## Lokale Sitzung 29.10.2026 abends: EMPTY, Balken bei „4:3“, Messer im Inventar (lokal, Branch `golden-master`)
+
+Offene Punkte 14, 17 und 18, am Windows-PC mit Debug- und EU-Discs (WSL-Baum `~/re4-kern/RE4`, i686-O2).
+
+- **Patch 0142 (EMPTY, nur EU-Discs):** Einheit 0x3F des Lebensbalkens (`IDC_LIFE_METER`) hat auf den EU-Discs
+  fünf Sprachbilder (texNo 0 Englisch, 1 Spanisch, 2 Italienisch, 3 Deutsch, 4 Französisch), `BulletInfo::move`
+  schaltet sie nur ein, so liefen sie der Reihe nach durch. Die EU-Fassung (`main.dol` 0x800c19a0; der Wortvergleich
+  von `retail_code.py find` traf nicht, gefunden über die Folge `li 0x3F/0xB/0xA/0x17` vor `unitPtr`) setzt
+  `tex_flag |= 2` und texNo nach `pSys->language`: 3 → 3, 4 → 4, 5 → 1, 6 → 2, sonst 0. Der Patch macht das mit
+  `re4_disc_retail_eu()`. Geprüft: EU-Discs r100, Schrotflinte ohne Patronen (`RE4_TEST_WEAPON`, sechs Schüsse,
+  ab Bild 3445 leer), GX-Bilder 3524..3644 in `eng/ger/fra/esp/ita`: EMPTY, LEER, VIDE, VACÍO, VUOTO stehen ruhig;
+  Debug-Discs: EMPTY wie bisher.
+- **Patch 0143 (Balken bei „4:3“):** Neuer Testschalter `RE4_TEST_LETTERBOX_OFF=1` (`state_trace.cpp`, setzt
+  `re4_core_set_letterbox(1)` wie die App). Debug-Start r104 (`RE4_CHEATS=9`: Gesundheit und automatische QTEs, sonst
+  stirbt Leon im Luis-Film), GX-Bild 7153: Schere (BP 0x20/0x21) und Viewport (XF 0x101A..) der ganzen Zeichnung
+  stehen auf 512×448, das 3D reicht bis Zeichnung 175 über die volle Höhe (Bild schrittweise nachgezeichnet:
+  Zeichnungsliste abgeschnitten, Display-Kopie angehängt). Die Balken malen die Zeichnungen 178/179: zwei schwarze
+  Vierecke 640×60 bei y ±210 (Zeilen 0..56 und 392..448) aus dem ID-Layout `CORE_CINESCO_ID`, das
+  `Cockpit::roomInit` als Klasse `IDC_CINESCO` setzt – eine dritte Balkenquelle neben `Draw_cinesco` und der Schere
+  (Patch 0105). Der Patch lässt diese Klasse in `IDSystem::trans` aus, solange `re4_letterbox_open()` gilt (Spiel,
+  kein Ereignis, kein Untermenü). Geprüft: mit Schalter keine einzige schwarze Zeile mehr, Leons Waffe unten
+  sichtbar; ohne Schalter die Balken wie vorher. Nicht geprüft: Ereignisse mit Schalter (dort bleibt alles wie im
+  Original), Gerät. Nebenbei: `esp08`/`esp0e`/`esp45`/`espgen01` fragen `SYS_SCISSOR_ON` ab (Hitzeflimmern und
+  Linsenreflexe rechnen dann mit 56 Zeilen Rand); mit dem Schalter kann das am Rand leicht abweichen, nicht gesehen.
+- **Patch 0144 (Messer, Fehler des Prototyps, beide Disc-Arten):** EU-`leonModelInit` (`Sscrn.rel` 0x17000, über
+  `wep47Init` davor gefunden; `find` traf Krausers Funktion) lädt nach Teil 0xA für Kostüm 1–3 zusätzlich
+  `PL_ARC(0x10)` mit `PL_ARC(5)`, wie `cPlLeon::setModel` im Spiel; der Rest der Funktion ist bis auf Register gleich,
+  und es ist die einzige Abfrage von `pl_costume` im EU-`Sscrn.rel` (im Debug-Modul keine). `em/pl00.drs` hat auf
+  beiden Disc-Arten dieselbe Tabelle (`archive_dump.py`). Der Debug-Start gibt außer in den ersten Dorfräumen
+  Kostüm 1 (ohne Jacke). Geprüft: r104, Inventar (Y), Debug- und EU-Discs: eine Zeichnung mehr (240 Dreiecke); ohne
+  Tiefentest gezeichnet liegt sie als Messer in der Scheide am Brustgurt, in den Posen mit Pistole, Schrotflinte,
+  Gewehr und TMP aber fast ganz hinter Arm und Waffe (wenige Pixel des Griffs sichtbar) – so auch in der EU-Fassung.
+  **Offen:** ob der Nutzer etwas anderes meint (Bildschirmfoto mit Kostüm und Waffe).
+- **Prüfstrecke** (`whole_r100_check.sh --no-build`, Stand mit 0142–0144): Debug-Discs **„ALLES OK“**, EU-Discs
+  (`--room-info` der Debug-Disc) **„ALLES OK“** (Formatvergleich, Spiellauf, Filme, Speichern und Laden).
+  Nicht geprüft: ARM unter qemu, Android-Build, Gerät.
 
 ## Bildformat „4:3“ jetzt exakt 4:3 (29.10.2026, Cloud, Branch `golden-master`)
 
