@@ -42,7 +42,7 @@
     <string name="ingame_aim_move_stick">Bewegungsstick</string>
     <string name="ingame_aim_touch_area">Touchfläche</string>
     <string name="ingame_aim_c_stick">C-Stick</string>
-    <string name="ingame_touch_aim_help">Touch-Zielen: Solange L oder R eine Waffe bereithält, bewegt die Touchfläche (auf der rechten Hälfte wischen) oder der Touch-C-Stick (über das Zahnrad oben rechts hinzufügen) das Ziel. Bewegungsstick: wie am GameCube.</string>
+    <string name="ingame_touch_aim_help">Touch-Zielen: Solange L oder R eine Waffe bereithält, zielt die Touchfläche durch Wischen auf der rechten Hälfte (das Ziel folgt deinem Finger und bleibt stehen, wenn er stehen bleibt) oder der Touch-C-Stick wie ein Stick (über das Zahnrad oben rechts hinzufügen). Bewegungsstick: wie am GameCube.</string>
     <string name="ingame_gyro_sensitivity">Gyro-Empfindlichkeit</string>
     <string name="ingame_gyro_invert_v">Vertikal umkehren</string>
     <string name="ingame_gyro_invert_h">Horizontal umkehren</string>

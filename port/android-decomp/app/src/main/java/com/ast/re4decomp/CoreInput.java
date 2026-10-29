@@ -223,18 +223,43 @@ public final class CoreInput {
 
   /**
    * Touch aiming (the menu's "Touch Aiming", wish of the project owner, 28.10.2026): while L or R
-   * holds a weapon ready, the look zone (AIM_LOOK) or the touch C stick (AIM_C_STICK) moves the aim,
-   * i.e. the control stick, as the move stick does on the GameCube (AIM_MOVE_STICK, the default);
-   * the other one stays the C stick. Not aiming, both are the C stick as before.
+   * holds a weapon ready, the look zone (AIM_LOOK) or the touch C stick (AIM_C_STICK) moves the aim
+   * (AIM_MOVE_STICK, the default: the move stick as on the GameCube); the other one stays the C stick.
+   * Not aiming, both are the C stick as before. The touch C stick aims as the control stick does; the
+   * look zone by swipes (user report, 29.10.2026: as in mobile shooters, the aim follows the finger and
+   * stops when it stops): its movement goes to the core as angles (takeAimSwipe, CoreBridge.aimTurn).
    */
   static final int AIM_MOVE_STICK = 0, AIM_LOOK = 1, AIM_C_STICK = 2;
+  /** The swipe's turn: radians per share of the screen's shorter side (a swipe across it turns about 90 degrees). */
+  static final float SWIPE_RADIANS = 1.6f;
   private int touchAim = AIM_MOVE_STICK;
+  private boolean touchAiming;          // at the last pad(): L or R held with touch aiming
+  private float swipeX, swipeY;         // the look zone's swipe since takeAimSwipe (shares, y down)
 
   public void setTouchAim(int mode) {
     touchAim = mode == AIM_LOOK || mode == AIM_C_STICK ? mode : AIM_MOVE_STICK;
   }
 
   public int touchAim() { return touchAim; }
+
+  /**
+   * The look zone's finger moved by dx/dy (shares of the shorter side, y down): true when it aims by
+   * the swipe (AIM_LOOK while L or R is held, as the last pad() found), then it does not look.
+   */
+  public boolean touchSwipe(float dx, float dy) {
+    if (touchAim != AIM_LOOK || !touchAiming) return false;
+    swipeX += dx;
+    swipeY += dy;
+    return true;
+  }
+
+  /** The swipe since the last call as the core's yaw and pitch (radians, left and up positive); null: none. */
+  public float[] takeAimSwipe() {
+    if (swipeX == 0 && swipeY == 0) return null;
+    float[] turn = {-swipeX * SWIPE_RADIANS, -swipeY * SWIPE_RADIANS};
+    swipeX = swipeY = 0;
+    return turn;
+  }
 
   /**
    * The GameCube button of an Android key, 0 for none (the triggers: L2 and
@@ -448,6 +473,8 @@ public final class CoreInput {
     boolean touchAiming = touchAim != AIM_MOVE_STICK
         && (touchDevice != null && (touchDevice.l2Key || touchDevice.r2Key)
             || Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
+    if (!touchAiming) swipeX = swipeY = 0;  // a swipe left over from the aim before turns nothing
+    this.touchAiming = touchAiming;
     int buttons = padB ? GC_B : 0;
     float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
     for (Map.Entry<Integer, Device> e : devices.entrySet()) {
@@ -460,15 +487,18 @@ public final class CoreInput {
         mainY = d.ry;
         cX = cY = 0;
       }
-      if (touchAiming && touch) {
-        // the chosen way aims (the move stick too: the further wins), the other stays the C stick
-        float aimX = touchAim == AIM_LOOK ? d.lookX : d.cStickX, aimY = touchAim == AIM_LOOK ? d.lookY : d.cStickY;
-        if (aimX * aimX + aimY * aimY > mainX * mainX + mainY * mainY) {
-          mainX = aimX;
-          mainY = aimY;
+      if (touchAiming && touch && touchAim == AIM_LOOK) {
+        // the look zone aims by swipes (takeAimSwipe), not as a stick; the C stick stays the C stick
+        cX = d.cStickX;
+        cY = d.cStickY;
+      } else if (touchAiming && touch) {
+        // the touch C stick aims (the move stick too: the further wins), the look zone stays the C stick
+        if (d.cStickX * d.cStickX + d.cStickY * d.cStickY > mainX * mainX + mainY * mainY) {
+          mainX = d.cStickX;
+          mainY = d.cStickY;
         }
-        cX = touchAim == AIM_LOOK ? d.cStickX : d.lookX;
-        cY = touchAim == AIM_LOOK ? d.cStickY : d.lookY;
+        cX = d.lookX;
+        cY = d.lookY;
       }
       if (mainX * mainX + mainY * mainY > lx * lx + ly * ly) {
         lx = mainX;

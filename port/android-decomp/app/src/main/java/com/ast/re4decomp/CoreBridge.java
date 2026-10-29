@@ -137,6 +137,12 @@ public final class CoreBridge {
    */
   public static native void gyro(float yaw, float pitch);
   /**
+   * Swipe aiming (the menu's "Touch Aiming: Touch Area"): the finger's movement on the touch area while
+   * Leon aims, as angles in radians (yaw positive left, pitch positive up); the core turns the aim by
+   * them at the next game frame.
+   */
+  public static native void aimTurn(float yaw, float pitch);
+  /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores
    * before 22.10.2026 ignore it.

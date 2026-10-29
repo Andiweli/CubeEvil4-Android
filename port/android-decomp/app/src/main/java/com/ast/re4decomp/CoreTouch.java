@@ -200,6 +200,11 @@ final class CoreTouch {
   /** RetroTouch's onLook: a looking finger moved by dx/dy (shares of the shorter side). */
   void look(float dx, float dy) {
     if (lookFingers.isEmpty()) return;  // not a finger of the look zone (see fingerDown)
+    // aiming with "Touch Area": the swipe turns the aim (CoreInput.touchSwipe); the view stays as it was
+    if (input.touchSwipe(dx, dy)) {
+      if (lookX != 0 || lookY != 0) centreLook();
+      return;
+    }
     lookX += dx;
     lookY += dy;
     float way = (float) Math.sqrt(lookX * lookX + lookY * lookY);

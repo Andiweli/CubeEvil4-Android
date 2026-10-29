@@ -52,7 +52,7 @@
     <string name="ingame_aim_move_stick">Move Stick</string>
     <string name="ingame_aim_touch_area">Touch Area</string>
     <string name="ingame_aim_c_stick">C Stick</string>
-    <string name="ingame_touch_aim_help">Touch Aiming: while L or R holds a weapon ready, the touch area (drag on the right half) or the touch C stick (add it with the gear at the top right) moves the aim. Move Stick: as on the GameCube.</string>
+    <string name="ingame_touch_aim_help">Touch Aiming: while L or R holds a weapon ready, the touch area aims by swipes on the right half (the aim follows your finger and stops when it stops) or the touch C stick aims like a stick (add it with the gear at the top right). Move Stick: as on the GameCube.</string>
     <string name="ingame_gyro_sensitivity">Gyro sensitivity</string>
     <string name="ingame_gyro_invert_v">Invert vertical</string>
     <string name="ingame_gyro_invert_h">Invert horizontal</string>

@@ -1051,6 +1051,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void send() {
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
+    // swipe aiming (Touch Aiming: Touch Area): the finger's way since the last event as angles
+    float[] turn = input.takeAimSwipe();
+    if (turn != null) CoreBridge.aimTurn(turn[0], turn[1]);
   }
 
   /** The keys the game maps or the app uses: which of them a device reports. */

@@ -1401,6 +1401,7 @@ extern "C" int re4probe_letterbox(void)
 }
 
 extern "C" void re4_core_gyro(float yaw, float pitch);
+extern "C" void re4_core_aim_turn(float yaw, float pitch);
 
 // Gyro aiming with the harpoon in the boat of the Del Lago fight (runtime/gyro.cpp): a fake Leon
 // aiming it (pl0f routine 0/0xF/3, step 3) on a fake boat; the yaw moves the sight across
@@ -1471,6 +1472,23 @@ extern "C" int re4probe_gyro_boat(void)
     bad |= pl->m_BoatPlDir != dir2 ? 0x100 : 0;
     StaFlagOff(pG, STA_SUB_SCRN);
     re4_core_gyro(0.0f, 0.0f);
+    // swipe aiming (re4_core_aim_turn): the angles of two swipes added up, turned at the next frame as
+    // they are (no gain), then nothing more while the finger stands
+    pl->m_BoatPlDir = 0.0f;
+    pl->m_Blend = 0.0f;
+    re4_core_aim_turn(0.05f, 0.01f);
+    re4_core_aim_turn(0.05f, 0.01f);
+    PADRead(pads);
+    bad |= !near(pl->m_BoatPlDir, 0.1f) || !near(pl->m_Blend / 1251.6454f, 0.02f) ? 0x200 : 0;
+    PADRead(pads);
+    bad |= !near(pl->m_BoatPlDir, 0.1f) ? 0x400 : 0;
+    // a swipe while a sub screen is open is gone, not turned later
+    StaFlagOn(pG, STA_SUB_SCRN);
+    re4_core_aim_turn(0.05f, 0.0f);
+    PADRead(pads);
+    StaFlagOff(pG, STA_SUB_SCRN);
+    PADRead(pads);
+    bad |= !near(pl->m_BoatPlDir, 0.1f) ? 0x800 : 0;
 
     pPL = keepPl;
     pG->Rno0 = keepStep;

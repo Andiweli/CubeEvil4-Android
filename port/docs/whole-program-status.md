@@ -34,6 +34,25 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – Ursache gefunden (Einheit 0x3F in
     `BulletInfo::move` ohne gewähltes Sprachbild), Korrektur lokal mit dem EU-Programmcode (Startprompt im Chat).
 
+## Touch-Zielen mit der Touchfläche: Wischen statt Stick (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Meldung (Nutzer, vom Projektinhaber weitergegeben):** Mit „Touch Aiming: Touch Area“ wirkte der Fingerweg wie ein
+  ausgelenkter Stick: kurz ziehen und stehen bleiben, das Ziel lief weiter. Gewünscht wie in Handy-Shootern: das Ziel
+  folgt dem Finger und steht, wenn er steht.
+- **Umsetzung:** Solange L oder R mit „Touch Area“ gehalten wird, geht die Bewegung des Fingers in der Blickzone
+  (`CoreTouch.look` → `CoreInput.touchSwipe`) nicht mehr auf den Steuerstick und nicht auf den C-Stick, sondern als
+  Winkel an den Kern (`CoreInput.takeAimSwipe` nach jedem Ereignis → `CoreBridge.aimTurn` → `re4_core_aim_turn`,
+  im eigenen Kern-Prozess Nachricht `kAimTurn` 33). `gyro.cpp` summiert die Winkel bis zum nächsten Spielbild und dreht
+  dort wie das Gyro (Körper und Zielneigung, Zielfernrohr mit Zoom-Faktor, Harpune im Boot), ohne Verstärkung;
+  `turnAim` ist jetzt der gemeinsame Teil von Gyro und Wischen (Gyro unverändert: Rate × 0,35 × 1/30 s).
+  Empfindlichkeit `CoreInput.SWIPE_RADIANS` = 1,6 rad je kürzere Bildschirmseite (ein Wisch quer darüber etwa 90°).
+  Der Touch-C-Stick zielt weiter wie ein Stick (er ist einer). Hilfetext in allen zehn Sprachen angepasst.
+- **Geprüft (Cloud):** `CoreTouchTests` 296 Prüfungen (neu: kein Stick und kein Blick beim Wischen, Winkel = Weg ×
+  1,6, steht der Finger, kommt nichts mehr, zwei Bewegungen addiert, ohne R schaut die Zone wieder), `CoreInputTests`
+  170, Laufzeittest `gyroboat` erweitert (Wisch-Winkel addiert und genau einmal gedreht, im Untermenü verworfen),
+  `whole_build.sh i686`, alle Java-Quellen mit javac, `re4decomp_link_check` gebaut. **Nicht getestet:** auf dem Gerät
+  (Gefühl, Empfindlichkeit; ein Regler dafür wäre ein nächster Schritt).
+
 ## Pixelmitte wie der GameCube: Fadenkreuz des Zielfernrohrs bei 1× (29.10.2026, Cloud, Branch `golden-master`)
 
 - **Meldung:** Mit dem Gewehr zeigt das Zielfernrohr nur die senkrechte Linie (Bildschirmfoto des Nutzers, 640×336,

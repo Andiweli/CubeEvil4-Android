@@ -97,6 +97,7 @@ struct CoreApi {
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
   int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
+  void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
   int (*instant)(int, Re4InstantInfo *){};
@@ -429,6 +430,7 @@ void loadCore(JNIEnv *env) {
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
   api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
+  api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
   api.instant = reinterpret_cast<int (*)(int, Re4InstantInfo *)>(dlsym(api.main, "re4_core_instant"));
@@ -1806,6 +1808,7 @@ void useCoreProcess(const std::string &why) {
   api.setCheats = re4ipc_set_cheats;
   api.cheatAction = re4ipc_cheat_action;
   api.touch = re4ipc_touch;
+  api.aimTurn = re4ipc_aim_turn;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
   api.instant = re4ipc_instant;
@@ -2186,6 +2189,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIE
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSmooth(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optSmooth.exchange(want) != want) LOG("60 FPS from in-between pictures: %s", want ? "on" : "off");
+}
+
+// Swipe aiming (CoreInput.takeAimSwipe): the touch area's finger as angles (cores since 29.10.2026).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_aimTurn(JNIEnv *, jclass, jfloat yaw, jfloat pitch) {
+  if (api.aimTurn) api.aimTurn(yaw, pitch);
 }
 
 // Gyro aiming (GyroAim.java): the turn rates to the core (cores since 19.10.2026; older ones: none).

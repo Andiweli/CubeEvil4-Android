@@ -44,7 +44,7 @@
     <string name="ingame_aim_move_stick">Stick de déplacement</string>
     <string name="ingame_aim_touch_area">Zone tactile</string>
     <string name="ingame_aim_c_stick">Stick C</string>
-    <string name="ingame_touch_aim_help">Visée tactile : tant que L ou R tient une arme prête, la zone tactile (glissez sur la moitié droite) ou le stick C tactile (ajoutez-le avec l\'engrenage en haut à droite) déplace la visée. Stick de déplacement : comme sur GameCube.</string>
+    <string name="ingame_touch_aim_help">Visée tactile : tant que L ou R tient une arme prête, la zone tactile vise en glissant sur la moitié droite (la visée suit votre doigt et s’arrête quand il s’arrête) ou le stick C tactile vise comme un stick (ajoutez-le avec l’engrenage en haut à droite). Stick de déplacement : comme sur GameCube.</string>
     <string name="ingame_gyro_sensitivity">Sensibilité du gyroscope</string>
     <string name="ingame_gyro_invert_v">Inverser la verticale</string>
     <string name="ingame_gyro_invert_h">Inverser l’horizontale</string>

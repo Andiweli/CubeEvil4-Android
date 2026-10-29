@@ -46,7 +46,7 @@
     <string name="ingame_aim_move_stick">عصا الحركة</string>
     <string name="ingame_aim_touch_area">منطقة اللمس</string>
     <string name="ingame_aim_c_stick">عصا C</string>
-    <string name="ingame_touch_aim_help">التصويب باللمس: ما دام L أو R يُبقي السلاح جاهزًا، تحرّك منطقة اللمس (اسحب على النصف الأيمن) أو عصا C اللمسية (أضفها من الترس أعلى اليمين) التصويب. عصا الحركة: كما في GameCube.</string>
+    <string name="ingame_touch_aim_help">التصويب باللمس: ما دام L أو R يُبقي السلاح جاهزًا، تصوّب منطقة اللمس بالسحب على النصف الأيمن (يتبع التصويب إصبعك ويتوقف عندما يتوقف) أو تصوّب عصا C اللمسية كعصا (أضفها من الترس أعلى اليمين). عصا الحركة: كما في GameCube.</string>
     <string name="ingame_gyro_sensitivity">حساسية الجيروسكوب</string>
     <string name="ingame_gyro_invert_v">عكس الاتجاه الرأسي</string>
     <string name="ingame_gyro_invert_h">عكس الاتجاه الأفقي</string>

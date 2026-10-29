@@ -43,7 +43,7 @@
     <string name="ingame_aim_move_stick">Analógico de movimento</string>
     <string name="ingame_aim_touch_area">Área de toque</string>
     <string name="ingame_aim_c_stick">Analógico C</string>
-    <string name="ingame_touch_aim_help">Mira por toque: enquanto L ou R mantém uma arma pronta, a área de toque (arraste na metade direita) ou o analógico C de toque (adicione-o com a engrenagem no canto superior direito) move a mira. Analógico de movimento: como no GameCube.</string>
+    <string name="ingame_touch_aim_help">Mira por toque: enquanto L ou R mantém uma arma pronta, a área de toque mira deslizando na metade direita (a mira segue seu dedo e para quando ele para) ou o analógico C de toque mira como um analógico (adicione-o com a engrenagem no canto superior direito). Analógico de movimento: como no GameCube.</string>
     <string name="ingame_gyro_sensitivity">Sensibilidade do giroscópio</string>
     <string name="ingame_gyro_invert_v">Inverter vertical</string>
     <string name="ingame_gyro_invert_h">Inverter horizontal</string>

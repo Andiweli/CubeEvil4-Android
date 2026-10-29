@@ -71,6 +71,7 @@ enum MsgType : uint32_t {
     kDiscProblem = 30,   // -> text: re4_core_disc_problem
     kSetCheats = 31,     // a = the cheat switches (no reply)
     kCheatAction = 32,   // a = the cheat button -> a = result (re4_core_cheat_action)
+    kAimTurn = 33,       // a, b = a swipe's yaw, pitch as float bits (no reply; re4_core_aim_turn)
 };
 
 struct MsgHeader {

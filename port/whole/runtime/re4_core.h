@@ -305,6 +305,10 @@ int re4_letterbox_off(void);
  * game frame while a sub screen is open (tabs, the attache case and its
  * command menu), ignored elsewhere. Any thread. */
 void re4_core_touch(float u, float v);
+/* Swipe aiming (cores since 29.10.2026; runtime/gyro.cpp): the touch area's finger moved while the player
+ * aims, as angles in radians (yaw positive left, pitch positive up), added up to the next game frame and
+ * turned there as the gyro turns the aim (the scope's zoom too). Any thread. */
+void re4_core_aim_turn(float yaw, float pitch);
 /* A swipe across the picture (cores since 22.10.2026): dir 1 the next tab of
  * the sub screen (a swipe to the left), -1 the one before, nothing beyond the
  * first and the last; ignored outside the normal inventory. Any thread. */
