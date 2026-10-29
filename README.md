@@ -40,7 +40,7 @@ and it contains no game data: you need your own images of both discs of one of t
 - **US and JP retail release** as supported disc versions.
 - **New cheats:** automatic quick-time events and unlocking Assignment Ada and The Mercenaries.
 - **Touch aiming by swipe:** the aim follows your finger and stops when it stops.
-- **Fixes from testers' reports** 
+- **Various fixes from testers' reports** 
 
 ## What the app does
 
