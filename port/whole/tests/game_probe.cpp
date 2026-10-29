@@ -1696,3 +1696,125 @@ extern "C" int re4probe_qte_touch(void)
     }
     return bad;
 }
+
+extern "C" void re4_qte_auto(int on);
+
+// Automatic QTEs (the cheat switch, runtime/qte_touch.cpp re4_qte_auto): with a prompt the buttons go
+// in by themselves, two frames pressed and two released while it stays; a mash every second frame;
+// nothing for the plain A, X (hide), in a sub screen or when off. Bits: each failed case.
+extern "C" int re4probe_qte_auto(void)
+{
+    const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0;
+    const int keepActive = ActBtn.isActive();
+    const u8 keepShown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    PADStatus pads[4];
+    int bad = 0;
+    auto frame = [&]() -> u16 {
+        PADRead(pads);
+        return pads[0].button;
+    };
+    auto settle = [&]() {
+        Cckpt.m_ActBttn.setDispFlag(DISP_OFF);
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    };
+    StaFlagOff(pG, STA_SUB_SCRN);
+    ActBtn.setActive(1);
+    re4_qte_auto(1);
+    settle();
+
+    // the dodge: L+R two frames, two not, then again while the prompt stays
+    Cckpt.m_ActBttn.setDispFlag(DISP_L_R);
+    const u16 want[6] = {0x0060, 0x0060, 0, 0, 0x0060, 0x0060};
+    for (int i = 0; i < 6; i++) {
+        bad |= frame() != want[i] ? 1 : 0;
+    }
+    settle();
+    // a mash (A): pressed every second frame
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_RAPID);
+    int presses = 0;
+    {
+        u16 last = 0;
+        for (int f = 0; f < 8; f++) {
+            const u16 b = frame();
+            presses += b == 0x0100 && last != 0x0100;
+            last = b;
+        }
+    }
+    bad |= presses != 4 ? 2 : 0;
+    settle();
+    // the plain A (a door) and X (Ashley: hide): the player's
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_NORMAL);
+    bad |= (frame() | frame() | frame()) != 0 ? 4 : 0;
+    Cckpt.m_ActBttn.setDispFlag(DISP_X);
+    bad |= (frame() | frame() | frame()) != 0 ? 8 : 0;
+    // a sub screen, an inactive button: nothing
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_B);
+    StaFlagOn(pG, STA_SUB_SCRN);
+    bad |= (frame() | frame()) != 0 ? 0x10 : 0;
+    StaFlagOff(pG, STA_SUB_SCRN);
+    ActBtn.setActive(0);
+    bad |= (frame() | frame()) != 0 ? 0x20 : 0;
+    ActBtn.setActive(1);
+    // off: nothing
+    re4_qte_auto(0);
+    settle();
+    Cckpt.m_ActBttn.setDispFlag(DISP_L_R);
+    bad |= (frame() | frame() | frame()) != 0 ? 0x40 : 0;
+
+    Cckpt.m_ActBttn.setDispFlag(keepShown);
+    ActBtn.setActive(keepActive);
+    if (keepSub) {
+        StaFlagOn(pG, STA_SUB_SCRN);
+    }
+    return bad;
+}
+
+extern "C" int re4_cheat_perform(int what);
+extern "C" void re4_cheats_set(int bits);
+extern "C" void re4_cheats_install(void);
+
+// The cheat button "unlock the extra games" (runtime/cheats.cpp, 4): what clearing the game sets for
+// Assignment Ada and The Mercenaries (r333.cpp), not the costume, the Mercenaries' records cleared the
+// first time; then "already"; kept by switch 16 when a system file without it was read. Bits: each
+// failed case.
+extern "C" int re4probe_cheat_extras(void)
+{
+    const SYSTEM_SAVE_WORK keep = *pSys;
+    PADStatus pads[4];
+    int bad = 0;
+    // (the game's flag words count from the top bit: FlagOn)
+    const u32 extras = (0x80000000u >> EXT_HARD_MODE) | (0x80000000u >> EXT_GET_OMAKE_ADA_GAME) |
+                       (0x80000000u >> EXT_GET_OMAKE_ETC_GAME);
+    auto has = [&](int f) { return ExtFlagChk(pSys, f) != 0; };
+    ExtFlagOff(pSys, EXT_COSTUME);
+    ExtFlagOff(pSys, EXT_HARD_MODE);
+    ExtFlagOff(pSys, EXT_GET_OMAKE_ADA_GAME);
+    ExtFlagOff(pSys, EXT_GET_OMAKE_ETC_GAME);
+    pSys->MercSysRoom[0] = 1234;
+    pSys->MercSysRank[0] = 0x80000000u;
+    bad |= re4_cheat_perform(4) != 1 ? 1 : 0;
+    bad |= !has(EXT_HARD_MODE) || !has(EXT_GET_OMAKE_ADA_GAME) || !has(EXT_GET_OMAKE_ETC_GAME) ? 2 : 0;
+    bad |= has(EXT_COSTUME) ? 4 : 0;
+    bad |= pSys->MercSysRoom[0] != 0 || pSys->MercSysRank[0] != 0 ? 8 : 0;
+    bad |= re4_cheat_perform(4) != 2 ? 0x10 : 0;
+    // records made after the unlock stay when it is set again
+    pSys->MercSysRoom[1] = 77;
+    bad |= re4_cheat_perform(4) != 2 || pSys->MercSysRoom[1] != 77 ? 0x20 : 0;
+    // kept: a system file without it (read from the card) gets it back at the next game frame
+    re4_cheats_install();
+    re4_cheats_set(16);
+    PADRead(pads);
+    pSys->Extra_flg &= ~extras;
+    PADRead(pads);
+    bad |= (pSys->Extra_flg & extras) != extras ? 0x40 : 0;
+    re4_cheats_set(0);
+    PADRead(pads);
+    pSys->Extra_flg &= ~extras;
+    PADRead(pads);
+    bad |= (pSys->Extra_flg & extras) != 0 ? 0x80 : 0;
+
+    *pSys = keep;
+    return bad;
+}

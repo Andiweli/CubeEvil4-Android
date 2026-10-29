@@ -163,7 +163,7 @@
     <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
     <string name="ingame_cheat_case">Aktenkoffer L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; der Spielstand merkt sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Die Knöpfe ändern dein Spiel: Waffe, Koffer und Geld bleiben im nächsten Spielstand.</string>
+    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; der Spielstand merkt sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Die Knöpfe ändern dein Spiel: Waffe, Koffer und Geld bleiben im nächsten Spielstand. Automatische QTEs drückt bei jeder Tastenaufforderung die Tasten für dich. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü, wie nach dem Durchspielen; dein nächster Spielstand behält sie.</string>
     <string name="ingame_cheat_done">Erledigt: %1$s.</string>
     <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>
     <string name="ingame_cheat_raised">Killer7 schon vorhanden: jetzt auf den höchsten Stufen.</string>
@@ -171,6 +171,12 @@
     <string name="ingame_cheat_no_room">Kein Platz im Aktenkoffer.</string>
     <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
     <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
+    <string name="ingame_cheat_qte">Automatische QTEs</string>
+    <string name="ingame_cheat_extras">Extra-Spiele freischalten</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada und The Mercenaries sind freigeschaltet (dazu Professional, wie nach dem Durchspielen). Das Titelmenü zeigt sie nach einem Neustart. Fortschritt seit dem letzten Speichern geht verloren.</string>
+    <string name="ingame_cheat_extras_later">Freigeschaltet: Assignment Ada und The Mercenaries stehen nach dem nächsten Neustart im Titelmenü.</string>
+    <string name="ingame_cheat_extras_already">Schon freigeschaltet: Assignment Ada und The Mercenaries stehen im Titelmenü.</string>
+    <string name="ingame_later">Später</string>
     <string name="ingame_controller_config">Controller-Konfiguration</string>
     <string name="ingame_controller_config_help">Controller-Konfiguration: die Funktion der freien Tasten deines Controllers wählen (X, Y, L1, R1, L3, R3). Nur mit angeschlossenem Controller.</string>
     <string name="ingame_controller_default">Standardbelegung</string>

@@ -334,6 +334,14 @@ public class CoreMenuLayoutTest {
       health.performClick(); assertEquals(1, sent[0]);
       oneHit.performClick(); assertEquals(5, sent[0]);
       health.performClick(); assertEquals(4, sent[0]);
+      // the bottom row (29.10.2026): two, automatic QTEs (bit 8) and the extra games' button
+      ViewGroup more = (ViewGroup) body.getChildAt(3);
+      assertEquals(2, more.getChildCount());
+      Button qte = (Button) more.getChildAt(0), extras = (Button) more.getChildAt(1);
+      assertTrue(qte.getText().toString().contains(activity.getString(R.string.ingame_cheat_qte)));
+      assertTrue(extras.getText().toString().contains(activity.getString(R.string.ingame_cheat_extras)));
+      qte.performClick(); assertEquals(12, sent[0]);
+      qte.performClick(); assertEquals(4, sent[0]);
       Button killer7 = (Button) actions.getChildAt(0);
       assertTrue(killer7.getText().toString().contains(activity.getString(R.string.ingame_cheat_killer7)));
       // a button lights up for a moment after a press

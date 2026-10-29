@@ -102,17 +102,20 @@ public final class CoreBridge {
   /**
    * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,
    * 6 Italian. The core takes it and restarts the game (its own soft reset); the start setting
-   * RE4_GAME_LANGUAGE holds the one at the start.
+   * RE4_GAME_LANGUAGE holds the one at the start. 0: a restart with the language as it is (the cheat
+   * menu's extra games).
    */
   public static native void restartGame(int language);
   /**
    * The cheat menu's switches (port/docs/cheat-menu-plan.md): 1 infinite health, 2 infinite ammo,
-   * 4 one-hit kill; the game sets them in every frame while on.
+   * 4 one-hit kill, 8 automatic QTEs, 16 the extra games kept unlocked; the game sets them in every
+   * frame while on.
    */
   public static native void setCheats(int bits);
   /**
-   * A cheat menu button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1,000,000 pesetas.
-   * 1 done, 2 already so, 0 not now (not Leon, a sub screen, a movie), -1 no room in the case,
+   * A cheat menu button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1,000,000 pesetas,
+   * 4 unlock the extra games (Assignment Ada, The Mercenaries; at any time).
+   * 1 done, 2 already so, 0 not now (1-3: not Leon, a sub screen, a movie), -1 no room in the case,
    * 3 done by the next game frame, -2 the core has no cheat menu.
    */
   public static native int cheatAction(int what);

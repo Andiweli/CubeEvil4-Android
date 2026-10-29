@@ -135,3 +135,21 @@ nur wenn kein Untermenü offen ist (`STA_SUB_SCRN` aus).
 5. Das Cheat-Menü gibt es **mit beiden Disc-Arten** (mit den Debug-Discs kann das Debug-Menü des Spiels die Bits
    weiter selbst schalten).
 6. Munitionsanzeige mit „Unendlich Munition“: **echte Magazinzahl** statt „100“ (Port-Patch auf `bulletNum`).
+
+## Erweiterung 29.10.2026: automatische QTEs und Extra-Spiele
+
+Wunsch des Projektinhabers (29.10.2026): eine **unterste Reihe mit zwei gleich breiten Knöpfen** unter den
+bisherigen sechs.
+
+- **„Automatic QTEs“ (Schalter, Bit 8):** Jede Tastenaufforderung (QTE) wird von selbst beantwortet, über denselben
+  Weg wie „QTE per Tipp“ (`runtime/qte_touch.cpp`, `re4_qte_auto`): Tastenpaare (L+R, A+B) und einzelne Tasten zwei
+  Bilder gedrückt, zwei los, solange die Aufforderung steht; Hämmern jedes zweite Bild. Ausgenommen: das einfache A
+  (Türen, Leitern, Tritte), die Stick-Symbole und X („Ashley: verstecken“, eine Wahl des Spielers).
+- **„Unlock extra games“ (Knopf 4, jederzeit):** setzt, was das Durchspielen setzt (`r333.cpp`): `EXT_HARD_MODE`
+  (Titelmenü mit fünf Einträgen und anderem Hintergrund; Professional gehört zum selben Merker),
+  `EXT_GET_OMAKE_ADA_GAME`, `EXT_GET_OMAKE_ETC_GAME` (beim ersten Mal die Mercenaries-Rekorde auf 0 wie dort). Nicht
+  das Kostüm (`EXT_COSTUME`: ein neues Spiel würde danach fragen). Danach fragt die App „Spiel neu starten?“
+  (Neustart oder Später); der Neustart behält die Sprache (`re4_core_restart_game(0)`). Die App merkt sich die
+  Freischaltung (Bit 16): Der Kern setzt die Merker in jedem Bild wieder, solange eine Systemdatei ohne sie gelesen
+  wurde (kein Speichern seither); beim nächsten Speichern landet sie auf der Speicherkarte.
+

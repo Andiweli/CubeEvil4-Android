@@ -273,7 +273,8 @@ void re4_core_set_fast_cores(int on);
  * The app menu's choice: the game takes it and restarts (its own soft reset at the next game frame,
  * once no memory card access holds it; runtime/game_language.cpp). At the start the environment
  * variable RE4_GAME_LANGUAGE gives it (eng, ger, fra, esp, ita or the number). The language is
- * ignored with the debug build's discs. Any thread. */
+ * ignored with the debug build's discs; 0 restarts with the language as it is (the cheat menu's extra
+ * games, 29.10.2026). Any thread. */
 void re4_core_restart_game(int language);
 /* The first disc file the game could not read (cores since 27.10.2026, runtime/dvd.cpp): "" while
  * every read went well, else "<disc>\t<path on the disc>\t<why>" (disc 1 or 2, the path as in the
@@ -282,12 +283,13 @@ void re4_core_restart_game(int language);
 const char* re4_core_disc_problem(void);
 /* The cheat menu (cores since 27.10.2026, runtime/cheats.cpp, port/docs/cheat-menu-plan.md), with
  * both kinds of discs. The switches, kept by the app like its other settings (at the start also the
- * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill; set in
- * every game frame while on. Any thread. */
+ * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic
+ * QTEs, 16 the extra games kept unlocked (after button 4); set in every game frame while on. Any thread. */
 void re4_core_set_cheats(int bits);
-/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas. While the
- * app's menu holds the game it is done right away: 1 done, 2 already so (Killer7 owned: raised to the
- * highest levels; case L or XL), 0 not now (not Leon, not in a room's play, a sub screen or a movie),
+/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas, 4 unlock the
+ * extra games (Assignment Ada, The Mercenaries; at any time). While the app's menu holds the game it is
+ * done right away: 1 done, 2 already so (Killer7 owned: raised to the highest levels; case L or XL; the
+ * extra games unlocked), 0 not now (1-3: not Leon, not in a room's play, a sub screen or a movie),
  * -1 no free room in the case. Else the next game frame does it: 3. */
 int re4_core_cheat_action(int what);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the

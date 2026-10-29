@@ -163,7 +163,7 @@
     <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
     <string name="ingame_cheat_case">अटैची केस L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखता। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं।</string>
+    <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखता। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं। ऑटोमैटिक QTE हर क्विक-टाइम संकेत पर आपके लिए बटन दबाता है। एक्स्ट्रा गेम अनलॉक करें, गेम पूरा करने के बाद की तरह, Assignment Ada और The Mercenaries को टाइटल मेनू में जोड़ता है; आपका अगला सेव उन्हें रखता है।</string>
     <string name="ingame_cheat_done">हो गया: %1$s।</string>
     <string name="ingame_cheat_already">पहले से है: %1$s।</string>
     <string name="ingame_cheat_raised">Killer7 पहले से है: अब सबसे ऊँचे लेवल पर।</string>
@@ -171,6 +171,12 @@
     <string name="ingame_cheat_no_room">अटैची केस में जगह नहीं है।</string>
     <string name="ingame_cheat_queued">गेम चलते ही हो जाएगा।</string>
     <string name="ingame_cheat_unsupported">इस गेम कोर में चीट्स नहीं हैं।</string>
+    <string name="ingame_cheat_qte">ऑटोमैटिक QTE</string>
+    <string name="ingame_cheat_extras">एक्स्ट्रा गेम अनलॉक करें</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada और The Mercenaries अनलॉक हो गए हैं (साथ में Professional भी, जैसे गेम पूरा करने के बाद)। गेम फिर से शुरू करने के बाद टाइटल मेनू उन्हें दिखाता है। आपके आख़िरी सेव के बाद की प्रगति खो जाएगी।</string>
+    <string name="ingame_cheat_extras_later">अनलॉक हो गए: गेम अगली बार फिर से शुरू होने के बाद Assignment Ada और The Mercenaries टाइटल मेनू में होंगे।</string>
+    <string name="ingame_cheat_extras_already">पहले से अनलॉक: Assignment Ada और The Mercenaries टाइटल मेनू में हैं।</string>
+    <string name="ingame_later">बाद में</string>
     <string name="ingame_controller_config">कंट्रोलर कॉन्फ़िगरेशन</string>
     <string name="ingame_controller_config_help">कंट्रोलर कॉन्फ़िगरेशन: अपने कंट्रोलर के खाली बटनों (X, Y, L1, R1, L3, R3) का फ़ंक्शन चुनें। केवल कंट्रोलर जुड़ा होने पर।</string>
     <string name="ingame_controller_default">डिफ़ॉल्ट लेआउट</string>

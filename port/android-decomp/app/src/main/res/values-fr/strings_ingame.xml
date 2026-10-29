@@ -166,7 +166,7 @@
     <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
     <string name="ingame_cheat_case">Mallette L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
-    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez ; la sauvegarde ne les garde pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Les boutons modifient votre partie : l’arme, la mallette et l’argent restent dans votre prochaine sauvegarde.</string>
+    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez ; la sauvegarde ne les garde pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Les boutons modifient votre partie : l’arme, la mallette et l’argent restent dans votre prochaine sauvegarde. QTE automatiques appuie pour vous sur les boutons de chaque séquence d’action. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre, comme après avoir fini le jeu ; votre prochaine sauvegarde les garde.</string>
     <string name="ingame_cheat_done">Fait : %1$s.</string>
     <string name="ingame_cheat_already">Déjà là : %1$s.</string>
     <string name="ingame_cheat_raised">Killer7 déjà possédé : maintenant à ses niveaux maximaux.</string>
@@ -174,6 +174,12 @@
     <string name="ingame_cheat_no_room">Pas de place dans la mallette.</string>
     <string name="ingame_cheat_queued">Ce sera fait dès que le jeu reprendra.</string>
     <string name="ingame_cheat_unsupported">Ce cœur de jeu n’a pas de triches.</string>
+    <string name="ingame_cheat_qte">QTE automatiques</string>
+    <string name="ingame_cheat_extras">Débloquer les jeux bonus</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada et The Mercenaries sont débloqués (Professional aussi, comme après avoir fini le jeu). Le menu titre les affiche après un redémarrage. La progression depuis votre dernière sauvegarde est perdue.</string>
+    <string name="ingame_cheat_extras_later">Débloqués : Assignment Ada et The Mercenaries apparaîtront dans le menu titre au prochain redémarrage.</string>
+    <string name="ingame_cheat_extras_already">Déjà débloqués : Assignment Ada et The Mercenaries sont dans le menu titre.</string>
+    <string name="ingame_later">Plus tard</string>
     <string name="ingame_controller_config">Configuration de la manette</string>
     <string name="ingame_controller_config_help">Configuration de la manette\u00A0: choisissez la fonction des boutons libres de votre manette (X, Y, L1, R1, L3, R3). Seulement avec une manette connectée.</string>
     <string name="ingame_controller_default">Disposition par défaut</string>

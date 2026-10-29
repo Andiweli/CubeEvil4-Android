@@ -1166,6 +1166,8 @@ int re4probe_letterbox(void);
 int re4probe_picture_still(void);
 int re4probe_knife_swipe(void);
 int re4probe_qte_touch(void);
+int re4probe_qte_auto(void);
+int re4probe_cheat_extras(void);
 int re4probe_gyro_boat(void);
 int re4probe_snd_bank(void);
 int re4probe_frame_sections(void);
@@ -2006,6 +2008,30 @@ static void testQteTouch()
     report("qtetouch", bad == 0 && logged);
 }
 
+// Automatic QTEs, the cheat switch (runtime/qte_touch.cpp re4_qte_auto; game_probe.cpp
+// re4probe_qte_auto): the prompt's buttons by themselves, not the player's own prompts
+static void testQteAuto()
+{
+    const int bad = re4probe_qte_auto();
+    static char tail[48 * 160];
+    re4_log_tail(tail, sizeof tail);
+    const bool logged = strstr(tail, "qte: automatic, L+R pressed for the prompt (kind 3)") != nullptr;
+    if (bad || !logged) {
+        re4_log("  qteauto: failed checks 0x%x%s", bad, logged ? "" : ", no log line");
+    }
+    report("qteauto", bad == 0 && logged);
+}
+
+// The cheat button "unlock the extra games" (runtime/cheats.cpp; game_probe.cpp re4probe_cheat_extras)
+static void testCheatExtras()
+{
+    const int bad = re4probe_cheat_extras();
+    if (bad) {
+        re4_log("  cheatextras: failed checks 0x%x", bad);
+    }
+    report("cheatextras", bad == 0);
+}
+
 // Gyro aiming with the harpoon in the boat (runtime/gyro.cpp; game_probe.cpp re4probe_gyro_boat):
 // the sight across and up, the boat turning at the sight's limit, not before the aim, the log line
 static void testGyroBoat()
@@ -2273,6 +2299,8 @@ int re4_runtime_tests()
     testLetterbox();
     testKnifeSwipe();
     testQteTouch();
+    testQteAuto();
+    testCheatExtras();
     testGyroBoat();
     testSndBank();
     testFrameSections();

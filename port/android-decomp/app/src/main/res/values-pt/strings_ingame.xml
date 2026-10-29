@@ -165,7 +165,7 @@
     <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
     <string name="ingame_cheat_case">Maleta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Os interruptores ficam ligados até você desligá-los; o save não os guarda. Alguns ataques ainda matam Leon na hora (motosserra, agarrão, pedra). Os botões mudam seu jogo: a arma, a maleta e o dinheiro ficam no seu próximo save.</string>
+    <string name="ingame_cheats_help">Os interruptores ficam ligados até você desligá-los; o save não os guarda. Alguns ataques ainda matam Leon na hora (motosserra, agarrão, pedra). Os botões mudam seu jogo: a arma, a maleta e o dinheiro ficam no seu próximo save. QTEs automáticos aperta para você os botões de cada sequência de ação rápida. Desbloquear jogos extras coloca Assignment Ada e The Mercenaries no menu principal, como depois de terminar o jogo; seu próximo save os guarda.</string>
     <string name="ingame_cheat_done">Feito: %1$s.</string>
     <string name="ingame_cheat_already">Já existe: %1$s.</string>
     <string name="ingame_cheat_raised">Killer7 já obtida: agora nos níveis máximos.</string>
@@ -173,6 +173,12 @@
     <string name="ingame_cheat_no_room">Sem espaço na maleta.</string>
     <string name="ingame_cheat_queued">Será feito assim que o jogo continuar.</string>
     <string name="ingame_cheat_unsupported">Este núcleo do jogo não tem trapaças.</string>
+    <string name="ingame_cheat_qte">QTEs automáticos</string>
+    <string name="ingame_cheat_extras">Desbloquear jogos extras</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada e The Mercenaries estão desbloqueados (Professional também, como depois de terminar o jogo). O menu principal os mostra depois de reiniciar. O progresso desde o seu último save será perdido.</string>
+    <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada e The Mercenaries aparecem no menu principal após o próximo reinício.</string>
+    <string name="ingame_cheat_extras_already">Já desbloqueados: Assignment Ada e The Mercenaries estão no menu principal.</string>
+    <string name="ingame_later">Mais tarde</string>
     <string name="ingame_controller_config">Configuração do controle</string>
     <string name="ingame_controller_config_help">Configuração do controle: escolha a função dos botões livres do seu controle (X, Y, L1, R1, L3, R3). Só com um controle conectado.</string>
     <string name="ingame_controller_default">Configuração padrão</string>

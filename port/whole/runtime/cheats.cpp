@@ -12,13 +12,27 @@
 //   2 infinite ammo     DBG_INF_BULLET (cItemMgr::trigger uses nothing), the armed weapon's magazine
 //                       kept full; the display shows that number, not "100" (patch 0130, decision 6)
 //   4 one-hit kill      DBG_EM_WEAK (LifeDownSet2: a hit takes the enemy's whole life)
+//   8 automatic QTEs    every quick-time prompt answered without a press (runtime/qte_touch.cpp
+//                       re4_qte_auto; wish of the project owner, 29.10.2026)
+//  16 extra games       kept on by the app after button 4: the unlock below set again in every frame,
+//                       so a system file read from the card without it (the player has not saved since)
+//                       does not take it back; the next save writes it to the card (system file)
 // Three buttons (decision 1: they change what the next save holds), Leon only, outside sub screens:
 //   1 Killer7 with the highest levels 3/1/3/3 (item 0x2A, stored as level - 1), magazine full
 //   2 attache case L (item 0x7E; the case grows when it is opened next, as after buying it)
 //   3 +1 000 000 pesetas (addMoney: at most 99 999 999; decision 2)
+// One button anywhere (pSys only; wish of the project owner, 29.10.2026), the app restarts the game after
+// a question so the title menu shows it:
+//   4 unlock the extra games: what clearing the game sets (r333.cpp, the end of the last room) for
+//     Assignment Ada and The Mercenaries: EXT_HARD_MODE (the title menu's five entries, its other
+//     background; Professional comes with it, the game has one flag for all), EXT_GET_OMAKE_ADA_GAME,
+//     EXT_GET_OMAKE_ETC_GAME (the Mercenaries' records cleared the first time, as there). Not the
+//     costume (EXT_COSTUME: the new game would ask for it).
 #include "types.h"
 #include "global.h"
 #include "item.h"
+#include "main.h"
+#include "mercenaries.h"
 #include "sscrn.h"
 
 #include <atomic>
@@ -28,12 +42,13 @@
 
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
+extern "C" void re4_qte_auto(int on);                          // runtime/qte_touch.cpp
 
 int re4CheatPerform(int what);
 
 namespace {
 
-enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAll = 7 };
+enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kAll = 31 };
 
 std::atomic<int> gWanted(-1);  // the app's switches, -1 before RE4_CHEATS was read
 int gApplied;                  // what the game frames have set so far
@@ -49,8 +64,43 @@ const char* actionName(int what)
         return "attache case L";
     case 3:
         return "+1000000 pesetas";
+    case 4:
+        return "extra games";
     }
     return "?";
+}
+
+bool extrasUnlocked()
+{
+    return ExtFlagChk(pSys, EXT_HARD_MODE) && ExtFlagChk(pSys, EXT_GET_OMAKE_ADA_GAME) &&
+           ExtFlagChk(pSys, EXT_GET_OMAKE_ETC_GAME);
+}
+
+// What clearing the game sets for the extra games (r333.cpp), without the costume.
+void unlockExtras(const char* why)
+{
+    ExtFlagOn(pSys, EXT_HARD_MODE);
+    ExtFlagOn(pSys, EXT_GET_OMAKE_ADA_GAME);
+    if (!ExtFlagChk(pSys, EXT_GET_OMAKE_ETC_GAME)) {
+        MercSysSaveWork save;
+        int i;
+
+        ExtFlagOn(pSys, EXT_GET_OMAKE_ETC_GAME);
+        for (i = 0; i < 4; i++) {
+            pSys->MercSysRoom[i] = 0;
+        }
+        for (i = 0; i < 2; i++) {
+            pSys->MercSysRank[i] = 0;
+        }
+        MercSysGetSaveWork(&save);
+        for (i = 0; i < 4; i++) {
+            save.stage[i].score = 0;
+            save.stage[i].mode = 0;
+        }
+        MercSysSetSaveWork(&save);
+    }
+    re4_log("cheat: extra games unlocked (%s): Assignment Ada, The Mercenaries, Professional; extra flags 0x%08x",
+            why, (unsigned) pSys->Extra_flg);
 }
 
 // The armed weapon's magazine full (a gun: its slot's loaded rounds).
@@ -79,10 +129,17 @@ void apply(int wanted)
         }
     }
     if (wanted != gApplied) {
-        re4_log("cheat: health %s, ammo %s, one-hit kill %s", wanted & kHealth ? "on" : "off",
-                wanted & kAmmo ? "on" : "off", wanted & kOneHit ? "on" : "off");
+        re4_log("cheat: health %s, ammo %s, one-hit kill %s, automatic QTEs %s, extra games %s",
+                wanted & kHealth ? "on" : "off", wanted & kAmmo ? "on" : "off", wanted & kOneHit ? "on" : "off",
+                wanted & kAutoQte ? "on" : "off", wanted & kExtras ? "kept unlocked" : "as the system file has them");
+        if ((wanted ^ gApplied) & kAutoQte) {
+            re4_qte_auto(wanted & kAutoQte);
+        }
     }
     gApplied = wanted;
+    if ((wanted & kExtras) && !extrasUnlocked()) {
+        unlockExtras("kept by the app");
+    }
     if (wanted & kHealth) {
         // a life of 0 is a death scene already running: left alone
         if (pG->pl_life > 0 && pG->pl_life < pG->pl_life_max) {
@@ -118,6 +175,15 @@ void hook(unsigned)
 
 int re4CheatPerform(int what)
 {
+    // the extra games: the system flags only, at any time (the title, Ada's and HUNK's games too)
+    if (what == 4) {
+        if (extrasUnlocked()) {
+            re4_log("cheat: %s already unlocked (extra flags 0x%08x)", actionName(what), (unsigned) pSys->Extra_flg);
+            return 2;
+        }
+        unlockExtras("the cheat button");
+        return 1;
+    }
     // only Leon has the case and his own money (Ashley, Ada, HUNK ...: other inventories, PlSelect
     // swaps the pesetas), only in the room's game loop and outside the sub screens
     if (pG->pl_type != 0 || pG->Rno0 != 3 || StaFlagChk(pG, STA_SUB_SCRN) || StaFlagChk(pG, STA_MOVIE_ON)) {

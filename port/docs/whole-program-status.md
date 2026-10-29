@@ -29,6 +29,24 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
     darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
 
+## Cheats: automatische QTEs und Extra-Spiele freischalten (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Wunsch des Projektinhabers:** zwei weitere Cheats in einer eigenen untersten Reihe, zwei gleich breite Knöpfe:
+  „Automatische QTEs“ und „Extra-Spiele freischalten“ (Assignment Ada, The Mercenaries; mit Neustart ins Titelmenü,
+  dort wechselt auch der Hintergrund). Einzelheiten: `port/docs/cheat-menu-plan.md`, „Erweiterung 29.10.2026“.
+- **Kern:** `runtime/qte_touch.cpp` `re4_qte_auto` (Automatik auf dem Weg von „QTE per Tipp“; nicht einfaches A,
+  Stick-Symbole, X), `runtime/cheats.cpp` Bit 8 (QTEs) und 16 (Extra-Spiele behalten), Knopf 4 (Merker wie `r333.cpp`
+  ohne Kostüm), `re4_core_restart_game(0)` = Neustart mit gleicher Sprache, `RE4_TEST_CHEATS` kennt Knopf 4. Die
+  Bild-Haken (`pad.cpp`) haben jetzt 16 statt 8 Plätze (in der App waren schon 7 belegt).
+- **App:** `CoreMenu.cheats()` unterste Reihe (`MenuLayout.Buttons` mit 2 Spalten), Rückfrage „Spiel neu starten?“
+  (Neustart/Später), Meldungen; `Host.restartGame()`; neue Texte in allen zehn Sprachen (`check_translations.py` ok).
+- **Geprüft (Cloud):** `whole_build.sh i686` mit allen Prüfungen; neue Laufzeittests `qteauto` (L+R 2 an/2 aus,
+  Hämmern jedes zweite Bild, nichts bei A, X, Untermenü, inaktivem Knopf, aus) und `cheatextras` (Merker gesetzt, kein
+  Kostüm, Rekorde einmal gelöscht, danach „schon da“, Bit 16 setzt sie nach einer Systemdatei ohne sie wieder) bestanden;
+  alle Java-Quellen und `CoreMenuLayoutTest` (neu: unterste Reihe, Bit 8) mit javac übersetzt. **Nicht getestet:**
+  `CoreMenuLayoutTest` ausgeführt (Gradle am PC), auf dem Gerät (QTEs in Szenen wie Felsen r101/r104, Messerkampf r317,
+  El Gigante; Titelmenü nach dem Neustart mit beiden Disc-Arten; Ada und Mercenaries starten).
+
 ## Leistung auf Handys mit zwei schnellen Kernen, Schritt 1 (29.10.2026, Cloud, Branch `golden-master`)
 
 - **Anlass (Testerberichte 28.10.2026):** Redmi 15C (Helio G81: 2× Cortex-A75 2,0 GHz, 6× A55 1,7 GHz, Mali-G52 MC2,

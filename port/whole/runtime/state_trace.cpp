@@ -49,7 +49,7 @@
 //                          (SndStrReq(B, S, 0x80000003): r226's statue camera
 //                          plays 0:0x16), for the sound checks (RE4_AUDIO_WAV)
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
-//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money)
+//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games)
 //                          one a frame, as the app's menu presses them while the
 //                          game runs (runtime/cheats.cpp; the switches: RE4_CHEATS)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is

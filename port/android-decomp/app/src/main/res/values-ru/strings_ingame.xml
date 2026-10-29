@@ -165,7 +165,7 @@
     <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
     <string name="ingame_cheat_case">Кейс L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
-    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранение их не запоминает. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении.</string>
+    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранение их не запоминает. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Автоматические QTE» сами нажимают кнопки при каждой подсказке быстрого действия. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню, как после прохождения игры; следующее сохранение их запомнит.</string>
     <string name="ingame_cheat_done">Готово: %1$s.</string>
     <string name="ingame_cheat_already">Уже есть: %1$s.</string>
     <string name="ingame_cheat_raised">Killer7 уже есть: теперь на максимальных уровнях.</string>
@@ -173,6 +173,12 @@
     <string name="ingame_cheat_no_room">В кейсе нет места.</string>
     <string name="ingame_cheat_queued">Будет сделано, как только игра продолжится.</string>
     <string name="ingame_cheat_unsupported">В этом ядре игры нет читов.</string>
+    <string name="ingame_cheat_qte">Автоматические QTE</string>
+    <string name="ingame_cheat_extras">Открыть доп. игры</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada и The Mercenaries открыты (а также Professional, как после прохождения игры). Главное меню покажет их после перезапуска. Прогресс с последнего сохранения будет потерян.</string>
+    <string name="ingame_cheat_extras_later">Открыто: Assignment Ada и The Mercenaries появятся в главном меню после следующего перезапуска.</string>
+    <string name="ingame_cheat_extras_already">Уже открыто: Assignment Ada и The Mercenaries есть в главном меню.</string>
+    <string name="ingame_later">Позже</string>
     <string name="ingame_controller_config">Настройка контроллера</string>
     <string name="ingame_controller_config_help">Настройка контроллера: выберите функцию свободных кнопок контроллера (X, Y, L1, R1, L3, R3). Только с подключённым контроллером.</string>
     <string name="ingame_controller_default">Стандартная раскладка</string>

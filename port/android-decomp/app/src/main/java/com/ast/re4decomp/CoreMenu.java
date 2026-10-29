@@ -77,10 +77,14 @@ final class CoreMenu extends Dialog {
     /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it); the
      *  game restarts when its language changes (the menu asked first). */
     void gameLanguageChanged(int choice);
-    /** The cheat switches: bit 1 infinite health, 2 infinite ammo, 4 one-hit kill (CoreActivity.CHEATS holds them). */
+    /** The cheat switches: bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
+     *  extra games kept unlocked (CoreActivity.CHEATS holds them). */
     void cheatsChanged(int bits);
-    /** A cheat button (1 Killer7, 2 attache case L, 3 money), off the main thread: CoreBridge.cheatAction's answer. */
+    /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games), off the main thread:
+     *  CoreBridge.cheatAction's answer. */
     int cheatAction(int what);
+    /** The game restarts with its language as it is (the extra games; the menu asked first). */
+    void restartGame();
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -110,6 +114,7 @@ final class CoreMenu extends Dialog {
   private int page, requestSerial;
   private boolean working, slotPresent;
   private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus;
+  private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
   private Button exportAll, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
     if (r - l != oldR - oldL || b - t != oldB - oldT) resizeWindow();
@@ -690,19 +695,18 @@ final class CoreMenu extends Dialog {
   /** "Cheats" at the top of Management (wish and decisions of the project owner, 27.10.2026;
    *  port/docs/cheat-menu-plan.md): three switches, kept like the other settings, and three buttons
    *  that change the game once (the weapon, the case and the money stay in the next save). */
+  private void cheatSwitch(MenuLayout.Buttons parent, int label, int bit) {
+    toggle(parent, label, (cheatBits & bit) != 0, on -> {
+      cheatBits = on ? cheatBits | bit : cheatBits & ~bit; host.cheatsChanged(cheatBits);
+    });
+  }
   private void cheats() {
     heading(R.string.ingame_cheats);
-    final int[] bits = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
-        .getInt(CoreActivity.CHEATS, 0)};
+    cheatBits = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).getInt(CoreActivity.CHEATS, 0);
     MenuLayout.Buttons switches = new MenuLayout.Buttons(getContext(), 3);
     body.addView(switches, new LinearLayout.LayoutParams(-1, -2));
     final int[] switchLabels = {R.string.ingame_cheat_health, R.string.ingame_cheat_ammo, R.string.ingame_cheat_onehit};
-    for (int i = 0; i < switchLabels.length; i++) {
-      final int bit = 1 << i;
-      toggle(switches, switchLabels[i], (bits[0] & bit) != 0, on -> {
-        bits[0] = on ? bits[0] | bit : bits[0] & ~bit; host.cheatsChanged(bits[0]);
-      });
-    }
+    for (int i = 0; i < switchLabels.length; i++) cheatSwitch(switches, switchLabels[i], 1 << i);
     MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 3);
     body.addView(actions, new LinearLayout.LayoutParams(-1, -2));
     final int[] actionLabels = {R.string.ingame_cheat_killer7, R.string.ingame_cheat_case, R.string.ingame_cheat_money};
@@ -714,6 +718,15 @@ final class CoreMenu extends Dialog {
         cheatAction(what, label);
       });
     }
+    // the bottom row (wish of the project owner, 29.10.2026): two, each as wide as half the row, the
+    // switch "Automatic QTEs" and the button "Unlock extra games" (Assignment Ada, The Mercenaries)
+    MenuLayout.Buttons more = new MenuLayout.Buttons(getContext(), 2);
+    body.addView(more, new LinearLayout.LayoutParams(-1, -2));
+    cheatSwitch(more, R.string.ingame_cheat_qte, 8);
+    cellAction(more, s(R.string.ingame_cheat_extras), v -> {
+      v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
+      cheatAction(4, R.string.ingame_cheat_extras);
+    });
     cheatStatus = text("", 15, false); cheatStatus.setPadding(0, dp(6), 0, dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
@@ -730,6 +743,16 @@ final class CoreMenu extends Dialog {
       final int done = result;
       main.post(() -> {
         if (!isShowing() || serial != requestSerial || page != MANAGEMENT || cheatStatus == null) return;
+        if (what == 4 && (done == 1 || done == 2 || done == 3)) {
+          // kept by the app as well: a system file read without it (no save since) gets it back
+          cheatBits |= 16; host.cheatsChanged(cheatBits);
+          if (done == 2) {
+            cheatStatus.setText(R.string.ingame_cheat_extras_already); cheatStatus.setVisibility(View.VISIBLE);
+          } else {
+            askRestartForExtras();
+          }
+          return;
+        }
         String text;
         if (done == 1) text = getContext().getString(R.string.ingame_cheat_done, s(label));
         else if (done == 2 && what == 1) text = s(R.string.ingame_cheat_raised);
@@ -741,6 +764,22 @@ final class CoreMenu extends Dialog {
         cheatStatus.setText(text); cheatStatus.setVisibility(View.VISIBLE);
       });
     }, "Cheat").start();
+  }
+
+  /** The extra games are unlocked: the title menu shows them after a restart, now or later. */
+  private void askRestartForExtras() {
+    Runnable later = () -> {
+      if (cheatStatus == null) return;
+      cheatStatus.setText(R.string.ingame_cheat_extras_later); cheatStatus.setVisibility(View.VISIBLE);
+    };
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_language_restart_title)
+        .setMessage(R.string.ingame_cheat_extras_text)
+        .setNegativeButton(R.string.ingame_later, (d, w) -> later.run())
+        .setPositiveButton(R.string.ingame_restart, (d, w) -> { host.restartGame(); close(); }).create();
+    dialog.setOnCancelListener(d -> later.run());
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    dialog.show();
   }
 
   private void refreshInstant() { instant(0); }

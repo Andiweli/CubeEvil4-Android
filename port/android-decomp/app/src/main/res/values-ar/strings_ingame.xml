@@ -172,7 +172,7 @@
     <string name="ingame_cheat_killer7">‏Killer7 (3/1/3/3)</string>
     <string name="ingame_cheat_case">الحقيبة L</string>
     <string name="ingame_cheat_money">‏+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا يحفظها ملف الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). تغيّر الأزرار لعبتك: يبقى السلاح والحقيبة والمال في الحفظ التالي.</string>
+    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا يحفظها ملف الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). تغيّر الأزرار لعبتك: يبقى السلاح والحقيبة والمال في الحفظ التالي. تضغط QTE التلقائية الأزرار عنك في كل تنبيه سريع. ويضيف فتح الألعاب الإضافية Assignment Ada و The Mercenaries إلى قائمة العنوان كما بعد إنهاء اللعبة؛ ويحتفظ بها الحفظ التالي.</string>
     <string name="ingame_cheat_done">تم: %1$s.</string>
     <string name="ingame_cheat_already">موجود بالفعل: %1$s.</string>
     <string name="ingame_cheat_raised">‏Killer7 موجود بالفعل: أصبح الآن في أعلى المستويات.</string>
@@ -180,6 +180,12 @@
     <string name="ingame_cheat_no_room">لا توجد مساحة في الحقيبة.</string>
     <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
     <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
+    <string name="ingame_cheat_qte">&#x200F;QTE تلقائية</string>
+    <string name="ingame_cheat_extras">فتح الألعاب الإضافية</string>
+    <string name="ingame_cheat_extras_text">تم فتح Assignment Ada و The Mercenaries (وProfessional أيضًا، كما بعد إنهاء اللعبة). تعرضها قائمة العنوان بعد إعادة التشغيل. سيضيع التقدم منذ آخر حفظ.</string>
+    <string name="ingame_cheat_extras_later">تم الفتح: ستظهر Assignment Ada و The Mercenaries في قائمة العنوان بعد إعادة التشغيل التالية.</string>
+    <string name="ingame_cheat_extras_already">مفتوحة بالفعل: Assignment Ada و The Mercenaries في قائمة العنوان.</string>
+    <string name="ingame_later">لاحقًا</string>
     <string name="ingame_controller_config">إعدادات وحدة التحكم</string>
     <string name="ingame_controller_config_help">إعدادات وحدة التحكم: اختر وظيفة الأزرار الحرة في وحدة التحكم (X و Y و L1 و R1 و L3 و R3). فقط عند توصيل وحدة تحكم.</string>
     <string name="ingame_controller_default">التوزيع الافتراضي</string>

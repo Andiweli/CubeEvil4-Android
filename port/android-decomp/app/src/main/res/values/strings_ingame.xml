@@ -178,7 +178,7 @@
     <string name="ingame_cheat_killer7">Killer7 (3/1/3/3)</string>
     <string name="ingame_cheat_case">Attaché case L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">The switches stay on until you switch them off; your save does not keep them. Some attacks still kill Leon at once (a chainsaw, a grab, a boulder). The buttons change your game: the weapon, the case and the money stay in your next save.</string>
+    <string name="ingame_cheats_help">The switches stay on until you switch them off; your save does not keep them. Some attacks still kill Leon at once (a chainsaw, a grab, a boulder). The buttons change your game: the weapon, the case and the money stay in your next save. Automatic QTEs presses the buttons of every quick-time prompt for you. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu, as after finishing the game; your next save keeps them.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>
     <string name="ingame_cheat_raised">Killer7 already owned: now at its highest levels.</string>
@@ -186,6 +186,12 @@
     <string name="ingame_cheat_no_room">No room in the attaché case.</string>
     <string name="ingame_cheat_queued">Will be done as soon as the game runs.</string>
     <string name="ingame_cheat_unsupported">This game core has no cheats.</string>
+    <string name="ingame_cheat_qte">Automatic QTEs</string>
+    <string name="ingame_cheat_extras">Unlock extra games</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
+    <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
+    <string name="ingame_cheat_extras_already">Already unlocked: Assignment Ada and The Mercenaries are in the title menu.</string>
+    <string name="ingame_later">Later</string>
     <string name="ingame_controller_config">Controller Configuration</string>
     <string name="ingame_controller_config_help">Controller Configuration: choose the function of the free buttons of your controller (X, Y, L1, R1, L3, R3). Only with a controller connected.</string>
     <string name="ingame_controller_default">Default Layout</string>

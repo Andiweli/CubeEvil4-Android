@@ -680,15 +680,15 @@ int re4_core_instant(int operation, Re4InstantInfo* info)
 // while the menu holds the game (the answer shows in the menu), else by the next game frame.
 void re4_core_set_cheats(int bits)
 {
-    if (re4_cheats_wanted() != (bits & 7)) {
-        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill)", bits & 7);
+    if (re4_cheats_wanted() != (bits & 31)) {
+        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept)", bits & 31);
     }
     re4_cheats_set(bits);
 }
 
 int re4_core_cheat_action(int what)
 {
-    if (what < 1 || what > 3) return 0;
+    if (what < 1 || what > 4) return 0;
     pthread_mutex_lock(&gPauseLock);
     if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {
         pthread_mutex_unlock(&gPauseLock);
@@ -797,6 +797,12 @@ void re4_game_restart(void);  // runtime/game_language.cpp
 
 void re4_core_restart_game(int language)
 {
+    // 0: the language stays (the cheat menu's extra games, 29.10.2026)
+    if (language == 0) {
+        re4_log("core: restart asked by the app, the game language stays");
+        re4_game_restart();
+        return;
+    }
     int value = language >= 2 && language <= 6 ? language : -1;
     re4_log("core: restart with game language %d asked by the app (European discs: 2 English .. 6 Italian)", value);
     gLanguageWanted = value;

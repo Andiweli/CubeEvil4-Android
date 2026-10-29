@@ -108,7 +108,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GRAPHICS_PREFS = "core_graphics";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
-  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill; off). */
+  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
+   *  extra games kept unlocked; off). */
   static final String CHEATS = "cheats";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
@@ -687,8 +688,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public void cheatsChanged(int bits) {
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
-      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill)");
+      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept)");
       CoreBridge.setCheats(bits);
+    }
+
+    @Override public void restartGame() {
+      Log.i(TAG, "the game restarts (extra games), its language stays");
+      CoreBridge.restartGame(0);
     }
 
     @Override public int cheatAction(int what) {
