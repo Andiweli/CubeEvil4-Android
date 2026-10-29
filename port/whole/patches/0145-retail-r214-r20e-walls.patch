@@ -1,0 +1,86 @@
+# Retail data (port/docs/retail-eu-plan.md): two castle rooms whose European data has collision walls the
+# European room code switches, this build's code not (same kind as r20b, patch 0138).
+# r214 (the wall with the catapults before the clock tower; tester's screenshot 29.10.2026: the way blocked
+# at a balustrade): the European discs have two positions of the way, room model groups 0x2B..0x30 and
+# collision walls (trigger areas of type 0xB) 0x17, 0x18, 0x19, a lever (area 0x1B) and a second message
+# for area 7; the debug build's discs have none of them. The European R214Init (st2_2.rel 0xa300, read with
+# retail_code.py and the module's relocations) sets position 0 above Easy (0xac80 with 0, from 0xa5b8, the
+# rest of which is this build's code): groups 0x2B/0x2D shown, 0x2C/0x2F/0x30 hidden, walls 0x17/0x19 on and
+# 0x18 off, area 0x1B off, area 7's message 0; on Easy it skips the catapults with the lever (0xab38, new
+# code of about 10 KB at the start of st2_2.rel) - not taken over, Easy plays the Normal way here as in the
+# other rooms. Here all of it stood as in the data: every wall on, both balustrades shown. Part 2 (the bridge
+# turning after r217) sets nothing, as there.
+# r20e (Ashley's room with the armor statues, tester report 29.10.2026: she walks through them): the
+# European discs give the four statues collision walls (areas 0x13..0x16); the European r20e_startArmor
+# (st2_1.rel 0x1a814) switches them off when the knights come alive. The debug build's discs have no walls
+# there, so with them Ashley still walks through the statues (data of the prototype). Nothing changes with
+# the debug build's discs. A port patch for retail data.
+--- a/src/st2/r214.cpp
++++ b/src/st2/r214.cpp
+@@ -99,6 +99,28 @@
+ static R214Work* r214_work;
+ static u8 r214_debugMode;
+ 
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
++/* port: the European discs' r214 has two positions of the way past the catapults (a lever for Easy, patch
++   0145): this is the one the European R214Init sets above Easy (st2_2.rel 0xac80 with 0) - room model
++   groups 0x2B/0x2D shown and 0x2C/0x2F/0x30 hidden, collision walls 0x17/0x19 on and 0x18 off, the lever's
++   area 0x1B off, the message of area 7 the first one */
++static void r214_retailWayState0()
++{
++    SmdSetTrans(0x31, 1);
++    SceAtSetEnable(0x1A, 1);
++    SmdSetTrans(0x2B, 1);
++    SmdSetTrans(0x2C, 0);
++    SmdSetTrans(0x2D, 1);
++    SmdSetTrans(0x30, 0);
++    SmdSetTrans(0x2F, 0);
++    SceAtSetEnable(0x17, 1);
++    SceAtSetEnable(0x18, 0);
++    SceAtSetEnable(0x19, 1);
++    SceAtSetEnable(0x1B, 0);
++    SceAtPtr(7)->mes.mes_no = 0;
++}
++
+ static int r214_emTbl0[5] = {0xE4, 0xEC, 0xED, 0xEE, 0xEF};
+ static int r214_emTbl1[3] = {0xE9, 0xEA, 0xEB};
+ static int r214_emTbl2[3] = {0xCB, 0xCC, 0xCD};
+@@ -158,6 +180,10 @@
+     if (getRoomEtcBarred(0x12, &r214_work->barred[1], 1)) {
+         r214_work->barred[1]->setClosed();
+     }
++    /* port: with the European discs the way past the catapults as their R214Init sets it (patch 0145) */
++    if (pG->Part != 2 && re4_disc_retail_eu()) {
++        r214_retailWayState0();
++    }
+     if (pG->Part == 2) {
+         r214_work->bridgeFlag = 1;
+         SceExec(0x12, (TaskFunc) r214_BridgeRotate, 0, 0, SCE_PRIO_DEF_2, 0);
+--- a/src/st2/r20e.cpp
++++ b/src/st2/r20e.cpp
+@@ -140,6 +140,8 @@
+ static void r20e_moveCrestDoor(int open, int init);
+ void r20d_moveArmorStatue(int noAnim);
+ static void r20d_getSnakeObject();
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++
+ void r20e_startArmor();
+ static void r20d_getSalazarCrest_end();
+ static void r20d_getSalazarCrest();
+@@ -712,6 +714,15 @@
+     em4.setBeFlag(0x10000, 1);
+     em5.setBeFlag(0x10000, 1);
+     em6.setBeFlag(0x10000, 1);
++    /* port: the European discs stand the four armor statues on collision walls (areas 0x13..0x16); the
++       European r20e_startArmor (st2_1.rel 0x1a814) takes them away when the knights come alive
++       (patch 0145) */
++    if (re4_disc_retail_eu()) {
++        SceAtSetEnable(0x13, 0);
++        SceAtSetEnable(0x14, 0);
++        SceAtSetEnable(0x15, 0);
++        SceAtSetEnable(0x16, 0);
++    }
+ }
+ 
+ // End of the crest pickup event (also its cancel path, Room_flg[0] bit 31): drop the effect, stop the
