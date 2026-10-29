@@ -27,6 +27,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -1512,6 +1513,28 @@ void TestUniformStream(re4gx::GxRenderer &r, const char *tag) {
   std::snprintf(what, sizeof(what), "%s: uniform stream, after the large chunk one of 2400 draws right, none inside",
                 tag);
   Check(after.first && after.second.first == 1 && after.second.second == 0, what);
+  // the render thread's split (GxStats::splitNs): the kinds add up to the Run's time, the draw calls,
+  // uniform blocks and binds of a chunk of 2400 draws each take some of it
+  {
+    const re4gx::GxStats before = r.Stats();
+    const auto from = std::chrono::steady_clock::now();
+    const auto res = chunk(2400, false);
+    const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count() * 1e9;
+    const re4gx::GxStats &s = r.Stats();
+    double sum = 0;
+    for (int k = 0; k < re4gx::GxStats::kSplitKinds; k++)
+      sum += static_cast<double>(s.splitNs[k] - before.splitNs[k]);
+    const auto part = [&](int k) { return s.splitNs[k] - before.splitNs[k]; };
+    std::fprintf(stderr, "  %s split of 2400 draws: %.2f of %.2f ms (draw calls %.2f, uniform %.2f, binds %.2f, rest %.2f)\n",
+                 tag, sum / 1e6, wall / 1e6, part(re4gx::GxStats::kSplitDraw) / 1e6,
+                 part(re4gx::GxStats::kSplitUniform) / 1e6, part(re4gx::GxStats::kSplitBind) / 1e6,
+                 part(re4gx::GxStats::kSplitRest) / 1e6);
+    std::snprintf(what, sizeof(what), "%s: render thread split adds up to the Run (%.2f of %.2f ms)", tag, sum / 1e6,
+                  wall / 1e6);
+    Check(res.first && sum > 0 && sum <= wall && part(re4gx::GxStats::kSplitDraw) > 0 &&
+              part(re4gx::GxStats::kSplitUniform) > 0 && part(re4gx::GxStats::kSplitBind) > 0,
+          what);
+  }
 }
 
 // The menu's picture options (M11): a multisampled EFB is resolved before

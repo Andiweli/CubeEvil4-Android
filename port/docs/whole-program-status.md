@@ -29,6 +29,35 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
     darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
 
+## Leistung auf Handys mit zwei schnellen Kernen, Schritt 1 (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Anlass (Testerberichte 28.10.2026):** Redmi 15C (Helio G81: 2× Cortex-A75 2,0 GHz, 6× A55 1,7 GHz, Mali-G52 MC2,
+  EU-Discs, Auflösung 1×, kein MSAA, Force Performance an) im Dorf r101: 27–35 Bilder/s, „GX render thread: 29.8 ms of
+  processor time per chunk of 37.7 ms run“ bei 862 Zeichnungen (≈ 35 µs je Zeichnung), „GX core: 43.3 ms each, 1.5 ms
+  waiting for the renderer, 0.4 ms idle, 22.0 ms of processor time“ – das Spiel selbst schaffte dort nur ~23 Bilder/s,
+  ~19 ms je Bild lief der Spiel-Thread nicht. Spiel- und Zeichen-Thread lagen beide auf den Kernen 6–7, die drei
+  Eckpunkt-Threads (mit dem Leistungshinweis) dazu. Vergleich Xiaomi 11 Lite NE (Snapdragon 778G, Adreno 642L): 873
+  Zeichnungen in 12,2 ms bei 1,2 GHz (≈ 14 µs). Galaxy S7 (Snapdragon 820) in r108: GPU 23–31 ms je Bild gemessen,
+  Zeichen-Thread 15–22 ms, die schnellen Kerne gedrosselt auf 1,25–1,32 GHz – dort ist die GPU der Engpass.
+- **Umsetzung (Entscheidung des Projektinhabers, 29.10.2026: Leistungsoptimierung sofort; Vulkan erst nach Messungen):**
+  - `re4_cpu_info.h` `PutOnSlowCores`: Mit „Force Performance: Use performance cores“ kommen die Eckpunkt-Threads auf die
+    langsamste Kernart, wenn höchstens zwei Kerne schneller sind (die zwei bleiben dem Spiel- und dem Zeichen-Thread).
+    Mehr schnelle Kerne (Retroid: vier) ändern nichts. Logzeile „cores: the 3 vertex threads on cores 0 1 2 3 4 5, the
+    slowest (only 2 faster cores)“ bzw. „left to Android (…)“. Etwa einmal pro Sekunde zurück, wenn Android sie
+    verschoben hat (wie beim Spiel-Thread); „Default“ gibt sie wieder frei. `RE4_HELPERS_SLOW=0` schaltet es ab.
+  - `gx_gl.cpp` / `GxStats::splitNs`: Die Laufzeit des Zeichen-Threads je Art der Arbeit (steady clock, jeder Run),
+    neue Logzeile „GX render thread split per chunk: draw calls …, uniform blocks …, binds …, render state …, vertex
+    buffers …; shader keys and programs …, textures in …, BP …, XF …, the rest …“ – zeigt auf dem Mali, wie viel der
+    Treiber (die ersten fünf) und wie viel unser eigener Code braucht. Grundlage für Schritt 2 (weniger Treiberaufrufe
+    je Zeichnung) und die Vulkan-Frage.
+  - Nebenbei: `runtime-test deathlog` schlug auf `master` fehl (die Raum-Zeile ist seit `game_mode`/`game_country`
+    länger als die 119 Zeichen, die der Protokollspeicher je Zeile hält); der Test vergleicht jetzt nur diesen Teil.
+- **Geprüft (Cloud):** `whole_build.sh i686` 0 Fehler, alle Prüfungen bestanden (runtime-test 0 failed, neu: Hilfs-Thread
+  eines Linux-Threads mit „zwei schnellen Kernen“ landet auf den anderen, Freigabe, Retroid- und A30s-Aufteilung);
+  `gx_gl_check` 0 Fehler (neu: die Aufteilung ergibt zusammen die Laufzeit eines Runs, Mesa: 2400 Zeichnungen
+  6,6 ms, davon Zeichenaufrufe 4,2 ms); `re4decomp_link_check` (ganze native App-Bibliothek) gebaut. **Nicht getestet:**
+  auf einem Gerät, ob die Verteilung auf dem Redmi 15C oder dem S7 mehr Bilder bringt; die Aufteilung auf dem Mali.
+
 ## Ingame-Menü: Dreierreihen in Vierteln (28.10.2026, Cloud, Branch `golden-master`)
 
 - **Auftrag (Projektinhaber):** Unter STEUERUNG die Knöpfe „Touch-Zielen“ mit demselben Abstand zu den Knöpfen

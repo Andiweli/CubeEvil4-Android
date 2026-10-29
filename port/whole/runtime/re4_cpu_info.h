@@ -270,6 +270,102 @@ inline bool KeepOffSlowCores(char* out, size_t size)
     return KeepOffSlowCores(GetLayout(), out, size);
 }
 
+// The cores faster than the slowest kind (0 when all are alike or the clocks are not readable).
+inline int FasterCores(const Layout& l)
+{
+    if (!l.fastest || l.slowest == l.fastest) {
+        return 0;
+    }
+    int n = 0;
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        n += l.maxKHz[cpu] && l.Kind(cpu) != 0;
+    }
+    return n;
+}
+
+// Puts thread `tid` (a helper, e.g. a vertex thread) on the slowest kind of core when no more than
+// two cores are faster: those two are for the game thread and the render thread, which each need a
+// whole one (decision of the project owner, 29.10.2026; Redmi 15C, Helio G81 with two fast cores
+// and six slow ones, 28.10.2026: in r101 the render thread had 29.8 ms of processor time in 37.7 ms,
+// the game thread 22 ms in 43 ms, with the vertex threads on the two fast cores too; Galaxy S7: two
+// and two). With more fast cores (Retroid: four) the helper stays as it is. RE4_FAST_CORES=0 or
+// RE4_HELPERS_SLOW=0 leave it. `set` (may be null): the cores it got. `out`: what happened.
+inline bool PutOnSlowCores(const Layout& l, int tid, cpu_set_t* set, char* out, size_t size)
+{
+    const char* env = getenv("RE4_FAST_CORES");
+    const char* helpers = getenv("RE4_HELPERS_SLOW");
+    if ((env && *env == '0') || (helpers && *helpers == '0')) {
+        snprintf(out, size, "left to Android (%s=0)", env && *env == '0' ? "RE4_FAST_CORES" : "RE4_HELPERS_SLOW");
+        return false;
+    }
+    const int faster = FasterCores(l);
+    if (!faster) {
+        snprintf(out, size, "left to Android (%s)", l.fastest ? "all cores alike" : "clocks not readable");
+        return false;
+    }
+    if (faster > 2) {
+        snprintf(out, size, "left to Android (%d faster cores: room for them too)", faster);
+        return false;
+    }
+    cpu_set_t allowed;
+    CPU_ZERO(&allowed);
+    if (sched_getaffinity(tid, sizeof(allowed), &allowed) != 0) {
+        snprintf(out, size, "left to Android (its cores not readable)");
+        return false;
+    }
+    cpu_set_t slow;
+    CPU_ZERO(&slow);
+    int n = 0, len = snprintf(out, size, "on cores");
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        if (l.Kind(cpu) != 0 || !CPU_ISSET(cpu, &allowed)) {
+            continue;
+        }
+        CPU_SET(cpu, &slow);
+        n++;
+        if (len < static_cast<int>(size)) {
+            len += snprintf(out + len, size - len, " %d", cpu);
+        }
+    }
+    if (!n) {
+        snprintf(out, size, "left to Android (no slow core allowed to the app)");
+        return false;
+    }
+    if (sched_setaffinity(tid, sizeof(slow), &slow) != 0) {
+        snprintf(out, size, "left to Android (not allowed: %s)", strerror(errno));
+        return false;
+    }
+    if (len < static_cast<int>(size)) {
+        snprintf(out + len, size - len, ", the slowest (only %d faster cores)", faster);
+    }
+    if (set) {
+        *set = slow;
+    }
+    return true;
+}
+
+// Thread `tid` back on every core Android allows (after PutOnSlowCores).
+inline void ReleaseThread(int tid)
+{
+    cpu_set_t all;
+    CPU_ZERO(&all);
+    const long n = sysconf(_SC_NPROCESSORS_CONF);
+    for (long cpu = 0; cpu < n && cpu < CPU_SETSIZE; cpu++) {
+        CPU_SET(cpu, &all);
+    }
+    sched_setaffinity(tid, sizeof(all), &all);
+}
+
+// Thread `tid` back on `set` when Android gave it other cores (as KeepOnFastCores). true when it had to.
+inline bool KeepThreadOn(int tid, const cpu_set_t& set)
+{
+    cpu_set_t now;
+    CPU_ZERO(&now);
+    if (sched_getaffinity(tid, sizeof(now), &now) != 0 || CPU_EQUAL(&now, &set)) {
+        return false;
+    }
+    return sched_setaffinity(tid, sizeof(set), &set) == 0;
+}
+
 // Android's performance hint (APerformanceHint of the NDK, Android 13; looked up at run time:
 // older Android and the Linux builds have none, and nothing happens). A session for the threads
 // that make one picture, told after each picture how long its work took against the target; the

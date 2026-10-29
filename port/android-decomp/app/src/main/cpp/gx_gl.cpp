@@ -536,6 +536,15 @@ struct GxRenderer::Impl {
   using DrawBaseVertex = void (*)(GLenum, GLsizei, GLenum, const void *, GLint);
   DrawBaseVertex drawBaseVertex = nullptr;
 
+  // GxStats::splitNs: the time since the last mark to `kind` (Run marks at its start)
+  std::chrono::steady_clock::time_point splitAt;
+  void Split(int kind) {
+    const auto now = std::chrono::steady_clock::now();
+    stats.splitNs[kind] +=
+        static_cast<unsigned long long>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - splitAt).count());
+    splitAt = now;
+  }
+
   // Other passes (uploads, copies, palettes, presenting) changed GL state.
   void Touched() {
     stateValid = false;
@@ -2744,6 +2753,7 @@ struct GxRenderer::Impl {
     curLife = ownerLife;
     if (ownerBase && recordDraws && !interpPass)
       recOwnerDrawsNew[ownerBase]++;
+    Split(GxStats::kSplitRest);
     if (d.indexCount == 0 || d.vertexOffset + static_cast<std::uint64_t>(d.vertexCount) * d.stride > chunk.vertexBytes ||
         d.indexOffset + d.indexCount > chunk.indexCount)
       return;
@@ -2754,6 +2764,7 @@ struct GxRenderer::Impl {
       keyLayout = d.layout;
       keyDirty = false;
     }
+    Split(GxStats::kSplitProgram);
     const Program *p = keyProgram;
     if (!p)
       return;
@@ -2768,11 +2779,13 @@ struct GxRenderer::Impl {
     }
     if (xfRegsDirty)
       FillXfRegs();
+    Split(GxStats::kSplitState);
     std::uint32_t blended = 0;
     if (interpPass)
       blended = BlendDraw(d, k, chunk);
     else if (recordDraws)
       RecordDraw(d, k);
+    Split(GxStats::kSplitRest);
     UploadXf();
     if (pxDirty || !pxValid) {
       FillPixel(k);
@@ -2783,6 +2796,7 @@ struct GxRenderer::Impl {
         pxValid = true;
       }
     }
+    Split(GxStats::kSplitUniform);
     if (current != p) {
       glUseProgram(p->id);
       current = p;
@@ -2838,10 +2852,12 @@ struct GxRenderer::Impl {
     }
     const GLenum mode = primitive == RE4_GX_LINES ? GL_LINES : primitive == RE4_GX_POINTS ? GL_POINTS : GL_TRIANGLES;
     const void *indices = reinterpret_cast<const void *>(static_cast<std::uintptr_t>(d.indexOffset) * 2);
+    Split(GxStats::kSplitBind);
     if (drawBaseVertex)
       drawBaseVertex(mode, static_cast<GLsizei>(d.indexCount), GL_UNSIGNED_SHORT, indices, baseVertex);
     else
       glDrawElements(mode, static_cast<GLsizei>(d.indexCount), GL_UNSIGNED_SHORT, indices);
+    Split(GxStats::kSplitDraw);
     stats.draws++;
     if (mode == GL_TRIANGLES)
       stats.triangles += d.indexCount / 3;
@@ -4096,6 +4112,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     return;
   if (!m.interpPass)
     m.stats.chunks++;
+  m.splitAt = std::chrono::steady_clock::now();
   // a real Run notes its draws for the in-between picture after it
   const bool record = m.recordDraws && !m.interpPass;
   if (record) {
@@ -4129,6 +4146,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
       m.uploadedSequence = chunk.sequence;
     }
   }
+  m.Split(GxStats::kSplitVertices);
   // the app drew the screen since the last chunk: a new pass
   m.efbLeft = true;
   m.BindFbo(m.DrawFbo());
@@ -4155,6 +4173,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.current = nullptr;
   m.ownerBase = 0;
   m.ownerLife = ~0u;
+  m.Split(GxStats::kSplitState);
   std::uint32_t at = 0;
   while (at < chunk.opWords) {
     const std::uint32_t head = chunk.ops[at];
@@ -4211,6 +4230,10 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     default:
       break;
     }
+    m.Split(op == RE4_GX_OP_BP || op == RE4_GX_OP_BP_STATE ? GxStats::kSplitBp
+            : op == RE4_GX_OP_XF                          ? GxStats::kSplitXf
+            : op == RE4_GX_OP_TEXTURE                     ? GxStats::kSplitTexture
+                                                          : GxStats::kSplitRest);
     at += 1 + n;
   }
   m.TimerEnd();
@@ -4238,6 +4261,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.Touched();
   m.SaveAndPlainState();
   m.BindFbo(0);
+  m.Split(GxStats::kSplitRest);
 }
 
 bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {

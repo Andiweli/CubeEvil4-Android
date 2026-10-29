@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -1733,12 +1734,15 @@ static void testDeathLog()
         "die: r21d after 2 frames, life 1200, Leon at (100 0 200); scene areas hit: 0x05 0x13",
         "die: area 0x05 id 0 on 1 trg 1: floor 0 height 2000, (0 0) (1000 0) (1000 1000) (0 1000), for 1",
         "pl: Leon's position is not a number in r21d (frame 2004, 3 frames after the room started)",
-        "room: r21d runs (frame 2006), Leon at (100 0 200) facing 0.50, life 1200/1200, weapon 0x02, continue after a death",
+        "room: r21d runs (frame 2006), Leon at (100 0 200) facing 0.50, life 1200/1200, weapon 0x02, game_mode 0, game_country 0, continue after a death",
         "em: + s1 0x2d/0 list 0 set 0x00 f 0x00000000 hp 100 at (0 0 0) in r21d",
         "em: s1 position is not a number, last at (0 0 0)",
     };
+    // (the tail keeps 119 characters of a line, log.cpp kTailWidth: the room line with game_mode and
+    // game_country is longer, its end is compared no further)
     for (const char* w : want) {
-        if (!strstr(tail, w)) {
+        const std::string kept(w, std::min<size_t>(strlen(w), 119));
+        if (!strstr(tail, kept.c_str())) {
             ok = false;
             re4_log("  deathlog: missing \"%s\"", w);
         }
@@ -2097,6 +2101,68 @@ static void testCpuInfo()
         ok &= placed && upper;
         if (!placed || !upper) {
             re4_log("  cpuinfo: placement %s", where);
+        }
+    }
+    // the helpers on the slow cores (PutOnSlowCores) only with two faster cores or fewer: the A30s
+    // (two) yes, the Retroid (four) and alike cores no; a helper thread of this machine, the cores
+    // above the lowest two made slow, lands below them; RE4_HELPERS_SLOW=0 leaves it
+    ok &= re4cpu::FasterCores(a30) == 2 && re4cpu::FasterCores(sd) == 4 && re4cpu::FasterCores(alike) == 0;
+    ok &= !re4cpu::PutOnSlowCores(sd, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
+          strstr(text, "4 faster cores") != nullptr;
+    ok &= !re4cpu::PutOnSlowCores(alike, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
+          strstr(text, "clocks not readable") != nullptr;
+    setenv("RE4_HELPERS_SLOW", "0", 1);
+    ok &= !re4cpu::PutOnSlowCores(a30, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
+          strstr(text, "RE4_HELPERS_SLOW=0") != nullptr;
+    unsetenv("RE4_HELPERS_SLOW");
+    if (cores >= 3 && cores <= re4cpu::Layout::kMax) {
+        re4cpu::Layout two;  // the two highest cores fast
+        two.count = cores;
+        for (int i = 0; i < cores; i++) {
+            two.maxKHz[i] = i < cores - 2 ? 1000000 : 2000000;
+        }
+        two.slowest = 1000000;
+        two.fastest = 2000000;
+        std::atomic<int> helperTid(0);
+        std::atomic<bool> placedDone(false);
+        bool placed = false, lower = true;
+        char where[160] = "";
+        std::thread helper([&] {
+            helperTid = re4cpu::ThreadId();
+            while (!placedDone.load()) {
+                std::this_thread::yield();
+            }
+        });
+        while (!helperTid.load()) {
+            std::this_thread::yield();
+        }
+        cpu_set_t before, set, now;
+        CPU_ZERO(&before);
+        sched_getaffinity(helperTid, sizeof(before), &before);
+        bool all = true;
+        for (int i = 0; i < cores; i++) {
+            all &= CPU_ISSET(i, &before) != 0;
+        }
+        if (all) {
+            placed = re4cpu::PutOnSlowCores(two, helperTid, &set, where, sizeof(where));
+            CPU_ZERO(&now);
+            sched_getaffinity(helperTid, sizeof(now), &now);
+            for (int i = 0; i < cores; i++) {
+                lower &= (CPU_ISSET(i, &now) != 0) == (i < cores - 2);
+            }
+            lower &= CPU_EQUAL(&now, &set) && !re4cpu::KeepThreadOn(helperTid, set);
+            re4cpu::ReleaseThread(helperTid);
+            CPU_ZERO(&now);
+            sched_getaffinity(helperTid, sizeof(now), &now);
+            lower &= CPU_ISSET(cores - 1, &now) != 0;
+        } else {
+            placed = true;  // a test machine that does not give this process every core
+        }
+        placedDone = true;
+        helper.join();
+        ok &= placed && lower;
+        if (!placed || !lower) {
+            re4_log("  cpuinfo: helper placement %s", where);
         }
     }
     // Android's performance hint: none on Linux, said so

@@ -59,6 +59,12 @@ struct GxStats {
   // the uniform stream moved on to its next quarter: in all, and inside a chunk (a chunk larger
   // than the room left; between chunks otherwise, gx_gl.cpp)
   unsigned streamSwitches = 0, streamSplits = 0;
+  // the render thread's time in Run by kind of work (ns, steady clock; every Run): which part is the
+  // driver's (the draw calls, uniform blocks, binds, state) and which the renderer's own (Testers'
+  // logs 28.10.2026: 29.8 ms of processor time for 862 draws on a Mali-G52, 12 ms for 873 on an Adreno 642L)
+  enum { kSplitDraw, kSplitUniform, kSplitBind, kSplitState, kSplitProgram, kSplitTexture, kSplitBp, kSplitXf,
+         kSplitVertices, kSplitRest, kSplitKinds };
+  unsigned long long splitNs[kSplitKinds] = {};
   // GPU time of the chunks (EXT_disjoint_timer_query; 0 when the driver has none)
   unsigned long long gpuMicros = 0;
   unsigned gpuTimed = 0;

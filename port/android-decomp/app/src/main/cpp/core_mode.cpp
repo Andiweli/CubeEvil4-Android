@@ -1528,6 +1528,19 @@ bool drawGx() {
             "%.0f/%.0f/%.0f %%, now on core %d at %u MHz",
             gxRunCpuNs / 1e6 / n, gxRunMs / n, gxRunOnKind[2] * 100.0 / n, gxRunOnKind[1] * 100.0 / n,
             gxRunOnKind[0] * 100.0 / n, cpu, khz / 1000);
+        // where the run time went (GxStats::splitNs): the driver's calls first, the renderer's own work after
+        // (per real chunk; the in-between pictures' Runs of 60 FPS are in it as well)
+        using re4gx::GxStats;
+        double split[GxStats::kSplitKinds];
+        for (int k = 0; k < GxStats::kSplitKinds; k++)
+          split[k] = (s.splitNs[k] - gxWork.splitNs[k]) / 1e6 / n;
+        LOG("GX render thread split per chunk: draw calls %.1f ms, uniform blocks %.1f, binds (programs, textures, "
+            "vertex setup) %.1f, render state %.1f, vertex buffers %.1f; shader keys and programs %.1f, textures in "
+            "(decode, upload) %.1f, BP (EFB copies, clears, effects) %.1f, XF %.1f, the rest %.1f",
+            split[GxStats::kSplitDraw], split[GxStats::kSplitUniform], split[GxStats::kSplitBind],
+            split[GxStats::kSplitState], split[GxStats::kSplitVertices], split[GxStats::kSplitProgram],
+            split[GxStats::kSplitTexture], split[GxStats::kSplitBp], split[GxStats::kSplitXf],
+            split[GxStats::kSplitRest]);
       }
       // 60 FPS: how far the GPU lags behind (fences after every Run, the in-between ones too); more
       // than 2.5 Runs on average: off for this renderer, the menu's switch stays (a lower
