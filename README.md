@@ -32,6 +32,17 @@ and it contains no game data: you need your own images of both discs of one of t
 - [Android Gamer's Channel](https://www.youtube.com/watch?v=m-XGtGydIVg) (Youtube)  
 
 
+## Currently in development
+
+- **Full button mapping:** every action on any button, combinations like aim + fire, and play with
+  keyboard and mouse (mouse aiming with adjustable sensitivity).
+- **Better performance on weaker devices**, especially phones with only a few fast CPU cores.
+- **US retail release** as a third supported disc version.
+- **New cheats:** automatic quick-time events and unlocking Assignment Ada and The Mercenaries.
+- **Touch aiming by swipe:** the aim follows your finger and stops when it stops.
+- **Fixes from testers' reports:** the sniper scope's crosshair and the flickering EMPTY icon with
+  the European discs.
+
 ## What the app does
 
 - The whole game code (`src/`, all 114 REL modules) runs natively, as ARM32 (`armeabi-v7a`) and
