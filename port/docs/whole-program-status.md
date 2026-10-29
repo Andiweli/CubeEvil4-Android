@@ -28,6 +28,15 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     dem Retroid mit dem Spielstand des Nutzers bestätigt (Projektinhaber, 28.10.2026: Brüstung weg, Treppe begehbar).
 12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
     darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
+13. **Zielfernrohr: nur die senkrechte Linie des Fadenkreuzes sichtbar** (Nutzermeldung, 29.10.2026) – offen, braucht
+    Disc-Daten (lokal). Bisher (Cloud): Das Fadenkreuz sind 2D-Einheiten des Spiels (`IdScope::init`,
+    `cam_extra.cpp`: Einheiten `IDC_SCOPE` aus dem Waffenarchiv, Unterdatei 5/6/7 je Gewehr, Texturen Unterdatei 4),
+    gezeichnet als texturierte Vierecke (`IdCommonTrans`, ohne Culling, Alpha-Test > 1). Verdacht: die waagerechte
+    Linie ist eine dünne Texturzeile oder ein dünnes Viereck, das bei der Umrechnung (Auflösung 1×, Filter, Bildformat)
+    zwischen die Pixel fällt. Nächster Schritt am PC: Gewehr in den Raum, Zielfernrohr, GX-Serie (R3) bei 1× und 2×
+    mit `gx_chunk_render` nachzeichnen, Einheiten und Texturformat/Filter ansehen. Gerät/Einstellungen des Nutzers erbeten.
+14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – Ursache gefunden (Einheit 0x3F in
+    `BulletInfo::move` ohne gewähltes Sprachbild), Korrektur lokal mit dem EU-Programmcode (Startprompt im Chat).
 
 ## Cheats: automatische QTEs und Extra-Spiele freischalten (29.10.2026, Cloud, Branch `golden-master`)
 
