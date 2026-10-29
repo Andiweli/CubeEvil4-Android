@@ -39,7 +39,10 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
   Eckpunkt-Threads (mit dem Leistungshinweis) dazu. Vergleich Xiaomi 11 Lite NE (Snapdragon 778G, Adreno 642L): 873
   Zeichnungen in 12,2 ms bei 1,2 GHz (≈ 14 µs). Galaxy S7 (Snapdragon 820) in r108: GPU 23–31 ms je Bild gemessen,
   Zeichen-Thread 15–22 ms, die schnellen Kerne gedrosselt auf 1,25–1,32 GHz – dort ist die GPU der Engpass.
-- **Umsetzung (Entscheidung des Projektinhabers, 29.10.2026: Leistungsoptimierung sofort; Vulkan erst nach Messungen):**
+- **Vulkan bis auf Weiteres ausgeschlossen** (Entscheidung des Projektinhabers, 29.10.2026, nach der Aufwandsschätzung:
+  neuer Grafikteil statt der ~5 400 Zeilen von `gx_gl.cpp`/Shader-Erzeuger, Pipelines, Shader-Übersetzer, alle Extras und
+  PC-Prüfwerkzeuge neu, GLES bliebe für ältere Geräte; der Spiel-Thread würde nicht schneller). Weiter mit GLES.
+- **Umsetzung (Entscheidung des Projektinhabers, 29.10.2026: Leistungsoptimierung sofort):**
   - `re4_cpu_info.h` `PutOnSlowCores`: Mit „Force Performance: Use performance cores“ kommen die Eckpunkt-Threads auf die
     langsamste Kernart, wenn höchstens zwei Kerne schneller sind (die zwei bleiben dem Spiel- und dem Zeichen-Thread).
     Mehr schnelle Kerne (Retroid: vier) ändern nichts. Logzeile „cores: the 3 vertex threads on cores 0 1 2 3 4 5, the
