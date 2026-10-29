@@ -108,6 +108,9 @@
 //   RE4_TEST_GAME_MODE=N   the same for the difficulty (game_mode: 3 Easy, 5 Normal,
 //                          6 Professional), as the debug start menu's line sets it; the
 //                          European title's choice (patch 0139) is skipped by a debug start
+//   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
+//                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
+//                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
 //   RE4_TRACE_AT=1, RE4_TRACE_POS=N, RE4_TEST_PLACE2="N:x,y,z,a",
 //   RE4_TEST_AT_OFF="N,..", RE4_TEST_SMD_TRANS="ID=0|1,..", RE4_FLOOR_MAP,
 //   RE4_FLOOR_FILL         a room's trigger areas, doors and collision walls,
@@ -233,6 +236,7 @@ extern "C" void re4_set_frame_hook(void (*hook)(unsigned));
 extern "C" void re4_pad_script_stop(void);
 extern "C" void re4_pad_script_free(void);
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" void re4_core_set_letterbox(int off);  // runtime/core_api.cpp
 extern "C" int re4_title_room_menu_open(void);
 extern "C" void re4_gx_mark(void);
 extern "C" void re4_memcard_flush(int force);
@@ -1657,6 +1661,10 @@ void configure()
     }
     const char* gameMode = getenv("RE4_TEST_GAME_MODE");
     g_testGameMode = gameMode && *gameMode ? (int) strtol(gameMode, 0, 0) : -1;
+    const char* letterbox = getenv("RE4_TEST_LETTERBOX_OFF");
+    if (letterbox && *letterbox && *letterbox != '0') {
+        re4_core_set_letterbox(1);
+    }
     re4_set_frame_hook(frame);
 }
 
