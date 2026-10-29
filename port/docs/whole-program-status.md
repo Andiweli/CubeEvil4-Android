@@ -157,6 +157,30 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     `compileCoreDebugJavaWithJavac` und `externalNativeBuildCoreDebug` (arm64, armv7) ohne Fehler übersetzt.
     **Nicht geprüft:** Gerät.
 
+## Japanische und koreanische Discs, J0–J5 (30.10.2026 nachts, lokal, Branch `retail-jp`)
+
+Entscheidung des Projektinhabers (29.10.2026): `retail-us` bleibt, wie es ist; Japan und Korea auf einem eigenen
+Branch `retail-jp` (von `golden-master`). Plan und Befunde: `port/docs/retail-jp-plan.md`.
+
+- **Erkennung (J1):** Kern `RE4_DISC_RETAIL_JP` (`G4BJ08`), Korea an zwei Befehlen in `sys/main.dol`;
+  `re4_disc_retail_jp()`, `re4_disc_retail_kr()`, `re4_disc_retail()` (EU, US oder Japan). App: Freigaben `jp`/`kr`
+  mit eigenen Katalogen (`references-jp/kr.tsv` …), Import, Startseite, kein Debug-Menü mit Verkaufs-Discs.
+- **Sprache (J3):** mit JP-Discs Sprache/Land 0 (Japanisch; Korea schreibt Koreanisch in dieselben Stellen).
+- **Patches (J4):** Code beider Verkaufsfassungen an den Patch-Stellen verglichen; 0120, 0123–0126, 0129, 0133, 0135
+  jetzt `re4_disc_retail()`, 0128, 0136, 0138, 0140, 0141, 0145 EU oder Japan, 0121/0122/0131/0132/0139/0142 nur EU.
+- **Korea (J5):** **Patch 0147** (`emwep.cpp`, `obj16.cpp`): die Enthauptungs-Tode wie in der US-Fassung, wie die
+  Übersetzung (0146 ist der Handcannon-Patch auf `golden-master`).
+- **Geprüft (PC, i686):** Laufzeittests 0 Fehler (neu: Japan/Korea in `disc release`), Java-`DiscTests` 24 Prüfungen,
+  echter App-Import beider Abbildpaare (je 4 082 Prüfungen, `release=jp`/`kr`); Prüfstrecke mit `--room-info` der
+  Debug-Disc: **Japan „ALLES OK“** (Formatvergleich, Spiellauf r100, Filme, Speichern und Laden; Systemdatei
+  „biohazard4 システムファイル“), **Korea alles bestanden außer dem Formatvergleich von `St1/r100.das`** (der strengere
+  Yz2-Leser des alten Klassik-Modus lehnt das neu gepackte Archiv ab; der Kern spielt den Raum, der Raum-Check der App
+  vergleicht nur SHA-256), Gegenprobe EU und Debug „ALLES OK“. Python-Tests der Werkzeuge ok.
+- **Nicht geprüft:** Android-Build, Retroid, Raum-Rundgang mit JP-Daten (J7), Filmuntertitel auf Japanisch im Bild,
+  die Enthauptung mit koreanischen Discs im Spiel.
+- **Hinweis Arbeitsordner:** `RE4-Fixed` gehört `golden-master` (eine zweite Sitzung arbeitet dort); `retail-jp` liegt
+  im Worktree `E:\Development\Android\RE4-JP`. Der gemeinsame WSL-Baum `~/re4-kern/RE4` bleibt `golden-master`.
+
 ## Berichte für 0.95.2 und Japan/Korea (29.10.2026 spätabends, lokal, Branch `golden-master`)
 
 - **r214 „Uhrturm“ versperrt (EU-Discs, Bildschirmfoto eines Nutzers):** gleicher Fehlertyp wie r20b. Die EU-Daten
