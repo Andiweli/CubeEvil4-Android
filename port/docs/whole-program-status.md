@@ -33,6 +33,16 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     **Gerätetest offen**.
 14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – Ursache gefunden (Einheit 0x3F in
     `BulletInfo::move` ohne gewähltes Sprachbild), Korrektur lokal mit dem EU-Programmcode (Startprompt im Chat).
+15. **Minenwerfer mit Zielfernrohr: sofortiger Neustart** (Nutzerbericht 29.10.2026, realme RMX2001, 64 bit,
+    **0.93.0-beta**, Debug-Discs; ohne Zielfernrohr kein Fehler). Drei Abstürze, alle gleich beim Ausrüsten:
+    `HermiteInterpolation` ← `MotionSetCore` ← `cPlNeck::init` ← `pl_R1_Footwork`, davor „MotionMoveCore(): Pl, Invalid
+    parts 195“. Der Minenwerfer mit Zielfernrohr (Gegenstand 0xAB, Waffe 0xE Typ 1) lädt `em/wep25.drs` (615 232 Byte)
+    statt `em/wep14.drs` (628 704 Byte), aber dasselbe Modul `wep14` mit denselben Eintragsnummern
+    (`cObjMine::setMotion` bis `WEP_ARC 0x34`). Bei voller Gesundheit (`dmMotCk`) nimmt der Nacken `m_MotTbl[0x3F]` =
+    `WEP_ARC 0x2F`. Gleiches Bild wie Hunks Maschinenpistole (Patch 0134, ab 0.94.0): sehr wahrscheinlich hat `wep25.drs`
+    weniger Einträge, das Spiel liest hinter die Tabelle; Patch 0134 gilt auch für `WEP_ARC_PTR` (über `PL_ARC_PTR`).
+    **Offen:** Bestätigung am PC (`archive_dump.py --file em/wep25.drs --file em/wep14.drs --entries 0x00-0x31`, danach
+    Ausrüsten am PC) und beim Tester mit 0.95.0-beta.
 
 ## Tastenbelegung für jede Aktion – Schritt 2: Maus mit Empfindlichkeitsregler (29.10.2026, Cloud, Branch `golden-master`)
 
