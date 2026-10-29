@@ -84,11 +84,14 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     Stufe 6), der Händler hebt mit `level_ext_sw500` {7,1,3,6} nur die Feuerkraft auf 7. Die Werte und die
     Exklusiv-Regel der Verkaufsfassung zeigt nur der EU-Programmcode (`retail_code.py`: `WeaponLevelTbl`, `wep_info`,
     `wep_level_info`, `level_ext_sw500`, der Kauf des Exklusiv-Tunings in `ss_shop.cpp`) – lokal; Behebung als Patch
-    „a bug of the prototype“.
+    „a bug of the prototype“. **Zweiter Bericht (0.95.1, Debug-Discs, 29.10.2026 17:23) bestätigt:** Magazin bis Stufe
+    6, Feuerkraft 1→6 und dann das Exklusiv-Tuning als Feuerkraft-Stufe 7 („levels 7/1/3/6“, 200000 Pesetas); das
+    Magazin bleibt auf Stufe 6, also nicht unendlich.
 20. **Ton beim Schuss stottert einmal** (Nutzerbericht 30.10.2026, Infinix X6711, 0.95.1-beta, Debug-Discs, Pistole
     in r20a): Abschuss, kurze Pause, Rest des Schusses. Im Bericht keine Aussetzer beim Schießen (`ran dry` nur beim
     Raumwechsel), Kompressor nie aktiv, DSP weit unter Budget, 30 Bilder/s gleichmäßig: die Lücke liegt im Mischen
     selbst (z. B. Adresswechsel einer Stimme auf einen zweiten Teil des Klangs, Schleife/ADPCM-Zustand am Übergang).
+    Nutzer: nur manchmal, nicht bei jedem Schuss.
     **Nächster Schritt lokal:** am PC mit Disc-Daten schießen, `RE4_AUDIO_WAV_SECONDS` aufnehmen, Lücke im WAV finden,
     die Stimme dazu (`dsp.cpp`, PB-Adressen) verfolgen.
 
