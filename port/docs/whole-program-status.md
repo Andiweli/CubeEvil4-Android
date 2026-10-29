@@ -161,6 +161,8 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 - **Vulkan bis auf Weiteres ausgeschlossen** (Entscheidung des Projektinhabers, 29.10.2026, nach der Aufwandsschätzung:
   neuer Grafikteil statt der ~5 400 Zeilen von `gx_gl.cpp`/Shader-Erzeuger, Pipelines, Shader-Übersetzer, alle Extras und
   PC-Prüfwerkzeuge neu, GLES bliebe für ältere Geräte; der Spiel-Thread würde nicht schneller). Weiter mit GLES.
+- **Licht je Pixel (Nutzerfrage) nicht gewünscht** (Entscheidung des Projektinhabers, 29.10.2026): Es würde schwache
+  Geräte nicht schneller machen, sondern mehr GPU-Arbeit kosten; das Licht bleibt je Eckpunkt wie beim GameCube.
 - **Umsetzung (Entscheidung des Projektinhabers, 29.10.2026: Leistungsoptimierung sofort):**
   - `re4_cpu_info.h` `PutOnSlowCores`: Mit „Force Performance: Use performance cores“ kommen die Eckpunkt-Threads auf die
     langsamste Kernart, wenn höchstens zwei Kerne schneller sind (die zwei bleiben dem Spiel- und dem Zeichen-Thread).
