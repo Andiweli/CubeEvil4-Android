@@ -69,6 +69,22 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     Hand), das Untermenü (`Sscrn/ss_model.cpp leonModelInit`) nur 4/5 und 0xA, 8, 6, 9. Ob das Messer an der Brust
     im Körpermodell steckt oder die Verkaufsfassung ein Teil mehr lädt, zeigt nur der EU-Programmcode (`retail_code.py`,
     Sscrn) – lokal; ebenso der Vergleich mit den Debug-Discs.
+19. **Handcannon: Feuerkraft „0.00“, Munition wird mit dem Exklusiv-Tuning nicht unendlich** (Nutzerbericht 30.10.2026;
+    beigelegtes Protokoll aus 0.91, nur Titelmenü). Befund im Code: Feuerkraft = `WeaponLevelTbl[Waffe][Stufe-1] /
+    WeaponLevelTbl[2][0]` (`item.cpp getPowerRatio`); die Zeile des Handcannon (Waffe 0x0F, Gegenstand 0x37) ist im
+    Prototyp ein Platzhalter mit 100.0 auf allen Stufen (`em_dm_val.cpp`); Händler und Untersuchen zeigen den Wert ×10
+    mit drei Ziffern (`ss_shop.cpp`, `examine.cpp`), aus 1000 wird „0.00“. Magazin: `wep_info` 0x37
+    {3,4,5,6,8,10,0xFFFF} (0xFFFF = unendlich erst auf Stufe 7), `wep_level_info` 0x37 {6,1,3,6} (Magazin höchstens
+    Stufe 6), der Händler hebt mit `level_ext_sw500` {7,1,3,6} nur die Feuerkraft auf 7. Die Werte und die
+    Exklusiv-Regel der Verkaufsfassung zeigt nur der EU-Programmcode (`retail_code.py`: `WeaponLevelTbl`, `wep_info`,
+    `wep_level_info`, `level_ext_sw500`, der Kauf des Exklusiv-Tunings in `ss_shop.cpp`) – lokal; Behebung als Patch
+    „a bug of the prototype“.
+20. **Ton beim Schuss stottert einmal** (Nutzerbericht 30.10.2026, Infinix X6711, 0.95.1-beta, Debug-Discs, Pistole
+    in r20a): Abschuss, kurze Pause, Rest des Schusses. Im Bericht keine Aussetzer beim Schießen (`ran dry` nur beim
+    Raumwechsel), Kompressor nie aktiv, DSP weit unter Budget, 30 Bilder/s gleichmäßig: die Lücke liegt im Mischen
+    selbst (z. B. Adresswechsel einer Stimme auf einen zweiten Teil des Klangs, Schleife/ADPCM-Zustand am Übergang).
+    **Nächster Schritt lokal:** am PC mit Disc-Daten schießen, `RE4_AUDIO_WAV_SECONDS` aufnehmen, Lücke im WAV finden,
+    die Stimme dazu (`dsp.cpp`, PB-Adressen) verfolgen.
 
 ## Bildformat „4:3“ jetzt exakt 4:3 (29.10.2026, Cloud, Branch `golden-master`)
 
