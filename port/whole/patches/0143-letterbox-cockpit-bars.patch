@@ -1,0 +1,33 @@
+# The app's picture format "4:3" without the game's bars (patch 0105), Retroid reports 29.10.2026 (r104,
+# exact 4:3): the game logged "draws without its letterbox", yet rows 0..56 and 392..448 stayed black with a
+# straight edge through walls and door frames. Render's scissor and Draw_cinesco were already left out
+# (0105); a GX frame of r104 recorded on the PC with the switch on (RE4_TEST_LETTERBOX_OFF) shows scissor and
+# viewport over the whole 512 x 448 and the 3D drawn over the full height up to draw 175. The bars come from
+# a third source: the cockpit's id layout CORE_CINESCO_ID (Cockpit::roomInit sets it as class IDC_CINESCO,
+# OT 0x13), two black quads 640 x 60 at y +-210 (rows 0..56 and 392..448), drawn every frame of play. While
+# re4_letterbox_open says the whole height is shown, IDSystem::trans leaves that class out. Events and sub
+# screens (re4_letterbox_open 0) and every other picture format keep it. A port patch for the app's 4:3.
+--- a/src/game/id_sys.cpp
++++ b/src/game/id_sys.cpp
+@@ -988,6 +988,8 @@
+     }
+ }
+ 
++extern "C" int re4_letterbox_open(void);  /* port: runtime/picture.cpp (patches 0105, 0143) */
++
+ // Per-frame draw (unless Disp_flg 0x2000 hides the HUD): queues every visible root unit whose class
+ // is not switched off (Disp_flg 0x10000 also skips OT type 0x13).
+ void IDSystem::trans()
+@@ -1009,6 +1011,12 @@
+         if (FlagChkVar(m_disp_off, (u32) u->classNo)) {
+             continue;
+         }
++        /* PORT (patch 0143): the cockpit's letterbox (IDC_CINESCO, two black bars over rows 0..56
++           and 392..448) left out while the app's "4:3 without bars" shows the whole height in play
++           (Retroid r104, 29.10.2026: the 3D ended at the old bar rows) */
++        if (u->classNo == IDC_CINESCO && re4_letterbox_open()) {
++            continue;
++        }
+         if (u->be_flag == 0xFF || !(u->be_flag & 0x1)) {
+             continue;
+         }
