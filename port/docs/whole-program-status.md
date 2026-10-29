@@ -171,6 +171,13 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     `compileCoreDebugJavaWithJavac` und `externalNativeBuildCoreDebug` (arm64, armv7) ohne Fehler übersetzt.
     **Nicht geprüft:** Gerät.
 
+## Version 0.95.2-beta (30.10.2026, lokal, Branch `golden-master`)
+
+Wunsch des Projektinhabers (für die Tester): `versionName` 0.95.2-beta, `versionCode` 81, Releasetext
+`port/android-decomp/docs/releases/v0.95.2-beta.md` (seit 0.95.1: Patch 0145 r214/r20e, Patch 0146 Handcannon,
+168 Programme in der Liste der App, Aussetzer der Tonausgabe im Fehlerbericht). Japan/Korea (`retail-jp`) nicht
+enthalten (noch kein Gerätetest). Gebaut in einem eigenen Worktree, `RE4-Fixed` blieb unberührt.
+
 ## Berichte für 0.95.2 und Japan/Korea (29.10.2026 spätabends, lokal, Branch `golden-master`)
 
 - **r214 „Uhrturm“ versperrt (EU-Discs, Bildschirmfoto eines Nutzers):** gleicher Fehlertyp wie r20b. Die EU-Daten
