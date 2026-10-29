@@ -16,6 +16,7 @@
     <string name="ingame_picture">Format d’image</string>
     <string name="ingame_original_43">4:3 (GC)</string>
     <string name="ingame_43_no_bars">4:3</string>
+    <string name="ingame_43_exact">4:3 (exact)</string>
     <string name="ingame_stretched">Étirée</string>
     <string name="ingame_other_options">Autres options</string>
     <string name="ingame_dof">Profondeur de champ</string>

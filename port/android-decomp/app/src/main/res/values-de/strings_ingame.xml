@@ -14,6 +14,7 @@
     <string name="ingame_picture">Bildformat</string>
     <string name="ingame_original_43">4:3 (GC)</string>
     <string name="ingame_43_no_bars">4:3</string>
+    <string name="ingame_43_exact">4:3 (exakt)</string>
     <string name="ingame_stretched">Gestreckt</string>
     <string name="ingame_other_options">Weitere Optionen</string>
     <string name="ingame_dof">Tiefenschärfe</string>

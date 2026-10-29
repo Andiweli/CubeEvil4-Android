@@ -193,6 +193,11 @@ public:
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:
   // black waves at the bottom of the intro and under water). Default: all rows. Any thread.
   void SetShownRows(int top, int bottom);
+  // "4:3 (exact)" (the app menu, 29.10.2026): the game computes its 3D picture for 4:3 but its
+  // 512 x 448 picture showed 10:7 on a television; shown in a 4:3 box the 3D is exact and the flat
+  // draws of the whole screen (HUD, menus, text) would be narrower. They are drawn `factor` wider
+  // around the screen's centre (15/14 for that box; 1: as the game sends them). Any thread.
+  void SetWiden(float factor);
   // Frame skip (the app menu, 26.10.2026). The renderer is behind when the core has finished two
   // chunks: `a` need not be drawn when `b` (the next one) is drawn at once. Skip runs `a` without its
   // draws and its display copy: the register and texture state the game builds on (BP, XF, palettes,

@@ -272,6 +272,8 @@ struct Program {
   GLuint id = 0;
   GLint mtx = -1;
   mutable std::uint32_t lastMtx[3] = {~0u, ~0u, ~0u}; // uMtx as last set
+  GLint widen = -1;           // uWiden (flat draws only)
+  mutable float lastWiden = 1.0f;
 };
 
 struct KeyHash {
@@ -473,6 +475,8 @@ struct GxRenderer::Impl {
   int sceneBottom = 0;
   // the EFB rows the app shows (GxRenderer::SetShownRows): all, or 56..391 in the 16:9 formats
   std::atomic<int> shownTop{0}, shownBottom{kEfbHeight};
+  // GxRenderer::SetWiden: how much wider the flat draws of the whole screen are drawn (1: as sent)
+  std::atomic<float> widen2d{1.0f};
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint quadVao = 0;
   GLuint whiteTex = 0;
@@ -2636,6 +2640,9 @@ struct GxRenderer::Impl {
           glUniform1i(loc, m);
       }
       p.mtx = glGetUniformLocation(p.id, "uMtx");
+      p.widen = glGetUniformLocation(p.id, "uWiden");
+      if (p.widen >= 0)
+        glUniform1f(p.widen, 1.0f);
       current = nullptr;
     }
     auto &slot = programs[k];
@@ -2807,6 +2814,13 @@ struct GxRenderer::Impl {
       glUniform3ui(p->mtx, d.matrices[0], d.matrices[1], d.matrices[2]);
       std::memcpy(p->lastMtx, d.matrices, sizeof(p->lastMtx));
     }
+    if (p->widen >= 0) {
+      const float w = WidenFor(k);
+      if (p->lastWiden != w) {
+        glUniform1f(p->widen, w);
+        p->lastWiden = w;
+      }
+    }
     if (!unitsValid) {
       for (int m = 0; m < 8; m++)
         unitTex[m] = unitSampler[m] = ~0u;
@@ -2863,6 +2877,24 @@ struct GxRenderer::Impl {
       stats.triangles += d.indexCount / 3;
     if (blended)
       BlendRestore(blended);
+  }
+
+  // "4:3 (exact)": a flat draw over the whole screen (its viewport starts at the left edge and is
+  // at least 500 of the game's 512 pixels wide: HUD, menus, text, fades, the letterbox) gets the
+  // factor; not one that reads an EFB copy (heat haze, water, the pause filter, blurs: they lay the
+  // picture under them back over it and must stay on it), nor one into a part of the EFB (a
+  // picture for a texture)
+  float WidenFor(const ShaderKey &k) const {
+    const float f = widen2d.load(std::memory_order_relaxed);
+    if (f == 1.0f || !k.orthographic)
+      return 1.0f;
+    const float half = AsFloat(xfReg[0x1A]), centre = AsFloat(xfReg[0x1D]) - 342.0f;
+    if (half * 2.0f < 500.0f || std::fabs(centre - half) > 1.0f)
+      return 1.0f;
+    for (int m = 0; m < 8; m++)
+      if ((k.texMaps & (1u << m)) && (boundKey[m] >> 63))
+        return 1.0f;
+    return f;
   }
 
   // --- EFB copies -------------------------------------------------------------------
@@ -4564,6 +4596,9 @@ GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
 void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
+void GxRenderer::SetWiden(float factor) {
+  impl_->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
+}
 void GxRenderer::SetShownRows(int top, int bottom) {
   impl_->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
   impl_->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);

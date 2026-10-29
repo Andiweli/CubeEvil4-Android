@@ -200,6 +200,42 @@ void TestPixelCentre(re4gx::GxRenderer &r) {
         "pixel centre: an edge at 50.65 leaves column 50");
 }
 
+// "4:3 (exact)" (GxRenderer::SetWiden, 29.10.2026): a flat draw over the whole screen is drawn 15/14
+// wider around the screen's centre (columns 200..300 of 640: 191.4..298.6); a flat draw into a part
+// of the EFB (a viewport 200 wide, a picture for a texture) stays as sent, and so does everything at 1.
+void TestWiden(re4gx::GxRenderer &r) {
+  auto run = [&](float widen, bool part) {
+    r.SetWiden(widen);
+    Builder b;
+    Baseline(b);
+    b.flags |= RE4_GX_CHUNK_XFB;
+    DisplayCopy(b, true, kBlack);
+    if (part)
+      b.XfF(0x101A, {100.0f, -264.0f, 16777215.0f, 342.0f + 100.0f, 342.0f + 264.0f, 16777215.0f});
+    Quad(b, 200, 100, 300, 150, 0, kGreen);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  };
+  run(15.0f / 14.0f, false);
+  Check(Near(EfbPixel(r, 192, 120), 0, 255, 0) && Near(EfbPixel(r, 190, 120), 0, 0, 0) &&
+            Near(EfbPixel(r, 297, 120), 0, 255, 0) && Near(EfbPixel(r, 300, 120), 0, 0, 0),
+        "4:3 exact: a flat draw over the whole screen is 15/14 wider around the centre");
+  run(1.0f, false);
+  Check(Near(EfbPixel(r, 195, 120), 0, 0, 0) && Near(EfbPixel(r, 200, 120), 0, 255, 0) &&
+            Near(EfbPixel(r, 299, 120), 0, 255, 0) && Near(EfbPixel(r, 300, 120), 0, 0, 0),
+        "4:3 exact off: the flat draw as sent");
+  run(1.0f, true);
+  std::vector<std::vector<std::uint8_t>> asSent;
+  for (int x = 0; x < 640; x += 4)
+    asSent.push_back(EfbPixel(r, x, 120));
+  run(15.0f / 14.0f, true);
+  bool same = true;
+  for (int x = 0, i = 0; x < 640; x += 4, i++)
+    same = same && EfbPixel(r, x, 120) == asSent[static_cast<std::size_t>(i)];
+  Check(same, "4:3 exact: a flat draw into a part of the EFB stays as sent");
+  r.SetWiden(1.0f);
+}
+
 void TestBasics(re4gx::GxRenderer &r) {
   // frame 1: clear to blue by a display copy, then a green quad top left, a
   // red triangle bottom right, display copy
@@ -2713,6 +2749,7 @@ int main() {
     Require(renderer.Init(1, &error), error.c_str());
     TestBasics(renderer);
     TestPixelCentre(renderer);
+    TestWiden(renderer);
     TestTexture(renderer);
     TestTev(renderer);
     TestLighting(renderer);

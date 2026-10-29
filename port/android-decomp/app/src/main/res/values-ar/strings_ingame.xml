@@ -18,6 +18,7 @@
     <string name="ingame_picture">نسبة الأبعاد</string>
     <string name="ingame_original_43">&#x200F;4:3 (GC)</string>
     <string name="ingame_43_no_bars">4:3</string>
+    <string name="ingame_43_exact">&#x200F;4:3 (دقيق)</string>
     <string name="ingame_stretched">ممتدة</string>
     <string name="ingame_other_options">خيارات أخرى</string>
     <string name="ingame_dof">عمق الميدان</string>

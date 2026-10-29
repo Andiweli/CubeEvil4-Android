@@ -444,7 +444,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int[] info = CoreBridge.graphicsInfo();
     if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
-    int rows = aspect == 1 || aspect == 3 ? 448 : 336;
+    int rows = aspect == 1 || aspect == 3 || aspect == 4 ? 448 : 336;
     return String.format(Locale.ROOT, " · %d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
         CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }

@@ -14,6 +14,7 @@
     <string name="ingame_picture">चित्र अनुपात</string>
     <string name="ingame_original_43">4:3 (GC)</string>
     <string name="ingame_43_no_bars">4:3</string>
+    <string name="ingame_43_exact">4:3 (सटीक)</string>
     <string name="ingame_stretched">खींचा हुआ</string>
     <string name="ingame_other_options">अन्य विकल्प</string>
     <string name="ingame_dof">डेप्थ ऑफ़ फ़ील्ड</string>

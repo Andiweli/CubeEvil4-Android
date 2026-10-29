@@ -124,6 +124,8 @@ std::string GxVertexShader(const ShaderKey &k) {
   std::string out = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
   out += kUniformBlocks;
   out += "uniform uvec3 uMtx;\n";
+  if (k.orthographic)
+    out += "uniform float uWiden;\n";
   out += "layout(location = 0) in vec3 aPos;\n";
   if (Has(k, 1u))
     out += "layout(location = 1) in vec3 aNrm;\n";
@@ -176,6 +178,11 @@ std::string GxVertexShader(const ShaderKey &k) {
          "                     ((vp[1].x - 342.0) * 2.0 / H - 1.0) * clip.w + vp[0].y * 2.0 / H * clip.y,\n"
          "                     2.0 * (vp[0].z * clip.z + vp[1].y * clip.w) / 16777215.0 - clip.w, clip.w);\n"
          "  gl_PointSize = max(1.0, proj[1].w);\n";
+  // "4:3 (exact)" (GxRenderer::SetWiden): the flat draws (HUD, menus, text) wider around the
+  // viewport's centre by the factor the 4:3 picture narrows them; 1 otherwise
+  if (k.orthographic)
+    out += "  float cx = ((vp[0].w - 342.0) * 2.0 / W - 1.0) * gl_Position.w;\n"
+           "  gl_Position.x = cx + (gl_Position.x - cx) * uWiden;\n";
   // The console samples a pixel at 7/12 of its width and height, GLES at 1/2 (Dolphin's pixel centre
   // correction): everything moves 1/12 of a GameCube pixel up and left, so what is thinner than a
   // pixel and lies on a pixel's edge still hits it as there (the rifle scope's horizontal line at 1x
