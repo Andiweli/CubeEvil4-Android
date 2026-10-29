@@ -44,6 +44,13 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     **Bestätigt (Tester, 29.10.2026):** mit 0.95.0-beta kein Absturz mehr.
 16. **Ton knackt, „nicht klar“** (Nutzerbericht 29.10.2026) – zwei Verbesserungen (Abschnitt „Ton: Kompressor …“), in
     der Cloud geprüft; **Hörtest auf dem Gerät offen**.
+17. **„4:3“ (ohne Balken) zeigt im Spiel doch die Balken** (Bildschirmfoto eines Nutzers, 29.10.2026, 1600×720,
+    Auflösung 1,5×, Wald mit Schrotflinte, Lebensanzeige sichtbar). Das Bild ist 1029×720 groß: das ist das
+    Bildformat 3 (10:7 über die ganze Höhe, `core_mode.cpp drawGx`), die App füllt die Höhe; die Balken malt also das
+    Spiel (`Draw_cinesco` bzw. die Schere), `re4_letterbox_open` war in dem Moment 0. Kein Ereignis (Lebensanzeige da),
+    kein Untermenü; Ursache aus dem Code allein nicht gefunden (Filter 09 ist nur der Pausenfilter). **Offen:**
+    Fehlerbericht direkt danach (Zeilen „core: letterbox bars …“ und „picture: the game draws … its letterbox (rNNN)“),
+    Raum und Version.
 
 ## Ton: Kompressor des DSP und kubische Angleichung (29.10.2026, Cloud, Branch `golden-master`)
 
