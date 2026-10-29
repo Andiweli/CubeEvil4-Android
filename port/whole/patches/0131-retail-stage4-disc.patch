@@ -11,7 +11,7 @@
  // choice at r120 on a new game (unlocked extras), swaps to the disc of the stage (disc 2 from stage
  // 3 on, except r22c), saves the game (GameSave.save) when allowed and starts the room load
  // (StageSet); Rno0 = 2.
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
  void gameStageInit()
  {

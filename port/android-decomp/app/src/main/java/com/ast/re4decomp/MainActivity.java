@@ -166,7 +166,8 @@ public final class MainActivity extends Activity implements ImportManager.Listen
   }
   /** The game may start: Disc 1, and in the core mode both discs (project owner, 17.10.2026). */
   private boolean gameReady() {
-    // core mode: both discs of one release (port/docs/retail-eu-plan.md: debug build or European discs)
+    // core mode: both discs of one release (port/docs/retail-eu-plan.md, retail-jp-plan.md: debug build,
+    // European, Japanese or Korean discs)
     return discReady(1) && (!core || (discReady(2) && DiscInstaller.sameRelease(imports.root)));
   }
   /** "ready (European release)" ... in the core launcher, "missing" without the disc. */

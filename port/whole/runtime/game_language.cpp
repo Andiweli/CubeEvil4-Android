@@ -24,6 +24,7 @@
 #include <strings.h>
 
 extern "C" int re4_disc_retail_eu(void);       // runtime/dvd.cpp
+extern "C" int re4_disc_retail_jp(void);       // runtime/dvd.cpp
 extern "C" int re4_core_language_wanted(void);  // runtime/core_api.cpp: 2..6, or -1
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
@@ -96,10 +97,15 @@ void testSetUp()
 
 }  // namespace
 
-// The language the game gets with the European discs (2..6), -1 with the debug build's discs.
+// The language the game gets with the European discs (2..6), with the Japanese ones 0 (they hold
+// Japanese only: ss/Jpn, the *_j fonts; the Korean translation writes Korean into the same places;
+// port/docs/retail-jp-plan.md), -1 with the debug build's discs.
 extern "C" int re4_game_language_value(void)
 {
     testSetUp();
+    if (re4_disc_retail_jp()) {
+        return 0;
+    }
     if (!re4_disc_retail_eu()) {
         return -1;
     }

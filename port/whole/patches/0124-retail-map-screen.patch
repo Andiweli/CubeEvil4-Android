@@ -5,13 +5,15 @@
 # marks and Leon's arrow missing; Retroid and PC, r226 and r100, 26.10.2026). The European
 # SsMapMain::init (Sscrn.rel text 0x111ac) hides unit 253 except in r22c; so does this one with the
 # European discs. Nothing changes with the debug build's discs. A port patch for retail data.
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
+# re4_disc_retail(), the switch of every retail release.
 --- a/src/Sscrn/ss_map.cpp
 +++ b/src/Sscrn/ss_map.cpp
 @@ -2435,6 +2435,8 @@
  
  // Builds the map screen: the zoom and mode widgets, id textures, unit groups, lights, SsMapWork,
  // viewport and camera. Button hints for marks not yet available are hidden.
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void), re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
  void SsMapMain::init(SUB_SCREEN* wk)
  {
@@ -22,7 +24,7 @@
      IdSub.unitPtr(0, IDC_SSCRN_NEAR_0)->rev_flag |= 0xF;
 +    /* port: the European map layout has unit 253 (the copy of the screen) last, the European
 +       SsMapMain::init (Sscrn.rel) shows it in r22c only; shown, it hid the map (patch 0124) */
-+    if (re4_disc_retail_eu()) {
++    if (re4_disc_retail()) {
 +        if (wk->room_no == 0x22C) {
 +            IdSub.unitPtr(0xFD, IDC_SSCRN_NEAR_0)->be_flag |= 8;
 +        } else {

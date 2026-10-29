@@ -15,13 +15,14 @@
 # (st2_1.rel 0x1a814) switches them off when the knights come alive. The debug build's discs have no walls
 # there, so with them Ashley still walks through the statues (data of the prototype). Nothing changes with
 # the debug build's discs. A port patch for retail data.
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here).
 --- a/src/st2/r214.cpp
 +++ b/src/st2/r214.cpp
 @@ -99,6 +99,28 @@
  static R214Work* r214_work;
  static u8 r214_debugMode;
  
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
 +/* port: the European discs' r214 has two positions of the way past the catapults (a lever for Easy, patch
 +   0145): this is the one the European R214Init sets above Easy (st2_2.rel 0xac80 with 0) - room model
@@ -51,7 +52,7 @@
          r214_work->barred[1]->setClosed();
      }
 +    /* port: with the European discs the way past the catapults as their R214Init sets it (patch 0145) */
-+    if (pG->Part != 2 && re4_disc_retail_eu()) {
++    if (pG->Part != 2 && (re4_disc_retail_eu() || re4_disc_retail_jp())) {
 +        r214_retailWayState0();
 +    }
      if (pG->Part == 2) {
@@ -63,7 +64,7 @@
  static void r20e_moveCrestDoor(int open, int init);
  void r20d_moveArmorStatue(int noAnim);
  static void r20d_getSnakeObject();
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
  void r20e_startArmor();
  static void r20d_getSalazarCrest_end();
@@ -75,7 +76,7 @@
 +    /* port: the European discs stand the four armor statues on collision walls (areas 0x13..0x16); the
 +       European r20e_startArmor (st2_1.rel 0x1a814) takes them away when the knights come alive
 +       (patch 0145) */
-+    if (re4_disc_retail_eu()) {
++    if ((re4_disc_retail_eu() || re4_disc_retail_jp())) {
 +        SceAtSetEnable(0x13, 0);
 +        SceAtSetEnable(0x14, 0);
 +        SceAtSetEnable(0x15, 0);

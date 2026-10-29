@@ -49,7 +49,7 @@ App lehnt die Discs heute ab.
 
 | Schritt | Inhalt |
 | --- | --- |
-| J0 | Grundlage: `retail-us` in den Arbeitsstand übernehmen (dort steht die Weiche `re4_disc_retail()` = EU oder US, die Japan mitbenutzen soll) – **Entscheidung des Projektinhabers** |
+| J0 | ✅ Branch `retail-jp` von `golden-master` (Entscheidung des Projektinhabers, 29.10.2026: `retail-us` bleibt, wie es ist); die Weiche `re4_disc_retail()` wie auf `retail-us` neu angelegt (EU, US oder Japan) |
 | J1 | Erkennung `G4BJ08` (Japan, Korea per `main.dol`) in `disc_release.py`, `runtime/dvd.cpp`, App-Import (Referenzlisten `references-jp.tsv`, `references-kr.tsv`, RVZ) |
 | J2 | Prüfstrecke mit JP-Daten (`whole_r100_check.sh`, mit `--room-info` der Debug-Disc), Formatvergleich, Absturzstellen |
 | J3 | Sprache: `language`/`eff_country` 0, `ss/Jpn`, japanische Schriften und Texte (Kern-Texte, Raumtexte, Ereignis- und Filmuntertitel), Ingame-Menü ohne Sprachwahl |
@@ -60,3 +60,32 @@ App lehnt die Discs heute ab.
 
 Nicht geprüft bis hier: der JP-Code selbst an den Patch-Stellen, ein Spiellauf mit JP-Daten (der Kern lehnt die Discs
 heute ab), Gerät.
+
+
+## Umsetzung auf `retail-jp` (29./30.10.2026, lokal)
+
+**J1 Erkennung.** Kern: `RE4_DISC_RETAIL_JP` (4) für `G4BJ08`, Korea als Spielart davon (`koreanOf`: die zwei
+Befehle in `sys/main.dol`), `re4_disc_retail_jp()`, `re4_disc_retail_kr()`, `re4_disc_retail()` (EU, US oder
+Japan: kein Debug-Menü, umsortierte Archive in Debug-Reihenfolge); das Spiel sieht wie bei EU die Kennung `G4BE08`
+(Speicherkarte). Werkzeuge: `disc_release.py` (`retail-jp`), `whole_disc_folder.py`, `whole_r100_check.sh`. App:
+`GameCubeDisc` erkennt `G4BJ08`, Korea an `main.dol` (Freigaben `jp`/`kr`, eigene Kataloge `references-jp/kr.tsv`,
+`files-…`, `rooms-…`, `blocks-…`, aus den Abbildern mit `make_disc_catalogs.py`), `DiscInstaller`, Startseite,
+kein Debug-Menü mit allen Verkaufs-Discs. Geprüft: Laufzeittest `disc release` (Japan, Korea), Java-`DiscTests`
+(24 Prüfungen) und der echte Import beider Abbildpaare mit dem App-Code (je 4 082 Prüfungen, `release=jp` / `kr`).
+
+**J3 Sprache.** `re4_game_language_value()` gibt mit JP-Discs 0: Sprache, Land und `game_country` 0 (Japan); der
+Debug-Code kennt Japan (Schriften `*_j.fnt`, Ordner `jpn`). Erster Lauf: Systemdatei „biohazard4 システムファイル“.
+
+**J4 Patches.** Code der Verkaufsfassungen an den Patch-Stellen verglichen (EU-Funktion → JP-Funktion, Befehle
+ohne Adressanteile):
+
+| Patch | JP gleich EU? | jetzt |
+| --- | --- | --- |
+| 0120, 0126 Funkgerät, 0123 Kern-Texte (+15, gleiche MDT-Blöcke), 0124 Karte, 0125 Lebensanzeige, 0129 Händler-Markierung, 0133 r204, 0135 Kapitelende/Ergebnis | ja | `re4_disc_retail()` (wie auf `retail-us`) |
+| 0128 r221, 0138 r20b, 0141 r203/r211/Karte, 0145 r214/r20e (Raummodule wortgleich), 0140 Schwierigkeitsklasse (JP `game_mode == 3`, EU `> 4`: gleich für 3/5/6), 0136 Filmuntertitel (JP-Film hat eine Untertitelspur, Kanal 0) | ja | EU oder JP |
+| 0121 Sprachwahl, 0122, 0131 Stage 4 (JP wie Debug auf Disc 1), 0132 Ereignis-Untertitel (JP vergleicht mit Sprache 1 wie Debug), 0139 Titelmenü (JP ganz anders, keine Schwierigkeitsabfrage), 0142 EMPTY (JP ohne Sprachbilder) | nein | nur EU |
+
+Auf Easy lädt der EU-Code Kartenobjekte aus `SS/Esy`, das die JP-Discs nicht haben; Japan bietet kein Easy an
+(Titelmenü), die Klasse bleibt „über Easy“.
+
+**J5 Korea.** Patch 0146: `emWepPlHeadLost`/`obj16PlHeadLost` gehen mit den koreanischen Discs den US-Weg.

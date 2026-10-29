@@ -55,7 +55,26 @@ public final class DiscTests {
       check(GameCubeDisc.DEBUG.equals(d.release), "debug build recognised by its FST place");
     }
     rejected(tmp, synthetic("a", "G4BE08", 0x500), "US release refused");
+    // the Japanese release (port/docs/retail-jp-plan.md): G4BJ08, core mode only; a main.dol without the
+    // Korean translation's two instructions is the Japanese one
+    File jp = new File(tmp, "jp.gcm");
+    Files.write(jp.toPath(), synthetic("a", "G4BJ08", 0x500));
+    try (GameCubeDisc d = new GameCubeDisc(jp)) {
+      check(GameCubeDisc.JAPANESE.equals(d.release) && d.files.size() == 2, "Japanese disc parsed");
+      File dst = new File(tmp, "jp-extract");
+      d.extract(dst, (phase, done, total) -> {});
+      String text = new String(Files.readAllBytes(new File(dst, "ready.properties").toPath()), StandardCharsets.UTF_8);
+      check(text.contains("id=G4BJ08") && text.contains("release=jp"), "Japanese extraction marks its release");
+      check(GameCubeDisc.JAPANESE.equals(DiscInstaller.release(dst)), "release of a Japanese import");
+    }
+    GameCubeDisc.retailAllowed = false;
+    rejected(tmp, synthetic("a", "G4BJ08", 0x500), "Japanese disc refused outside the core mode");
+    GameCubeDisc.retailAllowed = true;
+    check(GameCubeDisc.gameId(GameCubeDisc.KOREAN).equals("G4BJ08") && GameCubeDisc.dolSize(GameCubeDisc.JAPANESE) == 2182944
+          && GameCubeDisc.releaseTitle(GameCubeDisc.KOREAN).equals("Korean translation"), "Japanese/Korean ids");
     check(GameCubeDisc.catalog("rooms", GameCubeDisc.EUROPEAN).equals("rooms-eu.tsv")
+          && GameCubeDisc.catalog("files", GameCubeDisc.JAPANESE).equals("files-jp.tsv")
+          && GameCubeDisc.catalog("references", GameCubeDisc.KOREAN).equals("references-kr.tsv")
           && GameCubeDisc.catalog("references", GameCubeDisc.DEBUG).equals("references.tsv"), "catalog names");
     // a European extraction writes its release and id; ready() takes them, sameRelease() compares
     File root = new File(tmp, "releases");

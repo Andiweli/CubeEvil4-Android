@@ -414,7 +414,8 @@ static void testDiscRelease()
     } cases[] = {
         {"G4BE08", 0x28FE00, 0x440, RE4_DISC_DEBUG},  {"G4BP08", 0x236500, 0x440, RE4_DISC_RETAIL_EU},
         {"G4BE08", 0x236500, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
-        {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},
+        {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},   {"G4BJ08", 0x235300, 0x440, RE4_DISC_RETAIL_JP},
+        {"G4BJ08", 0x235300, 0x440, RE4_DISC_RETAIL_JP},
     };
     int n = 0;
     for (const Case& c : cases) {
@@ -432,13 +433,28 @@ static void testDiscRelease()
         CHECK(writeFile(dir + "/disc0/sys/fst.bin", fst.data(), fst.size()));
         CHECK(writeFile(dir + "/disc0/sys/boot.bin", boot, c.size));
         CHECK(writeFile(dir + "/disc0/files/a.dat", "A", 1));
+        // the last Japanese case: the Korean translation's main.dol (two instructions, retail-jp-plan.md)
+        const bool korean = &c == &cases[sizeof(cases) / sizeof(cases[0]) - 1];
+        if (korean) {
+            std::vector<unsigned char> dol(0x29cd8, 0);
+            const unsigned char li30[4] = {0x3B, 0xC0, 0x00, 0x01}, li31[4] = {0x3B, 0xE0, 0x00, 0x01};
+            memcpy(&dol[0x14b7c], li30, 4);
+            memcpy(&dol[0x29cd4], li31, 4);
+            CHECK(writeFile(dir + "/disc0/sys/main.dol", dol.data(), dol.size()));
+        }
         re4_set_data_dir(dir.c_str());
         CHECK(re4_disc_release() == c.release);
-        // the game sees the header's id, the debug build's for the European discs (memory card files)
-        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.release == RE4_DISC_RETAIL_EU ? "G4BE" : c.id, 4) == 0);
-        // SELECT held (the app): the debug menu, none with the European discs (R6)
+        CHECK(re4_disc_retail_kr() == (korean ? 1 : 0));
+        const bool retail = c.release == RE4_DISC_RETAIL_EU || c.release == RE4_DISC_RETAIL_US ||
+                            c.release == RE4_DISC_RETAIL_JP;
+        CHECK(re4_disc_retail() == (retail ? 1 : 0));
+        // the game sees the header's id, the debug build's for the European and Japanese discs (memory
+        // card files)
+        const bool asDebug = c.release == RE4_DISC_RETAIL_EU || c.release == RE4_DISC_RETAIL_JP;
+        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, asDebug ? "G4BE" : c.id, 4) == 0);
+        // SELECT held (the app): the debug menu, none with the retail discs (R6)
         re4_core_debug_menu();
-        CHECK(re4_debug_menu_request() == (c.release == RE4_DISC_RETAIL_EU ? 0 : 1));
+        CHECK(re4_debug_menu_request() == (retail ? 0 : 1));
     }
     re4_set_data_dir((base + "/none").c_str());
     CHECK(re4_disc_release() == RE4_DISC_UNKNOWN);

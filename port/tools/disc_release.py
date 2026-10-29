@@ -7,13 +7,15 @@ The same rule as runtime/dvd.cpp (re4_disc_release); it reads only the disc head
                 2004-11-25 (its main.dol is 2554432 bytes), the build the port's code is
     retail-eu   G4BP08: the European release (port/docs/retail-eu-plan.md)
     retail-us   G4BE08 with the table elsewhere: the US release, never tested
+    retail-jp   G4BJ08: the Japanese release and the Korean translation built on it
+                (port/docs/retail-jp-plan.md)
     unknown     anything else
 """
 import struct
 
 DEBUG_FST_OFFSET = 0x28FE00
-RELEASES = ("debug", "retail-eu", "retail-us", "unknown")
-SUPPORTED = ("debug", "retail-eu")
+RELEASES = ("debug", "retail-eu", "retail-us", "retail-jp", "unknown")
+SUPPORTED = ("debug", "retail-eu", "retail-jp")
 
 
 def release(boot: bytes) -> str:
@@ -25,4 +27,6 @@ def release(boot: bytes) -> str:
         return "debug" if fst_offset == DEBUG_FST_OFFSET else "retail-us"
     if game_id == b"G4BP08":
         return "retail-eu"
+    if game_id == b"G4BJ08":
+        return "retail-jp"
     return "unknown"

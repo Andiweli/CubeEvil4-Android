@@ -5,13 +5,15 @@
 # termMotionCancel the motion from 13. The debug build read 13 and 14, which there are a motion
 # and a word of the tag list: the game ended at the first radio call of r100 (26.10.2026). With
 # the debug build's discs nothing changes (re4_disc_retail_eu). A port patch for retail data.
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
+# re4_disc_retail(), the switch of every retail release.
 --- a/src/Sscrn/ss_model.cpp
 +++ b/src/Sscrn/ss_model.cpp
 @@ -159,6 +159,8 @@
  
  // Codec screen: the player's radio pose model from the player archive plus the radio/hand parts of
  // ss_term.dat (sub-files 10..13).
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void), re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
  void tel00ModelInit(cModel* m, u32* arc)
  {
@@ -24,7 +26,7 @@
 +    /* port: the European ss_term.dat has no texture at sub-file 13 (its motion moved there); the
 +       European code takes this part's texture from the partner's ss_ocNNN.dat, sub-file 16,
 +       which the European files add at their end */
-+    if (re4_disc_retail_eu()) {
++    if (re4_disc_retail()) {
 +        m->addModel(ssModInfoMgr.create(SS_ARC_PTR(wk->pTermDat, 12), SS_ARC_PTR(wk->pTelDat, 16)));
 +    } else {
 +        m->addModel(ssModInfoMgr.create(SS_ARC_PTR(wk->pTermDat, 12), SS_ARC_PTR(wk->pTermDat, 13)));
@@ -38,7 +40,7 @@
  
  // Sets the player's (pTerm sub-file 14) and the partner's (partner data sub-file 4) idle/cancel
  // motion `no` with blending; init (no 0) and after the call was skipped (no 10).
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void), re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
  void termMotionCancel(void* data, int no)
  {
@@ -50,7 +52,7 @@
 -    MotionSetCore(m, &m->Motion, SS_ARC_PTR(wk->pTermDat, 14), 0, (u8) no, 0x8004, 0);
 +    /* port: the European ss_term.dat has 10 sub-files, its motion is sub-file 13 (the European
 +       code reads it there); 14 lies in its tag list */
-+    MotionSetCore(m, &m->Motion, SS_ARC_PTR(wk->pTermDat, re4_disc_retail_eu() ? 13 : 14), 0, (u8) no, 0x8004, 0);
++    MotionSetCore(m, &m->Motion, SS_ARC_PTR(wk->pTermDat, re4_disc_retail() ? 13 : 14), 0, (u8) no, 0x8004, 0);
      m = MapMgr.getWork(2);
      MotionSetCore(m, &m->Motion, SS_ARC_PTR(d, 4), 0, (u8) no, 0x8004, 0);
  }
