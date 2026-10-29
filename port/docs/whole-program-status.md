@@ -56,9 +56,15 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     schwarz (= Zeilen 0..56 und 392..448), mit gerader Kante durch Wände und Türrahmen: das 3D wird an der alten
     Balkengrenze abgeschnitten, gemalt wird kein Balken. Im Code (`Render`, `SetScissorState`, `ScreenGXSet`, Filter,
     Viewports, Kopie aufs XFB, Renderer: Schere, Auflösen, FXAA, gezeigte Zeilen) keine Ursache gefunden.
-    **Behoben (Patch 0143, lokale Sitzung 29.10.2026):** die Balken malt doch das Spiel, aber über die ID-Einheiten
-    der Klasse `IDC_CINESCO` (Cockpit), nicht über `Draw_cinesco`; am PC in r104 mit Bildvergleich geprüft;
-    **Gerätetest offen**.
+    **Ursache gefunden (Grafikaufnahme des Projektinhabers, r104, Cloud 30.10.2026):** Schere 0..511 × 0..447 und
+    Viewport voll, das 3D füllt die Höhe (mit `gx_chunk_render` nachgezeichnet, bis Zeichnung 364 Zeilen 0..447). Die
+    letzten zwei Zeichnungen (365/366) sind zwei schwarze Streifen 640×60 bei y ±210: die Anzeige-Einheiten der Klasse
+    `IDC_CINESCO`, die `Cockpit::roomInit` bei jedem Raumstart setzt – der dritte Weg der Balken neben `Draw_cinesco`
+    und der Schere. **Behoben:** `runtime/picture.cpp re4_letterbox_frame` (jedes Bild, aus dem Bild-Haken): solange
+    „4:3“ offen ist, `IdSys.dispSw(IDC_CINESCO, 0)`, beim Schließen wieder an (Ereignisse, Untermenüs, andere
+    Bildformate wie bisher). Test `letterbox` erweitert (Einheiten aus bei offen, wieder an bei Rno0 2; Gegenprobe 1
+    Fehler). Am PC mit Disc-Daten nachgeprüft (Abschnitt „Lokale Sitzung 29.10.2026 abends“): in r104
+    keine schwarze Zeile mehr. **Gerätetest offen.**
 18. **Inventar: Leons Messer fehlt am Modell rechts** (Nutzerbericht 30.10.2026, EU-Discs, OPPO CPH2127). Im Spiel
     lädt `cPlLeon::setModel` Eintrag 0xD (`Body->m_pKnife`, mit `setKnife(false)` auf 0 skaliert = Messer in der
     Hand), das Untermenü (`Sscrn/ss_model.cpp leonModelInit`) nur 4/5 und 0xA, 8, 6, 9. Ob das Messer an der Brust
@@ -79,18 +85,18 @@ Offene Punkte 14, 17 und 18, am Windows-PC mit Debug- und EU-Discs (WSL-Baum `~/
   `re4_disc_retail_eu()`. Geprüft: EU-Discs r100, Schrotflinte ohne Patronen (`RE4_TEST_WEAPON`, sechs Schüsse,
   ab Bild 3445 leer), GX-Bilder 3524..3644 in `eng/ger/fra/esp/ita`: EMPTY, LEER, VIDE, VACÍO, VUOTO stehen ruhig;
   Debug-Discs: EMPTY wie bisher.
-- **Patch 0143 (Balken bei „4:3“):** Neuer Testschalter `RE4_TEST_LETTERBOX_OFF=1` (`state_trace.cpp`, setzt
-  `re4_core_set_letterbox(1)` wie die App). Debug-Start r104 (`RE4_CHEATS=9`: Gesundheit und automatische QTEs, sonst
-  stirbt Leon im Luis-Film), GX-Bild 7153: Schere (BP 0x20/0x21) und Viewport (XF 0x101A..) der ganzen Zeichnung
-  stehen auf 512×448, das 3D reicht bis Zeichnung 175 über die volle Höhe (Bild schrittweise nachgezeichnet:
-  Zeichnungsliste abgeschnitten, Display-Kopie angehängt). Die Balken malen die Zeichnungen 178/179: zwei schwarze
-  Vierecke 640×60 bei y ±210 (Zeilen 0..56 und 392..448) aus dem ID-Layout `CORE_CINESCO_ID`, das
-  `Cockpit::roomInit` als Klasse `IDC_CINESCO` setzt – eine dritte Balkenquelle neben `Draw_cinesco` und der Schere
-  (Patch 0105). Der Patch lässt diese Klasse in `IDSystem::trans` aus, solange `re4_letterbox_open()` gilt (Spiel,
-  kein Ereignis, kein Untermenü). Geprüft: mit Schalter keine einzige schwarze Zeile mehr, Leons Waffe unten
-  sichtbar; ohne Schalter die Balken wie vorher. Nicht geprüft: Ereignisse mit Schalter (dort bleibt alles wie im
-  Original), Gerät. Nebenbei: `esp08`/`esp0e`/`esp45`/`espgen01` fragen `SYS_SCISSOR_ON` ab (Hitzeflimmern und
-  Linsenreflexe rechnen dann mit 56 Zeilen Rand); mit dem Schalter kann das am Rand leicht abweichen, nicht gesehen.
+- **Balken bei „4:3“ (dieselbe Ursache wie die Cloud-Sitzung, deren Korrektur gilt):** Neuer Testschalter
+  `RE4_TEST_LETTERBOX_OFF=1` (`state_trace.cpp`, setzt `re4_core_set_letterbox(1)` wie die App). Debug-Start r104
+  (`RE4_CHEATS=9`: Gesundheit und automatische QTEs, sonst stirbt Leon im Luis-Film), GX-Bild 7153: Schere (BP
+  0x20/0x21) und Viewport (XF 0x101A..) stehen auf 512×448, das 3D reicht bis Zeichnung 175 über die volle Höhe
+  (Bild schrittweise nachgezeichnet: Zeichnungsliste abgeschnitten, Display-Kopie angehängt); die Zeichnungen
+  178/179 sind die zwei schwarzen Vierecke der Klasse `IDC_CINESCO`. Hier zuerst als Patch in `IDSystem::trans`
+  gebaut und geprüft; beim Abgleich lag schon die gleichwertige Korrektur der Cloud (`picture.cpp
+  re4_letterbox_frame`, `dispSw`) auf GitHub, der eigene Patch ist wieder heraus (Nummer 0143 bleibt frei). Geprüft mit der Cloud-Korrektur
+  (PC, r104): mit Schalter keine einzige schwarze Zeile, Leons Waffe unten sichtbar; ohne Schalter die Balken wie
+  vorher. Nicht geprüft: Ereignisse mit Schalter, Gerät. Nebenbei: `esp08`/`esp0e`/`esp45`/`espgen01` fragen
+  `SYS_SCISSOR_ON` ab (Hitzeflimmern, Linsenreflexe rechnen dann mit 56 Zeilen Rand); mit dem Schalter kann das am
+  Rand leicht abweichen, nicht gesehen.
 - **Patch 0144 (Messer, Fehler des Prototyps, beide Disc-Arten):** EU-`leonModelInit` (`Sscrn.rel` 0x17000, über
   `wep47Init` davor gefunden; `find` traf Krausers Funktion) lädt nach Teil 0xA für Kostüm 1–3 zusätzlich
   `PL_ARC(0x10)` mit `PL_ARC(5)`, wie `cPlLeon::setModel` im Spiel; der Rest der Funktion ist bis auf Register gleich,
@@ -100,7 +106,7 @@ Offene Punkte 14, 17 und 18, am Windows-PC mit Debug- und EU-Discs (WSL-Baum `~/
   Tiefentest gezeichnet liegt sie als Messer in der Scheide am Brustgurt, in den Posen mit Pistole, Schrotflinte,
   Gewehr und TMP aber fast ganz hinter Arm und Waffe (wenige Pixel des Griffs sichtbar) – so auch in der EU-Fassung.
   **Offen:** ob der Nutzer etwas anderes meint (Bildschirmfoto mit Kostüm und Waffe).
-- **Prüfstrecke** (`whole_r100_check.sh --no-build`, Stand mit 0142–0144): Debug-Discs **„ALLES OK“**, EU-Discs
+- **Prüfstrecke** (`whole_r100_check.sh --no-build`, Stand mit 0142–0144, vor dem Abgleich): Debug-Discs **„ALLES OK“**, EU-Discs
   (`--room-info` der Debug-Disc) **„ALLES OK“** (Formatvergleich, Spiellauf, Filme, Speichern und Laden).
   Nicht geprüft: ARM unter qemu, Android-Build, Gerät.
 

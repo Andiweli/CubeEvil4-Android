@@ -845,6 +845,7 @@ extern "C" void re4_touch_sscrn_moved(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, S
 extern "C" void re4_core_set_letterbox(int off);
 extern "C" int re4_letterbox_open(void);
 extern "C" int re4_picture_still(void);
+extern "C" int re4_letterbox_frame(void);
 
 namespace {
 
@@ -1389,6 +1390,16 @@ extern "C" int re4probe_letterbox(void)
     StaFlagOff(pG, STA_SUB_SCRN);
     pG->Rno0 = 2;
     bad |= re4_letterbox_open() ? 0x10 : 0;
+    // the HUD's letterbox units (IDC_CINESCO, Cockpit::roomInit): hidden while open, back after
+    if (!IdSys.setCk(IDC_CINESCO)) {
+        static const ID_FILE_HEADER empty = { { '2', '.', '0', '0' }, 0, 0, { 0, 0 } };
+        IdSys.set((ID_FILE_HEADER*) &empty, 0xFF, IDC_CINESCO, 0x13, 0, 0);
+        pG->Rno0 = 3;
+        bad |= re4_letterbox_frame() ? 0 : 0x20;
+        pG->Rno0 = 2;
+        bad |= re4_letterbox_frame() ? 0x40 : 0;
+        IdSys.kill(0xFF, IDC_CINESCO);
+    }
     re4_core_set_letterbox(0);
     pG->Rno0 = keepStep;
     if (keepSub) {
