@@ -32,7 +32,8 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     29.10.2026, Auflösung 1×, 640×336) – behoben im Renderer (Abschnitt „Pixelmitte wie der GameCube“), am PC geprüft;
     **Gerätetest offen**.
 14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – behoben (Patch 0142, Abschnitt
-    „Lokale Sitzung 29.10.2026 abends“), am PC in allen fünf Sprachen geprüft; **Gerätetest offen**.
+    „Lokale Sitzung 29.10.2026 abends“), am PC in allen fünf Sprachen geprüft; auf dem Retroid bestätigt (Projektinhaber,
+    29.10.2026: „LEER“ flackert nicht mehr).
 15. **Minenwerfer mit Zielfernrohr: sofortiger Neustart** (Nutzerbericht 29.10.2026, realme RMX2001, 64 bit,
     **0.93.0-beta**, Debug-Discs; ohne Zielfernrohr kein Fehler). Drei Abstürze, alle gleich beim Ausrüsten:
     `HermiteInterpolation` ← `MotionSetCore` ← `cPlNeck::init` ← `pl_R1_Footwork`, davor „MotionMoveCore(): Pl, Invalid
@@ -64,14 +65,16 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     „4:3“ offen ist, `IdSys.dispSw(IDC_CINESCO, 0)`, beim Schließen wieder an (Ereignisse, Untermenüs, andere
     Bildformate wie bisher). Test `letterbox` erweitert (Einheiten aus bei offen, wieder an bei Rno0 2; Gegenprobe 1
     Fehler). Am PC mit Disc-Daten nachgeprüft (Abschnitt „Lokale Sitzung 29.10.2026 abends“): in r104
-    keine schwarze Zeile mehr. **Gerätetest offen.**
+    keine schwarze Zeile mehr. Auf dem Retroid bestätigt (Projektinhaber, 29.10.2026: „nahezu perfekt“, im Spiel ohne
+    Balken; Zwischensequenzen behalten sie, wie vorgesehen).
 18. **Inventar: Leons Messer fehlt am Modell rechts** (Nutzerbericht 30.10.2026, EU-Discs, OPPO CPH2127). Im Spiel
     lädt `cPlLeon::setModel` Eintrag 0xD (`Body->m_pKnife`, mit `setKnife(false)` auf 0 skaliert = Messer in der
     Hand), das Untermenü (`Sscrn/ss_model.cpp leonModelInit`) nur 4/5 und 0xA, 8, 6, 9. Ob das Messer an der Brust
     im Körpermodell steckt oder die Verkaufsfassung ein Teil mehr lädt, zeigt nur der EU-Programmcode (`retail_code.py`,
     Sscrn) – lokal; ebenso der Vergleich mit den Debug-Discs. **Behoben (Patch 0144, Fehler des Prototyps):** die
     EU-Fassung lädt ohne Jacke (Kostüm 1–3) Teil 0x10 dazu (Messer in der Scheide am Brustgurt), wie das Spiel; in
-    den Posen des Inventars liegt es fast ganz hinter Arm und Waffe (am PC gesehen). **Gerätetest offen.**
+    den Posen des Inventars liegt es fast ganz hinter Arm und Waffe (am PC gesehen). Auf dem Retroid bestätigt
+    (Projektinhaber, 29.10.2026: Messer in der Brusttasche).
 
 ## Lokale Sitzung 29.10.2026 abends: EMPTY, Balken bei „4:3“, Messer im Inventar (lokal, Branch `golden-master`)
 
