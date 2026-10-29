@@ -203,9 +203,9 @@ void re4_core_pad(const Re4CorePad* pad);
  * the last four frames (bit 0 the newest), bits 8-31 = frames so far (the app
  * stops vibrating when they stand still). Bit 4: the game shows a menu in the
  * last frame (the title and its menus, loading, a sub screen: inventory, map,
- * files, merchant, options, radio, typewriter) or a button prompt ("A Open",
- * the quick-time events); the app's own controller bindings apply only
- * outside (27.10.2026). */
+ * files, merchant, options, radio, typewriter); there the app's button mapping
+ * gives way to the device's default (29.10.2026). Bit 5: a button prompt ("A
+ * Open", the quick-time events; noted only). */
 unsigned re4_core_rumble(void);
 /* A vsync of the device's display at `ns` (CLOCK_MONOTONIC, e.g. the
  * Choreographer's frame time), any thread, every vsync while the game is

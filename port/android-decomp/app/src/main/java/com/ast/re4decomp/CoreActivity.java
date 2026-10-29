@@ -89,9 +89,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_AIM = "gyroAiming";
   // the menu's switch "Alternate Controls" (CoreInput.setAlternate)
   static final String ALT_CONTROLS = "alternateControls";
-  // the menu's "Controller configuration": the free keys' functions (CoreInput.encode; absent: the
-  // default); "bindings" and "extraKeys" held the two first versions (27.10.2026), dropped
-  static final String KEY_MAP = "keyMap";
+  // the menu's "Button Mapping" (ActionMap.encode; absent: the default), the controller's and the
+  // keyboard's; "bindings", "extraKeys" (27.10.2026) and "keyMap" (the free keys until 29.10.2026) held
+  // the versions before, dropped
+  static final String BINDINGS_CONTROLLER = "mappingController", BINDINGS_KEYBOARD = "mappingKeyboard";
+  static final String OLD_KEY_MAP = "keyMap";
   // the menu's comfort control "Latch L and R" (CoreTouch.setLatch, CoreInput.setLatch; off: held
   // while touched or pressed); the touch controls' only until 23.10.2026, the name stays
   static final String TOUCH_LATCH = "touchLatchLR";
@@ -209,7 +211,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences inputPrefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
     input.setSwapFace(inputPrefs.getBoolean(SWAP_FACE, false));
     input.setAlternate(inputPrefs.getBoolean(ALT_CONTROLS, false));
-    input.setKeyMap(CoreInput.decode(inputPrefs.getString(KEY_MAP, null)));
+    if (inputPrefs.contains(OLD_KEY_MAP)) {
+      Log.i(TAG, "layout: the free keys of the controller configuration (" + inputPrefs.getString(OLD_KEY_MAP, "")
+          + ") dropped; the button mapping starts from the default");
+      inputPrefs.edit().remove(OLD_KEY_MAP).apply();
+    }
+    input.setControllerMap(ActionMap.decode(ActionMap.KIND_CONTROLLER, inputPrefs.getString(BINDINGS_CONTROLLER, null)));
+    input.setKeyboardMap(ActionMap.decode(ActionMap.KIND_KEYBOARD, inputPrefs.getString(BINDINGS_KEYBOARD, null)));
     if (inputPrefs.contains("bindings") || inputPrefs.contains("extraKeys")) {
       inputPrefs.edit().remove("bindings").remove("extraKeys").apply();
     }
@@ -710,34 +718,41 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       logLayout();
     }
 
-    @Override public void keyMapChanged(int[] map) {
-      String text = CoreInput.encode(map);
+    @Override public void mappingChanged(ActionMap map) {
+      String text = map.encode();
+      String key = map.kind == ActionMap.KIND_KEYBOARD ? BINDINGS_KEYBOARD : BINDINGS_CONTROLLER;
       SharedPreferences.Editor e = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit();
-      if (text == null) e.remove(KEY_MAP); else e.putString(KEY_MAP, text);
+      if (text == null) e.remove(key); else e.putString(key, text);
       e.apply();
-      input.setKeyMap(map);
+      if (map.kind == ActionMap.KIND_KEYBOARD) input.setKeyboardMap(map); else input.setControllerMap(map);
       send();
       logLayout();
     }
+
+    @Override public ActionMap mapping(int kind) {
+      return kind == ActionMap.KIND_KEYBOARD ? input.keyboardMap() : input.controllerMap();
+    }
+
+    @Override public int faceLabel(int keyCode) { return input.faceLabel(keyCode); }
 
     @Override public boolean controllerConnected() {
       for (int id : InputDevice.getDeviceIds()) if (gameDevice(InputDevice.getDevice(id))) return true;
       return false;
     }
+
+    @Override public boolean keyboardConnected() {
+      for (int id : InputDevice.getDeviceIds()) if (keyboardDevice(InputDevice.getDevice(id))) return true;
+      return false;
+    }
   };
 
   private void logLayout() {
-    // the free keys' functions of the controller configuration (not with the alternate controls)
-    StringBuilder extra = new StringBuilder();
-    String[] names = {"A", "B", "X", "Y", "Z", "L", "R", "START", "UP", "DOWN", "LEFT", "RIGHT", "menu"};
-    int[] map = input.keyMap();
-    if (map != null && !input.alternate()) {
-      extra.append(", free keys (controller configuration):");
-      for (int i = 0; i < map.length; i++) {
-        extra.append(i == 0 ? " " : ", ").append(KeyEvent.keyCodeToString(CoreInput.MOVABLE[i]).replace("KEYCODE_", ""))
-            .append(" = ").append(map[i] < 0 ? "none" : names[map[i]]);
-      }
-    }
+    // the controller's own mapping (not with the alternate controls) and the keyboard's
+    String extra = (input.ownControllerMap() && !input.alternate()
+        ? "; own controller mapping (in the game, the menus keep the layout): "
+            + input.controllerMap().describe(CoreMenu::keyName) : "")
+        + "; keyboard: " + (input.keyboardMap().isDefault() ? "default" : "own")
+        + " mapping: " + input.keyboardMap().describe(CoreMenu::keyName);
     Log.i(TAG, "layout: A B X Y by label" + (input.swapFace() ? ", A/B and X/Y swapped" : "")
         + (input.alternate() ? ", alternate controls: L1 = L, L2 = R, R1 = Y, R2 = A, Y = Z, aiming with the right stick"
             : ", R2 = R, L2 = L, R1 = Z")
@@ -1090,6 +1105,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /** Game controllers and gamepad-like devices, for the connect lines and controllers.txt. */
+  /** A real keyboard (letters), not a controller that also reports keys (the Retroid's built-in one). */
+  static boolean keyboardDevice(InputDevice d) {
+    if (d == null || d.isVirtual() || gameDevice(d)) return false;
+    return (d.getSources() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD
+        && d.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
+  }
+
   private static boolean gameDevice(InputDevice d) {
     if (d == null || d.isVirtual()) return false;
     int s = d.getSources();
@@ -1119,7 +1141,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int code = e.getKeyCode();
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
-    int function = input.appFunctionOf(code);
+    boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
+    int function = input.appFunctionOf(code, keyboard);
     if (function != CoreInput.APP_NONE && first) {
       String what = function == CoreInput.APP_MENU ? "menu" : tools ? "graphics capture" : "nothing (tools off)";
       Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ") -> app " + what);
@@ -1128,7 +1151,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       case CoreInput.APP_MENU:
         // pressed: the menu when let go; held for a second: the game's debug menu
         if (first) {
-          if (controller(e)) touchControls.controllerUsed();
+          if (controller(e) || keyboard) touchControls.controllerUsed();
           select(true);
         } else if (e.getAction() == KeyEvent.ACTION_UP) {
           select(false);
@@ -1141,6 +1164,26 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         return true;
       default:
         break;
+    }
+    // a keyboard (the button mapping, 29.10.2026): its mapping's keys and the fixed ones go to the game;
+    // Esc always (Android would make it "back" and ask to quit), the rest to Android
+    if (keyboard) {
+      if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
+      if (e.getRepeatCount() > 0) return true;
+      boolean taken = input.keyboardKey(e.getDeviceId(), code, down);
+      if (taken || code == KeyEvent.KEYCODE_ESCAPE) {
+        if (down) {
+          touchControls.controllerUsed();
+          noteDevice(e.getDevice());
+          if (controllerLog.firstKey(e.getDeviceId(), code)) {
+            Log.i(TAG, "keyboard " + KeyEvent.keyCodeToString(code) + " (" + code + ", device " + e.getDeviceId()
+                + ") -> GC " + CoreInput.names(input.keyboardButton(code)) + (input.menu() ? " (a game menu)" : ""));
+          }
+        }
+        send();
+        return true;
+      }
+      return super.dispatchKeyEvent(e);
     }
     if (controller(e) || KeyEvent.isGamepadButton(code)) {
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
@@ -1362,6 +1405,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (destroyed || !resumed) return;
       int r = CoreBridge.rumble();
       long now = SystemClock.uptimeMillis();
+      // the game shows a menu (bit 4): the button mappings give way to the devices' defaults
+      boolean gameMenu = (r & 0x10) != 0;
+      if (gameMenu != input.menu()) {
+        input.setMenu(gameMenu);
+        send();
+      }
       int frames = r >>> 8;
       if (frames != rumbleFrames) {
         rumbleFrames = frames;

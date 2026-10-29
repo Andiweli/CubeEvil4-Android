@@ -326,69 +326,138 @@ public final class CoreInputTests {
       check((q[0] & CoreInput.GC_R) != 0 && q[6] == 255 && q[1] > 0 && q[3] == 0);
     }
     {
-      // free keys (the menu's controller configuration, 27.10.2026): A, B, L2, R2, START, SELECT and the
-      // D-pad fixed; X, Y, L1, R1, L3, R3 take any function
-      int[] def = CoreInput.defaultKeyMap();
-      check(CoreInput.encode(def) == null && CoreInput.decode(CoreInput.encode(def)) == null);
-      check(CoreInput.decode("1,2") == null && CoreInput.decode("2,3,-1,4,-1,99") == null);
-      check(CoreInput.movable(A) < 0 && CoreInput.movable(L2) < 0 && CoreInput.movable(UP) < 0
-          && CoreInput.movable(SELECT) < 0 && CoreInput.movable(L3) >= 0);
-      check(CoreInput.missing(def).length == 0);
-      int xi = CoreInput.movable(X), yi = CoreInput.movable(Y), l1 = CoreInput.movable(L1), r1 = CoreInput.movable(R1),
-          l3 = CoreInput.movable(L3), r3 = CoreInput.movable(R3);
-      // the map (Z) on L1: R1 had it and takes L1's old function (none)
-      int[] m = CoreInput.assign(null, l1, CoreInput.F_Z);
-      check(m[l1] == CoreInput.F_Z && m[r1] == CoreInput.F_NONE && CoreInput.missing(m).length == 0);
-      check(java.util.Arrays.equals(CoreInput.decode(CoreInput.encode(m)), m));
-      // aiming (R) on R1 as well: R2 stays R
-      m = CoreInput.assign(m, r1, CoreInput.F_R);
+      // the button mapping (29.10.2026, ActionMap): a controller with its own mapping, the game's menus with
+      // the default, the alternate controls with theirs; the keyboard
+      final int keyE = 33, keyF = 34, keyW = 51, keyD = 32, keySpace = 62, keyShift = 59, keyEsc = 111, keyF1 = 131,
+          keyEnter = 66, keyDel = 67;
+      com.ast.re4decomp.ActionMap own = com.ast.re4decomp.ActionMap.defaults(com.ast.re4decomp.ActionMap.KIND_CONTROLLER)
+          .assign(com.ast.re4decomp.ActionMap.FIRE, new int[] {L2, R2})
+          .assign(com.ast.re4decomp.ActionMap.RUN, new int[] {L1});
       CoreInput k = new CoreInput();
-      k.setKeyMap(m);
-      check(k.key(1, L1, true) && k.pad()[0] == CoreInput.GC_Z && k.gcButton(L1) == CoreInput.GC_Z);
+      check(!k.ownControllerMap());
+      k.setControllerMap(com.ast.re4decomp.ActionMap.defaults(com.ast.re4decomp.ActionMap.KIND_CONTROLLER));
+      check(!k.ownControllerMap());  // the default is no mapping of its own
+      k.setControllerMap(own);
+      check(k.ownControllerMap());
+      // L1 runs, B no longer
+      check(k.key(1, L1, true) && k.pad()[0] == CoreInput.GC_B);
       k.key(1, L1, false);
-      check(k.key(1, R1, true));
-      int[] q = k.pad();
-      check(q[6] == 255 && (q[0] & CoreInput.GC_R) != 0);
-      k.key(1, R1, false);
-      check(k.key(1, R2, true) && k.pad()[6] == 255);
-      k.key(1, R2, false);
-      // A, B, START, the D-pad as always
-      check(k.key(1, A, true) && k.pad()[0] == CoreInput.GC_A);
-      k.key(1, A, false);
-      check(k.key(1, UP, true) && k.pad()[0] == CoreInput.GC_UP);
-      k.key(1, UP, false);
+      k.key(1, B, true);
       check(k.pad()[0] == 0);
-      // inventory (Y) on X: they swap
-      m = CoreInput.assign(m, xi, CoreInput.F_Y);
-      check(m[xi] == CoreInput.F_Y && m[yi] == CoreInput.F_X);
-      // running (B) on L3, latching through it
-      m = CoreInput.assign(m, l3, CoreInput.F_B);
-      k.setKeyMap(m);
-      k.setLatch(false, true);
-      k.key(1, L3, true);
-      k.pad();
-      k.key(1, L3, false);
+      k.key(1, B, false);
+      // fire on L2 + R2: L2 holds aim and the knife, R2 then fires; R2 alone aims, A alone acts
+      k.key(1, L2, true);
+      int[] q = k.pad();
+      check(q[6] == 255 && q[5] == 255 && (q[0] & CoreInput.GC_A) == 0);
+      k.key(1, R2, true);
+      check((k.pad()[0] & CoreInput.GC_A) != 0);
+      k.key(1, L2, false);
+      q = k.pad();
+      check(q[6] == 255 && q[5] == 0 && (q[0] & CoreInput.GC_A) == 0);
+      k.key(1, R2, false);
+      // a trigger as an axis counts as its key past half way
+      k.motion(1, 0, 0, 0, 0, 0.8f, 0, 0, 0);
+      check(k.pad()[6] == 255);
+      k.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
+      check(k.pad()[6] == 0 && k.pad()[5] == 0);
+      // the D-pad stays the D-pad, the sticks stay the sticks
+      k.key(1, UP, true);
+      check(k.pad()[0] == CoreInput.GC_UP);
+      k.key(1, UP, false);
+      k.motion(1, 1f, 0, 0, 0, 0, 0, 0, 0);
+      check(k.pad()[1] > 90);
+      k.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
+      // a key held over the switch to a menu: there the default (B runs/backs again, L1 nothing)
+      k.key(1, B, true);
+      check(k.pad()[0] == 0);
+      k.setMenu(true);
       check(k.pad()[0] == CoreInput.GC_B);
+      k.key(1, B, false);
+      k.key(1, L1, true);
+      check(k.pad()[0] == 0);
+      k.setMenu(false);
+      check(k.pad()[0] == CoreInput.GC_B);  // L1 held: runs again as the menu closes
+      k.key(1, L1, false);
+      check(k.pad()[0] == 0);
+      // the app's menu: SELECT, or where the mapping puts it; R3 the graphics capture without a function
+      check(k.appFunctionOf(SELECT, false) == CoreInput.APP_MENU && k.appFunctionOf(R3, false) == CoreInput.APP_GX_DUMP);
+      k.setControllerMap(own.assign(com.ast.re4decomp.ActionMap.APP_MENU, new int[] {R3}));
+      check(k.appFunctionOf(R3, false) == CoreInput.APP_MENU && k.appFunctionOf(SELECT, false) == CoreInput.APP_NONE);
+      k.setMenu(true);
+      check(k.appFunctionOf(SELECT, false) == CoreInput.APP_MENU);  // menus: the default
+      k.setMenu(false);
+      // latching through the mapping (L1 runs)
+      k.setControllerMap(own);
+      k.setLatch(false, true);
+      k.key(1, L1, true);
+      k.pad();
+      k.key(1, L1, false);
+      check(k.pad()[0] == CoreInput.GC_B);
+      k.key(1, L1, true);
+      k.pad();
+      k.key(1, L1, false);
+      check(k.pad()[0] == 0);
       k.setLatch(false, false);
-      k.clear();
-      // no function on Y's key: inventory is missing, the key does nothing
-      int[] gone = CoreInput.assign(m, xi, CoreInput.F_NONE);
-      check(CoreInput.missing(gone).length == 1 && CoreInput.missing(gone)[0] == CoreInput.F_Y);
-      k.setKeyMap(gone);
-      check(!k.key(1, X, true) && k.pad()[0] == 0);
-      // R3: the graphics capture without a function, the app's menu or a game function with one
-      check(k.appFunctionOf(R3) == CoreInput.APP_GX_DUMP && k.appFunctionOf(SELECT) == CoreInput.APP_MENU);
-      k.setKeyMap(CoreInput.assign(null, r3, CoreInput.F_MENU));
-      check(k.appFunctionOf(R3) == CoreInput.APP_MENU && !k.key(1, R3, true));
-      k.setKeyMap(CoreInput.assign(null, r3, CoreInput.F_X));
-      check(k.appFunctionOf(R3) == CoreInput.APP_NONE && k.key(1, R3, true) && k.pad()[0] == CoreInput.GC_X);
-      k.key(1, R3, false);
-      // the alternate controls keep their layout: L1 the knife, R1 the inventory
-      k.setKeyMap(CoreInput.assign(null, l1, CoreInput.F_Z));
+      // the alternate controls keep their layout
       k.setAlternate(true);
       check(k.gcButton(R1) == CoreInput.GC_Y && k.gcButton(L1) == CoreInput.GC_L);
+      k.setAlternate(false);
+      k.clear();
+
+      // the keyboard: WASD the stick, E acts, Shift runs, Space aims, Space+F fires, Esc options, F1 the app
+      CoreInput kb = new CoreInput();
+      check(kb.keyboardKey(5, keyW, true));
+      q = kb.pad();
+      check(q[1] == 0 && q[2] > 90);
+      kb.keyboardKey(5, keyD, true);
+      q = kb.pad();
+      check(q[1] > 60 && q[2] > 60);
+      kb.keyboardKey(5, keyW, false);
+      kb.keyboardKey(5, keyD, false);
+      check(kb.pad()[1] == 0 && kb.pad()[2] == 0);
+      kb.keyboardKey(5, keyE, true);
+      check(kb.pad()[0] == CoreInput.GC_A);
+      kb.keyboardKey(5, keyE, false);
+      kb.keyboardKey(5, keyF, true);
+      check(kb.pad()[0] == 0);  // fire's key alone does nothing
+      kb.keyboardKey(5, keySpace, true);
+      q = kb.pad();
+      check(q[6] == 255 && (q[0] & CoreInput.GC_A) != 0);
+      kb.keyboardKey(5, keyF, false);
+      kb.keyboardKey(5, keySpace, false);
+      kb.keyboardKey(5, keyShift, true);
+      check(kb.pad()[0] == CoreInput.GC_B);
+      kb.keyboardKey(5, keyShift, false);
+      check(kb.keyboardKey(5, keyEsc, true) && kb.pad()[0] == CoreInput.GC_START);
+      kb.keyboardKey(5, keyEsc, false);
+      check(kb.appFunctionOf(keyF1, true) == CoreInput.APP_MENU && kb.appFunctionOf(keyE, true) == CoreInput.APP_NONE);
+      // the fixed keys: arrows the D-pad, Enter A, Backspace B
+      kb.keyboardKey(5, UP, true);
+      kb.keyboardKey(5, keyEnter, true);
+      check(kb.pad()[0] == (CoreInput.GC_UP | CoreInput.GC_A));
+      kb.keyboardKey(5, UP, false);
+      kb.keyboardKey(5, keyEnter, false);
+      check(kb.keyboardKey(5, keyDel, true) && kb.pad()[0] == CoreInput.GC_B);
+      kb.keyboardKey(5, keyDel, false);
+      // a key of no action is not the game's
+      check(!kb.keyboardKey(5, 50 /* V */, true));
+      // the keyboard's own mapping in the game, the default in the menus
+      kb.setKeyboardMap(com.ast.re4decomp.ActionMap.defaults(com.ast.re4decomp.ActionMap.KIND_KEYBOARD)
+          .assign(com.ast.re4decomp.ActionMap.ACTION, new int[] {50}));
+      check(kb.pad()[0] == CoreInput.GC_A);  // V held: now the action
+      kb.setMenu(true);
+      check(kb.pad()[0] == 0);
+      kb.keyboardKey(5, 50, false);
+      kb.keyboardKey(5, keyE, true);
+      check(kb.pad()[0] == CoreInput.GC_A);  // E confirms in the menus
+      kb.keyboardKey(5, keyE, false);
+      kb.setMenu(false);
+      // a keyboard next to a controller: the keyboard's mapping, the controller's layout
+      kb.key(1, A, true);
+      kb.keyboardKey(5, keyShift, true);
+      check(kb.pad()[0] == (CoreInput.GC_A | CoreInput.GC_B));
     }
     System.out.println("Core controller: layout, swap, alternate controls, free keys, sticks and triggers through "
-        + "PADClamp, devices: " + checks + " checks PASS");
+        + "PADClamp, devices, button mapping, keyboard: " + checks + " checks PASS");
   }
 }

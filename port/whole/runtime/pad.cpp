@@ -228,14 +228,16 @@ static void noteRumble()
     static u32 offFrames = 30, starts;
     const u32 before = g_rumble;
     const u32 on = g_motor == 1;
+    // bit 4 a menu (the app's button mapping gives way to the device's default there), bit 5 a button
+    // prompt (only noted: switching the mapping at prompts made it unusable, device test 27.10.2026)
     const int probe = g_menuProbe ? g_menuProbe() : 0;  // 1 a menu, 2 a button prompt
-    const u32 menu = probe ? 0x10u : 0u;
+    const u32 menu = probe == 1 ? 0x10u : probe == 2 ? 0x20u : 0u;
     static u32 menuLines;
-    if (menu != (before & 0x10u) && menuLines < 60) {
+    if (menu != (before & 0x30u) && menuLines < 60) {
         menuLines++;
-        re4_log("pad: game %s at frame %u (the app's own controller bindings %s)",
-                menu ? (probe == 2 ? "button prompt shown" : "menu shown") : "menu or prompt closed", gFrame,
-                menu ? "paused" : "apply");
+        re4_log("pad: game %s at frame %u", menu == 0x10u ? "menu shown (the app's button mapping: the default)"
+                                            : menu ? "button prompt shown" : "menu or prompt closed",
+                gFrame);
     }
     g_rumble = ((gFrame + 1) << 8) | menu | (((before << 1) | on) & 0xF);
     if (on && offFrames >= 30 && starts < 16) {

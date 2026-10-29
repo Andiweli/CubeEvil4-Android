@@ -96,8 +96,12 @@ public class CoreMenuLayoutTest {
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         View root = (View) field(menu, "root");
         root.setLayoutDirection(config.getLayoutDirection());
-        for (int page = 0; page < 7; page++) {  // 5: the controller configuration, 6: a free key's functions
-          show.invoke(menu, page, false);
+        for (int page = 0; page < 7; page++) {  // 5: the button mapping of the controller, 6: of the keyboard
+          if (page >= 5) {
+            java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
+            kind.setInt(menu, page == 5 ? ActionMap.KIND_CONTROLLER : ActionMap.KIND_KEYBOARD);
+          }
+          show.invoke(menu, Math.min(page, 5), false);
           if (page == 0) metadata.invoke(menu, (Object) new long[] {0, 1, 1, 1, 0x100, 101, 123456, 1792841040});
           if (page == 4) {
             // the cheat buttons' longest answer shown under them
@@ -233,64 +237,83 @@ public class CoreMenuLayoutTest {
     }
   }
 
-  @Test public void controllerConfigurationGivesTheFreeKeysTheirFunctions() throws Exception {
-    final int[][] sent = {null};
-    final boolean[] controller = {false};
+  @Test public void buttonMappingPutsActionsOnKeysAndCombinationsOnTwo() throws Exception {
+    final ActionMap[] current = {ActionMap.defaults(ActionMap.KIND_CONTROLLER), ActionMap.defaults(ActionMap.KIND_KEYBOARD)};
+    final boolean[] controller = {false}, keyboard = {false};
     final int[] calls = {0};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
-          if (method.getName().equals("keyMapChanged")) { sent[0] = (int[]) args[0]; calls[0]++; }
-          if (method.getName().equals("controllerConnected")) return controller[0];
-          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+          switch (method.getName()) {
+            case "mappingChanged": { ActionMap m = (ActionMap) args[0]; current[m.kind] = m; calls[0]++; return null; }
+            case "mapping": return current[(Integer) args[0]];
+            case "faceLabel": return args[0];
+            case "controllerConnected": return controller[0];
+            case "keyboardConnected": return keyboard[0];
+            default: return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+          }
         });
     try (var controllerActivity = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controllerActivity.get();
       activity.getSharedPreferences(CoreActivity.INPUT_PREFS, 0).edit().clear().apply();
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      // on the controls page, at the bottom: only with a controller
+      // on the controls page, at the bottom: with a controller or a keyboard
       show.invoke(menu, 2, false);
       Button open = (Button) field(menu, "controllerButton");
-      assertNotNull(open);
-      assertFalse("without a controller", open.isEnabled());
-      controller[0] = true;
+      assertFalse("without a controller or a keyboard", open.isEnabled());
+      keyboard[0] = true;
       show.invoke(menu, 2, false);
       open = (Button) field(menu, "controllerButton");
-      assertTrue("with a controller", open.isEnabled());
+      assertTrue("with a keyboard", open.isEnabled());
       open.performClick();
       Button[] keys = (Button[]) field(menu, "bindingButtons");
-      assertEquals("X, Y, L1, R1, L3, R3", 6, keys.length);
-      int xi = CoreInput.movable(android.view.KeyEvent.KEYCODE_BUTTON_X);
-      int l1 = CoreInput.movable(android.view.KeyEvent.KEYCODE_BUTTON_L1);
-      int r1 = CoreInput.movable(android.view.KeyEvent.KEYCODE_BUTTON_R1);
-      assertTrue(keys[xi].getText().toString().startsWith(activity.getString(R.string.ingame_fn_ashley)));
-      assertTrue(keys[l1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_none)));
-      assertTrue(keys[r1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_map)));
-      // L1: the list of functions; the map: R1 had it and takes L1's old function (none)
-      keys[l1].performClick();
-      assertEquals(6, (int) (Integer) field(menu, "page"));
-      ViewGroup body = (ViewGroup) field(menu, "body");
-      Button map = findButton(body, activity.getString(R.string.ingame_fn_map));
-      assertNotNull(map);
-      map.performClick();
-      assertEquals("back on the free keys", 5, (int) (Integer) field(menu, "page"));
-      assertEquals(1, calls[0]);
-      assertEquals(CoreInput.F_Z, sent[0][l1]);
-      assertEquals(CoreInput.F_NONE, sent[0][r1]);
+      assertEquals("the keyboard's page first without a controller", ActionMap.KIND_KEYBOARD, (int) (Integer) field(menu, "mapKind"));
+      assertNotNull("the keyboard moves with keys", keys[ActionMap.MOVE_FORWARD]);
+      assertTrue(keys[ActionMap.FIRE].getText().toString().startsWith("Space + F"));
+      // the controller's page: no move keys (its stick), fire is R2 + A
+      java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
+      kind.setInt(menu, ActionMap.KIND_CONTROLLER);
+      show.invoke(menu, 5, false);
       keys = (Button[]) field(menu, "bindingButtons");
-      assertTrue(keys[l1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_map)));
-      assertTrue(keys[r1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_none)));
-      // X: no function: Ashley on no button, the page says so
-      keys[xi].performClick();
-      findButton((ViewGroup) field(menu, "body"), activity.getString(R.string.ingame_fn_none)).performClick();
-      assertEquals(CoreInput.F_NONE, sent[0][xi]);
-      String warn = activity.getString(R.string.ingame_controller_missing, activity.getString(R.string.ingame_fn_ashley));
-      assertNotNull("the warning", findText((ViewGroup) field(menu, "body"), warn));
+      assertNull(keys[ActionMap.MOVE_FORWARD]);
+      assertEquals("R2 + A", keys[ActionMap.FIRE].getText().toString());
+      // fire on L2 + R2: the key to hold, then the second
+      keys[ActionMap.FIRE].performClick();
+      assertEquals(activity.getString(R.string.ingame_map_hold), keys[ActionMap.FIRE].getText().toString());
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L2));
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_BUTTON_L2));
+      assertEquals(activity.getString(R.string.ingame_map_second, "L2"), keys[ActionMap.FIRE].getText().toString());
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_R2));
+      assertEquals(1, calls[0]);
+      assertArrayEquals(new int[] {android.view.KeyEvent.KEYCODE_BUTTON_L2, android.view.KeyEvent.KEYCODE_BUTTON_R2},
+          current[ActionMap.KIND_CONTROLLER].keys(ActionMap.FIRE));
+      keys = (Button[]) field(menu, "bindingButtons");
+      assertTrue(keys[ActionMap.FIRE].getText().toString().startsWith("L2 + R2\n"));
+      assertTrue(keys[ActionMap.FIRE].getText().toString().endsWith(activity.getString(R.string.ingame_map_default, "R2 + A")));
+      // run on L1, then the action on L1: run takes the action's old key (A), the page says so
+      keys[ActionMap.RUN].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L1));
+      keys = (Button[]) field(menu, "bindingButtons");
+      keys[ActionMap.ACTION].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L1));
+      ActionMap now = current[ActionMap.KIND_CONTROLLER];
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_L1, now.keys(ActionMap.ACTION)[0]);
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_A, now.keys(ActionMap.RUN)[0]);
+      String swapped = activity.getString(R.string.ingame_map_swapped, activity.getString(R.string.ingame_act_run), "A");
+      assertEquals(swapped, ((TextView) field(menu, "mapStatus")).getText().toString());
+      // the D-pad stays the D-pad: refused, still waiting
+      keys = (Button[]) field(menu, "bindingButtons");
+      keys[ActionMap.MAP].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_UP));
+      assertEquals(activity.getString(R.string.ingame_map_fixed_key), ((TextView) field(menu, "mapStatus")).getText().toString());
+      assertEquals(ActionMap.MAP, (int) (Integer) field(menu, "captureAction"));
+      // the same button again: no change
+      keys[ActionMap.MAP].performClick();
+      assertEquals(-1, (int) (Integer) field(menu, "captureAction"));
+      assertEquals(3, calls[0]);
       // the default layout again
       findButton((ViewGroup) field(menu, "body"), activity.getString(R.string.ingame_controller_default)).performClick();
-      assertNull(sent[0]);
-      keys = (Button[]) field(menu, "bindingButtons");
-      assertTrue(keys[xi].getText().toString().startsWith(activity.getString(R.string.ingame_fn_ashley)));
+      assertTrue(current[ActionMap.KIND_CONTROLLER].isDefault());
       // back goes to the controls page
       Method back = CoreMenu.class.getDeclaredMethod("goBack"); back.setAccessible(true);
       back.invoke(menu);

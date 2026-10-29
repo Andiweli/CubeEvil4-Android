@@ -34,6 +34,43 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – Ursache gefunden (Einheit 0x3F in
     `BulletInfo::move` ohne gewähltes Sprachbild), Korrektur lokal mit dem EU-Programmcode (Startprompt im Chat).
 
+## Tastenbelegung für jede Aktion, mit Kombinationen und Tastatur – Schritt 1 (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Wunsch des Projektinhabers:** jede Aktion des Spiels selbst belegen, links die Aktion, rechts die Belegung;
+  Aktionen aus zwei Tasten (Zielen + Feuern) bleiben Kombinationen und werden als zwei Tasten abgefragt; Tastatur und
+  Maus zum Spielen. **Entscheidungen (29.10.2026):** die Menüs des Spiels behalten die Standardbelegung des Geräts;
+  die Maus dreht Kamera und Ziel (eingefangener Zeiger); eine Taste, die eine andere einfache Aktion hatte, tauscht;
+  zwei Schritte (1: Controller und Tastatur mit Kombinationen, 2: Maus).
+- **Aus dem 27.10.2026 gelernt:** Die erste „alles frei“-Fassung schaltete bei jedem Hinweis („A Öffnen“) auf die
+  Standardbelegung um und war unbrauchbar. Jetzt schaltet nur ein echtes Menü um: Der Kern meldet in
+  `re4_core_rumble` Bit 4 nur noch Menüs (Titel, Laden, Untermenüs), Hinweise in Bit 5 (nur Protokoll; `pad.cpp`).
+  Ein Controller ohne eigene Belegung geht den bisherigen Weg unverändert, die alternative Steuerung behält ihre.
+- **`ActionMap.java` (neu, ohne Android, `tests/ActionMapTests.java` 43 Prüfungen):** 16 Aktionen (Vorwärts/Rückwärts/
+  Links/Rechts nur Tastatur, Aktion A, Rennen B, Zielen R, Feuern = Zielen-Taste + Taste → A, Nachladen = Zielen +
+  Taste → B, Messer L, Messerhieb = Messer + Taste → A, Ashley X, Inventar Y, Karte Z, Optionen START, App-Menü).
+  Die erste Taste einer Kombination hält die gehaltene Aktion (R bzw. L), die zweite drückt ihre Taste nur dazu;
+  allein tut sie nur, was sie als einfache Aktion tut. Schnelle Drehung (Zurück + Rennen) und die Reaktionstasten
+  (A+B, L+R) folgen aus den Tasten ihrer Aktionen. Standard Controller = bisherige Belegung (A, B, R2, R2+A, R2+B, L2,
+  L2+A, X, Y, R1, START, SELECT); Tastatur: WASD, E, Shift links, Leertaste, Leertaste+F, Leertaste+R, C, C+F, Q,
+  Tab, M, Esc, F1. Fest und nicht belegbar: beim Controller Sticks und Steuerkreuz, bei der Tastatur Pfeile
+  (Steuerkreuz), Enter (A), Rücktaste (B). Gespeichert `mappingController`/`mappingKeyboard` in `core_input`; die
+  freien Tasten (`keyMap`, 27.10.2026) gehen in der Aktionsliste auf und werden einmal gelöscht (Protokollzeile).
+- **`CoreInput`:** gehaltene Tasten je Gerät, Tastaturen als eigene Geräte (`keyboardKey`), eigene Belegung im Spiel,
+  in Menüs die Standardbelegung (`setMenu` aus dem Bit des Kerns, `CoreActivity.rumbleTick`), Trigger als L2/R2 ab
+  halbem Weg, „Einrasten“ wirkt weiter, das App-Menü auf seiner Taste; `CoreInputTests` 189 Prüfungen (neu: eigene
+  Belegung, Feuern auf L2+R2, Menüwechsel mit gehaltener Taste, Einrasten, Tastatur mit Kombination und festen Tasten,
+  Tastatur neben Controller).
+- **Seite „Tastenbelegung“** (vorher „Controller-Konfiguration“; nutzbar mit Controller oder Tastatur): Gerät wählen,
+  jede Aktion links, rechts ihre Taste(n) und der Standard, wo er abweicht; ein Druck wartet auf die Taste, eine
+  Kombination auf die zu haltende und dann die zweite (8 s, derselbe Knopf noch einmal bricht ab; Trigger als L2/R2;
+  falsches Gerät oder feste Taste wird gemeldet); nach einem Tausch steht da, wohin die andere Aktion kam;
+  „Standardbelegung“. `CoreActivity`: echte Tastaturen (`keyboardDevice`: Buchstaben-Tastatur, kein Gamepad) an das
+  Spiel, Esc nie an Android. Texte in allen zehn Sprachen (alte `ingame_fn_*` entfernt; `check_translations.py` ok).
+- **Geprüft (Cloud):** `ActionMapTests` 43, `CoreInputTests` 189, `CoreTouchTests` 296, `whole_build.sh i686`, alle
+  Java-Quellen und `CoreMenuLayoutTest` (neu: `buttonMappingPutsActionsOnKeysAndCombinationsOnTwo`, Seiten in 10
+  Sprachen auch für die Tastatur) mit javac übersetzt, `re4decomp_link_check`. **Nicht getestet:** `CoreMenuLayoutTest`
+  ausgeführt (Gradle am PC); auf dem Gerät mit Controller und mit einer Tastatur. **Schritt 2 offen:** Maus.
+
 ## Touch-Zielen mit der Touchfläche: Wischen statt Stick (29.10.2026, Cloud, Branch `golden-master`)
 
 - **Meldung (Nutzer, vom Projektinhaber weitergegeben):** Mit „Touch Aiming: Touch Area“ wirkte der Fingerweg wie ein
