@@ -46,6 +46,8 @@ public final class CoreBridge {
   public static native int audio4(short[] pcm, int frames);
   /** The game plays in Dolby Pro Logic II (its AUDIO SETUP): the rear of audio4 is its own. */
   public static native boolean audioSurround();
+  /** A line of the sound output into the core's log (core-log.txt), with the game frame. */
+  public static native void audioNote(String line);
   /**
    * A vsync of the display (the Choreographer's frame time, System.nanoTime):
    * the game's video retraces follow the display (no drift against 60 Hz).

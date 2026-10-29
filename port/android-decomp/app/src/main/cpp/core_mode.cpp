@@ -77,6 +77,8 @@ struct CoreApi {
   // optional (cores since 20.10.2026): the four channels (Dolby Pro Logic II) and whether the game uses them
   int (*audio4)(int16_t *, int){};
   int (*audioSurround)(void){};
+  // optional: a line of the app into the core's log file (the error log's core-log.txt, also without logcat)
+  void (*logFileLine)(const char *){};
   const Re4CoreSnapshot *(*acquire)(void){};
   void (*release)(const Re4CoreSnapshot *){};
   int (*logTail)(char *, int){};
@@ -418,7 +420,8 @@ void loadCore(JNIEnv *env) {
   api.vsync = reinterpret_cast<void (*)(int64_t)>(dlsym(api.main, "re4_core_vsync"));
   api.audio4 = reinterpret_cast<int (*)(int16_t *, int)>(dlsym(api.main, "re4_core_audio4"));
   api.audioSurround = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_audio_surround"));
-  api.pause = reinterpret_cast<int (*)(int, int)>(dlsym(api.main, "re4_core_pause"));
+  api.logFileLine = reinterpret_cast<void (*)(const char *)>(dlsym(api.main, "re4_log_file_line"));
+  api.pause =reinterpret_cast<int (*)(int, int)>(dlsym(api.main, "re4_core_pause"));
   api.debugMenu = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_debug_menu"));
   api.setDof = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_dof"));
   api.gyro = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_gyro"));
@@ -2009,6 +2012,19 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_audio4(JNIEn
   }
   env->ReleasePrimitiveArrayCritical(pcm, out, 0);
   return got;
+}
+
+// A line of the sound output (CoreAudio: the AudioTrack ran out) into the core's log file, with the
+// game frame: core-log.txt is in every error log, logcat not on every device. The core in a process
+// of its own (32 bit fallback) writes its file there: only logcat then.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_audioNote(JNIEnv *env, jclass, jstring line) {
+  if (!api.logFileLine || !coreProcessWhy.empty() || !line) return;
+  const char *text = env->GetStringUTFChars(line, nullptr);
+  if (!text) return;
+  char buf[256];
+  std::snprintf(buf, sizeof(buf), "%s (game frame %u)", text, api.frameCount ? api.frameCount() : 0u);
+  env->ReleaseStringUTFChars(line, text);
+  api.logFileLine(buf);
 }
 
 // 1 while the game plays in Dolby Pro Logic II (its rear in the four channels).

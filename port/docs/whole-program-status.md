@@ -96,6 +96,10 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     Nutzer: nur manchmal, nicht bei jedem Schuss.
     **Nächster Schritt lokal:** am PC mit Disc-Daten schießen, `RE4_AUDIO_WAV_SECONDS` aufnehmen, Lücke im WAV finden,
     die Stimme dazu (`dsp.cpp`, PB-Adressen) verfolgen.
+    **Am PC untersucht (29.10.2026 nachts, Abschnitt „Handcannon und Schuss-Ton“): im Ton des Kerns keine Lücke** (Pistole
+    und Schrotflinte, Debug- und EU-Discs, 32 und 64 bit, Schnelllauf und Echtzeit; 64 bit und mit DSP-Protokoll
+    bitgleich). Sehr wahrscheinlich lief die Android-Ausgabe (AudioTrack) leer; das stand bisher nur in logcat. Jetzt
+    auch im Kernprotokoll („sound: the Android output ran out …“). **Offen:** Bericht des Nutzers mit dieser Zeile.
 21. **r214 vor dem Uhrturm versperrt (EU-Discs)** – behoben (Patch 0145), am PC geprüft; **Gerätetest offen**.
 22. **FPS-Einbrüche Moto e13** und **Ruckler beim Schießen / in Speicherräumen** – Befund und Programmliste ergänzt
     (Abschnitt „Berichte für 0.95.2“); Vorschlag zum Vorladen offen.
@@ -127,6 +131,31 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     (i686, r20a, `RE4_TEST_WEAPON=free+20:15,0,lv=0x6026`, R halten, A alle 45 Bilder): Debug- und EU-Discs je 27
     Schüsse, geladen bleibt 0, HUD „---“; Gegenprobe `lv=0x5025` (Magazin 6): 10 Schüsse, dann leer.
     **Nicht geprüft:** der Händler-Bildschirm im Bild (nur die Werte, die er zeigt), Gerät.
+- **Schuss-Ton „stottert“ (Punkt 20):**
+  - Aufnahmen am PC (i686, r20a, `RE4_TEST_WEAPON=free+20:W` mit Debug-Endlosmunition, R halten, A alle 24 Bilder,
+    `RE4_AUDIO_WAV`; Auswertung: Schussanfänge an der Hüllkurve je 1 ms, Lücken unter 3 % und kurze Einbrüche unter
+    35 % der Nachbarn im Schuss): Pistole Debug-Discs 40 Schüsse, Schrotflinte 19, Pistole EU-Discs 46, Pistole in
+    Echtzeit (`RE4_VI_FAST=0`) 46: **keine Lücke, kein Einbruch**. (Alle 10 Schuss ein Ausreißer: das Nachladen.)
+  - x86_64 (Zeigerbreite wie ARM64): WAV **bitgleich** mit i686. Stand vor b13dcb6 (ohne Kompressor): im ganzen
+    Schussbereich bitgleich, Unterschiede nur 16–20 s (Raumstart, dort regelt der Kompressor).
+  - Stimmen (neu: `RE4_DSP_TRACE=1` in `dsp.cpp`, je Stimme Start, Stopp durch die CPU, Adresswechsel durch die
+    Tonsteuerung, Ende/Schleife mit Liste und Millisekunde): ein Pistolenschuss sind zwei ADPCM-Stimmen (Stereo-Paar
+    0x315cd2..0x31eb59 und 0x31eb62..0x3279e9, je ~1 s, ohne Schleife); der nächste Schuss startet zwei neue
+    Stimmen, die CPU stoppt die alten eine Liste (5 ms) später. Kein Adresswechsel mitten im Schuss.
+  - Folgerung: die Lücke entsteht hinter dem Kern. Der Ring des Kerns lief beim Nutzer nicht leer („ran dry“ nur
+    beim Raumwechsel); im App-Prozess (64 bit) bleibt die AudioTrack: läuft sie leer, spielt der Lautsprecher dort
+    Stille und danach den Rest – genau „Abschuss, kurze Pause, Rest“, nur manchmal. Ihre Unterläufe standen nur in
+    logcat (`RE4Audio`, „buffer … after N underruns“), das auf manchen Geräten nichts aufzeichnet. **Neu:** jede
+    Zunahme der Unterläufe als Zeile „sound: the Android output ran out (N times on this track, buffer F frames = M
+    ms) (game frame G)“ auch in `core-log.txt` (`CoreAudio.tune` → `CoreBridge.audioNote` → `re4_log_file_line`;
+    im 32-bit-Kernprozess nur logcat), höchstens 200 Zeilen.
+  - **Nicht geändert:** die Größe des AudioTrack-Puffers (`LatencyTuner`: zwei Perioden, wächst nach jedem Unterlauf
+    um eine). Ein größerer Startwert verhindert solche Lücken, verzögert aber jeden Ton (früher Beschwerde über
+    späte Schüsse mit Bluetooth) – Entscheidung des Projektinhabers, sobald ein Bericht die neue Zeile zeigt.
+  - **Geprüft:** `whole_build.sh i686` mit `RE4_DSP_TRACE` im Kern: 0 Fehler (runtime-test, core-test mit `ax`,
+    Kernprozess-Test, Film-Test); das DSP-Protokoll ändert den Ton nicht (WAV bitgleich). App:
+    `compileCoreDebugJavaWithJavac` und `externalNativeBuildCoreDebug` (arm64, armv7) ohne Fehler übersetzt.
+    **Nicht geprüft:** Gerät.
 
 ## Berichte für 0.95.2 und Japan/Korea (29.10.2026 spätabends, lokal, Branch `golden-master`)
 

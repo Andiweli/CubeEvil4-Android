@@ -88,6 +88,46 @@ bool gExpectList;  // got 0xBABE0180: the next mail is a command list
 u32 gLists;
 u32 gUnknown;
 
+// RE4_DSP_TRACE=1 (checks): a line per voice event with the list number and millisecond: started,
+// stopped by the CPU, its sample address set by the CPU while it plays (the sound driver), its end
+// (stopped) or loop. Per PB the state and address of the last millisecond.
+bool gTrace;
+u32 gTraceLines;
+int gTraceMs;
+struct TraceVoice {
+    u32 pb;
+    u16 state;
+    u32 cur;
+};
+TraceVoice gTraceVoices[AX_MAX_VOICES];
+
+TraceVoice* traceVoice(u32 pb)
+{
+    TraceVoice* free = 0;
+    for (TraceVoice& v : gTraceVoices) {
+        if (v.pb == pb) {
+            return &v;
+        }
+        if (!v.pb && !free) {
+            free = &v;
+        }
+    }
+    if (free) {
+        free->pb = pb;
+        free->state = 0;
+        free->cur = 0;
+    }
+    return free;
+}
+
+#define TRACE(...)                                  \
+    do {                                            \
+        if (gTrace && gTraceLines < 200000) {       \
+            gTraceLines++;                          \
+            re4_log(__VA_ARGS__);                   \
+        }                                           \
+    } while (0)
+
 template <class T>
 T* ptr(u32 addr)
 {
@@ -211,6 +251,8 @@ struct Reader {
     // ADPCM context (a stream keeps its history), or the voice stops.
     void atEnd()
     {
+        TRACE("dsp: %u.%d voice %08x %s at %x (loop %x)", gLists, gTraceMs, (u32) (uintptr_t) &pb,
+              pb.addr.loopFlag ? "loops" : "ends", end, loop);
         if (pb.addr.loopFlag) {
             cur = loop;
             pb.adpcm.pred_scale = pb.adpcmLoop.loop_pred_scale;
@@ -324,6 +366,26 @@ void voice(AXPB& pb)
 {
     for (int ms = 0; ms < 5; ms++) {
         updates(pb, ms);
+        TraceVoice* tv = gTrace ? traceVoice((u32) (uintptr_t) &pb) : 0;
+        if (tv) {
+            const u32 cur = hilo(pb.addr.currentAddressHi, pb.addr.currentAddressLo);
+            gTraceMs = ms;
+            if (pb.state == 1 && tv->state != 1) {
+                TRACE("dsp: %u.%d voice %08x starts at %x, end %x, loop %x%s, format %u, src %u ratio %x, ve %x",
+                      gLists, ms, tv->pb, cur, hilo(pb.addr.endAddressHi, pb.addr.endAddressLo),
+                      hilo(pb.addr.loopAddressHi, pb.addr.loopAddressLo), pb.addr.loopFlag ? "" : " (off)",
+                      (unsigned) pb.addr.format, (unsigned) pb.srcSelect, hilo(pb.src.ratioHi, pb.src.ratioLo),
+                      (unsigned) pb.ve.currentVolume);
+            } else if (pb.state != 1 && tv->state == 1) {
+                TRACE("dsp: %u.%d voice %08x stopped by the CPU at %x", gLists, ms, tv->pb, cur);
+            } else if (pb.state == 1 && cur != tv->cur) {
+                TRACE("dsp: %u.%d voice %08x address set from %x to %x, end %x, loop %x", gLists, ms, tv->pb,
+                      tv->cur, cur, hilo(pb.addr.endAddressHi, pb.addr.endAddressLo),
+                      hilo(pb.addr.loopAddressHi, pb.addr.loopAddressLo));
+            }
+            tv->state = pb.state;
+            tv->cur = cur;
+        }
         if (pb.state != 1) {
             continue;
         }
@@ -332,6 +394,10 @@ void voice(AXPB& pb)
         s16 s[kMs];
         source(pb, in, s);
         in.store();
+        if (tv) {
+            tv->state = pb.state;
+            tv->cur = in.cur;
+        }
         // the volume envelope
         u16 ve = pb.ve.currentVolume;
         for (int i = 0; i < kMs; i++) {
@@ -721,6 +787,8 @@ DSPTaskInfo* DSPAddTask(DSPTaskInfo* task)
 {
     gTask = task;
     task->state = 1;
+    const char* trace = getenv("RE4_DSP_TRACE");
+    gTrace = trace && *trace && *trace != '0';
     if (task->init_cb) {
         task->init_cb(task);
     }
