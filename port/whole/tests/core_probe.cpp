@@ -345,6 +345,8 @@ static_assert(sizeof(cModelInfo) <= 0x400 && sizeof(cModelData) <= 0x100, "the f
 #include "dolphin/ax.h"
 #include "dolphin/syn.h"
 
+#include <stdlib.h>
+
 extern "C" {
 void __SYNSetupSample(SYNVOICE* voice);
 void __SYNSetupSrc(SYNVOICE* voice);
@@ -359,6 +361,7 @@ int re4_audio_take4(short* out, short* out4, int frames);
 int re4_audio_read6(short* out, int frames);
 unsigned re4_audio_surround_blocks(void);
 int re4_audio_surround_now(void);
+void re4_dsp_loudness(unsigned* compressed, unsigned* clipped);
 unsigned char* re4_aram(void);
 void AIInit(unsigned char* stack);
 }
@@ -430,6 +433,10 @@ static int ramp8(int i)
 static int dc3000(int)
 {
     return 3000;
+}
+static int dc20000(int)
+{
+    return 20000;
 }
 static int saw(int i)
 {
@@ -740,6 +747,43 @@ extern "C" int re4probe_ax_test(void)
         AX_CHECK(re4_audio_surround_now() == 0);
         AXSetVoiceState(p, 0);
         AXFreeVoice(p);
+        axRun(4, out, 640);
+    }
+
+    // the compressor (dsp.cpp 0x12, on as AXInit leaves it and snd_main.cpp sets it): two voices
+    // of 20000 in the left reach 40000, the block turns down to the table's lowest gain (0x50C3:
+    // 25238 instead of a clipped 32767); with one voice left it comes back to 20000 in 10 blocks
+    {
+        unsigned compBefore, clipBefore, compAfter, clipAfter;
+        re4_dsp_loudness(&compBefore, &clipBefore);
+        putPcm16(0x50000, 4000, dc20000);
+        AXVPB* loud[2];
+        for (int i = 0; i < 2; i++) {
+            loud[i] = AXAcquireVoice(5, 0, 0);
+            AX_CHECK(loud[i] != 0);
+            pcmVoice(loud[i], 0x28000, 4000, 0x8000, 0, 0);
+            AXSetVoiceState(loud[i], 1);
+        }
+        got = axRun(8, out, 160 * 8);
+        re4_dsp_loudness(&compAfter, &clipAfter);
+        AX_CHECK(got > 0 && abs(out[(got - 1) * 2] - 25238) <= 2 && out[(got - 1) * 2 + 1] == 0);
+        AX_CHECK(compAfter >= compBefore + 6 && clipAfter - clipBefore < 160);
+        AXSetVoiceState(loud[1], 0);
+        got = axRun(16, out, 160 * 16);
+        AX_CHECK(got > 0 && out[(got - 1) * 2] == 20000);
+        // the stopped voice fades out (AX's ramp), then the release: up a step a block, never down
+        int low = 0;
+        for (int i = 1; i < got; i++) {
+            low = out[i * 2] < out[low * 2] ? i : low;
+        }
+        bool rising = out[low * 2] > 12600;  // never below the lowest gain
+        for (int i = low; i + 1 < got; i++) {
+            rising = rising && out[(i + 1) * 2] >= out[i * 2];
+        }
+        AX_CHECK(rising);
+        AXSetVoiceState(loud[0], 0);
+        AXFreeVoice(loud[0]);
+        AXFreeVoice(loud[1]);
         axRun(4, out, 640);
     }
 

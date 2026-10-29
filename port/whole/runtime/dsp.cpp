@@ -21,7 +21,9 @@
 //   0x13 / 0x10   the same for Dolby Pro Logic II (four channels: front left/right
 //                 on the main buses, the rear (Ls, Rs) on aux B's left/right;
 //                 aux A's effect gets L, R, Ls (aux A S) and Rs (aux B S))
-//   0x12          the compressor (not done; the output is clamped as by the DSP)
+//   0x12          the compressor (AXCL.c with AXSetCompressor(1), snd_main.cpp): a block
+//                 whose peak reaches the threshold ramps down to the table's lowest
+//                 gain (-4 dB), quieter blocks ramp back up one step each (10 x 5 ms)
 //   0x0E          output: surround to the CPU buffer, left/right as 16 bit into
 //                 the block the AI plays (right first, then left)
 //   0x0F          end
@@ -32,7 +34,7 @@
 //
 // Not rebuilt: the polyphase filters of the DSP ROM (a 4-point cubic
 // interpolation takes their place; linear stays linear), the time delay of
-// AXSetVoiceItdOn, the compressor, Dolby Pro Logic II's matrix encoding: the
+// AXSetVoiceItdOn, Dolby Pro Logic II's matrix encoding: the
 // stereo the AI plays has the rear mixed into left and right (as before
 // 20.10.2026), and the four channels of each block stay apart for the app
 // (re4_dsp_surround: Android's spatializer can render them for headphones;
@@ -58,6 +60,16 @@ s32 gBus[kBuses][kFrame];
 // to left and right (the main rear fully, the effect's at half); the four channels keep them.
 s32 gRearMain[2][kFrame], gRearAux[2][kFrame];
 bool gRearUsed;
+
+// The compressor (0x12): the gain of each sample of this block (1.15), its step (0: no gain down,
+// n: n steps below full), and the counts for the log (blocks it turned down, samples still past
+// 16 bit). Rebuilt from the table AXComp.c gives the DSP (AXCL.c: threshold 0x8000, 10 steps):
+// rows 0..10 ramp from step n to the lowest gain within one block, rows 11..20 from step n back
+// to step n - 1, 160 samples each.
+s32 gCompGain[kFrame];
+bool gCompOn;
+int gCompStep;
+u32 gCompBlocks, gClipped;
 
 // The four channels of the last blocks mixed in Dolby Pro Logic II, by the AI block's address
 // (AXOut fills two or three blocks in turn); runtime/ai.cpp takes them when the block plays.
@@ -111,6 +123,7 @@ void setup(u32 studioAddr)
     memset(gRearMain, 0, sizeof(gRearMain));
     memset(gRearAux, 0, sizeof(gRearAux));
     gRearUsed = false;
+    gCompOn = false;
 }
 
 // ------------------------------------------------ 0x07 / 0x11: last surround
@@ -434,6 +447,64 @@ void auxDpl2B(const u16* p)
     gRearUsed = true;
 }
 
+// ------------------------------------------------------ 0x12: the compressor
+// What the output will get as stereo (the rear mixed in as in output()).
+s32 stereoLeft(int i)
+{
+    return gBus[L][i] + gRearMain[0][i] + gRearAux[0][i] / 2;
+}
+
+s32 stereoRight(int i)
+{
+    return gBus[R][i] + gRearMain[1][i] + gRearAux[1][i] / 2;
+}
+
+void compressor(u16 threshold, u16 steps, u32 tableAddr)
+{
+    const u16* table = ptr<const u16>(tableAddr);
+    if (!table || steps == 0 || steps > 32) {
+        return;
+    }
+    s32 peak = 0;
+    for (int i = 0; i < kFrame; i++) {
+        const s32 l = abs(stereoLeft(i)), r = abs(stereoRight(i));
+        peak = l > peak ? l : peak;
+        peak = r > peak ? r : peak;
+        if (gRearUsed) {
+            const s32 rl = abs(gRearMain[0][i] + gRearAux[0][i]), rr = abs(gRearMain[1][i] + gRearAux[1][i]);
+            peak = rl > peak ? rl : peak;
+            peak = rr > peak ? rr : peak;
+        }
+    }
+    int row;
+    if (peak >= threshold) {
+        row = gCompStep > steps ? steps : gCompStep;
+        gCompStep = steps;
+        gCompBlocks++;
+    } else if (gCompStep > 0) {
+        row = steps + gCompStep;
+        gCompStep--;
+    } else {
+        return;
+    }
+    const u16* g = table + row * kFrame;
+    for (int i = 0; i < kFrame; i++) {
+        gCompGain[i] = g[i];
+    }
+    gCompOn = true;
+}
+
+s16 gain16(s32 v, int i)
+{
+    if (gCompOn) {
+        v = (s32) (((int64_t) v * gCompGain[i]) >> 15);
+    }
+    if (v < -32768 || v > 32767) {
+        gClipped++;
+    }
+    return clamp16(v);
+}
+
 // --------------------------------------------------------- 0x0E: the output
 void output(u32 surroundAddr, u32 blockAddr)
 {
@@ -446,8 +517,8 @@ void output(u32 surroundAddr, u32 blockAddr)
     }
     // the stereo: the rear into left and right, the main rear fully, the effect's at half
     for (int i = 0; i < kFrame; i++) {
-        block[i * 2] = clamp16(gBus[R][i] + gRearMain[1][i] + gRearAux[1][i] / 2);
-        block[i * 2 + 1] = clamp16(gBus[L][i] + gRearMain[0][i] + gRearAux[0][i] / 2);
+        block[i * 2] = gain16(stereoRight(i), i);
+        block[i * 2 + 1] = gain16(stereoLeft(i), i);
     }
     SurroundBlock* sb = 0;
     for (SurroundBlock& b : gSurround) {
@@ -467,10 +538,11 @@ void output(u32 surroundAddr, u32 blockAddr)
     sb->addr = blockAddr;
     sb->ready = true;
     for (int i = 0; i < kFrame; i++) {
-        sb->pcm[i * 4] = clamp16(gBus[L][i]);
-        sb->pcm[i * 4 + 1] = clamp16(gBus[R][i]);
-        sb->pcm[i * 4 + 2] = clamp16(gRearMain[0][i] + gRearAux[0][i]);
-        sb->pcm[i * 4 + 3] = clamp16(gRearMain[1][i] + gRearAux[1][i]);
+        const s32 gain = gCompOn ? gCompGain[i] : 0x8000;
+        sb->pcm[i * 4] = clamp16((s32) (((int64_t) gBus[L][i] * gain) >> 15));
+        sb->pcm[i * 4 + 1] = clamp16((s32) (((int64_t) gBus[R][i] * gain) >> 15));
+        sb->pcm[i * 4 + 2] = clamp16((s32) (((int64_t) (gRearMain[0][i] + gRearAux[0][i]) * gain) >> 15));
+        sb->pcm[i * 4 + 3] = clamp16((s32) (((int64_t) (gRearMain[1][i] + gRearAux[1][i]) * gain) >> 15));
     }
 }
 
@@ -515,7 +587,8 @@ void run(const u16* p)
             auxDpl2B(p);
             p += 4;
             break;
-        case 0x12:  // the compressor: threshold, frames, table
+        case 0x12:  // the compressor: threshold, steps, table
+            compressor(p[0], p[1], hilo(p[2], p[3]));
             p += 4;
             break;
         case 0x13:
@@ -562,6 +635,13 @@ void re4_dsp_stats(unsigned* lists, unsigned* voiceMs, unsigned* peakVoices)
     *voiceMs = gVoiceMs;
     *peakVoices = gPeakVoices;
     gPeakVoices = 0;
+}
+
+// The compressor so far: blocks it turned down, stereo samples still past 16 bit (clipped).
+void re4_dsp_loudness(unsigned* compressed, unsigned* clipped)
+{
+    *compressed = gCompBlocks;
+    *clipped = gClipped;
 }
 
 void DSPInit(void)

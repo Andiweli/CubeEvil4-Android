@@ -41,8 +41,30 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     (`cObjMine::setMotion` bis `WEP_ARC 0x34`). Bei voller Gesundheit (`dmMotCk`) nimmt der Nacken `m_MotTbl[0x3F]` =
     `WEP_ARC 0x2F`. Gleiches Bild wie Hunks Maschinenpistole (Patch 0134, ab 0.94.0): sehr wahrscheinlich hat `wep25.drs`
     weniger Einträge, das Spiel liest hinter die Tabelle; Patch 0134 gilt auch für `WEP_ARC_PTR` (über `PL_ARC_PTR`).
-    **Offen:** Bestätigung am PC (`archive_dump.py --file em/wep25.drs --file em/wep14.drs --entries 0x00-0x31`, danach
-    Ausrüsten am PC) und beim Tester mit 0.95.0-beta.
+    **Bestätigt (Tester, 29.10.2026):** mit 0.95.0-beta kein Absturz mehr.
+16. **Ton knackt, „nicht klar“** (Nutzerbericht 29.10.2026) – zwei Verbesserungen (Abschnitt „Ton: Kompressor …“), in
+    der Cloud geprüft; **Hörtest auf dem Gerät offen**.
+
+## Ton: Kompressor des DSP und kubische Angleichung (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Meldung:** „Audio and sound isn't hd and clear“, Knacken. Bericht (vivo V2426, Android 16, 0.95.0-beta): im Spiel
+  keine Aussetzer („ran dry“ nur beim Öffnen/Schließen des App-Menüs), DSP weit unter Budget. Die Ursache liegt also im
+  Signal selbst. Zwei Schwachstellen gefunden:
+  1. **Kompressor fehlte:** Das Spiel schaltet ihn ein (`snd_main.cpp AXSetCompressor(1)`, `AXCL.c` Befehl 0x12:
+     Schwelle 0x8000, 10 Stufen, Tabelle `AXComp.c`); `dsp.cpp` übersprang ihn, laute Stellen wurden hart auf 16 bit
+     abgeschnitten (Knacken). Nachgebaut aus dem Aufbau der Tabelle (21 Zeilen zu 160 Werten: Zeile n = von Stufe n
+     binnen eines Blocks auf die tiefste Verstärkung 0x50C3 ≈ −4 dB, Zeilen 11..20 = eine Stufe zurück): Erreicht die
+     Spitze eines Blocks (Stereo mit eingemischtem Raumklang, bei Dolby auch die hinteren Kanäle) die Schwelle, regelt
+     der Block herunter, leisere Blöcke regeln je 5 ms eine Stufe hinauf. Gilt für Stereo und die vier Kanäle.
+  2. **Angleichung an den Takt des Geräts linear** (`ai.cpp readRing`): Zwischen zwei Abtastwerten dämpfte das die
+     Höhen um bis zu 3 dB bei 8 kHz, schwankend etwa 100-mal je Sekunde (die Lage zwischen zwei Werten wandert mit der
+     Angleichung von rund 0,3 %); jetzt 4-Punkt-kubisch (Catmull-Rom), Gleichanteil bleibt exakt.
+- **Protokoll:** Die Zeile „audio: …“ nennt jetzt „compressor N blocks, M samples clipped“ (abgeschnittene Werte trotz
+  Kompressor) für die nächsten Berichte.
+- **Geprüft (Cloud):** `whole_build.sh i686` mit allen Tests 0 Fehler; `core-test ax` neu: zwei Stimmen zu je 20000
+  ergeben 25238 statt abgeschnittener 32767, nach dem Stoppen einer Stimme steigt der Ton gleichmäßig auf 20000; die
+  Lese-Prüfung der App (1000 bleibt 1000) und der Ton des Kernprozesses (`re4_core_remote_test`) bestehen; `dsp.cpp`
+  und `ai.cpp` für arm64 ohne Warnung übersetzt. **Nicht getestet:** Hören auf dem Gerät.
 
 ## Tastenbelegung für jede Aktion – Schritt 2: Maus mit Empfindlichkeitsregler (29.10.2026, Cloud, Branch `golden-master`)
 
