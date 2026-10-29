@@ -173,6 +173,33 @@ const std::uint8_t kBlue[4] = {0, 0, 255, 255};
 const std::uint8_t kBlack[4] = {0, 0, 0, 255};
 const std::uint8_t kWhite[4] = {255, 255, 255, 255};
 
+// The console's pixel centre (7/12 of a pixel, Dolphin's correction; the rifle scope's horizontal line
+// at 1x, 29.10.2026): a line 0.94 pixels thick on the edge between rows 223 and 224 (and columns 319
+// and 320) covers row 223 (column 319) only, as the GameCube draws it; a quad whose left edge is at
+// 10.55 covers column 10 (its sample at 10.583), one at 50.65 not column 50.
+void TestPixelCentre(re4gx::GxRenderer &r) {
+  Builder b;
+  Baseline(b);
+  b.flags |= RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  Quad(b, 100, 223.53f, 300, 224.47f, 0, kGreen);
+  Quad(b, 319.53f, 300, 320.47f, 400, 0, kRed);
+  Quad(b, 10.55f, 440, 40, 460, 0, kBlue);
+  Quad(b, 50.65f, 440, 80, 460, 0, kWhite);
+  DisplayCopy(b, false, kBlack);
+  r.Run(b.Chunk());
+  const auto row = EfbPixel(r, 200, 223), above = EfbPixel(r, 200, 222), below = EfbPixel(r, 200, 224);
+  Check(Near(row, 0, 255, 0) && Near(above, 0, 0, 0) && Near(below, 0, 0, 0),
+        "pixel centre: a horizontal line thinner than a pixel on a row edge drawn in one row (the scope)");
+  if (!Near(row, 0, 255, 0))
+    Print("row 223", row), Print("row 224", below);
+  Check(Near(EfbPixel(r, 319, 350), 255, 0, 0) && Near(EfbPixel(r, 320, 350), 0, 0, 0),
+        "pixel centre: a vertical line thinner than a pixel on a column edge drawn in one column");
+  Check(Near(EfbPixel(r, 10, 450), 0, 0, 255), "pixel centre: an edge at 10.55 covers column 10 (sample at 10.583)");
+  Check(Near(EfbPixel(r, 50, 450), 0, 0, 0) && Near(EfbPixel(r, 51, 450), 255, 255, 255),
+        "pixel centre: an edge at 50.65 leaves column 50");
+}
+
 void TestBasics(re4gx::GxRenderer &r) {
   // frame 1: clear to blue by a display copy, then a green quad top left, a
   // red triangle bottom right, display copy
@@ -2685,6 +2712,7 @@ int main() {
     std::string error;
     Require(renderer.Init(1, &error), error.c_str());
     TestBasics(renderer);
+    TestPixelCentre(renderer);
     TestTexture(renderer);
     TestTev(renderer);
     TestLighting(renderer);

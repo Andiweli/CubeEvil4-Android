@@ -176,6 +176,11 @@ std::string GxVertexShader(const ShaderKey &k) {
          "                     ((vp[1].x - 342.0) * 2.0 / H - 1.0) * clip.w + vp[0].y * 2.0 / H * clip.y,\n"
          "                     2.0 * (vp[0].z * clip.z + vp[1].y * clip.w) / 16777215.0 - clip.w, clip.w);\n"
          "  gl_PointSize = max(1.0, proj[1].w);\n";
+  // The console samples a pixel at 7/12 of its width and height, GLES at 1/2 (Dolphin's pixel centre
+  // correction): everything moves 1/12 of a GameCube pixel up and left, so what is thinner than a
+  // pixel and lies on a pixel's edge still hits it as there (the rifle scope's horizontal line at 1x
+  // fell between two rows, user report 29.10.2026). EFB rows grow with GL's y here (no flip).
+  out += "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n";
   // lighting channels
   out += "  vec4 col0 = vec4(1.0);\n  vec4 col1 = vec4(1.0);\n";
   for (unsigned c = 0; c < 2 && c < k.numChans; c++) {

@@ -28,15 +28,29 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     dem Retroid mit dem Spielstand des Nutzers bestätigt (Projektinhaber, 28.10.2026: Brüstung weg, Treppe begehbar).
 12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
     darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
-13. **Zielfernrohr: nur die senkrechte Linie des Fadenkreuzes sichtbar** (Nutzermeldung, 29.10.2026) – offen, braucht
-    Disc-Daten (lokal). Bisher (Cloud): Das Fadenkreuz sind 2D-Einheiten des Spiels (`IdScope::init`,
-    `cam_extra.cpp`: Einheiten `IDC_SCOPE` aus dem Waffenarchiv, Unterdatei 5/6/7 je Gewehr, Texturen Unterdatei 4),
-    gezeichnet als texturierte Vierecke (`IdCommonTrans`, ohne Culling, Alpha-Test > 1). Verdacht: die waagerechte
-    Linie ist eine dünne Texturzeile oder ein dünnes Viereck, das bei der Umrechnung (Auflösung 1×, Filter, Bildformat)
-    zwischen die Pixel fällt. Nächster Schritt am PC: Gewehr in den Raum, Zielfernrohr, GX-Serie (R3) bei 1× und 2×
-    mit `gx_chunk_render` nachzeichnen, Einheiten und Texturformat/Filter ansehen. Gerät/Einstellungen des Nutzers erbeten.
+13. **Zielfernrohr: nur die senkrechte Linie des Fadenkreuzes sichtbar** (Nutzermeldung mit Bildschirmfoto,
+    29.10.2026, Auflösung 1×, 640×336) – behoben im Renderer (Abschnitt „Pixelmitte wie der GameCube“), am PC geprüft;
+    **Gerätetest offen**.
 14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – Ursache gefunden (Einheit 0x3F in
     `BulletInfo::move` ohne gewähltes Sprachbild), Korrektur lokal mit dem EU-Programmcode (Startprompt im Chat).
+
+## Pixelmitte wie der GameCube: Fadenkreuz des Zielfernrohrs bei 1× (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Meldung:** Mit dem Gewehr zeigt das Zielfernrohr nur die senkrechte Linie (Bildschirmfoto des Nutzers, 640×336,
+  Auflösung 1×). Das Fadenkreuz sind 2D-Einheiten des Spiels (`IdScope`, `cam_extra.cpp`; texturierte Vierecke,
+  `IdCommonTrans`); die waagerechte Linie liegt in der Bildmitte, also auf der Grenze zweier Pixelreihen, und ist
+  dünner als ein Pixel.
+- **Ursache:** Der GameCube prüft ein Pixel bei 7/12 seiner Breite und Höhe, GLES bei 1/2 (Dolphin gleicht das als
+  „pixel center correction“ aus). Eine Fläche dünner als ein Pixel auf einer Pixelgrenze trifft dort eine Reihe, bei
+  uns keine. Bei 2× ist die Linie mindestens ein Pixel hoch, darum nur bei 1×.
+- **Fix (`gx_gl_shader.cpp`, Vertex-Shader):** alles um 1/12 GameCube-Pixel nach links oben, wie Dolphin. Die
+  Shader-Programme werden dadurch einmal neu gebaut (der Programm-Zwischenspeicher hängt am Quelltext; die
+  Vorab-Liste baut sie vor ihrer ersten Zeichnung).
+- **Geprüft (Cloud):** neuer Test in `gx_gl_check` (`TestPixelCentre`: waagerechte und senkrechte Linie 0,94 Pixel
+  dick auf einer Pixelgrenze in genau einer Reihe/Spalte, Kanten bei 10,55 und 50,65 wie beim GameCube); Gegenprobe
+  ohne die Korrektur: beide Linien fehlen ganz, wie auf dem Foto. `gx_gl_check` 0 Fehler, strenge Shaderprüfung
+  (glslangValidator) 1114 Shader, 0 abgelehnt, `re4decomp_link_check` gebaut. **Nicht getestet:** auf dem Gerät
+  (Zielfernrohr bei 1×; ob sich anderswo eine Kante sichtbar verschiebt – höchstens 1/12 Pixel).
 
 ## Cheats: automatische QTEs und Extra-Spiele freischalten (29.10.2026, Cloud, Branch `golden-master`)
 
