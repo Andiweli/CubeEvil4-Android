@@ -1,0 +1,50 @@
+# Retail data (port/docs/retail-eu-plan.md): the "EMPTY" plate of the ammo counter with the European discs.
+# With an empty magazine and no spare rounds BulletInfo::move shows unit 0x3F of the life meter
+# (IDC_LIFE_METER). On the debug build's discs it has one picture, on the European ones five, one per
+# language (texNo 0 English, 1 Spanish, 2 Italian, 3 German, 4 French); this build only switches it on, so
+# it played them in turn: EMPTY/LEER/VIDE/VACIO/VUOTO several times a second (user video, 29.10.2026).
+# The European BulletInfo::move (main.dol 0x800c19a0, read with retail_code.py) sets tex_flag bit 2 and
+# texNo by pSys->language: 3 -> 3, 4 -> 4, 5 -> 1, 6 -> 2, any other (2, English) -> 0. With the European
+# discs the plate is set as there. Nothing changes with the debug build's discs. A port patch for retail data.
+--- a/src/game/cockpit.cpp
++++ b/src/game/cockpit.cpp
+@@ -551,6 +551,8 @@
+     m_mark_old = -1;
+ }
+ 
++extern SYSTEM_SAVE_WORK* pSys; /* port: main.h */
++
+ // Per-frame ammo display: the equipped weapon's loaded count as three digit ids (leading zeros
+ // hidden; the "empty" id when 0), and the bullet type icon (IDC_BLLT_ICON) for the weapon, parented
+ // to the HUD frame; hidden for weapons without a counter (knife, infinite launchers).
+@@ -620,6 +622,30 @@
+             u[1]->be_flag &= ~8;
+             u[2]->be_flag &= ~8;
+             empty->be_flag |= 8;
++            /* port: the European "EMPTY" has five language pictures (English, Spanish, Italian, German,
++               French); the European BulletInfo::move (main.dol 0x800c19a0) picks the game language's.
++               Without that the unit cycled through all five several times a second (user video,
++               29.10.2026) */
++            if (re4_disc_retail_eu()) {
++                empty->tex_flag |= 2;
++                switch (pSys->language) {
++                case 3:
++                    empty->texNo = 3;
++                    break;
++                case 4:
++                    empty->texNo = 4;
++                    break;
++                case 5:
++                    empty->texNo = 1;
++                    break;
++                case 6:
++                    empty->texNo = 2;
++                    break;
++                default:
++                    empty->texNo = 0;
++                    break;
++                }
++            }
+         }
+     } else {
+         u[0]->be_flag &= ~8;
