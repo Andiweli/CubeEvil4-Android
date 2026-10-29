@@ -76,6 +76,18 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     den Posen des Inventars liegt es fast ganz hinter Arm und Waffe (am PC gesehen). Auf dem Retroid bestätigt
     (Projektinhaber, 29.10.2026: Messer in der Brusttasche).
 
+## Gerätetest `golden-master` und Version 0.95.1-beta (29.10.2026 abends, lokal, Branch `golden-master`)
+
+Projektinhaber auf dem Retroid, Stand `8890f2be`:
+
+- **Bestätigt:** „4:3“ ohne Balken im Spiel (Zwischensequenzen mit Balken, wie vorgesehen), „4:3 (GC)“ unverändert,
+  EMPTY/LEER ruhig, Messer am Brustgurt im Inventar, Tastenbelegung mit Controller, Tastatur und Maus, Touch-Zielen
+  per Wischen, alle Cheats (auch automatische QTEs und Extra-Spiele), Dreierreihen im Ingame-Menü.
+- **Ton:** klingt auf dem Retroid gut; der Test beim Nutzer mit dem Knack-Bericht steht aus.
+- **Noch bei Testern:** Zielfernrohr bei 1× (passendes Gewehr), Leistung auf dem Redmi 15C (zwei schnelle Kerne).
+- **Version 0.95.1-beta** (Wunsch des Projektinhabers): `versionName` 0.95.1-beta, `versionCode` 80 (0.95.0 hatte
+  noch 79 wie 0.94.1), Releasetext `port/android-decomp/docs/releases/v0.95.1-beta.md` (Änderungen seit 0.95.0).
+
 ## Lokale Sitzung 29.10.2026 abends: EMPTY, Balken bei „4:3“, Messer im Inventar (lokal, Branch `golden-master`)
 
 Offene Punkte 14, 17 und 18, am Windows-PC mit Debug- und EU-Discs (WSL-Baum `~/re4-kern/RE4`, i686-O2).
