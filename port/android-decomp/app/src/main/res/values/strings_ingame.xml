@@ -223,7 +223,9 @@
     <string name="ingame_map_second">%1$s + the second key …</string>
     <string name="ingame_map_hold">Hold the first key …</string>
     <string name="ingame_map_press">Press a key …</string>
-    <string name="ingame_map_keyboard">Keyboard</string>
+    <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
+    <string name="ingame_mouse_help">The mouse (Android 8 and later) belongs to the game while it runs: moving it turns the camera, while aiming it moves the aim. The app menu (F1) frees the pointer.</string>
+    <string name="ingame_mouse_sensitivity">Mouse Sensitivity</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Device</string>
 </resources>

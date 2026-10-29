@@ -94,6 +94,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the versions before, dropped
   static final String BINDINGS_CONTROLLER = "mappingController", BINDINGS_KEYBOARD = "mappingKeyboard";
   static final String OLD_KEY_MAP = "keyMap";
+  // the mouse's sensitivity (the button mapping's slider, 0.25 .. 3, 1 = as below)
+  static final String MOUSE_SENSITIVITY = "mouseSensitivity";
+  static final float MOUSE_MIN = 0.25f, MOUSE_MAX = 3f, MOUSE_STEP = 0.25f;
+  /** The aim's turn per count of the captured mouse at sensitivity 1 (about 400 counts a radian). */
+  static final float MOUSE_AIM_RADIANS = 0.0025f;
+  /** The camera's C stick per count of the captured mouse in one event at sensitivity 1. */
+  static final float MOUSE_LOOK = 0.05f;
   // the menu's comfort control "Latch L and R" (CoreTouch.setLatch, CoreInput.setLatch; off: held
   // while touched or pressed); the touch controls' only until 23.10.2026, the name stays
   static final String TOUCH_LATCH = "touchLatchLR";
@@ -266,6 +273,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.setLatchB(inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     gyroAim = new GyroAim(this, main);
     gyroAim.setSensitivity(inputPrefs.getFloat(GYRO_SENSITIVITY, 1f));
+    mouseSensitivity = clampMouse(inputPrefs.getFloat(MOUSE_SENSITIVITY, 1f));
+    // the mouse (step 2 of the button mapping, 29.10.2026): captured while the game is in front, its
+    // buttons through the keyboard's mapping, its movement the camera and, while aiming, the aim
+    if (Build.VERSION.SDK_INT >= 26) {
+      surface.setFocusable(true);
+      surface.setFocusableInTouchMode(true);
+      surface.setOnCapturedPointerListener((v, e) -> {
+        capturedMouse(e);
+        return true;
+      });
+    }
     gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
@@ -594,6 +612,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       Log.i(TAG, "menu closed");
       surface.requestFocus();
+      main.post(this::updateMouseCapture);
     });
     menu.show();
   }
@@ -741,8 +760,19 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
 
     @Override public boolean keyboardConnected() {
-      for (int id : InputDevice.getDeviceIds()) if (keyboardDevice(InputDevice.getDevice(id))) return true;
+      for (int id : InputDevice.getDeviceIds()) {
+        InputDevice d = InputDevice.getDevice(id);
+        if (keyboardDevice(d) || mouseDevice(d)) return true;
+      }
       return false;
+    }
+
+    @Override public float mouseSensitivity() { return mouseSensitivity; }
+
+    @Override public void mouseSensitivityChanged(float value) {
+      mouseSensitivity = clampMouse(value);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(MOUSE_SENSITIVITY, mouseSensitivity).apply();
+      Log.i(TAG, "mouse: sensitivity " + mouseSensitivity);
     }
   };
 
@@ -800,6 +830,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchEditing = on;
     input.clear();
     send();
+    updateMouseCapture();
     if (!menuSupported) return;
     if (on) {
       boolean paused = CoreBridge.pause(true, 800);
@@ -1279,6 +1310,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   @Override
   public boolean dispatchTouchEvent(MotionEvent e) {
+    // a mouse on the picture while the game is in front: it is captured (its clicks are no taps)
+    if (Build.VERSION.SDK_INT >= 26 && e.isFromSource(InputDevice.SOURCE_MOUSE) && mouseWanted()) {
+      if (e.getActionMasked() == MotionEvent.ACTION_DOWN) updateMouseCapture();
+      return true;
+    }
     watchTap(e);
     if (touchControls == null) return super.dispatchTouchEvent(e);
     touchControls.before(e);
@@ -1352,7 +1388,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   }
 
-  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); }
+  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); updateMouseCapture(); }
   @Override public void onInputDeviceChanged(int id) {
     input.remove(id);
     seenDevices.remove(id);
@@ -1371,6 +1407,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** Nothing held while the game is not in front (no stuck keys after a dialog or the home screen). */
   private void releaseAll() {
     input.clear();
+    mouseButtons = 0;
+    main.removeCallbacks(mouseRest);
     if (touchControls != null) touchControls.reset();
     send();
   }
@@ -1379,6 +1417,92 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   public void onWindowFocusChanged(boolean focus) {
     super.onWindowFocusChanged(focus);
     if (!focus) releaseAll();
+    else main.post(this::updateMouseCapture);
+  }
+
+  // ---- the mouse ----
+  private float mouseSensitivity = 1f;
+  private int mouseButtons;  // the captured mouse's buttons held (MotionEvent.BUTTON_*)
+  private int mouseCaptures;
+  private final Runnable mouseRest = () -> {
+    input.mouseLook(0, 0);
+    send();
+  };
+
+  static float clampMouse(float v) {
+    return Float.isNaN(v) ? 1f : Math.max(MOUSE_MIN, Math.min(MOUSE_MAX, v));
+  }
+
+  /** A real mouse is connected (not a touchpad of the screen). */
+  static boolean mouseDevice(InputDevice d) {
+    return d != null && !d.isVirtual() && (d.getSources() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE;
+  }
+
+  private boolean mouseConnected() {
+    for (int id : InputDevice.getDeviceIds()) if (mouseDevice(InputDevice.getDevice(id))) return true;
+    return false;
+  }
+
+  /** The game in front, no menu, no touch editor, a mouse there: the mouse belongs to the game. */
+  private boolean mouseWanted() {
+    return resumed && hasWindowFocus() && menu == null && !touchEditing && mouseConnected();
+  }
+
+  /** Captures the mouse (Android 8 and later) when the game wants it, lets it go when not. */
+  private void updateMouseCapture() {
+    if (Build.VERSION.SDK_INT < 26 || surface == null) return;
+    boolean want = mouseWanted();
+    if (want && !surface.hasPointerCapture()) {
+      surface.requestFocus();
+      surface.requestPointerCapture();
+      if (++mouseCaptures <= 20) Log.i(TAG, "mouse: captured (its buttons through the keyboard's mapping, F1 or the "
+          + "app menu's key frees it), sensitivity " + mouseSensitivity);
+    } else if (!want && surface.hasPointerCapture()) {
+      surface.releasePointerCapture();
+    }
+  }
+
+  /** An event of the captured mouse: its buttons as keys (ActionMap.MOUSE_*), its movement camera and aim. */
+  private void capturedMouse(MotionEvent e) {
+    int state = e.getButtonState() & 31;
+    int changed = state ^ mouseButtons;
+    mouseButtons = state;
+    for (int bit = 1; bit <= 16; bit <<= 1) {
+      if ((changed & bit) == 0) continue;
+      int code = ActionMap.mouseButton(bit);
+      boolean down = (state & bit) != 0;
+      if (input.appFunctionOf(code, true) == CoreInput.APP_MENU) {
+        select(down);
+        continue;
+      }
+      input.keyboardKey(e.getDeviceId(), code, down);
+      if (down) {
+        touchControls.controllerUsed();
+        if (controllerLog.firstKey(e.getDeviceId(), code)) {
+          Log.i(TAG, "mouse button " + CoreMenu.keyName(code) + " -> GC " + CoreInput.names(input.keyboardButton(code))
+              + (input.menu() ? " (a game menu)" : ""));
+        }
+      }
+    }
+    int action = e.getActionMasked();
+    if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
+      // relative counts, the batched ones too
+      float dx = e.getX(), dy = e.getY();
+      for (int h = 0; h < e.getHistorySize(); h++) {
+        dx += e.getHistoricalX(h);
+        dy += e.getHistoricalY(h);
+      }
+      if (dx != 0 || dy != 0) {
+        // while aiming the core turns the aim by it (and ignores it otherwise); the camera's C stick as long
+        // as the mouse moves
+        float k = MOUSE_AIM_RADIANS * mouseSensitivity;
+        CoreBridge.aimTurn(-dx * k, -dy * k);
+        input.mouseLook(dx * MOUSE_LOOK * mouseSensitivity, dy * MOUSE_LOOK * mouseSensitivity);
+        main.removeCallbacks(mouseRest);
+        main.postDelayed(mouseRest, 60);
+      }
+    }
+    send();
   }
 
   @SuppressWarnings("deprecation")

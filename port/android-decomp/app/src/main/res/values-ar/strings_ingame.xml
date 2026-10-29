@@ -217,7 +217,9 @@
     <string name="ingame_map_second">&#x200F;%1$s + الزر الثاني …</string>
     <string name="ingame_map_hold">اضغط باستمرار على الزر الأول …</string>
     <string name="ingame_map_press">اضغط زرًا …</string>
-    <string name="ingame_map_keyboard">لوحة المفاتيح</string>
+    <string name="ingame_map_keyboard">لوحة المفاتيح والفأرة</string>
+    <string name="ingame_mouse_help">الفأرة (Android 8 وما بعده) تخص اللعبة أثناء اللعب: تحريكها يدير الكاميرا، وعند التصويب يحرّك التصويب. قائمة التطبيق (F1) تحرر المؤشر.</string>
+    <string name="ingame_mouse_sensitivity">حساسية الفأرة</string>
     <string name="ingame_map_controller">وحدة التحكم</string>
     <string name="ingame_map_device">الجهاز</string>
 </resources>

@@ -34,6 +34,28 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – Ursache gefunden (Einheit 0x3F in
     `BulletInfo::move` ohne gewähltes Sprachbild), Korrektur lokal mit dem EU-Programmcode (Startprompt im Chat).
 
+## Tastenbelegung für jede Aktion – Schritt 2: Maus mit Empfindlichkeitsregler (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Wunsch des Projektinhabers:** Schritt 2 (Maus) und ein Regler für die Empfindlichkeit der Maus.
+- **Zeiger einfangen (Android 8 und neuer, `requestPointerCapture`):** Solange das Spiel läuft (kein App-Menü, kein
+  Bearbeiten der Touch-Tasten, Fenster im Vordergrund), gehört die Maus dem Spiel; der Zeiger verschwindet, die App
+  bekommt die reine Bewegung (`OnCapturedPointerListener` auf der Spielfläche). F1 (bzw. die Taste des App-Menüs)
+  gibt den Zeiger frei, nach dem Schließen fängt die App ihn wieder ein (auch nach Fensterwechsel und beim ersten
+  Klick). Protokollzeile „mouse: captured …“.
+- **Bewegung:** dreht beim Zielen das Ziel wie das Wischen (`CoreBridge.aimTurn`, 0,0025 Bogenmaß je Zählschritt mal
+  Empfindlichkeit), sonst die Kamera über den C-Stick (`CoreInput.mouseLook`, 60 ms nach der letzten Bewegung zurück
+  auf null).
+- **Tasten der Maus** (links, rechts, Mitte, Seitentasten 4 und 5) sind Tasten wie die der Tastatur und gehören zum
+  selben Gerät (`CoreInput.KEYBOARD`), also auch in Kombinationen: Standard jetzt Zielen = rechte Maustaste,
+  Feuern = rechts + links, Nachladen = rechts + R, Messer = C, Messerhieb = C + links (`ActionMap.MOUSE_*`,
+  `mouseButton`). Auf der Seite „Tastatur & Maus“ (vorher „Tastatur“) lassen sie sich wie Tasten abfragen.
+- **Regler „Mausempfindlichkeit“** auf derselben Seite: 0,25× bis 3× in Schritten von 0,25 (Standard 1×), gespeichert
+  als `mouseSensitivity`, mit Hilfetext. Texte in allen zehn Sprachen (`check_translations.py` ok, 198 Texte).
+- **Geprüft (Cloud):** `ActionMapTests` 47, `CoreInputTests` 192 (neu: Maustasten mit R aus zwei Eingabegeräten als
+  Nachladen, `mouseLook` als C-Stick), `CoreTouchTests` 296, alle Java-Quellen und `CoreMenuLayoutTest` mit javac
+  übersetzt. **Nicht getestet:** auf dem Gerät mit Maus (Einfangen, Empfindlichkeit, Freigabe mit F1);
+  `CoreMenuLayoutTest` ausgeführt (Gradle am PC). Unter Android 7 und älter bleibt die Maus ohne Einfangen.
+
 ## Tastenbelegung für jede Aktion, mit Kombinationen und Tastatur – Schritt 1 (29.10.2026, Cloud, Branch `golden-master`)
 
 - **Wunsch des Projektinhabers:** jede Aktion des Spiels selbst belegen, links die Aktion, rechts die Belegung;
@@ -69,7 +91,7 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 - **Geprüft (Cloud):** `ActionMapTests` 43, `CoreInputTests` 189, `CoreTouchTests` 296, `whole_build.sh i686`, alle
   Java-Quellen und `CoreMenuLayoutTest` (neu: `buttonMappingPutsActionsOnKeysAndCombinationsOnTwo`, Seiten in 10
   Sprachen auch für die Tastatur) mit javac übersetzt, `re4decomp_link_check`. **Nicht getestet:** `CoreMenuLayoutTest`
-  ausgeführt (Gradle am PC); auf dem Gerät mit Controller und mit einer Tastatur. **Schritt 2 offen:** Maus.
+  ausgeführt (Gradle am PC); auf dem Gerät mit Controller und mit einer Tastatur. Schritt 2 (Maus) siehe oben.
 
 ## Touch-Zielen mit der Touchfläche: Wischen statt Stick (29.10.2026, Cloud, Branch `golden-master`)
 

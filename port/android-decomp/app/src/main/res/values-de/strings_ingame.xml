@@ -208,7 +208,9 @@
     <string name="ingame_map_second">%1$s + zweite Taste …</string>
     <string name="ingame_map_hold">Erste Taste halten …</string>
     <string name="ingame_map_press">Taste drücken …</string>
-    <string name="ingame_map_keyboard">Tastatur</string>
+    <string name="ingame_map_keyboard">Tastatur &amp; Maus</string>
+    <string name="ingame_mouse_help">Die Maus (ab Android 8) gehört im laufenden Spiel dem Spiel: Bewegen dreht die Kamera, beim Zielen bewegt sie das Ziel. Das App-Menü (F1) gibt den Mauszeiger frei.</string>
+    <string name="ingame_mouse_sensitivity">Maus-Empfindlichkeit</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Gerät</string>
 </resources>

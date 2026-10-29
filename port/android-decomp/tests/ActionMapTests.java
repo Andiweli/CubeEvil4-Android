@@ -73,7 +73,8 @@ public final class ActionMapTests {
     check(ActionMap.decode(ActionMap.KIND_CONTROLLER, "0=51").isDefault());   // a move on the controller
     check(ActionMap.decode(ActionMap.KIND_CONTROLLER, "x").isDefault());
 
-    // the keyboard: WASD as the stick, E action, Shift run, Space aim, Space+F fire, C knife, C+F slash
+    // the keyboard with the mouse: WASD as the stick, E acts, Shift runs, the right button aims, right + left
+    // fire, right + R reload, C knife, C + left slash
     ActionMap k = ActionMap.defaults(ActionMap.KIND_KEYBOARD);
     float[] st = k.stick(code -> code == ActionMap.KEY_W);
     check(st[0] == 0 && st[1] == -1);
@@ -81,17 +82,25 @@ public final class ActionMapTests {
     check(Math.abs(st[0] - 0.7071f) < 1e-3f && Math.abs(st[1] - 0.7071f) < 1e-3f);
     check(k.stick(code -> code == ActionMap.KEY_A || code == ActionMap.KEY_D)[0] == 0);
     check(press(k, ActionMap.KEY_E) == CoreInput.GC_A && press(k, ActionMap.KEY_SHIFT_LEFT) == CoreInput.GC_B);
-    check(press(k, ActionMap.KEY_F) == 0);  // fire's key alone: nothing
-    check(press(k, ActionMap.KEY_SPACE, ActionMap.KEY_F) == (CoreInput.GC_R | CoreInput.GC_A));
-    check(press(k, ActionMap.KEY_C, ActionMap.KEY_F) == (CoreInput.GC_L | CoreInput.GC_A));
-    check(press(k, ActionMap.KEY_SPACE, ActionMap.KEY_R) == (CoreInput.GC_R | CoreInput.GC_B));
+    check(press(k, ActionMap.MOUSE_LEFT) == 0);  // fire's button alone: nothing
+    check(press(k, ActionMap.MOUSE_RIGHT) == CoreInput.GC_R);
+    check(press(k, ActionMap.MOUSE_RIGHT, ActionMap.MOUSE_LEFT) == (CoreInput.GC_R | CoreInput.GC_A));
+    check(press(k, ActionMap.KEY_C, ActionMap.MOUSE_LEFT) == (CoreInput.GC_L | CoreInput.GC_A));
+    check(press(k, ActionMap.MOUSE_RIGHT, ActionMap.KEY_R) == (CoreInput.GC_R | CoreInput.GC_B));
     check(press(k, ActionMap.KEY_ESCAPE) == CoreInput.GC_START && k.singleOn(ActionMap.KEY_F1) == ActionMap.APP_MENU);
+    // the mouse's buttons by Android's bits; a side button takes an action like a key
+    check(ActionMap.mouseButton(1) == ActionMap.MOUSE_LEFT && ActionMap.mouseButton(2) == ActionMap.MOUSE_RIGHT
+        && ActionMap.mouseButton(4) == ActionMap.MOUSE_MIDDLE && ActionMap.mouseButton(16) == ActionMap.MOUSE_FORWARD
+        && ActionMap.mouseButton(32) == 0);
+    ActionMap side = k.assign(ActionMap.ASHLEY, new int[] {ActionMap.MOUSE_BACK});
+    check(press(side, ActionMap.MOUSE_BACK) == CoreInput.GC_X && press(side, ActionMap.KEY_Q) == 0);
+    check(ActionMap.decode(ActionMap.KIND_KEYBOARD, side.encode()).equals(side));
     // the fixed keys: arrows, Enter, Backspace are not mapped
     check(ActionMap.fixedKeyboardButton(CoreInput.KEYCODE_DPAD_UP) == CoreInput.GC_UP
         && ActionMap.fixedKeyboardButton(ActionMap.KEY_ENTER) == CoreInput.GC_A
         && ActionMap.fixedKeyboardButton(ActionMap.KEY_DEL) == CoreInput.GC_B);
     check(k.assign(ActionMap.ACTION, new int[] {ActionMap.KEY_ENTER}) == null);
-    check(k.assign(ActionMap.FIRE, new int[] {ActionMap.KEY_SPACE, CoreInput.KEYCODE_DPAD_UP}) == null);
+    check(k.assign(ActionMap.FIRE, new int[] {ActionMap.MOUSE_RIGHT, CoreInput.KEYCODE_DPAD_UP}) == null);
     // moving with I J K L: W goes to the old place of forward's new key (none had I)
     ActionMap kk = k.assign(ActionMap.MOVE_FORWARD, new int[] {37});
     check(kk.stick(code -> code == 37)[1] == -1 && kk.stick(code -> code == ActionMap.KEY_W)[1] == 0);

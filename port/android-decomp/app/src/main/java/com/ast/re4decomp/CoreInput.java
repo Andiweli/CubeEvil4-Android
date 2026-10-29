@@ -312,12 +312,33 @@ public final class CoreInput {
     return keyLayout(d, keyCode, down);
   }
 
-  /** A key of a keyboard; true when the game takes it (its mapping, the default for the menus, the fixed keys). */
+  /**
+   * The keyboards and the mouse: one device for the game (KEYBOARD), so a combination may take a key and a
+   * mouse button (right button + R reloads).
+   */
+  static final int KEYBOARD = -3;
+
+  /**
+   * A key of a keyboard or a mouse button (ActionMap.MOUSE_*); true when the game takes it (its mapping,
+   * the default for the menus, the fixed keys). `device`: Android's, for the log only.
+   */
   public boolean keyboardKey(int device, int keyCode, boolean down) {
-    Device d = device(device);
+    Device d = device(KEYBOARD);
     d.keyboard = true;
     if (down) d.held.add(keyCode); else d.held.remove(keyCode);
     return keyboardMap.uses(keyCode) || KEYBOARD_DEFAULT.uses(keyCode) || ActionMap.fixedKeyboardButton(keyCode) != 0;
+  }
+
+  /**
+   * The mouse moving (captured, CoreActivity): the C stick of the keyboard and mouse, -1..1 with y down
+   * (the camera; while aiming the core turns the aim by the movement instead, CoreBridge.aimTurn); 0, 0:
+   * the mouse rests.
+   */
+  public void mouseLook(float x, float y) {
+    Device d = device(KEYBOARD);
+    d.keyboard = true;
+    d.rx = clamp(x, -1, 1);
+    d.ry = clamp(y, -1, 1);
   }
 
   /** A key as its label: with "swap A/B and X/Y" the controller's A sends B's code and so on. */
@@ -498,7 +519,8 @@ public final class CoreInput {
           float[] st = mapping(true).stick(dev.held::contains);
           mainX = st[0];
           mainY = st[1];
-          cX = cY = 0;
+          cX = d.rx;  // the mouse (mouseLook)
+          cY = d.ry;
         }
         if (mainX * mainX + mainY * mainY > lx * lx + ly * ly) {
           lx = mainX;

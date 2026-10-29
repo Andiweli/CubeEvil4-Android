@@ -84,7 +84,8 @@ public class CoreMenuLayoutTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class},
         // gameLanguages: the home page with the European discs' "Game language" too
-        (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE : null);
+        (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE
+            : method.getReturnType() == float.class ? (Object) 1f : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
     for (String language : languages) for (float scale : new float[] {1f, 1.5f, 2f}) {
@@ -154,7 +155,8 @@ public class CoreMenuLayoutTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("graphicsChanged")) changed[0]++;
-          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -249,7 +251,8 @@ public class CoreMenuLayoutTest {
             case "faceLabel": return args[0];
             case "controllerConnected": return controller[0];
             case "keyboardConnected": return keyboard[0];
-            default: return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+            default: return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
           }
         });
     try (var controllerActivity = Robolectric.buildActivity(Activity.class).create()) {
@@ -269,7 +272,7 @@ public class CoreMenuLayoutTest {
       Button[] keys = (Button[]) field(menu, "bindingButtons");
       assertEquals("the keyboard's page first without a controller", ActionMap.KIND_KEYBOARD, (int) (Integer) field(menu, "mapKind"));
       assertNotNull("the keyboard moves with keys", keys[ActionMap.MOVE_FORWARD]);
-      assertTrue(keys[ActionMap.FIRE].getText().toString().startsWith("Space + F"));
+      assertTrue(keys[ActionMap.FIRE].getText().toString().startsWith("Mouse R + Mouse L"));
       // the controller's page: no move keys (its stick), fire is R2 + A
       java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
       kind.setInt(menu, ActionMap.KIND_CONTROLLER);
@@ -340,7 +343,8 @@ public class CoreMenuLayoutTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
-          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();

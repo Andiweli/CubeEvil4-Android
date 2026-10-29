@@ -208,7 +208,9 @@
     <string name="ingame_map_second">%1$s + 第二个键 …</string>
     <string name="ingame_map_hold">按住第一个键 …</string>
     <string name="ingame_map_press">请按一个键 …</string>
-    <string name="ingame_map_keyboard">键盘</string>
+    <string name="ingame_map_keyboard">键盘和鼠标</string>
+    <string name="ingame_mouse_help">游戏运行时鼠标（Android 8 及以上）归游戏使用：移动鼠标转动镜头，瞄准时移动准星。应用菜单（F1）会释放鼠标指针。</string>
+    <string name="ingame_mouse_sensitivity">鼠标灵敏度</string>
     <string name="ingame_map_controller">手柄</string>
     <string name="ingame_map_device">设备</string>
 </resources>

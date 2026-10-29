@@ -328,8 +328,9 @@ public final class CoreInputTests {
     {
       // the button mapping (29.10.2026, ActionMap): a controller with its own mapping, the game's menus with
       // the default, the alternate controls with theirs; the keyboard
-      final int keyE = 33, keyF = 34, keyW = 51, keyD = 32, keySpace = 62, keyShift = 59, keyEsc = 111, keyF1 = 131,
-          keyEnter = 66, keyDel = 67;
+      final int keyE = 33, keyF = 0x10001 /* the left mouse button */, keyW = 51, keyD = 32,
+          keySpace = 0x10002 /* the right one */, keyShift = 59, keyEsc = 111, keyF1 = 131, keyEnter = 66, keyDel = 67,
+          keyR = 46;
       com.ast.re4decomp.ActionMap own = com.ast.re4decomp.ActionMap.defaults(com.ast.re4decomp.ActionMap.KIND_CONTROLLER)
           .assign(com.ast.re4decomp.ActionMap.FIRE, new int[] {L2, R2})
           .assign(com.ast.re4decomp.ActionMap.RUN, new int[] {L1});
@@ -404,7 +405,8 @@ public final class CoreInputTests {
       k.setAlternate(false);
       k.clear();
 
-      // the keyboard: WASD the stick, E acts, Shift runs, Space aims, Space+F fires, Esc options, F1 the app
+      // the keyboard and the mouse: WASD the stick, E acts, Shift runs, the right button aims, right + left
+      // fire (a keyboard and the mouse are one device: right + R reloads), Esc options, F1 the app
       CoreInput kb = new CoreInput();
       check(kb.keyboardKey(5, keyW, true));
       q = kb.pad();
@@ -424,7 +426,16 @@ public final class CoreInputTests {
       q = kb.pad();
       check(q[6] == 255 && (q[0] & CoreInput.GC_A) != 0);
       kb.keyboardKey(5, keyF, false);
+      kb.keyboardKey(7, keyR, true);  // R on another device (the keyboard), the right button held on the mouse
+      q = kb.pad();
+      check(q[6] == 255 && (q[0] & CoreInput.GC_B) != 0);
+      kb.keyboardKey(7, keyR, false);
       kb.keyboardKey(5, keySpace, false);
+      // the mouse moving: the C stick (the camera)
+      kb.mouseLook(1f, 0);
+      check(kb.pad()[3] > 80);
+      kb.mouseLook(0, 0);
+      check(kb.pad()[3] == 0);
       kb.keyboardKey(5, keyShift, true);
       check(kb.pad()[0] == CoreInput.GC_B);
       kb.keyboardKey(5, keyShift, false);

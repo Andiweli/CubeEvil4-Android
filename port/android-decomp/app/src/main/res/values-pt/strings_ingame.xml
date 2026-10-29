@@ -210,7 +210,9 @@
     <string name="ingame_map_second">%1$s + a segunda tecla …</string>
     <string name="ingame_map_hold">Segure a primeira tecla …</string>
     <string name="ingame_map_press">Pressione uma tecla …</string>
-    <string name="ingame_map_keyboard">Teclado</string>
+    <string name="ingame_map_keyboard">Teclado e mouse</string>
+    <string name="ingame_mouse_help">O mouse (Android 8 ou mais recente) pertence ao jogo enquanto você joga: movê-lo gira a câmera, ao mirar ele move a mira. O menu do app (F1) libera o ponteiro.</string>
+    <string name="ingame_mouse_sensitivity">Sensibilidade do mouse</string>
     <string name="ingame_map_controller">Controle</string>
     <string name="ingame_map_device">Dispositivo</string>
 </resources>

@@ -208,7 +208,9 @@
     <string name="ingame_map_second">%1$s + दूसरी कुंजी …</string>
     <string name="ingame_map_hold">पहली कुंजी पकड़े रखें …</string>
     <string name="ingame_map_press">एक कुंजी दबाएँ …</string>
-    <string name="ingame_map_keyboard">कीबोर्ड</string>
+    <string name="ingame_map_keyboard">कीबोर्ड और माउस</string>
+    <string name="ingame_mouse_help">गेम चलते समय माउस (Android 8 और नया) गेम का होता है: हिलाने से कैमरा घूमता है, निशाना लगाते समय निशाना चलता है। ऐप मेनू (F1) पॉइंटर छोड़ देता है।</string>
+    <string name="ingame_mouse_sensitivity">माउस संवेदनशीलता</string>
     <string name="ingame_map_controller">कंट्रोलर</string>
     <string name="ingame_map_device">डिवाइस</string>
 </resources>

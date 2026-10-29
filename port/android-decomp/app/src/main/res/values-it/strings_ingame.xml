@@ -209,7 +209,9 @@
     <string name="ingame_map_second">%1$s + il secondo tasto …</string>
     <string name="ingame_map_hold">Tieni il primo tasto …</string>
     <string name="ingame_map_press">Premi un tasto …</string>
-    <string name="ingame_map_keyboard">Tastiera</string>
+    <string name="ingame_map_keyboard">Tastiera e mouse</string>
+    <string name="ingame_mouse_help">Il mouse (Android 8 e successivi) appartiene al gioco mentre giochi: muoverlo ruota la telecamera, mirando muove la mira. Il menu dell’app (F1) libera il puntatore.</string>
+    <string name="ingame_mouse_sensitivity">Sensibilità del mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Dispositivo</string>
 </resources>

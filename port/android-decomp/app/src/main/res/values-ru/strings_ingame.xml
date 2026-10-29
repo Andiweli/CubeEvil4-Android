@@ -210,7 +210,9 @@
     <string name="ingame_map_second">%1$s + вторая кнопка …</string>
     <string name="ingame_map_hold">Держите первую кнопку …</string>
     <string name="ingame_map_press">Нажмите кнопку …</string>
-    <string name="ingame_map_keyboard">Клавиатура</string>
+    <string name="ingame_map_keyboard">Клавиатура и мышь</string>
+    <string name="ingame_mouse_help">Мышь (Android 8 и новее) принадлежит игре во время игры: движение поворачивает камеру, при прицеливании двигает прицел. Меню приложения (F1) освобождает указатель.</string>
+    <string name="ingame_mouse_sensitivity">Чувствительность мыши</string>
     <string name="ingame_map_controller">Контроллер</string>
     <string name="ingame_map_device">Устройство</string>
 </resources>

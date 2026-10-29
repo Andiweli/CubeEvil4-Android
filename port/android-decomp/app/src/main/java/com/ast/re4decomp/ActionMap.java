@@ -35,6 +35,24 @@ public final class ActionMap {
   static final int KEY_A = 29, KEY_C = 31, KEY_D = 32, KEY_E = 33, KEY_F = 34, KEY_M = 41, KEY_Q = 45, KEY_R = 46,
       KEY_S = 47, KEY_W = 51, KEY_SHIFT_LEFT = 59, KEY_SPACE = 62, KEY_ENTER = 66, KEY_DEL = 67, KEY_TAB = 61,
       KEY_ESCAPE = 111, KEY_F1 = 131, KEY_NUMPAD_ENTER = 160;
+  /**
+   * The mouse's buttons as keys of the keyboard's mapping (step 2, 29.10.2026): codes above Android's key
+   * codes (left, right, middle, back = 4, forward = 5).
+   */
+  public static final int MOUSE_LEFT = 0x10001, MOUSE_RIGHT = 0x10002, MOUSE_MIDDLE = 0x10003, MOUSE_BACK = 0x10004,
+      MOUSE_FORWARD = 0x10005;
+
+  /** The mouse button of Android's MotionEvent.BUTTON_* bit (primary 1, secondary 2, tertiary 4, back 8, forward 16), 0 for none. */
+  public static int mouseButton(int buttonBit) {
+    switch (buttonBit) {
+      case 1: return MOUSE_LEFT;
+      case 2: return MOUSE_RIGHT;
+      case 4: return MOUSE_MIDDLE;
+      case 8: return MOUSE_BACK;
+      case 16: return MOUSE_FORWARD;
+      default: return 0;
+    }
+  }
 
   /**
    * The keyboard's keys for the game's menus and dialogs, at all times and not to be mapped: the arrows
@@ -71,8 +89,9 @@ public final class ActionMap {
   /**
    * The default of `kind`. The controller's is its layout without a mapping (CoreInput): A action, B run,
    * R2 aim, R2+A fire, R2+B reload, L2 knife, L2+A slash, X Ashley, Y inventory, R1 map, START options,
-   * SELECT the app's menu. The keyboard's: WASD move, E action, left Shift run, Space aim, Space+F fire,
-   * Space+R reload, C knife, C+F slash, Q Ashley, Tab inventory, M map, Esc options, F1 the app's menu.
+   * SELECT the app's menu. The keyboard's with the mouse: WASD move, E action, left Shift run, the right
+   * mouse button aims, right + left fire, right + R reload, C knife, C + left slash, Q Ashley, Tab
+   * inventory, M map, Esc options, F1 the app's menu.
    */
   public static ActionMap defaults(int kind) {
     ActionMap m = new ActionMap(kind);
@@ -98,11 +117,11 @@ public final class ActionMap {
       m.keys[MOVE_RIGHT] = new int[] {KEY_D};
       m.keys[ACTION] = new int[] {KEY_E};
       m.keys[RUN] = new int[] {KEY_SHIFT_LEFT};
-      m.keys[AIM] = new int[] {KEY_SPACE};
-      m.keys[FIRE] = new int[] {KEY_SPACE, KEY_F};
-      m.keys[RELOAD] = new int[] {KEY_SPACE, KEY_R};
+      m.keys[AIM] = new int[] {MOUSE_RIGHT};
+      m.keys[FIRE] = new int[] {MOUSE_RIGHT, MOUSE_LEFT};
+      m.keys[RELOAD] = new int[] {MOUSE_RIGHT, KEY_R};
       m.keys[KNIFE] = new int[] {KEY_C};
-      m.keys[SLASH] = new int[] {KEY_C, KEY_F};
+      m.keys[SLASH] = new int[] {KEY_C, MOUSE_LEFT};
       m.keys[ASHLEY] = new int[] {KEY_Q};
       m.keys[INVENTORY] = new int[] {KEY_TAB};
       m.keys[MAP] = new int[] {KEY_M};

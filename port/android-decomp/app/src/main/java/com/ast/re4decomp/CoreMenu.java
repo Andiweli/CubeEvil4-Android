@@ -64,8 +64,12 @@ final class CoreMenu extends Dialog {
     int faceLabel(int keyCode);
     /** A physical game controller is connected (the button mapping can be used). */
     boolean controllerConnected();
-    /** A keyboard is connected (the button mapping can be used). */
+    /** A keyboard or a mouse is connected (the button mapping can be used). */
     boolean keyboardConnected();
+    /** The mouse's sensitivity (CoreActivity.MOUSE_MIN .. MOUSE_MAX). */
+    float mouseSensitivity();
+    /** The mouse's sensitivity slider (the preferences hold it). */
+    void mouseSensitivityChanged(float value);
     /** The comfort control "Latch L and R", touch and controller (the preferences hold it). */
     void latchChanged(boolean on);
     /** The comfort control "Latch B", touch and controller (the preferences hold it). */
@@ -564,6 +568,11 @@ final class CoreMenu extends Dialog {
   static String keyName(int keyCode) {
     switch (keyCode) {
       case 0: return "—";  // no key
+      case ActionMap.MOUSE_LEFT: return "Mouse L";
+      case ActionMap.MOUSE_RIGHT: return "Mouse R";
+      case ActionMap.MOUSE_MIDDLE: return "Mouse M";
+      case ActionMap.MOUSE_BACK: return "Mouse 4";
+      case ActionMap.MOUSE_FORWARD: return "Mouse 5";
       case KeyEvent.KEYCODE_SPACE: return "Space";
       case KeyEvent.KEYCODE_SHIFT_LEFT: return "Shift (L)";
       case KeyEvent.KEYCODE_SHIFT_RIGHT: return "Shift (R)";
@@ -620,6 +629,7 @@ final class CoreMenu extends Dialog {
         });
     if (!keyboard && input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
     help(keyboard ? R.string.ingame_map_fixed_keyboard : R.string.ingame_map_fixed_controller);
+    if (keyboard) mouseSlider();
     ActionMap def = ActionMap.defaults(mapKind), m = host == null ? null : host.mapping(mapKind);
     if (m == null) m = def;
     bindingButtons = new Button[ActionMap.ACTIONS];
@@ -648,6 +658,36 @@ final class CoreMenu extends Dialog {
       host.mappingChanged(ActionMap.defaults(mapKind)); showPage(CONTROLLER, false);
     });
     help(R.string.ingame_controller_help);
+  }
+
+  /** The mouse's sensitivity (wish of the project owner, 29.10.2026), as the gyro's slider. */
+  private void mouseSlider() {
+    float min = CoreActivity.MOUSE_MIN, step = CoreActivity.MOUSE_STEP;
+    LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
+    line.addView(rowLabel(s(R.string.ingame_mouse_sensitivity)));
+    LinearLayout slider = row();
+    SeekBar bar = new SeekBar(getContext());
+    TextView value = text("", 15, false);
+    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
+    slider.addView(value);
+    line.addView(slider);
+    float now = host == null ? 1f : host.mouseSensitivity();
+    bar.setMax(Math.round((CoreActivity.MOUSE_MAX - min) / step));
+    bar.setProgress(Math.round((now - min) / step));
+    bar.setContentDescription(s(R.string.ingame_mouse_sensitivity));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    value.setText(times(now));
+    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
+        float v = min + progress * step;
+        value.setText(times(v));
+        if (fromUser && host != null) host.mouseSensitivityChanged(v);
+      }
+      @Override public void onStartTrackingTouch(SeekBar b) {}
+      @Override public void onStopTrackingTouch(SeekBar b) {}
+    });
+    line.setPadding(0, dp(3), 0, dp(3)); body.addView(line);
+    help(R.string.ingame_mouse_help);
   }
 
   /** Waits for the key of `action` (a second press on its button: no change); after 8 s it gives up. */
@@ -729,6 +769,33 @@ final class CoreMenu extends Dialog {
   private void showMapStatus(String text) {
     if (mapStatus == null) return;
     mapStatus.setText(text); mapStatus.setVisibility(View.VISIBLE);
+  }
+
+  /**
+   * While waiting for a key of the keyboard and mouse: a mouse button pressed is that key (the pointer is
+   * free in the menu; the click that started the wait has ended).
+   */
+  private boolean captureMouse(MotionEvent e) {
+    if (captureAction < 0 || mapKind != ActionMap.KIND_KEYBOARD || !e.isFromSource(InputDevice.SOURCE_MOUSE)) return false;
+    int bit = 0;
+    if (e.getActionMasked() == MotionEvent.ACTION_BUTTON_PRESS && android.os.Build.VERSION.SDK_INT >= 23) {
+      bit = e.getActionButton();
+    } else if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+      bit = Integer.lowestOneBit(e.getButtonState());
+    }
+    int code = ActionMap.mouseButton(bit);
+    if (code != 0) captured(code);
+    return true;  // nothing else of the mouse while waiting
+  }
+
+  @Override public boolean dispatchTouchEvent(MotionEvent e) {
+    if (captureMouse(e)) return true;
+    return super.dispatchTouchEvent(e);
+  }
+
+  @Override public boolean dispatchGenericMotionEvent(MotionEvent e) {
+    if (captureMouse(e)) return true;
+    return super.dispatchGenericMotionEvent(e);
   }
 
   /** While waiting for a controller's key: an analog trigger past half way is L2 or R2. */

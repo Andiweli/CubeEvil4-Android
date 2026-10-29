@@ -211,7 +211,9 @@
     <string name="ingame_map_second">%1$s + la seconde touche …</string>
     <string name="ingame_map_hold">Maintenez la première touche …</string>
     <string name="ingame_map_press">Appuyez sur une touche …</string>
-    <string name="ingame_map_keyboard">Clavier</string>
+    <string name="ingame_map_keyboard">Clavier et souris</string>
+    <string name="ingame_mouse_help">La souris (Android 8 et plus) appartient au jeu pendant la partie : la déplacer tourne la caméra, en visant elle déplace la visée. Le menu de l’app (F1) libère le pointeur.</string>
+    <string name="ingame_mouse_sensitivity">Sensibilité de la souris</string>
     <string name="ingame_map_controller">Manette</string>
     <string name="ingame_map_device">Appareil</string>
 </resources>
