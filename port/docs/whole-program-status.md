@@ -75,6 +75,49 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     EU-Fassung lädt ohne Jacke (Kostüm 1–3) Teil 0x10 dazu (Messer in der Scheide am Brustgurt), wie das Spiel; in
     den Posen des Inventars liegt es fast ganz hinter Arm und Waffe (am PC gesehen). Auf dem Retroid bestätigt
     (Projektinhaber, 29.10.2026: Messer in der Brusttasche).
+19. **r214 vor dem Uhrturm versperrt (EU-Discs)** – behoben (Patch 0145), am PC geprüft; **Gerätetest offen**.
+20. **FPS-Einbrüche Moto e13** und **Ruckler beim Schießen / in Speicherräumen** – Befund und Programmliste ergänzt
+    (Abschnitt „Berichte für 0.95.2“); Vorschlag zum Vorladen offen.
+21. **Ashley durch Rüstungsstatuen (r20e)** – EU-Abschaltung ergänzt (Patch 0145); mit Debug-Discs Stand der
+    Prototyp-Daten. Disc-Art des Nutzers offen.
+22. **Japanische und koreanische Discs** – analysiert (`retail-jp-plan.md`), Umsetzung J0–J7 offen.
+
+## Berichte für 0.95.2 und Japan/Korea (29.10.2026 spätabends, lokal, Branch `golden-master`)
+
+- **r214 „Uhrturm“ versperrt (EU-Discs, Bildschirmfoto eines Nutzers):** gleicher Fehlertyp wie r20b. Die EU-Daten
+  von r214 (Wehrgang mit den Katapulten vor dem Uhrturm) haben zwei Stellungen des Wegs: Modellgruppen 0x2B–0x31,
+  Kollisionswände 0x17/0x18/0x19 (Typ 0xB), einen Hebel (Bereich 0x1B) und eine zweite Meldung für Bereich 7. Der
+  EU-Code (`st2_2.rel` `R214Init` 0xa300) setzt über Easy Stellung 0 (0xac80 mit 0): Wand 0x18 aus, 0x17/0x19 an,
+  0x2C/0x2F/0x30 aus, Bereich 0x1B aus; auf Easy überspringt ein Hebel die Katapulte (etwa 10 KB neuer Code am
+  Anfang von `st2_2.rel`, nicht übernommen – Easy spielt hier wie in den anderen Räumen den Normal-Weg). Im Port stand
+  alles wie in den Daten: alle Wände an. Wand 0x18 liegt quer über dem Fuß der Treppe (x −24087…−19117, z ≈ −15000).
+  Gefunden über Raumarchiv-Vergleich (AEV-Einträge aller st2-Räume Debug gegen EU), `RE4_TRACE_AT`, die Relokationen
+  der Module und eine Namenszuordnung EU→Debug über gleiche Funktionen aller REL-Module (189 Adressen).
+  **Patch 0145** (`r214.cpp`, nur EU-Discs, außer in Part 2 wie der EU-Code). Geprüft (PC, i686, Debug-Start r214):
+  Wand 0x18 und Bereich 0x1B aus; Leon läuft mit dem Stick von (−21600 5 −12500) die Treppe hinauf bis
+  (−21776 5206 −24000), mit EU- und Debug-Discs gleich. Gerät offen.
+- **Ashley läuft durch die Rüstungsstatuen (r20e, Nutzermeldung ohne Protokoll):** die EU-Daten geben den vier
+  Statuen Kollisionswände (Bereiche 0x13–0x16), die Debug-Daten nicht – mit Debug-Discs ist das also der Stand der
+  Prototyp-Daten (nicht ohne erfundene Wände zu beheben). Der EU-Code schaltet die Wände in `r20e_startArmor`
+  (`st2_1.rel` 0x1a814) ab, wenn die Ritter erwachen; das fehlte im Port (die Wände wären danach stehen geblieben).
+  Ebenfalls in **Patch 0145**. Geprüft: die vier Wände mit EU-Daten beim Raumstart an; das Erwachen der Ritter nicht
+  im Spiel geprüft. **Offen:** mit welchen Discs der Nutzer spielte.
+- **FPS-Einbrüche (Moto e13, Unisoc T606, Mali-G57, Debug-Discs, 0.95.0):** im Protokoll hält der Kern 30 Bilder/s
+  (14–20 ms von 33 frei), der Zeichen-Thread braucht 8–15 ms, gezeigt werden 57–60/s, ein Bild ausgelassen. Nach dem
+  Laden des Spielstands lädt die App etwa 1,5 Minuten lang 9 135 Shader-Programme aus dem Cache vor (21,7 s Arbeit,
+  je Bildwechsel 4 ms, `GxRenderer::Prewarm`); in dieser Zeit 11–16 ms je Bild mit Spitzen bis 75 ms und 56–58
+  gezeigte Bilder/s, danach 8–11 ms und 60/s. Ein Bild mit 140 ms beim Schießen in r205 fällt mit dem einzigen live
+  gebauten Programm zusammen (nicht in der Liste). GPU-Zeit auf dem Gerät nicht gemessen.
+- **Ruckler beim Schießen, Einbrüche in Speicherräumen (Nutzermeldung ohne Protokoll):** passt zu beiden Befunden
+  oben – neue Effekt-Shader werden beim ersten Schuss gebaut, und nach dem Laden (man startet im Speicherraum) läuft das
+  Vorladen der Programme. Die Tiefenabfrage für Leuchteffekte wartet nicht (PBO und Fence). **Maßnahme:** die
+  168 neuen Programme des Moto-Berichts in die Liste der App übernommen (`gx-programs.keys`, jetzt 9 174;
+  `gx_program_list.py merge`). **Vorschlag (nicht umgesetzt, Entscheidung offen):** das Vorladen auf schwachen
+  Geräten anders verteilen (z. B. nur Programme des Raums zuerst). Für eine Messung: Fehlerbericht direkt nach einem
+  Ruckler.
+- **Japan und Korea:** Analyse in `port/docs/retail-jp-plan.md` (Kennung `G4BJ08`, Aufbau wie EU/US, Korea = Japan
+  mit übersetzten Texten/Schriften und zwei entzensierten Stellen im Code). Plan J0–J7; J0 (Übernahme von `retail-us`
+  als Grundlage) ist eine Entscheidung des Projektinhabers. Noch nichts eingebaut.
 
 ## Gerätetest `golden-master` und Version 0.95.1-beta (29.10.2026 abends, lokal, Branch `golden-master`)
 
