@@ -22,7 +22,7 @@
  
 -    if (pSys->eff_country == 0) {
 +    /* port: the Korean translation of the Japanese discs takes the US release's way here (its main.dol
-+       loads 1 instead of the country, patch 0146) */
++       loads 1 instead of the country, patch 0147) */
 +    if (pSys->eff_country == 0 && !re4_disc_retail_kr()) {
          PlSetDamageSe(0xD);
          EstSet(pPL, -1, 0, 0, EFF_EM10, 0x57, 0, ESP_CORE_KIND_NONE, pPL, 0);
@@ -42,7 +42,7 @@
      pG->pl_life = 0;
      PlSetDamage(PL_DM_FRONT, 0, 0);
      region = pSys->eff_country;
-+    /* port: the Korean translation takes the US release's way (patch 0146) */
++    /* port: the Korean translation takes the US release's way (patch 0147) */
 +    if (re4_disc_retail_kr()) {
 +        region = 1;
 +    }

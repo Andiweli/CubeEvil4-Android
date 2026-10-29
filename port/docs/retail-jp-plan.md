@@ -88,4 +88,4 @@ ohne Adressanteile):
 Auf Easy lädt der EU-Code Kartenobjekte aus `SS/Esy`, das die JP-Discs nicht haben; Japan bietet kein Easy an
 (Titelmenü), die Klasse bleibt „über Easy“.
 
-**J5 Korea.** Patch 0146: `emWepPlHeadLost`/`obj16PlHeadLost` gehen mit den koreanischen Discs den US-Weg.
+**J5 Korea.** Patch 0147: `emWepPlHeadLost`/`obj16PlHeadLost` gehen mit den koreanischen Discs den US-Weg.
