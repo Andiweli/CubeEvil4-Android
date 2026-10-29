@@ -87,6 +87,8 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     „a bug of the prototype“. **Zweiter Bericht (0.95.1, Debug-Discs, 29.10.2026 17:23) bestätigt:** Magazin bis Stufe
     6, Feuerkraft 1→6 und dann das Exklusiv-Tuning als Feuerkraft-Stufe 7 („levels 7/1/3/6“, 200000 Pesetas); das
     Magazin bleibt auf Stufe 6, also nicht unendlich.
+    **Behoben (Patch 0146, Fehler des Prototyps, beide Disc-Arten; Abschnitt „Handcannon und Schuss-Ton“).** Am PC
+    geprüft; **Gerätetest und Händler-Bildschirm im Bild offen**.
 20. **Ton beim Schuss stottert einmal** (Nutzerbericht 30.10.2026, Infinix X6711, 0.95.1-beta, Debug-Discs, Pistole
     in r20a): Abschuss, kurze Pause, Rest des Schusses. Im Bericht keine Aussetzer beim Schießen (`ran dry` nur beim
     Raumwechsel), Kompressor nie aktiv, DSP weit unter Budget, 30 Bilder/s gleichmäßig: die Lücke liegt im Mischen
@@ -100,6 +102,31 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
 23. **Ashley durch Rüstungsstatuen (r20e)** – EU-Abschaltung ergänzt (Patch 0145); mit Debug-Discs Stand der
     Prototyp-Daten. Disc-Art des Nutzers offen.
 24. **Japanische und koreanische Discs** – analysiert (`retail-jp-plan.md`), Umsetzung J0–J7 offen.
+
+## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
+
+- **Handcannon (Punkt 19), gelesen in der EU-`main.dol` und im EU-`Sscrn.rel` (`retail_code.py`):**
+  - `WeaponLevelTbl` Zeile 0x0F (0x8020846c): {30, 35, 40, 45, 50, 60, 99.9} statt des Platzhalters 100.0 (Händler
+    „30.0“ … „60.0“, Exklusiv „99.9“; der Schaden war bisher 100-mal der Klassenwert, jetzt 30- bis 99,9-mal).
+  - `wep_info` 0x34 und 0x37 (0x801e3a9c): Magazin-Stufe 7 = **0x8000** (Prototyp 0xFFFF, durch den u8-Cast in
+    `WeaponId2ChargeNum` 255 Schuss, und nichts prüfte darauf); `WeaponId2ChargeNum` gibt den u16-Wert zurück.
+  - `level_ext_sw500` (0x801f87c8): {0x37, {7, 1, 3, **7**}}: das Exklusiv-Tuning hebt Feuerkraft **und** Magazin auf 7.
+  - 0x8000 = unendlich: `trigger` verbraucht nichts, `reloadable` antwortet 1, `reload` lädt nichts,
+    `bulletNum(cItem*)` zählt 1 (nur 0x37/0x34); Anzeige mit Ziffer 13 in HUD (`BulletInfo::move`, auch für den
+    unendlichen Raketenwerfer 0x6D), Koffer (Stückzahl, auch 0x6D), `numDisp`, Untersuchen und Händler
+    (`levelItemDisp`, `weaponLevelDisp`). Ziffer 13 ist auf beiden Disc-Arten „---“ (am PC im Bild gesehen).
+  - Nicht übernommen (Balance des fertigen Spiels, kein Fehler): `WeaponLevelTbl` Zeilen 3, 4, 9, 0x11 und 0x2C
+    (0x2C ist im Prototyp ebenfalls ein 100er-Platzhalter, EU {25,30,35,35,35,35,35}; Waffe unbekannt), der
+    Chicago Typewriter der EU (wird mit Magazin 7 = unendlich angelegt, `construct` lv 0x6006, kein Exklusiv-Tuning,
+    `wep_level_info` {6,1,1,6}). Im Port bleibt der Typewriter wie im Prototyp (50 Schuss, Exklusiv = Feuerkraft 7).
+  - Die Munition auf eine unendliche Waffe kombinieren (`reload_main` mit 0x8000) ist in der EU-Fassung genauso.
+  - **Patch 0146**; dazu `runtime/cheats.cpp` (die Cheat-Nachfüllung lässt 0x8000 aus, sonst wäre Bit 15 der
+    Munitionsart gesetzt) und `RE4_TEST_WEAPON` mit `lv=L` (Stufen der Waffe statt Debug-Endlosmunition).
+  - **Geprüft:** Test `handcannon` (Feuerkraft ×10 auf Stufen 1–7 = 300…999, Kapazität 7 = 0x8000, Schuss ohne
+    Verbrauch, Zähler 1, Nachladen; Gegenprobe Stufe 6 verbraucht); `whole_build.sh i686` alle Tests 0 Fehler. Am PC
+    (i686, r20a, `RE4_TEST_WEAPON=free+20:15,0,lv=0x6026`, R halten, A alle 45 Bilder): Debug- und EU-Discs je 27
+    Schüsse, geladen bleibt 0, HUD „---“; Gegenprobe `lv=0x5025` (Magazin 6): 10 Schüsse, dann leer.
+    **Nicht geprüft:** der Händler-Bildschirm im Bild (nur die Werte, die er zeigt), Gerät.
 
 ## Berichte für 0.95.2 und Japan/Korea (29.10.2026 spätabends, lokal, Branch `golden-master`)
 

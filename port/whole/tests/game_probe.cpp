@@ -1847,3 +1847,44 @@ extern "C" int re4probe_cheat_extras(void)
     *pSys = keep;
     return bad;
 }
+
+// Patch 0146 (a bug of the prototype): the handcannon's firepower as the merchant shows it (x10, European
+// WeaponLevelTbl row 0x0F), capacity level 7 = endless ammo (0x8000): a shot uses no round, the slot
+// counts one round, reloadable answers 1, reload loads nothing; level 6 still uses rounds. Bits: each
+// failed check.
+extern "C" int re4probe_handcannon(void)
+{
+    static const int fire[7] = {300, 350, 400, 450, 500, 600, 999};
+    const u32 keepDbg[4] = {pG->Debug_flg[0], pG->Debug_flg[1], pG->Debug_flg[2], pG->Debug_flg[3]};
+    int bad = 0;
+    DbgFlagOff(pG, DBG_INF_BULLET);
+    DbgFlagOff(pG, DBG_INF_BULLET2);
+    for (int lv = 1; lv <= 7; lv++) {
+        if ((int) (getPowerRatio(0x37, lv) * 10.0f + 0.5f) != fire[lv - 1]) {
+            bad |= 1;
+            re4_log("  handcannon: firepower level %d is %d, not %d", lv,
+                    (int) (getPowerRatio(0x37, lv) * 10.0f + 0.5f), fire[lv - 1]);
+        }
+    }
+    bad |= WeaponId2ChargeNum(0x37, 6) != 10 || WeaponId2ChargeNum(0x37, 7) != 0x8000 ? 2 : 0;
+    bad |= WeaponId2ChargeNum(0x34, 7) != 0x8000 || (int) getBulletRatio(0x37, 7) != 0x8000 ? 4 : 0;
+    static cItem it;
+    memset(&it, 0, sizeof(it));
+    it.id = 0x37;
+    it.num = 1;
+    it.flags = 1;
+    it.setPowerLevel(6);
+    it.setBulletLevel(6);
+    it.bullet = 0;
+    bad |= ItemMgr.trigger(&it) != 1 || (it.bullet & 0x1FFF) != 0 ? 8 : 0;
+    bad |= ItemMgr.bulletNum(&it) != 1 ? 0x10 : 0;
+    bad |= ItemMgr.reloadable(&it, 0) != 1 || ItemMgr.reload(&it, 0) != 1 ? 0x20 : 0;
+    // level 6: ten rounds, a shot uses one
+    it.setBulletLevel(5);
+    it.bullet = 10;
+    bad |= ItemMgr.trigger(&it) != 1 || (it.bullet & 0x1FFF) != 9 || ItemMgr.bulletNum(&it) != 9 ? 0x40 : 0;
+    for (int i = 0; i < 4; i++) {
+        pG->Debug_flg[i] = keepDbg[i];
+    }
+    return bad;
+}

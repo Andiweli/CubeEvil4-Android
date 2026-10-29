@@ -1168,6 +1168,7 @@ int re4probe_knife_swipe(void);
 int re4probe_qte_touch(void);
 int re4probe_qte_auto(void);
 int re4probe_cheat_extras(void);
+int re4probe_handcannon(void);
 int re4probe_gyro_boat(void);
 int re4probe_snd_bank(void);
 int re4probe_frame_sections(void);
@@ -2032,6 +2033,16 @@ static void testCheatExtras()
     report("cheatextras", bad == 0);
 }
 
+// The handcannon's firepower and endless ammo (patch 0146; game_probe.cpp re4probe_handcannon)
+static void testHandcannon()
+{
+    const int bad = re4probe_handcannon();
+    if (bad) {
+        re4_log("  handcannon: failed checks 0x%x", bad);
+    }
+    report("handcannon", bad == 0);
+}
+
 // Gyro aiming with the harpoon in the boat (runtime/gyro.cpp; game_probe.cpp re4probe_gyro_boat):
 // the sight across and up, the boat turning at the sight's limit, not before the aim, the log line
 static void testGyroBoat()
@@ -2301,6 +2312,7 @@ int re4_runtime_tests()
     testQteTouch();
     testQteAuto();
     testCheatExtras();
+    testHandcannon();
     testGyroBoat();
     testSndBank();
     testFrameSections();

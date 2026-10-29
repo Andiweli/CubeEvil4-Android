@@ -92,7 +92,12 @@
 //                          his left hand is from the right one (the gun).
 //                          stop=S ends the run S frames after the player is
 //                          free (the reload check of the PC check, M11:
-//                          the Super Magnum's reload looked wrong)
+//                          the Super Magnum's reload looked wrong);
+//                          lv=L gives the weapon the levels L (cItem::lv,
+//                          fire << 12 | speed << 8 | reload << 4 | capacity,
+//                          counted from 0) and its full magazine instead of
+//                          the endless ammo flag (patch 0146: lv=0x6026 is
+//                          the handcannon after its exclusive tune-up)
 //   RE4_TRACE_WEAPON=1     the same "wep:" lines in a normal game: every frame
 //                          of a reload (weapon routine r_no_1 6, state
 //                          r_no_2 4) and 40 frames after it, else one line
@@ -535,11 +540,12 @@ long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
 bool g_continueLeft;         // the room stopped running after the retry
 unsigned long g_stopAtFrame;  // RE4_STOP_AT_FRAME
-// RE4_TEST_WEAPON="free+N:W[,T][,stop=S]"
+// RE4_TEST_WEAPON="free+N:W[,T][,stop=S][,lv=L]"
 long g_weaponAfter = -1;
 int g_weaponNo, g_weaponType;
 long g_weaponStop = -1;
 long g_weaponAt = -1;   // the frame it was asked for
+long g_weaponLv = -1;   // lv=: the weapon's levels (cItem::lv), no debug endless ammo
 unsigned g_weaponLines;
 bool g_traceWeapon;     // RE4_TRACE_WEAPON
 unsigned g_weaponAfterReload;  // frames left to log after a reload
@@ -558,6 +564,15 @@ void weaponTask()
     pl->r_no_2 = 0;
     pl->r_no_3 = 0;
     ItemMgr.debugWeapon((ITEM_ID) WeaponNo2WeaponId((u8) g_weaponNo, (u8) g_weaponType));
+    if (g_weaponLv >= 0 && ItemMgr.weapon()) {
+        // the tune-up levels as the merchant stores them (patch 0146: the handcannon's exclusive)
+        cItem* p = ItemMgr.weapon();
+        p->lv = (u16) g_weaponLv;
+        p->bullet = (u16) ((p->bullet & 0xE000) | (WeaponId2ChargeNum(p->id, p->getBulletLevel() + 1) & 0x1FFF));
+        ItemMgr.arm(p);
+        re4_log("run: weapon levels 0x%04x, capacity %u, loaded %u", (unsigned) p->lv,
+                (unsigned) WeaponId2ChargeNum(p->id, p->getBulletLevel() + 1), (unsigned) (p->bullet & 0x1FFF));
+    }
     re4_log("run: weapon %d (type %d) equipped (RE4_TEST_WEAPON), archive %p", g_weaponNo, g_weaponType,
             (void*) pG->pWep);
     TaskExit();
@@ -1400,9 +1415,12 @@ void frame(unsigned n)
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
         g->Rno0 == 3 && live(pPL) && TaskStatus(2) == 0) {
         g_weaponAt = (long) n;
-        DbgFlagOn(g, DBG_INF_BULLET2);
+        if (g_weaponLv < 0) {
+            DbgFlagOn(g, DBG_INF_BULLET2);
+        }
         TaskExec(2, (TaskFunc) weaponTask, 0);
-        re4_log("run: weapon %d asked for (RE4_TEST_WEAPON) at frame %u, endless ammo on", g_weaponNo, n);
+        re4_log("run: weapon %d asked for (RE4_TEST_WEAPON) at frame %u%s", g_weaponNo, n,
+                g_weaponLv < 0 ? ", endless ammo on" : "");
     }
     if (g_weaponAt >= 0 && (long) n > g_weaponAt && g_weaponLines < 3000 && live(pPL) && g->Rno0 == 3) {
         g_weaponLines++;
@@ -1638,9 +1656,11 @@ void configure()
         }
         const char* stopAt = end ? strstr(end, "stop=") : 0;
         g_weaponStop = stopAt ? strtol(stopAt + 5, 0, 10) : -1;
+        const char* lvAt = end ? strstr(end, "lv=") : 0;
+        g_weaponLv = lvAt ? strtol(lvAt + 3, 0, 0) & 0xFFFF : -1;
         if (g_weaponNo < 0) {
             g_weaponAfter = -1;
-            re4_log("run: RE4_TEST_WEAPON \"%s\" not understood (free+N:W[,T][,stop=S])", weapon);
+            re4_log("run: RE4_TEST_WEAPON \"%s\" not understood (free+N:W[,T][,stop=S][,lv=L])", weapon);
         }
     }
     const char* yes = getenv("RE4_TEST_CARD_YES");

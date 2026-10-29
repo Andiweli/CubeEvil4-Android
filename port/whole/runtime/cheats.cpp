@@ -111,7 +111,8 @@ void fillMagazine()
         return;
     }
     u16 full = WeaponId2ChargeNum(p->id, p->getBulletLevel() + 1);
-    if (full != 0xFF && (p->bullet & 0x1FFF) < full) {
+    // 0x8000: endless ammo (patch 0146), nothing to fill
+    if (full != 0xFF && full != 0x8000 && (p->bullet & 0x1FFF) < full) {
         p->bullet = (u16) ((p->bullet & 0xE000) | full);
     }
 }
