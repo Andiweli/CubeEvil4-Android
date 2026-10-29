@@ -1589,26 +1589,27 @@ bool drawGx() {
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   // the menu's picture format (1: 4:3, 0: 16:9, 2: stretched, 3: 4:3 without the game's
-  // letterbox bars while playing, Anbernic RG 477V report 22.10.2026, 4: the same in an exact 4:3
-  // box, 29.10.2026), else RE4_GX_ASPECT
+  // letterbox bars while playing, Anbernic RG 477V report 22.10.2026, in an exact 4:3 box since
+  // 29.10.2026; 4, the exact box's first own number, is 3), else RE4_GX_ASPECT
   const char *aspect = getenv("RE4_GX_ASPECT");
-  const int format = optAspect.load();
-  const int noBars = format == 3 || format == 4 ? 1 : 0;
+  const int format = optAspect.load() == 4 ? 3 : optAspect.load();
+  const int noBars = format == 3 ? 1 : 0;
   if (api.setLetterbox && noBars != letterboxSent) {
     api.setLetterbox(noBars);
     letterboxSent = noBars;
   }
   // the rows shown: in the 16:9 formats (0, 2) the crop below leaves the game's letterbox bars out,
   // and texture copies repeat the shown edge rows instead of reading the bars (GxRenderer::SetShownRows)
-  const bool crop = !(format == 3 || format == 4 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
+  const bool crop = !(format == 3 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
   gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
   // the game computes its 3D for 4:3 (camera.cpp) into 512 x 448 pixels that a television showed
   // as 10:7; in an exact 4:3 box the 3D is right and the flat draws (HUD, menus, text) are drawn
   // 15/14 wider by the renderer, so they keep the shape they had on the television
-  gx->SetWiden(format == 4 ? 15.0f / 14.0f : 1.0f);
-  if (format == 4) {
-    // 4:3 (exact): the picture's lines fill the height of a 4:3 box (wish of the project owner,
-    // 29.10.2026: no bars, nothing cut off, the user interface in its shape)
+  gx->SetWiden(format == 3 ? 15.0f / 14.0f : 1.0f);
+  if (format == 3) {
+    // 4:3 without the bars: the picture's lines fill the height of an exact 4:3 box (wish of the
+    // project owner, 29.10.2026: no bars, nothing cut off, the user interface in its shape; before,
+    // a 10:7 box in the lines' own shape); a 4:3 screen is full
     int boxW = width, boxH = static_cast<int>(width * 3.0 / 4.0 + 0.5);
     if (boxH > height) {
       boxH = height;
@@ -1618,19 +1619,6 @@ bool drawGx() {
     // taps go by the flat layer (the sub screens): its 512 pixels span the box 15/14 times
     const int layerW = static_cast<int>(boxW * 15.0 / 14.0 + 0.5);
     notePicture((width - layerW) / 2, (height - boxH) / 2, layerW, boxH, 0.f, 1.f);
-  } else if (format == 3) {
-    // 4:3 without the bars: the picture's lines fill the height (device test 22.10.2026: in a 4:3
-    // frame of 480 lines thin bars stayed above and below on the Retroid), in their own shape
-    // 640 x 448 (10:7); on screens narrower than that down to 4:3, the lines a little taller, so a
-    // 4:3 screen is full
-    const double shape = std::min(10.0 / 7.0, std::max(4.0 / 3.0, double(width) / double(height)));
-    int boxW = width, boxH = static_cast<int>(width / shape + 0.5);
-    if (boxH > height) {
-      boxH = height;
-      boxW = static_cast<int>(height * shape + 0.5);
-    }
-    gx->Present((width - boxW) / 2, (height - boxH) / 2, boxW, boxH);
-    notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, 0.f, 1.f);
   } else if (format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3")) {
     // the whole picture: 640 wide in a 4:3 frame of 480 lines (the XFB holds xh of them)
     int boxW = width, boxH = width * 3 / 4;
@@ -2297,8 +2285,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_cardNote(
 }
 
 // The picture options: scale 0 (automatic) or 1-4, samples 1/2/4, anisotropy
-// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched), 3 (4:3 without the bars while playing) or 4 (the
-// same in an exact 4:3 box).
+// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched) or 3 (4:3 without the bars while playing, in an exact
+// 4:3 box; 4 is the same).
 // Applied at the next picture while the game runs.
 // scale: in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(JNIEnv *, jclass, jint scale,
@@ -2314,9 +2302,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(
       samples, anisotropy,
       aspect == 1   ? "4:3"
       : aspect == 2 ? "stretched"
-      : aspect == 3 ? "4:3 without the bars"
-      : aspect == 4 ? "4:3 exact"
-                    : "16:9");
+      : aspect == 3 || aspect == 4 ? "4:3 without the bars"
+                                   : "16:9");
 }
 
 // {most samples, strongest anisotropy, scale (in halves), samples, anisotropy in use}; null before the renderer started.

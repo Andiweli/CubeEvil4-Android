@@ -52,7 +52,7 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     Fehlerbericht direkt danach (Zeilen „core: letterbox bars …“ und „picture: the game draws … its letterbox (rNNN)“),
     Raum und Version. Projektinhaber 29.10.2026: auch auf dem Retroid (16:9-Bildschirm) – allgemein.
 
-## Bildformat „4:3 (exakt)“ (29.10.2026, Cloud, Branch `golden-master`)
+## Bildformat „4:3“ jetzt exakt 4:3 (29.10.2026, Cloud, Branch `golden-master`)
 
 - **Wunsch des Projektinhabers:** echtes 4:3 über die volle Höhe, nichts abschneiden, die Oberfläche richtig
   (Vorschlag 1, Entscheidung 29.10.2026). Bisheriges „4:3“ ist 10:7 (1029×720 auf 1600×720).
@@ -60,14 +60,15 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
   640), der Fernseher zeigte das als 10:7; die 3D-Projektion ist aber 4:3 (`camera.cpp:98`, `C_MTXPerspective(…,
   1.3333334f, …)`). Auf dem GameCube war die 3D-Welt also um 15/14 (≈ 7 %) in die Breite gezogen, die flachen
   Zeichnungen (Anzeigen, Menüs, Texte, in Pixeln von 512×448 gestaltet) nicht.
-- **Umsetzung:** neues Bildformat 4 „4:3 (exakt)“ (`core_mode.cpp drawGx`): Bild über die volle Höhe in einem
-  4:3-Rahmen, Balken des Spiels wie bei „4:3“ aus (Patch 0105), alle Zeilen. `GxRenderer::SetWiden(15/14)`: Der
+- **Umsetzung:** Bildformat 3 „4:3“ (ohne Balken) zeigt jetzt in einem exakten 4:3-Rahmen (`core_mode.cpp drawGx`;
+  zuerst als eigenes Format 4 „4:3 (exakt)“ gebaut, auf Wunsch des Projektinhabers ersetzt es das bisherige „4:3“;
+  ein gespeichertes 4 gilt als 3): Bild über die volle Höhe, Balken des Spiels aus (Patch 0105), alle Zeilen. `GxRenderer::SetWiden(15/14)`: Der
   Vertex-Shader flacher Zeichnungen (orthografisch) hat `uWiden` und verbreitert um die Mitte des Viewports
   (`gx_gl_shader.cpp`); `WidenFor` gibt den Faktor nur Zeichnungen über den ganzen Bildschirm (Viewport ab dem linken
   Rand, mindestens 500 Pixel breit) ohne EFB-Kopie als Textur (Hitzeflimmern, Wasser, Pausenfilter, Unschärfen liegen
   passend über dem Bild) – Zeichnungen in einen Teil des EFB (Bilder für Texturen) bleiben wie gesendet. Fingertipps
-  in Untermenüs gehen nach der verbreiterten Ebene (`notePicture`). Menü: „4:3 (exakt)“ zwischen „4:3“ und „16:9“,
-  zehn Sprachen (`ingame_43_exact`, `check_translations.py` ok, 199 Texte).
+  in Untermenüs gehen nach der verbreiterten Ebene (`notePicture`). Menü unverändert („4:3 (GC)“, „4:3“, „16:9“,
+  „Gestreckt“).
 - **Folgen:** Die 3D-Welt ist im richtigen Verhältnis (Kreise rund), die Oberfläche in ihrer Form vom Fernseher. Die
   flache Ebene ist 15/14 breiter als der Rahmen: ganz außen je etwa 18 von 512 Pixeln (3,5 %) liegen außerhalb, auf
   dem Fernseher war das der Überstand am Bildrand (dort zeichnet das Spiel normalerweise nichts Wichtiges).

@@ -484,8 +484,8 @@ final class CoreMenu extends Dialog {
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
     heading(R.string.ingame_picture);
-    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars),
-        s(R.string.ingame_43_exact), "16:9", s(R.string.ingame_stretched)}, new int[] {1, 3, 4, 0, 2}, 0, Integer.MAX_VALUE);
+    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_stretched)},
+        new int[] {1, 3, 0, 2}, 0, Integer.MAX_VALUE);
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
       graphics.edit().putBoolean("dof", on).apply(); CoreBridge.setDof(on);
     });
@@ -1064,7 +1064,7 @@ final class CoreMenu extends Dialog {
     int chosen = scaleHalves(graphics), halves = chosen;
     if (halves < 2 || halves > 8) halves = 2 * autoScale(screenWidth, screenHeight);
     int aspect = graphics.getInt("aspect", 0);
-    boolean original = aspect == 1 || aspect == 3 || aspect == 4;
+    boolean original = aspect == 1 || aspect == 3;
     // the numbers as digits 0..9 in every language (Locale.ROOT), the level with the language's separator
     if (graphicsLine == null) return;
     graphicsLine.setText(String.format(Locale.ROOT, s(chosen == 0 ? R.string.ingame_resolution_line_auto
