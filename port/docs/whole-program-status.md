@@ -51,6 +51,18 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     kein Untermenü; Ursache aus dem Code allein nicht gefunden (Filter 09 ist nur der Pausenfilter). **Offen:**
     Fehlerbericht direkt danach (Zeilen „core: letterbox bars …“ und „picture: the game draws … its letterbox (rNNN)“),
     Raum und Version. Projektinhaber 29.10.2026: auch auf dem Retroid (16:9-Bildschirm) – allgemein.
+    **Retroid-Berichte 29.10.2026 18:48/18:56 (Stand mit exaktem 4:3, r104, MSAA 2×, FXAA):** Bild 1440×1080 (4:3
+    richtig), das Spiel meldet „draws without its letterbox (r104)“, trotzdem sind oben und unten je 136 Zeilen
+    schwarz (= Zeilen 0..56 und 392..448), mit gerader Kante durch Wände und Türrahmen: das 3D wird an der alten
+    Balkengrenze abgeschnitten, gemalt wird kein Balken. Im Code (`Render`, `SetScissorState`, `ScreenGXSet`, Filter,
+    Viewports, Kopie aufs XFB, Renderer: Schere, Auflösen, FXAA, gezeigte Zeilen) keine Ursache gefunden. **Nächster
+    Schritt:** Grafikaufnahme (R3) in dieser Lage, in der Cloud mit `gx_chunk_render` die Schere (BP 0x20/0x21) und den
+    Viewport der 3D-Zeichnungen ansehen.
+18. **Inventar: Leons Messer fehlt am Modell rechts** (Nutzerbericht 30.10.2026, EU-Discs, OPPO CPH2127). Im Spiel
+    lädt `cPlLeon::setModel` Eintrag 0xD (`Body->m_pKnife`, mit `setKnife(false)` auf 0 skaliert = Messer in der
+    Hand), das Untermenü (`Sscrn/ss_model.cpp leonModelInit`) nur 4/5 und 0xA, 8, 6, 9. Ob das Messer an der Brust
+    im Körpermodell steckt oder die Verkaufsfassung ein Teil mehr lädt, zeigt nur der EU-Programmcode (`retail_code.py`,
+    Sscrn) – lokal; ebenso der Vergleich mit den Debug-Discs.
 
 ## Bildformat „4:3“ jetzt exakt 4:3 (29.10.2026, Cloud, Branch `golden-master`)
 
