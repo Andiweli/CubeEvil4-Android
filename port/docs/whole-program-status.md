@@ -344,6 +344,31 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## US-Daten gegen die neueren EU-Patches, Chicago Typewriter, Nutzermeldungen (30.10.2026 nachts, lokal, `golden-master`)
+
+Gearbeitet direkt in `RE4-Fixed` (Wunsch des Projektinhabers: golden-master), gebaut im WSL-Baum `~/re4-bughunt/RE4`.
+
+- **Neuere EU-Patches mit den US-Discs** (am PC, i686, Debug-Start mit `RE4_TRACE_AT=1`, EU/US/Debug je r20b, r203,
+  r211, r214, r20e verglichen): r20b, r203, r211 und r214 haben mit den US-Discs die Bereiche der Debug-Daten (keine
+  der EU-Wände 0x1C, 6, 0x8E, 0x17–0x1B) – Patches 0138, 0141 und der r214-Teil von 0145 bleiben ohne US. r20e hat mit
+  den US-Discs die vier Statuen-Wände 0x13–0x16 wie EU, und ihr `r20e_startArmor` (`st2_1.rel` 0x1a0b4) schaltet sie
+  ab wie der EU-Code: **Patch 0145 (r20e-Teil) jetzt mit allen Verkaufsdiscs.** Die US-Discs haben keinen Easy-Modus
+  (kein `SS/Esy`): 0139–0141 und 0148 betreffen sie nicht; `game_country` bleibt dort 1 (über Easy, wie 0140 es für EU
+  setzt). **Patch 0142** („EMPTY“-Schild) jetzt auch mit US-Discs (Sprache 1 → Bild 0, Englisch; ein Schild mit nur
+  einem Bild bleibt wie bisher), weiter nicht mit JP.
+- **Chicago Typewriter nach Assignment Ada (Nutzermeldung):** `r40e` `gameResult` setzt im Debug-Code
+  `EXT_GET_SW500` (Handcannon, das die Mercenaries freischalten), nichts setzt `EXT_GET_TOMPSON`, das
+  `MerchantRoomInit` für die Chicago Typewriter abfragt. EU (`st4_0.rel` 0xECF8) und US (0xEB50) prüfen und setzen
+  dort Bit 3 (`oris 0x1000`). **Patch 0154** (Fehler des Prototyps, alle Discs). Gebaut; das Ende von Assignment Ada
+  am PC nicht nachgespielt, **Gerät offen**. (Der Endfilm-Wechsel adaend_m/adaend_c hängt in der Verkaufsfassung an
+  einem anderen Merkmal als `EXT_ASHLEY_ARMOR`; nicht übernommen, er wechselt weiter bei jedem Durchgang.)
+- **Russischer Text `ingame_resolution_line_auto`:** die Übersetzung des Nutzers übernommen.
+- **Blacktail in den Mercenaries (Nutzermeldung):** `set_char(0)` gibt Leon 0x27 (Blacktail) und 0x94 (Riot Gun),
+  in Debug-, EU- und US-`main.dol` dieselbe Tabelle (`retail_code.py`; nur Krausers Bogen hat in der
+  Verkaufsfassung Nachladestufe 2 statt 1). Mit dem Debug-Start in r400 (oder einem Raumsprung des Debug-Menüs)
+  läuft dagegen der normale Spielstart (`set_game`: Pistole 0x23). Die beiden Fehlerberichte des Nutzers lagen
+  nicht vor; **offen**, wie er die Mercenaries gestartet hat.
+
 ## US-Discs in golden-master und master (30.10.2026 abends, lokal, Worktree `RE4-bughunt`)
 
 Wunsch des Projektinhabers: `retail-us` (28.10.2026, Abschnitt „Retail-Discs (US)“ unten) zusammengeführt. Konflikte mit
@@ -10202,6 +10227,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0151 `pl_wep.cpp`, `cam_extra.cpp` | „Zielgeschwindigkeit“ des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026, Seite Steuerung): `PlWepLockCtrl` (Waffen, Messer, Bogen) und `CameraScope::move` (Zielfernrohr) multiplizieren die Stick-Werte beim Zielen mit `re4_aim_speed()` (`runtime/aim_options.cpp`, 0,5–3, 1 wie das Spiel); Steuerkreuz unverändert. „Vertikal umkehren“ ist die Spieloption `CFG_AIM_REVERSE`. Port-Patch |
 | 0152 `em10.cpp` | Handcannon gegen Gegner mit `Wep_type` 4 (Kettensägen-Mann u. a.): `em10SetDmVal` nimmt die Waffe 0x0F wie die EU-Fassung von der 1000er-Grenze aus (Nutzerbericht 30.10.2026). Fehler des Prototyps, beide Disc-Arten |
 | 0153 `snd_iss4.cpp`, `snd_seq3.cpp`, `snd_str4.cpp` | Seite AUDIO des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026): Ausgabelautstärke × `re4_sound_volume()` (`runtime/sound_volume.cpp`, Musik bzw. Effekte in %, 100 wie das Spiel). Port-Patch |
+| 0154 `r40e.cpp` | Chicago Typewriter nach Assignment Ada (Nutzermeldung 30.10.2026): `gameResult` prüft und setzt `EXT_GET_TOMPSON` statt `EXT_GET_SW500`, wie EU und US (`st4_0.rel`). Fehler des Prototyps, alle Discs |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

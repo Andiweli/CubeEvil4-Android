@@ -1,0 +1,18 @@
+# A bug of the prototype (user report 30.10.2026): the Chicago Typewriter never appeared after Assignment Ada.
+# The debug build's r40e gameResult (the Ada ending movie and result screen) sets EXT_GET_SW500 (the handcannon,
+# which The Mercenaries already unlock, mercenaries.cpp) and nothing sets EXT_GET_TOMPSON, the flag
+# MerchantRoomInit asks for the Chicago Typewriter. The European and US gameResult (st4_0.rel text 0xECF8 / 0xEB50,
+# read with retail_code.py) check and set bit 3 there (oris 0x1000: EXT_GET_TOMPSON) instead of bit 2. All discs.
+--- a/src/st4/r40e.cpp
++++ b/src/st4/r40e.cpp
+@@ -401,8 +401,8 @@
+     } while (0);
+     FadeSetW(2, 0, 0, 0);
+     SceSleep(1);
+-    if (!ExtFlagChk(pSys, EXT_GET_SW500)) {
+-        ExtFlagOn(pSys, EXT_GET_SW500);
++    if (!ExtFlagChk(pSys, EXT_GET_TOMPSON)) { /* port (patch 0154): the European and US flag */
++        ExtFlagOn(pSys, EXT_GET_TOMPSON);
+         SceEventStart(0);
+         setLangExt3(data_name + 3);
+         Dvd.FileExistCheck(data_name, &size);

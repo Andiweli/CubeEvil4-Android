@@ -5,7 +5,8 @@
 # it played them in turn: EMPTY/LEER/VIDE/VACIO/VUOTO several times a second (user video, 29.10.2026).
 # The European BulletInfo::move (main.dol 0x800c19a0, read with retail_code.py) sets tex_flag bit 2 and
 # texNo by pSys->language: 3 -> 3, 4 -> 4, 5 -> 1, 6 -> 2, any other (2, English) -> 0. With the European
-# discs the plate is set as there. Nothing changes with the debug build's discs. A port patch for retail data.
+# discs the plate is set as there; with the US discs too (30.10.2026: language 1 picks the English picture, and a
+# plate with one picture shows it as before; not the Japanese discs). Nothing changes with the debug build's discs. A port patch for retail data.
 --- a/src/game/cockpit.cpp
 +++ b/src/game/cockpit.cpp
 @@ -551,6 +551,8 @@
@@ -25,7 +26,7 @@
 +               French); the European BulletInfo::move (main.dol 0x800c19a0) picks the game language's.
 +               Without that the unit cycled through all five several times a second (user video,
 +               29.10.2026) */
-+            if (re4_disc_retail_eu()) {
++            if (re4_disc_retail() && !re4_disc_retail_jp()) {
 +                empty->tex_flag |= 2;
 +                switch (pSys->language) {
 +                case 3:
