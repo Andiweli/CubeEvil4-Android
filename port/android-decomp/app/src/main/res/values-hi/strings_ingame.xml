@@ -42,6 +42,10 @@
     <string name="ingame_alternate">वैकल्पिक नियंत्रण</string>
     <string name="ingame_latch">L और R लॉक करें</string>
     <string name="ingame_latch_b">B लॉक करें</string>
+    <string name="ingame_auto_aim">ऑटो-निशाना</string>
+    <string name="ingame_always_run">हमेशा दौड़ें</string>
+    <string name="ingame_auto_aim_help">ऑटो-निशाना: हथियार उठाते ही निशाना आपके सामने सबसे पास वाले दुश्मन पर चला जाता है और कुछ पल उसके साथ रहता है (गेम की अपनी निशाना-सहायता)।</string>
+    <string name="ingame_always_run_help">हमेशा दौड़ें: चलते ही लियोन दौड़ता है; चलने के लिए दौड़ने वाला बटन (जैसे B) दबाए रखें।</string>
     <string name="ingame_touch_aim">टच से निशाना</string>
     <string name="ingame_aim_move_stick">मूव स्टिक</string>
     <string name="ingame_aim_touch_area">टच क्षेत्र</string>

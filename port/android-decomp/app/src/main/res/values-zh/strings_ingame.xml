@@ -43,6 +43,10 @@
     <string name="ingame_alternate">替代操作</string>
     <string name="ingame_latch">锁定 L 和 R</string>
     <string name="ingame_latch_b">锁定 B</string>
+    <string name="ingame_auto_aim">自动瞄准</string>
+    <string name="ingame_always_run">始终奔跑</string>
+    <string name="ingame_auto_aim_help">自动瞄准：举起武器时，准星会跳到你前方最近的敌人身上并短暂跟随（游戏自带的瞄准辅助）。</string>
+    <string name="ingame_always_run_help">始终奔跑：只要移动，里昂就会奔跑；按住奔跑键（例如 B）即可改为行走。</string>
     <string name="ingame_touch_aim">触控瞄准</string>
     <string name="ingame_aim_move_stick">移动摇杆</string>
     <string name="ingame_aim_touch_area">触控区域</string>

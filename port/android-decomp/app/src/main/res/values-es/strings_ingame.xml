@@ -42,6 +42,10 @@
     <string name="ingame_alternate">Controles alternativos</string>
     <string name="ingame_latch">Fijar L y R</string>
     <string name="ingame_latch_b">Fijar B</string>
+    <string name="ingame_auto_aim">Apuntado automático</string>
+    <string name="ingame_always_run">Correr siempre</string>
+    <string name="ingame_auto_aim_help">Apuntado automático: al levantar el arma, la mira salta al enemigo más cercano delante de ti y lo sigue un momento (la ayuda de puntería del propio juego).</string>
+    <string name="ingame_always_run_help">Correr siempre: Leon corre siempre que te mueves; mantén el botón de correr (p. ej. B) para caminar.</string>
     <string name="ingame_touch_aim">Apuntar táctil</string>
     <string name="ingame_aim_move_stick">Stick de movimiento</string>
     <string name="ingame_aim_touch_area">Zona táctil</string>

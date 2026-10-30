@@ -44,6 +44,10 @@
     <string name="ingame_alternate">Commandes alternatives</string>
     <string name="ingame_latch">Verrouiller L et R</string>
     <string name="ingame_latch_b">Verrouiller B</string>
+    <string name="ingame_auto_aim">Visée auto</string>
+    <string name="ingame_always_run">Toujours courir</string>
+    <string name="ingame_auto_aim_help">Visée auto : quand tu lèves ton arme, la visée saute sur l’ennemi le plus proche devant toi et le suit un instant (l’aide à la visée du jeu).</string>
+    <string name="ingame_always_run_help">Toujours courir : Leon court dès que tu te déplaces ; maintiens le bouton de course (par ex. B) pour marcher.</string>
     <string name="ingame_touch_aim">Visée tactile</string>
     <string name="ingame_aim_move_stick">Stick de déplacement</string>
     <string name="ingame_aim_touch_area">Zone tactile</string>

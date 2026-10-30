@@ -117,6 +117,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // project owner, 30.10.2026; CoreBridge.setAim: the game's own "reverse" option and the stick's turn while
   // aiming, the touch area's swipes too; off, 1 = as the game)
   static final String AIM_INVERT_V = "aimInvertVertical", AIM_SPEED = "aimSpeed";
+  // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
+  // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
+  static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun";
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
   static final String GRAPHICS_PREFS = "core_graphics";
@@ -283,6 +286,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gyroAim.setSensitivity(inputPrefs.getFloat(GYRO_SENSITIVITY, 1f));
     mouseSensitivity = clampMouse(inputPrefs.getFloat(MOUSE_SENSITIVITY, 1f));
     aimInvert = inputPrefs.getBoolean(AIM_INVERT_V, false);
+    autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
+    alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
     aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
     // the mouse (step 2 of the button mapping, 29.10.2026): captured while the game is in front, its
     // buttons through the keyboard's mapping, its movement the camera and, while aiming, the aim
@@ -310,7 +315,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
       CoreBridge.setPotato(CoreBridge.potatoMask(g));
       CoreBridge.sendSoundVolume(g);
-      CoreBridge.setAim(aimInvert, aimSpeed);
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
       // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
       int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
       if (!settings.contains("RE4_CHEATS=")) {
@@ -719,13 +724,25 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void aimInvertChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, on).apply();
       aimInvert = on;
-      CoreBridge.setAim(aimInvert, aimSpeed);
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void autoAimChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AUTO_AIM, on).apply();
+      autoAim = on;
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void alwaysRunChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(ALWAYS_RUN, on).apply();
+      alwaysRun = on;
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
     }
 
     @Override public void aimSpeedChanged(float value) {
       aimSpeed = clampAimSpeed(value);
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(AIM_SPEED, aimSpeed).apply();
-      CoreBridge.setAim(aimInvert, aimSpeed);
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
     }
 
     @Override public boolean gameLanguages() { return retailEu; }
@@ -1457,7 +1474,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   // ---- aiming by touch and controllers (the menu's "Invert vertical", "Aim speed") ----
-  private boolean aimInvert;
+  private boolean aimInvert, autoAim, alwaysRun;
   private float aimSpeed = 1f;
 
   /** The stored aim speed on the slider's steps (1 for anything else). */

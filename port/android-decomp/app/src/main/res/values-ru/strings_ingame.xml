@@ -42,6 +42,10 @@
     <string name="ingame_alternate">Альтернативное управление</string>
     <string name="ingame_latch">Фиксация L и R</string>
     <string name="ingame_latch_b">Фиксация B</string>
+    <string name="ingame_auto_aim">Автоприцел</string>
+    <string name="ingame_always_run">Всегда бежать</string>
+    <string name="ingame_auto_aim_help">Автоприцел: когда вы поднимаете оружие, прицел перескакивает на ближайшего врага впереди и ненадолго следует за ним (встроенная помощь прицеливания игры).</string>
+    <string name="ingame_always_run_help">Всегда бежать: Леон бежит, как только вы двигаетесь; удерживайте кнопку бега (например, B), чтобы идти шагом.</string>
     <string name="ingame_touch_aim">Прицеливание касанием</string>
     <string name="ingame_aim_move_stick">Стик движения</string>
     <string name="ingame_aim_touch_area">Сенсорная зона</string>

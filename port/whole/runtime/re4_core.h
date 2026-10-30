@@ -275,8 +275,9 @@ void re4_core_set_fast_cores(int on);
 void re4_core_set_potato(int mask);
 /* The app menu's aim settings for touch and controllers (cores since 30.10.2026, runtime/aim_options.cpp):
  * bit 0 "Invert vertical" (the game's own option CFG_AIM_REVERSE, set at the next game frame and again
- * after the system file was read), bits 8 and up "Aim speed" in percent (50..300, 100 as the game: the
- * stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
+ * after the system file was read), bit 1 "Auto aim" (the game's own lock-on, CFG_LOCK_ON, set the same way),
+ * bit 2 "Always run" (patch 0156: the run key walks), bits 8 and up "Aim speed" in percent (50..300, 100 as
+ * the game: the stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
 void re4_core_set_aim(int bits);
 /* The app menu's AUDIO page (cores since 30.10.2026, runtime/sound_volume.cpp): bits 0..7 the music, bits
  * 8..15 the sound effects volume in percent (0..100; 100 as the game). Any thread. */

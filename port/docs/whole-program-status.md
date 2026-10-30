@@ -355,6 +355,22 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   (`MercSysMoveMain`, Vergleich `cmplwi 899`); die EU-Schleife ruft zusätzlich eine Funktion, wenn `Status_flg[3]` Bit
   0x00100000 gesetzt ist, und ihr `MercSysWork` ist 4 Bytes anders aufgeteilt. Ursache von „Geld-Ton“ und doppelter
   Uhr noch **offen** (Disc-Art des Nutzers unbekannt, kein Bericht).
+- **Super Salvador:** die Kettensäge startet in Debug und EU mit demselben Ton (`SndCall(6, 0x4C)`, `C_SawStart`
+  158 von 159 Befehlen gleich); **offen** ohne Bericht. **Assignment Ada, Gegner durch die Tür nach dem Tritt:**
+  **offen** (kein Bericht). **„Vibration“ im Ton gegenüber Dolphin:** die DSP-Nachbildung rechnet Lautstärke-Rampen je
+  Probe und kubisch statt mit den ROM-Filtern; **offen**, bis eine Aufnahme zeigt, wo es klingt.
+- **Seite Steuerung: „Auto-Zielen“ und „Immer laufen“ (Wunsch des Projektinhabers).** Reihe unter „Latch L & R“ /
+  „Latch B“, vor „Vertikal umkehren“ mit der Zielgeschwindigkeit; Hinweistexte in allen zehn Sprachen. „Auto-Zielen“
+  ist die eingebaute Zielhilfe des Spiels (`CFG_LOCK_ON`, bisher nur im Debug-Menü „AUTO_LOCK_ON“): beim Anlegen
+  wählt `cPlWep::lockInit` den besten Gegner vorn (`SearchLockEm`, 50°-Kegel), `PlSetLockPitch` und `lockMove`/
+  `PlWepAutoTrack` drehen die Waffe 10 Bilder lang dorthin; die App setzt die Option wie „Vertikal umkehren“
+  (`runtime/aim_options.cpp`, Bit 1). „Immer laufen“ (Bit 2): **Patch 0156** – die vier Lauf-Abfragen in
+  `player.cpp` (`KEY_B` gehalten) über `re4_run_held`: Leon läuft beim Bewegen, mit gehaltener Lauftaste geht er;
+  B behält Menüs, Abbrechen und die schnelle Drehung. Testhilfe `RE4_TEST_AIM=bits`. **Geprüft am PC** (i686,
+  Debug-Discs): r100 nach vorn ohne B – ohne Schalter gut 1000 Einheiten je 30 Bilder (Gehen), mit „Immer laufen“
+  gut 3400 (Laufen), mit gehaltenem B wieder 1000; r10a, Leon 5000 neben einem Ganado, 21° daneben – Anlegen ohne
+  Schalter: Blick bleibt 1,20; mit „Auto-Zielen“ springt er auf 1,61 (zum Ganado). `CoreMenuLayoutTest` 8/8, App-Tests
+  17/17. Gerät offen.
 
 ## US-Daten gegen die neueren EU-Patches, Chicago Typewriter, Nutzermeldungen (30.10.2026 nachts, lokal, `golden-master`)
 
@@ -10256,6 +10272,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0153 `snd_iss4.cpp`, `snd_seq3.cpp`, `snd_str4.cpp` | Seite AUDIO des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026): Ausgabelautstärke × `re4_sound_volume()` (`runtime/sound_volume.cpp`, Musik bzw. Effekte in %, 100 wie das Spiel). Port-Patch |
 | 0154 `r40e.cpp` | Chicago Typewriter nach Assignment Ada (Nutzermeldung 30.10.2026): `gameResult` prüft und setzt `EXT_GET_TOMPSON` statt `EXT_GET_SW500`, wie EU und US (`st4_0.rel`). Fehler des Prototyps, alle Discs |
 | 0155 `r222.cpp` | Drachenhalle: die sechs Treffer-Kästen der Drachen mit 2000 statt 7000 Lebenspunkten, wie EU (`R222Init`, Nutzermeldung 30.10.2026). Fehler des Prototyps, alle Discs |
+| 0156 `player.cpp` | „Immer laufen“ des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026): die vier Lauf-Abfragen (`KEY_B` gehalten) in `pl_R1_Wait`, `pl_R1_Walk`, `pl_R1_Run` über `re4_run_held` (`runtime/aim_options.cpp`), mit dem Schalter umgekehrt. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

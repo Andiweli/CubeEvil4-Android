@@ -46,6 +46,10 @@
     <string name="ingame_alternate">تحكم بديل</string>
     <string name="ingame_latch">تثبيت L و R</string>
     <string name="ingame_latch_b">تثبيت B</string>
+    <string name="ingame_auto_aim">التصويب التلقائي</string>
+    <string name="ingame_always_run">الركض دائمًا</string>
+    <string name="ingame_auto_aim_help">‏التصويب التلقائي: عند رفع السلاح يقفز التصويب إلى أقرب عدو أمامك ويتبعه لحظة (مساعدة التصويب المدمجة في اللعبة).</string>
+    <string name="ingame_always_run_help">‏الركض دائمًا: يركض ليون كلما تحركت؛ اضغط باستمرار على زر الركض (مثل B) للمشي بدلًا من ذلك.</string>
     <string name="ingame_touch_aim">التصويب باللمس</string>
     <string name="ingame_aim_move_stick">عصا الحركة</string>
     <string name="ingame_aim_touch_area">منطقة اللمس</string>

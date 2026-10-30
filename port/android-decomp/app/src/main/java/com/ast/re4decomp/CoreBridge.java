@@ -116,7 +116,7 @@ public final class CoreBridge {
    * `invert` the game's own "reverse" option (kept over the system file's), `speed` the stick's turn while
    * aiming (CoreActivity.AIM_SPEED_MIN .. AIM_SPEED_MAX, 1 as the game).
    */
-  public static native void setAim(boolean invert, float speed);
+  public static native void setAim(boolean invert, float speed, boolean autoAim, boolean alwaysRun);
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */
   static int potatoMask(android.content.SharedPreferences g) {
     return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);

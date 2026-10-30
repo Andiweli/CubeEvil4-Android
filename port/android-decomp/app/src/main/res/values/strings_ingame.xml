@@ -52,6 +52,10 @@
     <string name="ingame_alternate">Alternate Controls</string>
     <string name="ingame_latch">Latch L and R</string>
     <string name="ingame_latch_b">Latch B</string>
+    <string name="ingame_auto_aim">Auto aim</string>
+    <string name="ingame_always_run">Always run</string>
+    <string name="ingame_auto_aim_help">Auto aim: when you raise your weapon, the aim jumps to the nearest enemy in front of you and follows it for a moment (the game\'s own lock-on).</string>
+    <string name="ingame_always_run_help">Always run: Leon runs whenever you move; hold the run button (e.g. B) to walk instead.</string>
     <string name="ingame_touch_aim">Touch Aiming</string>
     <string name="ingame_aim_move_stick">Move Stick</string>
     <string name="ingame_aim_touch_area">Touch Area</string>

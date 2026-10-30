@@ -96,7 +96,7 @@ struct CoreApi {
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
   void (*setPotato)(int){};     // optional (cores since 30.10.2026): Potato mode (bit 0 weather, bit 1 special effects off)
   void (*setSoundVolume)(int){};  // optional (cores since 30.10.2026): music | effects << 8, percent
-  void (*setAim)(int){};        // optional (cores since 30.10.2026): bit 0 invert vertical, bits 8.. aim speed in percent
+  void (*setAim)(int){};        // optional (cores since 30.10.2026): bit 0 invert vertical, bit 1 auto aim, bit 2 always run, bits 8.. aim speed in percent
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
@@ -2227,12 +2227,16 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPotato(JN
 }
 
 // The menu's "Invert vertical" and "Aim speed" (drawGx tells the core): stick aiming with touch and controllers.
-extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEnv *, jclass, jboolean invert, jfloat speed) {
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEnv *, jclass, jboolean invert, jfloat speed,
+                                                                         jboolean autoAim, jboolean alwaysRun) {
   int percent = static_cast<int>(speed * 100.0f + 0.5f);
   if (!(speed == speed) || percent < 50 || percent > 300) percent = 100;
-  const int want = percent << 8 | (invert == JNI_TRUE ? 1 : 0);
+  // bit 1 "Auto aim", bit 2 "Always run" (wish of the project owner, 30.10.2026; runtime/aim_options.cpp)
+  const int want = percent << 8 | (invert == JNI_TRUE ? 1 : 0) | (autoAim == JNI_TRUE ? 2 : 0) |
+                   (alwaysRun == JNI_TRUE ? 4 : 0);
   if (optAim.exchange(want) != want)
-    LOG("aim: stick aiming %s, speed %d %%", invert == JNI_TRUE ? "inverted" : "normal", percent);
+    LOG("aim: stick aiming %s, speed %d %%, auto aim %s, always run %s", invert == JNI_TRUE ? "inverted" : "normal",
+        percent, autoAim == JNI_TRUE ? "on" : "off", alwaysRun == JNI_TRUE ? "on" : "off");
 }
 
 // The menu's AUDIO page (drawGx tells the core): music and sound effects volume in percent.

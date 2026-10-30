@@ -266,8 +266,12 @@ public class CoreMenuLayoutTest {
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
       Button alternate = findButton(body, activity.getString(R.string.ingame_alternate));
       Button latch = findButton(body, activity.getString(R.string.ingame_latch));
-      // the comfort controls' "Invert vertical" (the gyro's above it may read the same): the one after the latches
-      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(latch, body) + 1),
+      // "Auto aim" and "Always run" under the latches (30.10.2026), then the comfort controls' "Invert vertical"
+      // (the gyro's above it may read the same): the one after them
+      Button autoAim = findButton(body, activity.getString(R.string.ingame_auto_aim));
+      Button alwaysRun = findButton(body, activity.getString(R.string.ingame_always_run));
+      assertNotNull(autoAim); assertNotNull(alwaysRun);
+      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 1),
           activity.getString(R.string.ingame_aim_invert_v));
       Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
@@ -287,9 +291,12 @@ public class CoreMenuLayoutTest {
       assertTrue("the motion heading", motion >= 0);
       assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
       assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
-      // then the comfort controls: right under the latches "Invert vertical" with "Aim speed", then touch aiming
+      // then the comfort controls: under the latches "Auto aim" with "Always run", then "Invert vertical" with
+      // "Aim speed", then touch aiming
       assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
-      assertEquals("the aim row right under the latches", rowIndex(latch, body) + 1, rowIndex(aimInvert, body));
+      assertEquals("auto aim right under the latches", rowIndex(latch, body) + 1, rowIndex(autoAim, body));
+      assertEquals("always run beside auto aim", rowIndex(autoAim, body), rowIndex(alwaysRun, body));
+      assertEquals("the aim row right under them", rowIndex(autoAim, body) + 1, rowIndex(aimInvert, body));
       assertEquals("touch aiming right under the aim row", rowIndex(aimInvert, body) + 1, rowIndex(touchAim, body));
       // the button mapping at the bottom, under a heading of its own
       assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));

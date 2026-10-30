@@ -86,6 +86,10 @@ final class CoreMenu extends Dialog {
     void aimInvertChanged(boolean on);
     /** The slider "Aim speed" of aiming by touch and controllers (the preferences hold it). */
     void aimSpeedChanged(float value);
+    /** "Auto aim": the game's own lock-on (CoreBridge.setAim). */
+    void autoAimChanged(boolean on);
+    /** "Always run": Leon runs without the run key, which walks instead (CoreBridge.setAim). */
+    void alwaysRunChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
     boolean gameLanguages();
     /** The game's language of a "Game language" choice (2..6; 0 the device's). */
@@ -578,6 +582,10 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons second = buttonsRow(body);
     toggle(second, R.string.ingame_latch, input.getBoolean(CoreActivity.TOUCH_LATCH, false), on -> host.latchChanged(on));
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
+    // "Auto aim" and "Always run" (wish of the project owner, 30.10.2026): after the latches, before the aiming row
+    MenuLayout.Buttons third = buttonsRow(body);
+    toggle(third, R.string.ingame_auto_aim, input.getBoolean(CoreActivity.AUTO_AIM, false), on -> host.autoAimChanged(on));
+    toggle(third, R.string.ingame_always_run, input.getBoolean(CoreActivity.ALWAYS_RUN, false), on -> host.alwaysRunChanged(on));
     // aiming the knife and the guns by touch or a controller (wish of the project owner, 30.10.2026): the game's
     // own "reverse" option and the stick's speed while aiming, right under the latches
     switchWithSlider(R.string.ingame_aim_invert_v, input.getBoolean(CoreActivity.AIM_INVERT_V, false),
@@ -588,7 +596,8 @@ final class CoreMenu extends Dialog {
     quarterChoices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
         input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), mode -> host.touchAimChanged(mode));
-    help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_aim_help);
+    help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
+    help(R.string.ingame_always_run_help); help(R.string.ingame_aim_help);
     help(R.string.ingame_touch_aim_help); help(R.string.ingame_knife_swipe_help);
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
     // since 30.10.2026 under a heading of its own
