@@ -109,6 +109,12 @@ public final class CoreInput {
   private ActionMap keyboardMap = ActionMap.defaults(ActionMap.KIND_KEYBOARD);
   private static final ActionMap KEYBOARD_DEFAULT = ActionMap.defaults(ActionMap.KIND_KEYBOARD);
   private boolean menu;                          // the game shows a menu (setMenu)
+  // the switch between the own mapping and the menus' default (user report 30.10.2026: "releasing the button
+  // can count as a second input"; START held as the inventory opened came as a new START press there): a
+  // GameCube button that a key held over the switch gives only in the new mapping waits until it is let go;
+  // the ones it gave before as well stay held (B running while a prompt shows)
+  private boolean menuChanged;
+  private int lastButtons, carried;
 
   /** The controller's mapping; null or the default: the layout above. */
   public void setControllerMap(ActionMap map) {
@@ -130,7 +136,16 @@ public final class CoreInput {
   public ActionMap keyboardMap() { return keyboardMap; }
 
   /** The game shows a menu (the core's menu bit): the devices' defaults, not their mappings. */
-  public void setMenu(boolean on) { menu = on; }
+  public void setMenu(boolean on) {
+    if (on != menu) {
+      // only when a key is held at the switch (the next pad() compares the buttons with the last ones)
+      boolean held = false;
+      for (Device d : devices.values())
+        held |= !d.held.isEmpty() || d.buttons != 0 || d.trigL || d.trigR || d.l2Key || d.r2Key;
+      menuChanged = held;
+    }
+    menu = on;
+  }
 
   public boolean menu() { return menu; }
 
@@ -578,6 +593,13 @@ public final class CoreInput {
     clickR = rt >= (clickR ? TRIGGER_UNCLICK : TRIGGER_CLICK);
     if (clickL) buttons |= GC_L;
     if (clickR) buttons |= GC_R;
+    if (menuChanged) {
+      carried = buttons & ~lastButtons;
+      menuChanged = false;
+    }
+    carried &= buttons;
+    buttons &= ~carried;
+    lastButtons = buttons;
     return new int[] {buttons, raw(lx, MAIN_RAW), raw(-ly, MAIN_RAW), raw(rx, C_RAW),
         raw(-ry, C_RAW), Math.round(lt * 255f), Math.round(rt * 255f)};
   }

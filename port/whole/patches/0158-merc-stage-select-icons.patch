@@ -1,0 +1,55 @@
+# A bug of the prototype (user report 30.10.2026, EU discs): the Mercenaries stage select showed the characters'
+# icons (Ada, Krauser, HUNK, Wesker) while they were still locked. stageSelect clears be_flag bit 3 (the unit shown)
+# of units 1..4 when EXT_GET_ADA / _KLAUSER / _HUNK / _WESKER is set and sets it when not - the wrong way round:
+# the European stage select (its helper at main.dol 0x80167a30, read with retail_code.py) sets the bit for an
+# unlocked character and clears it for a locked one, as the omake menu of this build does (units of IDC_OPTION_BG).
+# All discs.
+--- a/src/game/title.cpp
++++ b/src/game/title.cpp
+@@ -1348,34 +1348,34 @@
+     {
+         ID_UNIT* u;
+         u = IdSys.unitPtr(1, IDC_OPTION);
+-        if (ExtFlagChk(pSys, EXT_GET_ADA)) {
+-            u->be_flag &= ~8;
+-        } else {
++        if (ExtFlagChk(pSys, EXT_GET_ADA)) { /* port (patch 0158): shown when unlocked, as the European code */
+             u->be_flag |= 8;
++        } else {
++            u->be_flag &= ~8;
+         }
+         u->texNo = 0;
+         u->tex_flag |= 2;
+         u = IdSys.unitPtr(2, IDC_OPTION);
+-        if (ExtFlagChk(pSys, EXT_GET_KLAUSER)) {
+-            u->be_flag &= ~8;
+-        } else {
++        if (ExtFlagChk(pSys, EXT_GET_KLAUSER)) { /* port (patch 0158): shown when unlocked, as the European code */
+             u->be_flag |= 8;
++        } else {
++            u->be_flag &= ~8;
+         }
+         u->texNo = 1;
+         u->tex_flag |= 2;
+         u = IdSys.unitPtr(3, IDC_OPTION);
+-        if (ExtFlagChk(pSys, EXT_GET_HUNK)) {
+-            u->be_flag &= ~8;
+-        } else {
++        if (ExtFlagChk(pSys, EXT_GET_HUNK)) { /* port (patch 0158): shown when unlocked, as the European code */
+             u->be_flag |= 8;
++        } else {
++            u->be_flag &= ~8;
+         }
+         u->texNo = 2;
+         u->tex_flag |= 2;
+         u = IdSys.unitPtr(4, IDC_OPTION);
+-        if (ExtFlagChk(pSys, EXT_GET_WESKER)) {
+-            u->be_flag &= ~8;
+-        } else {
++        if (ExtFlagChk(pSys, EXT_GET_WESKER)) { /* port (patch 0158): shown when unlocked, as the European code */
+             u->be_flag |= 8;
++        } else {
++            u->be_flag &= ~8;
+         }
+         u->texNo = 3;
+         u->tex_flag |= 2;

@@ -344,6 +344,28 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Nutzermeldungen 30.10.2026 nachts II (lokal, `golden-master`)
+
+- **Absturz am Torbogen in r203 (EU-Discs, Easy, 0.95.2, Bericht 17:10):** die Wiedersehens-Szene mit Ashley
+  (`r203_EventMeetAgain`, Bereich 3) leiht sich den Speicher des Ganado-Moduls (`SearchEmModule(0x11)`) für die
+  Szene (`MemorySwap`). Auf Easy setzt R203Init nach EU-Art keinen Ganado (Patch 0141); nach dem Laden eines Spielstands
+  in r203 ist das Modul nicht geladen, der Zeiger 0, Absturz (Adresse 0x88). Die EU-Funktion ist Wort für Wort die des
+  Prototyps. **Patch 0157:** fehlt das Modul, lädt die Szene es mit ihrer Größe nach (`EmReadSearch`, wie der
+  Ereignis-Manager); ohne Modul entfällt die Szene. **Am PC nachgestellt** (EU-Discs, `RE4_TEST_GAME_MODE=3`,
+  Debug-Start r203, `RE4_TEST_PLACE=free+20:area=3`): ohne Patch Absturz (Exit 139), mit Patch `OSLink: module em11`,
+  Szene läuft und endet (DELETE), kein Absturz; Gegenprobe Normal ohne Absturz.
+- **Doppelter Tastendruck mit Controller und eigener Belegung (Bericht 16:59, GameSir G7):** beim Wechsel zwischen
+  eigener Belegung (im Spiel) und Standardbelegung (Menüs, Reaktionstasten) zählte eine gehaltene Taste in der neuen
+  Belegung sofort weiter – als neuer Druck eines anderen GameCube-Knopfs (im Bericht: START gedrückt = Inventar, GC Y
+  bei Bild 1593, Menü bei 1594, bei 1595 ein frischer GC START). Neu (`CoreInput.setMenu`/`pad`): ein Knopf, den eine
+  über den Wechsel gehaltene Taste nur in der neuen Belegung ergibt, kommt erst nach dem Loslassen; Knöpfe, die beide
+  Belegungen geben, bleiben gehalten. `CoreInputTests` 200 Prüfungen (neu: kein Druck aus dem Wechsel, D-Pad bleibt).
+- **Mercenaries: Figuren-Symbole vor der Freischaltung (Bericht, EU-Discs, Cheat „Extra-Spiele“):** `stageSelect`
+  löscht das Sichtbar-Bit (`be_flag` 8) der Einheiten 1–4 bei freigeschalteter Figur und setzt es bei gesperrter –
+  verkehrt; die EU-Etappenauswahl (Hilfsfunktion `main.dol` 0x80167a30) setzt es bei freigeschalteter Figur, wie das
+  Bonusmenü dieses Builds. **Patch 0158** (Fehler des Prototyps, alle Discs). Gebaut; die Auswahl am PC nicht
+  angesehen, **Gerät offen**.
+
 ## Zeichenbefehle zusammenfassen: Messung (30.10.2026 nachts, lokal, `golden-master`)
 
 Vorschlag eines Testers (Redmi 15C): Instancing, ferne „Stay“-Gegner weglassen, Raumgeometrie bündeln,
@@ -10295,6 +10317,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0154 `r40e.cpp` | Chicago Typewriter nach Assignment Ada (Nutzermeldung 30.10.2026): `gameResult` prüft und setzt `EXT_GET_TOMPSON` statt `EXT_GET_SW500`, wie EU und US (`st4_0.rel`). Fehler des Prototyps, alle Discs |
 | 0155 `r222.cpp` | Drachenhalle: die sechs Treffer-Kästen der Drachen mit 2000 statt 7000 Lebenspunkten, wie EU (`R222Init`, Nutzermeldung 30.10.2026). Fehler des Prototyps, alle Discs |
 | 0156 `player.cpp` | „Immer laufen“ des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026): die vier Lauf-Abfragen (`KEY_B` gehalten) in `pl_R1_Wait`, `pl_R1_Walk`, `pl_R1_Run` über `re4_run_held` (`runtime/aim_options.cpp`), mit dem Schalter umgekehrt. Port-Patch |
+| 0157 `r203.cpp` | Wiedersehens-Szene am Torbogen: lädt das Ganado-Modul nach, wenn auf Easy (EU, Patch 0141) keins geladen ist; vorher Absturz (Nutzerbericht 30.10.2026). Port-Patch |
+| 0158 `title.cpp` | Mercenaries-Etappenauswahl: Figuren-Symbole nur bei freigeschalteter Figur, wie EU (`stageSelect`, Nutzermeldung 30.10.2026). Fehler des Prototyps, alle Discs |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

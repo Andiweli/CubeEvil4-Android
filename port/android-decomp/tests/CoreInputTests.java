@@ -368,17 +368,35 @@ public final class CoreInputTests {
       k.motion(1, 1f, 0, 0, 0, 0, 0, 0, 0);
       check(k.pad()[1] > 90);
       k.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
-      // a key held over the switch to a menu: there the default (B runs/backs again, L1 nothing)
+      // a key held over the switch to a menu: there the default (B backs again, L1 nothing); the button it gives
+      // only in the new mapping waits until it is let go (30.10.2026: no second press from the switch)
       k.key(1, B, true);
       check(k.pad()[0] == 0);
       k.setMenu(true);
-      check(k.pad()[0] == CoreInput.GC_B);
+      check(k.pad()[0] == 0);
+      k.key(1, B, false);
+      check(k.pad()[0] == 0);
+      k.key(1, B, true);
+      check(k.pad()[0] == CoreInput.GC_B);  // pressed again: B in the menu
       k.key(1, B, false);
       k.key(1, L1, true);
       check(k.pad()[0] == 0);
       k.setMenu(false);
-      check(k.pad()[0] == CoreInput.GC_B);  // L1 held: runs again as the menu closes
+      check(k.pad()[0] == 0);  // L1 held as the menu closes: no run until it is pressed again
       k.key(1, L1, false);
+      check(k.pad()[0] == 0);
+      k.key(1, L1, true);
+      check(k.pad()[0] == CoreInput.GC_B);
+      k.key(1, L1, false);
+      check(k.pad()[0] == 0);
+      // a button both mappings give stays held over the switch (here the D-pad)
+      k.key(1, UP, true);
+      check(k.pad()[0] == CoreInput.GC_UP);
+      k.setMenu(true);
+      check(k.pad()[0] == CoreInput.GC_UP);
+      k.setMenu(false);
+      check(k.pad()[0] == CoreInput.GC_UP);
+      k.key(1, UP, false);
       check(k.pad()[0] == 0);
       // the app's menu: SELECT, or where the mapping puts it; R3 the graphics capture without a function
       check(k.appFunctionOf(SELECT, false) == CoreInput.APP_MENU && k.appFunctionOf(R3, false) == CoreInput.APP_GX_DUMP);
