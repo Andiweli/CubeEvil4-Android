@@ -19,7 +19,7 @@ the original game code, compiled from the complete decompilation in this reposit
 Since v0.92.0 it also plays the **European retail release** (`G4BP08`, two discs) in English,
 German, French, Spanish and Italian; the code stays the debug build's, with small patches where the
 retail data needs them. Since v0.95.2 it also plays the **Japanese retail release** (`G4BJ08`,
-"biohazard4") and the Korean fan translation built on it, and since v0.96.1 the **US retail release** (`G4BE08` as
+"biohazard4") and the Korean fan translation built on it, and since v0.96.2 the **US retail release** (`G4BE08` as
 well, two discs) in English. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
 and it contains no game data: you need your own images of both discs of one release.
 

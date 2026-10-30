@@ -344,6 +344,14 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Version 0.96.2-beta (30.10.2026, lokal, Branch `golden-master`)
+
+Wunsch des Projektinhabers: `versionName` 0.96.2-beta, `versionCode` 84, Releasetext
+`port/android-decomp/docs/releases/v0.96.2-beta.md` seit 0.96.0 (0.96.1 wurde nicht veröffentlicht): zu 0.96.1 dazu
+Patch 0157 (r203), 0158 (Mercenaries-Symbole), 0159 (Auto-Zielen Höhe), kein Druck aus dem Belegungswechsel, Bus error
+der Zustandsbrücke auf 32 Bit, schnelleres Vorbereiten der Programme, Schalter „Zeichenaufrufe bündeln“. Gerätetest
+der Neuerungen offen.
+
 ## Absturz „Bus error“ auf 32-Bit-Handys beim Raumwechsel (Nutzerbericht 30.10.2026 18:24, lokal, `golden-master`)
 
 Samsung A13 (SM-A135M, nur armeabi-v7a), 0.96.1, EU-Discs, zweimal (12:14, 18:20): `signal 7 (Bus error)` in
