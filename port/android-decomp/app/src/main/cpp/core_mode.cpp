@@ -77,6 +77,8 @@ struct CoreApi {
   // optional (cores since 20.10.2026): the four channels (Dolby Pro Logic II) and whether the game uses them
   int (*audio4)(int16_t *, int){};
   int (*audioSurround)(void){};
+  // optional: a line of the app into the core's log file (the error log's core-log.txt, also without logcat)
+  void (*logFileLine)(const char *){};
   const Re4CoreSnapshot *(*acquire)(void){};
   void (*release)(const Re4CoreSnapshot *){};
   int (*logTail)(char *, int){};
@@ -97,6 +99,7 @@ struct CoreApi {
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
   int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
+  void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
   int (*instant)(int, Re4InstantInfo *){};
@@ -417,7 +420,8 @@ void loadCore(JNIEnv *env) {
   api.vsync = reinterpret_cast<void (*)(int64_t)>(dlsym(api.main, "re4_core_vsync"));
   api.audio4 = reinterpret_cast<int (*)(int16_t *, int)>(dlsym(api.main, "re4_core_audio4"));
   api.audioSurround = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_audio_surround"));
-  api.pause = reinterpret_cast<int (*)(int, int)>(dlsym(api.main, "re4_core_pause"));
+  api.logFileLine = reinterpret_cast<void (*)(const char *)>(dlsym(api.main, "re4_log_file_line"));
+  api.pause =reinterpret_cast<int (*)(int, int)>(dlsym(api.main, "re4_core_pause"));
   api.debugMenu = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_debug_menu"));
   api.setDof = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_dof"));
   api.gyro = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_gyro"));
@@ -429,6 +433,7 @@ void loadCore(JNIEnv *env) {
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
   api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
+  api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
   api.instant = reinterpret_cast<int (*)(int, Re4InstantInfo *)>(dlsym(api.main, "re4_core_instant"));
@@ -1528,6 +1533,19 @@ bool drawGx() {
             "%.0f/%.0f/%.0f %%, now on core %d at %u MHz",
             gxRunCpuNs / 1e6 / n, gxRunMs / n, gxRunOnKind[2] * 100.0 / n, gxRunOnKind[1] * 100.0 / n,
             gxRunOnKind[0] * 100.0 / n, cpu, khz / 1000);
+        // where the run time went (GxStats::splitNs): the driver's calls first, the renderer's own work after
+        // (per real chunk; the in-between pictures' Runs of 60 FPS are in it as well)
+        using re4gx::GxStats;
+        double split[GxStats::kSplitKinds];
+        for (int k = 0; k < GxStats::kSplitKinds; k++)
+          split[k] = (s.splitNs[k] - gxWork.splitNs[k]) / 1e6 / n;
+        LOG("GX render thread split per chunk: draw calls %.1f ms, uniform blocks %.1f, binds (programs, textures, "
+            "vertex setup) %.1f, render state %.1f, vertex buffers %.1f; shader keys and programs %.1f, textures in "
+            "(decode, upload) %.1f, BP (EFB copies, clears, effects) %.1f, XF %.1f, the rest %.1f",
+            split[GxStats::kSplitDraw], split[GxStats::kSplitUniform], split[GxStats::kSplitBind],
+            split[GxStats::kSplitState], split[GxStats::kSplitVertices], split[GxStats::kSplitProgram],
+            split[GxStats::kSplitTexture], split[GxStats::kSplitBp], split[GxStats::kSplitXf],
+            split[GxStats::kSplitRest]);
       }
       // 60 FPS: how far the GPU lags behind (fences after every Run, the in-between ones too); more
       // than 2.5 Runs on average: off for this renderer, the menu's switch stays (a lower
@@ -1574,9 +1592,10 @@ bool drawGx() {
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   // the menu's picture format (1: 4:3, 0: 16:9, 2: stretched, 3: 4:3 without the game's
-  // letterbox bars while playing, Anbernic RG 477V report 22.10.2026), else RE4_GX_ASPECT
+  // letterbox bars while playing, Anbernic RG 477V report 22.10.2026, in an exact 4:3 box since
+  // 29.10.2026; 4, the exact box's first own number, is 3), else RE4_GX_ASPECT
   const char *aspect = getenv("RE4_GX_ASPECT");
-  const int format = optAspect.load();
+  const int format = optAspect.load() == 4 ? 3 : optAspect.load();
   const int noBars = format == 3 ? 1 : 0;
   if (api.setLetterbox && noBars != letterboxSent) {
     api.setLetterbox(noBars);
@@ -1586,19 +1605,23 @@ bool drawGx() {
   // and texture copies repeat the shown edge rows instead of reading the bars (GxRenderer::SetShownRows)
   const bool crop = !(format == 3 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
   gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
+  // the game computes its 3D for 4:3 (camera.cpp) into 512 x 448 pixels that a television showed
+  // as 10:7; in an exact 4:3 box the 3D is right and the flat draws (HUD, menus, text) are drawn
+  // 15/14 wider by the renderer, so they keep the shape they had on the television
+  gx->SetWiden(format == 3 ? 15.0f / 14.0f : 1.0f);
   if (format == 3) {
-    // 4:3 without the bars: the picture's lines fill the height (device test 22.10.2026: in a 4:3
-    // frame of 480 lines thin bars stayed above and below on the Retroid), in their own shape
-    // 640 x 448 (10:7); on screens narrower than that down to 4:3, the lines a little taller, so a
-    // 4:3 screen is full
-    const double shape = std::min(10.0 / 7.0, std::max(4.0 / 3.0, double(width) / double(height)));
-    int boxW = width, boxH = static_cast<int>(width / shape + 0.5);
+    // 4:3 without the bars: the picture's lines fill the height of an exact 4:3 box (wish of the
+    // project owner, 29.10.2026: no bars, nothing cut off, the user interface in its shape; before,
+    // a 10:7 box in the lines' own shape); a 4:3 screen is full
+    int boxW = width, boxH = static_cast<int>(width * 3.0 / 4.0 + 0.5);
     if (boxH > height) {
       boxH = height;
-      boxW = static_cast<int>(height * shape + 0.5);
+      boxW = static_cast<int>(height * 4.0 / 3.0 + 0.5);
     }
     gx->Present((width - boxW) / 2, (height - boxH) / 2, boxW, boxH);
-    notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, 0.f, 1.f);
+    // taps go by the flat layer (the sub screens): its 512 pixels span the box 15/14 times
+    const int layerW = static_cast<int>(boxW * 15.0 / 14.0 + 0.5);
+    notePicture((width - layerW) / 2, (height - boxH) / 2, layerW, boxH, 0.f, 1.f);
   } else if (format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3")) {
     // the whole picture: 640 wide in a 4:3 frame of 480 lines (the XFB holds xh of them)
     int boxW = width, boxH = width * 3 / 4;
@@ -1793,6 +1816,7 @@ void useCoreProcess(const std::string &why) {
   api.setCheats = re4ipc_set_cheats;
   api.cheatAction = re4ipc_cheat_action;
   api.touch = re4ipc_touch;
+  api.aimTurn = re4ipc_aim_turn;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
   api.instant = re4ipc_instant;
@@ -1990,6 +2014,19 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_audio4(JNIEn
   return got;
 }
 
+// A line of the sound output (CoreAudio: the AudioTrack ran out) into the core's log file, with the
+// game frame: core-log.txt is in every error log, logcat not on every device. The core in a process
+// of its own (32 bit fallback) writes its file there: only logcat then.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_audioNote(JNIEnv *env, jclass, jstring line) {
+  if (!api.logFileLine || !coreProcessWhy.empty() || !line) return;
+  const char *text = env->GetStringUTFChars(line, nullptr);
+  if (!text) return;
+  char buf[256];
+  std::snprintf(buf, sizeof(buf), "%s (game frame %u)", text, api.frameCount ? api.frameCount() : 0u);
+  env->ReleaseStringUTFChars(line, text);
+  api.logFileLine(buf);
+}
+
 // 1 while the game plays in Dolby Pro Logic II (its rear in the four channels).
 extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_audioSurround(JNIEnv *, jclass) {
   return api.audioSurround && api.audioSurround() ? JNI_TRUE : JNI_FALSE;
@@ -2175,6 +2212,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSmooth(JN
   if (optSmooth.exchange(want) != want) LOG("60 FPS from in-between pictures: %s", want ? "on" : "off");
 }
 
+// Swipe aiming (CoreInput.takeAimSwipe): the touch area's finger as angles (cores since 29.10.2026).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_aimTurn(JNIEnv *, jclass, jfloat yaw, jfloat pitch) {
+  if (api.aimTurn) api.aimTurn(yaw, pitch);
+}
+
 // Gyro aiming (GyroAim.java): the turn rates to the core (cores since 19.10.2026; older ones: none).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_gyro(JNIEnv *, jclass, jfloat yaw, jfloat pitch) {
   if (api.gyro) api.gyro(yaw, pitch);
@@ -2259,7 +2301,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_cardNote(
 }
 
 // The picture options: scale 0 (automatic) or 1-4, samples 1/2/4, anisotropy
-// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched) or 3 (4:3 without the bars while playing).
+// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched) or 3 (4:3 without the bars while playing, in an exact
+// 4:3 box; 4 is the same).
 // Applied at the next picture while the game runs.
 // scale: in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(JNIEnv *, jclass, jint scale,
@@ -2273,7 +2316,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(
   if (rebuild) optSerial++;
   LOG("picture options: scale %s, %d samples, anisotropy %d, %s", scale ? ScaleName(scale).c_str() : "dynamic",
       samples, anisotropy,
-      aspect == 1 ? "4:3" : aspect == 2 ? "stretched" : aspect == 3 ? "4:3 without the bars" : "16:9");
+      aspect == 1   ? "4:3"
+      : aspect == 2 ? "stretched"
+      : aspect == 3 || aspect == 4 ? "4:3 without the bars"
+                                   : "16:9");
 }
 
 // {most samples, strongest anisotropy, scale (in halves), samples, anisotropy in use}; null before the renderer started.

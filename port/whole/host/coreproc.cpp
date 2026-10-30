@@ -108,6 +108,7 @@ struct Core {
     void (*setCheats)(int);
     int (*cheatAction)(int);
     void (*touch)(float, float);
+    void (*aimTurn)(float, float);
     void (*swipe)(int);
     void (*slash)(float);
     void (*gyro)(float, float);
@@ -723,6 +724,7 @@ bool loadCore(std::string& problem)
     bind(core.setCheats, "re4_core_set_cheats");
     bind(core.cheatAction, "re4_core_cheat_action");
     bind(core.touch, "re4_core_touch");
+    bind(core.aimTurn, "re4_core_aim_turn");
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
     bind(core.gyro, "re4_core_gyro");
@@ -853,6 +855,13 @@ void serve()
             float tilt;
             memcpy(&tilt, &h.a, 4);
             core.slash(tilt);
+            break;
+        }
+        case kAimTurn: {
+            float yaw, pitch;
+            memcpy(&yaw, &h.a, 4);
+            memcpy(&pitch, &h.b, 4);
+            core.aimTurn(yaw, pitch);
             break;
         }
         case kTouch: {

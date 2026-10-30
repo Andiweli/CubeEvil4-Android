@@ -106,6 +106,7 @@ struct Disc {
     char root[1100];          // folder holding sys/ and files/
     unsigned char id[0x20];   // first 32 bytes of boot.bin
     int release;              // RE4_DISC_DEBUG ... (releaseOf)
+    bool korean;              // RE4_DISC_RETAIL_JP: the Korean translation's main.dol (koreanOf)
     unsigned char* fst;       // big-endian FST, host copy
     u32 fstSize;
     u32 count;                // FST entries
@@ -209,12 +210,16 @@ bool parseFst(Disc& d)
 // Which release a disc header belongs to (the rule of port/tools/disc_release.py): G4BE08 with
 // the file system table at 0x28FE00 is the debug build of 2004-11-25 the port's code is (its
 // main.dol is 2554432 bytes), G4BP08 the European release (port/docs/retail-eu-plan.md), G4BE08
-// with the table elsewhere the US release (never tested). A header without the table's place
+// with the table elsewhere the US release (never tested), G4BJ08 the Japanese release and the
+// Korean translation built on it (port/docs/retail-jp-plan.md). A header without the table's place
 // (only the port's tests write one) counts as the debug build, as the port assumed until then.
 int releaseOf(const unsigned char* boot, u32 size)
 {
     if (size >= 6 && memcmp(boot, "G4BP08", 6) == 0) {
         return RE4_DISC_RETAIL_EU;
+    }
+    if (size >= 6 && memcmp(boot, "G4BJ08", 6) == 0) {
+        return RE4_DISC_RETAIL_JP;
     }
     if (size < 6 || memcmp(boot, "G4BE08", 6) != 0) {
         return RE4_DISC_UNKNOWN;
@@ -228,8 +233,27 @@ int releaseOf(const unsigned char* boot, u32 size)
 const char* releaseName(int release)
 {
     static const char* const names[] = {"debug build G4BE08", "European release G4BP08",
-                                        "US release G4BE08 (untested)", "unknown game"};
-    return names[release >= 0 && release <= RE4_DISC_UNKNOWN ? release : RE4_DISC_UNKNOWN];
+                                        "US release G4BE08 (untested)", "unknown game",
+                                        "Japanese release G4BJ08"};
+    return names[release >= 0 && release <= RE4_DISC_RETAIL_JP ? release : RE4_DISC_UNKNOWN];
+}
+
+// The Korean fan translation of the Japanese discs: the same header, its main.dol reads no country in
+// emWepPlHeadLost and obj16PlHeadLost (the Japanese 0x80017b7c / 0x8002ccd4, file offsets 0x14b7c and
+// 0x29cd4: "li r30, 1" / "li r31, 1" for "lbz rX, 9(r9)", pSys->eff_country). Read from sys/main.dol.
+bool koreanOf(const char* root)
+{
+    char path[1200];
+    snprintf(path, sizeof(path), "%s/sys/main.dol", root);
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        return false;
+    }
+    unsigned char w[2][4] = {};
+    bool ok = fseek(f, 0x14b7c, SEEK_SET) == 0 && fread(w[0], 1, 4, f) == 4 && fseek(f, 0x29cd4, SEEK_SET) == 0 &&
+              fread(w[1], 1, 4, f) == 4;
+    fclose(f);
+    return ok && be32(w[0]) == 0x3BC00001u && be32(w[1]) == 0x3BE00001u;
 }
 
 bool loadDisc(int no)
@@ -275,8 +299,10 @@ bool loadDisc(int no)
         d.release = RE4_DISC_DEBUG;
     }
     free(boot);
+    d.korean = d.release == RE4_DISC_RETAIL_JP && koreanOf(d.root);
     d.loaded = true;
-    re4_log("DVD: disc %d: %s, %u FST entries, %s", no, d.root, d.count, releaseName(d.release));
+    re4_log("DVD: disc %d: %s, %u FST entries, %s%s", no, d.root, d.count, releaseName(d.release),
+            d.korean ? " (Korean translation)" : "");
     const Disc& other = gDiscs[no ^ 1];
     if (other.loaded && other.release != d.release) {
         re4_log("DVD: the discs are of different releases (%s, %s): import both discs of one release",
@@ -297,8 +323,8 @@ bool insertDisc(int no)
         return true;
     }
     memcpy((void*) (unsigned long) RE4_MEM1_BASE, d.id, sizeof(d.id));
-    if (d.release == RE4_DISC_RETAIL_EU) {
-        // The European discs carry G4BP08. The game's code is the debug build's, which writes its
+    if (d.release == RE4_DISC_RETAIL_EU || d.release == RE4_DISC_RETAIL_JP) {
+        // The European discs carry G4BP08 (the Japanese G4BJ08). The game's code is the debug build's, which writes its
         // saves itself: the memory card ties each file to the game id of the disc (CARD __CARDAccess),
         // so with the European id the saves of the debug discs (and the .gci of the app's menu,
         // runtime/gci.cpp) would be another game's. cDvd::DiscChange asks for "G4BE" as well. The
@@ -307,7 +333,8 @@ bool insertDisc(int no)
         static bool told;
         if (!told) {
             told = true;
-            re4_log("DVD: European discs: the game sees the debug build's id G4BE08 (memory card, disc change)");
+            re4_log("DVD: %s discs: the game sees the debug build's id G4BE08 (memory card, disc change)",
+                    d.release == RE4_DISC_RETAIL_JP ? "Japanese" : "European");
         }
     }
     // the top of retail memory (ILP32), on LP64 above the higher heap end
@@ -593,6 +620,23 @@ int re4_disc_release(void)
 int re4_disc_retail_eu(void)
 {
     return re4_disc_release() == RE4_DISC_RETAIL_EU;
+}
+
+int re4_disc_retail_jp(void)
+{
+    return re4_disc_release() == RE4_DISC_RETAIL_JP;
+}
+
+int re4_disc_retail_kr(void)
+{
+    Disc* d = current();
+    return d && d->release == RE4_DISC_RETAIL_JP && d->korean;
+}
+
+int re4_disc_retail(void)
+{
+    int release = re4_disc_release();
+    return release == RE4_DISC_RETAIL_EU || release == RE4_DISC_RETAIL_US || release == RE4_DISC_RETAIL_JP;
 }
 
 // The place of the core archive (patch 0117, read.cpp CoreDataRead): the debug build reads

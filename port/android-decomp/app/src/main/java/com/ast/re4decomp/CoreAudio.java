@@ -41,6 +41,9 @@ final class CoreAudio {
   // next start of the app, begins with it
   private static final String PREFS = "core_audio";
   private LatencyTuner tuner;
+  // the underruns noted in the core's log: the track's count at the last check, lines so far
+  private static final int MAX_NOTES = 200;
+  private int noted, notes;
 
   CoreAudio(Context context) {
     this.context = context;
@@ -125,6 +128,7 @@ final class CoreAudio {
     // only as much of the buffer as the output needs (LatencyTuner): Bluetooth asks for a large one
     String used = "all of it";
     tuner = null;
+    noted = 0;  // a new track counts from 0
     if (Build.VERSION.SDK_INT >= 24) {
       final AudioManager manager = context.getSystemService(AudioManager.class);
       final int burst = LatencyTuner.burst(
@@ -148,6 +152,17 @@ final class CoreAudio {
   private void tune(AudioTrack track) {
     if (tuner == null || Build.VERSION.SDK_INT < 24) return;
     final int underruns = track.getUnderrunCount();
+    // each time the output ran out the speaker played silence there: a short gap in what plays (a
+    // shot "with a pause in it", user report 30.10.2026, while the core's ring never ran dry); into
+    // the core's log too, with the game frame (logcat records nothing on some devices)
+    if (underruns > noted && notes < MAX_NOTES) {
+      notes++;
+      final String line = "sound: the Android output ran out (" + underruns + " times on this track, buffer "
+          + tuner.size() + " frames = " + tuner.size() * 1000 / RATE + " ms)";
+      Log.i(TAG, line);
+      CoreBridge.audioNote(line);
+    }
+    noted = underruns;
     if (!tuner.check(underruns)) return;
     final int set = track.setBufferSizeInFrames(tuner.size());
     final int frames = set > 0 ? set : tuner.size();

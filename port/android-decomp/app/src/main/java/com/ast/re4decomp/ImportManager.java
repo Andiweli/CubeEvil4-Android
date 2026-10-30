@@ -25,7 +25,7 @@ public final class ImportManager {
   private Listener listener;
   public volatile boolean busy;
   /** The status before anything happened (the core launcher shows its own heading instead). */
-  public static final String PROMPT = "Select ISO/GCM/RVZ files of the debug build or of the European release. "
+  public static final String PROMPT = "Select ISO/GCM/RVZ files of the debug build, the European or the Japanese release. "
       + "RVZ files are unpacked first and need extra free storage (about 3 GB per disc).";
   public volatile String status = PROMPT;
   public final File root;
@@ -72,7 +72,7 @@ public final class ImportManager {
   }
   /** The name of a release for the launcher's texts. */
   public static String releaseName(String release) {
-    return GameCubeDisc.EUROPEAN.equals(release) ? "European release" : "debug build";
+    return GameCubeDisc.DEBUG.equals(release) || release == null ? "debug build" : GameCubeDisc.releaseTitle(release);
   }
   /** Null, or the line saying that the two imported discs are of different releases. */
   public String mixedReleases() {

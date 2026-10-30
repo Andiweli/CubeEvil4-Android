@@ -18,8 +18,10 @@
 the original game code, compiled from the complete decompilation in this repository for ARM.
 Since v0.92.0 it also plays the **European retail release** (`G4BP08`, two discs) in English,
 German, French, Spanish and Italian; the code stays the debug build's, with small patches where the
-retail data needs them. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
-and it contains no game data: you need your own images of both discs of one of the two releases.
+retail data needs them. Since v0.95.2 it also plays the **Japanese retail release** (`G4BJ08`,
+"biohazard4") and the Korean fan translation built on it. It is not affiliated with or endorsed by Capcom,
+Nintendo or CRI Middleware, and it contains no game data: you need your own images of both discs of one
+release.
 
 <!--
 <p align="center"><img src="port/android-decomp/app/src/main/res/drawable-nodpi/icon_cubeevil4.png" width="160" alt="CubeEvil4 icon"></p>
@@ -52,8 +54,9 @@ and it contains no game data: you need your own images of both discs of one of t
   anisotropic filtering and depth of field.
 - Sound: the original SDK sound libraries with an emulated DSP; movies through the original CRI
   middleware with picture and ADX sound.
-- Two releases: the debug build (`G4BE08`) and the European retail release (`G4BP08`) with its five
-  languages, chosen in the app menu (default: your phone's language). Both use the same memory card.
+- Releases: the debug build (`G4BE08`), the European retail release (`G4BP08`) with its five languages,
+  chosen in the app menu (default: your phone's language), and the Japanese retail release (`G4BJ08`, in
+  Japanese; the Korean fan translation in Korean). All use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube).
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
   aiming with the right stick); touch controls when no controller is connected, with touch in the
@@ -74,7 +77,7 @@ and it contains no game data: you need your own images of both discs of one of t
 | Free storage | about 3 GB, to import both discs | – |
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
-| Game data | your own disc images (ISO or GCM) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`) or the European retail release (`G4BP08`) | – |
+| Game data | your own disc images (ISO or GCM) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`), the European retail release (`G4BP08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
 
 > [!NOTE]
 > **32-bit-only devices:** some of them cannot start the game. One with Android 14 showed
@@ -106,7 +109,7 @@ recorded in `port/docs/whole-program-status.md` (German).
 SELECT opens it (rooms are chosen there). Use the debug menu with care: it is
 the developers' internal tool from 2004, and some of its options can hang or crash the game or
 leave the game (and a save made afterwards) in an odd state. Such problems come from the debug build itself, not from the port.
-With the European discs there is no debug menu; the app menu has cheats instead (Management).
+With the European and Japanese discs there is no debug menu; the app menu has cheats instead (Management).
 
 ## How to use?
 
@@ -118,8 +121,9 @@ With the European discs there is no debug menu; the app menu has cheats instead 
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
   Controls: Auto, Force or Suppress).
 - Your own disc images (ISO or GCM) of **both** discs of the GameCube debug build from
-  November 25, 2004 (`G4BE08`) or of the European retail release (`G4BP08`), and enough free
-  storage to import them. Both discs must be of the same release.
+  November 25, 2004 (`G4BE08`), of the European retail release (`G4BP08`) or of the Japanese retail
+  release (`G4BJ08`, also the Korean fan translation), and enough free storage to import them. Both
+  discs must be of the same release.
 
 **First start**
 

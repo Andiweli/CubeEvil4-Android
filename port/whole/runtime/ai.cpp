@@ -169,14 +169,16 @@ void tick()
     play(gPlayAddr, gPlayLength);
     gBlocks++;
     if (gBlocks % 2000 == 0) {  // every 10 s
-        unsigned lists, voiceMs, peak;
+        unsigned lists, voiceMs, peak, compressed, clipped;
         re4_dsp_stats(&lists, &voiceMs, &peak);
+        re4_dsp_loudness(&compressed, &clipped);
         static unsigned lastVoiceMs;
         re4_log("audio: %u blocks, %u ms waiting, %u lost, %u ran dry, %u skips; DSP %u lists, %.1f voices "
-                "(at most %u), AX estimate at most %u of %u cycles, %u blocks over",
+                "(at most %u), AX estimate at most %u of %u cycles, %u blocks over; compressor %u blocks, "
+                "%u samples clipped",
                 gBlocks, (gWrite.load() - gRead.load()) / 32, gOverruns.load(), gUnderruns.load(),
                 gSkips.load(), lists, (voiceMs - lastVoiceMs) / 10000.0, peak, gPeakCycles,
-                AXGetMaxDspCycles(), gOverBudget);
+                AXGetMaxDspCycles(), gOverBudget, compressed, clipped);
         lastVoiceMs = voiceMs;
         gPeakCycles = 0;
     }
@@ -261,23 +263,31 @@ static int readRing(short* out, int frames, int channels)
     int adjust = ((int) fill - (int) kTarget) / 8;  // 1/65536 steps
     adjust = adjust > 328 ? 328 : adjust < -328 ? -328 : adjust;
     const u32 step = (u32) (65536 + adjust);
+    // 4-point cubic (Catmull-Rom) between the frames: linear dulled the highs by up to 3 dB at
+    // 8 kHz, changing about 100 times a second with the position between two frames (tester
+    // report 29.10.2026: "not clear"); the frame before the reader stays in the ring
     int got = 0;
     for (int i = 0; i < frames; i++) {
-        if (w - r < 2) {
+        if (w - r < 3) {
             for (int c = 0; c < channels; c++) {
                 out[i * channels + c] = 0;
             }
             continue;
         }
-        const u32 a = r & (kRing - 1), b = (r + 1) & (kRing - 1);
-        const int f = (int) (gFrac >> 4);  // 12 bits
+        const u32 z = (r - 1) & (kRing - 1), a = r & (kRing - 1), b = (r + 1) & (kRing - 1),
+                  d = (r + 2) & (kRing - 1);
+        const float t = (float) gFrac * (1.0f / 65536.0f);
         short* o = out + i * channels;
         for (int s = 0; s < nSources; s++) {
             const int16_t* ring = sources[s].ring;
             const int n = sources[s].channels;
             for (int c = 0; c < n; c++) {
-                const int16_t va = ring[a * n + c], vb = ring[b * n + c];
-                *o++ = (int16_t) (va + ((vb - va) * f >> 12));
+                const float v0 = ring[z * n + c], v1 = ring[a * n + c], v2 = ring[b * n + c],
+                            v3 = ring[d * n + c];
+                const float v = v1 + 0.5f * t * (v2 - v0 + t * (2.0f * v0 - 5.0f * v1 + 4.0f * v2 - v3 +
+                                                                 t * (3.0f * (v1 - v2) + v3 - v0)));
+                const int q = (int) (v < 0 ? v - 0.5f : v + 0.5f);
+                *o++ = (int16_t) (q < -32768 ? -32768 : q > 32767 ? 32767 : q);
             }
         }
         got++;

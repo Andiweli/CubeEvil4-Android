@@ -27,6 +27,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -171,6 +172,69 @@ const std::uint8_t kGreen[4] = {0, 255, 0, 255};
 const std::uint8_t kBlue[4] = {0, 0, 255, 255};
 const std::uint8_t kBlack[4] = {0, 0, 0, 255};
 const std::uint8_t kWhite[4] = {255, 255, 255, 255};
+
+// The console's pixel centre (7/12 of a pixel, Dolphin's correction; the rifle scope's horizontal line
+// at 1x, 29.10.2026): a line 0.94 pixels thick on the edge between rows 223 and 224 (and columns 319
+// and 320) covers row 223 (column 319) only, as the GameCube draws it; a quad whose left edge is at
+// 10.55 covers column 10 (its sample at 10.583), one at 50.65 not column 50.
+void TestPixelCentre(re4gx::GxRenderer &r) {
+  Builder b;
+  Baseline(b);
+  b.flags |= RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  Quad(b, 100, 223.53f, 300, 224.47f, 0, kGreen);
+  Quad(b, 319.53f, 300, 320.47f, 400, 0, kRed);
+  Quad(b, 10.55f, 440, 40, 460, 0, kBlue);
+  Quad(b, 50.65f, 440, 80, 460, 0, kWhite);
+  DisplayCopy(b, false, kBlack);
+  r.Run(b.Chunk());
+  const auto row = EfbPixel(r, 200, 223), above = EfbPixel(r, 200, 222), below = EfbPixel(r, 200, 224);
+  Check(Near(row, 0, 255, 0) && Near(above, 0, 0, 0) && Near(below, 0, 0, 0),
+        "pixel centre: a horizontal line thinner than a pixel on a row edge drawn in one row (the scope)");
+  if (!Near(row, 0, 255, 0))
+    Print("row 223", row), Print("row 224", below);
+  Check(Near(EfbPixel(r, 319, 350), 255, 0, 0) && Near(EfbPixel(r, 320, 350), 0, 0, 0),
+        "pixel centre: a vertical line thinner than a pixel on a column edge drawn in one column");
+  Check(Near(EfbPixel(r, 10, 450), 0, 0, 255), "pixel centre: an edge at 10.55 covers column 10 (sample at 10.583)");
+  Check(Near(EfbPixel(r, 50, 450), 0, 0, 0) && Near(EfbPixel(r, 51, 450), 255, 255, 255),
+        "pixel centre: an edge at 50.65 leaves column 50");
+}
+
+// "4:3 (exact)" (GxRenderer::SetWiden, 29.10.2026): a flat draw over the whole screen is drawn 15/14
+// wider around the screen's centre (columns 200..300 of 640: 191.4..298.6); a flat draw into a part
+// of the EFB (a viewport 200 wide, a picture for a texture) stays as sent, and so does everything at 1.
+void TestWiden(re4gx::GxRenderer &r) {
+  auto run = [&](float widen, bool part) {
+    r.SetWiden(widen);
+    Builder b;
+    Baseline(b);
+    b.flags |= RE4_GX_CHUNK_XFB;
+    DisplayCopy(b, true, kBlack);
+    if (part)
+      b.XfF(0x101A, {100.0f, -264.0f, 16777215.0f, 342.0f + 100.0f, 342.0f + 264.0f, 16777215.0f});
+    Quad(b, 200, 100, 300, 150, 0, kGreen);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  };
+  run(15.0f / 14.0f, false);
+  Check(Near(EfbPixel(r, 192, 120), 0, 255, 0) && Near(EfbPixel(r, 190, 120), 0, 0, 0) &&
+            Near(EfbPixel(r, 297, 120), 0, 255, 0) && Near(EfbPixel(r, 300, 120), 0, 0, 0),
+        "4:3 exact: a flat draw over the whole screen is 15/14 wider around the centre");
+  run(1.0f, false);
+  Check(Near(EfbPixel(r, 195, 120), 0, 0, 0) && Near(EfbPixel(r, 200, 120), 0, 255, 0) &&
+            Near(EfbPixel(r, 299, 120), 0, 255, 0) && Near(EfbPixel(r, 300, 120), 0, 0, 0),
+        "4:3 exact off: the flat draw as sent");
+  run(1.0f, true);
+  std::vector<std::vector<std::uint8_t>> asSent;
+  for (int x = 0; x < 640; x += 4)
+    asSent.push_back(EfbPixel(r, x, 120));
+  run(15.0f / 14.0f, true);
+  bool same = true;
+  for (int x = 0, i = 0; x < 640; x += 4, i++)
+    same = same && EfbPixel(r, x, 120) == asSent[static_cast<std::size_t>(i)];
+  Check(same, "4:3 exact: a flat draw into a part of the EFB stays as sent");
+  r.SetWiden(1.0f);
+}
 
 void TestBasics(re4gx::GxRenderer &r) {
   // frame 1: clear to blue by a display copy, then a green quad top left, a
@@ -1512,6 +1576,28 @@ void TestUniformStream(re4gx::GxRenderer &r, const char *tag) {
   std::snprintf(what, sizeof(what), "%s: uniform stream, after the large chunk one of 2400 draws right, none inside",
                 tag);
   Check(after.first && after.second.first == 1 && after.second.second == 0, what);
+  // the render thread's split (GxStats::splitNs): the kinds add up to the Run's time, the draw calls,
+  // uniform blocks and binds of a chunk of 2400 draws each take some of it
+  {
+    const re4gx::GxStats before = r.Stats();
+    const auto from = std::chrono::steady_clock::now();
+    const auto res = chunk(2400, false);
+    const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count() * 1e9;
+    const re4gx::GxStats &s = r.Stats();
+    double sum = 0;
+    for (int k = 0; k < re4gx::GxStats::kSplitKinds; k++)
+      sum += static_cast<double>(s.splitNs[k] - before.splitNs[k]);
+    const auto part = [&](int k) { return s.splitNs[k] - before.splitNs[k]; };
+    std::fprintf(stderr, "  %s split of 2400 draws: %.2f of %.2f ms (draw calls %.2f, uniform %.2f, binds %.2f, rest %.2f)\n",
+                 tag, sum / 1e6, wall / 1e6, part(re4gx::GxStats::kSplitDraw) / 1e6,
+                 part(re4gx::GxStats::kSplitUniform) / 1e6, part(re4gx::GxStats::kSplitBind) / 1e6,
+                 part(re4gx::GxStats::kSplitRest) / 1e6);
+    std::snprintf(what, sizeof(what), "%s: render thread split adds up to the Run (%.2f of %.2f ms)", tag, sum / 1e6,
+                  wall / 1e6);
+    Check(res.first && sum > 0 && sum <= wall && part(re4gx::GxStats::kSplitDraw) > 0 &&
+              part(re4gx::GxStats::kSplitUniform) > 0 && part(re4gx::GxStats::kSplitBind) > 0,
+          what);
+  }
 }
 
 // The menu's picture options (M11): a multisampled EFB is resolved before
@@ -2662,6 +2748,8 @@ int main() {
     std::string error;
     Require(renderer.Init(1, &error), error.c_str());
     TestBasics(renderer);
+    TestPixelCentre(renderer);
+    TestWiden(renderer);
     TestTexture(renderer);
     TestTev(renderer);
     TestLighting(renderer);

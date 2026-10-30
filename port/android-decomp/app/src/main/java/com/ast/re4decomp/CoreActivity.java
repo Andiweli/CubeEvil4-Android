@@ -89,9 +89,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_AIM = "gyroAiming";
   // the menu's switch "Alternate Controls" (CoreInput.setAlternate)
   static final String ALT_CONTROLS = "alternateControls";
-  // the menu's "Controller configuration": the free keys' functions (CoreInput.encode; absent: the
-  // default); "bindings" and "extraKeys" held the two first versions (27.10.2026), dropped
-  static final String KEY_MAP = "keyMap";
+  // the menu's "Button Mapping" (ActionMap.encode; absent: the default), the controller's and the
+  // keyboard's; "bindings", "extraKeys" (27.10.2026) and "keyMap" (the free keys until 29.10.2026) held
+  // the versions before, dropped
+  static final String BINDINGS_CONTROLLER = "mappingController", BINDINGS_KEYBOARD = "mappingKeyboard";
+  static final String OLD_KEY_MAP = "keyMap";
+  // the mouse's sensitivity (the button mapping's slider, 0.25 .. 3, 1 = as below)
+  static final String MOUSE_SENSITIVITY = "mouseSensitivity";
+  static final float MOUSE_MIN = 0.25f, MOUSE_MAX = 3f, MOUSE_STEP = 0.25f;
+  /** The aim's turn per count of the captured mouse at sensitivity 1 (about 400 counts a radian). */
+  static final float MOUSE_AIM_RADIANS = 0.0025f;
+  /** The camera's C stick per count of the captured mouse in one event at sensitivity 1. */
+  static final float MOUSE_LOOK = 0.05f;
   // the menu's comfort control "Latch L and R" (CoreTouch.setLatch, CoreInput.setLatch; off: held
   // while touched or pressed); the touch controls' only until 23.10.2026, the name stays
   static final String TOUCH_LATCH = "touchLatchLR";
@@ -108,7 +117,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GRAPHICS_PREFS = "core_graphics";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
-  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill; off). */
+  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
+   *  extra games kept unlocked; off). */
   static final String CHEATS = "cheats";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
@@ -131,6 +141,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the language at the start or the last change (onConfigurationChanged)
   private String shownLanguage = "";
   private boolean retailEu;  // the European discs are imported: the menu offers the game's language
+  private boolean retail;  // any retail discs (European, Japanese, Korean): no debug menu (retail-jp-plan.md)
   private int gameLanguageNow;  // the language the game runs with (European discs)
   // the menu (SELECT) and the debug menu (SELECT held)
   private CoreMenu menu;
@@ -192,8 +203,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
     // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
-    retailEu = imports.root != null && com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(
-        com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1")));
+    String release = imports.root == null ? null
+        : com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1"));
+    retailEu = com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(release);
+    retail = release != null && !com.ast.re4decomp.disc.GameCubeDisc.DEBUG.equals(release);
     gameLanguageNow = gameLanguage(this);
     if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
       coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
@@ -208,7 +221,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences inputPrefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
     input.setSwapFace(inputPrefs.getBoolean(SWAP_FACE, false));
     input.setAlternate(inputPrefs.getBoolean(ALT_CONTROLS, false));
-    input.setKeyMap(CoreInput.decode(inputPrefs.getString(KEY_MAP, null)));
+    if (inputPrefs.contains(OLD_KEY_MAP)) {
+      Log.i(TAG, "layout: the free keys of the controller configuration (" + inputPrefs.getString(OLD_KEY_MAP, "")
+          + ") dropped; the button mapping starts from the default");
+      inputPrefs.edit().remove(OLD_KEY_MAP).apply();
+    }
+    input.setControllerMap(ActionMap.decode(ActionMap.KIND_CONTROLLER, inputPrefs.getString(BINDINGS_CONTROLLER, null)));
+    input.setKeyboardMap(ActionMap.decode(ActionMap.KIND_KEYBOARD, inputPrefs.getString(BINDINGS_KEYBOARD, null)));
     if (inputPrefs.contains("bindings") || inputPrefs.contains("extraKeys")) {
       inputPrefs.edit().remove("bindings").remove("extraKeys").apply();
     }
@@ -257,6 +276,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.setLatchB(inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     gyroAim = new GyroAim(this, main);
     gyroAim.setSensitivity(inputPrefs.getFloat(GYRO_SENSITIVITY, 1f));
+    mouseSensitivity = clampMouse(inputPrefs.getFloat(MOUSE_SENSITIVITY, 1f));
+    // the mouse (step 2 of the button mapping, 29.10.2026): captured while the game is in front, its
+    // buttons through the keyboard's mapping, its movement the camera and, while aiming, the aim
+    if (Build.VERSION.SDK_INT >= 26) {
+      surface.setFocusable(true);
+      surface.setFocusableInTouchMode(true);
+      surface.setOnCapturedPointerListener((v, e) -> {
+        capturedMouse(e);
+        return true;
+      });
+    }
     gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
@@ -529,10 +559,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final Runnable selectHold = () -> {
     if (!selectDown || menu != null) return;
     selectHeld = true;
-    // the European discs have no debug menu (decision of the project owner, 26.10.2026; a cheat menu
-    // of the in-game menu comes later): holding SELECT opens nothing
-    if (retailEu) {
-      Log.i(TAG, "SELECT held: no debug menu with the European discs");
+    // the retail discs have no debug menu (decision of the project owner, 26.10.2026; the cheat menu
+    // of the in-game menu instead; the Japanese discs lack the debug tools as well): holding SELECT
+    // opens nothing
+    if (retail) {
+      Log.i(TAG, "SELECT held: no debug menu with the retail discs");
       return;
     }
     if (!menuSupported) {
@@ -585,6 +616,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       Log.i(TAG, "menu closed");
       surface.requestFocus();
+      main.post(this::updateMouseCapture);
     });
     menu.show();
   }
@@ -687,8 +719,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public void cheatsChanged(int bits) {
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
-      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill)");
+      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept)");
       CoreBridge.setCheats(bits);
+    }
+
+    @Override public void restartGame() {
+      Log.i(TAG, "the game restarts (extra games), its language stays");
+      CoreBridge.restartGame(0);
     }
 
     @Override public int cheatAction(int what) {
@@ -704,34 +741,52 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       logLayout();
     }
 
-    @Override public void keyMapChanged(int[] map) {
-      String text = CoreInput.encode(map);
+    @Override public void mappingChanged(ActionMap map) {
+      String text = map.encode();
+      String key = map.kind == ActionMap.KIND_KEYBOARD ? BINDINGS_KEYBOARD : BINDINGS_CONTROLLER;
       SharedPreferences.Editor e = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit();
-      if (text == null) e.remove(KEY_MAP); else e.putString(KEY_MAP, text);
+      if (text == null) e.remove(key); else e.putString(key, text);
       e.apply();
-      input.setKeyMap(map);
+      if (map.kind == ActionMap.KIND_KEYBOARD) input.setKeyboardMap(map); else input.setControllerMap(map);
       send();
       logLayout();
     }
+
+    @Override public ActionMap mapping(int kind) {
+      return kind == ActionMap.KIND_KEYBOARD ? input.keyboardMap() : input.controllerMap();
+    }
+
+    @Override public int faceLabel(int keyCode) { return input.faceLabel(keyCode); }
 
     @Override public boolean controllerConnected() {
       for (int id : InputDevice.getDeviceIds()) if (gameDevice(InputDevice.getDevice(id))) return true;
       return false;
     }
+
+    @Override public boolean keyboardConnected() {
+      for (int id : InputDevice.getDeviceIds()) {
+        InputDevice d = InputDevice.getDevice(id);
+        if (keyboardDevice(d) || mouseDevice(d)) return true;
+      }
+      return false;
+    }
+
+    @Override public float mouseSensitivity() { return mouseSensitivity; }
+
+    @Override public void mouseSensitivityChanged(float value) {
+      mouseSensitivity = clampMouse(value);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(MOUSE_SENSITIVITY, mouseSensitivity).apply();
+      Log.i(TAG, "mouse: sensitivity " + mouseSensitivity);
+    }
   };
 
   private void logLayout() {
-    // the free keys' functions of the controller configuration (not with the alternate controls)
-    StringBuilder extra = new StringBuilder();
-    String[] names = {"A", "B", "X", "Y", "Z", "L", "R", "START", "UP", "DOWN", "LEFT", "RIGHT", "menu"};
-    int[] map = input.keyMap();
-    if (map != null && !input.alternate()) {
-      extra.append(", free keys (controller configuration):");
-      for (int i = 0; i < map.length; i++) {
-        extra.append(i == 0 ? " " : ", ").append(KeyEvent.keyCodeToString(CoreInput.MOVABLE[i]).replace("KEYCODE_", ""))
-            .append(" = ").append(map[i] < 0 ? "none" : names[map[i]]);
-      }
-    }
+    // the controller's own mapping (not with the alternate controls) and the keyboard's
+    String extra = (input.ownControllerMap() && !input.alternate()
+        ? "; own controller mapping (in the game, the menus keep the layout): "
+            + input.controllerMap().describe(CoreMenu::keyName) : "")
+        + "; keyboard: " + (input.keyboardMap().isDefault() ? "default" : "own")
+        + " mapping: " + input.keyboardMap().describe(CoreMenu::keyName);
     Log.i(TAG, "layout: A B X Y by label" + (input.swapFace() ? ", A/B and X/Y swapped" : "")
         + (input.alternate() ? ", alternate controls: L1 = L, L2 = R, R1 = Y, R2 = A, Y = Z, aiming with the right stick"
             : ", R2 = R, L2 = L, R1 = Z")
@@ -779,6 +834,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchEditing = on;
     input.clear();
     send();
+    updateMouseCapture();
     if (!menuSupported) return;
     if (on) {
       boolean paused = CoreBridge.pause(true, 800);
@@ -1045,6 +1101,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void send() {
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
+    // swipe aiming (Touch Aiming: Touch Area): the finger's way since the last event as angles
+    float[] turn = input.takeAimSwipe();
+    if (turn != null) CoreBridge.aimTurn(turn[0], turn[1]);
   }
 
   /** The keys the game maps or the app uses: which of them a device reports. */
@@ -1081,6 +1140,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /** Game controllers and gamepad-like devices, for the connect lines and controllers.txt. */
+  /** A real keyboard (letters), not a controller that also reports keys (the Retroid's built-in one). */
+  static boolean keyboardDevice(InputDevice d) {
+    if (d == null || d.isVirtual() || gameDevice(d)) return false;
+    return (d.getSources() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD
+        && d.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
+  }
+
   private static boolean gameDevice(InputDevice d) {
     if (d == null || d.isVirtual()) return false;
     int s = d.getSources();
@@ -1110,7 +1176,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int code = e.getKeyCode();
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
-    int function = input.appFunctionOf(code);
+    boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
+    int function = input.appFunctionOf(code, keyboard);
     if (function != CoreInput.APP_NONE && first) {
       String what = function == CoreInput.APP_MENU ? "menu" : tools ? "graphics capture" : "nothing (tools off)";
       Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ") -> app " + what);
@@ -1119,7 +1186,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       case CoreInput.APP_MENU:
         // pressed: the menu when let go; held for a second: the game's debug menu
         if (first) {
-          if (controller(e)) touchControls.controllerUsed();
+          if (controller(e) || keyboard) touchControls.controllerUsed();
           select(true);
         } else if (e.getAction() == KeyEvent.ACTION_UP) {
           select(false);
@@ -1132,6 +1199,26 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         return true;
       default:
         break;
+    }
+    // a keyboard (the button mapping, 29.10.2026): its mapping's keys and the fixed ones go to the game;
+    // Esc always (Android would make it "back" and ask to quit), the rest to Android
+    if (keyboard) {
+      if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
+      if (e.getRepeatCount() > 0) return true;
+      boolean taken = input.keyboardKey(e.getDeviceId(), code, down);
+      if (taken || code == KeyEvent.KEYCODE_ESCAPE) {
+        if (down) {
+          touchControls.controllerUsed();
+          noteDevice(e.getDevice());
+          if (controllerLog.firstKey(e.getDeviceId(), code)) {
+            Log.i(TAG, "keyboard " + KeyEvent.keyCodeToString(code) + " (" + code + ", device " + e.getDeviceId()
+                + ") -> GC " + CoreInput.names(input.keyboardButton(code)) + (input.menu() ? " (a game menu)" : ""));
+          }
+        }
+        send();
+        return true;
+      }
+      return super.dispatchKeyEvent(e);
     }
     if (controller(e) || KeyEvent.isGamepadButton(code)) {
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
@@ -1227,6 +1314,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   @Override
   public boolean dispatchTouchEvent(MotionEvent e) {
+    // a mouse on the picture while the game is in front: it is captured (its clicks are no taps)
+    if (Build.VERSION.SDK_INT >= 26 && e.isFromSource(InputDevice.SOURCE_MOUSE) && mouseWanted()) {
+      if (e.getActionMasked() == MotionEvent.ACTION_DOWN) updateMouseCapture();
+      return true;
+    }
     watchTap(e);
     if (touchControls == null) return super.dispatchTouchEvent(e);
     touchControls.before(e);
@@ -1300,7 +1392,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   }
 
-  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); }
+  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); updateMouseCapture(); }
   @Override public void onInputDeviceChanged(int id) {
     input.remove(id);
     seenDevices.remove(id);
@@ -1319,6 +1411,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** Nothing held while the game is not in front (no stuck keys after a dialog or the home screen). */
   private void releaseAll() {
     input.clear();
+    mouseButtons = 0;
+    main.removeCallbacks(mouseRest);
     if (touchControls != null) touchControls.reset();
     send();
   }
@@ -1327,6 +1421,92 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   public void onWindowFocusChanged(boolean focus) {
     super.onWindowFocusChanged(focus);
     if (!focus) releaseAll();
+    else main.post(this::updateMouseCapture);
+  }
+
+  // ---- the mouse ----
+  private float mouseSensitivity = 1f;
+  private int mouseButtons;  // the captured mouse's buttons held (MotionEvent.BUTTON_*)
+  private int mouseCaptures;
+  private final Runnable mouseRest = () -> {
+    input.mouseLook(0, 0);
+    send();
+  };
+
+  static float clampMouse(float v) {
+    return Float.isNaN(v) ? 1f : Math.max(MOUSE_MIN, Math.min(MOUSE_MAX, v));
+  }
+
+  /** A real mouse is connected (not a touchpad of the screen). */
+  static boolean mouseDevice(InputDevice d) {
+    return d != null && !d.isVirtual() && (d.getSources() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE;
+  }
+
+  private boolean mouseConnected() {
+    for (int id : InputDevice.getDeviceIds()) if (mouseDevice(InputDevice.getDevice(id))) return true;
+    return false;
+  }
+
+  /** The game in front, no menu, no touch editor, a mouse there: the mouse belongs to the game. */
+  private boolean mouseWanted() {
+    return resumed && hasWindowFocus() && menu == null && !touchEditing && mouseConnected();
+  }
+
+  /** Captures the mouse (Android 8 and later) when the game wants it, lets it go when not. */
+  private void updateMouseCapture() {
+    if (Build.VERSION.SDK_INT < 26 || surface == null) return;
+    boolean want = mouseWanted();
+    if (want && !surface.hasPointerCapture()) {
+      surface.requestFocus();
+      surface.requestPointerCapture();
+      if (++mouseCaptures <= 20) Log.i(TAG, "mouse: captured (its buttons through the keyboard's mapping, F1 or the "
+          + "app menu's key frees it), sensitivity " + mouseSensitivity);
+    } else if (!want && surface.hasPointerCapture()) {
+      surface.releasePointerCapture();
+    }
+  }
+
+  /** An event of the captured mouse: its buttons as keys (ActionMap.MOUSE_*), its movement camera and aim. */
+  private void capturedMouse(MotionEvent e) {
+    int state = e.getButtonState() & 31;
+    int changed = state ^ mouseButtons;
+    mouseButtons = state;
+    for (int bit = 1; bit <= 16; bit <<= 1) {
+      if ((changed & bit) == 0) continue;
+      int code = ActionMap.mouseButton(bit);
+      boolean down = (state & bit) != 0;
+      if (input.appFunctionOf(code, true) == CoreInput.APP_MENU) {
+        select(down);
+        continue;
+      }
+      input.keyboardKey(e.getDeviceId(), code, down);
+      if (down) {
+        touchControls.controllerUsed();
+        if (controllerLog.firstKey(e.getDeviceId(), code)) {
+          Log.i(TAG, "mouse button " + CoreMenu.keyName(code) + " -> GC " + CoreInput.names(input.keyboardButton(code))
+              + (input.menu() ? " (a game menu)" : ""));
+        }
+      }
+    }
+    int action = e.getActionMasked();
+    if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
+      // relative counts, the batched ones too
+      float dx = e.getX(), dy = e.getY();
+      for (int h = 0; h < e.getHistorySize(); h++) {
+        dx += e.getHistoricalX(h);
+        dy += e.getHistoricalY(h);
+      }
+      if (dx != 0 || dy != 0) {
+        // while aiming the core turns the aim by it (and ignores it otherwise); the camera's C stick as long
+        // as the mouse moves
+        float k = MOUSE_AIM_RADIANS * mouseSensitivity;
+        CoreBridge.aimTurn(-dx * k, -dy * k);
+        input.mouseLook(dx * MOUSE_LOOK * mouseSensitivity, dy * MOUSE_LOOK * mouseSensitivity);
+        main.removeCallbacks(mouseRest);
+        main.postDelayed(mouseRest, 60);
+      }
+    }
+    send();
   }
 
   @SuppressWarnings("deprecation")
@@ -1353,6 +1533,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (destroyed || !resumed) return;
       int r = CoreBridge.rumble();
       long now = SystemClock.uptimeMillis();
+      // the game shows a menu (bit 4): the button mappings give way to the devices' defaults
+      boolean gameMenu = (r & 0x10) != 0;
+      if (gameMenu != input.menu()) {
+        input.setMenu(gameMenu);
+        send();
+      }
       int frames = r >>> 8;
       if (frames != rumbleFrames) {
         rumbleFrames = frames;

@@ -203,9 +203,9 @@ void re4_core_pad(const Re4CorePad* pad);
  * the last four frames (bit 0 the newest), bits 8-31 = frames so far (the app
  * stops vibrating when they stand still). Bit 4: the game shows a menu in the
  * last frame (the title and its menus, loading, a sub screen: inventory, map,
- * files, merchant, options, radio, typewriter) or a button prompt ("A Open",
- * the quick-time events); the app's own controller bindings apply only
- * outside (27.10.2026). */
+ * files, merchant, options, radio, typewriter); there the app's button mapping
+ * gives way to the device's default (29.10.2026). Bit 5: a button prompt ("A
+ * Open", the quick-time events; noted only). */
 unsigned re4_core_rumble(void);
 /* A vsync of the device's display at `ns` (CLOCK_MONOTONIC, e.g. the
  * Choreographer's frame time), any thread, every vsync while the game is
@@ -273,7 +273,8 @@ void re4_core_set_fast_cores(int on);
  * The app menu's choice: the game takes it and restarts (its own soft reset at the next game frame,
  * once no memory card access holds it; runtime/game_language.cpp). At the start the environment
  * variable RE4_GAME_LANGUAGE gives it (eng, ger, fra, esp, ita or the number). The language is
- * ignored with the debug build's discs. Any thread. */
+ * ignored with the debug build's discs; 0 restarts with the language as it is (the cheat menu's extra
+ * games, 29.10.2026). Any thread. */
 void re4_core_restart_game(int language);
 /* The first disc file the game could not read (cores since 27.10.2026, runtime/dvd.cpp): "" while
  * every read went well, else "<disc>\t<path on the disc>\t<why>" (disc 1 or 2, the path as in the
@@ -282,12 +283,13 @@ void re4_core_restart_game(int language);
 const char* re4_core_disc_problem(void);
 /* The cheat menu (cores since 27.10.2026, runtime/cheats.cpp, port/docs/cheat-menu-plan.md), with
  * both kinds of discs. The switches, kept by the app like its other settings (at the start also the
- * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill; set in
- * every game frame while on. Any thread. */
+ * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic
+ * QTEs, 16 the extra games kept unlocked (after button 4); set in every game frame while on. Any thread. */
 void re4_core_set_cheats(int bits);
-/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas. While the
- * app's menu holds the game it is done right away: 1 done, 2 already so (Killer7 owned: raised to the
- * highest levels; case L or XL), 0 not now (not Leon, not in a room's play, a sub screen or a movie),
+/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas, 4 unlock the
+ * extra games (Assignment Ada, The Mercenaries; at any time). While the app's menu holds the game it is
+ * done right away: 1 done, 2 already so (Killer7 owned: raised to the highest levels; case L or XL; the
+ * extra games unlocked), 0 not now (1-3: not Leon, not in a room's play, a sub screen or a movie),
  * -1 no free room in the case. Else the next game frame does it: 3. */
 int re4_core_cheat_action(int what);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
@@ -303,6 +305,10 @@ int re4_letterbox_off(void);
  * game frame while a sub screen is open (tabs, the attache case and its
  * command menu), ignored elsewhere. Any thread. */
 void re4_core_touch(float u, float v);
+/* Swipe aiming (cores since 29.10.2026; runtime/gyro.cpp): the touch area's finger moved while the player
+ * aims, as angles in radians (yaw positive left, pitch positive up), added up to the next game frame and
+ * turned there as the gyro turns the aim (the scope's zoom too). Any thread. */
+void re4_core_aim_turn(float yaw, float pitch);
 /* A swipe across the picture (cores since 22.10.2026): dir 1 the next tab of
  * the sub screen (a swipe to the left), -1 the one before, nothing beyond the
  * first and the last; ignored outside the normal inventory. Any thread. */

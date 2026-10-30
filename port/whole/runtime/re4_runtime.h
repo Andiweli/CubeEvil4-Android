@@ -134,9 +134,19 @@ int re4_dvd_inserted_disc(void);
 #define RE4_DISC_RETAIL_EU 1 /* G4BP08, the European release */
 #define RE4_DISC_RETAIL_US 2 /* G4BE08 with another layout, the US release (untested) */
 #define RE4_DISC_UNKNOWN 3   /* another game, or no disc folder */
+#define RE4_DISC_RETAIL_JP 4 /* G4BJ08, the Japanese release and the Korean fan translation built on it
+                                (port/docs/retail-jp-plan.md) */
 int re4_disc_release(void);
 /* 1 with the European discs: the switch of the game patches for their data (patch 0120). */
 int re4_disc_retail_eu(void);
+/* 1 with the Japanese discs, the Korean translation included (port/docs/retail-jp-plan.md). */
+int re4_disc_retail_jp(void);
+/* 1 with the Korean fan translation of the Japanese discs (its main.dol differs in two instructions:
+ * the head-loss deaths as in the US release). */
+int re4_disc_retail_kr(void);
+/* 1 with the discs of any retail release: the debug build's tools and files are missing, the
+ * re-ordered archives come in the debug build's order (runtime/formats/formats.cpp). */
+int re4_disc_retail(void);
 /* A larger etc/core.das than the debug build's fixed place holds (the European release, patch
  * 0117): it is read here instead, in the development half of MEM1 that nothing else uses. */
 #define RE4_MEM1_CORE_ALT_ADDR 0x81C00000u
@@ -243,6 +253,8 @@ void re4_audio_stats(unsigned* blocks, unsigned* fill, unsigned* overruns, unsig
 /* The DSP (dsp.cpp): command lists run, voice milliseconds mixed, the most
  * voices running in one frame since the last call. */
 void re4_dsp_stats(unsigned* lists, unsigned* voiceMs, unsigned* peakVoices);
+/* The compressor (dsp.cpp, 0x12): blocks it turned down, stereo samples still clipped. */
+void re4_dsp_loudness(unsigned* compressed, unsigned* clipped);
 /* The four channels of a Dolby Pro Logic II block (front L/R, rear L/R) by its
  * AI address: 1 and taken, else 0 (dsp.cpp). */
 int re4_dsp_surround(unsigned blockAddr, short* out);

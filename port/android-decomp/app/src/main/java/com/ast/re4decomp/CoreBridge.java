@@ -46,6 +46,8 @@ public final class CoreBridge {
   public static native int audio4(short[] pcm, int frames);
   /** The game plays in Dolby Pro Logic II (its AUDIO SETUP): the rear of audio4 is its own. */
   public static native boolean audioSurround();
+  /** A line of the sound output into the core's log (core-log.txt), with the game frame. */
+  public static native void audioNote(String line);
   /**
    * A vsync of the display (the Choreographer's frame time, System.nanoTime):
    * the game's video retraces follow the display (no drift against 60 Hz).
@@ -102,17 +104,20 @@ public final class CoreBridge {
   /**
    * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,
    * 6 Italian. The core takes it and restarts the game (its own soft reset); the start setting
-   * RE4_GAME_LANGUAGE holds the one at the start.
+   * RE4_GAME_LANGUAGE holds the one at the start. 0: a restart with the language as it is (the cheat
+   * menu's extra games).
    */
   public static native void restartGame(int language);
   /**
    * The cheat menu's switches (port/docs/cheat-menu-plan.md): 1 infinite health, 2 infinite ammo,
-   * 4 one-hit kill; the game sets them in every frame while on.
+   * 4 one-hit kill, 8 automatic QTEs, 16 the extra games kept unlocked; the game sets them in every
+   * frame while on.
    */
   public static native void setCheats(int bits);
   /**
-   * A cheat menu button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1,000,000 pesetas.
-   * 1 done, 2 already so, 0 not now (not Leon, a sub screen, a movie), -1 no room in the case,
+   * A cheat menu button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1,000,000 pesetas,
+   * 4 unlock the extra games (Assignment Ada, The Mercenaries; at any time).
+   * 1 done, 2 already so, 0 not now (1-3: not Leon, a sub screen, a movie), -1 no room in the case,
    * 3 done by the next game frame, -2 the core has no cheat menu.
    */
   public static native int cheatAction(int what);
@@ -133,6 +138,12 @@ public final class CoreBridge {
    * the core turns the aim by them while Leon aims a gun. 0, 0: still.
    */
   public static native void gyro(float yaw, float pitch);
+  /**
+   * Swipe aiming (the menu's "Touch Aiming: Touch Area"): the finger's movement on the touch area while
+   * Leon aims, as angles in radians (yaw positive left, pitch positive up); the core turns the aim by
+   * them at the next game frame.
+   */
+  public static native void aimTurn(float yaw, float pitch);
   /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores

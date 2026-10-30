@@ -28,6 +28,482 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     dem Retroid mit dem Spielstand des Nutzers bestätigt (Projektinhaber, 28.10.2026: Brüstung weg, Treppe begehbar).
 12. **Schwierigkeitsauswahl mit den EU-Discs** (Projektinhaber, 28.10.2026) – eingebaut (Patches 0139–0141, Abschnitt
     darunter), am PC geprüft; **Gerätetest offen**. Alle EU-Stellen mit dem Easy-Byte geprüft (Liste im Abschnitt).
+13. **Zielfernrohr: nur die senkrechte Linie des Fadenkreuzes sichtbar** (Nutzermeldung mit Bildschirmfoto,
+    29.10.2026, Auflösung 1×, 640×336) – behoben im Renderer (Abschnitt „Pixelmitte wie der GameCube“), am PC geprüft;
+    **Gerätetest offen**.
+14. **EMPTY-Anzeige wechselt die Sprache (EU-Discs)** (Nutzervideo, 29.10.2026) – behoben (Patch 0142, Abschnitt
+    „Lokale Sitzung 29.10.2026 abends“), am PC in allen fünf Sprachen geprüft; auf dem Retroid bestätigt (Projektinhaber,
+    29.10.2026: „LEER“ flackert nicht mehr).
+15. **Minenwerfer mit Zielfernrohr: sofortiger Neustart** (Nutzerbericht 29.10.2026, realme RMX2001, 64 bit,
+    **0.93.0-beta**, Debug-Discs; ohne Zielfernrohr kein Fehler). Drei Abstürze, alle gleich beim Ausrüsten:
+    `HermiteInterpolation` ← `MotionSetCore` ← `cPlNeck::init` ← `pl_R1_Footwork`, davor „MotionMoveCore(): Pl, Invalid
+    parts 195“. Der Minenwerfer mit Zielfernrohr (Gegenstand 0xAB, Waffe 0xE Typ 1) lädt `em/wep25.drs` (615 232 Byte)
+    statt `em/wep14.drs` (628 704 Byte), aber dasselbe Modul `wep14` mit denselben Eintragsnummern
+    (`cObjMine::setMotion` bis `WEP_ARC 0x34`). Bei voller Gesundheit (`dmMotCk`) nimmt der Nacken `m_MotTbl[0x3F]` =
+    `WEP_ARC 0x2F`. Gleiches Bild wie Hunks Maschinenpistole (Patch 0134, ab 0.94.0): sehr wahrscheinlich hat `wep25.drs`
+    weniger Einträge, das Spiel liest hinter die Tabelle; Patch 0134 gilt auch für `WEP_ARC_PTR` (über `PL_ARC_PTR`).
+    **Bestätigt (Tester, 29.10.2026):** mit 0.95.0-beta kein Absturz mehr.
+16. **Ton knackt, „nicht klar“** (Nutzerbericht 29.10.2026) – zwei Verbesserungen (Abschnitt „Ton: Kompressor …“), in
+    der Cloud geprüft; **Hörtest auf dem Gerät offen**.
+17. **„4:3“ (ohne Balken) zeigt im Spiel doch die Balken** (Bildschirmfoto eines Nutzers, 29.10.2026, 1600×720,
+    Auflösung 1,5×, Wald mit Schrotflinte, Lebensanzeige sichtbar). Das Bild ist 1029×720 groß: das ist das
+    Bildformat 3 (10:7 über die ganze Höhe, `core_mode.cpp drawGx`), die App füllt die Höhe; die Balken malt also das
+    Spiel (`Draw_cinesco` bzw. die Schere), `re4_letterbox_open` war in dem Moment 0. Kein Ereignis (Lebensanzeige da),
+    kein Untermenü; Ursache aus dem Code allein nicht gefunden (Filter 09 ist nur der Pausenfilter). **Offen:**
+    Fehlerbericht direkt danach (Zeilen „core: letterbox bars …“ und „picture: the game draws … its letterbox (rNNN)“),
+    Raum und Version. Projektinhaber 29.10.2026: auch auf dem Retroid (16:9-Bildschirm) – allgemein.
+    **Retroid-Berichte 29.10.2026 18:48/18:56 (Stand mit exaktem 4:3, r104, MSAA 2×, FXAA):** Bild 1440×1080 (4:3
+    richtig), das Spiel meldet „draws without its letterbox (r104)“, trotzdem sind oben und unten je 136 Zeilen
+    schwarz (= Zeilen 0..56 und 392..448), mit gerader Kante durch Wände und Türrahmen: das 3D wird an der alten
+    Balkengrenze abgeschnitten, gemalt wird kein Balken. Im Code (`Render`, `SetScissorState`, `ScreenGXSet`, Filter,
+    Viewports, Kopie aufs XFB, Renderer: Schere, Auflösen, FXAA, gezeigte Zeilen) keine Ursache gefunden.
+    **Ursache gefunden (Grafikaufnahme des Projektinhabers, r104, Cloud 30.10.2026):** Schere 0..511 × 0..447 und
+    Viewport voll, das 3D füllt die Höhe (mit `gx_chunk_render` nachgezeichnet, bis Zeichnung 364 Zeilen 0..447). Die
+    letzten zwei Zeichnungen (365/366) sind zwei schwarze Streifen 640×60 bei y ±210: die Anzeige-Einheiten der Klasse
+    `IDC_CINESCO`, die `Cockpit::roomInit` bei jedem Raumstart setzt – der dritte Weg der Balken neben `Draw_cinesco`
+    und der Schere. **Behoben:** `runtime/picture.cpp re4_letterbox_frame` (jedes Bild, aus dem Bild-Haken): solange
+    „4:3“ offen ist, `IdSys.dispSw(IDC_CINESCO, 0)`, beim Schließen wieder an (Ereignisse, Untermenüs, andere
+    Bildformate wie bisher). Test `letterbox` erweitert (Einheiten aus bei offen, wieder an bei Rno0 2; Gegenprobe 1
+    Fehler). Am PC mit Disc-Daten nachgeprüft (Abschnitt „Lokale Sitzung 29.10.2026 abends“): in r104
+    keine schwarze Zeile mehr. Auf dem Retroid bestätigt (Projektinhaber, 29.10.2026: „nahezu perfekt“, im Spiel ohne
+    Balken; Zwischensequenzen behalten sie, wie vorgesehen).
+18. **Inventar: Leons Messer fehlt am Modell rechts** (Nutzerbericht 30.10.2026, EU-Discs, OPPO CPH2127). Im Spiel
+    lädt `cPlLeon::setModel` Eintrag 0xD (`Body->m_pKnife`, mit `setKnife(false)` auf 0 skaliert = Messer in der
+    Hand), das Untermenü (`Sscrn/ss_model.cpp leonModelInit`) nur 4/5 und 0xA, 8, 6, 9. Ob das Messer an der Brust
+    im Körpermodell steckt oder die Verkaufsfassung ein Teil mehr lädt, zeigt nur der EU-Programmcode (`retail_code.py`,
+    Sscrn) – lokal; ebenso der Vergleich mit den Debug-Discs. **Behoben (Patch 0144, Fehler des Prototyps):** die
+    EU-Fassung lädt ohne Jacke (Kostüm 1–3) Teil 0x10 dazu (Messer in der Scheide am Brustgurt), wie das Spiel; in
+    den Posen des Inventars liegt es fast ganz hinter Arm und Waffe (am PC gesehen). Auf dem Retroid bestätigt
+    (Projektinhaber, 29.10.2026: Messer in der Brusttasche).
+19. **Handcannon: Feuerkraft „0.00“, Munition wird mit dem Exklusiv-Tuning nicht unendlich** (Nutzerbericht 30.10.2026;
+    beigelegtes Protokoll aus 0.91, nur Titelmenü). Befund im Code: Feuerkraft = `WeaponLevelTbl[Waffe][Stufe-1] /
+    WeaponLevelTbl[2][0]` (`item.cpp getPowerRatio`); die Zeile des Handcannon (Waffe 0x0F, Gegenstand 0x37) ist im
+    Prototyp ein Platzhalter mit 100.0 auf allen Stufen (`em_dm_val.cpp`); Händler und Untersuchen zeigen den Wert ×10
+    mit drei Ziffern (`ss_shop.cpp`, `examine.cpp`), aus 1000 wird „0.00“. Magazin: `wep_info` 0x37
+    {3,4,5,6,8,10,0xFFFF} (0xFFFF = unendlich erst auf Stufe 7), `wep_level_info` 0x37 {6,1,3,6} (Magazin höchstens
+    Stufe 6), der Händler hebt mit `level_ext_sw500` {7,1,3,6} nur die Feuerkraft auf 7. Die Werte und die
+    Exklusiv-Regel der Verkaufsfassung zeigt nur der EU-Programmcode (`retail_code.py`: `WeaponLevelTbl`, `wep_info`,
+    `wep_level_info`, `level_ext_sw500`, der Kauf des Exklusiv-Tunings in `ss_shop.cpp`) – lokal; Behebung als Patch
+    „a bug of the prototype“. **Zweiter Bericht (0.95.1, Debug-Discs, 29.10.2026 17:23) bestätigt:** Magazin bis Stufe
+    6, Feuerkraft 1→6 und dann das Exklusiv-Tuning als Feuerkraft-Stufe 7 („levels 7/1/3/6“, 200000 Pesetas); das
+    Magazin bleibt auf Stufe 6, also nicht unendlich.
+    **Behoben (Patch 0146, Fehler des Prototyps, beide Disc-Arten; Abschnitt „Handcannon und Schuss-Ton“).** Am PC
+    geprüft; **Gerätetest und Händler-Bildschirm im Bild offen**.
+20. **Ton beim Schuss stottert einmal** (Nutzerbericht 30.10.2026, Infinix X6711, 0.95.1-beta, Debug-Discs, Pistole
+    in r20a): Abschuss, kurze Pause, Rest des Schusses. Im Bericht keine Aussetzer beim Schießen (`ran dry` nur beim
+    Raumwechsel), Kompressor nie aktiv, DSP weit unter Budget, 30 Bilder/s gleichmäßig: die Lücke liegt im Mischen
+    selbst (z. B. Adresswechsel einer Stimme auf einen zweiten Teil des Klangs, Schleife/ADPCM-Zustand am Übergang).
+    Nutzer: nur manchmal, nicht bei jedem Schuss.
+    **Nächster Schritt lokal:** am PC mit Disc-Daten schießen, `RE4_AUDIO_WAV_SECONDS` aufnehmen, Lücke im WAV finden,
+    die Stimme dazu (`dsp.cpp`, PB-Adressen) verfolgen.
+    **Am PC untersucht (29.10.2026 nachts, Abschnitt „Handcannon und Schuss-Ton“): im Ton des Kerns keine Lücke** (Pistole
+    und Schrotflinte, Debug- und EU-Discs, 32 und 64 bit, Schnelllauf und Echtzeit; 64 bit und mit DSP-Protokoll
+    bitgleich). Sehr wahrscheinlich lief die Android-Ausgabe (AudioTrack) leer; das stand bisher nur in logcat. Jetzt
+    auch im Kernprotokoll („sound: the Android output ran out …“). **Offen:** Bericht des Nutzers mit dieser Zeile.
+21. **r214 vor dem Uhrturm versperrt (EU-Discs)** – behoben (Patch 0145), am PC geprüft; **Gerätetest offen**.
+22. **FPS-Einbrüche Moto e13** und **Ruckler beim Schießen / in Speicherräumen** – Befund und Programmliste ergänzt
+    (Abschnitt „Berichte für 0.95.2“); Vorschlag zum Vorladen offen.
+23. **Ashley durch Rüstungsstatuen (r20e)** – EU-Abschaltung ergänzt (Patch 0145); mit Debug-Discs Stand der
+    Prototyp-Daten. Disc-Art des Nutzers offen.
+24. **Japanische und koreanische Discs** – analysiert (`retail-jp-plan.md`), Umsetzung J0–J7 offen.
+25. **Leistung 0.95.1 (Redmi 15C, Helio G81, EU-Discs, 29.10.2026 17:51, Nutzertext und Protokollanfang):** der Nutzer
+    sieht deutlich weniger Ruckler (Zeichen-Thread 40–50 % statt 62–72 % eines Bildstücks, Leerlauf des Kerns in r101
+    3–11 ms statt 0,7–2,2 ms). **Aber:** die Eckpunkt-Threads kamen gar nicht auf die langsamen Kerne – „cores: the 3
+    vertex threads left to Android (no slow core allowed to the app)“: `PutOnSlowCores` nimmt nur Kerne, die der
+    Thread schon darf, und die drei Threads durften zu dem Zeitpunkt nur 6 und 7 (woher die Einschränkung kommt, ist
+    offen). Die Verbesserung kommt also nicht von dieser Maßnahme. Ob sie wirksam gemacht werden soll (langsame Kerne
+    ohne die Schnittmenge mit der jetzigen Zuordnung setzen), entscheidet der Projektinhaber.
+    Dazu meldet der Nutzer wieder „heap: no room for 0x214b40 bytes in heap 4“ in r101 (17:54:24, vor einem Bildstück mit
+    923 Zeichnungen und 43 ms); die Zeile mit Datei und Zeilennummer fehlt im eingefügten Text. Solche Meldungen aus
+    `datactrl.cpp`/`cDataSwap.cpp` sind ein vorgesehener Ausweg des Spiels (Daten bleiben im ARAM, vgl. M12-Abschnitt
+    „Weitere Meldungen ohne Fehler“); 0x214b40 passt zu einer Ereignisdatei. **Offen:** der vollständige Bericht.
+26. **Dimensity 700: Einbrüche auf 20 FPS seit 0.95.1** (Nutzertext, 30.10.2026, ohne Protokoll). Verdacht zuerst
+    `PutOnSlowCores` (zwei schnelle Kerne); nach Punkt 25 greift die Maßnahme dort vermutlich ebenso wenig. Nutzer
+    gefragt (Force Performance aus, Bericht direkt nach einem Einbruch).
+
+## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
+
+- **Handcannon (Punkt 19), gelesen in der EU-`main.dol` und im EU-`Sscrn.rel` (`retail_code.py`):**
+  - `WeaponLevelTbl` Zeile 0x0F (0x8020846c): {30, 35, 40, 45, 50, 60, 99.9} statt des Platzhalters 100.0 (Händler
+    „30.0“ … „60.0“, Exklusiv „99.9“; der Schaden war bisher 100-mal der Klassenwert, jetzt 30- bis 99,9-mal).
+  - `wep_info` 0x34 und 0x37 (0x801e3a9c): Magazin-Stufe 7 = **0x8000** (Prototyp 0xFFFF, durch den u8-Cast in
+    `WeaponId2ChargeNum` 255 Schuss, und nichts prüfte darauf); `WeaponId2ChargeNum` gibt den u16-Wert zurück.
+  - `level_ext_sw500` (0x801f87c8): {0x37, {7, 1, 3, **7**}}: das Exklusiv-Tuning hebt Feuerkraft **und** Magazin auf 7.
+  - 0x8000 = unendlich: `trigger` verbraucht nichts, `reloadable` antwortet 1, `reload` lädt nichts,
+    `bulletNum(cItem*)` zählt 1 (nur 0x37/0x34); Anzeige mit Ziffer 13 in HUD (`BulletInfo::move`, auch für den
+    unendlichen Raketenwerfer 0x6D), Koffer (Stückzahl, auch 0x6D), `numDisp`, Untersuchen und Händler
+    (`levelItemDisp`, `weaponLevelDisp`). Ziffer 13 ist auf beiden Disc-Arten „---“ (am PC im Bild gesehen).
+  - Nicht übernommen (Balance des fertigen Spiels, kein Fehler): `WeaponLevelTbl` Zeilen 3, 4, 9, 0x11 und 0x2C
+    (0x2C ist im Prototyp ebenfalls ein 100er-Platzhalter, EU {25,30,35,35,35,35,35}; Waffe unbekannt), der
+    Chicago Typewriter der EU (wird mit Magazin 7 = unendlich angelegt, `construct` lv 0x6006, kein Exklusiv-Tuning,
+    `wep_level_info` {6,1,1,6}). Im Port bleibt der Typewriter wie im Prototyp (50 Schuss, Exklusiv = Feuerkraft 7).
+  - Die Munition auf eine unendliche Waffe kombinieren (`reload_main` mit 0x8000) ist in der EU-Fassung genauso.
+  - **Patch 0146**; dazu `runtime/cheats.cpp` (die Cheat-Nachfüllung lässt 0x8000 aus, sonst wäre Bit 15 der
+    Munitionsart gesetzt) und `RE4_TEST_WEAPON` mit `lv=L` (Stufen der Waffe statt Debug-Endlosmunition).
+  - **Geprüft:** Test `handcannon` (Feuerkraft ×10 auf Stufen 1–7 = 300…999, Kapazität 7 = 0x8000, Schuss ohne
+    Verbrauch, Zähler 1, Nachladen; Gegenprobe Stufe 6 verbraucht); `whole_build.sh i686` alle Tests 0 Fehler. Am PC
+    (i686, r20a, `RE4_TEST_WEAPON=free+20:15,0,lv=0x6026`, R halten, A alle 45 Bilder): Debug- und EU-Discs je 27
+    Schüsse, geladen bleibt 0, HUD „---“; Gegenprobe `lv=0x5025` (Magazin 6): 10 Schüsse, dann leer.
+    **Nicht geprüft:** der Händler-Bildschirm im Bild (nur die Werte, die er zeigt), Gerät.
+- **Schuss-Ton „stottert“ (Punkt 20):**
+  - Aufnahmen am PC (i686, r20a, `RE4_TEST_WEAPON=free+20:W` mit Debug-Endlosmunition, R halten, A alle 24 Bilder,
+    `RE4_AUDIO_WAV`; Auswertung: Schussanfänge an der Hüllkurve je 1 ms, Lücken unter 3 % und kurze Einbrüche unter
+    35 % der Nachbarn im Schuss): Pistole Debug-Discs 40 Schüsse, Schrotflinte 19, Pistole EU-Discs 46, Pistole in
+    Echtzeit (`RE4_VI_FAST=0`) 46: **keine Lücke, kein Einbruch**. (Alle 10 Schuss ein Ausreißer: das Nachladen.)
+  - x86_64 (Zeigerbreite wie ARM64): WAV **bitgleich** mit i686. Stand vor b13dcb6 (ohne Kompressor): im ganzen
+    Schussbereich bitgleich, Unterschiede nur 16–20 s (Raumstart, dort regelt der Kompressor).
+  - Stimmen (neu: `RE4_DSP_TRACE=1` in `dsp.cpp`, je Stimme Start, Stopp durch die CPU, Adresswechsel durch die
+    Tonsteuerung, Ende/Schleife mit Liste und Millisekunde): ein Pistolenschuss sind zwei ADPCM-Stimmen (Stereo-Paar
+    0x315cd2..0x31eb59 und 0x31eb62..0x3279e9, je ~1 s, ohne Schleife); der nächste Schuss startet zwei neue
+    Stimmen, die CPU stoppt die alten eine Liste (5 ms) später. Kein Adresswechsel mitten im Schuss.
+  - Folgerung: die Lücke entsteht hinter dem Kern. Der Ring des Kerns lief beim Nutzer nicht leer („ran dry“ nur
+    beim Raumwechsel); im App-Prozess (64 bit) bleibt die AudioTrack: läuft sie leer, spielt der Lautsprecher dort
+    Stille und danach den Rest – genau „Abschuss, kurze Pause, Rest“, nur manchmal. Ihre Unterläufe standen nur in
+    logcat (`RE4Audio`, „buffer … after N underruns“), das auf manchen Geräten nichts aufzeichnet. **Neu:** jede
+    Zunahme der Unterläufe als Zeile „sound: the Android output ran out (N times on this track, buffer F frames = M
+    ms) (game frame G)“ auch in `core-log.txt` (`CoreAudio.tune` → `CoreBridge.audioNote` → `re4_log_file_line`;
+    im 32-bit-Kernprozess nur logcat), höchstens 200 Zeilen.
+  - **Nicht geändert:** die Größe des AudioTrack-Puffers (`LatencyTuner`: zwei Perioden, wächst nach jedem Unterlauf
+    um eine). Ein größerer Startwert verhindert solche Lücken, verzögert aber jeden Ton (früher Beschwerde über
+    späte Schüsse mit Bluetooth) – Entscheidung des Projektinhabers, sobald ein Bericht die neue Zeile zeigt.
+  - **Geprüft:** `whole_build.sh i686` mit `RE4_DSP_TRACE` im Kern: 0 Fehler (runtime-test, core-test mit `ax`,
+    Kernprozess-Test, Film-Test); das DSP-Protokoll ändert den Ton nicht (WAV bitgleich). App:
+    `compileCoreDebugJavaWithJavac` und `externalNativeBuildCoreDebug` (arm64, armv7) ohne Fehler übersetzt.
+    **Nicht geprüft:** Gerät.
+
+## Version 0.95.2-beta (30.10.2026, lokal, Branch `golden-master`)
+
+Wunsch des Projektinhabers (für die Tester): `versionName` 0.95.2-beta, `versionCode` 81, Releasetext
+`port/android-decomp/docs/releases/v0.95.2-beta.md` (seit 0.95.1: Patch 0145 r214/r20e, Patch 0146 Handcannon,
+168 Programme in der Liste der App, Aussetzer der Tonausgabe im Fehlerbericht). **Mit Japan/Korea** (Wunsch des
+Projektinhabers, 30.10.2026: ein Tester in Korea soll es testen): `retail-jp` nach `golden-master` übernommen, README
+und Releasetext ergänzt. Geprüft vorher am zusammengeführten Stand (eigener WSL-Baum `~/re4-jp/RE4`, Bau mit 0
+Fehlern, alle Selbst-, Modul-, Laufzeit- und Kerntests grün): Prüfstrecke Japan, EU und Debug „ALLES OK“, Korea alles
+bis auf den bekannten Formatvergleich von `St1/r100.das` (Klassik-Leser). Gerät nicht getestet.
+
+## Japanische und koreanische Discs, J0–J5 (30.10.2026 nachts, lokal, Branch `retail-jp`)
+
+Entscheidung des Projektinhabers (29.10.2026): `retail-us` bleibt, wie es ist; Japan und Korea auf einem eigenen
+Branch `retail-jp` (von `golden-master`). Plan und Befunde: `port/docs/retail-jp-plan.md`.
+
+- **Erkennung (J1):** Kern `RE4_DISC_RETAIL_JP` (`G4BJ08`), Korea an zwei Befehlen in `sys/main.dol`;
+  `re4_disc_retail_jp()`, `re4_disc_retail_kr()`, `re4_disc_retail()` (EU, US oder Japan). App: Freigaben `jp`/`kr`
+  mit eigenen Katalogen (`references-jp/kr.tsv` …), Import, Startseite, kein Debug-Menü mit Verkaufs-Discs.
+- **Sprache (J3):** mit JP-Discs Sprache/Land 0 (Japanisch; Korea schreibt Koreanisch in dieselben Stellen).
+- **Patches (J4):** Code beider Verkaufsfassungen an den Patch-Stellen verglichen; 0120, 0123–0126, 0129, 0133, 0135
+  jetzt `re4_disc_retail()`, 0128, 0136, 0138, 0140, 0141, 0145 EU oder Japan, 0121/0122/0131/0132/0139/0142 nur EU.
+- **Korea (J5):** **Patch 0147** (`emwep.cpp`, `obj16.cpp`): die Enthauptungs-Tode wie in der US-Fassung, wie die
+  Übersetzung (0146 ist der Handcannon-Patch auf `golden-master`).
+- **Geprüft (PC, i686):** Laufzeittests 0 Fehler (neu: Japan/Korea in `disc release`), Java-`DiscTests` 24 Prüfungen,
+  echter App-Import beider Abbildpaare (je 4 082 Prüfungen, `release=jp`/`kr`); Prüfstrecke mit `--room-info` der
+  Debug-Disc: **Japan „ALLES OK“** (Formatvergleich, Spiellauf r100, Filme, Speichern und Laden; Systemdatei
+  „biohazard4 システムファイル“), **Korea alles bestanden außer dem Formatvergleich von `St1/r100.das`** (der strengere
+  Yz2-Leser des alten Klassik-Modus lehnt das neu gepackte Archiv ab; der Kern spielt den Raum, der Raum-Check der App
+  vergleicht nur SHA-256), Gegenprobe EU und Debug „ALLES OK“. Python-Tests der Werkzeuge ok.
+- **Nicht geprüft:** Android-Build, Retroid, Raum-Rundgang mit JP-Daten (J7), Filmuntertitel auf Japanisch im Bild,
+  die Enthauptung mit koreanischen Discs im Spiel.
+- **Hinweis Arbeitsordner:** `RE4-Fixed` gehört `golden-master` (eine zweite Sitzung arbeitet dort); `retail-jp` liegt
+  im Worktree `E:\Development\Android\RE4-JP`. Der gemeinsame WSL-Baum `~/re4-kern/RE4` bleibt `golden-master`.
+
+
+## Berichte für 0.95.2 und Japan/Korea (29.10.2026 spätabends, lokal, Branch `golden-master`)
+
+- **r214 „Uhrturm“ versperrt (EU-Discs, Bildschirmfoto eines Nutzers):** gleicher Fehlertyp wie r20b. Die EU-Daten
+  von r214 (Wehrgang mit den Katapulten vor dem Uhrturm) haben zwei Stellungen des Wegs: Modellgruppen 0x2B–0x31,
+  Kollisionswände 0x17/0x18/0x19 (Typ 0xB), einen Hebel (Bereich 0x1B) und eine zweite Meldung für Bereich 7. Der
+  EU-Code (`st2_2.rel` `R214Init` 0xa300) setzt über Easy Stellung 0 (0xac80 mit 0): Wand 0x18 aus, 0x17/0x19 an,
+  0x2C/0x2F/0x30 aus, Bereich 0x1B aus; auf Easy überspringt ein Hebel die Katapulte (etwa 10 KB neuer Code am
+  Anfang von `st2_2.rel`, nicht übernommen – Easy spielt hier wie in den anderen Räumen den Normal-Weg). Im Port stand
+  alles wie in den Daten: alle Wände an. Wand 0x18 liegt quer über dem Fuß der Treppe (x −24087…−19117, z ≈ −15000).
+  Gefunden über Raumarchiv-Vergleich (AEV-Einträge aller st2-Räume Debug gegen EU), `RE4_TRACE_AT`, die Relokationen
+  der Module und eine Namenszuordnung EU→Debug über gleiche Funktionen aller REL-Module (189 Adressen).
+  **Patch 0145** (`r214.cpp`, nur EU-Discs, außer in Part 2 wie der EU-Code). Geprüft (PC, i686, Debug-Start r214):
+  Wand 0x18 und Bereich 0x1B aus; Leon läuft mit dem Stick von (−21600 5 −12500) die Treppe hinauf bis
+  (−21776 5206 −24000), mit EU- und Debug-Discs gleich. Gerät offen.
+- **Ashley läuft durch die Rüstungsstatuen (r20e, Nutzermeldung ohne Protokoll):** die EU-Daten geben den vier
+  Statuen Kollisionswände (Bereiche 0x13–0x16), die Debug-Daten nicht – mit Debug-Discs ist das also der Stand der
+  Prototyp-Daten (nicht ohne erfundene Wände zu beheben). Der EU-Code schaltet die Wände in `r20e_startArmor`
+  (`st2_1.rel` 0x1a814) ab, wenn die Ritter erwachen; das fehlte im Port (die Wände wären danach stehen geblieben).
+  Ebenfalls in **Patch 0145**. Geprüft: die vier Wände mit EU-Daten beim Raumstart an; das Erwachen der Ritter nicht
+  im Spiel geprüft. **Offen:** mit welchen Discs der Nutzer spielte.
+- **FPS-Einbrüche (Moto e13, Unisoc T606, Mali-G57, Debug-Discs, 0.95.0):** im Protokoll hält der Kern 30 Bilder/s
+  (14–20 ms von 33 frei), der Zeichen-Thread braucht 8–15 ms, gezeigt werden 57–60/s, ein Bild ausgelassen. Nach dem
+  Laden des Spielstands lädt die App etwa 1,5 Minuten lang 9 135 Shader-Programme aus dem Cache vor (21,7 s Arbeit,
+  je Bildwechsel 4 ms, `GxRenderer::Prewarm`); in dieser Zeit 11–16 ms je Bild mit Spitzen bis 75 ms und 56–58
+  gezeigte Bilder/s, danach 8–11 ms und 60/s. Ein Bild mit 140 ms beim Schießen in r205 fällt mit dem einzigen live
+  gebauten Programm zusammen (nicht in der Liste). GPU-Zeit auf dem Gerät nicht gemessen.
+- **Ruckler beim Schießen, Einbrüche in Speicherräumen (Nutzermeldung ohne Protokoll):** passt zu beiden Befunden
+  oben – neue Effekt-Shader werden beim ersten Schuss gebaut, und nach dem Laden (man startet im Speicherraum) läuft das
+  Vorladen der Programme. Die Tiefenabfrage für Leuchteffekte wartet nicht (PBO und Fence). **Maßnahme:** die
+  168 neuen Programme des Moto-Berichts in die Liste der App übernommen (`gx-programs.keys`, jetzt 9 174;
+  `gx_program_list.py merge`). **Vorschlag (nicht umgesetzt, Entscheidung offen):** das Vorladen auf schwachen
+  Geräten anders verteilen (z. B. nur Programme des Raums zuerst). Für eine Messung: Fehlerbericht direkt nach einem
+  Ruckler.
+- **Japan und Korea:** Analyse in `port/docs/retail-jp-plan.md` (Kennung `G4BJ08`, Aufbau wie EU/US, Korea = Japan
+  mit übersetzten Texten/Schriften und zwei entzensierten Stellen im Code). Plan J0–J7; J0 (Übernahme von `retail-us`
+  als Grundlage) ist eine Entscheidung des Projektinhabers. Noch nichts eingebaut.
+
+## Gerätetest `golden-master` und Version 0.95.1-beta (29.10.2026 abends, lokal, Branch `golden-master`)
+
+Projektinhaber auf dem Retroid, Stand `8890f2be`:
+
+- **Bestätigt:** „4:3“ ohne Balken im Spiel (Zwischensequenzen mit Balken, wie vorgesehen), „4:3 (GC)“ unverändert,
+  EMPTY/LEER ruhig, Messer am Brustgurt im Inventar, Tastenbelegung mit Controller, Tastatur und Maus, Touch-Zielen
+  per Wischen, alle Cheats (auch automatische QTEs und Extra-Spiele), Dreierreihen im Ingame-Menü.
+- **Ton:** klingt auf dem Retroid gut; der Test beim Nutzer mit dem Knack-Bericht steht aus.
+- **Noch bei Testern:** Zielfernrohr bei 1× (passendes Gewehr), Leistung auf dem Redmi 15C (zwei schnelle Kerne).
+- **Version 0.95.1-beta** (Wunsch des Projektinhabers): `versionName` 0.95.1-beta, `versionCode` 80 (0.95.0 hatte
+  noch 79 wie 0.94.1), Releasetext `port/android-decomp/docs/releases/v0.95.1-beta.md` (Änderungen seit 0.95.0).
+
+## Lokale Sitzung 29.10.2026 abends: EMPTY, Balken bei „4:3“, Messer im Inventar (lokal, Branch `golden-master`)
+
+Offene Punkte 14, 17 und 18, am Windows-PC mit Debug- und EU-Discs (WSL-Baum `~/re4-kern/RE4`, i686-O2).
+
+- **Patch 0142 (EMPTY, nur EU-Discs):** Einheit 0x3F des Lebensbalkens (`IDC_LIFE_METER`) hat auf den EU-Discs
+  fünf Sprachbilder (texNo 0 Englisch, 1 Spanisch, 2 Italienisch, 3 Deutsch, 4 Französisch), `BulletInfo::move`
+  schaltet sie nur ein, so liefen sie der Reihe nach durch. Die EU-Fassung (`main.dol` 0x800c19a0; der Wortvergleich
+  von `retail_code.py find` traf nicht, gefunden über die Folge `li 0x3F/0xB/0xA/0x17` vor `unitPtr`) setzt
+  `tex_flag |= 2` und texNo nach `pSys->language`: 3 → 3, 4 → 4, 5 → 1, 6 → 2, sonst 0. Der Patch macht das mit
+  `re4_disc_retail_eu()`. Geprüft: EU-Discs r100, Schrotflinte ohne Patronen (`RE4_TEST_WEAPON`, sechs Schüsse,
+  ab Bild 3445 leer), GX-Bilder 3524..3644 in `eng/ger/fra/esp/ita`: EMPTY, LEER, VIDE, VACÍO, VUOTO stehen ruhig;
+  Debug-Discs: EMPTY wie bisher.
+- **Balken bei „4:3“ (dieselbe Ursache wie die Cloud-Sitzung, deren Korrektur gilt):** Neuer Testschalter
+  `RE4_TEST_LETTERBOX_OFF=1` (`state_trace.cpp`, setzt `re4_core_set_letterbox(1)` wie die App). Debug-Start r104
+  (`RE4_CHEATS=9`: Gesundheit und automatische QTEs, sonst stirbt Leon im Luis-Film), GX-Bild 7153: Schere (BP
+  0x20/0x21) und Viewport (XF 0x101A..) stehen auf 512×448, das 3D reicht bis Zeichnung 175 über die volle Höhe
+  (Bild schrittweise nachgezeichnet: Zeichnungsliste abgeschnitten, Display-Kopie angehängt); die Zeichnungen
+  178/179 sind die zwei schwarzen Vierecke der Klasse `IDC_CINESCO`. Hier zuerst als Patch in `IDSystem::trans`
+  gebaut und geprüft; beim Abgleich lag schon die gleichwertige Korrektur der Cloud (`picture.cpp
+  re4_letterbox_frame`, `dispSw`) auf GitHub, der eigene Patch ist wieder heraus (Nummer 0143 bleibt frei). Geprüft mit der Cloud-Korrektur
+  (PC, r104): mit Schalter keine einzige schwarze Zeile, Leons Waffe unten sichtbar; ohne Schalter die Balken wie
+  vorher. Nicht geprüft: Ereignisse mit Schalter, Gerät. Nebenbei: `esp08`/`esp0e`/`esp45`/`espgen01` fragen
+  `SYS_SCISSOR_ON` ab (Hitzeflimmern, Linsenreflexe rechnen dann mit 56 Zeilen Rand); mit dem Schalter kann das am
+  Rand leicht abweichen, nicht gesehen.
+- **Patch 0144 (Messer, Fehler des Prototyps, beide Disc-Arten):** EU-`leonModelInit` (`Sscrn.rel` 0x17000, über
+  `wep47Init` davor gefunden; `find` traf Krausers Funktion) lädt nach Teil 0xA für Kostüm 1–3 zusätzlich
+  `PL_ARC(0x10)` mit `PL_ARC(5)`, wie `cPlLeon::setModel` im Spiel; der Rest der Funktion ist bis auf Register gleich,
+  und es ist die einzige Abfrage von `pl_costume` im EU-`Sscrn.rel` (im Debug-Modul keine). `em/pl00.drs` hat auf
+  beiden Disc-Arten dieselbe Tabelle (`archive_dump.py`). Der Debug-Start gibt außer in den ersten Dorfräumen
+  Kostüm 1 (ohne Jacke). Geprüft: r104, Inventar (Y), Debug- und EU-Discs: eine Zeichnung mehr (240 Dreiecke); ohne
+  Tiefentest gezeichnet liegt sie als Messer in der Scheide am Brustgurt, in den Posen mit Pistole, Schrotflinte,
+  Gewehr und TMP aber fast ganz hinter Arm und Waffe (wenige Pixel des Griffs sichtbar) – so auch in der EU-Fassung.
+  **Offen:** ob der Nutzer etwas anderes meint (Bildschirmfoto mit Kostüm und Waffe).
+- **Prüfstrecke** (`whole_r100_check.sh --no-build`, Stand mit 0142–0144, vor dem Abgleich): Debug-Discs **„ALLES OK“**, EU-Discs
+  (`--room-info` der Debug-Disc) **„ALLES OK“** (Formatvergleich, Spiellauf, Filme, Speichern und Laden).
+  Nicht geprüft: ARM unter qemu, Android-Build, Gerät.
+
+## Bildformat „4:3“ jetzt exakt 4:3 (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Wunsch des Projektinhabers:** echtes 4:3 über die volle Höhe, nichts abschneiden, die Oberfläche richtig
+  (Vorschlag 1, Entscheidung 29.10.2026). Bisheriges „4:3“ ist 10:7 (1029×720 auf 1600×720).
+- **Befund:** Das Spiel zeichnet in 512×448 (`main_sub.cpp` Render-Modus: fbWidth 0x200, efbHeight 0x1C0, viWidth
+  640), der Fernseher zeigte das als 10:7; die 3D-Projektion ist aber 4:3 (`camera.cpp:98`, `C_MTXPerspective(…,
+  1.3333334f, …)`). Auf dem GameCube war die 3D-Welt also um 15/14 (≈ 7 %) in die Breite gezogen, die flachen
+  Zeichnungen (Anzeigen, Menüs, Texte, in Pixeln von 512×448 gestaltet) nicht.
+- **Umsetzung:** Bildformat 3 „4:3“ (ohne Balken) zeigt jetzt in einem exakten 4:3-Rahmen (`core_mode.cpp drawGx`;
+  zuerst als eigenes Format 4 „4:3 (exakt)“ gebaut, auf Wunsch des Projektinhabers ersetzt es das bisherige „4:3“;
+  ein gespeichertes 4 gilt als 3): Bild über die volle Höhe, Balken des Spiels aus (Patch 0105), alle Zeilen. `GxRenderer::SetWiden(15/14)`: Der
+  Vertex-Shader flacher Zeichnungen (orthografisch) hat `uWiden` und verbreitert um die Mitte des Viewports
+  (`gx_gl_shader.cpp`); `WidenFor` gibt den Faktor nur Zeichnungen über den ganzen Bildschirm (Viewport ab dem linken
+  Rand, mindestens 500 Pixel breit) ohne EFB-Kopie als Textur (Hitzeflimmern, Wasser, Pausenfilter, Unschärfen liegen
+  passend über dem Bild) – Zeichnungen in einen Teil des EFB (Bilder für Texturen) bleiben wie gesendet. Fingertipps
+  in Untermenüs gehen nach der verbreiterten Ebene (`notePicture`). Menü unverändert („4:3 (GC)“, „4:3“, „16:9“,
+  „Gestreckt“).
+- **Folgen:** Die 3D-Welt ist im richtigen Verhältnis (Kreise rund), die Oberfläche in ihrer Form vom Fernseher. Die
+  flache Ebene ist 15/14 breiter als der Rahmen: ganz außen je etwa 18 von 512 Pixeln (3,5 %) liegen außerhalb, auf
+  dem Fernseher war das der Überstand am Bildrand (dort zeichnet das Spiel normalerweise nichts Wichtiges).
+  Flache Markierungen, die das Spiel über 3D-Punkte legt (z. B. Ziel- und Hinweiszeichen, Linsenreflexe), sitzen
+  seitlich um bis zu 7 % ihres Abstands zur Bildmitte daneben.
+- **Geprüft (Cloud):** `gx_gl_check` 0 Fehler, neu `TestWiden` (flach über den ganzen Bildschirm: Spalten 200..300
+  werden 191..298; ohne Faktor wie gesendet; in einen Teil des EFB unverändert), Gegenprobe ohne Verbreiterung: 2
+  Fehler; strenge Shader-Prüfung 1114 Shader, 0 abgelehnt; `re4decomp_link_check`; alle Java-Quellen mit javac.
+  **Nicht getestet:** auf dem Gerät (Anzeigen, Inventar, Händler, Karte, Untertitel, Zielfernrohr, Filme, Tipps im
+  Inventar).
+
+## Ton: Kompressor des DSP und kubische Angleichung (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Meldung:** „Audio and sound isn't hd and clear“, Knacken. Bericht (vivo V2426, Android 16, 0.95.0-beta): im Spiel
+  keine Aussetzer („ran dry“ nur beim Öffnen/Schließen des App-Menüs), DSP weit unter Budget. Die Ursache liegt also im
+  Signal selbst. Zwei Schwachstellen gefunden:
+  1. **Kompressor fehlte:** Das Spiel schaltet ihn ein (`snd_main.cpp AXSetCompressor(1)`, `AXCL.c` Befehl 0x12:
+     Schwelle 0x8000, 10 Stufen, Tabelle `AXComp.c`); `dsp.cpp` übersprang ihn, laute Stellen wurden hart auf 16 bit
+     abgeschnitten (Knacken). Nachgebaut aus dem Aufbau der Tabelle (21 Zeilen zu 160 Werten: Zeile n = von Stufe n
+     binnen eines Blocks auf die tiefste Verstärkung 0x50C3 ≈ −4 dB, Zeilen 11..20 = eine Stufe zurück): Erreicht die
+     Spitze eines Blocks (Stereo mit eingemischtem Raumklang, bei Dolby auch die hinteren Kanäle) die Schwelle, regelt
+     der Block herunter, leisere Blöcke regeln je 5 ms eine Stufe hinauf. Gilt für Stereo und die vier Kanäle.
+  2. **Angleichung an den Takt des Geräts linear** (`ai.cpp readRing`): Zwischen zwei Abtastwerten dämpfte das die
+     Höhen um bis zu 3 dB bei 8 kHz, schwankend etwa 100-mal je Sekunde (die Lage zwischen zwei Werten wandert mit der
+     Angleichung von rund 0,3 %); jetzt 4-Punkt-kubisch (Catmull-Rom), Gleichanteil bleibt exakt.
+- **Protokoll:** Die Zeile „audio: …“ nennt jetzt „compressor N blocks, M samples clipped“ (abgeschnittene Werte trotz
+  Kompressor) für die nächsten Berichte.
+- **Geprüft (Cloud):** `whole_build.sh i686` mit allen Tests 0 Fehler; `core-test ax` neu: zwei Stimmen zu je 20000
+  ergeben 25238 statt abgeschnittener 32767, nach dem Stoppen einer Stimme steigt der Ton gleichmäßig auf 20000; die
+  Lese-Prüfung der App (1000 bleibt 1000) und der Ton des Kernprozesses (`re4_core_remote_test`) bestehen; `dsp.cpp`
+  und `ai.cpp` für arm64 ohne Warnung übersetzt. **Nicht getestet:** Hören auf dem Gerät.
+
+## Tastenbelegung für jede Aktion – Schritt 2: Maus mit Empfindlichkeitsregler (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Wunsch des Projektinhabers:** Schritt 2 (Maus) und ein Regler für die Empfindlichkeit der Maus.
+- **Zeiger einfangen (Android 8 und neuer, `requestPointerCapture`):** Solange das Spiel läuft (kein App-Menü, kein
+  Bearbeiten der Touch-Tasten, Fenster im Vordergrund), gehört die Maus dem Spiel; der Zeiger verschwindet, die App
+  bekommt die reine Bewegung (`OnCapturedPointerListener` auf der Spielfläche). F1 (bzw. die Taste des App-Menüs)
+  gibt den Zeiger frei, nach dem Schließen fängt die App ihn wieder ein (auch nach Fensterwechsel und beim ersten
+  Klick). Protokollzeile „mouse: captured …“.
+- **Bewegung:** dreht beim Zielen das Ziel wie das Wischen (`CoreBridge.aimTurn`, 0,0025 Bogenmaß je Zählschritt mal
+  Empfindlichkeit), sonst die Kamera über den C-Stick (`CoreInput.mouseLook`, 60 ms nach der letzten Bewegung zurück
+  auf null).
+- **Tasten der Maus** (links, rechts, Mitte, Seitentasten 4 und 5) sind Tasten wie die der Tastatur und gehören zum
+  selben Gerät (`CoreInput.KEYBOARD`), also auch in Kombinationen: Standard jetzt Zielen = rechte Maustaste,
+  Feuern = rechts + links, Nachladen = rechts + R, Messer = C, Messerhieb = C + links (`ActionMap.MOUSE_*`,
+  `mouseButton`). Auf der Seite „Tastatur & Maus“ (vorher „Tastatur“) lassen sie sich wie Tasten abfragen.
+- **Regler „Mausempfindlichkeit“** auf derselben Seite: 0,25× bis 3× in Schritten von 0,25 (Standard 1×), gespeichert
+  als `mouseSensitivity`, mit Hilfetext. Texte in allen zehn Sprachen (`check_translations.py` ok, 198 Texte).
+- **Geprüft (Cloud):** `ActionMapTests` 47, `CoreInputTests` 192 (neu: Maustasten mit R aus zwei Eingabegeräten als
+  Nachladen, `mouseLook` als C-Stick), `CoreTouchTests` 296, alle Java-Quellen und `CoreMenuLayoutTest` mit javac
+  übersetzt. **Nicht getestet:** auf dem Gerät mit Maus (Einfangen, Empfindlichkeit, Freigabe mit F1);
+  `CoreMenuLayoutTest` ausgeführt (Gradle am PC). Unter Android 7 und älter bleibt die Maus ohne Einfangen.
+
+## Tastenbelegung für jede Aktion, mit Kombinationen und Tastatur – Schritt 1 (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Wunsch des Projektinhabers:** jede Aktion des Spiels selbst belegen, links die Aktion, rechts die Belegung;
+  Aktionen aus zwei Tasten (Zielen + Feuern) bleiben Kombinationen und werden als zwei Tasten abgefragt; Tastatur und
+  Maus zum Spielen. **Entscheidungen (29.10.2026):** die Menüs des Spiels behalten die Standardbelegung des Geräts;
+  die Maus dreht Kamera und Ziel (eingefangener Zeiger); eine Taste, die eine andere einfache Aktion hatte, tauscht;
+  zwei Schritte (1: Controller und Tastatur mit Kombinationen, 2: Maus).
+- **Aus dem 27.10.2026 gelernt:** Die erste „alles frei“-Fassung schaltete bei jedem Hinweis („A Öffnen“) auf die
+  Standardbelegung um und war unbrauchbar. Jetzt schaltet nur ein echtes Menü um: Der Kern meldet in
+  `re4_core_rumble` Bit 4 nur noch Menüs (Titel, Laden, Untermenüs), Hinweise in Bit 5 (nur Protokoll; `pad.cpp`).
+  Ein Controller ohne eigene Belegung geht den bisherigen Weg unverändert, die alternative Steuerung behält ihre.
+- **`ActionMap.java` (neu, ohne Android, `tests/ActionMapTests.java` 43 Prüfungen):** 16 Aktionen (Vorwärts/Rückwärts/
+  Links/Rechts nur Tastatur, Aktion A, Rennen B, Zielen R, Feuern = Zielen-Taste + Taste → A, Nachladen = Zielen +
+  Taste → B, Messer L, Messerhieb = Messer + Taste → A, Ashley X, Inventar Y, Karte Z, Optionen START, App-Menü).
+  Die erste Taste einer Kombination hält die gehaltene Aktion (R bzw. L), die zweite drückt ihre Taste nur dazu;
+  allein tut sie nur, was sie als einfache Aktion tut. Schnelle Drehung (Zurück + Rennen) und die Reaktionstasten
+  (A+B, L+R) folgen aus den Tasten ihrer Aktionen. Standard Controller = bisherige Belegung (A, B, R2, R2+A, R2+B, L2,
+  L2+A, X, Y, R1, START, SELECT); Tastatur: WASD, E, Shift links, Leertaste, Leertaste+F, Leertaste+R, C, C+F, Q,
+  Tab, M, Esc, F1. Fest und nicht belegbar: beim Controller Sticks und Steuerkreuz, bei der Tastatur Pfeile
+  (Steuerkreuz), Enter (A), Rücktaste (B). Gespeichert `mappingController`/`mappingKeyboard` in `core_input`; die
+  freien Tasten (`keyMap`, 27.10.2026) gehen in der Aktionsliste auf und werden einmal gelöscht (Protokollzeile).
+- **`CoreInput`:** gehaltene Tasten je Gerät, Tastaturen als eigene Geräte (`keyboardKey`), eigene Belegung im Spiel,
+  in Menüs die Standardbelegung (`setMenu` aus dem Bit des Kerns, `CoreActivity.rumbleTick`), Trigger als L2/R2 ab
+  halbem Weg, „Einrasten“ wirkt weiter, das App-Menü auf seiner Taste; `CoreInputTests` 189 Prüfungen (neu: eigene
+  Belegung, Feuern auf L2+R2, Menüwechsel mit gehaltener Taste, Einrasten, Tastatur mit Kombination und festen Tasten,
+  Tastatur neben Controller).
+- **Seite „Tastenbelegung“** (vorher „Controller-Konfiguration“; nutzbar mit Controller oder Tastatur): Gerät wählen,
+  jede Aktion links, rechts ihre Taste(n) und der Standard, wo er abweicht; ein Druck wartet auf die Taste, eine
+  Kombination auf die zu haltende und dann die zweite (8 s, derselbe Knopf noch einmal bricht ab; Trigger als L2/R2;
+  falsches Gerät oder feste Taste wird gemeldet); nach einem Tausch steht da, wohin die andere Aktion kam;
+  „Standardbelegung“. `CoreActivity`: echte Tastaturen (`keyboardDevice`: Buchstaben-Tastatur, kein Gamepad) an das
+  Spiel, Esc nie an Android. Texte in allen zehn Sprachen (alte `ingame_fn_*` entfernt; `check_translations.py` ok).
+- **Geprüft (Cloud):** `ActionMapTests` 43, `CoreInputTests` 189, `CoreTouchTests` 296, `whole_build.sh i686`, alle
+  Java-Quellen und `CoreMenuLayoutTest` (neu: `buttonMappingPutsActionsOnKeysAndCombinationsOnTwo`, Seiten in 10
+  Sprachen auch für die Tastatur) mit javac übersetzt, `re4decomp_link_check`. **Nicht getestet:** `CoreMenuLayoutTest`
+  ausgeführt (Gradle am PC); auf dem Gerät mit Controller und mit einer Tastatur. Schritt 2 (Maus) siehe oben.
+
+## Touch-Zielen mit der Touchfläche: Wischen statt Stick (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Meldung (Nutzer, vom Projektinhaber weitergegeben):** Mit „Touch Aiming: Touch Area“ wirkte der Fingerweg wie ein
+  ausgelenkter Stick: kurz ziehen und stehen bleiben, das Ziel lief weiter. Gewünscht wie in Handy-Shootern: das Ziel
+  folgt dem Finger und steht, wenn er steht.
+- **Umsetzung:** Solange L oder R mit „Touch Area“ gehalten wird, geht die Bewegung des Fingers in der Blickzone
+  (`CoreTouch.look` → `CoreInput.touchSwipe`) nicht mehr auf den Steuerstick und nicht auf den C-Stick, sondern als
+  Winkel an den Kern (`CoreInput.takeAimSwipe` nach jedem Ereignis → `CoreBridge.aimTurn` → `re4_core_aim_turn`,
+  im eigenen Kern-Prozess Nachricht `kAimTurn` 33). `gyro.cpp` summiert die Winkel bis zum nächsten Spielbild und dreht
+  dort wie das Gyro (Körper und Zielneigung, Zielfernrohr mit Zoom-Faktor, Harpune im Boot), ohne Verstärkung;
+  `turnAim` ist jetzt der gemeinsame Teil von Gyro und Wischen (Gyro unverändert: Rate × 0,35 × 1/30 s).
+  Empfindlichkeit `CoreInput.SWIPE_RADIANS` = 1,6 rad je kürzere Bildschirmseite (ein Wisch quer darüber etwa 90°).
+  Der Touch-C-Stick zielt weiter wie ein Stick (er ist einer). Hilfetext in allen zehn Sprachen angepasst.
+- **Geprüft (Cloud):** `CoreTouchTests` 296 Prüfungen (neu: kein Stick und kein Blick beim Wischen, Winkel = Weg ×
+  1,6, steht der Finger, kommt nichts mehr, zwei Bewegungen addiert, ohne R schaut die Zone wieder), `CoreInputTests`
+  170, Laufzeittest `gyroboat` erweitert (Wisch-Winkel addiert und genau einmal gedreht, im Untermenü verworfen),
+  `whole_build.sh i686`, alle Java-Quellen mit javac, `re4decomp_link_check` gebaut. **Nicht getestet:** auf dem Gerät
+  (Gefühl, Empfindlichkeit; ein Regler dafür wäre ein nächster Schritt).
+
+## Pixelmitte wie der GameCube: Fadenkreuz des Zielfernrohrs bei 1× (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Meldung:** Mit dem Gewehr zeigt das Zielfernrohr nur die senkrechte Linie (Bildschirmfoto des Nutzers, 640×336,
+  Auflösung 1×). Das Fadenkreuz sind 2D-Einheiten des Spiels (`IdScope`, `cam_extra.cpp`; texturierte Vierecke,
+  `IdCommonTrans`); die waagerechte Linie liegt in der Bildmitte, also auf der Grenze zweier Pixelreihen, und ist
+  dünner als ein Pixel.
+- **Ursache:** Der GameCube prüft ein Pixel bei 7/12 seiner Breite und Höhe, GLES bei 1/2 (Dolphin gleicht das als
+  „pixel center correction“ aus). Eine Fläche dünner als ein Pixel auf einer Pixelgrenze trifft dort eine Reihe, bei
+  uns keine. Bei 2× ist die Linie mindestens ein Pixel hoch, darum nur bei 1×.
+- **Fix (`gx_gl_shader.cpp`, Vertex-Shader):** alles um 1/12 GameCube-Pixel nach links oben, wie Dolphin. Die
+  Shader-Programme werden dadurch einmal neu gebaut (der Programm-Zwischenspeicher hängt am Quelltext; die
+  Vorab-Liste baut sie vor ihrer ersten Zeichnung).
+- **Geprüft (Cloud):** neuer Test in `gx_gl_check` (`TestPixelCentre`: waagerechte und senkrechte Linie 0,94 Pixel
+  dick auf einer Pixelgrenze in genau einer Reihe/Spalte, Kanten bei 10,55 und 50,65 wie beim GameCube); Gegenprobe
+  ohne die Korrektur: beide Linien fehlen ganz, wie auf dem Foto. `gx_gl_check` 0 Fehler, strenge Shaderprüfung
+  (glslangValidator) 1114 Shader, 0 abgelehnt, `re4decomp_link_check` gebaut. **Nicht getestet:** auf dem Gerät
+  (Zielfernrohr bei 1×; ob sich anderswo eine Kante sichtbar verschiebt – höchstens 1/12 Pixel).
+
+## Cheats: automatische QTEs und Extra-Spiele freischalten (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Wunsch des Projektinhabers:** zwei weitere Cheats in einer eigenen untersten Reihe, zwei gleich breite Knöpfe:
+  „Automatische QTEs“ und „Extra-Spiele freischalten“ (Assignment Ada, The Mercenaries; mit Neustart ins Titelmenü,
+  dort wechselt auch der Hintergrund). Einzelheiten: `port/docs/cheat-menu-plan.md`, „Erweiterung 29.10.2026“.
+- **Kern:** `runtime/qte_touch.cpp` `re4_qte_auto` (Automatik auf dem Weg von „QTE per Tipp“; nicht einfaches A,
+  Stick-Symbole, X), `runtime/cheats.cpp` Bit 8 (QTEs) und 16 (Extra-Spiele behalten), Knopf 4 (Merker wie `r333.cpp`
+  ohne Kostüm), `re4_core_restart_game(0)` = Neustart mit gleicher Sprache, `RE4_TEST_CHEATS` kennt Knopf 4. Die
+  Bild-Haken (`pad.cpp`) haben jetzt 16 statt 8 Plätze (in der App waren schon 7 belegt).
+- **App:** `CoreMenu.cheats()` unterste Reihe (`MenuLayout.Buttons` mit 2 Spalten), Rückfrage „Spiel neu starten?“
+  (Neustart/Später), Meldungen; `Host.restartGame()`; neue Texte in allen zehn Sprachen (`check_translations.py` ok).
+- **Geprüft (Cloud):** `whole_build.sh i686` mit allen Prüfungen; neue Laufzeittests `qteauto` (L+R 2 an/2 aus,
+  Hämmern jedes zweite Bild, nichts bei A, X, Untermenü, inaktivem Knopf, aus) und `cheatextras` (Merker gesetzt, kein
+  Kostüm, Rekorde einmal gelöscht, danach „schon da“, Bit 16 setzt sie nach einer Systemdatei ohne sie wieder) bestanden;
+  alle Java-Quellen und `CoreMenuLayoutTest` (neu: unterste Reihe, Bit 8) mit javac übersetzt. **Nicht getestet:**
+  `CoreMenuLayoutTest` ausgeführt (Gradle am PC), auf dem Gerät (QTEs in Szenen wie Felsen r101/r104, Messerkampf r317,
+  El Gigante; Titelmenü nach dem Neustart mit beiden Disc-Arten; Ada und Mercenaries starten).
+
+## Leistung auf Handys mit zwei schnellen Kernen, Schritt 1 (29.10.2026, Cloud, Branch `golden-master`)
+
+- **Anlass (Testerberichte 28.10.2026):** Redmi 15C (Helio G81: 2× Cortex-A75 2,0 GHz, 6× A55 1,7 GHz, Mali-G52 MC2,
+  EU-Discs, Auflösung 1×, kein MSAA, Force Performance an) im Dorf r101: 27–35 Bilder/s, „GX render thread: 29.8 ms of
+  processor time per chunk of 37.7 ms run“ bei 862 Zeichnungen (≈ 35 µs je Zeichnung), „GX core: 43.3 ms each, 1.5 ms
+  waiting for the renderer, 0.4 ms idle, 22.0 ms of processor time“ – das Spiel selbst schaffte dort nur ~23 Bilder/s,
+  ~19 ms je Bild lief der Spiel-Thread nicht. Spiel- und Zeichen-Thread lagen beide auf den Kernen 6–7, die drei
+  Eckpunkt-Threads (mit dem Leistungshinweis) dazu. Vergleich Xiaomi 11 Lite NE (Snapdragon 778G, Adreno 642L): 873
+  Zeichnungen in 12,2 ms bei 1,2 GHz (≈ 14 µs). Galaxy S7 (Snapdragon 820) in r108: GPU 23–31 ms je Bild gemessen,
+  Zeichen-Thread 15–22 ms, die schnellen Kerne gedrosselt auf 1,25–1,32 GHz – dort ist die GPU der Engpass.
+- **Vulkan bis auf Weiteres ausgeschlossen** (Entscheidung des Projektinhabers, 29.10.2026, nach der Aufwandsschätzung:
+  neuer Grafikteil statt der ~5 400 Zeilen von `gx_gl.cpp`/Shader-Erzeuger, Pipelines, Shader-Übersetzer, alle Extras und
+  PC-Prüfwerkzeuge neu, GLES bliebe für ältere Geräte; der Spiel-Thread würde nicht schneller). Weiter mit GLES.
+- **Licht je Pixel (Nutzerfrage) nicht gewünscht** (Entscheidung des Projektinhabers, 29.10.2026): Es würde schwache
+  Geräte nicht schneller machen, sondern mehr GPU-Arbeit kosten; das Licht bleibt je Eckpunkt wie beim GameCube.
+- **Umsetzung (Entscheidung des Projektinhabers, 29.10.2026: Leistungsoptimierung sofort):**
+  - `re4_cpu_info.h` `PutOnSlowCores`: Mit „Force Performance: Use performance cores“ kommen die Eckpunkt-Threads auf die
+    langsamste Kernart, wenn höchstens zwei Kerne schneller sind (die zwei bleiben dem Spiel- und dem Zeichen-Thread).
+    Mehr schnelle Kerne (Retroid: vier) ändern nichts. Logzeile „cores: the 3 vertex threads on cores 0 1 2 3 4 5, the
+    slowest (only 2 faster cores)“ bzw. „left to Android (…)“. Etwa einmal pro Sekunde zurück, wenn Android sie
+    verschoben hat (wie beim Spiel-Thread); „Default“ gibt sie wieder frei. `RE4_HELPERS_SLOW=0` schaltet es ab.
+  - `gx_gl.cpp` / `GxStats::splitNs`: Die Laufzeit des Zeichen-Threads je Art der Arbeit (steady clock, jeder Run),
+    neue Logzeile „GX render thread split per chunk: draw calls …, uniform blocks …, binds …, render state …, vertex
+    buffers …; shader keys and programs …, textures in …, BP …, XF …, the rest …“ – zeigt auf dem Mali, wie viel der
+    Treiber (die ersten fünf) und wie viel unser eigener Code braucht. Grundlage für Schritt 2 (weniger Treiberaufrufe
+    je Zeichnung) und die Vulkan-Frage.
+  - Nebenbei: `runtime-test deathlog` schlug auf `master` fehl (die Raum-Zeile ist seit `game_mode`/`game_country`
+    länger als die 119 Zeichen, die der Protokollspeicher je Zeile hält); der Test vergleicht jetzt nur diesen Teil.
+- **Geprüft (Cloud):** `whole_build.sh i686` 0 Fehler, alle Prüfungen bestanden (runtime-test 0 failed, neu: Hilfs-Thread
+  eines Linux-Threads mit „zwei schnellen Kernen“ landet auf den anderen, Freigabe, Retroid- und A30s-Aufteilung);
+  `gx_gl_check` 0 Fehler (neu: die Aufteilung ergibt zusammen die Laufzeit eines Runs, Mesa: 2400 Zeichnungen
+  6,6 ms, davon Zeichenaufrufe 4,2 ms); `re4decomp_link_check` (ganze native App-Bibliothek) gebaut. **Nicht getestet:**
+  auf einem Gerät, ob die Verteilung auf dem Redmi 15C oder dem S7 mehr Bilder bringt; die Aufteilung auf dem Mali.
+
+## Ingame-Menü: Dreierreihen in Vierteln (28.10.2026, Cloud, Branch `golden-master`)
+
+- **Auftrag (Projektinhaber):** Unter STEUERUNG die Knöpfe „Touch-Zielen“ mit demselben Abstand zu den Knöpfen
+  darüber wie die Zweierreihen untereinander, und je zwei der drei Knöpfe so breit wie ein großer Knopf darüber;
+  die Knöpfe der Spielsprache genauso zu den großen Knöpfen (Leistung, Verwaltung …).
+- **Umsetzung:** `CoreMenu.quarterChoices`: Beschriftung im ersten Viertel der Zeile, jeder Knopf ein Viertel
+  (`MenuLayout.Columns.setWeights(1, 3)`), ohne den zusätzlichen Rand von 3 dp oben und unten (nur die 4 dp der
+  Knöpfe, wie zwischen den Zweierreihen). Damit liegen Knopf 2 und 3 genau unter dem rechten großen Knopf, Knopf 1
+  unter der rechten Hälfte des linken. Gilt für Spielsprache, Touch-Zielen und – damit die beiden Dreierreihen der
+  Seite übereinander stehen – auch für Touch-Steuerung. Lange Übersetzungen brechen dort erst auf zwei Zeilen um,
+  bevor die Reihe einen Knopf verliert (`MenuLayout.Buttons(…, lines)`); schmale Fenster (unter 640 dp) stapeln wie
+  bisher.
+- **Geprüft (Cloud):** alle Java-Quellen der App mit javac gegen die Android-Klassen (Robolectric `android-all` 14)
+  und die RetroTouch-AAR übersetzt (0 Fehler); `check_translations.py` ok. **Nicht getestet:** auf dem Gerät
+  (Aussehen, lange Übersetzungen); ein Messtest mit Robolectric scheiterte am gesperrten Google-Maven.
 
 ## Schwierigkeitsauswahl und Easy-Zweige der EU-Discs (28.10.2026 nachts, lokal, Branch `claude/determined-allen-36nj6r`)
 

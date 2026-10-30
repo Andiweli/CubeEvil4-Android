@@ -1,0 +1,51 @@
+# Retail data (port/docs/retail-jp-plan.md, J5): the Korean fan translation of the Japanese discs. Its
+# main.dol is the Japanese one but for two instructions: in emWepPlHeadLost (Japanese 0x80017b7c) and
+# obj16PlHeadLost (0x8002ccd4) it loads 1 instead of pSys->eff_country ("li r30, 1" / "li r31, 1" for
+# "lbz rX, 9(r9)"), so the deaths where Leon loses his head play as in the US release (head off, blood),
+# not as the Japanese release's censored version (country 0: a scream and a blood effect only). The game
+# runs with country 0 for the Japanese discs (runtime/game_language.cpp); with the Korean ones these two
+# places take the US way as well. Nothing changes with the other discs. A port patch for retail data.
+--- a/src/game/emwep.cpp
++++ b/src/game/emwep.cpp
+@@ -2452,6 +2452,8 @@
+     }
+ }
+ 
++extern "C" int re4_disc_retail_kr(void); /* port: runtime/dvd.cpp */
++
+ // The scythe took the player's head off: the head becomes an obj01 (blood effects on both).
+ void emWepPlHeadLost()
+ {
+@@ -2460,7 +2462,9 @@
+     cParts* p;
+     cObj* obj;
+ 
+-    if (pSys->eff_country == 0) {
++    /* port: the Korean translation of the Japanese discs takes the US release's way here (its main.dol
++       loads 1 instead of the country, patch 0147) */
++    if (pSys->eff_country == 0 && !re4_disc_retail_kr()) {
+         PlSetDamageSe(0xD);
+         EstSet(pPL, -1, 0, 0, EFF_EM10, 0x57, 0, ESP_CORE_KIND_NONE, pPL, 0);
+         return;
+--- a/src/game/obj16.cpp
++++ b/src/game/obj16.cpp
+@@ -1140,6 +1140,8 @@
+ // The decapitation: player life 0, death damage type 6, region-specific scream, the player's head
+ // hidden and the body's own head-lost effect by enemy id.
+ // The head bit the player's head off: game over.
++extern "C" int re4_disc_retail_kr(void); /* port: runtime/dvd.cpp */
++
+ void obj16PlHeadLost(cObj16* obj)
+ {
+     FREE_OBJ16* w = OBJ16_WK(obj);
+@@ -1148,6 +1150,10 @@
+     pG->pl_life = 0;
+     PlSetDamage(PL_DM_FRONT, 0, 0);
+     region = pSys->eff_country;
++    /* port: the Korean translation takes the US release's way (patch 0147) */
++    if (re4_disc_retail_kr()) {
++        region = 1;
++    }
+     if (region == 0) {
+         PlSetDamageSe(0xD);
+         if (w->pOya) {

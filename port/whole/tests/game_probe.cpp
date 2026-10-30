@@ -845,6 +845,7 @@ extern "C" void re4_touch_sscrn_moved(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, S
 extern "C" void re4_core_set_letterbox(int off);
 extern "C" int re4_letterbox_open(void);
 extern "C" int re4_picture_still(void);
+extern "C" int re4_letterbox_frame(void);
 
 namespace {
 
@@ -1389,6 +1390,16 @@ extern "C" int re4probe_letterbox(void)
     StaFlagOff(pG, STA_SUB_SCRN);
     pG->Rno0 = 2;
     bad |= re4_letterbox_open() ? 0x10 : 0;
+    // the HUD's letterbox units (IDC_CINESCO, Cockpit::roomInit): hidden while open, back after
+    if (!IdSys.setCk(IDC_CINESCO)) {
+        static const ID_FILE_HEADER empty = { { '2', '.', '0', '0' }, 0, 0, { 0, 0 } };
+        IdSys.set((ID_FILE_HEADER*) &empty, 0xFF, IDC_CINESCO, 0x13, 0, 0);
+        pG->Rno0 = 3;
+        bad |= re4_letterbox_frame() ? 0 : 0x20;
+        pG->Rno0 = 2;
+        bad |= re4_letterbox_frame() ? 0x40 : 0;
+        IdSys.kill(0xFF, IDC_CINESCO);
+    }
     re4_core_set_letterbox(0);
     pG->Rno0 = keepStep;
     if (keepSub) {
@@ -1401,6 +1412,7 @@ extern "C" int re4probe_letterbox(void)
 }
 
 extern "C" void re4_core_gyro(float yaw, float pitch);
+extern "C" void re4_core_aim_turn(float yaw, float pitch);
 
 // Gyro aiming with the harpoon in the boat of the Del Lago fight (runtime/gyro.cpp): a fake Leon
 // aiming it (pl0f routine 0/0xF/3, step 3) on a fake boat; the yaw moves the sight across
@@ -1471,6 +1483,23 @@ extern "C" int re4probe_gyro_boat(void)
     bad |= pl->m_BoatPlDir != dir2 ? 0x100 : 0;
     StaFlagOff(pG, STA_SUB_SCRN);
     re4_core_gyro(0.0f, 0.0f);
+    // swipe aiming (re4_core_aim_turn): the angles of two swipes added up, turned at the next frame as
+    // they are (no gain), then nothing more while the finger stands
+    pl->m_BoatPlDir = 0.0f;
+    pl->m_Blend = 0.0f;
+    re4_core_aim_turn(0.05f, 0.01f);
+    re4_core_aim_turn(0.05f, 0.01f);
+    PADRead(pads);
+    bad |= !near(pl->m_BoatPlDir, 0.1f) || !near(pl->m_Blend / 1251.6454f, 0.02f) ? 0x200 : 0;
+    PADRead(pads);
+    bad |= !near(pl->m_BoatPlDir, 0.1f) ? 0x400 : 0;
+    // a swipe while a sub screen is open is gone, not turned later
+    StaFlagOn(pG, STA_SUB_SCRN);
+    re4_core_aim_turn(0.05f, 0.0f);
+    PADRead(pads);
+    StaFlagOff(pG, STA_SUB_SCRN);
+    PADRead(pads);
+    bad |= !near(pl->m_BoatPlDir, 0.1f) ? 0x800 : 0;
 
     pPL = keepPl;
     pG->Rno0 = keepStep;
@@ -1693,6 +1722,169 @@ extern "C" int re4probe_qte_touch(void)
     ActBtn.setActive(keepActive);
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
+    }
+    return bad;
+}
+
+extern "C" void re4_qte_auto(int on);
+
+// Automatic QTEs (the cheat switch, runtime/qte_touch.cpp re4_qte_auto): with a prompt the buttons go
+// in by themselves, two frames pressed and two released while it stays; a mash every second frame;
+// nothing for the plain A, X (hide), in a sub screen or when off. Bits: each failed case.
+extern "C" int re4probe_qte_auto(void)
+{
+    const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0;
+    const int keepActive = ActBtn.isActive();
+    const u8 keepShown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    PADStatus pads[4];
+    int bad = 0;
+    auto frame = [&]() -> u16 {
+        PADRead(pads);
+        return pads[0].button;
+    };
+    auto settle = [&]() {
+        Cckpt.m_ActBttn.setDispFlag(DISP_OFF);
+        for (int i = 0; i < 4; i++) {
+            frame();
+        }
+    };
+    StaFlagOff(pG, STA_SUB_SCRN);
+    ActBtn.setActive(1);
+    re4_qte_auto(1);
+    settle();
+
+    // the dodge: L+R two frames, two not, then again while the prompt stays
+    Cckpt.m_ActBttn.setDispFlag(DISP_L_R);
+    const u16 want[6] = {0x0060, 0x0060, 0, 0, 0x0060, 0x0060};
+    for (int i = 0; i < 6; i++) {
+        bad |= frame() != want[i] ? 1 : 0;
+    }
+    settle();
+    // a mash (A): pressed every second frame
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_RAPID);
+    int presses = 0;
+    {
+        u16 last = 0;
+        for (int f = 0; f < 8; f++) {
+            const u16 b = frame();
+            presses += b == 0x0100 && last != 0x0100;
+            last = b;
+        }
+    }
+    bad |= presses != 4 ? 2 : 0;
+    settle();
+    // the plain A (a door) and X (Ashley: hide): the player's
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_NORMAL);
+    bad |= (frame() | frame() | frame()) != 0 ? 4 : 0;
+    Cckpt.m_ActBttn.setDispFlag(DISP_X);
+    bad |= (frame() | frame() | frame()) != 0 ? 8 : 0;
+    // a sub screen, an inactive button: nothing
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_B);
+    StaFlagOn(pG, STA_SUB_SCRN);
+    bad |= (frame() | frame()) != 0 ? 0x10 : 0;
+    StaFlagOff(pG, STA_SUB_SCRN);
+    ActBtn.setActive(0);
+    bad |= (frame() | frame()) != 0 ? 0x20 : 0;
+    ActBtn.setActive(1);
+    // off: nothing
+    re4_qte_auto(0);
+    settle();
+    Cckpt.m_ActBttn.setDispFlag(DISP_L_R);
+    bad |= (frame() | frame() | frame()) != 0 ? 0x40 : 0;
+
+    Cckpt.m_ActBttn.setDispFlag(keepShown);
+    ActBtn.setActive(keepActive);
+    if (keepSub) {
+        StaFlagOn(pG, STA_SUB_SCRN);
+    }
+    return bad;
+}
+
+extern "C" int re4_cheat_perform(int what);
+extern "C" void re4_cheats_set(int bits);
+extern "C" void re4_cheats_install(void);
+
+// The cheat button "unlock the extra games" (runtime/cheats.cpp, 4): what clearing the game sets for
+// Assignment Ada and The Mercenaries (r333.cpp), not the costume, the Mercenaries' records cleared the
+// first time; then "already"; kept by switch 16 when a system file without it was read. Bits: each
+// failed case.
+extern "C" int re4probe_cheat_extras(void)
+{
+    const SYSTEM_SAVE_WORK keep = *pSys;
+    PADStatus pads[4];
+    int bad = 0;
+    // (the game's flag words count from the top bit: FlagOn)
+    const u32 extras = (0x80000000u >> EXT_HARD_MODE) | (0x80000000u >> EXT_GET_OMAKE_ADA_GAME) |
+                       (0x80000000u >> EXT_GET_OMAKE_ETC_GAME);
+    auto has = [&](int f) { return ExtFlagChk(pSys, f) != 0; };
+    ExtFlagOff(pSys, EXT_COSTUME);
+    ExtFlagOff(pSys, EXT_HARD_MODE);
+    ExtFlagOff(pSys, EXT_GET_OMAKE_ADA_GAME);
+    ExtFlagOff(pSys, EXT_GET_OMAKE_ETC_GAME);
+    pSys->MercSysRoom[0] = 1234;
+    pSys->MercSysRank[0] = 0x80000000u;
+    bad |= re4_cheat_perform(4) != 1 ? 1 : 0;
+    bad |= !has(EXT_HARD_MODE) || !has(EXT_GET_OMAKE_ADA_GAME) || !has(EXT_GET_OMAKE_ETC_GAME) ? 2 : 0;
+    bad |= has(EXT_COSTUME) ? 4 : 0;
+    bad |= pSys->MercSysRoom[0] != 0 || pSys->MercSysRank[0] != 0 ? 8 : 0;
+    bad |= re4_cheat_perform(4) != 2 ? 0x10 : 0;
+    // records made after the unlock stay when it is set again
+    pSys->MercSysRoom[1] = 77;
+    bad |= re4_cheat_perform(4) != 2 || pSys->MercSysRoom[1] != 77 ? 0x20 : 0;
+    // kept: a system file without it (read from the card) gets it back at the next game frame
+    re4_cheats_install();
+    re4_cheats_set(16);
+    PADRead(pads);
+    pSys->Extra_flg &= ~extras;
+    PADRead(pads);
+    bad |= (pSys->Extra_flg & extras) != extras ? 0x40 : 0;
+    re4_cheats_set(0);
+    PADRead(pads);
+    pSys->Extra_flg &= ~extras;
+    PADRead(pads);
+    bad |= (pSys->Extra_flg & extras) != 0 ? 0x80 : 0;
+
+    *pSys = keep;
+    return bad;
+}
+
+// Patch 0146 (a bug of the prototype): the handcannon's firepower as the merchant shows it (x10, European
+// WeaponLevelTbl row 0x0F), capacity level 7 = endless ammo (0x8000): a shot uses no round, the slot
+// counts one round, reloadable answers 1, reload loads nothing; level 6 still uses rounds. Bits: each
+// failed check.
+extern "C" int re4probe_handcannon(void)
+{
+    static const int fire[7] = {300, 350, 400, 450, 500, 600, 999};
+    const u32 keepDbg[4] = {pG->Debug_flg[0], pG->Debug_flg[1], pG->Debug_flg[2], pG->Debug_flg[3]};
+    int bad = 0;
+    DbgFlagOff(pG, DBG_INF_BULLET);
+    DbgFlagOff(pG, DBG_INF_BULLET2);
+    for (int lv = 1; lv <= 7; lv++) {
+        if ((int) (getPowerRatio(0x37, lv) * 10.0f + 0.5f) != fire[lv - 1]) {
+            bad |= 1;
+            re4_log("  handcannon: firepower level %d is %d, not %d", lv,
+                    (int) (getPowerRatio(0x37, lv) * 10.0f + 0.5f), fire[lv - 1]);
+        }
+    }
+    bad |= WeaponId2ChargeNum(0x37, 6) != 10 || WeaponId2ChargeNum(0x37, 7) != 0x8000 ? 2 : 0;
+    bad |= WeaponId2ChargeNum(0x34, 7) != 0x8000 || (int) getBulletRatio(0x37, 7) != 0x8000 ? 4 : 0;
+    static cItem it;
+    memset(&it, 0, sizeof(it));
+    it.id = 0x37;
+    it.num = 1;
+    it.flags = 1;
+    it.setPowerLevel(6);
+    it.setBulletLevel(6);
+    it.bullet = 0;
+    bad |= ItemMgr.trigger(&it) != 1 || (it.bullet & 0x1FFF) != 0 ? 8 : 0;
+    bad |= ItemMgr.bulletNum(&it) != 1 ? 0x10 : 0;
+    bad |= ItemMgr.reloadable(&it, 0) != 1 || ItemMgr.reload(&it, 0) != 1 ? 0x20 : 0;
+    // level 6: ten rounds, a shot uses one
+    it.setBulletLevel(5);
+    it.bullet = 10;
+    bad |= ItemMgr.trigger(&it) != 1 || (it.bullet & 0x1FFF) != 9 || ItemMgr.bulletNum(&it) != 9 ? 0x40 : 0;
+    for (int i = 0; i < 4; i++) {
+        pG->Debug_flg[i] = keepDbg[i];
     }
     return bad;
 }

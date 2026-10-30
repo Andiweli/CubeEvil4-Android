@@ -977,6 +977,14 @@ void re4ipc_slash(float tilt)
     post(kSlash, a, 0, 0);
 }
 
+void re4ipc_aim_turn(float yaw, float pitch)
+{
+    int32_t a, b;
+    memcpy(&a, &yaw, 4);
+    memcpy(&b, &pitch, 4);
+    post(kAimTurn, a, b, 0);
+}
+
 void re4ipc_touch(float u, float v)
 {
     int32_t a, b;

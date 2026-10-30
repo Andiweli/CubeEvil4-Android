@@ -19,7 +19,9 @@ import android.text.Spanned;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.view.Gravity;
+import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -54,10 +56,20 @@ final class CoreMenu extends Dialog {
     void gyroChanged(boolean on);
     /** The switch "Alternate Controls" (the preferences hold it). */
     void alternateChanged(boolean on);
-    /** The controller configuration's key map (CoreInput: a function for each free key); the host keeps it. */
-    void keyMapChanged(int[] map);
-    /** A physical game controller is connected (the controller configuration can be used). */
+    /** The button mapping of the controller or the keyboard (ActionMap.kind); the host keeps it. */
+    void mappingChanged(ActionMap map);
+    /** The button mapping in use for ActionMap.KIND_CONTROLLER or KIND_KEYBOARD. */
+    ActionMap mapping(int kind);
+    /** A controller's key as its label (CoreInput.faceLabel: "swap A/B and X/Y"). */
+    int faceLabel(int keyCode);
+    /** A physical game controller is connected (the button mapping can be used). */
     boolean controllerConnected();
+    /** A keyboard or a mouse is connected (the button mapping can be used). */
+    boolean keyboardConnected();
+    /** The mouse's sensitivity (CoreActivity.MOUSE_MIN .. MOUSE_MAX). */
+    float mouseSensitivity();
+    /** The mouse's sensitivity slider (the preferences hold it). */
+    void mouseSensitivityChanged(float value);
     /** The comfort control "Latch L and R", touch and controller (the preferences hold it). */
     void latchChanged(boolean on);
     /** The comfort control "Latch B", touch and controller (the preferences hold it). */
@@ -77,15 +89,18 @@ final class CoreMenu extends Dialog {
     /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it); the
      *  game restarts when its language changes (the menu asked first). */
     void gameLanguageChanged(int choice);
-    /** The cheat switches: bit 1 infinite health, 2 infinite ammo, 4 one-hit kill (CoreActivity.CHEATS holds them). */
+    /** The cheat switches: bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
+     *  extra games kept unlocked (CoreActivity.CHEATS holds them). */
     void cheatsChanged(int bits);
-    /** A cheat button (1 Killer7, 2 attache case L, 3 money), off the main thread: CoreBridge.cheatAction's answer. */
+    /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games), off the main thread:
+     *  CoreBridge.cheatAction's answer. */
     int cheatAction(int what);
+    /** The game restarts with its language as it is (the extra games; the menu asked first). */
+    void restartGame();
   }
 
   private interface Changed<T> { void accept(T value); }
-  private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4, CONTROLLER = 5,
-      CHOOSE = 6;
+  private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4, CONTROLLER = 5;
   private static final long CHEAT_FLASH_MS = 1500;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
@@ -101,15 +116,20 @@ final class CoreMenu extends Dialog {
   private final Handler main = new Handler(Looper.getMainLooper());
   private final int[] scrollY = new int[7];
   private final Button[] navigation = new Button[5];
-  // the controller configuration: the button of each free key, the free key whose function is chosen
-  // (the CHOOSE page), the map shown
+  // the button mapping: the button of each action, the device shown, the action whose keys are being
+  // pressed (-1: none) with a combination's first key (0 before it), what the last change did
   private Button[] bindingButtons;
   private Button controllerButton;
-  private int chooseKey;
-  private int[] shownMap;
+  private int mapKind = -1;
+  private int captureAction = -1, captureFirst;
+  private boolean captureL, captureR;  // the triggers past half way while waiting
+  private TextView mapStatus;
+  private String pendingStatus;
+  private final Runnable captureTimeout = this::cancelCapture;
   private int page, requestSerial;
   private boolean working, slotPresent;
   private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus;
+  private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
   private Button exportAll, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
     if (r - l != oldR - oldL || b - t != oldB - oldT) resizeWindow();
@@ -223,9 +243,23 @@ final class CoreMenu extends Dialog {
   /** At most `columns` buttons a row (fewer when narrow); further rows line up under the first. */
   private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
                            Changed<Integer> changed) {
-    LinearLayout outer = new MenuLayout.Columns(getContext(), 170, 640, false);
+    return choices(label, labels, values, selected, limit, columns, false, changed);
+  }
+  /**
+   * Three options a row in quarters (wish of the project owner, 28.10.2026): the label takes the first
+   * quarter and each option one, so two options side by side are as wide as one button of the rows of
+   * two above them, and the rows keep the same gap as those rows.
+   */
+  private Button[] quarterChoices(int label, String[] labels, int[] values, int selected, Changed<Integer> changed) {
+    return choices(label, labels, values, selected, Integer.MAX_VALUE, 3, true, changed);
+  }
+  private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
+                           boolean quarters, Changed<Integer> changed) {
+    MenuLayout.Columns outer = new MenuLayout.Columns(getContext(), quarters ? 0 : 170, 640, false);
+    if (quarters) outer.setWeights(1, 3);
     outer.addView(rowLabel(s(label)));
-    MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), columns);
+    // in quarters a long translation wraps onto two lines before the row loses a column
+    MenuLayout.Buttons options = new MenuLayout.Buttons(getContext(), columns, quarters ? 2 : 1);
     outer.addView(options);
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
@@ -238,7 +272,9 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       buttons[i] = b;
     }
-    outer.setPadding(0, dp(3), 0, dp(3)); body.addView(outer);
+    // the buttons' own 4 dp margins alone: the gap of the rows of two
+    if (!quarters) outer.setPadding(0, dp(3), 0, dp(3));
+    body.addView(outer);
     return buttons;
   }
   private void select(Button[] buttons, String[] labels, int index) {
@@ -317,7 +353,8 @@ final class CoreMenu extends Dialog {
     if (working) return;
     scrollY[page] = scroll.getScrollY(); page = next; ++requestSerial;
     body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null; cheatStatus = null;
-    bindingButtons = null; controllerButton = null;
+    bindingButtons = null; controllerButton = null; mapStatus = null;
+    if (next != CONTROLLER) { captureAction = -1; main.removeCallbacks(captureTimeout); }
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
     int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_controls_page,
         R.string.ingame_performance, R.string.ingame_management, R.string.ingame_controller_config};
@@ -327,11 +364,10 @@ final class CoreMenu extends Dialog {
       t.setSpan(new RelativeSizeSpan(.6f), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
       t.setSpan(new StyleSpan(Typeface.NORMAL), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
       title.setText(t);
-    } else if (page == CHOOSE) title.setText(keyName(CoreInput.MOVABLE[chooseKey]));
-    else title.setText(s(titles[page]));
+    } else title.setText(s(titles[page]));
     if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == CONTROLS) controls();
     else if (page == PERFORMANCE) performance(); else if (page == CONTROLLER) controller();
-    else if (page == CHOOSE) chooseFunction(); else management();
+    else management();
     separator(body);
     TextView footer = text(s(R.string.ingame_navigation), 14, false);
     footer.setPadding(0, dp(8), 0, 0); body.addView(footer);
@@ -347,11 +383,6 @@ final class CoreMenu extends Dialog {
       // back to the controls, on the button that opened it
       showPage(CONTROLS, false);
       main.post(() -> { if (controllerButton != null) controllerButton.requestFocus(); });
-    } else if (page == CHOOSE) {
-      // back to the free keys, on the key chosen
-      int key = chooseKey;
-      showPage(CONTROLLER, false);
-      main.post(() -> { if (bindingButtons != null) bindingButtons[key].requestFocus(); });
     } else {
       int from = page; showPage(HOME, false);
       main.post(() -> { if (navigation[from] != null) navigation[from].requestFocus(); });
@@ -405,7 +436,7 @@ final class CoreMenu extends Dialog {
     final int[] current = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
         .getInt(CoreActivity.GAME_LANGUAGE, 0)};
     final Button[][] buttons = new Button[1][];
-    buttons[0] = choices(R.string.ingame_game_language, labels, values, current[0], Integer.MAX_VALUE, 3, value -> {
+    buttons[0] = quarterChoices(R.string.ingame_game_language, labels, values, current[0], value -> {
       if (value == current[0]) return;
       if (host.gameLanguageOf(value) == host.gameLanguageOf(current[0])) {
         current[0] = value; host.gameLanguageChanged(value); return;
@@ -460,8 +491,8 @@ final class CoreMenu extends Dialog {
     });
   }
   private void controls() {
-    choices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
-        new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input), Integer.MAX_VALUE,
+    quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
+        new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input),
         mode -> host.touchModeChanged(mode));
     help(R.string.ingame_touch_help); heading(R.string.ingame_comfort);
     MenuLayout.Buttons first = buttonsRow(body);
@@ -471,9 +502,9 @@ final class CoreMenu extends Dialog {
     toggle(second, R.string.ingame_latch, input.getBoolean(CoreActivity.TOUCH_LATCH, false), on -> host.latchChanged(on));
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held
-    choices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
+    quarterChoices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
-        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), Integer.MAX_VALUE, mode -> host.touchAimChanged(mode));
+        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), mode -> host.touchAimChanged(mode));
     boolean gyro = GyroAim.available(getContext()), on = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
     LinearLayout third = new MenuLayout.Columns(getContext(), 0, 540, false);
     // the gyro switch in the middle of the row the slider makes taller: as far from the row above as
@@ -522,26 +553,37 @@ final class CoreMenu extends Dialog {
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller
     controllerButton = cellAction(buttonsRow(body), s(R.string.ingame_controller_config) + "   ›",
         v -> showPage(CONTROLLER, true));
-    controllerButton.setEnabled(host != null && host.controllerConnected());
+    controllerButton.setEnabled(host != null && (host.controllerConnected() || host.keyboardConnected()));
     help(R.string.ingame_controller_config_help);
   }
 
-  /** The functions of the controller configuration, in CoreInput's order (F_A .. F_MENU). */
-  private static final int[] FUNCTION_LABELS = {R.string.ingame_fn_action, R.string.ingame_fn_run,
-      R.string.ingame_fn_ashley, R.string.ingame_fn_inventory, R.string.ingame_fn_map, R.string.ingame_fn_knife,
-      R.string.ingame_fn_aim, R.string.ingame_fn_start, R.string.ingame_fn_up, R.string.ingame_fn_down,
-      R.string.ingame_fn_left, R.string.ingame_fn_right, R.string.ingame_fn_menu};
-
-  /** The key map in the preferences (the default without one). */
-  private int[] keyMap() {
-    int[] m = CoreInput.decode(input.getString(CoreActivity.KEY_MAP, null));
-    return m == null ? CoreInput.defaultKeyMap() : m;
-  }
+  /** The actions' names, in ActionMap's order. */
+  private static final int[] ACTION_LABELS = {R.string.ingame_act_forward, R.string.ingame_act_back,
+      R.string.ingame_act_left, R.string.ingame_act_right, R.string.ingame_act_action, R.string.ingame_act_run,
+      R.string.ingame_act_aim, R.string.ingame_act_fire, R.string.ingame_act_reload, R.string.ingame_act_knife,
+      R.string.ingame_act_slash, R.string.ingame_act_ashley, R.string.ingame_act_inventory, R.string.ingame_act_map,
+      R.string.ingame_act_options, R.string.ingame_act_menu};
 
   /** A key's name on its button: the controller's labels, the D-pad as arrows, else Android's name. */
   static String keyName(int keyCode) {
     switch (keyCode) {
-      case 0: return "—";  // no extra key
+      case 0: return "—";  // no key
+      case ActionMap.MOUSE_LEFT: return "Mouse L";
+      case ActionMap.MOUSE_RIGHT: return "Mouse R";
+      case ActionMap.MOUSE_MIDDLE: return "Mouse M";
+      case ActionMap.MOUSE_BACK: return "Mouse 4";
+      case ActionMap.MOUSE_FORWARD: return "Mouse 5";
+      case KeyEvent.KEYCODE_SPACE: return "Space";
+      case KeyEvent.KEYCODE_SHIFT_LEFT: return "Shift (L)";
+      case KeyEvent.KEYCODE_SHIFT_RIGHT: return "Shift (R)";
+      case KeyEvent.KEYCODE_CTRL_LEFT: return "Ctrl (L)";
+      case KeyEvent.KEYCODE_CTRL_RIGHT: return "Ctrl (R)";
+      case KeyEvent.KEYCODE_ALT_LEFT: return "Alt (L)";
+      case KeyEvent.KEYCODE_ALT_RIGHT: return "Alt (R)";
+      case KeyEvent.KEYCODE_ESCAPE: return "Esc";
+      case KeyEvent.KEYCODE_TAB: return "Tab";
+      case KeyEvent.KEYCODE_ENTER: return "Enter";
+      case KeyEvent.KEYCODE_DEL: return "Backspace";
       case KeyEvent.KEYCODE_BUTTON_A: return "A";
       case KeyEvent.KEYCODE_BUTTON_B: return "B";
       case KeyEvent.KEYCODE_BUTTON_X: return "X";
@@ -562,63 +604,214 @@ final class CoreMenu extends Dialog {
     }
   }
 
-  /** A function's name on a free key's button; "No function" for none. */
-  private String functionName(int function) {
-    return function < 0 ? s(R.string.ingame_fn_none) : s(FUNCTION_LABELS[function]);
+  /** Keys as text: "R2 + A", "—" for none. */
+  static String keysText(int[] keys) {
+    if (keys.length == 0) return keyName(0);
+    StringBuilder t = new StringBuilder();
+    for (int k : keys) t.append(t.length() == 0 ? "" : " + ").append(keyName(k));
+    return t.toString();
   }
 
   /**
-   * "Controller configuration" (proposal of the project owner, 27.10.2026): A, B, L2, R2, START, SELECT and
-   * the D-pad keep their functions; each free key (CoreInput.MOVABLE: X, Y, L1, R1, L3, R3) on the left,
-   * its function on the right, a press on it chooses another (the CHOOSE page).
+   * "Button Mapping" (wish of the project owner, 29.10.2026; ActionMap): the controller's or the keyboard's
+   * mapping, each action on the left, its keys on the right (and the default where they differ); a press
+   * on them waits for the key, a combination's for the key to hold and then the second (startCapture).
    */
   private void controller() {
-    if (input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
-    help(R.string.ingame_controller_fixed);
-    if (shownMap == null) shownMap = keyMap();
-    int[] missing = CoreInput.missing(shownMap);
-    if (missing.length > 0) {
-      StringBuilder names = new StringBuilder();
-      for (int f : missing) names.append(names.length() == 0 ? "" : ", ").append(s(FUNCTION_LABELS[f]));
-      TextView warn = text(getContext().getString(R.string.ingame_controller_missing, names), 15, true);
-      warn.setTextColor(GOLD); warn.setPadding(0, dp(4), 0, dp(8)); body.addView(warn);
+    if (mapKind < 0) {
+      mapKind = host != null && !host.controllerConnected() && host.keyboardConnected()
+          ? ActionMap.KIND_KEYBOARD : ActionMap.KIND_CONTROLLER;
     }
-    bindingButtons = new Button[CoreInput.MOVABLE.length];
-    for (int i = 0; i < CoreInput.MOVABLE.length; i++) {
-      final int key = i;
+    final boolean keyboard = mapKind == ActionMap.KIND_KEYBOARD;
+    quarterChoices(R.string.ingame_map_device, new String[] {s(R.string.ingame_map_controller), s(R.string.ingame_map_keyboard)},
+        new int[] {ActionMap.KIND_CONTROLLER, ActionMap.KIND_KEYBOARD}, mapKind, kind -> {
+          captureAction = -1; main.removeCallbacks(captureTimeout); mapKind = kind; showPage(CONTROLLER, false);
+        });
+    if (!keyboard && input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
+    help(keyboard ? R.string.ingame_map_fixed_keyboard : R.string.ingame_map_fixed_controller);
+    if (keyboard) mouseSlider();
+    ActionMap def = ActionMap.defaults(mapKind), m = host == null ? null : host.mapping(mapKind);
+    if (m == null) m = def;
+    bindingButtons = new Button[ActionMap.ACTIONS];
+    for (int a = 0; a < ActionMap.ACTIONS; a++) {
+      if (!ActionMap.available(mapKind, a)) continue;
+      final int action = a;
       LinearLayout line = new MenuLayout.Columns(getContext(), -300, 420, false);
-      line.addView(rowLabel(keyName(CoreInput.MOVABLE[i])));
+      line.addView(rowLabel(s(ACTION_LABELS[a])));
       MenuLayout.Buttons box = new MenuLayout.Buttons(getContext(), 1);
       line.addView(box);
-      bindingButtons[i] = cellAction(box, functionName(shownMap[i]) + "   ›", v -> {
-        chooseKey = key; showPage(CHOOSE, true);
-      });
+      String keys = keysText(m.keys(a));
+      if (!java.util.Arrays.equals(m.keys(a), def.keys(a))) {
+        keys += "\n" + getContext().getString(R.string.ingame_map_default, keysText(def.keys(a)));
+      }
+      bindingButtons[a] = cellAction(box, keys, v -> startCapture(action));
       line.setPadding(0, dp(1), 0, dp(1)); body.addView(line);
     }
+    mapStatus = text("", 15, true); mapStatus.setTextColor(GOLD); mapStatus.setPadding(0, dp(6), 0, dp(4));
+    mapStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    mapStatus.setVisibility(pendingStatus == null ? View.GONE : View.VISIBLE);
+    if (pendingStatus != null) mapStatus.setText(pendingStatus);
+    pendingStatus = null;
+    body.addView(mapStatus);
     cellAction(buttonsRow(body), s(R.string.ingame_controller_default), v -> {
-      shownMap = CoreInput.defaultKeyMap(); host.keyMapChanged(null); showPage(CONTROLLER, false);
+      captureAction = -1; main.removeCallbacks(captureTimeout);
+      host.mappingChanged(ActionMap.defaults(mapKind)); showPage(CONTROLLER, false);
     });
     help(R.string.ingame_controller_help);
   }
 
-  /** The functions for the free key `chooseKey`: "No function" and each of the game's; the chosen one goes back. */
-  private void chooseFunction() {
-    if (shownMap == null) shownMap = keyMap();
-    MenuLayout.Buttons list = new MenuLayout.Buttons(getContext(), 2);
-    body.addView(list, new LinearLayout.LayoutParams(-1, -2));
-    Button first = null;
-    for (int f = CoreInput.F_NONE; f < CoreInput.FUNCTIONS; f++) {
-      final int function = f;
-      Button b = cellAction(list, functionName(f), v -> {
-        shownMap = CoreInput.assign(shownMap, chooseKey, function);
-        host.keyMapChanged(shownMap);
-        goBack();
-      });
-      b.setSelected(shownMap[chooseKey] == f);
-      if (b.isSelected()) first = b;
+  /** The mouse's sensitivity (wish of the project owner, 29.10.2026), as the gyro's slider. */
+  private void mouseSlider() {
+    float min = CoreActivity.MOUSE_MIN, step = CoreActivity.MOUSE_STEP;
+    LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
+    line.addView(rowLabel(s(R.string.ingame_mouse_sensitivity)));
+    LinearLayout slider = row();
+    SeekBar bar = new SeekBar(getContext());
+    TextView value = text("", 15, false);
+    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
+    slider.addView(value);
+    line.addView(slider);
+    float now = host == null ? 1f : host.mouseSensitivity();
+    bar.setMax(Math.round((CoreActivity.MOUSE_MAX - min) / step));
+    bar.setProgress(Math.round((now - min) / step));
+    bar.setContentDescription(s(R.string.ingame_mouse_sensitivity));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    value.setText(times(now));
+    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
+        float v = min + progress * step;
+        value.setText(times(v));
+        if (fromUser && host != null) host.mouseSensitivityChanged(v);
+      }
+      @Override public void onStartTrackingTouch(SeekBar b) {}
+      @Override public void onStopTrackingTouch(SeekBar b) {}
+    });
+    line.setPadding(0, dp(3), 0, dp(3)); body.addView(line);
+    help(R.string.ingame_mouse_help);
+  }
+
+  /** Waits for the key of `action` (a second press on its button: no change); after 8 s it gives up. */
+  private void startCapture(int action) {
+    if (captureAction >= 0) {
+      boolean same = captureAction == action;
+      cancelCapture();
+      if (same) return;
     }
-    final Button focus = first;
-    main.post(() -> { if (focus != null) focus.requestFocus(); });
+    captureAction = action; captureFirst = 0; captureL = captureR = true;  // a trigger held now does not count
+    Button b = bindingButtons[action];
+    b.setText(s(ActionMap.combination(action) ? R.string.ingame_map_hold : R.string.ingame_map_press));
+    b.setSelected(true);
+    if (mapStatus != null) mapStatus.setVisibility(View.GONE);
+    main.removeCallbacks(captureTimeout); main.postDelayed(captureTimeout, 8000);
+  }
+
+  private void cancelCapture() {
+    main.removeCallbacks(captureTimeout);
+    if (captureAction < 0) return;
+    int action = captureAction;
+    captureAction = -1;
+    if (page == CONTROLLER && isShowing()) {
+      showPage(CONTROLLER, false);
+      main.post(() -> { if (bindingButtons != null && bindingButtons[action] != null) bindingButtons[action].requestFocus(); });
+    }
+  }
+
+  /** A key for the action waited for (a controller's as its label, ActionMap's key codes). */
+  private void captured(int code) {
+    int action = captureAction;
+    if (ActionMap.combination(action) && captureFirst == 0) {
+      captureFirst = code;
+      bindingButtons[action].setText(getContext().getString(R.string.ingame_map_second, keyName(code)));
+      main.removeCallbacks(captureTimeout); main.postDelayed(captureTimeout, 8000);
+      return;
+    }
+    if (code == captureFirst) return;  // the held key again: still the second one
+    int[] keys = ActionMap.combination(action) ? new int[] {captureFirst, code} : new int[] {code};
+    ActionMap before = host.mapping(mapKind);
+    if (before == null) before = ActionMap.defaults(mapKind);
+    ActionMap after = before.assign(action, keys);
+    captureAction = -1;
+    main.removeCallbacks(captureTimeout);
+    if (after == null) {
+      pendingStatus = s(R.string.ingame_map_fixed_key);
+    } else {
+      for (int a = 0; a < ActionMap.ACTIONS; a++) {
+        if (a != action && ActionMap.available(mapKind, a) && !java.util.Arrays.equals(before.keys(a), after.keys(a))) {
+          pendingStatus = getContext().getString(R.string.ingame_map_swapped, s(ACTION_LABELS[a]), keysText(after.keys(a)));
+        }
+      }
+      host.mappingChanged(after);
+    }
+    showPage(CONTROLLER, false);
+    main.post(() -> { if (bindingButtons != null && bindingButtons[action] != null) bindingButtons[action].requestFocus(); });
+  }
+
+  /** While waiting: a key of the device shown (not the fixed ones, not Android's back) is taken. */
+  private boolean captureKey(KeyEvent event) {
+    int key = event.getKeyCode();
+    if (key == KeyEvent.KEYCODE_BACK) {
+      if (event.getAction() == KeyEvent.ACTION_DOWN) cancelCapture();
+      return true;
+    }
+    if (event.getAction() != KeyEvent.ACTION_DOWN || event.getRepeatCount() > 0) return true;
+    boolean keyboard = !KeyEvent.isGamepadButton(key) && CoreActivity.keyboardDevice(event.getDevice());
+    boolean wantKeyboard = mapKind == ActionMap.KIND_KEYBOARD;
+    if (keyboard != wantKeyboard) {
+      showMapStatus(s(wantKeyboard ? R.string.ingame_map_use_keyboard : R.string.ingame_map_use_controller));
+    } else if (wantKeyboard ? ActionMap.fixedKeyboardButton(key) != 0 : CoreInput.dpad(key) != 0) {
+      showMapStatus(s(R.string.ingame_map_fixed_key));
+    } else {
+      captured(wantKeyboard ? key : host.faceLabel(key));
+    }
+    return true;
+  }
+
+  private void showMapStatus(String text) {
+    if (mapStatus == null) return;
+    mapStatus.setText(text); mapStatus.setVisibility(View.VISIBLE);
+  }
+
+  /**
+   * While waiting for a key of the keyboard and mouse: a mouse button pressed is that key (the pointer is
+   * free in the menu; the click that started the wait has ended).
+   */
+  private boolean captureMouse(MotionEvent e) {
+    if (captureAction < 0 || mapKind != ActionMap.KIND_KEYBOARD || !e.isFromSource(InputDevice.SOURCE_MOUSE)) return false;
+    int bit = 0;
+    if (e.getActionMasked() == MotionEvent.ACTION_BUTTON_PRESS && android.os.Build.VERSION.SDK_INT >= 23) {
+      bit = e.getActionButton();
+    } else if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+      bit = Integer.lowestOneBit(e.getButtonState());
+    }
+    int code = ActionMap.mouseButton(bit);
+    if (code != 0) captured(code);
+    return true;  // nothing else of the mouse while waiting
+  }
+
+  @Override public boolean dispatchTouchEvent(MotionEvent e) {
+    if (captureMouse(e)) return true;
+    return super.dispatchTouchEvent(e);
+  }
+
+  @Override public boolean dispatchGenericMotionEvent(MotionEvent e) {
+    if (captureMouse(e)) return true;
+    return super.dispatchGenericMotionEvent(e);
+  }
+
+  /** While waiting for a controller's key: an analog trigger past half way is L2 or R2. */
+  @Override public boolean onGenericMotionEvent(MotionEvent e) {
+    if (captureAction >= 0 && mapKind == ActionMap.KIND_CONTROLLER && e.getAction() == MotionEvent.ACTION_MOVE
+        && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
+      boolean l = Math.max(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE)) > 0.6f;
+      boolean r = Math.max(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS)) > 0.6f;
+      boolean newL = l && !captureL, newR = r && !captureR;
+      captureL = l;
+      captureR = r;
+      if (newL) captured(KeyEvent.KEYCODE_BUTTON_L2);
+      else if (newR) captured(KeyEvent.KEYCODE_BUTTON_R2);
+      return true;
+    }
+    return super.onGenericMotionEvent(e);
   }
 
   private void performance() {
@@ -674,19 +867,18 @@ final class CoreMenu extends Dialog {
   /** "Cheats" at the top of Management (wish and decisions of the project owner, 27.10.2026;
    *  port/docs/cheat-menu-plan.md): three switches, kept like the other settings, and three buttons
    *  that change the game once (the weapon, the case and the money stay in the next save). */
+  private void cheatSwitch(MenuLayout.Buttons parent, int label, int bit) {
+    toggle(parent, label, (cheatBits & bit) != 0, on -> {
+      cheatBits = on ? cheatBits | bit : cheatBits & ~bit; host.cheatsChanged(cheatBits);
+    });
+  }
   private void cheats() {
     heading(R.string.ingame_cheats);
-    final int[] bits = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
-        .getInt(CoreActivity.CHEATS, 0)};
+    cheatBits = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).getInt(CoreActivity.CHEATS, 0);
     MenuLayout.Buttons switches = new MenuLayout.Buttons(getContext(), 3);
     body.addView(switches, new LinearLayout.LayoutParams(-1, -2));
     final int[] switchLabels = {R.string.ingame_cheat_health, R.string.ingame_cheat_ammo, R.string.ingame_cheat_onehit};
-    for (int i = 0; i < switchLabels.length; i++) {
-      final int bit = 1 << i;
-      toggle(switches, switchLabels[i], (bits[0] & bit) != 0, on -> {
-        bits[0] = on ? bits[0] | bit : bits[0] & ~bit; host.cheatsChanged(bits[0]);
-      });
-    }
+    for (int i = 0; i < switchLabels.length; i++) cheatSwitch(switches, switchLabels[i], 1 << i);
     MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 3);
     body.addView(actions, new LinearLayout.LayoutParams(-1, -2));
     final int[] actionLabels = {R.string.ingame_cheat_killer7, R.string.ingame_cheat_case, R.string.ingame_cheat_money};
@@ -698,6 +890,15 @@ final class CoreMenu extends Dialog {
         cheatAction(what, label);
       });
     }
+    // the bottom row (wish of the project owner, 29.10.2026): two, each as wide as half the row, the
+    // switch "Automatic QTEs" and the button "Unlock extra games" (Assignment Ada, The Mercenaries)
+    MenuLayout.Buttons more = new MenuLayout.Buttons(getContext(), 2);
+    body.addView(more, new LinearLayout.LayoutParams(-1, -2));
+    cheatSwitch(more, R.string.ingame_cheat_qte, 8);
+    cellAction(more, s(R.string.ingame_cheat_extras), v -> {
+      v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
+      cheatAction(4, R.string.ingame_cheat_extras);
+    });
     cheatStatus = text("", 15, false); cheatStatus.setPadding(0, dp(6), 0, dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
@@ -714,6 +915,16 @@ final class CoreMenu extends Dialog {
       final int done = result;
       main.post(() -> {
         if (!isShowing() || serial != requestSerial || page != MANAGEMENT || cheatStatus == null) return;
+        if (what == 4 && (done == 1 || done == 2 || done == 3)) {
+          // kept by the app as well: a system file read without it (no save since) gets it back
+          cheatBits |= 16; host.cheatsChanged(cheatBits);
+          if (done == 2) {
+            cheatStatus.setText(R.string.ingame_cheat_extras_already); cheatStatus.setVisibility(View.VISIBLE);
+          } else {
+            askRestartForExtras();
+          }
+          return;
+        }
         String text;
         if (done == 1) text = getContext().getString(R.string.ingame_cheat_done, s(label));
         else if (done == 2 && what == 1) text = s(R.string.ingame_cheat_raised);
@@ -725,6 +936,22 @@ final class CoreMenu extends Dialog {
         cheatStatus.setText(text); cheatStatus.setVisibility(View.VISIBLE);
       });
     }, "Cheat").start();
+  }
+
+  /** The extra games are unlocked: the title menu shows them after a restart, now or later. */
+  private void askRestartForExtras() {
+    Runnable later = () -> {
+      if (cheatStatus == null) return;
+      cheatStatus.setText(R.string.ingame_cheat_extras_later); cheatStatus.setVisibility(View.VISIBLE);
+    };
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_language_restart_title)
+        .setMessage(R.string.ingame_cheat_extras_text)
+        .setNegativeButton(R.string.ingame_later, (d, w) -> later.run())
+        .setPositiveButton(R.string.ingame_restart, (d, w) -> { host.restartGame(); close(); }).create();
+    dialog.setOnCancelListener(d -> later.run());
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    dialog.show();
   }
 
   private void refreshInstant() { instant(0); }
@@ -898,7 +1125,11 @@ final class CoreMenu extends Dialog {
     super.onStop();
   }
   @Override public boolean dispatchKeyEvent(KeyEvent event) {
+    if (captureAction >= 0 && page == CONTROLLER) return captureKey(event);
     int key = event.getKeyCode();
+    if (key == KeyEvent.KEYCODE_ESCAPE) {
+      if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) goBack(); return true;
+    }
     if (key == KeyEvent.KEYCODE_BUTTON_B || key == KeyEvent.KEYCODE_BACK) {
       if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) goBack(); return true;
     }

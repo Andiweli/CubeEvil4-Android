@@ -86,7 +86,7 @@ def one_release(named: list) -> str:
         kind = release(boot)
         if kind not in SUPPORTED:
             sys.exit(f"{name}: game id {boot[:6].decode('ascii', 'replace')} ({kind}), "
-                     f"the port needs G4BE08 (debug build) or G4BP08 (European release)")
+                     f"the port needs G4BE08 (debug build), G4BP08 (European release) or G4BJ08 (Japanese release)")
         kinds.setdefault(kind, name)
     if len(kinds) > 1:
         sys.exit("discs of different releases: " + ", ".join(f"{n} is {k}" for k, n in kinds.items()))

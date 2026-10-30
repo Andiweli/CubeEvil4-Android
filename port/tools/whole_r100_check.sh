@@ -311,7 +311,8 @@ say "Form:    $kind"
 # which release the discs are (port/tools/disc_release.py, the same rule as runtime/dvd.cpp)
 release=$(python3 -c 'import os, sys; sys.path.insert(0, sys.argv[1]); from disc_release import release
 print(next((release(open(b, "rb").read(0x440)) for b in sys.argv[2:] if os.path.isfile(b)), ""))'     "$src/port/tools" "$layout"/disc0/sys/boot.bin "$layout"/sys/boot.bin 2>/dev/null)
-say "Version: ${release:-unbekannt} (debug = Debug-Build G4BE08, retail-eu = europäische Verkaufsversion G4BP08)"
+say "Version: ${release:-unbekannt} (debug = Debug-Build G4BE08, retail-eu = europäische Verkaufsversion G4BP08,"
+say "         retail-jp = japanische Verkaufsversion G4BJ08)"
 if [ "$game_ok" -eq 0 ]; then
     say "Hinweis: sys/boot.bin und sys/fst.bin fehlen; der Spiellauf braucht sie (Disc-Abbilder angeben oder"
     say "         mit Dolphin \"Gesamte Disc extrahieren\"). Der Formatvergleich läuft trotzdem."
@@ -1437,6 +1438,7 @@ run_tour() {
     # debug discs' of the same target: the game's messages that only one release gives as well)
     local rel_suffix="" cheats=""
     [ "$release" = retail-eu ] && rel_suffix="-eu"
+    [ "$release" = retail-jp ] && rel_suffix="-jp"
     # a tour with the cheats of the app's menu (RE4_CHEATS=<bits>, runtime/cheats.cpp) keeps its
     # results apart as well (-cheatsN) and is compared with the tour without them
     [ "${RE4_CHEATS:-0}" != 0 ] && cheats="-cheats$RE4_CHEATS"

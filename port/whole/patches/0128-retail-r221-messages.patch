@@ -6,6 +6,7 @@
 # message after it. The European code (st2_3.rel) asks for 5, 6, 7, 8, 9 at the same places; with the
 # European discs these numbers are moved down by one. Nothing changes with the debug build's discs. A port
 # patch for retail data.
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here).
 --- a/src/st2/r221.cpp
 +++ b/src/st2/r221.cpp
 @@ -69,6 +69,12 @@
@@ -15,8 +16,8 @@
 +/* port: the European room table (st2/r221.das) dropped the empty message 5: from 6 on its messages sit
 +   one place lower, and the European code (st2_3.rel) asks for 5, 6, 7, 8, 9 where this build asks for
 +   6, 7, 8, 9, 0xA. With the European discs the numbers are moved down the same way. */
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
-+#define R221_MES(no) (re4_disc_retail_eu() ? (no) - 1 : (no))
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
++#define R221_MES(no) ((re4_disc_retail_eu() || re4_disc_retail_jp()) ? (no) - 1 : (no))
 +
  void r221_setShutterEff(int on);
  static void r221_checkShutterOpen_end();

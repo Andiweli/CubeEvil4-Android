@@ -59,6 +59,12 @@ struct GxStats {
   // the uniform stream moved on to its next quarter: in all, and inside a chunk (a chunk larger
   // than the room left; between chunks otherwise, gx_gl.cpp)
   unsigned streamSwitches = 0, streamSplits = 0;
+  // the render thread's time in Run by kind of work (ns, steady clock; every Run): which part is the
+  // driver's (the draw calls, uniform blocks, binds, state) and which the renderer's own (Testers'
+  // logs 28.10.2026: 29.8 ms of processor time for 862 draws on a Mali-G52, 12 ms for 873 on an Adreno 642L)
+  enum { kSplitDraw, kSplitUniform, kSplitBind, kSplitState, kSplitProgram, kSplitTexture, kSplitBp, kSplitXf,
+         kSplitVertices, kSplitRest, kSplitKinds };
+  unsigned long long splitNs[kSplitKinds] = {};
   // GPU time of the chunks (EXT_disjoint_timer_query; 0 when the driver has none)
   unsigned long long gpuMicros = 0;
   unsigned gpuTimed = 0;
@@ -187,6 +193,11 @@ public:
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:
   // black waves at the bottom of the intro and under water). Default: all rows. Any thread.
   void SetShownRows(int top, int bottom);
+  // "4:3 (exact)" (the app menu, 29.10.2026): the game computes its 3D picture for 4:3 but its
+  // 512 x 448 picture showed 10:7 on a television; shown in a 4:3 box the 3D is exact and the flat
+  // draws of the whole screen (HUD, menus, text) would be narrower. They are drawn `factor` wider
+  // around the screen's centre (15/14 for that box; 1: as the game sends them). Any thread.
+  void SetWiden(float factor);
   // Frame skip (the app menu, 26.10.2026). The renderer is behind when the core has finished two
   // chunks: `a` need not be drawn when `b` (the next one) is drawn at once. Skip runs `a` without its
   // draws and its display copy: the register and texture state the game builds on (BP, XF, palettes,

@@ -508,6 +508,8 @@ int gHintTids[9], gHintTidCount;
 std::atomic<int> gFastWanted(0);      // the menu's setting (any thread)
 int gFastNow = -1;                    // the setting the threads run with (-1: none yet)
 long long gHintFrom, gHintIdle, gHintWait;  // ns: the chunk before, re4_idle_ns() then, the wait since
+int gSlowHelpers;                     // the vertex threads put on the slow cores (gHintTids[1..])
+cpu_set_t gSlowSet;                   // their cores
 
 void hintChunk()
 {
@@ -536,6 +538,17 @@ void hintChunk()
             char cores[160];
             re4cpu::KeepOffSlowCores(cores, sizeof(cores));
             re4_log("cores: the game thread %s", cores);
+            // with only two fast cores the vertex threads on the slow ones (re4_cpu_info.h)
+            gSlowHelpers = 0;
+            for (int i = 1; i < gHintTidCount; i++) {
+                if (!re4cpu::PutOnSlowCores(re4cpu::GetLayout(), gHintTids[i], &gSlowSet, cores, sizeof(cores))) {
+                    break;
+                }
+                gSlowHelpers = i;
+            }
+            if (gHintTidCount > 1) {
+                re4_log("cores: the %d vertex threads %s", gHintTidCount - 1, cores);
+            }
             const char* why = "";
             gHint.Open(gHintTids, gHintTidCount, 33333333LL, &why);
             re4_log("performance hint: %s (the game thread and %d vertex threads, 33.3 ms a picture)", why,
@@ -545,6 +558,10 @@ void hintChunk()
             if (!first) {
                 re4cpu::ReleaseCores();
             }
+            for (int i = 1; i <= gSlowHelpers; i++) {
+                re4cpu::ReleaseThread(gHintTids[i]);
+            }
+            gSlowHelpers = 0;
             re4_log("cores: the game thread and the vertex threads left to Android (Force Performance: Default)");
         }
         gHintFrom = 0;
@@ -553,8 +570,15 @@ void hintChunk()
     }
     // about once a second: back on the fast cores if Android moved the thread off them
     static unsigned checks, moves;
-    if (fast && ++checks % 30 == 0 && re4cpu::KeepOnFastCores() && ++moves <= 4) {
-        re4_log("cores: the game thread put back on its cores (Android had moved it, %u times so far)", moves);
+    if (fast && ++checks % 30 == 0) {
+        bool moved = re4cpu::KeepOnFastCores();
+        for (int i = 1; i <= gSlowHelpers; i++) {
+            moved |= re4cpu::KeepThreadOn(gHintTids[i], gSlowSet);
+        }
+        if (moved && ++moves <= 4) {
+            re4_log("cores: the game thread and the vertex threads put back on their cores (Android had moved "
+                    "them, %u times so far)", moves);
+        }
     }
     gHintFrom = now;
     gHintIdle = idle;
@@ -2301,8 +2325,9 @@ void feed(const uint8_t* bytes, size_t n)
 
 extern "C" {
 
-// The app menu's "Force Performance" (core_api.cpp re4_core_set_fast_cores): 1 the game thread and
-// the vertex threads on the fast cores with Android's performance hint, 0 left to Android.
+// The app menu's "Force Performance" (core_api.cpp re4_core_set_fast_cores): 1 the game thread off
+// the slow cores, the vertex threads on the slow ones when only two cores are faster, and Android's
+// performance hint for them; 0 left to Android.
 void re4_gx_set_fast_cores(int on)
 {
     gFastWanted.store(on ? 1 : 0);

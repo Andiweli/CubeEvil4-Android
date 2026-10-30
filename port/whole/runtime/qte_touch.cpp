@@ -13,6 +13,12 @@
 // so a fast mash is not merged into one long press; the shake-off counts A too), X, Y, Z, L or R. The plain A prompt (doors, ladders, kicks: the touch
 // controls have A) and the stick prompts (the jet ski, the levers) are left to the controls. A tap
 // older than 400 ms, in a sub screen or without a prompt does nothing.
+//
+// Automatic QTEs (the cheat menu, runtime/cheats.cpp re4_qte_auto; wish of the project owner,
+// 29.10.2026): while on, every such prompt is answered without a tap, as a tap would: the button pair
+// or the single button pressed for two frames, released for two, again while the prompt stays; a
+// mash pressed every second frame. X (Ashley: hide, sce_at.cpp) is a choice of the player, not a
+// quick-time event, and stays his, as do the plain A and the stick prompts.
 #include "types.h"
 #include "global.h"
 #include "main.h"
@@ -46,6 +52,10 @@ unsigned gQueued;   // mash taps not pressed yet (a press each second frame)
 bool gPressedLast;  // the mash pressed in the frame before (this one is its release)
 unsigned gTaps;
 u8 gLogged[17];     // one line per prompt kind
+volatile int gAuto;     // automatic QTEs (re4_qte_auto, any thread)
+unsigned gAutoGap;      // frames released after an automatic press
+unsigned gAutoPresses;  // automatic answers so far
+u8 gAutoLogged[17];
 
 u32 nowMs()
 {
@@ -109,6 +119,37 @@ void qteHook(unsigned)
             }
         }
     }
+    if (__atomic_load_n(&gAuto, __ATOMIC_RELAXED) && shown != DISP_X && !StaFlagChk(pG, STA_SUB_SCRN) &&
+        ActBtn.isActive()) {
+        const u16 b = re4_qte_buttons(shown);
+        bool pressed = false;
+        if (b && mash(shown)) {
+            gButtons = b;
+            pressed = gQueued == 0;  // (counted once per mash)
+            if (gQueued < 2) {
+                gQueued = 2;  // kept topped up: pressed every second frame while the mash lasts
+            }
+        } else if (b && !gLeft) {
+            if (gAutoGap) {
+                gAutoGap--;
+            } else {
+                gButtons = b;
+                gLeft = kPressFrames;
+                gAutoGap = 2;
+                pressed = true;
+            }
+        }
+        if (pressed) {
+            gAutoPresses++;
+            if (shown < sizeof gAutoLogged && !gAutoLogged[shown]) {
+                gAutoLogged[shown] = 1;
+                re4_log("qte: automatic, %s pressed for the prompt (kind %d), %u answers so far", names(b), shown,
+                        gAutoPresses);
+            }
+        }
+    } else {
+        gAutoGap = 0;
+    }
     if (gQueued && !mash(shown)) {
         gQueued = 0;  // the mash is over
     }
@@ -161,11 +202,21 @@ extern "C" unsigned short re4_qte_buttons(int disp)
     return 0;
 }
 
+// Automatic QTEs on or off (the cheat switch, runtime/cheats.cpp). Any thread.
+extern "C" void re4_qte_auto(int on)
+{
+    if (on && !__atomic_exchange_n(&gHooked, true, __ATOMIC_ACQ_REL)) {
+        re4_add_frame_hook(qteHook);
+    }
+    if (__atomic_exchange_n(&gAuto, on ? 1 : 0, __ATOMIC_ACQ_REL) != (on ? 1 : 0)) {
+        re4_log("qte: automatic %s", on ? "on (every quick-time prompt answered)" : "off");
+    }
+}
+
 // re4_core_touch (menu_touch.cpp) hands every tap on the picture over. Any thread.
 extern "C" void re4_qte_tap(void)
 {
-    if (!gHooked) {
-        gHooked = true;
+    if (!__atomic_exchange_n(&gHooked, true, __ATOMIC_ACQ_REL)) {
         re4_add_frame_hook(qteHook);
     }
     __atomic_store_n(&gWhen, nowMs(), __ATOMIC_RELAXED);

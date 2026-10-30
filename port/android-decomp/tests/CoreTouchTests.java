@@ -246,19 +246,39 @@ public final class CoreTouchTests {
     check(p[1] == 0 && p[3] == 92);  // the default: aiming as on the GameCube, the look zone looks
     in.setTouchAim(CoreInput.AIM_LOOK);
     p = in.pad();
-    check(p[1] > 0 && p[2] == 0 && p[3] == 0 && p[0] == CoreInput.GC_R);  // the look zone aims right
+    // the look zone aims by swipes (29.10.2026): no stick, no look while R is held
+    check(p[1] == 0 && p[2] == 0 && p[3] == 0 && p[0] == CoreInput.GC_R && in.takeAimSwipe() == null);
+    t.look(0.1f, 0);  // a swipe to the right: the aim turns right (yaw negative) by the swipe's way
+    p = in.pad();
+    float[] turn = in.takeAimSwipe();
+    check(turn != null && Math.abs(turn[0] + 0.1f * CoreInput.SWIPE_RADIANS) < 1e-5f && turn[1] == 0 && p[1] == 0
+        && p[3] == 0);
+    check(in.takeAimSwipe() == null);  // the finger stops: the aim stops
+    t.look(0.02f, -0.05f);
+    t.look(0.03f, 0);  // two moves before the next event: added up, up is positive
+    in.pad();
+    turn = in.takeAimSwipe();
+    check(turn != null && Math.abs(turn[0] + 0.05f * CoreInput.SWIPE_RADIANS) < 1e-5f
+        && Math.abs(turn[1] - 0.05f * CoreInput.SWIPE_RADIANS) < 1e-5f);
     t.stick(CoreTouch.C_STICK, 0, -1);
     p = in.pad();
-    check(p[1] > 0 && p[3] == 0 && p[4] == 92);  // the C stick control stays the C stick
+    check(p[1] == 0 && p[3] == 0 && p[4] == 92);  // the C stick control stays the C stick
     t.move(-0.2f, 0);
-    check(in.pad()[1] > 0);  // the further way aims
+    check(in.pad()[1] < 0);  // the move stick still aims as on the GameCube
     t.move(0, 0);
     in.setTouchAim(CoreInput.AIM_C_STICK);
+    t.look(CoreTouch.LOOK_RANGE, 0);  // not by swipes now: the zone looks again
+    check(in.takeAimSwipe() == null);
     p = in.pad();
     check(p[2] > 0 && p[1] == 0 && p[3] == 92 && p[4] == 0);  // now the C stick control aims up, the zone looks
     t.action(CoreTouch.R, false);
     p = in.pad();
     check(p[1] == 0 && p[2] == 0 && p[4] == 92);  // R let go: both the C stick again
+    // R let go with "Touch Area": the zone's finger looks, no swipe aims
+    in.setTouchAim(CoreInput.AIM_LOOK);
+    in.pad();
+    t.look(-0.01f, 0);
+    check(in.takeAimSwipe() == null);
     in.setTouchAim(9);
     check(in.touchAim() == CoreInput.AIM_MOVE_STICK);
     t.reset();

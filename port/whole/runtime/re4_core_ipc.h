@@ -67,10 +67,11 @@ enum MsgType : uint32_t {
     kSlash = 26,         // a = the swipe's tilt as float bits (no reply)
     kInstant = 28, // a = operation -> result; data: Re4InstantInfo
     kSetFastCores = 27,  // a = on: Force Performance (no reply)
-    kRestartGame = 29,   // a = the game's language with the European discs, 2..6: restart with it (no reply)
+    kRestartGame = 29,   // a = the game's language with the European discs, 2..6 (0: as it is): restart (no reply)
     kDiscProblem = 30,   // -> text: re4_core_disc_problem
     kSetCheats = 31,     // a = the cheat switches (no reply)
     kCheatAction = 32,   // a = the cheat button -> a = result (re4_core_cheat_action)
+    kAimTurn = 33,       // a, b = a swipe's yaw, pitch as float bits (no reply; re4_core_aim_turn)
 };
 
 struct MsgHeader {

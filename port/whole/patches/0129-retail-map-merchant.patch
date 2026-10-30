@@ -6,6 +6,8 @@
 # further on). This build never placed or hid unit 0xB: an "H" stood in the middle of the map and stayed
 # there while the map moved (device video, 27.10.2026). Nothing changes with the debug build's discs. A
 # port patch for retail data.
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
+# re4_disc_retail(), the switch of every retail release.
 --- a/src/Sscrn/ss_map.cpp
 +++ b/src/Sscrn/ss_map.cpp
 @@ -750,6 +750,12 @@
@@ -16,7 +18,7 @@
 +   the castle merchant after he moved (SCF_R204_MERCHANT_MOVE). The European Sscrn.rel shows marks
 +   0..7 (getMerchantMarkNo 7 -> 0xB) and in area 2 hides mark 2 once he moved, mark 7 before.
 +   Unplaced, unit 0xB stood in the middle of the map (device video, 27.10.2026). */
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void), re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
  int markMerchantPosition(SUB_SCREEN* wk, int no, Vec* pos)
  {
@@ -25,7 +27,7 @@
      } else {
          cModel* mdl = m->pMerchant;
  
-+        if (m->area == 2 && re4_disc_retail_eu()) {
++        if (m->area == 2 && re4_disc_retail()) {
 +            if (ScfFlagChk(pG, SCF_R204_MERCHANT_MOVE) ? no == 2 : no == 7) {
 +                return 0;
 +            }
@@ -47,7 +49,7 @@
  void markMerchantDisp(SUB_SCREEN* wk, int sw)
  {
      ID_UNIT* u;
-+    int marks = re4_disc_retail_eu() ? 8 : 7; /* port: the European eighth mark */
++    int marks = re4_disc_retail() ? 8 : 7; /* port: the European eighth mark */
  
      if (!sw) {
          int i;

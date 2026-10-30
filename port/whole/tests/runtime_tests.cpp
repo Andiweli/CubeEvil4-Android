@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -413,7 +414,8 @@ static void testDiscRelease()
     } cases[] = {
         {"G4BE08", 0x28FE00, 0x440, RE4_DISC_DEBUG},  {"G4BP08", 0x236500, 0x440, RE4_DISC_RETAIL_EU},
         {"G4BE08", 0x236500, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
-        {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},
+        {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},   {"G4BJ08", 0x235300, 0x440, RE4_DISC_RETAIL_JP},
+        {"G4BJ08", 0x235300, 0x440, RE4_DISC_RETAIL_JP},
     };
     int n = 0;
     for (const Case& c : cases) {
@@ -431,13 +433,28 @@ static void testDiscRelease()
         CHECK(writeFile(dir + "/disc0/sys/fst.bin", fst.data(), fst.size()));
         CHECK(writeFile(dir + "/disc0/sys/boot.bin", boot, c.size));
         CHECK(writeFile(dir + "/disc0/files/a.dat", "A", 1));
+        // the last Japanese case: the Korean translation's main.dol (two instructions, retail-jp-plan.md)
+        const bool korean = &c == &cases[sizeof(cases) / sizeof(cases[0]) - 1];
+        if (korean) {
+            std::vector<unsigned char> dol(0x29cd8, 0);
+            const unsigned char li30[4] = {0x3B, 0xC0, 0x00, 0x01}, li31[4] = {0x3B, 0xE0, 0x00, 0x01};
+            memcpy(&dol[0x14b7c], li30, 4);
+            memcpy(&dol[0x29cd4], li31, 4);
+            CHECK(writeFile(dir + "/disc0/sys/main.dol", dol.data(), dol.size()));
+        }
         re4_set_data_dir(dir.c_str());
         CHECK(re4_disc_release() == c.release);
-        // the game sees the header's id, the debug build's for the European discs (memory card files)
-        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, c.release == RE4_DISC_RETAIL_EU ? "G4BE" : c.id, 4) == 0);
-        // SELECT held (the app): the debug menu, none with the European discs (R6)
+        CHECK(re4_disc_retail_kr() == (korean ? 1 : 0));
+        const bool retail = c.release == RE4_DISC_RETAIL_EU || c.release == RE4_DISC_RETAIL_US ||
+                            c.release == RE4_DISC_RETAIL_JP;
+        CHECK(re4_disc_retail() == (retail ? 1 : 0));
+        // the game sees the header's id, the debug build's for the European and Japanese discs (memory
+        // card files)
+        const bool asDebug = c.release == RE4_DISC_RETAIL_EU || c.release == RE4_DISC_RETAIL_JP;
+        CHECK(memcmp(DVDGetCurrentDiskID()->gameName, asDebug ? "G4BE" : c.id, 4) == 0);
+        // SELECT held (the app): the debug menu, none with the retail discs (R6)
         re4_core_debug_menu();
-        CHECK(re4_debug_menu_request() == (c.release == RE4_DISC_RETAIL_EU ? 0 : 1));
+        CHECK(re4_debug_menu_request() == (retail ? 0 : 1));
     }
     re4_set_data_dir((base + "/none").c_str());
     CHECK(re4_disc_release() == RE4_DISC_UNKNOWN);
@@ -1165,6 +1182,9 @@ int re4probe_letterbox(void);
 int re4probe_picture_still(void);
 int re4probe_knife_swipe(void);
 int re4probe_qte_touch(void);
+int re4probe_qte_auto(void);
+int re4probe_cheat_extras(void);
+int re4probe_handcannon(void);
 int re4probe_gyro_boat(void);
 int re4probe_snd_bank(void);
 int re4probe_frame_sections(void);
@@ -1733,12 +1753,15 @@ static void testDeathLog()
         "die: r21d after 2 frames, life 1200, Leon at (100 0 200); scene areas hit: 0x05 0x13",
         "die: area 0x05 id 0 on 1 trg 1: floor 0 height 2000, (0 0) (1000 0) (1000 1000) (0 1000), for 1",
         "pl: Leon's position is not a number in r21d (frame 2004, 3 frames after the room started)",
-        "room: r21d runs (frame 2006), Leon at (100 0 200) facing 0.50, life 1200/1200, weapon 0x02, continue after a death",
+        "room: r21d runs (frame 2006), Leon at (100 0 200) facing 0.50, life 1200/1200, weapon 0x02, game_mode 0, game_country 0, continue after a death",
         "em: + s1 0x2d/0 list 0 set 0x00 f 0x00000000 hp 100 at (0 0 0) in r21d",
         "em: s1 position is not a number, last at (0 0 0)",
     };
+    // (the tail keeps 119 characters of a line, log.cpp kTailWidth: the room line with game_mode and
+    // game_country is longer, its end is compared no further)
     for (const char* w : want) {
-        if (!strstr(tail, w)) {
+        const std::string kept(w, std::min<size_t>(strlen(w), 119));
+        if (!strstr(tail, kept.c_str())) {
             ok = false;
             re4_log("  deathlog: missing \"%s\"", w);
         }
@@ -2002,6 +2025,40 @@ static void testQteTouch()
     report("qtetouch", bad == 0 && logged);
 }
 
+// Automatic QTEs, the cheat switch (runtime/qte_touch.cpp re4_qte_auto; game_probe.cpp
+// re4probe_qte_auto): the prompt's buttons by themselves, not the player's own prompts
+static void testQteAuto()
+{
+    const int bad = re4probe_qte_auto();
+    static char tail[48 * 160];
+    re4_log_tail(tail, sizeof tail);
+    const bool logged = strstr(tail, "qte: automatic, L+R pressed for the prompt (kind 3)") != nullptr;
+    if (bad || !logged) {
+        re4_log("  qteauto: failed checks 0x%x%s", bad, logged ? "" : ", no log line");
+    }
+    report("qteauto", bad == 0 && logged);
+}
+
+// The cheat button "unlock the extra games" (runtime/cheats.cpp; game_probe.cpp re4probe_cheat_extras)
+static void testCheatExtras()
+{
+    const int bad = re4probe_cheat_extras();
+    if (bad) {
+        re4_log("  cheatextras: failed checks 0x%x", bad);
+    }
+    report("cheatextras", bad == 0);
+}
+
+// The handcannon's firepower and endless ammo (patch 0146; game_probe.cpp re4probe_handcannon)
+static void testHandcannon()
+{
+    const int bad = re4probe_handcannon();
+    if (bad) {
+        re4_log("  handcannon: failed checks 0x%x", bad);
+    }
+    report("handcannon", bad == 0);
+}
+
 // Gyro aiming with the harpoon in the boat (runtime/gyro.cpp; game_probe.cpp re4probe_gyro_boat):
 // the sight across and up, the boat turning at the sight's limit, not before the aim, the log line
 static void testGyroBoat()
@@ -2097,6 +2154,68 @@ static void testCpuInfo()
         ok &= placed && upper;
         if (!placed || !upper) {
             re4_log("  cpuinfo: placement %s", where);
+        }
+    }
+    // the helpers on the slow cores (PutOnSlowCores) only with two faster cores or fewer: the A30s
+    // (two) yes, the Retroid (four) and alike cores no; a helper thread of this machine, the cores
+    // above the lowest two made slow, lands below them; RE4_HELPERS_SLOW=0 leaves it
+    ok &= re4cpu::FasterCores(a30) == 2 && re4cpu::FasterCores(sd) == 4 && re4cpu::FasterCores(alike) == 0;
+    ok &= !re4cpu::PutOnSlowCores(sd, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
+          strstr(text, "4 faster cores") != nullptr;
+    ok &= !re4cpu::PutOnSlowCores(alike, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
+          strstr(text, "clocks not readable") != nullptr;
+    setenv("RE4_HELPERS_SLOW", "0", 1);
+    ok &= !re4cpu::PutOnSlowCores(a30, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
+          strstr(text, "RE4_HELPERS_SLOW=0") != nullptr;
+    unsetenv("RE4_HELPERS_SLOW");
+    if (cores >= 3 && cores <= re4cpu::Layout::kMax) {
+        re4cpu::Layout two;  // the two highest cores fast
+        two.count = cores;
+        for (int i = 0; i < cores; i++) {
+            two.maxKHz[i] = i < cores - 2 ? 1000000 : 2000000;
+        }
+        two.slowest = 1000000;
+        two.fastest = 2000000;
+        std::atomic<int> helperTid(0);
+        std::atomic<bool> placedDone(false);
+        bool placed = false, lower = true;
+        char where[160] = "";
+        std::thread helper([&] {
+            helperTid = re4cpu::ThreadId();
+            while (!placedDone.load()) {
+                std::this_thread::yield();
+            }
+        });
+        while (!helperTid.load()) {
+            std::this_thread::yield();
+        }
+        cpu_set_t before, set, now;
+        CPU_ZERO(&before);
+        sched_getaffinity(helperTid, sizeof(before), &before);
+        bool all = true;
+        for (int i = 0; i < cores; i++) {
+            all &= CPU_ISSET(i, &before) != 0;
+        }
+        if (all) {
+            placed = re4cpu::PutOnSlowCores(two, helperTid, &set, where, sizeof(where));
+            CPU_ZERO(&now);
+            sched_getaffinity(helperTid, sizeof(now), &now);
+            for (int i = 0; i < cores; i++) {
+                lower &= (CPU_ISSET(i, &now) != 0) == (i < cores - 2);
+            }
+            lower &= CPU_EQUAL(&now, &set) && !re4cpu::KeepThreadOn(helperTid, set);
+            re4cpu::ReleaseThread(helperTid);
+            CPU_ZERO(&now);
+            sched_getaffinity(helperTid, sizeof(now), &now);
+            lower &= CPU_ISSET(cores - 1, &now) != 0;
+        } else {
+            placed = true;  // a test machine that does not give this process every core
+        }
+        placedDone = true;
+        helper.join();
+        ok &= placed && lower;
+        if (!placed || !lower) {
+            re4_log("  cpuinfo: helper placement %s", where);
         }
     }
     // Android's performance hint: none on Linux, said so
@@ -2207,6 +2326,9 @@ int re4_runtime_tests()
     testLetterbox();
     testKnifeSwipe();
     testQteTouch();
+    testQteAuto();
+    testCheatExtras();
+    testHandcannon();
     testGyroBoat();
     testSndBank();
     testFrameSections();

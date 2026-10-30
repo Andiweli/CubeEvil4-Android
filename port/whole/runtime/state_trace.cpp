@@ -49,7 +49,7 @@
 //                          (SndStrReq(B, S, 0x80000003): r226's statue camera
 //                          plays 0:0x16), for the sound checks (RE4_AUDIO_WAV)
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
-//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money)
+//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games)
 //                          one a frame, as the app's menu presses them while the
 //                          game runs (runtime/cheats.cpp; the switches: RE4_CHEATS)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is
@@ -92,7 +92,12 @@
 //                          his left hand is from the right one (the gun).
 //                          stop=S ends the run S frames after the player is
 //                          free (the reload check of the PC check, M11:
-//                          the Super Magnum's reload looked wrong)
+//                          the Super Magnum's reload looked wrong);
+//                          lv=L gives the weapon the levels L (cItem::lv,
+//                          fire << 12 | speed << 8 | reload << 4 | capacity,
+//                          counted from 0) and its full magazine instead of
+//                          the endless ammo flag (patch 0146: lv=0x6026 is
+//                          the handcannon after its exclusive tune-up)
 //   RE4_TRACE_WEAPON=1     the same "wep:" lines in a normal game: every frame
 //                          of a reload (weapon routine r_no_1 6, state
 //                          r_no_2 4) and 40 frames after it, else one line
@@ -108,6 +113,9 @@
 //   RE4_TEST_GAME_MODE=N   the same for the difficulty (game_mode: 3 Easy, 5 Normal,
 //                          6 Professional), as the debug start menu's line sets it; the
 //                          European title's choice (patch 0139) is skipped by a debug start
+//   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
+//                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
+//                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
 //   RE4_TRACE_AT=1, RE4_TRACE_POS=N, RE4_TEST_PLACE2="N:x,y,z,a",
 //   RE4_TEST_AT_OFF="N,..", RE4_TEST_SMD_TRANS="ID=0|1,..", RE4_FLOOR_MAP,
 //   RE4_FLOOR_FILL         a room's trigger areas, doors and collision walls,
@@ -233,6 +241,7 @@ extern "C" void re4_set_frame_hook(void (*hook)(unsigned));
 extern "C" void re4_pad_script_stop(void);
 extern "C" void re4_pad_script_free(void);
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" void re4_core_set_letterbox(int off);  // runtime/core_api.cpp
 extern "C" int re4_title_room_menu_open(void);
 extern "C" void re4_gx_mark(void);
 extern "C" void re4_memcard_flush(int force);
@@ -531,11 +540,12 @@ long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
 bool g_continueLeft;         // the room stopped running after the retry
 unsigned long g_stopAtFrame;  // RE4_STOP_AT_FRAME
-// RE4_TEST_WEAPON="free+N:W[,T][,stop=S]"
+// RE4_TEST_WEAPON="free+N:W[,T][,stop=S][,lv=L]"
 long g_weaponAfter = -1;
 int g_weaponNo, g_weaponType;
 long g_weaponStop = -1;
 long g_weaponAt = -1;   // the frame it was asked for
+long g_weaponLv = -1;   // lv=: the weapon's levels (cItem::lv), no debug endless ammo
 unsigned g_weaponLines;
 bool g_traceWeapon;     // RE4_TRACE_WEAPON
 unsigned g_weaponAfterReload;  // frames left to log after a reload
@@ -554,6 +564,15 @@ void weaponTask()
     pl->r_no_2 = 0;
     pl->r_no_3 = 0;
     ItemMgr.debugWeapon((ITEM_ID) WeaponNo2WeaponId((u8) g_weaponNo, (u8) g_weaponType));
+    if (g_weaponLv >= 0 && ItemMgr.weapon()) {
+        // the tune-up levels as the merchant stores them (patch 0146: the handcannon's exclusive)
+        cItem* p = ItemMgr.weapon();
+        p->lv = (u16) g_weaponLv;
+        p->bullet = (u16) ((p->bullet & 0xE000) | (WeaponId2ChargeNum(p->id, p->getBulletLevel() + 1) & 0x1FFF));
+        ItemMgr.arm(p);
+        re4_log("run: weapon levels 0x%04x, capacity %u, loaded %u", (unsigned) p->lv,
+                (unsigned) WeaponId2ChargeNum(p->id, p->getBulletLevel() + 1), (unsigned) (p->bullet & 0x1FFF));
+    }
     re4_log("run: weapon %d (type %d) equipped (RE4_TEST_WEAPON), archive %p", g_weaponNo, g_weaponType,
             (void*) pG->pWep);
     TaskExit();
@@ -1396,9 +1415,12 @@ void frame(unsigned n)
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
         g->Rno0 == 3 && live(pPL) && TaskStatus(2) == 0) {
         g_weaponAt = (long) n;
-        DbgFlagOn(g, DBG_INF_BULLET2);
+        if (g_weaponLv < 0) {
+            DbgFlagOn(g, DBG_INF_BULLET2);
+        }
         TaskExec(2, (TaskFunc) weaponTask, 0);
-        re4_log("run: weapon %d asked for (RE4_TEST_WEAPON) at frame %u, endless ammo on", g_weaponNo, n);
+        re4_log("run: weapon %d asked for (RE4_TEST_WEAPON) at frame %u%s", g_weaponNo, n,
+                g_weaponLv < 0 ? ", endless ammo on" : "");
     }
     if (g_weaponAt >= 0 && (long) n > g_weaponAt && g_weaponLines < 3000 && live(pPL) && g->Rno0 == 3) {
         g_weaponLines++;
@@ -1634,9 +1656,11 @@ void configure()
         }
         const char* stopAt = end ? strstr(end, "stop=") : 0;
         g_weaponStop = stopAt ? strtol(stopAt + 5, 0, 10) : -1;
+        const char* lvAt = end ? strstr(end, "lv=") : 0;
+        g_weaponLv = lvAt ? strtol(lvAt + 3, 0, 0) & 0xFFFF : -1;
         if (g_weaponNo < 0) {
             g_weaponAfter = -1;
-            re4_log("run: RE4_TEST_WEAPON \"%s\" not understood (free+N:W[,T][,stop=S])", weapon);
+            re4_log("run: RE4_TEST_WEAPON \"%s\" not understood (free+N:W[,T][,stop=S][,lv=L])", weapon);
         }
     }
     const char* yes = getenv("RE4_TEST_CARD_YES");
@@ -1657,6 +1681,10 @@ void configure()
     }
     const char* gameMode = getenv("RE4_TEST_GAME_MODE");
     g_testGameMode = gameMode && *gameMode ? (int) strtol(gameMode, 0, 0) : -1;
+    const char* letterbox = getenv("RE4_TEST_LETTERBOX_OFF");
+    if (letterbox && *letterbox && *letterbox != '0') {
+        re4_core_set_letterbox(1);
+    }
     re4_set_frame_hook(frame);
 }
 
