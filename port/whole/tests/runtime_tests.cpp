@@ -1184,6 +1184,7 @@ int re4probe_knife_swipe(void);
 int re4probe_qte_touch(void);
 int re4probe_qte_auto(void);
 int re4probe_cheat_extras(void);
+int re4probe_potato(void);
 int re4probe_handcannon(void);
 int re4probe_gyro_boat(void);
 int re4probe_snd_bank(void);
@@ -2059,6 +2060,16 @@ static void testHandcannon()
     report("handcannon", bad == 0);
 }
 
+// The app menu's Potato mode (runtime/potato.cpp, patch 0149; game_probe.cpp re4probe_potato)
+static void testPotato()
+{
+    const int bad = re4probe_potato();
+    if (bad) {
+        re4_log("  potato: failed checks 0x%x", bad);
+    }
+    report("potato", bad == 0);
+}
+
 // Gyro aiming with the harpoon in the boat (runtime/gyro.cpp; game_probe.cpp re4probe_gyro_boat):
 // the sight across and up, the boat turning at the sight's limit, not before the aim, the log line
 static void testGyroBoat()
@@ -2328,6 +2339,7 @@ int re4_runtime_tests()
     testQteTouch();
     testQteAuto();
     testCheatExtras();
+    testPotato();
     testHandcannon();
     testGyroBoat();
     testSndBank();

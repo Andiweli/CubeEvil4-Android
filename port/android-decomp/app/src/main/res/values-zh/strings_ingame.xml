@@ -24,6 +24,10 @@
     <string name="ingame_perf_default">默认</string>
     <string name="ingame_perf_cores">使用性能核心</string>
     <string name="ingame_perf_help">性能核心：游戏和图形在设备最快的核心上运行，并请求 Android 提高频率。在许多设备上更流畅，但需要更多 CPU 性能，设备也会更热。默认：由 Android 决定。</string>
+    <string name="ingame_potato">土豆模式</string>
+    <string name="ingame_potato_weather">天气效果</string>
+    <string name="ingame_potato_special">特殊效果</string>
+    <string name="ingame_potato_help">天气效果：雾气、雨、水花。特殊效果：蒸汽、液氮、热浪扭曲、水面。关闭可减轻性能较弱设备的图形负担；枪口火光、血迹、爆炸、火焰、命中效果和提示保留，过场动画中的所有效果也保留。</string>
     <string name="ingame_resolution_line">分辨率：%1$d × %2$d 像素（等级 %3$s）· 屏幕 %4$d × %5$d · 关闭菜单后生效。等级越高，对性能要求越高。</string>
     <string name="ingame_resolution_line_auto">分辨率：%1$d × %2$d 像素（等级 %3$s，动态）· 屏幕 %4$d × %5$d · 关闭菜单后生效。动态模式会在 GPU 跟不上时降低一级。</string>
 

@@ -94,6 +94,7 @@ struct CoreApi {
   void (*depth)(const unsigned *, unsigned){};  // optional (cores since 26.10.2026): the depth for the game's GXPeekZ
   void (*setLetterbox)(int){};  // optional (cores since 22.10.2026): 4:3 without the bars
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
+  void (*setPotato)(int){};     // optional (cores since 30.10.2026): Potato mode (bit 0 weather, bit 1 special effects off)
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
@@ -428,6 +429,7 @@ void loadCore(JNIEnv *env) {
   api.depth = reinterpret_cast<void (*)(const unsigned *, unsigned)>(dlsym(api.main, "re4_core_gx_depth"));
   api.setLetterbox = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_letterbox"));
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
+  api.setPotato = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_potato"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
@@ -650,6 +652,10 @@ int renderPlaced = 0;  // the render thread set up
 // cores with Android's performance hint), 0 "Default" (the default: Android decides).
 std::atomic<int> optFastCores{0};
 int fastSent = -1;    // what the core was told last (-1: nothing yet)
+// The menu's Potato mode (CoreBridge.setPotato, decision of the project owner, 30.10.2026): bit 0 the weather
+// effects off, bit 1 the special effects off (the core's runtime/potato.cpp); 0 the default.
+std::atomic<int> optPotato{0};
+int potatoSent = -1;  // what the core was told last (-1: nothing yet)
 int renderFast = -1;  // the setting the render thread runs with (-1: none yet)
 
 // Shader programs made ahead on a thread of its own (decision of the project owner, 23.10.2026):
@@ -1444,6 +1450,11 @@ bool drawGx() {
       api.setFastCores(fast);
       fastSent = fast;
     }
+    const int potato = optPotato.load();
+    if (api.setPotato && potato != potatoSent) {
+      api.setPotato(potato);
+      potatoSent = potato;
+    }
     if (fast != renderFast) {
       const bool first = renderFast < 0;
       renderFast = fast;
@@ -1811,6 +1822,7 @@ void useCoreProcess(const std::string &why) {
   api.depth = re4ipc_gx_depth;
   api.setLetterbox = re4ipc_set_letterbox;
   api.setFastCores = re4ipc_set_fast_cores;
+  api.setPotato = re4ipc_set_potato;
   api.restartGame = re4ipc_restart_game;
   api.discProblem = re4ipc_disc_problem;
   api.setCheats = re4ipc_set_cheats;
@@ -2094,6 +2106,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   lastDraw = {};
   letterboxSent = -1;
   fastSent = -1;
+  potatoSent = -1;
   // a new GL context: the renderer's objects are gone; the core starts over
   // (full state, every texture again) once chunks are taken again
   gx.reset();
@@ -2168,6 +2181,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDof(JNIEn
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFastCores.exchange(want) != want) LOG("Force Performance: %s", want ? "use performance cores" : "default");
+}
+
+// The menu's Potato mode (drawGx tells the core): bit 0 weather effects off, bit 1 special effects off.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPotato(JNIEnv *, jclass, jint mask) {
+  const int want = static_cast<int>(mask) & 3;
+  if (optPotato.exchange(want) != want)
+    LOG("Potato mode: weather effects %s, special effects %s", want & 1 ? "off" : "on", want & 2 ? "off" : "on");
 }
 
 // The menu's "Game language" with the European discs (decisions of the project owner, 26./27.10.2026;

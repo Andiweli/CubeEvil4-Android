@@ -301,6 +301,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
+      CoreBridge.setPotato(CoreBridge.potatoMask(g));
       // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
       int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
       if (!settings.contains("RE4_CHEATS=")) {

@@ -934,6 +934,11 @@ void re4ipc_set_fast_cores(int on)
     post(kSetFastCores, on, 0, 0);
 }
 
+void re4ipc_set_potato(int mask)
+{
+    post(kSetPotato, mask, 0, 0);
+}
+
 void re4ipc_restart_game(int language)
 {
     post(kRestartGame, language, 0, 0);

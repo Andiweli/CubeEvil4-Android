@@ -32,6 +32,10 @@
     <string name="ingame_perf_default">Default</string>
     <string name="ingame_perf_cores">Use performance cores</string>
     <string name="ingame_perf_help">Performance cores: the game and the graphics run on the phone\'s fastest cores and ask Android for higher clocks. Smoother on many phones, but it needs more CPU power and the device gets warmer. Default: Android decides.</string>
+    <string name="ingame_potato">Potato mode</string>
+    <string name="ingame_potato_weather">Weather effects</string>
+    <string name="ingame_potato_special">Special effects</string>
+    <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, liquid nitrogen, heat shimmer, water. Off saves graphics work on weaker devices; muzzle flashes, blood, explosions, fire, hits and hints stay, and so does every effect in cut scenes.</string>
     <string name="ingame_resolution_line">Resolution: %1$d × %2$d pixels (level %3$s) · screen %4$d × %5$d · applies when the menu closes. Higher levels need more power.</string>
     <string name="ingame_resolution_line_auto">Resolution: %1$d × %2$d pixels (level %3$s, Dynamic) · screen %4$d × %5$d · applies when the menu closes. Dynamic goes a level lower while the GPU cannot keep up.</string>
 

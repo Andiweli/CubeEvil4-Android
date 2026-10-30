@@ -102,6 +102,15 @@ public final class CoreBridge {
    */
   public static native void setFastCores(boolean on);
   /**
+   * The menu's Potato mode: bit 0 leaves the weather effects out (fog banks, rain, water spray), bit 1
+   * the special effects (steam, liquid nitrogen, heat shimmer, water); 0 draws everything (the default).
+   */
+  public static native void setPotato(int mask);
+  /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */
+  static int potatoMask(android.content.SharedPreferences g) {
+    return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);
+  }
+  /**
    * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,
    * 6 Italian. The core takes it and restarts the game (its own soft reset); the start setting
    * RE4_GAME_LANGUAGE holds the one at the start. 0: a restart with the language as it is (the cheat

@@ -23,6 +23,10 @@
     <string name="ingame_perf_default">Standard</string>
     <string name="ingame_perf_cores">Leistungskerne nutzen</string>
     <string name="ingame_perf_help">Leistungskerne: Spiel und Grafik laufen auf den schnellsten Kernen des Geräts und bitten Android um höhere Taktraten. Auf vielen Geräten flüssiger, braucht aber mehr CPU-Leistung, und das Gerät wird wärmer. Standard: Android entscheidet.</string>
+    <string name="ingame_potato">Potato-Modus</string>
+    <string name="ingame_potato_weather">Wettereffekte</string>
+    <string name="ingame_potato_special">Spezialeffekte</string>
+    <string name="ingame_potato_help">Wettereffekte: Nebelschwaden, Regen, Wasserspritzer. Spezialeffekte: Dampf, Flüssigstickstoff, Hitzeflimmern, Wasser. Aus spart Grafikleistung auf schwächeren Geräten; Mündungsfeuer, Blut, Explosionen, Feuer, Treffer und Hinweise bleiben, ebenso alle Effekte in Zwischensequenzen.</string>
     <string name="ingame_resolution_line">Auflösung: %1$d × %2$d Pixel (Stufe %3$s) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Höhere Stufen brauchen mehr Leistung.</string>
     <string name="ingame_resolution_line_auto">Auflösung: %1$d × %2$d Pixel (Stufe %3$s, Dynamisch) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Dynamisch geht eine Stufe tiefer, solange der Grafikchip nicht mitkommt.</string>
 

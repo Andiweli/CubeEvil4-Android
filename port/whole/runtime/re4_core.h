@@ -268,6 +268,11 @@ void re4_core_set_letterbox(int off);
  * performance hint (re4_cpu_info.h), 0 (the default) leaves them to Android.
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_fast_cores(int on);
+/* The app menu's Potato mode (cores since 30.10.2026, runtime/potato.cpp): bit 0 leaves the weather
+ * effects out (fog banks, rain, water spray), bit 1 the special effects (steam, liquid nitrogen, heat
+ * shimmer, water); 0 (the default) draws everything. Effects in events and cut scenes always stay.
+ * Takes effect at the next picture. Any thread. */
+void re4_core_set_potato(int mask);
 /* The game's language with the European discs (cores since 26.10.2026, port/docs/retail-eu-plan.md
  * R7): 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
  * The app menu's choice: the game takes it and restarts (its own soft reset at the next game frame,

@@ -1888,3 +1888,54 @@ extern "C" int re4probe_handcannon(void)
     }
     return bad;
 }
+
+extern "C" int re4_esp_skip(cEsp* esp);
+extern "C" void re4_potato_set(int mask);
+extern "C" int re4_potato_mask(void);
+void EspCommonTrans(cEsp* esp);
+extern EspTransFunc EspTransTbl[0xFF];
+
+// The app menu's Potato mode (runtime/potato.cpp, patch 0149): which sprites the two switches leave out.
+// Bits: each failed check.
+extern "C" int re4probe_potato(void)
+{
+    static cEsp e;
+    const EspTransFunc keepTrans = EspTransTbl[0];
+    const int keepMask = re4_potato_mask();
+    u32 keepSta[4];
+    memcpy(keepSta, pG->Status_flg, sizeof(keepSta));
+    int bad = 0;
+    EspTransTbl[0] = EspCommonTrans;
+    StaFlagOff(pG, STA_EVENT);
+    auto sprite = [](u8 owner, u16 core, u8 id, u8 blend, float rise) {
+        memset(&e, 0, sizeof(e));
+        e.m_Be_flg = 1;
+        e.info.owner = owner;
+        e.info.Core_flg = core;
+        e.m_Id = id;
+        e.m_Blend_type = blend;
+        e.m_Speed.y = rise;
+        return &e;
+    };
+    re4_potato_set(0);
+    bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 0.0f)) ? 1 : 0;              // off: all drawn
+    re4_potato_set(1);
+    bad |= !re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 0.0f)) ? 2 : 0;             // fog bank: weather
+    bad |= !re4_esp_skip(sprite(EFF_PL00, 0, 0x15, 0, 0.0f)) ? 4 : 0;               // rain particles
+    bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 2.0f)) ? 8 : 0;               // steam is special
+    bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 1, 0.0f)) ? 0x10 : 0;            // fire (additive) stays
+    re4_potato_set(2);
+    bad |= !re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 2.0f)) ? 0x20 : 0;          // steam
+    bad |= !re4_esp_skip(sprite(EFF_ROOM, 0, 0, 0, 0.0f)) ? 0x40 : 0;              // room code cloud (nitrogen)
+    bad |= !re4_esp_skip(sprite(EFF_EM10, 0, 0x18, 0, 0.0f)) ? 0x80 : 0;           // heat shimmer
+    bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 0.0f)) ? 0x100 : 0;          // fog is weather
+    re4_potato_set(3);
+    bad |= re4_esp_skip(sprite(EFF_EM10, 0, 0, 0, 0.0f)) ? 0x200 : 0;              // blood / enemy effects stay
+    bad |= re4_esp_skip(sprite(EFF_SST, 0x5001, 0, 0, 0.0f)) ? 0x400 : 0;          // event cut effects stay
+    StaFlagOn(pG, STA_EVENT);
+    bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 0.0f)) ? 0x800 : 0;          // all stay in events
+    memcpy(pG->Status_flg, keepSta, sizeof(keepSta));
+    EspTransTbl[0] = keepTrans;
+    re4_potato_set(keepMask < 0 ? 0 : keepMask);
+    return bad;
+}

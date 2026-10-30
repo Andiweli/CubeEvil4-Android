@@ -821,6 +821,17 @@ final class CoreMenu extends Dialog {
           graphics.edit().putInt("fastCores", value).apply(); CoreBridge.setFastCores(value == 1);
         });
     help(R.string.ingame_perf_help);
+    // Potato mode (decision of the project owner, 30.10.2026): two switches that leave the expensive
+    // surroundings effects out; the explanation only below them (runtime/potato.cpp in the core)
+    heading(R.string.ingame_potato);
+    MenuLayout.Buttons potato = buttonsRow(body);
+    toggle(potato, R.string.ingame_potato_weather, graphics.getBoolean("weatherEffects", true), on -> {
+      graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+    });
+    toggle(potato, R.string.ingame_potato_special, graphics.getBoolean("specialEffects", true), on -> {
+      graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+    });
+    help(R.string.ingame_potato_help);
     LinearLayout output = labelledOptions(R.string.ingame_output);
     toggle(buttonsRow(output), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
       graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);

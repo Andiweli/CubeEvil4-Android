@@ -147,6 +147,9 @@ Projektinhabers); `bughunt` zweigt davon ab.
     Bild), es ist also Füllarbeit des Raums (Nebel, Flüssigstickstoff, Wasser) bei 2,5×. **Rat an den Nutzer:**
     Auflösung „Dynamisch“ oder 1,5×/2×. **Für eine Optimierung:** Grafikaufnahme (R3) im Kampf, die teuren Zeichnungen
     suchen (große durchsichtige Flächen, Kopien in voller Auflösung).
+    **Stand 30.10.2026 (lokal):** am PC nur bis zum Debug-Start von r21d (Höhlengang, Verdugo aktiv, kein
+    Kampfbild mit Flüssigstickstoff); Zählung dort: 44 Nebel-Sprites der Raumtabelle, Verdugos eigene Effekte (Besitzer
+    37) und Funken/Tropfen. **Offen:** Grafikaufnahme (R3) im Kampf und GPU-Messung auf dem Retroid (war nicht verbunden).
 30. **„Potato-Mode“ (Entscheidung des Projektinhabers, 30.10.2026):** ein Schalter im Ingame-Menü auf der Seite
     „Performance“ (`CoreMenu.performance()`), der nur die teuren Umgebungseffekte weglässt: Nebelschwaden, Regen,
     Wasserspritzer, Dampf, die Wolke des Flüssigstickstoffs (Verdugo) und die Effekte, die das Bild kopieren und
@@ -154,6 +157,10 @@ Projektinhabers); `bughunt` zweigt davon ab.
     Treffer, Hinweise und der Entfernungsnebel (GX-Fog, kostet kaum etwas, verdeckt die Raumränder). Umsetzung in der
     Effektverwaltung des Spiels nach Effektart (Port-Laufzeit/Patch mit Schalter aus der App), nicht im Renderer.
     Plan und Effektliste: lokale Sitzung mit Disc-Daten (Bildvergleich, GPU-Zeit in r21d vorher/nachher).
+    **Wunsch des Projektinhabers (30.10.2026):** als Zwischenüberschrift nur „Potato-Modus“, darunter zwei Schalter
+    „Wettereffekte“ (Nebelschwaden, Regen, Wasserspritzer) und „Spezialeffekte“ (Dampf, Flüssigstickstoff,
+    Hitzeflimmern, Wasser), die Erklärungen nur als Fußtext. **Umgesetzt (Patch 0149, `runtime/potato.cpp`, App),
+    am PC geprüft; Gerätetest und Messung offen.**
 
 ## Branch bughunt lokal (30.10.2026, Windows-PC, Worktree `RE4-bughunt`, WSL-Baum `~/re4-bughunt/RE4`)
 
@@ -178,6 +185,40 @@ Projektinhabers); `bughunt` zweigt davon ab.
     je Fundstück, z. B. 25 statt 15), r100 `r100_trap_set`, `r100_DoorCk`, `r100_WindowBreakCk`, `r100_StreanChk`,
     `r100_Sce_zombi_dead` (`st1_0.rel`), Händler `stockNum`/`sellPrice`, `GetDropBullet`, `RandomItemCk`,
     `GameAddPoint`. Auf Wunsch einzeln nachziehen.
+
+- **Potato-Modus (Punkt 30):**
+  - **Kern:** Patch 0149 fragt in `EspTrans` (`esp.cpp`) für jede lebende Effektfigur `re4_esp_skip`
+    (`runtime/potato.cpp`); eine ausgelassene Figur wird nur nicht gezeichnet, sie läuft weiter (Lebensdauer, Ton,
+    was das Spiel von ihr liest). Zwei Bits (`re4_core_set_potato`, auch über den 32-bit-Kernprozess: Nachricht
+    `kSetPotato` 34): Bit 0 **Wettereffekte** = Regen-/Staubschleier über dem Bild (esp 0x04), Wetterteilchen (0x15)
+    und die bedeckenden Figuren der Raumtabelle (Besitzer `EFF_SST`, dauerhaft `Core_flg` 0x4000, Mischart 0/4/5 oder
+    Streifen 0x08), die nicht aufsteigen (Nebelbänke, Dunst, Spritzer); Bit 1 **Spezialeffekte** = Bildverzerrungen
+    (esp 0x0F, 0x18, jede Figur mit Flimmerart: Hitzeflimmern, Wasser), aufsteigende bedeckende Raumfiguren (Dampf) und
+    bedeckende Figuren aus Raumcode (Besitzer `EFF_ROOM`, z. B. eine Wolke). Bleiben: alles Additive (Feuer,
+    Mündungsfeuer, Glühen), alles von Spieler, Gegnern, Waffen (Blut, Treffer, Explosionen, Dynamit), Effekte an einem
+    Modell, Ereignis-Effekte (`Core_flg` 0x1000) und **alles während eines Ereignisses** (r11b: die Adern auf Leons
+    Gesicht sind Figuren der Raumtabelle), der Entfernungsnebel (GX-Fog, keine Effektfigur), Wasserflächen
+    (`Espgen42`/`Espgen45`, sonst fehlte das Wasser ganz).
+  - **Prüfhilfen:** `RE4_POTATO=Maske` (1 Wetter, 2 Spezial, 3 beides), `RE4_ESP_CENSUS=N` (alle N Bilder die
+    Effektfiguren nach Besitzer, Art, Mischart, Flimmerart, Aufsteigen, an einem Modell, `Core_flg`, und was die
+    Schalter mit ihnen tun).
+  - **App:** Seite „Performance“ unter „Force Performance“: Zwischenüberschrift „Potato-Modus“, zwei Schalter
+    „Wettereffekte“ / „Spezialeffekte“ (an = Effekte sichtbar, Standard an; gespeichert in den Grafik-Einstellungen als
+    `weatherEffects`/`specialEffects`), darunter der Fußtext mit den Erklärungen; beim Start und bei jeder Änderung an
+    den Kern (`CoreBridge.setPotato`, über `drawGx` wie Force Performance). Texte in allen zehn Sprachen
+    (`check_translations.py` ohne Befund).
+  - **Bildvergleich am PC (EU-Discs, i686, Debug-Start, Bild 60 und 300 nach „Spieler frei“, App-Renderer):**
+    Zeichnungen normal / Wetter aus / Spezial aus / beides aus: r105 (Dorfweg mit Dunst) 609/409/609/409 – der
+    Dunstschleier verschwindet, sonst gleich; r108 691/524/649/482 – im Bild kein sichtbarer Unterschied (die
+    Scheibe vor Leon ist ein Modell); r209 (Burg) 581/563/581/563, r30a (Insel) 536/506/525/495 – nur kleine
+    Partikel; r103 (See) 1034→837, r11b in der Zwischensequenz unverändert; r21d am Debug-Start 248 unverändert
+    (Höhlengang, die Nebelfiguren dort liegen außerhalb des Bildes). Ein Raum mit Regen und einer mit Feuer im Bild
+    fehlen noch (Feuer ist additiv und bleibt nach der Regel).
+  - **Geprüft:** Test `potato` (neun Fälle: aus, Nebel/Regen/Dampf/Feuer je Schalter, Wolke aus Raumcode, Flimmern,
+    Gegner-Effekt, Ereignis-Effekt, alles im Ereignis), `whole_build.sh i686` mit allen Tests 0 Fehler; App Java und
+    nativ (arm64, armv7) übersetzt. **Nicht geprüft:** Gerät, GPU-Zeit (Retroid nicht verbunden), Verdugo-Kampf mit
+    Flüssigstickstoff (ob der eingefrorene Verdugo ohne die Wolke erkennbar bleibt; die Wolke ist nur dann aus, wenn
+    sie eine bedeckende Figur aus Raumcode ist – zu bestätigen mit `RE4_ESP_CENSUS` im Kampf).
 
 ## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
 

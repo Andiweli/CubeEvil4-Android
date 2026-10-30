@@ -23,6 +23,10 @@
     <string name="ingame_perf_default">Predeterminado</string>
     <string name="ingame_perf_cores">Usar núcleos de rendimiento</string>
     <string name="ingame_perf_help">Núcleos de rendimiento: el juego y los gráficos usan los núcleos más rápidos del dispositivo y piden a Android frecuencias más altas. Más fluido en muchos dispositivos, pero necesita más potencia de CPU y el dispositivo se calienta más. Predeterminado: decide Android.</string>
+    <string name="ingame_potato">Modo Potato</string>
+    <string name="ingame_potato_weather">Efectos climáticos</string>
+    <string name="ingame_potato_special">Efectos especiales</string>
+    <string name="ingame_potato_help">Efectos climáticos: bancos de niebla, lluvia, salpicaduras de agua. Efectos especiales: vapor, nitrógeno líquido, calima, agua. Desactivarlos ahorra trabajo gráfico en dispositivos menos potentes; los fogonazos, la sangre, las explosiones, el fuego, los impactos y las pistas se mantienen, igual que todos los efectos de las escenas.</string>
     <string name="ingame_resolution_line">Resolución: %1$d × %2$d píxeles (nivel %3$s) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Los niveles más altos requieren más potencia.</string>
     <string name="ingame_resolution_line_auto">Resolución: %1$d × %2$d píxeles (nivel %3$s, Dinámica) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Dinámica baja un nivel mientras la GPU no da abasto.</string>
 
