@@ -225,7 +225,16 @@ Projektinhabers); `bughunt` zweigt davon ab.
     `-StartRoom 21d` landete in r120 (Film, Messung wertlos). Ein Lauf mit Laden landete nicht im Spielstand, sondern über die Tastenfolge (A und START im
     Titel) in The Mercenaries, Dorf (r400; Bildschirmfoto, vom Projektinhaber bestätigt); dort 15,4 / 11,6 / 16,4 / 15,6 / 13,5 ms GPU je Bild
     (aus / Wetter aus / Spezial aus / beides aus / aus) – Leon und Gegner bewegten sich, die Werte schwanken zu stark.
-    **Offen:** Messung im Verdugo-Kampf durch den Projektinhaber (Spielstand Kapitel 12, Schalter im Menü, Fehlerbericht).
+    **Verdugo-Kampf gemessen (Retroid, Debug-Discs vom Projektinhaber importiert, 30.10.2026 11:10):** Debug-Start r221,
+    `RE4_TEST_PLACE=free+30:area=11` (Auslösebereich 0x0B: Verdugo 0x2C erscheint, `r221_appearBosstail`), `RE4_CHEATS=1`,
+    Messreihe bei 2,5×, je 10 s: Potato aus **14,0 ms** GPU je Bild (403 Zeichnungen), Wetter aus 12,8 ms (433), Spezial aus
+    14,7 ms (474), beides aus **10,7 ms**, wieder aus **12,3 ms** (393). Also etwa −2 bis −3 ms (−15 bis −24 %) mit beiden
+    Schaltern; die Einzelschritte schwanken mit dem Bild (Verdugo greift an, Leon liest zwischendurch die Schalttafel).
+    Im Kampf fallen weg: 75 aufsteigende Dampf-Figuren der Raumtabelle (Spezial), rund 40 Wetterteilchen (esp 0x15) und
+    der Schleier esp 0x04 (Wetter); Verdugos eigene Effekte (Besitzer 36) bleiben. Der Retroid (Adreno 650) bleibt so
+    oder so weit unter 33 ms; beim Tester (Adreno 642L, 28 ms) sind −15 bis −24 % geschätzt, **nicht gemessen**.
+    **Nicht geprüft:** die Wolke des Flüssigstickstoffs (kein Tank wurde benutzt) und ob der gefrorene Verdugo ohne sie
+    erkennbar bleibt; Aufnahmen in `gx-geraet.zip` des Laufs (nicht im Repository).
   - **Hinweis:** Verdugo (em2c) gehört laut Code zu r221 (Aufzug, Boss); im Debug-Start von r21d sind Novistadoren (em2d)
     in einem Höhlengang. Der Nutzerbericht nennt r21d.
 
