@@ -121,6 +121,32 @@ Bearbeitet in der lokalen Sitzung vom 28.10.2026 (Abschnitte darunter). Stand am
     `PutOnSlowCores` (zwei schnelle Kerne); nach Punkt 25 greift die Maßnahme dort vermutlich ebenso wenig. Nutzer
     gefragt (Force Performance aus, Bericht direkt nach einem Einbruch).
 
+### Branch `bughunt` (30.10.2026, Cloud): `golden-master` in `master` übernommen, drei Nutzermeldungen
+
+`master` enthält seit 30.10.2026 den ganzen Stand von `golden-master` (Merge `02b1c54`, README in der Fassung des
+Projektinhabers); `bughunt` zweigt davon ab.
+
+27. **EU-Spielstände aus Dolphin lassen sich nicht importieren** („should be G4BE08, not G4BP08“). Ursache: der
+    `.gci`-Import (`runtime/gci.cpp`, `kGame`/`kCompany`) nimmt nur `G4BE08` an; das Spiel sieht auch mit EU-Discs
+    `G4BE08` (gemeinsame Speicherkarte). Ein Spielstand der EU-Verkaufsfassung ist mit dem Spielcode des Prototyps
+    nur verwendbar, wenn Version (Debug 0x116, `kSaveVersion`) und Aufbau (GLOBAL_WK-Block 0x36F8, Gegenstände 0x1204,
+    Räume, Händler; `save_layout.inc`) gleich sind. **Offen, lokal:** eine echte EU-`.gci` (`08-G4BP-bh4_data00.gci`)
+    und der EU-Code (`retail_code.py`: `makeSaveData`/`CardLoad` der EU, Version, Blockgrößen) vergleichen; bei
+    gleichem Aufbau `G4BP08` beim Import annehmen und als `G4BE08` ablegen, sonst einen Umwandler planen
+    (Entscheidung des Projektinhabers).
+28. **EU, leichter Modus: die Schrotflinte gehört von Anfang an ins Inventar** (Nutzermeldung). Der Prototyp gibt im
+    neuen Spiel nur den Startsatz (`item.cpp cItemMgr::gameInit` → `set_game(0)`), ohne Abfrage der Schwierigkeit.
+    **Offen, lokal:** die EU-Fassung von `gameInit`/`set_game` lesen (Gegenstand, Munition, Stufen, Abfrage
+    `game_country`/Easy wie Patch 0140), als Patch nur mit EU-Discs; prüfen, dass r101 (Haus des Dr. Salvador) die
+    Schrotflinte dann nicht ein zweites Mal hinlegt (EU-Code von r101/Gegenstandsliste).
+29. **Verdugo-Kampf (r21d) mit Einbrüchen** (Nutzerbericht 29.10.2026 21:01–21:50, Xiaomi 11 Lite 5G NE, Adreno 642L,
+    0.95.2, EU-Discs, Auflösung 2,5×, FXAA). Der Kern hält 30 Bilder/s (33,4 ms, 17–21 ms Leerlauf), der Zeichen-Thread
+    15–21 ms. **Die GPU ist der Engpass:** in r21d im Mittel 28,2 ms je Bild (Spitze 79,9 ms), 28 von 64 Messungen über
+    33 ms; in r229/r223/r225 davor und danach 10,8–15,7 ms, keine über 33 ms. EFB-Kopien in r21d wie in r223 (8,7 je
+    Bild), es ist also Füllarbeit des Raums (Nebel, Flüssigstickstoff, Wasser) bei 2,5×. **Rat an den Nutzer:**
+    Auflösung „Dynamisch“ oder 1,5×/2×. **Für eine Optimierung:** Grafikaufnahme (R3) im Kampf, die teuren Zeichnungen
+    suchen (große durchsichtige Flächen, Kopien in voller Auflösung).
+
 ## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
 
 - **Handcannon (Punkt 19), gelesen in der EU-`main.dol` und im EU-`Sscrn.rel` (`retail_code.py`):**
