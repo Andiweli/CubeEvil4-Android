@@ -210,8 +210,8 @@ bool parseFst(Disc& d)
 // Which release a disc header belongs to (the rule of port/tools/disc_release.py): G4BE08 with
 // the file system table at 0x28FE00 is the debug build of 2004-11-25 the port's code is (its
 // main.dol is 2554432 bytes), G4BP08 the European release (port/docs/retail-eu-plan.md), G4BE08
-// with the table elsewhere the US release (never tested), G4BJ08 the Japanese release and the
-// Korean translation built on it (port/docs/retail-jp-plan.md). A header without the table's place
+// with the table elsewhere (0x231A00) the US release (port/docs/retail-us-plan.md), G4BJ08 the Japanese
+// release and the Korean translation built on it (port/docs/retail-jp-plan.md). A header without the table's place
 // (only the port's tests write one) counts as the debug build, as the port assumed until then.
 int releaseOf(const unsigned char* boot, u32 size)
 {
@@ -233,7 +233,7 @@ int releaseOf(const unsigned char* boot, u32 size)
 const char* releaseName(int release)
 {
     static const char* const names[] = {"debug build G4BE08", "European release G4BP08",
-                                        "US release G4BE08 (untested)", "unknown game",
+                                        "US release G4BE08", "unknown game",
                                         "Japanese release G4BJ08"};
     return names[release >= 0 && release <= RE4_DISC_RETAIL_JP ? release : RE4_DISC_UNKNOWN];
 }
@@ -620,6 +620,11 @@ int re4_disc_release(void)
 int re4_disc_retail_eu(void)
 {
     return re4_disc_release() == RE4_DISC_RETAIL_EU;
+}
+
+int re4_disc_retail_us(void)
+{
+    return re4_disc_release() == RE4_DISC_RETAIL_US;
 }
 
 int re4_disc_retail_jp(void)

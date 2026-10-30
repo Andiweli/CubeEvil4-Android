@@ -9,7 +9,7 @@
     <string name="core_author">By Andreas ‘Andiweli’ Stürmer</string>
     <string name="core_notice">Requires your own game discs. Not affiliated with Capcom.</string>
     <string name="core_start">Start game</string>
-    <string name="core_import_heading">Select ISO/GCM/RVZ files of the debug build, the European or the Japanese release. RVZ files are unpacked first and need extra free storage (about 3 GB per disc).</string>
+    <string name="core_import_heading">Select ISO/GCM/RVZ files of the debug build, the European, the US or the Japanese release. RVZ files are unpacked first and need extra free storage (about 3 GB per disc).</string>
     <string name="core_disc_state">Disc %1$d Data is %2$s</string>
     <string name="core_disc_ready">ready (%1$s)</string>
     <string name="controller_prompt">Connect a controller and press a button.</string>

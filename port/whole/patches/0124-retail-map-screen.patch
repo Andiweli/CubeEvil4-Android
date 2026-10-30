@@ -7,6 +7,8 @@
 # European discs. Nothing changes with the debug build's discs. A port patch for retail data.
 # Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
 # re4_disc_retail(), the switch of every retail release.
+# US release (port/docs/retail-us-plan.md): its map layout has unit 253 at the European place: both retail
+# releases (re4_disc_retail).
 --- a/src/Sscrn/ss_map.cpp
 +++ b/src/Sscrn/ss_map.cpp
 @@ -2435,6 +2435,8 @@

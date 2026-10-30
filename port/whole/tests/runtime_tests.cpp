@@ -413,7 +413,7 @@ static void testDiscRelease()
         int release;
     } cases[] = {
         {"G4BE08", 0x28FE00, 0x440, RE4_DISC_DEBUG},  {"G4BP08", 0x236500, 0x440, RE4_DISC_RETAIL_EU},
-        {"G4BE08", 0x236500, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
+        {"G4BE08", 0x231A00, 0x440, RE4_DISC_RETAIL_US}, {"G4BE08", 0, 0x40, RE4_DISC_DEBUG},
         {"GXXE01", 0x28FE00, 0x440, RE4_DISC_UNKNOWN},   {"G4BJ08", 0x235300, 0x440, RE4_DISC_RETAIL_JP},
         {"G4BJ08", 0x235300, 0x440, RE4_DISC_RETAIL_JP},
     };
@@ -445,6 +445,7 @@ static void testDiscRelease()
         re4_set_data_dir(dir.c_str());
         CHECK(re4_disc_release() == c.release);
         CHECK(re4_disc_retail_kr() == (korean ? 1 : 0));
+        CHECK(re4_disc_retail_us() == (c.release == RE4_DISC_RETAIL_US));
         const bool retail = c.release == RE4_DISC_RETAIL_EU || c.release == RE4_DISC_RETAIL_US ||
                             c.release == RE4_DISC_RETAIL_JP;
         CHECK(re4_disc_retail() == (retail ? 1 : 0));

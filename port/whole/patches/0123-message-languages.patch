@@ -17,6 +17,8 @@
 # "ZOOM", device test 26.10.2026).
 # Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
 # re4_disc_retail(), the switch of every retail release.
+# US release (port/docs/retail-us-plan.md): its core table has the same 15 messages from 0x56 on (168
+# messages; language 1 as the debug build): the move by 15 with both retail releases (re4_disc_retail).
 --- a/src/game/mes.cpp
 +++ b/src/game/mes.cpp
 @@ -249,11 +249,19 @@

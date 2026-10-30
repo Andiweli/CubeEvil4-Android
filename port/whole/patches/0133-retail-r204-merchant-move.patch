@@ -8,6 +8,8 @@
 # port patch for retail data.
 # Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
 # re4_disc_retail(), the switch of every retail release.
+# US release (port/docs/retail-us-plan.md): its map asks for the flag as the European one (patch 0129):
+# both retail releases (re4_disc_retail).
 --- a/src/st2/r204.cpp
 +++ b/src/st2/r204.cpp
 @@ -95,6 +95,8 @@

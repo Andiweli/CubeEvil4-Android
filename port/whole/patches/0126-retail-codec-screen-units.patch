@@ -12,6 +12,8 @@
 # Nothing changes with the debug build's discs. A port patch for retail data.
 # Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
 # re4_disc_retail(), the switch of every retail release.
+# US release (port/docs/retail-us-plan.md): ss/eng/ss_term.dat sub-files 2, 5 and 9 are byte for byte the
+# European ones: both retail releases (re4_disc_retail).
 --- a/src/game/sscrn.cpp
 +++ b/src/game/sscrn.cpp
 @@ -313,6 +313,8 @@

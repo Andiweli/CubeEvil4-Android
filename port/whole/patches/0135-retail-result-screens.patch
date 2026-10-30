@@ -12,6 +12,10 @@
 # Nothing changes with the debug build's discs. A port patch for retail data.
 # Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
 # re4_disc_retail(), the switch of every retail release.
+# US release (port/docs/retail-us-plan.md): its ss/eng/chapNN.dat are the European templates and its
+# ChapterEnd::move (main.dol 0x80041860) the European one; its GameResult::move (0x80041470) hides unit 0
+# on every run but does not cap the continues (its result.dat is the debug build's): the chapter end and
+# unit 0 with every retail release (re4_disc_retail), the cap with the European and Japanese discs alone.
 --- a/src/game/option.cpp
 +++ b/src/game/option.cpp
 @@ -991,6 +991,8 @@
@@ -29,7 +33,7 @@
      num(pG->g_kill_cnt, 4, 1, 0x11, IDC_TITLE, 0);
 -    num(pG->g_continue_cnt, 3, 1, 0x21, IDC_TITLE, 0);
 +    /* port: with the European discs as their GameResult::move: the continues at most 999 */
-+    num(re4_disc_retail() && pG->g_continue_cnt > 998 ? 999 : pG->g_continue_cnt, 3, 1, 0x21, IDC_TITLE, 0);
++    num((re4_disc_retail_eu() || re4_disc_retail_jp()) && pG->g_continue_cnt > 998 ? 999 : pG->g_continue_cnt, 3, 1, 0x21, IDC_TITLE, 0);
      SecToTime(pG->play_time, &h, &m, &s);
      num(h, 2, 0, 0x35, IDC_TITLE, 0);
      num(m, 2, 0, 0x33, IDC_TITLE, 0);

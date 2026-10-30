@@ -9,13 +9,13 @@ import java.util.*;
 /** Bounded reader for raw GameCube ISO/GCM images. Not an ISO9660 reader. */
 public final class GameCubeDisc implements Closeable {
   /**
-   * The releases the app takes (port/docs/retail-eu-plan.md, retail-jp-plan.md): the debug build of
-   * 2004-11-25 (G4BE08, its file system table at 0x28FE00; the US release has the same id, the table
-   * elsewhere), the European release (G4BP08), the Japanese release (G4BJ08) and the Korean fan
+   * The releases the app takes (port/docs/retail-eu-plan.md, retail-us-plan.md, retail-jp-plan.md): the
+   * debug build of 2004-11-25 (G4BE08, its file system table at 0x28FE00), the US release (the same id, the
+   * table elsewhere), the European release (G4BP08), the Japanese release (G4BJ08) and the Korean fan
    * translation built on it (the same header; its main.dol differs in two instructions, KOREAN_DOL).
    * The rule of port/tools/disc_release.py.
    */
-  public static final String DEBUG = "debug", EUROPEAN = "eu", JAPANESE = "jp", KOREAN = "kr";
+  public static final String DEBUG = "debug", EUROPEAN = "eu", US = "us", JAPANESE = "jp", KOREAN = "kr";
   private static final long DEBUG_FST_OFFSET = 0x28FE00L;
   /** The Korean translation's main.dol: at these file offsets "li r30, 1" / "li r31, 1" (retail-jp-plan.md). */
   private static final long[][] KOREAN_DOL = {{0x14b7cL, 0x3bc00001L}, {0x29cd4L, 0x3be00001L}};
@@ -47,7 +47,7 @@ public final class GameCubeDisc implements Closeable {
   private final long length;
   private long fstOffset, fstSize;
   public final int discNumber;
-  /** DEBUG, EUROPEAN, JAPANESE or KOREAN. */
+  /** DEBUG, EUROPEAN, US, JAPANESE or KOREAN. */
   public final String release;
   /** References of this disc checked by validate (0 before). */
   private int validated;
@@ -71,13 +71,15 @@ public final class GameCubeDisc implements Closeable {
           throw new IOException("Japanese discs (G4BJ08) need CubeEvil4's core mode");
         release = koreanDol(be32(header, 0x420)) ? KOREAN : JAPANESE;
       } else if (id.equals("G4BE08")) {
-        if (be32(header, 0x424) != DEBUG_FST_OFFSET)
-          throw new IOException("This is the US release (G4BE08): only the debug build of November 25, 2004"
-              + " and the European release (G4BP08) are supported");
-        release = DEBUG;
+        if (be32(header, 0x424) == DEBUG_FST_OFFSET)
+          release = DEBUG;
+        else if (!retailAllowed)
+          throw new IOException("US discs (G4BE08) need CubeEvil4's core mode");
+        else
+          release = US;
       } else
         throw new IOException("Wrong disc ID " + id.replaceAll("[^A-Za-z0-9]", "?")
-            + "; the debug build (G4BE08), the European (G4BP08) or the Japanese release (G4BJ08) is required");
+            + "; the debug build or the US release (G4BE08), the European (G4BP08) or the Japanese release (G4BJ08) is required");
       discNumber = (header[6] & 255) + 1;
       if (discNumber < 1 || discNumber > 2 || header[7] != 0)
         throw new IOException("Unsupported disc/revision");
@@ -214,26 +216,28 @@ public final class GameCubeDisc implements Closeable {
     }
     validated = total;
   }
-  /** "Debug build", "European release", "Japanese release" or "Korean translation". */
+  /** "Debug build", "European release", "US release", "Japanese release" or "Korean translation". */
   public static String releaseTitle(String release) {
-    return EUROPEAN.equals(release) ? "European release" : JAPANESE.equals(release) ? "Japanese release"
-        : KOREAN.equals(release) ? "Korean translation" : "Debug build";
+    return EUROPEAN.equals(release) ? "European release" : US.equals(release) ? "US release"
+        : JAPANESE.equals(release) ? "Japanese release" : KOREAN.equals(release) ? "Korean translation" : "Debug build";
   }
-  /** The game id a release's discs carry. */
+  /** The game id a release's discs carry (G4BE08 for the debug build and the US release). */
   public static String gameId(String release) {
     return EUROPEAN.equals(release) ? "G4BP08" : JAPANESE.equals(release) || KOREAN.equals(release) ? "G4BJ08" : "G4BE08";
   }
   /** The size of a release's sys/main.dol. */
   public static long dolSize(String release) {
-    return EUROPEAN.equals(release) ? 2187552 : JAPANESE.equals(release) || KOREAN.equals(release) ? 2182944 : 2554432;
+    return EUROPEAN.equals(release) ? 2187552 : US.equals(release) ? 2168544
+        : JAPANESE.equals(release) || KOREAN.equals(release) ? 2182944 : 2554432;
   }
   /**
    * The app's catalog `name` of a release: rooms.tsv for the debug build, rooms-eu.tsv for the European,
-   * rooms-jp.tsv / rooms-kr.tsv for the Japanese release and the Korean translation.
+   * rooms-us.tsv for the US release, rooms-jp.tsv / rooms-kr.tsv for the Japanese release and the Korean
+   * translation.
    */
   public static String catalog(String name, String release) {
-    return EUROPEAN.equals(release) ? name + "-eu.tsv" : JAPANESE.equals(release) ? name + "-jp.tsv"
-        : KOREAN.equals(release) ? name + "-kr.tsv" : name + ".tsv";
+    return EUROPEAN.equals(release) ? name + "-eu.tsv" : US.equals(release) ? name + "-us.tsv"
+        : JAPANESE.equals(release) ? name + "-jp.tsv" : KOREAN.equals(release) ? name + "-kr.tsv" : name + ".tsv";
   }
   public long extractionSize() {
     long n = 0x440 + fstSize;  // sys/boot.bin, sys/fst.bin

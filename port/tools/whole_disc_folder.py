@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Lay out the disc files for the whole-program port (runtime/dvd.cpp): the debug
-build (G4BE08) or the European release (G4BP08, port/docs/retail-eu-plan.md).
+build (G4BE08), the European release (G4BP08, port/docs/retail-eu-plan.md) or the US
+release (G4BE08 with another layout, port/docs/retail-us-plan.md).
 
 The port reads the disc from a folder, one subfolder per disc, in the layout
 Dolphin's "Extract Entire Disc" writes:
@@ -23,7 +24,7 @@ Sources, reusing the earlier port's import (port/tools/original_import):
         holds exactly these discs (header and FST), not another release.
 
 Both discs of a folder come from the same release (disc_release.py); a debug
-disc next to a European one is refused.
+disc next to a European or US one is refused.
 
 Disc data is never written into the repository; --out must lie outside it.
 """
@@ -86,7 +87,7 @@ def one_release(named: list) -> str:
         kind = release(boot)
         if kind not in SUPPORTED:
             sys.exit(f"{name}: game id {boot[:6].decode('ascii', 'replace')} ({kind}), "
-                     f"the port needs G4BE08 (debug build), G4BP08 (European release) or G4BJ08 (Japanese release)")
+                     f"the port needs G4BE08 (debug build or US release), G4BP08 (European release) or G4BJ08 (Japanese release)")
         kinds.setdefault(kind, name)
     if len(kinds) > 1:
         sys.exit("discs of different releases: " + ", ".join(f"{n} is {k}" for k, n in kinds.items()))

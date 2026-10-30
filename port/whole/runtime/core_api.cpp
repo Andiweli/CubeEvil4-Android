@@ -731,8 +731,8 @@ int re4_core_cheat_action(int what)
 
 void re4_core_debug_menu(void)
 {
-    // the retail discs: no debug menu (port/docs/retail-eu-plan.md, decision 2; R6; the Japanese discs
-    // lack the debug tools as well, port/docs/retail-jp-plan.md)
+    // the retail discs: no debug menu (port/docs/retail-eu-plan.md, decision 2; R6; the US and the Japanese
+    // discs lack the debug tools as well, port/docs/retail-us-plan.md, port/docs/retail-jp-plan.md)
     if (re4_disc_retail()) {
         re4_log("core: debug menu asked for (SELECT held), none with the retail discs");
         return;

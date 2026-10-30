@@ -7,6 +7,8 @@
 # three are handled as there. Nothing changes with the debug build's discs. A port patch for retail data.
 # Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
 # re4_disc_retail(), the switch of every retail release.
+# US release (port/docs/retail-us-plan.md): its LifeMeter::roomInit is the European one (main.dol
+# 0x800bf4b8, every instruction alike): both retail releases (re4_disc_retail).
 --- a/src/game/cockpit.cpp
 +++ b/src/game/cockpit.cpp
 @@ -106,6 +106,8 @@

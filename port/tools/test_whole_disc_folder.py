@@ -178,16 +178,26 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("other disc", r.stdout)
 
-    def test_mix_and_us_release_refused(self):
+    def test_us_release(self):
+        # the US release: G4BE08 like the debug build, the FST elsewhere (0x231A00)
+        us = [self.make("us1.iso", "G4BE08", 0, 0x231A00), self.make("us2.iso", "G4BE08", 1, 0x231A00)]
+        out = self.dir / "us"
+        r = self.run_tool("--disc", us[0], "--disc", us[1], "--out", out)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("(retail-us)", r.stdout)
+        self.assertNotIn("build date", r.stderr)
+        self.assertEqual(self.run_tool("--check", out, "--disc", us[0], "--disc", us[1]).returncode, 0)
+
+    def test_mix_refused(self):
         dbg = self.make("dbg1.iso", "G4BE08", 0, 0x28FE00)
         eu = self.make("eu2.iso", "G4BP08", 1)
         r = self.run_tool("--disc", dbg, "--disc", eu, "--out", self.dir / "mix")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("different releases", r.stderr)
-        us = self.make("us1.iso", "G4BE08", 0)  # the US release: G4BE08 with the FST elsewhere
-        r = self.run_tool("--disc", us, "--out", self.dir / "us")
+        us = self.make("us2.iso", "G4BE08", 1, 0x231A00)  # a debug disc next to a US one
+        r = self.run_tool("--disc", dbg, "--disc", us, "--out", self.dir / "mix2")
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("retail-us", r.stderr)
+        self.assertIn("different releases", r.stderr)
 
 
 if __name__ == "__main__":

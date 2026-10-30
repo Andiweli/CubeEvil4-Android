@@ -8,6 +8,8 @@
 # port patch for retail data.
 # Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here):
 # re4_disc_retail(), the switch of every retail release.
+# US release (port/docs/retail-us-plan.md): its Sscrn.rel merchant marks are the European code
+# (markMerchantDisp, getMerchantMarkNo alike): both retail releases (re4_disc_retail).
 --- a/src/Sscrn/ss_map.cpp
 +++ b/src/Sscrn/ss_map.cpp
 @@ -750,6 +750,12 @@

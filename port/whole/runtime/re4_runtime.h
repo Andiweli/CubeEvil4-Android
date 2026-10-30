@@ -132,20 +132,25 @@ int re4_dvd_inserted_disc(void);
  * port/tools/disc_release.py; port/docs/retail-eu-plan.md). */
 #define RE4_DISC_DEBUG 0     /* G4BE08, the debug build of 2004-11-25: the port's code */
 #define RE4_DISC_RETAIL_EU 1 /* G4BP08, the European release */
-#define RE4_DISC_RETAIL_US 2 /* G4BE08 with another layout, the US release (untested) */
+#define RE4_DISC_RETAIL_US 2 /* G4BE08 with another layout, the US release (port/docs/retail-us-plan.md) */
 #define RE4_DISC_UNKNOWN 3   /* another game, or no disc folder */
 #define RE4_DISC_RETAIL_JP 4 /* G4BJ08, the Japanese release and the Korean fan translation built on it
                                 (port/docs/retail-jp-plan.md) */
 int re4_disc_release(void);
-/* 1 with the European discs: the switch of the game patches for their data (patch 0120). */
+/* 1 with the European discs: the switch of the game patches for what only their data has (the
+ * languages, stage 4 on disc 2, r221's messages, the movie subtitles). */
 int re4_disc_retail_eu(void);
+/* 1 with the US discs (port/docs/retail-us-plan.md). */
+int re4_disc_retail_us(void);
 /* 1 with the Japanese discs, the Korean translation included (port/docs/retail-jp-plan.md). */
 int re4_disc_retail_jp(void);
 /* 1 with the Korean fan translation of the Japanese discs (its main.dol differs in two instructions:
  * the head-loss deaths as in the US release). */
 int re4_disc_retail_kr(void);
 /* 1 with the discs of any retail release: the debug build's tools and files are missing, the
- * re-ordered archives come in the debug build's order (runtime/formats/formats.cpp). */
+ * re-ordered archives come in the debug build's order (runtime/formats/formats.cpp); the switch of the
+ * game patches for the data the releases share (the radio screen, map, life meter, core messages,
+ * result screens; patch 0120 ...). */
 int re4_disc_retail(void);
 /* A larger etc/core.das than the debug build's fixed place holds (the European release, patch
  * 0117): it is read here instead, in the development half of MEM1 that nothing else uses. */

@@ -25,7 +25,7 @@ public final class ImportManager {
   private Listener listener;
   public volatile boolean busy;
   /** The status before anything happened (the core launcher shows its own heading instead). */
-  public static final String PROMPT = "Select ISO/GCM/RVZ files of the debug build, the European or the Japanese release. "
+  public static final String PROMPT = "Select ISO/GCM/RVZ files of the debug build, the European, the US or the Japanese release. "
       + "RVZ files are unpacked first and need extra free storage (about 3 GB per disc).";
   public volatile String status = PROMPT;
   public final File root;

@@ -44,7 +44,7 @@ public final class DiscInstaller {
         new File(disc, "manifest.tsv").isFile();
   }
   /**
-   * The release of an imported disc folder (GameCubeDisc.DEBUG, EUROPEAN, JAPANESE or KOREAN); imports before the
+   * The release of an imported disc folder (GameCubeDisc.DEBUG, EUROPEAN, US, JAPANESE or KOREAN); imports before the
    * European discs (26.10.2026) name none and are the debug build's. Null without an import.
    */
   public static String release(File disc) {
@@ -53,7 +53,8 @@ public final class DiscInstaller {
       return null;
     String release = p.getProperty("release", GameCubeDisc.DEBUG);
     return GameCubeDisc.DEBUG.equals(release) || GameCubeDisc.EUROPEAN.equals(release) ||
-        GameCubeDisc.JAPANESE.equals(release) || GameCubeDisc.KOREAN.equals(release) ? release : null;
+        GameCubeDisc.US.equals(release) || GameCubeDisc.JAPANESE.equals(release) || GameCubeDisc.KOREAN.equals(release)
+        ? release : null;
   }
   private static Properties properties(File disc) {
     Properties p = new Properties();

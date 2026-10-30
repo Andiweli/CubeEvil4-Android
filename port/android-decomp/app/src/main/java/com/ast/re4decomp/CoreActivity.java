@@ -146,7 +146,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the language at the start or the last change (onConfigurationChanged)
   private String shownLanguage = "";
   private boolean retailEu;  // the European discs are imported: the menu offers the game's language
-  private boolean retail;  // any retail discs (European, Japanese, Korean): no debug menu (retail-jp-plan.md)
+  private boolean retail;  // any retail discs (European, US, Japanese, Korean): no debug menu (retail-us-plan.md, retail-jp-plan.md)
   private int gameLanguageNow;  // the language the game runs with (European discs)
   // the menu (SELECT) and the debug menu (SELECT held)
   private CoreMenu menu;
@@ -570,8 +570,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (!selectDown || menu != null) return;
     selectHeld = true;
     // the retail discs have no debug menu (decision of the project owner, 26.10.2026; the cheat menu
-    // of the in-game menu instead; the Japanese discs lack the debug tools as well): holding SELECT
-    // opens nothing
+    // of the in-game menu instead; the US and the Japanese discs lack the debug tools as well): holding
+    // SELECT opens nothing
     if (retail) {
       Log.i(TAG, "SELECT held: no debug menu with the retail discs");
       return;

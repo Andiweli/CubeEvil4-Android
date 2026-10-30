@@ -49,8 +49,9 @@ Disc-Daten (-DataDir), eine dieser Formen:
   - ein Ordner mit den Disc-Abbildern (.iso oder .gcm), z. B. D:\RE4\Disc
   - mit Dolphin entpackte Disc ("Gesamte Disc extrahieren": Ordner mit sys und files)
   - der Import-Ordner der App (disc1, disc2) oder ein Port-Ordner (disc0, disc1)
-Die Disc-Daten werden nie ins Repository kopiert. Die Debug-Discs (G4BE08) und die
-europaeischen Verkaufs-Discs (G4BP08, port/docs/retail-eu-plan.md) gehen beide; Abbilder
+Die Disc-Daten werden nie ins Repository kopiert. Die Debug-Discs (G4BE08), die
+europaeischen Verkaufs-Discs (G4BP08, port/docs/retail-eu-plan.md) und die US-Verkaufs-Discs
+(G4BE08 mit anderer Dateitabelle, port/docs/retail-us-plan.md) gehen alle; Abbilder
 einer anderen Version als beim letzten Lauf werden neu entpackt, gemischte Discs abgelehnt.
 
 Vorher den Branch der aktuellen Aufgabe holen (Name steht in der Aufgabe), z. B.:
@@ -68,6 +69,10 @@ Falls Windows das Ausfuehren von Skripten sperrt.
 .EXAMPLE
 .\port\scripts\test-r100-core.ps1 -DataDir 'E:\Development\Android\RE4-DiscdataEuro'
 Mit den europaeischen Verkaufs-Discs (Meilenstein Retail-Discs).
+
+.EXAMPLE
+.\port\scripts\test-r100-core.ps1 -DataDir 'E:\Development\Android\RE4-DiscdataUS'
+Mit den US-Verkaufs-Discs (die .rvz daneben liest die Pruefung nicht, nur .iso/.gcm).
 
 .EXAMPLE
 .\port\scripts\test-r100-core.ps1 -DataDir 'D:\RE4\Disc' -OnlyCard
