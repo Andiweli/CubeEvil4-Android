@@ -931,6 +931,7 @@ struct GxRenderer::Impl {
     // TEV colours (32 words) and the light colours (8 x 4 floats) lie in recFloats (~0: not kept)
     std::uint64_t owner = 0, shape = 0;
     std::uint32_t life = ~0u, extra = ~0u;
+    std::uint64_t base = 0;  // the object (ownerBase) of an owned draw
   };
   bool recordDraws = false;
   bool recValid = false;            // rec describes the chunk run last
@@ -958,6 +959,12 @@ struct GxRenderer::Impl {
   std::int32_t tevSave[2][4][4] = {};
   std::uint32_t indSave[9] = {};
   std::vector<std::uint8_t> recUsed;
+  // noted draws of an object that draws as often in the next picture: they belong to its draws there
+  // (by the owner tag), the guessing (MatchDraw) leaves them alone. Taken by a draw it guessed, the
+  // object's own draw found its draw gone and guessed in turn, and so on down the line (r307 puzzle,
+  // 30.10.2026: a turn starts new sparkles; the pieces' triangles were drawn between two fields,
+  // squashed, in the in-between picture: ghosts)
+  std::vector<std::uint8_t> recReserved;
   std::unordered_map<std::uint32_t, Copy> interpCopies;  // the pass's own EFB copies
   std::unordered_set<std::uint32_t> interpCopied;         // addresses it copied to
   std::unordered_set<std::uint64_t> interpUploads;        // textures it uploaded (Run(next) skips them)
@@ -1042,6 +1049,7 @@ struct GxRenderer::Impl {
       recFloatsNew.push_back(xf.proj[i / 4][i % 4]);
     recFloatsNew.insert(recFloatsNew.end(), &xf.matAmb[0][0], &xf.matAmb[0][0] + 16);
     r.owner = curOwner;
+    r.base = curOwner ? ownerBase : 0;
     r.life = curLife;
     r.shape = DrawSig(d, k, false);
     if (curOwner) {
@@ -1132,7 +1140,7 @@ struct GxRenderer::Impl {
     float firstDist = 0.0f, bestDist = 0.0f;
     unsigned looked = 0;
     for (std::uint32_t i : candidates) {
-      if (recUsed[i])
+      if (recUsed[i] || recReserved[i])
         continue;
       const DrawRec &r = rec[i];
       float p[3] = {r.t[0], r.t[1], r.t[2]};
@@ -1278,6 +1286,13 @@ struct GxRenderer::Impl {
         owned = true;
         stats.interpOwned++;
       }
+    }
+    // a particle whose slot drew nothing in the picture before: a new one (a turn of the r307 puzzle
+    // starts sparkles), drawn as in the next picture; guessed, it took another's place
+    if (!a && curOwner && curLife != ~0u && !recOwnerDraws.count(ownerBase)) {
+      stats.interpOwnedNew++;
+      stats.interpKindUnmatched[kind]++;
+      return 0;
     }
     auto it = recBySig.find(sig);
     if (!a)
@@ -4468,6 +4483,13 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
       m.recByLook[m.rec[i].look].push_back(i);
   }
   m.recUsed.assign(m.rec.size(), 0);
+  m.recReserved.assign(m.rec.size(), 0);
+  for (std::uint32_t i = 0; i < m.rec.size(); i++) {
+    if (!m.rec[i].base)
+      continue;
+    auto pc = m.recOwnerDraws.find(m.rec[i].base), nc = m.nextOwnerDraws.find(m.rec[i].base);
+    m.recReserved[i] = pc != m.recOwnerDraws.end() && nc != m.nextOwnerDraws.end() && pc->second == nc->second;
+  }
   m.ipDraws = m.ipMatched = m.ipTurned = 0;
   m.camValid = false;
   m.camGuesses = m.camVotes = 0;

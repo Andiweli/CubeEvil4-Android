@@ -311,6 +311,13 @@ char gGxDir[1024];
 unsigned gGxCount;
 bool gGxAttached;
 
+// RE4_GX_DUMP_SERIES=N: each chosen frame starts a series of N chunks, the one that starts over
+// and the N-1 right after it, numbered on (gx-<frame>.bin, frame + 1 ...), as the app's R3 series:
+// gx_chunk_render draws them on one renderer and with RE4_GX_INTERP=1 the in-between pictures of
+// 60 FPS between them (the ghosts of the r307 puzzle, 30.10.2026: until then only the device made
+// such series)
+unsigned gGxSeries, gGxSeriesLeft, gGxSeriesFrame;
+
 // RE4_GX_DUMP_FREE="150,600": also these frames after the player became free
 // (state_trace.cpp), e.g. while the test script has the map open
 extern "C" long re4_trace_free_at(void);
@@ -360,6 +367,9 @@ bool gxWanted(unsigned frame)
     if (gxWantedAfterFree(frame) || gxWantedAt(frame)) {
         return true;
     }
+    if (gGxSeries) {
+        return false;  // series: only the frames asked for
+    }
     static const unsigned kEarly[] = {60, 300, 600, 900, 1200, 1500, 1800, 2400};
     for (unsigned f : kEarly) {
         if (frame == f) {
@@ -382,12 +392,17 @@ bool gxWanted(unsigned frame)
 void gxDumpHook(unsigned frame)
 {
     if (gGxAttached) {
-        if (const Re4GxChunk* c = re4_core_gx_acquire()) {
-            if (c->flags & RE4_GX_CHUNK_RESET) {
+        while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+            const bool reset = (c->flags & RE4_GX_CHUNK_RESET) != 0;
+            if (reset || gGxSeriesLeft) {
+                if (reset) {
+                    gGxSeriesFrame = frame;
+                    gGxSeriesLeft = gGxSeries;
+                }
                 char path[1100];
-                snprintf(path, sizeof(path), "%s/gx-%06u.bin", gGxDir, frame);
+                snprintf(path, sizeof(path), "%s/gx-%06u.bin", gGxDir, gGxSeriesFrame);
                 if (FILE* f = fopen(path, "wb")) {
-                    bool ok = re4gxio::Write(f, *c, frame);
+                    bool ok = re4gxio::Write(f, *c, gGxSeriesFrame);
                     fclose(f);
                     if (ok) {
                         gGxCount++;
@@ -395,14 +410,21 @@ void gxDumpHook(unsigned frame)
                                 (unsigned) c->draws, (unsigned) c->vertexCount, (unsigned) c->textureBytes);
                     }
                 }
+                gGxSeriesFrame++;
+                if (!reset && gGxSeriesLeft) {
+                    gGxSeriesLeft--;
+                }
             }
             re4_core_gx_release(c);
-            re4_core_gx_detach();
-            gGxAttached = false;
+            if (!gGxSeriesLeft) {
+                re4_core_gx_detach();
+                gGxAttached = false;
+                return;
+            }
         }
         return;
     }
-    if (gGxCount < 24 && gxWanted(frame + 1)) {
+    if (gGxCount < 24 * (gGxSeries + 1) && gxWanted(frame + 1)) {
         re4_core_gx_acquire();  // attaches; the chunk after the next display copy starts over
         gGxAttached = true;
     }
@@ -439,6 +461,9 @@ struct DumpInstall {
         const char* gx = getenv("RE4_GX_DUMP");
         if (gx && *gx) {
             snprintf(gGxDir, sizeof(gGxDir), "%s", gx);
+            const char* series = getenv("RE4_GX_DUMP_SERIES");
+            gGxSeries = series ? (unsigned) strtoul(series, 0, 10) : 0;
+            gGxSeries = gGxSeries > 1 ? gGxSeries - 1 : 0;
             re4_add_frame_hook(gxDumpHook);
         }
     }

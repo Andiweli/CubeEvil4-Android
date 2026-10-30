@@ -187,6 +187,44 @@ Projektinhabers); `bughunt` zweigt davon ab.
     „Wettereffekte“ (Nebelschwaden, Regen, Wasserspritzer) und „Spezialeffekte“ (Dampf, Flüssigstickstoff,
     Hitzeflimmern, Wasser), die Erklärungen nur als Fußtext. **Umgesetzt (Patch 0149, `runtime/potato.cpp`, App),
     am PC geprüft; Gerätetest und Messung offen.**
+31. **Geisterbilder mit 60 FPS: Farbrätsel r307, Feuer, sich auflösende Gegner** (Nutzermeldung mit Bildschirmfoto,
+    30.10.2026) – behoben im Renderer (Abschnitt „Geisterbilder in den Zwischenbildern“), am PC mit Bildfolgen geprüft;
+    **Gerätetest offen**.
+
+## Geisterbilder in den Zwischenbildern (30.10.2026, lokal, Branch `golden-master`, WSL-Baum `~/re4-ghost/RE4`)
+
+- **Meldung:** vivo V2426 (Mali-G715-Immortalis MC11, Android 16, 64 bit), **0.95.2-beta**, Debug-Discs; Einstellungen
+  laut Protokoll: Auflösung 4× (`scaleHalves=8`), MSAA aus (`samples=1`), **60 FPS an** (`smooth60`), Frame-Skip aus
+  (schließt sich mit 60 FPS aus), FXAA an, Tiefenschärfe an, Anisotropie 16, Force Performance an; Potato-Modus gab es
+  in 0.95.2 noch nicht (keine Zeile im Protokoll). Spielstand in r301 geladen, danach r303–r306. Das Rätsel („Turn
+  which color panel?“) steht in **r307** (Stage 3, Insel): neun Teile, jede Farbwahl dreht die Teile einer Farbe
+  (`r307_turnPiece`); jedes Teil ist ein Raumeffekt (`EstSet`, Effekte 0x1A–0x29, Teilchen aus dem Effekt-Pool). Auf dem
+  Foto: blasse, gestauchte Dreiecke zwischen zwei Feldern, Teile fehlen. Dazu laut Nutzer dasselbe bei Feuer und bei
+  Gegnern, die sich nach dem Tod auflösen.
+- **Neu: Bildfolgen am PC** (`core_api.cpp`, `RE4_GX_DUMP_SERIES=N`): jedes gewählte Bild (`RE4_GX_DUMP_FREE`/`_AT`)
+  beginnt eine Folge aus N aufeinanderfolgenden Bildstücken wie die R3-Serie des Geräts; `gx_chunk_render` zeichnet sie
+  auf einem Renderer und mit `RE4_GX_INTERP=1` die Zwischenbilder dazu. Bisher gab es solche Folgen nur vom Gerät. Das
+  Rätsel am PC: Debug-Start r307, `RE4_TEST_PLACE="free+30:area=5"`, `RE4_PAD_FREE_SCRIPT="A@60 A@160 A@300 A@400"`
+  (untersuchen, ja, Rot drehen), Folgen ab `free+340` und `free+392`.
+- **Ursache (nachgestellt):** Im Ruhezustand sind die Zwischenbilder richtig. Beim Drehen setzt das Spiel neue Effekte
+  (Funkeln, rotes Aufleuchten); deren Teilchen-Plätze haben im Bild davor nichts gezeichnet. `BlendDraw` fand sie also
+  nicht über ihre Marke und **riet** über Aussehen und Abstand (`MatchDraw`). Dabei nahm es das Gegenstück eines
+  vorhandenen Teils des Rätsels; dessen eigene Zeichnung fand ihr Gegenstück dann belegt, riet ihrerseits und nahm das
+  des nächsten Teils, und so weiter. Die Dreiecke wurden halb zum Nachbarfeld gezeichnet, ihre Drehung linear gemischt
+  (gestaucht, bis zum flachen Streifen), Farbe und Deckkraft gemischt (blass); Bild 1204 der Folge zeigt genau das Foto.
+  Gemessen: 15 Zeichnungen mit Marke gerieten in diese Kette, nur 378 statt 393 über ihr Objekt.
+- **Behebung (`gx_gl.cpp`, nur Renderer, Kern unverändert):** (1) ein Teilchen (Marke mit Lebenszähler), dessen Platz im
+  Bild davor nichts gezeichnet hat, ist neu und steht wie im nächsten Bild (Zähler „neu belegt“); (2) beim Raten bleiben
+  die Gegenstücke von Objekten tabu, die im nächsten Bild gleich oft zeichnen (`recReserved`): sie gehören deren eigenen
+  Zeichnungen. Das Raten bleibt für Zeichnungen ohne Marke und für Objekte mit wechselnder Zahl Vierecke.
+- **Prüfungen am PC (Debug-Discs, alter gegen neuen Renderer, je Folge 40 Bilder, Zwischenbild mit Anteil 0,5 und 0):**
+  r307 Rätsel: Zwischenbild beim Drehen ohne Geister, Ruhezustand unverändert, alle echten Bilder byte-gleich; r304
+  Gegner mit One-Hit-Kill erschossen (Tod bis Ausblenden): neuer Mündungsrauch steht gleich an seinem Platz statt
+  geschrumpft geraten, sonst gleich (der Körper lag hinter dem Gitter, das Auflösen selbst war kaum im Bild); Feuer
+  r224 (Lava) und r226 (Fackeln) sowie r301/r305 (Insel): Zwischenbilder alt und neu gleich (r224: 3 Bilder mit
+  höchstens 42 Bildpunkten Unterschied). Test `TestInterpolationSparkle` (`gx_gl_check` 0 Fehler; Gegenprobe mit dem
+  alten `gx_gl.cpp`: 2 Fehler). Kern i686-O2 mit der Folgen-Option gebaut, 0 Fehler.
+- **Nicht getestet:** auf dem Gerät; Feuer und Auflösen in genau den Szenen des Nutzers (keine Aufnahme davon).
 
 ## Ingame-Menü: Seite Steuerung neu, Zielgeschwindigkeit, Update-Knopf (30.10.2026, lokal, Branch `golden-master`)
 

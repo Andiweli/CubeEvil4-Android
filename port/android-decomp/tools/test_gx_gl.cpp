@@ -1873,6 +1873,65 @@ void TestInterpolationOwners() {
   }
 }
 
+// A new particle in B (a slot that drew nothing in A, the sparkles of a turn of the r307 puzzle) drawn
+// before three alike ones that stand still: it stands where it is in B (-2000), and the three keep their
+// own places. Guessed, it took the first one's place (halfway at -3000), the first then the second's
+// (-2000) and so on down the line: ghosts between the puzzle's fields (30.10.2026).
+void SparkleScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  auto particle = [&](std::uint32_t object, std::uint32_t life, float x) {
+    b.Owner(object, 0x81234560u, 0x12, life);
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  };
+  if (second)
+    particle(0x80100540u, 0x00070001u, -2000.0f);
+  particle(0x80100000u, second ? 0x00050011u : 0x00050010u, -4000.0f);
+  particle(0x80100150u, second ? 0x00050011u : 0x00050010u, 0.0f);
+  particle(0x801002A0u, second ? 0x00050011u : 0x00050010u, 4000.0f);
+  b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationSparkle() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  SparkleScene(ba, 1, false, &a);
+  SparkleScene(bb, 2, true, &b);
+  r.Run(a);
+  Check(r.Interpolate(a, b, 0.5f), "sparkle: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  const auto fresh = TexPixel(xfb, px(-2000.0f), 264), between = TexPixel(xfb, px(-3000.0f), 264),
+             p1 = TexPixel(xfb, px(-4000.0f), 264), p2 = TexPixel(xfb, px(0.0f), 264),
+             p3 = TexPixel(xfb, px(4000.0f), 264), off = TexPixel(xfb, px(2000.0f), 264);
+  const bool right = Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0) && Near(p1, 0, 255, 0) &&
+                     Near(p2, 0, 255, 0) && Near(p3, 0, 255, 0) && Near(off, 0, 0, 0);
+  Check(right, "sparkle: a new particle stands where it is in B, the others keep their places");
+  Check(r.Stats().interpOwned == 3 && r.Stats().interpOwnedNew == 1, "sparkle: three found by their object, one new");
+  if (!right)
+    Print("fresh", fresh), Print("between", between), Print("p1", p1), Print("p2", p2), Print("p3", p3),
+        Print("off", off);
+  Check(glGetError() == GL_NO_ERROR, "sparkle: no GL error");
+  r.Release();
+}
+
 // An object whose number of quads changes from one picture to the next (a flame's trail of sprites):
 // not matched by "n-th draw of the object" (its sprites would take each other's places), the old way
 // instead; with the same number as before by its object as usual.
@@ -2788,6 +2847,7 @@ int main() {
   TestInterpolationEffects();
   TestInterpolationForget();
   TestInterpolationOwners();
+  TestInterpolationSparkle();
   TestInterpolationTrail();
   TestInterpolationExtras();
   TestSmoothPacer();
