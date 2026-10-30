@@ -56,6 +56,12 @@ struct GxStats {
   unsigned uniformUploads = 0, uniformBytes = 0, programSwitches = 0, textureBinds = 0, stateChanges = 0,
            attributeSetups = 0;
   unsigned streamWaits = 0;  // the uniform stream waited for the GPU before reusing a quarter
+  // draws that needed no GL change after the draw before them in the same chunk (same program, textures,
+  // samplers, state, attribute setup, uniforms, primitive, no copy between): one draw call could take
+  // them together; and those that differed only in uploaded uniforms (the matrices or colours). A
+  // measurement for merging draw calls (tester's proposal 30.10.2026), not used for drawing
+  unsigned mergeSame = 0, mergeUniform = 0;
+  unsigned mergeMatrixOnly = 0;  // of mergeUniform: only the vertex side (XF: matrices, lights) changed
   // the uniform stream moved on to its next quarter: in all, and inside a chunk (a chunk larger
   // than the room left; between chunks otherwise, gx_gl.cpp)
   unsigned streamSwitches = 0, streamSplits = 0;

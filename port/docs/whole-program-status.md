@@ -344,6 +344,21 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Zeichenbefehle zusammenfassen: Messung (30.10.2026 nachts, lokal, `golden-master`)
+
+Vorschlag eines Testers (Redmi 15C): Instancing, ferne „Stay“-Gegner weglassen, Raumgeometrie bündeln,
+`glMapBufferRange` ohne Synchronisation. Eingeordnet: Instancing passt nicht (jede Figur hat eigene, je Bild
+berechnete Eckpunkte), Weglassen verfälscht das Bild („Stay“ ist ein Verhalten, keine Sichtbarkeit), Punkt 4 ist schon
+so (`gx_gl.cpp`, `GL_MAP_UNSYNCHRONIZED_BIT`). Für Punkt 3 in der Form „aufeinanderfolgende Zeichenbefehle ohne
+Änderung zusammenfassen“ zählt `GxStats` jetzt `mergeSame` (keine GL-Änderung zum Befehl davor), `mergeUniform` (nur
+andere Uniforms) und `mergeMatrixOnly` (nur der XF-Block: Matrizen, Licht); `gx_chunk_render` zeigt sie mit
+`RE4_GX_WORK=1`. **Gemessen am PC** (i686, Debug-Discs, Bildfolgen): r100 im Wald 495 Befehle je Bild – 3 ohne
+Änderung, 223 nur mit anderen Uniforms, davon 183 nur Matrizen/Licht; r10a bei zwei Ganados 452 Befehle – 8, 198, 190.
+Ohne Umbau lässt sich also fast nichts zusammenfassen; etwa 40 % der Befehle unterscheiden sich vom vorigen nur in den
+Matrizen. Die zusammenzufassen hieße, mehrere XF-Stände in einen Puffer zu legen und je Eckpunkt einen Index
+mitzugeben (oder die Eckpunkte auf dem Prozessor umzurechnen) – ein größerer Umbau mit Folgen für 60 FPS; Entscheidung
+des Projektinhabers offen.
+
 ## Version 0.96.1-beta (30.10.2026, lokal, Branch `golden-master`)
 
 Wunsch des Projektinhabers: `versionName` 0.96.1-beta, `versionCode` 83, Releasetext

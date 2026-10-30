@@ -534,6 +534,12 @@ struct GxRenderer::Impl {
   bool vaoBound = false;
   std::uint32_t attribMask = 0;      // enabled vertex attributes of vao
   std::uint32_t attribLayout = ~0u, attribStride = 0, attribBase = ~0u;
+  // the counters after the draw before (GxStats::mergeSame / mergeUniform), valid within a chunk
+  struct MergeSnap {
+    unsigned uniforms, programs, binds, states, setups, copies, displays;
+    GLenum mode;
+  } mergeLast{};
+  bool mergeValid = false, mergeMatrix = false, mergePixel = false;
   GLuint attribBuffer = 0;
   // glDrawElementsBaseVertex (GLES 3.2 / OES / EXT): one attribute setup for
   // all draws of a layout; null: pointers per draw
@@ -2814,6 +2820,7 @@ struct GxRenderer::Impl {
       pxDirty = false;
       if (!pxValid || std::memcmp(&px, &pxSent, sizeof(px)) != 0) {
         UploadBlock(kPixelBinding, pxUbo, &px, 0, sizeof(PixelBlock), sizeof(PixelBlock));
+        mergePixel = true;
         pxSent = px;
         pxValid = true;
       }
@@ -2828,12 +2835,14 @@ struct GxRenderer::Impl {
                         p->lastMtx[2] != d.matrices[2])) {
       glUniform3ui(p->mtx, d.matrices[0], d.matrices[1], d.matrices[2]);
       std::memcpy(p->lastMtx, d.matrices, sizeof(p->lastMtx));
+      mergeMatrix = true;
     }
     if (p->widen >= 0) {
       const float w = WidenFor(k);
       if (p->lastWiden != w) {
         glUniform1f(p->widen, w);
         p->lastWiden = w;
+        mergeMatrix = true;
       }
     }
     if (!unitsValid) {
@@ -2887,6 +2896,24 @@ struct GxRenderer::Impl {
     else
       glDrawElements(mode, static_cast<GLsizei>(d.indexCount), GL_UNSIGNED_SHORT, indices);
     Split(GxStats::kSplitDraw);
+    if (!interpPass) {
+      const MergeSnap now{stats.uniformUploads, stats.programSwitches, stats.textureBinds, stats.stateChanges,
+                          stats.attributeSetups, stats.textureCopies, stats.displayCopies, mode};
+      if (mergeValid && !blended && now.programs == mergeLast.programs && now.binds == mergeLast.binds &&
+          now.states == mergeLast.states && now.setups == mergeLast.setups && now.copies == mergeLast.copies &&
+          now.displays == mergeLast.displays && now.mode == mergeLast.mode) {
+        if (now.uniforms == mergeLast.uniforms && !mergeMatrix)
+          stats.mergeSame++;
+        else {
+          stats.mergeUniform++;
+          if (!mergePixel)
+            stats.mergeMatrixOnly++;
+        }
+      }
+      mergeLast = now;
+      mergeValid = !blended;
+      mergeMatrix = mergePixel = false;
+    }
     stats.draws++;
     if (mode == GL_TRIANGLES)
       stats.triangles += d.indexCount / 3;
@@ -4159,6 +4186,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     return;
   if (!m.interpPass)
     m.stats.chunks++;
+  m.mergeValid = false;
   m.splitAt = std::chrono::steady_clock::now();
   // a real Run notes its draws for the in-between picture after it
   const bool record = m.recordDraws && !m.interpPass;
