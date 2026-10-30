@@ -1,0 +1,64 @@
+# Retail data (port/docs/retail-eu-plan.md, user report 30.10.2026): a new game on Easy starts with the shotgun.
+# The European set_game (main.dol 0x80018c70, read with retail_code.py) reads game_mode after the handgun: at 3 or
+# less (Easy) it hands out the shotgun (0x2C, levels 0), a first aid spray (5), 20 handgun rounds (4) and 15
+# shotgun shells (0x18) through PutInCase (the case places them; size 0), above Easy the handgun ammo and the
+# spray at the debug build's fixed places. The Japanese set_game is the same. Nothing changes with the debug
+# build's discs or above Easy. A port patch for retail data.
+# The European R101Init (st1_1.rel 0x9a4) then switches the shotgun's item area 0x8A in the house off on Easy, so
+# it is not there twice (the data have it on every difficulty); the Japanese one too.
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -21,6 +21,7 @@
+ #include <stdlib.h>
+ #include "player.h"
+ #include "em_dm_val.h"
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
+ 
+ 
+ // One weapon (22 bytes): item id, bullet attribute, weapon number/type, bullet item id, magazine size per
+@@ -277,6 +278,15 @@
+         p->board = 1;
+         arm(p);
+     }
++    /* PORT (patch 0148): on Easy the European / Japanese release starts with the shotgun, a spray, 20
++       handgun rounds and 15 shells, each placed by PutInCase (their set_game, main.dol 0x80018c70: game_mode
++       3 or less); above Easy the debug build's two items at their fixed places */
++    if ((re4_disc_retail_eu() || re4_disc_retail_jp()) && pG->game_mode <= 3) {
++        PutInCase(0x2C, 1, 0);
++        PutInCase(0x05, 1, 0);
++        PutInCase(0x04, 20, 0);
++        PutInCase(0x18, 15, 0);
++    } else {
+     get(0x04, 20);
+     {
+         cItem* p = newbie();
+@@ -293,6 +303,7 @@
+         p->orient = 0;
+         p->board = 1;
+     }
++    }
+     if (trial_flag != 0) {
+         get(0x30, 0);
+         {
+--- a/src/st1/r101.cpp
++++ b/src/st1/r101.cpp
+@@ -41,6 +41,7 @@
+ #include "snd.h"
+ #include "math_sub.h"
+ #include "rnd.h"
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
+ 
+ // Room 1-01 (D:/Bio4/Prog/r101.cpp): the village; the first fight, the tower and the enemy resets,
+ // the church bell event (s30), the house event (s20), the binocular view (s00) and the door messages.
+@@ -255,6 +256,11 @@
+             m->LightInfo.EnableMask = (m->LightInfo.EnableMask & ~0x20) | 8;
+         }
+     }
++    /* PORT (patch 0148): on Easy the European / Japanese R101Init (st1_1.rel 0x9a4) switches the shotgun's
++       item area 0x8A off: that game starts with the shotgun (cItemMgr::set_game) */
++    if ((re4_disc_retail_eu() || re4_disc_retail_jp()) && pG->game_mode <= 3) {
++        SceAtSetEnable(0x8A, 0);
++    }
+ }
+ 
+ // Per-frame room main: nothing.

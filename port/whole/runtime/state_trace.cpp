@@ -300,6 +300,34 @@ void areaText(const SCE_AT_DATA* w, char* out, size_t size)
     }
 }
 
+// RE4_TRACE_ITEMS=1: the case and the room's item areas when the room runs and once the player is free (EU
+// Easy start set, patch 0148: what a new game gives and what the room lays out)
+void logItems(const char* when)
+{
+    static const char* items = getenv("RE4_TRACE_ITEMS");
+    if (!items || *items != '1') {
+        return;
+    }
+    re4_log("items (%s): %d slots, armed 0x%02x", when, (int) ItemMgr.m_array_num, (unsigned) ItemMgr.weaponId());
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; p && i < ItemMgr.m_array_num; i++, p++) {
+        if (p->isAlive(pG->pl_type == 1 ? 1 : 0)) {  // m_char as roomInit sets it
+            re4_log("items (%s): case item 0x%02x num %u bullets %u levels 0x%04x at (%d %d) board %u", when,
+                    (unsigned) p->id, (unsigned) p->num, (unsigned) (p->bullet & 0x1FFF), (unsigned) p->lv, (int) p->x,
+                    (int) p->y, (unsigned) p->board);
+        }
+    }
+    SCE_AT_DATA* w = sceAtSetOtStart();
+    while ((w = sceAtGetOtAddr(w)) != 0) {
+        if (w->id == SCEAT_ID_ITEM) {
+            const SCE_AT_DATA_ITEM& it = ((SCE_AT_ITEM*) w)->item;
+            re4_log("items (%s): room area 0x%02x item 0x%02x num %u on %u at (%.0f %.0f %.0f)", when, (unsigned) w->no,
+                    (unsigned) it.item_id, (unsigned) it.item_num, (unsigned) (w->be_flg & 1), (double) it.item_pos.x,
+                    (double) it.item_pos.y, (double) it.item_pos.z);
+        }
+    }
+}
+
 // The room's scene areas once its main loop runs: where the room scripts'
 // triggers are (r100: 0x0A starts the s03 event at the first house), for
 // placing the player in the checks (RE4_TEST_PLACE).
@@ -945,6 +973,7 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                 (unsigned) g->game_country,
                 g_player.died ? ", continue after a death" : "");
         g_player.died = false;
+        logItems("room runs");
         // RE4_TRACE_AT=1: the room's trigger areas (AEV records and those the room code made)
         static const char* traceAt = getenv("RE4_TRACE_AT");
         if (traceAt && *traceAt == '1') {
@@ -1228,6 +1257,7 @@ void frame(unsigned n)
             re4_log("run: player free (no event, no sub screen for %u frames) at frame %u, %ld after the room start",
                     kFreeFrames, n, (long) n - g_roomStart);
             re4_pad_script_free();
+            logItems("free");
             // RE4_TEST_AT_OFF="N[,N...]": switch these trigger / collision areas off once the player is free
             if (const char* off = getenv("RE4_TEST_AT_OFF")) {
                 for (const char* q = off; *q;) {

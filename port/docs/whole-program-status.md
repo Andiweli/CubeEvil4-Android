@@ -139,6 +139,7 @@ Projektinhabers); `bughunt` zweigt davon ab.
     **Offen, lokal:** die EU-Fassung von `gameInit`/`set_game` lesen (Gegenstand, Munition, Stufen, Abfrage
     `game_country`/Easy wie Patch 0140), als Patch nur mit EU-Discs; prüfen, dass r101 (Haus des Dr. Salvador) die
     Schrotflinte dann nicht ein zweites Mal hinlegt (EU-Code von r101/Gegenstandsliste).
+    **Behoben (Patch 0148, EU- und JP-Discs; Abschnitt „Branch bughunt lokal“), am PC geprüft; Gerätetest offen.**
 29. **Verdugo-Kampf (r21d) mit Einbrüchen** (Nutzerbericht 29.10.2026 21:01–21:50, Xiaomi 11 Lite 5G NE, Adreno 642L,
     0.95.2, EU-Discs, Auflösung 2,5×, FXAA). Der Kern hält 30 Bilder/s (33,4 ms, 17–21 ms Leerlauf), der Zeichen-Thread
     15–21 ms. **Die GPU ist der Engpass:** in r21d im Mittel 28,2 ms je Bild (Spitze 79,9 ms), 28 von 64 Messungen über
@@ -153,6 +154,30 @@ Projektinhabers); `bughunt` zweigt davon ab.
     Treffer, Hinweise und der Entfernungsnebel (GX-Fog, kostet kaum etwas, verdeckt die Raumränder). Umsetzung in der
     Effektverwaltung des Spiels nach Effektart (Port-Laufzeit/Patch mit Schalter aus der App), nicht im Renderer.
     Plan und Effektliste: lokale Sitzung mit Disc-Daten (Bildvergleich, GPU-Zeit in r21d vorher/nachher).
+
+## Branch bughunt lokal (30.10.2026, Windows-PC, Worktree `RE4-bughunt`, WSL-Baum `~/re4-bughunt/RE4`)
+
+- **EU Easy: Schrotflinte von Anfang an (Punkt 28), gelesen mit `retail_code.py`:**
+  - EU-`set_game` (main.dol 0x80018c70) liest nach der Pistole `game_mode` (EU `pG+0x8360`): bei 3 oder weniger
+    (Easy) `PutInCase(0x2C, 1, 0)` (Schrotflinte, Stufen 0, 6 Patronen geladen), `PutInCase(5, 1, 0)` (Spray),
+    `PutInCase(4, 20, 0)` (Pistolenmunition), `PutInCase(0x18, 15, 0)` (Schrotpatronen); der Koffer setzt sie selbst.
+    Darüber wie der Debug-Code (Munition und Spray an festen Plätzen). EU-`gameInit` (0x80019a40) ruft nur
+    `set_game(0)`; die Abfrage steckt allein in `set_game`. Die JP-Fassung ist gleich.
+  - EU-`R101Init` (`st1_1.rel` 0x9a4) schaltet am Ende auf Easy den Gegenstandsbereich 0x8A ab (`SceAtSetEnable`,
+    Relokation 0x801527d8): die Schrotflinte im Haus (1086 4704 −17573). Die Raumdaten haben sie auf jeder Stufe
+    (Bereiche auf Easy und Normal gleich). JP gleich.
+  - **Patch 0148** (`item.cpp`, `r101.cpp`), nur EU-/JP-Discs.
+  - Neue Testhilfe `RE4_TRACE_ITEMS=1`: Koffer und Gegenstandsbereiche des Raums ins Protokoll („items (room
+    runs)“/„items (free)“).
+  - **Geprüft (PC, i686, Debug-Start r101 mit `RE4_TEST_GAME_MODE`, der Weg über `gameInit` wie beim neuen Spiel):**
+    EU Easy: Pistole, Schrotflinte (6 geladen), Spray, 20 Pistolenmunition, 15 Schrotpatronen im Koffer, Bereich 0x8A
+    aus. EU Normal: Startsatz wie bisher, 0x8A an. Debug-Discs mit 5 und mit 3: wie bisher, 0x8A an.
+    **Nicht geprüft:** neues Spiel über das Titelmenü (gleiche Funktion), Gerät.
+  - **Weitere Easy-Stellen der EU, die die frühere Liste nicht hatte** (sie suchte `game_country`, diese lesen
+    `game_mode` direkt), nicht übernommen (Easy-Feinheiten): `itemInfo` (main.dol 0x80019b94: auf Easy mehr Munition
+    je Fundstück, z. B. 25 statt 15), r100 `r100_trap_set`, `r100_DoorCk`, `r100_WindowBreakCk`, `r100_StreanChk`,
+    `r100_Sce_zombi_dead` (`st1_0.rel`), Händler `stockNum`/`sellPrice`, `GetDropBullet`, `RandomItemCk`,
+    `GameAddPoint`. Auf Wunsch einzeln nachziehen.
 
 ## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
 
