@@ -57,12 +57,13 @@ release.
 - Releases: the debug build (`G4BE08`), the European retail release (`G4BP08`) with its five languages,
   chosen in the app menu (default: your phone's language), and the Japanese retail release (`G4BJ08`, in
   Japanese; the Korean fan translation in Korean). All use the same memory card.
-- Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube).
+- Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube); imports also
+  take a whole Dolphin card (`.raw`, `.gcp`), a ZIP file and European saves.
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
   aiming with the right stick); touch controls when no controller is connected, with touch in the
   inventory; comfort controls: gyro aiming, knife by swipe, latching L, R and B; with a controller,
   X, Y, L1, R1, L3 and R3 can take other functions (Controller Configuration).
-  SELECT opens the app menu (graphics, controls, cheats, memory card, error report); with the
+  SELECT opens the app menu (graphics, sound, controls, performance, cheats, memory card, error report); with the
   debug build, holding SELECT opens the game's own debug menu.
 - Android 6.0 or later, OpenGL ES 3.0.
 
@@ -109,7 +110,7 @@ recorded in `port/docs/whole-program-status.md` (German).
 SELECT opens it (rooms are chosen there). Use the debug menu with care: it is
 the developers' internal tool from 2004, and some of its options can hang or crash the game or
 leave the game (and a save made afterwards) in an odd state. Such problems come from the debug build itself, not from the port.
-With the European and Japanese discs there is no debug menu; the app menu has cheats instead (Management).
+With the European and Japanese discs there is no debug menu; the app menu has cheats instead (Cheats).
 
 ## How to use?
 
@@ -142,7 +143,8 @@ With the European and Japanese discs there is no debug menu; the app menu has ch
   Settings → Apps → CubeEvil4 → Language); with the European discs also the game language
   (a change restarts the game); graphics (resolution Dynamic or 1×–4× in half steps,
   anti-aliasing, texture filter, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, FPS
-  display, 60 FPS (experimental), Force Performance: Default or Use performance cores), controls (touch controls Auto, Force or Suppress; comfort
+  display, 60 FPS (experimental), Force Performance: Default or Use performance cores, Potato mode: weather and
+  special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress; comfort
   controls: Alternate Controls, gyro aiming with its sensitivity and inversion, knife by swipe,
   Latch L and R, Latch B; Controller Configuration), cheats (infinite health, infinite ammo,
   one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export

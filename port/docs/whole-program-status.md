@@ -307,6 +307,14 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Version 0.96.0-beta (30.10.2026, lokal, Branches `golden-master` und `master`)
+
+Wunsch des Projektinhabers: `versionName` 0.96.0-beta, `versionCode` 82, Releasetext
+`port/android-decomp/docs/releases/v0.96.0-beta.md` (seit 0.95.2: Patch 0148 EU Easy, 0149 Potato-Modus, 0150
+JP/KR-Vorfilm-Untertitel, 0151 Zielgeschwindigkeit, 0152 Handcannon, 0153 Lautstärke; Seiten AUDIO und CHEATS,
+neue Menüreihenfolge, Spielstand-Import EU/Dolphin-Karte/ZIP, 60-FPS-Geisterbilder, Update-Knopf). `master` danach
+auf `golden-master` vorgespult (OUYA bleibt getrennt). Gerätetest der neuen Seiten offen.
+
 ## Handcannon gegen Kettensäge, Ton im Endfilm, Menüs AUDIO und CHEATS (30.10.2026 nachmittags, lokal, golden-master)
 
 - **Handcannon gegen den Kettensägen-Mann (Nutzerbericht 30.10.2026 11:40, Debug-Discs):** „firepower doesn't match
