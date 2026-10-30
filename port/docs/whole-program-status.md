@@ -222,8 +222,8 @@ Projektinhabers); `bughunt` zweigt davon ab.
   - **Retroid (30.10.2026 mittags):** die GPU-Messreihe der App kann jetzt halbe Stufen (`2.5`) und als achten Wert die
     Potato-Maske (`RE4_GPU_BENCH=2.5/1/1/1/0/0/1/3,...`); neue Testhilfe `RE4_TEST_LOAD_FILE=N` (der Ladebildschirm
     beginnt auf „FILE N“). Mit den EU-Discs des Retroid gibt es keinen Debug-Start (kein `roomInfo.dat`): der Lauf mit
-    `-StartRoom 21d` landete in r120 (Film, Messung wertlos). Ein Lauf mit Laden landete in r400 statt r105 (die Zählung
-    der Dateien im Ladebildschirm ist eine andere als die Dateinamen); dort 15,4 / 11,6 / 16,4 / 15,6 / 13,5 ms GPU je Bild
+    `-StartRoom 21d` landete in r120 (Film, Messung wertlos). Ein Lauf mit Laden landete nicht im Spielstand, sondern über die Tastenfolge (A und START im
+    Titel) in The Mercenaries, Dorf (r400; Bildschirmfoto, vom Projektinhaber bestätigt); dort 15,4 / 11,6 / 16,4 / 15,6 / 13,5 ms GPU je Bild
     (aus / Wetter aus / Spezial aus / beides aus / aus) – Leon und Gegner bewegten sich, die Werte schwanken zu stark.
     **Offen:** Messung im Verdugo-Kampf durch den Projektinhaber (Spielstand Kapitel 12, Schalter im Menü, Fehlerbericht).
   - **Hinweis:** Verdugo (em2c) gehört laut Code zu r221 (Aufzug, Boss); im Debug-Start von r21d sind Novistadoren (em2d)
