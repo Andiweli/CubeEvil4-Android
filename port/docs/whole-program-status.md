@@ -244,6 +244,9 @@ Projektinhabers); `bughunt` zweigt davon ab.
     die Wolke ohnehin nicht, hätte aber den Rauch explodierender Fässer (`embarrel.cpp`, `EFF_ROOM`) und den Staub fallender
     Felsen (`emrock.cpp`) weggenommen; Test `potato` angepasst. **Fußtext:** „Flüssigstickstoff“ in allen zehn Sprachen gestrichen
     (Entscheidung des Projektinhabers, 30.10.2026); „Spezialeffekte“ = Dampf, Hitzeflimmern, Wasser.
+    **Projektinhaber auf dem Retroid (30.10.2026 mittags):** Feuer-/Lavaraum mit Hitzeflimmern und Rauch: Potato an
+    **54 FPS**, Potato aus **37 FPS** (Raum nicht genannt; die bisher größte gemessene Wirkung, das Hitzeflimmern kopiert
+    das Bild und zeichnet es verzerrt darüber).
   - **Hinweis:** Verdugo (em2c) gehört laut Code zu r221 (Aufzug, Boss); im Debug-Start von r21d sind Novistadoren (em2d)
     in einem Höhlengang. Der Nutzerbericht nennt r21d.
 
