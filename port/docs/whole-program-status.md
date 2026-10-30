@@ -380,8 +380,18 @@ die sich nur in den Matrizen unterscheiden, in einem GL-Aufruf schickt. Schalter
   Thread, der Ableger mit seiner Platz-Schleife ist dort eher langsamer; der teure Teil auf dem Handy (der Treiber je
   Aufruf, Redmi 15C 21–27 ms für 700–850 Aufrufe, also ~30 µs je Aufruf) fehlt am PC. Erwartung für Mali-G52: ~170
   Aufrufe weniger je Bild, grob 5 ms – **nicht gemessen**.
-- **Nicht geprüft:** Gerät (Redmi 15C, Retroid), Spielen mit eingeschaltetem Versuch; die Shader-Ableger auf Mali/Adreno
-  (Schleife über `gl_VertexID`, Uniform-Block mit 16 160 Byte).
+- **Retroid (Adreno 650, arm64, Wunsch des Projektinhabers: erst messen), 30.10.2026 spätabends:** APK aus `gx-merge`
+  (Kern aus `RE4-Fixed`, gebaut nach den letzten Kern-Änderungen), `test-core-app.ps1 -SkipCore -StartRoom 100
+  -Seconds 240`, einmal ohne, einmal mit `-CoreSettings RE4_GX_MERGE=1` (beide ohne 60 FPS, kein Absturz, kein
+  Shader-Fehler, Bilder richtig). Die Testfolge gibt in beiden Läufen dieselben 10-s-Fenster (gleiche Befehle je Bild);
+  verglichen die 14 Fenster ab der Ankunft: GL-Zeichenaufrufe **268 → 175 (−35 %)**, Split je Bildstück „draw calls“
+  0,76 → 0,74 ms, „uniform blocks“ 0,19 → 0,13, „vertex buffers“ 1,32 → 1,87 (Planen der Ketten, Indizes kopieren und
+  hochladen), „the rest“ 0,55 → 0,81; Prozessorzeit des Render-Threads ohne Programm-Bau 4,0 → 4,75 ms; GPU-Zeit 21,2 →
+  22,4 ms. **Auf dem Retroid also ein Verlust** (~0,75 ms Prozessor, ~1 ms GPU): sein Treiber kostet nur ~3 µs je Aufruf
+  (0,76 ms für 268), das Redmi 15C nach dem Testerbericht ~30 µs. Ob der Versuch dort gewinnt, zeigt nur eine Messung auf
+  einem Mali-Gerät. Auf dem Retroid ist seitdem die APK aus `gx-merge` installiert (ohne Schalter wie `golden-master`
+  46a55b98).
+- **Nicht geprüft:** Mali-Gerät (Redmi 15C), Spielen mit eingeschaltetem Versuch über längere Zeit.
 
 ## Zeichenbefehle zusammenfassen: Messung (30.10.2026 nachts, lokal, `golden-master`)
 
