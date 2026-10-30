@@ -1,0 +1,41 @@
+# A bug of the prototype (user report 30.10.2026, debug discs): the dragons in r222 (the hall over the lava where
+# zealots ride the dragon statues and breathe fire) seemed unbreakable. Each dragon hangs on two shot targets
+# (cEmHit cubes below objects 0x16/0x17, 0xD/0xE, 0x12/0x13); a target at 0 drops the dragon into the lava.
+# R222Init gives every target 7000 hit points. The European R222Init (st2_0.rel text 0x1409c, read with
+# retail_code.py) gives them 2000; the hit and fall code (Hit, dragon_down_ck) is the same word for word.
+# All discs.
+--- a/src/st2/r222.cpp
++++ b/src/st2/r222.cpp
+@@ -136,8 +136,8 @@
+         SceAtSetEnable(5, 1);
+         r222_setHit(0, 0x16);
+         r222_setHit(1, 0x17);
+-        r222_work->hp[0] = 7000;
+-        r222_work->hp[1] = 7000;
++        r222_work->hp[0] = 2000; /* port (patch 0155): the European value */
++        r222_work->hp[1] = 2000; /* port (patch 0155): the European value */
+         SmdGetObjPtr(0x14)->pos.y += 30000.0f;
+         SmdGetObjPtr(0x15)->pos.y += 30000.0f;
+         SmdGetObjPtr(0x16)->pos.y += 30000.0f;
+@@ -152,8 +152,8 @@
+     } else {
+         r222_setHit(2, 0xD);
+         r222_setHit(3, 0xE);
+-        r222_work->hp[2] = 7000;
+-        r222_work->hp[3] = 7000;
++        r222_work->hp[2] = 2000; /* port (patch 0155): the European value */
++        r222_work->hp[3] = 2000; /* port (patch 0155): the European value */
+         SmdGetObjPtr(0x25)->be_flag |= 0x20;
+         SmdGetObjPtr(8)->be_flag |= 0x20;
+         SmdGetObjPtr(9)->be_flag |= 0x20;
+@@ -177,8 +177,8 @@
+     } else {
+         r222_setHit(4, 0x12);
+         r222_setHit(5, 0x13);
+-        r222_work->hp[4] = 7000;
+-        r222_work->hp[5] = 7000;
++        r222_work->hp[4] = 2000; /* port (patch 0155): the European value */
++        r222_work->hp[5] = 2000; /* port (patch 0155): the European value */
+         SmdGetObjPtr(0x29)->be_flag |= 0x20;
+         SmdGetObjPtr(6)->be_flag |= 0x20;
+         SmdGetObjPtr(7)->be_flag |= 0x20;

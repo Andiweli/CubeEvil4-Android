@@ -344,6 +344,18 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Nutzermeldungen 30.10.2026 spätabends (lokal, `golden-master`)
+
+- **r222 (Drachenhalle über der Lava, Debug-Discs, Bericht 08:06): „die Ketten der Plattformen gehen nicht kaputt“.**
+  Jeder Drache hängt an zwei Treffer-Kästen (`cEmHit` unter den Objekten 0x16/0x17, 0xD/0xE, 0x12/0x13); einer auf 0
+  stürzt ihn in die Lava. Der Prototyp gibt jedem 7000 Lebenspunkte, die EU-Fassung (`R222Init`, `st2_0.rel` 0x1409c)
+  2000; `Hit` und `dragon_down_ck` sind Wort für Wort gleich. **Patch 0155** (Fehler des Prototyps, alle Discs). Gebaut;
+  im Spiel am PC nicht nachgeschossen, **Gerät offen**.
+- **Mercenaries, Zeitgeber:** der Ton der letzten 30 s ist in Debug, EU und US `SndCall(6, 0x78)` / Ende `0x7A`
+  (`MercSysMoveMain`, Vergleich `cmplwi 899`); die EU-Schleife ruft zusätzlich eine Funktion, wenn `Status_flg[3]` Bit
+  0x00100000 gesetzt ist, und ihr `MercSysWork` ist 4 Bytes anders aufgeteilt. Ursache von „Geld-Ton“ und doppelter
+  Uhr noch **offen** (Disc-Art des Nutzers unbekannt, kein Bericht).
+
 ## US-Daten gegen die neueren EU-Patches, Chicago Typewriter, Nutzermeldungen (30.10.2026 nachts, lokal, `golden-master`)
 
 Gearbeitet direkt in `RE4-Fixed` (Wunsch des Projektinhabers: golden-master), gebaut im WSL-Baum `~/re4-bughunt/RE4`.
@@ -10243,6 +10255,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0152 `em10.cpp` | Handcannon gegen Gegner mit `Wep_type` 4 (Kettensägen-Mann u. a.): `em10SetDmVal` nimmt die Waffe 0x0F wie die EU-Fassung von der 1000er-Grenze aus (Nutzerbericht 30.10.2026). Fehler des Prototyps, beide Disc-Arten |
 | 0153 `snd_iss4.cpp`, `snd_seq3.cpp`, `snd_str4.cpp` | Seite AUDIO des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026): Ausgabelautstärke × `re4_sound_volume()` (`runtime/sound_volume.cpp`, Musik bzw. Effekte in %, 100 wie das Spiel). Port-Patch |
 | 0154 `r40e.cpp` | Chicago Typewriter nach Assignment Ada (Nutzermeldung 30.10.2026): `gameResult` prüft und setzt `EXT_GET_TOMPSON` statt `EXT_GET_SW500`, wie EU und US (`st4_0.rel`). Fehler des Prototyps, alle Discs |
+| 0155 `r222.cpp` | Drachenhalle: die sechs Treffer-Kästen der Drachen mit 2000 statt 7000 Lebenspunkten, wie EU (`R222Init`, Nutzermeldung 30.10.2026). Fehler des Prototyps, alle Discs |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
