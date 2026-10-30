@@ -235,6 +235,15 @@ Projektinhabers); `bughunt` zweigt davon ab.
     oder so weit unter 33 ms; beim Tester (Adreno 642L, 28 ms) sind −15 bis −24 % geschätzt, **nicht gemessen**.
     **Nicht geprüft:** die Wolke des Flüssigstickstoffs (kein Tank wurde benutzt) und ob der gefrorene Verdugo ohne sie
     erkennbar bleibt; Aufnahmen in `gx-geraet.zip` des Laufs (nicht im Repository).
+    **Stickstoffwolke geprüft (Retroid, 30.10.2026 11:25, Projektinhaber spielt: zwei Tanks mit allen Effekten, zwei mit
+    beiden Schaltern aus, je R3):** die Tanks heißen im Code „bonbe“ (`r221` `r201_throwBonbe`, Aktionsbereiche 1, 2, 3,
+    0x10; Leon öffnet sie in einer kurzen Szene, die Wolke steht danach etwa 10 s). Die Wolke sind Raumcode-Effekte
+    (Besitzer `EFF_ROOM`, `Core_flg` 1) mit **additiver** Mischung (1 und 3): sie bleibt mit beiden Schaltern aus
+    sichtbar, der gefrorene Verdugo ist eisig-weiß gut zu erkennen (R3-Bilder des Geräts). Weggefallen sind 77 000 Dampf-
+    und 37 000 Wetter-Sprites. **Geändert:** die Regel „bedeckende Raumcode-Effekte = Spezialeffekte“ entfällt – sie traf
+    die Wolke ohnehin nicht, hätte aber den Rauch explodierender Fässer (`embarrel.cpp`, `EFF_ROOM`) und den Staub fallender
+    Felsen (`emrock.cpp`) weggenommen; Test `potato` angepasst. **Offen (Entscheidung des Projektinhabers):** der Fußtext
+    nennt bei „Spezialeffekte“ noch „Flüssigstickstoff“.
   - **Hinweis:** Verdugo (em2c) gehört laut Code zu r221 (Aufzug, Boss); im Debug-Start von r21d sind Novistadoren (em2d)
     in einem Höhlengang. Der Nutzerbericht nennt r21d.
 

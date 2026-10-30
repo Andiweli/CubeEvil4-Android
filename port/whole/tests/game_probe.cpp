@@ -1926,7 +1926,7 @@ extern "C" int re4probe_potato(void)
     bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 1, 0.0f)) ? 0x10 : 0;            // fire (additive) stays
     re4_potato_set(2);
     bad |= !re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 2.0f)) ? 0x20 : 0;          // steam
-    bad |= !re4_esp_skip(sprite(EFF_ROOM, 0, 0, 0, 0.0f)) ? 0x40 : 0;              // room code cloud (nitrogen)
+    bad |= re4_esp_skip(sprite(EFF_ROOM, 0, 0, 0, 0.0f)) ? 0x40 : 0;               // room code smoke stays
     bad |= !re4_esp_skip(sprite(EFF_EM10, 0, 0x18, 0, 0.0f)) ? 0x80 : 0;           // heat shimmer
     bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 0.0f)) ? 0x100 : 0;          // fog is weather
     re4_potato_set(3);

@@ -8,10 +8,13 @@
 //   weather effects (bit 0): fog banks, rain, water spray: rain / dust sheets over the screen (esp 0x04),
 //            rain / snow particles (0x15), and the room tables' covering sprites that do not rise (owner
 //            EFF_SST, blended over the picture: blend type 0, 4 or 5, or a scrolling sheet esp 0x08)
-//   special effects (bit 1): steam, liquid nitrogen, heat shimmer, water: the picture distortions that
-//            copy the picture and draw it warped (esp 0x0F, 0x18, any sprite with a shimmer type), the
-//            room tables' covering sprites that rise (steam), and the covering sprites the room code
-//            starts (owner EFF_ROOM, e.g. the liquid nitrogen in r21d)
+//   special effects (bit 1): steam, heat shimmer, water: the picture distortions that copy the picture
+//            and draw it warped (esp 0x0F, 0x18, any sprite with a shimmer type) and the room tables'
+//            covering sprites that rise (steam)
+//
+// The room code's effects (owner EFF_ROOM) stay: the smoke of exploding barrels and the dust of falling
+// rocks are such effects, and the liquid nitrogen of the Verdugo fight (r221 "bonbe") is drawn additive
+// and marks where he freezes (checked on the Retroid, 30.10.2026).
 //
 // Kept: muzzle flashes, blood, explosions, fire and glows (additive blends), dynamite, hits, the hints,
 // and the distance fog (GX fog, not an effect sprite). RE4_POTATO=mask switches it on without the app
@@ -105,9 +108,6 @@ int kind(const cEsp* esp)
     // the room tables' permanent ambient effects (SstSet: Core_flg 0x4001)
     if (esp->info.owner == EFF_SST && (esp->info.Core_flg & 0x4000)) {
         return rises(esp) ? kSpecial : kWeather;
-    }
-    if (esp->info.owner == EFF_ROOM) {
-        return kSpecial;
     }
     return 0;
 }
