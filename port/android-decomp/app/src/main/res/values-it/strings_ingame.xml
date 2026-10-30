@@ -54,6 +54,16 @@
     <string name="ingame_knife_swipe">Coltello con swipe</string>
     <string name="ingame_knife_swipe_help">Coltello con swipe: uno swipe rapido sull’immagine estrae il coltello e colpisce; scorri verso l’alto o verso il basso per colpire in alto o in basso.</string>
     <string name="ingame_latch_help">Blocca: una pressione (tasto o tocco) tiene premuto L, R o B fino alla successiva (con B bloccato Leon corre sempre).</string>
+    <string name="ingame_aim_invert_v">Inverti verticale</string>
+    <string name="ingame_aim_speed">Velocità di mira</string>
+    <string name="ingame_motion">Comandi di movimento</string>
+    <string name="ingame_aim_help">Inverti verticale e Velocità di mira: per mirare con il coltello e le armi al tocco o con un controller, non con il giroscopio. Inverti verticale cambia l’opzione del gioco stesso.</string>
+    <string name="ingame_update">Aggiorna</string>
+    <string name="ingame_up_to_date">Aggiornato</string>
+    <string name="ingame_update_loading">Download %1$d %%</string>
+    <string name="ingame_update_install">Installazione…</string>
+    <string name="ingame_update_failed">Aggiornamento non riuscito: %1$s</string>
+    <string name="ingame_update_allow">Consenti a CubeEvil4 di installare app, poi premi di nuovo Aggiorna.</string>
 
     <string name="ingame_card">Memory Card (slot A)</string>
     <string name="ingame_card_help">Esporta e importa i salvataggi come .gci (per Dolphin o GameCube).</string>

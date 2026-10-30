@@ -95,6 +95,8 @@ public class CoreMenuLayoutTest {
         config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+        // the update button beside "Back to the game": both of its labels
+        menu.showUpdate(scale == 1.5f ? AppUpdate.CURRENT : AppUpdate.OLDER);
         View root = (View) field(menu, "root");
         root.setLayoutDirection(config.getLayoutDirection());
         for (int page = 0; page < 7; page++) {  // 5: the button mapping of the controller, 6: of the keyboard
@@ -218,7 +220,41 @@ public class CoreMenuLayoutTest {
     return null;
   }
 
-  @Test public void gyroSwitchKeepsTheSameGapAboveAndBelow() throws Exception {
+  /** The body's direct child that holds `v`. */
+  private static View rowOf(View v, View body) {
+    View at = v;
+    while (at.getParent() != body) at = (View) at.getParent();
+    return at;
+  }
+
+  private static int rowIndex(View v, ViewGroup body) { return body.indexOfChild(rowOf(v, body)); }
+
+  @Test public void updateButtonSitsLeftOfResumeAndComparesVersions() throws Exception {
+    assertEquals(0, AppUpdate.compare("0.95.2-beta", "0.95.2-beta"));
+    assertEquals(-1, AppUpdate.compare("0.95.2-beta", "0.96.0-beta"));
+    assertEquals(-1, AppUpdate.compare("0.95.2-beta", "v0.95.10-beta"));
+    assertEquals(1, AppUpdate.compare("1.0", "1.0-beta"));
+    assertEquals(1, AppUpdate.compare("0.96.0-beta", "0.95.2-beta"));
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+      Button update = (Button) field(menu, "update"), resume = (Button) field(menu, "resume");
+      assertEquals("hidden until GitHub answered", View.GONE, update.getVisibility());
+      menu.showUpdate(AppUpdate.CURRENT);
+      View root = (View) field(menu, "root");
+      measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
+          Math.round(300 * activity.getResources().getDisplayMetrics().density));
+      assertEquals(activity.getString(R.string.ingame_up_to_date), update.getText().toString());
+      assertFalse("up to date: not clickable", update.isEnabled());
+      assertTrue("left of Back to the game", update.getRight() <= resume.getLeft());
+      assertEquals("in the same row", update.getTop(), resume.getTop());
+      menu.showUpdate(AppUpdate.OLDER);
+      assertEquals(activity.getString(R.string.ingame_update), update.getText().toString());
+      assertTrue("an update: clickable", update.isEnabled());
+    }
+  }
+
+  @Test public void controlsPageHasComfortAimRowAndMotionSection() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
@@ -228,14 +264,34 @@ public class CoreMenuLayoutTest {
       ViewGroup body = (ViewGroup) field(menu, "body");
       measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
+      Button latch = findButton(body, activity.getString(R.string.ingame_latch_b));
+      Button aimInvert = findButton(body, activity.getString(R.string.ingame_aim_invert_v));
+      Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
-      Button above = findButton(body, activity.getString(R.string.ingame_latch).split(" ")[0]);
-      Button below = findButton(body, activity.getString(R.string.ingame_gyro_invert_v).split(" ")[0]);
-      assertNotNull(gyro); assertNotNull(above); assertNotNull(below);
-      int gapAbove = top(gyro, body) - (top(above, body) + above.getHeight());
-      int gapBelow = top(below, body) - (top(gyro, body) + gyro.getHeight());
-      assertTrue("a gap above", gapAbove > 0);
-      assertEquals("the same gap above and below the gyro switch", gapBelow, gapAbove, 2);
+      Button gyroInvert = findButton(body, activity.getString(R.string.ingame_gyro_invert_h));
+      assertNotNull(latch); assertNotNull(aimInvert); assertNotNull(touchAim); assertNotNull(gyro); assertNotNull(gyroInvert);
+      int motion = -1, comfort = -1;
+      for (int i = 0; i < body.getChildCount(); i++) {
+        if (!(body.getChildAt(i) instanceof TextView) || body.getChildAt(i) instanceof Button) continue;
+        String t = ((TextView) body.getChildAt(i)).getText().toString();
+        if (t.equals(activity.getString(R.string.ingame_motion).toUpperCase(Locale.getDefault()))) motion = i;
+        if (t.equals(activity.getString(R.string.ingame_comfort).toUpperCase(Locale.getDefault()))) comfort = i;
+      }
+      assertTrue("the comfort heading", comfort >= 0);
+      // comfort: the switches, right under the latches "Invert vertical" with "Aim speed", then touch aiming
+      assertEquals("the aim row right under the latches", rowIndex(latch, body) + 1, rowIndex(aimInvert, body));
+      assertTrue("touch aiming after the aim row", rowIndex(touchAim, body) > rowIndex(aimInvert, body));
+      // motion controls below: the gyro switch with its slider, then its directions
+      assertTrue("the motion heading after touch aiming", motion > rowIndex(touchAim, body));
+      assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
+      assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
+      // each switch in the middle of the row its slider makes taller (wish of the project owner, 27.10.2026)
+      for (Button b : new Button[] {aimInvert, gyro}) {
+        View row = rowOf(b, body);
+        int above = top(b, body) - top(row, body), below = top(row, body) + row.getHeight() - top(b, body) - b.getHeight();
+        assertTrue("a gap above", above > 0);
+        assertEquals("the switch in the middle of its row", below, above, 2);
+      }
     }
   }
 
@@ -410,15 +466,12 @@ public class CoreMenuLayoutTest {
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       show.invoke(menu, 3, false);
       ViewGroup body = (ViewGroup) field(menu, "body");
-      MenuLayout.Columns output = (MenuLayout.Columns) body.getChildAt(3);
-      ViewGroup options = (ViewGroup) output.getChildAt(1);
-      Button fps = (Button) ((ViewGroup) options.getChildAt(0)).getChildAt(0);
-      Button skip = (Button) ((ViewGroup) options.getChildAt(1)).getChildAt(0);
-      Button smooth = (Button) ((ViewGroup) options.getChildAt(2)).getChildAt(0);
-      assertTrue(fps.getText().toString().contains(controller.get().getString(R.string.ingame_fps_display)));
-      assertTrue(skip.getText().toString().contains(controller.get().getString(R.string.ingame_frame_skip)));
+      // found by their labels (the page's rows moved with the Potato mode, 30.10.2026)
+      Button fps = findButton(body, controller.get().getString(R.string.ingame_fps_display));
+      Button skip = findButton(body, controller.get().getString(R.string.ingame_frame_skip));
+      Button smooth = findButton(body, controller.get().getString(R.string.ingame_smooth60));
+      assertNotNull(fps); assertNotNull(skip); assertNotNull(smooth);
       assertTrue(skip.isEnabled()); assertTrue(skip.hasOnClickListeners());
-      assertTrue(smooth.getText().toString().contains(controller.get().getString(R.string.ingame_smooth60)));
     }
   }
 }

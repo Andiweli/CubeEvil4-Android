@@ -54,6 +54,16 @@
     <string name="ingame_knife_swipe">Messer per Wischen</string>
     <string name="ingame_knife_swipe_help">Messer per Wischen: Ein schnelles Wischen über das Bild zückt das Messer und schneidet; nach oben oder unten wischen schneidet hoch oder tief.</string>
     <string name="ingame_latch_help">Einrasten: ein Druck (Taste oder Antippen) hält L, R oder B bis zum nächsten Druck (B eingerastet: Leon läuft dauerhaft).</string>
+    <string name="ingame_aim_invert_v">Vertikal umkehren</string>
+    <string name="ingame_aim_speed">Zielgeschwindigkeit</string>
+    <string name="ingame_motion">Bewegungssteuerung</string>
+    <string name="ingame_aim_help">Vertikal umkehren und Zielgeschwindigkeit: für das Zielen mit Messer und Waffen per Touch oder Controller, nicht mit dem Gyro. Vertikal umkehren stellt die Option des Spiels selbst um.</string>
+    <string name="ingame_update">Update</string>
+    <string name="ingame_up_to_date">Aktuell</string>
+    <string name="ingame_update_loading">Lädt %1$d %%</string>
+    <string name="ingame_update_install">Installiert…</string>
+    <string name="ingame_update_failed">Update fehlgeschlagen: %1$s</string>
+    <string name="ingame_update_allow">Erlaube CubeEvil4, Apps zu installieren, und drücke dann noch einmal Update.</string>
 
     <string name="ingame_card">Speicherkarte (Steckplatz A)</string>
     <string name="ingame_card_help">Spielstände als .gci exportieren und importieren (für Dolphin oder GameCube).</string>

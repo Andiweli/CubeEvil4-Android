@@ -113,6 +113,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_INVERT_V = "gyroInvertVertical", GYRO_INVERT_H = "gyroInvertHorizontal";
   // the menu's switch "Knife by Swipe" (watchTap: a swipe while playing draws the knife and slashes; on)
   static final String KNIFE_SWIPE = "knifeSwipe";
+  // the menu's "Invert vertical" and "Aim speed" of aiming by touch and controllers, not the gyro (wish of the
+  // project owner, 30.10.2026; CoreBridge.setAim: the game's own "reverse" option and the stick's turn while
+  // aiming, the touch area's swipes too; off, 1 = as the game)
+  static final String AIM_INVERT_V = "aimInvertVertical", AIM_SPEED = "aimSpeed";
+  static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
   static final String GRAPHICS_PREFS = "core_graphics";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
@@ -277,6 +282,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gyroAim = new GyroAim(this, main);
     gyroAim.setSensitivity(inputPrefs.getFloat(GYRO_SENSITIVITY, 1f));
     mouseSensitivity = clampMouse(inputPrefs.getFloat(MOUSE_SENSITIVITY, 1f));
+    aimInvert = inputPrefs.getBoolean(AIM_INVERT_V, false);
+    aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
     // the mouse (step 2 of the button mapping, 29.10.2026): captured while the game is in front, its
     // buttons through the keyboard's mapping, its movement the camera and, while aiming, the aim
     if (Build.VERSION.SDK_INT >= 26) {
@@ -302,6 +309,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
       CoreBridge.setPotato(CoreBridge.potatoMask(g));
+      CoreBridge.setAim(aimInvert, aimSpeed);
       // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
       int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
       if (!settings.contains("RE4_CHEATS=")) {
@@ -703,6 +711,22 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.i(TAG, "touch: swipes " + (on ? "draw the knife and slash" : "leave the knife alone"));
     }
 
+    @Override public void checkUpdate(AppUpdate.Listener listener) { AppUpdate.check(CoreActivity.this, listener); }
+
+    @Override public void startUpdate(AppUpdate.Listener listener) { AppUpdate.install(CoreActivity.this, listener); }
+
+    @Override public void aimInvertChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, on).apply();
+      aimInvert = on;
+      CoreBridge.setAim(aimInvert, aimSpeed);
+    }
+
+    @Override public void aimSpeedChanged(float value) {
+      aimSpeed = clampAimSpeed(value);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(AIM_SPEED, aimSpeed).apply();
+      CoreBridge.setAim(aimInvert, aimSpeed);
+    }
+
     @Override public boolean gameLanguages() { return retailEu; }
 
     @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
@@ -1102,9 +1126,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void send() {
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
-    // swipe aiming (Touch Aiming: Touch Area): the finger's way since the last event as angles
+    // swipe aiming (Touch Aiming: Touch Area): the finger's way since the last event as angles, with the
+    // menu's "Aim speed" and "Invert vertical" as the sticks
     float[] turn = input.takeAimSwipe();
-    if (turn != null) CoreBridge.aimTurn(turn[0], turn[1]);
+    if (turn != null) CoreBridge.aimTurn(turn[0] * aimSpeed, (aimInvert ? -turn[1] : turn[1]) * aimSpeed);
   }
 
   /** The keys the game maps or the app uses: which of them a device reports. */
@@ -1423,6 +1448,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     super.onWindowFocusChanged(focus);
     if (!focus) releaseAll();
     else main.post(this::updateMouseCapture);
+  }
+
+  // ---- aiming by touch and controllers (the menu's "Invert vertical", "Aim speed") ----
+  private boolean aimInvert;
+  private float aimSpeed = 1f;
+
+  /** The stored aim speed on the slider's steps (1 for anything else). */
+  static float clampAimSpeed(float v) {
+    if (Float.isNaN(v) || v < AIM_SPEED_MIN || v > AIM_SPEED_MAX) return 1f;
+    return Math.round(v / AIM_SPEED_STEP) * AIM_SPEED_STEP;
   }
 
   // ---- the mouse ----

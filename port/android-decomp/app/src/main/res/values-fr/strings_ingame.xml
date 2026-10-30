@@ -56,6 +56,16 @@
     <string name="ingame_knife_swipe">Couteau par balayage</string>
     <string name="ingame_knife_swipe_help">Couteau par balayage\u00A0: un balayage rapide sur l’image sort le couteau et frappe, balayez vers le haut ou vers le bas pour frapper en haut ou en bas.</string>
     <string name="ingame_latch_help">Verrouiller\u00A0: un appui (bouton ou écran) maintient L, R ou B jusqu’à l’appui suivant (B verrouillé\u00A0: Leon court en permanence).</string>
+    <string name="ingame_aim_invert_v">Inverser la verticale</string>
+    <string name="ingame_aim_speed">Vitesse de visée</string>
+    <string name="ingame_motion">Commandes de mouvement</string>
+    <string name="ingame_aim_help">Inverser la verticale et Vitesse de visée\u00A0: pour viser avec le couteau et les armes au toucher ou à la manette, pas au gyroscope. Inverser la verticale change l’option du jeu lui-même.</string>
+    <string name="ingame_update">Mettre à jour</string>
+    <string name="ingame_up_to_date">À jour</string>
+    <string name="ingame_update_loading">Téléchargement %1$d %%</string>
+    <string name="ingame_update_install">Installation…</string>
+    <string name="ingame_update_failed">Échec de la mise à jour\u00A0: %1$s</string>
+    <string name="ingame_update_allow">Autorisez CubeEvil4 à installer des applications, puis appuyez de nouveau sur Mettre à jour.</string>
 
     <string name="ingame_card">Carte mémoire (emplacement A)</string>
     <string name="ingame_card_help">Exporter et importer les sauvegardes au format .gci (pour Dolphin ou GameCube).</string>

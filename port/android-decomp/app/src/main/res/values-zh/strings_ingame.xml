@@ -55,6 +55,16 @@
     <string name="ingame_knife_swipe">滑动出刀</string>
     <string name="ingame_knife_swipe_help">滑动出刀：在画面上快速滑动即可拔刀挥砍；向上或向下滑动可向高处或低处挥砍。</string>
     <string name="ingame_latch_help">锁定：按一次（按键或轻触）即保持按住 L、R 或 B，再按一次松开（锁定 B 时里昂一直奔跑）。</string>
+    <string name="ingame_aim_invert_v">反转垂直方向</string>
+    <string name="ingame_aim_speed">瞄准速度</string>
+    <string name="ingame_motion">体感操作</string>
+    <string name="ingame_aim_help">反转垂直方向和瞄准速度：用于通过触控或手柄以小刀和武器瞄准，不用于陀螺仪瞄准。反转垂直方向会同时更改游戏自身的选项。</string>
+    <string name="ingame_update">更新</string>
+    <string name="ingame_up_to_date">已是最新</string>
+    <string name="ingame_update_loading">下载中 %1$d %%</string>
+    <string name="ingame_update_install">正在安装…</string>
+    <string name="ingame_update_failed">更新失败：%1$s</string>
+    <string name="ingame_update_allow">请允许 CubeEvil4 安装应用，然后再次点按“更新”。</string>
 
     <string name="ingame_card">记忆卡（插槽 A）</string>
     <string name="ingame_card_help">以 .gci 格式导出和导入存档（用于 Dolphin 或 GameCube）。</string>

@@ -162,6 +162,48 @@ Projektinhabers); `bughunt` zweigt davon ab.
     Hitzeflimmern, Wasser), die Erklärungen nur als Fußtext. **Umgesetzt (Patch 0149, `runtime/potato.cpp`, App),
     am PC geprüft; Gerätetest und Messung offen.**
 
+## Ingame-Menü: Seite Steuerung neu, Zielgeschwindigkeit, Update-Knopf (30.10.2026, lokal, Branch `golden-master`)
+
+Wünsche des Projektinhabers (30.10.2026):
+
+1. **Seite Steuerung umgebaut** (`CoreMenu.controls`): Abschnitt „Komfortsteuerung“ nur noch mit „Alternative
+   Steuerung“, „Messer per Wischen“, „L und R einrasten“, „B einrasten“, direkt darunter nebeneinander der neue Schalter
+   „Vertikal umkehren“ und der Regler „Zielgeschwindigkeit“ (0,5×–3×, Schritte 0,25, Standard 1×), dann die drei
+   Umschalter für Touch-Zielen und die Fußtexte. Neuer Abschnitt „Bewegungssteuerung“ darunter: „Gyro-Zielen“ mit
+   „Gyro-Empfindlichkeit“, „Vertikal umkehren“ / „Horizontal umkehren“ des Gyros (wie bisher). Zeile Schalter + Regler
+   als gemeinsamer Baustein `switchWithSlider` (Schalter mittig in der Zeile, wie beim Gyro seit 27.10.).
+2. **„Vertikal umkehren“ (Touch und Controller, nicht Gyro)** ist die eingebaute Spieloption `CFG_AIM_REVERSE`
+   (`pSys->Config_flg`, im Spiel unter Optionen/Controller; `PlWepLockCtrl`, Zielfernrohr, Fernglas, Harpune lesen
+   sie). Neu `runtime/aim_options.cpp`: die App schickt `re4_core_set_aim` (Bit 0 umkehren, ab Bit 8 Geschwindigkeit in
+   Prozent; auch über den Kernprozess, `kSetAim = 35`) beim Start und bei jeder Änderung; ein Bild-Haken setzt die
+   Option im nächsten Spielbild, `re4_game_language_after_card` setzt sie nach dem Lesen der Systemdatei wieder auf
+   den Wert der App (die App gewinnt wie bei der Sprache; eine Änderung im Optionsmenü des Spiels gilt bis zum
+   nächsten Start/Laden). Einstellungen `aimInvertVertical`, `aimSpeed` (`core_input`).
+3. **„Zielgeschwindigkeit“**: eine solche Einstellung gab es für Stick/Touch noch nicht (nur Gyro und Maus).
+   **Patch 0151** (`pl_wep.cpp`, `cam_extra.cpp`): `PlWepLockCtrl` (Waffen, Messerhaltung, Bogen: Neigung `m3r`,
+   Hüftdrehung `m_Fwork0`, Körperdrehung an der Grenze) und `CameraScope::move` (Zielfernrohr) multiplizieren die
+   Stick-Werte mit `re4_aim_speed()`; Steuerkreuz-Schritte unverändert; bei 1× ändert sich nichts. Die Wischbewegung
+   beim Touch-Zielen „Touchfläche“ (`CoreBridge.aimTurn`) nimmt Geschwindigkeit und Umkehren in der App mit (die
+   Maus nicht, sie hat ihren eigenen Regler).
+4. **Update-Knopf im Menükopf** links neben „Zurück zum Spiel“ (`AppUpdate.java`, `MenuLayout.Header` bekommt die
+   beiden Knöpfe als eine Reihe): beim Öffnen des Menüs fragt die App einmal pro Lauf
+   `api.github.com/repos/Andiweli/CubeEvil4-Android/releases/latest` (Tag = Version, die eine `.apk`). Gleiche (oder
+   neuere) Version: grün „Aktuell“, nicht drückbar; ältere: rot „Update“; der Knopf lädt die APK mit Fortschritt in
+   eine Sitzung des Paket-Installers von Android, Android fragt vor dem Installieren. Fehlt die Erlaubnis „Apps
+   installieren“, öffnet sich die Einstellungsseite dazu. Ohne Internet bleibt der Knopf unsichtbar. Neue Rechte
+   `INTERNET`, `REQUEST_INSTALL_PACKAGES`. Versionsvergleich `AppUpdate.compare` (Zahlen, dann Zusatz). Hinweis: eine
+   selbst gebaute APK (anderer Signaturschlüssel als das Release) kann Android nicht überschreiben, dann meldet der
+   Installer einen Fehler.
+
+Texte in zehn Sprachen (`check_translations.py` ok, prüft jetzt auch `AppUpdate.java`).
+**Geprüft (PC, 30.10.2026):** `:app:compileCoreDebugJavaWithJavac`, `:app:externalNativeBuildCoreDebug`, alle 8
+Tests von `CoreMenuLayoutTest` (alle Sprachen, Schriftgrößen, Breiten, beide Knopfzustände; neu: Reihenfolge der
+Steuerungsseite, Update-Knopf links neben „Zurück zum Spiel“, Versionsvergleich). Der Test der Leistungsseite fand
+die FPS-Knöpfe noch über feste Positionen (seit dem Potato-Modus falsch), jetzt über ihre Beschriftung. Die geänderten
+Kern-Dateien (Patch 0151 angewandt nach 0079, `aim_options.cpp`, `core_api.cpp`, `game_language.cpp`,
+`core_ipc_client.cpp`, `coreproc.cpp`) mit den Schaltern des i686-Builds einzeln übersetzt: fehlerfrei. **Nicht
+getestet:** voller Kern-Build und Spiel mit Disc-Daten, Gerätetest (Zielgeschwindigkeit, Umkehren, Update-Knopf).
+
 ## Vorfilm-Untertitel mit JP-/KR-Discs (30.10.2026, lokal, Branch `golden-master`, WSL-Baum `~/re4-jpsub/RE4`)
 
 Nutzermeldung mit zwei Bildschirmfotos (koreanische Discs, `movie/opening.sfd` vor der Autofahrt): unten japanische
@@ -9984,6 +10026,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0140 `game.cpp` | `gameStageInit` setzt mit den EU-Discs `game_country = game_mode > 3` wie ihre Fassung (das EU-„Easy-Byte“ `pG+0x4F9F` ist `game_country`): Bereichs-Flaggen JPN/USA, Schwierigkeitswert-Untergrenze und Raumzweige richten sich nach Easy/Normal statt nach der Sprache. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0141 `r203.cpp`, `r211.cpp`, `ss_map.cpp` | Easy-/Normal-Zweige der EU-Räume, die dem Debug-Code fehlen: r203 (Normal Meldungsbereich 6 an Tür 5 aus; Easy Tür 5 zu, kein Schlüssel nötig, weniger Ganados), r211 (Easy erster Kelch und Gruppe 0x20 mit Kollision; Normal Gruppe 0x20 aus), Karte auf Easy aus `SS/Esy`. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0150 `sofdec.cpp` | Vorfilm-Untertitel mit den JP-/KR-Discs (Nutzermeldung 30.10.2026: falsche Zeichen). Zu 0136 der japanische Zweig ihres `cSofdec`: bei Sprache 0 macht `initApp` (G4BP08 0x80161210, G4BJ08 0x80160b50) die Schrift aus `etc/movie.das` (Eintrag 5, 28 × 28) zur Schrift 2 der Untertitel, `finishMovie` (G4BJ08 0x801610b0) setzt die Stage-Schrift `pG->pStFnt` zurück. Debug-, EU- und US-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0151 `pl_wep.cpp`, `cam_extra.cpp` | „Zielgeschwindigkeit“ des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026, Seite Steuerung): `PlWepLockCtrl` (Waffen, Messer, Bogen) und `CameraScope::move` (Zielfernrohr) multiplizieren die Stick-Werte beim Zielen mit `re4_aim_speed()` (`runtime/aim_options.cpp`, 0,5–3, 1 wie das Spiel); Steuerkreuz unverändert. „Vertikal umkehren“ ist die Spieloption `CFG_AIM_REVERSE`. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

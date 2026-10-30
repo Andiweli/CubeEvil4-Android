@@ -55,6 +55,16 @@
     <string name="ingame_knife_swipe">Faca ao deslizar</string>
     <string name="ingame_knife_swipe_help">Faca ao deslizar: um deslize rápido sobre a imagem saca a faca e golpeia; deslize para cima ou para baixo para golpear alto ou baixo.</string>
     <string name="ingame_latch_help">Travar: um toque ou um botão mantém L, R ou B pressionado até o próximo (com B travado, Leon corre sempre).</string>
+    <string name="ingame_aim_invert_v">Inverter vertical</string>
+    <string name="ingame_aim_speed">Velocidade da mira</string>
+    <string name="ingame_motion">Controles de movimento</string>
+    <string name="ingame_aim_help">Inverter vertical e Velocidade da mira: para mirar com a faca e as armas por toque ou com um controle, não com o giroscópio. Inverter vertical muda a opção do próprio jogo.</string>
+    <string name="ingame_update">Atualizar</string>
+    <string name="ingame_up_to_date">Atualizado</string>
+    <string name="ingame_update_loading">Baixando %1$d %%</string>
+    <string name="ingame_update_install">Instalando…</string>
+    <string name="ingame_update_failed">Falha na atualização: %1$s</string>
+    <string name="ingame_update_allow">Permita que o CubeEvil4 instale apps e toque em Atualizar novamente.</string>
 
     <string name="ingame_card">Cartão de memória (slot A)</string>
     <string name="ingame_card_help">Exportar e importar jogos salvos como .gci (para Dolphin ou GameCube).</string>

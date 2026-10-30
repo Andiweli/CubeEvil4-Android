@@ -767,6 +767,13 @@ void re4_core_set_potato(int mask)
     re4_potato_set(mask);
 }
 
+extern "C" void re4_aim_set(int bits);
+
+void re4_core_set_aim(int bits)
+{
+    re4_aim_set(bits);
+}
+
 void re4_core_gx_depth(const unsigned* cells, unsigned serial)
 {
     re4_gx_depth_put(cells, serial);

@@ -5,6 +5,9 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <!-- the core mode passes the game's rumble to the device's vibrator -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- the in-game menu's update button (AppUpdate): GitHub's newest release, its APK to Android's installer -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- largeHeap: on 64 bit the core takes MEM1 from ART's large object space
          (core_mode.cpp holdMem1InLargeObjectSpace), for a moment with up to
          about 250 MB of arrays that count as Java memory -->

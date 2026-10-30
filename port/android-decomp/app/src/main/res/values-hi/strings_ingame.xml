@@ -54,6 +54,16 @@
     <string name="ingame_knife_swipe">स्वाइप से चाकू</string>
     <string name="ingame_knife_swipe_help">स्वाइप से चाकू: तस्वीर पर तेज़ स्वाइप चाकू निकालकर वार करता है; ऊपर या नीचे स्वाइप करने पर ऊँचा या नीचा वार होता है।</string>
     <string name="ingame_latch_help">लॉक: एक बार दबाने (बटन या टच) पर L, R या B अगली बार दबाने तक दबा रहता है (B लॉक होने पर लियोन लगातार दौड़ता है)।</string>
+    <string name="ingame_aim_invert_v">वर्टिकल उलटें</string>
+    <string name="ingame_aim_speed">निशाने की गति</string>
+    <string name="ingame_motion">मोशन नियंत्रण</string>
+    <string name="ingame_aim_help">वर्टिकल उलटें और निशाने की गति: टच या कंट्रोलर से चाकू और हथियारों से निशाना लगाने के लिए, जाइरो के लिए नहीं। वर्टिकल उलटें खेल का अपना विकल्प बदलता है।</string>
+    <string name="ingame_update">अपडेट</string>
+    <string name="ingame_up_to_date">नवीनतम</string>
+    <string name="ingame_update_loading">डाउनलोड %1$d %%</string>
+    <string name="ingame_update_install">इंस्टॉल हो रहा है…</string>
+    <string name="ingame_update_failed">अपडेट विफल: %1$s</string>
+    <string name="ingame_update_allow">CubeEvil4 को ऐप इंस्टॉल करने की अनुमति दें, फिर दोबारा अपडेट दबाएँ।</string>
 
     <string name="ingame_card">मेमोरी कार्ड (स्लॉट A)</string>
     <string name="ingame_card_help">सेव गेम .gci के रूप में एक्सपोर्ट और इम्पोर्ट करें (Dolphin या GameCube के लिए)।</string>

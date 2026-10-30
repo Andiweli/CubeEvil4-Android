@@ -106,6 +106,12 @@ public final class CoreBridge {
    * the special effects (steam, heat shimmer, water); 0 draws everything (the default).
    */
   public static native void setPotato(int mask);
+  /**
+   * The menu's "Invert vertical" and "Aim speed" for aiming the knife and the guns by touch or a controller:
+   * `invert` the game's own "reverse" option (kept over the system file's), `speed` the stick's turn while
+   * aiming (CoreActivity.AIM_SPEED_MIN .. AIM_SPEED_MAX, 1 as the game).
+   */
+  public static native void setAim(boolean invert, float speed);
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */
   static int potatoMask(android.content.SharedPreferences g) {
     return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);

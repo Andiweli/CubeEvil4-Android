@@ -82,6 +82,10 @@ final class CoreMenu extends Dialog {
     void gyroInvertChanged(boolean vertical, boolean on);
     /** The switch "Knife by Swipe" (the preferences hold it). */
     void knifeSwipeChanged(boolean on);
+    /** The switch "Invert vertical" of aiming by touch and controllers (the preferences hold it). */
+    void aimInvertChanged(boolean on);
+    /** The slider "Aim speed" of aiming by touch and controllers (the preferences hold it). */
+    void aimSpeedChanged(float value);
     /** The European discs are imported: the home page offers "Game language". */
     boolean gameLanguages();
     /** The game's language of a "Game language" choice (2..6; 0 the device's). */
@@ -97,6 +101,10 @@ final class CoreMenu extends Dialog {
     int cheatAction(int what);
     /** The game restarts with its language as it is (the extra games; the menu asked first). */
     void restartGame();
+    /** Asks GitHub for the newest release (AppUpdate.check), once per run; `listener` hears it. */
+    void checkUpdate(AppUpdate.Listener listener);
+    /** The update button: downloads the newest APK and hands it to Android's installer (AppUpdate.install). */
+    void startUpdate(AppUpdate.Listener listener);
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -112,7 +120,9 @@ final class CoreMenu extends Dialog {
   private final LinearLayout root, body;
   private final ScrollView scroll;
   private final TextView title;
-  private final Button back, resume;
+  private final Button back, resume, update;
+  private static final int UPDATE_GREEN = 0xff2d5233, UPDATE_GREEN_EDGE = 0xff4f8a57;
+  private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
   private final Handler main = new Handler(Looper.getMainLooper());
   private final int[] scrollY = new int[7];
   private final Button[] navigation = new Button[5];
@@ -151,7 +161,16 @@ final class CoreMenu extends Dialog {
     back = button(s(R.string.ingame_return), v -> goBack());
     title = text("", 22, true);
     resume = button(s(R.string.ingame_back), v -> close());
-    root.addView(new MenuLayout.Header(context, back, title, resume), new LinearLayout.LayoutParams(-1, -2));
+    // the update button left of "Back to the game" (wish of the project owner, 30.10.2026; AppUpdate): hidden
+    // until GitHub answered
+    update = button(s(R.string.ingame_update), v -> { if (host != null) host.startUpdate(updates); });
+    update.setVisibility(View.GONE);
+    LinearLayout actions = row();
+    LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    gap.setMarginEnd(dp(8));
+    actions.addView(update, gap); actions.addView(resume);
+    root.addView(new MenuLayout.Header(context, back, title, actions), new LinearLayout.LayoutParams(-1, -2));
     separator(root);
     scroll = new ScrollView(context);
     scroll.setFillViewport(false);
@@ -162,6 +181,38 @@ final class CoreMenu extends Dialog {
     setContentView(root);
     setCanceledOnTouchOutside(false);
     showPage(HOME, false);
+    if (host != null) host.checkUpdate(updates);
+  }
+
+  /** The update button's look: green "Up to date" (off), red "Update", the download's progress on it. */
+  private final AppUpdate.Listener updates = new AppUpdate.Listener() {
+    @Override public void checked(int state) { showUpdate(state); }
+    @Override public void progress(int percent, String problem) {
+      if (percent < 0) {
+        if (problem != null) android.widget.Toast.makeText(getContext(), problem, android.widget.Toast.LENGTH_LONG).show();
+        showUpdate(AppUpdate.OLDER);
+        return;
+      }
+      update.setEnabled(false);
+      update.setText(percent >= 100 ? s(R.string.ingame_update_install)
+          : getContext().getString(R.string.ingame_update_loading, percent));
+    }
+  };
+
+  void showUpdate(int state) {
+    if (state == AppUpdate.UNKNOWN) { update.setVisibility(View.GONE); return; }
+    boolean older = state == AppUpdate.OLDER;
+    int fill = older ? UPDATE_RED : UPDATE_GREEN, stroke = older ? UPDATE_RED_EDGE : UPDATE_GREEN_EDGE;
+    StateListDrawable look = new StateListDrawable();
+    look.addState(new int[] {android.R.attr.state_focused}, focused(fill));
+    look.addState(new int[] {android.R.attr.state_pressed}, shape(fill, INK, 6));
+    look.addState(new int[0], shape(fill, stroke, 6));
+    update.setBackground(look);
+    update.setTextColor(INK);
+    update.setText(s(older ? R.string.ingame_update : R.string.ingame_up_to_date));
+    update.setEnabled(older);
+    update.setFocusable(older);
+    update.setVisibility(View.VISIBLE);
   }
 
   private String s(int id) { return getContext().getString(id); }
@@ -501,46 +552,31 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons second = buttonsRow(body);
     toggle(second, R.string.ingame_latch, input.getBoolean(CoreActivity.TOUCH_LATCH, false), on -> host.latchChanged(on));
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
+    // aiming the knife and the guns by touch or a controller (wish of the project owner, 30.10.2026): the game's
+    // own "reverse" option and the stick's speed while aiming, right under the latches
+    switchWithSlider(R.string.ingame_aim_invert_v, input.getBoolean(CoreActivity.AIM_INVERT_V, false),
+        on -> host.aimInvertChanged(on), R.string.ingame_aim_speed, CoreActivity.AIM_SPEED_MIN,
+        CoreActivity.AIM_SPEED_MAX, CoreActivity.AIM_SPEED_STEP,
+        CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held
     quarterChoices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
         input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), mode -> host.touchAimChanged(mode));
+    help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_aim_help);
+    help(R.string.ingame_touch_aim_help); help(R.string.ingame_knife_swipe_help);
+    // the gyro in a section of its own (wish of the project owner, 30.10.2026)
+    heading(R.string.ingame_motion);
     boolean gyro = GyroAim.available(getContext()), on = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
-    LinearLayout third = new MenuLayout.Columns(getContext(), 0, 540, false);
-    // the gyro switch in the middle of the row the slider makes taller: as far from the row above as
-    // from the row below (wish of the project owner, 27.10.2026)
-    third.setGravity(Gravity.CENTER_VERTICAL);
-    body.addView(third);
-    LinearLayout sensitivityBox = column();
-    SeekBar sensitivity = new SeekBar(getContext()); TextView valueText = text("", 15, false);
     Button[] invert = new Button[2];
-    Button gyroButton = toggle(buttonsRow(third), gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, on, enabled -> {
-      host.gyroChanged(enabled); sensitivity.setEnabled(enabled); valueText.setEnabled(enabled);
+    View[][] sensitivity = new View[1][];
+    sensitivity[0] = switchWithSlider(gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, on, enabled -> {
+      host.gyroChanged(enabled);
+      sensitivity[0][1].setEnabled(enabled); sensitivity[0][2].setEnabled(enabled);
       for (Button b : invert) b.setEnabled(enabled);
-    });
-    gyroButton.setEnabled(gyro);
-    TextView sensitivityTitle = text(s(R.string.ingame_gyro_sensitivity), 15, false);
-    sensitivityTitle.setGravity(Gravity.CENTER_HORIZONTAL);
-    sensitivityBox.addView(sensitivityTitle, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
-    LinearLayout slider = row();
-    slider.addView(sensitivity, new LinearLayout.LayoutParams(0, dp(48), 1)); slider.addView(valueText);
-    sensitivityBox.addView(slider);
-    third.addView(sensitivityBox);
-    int steps = Math.round((GyroAim.MAX_SENSITIVITY - GyroAim.MIN_SENSITIVITY) / GyroAim.SENSITIVITY_STEP);
-    float stored = GyroAim.clampSensitivity(input.getFloat(CoreActivity.GYRO_SENSITIVITY, 1f));
-    sensitivity.setMax(steps); sensitivity.setProgress(Math.round((stored - GyroAim.MIN_SENSITIVITY) / GyroAim.SENSITIVITY_STEP));
-    sensitivity.setContentDescription(s(R.string.ingame_gyro_sensitivity));
-    sensitivity.setProgressTintList(ColorStateList.valueOf(GOLD)); sensitivity.setThumbTintList(ColorStateList.valueOf(GOLD));
-    valueText.setText(times(stored)); sensitivity.setEnabled(on); valueText.setEnabled(on);
-    sensitivity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-      @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
-        float value = GyroAim.MIN_SENSITIVITY + progress * GyroAim.SENSITIVITY_STEP;
-        valueText.setText(times(value)); if (fromUser) host.gyroSensitivityChanged(value);
-      }
-      @Override public void onStartTrackingTouch(SeekBar bar) {}
-      @Override public void onStopTrackingTouch(SeekBar bar) {}
-    });
+    }, R.string.ingame_gyro_sensitivity, GyroAim.MIN_SENSITIVITY, GyroAim.MAX_SENSITIVITY, GyroAim.SENSITIVITY_STEP,
+        GyroAim.clampSensitivity(input.getFloat(CoreActivity.GYRO_SENSITIVITY, 1f)), value -> host.gyroSensitivityChanged(value));
+    sensitivity[0][0].setEnabled(gyro);
+    sensitivity[0][1].setEnabled(on); sensitivity[0][2].setEnabled(on);
     // the gyro's directions (wish of the project owner, 27.10.2026): at once in GyroAim
     MenuLayout.Buttons fourth = buttonsRow(body);
     invert[0] = toggle(fourth, R.string.ingame_gyro_invert_v, input.getBoolean(CoreActivity.GYRO_INVERT_V, false),
@@ -548,13 +584,48 @@ final class CoreMenu extends Dialog {
     invert[1] = toggle(fourth, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
         value -> host.gyroInvertChanged(false, value));
     for (Button b : invert) b.setEnabled(on);
-    help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_touch_aim_help);
-    help(R.string.ingame_knife_swipe_help);
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller
     controllerButton = cellAction(buttonsRow(body), s(R.string.ingame_controller_config) + "   ›",
         v -> showPage(CONTROLLER, true));
     controllerButton.setEnabled(host != null && (host.controllerConnected() || host.keyboardConnected()));
     help(R.string.ingame_controller_config_help);
+  }
+
+  /**
+   * A switch with a slider beside it (the gyro's row, the stick aiming's): the switch in the middle of the row
+   * the slider makes taller, as far from the row above as from the row below (wish of the project owner,
+   * 27.10.2026); the slider's title above it, `min` + n × `step` up to `max`, its value as "1.25×".
+   * The switch, the slider and its value, for the caller to enable.
+   */
+  private View[] switchWithSlider(int label, boolean on, Changed<Boolean> toggled, int title, float min, float max,
+      float step, float stored, Changed<Float> moved) {
+    LinearLayout line = new MenuLayout.Columns(getContext(), 0, 540, false);
+    line.setGravity(Gravity.CENTER_VERTICAL);
+    body.addView(line);
+    Button toggle = toggle(buttonsRow(line), label, on, toggled);
+    LinearLayout box = column();
+    TextView heading = text(s(title), 15, false);
+    heading.setGravity(Gravity.CENTER_HORIZONTAL);
+    box.addView(heading, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
+    SeekBar bar = new SeekBar(getContext()); TextView value = text("", 15, false);
+    LinearLayout slider = row();
+    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1)); slider.addView(value);
+    box.addView(slider);
+    line.addView(box);
+    bar.setMax(Math.round((max - min) / step)); bar.setProgress(Math.round((stored - min) / step));
+    bar.setContentDescription(s(title));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    value.setText(times(stored));
+    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
+        float now = min + progress * step;
+        value.setText(times(now)); if (fromUser) moved.accept(now);
+      }
+      @Override public void onStartTrackingTouch(SeekBar b) {}
+      @Override public void onStopTrackingTouch(SeekBar b) {}
+    });
+    return new View[] {toggle, bar, value};
   }
 
   /** The actions' names, in ActionMap's order. */

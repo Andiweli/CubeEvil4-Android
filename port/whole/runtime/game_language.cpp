@@ -30,6 +30,7 @@ extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" int re4_game_language_value(void);
 extern "C" void re4_core_restart_game(int language);  // runtime/core_api.cpp
+extern "C" void re4_aim_after_card(void);              // runtime/aim_options.cpp
 
 namespace {
 
@@ -120,6 +121,8 @@ extern "C" int re4_game_language_value(void)
 // loaded with the debug discs).
 extern "C" void re4_game_language_after_card(void)
 {
+    // the app's "Invert vertical" over the saved one too (runtime/aim_options.cpp)
+    re4_aim_after_card();
     int language = re4_game_language_value();
     const char* why = "the app's choice";
     if (language < 0) {

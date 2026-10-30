@@ -273,6 +273,11 @@ void re4_core_set_fast_cores(int on);
  * water); 0 (the default) draws everything. Effects in events and cut scenes always stay.
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_potato(int mask);
+/* The app menu's aim settings for touch and controllers (cores since 30.10.2026, runtime/aim_options.cpp):
+ * bit 0 "Invert vertical" (the game's own option CFG_AIM_REVERSE, set at the next game frame and again
+ * after the system file was read), bits 8 and up "Aim speed" in percent (50..300, 100 as the game: the
+ * stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
+void re4_core_set_aim(int bits);
 /* The game's language with the European discs (cores since 26.10.2026, port/docs/retail-eu-plan.md
  * R7): 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
  * The app menu's choice: the game takes it and restarts (its own soft reset at the next game frame,
