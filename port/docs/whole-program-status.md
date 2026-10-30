@@ -344,6 +344,17 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Absturz „Bus error“ auf 32-Bit-Handys beim Raumwechsel (Nutzerbericht 30.10.2026 18:24, lokal, `golden-master`)
+
+Samsung A13 (SM-A135M, nur armeabi-v7a), 0.96.1, EU-Discs, zweimal (12:14, 18:20): `signal 7 (Bus error)` in
+`libre4_main.so+0x1f1862` = `captureModel` (`runtime/core_bridge.cpp:182`, `vldr s0, [r6, #260]`: `-p->lt_inv_mat[0][3]`)
+mit Adresse 0x8288a786, aufgelöst mit dem armv7-Build von `ebf9fe28` (dieselbe Lage, `IdSys` 0x27c85c wie im Bericht).
+Beim Wechsel r204 → r205 wird r205 über den Speicher von r204 entpackt; die Zustandsbrücke liest jedes Bild die Objekte
+von `ObjMgr`, darunter alte, deren Teile-Liste in den überschriebenen Speicher zeigt. `inMem1` prüfte nur den Bereich;
+ARM32 lädt einen Gleitkommawert nur von einer durch 4 teilbaren Adresse (ARM64 liest den Unsinn ohne Fehler). Neu:
+`word()` – Teile, Modell-Infos und Modelldaten nur auf einer 4-Byte-Grenze. Kern i686 gebaut, Kern-Tests 0 Fehler;
+der Fall selbst ist am PC nicht nachzustellen (x86 lädt auch ungerade), **32-Bit-Gerät offen**.
+
 ## Berichte des Projektinhabers 30.10.2026 21:10/22:22 (Retroid, 0.96.1, lokal, `golden-master`)
 
 - **Zwei kurze Ruckler (Berichte 21:10:22 und 21:11:08, Retroid, Force Performance an):** das längste Bildstück der

@@ -65,6 +65,15 @@ bool inMem1(const void* p)
     return a >= 0x80000000ul && a < 0x83000000ul;
 }
 
+// A game structure (parts, model infos, model data) lies on a 4-byte boundary. While a room is torn
+// down and the next one unpacked over it, an old object's lists can point at any byte (Samsung A13,
+// 32-bit, report 30.10.2026 18:24: a "Bus error" in captureModel as r205 replaced r204 - ARM32 loads a
+// float only from a word-aligned address, ARM64 reads the garbage without a fault)
+bool word(const void* p)
+{
+    return ((unsigned long) p & 3) == 0;
+}
+
 bool live(const void* p)
 {
     // MEM1 (0x80000000..0x83000000, always mapped) or a game library; while a
@@ -173,7 +182,7 @@ void captureModel(Re4CoreSnapshot* s, cModel* m, u8 manager, u32 slot)
     out.firstMatrix = s->nParts;
     u32 n = m->nParts;
     cParts* p = m->pList;
-    for (u32 i = 0; i < n && inMem1(p); i++) {
+    for (u32 i = 0; i < n && inMem1(p) && word(p); i++) {
         if (s->nParts >= RE4_CORE_MAX_PARTS) {
             break;
         }
@@ -188,7 +197,7 @@ void captureModel(Re4CoreSnapshot* s, cModel* m, u8 manager, u32 slot)
     out.firstInfo = s->nInfos;
     cModelInfo* info = m->pModelInfo;
     // a guard against a broken (cyclic) list: no model has nearly 255 infos
-    for (u32 guard = 0; inMem1(info) && guard < 4096; guard++, info = info->pList) {
+    for (u32 guard = 0; inMem1(info) && word(info) && guard < 4096; guard++, info = info->pList) {
         if (s->nInfos >= RE4_CORE_MAX_INFOS || out.nInfos == 0xFF) {
             s->droppedInfos++;
             continue;
@@ -208,14 +217,14 @@ void captureModel(Re4CoreSnapshot* s, cModel* m, u8 manager, u32 slot)
         mi.rigidPart = -1;
         if (m->be_flag & 0x4000) {
             mi.rigidPart = -2;
-        } else if (live(d) && d->weight_palette_num <= 1 && d->weight_ext_num <= 0xFF && !(info->be_flag & 2) &&
-                   d->nParts == 1 && live(d->pHead)) {
+        } else if (live(d) && word(d) && d->weight_palette_num <= 1 && d->weight_ext_num <= 0xFF && !(info->be_flag & 2) &&
+                   d->nParts == 1 && live(d->pHead) && word(d->pHead)) {
             mi.rigidPart = d->pHead->partsNo;
         }
         re4_formats_locate(info->model_addr, &mi.bin);
         re4_formats_locate(info->tpl_addr, &mi.tpl);
         // a running shape: the positions as trans.cpp makes them before skinning
-        if (shapesWanted() && (info->be_flag & 2) && live(d) && inMem1(d->vtxOrig) && d->nVtx != 0) {
+        if (shapesWanted() && (info->be_flag & 2) && live(d) && word(d) && inMem1(d->vtxOrig) && d->nVtx != 0) {
             bool shaped = false;
             for (int k = 0; k < 5; k++) {
                 shaped = shaped || inMem1(info->shape[k].data);
