@@ -89,3 +89,7 @@ Auf Easy lädt der EU-Code Kartenobjekte aus `SS/Esy`, das die JP-Discs nicht ha
 (Titelmenü), die Klasse bleibt „über Easy“.
 
 **J5 Korea.** Patch 0147: `emWepPlHeadLost`/`obj16PlHeadLost` gehen mit den koreanischen Discs den US-Weg.
+
+**Vorfilm-Untertitel (30.10.2026, Nutzermeldung Korea).** Zu 0136 fehlte der japanische Zweig: bei Sprache 0 nimmt
+`cSofdec` die Schrift aus `etc/movie.das` (Eintrag 5) als Schrift 2 und setzt danach die Stage-Schrift zurück; ohne
+sie falsche Zeichen (Kana-Gemisch, sinnloses Hangul). Patch 0150, am PC mit JP-, KR- und EU-Discs geprüft.

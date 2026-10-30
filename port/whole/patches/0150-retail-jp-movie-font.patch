@@ -1,0 +1,44 @@
+# Retail data (port/docs/retail-jp-plan.md): the subtitles of the opening movie with the Japanese and the
+# Korean discs (user report, 30.10.2026: Japanese kana mixed with other signs, Korean words without sense).
+# Patch 0136 rebuilt the European cSofdec, but left out its Japanese branch: for Japanese (pSys->language 0)
+# their initApp (G4BP08 0x80161210, G4BJ08 0x80160b50) makes the font of etc/movie.das (entry 5, 28 x 28)
+# font 2, the font the subtitles draw with, and their finishMovie (G4BJ08 0x801610b0) puts the stage font
+# (pG->pStFnt) back. Without it the subtitle texts drew with the stage font, whose glyphs are others (the
+# Korean translation writes its own glyphs into the movie font). Read with retail_code.py; the Korean
+# main.dol is the Japanese one here. Nothing changes with the debug, European or US discs (never language 0).
+# A port patch for retail data.
+--- a/src/game/sofdec.cpp
++++ b/src/game/sofdec.cpp
+@@ -380,13 +380,19 @@
+ #line 615 "D:/Bio4/Prog/sofdec.cpp"
+     /* port: with the European discs as their initApp (main.dol G4BP08 0x80161170): the subtitle
+        texts etc/movie.das (an MDT with the six languages and a Japanese font) as message table 2,
+-       the layout of message work 0; the font only for Japanese, which the app never sets */
++       the layout of message work 0; with Japanese (the Japanese and Korean discs) its font as font 2 */
+     re4_movie_mes = 0;
+     re4_movie_sbt_shown = 0;
+     if ((re4_disc_retail_eu() || re4_disc_retail_jp())) {
+         req = DvdReadN("etc/movie.das", 0, 0, 0, 0, 0x8005, __FILE__, __LINE__);
+         Dvd.ReadCheck(req, 0, 0, &re4_movie_mes);
+         if (re4_movie_mes) {
++            /* port (patch 0150): as their initApp (G4BP08 0x80161210, G4BJ08 0x80160b50) the subtitle
++               font of etc/movie.das (entry 5, 28 x 28) as font 2 for Japanese; the subtitles draw with
++               font 2, otherwise the stage font (other glyphs: wrong Japanese and Korean text) */
++            if (pSys->language == 0) {
++                cMes.setupFont(0x1C, 0x1C, (u8*) PL_ARC_PTR((PlArc*) re4_movie_mes, 5), 2);
++            }
+             re4_movie_mes_old = MesData.m_Data[2];
+             MesData.registData(2, (u8*) PL_ARC_PTR((PlArc*) re4_movie_mes, 4));
+             cMes.setLayout(0, 0);
+@@ -539,6 +545,11 @@
+     /* port: as their finishMovie: the messages away, etc/movie.das freed (before the movie heap
+        goes); the message table 2 back as it was (theirs keeps pointing at the freed texts) */
+     if (re4_movie_mes) {
++        /* port (patch 0150): as their finishMovie (G4BJ08 0x801610b0) font 2 back to the stage font
++           (its buffer pG->pStFnt still holds it) before etc/movie.das is freed */
++        if (pSys->language == 0 && pG->pStFnt) {
++            cMes.setupFont(0x1C, 0x1C, (u8*) pG->pStFnt, 2);
++        }
+         for (int i = 0; i < 15; i++) {
+             cMes.Delete(i);
+         }

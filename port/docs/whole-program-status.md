@@ -162,6 +162,25 @@ Projektinhabers); `bughunt` zweigt davon ab.
     Hitzeflimmern, Wasser), die Erklärungen nur als Fußtext. **Umgesetzt (Patch 0149, `runtime/potato.cpp`, App),
     am PC geprüft; Gerätetest und Messung offen.**
 
+## Vorfilm-Untertitel mit JP-/KR-Discs (30.10.2026, lokal, Branch `golden-master`, WSL-Baum `~/re4-jpsub/RE4`)
+
+Nutzermeldung mit zwei Bildschirmfotos (koreanische Discs, `movie/opening.sfd` vor der Autofahrt): unten japanische
+Kana mit anderen Zeichen gemischt („ミここ向工“) bzw. sinnloses Hangul. **Ursache:** Patch 0136 baut das EU-`cSofdec`
+nach, ließ aber dessen japanischen Zweig weg: bei Sprache 0 macht `initApp` (EU 0x80161210, JP 0x80160b50) die Schrift
+aus `etc/movie.das` (Eintrag 5, 28 × 28, dieselbe wie `font/movie_j.fnt`) zur Schrift 2, mit der die Untertitel
+gezeichnet werden; `finishMovie` (JP 0x801610b0) setzt danach die Stage-Schrift (`pG->pStFnt`) zurück. Ohne das
+zeichnete der Port die Filmtexte mit der Stage-Schrift (andere Zeichen an denselben Nummern). Die koreanische
+Übersetzung hat eine eigene Filmschrift (Hangul). Gelesen mit `retail_code.py`; der koreanische `main.dol` ist hier der
+japanische. **Patch 0150** (`sofdec.cpp`). Die englischen Zeilen oben im Bild („1998…“, „I'll never forget it …“)
+stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fassungen; die Untertitel übersetzen sie.
+
+- **Geprüft (PC, i686-O2, Debug-Start r120, GX-Bilder mit `gx_chunk_render`):** Korea „1998년“, „발단은 아클레이
+  산지의 엽기 살인사건이었다“; Japan „1998年“, „発端はアークレイ山地での猟奇殺人事件だった“; EU Deutsch unverändert („Das war
+  das Jahr der furchtbaren Morde in den Arklay Mountains.“). Japan weiter bis r100: die Untertitel der Autofahrt
+  (Stage-/Ereignisschrift) richtig, kein Fehler. `runtime-test` 0 Fehler. Debug- und US-Discs laden `etc/movie.das`
+  nicht (Code unverändert), EU hat nie Sprache 0.
+- **Nicht geprüft:** Gerät.
+
 ## Branch bughunt lokal (30.10.2026, Windows-PC, Worktree `RE4-bughunt`, WSL-Baum `~/re4-bughunt/RE4`)
 
 - **EU Easy: Schrotflinte von Anfang an (Punkt 28), gelesen mit `retail_code.py`:**
@@ -9960,6 +9979,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0139 `title.cpp` | Schwierigkeitsauswahl mit den EU-Discs wie ihr `titleMain`: „New Game“ fragt immer Professional (nur freigeschaltet) / Normal / Easy, A oder START, Cursor rundum, B zurück; die japanische Rückfrage danach nicht. Nicht beim Debug-Start (`RE4_START_ROOM`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0140 `game.cpp` | `gameStageInit` setzt mit den EU-Discs `game_country = game_mode > 3` wie ihre Fassung (das EU-„Easy-Byte“ `pG+0x4F9F` ist `game_country`): Bereichs-Flaggen JPN/USA, Schwierigkeitswert-Untergrenze und Raumzweige richten sich nach Easy/Normal statt nach der Sprache. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0141 `r203.cpp`, `r211.cpp`, `ss_map.cpp` | Easy-/Normal-Zweige der EU-Räume, die dem Debug-Code fehlen: r203 (Normal Meldungsbereich 6 an Tür 5 aus; Easy Tür 5 zu, kein Schlüssel nötig, weniger Ganados), r211 (Easy erster Kelch und Gruppe 0x20 mit Kollision; Normal Gruppe 0x20 aus), Karte auf Easy aus `SS/Esy`. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0150 `sofdec.cpp` | Vorfilm-Untertitel mit den JP-/KR-Discs (Nutzermeldung 30.10.2026: falsche Zeichen). Zu 0136 der japanische Zweig ihres `cSofdec`: bei Sprache 0 macht `initApp` (G4BP08 0x80161210, G4BJ08 0x80160b50) die Schrift aus `etc/movie.das` (Eintrag 5, 28 × 28) zur Schrift 2 der Untertitel, `finishMovie` (G4BJ08 0x801610b0) setzt die Stage-Schrift `pG->pStFnt` zurück. Debug-, EU- und US-Discs unverändert. Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
