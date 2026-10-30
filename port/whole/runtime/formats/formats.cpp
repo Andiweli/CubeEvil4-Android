@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 
 namespace re4fmt {
 
@@ -731,7 +732,18 @@ extern "C" void re4_formats_part_loaded(const char* rawName, int nest, int index
             if (r.convert == packed) {
                 snprintf(g_packedName, sizeof(g_packedName), "%s", name);
             }
+            timespec t0, t1;
+            clock_gettime(CLOCK_MONOTONIC, &t0);
             r.convert(b, part);
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            // a slow conversion stalls the game's thread (the user reports of a stutter in r101 with
+            // evd/r101s21.evd, 30.10.2026): the slow ones into the log, at most 50 lines
+            const long ms = (t1.tv_sec - t0.tv_sec) * 1000 + (t1.tv_nsec - t0.tv_nsec) / 1000000;
+            static int slowLines;
+            if (ms >= 50 && slowLines < 50) {
+                slowLines++;
+                re4_log("formats: %s (%u bytes) took %ld ms to convert", label, (unsigned) h->size, ms);
+            }
             if (firstReport(name)) {
                 re4_log("formats: %s: %s%s", label, r.what, b.ok ? "" : " (incomplete)");
             }

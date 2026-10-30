@@ -363,6 +363,18 @@ Gearbeitet direkt in `RE4-Fixed` (Wunsch des Projektinhabers: golden-master), ge
   am PC nicht nachgespielt, **Gerät offen**. (Der Endfilm-Wechsel adaend_m/adaend_c hängt in der Verkaufsfassung an
   einem anderen Merkmal als `EXT_ASHLEY_ARMOR`; nicht übernommen, er wechselt weiter bei jedem Durchgang.)
 - **Russischer Text `ingame_resolution_line_auto`:** die Übersetzung des Nutzers übernommen.
+- **„heap: no room for 0x214b40 bytes in heap 4“ in r101 (Nutzermeldung zu 0.96.0, wie Punkt 25):** der volle Ablauf
+  steht im Bericht vom 28.10.2026 05:24 (EU-Discs): nach dem Eingangsereignis `r101s00` will `DataCtrl` die Szene
+  `evd/r101s21.evd` (2,1 MB, das Haus-Ereignis) in den Raum-Heap legen (`datactrl.cpp(452)`, Flag 0 = Versuch mit
+  Ausweg), findet keinen Platz und nimmt den vorgesehenen Weg über das ARAM („set ARAM_LOAD“, „Trans ARAM“, „check
+  ARAM_OK“). Das ist Spielcode mit derselben Speicheraufteilung wie auf dem GameCube; mit dem Debug-Start geht die Szene
+  von vornherein ins ARAM. Das Lesen läuft im Takt des Spiels (ein Leseschritt je Bild) und dauerte auf dem Gerät
+  3,9 s, ohne das Spiel anzuhalten. Die Umwandlung der Datei braucht am PC unter 1 ms (alle Dateien in r101 höchstens
+  1 ms, gemessen mit der neuen Protokollzeile). Heap 4 zu vergrößern hieße, die feste Speicheraufteilung des Spiels zu
+  ändern – nicht nötig, die Meldung ist kein Fehler. Der Ruckler an der Stelle (Ende des Eingangsereignisses, die
+  Dorfbewohner erscheinen) hat damit eine andere Ursache; das „max 2141.9 ms“ der GX-Zeile ist das Maximum seit dem
+  Start, nicht dieser Augenblick. **Neu:** `formats` schreibt jede Umwandlung ab 50 ms ins Kernprotokoll („took N ms to
+  convert“, höchstens 50 Zeilen). **Offen:** ein Bericht direkt nach dem Ruckler.
 - **Blacktail in den Mercenaries (Nutzermeldung):** `set_char(0)` gibt Leon 0x27 (Blacktail) und 0x94 (Riot Gun),
   in Debug-, EU- und US-`main.dol` dieselbe Tabelle (`retail_code.py`; nur Krausers Bogen hat in der
   Verkaufsfassung Nachladestufe 2 statt 1). Mit dem Debug-Start in r400 (oder einem Raumsprung des Debug-Menüs)
