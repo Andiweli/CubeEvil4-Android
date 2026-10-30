@@ -36,12 +36,11 @@ and it contains no game data: you need your own images of both discs of one rele
 
 ## Currently in development
 
-- **Full button mapping:** every action on any button, combinations like aim + fire, and play with
-  keyboard and mouse (mouse aiming with adjustable sensitivity).
-- **Better performance on weaker devices**, especially phones with only a few fast CPU cores.
-- **US and JP retail release** as supported disc versions.
-- **New cheats:** automatic quick-time events and unlocking Assignment Ada and The Mercenaries.
-- **Touch aiming by swipe:** the aim follows your finger and stops when it stops.
+- ~~**Full button mapping:** every action on any button, combinations like aim + fire, and play with keyboard and mouse (mouse aiming with adjustable sensitivity).~~
+- ~~**Better performance on weaker devices**, especially phones with only a few fast CPU cores.~~
+- ~~**US and JP retail release** as supported disc versions.~~
+- ~~**New cheats:** automatic quick-time events and unlocking Assignment Ada and The Mercenaries.~~
+- ~~**Touch aiming by swipe:** the aim follows your finger and stops when it stops.~~
 - **Various fixes from testers' reports** 
 
 ## What the app does
