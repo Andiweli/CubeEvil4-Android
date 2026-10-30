@@ -351,8 +351,11 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   519 ms (21:10:58: die Ganados 0x13 der Gruppe am Dorfrand erscheinen; 11 Programme beim ersten Zeichnen, 6 davon
   ohne Eintrag im Programm-Zwischenspeicher). Ursache also das Bauen von Shadern im Spiel: das Vorbereiten der 17050
   bekannten Programme läuft nach dem Start im Hintergrund und war 13 s nach dem Laden des Spielstands noch nicht fertig.
-  Die neuen Programme stehen jetzt in der Liste der App und werden beim nächsten Start vorbereitet. Vorschlag offen:
-  während Titel, Menüs und Ladebildern schneller vorbereiten.
+  Die neuen Programme stehen jetzt in der Liste der App und werden beim nächsten Start vorbereitet. **Umgesetzt
+  (Wunsch des Projektinhabers):** in Menüs, Titel und beim Laden (Bit 4 von `re4_core_rumble`) bereitet der
+  Zeichen-Thread bis zu 10 statt 4 ms je Bildschirmtakt vor (`kPrewarmMenuMs`, `core_mode.cpp`), dort auch nach einem
+  Bildstück mit der verbliebenen Zeit (der Titel liefert 60 Bildstücke je Sekunde, ein Takt ohne Bildstück kam dort
+  nie). Gebaut, App-Tests grün; **auf dem Gerät nicht gemessen**.
 - **Auto-Zielen mit der Schrotflinte (Bericht 22:22:39):** der Laser blieb waagerecht, der getroffene Gegner stand
   oben am Hang. Nur die Pistole stellt beim Anlegen die Höhe zum Ziel ein (`wep02_r3_ready00`: `lockInit`,
   `PlSetLockPitch`); Schrotflinte (Waffe 6), MPs und Raketenwerfer nehmen die Kamerahöhe und richten sich nur über

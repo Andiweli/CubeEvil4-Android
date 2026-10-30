@@ -578,6 +578,11 @@ constexpr unsigned kGxHitSeries = 4, kGxHitShots = 24;
 // shader programs ahead of their first draw on a refresh without a chunk: until this much time is
 // spent (at least one; linking one anew took about 16 ms on the Retroid, one from the cache 1-2 ms)
 constexpr double kPrewarmMs = 4.0;
+// in the game's menus, the title and its loading (the core's rumble bit 4, re4_core.h) up to this much of
+// a refresh, also after a chunk with what it left (owner's Retroid reports 30.10.2026: 13 s after loading
+// a save the programs were not all made, r104 and its Ganados made theirs at the first draw, 780 / 519 ms)
+constexpr double kPrewarmMenuMs = 10.0;
+bool gameMenuNow() { return api.rumble && (api.rumble() & 0x10) != 0; }
 int gxHitDumps = -1;  // hits still to record as GX data; -1: settings not read yet
 unsigned gxHitShotsLeft = 0, gxHitShotPart = 0, gxHitCount = 0;
 bool gxHitSeriesPending = false;  // the chunk after a marked one starts over: a series from there
@@ -1514,6 +1519,8 @@ bool drawGx() {
     gxRunMs += ms;
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;
+    // the title runs 60 chunks a second, so no refresh comes without one: the programs ahead after it
+    if (ms + 1.0 < kPrewarmMenuMs && gameMenuNow()) gx->Prewarm(kPrewarmMenuMs - ms);
     const long long cpuNs = re4cpu::ThreadNs() - cpuNow;
     gxRunCpuNs += cpuNs;
     if (cpuNow)  // (0: no thread clock on this device, no waiting known)
@@ -1633,7 +1640,7 @@ bool drawGx() {
     // a refresh without a new chunk (the game draws 30 pictures a second): the shader programs
     // this device made before, ahead of their first draw, a few milliseconds' worth at a time
     // (Retroid report 22.10.2026 23:42: chunks of up to 435 ms while r10b's effects made theirs)
-    gx->Prewarm(kPrewarmMs);
+    gx->Prewarm(gameMenuNow() ? kPrewarmMenuMs : kPrewarmMs);
   }
   benchTick(now);
   unsigned xw = 0, xh = 0;
