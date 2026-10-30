@@ -19,6 +19,7 @@
     <string name="ingame_dof">Глубина резкости</string>
     <string name="ingame_fps_display">FPS внизу слева</string>
     <string name="ingame_smooth60">60 FPS (экспериментально)</string>
+    <string name="ingame_merge_draws">Объединять вызовы отрисовки (экспериментально)</string>
     <string name="ingame_force_performance">Принудительная производительность</string>
     <string name="ingame_perf_default">По умолчанию</string>
     <string name="ingame_perf_cores">Производительные ядра</string>
@@ -172,6 +173,7 @@
     <string name="ingame_fxaa_help">Сглаживает зубчатые края на последнем шаге. Работает с MSAA и без него; картинка становится чуть мягче.</string>
     <string name="ingame_frame_skip_help">Если графика не успевает, пропускает кадр, чтобы игра шла с обычной скоростью. Показывается меньше кадров, ничего не замедляется.</string>
     <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
+    <string name="ingame_merge_help">Объединяет несколько объектов в один вызов графического драйвера. Может помочь телефонам с медленным графическим драйвером (например, GPU Mali) и немного замедлить другие. Не действует, пока включены 60 FPS.</string>
     <string name="ingame_game_language">Язык игры</string>
     <string name="ingame_language_device">Язык устройства</string>
     <string name="ingame_language_help">Язык текстов и субтитров игры. Язык устройства: язык устройства, если он есть в игре, иначе английский. Изменение перезапускает игру.</string>

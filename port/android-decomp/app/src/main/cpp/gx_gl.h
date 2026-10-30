@@ -223,7 +223,7 @@ public:
   // of its draws was drawn (the position and normal matrices, the projection) for Interpolate.
   void SetRecording(bool on);
   // Merged draw calls (an experiment for low-end phones, 30.10.2026; default off, RE4_GX_MERGE=1 at
-  // Init turns it on): draws in a row that differ only in the position, texture and normal matrices
+  // Init or the app menu's switch under Performance, Experimental turns it on): draws in a row that differ only in the position, texture and normal matrices
   // (the XFM part) and their matrix indices go to the GPU as one draw call, up to kMergeSlots of
   // them (gx_gl_shader.h). Not while recording (60 FPS) and not without glDrawElementsBaseVertex.
   // Their programs are made by Prewarm (a refresh without a chunk), not while drawing: till then a

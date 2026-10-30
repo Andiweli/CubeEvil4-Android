@@ -348,7 +348,7 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
 
 Auftrag (nach der Messung unten): ein abschaltbarer Versuch im GLES3-Renderer, der aufeinanderfolgende Zeichenbefehle,
 die sich nur in den Matrizen unterscheiden, in einem GL-Aufruf schickt. Schalter `RE4_GX_MERGE=1` (aus als Standard;
-`GxRenderer::SetMerge`), in der App über die Start-Einstellungen (`coreSettings`), noch keine Menü-Option.
+`GxRenderer::SetMerge`), in der App über die Start-Einstellungen (`coreSettings`) oder das Menü (siehe unten).
 
 - **Weg (`gx_gl.cpp`):** Vor den Zeichenbefehlen eines Bildstücks sucht `MergePlan` Ketten: Befehle in Folge mit gleichem
   Ecken-Aufbau, Schritt und Primitiv, deren Ecken hintereinander liegen, dazwischen nur XF-, BP-, Owner-, TLUT- und
@@ -391,7 +391,15 @@ die sich nur in den Matrizen unterscheiden, in einem GL-Aufruf schickt. Schalter
   (0,76 ms für 268), das Redmi 15C nach dem Testerbericht ~30 µs. Ob der Versuch dort gewinnt, zeigt nur eine Messung auf
   einem Mali-Gerät. Auf dem Retroid ist seitdem die APK aus `gx-merge` installiert (ohne Schalter wie `golden-master`
   46a55b98).
-- **Nicht geprüft:** Mali-Gerät (Redmi 15C), Spielen mit eingeschaltetem Versuch über längere Zeit.
+- **Schalter im App-Menü** (Wunsch des Projektinhabers, 30.10.2026: der Tester mit dem Redmi sitzt am anderen Ende der
+  Welt): Leistung → Experimentell, unter 60 FPS, „Merge draw calls (experimental)“ / „Zeichenaufrufe bündeln
+  (experimentell)“, dazu ein Hilfetext (wirkt nicht mit 60 FPS); Standard aus, Einstellung `mergeDraws` in
+  `core_graphics`, `CoreBridge.setMerge` → `optMerge` in `core_mode.cpp` → `GxRenderer::SetMerge` (oder
+  `RE4_GX_MERGE=1`). Texte in allen zehn Sprachen (`check_translations.py` ok), `CoreMenuLayoutTest` findet den
+  Schalter; App-Build und 17 Unit-Tests grün. **Retroid:** Einstellung wie nach einem Tippen gesetzt, App ohne
+  Startschalter: „merged draw calls: on“, je Bildstück z. B. 259 → 183 Aufrufe, keine Shader-Fehler; danach die
+  Einstellung des Projektinhabers wiederhergestellt. Das Menü selbst nicht auf dem Gerät angesehen (nur im Test).
+- **Nicht geprüft:** Mali-Gerät (Redmi 15C; Test-APK für den Tester), Spielen mit eingeschaltetem Versuch über längere Zeit.
 
 ## Zeichenbefehle zusammenfassen: Messung (30.10.2026 nachts, lokal, `golden-master`)
 

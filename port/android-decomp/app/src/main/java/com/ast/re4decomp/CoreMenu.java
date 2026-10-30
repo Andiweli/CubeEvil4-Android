@@ -990,9 +990,15 @@ final class CoreMenu extends Dialog {
         graphics.edit().putBoolean("frameskip", false).apply(); CoreBridge.setFrameSkip(false);
       }
     });
+    // merged draw calls (an experiment for phones with a slow graphics driver; wish of the project
+    // owner, 30.10.2026: below 60 FPS); the renderer leaves it out while 60 FPS is on
+    toggle(buttonsRow(output), R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
+      graphics.edit().putBoolean("mergeDraws", on).apply(); CoreBridge.setMerge(on);
+    });
     help(output, R.string.ingame_frame_skip_help);
     help(output, R.string.ingame_smooth_help);
     help(output, R.string.ingame_skip_or_smooth);
+    help(output, R.string.ingame_merge_help);
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);

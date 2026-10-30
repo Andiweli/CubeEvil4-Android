@@ -23,6 +23,7 @@
     <string name="ingame_dof">عمق الميدان</string>
     <string name="ingame_fps_display">عرض FPS أسفل اليسار</string>
     <string name="ingame_smooth60">60 إطارًا في الثانية (تجريبي)</string>
+    <string name="ingame_merge_draws">دمج استدعاءات الرسم (تجريبي)</string>
     <string name="ingame_force_performance">فرض الأداء</string>
     <string name="ingame_perf_default">افتراضي</string>
     <string name="ingame_perf_cores">استخدام أنوية الأداء</string>
@@ -179,6 +180,7 @@
     <string name="ingame_fxaa_help">‏يُنعّم الحواف المسنّنة في خطوة أخيرة. يعمل مع MSAA أو بدونه؛ تصبح الصورة أنعم قليلًا.</string>
     <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
     <string name="ingame_skip_or_smooth">‏تخطي الإطارات و60 إطارًا في الثانية لا يعملان معًا: تشغيل أحدهما يوقف الآخر.</string>
+    <string name="ingame_merge_help">‏يدمج عدة أجسام في استدعاء واحد لبرنامج تشغيل الرسوميات. قد يفيد الهواتف ذات برنامج تشغيل رسوميات بطيء (مثل وحدات Mali) وقد يكلّف قليلًا على غيرها. لا يعمل ما دامت 60 إطارًا في الثانية مفعّلة.</string>
     <string name="ingame_game_language">لغة اللعبة</string>
     <string name="ingame_language_device">لغة الجهاز</string>
     <string name="ingame_language_help">لغة نصوص اللعبة وترجماتها. لغة الجهاز: لغة الجهاز إذا كانت اللعبة تدعمها، وإلا فالإنجليزية. يؤدي التغيير إلى إعادة تشغيل اللعبة.</string>

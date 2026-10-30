@@ -627,6 +627,7 @@ Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
+std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
 // pictures put on the screen so far, each once: the game's and the in-between ones (the FPS display)
 std::atomic<long long> picturesMade{0};
 // 60 FPS (experimental): the chunk run last, kept for the in-between picture after it (its
@@ -1310,6 +1311,8 @@ bool drawGx() {
   const bool smoothOn = optSmooth.load() != 0 && !smoothTooSlow;
   gx->SetRecording(smoothOn);
   gx->SetFxaa(optFxaa.load() != 0);
+  static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
+  gx->SetMerge(optMerge.load() != 0 || mergeEnv);
   if (!smoothOn && smoothPrev) {
     api.gxRelease(smoothPrev);
     smoothPrev = nullptr;
@@ -2292,6 +2295,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIE
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSmooth(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optSmooth.exchange(want) != want) LOG("60 FPS from in-between pictures: %s", want ? "on" : "off");
+}
+
+// Merged draw calls (experimental): draws that differ only in their matrices in one call (drawGx).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMerge(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optMerge.exchange(want) != want) LOG("merged draw calls: %s", want ? "on" : "off");
 }
 
 // Swipe aiming (CoreInput.takeAimSwipe): the touch area's finger as angles (cores since 29.10.2026).
