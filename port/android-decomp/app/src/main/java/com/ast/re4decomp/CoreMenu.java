@@ -463,8 +463,8 @@ final class CoreMenu extends Dialog {
     metadata.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
     metadata.addView(slotDetails); metadata.addView(slotDate); slot.addView(metadata);
     MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 2);
-    // The button's 3 dp outer margin plus 9 dp here match the metadata's 12 dp left inset.
-    actions.setPadding(0, 0, dp(9), 0);
+    // The button's outer margin (MenuLayout.GAP) plus this match the metadata's 12 dp left inset.
+    actions.setPadding(0, 0, dp(12 - MenuLayout.GAP), 0);
     actions.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
     saveSlot = cellAction(actions, s(R.string.ingame_instant_save), v -> confirmInstant(1)); saveSlot.setSelected(true);
     loadSlot = cellAction(actions, s(R.string.ingame_instant_load), v -> confirmInstant(2));

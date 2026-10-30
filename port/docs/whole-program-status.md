@@ -315,6 +315,10 @@ JP/KR-Vorfilm-Untertitel, 0151 Zielgeschwindigkeit, 0152 Handcannon, 0153 Lautst
 neue Menüreihenfolge, Spielstand-Import EU/Dolphin-Karte/ZIP, 60-FPS-Geisterbilder, Update-Knopf). `master` danach
 auf `golden-master` vorgespult (OUYA bleibt getrennt). Gerätetest der neuen Seiten offen.
 
+Danach (Wunsch des Projektinhabers): Knöpfe nebeneinander mit demselben Abstand wie untereinander, 14 dp
+(`MenuLayout.GAP` jetzt auf allen vier Seiten, vorher seitlich 3 dp); die Knöpfe rücken dadurch 4 dp nach innen,
+der Rand der Schnellspeicher-Knöpfe bleibt 12 dp. `CoreMenuLayoutTest` 8/8.
+
 ## Handcannon gegen Kettensäge, Ton im Endfilm, Menüs AUDIO und CHEATS (30.10.2026 nachmittags, lokal, golden-master)
 
 - **Handcannon gegen den Kettensägen-Mann (Nutzerbericht 30.10.2026 11:40, Debug-Discs):** „firepower doesn't match

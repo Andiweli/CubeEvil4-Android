@@ -19,8 +19,9 @@ final class MenuLayout {
    * `lines` lines.
    */
   /**
-   * Half the gap between two rows of buttons, in dp: each button's margin above and below (wish of the
-   * project owner, 30.10.2026: one gap everywhere, as wide as around the rows with a slider, 14 dp).
+   * Half the gap between two buttons, in dp: each button's margin on all four sides (wish of the project
+   * owner, 30.10.2026: one gap everywhere, as wide as around the rows with a slider, 14 dp; since the
+   * evening of 30.10.2026 between buttons side by side too, before 6 dp).
    */
   static final int GAP = 7;
 
@@ -43,7 +44,7 @@ final class MenuLayout {
       LayoutParams lp = new LayoutParams();
       lp.width = 0;
       lp.height = LayoutParams.WRAP_CONTENT;
-      lp.setMargins(dp(getContext(), 3), dp(getContext(), GAP), dp(getContext(), 3), dp(getContext(), GAP));
+      lp.setMargins(dp(getContext(), GAP), dp(getContext(), GAP), dp(getContext(), GAP), dp(getContext(), GAP));
       addView(button, lp);
     }
 
@@ -56,7 +57,7 @@ final class MenuLayout {
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
         int padding = child.getPaddingLeft() + child.getPaddingRight();
         int text = child.getMeasuredWidth() - padding;
-        needed = Math.max(needed, (text + lines - 1) / lines + padding + dp(getContext(), 6));
+        needed = Math.max(needed, (text + lines - 1) / lines + padding + dp(getContext(), 2 * GAP));
       }
       int columns = Math.max(1, Math.min(Math.min(maxColumns, getChildCount()), available / needed));
       // Clear auto-assigned spans before changing column count (also supports resizing back up).
@@ -97,7 +98,7 @@ final class MenuLayout {
 
     void addButton(View button) {
       MarginLayoutParams lp = new MarginLayoutParams(0, LayoutParams.WRAP_CONTENT);
-      lp.setMargins(dp(getContext(), 3), dp(getContext(), GAP), dp(getContext(), 3), dp(getContext(), GAP));
+      lp.setMargins(dp(getContext(), GAP), dp(getContext(), GAP), dp(getContext(), GAP), dp(getContext(), GAP));
       addView(button, lp);
     }
 
@@ -105,7 +106,7 @@ final class MenuLayout {
 
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
       int width = Math.max(1, MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight());
-      int margins = dp(getContext(), 6);
+      int margins = dp(getContext(), 2 * GAP);
       int needed = dp(getContext(), 64);
       for (int i = 0; i < getChildCount(); i++) {
         View child = getChildAt(i);
@@ -132,7 +133,7 @@ final class MenuLayout {
     }
 
     @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-      int left = getPaddingLeft(), top = getPaddingTop(), side = dp(getContext(), 3), up = dp(getContext(), GAP);
+      int left = getPaddingLeft(), top = getPaddingTop(), side = dp(getContext(), GAP), up = dp(getContext(), GAP);
       for (int i = 0; i < getChildCount(); i++) {
         int x, y;
         if (piano()) {
