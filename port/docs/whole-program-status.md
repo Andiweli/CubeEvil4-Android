@@ -344,6 +344,22 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Berichte des Projektinhabers 30.10.2026 21:10/22:22 (Retroid, 0.96.1, lokal, `golden-master`)
+
+- **Zwei kurze Ruckler (Berichte 21:10:22 und 21:11:08, Retroid, Force Performance an):** das längste Bildstück der
+  Abschnitte 780 ms (Betreten von r104, 21:10:05: 426 neue Grafikprogramme, 86 erst beim ersten Zeichnen gebaut) und
+  519 ms (21:10:58: die Ganados 0x13 der Gruppe am Dorfrand erscheinen; 11 Programme beim ersten Zeichnen, 6 davon
+  ohne Eintrag im Programm-Zwischenspeicher). Ursache also das Bauen von Shadern im Spiel: das Vorbereiten der 17050
+  bekannten Programme läuft nach dem Start im Hintergrund und war 13 s nach dem Laden des Spielstands noch nicht fertig.
+  Die neuen Programme stehen jetzt in der Liste der App und werden beim nächsten Start vorbereitet. Vorschlag offen:
+  während Titel, Menüs und Ladebildern schneller vorbereiten.
+- **Auto-Zielen mit der Schrotflinte (Bericht 22:22:39):** der Laser blieb waagerecht, der getroffene Gegner stand
+  oben am Hang. Nur die Pistole stellt beim Anlegen die Höhe zum Ziel ein (`wep02_r3_ready00`: `lockInit`,
+  `PlSetLockPitch`); Schrotflinte (Waffe 6), MPs und Raketenwerfer nehmen die Kamerahöhe und richten sich nur über
+  `PlWepAutoTrack` in kleinen Schritten auf. **Patch 0159:** mit Auto-Zielen und einem Ziel nehmen sie dessen Höhe wie
+  die Pistole. Geprüft am PC (r10a, Schrotflinte neben einem Ganado): ohne Auto-Zielen Blick 1,20 und m3r 0,00, mit
+  Auto-Zielen Blick 1,58 und m3r −0,03 sofort beim Anlegen; ein Ziel am Hang nicht nachgestellt, **Gerät offen**.
+
 ## Nutzermeldungen 30.10.2026 nachts II (lokal, `golden-master`)
 
 - **Absturz am Torbogen in r203 (EU-Discs, Easy, 0.95.2, Bericht 17:10):** die Wiedersehens-Szene mit Ashley
@@ -10375,6 +10391,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0156 `player.cpp` | „Immer laufen“ des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026): die vier Lauf-Abfragen (`KEY_B` gehalten) in `pl_R1_Wait`, `pl_R1_Walk`, `pl_R1_Run` über `re4_run_held` (`runtime/aim_options.cpp`), mit dem Schalter umgekehrt. Port-Patch |
 | 0157 `r203.cpp` | Wiedersehens-Szene am Torbogen: lädt das Ganado-Modul nach, wenn auf Easy (EU, Patch 0141) keins geladen ist; vorher Absturz (Nutzerbericht 30.10.2026). Port-Patch |
 | 0158 `title.cpp` | Mercenaries-Etappenauswahl: Figuren-Symbole nur bei freigeschalteter Figur, wie EU (`stageSelect`, Nutzermeldung 30.10.2026). Fehler des Prototyps, alle Discs |
+| 0159 `pl_shotgun.cpp`, `pl_machine.cpp`, `pl_rocket.cpp` | Auto-Zielen: beim Anlegen die Höhe des Ziels wie die Pistole (`PlSetLockPitch`), nur mit `CFG_LOCK_ON` und Ziel (Test des Projektinhabers 30.10.2026). Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
