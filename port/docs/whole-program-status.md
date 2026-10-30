@@ -344,6 +344,13 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Version 0.96.1-beta (30.10.2026, lokal, Branch `golden-master`)
+
+Wunsch des Projektinhabers: `versionName` 0.96.1-beta, `versionCode` 83, Releasetext
+`port/android-decomp/docs/releases/v0.96.1-beta.md` (seit 0.96.0: US-Discs, Patch 0154 Chicago Typewriter, 0155
+Drachenhalle r222, 0156 Immer laufen, Auto-Zielen, r20e und „EMPTY“ mit US-Discs, russischer Text, Knopfabstände,
+Heap-Zeile im Protokoll). Gerätetest der Neuerungen offen.
+
 ## Nutzermeldungen 30.10.2026 spätabends (lokal, `golden-master`)
 
 - **r222 (Drachenhalle über der Lava, Debug-Discs, Bericht 08:06): „die Ketten der Plattformen gehen nicht kaputt“.**

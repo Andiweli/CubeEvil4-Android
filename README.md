@@ -19,7 +19,7 @@ the original game code, compiled from the complete decompilation in this reposit
 Since v0.92.0 it also plays the **European retail release** (`G4BP08`, two discs) in English,
 German, French, Spanish and Italian; the code stays the debug build's, with small patches where the
 retail data needs them. Since v0.95.2 it also plays the **Japanese retail release** (`G4BJ08`,
-"biohazard4") and the Korean fan translation built on it, and now the **US retail release** (`G4BE08` as
+"biohazard4") and the Korean fan translation built on it, and since v0.96.1 the **US retail release** (`G4BE08` as
 well, two discs) in English. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
 and it contains no game data: you need your own images of both discs of one release.
 
@@ -147,7 +147,7 @@ With the retail discs (European, US, Japanese) there is no debug menu; the app m
   display, 60 FPS (experimental), Force Performance: Default or Use performance cores, Potato mode: weather and
   special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress; comfort
   controls: Alternate Controls, gyro aiming with its sensitivity and inversion, knife by swipe,
-  Latch L and R, Latch B; Controller Configuration), cheats (infinite health, infinite ammo,
+  Latch L and R, Latch B, Auto aim, Always run; Controller Configuration), cheats (infinite health, infinite ammo,
   one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export
   and import saves as `.gci` for Dolphin and the GameCube) and the error log (send or save a
   report; R3 = graphics capture). B returns to the game.
