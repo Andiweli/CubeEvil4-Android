@@ -303,8 +303,16 @@ extern "C" void re4_heap_failed(int heap, unsigned size, int flag, const char* w
         }
     }
     if (count <= 3 || count % 1000 == 0) {
-        re4_log("heap: no room for 0x%x bytes in heap %d (%s, flag %d; %u failures so far)", size, heap,
-                where ? where : "?", flag, n);
+        if (flag == 0) {
+            // a try with a way out (DataCtrl, cDataSwap): the game takes it, as on the GameCube. Worded so
+            // that testers do not take it for an error (user report 30.10.2026: the line in r101 read as
+            // the cause of a stutter)
+            re4_log("heap: heap %d full for 0x%x bytes (%s): the game loads it through ARAM instead, as on the "
+                    "GameCube; not an error (%u so far)", heap, size, where ? where : "?", n);
+        } else {
+            re4_log("heap: no room for 0x%x bytes in heap %d (%s, flag %d; %u failures so far)", size, heap,
+                    where ? where : "?", flag, n);
+        }
     }
 }
 

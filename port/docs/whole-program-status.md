@@ -375,6 +375,9 @@ Gearbeitet direkt in `RE4-Fixed` (Wunsch des Projektinhabers: golden-master), ge
   Dorfbewohner erscheinen) hat damit eine andere Ursache; das „max 2141.9 ms“ der GX-Zeile ist das Maximum seit dem
   Start, nicht dieser Augenblick. **Neu:** `formats` schreibt jede Umwandlung ab 50 ms ins Kernprotokoll („took N ms to
   convert“, höchstens 50 Zeilen). **Offen:** ein Bericht direkt nach dem Ruckler.
+  Danach (Wunsch des Projektinhabers): die Zeile für Versuche mit Ausweg (Flag 0) lautet jetzt „heap: heap 4 full for
+  0x… bytes (datactrl.cpp(452)): the game loads it through ARAM instead, as on the GameCube; not an error“; echte
+  Fehlschläge (Flag 1, `Debug_alloc`) bleiben „heap: no room …“. `room_tour_report.py` zählt beide.
 - **Blacktail in den Mercenaries (Nutzermeldung):** `set_char(0)` gibt Leon 0x27 (Blacktail) und 0x94 (Riot Gun),
   in Debug-, EU- und US-`main.dol` dieselbe Tabelle (`retail_code.py`; nur Krausers Bogen hat in der
   Verkaufsfassung Nachladestufe 2 statt 1). Mit dem Debug-Start in r400 (oder einem Raumsprung des Debug-Menüs)
