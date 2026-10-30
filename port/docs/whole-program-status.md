@@ -146,6 +146,13 @@ Projektinhabers); `bughunt` zweigt davon ab.
     Bild), es ist also Füllarbeit des Raums (Nebel, Flüssigstickstoff, Wasser) bei 2,5×. **Rat an den Nutzer:**
     Auflösung „Dynamisch“ oder 1,5×/2×. **Für eine Optimierung:** Grafikaufnahme (R3) im Kampf, die teuren Zeichnungen
     suchen (große durchsichtige Flächen, Kopien in voller Auflösung).
+30. **„Potato-Mode“ (Entscheidung des Projektinhabers, 30.10.2026):** ein Schalter im Ingame-Menü auf der Seite
+    „Performance“ (`CoreMenu.performance()`), der nur die teuren Umgebungseffekte weglässt: Nebelschwaden, Regen,
+    Wasserspritzer, Dampf, die Wolke des Flüssigstickstoffs (Verdugo) und die Effekte, die das Bild kopieren und
+    verzerrt darüberlegen (Hitzeflimmern, Wasser). Bleiben: Mündungsfeuer, Blut, Explosionen, Feuer, Dynamit,
+    Treffer, Hinweise und der Entfernungsnebel (GX-Fog, kostet kaum etwas, verdeckt die Raumränder). Umsetzung in der
+    Effektverwaltung des Spiels nach Effektart (Port-Laufzeit/Patch mit Schalter aus der App), nicht im Renderer.
+    Plan und Effektliste: lokale Sitzung mit Disc-Daten (Bildvergleich, GPU-Zeit in r21d vorher/nachher).
 
 ## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
 
