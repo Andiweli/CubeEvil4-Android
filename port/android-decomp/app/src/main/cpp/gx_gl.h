@@ -62,6 +62,9 @@ struct GxStats {
   // measurement for merging draw calls (tester's proposal 30.10.2026), not used for drawing
   unsigned mergeSame = 0, mergeUniform = 0;
   unsigned mergeMatrixOnly = 0;  // of mergeUniform: only the vertex side (XF: matrices, lights) changed
+  // merged draw calls (RE4_GX_MERGE=1, SetMerge): the calls that drew several draws, and those draws
+  // (GL draw calls: draws - mergeTaken + mergeBatches)
+  unsigned mergeBatches = 0, mergeTaken = 0;
   // the uniform stream moved on to its next quarter: in all, and inside a chunk (a chunk larger
   // than the room left; between chunks otherwise, gx_gl.cpp)
   unsigned streamSwitches = 0, streamSplits = 0;
@@ -219,6 +222,14 @@ public:
   // 60 FPS (experimental, decision of the project owner 22.10.2026): on, every Run notes how each
   // of its draws was drawn (the position and normal matrices, the projection) for Interpolate.
   void SetRecording(bool on);
+  // Merged draw calls (an experiment for low-end phones, 30.10.2026; default off, RE4_GX_MERGE=1 at
+  // Init turns it on): draws in a row that differ only in the position, texture and normal matrices
+  // (the XFM part) and their matrix indices go to the GPU as one draw call, up to kMergeSlots of
+  // them (gx_gl_shader.h). Not while recording (60 FPS) and not without glDrawElementsBaseVertex.
+  // Their programs are made by Prewarm (a refresh without a chunk), not while drawing: till then a
+  // run draws one by one.
+  void SetMerge(bool on);
+  bool Merging() const;
   // The picture between `prev`, the chunk run last (the caller still holds it: its vertices), and
   // `next` at t (0 prev .. 1 next), into the XFB: `next` once more, every draw that matches one
   // of `prev` with its matrices (and changed vertices, the figures the game skins on the CPU)

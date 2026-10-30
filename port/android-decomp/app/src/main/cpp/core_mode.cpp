@@ -1589,6 +1589,12 @@ bool drawGx() {
             split[GxStats::kSplitState], split[GxStats::kSplitVertices], split[GxStats::kSplitProgram],
             split[GxStats::kSplitTexture], split[GxStats::kSplitBp], split[GxStats::kSplitXf],
             split[GxStats::kSplitRest]);
+        // merged draw calls (RE4_GX_MERGE=1, an experiment for low-end phones)
+        if (gx->Merging())
+          LOG("GX merged draw calls per chunk: %.0f GL draw calls for %.0f draws, %.0f of them in %.0f merged calls",
+              (s.draws - gxWork.draws - (s.mergeTaken - gxWork.mergeTaken) + (s.mergeBatches - gxWork.mergeBatches)) / n,
+              (s.draws - gxWork.draws) / n, (s.mergeTaken - gxWork.mergeTaken) / n,
+              (s.mergeBatches - gxWork.mergeBatches) / n);
       }
       // 60 FPS: how far the GPU lags behind (fences after every Run, the in-between ones too); more
       // than 2.5 Runs on average: off for this renderer, the menu's switch stays (a lower

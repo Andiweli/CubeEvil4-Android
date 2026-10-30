@@ -344,6 +344,45 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Zeichenbefehle zusammenfassen: Versuch (30.10.2026 nachts, lokal, Branch `gx-merge`)
+
+Auftrag (nach der Messung unten): ein abschaltbarer Versuch im GLES3-Renderer, der aufeinanderfolgende Zeichenbefehle,
+die sich nur in den Matrizen unterscheiden, in einem GL-Aufruf schickt. Schalter `RE4_GX_MERGE=1` (aus als Standard;
+`GxRenderer::SetMerge`), in der App über die Start-Einstellungen (`coreSettings`), noch keine Menü-Option.
+
+- **Weg (`gx_gl.cpp`):** Vor den Zeichenbefehlen eines Bildstücks sucht `MergePlan` Ketten: Befehle in Folge mit gleichem
+  Ecken-Aufbau, Schritt und Primitiv, deren Ecken hintereinander liegen, dazwischen nur XF-, BP-, Owner-, TLUT- und
+  Textur-Befehle ohne Daten. Ihre Indizes kommen, auf die erste Ecke der Kette verschoben (u16, sonst endet die Kette),
+  hinter die des Bildstücks in denselben Indexpuffer (ein Upload). Beim Zeichnen nimmt `DrawMerged` die nächsten Befehle
+  der Kette, solange die Befehle dazwischen am Ende nichts außer den Plätzen ändern (`MergeQuiet`: BP-Register mit dem
+  alten Endwert – das Spiel schaltet zwischen zwei Objekten den Blend-Modus um und zurück –, keine Kopie, kein Autofokus,
+  keine Tiefenmarke, TEV-Farben unverändert; XF nur Matrizen, Materialfarben 0x100A-0x100D, 0x1018/0x1019 oder
+  gleiche Werte; Texturen schon gebunden). Höchstens 10 Plätze (`kMergeSlots`, 16 KB je Uniform-Block, das Minimum von
+  GLES 3.0 und vieler Mali-Treiber); je Platz XFM-Teil, Materialfarben, `uMtx` und die erste Ecke (`MergeBlock`,
+  Bindung 4). Ein `glDrawElementsBaseVertex` mit der Basis der Kette; der Shader-Ableger (`GxMergedVertexShader`) findet
+  den Platz über `gl_VertexID`, sonst dieselbe Rechnung. Nicht mit 60 FPS (`recordDraws`) und nicht ohne Basis-Ecke.
+- **Programme:** die Ableger macht `Prewarm` (Bildwiederholung ohne neues Bildstück), nie mitten im Bild (ein Link kostete
+  auf dem Retroid ~16 ms); bis dahin zeichnet die Kette einzeln. Ihr Binärcode kommt in den Programm-Cache, ihr Schlüssel
+  nicht (die Vorlade-Liste der App bleibt gleich). `gx_chunk_render` ruft nach jedem Bildstück `Prewarm` wie die App.
+- **Zähler:** `GxStats::mergeBatches`/`mergeTaken`; `gx_chunk_render` mit `RE4_GX_WORK=1` zeigt GL-Zeichenaufrufe und die
+  Zeit des Render-Threads je Art; die App schreibt mit eingeschaltetem Versuch „GX merged draw calls per chunk“ ins Log.
+- **Geprüft (PC, WSL `~/re4-merge/RE4`, `app-host-gl`, Bildfolgen `~/re4-bh/merge/r100`, `r10a`, `r101`):**
+  alle 15 Bilder mit und ohne Versuch **bytegleich** (PPM), ebenso mit 4× MSAA, EFB 2×, ohne Uniform-Ring
+  (`RE4_GX_UNIFORM_STREAM=0`) und ohne Dauer-Mapping (`RE4_GX_PERSISTENT=0`); mit 60 FPS (`RE4_GX_INTERP=1`) bleibt der
+  Versuch aus, Bilder und Zwischenbilder gleich. GL-Zeichenaufrufe im eingeschwungenen Bild: **r100 496 → 329 (−34 %)**,
+  etwa 200 Befehle in 32 Aufrufen; **r10a 453 → 271 (−40 %)**, etwa 225 in 42; r101 125 → 92. Uniform-Uploads r100
+  852 → 638, r10a 686 → 460 (Bytes etwa gleich), Programmwechsel +12 bzw. +22. Neuer Test `TestMerge`
+  (`gx_gl_check`: 24 Quadrate mit eigenen Matrizen, `uMtx`, Materialfarben, Blend-Modus hin und zurück, Owner-Marken,
+  eine bleibende Registeränderung: 4 Aufrufe, Bild wie ohne); `gx_gl_check` 0 Fehler.
+- **CPU-Zeit des Render-Threads am PC** (llvmpipe, 5 Durchläufe, ohne die ersten zwei Bilder je Folge): r100 Split
+  „draw calls“ 19,0 → 21,9 ms (ganzer Run 42,3 → 45,9 ms), r10a 13,7 → 13,5 ms (26,8 → 27,0 ms); die eigene Arbeit
+  (Planen, Prüfen) +0,3 ms. Am PC also **kein Gewinn**: llvmpipe rechnet die Ecken im Zeichenaufruf selbst auf diesem
+  Thread, der Ableger mit seiner Platz-Schleife ist dort eher langsamer; der teure Teil auf dem Handy (der Treiber je
+  Aufruf, Redmi 15C 21–27 ms für 700–850 Aufrufe, also ~30 µs je Aufruf) fehlt am PC. Erwartung für Mali-G52: ~170
+  Aufrufe weniger je Bild, grob 5 ms – **nicht gemessen**.
+- **Nicht geprüft:** Gerät (Redmi 15C, Retroid), Spielen mit eingeschaltetem Versuch; die Shader-Ableger auf Mali/Adreno
+  (Schleife über `gl_VertexID`, Uniform-Block mit 16 160 Byte).
+
 ## Zeichenbefehle zusammenfassen: Messung (30.10.2026 nachts, lokal, `golden-master`)
 
 Vorschlag eines Testers (Redmi 15C): Instancing, ferne „Stay“-Gegner weglassen, Raumgeometrie bündeln,

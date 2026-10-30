@@ -12,6 +12,8 @@
 //     position, an EFB copy used as a texture, a paletted texture, linear fog
 //   - shader generation: random TEV setups (inputs, compare modes, scales,
 //     swap tables, konst selections, indirect stages) all compile
+//   - merged draw calls (RE4_GX_MERGE): draws that differ only in their
+//     matrices and material colours in few calls, the picture unchanged
 #include "gx_auto_level.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
@@ -750,6 +752,84 @@ void TestHandOverCopies() {
         "hand over: the copy drawn at the new scale (red)");
   Check(glGetError() == GL_NO_ERROR, "hand over: no GL error");
   b.Release();
+}
+
+// Merged draw calls (SetMerge, RE4_GX_MERGE, 30.10.2026): 24 squares, each moved by its own position
+// matrix (every second one in PNMTX1, another uMtx) and coloured by its own material colour, with a
+// blend mode set and back and owner tags between them as the game sends them; after square 11 a
+// register stays changed (the dither bit: the picture stays, the run must end). With merging the
+// squares go in a few draw calls (once Prewarm made the programs), the picture the same as without.
+void TestMerge() {
+  const auto build = [](Builder &b) {
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    b.Xf(0x100E, {0});  // colour 0 from the material register, no lighting
+    for (unsigned i = 0; i < 24; i++) {
+      const float x = static_cast<float>(i % 6) * 40.0f, y = static_cast<float>(i / 6) * 40.0f;
+      const unsigned row = (i & 1) ? 3 : 0;
+      b.XfF(row * 4, {1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, 0});
+      b.Xf(0x100C, {(40u + i * 8) << 24 | (255u - i * 9) << 16 | ((i * 37) & 255) << 8 | 255u});
+      b.Bp(0x41, b.bp[0x41] | 1u << 0);  // blending on and off again (the game between two objects)
+      b.Bp(0x41, b.bp[0x41] & ~1u);
+      if (i % 5 == 0)
+        b.Owner(0x80001000u + i, 0x80002000u, 0x80003000u);
+      Quad(b, 10, 10, 30, 30, 0, kWhite);
+      Re4GxDraw d;
+      std::memcpy(&d, &b.ops[b.ops.size() - sizeof(d) / 4], sizeof(d));
+      d.matrices[0] = (d.matrices[0] & ~0xFFu) | row;
+      std::memcpy(&b.ops[b.ops.size() - sizeof(d) / 4], &d, sizeof(d));
+      if (i == 11)
+        b.Bp(0x41, b.bp[0x41] | 1u << 2);  // dither on: stays
+    }
+    b.Bp(0x41, b.bp[0x41] & ~(1u << 2));
+    DisplayCopy(b, false, kBlack);
+  };
+  std::string error;
+  re4gx::GxRenderer single, merged;
+  Require(single.Init(1, &error), error.c_str());
+  Require(merged.Init(1, &error), error.c_str());
+  merged.SetMerge(true);
+  Builder a, b, c;
+  build(a);
+  single.Run(a.Chunk());
+  build(b);
+  merged.Run(b.Chunk());
+  const unsigned before = merged.Stats().mergeBatches;
+  Check(merged.Prewarm(1e9) == false, "merged draws: Prewarm makes the programs the chunk wanted");
+  build(c);
+  const re4gx::GxStats was = merged.Stats();
+  merged.Run(c.Chunk());
+  const re4gx::GxStats &s = merged.Stats();
+  const unsigned draws = s.draws - was.draws, taken = s.mergeTaken - was.mergeTaken,
+                 calls = s.mergeBatches - was.mergeBatches;
+  char what[160];
+  std::snprintf(what, sizeof(what), "merged draws: none before the programs are made (%u)", before);
+  Check(before == 0, what);
+  std::snprintf(what, sizeof(what), "merged draws: 24 squares in %u draw calls (%u merged in %u)",
+                draws - taken + calls, taken, calls);
+  // runs of up to 10: 0-9, 10-11 (the dither stays after 11), 12-21, 22-23
+  Check(draws == 24 && taken == 24 && calls == 4, what);
+  bool same = true, right = true;
+  for (unsigned i = 0; i < 24; i++) {
+    const int x = static_cast<int>(i % 6) * 40 + 20, y = static_cast<int>(i / 6) * 40 + 20;
+    const auto p = TexPixel(single.Xfb(nullptr, nullptr), x, y), q = TexPixel(merged.Xfb(nullptr, nullptr), x, y);
+    same = same && p == q;
+    right = right && Near(q, static_cast<int>(40 + i * 8), static_cast<int>(255 - i * 9), static_cast<int>((i * 37) & 255));
+    for (const int dx : {-12, 12})
+      same = same && TexPixel(single.Xfb(nullptr, nullptr), x + dx, y) == TexPixel(merged.Xfb(nullptr, nullptr), x + dx, y);
+  }
+  Check(right, "merged draws: each square at its matrix's place in its material colour");
+  Check(same, "merged draws: the picture as with single draw calls");
+  // off again: one by one
+  merged.SetMerge(false);
+  Builder e;
+  build(e);
+  const unsigned callsBefore = merged.Stats().mergeBatches;
+  merged.Run(e.Chunk());
+  Check(merged.Stats().mergeBatches == callsBefore, "merged draws: off, every draw on its own");
+  Check(glGetError() == GL_NO_ERROR, "merged draws: no GL error");
+  single.Release();
+  merged.Release();
 }
 
 // The game's GXPeekZ (a torch's glow hides itself behind a wall by reading the depth around it): the
@@ -2794,6 +2874,7 @@ int main() {
   TestRescale();
   TestAutoLevel();
   TestHandOverCopies();
+  TestMerge();
   // twice: as the app runs it, and with the copy targets, the blur and the focus painted magenta
   // where the GPU may forget them (GPU step b): every picture must stay the same
   for (int poison = 0; poison < 2; poison++) {

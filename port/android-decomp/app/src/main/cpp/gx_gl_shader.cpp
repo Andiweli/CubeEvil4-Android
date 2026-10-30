@@ -257,6 +257,50 @@ std::string GxVertexShader(const ShaderKey &k) {
 
 namespace {
 
+void ReplaceAll(std::string &s, const std::string &from, const std::string &to) {
+  for (std::size_t at = s.find(from); at != std::string::npos; at = s.find(from, at + to.size()))
+    s.replace(at, from.size(), to);
+}
+
+} // namespace
+
+// GxVertexShader with the XFM part and uMtx of the vertex's slot: the same arithmetic on the same
+// values, so the merged draw gives the pixels of the single draws.
+std::string GxMergedVertexShader(const ShaderKey &k) {
+  std::string out = GxVertexShader(k);
+  char block[256];
+  std::snprintf(block, sizeof(block),
+                "layout(std140) uniform XFMM {\n"
+                "  uvec4 mSlot[%d];\n"
+                "  vec4 mXf[%d];\n"
+                "};\n",
+                kMergeSlots, kMergeSlots * kMergeRows);
+  ReplaceAll(out, "layout(std140) uniform XFM {\n  vec4 posTex[64];\n  vec4 nrmMtx[32];\n};\n", block);
+  ReplaceAll(out, "uniform uvec3 uMtx;\n", "");
+  char slot[256];
+  std::snprintf(slot, sizeof(slot),
+                "void main() {\n"
+                "  int slot = 0;\n"
+                "  for (int s = 1; s < %d; s++) {\n"
+                "    if (uint(gl_VertexID) < mSlot[s].w) break;\n"
+                "    slot = s;\n"
+                "  }\n"
+                "  int xb = slot * %d;\n",
+                kMergeSlots, kMergeRows);
+  // the uses in main (XFL still declares matAmb)
+  const std::size_t main = out.find("void main() {\n");
+  std::string body = out.substr(main);
+  out.resize(main);
+  ReplaceAll(body, "void main() {\n", slot);
+  ReplaceAll(body, "uvec3 m = uMtx;", "uvec3 m = mSlot[slot].xyz;");
+  ReplaceAll(body, "posTex[", "mXf[xb + ");
+  ReplaceAll(body, "nrmMtx[", "mXf[xb + 64 + ");
+  ReplaceAll(body, "matAmb[", "mXf[xb + 96 + ");
+  return out + body;
+}
+
+namespace {
+
 const char *kColorIn[16] = {"prev.rgb",     "prev.aaa",     "c0.rgb",       "c0.aaa",
                             "c1.rgb",       "c1.aaa",       "c2.rgb",       "c2.aaa",
                             "textemp.rgb",  "textemp.aaa",  "rastemp.rgb",  "rastemp.aaa",
