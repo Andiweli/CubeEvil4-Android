@@ -130,10 +130,28 @@ Projektinhabers); `bughunt` zweigt davon ab.
     `.gci`-Import (`runtime/gci.cpp`, `kGame`/`kCompany`) nimmt nur `G4BE08` an; das Spiel sieht auch mit EU-Discs
     `G4BE08` (gemeinsame Speicherkarte). Ein Spielstand der EU-Verkaufsfassung ist mit dem Spielcode des Prototyps
     nur verwendbar, wenn Version (Debug 0x116, `kSaveVersion`) und Aufbau (GLOBAL_WK-Block 0x36F8, Gegenstände 0x1204,
-    Räume, Händler; `save_layout.inc`) gleich sind. **Offen, lokal:** eine echte EU-`.gci` (`08-G4BP-bh4_data00.gci`)
-    und der EU-Code (`retail_code.py`: `makeSaveData`/`CardLoad` der EU, Version, Blockgrößen) vergleichen; bei
-    gleichem Aufbau `G4BP08` beim Import annehmen und als `G4BE08` ablegen, sonst einen Umwandler planen
-    (Entscheidung des Projektinhabers).
+    Räume, Händler; `save_layout.inc`) gleich sind.
+    **Behoben (lokal, 30.10.2026):** Die Karte des Nutzers (`Card.A.zip`) ist ein Dolphin-GCI-Ordner: 20 Spielstände
+    `08-G4BP-bh4_data00..19.gci` (je 8 Blöcke) und `08-G4BP-bh4_system.gci` (1 Block), alle `G4BP08`, Version 0x116,
+    beide Prüfsummen an den Stellen des Prototyps richtig. Der EU-Code schreibt sie wie der Prototyp: `makeSaveData`
+    (EU 0x80009bac) mit denselben Stellen 0x2034/0x572C/0x6930/0xE7D0/0xE7D4/0xEAF8 und Größen 0x36F8/0x1204, Magie
+    0x116; `cItemMgr::save`, `Merchant save`, `cRoomData::save/load` Wort für Wort gleich, `SscrnDataSize` 4,
+    `MerchantDataSize` 0x304. Einziger Unterschied: das GLOBAL_WK der EU hält den Block 0xC Byte später (0x4F8C statt
+    0x4F80, `cGameSave::save/load` EU 0x8011a064/0x80119f28); im Block selbst liegt jeder Zugriff über `pG` 0xC weiter
+    (alle 119 benutzten Stellen 0x4F84..0x8678, Zählung über beide `main.dol`), der Inhalt hat also denselben Aufbau.
+    Die Systemdatei ist gleich groß (CRC bei 0x1E78); ihre Sprache ersetzt die App ohnehin (`game_language.cpp`).
+    `runtime/gci.cpp re4_gci_import` nimmt jetzt `G4BP08` an und legt die Datei als `G4BE08` ab (Protokollzeile
+    „European G4BP08 as G4BE08“); andere Kennungen bleiben abgelehnt. Kartentest erweitert (EU-Datei über eine
+    vorhandene, danach `08-G4BE-…`). **Am PC geprüft (i686, WSL):** alle 21 Dateien importiert, `memcard_list.py` zeigt
+    sie heil (Räume r103..r333, Kapitel 0..18); Export und erneuter Vergleich: jede Datei Byte für Byte gleich bis auf
+    Kennung und Blocknummer. Mit EU-Discs geladen: Datei 5 (r10e), 7 (r204), 13 (r22a), 19 (r326) laufen im
+    gespeicherten Raum weiter, Leon frei, „Retry from a continue point“ läuft wieder an, Inventar mit Waffen und Stufen;
+    Datei 1 ist ein Spielstand nach dem Durchspielen (Art 3) und startet wie vorgesehen die neue Runde in r120.
+    `--self-test`, `--check-modules`, `--runtime-test`, `--core-test` (mit Kartentest) 0 Fehler. Debug-Discs:
+    Kartenprüfung (`whole_r100_check.sh --card-only`) A und B OK; dieser Debug-Spielstand als `.gci` exportiert, auf
+    eine neue Karte importiert, lädt wieder in r100 (mit „Retry“); EU-Datei 19 läuft auch mit den Debug-Discs in r326.
+    **Dolphin-Kartendatei (`.raw`/`.gcp`)** wird nicht gelesen, nur einzelne `.gci` (Dolphins GCI-Ordner, Export aus
+    dem Speicherkarten-Manager). **Offen:** Kurztest auf dem Retroid (Import über das App-Menü).
 28. **EU, leichter Modus: die Schrotflinte gehört von Anfang an ins Inventar** (Nutzermeldung). Der Prototyp gibt im
     neuen Spiel nur den Startsatz (`item.cpp cItemMgr::gameInit` → `set_game(0)`), ohne Abfrage der Schwierigkeit.
     **Offen, lokal:** die EU-Fassung von `gameInit`/`set_game` lesen (Gegenstand, Munition, Stufen, Abfrage
