@@ -133,7 +133,15 @@
     <string name="ingame_display_summary">रिज़ॉल्यूशन, चित्र और प्रभाव</string>
     <string name="ingame_controls_summary">टच, जाइरो और सुविधाजनक नियंत्रण</string>
     <string name="ingame_performance_summary">तेज़ कोर, 60 FPS और जानकारी</string>
-    <string name="ingame_management_summary">चीट्स, मेमोरी कार्ड, रिपोर्ट और सोर्स</string>
+    <string name="ingame_management_summary">मेमोरी कार्ड, रिपोर्ट और सोर्स</string>
+    <string name="ingame_audio">ऑडियो</string>
+    <string name="ingame_audio_summary">संगीत और साउंड इफ़ेक्ट</string>
+    <string name="ingame_cheats_summary">स्वास्थ्य, गोला-बारूद, पैसा और अतिरिक्त गेम</string>
+    <string name="ingame_experimental">प्रायोगिक</string>
+    <string name="ingame_volume">आवाज़</string>
+    <string name="ingame_music_volume">संगीत</string>
+    <string name="ingame_effects_volume">साउंड इफ़ेक्ट</string>
+    <string name="ingame_volume_help">संगीत पृष्ठभूमि संगीत है; साउंड इफ़ेक्ट गेम की बाकी सभी आवाज़ें हैं (गोलियाँ, आवाज़ें, कदम)। फ़िल्मों की आवाज़ वैसी ही रहती है।</string>
     <string name="ingame_output">चित्र आउटपुट</string>
     <string name="ingame_smooth_help">अतिरिक्त बीच के फ़्रेम। गेम लॉजिक 30 फ़्रेम/सेकंड पर रहता है।</string>
     <string name="ingame_instant_save">सेव करें</string>

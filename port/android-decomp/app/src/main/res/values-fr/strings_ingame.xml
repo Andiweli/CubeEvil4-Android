@@ -136,7 +136,15 @@
     <string name="ingame_display_summary">Résolution, format et effets</string>
     <string name="ingame_controls_summary">Tactile, gyroscope et confort</string>
     <string name="ingame_performance_summary">Cœurs performants, 60 FPS et compteur</string>
-    <string name="ingame_management_summary">Triches, carte mémoire, rapports et sources</string>
+    <string name="ingame_management_summary">Carte mémoire, rapports et sources</string>
+    <string name="ingame_audio">Audio</string>
+    <string name="ingame_audio_summary">Musique et effets sonores</string>
+    <string name="ingame_cheats_summary">Santé, munitions, argent et jeux bonus</string>
+    <string name="ingame_experimental">Expérimental</string>
+    <string name="ingame_volume">Volume</string>
+    <string name="ingame_music_volume">Musique</string>
+    <string name="ingame_effects_volume">Effets sonores</string>
+    <string name="ingame_volume_help">La musique est la musique de fond ; les effets sonores sont tout le reste du jeu (tirs, voix, pas). Les films gardent leur son.</string>
     <string name="ingame_output">Sortie vidéo</string>
     <string name="ingame_smooth_help">Images intermédiaires supplémentaires. La logique du jeu reste à 30 images/s.</string>
     <string name="ingame_instant_save">Sauvegarder</string>

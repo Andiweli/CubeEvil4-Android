@@ -133,7 +133,15 @@
     <string name="ingame_display_summary">Auflösung, Bildformat &amp; Effekte</string>
     <string name="ingame_controls_summary">Touch, Gyro &amp; Komfortsteuerung</string>
     <string name="ingame_performance_summary">Leistungskerne, 60 FPS &amp; Anzeige</string>
-    <string name="ingame_management_summary">Cheats, Speicherkarte, Berichte &amp; Quelle</string>
+    <string name="ingame_management_summary">Speicherkarte, Berichte &amp; Quelle</string>
+    <string name="ingame_audio">Audio</string>
+    <string name="ingame_audio_summary">Musik &amp; Soundeffekte</string>
+    <string name="ingame_cheats_summary">Gesundheit, Munition, Geld &amp; Extraspiele</string>
+    <string name="ingame_experimental">Experimentell</string>
+    <string name="ingame_volume">Lautstärke</string>
+    <string name="ingame_music_volume">Musik</string>
+    <string name="ingame_effects_volume">Soundeffekte</string>
+    <string name="ingame_volume_help">Musik ist die Hintergrundmusik; Soundeffekte sind alle anderen Töne im Spiel (Schüsse, Stimmen, Schritte). Die Filme behalten ihren Ton.</string>
     <string name="ingame_output">Bildausgabe</string>
     <string name="ingame_smooth_help">Zusätzliche Zwischenbilder. Die Spiellogik bleibt bei 30 Bildern/s.</string>
     <string name="ingame_instant_save">Speichern</string>

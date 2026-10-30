@@ -105,6 +105,7 @@ struct Core {
     void (*setFastCores)(int);
     void (*setPotato)(int);
     void (*setAim)(int);
+    void (*setSoundVolume)(int);
     void (*restartGame)(int);
     const char* (*discProblem)(void);
     void (*setCheats)(int);
@@ -723,6 +724,7 @@ bool loadCore(std::string& problem)
     bind(core.setFastCores, "re4_core_set_fast_cores");
     bind(core.setPotato, "re4_core_set_potato");
     bind(core.setAim, "re4_core_set_aim");
+    bind(core.setSoundVolume, "re4_core_set_sound_volume");
     bind(core.restartGame, "re4_core_restart_game");
     bind(core.discProblem, "re4_core_disc_problem");
     bind(core.setCheats, "re4_core_set_cheats");
@@ -845,6 +847,9 @@ void serve()
             break;
         case kSetAim:
             core.setAim(h.a);
+            break;
+        case kSetSoundVolume:
+            core.setSoundVolume(h.a);
             break;
         case kRestartGame:
             core.restartGame(h.a);

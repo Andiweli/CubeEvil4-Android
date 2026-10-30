@@ -278,6 +278,9 @@ void re4_core_set_potato(int mask);
  * after the system file was read), bits 8 and up "Aim speed" in percent (50..300, 100 as the game: the
  * stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
 void re4_core_set_aim(int bits);
+/* The app menu's AUDIO page (cores since 30.10.2026, runtime/sound_volume.cpp): bits 0..7 the music, bits
+ * 8..15 the sound effects volume in percent (0..100; 100 as the game). Any thread. */
+void re4_core_set_sound_volume(int bits);
 /* The game's language with the European discs (cores since 26.10.2026, port/docs/retail-eu-plan.md
  * R7): 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
  * The app menu's choice: the game takes it and restarts (its own soft reset at the next game frame,

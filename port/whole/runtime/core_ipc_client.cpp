@@ -944,6 +944,11 @@ void re4ipc_set_aim(int bits)
     post(kSetAim, bits, 0, 0);
 }
 
+void re4ipc_set_sound_volume(int bits)
+{
+    post(kSetSoundVolume, bits, 0, 0);
+}
+
 void re4ipc_restart_game(int language)
 {
     post(kRestartGame, language, 0, 0);

@@ -318,6 +318,24 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   und halbiert dafür Waffe 0x0B (gegen ihn und Typ 2) – Balance, nicht übernommen. **Patch 0152** (Fehler des
   Prototyps, beide Disc-Arten). Geprüft am PC (i686, Debug-Start r101, `RE4_TEST_WEAPON=free+40:15,0,lv=0x6026`): mit
   Patch 3000 → 0 mit einem Treffer, Gegenprobe ohne Patch 3000 → 2000 → 1000 → 0. Gerät offen.
+- **Ton im Endfilm (Nutzervideo 30.10.2026: „alle paar Sekunden ein Störgeräusch“):** `Movie/ending.sfd` am PC einmal
+  schnell und einmal in Echtzeit (`RE4_MOVIE_FAST=0`, `RE4_VI_FAST=0`, 216 s) aufgenommen: beide Aufnahmen sind Bit für
+  Bit gleich, ohne Lücken; die 23 gefundenen Spitzen liegen in beiden an denselben Stellen (Geräusche des Films). Der
+  Kern liefert den Filmton also sauber. Der Gerätebericht von 09:48 (nicht vom Endfilm) zeigt keine Aussetzer der
+  Android-Ausgabe („ran out“ 0), der Kern 6-mal „ran dry“ beim Start. Ein Puffer-Schieber im Menü bringt deshalb
+  wenig: die App vergrößert den Puffer bei Aussetzern schon selbst (`CoreAudio` LatencyTuner) und meldet sie im
+  Kernprotokoll. Offen: ein Bericht direkt nach dem Endfilm vom betroffenen Gerät.
+- **Seite AUDIO (Wunsch des Projektinhabers):** Schieber „Musik“ und „Soundeffekte“, 0–100 % in 5er-Schritten
+  (Grafik-Einstellungen `musicVolume`/`effectsVolume`, 100 wie das Spiel). App → `CoreBridge.setSoundVolume` →
+  `re4_core_set_sound_volume` (IPC `kSetSoundVolume` im Kernprozess) → `runtime/sound_volume.cpp`; **Patch 0153**
+  skaliert die Ausgabelautstärke der drei Tonberechnungen (I.S.S.-Effekte, Sequenzen, Streams; Typ 2 = Effekt, sonst
+  Musik), danach rechnet `Snd_reset_vol_all` im nächsten Spielbild alles neu. Die Filme behalten ihren Ton. Testhilfe
+  `RE4_SOUND_VOLUME=musik,effekte`. **Geprüft am PC** (i686, r101 mit Schüssen, 70 s): Effekte 0 → nur noch Musik,
+  Musik 0 → nur noch Effekte, 50 % → etwa ein Viertel der Amplitude (−12 dB, die Lautstärkekurve des Tontreibers;
+  hört sich etwa halb so laut an). Änderung während des Spiels und Gerät offen.
+- **Menü neu geordnet:** Anzeige › Audio › Steuerung › Performance › Cheats › Management (drei Reihen); die Cheats
+  haben eine eigene Seite CHEATS (vorher oben in MANAGEMENT); auf PERFORMANCE steht vor „Bildausgabe“ die Überschrift
+  „Experimentell“. Texte in allen zehn Sprachen (`check_translations.py` ok), `CoreMenuLayoutTest` 8/8.
 
 ## Branch bughunt lokal (30.10.2026, Windows-PC, Worktree `RE4-bughunt`, WSL-Baum `~/re4-bughunt/RE4`)
 
@@ -10119,6 +10137,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0141 `r203.cpp`, `r211.cpp`, `ss_map.cpp` | Easy-/Normal-Zweige der EU-Räume, die dem Debug-Code fehlen: r203 (Normal Meldungsbereich 6 an Tür 5 aus; Easy Tür 5 zu, kein Schlüssel nötig, weniger Ganados), r211 (Easy erster Kelch und Gruppe 0x20 mit Kollision; Normal Gruppe 0x20 aus), Karte auf Easy aus `SS/Esy`. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0150 `sofdec.cpp` | Vorfilm-Untertitel mit den JP-/KR-Discs (Nutzermeldung 30.10.2026: falsche Zeichen). Zu 0136 der japanische Zweig ihres `cSofdec`: bei Sprache 0 macht `initApp` (G4BP08 0x80161210, G4BJ08 0x80160b50) die Schrift aus `etc/movie.das` (Eintrag 5, 28 × 28) zur Schrift 2 der Untertitel, `finishMovie` (G4BJ08 0x801610b0) setzt die Stage-Schrift `pG->pStFnt` zurück. Debug-, EU- und US-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0151 `pl_wep.cpp`, `cam_extra.cpp` | „Zielgeschwindigkeit“ des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026, Seite Steuerung): `PlWepLockCtrl` (Waffen, Messer, Bogen) und `CameraScope::move` (Zielfernrohr) multiplizieren die Stick-Werte beim Zielen mit `re4_aim_speed()` (`runtime/aim_options.cpp`, 0,5–3, 1 wie das Spiel); Steuerkreuz unverändert. „Vertikal umkehren“ ist die Spieloption `CFG_AIM_REVERSE`. Port-Patch |
+| 0152 `em10.cpp` | Handcannon gegen Gegner mit `Wep_type` 4 (Kettensägen-Mann u. a.): `em10SetDmVal` nimmt die Waffe 0x0F wie die EU-Fassung von der 1000er-Grenze aus (Nutzerbericht 30.10.2026). Fehler des Prototyps, beide Disc-Arten |
+| 0153 `snd_iss4.cpp`, `snd_seq3.cpp`, `snd_str4.cpp` | Seite AUDIO des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026): Ausgabelautstärke × `re4_sound_volume()` (`runtime/sound_volume.cpp`, Musik bzw. Effekte in %, 100 wie das Spiel). Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

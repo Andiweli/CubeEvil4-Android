@@ -99,14 +99,14 @@ public class CoreMenuLayoutTest {
         menu.showUpdate(scale == 1.5f ? AppUpdate.CURRENT : AppUpdate.OLDER);
         View root = (View) field(menu, "root");
         root.setLayoutDirection(config.getLayoutDirection());
-        for (int page = 0; page < 7; page++) {  // 5: the button mapping of the controller, 6: of the keyboard
-          if (page >= 5) {
+        for (int page = 0; page < 9; page++) {  // 7: the button mapping of the controller, 8: of the keyboard
+          if (page >= 7) {
             java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
-            kind.setInt(menu, page == 5 ? ActionMap.KIND_CONTROLLER : ActionMap.KIND_KEYBOARD);
+            kind.setInt(menu, page == 7 ? ActionMap.KIND_CONTROLLER : ActionMap.KIND_KEYBOARD);
           }
-          show.invoke(menu, Math.min(page, 5), false);
+          show.invoke(menu, Math.min(page, 7), false);
           if (page == 0) metadata.invoke(menu, (Object) new long[] {0, 1, 1, 1, 0x100, 101, 123456, 1792841040});
-          if (page == 4) {
+          if (page == 5) {
             // the cheat buttons' longest answer shown under them
             TextView answer = (TextView) field(menu, "cheatStatus");
             answer.setText(activity.getString(R.string.ingame_cheat_not_now)); answer.setVisibility(View.VISIBLE);
@@ -259,7 +259,7 @@ public class CoreMenuLayoutTest {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      show.invoke(menu, 2, false);
+      show.invoke(menu, 3, false);
       View root = (View) field(menu, "root");
       ViewGroup body = (ViewGroup) field(menu, "body");
       measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
@@ -336,11 +336,11 @@ public class CoreMenuLayoutTest {
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       // on the controls page, at the bottom: with a controller or a keyboard
-      show.invoke(menu, 2, false);
+      show.invoke(menu, 3, false);
       Button open = (Button) field(menu, "controllerButton");
       assertFalse("without a controller or a keyboard", open.isEnabled());
       keyboard[0] = true;
-      show.invoke(menu, 2, false);
+      show.invoke(menu, 3, false);
       open = (Button) field(menu, "controllerButton");
       assertTrue("with a keyboard", open.isEnabled());
       open.performClick();
@@ -351,7 +351,7 @@ public class CoreMenuLayoutTest {
       // the controller's page: no move keys (its stick), fire is R2 + A
       java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
       kind.setInt(menu, ActionMap.KIND_CONTROLLER);
-      show.invoke(menu, 5, false);
+      show.invoke(menu, 7, false);
       keys = (Button[]) field(menu, "bindingButtons");
       assertNull(keys[ActionMap.MOVE_FORWARD]);
       assertEquals("R2 + A", keys[ActionMap.FIRE].getText().toString());
@@ -395,7 +395,7 @@ public class CoreMenuLayoutTest {
       // back goes to the controls page
       Method back = CoreMenu.class.getDeclaredMethod("goBack"); back.setAccessible(true);
       back.invoke(menu);
-      assertEquals(2, (int) (Integer) field(menu, "page"));
+      assertEquals(3, (int) (Integer) field(menu, "page"));
     }
   }
 
@@ -413,7 +413,7 @@ public class CoreMenuLayoutTest {
     return null;
   }
 
-  @Test public void cheatsComeFirstOnManagementAndSwitchesSendTheirBits() throws Exception {
+  @Test public void cheatsPageSwitchesSendTheirBits() throws Exception {
     final int[] sent = {-1};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
@@ -425,11 +425,9 @@ public class CoreMenuLayoutTest {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      show.invoke(menu, 4, false);
+      show.invoke(menu, 5, false);  // CHEATS, a page of its own since 30.10.2026
       ViewGroup body = (ViewGroup) field(menu, "body");
-      assertTrue(((TextView) body.getChildAt(0)).getText().toString()
-          .equalsIgnoreCase(activity.getString(R.string.ingame_cheats)));
-      ViewGroup switches = (ViewGroup) body.getChildAt(1), actions = (ViewGroup) body.getChildAt(2);
+      ViewGroup switches = (ViewGroup) body.getChildAt(0), actions = (ViewGroup) body.getChildAt(1);
       assertEquals(3, switches.getChildCount()); assertEquals(3, actions.getChildCount());
       Button health = (Button) switches.getChildAt(0), oneHit = (Button) switches.getChildAt(2);
       assertFalse(health.isSelected());
@@ -437,7 +435,7 @@ public class CoreMenuLayoutTest {
       oneHit.performClick(); assertEquals(5, sent[0]);
       health.performClick(); assertEquals(4, sent[0]);
       // the bottom row (29.10.2026): two, automatic QTEs (bit 8) and the extra games' button
-      ViewGroup more = (ViewGroup) body.getChildAt(3);
+      ViewGroup more = (ViewGroup) body.getChildAt(2);
       assertEquals(2, more.getChildCount());
       Button qte = (Button) more.getChildAt(0), extras = (Button) more.getChildAt(1);
       assertTrue(qte.getText().toString().contains(activity.getString(R.string.ingame_cheat_qte)));
@@ -483,7 +481,7 @@ public class CoreMenuLayoutTest {
       assertEquals(View.VISIBLE, status.getVisibility());
       assertEquals(controller.get().getString(R.string.ingame_instant_failed), status.getText().toString());
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      show.invoke(menu, 3, false);
+      show.invoke(menu, 4, false);
       ViewGroup body = (ViewGroup) field(menu, "body");
       // found by their labels (the page's rows moved with the Potato mode, 30.10.2026)
       Button fps = findButton(body, controller.get().getString(R.string.ingame_fps_display));

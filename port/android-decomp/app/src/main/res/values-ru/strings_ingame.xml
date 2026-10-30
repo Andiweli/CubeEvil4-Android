@@ -135,7 +135,15 @@
     <string name="ingame_display_summary">Разрешение, формат и эффекты</string>
     <string name="ingame_controls_summary">Сенсор, гироскоп и удобство</string>
     <string name="ingame_performance_summary">Мощные ядра, 60 FPS и счётчик</string>
-    <string name="ingame_management_summary">Читы, карта памяти, отчёты и исходники</string>
+    <string name="ingame_management_summary">Карта памяти, отчёты и исходники</string>
+    <string name="ingame_audio">Звук</string>
+    <string name="ingame_audio_summary">Музыка и звуковые эффекты</string>
+    <string name="ingame_cheats_summary">Здоровье, патроны, деньги и доп. игры</string>
+    <string name="ingame_experimental">Экспериментальное</string>
+    <string name="ingame_volume">Громкость</string>
+    <string name="ingame_music_volume">Музыка</string>
+    <string name="ingame_effects_volume">Звуковые эффекты</string>
+    <string name="ingame_volume_help">Музыка — это фоновая музыка; звуковые эффекты — все остальные звуки игры (выстрелы, голоса, шаги). Звук роликов не меняется.</string>
     <string name="ingame_output">Вывод изображения</string>
     <string name="ingame_smooth_help">Дополнительные промежуточные кадры. Логика игры остаётся на 30 кадрах/с.</string>
     <string name="ingame_instant_save">Сохранить</string>

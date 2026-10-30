@@ -799,6 +799,13 @@ void re4_core_set_aim(int bits)
     re4_aim_set(bits);
 }
 
+extern "C" void re4_sound_volume_set(int music, int effects);
+
+void re4_core_set_sound_volume(int bits)
+{
+    re4_sound_volume_set(bits & 0xFF, (bits >> 8) & 0xFF);
+}
+
 void re4_core_gx_depth(const unsigned* cells, unsigned serial)
 {
     re4_gx_depth_put(cells, serial);

@@ -133,7 +133,15 @@
     <string name="ingame_display_summary">分辨率、画面比例与效果</string>
     <string name="ingame_controls_summary">触控、陀螺仪与便捷操作</string>
     <string name="ingame_performance_summary">性能核心、60 FPS 与帧率显示</string>
-    <string name="ingame_management_summary">作弊、记忆卡、报告与源代码</string>
+    <string name="ingame_management_summary">记忆卡、报告与源代码</string>
+    <string name="ingame_audio">音频</string>
+    <string name="ingame_audio_summary">音乐与音效</string>
+    <string name="ingame_cheats_summary">生命、弹药、金钱与额外游戏</string>
+    <string name="ingame_experimental">实验性</string>
+    <string name="ingame_volume">音量</string>
+    <string name="ingame_music_volume">音乐</string>
+    <string name="ingame_effects_volume">音效</string>
+    <string name="ingame_volume_help">音乐指背景音乐；音效指游戏中的其他所有声音（枪声、人声、脚步）。过场影片的声音保持不变。</string>
     <string name="ingame_output">图像输出</string>
     <string name="ingame_smooth_help">生成额外的中间帧。游戏逻辑仍以每秒 30 帧运行。</string>
     <string name="ingame_instant_save">保存</string>

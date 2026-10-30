@@ -95,6 +95,7 @@ struct CoreApi {
   void (*setLetterbox)(int){};  // optional (cores since 22.10.2026): 4:3 without the bars
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
   void (*setPotato)(int){};     // optional (cores since 30.10.2026): Potato mode (bit 0 weather, bit 1 special effects off)
+  void (*setSoundVolume)(int){};  // optional (cores since 30.10.2026): music | effects << 8, percent
   void (*setAim)(int){};        // optional (cores since 30.10.2026): bit 0 invert vertical, bits 8.. aim speed in percent
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
@@ -432,6 +433,7 @@ void loadCore(JNIEnv *env) {
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
   api.setPotato = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_potato"));
   api.setAim = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_aim"));
+  api.setSoundVolume = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_sound_volume"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
@@ -663,6 +665,10 @@ int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU b
 // project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
 std::atomic<int> optAim{100 << 8};
 int aimSent = -1;  // what the core was told last (-1: nothing yet)
+// The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
+// percent (the core's runtime/sound_volume.cpp).
+std::atomic<int> optSound{100 | 100 << 8};
+int soundSent = -1;  // what the core was told last (-1: nothing yet)
 int renderFast = -1;  // the setting the render thread runs with (-1: none yet)
 
 // Shader programs made ahead on a thread of its own (decision of the project owner, 23.10.2026):
@@ -1476,6 +1482,11 @@ bool drawGx() {
       api.setAim(aim);
       aimSent = aim;
     }
+    const int sound = optSound.load();
+    if (api.setSoundVolume && sound != soundSent) {
+      api.setSoundVolume(sound);
+      soundSent = sound;
+    }
     if (fast != renderFast) {
       const bool first = renderFast < 0;
       renderFast = fast;
@@ -1845,6 +1856,7 @@ void useCoreProcess(const std::string &why) {
   api.setFastCores = re4ipc_set_fast_cores;
   api.setPotato = re4ipc_set_potato;
   api.setAim = re4ipc_set_aim;
+  api.setSoundVolume = re4ipc_set_sound_volume;
   api.restartGame = re4ipc_restart_game;
   api.discProblem = re4ipc_disc_problem;
   api.setCheats = re4ipc_set_cheats;
@@ -2130,6 +2142,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   fastSent = -1;
   potatoSent = -1;
   aimSent = -1;
+  soundSent = -1;
   // a new GL context: the renderer's objects are gone; the core starts over
   // (full state, every texture again) once chunks are taken again
   gx.reset();
@@ -2220,6 +2233,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEn
   const int want = percent << 8 | (invert == JNI_TRUE ? 1 : 0);
   if (optAim.exchange(want) != want)
     LOG("aim: stick aiming %s, speed %d %%", invert == JNI_TRUE ? "inverted" : "normal", percent);
+}
+
+// The menu's AUDIO page (drawGx tells the core): music and sound effects volume in percent.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSoundVolume(JNIEnv *, jclass, jint music, jint effects) {
+  const int m = std::clamp(static_cast<int>(music), 0, 100), e = std::clamp(static_cast<int>(effects), 0, 100);
+  const int want = m | e << 8;
+  if (optSound.exchange(want) != want) LOG("sound: music %d %%, sound effects %d %%", m, e);
 }
 
 // The menu's "Game language" with the European discs (decisions of the project owner, 26./27.10.2026;

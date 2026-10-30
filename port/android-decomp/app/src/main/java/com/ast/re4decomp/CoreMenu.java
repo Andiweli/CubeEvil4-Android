@@ -108,7 +108,9 @@ final class CoreMenu extends Dialog {
   }
 
   private interface Changed<T> { void accept(T value); }
-  private static final int HOME = 0, DISPLAY = 1, CONTROLS = 2, PERFORMANCE = 3, MANAGEMENT = 4, CONTROLLER = 5;
+  // the pages, the main menu's buttons in this order (wish of the project owner, 30.10.2026)
+  private static final int HOME = 0, DISPLAY = 1, AUDIO = 2, CONTROLS = 3, PERFORMANCE = 4, CHEATS = 5,
+      MANAGEMENT = 6, CONTROLLER = 7;
   private static final long CHEAT_FLASH_MS = 1500;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
@@ -124,8 +126,8 @@ final class CoreMenu extends Dialog {
   private static final int UPDATE_GREEN = 0xff2d5233, UPDATE_GREEN_EDGE = 0xff4f8a57;
   private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
   private final Handler main = new Handler(Looper.getMainLooper());
-  private final int[] scrollY = new int[7];
-  private final Button[] navigation = new Button[5];
+  private final int[] scrollY = new int[8];
+  private final Button[] navigation = new Button[7];
   // the button mapping: the button of each action, the device shown, the action whose keys are being
   // pressed (-1: none) with a combination's first key (0 before it), what the last change did
   private Button[] bindingButtons;
@@ -405,8 +407,9 @@ final class CoreMenu extends Dialog {
     bindingButtons = null; controllerButton = null; mapStatus = null;
     if (next != CONTROLLER) { captureAction = -1; main.removeCallbacks(captureTimeout); }
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
-    int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_controls_page,
-        R.string.ingame_performance, R.string.ingame_management, R.string.ingame_controller_config};
+    int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_audio,
+        R.string.ingame_controls_page, R.string.ingame_performance, R.string.ingame_cheats,
+        R.string.ingame_management, R.string.ingame_controller_config};
     if (page == HOME && version() != null) {
       SpannableStringBuilder t = new SpannableStringBuilder(s(titles[page]));
       int start = t.length(); t.append(" (v").append(version()).append(")");
@@ -414,8 +417,9 @@ final class CoreMenu extends Dialog {
       t.setSpan(new StyleSpan(Typeface.NORMAL), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
       title.setText(t);
     } else title.setText(s(titles[page]));
-    if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == CONTROLS) controls();
-    else if (page == PERFORMANCE) performance(); else if (page == CONTROLLER) controller();
+    if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == AUDIO) audio();
+    else if (page == CONTROLS) controls(); else if (page == PERFORMANCE) performance();
+    else if (page == CHEATS) cheats(); else if (page == CONTROLLER) controller();
     else management();
     separator(body);
     TextView footer = text(s(R.string.ingame_navigation), 14, false);
@@ -468,11 +472,13 @@ final class CoreMenu extends Dialog {
     slotStatus = text(s(R.string.ingame_instant_checking), 15, false); slotStatus.setPadding(0, dp(6), 0, dp(6));
     slotStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); body.addView(slotStatus);
     heading(R.string.ingame_settings);
-    MenuLayout.Buttons first = buttonsRow(body), second = buttonsRow(body);
+    MenuLayout.Buttons first = buttonsRow(body), second = buttonsRow(body), third = buttonsRow(body);
     navigation[DISPLAY] = nav(first, R.string.ingame_display, R.string.ingame_display_summary, DISPLAY);
-    navigation[CONTROLS] = nav(first, R.string.ingame_controls_page, R.string.ingame_controls_summary, CONTROLS);
+    navigation[AUDIO] = nav(first, R.string.ingame_audio, R.string.ingame_audio_summary, AUDIO);
+    navigation[CONTROLS] = nav(second, R.string.ingame_controls_page, R.string.ingame_controls_summary, CONTROLS);
     navigation[PERFORMANCE] = nav(second, R.string.ingame_performance, R.string.ingame_performance_summary, PERFORMANCE);
-    navigation[MANAGEMENT] = nav(second, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
+    navigation[CHEATS] = nav(third, R.string.ingame_cheats, R.string.ingame_cheats_summary, CHEATS);
+    navigation[MANAGEMENT] = nav(third, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
     if (host != null && host.gameLanguages()) gameLanguage();
     main.post(() -> { if (isShowing() && page == HOME && !working) refreshInstant(); });
   }
@@ -897,6 +903,43 @@ final class CoreMenu extends Dialog {
     return super.onGenericMotionEvent(e);
   }
 
+  /**
+   * The AUDIO page (wish of the project owner, 30.10.2026): the music's and the sound effects' volume, at once
+   * in the core (runtime/sound_volume.cpp); the movies keep their sound.
+   */
+  private void audio() {
+    heading(R.string.ingame_volume);
+    volumeSlider(R.string.ingame_music_volume, "musicVolume");
+    volumeSlider(R.string.ingame_effects_volume, "effectsVolume");
+    help(R.string.ingame_volume_help);
+  }
+  /** A volume of the AUDIO page as the mouse's slider: 0 .. 100 % in steps of 5, kept in `key`. */
+  private void volumeSlider(int label, String key) {
+    LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
+    line.addView(rowLabel(s(label)));
+    LinearLayout slider = row();
+    SeekBar bar = new SeekBar(getContext());
+    TextView value = text("", 15, false);
+    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
+    slider.addView(value);
+    line.addView(slider);
+    int now = Math.max(0, Math.min(100, graphics.getInt(key, 100)));
+    bar.setMax(20);
+    bar.setProgress(Math.round(now / 5f));
+    bar.setContentDescription(s(label));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    value.setText(now + " %");
+    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
+        value.setText(progress * 5 + " %");
+        if (fromUser) { graphics.edit().putInt(key, progress * 5).apply(); CoreBridge.sendSoundVolume(graphics); }
+      }
+      @Override public void onStartTrackingTouch(SeekBar b) {}
+      @Override public void onStopTrackingTouch(SeekBar b) {}
+    });
+    body.addView(line);
+  }
+
   private void performance() {
     heading(R.string.ingame_force_performance);
     choices(R.string.ingame_force_performance, new String[] {s(R.string.ingame_perf_default), s(R.string.ingame_perf_cores)},
@@ -915,6 +958,8 @@ final class CoreMenu extends Dialog {
       graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
     });
     help(R.string.ingame_potato_help);
+    // the picture output under a heading of its own (wish of the project owner, 30.10.2026)
+    heading(R.string.ingame_experimental);
     LinearLayout output = labelledOptions(R.string.ingame_output);
     toggle(buttonsRow(output), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
       graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
@@ -941,7 +986,6 @@ final class CoreMenu extends Dialog {
     help(output, R.string.ingame_skip_or_smooth);
   }
   private void management() {
-    cheats();
     heading(R.string.ingame_card); help(R.string.ingame_card_help);
     cardLine = text("", 15, false); body.addView(cardLine);
     MenuLayout.Buttons cardButtons = buttonsRow(body);
@@ -966,8 +1010,8 @@ final class CoreMenu extends Dialog {
       cheatBits = on ? cheatBits | bit : cheatBits & ~bit; host.cheatsChanged(cheatBits);
     });
   }
+  /** The CHEATS page (out of MANAGEMENT since 30.10.2026, wish of the project owner). */
   private void cheats() {
-    heading(R.string.ingame_cheats);
     cheatBits = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).getInt(CoreActivity.CHEATS, 0);
     MenuLayout.Buttons switches = new MenuLayout.Buttons(getContext(), 3);
     body.addView(switches, new LinearLayout.LayoutParams(-1, -2));
@@ -1008,7 +1052,7 @@ final class CoreMenu extends Dialog {
       catch (RuntimeException | UnsatisfiedLinkError e) { result = -2; }
       final int done = result;
       main.post(() -> {
-        if (!isShowing() || serial != requestSerial || page != MANAGEMENT || cheatStatus == null) return;
+        if (!isShowing() || serial != requestSerial || page != CHEATS || cheatStatus == null) return;
         if (what == 4 && (done == 1 || done == 2 || done == 3)) {
           // kept by the app as well: a system file read without it (no save since) gets it back
           cheatBits |= 16; host.cheatsChanged(cheatBits);

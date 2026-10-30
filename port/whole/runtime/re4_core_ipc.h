@@ -74,6 +74,7 @@ enum MsgType : uint32_t {
     kAimTurn = 33,       // a, b = a swipe's yaw, pitch as float bits (no reply; re4_core_aim_turn)
     kSetPotato = 34,     // a = the Potato mode bits (no reply; re4_core_set_potato)
     kSetAim = 35,        // a = the aim settings (no reply; re4_core_set_aim)
+    kSetSoundVolume = 36,  // a = music | effects << 8, percent (no reply; re4_core_set_sound_volume)
 };
 
 struct MsgHeader {

@@ -107,6 +107,11 @@ public final class CoreBridge {
    */
   public static native void setPotato(int mask);
   /**
+   * The menu's AUDIO page: the music's and the sound effects' volume, 0 .. 100 percent each (100 as the
+   * game). The movies keep their sound as it is.
+   */
+  public static native void setSoundVolume(int music, int effects);
+  /**
    * The menu's "Invert vertical" and "Aim speed" for aiming the knife and the guns by touch or a controller:
    * `invert` the game's own "reverse" option (kept over the system file's), `speed` the stick's turn while
    * aiming (CoreActivity.AIM_SPEED_MIN .. AIM_SPEED_MAX, 1 as the game).
@@ -115,6 +120,10 @@ public final class CoreBridge {
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */
   static int potatoMask(android.content.SharedPreferences g) {
     return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);
+  }
+  /** The AUDIO page's volumes, "musicVolume" / "effectsVolume" in the graphics settings (100 by default). */
+  static void sendSoundVolume(android.content.SharedPreferences g) {
+    setSoundVolume(g.getInt("musicVolume", 100), g.getInt("effectsVolume", 100));
   }
   /**
    * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,
