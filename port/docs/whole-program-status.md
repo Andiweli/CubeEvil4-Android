@@ -180,6 +180,10 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   (Stage-/Ereignisschrift) richtig, kein Fehler. `runtime-test` 0 Fehler. Debug- und US-Discs laden `etc/movie.das`
   nicht (Code unverändert), EU hat nie Sprache 0.
 - **Nicht geprüft:** Gerät.
+- **`master` = `golden-master`** (Wunsch des Projektinhabers, 30.10.2026: `master` hat den kompletten Stand): `master`
+  auf diesen Stand vorgezogen (ohne Zusammenführen, `master` lag ganz in `golden-master`; dazu Potato-Modus 0149,
+  EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
+  davon in `master`.
 
 ## Branch bughunt lokal (30.10.2026, Windows-PC, Worktree `RE4-bughunt`, WSL-Baum `~/re4-bughunt/RE4`)
 
