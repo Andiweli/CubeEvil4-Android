@@ -573,6 +573,8 @@ long g_weaponAfter = -1;
 int g_weaponNo, g_weaponType;
 long g_weaponStop = -1;
 long g_weaponAt = -1;   // the frame it was asked for
+extern "C" s32 CARDGetSerialNo(s32 chan, u64* serialNo);  // SDK card (dolphin/card.h clashes with card.h)
+int g_testLoadFile = -1;  // RE4_TEST_LOAD_FILE (0-based)
 long g_weaponLv = -1;   // lv=: the weapon's levels (cItem::lv), no debug endless ammo
 unsigned g_weaponLines;
 bool g_traceWeapon;     // RE4_TRACE_WEAPON
@@ -1170,6 +1172,18 @@ void frame(unsigned n)
         g->pl_costume = 0;
         re4_log("run: debug start with player type %d (RE4_TEST_PLAYER)", g_testPlayer);
     }
+    // RE4_TEST_LOAD_FILE=N: the load screen starts on "FILE N" (1..20) instead of the newest
+    // one: the card's serial counts as the one the last save came from (card.cpp dataSelect takes
+    // CardLastSelNo then); for measurements with a tester's card (Potato mode, 30.10.2026)
+    if (g_testLoadFile >= 0 && g->Rno0 != 3) {
+        u64 serial = 0;
+        if (CARDGetSerialNo(0, &serial) == 0 && (g->card_serial != serial ||
+                                                                g->CardLastSelNo != (u8) g_testLoadFile)) {
+            g->card_serial = serial;
+            g->CardLastSelNo = (u8) g_testLoadFile;
+            re4_log("run: the load screen starts on file %d (RE4_TEST_LOAD_FILE)", g_testLoadFile + 1);
+        }
+    }
     if (g_testGameMode > 0 && re4_title_room_menu_open() && g->game_mode != g_testGameMode) {
         g->game_mode = (u8) g_testGameMode;
         re4_log("run: debug start with game_mode %d (RE4_TEST_GAME_MODE)", g_testGameMode);
@@ -1710,6 +1724,8 @@ void configure()
         g_testPlayer = -1;
     }
     const char* gameMode = getenv("RE4_TEST_GAME_MODE");
+    const char* loadFile = getenv("RE4_TEST_LOAD_FILE");
+    g_testLoadFile = loadFile && *loadFile ? (int) strtol(loadFile, 0, 0) - 1 : -1;
     g_testGameMode = gameMode && *gameMode ? (int) strtol(gameMode, 0, 0) : -1;
     const char* letterbox = getenv("RE4_TEST_LETTERBOX_OFF");
     if (letterbox && *letterbox && *letterbox != '0') {

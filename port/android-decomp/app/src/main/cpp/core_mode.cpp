@@ -598,10 +598,11 @@ unsigned gxShotW = 0, gxShotH = 0;
 // 490 ms per picture with 2x MSAA and the autofocus while 30 pictures/s came: the timer alone does
 // not tell there.
 struct BenchStep {
-  int scale, samples, anisotropy, dof;
+  int scale, samples, anisotropy, dof;  // scale in halves ("2.5" in RE4_GPU_BENCH: 5)
   int invalidate = 0;  // GPU step b: copy targets forgotten before they are drawn over
   int tiled = 0;       // GPU step d: MSAA on the tiles
   int halfDof = 1;     // GPU step e: the depth of field's blur at half the resolution
+  int potato = -1;     // the Potato mode bits for the step (-1: as the menu has them; r21d, 30.10.2026)
 };
 struct Bench {
   std::vector<BenchStep> steps;
@@ -655,7 +656,7 @@ int fastSent = -1;    // what the core was told last (-1: nothing yet)
 // The menu's Potato mode (CoreBridge.setPotato, decision of the project owner, 30.10.2026): bit 0 the weather
 // effects off, bit 1 the special effects off (the core's runtime/potato.cpp); 0 the default.
 std::atomic<int> optPotato{0};
-int potatoSent = -1;  // what the core was told last (-1: nothing yet)
+int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU bench sets its own)
 int renderFast = -1;  // the setting the render thread runs with (-1: none yet)
 
 // Shader programs made ahead on a thread of its own (decision of the project owner, 23.10.2026):
@@ -761,7 +762,7 @@ double gpuBusyPercent() {
 }
 
 void benchApply(const BenchStep &step) {
-  optScale = step.scale * 2;
+  optScale = step.scale;
   optSamples = step.samples;
   optAnisotropy = step.anisotropy;
   optInvalidate = step.invalidate;
@@ -769,6 +770,7 @@ void benchApply(const BenchStep &step) {
   optHalfDof = step.halfDof;
   optSerial++;
   if (api.setDof) api.setDof(step.dof);
+  if (api.setPotato) api.setPotato(step.potato >= 0 ? step.potato : optPotato.load());
 }
 
 // Once per displayed frame (GL thread), after the chunk.
@@ -788,17 +790,20 @@ void benchTick(std::chrono::steady_clock::time_point now) {
       // setting twice up to 5 % apart; 4x at scale 3: 24 pictures/s.
       // "S/M/A/D/I/T/H,..." names other steps (I: copy targets forgotten, T: MSAA on the tiles,
       // H: the depth of field at half the resolution, 1 when left out)
-      bench.steps = {{3, 1, 1, 0}, {3, 1, 1, 1}, {3, 2, 8, 1}, {3, 4, 8, 1}, {2, 4, 8, 1}, {3, 1, 1, 0}};
+      bench.steps = {{6, 1, 1, 0}, {6, 1, 1, 1}, {6, 2, 8, 1}, {6, 4, 8, 1}, {4, 4, 8, 1}, {6, 1, 1, 0}};
     } else {
       for (const char *at = spec; *at;) {
         BenchStep step{};
         int used = 0;
-        if (std::sscanf(at, "%d/%d/%d/%d%n", &step.scale, &step.samples, &step.anisotropy, &step.dof, &used) != 4)
+        float scale = 0;  // whole or half levels ("2.5")
+        if (std::sscanf(at, "%f/%d/%d/%d%n", &scale, &step.samples, &step.anisotropy, &step.dof, &used) != 4)
           break;
+        step.scale = static_cast<int>(scale * 2 + 0.5f);
         int more = 0;
         if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.invalidate, &more) == 1) used += more;
         if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.tiled, &more) == 1) used += more;
         if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.halfDof, &more) == 1) used += more;
+        if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.potato, &more) == 1) used += more;
         bench.steps.push_back(step);
         at += used;
         if (*at == ',') at++;
@@ -906,7 +911,7 @@ void benchTick(std::chrono::steady_clock::time_point now) {
   if (gx->TiledMsaa())
     std::snprintf(tiles, sizeof(tiles), " on the tiles (EFB drawn back %.1fx per picture)",
                   chunks ? static_cast<double>(s.efbRestores - bench.at.efbRestores) / chunks : 0.0);
-  LOG("GPU bench %d/%zu: scale %s, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s: "
+  LOG("GPU bench %d/%zu: scale %s, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s%s: "
       "GPU %s per picture, "
       "present %s, %.1f pictures/s, %.1f presents/s, renderer CPU %.1f ms, GPU clock %s, load %s, "
       "work (load x clock) %s, GPU behind %s, %.0f draws per picture",
@@ -914,7 +919,10 @@ void benchTick(std::chrono::steady_clock::time_point now) {
       gx->Samples() > 1 ? (gx->TiledMsaa() ? tiles : " in own buffers") : "", gx->Anisotropy(),
       step.dof ? "on" : "off",
       step.dof ? (gx->HalfDof() ? " (blur at half resolution)" : " (blur at full resolution)") : "",
-      gx->Invalidates() ? "yes" : "no", gpu, present, pictures, secs > 0 ? (s.presents - bench.at.presents) / secs : 0.0,
+      gx->Invalidates() ? "yes" : "no",
+      step.potato < 0 ? "" : step.potato == 0 ? ", Potato mode off" : step.potato == 1 ? ", weather effects off"
+                           : step.potato == 2 ? ", special effects off" : ", weather and special effects off",
+      gpu, present, pictures, secs > 0 ? (s.presents - bench.at.presents) / secs : 0.0,
       bench.runCount ? bench.runMs / bench.runCount : 0.0, clock, busy, work, behind,
       chunks ? static_cast<double>(s.draws - bench.at.draws) / chunks : 0.0);
   bench.measuring = false;
@@ -928,6 +936,7 @@ void benchTick(std::chrono::steady_clock::time_point now) {
     optHalfDof = bench.keepHalfDof;
     optSerial++;
     if (optDof.load() >= 0 && api.setDof) api.setDof(optDof.load());
+    potatoSent = -1;
     LOG("GPU bench done; the options from before the run are back");
     bench.index = -3;
     return;
@@ -1451,7 +1460,8 @@ bool drawGx() {
       fastSent = fast;
     }
     const int potato = optPotato.load();
-    if (api.setPotato && potato != potatoSent) {
+    // (while the GPU bench runs its steps set the Potato mode; afterwards the menu's again)
+    if (api.setPotato && potato != potatoSent && bench.index < 0) {
       api.setPotato(potato);
       potatoSent = potato;
     }

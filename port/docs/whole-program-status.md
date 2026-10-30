@@ -219,6 +219,15 @@ Projektinhabers); `bughunt` zweigt davon ab.
     nativ (arm64, armv7) übersetzt. **Nicht geprüft:** Gerät, GPU-Zeit (Retroid nicht verbunden), Verdugo-Kampf mit
     Flüssigstickstoff (ob der eingefrorene Verdugo ohne die Wolke erkennbar bleibt; die Wolke ist nur dann aus, wenn
     sie eine bedeckende Figur aus Raumcode ist – zu bestätigen mit `RE4_ESP_CENSUS` im Kampf).
+  - **Retroid (30.10.2026 mittags):** die GPU-Messreihe der App kann jetzt halbe Stufen (`2.5`) und als achten Wert die
+    Potato-Maske (`RE4_GPU_BENCH=2.5/1/1/1/0/0/1/3,...`); neue Testhilfe `RE4_TEST_LOAD_FILE=N` (der Ladebildschirm
+    beginnt auf „FILE N“). Mit den EU-Discs des Retroid gibt es keinen Debug-Start (kein `roomInfo.dat`): der Lauf mit
+    `-StartRoom 21d` landete in r120 (Film, Messung wertlos). Ein Lauf mit Laden landete in r400 statt r105 (die Zählung
+    der Dateien im Ladebildschirm ist eine andere als die Dateinamen); dort 15,4 / 11,6 / 16,4 / 15,6 / 13,5 ms GPU je Bild
+    (aus / Wetter aus / Spezial aus / beides aus / aus) – Leon und Gegner bewegten sich, die Werte schwanken zu stark.
+    **Offen:** Messung im Verdugo-Kampf durch den Projektinhaber (Spielstand Kapitel 12, Schalter im Menü, Fehlerbericht).
+  - **Hinweis:** Verdugo (em2c) gehört laut Code zu r221 (Aufzug, Boss); im Debug-Start von r21d sind Novistadoren (em2d)
+    in einem Höhlengang. Der Nutzerbericht nennt r21d.
 
 ## Handcannon und Schuss-Ton (29.10.2026 nachts, lokal, Branch `golden-master`)
 
