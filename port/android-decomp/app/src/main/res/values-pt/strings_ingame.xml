@@ -58,6 +58,7 @@
     <string name="ingame_aim_invert_v">Inverter vertical</string>
     <string name="ingame_aim_speed">Velocidade da mira</string>
     <string name="ingame_motion">Controles de movimento</string>
+    <string name="ingame_controller_section">Controle, teclado e mouse</string>
     <string name="ingame_aim_help">Inverter vertical e Velocidade da mira: para mirar com a faca e as armas por toque ou com um controle, não com o giroscópio. Inverter vertical muda a opção do próprio jogo.</string>
     <string name="ingame_update">Atualizar</string>
     <string name="ingame_up_to_date">Atualizado</string>

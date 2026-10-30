@@ -58,6 +58,7 @@
     <string name="ingame_aim_invert_v">反转垂直方向</string>
     <string name="ingame_aim_speed">瞄准速度</string>
     <string name="ingame_motion">体感操作</string>
+    <string name="ingame_controller_section">手柄、键盘和鼠标</string>
     <string name="ingame_aim_help">反转垂直方向和瞄准速度：用于通过触控或手柄以小刀和武器瞄准，不用于陀螺仪瞄准。反转垂直方向会同时更改游戏自身的选项。</string>
     <string name="ingame_update">更新</string>
     <string name="ingame_up_to_date">已是最新</string>

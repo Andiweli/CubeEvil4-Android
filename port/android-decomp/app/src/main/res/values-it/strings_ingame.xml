@@ -57,6 +57,7 @@
     <string name="ingame_aim_invert_v">Inverti verticale</string>
     <string name="ingame_aim_speed">Velocità di mira</string>
     <string name="ingame_motion">Comandi di movimento</string>
+    <string name="ingame_controller_section">Controller, tastiera e mouse</string>
     <string name="ingame_aim_help">Inverti verticale e Velocità di mira: per mirare con il coltello e le armi al tocco o con un controller, non con il giroscopio. Inverti verticale cambia l’opzione del gioco stesso.</string>
     <string name="ingame_update">Aggiorna</string>
     <string name="ingame_up_to_date">Aggiornato</string>

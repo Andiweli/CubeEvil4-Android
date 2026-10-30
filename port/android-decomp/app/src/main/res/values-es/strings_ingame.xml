@@ -57,6 +57,7 @@
     <string name="ingame_aim_invert_v">Invertir vertical</string>
     <string name="ingame_aim_speed">Velocidad de apuntado</string>
     <string name="ingame_motion">Controles de movimiento</string>
+    <string name="ingame_controller_section">Mando, teclado y ratón</string>
     <string name="ingame_aim_help">Invertir vertical y Velocidad de apuntado: para apuntar con el cuchillo y las armas por toque o con un mando, no con el giroscopio. Invertir vertical cambia la opción propia del juego.</string>
     <string name="ingame_update">Actualizar</string>
     <string name="ingame_up_to_date">Actualizado</string>

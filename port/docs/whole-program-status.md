@@ -230,6 +230,17 @@ Kern-Dateien (Patch 0151 angewandt nach 0079, `aim_options.cpp`, `core_api.cpp`,
 `core_ipc_client.cpp`, `coreproc.cpp`) mit den Schaltern des i686-Builds einzeln übersetzt: fehlerfrei. **Nicht
 getestet:** voller Kern-Build und Spiel mit Disc-Daten, Gerätetest (Zielgeschwindigkeit, Umkehren, Update-Knopf).
 
+**Nachtrag 30.10.2026 (Wünsche des Projektinhabers nach dem Gerätetest, Bildschirmfoto Retroid):** auf der Seite
+Steuerung steht „Bewegungssteuerung“ jetzt über „Komfortsteuerung“; „Tastenbelegung“ bleibt unten, unter der eigenen
+Überschrift „Controller, Tastatur und Maus“ (zehn Sprachen). **Ein Abstand für alle Knopfreihen:** 14 dp wie um die
+Reglerzeile (`MenuLayout.GAP` = 7 dp Rand oben und unten an jedem Knopf in `Buttons` und `Keys`; die Reihen mit
+Beschriftung links verlieren ihre 3 dp Innenabstand, Beschriftungen 48 + 14 dp hoch, also wie bisher 14 dp; die
+Speichern/Laden-Knöpfe behalten ihre 12 dp Einzug). Die Zeilen Schalter + Regler sind jetzt so hoch wie eine
+Knopfreihe: der Regler nimmt die Höhe, die sein Titel übrig lässt (mindestens 32 dp). Waagerecht bleiben 6 dp
+zwischen zwei Knöpfen. `CoreMenuLayoutTest` prüft Reihenfolge, 14 dp zwischen den Knopfreihen und die Höhe der
+Reglerzeilen (8/8 grün; die Schrift der Testumgebung ist etwa doppelt so hoch wie auf dem Gerät, dort wird die
+Reglerzeile daher höher). Gerätetest offen.
+
 ## Vorfilm-Untertitel mit JP-/KR-Discs (30.10.2026, lokal, Branch `golden-master`, WSL-Baum `~/re4-jpsub/RE4`)
 
 Nutzermeldung mit zwei Bildschirmfotos (koreanische Discs, `movie/opening.sfd` vor der Autofahrt): unten japanische

@@ -18,6 +18,12 @@ final class MenuLayout {
    * Equal-width buttons; long translations reduce the column count before their text needs more than
    * `lines` lines.
    */
+  /**
+   * Half the gap between two rows of buttons, in dp: each button's margin above and below (wish of the
+   * project owner, 30.10.2026: one gap everywhere, as wide as around the rows with a slider, 14 dp).
+   */
+  static final int GAP = 7;
+
   static final class Buttons extends GridLayout {
     private final int maxColumns, lines;
     private int measuredColumns;
@@ -37,7 +43,7 @@ final class MenuLayout {
       LayoutParams lp = new LayoutParams();
       lp.width = 0;
       lp.height = LayoutParams.WRAP_CONTENT;
-      lp.setMargins(dp(getContext(), 3), dp(getContext(), 4), dp(getContext(), 3), dp(getContext(), 4));
+      lp.setMargins(dp(getContext(), 3), dp(getContext(), GAP), dp(getContext(), 3), dp(getContext(), GAP));
       addView(button, lp);
     }
 
@@ -91,7 +97,7 @@ final class MenuLayout {
 
     void addButton(View button) {
       MarginLayoutParams lp = new MarginLayoutParams(0, LayoutParams.WRAP_CONTENT);
-      lp.setMargins(dp(getContext(), 3), dp(getContext(), 4), dp(getContext(), 3), dp(getContext(), 4));
+      lp.setMargins(dp(getContext(), 3), dp(getContext(), GAP), dp(getContext(), 3), dp(getContext(), GAP));
       addView(button, lp);
     }
 
@@ -114,19 +120,19 @@ final class MenuLayout {
         View child = getChildAt(i);
         child.measure(MeasureSpec.makeMeasureSpec(Math.max(0, cell - margins), MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-        rowHeight = Math.max(rowHeight, child.getMeasuredHeight() + dp(getContext(), 8));
+        rowHeight = Math.max(rowHeight, child.getMeasuredHeight() + dp(getContext(), 2 * GAP));
       }
       for (int i = 0; i < getChildCount(); i++) {  // one height for all, as the grid's rows
         View child = getChildAt(i);
         child.measure(MeasureSpec.makeMeasureSpec(Math.max(0, cell - margins), MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(rowHeight - dp(getContext(), 8), MeasureSpec.EXACTLY));
+            MeasureSpec.makeMeasureSpec(rowHeight - dp(getContext(), 2 * GAP), MeasureSpec.EXACTLY));
       }
       int rows = piano() ? (getChildCount() > whites ? 2 : 1) : (getChildCount() + columns - 1) / columns;
       setMeasuredDimension(MeasureSpec.getSize(widthSpec), rows * rowHeight + getPaddingTop() + getPaddingBottom());
     }
 
     @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-      int left = getPaddingLeft(), top = getPaddingTop(), side = dp(getContext(), 3), up = dp(getContext(), 4);
+      int left = getPaddingLeft(), top = getPaddingTop(), side = dp(getContext(), 3), up = dp(getContext(), GAP);
       for (int i = 0; i < getChildCount(); i++) {
         int x, y;
         if (piano()) {

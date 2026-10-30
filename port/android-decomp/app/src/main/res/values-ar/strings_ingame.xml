@@ -61,6 +61,7 @@
     <string name="ingame_aim_invert_v">عكس الاتجاه الرأسي</string>
     <string name="ingame_aim_speed">سرعة التصويب</string>
     <string name="ingame_motion">التحكم بالحركة</string>
+    <string name="ingame_controller_section">وحدة التحكم ولوحة المفاتيح والفأرة</string>
     <string name="ingame_aim_help">عكس الاتجاه الرأسي وسرعة التصويب: للتصويب بالسكين والأسلحة باللمس أو بوحدة التحكم، لا بالجيروسكوب. عكس الاتجاه الرأسي يغيّر خيار اللعبة نفسها.</string>
     <string name="ingame_update">تحديث</string>
     <string name="ingame_up_to_date">محدَّث</string>

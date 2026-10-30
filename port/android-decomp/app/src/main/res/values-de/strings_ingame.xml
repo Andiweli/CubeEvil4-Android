@@ -57,6 +57,7 @@
     <string name="ingame_aim_invert_v">Vertikal umkehren</string>
     <string name="ingame_aim_speed">Zielgeschwindigkeit</string>
     <string name="ingame_motion">Bewegungssteuerung</string>
+    <string name="ingame_controller_section">Controller, Tastatur und Maus</string>
     <string name="ingame_aim_help">Vertikal umkehren und Zielgeschwindigkeit: für das Zielen mit Messer und Waffen per Touch oder Controller, nicht mit dem Gyro. Vertikal umkehren stellt die Option des Spiels selbst um.</string>
     <string name="ingame_update">Update</string>
     <string name="ingame_up_to_date">Aktuell</string>

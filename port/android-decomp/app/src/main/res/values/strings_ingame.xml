@@ -67,6 +67,7 @@
     <string name="ingame_aim_invert_v">Invert vertical</string>
     <string name="ingame_aim_speed">Aim speed</string>
     <string name="ingame_motion">Motion Controls</string>
+    <string name="ingame_controller_section">Controller, Keyboard and Mouse</string>
     <string name="ingame_aim_help">Invert vertical and Aim speed: for aiming the knife and the weapons by touch or with a controller, not with the gyro. Invert vertical sets the game\'s own option.</string>
     <string name="ingame_update">Update</string>
     <string name="ingame_up_to_date">Up to date</string>

@@ -57,6 +57,7 @@
     <string name="ingame_aim_invert_v">वर्टिकल उलटें</string>
     <string name="ingame_aim_speed">निशाने की गति</string>
     <string name="ingame_motion">मोशन नियंत्रण</string>
+    <string name="ingame_controller_section">कंट्रोलर, कीबोर्ड और माउस</string>
     <string name="ingame_aim_help">वर्टिकल उलटें और निशाने की गति: टच या कंट्रोलर से चाकू और हथियारों से निशाना लगाने के लिए, जाइरो के लिए नहीं। वर्टिकल उलटें खेल का अपना विकल्प बदलता है।</string>
     <string name="ingame_update">अपडेट</string>
     <string name="ingame_up_to_date">नवीनतम</string>

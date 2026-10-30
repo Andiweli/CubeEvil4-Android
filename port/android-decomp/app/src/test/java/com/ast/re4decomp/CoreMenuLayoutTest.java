@@ -254,7 +254,7 @@ public class CoreMenuLayoutTest {
     }
   }
 
-  @Test public void controlsPageHasComfortAimRowAndMotionSection() throws Exception {
+  @Test public void controlsPageHasMotionComfortAndControllerSectionsWithOneGap() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
@@ -264,32 +264,51 @@ public class CoreMenuLayoutTest {
       ViewGroup body = (ViewGroup) field(menu, "body");
       measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
-      Button latch = findButton(body, activity.getString(R.string.ingame_latch_b));
-      Button aimInvert = findButton(body, activity.getString(R.string.ingame_aim_invert_v));
+      Button alternate = findButton(body, activity.getString(R.string.ingame_alternate));
+      Button latch = findButton(body, activity.getString(R.string.ingame_latch));
+      // the comfort controls' "Invert vertical" (the gyro's above it may read the same): the one after the latches
+      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(latch, body) + 1),
+          activity.getString(R.string.ingame_aim_invert_v));
       Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
       Button gyroInvert = findButton(body, activity.getString(R.string.ingame_gyro_invert_h));
-      assertNotNull(latch); assertNotNull(aimInvert); assertNotNull(touchAim); assertNotNull(gyro); assertNotNull(gyroInvert);
-      int motion = -1, comfort = -1;
+      Button mapping = findButton(body, activity.getString(R.string.ingame_controller_config));
+      assertNotNull(alternate); assertNotNull(latch); assertNotNull(aimInvert); assertNotNull(touchAim);
+      assertNotNull(gyro); assertNotNull(gyroInvert); assertNotNull(mapping);
+      int motion = -1, comfort = -1, devices = -1;
       for (int i = 0; i < body.getChildCount(); i++) {
         if (!(body.getChildAt(i) instanceof TextView) || body.getChildAt(i) instanceof Button) continue;
         String t = ((TextView) body.getChildAt(i)).getText().toString();
         if (t.equals(activity.getString(R.string.ingame_motion).toUpperCase(Locale.getDefault()))) motion = i;
         if (t.equals(activity.getString(R.string.ingame_comfort).toUpperCase(Locale.getDefault()))) comfort = i;
+        if (t.equals(activity.getString(R.string.ingame_controller_section).toUpperCase(Locale.getDefault()))) devices = i;
       }
-      assertTrue("the comfort heading", comfort >= 0);
-      // comfort: the switches, right under the latches "Invert vertical" with "Aim speed", then touch aiming
-      assertEquals("the aim row right under the latches", rowIndex(latch, body) + 1, rowIndex(aimInvert, body));
-      assertTrue("touch aiming after the aim row", rowIndex(touchAim, body) > rowIndex(aimInvert, body));
-      // motion controls below: the gyro switch with its slider, then its directions
-      assertTrue("the motion heading after touch aiming", motion > rowIndex(touchAim, body));
+      // motion controls first (wish of the project owner, 30.10.2026): the gyro switch with its slider, its directions
+      assertTrue("the motion heading", motion >= 0);
       assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
       assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
-      // each switch in the middle of the row its slider makes taller (wish of the project owner, 27.10.2026)
+      // then the comfort controls: right under the latches "Invert vertical" with "Aim speed", then touch aiming
+      assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
+      assertEquals("the aim row right under the latches", rowIndex(latch, body) + 1, rowIndex(aimInvert, body));
+      assertEquals("touch aiming right under the aim row", rowIndex(aimInvert, body) + 1, rowIndex(touchAim, body));
+      // the button mapping at the bottom, under a heading of its own
+      assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));
+      assertEquals("the button mapping right under its heading", devices + 1, rowIndex(mapping, body));
+      // one gap between all rows of buttons, the rows with a slider too (wish of the project owner, 30.10.2026)
+      int gap = top(latch, body) - top(alternate, body) - alternate.getHeight();
+      assertEquals("the gap of the rows of two", Math.round(2 * MenuLayout.GAP * activity.getResources().getDisplayMetrics().density), gap, 1);
+      // the rows with a slider: as tall as a row of buttons where the title leaves the slider 32 dp or more (on
+      // the devices; this test's fonts are about twice as tall), the switch in the middle: the same gap
+      float density = activity.getResources().getDisplayMetrics().density;
       for (Button b : new Button[] {aimInvert, gyro}) {
-        View row = rowOf(b, body);
+        ViewGroup row = (ViewGroup) rowOf(b, body), box = (ViewGroup) row.getChildAt(1);
+        int title = box.getChildAt(0).getHeight(), slider = box.getChildAt(1).getHeight();
+        int buttons = b.getHeight() + Math.round(2 * MenuLayout.GAP * density);
+        int expected = Math.max(buttons, title + Math.max(Math.round(32 * density), slider));
+        assertEquals("the slider row's height", expected, row.getHeight(), 1);
+        assertEquals("the slider fills what the title leaves", Math.max(Math.round(32 * density), buttons - title),
+            ((ViewGroup) box.getChildAt(1)).getChildAt(0).getHeight(), 1);
         int above = top(b, body) - top(row, body), below = top(row, body) + row.getHeight() - top(b, body) - b.getHeight();
-        assertTrue("a gap above", above > 0);
         assertEquals("the switch in the middle of its row", below, above, 2);
       }
     }

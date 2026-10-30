@@ -262,10 +262,10 @@ final class CoreMenu extends Dialog {
   private void help(LinearLayout parent, int id) {
     TextView t = text(s(id), 15, false); t.setPadding(0, dp(4), 0, dp(8)); parent.addView(t);
   }
-  /** Row label as tall as one button row (48 dp minimum + 2 x 4 dp margin), centred on the first row. */
+  /** Row label as tall as one button row (48 dp minimum + the margins above and below), centred on the first row. */
   private TextView rowLabel(String label) {
     TextView caption = text(label, 16, true);
-    caption.setPadding(0, 0, dp(8), 0); caption.setMinHeight(dp(56)); caption.setMinimumHeight(dp(56));
+    caption.setPadding(0, 0, dp(8), 0); caption.setMinHeight(dp(48 + 2 * MenuLayout.GAP)); caption.setMinimumHeight(dp(48 + 2 * MenuLayout.GAP));
     caption.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
     return caption;
   }
@@ -278,7 +278,7 @@ final class CoreMenu extends Dialog {
     } else outer.addView(new View(getContext()));
     LinearLayout options = column();
     outer.addView(options);
-    outer.setPadding(0, dp(3), 0, dp(3)); body.addView(outer);
+    body.addView(outer);
     return options;
   }
   private MenuLayout.Buttons buttonsRow(LinearLayout parent) {
@@ -323,8 +323,6 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       buttons[i] = b;
     }
-    // the buttons' own 4 dp margins alone: the gap of the rows of two
-    if (!quarters) outer.setPadding(0, dp(3), 0, dp(3));
     body.addView(outer);
     return buttons;
   }
@@ -360,7 +358,7 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       keys.addButton(b); buttons[i] = b;
     }
-    outer.setPadding(0, dp(3), 0, dp(3)); body.addView(outer);
+    body.addView(outer);
   }
   /** The chosen resolution in halves (0: Dynamic; 2: 1×, 3: 1.5× … 8: 4×); until 27.10.2026 "scale" in whole levels. */
   static int scaleHalves(SharedPreferences g) {
@@ -447,7 +445,8 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_instant);
     MenuLayout.Columns slot = new MenuLayout.Columns(getContext(), 0, 620, false);
     slot.setFillEndHeight(true);
-    slot.setPadding(0, dp(8), 0, dp(8));
+    // with the buttons' margin above and below: the metadata's 12 dp inset
+    slot.setPadding(0, dp(12 - MenuLayout.GAP), 0, dp(12 - MenuLayout.GAP));
     slot.setGravity(Gravity.CENTER_VERTICAL);
     slot.setBackground(shape(0xff202720, BORDER, 6));
     LinearLayout metadata = column(); metadata.setPadding(dp(12), dp(4), dp(12), dp(4));
@@ -545,7 +544,28 @@ final class CoreMenu extends Dialog {
     quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
         new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input),
         mode -> host.touchModeChanged(mode));
-    help(R.string.ingame_touch_help); heading(R.string.ingame_comfort);
+    help(R.string.ingame_touch_help);
+    // the gyro in a section of its own, above the comfort controls (wishes of the project owner, 30.10.2026)
+    heading(R.string.ingame_motion);
+    boolean gyro = GyroAim.available(getContext()), gyroOn = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
+    Button[] invert = new Button[2];
+    View[][] sensitivity = new View[1][];
+    sensitivity[0] = switchWithSlider(gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, gyroOn, enabled -> {
+      host.gyroChanged(enabled);
+      sensitivity[0][1].setEnabled(enabled); sensitivity[0][2].setEnabled(enabled);
+      for (Button b : invert) b.setEnabled(enabled);
+    }, R.string.ingame_gyro_sensitivity, GyroAim.MIN_SENSITIVITY, GyroAim.MAX_SENSITIVITY, GyroAim.SENSITIVITY_STEP,
+        GyroAim.clampSensitivity(input.getFloat(CoreActivity.GYRO_SENSITIVITY, 1f)), value -> host.gyroSensitivityChanged(value));
+    sensitivity[0][0].setEnabled(gyro);
+    sensitivity[0][1].setEnabled(gyroOn); sensitivity[0][2].setEnabled(gyroOn);
+    // the gyro's directions (wish of the project owner, 27.10.2026): at once in GyroAim
+    MenuLayout.Buttons directions = buttonsRow(body);
+    invert[0] = toggle(directions, R.string.ingame_gyro_invert_v, input.getBoolean(CoreActivity.GYRO_INVERT_V, false),
+        value -> host.gyroInvertChanged(true, value));
+    invert[1] = toggle(directions, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
+        value -> host.gyroInvertChanged(false, value));
+    for (Button b : invert) b.setEnabled(gyroOn);
+    heading(R.string.ingame_comfort);
     MenuLayout.Buttons first = buttonsRow(body);
     toggle(first, R.string.ingame_alternate, input.getBoolean(CoreActivity.ALT_CONTROLS, false), on -> host.alternateChanged(on));
     toggle(first, R.string.ingame_knife_swipe, input.getBoolean(CoreActivity.KNIFE_SWIPE, true), on -> host.knifeSwipeChanged(on));
@@ -564,27 +584,9 @@ final class CoreMenu extends Dialog {
         input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), mode -> host.touchAimChanged(mode));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_aim_help);
     help(R.string.ingame_touch_aim_help); help(R.string.ingame_knife_swipe_help);
-    // the gyro in a section of its own (wish of the project owner, 30.10.2026)
-    heading(R.string.ingame_motion);
-    boolean gyro = GyroAim.available(getContext()), on = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
-    Button[] invert = new Button[2];
-    View[][] sensitivity = new View[1][];
-    sensitivity[0] = switchWithSlider(gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, on, enabled -> {
-      host.gyroChanged(enabled);
-      sensitivity[0][1].setEnabled(enabled); sensitivity[0][2].setEnabled(enabled);
-      for (Button b : invert) b.setEnabled(enabled);
-    }, R.string.ingame_gyro_sensitivity, GyroAim.MIN_SENSITIVITY, GyroAim.MAX_SENSITIVITY, GyroAim.SENSITIVITY_STEP,
-        GyroAim.clampSensitivity(input.getFloat(CoreActivity.GYRO_SENSITIVITY, 1f)), value -> host.gyroSensitivityChanged(value));
-    sensitivity[0][0].setEnabled(gyro);
-    sensitivity[0][1].setEnabled(on); sensitivity[0][2].setEnabled(on);
-    // the gyro's directions (wish of the project owner, 27.10.2026): at once in GyroAim
-    MenuLayout.Buttons fourth = buttonsRow(body);
-    invert[0] = toggle(fourth, R.string.ingame_gyro_invert_v, input.getBoolean(CoreActivity.GYRO_INVERT_V, false),
-        value -> host.gyroInvertChanged(true, value));
-    invert[1] = toggle(fourth, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
-        value -> host.gyroInvertChanged(false, value));
-    for (Button b : invert) b.setEnabled(on);
-    // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller
+    // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
+    // since 30.10.2026 under a heading of its own
+    heading(R.string.ingame_controller_section);
     controllerButton = cellAction(buttonsRow(body), s(R.string.ingame_controller_config) + "   ›",
         v -> showPage(CONTROLLER, true));
     controllerButton.setEnabled(host != null && (host.controllerConnected() || host.keyboardConnected()));
@@ -592,9 +594,10 @@ final class CoreMenu extends Dialog {
   }
 
   /**
-   * A switch with a slider beside it (the gyro's row, the stick aiming's): the switch in the middle of the row
-   * the slider makes taller, as far from the row above as from the row below (wish of the project owner,
-   * 27.10.2026); the slider's title above it, `min` + n × `step` up to `max`, its value as "1.25×".
+   * A switch with a slider beside it (the gyro's row, the stick aiming's): the switch in the middle of the row,
+   * as far from the row above as from the row below (wish of the project owner, 27.10.2026), and the row as
+   * tall as a row of buttons, so its gaps are theirs (30.10.2026: the slider takes what its title leaves, at
+   * least 32 dp); the slider's title above it, `min` + n × `step` up to `max`, its value as "1.25×".
    * The switch, the slider and its value, for the caller to enable.
    */
   private View[] switchWithSlider(int label, boolean on, Changed<Boolean> toggled, int title, float min, float max,
@@ -603,14 +606,23 @@ final class CoreMenu extends Dialog {
     line.setGravity(Gravity.CENTER_VERTICAL);
     body.addView(line);
     Button toggle = toggle(buttonsRow(line), label, on, toggled);
-    LinearLayout box = column();
     TextView heading = text(s(title), 15, false);
     heading.setGravity(Gravity.CENTER_HORIZONTAL);
+    SeekBar bar = new SeekBar(getContext()); TextView value = text("", 15, false);
+    LinearLayout.LayoutParams barSize = new LinearLayout.LayoutParams(0, dp(48), 1);
+    LinearLayout box = new LinearLayout(getContext()) {
+      @Override protected void onMeasure(int widthSpec, int heightSpec) {
+        heading.measure(widthSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        int row = Math.max(dp(48), toggle.getMeasuredHeight()) + dp(2 * MenuLayout.GAP);
+        barSize.height = Math.max(dp(32), row - heading.getMeasuredHeight());
+        super.onMeasure(widthSpec, heightSpec);
+      }
+    };
+    box.setOrientation(LinearLayout.VERTICAL);
     box.addView(heading, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT));
-    SeekBar bar = new SeekBar(getContext()); TextView value = text("", 15, false);
     LinearLayout slider = row();
-    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1)); slider.addView(value);
+    slider.addView(bar, barSize); slider.addView(value);
     box.addView(slider);
     line.addView(box);
     bar.setMax(Math.round((max - min) / step)); bar.setProgress(Math.round((stored - min) / step));
@@ -757,7 +769,7 @@ final class CoreMenu extends Dialog {
       @Override public void onStartTrackingTouch(SeekBar b) {}
       @Override public void onStopTrackingTouch(SeekBar b) {}
     });
-    line.setPadding(0, dp(3), 0, dp(3)); body.addView(line);
+    body.addView(line);
     help(R.string.ingame_mouse_help);
   }
 

@@ -59,6 +59,7 @@
     <string name="ingame_aim_invert_v">Inverser la verticale</string>
     <string name="ingame_aim_speed">Vitesse de visée</string>
     <string name="ingame_motion">Commandes de mouvement</string>
+    <string name="ingame_controller_section">Manette, clavier et souris</string>
     <string name="ingame_aim_help">Inverser la verticale et Vitesse de visée\u00A0: pour viser avec le couteau et les armes au toucher ou à la manette, pas au gyroscope. Inverser la verticale change l’option du jeu lui-même.</string>
     <string name="ingame_update">Mettre à jour</string>
     <string name="ingame_up_to_date">À jour</string>
