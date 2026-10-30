@@ -159,7 +159,12 @@ Projektinhabers); `bughunt` zweigt davon ab.
     Karte, keine Karte) 4/4 mit JUnit am PC. Mit einer aus den 21 Nutzerdateien gebauten 2-MB-Karte (Blöcke verstreut,
     eine fremde Datei dabei): 21 Dateien herausgelöst, Byte für Byte gleich bis auf die Startblock-Nummer, importiert und
     Datei 18 (r31d) mit EU-Discs geladen. Nicht geprüft: eine von Dolphin selbst angelegte `.raw`.
-    **Offen:** Kurztest auf dem Retroid (Import über das App-Menü, `.gci` und `.raw`).
+    **ZIP (Wunsch des Projektinhabers 30.10.2026):** der Import nimmt auch eine ZIP-Datei (`SaveImport.java`): darin
+    jede `.gci` und jede Kartendatei, andere Dateien (`__MACOSX/`, `.DS_Store`, Texte) bleiben liegen; je Datei
+    höchstens 16 MB, zusammen 64 MB. Menüpunkt „Import Savegames (.gci, .zip, .raw)“ in allen Sprachen. Tests
+    `SaveImportTest` 5/5 und `DolphinCardTest` 4/4 (JUnit am PC); eine ZIP mit dem GCI-Ordner des Nutzers („Card A/…“)
+    und eine ZIP mit der gebauten `.raw` geben je alle 21 Dateien unverändert heraus.
+    **Offen:** Kurztest auf dem Retroid (Import über das App-Menü: `.gci`, `.zip`, `.raw`).
 28. **EU, leichter Modus: die Schrotflinte gehört von Anfang an ins Inventar** (Nutzermeldung). Der Prototyp gibt im
     neuen Spiel nur den Startsatz (`item.cpp cItemMgr::gameInit` → `set_game(0)`), ohne Abfrage der Schwierigkeit.
     **Offen, lokal:** die EU-Fassung von `gameInit`/`set_game` lesen (Gegenstand, Munition, Stufen, Abfrage

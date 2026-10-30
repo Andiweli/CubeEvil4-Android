@@ -71,7 +71,7 @@
     <string name="ingame_card_busy">Die Karte wird gerade benutzt (das Spiel speichert oder lädt) oder das Spiel lädt noch – Menü schließen und gleich noch einmal öffnen.</string>
     <string name="ingame_card_none">Keine Speicherkarte.</string>
     <string name="ingame_export">Spielstände exportieren (.gci)</string>
-    <string name="ingame_import">Spielstände importieren (.gci, .raw)</string>
+    <string name="ingame_import">Spielstände importieren (.gci, .zip, .raw)</string>
 
     <string name="ingame_log">Fehlerprotokoll</string>
     <string name="ingame_log_help">Zeichnet einen Bericht der App auf (auch nach einem Absturz oder wenn sie hängt). Der Bericht enthält das Protokoll dieses und des vorigen Laufs.</string>

@@ -25,7 +25,7 @@ public class DolphinCardTest {
   }
 
   /** Two files of this game (one of them over blocks 9, 6), one of another game; directory copy 2 newer. */
-  private static byte[] card() {
+  static byte[] card() {
     byte[] c = new byte[0x80000];
     half(c, 0x22, 4);
     sum(c, 0, 0x1FC, 0x1FC);

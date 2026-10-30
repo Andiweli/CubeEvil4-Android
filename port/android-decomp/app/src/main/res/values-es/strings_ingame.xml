@@ -71,7 +71,7 @@
     <string name="ingame_card_busy">La tarjeta está en uso (el juego guarda o carga) o el juego aún está cargando: cierra el menú y vuelve a abrirlo en un momento.</string>
     <string name="ingame_card_none">No hay tarjeta de memoria.</string>
     <string name="ingame_export">Exportar partidas (.gci)</string>
-    <string name="ingame_import">Importar partidas (.gci, .raw)</string>
+    <string name="ingame_import">Importar partidas (.gci, .zip, .raw)</string>
 
     <string name="ingame_log">Registro de errores</string>
     <string name="ingame_log_help">Graba un informe de la app (también tras un cierre inesperado o si se bloquea). El informe contiene el registro de esta sesión y de la anterior.</string>
