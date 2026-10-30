@@ -307,6 +307,18 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   EU-Easy-Schrotflinte 0148, Patch 0150). Der OUYA-Branch `ouya-discarded` bleibt bis auf Weiteres getrennt, nichts
   davon in `master`.
 
+## Handcannon gegen Kettensäge, Ton im Endfilm, Menüs AUDIO und CHEATS (30.10.2026 nachmittags, lokal, golden-master)
+
+- **Handcannon gegen den Kettensägen-Mann (Nutzerbericht 30.10.2026 11:40, Debug-Discs):** „firepower doesn't match
+  … the guy with the chainsaw tanked 5 shots“. Im Bericht: Ganados fallen mit einem Schuss, der Kettensägen-Mann (0x15/4,
+  5000 Lebenspunkte, `Wep_type` 4) verliert je Treffer nur 910 (5000 → 4090 → 3180 → 2270). Die Schadenstabellen
+  (`Dmg_tbl_*`) haben in der EU-Fassung dieselbe Handcannon-Spalte (EU hat eine Tabelle mehr), `GetWepDmVal` rechnet
+  gleich. Ursache: `em10SetDmVal` begrenzt gegen Gegner mit `Wep_type` 4 jeden Treffer außer den Raketenwerfern
+  (0xD, 0x12) auf 1000; die EU-Fassung (`em10.rel` in `em/em10.drs`, Text 0x40104) nimmt auch das Handcannon (0x0F) aus
+  und halbiert dafür Waffe 0x0B (gegen ihn und Typ 2) – Balance, nicht übernommen. **Patch 0152** (Fehler des
+  Prototyps, beide Disc-Arten). Geprüft am PC (i686, Debug-Start r101, `RE4_TEST_WEAPON=free+40:15,0,lv=0x6026`): mit
+  Patch 3000 → 0 mit einem Treffer, Gegenprobe ohne Patch 3000 → 2000 → 1000 → 0. Gerät offen.
+
 ## Branch bughunt lokal (30.10.2026, Windows-PC, Worktree `RE4-bughunt`, WSL-Baum `~/re4-bughunt/RE4`)
 
 - **EU Easy: Schrotflinte von Anfang an (Punkt 28), gelesen mit `retail_code.py`:**

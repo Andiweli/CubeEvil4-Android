@@ -1,0 +1,20 @@
+# A bug of the prototype (user report 30.10.2026, 0.95.x with patch 0146): a chainsaw Ganado (em10, Wep_type 4) took
+# five handcannon shots; each hit was held to 1000 (5000 -> 4090 -> 3180 ...). em10SetDmVal caps the damage of every
+# weapon but the rocket launchers (0xD, 0x12) at 1000 against him. The European em10SetDmVal (em10.rel inside
+# em/em10.drs, text 0x40104, read with retail_code.py) leaves the handcannon (weapon 0x0F) uncapped too; it also
+# halves weapon 0x0B against him and against type 2 instead of capping it, a balance change that is not taken over.
+# Both disc kinds (the prototype's handcannon was unfinished, patch 0146).
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -26000,7 +26000,10 @@
+     if (em->type == 6) {
+         dmg = 0;
+     }
+-    if (w->Wep_type == 4 && em->dmg.m_Wep != 0xD && em->dmg.m_Wep != 0x12 && dmg > 1000) {
++    /* PORT (patch 0152, a bug of the prototype): the handcannon (weapon 0x0F) is not held to 1000 against a
++       chainsaw Ganado either, as in the European em10SetDmVal (em10.rel in em/em10.drs, text 0x40104); the
++       prototype's handcannon was unfinished (patch 0146) */
++    if (w->Wep_type == 4 && em->dmg.m_Wep != 0xD && em->dmg.m_Wep != 0x12 && em->dmg.m_Wep != 0xF && dmg > 1000) {
+         dmg = 1000;
+     }
+     if (dmg > 9999) {
