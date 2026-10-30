@@ -103,7 +103,7 @@ public final class CoreBridge {
   public static native void setFastCores(boolean on);
   /**
    * The menu's Potato mode: bit 0 leaves the weather effects out (fog banks, rain, water spray), bit 1
-   * the special effects (steam, liquid nitrogen, heat shimmer, water); 0 draws everything (the default).
+   * the special effects (steam, heat shimmer, water); 0 draws everything (the default).
    */
   public static native void setPotato(int mask);
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */

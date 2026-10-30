@@ -242,8 +242,8 @@ Projektinhabers); `bughunt` zweigt davon ab.
     sichtbar, der gefrorene Verdugo ist eisig-weiß gut zu erkennen (R3-Bilder des Geräts). Weggefallen sind 77 000 Dampf-
     und 37 000 Wetter-Sprites. **Geändert:** die Regel „bedeckende Raumcode-Effekte = Spezialeffekte“ entfällt – sie traf
     die Wolke ohnehin nicht, hätte aber den Rauch explodierender Fässer (`embarrel.cpp`, `EFF_ROOM`) und den Staub fallender
-    Felsen (`emrock.cpp`) weggenommen; Test `potato` angepasst. **Offen (Entscheidung des Projektinhabers):** der Fußtext
-    nennt bei „Spezialeffekte“ noch „Flüssigstickstoff“.
+    Felsen (`emrock.cpp`) weggenommen; Test `potato` angepasst. **Fußtext:** „Flüssigstickstoff“ in allen zehn Sprachen gestrichen
+    (Entscheidung des Projektinhabers, 30.10.2026); „Spezialeffekte“ = Dampf, Hitzeflimmern, Wasser.
   - **Hinweis:** Verdugo (em2c) gehört laut Code zu r221 (Aufzug, Boss); im Debug-Start von r21d sind Novistadoren (em2d)
     in einem Höhlengang. Der Nutzerbericht nennt r21d.
 

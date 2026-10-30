@@ -269,8 +269,8 @@ void re4_core_set_letterbox(int off);
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_fast_cores(int on);
 /* The app menu's Potato mode (cores since 30.10.2026, runtime/potato.cpp): bit 0 leaves the weather
- * effects out (fog banks, rain, water spray), bit 1 the special effects (steam, liquid nitrogen, heat
- * shimmer, water); 0 (the default) draws everything. Effects in events and cut scenes always stay.
+ * effects out (fog banks, rain, water spray), bit 1 the special effects (steam, heat shimmer,
+ * water); 0 (the default) draws everything. Effects in events and cut scenes always stay.
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_potato(int mask);
 /* The game's language with the European discs (cores since 26.10.2026, port/docs/retail-eu-plan.md

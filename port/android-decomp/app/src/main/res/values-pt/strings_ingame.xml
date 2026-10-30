@@ -27,7 +27,7 @@
     <string name="ingame_potato">Modo Potato</string>
     <string name="ingame_potato_weather">Efeitos climáticos</string>
     <string name="ingame_potato_special">Efeitos especiais</string>
-    <string name="ingame_potato_help">Efeitos climáticos: bancos de neblina, chuva, respingos de água. Efeitos especiais: vapor, nitrogênio líquido, distorção de calor, água. Desligados, poupam trabalho gráfico em aparelhos mais fracos; clarões de tiro, sangue, explosões, fogo, impactos e dicas continuam, assim como todos os efeitos das cenas.</string>
+    <string name="ingame_potato_help">Efeitos climáticos: bancos de neblina, chuva, respingos de água. Efeitos especiais: vapor, distorção de calor, água. Desligados, poupam trabalho gráfico em aparelhos mais fracos; clarões de tiro, sangue, explosões, fogo, impactos e dicas continuam, assim como todos os efeitos das cenas.</string>
     <string name="ingame_resolution_line">Resolução: %1$d × %2$d pixels (nível %3$s) · tela %4$d × %5$d · aplicada ao fechar o menu. Níveis mais altos exigem mais desempenho.</string>
     <string name="ingame_resolution_line_auto">Resolução: %1$d × %2$d pixels (nível %3$s, Dinâmica) · tela %4$d × %5$d · aplicada ao fechar o menu. A Dinâmica desce um nível enquanto a GPU não acompanha.</string>
 
