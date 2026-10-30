@@ -74,7 +74,7 @@
     <string name="ingame_card_busy">بطاقة الذاكرة قيد الاستخدام (اللعبة تحفظ أو تحمّل) أو أن اللعبة ما زالت تُحمَّل – أغلق القائمة وافتحها مجددًا بعد لحظات.</string>
     <string name="ingame_card_none">لا توجد بطاقة ذاكرة.</string>
     <string name="ingame_export">تصدير ملفات الحفظ (&#x200E;.gci)</string>
-    <string name="ingame_import">استيراد ملفات الحفظ (&#x200E;.gci)</string>
+    <string name="ingame_import">استيراد ملفات الحفظ (&#x200E;.gci، &#x200E;.raw)</string>
 
     <string name="ingame_log">سجل الأخطاء</string>
     <string name="ingame_log_help">يسجّل تقريرًا للتطبيق (حتى بعد تعطّله أو توقّفه عن الاستجابة). يحتوي التقرير على سجل هذا التشغيل والتشغيل السابق.</string>

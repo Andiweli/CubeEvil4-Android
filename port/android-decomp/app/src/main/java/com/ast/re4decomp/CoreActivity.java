@@ -949,6 +949,20 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     try (InputStream in = getContentResolver().openInputStream(uri)) {
       if (in == null) throw new IOException(String.valueOf(uri));
       byte[] gci = CoreLog.readAll(in);
+      if (DolphinCard.isCard(gci)) {
+        // a whole Dolphin card (.raw, .gcp): this game's files on it, each as a .gci
+        DolphinCard.Files card;
+        try {
+          card = DolphinCard.split(gci);
+        } catch (IllegalArgumentException e) {
+          throw new IOException(e.getMessage());
+        }
+        Log.i(TAG, "import: memory card with " + card.gci.size() + " files of this game, " + card.otherGames
+            + " of other games");
+        if (card.gci.isEmpty()) throw new IOException("no saves of this game on the memory card");
+        pendingImports.addAll(card.gci);
+        return;
+      }
       if (gci.length > 4 << 20) throw new IOException("too big for a .gci");
       pendingImports.add(gci);
     }

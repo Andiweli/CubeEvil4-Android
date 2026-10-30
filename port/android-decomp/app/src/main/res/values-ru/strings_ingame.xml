@@ -70,7 +70,7 @@
     <string name="ingame_card_busy">Карта памяти занята (игра сохраняет или загружает) или игра ещё загружается — закройте меню и откройте его снова чуть позже.</string>
     <string name="ingame_card_none">Нет карты памяти.</string>
     <string name="ingame_export">Экспорт сохранений (.gci)</string>
-    <string name="ingame_import">Импорт сохранений (.gci)</string>
+    <string name="ingame_import">Импорт сохранений (.gci, .raw)</string>
 
     <string name="ingame_log">Журнал ошибок</string>
     <string name="ingame_log_help">Записывает отчёт приложения (в том числе после сбоя или зависания). Отчёт содержит журнал этого и предыдущего запуска.</string>

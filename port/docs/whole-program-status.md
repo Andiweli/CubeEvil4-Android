@@ -150,8 +150,16 @@ Projektinhabers); `bughunt` zweigt davon ab.
     `--self-test`, `--check-modules`, `--runtime-test`, `--core-test` (mit Kartentest) 0 Fehler. Debug-Discs:
     Kartenprüfung (`whole_r100_check.sh --card-only`) A und B OK; dieser Debug-Spielstand als `.gci` exportiert, auf
     eine neue Karte importiert, lädt wieder in r100 (mit „Retry“); EU-Datei 19 läuft auch mit den Debug-Discs in r326.
-    **Dolphin-Kartendatei (`.raw`/`.gcp`)** wird nicht gelesen, nur einzelne `.gci` (Dolphins GCI-Ordner, Export aus
-    dem Speicherkarten-Manager). **Offen:** Kurztest auf dem Retroid (Import über das App-Menü).
+    **Dolphin-Kartendatei (`.raw`/`.gcp`, Wunsch des Projektinhabers 30.10.2026):** der Import im App-Menü erkennt eine
+    ganze Karte (`DolphinCard.java`: 512 KB..16 MB, Prüfsumme des Kopfs, Größe in Mbit passt), nimmt die gültige, neuere
+    Kopie von Verzeichnis und FAT (wie das SDK) und reicht jede Datei von `G4BE08`/`G4BP08` als `.gci` an den
+    bisherigen Import; Dateien anderer Spiele bleiben liegen (Protokollzeile „memory card with N files of this game“),
+    eine Karte ohne Spielstände dieses Spiels meldet das. Menüpunkt „Import Savegames (.gci, .raw)“ in allen
+    Sprachen. Test `DolphinCardTest` (Karte mit verstreuten Blöcken, neuere Verzeichniskopie kaputt, Kette aus der
+    Karte, keine Karte) 4/4 mit JUnit am PC. Mit einer aus den 21 Nutzerdateien gebauten 2-MB-Karte (Blöcke verstreut,
+    eine fremde Datei dabei): 21 Dateien herausgelöst, Byte für Byte gleich bis auf die Startblock-Nummer, importiert und
+    Datei 18 (r31d) mit EU-Discs geladen. Nicht geprüft: eine von Dolphin selbst angelegte `.raw`.
+    **Offen:** Kurztest auf dem Retroid (Import über das App-Menü, `.gci` und `.raw`).
 28. **EU, leichter Modus: die Schrotflinte gehört von Anfang an ins Inventar** (Nutzermeldung). Der Prototyp gibt im
     neuen Spiel nur den Startsatz (`item.cpp cItemMgr::gameInit` → `set_game(0)`), ohne Abfrage der Schwierigkeit.
     **Offen, lokal:** die EU-Fassung von `gameInit`/`set_game` lesen (Gegenstand, Munition, Stufen, Abfrage

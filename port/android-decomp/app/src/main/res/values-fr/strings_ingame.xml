@@ -72,7 +72,7 @@
     <string name="ingame_card_busy">La carte est utilisée (le jeu sauvegarde ou charge) ou le jeu charge encore – fermez le menu et rouvrez-le dans un instant.</string>
     <string name="ingame_card_none">Aucune carte mémoire.</string>
     <string name="ingame_export">Exporter les sauvegardes (.gci)</string>
-    <string name="ingame_import">Importer des sauvegardes (.gci)</string>
+    <string name="ingame_import">Importer des sauvegardes (.gci, .raw)</string>
 
     <string name="ingame_log">Journal d’erreurs</string>
     <string name="ingame_log_help">Enregistre un rapport de l’application (même après un plantage ou un blocage). Le rapport contient le journal de cette session et de la précédente.</string>

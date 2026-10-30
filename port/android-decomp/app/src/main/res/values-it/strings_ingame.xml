@@ -70,7 +70,7 @@
     <string name="ingame_card_busy">La Memory Card è in uso (il gioco sta salvando o caricando) oppure il gioco sta ancora caricando: chiudi il menu e riaprilo tra un momento.</string>
     <string name="ingame_card_none">Nessuna Memory Card.</string>
     <string name="ingame_export">Esporta salvataggi (.gci)</string>
-    <string name="ingame_import">Importa salvataggi (.gci)</string>
+    <string name="ingame_import">Importa salvataggi (.gci, .raw)</string>
 
     <string name="ingame_log">Registro errori</string>
     <string name="ingame_log_help">Registra un rapporto dell’app (anche dopo un arresto anomalo o un blocco). Il rapporto contiene il registro di questa sessione e di quella precedente.</string>

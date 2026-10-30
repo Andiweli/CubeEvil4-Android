@@ -81,7 +81,7 @@
     <string name="ingame_card_busy">The card is in use (the game saves or loads) or the game is still loading – close the menu and open it again in a moment.</string>
     <string name="ingame_card_none">No memory card.</string>
     <string name="ingame_export">Export Savegames (.gci)</string>
-    <string name="ingame_import">Import Savegames (.gci)</string>
+    <string name="ingame_import">Import Savegames (.gci, .raw)</string>
 
     <!-- Error log -->
     <string name="ingame_log">Error log</string>

@@ -71,7 +71,7 @@
     <string name="ingame_card_busy">记忆卡正在使用中（游戏正在保存或读取），或者游戏仍在加载——请关闭菜单，稍后再打开。</string>
     <string name="ingame_card_none">没有记忆卡。</string>
     <string name="ingame_export">导出存档（.gci）</string>
-    <string name="ingame_import">导入存档（.gci）</string>
+    <string name="ingame_import">导入存档（.gci、.raw）</string>
 
     <string name="ingame_log">错误日志</string>
     <string name="ingame_log_help">记录应用的报告（崩溃或卡死时也会记录）。报告包含本次和上一次运行的日志。</string>

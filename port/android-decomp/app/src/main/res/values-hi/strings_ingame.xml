@@ -70,7 +70,7 @@
     <string name="ingame_card_busy">कार्ड अभी उपयोग में है (गेम सेव या लोड कर रहा है) या गेम अभी लोड हो रहा है – मेनू बंद करें और थोड़ी देर बाद फिर खोलें।</string>
     <string name="ingame_card_none">कोई मेमोरी कार्ड नहीं।</string>
     <string name="ingame_export">सेव गेम एक्सपोर्ट करें (.gci)</string>
-    <string name="ingame_import">सेव गेम इम्पोर्ट करें (.gci)</string>
+    <string name="ingame_import">सेव गेम इम्पोर्ट करें (.gci, .raw)</string>
 
     <string name="ingame_log">त्रुटि लॉग</string>
     <string name="ingame_log_help">ऐप की रिपोर्ट रिकॉर्ड करता है (क्रैश होने या अटकने पर भी)। रिपोर्ट में इस और पिछले रन का लॉग होता है।</string>
