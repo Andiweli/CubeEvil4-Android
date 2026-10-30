@@ -28,6 +28,10 @@
 // counterpart by kind (particles, figures, room, 2D), those found by their object (owner tags,
 // patch 0137) and the texture matrices / TEV colours blended (60fps-plan.md S0-S3).
 // RE4_GX_NO_OWNERS=1: the owner tags left out (the counter-check: the in-between pictures as before).
+//
+// RE4_GX_WORK=1: the GL work of each picture and the render thread's time by kind; with RE4_GX_MERGE=1
+// draws in a row that differ only in their matrices are merged into one draw call (GxRenderer::SetMerge):
+// the pictures must stay the same.
 #include "gx_gl.h"
 #include "re4_gx_frame_io.h"
 
@@ -224,6 +228,9 @@ int main(int argc, char **argv) {
     }
     const re4gx::GxStats before = renderer->Stats();
     renderer->Run(chunk);
+    // the merged draw calls' programs this chunk wanted, made as the app makes them between two chunks
+    if (renderer->Merging())
+      renderer->Prewarm(1e9);
     if (held)
       std::printf("%s: Bild war angehalten (nicht auf dem Bildschirm)%s\n", Stem(path).c_str(),
                   follows ? ", gezeigt bleibt das Bild davor" : "");
@@ -249,6 +256,24 @@ int main(int argc, char **argv) {
                   s.streamSwitches - before.streamSwitches, s.streamSplits - before.streamSplits,
                   s.mergeSame - before.mergeSame, s.mergeUniform - before.mergeUniform,
                   s.mergeMatrixOnly - before.mergeMatrixOnly);
+    // RE4_GX_MERGE=1: the merged draw calls; and the render thread's time by kind of work (GxStats::splitNs)
+    if (std::getenv("RE4_GX_WORK")) {
+      const unsigned draws = s.draws - before.draws, taken = s.mergeTaken - before.mergeTaken,
+                     batches = s.mergeBatches - before.mergeBatches;
+      static const char *kinds[re4gx::GxStats::kSplitKinds] = {"Zeichenaufrufe", "Uniforms", "Bindungen", "Zustand",
+                                                               "Programme", "Texturen", "BP", "XF", "Ecken", "Rest"};
+      std::string split;
+      double all = 0.0;
+      for (int k = 0; k < re4gx::GxStats::kSplitKinds; k++) {
+        const double ms = (s.splitNs[k] - before.splitNs[k]) / 1e6;
+        all += ms;
+        char part[64];
+        std::snprintf(part, sizeof(part), "%s%s %.2f", k ? ", " : "", kinds[k], ms);
+        split += part;
+      }
+      std::printf("  GL-Zeichenaufrufe: %u (%u Zeichenaufträge in %u zusammengefasst); Render-Thread %.2f ms: %s\n",
+                  draws - taken + batches, taken, batches, all, split.c_str());
+    }
     if (s.shaderErrors > before.shaderErrors)
       failures++;
     if (xfb && w && h) {

@@ -496,6 +496,9 @@ public class CoreMenuLayoutTest {
       Button smooth = findButton(body, controller.get().getString(R.string.ingame_smooth60));
       assertNotNull(fps); assertNotNull(skip); assertNotNull(smooth);
       assertTrue(skip.isEnabled()); assertTrue(skip.hasOnClickListeners());
+      // merged draw calls: a toggle of its own below 60 FPS (30.10.2026)
+      Button merge = findButton(body, controller.get().getString(R.string.ingame_merge_draws));
+      assertNotNull(merge); assertTrue(merge.hasOnClickListeners());
     }
   }
 }

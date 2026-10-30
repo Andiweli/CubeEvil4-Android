@@ -365,6 +365,62 @@ stehen im Filmbild selbst (Bild ohne Untertitel: nur das Filmbild), in allen Fas
   verkehrt; die EU-Etappenauswahl (Hilfsfunktion `main.dol` 0x80167a30) setzt es bei freigeschalteter Figur, wie das
   Bonusmenü dieses Builds. **Patch 0158** (Fehler des Prototyps, alle Discs). Gebaut; die Auswahl am PC nicht
   angesehen, **Gerät offen**.
+## Zeichenbefehle zusammenfassen: Versuch (30.10.2026 nachts, lokal, Branch `gx-merge`)
+
+Auftrag (nach der Messung unten): ein abschaltbarer Versuch im GLES3-Renderer, der aufeinanderfolgende Zeichenbefehle,
+die sich nur in den Matrizen unterscheiden, in einem GL-Aufruf schickt. Schalter `RE4_GX_MERGE=1` (aus als Standard;
+`GxRenderer::SetMerge`), in der App über die Start-Einstellungen (`coreSettings`) oder das Menü (siehe unten).
+
+- **Weg (`gx_gl.cpp`):** Vor den Zeichenbefehlen eines Bildstücks sucht `MergePlan` Ketten: Befehle in Folge mit gleichem
+  Ecken-Aufbau, Schritt und Primitiv, deren Ecken hintereinander liegen, dazwischen nur XF-, BP-, Owner-, TLUT- und
+  Textur-Befehle ohne Daten. Ihre Indizes kommen, auf die erste Ecke der Kette verschoben (u16, sonst endet die Kette),
+  hinter die des Bildstücks in denselben Indexpuffer (ein Upload). Beim Zeichnen nimmt `DrawMerged` die nächsten Befehle
+  der Kette, solange die Befehle dazwischen am Ende nichts außer den Plätzen ändern (`MergeQuiet`: BP-Register mit dem
+  alten Endwert – das Spiel schaltet zwischen zwei Objekten den Blend-Modus um und zurück –, keine Kopie, kein Autofokus,
+  keine Tiefenmarke, TEV-Farben unverändert; XF nur Matrizen, Materialfarben 0x100A-0x100D, 0x1018/0x1019 oder
+  gleiche Werte; Texturen schon gebunden). Höchstens 10 Plätze (`kMergeSlots`, 16 KB je Uniform-Block, das Minimum von
+  GLES 3.0 und vieler Mali-Treiber); je Platz XFM-Teil, Materialfarben, `uMtx` und die erste Ecke (`MergeBlock`,
+  Bindung 4). Ein `glDrawElementsBaseVertex` mit der Basis der Kette; der Shader-Ableger (`GxMergedVertexShader`) findet
+  den Platz über `gl_VertexID`, sonst dieselbe Rechnung. Nicht mit 60 FPS (`recordDraws`) und nicht ohne Basis-Ecke.
+- **Programme:** die Ableger macht `Prewarm` (Bildwiederholung ohne neues Bildstück), nie mitten im Bild (ein Link kostete
+  auf dem Retroid ~16 ms); bis dahin zeichnet die Kette einzeln. Ihr Binärcode kommt in den Programm-Cache, ihr Schlüssel
+  nicht (die Vorlade-Liste der App bleibt gleich). `gx_chunk_render` ruft nach jedem Bildstück `Prewarm` wie die App.
+- **Zähler:** `GxStats::mergeBatches`/`mergeTaken`; `gx_chunk_render` mit `RE4_GX_WORK=1` zeigt GL-Zeichenaufrufe und die
+  Zeit des Render-Threads je Art; die App schreibt mit eingeschaltetem Versuch „GX merged draw calls per chunk“ ins Log.
+- **Geprüft (PC, WSL `~/re4-merge/RE4`, `app-host-gl`, Bildfolgen `~/re4-bh/merge/r100`, `r10a`, `r101`):**
+  alle 15 Bilder mit und ohne Versuch **bytegleich** (PPM), ebenso mit 4× MSAA, EFB 2×, ohne Uniform-Ring
+  (`RE4_GX_UNIFORM_STREAM=0`) und ohne Dauer-Mapping (`RE4_GX_PERSISTENT=0`); mit 60 FPS (`RE4_GX_INTERP=1`) bleibt der
+  Versuch aus, Bilder und Zwischenbilder gleich. GL-Zeichenaufrufe im eingeschwungenen Bild: **r100 496 → 329 (−34 %)**,
+  etwa 200 Befehle in 32 Aufrufen; **r10a 453 → 271 (−40 %)**, etwa 225 in 42; r101 125 → 92. Uniform-Uploads r100
+  852 → 638, r10a 686 → 460 (Bytes etwa gleich), Programmwechsel +12 bzw. +22. Neuer Test `TestMerge`
+  (`gx_gl_check`: 24 Quadrate mit eigenen Matrizen, `uMtx`, Materialfarben, Blend-Modus hin und zurück, Owner-Marken,
+  eine bleibende Registeränderung: 4 Aufrufe, Bild wie ohne); `gx_gl_check` 0 Fehler.
+- **CPU-Zeit des Render-Threads am PC** (llvmpipe, 5 Durchläufe, ohne die ersten zwei Bilder je Folge): r100 Split
+  „draw calls“ 19,0 → 21,9 ms (ganzer Run 42,3 → 45,9 ms), r10a 13,7 → 13,5 ms (26,8 → 27,0 ms); die eigene Arbeit
+  (Planen, Prüfen) +0,3 ms. Am PC also **kein Gewinn**: llvmpipe rechnet die Ecken im Zeichenaufruf selbst auf diesem
+  Thread, der Ableger mit seiner Platz-Schleife ist dort eher langsamer; der teure Teil auf dem Handy (der Treiber je
+  Aufruf, Redmi 15C 21–27 ms für 700–850 Aufrufe, also ~30 µs je Aufruf) fehlt am PC. Erwartung für Mali-G52: ~170
+  Aufrufe weniger je Bild, grob 5 ms – **nicht gemessen**.
+- **Retroid (Adreno 650, arm64, Wunsch des Projektinhabers: erst messen), 30.10.2026 spätabends:** APK aus `gx-merge`
+  (Kern aus `RE4-Fixed`, gebaut nach den letzten Kern-Änderungen), `test-core-app.ps1 -SkipCore -StartRoom 100
+  -Seconds 240`, einmal ohne, einmal mit `-CoreSettings RE4_GX_MERGE=1` (beide ohne 60 FPS, kein Absturz, kein
+  Shader-Fehler, Bilder richtig). Die Testfolge gibt in beiden Läufen dieselben 10-s-Fenster (gleiche Befehle je Bild);
+  verglichen die 14 Fenster ab der Ankunft: GL-Zeichenaufrufe **268 → 175 (−35 %)**, Split je Bildstück „draw calls“
+  0,76 → 0,74 ms, „uniform blocks“ 0,19 → 0,13, „vertex buffers“ 1,32 → 1,87 (Planen der Ketten, Indizes kopieren und
+  hochladen), „the rest“ 0,55 → 0,81; Prozessorzeit des Render-Threads ohne Programm-Bau 4,0 → 4,75 ms; GPU-Zeit 21,2 →
+  22,4 ms. **Auf dem Retroid also ein Verlust** (~0,75 ms Prozessor, ~1 ms GPU): sein Treiber kostet nur ~3 µs je Aufruf
+  (0,76 ms für 268), das Redmi 15C nach dem Testerbericht ~30 µs. Ob der Versuch dort gewinnt, zeigt nur eine Messung auf
+  einem Mali-Gerät. Auf dem Retroid ist seitdem die APK aus `gx-merge` installiert (ohne Schalter wie `golden-master`
+  46a55b98).
+- **Schalter im App-Menü** (Wunsch des Projektinhabers, 30.10.2026: der Tester mit dem Redmi sitzt am anderen Ende der
+  Welt): Leistung → Experimentell, unter 60 FPS, „Merge draw calls (experimental)“ / „Zeichenaufrufe bündeln
+  (experimentell)“, dazu ein Hilfetext (wirkt nicht mit 60 FPS); Standard aus, Einstellung `mergeDraws` in
+  `core_graphics`, `CoreBridge.setMerge` → `optMerge` in `core_mode.cpp` → `GxRenderer::SetMerge` (oder
+  `RE4_GX_MERGE=1`). Texte in allen zehn Sprachen (`check_translations.py` ok), `CoreMenuLayoutTest` findet den
+  Schalter; App-Build und 17 Unit-Tests grün. **Retroid:** Einstellung wie nach einem Tippen gesetzt, App ohne
+  Startschalter: „merged draw calls: on“, je Bildstück z. B. 259 → 183 Aufrufe, keine Shader-Fehler; danach die
+  Einstellung des Projektinhabers wiederhergestellt. Das Menü selbst nicht auf dem Gerät angesehen (nur im Test).
+- **Nicht geprüft:** Mali-Gerät (Redmi 15C; Test-APK für den Tester), Spielen mit eingeschaltetem Versuch über längere Zeit.
 
 ## Zeichenbefehle zusammenfassen: Messung (30.10.2026 nachts, lokal, `golden-master`)
 

@@ -40,6 +40,11 @@ struct ShaderKey {
 
 std::string GxVertexShader(const ShaderKey &key);
 std::string GxFragmentShader(const ShaderKey &key);
+// The vertex shader of a merged draw call (RE4_GX_MERGE, gx_gl.cpp): draws that differ only in
+// the XFM part, the material colours and uMtx in one call. Each of kMergeSlots slots holds a
+// draw's (MergeBlock, binding kMergeBinding); a vertex finds its slot by gl_VertexID (the slots'
+// first vertices ascend).
+std::string GxMergedVertexShader(const ShaderKey &key);
 
 // How the fragment shaders write the TEV's lerp ((a << 8) + (b - a) * c, rounded, divided by 256)
 // and the fog's mix, for every program generated from then on (any thread; the GPU check of the
@@ -77,6 +82,19 @@ struct XfBlock {
   float viewport[2][4]; // sx sy sz ox | oy oz efbWidth efbHeight
   float proj[2][4];     // p0 p1 p2 p3 | p4 p5 type pointSize
 };
+
+// A merged draw call's XFM parts (GxMergedVertexShader): per slot uMtx and the slot's first vertex
+// (gl_VertexID; ~0 for slots not used), then per slot posTex, normal and matAmb as in XfBlock (the
+// game sets the material colours per object). 10 slots fit the 16 KB every GLES 3.0 driver allows
+// for a uniform block (many Mali drivers no more).
+constexpr int kMergeSlots = 10;
+constexpr int kMergeBinding = 4;
+constexpr int kMergeRows = 100;  // vec4 per slot: posTex 64, normal 32, matAmb 4
+struct MergeBlock {
+  std::uint32_t slot[kMergeSlots][4];
+  float xf[kMergeSlots][kMergeRows][4];
+};
+static_assert(sizeof(MergeBlock) <= 16384, "a uniform block of GLES 3.0");
 
 struct PixelBlock {
   std::int32_t colors[4][4];   // TEV registers prev, c0, c1, c2 (signed 11 bit)

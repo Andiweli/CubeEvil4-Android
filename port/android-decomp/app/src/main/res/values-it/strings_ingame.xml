@@ -19,6 +19,7 @@
     <string name="ingame_dof">Profondità di campo</string>
     <string name="ingame_fps_display">Mostra gli FPS in basso a sinistra</string>
     <string name="ingame_smooth60">60 FPS (sperimentale)</string>
+    <string name="ingame_merge_draws">Unisci le chiamate di disegno (sperimentale)</string>
     <string name="ingame_force_performance">Forza prestazioni</string>
     <string name="ingame_perf_default">Predefinito</string>
     <string name="ingame_perf_cores">Usa core ad alte prestazioni</string>
@@ -171,6 +172,7 @@
     <string name="ingame_fxaa_help">Attenua i bordi seghettati in un passaggio finale. Funziona con o senza MSAA; l’immagine diventa un po’ più morbida.</string>
     <string name="ingame_frame_skip_help">Se la grafica è in ritardo, salta un’immagine per mantenere la velocità normale del gioco. Si vedono meno immagini, nulla rallenta.</string>
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
+    <string name="ingame_merge_help">Unisce più oggetti in una sola chiamata al driver grafico. Può aiutare i telefoni con un driver grafico lento (ad es. GPU Mali) e costare un po’ sugli altri. Nessun effetto finché i 60 FPS sono attivi.</string>
     <string name="ingame_game_language">Lingua del gioco</string>
     <string name="ingame_language_device">Lingua del dispositivo</string>
     <string name="ingame_language_help">La lingua dei testi e dei sottotitoli del gioco. Lingua del dispositivo: quella del dispositivo se il gioco la offre, altrimenti l\'inglese. Una modifica riavvia il gioco.</string>

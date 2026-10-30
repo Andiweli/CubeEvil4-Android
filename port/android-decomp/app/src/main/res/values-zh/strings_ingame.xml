@@ -20,6 +20,7 @@
     <string name="ingame_dof">景深</string>
     <string name="ingame_fps_display">在左下角显示 FPS</string>
     <string name="ingame_smooth60">60 帧（实验性）</string>
+    <string name="ingame_merge_draws">合并绘制调用（实验性）</string>
     <string name="ingame_force_performance">强制性能</string>
     <string name="ingame_perf_default">默认</string>
     <string name="ingame_perf_cores">使用性能核心</string>
@@ -170,6 +171,7 @@
     <string name="ingame_fxaa_help">在最后一步平滑锯齿边缘。可与 MSAA 同时使用或单独使用；画面会略微变柔和。</string>
     <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
     <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
+    <string name="ingame_merge_help">将多个物体合并为一次图形驱动调用。可能对图形驱动较慢的手机（如 Mali GPU）有帮助，在其他设备上可能略有开销。开启 60 帧时不起作用。</string>
     <string name="ingame_game_language">游戏语言</string>
     <string name="ingame_language_device">设备语言</string>
     <string name="ingame_language_help">游戏文字和字幕的语言。设备语言：如果游戏支持设备的语言就使用它，否则使用英语。更改后游戏会重新启动。</string>

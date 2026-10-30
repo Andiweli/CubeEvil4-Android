@@ -151,6 +151,12 @@ public final class CoreBridge {
    */
   public static native void setSmooth(boolean on);
   /**
+   * Merged draw calls (experimental): draws in a row that differ only in their matrices go to the
+   * graphics driver as one call (gx_gl.cpp); for phones whose driver is slow per call. Without
+   * effect while 60 FPS is on.
+   */
+  public static native void setMerge(boolean on);
+  /**
    * Frame skip: while the renderer is behind (the core has two pictures finished), the first is not
    * drawn and the second drawn at once, so the game keeps its pace on a slow graphics chip.
    */
