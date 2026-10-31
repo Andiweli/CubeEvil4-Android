@@ -9,7 +9,14 @@ Wunsch des Projektinhabers: `versionName` 0.96.3-beta, `versionCode` 85, Release
 `port/android-decomp/docs/releases/v0.96.3-beta.md` seit 0.96.2: Patches 0160, 0161, 0162, 0127 und 0141 berichtigt, 0115 erweitert,
 gehaltene Lauf-/Zieltaste nach Menüs (Abschnitt darunter). Lokal (31.10.2026) dazu: 0161 mit den EU-Tönen, 0163 (kein
 Titelbild nach den Mercenaries), 0164 (EU-Händlerzeile); am PC im Spiel geprüft (Abschnitt „Lokale Prüfung der
-Testerberichte …“). Gerätetest der Steuerung und der Typewriter offen (Projektinhaber).
+Testerberichte …“), dazu 0165/0166 (Mercenaries-Nachsetzen wie die Verkaufsfassungen). Gerätetest der Steuerung und
+der Typewriter offen (Projektinhaber).
+**In `master` übernommen (Wunsch des Projektinhabers, 31.10.2026):** `master` auf `385ca3dc` vorgespult (keine
+Zusammenführung nötig). Release-Prüfung aus diesem Stand: `whole_build.sh i686` 0 Fehler (Laufzeit-, Kern- und
+Formattests), Android-Kern armeabi-v7a und arm64-v8a je 0 Fehler, `assembleCoreDebug` und App-Unit-Tests grün
+(Prüf-APK versionCode 85, `0.96.3-beta-core`, beide ABIs, Debug-Signatur). Die signierte `coreRelease`-APK
+`CubeEvil4-v0.96.3-beta.apk` baut der Projektinhaber in Android Studio (eigener Schlüssel), Releasetext
+`port/android-decomp/docs/releases/v0.96.3-beta.md`. r402 (EU-Umbau) läuft in einer eigenen Sitzung.
 
 ## Lokale Prüfung der Testerberichte, EU-Vergleiche, Leistungsmessung (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
