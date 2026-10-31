@@ -42,6 +42,13 @@ Garrador): `r201_execClawManUpCut` mit `SceEventStart(1)` + `EffectEventDelete()
 zeigt den benutzten Hebel als offen (`cEmSwitch::setOpened`); der Debug-Sprung `JumpPoint == 2` fehlt; Liste: Armbrust-
 Ganados 58/59 Wachradius 15 000 statt 10 000.
 
+## Version 0.96.5-beta (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
+
+0.96.4 wurde aus `d1ea71cc` veröffentlicht (ohne 0168 und den 64-bit-Kernprozess). Wunsch des Projektinhabers:
+`versionName` 0.96.5-beta, `versionCode` 87, Releasetext `port/android-decomp/docs/releases/v0.96.5-beta.md` seit 0.96.4
+mit Patch 0168 („aaa“ an der Kanone) und dem Kernprozess auf 64 bit (Redmi K50 Ultra); beide Zeilen aus
+`v0.96.4-beta.md` dorthin verschoben. Gerätetest der beiden offen (Kernprozess: Retroid erzwungen geprüft).
+
 ## Version 0.96.4-beta (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
 Wunsch des Projektinhabers: `versionName` 0.96.4-beta, `versionCode` 86, Releasetext
