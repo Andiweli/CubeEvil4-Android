@@ -69,7 +69,7 @@ stürzte `titleExit` ab) und `RE4_TEST_ITEM_USE="free+N:ID"` (Gegenstand aus dem
     Zonen füllten im Prototyp und in der US-Fassung nie nach; EU/JP haben die Prüfung entfernt.
   - Sonst nur Debug-Ausgaben und Adressen. r400: `GameAddPoint` in `R400Main` nur bei nicht-japanischer Sprache (mit
     EU-Discs gleich). **r402** ist in der EU stark umgebaut (`R402EmSetMain` 420 abweichende Befehlszeilen, größere
-    Arbeitsstruktur, Listennummern 90–92 → 93–95, andere `SceAtSetEnable`): **nicht übernommen, eigenes Paket**.
+    Arbeitsstruktur, Listennummern 90–92 → 93–95, andere `SceAtSetEnable`): **eigenes Paket, Patch 0167** (nächster Punkt).
   **Patch 0165** (Modus 15 in `em10.cpp`, nur von 0166 benutzt) und **Patch 0166** (r400/r403/r404 nach den
   Verkaufsfassungen; Debug-Discs unverändert). Geprüft am PC (i686, `RE4_TEST_MERC`, Start r403, `RE4_CHEATS=7`, Leon
   zielt, schießt und dreht sich, 11 500 Bilder): EU-Discs mit Patches: 5 Gegner nachgesetzt (Zone 0, Listen 6–10),
@@ -77,6 +77,37 @@ stürzte `titleExit` ab) und `RE4_TEST_ITEM_USE="free+N:ID"` (Gegenstand aus dem
   13 062 Bilder unter 2,5 m, 7 027 im Goto-Zustand; Debug-Discs mit Patches: 0 nachgesetzt (unverändert). r400, r404
   mit EU-Discs ohne Absturz. Laufzeittests 0 Fehler. Dass der Tester „fast alle rennen sofort auf Leon zu“ beim
   **Start** sah, betrifft die Startaufstellung (Listen-Flag „Dash PL“); die ist in allen Fassungen gleich.
+- **Mercenaries-Gegner r402 (Wasserwelt), Patch 0167** (eigene Sitzung, Branch `retail-merc-r402`, Worktree
+  `E:\Development\Android\RE4-r402`, WSL-Baum `~/re4-r402/RE4`, Läufe in `~/re4-r402/runs`): r402 Funktion für
+  Funktion verglichen (Debug-, EU-, US-, JP-`st4_0.rel`, dasselbe Hilfsskript; EU und JP sind gleich, US wie EU bis
+  auf zwei Stellen). Befund (der erste Eindruck „Listennummern 90–92 → 93–95, andere `SceAtSetEnable`“ war falsch:
+  das sind **Platznummern** im Arbeitsfeld, und `SceAtSetEnable` ist nur falsch benannt):
+  - Die Gegnerliste `etc/omake01.esl` hat in allen Verkaufsfassungen drei neue r402-Einträge **0xE3, 0xE7, 0xEB**
+    (US, EU, JP; die EU/JP-Liste macht zudem 0xAB/0xAC zu „Hide Jump“, A2/A4/A6 stehen anders). Dazu
+    `R402EmSetMain`: eine **neue Welle** im Bereich mit Flagge 0x2000 (die drei neuen Einträge, bis 15 nachgesetzt,
+    eigener Zähler) auf den Plätzen 0x5A–0x5C; die späteren Plätze sind verschoben (0x72 statt 0x70 Plätze, daher die
+    größere Arbeitsstruktur 1420 → 1448 Bytes; Tür-Ereignis 01 nimmt 0x5D–0x5F, Tür-Ereignis 02 0x65–0x6B). Die
+    Bereiche laufen in anderer Reihenfolge, die Boot-Ereignisse (Bereich 0x4000000) starten schon bei höchstens
+    8 statt 6 aktiven Gegnern; alle Listen, Grenzen und Zähler sonst gleich, die Zielpunkte gleich.
+  - `R402Init`: die sechs Startgegner 0xA2–0xA7 **suchen** Leon (`setFindPL`) statt auf ihn zuzulaufen.
+  - `em_destroy` (alle 300 Bilder): inaktive Gegner, die noch unterwegs sind (`ckGoto`), bleiben stehen.
+  - `R402EmSetSub`: Goto-Modus 15 (Patch 0165) statt 0xC und die Listennummer im Gegner (`emset_no`;
+    `EmSetEvent` lässt 0xFF, davon hängen Route, Bildtakt und Wahl der Ganados ab) – **nur EU/JP**, die US-Fassung
+    behält 0xC und 0xFF.
+  **Patch 0167** (`r402.cpp`): `R402EmSetMainRetail` nach dem Verkaufscode, die übrigen Stellen mit Abfragen
+  (`re4_disc_retail()`, EU/JP für Modus 15 und `emset_no`); Debug-Discs unverändert. Geprüft am PC (i686,
+  `RE4_TEST_MERC=1 RE4_START_ROOM=0x402`, `RE4_CHEATS=7`, Leon zielt, schießt und dreht sich am Start, r402-Partie
+  3 950 Bilder): **EU-Discs mit 0167:** 14 Ganados gesetzt (A0–A7, dazu die neue Welle E3/E7/EB zweimal, mit
+  Listennummer im `em:`-Eintrag), bis 11 gleichzeitig, 627 Ganado-Bilder im Goto-Zustand, 3 526 unter 2,5 m bei Leon;
+  **Gegenprobe ohne 0167:** 8 gesetzt (nur A0–A7, Liste 255), bis 8 gleichzeitig, 3 007 im Goto-Zustand, 2 887 unter
+  2,5 m. Startplätze gleich (z. B. A2 bei (−3989 5024 −32830), E3 bei (22742 5024 −33412)). Ein zweiter EU-Lauf
+  ergibt genau dieselben Zahlen (die Läufe sind wiederholbar). **US-Discs mit 0167:** 13 gesetzt (A0–A7, E3/E7/EB,
+  zwei nachgesetzt), Listennummer 255 und Modus 0xC wie die US-Fassung, 1 427 im Goto-Zustand. Leon nach dem Start
+  in Bereich 7 und auf die Bootsebene versetzt (`RE4_TEST_PLACE`/`PLACE2`): ohne Abschüsse bleiben 8 Gegner aktiv,
+  daher keine Welle (die meisten Bereiche verlangen höchstens 6–7 aktive) – die übrigen Bereiche und die
+  Boot-Ereignisse sind damit **im Spiel nicht geprüft**, nur gelesen. **Debug-Discs** (`~/re4-kern/disc`; Achtung:
+  `~/re4-kern/disc-ri` sind EU-Discs) mit und ohne 0167: dieselben 12 Ganado-Zeilen (`em: +`/`em: -`), 8 gesetzt,
+  3 216 im Goto-Zustand – unverändert. Laufzeittests 0 Fehler.
 - **Händler, Hand Cannon Spanisch:** `layout_tbl` liegt bei 0x802531EC (Debug; die Angabe 0x801F8E04 ist die
   EU-Adresse): Zeile „nicht Japanisch“ in Debug, EU und US gleich, EU ändert nur japanische Einträge – nicht die
   Ursache. EU-`BuyItemNum::move` (`Sscrn.rel` 0x25700, Relokationen aufgelöst): `buy_msg_x` = **0** (Prototyp und US
@@ -10669,6 +10700,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0164 `ss_shop.cpp` | Händler, Kaufspruch mit den EU-Discs wie die EU-`BuyItemNum::move`: Zeile am Fensterpunkt (`buy_msg_x` 0 statt 0x37), kein `buy_msg_y` für 0xA/0x13, in allen Sprachen außer Englisch sofort sichtbar (Attribut 0x40); sonst stand der spanische Hand-Cannon-Satz rechts über (Testerbild 31.10.2026). Port-Patch für Verkaufsdaten, nur EU (Debug- und US-Fassung: 0x37) |
 | 0165 `em10.cpp` | Goto-Modus 15 der EU-Ganados (nur Patch 0166 setzt ihn): bei Treffer/Alarm und in der Sicht wie 6–13, Ankunft 3 m vor dem Ziel, dann Warten wie 0xD, unterwegs Ausschau wie 6/7. Port-Patch für Verkaufsdaten (EU, JP) |
 | 0166 `r400.cpp`, `r403.cpp`, `r404.cpp` | Mercenaries-Nachsetzen wie die Verkaufsfassungen: keine Gegner, solange Leon auf einer Leiter ist (US, EU, JP); Modus 15 statt 0xC und in r403 auch die Zonen 0/0x10 (deren Zeitprüfung im Prototyp nie hielt; EU, JP). Startaufstellungen und Gruppen sind in allen Fassungen gleich. Port-Patch für Verkaufsdaten |
+| 0167 `r402.cpp` | Mercenaries r402 setzt Gegner wie die Verkaufsfassungen: neue Welle (Listen 0xE3/0xE7/0xEB) im Bereich 0x2000, verschobene Plätze (0x72), andere Reihenfolge, Boot-Ereignisse ab 8 aktiven, sechs Startgegner suchen statt zulaufen, unterwegs nicht weggeräumt (US, EU, JP); Modus 15 und Listennummer im Gegner (EU, JP). Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
