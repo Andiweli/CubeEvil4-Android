@@ -122,6 +122,9 @@
 //                          the case as its "use" line does (put into the case first if missing;
 //                          cItemMgr::use, only where the room allows it: with RE4_TEST_PLACE
 //                          area=N): r101's key 0x3B at the iron door, patch 0127
+//   RE4_TEST_ITEM_LOSE="free+N:ID"  N frames after the player is free, item ID leaves the
+//                          case (cItemMgr::erase): a save whose room marks an item as taken
+//                          that the case lacks (the r201 prison key, patch 0169, 01.11.2026)
 //   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
 //                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
 //                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
@@ -192,6 +195,7 @@
 #include "dmg.h"
 #include "atari.h"
 #include "emdoor.h"
+#include "sce_sys.h"
 #include "etc_model.h"
 #include "scroll.h"
 #include "area.h"
@@ -572,6 +576,8 @@ int g_testGameMode = -1;     // RE4_TEST_GAME_MODE
 int g_testMerc = 0;          // RE4_TEST_MERC
 long g_itemUseAfter = -1;    // RE4_TEST_ITEM_USE
 int g_itemUseId;
+long g_itemLoseAfter = -1;   // RE4_TEST_ITEM_LOSE
+int g_itemLoseId;
 long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
@@ -1006,6 +1012,17 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                             (double) w->door.next_pos.x, (double) w->door.next_pos.y, (double) w->door.next_pos.z,
                             (unsigned) w->door.key_id, (unsigned) w->door.key_flg);
                 }
+                if (w->id == SCEAT_ID_ITEM) {
+                    // the US r201 key in the picture (item 0xC3, area 0x80; report of 01.11.2026)
+                    SCE_AT_DATA_ITEM& it = ((SCE_AT_ITEM*) w)->item;
+                    re4_log("at: no %u item 0x%x x%u, flag %u, room flag %u, player type %u, ctrl 0x%02x, country 0x%02x, "
+                            "taken %d, found %d, model %s at (%.0f %.0f %.0f)",
+                            (unsigned) w->no, (unsigned) it.item_id, (unsigned) it.item_num, (unsigned) it.item_flg,
+                            (unsigned) it.auto_item_flg, (unsigned) it.player_type, (unsigned) it.ctrl_flag,
+                            (unsigned) *(u8*) &w->country, sceAtItemFlgCk(&it), sceAtItemFindFlgCk(&it),
+                            it.pModel ? "yes" : "no", (double) it.item_pos.x, (double) it.item_pos.y,
+                            (double) it.item_pos.z);
+                }
                 if (w->id == SCEAT_ID_SCR_AT) {
                     re4_log("at: no %u collision: set %u, sat attr 0x%x, eat attr 0x%x, ctrl 0x%x, sat flag 0x%x",
                             (unsigned) w->no, (unsigned) w->scr_at.set_flg, (unsigned) w->scr_at.sat_attr,
@@ -1013,6 +1030,35 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                             (unsigned) w->scr_at.sat_flag);
                 }
             }
+        }
+    }
+    // RE4_TRACE_AT=1: an item area taken or found, an event starting or ending (the r201 key, 01.11.2026)
+    static const char* watchAt = getenv("RE4_TRACE_AT");
+    if (watchAt && *watchAt == '1') {
+        static unsigned char seenItem[256];
+        static unsigned seenRoom, seenEvent;
+        if (seenRoom != g->room_id) {
+            seenRoom = g->room_id;
+            memset(seenItem, 0, sizeof seenItem);
+        }
+        for (SCE_AT_DATA* w = sceAtSetOtStart(); (w = sceAtGetOtAddr(w)) != 0;) {
+            if (w->id != SCEAT_ID_ITEM) {
+                continue;
+            }
+            SCE_AT_DATA_ITEM& it = ((SCE_AT_ITEM*) w)->item;
+            unsigned state = 0x80 | sceAtItemFlgCk(&it) | sceAtItemFindFlgCk(&it) << 1;
+            if (seenItem[w->no] && seenItem[w->no] != state) {
+                re4_log("at: frame %u item area %u (item 0x%x): taken %u, found %u, %u in the case", n,
+                        (unsigned) w->no, (unsigned) it.item_id, state & 1, (state >> 1) & 1,
+                        (unsigned) ItemMgr.num(it.item_id));
+            }
+            seenItem[w->no] = (unsigned char) state;
+        }
+        unsigned event = SceSys.event_start_cnt != 0 ? 1 : 0;
+        if (event != seenEvent) {
+            seenEvent = event;
+            re4_log("at: frame %u event %s, Leon at (%.0f %.0f %.0f)", n, event ? "starts" : "ends", (double) p.x,
+                    (double) p.y, (double) p.z);
         }
     }
     // RE4_TRACE_POS=N: Leon's place every N frames (where a walk of a test script got to)
@@ -1487,6 +1533,15 @@ void frame(unsigned n)
         re4_log("run: item 0x%02x %s from the case (RE4_TEST_ITEM_USE) at frame %u", g_itemUseId,
                 p == 0 ? "not in" : used ? "used" : "not usable here", n);
     }
+    if (g_itemLoseAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_itemLoseAfter) {
+        g_itemLoseAfter = -1;
+        cItem* p = ItemMgr.search((u16) g_itemLoseId);
+        if (p != 0) {
+            ItemMgr.erase(p);
+        }
+        re4_log("run: item 0x%02x %s the case (RE4_TEST_ITEM_LOSE) at frame %u", g_itemLoseId,
+                p == 0 ? "was not in" : "taken out of", n);
+    }
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
         g->Rno0 == 3 && live(pPL) && TaskStatus(2) == 0) {
         g_weaponAt = (long) n;
@@ -1765,6 +1820,15 @@ void configure()
         g_itemUseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
         if (g_itemUseId < 0) {
             g_itemUseAfter = -1;
+        }
+    }
+    const char* itemLose = getenv("RE4_TEST_ITEM_LOSE");
+    if (itemLose && strncmp(itemLose, "free+", 5) == 0) {
+        char* end = 0;
+        g_itemLoseAfter = strtol(itemLose + 5, &end, 10);
+        g_itemLoseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
+        if (g_itemLoseId < 0) {
+            g_itemLoseAfter = -1;
         }
     }
     const char* merc = getenv("RE4_TEST_MERC");
