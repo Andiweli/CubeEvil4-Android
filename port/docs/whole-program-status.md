@@ -103,6 +103,15 @@ Berichten, der EU-Code nicht verglichen.
   Paket-Installer) – das Muster eines Nachladers. Vorschlag: Knopf öffnet nur die Releaseseite, Berechtigung weg;
   Einspruch bei Google; Signatur prüfen (`apksigner verify --print-certs`, kein „Android Debug“).
   **Entscheidung des Projektinhabers (31.10.2026): einstweilen so lassen.**
+- **Vorschläge eines Nutzers zur Leistung (31.10.2026, Auflösung 1,5×):** in den Belagerungsräumen r11e/r11f ist
+  „BP (EFB copies, clears, effects)“ mit bis zu 8,9 ms der größte Posten (21–31 FPS); das Bündeln wirkt je Raum sehr
+  verschieden (r11d 89, r11b 833 Befehle). Ideen: (1) „Deferred EFB Copies“ wie Dolphin (Kopie erst beim ersten Lesen
+  als Textur, verwerfen, wenn überschrieben oder nie gelesen), (2) nur das angeforderte Rechteck kopieren, (3) warum
+  r11d weniger bündelt. Stand im Code (`gx_gl.cpp` `EfbCopy`): Kopien bleiben schon ganz auf der GPU (EFB → Textur,
+  nie in den Speicher des Spiels) und lesen nur ihr Rechteck (`copyRect`; `Resolve` löst bei MSAA nur das Rechteck
+  plus Rand auf, außer `fullResolve`). Offen und lohnend zu messen: wie viele Kopien je Bild nie gelesen werden, und
+  ob die Kopien in voller Auflösung (`Hi()`) nötig sind. **Für den lokalen Chat vorgemerkt** (erst messen, dann
+  Entscheidung des Projektinhabers).
 **Prüfungen (Cloud):** `whole_build.sh i686`: 0 Fehler, alle Kern-, Laufzeit- und Formattests bestanden (Patches 0160/0161 mitgebaut); Java-Tests der Steuerung grün. **Nicht geprüft:** alles im Spiel (Disc-Daten), Gerät.
 
 ## Retail-Discs (US) (28.10.2026 spätabends, lokal, WSL2, Branch `retail-us`)
