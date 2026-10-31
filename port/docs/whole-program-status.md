@@ -3,6 +3,18 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Bericht „aaa“ an der Kanone in r202 (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
+
+Bericht des Projektinhabers 31.10.2026 17:26 (Retroid, 0.96.4-Test-APK, EU-Discs, Deutsch): nach der Kurbel in r202 zeigte
+die Aktionstaste an der Kanone „aaa“. Am PC nachgestellt (Kurbel Bereich 2, dann Kanone Bereich 4): EU „aaa“, Debug-Discs
+„OPERATE“. Ursache: Die EU-/US-Raumdaten geben dem Kanonen-Bereich die Aktionsart 65 (`ACT_FIRE`, Prototyp 20); die
+Beschriftung ist Kernmeldung `kind + 0x16` = 0x57. Patch 0123 schiebt alle Kernmeldungen ab 0x56 um 15 (die
+Verkaufstabellen haben dort 15 mehr) – diese 15 sind aber genau die Beschriftungen der Arten 64..78 (0x56 HOP DOWN, 0x57
+FIRE/FEUERN, 0x58 ROTATE …), im Prototyp zwei Platzhalter „aaa“. 0x57 wurde zu 0x66, dem alten Platzhalter. **Patch
+0168:** `cActionButton::disp` fragt 0x56..0x64 mit `RE4_MES_RETAIL_NO`, `MessageData::getAddr` nimmt solche Nummern
+unverschoben. Betrifft auch Art 64 (`ACT_GET_DOWN_1M`, `pl_class.cpp`). Andere Räume mit Arten 64..78 in den EU-Daten:
+keine. Geprüft am PC: Deutsch „FEUERN“, Englisch „FIRE“ (Bilder); Laufzeittests 0 Fehler. Gerät offen.
+
 ## Bericht „Gegner bewegt sich nicht im Gefängnis“ (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
 Nutzerbericht 31.10.2026 09:07 (Samsung SM-A245M, 0.96.3, EU-Discs Spanisch, Professional): Spielstand in r201 geladen,
@@ -10733,6 +10745,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0165 `em10.cpp` | Goto-Modus 15 der EU-Ganados (nur Patch 0166 setzt ihn): bei Treffer/Alarm und in der Sicht wie 6–13, Ankunft 3 m vor dem Ziel, dann Warten wie 0xD, unterwegs Ausschau wie 6/7. Port-Patch für Verkaufsdaten (EU, JP) |
 | 0166 `r400.cpp`, `r403.cpp`, `r404.cpp` | Mercenaries-Nachsetzen wie die Verkaufsfassungen: keine Gegner, solange Leon auf einer Leiter ist (US, EU, JP); Modus 15 statt 0xC und in r403 auch die Zonen 0/0x10 (deren Zeitprüfung im Prototyp nie hielt; EU, JP). Startaufstellungen und Gruppen sind in allen Fassungen gleich. Port-Patch für Verkaufsdaten |
 | 0167 `r402.cpp` | Mercenaries r402 setzt Gegner wie die Verkaufsfassungen: neue Welle (Listen 0xE3/0xE7/0xEB) im Bereich 0x2000, verschobene Plätze (0x72), andere Reihenfolge, Boot-Ereignisse ab 8 aktiven, sechs Startgegner suchen statt zulaufen, unterwegs nicht weggeräumt (US, EU, JP); Modus 15 und Listennummer im Gegner (EU, JP). Port-Patch für Verkaufsdaten |
+| 0168 `mes.cpp`, `act_btn.cpp` | Aktionstasten-Beschriftungen der Arten 64..78 (0x56..0x64: HOP DOWN, FIRE …) mit Verkaufs-Discs unverschoben (Patch 0123 schob sie um 15 auf alte Platzhalter: „aaa“ an der Kanone in r202). Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
