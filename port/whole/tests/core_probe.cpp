@@ -686,6 +686,23 @@ extern "C" int re4probe_ax_test(void)
     }
     static short dev[2 * 512];
     AX_CHECK(re4_audio_read(dev, 512) == 512 && dev[0] == 1000 && dev[1023 - 1] == 1000 && dev[1023] == 0);
+    // a game 0.5 % slower than the device's sound clock (a display locked at 59.65 Hz, vi.cpp): the
+    // reader learns the difference, after 20 s no read comes short (crackle report 01.11.2026; before,
+    // the reader followed the fill alone and ran dry about twice a second)
+    {
+        unsigned acc = 0, shortReads = 0;
+        for (int i = 0; i < 7500; i++) {  // 60 s of the app's reads, 256 frames each
+            acc += 256 * 995;              // the frames the game makes meanwhile
+            while (acc >= 160 * 1000) {
+                acc -= 160 * 1000;
+                re4_ai_block();
+            }
+            if (re4_audio_read(dev, 256) < 256 && i >= 2500) {
+                shortReads++;
+            }
+        }
+        AX_CHECK(shortReads == 0);
+    }
     AXRegisterAuxACallback(0, 0);
     AXSetVoiceState(p, 0);
     AXFreeVoice(p);

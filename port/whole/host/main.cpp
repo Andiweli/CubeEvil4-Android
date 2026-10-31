@@ -24,6 +24,14 @@
 //   re4_host --gci-import CARD FILE.gci [--replace]
 //                             a .gci onto the card file CARD
 //
+// A device's display and sound output for a game run (the crackle report of 01.11.2026):
+//   RE4_TEST_DISPLAY_HZ=59.6  a thread reports vsyncs at that rate (re4_vi_vsync, as the app's
+//                             Choreographer does), the core's retraces lock onto it
+//   RE4_TEST_AUDIO_OUT=FILE   a thread reads the sound as the app does (256 frames every 8 ms of
+//                             RE4_TEST_AUDIO_CLOCK=1.0, the device's sound clock against the
+//                             real one) into a 32 kHz stereo WAV; every 10 s one line with the
+//                             reads that came short (a dropout: silence there) and the ring's fill
+//
 // kill -USR1 <pid> prints a backtrace of the running context and of every OS
 // thread's last wait (with RE4_WAIT_TRACE=1): the hang search.
 //
@@ -34,6 +42,8 @@
 #include "re4_runtime.h"
 
 #include <dlfcn.h>
+#include <pthread.h>
+#include <time.h>
 #include <execinfo.h>
 #include <libgen.h>
 #include <limits.h>
@@ -47,6 +57,112 @@
 
 int re4_runtime_tests();
 int re4_core_tests();
+
+static long long monoNs()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long) ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+static void sleepUntil(long long ns)
+{
+    struct timespec ts = {(time_t) (ns / 1000000000LL), (long) (ns % 1000000000LL)};
+    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, 0);
+}
+
+static double gDisplayHz;
+
+static void* displayThread(void*)
+{
+    const double period = 1e9 / gDisplayHz;
+    const long long t0 = monoNs();
+    for (long long k = 1;; k++) {
+        const long long at = t0 + (long long) (k * period);
+        sleepUntil(at);
+        re4_vi_vsync(at);
+    }
+    return 0;
+}
+
+static FILE* gAudioOut;
+static double gAudioClock = 1.0;
+
+static void* audioThread(void*)
+{
+    enum { kFrames = 256 };
+    static short pcm[kFrames * 2];
+    const double period = kFrames * 1e9 / 32000.0 * gAudioClock;
+    const long long t0 = monoNs();
+    unsigned reads = 0, shortReads = 0, shortAll = 0, fillMin = ~0u, frames = 0;
+    unsigned long long fillSum = 0;
+    for (long long k = 1;; k++) {
+        sleepUntil(t0 + (long long) (k * period));
+        const int got = re4_audio_read(pcm, kFrames);
+        unsigned blocks, fill, overruns, underruns, skips;
+        re4_audio_stats(&blocks, &fill, &overruns, &underruns, &skips);
+        fwrite(pcm, sizeof pcm, 1, gAudioOut);
+        frames += kFrames;
+        reads++;
+        // before the game's sound starts every read is empty: not a dropout
+        if (got > 0 && got < kFrames) {
+            shortReads++;
+        }
+        fillMin = fill < fillMin ? fill : fillMin;
+        fillSum += fill;
+        if (reads % 1250 == 0) {  // 10 s
+            shortAll += shortReads;
+            re4_log("audio out: %u s, %u short reads in the last 10 s (%u in all), ring %u..%llu ms (min..mean), "
+                    "core: %u ran dry", reads / 125, shortReads, shortAll, fillMin / 32, fillSum / 1250 / 32,
+                    underruns);
+            shortReads = 0;
+            fillMin = ~0u;
+            fillSum = 0;
+            // the WAV header with the size so far (the run ends with _exit)
+            const unsigned bytes = frames * 4, riff = 36 + bytes, fmt = 16, rate = 32000, byteRate = 128000;
+            const unsigned short pcmTag = 1, channels = 2, align = 4, bits = 16;
+            fseek(gAudioOut, 0, SEEK_SET);
+            fwrite("RIFF", 1, 4, gAudioOut);
+            fwrite(&riff, 4, 1, gAudioOut);
+            fwrite("WAVEfmt ", 1, 8, gAudioOut);
+            fwrite(&fmt, 4, 1, gAudioOut);
+            fwrite(&pcmTag, 2, 1, gAudioOut);
+            fwrite(&channels, 2, 1, gAudioOut);
+            fwrite(&rate, 4, 1, gAudioOut);
+            fwrite(&byteRate, 4, 1, gAudioOut);
+            fwrite(&align, 2, 1, gAudioOut);
+            fwrite(&bits, 2, 1, gAudioOut);
+            fwrite("data", 1, 4, gAudioOut);
+            fwrite(&bytes, 4, 1, gAudioOut);
+            fseek(gAudioOut, 0, SEEK_END);
+            fflush(gAudioOut);
+        }
+    }
+    return 0;
+}
+
+static void startDevice()
+{
+    pthread_t t;
+    if (const char* hz = getenv("RE4_TEST_DISPLAY_HZ")) {
+        gDisplayHz = atof(hz);
+        if (gDisplayHz > 20 && gDisplayHz < 250) {
+            re4_log("display: vsyncs at %.3f Hz (RE4_TEST_DISPLAY_HZ)", gDisplayHz);
+            pthread_create(&t, 0, displayThread, 0);
+        }
+    }
+    if (const char* out = getenv("RE4_TEST_AUDIO_OUT")) {
+        if (const char* clock = getenv("RE4_TEST_AUDIO_CLOCK")) {
+            gAudioClock = atof(clock) > 0.9 && atof(clock) < 1.1 ? atof(clock) : 1.0;
+        }
+        if ((gAudioOut = fopen(out, "wb")) != 0) {
+            static const char header[44] = {0};
+            fwrite(header, 1, sizeof header, gAudioOut);
+            re4_log("audio out: %s, 256 frames every %.4f ms (RE4_TEST_AUDIO_OUT)", out, 8.0 * gAudioClock);
+            pthread_create(&t, 0, audioThread, 0);
+        }
+    }
+}
 
 // Where an address lies: library and offset (for addr2line), nearest symbol.
 static void printAddress(const char* what, void* address)
@@ -338,6 +454,7 @@ extern "C" __attribute__((visibility("default"))) int re4_host_main(int argc, ch
     // The game tests bit 31 of addresses of its own data (as on the GameCube).
     re4_check_game_address("libre4_main", (const void*) &re4_game_main);
     re4_log("starting re4_game_main");
+    startDevice();
     // The game runs as the boot thread of the Dolphin OS thread emulation.
     int ret = re4_os_run(re4_game_main);
     re4_log("re4_game_main returned %d", ret);

@@ -3,41 +3,61 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Bericht „Knacken im Ton alle paar Sekunden“ (01.11.2026, Cloud, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
+## Bericht „Knacken im Ton alle paar Sekunden“ (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
 
-Meldung des Projektinhabers 01.11.2026: einige Nutzer hören alle paar Sekunden ein Knacken (Video und eigenes
-Fehlerprotokoll angekündigt, in der Cloud-Sitzung nicht angekommen). **Hinweis aus dem Bericht des Schlüssel-Falls**
-(Infinix X6882, Android 14, 64 bit, 0.96.5, Ton im App-Prozess): der Ring des Kerns läuft im Spiel stetig leer – „ran
-dry“ 1, 2, 3 in den ersten 30 s, dann gleichmäßig etwa 15 je 10 s (02:17–02:21: 365 in 54 000 Blöcken), 0 lost, keine
-Zeile „the Android output ran out“ (die AudioTrack lief also nicht leer). Leerlaufen heißt: `ai.cpp readRing` füllt
-Stille ein, das knackt. Dazu „shown 59.6/s“ (meist 59.4–59.7) und „GX core: … 33.5 ms each“ statt 33.37 ms: das
-Spiel läuft hier etwa 0,4–0,6 % langsamer als 59,94 Hz. **Vermutung (ungeprüft):** `vi.cpp re4_vi_locked_field` rastet
-auf eine Bildwiederholrate bis 0,5 % neben 59,94 Hz ein, `readRing` gleicht aber auch höchstens 0,5 % aus (`adjust`
-±328/65536); dazu kommt die Abweichung der Ton-Uhr des Geräts. Liegt die Summe darüber, sinkt der Ring vom Ziel 60 ms
-bis leer und bleibt dort (die Pakete kommen mit den Bildern in Schüben). Die Ziffern passen dazu (anfangs fast keine
-Aussetzer, ab etwa 40 s gleichmäßig). **Offen (lokal):** Video und Protokoll der Nutzer auswerten (Bildwiederholrate
-des Geräts, „ran dry“ und „ran out“ je Minute), Spanne von Einrasten und Ausgleich abstimmen, am PC und auf dem
-Retroid prüfen. Kein Code geändert.
+Meldung des Projektinhabers 01.11.2026 (mehrere Nutzer), dazu Fehlerbericht und Video eines Testers (Infinix X6882,
+Android 14, 64 bit, 0.96.5, US-Discs, Bericht 02:27, Video 02:27:56, 54 s, r201). **Protokoll:** „ran dry“ gleichmäßig
+etwa 15 je 10 s (≈ 90 je Minute, nach 30 s Anlauf), 0 lost, 0 skips, keine Zeile „the Android output ran out“;
+„shown 59.4–59.7/s“, „GX core: 33.5 ms each“; 2000 Tonblöcke (nominell 10,00 s) brauchten stetig 10,04–10,06 s:
+das Spiel lief 0,5 % langsamer als 59,94 Hz, also auf eine Anzeige von etwa 59,64 Hz eingerastet (Überlagerung „60 Hz“
+ist gerundet). **Video:** die Tonspur (ffmpeg) hat neben Schritten und Schüssen viele kurze Einbrüche; einzeln
+nicht sauber von Spielgeräuschen zu trennen, die Zahl aus dem Protokoll (≈ 1,5 je Sekunde, gleichmäßig) passt zu
+„alle paar Sekunden ein Knacken“ bei leiser Musik.
+**Ursache (bestätigt):** `vi.cpp re4_vi_locked_field` rastet auf Anzeigen bis 0,5 % neben 59,94 Hz ein; der Leser
+in `ai.cpp readRing` glich aber nur über den Füllstand aus (`(fill − 1920)/8`, höchstens ±328/65536): selbst bei
+leerem Ring nur −0,37 %. Liegt die Anzeige mehr als ~0,35 % unter 59,94 Hz, sinkt der Ring vom Ziel 60 ms auf 0 und
+läuft dauernd kurz leer (Stille, Knacken). **Am PC nachgestellt** (neu in `host/main.cpp`: `RE4_TEST_DISPLAY_HZ`
+meldet Vsyncs wie der Choreographer, `RE4_TEST_AUDIO_OUT` liest wie die App 256 Bilder je 8 ms in eine WAV,
+`RE4_TEST_AUDIO_CLOCK` verstellt die Tonuhr): r201 in Echtzeit, alter Leser: 59,65 Hz **30 Aussetzer je 10 s**,
+59,70 Hz **17 je 10 s** (wie beim Tester), Ring 0..9 ms; 59,6 Hz rastet nicht ein (0,57 %), dann ruhig; 60 Hz ruhig.
+**Behoben (`ai.cpp`):** der Leser glättet den Füllstand (über 16 Lesungen) und **lernt** den dauerhaften
+Unterschied zwischen Spiel- und Geräteuhr (höchstens 0,75 %, gesamt höchstens 1 %); gelernt wird nur, solange der
+Ton fließt. Die 10-s-Zeile „audio:“ nennt ihn („reader rate −0.49 %“). Das Einrasten (0,5 %) bleibt, damit Filme
+nicht ruckeln. Puffergröße und Verzögerung unverändert (Ziel 60 ms), keine Grundsatzfrage offen. **Geprüft am PC**
+(Echtzeit, US-Discs, r201, je 130 s): 59,65 / 59,70 / 60 Hz / ohne Anzeige / 59,65 Hz mit Tonuhr ±0,1 %: **0
+Aussetzer** nach dem Start (1–2 beim Raumstart wie vorher), Ring 41..52 ms, gelernt −0,49 / −0,40 / +0,10 / 0,00 /
+−0,38 / −0,58 %. Simulation (Python) vorab: Schwankung der Abspielrate etwa 0,05–0,1 % (unhörbar). Neuer Test im
+`core-test ax` (60 s Lesungen, Spiel 0,5 % langsamer: keine kurze Lesung nach 20 s; mit dem alten Leser rot).
+**Save-Room-Musik im Video:** nicht nachgestellt. In r201 kommt die Musik aus der Raumtabelle `bgm/bgmtbl.dat`
+(im Spielstand je Raum gespeichert; kein Skript schaltet r201 um). Am PC (US, Debug-Start, auch an der
+Schreibmaschine gespeichert und geladen) ist es an der Schreibmaschine still, am Bild läuft ein Stück, dessen
+Tonhöhen-Verteilung nicht zum Video passt (Korrelation −0,1). Im Video läuft durchgehend ein anderes Stück, auch an
+der Schreibmaschine. Der Unterschied hängt am Spielstand des Testers (Story-Stand, Ashley dabei). **Offen:** Gerät
+(Retroid war nicht verbunden: Ton, Filme ohne Ruckeln), Tester-Gerät, `.gci` des Testers für die Musik.
 
-## Bericht „Schlüssel zum Garrador-Gefängnis fehlt im Bild“ (US-Discs, 01.11.2026, Cloud, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
+## Bericht „Schlüssel zum Garrador-Gefängnis fehlt im Bild“ (US-Discs, 01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
 
 Nutzerbericht 01.11.2026 02:27 (Infinix X6882, Android 14, 64-bit-Prozess, 0.96.5, US-Discs beide „all as on the original
-disc“, Professional nicht, `game_mode 5`, `game_country 1`): Spielstand in r201 (Datei 01, 5:30 h, 50-mal gespeichert)
-geladen; die Tür zum Garrador braucht den Schlüssel, der „einen Gang weiter im Bild hängen sollte“, dort aber fehlt.
-Protokoll: kein Absturz, keine Fehlermeldung, kein Raumwechsel; Garrador s19 (Liste 0x56, `0x1b/10`) angekettet wie
-im Bericht vom 31.10. Kein Gegenstand und kein Inventar im Bericht (der Fehlerbericht schreibt keins auf).
-**Code r201 (Debug = Prototyp):** die Tür ist die Kampfbereich-Tür (SMD-Objekt 0x53, Bereich 0xB, `r201_checkDoor`),
-Schlüssel = Gegenstand 0xC3 (`r201_checkDungeonKeyUse`, danach `KYF_R201_DOOR`, Raum-Merkmal 1, Autospeichern). Der
-Schlüssel ist Gegenstandsbereich 0x80: `R201Init` schaltet ihn (Modell `setNoSuspend`) und den Kamerabereich 0x20
-(`r201_checkPicture`: Licht an, Kamera 0xC aufs Bild, `SceAtExecute(0x80)`) nur ein, solange `SceAtItemFlgCk(0x80) == 0`.
-Fehlt das Modell, ist entweder die Genommen-Flagge des Gegenstands schon gesetzt (Spielstand) oder die US-Daten legen
-den Schlüssel anders an (`sceAtSetItem`: Flagge, Spielerart, Länder-Flaggen `SceAtRoomSet`). Die US-`r201.das` ist so
-groß wie die Debug-Datei (4 365 696 Byte), aber anders (Prüfsummen `rooms-us.tsv`/`rooms.tsv`); EU ist größer. Mit
-EU-Discs ging ein Tester am 31.10. durch die Gittertür s13 in die Grube (Schlüssel dort also vorhanden). In der
-Cloud nicht prüfbar (keine Disc-Daten). **Offen (lokal):** Debug-Start r201 mit US- und Debug-Discs, `RE4_TRACE_AT=1`,
-Leon auf Bereich 0x20 (`RE4_TEST_PLACE`): Bereich 0x80, Gegenstands-Nummer, Flaggen, Modell sichtbar; dazu der
-Spielstand des Testers (Speicherkarten-Export `.gci`, `RE4_TEST_LOAD_FILE`): Flagge von 0x80, 0xC3 im Koffer,
-`KYF_R201_DOOR`. Kein Code geändert.
+disc“, `game_mode 5`, `game_country 1`): Spielstand in r201 (Datei 01, 5:30 h, 50-mal gespeichert, an der
+Schreibmaschine bei (4272 2000 −29468)) geladen; die Tür zum Garrador (Bereich 0xB, `r201_checkDoor`) braucht den
+Schlüssel 0xC3 („Prison Key“), der im Bild hängen sollte, dort aber fehlt. Keine `.gci` im Bericht.
+**Code:** US-`R201Init` (`st2_0.rel` 0x440c) prüft Bereich 0x80 und setzt den Bildbereich 0x20 genau wie der Prototyp;
+`r201_checkPicture` und `r201_checkDoor` sind gleich. Die Raumtabelle (`Room_data_tbl`, Speicherplätze der Räume
+im Spielstand) ist bei Debug, US und EU gleich (r201 = Platz 29 von 121).
+**Am PC (i686, `RE4_TRACE_AT=1` zeigt jetzt Gegenstandsbereiche und Änderungen):** US- und Debug-Discs gleich:
+Bereich 0x80 Gegenstand 0xC3, Raum-Merker 1, Spielerart 0, Länder-Flaggen 0, Modell da, nicht genommen; Bereich 0x20
+mit Aktionstaste („CHECK“ am Gemälde mit dem Mann in weißem Hemd und blauer Hose, Bild am PC gezeichnet). A →
+Kamera aufs Bild, A → „You got the Prison Key.“, 0xC3 im Koffer. „Retry from a continue point“ danach setzt den
+Merker korrekt zurück (Schlüssel wieder im Bild, nicht im Koffer). Kein anderer Gegenstand in r201 teilt Merker 1.
+**Video des Testers:** Leon steht direkt vor demselben Gemälde, **keine „CHECK“-Anzeige**: im Spielstand gilt der
+Schlüssel also als genommen, ist aber offenbar nicht im Koffer (die Tür bleibt zu). Wie das passierte, bleibt ohne
+seine `.gci` offen. **Patch 0169 (Sicherheitsnetz, alle Discs):** gilt der Schlüssel als genommen, ist die Tür noch zu
+und der Schlüssel nicht im Koffer, hängt `R201Init` ihn wieder ins Bild (Zeile „r201: the prison key was marked as
+taken …“). Neue Testhilfe `RE4_TEST_ITEM_LOSE="free+N:ID"` (Gegenstand aus dem Koffer). **Geprüft am PC (US):**
+Schlüssel genommen, aus dem Koffer entfernt, an der Schreibmaschine gespeichert (Datei 1); Neustart, geladen: die Zeile
+des Patches, Bereich 0x80 wieder offen, „CHECK“ am Bild, Schlüssel genommen, 1 im Koffer. Ein normaler Debug-Start
+(Schlüssel noch im Bild) bleibt unberührt. **Offen:** Gerät des Testers; seine `.gci` (Menü der App:
+Speicherkarten-Export), um die Ursache zu finden.
 
 ## Bericht „MEM1 is taken“ auf 64 Bit (Redmi K50 Ultra, 31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
@@ -10807,6 +10827,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0166 `r400.cpp`, `r403.cpp`, `r404.cpp` | Mercenaries-Nachsetzen wie die Verkaufsfassungen: keine Gegner, solange Leon auf einer Leiter ist (US, EU, JP); Modus 15 statt 0xC und in r403 auch die Zonen 0/0x10 (deren Zeitprüfung im Prototyp nie hielt; EU, JP). Startaufstellungen und Gruppen sind in allen Fassungen gleich. Port-Patch für Verkaufsdaten |
 | 0167 `r402.cpp` | Mercenaries r402 setzt Gegner wie die Verkaufsfassungen: neue Welle (Listen 0xE3/0xE7/0xEB) im Bereich 0x2000, verschobene Plätze (0x72), andere Reihenfolge, Boot-Ereignisse ab 8 aktiven, sechs Startgegner suchen statt zulaufen, unterwegs nicht weggeräumt (US, EU, JP); Modus 15 und Listennummer im Gegner (EU, JP). Port-Patch für Verkaufsdaten |
 | 0168 `mes.cpp`, `act_btn.cpp` | Aktionstasten-Beschriftungen der Arten 64..78 (0x56..0x64: HOP DOWN, FIRE …) mit Verkaufs-Discs unverschoben (Patch 0123 schob sie um 15 auf alte Platzhalter: „aaa“ an der Kanone in r202). Port-Patch für Verkaufsdaten |
+| 0169 `r201.cpp` | Sicherheitsnetz Schlüssel zum Garrador-Gefängnis: gilt der Schlüssel 0xC3 (Gegenstandsbereich 0x80) als genommen, ist die Tür noch zu (`KYF_R201_DOOR`) und der Schlüssel nicht im Koffer, hängt `R201Init` ihn wieder ins Bild (eine Zeile im Protokoll). US-Nutzerbericht 01.11.2026; wie der Spielstand dahin kam, ist offen (keine `.gci`). Kein Fehler des Prototyps nachgewiesen, alle Discs |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
