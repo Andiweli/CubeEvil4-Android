@@ -35,9 +35,22 @@ Berichten, der EU-Code nicht verglichen.
   Messer bereit) sofort (`HELD_ACTIONS`); gedrückte Aktionen (A, X, Y, Z, START) warten weiter, ebenso alles beim
   Wechsel ins Menü. `CoreInputTests` 206 Prüfungen (neu: Laufen und R sofort, Inventar auf L1 wartet),
   `CoreTouchTests` und `ActionMapTests` grün. **Gerät offen.**
-- **Bericht „mercsEnemyAggro“** (r403/r402/r400, 30 min): ohne Beschreibung des Testers; im Protokoll 59 Zeilen „stays
-  back (Stay)“ der Ganados, ein „Retry“ in r403 und ein Tod. **Offen**, bis der Tester sagt, was ihm auffiel.
-
+- **Nachtrag des Testers zu den Berichten ohne Beschreibung (31.10.2026):**
+  - Hunk freigeschaltet, Symbol und Figur ohne Befund (Patch 0134/0158).
+  - **Ende einer Partie oder „Game Reset“: etwa eine Sekunde Titelbild, dann erst das Mercenaries-Menü.** Im Prototyp
+    der vorgesehene Weg: nach dem Neustart setzt `titleWait` mit `logo_skip_enable` den Titel (`titleSet(w,
+    TTL_START_BIO4)`, Zustand 5) und springt bei `SYS_OMAKE_ETC_GAME` in Zustand 6 (`titleSub`), der erst
+    `omk_t1.dat` lädt und über fünf Bilder ausblendet; so lange steht das Titelbild. **Offen:** mit `retail_code.py`
+    am PC prüfen, ob die EU-Fassung (`titleWait`/`titleSub`) den Titel dort auslässt.
+  - **Getretener Ganado fliegt durch die Scheunentür (r400).** Patch 0115 (26.10.2026) prüfte nur id 0x10, den
+    Dorf-Ganado der Geschichte; alle Ganados laufen mit demselben Code (`cEmMgr::construct`: 0x10..0x20) und behalten
+    ihre id (r400 0x16, r402 0x1C, r403 0x1D, laut den Berichten). **Patch 0115 erweitert** auf 0x10..0x20; damit
+    wohl auch der offene Punkt „Assignment Ada, Gegner durch die Tür nach dem Tritt“. Gebaut, **im Spiel nicht
+    geprüft**.
+  - **Burg (r403): fast alle Ganados rennen zum Start direkt auf Leon zu, bevor er die Treppe erreicht** (Bericht
+    „mercsEnemyAggro“: 59× „stays back“, ein Retry, ein Tod in Bereich 0x1d). Im Prototyp schickt `em_reset` jeden
+    nachgesetzten Gegner mit `setGoto(&pPL->pos, 0xC)` zu Leon. **Offen:** `R403Init`, `em_reset` und die
+    `reset_4x` gegen die EU-Fassung (`st4_0.rel`, `retail_code.py`) vergleichen; ohne Abweichung ist es Original.
 - **Falscher Text nach dem Aufschließen der Eisentür in r101 (Dorf, Schlüssel zu r102)** (zwei Berichte des
   Projektinhabers 31.10.2026 00:18/00:24, Retroid, 0.96.2, EU-Discs Deutsch: „so ähnlich wie ‚Sie erhalten 10‘“; der
   zweite Bericht kam drei Sekunden nach dem Inventar in r101). Ursache ist unser Patch 0127 (27.10.2026): er setzt die
@@ -10425,7 +10438,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0111 `game.cpp`, 0112 `title.cpp` | Instant-Spielstand laden: `gameMainLoop` und `Title_task` rufen `re4_instant_game_tick` / `re4_instant_title_tick` (neu erzeugt mit `whole_make_patch.py`, 26.10.2026; vorher von Hand und nur mit Unschärfe anwendbar) |
 | 0113 `dvd.cpp` | Teile-Tabelle prüfen (`re4_dvd_header_check`): eine Tabelle ohne Ende-Eintrag (nur Nullen: Raumdatei auf dem Gerät beschädigt oder stiller Lesefehler) ließ `readInit`/`readMain` über `header_buff` hinauslaufen, das ganze Spiel stand (r222 nach der Tür von r210, Infinix X6725 und Galaxy S20 FE, 25.10.2026; r325 auf dem Xiaomi 2109119DG). Der Port liest die Tabelle bis zu dreimal neu, beendet dann das Lesen mit Fehler, einer Bildschirmzeile „DISC FILE DAMAGED“ und einer ausführlichen Zeile im Fehlerprotokoll. Kein Fehler des Prototyps |
 | 0114 `db_light.cpp` | `TOOL_ERR` liest `pTool->Flag`, `pTool` ist ohne geöffneten Licht-Editor leer; das Debug-Werkzeug „SCE ITEM“ stürzte so ab (GameCube: lesbarer Speicher bei Adresse 0x14; Galaxy A02s, Redmi Note 14 Pro). Port-Patch |
-| 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2). Das gemerkte `m_flag` ist 16 bit (die erste Fassung mit `u8` löschte Bits 0x100/0x200: Leon lief durch Türen, Nachtest 26.10.2026); Test `runtime-test em at flags` |
+| 0115 `at_mod.cpp` | Ein getretener Ganado (em10, Schiebe-Vorrang 3) und eine Tür (id 0x41, Vorrang 3) schieben sich gegenseitig nicht (`priorityCheck`): der Ganado fliegt durch die geschlossene Tür des r100-Hauses (Fehler des Prototyps, in Dolphin bestätigt, 26.10.2026). In der Luft schiebt die Tür ihn wie einen stehenden Ganado (Vorrang 2). Das gemerkte `m_flag` ist 16 bit (die erste Fassung mit `u8` löschte Bits 0x100/0x200: Leon lief durch Türen, Nachtest 26.10.2026); Test `runtime-test em at flags` **Erweitert 31.10.2026:** alle Ganados (ids 0x10..0x20), nicht nur 0x10 (Scheunentür r400 in den Mercenaries) |
 | 0116 `db_menu.cpp` | Das Debug-Menü (SELECT gehalten, Patch 0061) zeigt nur AREA JUMP und DEBUG OPTION, in einer Spalte am linken Rand, immer an derselben Stelle (Wunsch des Projektinhabers, 26.10.2026; das Original listet 34 Werkzeuge in zwei Spalten um x = 176 und lässt sich mit dem C-Stick verschieben). Hoch/runter wählt, A startet, B oder START schließt wie bisher; die Menütabelle bleibt (ein mit `DbMenuSetExecTool` vorgemerktes Werkzeug startet weiter über seinen Namen) |
 | 0117 `read.cpp` | Kern-Archiv an einem zweiten Platz, wenn es größer ist als der feste (Verkaufsdaten, `retail-eu-plan.md` R1, 26.10.2026): `etc/core.das` der europäischen Discs hat 0x23AC40 Byte, der Platz der Debug-Version bei 0x80578000 fasst 0x234000 (`CORE_DATA_MAX`) bis zu den Optionsdaten bei 0x807AC000; das Lesen lief hinein („CORE_DATA IS TOO LARGE“). `CoreDataRead` fragt `re4_core_data_place` (`runtime/dvd.cpp`: Größe des Körpers aus der Teile-Tabelle, bei yz2 die entpackte); ein größerer Kern kommt nach 0x81C00000 (4 MB in der Entwicklerhälfte von MEM1, sonst unbenutzt, `RE4_MEM1_CORE_ALT_ADDR`), der Kern der Debug-Version bleibt an seinem Platz. Port-Patch für Verkaufsdaten |
 | 0118 `eprintf.cpp` | Ohne die Debug-Schrift `etc/moji8.tpl` (fehlt auf den europäischen Discs) legte `EprintfInit` keine Puffer an; `eprintf` und `EprintfDrawing` prüfen `eprintf_init`, `EprintfBufferClear` (jedes Bild über `EprintfFlush`) nicht und schrieb über einen Nullzeiger: das Spiel endete im ersten Bild. Jetzt bleibt der Debug-Text ohne Schrift aus. Port-Patch für Verkaufsdaten (R1) |
