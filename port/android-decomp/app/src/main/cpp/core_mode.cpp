@@ -1029,6 +1029,96 @@ void SaveShot(const char *path) { SaveShot(*gx, path); }
 // whether this GPU draws the same chunks the same every time and with which options a picture
 // differs (thin branches went paler for one picture with 2x MSAA on the Retroid only,
 // 20.10.2026). Once per process; the game waits meanwhile.
+// Measurement (RE4_GX_REPLAY_WORK=1 with RE4_GX_REPLAY; a user's ideas on EFB copies and merged draw calls,
+// 31.10.2026): every series at 1x and 1.5x, at 1.5x also with merged draw calls, each picture finished
+// (glFinish) and timed with the menu's MSAA, anisotropy and depth of field; then twice more with the EFB
+// copies, the display copy and the autofocus timed one by one (RE4_GX_COPY_TIME, glFinish around each). The
+// first 5 pictures of a series (programs, uploads) are not counted. One "GX work" line per series and variant;
+// no pictures kept, the game waits meanwhile.
+static void replayWork(const std::vector<std::unique_ptr<re4gxio::Loaded>> &chunks,
+                       const std::vector<std::string> &stems) {
+  struct Work {
+    const char *name;
+    int halves;
+    bool merge, copyTime;
+  };
+  static const Work kWork[] = {{"1x", 2, false, false},        {"1.5x", 3, false, false},
+                               {"1.5x-merge", 3, true, false}, {"1x-copies", 2, false, true},
+                               {"1.5x-copies", 3, false, true}};
+  static const char *kKinds[re4gx::GxStats::kCopyKinds] = {"whole", "half", "depth", "small", "display", "focus"};
+  for (const Work &v : kWork) {
+    if (v.copyTime)
+      setenv("RE4_GX_COPY_TIME", "1", 1);
+    else
+      unsetenv("RE4_GX_COPY_TIME");
+    std::unique_ptr<re4gx::GxRenderer> r;
+    uint32_t lastSequence = 0, lastFrame = 0;
+    std::string series;
+    re4gx::GxStats at;
+    double ms = 0.0;
+    unsigned timed = 0, run = 0;
+    const auto report = [&]() {
+      if (!r || !timed) return;
+      const re4gx::GxStats &s = r->Stats();
+      char copies[512];
+      int o = 0;
+      for (int k = 0; k < re4gx::GxStats::kCopyKinds && o < static_cast<int>(sizeof(copies)); k++)
+        o += std::snprintf(copies + o, sizeof(copies) - o, "%s %s %.1f (%.2f ms)", k ? "," : "", kKinds[k],
+                           (s.copyCount[k] - at.copyCount[k]) / static_cast<double>(timed),
+                           (s.copyNs[k] - at.copyNs[k]) / 1e6 / timed);
+      const unsigned draws = s.draws - at.draws;
+      const unsigned calls = draws - (s.mergeTaken - at.mergeTaken) + (s.mergeBatches - at.mergeBatches);
+      LOG("GX work %s series %s: %u pictures, %.2f ms each (Run + glFinish), %.0f draws in %.0f GL calls; "
+          "copies%s; read %.1f, drawn over unread %.1f",
+          v.name, series.c_str(), timed, ms / timed, draws / static_cast<double>(timed),
+          calls / static_cast<double>(timed), copies, (s.copyRead - at.copyRead) / static_cast<double>(timed),
+          (s.copyOverwrittenUnread - at.copyOverwrittenUnread) / static_cast<double>(timed));
+    };
+    for (size_t i = 0; i < chunks.size(); i++) {
+      Re4GxChunk chunk = chunks[i]->chunk;
+      const bool follows = r && chunk.sequence == lastSequence + 1 && chunks[i]->frame == lastFrame + 1;
+      if (!follows) {
+        if (!(chunk.flags & RE4_GX_CHUNK_RESET)) continue;
+        report();
+        if (r) r->Release();
+        r = std::make_unique<re4gx::GxRenderer>();
+        re4gx::GxOptions options;
+        options.samples = std::max(1, optSamples.load());
+        options.anisotropy = static_cast<float>(std::max(1, optAnisotropy.load()));
+        options.halfDof = optHalfDof.load() != 0;
+        r->SetOptions(options);
+        std::string error;
+        if (!r->InitHalves(v.halves, &error)) {
+          LOG("GX work %s: renderer: %s", v.name, error.c_str());
+          r.reset();
+          continue;
+        }
+        r->SetMerge(v.merge);
+        chunk.flags &= ~RE4_GX_CHUNK_HOLD;
+        series = stems[i].substr(0, 2);
+        ms = 0.0;
+        timed = run = 0;
+      }
+      lastSequence = chunk.sequence;
+      lastFrame = chunks[i]->frame;
+      if (run == 5) at = r->Stats();
+      glFinish();
+      const auto start = std::chrono::steady_clock::now();
+      r->Run(chunk);
+      glFinish();
+      const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+      if (run++ >= 5) {
+        ms += took;
+        timed++;
+      }
+    }
+    report();
+    if (r) r->Release();
+  }
+  unsetenv("RE4_GX_COPY_TIME");
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 bool gxReplayDone = false;
 
 void replayGx(int halves) {
@@ -1071,6 +1161,13 @@ void replayGx(int halves) {
                                       {"s2full", 2, false, true, 1}, {"s1", 1, true, false, 1},
                                       {"s4cen", 4, true, false, 1}};
   LOG("GX replay: %zu chunks from %s, EFB scale %s", chunks.size(), dir, ScaleName(halves).c_str());
+  if (const char *work = getenv("RE4_GX_REPLAY_WORK")) {
+    if (*work == '1') {
+      replayWork(chunks, stems);
+      LOG("GX replay: measurement done");
+      return;
+    }
+  }
   const char *cache = getenv("RE4_GX_PROGRAM_CACHE");
   unsigned pictures = 0;
   for (const Variant &v : kVariants) {

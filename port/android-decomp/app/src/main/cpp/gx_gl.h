@@ -65,6 +65,30 @@ struct GxStats {
   // merged draw calls (RE4_GX_MERGE=1, SetMerge): the calls that drew several draws, and those draws
   // (GL draw calls: draws - mergeTaken + mergeBatches)
   unsigned mergeBatches = 0, mergeTaken = 0;
+  // Measurement of the EFB copies (a user's proposal 31.10.2026, "Deferred EFB Copies"): copies to a texture read
+  // as a texture at least once, drawn over before anyone read them, their texels at the EFB scale by size (the
+  // whole picture w >= 500, half size, depth, smaller), and the render thread's time for them
+  // (RE4_GX_COPY_TIME=1: glFinish before and after each copy, so it is the GPU's time too; a measurement only)
+  unsigned copyRead = 0, copyOverwrittenUnread = 0;
+  // (and, as kinds of their own, the display copy with its FXAA and the gameplay autofocus: the other big
+  // parts of the BP time)
+  enum { kCopyFull, kCopyHalf, kCopyDepth, kCopySmall, kCopyDisplay, kCopyFocus, kCopyKinds };
+  unsigned copyCount[kCopyKinds] = {};
+  unsigned long long copyTexels[kCopyKinds] = {}, copyNs[kCopyKinds] = {};
+  // Why merged runs end (RE4_GX_MERGE=1; a user's question 31.10.2026: r11d merges 89 draws, r11b 833). In
+  // MergePlan, why a draw does not join the chain before it: an op between them (EFB copy / autofocus / depth
+  // marker, a texture with texels or a copy, another op such as CP or a clear), another layout, stride or
+  // primitive, vertices not after the chain's, indices past u16; while drawing, why a run stops: the slots are
+  // full, the chain ends, no merged program yet, or the ops between change a BP register (a copy or marker, a
+  // TEV colour, another register's value), an XF value, a bound texture, or another op
+  enum { kPlanCopyMark, kPlanTexture, kPlanTextureCopy, kPlanOtherOp, kPlanLayout, kPlanStride, kPlanPrimitive, kPlanVertices,
+         kPlanIndices, kPlanKinds };
+  unsigned mergePlanBreak[kPlanKinds] = {};
+  // (an XF write by where: the post-transform texture matrices 0x500-0x5FF, the lights 0x600-0x7FF, the
+  // registers 0x1000-0x1057, else the other memory)
+  enum { kRunSlots, kRunChainEnd, kRunNoProgram, kRunBpMark, kRunTevColour, kRunBpValue, kRunXf, kRunXfPost,
+         kRunXfLight, kRunXfReg, kRunTexture, kRunOtherOp, kRunKinds };
+  unsigned mergeRunBreak[kRunKinds] = {};
   // the uniform stream moved on to its next quarter: in all, and inside a chunk (a chunk larger
   // than the room left; between chunks otherwise, gx_gl.cpp)
   unsigned streamSwitches = 0, streamSplits = 0;

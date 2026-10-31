@@ -381,6 +381,7 @@ struct Copy {
   unsigned width = 0, height = 0;
   unsigned serial = 0;
   unsigned kind = 0; // 0 colour, 1 one channel (value in .r), 2 two channels (.a high, .r low)
+  bool read = false;  // read as a texture since it was made (GxStats::copyRead, a measurement)
 };
 
 } // namespace
@@ -1748,8 +1749,21 @@ struct GxRenderer::Impl {
         sceneBottom = 0;
       } // a copy for a texture: CanSkip said the next chunk copies there first, nobody reads this one
     }
-    if (action && reg == 0x5A && !skipDraws)
+    if (action && reg == 0x5A && !skipDraws) {
+      const bool focusTime = std::getenv("RE4_GX_COPY_TIME") && *std::getenv("RE4_GX_COPY_TIME") == '1';
+      std::chrono::steady_clock::time_point focusStart;
+      if (focusTime) {
+        glFinish();
+        focusStart = std::chrono::steady_clock::now();
+      }
       Autofocus(value);
+      stats.copyCount[GxStats::kCopyFocus]++;
+      if (focusTime) {
+        glFinish();
+        stats.copyNs[GxStats::kCopyFocus] += static_cast<unsigned long long>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - focusStart).count());
+      }
+    }
     if (action && reg == 0x5B && !interpPass && !skipDraws) {
       peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
       peekPicture = value & 0xFFFFFF;  // with the picture's number (the core answers by the map's age)
@@ -2392,6 +2406,10 @@ struct GxRenderer::Impl {
         stats.missingTextures++;
         return;
       }
+      if (!it->second.read) {
+        it->second.read = true;
+        stats.copyRead++;
+      }
       b.id = GxIsPaletted(t.format) ? PalettedCopy(it->second, t) : it->second.id;
       // a texture of the copy's width but another height reads the copy's
       // rows one to one, as the texels lie in memory (the heat haze over the
@@ -2991,6 +3009,7 @@ struct GxRenderer::Impl {
     Re4GxDraw last{};
     std::size_t chainMark = 0;   // the chain's first mark
     bool open = false, gap = false;  // a chain is open; only ops a run may pass since its last draw
+    int gapWhy = GxStats::kPlanOtherOp;  // why gap went false (GxStats::mergePlanBreak)
     const auto close = [&]() {
       if (open && mergeMarks.size() - chainMark < 2) {  // a single draw: no chain
         mergeIndices.resize(mergeMarks[chainMark].index - chunk.indexCount);
@@ -3020,6 +3039,17 @@ struct GxRenderer::Impl {
                            d.vertexOffset % d.stride == last.vertexOffset % last.stride &&
                            first >= last.vertexOffset / last.stride + last.vertexCount &&
                            first - mergeMarks[chainMark].base + most < 0xFFFF;
+        if (!joins && open && valid) {
+          const int why = !gap ? gapWhy
+                          : d.layout != last.layout ? GxStats::kPlanLayout
+                          : d.stride != last.stride ? GxStats::kPlanStride
+                          : (d.primitive & 0xFF) != (last.primitive & 0xFF) ? GxStats::kPlanPrimitive
+                          : d.vertexOffset % d.stride != last.vertexOffset % last.stride ||
+                                    first < last.vertexOffset / last.stride + last.vertexCount
+                              ? GxStats::kPlanVertices
+                              : GxStats::kPlanIndices;
+          stats.mergePlanBreak[why]++;
+        }
         if (!joins) {
           close();
           if (valid) {
@@ -3044,19 +3074,25 @@ struct GxRenderer::Impl {
         }
       } else if (op == RE4_GX_OP_BP) {
         const unsigned reg = n >= 1 ? p[0] >> 24 : 0;
-        if (n < 1 || reg == 0x52 || reg == 0x5A || reg == 0x5B)
+        if (n < 1 || reg == 0x52 || reg == 0x5A || reg == 0x5B) {
           gap = false;
+          gapWhy = GxStats::kPlanCopyMark;
+        }
       } else if (op == RE4_GX_OP_TEXTURE) {
         Re4GxTexture t;
-        if (n * 4 < sizeof(t))
+        if (n * 4 < sizeof(t)) {
           gap = false;
-        else {
+          gapWhy = GxStats::kPlanTexture;
+        } else {
           std::memcpy(&t, p, sizeof(t));
-          if ((t.flags & RE4_GX_TEX_COPY) || t.dataBytes)
+          if ((t.flags & RE4_GX_TEX_COPY) || t.dataBytes) {
             gap = false;
+            gapWhy = (t.flags & RE4_GX_TEX_COPY) ? GxStats::kPlanTextureCopy : GxStats::kPlanTexture;
+          }
         }
       } else if (op != RE4_GX_OP_XF && op != RE4_GX_OP_OWNER && op != RE4_GX_OP_TLUT) {
         gap = false;
+        gapWhy = GxStats::kPlanOtherOp;
       }
       at += 1 + n;
     }
@@ -3070,8 +3106,9 @@ struct GxRenderer::Impl {
   // material colours (0x100A-0x100D) or of the values in place (and the matrix index registers
   // 0x1018/0x1019, which only CP's copy in the draws uses), textures already bound, palette loads
   // (a paletted texture's key has its palette), owner tags.
-  bool MergeQuiet(const Re4GxChunk &chunk, std::uint32_t from, std::uint32_t to) const {
+  bool MergeQuiet(const Re4GxChunk &chunk, std::uint32_t from, std::uint32_t to, int *why) const {
     std::uint32_t touched[8] = {}, last[256];
+    *why = GxStats::kRunOtherOp;
     for (std::uint32_t at = from; at < to;) {
       const std::uint32_t head = chunk.ops[at], op = head & 0xFF, n = head >> 8;
       const std::uint32_t *p = chunk.ops + at + 1;
@@ -3082,15 +3119,19 @@ struct GxRenderer::Impl {
       case RE4_GX_OP_BP: {
         const unsigned reg = p[0] >> 24;
         const std::uint32_t value = p[0] & 0xFFFFFF;
-        if (reg == 0x52 || reg == 0x5A || reg == 0x5B)
+        if (reg == 0x52 || reg == 0x5A || reg == 0x5B) {
+          *why = GxStats::kRunBpMark;
           return false;
+        }
         if (reg >= 0xE0 && reg <= 0xE7) {
           // (one address for two registers: the colour or the konstant, by bit 23)
           const std::int32_t *dst = (value >> 23) & 1 ? tevKonst[(reg - 0xE0) / 2] : tevColor[(reg - 0xE0) / 2];
           const bool same = (reg & 1) == 0 ? dst[0] == Signed11(value) && dst[3] == Signed11(value >> 12)
                                            : dst[2] == Signed11(value) && dst[1] == Signed11(value >> 12);
-          if (!same)
+          if (!same) {
+            *why = GxStats::kRunTevColour;
             return false;
+          }
           break;
         }
         touched[reg / 32] |= 1u << (reg % 32);
@@ -3098,12 +3139,17 @@ struct GxRenderer::Impl {
         break;
       }
       case RE4_GX_OP_XF:
+        *why = GxStats::kRunOtherOp;
         for (std::uint32_t i = 1; i < n; i++) {
           const std::uint32_t a = p[0] + i - 1, v = p[i];
           if (a < 0x100 || (a >= 0x400 && a < 0x460) || (a >= 0x100A && a <= 0x100D) || a == 0x1018 || a == 0x1019)
             continue;
-          if (a < 0x800 ? xfMem[a] != v : a >= 0x1000 && a < 0x1058 && xfReg[a - 0x1000] != v)
+          if (a < 0x800 ? xfMem[a] != v : a >= 0x1000 && a < 0x1058 && xfReg[a - 0x1000] != v) {
+            *why = a >= 0x1000 ? GxStats::kRunXfReg
+                   : a >= 0x600 ? GxStats::kRunXfLight
+                   : a >= 0x500 ? GxStats::kRunXfPost : GxStats::kRunXf;
             return false;
+          }
         }
         break;
       case RE4_GX_OP_TEXTURE: {
@@ -3111,6 +3157,7 @@ struct GxRenderer::Impl {
         std::memcpy(&t, p, sizeof(t));
         const unsigned map = t.map & 7;
         const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
+        *why = GxStats::kRunTexture;
         if (key == 0 || boundKey[map] != key || bound[map].width != (t.width ? t.width : 1) ||
             bound[map].height != (t.height ? t.height : 1))
           return false;
@@ -3120,13 +3167,16 @@ struct GxRenderer::Impl {
         break;
       }
       default:
+        *why = GxStats::kRunOtherOp;
         return false;
       }
       at += 1 + n;
     }
     for (unsigned reg = 0; reg < 256; reg++)
-      if (((touched[reg / 32] >> (reg % 32)) & 1) && last[reg] != bp[reg])
+      if (((touched[reg / 32] >> (reg % 32)) & 1) && last[reg] != bp[reg]) {
+        *why = GxStats::kRunBpValue;
         return false;
+      }
     return true;
   }
 
@@ -3147,7 +3197,9 @@ struct GxRenderer::Impl {
     }
     unsigned draws = 0;
     std::uint32_t count = 0, next = end(at);
-    if (keyProgram && MergedProgram(key)) {
+    if (!keyProgram || !MergedProgram(key))
+      stats.mergeRunBreak[GxStats::kRunNoProgram]++;
+    else {
       for (;;) {
         const MergeMark &m = mergeMarks[i];
         Re4GxDraw d;
@@ -3161,9 +3213,15 @@ struct GxRenderer::Impl {
         draws++;
         count += d.indexCount;
         next = end(m.op);
+        int why = GxStats::kRunOtherOp;
         if (draws == kMergeSlots || i + 1 >= mergeMarks.size() || mergeMarks[i + 1].chain != start.chain ||
-            !MergeQuiet(chunk, next, mergeMarks[i + 1].op))
+            !MergeQuiet(chunk, next, mergeMarks[i + 1].op, &why)) {
+          stats.mergeRunBreak[draws == kMergeSlots ? GxStats::kRunSlots
+                              : i + 1 >= mergeMarks.size() || mergeMarks[i + 1].chain != start.chain
+                                  ? GxStats::kRunChainEnd
+                                  : why]++;
           break;
+        }
         // the ops between (the owner tags only count for the recording, which is off while merging)
         for (std::uint32_t op = next; op < mergeMarks[i + 1].op;)
           op = Op(chunk, op);
@@ -3327,6 +3385,12 @@ struct GxRenderer::Impl {
   }
 
   void EfbCopy(std::uint32_t control) {
+    const bool copyTime = std::getenv("RE4_GX_COPY_TIME") && *std::getenv("RE4_GX_COPY_TIME") == '1';
+    std::chrono::steady_clock::time_point copyStart;
+    if (copyTime) {
+      glFinish();
+      copyStart = std::chrono::steady_clock::now();
+    }
     Touched(); // its own pass
     const int x = static_cast<int>(bp[0x49] & 0x3FF), y = static_cast<int>((bp[0x49] >> 10) & 0x3FF);
     const int w = static_cast<int>(bp[0x4A] & 0x3FF) + 1, h = static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1;
@@ -3375,6 +3439,9 @@ struct GxRenderer::Impl {
       if (interpPass)
         interpCopied.insert(dest);
       Copy &c = interpPass ? interpCopies[dest] : copies[dest];
+      if (c.id && !c.read && !interpPass)
+        stats.copyOverwrittenUnread++;
+      c.read = false;
       if (!c.id || c.width != static_cast<unsigned>(ow) || c.height != static_cast<unsigned>(oh)) {
         if (c.id)
           glDeleteTextures(1, &c.id);
@@ -3449,6 +3516,18 @@ struct GxRenderer::Impl {
     ClearAfterCopy(control, x, y, w, h);
     if (toXfb)
       sceneBottom = 0;
+    {
+      const int k = toXfb ? GxStats::kCopyDisplay
+                    : depth ? GxStats::kCopyDepth
+                    : half ? GxStats::kCopyHalf : x == 0 && w >= 500 ? GxStats::kCopyFull : GxStats::kCopySmall;
+      stats.copyCount[k]++;
+      stats.copyTexels[k] += static_cast<unsigned long long>(Hi(ow)) * Hi(oh);
+      if (copyTime) {
+        glFinish();
+        stats.copyNs[k] += static_cast<unsigned long long>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - copyStart).count());
+      }
+    }
   }
 
   // --- FXAA ------------------------------------------------------------------------------------

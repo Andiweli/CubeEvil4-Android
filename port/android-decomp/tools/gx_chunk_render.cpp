@@ -99,6 +99,11 @@ int main(int argc, char **argv) {
   // the pictures then have that many times the pixels
   const char *scaleText = std::getenv("RE4_GX_SCALE");
   int scale = scaleText && std::atoi(scaleText) >= 1 && std::atoi(scaleText) <= 4 ? std::atoi(scaleText) : 1;
+  // RE4_GX_HALVES=N: the app menu's in-between levels in halves (3: 1.5x, 5: 2.5x ...); wins over RE4_GX_SCALE
+  const char *halvesText = std::getenv("RE4_GX_HALVES");
+  const int halves = halvesText && std::atoi(halvesText) >= 2 && std::atoi(halvesText) <= 8 ? std::atoi(halvesText)
+                                                                                           : 2 * scale;
+  const auto scaled = [&](unsigned v) { return (v * static_cast<unsigned>(halves) + 1) / 2; };
   // RE4_GX_RESCALE=K:S: before the K-th file (from 0) the running renderer goes to scale S
   // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels
   int rescaleAt = -1, rescaleTo = 0;
@@ -163,7 +168,7 @@ int main(int argc, char **argv) {
       renderer->SetOptions(options);
       renderer->SetRecording(interp);
       std::string error;
-      if (!renderer->Init(scale, &error)) {
+      if (!renderer->InitHalves(halves, &error)) {
         std::printf("%s: Renderer: %s\n", Stem(path).c_str(), error.c_str());
         renderer.reset();
         failures++;
@@ -205,8 +210,8 @@ int main(int argc, char **argv) {
       unsigned iw = 0, ih = 0;
       const GLuint between = renderer->Xfb(&iw, &ih);
       if (shown && between && iw && ih) {
-        iw *= static_cast<unsigned>(scale);
-        ih *= static_cast<unsigned>(scale);
+        iw = scaled(iw);
+        ih = scaled(ih);
         std::vector<unsigned char> rgba(static_cast<std::size_t>(iw) * ih * 4);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, between, 0);
@@ -274,11 +279,40 @@ int main(int argc, char **argv) {
       std::printf("  GL-Zeichenaufrufe: %u (%u Zeichenaufträge in %u zusammengefasst); Render-Thread %.2f ms: %s\n",
                   draws - taken + batches, taken, batches, all, split.c_str());
     }
+    // the EFB copies of this picture and why merged runs ended (measurements, 31.10.2026)
+    if (std::getenv("RE4_GX_WORK")) {
+      static const char *copyKinds[re4gx::GxStats::kCopyKinds] = {"ganz", "halb", "Tiefe", "klein", "Anzeige",
+                                                                     "Autofokus"};
+      std::string part;
+      for (int k = 0; k < re4gx::GxStats::kCopyKinds; k++) {
+        char one[96];
+        std::snprintf(one, sizeof(one), "%s%s %u (%llu Texel, %.2f ms)", k ? ", " : "", copyKinds[k],
+                      s.copyCount[k] - before.copyCount[k], s.copyTexels[k] - before.copyTexels[k],
+                      (s.copyNs[k] - before.copyNs[k]) / 1e6);
+        part += one;
+      }
+      std::printf("  EFB-Kopien: %s; gelesen %u, ungelesen überschrieben %u\n", part.c_str(),
+                  s.copyRead - before.copyRead, s.copyOverwrittenUnread - before.copyOverwrittenUnread);
+      static const char *planKinds[re4gx::GxStats::kPlanKinds] = {"Kopie/Marke", "Textur mit Daten", "Kopie-Textur", "andere Op", "Layout",
+                                                                  "Schrittweite", "Primitive", "Ecken", "Indizes"};
+      static const char *runKinds[re4gx::GxStats::kRunKinds] = {"Plätze voll", "Kettenende", "kein Programm",
+                                                                "BP-Marke", "TEV-Farbe", "BP-Wert", "XF sonst", "XF Texturmatrix",
+                                                                "XF Licht", "XF Register", "Textur",
+                                                                "andere Op"};
+      std::string plan, run;
+      for (int k = 0; k < re4gx::GxStats::kPlanKinds; k++)
+        plan += std::string(k ? ", " : "") + planKinds[k] + " " +
+                std::to_string(s.mergePlanBreak[k] - before.mergePlanBreak[k]);
+      for (int k = 0; k < re4gx::GxStats::kRunKinds; k++)
+        run += std::string(k ? ", " : "") + runKinds[k] + " " +
+               std::to_string(s.mergeRunBreak[k] - before.mergeRunBreak[k]);
+      std::printf("  Ketten-Abbruch (Plan): %s; Lauf-Ende: %s\n", plan.c_str(), run.c_str());
+    }
     if (s.shaderErrors > before.shaderErrors)
       failures++;
     if (xfb && w && h) {
-      w *= static_cast<unsigned>(scale);  // the texture holds the scaled picture
-      h *= static_cast<unsigned>(scale);
+      w = scaled(w);  // the texture holds the scaled picture
+      h = scaled(h);
       std::vector<unsigned char> rgba(static_cast<std::size_t>(w) * h * 4);
       glBindFramebuffer(GL_FRAMEBUFFER, fbo);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, xfb, 0);

@@ -7,7 +7,124 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 Wunsch des Projektinhabers: `versionName` 0.96.3-beta, `versionCode` 85, Releasetext
 `port/android-decomp/docs/releases/v0.96.3-beta.md` seit 0.96.2: Patches 0160, 0161, 0162, 0127 berichtigt, 0115 erweitert,
-gehaltene Lauf-/Zieltaste nach Menüs (Abschnitt darunter). Gerätetest der Neuerungen offen; APK am PC bauen.
+gehaltene Lauf-/Zieltaste nach Menüs (Abschnitt darunter). Lokal (31.10.2026) dazu: 0161 mit den EU-Tönen, 0163 (kein
+Titelbild nach den Mercenaries), 0164 (EU-Händlerzeile); am PC im Spiel geprüft (Abschnitt „Lokale Prüfung der
+Testerberichte …“). Gerätetest der Steuerung und der Typewriter offen (Projektinhaber).
+
+## Lokale Prüfung der Testerberichte, EU-Vergleiche, Leistungsmessung (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
+
+Worktree `E:\Development\Android\RE4-blissful` (RE4-Fixed bleibt unberührt), WSL-Baum `~/re4-bliss/RE4`, Läufe in
+`~/re4-bliss/runs`. Neue Testoptionen (`runtime/state_trace.cpp`): `RE4_TEST_MERC=1` (der Debug-Start wird eine
+Mercenaries-Partie: `SYS_OMAKE_ETC_GAME` nach dem Schließen des Debug-Startmenüs, vor `gameInit`; im Menü gesetzt
+stürzte `titleExit` ab) und `RE4_TEST_ITEM_USE="free+N:ID"` (Gegenstand aus dem Koffer benutzen wie seine Zeile
+„Benutzen“, `cItemMgr::use`; legt ihn vorher in den Koffer).
+
+**1. Im Spiel geprüft (PC, i686, EU-Discs, GX-Bilder mit `gx_chunk_render`):**
+- **0160 (eine Uhr):** r400 mit `RE4_TEST_MERC`, Inventar auf und zu: eine Uhr (01'33"17). **Gegenprobe ohne 0160:
+  zwei Uhren** (01'39"83 und 01'39"82, wie beim Tester). Nach „Retry“ (`RE4_TEST_CONTINUE`) und erneutem Inventar:
+  eine Uhr. ✅
+- **0161 (Zeitbonus):** Leon auf den Zeit-Gegenstand 0x73 (90 s) in r400 gesetzt, A: Anzeige „+1'30"00“, Meldung
+  „90sec.“ ohne PTAS. ✅ Bonuszeit 0x75 liegt erst in Fässern (nicht nachgestellt; gleicher Code).
+- **0127 (Eisentür r101):** Debug-Start r101, Tutorial mit B geschlossen, Leon auf Bereich 0x19 (Tür), Schlüssel 0x3B
+  benutzt (`RE4_TEST_ITEM_USE`): Deutsch „Insignienschlüssel verwendet.“, danach „ÖFFNEN“. Der Name steht im
+  Raumtext selbst, `SetItemName` ist nicht nötig. ✅
+- **0115 erweitert:** Den Tritt gegen die Scheunentür per Skript nachzustellen ging nicht zuverlässig. Die r400-Ganados
+  haben im Lauf tatsächlich id 0x16 (Türen 0x41). Prüfung `em at flags` um 0x16, 0x1D, 0x20 erweitert: grün;
+  **Gegenprobe mit der alten Abfrage (nur 0x10): Fehler 0x20** (nicht geschoben). Im Spiel nicht gesehen.
+- **0162 (Typewriter):** r100, `RE4_TEST_WEAPON=free+20:12,0,lv=0x6006` (Waffennummer 12 = 0x34): Kapazität 32768,
+  Feuern mit R+A, geladen bleibt 0, HUD „---“ (Bild). ✅ Der Kauf beim Händler läuft über `construct` (Prüfung
+  `handcannon`: lv 0x6006); den Kaufbildschirm selbst nicht im Bild.
+
+**2. EU-Vergleich mit `retail_code.py` (Debug- gegen EU-`main.dol`/RELs):**
+- **Ton der Zeitaufnahme:** EU-`sceAtGetItem` und `sceAtGetItem_NoModel` (0x8014FB54, 0x80150640): Zeit 0x73 →
+  `SndCall(0, 0x40)`, Bonuszeit 0x75 → `SndCall(0, 0)`, Geld bleibt 0x10; Attribut 0x11 (ohne PTAS) und
+  `m_bonus_point` = Sekunden (EU-`cItemMgr::get`) wie Patch 0161. **In Patch 0161 übernommen**; Ton 0x40 gibt es in
+  beiden Kern-Tonbänken (kein „Illegal SE“, andere Stimme als der Geld-Ton, Debug- und EU-Discs).
+- **Titelbild nach einer Mercenaries-Partie:** EU-`titleWait` nimmt denselben Weg (Titel, dann `titleSub`), aber
+  EU-`titleSub` blendet beim Laden von `omk_t1.dat` in **0 Bildern** ab (Prototyp 5). Nachgestellt (Soft-Reset in
+  r400): vorher Bild 1224 Helligkeit 28 (Titel halb ausgeblendet), mit **Patch 0163** 0; das Mercenaries-Menü kommt
+  wie zuvor. Am PC stand der Titel nur ~5 Bilder; die „etwa eine Sekunde“ des Testers ist damit nicht ganz erklärt
+  (Gerät offen).
+- **r403 `em_reset`/`reset_4x`:** EU-`em_reset` (`st4_0.rel` 0x4094) schickt mit `setGoto(&pPL->pos, 0xF)` statt
+  0xC. Modus 15 gibt es nur im EU-Ganado-Code (`em10.rel` in `em/em10.drs`): Sicht wie 0xC (15 m), bei Treffern/Alarm
+  wie 6–13, in `em10_R1_Goto` aber angekommen schon 3 m vor dem Ziel (9 000 000 statt 250 000) und dann normale KI
+  (Prototyp 0xC: rennt hin, greift bei Ankunft oder 4 m vor Leon an). **Wichtiger:** die EU-Discs haben für die
+  Mercenaries eine **neu gebaute Gegnerliste** (`etc/omake02.esl`: r403 fast alle Einträge anders, r404 70 von 84;
+  `omake01.esl` r400/r402 je 6 Zeilen), und die EU-`reset_4x` setzen ganz andere Listennummern zurück (Zone 0 u. a.
+  0xB, 0xC, 0x40, 0x41 …; Prototyp 6–0xA). Mit EU-Discs läuft also der Prototyp-Code von r403/r404 gegen die
+  EU-Liste. **Nicht gepatcht** (eigenes Paket: EU-`R403Init`/`R403Main`/`reset_4x`, r404 ebenso, Modus 15 in
+  `em10.cpp`, US-Listen prüfen); im Releasetext als bekanntes Problem.
+- **Händler, Hand Cannon Spanisch:** `layout_tbl` liegt bei 0x802531EC (Debug; die Angabe 0x801F8E04 ist die
+  EU-Adresse): Zeile „nicht Japanisch“ in Debug, EU und US gleich, EU ändert nur japanische Einträge – nicht die
+  Ursache. EU-`BuyItemNum::move` (`Sscrn.rel` 0x25700, Relokationen aufgelöst): `buy_msg_x` = **0** (Prototyp und US
+  0x37, nur gelesen), kein `buy_msg_y` für 0xA/0x13, außer Englisch Attribut 0x20841 (Text sofort). **Patch 0164**
+  (nur EU-Discs). Kaufbildschirm nicht im Bild geprüft (Gerät).
+
+**3. Retroid:** Kern (beide ABIs) und `assembleCoreDebug` aus diesem Branch gebaut und mit `test-core-app.ps1
+-SkipCore -SkipApk` installiert (Version 0.96.3-beta, Debug-Signatur über die vorhandene App). Gehaltene Lauf-/Zieltaste
+beim Schließen des Inventars und die Typewriter brauchen echte Tasten: **vom Projektinhaber zu prüfen**.
+
+**5. Leistung: Messung zu den Vorschlägen des Nutzers (nur gemessen, nichts am Zeichnen geändert).** Zähler in
+`GxStats` (`gx_gl.cpp`): Kopien je Art (ganz/halb/Tiefe/klein, dazu Bildschirmkopie und Autofokus), gelesen /
+ungelesen überschrieben, Zeit je Art (`RE4_GX_COPY_TIME=1`: `glFinish` davor und danach), Abbruchgründe der
+Bündel-Ketten (`MergePlan`: warum ein Auftrag nicht an die Kette passt; `DrawMerged`/`MergeQuiet`: warum ein Lauf
+endet). Ausgabe mit `RE4_GX_WORK=1` in `gx_chunk_render`, neu `RE4_GX_HALVES=3` (1,5×). Auf dem Gerät:
+`RE4_GX_REPLAY_WORK=1` zu `-GxReplay` (`core_mode.cpp replayWork`: jede Folge 1×, 1,5×, 1,5× gebündelt, dann
+1×/1,5× mit Zeit je Kopie). Bildfolgen: Debug-Discs, je Raum 60 aufeinanderfolgende Bildstücke ab „Leon frei“ + 200
+(`RE4_GX_DUMP_SERIES=60`), die ersten 5 ausgelassen.
+
+PC (i686, llvmpipe = Software-Grafik: nur Verhältnisse, keine Gerätezeiten), je Bild:
+
+| Raum | Aufträge | Effekt-Kopien (alle halbe Größe) | davon gelesen / ungelesen überschrieben | Texel je Kopie 1× → 1,5× | Zeit der Effekt-Kopien 1× → 1,5× | Bildschirmkopie | Autofokus |
+|---|---|---|---|---|---|---|---|
+| r11e | 512 | 0 | – | – | – | 1,2 → 1,4 ms | 1,8 → 1,9 ms |
+| r11f | 404 | 8 | 8 / 0 | 18k → 41k | 4,5 → 5,2 ms | 1,8 → 2,0 ms | 1,6 → 1,7 ms |
+| r11d | 398 | 10,5 | 10,5 / 0 | 26k → 59k | 5,6 → 6,4 ms | 1,1 → 1,5 ms | 1,6 → 1,7 ms |
+| r11b | 615 | 10 | 10 / 0 | 25k → 56k | 5,2 → 5,8 ms | 1,1 → 1,5 ms | 1,6 → 1,7 ms |
+
+Bündeln (1,5×, `RE4_GX_MERGE=1`): r11e 512 → 426 GL-Aufrufe (108 Aufträge in 23 Läufen), r11f 404 → 305 (122 in 23),
+r11d 398 → 307 (112 in 21), r11b 615 → 251 (426 in 62). Warum Läufe enden (je Bild, r11d / r11b): anderer Textur
+130 / 110, XF-Register 116 / 58 (fast nur 0x100E Lichtsteuerung Farbe 0 und 0x101F Tiefen-Versatz des Viewports,
+je Objekt anders), TEV-Farbe 22 / 17, anderes Vertex-Layout 17 / 12,5, Kettenende 15 / 12, Kopie-Textur 10,5 / 10,
+Plätze voll (10 je Lauf) 7 / 33; Lichter, Textur-Matrizen, Indizes, Programme spielen kaum eine Rolle.
+
+Retroid (Adreno 650, dieselben Folgen über `-GxReplay` mit `RE4_GX_REPLAY_WORK=1`, Menü-Einstellungen des Geräts,
+je 25 Bilder, Zeit = `Run` + `glFinish`; Kopienzeiten aus eigenen Läufen mit `glFinish` um jede Kopie):
+
+| Raum | Bild 1× → 1,5× | Effekt-Kopien 1× → 1,5× | Bildschirmkopie 1× → 1,5× | Autofokus 1× → 1,5× |
+|---|---|---|---|---|
+| r11e | 13,0 → 22,4 ms | – | 0,9 → 1,9 ms | 0,9 → 1,6 ms |
+| r11f | 15,6 → 24,2 ms | 8 Kopien: 1,7 → 3,2 ms | 0,9 → 2,3 ms | 0,9 → 2,1 ms |
+| r11d | ~23 → 34,4 ms | 10,3 Kopien: 2,4 → 3,9 ms | 1,1 → 2,1 ms | 1,2 → 1,9 ms |
+| r11b | 14,7 → 25,5 ms | 10 Kopien: 2,1 → 3,4 ms | 1,0 → 2,2 ms | 0,9 → 1,7 ms |
+
+(r11d 1× im ersten Durchgang 29,5 ms, im Kopien-Durchgang 23,7 ms: Streuung des Geräts.) Kopien, Bildschirmkopie und
+Autofokus zusammen bei 1,5× in r11d ~7,9 ms – das passt zu den 8,9 ms „BP“ des Nutzers. Der Sprung 1× → 1,5× kostet
+je Bild 9–11 ms, davon Kopien+Autofokus nur ~3,5 ms; der Rest ist das Zeichnen selbst (mehr Bildpunkte). Gebündeltes
+Zeichnen wirkte in der Wiedergabe nicht (die gebündelten Programme macht `Prewarm` nur im laufenden Spiel; alle
+Aufrufe einzeln): im Spiel messen, wenn gewünscht.
+
+**Bewertung der drei Vorschläge:**
+1. **„Deferred EFB Copies“** (Kopie erst beim Lesen, ungelesene verwerfen): in allen vier Räumen wird **jede**
+   Effekt-Kopie im selben Bild gelesen, keine wird ungelesen überschrieben. Zu verwerfen gäbe es nichts; die
+   Kopien liegen schon ganz auf der GPU. **Bringt hier nichts.**
+2. **Nur das Rechteck kopieren:** macht `EfbCopy`/`Resolve` schon.
+3. **Effekt-Kopien in Originalgröße:** 1,5× hat 2,25-mal so viele Texel, kostet aber am PC nur ~0,6–0,8 ms mehr von
+   5–6 ms; der Großteil ist je Kopie fester Aufwand (Durchgang wechseln, auflösen, Löschen danach). Auf dem Retroid: Effekt-Kopien in r11d 2,4 ms (1×) gegen 3,9 ms (1,5×), also
+   ~1,5 ms je Bild zu sparen (etwa 4 % von 34 ms); heller Rauch, Hitze und Wasser würden dabei etwas weicher.
+   Spürbar wäre eher **weniger Durchgänge** (z. B. die 8–10 Halbbild-Kopien eines Bildes zusammenlegen) – das ist
+   ein Umbau mit Risiko fürs Bild.
+4. **Warum r11d wenig bündelt:** dort wechseln aufeinanderfolgende Aufträge fast immer Textur oder Lichtsteuerung
+   (einzelne Objekte), in r11b gibt es lange Reihen gleicher Aufträge (dort begrenzen die 10 Plätze je Lauf).
+   Möglich wären: mehr Plätze je Lauf (nur r11b profitiert), 0x100E/0x101F je Platz mitgeben (Shader-Umbau).
+
+**Empfehlung (Entscheidung des Projektinhabers):** „Deferred EFB Copies“ nicht bauen (nichts zu verwerfen).
+Wenn überhaupt, ein Schalter „Effekte in Originalgröße“ (Effekt-Kopien in 1× bei höherer Auflösung): klein,
+abschaltbar, ~1,5 ms in den Belagerungsräumen, Bild etwas weicher bei Hitze/Wasser – lohnt eher nicht allein. Mehr
+bringt bei 1,5× der Autofokus in halber Größe (`halfDof`, schon vorhanden; prüfen, ob er auf dem Gerät an ist) und
+wie bisher die dynamische Auflösung. Beim Bündeln: Plätze je Lauf von 10 erhöhen hilft nur r11b-artigen Räumen; 0x100E
+und 0x101F je Platz mitzugeben wäre ein Shader-Umbau für r11d-artige Räume. Kein Code am Zeichnen geändert; die Zähler
+(`GxStats`, ohne Wirkung aufs Bild, `gx_gl_check` 0 Fehler) und der Gerätemessmodus bleiben für spätere Messungen.
 
 ## Testerberichte Mercenaries und Steuerung (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
 
@@ -23,8 +140,7 @@ Berichten, der EU-Code nicht verglichen.
   Countdowns wieder her (`sscrn.cpp`: `saveCountDownTimer`/`loadCountDownTimer`); `loadDisp` zeigt jeden laufenden
   Countdown ohne dieses Bit – also nach dem ersten Inventar auch die Cockpit-Uhr. „Retry“ geht über `Cckpt.roomInit`,
   das sie wieder versteckt. **Patch 0160:** der Start versteckt den Countdown mit dem Bit (`dispCountDownTimer(0)`); er
-  zählt weiter, der Modus liest ihn wie bisher. Fehler des Prototyps, alle Discs. Gebaut; **im Spiel nicht geprüft**
-  (Disc-Daten lokal). Dass Punkt 2 („Uhr verschwindet nach Retry“) die zweite Uhr meint, ist aus Punkt 3 geschlossen;
+  zählt weiter, der Modus liest ihn wie bisher. Fehler des Prototyps, alle Discs. Gebaut; am PC geprüft (31.10.2026, mit Gegenprobe, Abschnitt oben). Dass Punkt 2 („Uhr verschwindet nach Retry“) die zweite Uhr meint, ist aus Punkt 3 geschlossen;
   verschwindet auch die linke, ist das ein eigener Fehler.
 - **Zeitbonus-Texte „50PTASsec. extended!“ und „You have 900PTASsec.“** (Punkt 2, zwei Bilder). Die Aufnahme-Meldung
   der Geld-Gegenstände (`sce_at.cpp`, zwei Kopien) setzt die Zahl mit Attribut 0x10000000, das hinter den Ziffern das
@@ -32,8 +148,7 @@ Berichten, der EU-Code nicht verglichen.
   Meldung 0x94) und Bonuszeit (0x75, Meldung 0x95). Die Bonuszeit zeigte dazu `m_bonus_point` = die Bilder für
   `MercSysSetBonusTime` (30 s × 30 = 900). **Patch 0161:** beide Meldungen ohne PTAS, `m_bonus_point` hält die Sekunden
   (nur diese Meldung liest es); die Zeit selbst unverändert. Fehler des Prototyps, alle Discs. Mit den japanischen
-  Discs zeigt die Zahl jetzt die großen Ziffern (Attribut aus). **Offen:** der Ton der Aufnahme (`SndCall(0, 0x10)`,
-  der Geld-Ton; der Tester meint, es sei der der Heilmittel) – erst mit dem EU-Code (`retail_code.py`, lokal) ändern.
+  Discs zeigt die Zahl jetzt die großen Ziffern (Attribut aus). Ton der Aufnahme nach dem EU-Code übernommen (31.10.2026, Abschnitt oben).
 - **A halten beim Schließen des Inventars: Leon läuft nicht** (Punkt 4, Bericht „doubleinput“; der Tester läuft mit
   A über eine eigene Belegung, A bestätigt in den Menüs). Ursache ist die Regel vom 30.10.2026 (`CoreInput`, kein
   Druck aus dem Belegungswechsel): eine über den Wechsel gehaltene Taste gibt den Knopf der neuen Belegung erst nach
@@ -46,8 +161,7 @@ Berichten, der EU-Code nicht verglichen.
   - **Ende einer Partie oder „Game Reset“: etwa eine Sekunde Titelbild, dann erst das Mercenaries-Menü.** Im Prototyp
     der vorgesehene Weg: nach dem Neustart setzt `titleWait` mit `logo_skip_enable` den Titel (`titleSet(w,
     TTL_START_BIO4)`, Zustand 5) und springt bei `SYS_OMAKE_ETC_GAME` in Zustand 6 (`titleSub`), der erst
-    `omk_t1.dat` lädt und über fünf Bilder ausblendet; so lange steht das Titelbild. **Offen:** mit `retail_code.py`
-    am PC prüfen, ob die EU-Fassung (`titleWait`/`titleSub`) den Titel dort auslässt.
+    `omk_t1.dat` lädt und über fünf Bilder ausblendet; so lange steht das Titelbild. EU blendet sofort ab: Patch 0163 (31.10.2026).
   - **Getretener Ganado fliegt durch die Scheunentür (r400).** Patch 0115 (26.10.2026) prüfte nur id 0x10, den
     Dorf-Ganado der Geschichte; alle Ganados laufen mit demselben Code (`cEmMgr::construct`: 0x10..0x20) und behalten
     ihre id (r400 0x16, r402 0x1C, r403 0x1D, laut den Berichten). **Patch 0115 erweitert** auf 0x10..0x20; damit
@@ -55,8 +169,7 @@ Berichten, der EU-Code nicht verglichen.
     geprüft**.
   - **Burg (r403): fast alle Ganados rennen zum Start direkt auf Leon zu, bevor er die Treppe erreicht** (Bericht
     „mercsEnemyAggro“: 59× „stays back“, ein Retry, ein Tod in Bereich 0x1d). Im Prototyp schickt `em_reset` jeden
-    nachgesetzten Gegner mit `setGoto(&pPL->pos, 0xC)` zu Leon. **Offen:** `R403Init`, `em_reset` und die
-    `reset_4x` gegen die EU-Fassung (`st4_0.rel`, `retail_code.py`) vergleichen; ohne Abweichung ist es Original.
+    nachgesetzten Gegner mit `setGoto(&pPL->pos, 0xC)` zu Leon. Verglichen (31.10.2026): EU hat eine neue Gegnerliste und eigene `reset_4x`, Modus 15; offen als eigenes Paket (Abschnitt oben).
 - **Falscher Text nach dem Aufschließen der Eisentür in r101 (Dorf, Schlüssel zu r102)** (zwei Berichte des
   Projektinhabers 31.10.2026 00:18/00:24, Retroid, 0.96.2, EU-Discs Deutsch: „so ähnlich wie ‚Sie erhalten 10‘“; der
   zweite Bericht kam drei Sekunden nach dem Inventar in r101). Ursache ist unser Patch 0127 (27.10.2026): er setzt die
@@ -64,8 +177,7 @@ Berichten, der EU-Code nicht verglichen.
   Kern-Tabelle (Attribut 1 → `MessageData` Typ 0), ohne es die Raumtabelle (Typ 1); Kern-Text 0x14 ist die
   Geld-Meldung („Sie erhalten N PTAS“, mit der Zahl der letzten Aufnahme). 0127 hatte die Texte der Raumtabelle
   verglichen („You used the …“ = Raum-Text 0x14), die Flags des EU-Aufrufs liest `retail_messages.py calls` nicht.
-  **Patch 0127 berichtigt:** Flags 0 (Raumtabelle), wie die übrigen Raum-Meldungen. Gebaut; **im Spiel nicht
-  geprüft** – am PC prüfen, ob der Raum-Text 0x14 einen Gegenstandsnamen einsetzt (dann fehlt noch `SetItemName`).
+  **Patch 0127 berichtigt:** Flags 0 (Raumtabelle), wie die übrigen Raum-Meldungen. Am PC geprüft (31.10.2026): „Insignienschlüssel verwendet.“
   Die Tür r104 → r107 (Raum-Text 1, Flags 0) ist davon nicht betroffen.
 
 - **Händler, Hand Cannon kaufen: erste Zeile ragt rechts aus dem Textfenster** (Bildschirmfoto eines Testers,
@@ -73,8 +185,7 @@ Berichten, der EU-Code nicht verglichen.
   dem Fensterrand). Die Zeile ist der Kaufspruch zur Hand Cannon (`BuyItemNum::move`, Gegenstand 0x37 → `msg` 0xE →
   Meldung 0x1C, x = Fensterpunkt + `buy_msg_x` 0x37, ohne `buy_msg_y`), Schrift aus Platz 1 mit `LAYOUT_SUBSCRN`
   (`sscrn.cpp` beim Öffnen; Zeile „Englisch“ {0x12, 0x18, Abstand −1} für alle Sprachen außer Japanisch, Patch 0123).
-  Der Text kommt von der Disc; das Nachrichtensystem bricht nicht selbst um und verkleinert nicht. **Offen, am PC:**
-  (1) die Tabelle `layout_tbl` der EU-Fassung (main.dol 0x801F8E04, 2×9×6 Byte) gegen die des Prototyps vergleichen
+  Der Text kommt von der Disc; das Nachrichtensystem bricht nicht selbst um und verkleinert nicht. **Verglichen (31.10.2026), Patch 0164:** (1) die Tabelle `layout_tbl` der EU-Fassung (main.dol 0x801F8E04, 2×9×6 Byte) gegen die des Prototyps vergleichen
   – Patch 0123 prüfte nur, dass sie zwei Zeilen hat; (2) `BuyItemNum::move` in der EU-`Sscrn.rel` (`retail_code.py`):
   andere x-Lage oder ein `setLayout` vor dem Kaufspruch? Ohne Abweichung steht die Zeile auch im Original über.
 - **Chicago Typewriter nur 20 Schuss statt unendlich** (Testerbericht 31.10.2026). `cItemMgr::construct` legt 0x34
@@ -83,8 +194,7 @@ Berichten, der EU-Code nicht verglichen.
   „Handcannon und Schuss-Ton“; damals als Balance nicht übernommen). **Patch 0162** übernimmt beides (Wunsch des
   Projektinhabers, Fehler des Prototyps, alle Discs); die Technik für 0x8000 stammt aus Patch 0146. Händler: kein
   Tuning mehr (`specialTuned`). Eine Typewriter in einem alten Spielstand behält ihre Stufen. `game_probe`
-  `re4probe_handcannon` prüft jetzt auch die Typewriter (lv 0x6006, Schuss ohne Verbrauch, Zähler 1). **Im Spiel nicht
-  geprüft.**
+  `re4probe_handcannon` prüft jetzt auch die Typewriter (lv 0x6006, Schuss ohne Verbrauch, Zähler 1). Am PC im Spiel geprüft (31.10.2026); Gerät offen.
 - **Adas Karte lässt sich nicht schließen** (Bildschirmfoto, Texte chinesisch, Karte „村“ ohne Räume). Die Karte
   wartet in `SsMapMain` Zustand 2, bis die Bereichsdatei (`mapAreaFilename`) gelesen ist; erst danach nehmen B/Z sie
   zu. Leere Karte = die Datei kam nie an. **Offen:** Fehlerbericht und Disc-Art (chinesische Übersetzung?) fehlen.
@@ -110,8 +220,7 @@ Berichten, der EU-Code nicht verglichen.
   r11d weniger bündelt. Stand im Code (`gx_gl.cpp` `EfbCopy`): Kopien bleiben schon ganz auf der GPU (EFB → Textur,
   nie in den Speicher des Spiels) und lesen nur ihr Rechteck (`copyRect`; `Resolve` löst bei MSAA nur das Rechteck
   plus Rand auf, außer `fullResolve`). Offen und lohnend zu messen: wie viele Kopien je Bild nie gelesen werden, und
-  ob die Kopien in voller Auflösung (`Hi()`) nötig sind. **Für den lokalen Chat vorgemerkt** (erst messen, dann
-  Entscheidung des Projektinhabers).
+  ob die Kopien in voller Auflösung (`Hi()`) nötig sind. **Gemessen 31.10.2026** (PC und Retroid, Abschnitt „Lokale Prüfung …“ Punkt 5); Entscheidung des Projektinhabers offen.
 **Prüfungen (Cloud):** `whole_build.sh i686`: 0 Fehler, alle Kern-, Laufzeit- und Formattests bestanden (Patches 0160/0161 mitgebaut); Java-Tests der Steuerung grün. **Nicht geprüft:** alles im Spiel (Disc-Daten), Gerät.
 
 ## Retail-Discs (US) (28.10.2026 spätabends, lokal, WSL2, Branch `retail-us`)
@@ -10526,8 +10635,10 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0158 `title.cpp` | Mercenaries-Etappenauswahl: Figuren-Symbole nur bei freigeschalteter Figur, wie EU (`stageSelect`, Nutzermeldung 30.10.2026). Fehler des Prototyps, alle Discs |
 | 0159 `pl_shotgun.cpp`, `pl_machine.cpp`, `pl_rocket.cpp` | Auto-Zielen: beim Anlegen die Höhe des Ziels wie die Pistole (`PlSetLockPitch`), nur mit `CFG_LOCK_ON` und Ziel (Test des Projektinhabers 30.10.2026). Port-Patch |
 | 0160 `mercenaries.cpp` | Mercenaries: nur die eigene Uhr des Modus; der Countdown des Cockpits startet versteckt (`dispCountDownTimer(0)`), sonst zeigte ihn das Inventar zusätzlich an (Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
-| 0161 `item.cpp`, `sce_at.cpp` | Mercenaries: Zeit- und Bonuszeit-Aufnahme ohne PTAS-Zeichen, Bonuszeit in Sekunden statt Bildern („30sec.“ statt „900PTASsec.“; Testerbericht mit Bildern 31.10.2026). Fehler des Prototyps, alle Discs |
+| 0161 `item.cpp`, `sce_at.cpp` | Mercenaries: Zeit- und Bonuszeit-Aufnahme ohne PTAS-Zeichen, Bonuszeit in Sekunden statt Bildern („30sec.“ statt „900PTASsec.“; Testerbericht mit Bildern 31.10.2026); seit dem EU-Vergleich (31.10.2026) auch die eigenen Aufnahme-Töne der EU-Fassung (`SndCall(0, 0x40)` Zeit, `SndCall(0, 0)` Bonuszeit statt des Geld-Tons 0x10). Fehler des Prototyps, alle Discs |
 | 0162 `item.cpp` | Chicago Typewriter mit unendlicher Munition ab Kauf wie EU (`construct` lv 0x6006, `wep_level_info` 0x34 {6, 1, 1, 6}; Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
+| 0163 `title.cpp` | Nach einer Mercenaries-/Ada-Partie oder „Game Reset“ blendet `titleSub` sofort schwarz ab (EU-`titleSub`: `FadeSet` mit Zeit 0 statt 5), statt das Titelbild fünf Bilder lang auszublenden (Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
+| 0164 `ss_shop.cpp` | Händler, Kaufspruch mit den EU-Discs wie die EU-`BuyItemNum::move`: Zeile am Fensterpunkt (`buy_msg_x` 0 statt 0x37), kein `buy_msg_y` für 0xA/0x13, in allen Sprachen außer Englisch sofort sichtbar (Attribut 0x40); sonst stand der spanische Hand-Cannon-Satz rechts über (Testerbild 31.10.2026). Port-Patch für Verkaufsdaten, nur EU (Debug- und US-Fassung: 0x37) |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
