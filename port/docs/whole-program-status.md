@@ -3,6 +3,25 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.96.4-beta (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
+
+Wunsch des Projektinhabers: `versionName` 0.96.4-beta, `versionCode` 86, Releasetext
+`port/android-decomp/docs/releases/v0.96.4-beta.md` seit 0.96.3 (die r402-Zeile aus `v0.96.3-beta.md` dorthin
+verschoben, 0.96.3 wurde ohne 0167 aus `master` geprüft):
+- **Patch 0167** (r402 wie die Verkaufsfassungen) aus dem Branch `retail-merc-r402` der eigenen Sitzung übernommen
+  (Merge `19919028`, ohne Konflikte; Prüfungen siehe dort, Abschnitt der r402-Sitzung).
+- **AUDIO: Musik / Soundeffekte ganz aus** (`CoreMenu.audio`): zwei Schalter unter den Reglern (Beschriftung „Musik ·
+  An/Aus“, „Soundeffekte · An/Aus“), Einstellungen `musicOn` / `effectsOn` (Standard an); `CoreBridge.sendSoundVolume`
+  schickt bei „aus“ 0 an den Kern, der Regler behält seinen Wert. Kein Kern-Code. Hilfetext in allen Sprachen ergänzt.
+- **App-Menü auf Indonesisch:** `values-in/strings_ingame.xml` (227 Texte, Plural nur „other“; Ordner `in`, den jede
+  Android-Version liest), `locales_config.xml` mit `id`; `check_translations.py` ordnet den Ordner `in` dem Code `id`
+  zu (Gegenprobe: ohne `id` in der Liste meldet er den Fehler). README nennt Indonesisch.
+**Prüfungen:** `check_translations.py` alle zehn Sprachen ok; `whole_build.sh i686` 0 Fehler (Laufzeit- und Kerntests);
+Android-Kern beide ABIs 0 Fehler; `assembleCoreDebug` (versionCode 86, Sprachen inkl. `in`), App-Unit-Tests 17/17;
+`lintCoreDebug` bricht an zwei alten Fehlern ab (`ActionMap.java:235` `IntFunction` ab API 24,
+`AppUpdate.java:213` Empfänger ohne `RECEIVER_EXPORTED`-Flag; nicht aus dieser Änderung). Test-APK auf dem Retroid
+installiert. **Nicht geprüft:** Schalter und indonesisches Menü auf dem Gerät (Projektinhaber).
+
 ## Version 0.96.3-beta (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
 
 Wunsch des Projektinhabers: `versionName` 0.96.3-beta, `versionCode` 85, Releasetext
