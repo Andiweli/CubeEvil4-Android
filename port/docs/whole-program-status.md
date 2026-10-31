@@ -98,6 +98,11 @@ Berichten, der EU-Code nicht verglichen.
   (34,9 statt 33,3 ms je Spielbild). Die Effekt-Schalter sparen nur Sprites, die Last sind Zeichenaufrufe und
   Eckdaten im Mali-Treiber. **Empfehlung an den Nutzer:** auf 0.96.3 gehen, Force Performance an, Frame skip an,
   „Zeichenaufrufe bündeln (experimentell)“ probieren (für Mali gedacht, Messung dort offen). Kein Code geändert.
+- **Play Protect: „CubeEvil4 is harmful“** (Bildschirmfoto eines Nutzers, 31.10.2026). Wahrscheinlicher Auslöser: der
+  Update-Knopf seit 0.96.0 (`AppUpdate`, `INTERNET` + `REQUEST_INSTALL_PACKAGES`, lädt die APK von GitHub in den
+  Paket-Installer) – das Muster eines Nachladers. Vorschlag: Knopf öffnet nur die Releaseseite, Berechtigung weg;
+  Einspruch bei Google; Signatur prüfen (`apksigner verify --print-certs`, kein „Android Debug“).
+  **Entscheidung des Projektinhabers (31.10.2026): einstweilen so lassen.**
 **Prüfungen (Cloud):** `whole_build.sh i686`: 0 Fehler, alle Kern-, Laufzeit- und Formattests bestanden (Patches 0160/0161 mitgebaut); Java-Tests der Steuerung grün. **Nicht geprüft:** alles im Spiel (Disc-Daten), Gerät.
 
 ## Retail-Discs (US) (28.10.2026 spätabends, lokal, WSL2, Branch `retail-us`)
