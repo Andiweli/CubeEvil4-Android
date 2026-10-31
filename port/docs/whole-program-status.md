@@ -3,6 +3,26 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Bericht „Schlüssel zum Garrador-Gefängnis fehlt im Bild“ (US-Discs, 01.11.2026, Cloud, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
+
+Nutzerbericht 01.11.2026 02:27 (Infinix X6882, Android 14, 64-bit-Prozess, 0.96.5, US-Discs beide „all as on the original
+disc“, Professional nicht, `game_mode 5`, `game_country 1`): Spielstand in r201 (Datei 01, 5:30 h, 50-mal gespeichert)
+geladen; die Tür zum Garrador braucht den Schlüssel, der „einen Gang weiter im Bild hängen sollte“, dort aber fehlt.
+Protokoll: kein Absturz, keine Fehlermeldung, kein Raumwechsel; Garrador s19 (Liste 0x56, `0x1b/10`) angekettet wie
+im Bericht vom 31.10. Kein Gegenstand und kein Inventar im Bericht (der Fehlerbericht schreibt keins auf).
+**Code r201 (Debug = Prototyp):** die Tür ist die Kampfbereich-Tür (SMD-Objekt 0x53, Bereich 0xB, `r201_checkDoor`),
+Schlüssel = Gegenstand 0xC3 (`r201_checkDungeonKeyUse`, danach `KYF_R201_DOOR`, Raum-Merkmal 1, Autospeichern). Der
+Schlüssel ist Gegenstandsbereich 0x80: `R201Init` schaltet ihn (Modell `setNoSuspend`) und den Kamerabereich 0x20
+(`r201_checkPicture`: Licht an, Kamera 0xC aufs Bild, `SceAtExecute(0x80)`) nur ein, solange `SceAtItemFlgCk(0x80) == 0`.
+Fehlt das Modell, ist entweder die Genommen-Flagge des Gegenstands schon gesetzt (Spielstand) oder die US-Daten legen
+den Schlüssel anders an (`sceAtSetItem`: Flagge, Spielerart, Länder-Flaggen `SceAtRoomSet`). Die US-`r201.das` ist so
+groß wie die Debug-Datei (4 365 696 Byte), aber anders (Prüfsummen `rooms-us.tsv`/`rooms.tsv`); EU ist größer. Mit
+EU-Discs ging ein Tester am 31.10. durch die Gittertür s13 in die Grube (Schlüssel dort also vorhanden). In der
+Cloud nicht prüfbar (keine Disc-Daten). **Offen (lokal):** Debug-Start r201 mit US- und Debug-Discs, `RE4_TRACE_AT=1`,
+Leon auf Bereich 0x20 (`RE4_TEST_PLACE`): Bereich 0x80, Gegenstands-Nummer, Flaggen, Modell sichtbar; dazu der
+Spielstand des Testers (Speicherkarten-Export `.gci`, `RE4_TEST_LOAD_FILE`): Flagge von 0x80, 0xC3 im Koffer,
+`KYF_R201_DOOR`. Kein Code geändert.
+
 ## Bericht „MEM1 is taken“ auf 64 Bit (Redmi K50 Ultra, 31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
 Nutzerbericht 31.10.2026 14:28 (Xiaomi 22081212C „diting“, Android 15, 64-bit-Prozess, 0.96.4): direkt nach dem Import
