@@ -1850,8 +1850,8 @@ extern "C" int re4probe_cheat_extras(void)
 
 // Patch 0146 (a bug of the prototype): the handcannon's firepower as the merchant shows it (x10, European
 // WeaponLevelTbl row 0x0F), capacity level 7 = endless ammo (0x8000): a shot uses no round, the slot
-// counts one round, reloadable answers 1, reload loads nothing; level 6 still uses rounds. Bits: each
-// failed check.
+// counts one round, reloadable answers 1, reload loads nothing; level 6 still uses rounds. Patch 0162: the
+// Chicago Typewriter is built with the same endless capacity. Bits: each failed check.
 extern "C" int re4probe_handcannon(void)
 {
     static const int fire[7] = {300, 350, 400, 450, 500, 600, 999};
@@ -1883,6 +1883,15 @@ extern "C" int re4probe_handcannon(void)
     it.setBulletLevel(5);
     it.bullet = 10;
     bad |= ItemMgr.trigger(&it) != 1 || (it.bullet & 0x1FFF) != 9 || ItemMgr.bulletNum(&it) != 9 ? 0x40 : 0;
+    // patch 0162: the Chicago Typewriter comes endless (European lv 0x6006), a shot uses no round, reload max 1
+    memset(&it, 0, sizeof(it));
+    ItemMgr.construct(&it, 0x34);
+    it.num = 1;
+    bad |= it.lv != 0x6006 || WeaponId2MaxLevel(0x34, 2) != 1 ? 0x80 : 0;
+    {
+        const int loaded = it.bullet & 0x1FFF;
+        bad |= ItemMgr.trigger(&it) != 1 || (it.bullet & 0x1FFF) != loaded || ItemMgr.bulletNum(&it) != 1 ? 0x100 : 0;
+    }
     for (int i = 0; i < 4; i++) {
         pG->Debug_flg[i] = keepDbg[i];
     }

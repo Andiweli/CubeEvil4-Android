@@ -6,7 +6,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 ## Version 0.96.3-beta (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
 
 Wunsch des Projektinhabers: `versionName` 0.96.3-beta, `versionCode` 85, Releasetext
-`port/android-decomp/docs/releases/v0.96.3-beta.md` seit 0.96.2: Patches 0160, 0161, 0127 berichtigt, 0115 erweitert,
+`port/android-decomp/docs/releases/v0.96.3-beta.md` seit 0.96.2: Patches 0160, 0161, 0162, 0127 berichtigt, 0115 erweitert,
 gehaltene Lauf-/Zieltaste nach Menüs (Abschnitt darunter). Gerätetest der Neuerungen offen; APK am PC bauen.
 
 ## Testerberichte Mercenaries und Steuerung (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
@@ -77,6 +77,19 @@ Berichten, der EU-Code nicht verglichen.
   (1) die Tabelle `layout_tbl` der EU-Fassung (main.dol 0x801F8E04, 2×9×6 Byte) gegen die des Prototyps vergleichen
   – Patch 0123 prüfte nur, dass sie zwei Zeilen hat; (2) `BuyItemNum::move` in der EU-`Sscrn.rel` (`retail_code.py`):
   andere x-Lage oder ein `setLayout` vor dem Kaufspruch? Ohne Abweichung steht die Zeile auch im Original über.
+- **Chicago Typewriter nur 20 Schuss statt unendlich** (Testerbericht 31.10.2026). `cItemMgr::construct` legt 0x34
+  im Prototyp mit lv 0x6025 an (Magazinstufe 6 = 50, geladen 20); die EU-Fassung mit **lv 0x6006** (Magazinstufe 7 =
+  0x8000 unendlich, Nachladen Stufe 1) und `wep_level_info` 0x34 {6, 1, 1, 6} (gelesen am 29.10.2026, Abschnitt
+  „Handcannon und Schuss-Ton“; damals als Balance nicht übernommen). **Patch 0162** übernimmt beides (Wunsch des
+  Projektinhabers, Fehler des Prototyps, alle Discs); die Technik für 0x8000 stammt aus Patch 0146. Händler: kein
+  Tuning mehr (`specialTuned`). Eine Typewriter in einem alten Spielstand behält ihre Stufen. `game_probe`
+  `re4probe_handcannon` prüft jetzt auch die Typewriter (lv 0x6006, Schuss ohne Verbrauch, Zähler 1). **Im Spiel nicht
+  geprüft.**
+- **Adas Karte lässt sich nicht schließen** (Bildschirmfoto, Texte chinesisch, Karte „村“ ohne Räume). Die Karte
+  wartet in `SsMapMain` Zustand 2, bis die Bereichsdatei (`mapAreaFilename`) gelesen ist; erst danach nehmen B/Z sie
+  zu. Leere Karte = die Datei kam nie an. **Offen:** Fehlerbericht und Disc-Art (chinesische Übersetzung?) fehlen.
+- **Zwei Berichte vom 30.10.2026 21:46/21:59** (Xiaomi 25078RA3EL, 0.96.1, EU-Discs Spanisch, Cheats 15): kein
+  Absturz, beide enden kurz nach der Glocken-Szene in r101 (`evd/r101s30.evd`). **Offen**, was dem Tester auffiel.
 **Prüfungen (Cloud):** `whole_build.sh i686`: 0 Fehler, alle Kern-, Laufzeit- und Formattests bestanden (Patches 0160/0161 mitgebaut); Java-Tests der Steuerung grün. **Nicht geprüft:** alles im Spiel (Disc-Daten), Gerät.
 
 ## Retail-Discs (US) (28.10.2026 spätabends, lokal, WSL2, Branch `retail-us`)
@@ -10492,6 +10505,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0159 `pl_shotgun.cpp`, `pl_machine.cpp`, `pl_rocket.cpp` | Auto-Zielen: beim Anlegen die Höhe des Ziels wie die Pistole (`PlSetLockPitch`), nur mit `CFG_LOCK_ON` und Ziel (Test des Projektinhabers 30.10.2026). Port-Patch |
 | 0160 `mercenaries.cpp` | Mercenaries: nur die eigene Uhr des Modus; der Countdown des Cockpits startet versteckt (`dispCountDownTimer(0)`), sonst zeigte ihn das Inventar zusätzlich an (Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
 | 0161 `item.cpp`, `sce_at.cpp` | Mercenaries: Zeit- und Bonuszeit-Aufnahme ohne PTAS-Zeichen, Bonuszeit in Sekunden statt Bildern („30sec.“ statt „900PTASsec.“; Testerbericht mit Bildern 31.10.2026). Fehler des Prototyps, alle Discs |
+| 0162 `item.cpp` | Chicago Typewriter mit unendlicher Munition ab Kauf wie EU (`construct` lv 0x6006, `wep_level_info` 0x34 {6, 1, 1, 6}; Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
