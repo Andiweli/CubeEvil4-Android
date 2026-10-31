@@ -68,6 +68,15 @@ Berichten, der EU-Code nicht verglichen.
   geprüft** – am PC prüfen, ob der Raum-Text 0x14 einen Gegenstandsnamen einsetzt (dann fehlt noch `SetItemName`).
   Die Tür r104 → r107 (Raum-Text 1, Flags 0) ist davon nicht betroffen.
 
+- **Händler, Hand Cannon kaufen: erste Zeile ragt rechts aus dem Textfenster** (Bildschirmfoto eines Testers,
+  31.10.2026, EU-Discs Spanisch: „Extranjero. ¿Para qué te hace falta semejante cosa?“ endet etwa 34 Einheiten hinter
+  dem Fensterrand). Die Zeile ist der Kaufspruch zur Hand Cannon (`BuyItemNum::move`, Gegenstand 0x37 → `msg` 0xE →
+  Meldung 0x1C, x = Fensterpunkt + `buy_msg_x` 0x37, ohne `buy_msg_y`), Schrift aus Platz 1 mit `LAYOUT_SUBSCRN`
+  (`sscrn.cpp` beim Öffnen; Zeile „Englisch“ {0x12, 0x18, Abstand −1} für alle Sprachen außer Japanisch, Patch 0123).
+  Der Text kommt von der Disc; das Nachrichtensystem bricht nicht selbst um und verkleinert nicht. **Offen, am PC:**
+  (1) die Tabelle `layout_tbl` der EU-Fassung (main.dol 0x801F8E04, 2×9×6 Byte) gegen die des Prototyps vergleichen
+  – Patch 0123 prüfte nur, dass sie zwei Zeilen hat; (2) `BuyItemNum::move` in der EU-`Sscrn.rel` (`retail_code.py`):
+  andere x-Lage oder ein `setLayout` vor dem Kaufspruch? Ohne Abweichung steht die Zeile auch im Original über.
 **Prüfungen (Cloud):** `whole_build.sh i686`: 0 Fehler, alle Kern-, Laufzeit- und Formattests bestanden (Patches 0160/0161 mitgebaut); Java-Tests der Steuerung grün. **Nicht geprüft:** alles im Spiel (Disc-Daten), Gerät.
 
 ## Retail-Discs (US) (28.10.2026 spätabends, lokal, WSL2, Branch `retail-us`)
