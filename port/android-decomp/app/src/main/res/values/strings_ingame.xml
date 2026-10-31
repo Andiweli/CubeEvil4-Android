@@ -161,7 +161,7 @@
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Music</string>
     <string name="ingame_effects_volume">Sound effects</string>
-    <string name="ingame_volume_help">Music is the background music; sound effects are everything else in the game (shots, voices, steps). The movies keep their sound as it is.</string>
+    <string name="ingame_volume_help">Music is the background music; sound effects are everything else in the game (shots, voices, steps). The movies keep their sound as it is. The two buttons switch the music or the sound effects off entirely; switched on again, they play at the volume above.</string>
     <string name="ingame_output">Picture output</string>
     <string name="ingame_smooth_help">Extra in-between pictures. The game logic stays at 30 frames/s.</string>
     <string name="ingame_instant_save">Save</string>

@@ -147,7 +147,7 @@
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Musica</string>
     <string name="ingame_effects_volume">Effetti sonori</string>
-    <string name="ingame_volume_help">La musica è la musica di sottofondo; gli effetti sonori sono tutto il resto del gioco (spari, voci, passi). I filmati mantengono il loro audio.</string>
+    <string name="ingame_volume_help">La musica è la musica di sottofondo; gli effetti sonori sono tutto il resto del gioco (spari, voci, passi). I filmati mantengono il loro audio. I due pulsanti spengono del tutto la musica o gli effetti sonori; riattivati, suonano al volume impostato sopra.</string>
     <string name="ingame_output">Uscita video</string>
     <string name="ingame_smooth_help">Fotogrammi intermedi aggiuntivi. La logica resta a 30 fotogrammi/s.</string>
     <string name="ingame_instant_save">Salva</string>

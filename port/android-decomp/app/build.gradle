@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 85
+        versionCode 86
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -57,8 +57,9 @@ android {
         // and CHEATS pages, Potato mode, save imports, the reports of 30.10.2026), then 0.96.1 (decision of the
         // project owner, 30.10.2026: the US discs, Auto aim / Always run, the reports of the evening), then 0.96.2
         // (decision of the project owner, 30.10.2026: the reports of the night, 0.96.1 was not published), then
-        // 0.96.3 (wish of the project owner, 31.10.2026: the Mercenaries reports, the r101 key message)
-        versionName '0.96.3-beta'
+        // 0.96.3 (wish of the project owner, 31.10.2026: the Mercenaries reports, the r101 key message), then 0.96.4
+        // (wish of the project owner, 31.10.2026: r402 as the retail releases, music / effects off, Indonesian menu)
+        versionName '0.96.4-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

@@ -914,12 +914,21 @@ final class CoreMenu extends Dialog {
 
   /**
    * The AUDIO page (wish of the project owner, 30.10.2026): the music's and the sound effects' volume, at once
-   * in the core (runtime/sound_volume.cpp); the movies keep their sound.
+   * in the core (runtime/sound_volume.cpp); the movies keep their sound. Below the sliders two buttons switch the
+   * music or the effects off entirely (wish of the project owner, 31.10.2026), "musicOn" / "effectsOn": the core
+   * then gets 0, the slider keeps its value for switching back on.
    */
   private void audio() {
     heading(R.string.ingame_volume);
     volumeSlider(R.string.ingame_music_volume, "musicVolume");
     volumeSlider(R.string.ingame_effects_volume, "effectsVolume");
+    MenuLayout.Buttons sound = buttonsRow(body);
+    toggle(sound, R.string.ingame_music_volume, graphics.getBoolean("musicOn", true), on -> {
+      graphics.edit().putBoolean("musicOn", on).apply(); CoreBridge.sendSoundVolume(graphics);
+    });
+    toggle(sound, R.string.ingame_effects_volume, graphics.getBoolean("effectsOn", true), on -> {
+      graphics.edit().putBoolean("effectsOn", on).apply(); CoreBridge.sendSoundVolume(graphics);
+    });
     help(R.string.ingame_volume_help);
   }
   /** A volume of the AUDIO page as the mouse's slider: 0 .. 100 % in steps of 5, kept in `key`. */

@@ -147,7 +147,7 @@
     <string name="ingame_volume">Volumen</string>
     <string name="ingame_music_volume">Música</string>
     <string name="ingame_effects_volume">Efectos de sonido</string>
-    <string name="ingame_volume_help">La música es la música de fondo; los efectos de sonido son todo lo demás del juego (disparos, voces, pasos). Las películas conservan su sonido.</string>
+    <string name="ingame_volume_help">La música es la música de fondo; los efectos de sonido son todo lo demás del juego (disparos, voces, pasos). Las películas conservan su sonido. Los dos botones apagan del todo la música o los efectos de sonido; al encenderlos de nuevo suenan con el volumen de arriba.</string>
     <string name="ingame_output">Salida de imagen</string>
     <string name="ingame_smooth_help">Imágenes intermedias adicionales. La lógica del juego sigue a 30 imágenes/s.</string>
     <string name="ingame_instant_save">Guardar</string>

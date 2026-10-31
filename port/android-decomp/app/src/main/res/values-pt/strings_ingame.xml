@@ -148,7 +148,7 @@
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Música</string>
     <string name="ingame_effects_volume">Efeitos sonoros</string>
-    <string name="ingame_volume_help">A música é a música de fundo; os efeitos sonoros são todo o resto do jogo (tiros, vozes, passos). Os filmes mantêm o som original.</string>
+    <string name="ingame_volume_help">A música é a música de fundo; os efeitos sonoros são todo o resto do jogo (tiros, vozes, passos). Os filmes mantêm o som original. Os dois botões desligam totalmente a música ou os efeitos sonoros; ao religá-los, tocam no volume definido acima.</string>
     <string name="ingame_output">Saída de imagem</string>
     <string name="ingame_smooth_help">Quadros intermediários extras. A lógica permanece a 30 quadros/s.</string>
     <string name="ingame_instant_save">Salvar</string>

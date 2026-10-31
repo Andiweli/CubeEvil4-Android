@@ -138,7 +138,7 @@ With the retail discs (European, US, Japanese) there is no debug menu; the app m
 **SELECT button**
 
 - **Press SELECT** (with touch controls: **MENU**): the app menu, in your phone's language where
-  there is a translation (English otherwise; Arabic, Chinese (simplified), French, German, Hindi,
+  there is a translation (English otherwise; Arabic, Chinese (simplified), French, German, Hindi, Indonesian,
   Italian, Portuguese, Russian and Spanish so far; on Android 13 and later also per app under
   Settings → Apps → CubeEvil4 → Language); with the European discs also the game language
   (a change restarts the game); graphics (resolution Dynamic or 1×–4× in half steps,

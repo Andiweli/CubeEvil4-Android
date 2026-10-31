@@ -155,7 +155,7 @@
     <string name="ingame_volume">مستوى الصوت</string>
     <string name="ingame_music_volume">الموسيقى</string>
     <string name="ingame_effects_volume">المؤثرات الصوتية</string>
-    <string name="ingame_volume_help">الموسيقى هي موسيقى الخلفية؛ والمؤثرات الصوتية هي كل الأصوات الأخرى في اللعبة (الطلقات والأصوات والخطوات). تحتفظ الأفلام بصوتها كما هو.</string>
+    <string name="ingame_volume_help">الموسيقى هي موسيقى الخلفية؛ والمؤثرات الصوتية هي كل الأصوات الأخرى في اللعبة (الطلقات والأصوات والخطوات). تحتفظ الأفلام بصوتها كما هو. يوقف الزرّان الموسيقى أو المؤثرات الصوتية تمامًا؛ وعند إعادة تشغيلها تعمل بمستوى الصوت المضبوط أعلاه.</string>
     <string name="ingame_output">‏إخراج الصورة</string>
     <string name="ingame_smooth_help">‏إطارات وسيطة إضافية. يظل منطق اللعبة عند 30 إطارًا في الثانية.</string>
     <string name="ingame_instant_save">‏حفظ</string>

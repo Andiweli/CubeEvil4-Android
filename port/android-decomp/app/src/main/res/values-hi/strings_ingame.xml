@@ -146,7 +146,7 @@
     <string name="ingame_volume">आवाज़</string>
     <string name="ingame_music_volume">संगीत</string>
     <string name="ingame_effects_volume">साउंड इफ़ेक्ट</string>
-    <string name="ingame_volume_help">संगीत पृष्ठभूमि संगीत है; साउंड इफ़ेक्ट गेम की बाकी सभी आवाज़ें हैं (गोलियाँ, आवाज़ें, कदम)। फ़िल्मों की आवाज़ वैसी ही रहती है।</string>
+    <string name="ingame_volume_help">संगीत पृष्ठभूमि संगीत है; साउंड इफ़ेक्ट गेम की बाकी सभी आवाज़ें हैं (गोलियाँ, आवाज़ें, कदम)। फ़िल्मों की आवाज़ वैसी ही रहती है। दोनों बटन संगीत या साउंड इफ़ेक्ट को पूरी तरह बंद कर देते हैं; फिर से चालू करने पर वे ऊपर तय की गई आवाज़ पर बजते हैं।</string>
     <string name="ingame_output">चित्र आउटपुट</string>
     <string name="ingame_smooth_help">अतिरिक्त बीच के फ़्रेम। गेम लॉजिक 30 फ़्रेम/सेकंड पर रहता है।</string>
     <string name="ingame_instant_save">सेव करें</string>

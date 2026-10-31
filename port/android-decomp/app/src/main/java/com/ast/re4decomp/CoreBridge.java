@@ -121,9 +121,13 @@ public final class CoreBridge {
   static int potatoMask(android.content.SharedPreferences g) {
     return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);
   }
-  /** The AUDIO page's volumes, "musicVolume" / "effectsVolume" in the graphics settings (100 by default). */
+  /**
+   * The AUDIO page's volumes, "musicVolume" / "effectsVolume" in the graphics settings (100 by default); 0 while
+   * its button "musicOn" / "effectsOn" is off (both on by default).
+   */
   static void sendSoundVolume(android.content.SharedPreferences g) {
-    setSoundVolume(g.getInt("musicVolume", 100), g.getInt("effectsVolume", 100));
+    setSoundVolume(g.getBoolean("musicOn", true) ? g.getInt("musicVolume", 100) : 0,
+        g.getBoolean("effectsOn", true) ? g.getInt("effectsVolume", 100) : 0);
   }
   /**
    * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,

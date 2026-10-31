@@ -31,6 +31,9 @@ NAME = "strings_ingame.xml"
 JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java", "AppUpdate.java")]
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]")
 LOCALES = "xml/locales_config.xml"
+# folders whose code Android writes differently in locales_config (Indonesian: values-in, the old code all
+# Android versions read; the list has the language tag id)
+FOLDER_CODE = {"in": "id"}
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 # languages written right to left (Android's folder names)
 RTL = {"ar", "fa", "he", "iw", "ur"}
@@ -151,7 +154,7 @@ def main():
     if config.exists():
         listed = {e.get(ANDROID + "name").split("-")[0] for e in ET.parse(config).getroot()
                   if e.tag == "locale"}
-        have = {"en"} | {lang.split("-")[1] for lang in languages}
+        have = {"en"} | {FOLDER_CODE.get(lang.split("-")[1], lang.split("-")[1]) for lang in languages}
         for code in sorted(have - listed):
             errors.append(f"{LOCALES}: {code} has texts but is not listed")
         for code in sorted(listed - have):
