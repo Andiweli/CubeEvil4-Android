@@ -515,7 +515,8 @@ extern "C" void re4probe_enemy_log(void)
 // whole: the high bits too (0x100 scenery, 0x200 bodies, 0xC000), whose loss let Leon walk through
 // doors and on in the air (0.91.0 test of 26.10.2026). Bits of the faults: 1 the flying Ganado not
 // pushed, 2 its flag changed, 4 the Ganado on its feet not pushed, 8 its flag changed, 16 another
-// body's flag changed (far from the door).
+// body's flag changed (far from the door), 32 a flying Ganado of another id (0x16, 0x1D, 0x20: The
+// Mercenaries, castle) not pushed.
 extern "C" int re4probe_em_at_flags(void)
 {
     u8* works = (u8*) (unsigned long) 0x82E20000ul;
@@ -533,6 +534,10 @@ extern "C" int re4probe_em_at_flags(void)
         {0x10, 0x0318, 30.0f, 1, 2},
         {0x10, 0x0310, 30.0f, 4, 8},
         {0x00, 0xC308, 5000.0f, 0, 16},
+        // the other Ganados (31.10.2026: r400 0x16, r403 0x1D, the last one 0x20) as 0x10
+        {0x16, 0x0318, 30.0f, 32, 2},
+        {0x1D, 0x0318, 30.0f, 32, 2},
+        {0x20, 0x0318, 30.0f, 32, 2},
     };
     int bad = 0;
 

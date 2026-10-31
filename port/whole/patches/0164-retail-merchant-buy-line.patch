@@ -1,0 +1,41 @@
+# Port patch for retail data (EU discs; tester picture 31.10.2026, Spanish: the merchant's line for the handcannon,
+# "Extranjero. ¿Para qué te hace falta semejante cosa?", ended about 34 units past the right edge of the text
+# window). The European BuyItemNum::move (Sscrn.rel text 0x25700, read with retail_code.py and the module's
+# relocations on 31.10.2026) puts the buy line at the window point itself: its buy_msg_x is 0 (the prototype's
+# and the US release's 0x37; the variable is only read), it adds no buy_msg_y for messages 0xA / 0x13, and for
+# every language but English (pSys->language != 1) it shows the line at once (attribute 0x40, no typing). The
+# European texts are longer than the English ones. With the debug and US discs unchanged. layout_tbl (mes.cpp,
+# European main.dol 0x801F8E04) differs only in Japanese rows: not the cause.
+--- a/src/Sscrn/ss_shop.cpp
++++ b/src/Sscrn/ss_shop.cpp
+@@ -1546,6 +1546,8 @@
+ // enough pesetas; items without a piece shape are bought directly) and opens the confirm; state 1
+ // yes: a case-piece item is handed to PzzlThinking for placement (link 2), a case is bought (link
+ // 0 -> BuyConfirm/CaseChange), else buyItem; B / no back to the list.
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern SYSTEM_SAVE_WORK* pSys;
+ void BuyItemNum::move(SUB_SCREEN* wk)
+ {
+     SSCRN_SHOP* sw = wk->shop;
+@@ -1597,11 +1599,17 @@
+                 int x = (int) ((u->pos0.x + 320.0f) * 0.8f);
+                 int y = (int) ((240.0f - u->pos0.y) * 0.8f);
+ 
+-                x += buy_msg_x;
+-                if (msg == 0xA || msg == 0x13) {
+-                    y += buy_msg_y;
++                /* port (patch 0164): the European buy line starts at the window point, no lower line for
++                   0xA / 0x13, and appears at once in the languages other than English */
++                if (re4_disc_retail_eu()) {
++                    cMes.MesSet(shop_msg[msg].msg, x, y, pSys->language == 1 ? 0x20801 : 0x20841, 1, 0, 3);
++                } else {
++                    x += buy_msg_x;
++                    if (msg == 0xA || msg == 0x13) {
++                        y += buy_msg_y;
++                    }
++                    cMes.MesSet(shop_msg[msg].msg, x, y, 0x20801, 1, 0, 3);
+                 }
+-                cMes.MesSet(shop_msg[msg].msg, x, y, 0x20801, 1, 0, 3);
+                 shopStrPlay(wk, shop_msg[msg].str);
+             }
+         } else {

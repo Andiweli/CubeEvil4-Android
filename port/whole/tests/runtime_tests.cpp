@@ -1696,7 +1696,7 @@ static void testEmAtFlags()
 {
     int r = re4probe_em_at_flags();
     if (r != 0) {
-        re4_log("  em at flags: faults 0x%x (1/4 not pushed, 2/8/16 flag changed)", r);
+        re4_log("  em at flags: faults 0x%x (1/4/32 not pushed, 2/8/16 flag changed)", r);
     }
     report("em at flags", r == 0);
 }
