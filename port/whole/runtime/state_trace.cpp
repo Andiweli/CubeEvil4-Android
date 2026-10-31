@@ -113,6 +113,15 @@
 //   RE4_TEST_GAME_MODE=N   the same for the difficulty (game_mode: 3 Easy, 5 Normal,
 //                          6 Professional), as the debug start menu's line sets it; the
 //                          European title's choice (patch 0139) is skipped by a debug start
+//   RE4_TEST_MERC=1        the debug start's room runs as The Mercenaries (System_flg
+//                          SYS_OMAKE_ETC_GAME, as the title menu's line 3 sets it, set when
+//                          the debug start menu closes, before gameInit): with RE4_START_ROOM
+//                          0x400/402/403/404 and RE4_TEST_PLAYER (the tester's two clocks and
+//                          time texts, 31.10.2026)
+//   RE4_TEST_ITEM_USE="free+N:ID"  N frames after the player is free, item ID is used from
+//                          the case as its "use" line does (put into the case first if missing;
+//                          cItemMgr::use, only where the room allows it: with RE4_TEST_PLACE
+//                          area=N): r101's key 0x3B at the iron door, patch 0127
 //   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
 //                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
 //                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
@@ -560,6 +569,9 @@ bool g_saveOpened, g_saveStop, g_saveRunning;
 bool g_cardYes;              // RE4_TEST_CARD_YES
 int g_testPlayer = -1;       // RE4_TEST_PLAYER
 int g_testGameMode = -1;     // RE4_TEST_GAME_MODE
+int g_testMerc = 0;          // RE4_TEST_MERC
+long g_itemUseAfter = -1;    // RE4_TEST_ITEM_USE
+int g_itemUseId;
 long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
@@ -1184,6 +1196,15 @@ void frame(unsigned n)
             re4_log("run: the load screen starts on file %d (RE4_TEST_LOAD_FILE)", g_testLoadFile + 1);
         }
     }
+    // (set once the menu has closed: with the flag set in the menu, A would take the omake screens
+    // without their data, titleExit crashed)
+    if (g_testMerc == 1 && re4_title_room_menu_open()) {
+        g_testMerc = 2;
+    } else if (g_testMerc == 2 && !re4_title_room_menu_open()) {
+        g_testMerc = 3;
+        SysFlagOn(g, SYS_OMAKE_ETC_GAME);
+        re4_log("run: the debug start leads into The Mercenaries (RE4_TEST_MERC)");
+    }
     if (g_testGameMode > 0 && re4_title_room_menu_open() && g->game_mode != g_testGameMode) {
         g->game_mode = (u8) g_testGameMode;
         re4_log("run: debug start with game_mode %d (RE4_TEST_GAME_MODE)", g_testGameMode);
@@ -1456,6 +1477,16 @@ void frame(unsigned n)
             re4_log("run: scenario flag %d set (RE4_TEST_SCF) at frame %u", g_scf[i], n);
         }
     }
+    if (g_itemUseAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_itemUseAfter) {
+        g_itemUseAfter = -1;
+        cItem* p = ItemMgr.search((u16) g_itemUseId);
+        if (p == 0 && ItemMgr.get((ITEM_ID) g_itemUseId, 1)) {
+            p = ItemMgr.search((u16) g_itemUseId);
+        }
+        const int used = ItemMgr.use(p);
+        re4_log("run: item 0x%02x %s from the case (RE4_TEST_ITEM_USE) at frame %u", g_itemUseId,
+                p == 0 ? "not in" : used ? "used" : "not usable here", n);
+    }
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
         g->Rno0 == 3 && live(pPL) && TaskStatus(2) == 0) {
         g_weaponAt = (long) n;
@@ -1727,6 +1758,17 @@ void configure()
     const char* loadFile = getenv("RE4_TEST_LOAD_FILE");
     g_testLoadFile = loadFile && *loadFile ? (int) strtol(loadFile, 0, 0) - 1 : -1;
     g_testGameMode = gameMode && *gameMode ? (int) strtol(gameMode, 0, 0) : -1;
+    const char* itemUse = getenv("RE4_TEST_ITEM_USE");
+    if (itemUse && strncmp(itemUse, "free+", 5) == 0) {
+        char* end = 0;
+        g_itemUseAfter = strtol(itemUse + 5, &end, 10);
+        g_itemUseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
+        if (g_itemUseId < 0) {
+            g_itemUseAfter = -1;
+        }
+    }
+    const char* merc = getenv("RE4_TEST_MERC");
+    g_testMerc = merc && *merc && *merc != '0';
     const char* letterbox = getenv("RE4_TEST_LETTERBOX_OFF");
     if (letterbox && *letterbox && *letterbox != '0') {
         re4_core_set_letterbox(1);

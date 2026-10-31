@@ -4,8 +4,9 @@
 # (Message::code0a) - right for pesetas (message 0x14), wrong for the added time (item 0x73, message 0x94) and the
 # bonus time (item 0x75, message 0x95). The bonus time also showed m_bonus_point, the frames given to
 # MercSysSetBonusTime (30 s * 30 = 900); m_bonus_point only feeds this message and now holds the seconds. The time
-# given to the game is unchanged. Not changed: the pick-up sound (SndCall(0, 0x10), the money's; the tester thinks
-# the healing items' sound is right) until the European code is read. All discs.
+# given to the game is unchanged. Read on 31.10.2026 in the European sceAtGetItem / sceAtGetItem_NoModel and
+# cItemMgr::get (retail_code.py): attribute 0x11 for both, m_bonus_point = the seconds, and the time has sounds of
+# its own: SndCall(0, 0x40) for the time, SndCall(0, 0) for the bonus time (the money keeps 0x10). All discs.
 --- a/src/game/item.cpp
 +++ b/src/game/item.cpp
 @@ -1887,7 +1887,7 @@
@@ -32,7 +33,17 @@
          } else {
              if ((s32) money < (s32) pG->peseta) {
                  cMes.MesSetNumber(0, pG->peseta - money, 0);
-@@ -1324,10 +1324,10 @@
+@@ -1080,7 +1080,8 @@
+             cMes.MesSet(0x14, 0x64, y, 0x10000011, 0, 0, 4);
+         }
+         mes = 0;
+-        SndCall(0, 0x10, 0, 0, 0, 0);
++        /* port (patch 0161): the time's own sounds, as the European sceAtGetItem (0x40 time, 0 bonus time) */
++        SndCall(0, it->item_id == 0x73 ? 0x40 : it->item_id == 0x75 ? 0 : 0x10, 0, 0, 0, 0);
+         break;
+     }
+     case 3:
+@@ -1324,10 +1325,10 @@
          put = ItemMgr.get(it->item_id, it->item_num);
          if (it->item_id == 0x73) {
              cMes.MesSetNumber(0, ItemMgr.m_bonus_time, 0);
@@ -45,3 +56,13 @@
          } else {
              if ((s32) money < (s32) pG->peseta) {
                  cMes.MesSetNumber(0, pG->peseta - money, 0);
+@@ -1335,7 +1336,8 @@
+             cMes.MesSet(0x14, 0x64, y, 0x10000011, 0, 0, 4);
+         }
+         mes = 0;
+-        SndCall(0, 0x10, 0, 0, 0, 0);
++        /* port (patch 0161): the time's own sounds, as the European sceAtGetItem (0x40 time, 0 bonus time) */
++        SndCall(0, it->item_id == 0x73 ? 0x40 : it->item_id == 0x75 ? 0 : 0x10, 0, 0, 0, 0);
+         break;
+     }
+     case 3:
