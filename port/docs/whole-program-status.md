@@ -3,6 +3,22 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Bericht „Knacken im Ton alle paar Sekunden“ (01.11.2026, Cloud, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
+
+Meldung des Projektinhabers 01.11.2026: einige Nutzer hören alle paar Sekunden ein Knacken (Video und eigenes
+Fehlerprotokoll angekündigt, in der Cloud-Sitzung nicht angekommen). **Hinweis aus dem Bericht des Schlüssel-Falls**
+(Infinix X6882, Android 14, 64 bit, 0.96.5, Ton im App-Prozess): der Ring des Kerns läuft im Spiel stetig leer – „ran
+dry“ 1, 2, 3 in den ersten 30 s, dann gleichmäßig etwa 15 je 10 s (02:17–02:21: 365 in 54 000 Blöcken), 0 lost, keine
+Zeile „the Android output ran out“ (die AudioTrack lief also nicht leer). Leerlaufen heißt: `ai.cpp readRing` füllt
+Stille ein, das knackt. Dazu „shown 59.6/s“ (meist 59.4–59.7) und „GX core: … 33.5 ms each“ statt 33.37 ms: das
+Spiel läuft hier etwa 0,4–0,6 % langsamer als 59,94 Hz. **Vermutung (ungeprüft):** `vi.cpp re4_vi_locked_field` rastet
+auf eine Bildwiederholrate bis 0,5 % neben 59,94 Hz ein, `readRing` gleicht aber auch höchstens 0,5 % aus (`adjust`
+±328/65536); dazu kommt die Abweichung der Ton-Uhr des Geräts. Liegt die Summe darüber, sinkt der Ring vom Ziel 60 ms
+bis leer und bleibt dort (die Pakete kommen mit den Bildern in Schüben). Die Ziffern passen dazu (anfangs fast keine
+Aussetzer, ab etwa 40 s gleichmäßig). **Offen (lokal):** Video und Protokoll der Nutzer auswerten (Bildwiederholrate
+des Geräts, „ran dry“ und „ran out“ je Minute), Spanne von Einrasten und Ausgleich abstimmen, am PC und auf dem
+Retroid prüfen. Kein Code geändert.
+
 ## Bericht „Schlüssel zum Garrador-Gefängnis fehlt im Bild“ (US-Discs, 01.11.2026, Cloud, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
 
 Nutzerbericht 01.11.2026 02:27 (Infinix X6882, Android 14, 64-bit-Prozess, 0.96.5, US-Discs beide „all as on the original
