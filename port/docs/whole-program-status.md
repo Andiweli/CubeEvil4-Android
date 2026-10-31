@@ -6,7 +6,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 ## Version 0.96.3-beta (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
 
 Wunsch des Projektinhabers: `versionName` 0.96.3-beta, `versionCode` 85, Releasetext
-`port/android-decomp/docs/releases/v0.96.3-beta.md` seit 0.96.2: Patches 0160, 0161, 0162, 0127 berichtigt, 0115 erweitert,
+`port/android-decomp/docs/releases/v0.96.3-beta.md` seit 0.96.2: Patches 0160, 0161, 0162, 0127 und 0141 berichtigt, 0115 erweitert,
 gehaltene Lauf-/Zieltaste nach Menüs (Abschnitt darunter). Lokal (31.10.2026) dazu: 0161 mit den EU-Tönen, 0163 (kein
 Titelbild nach den Mercenaries), 0164 (EU-Händlerzeile); am PC im Spiel geprüft (Abschnitt „Lokale Prüfung der
 Testerberichte …“). Gerätetest der Steuerung und der Typewriter offen (Projektinhaber).
@@ -195,9 +195,14 @@ Berichten, der EU-Code nicht verglichen.
   Projektinhabers, Fehler des Prototyps, alle Discs); die Technik für 0x8000 stammt aus Patch 0146. Händler: kein
   Tuning mehr (`specialTuned`). Eine Typewriter in einem alten Spielstand behält ihre Stufen. `game_probe`
   `re4probe_handcannon` prüft jetzt auch die Typewriter (lv 0x6006, Schuss ohne Verbrauch, Zähler 1). Am PC im Spiel geprüft (31.10.2026); Gerät offen.
-- **Adas Karte lässt sich nicht schließen** (Bildschirmfoto, Texte chinesisch, Karte „村“ ohne Räume). Die Karte
-  wartet in `SsMapMain` Zustand 2, bis die Bereichsdatei (`mapAreaFilename`) gelesen ist; erst danach nehmen B/Z sie
-  zu. Leere Karte = die Datei kam nie an. **Offen:** Fehlerbericht und Disc-Art (chinesische Übersetzung?) fehlen.
+- **Adas Karte lässt sich nicht schließen** (Bildschirmfoto, Karte „村“ ohne Räume; Bericht 31.10.2026 17:59, Xiaomi
+  25053RT47C, 0.96.2, **japanische Discs**, Assignment Ada). Im Bericht: „DVD: File not found : SS/esy/map_obj4e.dat“.
+  Patch 0141 nahm mit EU- **und** JP-Discs bei Klasse 0 den Ordner `SS/Esy`; die JP-Discs haben keinen, ihre
+  Kartendateien der Klasse 0 liegen in `SS/Jpn` (laut den Katalogen `files-eu.tsv`/`files-jp.tsv` Byte für Byte die
+  EU-`SS/Esy`). Klasse 0 ist mit JP-Discs Assignment Ada und Mercenaries (Patch 0140, Sprache 0); die Karte wartete
+  in `SsMapMain` Zustand 2 ewig auf die Datei, B/Z greifen erst danach. **Patch 0141 berichtigt:** JP (und Korea,
+  gleiche Dateien) nehmen `SS/Jpn`, EU weiter `SS/Esy`. Gebaut, Tests grün; **im Spiel nicht geprüft** (JP-Discs am
+  PC: Assignment Ada, Karte öffnen und schließen; Mercenaries ebenso).
 - **Zwei Berichte vom 30.10.2026 21:46/21:59** (Xiaomi 25078RA3EL, 0.96.1, EU-Discs Spanisch, Cheats 15): kein
   Absturz, beide enden kurz nach der Glocken-Szene in r101 (`evd/r101s30.evd`). **Offen**, was dem Tester auffiel.
 - **Ruckler trotz ausgeschalteter Effekte** (zwei gleiche Berichte 31.10.2026 03:58, Samsung S10e SM-G970F, Exynos
@@ -10623,7 +10628,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0138 `r20b.cpp` | Labyrinth mit den EU-Discs (Testerbericht 28.10.2026): ihre Daten sperren die Treppe vom Podest für Easy (Bereich 0x1C als Wand, Modellgruppe 0xA6 als Brüstung; die Debug-Discs haben beides nicht). Wie die EU-Fassung von `R20bInit` (`st2_1.rel` 0x10F44): über Easy (`game_mode > 3`, nicht in den Bonusspielen) Bereich 0x1C aus und Gruppe 0xA6 unsichtbar; auf Easy Raum-Flag 1 (Mondstein-Tor offen), Gruppen 0x86–0x8A unsichtbar, Bereiche 0x80–0x82 und 0x88 aus, Kisten 9/10/14/15 weg, kein Funkspruch, keine Eingangskamera, keine Gegner. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0139 `title.cpp` | Schwierigkeitsauswahl mit den EU-Discs wie ihr `titleMain`: „New Game“ fragt immer Professional (nur freigeschaltet) / Normal / Easy, A oder START, Cursor rundum, B zurück; die japanische Rückfrage danach nicht. Nicht beim Debug-Start (`RE4_START_ROOM`). Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0140 `game.cpp` | `gameStageInit` setzt mit den EU-Discs `game_country = game_mode > 3` wie ihre Fassung (das EU-„Easy-Byte“ `pG+0x4F9F` ist `game_country`): Bereichs-Flaggen JPN/USA, Schwierigkeitswert-Untergrenze und Raumzweige richten sich nach Easy/Normal statt nach der Sprache. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
-| 0141 `r203.cpp`, `r211.cpp`, `ss_map.cpp` | Easy-/Normal-Zweige der EU-Räume, die dem Debug-Code fehlen: r203 (Normal Meldungsbereich 6 an Tür 5 aus; Easy Tür 5 zu, kein Schlüssel nötig, weniger Ganados), r211 (Easy erster Kelch und Gruppe 0x20 mit Kollision; Normal Gruppe 0x20 aus), Karte auf Easy aus `SS/Esy`. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten |
+| 0141 `r203.cpp`, `r211.cpp`, `ss_map.cpp` | Easy-/Normal-Zweige der EU-Räume, die dem Debug-Code fehlen: r203 (Normal Meldungsbereich 6 an Tür 5 aus; Easy Tür 5 zu, kein Schlüssel nötig, weniger Ganados), r211 (Easy erster Kelch und Gruppe 0x20 mit Kollision; Normal Gruppe 0x20 aus), Karte auf Easy aus `SS/Esy`. Mit den Debug-Discs unverändert. Port-Patch für Verkaufsdaten **Berichtigt 31.10.2026:** mit JP-/KR-Discs Karten aus `SS/Jpn` statt `SS/Esy` (Adas Karte blieb leer und ließ sich nicht schließen) |
 | 0150 `sofdec.cpp` | Vorfilm-Untertitel mit den JP-/KR-Discs (Nutzermeldung 30.10.2026: falsche Zeichen). Zu 0136 der japanische Zweig ihres `cSofdec`: bei Sprache 0 macht `initApp` (G4BP08 0x80161210, G4BJ08 0x80160b50) die Schrift aus `etc/movie.das` (Eintrag 5, 28 × 28) zur Schrift 2 der Untertitel, `finishMovie` (G4BJ08 0x801610b0) setzt die Stage-Schrift `pG->pStFnt` zurück. Debug-, EU- und US-Discs unverändert. Port-Patch für Verkaufsdaten |
 | 0151 `pl_wep.cpp`, `cam_extra.cpp` | „Zielgeschwindigkeit“ des Ingame-Menüs (Wunsch des Projektinhabers 30.10.2026, Seite Steuerung): `PlWepLockCtrl` (Waffen, Messer, Bogen) und `CameraScope::move` (Zielfernrohr) multiplizieren die Stick-Werte beim Zielen mit `re4_aim_speed()` (`runtime/aim_options.cpp`, 0,5–3, 1 wie das Spiel); Steuerkreuz unverändert. „Vertikal umkehren“ ist die Spieloption `CFG_AIM_REVERSE`. Port-Patch |
 | 0152 `em10.cpp` | Handcannon gegen Gegner mit `Wep_type` 4 (Kettensägen-Mann u. a.): `em10SetDmVal` nimmt die Waffe 0x0F wie die EU-Fassung von der 1000er-Grenze aus (Nutzerbericht 30.10.2026). Fehler des Prototyps, beide Disc-Arten |

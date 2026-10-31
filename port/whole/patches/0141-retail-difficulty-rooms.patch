@@ -7,7 +7,10 @@
 # Easy group 0x20 is off (this build showed it without collision). Map screen (Sscrn.rel, mapAreaFilename):
 # on Easy the map objects come from SS/Esy. Nothing changes with the debug build's discs. A port patch for
 # retail data.
-# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here).
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here). Their map
+# objects of class 0 lie in SS/Jpn (byte for byte the European SS/Esy; the Japanese discs have no SS/Esy); class 0
+# there are Assignment Ada and The Mercenaries (patch 0140, language 0). Fixed 31.10.2026: with SS/Esy the map of
+# Assignment Ada never loaded and could not be closed (user report, Japanese discs). Korean discs alike.
 --- a/src/st2/r203.cpp
 +++ b/src/st2/r203.cpp
 @@ -14,6 +14,8 @@
@@ -116,13 +119,17 @@
  #include "pl_npc.h"
  
  // One door model of an area (5 packed bytes).
-@@ -2366,6 +2367,10 @@
+@@ -2366,6 +2367,14 @@
          sprintf(name, "SS/cmn/map_obj4g.dat");
          break;
      }
-+    /* port: on Easy the European discs' map objects are in SS/Esy (their mapAreaFilename, patch 0141) */
-+    if ((re4_disc_retail_eu() || re4_disc_retail_jp()) && pG->game_country == 0) {
++    /* port: on Easy the European discs' map objects are in SS/Esy (their mapAreaFilename, patch 0141); the
++       Japanese discs hold the same files in SS/Jpn and have no SS/Esy (class 0 there: Ada and The
++       Mercenaries, patch 0140; with SS/Esy the map waited for its file forever, user report 31.10.2026) */
++    if (re4_disc_retail_eu() && pG->game_country == 0) {
 +        memcpy(name + 3, "esy", 3);
++    } else if (re4_disc_retail_jp() && pG->game_country == 0) {
++        memcpy(name + 3, "jpn", 3);
 +    }
  }
  
