@@ -3,6 +3,12 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.96.3-beta (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
+
+Wunsch des Projektinhabers: `versionName` 0.96.3-beta, `versionCode` 85, Releasetext
+`port/android-decomp/docs/releases/v0.96.3-beta.md` seit 0.96.2: Patches 0160, 0161, 0127 berichtigt, 0115 erweitert,
+gehaltene Lauf-/Zieltaste nach Menüs (Abschnitt darunter). Gerätetest der Neuerungen offen; APK am PC bauen.
+
 ## Testerberichte Mercenaries und Steuerung (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
 
 Fünf Fehlerberichte eines Testers (0.96.2-beta, Xiaomi 21121119VL, 64 bit, EU-Discs Englisch, GameSir G7, Cheat
