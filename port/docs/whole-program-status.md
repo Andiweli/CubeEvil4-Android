@@ -3,6 +3,17 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Bericht „Gegner bewegt sich nicht im Gefängnis“ (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
+
+Nutzerbericht 31.10.2026 09:07 (Samsung SM-A245M, 0.96.3, EU-Discs Spanisch, Professional): Spielstand in r201 geladen,
+der Garrador (Liste 0x56, `0x1b/10`) hängt angekettet in der Grube; 6 s vor dem Bericht öffnete der Spieler die
+Gittertür s13, keine Zeile zum Garrador. Er wird erst in Bereich 0x10 losgelassen (`r201_appearClawMan`). Am PC (EU und
+Debug, mit und ohne Kamerafahrt in Bereich 0xF, Professional): losgelassen, läuft und greift an. **Projektinhaber hat
+selbst zum Garrador gespielt: kein Problem.** Kein Fehler. EU-Unterschiede in r201 (nicht übernommen, ohne Wirkung auf den
+Garrador): `r201_execClawManUpCut` mit `SceEventStart(1)` + `EffectEventDelete()` statt `SceEventStart(0)`; `R201Init`
+zeigt den benutzten Hebel als offen (`cEmSwitch::setOpened`); der Debug-Sprung `JumpPoint == 2` fehlt; Liste: Armbrust-
+Ganados 58/59 Wachradius 15 000 statt 10 000.
+
 ## Version 0.96.4-beta (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
 Wunsch des Projektinhabers: `versionName` 0.96.4-beta, `versionCode` 86, Releasetext
