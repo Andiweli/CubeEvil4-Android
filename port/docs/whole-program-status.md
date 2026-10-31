@@ -90,6 +90,14 @@ Berichten, der EU-Code nicht verglichen.
   zu. Leere Karte = die Datei kam nie an. **Offen:** Fehlerbericht und Disc-Art (chinesische Übersetzung?) fehlen.
 - **Zwei Berichte vom 30.10.2026 21:46/21:59** (Xiaomi 25078RA3EL, 0.96.1, EU-Discs Spanisch, Cheats 15): kein
   Absturz, beide enden kurz nach der Glocken-Szene in r101 (`evd/r101s30.evd`). **Offen**, was dem Tester auffiel.
+- **Ruckler trotz ausgeschalteter Effekte** (zwei gleiche Berichte 31.10.2026 03:58, Samsung S10e SM-G970F, Exynos
+  9820, Mali-G76, 0.96.0, Debug-Discs, Auflösung 1×, Wetter/Spezialeffekte aus, Force Performance aus, Frame skip
+  aus; 30 s in r10f, Logcat leer). Im Raum je Bildstück 432 Zeichenbefehle, Render-Thread 19,8 ms Prozessorzeit von
+  21,1 ms (Spitze 49 ms, beim Raumwechsel 193 ms), davon Zeichenaufrufe 7,0 ms, Eckpuffer 5,9 ms (Retroid ~1 ms),
+  BP 4,6 ms; 18 % auf mittleren Kernen, Takt 1560 von 2730 MHz. Der Kern wartet 2,5 ms je Bild auf den Renderer
+  (34,9 statt 33,3 ms je Spielbild). Die Effekt-Schalter sparen nur Sprites, die Last sind Zeichenaufrufe und
+  Eckdaten im Mali-Treiber. **Empfehlung an den Nutzer:** auf 0.96.3 gehen, Force Performance an, Frame skip an,
+  „Zeichenaufrufe bündeln (experimentell)“ probieren (für Mali gedacht, Messung dort offen). Kein Code geändert.
 **Prüfungen (Cloud):** `whole_build.sh i686`: 0 Fehler, alle Kern-, Laufzeit- und Formattests bestanden (Patches 0160/0161 mitgebaut); Java-Tests der Steuerung grün. **Nicht geprüft:** alles im Spiel (Disc-Daten), Gerät.
 
 ## Retail-Discs (US) (28.10.2026 spätabends, lokal, WSL2, Branch `retail-us`)
