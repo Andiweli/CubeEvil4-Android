@@ -3,6 +3,12 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.96.6-beta (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
+
+Wunsch des Projektinhabers (01.11.2026, nach seinem Retroid-Test): `versionName` 0.96.6-beta, `versionCode` 88,
+Releasetext `port/android-decomp/docs/releases/v0.96.6-beta.md` seit 0.96.5 (Knacken bei Anzeigen knapp unter
+60 Hz, Patch 0169 Schlüssel in r201), in `master` übernommen.
+
 ## Bericht „Knacken im Ton alle paar Sekunden“ (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
 
 Meldung des Projektinhabers 01.11.2026 (mehrere Nutzer), dazu Fehlerbericht und Video eines Testers (Infinix X6882,
@@ -32,8 +38,17 @@ Aussetzer** nach dem Start (1–2 beim Raumstart wie vorher), Ring 41..52 ms, ge
 (im Spielstand je Raum gespeichert; kein Skript schaltet r201 um). Am PC (US, Debug-Start, auch an der
 Schreibmaschine gespeichert und geladen) ist es an der Schreibmaschine still, am Bild läuft ein Stück, dessen
 Tonhöhen-Verteilung nicht zum Video passt (Korrelation −0,1). Im Video läuft durchgehend ein anderes Stück, auch an
-der Schreibmaschine. Der Unterschied hängt am Spielstand des Testers (Story-Stand, Ashley dabei). **Offen:** Gerät
-(Retroid war nicht verbunden: Ton, Filme ohne Ruckeln), Tester-Gerät, `.gci` des Testers für die Musik.
+der Schreibmaschine. Der Unterschied hängt am Spielstand des Testers (Story-Stand, Ashley dabei). **Offen:** Tester-Gerät. Die `.gci` des Testers
+wird nicht angefragt (Entscheidung des Projektinhabers, 01.11.2026): Musik und Schlüssel-Ursache bleiben offen.
+**Retroid (Bericht des Projektinhabers 31.10.2026 22:22, EU-Discs, r201):** gelernter Wert lief beim Laden von r201
+auf +0,75 % (Ring dabei sekundenlang übervoll), danach 3 Aussetzer, bis er bei +0,05 % ankam. **Nachbesserung:**
+gelernt wird nicht, solange der geglättete Füllstand mehr als 30 ms über dem Ziel liegt, und je Lesung höchstens
+mit 30 ms Abweichung. PC danach (Echtzeit, je 130 s): 59,65 / 60 Hz / 59,65 Hz mit Tonuhr −0,1 %: je 1 Aussetzer
+beim Raumstart, gelernt −0,48 / +0,10 / −0,58 %. **Retroid geprüft** (`test-core-app.ps1`, r120, Kern aus
+`~/re4-sagan/RE4`, weil das Skript im Zusatzordner `RE4-sagan` kein `git fetch` kann): Vorfilm 70 s mit
+„shown 60.0/s“, 0 übersprungen, 0 festgehaltene Bilder; Ton 6 Aussetzer in den ersten 20 s (Start, Menüs), dann
+3,5 min keiner, gelernt +0,10..+0,12 %; zweiter Lauf 400 s mit Laden von r100: 2 Aussetzer beim Laden, danach
+1 in 2,5 min, gelernt +0,06..+0,15 % (kein Hochlaufen), keine Zeile „output ran out“.
 
 ## Bericht „Schlüssel zum Garrador-Gefängnis fehlt im Bild“ (US-Discs, 01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`, für 0.96.6)
 

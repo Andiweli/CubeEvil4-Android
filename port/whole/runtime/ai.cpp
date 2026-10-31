@@ -309,9 +309,12 @@ static int readRing(short* out, int frames, int channels)
         r += gFrac >> 16;
         gFrac &= 0xFFFF;
     }
-    // learned only while the sound flows (not before the game plays, not while it stands)
-    if (got == frames) {
-        gLearn += error / 4096.0f;
+    // learned only while the sound flows (not before the game plays, not while it stands) and not
+    // from a ring filled far past its target: a room loading on the Retroid (31.10.2026) left it
+    // full for seconds, the learned rate rose to +0.75 % and then emptied the ring three times
+    if (got == frames && error < kTarget / 2) {
+        const float step = error < -(float) (kTarget / 2) ? -(float) (kTarget / 2) : error;
+        gLearn += step / 4096.0f;
         gLearn = gLearn > kMaxLearn ? kMaxLearn : gLearn < -kMaxLearn ? -kMaxLearn : gLearn;
     }
     // a dropout: the sound broke off (not every read while there is none yet)
