@@ -12,10 +12,12 @@ bei 0x00010000..0x20010000, `dalvik-main space (region space)` 1 GB bei 0x774800
 64-bit-Weg in `core_mode.cpp loadCore` kennt zwei Fälle: MEM1 frei (Platzhalter) oder MEM1 im großen-Objekte-Bereich
 (`holdMem1InLargeObjectSpace`, Retroid). Den verschiebbaren Hauptspeicher (Objekte wandern bei der Speicherbereinigung)
 kann die App nicht festhalten; der Ausweg „Kern als eigener Prozess“ (`libre4_coreproc.so`,
-`port/docs/32bit-kernprozess.md`) ist nur für 32 bit gebaut (CMake `CMAKE_SIZEOF_VOID_P EQUAL 4`,
-`whole_build_android.sh` nur armeabi-v7a, `RE4_CORE_PROCESS=1` auf aarch64 abgelehnt). **Vorschlag (Entscheidung des
-Projektinhabers offen):** den Kernprozess auch auf 64 bit bauen und nur dann nutzen, wenn MEM1 im Hauptspeicher von
-ART liegt (wie auf 32 bit); prüfbar auf dem Retroid mit erzwungenem `RE4_CORE_PROCESS=1`. Nichts geändert.
+`port/docs/32bit-kernprozess.md`) war nur für 32 bit gebaut. **Umgesetzt (Wunsch des Projektinhabers, 31.10.2026):**
+der Kernprozess auch auf 64 bit (`coreproc.cpp` lädt die Kernbibliotheken ins Fenster unter 4 GB, CMake und
+`whole_build_android.sh` bauen ihn für arm64-v8a, `core_mode.cpp loadCore` nutzt ihn, wenn MEM1 weder frei noch im
+große-Objekte-Bereich zu halten ist; `RE4_CORE_PROCESS=1` auch auf 64 bit). Geprüft: Android-Kern beide ABIs 0 Fehler,
+APK gebaut; Retroid arm64 mit erzwungenem Kernprozess (`test-core-app.ps1 -CoreProcess`): Intro, r100, 240 s ohne
+Absturz, 30 FPS. **Nicht geprüft:** auf dem Xiaomi selbst (Tester).
 
 ## Bericht „aaa“ an der Kanone in r202 (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 

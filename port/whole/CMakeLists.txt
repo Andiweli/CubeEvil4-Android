@@ -557,10 +557,11 @@ target_link_libraries(re4test_rel PRIVATE re4_main)
 set_target_properties(re4test_rel PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules"
     OUTPUT_NAME re4_re4test_rel)
 
-# --- the core process on Android (armeabi-v7a) -------------------------------------
+# --- the core process on Android (armeabi-v7a, arm64-v8a) ---------------------------
 # A program in the app's library folder (named lib*.so so that the APK carries it):
-# the core runs in it when MEM1 is taken in the app's process (port/docs/32bit-kernprozess.md).
-if(ANDROID AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+# the core runs in it when MEM1 is taken in the app's process (port/docs/32bit-kernprozess.md;
+# on 64 bit since 31.10.2026, ART's moving heap on MEM1).
+if(ANDROID)
     add_executable(re4_coreproc host/coreproc.cpp runtime/core_ipc.cpp)
     target_include_directories(re4_coreproc PRIVATE runtime)
     target_compile_features(re4_coreproc PRIVATE cxx_std_17)

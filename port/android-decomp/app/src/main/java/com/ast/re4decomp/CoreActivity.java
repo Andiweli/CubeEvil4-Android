@@ -348,8 +348,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /**
-   * The core in a process of its own (32-bit devices whose Java heap lies where the game's memory
-   * must be): when that process ends (a crash), the app stays and says so, with the error report
+   * The core in a process of its own (devices whose Java heap lies where the game's memory must be:
+   * 32 bit with Android 14, some 64-bit ones since 31.10.2026): when that process ends (a crash), the app stays and says so, with the error report
    * to send (the crash is in it).
    */
   private void checkCoreProcess() {

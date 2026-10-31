@@ -119,9 +119,7 @@ struct CoreApi {
 
 // The core in a process of its own (useCoreProcess): why, for the report; "" in this process.
 std::string coreProcessWhy;
-#if !defined(__aarch64__)
 void useCoreProcess(const std::string &why);
-#endif
 
 template <class F> bool bind(F &slot, const char *name) {
   slot = reinterpret_cast<F>(dlsym(api.main, name));
@@ -370,6 +368,13 @@ void loadCore(JNIEnv *env) {
   } else if (holdMem1InLargeObjectSpace(env)) {
     setenv("RE4_MEM1_PLACEHOLDER", "1", 1);
     gAddressMap += "MEM1 placeholder: reserved inside the large object space\n";
+  } else if (!gMem1Owner.empty()) {
+    // ART's moving heap ("dalvik-main space (region space)", Xiaomi 22081212C, Android 15,
+    // 31.10.2026): nothing of it can be held; the core runs in a process of its own as on 32 bit
+    // (wish of the project owner, 31.10.2026)
+    gAddressMap += "MEM1 placeholder: NOT reserved: the core runs in a process of its own\n";
+    useCoreProcess("MEM1 is taken in the app's process (by " + gMem1Owner + ")");
+    return;
   } else {
     gAddressMap += "MEM1 placeholder: NOT reserved\n";
   }
@@ -1910,7 +1915,6 @@ void onHangSample(int, siginfo_t *, void *context) {
   crashContext(context);
 }
 
-#if !defined(__aarch64__)
 // The table's calls to the core process (runtime/re4_core_client.h); it starts with the first
 // re4ipc_reserve (CoreBridge.start). Its program lies in this library's folder: the libraries
 // are extracted at installation (build.gradle useLegacyPackaging, decision of the project owner,
@@ -1992,7 +1996,6 @@ void useCoreProcess(const std::string &why) {
   gAddressMap += note;
   LOG("%s", note);
 }
-#endif
 
 void installCrashHandler() {
   struct sigaction action {};
@@ -2068,11 +2071,7 @@ Java_com_ast_re4decomp_CoreBridge_start(JNIEnv *env, jclass, jstring gameRoot, j
     // the core in a process of its own also with MEM1 free (tests; test-core-app.ps1 -CoreProcess)
     const char *own = getenv("RE4_CORE_PROCESS");
     if (own && std::string(own) == "1" && coreProcessWhy.empty()) {
-#if defined(__aarch64__)
-      LOG("RE4_CORE_PROCESS=1: only for 32 bit; the core runs in the app's process");
-#else
       useCoreProcess("RE4_CORE_PROCESS=1");
-#endif
     }
   }
   {

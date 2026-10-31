@@ -278,6 +278,18 @@ und App (`re4_core_audio`, der Ring in `runtime/ai.cpp`, `CoreAudio.java`): den 
 geteilten Speicher bitte so anlegen, dass die Zahl der Kanäle nicht fest 2 ist; beim
 Zusammenführen der beiden Branches den Tonweg abgleichen.
 
+## 64 bit (31.10.2026, Wunsch des Projektinhabers)
+
+Nutzerbericht Redmi K50 Ultra (Xiaomi 22081212C, Android 15, 64 bit): „MEM1 … is taken in this process (by
+77480000-b7480000 rw-p [anon:dalvik-main space (region space)])“. Dort liegt der **verschiebbare** Hauptspeicher von
+ART über MEM1 (der große-Objekte-Bereich, den `holdMem1InLargeObjectSpace` festhalten kann, liegt bei 0x10000). Seitdem
+gilt der Kernprozess auch für 64 bit: `libre4_coreproc.so` wird für arm64-v8a gebaut (CMake `if(ANDROID)`,
+`whole_build_android.sh`), lädt auf 64 bit `libre4_platform.so` und `libre4_main.so` wie die App in Bereiche oben im
+Fenster unter 4 GB (`openInWindow`, `android_dlopen_ext` mit `ANDROID_DLEXT_RESERVED_ADDRESS`), und `core_mode.cpp
+loadCore` nimmt ihn, wenn MEM1 weder frei noch im große-Objekte-Bereich zu halten ist; `RE4_CORE_PROCESS=1`
+(`test-core-app.ps1 -CoreProcess`) erzwingt ihn auch auf 64 bit. Geprüft auf dem Retroid (arm64, erzwungen): Intro-Film,
+r100, 240 s ohne Absturz, 30 FPS. Auf dem Xiaomi selbst nicht geprüft.
+
 ## Testen
 
 - **Cloud:** 32-bit-Linux (`-m32`/i686): das Kernprogramm als Kindprozess, ein Testprogramm

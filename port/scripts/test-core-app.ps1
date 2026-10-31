@@ -160,10 +160,11 @@ Kerne minus 3, hoechstens 3). -GxJobCheck rechnet zur Fehlersuche jeden Zeichena
 zusaetzlich sofort um und meldet im Bericht "GX job check", wenn sich Speicher geaendert hat,
 bevor ein Helfer ihn las (kostet Leistung, nur zur Pruefung).
 
-Kernprozess (32 bit, port/docs/32bit-kernprozess.md): Auf 32-bit-Geraeten, bei denen der
-Java-Speicher von Android schon auf dem Speicher des Spiels (0x80000000) liegt (Android 14),
-laeuft der Spielkern in einem eigenen Prozess ohne Java (libre4_coreproc.so). -CoreProcess
-erzwingt das auch auf dem Retroid (zusammen mit -Abi armeabi-v7a): Der Bericht nennt den
+Kernprozess (port/docs/32bit-kernprozess.md): Auf Geraeten, bei denen der Java-Speicher von
+Android schon auf dem Speicher des Spiels (0x80000000) liegt (32 bit mit Android 14, seit
+31.10.2026 auch 64 bit, z. B. Xiaomi mit Android 15), laeuft der Spielkern in einem eigenen
+Prozess ohne Java (libre4_coreproc.so). -CoreProcess erzwingt das auch auf dem Retroid (32 und
+64 bit): Der Bericht nennt den
 Kernprozess (Prozessnummer, Grund, Ende), und endet der Kernprozess, waehrend die App noch
 laeuft, endet die Beobachtung wie bei einem Absturz.
 
@@ -516,8 +517,7 @@ if ($GxJobCheck) { $settings = "$settings;RE4_GX_JOB_CHECK=1" }
 if ($NoFastCores) { $settings = "$settings;RE4_FAST_CORES=0" }
 if ($NoPerfHint) { $settings = "$settings;RE4_PERF_HINT=0" }
 if ($CoreProcess) {
-    # the core in a process of its own also with MEM1 free (32 bit only; core_mode.cpp)
-    if ($Abi -ne 'armeabi-v7a') { Say 'Hinweis: -CoreProcess wirkt nur mit 32 bit (-Abi armeabi-v7a).' }
+    # the core in a process of its own also with MEM1 free (32 and 64 bit; core_mode.cpp)
     $settings = "$settings;RE4_CORE_PROCESS=1"
 }
 . (Join-Path $PSScriptRoot 'Retroid-Adb-Exclusive.ps1')
@@ -741,7 +741,7 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
     }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $firstPid = ''
-    # the core process (32 bit, MEM1 taken in the app's process or -CoreProcess): "<package>:core"
+    # the core process (MEM1 taken in the app's process or -CoreProcess): "<package>:core"
     $corePid = ''
     $crashAt = -1
     $nextShot = 0
