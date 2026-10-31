@@ -45,15 +45,31 @@ stürzte `titleExit` ab) und `RE4_TEST_ITEM_USE="free+N:ID"` (Gegenstand aus dem
   r400): vorher Bild 1224 Helligkeit 28 (Titel halb ausgeblendet), mit **Patch 0163** 0; das Mercenaries-Menü kommt
   wie zuvor. Am PC stand der Titel nur ~5 Bilder; die „etwa eine Sekunde“ des Testers ist damit nicht ganz erklärt
   (Gerät offen).
-- **r403 `em_reset`/`reset_4x`:** EU-`em_reset` (`st4_0.rel` 0x4094) schickt mit `setGoto(&pPL->pos, 0xF)` statt
-  0xC. Modus 15 gibt es nur im EU-Ganado-Code (`em10.rel` in `em/em10.drs`): Sicht wie 0xC (15 m), bei Treffern/Alarm
-  wie 6–13, in `em10_R1_Goto` aber angekommen schon 3 m vor dem Ziel (9 000 000 statt 250 000) und dann normale KI
-  (Prototyp 0xC: rennt hin, greift bei Ankunft oder 4 m vor Leon an). **Wichtiger:** die EU-Discs haben für die
-  Mercenaries eine **neu gebaute Gegnerliste** (`etc/omake02.esl`: r403 fast alle Einträge anders, r404 70 von 84;
-  `omake01.esl` r400/r402 je 6 Zeilen), und die EU-`reset_4x` setzen ganz andere Listennummern zurück (Zone 0 u. a.
-  0xB, 0xC, 0x40, 0x41 …; Prototyp 6–0xA). Mit EU-Discs läuft also der Prototyp-Code von r403/r404 gegen die
-  EU-Liste. **Nicht gepatcht** (eigenes Paket: EU-`R403Init`/`R403Main`/`reset_4x`, r404 ebenso, Modus 15 in
-  `em10.cpp`, US-Listen prüfen); im Releasetext als bekanntes Problem.
+- **Mercenaries-Gegner (r400/r403/r404), Patches 0165/0166:** Erster Befund korrigiert: die EU-Funktion 0x4094 mit
+  `setGoto(…, 0xF)` ist **r400**s `em_reset`, nicht r403. Funktion für Funktion verglichen (Debug-, EU-, US- und
+  JP-`st4_0.rel`, `retail_code.py` und ein Hilfsskript mit aufgelösten Relokationen und Aufrufnamen): die
+  Startaufstellungen (`R403Init`, `r404_initEmSet`), die 22 Zonen-Gruppen von r403, die r400-Gruppen und alle
+  `r404_setEmN`/`checkEmSet*` sind in allen Fassungen **gleich**. Die neue Gegnerliste (`etc/omake02.esl`, r403 fast
+  alle Einträge, r404 70 von 84) haben die US-, EU- und JP-Discs gleichermaßen; der Raumcode passt zu ihr. Geändert
+  haben die Verkaufsfassungen nur das Nachsetzen:
+  - Leiter-Sperre in r403 `em_reset` und `r404_setEm`: kein Nachsetzen, solange Leon auf einer Leiter ist
+    (`PlGetStatus() & 0x40000`, Spielerroutine 0x10 = `PlSetLadder`) – US, EU, JP.
+  - Goto-Modus 15 statt 0xC in r400/r403 `em_reset` und `r404_setEm` – EU, JP (US behält 0xC). Modus 15 gibt es nur
+    im EU-Ganado-Code (`em10.rel` in `em/em10.drs`): bei Treffer/Alarm und in `em10FindCk` wie 6–13 (Sicht 15 m),
+    in `em10_R1_Goto` Ankunft schon 3 m vor dem Ziel (9 000 000 statt 250 000), danach Warten wie 0xD, unterwegs
+    Ausschau wie 6/7/0xA/0xB (sieht er Leon, greift er an). 0xC greift bei Ankunft oder 4 m vor Leon an.
+  - `R403Main`: die Prüfung `timer > 1800` vor den Zonen 0 und 0x10 hielt nie (der Zähler läuft 1..300), die zwei
+    Zonen füllten im Prototyp und in der US-Fassung nie nach; EU/JP haben die Prüfung entfernt.
+  - Sonst nur Debug-Ausgaben und Adressen. r400: `GameAddPoint` in `R400Main` nur bei nicht-japanischer Sprache (mit
+    EU-Discs gleich). **r402** ist in der EU stark umgebaut (`R402EmSetMain` 420 abweichende Befehlszeilen, größere
+    Arbeitsstruktur, Listennummern 90–92 → 93–95, andere `SceAtSetEnable`): **nicht übernommen, eigenes Paket**.
+  **Patch 0165** (Modus 15 in `em10.cpp`, nur von 0166 benutzt) und **Patch 0166** (r400/r403/r404 nach den
+  Verkaufsfassungen; Debug-Discs unverändert). Geprüft am PC (i686, `RE4_TEST_MERC`, Start r403, `RE4_CHEATS=7`, Leon
+  zielt, schießt und dreht sich, 11 500 Bilder): EU-Discs mit Patches: 5 Gegner nachgesetzt (Zone 0, Listen 6–10),
+  Ganados 9 854 Bilder unter 2,5 m bei Leon, 2 250 Bilder im Goto-Zustand; **Gegenprobe ohne 0166:** 0 nachgesetzt,
+  13 062 Bilder unter 2,5 m, 7 027 im Goto-Zustand; Debug-Discs mit Patches: 0 nachgesetzt (unverändert). r400, r404
+  mit EU-Discs ohne Absturz. Laufzeittests 0 Fehler. Dass der Tester „fast alle rennen sofort auf Leon zu“ beim
+  **Start** sah, betrifft die Startaufstellung (Listen-Flag „Dash PL“); die ist in allen Fassungen gleich.
 - **Händler, Hand Cannon Spanisch:** `layout_tbl` liegt bei 0x802531EC (Debug; die Angabe 0x801F8E04 ist die
   EU-Adresse): Zeile „nicht Japanisch“ in Debug, EU und US gleich, EU ändert nur japanische Einträge – nicht die
   Ursache. EU-`BuyItemNum::move` (`Sscrn.rel` 0x25700, Relokationen aufgelöst): `buy_msg_x` = **0** (Prototyp und US
@@ -169,7 +185,7 @@ Berichten, der EU-Code nicht verglichen.
     geprüft**.
   - **Burg (r403): fast alle Ganados rennen zum Start direkt auf Leon zu, bevor er die Treppe erreicht** (Bericht
     „mercsEnemyAggro“: 59× „stays back“, ein Retry, ein Tod in Bereich 0x1d). Im Prototyp schickt `em_reset` jeden
-    nachgesetzten Gegner mit `setGoto(&pPL->pos, 0xC)` zu Leon. Verglichen (31.10.2026): EU hat eine neue Gegnerliste und eigene `reset_4x`, Modus 15; offen als eigenes Paket (Abschnitt oben).
+    nachgesetzten Gegner mit `setGoto(&pPL->pos, 0xC)` zu Leon. Verglichen (31.10.2026): Startaufstellung und Rücksetzgruppen wie EU; EU/JP setzen mit Modus 15 nach, nicht auf Leitern, und füllen auch Zonen 0/0x10: Patches 0165/0166 (Abschnitt oben).
 - **Falscher Text nach dem Aufschließen der Eisentür in r101 (Dorf, Schlüssel zu r102)** (zwei Berichte des
   Projektinhabers 31.10.2026 00:18/00:24, Retroid, 0.96.2, EU-Discs Deutsch: „so ähnlich wie ‚Sie erhalten 10‘“; der
   zweite Bericht kam drei Sekunden nach dem Inventar in r101). Ursache ist unser Patch 0127 (27.10.2026): er setzt die
@@ -10644,6 +10660,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0162 `item.cpp` | Chicago Typewriter mit unendlicher Munition ab Kauf wie EU (`construct` lv 0x6006, `wep_level_info` 0x34 {6, 1, 1, 6}; Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
 | 0163 `title.cpp` | Nach einer Mercenaries-/Ada-Partie oder „Game Reset“ blendet `titleSub` sofort schwarz ab (EU-`titleSub`: `FadeSet` mit Zeit 0 statt 5), statt das Titelbild fünf Bilder lang auszublenden (Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
 | 0164 `ss_shop.cpp` | Händler, Kaufspruch mit den EU-Discs wie die EU-`BuyItemNum::move`: Zeile am Fensterpunkt (`buy_msg_x` 0 statt 0x37), kein `buy_msg_y` für 0xA/0x13, in allen Sprachen außer Englisch sofort sichtbar (Attribut 0x40); sonst stand der spanische Hand-Cannon-Satz rechts über (Testerbild 31.10.2026). Port-Patch für Verkaufsdaten, nur EU (Debug- und US-Fassung: 0x37) |
+| 0165 `em10.cpp` | Goto-Modus 15 der EU-Ganados (nur Patch 0166 setzt ihn): bei Treffer/Alarm und in der Sicht wie 6–13, Ankunft 3 m vor dem Ziel, dann Warten wie 0xD, unterwegs Ausschau wie 6/7. Port-Patch für Verkaufsdaten (EU, JP) |
+| 0166 `r400.cpp`, `r403.cpp`, `r404.cpp` | Mercenaries-Nachsetzen wie die Verkaufsfassungen: keine Gegner, solange Leon auf einer Leiter ist (US, EU, JP); Modus 15 statt 0xC und in r403 auch die Zonen 0/0x10 (deren Zeitprüfung im Prototyp nie hielt; EU, JP). Startaufstellungen und Gruppen sind in allen Fassungen gleich. Port-Patch für Verkaufsdaten |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

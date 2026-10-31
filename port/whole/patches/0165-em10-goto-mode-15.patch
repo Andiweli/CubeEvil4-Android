@@ -1,0 +1,59 @@
+# Port patch for retail data (European and Japanese / Korean discs; patch 0166 asks for it): the Ganados' goto mode 15
+# of the European em10.rel (in em/em10.drs, read with retail_code.py on 31.10.2026). The prototype knows modes 0-0xE;
+# the retail Mercenaries rooms send re-set Ganados to the player with mode 15 instead of 0xC. Mode 15 counts like
+# 6-13 when the Ganado is hurt or sees the player (em10DmCk) and in em10FindCk (sight 15 000 instead of 6 000, the
+# alarms); in em10_R1_Goto it arrives 3000 units before its target (9 000 000 squared, the others 250 000) and then
+# waits as 0xD does, and on the way it looks out like 6 / 7 / 0xA / 0xB (em10FindCk(em, 2): seen, it attacks).
+# Mode 0xC instead attacks on arrival or within 4 m of the player. No other code sets mode 15: debug discs unchanged.
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -1022,6 +1022,7 @@
+     case 11:
+     case 12:
+     case 13:
++    case 15: /* port (patch 0165): the European goto mode 15 */
+         if (em->type == 0xA || em->type == 0xD) {
+             if (em10FindCk2(em)) {
+                 w->Be_flg &= ~0x20000000;
+@@ -6886,7 +6887,8 @@
+             break;
+         }
+         d2 = (em->pos.x - w->Goto_pos.x) * (em->pos.x - w->Goto_pos.x) + (em->pos.y - w->Goto_pos.y) * (em->pos.y - w->Goto_pos.y) + (em->pos.z - w->Goto_pos.z) * (em->pos.z - w->Goto_pos.z);
+-        if (d2 < 250000.0f) {
++        /* port (patch 0165): mode 15 arrives 3000 units before its target, then waits as 0xD */
++        if (d2 < (w->Goto_mode == 15 ? 9000000.0f : 250000.0f)) {
+             switch (w->Goto_mode) {
+             case 0:
+                 break;
+@@ -6894,6 +6896,7 @@
+             case 0xA:
+             case 0xB:
+             case 0xD:
++            case 0xF:
+                 w->Goto_mode = 0;
+                 w->Keep_pos = em->pos;
+                 EM10_GOTO_ARRIVE_RTN(EM10_GOTO_ARRIVE_WAIT);
+@@ -6946,6 +6949,7 @@
+             case 7:
+             case 0xA:
+             case 0xB:
++            case 0xF: /* port (patch 0165): on the way mode 15 looks out like 6 / 7 */
+                 em10FindCk(em, 2);
+                 if (w->Be_flg & 0x100) {
+                     w->Goto_mode = 0;
+@@ -21308,6 +21312,7 @@
+         case 11:
+         case 12:
+         case 13:
++        case 15: /* port (patch 0165) */
+             r = 225000000.0f;
+             break;
+         default:
+@@ -21345,6 +21350,7 @@
+         case 11:
+         case 12:
+         case 13:
++        case 15: /* port (patch 0165) */
+             if (StaFlagChk(pG, STA_SE_BURST)) {
+                 // em3c bell idiom: three identical arms assigning `r` keep the dispatch compares; the
+                 // override in the distance block makes the arm sets dead (flow deletes them, the
