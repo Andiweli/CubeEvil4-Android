@@ -62,6 +62,8 @@ Android-Kern beide ABIs 0 Fehler; `assembleCoreDebug` (versionCode 86, Sprachen 
 installiert. **Nicht geprüft:** Schalter und indonesisches Menü auf dem Gerät (Projektinhaber).
 **In `master` übernommen (Wunsch des Projektinhabers, 31.10.2026):** vorgespult auf `e2adec99`; die signierte
 `coreRelease`-APK baut der Projektinhaber.
+Danach ebenfalls in `master` (Wunsch des Projektinhabers, 31.10.2026, vorgespult auf `9b8c51af`): Patch 0168 (Aktionstasten-
+Beschriftungen „aaa“) und der Kernprozess auf 64 bit (Redmi K50 Ultra), beide im Releasetext von 0.96.4.
 
 ## Version 0.96.3-beta (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
 
