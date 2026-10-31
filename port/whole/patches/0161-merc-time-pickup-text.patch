@@ -1,0 +1,47 @@
+# A bug of the prototype (tester report 30.10.2026, EU discs, with pictures): the Mercenaries' time pick-ups showed
+# "50PTASsec. extended!" and "Bonus Time! You have 900PTASsec. ...". The pick-up message of the money-type items
+# (sce_at.cpp, two copies) sets the number with attribute 0x10000000, which appends the PTAS glyph after the digits
+# (Message::code0a) - right for pesetas (message 0x14), wrong for the added time (item 0x73, message 0x94) and the
+# bonus time (item 0x75, message 0x95). The bonus time also showed m_bonus_point, the frames given to
+# MercSysSetBonusTime (30 s * 30 = 900); m_bonus_point only feeds this message and now holds the seconds. The time
+# given to the game is unchanged. Not changed: the pick-up sound (SndCall(0, 0x10), the money's; the tester thinks
+# the healing items' sound is right) until the European code is read. All discs.
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -1887,7 +1887,7 @@
+         if (num == 0) {
+             num = 30;
+         }
+-        m_bonus_point = num * 30;
++        m_bonus_point = num; /* port (patch 0161): the seconds the message shows, not frames */
+         MercSysSetBonusTime(num * 30);
+         return 1;
+     }
+--- a/src/game/sce_at.cpp
++++ b/src/game/sce_at.cpp
+@@ -1069,10 +1069,10 @@
+         put = ItemMgr.get(it->item_id, it->item_num);
+         if (it->item_id == 0x73) {
+             cMes.MesSetNumber(0, ItemMgr.m_bonus_time, 0);
+-            cMes.MesSet(0x94, 0x64, y, 0x10000011, 0, 0, 4);
++            cMes.MesSet(0x94, 0x64, y, 0x11, 0, 0, 4); /* port (patch 0161): seconds, no PTAS */
+         } else if (it->item_id == 0x75) {
+             cMes.MesSetNumber(0, ItemMgr.m_bonus_point, 0);
+-            cMes.MesSet(0x95, 0x64, y, 0x10000011, 0, 0, 4);
++            cMes.MesSet(0x95, 0x64, y, 0x11, 0, 0, 4); /* port (patch 0161): seconds, no PTAS */
+         } else {
+             if ((s32) money < (s32) pG->peseta) {
+                 cMes.MesSetNumber(0, pG->peseta - money, 0);
+@@ -1324,10 +1324,10 @@
+         put = ItemMgr.get(it->item_id, it->item_num);
+         if (it->item_id == 0x73) {
+             cMes.MesSetNumber(0, ItemMgr.m_bonus_time, 0);
+-            cMes.MesSet(0x94, 0x64, y, 0x10000011, 0, 0, 4);
++            cMes.MesSet(0x94, 0x64, y, 0x11, 0, 0, 4); /* port (patch 0161): seconds, no PTAS */
+         } else if (it->item_id == 0x75) {
+             cMes.MesSetNumber(0, ItemMgr.m_bonus_point, 0);
+-            cMes.MesSet(0x95, 0x64, y, 0x10000011, 0, 0, 4);
++            cMes.MesSet(0x95, 0x64, y, 0x11, 0, 0, 4); /* port (patch 0161): seconds, no PTAS */
+         } else {
+             if ((s32) money < (s32) pG->peseta) {
+                 cMes.MesSetNumber(0, pG->peseta - money, 0);

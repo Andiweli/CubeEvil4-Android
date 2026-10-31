@@ -112,7 +112,10 @@ public final class CoreInput {
   // the switch between the own mapping and the menus' default (user report 30.10.2026: "releasing the button
   // can count as a second input"; START held as the inventory opened came as a new START press there): a
   // GameCube button that a key held over the switch gives only in the new mapping waits until it is let go;
-  // the ones it gave before as well stay held (B running while a prompt shows)
+  // the ones it gave before as well stay held (B running while a prompt shows). Back in the game the held
+  // actions B (run), R and L (ready the weapon, the knife) come at once (tester report 30.10.2026: A held as
+  // the inventory closed, Leon did not run until it was pressed again)
+  private static final int HELD_ACTIONS = GC_B | GC_R | GC_L;
   private boolean menuChanged;
   private int lastButtons, carried;
 
@@ -595,6 +598,7 @@ public final class CoreInput {
     if (clickR) buttons |= GC_R;
     if (menuChanged) {
       carried = buttons & ~lastButtons;
+      if (!menu) carried &= ~HELD_ACTIONS;
       menuChanged = false;
     }
     carried &= buttons;

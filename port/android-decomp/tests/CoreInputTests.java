@@ -382,13 +382,32 @@ public final class CoreInputTests {
       k.key(1, L1, true);
       check(k.pad()[0] == 0);
       k.setMenu(false);
-      check(k.pad()[0] == 0);  // L1 held as the menu closes: no run until it is pressed again
+      check(k.pad()[0] == CoreInput.GC_B);  // L1 held as the menu closes: Leon runs at once (tester, 30.10.2026)
+      k.key(1, L1, false);
+      check(k.pad()[0] == 0);
+      // a pressed action (here the inventory on L1) still waits until the key is let go
+      k.setControllerMap(own.assign(com.ast.re4decomp.ActionMap.INVENTORY, new int[] {L1}));
+      k.setMenu(true);
+      k.key(1, L1, true);
+      check(k.pad()[0] == 0);
+      k.setMenu(false);
+      check(k.pad()[0] == 0);
       k.key(1, L1, false);
       check(k.pad()[0] == 0);
       k.key(1, L1, true);
-      check(k.pad()[0] == CoreInput.GC_B);
+      check(k.pad()[0] == CoreInput.GC_Y);
       k.key(1, L1, false);
       check(k.pad()[0] == 0);
+      // R (the weapon ready, here on L1) held over the closing comes at once as well
+      k.setControllerMap(own.assign(com.ast.re4decomp.ActionMap.AIM, new int[] {L1}));
+      k.setMenu(true);
+      k.key(1, L1, true);
+      check(k.pad()[0] == 0);
+      k.setMenu(false);
+      check((k.pad()[0] & CoreInput.GC_R) != 0);
+      k.key(1, L1, false);
+      check(k.pad()[0] == 0);
+      k.setControllerMap(own);
       // a button both mappings give stays held over the switch (here the D-pad)
       k.key(1, UP, true);
       check(k.pad()[0] == CoreInput.GC_UP);

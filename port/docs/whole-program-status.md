@@ -3,6 +3,43 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Testerberichte Mercenaries und Steuerung (31.10.2026, Cloud, Branch `claude/blissful-tesla-xa7h6c`)
+
+Fünf Fehlerberichte eines Testers (0.96.2-beta, Xiaomi 21121119VL, 64 bit, EU-Discs Englisch, GameSir G7, Cheat
+„Extra-Spiele“), dazu drei Bildschirmfotos. Disc-Daten gibt es in der Cloud nicht: Ursachen aus dem Quelltext und den
+Berichten, der EU-Code nicht verglichen.
+
+- **Zwei Uhren in den Mercenaries** (Punkte 1–3 des Testers: die Partie beginnt mit einer Uhr, die zweite erscheint
+  nach dem ersten Inventar, nach „Retry“ aus dem Pausenmenü ist sie wieder weg; Bild: 01'44"90 und 01'44"86). Der
+  Modus zeigt seine eigene Uhr (`mercId`, `id400.dat`, Einheit 0 mit den Ziffern 1/3/5) und lässt den Countdown des
+  Cockpits nur als Zeitgeber laufen: `MercSysMoveStart` startet ihn und schiebt seinen Rahmen hinaus
+  (`transCountDownTimer(0)`), ohne das Versteckt-Bit `TIMER_STA_ERASE`. Das Inventar sichert und stellt die Anzeige des
+  Countdowns wieder her (`sscrn.cpp`: `saveCountDownTimer`/`loadCountDownTimer`); `loadDisp` zeigt jeden laufenden
+  Countdown ohne dieses Bit – also nach dem ersten Inventar auch die Cockpit-Uhr. „Retry“ geht über `Cckpt.roomInit`,
+  das sie wieder versteckt. **Patch 0160:** der Start versteckt den Countdown mit dem Bit (`dispCountDownTimer(0)`); er
+  zählt weiter, der Modus liest ihn wie bisher. Fehler des Prototyps, alle Discs. Gebaut; **im Spiel nicht geprüft**
+  (Disc-Daten lokal). Dass Punkt 2 („Uhr verschwindet nach Retry“) die zweite Uhr meint, ist aus Punkt 3 geschlossen;
+  verschwindet auch die linke, ist das ein eigener Fehler.
+- **Zeitbonus-Texte „50PTASsec. extended!“ und „You have 900PTASsec.“** (Punkt 2, zwei Bilder). Die Aufnahme-Meldung
+  der Geld-Gegenstände (`sce_at.cpp`, zwei Kopien) setzt die Zahl mit Attribut 0x10000000, das hinter den Ziffern das
+  PTAS-Zeichen anhängt (`Message::code0a`) – richtig für Pesetas (Meldung 0x14), falsch für Zeit (Gegenstand 0x73,
+  Meldung 0x94) und Bonuszeit (0x75, Meldung 0x95). Die Bonuszeit zeigte dazu `m_bonus_point` = die Bilder für
+  `MercSysSetBonusTime` (30 s × 30 = 900). **Patch 0161:** beide Meldungen ohne PTAS, `m_bonus_point` hält die Sekunden
+  (nur diese Meldung liest es); die Zeit selbst unverändert. Fehler des Prototyps, alle Discs. Mit den japanischen
+  Discs zeigt die Zahl jetzt die großen Ziffern (Attribut aus). **Offen:** der Ton der Aufnahme (`SndCall(0, 0x10)`,
+  der Geld-Ton; der Tester meint, es sei der der Heilmittel) – erst mit dem EU-Code (`retail_code.py`, lokal) ändern.
+- **A halten beim Schließen des Inventars: Leon läuft nicht** (Punkt 4, Bericht „doubleinput“; der Tester läuft mit
+  A über eine eigene Belegung, A bestätigt in den Menüs). Ursache ist die Regel vom 30.10.2026 (`CoreInput`, kein
+  Druck aus dem Belegungswechsel): eine über den Wechsel gehaltene Taste gibt den Knopf der neuen Belegung erst nach
+  dem Loslassen. **Neu:** beim Wechsel zurück ins Spiel kommen die gehaltenen Aktionen B (laufen), R und L (Waffe,
+  Messer bereit) sofort (`HELD_ACTIONS`); gedrückte Aktionen (A, X, Y, Z, START) warten weiter, ebenso alles beim
+  Wechsel ins Menü. `CoreInputTests` 206 Prüfungen (neu: Laufen und R sofort, Inventar auf L1 wartet),
+  `CoreTouchTests` und `ActionMapTests` grün. **Gerät offen.**
+- **Bericht „mercsEnemyAggro“** (r403/r402/r400, 30 min): ohne Beschreibung des Testers; im Protokoll 59 Zeilen „stays
+  back (Stay)“ der Ganados, ein „Retry“ in r403 und ein Tod. **Offen**, bis der Tester sagt, was ihm auffiel.
+
+**Prüfungen (Cloud):** `whole_build.sh i686`: 0 Fehler, alle Kern-, Laufzeit- und Formattests bestanden (Patches 0160/0161 mitgebaut); Java-Tests der Steuerung grün. **Nicht geprüft:** alles im Spiel (Disc-Daten), Gerät.
+
 ## Retail-Discs (US) (28.10.2026 spätabends, lokal, WSL2, Branch `retail-us`)
 
 Auftrag: die US-Verkaufs-Discs (`Resident Evil 4 (USA) (Disc 1/2)`, ISO und RVZ in `E:\Development\Android\RE4-DiscdataUS`)
@@ -10414,6 +10451,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0157 `r203.cpp` | Wiedersehens-Szene am Torbogen: lädt das Ganado-Modul nach, wenn auf Easy (EU, Patch 0141) keins geladen ist; vorher Absturz (Nutzerbericht 30.10.2026). Port-Patch |
 | 0158 `title.cpp` | Mercenaries-Etappenauswahl: Figuren-Symbole nur bei freigeschalteter Figur, wie EU (`stageSelect`, Nutzermeldung 30.10.2026). Fehler des Prototyps, alle Discs |
 | 0159 `pl_shotgun.cpp`, `pl_machine.cpp`, `pl_rocket.cpp` | Auto-Zielen: beim Anlegen die Höhe des Ziels wie die Pistole (`PlSetLockPitch`), nur mit `CFG_LOCK_ON` und Ziel (Test des Projektinhabers 30.10.2026). Port-Patch |
+| 0160 `mercenaries.cpp` | Mercenaries: nur die eigene Uhr des Modus; der Countdown des Cockpits startet versteckt (`dispCountDownTimer(0)`), sonst zeigte ihn das Inventar zusätzlich an (Testerbericht 31.10.2026). Fehler des Prototyps, alle Discs |
+| 0161 `item.cpp`, `sce_at.cpp` | Mercenaries: Zeit- und Bonuszeit-Aufnahme ohne PTAS-Zeichen, Bonuszeit in Sekunden statt Bildern („30sec.“ statt „900PTASsec.“; Testerbericht mit Bildern 31.10.2026). Fehler des Prototyps, alle Discs |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
