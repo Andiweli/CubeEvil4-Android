@@ -3,6 +3,20 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Bericht „MEM1 is taken“ auf 64 Bit (Redmi K50 Ultra, 31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
+
+Nutzerbericht 31.10.2026 14:28 (Xiaomi 22081212C „diting“, Android 15, 64-bit-Prozess, 0.96.4): direkt nach dem Import
+„core not started: MEM1 0x80000000..0x83000000 is taken in this process (by 77480000-b7480000 rw-p [anon:dalvik-main
+space (region space)])“, auch nach Neuinstallation und Neustart. Adresskarte: `dalvik-free list large object space`
+bei 0x00010000..0x20010000, `dalvik-main space (region space)` 1 GB bei 0x77480000..0xB7480000 über MEM1. Der
+64-bit-Weg in `core_mode.cpp loadCore` kennt zwei Fälle: MEM1 frei (Platzhalter) oder MEM1 im großen-Objekte-Bereich
+(`holdMem1InLargeObjectSpace`, Retroid). Den verschiebbaren Hauptspeicher (Objekte wandern bei der Speicherbereinigung)
+kann die App nicht festhalten; der Ausweg „Kern als eigener Prozess“ (`libre4_coreproc.so`,
+`port/docs/32bit-kernprozess.md`) ist nur für 32 bit gebaut (CMake `CMAKE_SIZEOF_VOID_P EQUAL 4`,
+`whole_build_android.sh` nur armeabi-v7a, `RE4_CORE_PROCESS=1` auf aarch64 abgelehnt). **Vorschlag (Entscheidung des
+Projektinhabers offen):** den Kernprozess auch auf 64 bit bauen und nur dann nutzen, wenn MEM1 im Hauptspeicher von
+ART liegt (wie auf 32 bit); prüfbar auf dem Retroid mit erzwungenem `RE4_CORE_PROCESS=1`. Nichts geändert.
+
 ## Bericht „aaa“ an der Kanone in r202 (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
 Bericht des Projektinhabers 31.10.2026 17:26 (Retroid, 0.96.4-Test-APK, EU-Discs, Deutsch): nach der Kurbel in r202 zeigte
