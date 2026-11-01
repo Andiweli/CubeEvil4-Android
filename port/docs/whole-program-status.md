@@ -5,6 +5,10 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 ## Version 0.96.7-beta: drei Berichte zu 0.96.6 (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
+Veröffentlicht mit dem OK des Projektinhabers (01.11.2026): `versionName` 0.96.7-beta, `versionCode` 89, Releasetext
+`port/android-decomp/docs/releases/v0.96.7-beta.md` seit 0.96.6, in `master` übernommen (Vorspulen). Garrador/Ashley
+in r201 aufs nächste Release verschoben.
+
 - **Absturz im Labor (Xiaomi M2102J2SC „thyme“, Mi 11, Adreno 660, Android 13, Debug-Discs, r307):** zweimal
   „signal 6“; logcat: `Adreno-GSL … mmap failed errno 12 Out of memory`, dann `pthread_create failed: couldn't allocate
   1040384-bytes mapped space`, `libc++abi: terminating … system_error: thread constructor failed` in
