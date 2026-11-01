@@ -36,7 +36,9 @@ import java.util.zip.ZipOutputStream;
  * more with the app's own lines only. At the
  * next start the files of the run before move to logs/previous/, with what the
  * system says about how that run ended (ApplicationExitInfo, Android 11 and
- * later) and its crash report lines. The texts are English (wish of the
+ * later) and its crash report lines; a run that ended in a crash is copied to logs/last-crash/ as
+ * well and stays there until the next crash (01.11.2026: a tester started the app twice more after a
+ * crash, so the report's previous/ no longer had it). The texts are English (wish of the
  * project owner, 17.10.2026: everything the app adds in English). The menu packs all of it with the
  * device's data into a zip to save or to send (CoreActivity, ReportProvider).
  * On by default; the menu switches the recording off (logcat and the core's file).
@@ -87,6 +89,11 @@ final class CoreLog {
     write(new File(before, "exit.txt"), lastExits(c));
     String crash = run("logcat", "-d", "-b", "crash", "-v", "threadtime");
     if (!crash.trim().isEmpty()) write(new File(before, "crash-system.txt"), crash);
+    if (crashed(c, before)) {
+      File kept = new File(dir, "last-crash");
+      deleteTree(kept);
+      copyFiles(before, kept);
+    }
     CoreBridge.setCrashFile(new File(dir, "crash.txt").getAbsolutePath());
     if (enabled(c)) {
       CoreBridge.setLogFile(new File(dir, CORE_LOG).getAbsolutePath());
@@ -312,6 +319,34 @@ final class CoreLog {
       out.write(text.getBytes(StandardCharsets.UTF_8));
     } catch (IOException e) {
       Log.w(TAG, "cannot write " + f + ": " + e);
+    }
+  }
+
+  /** The run in `before` ended in a crash: its crash file has lines, or Android says so (11 and later). */
+  private static boolean crashed(Context c, File before) {
+    if (new File(before, "crash.txt").length() > 0) return true;
+    if (Build.VERSION.SDK_INT < 30) return false;
+    ActivityManager am = (ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
+    if (am == null) return false;
+    List<ApplicationExitInfo> exits = am.getHistoricalProcessExitReasons(null, 0, 1);
+    if (exits.isEmpty()) return false;
+    final int reason = exits.get(0).getReason();
+    return reason == ApplicationExitInfo.REASON_CRASH || reason == ApplicationExitInfo.REASON_CRASH_NATIVE
+        || reason == ApplicationExitInfo.REASON_ANR || reason == ApplicationExitInfo.REASON_SIGNALED;
+  }
+
+  private static void copyFiles(File from, File to) {
+    File[] files = from.listFiles();
+    if (files == null || (!to.isDirectory() && !to.mkdirs())) return;
+    for (File f : files) {
+      if (!f.isFile()) continue;
+      try (InputStream in = new FileInputStream(f);
+           OutputStream out = new java.io.FileOutputStream(new File(to, f.getName()))) {
+        byte[] buffer = new byte[65536];
+        for (int n; (n = in.read(buffer)) > 0; ) out.write(buffer, 0, n);
+      } catch (IOException e) {
+        Log.w(TAG, "cannot keep " + f + ": " + e);
+      }
     }
   }
 

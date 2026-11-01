@@ -31,6 +31,15 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   `RE4_TEST_RSF="ROOM:F,.."` (Raum-Merker beim Laden) und `RE4_TEST_EM_KILL="F:ID"`. Geprüft am PC (EU und Debug,
   Leon an der Stelle des Testers): ohne Patch keine Szene, Gitter zu; mit Patch Szene Bild 901–1154, Leon am Ausgang
   (55080 4266 13710); mit 0x1C unverändert.
+- **Absturz nach längerem Aufenthalt auf Karte, im Händler oder im Koffer (OnePlus 9R, Snapdragon 870 / Adreno 650,
+  Android 11, Debug-Discs, 0.96.6):** der Absturz (16:26:47, „crash (native)“, Signal 11) ist nicht im Bericht: der
+  Tester startete die App danach noch zweimal, der Bericht hält nur die letzten beiden Sitzungen. Beim Start 9411
+  Programme zum Vorladen; in Menüs lädt `Prewarm` 10 ms je Bild statt 4 ms vor: das Muster (nur in Karte, Händler,
+  Koffer) passt zum Absturz im Labor (Zuordnungen bis zur Grenze), in 0.96.7 behoben (nur noch die Programme des
+  Raums). **Neu (`CoreLog.java`):** endet eine Sitzung mit einem Absturz (`crash.txt` nicht leer, oder Android meldet
+  Absturz/ANR/Signal), legt die App ihre Protokolle zusätzlich in `logs/last-crash/` ab; dort bleiben sie bis zum
+  nächsten Absturz und kommen mit in jeden Bericht. Geprüft auf dem Retroid (Debug-APK, Absturz per `kill -11`, zwei
+  Neustarts): `last-crash/` mit `crash.txt` (Signal 11, Aufrufkette), Kernprotokoll und logcat vorhanden.
 - **Garrador steht weiter still, Save-Room-Musik (Samsung SM-A245M, EU Spanisch, 0.96.6, Datei 18 in r201):** gleiche
   Lage wie am 31.10. (s19 Liste 0x56 angekettet). Gemeinsam mit dem Schlüssel-Bericht (US, Infinix): beide Spielstände
   in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,
