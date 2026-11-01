@@ -125,6 +125,12 @@
 //   RE4_TEST_ITEM_LOSE="free+N:ID"  N frames after the player is free, item ID leaves the
 //                          case (cItemMgr::erase): a save whose room marks an item as taken
 //                          that the case lacks (the r201 prison key, patch 0169, 01.11.2026)
+//   RE4_TEST_RSF="ROOM:F[,F...]"  while room ROOM (hex, 0x31b) loads, its room save flags F
+//                          (RsfSet) are set before its init runs: a later state of the room, e.g.
+//                          r31b after U-3 broke in and a retry (0x31b:12, patch 0170, 01.11.2026)
+//   RE4_TEST_EM_KILL="F:ID"  at game frame F the first live enemy of id ID (hex) dies as a
+//                          last hit kills it (hp 0, EmSetDie, routine 3): r31b's U-3 (0x32)
+//                          outside the third room (patch 0170)
 //   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
 //                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
 //                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
@@ -196,6 +202,8 @@
 #include "atari.h"
 #include "emdoor.h"
 #include "sce_sys.h"
+#include "flag_rsf.h"
+#include "em_set.h"
 #include "etc_model.h"
 #include "scroll.h"
 #include "area.h"
@@ -577,6 +585,10 @@ int g_testMerc = 0;          // RE4_TEST_MERC
 long g_itemUseAfter = -1;    // RE4_TEST_ITEM_USE
 int g_itemUseId;
 long g_itemLoseAfter = -1;   // RE4_TEST_ITEM_LOSE
+unsigned g_rsfRoom;          // RE4_TEST_RSF
+unsigned g_killAt, g_killId; // RE4_TEST_EM_KILL
+int g_rsf[8], g_rsfCount;
+bool g_rsfDone;
 int g_itemLoseId;
 long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
@@ -1533,6 +1545,36 @@ void frame(unsigned n)
         re4_log("run: item 0x%02x %s from the case (RE4_TEST_ITEM_USE) at frame %u", g_itemUseId,
                 p == 0 ? "not in" : used ? "used" : "not usable here", n);
     }
+    if (g_rsfCount && !g_rsfDone && g->room_id == g_rsfRoom && g->Rno0 == 2) {
+        g_rsfDone = true;
+        for (int i = 0; i < g_rsfCount; i++) {
+            RsfSet((u16) g_rsfRoom, g_rsf[i]);
+            re4_log("run: room save flag 0x%x of r%03x set while the room loads (RE4_TEST_RSF) at frame %u", g_rsf[i],
+                    g_rsfRoom, n);
+        }
+    }
+    if (g_killAt && n >= g_killAt) {
+        g_killAt = 0;
+        cEm* hit = 0;
+        for (u32 i = 0; i < EmMgr.getArrayNum() && !hit; i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (live(e) && e->isAlive() && e->id == g_killId && e->hp > 0) {
+                hit = e;
+            }
+        }
+        if (hit) {
+            hit->hp = 0;
+            EmSetDie(hit);
+            EmSetDieCnt(hit);
+            hit->r_no_0 = 3;
+            hit->r_no_1 = 0;
+            hit->r_no_2 = 0;
+            hit->r_no_3 = 0;
+        }
+        re4_log("run: enemy 0x%02x %s at frame %u (RE4_TEST_EM_KILL), at (%.0f %.0f %.0f)", g_killId,
+                hit ? "killed" : "not found", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
+                hit ? (double) hit->pos.z : 0.0);
+    }
     if (g_itemLoseAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_itemLoseAfter) {
         g_itemLoseAfter = -1;
         cItem* p = ItemMgr.search((u16) g_itemLoseId);
@@ -1820,6 +1862,26 @@ void configure()
         g_itemUseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
         if (g_itemUseId < 0) {
             g_itemUseAfter = -1;
+        }
+    }
+    if (const char* kill = getenv("RE4_TEST_EM_KILL")) {
+        char* end = 0;
+        g_killAt = (unsigned) strtoul(kill, &end, 10);
+        g_killId = end && *end == ':' ? (unsigned) strtoul(end + 1, 0, 16) : 0;
+        if (!g_killId) {
+            g_killAt = 0;
+        }
+    }
+    if (const char* rsf = getenv("RE4_TEST_RSF")) {
+        char* end = 0;
+        g_rsfRoom = (unsigned) strtoul(rsf, &end, 16);
+        while (end && *end && g_rsfCount < 8) {
+            const char* at = end + 1;
+            g_rsf[g_rsfCount++] = (int) strtol(at, &end, 0);
+            if (end == at) {
+                g_rsfCount--;
+                break;
+            }
         }
     }
     const char* itemLose = getenv("RE4_TEST_ITEM_LOSE");
