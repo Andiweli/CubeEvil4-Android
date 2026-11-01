@@ -73,6 +73,11 @@ bool unsafePlace()
         0x119, 0x11E, // El Gigante: the village square, the village path
         0x224,        // the two El Gigantes over the lava
         0x31B,        // U-3 in the cages
+        // scripted sequences whose progress and partner a reload at the room's start would split (wish of the
+        // project owner, 02.11.2026)
+        0x106,        // the village hall: the boulder and the two Ganado waves
+        0x11C,        // the besieged cabin with Luis
+        0x206,        // the sniper sequence covering Ashley
     };
     for (unsigned i = 0; i < sizeof(rooms) / sizeof(rooms[0]); ++i)
         if (pG->room_id == rooms[i])

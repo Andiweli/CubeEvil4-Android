@@ -32,7 +32,9 @@ Zielfernrohr 0xAA statt Gegenstand 0xAB, siehe Nachtrag unter „Waffen-Cheats�
   deren Code einen Bosskampf startet (`GamePointBossReset`): neu r119, r11e (El Gigante im Dorf), r224, r31b (U-3)
   (Frage des Projektinhabers: Schnellspeichern während Kämpfen sollte nicht gehen). Neue Testhilfe
   `RE4_TEST_EM_DEAD="ROOM:NO"`. Geprüft am PC (r224, EU-Discs, 0xC9 tot, Auslösebereich 9): beide El Gigantes, kein
-  Absturz. Die Sperre selbst nicht am Gerät geprüft.
+  Absturz. Die Sperre selbst nicht am Gerät geprüft. Nach einer Durchsicht (Bosskämpfe, Fahrten, Countdown der
+  Insel: Restzeit liegt im Spielstand) auf Wunsch des Projektinhabers auch gesperrt: r106 (Dorfhaus, Felsbrocken und
+  zwei Wellen), r11c (belagerte Hütte mit Luis), r206 (Scharfschützen-Szene mit Ashley).
 
 ## Version 0.96.7-beta: drei Berichte zu 0.96.6 (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
