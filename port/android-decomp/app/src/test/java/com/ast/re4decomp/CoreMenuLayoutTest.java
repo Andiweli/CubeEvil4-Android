@@ -271,7 +271,10 @@ public class CoreMenuLayoutTest {
       Button autoAim = findButton(body, activity.getString(R.string.ingame_auto_aim));
       Button alwaysRun = findButton(body, activity.getString(R.string.ingame_always_run));
       assertNotNull(autoAim); assertNotNull(alwaysRun);
-      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 1),
+      // "Far camera" in its own row under them (01.11.2026, patch 0171)
+      Button farCamera = findButton(body, activity.getString(R.string.ingame_far_camera));
+      assertNotNull(farCamera);
+      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 2),
           activity.getString(R.string.ingame_aim_invert_v));
       Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
@@ -296,7 +299,8 @@ public class CoreMenuLayoutTest {
       assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
       assertEquals("auto aim right under the latches", rowIndex(latch, body) + 1, rowIndex(autoAim, body));
       assertEquals("always run beside auto aim", rowIndex(autoAim, body), rowIndex(alwaysRun, body));
-      assertEquals("the aim row right under them", rowIndex(autoAim, body) + 1, rowIndex(aimInvert, body));
+      assertEquals("far camera right under them", rowIndex(autoAim, body) + 1, rowIndex(farCamera, body));
+      assertEquals("the aim row right under it", rowIndex(farCamera, body) + 1, rowIndex(aimInvert, body));
       assertEquals("touch aiming right under the aim row", rowIndex(aimInvert, body) + 1, rowIndex(touchAim, body));
       // the button mapping at the bottom, under a heading of its own
       assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));
@@ -434,22 +438,29 @@ public class CoreMenuLayoutTest {
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       show.invoke(menu, 5, false);  // CHEATS, a page of its own since 30.10.2026
       ViewGroup body = (ViewGroup) field(menu, "body");
-      ViewGroup switches = (ViewGroup) body.getChildAt(0), actions = (ViewGroup) body.getChildAt(1);
-      assertEquals(3, switches.getChildCount()); assertEquals(3, actions.getChildCount());
+      // the switches, then the weapons (01.11.2026: two rows of three, Killer7 last), then the case and the money
+      ViewGroup switches = (ViewGroup) body.getChildAt(0), weapons = (ViewGroup) body.getChildAt(1);
+      ViewGroup actions = (ViewGroup) body.getChildAt(2), caseMoney = (ViewGroup) body.getChildAt(3);
+      assertEquals(3, switches.getChildCount()); assertEquals(3, weapons.getChildCount());
+      assertEquals(3, actions.getChildCount()); assertEquals(2, caseMoney.getChildCount());
+      assertTrue(((Button) weapons.getChildAt(0)).getText().toString()
+          .contains(activity.getString(R.string.ingame_cheat_handcannon)));
+      assertTrue(((Button) caseMoney.getChildAt(1)).getText().toString()
+          .contains(activity.getString(R.string.ingame_cheat_money)));
       Button health = (Button) switches.getChildAt(0), oneHit = (Button) switches.getChildAt(2);
       assertFalse(health.isSelected());
       health.performClick(); assertEquals(1, sent[0]);
       oneHit.performClick(); assertEquals(5, sent[0]);
       health.performClick(); assertEquals(4, sent[0]);
       // the bottom row (29.10.2026): two, automatic QTEs (bit 8) and the extra games' button
-      ViewGroup more = (ViewGroup) body.getChildAt(2);
+      ViewGroup more = (ViewGroup) body.getChildAt(4);
       assertEquals(2, more.getChildCount());
       Button qte = (Button) more.getChildAt(0), extras = (Button) more.getChildAt(1);
       assertTrue(qte.getText().toString().contains(activity.getString(R.string.ingame_cheat_qte)));
       assertTrue(extras.getText().toString().contains(activity.getString(R.string.ingame_cheat_extras)));
       qte.performClick(); assertEquals(12, sent[0]);
       qte.performClick(); assertEquals(4, sent[0]);
-      Button killer7 = (Button) actions.getChildAt(0);
+      Button killer7 = (Button) actions.getChildAt(2);
       assertTrue(killer7.getText().toString().contains(activity.getString(R.string.ingame_cheat_killer7)));
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());

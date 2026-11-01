@@ -95,9 +95,23 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   Arm-Hinweis im Intro mit `SceMesSet`-Flag 0x20 wie die anderen Hinweise und EU (sonst standen Bewegung und Kamera);
   dazu wie EU Messer beim Arm verborgen, Debug-Tastenkombination L+B+X weg, mit Verkaufs-Discs SE 0x35 beim Schlag.
   Geprüft am PC (r400, EU-Discs, `RE4_TEST_MERC=1`, `RE4_TEST_PLAYER=4`): Pfeil im Kreis, Bogen ohne Zahl, Arm leuchtet
-  im Intro und Match, Krauser bewegt sich während der Hinweise, X + A verwandelt den Arm und schlägt. **Noch offen**
-  (nicht untersucht): Knie-Tritt ohne Treffergeräusch, Kopf beim Kettensägen-Tod (Krauser schwebt, Ada weißer Kopf),
-  Ada-Sichtfeld, Tasten nach dem Schließen des Koffers (Zielen + Feuern gehalten), Kamera nach Zoom + Griff.
+  im Intro und Match, Krauser bewegt sich während der Hinweise, X + A verwandelt den Arm und schlägt. **Patch 0175**
+  (`em10.cpp`, `emwep.cpp`, `pl02.cpp`): Kopf beim Kettensägen-/Sensen-Tod wie EU-`em10PlHeadLost` und EU-
+  `cPlAda::setHead`: Krausers fallender Kopf ist sein Kopfmodell 0xD (0xC ist der Hals, den `setHead` aufsetzt: der
+  Kopf verschwand nur), Adas fallender Kopf mit ihrer Textur 0xD (sonst weiß), Ada verliert Gesicht, Kopf und Haare (der
+  echte Kopf blieb stehen). Neue Testhilfe `RE4_TEST_HEAD_LOST=N`. Geprüft am PC (r400, EU-Discs): Krausers Kopf fällt
+  mit Textur, Adas echter Kopf fällt, keiner bleibt; Debug-Discs zeigen keinen fallenden Kopf (`eff_country` 0, nur
+  Blut). **Noch offen** (nicht untersucht): Knie-Tritt ohne Treffergeräusch, Ada-Sichtfeld, Tasten nach dem Schließen
+  des Koffers (Zielen + Feuern gehalten), Kamera nach Zoom + Griff.
+- **Waffen-Cheats (Wunsch des Projektinhabers, 01.11.2026):** auf der Cheat-Seite unter den Schaltern zwei Reihen
+  Waffen, je auf den höchsten Stufen samt Exklusiv-Aufrüstung der letzten Händlertabellen: Handcannon 7/1/3/7 (endlos,
+  Patch 0146), Chicago Typewriter 7/1/3/7 (Magazin-Stufe 7 = endlos wie die EU-Fassung sie verkauft), Raketenwerfer
+  (der endlose, 0x6D), Minenwerfer mit Zielfernrohr (0xAB) 4/1/2/3, Matilda 6/1/3/7 (100 Schuss), Killer7 (Text ohne
+  „(3/1/3/3)“); Koffer L und Geld darunter in einer Zweierreihe. Kern: `cheats.cpp` (Knöpfe 5–9, Tabelle `kGifts`),
+  `core_api.cpp` (bis 9). Die PRL 412 gibt es auf dem GameCube nicht (erst PS2). Mit „Unendlich Munition“ alle endlos.
+  Geprüft am PC (r100, Debug-Discs, `RE4_TEST_CHEATS`): alle sechs hinzugefügt mit den Stufen oben, `CoreMenuLayoutTest`.
+- **Garrador/Ashley r201:** auf das nächste Release verschoben (Entscheidung des Projektinhabers, 01.11.2026: der
+  Tester meldet sich nicht).
 - **Auto-Zielen zielt über den Gegner (Bericht des Projektinhabers 13:52, Gyro-Zielen an, Kamera „Far“):**
   `PlSetLockPitch` (Startwinkel der Zielhilfe, im Prototyp nur im Debug-Menü) rechnet von Leons Füßen statt von der
   Waffe und in einem anderen Maß als `PlWepAutoTrack`, das danach nachführt; ohne Gyro korrigiert das Nachführen in
@@ -10952,6 +10966,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0171 `cam_qfps.cpp` | Kamera „Far“ (Menü Steuerung, standardmäßig aus): Schulterkamera beim Laufen und Stehen bis 1,4-mal so weit hinter Leon, weich ein- und ausgeblendet, Zielen wie das Spiel; nach dem Wandschutz sofort näher, nach hinten gebremst. Nutzerwunsch 01.11.2026, neue Option |
 | 0172 `ss_pzzl.cpp`, `cockpit.cpp` | Krausers Bogen: keine „0“ im Koffer (Fehler des Prototyps, wie EU-`pieceModelDisp`); mit Verkaufs-Discs das Pfeil-Symbol 0x3B im Waffenkreis (wie EU-`dispBulletIconMarkNo`). Nutzerbericht 01.11.2026 |
 | 0173 `pl_klauser.cpp`, `mercenaries.cpp` | Krausers Arm wie die Verkaufsfassung: Leuchten mit `Core_flg` 1 (im Intro und danach sichtbar), `krEffWait = -1` erst im Angriff (Arm nicht mehr dauerhaft gesperrt), kein Ächzen beim Abbrechen, Arm-Hinweis im Intro mit Flag 0x20 (Bewegung und Kamera laufen); Messer verborgen, Debug-Kombination weg, SE 0x35 mit Verkaufs-Discs. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0175 `em10.cpp`, `emwep.cpp`, `pl02.cpp` | Kopf beim Kettensägen-/Sensen-Tod wie die Verkaufsfassung: Krausers fallender Kopf ist sein Kopfmodell (0xD), Adas mit ihrer Textur (0xD); Ada verliert Gesicht, Kopf und Haare. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

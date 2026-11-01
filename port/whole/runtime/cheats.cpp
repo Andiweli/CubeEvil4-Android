@@ -21,6 +21,8 @@
 //   1 Killer7 with the highest levels 3/1/3/3 (item 0x2A, stored as level - 1), magazine full
 //   2 attache case L (item 0x7E; the case grows when it is opened next, as after buying it)
 //   3 +1 000 000 pesetas (addMoney: at most 99 999 999; decision 2)
+//   5..9 more weapons at their highest levels (wish of the project owner, 01.11.2026; kGifts): Handcannon,
+//     Chicago Typewriter, the endless rocket launcher, the Mine Thrower with its scope, Matilda
 // One button anywhere (pSys only; wish of the project owner, 29.10.2026), the app restarts the game after
 // a question so the title menu shows it:
 //   4 unlock the extra games: what clearing the game sets (r333.cpp, the end of the last room) for
@@ -55,11 +57,41 @@ int gApplied;                  // what the game frames have set so far
 std::atomic<int> gQueued(0);   // a button pressed while the game ran (the hook does it)
 int gHooked;
 
+// The weapon buttons: the item and its highest levels (fire, speed, reload, capacity; 0: none), the
+// exclusive tune-ups of the merchant's last tables included (merchant.cpp level_ext_normal, level_ext_sw500 as
+// patch 0146 has it, level_ext_tompson with capacity 7 = endless as the European game sells it, level_r301's
+// homing mines 4); the rocket launcher the endless one (0x6D)
+struct Gift {
+    int what;
+    u16 id;
+    const char* name;
+    u8 level[4];
+};
+const Gift kGifts[] = {
+    {1, 0x2A, "Killer7 3/1/3/3", {3, 1, 3, 3}},
+    {5, 0x37, "Handcannon 7/1/3/7", {7, 1, 3, 7}},
+    {6, 0x34, "Chicago Typewriter 7/1/3/7", {7, 1, 3, 7}},
+    {7, 0x6D, "rocket launcher (endless)", {0, 0, 0, 0}},
+    {8, 0xAB, "Mine Thrower with scope 4/1/2/3", {4, 1, 2, 3}},
+    {9, 0x03, "Matilda 6/1/3/7", {6, 1, 3, 7}},
+};
+
+const Gift* gift(int what)
+{
+    for (const Gift& g : kGifts) {
+        if (g.what == what) {
+            return &g;
+        }
+    }
+    return 0;
+}
+
 const char* actionName(int what)
 {
+    if (const Gift* g = gift(what)) {
+        return g->name;
+    }
     switch (what) {
-    case 1:
-        return "Killer7 3/1/3/3";
     case 2:
         return "attache case L";
     case 3:
@@ -194,22 +226,33 @@ int re4CheatPerform(int what)
     }
     int result = 1;
     switch (what) {
-    case 1: {
-        cItem* p = ItemMgr.search(0x2A);
+    case 1:
+    case 5:
+    case 6:
+    case 7:
+    case 8:
+    case 9: {
+        const Gift* g = gift(what);
+        cItem* p = ItemMgr.search(g->id);
         if (p) {
             result = 2;  // already owned: only raised to the highest levels
-        } else if (!ItemMgr.get(0x2A, 0) || !(p = ItemMgr.search(0x2A))) {
+        } else if (!ItemMgr.get(g->id, 0) || !(p = ItemMgr.search(g->id))) {
             re4_log("cheat: %s: no free slot in the inventory", actionName(what));
             return -1;
         }
-        // highest levels of 0x2A in wep_level_info: fire 3, speed 1, reload 3, capacity 3 (stored - 1)
-        p->setPowerLevel(WeaponId2MaxLevel(0x2A, 0) - 1);
-        p->setSpeedLevel(WeaponId2MaxLevel(0x2A, 1) - 1);
-        p->setReloadLevel(WeaponId2MaxLevel(0x2A, 2) - 1);
-        p->setBulletLevel(WeaponId2MaxLevel(0x2A, 3) - 1);
-        u16 full = WeaponId2ChargeNum(0x2A, p->getBulletLevel() + 1);
+        if (g->level[0]) {
+            p->setPowerLevel(g->level[0] - 1);
+            p->setSpeedLevel(g->level[1] - 1);
+            p->setReloadLevel(g->level[2] - 1);
+            p->setBulletLevel(g->level[3] - 1);
+        }
+        // the magazine full (0x8000: endless, patch 0146; the shop's own store, ss_shop.cpp)
+        u16 full = WeaponId2ChargeNum(g->id, p->getBulletLevel() + 1);
         if (full != 0xFF) {
-            p->bullet = (u16) ((p->bullet & 0xE000) | full);
+            p->bullet = (u16) ((p->bullet & 0xE000) | (full & 0x1FFF));
+        }
+        if (ItemMgr.weapon() == p) {
+            ItemMgr.arm(p);
         }
         re4_log("cheat: %s %s (levels 0x%04x, %d rounds)", actionName(what), result == 2 ? "raised" : "added", p->lv,
                 p->bullet & 0x1FFF);

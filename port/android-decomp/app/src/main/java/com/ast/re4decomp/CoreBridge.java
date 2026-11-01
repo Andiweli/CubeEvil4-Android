@@ -145,6 +145,8 @@ public final class CoreBridge {
   /**
    * A cheat menu button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1,000,000 pesetas,
    * 4 unlock the extra games (Assignment Ada, The Mercenaries; at any time).
+   * 5..9 Handcannon, Chicago Typewriter, the endless rocket launcher, Mine Thrower with scope, Matilda, each at
+   * its highest levels (01.11.2026).
    * 1 done, 2 already so, 0 not now (1-3: not Leon, a sub screen, a movie), -1 no room in the case,
    * 3 done by the next game frame, -2 the core has no cheat menu.
    */

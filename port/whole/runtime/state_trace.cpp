@@ -275,6 +275,8 @@ extern const char* proc_name[32];
 extern int proc_tick_idx_bak;
 extern "C" void re4_gx_stats2(unsigned out[9]);
 
+void emWepPlHeadLost();  // game/emwep.cpp (RE4_TEST_HEAD_LOST)
+
 namespace {
 
 FILE* g_trace;
@@ -1604,6 +1606,16 @@ void frame(unsigned n)
         re4_log("run: enemy 0x%02x %s at frame %u (RE4_TEST_EM_KILL), at (%.0f %.0f %.0f)", g_killId,
                 hit ? "killed" : "not found", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
                 hit ? (double) hit->pos.z : 0.0);
+    }
+    // RE4_TEST_HEAD_LOST=N: N frames after the player is free his head comes off as by the scythe
+    // (emWepPlHeadLost: setHead 0 and the head as an obj01), only the picture of it, no death (the
+    // Mercenaries report of 01.11.2026: Krauser's head floats, Ada's falls white)
+    static long headLost = getenv("RE4_TEST_HEAD_LOST") ? strtol(getenv("RE4_TEST_HEAD_LOST"), 0, 10) : -1;
+    if (headLost >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + headLost) {
+        headLost = -1;
+        emWepPlHeadLost();
+        re4_log("run: the player's head comes off at frame %u (RE4_TEST_HEAD_LOST), player type %u", n,
+                (unsigned) pG->pl_type);
     }
     if (g_itemLoseAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_itemLoseAfter) {
         g_itemLoseAfter = -1;

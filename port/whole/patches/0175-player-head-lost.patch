@@ -1,0 +1,58 @@
+# Port patch, a user's report (01.11.2026, The Mercenaries, killed by the chainsaw): Krauser's head vanished and did
+# not fall, Ada's real head stayed on while a white head fell. Bugs of the prototype, as the retail releases (EU em10
+# em10PlHeadLost, EU pl02 cPlAda::setHead):
+# - the flying head (SetObj01) took PL_ARC 0xC for everyone; Krauser's archive has his head at 0xD (0xC is the neck
+#   that his setHead puts on the body: the European archive's order, runtime/formats/formats.cpp, has it at 0xC);
+#   Ada's head needs her head texture 0xD (the European em10PlHeadLost: texture 0xD for player type 2);
+# - cPlAda::setHead removed only the head model; the retail releases remove face, head and hair, as Leon's.
+# The same for the scythe (emWepPlHeadLost). Not for the other enemies' head kills (em25, em2c, em2d, em31, em32).
+# Only the picture: with the debug discs the game shows no flying head (pSys->eff_country 0, blood only).
+# Checked on the PC (r400, EU discs, RE4_TEST_HEAD_LOST=60): Krauser's head falls with its texture; Ada's real
+# head falls textured, none stays on the body.
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -26812,7 +26812,11 @@
+     ofs.z = -25.0f;
+     PSMTXMultVec(p->mat, &v, &v);
+     PSMTXMultVecSR(pPL->mat, &ofs, &ofs);
+-    o = SetObj01(PL_ARC_PTR(pG->pPlayer, 0xC), PL_ARC_PTR(pG->pPlayer, 7), &v, &pPL->ang, &ofs, 10.0f, 150.0f, 1000,
++    /* port (patch 0175, a bug of the prototype): the head that flies off as the retail releases' em10PlHeadLost:
++       Krauser's own head model (0xD; 0xC is the neck setHead puts on the body, so his head only vanished),
++       Ada's head with her head texture 0xD (with 7 it fell white) */
++    o = SetObj01(PL_ARC_PTR(pG->pPlayer, pG->pl_type == 4 ? 0xD : 0xC),
++                  PL_ARC_PTR(pG->pPlayer, pG->pl_type == 2 ? 0xD : 7), &v, &pPL->ang, &ofs, 10.0f, 150.0f, 1000,
+                  0x11);
+     if (o) {
+         o->LightInfo.EnableMask = 1;
+--- a/src/game/emwep.cpp
++++ b/src/game/emwep.cpp
+@@ -2479,7 +2479,11 @@
+     p1.z = -25.0f;
+     PSMTXMultVec(p->mat, &p0, &p0);
+     PSMTXMultVecSR(pPL->mat, &p1, &p1);
+-    obj = SetObj01(PL_ARC_PTR(pG->pPlayer, 0xC), PL_ARC_PTR(pG->pPlayer, 7), &p0, &pPL->ang, &p1, 10.0f, 150.0f, 1000, 0x11);
++    /* port (patch 0175, a bug of the prototype): the head that flies off as the retail releases' em10PlHeadLost:
++       Krauser's own head model (0xD; 0xC is the neck setHead puts on the body, so his head only vanished),
++       Ada's head with her head texture 0xD (with 7 it fell white) */
++    obj = SetObj01(PL_ARC_PTR(pG->pPlayer, pG->pl_type == 4 ? 0xD : 0xC),
++                  PL_ARC_PTR(pG->pPlayer, pG->pl_type == 2 ? 0xD : 7), &p0, &pPL->ang, &p1, 10.0f, 150.0f, 1000, 0x11);
+     if (obj) {
+         obj->LightInfo.EnableMask = 1;
+         Obj01SetEst(obj, 0, -1, 4, 0, -1, 0, -1, 0, -1);
+--- a/src/pl02/pl02.cpp
++++ b/src/pl02/pl02.cpp
+@@ -340,8 +340,14 @@
+     if (Body->m_pHead == 0) {
+         return;
+     }
++    /* port (patch 0175, a bug of the prototype): the face and the hair go with the head, as the retail releases'
++       cPlAda::setHead (Leon's too); else her head stayed on while it flew off (chainsaw, scythe) */
++    deleteModelInfo(Body->m_pFace);
++    Body->m_pFace = 0;
+     deleteModelInfo(Body->m_pHead);
+     Body->m_pHead = 0;
++    deleteModelInfo(Body->m_pHair);
++    Body->m_pHair = 0;
+     info = ModInfoMgr.create(PL_ARC_PTR(pG->pPlayer, 0xB), PL_ARC_PTR(pG->pPlayer, 7));
+     if (info) {
+         addModel(info);

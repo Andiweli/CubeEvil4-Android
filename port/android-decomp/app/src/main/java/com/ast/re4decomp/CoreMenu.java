@@ -100,7 +100,7 @@ final class CoreMenu extends Dialog {
     /** The cheat switches: bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
      *  extra games kept unlocked (CoreActivity.CHEATS holds them). */
     void cheatsChanged(int bits);
-    /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games), off the main thread:
+    /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games, 5..9 weapons), off the main thread:
      *  CoreBridge.cheatAction's answer. */
     int cheatAction(int what);
     /** The game restarts with its language as it is (the extra games; the menu asked first). */
@@ -1055,16 +1055,23 @@ final class CoreMenu extends Dialog {
     body.addView(switches, new LinearLayout.LayoutParams(-1, -2));
     final int[] switchLabels = {R.string.ingame_cheat_health, R.string.ingame_cheat_ammo, R.string.ingame_cheat_onehit};
     for (int i = 0; i < switchLabels.length; i++) cheatSwitch(switches, switchLabels[i], 1 << i);
-    MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), 3);
-    body.addView(actions, new LinearLayout.LayoutParams(-1, -2));
-    final int[] actionLabels = {R.string.ingame_cheat_killer7, R.string.ingame_cheat_case, R.string.ingame_cheat_money};
-    for (int i = 0; i < actionLabels.length; i++) {
-      final int what = i + 1, label = actionLabels[i];
-      // lit up for a moment after a press (wish of the project owner, 27.10.2026: they gave no sign)
-      cellAction(actions, s(label), v -> {
-        v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
-        cheatAction(what, label);
-      });
+    // the weapons right below the switches (wish of the project owner, 01.11.2026), each at its highest levels,
+    // then the case and the money; the core's button numbers (runtime/cheats.cpp)
+    final int[][] rows = {{5, 6, 7}, {8, 9, 1}, {2, 3}};
+    final int[] rowLabels = {0, R.string.ingame_cheat_killer7, R.string.ingame_cheat_case, R.string.ingame_cheat_money, 0,
+        R.string.ingame_cheat_handcannon, R.string.ingame_cheat_chicago, R.string.ingame_cheat_rocket,
+        R.string.ingame_cheat_mine, R.string.ingame_cheat_matilda};
+    for (int[] row : rows) {
+      MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), row.length);
+      body.addView(actions, new LinearLayout.LayoutParams(-1, -2));
+      for (int what : row) {
+        final int label = rowLabels[what];
+        // lit up for a moment after a press (wish of the project owner, 27.10.2026: they gave no sign)
+        cellAction(actions, s(label), v -> {
+          v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
+          cheatAction(what, label);
+        });
+      }
     }
     // the bottom row (wish of the project owner, 29.10.2026): two, each as wide as half the row, the
     // switch "Automatic QTEs" and the button "Unlock extra games" (Assignment Ada, The Mercenaries)
@@ -1103,7 +1110,7 @@ final class CoreMenu extends Dialog {
         }
         String text;
         if (done == 1) text = getContext().getString(R.string.ingame_cheat_done, s(label));
-        else if (done == 2 && what == 1) text = s(R.string.ingame_cheat_raised);
+        else if (done == 2 && (what == 1 || what >= 5)) text = getContext().getString(R.string.ingame_cheat_raised, s(label));
         else if (done == 2) text = getContext().getString(R.string.ingame_cheat_already, s(label));
         else if (done == 0) text = s(R.string.ingame_cheat_not_now);
         else if (done == -1) text = s(R.string.ingame_cheat_no_room);

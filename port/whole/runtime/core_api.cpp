@@ -713,7 +713,7 @@ void re4_core_set_cheats(int bits)
 
 int re4_core_cheat_action(int what)
 {
-    if (what < 1 || what > 4) return 0;
+    if (what < 1 || what > 9) return 0;
     pthread_mutex_lock(&gPauseLock);
     if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {
         pthread_mutex_unlock(&gPauseLock);
