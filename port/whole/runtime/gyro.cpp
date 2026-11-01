@@ -18,7 +18,8 @@
 //    and the aim's pitch (m3r, -1..1 for -45..45 degrees, positive is up)
 //    together with the centre of the sway (cPlWep::pitch, m3r * PI/2):
 //    PlWepLockRand pulls m3r back to that centre on the frames the stick
-//    rests. A started auto aim (lock-on option, cPlWep::m_LockTime) ends.
+//    rests. A started auto aim (lock-on option, cPlWep::m_LockTime) ends;
+//    a turn below kLockKeep a frame leaves it running (and turns nothing).
 //
 // The harpoon in the boat of the Del Lago fight too (wish of the project owner, 23.10.2026): while
 // the player aims it (pl0f plboat_R2_SpearSet / SpearSet2, routine 0/0xF/3 or 0/0xF/0xA, step 3,
@@ -46,6 +47,9 @@
 #include "cam_ctrl.h"
 #include "cam_extra.h"
 
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 extern GLOBAL_WK* pG;
@@ -61,6 +65,7 @@ const float kFrame = 1.0f / 30.0f;
 const float kPi = 3.14159265f;
 const float kBoatDir = 0.3926991f;                  // the harpoon sight's limit across (pl0f)
 const float kBoatBlend = 488.92398f / 0.390625f;    // m_Blend units per radian up, for the same pixels
+const float kLockKeep = 0.003f;                     // radians a frame (about 5 degrees a second of the aim at 30 frames)
 
 // the app's thread writes, the game's reads: the floats as bits, and when (ms)
 volatile u32 gYawBits, gPitchBits, gWhen;
@@ -144,6 +149,12 @@ bool turnAim(float yaw, float pitch)
         if (x > scope->angle_max) x = scope->angle_max;
         scope->angle_x = x;
     } else if (pl->r_no_2 == 1 || pl->r_no_2 == 2) {
+        // the app's auto aim (a user's report, 01.11.2026: the laser above the head): for the 10 frames the
+        // gun follows its target (cPlWep::m_LockTime) a hand's small unrest (below kLockKeep a frame) neither
+        // turns the aim nor ends the lock; a real turn does both
+        if (pl->Wep->m_LockTime != 0 && fabsf(yaw) < kLockKeep && fabsf(pitch) < kLockKeep) {
+            return true;
+        }
         pl->ang.y += yaw;
         const f32 before = m3r;
         m3r += pitch / (kPi / 4.0f);
@@ -156,8 +167,15 @@ bool turnAim(float yaw, float pitch)
     return true;
 }
 
+// For tests on the PC: RE4_TEST_GYRO="yaw,pitch", the device's turn rates (rad/s) as the app would send them,
+// all the time (a hand's unrest while aiming: the auto aim, patch 0174)
+bool gTest;
+
 void gyroHook(unsigned)
 {
+    if (gTest) {
+        __atomic_store_n(&gWhen, nowMs(), __ATOMIC_RELAXED);
+    }
     // the swipe since the last frame: taken whether it turns or not (a swipe while not aiming is gone)
     lockSwipe();
     const float swipeYaw = gSwipeYaw, swipePitch = gSwipePitch;
@@ -184,6 +202,22 @@ void gyroHook(unsigned)
                 gTurned);
     }
 }
+
+struct TestGyro {
+    TestGyro()
+    {
+        float yaw = 0.0f, pitch = 0.0f;
+        const char* v = getenv("RE4_TEST_GYRO");
+        if (v && sscanf(v, "%f,%f", &yaw, &pitch) == 2) {
+            gTest = true;
+            gYawBits = bits(yaw);
+            gPitchBits = bits(pitch);
+            gHooked = true;
+            re4_add_frame_hook(gyroHook);
+            re4_log("gyro: test turn rates %.3f, %.3f rad/s (RE4_TEST_GYRO)", (double) yaw, (double) pitch);
+        }
+    }
+} gTestGyro;
 
 } // namespace
 

@@ -1,0 +1,112 @@
+# Port patch, a user's report (01.11.2026, The Mercenaries as Krauser, compared with the retail game): Krauser's arm
+# as the retail releases' pl0a module (EU pl_R1_KlauserAttack, cPlKlauser::move / checkXbutton) and their
+# MercSysMoveStart (EU main.dol 0x8001de70). Bugs of the prototype:
+# - the arm's glow effect (EstSet 0x15) started without Core_flg 1: it stopped while the game was suspended and the
+#   end of the intro event deleted it, so the arm was dark in the intro and often stayed dark into the match;
+# - checkXbutton set krEffWait = -1 before the attack's first step ran: when another routine took over in between,
+#   -1 stayed without the transform flag (cPlayer's interrupt resets it only with the flag), the arm was unusable
+#   for the rest of the match; the retail releases set it in the first step;
+# - cancelling the arm (B) played the grunt SE 0x52; the retail releases play none;
+# - Krauser's arm hint in the intro used SceMesSet flags 0 instead of 0x20 (the camera cut kept, as the other intro
+#   messages): the intro's motion and camera stood still while it showed.
+# Also as the retail releases: the knife hidden when the arm starts, the debug combination L + B + X (effects
+# restarted) left out, and with the retail discs the slash's extra SE 0x35 (their sound data).
+# Checked on the PC (r400, EU discs, RE4_TEST_MERC=1, RE4_TEST_PLAYER=4): the arm glows in the intro and the match,
+# Krauser moves in the intro while the hints show, X + A transforms the arm and slashes.
+--- a/src/pl0a/pl_klauser.cpp
++++ b/src/pl0a/pl_klauser.cpp
+@@ -20,6 +20,7 @@
+ // Store through a reference: a scalar (non-struct) MEM, so pG is reloaded after every store.
+ 
+ static void pl_R1_KlauserAttack(cPlayer* pl);
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp (patch 0173) */
+ 
+ static TexRenderMng* pl0aTex;
+ static u8 pl0aTexTbl[0x20];
+@@ -102,15 +103,14 @@
+         krEffWait--;
+         if (krEffWait == 0) {
+             EstSet(this, -1, 0, 0, EFF_PL00, 0, 0, ESP_CORE_KIND_MARK, this, 0);
+-            EstSet(this, -1, 0, 0, EFF_PL00, 0x15, 0, ESP_CORE_KIND_MARK, this, 0);
+-        }
+-    }
+-    if ((Joy[0].on & 0x640) == 0x640) {
+-        EffectEspDelete(0, ESP_CORE_KIND_MARK, this, 0);
+-        EffectEspgenDelete(0, ESP_CORE_KIND_MARK, this);
+-        EffectEfmDelete(0, ESP_CORE_KIND_MARK, this);
+-        krEffWait = 1;
+-    }
++            /* port (patch 0173, a bug of the prototype): the arm's glow with Core_flg 1 as the retail releases, so it
++               runs on while the game is suspended and outlives the end of an event (EspgenDeleteEvent): the intro
++               of The Mercenaries deleted it, and the arm stayed dark into the match */
++            EstSet(this, -1, 0, 0, EFF_PL00, 0x15, 1, ESP_CORE_KIND_MARK, this, 0);
++        }
++    }
++    /* port (patch 0173): the debug combination Joy 0x640 (L + B + X held: the effects deleted and restarted) as
++       the retail releases left out */
+ }
+ 
+ // Before the matrix calculation of the frame: the arm / glow alpha fades.
+@@ -218,7 +218,10 @@
+         r_no_1 = 0xA;
+         r_no_2 = 0;
+         r_no_3 = 0;
+-        krEffWait = -1;
++        /* port (patch 0173, a bug of the prototype): krEffWait = -1 moves into the attack's first step, as the
++           retail releases: when another routine took over before that step ran, -1 stayed without the
++           transform flag (cPlayer's interrupt resets it only with the flag) and the arm was unusable for the
++           rest of the match */
+         return 1;
+     }
+     return 0;
+@@ -433,6 +436,7 @@
+         pl->motionSet(PL_ARC(0x8A), 5, 0, 1, 0);
+         pl->x890 = 10;
+         StaFlagOn(pG, STA_KLAUSER_TRANSFORM);
++        pl->krEffWait = -1; /* port (patch 0173): here, as the retail releases */
+         pl->Neck->clear();
+         DmgMgr.set(DMG_TYPE_PUSH, 0x1E, &pl->pos, 1000.0f, 2000.0f);
+         EffectEspDelete(0, ESP_CORE_KIND_MARK, pl, 0);
+@@ -442,6 +446,7 @@
+         SndCall(1, 0x51, &pl->pos, 0, 0, 0);
+         SndCall(1, 0x52, &pl->pos, 0, 0, 0);
+         pl->Wep->m_pWep->setDisp(1, 0);
++        pl->Body->setKnife(false); /* port (patch 0173): the knife hidden, as the retail releases */
+         pl->r_no_2 = 1;
+         // fallthrough
+     case 1:
+@@ -472,6 +477,10 @@
+         pl->atari.setPriority(PRI_LV2);
+         pl->dmg.set(0, 0x80);
+         EstSet(pl, -1, 0, 0, EFF_PL00, 0xB, 0, ESP_CORE_KIND_MARK, pl, 0);
++        if (re4_disc_retail()) {
++            /* port (patch 0173): the retail releases' slash plays their sound 0x35 first */
++            SndCall(1, 0x35, &pl->pos, 0, 0, 0);
++        }
+         SndCall(1, 0x53, &pl->pos, 0, 0, 0);
+         pl->r_no_2 = 0x15;
+         // fallthrough
+@@ -505,7 +514,8 @@
+         EffectEspDelete(0, ESP_CORE_KIND_MARK, pl, 0);
+         EffectEspgenDelete(0, ESP_CORE_KIND_MARK, pl);
+         EffectEfmDelete(0, ESP_CORE_KIND_MARK, pl);
+-        SndCall(1, 0x52, &pl->pos, 0, 0, 0);
++        /* port (patch 0173, a bug of the prototype): no grunt (SE 0x52) when the arm is cancelled, as the retail
++           releases */
+         pl->Wep->m_pWep->setDisp(1, 1);
+         pl->r_no_2 = 0x1F;
+         // fallthrough
+--- a/src/game/mercenaries.cpp
++++ b/src/game/mercenaries.cpp
+@@ -266,7 +266,10 @@
+                 }
+             }
+             if (pG->pl_type == 4) {
+-                SceMesSet(wk->mes[4], 0, 1, 100, 336 - cMes.getLineGap(0) - cMes.getFontHeight(0) - 1);
++                /* port (patch 0173, a bug of the prototype): Krauser's arm hint with flags 0x20 (the camera cut
++                   kept) as the other intro messages and the retail releases; with 0 the intro's motion and camera
++                   stood still while it showed */
++                SceMesSet(wk->mes[4], 0x20, 1, 100, 336 - cMes.getLineGap(0) - cMes.getFontHeight(0) - 1);
+             }
+             st[1]++;
+             break;

@@ -1,0 +1,42 @@
+# Port patch, a user's report (01.11.2026, the app's "Auto aim" with gyro aiming: the laser often above the enemy
+# instead of on it). The game's lock-on (CFG_LOCK_ON, in the prototype only in the debug menu's config page) starts
+# the aim's pitch in PlSetLockPitch: the elevation from Leon's feet (pList) to the lock point, as m3r radians /
+# (PI/2), while PlWepAutoTrack, which follows the target after it, aims from the gun hand and counts m3r as
+# radians / (PI/4). Without gyro the follow corrects it within a few frames; the gyro's smallest turn ended the lock
+# (runtime/gyro.cpp) and the too high start stayed. Now the start is PlWepAutoTrack's own aim (gun hand to the
+# lock point with lockOfs, / (PI/4)), the sway's centre m3r * PI/2; and gyro.cpp keeps the lock through a hand's
+# unrest (below kLockKeep). Checked on the PC (r400 Mercenaries as Leon, RE4_TEST_AIM=2, RE4_TRACE_LOCK=1,
+# RE4_TEST_GYRO=0.1,0.05): the lock holds, the laser 1413..1433 above the Ganado's feet at its lock point 1459;
+# with a turn that ends the lock the start pitch m3r -0.073 (before -0.046, higher).
+--- a/src/game/pl_wep.cpp
++++ b/src/game/pl_wep.cpp
+@@ -1172,11 +1172,24 @@
+ 
+     if (CfgFlagChk(pSys, CFG_LOCK_ON)) {
+         if (pl->m_pEm) {
+-            Vec d;
+-
+-            PSVECSubtract(&pl->m_pEm->getPartsPtr(pl->m_pEm->lockParts)->world, &pl->pList->world,
+-                          &d);
+-            p = VecElevation(&d);
++            /* port (patch 0174): the app's "Auto aim" (CFG_LOCK_ON, only in the debug menu of the prototype)
++               aimed above the enemy (a user's report, 01.11.2026): the elevation from Leon's feet (pList)
++               instead of the gun, and in radians / (PI/2) where PlWepAutoTrack, which the lock then follows,
++               counts m3r as radians / (PI/4). Now PlWepAutoTrack's own aim: from the gun hand (part 10) to the
++               lock point (lockParts & 7 with lockOfs), atan2 over the distance, / (PI/4); the sway's centre
++               (pitch) m3r * PI/2 as PlWepLockRand converts it */
++            Vec tgt;
++            Vec* hand = &pl->getPartsPtr(10)->world;
++
++            PSMTXMultVec(pl->m_pEm->getPartsPtr(pl->m_pEm->lockParts & 7)->mat, &pl->m_pEm->lockOfs, &tgt);
++            p = atan2(tgt.y - hand->y, GetDistance3(hand, &tgt)) / (PI / 4.0f);
++            if (p > 1.0f) {
++                p = 1.0f;
++            }
++            if (p < -1.0f) {
++                p = -1.0f;
++            }
++            p *= PI / 2.0f;
+         } else {
+             p = 0.0f;
+         }

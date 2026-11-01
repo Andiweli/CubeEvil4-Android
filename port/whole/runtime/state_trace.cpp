@@ -1083,6 +1083,32 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                 n, (double) p.x, (double) p.y, (double) p.z, (double) pPL->ang.y, (double) sqrtf(dx * dx + dz * dz),
                 (double) (c.y - p.y));
     }
+    // RE4_TRACE_LOCK=1: while a gun is aimed at a locked enemy (the app's auto aim, patch 0174) the aim's
+    // pitch and, above the enemy's feet, the laser's end, the lock point, its highest part (the head) and the
+    // gun hand; and how far the laser's end is from the lock point
+    static const bool traceLock = getenv("RE4_TRACE_LOCK") != 0;
+    if (traceLock && live(pPL) && live(pPL->Wep) && live(WEP_OBJ(pPL)) && live(pPL->m_pEm) && pPL->r_no_0 == 0 &&
+        pPL->r_no_1 == 6) {
+        cEm* em = pPL->m_pEm;
+        Vec t;
+        PSMTXMultVec(em->getPartsPtr(em->lockParts & 7)->mat, &em->lockOfs, &t);
+        float top = -1e9f;
+        unsigned topPart = 0;
+        for (u32 i = 0; i < em->nParts; i++) {
+            if (em->getPartsPtr(i)->world.y > top) {
+                top = em->getPartsPtr(i)->world.y;
+                topPart = i;
+            }
+        }
+        const Vec& s = WEP_OBJ(pPL)->m_ShotPos;
+        const Vec& hand = pPL->getPartsPtr(10)->world;
+        const float dx = s.x - t.x, dy = s.y - t.y, dz = s.z - t.z;
+        re4_log("aim: frame %u lock em 0x%x part %u, m3r %.3f, lock time %u | above its feet: laser %.0f, lock point "
+                "%.0f, part %u (top) %.0f, hand %.0f | laser %.0f from the lock point",
+                n, (unsigned) em->id, (unsigned) em->lockParts, (double) (f32) m3r, (unsigned) pPL->Wep->m_LockTime,
+                (double) (s.y - em->pos.y), (double) (t.y - em->pos.y), topPart, (double) (top - em->pos.y),
+                (double) (hand.y - em->pos.y), (double) sqrtf(dx * dx + dy * dy + dz * dz));
+    }
     bool dying = StaFlagChk(g, STA_DIEDEMO) != 0;
     if (dying && !g_player.dying) {
         // the hit bits stay until the next scene check, which the death demo stops (SPF_SCE_AT);

@@ -85,6 +85,28 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,
   beide kommen in r201 nicht weiter. Am PC (Debug-Start, Leon allein) nichts davon. **Offen:** `.gci` dieses Testers
   (Datei 18) angefragt.
+- **Krauser in The Mercenaries (Nutzerbericht mit Vergleichsbildern zur Verkaufsfassung, 01.11.2026):** zwölf Punkte.
+  Behoben, je mit dem Vergleich der EU-Fassung (pl0a-Modul, `main.dol`): **Patch 0172** Bogen ohne „0“ im Koffer (wie
+  EU-`pieceModelDisp`), mit Verkaufs-Discs das Pfeil-Symbol im Waffenkreis (EU-`dispBulletIconMarkNo`: 0x3B; der Kern
+  der Debug-Discs hat es nicht). **Patch 0173** (`pl_klauser.cpp`, `mercenaries.cpp`): Arm-Leuchten (Effekt 0x15) mit
+  `Core_flg` 1 wie EU, sonst hielt es während der Intro-Pause an und das Ende des Intro-Ereignisses löschte es (Arm im
+  Intro und oft im Match dunkel); `krEffWait = -1` erst im ersten Schritt des Angriffs wie EU (sonst blieb der Arm nach
+  einer Unterbrechung im falschen Moment für das Match unbenutzbar); kein Ächzen (SE 0x52) beim Abbrechen; Krausers
+  Arm-Hinweis im Intro mit `SceMesSet`-Flag 0x20 wie die anderen Hinweise und EU (sonst standen Bewegung und Kamera);
+  dazu wie EU Messer beim Arm verborgen, Debug-Tastenkombination L+B+X weg, mit Verkaufs-Discs SE 0x35 beim Schlag.
+  Geprüft am PC (r400, EU-Discs, `RE4_TEST_MERC=1`, `RE4_TEST_PLAYER=4`): Pfeil im Kreis, Bogen ohne Zahl, Arm leuchtet
+  im Intro und Match, Krauser bewegt sich während der Hinweise, X + A verwandelt den Arm und schlägt. **Noch offen**
+  (nicht untersucht): Knie-Tritt ohne Treffergeräusch, Kopf beim Kettensägen-Tod (Krauser schwebt, Ada weißer Kopf),
+  Ada-Sichtfeld, Tasten nach dem Schließen des Koffers (Zielen + Feuern gehalten), Kamera nach Zoom + Griff.
+- **Auto-Zielen zielt über den Gegner (Bericht des Projektinhabers 13:52, Gyro-Zielen an, Kamera „Far“):**
+  `PlSetLockPitch` (Startwinkel der Zielhilfe, im Prototyp nur im Debug-Menü) rechnet von Leons Füßen statt von der
+  Waffe und in einem anderen Maß als `PlWepAutoTrack`, das danach nachführt; ohne Gyro korrigiert das Nachführen in
+  wenigen Bildern, aber jede kleinste Gyro-Drehung beendete die Zielhilfe (`gyro.cpp`), der zu hohe Start blieb.
+  **Patch 0174** (Start wie `PlWepAutoTrack`: Hand → Zielpunkt) und `gyro.cpp` (Drehungen unter 0,003 rad je Bild,
+  Handzittern, lassen die Zielhilfe laufen). Neue Testhilfen `RE4_TRACE_LOCK=1` (Laser-Ende, Zielpunkt, höchster Teil
+  des Gegners) und `RE4_TEST_GYRO="yaw,pitch"` (Drehraten wie vom Gerät). Geprüft am PC (r400 als Leon, Ganado):
+  mit `RE4_TEST_GYRO=0.1,0.05` bleibt die Zielhilfe, Laser 1413–1433 über den Füßen beim Zielpunkt 1459 (Kopf ~1850):
+  das Spiel zielt auf den Oberkörper (Teil 2), nicht den Kopf. Gerät offen.
 
 ## Version 0.96.6-beta (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
@@ -10928,6 +10950,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0169 `r201.cpp` | Sicherheitsnetz Schlüssel zum Garrador-Gefängnis: gilt der Schlüssel 0xC3 (Gegenstandsbereich 0x80) als genommen, ist die Tür noch zu (`KYF_R201_DOOR`) und der Schlüssel nicht im Koffer, hängt `R201Init` ihn wieder ins Bild (eine Zeile im Protokoll). US-Nutzerbericht 01.11.2026; wie der Spielstand dahin kam, ist offen (keine `.gci`). Kein Fehler des Prototyps nachgewiesen, alle Discs |
 | 0170 `r31b.cpp` | U-3 tot ohne den Fang im dritten Raum (Merker 0x1C, nach einem Continue setzt `R31bEmSetMain` ihn gleich in dessen Zustand): gilt als gefangen (0x1C, Bereich 0x23 aus), die Todesszene mit Gitter und Ausgang läuft. EU-Bericht 01.11.2026; der EU-Code ist hier gleich. Port-Patch, alle Discs |
 | 0171 `cam_qfps.cpp` | Kamera „Far“ (Menü Steuerung, standardmäßig aus): Schulterkamera beim Laufen und Stehen bis 1,4-mal so weit hinter Leon, weich ein- und ausgeblendet, Zielen wie das Spiel; nach dem Wandschutz sofort näher, nach hinten gebremst. Nutzerwunsch 01.11.2026, neue Option |
+| 0172 `ss_pzzl.cpp`, `cockpit.cpp` | Krausers Bogen: keine „0“ im Koffer (Fehler des Prototyps, wie EU-`pieceModelDisp`); mit Verkaufs-Discs das Pfeil-Symbol 0x3B im Waffenkreis (wie EU-`dispBulletIconMarkNo`). Nutzerbericht 01.11.2026 |
+| 0173 `pl_klauser.cpp`, `mercenaries.cpp` | Krausers Arm wie die Verkaufsfassung: Leuchten mit `Core_flg` 1 (im Intro und danach sichtbar), `krEffWait = -1` erst im Angriff (Arm nicht mehr dauerhaft gesperrt), kein Ächzen beim Abbrechen, Arm-Hinweis im Intro mit Flag 0x20 (Bewegung und Kamera laufen); Messer verborgen, Debug-Kombination weg, SE 0x35 mit Verkaufs-Discs. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
