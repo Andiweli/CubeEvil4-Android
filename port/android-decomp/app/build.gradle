@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 88
+        versionCode 89
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -60,8 +60,9 @@ android {
         // 0.96.3 (wish of the project owner, 31.10.2026: the Mercenaries reports, the r101 key message), then 0.96.4
         // (wish of the project owner, 31.10.2026: r402 as the retail releases, music / effects off, Indonesian menu), then
         // 0.96.5 (wish of the project owner, 31.10.2026: the cannon's "aaa", the core process on 64 bit), then 0.96.6
-        // (wish of the project owner, 01.11.2026: the crackle at displays just under 60 Hz, the r201 prison key)
-        versionName '0.96.6-beta'
+        // (wish of the project owner, 01.11.2026: the crackle at displays just under 60 Hz, the r201 prison key), then
+        // 0.96.7 (wish of the project owner, 01.11.2026: U-3's death after a retry, shader programs per room)
+        versionName '0.96.7-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

@@ -3,6 +3,40 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.96.7-beta: drei Berichte zu 0.96.6 (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
+
+- **Absturz im Labor (Xiaomi M2102J2SC „thyme“, Mi 11, Adreno 660, Android 13, Debug-Discs, r307):** zweimal
+  „signal 6“; logcat: `Adreno-GSL … mmap failed errno 12 Out of memory`, dann `pthread_create failed: couldn't allocate
+  1040384-bytes mapped space`, `libc++abi: terminating … system_error: thread constructor failed` in
+  `android::egl_cache_t::setBlob` (der Shader-Zwischenspeicher des Systems legt nach einem Link einen Thread an). Im
+  Protokoll **10 242 Shader-Programme** gleichzeitig geladen: `GxRenderer::Prewarm` lud jedes Programm des Caches (bis
+  zu 25 813 Schlüssel aus Cache und App-Liste). Ursache: der Adreno-Treiber dort hält je Programm eigene Zuordnungen,
+  der Prozess erreicht `vm.max_map_count` (65 530), danach scheitert jedes `mmap`. Retroid (Adreno 650) zum Vergleich:
+  5 521 Programme, nur ~2 650 Zuordnungen (sein Treiber nicht betroffen). **Behoben (`gx_gl.cpp`, Vorschlag des
+  Projektinhabers):** der Renderer schreibt je Raum die benutzten Schlüssel nach `<Cache>/room-XXX.keys`
+  (`GxRenderer::SetRoom`, aus `core_mode.cpp` mit `frame.room`); `Prewarm` nimmt nur die Liste des aktuellen Raums
+  (höchstens 1500); mehr als 3000 Programme gleichzeitig: die am längsten unbenutzten werden gelöscht (eine spätere
+  Zeichnung lädt ihr Binary, ~1 ms). Zeile „GX:“ nennt „N kept, N deleted unused“. `RE4_GX_MAX_PROGRAMS` für Tests.
+  Geprüft: `gx_gl_check` 0 Fehler (Raumlisten, leere Liste eines anderen Raums, Grenze 8: 60 Programme, 8 behalten,
+  52 gelöscht und wieder geladen, Bilder gleich). **Retroid** (`test-core-app.ps1`, EU, r120 → Vorfilm → r100, je
+  330 s): erster Lauf 468 statt vorher 5 521 geladene Programme, alle aus dem Cache (0 neu gelinkt), FPS wie
+  vorher; zweiter Lauf lädt beim Betreten von r100 dessen Liste vor („109 keys of room r100“, 80 aus dem Cache,
+  111 ms), Raumladen max. 258 ms (vorher 274 ms), kein Absturz. Mi 11 des Testers selbst: offen.
+- **U-3 im Labyrinth (Xiaomi 2412DPC0AG, EU, r31b):** nach dem Tod von U-3 „das Spiel stand“ (Koffer und Pause gingen,
+  Leon schoss). Protokoll: U-3 bei (9531 0 2664) getötet, also im ersten Käfigraum, nach einem Tod mit Continue.
+  `R31bInit` setzt nach dem Einbruch (Raum-Merker 0xC) U-3 mit `R31bEmSetMain` → `setNext(4)` gleich in den Zustand des
+  dritten Raums (letzte Form, tötbar), die Todesszene `R31bExecRoom03U3DieMain` startet `R31bMain` aber nur mit Merker
+  0x1C (Fang im dritten Raum). EU-`R31bMain`, `R31bEmSetMain` und die Todesszene gleich (EU-`em32DmCk` anders:
+  Waffen 0x1F/0x20 ohne Schaden, letzte Form ab halber statt 3/8 Lebensenergie). **Patch 0170.** Neue Testhilfen
+  `RE4_TEST_RSF="ROOM:F,.."` (Raum-Merker beim Laden) und `RE4_TEST_EM_KILL="F:ID"`. Geprüft am PC (EU und Debug,
+  Leon an der Stelle des Testers): ohne Patch keine Szene, Gitter zu; mit Patch Szene Bild 901–1154, Leon am Ausgang
+  (55080 4266 13710); mit 0x1C unverändert.
+- **Garrador steht weiter still, Save-Room-Musik (Samsung SM-A245M, EU Spanisch, 0.96.6, Datei 18 in r201):** gleiche
+  Lage wie am 31.10. (s19 Liste 0x56 angekettet). Gemeinsam mit dem Schlüssel-Bericht (US, Infinix): beide Spielstände
+  in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,
+  beide kommen in r201 nicht weiter. Am PC (Debug-Start, Leon allein) nichts davon. **Offen:** `.gci` dieses Testers
+  (Datei 18) angefragt.
+
 ## Version 0.96.6-beta (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Wunsch des Projektinhabers (01.11.2026, nach seinem Retroid-Test): `versionName` 0.96.6-beta, `versionCode` 88,
@@ -10843,6 +10877,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0167 `r402.cpp` | Mercenaries r402 setzt Gegner wie die Verkaufsfassungen: neue Welle (Listen 0xE3/0xE7/0xEB) im Bereich 0x2000, verschobene Plätze (0x72), andere Reihenfolge, Boot-Ereignisse ab 8 aktiven, sechs Startgegner suchen statt zulaufen, unterwegs nicht weggeräumt (US, EU, JP); Modus 15 und Listennummer im Gegner (EU, JP). Port-Patch für Verkaufsdaten |
 | 0168 `mes.cpp`, `act_btn.cpp` | Aktionstasten-Beschriftungen der Arten 64..78 (0x56..0x64: HOP DOWN, FIRE …) mit Verkaufs-Discs unverschoben (Patch 0123 schob sie um 15 auf alte Platzhalter: „aaa“ an der Kanone in r202). Port-Patch für Verkaufsdaten |
 | 0169 `r201.cpp` | Sicherheitsnetz Schlüssel zum Garrador-Gefängnis: gilt der Schlüssel 0xC3 (Gegenstandsbereich 0x80) als genommen, ist die Tür noch zu (`KYF_R201_DOOR`) und der Schlüssel nicht im Koffer, hängt `R201Init` ihn wieder ins Bild (eine Zeile im Protokoll). US-Nutzerbericht 01.11.2026; wie der Spielstand dahin kam, ist offen (keine `.gci`). Kein Fehler des Prototyps nachgewiesen, alle Discs |
+| 0170 `r31b.cpp` | U-3 tot ohne den Fang im dritten Raum (Merker 0x1C, nach einem Continue setzt `R31bEmSetMain` ihn gleich in dessen Zustand): gilt als gefangen (0x1C, Bereich 0x23 aus), die Todesszene mit Gitter und Ausgang läuft. EU-Bericht 01.11.2026; der EU-Code ist hier gleich. Port-Patch, alle Discs |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
