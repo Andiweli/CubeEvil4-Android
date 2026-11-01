@@ -53,6 +53,16 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   Eckdaten-Upload 20–35 % billiger, Zeichen-Thread bis 15 % weniger Prozessorzeit, keine messbar höhere Bildrate.
   Geprüft: `gx_gl_check` 0 Fehler (Ring-Test mit eingeschaltetem Ring), Retroid aus/an je 150 s (an: einmal auf
   4 × 5 MB gewachsen, gleiche Bildrate, kein Absturz). Der Schalter im Menü selbst: nicht auf dem Gerät angesehen.
+- **Original-TV-Filter (Wunsch des Projektinhabers, 01.11.2026):** der GameCube zeichnet sein Bild beim Kopieren für
+  den Fernseher senkrecht weich (`GXSetCopyFilter`, BP 0x53/0x54: 7 Gewichte, Zeile darüber 0+1, Zeile 2+3+4, Zeile
+  darunter 5+6, in 1/64); der Renderer nahm davon bisher nur die Summe (Helligkeitsoption), das Bild blieb scharf.
+  Neu: Schalter „Original TV filter“ / „Original-TV-Filter“ auf der Seite Anzeige unter FXAA (alle 11 Sprachen,
+  standardmäßig aus): Bildschirm-Kopien nehmen die drei Gewichte, eine Originalzeile weit (bei jeder Auflösung gleich),
+  Textur-Kopien bleiben wie sie sind. RE4 setzt den NTSC-Entflimmer-Filter (16/32/16 von 64; Zeile „TV filter:“ im
+  Protokoll). `GxRenderer::SetTvFilter`, `CoreBridge.setTvFilter`, `RE4_GX_TV_FILTER=1` für Tests. Geprüft:
+  `gx_gl_check` 0 Fehler (neuer Test: eine rote Linie aus 0/255/0 wird 64/128/64, bei jeder Stufe), Spielbild am PC
+  verglichen, Retroid 120 s mit Filter (Vorfilm, Autofahrt; Helligkeit und Bildrate wie ohne). Schalter im Menü
+  selbst nicht auf dem Gerät angesehen.
 - **Garrador steht weiter still, Save-Room-Musik (Samsung SM-A245M, EU Spanisch, 0.96.6, Datei 18 in r201):** gleiche
   Lage wie am 31.10. (s19 Liste 0x56 angekettet). Gemeinsam mit dem Schlüssel-Bericht (US, Infinix): beide Spielstände
   in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,

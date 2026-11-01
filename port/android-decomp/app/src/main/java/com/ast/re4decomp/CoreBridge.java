@@ -160,6 +160,8 @@ public final class CoreBridge {
    * effect while 60 FPS is on.
    */
   public static native void setMerge(boolean on);
+  /** Original TV filter: the game's vertical copy filter on the picture. */
+  public static native void setTvFilter(boolean on);
   /** Vertex ring (experimental, for Mali): a new renderer takes it. */
   public static native void setVertexRing(boolean on);
   /**

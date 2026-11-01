@@ -432,6 +432,8 @@ struct GxRenderer::Impl {
   bool haveXfb = false;
   // FXAA (GxRenderer::SetFxaa): the smoothed copy of the XFB, shown instead of it while fxaaShown
   bool fxaaOn = false, fxaaShown = false;
+  bool tvFilter = false;  // SetTvFilter
+  bool tvLogged = false;
   GLuint fxaaTex = 0, fxaaFbo = 0, fxaaProgram = 0;
   unsigned fxaaTexW = 0, fxaaTexH = 0;
   GLint fxaaTexelLoc = -1;
@@ -473,6 +475,7 @@ struct GxRenderer::Impl {
   GLuint copyProgram = 0, presentProgram = 0, paletteProgram = 0;
   GLint presentRows = -1;
   GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1, copyLimit = -1;
+  GLint copyTaps = -1, copyStep = -1;  // the TV filter (SetTvFilter): taps of the lines above/at/below, a line
   // lowest EFB row (+1) a draw under a full-width scissor reached since the last display copy: the
   // rows below it were never drawn (the game's letterbox)
   int sceneBottom = 0;
@@ -1858,6 +1861,23 @@ struct GxRenderer::Impl {
     for (unsigned i = 0; i < 3; i++)
       sum += (c1 >> (6 * i)) & 63;
     return sum == 0 ? 1.0f : static_cast<float>(sum) / 64.0f;
+  }
+  // The copy filter's taps as the line above (taps 0, 1), the line (2, 3, 4) and the line below (5, 6), in 1/64.
+  void CopyFilterTaps(float *above, float *at, float *below) const {
+    const std::uint32_t c0 = bp[0x53], c1 = bp[0x54];
+    unsigned t[7];
+    for (unsigned i = 0; i < 4; i++)
+      t[i] = (c0 >> (6 * i)) & 63;
+    for (unsigned i = 0; i < 3; i++)
+      t[4 + i] = (c1 >> (6 * i)) & 63;
+    if (t[0] + t[1] + t[2] + t[3] + t[4] + t[5] + t[6] == 0) {
+      *above = *below = 0.0f;
+      *at = 1.0f;
+      return;
+    }
+    *above = static_cast<float>(t[0] + t[1]) / 64.0f;
+    *at = static_cast<float>(t[2] + t[3] + t[4]) / 64.0f;
+    *below = static_cast<float>(t[5] + t[6]) / 64.0f;
   }
 
   void BpWrite(std::uint32_t word, bool action) {
@@ -3694,6 +3714,21 @@ struct GxRenderer::Impl {
     glUniform2f(copySize, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
     glUniform1i(copyHalf, half ? 1 : 0);
     glUniform1f(copyGain, depth ? 1.0f : CopyFilterGain());
+    // the TV filter: a display copy blends the lines above and below with the copy filter's taps (they
+    // hold the gain as well), one original line (the scale) apart
+    if (toXfb && !depth && tvFilter) {
+      float above = 0.0f, at = 1.0f, below = 0.0f;
+      CopyFilterTaps(&above, &at, &below);
+      glUniform3f(copyTaps, above, at, below);
+      glUniform1f(copyStep, Sf(1));
+      if (!tvLogged) {
+        tvLogged = true;
+        GXLOG("TV filter: the line above %.3f, the line %.3f, the line below %.3f", above, at, below);
+      }
+    } else {
+      glUniform3f(copyTaps, 0.0f, -1.0f, 0.0f);  // at < 0: no TV filter
+      glUniform1f(copyStep, 0.0f);
+    }
     // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
     // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
     // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew
@@ -4131,6 +4166,7 @@ struct GxRenderer::Impl {
     glUniform1i(copyHalf, 0);
     glUniform1f(copyGain, 1.0f);
     glUniform2f(copyLimit, -1e9f, 1e9f);
+    glUniform3f(copyTaps, 0.0f, -1.0f, 0.0f);  // no TV filter
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     current = nullptr;
@@ -4403,7 +4439,7 @@ struct GxRenderer::Impl {
     static const char kCopyFs[] =
         "#version 300 es\nprecision highp float;\nprecision highp int;\n"
         "uniform sampler2D src;\nuniform int mode;\nuniform vec4 rect;\nuniform vec2 size;\nuniform int halfScale;\n"
-        "uniform float gain;\nuniform vec2 limitY;\n"
+        "uniform float gain;\nuniform vec2 limitY;\nuniform vec3 taps;\nuniform float lineStep;\n"
         "in vec2 vUv;\nout vec4 o;\n"
         "vec4 fetch(vec2 p) { return texture(src, p / size); }\n"
         "void main() {\n"
@@ -4411,7 +4447,11 @@ struct GxRenderer::Impl {
         "  p.y = clamp(p.y, limitY.x + 1.0, limitY.y - 1.0);\n"
         "  vec4 c = halfScale != 0 ? 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
         "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5))) : fetch(p);\n"
-        "  if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
+        "  if (taps.y >= 0.0) {\n"
+        "    float ya = max(p.y - lineStep, limitY.x + 1.0), yb = min(p.y + lineStep, limitY.y - 1.0);\n"
+        "    c.rgb = min(taps.x * fetch(vec2(p.x, ya)).rgb + taps.y * c.rgb + taps.z * fetch(vec2(p.x, yb)).rgb, "
+        "vec3(1.0));\n"
+        "  } else if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
         "  float y = clamp(0.257 * c.r + 0.504 * c.g + 0.098 * c.b + 16.0 / 255.0, 0.0, 1.0);\n"
         "  uint z = uint(c.r * 16777215.0);\n"
         "  float zh = float((z >> 16) & 255u) / 255.0, zm = float((z >> 8) & 255u) / 255.0, zl = float(z & 255u) / "
@@ -4468,6 +4508,9 @@ struct GxRenderer::Impl {
     copyHalf = glGetUniformLocation(copyProgram, "halfScale");
     copyGain = glGetUniformLocation(copyProgram, "gain");
     copyLimit = glGetUniformLocation(copyProgram, "limitY");
+    copyTaps = glGetUniformLocation(copyProgram, "taps");
+    copyStep = glGetUniformLocation(copyProgram, "lineStep");
+    glUniform3f(copyTaps, 0.0f, -1.0f, 0.0f);  // no TV filter until a display copy asks for it
     glUniform2f(copyLimit, -1e9f, 1e9f);
     paletteProgram = Link(kQuadVs, kPaletteFs, &log);
     if (!paletteProgram) {
@@ -4510,6 +4553,8 @@ struct GxRenderer::Impl {
 };
 
 GxRenderer::GxRenderer() : impl_(new Impl) {
+  const char *tv = getenv("RE4_GX_TV_FILTER");  // the TV filter from the start (gx_chunk_render, tests)
+  impl_->tvFilter = tv && *tv == '1';
   if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
     const long n = std::strtol(limit, nullptr, 10);
     if (n >= 4) {
@@ -5269,6 +5314,7 @@ GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
 void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
+void GxRenderer::SetTvFilter(bool on) { impl_->tvFilter = on; }
 void GxRenderer::SetWiden(float factor) {
   impl_->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
 }

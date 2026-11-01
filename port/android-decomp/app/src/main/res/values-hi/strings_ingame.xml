@@ -169,7 +169,9 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">फ़्रेम स्किप</string>
     <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_tv_filter">मूल टीवी फ़िल्टर</string>
     <string name="ingame_fxaa_help">आख़िरी चरण में दाँतेदार किनारों को चिकना करता है। MSAA के साथ या बिना काम करता है; तस्वीर थोड़ी नरम हो जाती है।</string>
+    <string name="ingame_tv_filter_help">चित्र को ऊर्ध्वाधर रूप से थोड़ा नरम करता है, जैसा GameCube टीवी के लिए करता था (खेल का अपना झिलमिलाहट-रोधी फ़िल्टर)। बंद: तीखा चित्र।</string>
     <string name="ingame_frame_skip_help">ग्राफ़िक्स पिछड़ने पर एक फ़्रेम छोड़ देता है ताकि गेम सामान्य गति से चले। कम फ़्रेम दिखते हैं, कुछ धीमा नहीं होता।</string>
     <string name="ingame_skip_or_smooth">फ़्रेम स्किप और 60 FPS साथ नहीं चलते: एक को चालू करने पर दूसरा बंद हो जाता है।</string>
     <string name="ingame_merge_help">कई वस्तुओं को ग्राफ़िक्स ड्राइवर की एक ही कॉल में मिलाता है। धीमे ग्राफ़िक्स ड्राइवर वाले फ़ोन (जैसे Mali GPU) पर मदद कर सकता है और दूसरों पर थोड़ा धीमा कर सकता है। 60 FPS चालू होने पर इसका कोई असर नहीं होता।</string>

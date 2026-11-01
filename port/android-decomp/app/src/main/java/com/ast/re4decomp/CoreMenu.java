@@ -541,6 +541,11 @@ final class CoreMenu extends Dialog {
       graphics.edit().putBoolean("fxaa", on).apply(); CoreBridge.setFxaa(on);
     });
     help(R.string.ingame_fxaa_help);
+    // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_tv_filter, graphics.getBoolean("tvFilter", false), on -> {
+      graphics.edit().putBoolean("tvFilter", on).apply(); CoreBridge.setTvFilter(on);
+    });
+    help(R.string.ingame_tv_filter_help);
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
     heading(R.string.ingame_picture);

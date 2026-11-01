@@ -170,7 +170,9 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Salto fotogrammi</string>
     <string name="ingame_fxaa">FXAA</string>
+    <string name="ingame_tv_filter">Filtro TV originale</string>
     <string name="ingame_fxaa_help">Attenua i bordi seghettati in un passaggio finale. Funziona con o senza MSAA; l’immagine diventa un po’ più morbida.</string>
+    <string name="ingame_tv_filter_help">Ammorbidisce l\'immagine in verticale come faceva il GameCube per la TV (il filtro antisfarfallio del gioco). Disattivato: immagine nitida.</string>
     <string name="ingame_frame_skip_help">Se la grafica è in ritardo, salta un’immagine per mantenere la velocità normale del gioco. Si vedono meno immagini, nulla rallenta.</string>
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
     <string name="ingame_merge_help">Unisce più oggetti in una sola chiamata al driver grafico. Può aiutare i telefoni con un driver grafico lento (ad es. GPU Mali) e costare un po’ sugli altri. Nessun effetto finché i 60 FPS sono attivi.</string>

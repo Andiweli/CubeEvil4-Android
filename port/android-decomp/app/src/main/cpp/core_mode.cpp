@@ -636,6 +636,7 @@ struct Bench {
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
+std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
 std::atomic<int> optVertexRing{0};  // the menu's vertex ring (CoreBridge.setVertexRing; or RE4_GX_VERTEX_RING=1)
@@ -1421,6 +1422,8 @@ bool drawGx() {
   const bool smoothOn = optSmooth.load() != 0 && !smoothTooSlow;
   gx->SetRecording(smoothOn);
   gx->SetFxaa(optFxaa.load() != 0);
+  static const bool tvEnv = getenv("RE4_GX_TV_FILTER") && *getenv("RE4_GX_TV_FILTER") == '1';
+  gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
   static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
   gx->SetMerge(optMerge.load() != 0 || mergeEnv);
   if (!smoothOn && smoothPrev) {
@@ -2393,6 +2396,12 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_cheatAction(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFrameSkip.exchange(want) != want) LOG("frame skip: %s", want ? "on (chunks are left out while the renderer is behind)" : "off");
+}
+
+// Original TV filter (the menu): the game's vertical copy filter on the picture (GxRenderer::SetTvFilter).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optTvFilter.exchange(want) != want) LOG("original TV filter: %s", want ? "on" : "off");
 }
 
 // FXAA (the menu): an edge smoothing pass over every picture (GxRenderer::SetFxaa).

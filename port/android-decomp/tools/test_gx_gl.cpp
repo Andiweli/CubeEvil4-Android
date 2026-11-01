@@ -1000,6 +1000,46 @@ void TestFxaa(re4gx::GxRenderer &r) {
   Check(r.Xfb(nullptr, nullptr) == plain, "FXAA: off, the plain display copy is shown again");
 }
 
+// Original TV filter (the app menu's switch): the display copy takes the copy filter's vertical taps (the
+// NTSC deflicker filter 8 8 10 12 10 8 8: the line above 16/64, the line 32/64, the line below 16/64), one
+// original line apart at any scale. A red line one original line tall on blue: switched off it stays one
+// line, switched on its neighbours get a quarter of its red and it keeps half.
+void TestTvFilter(re4gx::GxRenderer &r) {
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    b.Bp(0x53, 8u | 8u << 6 | 10u << 12 | 12u << 18);
+    b.Bp(0x54, 10u | 8u << 6 | 8u << 12);
+    DisplayCopy(b, true, kBlue);
+    std::vector<std::uint8_t> v;
+    V(v, 100, 200, 0, kRed);
+    V(v, 300, 200, 0, kRed);
+    V(v, 100, 201, 0, kRed);
+    V(v, 300, 200, 0, kRed);
+    V(v, 300, 201, 0, kRed);
+    V(v, 100, 201, 0, kRed);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 6);
+    DisplayCopy(b, false, kBlue);
+    r.Run(b.Chunk());
+    return r.Xfb(nullptr, nullptr);
+  };
+  const int f = r.Scale();
+  const auto red = [&](GLuint xfb, int y) { return static_cast<int>(TexPixel(xfb, 200 * f, y * f)[0]); };
+  GLuint xfb = scene();
+  const int offAbove = red(xfb, 199), offAt = red(xfb, 200), offBelow = red(xfb, 201);
+  r.SetTvFilter(true);
+  xfb = scene();
+  const int onAbove = red(xfb, 199), onAt = red(xfb, 200), onBelow = red(xfb, 201);
+  r.SetTvFilter(false);
+  std::fprintf(stderr, "  TV filter: red above/at/below off %d %d %d, on %d %d %d\n", offAbove, offAt, offBelow, onAbove,
+               onAt, onBelow);
+  Check(offAbove < 10 && offAt > 245 && offBelow < 10, "TV filter: off, the line stays one line");
+  Check(onAbove > 50 && onAbove < 80 && onAt > 115 && onAt < 140 && onBelow > 50 && onBelow < 80,
+        "TV filter: on, a quarter above and below, half on the line (the taps 16 32 16 of 64)");
+  xfb = scene();
+  Check(red(xfb, 199) < 10, "TV filter: off again, the line is sharp");
+}
+
 // Frame skip: a chunk that is not drawn (the renderer is behind and the next chunk is there). The state
 // it carries is applied, the EFB cleared as its display copy would, the shown picture stays; the rules
 // for when it may be skipped.
@@ -1819,6 +1859,7 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestShownRowsCopy(r, true, false);
   TestDepthMap(r, true);
   TestFxaa(r);
+  TestTvFilter(r);
   TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
   TestAutofocus(r, r.Samples() > 1);

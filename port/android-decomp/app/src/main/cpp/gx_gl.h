@@ -234,6 +234,12 @@ public:
   // Xfb() and Present show that. Works with or without MSAA and at any resolution; takes effect with
   // the next display copy. Costs one pass over the XFB per picture (the in-between pictures too).
   void SetFxaa(bool on);
+  // Original TV filter (wish of the project owner, 01.11.2026): the display copies take the vertical
+  // taps of the game's copy filter (GXSetCopyFilter, BP 0x53/0x54: the line above, the line, the line
+  // below; the deflicker filter of the TV picture) one original line apart at any resolution, as the
+  // GameCube blurs its picture for the TV. Off: the picture stays sharp (the taps' sum only, the
+  // brightness option). Takes effect with the next display copy.
+  void SetTvFilter(bool on);
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:
