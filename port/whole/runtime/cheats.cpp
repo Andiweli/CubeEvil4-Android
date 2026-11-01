@@ -66,14 +66,16 @@ struct Gift {
     u16 id;
     const char* name;
     u8 level[4];
+    u16 part;  // a part put on it (0: none): the game keeps a weapon with a part as two items, the weapon
+               // and the part attached to it (cItemMgr::partsCombine; 0xAB "with scope" has no shape in the case)
 };
 const Gift kGifts[] = {
-    {1, 0x2A, "Killer7 3/1/3/3", {3, 1, 3, 3}},
-    {5, 0x37, "Handcannon 7/1/3/7", {7, 1, 3, 7}},
-    {6, 0x34, "Chicago Typewriter 7/1/3/7", {7, 1, 3, 7}},
-    {7, 0x6D, "rocket launcher (endless)", {0, 0, 0, 0}},
-    {8, 0xAB, "Mine Thrower with scope 4/1/2/3", {4, 1, 2, 3}},
-    {9, 0x03, "Matilda 6/1/3/7", {6, 1, 3, 7}},
+    {1, 0x2A, "Killer7 3/1/3/3", {3, 1, 3, 3}, 0},
+    {5, 0x37, "Handcannon 7/1/3/7", {7, 1, 3, 7}, 0},
+    {6, 0x34, "Chicago Typewriter 7/1/3/7", {7, 1, 3, 7}, 0},
+    {7, 0x6D, "rocket launcher (endless)", {0, 0, 0, 0}, 0},
+    {8, 0x36, "Mine Thrower with scope 4/1/2/3", {4, 1, 2, 3}, 0xAA},
+    {9, 0x03, "Matilda 6/1/3/7", {6, 1, 3, 7}, 0},
 };
 
 const Gift* gift(int what)
@@ -239,6 +241,15 @@ int re4CheatPerform(int what)
         } else if (!ItemMgr.get(g->id, 0) || !(p = ItemMgr.search(g->id))) {
             re4_log("cheat: %s: no free slot in the inventory", actionName(what));
             return -1;
+        }
+        // the part, as the case attaches it (the project owner's test, 01.11.2026: the Mine Thrower given as
+        // item 0xAB "with scope" had no shape in the case, which dropped it on closing)
+        if (g->part && ItemMgr.weaponId(p) == g->id) {
+            if (!ItemMgr.get(g->part, 0) || !ItemMgr.newbie()) {
+                re4_log("cheat: %s: no free slot for the part 0x%02x", actionName(what), g->part);
+                return -1;
+            }
+            ItemMgr.partsCombine(p, ItemMgr.newbie());
         }
         if (g->level[0]) {
             p->setPowerLevel(g->level[0] - 1);

@@ -120,6 +120,12 @@ in r201 aufs nächste Release verschoben.
   „(3/1/3/3)“); Koffer L und Geld darunter in einer Zweierreihe. Kern: `cheats.cpp` (Knöpfe 5–9, Tabelle `kGifts`),
   `core_api.cpp` (bis 9). Die PRL 412 gibt es auf dem GameCube nicht (erst PS2). Mit „Unendlich Munition“ alle endlos.
   Geprüft am PC (r100, Debug-Discs, `RE4_TEST_CHEATS`): alle sechs hinzugefügt mit den Stufen oben, `CoreMenuLayoutTest`.
+  **Nachtrag (Test des Projektinhabers, 01.11.2026):** der Minenwerfer kam nicht an. Der Cheat erzeugte Gegenstand
+  0xAB („mit Zielfernrohr“); den gibt es im Koffer nicht (`piece_info` hat keine Form dafür, auch EU nicht): das Spiel
+  hält eine Waffe mit Teil als zwei Gegenstände, die Waffe (0x36) und das angebaute Teil (0xAA, `partsCombine`),
+  0xAB ergibt erst `weaponId`. Der Koffer fand keine Form und warf ihn beim Schließen weg (das Protokoll meldete
+  „added“, der PC-Test oben prüfte nur das Protokoll). Jetzt 0x36 plus angebautes Zielfernrohr; geprüft am PC mit
+  Debug- und EU-Discs: der Minenwerfer liegt mit Zielfernrohr im Koffer.
 - **Garrador/Ashley r201:** auf das nächste Release verschoben (Entscheidung des Projektinhabers, 01.11.2026: der
   Tester meldet sich nicht).
 - **Auto-Zielen zielt über den Gegner (Bericht des Projektinhabers 13:52, Gyro-Zielen an, Kamera „Far“):**
