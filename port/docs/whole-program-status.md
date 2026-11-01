@@ -3,6 +3,12 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.96.8-beta (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
+
+Hotfix auf Wunsch des Projektinhabers: `versionName` 0.96.8-beta, `versionCode` 90, Releasetext
+`port/android-decomp/docs/releases/v0.96.8-beta.md` seit 0.96.7: der Minenwerfer-Cheat (Waffe 0x36 mit angebautem
+Zielfernrohr 0xAA statt Gegenstand 0xAB, siehe Nachtrag unter „Waffen-Cheats“), in `master` übernommen.
+
 ## Version 0.96.7-beta: drei Berichte zu 0.96.6 (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Veröffentlicht mit dem OK des Projektinhabers (01.11.2026): `versionName` 0.96.7-beta, `versionCode` 89, Releasetext
