@@ -39,7 +39,11 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   Raums). **Neu (`CoreLog.java`):** endet eine Sitzung mit einem Absturz (`crash.txt` nicht leer, oder Android meldet
   Absturz/ANR/Signal), legt die App ihre Protokolle zusätzlich in `logs/last-crash/` ab; dort bleiben sie bis zum
   nächsten Absturz und kommen mit in jeden Bericht. Geprüft auf dem Retroid (Debug-APK, Absturz per `kill -11`, zwei
-  Neustarts): `last-crash/` mit `crash.txt` (Signal 11, Aufrufkette), Kernprotokoll und logcat vorhanden.
+  Neustarts): `last-crash/` mit `crash.txt` (Signal 11, Aufrufkette), Kernprotokoll und logcat vorhanden. **Zweiter
+  Bericht desselben Testers (17:11) mit Absturz:** `crash.txt` zeigt `__cxa_throw` von `std::system_error` mit
+  `egl_cache_t::sCache` (wie beim Mi 11, hier als SIGSEGV beim Abwickeln durch `libre4decomp.so`); davor stiegen die
+  geladenen Programme bei geöffnetem Menü (r104, „sub screen open“) in 40 s von 5 444 auf 8 881. Ursache damit
+  bestätigt, in 0.96.7 behoben (höchstens 3000).
 - **Vertex-Ringpuffer als Schalter (Wunsch des Projektinhabers, 01.11.2026):** der Ring aus Branch `vulkan`
   (`be7d330b`, V0b: Eckdaten und Indizes jedes Bildes in dauerhaft eingeblendete Puffer statt eines neuen Puffers je
   Bild) übernommen, **standardmäßig aus** (`GxOptions::vertexRing = false`), Schalter ganz unten unter Performance →
