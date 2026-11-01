@@ -1,0 +1,22 @@
+# Port patch, a user's report (01.11.2026, The Mercenaries: the knee kick on a kneeling Ganado made no hit sound
+# when it did not kill). A bug of the prototype: em10_R1_Dm_KneeKick played only a thud (SE 8/0xB0) on a survivor;
+# the retail releases' em10_R1_Dm_KneeKick (EU em10.rel) play the kick's hit at the player (SE 1/0x3A, 1/0x3B) and
+# the Ganado's damage voice (Se_tbl[8] through em10SetDamageVoice), as the game's other blows do. Built and checked
+# against the European code; in the game on the PC not staged (a kneeling Ganado and the knee prompt).
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -14514,7 +14514,13 @@
+                 em->hp = 0;
+                 em10LostHead(em, 0, 1);
+             } else {
+-                SndCall(8, 0xB0, &em->pos, em->id, 0, em);
++                /* port (patch 0176, a bug of the prototype): a knee kick that does not kill plays the kick's hit
++                   (SE 0x3A, 0x3B at the player) and the Ganado's damage voice, as the retail releases'
++                   em10_R1_Dm_KneeKick and the player's other blows (em10_R1_NeckHang, em10_R1_Backhold); the prototype only a thud */
++                SndCall(1, 0x3A, &pPL->pos, 0, 0, pPL);
++                SndCall(1, 0x3B, &pPL->pos, 0, 0, pPL);
++                w->Se_no = w->Se_tbl[8];
++                em10SetDamageVoice(em, w->Se_no, w->Se_tbl[0]);
+             }
+         }
+         if (em->Motion.Seq_old.Free & 2) {

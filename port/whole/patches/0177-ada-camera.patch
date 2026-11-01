@@ -1,0 +1,30 @@
+# Port patch, a user's report (01.11.2026: Ada's view narrower than in the retail game, The Mercenaries). A bug of
+# the prototype: bindDefaultCamera gave Ada (TRANS_CAM_ADA) Leon's walking camera; the retail releases'
+# bindDefaultCamera (EU main.dol 0x800be8bc) give her her own g_transOfs[TRANS_DATA_ADA], with its middle row at
+# y 1700, z -1300 (the prototype's unused row: 1413, -1483). Checked on the PC (r400, EU discs, RE4_TRACE_POS): the
+# camera standing behind Ada 1200 units away (before 1080), 1844 above (before 1891).
+--- a/src/game/cam_qfps.cpp
++++ b/src/game/cam_qfps.cpp
+@@ -251,7 +251,9 @@
+     {
+         {
+             {{{-500.0f, 885.0f, -1050.0f}, {-240.0f, 1550.0f, -150.0f}}, {0.0f, 2585.0f, 1390.0f}, 0.0f, 50.0f},
+-            {{{-565.0f, 1413.0f, -1483.0f}, {-180.0f, 1700.0f, -110.0f}}, {-25.0f, 1242.0f, 1401.0f}, 0.0f, 50.0f},
++            /* port (patch 0177): Ada's walking camera as the retail releases' g_transOfs[TRANS_DATA_ADA] (y 1700,
++               z -1300 instead of 1413, -1483) */
++            {{{-565.0f, 1700.0f, -1300.0f}, {-180.0f, 1700.0f, -110.0f}}, {-25.0f, 1242.0f, 1401.0f}, 0.0f, 50.0f},
+             {{{-500.0f, 2420.0f, -680.0f}, {-200.0f, 1870.0f, -185.0f}}, {0.0f, 780.0f, 1250.0f}, 0.0f, 50.0f},
+         },
+         {
+@@ -1066,7 +1068,10 @@
+     trans_tbl[TRANS_CAM_LEON] = g_transOfs[TRANS_DATA_LEON];
+     trans_tbl[TRANS_CAM_LEON_ASHLEY] = g_transOfs[TRANS_DATA_LEON_ASHLEY];
+     trans_tbl[TRANS_CAM_ASHLEY] = g_transOfs[TRANS_DATA_LEON];
+-    trans_tbl[TRANS_CAM_ADA] = g_transOfs[TRANS_DATA_LEON];
++    /* port (patch 0177, a bug of the prototype): Ada with her own table, as the retail releases'
++       bindDefaultCamera; the prototype gave her Leon's (a user's report, 01.11.2026: a narrower view than the
++       retail game in The Mercenaries and Assignment Ada) */
++    trans_tbl[TRANS_CAM_ADA] = g_transOfs[TRANS_DATA_ADA];
+     trans_tbl[TRANS_CAM_KLAUSER] = g_transOfs[TRANS_DATA_KLAUSER];
+     trans_tbl[TRANS_CAM_WESKER] = g_transOfs[TRANS_DATA_WESKER];
+ }

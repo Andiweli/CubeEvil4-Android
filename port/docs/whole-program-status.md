@@ -101,8 +101,14 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   Kopf verschwand nur), Adas fallender Kopf mit ihrer Textur 0xD (sonst weiß), Ada verliert Gesicht, Kopf und Haare (der
   echte Kopf blieb stehen). Neue Testhilfe `RE4_TEST_HEAD_LOST=N`. Geprüft am PC (r400, EU-Discs): Krausers Kopf fällt
   mit Textur, Adas echter Kopf fällt, keiner bleibt; Debug-Discs zeigen keinen fallenden Kopf (`eff_country` 0, nur
-  Blut). **Noch offen** (nicht untersucht): Knie-Tritt ohne Treffergeräusch, Ada-Sichtfeld, Tasten nach dem Schließen
-  des Koffers (Zielen + Feuern gehalten), Kamera nach Zoom + Griff.
+  Blut). Die übrigen vier Punkte (Auftrag des Projektinhabers: noch in 0.96.7): **Patch 0176** Knie-Tritt ohne Tod
+  mit Treffergeräusch (SE 0x3A/0x3B) und Schmerzlaut wie EU-`em10_R1_Dm_KneeKick` (im Spiel am PC nicht nachgestellt);
+  **Patch 0177** Ada mit ihrer eigenen Laufkamera wie EU-`bindDefaultCamera` (am PC: Abstand 1080 → 1200);
+  **Patch 0178** `cPlayer::endCamera` stellt Kamera und Licht im Spiel sofort neu (alle vier Abfragen in EU umgedreht;
+  der Prototyp nur im Koffer): Griff nach Zoom mit dem Gewehr (am PC Zoom, Schuss, Absetzen wie vorher; der Griff nicht
+  nachgestellt); **Tasten nach dem Koffer** (`CoreInput.java`): am PC feuert das Spiel mit gehaltenem Zielen + Feuern
+  sofort (die Spiellogik stimmt), die App hielt aber beim Wechsel der Tastenbelegung (Menü → Spiel) jede gehaltene
+  Taste zurück außer B, R, L; jetzt auch A (Feuern), wie ein GameCube-Controller.
 - **Waffen-Cheats (Wunsch des Projektinhabers, 01.11.2026):** auf der Cheat-Seite unter den Schaltern zwei Reihen
   Waffen, je auf den höchsten Stufen samt Exklusiv-Aufrüstung der letzten Händlertabellen: Handcannon 7/1/3/7 (endlos,
   Patch 0146), Chicago Typewriter 7/1/3/7 (Magazin-Stufe 7 = endlos wie die EU-Fassung sie verkauft), Raketenwerfer
@@ -10967,6 +10973,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0172 `ss_pzzl.cpp`, `cockpit.cpp` | Krausers Bogen: keine „0“ im Koffer (Fehler des Prototyps, wie EU-`pieceModelDisp`); mit Verkaufs-Discs das Pfeil-Symbol 0x3B im Waffenkreis (wie EU-`dispBulletIconMarkNo`). Nutzerbericht 01.11.2026 |
 | 0173 `pl_klauser.cpp`, `mercenaries.cpp` | Krausers Arm wie die Verkaufsfassung: Leuchten mit `Core_flg` 1 (im Intro und danach sichtbar), `krEffWait = -1` erst im Angriff (Arm nicht mehr dauerhaft gesperrt), kein Ächzen beim Abbrechen, Arm-Hinweis im Intro mit Flag 0x20 (Bewegung und Kamera laufen); Messer verborgen, Debug-Kombination weg, SE 0x35 mit Verkaufs-Discs. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0175 `em10.cpp`, `emwep.cpp`, `pl02.cpp` | Kopf beim Kettensägen-/Sensen-Tod wie die Verkaufsfassung: Krausers fallender Kopf ist sein Kopfmodell (0xD), Adas mit ihrer Textur (0xD); Ada verliert Gesicht, Kopf und Haare. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0176 `em10.cpp` | Knie-Tritt ohne Tod: Treffergeräusch und Schmerzlaut wie die Verkaufsfassung (der Prototyp nur ein Aufprall). Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0177 `cam_qfps.cpp` | Ada mit ihrer eigenen Laufkamera (`TRANS_DATA_ADA`, mittlere Reihe wie die Verkaufsfassung) statt Leons: weiteres Bild. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0178 `pl_class.cpp` | `cPlayer::endCamera`: Kamera und Licht im Spiel sofort neu gesetzt, nicht nur im Koffer (wie die Verkaufsfassung): Griff nach Zoom mit dem Gewehr. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

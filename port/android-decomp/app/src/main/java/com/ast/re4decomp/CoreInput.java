@@ -114,8 +114,9 @@ public final class CoreInput {
   // GameCube button that a key held over the switch gives only in the new mapping waits until it is let go;
   // the ones it gave before as well stay held (B running while a prompt shows). Back in the game the held
   // actions B (run), R and L (ready the weapon, the knife) come at once (tester report 30.10.2026: A held as
-  // the inventory closed, Leon did not run until it was pressed again)
-  private static final int HELD_ACTIONS = GC_B | GC_R | GC_L;
+  // the inventory closed, Leon did not run until it was pressed again); and A, the fire (user report 01.11.2026:
+  // aim and fire held as the case closed, Leon only aimed, as the GameCube he fires at once)
+  private static final int HELD_ACTIONS = GC_A | GC_B | GC_R | GC_L;
   private boolean menuChanged;
   private int lastButtons, carried;
 
