@@ -70,7 +70,8 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   Spiels sofort näher, zurück nach hinten höchstens 40 Einheiten je Bild. `RE4_TRACE_POS` nennt jetzt den Abstand
   der Kamera. Geprüft am PC (r201, US): Stehen 1290 → 1740, Zielen 793 wie bisher, danach weich zurück (917, 1269,
   1637, 1727, 1740); mit Wand hinter Leon (47000 2000 −37915) 381 / 476 genau wie das Spiel; Bilder ohne Blick durch
-  Wände.
+  Wände. **Retroid** (EU, r120 → r100, Einstellung direkt in `core_input.xml`): aus 1291, an 1774 an derselben Stelle,
+  kein Absturz; Bildschirmfotos verglichen, danach wieder aus gestellt. Den Schalter im Menü selbst nicht angetippt.
 - **Garrador steht weiter still, Save-Room-Musik (Samsung SM-A245M, EU Spanisch, 0.96.6, Datei 18 in r201):** gleiche
   Lage wie am 31.10. (s19 Liste 0x56 angekettet). Gemeinsam mit dem Schlüssel-Bericht (US, Infinix): beide Spielstände
   in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,
