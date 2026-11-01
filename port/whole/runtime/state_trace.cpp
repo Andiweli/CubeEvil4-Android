@@ -1076,8 +1076,12 @@ void playerLog(unsigned n, GLOBAL_WK* g)
     // RE4_TRACE_POS=N: Leon's place every N frames (where a walk of a test script got to)
     static const long tracePos = getenv("RE4_TRACE_POS") ? strtol(getenv("RE4_TRACE_POS"), 0, 10) : 0;
     if (tracePos > 0 && (n - g_player.start) % (unsigned long) tracePos == 0) {
-        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f", (unsigned) g->room_id, n, (double) p.x,
-                (double) p.y, (double) p.z, (double) pPL->ang.y);
+        // with the camera's distance to Leon (the far camera, patch 0171)
+        const Vec& c = CamCtrl.camera.param.Campos;
+        const float dx = c.x - p.x, dz = c.z - p.z;
+        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f, camera %.0f away, %.0f above", (unsigned) g->room_id,
+                n, (double) p.x, (double) p.y, (double) p.z, (double) pPL->ang.y, (double) sqrtf(dx * dx + dz * dz),
+                (double) (c.y - p.y));
     }
     bool dying = StaFlagChk(g, STA_DIEDEMO) != 0;
     if (dying && !g_player.dying) {

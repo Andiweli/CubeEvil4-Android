@@ -47,8 +47,10 @@
     <string name="ingame_latch_b">Travar B</string>
     <string name="ingame_auto_aim">Mira automática</string>
     <string name="ingame_always_run">Correr sempre</string>
+    <string name="ingame_far_camera">Câmara afastada</string>
     <string name="ingame_auto_aim_help">Mira automática: ao erguer a arma, a mira salta para o inimigo mais próximo à sua frente e o segue por um momento (a assistência de mira do próprio jogo).</string>
     <string name="ingame_always_run_help">Correr sempre: Leon corre sempre que você se move; segure o botão de correr (ex.: B) para andar.</string>
+    <string name="ingame_far_camera_help">Mantém a câmara de ombro um pouco mais atrás de Leon ao andar e parado. Ao apontar e em sítios apertados aproxima-se como antes; entre os dois move-se suavemente.</string>
     <string name="ingame_touch_aim">Mira por toque</string>
     <string name="ingame_aim_move_stick">Analógico de movimento</string>
     <string name="ingame_aim_touch_area">Área de toque</string>

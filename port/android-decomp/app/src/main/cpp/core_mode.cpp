@@ -677,6 +677,7 @@ int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU b
 // The menu's "Invert vertical" and "Aim speed" for touch and controllers (CoreBridge.setAim, wish of the
 // project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
 std::atomic<int> optAim{100 << 8};
+std::atomic<int> optFarCamera{0};  // the menu's "Far camera" (CoreBridge.setFarCamera), bit 3 of the aim bits
 int aimSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
 // percent (the core's runtime/sound_volume.cpp).
@@ -1595,7 +1596,7 @@ bool drawGx() {
       api.setPotato(potato);
       potatoSent = potato;
     }
-    const int aim = optAim.load();
+    const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0);  // bit 3 "Far camera" (patch 0171)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
       aimSent = aim;
@@ -2359,6 +2360,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEn
   if (optAim.exchange(want) != want)
     LOG("aim: stick aiming %s, speed %d %%, auto aim %s, always run %s", invert == JNI_TRUE ? "inverted" : "normal",
         percent, autoAim == JNI_TRUE ? "on" : "off", alwaysRun == JNI_TRUE ? "on" : "off");
+}
+
+// "Far camera" (the menu, Controls): the shoulder camera further back while walking and standing (patch 0171),
+// sent with the aim settings (bit 3).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFarCamera(JNIEnv *, jclass, jboolean on) {
+  const int want = on == JNI_TRUE ? 1 : 0;
+  if (optFarCamera.exchange(want) != want) LOG("far camera: %s", want ? "on" : "off");
 }
 
 // The menu's AUDIO page (drawGx tells the core): music and sound effects volume in percent.

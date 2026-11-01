@@ -119,7 +119,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String AIM_INVERT_V = "aimInvertVertical", AIM_SPEED = "aimSpeed";
   // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
   // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
-  static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun";
+  static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
   static final String GRAPHICS_PREFS = "core_graphics";
@@ -314,6 +314,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
+      CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));
       CoreBridge.setVertexRing(g.getBoolean("vertexRing", false));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
       CoreBridge.setPotato(CoreBridge.potatoMask(g));

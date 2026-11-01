@@ -46,8 +46,10 @@
     <string name="ingame_latch_b">B einrasten</string>
     <string name="ingame_auto_aim">Auto-Zielen</string>
     <string name="ingame_always_run">Immer laufen</string>
+    <string name="ingame_far_camera">Kamera weiter weg</string>
     <string name="ingame_auto_aim_help">Auto-Zielen: Beim Anlegen der Waffe springt das Ziel auf den nächsten Gegner vor dir und folgt ihm einen Moment (die eingebaute Zielhilfe des Spiels).</string>
     <string name="ingame_always_run_help">Immer laufen: Leon läuft, sobald du dich bewegst; halte die Lauftaste (z. B. B), um stattdessen zu gehen.</string>
+    <string name="ingame_far_camera_help">Hält die Schulterkamera beim Laufen und Stehen etwas weiter hinter Leon. Beim Zielen und an engen Stellen kommt sie wie bisher nah heran; dazwischen gleitet sie weich.</string>
     <string name="ingame_touch_aim">Touch-Zielen</string>
     <string name="ingame_aim_move_stick">Bewegungsstick</string>
     <string name="ingame_aim_touch_area">Touchfläche</string>

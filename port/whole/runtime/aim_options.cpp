@@ -32,6 +32,7 @@ namespace {
 std::atomic<int> gInvert(-1);       // the app's "Invert vertical", -1 before it sent anything
 std::atomic<int> gLock(-1);         // the app's "Auto aim", -1 before it sent anything
 std::atomic<bool> gRun(false);      // the app's "Always run"
+std::atomic<bool> gFar(false);      // the app's "Far camera" (patch 0171)
 std::atomic<int> gSpeed(100);       // the app's "Aim speed" in percent
 std::atomic<bool> gPending(false);  // the game's option to be set at the next game frame
 std::atomic<bool> gHooked(false);
@@ -91,6 +92,7 @@ struct StartSetting {
             gInvert = bits & 1;
             gLock = (bits >> 1) & 1;
             gRun = (bits & 4) != 0;
+            gFar = (bits & 8) != 0;
             gHooked = true;
             gPending = true;
             re4_add_frame_hook(hook);
@@ -103,7 +105,7 @@ struct StartSetting {
 extern "C" {
 
 // The app (core_api.cpp re4_core_set_aim): bit 0 "Invert vertical", bit 1 "Auto aim", bit 2 "Always run",
-// bits 8 and up the aim speed in percent. Any thread.
+// bit 3 "Far camera", bits 8 and up the aim speed in percent. Any thread.
 void re4_aim_set(int bits)
 {
     int speed = bits >> 8;
@@ -112,18 +114,26 @@ void re4_aim_set(int bits)
     const int invert = bits & 1;
     const int lock = (bits >> 1) & 1;
     const bool run = (bits & 4) != 0;
+    const bool far = (bits & 8) != 0;
     const bool inverted = gInvert.exchange(invert) != invert;
     const bool faster = gSpeed.exchange(speed) != speed;
     const bool locked = gLock.exchange(lock) != lock;
     const bool ran = gRun.exchange(run) != run;
-    if (inverted || faster || locked || ran) {
-        re4_log("aim: stick aiming %s, speed %d %%, auto aim %s, always run %s", invert ? "inverted" : "normal",
-                speed, lock ? "on" : "off", run ? "on" : "off");
+    const bool farther = gFar.exchange(far) != far;
+    if (inverted || faster || locked || ran || farther) {
+        re4_log("aim: stick aiming %s, speed %d %%, auto aim %s, always run %s, far camera %s",
+                invert ? "inverted" : "normal", speed, lock ? "on" : "off", run ? "on" : "off", far ? "on" : "off");
     }
     if (!gHooked.exchange(true)) {
         re4_add_frame_hook(hook);
     }
     gPending.store(true);
+}
+
+// Patch 0171 (cam_qfps.cpp): the shoulder camera further back while walking and standing.
+int re4_far_camera(void)
+{
+    return gFar.load(std::memory_order_relaxed) ? 1 : 0;
 }
 
 // Patch 0151: the factor of the stick's turn while aiming (1: as the game).

@@ -591,6 +591,10 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons third = buttonsRow(body);
     toggle(third, R.string.ingame_auto_aim, input.getBoolean(CoreActivity.AUTO_AIM, false), on -> host.autoAimChanged(on));
     toggle(third, R.string.ingame_always_run, input.getBoolean(CoreActivity.ALWAYS_RUN, false), on -> host.alwaysRunChanged(on));
+    // the shoulder camera further back (a user's wish, 01.11.2026; patch 0171)
+    toggle(buttonsRow(body), R.string.ingame_far_camera, input.getBoolean(CoreActivity.FAR_CAMERA, false), on -> {
+      input.edit().putBoolean(CoreActivity.FAR_CAMERA, on).apply(); CoreBridge.setFarCamera(on);
+    });
     // aiming the knife and the guns by touch or a controller (wish of the project owner, 30.10.2026): the game's
     // own "reverse" option and the stick's speed while aiming, right under the latches
     switchWithSlider(R.string.ingame_aim_invert_v, input.getBoolean(CoreActivity.AIM_INVERT_V, false),
@@ -602,7 +606,7 @@ final class CoreMenu extends Dialog {
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
         input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), mode -> host.touchAimChanged(mode));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
-    help(R.string.ingame_always_run_help); help(R.string.ingame_aim_help);
+    help(R.string.ingame_always_run_help); help(R.string.ingame_far_camera_help); help(R.string.ingame_aim_help);
     help(R.string.ingame_touch_aim_help); help(R.string.ingame_knife_swipe_help);
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
     // since 30.10.2026 under a heading of its own

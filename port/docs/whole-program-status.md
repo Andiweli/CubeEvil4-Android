@@ -63,6 +63,14 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   `gx_gl_check` 0 Fehler (neuer Test: eine rote Linie aus 0/255/0 wird 64/128/64, bei jeder Stufe), Spielbild am PC
   verglichen, Retroid 120 s mit Filter (Vorfilm, Autofahrt; Helligkeit und Bildrate wie ohne). Schalter im Menü
   selbst nicht auf dem Gerät angesehen.
+- **Kamera „Far“ (Nutzerwunsch, Auftrag des Projektinhabers 01.11.2026): Patch 0171.** Schalter unter Steuerung
+  („Far camera“ / „Kamera weiter weg“, alle 11 Sprachen, standardmäßig aus), als Bit 3 der Ziel-Einstellungen in den
+  Kern (`re4_core_set_aim`, auch über den Kernprozess; `re4_far_camera`, `RE4_TEST_AIM=8`). Beim Laufen und Stehen
+  bis zum 1,4-Fachen weiter weg (weich ein- und ausgeblendet), beim Zielen wie das Spiel; nach dem Wandschutz des
+  Spiels sofort näher, zurück nach hinten höchstens 40 Einheiten je Bild. `RE4_TRACE_POS` nennt jetzt den Abstand
+  der Kamera. Geprüft am PC (r201, US): Stehen 1290 → 1740, Zielen 793 wie bisher, danach weich zurück (917, 1269,
+  1637, 1727, 1740); mit Wand hinter Leon (47000 2000 −37915) 381 / 476 genau wie das Spiel; Bilder ohne Blick durch
+  Wände.
 - **Garrador steht weiter still, Save-Room-Musik (Samsung SM-A245M, EU Spanisch, 0.96.6, Datei 18 in r201):** gleiche
   Lage wie am 31.10. (s19 Liste 0x56 angekettet). Gemeinsam mit dem Schlüssel-Bericht (US, Infinix): beide Spielstände
   in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,
@@ -10910,6 +10918,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0168 `mes.cpp`, `act_btn.cpp` | Aktionstasten-Beschriftungen der Arten 64..78 (0x56..0x64: HOP DOWN, FIRE …) mit Verkaufs-Discs unverschoben (Patch 0123 schob sie um 15 auf alte Platzhalter: „aaa“ an der Kanone in r202). Port-Patch für Verkaufsdaten |
 | 0169 `r201.cpp` | Sicherheitsnetz Schlüssel zum Garrador-Gefängnis: gilt der Schlüssel 0xC3 (Gegenstandsbereich 0x80) als genommen, ist die Tür noch zu (`KYF_R201_DOOR`) und der Schlüssel nicht im Koffer, hängt `R201Init` ihn wieder ins Bild (eine Zeile im Protokoll). US-Nutzerbericht 01.11.2026; wie der Spielstand dahin kam, ist offen (keine `.gci`). Kein Fehler des Prototyps nachgewiesen, alle Discs |
 | 0170 `r31b.cpp` | U-3 tot ohne den Fang im dritten Raum (Merker 0x1C, nach einem Continue setzt `R31bEmSetMain` ihn gleich in dessen Zustand): gilt als gefangen (0x1C, Bereich 0x23 aus), die Todesszene mit Gitter und Ausgang läuft. EU-Bericht 01.11.2026; der EU-Code ist hier gleich. Port-Patch, alle Discs |
+| 0171 `cam_qfps.cpp` | Kamera „Far“ (Menü Steuerung, standardmäßig aus): Schulterkamera beim Laufen und Stehen bis 1,4-mal so weit hinter Leon, weich ein- und ausgeblendet, Zielen wie das Spiel; nach dem Wandschutz sofort näher, nach hinten gebremst. Nutzerwunsch 01.11.2026, neue Option |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere
