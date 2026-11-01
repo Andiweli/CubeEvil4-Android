@@ -275,6 +275,7 @@ struct Program {
   mutable std::uint32_t lastMtx[3] = {~0u, ~0u, ~0u}; // uMtx as last set
   GLint widen = -1;           // uWiden (flat draws only)
   mutable float lastWiden = 1.0f;
+  mutable std::uint32_t lastUse = 0;  // stats.chunks of its last draw (EvictPrograms)
 };
 
 struct KeyHash {
@@ -530,6 +531,18 @@ struct GxRenderer::Impl {
   std::size_t aheadNext = 0;
   double aheadMs = 0.0;
   unsigned aheadLoaded = 0, aheadLinked = 0, aheadListed = 0;
+  // Programs per room (01.11.2026, report of a Mi 11 crashing in r307): Prewarm took every program
+  // the cache had (10242 on that phone, each held by the driver with mappings of its own) until the
+  // process ran out of mappings (Android allows 65530) and the system's shader cache aborted. Now the
+  // keys a room drew with go into <cache>/room-XXX.keys, Prewarm takes the room's own list, and the
+  // programs beyond kMaxPrograms that went longest unused are deleted (a later draw loads its binary).
+  static constexpr std::size_t kMaxPrograms = 3000, kMaxMerged = 1000;
+  std::size_t maxPrograms = kMaxPrograms, maxMerged = kMaxMerged;  // RE4_GX_MAX_PROGRAMS (tests)
+  unsigned room = ~0u;
+  std::unordered_set<ShaderKey, KeyHash, KeyEqual> roomUsed;
+  bool roomDirty = false;
+  unsigned roomSaved = 0;  // stats.chunks at the last write of the room's list
+  unsigned evicted = 0;
   bool stateValid = false;
   GLuint unitTex[8] = {}, unitSampler[8] = {};
   bool unitsValid = false;
@@ -2648,27 +2661,75 @@ struct GxRenderer::Impl {
     return ProgramStem(programCache, driverTag, vs, fs, check);
   }
 
-  // The cache's key files and the app's list, once (Prewarm).
+  // The room's list (room-XXX.keys: the keys it drew with before, SetRoom), at most half of
+  // kMaxPrograms (Prewarm).
+  std::string RoomList(unsigned r) const {
+    char name[32];
+    std::snprintf(name, sizeof(name), "/room-%03x.keys", r);
+    return programCache + name;
+  }
   void ReadAhead() {
     aheadRead = true;
-    std::unordered_set<ShaderKey, KeyHash, KeyEqual> seen;
-    for (const auto &k : CacheKeys(programCache)) {
-      if (seen.insert(k.first).second) {
+    ahead.clear();
+    aheadNext = 0;
+    aheadLoaded = aheadLinked = aheadListed = 0;
+    aheadMs = 0.0;
+    std::vector<ShaderKey> keys;
+    if (programCache.empty() || room == ~0u || !ReadKeyList(RoomList(room), &keys))
+      return;
+    for (const ShaderKey &k : keys) {
+      roomUsed.insert(k);
+      if (ahead.size() < maxPrograms / 2) {
         AheadKey a;
-        a.key = k.first;
+        a.key = k;
         ahead.push_back(a);
       }
     }
-    std::vector<ShaderKey> listed;
-    if (!programList.empty())
-      ReadKeyList(programList, &listed);
-    for (const ShaderKey &k : listed) {
-      AheadKey a;
-      a.key = k;
-      a.listed = true;
-      ahead.push_back(a);
+  }
+  // The keys the room drew with so far into its list.
+  void SaveRoom() {
+    roomDirty = false;
+    roomSaved = stats.chunks;
+    if (programCache.empty() || room == ~0u || roomUsed.empty())
+      return;
+    const std::vector<ShaderKey> keys(roomUsed.begin(), roomUsed.end());
+    WriteKeyList(RoomList(room), keys);
+  }
+  // A key a draw of this room uses (its program exists).
+  void NoteKey(const ShaderKey &k) {
+    if (room != ~0u && !programCache.empty() && roomUsed.insert(k).second)
+      roomDirty = true;
+  }
+  // The programs of `map` beyond `keep` that went longest without a draw (not this chunk's) are deleted.
+  void EvictPrograms(std::unordered_map<ShaderKey, Program, KeyHash, KeyEqual> &map, std::size_t keep) {
+    std::vector<std::pair<std::uint32_t, ShaderKey>> order;
+    order.reserve(map.size());
+    for (const auto &e : map)
+      if (e.second.id && e.second.lastUse != stats.chunks)
+        order.emplace_back(e.second.lastUse, e.first);
+    std::sort(order.begin(), order.end(),
+              [](const std::pair<std::uint32_t, ShaderKey> &a, const std::pair<std::uint32_t, ShaderKey> &b) {
+                return a.first < b.first;
+              });
+    unsigned n = 0;
+    for (const auto &o : order) {
+      if (map.size() <= keep)
+        break;
+      const auto it = map.find(o.second);
+      if (&it->second == keyProgram) {
+        keyProgram = nullptr;
+        keyDirty = true;
+      }
+      glDeleteProgram(it->second.id);
+      map.erase(it);
+      n++;
     }
-    aheadListed = static_cast<unsigned>(listed.size());
+    current = nullptr;  // glUseProgram again before the next draw
+    evicted += n;
+    stats.programsDeleted += n;
+    static unsigned lines = 0;
+    if (n && lines++ < 20)
+      GXLOG("GX programs: %u deleted that went longest unused (%zu kept, %u deleted so far)", n, map.size(), evicted);
   }
 
   // `merged`: the program of a merged draw call (GxMergedVertexShader). Its binary goes into the
@@ -2676,8 +2737,13 @@ struct GxRenderer::Impl {
   const Program *ProgramFor(const ShaderKey &k, bool merged = false) {
     auto &map = merged ? mergedPrograms : programs;
     auto it = map.find(k);
-    if (it != map.end())
+    if (it != map.end()) {
+      it->second.lastUse = stats.chunks;
       return it->second.id ? &it->second : nullptr;
+    }
+    const std::size_t cap = merged ? maxMerged : maxPrograms;
+    if (map.size() >= cap)
+      EvictPrograms(map, cap * 3 / 4);
     Program p;
     std::string log;
     const std::string vs = merged ? GxMergedVertexShader(k) : GxVertexShader(k), fs = GxFragmentShader(k);
@@ -2727,8 +2793,10 @@ struct GxRenderer::Impl {
         glUniform1f(p.widen, 1.0f);
       current = nullptr;
     }
+    p.lastUse = stats.chunks;
     auto &slot = map[k];
     slot = p;
+    stats.programsLive = static_cast<unsigned>(programs.size() + mergedPrograms.size());
     return slot.id ? &slot : nullptr;
   }
 
@@ -2852,10 +2920,14 @@ struct GxRenderer::Impl {
     if (keyDirty || d.layout != keyLayout) {
       key = MakeKey(d);
       keyProgram = ProgramFor(key);
+      if (keyProgram)
+        NoteKey(key);
       keyLayout = d.layout;
       keyDirty = false;
     }
     const Program *p = merge ? ProgramFor(key, true) : keyProgram;
+    if (p)
+      p->lastUse = stats.chunks;
     Split(GxStats::kSplitProgram);
     if (!p)
       return;
@@ -3192,6 +3264,8 @@ struct GxRenderer::Impl {
     if (keyDirty || first.layout != keyLayout) {
       key = MakeKey(first);
       keyProgram = ProgramFor(key);
+      if (keyProgram)
+        NoteKey(key);
       keyLayout = first.layout;
       keyDirty = false;
     }
@@ -4296,7 +4370,15 @@ struct GxRenderer::Impl {
   }
 };
 
-GxRenderer::GxRenderer() : impl_(new Impl) {}
+GxRenderer::GxRenderer() : impl_(new Impl) {
+  if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
+    const long n = std::strtol(limit, nullptr, 10);
+    if (n >= 4) {
+      impl_->maxPrograms = static_cast<std::size_t>(n);
+      impl_->maxMerged = static_cast<std::size_t>(n);
+    }
+  }
+}
 
 GxRenderer::~GxRenderer() = default;
 
@@ -4611,6 +4693,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     return;
   if (!m.interpPass)
     m.stats.chunks++;
+  if (m.roomDirty && m.stats.chunks - m.roomSaved >= 900)  // every 30 s while new keys come
+    m.SaveRoom();
   m.mergeValid = false;
   m.splitAt = std::chrono::steady_clock::now();
   // a real Run notes its draws for the in-between picture after it
@@ -5108,8 +5192,7 @@ bool GxRenderer::Prewarm(double budgetMs) {
   if (!m.aheadRead) {
     m.ReadAhead();
     if (!m.ahead.empty())
-      GXLOG("GX programs ahead of their first draw: %zu keys (%u of them from the app's list)", m.ahead.size(),
-            m.aheadListed);
+      GXLOG("GX programs ahead of their first draw: %zu keys of room r%03x", m.ahead.size(), m.room);
   }
   if (m.aheadNext >= m.ahead.size())
     return false;
@@ -5151,6 +5234,17 @@ bool GxRenderer::Prewarm(double budgetMs) {
 }
 
 void GxRenderer::SetProgramList(const std::string &path) { impl_->programList = path; }
+
+void GxRenderer::SetRoom(unsigned room) {
+  Impl &m = *impl_;
+  if (room == m.room)
+    return;
+  if (m.roomDirty)
+    m.SaveRoom();
+  m.room = room;
+  m.roomUsed.clear();
+  m.aheadRead = false;  // Prewarm reads the new room's list
+}
 
 bool ProgramCacheWarming() { return gWarming.load() > 0; }
 
@@ -5226,6 +5320,8 @@ GxWarmResult WarmProgramCache(const std::string &cache, const std::string &list,
 
 void GxRenderer::Release() {
   Impl &m = *impl_;
+  if (m.roomDirty)
+    m.SaveRoom();
   m.DropTextures();
   for (auto &c : m.copies)
     glDeleteTextures(1, &c.second.id);

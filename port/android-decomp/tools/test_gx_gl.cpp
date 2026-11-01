@@ -2706,9 +2706,10 @@ void TestTevMath() {
 }
 
 // The programs ahead of their first draw (GxRenderer::Prewarm, Retroid report 22.10.2026 23:42):
-// a renderer keeps each program's key next to its binary; a new renderer makes them all before any
-// draw, and the same draws then make none. A key under an old name (the sources changed) is
-// linked anew and its old files go.
+// a renderer keeps each program's key next to its binary and the keys a room drew with in the room's
+// list (01.11.2026: before, every program of the cache; a Mi 11 ran out of mappings with 10242); a new
+// renderer in that room makes them before any draw, and the same draws then make none. A key under an
+// old name (the sources changed) is linked anew and its old files go.
 namespace {
 
 std::vector<std::string> CacheFiles(const std::string &dir, const char *ending) {
@@ -2739,6 +2740,7 @@ void TestPrewarm() {
     re4gx::GxRenderer r;
     Require(r.Init(1, &error), error.c_str());
     Check(r.SetProgramCache(dir), "prewarm: the driver keeps program binaries");
+    r.SetRoom(0x101);
     Check(!r.Prewarm(100.0), "prewarm: an empty cache, nothing to make");
     TestShaderVariety(r);
     made = r.Stats().programs;
@@ -2779,6 +2781,7 @@ void TestPrewarm() {
     Require(r.Init(1, &error), error.c_str());
     r.SetProgramCache(dir);
     r.SetProgramList(list);
+    r.SetRoom(0x101);
     int calls = 0;
     while (r.Prewarm(0.0) && calls < 10000)
       calls++;
@@ -2816,13 +2819,37 @@ void TestPrewarm() {
     Require(r.Init(1, &error), error.c_str());
     r.SetProgramCache(dir);
     r.SetProgramList(list);
+    r.SetRoom(0x101);
     while (r.Prewarm(1000.0)) {
     }
     const re4gx::GxStats s = r.Stats();
-    Check(s.programsAhead == made + 2 && s.programsLoaded == made + 2 && s.programs == made + 2,
-          "prewarm: after the warm every program from the cache, the list's one too");
+    Check(s.programsAhead == made && s.programsLoaded == made && s.programs == made,
+          "prewarm: after the warm the room's programs from the cache (the list's one is no room's)");
     TestShaderVariety(r);
-    Check(r.Stats().programs == made + 2, "prewarm: the same draws make no program");
+    Check(r.Stats().programs == made, "prewarm: the same draws make no program");
+    // another room: its list is empty, nothing ahead
+    r.SetRoom(0x102);
+    const unsigned ahead = r.Stats().programsAhead;
+    while (r.Prewarm(1000.0)) {
+    }
+    Check(r.Stats().programsAhead == ahead, "prewarm: a room without a list takes no program ahead");
+    r.Release();
+  }
+  {
+    // at most RE4_GX_MAX_PROGRAMS programs kept: those that went longest unused are deleted, a draw
+    // takes its program again from the cache and draws the same
+    setenv("RE4_GX_MAX_PROGRAMS", "8", 1);
+    re4gx::GxRenderer r;
+    unsetenv("RE4_GX_MAX_PROGRAMS");
+    Require(r.Init(1, &error), error.c_str());
+    r.SetProgramCache(dir);
+    r.SetRoom(0x103);
+    TestShaderVariety(r);
+    const re4gx::GxStats s = r.Stats();
+    std::fprintf(stderr, "  limit 8: %u programs made, %u kept, %u deleted\n", s.programs, s.programsLive,
+                 s.programsDeleted);
+    Check(s.programsLive <= 8 && s.programsDeleted > 0 && s.programs == s.programsLoaded,
+          "limit: at most 8 programs kept, the others deleted and taken from the cache again");
     r.Release();
   }
   {
@@ -2840,6 +2867,10 @@ void TestPrewarm() {
     r.Release();
   }
   // the error report's list: every key of the cache once
+  Check(access((dir + "/room-101.keys").c_str(), F_OK) == 0 && access((dir + "/room-103.keys").c_str(), F_OK) == 0,
+        "prewarm: the rooms' lists written");
+  std::remove((dir + "/room-101.keys").c_str());
+  std::remove((dir + "/room-103.keys").c_str());
   Check(re4gx::WriteProgramKeyList(dir, dir + "-report.keys") == made + 2, "key list: the cache's keys");
   {
     FILE *f = std::fopen((dir + "-report.keys").c_str(), "rb");

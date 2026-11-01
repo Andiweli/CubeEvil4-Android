@@ -1424,6 +1424,8 @@ bool drawGx() {
     api.gxRelease(smoothPrev);
     smoothPrev = nullptr;
   }
+  // the room the game is in: Prewarm takes the programs this room drew with before (01.11.2026)
+  gx->SetRoom(frame.room);
   const Re4GxChunk *deferred = smoothNext;
   smoothNext = nullptr;
   const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
@@ -1659,11 +1661,12 @@ bool drawGx() {
       const double seconds = std::chrono::duration<double>(now - gxSince).count();
       LOG("GX: %u chunks, %u draws (%u per chunk), run %.1f ms (max %.1f), shown %.1f/s, %u programs, %u textures, "
           "%u copies, %u held pictures, %u missing, %u shader errors, %u inexact dst alpha, %u programs from the cache, "
-          "%u ahead of their first draw, base vertex %s, %u autofocus passes, %u EFB restores (MSAA on the tiles), "
-          "%u skipped",
+          "%u ahead of their first draw, %u kept, %u deleted unused, base vertex %s, %u autofocus passes, %u EFB "
+          "restores (MSAA on the tiles), %u skipped",
           s.chunks, s.draws, gxRunCount ? (s.draws - gxDraws) / gxRunCount : 0, gxRunCount ? gxRunMs / gxRunCount : 0.0,
           gxRunMax, seconds > 0 ? gxFrames / seconds : 0.0, s.programs, s.textures, s.textureCopies, s.heldCopies,
           s.missingTextures, s.shaderErrors, s.dstAlphaApprox, s.programsLoaded, s.programsAhead,
+          s.programsLive, s.programsDeleted,
           gx->BaseVertex() ? "yes" : "no",
           s.autofocus, s.efbRestores, s.skippedChunks);
       // the GL work per chunk since the last line, and the GPU time when the driver measures it

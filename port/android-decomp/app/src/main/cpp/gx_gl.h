@@ -46,6 +46,8 @@ struct GxStats {
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
   unsigned missingTextures = 0;  // bound keys the renderer did not have
   unsigned shaderErrors = 0;
+  unsigned programsLive = 0;     // programs kept now (at most 3000, RE4_GX_MAX_PROGRAMS)
+  unsigned programsDeleted = 0;  // programs deleted that went longest unused (EvictPrograms)
   unsigned dstAlphaApprox = 0;   // draws whose constant destination alpha is not 0 and not exact
   unsigned autofocus = 0;        // blur passes of the gameplay autofocus (BP 0x5A, the core's marker)
   unsigned efbRestores = 0;      // MSAA on the tiles: the EFB drawn back after a pass ended (GPU step d2)
@@ -289,6 +291,9 @@ public:
   // The app's list of programs (a key list file, WriteProgramKeyList): Prewarm takes them too, for
   // the MSAA setting in use. Before the first Prewarm.
   void SetProgramList(const std::string &path);
+  // The game's room (pG->room_id), each picture: Prewarm takes the programs this room drew with
+  // before (<cache>/room-XXX.keys), not every program of the cache (01.11.2026).
+  void SetRoom(unsigned room);
   // Frees the GL objects (context current).
   void Release();
 
