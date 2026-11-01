@@ -1,0 +1,30 @@
+# Port patch, a user's crash report (01.11.2026, Samsung SM-A135M, Android 14, 32 bit, EU discs, 0.96.7): signal 11
+# in r224 (st2_3, fault address 0x2ce), twice, after "EM_SET_NO(201) cEmWrap::setEm failed". The session started
+# from the app's instant save in r224 after one of the two El Gigantes (list 0xC9) was dead: the instant save
+# loads at the room's start without its enemies, the drop-in event runs again and asks for both with the dead
+# check; the second stays null and r224_em_set / r224_em_set_exit use it without a check. A dead one is now set
+# again (setEm without the dead check), the fight starts with both, as after a continue. The instant save is
+# refused in r224 from now on (runtime/instant_game.cpp, with the other boss rooms r119, r11e, r31b).
+# Checked on the PC (r224, EU discs, RE4_TEST_EM_DEAD="224:c9", RE4_TEST_PLACE="free+30:area=9"): the failure line,
+# then "em: + s4 0x2b/1 list 201", both El Gigantes, no crash.
+--- a/src/st2/r224.cpp
++++ b/src/st2/r224.cpp
+@@ -255,8 +255,16 @@
+     }
+     SceEventStart(0);
+     SceExec(0x12, (TaskFunc) r224_cam_task, 0, 0, SCE_PRIO_DEF_2, 0);
+-    r224_work->em0.setEm(0xC8, -1, 1, 1, 1);
+-    r224_work->em1.setEm(0xC9, -1, 1, 1, 1);
++    /* port (patch 0181, a user's crash, 01.11.2026): an El Gigante noted as dead (killed before the app's instant
++       save, which loads at the room's start without its enemies) is set again: the event and its end use both
++       without a check, the second's null pointer crashed (EM_SET_NO(201) ... setEm failed). As a continue does,
++       the room's fight starts with both. */
++    if (!r224_work->em0.setEm(0xC8, -1, 1, 1, 1)) {
++        r224_work->em0.setEm(0xC8, -1, 1, 0, 1);
++    }
++    if (!r224_work->em1.setEm(0xC9, -1, 1, 1, 1)) {
++        r224_work->em1.setEm(0xC9, -1, 1, 0, 1);
++    }
+     r224_work->em0.setNoSuspend(1);
+     r224_work->em1.setNoSuspend(1);
+     if (r224_work->em0.getPtr()) {

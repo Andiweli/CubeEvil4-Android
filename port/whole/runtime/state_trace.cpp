@@ -1577,6 +1577,21 @@ void frame(unsigned n)
         re4_log("run: item 0x%02x %s from the case (RE4_TEST_ITEM_USE) at frame %u", g_itemUseId,
                 p == 0 ? "not in" : used ? "used" : "not usable here", n);
     }
+    // RE4_TEST_EM_DEAD="ROOM:NO" (hex both): while the room loads, list entry NO of the current enemy list is
+    // noted as dead (an instant save after the kill: r224's second El Gigante 0xC9, patch 0181)
+    static const char* emDead = getenv("RE4_TEST_EM_DEAD");
+    static bool emDeadDone;
+    if (emDead && !emDeadDone && g->Rno0 == 2 && g->em_list_no >= 0) {
+        char* end = 0;
+        const unsigned room = (unsigned) strtoul(emDead, &end, 16);
+        const unsigned no = end && *end == ':' ? (unsigned) strtoul(end + 1, 0, 16) & 0xFF : 0;
+        if (g->room_id == room) {
+            emDeadDone = true;
+            EM_FLG_ROW(g->em_list_no)[no >> 5] |= 0x80000000u >> (no & 31);
+            re4_log("run: enemy list %d entry 0x%02x noted dead (RE4_TEST_EM_DEAD) at frame %u", (int) g->em_list_no,
+                    no, n);
+        }
+    }
     // RE4_TEST_SAVE_ITEM="ROOM:AREA:ITEM" (hex room, decimal area, hex item): while the room loads a saved item
     // record of type 1 for item area AREA (patch 0179: an area the room has not, the US crash in r20f)
     static const char* saveItem = getenv("RE4_TEST_SAVE_ITEM");

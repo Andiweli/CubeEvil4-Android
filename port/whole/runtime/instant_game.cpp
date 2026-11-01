@@ -68,6 +68,11 @@ bool unsafePlace()
         0x226, 0x228, // statue chase and Salazar
         0x31C, 0x317, // Krauser
         0x332, 0x333, // elevator, Saddler and the jet ski escape
+        // the other rooms whose code starts a boss fight (GamePointBossReset; a user's crash 01.11.2026: an
+        // instant save in r224 after one of its two El Gigantes was dead, patch 0181)
+        0x119, 0x11E, // El Gigante: the village square, the village path
+        0x224,        // the two El Gigantes over the lava
+        0x31B,        // U-3 in the cages
     };
     for (unsigned i = 0; i < sizeof(rooms) / sizeof(rooms[0]); ++i)
         if (pG->room_id == rooms[i])
