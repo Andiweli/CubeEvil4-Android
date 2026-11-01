@@ -1577,6 +1577,24 @@ void frame(unsigned n)
         re4_log("run: item 0x%02x %s from the case (RE4_TEST_ITEM_USE) at frame %u", g_itemUseId,
                 p == 0 ? "not in" : used ? "used" : "not usable here", n);
     }
+    // RE4_TEST_SAVE_ITEM="ROOM:AREA:ITEM" (hex room, decimal area, hex item): while the room loads a saved item
+    // record of type 1 for item area AREA (patch 0179: an area the room has not, the US crash in r20f)
+    static const char* saveItem = getenv("RE4_TEST_SAVE_ITEM");
+    static bool saveItemDone;
+    if (saveItem && !saveItemDone && g->Rno0 == 2) {
+        char* end = 0;
+        const unsigned room = (unsigned) strtoul(saveItem, &end, 16);
+        const int area = end && *end == ':' ? (int) strtol(end + 1, &end, 10) : 0;
+        const int item = end && *end == ':' ? (int) strtol(end + 1, 0, 16) : 0x18;
+        if (g->room_id == room) {
+            saveItemDone = true;
+            g->item_save[0xFF].room_no = (u16) room;
+            g->item_save[0xFF].item_type = 1;
+            g->item_save[0xFF].item_at = (u8) area;
+            g->item_save[0xFF].item_id = (u16) item;
+            re4_log("run: saved item record 255 for r%03x area %d (RE4_TEST_SAVE_ITEM) at frame %u", room, area, n);
+        }
+    }
     if (g_rsfCount && !g_rsfDone && g->room_id == g_rsfRoom && g->Rno0 == 2) {
         g_rsfDone = true;
         for (int i = 0; i < g_rsfCount; i++) {
@@ -2045,4 +2063,16 @@ extern "C" int re4_state_trace_open(const char* path)
     }
     re4_set_frame_hook(frame);  // (the hook stays: the memory card lines)
     return g_trace != 0;
+}
+
+// Patch 0179 (sce_at.cpp SceAtSetSaveItem): a saved item record for an item area the room does not have,
+// skipped instead of written to address 0 (a user's crash, 01.11.2026, US discs, r20f); at most 20 lines a run
+extern "C" void re4_save_item_missing_area(int no, int room, int area, int item)
+{
+    static int lines;
+    if (lines < 20) {
+        lines++;
+        re4_log("at: saved item record %d of r%03x names item area %d, which the room has not: left alone "
+                "(item 0x%02x, patch 0179)", no, (unsigned) room, area, (unsigned) item);
+    }
 }

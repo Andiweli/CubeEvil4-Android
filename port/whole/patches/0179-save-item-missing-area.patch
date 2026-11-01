@@ -1,0 +1,32 @@
+# Port patch, a user's crash report (01.11.2026, vivo V2426, Android 16, 64 bit, US discs, 0.96.7): signal 11 in
+# SceAtSetSaveItem (from ScenarioRoomInit) on entering r20f from the save room r206, fault address game 0x35.
+# A saved item record of type 1 (an item area whose item SceAtCheckSystemItemSet replaced) names an item area the
+# room does not have at its start (likely an area made at run time, e.g. by a type 0 record); SceAtPtr gives 0 and
+# the stores went to address 0x78..0x86. The retail releases have no check either (EU main.dol 0x80154b14). The
+# record is left alone and the room loads; the log names it (runtime/state_trace.cpp re4_save_item_missing_area).
+# Checked on the PC (r20f, US discs, RE4_TEST_SAVE_ITEM="20f:250:18"): the line in the log, r20f runs.
+--- a/src/game/sce_at.cpp
++++ b/src/game/sce_at.cpp
+@@ -3569,6 +3569,8 @@
+     return 1;
+ }
+ 
++extern "C" void re4_save_item_missing_area(int no, int room, int area, int item);  // runtime/state_trace.cpp
++
+ // Room start: re-creates the persistent items saved for this room (type 0 records) and restores
+ // the contents of the ITA item areas that were changed (type 1 records).
+ void SceAtSetSaveItem()
+@@ -3593,6 +3595,13 @@
+             break;
+         case 1:
+             w = SceAtPtr(SAVE_ITEM_ATNO(i));
++            if (w == 0) {
++                /* port (patch 0179): a record for an item area the room does not have (a user's crash, 01.11.2026,
++                   US discs, entering r20f): SceAtPtr gives 0 and the stores below went to address 0x78..0x86, a
++                   crash on the phone (and on the GameCube); the record is left alone, the room loads */
++                re4_save_item_missing_area(i, pG->room_id, SAVE_ITEM_ATNO(i), pG->item_save[i].item_id);
++                break;
++            }
+             U16Set(((SCE_AT_ITEM*) w)->item.item_id, pG->item_save[i].item_id);
+             ((SCE_AT_ITEM*) w)->item.item_num = SAVE_ITEM_NUM(i);
+             ((SCE_AT_ITEM*) w)->item.ctrl_flag |= 8;

@@ -9,6 +9,14 @@ Hotfix auf Wunsch des Projektinhabers: `versionName` 0.96.8-beta, `versionCode` 
 `port/android-decomp/docs/releases/v0.96.8-beta.md` seit 0.96.7: der Minenwerfer-Cheat (Waffe 0x36 mit angebautem
 Zielfernrohr 0xAA statt Gegenstand 0xAB, siehe Nachtrag unter „Waffen-Cheats“), in `master` übernommen.
 
+- **Absturz beim Betreten von r20f (Nutzerbericht über den Projektinhaber, vivo V2426, Android 16, 64 bit, US-Discs,
+  0.96.7):** Signal 11 in `SceAtSetSaveItem` (aus `ScenarioRoomInit`), zweimal hintereinander, Spielstand aus r206.
+  Ein gespeicherter Gegenstand-Eintrag Typ 1 nennt einen Auslösebereich, den r20f beim Raumstart nicht hat;
+  `SceAtPtr` gibt 0, die Schreibzugriffe gingen nach Adresse 0x78..0x86 (EU-Code ebenso ohne Prüfung). **Patch
+  0179:** der Eintrag bleibt liegen, der Raum lädt, das Protokoll nennt ihn („saved item record … names item area“).
+  Neue Testhilfe `RE4_TEST_SAVE_ITEM="ROOM:AREA:ITEM"`. Geprüft am PC (r20f, US-Discs, Bereich 250): Zeile im Protokoll,
+  r20f läuft. Welcher Eintrag es beim Spieler ist, zeigt erst sein `.gci` oder sein nächstes Protokoll.
+
 ## Version 0.96.7-beta: drei Berichte zu 0.96.6 (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Veröffentlicht mit dem OK des Projektinhabers (01.11.2026): `versionName` 0.96.7-beta, `versionCode` 89, Releasetext
@@ -10992,6 +11000,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0176 `em10.cpp` | Knie-Tritt ohne Tod: Treffergeräusch und Schmerzlaut wie die Verkaufsfassung (der Prototyp nur ein Aufprall). Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0177 `cam_qfps.cpp` | Ada mit ihrer eigenen Laufkamera (`TRANS_DATA_ADA`, mittlere Reihe wie die Verkaufsfassung) statt Leons: weiteres Bild. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0178 `pl_class.cpp` | `cPlayer::endCamera`: Kamera und Licht im Spiel sofort neu gesetzt, nicht nur im Koffer (wie die Verkaufsfassung): Griff nach Zoom mit dem Gewehr. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0179 `sce_at.cpp` | `SceAtSetSaveItem`: ein gespeicherter Gegenstand-Eintrag für einen Auslösebereich, den der Raum nicht hat, bleibt liegen statt nach Adresse 0 zu schreiben (Absturz in r20f, US-Discs). Port-Patch, Nutzerbericht 01.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
