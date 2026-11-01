@@ -638,6 +638,7 @@ std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); 
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
+std::atomic<int> optVertexRing{0};  // the menu's vertex ring (CoreBridge.setVertexRing; or RE4_GX_VERTEX_RING=1)
 // pictures put on the screen so far, each once: the game's and the in-between ones (the FPS display)
 std::atomic<long long> picturesMade{0};
 // 60 FPS (experimental): the chunk run last, kept for the in-between picture after it (its
@@ -1288,6 +1289,8 @@ bool drawGx() {
     options.invalidate = optInvalidate.load() != 0;
     options.tiledMsaa = optTiled.load() != 0;
     options.halfDof = optHalfDof.load() != 0;
+    const char *ringEnv = getenv("RE4_GX_VERTEX_RING");
+    options.vertexRing = optVertexRing.load() != 0 || (ringEnv && *ringEnv == '1');
     gx->SetOptions(options);
     // the depth of the pictures whose chunks peeked (GXPeekZ), to the core: the glow of torches stays
     // behind walls (a GameCube; before 26.10.2026 it shone through them)
@@ -1677,12 +1680,13 @@ bool drawGx() {
         if (timed)
           std::snprintf(gpu, sizeof(gpu), "%.1f ms", (s.gpuMicros - gxWork.gpuMicros) / 1000.0 / timed);
         LOG("GX work per chunk: %.0f uniform uploads (%.0f KB, %.0f the same not sent), %.0f program switches, %.0f texture binds, "
-            "%.0f state changes, %u stream waits, %u stream switches (%u inside a chunk), GPU %s",
+            "%.0f state changes, %u stream waits, %u stream switches (%u inside a chunk), %u vertex ring waits, GPU %s",
             (s.uniformUploads - gxWork.uniformUploads) / n, (s.uniformBytes - gxWork.uniformBytes) / n / 1024.0,
             (s.uniformSame - gxWork.uniformSame) / n,
             (s.programSwitches - gxWork.programSwitches) / n, (s.textureBinds - gxWork.textureBinds) / n,
             (s.stateChanges - gxWork.stateChanges) / n, s.streamWaits - gxWork.streamWaits,
-            s.streamSwitches - gxWork.streamSwitches, s.streamSplits - gxWork.streamSplits, gpu);
+            s.streamSwitches - gxWork.streamSwitches, s.streamSplits - gxWork.streamSplits,
+            s.ringWaits - gxWork.ringWaits, gpu);
         // the render thread's processor time in Run: about the run time when the thread computes
         // (driver calls), less when it waits for the GPU; and the kind of core it got
         const int cpu = sched_getcpu();
@@ -2407,6 +2411,16 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSmooth(JN
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMerge(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optMerge.exchange(want) != want) LOG("merged draw calls: %s", want ? "on" : "off");
+}
+
+// Vertex ring (experimental, for Mali): every chunk's vertices into buffers mapped for good; a new
+// renderer takes it (GxOptions::vertexRing, wish of the project owner, 01.11.2026).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setVertexRing(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optVertexRing.exchange(want) != want) {
+    LOG("vertex ring: %s", want ? "on" : "off");
+    optSerial++;
+  }
 }
 
 // Swipe aiming (CoreInput.takeAimSwipe): the touch area's finger as angles (cores since 29.10.2026).

@@ -1004,10 +1004,15 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(output), R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
       graphics.edit().putBoolean("mergeDraws", on).apply(); CoreBridge.setMerge(on);
     });
+    // the vertex ring at the bottom (wish of the project owner, 01.11.2026: off by default, for Mali)
+    toggle(buttonsRow(output), R.string.ingame_vertex_ring, graphics.getBoolean("vertexRing", false), on -> {
+      graphics.edit().putBoolean("vertexRing", on).apply(); CoreBridge.setVertexRing(on);
+    });
     help(output, R.string.ingame_frame_skip_help);
     help(output, R.string.ingame_smooth_help);
     help(output, R.string.ingame_skip_or_smooth);
     help(output, R.string.ingame_merge_help);
+    help(output, R.string.ingame_vertex_ring_help);
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);

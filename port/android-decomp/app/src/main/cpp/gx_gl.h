@@ -94,6 +94,9 @@ struct GxStats {
   // the uniform stream moved on to its next quarter: in all, and inside a chunk (a chunk larger
   // than the room left; between chunks otherwise, gx_gl.cpp)
   unsigned streamSwitches = 0, streamSplits = 0;
+  // the vertex ring (GxOptions::vertexRing): chunks whose vertices and indices went into it, waits for the GPU
+  // before a quarter was written again, and how often it grew for a larger chunk
+  unsigned ringChunks = 0, ringWaits = 0, ringGrows = 0;
   // the render thread's time in Run by kind of work (ns, steady clock; every Run): which part is the
   // driver's (the draw calls, uniform blocks, binds, state) and which the renderer's own (Testers'
   // logs 28.10.2026: 29.8 ms of processor time for 862 draws on a Mali-G52, 12 ms for 873 on an Adreno 642L)
@@ -166,6 +169,14 @@ struct GxOptions {
   // MSAA in own buffers: every resolve of the whole EFB, not only of the region a copy reads
   // (a test of the device replay)
   bool fullResolve = false;
+  // the vertex ring (V0b of port/docs/vulkan-plan.md, 31.10.2026): every chunk's vertices and indices are
+  // copied into two buffers mapped once for good (EXT_buffer_storage), a quarter at a time with a fence,
+  // as the uniform stream does, instead of a new buffer per chunk (glBufferData). The Galaxy S10e's Mali-G76
+  // spent 5.9 ms a picture on the vertex buffers (the Retroid ~1 ms). Without the extension, or with
+  // RE4_GX_VERTEX_RING=0 / RE4_GX_PERSISTENT=0: as before. Off by default since 0.96.7: a switch in the app
+  // menu, Performance, Experimental (wish of the project owner, 01.11.2026: the Mali tester's vertex upload
+  // 20-35 % cheaper, no more pictures a second)
+  bool vertexRing = false;
 };
 
 class GxRenderer {

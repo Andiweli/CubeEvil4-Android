@@ -832,6 +832,79 @@ void TestMerge() {
   merged.Release();
 }
 
+// The vertex ring (GxOptions::vertexRing, V0b of port/docs/vulkan-plan.md, 31.10.2026): 48 chunks of 300
+// squares each, their places and colours different in every chunk, so the ring goes round its quarters
+// many times; every 12th chunk three large draws more (180 000 vertices, 2.9 MB: more than a quarter of
+// 2 MB), so it grows. Every picture as a renderer without the ring draws it (a buffer per chunk).
+void TestVertexRing() {
+  std::string error;
+  re4gx::GxRenderer ring, plain;
+  re4gx::GxOptions on, off;
+  on.vertexRing = true;  // off by default (the app menu's switch)
+  off.vertexRing = false;
+  ring.SetOptions(on);
+  plain.SetOptions(off);
+  Require(ring.Init(1, &error), error.c_str());
+  Require(plain.Init(1, &error), error.c_str());
+  const auto build = [](Builder &b, unsigned n) {
+    if (n == 0)
+      Baseline(b);
+    else
+      b.flags = 0;
+    DisplayCopy(b, true, kBlack);
+    if (n % 12 == 11) {
+      // three draws of 60 000 vertices of triangles without area, drawn below the squares
+      std::vector<std::uint8_t> v;
+      for (unsigned i = 0; i < 60000; i++)
+        V(v, static_cast<float>(i % 600), static_cast<float>(i / 600), 0, kWhite);
+      for (int k = 0; k < 3; k++)
+        b.Draw(RE4_GX_V_COLOR0, 16, v, 60000, 0x90);
+    }
+    for (unsigned i = 0; i < 300; i++) {
+      const float x = static_cast<float>((i * 7 + n * 13) % 40) * 16.0f, y = static_cast<float>((i + n) % 33) * 16.0f;
+      const std::uint8_t c[4] = {static_cast<std::uint8_t>(i * 5 + n), static_cast<std::uint8_t>(255 - i),
+                                 static_cast<std::uint8_t>(n * 9), 255};
+      Quad(b, x + 2, y + 2, x + 14, y + 14, 0, c);
+    }
+    DisplayCopy(b, false, kBlack);
+  };
+  const re4gx::GxStats before = ring.Stats();
+  bool same = true;
+  unsigned chunks = 0;
+  for (unsigned n = 0; n < 48; n++) {
+    Builder a, b;
+    build(a, n);
+    build(b, n);
+    ring.Run(a.Chunk());
+    plain.Run(b.Chunk());
+    chunks++;
+    unsigned w = 0, h = 0;
+    const GLuint ra = ring.Xfb(&w, &h), pa = plain.Xfb(nullptr, nullptr);
+    std::vector<std::uint8_t> p(static_cast<std::size_t>(w) * h * 4), q(p.size());
+    glBindFramebuffer(GL_FRAMEBUFFER, gReadFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ra, 0);
+    glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, p.data());
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pa, 0);
+    glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, q.data());
+    same = same && w && p == q;
+  }
+  const re4gx::GxStats &s = ring.Stats();
+  char what[160];
+  std::snprintf(what, sizeof(what), "vertex ring: %u chunks went into it (%u), it grew for the large ones (%u), "
+                "%u waits", chunks, s.ringChunks - before.ringChunks, s.ringGrows - before.ringGrows,
+                s.ringWaits - before.ringWaits);
+  std::fprintf(stderr, "  %s\n", what);
+  // (RE4_GX_VERTEX_RING=0: all of gx_gl_check without the ring; then only the pictures are compared)
+  const char *forcedOff = std::getenv("RE4_GX_VERTEX_RING");
+  if (!(forcedOff && *forcedOff == '0'))
+    Check(s.ringChunks - before.ringChunks == chunks && s.ringGrows - before.ringGrows >= 1, what);
+  Check(plain.Stats().ringChunks == 0, "vertex ring: off, a buffer per chunk");
+  Check(same, "vertex ring: every picture as with a buffer per chunk");
+  Check(glGetError() == GL_NO_ERROR, "vertex ring: no GL error");
+  ring.Release();
+  plain.Release();
+}
+
 // The game's GXPeekZ (a torch's glow hides itself behind a wall by reading the depth around it): the
 // core marks the chunk with BP 0x5B; at its display copy the depth goes, half the resolution, to the
 // sink once the GPU is through (the next chunk). A quad at depth 0.5 on the left, cleared (far) elsewhere.
@@ -2906,6 +2979,7 @@ int main() {
   TestAutoLevel();
   TestHandOverCopies();
   TestMerge();
+  TestVertexRing();
   // twice: as the app runs it, and with the copy targets, the blur and the focus painted magenta
   // where the GPU may forget them (GPU step b): every picture must stay the same
   for (int poison = 0; poison < 2; poison++) {

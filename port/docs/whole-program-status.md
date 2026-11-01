@@ -40,6 +40,15 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   Absturz/ANR/Signal), legt die App ihre Protokolle zusätzlich in `logs/last-crash/` ab; dort bleiben sie bis zum
   nächsten Absturz und kommen mit in jeden Bericht. Geprüft auf dem Retroid (Debug-APK, Absturz per `kill -11`, zwei
   Neustarts): `last-crash/` mit `crash.txt` (Signal 11, Aufrufkette), Kernprotokoll und logcat vorhanden.
+- **Vertex-Ringpuffer als Schalter (Wunsch des Projektinhabers, 01.11.2026):** der Ring aus Branch `vulkan`
+  (`be7d330b`, V0b: Eckdaten und Indizes jedes Bildes in dauerhaft eingeblendete Puffer statt eines neuen Puffers je
+  Bild) übernommen, **standardmäßig aus** (`GxOptions::vertexRing = false`), Schalter ganz unten unter Performance →
+  Experimentell: „Vertex ring buffer (experimental, for Mali)“ / „Vertex-Ringpuffer (experimentell, für Mali)“ mit
+  Hilfetext, alle 11 Menüsprachen (`check_translations.py` ok). `CoreBridge.setVertexRing` → neuer Renderer;
+  `RE4_GX_VERTEX_RING=1` schaltet ihn für Tests ein. Bisherige Messung (Mali-G52-Tester, Test-APK 0.96.4-beta-ring):
+  Eckdaten-Upload 20–35 % billiger, Zeichen-Thread bis 15 % weniger Prozessorzeit, keine messbar höhere Bildrate.
+  Geprüft: `gx_gl_check` 0 Fehler (Ring-Test mit eingeschaltetem Ring), Retroid aus/an je 150 s (an: einmal auf
+  4 × 5 MB gewachsen, gleiche Bildrate, kein Absturz). Der Schalter im Menü selbst: nicht auf dem Gerät angesehen.
 - **Garrador steht weiter still, Save-Room-Musik (Samsung SM-A245M, EU Spanisch, 0.96.6, Datei 18 in r201):** gleiche
   Lage wie am 31.10. (s19 Liste 0x56 angekettet). Gemeinsam mit dem Schlüssel-Bericht (US, Infinix): beide Spielstände
   in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,

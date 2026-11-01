@@ -160,6 +160,8 @@ public final class CoreBridge {
    * effect while 60 FPS is on.
    */
   public static native void setMerge(boolean on);
+  /** Vertex ring (experimental, for Mali): a new renderer takes it. */
+  public static native void setVertexRing(boolean on);
   /**
    * Frame skip: while the renderer is behind (the core has two pictures finished), the first is not
    * drawn and the second drawn at once, so the game keeps its pace on a slow graphics chip.

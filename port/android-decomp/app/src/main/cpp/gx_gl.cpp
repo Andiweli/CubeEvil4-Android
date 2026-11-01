@@ -756,6 +756,143 @@ struct GxRenderer::Impl {
           streamMap ? "persistent mapping" : "a map per block", static_cast<unsigned>(streamAlign));
   }
 
+  // --- vertex ring (GxOptions::vertexRing) -----------------------------------------
+  // The chunk's vertices (vring) and indices with the merged chains' (iring) are copied to the next free
+  // place of a buffer mapped for good, in quarters like the uniform stream; a fence guards a quarter
+  // before it is written again. The place is taken before the chunk's first draw, never while drawing
+  // (see the uniform stream: a fence in the middle of a picture). A quarter holds at least the largest
+  // chunk; a larger one makes the ring anew (the GL buffer before is freed once the GPU is done with it).
+  static constexpr unsigned kRingParts = 4;
+  struct Ring {
+    GLuint buffer = 0;
+    std::uint8_t *map = nullptr;
+    std::size_t part = 0;  // bytes per quarter
+    unsigned cur = 0;
+    std::size_t pos = 0;
+    GLsync fence[kRingParts] = {};
+  };
+  Ring vring, iring;
+  bool ringTried = false, ringOn = false;
+  // where this chunk's vertices and indices lie (bytes) and the buffer of the vertices
+  std::size_t vtxBase = 0, idxBase = 0;
+  GLuint drawVbo = 0;
+
+  static void *BufferStorage() {
+    const char *ext = reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
+    return ext && std::strstr(ext, "GL_EXT_buffer_storage") ? GlExtension("glBufferStorageEXT") : nullptr;
+  }
+
+  bool RingMake(Ring &r, GLenum target, std::size_t part) {
+    using Storage = void (*)(GLenum, GLsizeiptr, const void *, GLbitfield);
+    const auto storage = reinterpret_cast<Storage>(BufferStorage());
+    if (!storage)
+      return false;
+    const GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT_EXT | GL_MAP_COHERENT_BIT_EXT;
+    const std::size_t size = kRingParts * part;
+    glGenBuffers(1, &r.buffer);
+    glBindBuffer(target, r.buffer);
+    storage(target, static_cast<GLsizeiptr>(size), nullptr, flags);
+    r.map = static_cast<std::uint8_t *>(glMapBufferRange(target, 0, static_cast<GLsizeiptr>(size), flags));
+    if (!r.map) {
+      glDeleteBuffers(1, &r.buffer);
+      r.buffer = 0;
+      return false;
+    }
+    r.part = part;
+    r.cur = 0;
+    r.pos = 0;
+    return true;
+  }
+
+  void RingRelease(Ring &r, GLenum target) {
+    for (GLsync &f : r.fence) {
+      if (f)
+        glDeleteSync(f);
+      f = nullptr;
+    }
+    if (r.buffer) {
+      glBindBuffer(target, r.buffer);
+      glUnmapBuffer(target);
+      glDeleteBuffers(1, &r.buffer);
+    }
+    r = Ring();
+  }
+
+  // Room for `bytes` (at most a quarter) in `r`: its offset; the next quarter, once the GPU is done with
+  // it, when this one has no room left.
+  std::size_t RingAlloc(Ring &r, std::size_t bytes) {
+    std::size_t at = (r.pos + 63) / 64 * 64;
+    if (at + bytes > (r.cur + 1) * r.part) {
+      r.fence[r.cur] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+      r.cur = (r.cur + 1) % kRingParts;
+      if (GLsync f = r.fence[r.cur]) {
+        if (glClientWaitSync(f, GL_SYNC_FLUSH_COMMANDS_BIT, 0) == GL_TIMEOUT_EXPIRED) {
+          stats.ringWaits++;
+          glClientWaitSync(f, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000ull);
+        }
+        glDeleteSync(f);
+        r.fence[r.cur] = nullptr;
+      }
+      at = r.cur * r.part;
+    }
+    r.pos = at + bytes;
+    return at;
+  }
+
+  // A quarter of `r` holds `bytes`: the ring anew when it is smaller (half again, in whole MB)
+  bool RingFit(Ring &r, GLenum target, std::size_t bytes, std::size_t least) {
+    if (r.buffer && bytes <= r.part)
+      return true;
+    const std::size_t part = std::max(least, (bytes + bytes / 2 + (1u << 20) - 1) >> 20 << 20);
+    const bool grow = r.buffer != 0;
+    RingRelease(r, target);
+    if (!RingMake(r, target, part))
+      return false;
+    if (grow) {
+      stats.ringGrows++;
+      GXLOG("GX vertex ring: %s grown to 4 x %zu KB for a chunk of %zu KB", target == GL_ARRAY_BUFFER ? "vertices" : "indices",
+            part >> 10, bytes >> 10);
+    }
+    return true;
+  }
+
+  // The chunk's vertices and indices (and the merged chains' after them) into the rings, the index ring bound
+  // to vao (bound); false: not possible here, the caller uploads as before.
+  bool RingUpload(const Re4GxChunk &chunk) {
+    if (!ringTried) {
+      ringTried = true;
+      const char *off = std::getenv("RE4_GX_VERTEX_RING"), *persistent = std::getenv("RE4_GX_PERSISTENT");
+      ringOn = options.vertexRing && !(off && *off == '0') && !(persistent && *persistent == '0') && BufferStorage();
+      GXLOG("GX vertex ring: %s", ringOn ? "on (vertices and indices into buffers mapped for good)"
+                                         : "off (a buffer per chunk)");
+    }
+    if (!ringOn)
+      return false;
+    const std::size_t vbytes = std::max<std::size_t>(chunk.vertexBytes, 4);
+    const std::size_t own = static_cast<std::size_t>(chunk.indexCount) * 2, moved = mergeIndices.size() * 2;
+    const std::size_t ibytes = std::max<std::size_t>(own + moved, 4);
+    if (!RingFit(vring, GL_ARRAY_BUFFER, vbytes, std::size_t(2) << 20) ||
+        !RingFit(iring, GL_ELEMENT_ARRAY_BUFFER, ibytes, std::size_t(512) << 10)) {
+      GXLOG("GX vertex ring: could not be made; a buffer per chunk from now on");
+      RingRelease(vring, GL_ARRAY_BUFFER);
+      RingRelease(iring, GL_ELEMENT_ARRAY_BUFFER);
+      ringOn = false;
+      return false;
+    }
+    vtxBase = RingAlloc(vring, vbytes);
+    if (chunk.vertexBytes)
+      std::memcpy(vring.map + vtxBase, chunk.vertices, chunk.vertexBytes);
+    idxBase = RingAlloc(iring, ibytes);
+    if (own)
+      std::memcpy(iring.map + idxBase, chunk.indices, own);
+    if (moved)
+      std::memcpy(iring.map + idxBase + own, mergeIndices.data(), moved);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, iring.buffer);
+    drawVbo = vring.buffer;
+    stats.ringChunks++;
+    return true;
+  }
+
   // The ring for the in-between passes' blended vertices (EXT_buffer_storage, persistent and
   // coherent); without it blendVbo with a map per draw. RE4_GX_PERSISTENT=0: never.
   void BlendRingInit() {
@@ -3013,13 +3150,15 @@ struct GxRenderer::Impl {
       vaoBound = true;
     }
     // (an in-between picture's blended vertices: from blendVbo)
-    const GLuint buffer = blendAt >= 0 ? (blendMap ? blendRing : blendVbo) : vbo;
+    // (the chunk's vertices: from the vertex ring at vtxBase, or from vbo)
+    const GLuint buffer = blendAt >= 0 ? (blendMap ? blendRing : blendVbo) : drawVbo;
     const std::uint32_t at = blendAt >= 0 ? static_cast<std::uint32_t>(blendAt) : d.vertexOffset;
+    const std::uint32_t shift = blendAt >= 0 ? 0 : static_cast<std::uint32_t>(vtxBase);
     blendAt = -1;
-    std::uint32_t base = at;
+    std::uint32_t base = shift + at;
     GLint baseVertex = 0;
     if (drawBaseVertex && d.stride) {
-      base = at % d.stride;
+      base = shift + at % d.stride;
       baseVertex = static_cast<GLint>(merge ? merge->base : at / d.stride);
     }
     if (d.layout != attribLayout || d.stride != attribStride || base != attribBase || buffer != attribBuffer) {
@@ -3029,7 +3168,7 @@ struct GxRenderer::Impl {
     const GLenum mode = primitive == RE4_GX_LINES ? GL_LINES : primitive == RE4_GX_POINTS ? GL_POINTS : GL_TRIANGLES;
     const std::uint32_t indexAt = merge ? merge->index : d.indexOffset;
     const std::uint32_t indexCount = merge ? merge->count : d.indexCount;
-    const void *indices = reinterpret_cast<const void *>(static_cast<std::uintptr_t>(indexAt) * 2);
+    const void *indices = reinterpret_cast<const void *>(idxBase + static_cast<std::uintptr_t>(indexAt) * 2);
     Split(GxStats::kSplitBind);
     if (drawBaseVertex)
       drawBaseVertex(mode, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT, indices, baseVertex);
@@ -4478,6 +4617,7 @@ bool GxRenderer::InitHalves(int halves, std::string *error) {
   glGenVertexArrays(1, &m.quadVao);
   glGenBuffers(1, &m.vbo);
   glGenBuffers(1, &m.ibo);
+  m.drawVbo = m.vbo;
   glBindVertexArray(m.vao);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
   glBindVertexArray(0);
@@ -4725,7 +4865,14 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.mergeNext = 0;
   if (m.mergeOn && m.drawBaseVertex && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded)
     m.MergePlan(chunk);
-  if (!m.skipDraws && !uploaded) {
+  if (!m.skipDraws && !uploaded && m.RingUpload(chunk)) {
+    if (m.interpPass) {
+      m.uploadedBy = &chunk;
+      m.uploadedSequence = chunk.sequence;
+    }
+  } else if (!m.skipDraws && !uploaded) {
+    m.drawVbo = m.vbo;
+    m.vtxBase = m.idxBase = 0;
     glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
     glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
@@ -5357,6 +5504,8 @@ void GxRenderer::Release() {
     glDeleteBuffers(1, &m.blendVbo);
   m.blendVbo = 0;
   m.BlendRingRelease();
+  m.RingRelease(m.vring, GL_ARRAY_BUFFER);
+  m.RingRelease(m.iring, GL_ELEMENT_ARRAY_BUFFER);
   glDeleteBuffers(kXfParts, m.xfUbo);
   m.StreamRelease();
   m.FenceRelease();

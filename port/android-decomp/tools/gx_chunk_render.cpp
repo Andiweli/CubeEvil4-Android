@@ -252,13 +252,15 @@ int main(int argc, char **argv) {
                 s.shaderErrors > before.shaderErrors ? ", FEHLER: Shader" : "");
     if (std::getenv("RE4_GX_WORK"))
       std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB, %u gleiche ausgelassen), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
-                  "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild); "
+                  "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild), "
+                  "Eckdaten-Ring %s (%u gewartet); "
                   "zusammenfassbar: %u ohne jede Änderung, %u nur mit anderen Uniforms (%u davon nur Matrizen/Licht)\n",
                   s.uniformUploads - before.uniformUploads, (s.uniformBytes - before.uniformBytes) / 1024,
                   s.uniformSame - before.uniformSame,
                   s.programSwitches - before.programSwitches, s.textureBinds - before.textureBinds,
                   s.stateChanges - before.stateChanges, s.attributeSetups - before.attributeSetups,
                   s.streamSwitches - before.streamSwitches, s.streamSplits - before.streamSplits,
+                  s.ringChunks > before.ringChunks ? "an" : "aus", s.ringWaits - before.ringWaits,
                   s.mergeSame - before.mergeSame, s.mergeUniform - before.mergeUniform,
                   s.mergeMatrixOnly - before.mergeMatrixOnly);
     // RE4_GX_MERGE=1: the merged draw calls; and the render thread's time by kind of work (GxStats::splitNs)
