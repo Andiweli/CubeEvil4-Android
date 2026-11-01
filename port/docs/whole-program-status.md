@@ -72,6 +72,14 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
   1637, 1727, 1740); mit Wand hinter Leon (47000 2000 −37915) 381 / 476 genau wie das Spiel; Bilder ohne Blick durch
   Wände. **Retroid** (EU, r120 → r100, Einstellung direkt in `core_input.xml`): aus 1291, an 1774 an derselben Stelle,
   kein Absturz; Bildschirmfotos verglichen, danach wieder aus gestellt. Den Schalter im Menü selbst nicht angetippt.
+- **Zeitmessung beim Laden der Disc-Daten (Testervorschläge 01.11.2026, Auftrag des Projektinhabers):** von den
+  Vorschlägen eines Testers (Umwandlung in einen eigenen Thread, MemorySwap asynchron, Textur-Zwischenspeicher, NEON,
+  alle Shader vorladen, ETC2, `kStallMs`) erst gemessen statt umgebaut: `re4_formats_timed` (`formats.cpp`) misst
+  jetzt jede Umwandlung (auch Tonblöcke und Raumarchive nach dem Entpacken) und das Yz2-Entpacken
+  (`yz2_decode.cpp`); ab 20 ms eine Zeile „formats: … took N ms to convert/unpack“ (höchstens 100), bei Ladevorgängen
+  alle 10 s eine Summe (Dateien, Zeit im Spiel-Thread, die längste). Vorher nur Umwandlungen ab 50 ms. Am PC (i686,
+  Debug-Start r101): Raumarchiv 5,5 MB in 66 ms entpackt, alle Umwandlungen unter 20 ms. MemorySwap im Retroid-Protokoll:
+  2,2 MB in etwa 3 ms (kein Grund für lange Stopps). Laufzeittests 0 Fehler. Geräte: offen (kommt mit den Berichten).
 - **Garrador steht weiter still, Save-Room-Musik (Samsung SM-A245M, EU Spanisch, 0.96.6, Datei 18 in r201):** gleiche
   Lage wie am 31.10. (s19 Liste 0x56 angekettet). Gemeinsam mit dem Schlüssel-Bericht (US, Infinix): beide Spielstände
   in r201 mit **Ashley** (Partner Typ 0x03, Tonblock „blk 9, ID 0x3“), beide hören durchgehend die Save-Room-Musik,

@@ -44,6 +44,7 @@ extern "C" void yz2Decode_Decode(void* ctx, void* dst, u32 size, void* in)
     ev.srcEnd = reinterpret_cast<const u8*>(~uintptr_t{0});
     ev.workEnd = game->heap + detail::yz2WorkBytes;
     ev.statistics = &stats;
+    const long long t0 = re4_formats_now_ns();
     try {
         detail::yz2Decode_Decode(ctx, dst, size, &ev);
     } catch (const std::exception& e) {
@@ -53,5 +54,6 @@ extern "C" void yz2Decode_Decode(void* ctx, void* dst, u32 size, void* in)
     }
     game->src = const_cast<u8*>(ev.src);
     game->free = ev.free;
+    re4_formats_timed("yz2 stream", size, re4_formats_now_ns() - t0, "unpack");
     re4_formats_unpacked(dst, size);
 }
