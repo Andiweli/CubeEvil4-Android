@@ -3,6 +3,12 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.96.9-beta (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
+
+Wunsch des Projektinhabers: `versionName` 0.96.9-beta, `versionCode` 91, Releasetext
+`port/android-decomp/docs/releases/v0.96.9-beta.md` seit 0.96.8: die Behebungen des Abschnitts darunter (Punkte 1–5).
+In `master` erst nach dem Test des Projektinhabers auf dem Retroid (seine Entscheidung, 02.11.2026).
+
 ## Sieben Berichte nach 0.96.8 (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 WSL-Baum `~/re4-sagan/RE4` vorher auf den Branch gebracht (alter Stand gesichert als Commit `3f08c723` im lokalen
