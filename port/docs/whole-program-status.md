@@ -3,6 +3,59 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Sieben Berichte nach 0.96.8 (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
+
+WSL-Baum `~/re4-sagan/RE4` vorher auf den Branch gebracht (alter Stand gesichert als Commit `3f08c723` im lokalen
+Zweig `wsl-backup-20261102`, gearbeitet auf `sagan-sync`).
+
+1. **Keine Save-Room-Musik in Kapitel 5-1 (Samsung SM-A245M, EU Spanisch, 0.96.8, r306):** Ursache im Port. Der
+   Spielstand wurde vom Titel geladen und liegt auf Disc 2; der Tonstrom des Titels (Platz 0, `bio4bgm.sbb`, auf
+   Disc 1 geöffnet) lief beim Disc-Wechsel noch aus. Seine nächsten Lesezugriffe nannten die Lage auf Disc 1
+   (0x46ecd000, auf Disc 2 liegt die Datei bei 0x3f8ba800), `dvd.cpp` wies sie ab („refused: no file starts at …“):
+   der Strom wartete ewig auf Daten (`err 1`, Stopp-Anforderung unerledigt, dreimal „SND: str stop“) und belegte
+   seinen Platz; im Bericht danach kein einziges „STREAM 0 STOP“ mehr, die Raumströme (r304 und r306 Strom 0x1A)
+   stumm. **Behoben in `runtime/dvd.cpp` `readFile`:** eine vor dem Wechsel geöffnete Datei liest weiter ihre Datei
+   auf der Disc, auf der sie geöffnet wurde (Zeile „read at … of a file opened on disc N“). Raumcode r306 und
+   `bgmtbl.dat` sind in EU und Debug gleich. Geprüft am PC (EU-Discs): in r306 gespeichert, neu gestartet, im Titel
+   geladen: vorher abgewiesene Lesezugriffe und hängender Platz 0, nachher „STREAM 0 STOP“, keine Abweisung, der
+   Raumstrom läuft in Platz 0; Weg r306 → r305 → r306 mit Musik. Dass genau der hängende Platz die Musik beim Tester
+   verschluckte, ist am PC nicht nachgestellt (dort wurde der Spiel-Platz 0 nicht freigegeben, die Musik nahm Platz 1).
+2. **Gegenstände doppelt in den Hütten (erster El Gigante, r11e, EU-Discs, Bilder des Projektinhabers):** die EU- und
+   JP-Daten haben die Hüttengegenstände zweimal (Tische 0x80–0x8B, Boden 0xA0–0xAB, gleiche Gegenstand-Flaggen); ihr
+   Code schaltet den Bodensatz ab, solange die Hütte steht, und beim Einsturz an. **Patch 0182.** Geprüft am PC: EU
+   12 Tisch-Bereiche an, Boden aus; mit `RE4_TEST_RSF="0x11e:0,1"` (Hütten zerstört) Tisch aus, Boden an; Debug-Discs
+   unverändert.
+3. **Flackernde Wände mit 60 FPS (Retroid, R3-Serien 19:16–19:24):** Serie 03 (r101): ein Haustor wechselt von Bild zu
+   Bild einen Texturmatrix-Index (Einheit ↔ Zeile 36); die Objekt-Zuordnung verlangte gleiche Form, das Tor blieb
+   ohne Gegenstück und stand im Zwischenbild wie im nächsten Bild – eine Stufe zur Wand. **Renderer (`gx_gl.cpp`
+   `BlendDraw`):** gleiches Objekt, keine Partikel, gleiche Ecken und Positionszeilen: die Lage wird gemischt (Textur-
+   matrizen und Farben weiter nur bei gleicher Form). Test `TestInterpolationRoomPart` (mit dem alten Renderer 2
+   Fehler). Alle 72 echten Bilder der sechs Serien bytegleich, nur die zwei betroffenen Zwischenbilder anders, das Tor
+   durchgehend; `gx_gl_check` 0 Fehler. Das erste Zwischenbild jeder Serie ist dunkler (Aufnahme beginnt mit vollem
+   Zustand), kein Gerätefehler; das Feuer am Scheiterhaufen (Einzelbild-Animation) bleibt wie entschieden.
+4. **Tune-up-Ton fehlt bei Exclusive/Kapazität (Nutzer, US-Discs):** nach dem letzten möglichen Ausbau springt
+   `LvUpItemSelect::move` gleich zur Liste und spielte den Zurück-Ton (0:5); der verdrängte den Kaufton (0:0x18) ein
+   Bild davor. Die Verkaufsfassungen (EU, US, JP) spielen ihn nur, solange die Waffe noch ausbaubar ist. **Patch 0183**
+   (Fehler des Prototyps). Neue Testhilfe `RE4_TEST_SE="free+N:B:S[,…]"`; am PC: 0x18 allein deutlich, 0x18 + 5 klingt
+   wie 5 allein. Den Händler selbst nicht am PC durchgespielt.
+5. **Mercenaries: Leon hält die Pistole statt der Blacktail:** `PlayerInit` gibt Leon Waffennummer 2, `set_char(0)`
+   rüstet danach die Blacktail (0x27) nur im Koffer aus. Die Verkaufsfassungen setzen am Ende von
+   `cItemMgr::gameInit` Waffennummer und -typ aus der ausgerüsteten Waffe. **Patch 0184** (Fehler des Prototyps).
+   Geprüft am PC (r400, EU, `RE4_TEST_MERC=1`): Leon Waffe 0x04, Modul `wep04` XD9; Ada 0x01, HUNK 0x0B, Krauser
+   0x1C, Wesker 0x02 wie vorher; Story-Start r100 Waffe 0x02.
+6. **Gewehr-Zielhaltung und Kamera beim Knie-Tritt „nach der Laser-Tür“ (Nutzer, ohne Protokoll):** nicht
+   nachgestellt. Geprüft: `bindAreaCamera` in EU und Debug gleich; Zuordnung Waffe → Zielhaltung für das Gewehr gleich
+   (EU ordnet zusätzlich die Eier 0x19/0x1F/0x20 der Wurfhaltung 2 zu); die Haltungstabellen `g_readyOfs` weichen in
+   EU (0x80203DD0) und US leicht ab (mittlere/untere Zeilen mehrerer Haltungen, auch Gewehr-Typ 3) – global, nicht nur
+   ab einer Tür, nicht übernommen. **Offen:** Raum, Version und Protokoll oder `.gci` des Nutzers.
+7. **Absturz beim dritten Ornament-Teil (r222) und schwarzer Start (TECNO KL4, Mali-G57, 2,7 GB, 0.96.6):** kein
+   Programmfehler: Android beendete die App wegen Speichermangel („low memory“). 0.96.6 lud beim Start alle 7429
+   Shader-Programme vor (später 9604) – langer schwarzer Bildschirm und Treiber-Speicher; seit 0.96.7 höchstens 3000
+   je Raum (`25b49f59`). Antwort an den Nutzer: auf 0.96.8 aktualisieren.
+
+Laufzeittests (`re4_host --runtime-test`) 0 Fehler. **Nicht getestet:** alles auf dem Gerät; Prüfstrecke
+`whole_r100_check.sh` nicht gelaufen.
+
 ## Version 0.96.8-beta (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Hotfix auf Wunsch des Projektinhabers: `versionName` 0.96.8-beta, `versionCode` 90, Releasetext
@@ -11020,6 +11073,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0177 `cam_qfps.cpp` | Ada mit ihrer eigenen Laufkamera (`TRANS_DATA_ADA`, mittlere Reihe wie die Verkaufsfassung) statt Leons: weiteres Bild. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0178 `pl_class.cpp` | `cPlayer::endCamera`: Kamera und Licht im Spiel sofort neu gesetzt, nicht nur im Koffer (wie die Verkaufsfassung): Griff nach Zoom mit dem Gewehr. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0181 `r224.cpp` | Die zwei El Gigantes: ein als tot vermerkter wird beim Ereignis erneut gesetzt (Schnellspeicher nach einem Kill), statt ungeprüft ins Leere zu greifen. Port-Patch, Nutzerbericht 01.11.2026 |
+| 0182 `r11e.cpp` | Erster El Gigante: mit EU- und JP-Discs die Boden-Gegenstände der Hütten (Bereiche 0xA0–0xAB) aus, solange die Hütte steht, beim Einsturz an (Tisch-Gegenstände aus), wie deren Code. Port-Patch für Verkaufsdaten, 02.11.2026 |
+| 0183 `ss_shop.cpp` | Händler: der Zurück-Ton nach einem Tune-up nur, solange die Waffe noch ausbaubar ist (sonst verdrängte er den Kaufton nach Exclusive/Kapazität), wie die Verkaufsfassungen. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0184 `item.cpp` | `cItemMgr::gameInit` setzt Waffennummer und -typ aus der ausgerüsteten Waffe des Startpakets (Mercenaries: Leon mit der Blacktail statt dem Pistolenmodell), wie die Verkaufsfassungen. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0180 `ss_main.cpp`, `item.cpp` | Untersuchen nach der Exklusiv-Aufrüstung: mit Verkaufs-Discs deren eigener Text (0x100–0x105); Feuerkraft des Minenwerfers (auch mit Zielfernrohr) auf Stufe 4 = 6.0 statt 0.0 (Fehler des Prototyps). Nutzerbericht 02.11.2026 |
 | 0179 `sce_at.cpp` | `SceAtSetSaveItem`: ein gespeicherter Gegenstand-Eintrag für einen Auslösebereich, den der Raum nicht hat, bleibt liegen statt nach Adresse 0 zu schreiben (Absturz in r20f, US-Discs). Port-Patch, Nutzerbericht 01.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |

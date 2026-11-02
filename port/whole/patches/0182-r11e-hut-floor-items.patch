@@ -1,0 +1,67 @@
+# Port patch for retail data (EU and JP discs; the owner's pictures 01.11.2026: in the three huts of the first
+# El Gigante fight the items on the tables lay a second time on the floor below them). The European and Japanese
+# r11e data hold the huts' items twice: on the tables (areas 0x80..0x8B) and on the floor (0xA0..0xAB, at the same
+# places 880 lower, with the same item flags). Their code (st1_3.rel, European text 0x10824 in R11eInit and
+# 0x10eac / 0x10f8c koyaA_delete / koyaB_delete, read with retail_code.py on 02.11.2026) switches the floor areas
+# off while a hut stands and on when the giant smashes it (then the table ones go off): the items fall with the
+# hut. The debug and US data and code have only the table areas; with those discs nothing changes.
+--- a/src/st1/r11e.cpp
++++ b/src/st1/r11e.cpp
+@@ -87,6 +87,8 @@
+ // key-use watcher); the hut/fence collapse watcher; collision and attribute pieces for huts A/B and
+ // fences A/B; the pieces already destroyed per Room_flg bits 0..3 are removed; the boulders on the
+ // props, the giant's appearance area and the battle stream.
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_jp(void);
+ void R11eInit()
+ {
+     cEmDoor* door;
+@@ -110,11 +112,22 @@
+     r11e_work->eat[3] = EatMgr.create(ROOM_ARC_PTR(pG->pRoom, 0x2A), 0, &r11e_sakuBPos, &r11e_sakuBRot, 0);
+     getRoomEtcDoor(0xE, &door, 1);
+     getRoomEtcDoor(0xF, &door, 1);
++    /* port (patch 0182): with the European and Japanese discs the huts' items lie twice in the data, on the
++       tables (areas 0x80..0x8B) and on the floor below (0xA0..0xAB, the same item flags): those discs' code
++       switches the floor ones off while a hut stands and on when it falls */
+     if (RsfCheck(G_ROOM_ID, 0)) {
+         koyaA_delete();
++    } else if (re4_disc_retail_eu() || re4_disc_retail_jp()) {
++        for (int i = 0xA0; i <= 0xA4; i++) {
++            SceAtSetEnable(i, 0);
++        }
+     }
+     if (RsfCheck(G_ROOM_ID, 1)) {
+         koyaB_delete();
++    } else if (re4_disc_retail_eu() || re4_disc_retail_jp()) {
++        for (int i = 0xA5; i <= 0xAB; i++) {
++            SceAtSetEnable(i, 0);
++        }
+     }
+     if (RsfCheck(G_ROOM_ID, 2)) {
+         sakuA_delete();
+@@ -233,6 +246,12 @@
+     SceAtSetEnable(0x82, 0);
+     SceAtSetEnable(0x83, 0);
+     SceAtSetEnable(0x84, 0);
++    /* port (patch 0182): the items now lie on the floor (European and Japanese discs) */
++    if (re4_disc_retail_eu() || re4_disc_retail_jp()) {
++        for (int i = 0xA0; i <= 0xA4; i++) {
++            SceAtSetEnable(i, 1);
++        }
++    }
+ }
+ 
+ // Remove hut B: collision pieces, scroll objects 6/7, item areas 0x85..0x8B off.
+@@ -249,6 +268,12 @@
+     SceAtSetEnable(0x89, 0);
+     SceAtSetEnable(0x8A, 0);
+     SceAtSetEnable(0x8B, 0);
++    /* port (patch 0182): the items now lie on the floor (European and Japanese discs) */
++    if (re4_disc_retail_eu() || re4_disc_retail_jp()) {
++        for (int i = 0xA5; i <= 0xAB; i++) {
++            SceAtSetEnable(i, 1);
++        }
++    }
+ }
+ 
+ // Fence A is broken through: crash SE, debris effect, door 0xE breaks toward its target, fence removed.

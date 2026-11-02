@@ -1468,7 +1468,16 @@ struct GxRenderer::Impl {
     }
     if (curOwner && sameCount) {
       auto o = recByOwner.find(curOwner);
-      if (o != recByOwner.end() && !recUsed[o->second] && rec[o->second].shape == DrawSig(d, k, false)) {
+      // not a particle, the same vertices and position rows, only another shader or texture matrix index:
+      // still that draw. Its position is blended, its texture matrices and colours (S3) are not. Retroid
+      // series 01.11.2026, r101: a house door switched a texture matrix index between identity and a row
+      // from one game picture to the next; unmatched, its lower half was drawn where it is in the next
+      // picture, a step against the wall around it in each in-between picture (flickering walls)
+      const bool sameShape = o != recByOwner.end() && rec[o->second].shape == DrawSig(d, k, false);
+      const bool samePlace = o != recByOwner.end() && kind != 0 && rec[o->second].rows == rows &&
+                             rec[o->second].posRow == first && rec[o->second].vertexCount == d.vertexCount &&
+                             rec[o->second].stride == d.stride && rec[o->second].layout == d.layout;
+      if (o != recByOwner.end() && !recUsed[o->second] && (sameShape || samePlace)) {
         const DrawRec &c = rec[o->second];
         recUsed[o->second] = 1;
         if (c.life != ~0u && curLife != ~0u &&
@@ -1478,7 +1487,7 @@ struct GxRenderer::Impl {
           return 0;
         }
         a = &c;
-        owned = true;
+        owned = sameShape;
         stats.interpOwned++;
       }
     }

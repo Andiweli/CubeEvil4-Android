@@ -1,0 +1,23 @@
+# A bug of the prototype (user's report 01.11.2026, US discs: "most of the time while upgrading the weapon's exclusive
+# and capacity the upgrade sound is missing; firepower has it"). After a tune-up LvUpConfirm::move plays the tune-up
+# sound (SndCall(0, 0x18)) and goes back to the type pick. LvUpItemSelect::move goes straight on to the weapon list
+# when the weapon cannot be tuned any more (its last tune-up: the exclusive, often the capacity) and played the back
+# sound (0:5) on the way; one frame later it cut the tune-up sound (PC: RE4_TEST_SE with 0x18 and 5 together sounds
+# as 5 alone). The retail releases (EU, US and JP Sscrn.rel, LvUpItemSelect::move, European text 0x27b28) ask
+# tunable() again and play the back sound only while the weapon can still be tuned (B pressed).
+--- a/src/Sscrn/ss_shop.cpp
++++ b/src/Sscrn/ss_shop.cpp
+@@ -2377,7 +2377,12 @@
+     }
+     if ((Key.trg & 0x40000000) || m->tunable(item) == 0) {
+         transit(1, wk);
+-        SndCall(0, 5, 0, 0, 0, 0);
++        /* port (patch 0183, a bug of the prototype): the back sound only while the weapon can still be tuned,
++           as in the retail releases; after its last tune-up (the exclusive, often the capacity) it cut the
++           tune-up sound of LvUpConfirm a frame before */
++        if (m->tunable(item) == 1) {
++            SndCall(0, 5, 0, 0, 0, 0);
++        }
+         return;
+     }
+     if (Key.trg & 0x80000000) {

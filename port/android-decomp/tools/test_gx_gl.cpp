@@ -2067,6 +2067,68 @@ void TestInterpolationOwners() {
   }
 }
 
+// A room part of 24 vertices (not a particle) whose texture matrix index changes from A (identity) to B
+// (row 36), as a house door in r101 did (Retroid series 01.11.2026), moved 2000 to the right by the camera:
+// by its object it goes halfway (-1000), not where it is in B (0). With `tags` false the counter-check: its
+// look differs, it stands where it is in B.
+void RoomPartScene(Builder &b, std::uint32_t sequence, bool second, bool tags, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  if (tags)
+    b.Owner(0x80200000u, 0x81234570u, 0x10);
+  b.XfF(0, {1, 0, 0, second ? 0.0f : -2000.0f, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+  std::vector<std::uint8_t> v;
+  for (int q = 0; q < 4; q++) {
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+  }
+  b.Draw(RE4_GX_V_COLOR0, 16, v, 24, 0x90, RE4_GX_TRIANGLES, second ? 36 : 60);
+  if (tags)
+    b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationRoomPart() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  for (int tags = 1; tags >= 0; tags--) {
+    std::string error;
+    re4gx::GxRenderer r;
+    Require(r.Init(1, &error), error.c_str());
+    r.SetRecording(true);
+    Builder ba, bb;
+    Re4GxChunk a, b;
+    RoomPartScene(ba, 1, false, tags != 0, &a);
+    RoomPartScene(bb, 2, true, tags != 0, &b);
+    r.Run(a);
+    // without the tags nothing is matched: no in-between picture (as a cut), B stays
+    const bool shown = r.Interpolate(a, b, 0.5f);
+    if (tags)
+      Check(shown, "room part: the in-between picture is shown");
+    const GLuint xfb = r.Xfb(nullptr, nullptr);
+    const auto half = TexPixel(xfb, px(-1000.0f), 264), next = TexPixel(xfb, px(200.0f), 264);
+    if (tags) {
+      Check(Near(half, 0, 255, 0) && Near(next, 0, 0, 0),
+            "room part: another texture matrix index, by its object halfway along its move");
+      if (!Near(half, 0, 255, 0) || !Near(next, 0, 0, 0))
+        Print("half", half), Print("next", next);
+    } else {
+      Check(Near(half, 0, 0, 0) && Near(next, 0, 255, 0), "room part: without tags as in B (counter-check)");
+    }
+    Check(glGetError() == GL_NO_ERROR, "room part: no GL error");
+    r.Release();
+  }
+}
+
 // A new particle in B (a slot that drew nothing in A, the sparkles of a turn of the r307 puzzle) drawn
 // before three alike ones that stand still: it stands where it is in B (-2000), and the three keep their
 // own places. Guessed, it took the first one's place (halfway at -3000), the first then the second's
@@ -3074,6 +3136,7 @@ int main() {
   TestInterpolationEffects();
   TestInterpolationForget();
   TestInterpolationOwners();
+  TestInterpolationRoomPart();
   TestInterpolationSparkle();
   TestInterpolationTrail();
   TestInterpolationExtras();

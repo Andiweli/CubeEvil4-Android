@@ -467,6 +467,21 @@ s32 readFile(DVDFileInfo* fi, void* dst, s32 length, s32 offset)
     }
     s32 entry = entryForStart(*d, fi->startAddr, fi->length);
     if (entry < 0) {
+        // A file opened before the disc swap (a stream still fading out while a save from the other disc
+        // loads: the title's music, a tester's report 01.11.2026) keeps reading its own file on the disc it
+        // was opened on. The drive would read the new disc's sectors there; refused, the stream waited for
+        // its data for ever and held its slot, and later room streams in that slot stayed silent.
+        Disc& other = gDiscs[gCurrent ^ 1];
+        if (other.loaded && (entry = entryForStart(other, fi->startAddr, fi->length)) >= 0) {
+            static int toldOther;
+            if (toldOther++ < 4) {
+                re4_log("DVD: read at 0x%x of a file opened on disc %d (before the disc change)",
+                        (unsigned) fi->startAddr, (gCurrent ^ 1) + 1);
+            }
+            d = &other;
+        }
+    }
+    if (entry < 0) {
         static int toldEntry;
         if (toldEntry++ < 8) {
             re4_log("DVD: read of 0x%x bytes at 0x%x refused: no file starts at 0x%x with %u bytes",

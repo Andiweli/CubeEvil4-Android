@@ -48,6 +48,10 @@
 //                          of stream block B starts as a room script starts it
 //                          (SndStrReq(B, S, 0x80000003): r226's statue camera
 //                          plays 0:0x16), for the sound checks (RE4_AUDIO_WAV)
+//   RE4_TEST_SE="free+N:B:S[,free+M:B:S...]"  N frames after the player is
+//                          free, sound effect S of block B as a menu plays it
+//                          (SndCall(B, S, 0, 0, 0, 0); up to 8): the merchant's
+//                          tune-up sound 0:0x18 and the back sound 0:5 (02.11.2026)
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
 //                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games)
 //                          one a frame, as the app's menu presses them while the
@@ -596,6 +600,8 @@ long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
 int g_streamBlock, g_streamNo;
+long g_seAfter[8];           // RE4_TEST_SE
+int g_seBlock[8], g_seNo[8], g_seCount;
 long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
 bool g_continueLeft;         // the room stopped running after the retry
@@ -1734,6 +1740,13 @@ void frame(unsigned n)
         re4_log("run: stream %d:0x%x started (RE4_TEST_STREAM) at frame %u: id %u", g_streamBlock, g_streamNo, n,
                 (unsigned) id);
     }
+    for (int i = 0; i < g_seCount && g_freeAt >= 0; i++) {
+        if ((long) n == g_freeAt + g_seAfter[i]) {
+            u32 id = SndCall((u16) g_seBlock[i], (u16) g_seNo[i], 0, 0, 0, 0);
+            re4_log("run: sound effect %d:0x%x (RE4_TEST_SE) at frame %u: id %u", g_seBlock[i], g_seNo[i], n,
+                    (unsigned) id);
+        }
+    }
     if (g_resetAt >= 0 && g->Rno0 != g_resetStep && g_resetSteps < 16) {
         g_resetStep = g->Rno0;
         g_resetSteps++;
@@ -1885,6 +1898,21 @@ void configure()
         sscanf(stream + 5, "%ld:%i:%i", &g_streamAfter, &g_streamBlock, &g_streamNo) != 3) {
         re4_log("run: RE4_TEST_STREAM \"%s\" not understood (free+N:B:S)", stream);
         g_streamAfter = -1;
+    }
+    if (const char* se = getenv("RE4_TEST_SE")) {
+        const char* p = se;
+        while (g_seCount < 8 && strncmp(p, "free+", 5) == 0 &&
+               sscanf(p + 5, "%ld:%i:%i", &g_seAfter[g_seCount], &g_seBlock[g_seCount], &g_seNo[g_seCount]) == 3) {
+            g_seCount++;
+            p = strchr(p, ',');
+            if (!p) {
+                break;
+            }
+            p++;
+        }
+        if (g_seCount == 0) {
+            re4_log("run: RE4_TEST_SE \"%s\" not understood (free+N:B:S[,...])", se);
+        }
     }
     const char* retry = getenv("RE4_TEST_CONTINUE");
     if (retry && strncmp(retry, "free+", 5) == 0) {
