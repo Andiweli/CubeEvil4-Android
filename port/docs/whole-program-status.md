@@ -3,6 +3,28 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Für 0.97.1: Aufheben-Ton mit japanischen Discs (02.11.2026, Branch `work`)
+
+Nutzerbericht (Xiaomi 25053RT47C, 0.97.0, JP-Discs, r200/r202): „The original sound effect disappeared when I picked up
+the ammunition.“ Archiv `cubeevil4-report-20261102-231352.zip`, derselbe Nutzer wie beim JP-Startabsturz (Abschnitt
+„Drei Nutzerberichte zu 0.96.9“, Punkt 3). Untersucht:
+
+- **Code:** `sceAtGetItem` (Debug 0x80184B84, JP 0x8014F494) und `Message::code08` (Debug 0x80029CEC, JP 0x80025304),
+  der den Ton der Auswahl „Nehmen“ spielt (Munition: `MesSet(0x13, …, 0x211)` → `SndCall(0, 0x11)`), mit
+  `retail_code.py dis` verglichen: für Munition gleich. Die JP-Fassung spielt in `sceAtGetItem` nur zusätzlich
+  `SndCall(0, 0x40)` für die Bonuspunkte der Mercenaries (item 0x75).
+- **Am PC (Referenz-JP-Discs gegen EU-Discs, r202, `RE4_TEST_PLACE="free+30:area=132"`, A gedrückt, `RE4_AUDIO_WAV`):**
+  Leon nimmt die Schrotpatronen (item 0x07, Fläche 132); der Ton gegen einen Lauf ohne Aufheben bei 30,0–30,2 s,
+  JP und EU Byte für Byte gleich. Auch `RE4_TEST_SE="free+60:0:0x11"` klingt mit beiden gleich. Nicht nachgestellt.
+- **Die Discs des Nutzers sind verändert:** Disc 1 hat 210, Disc 2 164 andere Dateien als die Referenz; die Referenz hat
+  aber nur 94 bzw. 64 Ereignisdateien `Evd/*.evd`. Also sind 116 bzw. 100 weitere Dateien anders, die der Bericht nicht
+  nannte (er listete nur die ersten 20). Wahrscheinlich eine (chinesische?) Fan-Übersetzung auf Basis der JP-Fassung.
+- **Änderung:** der Fehlerbericht (`disc-check.txt`) nennt jetzt **alle** abweichenden Dateien und vorne ihre Zahl je
+  Ordner (`RoomFileCheck.byFolder()`, z. B. „Evd 94, snd 12“), Unit-Test `RoomFileCheckTest`. Geprüft:
+  `gradlew testCoreDebugUnitTest` ohne Fehler. Gerät nicht geprüft.
+- **Offen:** ein neuer Bericht des Nutzers (mit der Liste) und woher die Discs stammen; klingt der Ton mit denselben
+  Discs in Dolphin?
+
 ## Reflexionen auf Wasser, Glas und Marmor: versucht und wieder ausgebaut (02.11.2026, Branch `work`)
 
 Wunsch des Projektinhabers: dezente Reflexionen; umgesetzt als zwei experimentelle Schalter „einfach“ (Glanz der

@@ -97,6 +97,25 @@ public final class RoomFileCheck {
     }
   }
 
+  /**
+   * The differing files counted by their folder, for the error report: "Evd 94, Snd 12". A modified
+   * disc (a fan translation) shows at a glance which kinds of files it changed (report of 02.11.2026:
+   * 210 files of a Japanese disc 1, of them only 94 events).
+   */
+  public String byFolder() {
+    Map<String, Integer> n = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    for (String p : bad) {
+      int slash = p.lastIndexOf('/');
+      n.merge(slash < 0 ? "(root)" : p.substring(0, slash), 1, Integer::sum);
+    }
+    StringBuilder s = new StringBuilder();
+    for (Map.Entry<String, Integer> e : n.entrySet()) {
+      if (s.length() > 0) s.append(", ");
+      s.append(e.getKey()).append(' ').append(e.getValue());
+    }
+    return s.toString();
+  }
+
   /** The line shown after an import, or null when every file matches. */
   public String warning(int disc) {
     if (bad.isEmpty()) return null;

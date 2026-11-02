@@ -1105,8 +1105,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       try (InputStream catalog = imports.roomCatalog(folder)) {
         RoomFileCheck c = RoomFileCheck.verify(folder, catalog, n);
         t.append(c.checked).append(c.everyFile ? " files" : " room files").append(" checked (the import's hashes), ");
-        t.append(c.bad.isEmpty() ? "all as on the original disc" : c.bad.size() + " differ: " + String.join(", ",
-            c.bad.subList(0, Math.min(20, c.bad.size()))));
+        t.append(c.bad.isEmpty() ? "all as on the original disc"
+            : c.bad.size() + " differ (" + c.byFolder() + "): " + String.join(", ", c.bad));
       } catch (IOException | RuntimeException e) {
         t.append("no check: ").append(e);
       }
