@@ -1682,6 +1682,9 @@ bool drawGx() {
           s.programsLive, s.programsDeleted,
           gx->BaseVertex() ? "yes" : "no",
           s.autofocus, s.efbRestores, s.skippedChunks);
+      if (optRefl.load() || s.reflDraws)
+        LOG("reflections: mode %d, %u surfaces drawn over, %u pictures of the scene", optRefl.load(), s.reflDraws,
+            s.reflPasses);
       // the GL work per chunk since the last line, and the GPU time when the driver measures it
       if (gxRunCount) {
         const double n = gxRunCount;

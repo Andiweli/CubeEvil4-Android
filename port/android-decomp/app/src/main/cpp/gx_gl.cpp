@@ -4344,11 +4344,11 @@ struct GxRenderer::Impl {
         "    float s = pow(max(dot(n, normalize(l - v)), 0.0), uMat.w) * step(0.0, dot(n, l));\n"
         "    glint += uLight[i * 3 + 1].rgb * (s * at);\n"
         "  }\n"
-        "  glint = min(glint * uMat.z, vec3(0.3));\n"
+        "  glint = min(glint * uMat.z, vec3(0.45));\n"
         "  float a = 0.0, dbgHit = 0.0, dbgF = 0.0;\n"
         "  vec3 mirror = vec3(0.0);\n"
         "  if (uOpt.y > 1.5) {\n"
-        "    float f = uMat.x + (1.0 - uMat.x) * pow(1.0 - cosv, 5.0);\n"
+        "    float f = uMat.x + (1.0 - uMat.x) * (1.0 - cosv) * (1.0 - cosv);\n"
         "    vec3 r = reflect(v, n);\n"
         "    r = vec3(dot(uPrev[0].xyz, r), dot(uPrev[1].xyz, r), dot(uPrev[2].xyz, r));\n"
         "    vec4 p4 = vec4(vPos, 1.0);\n"
@@ -4410,6 +4410,7 @@ struct GxRenderer::Impl {
     glUseProgram(reflProgram);
     glUniform1i(glGetUniformLocation(reflProgram, "uColor"), 0);
     glUniform1i(glGetUniformLocation(reflProgram, "uDepth"), 1);
+    GXLOG("reflections: shaders ready");
     static const char *const kNames[12] = {"uPos", "uNrm", "uProj", "uVp", "uMat", "uOpt", "uRange", "uShow",
                                            "uLights", "uLight", "uPrev", nullptr};
     for (int i = 0; i < 11; i++)
@@ -4510,11 +4511,13 @@ struct GxRenderer::Impl {
     const int bottom = std::min(shownBottom.load(std::memory_order_relaxed), r.scissor[3]);
     glUniform4f(reflLoc[6], static_cast<float>(top) / kEfbHeight, static_cast<float>(bottom) / kEfbHeight,
                 static_cast<float>(r.scissor[0]) / kEfbWidth, static_cast<float>(r.scissor[2]) / kEfbWidth);
-    // per kind: Fresnel at a right angle, mirror strength, glint strength, glint sharpness; blur
+    // per kind: the mirror at a right angle (Fresnel, raised: from the game's camera height the physical 2-4 %
+    // showed nothing on the Retroid, report of the project owner 02.11.2026), mirror strength, glint strength,
+    // glint sharpness; blur
     static const float kMat[4][5] = {{0, 0, 0, 1, 0},
-                                     {0.02f, 0.90f, 0.35f, 90.0f, 0.0f},   // water
-                                     {0.04f, 0.50f, 0.30f, 40.0f, 1.5f},   // marble
-                                     {0.04f, 0.60f, 0.30f, 120.0f, 0.0f}}; // glass
+                                     {0.18f, 0.90f, 0.80f, 60.0f, 0.0f},   // water
+                                     {0.12f, 0.60f, 0.50f, 24.0f, 1.5f},   // marble
+                                     {0.12f, 0.60f, 0.60f, 80.0f, 0.0f}};  // glass
     static const float kShow[4][4] = {{0, 0, 0, 0}, {0.0f, 0.2f, 0.6f, 0.6f}, {0.6f, 0.0f, 0.0f, 0.6f},
                                       {0.0f, 0.6f, 0.0f, 0.6f}};
     glUniform4fv(reflLoc[0], 3, &r.pos[0][0]);
