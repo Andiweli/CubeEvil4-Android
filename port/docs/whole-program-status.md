@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Für 0.97.1: Händlerpreise und Waffenwerte der Verkaufsfassungen (02.11.2026, Branch `work`, Patch 0187)
+## Version 0.97.1-beta: Händlerpreise und Waffenwerte der Verkaufsfassungen (02.11.2026, Branch `work`, Patch 0187; vom Projektinhaber auf dem Gerät bestätigt: „Die Preise sind nun korrekt“)
 
 Nutzerbericht (über den Projektinhaber): mit EU-Discs hätten TMP, Minenwerfer, Schatzkarten und Erste-Hilfe-Spray die
 Preise der US-Fassung, die Schatzkarten kosten in der EU-Fassung 3000/6000/9000 je Gebiet, die Ausbauten seien anders,
