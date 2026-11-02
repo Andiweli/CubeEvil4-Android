@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Drei Nutzerberichte zu 0.96.9 und zwei Nachträge (02.11.2026, lokal, Branch `user-reports`)
+## Drei Nutzerberichte zu 0.96.9 und zwei Nachträge (02.11.2026, lokal, Branch `user-reports`, am selben Tag in `master` und 0.97.0-beta übernommen)
 
 Auftrag: drei Berichte von Nutzern mit 0.96.9-beta (0.97.0 noch nicht verteilt), dazu zwei Nachträge des
 Projektinhabers am selben Tag. Arbeitsbaum: Worktree `E:\Development\Android\RE4-reports`, WSL `~/re4-reports/RE4`
