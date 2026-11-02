@@ -3,6 +3,56 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Für 0.97.1: Händlerpreise und Waffenwerte der Verkaufsfassungen (02.11.2026, Branch `work`, Patch 0187)
+
+Nutzerbericht (über den Projektinhaber): mit EU-Discs hätten TMP, Minenwerfer, Schatzkarten und Erste-Hilfe-Spray die
+Preise der US-Fassung, die Schatzkarten kosten in der EU-Fassung 3000/6000/9000 je Gebiet, die Ausbauten seien anders,
+Erste-Hilfe-Sprays hingen vom Koffer ab; dazu ein (KI-erzeugtes) Bild mit Feuerkraft-Werten. Später vom Projektinhaber:
+<https://github.com/emoose/re4-research/issues/26> („RE4 version differences (gameplay)“), das die Funde bestätigt.
+
+**Gelesen (retail_code.py, eigene Hilfsskripte im Scratchpad: Tabellen über `merchant_info_A` = `00000000 f6f6f6f6`
+suchen, Funktionen über ihre Tabellen-Adressen finden, `itemInfo` mit einem kleinen PowerPC-Interpreter für jede id
+ausführen):**
+- Die Japanische (und koreanische) Fassung hat Händler-Daten und -Code der europäischen (Funktionen 1:1, 0x1B0 tiefer).
+- `g_item_price_tbl` (Preis/10): US und EU anders als Debug, EU zusätzlich anders sortiert (die Reihenfolge ist die
+  Kaufliste). Debug → US → EU, angezeigter Preis: Koffer XL 0x7F 60000 → 73000 → 73000, Koffer M 0x7D 30000 → 30000 →
+  24000, Schatzkarten 0xA9/0x54/0x55 je 10000 → 10000 → 3000/6000/9000, Schrotpatronen 0x18 30 → 24, TMP-Munition 0x20
+  6 → 4, Killer7 0x2A 63000 → 70700, Schrotflinte 0x2C 18200 → 18560, Riot Gun 0x94 29900 → 30320, Striker 0x2D
+  32400 → 40120, TMP 0x30 13200 → 13800 → 8800, Minenwerfer 0x36 23000 → 23000 → 4800, Erste-Hilfe-Spray 0x05
+  10000 → 10000 → 5000 (Waffen kosten dazu ein Magazin Munition: TMP EU 10000, Minenwerfer EU 9800).
+- `level_price`: Handfeuerwaffe 0x23 Feuerkraft 4–6 und Kapazität 3–5 billiger/teurer, Killer7 0x2A Feuerkraft
+  6200/7800 (beide Verkaufsfassungen), Schrotflinte 0x2C Feuerkraft 5–6 nur EU 4000/4000.
+- Lager: r20f und r229 je ein Erste-Hilfe-Spray mehr, dazu eine Tabelle mit nur einem Spray. `MerchantRoomInit` der
+  Verkaufsfassungen (EU 0x80020770, US 0x80020254) ruft `stockDataAdd`/`levelDataAdd` mit einer Art: 0 = Raumtabelle
+  (im durchgespielten Spiel nur das Spray, Ausbauten keine), 1 = Matilda + unendlicher Raketenwerfer bei jedem Raum im
+  durchgespielten Spiel, 2 = Handcannon/Chicago Typewriter nach der Freischaltung (die Typewriter ohne Ausbau-Tabelle);
+  `Merchant2ndRoundInit` gibt es dort nicht (`cGameSave::load` EU 0x80119fa0). EU: in r229 die Striker-Ausbauten
+  (level_r229, US und Debug: keine – laut Issue ein behobener Fehler), nachts auch die Punisher-Tabelle von r10e.
+- `add_stock` mit Anzahl, höchstens 999, 0x6D höchstens 1; `stockAdd` EU nimmt eine verkaufte Waffe ins Lager auf.
+- `stockNum` EU: Erste-Hilfe-Spray nach Heilmitteln im Koffer (Sprays und Kräutermischungen 0x12–0x16 zählen 2,
+  grünes Kraut 1: 0–1 → 2 Sprays, 2–3 → 1, mehr → 0), 0x6D einmal, Weste 0xFE nicht auf Profi (ohne Kostüm-Prüfung);
+  US wie Debug (Sprays sammeln sich an).
+- `checkSellingItem`: jede Schatzkarte nur in ihrem Gebiet (beide). `buyupPrice`: Waffenteile halber Preis, 0x6D und
+  0x34 für 500000; Handcannon ohne Munition (US auch ohne Ausbauten). `sellPrice` EU: Koffer M auf Leicht 12000.
+- `itemInfo`: 0xA2 und die Edelsteine 0xDC–0xF3 je ein Feld (beide); EU auf Leicht 20 Gewehrpatronen, 25
+  Schrotpatronen, 10 Minen je Feld.
+- Schaden (`em_dm_val`): US em31/em39 (Raketenwerfer 4000/1000 statt 2000/500); EU eine Klassentabelle mehr
+  (0x36 Regenerator 20 statt 30, 0x32/0x35/0x38 eigene Form von em3c), andere Werte in em10 (TMP 210 statt 150,
+  +40 %), em31, em39, em2b/2c/2d; `WeaponLevelTbl` EU Red9 (bis 6,5), Blacktail (bis 4,5), Gewehr (Exklusiv 30 statt
+  18), Matilda (1,5–2,5); Zeile 0x2C in beiden; EU rundet den Schaden (+0,5).
+
+**Patch 0187** (`merchant.cpp`, `item.cpp`, `em_dm_val.cpp`, `game.cpp`): alles oben nur mit Verkaufs-Discs, getrennt US
+und EU/JP; die Debug-Discs behalten den Prototyp. Neuer Prüfschalter `RE4_TEST_MERCHANT="free+N[:game_mode]"`
+(Kaufliste mit Lager und Preis, Ausbaupreise der Handfeuerwaffe, Ankauf, Schaden gegen einige Gegnerklassen).
+Geprüft am PC (i686, r202, frei ab Bild 819): Debug wie vorher (Dorf-Karte 10000 im Schloss, 9 Sprays zu 10000);
+US ohne Dorf-Karte, Sprays 9 zu 10000, Raketenwerfer gegen em31 4000; EU Koffer M 24000 (Leicht 12000), TMP 10000,
+1 Spray zu 5000, TMP gegen Ganados 84 statt 60, Gewehr Stufe 7 4500 statt 2700, Regenerator 20 statt 30.
+
+**Nicht übernommen (noch offen, im Issue genannt):** seltenere Munitions-Drops und Obergrenzen je Munitionsart,
+Minen-Zündzeit, Feuerrate des halbautomatischen Gewehrs, kritische Treffer der Handfeuerwaffe, Matildas Feuerstoß,
+Messer gegen Krauser, Blendgranate gegen Wölfe, Felsen in der Mine, Ashley-Suplex, Goldbarren in der Doppel-El-Gigante-
+Halle, `em10SetDmVal`s Halbierung von Waffe 0x0B (Patch 0152); „auf Amateur immer ein Spray“ (JP) im Code nicht gesehen.
+
 ## Für 0.97.1: Aufheben-Ton mit japanischen Discs (02.11.2026, Branch `work`)
 
 Nutzerbericht (Xiaomi 25053RT47C, 0.97.0, JP-Discs, r200/r202): „The original sound effect disappeared when I picked up
@@ -11270,6 +11320,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0180 `ss_main.cpp`, `item.cpp` | Untersuchen nach der Exklusiv-Aufrüstung: mit Verkaufs-Discs deren eigener Text (0x100–0x105); Feuerkraft des Minenwerfers (auch mit Zielfernrohr) auf Stufe 4 = 6.0 statt 0.0 (Fehler des Prototyps). Nutzerbericht 02.11.2026 |
 | 0179 `sce_at.cpp` | `SceAtSetSaveItem`: ein gespeicherter Gegenstand-Eintrag für einen Auslösebereich, den der Raum nicht hat, bleibt liegen statt nach Adresse 0 zu schreiben (Absturz in r20f, US-Discs). Port-Patch, Nutzerbericht 01.11.2026 |
 | 0186 `cam_ctrl.cpp` | Ashleys eigene Kameraschnitte (Attribut 4) mit EU- und JP-Discs wie deren `areaHitCheck`: japanische Texte und über Easy; Debug/US weiter `game_country == 0`. Vorher auf EU-Easy feste Kameras (Patch 0140 macht `game_country` dort zur Schwierigkeit). Port-Patch für Verkaufsdaten, Nutzerbericht 02.11.2026 |
+| 0187 `merchant.cpp`, `item.cpp`, `em_dm_val.cpp`, `game.cpp` | Händler und Schaden der Verkaufs-Discs: Preis- und Ausbautabellen (US, EU/JP), Lager-Regeln (Arten 0/1/2, Spray-Tabellen, kein `Merchant2ndRoundInit`), EU-Spray nach Heilmitteln, Schatzkarten je Gebiet, Ankauf, `itemInfo`-Stapel, Schadens-Klassentabellen, `WeaponLevelTbl`-Zeilen, EU-Rundung. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Nutzerbericht 02.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

@@ -52,6 +52,11 @@
 //                          free, sound effect S of block B as a menu plays it
 //                          (SndCall(B, S, 0, 0, 0, 0); up to 8): the merchant's
 //                          tune-up sound 0:0x18 and the back sound 0:5 (02.11.2026)
+//   RE4_TEST_MERCHANT="free+N[:G]"  N frames after the player is free, the
+//                          merchant's lists as his screen builds them (prices
+//                          per piece, stock, the handgun's tune prices) and a
+//                          few damage values; G sets game_mode first (patch
+//                          0187, 02.11.2026)
 //   RE4_TEST_INSTANT="free+N:save[,free+M:load]"  N frames after the player is
 //                          free, the app's instant save into a buffer of the run
 //                          (re4_instant_game_capture), M frames after it loaded
@@ -225,6 +230,7 @@
 #include "area.h"
 #include "act_btn.h"
 #include "cockpit.h"
+#include "merchant.h"
 #include <dolphin/os/OSAlloc.h>
 
 #include <math.h>
@@ -616,6 +622,55 @@ long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
 int g_streamBlock, g_streamNo;
+long g_merchantAfter = -1;   // RE4_TEST_MERCHANT
+int g_merchantMode;
+
+// RE4_TEST_MERCHANT: the Buy list as the merchant's screen makes it (price per piece, stock), the handgun's tune
+// prices, the buying price of a few items and damage values against a few enemy classes (patch 0187).
+static void merchantTest(u32 n)
+{
+    static const u8 ems[] = {0x10, 0x31, 0x32, 0x36, 0x39, 0x2B, 0x2C, 0x2D, 0x3C};
+    static const u8 weps[] = {2, 3, 4, 9, 0x0B, 0x0D, 0x10, 0x11, 0x12};
+    alignas(16) static unsigned char emBuf[sizeof(cEm)];
+    cEm* em = (cEm*) emBuf;
+    char line[512];
+
+    if (g_merchantMode > 0) {
+        pG->game_mode = (u8) g_merchantMode;
+    }
+    Merchant m(&merchantChar);
+    m.makeList();
+    re4_log("run: merchant (RE4_TEST_MERCHANT) at frame %u, game_mode %u, game_cnt %u, stage %u: %u for sale", n,
+            (unsigned) pG->game_mode, (unsigned) pG->game_cnt, (unsigned) pG->stage_no, (unsigned) m.sellingItemNum());
+    for (int i = 0; i < m.sellingItemNum(); i++) {
+        PRICE_INFO* p = m.sellingItemNo(i);
+        re4_log("run: merchant sells 0x%02x stock %d price %d", p->id, m.stockNum(p->id), m.sellPrice(p->id, 1));
+    }
+    for (int type = 0; type <= 3; type++) {
+        int k = snprintf(line, sizeof(line), "run: merchant tune 0x23 type %d:", type);
+        for (int lv = 2; lv <= 7; lv++) {
+            k += snprintf(line + k, sizeof(line) - k, " %d", m.levelupPrice(0x23, type, lv));
+        }
+        re4_log("%s", line);
+    }
+    re4_log("run: merchant buys 0x05 %d, 0x7D %d, 0x46 %d, 0x18 %d", m.buyupPrice(0x05, 1), m.buyupPrice(0x7D, 1),
+            m.buyupPrice(0x46, 1), m.buyupPrice(0x18, 1));
+    memset(emBuf, 0, sizeof(emBuf));
+    u8 lvBak = pG->weapon_lv_power;
+    for (u32 e = 0; e < sizeof(ems); e++) {
+        em->id = ems[e];
+        int k = snprintf(line, sizeof(line), "run: damage em 0x%02x (lv 0/6):", ems[e]);
+        for (u32 w = 0; w < sizeof(weps); w++) {
+            pG->weapon_lv_power = 0;
+            int v0 = GetWepDmVal(em, weps[w], 1);
+            pG->weapon_lv_power = 6;
+            int v6 = GetWepDmVal(em, weps[w], 1);
+            k += snprintf(line + k, sizeof(line) - k, " w%x %d/%d", weps[w], v0, v6);
+        }
+        re4_log("%s", line);
+    }
+    pG->weapon_lv_power = lvBak;
+}
 long g_seAfter[8];           // RE4_TEST_SE
 long g_instantSave = -1, g_instantLoad = -1;  // RE4_TEST_INSTANT
 unsigned char g_instantSlot[0x12000];
@@ -1779,6 +1834,9 @@ void frame(unsigned n)
     if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantLoad) {
         re4_log("run: instant load (RE4_TEST_INSTANT) at frame %u: %d", n, re4_instant_game_restore(g_instantSlot));
     }
+    if (g_freeAt >= 0 && g_merchantAfter >= 0 && (long) n == g_freeAt + g_merchantAfter) {
+        merchantTest(n);
+    }
     for (int i = 0; i < g_seCount && g_freeAt >= 0; i++) {
         if ((long) n == g_freeAt + g_seAfter[i]) {
             u32 id = SndCall((u16) g_seBlock[i], (u16) g_seNo[i], 0, 0, 0, 0);
@@ -1945,6 +2003,11 @@ void configure()
         }
         if (load) {
             g_instantLoad = strtol(load + 6, 0, 10);
+        }
+    }
+    if (const char* m = getenv("RE4_TEST_MERCHANT")) {
+        if (sscanf(m, "free+%ld:%d", &g_merchantAfter, &g_merchantMode) < 1) {
+            re4_log("run: RE4_TEST_MERCHANT \"%s\" not understood (free+N[:game_mode])", m);
         }
     }
     if (const char* se = getenv("RE4_TEST_SE")) {
