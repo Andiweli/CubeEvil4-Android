@@ -131,6 +131,75 @@ Zielfernrohr 0xAA statt Gegenstand 0xAB, siehe Nachtrag unter „Waffen-Cheats�
   Insel: Restzeit liegt im Spielstand) auf Wunsch des Projektinhabers auch gesperrt: r106 (Dorfhaus, Felsbrocken und
   zwei Wellen), r11c (belagerte Hütte mit Luis), r206 (Scharfschützen-Szene mit Ashley).
 
+## Nutzerbericht: fehlende Töne im Händlermenü (01.11.2026, Cloud, Branch `claude/vigilant-shannon-dndm9w`)
+
+*(Übernommen nach `master` am 02.11.2026. Später zum selben Nutzer: Patch 0183, der Tune-up-Ton nach dem letzten Ausbau, Abschnitt „Sieben Berichte nach 0.96.8“, Punkt 4.)*
+
+Bericht über den Projektinhaber, derselbe Nutzer wie beim r20f-Absturz (vivo V2426, Mali-G715, Android 16, 64 bit,
+**US-Discs**, 0.96.8); zuerst als „Inventar“ gemeldet, dann berichtigt: **Händlermenü**. Im Protokoll (`previous`,
+00:09) Spielstand r206 geladen, Untermenü Bild 556–634 offen, darin nach 1,1 s „SND: STREAM 0 STOP“. Kein Befund im
+Protokoll: keine Zeile „SndCall : … Illegal SE No.“ oder „SND : Stream Req No. … Illegal Req No.“ (beide kämen über
+Patch 0076 ins Protokoll), keine Meldung des Tontreibers, Audio-Zähler normal, Lautstärken 100/100; `log.txt` leer.
+
+**Zweite Berichtigung des Projektinhabers:** nicht die Stimme, sondern **die Töne beim Auswählen von Gegenständen** im
+Händlermenü. Das Protokoll enthält das nicht: das einzige Untermenü (r206, Bild 556–634, 2,6 s; „STREAM 0 STOP“ nach
+1,1 s = wohl die Begrüßung) wurde fast nur mit B bedient (Tasten 0x0200, einmal A), keine Auswahl in einer Liste.
+Gelesen (`ss_shop.cpp`): Listen-Cursor `SndCall(0, 6)` und Obermenü 0xA wie im Inventar; eigen hat der Händler nur
+A auf einem Gegenstand (Kaufen 9 bzw. 0x19 ohne Geld, `BuyItemNum::move`; Verkaufen 4 und 9; Aufrüsten 4, 9/0x19), Wahl im
+Obermenü 0x16, Mantel 0x17, Kauf in den Koffer 0x18, Verkauf 0x25, Koffer 0x27/0xD. Bei 9/0x19/0x16 startet im selben Bild
+die Händlerstimme (`shopStrPlay`, Stream mit eigenen AX-Stimmen Priorität 31, die Töne 30; bei freien Stimmen keine
+Verdrängung) – im Inventar nie. **Ursache nicht gefunden.** Offen: (1) neuer Bericht des Nutzers direkt nach dem Händler
+(Liste blättern, etwas kaufen) und welche Töne genau (Blättern oder Bestätigen mit A); (2) lokal mit US-Discs: Händler am PC
+mit `RE4_AUDIO_WAV`, Debug- gegen US-Discs; `retail_code.py`: die `SndCall`-Nummern der US-`Sscrn.rel` in
+`BuyMenuSelect`/`BuyItemNum`/`SellMenuSelect`/`LvUpMenuSelect` gegen den Prototyp, dazu die SITs dieser Nummern in der
+US-Kern-Tonbank (Lautstärke, Typ). Die Händlerstimme (Ereignis-Streams 0xB4–0xC2) bleibt am Rand mitzuprüfen.
+
+## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
+
+*(Übernommen nach `master` am 02.11.2026 mit `port/docs/vulkan-plan.md`. Der Vertex-Ring kam schon vorher als Schalter nach `master`, standardmäßig aus: Commit `21cbf1ea`, Abschnitt „Vertex-Ringpuffer als Schalter“.)*
+
+Wunsch des Projektinhabers: prüfen, was eine zusätzliche Vulkan-Ausgabe bräuchte (die Entscheidung vom 29.10.2026
+„Vulkan bis auf Weiteres ausgeschlossen“ steht weiter, bis er neu entscheidet). Ergebnis in
+**`port/docs/vulkan-plan.md`**: Teil für Teil (Schnittstelle, Shader nach SPIR-V, Pipelines und Cache, Durchgänge
+für EFB-Kopien/Löschen/MSAA, Uniforms und Deskriptoren, Texturen, Synchronisation, GXPeekZ, Extras, Android-Fläche
+und Drehung, Rückfall auf GLES ab Android 6, PC-Werkzeuge auf lavapipe, Testskripte) mit Aufwand (zusammen grob
+53–78 Arbeitstage) und Risiko, Nutzen je Testergerät (vor allem Mali mit hoher Treiberzeit je Zeichnung, nicht
+der Retroid), Reihenfolge V0–V8 und fünf offenen Entscheidungen. Vorschlag: zuerst V0 (ANGLE beim Mali-Tester
+einschalten, ohne Code) und V0b (Eckdaten über einen Dauer-Ring auch in GLES). Von der alten Vulkan-App
+(`port/platform/android/vulkan_bootstrap.cpp`) taugen nur Laden, Gerätewahl, Validation Layer, Swapchain und der
+`glslc`-Schritt als Vorlage. Kein Code geändert, nichts gebaut oder getestet.
+
+**Entscheidung des Projektinhabers (31.10.2026): erst V0 und V0b.**
+- **V0 (ANGLE-Versuch):** Anleitung mit englischem Text für den Tester im Plan (Abschnitt „V0“). Läuft beim Tester.
+- **V0b umgesetzt (`gx_gl.cpp`, App):** Ecken und Indizes jedes Bildstücks per `memcpy` in zwei dauerhaft
+  eingeblendete Ring-Puffer (`EXT_buffer_storage`, Viertel mit Fence wie der Uniform-Stream; `RingUpload`,
+  `RingAlloc`, `RingFit`), statt `glBufferData` je Bildstück. Standard an (`GxOptions::vertexRing`), zurück mit
+  `RE4_GX_VERTEX_RING=0` oder `RE4_GX_PERSISTENT=0`. Zähler `GxStats::ringChunks/ringWaits/ringGrows`, Logzeile „GX
+  vertex ring: on/off“, „N vertex ring waits“ in „GX work per chunk“, in `gx_chunk_render` (`RE4_GX_WORK=1`)
+  „Eckdaten-Ring an/aus“. Neue Prüfung `TestVertexRing` in `gx_gl_check`.
+  **Geprüft (PC, WSL-Baum `~/re4-vulkan/RE4`):** `gx_gl_check` 0 Fehler mit und ohne Ring (llvmpipe); 802 Spielbilder
+  über `gx_chunk_render` (r11d, r11b, r204, r101, Film; normal, gebündelt, 60 FPS, 4× MSAA) mit und ohne Ring
+  bytegleich; zink: dieselben 9 Fehler „depth map: delivered … number of the picture“ wie ohne Ring und wie der
+  ältere Stand in `~/re4-kern` (vorher schon da, offen). App: `assembleCoreDebug` (beide ABIs, Kern-Bibliotheken aus
+  `RE4-Fixed` kopiert) und App-Unit-Tests grün.
+  **Retroid (31.10.2026 19:01–19:09, Adreno 650, arm64):** `test-core-app.ps1 -SkipCore -SkipApk -StartRoom 100
+  -Seconds 240`, einmal so (Log „GX vertex ring: on“), einmal mit `-CoreSettings RE4_GX_VERTEX_RING=0` („off“, „setting
+  RE4_GX_VERTEX_RING=0“). Kein Absturz, kein Shader-Fehler, Bilder richtig, „0 vertex ring waits“. Beide Läufe gaben
+  dieselbe Arbeit je Bild (Uniform-Uploads, Programmwechsel … gleich); die 14 Fenster ab der Ankunft verglichen:
+  „vertex buffers“ im Mittel **1,1 ms mit Ring gegen 1,4 ms ohne**, Prozessorzeit des Zeichen-Threads **4,15 gegen
+  4,48 ms je Bildstück (−7 %)**, GPU-Zeit gleich (Summe 298 gegen 301 ms). Auf dem Retroid also ein kleiner Gewinn,
+  kein Verlust (anders als das Bündeln). Ob es auf Mali mehr bringt (S10e: 5,9 ms), zeigt nur ein Mali-Gerät. Auf dem
+  Retroid ist seitdem die Debug-APK aus `vulkan` installiert (Stand `master` 0.96.4 plus Ring).
+- **Mali-Test-APK (Wunsch des Projektinhabers, 31.10.2026: erst Mali testen, dann `master`):** `versionName`
+  **0.96.4-beta-ring**, `versionCode` 87 (neuer als 0.96.4-beta, älter als 0.96.5 für `AppUpdate.compare`; der nächste
+  Release braucht 88). Kern beider ABIs aus dem WSL-Baum `~/re4-vulkan/RE4` in den Worktree `RE4-vulkan` gebaut; die
+  signierte `coreRelease`-APK baut der Projektinhaber aus `E:\Development\Android\RE4-vulkan\port\android-decomp`.
+  Text für den Tester im Plan (Abschnitt „V0b“). Geprüft: Kern armeabi-v7a und arm64-v8a je 0 Fehler (Stand
+  `187d971`, Kern wie `master`), `assembleCoreDebug` (versionCode 87, `0.96.4-beta-ring-core`, beide ABIs, Ring in
+  `libre4decomp.so`) und App-Unit-Tests grün; Retroid 19:15 mit genau dieser Debug-APK 120 s in r100: Ring an, einmal
+  auf 4 × 5 MB gewachsen (Bildstück der Ankunft, 2,9 MB), 0 Wartezeiten, kein Absturz. Die signierte APK selbst und ein
+  Mali-Gerät: offen.
+
 ## Version 0.96.7-beta: drei Berichte zu 0.96.6 (01.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Veröffentlicht mit dem OK des Projektinhabers (01.11.2026): `versionName` 0.96.7-beta, `versionCode` 89, Releasetext
