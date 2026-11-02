@@ -240,6 +240,11 @@ public:
   // GameCube blurs its picture for the TV. Off: the picture stays sharp (the taps' sum only, the
   // brightness option). Takes effect with the next display copy.
   void SetTvFilter(bool on);
+  // PSone demake (wish of the project owner, 02.11.2026): the 3D draws as a PlayStation drew them, corners on a
+  // 320-wide grid (the polygons wobble), textures without perspective correction and without filtering; then a
+  // last pass over every display copy (after FXAA): one colour per cell of a 320 x 224 grid in 15-bit colour
+  // with the PlayStation's 4 x 4 dither. Takes effect with the next draws (new programs, made once).
+  void SetPsx(bool on);
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:

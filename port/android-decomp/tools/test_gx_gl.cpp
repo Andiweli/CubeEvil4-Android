@@ -1040,6 +1040,44 @@ void TestTvFilter(re4gx::GxRenderer &r) {
   Check(red(xfb, 199) < 10, "TV filter: off again, the line is sharp");
 }
 
+// PSone demake: a square of an in-between colour from x 101 on. Off: x 100 is the blue around it, x 101 and 102
+// the square. On: one colour per cell of two game pixels, taken from its first pixel: x 100 and 101 share the cell
+// of x 100 (blue), x 102 and 103 the square's; each channel one of the 32 levels of 15-bit colour. Off again, the
+// square from x 101 as before.
+void TestPsx(re4gx::GxRenderer &r) {
+  const std::uint8_t kMid[4] = {100, 150, 200, 255};
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    Quad(b, 101, 100, 300, 200, 0, kMid);
+    DisplayCopy(b, false, kBlue);
+    r.Run(b.Chunk());
+    return r.Xfb(nullptr, nullptr);
+  };
+  const int f = r.Scale();
+  auto at = [&](GLuint xfb, int x) { return TexPixel(xfb, x * f, 150 * f); };
+  auto level = [](int v) { return std::abs(std::lround(v * 31.0 / 255.0) * 255.0 / 31.0 - v) <= 1.0; };
+  auto same = [](const std::vector<std::uint8_t> &a, const std::vector<std::uint8_t> &b) {
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+  };
+  GLuint xfb = scene();
+  const auto off100 = at(xfb, 100), off101 = at(xfb, 101);
+  r.SetPsx(true);
+  xfb = scene();
+  const auto on100 = at(xfb, 100), on101 = at(xfb, 101), on102 = at(xfb, 102), on103 = at(xfb, 103);
+  r.SetPsx(false);
+  Check(Near(off100, 0, 0, 255) && Near(off101, 100, 150, 200), "PSone demake: off, the square from x 101");
+  const bool cells = same(on100, on101) && Near(on100, 0, 0, 255) && same(on102, on103) && Near(on102, 100, 150, 200, 8);
+  Check(cells, "PSone demake: on, cells of two game pixels from their first pixel");
+  const bool levels = level(on102[0]) && level(on102[1]) && level(on102[2]);
+  Check(levels, "PSone demake: on, 15-bit colour levels");
+  if (!cells || !levels)
+    Print("100", on100), Print("101", on101), Print("102", on102), Print("103", on103);
+  xfb = scene();
+  Check(Near(at(xfb, 101), 100, 150, 200), "PSone demake: off again, the picture as before");
+}
+
 // Frame skip: a chunk that is not drawn (the renderer is behind and the next chunk is there). The state
 // it carries is applied, the EFB cleared as its display copy would, the shown picture stays; the rules
 // for when it may be skipped.
@@ -1860,6 +1898,7 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestDepthMap(r, true);
   TestFxaa(r);
   TestTvFilter(r);
+  TestPsx(r);
   TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
   TestAutofocus(r, r.Samples() > 1);

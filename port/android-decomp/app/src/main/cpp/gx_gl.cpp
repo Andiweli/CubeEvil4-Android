@@ -437,6 +437,13 @@ struct GxRenderer::Impl {
   GLuint fxaaTex = 0, fxaaFbo = 0, fxaaProgram = 0;
   unsigned fxaaTexW = 0, fxaaTexH = 0;
   GLint fxaaTexelLoc = -1;
+  // PSone demake (GxRenderer::SetPsx): the 3D programs' key bit and point-sampled textures, and the last pass
+  // over the display copy (a 320-wide grid, 15-bit colour with the PlayStation's 4 x 4 dither) into psxTex,
+  // shown instead of it while psxShown
+  bool psxOn = false, psxShown = false;
+  GLuint psxTex = 0, psxFbo = 0, psxProgram = 0;
+  unsigned psxTexW = 0, psxTexH = 0;
+  GLint psxGridLoc = -1;
   // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
   DepthSink depthSink;
   bool peekWanted = false, peekFailed = false;
@@ -2420,9 +2427,10 @@ struct GxRenderer::Impl {
 
   // --- textures ----------------------------------------------------------------
 
-  GLuint Sampler(std::uint32_t mode0, std::uint32_t mode1, unsigned levels) {
+  // point: the PSone demake's 3D textures, every texel a hard square (the PlayStation filtered nothing)
+  GLuint Sampler(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point = false) {
     const std::uint64_t key = (static_cast<std::uint64_t>(mode1 & 0xFFFF) << 32) | (mode0 & 0x1FF) |
-                              (static_cast<std::uint64_t>(levels > 1) << 48);
+                              (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49);
     auto it = samplers.find(key);
     if (it != samplers.end())
       return it->second;
@@ -2444,12 +2452,16 @@ struct GxRenderer::Impl {
     GLenum min = minTable[minFilter];
     if (levels <= 1)
       min = (minFilter >= 4) ? GL_LINEAR : GL_NEAREST;
+    if (point) {
+      glSamplerParameteri(s, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      min = levels > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
+    }
     glSamplerParameteri(s, GL_TEXTURE_MIN_FILTER, min);
     glSamplerParameterf(s, GL_TEXTURE_MIN_LOD, static_cast<float>(mode1 & 0xFF) / 16.0f);
     glSamplerParameterf(s, GL_TEXTURE_MAX_LOD, static_cast<float>((mode1 >> 8) & 0xFF) / 16.0f);
     // anisotropic filtering (the menu's option): only where the game filters
     // linearly through mipmaps; point-sampled effects keep their look
-    if (anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6)
+    if (anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6 && !point)
       glSamplerParameterf(s, kMaxAnisotropy, anisotropy);
     samplers[key] = s;
     return s;
@@ -2783,6 +2795,8 @@ struct GxRenderer::Impl {
     ShaderKey k;
     std::memset(&k, 0, sizeof(k));
     k.centroid = options.centroid && samples > 1 ? 1 : 0;
+    if (psxOn && !(xfReg[0x26] & 1))
+      k.centroid |= 2;  // PSone demake: the 3D draws only (ShaderKey::centroid bit 1)
     k.layout = d.layout;
     k.numChans = xfReg[0x09] & 3;
     k.numTexGens = std::min(8u, xfReg[0x3F] & 15);
@@ -3165,7 +3179,7 @@ struct GxRenderer::Impl {
         stats.textureBinds++;
       }
       const std::uint32_t mode0 = bp[(m < 4 ? 0x80 : 0xA0) + (m & 3)], mode1 = bp[(m < 4 ? 0x84 : 0xA4) + (m & 3)];
-      const GLuint sampler = Sampler(mode0, mode1, bound[m].levels);
+      const GLuint sampler = Sampler(mode0, mode1, bound[m].levels, (k.centroid & 2) != 0);
       if (unitSampler[m] != sampler) {
         glBindSampler(static_cast<GLuint>(m), sampler);
         unitSampler[m] = sampler;
@@ -3766,8 +3780,10 @@ struct GxRenderer::Impl {
       glUniform2f(copyLimit, -1e9f, 1e9f);
     current = nullptr;
     BindFbo(DrawFbo());
-    if (toXfb)
+    if (toXfb) {
       Fxaa(Hi(w), Hi(h));
+      Psx(Hi(w), Hi(h), w, h);
+    }
     if (toXfb && peekWanted)
       SnapshotDepth();  // the picture is complete, the clear comes next
     ClearAfterCopy(control, x, y, w, h);
@@ -3875,7 +3891,101 @@ struct GxRenderer::Impl {
     stats.fxaaPasses++;
   }
 
-  GLuint ShownXfb() const { return fxaaShown && fxaaTex ? fxaaTex : xfbTex; }
+  GLuint ShownXfb() const {
+    return psxShown && psxTex ? psxTex : fxaaShown && fxaaTex ? fxaaTex : xfbTex;
+  }
+
+  // --- PSone demake ----------------------------------------------------------------------------
+
+  bool MakePsx() {
+    static const char kVs[] = "#version 300 es\n"
+                              "out vec2 vUv;\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  vUv = p;\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // One colour per cell of the grid (the centre of its first game pixel: a cell's centre lies between two
+    // texels, which the filter mixed), 8 bits to 5 per channel after the PlayStation's
+    // ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place)
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform sampler2D src;\nuniform vec2 grid;\nin vec2 vUv;\nout vec4 o;\n"
+        "const float kDither[16] = float[16](-4.0, 0.0, -3.0, 1.0, 2.0, -2.0, 3.0, -1.0,\n"
+        "                                    -3.0, 1.0, -4.0, 0.0, 3.0, -1.0, 2.0, -2.0);\n"
+        "void main() {\n"
+        "  vec2 cell = min(floor(vUv * grid), grid - 1.0);\n"
+        "  vec3 c = texture(src, (cell + 0.25) / grid).rgb * 255.0;\n"
+        "  ivec2 d = ivec2(mod(cell, 4.0));\n"
+        "  c = floor(clamp(c + kDither[d.y * 4 + d.x], 0.0, 255.0) / 8.0);\n"
+        "  o = vec4(c * (255.0 / 31.0) / 255.0, 1.0);\n"
+        "}\n";
+    std::string log;
+    psxProgram = Link(kVs, kFs, &log);
+    if (!psxProgram) {
+      GXLOG("PSone demake: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(psxProgram);
+    glUniform1i(glGetUniformLocation(psxProgram, "src"), 0);
+    psxGridLoc = glGetUniformLocation(psxProgram, "grid");
+    glGenFramebuffers(1, &psxFbo);
+    return true;
+  }
+
+  // The display copy as shown so far (w x h texels; gw x gh of the game's pixels) through the demake pass into
+  // psxTex: a grid of half the game's pixels, as the PlayStation's 320 x 240.
+  void Psx(int w, int h, int gw, int gh) {
+    psxShown = false;
+    if (!psxOn || !xfbTex || w < 16 || h < 16 || gw < 4 || gh < 4)
+      return;
+    if (!psxProgram && !MakePsx()) {
+      psxOn = false;  // no shader on this driver: off for good (the menu's switch stays)
+      return;
+    }
+    if (!psxTex || psxTexW != static_cast<unsigned>(w) || psxTexH != static_cast<unsigned>(h)) {
+      if (psxTex)
+        glDeleteTextures(1, &psxTex);
+      glGenTextures(1, &psxTex);
+      glBindTexture(GL_TEXTURE_2D, psxTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      psxTexW = static_cast<unsigned>(w);
+      psxTexH = static_cast<unsigned>(h);
+    }
+    const GLuint from = ShownXfb();  // the XFB, or FXAA's copy of it
+    Touched();
+    SaveAndPlainState();
+    BindFbo(psxFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, psxTex, 0);
+    ForgetColor();  // all of it is drawn over
+    glViewport(0, 0, w, h);
+    glUseProgram(psxProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, from);
+    glBindSampler(0, 0);
+    glUniform2f(psxGridLoc, static_cast<float>(gw / 2), static_cast<float>(gh / 2));
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    BindFbo(DrawFbo());
+    current = nullptr;
+    psxShown = true;
+  }
+
+  void PsxRelease() {
+    if (psxTex)
+      glDeleteTextures(1, &psxTex);
+    if (psxFbo)
+      glDeleteFramebuffers(1, &psxFbo);
+    if (psxProgram)
+      glDeleteProgram(psxProgram);
+    psxTex = psxFbo = psxProgram = 0;
+    psxTexW = psxTexH = 0;
+    psxShown = false;
+  }
 
   void FxaaRelease() {
     if (fxaaTex)
@@ -4564,6 +4674,8 @@ struct GxRenderer::Impl {
 GxRenderer::GxRenderer() : impl_(new Impl) {
   const char *tv = getenv("RE4_GX_TV_FILTER");  // the TV filter from the start (gx_chunk_render, tests)
   impl_->tvFilter = tv && *tv == '1';
+  const char *psx = getenv("RE4_GX_PSX");  // the PSone demake from the start (gx_chunk_render, tests)
+  impl_->psxOn = psx && *psx == '1';
   if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
     const long n = std::strtol(limit, nullptr, 10);
     if (n >= 4) {
@@ -5323,6 +5435,7 @@ GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
 void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
+void GxRenderer::SetPsx(bool on) { impl_->psxOn = on; }
 void GxRenderer::SetTvFilter(bool on) { impl_->tvFilter = on; }
 void GxRenderer::SetWiden(float factor) {
   impl_->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
@@ -5566,6 +5679,7 @@ void GxRenderer::Release() {
   m.FenceRelease();
   m.PeekRelease();
   m.FxaaRelease();
+  m.PsxRelease();
   if (m.timerOn) {
     glDeleteQueries(Impl::TimerPool::kQueries, m.chunkTimer.query);
     glDeleteQueries(Impl::TimerPool::kQueries, m.presentTimer.query);

@@ -177,6 +177,8 @@
     <string name="ingame_tv_filter">Filtre TV d\'origine</string>
     <string name="ingame_fxaa_help">Lisse les bords crénelés lors d’une dernière passe. Fonctionne avec ou sans MSAA ; l’image devient un peu plus douce.</string>
     <string name="ingame_tv_filter_help">Adoucit l\'image verticalement comme le faisait la GameCube pour la télévision (le filtre anti-scintillement du jeu). Désactivé : image nette.</string>
+    <string name="ingame_psx">Demake PSone</string>
+    <string name="ingame_psx_help">Affiche le jeu comme l\'aurait dessiné une PlayStation : polygones qui tremblent, textures sans correction de perspective ni filtrage, image grossière de 320 pixels en couleurs 15 bits avec tramage. Désactivé : l\'image GameCube.</string>
     <string name="ingame_frame_skip_help">Si le rendu est à la traîne, saute une image pour que le jeu garde sa vitesse normale. Moins d’images s’affichent, rien n’est ralenti.</string>
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
     <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote graphique lent (p. ex. GPU Mali) et coûter un peu sur les autres. Sans effet tant que les 60 FPS sont activés.</string>

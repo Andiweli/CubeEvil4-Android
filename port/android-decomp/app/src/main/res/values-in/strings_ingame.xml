@@ -173,6 +173,8 @@
     <string name="ingame_tv_filter">Filter TV asli</string>
     <string name="ingame_fxaa_help">Menghaluskan tepi bergerigi pada langkah terakhir. Bekerja dengan atau tanpa MSAA; gambar menjadi sedikit lebih lembut.</string>
     <string name="ingame_tv_filter_help">Menghaluskan gambar secara vertikal seperti GameCube untuk TV (filter anti-kedip milik game). Mati: gambar tajam.</string>
+    <string name="ingame_psx">Demake PSone</string>
+    <string name="ingame_psx_help">Menggambar game seperti PlayStation: poligon bergoyang, tekstur tanpa koreksi perspektif dan tanpa penyaringan, gambar kasar 320 piksel dengan warna 15-bit dan dithering. Mati: gambar GameCube.</string>
     <string name="ingame_frame_skip_help">Saat grafis tertinggal, satu gambar dilewati agar game tetap berjalan dengan kecepatan normal. Lebih sedikit gambar yang ditampilkan, tidak ada yang diperlambat.</string>
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver grafis lambat (mis. GPU Mali) dan mungkin sedikit memperlambat ponsel lain. Tidak berpengaruh selama 60 FPS aktif.</string>

@@ -35,7 +35,10 @@ struct ShaderKey {
   std::uint32_t fog;          // BP 0xF1 bits 20-23: projection, function
   std::uint32_t texMaps;      // maps the stages sample (bit per map)
   // both
-  std::uint32_t centroid;     // 1: the varyings at a covered sample (MSAA, GxOptions::centroid)
+  // bit 0: the varyings at a covered sample (MSAA, GxOptions::centroid); bit 1: PSone demake (GxRenderer::SetPsx,
+  // perspective draws only: corners on a 320-wide grid, textures without perspective correction). One field for
+  // both keeps the key's size, and with it the program cache's key files.
+  std::uint32_t centroid;
 };
 
 std::string GxVertexShader(const ShaderKey &key);

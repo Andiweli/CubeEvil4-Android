@@ -14,6 +14,10 @@
 #include "snd.h"
 #include "sce.h"
 #include "title.h"
+#include "pl_npc.h"
+#include "sce_at.h"
+#include "motion.h"
+#include "math_sub_decl.h"
 #include "re4_instant.h"
 #include <dolphin/os.h>
 #include <math.h>
@@ -23,8 +27,28 @@ extern int OptionOpenCheck();
 extern void CRCInit();
 extern u32 CRCCalc(u8*, u32);
 extern "C" int re4_valid_port_ptr(const void*);
+extern "C" void re4_log(const char* fmt, ...);
 
 namespace {
+// Ashley hidden in a box (wish of the project owner, 02.11.2026): the typewriter payload keeps no partner
+// state, after a load she stood next to Leon. The slot keeps her hide behind the save data (0xFF00: outside
+// the save's CRC and the card conversion, which end at 0xEAFC), and the loaded room's first frame with her
+// free puts her back where she hid, at the step where her own routine settles (moveHide 0xD) with her hide
+// area on its first step: the room's hide function and the whistle then run as after the hiding itself.
+struct HideRecord {
+    u32 magic;
+    u16 room;
+    u16 at;     // the hide area (SCE_AT_DATA no), 0xFFFF without one
+    Vec pos;
+    f32 angle;  // as at step 0xD (0xE has turned her round)
+    Vec spot;   // m_VecWork0
+};
+const unsigned kHideAt = 0xFF00;
+const u32 kHideMagic = 0x41484944;  // "AHID"
+HideRecord gHide;
+bool gHidePending;
+unsigned gHideWait;
+
 // Offsets of cCard::makeSaveData, not SAVE_DATA_HEAD's ABI-dependent pointer header.
 u8 gData[0x12000] __attribute__((aligned(32)));
 u8 gRestore[0x12000] __attribute__((aligned(32)));
@@ -110,6 +134,69 @@ void word(unsigned at, u32 value)
 {
     memcpy(gData + at, &value, 4);
 }
+
+// Capture: Ashley settled in her hide (moveHide 0xD / 0xE) goes into the slot's hide record.
+void noteHide()
+{
+    cSubChar* s = SUB_CHAR();
+    if (!StaFlagChk(pG, STA_ASHLEY_HIDE) || !live(s) || s->id != 3 || s->r_no_0 != 0 || s->r_no_1 != 0x10 ||
+        s->r_no_2 < 0xD)
+        return;
+    HideRecord r;
+    memset(&r, 0, sizeof(r));
+    r.magic = kHideMagic;
+    r.room = pG->room_id;
+    r.at = 0xFFFF;
+    for (int no = 0; no < 0x100; ++no) {
+        SCE_AT_DATA* w = SceAtPtr(no);
+        if (w && w->id == SCEAT_ID_HIDE && w->hide.status != 0) {
+            r.at = (u16) no;
+            break;
+        }
+    }
+    r.pos = s->pos;
+    r.angle = s->r_no_2 == 0xD ? s->ang.y : LIMIT_ANGLE(s->ang.y - 3.1415927f);
+    r.spot = s->m_VecWork0;
+    memcpy(gData + kHideAt, &r, sizeof(r));
+}
+
+// The loaded room's first frames: Ashley back into her hide once she is free (no event, her own walk).
+void restoreHide()
+{
+    if (!live(pG) || pG->Rno0 != 3)
+        return;
+    cSubChar* s = SUB_CHAR();
+    if (pG->room_id != gHide.room || !live(s) || s->id != 3 || StaFlagChk(pG, STA_EVENT) || s->r_no_0 != 0 ||
+        s->r_no_1 != 0) {
+        if (++gHideWait > 600)
+            gHidePending = false;
+        return;
+    }
+    gHidePending = false;
+    s->pos = gHide.pos;
+    s->ang.y = gHide.angle;
+    s->m_VecWork0 = gHide.spot;
+    s->flg.off(cSubChar::F_STAY);
+    s->m_Work0 = 1;
+    s->m_Work1 = 0;
+    s->dmg.set(0, 0x80);
+    s->atari.onOba();
+    s->atari.setPriority(PRI_LV3);
+    s->atari.offSca();
+    // her duck at its last picture (MotionSetCore clamps the start): from its first one she slid along again
+    MotionSetCore(s, &s->Motion, PL_ARC_PTR(s->subArc, 0x43), 0, 7, 1, 0x3FFF);
+    s->r_no_0 = 0;
+    s->r_no_1 = 0x10;
+    s->r_no_2 = 0xD;
+    s->r_no_3 = 10;
+    StaFlagOn(pG, STA_ASHLEY_HIDE);
+    SCE_AT_DATA* w = gHide.at != 0xFFFF ? SceAtPtr(gHide.at) : 0;
+    if (w && w->id == SCEAT_ID_HIDE)
+        w->hide.status = 1;
+    s->matUpdate();
+    re4_log("instant: Ashley back in her hide in r%03x at (%.0f %.0f %.0f), hide area %d", (unsigned) gHide.room,
+            (double) gHide.pos.x, (double) gHide.pos.y, (double) gHide.pos.z, w ? (int) gHide.at : -1);
+}
 }
 
 extern "C" unsigned re4_instant_game_chapter(unsigned number)
@@ -181,6 +268,7 @@ extern "C" int re4_instant_game_capture(unsigned char* out)
     pG->SaveKind = kind;
     if (!captured)
         return RE4_INSTANT_BAD;
+    noteHide();
     OSCalendarTime cal;
     OSTicksToCalendarTime(OSGetTime(), &cal);
     word(0x2004, 0x116);
@@ -233,6 +321,9 @@ void installRestore()
     memcpy(pSaveData->pRm, gData + 0x6930, roomBytes);
     memcpy(pSaveData->pSs, gData + 0xE7D0, SscrnDataSize());
     memcpy(pSaveData->pMr, gData + 0xE7D4, MerchantDataSize());
+    memcpy(&gHide, gData + kHideAt, sizeof(gHide));
+    gHidePending = gHide.magic == kHideMagic;
+    gHideWait = 0;
     // The system data (options, Mercenaries records) stays as it is: it belongs to the memory card, not to
     // the point in the game. The slot only keeps it for the file check.
     SndAllFadeOut();
@@ -259,6 +350,8 @@ extern "C" void re4_instant_title_tick(void* work)
 
 extern "C" int re4_instant_game_tick(void)
 {
+    if (gHidePending && !gRestorePending)
+        restoreHide();
     if (!gRestorePending || gRestoreFromTitle)
         return 0;
     pG->Stop_flg = 0xFFFFFFFF;

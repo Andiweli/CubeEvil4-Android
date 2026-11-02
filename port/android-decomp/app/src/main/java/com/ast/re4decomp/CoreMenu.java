@@ -546,6 +546,11 @@ final class CoreMenu extends Dialog {
       graphics.edit().putBoolean("tvFilter", on).apply(); CoreBridge.setTvFilter(on);
     });
     help(R.string.ingame_tv_filter_help);
+    // the 3D as a PlayStation would have drawn it (wish of the project owner, 02.11.2026)
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
+      graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
+    });
+    help(R.string.ingame_psx_help);
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
     heading(R.string.ingame_picture);

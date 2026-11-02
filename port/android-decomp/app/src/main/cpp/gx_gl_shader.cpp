@@ -140,10 +140,20 @@ std::string GxVertexShader(const ShaderKey &k) {
       Add(out, "layout(location = %d) in vec2 aTex%d;\n", 6 + i, i);
   if (Has(k, 1u << 12))
     out += "layout(location = 14) in uvec3 aMtx;\n";
-  const char *outQ = k.centroid ? "centroid out" : "out";
+  const char *outQ = (k.centroid & 1) ? "centroid out" : "out";
+  // PSone demake (ShaderKey::centroid bit 1, 3D only): the texture coordinates leave multiplied by w with w
+  // beside them, the fragment shader divides: interpolated so, they run straight across the screen
+  // (affine, no perspective correction, as the PlayStation drew)
+  const bool psx = (k.centroid & 2) && !k.orthographic;
   Add(out, "%s vec4 vColor0;\n%s vec4 vColor1;\n", outQ, outQ);
-  for (unsigned i = 0; i < k.numTexGens; i++)
-    Add(out, "%s vec3 vTex%u;\n", outQ, i);
+  for (unsigned i = 0; i < k.numTexGens; i++) {
+    if (psx)
+      Add(out, "vec3 vTex%u;\n%s vec3 vTexP%u;\n", i, outQ, i);
+    else
+      Add(out, "%s vec3 vTex%u;\n", outQ, i);
+  }
+  if (psx && k.numTexGens)
+    Add(out, "%s float vAffW;\n", outQ);
   out += "int mtxByte(uvec3 m, int n) {\n"
          "  uint w = n < 4 ? m.x : n < 8 ? m.y : m.z;\n"
          "  return int((w >> uint(8 * (n & 3))) & 63u);\n"
@@ -188,6 +198,13 @@ std::string GxVertexShader(const ShaderKey &k) {
   // pixel and lies on a pixel's edge still hits it as there (the rifle scope's horizontal line at 1x
   // fell between two rows, user report 29.10.2026). EFB rows grow with GL's y here (no flip).
   out += "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n";
+  // PSone demake: the corners snap to a grid of half the GameCube's pixels (320 wide), as the
+  // PlayStation's whole-pixel corners made the polygons wobble
+  if (psx)
+    out += "  if (gl_Position.w > 0.0) {\n"
+           "    vec2 g = vec2(W, H) * 0.25;\n"
+           "    gl_Position.xy = floor(gl_Position.xy / gl_Position.w * g + 0.5) / g * gl_Position.w;\n"
+           "  }\n";
   // lighting channels
   out += "  vec4 col0 = vec4(1.0);\n  vec4 col1 = vec4(1.0);\n";
   for (unsigned c = 0; c < 2 && c < k.numChans; c++) {
@@ -250,6 +267,12 @@ std::string GxVertexShader(const ShaderKey &k) {
       Add(out, "    vTex%u = t;\n", i);
     }
     out += "  }\n";
+  }
+  if (psx) {
+    for (unsigned i = 0; i < k.numTexGens; i++)
+      Add(out, "  vTexP%u = vTex%u * gl_Position.w;\n", i, i);
+    if (k.numTexGens)
+      out += "  vAffW = gl_Position.w;\n";
   }
   out += "}\n";
   return out;
@@ -418,10 +441,13 @@ std::string GxFragmentShader(const ShaderKey &k) {
   for (int m = 0; m < 8; m++)
     if (k.texMaps & (1u << m))
       Add(out, "uniform sampler2D s%d;\n", m);
-  const char *inQ = k.centroid ? "centroid in" : "in";
+  const char *inQ = (k.centroid & 1) ? "centroid in" : "in";
+  const bool psx = (k.centroid & 2) && !k.orthographic;  // PSone demake (GxVertexShader)
   Add(out, "%s vec4 vColor0;\n%s vec4 vColor1;\n", inQ, inQ);
   for (unsigned i = 0; i < k.numTexGens; i++)
-    Add(out, "%s vec3 vTex%u;\n", inQ, i);
+    Add(out, psx ? "%s vec3 vTexP%u;\n" : "%s vec3 vTex%u;\n", inQ, i);
+  if (psx && k.numTexGens)
+    Add(out, "%s float vAffW;\n", inQ);
   out += "out vec4 oColor;\n";
   out += "int idot(ivec3 a, ivec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }\n";
   for (int m = 0; m < 8; m++)
@@ -432,6 +458,9 @@ std::string GxFragmentShader(const ShaderKey &k) {
           "}\n",
           m, m, m, m);
   out += "void main() {\n";
+  if (psx)
+    for (unsigned i = 0; i < k.numTexGens; i++)
+      Add(out, "  vec3 vTex%u = vTexP%u / vAffW;\n", i, i);
   out += "  ivec4 prev = colors[0];\n  ivec4 c0 = colors[1];\n  ivec4 c1 = colors[2];\n  ivec4 c2 = colors[3];\n";
   out += "  ivec4 rastemp = ivec4(0);\n  ivec4 textemp = ivec4(0);\n  ivec4 konsttemp = ivec4(0);\n";
   out += "  ivec4 tevin_a, tevin_b, tevin_c, tevin_d;\n";

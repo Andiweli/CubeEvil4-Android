@@ -52,6 +52,11 @@
 //                          free, sound effect S of block B as a menu plays it
 //                          (SndCall(B, S, 0, 0, 0, 0); up to 8): the merchant's
 //                          tune-up sound 0:0x18 and the back sound 0:5 (02.11.2026)
+//   RE4_TEST_INSTANT="free+N:save[,free+M:load]"  N frames after the player is
+//                          free, the app's instant save into a buffer of the run
+//                          (re4_instant_game_capture), M frames after it loaded
+//                          again as the in-game menu loads it (Ashley in her hide,
+//                          02.11.2026)
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
 //                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games)
 //                          one a frame, as the app's menu presses them while the
@@ -129,6 +134,9 @@
 //   RE4_TEST_ITEM_LOSE="free+N:ID"  N frames after the player is free, item ID leaves the
 //                          case (cItemMgr::erase): a save whose room marks an item as taken
 //                          that the case lacks (the r201 prison key, patch 0169, 01.11.2026)
+//   RE4_TEST_STA="F[,F...]"  while the first room loads, the status flags F (Status_flg, numbers as
+//                          in global.h) are set before its init runs: STA_SUB_ASHLEY (Ashley with Leon,
+//                          02.11.2026)
 //   RE4_TEST_RSF="ROOM:F[,F...]"  while room ROOM (hex, 0x31b) loads, its room save flags F
 //                          (RsfSet) are set before its init runs: a later state of the room, e.g.
 //                          r31b after U-3 broke in and a retry (0x31b:12, patch 0170, 01.11.2026)
@@ -205,6 +213,8 @@
 #include "dmg.h"
 #include "atari.h"
 #include "emdoor.h"
+#include "re4_instant.h"
+#include "pl_sub.h"
 #include "sce_sys.h"
 #include "flag_rsf.h"
 #include "em_set.h"
@@ -592,6 +602,8 @@ long g_itemUseAfter = -1;    // RE4_TEST_ITEM_USE
 int g_itemUseId;
 long g_itemLoseAfter = -1;   // RE4_TEST_ITEM_LOSE
 unsigned g_rsfRoom;          // RE4_TEST_RSF
+int g_sta[8], g_staCount;    // RE4_TEST_STA
+bool g_staDone;
 unsigned g_killAt, g_killId; // RE4_TEST_EM_KILL
 int g_rsf[8], g_rsfCount;
 bool g_rsfDone;
@@ -601,6 +613,8 @@ int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
 int g_streamBlock, g_streamNo;
 long g_seAfter[8];           // RE4_TEST_SE
+long g_instantSave = -1, g_instantLoad = -1;  // RE4_TEST_INSTANT
+unsigned char g_instantSlot[0x12000];
 int g_seBlock[8], g_seNo[8], g_seCount;
 long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
@@ -1550,6 +1564,12 @@ void frame(unsigned n)
         pPL->setAng(&ang);
         re4_log("run: player placed at (%.0f %.0f %.0f), facing %.2f, frame %u", (double) pos.x, (double) pos.y,
                 (double) pos.z, (double) g_placeAng, n);
+        // Ashley with him comes along (the partner command "to the player"); left behind she walked into the
+        // room's walls (r113, 02.11.2026)
+        if (live(pSUB) && pSUB->id == 3) {
+            SubCharCtrl(4, 0);
+            re4_log("run: Ashley put beside the player");
+        }
     }
     // RE4_TEST_PLACE2="N:x,y,z,a": a second placement at frame N (after an event the first one started)
     static const char* place2 = getenv("RE4_TEST_PLACE2");
@@ -1614,6 +1634,13 @@ void frame(unsigned n)
             g->item_save[0xFF].item_at = (u8) area;
             g->item_save[0xFF].item_id = (u16) item;
             re4_log("run: saved item record 255 for r%03x area %d (RE4_TEST_SAVE_ITEM) at frame %u", room, area, n);
+        }
+    }
+    if (g_staCount && !g_staDone && g->Rno0 == 2) {
+        g_staDone = true;
+        for (int i = 0; i < g_staCount; i++) {
+            StaFlagOn(g, g_sta[i]);
+            re4_log("run: status flag %d set while the first room loads (RE4_TEST_STA) at frame %u", g_sta[i], n);
         }
     }
     if (g_rsfCount && !g_rsfDone && g->room_id == g_rsfRoom && g->Rno0 == 2) {
@@ -1739,6 +1766,12 @@ void frame(unsigned n)
         u32 id = SndStrReq(g_streamBlock, g_streamNo, (int) 0x80000003, 0, 0, 0.0f);
         re4_log("run: stream %d:0x%x started (RE4_TEST_STREAM) at frame %u: id %u", g_streamBlock, g_streamNo, n,
                 (unsigned) id);
+    }
+    if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantSave) {
+        re4_log("run: instant save (RE4_TEST_INSTANT) at frame %u: %d", n, re4_instant_game_capture(g_instantSlot));
+    }
+    if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantLoad) {
+        re4_log("run: instant load (RE4_TEST_INSTANT) at frame %u: %d", n, re4_instant_game_restore(g_instantSlot));
     }
     for (int i = 0; i < g_seCount && g_freeAt >= 0; i++) {
         if ((long) n == g_freeAt + g_seAfter[i]) {
@@ -1899,6 +1932,15 @@ void configure()
         re4_log("run: RE4_TEST_STREAM \"%s\" not understood (free+N:B:S)", stream);
         g_streamAfter = -1;
     }
+    if (const char* instant = getenv("RE4_TEST_INSTANT")) {
+        const char* load = strstr(instant, ",free+");
+        if (strncmp(instant, "free+", 5) == 0) {
+            g_instantSave = strtol(instant + 5, 0, 10);
+        }
+        if (load) {
+            g_instantLoad = strtol(load + 6, 0, 10);
+        }
+    }
     if (const char* se = getenv("RE4_TEST_SE")) {
         const char* p = se;
         while (g_seCount < 8 && strncmp(p, "free+", 5) == 0 &&
@@ -1973,6 +2015,16 @@ void configure()
         g_killId = end && *end == ':' ? (unsigned) strtoul(end + 1, 0, 16) : 0;
         if (!g_killId) {
             g_killAt = 0;
+        }
+    }
+    if (const char* sta = getenv("RE4_TEST_STA")) {
+        char* end = (char*) sta;
+        while (g_staCount < 8 && *end) {
+            g_sta[g_staCount++] = (int) strtol(end, &end, 10);
+            if (*end != ',') {
+                break;
+            }
+            end++;
         }
     }
     if (const char* rsf = getenv("RE4_TEST_RSF")) {

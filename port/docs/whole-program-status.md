@@ -3,6 +3,38 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.97.0-beta: PSone-Demake, Ashley im Versteck, Adas Haare (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
+
+Wunsch des Projektinhabers: `versionName` 0.97.0-beta, `versionCode` 92, Releasetext
+`port/android-decomp/docs/releases/v0.97.0-beta.md` seit 0.96.9. In `master` erst nach dem Test des Projektinhabers.
+
+1. **Ashley nach dem Schnellspeicher wieder außerhalb der Kiste (Retroid, Bericht 07:47, r113 Schrank):** der
+   Schnellspeicher ist ein Schreibmaschinen-Spielstand, Ashleys Zustand gehört nicht dazu; beim Laden setzt der Raum
+   sie neben Leon. **`runtime/instant_game.cpp`:** beim Speichern, wenn Ashley versteckt ist (`STA_ASHLEY_HIDE`,
+   `moveHide` 0xD/0xE), ein Zusatz im unbenutzten Rest der Spielstanddatei (0xFF00: außerhalb der Prüfsumme und der
+   GameCube-Umwandlung, die bei 0xEAFC enden): Raum, Lage, Blickrichtung, Versteckpunkt und Versteck-Bereich. Nach dem
+   Laden im ersten freien Bild (kein Ereignis, Ashley in ihrem Lauf) Ashley an ihren Platz in Schritt 0xD (ihre
+   Duck-Bewegung im letzten Bild, Kollision und Schaden wie `moveHide`), der Bereich auf Schritt 1: Raumfunktion
+   (r113: die Schranktür), Pfiff mit X und Herauskommen laufen wie nach dem Verstecken selbst. Zeile „instant: Ashley back
+   in her hide …“. Neue Testhilfen `RE4_TEST_INSTANT="free+N:save,free+M:load"` (Schnellspeicher im Lauf),
+   `RE4_TEST_STA="F,…"` (Statusflaggen vor dem Raum-Init, z. B. 101 `STA_SUB_ASHLEY`); `RE4_TEST_PLACE` setzt eine
+   mitlaufende Ashley neben Leon (sonst lief sie in r113 gegen Wände). **Geprüft am PC** (EU, r113, Ashley, Schrank
+   mit X): gespeichert, geladen: Ashley im Schrank ohne Verschieben, X ruft sie heraus; Laufzeittests und
+   `re4_instant_store_test` 0 Fehler.
+2. **Mercenaries: Adas Haare bleiben am geköpften Körper (Xiaomi, EU, 0.96.8):** `cPlAda::setModel` merkte sich das
+   Haarmodell (9/0xA) nicht in `Body->m_pHair`, `setHead` (Patch 0175) entfernte es deshalb nicht. Die EU-Fassung
+   speichert es dort. **Patch 0185.** Geprüft am PC (r400, EU, Ada, `RE4_TEST_HEAD_LOST=60`, GX-Bilder): vorher Haare
+   am Körper, nachher nur der Halsstumpf.
+3. **PSone-Demake-Filter (neue Option unter „Original-TV-Filter“, alle 11 Sprachen):** Renderer: Bit 1 von
+   `ShaderKey::centroid` (Schlüsselgröße bleibt, der Programm-Zwischenspeicher gilt weiter) nur für 3D-Zeichnungen:
+   Eckpunkte auf einem Raster aus halben GameCube-Pixeln (320 breit), Texturkoordinaten affin (mit w multipliziert
+   übergeben, im Fragment-Shader geteilt), Texturen ohne Filter (eigene Sampler); dann ein letzter Durchgang über jede
+   Bildkopie (nach FXAA): eine Farbe je Zelle des 320×224-Rasters (aus ihrem ersten Spielpixel), 15-Bit-Farbe mit dem
+   4×4-Dither der PlayStation. Anzeigen und Schrift bekommen nur den letzten Durchgang. App: `psx` in den Grafik-
+   Einstellungen, `CoreBridge.setPsx`, `RE4_GX_PSX=1` für Prüfungen. Test `TestPsx` (Zellen, Farbstufen, aus wieder
+   unverändert), `gx_gl_check` 0 Fehler, drei Geräte-Serien mit `RE4_GX_PSX=1` ohne Shader-Fehler,
+   `check_translations.py` ok, `testCoreDebugUnitTest` ok. **Nicht geprüft:** Gerät (Optik, Kosten), 60 FPS mit Filter.
+
 ## Version 0.96.9-beta (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Wunsch des Projektinhabers: `versionName` 0.96.9-beta, `versionCode` 91, Releasetext
@@ -11081,6 +11113,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0181 `r224.cpp` | Die zwei El Gigantes: ein als tot vermerkter wird beim Ereignis erneut gesetzt (Schnellspeicher nach einem Kill), statt ungeprüft ins Leere zu greifen. Port-Patch, Nutzerbericht 01.11.2026 |
 | 0182 `r11e.cpp` | Erster El Gigante: mit EU- und JP-Discs die Boden-Gegenstände der Hütten (Bereiche 0xA0–0xAB) aus, solange die Hütte steht, beim Einsturz an (Tisch-Gegenstände aus), wie deren Code. Port-Patch für Verkaufsdaten, 02.11.2026 |
 | 0183 `ss_shop.cpp` | Händler: der Zurück-Ton nach einem Tune-up nur, solange die Waffe noch ausbaubar ist (sonst verdrängte er den Kaufton nach Exclusive/Kapazität), wie die Verkaufsfassungen. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
+| 0185 `pl02.cpp` | `cPlAda::setModel` merkt sich Adas Haarmodell in `Body->m_pHair` wie die Verkaufsfassungen; beim Köpfen (Patch 0175) gehen die Haare mit. Fehler des Prototyps, Nutzerbericht 02.11.2026 |
 | 0184 `item.cpp` | `cItemMgr::gameInit` setzt Waffennummer und -typ aus der ausgerüsteten Waffe des Startpakets (Mercenaries: Leon mit der Blacktail statt dem Pistolenmodell), wie die Verkaufsfassungen. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0180 `ss_main.cpp`, `item.cpp` | Untersuchen nach der Exklusiv-Aufrüstung: mit Verkaufs-Discs deren eigener Text (0x100–0x105); Feuerkraft des Minenwerfers (auch mit Zielfernrohr) auf Stufe 4 = 6.0 statt 0.0 (Fehler des Prototyps). Nutzerbericht 02.11.2026 |
 | 0179 `sce_at.cpp` | `SceAtSetSaveItem`: ein gespeicherter Gegenstand-Eintrag für einen Auslösebereich, den der Raum nicht hat, bleibt liegen statt nach Adresse 0 zu schreiben (Absturz in r20f, US-Discs). Port-Patch, Nutzerbericht 01.11.2026 |

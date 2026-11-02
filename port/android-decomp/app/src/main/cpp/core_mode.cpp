@@ -636,6 +636,7 @@ struct Bench {
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
+std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
@@ -1425,6 +1426,8 @@ bool drawGx() {
   gx->SetFxaa(optFxaa.load() != 0);
   static const bool tvEnv = getenv("RE4_GX_TV_FILTER") && *getenv("RE4_GX_TV_FILTER") == '1';
   gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
+  static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
+  gx->SetPsx(optPsx.load() != 0 || psxEnv);
   static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
   gx->SetMerge(optMerge.load() != 0 || mergeEnv);
   if (!smoothOn && smoothPrev) {
@@ -2410,6 +2413,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optTvFilter.exchange(want) != want) LOG("original TV filter: %s", want ? "on" : "off");
+}
+
+// PSone demake (the menu): the 3D as the PlayStation drew it and a 320-wide, 15-bit picture (GxRenderer::SetPsx).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPsx(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optPsx.exchange(want) != want) LOG("PSone demake: %s", want ? "on" : "off");
 }
 
 // FXAA (the menu): an edge smoothing pass over every picture (GxRenderer::SetFxaa).
