@@ -34,6 +34,13 @@ Weg B Glanz) **beide Wege umsetzen**, als zwei Schalter unter Leistung → Exper
   Zwischenbildern) gegen den Renderer von `2913df1d` ohne Unterschied; 60 FPS mit „erweitert“ (r201, r225, r10d):
   Zwischenbild passend; `check_translations.py` ok, `testCoreDebugUnitTest` ok. Aufnahmen: WSL `~/re4-hc/refl`
   (74 Räume), `refl3` (Zweierfolgen mit drehender Kamera).
+- **Nachtrag (Retroid, Test-APK 1, Projektinhaber 02.11.2026: „man merkt keinen Unterschied“, Brunnen der Burg und
+  See im Regen):** die physikalische Fresnel-Kurve (2–4 % senkrecht, 5. Potenz) ließ aus der Kamerahöhe des Spiels
+  fast nichts übrig. Jetzt 12–18 % senkrecht, mit dem Quadrat steigend; Glanz stärker und breiter (Wasser 0,8 /
+  Schärfe 60, Marmor 0,5 / 24, Glas 0,6 / 80, Deckel 0,45). Am PC jetzt deutlich (r212 Glanzstreifen und
+  Spiegelung der Tür, r225 Fässer im Wasser). Neue Protokollzeile nach der GX-Statistik: „reflections: mode …,
+  … surfaces drawn over, … pictures of the scene“, einmal „reflections: shaders ready“ (die beiden mitgeschickten
+  Berichte stammten von 07:47 und 10:01, vor der Test-APK). Test-APK 2.
 - **Nicht geprüft:** Gerät (Optik, Kosten; geschätzt ≤ 1–2 ms je Bild auf dem Retroid, nur in Räumen mit solchen
   Flächen), MSAA auf dem Gerät. Bekannt: das erste Bild nach einem Raumwechsel hat noch kein Spiegelbild; die
   Marmorliste deckt nur die angesehenen Burgräume ab; Spiegelbilder zeigen nur, was im Bild ist.
