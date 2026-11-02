@@ -171,11 +171,12 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Frame-Skip</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Original-TV-Filter</string>
+    <string name="ingame_tv_filter">Original GameCube-TV-Filter</string>
     <string name="ingame_fxaa_help">Glättet Kanten in einem letzten Schritt. Geht mit und ohne MSAA; das Bild wird etwas weicher.</string>
-    <string name="ingame_tv_filter_help">Zeichnet das Bild senkrecht leicht weich, wie es der GameCube für den Fernseher tat (der Entflimmer-Filter des Spiels). Aus: scharfes Bild.</string>
-    <string name="ingame_psx">PSone-Demake</string>
-    <string name="ingame_psx_help">Zeigt das Spiel, wie es eine PlayStation gezeichnet hätte: wackelnde Polygone, Texturen ohne Perspektivkorrektur und Glättung, ein grobes Bild mit 320 Pixeln, 15-Bit-Farben und Dithering. Aus: das GameCube-Bild.</string>
+    <string name="ingame_tv_filter_help">Zeichnet das Bild senkrecht weich wie der GameCube am Fernseher.</string>
+    <string name="ingame_psx">Retro-Pixel-Filter</string>
+    <string name="ingame_psx_help">Wackelnde Polygone, grobe Pixel und 15-Bit-Farben wie bei einer PlayStation.</string>
+    <string name="ingame_filter">Filter</string>
     <string name="ingame_frame_skip_help">Überspringt bei ruckelnder Grafik ein Bild, damit das Spiel nicht in Zeitlupe läuft. Es werden weniger Bilder gezeigt, nichts wird langsamer.</string>
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
     <string name="ingame_merge_help">Fasst mehrere Objekte zu einem Aufruf an den Grafiktreiber zusammen. Kann Handys mit langsamem Grafiktreiber helfen (z. B. Mali-GPUs) und auf anderen etwas kosten. Wirkt nicht, solange 60 FPS an ist.</string>

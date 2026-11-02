@@ -173,11 +173,12 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Пропуск кадров</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Оригинальный ТВ-фильтр</string>
+    <string name="ingame_tv_filter">Оригинальный ТВ-фильтр GameCube</string>
     <string name="ingame_fxaa_help">Сглаживает зубчатые края на последнем шаге. Работает с MSAA и без него; картинка становится чуть мягче.</string>
-    <string name="ingame_tv_filter_help">Слегка смягчает изображение по вертикали, как GameCube делал для телевизора (собственный фильтр против мерцания игры). Выкл.: чёткое изображение.</string>
-    <string name="ingame_psx">Демейк PSone</string>
-    <string name="ingame_psx_help">Показывает игру так, как её нарисовала бы PlayStation: дрожащие полигоны, текстуры без коррекции перспективы и сглаживания, грубая картинка 320 пикселей с 15-битным цветом и дизерингом. Выкл.: картинка GameCube.</string>
+    <string name="ingame_tv_filter_help">Смягчает изображение по вертикали, как GameCube на телевизоре.</string>
+    <string name="ingame_psx">Ретро-пиксельный фильтр</string>
+    <string name="ingame_psx_help">Дрожащие полигоны, крупные пиксели и 15-битный цвет, как на PlayStation.</string>
+    <string name="ingame_filter">Фильтры</string>
     <string name="ingame_frame_skip_help">Если графика не успевает, пропускает кадр, чтобы игра шла с обычной скоростью. Показывается меньше кадров, ничего не замедляется.</string>
     <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
     <string name="ingame_merge_help">Объединяет несколько объектов в один вызов графического драйвера. Может помочь телефонам с медленным графическим драйвером (например, GPU Mali) и немного замедлить другие. Не действует, пока включены 60 FPS.</string>

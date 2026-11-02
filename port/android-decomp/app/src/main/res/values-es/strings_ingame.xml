@@ -172,11 +172,12 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Salto de fotogramas</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Filtro de TV original</string>
+    <string name="ingame_tv_filter">Filtro de TV original de GameCube</string>
     <string name="ingame_fxaa_help">Suaviza los bordes dentados en un último paso. Funciona con o sin MSAA; la imagen queda algo más suave.</string>
-    <string name="ingame_tv_filter_help">Suaviza la imagen en vertical como hacía GameCube para la televisión (el filtro antiparpadeo del propio juego). Desactivado: imagen nítida.</string>
-    <string name="ingame_psx">Demake PSone</string>
-    <string name="ingame_psx_help">Dibuja el juego como lo habría hecho una PlayStation: polígonos temblorosos, texturas sin corrección de perspectiva ni filtrado, una imagen tosca de 320 píxeles con color de 15 bits y tramado. Desactivado: la imagen de GameCube.</string>
+    <string name="ingame_tv_filter_help">Suaviza la imagen en vertical como GameCube en un televisor.</string>
+    <string name="ingame_psx">Filtro de píxeles retro</string>
+    <string name="ingame_psx_help">Polígonos temblorosos, píxeles gruesos y color de 15 bits, como una PlayStation.</string>
+    <string name="ingame_filter">Filtros</string>
     <string name="ingame_frame_skip_help">Si los gráficos van lentos, omite una imagen para que el juego mantenga su velocidad. Se muestran menos imágenes, nada se ralentiza.</string>
     <string name="ingame_skip_or_smooth">El salto de fotogramas y los 60 FPS se excluyen: al activar uno se desactiva el otro.</string>
     <string name="ingame_merge_help">Agrupa varios objetos en una sola llamada al controlador gráfico. Puede ayudar en móviles con un controlador gráfico lento (p. ej., GPU Mali) y costar un poco en otros. Sin efecto mientras los 60 FPS estén activados.</string>

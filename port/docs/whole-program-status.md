@@ -34,6 +34,9 @@ Wunsch des Projektinhabers: `versionName` 0.97.0-beta, `versionCode` 92, Release
    Einstellungen, `CoreBridge.setPsx`, `RE4_GX_PSX=1` für Prüfungen. Test `TestPsx` (Zellen, Farbstufen, aus wieder
    unverändert), `gx_gl_check` 0 Fehler, drei Geräte-Serien mit `RE4_GX_PSX=1` ohne Shader-Fehler,
    `check_translations.py` ok, `testCoreDebugUnitTest` ok. **Nicht geprüft:** Gerät (Optik, Kosten), 60 FPS mit Filter.
+   **Menü (Wunsch des Projektinhabers, 02.11.2026):** beide Filter in einem eigenen Abschnitt „Filter“ ganz unten
+   (nach „Bildformat“), je mit einer kurzen Zeile darunter; Namen „Original GameCube-TV-Filter“ und
+   „Retro-Pixel-Filter“ (alle 11 Sprachen, `ingame_filter` neu). `check_translations.py` und `testCoreDebugUnitTest` ok.
 
 ## Version 0.96.9-beta (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 

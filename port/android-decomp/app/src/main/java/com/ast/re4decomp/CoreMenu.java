@@ -541,6 +541,17 @@ final class CoreMenu extends Dialog {
       graphics.edit().putBoolean("fxaa", on).apply(); CoreBridge.setFxaa(on);
     });
     help(R.string.ingame_fxaa_help);
+    graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
+        new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
+    heading(R.string.ingame_picture);
+    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_stretched)},
+        new int[] {1, 3, 0, 2}, 0, Integer.MAX_VALUE);
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
+      graphics.edit().putBoolean("dof", on).apply(); CoreBridge.setDof(on);
+    });
+    // the picture filters in a section of their own at the end, each with a short line under it (wish of the
+    // project owner, 02.11.2026)
+    heading(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_tv_filter, graphics.getBoolean("tvFilter", false), on -> {
       graphics.edit().putBoolean("tvFilter", on).apply(); CoreBridge.setTvFilter(on);
@@ -551,14 +562,6 @@ final class CoreMenu extends Dialog {
       graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
     });
     help(R.string.ingame_psx_help);
-    graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
-        new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
-    heading(R.string.ingame_picture);
-    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_stretched)},
-        new int[] {1, 3, 0, 2}, 0, Integer.MAX_VALUE);
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
-      graphics.edit().putBoolean("dof", on).apply(); CoreBridge.setDof(on);
-    });
   }
   private void controls() {
     quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
