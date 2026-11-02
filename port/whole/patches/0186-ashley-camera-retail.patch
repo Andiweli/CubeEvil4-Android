@@ -1,0 +1,32 @@
+# Port patch for the retail data, a user's report (02.11.2026: in Ashley's part of the castle, EU discs on Easy, the
+# camera did not follow her). The debug build and the US release give Ashley (pl_type 1) her own camera cuts (area
+# attribute 4) when game_country is 0, the Japanese country. With the European and Japanese discs game_country is the
+# difficulty class (patch 0140: 0 on Easy), and their areaHitCheck (EU main.dol 0x80004c2c, JP/KR 0x80004c2c) asks
+# for Japanese texts (pSys->language 0) and a class above Easy instead. Without this patch Ashley took the Japanese
+# cuts on EU Easy and the free camera on JP Normal. Debug and US discs: unchanged.
+--- a/src/game/cam_ctrl.cpp
++++ b/src/game/cam_ctrl.cpp
+@@ -11,6 +11,7 @@
+ #include "db_log.h"
+ #include "atari.h"
+ #include "light.h"
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
+ #include "model.h"
+ #include "player.h"
+ #include "em.h"
+@@ -914,7 +915,14 @@
+         case 0:
+             break;
+         case 1:
+-            if (pG->game_country == 0) {
++            /* port: with the European and Japanese discs game_country is the difficulty class (patch 0140);
++               their areaHitCheck (EU main.dol 0x80004c2c, JP 0x80004c2c) gives Ashley her own cuts with
++               Japanese texts above Easy only. The debug build and the US release: game_country 0 */
++            if (re4_disc_retail_eu() || re4_disc_retail_jp()) {
++                if (pSys->language == 0 && pG->game_country != 0) {
++                    attr = 4;
++                }
++            } else if (pG->game_country == 0) {
+                 attr = 4;
+             }
+             break;

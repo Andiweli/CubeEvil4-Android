@@ -3,6 +3,51 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Drei Nutzerberichte zu 0.96.9 und zwei Nachträge (02.11.2026, lokal, Branch `user-reports`)
+
+Auftrag: drei Berichte von Nutzern mit 0.96.9-beta (0.97.0 noch nicht verteilt), dazu zwei Nachträge des
+Projektinhabers am selben Tag. Arbeitsbaum: Worktree `E:\Development\Android\RE4-reports`, WSL `~/re4-reports/RE4`
+(Branch `reports`, eigener Klon). In 0.97.0 war keiner der Fehler schon behoben.
+
+1. **Kamera folgt Ashley nicht (Samsung SM-A566E, EU-Discs, Spanisch, Easy, r20d/r20e; Bildschirmfoto: Ashley in
+   einer Tür, die Kamera im Torbogen dahinter).** Archiv `cubeevil4-report-20261102-092604.zip` (Spielstand r20d,
+   `game_mode 3, game_country 0`). Ursache: `CameraControl::areaHitCheck` gibt Ashley (`pl_type` 1) eigene Kameraschnitte
+   (Bereichsattribut 4), wenn `game_country == 0` (Debug- und US-Code: Japan). Mit EU- und JP-Discs ist
+   `game_country` seit Patch 0140 die Schwierigkeitsklasse (0 = Easy) – auf EU-Easy bekam Ashley also die japanischen
+   Festkameras. Der Code der Verkaufsfassungen (EU/JP/KR `main.dol` 0x80004c2c, US wie Debug, mit `llvm-objdump` über
+   ein selbst gebautes ELF der DOL) fragt dort japanische Texte (`pSys->language == 0`) **und** eine Klasse über Easy.
+   **Patch 0186** (`cam_ctrl.cpp`). Geprüft am PC (Debug-Start r20d, Ashley, `RE4_TEST_PLACE` an der Stelle des Nutzers,
+   Stick vor, neues Trace-Feld `cam.cut/area`): EU-Easy vorher Schnitte 9, 13, 15, 19, 20 (feste Kameras), jetzt
+   Schnitt 1 (folgt ihr); EU-Normal, Debug, US unverändert Schnitt 1; **JP-Normal jetzt die japanischen Schnitte** wie
+   die japanische Fassung (vorher folgte die Kamera). Gerät offen.
+2. **Bild friert ein „in allen 3 Versionen“ (vivo V2426, US-Discs, r31b) und Nachtrag „Leon und U-3 verschwinden, nur
+   die Umgebung bleibt“ (Xiaomi 2201116TG, Debug-Discs, r31b).** Archive `logs.zip` und
+   `cubeevil4-report-20261102-195310.zip`. Beide Male: U-3 erscheint nach dem Einbruch (r31bs00), wird auf 1 Lebenspunkt
+   geschossen, springt auf die Container (`em32_R1_JumpUp`), wartet versteckt über Leon (`em32_R1_C_Wait` setzt dabei
+   seine Lebensenergie auf 0 – Originalverhalten, der Käfig-Schnitt des ersten Raums gibt ihm mit `setNext(6)` neue).
+   Patch 0170 (seit 0.96.7) hielt Lebensenergie 0 für den Tod, setzte den Fang-Merker 0x1C und startete die Todesszene
+   im ersten Raum: Kamera auf das Gitter des dritten Raums (darum keine Figuren mehr im Bild), das Ereignis endet nie,
+   START geht nicht. **Patch 0170 berichtigt:** tot heißt Sterberoutine (`r_no_0 == 3`, wie `em32DmCk`/`EmSetDie` sie
+   setzen). Neu: `RE4_TEST_EM_KILL="F:ID:HP"` lässt den Gegner nur mit HP Lebenspunkten. Geprüft am PC (US-Discs,
+   Debug-Start r31b, Leon im Auslösebereich 4 bei (−31000 6314 −15000), U-3 bei Bild 1700 auf 1): vorher ab Bild 1794
+   im Ereignis fest (Merker 0x1C, Kamera steht, bis Bild 4000), jetzt kein Ereignis, Leon läuft weiter; der Fall von
+   0170 (`RE4_TEST_RSF=31b:12`, `RE4_TEST_EM_KILL=900:32`) mit EU- und Debug-Discs wie vorher: Szene Bild 901–1154, Leon
+   am Ausgang (55080 4266 13710). Gerät offen.
+3. **Absturz beim Öffnen nach dem Hinzufügen der JP-Discs; Cheats mit JP.** Erst ohne Protokoll, dann Nachtrag
+   `cubeevil4-report-20261102-204548.zip` (Xiaomi 2410DPN6CC, Android 17): **kein Absturz darin** – beide Sitzungen bis
+   zum Titelbild, beendet durch Wegwischen; die letzten drei Enden sind „force stop“ (zweimal Wischen, einmal durch die
+   MIUI-Sicherheits-App `com.miui.securitycenter` um 20:15:46), kein `last-crash`. Auffällig: die Disc-Prüfung meldet
+   210 (Disc 1) bzw. 164 (Disc 2) Ereignisdateien `Evd/*.evd` anders als die Referenz-JP-Discs (`files-jp.tsv`), der
+   Programmcode ist der japanische (Import hat ihn geprüft) – eine andere Pressung oder eine veränderte (übersetzte?)
+   Fassung. Am PC (JP-Referenz-Discs, Prüf-Build mit AddressSanitizer/UBSan): Start bis Titel und Speicherkarte,
+   Debug-Start r100 mit Laufen – 0 Fehlermeldungen; nicht nachgestellt. Der Startweg der App unterscheidet JP nur bei
+   Katalogen und Spielkennung (G4BE08 für die Karte). **Offen:** ein Bericht direkt nach einem Absturz (die App hebt
+   ihn in `last-crash/` auf) und woher die Disc-Abbilder stammen. **Cheats:** die Seite gibt es mit allen Discs;
+   im Protokoll des Nutzers schon an (`cheats 9`). Am PC mit JP-Discs: Schalter (`RE4_CHEATS=7`) und alle Knöpfe
+   (Killer7, Koffer L, 1 000 000 Peseten, Handcannon, Chicago Typewriter, Raketenwerfer, Minenwerfer, Matilda) wirken.
+
+Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle 16 Prüfungen mit Exit 0 (Module, Laufzeit- und Kerntests je 0 Fehler); Kern für Android (armeabi-v7a, arm64-v8a) 0 Fehler, Test-APK (`assembleCoreDebug`, 0.97.0-beta-core, ohne die Reflexionen aus `work`). Nicht geprüft: Gerät.
+
 ## Version 0.97.0-beta: PSone-Demake, Ashley im Versteck, Adas Haare (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Wunsch des Projektinhabers: `versionName` 0.97.0-beta, `versionCode` 92, Releasetext
@@ -11175,7 +11220,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0167 `r402.cpp` | Mercenaries r402 setzt Gegner wie die Verkaufsfassungen: neue Welle (Listen 0xE3/0xE7/0xEB) im Bereich 0x2000, verschobene Plätze (0x72), andere Reihenfolge, Boot-Ereignisse ab 8 aktiven, sechs Startgegner suchen statt zulaufen, unterwegs nicht weggeräumt (US, EU, JP); Modus 15 und Listennummer im Gegner (EU, JP). Port-Patch für Verkaufsdaten |
 | 0168 `mes.cpp`, `act_btn.cpp` | Aktionstasten-Beschriftungen der Arten 64..78 (0x56..0x64: HOP DOWN, FIRE …) mit Verkaufs-Discs unverschoben (Patch 0123 schob sie um 15 auf alte Platzhalter: „aaa“ an der Kanone in r202). Port-Patch für Verkaufsdaten |
 | 0169 `r201.cpp` | Sicherheitsnetz Schlüssel zum Garrador-Gefängnis: gilt der Schlüssel 0xC3 (Gegenstandsbereich 0x80) als genommen, ist die Tür noch zu (`KYF_R201_DOOR`) und der Schlüssel nicht im Koffer, hängt `R201Init` ihn wieder ins Bild (eine Zeile im Protokoll). US-Nutzerbericht 01.11.2026; wie der Spielstand dahin kam, ist offen (keine `.gci`). Kein Fehler des Prototyps nachgewiesen, alle Discs |
-| 0170 `r31b.cpp` | U-3 tot ohne den Fang im dritten Raum (Merker 0x1C, nach einem Continue setzt `R31bEmSetMain` ihn gleich in dessen Zustand): gilt als gefangen (0x1C, Bereich 0x23 aus), die Todesszene mit Gitter und Ausgang läuft. EU-Bericht 01.11.2026; der EU-Code ist hier gleich. Port-Patch, alle Discs |
+| 0170 `r31b.cpp` | U-3 tot ohne den Fang im dritten Raum (Merker 0x1C, nach einem Continue setzt `R31bEmSetMain` ihn gleich in dessen Zustand): gilt als gefangen (0x1C, Bereich 0x23 aus), die Todesszene mit Gitter und Ausgang läuft. EU-Bericht 01.11.2026; der EU-Code ist hier gleich. Port-Patch, alle Discs; berichtigt 02.11.2026: tot nur in der Sterberoutine (`r_no_0` 3) – Lebensenergie 0 hat U-3 auch versteckt auf den Containern im ersten Raum (Todesszene lief dort, Spiel stand) |
 | 0171 `cam_qfps.cpp` | Kamera „Far“ (Menü Steuerung, standardmäßig aus): Schulterkamera beim Laufen und Stehen bis 1,4-mal so weit hinter Leon, weich ein- und ausgeblendet, Zielen wie das Spiel; nach dem Wandschutz sofort näher, nach hinten gebremst. Nutzerwunsch 01.11.2026, neue Option |
 | 0172 `ss_pzzl.cpp`, `cockpit.cpp` | Krausers Bogen: keine „0“ im Koffer (Fehler des Prototyps, wie EU-`pieceModelDisp`); mit Verkaufs-Discs das Pfeil-Symbol 0x3B im Waffenkreis (wie EU-`dispBulletIconMarkNo`). Nutzerbericht 01.11.2026 |
 | 0173 `pl_klauser.cpp`, `mercenaries.cpp` | Krausers Arm wie die Verkaufsfassung: Leuchten mit `Core_flg` 1 (im Intro und danach sichtbar), `krEffWait = -1` erst im Angriff (Arm nicht mehr dauerhaft gesperrt), kein Ächzen beim Abbrechen, Arm-Hinweis im Intro mit Flag 0x20 (Bewegung und Kamera laufen); Messer verborgen, Debug-Kombination weg, SE 0x35 mit Verkaufs-Discs. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
@@ -11190,6 +11235,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0184 `item.cpp` | `cItemMgr::gameInit` setzt Waffennummer und -typ aus der ausgerüsteten Waffe des Startpakets (Mercenaries: Leon mit der Blacktail statt dem Pistolenmodell), wie die Verkaufsfassungen. Fehler des Prototyps, Nutzerbericht 01.11.2026 |
 | 0180 `ss_main.cpp`, `item.cpp` | Untersuchen nach der Exklusiv-Aufrüstung: mit Verkaufs-Discs deren eigener Text (0x100–0x105); Feuerkraft des Minenwerfers (auch mit Zielfernrohr) auf Stufe 4 = 6.0 statt 0.0 (Fehler des Prototyps). Nutzerbericht 02.11.2026 |
 | 0179 `sce_at.cpp` | `SceAtSetSaveItem`: ein gespeicherter Gegenstand-Eintrag für einen Auslösebereich, den der Raum nicht hat, bleibt liegen statt nach Adresse 0 zu schreiben (Absturz in r20f, US-Discs). Port-Patch, Nutzerbericht 01.11.2026 |
+| 0186 `cam_ctrl.cpp` | Ashleys eigene Kameraschnitte (Attribut 4) mit EU- und JP-Discs wie deren `areaHitCheck`: japanische Texte und über Easy; Debug/US weiter `game_country == 0`. Vorher auf EU-Easy feste Kameras (Patch 0140 macht `game_country` dort zur Schwierigkeit). Port-Patch für Verkaufsdaten, Nutzerbericht 02.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

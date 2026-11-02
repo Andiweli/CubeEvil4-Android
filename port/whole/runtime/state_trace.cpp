@@ -142,7 +142,9 @@
 //                          r31b after U-3 broke in and a retry (0x31b:12, patch 0170, 01.11.2026)
 //   RE4_TEST_EM_KILL="F:ID"  at game frame F the first live enemy of id ID (hex) dies as a
 //                          last hit kills it (hp 0, EmSetDie, routine 3): r31b's U-3 (0x32)
-//                          outside the third room (patch 0170)
+//                          outside the third room (patch 0170); "F:ID:HP" only leaves it
+//                          with life HP, as hits that do not kill (U-3 at 1 in the first
+//                          room jumps onto the containers and hides with life 0)
 //   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
 //                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
 //                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
@@ -523,7 +525,8 @@ void trace(unsigned n)
                 SpfFlagChk(g, SPF_CAMERA) ? "S" : "", StaFlagChk(g, STA_EVENT) ? "E" : "",
                 StaFlagChk(g, STA_SUB_SCRN) ? "U" : "", CamCtrl.m_pExtraCamera ? "X" : "", (unsigned) CamCtrl.r0);
         vec(f, CamCtrl.camera.param.Campos);
-        fprintf(f, "}");
+        // the camera file's cut and area the player stands in (-1: the free camera behind him)
+        fprintf(f, ",\"cut\":%d,\"area\":%d}", (int) CamCtrl.cameraNo, (int) CamCtrl.areaNo);
     }
     fprintf(f, ",\"em\":[");
     cEm* arr = EmMgr.pArray;
@@ -605,6 +608,7 @@ unsigned g_rsfRoom;          // RE4_TEST_RSF
 int g_sta[8], g_staCount;    // RE4_TEST_STA
 bool g_staDone;
 unsigned g_killAt, g_killId; // RE4_TEST_EM_KILL
+int g_killHp = -1;
 int g_rsf[8], g_rsfCount;
 bool g_rsfDone;
 int g_itemLoseId;
@@ -1660,7 +1664,9 @@ void frame(unsigned n)
                 hit = e;
             }
         }
-        if (hit) {
+        if (hit && g_killHp > 0) {
+            hit->hp = g_killHp;
+        } else if (hit) {
             hit->hp = 0;
             EmSetDie(hit);
             EmSetDieCnt(hit);
@@ -1670,7 +1676,7 @@ void frame(unsigned n)
             hit->r_no_3 = 0;
         }
         re4_log("run: enemy 0x%02x %s at frame %u (RE4_TEST_EM_KILL), at (%.0f %.0f %.0f)", g_killId,
-                hit ? "killed" : "not found", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
+                !hit ? "not found" : g_killHp > 0 ? "left with low life" : "killed", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
                 hit ? (double) hit->pos.z : 0.0);
     }
     // RE4_TEST_HEAD_LOST=N: N frames after the player is free his head comes off as by the scythe
@@ -2012,7 +2018,8 @@ void configure()
     if (const char* kill = getenv("RE4_TEST_EM_KILL")) {
         char* end = 0;
         g_killAt = (unsigned) strtoul(kill, &end, 10);
-        g_killId = end && *end == ':' ? (unsigned) strtoul(end + 1, 0, 16) : 0;
+        g_killId = end && *end == ':' ? (unsigned) strtoul(end + 1, &end, 16) : 0;
+        g_killHp = end && *end == ':' ? (int) strtol(end + 1, 0, 10) : -1;
         if (!g_killId) {
             g_killAt = 0;
         }
