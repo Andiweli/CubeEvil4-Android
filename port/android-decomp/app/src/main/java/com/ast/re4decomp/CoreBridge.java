@@ -167,6 +167,8 @@ public final class CoreBridge {
   /** Original TV filter: the game's vertical copy filter on the picture. */
   public static native void setTvFilter(boolean on);
   public static native void setPsx(boolean on);
+  /** Reflections (experimental): 0 off, 1 simple (a glint), 2 advanced (and a faint mirror image). */
+  public static native void setReflections(int mode);
   /** Vertex ring (experimental, for Mali): a new renderer takes it. */
   public static native void setVertexRing(boolean on);
   /**

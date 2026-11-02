@@ -21,6 +21,8 @@
     <string name="ingame_smooth60">60 FPS (sperimentale)</string>
     <string name="ingame_merge_draws">Unisci le chiamate di disegno (sperimentale)</string>
     <string name="ingame_vertex_ring">Buffer circolare dei vertici (sperimentale, per Mali)</string>
+    <string name="ingame_refl_simple">Riflessi (semplici)</string>
+    <string name="ingame_refl_advanced">Riflessi (avanzati)</string>
     <string name="ingame_force_performance">Forza prestazioni</string>
     <string name="ingame_perf_default">Predefinito</string>
     <string name="ingame_perf_cores">Usa core ad alte prestazioni</string>
@@ -181,6 +183,7 @@
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
     <string name="ingame_merge_help">Unisce più oggetti in una sola chiamata al driver grafico. Può aiutare i telefoni con un driver grafico lento (ad es. GPU Mali) e costare un po’ sugli altri. Nessun effetto finché i 60 FPS sono attivi.</string>
     <string name="ingame_vertex_ring_help">Invia i vertici di ogni immagine al chip grafico tramite un buffer che resta mappato, invece di un nuovo buffer per ogni immagine. Può far risparmiare tempo sulle GPU Mali e usa un po\' più di memoria grafica. Ha effetto subito.</string>
+    <string name="ingame_refl_help">Riflessi: una leggera lucentezza delle luci della stanza su acqua, vetro e marmo lucido (semplici) e in più un tenue riflesso dell\'ambiente (avanzati). Semplici non costa quasi nulla, avanzati un po\' di prestazioni. Solo uno dei due può essere attivo.</string>
     <string name="ingame_game_language">Lingua del gioco</string>
     <string name="ingame_language_device">Lingua del dispositivo</string>
     <string name="ingame_language_help">La lingua dei testi e dei sottotitoli del gioco. Lingua del dispositivo: quella del dispositivo se il gioco la offre, altrimenti l\'inglese. Una modifica riavvia il gioco.</string>

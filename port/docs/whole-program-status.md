@@ -3,6 +3,41 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Reflexionen auf Wasser, Glas und Marmor (02.11.2026, lokal, Branch `work`, Worktree `RE4-work`, WSL `~/re4-work/RE4`)
+
+Wunsch des Projektinhabers: dezente Reflexionen als reine Renderer-Erweiterung; nach dem Vorschlag (Weg A Spiegelbild,
+Weg B Glanz) **beide Wege umsetzen**, als zwei Schalter unter Leistung → Experimentell (Entscheidung 02.11.2026).
+
+- **Erkennung (`gx_gl.cpp` `ReflKind`):** Wasser = 3D-Zeichnung mit Normalen, indirekter Stufe und einer EFB-Kopie
+  des Bildes (Breite ≥ 200), projiziert aus den Positionen (Texturkoordinate 0x00006): die Wasser der `Espgen42/45`
+  (See r10d, Bäche r10a/r10e/r11a …) und die Becken/nassen Böden der Burg (r208, r213, r221). Nicht: Teilchen
+  (< 24 Ecken), Lava (warme Farbe in TEV-Register 0, r224). Glas = gemischt ohne Tiefenschreiben, mit dem Glanzbild
+  des Spiels (Texturkoordinate aus den Normalen): die Scheiben des Polizeiautos (r100, r110 …); nicht Tabelle 8
+  (Ereignisbilder). Marmor (und das Kanalwasser r225) über eine Liste von Textur-Schlüsseln (`kReflTextures`:
+  r201, r212, r204/r218, r225). Tabelle der Objekt-Marken: Raum 0x0B, Effekte 0x10, Figuren 0x11, Teilchen 0x13.
+- **Zeichnen (`ReflNote`/`ReflDraw1`):** jede erkannte Fläche wird direkt nach ihrer Zeichnung ein zweites Mal mit
+  einem eigenen kleinen Programm über sich gelegt (gleiche Rechnung wie der GX-Eckpunkt-Shader, Tiefe LEQUAL mit
+  kleinem Versatz, Alpha des EFB bleibt). Was danach kommt (Leon, seine Gurte, Rauch) liegt davor. *Einfach:* Glanz der
+  ersten vier Lichter von Farbkanal 0 (Blinn-Phong, gedeckelt). *Erweitert:* dazu das Spiegelbild: der Strahl wird
+  in 14 wachsenden Schritten durch das **Bild der Szene des vorigen Bildes** geführt (`ReflScene`: halbe EFB-Größe,
+  Farbe und Tiefe, aufgenommen vor der ersten flachen Zeichnung, dem Autofokus oder der Bildschirmkopie), um die
+  Kamerabewegung seitdem korrigiert (Positionsmatrix der Fläche damals × heute⁻¹); Fresnel (flacher Blick stärker),
+  Rand- und Kinobalken-Ausblendung, Himmel als Treffer. Stärken: Wasser 0,9, Marmor 0,5 (leicht weich), Glas 0,6
+  (mal Fresnel). Gebündelte Zeichenaufrufe (RE4_GX_MERGE) sind aus, solange Reflexionen an sind.
+- **App:** `CoreBridge.setReflections(0/1/2)`, Einstellung `reflections`, zwei Schalter (einer schaltet den anderen
+  aus) mit einer gemeinsamen Hilfezeile, alle 11 Sprachen (`ingame_refl_*`). PC: `RE4_GX_REFLECTIONS=1|2`.
+  Prüfhilfen: `RE4_GX_REFL_SHOW=1` (erkannte Flächen eingefärbt), `RE4_GX_REFL_DEBUG=1`, `RE4_GX_REFL_GAIN=x`,
+  `RE4_GX_PICK="x,y/x,y"` (welche Zeichnung liegt an einer Bildstelle, mit Textur-Schlüsseln), `RE4_GX_PICK=census`,
+  `RE4_GX_PICK=blended`, `RE4_GX_SKIP="n,m"` (Zeichnungen weglassen).
+- **Geprüft am PC:** `gx_gl_check` 0 Fehler, neuer Test `TestReflections` (rote Wand spiegelt sich im Glasboden;
+  Gegenprobe mit Stärke 0 schlägt fehl); **aus = bytegleich**: 390 Bilder (74 Räume, 9 Zweierfolgen mit 60-FPS-
+  Zwischenbildern) gegen den Renderer von `2913df1d` ohne Unterschied; 60 FPS mit „erweitert“ (r201, r225, r10d):
+  Zwischenbild passend; `check_translations.py` ok, `testCoreDebugUnitTest` ok. Aufnahmen: WSL `~/re4-hc/refl`
+  (74 Räume), `refl3` (Zweierfolgen mit drehender Kamera).
+- **Nicht geprüft:** Gerät (Optik, Kosten; geschätzt ≤ 1–2 ms je Bild auf dem Retroid, nur in Räumen mit solchen
+  Flächen), MSAA auf dem Gerät. Bekannt: das erste Bild nach einem Raumwechsel hat noch kein Spiegelbild; die
+  Marmorliste deckt nur die angesehenen Burgräume ab; Spiegelbilder zeigen nur, was im Bild ist.
+
 ## Version 0.97.0-beta: PSone-Demake, Ashley im Versteck, Adas Haare (02.11.2026, lokal, Branch `claude/practical-sagan-h77b3j`)
 
 Wunsch des Projektinhabers: `versionName` 0.97.0-beta, `versionCode` 92, Releasetext

@@ -23,6 +23,8 @@
     <string name="ingame_smooth60">60 FPS (expérimental)</string>
     <string name="ingame_merge_draws">Regrouper les appels de dessin (expérimental)</string>
     <string name="ingame_vertex_ring">Tampon circulaire de sommets (expérimental, pour Mali)</string>
+    <string name="ingame_refl_simple">Reflets (simples)</string>
+    <string name="ingame_refl_advanced">Reflets (avancés)</string>
     <string name="ingame_force_performance">Forcer les performances</string>
     <string name="ingame_perf_default">Par défaut</string>
     <string name="ingame_perf_cores">Utiliser les cœurs performants</string>
@@ -183,6 +185,7 @@
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
     <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote graphique lent (p. ex. GPU Mali) et coûter un peu sur les autres. Sans effet tant que les 60 FPS sont activés.</string>
     <string name="ingame_vertex_ring_help">Envoie les sommets de chaque image à la puce graphique par un tampon qui reste mappé, au lieu d\'un nouveau tampon par image. Peut faire gagner du temps sur les GPU Mali et utilise un peu plus de mémoire graphique. Prend effet immédiatement.</string>
+    <string name="ingame_refl_help">Reflets : un léger éclat des lumières de la pièce sur l\'eau, le verre et le marbre poli (simples), et en plus un léger reflet de l\'environnement (avancés). Simples ne coûte presque rien, avancés un peu de performance. Un seul des deux peut être activé.</string>
     <string name="ingame_game_language">Langue du jeu</string>
     <string name="ingame_language_device">Langue de l\'appareil</string>
     <string name="ingame_language_help">La langue des textes et des sous-titres du jeu. Langue de l\'appareil : celle de l\'appareil si le jeu la propose, sinon l\'anglais. Un changement redémarre le jeu.</string>

@@ -22,6 +22,8 @@
     <string name="ingame_smooth60">60 FPS (eksperimental)</string>
     <string name="ingame_merge_draws">Gabungkan panggilan gambar (eksperimental)</string>
     <string name="ingame_vertex_ring">Ring buffer verteks (eksperimental, untuk Mali)</string>
+    <string name="ingame_refl_simple">Pantulan (sederhana)</string>
+    <string name="ingame_refl_advanced">Pantulan (lanjutan)</string>
     <string name="ingame_force_performance">Paksa Performa</string>
     <string name="ingame_perf_default">Bawaan</string>
     <string name="ingame_perf_cores">Gunakan inti performa</string>
@@ -179,6 +181,7 @@
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver grafis lambat (mis. GPU Mali) dan mungkin sedikit memperlambat ponsel lain. Tidak berpengaruh selama 60 FPS aktif.</string>
     <string name="ingame_vertex_ring_help">Mengirim data verteks setiap gambar ke chip grafis melalui satu buffer yang tetap terpetakan, bukan buffer baru setiap gambar. Dapat menghemat waktu pada GPU Mali dan memakai sedikit lebih banyak memori grafis. Langsung berlaku.</string>
+    <string name="ingame_refl_help">Pantulan: kilau halus cahaya ruangan pada air, kaca, dan marmer yang dipoles (sederhana), ditambah bayangan cermin samar dari sekitarnya (lanjutan). Sederhana hampir tanpa biaya, lanjutan sedikit mengurangi performa. Hanya salah satu yang bisa aktif.</string>
     <string name="ingame_game_language">Bahasa game</string>
     <string name="ingame_language_device">Bahasa perangkat</string>
     <string name="ingame_language_help">Bahasa teks dan subtitel game. Bahasa perangkat: bahasa perangkat jika tersedia di game, jika tidak bahasa Inggris. Perubahan akan memulai ulang game.</string>

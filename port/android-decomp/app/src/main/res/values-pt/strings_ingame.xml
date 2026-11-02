@@ -22,6 +22,8 @@
     <string name="ingame_smooth60">60 FPS (experimental)</string>
     <string name="ingame_merge_draws">Agrupar chamadas de desenho (experimental)</string>
     <string name="ingame_vertex_ring">Buffer circular de vértices (experimental, para Mali)</string>
+    <string name="ingame_refl_simple">Reflexos (simples)</string>
+    <string name="ingame_refl_advanced">Reflexos (avançados)</string>
     <string name="ingame_force_performance">Forçar desempenho</string>
     <string name="ingame_perf_default">Padrão</string>
     <string name="ingame_perf_cores">Usar núcleos de desempenho</string>
@@ -182,6 +184,7 @@
     <string name="ingame_skip_or_smooth">Salto de quadros e 60 FPS se excluem: ativar um desativa o outro.</string>
     <string name="ingame_merge_help">Agrupa vários objetos em uma só chamada ao driver gráfico. Pode ajudar celulares com driver gráfico lento (ex.: GPUs Mali) e custar um pouco em outros. Sem efeito enquanto os 60 FPS estiverem ativados.</string>
     <string name="ingame_vertex_ring_help">Envia os vértices de cada imagem ao chip gráfico por um buffer que permanece mapeado, em vez de um buffer novo por imagem. Pode poupar tempo em GPUs Mali e usa um pouco mais de memória gráfica. Tem efeito imediato.</string>
+    <string name="ingame_refl_help">Reflexos: um brilho sutil das luzes do ambiente na água, no vidro e no mármore polido (simples) e, além disso, um reflexo suave do entorno (avançados). Simples quase não custa nada, avançados um pouco de desempenho. Só um dos dois pode estar ativo.</string>
     <string name="ingame_game_language">Idioma do jogo</string>
     <string name="ingame_language_device">Idioma do aparelho</string>
     <string name="ingame_language_help">O idioma dos textos e legendas do jogo. Idioma do aparelho: o do aparelho, se o jogo tiver, senão inglês. Uma mudança reinicia o jogo.</string>

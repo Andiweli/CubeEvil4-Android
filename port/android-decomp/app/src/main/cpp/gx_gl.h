@@ -38,6 +38,8 @@ struct GxStats {
   unsigned heldCopies = 0;       // of them not shown: the VI kept the picture before (RE4_GX_CHUNK_HOLD)
   unsigned skippedChunks = 0;    // chunks run without drawing (Frame skip): state and textures only
   unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
+  unsigned reflDraws = 0;        // surfaces drawn over by the reflections (SetReflections)
+  unsigned reflPasses = 0;       // their passes (a picture of the scene each with the mirror image)
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
   unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
@@ -245,6 +247,13 @@ public:
   // last pass over every display copy (after FXAA): one colour per cell of a 320 x 224 grid in 15-bit colour
   // with the PlayStation's 4 x 4 dither. Takes effect with the next draws (new programs, made once).
   void SetPsx(bool on);
+  // Reflections (wish of the project owner, 02.11.2026; experimental): 0 off (the picture as without them), 1
+  // simple: a glint of the draw's lights on water, glass and polished marble; 2 advanced: that and a faint mirror
+  // image of the picture drawn so far (screen-space, with Fresnel: stronger at a flat angle). Water is what the
+  // game draws over a copy of the picture with normals (its lakes, pools and wet floors); glass and marble are
+  // known by their textures (kReflTextures in gx_gl.cpp). The surfaces are drawn once more over themselves in a
+  // pass of their own before the first flat draw after them (the HUD), the autofocus or the display copy.
+  void SetReflections(int mode);
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:

@@ -387,6 +387,29 @@ struct Copy {
 
 } // namespace
 
+// Polished marble (and water the game draws as a plain texture) by the texture of a draw's first stage (content
+// keys, RE4_GX_PICK finds them): the reflections' (GxRenderer::SetReflections) surfaces besides those it
+// recognises by how they are drawn.
+struct ReflTextureEntry {
+  std::uint64_t key;
+  int kind;  // 1 water, 2 marble, 3 glass (Impl::kReflWater ...)
+};
+const ReflTextureEntry kReflTextures[] = {
+    {0x64f10216c5602febull, 2},  // r212: the chequered floor
+    {0x39c5f36f184f3297ull, 2},  // r201: the hall's floor
+    {0xcea597f960c9f3e1ull, 2},  // r204, r218: the dark polished floor (with the game's own shine)
+    {0xcbfbe286be9217f9ull, 2},  // r20c: the corridor's floor beside the carpet
+    {0x9f764060313ff55full, 2},
+    {0x06bc7685c06697b1ull, 1},  // r225: the water of the canal
+};
+
+int ReflTexture(std::uint64_t key) {
+  for (const auto &e : kReflTextures)
+    if (e.key == key)
+      return e.kind;
+  return 0;
+}
+
 struct GxRenderer::Impl {
   // the EFB scale in halves of the GameCube's resolution (2: 1x, 3: 1.5x ... 8: 4x; the app menu's
   // in-between levels, wish of the project owner, 27.10.2026). Lo / Hi: EFB pixels (the
@@ -444,6 +467,36 @@ struct GxRenderer::Impl {
   GLuint psxTex = 0, psxFbo = 0, psxProgram = 0;
   unsigned psxTexW = 0, psxTexH = 0;
   GLint psxGridLoc = -1;
+  // Reflections (GxRenderer::SetReflections): 0 off, 1 simple (a glint), 2 advanced (and the mirror image). Each
+  // draw of water, glass or marble is drawn once more over itself right after it (ReflDraw: what comes later,
+  // Leon, his straps, smoke, stays in front of it). The mirror image reads the picture of the scene the frame
+  // before took (ReflScene: reflColor, reflDepth, half the EFB's size, the depth in RGB), moved by the camera's
+  // move since: the surface's position matrix then and now (reflMats by the surface, ReflId).
+  int reflMode = 0;
+  float reflGain = 1.0f;   // RE4_GX_REFL_GAIN=x: the strengths times x (trying them out on the PC)
+  bool reflDebug = false;  // RE4_GX_REFL_DEBUG=1: the advanced pass shows hit (red), Fresnel (green), strength (blue)
+  bool reflShow = false;  // RE4_GX_REFL_SHOW=1: the surfaces in a flat colour (water blue, marble red, glass green)
+  struct ReflDraw {
+    GLuint buffer;
+    std::uint32_t layout, stride, base, indexAt, indexCount;
+    GLint baseVertex;
+    GLenum mode;
+    int kind, lights;
+    int scissor[4];
+    float pos[3][4], nrm[3][4], proj[2][4], vp[2][4], prev[3][4];
+    float light[4][3][4];  // position, colour, distance attenuation
+  };
+  struct ReflMat {
+    float m[3][4];
+  };
+  std::unordered_map<std::uint64_t, ReflMat> reflMats, reflMatsNew;  // at the scene's picture / since then
+  bool reflSeen = false;       // a surface was drawn since the last picture of the scene
+  bool reflSnapValid = false;  // reflColor / reflDepth hold one
+  bool boundCopy[8] = {};  // the map holds an EFB copy (boundKey's top bit is also a content key's)
+  GLuint reflProgram = 0, reflSnapProgram = 0, reflFbo = 0, reflColor = 0, reflDepth = 0;
+  unsigned reflW = 0, reflH = 0;
+  bool reflFailed = false;
+  GLint reflLoc[12] = {};
   // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
   DepthSink depthSink;
   bool peekWanted = false, peekFailed = false;
@@ -1148,6 +1201,7 @@ struct GxRenderer::Impl {
   // word, how many of its draws came; the draw's own key (object and n-th draw) while it is drawn
   std::uint64_t ownerBase = 0, curOwner = 0;
   std::uint32_t ownerLife = ~0u, ownerDraws = 0, curLife = ~0u;
+  std::uint32_t ownerRaw[4] = {};  // the last owner tag as sent (Pick's lines)
   std::unordered_map<std::uint64_t, std::uint32_t> recByOwner;
   // draws per object (ownerBase): of the chunk noted (recOwnerDraws, filled while recording) and of the
   // next one (nextOwnerDraws, counted ahead by Interpolate). An object that draws more or fewer quads
@@ -1312,6 +1366,7 @@ struct GxRenderer::Impl {
     return h | 1;
   }
   void SetOwner(const std::uint32_t *p) {
+    std::memcpy(ownerRaw, p, sizeof(ownerRaw));
     ownerBase = OwnerKey(p);
     ownerLife = p[3];
     ownerDraws = 0;
@@ -1942,6 +1997,8 @@ struct GxRenderer::Impl {
         glFinish();
         focusStart = std::chrono::steady_clock::now();
       }
+      if (reflSeen)
+        ReflScene();
       Autofocus(value);
       stats.copyCount[GxStats::kCopyFocus]++;
       if (focusTime) {
@@ -2587,6 +2644,7 @@ struct GxRenderer::Impl {
     b.width = t.width ? t.width : 1;
     b.height = t.height ? t.height : 1;
     b.levels = 1;
+    boundCopy[map] = (t.flags & RE4_GX_TEX_COPY) != 0;
     if (t.flags & RE4_GX_TEX_COPY) {
       boundKey[map] = 1ull << 63 | t.address;
       // the in-between pass reads its own copies, and the real ones of the picture before
@@ -3108,6 +3166,8 @@ struct GxRenderer::Impl {
     const Program *p = merge ? ProgramFor(key, true) : keyProgram;
     if (p)
       p->lastUse = stats.chunks;
+    if (reflSeen && key.orthographic)
+      ReflScene();  // the scene is drawn, the HUD comes
     Split(GxStats::kSplitProgram);
     if (!p)
       return;
@@ -3213,10 +3273,14 @@ struct GxRenderer::Impl {
     const std::uint32_t indexCount = merge ? merge->count : d.indexCount;
     const void *indices = reinterpret_cast<const void *>(idxBase + static_cast<std::uintptr_t>(indexAt) * 2);
     Split(GxStats::kSplitBind);
-    if (drawBaseVertex)
+    if (!pickSkip.empty() && !interpPass && pickSkip.count(pickDraw + 1))
+      ;  // RE4_GX_SKIP (Pick)
+    else if (drawBaseVertex)
       drawBaseVertex(mode, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT, indices, baseVertex);
     else
       glDrawElements(mode, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT, indices);
+    if (reflMode && !merge && !k.orthographic)
+      ReflNote(d, k, buffer, base, baseVertex, mode, indexAt, indexCount);
     Split(GxStats::kSplitDraw);
     if (!interpPass) {
       const MergeSnap now{stats.uniformUploads, stats.programSwitches, stats.textureBinds, stats.stateChanges,
@@ -3245,6 +3309,66 @@ struct GxRenderer::Impl {
       stats.triangles += indexCount / 3;
     if (blended)
       BlendRestore(blended);
+    if ((!pickAt.empty() || !pickSkip.empty()) && !interpPass)
+      Pick(d, k);
+  }
+
+  // RE4_GX_PICK="x,y;x,y" (gx_chunk_render; finding the draw of a surface): after each draw the EFB pixel at each
+  // point (the game's pixels) is read back, and a draw that changed one is logged with its owner tag, textures
+  // (content keys; "copy" an EFB copy), TEV and texture generation, blending and vertex layout. The last line for
+  // a point is the surface seen there.
+  std::vector<std::pair<int, int>> pickAt;
+  std::vector<std::uint32_t> pickLast;
+  unsigned pickDraw = 0;
+  std::unordered_set<unsigned> pickSkip;  // RE4_GX_SKIP="n,m": these draws (Pick's numbers) left out
+  void Pick(const Re4GxDraw &d, const ShaderKey &k) {
+    pickDraw++;
+    if (samples > 1 || pickAt.empty())
+      return;
+    std::string hit;
+    if (pickAt[0].first == -1) {  // RE4_GX_PICK=census: every 3D draw with an indirect stage or an EFB copy
+      bool copy = false;
+      for (int m = 0; m < 8; m++)
+        copy |= (k.texMaps & (1u << m)) && boundCopy[m];
+      if (k.orthographic || !(copy || k.numIndStages))
+        return;
+      hit = " census";
+    } else if (pickAt[0].first == -2) {  // RE4_GX_PICK=blended: room parts blended without depth writes (glass)
+      if (k.orthographic || !(d.layout & RE4_GX_V_NORMAL) || !(bp[0x41] & 1) || (bp[0x40] & 0x10) ||
+          d.vertexCount < 6)
+        return;
+      hit = " blended";
+    }
+    for (std::size_t i = 0; i < pickAt.size() && hit.empty(); i++) {
+      std::uint32_t c = 0;
+      glReadPixels(Lo(pickAt[i].first), Lo(pickAt[i].second), 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &c);
+      if (c != pickLast[i]) {
+        pickLast[i] = c;
+        hit += " " + std::to_string(i);
+      }
+    }
+    if (hit.empty())
+      return;
+    std::string maps;
+    char buf[160];
+    for (int m = 0; m < 8; m++) {
+      if (!(k.texMaps & (1u << m)))
+        continue;
+      std::snprintf(buf, sizeof(buf), " m%d=%s%016llx/%ux%u", m, (boundKey[m] >> 63) ? "copy:" : "",
+                    static_cast<unsigned long long>(boundKey[m]), bound[m].width, bound[m].height);
+      maps += buf;
+    }
+    std::string gens;
+    for (unsigned i = 0; i < k.numTexGens; i++) {
+      std::snprintf(buf, sizeof(buf), " %05x", k.texGen[i]);
+      gens += buf;
+    }
+    GXLOG("pick draw %u at%s: owner %08x %08x %02x | stages %u ind %u chans %u gens%s |%s | blend %04x z %02x "
+          "alpha %02x | layout %03x verts %u ortho %u | c0 %d %d %d c1 %d %d %d | refl %d",
+          pickDraw, hit.c_str(), ownerRaw[0], ownerRaw[1], ownerRaw[2] & 0xFF, k.numStages, k.numIndStages,
+          k.numChans, gens.c_str(), maps.c_str(), bp[0x41] & 0xFFFF, bp[0x40] & 0x1F, k.alphaTest, d.layout,
+          d.vertexCount, k.orthographic, tevColor[1][0], tevColor[1][1], tevColor[1][2], tevColor[2][0],
+          tevColor[2][1], tevColor[2][2], ReflKind(d, k));
   }
 
   // The merged block's first `draws` slots (and the slot table) to its binding.
@@ -3647,6 +3771,8 @@ struct GxRenderer::Impl {
       glFinish();
       copyStart = std::chrono::steady_clock::now();
     }
+    if (reflSeen && ((control >> 14) & 1))
+      ReflScene();  // the picture is complete
     Touched(); // its own pass
     const int x = static_cast<int>(bp[0x49] & 0x3FF), y = static_cast<int>((bp[0x49] >> 10) & 0x3FF);
     const int w = static_cast<int>(bp[0x4A] & 0x3FF) + 1, h = static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1;
@@ -3985,6 +4111,452 @@ struct GxRenderer::Impl {
     psxTex = psxFbo = psxProgram = 0;
     psxTexW = psxTexH = 0;
     psxShown = false;
+  }
+
+  // --- reflections ---------------------------------------------------------------------------------
+  // (wish of the project owner, 02.11.2026: subtle reflections on water, glass and polished marble; both ways
+  // proposed, "simple" and "advanced", as experimental switches)
+
+  enum { kReflWater = 1, kReflMarble = 2, kReflGlass = 3 };
+
+  // What a 3D draw is: water (the game draws it over a copy of the picture, projected from the positions, with
+  // an indirect stage and with normals: Espgen42/45 lakes and pools, the wet floors and pools of the castle's
+  // rooms; the heat haze has no normals), or glass or marble by the texture of its first stage
+  // (kReflTextures). 0: none of them. Not: small draws (splashes and shimmer of particles, 4 corners), and the
+  // same surface as glowing lava (Espgen42 with a warm colour in TEV register 0, r224).
+  int ReflKind(const Re4GxDraw &d, const ShaderKey &k) const {
+    if (!(d.layout & RE4_GX_V_NORMAL) || (d.layout & RE4_GX_V_MATRIX) || (d.primitive & 0xFF) != RE4_GX_TRIANGLES ||
+        d.vertexCount < 24)
+      return 0;
+    if (k.numIndStages) {
+      const std::int32_t *c = tevColor[1];
+      if (c[0] > 200 && c[0] > c[2] + 60)
+        return 0;
+      bool screen = false, projected = false;
+      for (int m = 0; m < 8; m++)
+        screen |= (k.texMaps & (1u << m)) && boundCopy[m] && bound[m].width >= 200;
+      for (unsigned i = 0; i < k.numTexGens; i++)
+        projected |= ((k.texGen[i] >> 1) & 1) && ((k.texGen[i] >> 7) & 31) == 0 && ((k.texGen[i] >> 4) & 7) == 0;
+      if (screen && projected)
+        return kReflWater;
+    }
+    // glass: blended without depth writes, with the game's shine (a texture coordinate from the normals, its
+    // light sphere map): the windows of the police car. Not the event pictures (table 8).
+    bool shine = false;
+    for (unsigned i = 0; i < k.numTexGens; i++)
+      shine |= ((k.texGen[i] >> 7) & 31) == 1;
+    if (shine && (bp[0x41] & 1) && !(bp[0x40] & 0x10) && (ownerRaw[2] & 0xFF) != 0x08)
+      return kReflGlass;
+    if (!(k.order[0] & 64) || boundCopy[k.order[0] & 7])
+      return 0;
+    return ReflTexture(boundKey[k.order[0] & 7]);
+  }
+
+  // A surface's identity from one picture to the next (its kind, texture, vertices and indices).
+  std::uint64_t ReflId(const Re4GxDraw &d, const ShaderKey &k, int kind) const {
+    std::uint64_t h = 1469598103934665603ull;
+    const std::uint64_t parts[4] = {static_cast<std::uint64_t>(kind), (k.order[0] & 64) ? boundKey[k.order[0] & 7] : 0,
+                                    d.vertexCount, d.indexCount};
+    for (std::uint64_t v : parts) {
+      h ^= v;
+      h *= 1099511628211ull;
+    }
+    return h;
+  }
+
+  // a * b of two 3 x 4 matrices (affine: a fourth row 0 0 0 1)
+  static void Mul34(const float (&a)[3][4], const float (&b)[3][4], float (&out)[3][4]) {
+    for (int i = 0; i < 3; i++)
+      for (int j = 0; j < 4; j++)
+        out[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j] + (j == 3 ? a[i][3] : 0.0f);
+  }
+  // the inverse of an affine 3 x 4 matrix; false when it has none
+  static bool Invert34(const float (&m)[3][4], float (&out)[3][4]) {
+    const float a = m[0][0], b = m[0][1], c = m[0][2], d = m[1][0], e = m[1][1], f = m[1][2], g = m[2][0],
+                h = m[2][1], i = m[2][2];
+    const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    if (std::fabs(det) < 1e-12f)
+      return false;
+    const float r = 1.0f / det;
+    out[0][0] = (e * i - f * h) * r;
+    out[0][1] = (c * h - b * i) * r;
+    out[0][2] = (b * f - c * e) * r;
+    out[1][0] = (f * g - d * i) * r;
+    out[1][1] = (a * i - c * g) * r;
+    out[1][2] = (c * d - a * f) * r;
+    out[2][0] = (d * h - e * g) * r;
+    out[2][1] = (b * g - a * h) * r;
+    out[2][2] = (a * e - b * d) * r;
+    for (int row = 0; row < 3; row++)
+      out[row][3] = -(out[row][0] * m[0][3] + out[row][1] * m[1][3] + out[row][2] * m[2][3]);
+    return true;
+  }
+
+  // A surface just drawn: drawn once more over itself (ReflDraw) with its vertices and indices, position and
+  // normal matrix, projection, viewport, scissor, lights, and the camera's move since the scene's picture.
+  void ReflNote(const Re4GxDraw &d, const ShaderKey &k, GLuint buffer, std::uint32_t base, GLint baseVertex,
+                GLenum mode, std::uint32_t indexAt, std::uint32_t indexCount) {
+    const int kind = ReflKind(d, k);
+    if (!kind || reflFailed)
+      return;
+    ReflDraw r;
+    std::memset(&r, 0, sizeof(r));
+    r.buffer = buffer;
+    r.layout = d.layout;
+    r.stride = d.stride;
+    r.base = base;
+    r.baseVertex = baseVertex;
+    r.mode = mode;
+    r.indexAt = indexAt;
+    r.indexCount = indexCount;
+    r.kind = kind;
+    const int pi = static_cast<int>(d.matrices[0] & 63), ni = pi & 31;
+    for (int i = 0; i < 3; i++) {
+      std::memcpy(r.pos[i], xf.posTex[std::min(63, pi + i)], sizeof(r.pos[i]));
+      std::memcpy(r.nrm[i], xf.normal[std::min(31, ni + i)], sizeof(r.nrm[i]));
+    }
+    std::memcpy(r.proj, xf.proj, sizeof(r.proj));
+    std::memcpy(r.vp, xf.viewport, sizeof(r.vp));
+    // scissor as ApplyState sets it
+    const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+    r.scissor[0] = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
+    r.scissor[1] = std::max(0, static_cast<int>(bp[0x20] & 0x7FF) - yoff);
+    r.scissor[2] = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
+    r.scissor[3] = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
+    // the lights of colour channel 0 while it is lit (the first four)
+    const std::uint32_t c = k.numChans ? k.chan[0] : 0;
+    if (c & 2) {
+      const unsigned mask = ((c >> 2) & 15) | (((c >> 11) & 15) << 4);
+      for (int i = 0; i < 8 && r.lights < 4; i++) {
+        if (!(mask & (1u << i)))
+          continue;
+        const float *col = xf.light[i][0];
+        if (col[0] + col[1] + col[2] < 0.02f)
+          continue;
+        std::memcpy(r.light[r.lights][0], xf.light[i][3], sizeof(r.light[0][0]));
+        std::memcpy(r.light[r.lights][1], col, sizeof(r.light[0][1]));
+        std::memcpy(r.light[r.lights][2], xf.light[i][2], sizeof(r.light[0][2]));
+        r.lights++;
+      }
+    }
+    // the camera's move: from now back to the scene's picture, the surface's matrix then times its inverse now
+    // (the world part cancels); none known: as now
+    const std::uint64_t id = ReflId(d, k, kind);
+    auto then = reflMats.find(id);
+    float inv[3][4];
+    if (then == reflMats.end() || !Invert34(r.pos, inv)) {
+      for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 4; j++)
+          r.prev[i][j] = i == j ? 1.0f : 0.0f;
+    } else {
+      Mul34(then->second.m, inv, r.prev);
+    }
+    if (reflMatsNew.size() < 512)
+      std::memcpy(reflMatsNew[id].m, r.pos, sizeof(r.pos));
+    reflSeen = true;
+    ReflDraw1(r);
+  }
+
+  bool MakeRefl() {
+    static const char kQuadVs[] = "#version 300 es\n"
+                                  "out vec2 vUv;\n"
+                                  "void main() {\n"
+                                  "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                                  "  vUv = p;\n"
+                                  "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                                  "}\n";
+    // the picture of the scene: its colour, and its depth (24 bits) in RGB
+    static const char kSnapFs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform sampler2D color;\nuniform sampler2D depth;\nin vec2 vUv;\n"
+        "layout(location = 0) out vec4 o;\nlayout(location = 1) out vec4 z;\n"
+        "void main() {\n"
+        "  o = vec4(texture(color, vUv).rgb, 1.0);\n"
+        "  uint d = uint(clamp(texture(depth, vUv).r, 0.0, 1.0) * 16777215.0);\n"
+        "  z = vec4(float((d >> 16) & 255u), float((d >> 8) & 255u), float(d & 255u), 255.0) / 255.0;\n"
+        "}\n";
+    // A noted draw again: position and normal as the GX vertex shader computes them (the same arithmetic,
+    // gx_gl_shader.cpp), so its depth meets the drawn one (and a small polygon offset)
+    static const char kVs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "layout(location = 0) in vec3 aPos;\nlayout(location = 1) in vec3 aNrm;\n"
+        "uniform vec4 uPos[3];\nuniform vec4 uNrm[3];\nuniform vec4 uProj[2];\nuniform vec4 uVp[2];\n"
+        "out vec3 vPos;\nout vec3 vNrm;\n"
+        "void main() {\n"
+        "  vec4 p4 = vec4(aPos, 1.0);\n"
+        "  vec3 pos = vec3(dot(uPos[0], p4), dot(uPos[1], p4), dot(uPos[2], p4));\n"
+        "  vPos = pos;\n"
+        "  vNrm = vec3(dot(uNrm[0].xyz, aNrm), dot(uNrm[1].xyz, aNrm), dot(uNrm[2].xyz, aNrm));\n"
+        "  vec4 clip = vec4(uProj[0].x * pos.x + uProj[0].y * pos.z, uProj[0].z * pos.y + uProj[0].w * pos.z, "
+        "uProj[1].x * pos.z + uProj[1].y, -pos.z);\n"
+        "  float W = uVp[1].z, H = uVp[1].w;\n"
+        "  gl_Position = vec4(((uVp[0].w - 342.0) * 2.0 / W - 1.0) * clip.w + uVp[0].x * 2.0 / W * clip.x,\n"
+        "                     ((uVp[1].x - 342.0) * 2.0 / H - 1.0) * clip.w + uVp[0].y * 2.0 / H * clip.y,\n"
+        "                     2.0 * (uVp[0].z * clip.z + uVp[1].y * clip.w) / 16777215.0 - clip.w, clip.w);\n"
+        "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n"
+        "}\n";
+    // uMat: Fresnel at a right angle, the mirror image's strength, the glint's, its sharpness; uOpt: blur (in
+    // the picture's texels), mode (1 simple, 2 advanced), show; uRange: the part of the picture the mirror may read (uv: top, bottom, left, right).
+    // The mirror image: the ray reflected at the surface, marched through the picture's depth in growing steps
+    // (a hit: the scene lies just in front of the ray's point), refined; where it leaves the picture or finds
+    // nothing it fades, except into the sky (the depth's far end), which the water shows.
+    static const char kFs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform sampler2D uColor;\nuniform sampler2D uDepth;\n"
+        "uniform vec4 uProj[2];\nuniform vec4 uVp[2];\nuniform vec4 uMat;\nuniform vec4 uOpt;\nuniform vec4 uRange;\n"
+        "uniform vec4 uShow;\nuniform int uLights;\nuniform vec4 uLight[12];\nuniform vec4 uPrev[3];\n"
+        "in vec3 vPos;\nin vec3 vNrm;\nout vec4 o;\n"
+        "vec3 Uv(vec3 p) {\n"
+        "  vec4 clip = vec4(uProj[0].x * p.x + uProj[0].y * p.z, uProj[0].z * p.y + uProj[0].w * p.z, 0.0, -p.z);\n"
+        "  float W = uVp[1].z, H = uVp[1].w;\n"
+        "  vec2 g = vec2(((uVp[0].w - 342.0) * 2.0 / W - 1.0) * clip.w + uVp[0].x * 2.0 / W * clip.x,\n"
+        "                ((uVp[1].x - 342.0) * 2.0 / H - 1.0) * clip.w + uVp[0].y * 2.0 / H * clip.y);\n"
+        "  return vec3(g / max(clip.w, 1e-4) * 0.5 + 0.5, clip.w);\n"
+        "}\n"
+        "float SceneZ(vec2 uv) {\n"
+        "  vec3 t = floor(texture(uDepth, uv).rgb * 255.0 + 0.5);\n"
+        "  float d = dot(t, vec3(65536.0, 256.0, 1.0));\n"
+        "  if (d >= 16777000.0) return -1e9;\n"
+        "  float q = -uProj[1].x - (d - uVp[1].y) / uVp[0].z;\n"
+        "  return abs(q) < 1e-9 ? -1e9 : uProj[1].y / q;\n"
+        "}\n"
+        "float Inside(vec2 uv) {\n"
+        "  vec2 lo = uRange.zx, hi = uRange.wy;\n"
+        "  vec2 e = smoothstep(lo, lo + 0.06, uv) * (1.0 - smoothstep(hi - 0.06, hi, uv));\n"
+        "  return e.x * e.y;\n"
+        "}\n"
+        "void main() {\n"
+        "  if (uShow.a > 0.0) { o = uShow; return; }\n"
+        "  vec3 n = vNrm;\n"
+        "  if (dot(n, n) < 1e-8) n = cross(dFdx(vPos), dFdy(vPos));\n"
+        "  n = normalize(n);\n"
+        "  vec3 v = normalize(vPos);\n"
+        "  if (dot(n, v) > 0.0) n = -n;\n"
+        "  float cosv = clamp(-dot(n, v), 0.0, 1.0);\n"
+        "  vec3 glint = vec3(0.0);\n"
+        "  for (int i = 0; i < 4; i++) {\n"
+        "    if (i >= uLights) break;\n"
+        "    vec3 l = uLight[i * 3].xyz - vPos;\n"
+        "    float dist = length(l);\n"
+        "    l /= max(dist, 1e-4);\n"
+        "    float k = dot(uLight[i * 3 + 2].xyz, vec3(1.0, dist, dist * dist));\n"
+        "    float at = k > 1e-6 ? min(1.0, 1.0 / k) : 1.0;\n"
+        "    float s = pow(max(dot(n, normalize(l - v)), 0.0), uMat.w) * step(0.0, dot(n, l));\n"
+        "    glint += uLight[i * 3 + 1].rgb * (s * at);\n"
+        "  }\n"
+        "  glint = min(glint * uMat.z, vec3(0.3));\n"
+        "  float a = 0.0, dbgHit = 0.0, dbgF = 0.0;\n"
+        "  vec3 mirror = vec3(0.0);\n"
+        "  if (uOpt.y > 1.5) {\n"
+        "    float f = uMat.x + (1.0 - uMat.x) * pow(1.0 - cosv, 5.0);\n"
+        "    vec3 r = reflect(v, n);\n"
+        "    r = vec3(dot(uPrev[0].xyz, r), dot(uPrev[1].xyz, r), dot(uPrev[2].xyz, r));\n"
+        "    vec4 p4 = vec4(vPos, 1.0);\n"
+        "    vec3 p0 = vec3(dot(uPrev[0], p4), dot(uPrev[1], p4), dot(uPrev[2], p4));\n"
+        "    float len = length(vPos);\n"
+        "    float step0 = len * 0.03, t = 0.0, prevT = 0.0, hit = 0.0;\n"
+        "    vec3 uv = vec3(0.0);\n"
+        "    vec2 sky = vec2(-1.0);\n"
+        "    for (int i = 0; i < 14; i++) {\n"
+        "      prevT = t;\n"
+        "      t += step0;\n"
+        "      step0 *= 1.45;\n"
+        "      vec3 q = p0 + r * t;\n"
+        "      if (q.z > -1.0) break;\n"
+        "      vec3 c = Uv(q);\n"
+        "      if (Inside(c.xy) <= 0.0) break;\n"
+        "      float z = SceneZ(c.xy);\n"
+        "      if (z <= -1e8) { sky = c.xy; continue; }\n"
+        "      sky = vec2(-1.0);\n"
+        "      if (q.z < z && z - q.z < max(0.25 * t, 150.0)) {\n"
+        "        float lo = prevT, hi = t;\n"
+        "        for (int j = 0; j < 4; j++) {\n"
+        "          float mid = 0.5 * (lo + hi);\n"
+        "          vec3 m = Uv(p0 + r * mid);\n"
+        "          if (p0.z + r.z * mid < SceneZ(m.xy)) hi = mid; else lo = mid;\n"
+        "        }\n"
+        "        uv = Uv(p0 + r * hi);\n"
+        "        hit = 1.0;\n"
+        "        break;\n"
+        "      }\n"
+        "    }\n"
+        "    if (hit == 0.0 && sky.x >= 0.0) { uv.xy = sky; hit = 0.7; }\n"
+        "    dbgHit = hit;\n"
+        "    dbgF = f;\n"
+        "    if (hit > 0.0) {\n"
+        "      vec2 px = uOpt.x / vec2(textureSize(uColor, 0));\n"
+        "      mirror = texture(uColor, uv.xy).rgb;\n"
+        "      if (uOpt.x > 0.0)\n"
+        "        mirror = 0.4 * mirror + 0.15 * (texture(uColor, uv.xy + vec2(px.x, 0.0)).rgb + "
+        "texture(uColor, uv.xy - vec2(px.x, 0.0)).rgb + texture(uColor, uv.xy + vec2(0.0, px.y)).rgb + "
+        "texture(uColor, uv.xy - vec2(0.0, px.y)).rgb);\n"
+        "      a = clamp(f * uMat.y * hit * Inside(uv.xy), 0.0, 1.0);\n"
+        "    }\n"
+        "  }\n"
+        "  o = vec4(mirror * a + glint, a);\n"
+        "  if (uOpt.z > 0.5) o = vec4(dbgHit, dbgF, a, 1.0);\n"
+        "}\n";
+    std::string log;
+    reflSnapProgram = Link(kQuadVs, kSnapFs, &log);
+    if (reflSnapProgram)
+      reflProgram = Link(kVs, kFs, &log);
+    if (!reflSnapProgram || !reflProgram) {
+      GXLOG("reflections: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(reflSnapProgram);
+    glUniform1i(glGetUniformLocation(reflSnapProgram, "color"), 0);
+    glUniform1i(glGetUniformLocation(reflSnapProgram, "depth"), 1);
+    glUseProgram(reflProgram);
+    glUniform1i(glGetUniformLocation(reflProgram, "uColor"), 0);
+    glUniform1i(glGetUniformLocation(reflProgram, "uDepth"), 1);
+    static const char *const kNames[12] = {"uPos", "uNrm", "uProj", "uVp", "uMat", "uOpt", "uRange", "uShow",
+                                           "uLights", "uLight", "uPrev", nullptr};
+    for (int i = 0; i < 11; i++)
+      reflLoc[i] = glGetUniformLocation(reflProgram, kNames[i]);
+    glGenFramebuffers(1, &reflFbo);
+    return true;
+  }
+
+  // The scene as drawn so far into reflColor / reflDepth (half the EFB's size).
+  void ReflSnap() {
+    const int w = std::max(16, Lo(kEfbWidth) / 2), h = std::max(16, Lo(kEfbHeight) / 2);
+    if (!reflColor || reflW != static_cast<unsigned>(w) || reflH != static_cast<unsigned>(h)) {
+      for (GLuint *t : {&reflColor, &reflDepth}) {
+        if (*t)
+          glDeleteTextures(1, t);
+        glGenTextures(1, t);
+        glBindTexture(GL_TEXTURE_2D, *t);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        const GLint filter = t == &reflColor ? GL_LINEAR : GL_NEAREST;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      }
+      reflW = static_cast<unsigned>(w);
+      reflH = static_cast<unsigned>(h);
+    }
+    Resolve(0, 0, Lo(kEfbWidth), Lo(kEfbHeight), false);
+    Resolve(0, 0, Lo(kEfbWidth), Lo(kEfbHeight), true);
+    BindFbo(reflFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, reflColor, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, reflDepth, 0);
+    const GLenum both[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+    glDrawBuffers(2, both);
+    SaveAndPlainState();
+    ForgetColor();
+    glViewport(0, 0, w, h);
+    glUseProgram(reflSnapProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, efbColor);
+    glBindSampler(0, 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, efbDepth);
+    glBindSampler(1, 0);
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDrawBuffers(1, both);
+  }
+
+  // The scene is drawn (the first flat draw after it, the autofocus, the display copy): its picture for the
+  // mirror images of the next one (advanced only), and the surfaces' matrices with it.
+  void ReflScene() {
+    reflSeen = false;
+    if (reflMode < 2 || reflShow || reflFailed || !reflProgram)
+      return;
+    Touched();
+    ReflSnap();
+    BindFbo(DrawFbo());
+    reflMats.swap(reflMatsNew);
+    reflMatsNew.clear();
+    reflSnapValid = true;
+    stats.reflPasses++;
+  }
+
+  // One surface once more over itself: the glint added, the mirror image (advanced, from the scene's picture)
+  // mixed in by its strength; the EFB's alpha stays. The GX draws after it set their state again (Touched).
+  void ReflDraw1(const ReflDraw &r) {
+    if (!reflProgram && !MakeRefl()) {
+      reflFailed = true;  // no shader on this driver: off for good (the menu's switch stays)
+      return;
+    }
+    Touched();
+    const bool mirror = reflMode >= 2 && !reflShow && reflSnapValid;
+    UseEfb();
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
+    glUseProgram(reflProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, mirror ? reflColor : whiteTex);
+    glBindSampler(0, 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, mirror ? reflDepth : whiteTex);
+    glBindSampler(1, 0);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_CULL_FACE);
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(-1.0f, -2.0f);
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(Lo(r.scissor[0]), Lo(r.scissor[1]), std::max(0, Lo(r.scissor[2]) - Lo(r.scissor[0])),
+              std::max(0, Lo(r.scissor[3]) - Lo(r.scissor[1])));
+    // the mirror reads inside the draw's scissor (the game's own letterbox) and the rows shown
+    const int top = std::max(shownTop.load(std::memory_order_relaxed), r.scissor[1]);
+    const int bottom = std::min(shownBottom.load(std::memory_order_relaxed), r.scissor[3]);
+    glUniform4f(reflLoc[6], static_cast<float>(top) / kEfbHeight, static_cast<float>(bottom) / kEfbHeight,
+                static_cast<float>(r.scissor[0]) / kEfbWidth, static_cast<float>(r.scissor[2]) / kEfbWidth);
+    // per kind: Fresnel at a right angle, mirror strength, glint strength, glint sharpness; blur
+    static const float kMat[4][5] = {{0, 0, 0, 1, 0},
+                                     {0.02f, 0.90f, 0.35f, 90.0f, 0.0f},   // water
+                                     {0.04f, 0.50f, 0.30f, 40.0f, 1.5f},   // marble
+                                     {0.04f, 0.60f, 0.30f, 120.0f, 0.0f}}; // glass
+    static const float kShow[4][4] = {{0, 0, 0, 0}, {0.0f, 0.2f, 0.6f, 0.6f}, {0.6f, 0.0f, 0.0f, 0.6f},
+                                      {0.0f, 0.6f, 0.0f, 0.6f}};
+    glUniform4fv(reflLoc[0], 3, &r.pos[0][0]);
+    glUniform4fv(reflLoc[1], 3, &r.nrm[0][0]);
+    glUniform4fv(reflLoc[2], 2, &r.proj[0][0]);
+    glUniform4fv(reflLoc[3], 2, &r.vp[0][0]);
+    glUniform4fv(reflLoc[10], 3, &r.prev[0][0]);
+    const float *m = kMat[r.kind];
+    glUniform4f(reflLoc[4], m[0], std::min(1.0f, m[1] * reflGain), m[2] * reflGain, m[3]);
+    glUniform4f(reflLoc[5], m[4], mirror ? 2.0f : 1.0f, reflDebug ? 1.0f : 0.0f, 0.0f);
+    glUniform4fv(reflLoc[7], 1, reflShow ? kShow[r.kind] : kShow[0]);
+    glUniform1i(reflLoc[8], r.lights);
+    if (r.lights)
+      glUniform4fv(reflLoc[9], r.lights * 3, &r.light[0][0][0]);
+    glBindVertexArray(vao);
+    if (r.layout != attribLayout || r.stride != attribStride || r.base != attribBase || r.buffer != attribBuffer)
+      SetAttributes(r.layout, r.stride, r.base, r.buffer);
+    const void *indices = reinterpret_cast<const void *>(idxBase + static_cast<std::uintptr_t>(r.indexAt) * 2);
+    if (drawBaseVertex)
+      drawBaseVertex(r.mode, static_cast<GLsizei>(r.indexCount), GL_UNSIGNED_SHORT, indices, r.baseVertex);
+    else
+      glDrawElements(r.mode, static_cast<GLsizei>(r.indexCount), GL_UNSIGNED_SHORT, indices);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    stats.reflDraws++;
+    Touched();
+    pxDirty = true;
+  }
+
+  void ReflRelease() {
+    for (GLuint *t : {&reflColor, &reflDepth})
+      if (*t)
+        glDeleteTextures(1, t);
+    if (reflFbo)
+      glDeleteFramebuffers(1, &reflFbo);
+    for (GLuint *p : {&reflProgram, &reflSnapProgram})
+      if (*p)
+        glDeleteProgram(*p);
+    reflColor = reflDepth = reflFbo = reflProgram = reflSnapProgram = 0;
+    reflW = reflH = 0;
+    reflMats.clear();
+    reflMatsNew.clear();
+    reflSnapValid = reflSeen = false;
   }
 
   void FxaaRelease() {
@@ -4676,6 +5248,35 @@ GxRenderer::GxRenderer() : impl_(new Impl) {
   impl_->tvFilter = tv && *tv == '1';
   const char *psx = getenv("RE4_GX_PSX");  // the PSone demake from the start (gx_chunk_render, tests)
   impl_->psxOn = psx && *psx == '1';
+  for (const char *skip = getenv("RE4_GX_SKIP"); skip && *skip;) {
+    char *end = nullptr;
+    const unsigned long n = std::strtoul(skip, &end, 10);
+    if (end == skip)
+      break;
+    impl_->pickSkip.insert(static_cast<unsigned>(n));
+    skip = *end ? end + 1 : end;
+  }
+  if (const char *refl = getenv("RE4_GX_REFLECTIONS"))  // the reflections from the start (gx_chunk_render, tests)
+    impl_->reflMode = std::max(0, std::min(2, std::atoi(refl)));
+  impl_->reflShow = getenv("RE4_GX_REFL_SHOW") && *getenv("RE4_GX_REFL_SHOW") == '1';
+  impl_->reflDebug = getenv("RE4_GX_REFL_DEBUG") && *getenv("RE4_GX_REFL_DEBUG") == '1';
+  if (const char *gain = getenv("RE4_GX_REFL_GAIN"))
+    impl_->reflGain = std::max(0.0f, static_cast<float>(std::atof(gain)));
+  const char *pickEnv = getenv("RE4_GX_PICK");
+  if (pickEnv && std::strcmp(pickEnv, "census") == 0)
+    impl_->pickAt.emplace_back(-1, -1);
+  else if (pickEnv && std::strcmp(pickEnv, "blended") == 0)
+    impl_->pickAt.emplace_back(-2, -2);
+  else
+  for (const char *pick = pickEnv; pick && *pick;) {  // Impl::Pick
+    int x = 0, y = 0, used = 0;
+    if (std::sscanf(pick, "%d,%d%n", &x, &y, &used) != 2)
+      break;
+    impl_->pickAt.emplace_back(x, y);
+    pick += used;
+    if (*pick == ';' || *pick == '/')
+      pick++;
+  }
   if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
     const long n = std::strtol(limit, nullptr, 10);
     if (n >= 4) {
@@ -5020,6 +5621,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
   if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
     m.stats.resets++;
+    m.reflSnapValid = false;
     m.DropTextures();
   }
   // this chunk's vertices and indices
@@ -5029,7 +5631,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   // merged draw calls: the chains and their indices (after the chunk's in ibo)
   m.mergeMarks.clear();
   m.mergeNext = 0;
-  if (m.mergeOn && m.drawBaseVertex && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded)
+  if (m.mergeOn && m.drawBaseVertex && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded && !m.reflMode)
     m.MergePlan(chunk);
   if (!m.skipDraws && !uploaded && m.RingUpload(chunk)) {
     if (m.interpPass) {
@@ -5085,6 +5687,10 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.current = nullptr;
   m.ownerBase = 0;
   m.ownerLife = ~0u;
+  if (!m.interpPass) {
+    m.pickDraw = 0;
+    m.pickLast.assign(m.pickAt.size(), 0x01020304u);
+  }
   m.Split(GxStats::kSplitState);
   std::uint32_t at = 0;
   while (at < chunk.opWords) {
@@ -5096,6 +5702,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     else
       at = m.Op(chunk, at);
   }
+  if (m.reflSeen)
+    m.ReflScene();  // no display copy in this chunk
   m.TimerEnd();
   m.FenceAfterChunk();
   if (record) {
@@ -5436,6 +6044,7 @@ void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
 void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
 void GxRenderer::SetPsx(bool on) { impl_->psxOn = on; }
+void GxRenderer::SetReflections(int mode) { impl_->reflMode = mode < 0 ? 0 : mode > 2 ? 2 : mode; }
 void GxRenderer::SetTvFilter(bool on) { impl_->tvFilter = on; }
 void GxRenderer::SetWiden(float factor) {
   impl_->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
@@ -5680,6 +6289,7 @@ void GxRenderer::Release() {
   m.PeekRelease();
   m.FxaaRelease();
   m.PsxRelease();
+  m.ReflRelease();
   if (m.timerOn) {
     glDeleteQueries(Impl::TimerPool::kQueries, m.chunkTimer.query);
     glDeleteQueries(Impl::TimerPool::kQueries, m.presentTimer.query);
