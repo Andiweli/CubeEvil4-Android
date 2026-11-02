@@ -549,19 +549,18 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
       graphics.edit().putBoolean("dof", on).apply(); CoreBridge.setDof(on);
     });
-    // the picture filters in a section of their own at the end, each with a short line under it (wish of the
-    // project owner, 02.11.2026)
+    // the picture filters in a section of their own at the end, one under the other, one general line under both
+    // (wish of the project owner, 02.11.2026)
     heading(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_tv_filter, graphics.getBoolean("tvFilter", false), on -> {
       graphics.edit().putBoolean("tvFilter", on).apply(); CoreBridge.setTvFilter(on);
     });
-    help(R.string.ingame_tv_filter_help);
     // the 3D as a PlayStation would have drawn it (wish of the project owner, 02.11.2026)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
       graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
     });
-    help(R.string.ingame_psx_help);
+    help(R.string.ingame_filter_help);
   }
   private void controls() {
     quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},

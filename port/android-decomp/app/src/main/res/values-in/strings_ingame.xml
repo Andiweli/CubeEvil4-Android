@@ -172,10 +172,9 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filter TV GameCube asli</string>
     <string name="ingame_fxaa_help">Menghaluskan tepi bergerigi pada langkah terakhir. Bekerja dengan atau tanpa MSAA; gambar menjadi sedikit lebih lembut.</string>
-    <string name="ingame_tv_filter_help">Menghaluskan gambar secara vertikal seperti GameCube di TV.</string>
     <string name="ingame_psx">Filter piksel retro</string>
-    <string name="ingame_psx_help">Poligon bergoyang, piksel kasar, dan warna 15-bit, seperti PlayStation.</string>
     <string name="ingame_filter">Filter</string>
+    <string name="ingame_filter_help">Filter mengubah tampilan seluruh gambar dan dapat digabungkan.</string>
     <string name="ingame_frame_skip_help">Saat grafis tertinggal, satu gambar dilewati agar game tetap berjalan dengan kecepatan normal. Lebih sedikit gambar yang ditampilkan, tidak ada yang diperlambat.</string>
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver grafis lambat (mis. GPU Mali) dan mungkin sedikit memperlambat ponsel lain. Tidak berpengaruh selama 60 FPS aktif.</string>

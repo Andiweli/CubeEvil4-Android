@@ -182,10 +182,9 @@
     <string name="ingame_fxaa">‏FXAA</string>
     <string name="ingame_tv_filter">مرشّح تلفاز GameCube الأصلي</string>
     <string name="ingame_fxaa_help">‏يُنعّم الحواف المسنّنة في خطوة أخيرة. يعمل مع MSAA أو بدونه؛ تصبح الصورة أنعم قليلًا.</string>
-    <string name="ingame_tv_filter_help">ينعّم الصورة عموديًا كما كان GameCube يفعل على التلفاز.</string>
     <string name="ingame_psx">مرشّح البكسل الكلاسيكي</string>
-    <string name="ingame_psx_help">مضلعات مهتزة وبكسلات خشنة وألوان 15 بت، كما في PlayStation.</string>
     <string name="ingame_filter">المرشّحات</string>
+    <string name="ingame_filter_help">تغيّر المرشّحات مظهر الصورة كلها ويمكن الجمع بينها.</string>
     <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
     <string name="ingame_skip_or_smooth">‏تخطي الإطارات و60 إطارًا في الثانية لا يعملان معًا: تشغيل أحدهما يوقف الآخر.</string>
     <string name="ingame_merge_help">‏يدمج عدة أجسام في استدعاء واحد لبرنامج تشغيل الرسوميات. قد يفيد الهواتف ذات برنامج تشغيل رسوميات بطيء (مثل وحدات Mali) وقد يكلّف قليلًا على غيرها. لا يعمل ما دامت 60 إطارًا في الثانية مفعّلة.</string>
