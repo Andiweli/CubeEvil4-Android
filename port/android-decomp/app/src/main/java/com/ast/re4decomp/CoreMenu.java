@@ -1024,26 +1024,11 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(output), R.string.ingame_vertex_ring, graphics.getBoolean("vertexRing", false), on -> {
       graphics.edit().putBoolean("vertexRing", on).apply(); CoreBridge.setVertexRing(on);
     });
-    // reflections on water, glass and marble, simple or advanced (wish of the project owner, 02.11.2026: both
-    // as buttons here for now); one or the other, switching one on switches the other off
-    final int reflections = graphics.getInt("reflections", 0);
-    final Button[] refl = new Button[2];
-    final int[] reflLabels = {R.string.ingame_refl_simple, R.string.ingame_refl_advanced};
-    for (int i = 0; i < 2; i++) {
-      final int mode = i + 1;
-      refl[i] = toggle(buttonsRow(output), reflLabels[i], reflections == mode, on -> {
-        graphics.edit().putInt("reflections", on ? mode : 0).apply(); CoreBridge.setReflections(on ? mode : 0);
-        final int other = 2 - mode;
-        if (on && refl[other].isSelected())
-          toggleLabel(refl[other], reflLabels[other], false);
-      });
-    }
     help(output, R.string.ingame_frame_skip_help);
     help(output, R.string.ingame_smooth_help);
     help(output, R.string.ingame_skip_or_smooth);
     help(output, R.string.ingame_merge_help);
     help(output, R.string.ingame_vertex_ring_help);
-    help(output, R.string.ingame_refl_help);
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);

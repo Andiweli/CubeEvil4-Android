@@ -21,8 +21,6 @@
     <string name="ingame_smooth60">60 FPS (экспериментально)</string>
     <string name="ingame_merge_draws">Объединять вызовы отрисовки (экспериментально)</string>
     <string name="ingame_vertex_ring">Кольцевой буфер вершин (экспериментально, для Mali)</string>
-    <string name="ingame_refl_simple">Отражения (простые)</string>
-    <string name="ingame_refl_advanced">Отражения (расширенные)</string>
     <string name="ingame_force_performance">Принудительная производительность</string>
     <string name="ingame_perf_default">По умолчанию</string>
     <string name="ingame_perf_cores">Производительные ядра</string>
@@ -184,7 +182,6 @@
     <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
     <string name="ingame_merge_help">Объединяет несколько объектов в один вызов графического драйвера. Может помочь телефонам с медленным графическим драйвером (например, GPU Mali) и немного замедлить другие. Не действует, пока включены 60 FPS.</string>
     <string name="ingame_vertex_ring_help">Передаёт вершины каждого кадра графическому чипу через один постоянно отображённый буфер вместо нового буфера на каждый кадр. Может сэкономить время на GPU Mali и использует немного больше видеопамяти. Действует сразу.</string>
-    <string name="ingame_refl_help">Отражения: лёгкий блеск света комнаты на воде, стекле и полированном мраморе (простые), а также слабое зеркальное отражение окружения (расширенные). Простые почти ничего не стоят, расширенные немного снижают производительность. Включить можно только один из двух вариантов.</string>
     <string name="ingame_game_language">Язык игры</string>
     <string name="ingame_language_device">Язык устройства</string>
     <string name="ingame_language_help">Язык текстов и субтитров игры. Язык устройства: язык устройства, если он есть в игре, иначе английский. Изменение перезапускает игру.</string>

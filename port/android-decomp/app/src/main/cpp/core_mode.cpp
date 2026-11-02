@@ -637,7 +637,6 @@ Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
-std::atomic<int> optRefl{0};      // the menu's reflections, 0 off 1 simple 2 advanced (CoreBridge.setReflections)
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
@@ -1429,8 +1428,6 @@ bool drawGx() {
   gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
-  static const int reflEnv = getenv("RE4_GX_REFLECTIONS") ? std::atoi(getenv("RE4_GX_REFLECTIONS")) : 0;
-  gx->SetReflections(std::max(optRefl.load(), reflEnv));
   static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
   gx->SetMerge(optMerge.load() != 0 || mergeEnv);
   if (!smoothOn && smoothPrev) {
@@ -1682,9 +1679,6 @@ bool drawGx() {
           s.programsLive, s.programsDeleted,
           gx->BaseVertex() ? "yes" : "no",
           s.autofocus, s.efbRestores, s.skippedChunks);
-      if (optRefl.load() || s.reflDraws)
-        LOG("reflections: mode %d, %u surfaces drawn over, %u pictures of the scene", optRefl.load(), s.reflDraws,
-            s.reflPasses);
       // the GL work per chunk since the last line, and the GPU time when the driver measures it
       if (gxRunCount) {
         const double n = gxRunCount;
@@ -2425,13 +2419,6 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPsx(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optPsx.exchange(want) != want) LOG("PSone demake: %s", want ? "on" : "off");
-}
-
-// Reflections (the menu, experimental): 0 off, 1 simple, 2 advanced (GxRenderer::SetReflections).
-extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setReflections(JNIEnv *, jclass, jint mode) {
-  const int want = mode < 0 ? 0 : mode > 2 ? 2 : static_cast<int>(mode);
-  static const char *const kNames[3] = {"off", "simple", "advanced"};
-  if (optRefl.exchange(want) != want) LOG("reflections: %s", kNames[want]);
 }
 
 // FXAA (the menu): an edge smoothing pass over every picture (GxRenderer::SetFxaa).

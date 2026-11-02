@@ -1078,76 +1078,6 @@ void TestPsx(re4gx::GxRenderer &r) {
   Check(Near(at(xfb, 101), 100, 150, 200), "PSone demake: off again, the picture as before");
 }
 
-// Reflections (SetReflections): a red wall standing on a grey glass floor (blended without depth writes, with a
-// texture coordinate from the normals: the glass the renderer knows), seen from above it. Off and simple (no
-// lights: no glint) leave the floor grey; advanced mirrors the wall into the floor in front of it from the
-// second picture on (the scene's picture of the one before); off again: the picture as at first.
-void ReflScene(Builder &b, std::uint32_t sequence, Re4GxChunk *out) {
-  Baseline(b);
-  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
-  DisplayCopy(b, true, kBlack);
-  const float n = 100.0f, f = 1000000.0f;
-  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
-  b.Xf(0x1026, {0});
-  auto vertex = [](std::vector<std::uint8_t> &v, float x, float y, float z, float ny, float nz, const std::uint8_t c[4]) {
-    const float p[6] = {x, y, z, 0.0f, ny, nz};
-    v.insert(v.end(), reinterpret_cast<const std::uint8_t *>(p), reinterpret_cast<const std::uint8_t *>(p) + 24);
-    v.insert(v.end(), c, c + 4);
-  };
-  // the wall at z -2000 from the floor (y -200) up to y 600
-  std::vector<std::uint8_t> wall;
-  vertex(wall, -1500, 600, -2000, 0, 1, kRed);
-  vertex(wall, 1500, 600, -2000, 0, 1, kRed);
-  vertex(wall, 1500, -200, -2000, 0, 1, kRed);
-  vertex(wall, -1500, -200, -2000, 0, 1, kRed);
-  b.Draw(RE4_GX_V_NORMAL | RE4_GX_V_COLOR0, 28, wall, 4, 0x80);
-  // the floor at y -200 from z -500 to -2000 in six strips (24 corners), blended, no depth writes
-  b.Xf(0x103F, {1});
-  b.Xf(0x1040, {1u << 7 | 1u << 2});  // texture coordinate 0 from the normal
-  b.Bp(0x40, 1 | 3 << 1);
-  b.Bp(0x41, 1 | 5 << 5 | 4 << 8 | 1 << 3 | 1 << 4);
-  const std::uint8_t grey[4] = {100, 100, 100, 255};
-  std::vector<std::uint8_t> floor;
-  for (int s = 0; s < 6; s++) {
-    const float z0 = -500.0f - 250.0f * s, z1 = z0 - 250.0f;
-    vertex(floor, -1500, -200, z0, 1, 0, grey);
-    vertex(floor, 1500, -200, z0, 1, 0, grey);
-    vertex(floor, 1500, -200, z1, 1, 0, grey);
-    vertex(floor, -1500, -200, z1, 1, 0, grey);
-  }
-  b.Draw(RE4_GX_V_NORMAL | RE4_GX_V_COLOR0, 28, floor, 24, 0x80);
-  DisplayCopy(b, false, kBlack);
-  *out = b.Chunk();
-  out->sequence = sequence;
-}
-
-void TestReflections() {
-  std::string error;
-  re4gx::GxRenderer r;
-  Require(r.Init(1, &error), error.c_str());
-  auto picture = [&](int mode) {
-    r.SetReflections(mode);
-    std::vector<std::uint8_t> last;
-    for (std::uint32_t s = 1; s <= 2; s++) {
-      Builder b;
-      Re4GxChunk c;
-      ReflScene(b, s, &c);
-      r.Run(c);
-      last = TexPixel(r.Xfb(nullptr, nullptr), 320 * r.Scale(), 330 * r.Scale());
-    }
-    return last;
-  };
-  const auto off = picture(0), simple = picture(1), advanced = picture(2), offAgain = picture(0);
-  Check(Near(off, 100, 100, 100), "reflections: off, the glass floor grey");
-  Check(Near(simple, 100, 100, 100), "reflections: simple without lights, the floor as without them");
-  const bool mirrored = advanced[0] > advanced[1] + 20 && advanced[1] < 100;
-  Check(mirrored, "reflections: advanced, the red wall in the floor in front of it");
-  if (!mirrored)
-    Print("advanced", advanced);
-  Check(offAgain == off, "reflections: off again, the picture as at first");
-  Check(r.Stats().reflDraws > 0 && r.Stats().reflPasses > 0, "reflections: the surface drawn again, the scene taken");
-}
-
 // Frame skip: a chunk that is not drawn (the renderer is behind and the next chunk is there). The state
 // it carries is applied, the EFB cleared as its display copy would, the shown picture stays; the rules
 // for when it may be skipped.
@@ -3252,7 +3182,6 @@ int main() {
   TestSmoothPacer();
   TestChunkRate();
   TestInterpolatedLights();
-  TestReflections();
   // MSAA in its own buffers (the devices without the extensions, RE4_GX_MSAA_TILES=0)
   TestOptions(false, false);
   // the depth of field's blur at the full resolution as before GPU step e (GxOptions::halfDof)
