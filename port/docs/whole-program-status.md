@@ -3,6 +3,38 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Acht Nutzerberichte zu 0.97.1 (03.11.2026, Branch `work`, Patches 0188 und 0189)
+
+Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschreibungen des Projektinhabers.
+
+1. **Unendlicher Raketenwerfer sprengt den Felsen vor den zwei Riesen nicht, Chicago Typewriter zerstört keine großen
+   Kisten und Sperren:** offen. Geprüft: `emRockDmCk` ist in Debug und EU gleich (leer), die Kisten-/Sperren-
+   Schadensprüfungen der Verkaufsfassungen sind etwas größer, Raum des Felsens aus den Berichten nicht eindeutig. Am PC
+   (r202, Kiste s20) traf Leon in der Testposition nicht – kein Ergebnis. Braucht Raum oder Spielstand (.gci).
+2. **Leistung an Wasser (Dorf bei Regen, See, Insel, Verdugo-Tank):** Bericht 090435 (Mali-Handy, Debug-Discs): in
+   r405 bis 22 ms je Bild für `BP` (EFB-Kopien der Wasser-/Spiegeleffekte), sonst 3–6 ms. Ohne Mali-Gerät nicht zu
+   messen; offen.
+3. **Umgekehrte Steuerung wird nicht gespeichert:** Bericht 090435 zeigt bei jedem Start „aim: vertical aiming normal
+   (the app's switch over the system file)“: im spieleigenen Optionsmenü gesetzt, vom App-Schalter (aus) beim Start
+   überschrieben. **Patch 0188** (`OptionScreen::quit` ruft `re4_aim_options_closed`): die Wahl des Spiels wird der
+   App-Schalter, `re4_core_aim_from_game` → `CoreBridge.aimFromGame` → `CoreActivity.keepGameAimInvert` speichert sie
+   beim Öffnen des Menüs und beim Verlassen der App (nur Kern im App-Prozess). Gebaut; nicht im Spiel geprüft.
+4. **Pixelfilter: Bodentexturen flimmern (Mercenaries, ohne 60 FPS):** der Filter nahm je Zelle einen Bildpunkt aus
+   dem fein gerenderten Bild; jetzt der Mittelwert ihrer vier Spielpixel (`gx_gl.cpp` MakePsx). `gx_gl_check` 0
+   Fehler (TestPsx angepasst). Gerät offen.
+5. **Saddler-Belohnung 100000 statt 29018:** offen. Die EU-Daten von r332 haben eine verborgene Fläche 0x87 mit
+   item 0x71 ×100 (= 100000 Peseten, `cItemMgr::get`) am Startpunkt, aus (be 0x02); Debug und US haben sie nicht. Wer
+   sie einschaltet, ist nicht gefunden (`st3_3.rel` nennt 0x87 nicht). Braucht Disc-Art und wo die 29018 herkamen.
+6. **Kettensäge des „Riesen Salvador“ (Mercenaries, EU, r404, Modul em20):** offen. `SndCall(6, 0x4D)` und alle
+   Tonaufrufe von em20 in EU und Debug gleich (nur die schon übernommenen Tritt-Töne 0x3A/0x3B); das Aufheulen kommt
+   also aus den Tondaten / dem Abspielen. Video des Projektinhabers zum Vergleich liegt vor.
+7. **Gewehrhaltung / Kamera beim Tritt:** `g_readyOfs` / `g_transOfs` der Verkaufsfassungen weichen ab (US 7 Zeilen,
+   EU/JP 17 Zeilen; Leons Standard-Haltung für Handfeuerwaffen und Gewehre, Ada; ein Übergangspunkt von Ada).
+   **Patch 0189** setzt sie mit Verkaufs-Discs vor `offsetCorrection`. Am PC gebaut, r202 mit allen drei Disc-Arten
+   ohne Absturz; Kamerawerte im Bild nicht geprüft. Für den Tritt keine abweichende Tabelle gefunden.
+8. **RetroTouch 1.0.0-beta.8:** `libs/retrotouch.aar` ersetzt; Rand aller Knöpfe #3e3c29
+   (`RetroTouchColors.withBorderColor`, `CoreTouch.BORDER`). `gradlew testCoreDebugUnitTest` ohne Fehler.
+
 ## Version 0.97.1-beta: Händlerpreise und Waffenwerte der Verkaufsfassungen (02.11.2026, Branch `work`, Patch 0187; vom Projektinhaber auf dem Gerät bestätigt: „Die Preise sind nun korrekt“)
 
 Nutzerbericht (über den Projektinhaber): mit EU-Discs hätten TMP, Minenwerfer, Schatzkarten und Erste-Hilfe-Spray die
@@ -11321,6 +11353,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0179 `sce_at.cpp` | `SceAtSetSaveItem`: ein gespeicherter Gegenstand-Eintrag für einen Auslösebereich, den der Raum nicht hat, bleibt liegen statt nach Adresse 0 zu schreiben (Absturz in r20f, US-Discs). Port-Patch, Nutzerbericht 01.11.2026 |
 | 0186 `cam_ctrl.cpp` | Ashleys eigene Kameraschnitte (Attribut 4) mit EU- und JP-Discs wie deren `areaHitCheck`: japanische Texte und über Easy; Debug/US weiter `game_country == 0`. Vorher auf EU-Easy feste Kameras (Patch 0140 macht `game_country` dort zur Schwierigkeit). Port-Patch für Verkaufsdaten, Nutzerbericht 02.11.2026 |
 | 0187 `merchant.cpp`, `item.cpp`, `em_dm_val.cpp`, `game.cpp` | Händler und Schaden der Verkaufs-Discs: Preis- und Ausbautabellen (US, EU/JP), Lager-Regeln (Arten 0/1/2, Spray-Tabellen, kein `Merchant2ndRoundInit`), EU-Spray nach Heilmitteln, Schatzkarten je Gebiet, Ankauf, `itemInfo`-Stapel, Schadens-Klassentabellen, `WeaponLevelTbl`-Zeilen, EU-Rundung. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Nutzerbericht 02.11.2026 |
+| 0188 `option.cpp` | Das Schließen der spieleigenen Optionen übergibt „reverse“ an die App (`re4_aim_options_closed`), die es als „Invert vertical“ speichert. Vorher setzte der App-Schalter es bei jedem Start zurück. Port-Patch, Nutzerbericht 03.11.2026 |
+| 0189 `cam_qfps.cpp` | Schulterkamera-Tabellen `g_readyOfs` / `g_transOfs` der Verkaufs-Discs (US, EU/JP) vor `offsetCorrection`. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Nutzerbericht 03.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
