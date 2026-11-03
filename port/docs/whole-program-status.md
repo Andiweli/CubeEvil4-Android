@@ -127,6 +127,8 @@ Ashley und „Leon+Ashley“ nein; Leons Kostüme bleiben beim Spiel (kein eigen
   - *Menü* (Wunsch des Projektinhabers): Abschnitt „Player character“ ohne Zeilenbeschriftung „Play as“, sechs
     Knöpfe zu dritt so breit wie die Cheat-Knöpfe darüber; der sechste „Special costumes · On/Off“ mit kleinerer
     zweiter Zeile „(Leon/Ashley only)“, so hoch wie ein einzeiliger Knopf (11 Sprachen).
+  - *RetroTouch 1.0.0-beta.9* (AAR des Projektinhabers, 03.11.2026) statt beta.8: Rand fest 2,5 dp, Knöpfe samt Rand
+    im Bild (`placeControl`); Schnittstelle für die App gleich (`javap`-Vergleich), App-Tests bestanden.
   - *Wechsel sofort* (Wunsch des Projektinhabers): `switchNow` im Bild-Haken der Cheats: ändert sich die Figur, startet
     der Raum neu dort, wo der Spieler steht (`SceAtExecRoomJump` in den eigenen Raum, Teil `pG->Part`), sobald der
     Spieler frei ist (Spielschleife, kein Ereignis, kein Koffer, kein Film); einmal je Wahl, mit Ashley zu weit weg

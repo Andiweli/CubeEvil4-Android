@@ -116,8 +116,9 @@ dependencies {
     testImplementation 'org.robolectric:robolectric:4.14.1'
     // RetroTouch (MIT, github.com/Andiweli/RetroTouch): the touch controls of the core mode
     // (TouchControls). An update replaces libs/retrotouch.aar; the file name carries no version.
-    // Now 1.0.0-beta.8 (03.11.2026, the AAR as the project owner built it in the RetroTouch repository): beta.7
-    // (stick actions for the analog C stick, docs/retrotouch-1.0.0-beta.7.patch) with
-    // RetroTouchColors.withBorderColor and button shapes (RetroTouchButtonShape).
+    // Now 1.0.0-beta.9 (03.11.2026, the AAR as the project owner built it in the RetroTouch repository): beta.8
+    // (beta.7's stick actions for the analog C stick, docs/retrotouch-1.0.0-beta.7.patch, with
+    // RetroTouchColors.withBorderColor and button shapes, RetroTouchButtonShape) with a border of 2.5 dp and
+    // controls placed so that they stay on the screen with it (RetroTouchView.placeControl); the app's calls stay.
     implementation files('libs/retrotouch.aar')
 }
