@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Acht Nutzerberichte, Version 0.98.0-beta (03.11.2026, Branch `work`, Patches 0188 bis 0190; 0.97.1 wurde nicht veröffentlicht, alles geht in 0.98.0)
+## Acht Nutzerberichte, Version 0.98.0-beta (03.11.2026, Branch `work`, Patches 0188 bis 0190; 0.97.1 wurde am 02.11.2026 veröffentlicht, der Releasetext von 0.98.0 nennt nur das Neue seit 0.97.1)
 
 Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschreibungen des Projektinhabers.
 

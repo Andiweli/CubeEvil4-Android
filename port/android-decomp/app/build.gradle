@@ -66,7 +66,7 @@ android {
         // project owner, 02.11.2026: music after a disc change, hut items, 60 FPS walls, tune-up sound, Blacktail), then
         // 0.97.0 (wish of the project owner, 02.11.2026: the PSone demake filter, Ashley hidden after an instant load,
         // Ada's hair after a beheading), then 0.98.0 (wish of the project owner, 03.11.2026: the story characters,
-        // the retail merchant and shoulder camera; 0.97.1 was not published)
+        // the retail shoulder camera, the attache case light crash; after 0.97.1 of 02.11.2026: the retail merchant)
         versionName '0.98.0-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
