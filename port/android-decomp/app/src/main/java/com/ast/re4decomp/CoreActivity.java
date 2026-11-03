@@ -126,7 +126,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
   /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
-   *  extra games kept unlocked, the story's player character << 5 (2 Ada, 3 HUNK, 4 Krauser, 5 Wesker); off). */
+   *  extra games kept unlocked, the story's player character << 5 (2 Ada, 3 HUNK, 4 Krauser, 5 Wesker), 256 the
+   *  special costume; off). */
   static final String CHEATS = "cheats";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
@@ -769,7 +770,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void cheatsChanged(int bits) {
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
       Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept, player type "
-          + ((bits & CoreMenu.CHARACTER_BITS) >> CoreMenu.CHARACTER_SHIFT) + ")");
+          + ((bits & CoreMenu.CHARACTER_BITS) >> CoreMenu.CHARACTER_SHIFT)
+          + ((bits & CoreMenu.COSTUME_BIT) != 0 ? ", special costume" : "") + ")");
       CoreBridge.setCheats(bits);
     }
 

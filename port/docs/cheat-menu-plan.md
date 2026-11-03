@@ -198,7 +198,7 @@ Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-ch
   Schnittstelle. App: Abschnitt „Player character“ mit „Play as“ und fünf Knöpfen unter den Cheat-Knöpfen.
 - **Wechsel beim Raumstart** (`gameRoomInit` vor `ReadPlayerData`): Leon → gewählte Figur, eine vom Cheat gesetzte Figur
   → Leon, wenn der Cheat aus ist. Nur in der Geschichte (nicht Assignment Ada, nicht Mercenaries), Ashleys Abschnitt bleibt
-  Ashleys. Eine Änderung im Menü gilt seit 03.11.2026 sofort (Wunsch des Projektinhabers): der Raum startet neu, wo der Spieler steht (`switchNow`, wie eine Tür in den eigenen Raum); während eines Ereignisses ab dem nächsten Raum.
+  Ashleys. Eine Änderung im Menü gilt seit 03.11.2026 sofort (Wunsch des Projektinhabers): der Raum startet neu, wo der Spieler steht (`switchNow`, wie eine Tür in den eigenen Raum); während eines Ereignisses ab dem nächsten Raum. Daneben der Schalter „Special costume (Leon/Ashley)“ (Bit 256, `game_costume` 1; aus: das normale Kostüm), ebenso sofort.
 - **Leons Sachen bleiben:** Koffer, Leben (1200 + gelbe Kräuter), Geld, Kostüm (Leons Regel, auch die Weste schützt),
   die Gegenstände der Räume für Leon (`player_type` 1). Die Cheat-Knöpfe (Killer7, Koffer, Geld, Waffen) gehen auch mit
   einer Figur.

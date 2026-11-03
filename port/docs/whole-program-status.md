@@ -116,8 +116,22 @@ Ashley und „Leon+Ashley“ nein; Leons Kostüme bleiben beim Spiel (kein eigen
     Waffe, Pose für das Skelett der Figur); die Figuren haben sie nur für ihre Mercenaries-Waffen, für Leons Waffen
     zeigt die Ansicht sie wie mit dem Messer (Patch 0195). Nicht geändert.
   - *Kostüme:* der Prototyp kennt ein Spezialkostüm (`game_costume` 1, Debug-Startmenü „PL COSTUME“ 0..1): Leon
-    `pl10`, Ashley `pl05`, Ada `pl0c`; Leons Spielkostüme `pl08` (Kapitel-Jacke), `pl09` (Weste) wählt das Spiel.
-    Auf allen Discs liegen außerdem `pl02` und `pl07`, die der Code nie liest (nicht untersucht).
+    `pl10` (dunkle Lederjacke), Ashley als Spielerin `pl05`, als Begleiterin Modul 5 = `pl15` statt 3 = `pl11`
+    (`checkAshleyId`), Ada `pl0c`; die Ereignisse nehmen dafür eigene Dateien (`sXXXsYY` statt `rXXXsYY`, event.cpp).
+    Leons Spielkostüme `pl08` (Kapitel-Jacke), `pl09` (Weste) wählt das Spiel.
+  - *Schalter „Special costume (Leon/Ashley)“* (Wunsch des Projektinhabers): Bit 256 der Cheat-Schalter, im freien
+    sechsten Platz der Figuren-Reihe. An: `game_costume` 1, aus: einmal 0 (danach wieder die Wahl des Spiels); beim
+    Raumstart in `re4_story_char_room`, während der Geschichte sofort über `switchNow` (Raum neu an der Stelle, so
+    tauschen auch Ashley als Begleiterin und die Ereignisdateien mit). Am PC: r20e Leon an/aus (Bild: Jacke ↔
+    Lederjacke), Ada als Stellvertreterin mit `pl0c`, r113 mit Ashley (`RE4_TEST_STA=101`): `pl11` → `pl15`, Bild.
+  - *Gegner nach dem Sofortwechsel:* getötete bleiben tot (`EmSetDie` setzt das Todes-Bit der Liste, `EmSetFromList`
+    überspringt es, `EmSetDieCk`), lebende fangen an ihrem Listenplatz mit voller Gesundheit neu an, wie nach einer
+    Tür. Ein Tausch ohne Neuladen (wie `PlChangeData` für Leons Weste) hieße: das Objekt der Figur (eigene Klasse aus
+    ihrem REL-Modul, `cEmMgr::construct`) mitten im Raum zerstören und neu bauen — nicht umgesetzt.
+  - *`pl02` und `pl07`:* `pl07` (+ `rel/pl07.rel`) sind die beiden Polizisten der Eröffnung (r100 `EmReadSearch(0x12)`,
+    „pl0700“/„pl0700a“ in r120), kein Kostüm. `pl02` steht in keiner Dateitabelle des Prototyps; als Leon, Ada (r20e)
+    oder Ashley (r206) geladen (vorübergehender Testschalter, nicht im Repository) hängt das Spiel beim Raumaufbau bzw.
+    stürzt ab: zu keiner Spielerklasse passend, ein Überbleibsel — nicht nutzbar.
 - **Nicht geprüft (nur am Gerät):** wie die Figuren aussehen und sich anfühlen (Bewegungen, besonders Ada), Bosskämpfe
   und Griffe mit Spezialbewegungen (El Gigante, Mendez, U-3, Krauser-Messerkampf), Boot, Lore, Jetski, das Menü auf dem
   Gerät; ARM32/ARM64 nicht gebaut.

@@ -223,7 +223,8 @@
     <string name="ingame_cheat_extras_already">Déjà débloqués : Assignment Ada et The Mercenaries sont dans le menu titre.</string>
     <string name="ingame_cheat_character">Personnage joué</string>
     <string name="ingame_cheat_character_play">Jouer avec</string>
-    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon dans l\'histoire : la pièce se recharge là où tu te trouves (pendant une cinématique, à partir de la pièce suivante). La mallette, la vie et l\'argent de Leon restent ; les armes sans modèle propre au personnage montrent celles de Leon. La partie d\'Ashley reste à Ashley, les cinématiques et les appels radio montrent toujours Leon. Tes sauvegardes gardent toujours Leon : elles se chargent avec le personnage choisi ici.</string>
+    <string name="ingame_cheat_costume">Costume spécial (Leon/Ashley)</string>
+    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon dans l\'histoire : la pièce se recharge là où tu te trouves (pendant une cinématique, à partir de la pièce suivante). La mallette, la vie et l\'argent de Leon restent ; les armes sans modèle propre au personnage montrent celles de Leon. La partie d\'Ashley reste à Ashley, les cinématiques et les appels radio montrent toujours Leon. Tes sauvegardes gardent toujours Leon : elles se chargent avec le personnage choisi ici. Costume spécial : Leon et Ashley (et Ada en remplaçante) portent leurs costumes spéciaux, aussitôt aussi.</string>
     <string name="ingame_later">Plus tard</string>
     <string name="ingame_controller_config">Configuration des touches</string>
     <string name="ingame_controller_config_help">Configuration des touches : placez chaque action du jeu sur des touches de votre manette ou de votre clavier.</string>

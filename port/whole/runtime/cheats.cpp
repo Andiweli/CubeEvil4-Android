@@ -69,7 +69,7 @@ int PlSetCostume();  // pl_sub.cpp
 namespace {
 
 enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kCharShift = 5, kChar = 7 << kCharShift,
-       kAll = 31 | kChar };
+       kCostume = 256, kAll = 31 | kChar | kCostume };
 
 std::atomic<int> gWanted(-1);  // the app's switches, -1 before RE4_CHEATS was read
 int gApplied;                  // what the game frames have set so far
@@ -189,6 +189,9 @@ void apply(int wanted)
                 wanted & kHealth ? "on" : "off", wanted & kAmmo ? "on" : "off", wanted & kOneHit ? "on" : "off",
                 wanted & kAutoQte ? "on" : "off", wanted & kExtras ? "kept unlocked" : "as the system file has them",
                 kCharName[(wanted & kChar) >> kCharShift]);
+        if ((wanted ^ gApplied) & kCostume) {
+            re4_log("cheat: special costume %s", wanted & kCostume ? "on" : "off");
+        }
         if ((wanted ^ gApplied) & kAutoQte) {
             re4_qte_auto(wanted & kAutoQte);
         }
@@ -251,14 +254,40 @@ int gAdaGrips;  // bit k: kAdaGripFile[k] read
 
 int gLeonCostume = -1;  // the costume of the archive at kLeonArcAddr, -1 none
 int gSwitched;          // the type the cheat gave the story's player (0: none)
+int gCostumeGiven;      // 1 while the cheat gave the special costume (game_costume 1)
 
-int wantedChar()
+int wantedBits()
 {
     int wanted = gWanted.load(std::memory_order_acquire);
     if (wanted < 0) {
         const char* v = getenv("RE4_CHEATS");
         wanted = v ? (int) strtol(v, 0, 0) & kAll : 0;
     }
+    return wanted;
+}
+
+// The special costume (wish of the project owner, 03.11.2026: the switch "Special costume (Leon/Ashley)"):
+// game_costume 1 while the switch is on (Leon pl10, Ashley pl05, as a stand-in Ada's second outfit pl0c; the
+// events take their files for it, event.cpp), 0 once when it is switched off; -1 leaves the game's own choice
+// (a new game after the ending asks for it)
+int wantedCostume()
+{
+    if (wantedBits() & kCostume) {
+        return 1;
+    }
+    return gCostumeGiven ? 0 : -1;
+}
+
+// 1 when the next room start changes the costume
+bool costumeChange()
+{
+    int c = wantedCostume();
+    return c >= 0 && c != pG->game_costume;
+}
+
+int wantedChar()
+{
+    int wanted = wantedBits();
     int type = (wanted & kChar) >> kCharShift;
     return type >= 2 && type <= 5 ? type : 0;
 }
@@ -331,7 +360,7 @@ int nextType()
     return type;
 }
 
-// Another character chosen while the story runs: at once (wish of the project owner, 03.11.2026),
+// Another character or costume chosen while the story runs: at once (wish of the project owner, 03.11.2026),
 // as soon as the player is free (the room's game loop, no event, sub screen or movie). The room
 // starts again where the player stands, as through a door into itself (SceAtExecRoomJump): its start
 // gives the player data of the new type. Once per choice: with Ashley too far the door's message
@@ -342,8 +371,8 @@ void switchNow()
     if (!pG || !pPL || !storyGame()) {
         return;
     }
-    int want = wantedChar();
-    if (nextType() == pG->pl_type) {
+    int want = wantedBits() & (kChar | kCostume);
+    if (nextType() == pG->pl_type && !costumeChange()) {
         tried = -1;
         return;
     }
@@ -355,8 +384,9 @@ void switchNow()
     Vec pos = pPL->pos;
     Vec ang = pPL->ang;
     SceAtExecRoomJump(G_ROOM_ID, &pos, &ang, pG->Part);
-    re4_log("cheat: the story's player becomes %s at once: r%03x starts again at (%.0f %.0f %.0f)%s",
-            kCharName[nextType()], (unsigned) G_ROOM_ID, pos.x, pos.y, pos.z,
+    re4_log("cheat: the story's player becomes %s%s at once: r%03x starts again at (%.0f %.0f %.0f)%s",
+            kCharName[nextType()], costumeChange() ? (wantedCostume() ? " in the special costume" : " in the normal costume") : "",
+            (unsigned) G_ROOM_ID, pos.x, pos.y, pos.z,
             pG->Rno0 == 4 ? "" : " - not now (Ashley too far?), from the next room on");
 }
 
@@ -580,6 +610,13 @@ void re4_story_char_room(void)
         gSwitched = 0;
         return;
     }
+    int costume = wantedCostume();
+    if (costume >= 0 && costume != pG->game_costume) {
+        re4_log("cheat: the %s costume from r%03x on", costume ? "special" : "normal", (unsigned) pG->room_id);
+        pG->game_costume = (u8) costume;
+        PlSetCostume();
+    }
+    gCostumeGiven = costume == 1;
     int want = wantedChar();
     int type = pG->pl_type;
     if (type == 0 && want) {

@@ -477,6 +477,12 @@ public class CoreMenuLayoutTest {
       wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
       health.performClick(); assertEquals(5 | 5 << 5, sent[0]);
       leon.performClick(); assertEquals(5, sent[0]);
+      // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
+      Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
+      assertSame(leon.getParent(), costume.getParent());
+      costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
+      hunk.performClick(); assertEquals(5 | 256 | 3 << 5, sent[0]);
+      costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
     }
   }
 

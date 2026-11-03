@@ -118,6 +118,8 @@ final class CoreMenu extends Dialog {
   private static final long CHEAT_FLASH_MS = 1500;
   /** The story's player character in the cheat switches: its player type << 5 (runtime/cheats.cpp). */
   static final int CHARACTER_SHIFT = 5, CHARACTER_BITS = 7 << CHARACTER_SHIFT;
+  /** The special costume of Leon and Ashley in the cheat switches (runtime/cheats.cpp). */
+  static final int COSTUME_BIT = 256;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
@@ -1099,16 +1101,18 @@ final class CoreMenu extends Dialog {
   }
   /** The story's player character below the cheat buttons (wish of the project owner, 03.11.2026;
    *  port/docs/cheat-menu-plan.md): one of the characters that play the story cleanly takes Leon's place
-   *  from the next room on (a door, a loaded save, a new game); bits 32..224 of the switches hold its
-   *  player type (runtime/cheats.cpp). Saves keep Leon. */
+   *  at once (the room starts again where the player stands); bits 32..224 of the switches hold its
+   *  player type (runtime/cheats.cpp). Saves keep Leon. In the row's free sixth place the switch for the
+   *  special costume of Leon and Ashley (wish of the project owner, 03.11.2026; bit 256). */
   private void playerCharacter() {
     heading(R.string.ingame_cheat_character);
     final String[] labels = {"Leon", "Ada", "HUNK", "Krauser", "Wesker"};
     final int[] values = {0, 2, 3, 4, 5};
     int selected = (cheatBits & CHARACTER_BITS) >> CHARACTER_SHIFT;
-    quarterChoices(R.string.ingame_cheat_character_play, labels, values, selected, value -> {
+    Button[] row = quarterChoices(R.string.ingame_cheat_character_play, labels, values, selected, value -> {
       cheatBits = (cheatBits & ~CHARACTER_BITS) | (value << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);
     });
+    cheatSwitch((MenuLayout.Buttons) row[0].getParent(), R.string.ingame_cheat_costume, COSTUME_BIT);
     help(R.string.ingame_cheat_character_help);
   }
   /** The game is held while the menu is open: the core does a button at once and answers. */
