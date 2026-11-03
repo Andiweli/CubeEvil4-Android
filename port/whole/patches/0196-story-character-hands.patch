@@ -1,0 +1,36 @@
+# The story with another player character, continued (project owner's device test, 03.11.2026: "Ada hat eine
+# 3te Hand, rechts direkt an jeder Waffe"; GX dumps of the owner). Leon's weapons pass their grip hand
+# (initWepHand: the hand model in the weapon's file, made for Leon's skeleton) to setRightHand(1). HUNK, Krauser
+# and Wesker wear it well; on Ada's smaller skeleton it stood beside the weapon as a third hand. Now Ada takes
+# her own grip hand for the kind of weapon (her handgun's, TMP's or rifle's, read by runtime/cheats.cpp into the
+# development half of MEM1), her open hand when those files could not be read.
+# Not a bug of the prototype: a port feature (the cheat menu, patch 0195). Without a stand-in nothing changes.
+--- a/src/pl02/pl02.cpp
++++ b/src/pl02/pl02.cpp
+@@ -224,6 +224,10 @@
+ 
+ // Right hand model: 1 = the weapon module's hand (Body->pWepHand), 0 and 2..9 = the bare hand
+ // (0x11), any other value is a model data pointer; replaces Body->pRight.
++/* PORT (patch 0196): runtime/cheats.cpp */
++extern "C" int re4_story_char_leon_weapon(int no);
++extern "C" void* re4_story_char_grip(void);
++
+ void cPlAda::setRightHand(int no)
+ {
+     cModelInfo* info;
+@@ -248,6 +252,15 @@
+         break;
+     case 1:
+         data = Body->pWepHand;
++        /* PORT (patch 0196): Ada plays the story with one of Leon's weapons: its grip hand is Leon's, made
++           for his skeleton (on Ada's it stood beside the weapon as a third hand); her own, from her
++           handgun's, TMP's or rifle's file (runtime/cheats.cpp), else her open hand */
++        if (re4_story_char_leon_weapon(pG->weapon_no)) {
++            data = re4_story_char_grip();
++            if (data == 0) {
++                data = PL_ARC(0x11);
++            }
++        }
+         break;
+     default:
+         data = (void*) no;

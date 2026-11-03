@@ -221,7 +221,7 @@
     <string name="ingame_cheat_extras_already">Ya desbloqueados: Assignment Ada y The Mercenaries están en el menú principal.</string>
     <string name="ingame_cheat_character">Personaje</string>
     <string name="ingame_cheat_character_play">Jugar como</string>
-    <string name="ingame_cheat_character_help">El personaje ocupa el lugar de Leon en la historia desde la siguiente sala (al cruzar una puerta, al cargar una partida o en una partida nueva). El maletín, la vida y el dinero de Leon se mantienen; las armas sin modelo propio del personaje muestran las de Leon. La parte de Ashley sigue siendo de Ashley; las escenas y las llamadas de radio siguen mostrando a Leon. Tus partidas guardadas siempre conservan a Leon, así que se cargan con el personaje elegido aquí.</string>
+    <string name="ingame_cheat_character_help">El personaje ocupa al instante el lugar de Leon en la historia: la sala se vuelve a cargar donde estás (durante una escena, desde la siguiente sala). El maletín, la vida y el dinero de Leon se mantienen; las armas sin modelo propio del personaje muestran las de Leon. La parte de Ashley sigue siendo de Ashley; las escenas y las llamadas de radio siguen mostrando a Leon. Tus partidas guardadas siempre conservan a Leon, así que se cargan con el personaje elegido aquí.</string>
     <string name="ingame_later">Más tarde</string>
     <string name="ingame_controller_config">Asignación de botones</string>
     <string name="ingame_controller_config_help">Asignación de botones: pon cada acción del juego en teclas de tu mando o teclado.</string>

@@ -33,7 +33,8 @@
 // The story's player character (wish of the project owner, 03.11.2026; port/docs/cheat-menu-plan.md,
 // "Spielfiguren"): bits 32..224 of the switches hold a player type (pl_type << 5: 2 Ada, 3 HUNK, 4
 // Krauser, 5 Wesker; 0 Leon). Patch 0195 asks here: the room that loads next (gameRoomInit, before ReadPlayerData)
-// gets that character instead of Leon, in the story only (not Ashley's part, Assignment Ada or The
+// gets that character instead of Leon (a change while the story runs starts the room again where the player
+// stands: switchNow), in the story only (not Ashley's part, Assignment Ada or The
 // Mercenaries). What is Leon's stays his: the case, the life, the money, the room items for Leon
 // (SCE_AT player_type 1), the costume (his rule: the vest, chapter 2's jacket), and the save, which
 // always holds Leon (pl_type 0), so a save made with a stand-in loads with Leon or the character chosen
@@ -50,6 +51,8 @@
 #include "dvd.h"
 #include "read.h"
 #include "scheduler.h"
+#include "player.h"
+#include "sce_at.h"
 
 #include <atomic>
 #include <stdio.h>
@@ -208,6 +211,8 @@ void apply(int wanted)
     }
 }
 
+void switchNow();
+
 void hook(unsigned)
 {
     int wanted = gWanted.load(std::memory_order_acquire);
@@ -219,6 +224,7 @@ void hook(unsigned)
         wanted = gWanted.load(std::memory_order_acquire);
     }
     apply(wanted);
+    switchNow();
     int what = gQueued.exchange(0, std::memory_order_acq_rel);
     if (what) {
         re4CheatPerform(what);
@@ -234,6 +240,14 @@ void hook(unsigned)
 const u32 kLeonArcAddr = 0x82000000u;
 const u32 kLeonArcMax = 0x118000u;  // read.cpp ReadPlayerData: Leon's limit
 const u32 kWepPlaceAddr = 0x82200000u;
+// Ada's own right hands for Leon's weapons (patch 0196): her handgun's, TMP's and rifle's files (their grip
+// hands 0xA, 0xC, 0xD, as wep38/39/40.cpp give initWepHand), each in a place of 0x80000 after Krauser's
+// buffer (WEP_DATA_MAX 0x70000)
+const u32 kAdaGripAddr[3] = {0x82300000u, 0x82380000u, 0x82400000u};
+const u32 kAdaGripMax = 0x80000u;
+const char* const kAdaGripFile[3] = {"em/wep38.drs", "em/wep39.drs", "em/wep40.drs"};
+const u8 kAdaGripNo[3] = {0xA, 0xC, 0xD};
+int gAdaGrips;  // bit k: kAdaGripFile[k] read
 
 int gLeonCostume = -1;  // the costume of the archive at kLeonArcAddr, -1 none
 int gSwitched;          // the type the cheat gave the story's player (0: none)
@@ -300,6 +314,107 @@ void loadLeon(int costume)
     gLeonCostume = costume;
     re4_log("cheat: Leon's archive %s (%u bytes) read to 0x%08x for the events", names[costume], (unsigned) size,
             (unsigned) kLeonArcAddr);
+}
+
+// The type re4_story_char_room gives the story's player in the next room (the current one when
+// nothing changes)
+int nextType()
+{
+    int want = wantedChar();
+    int type = pG->pl_type;
+    if (type == 0 && want) {
+        return want;
+    }
+    if (type >= 2 && type <= 5 && type == gSwitched && type != want) {
+        return want;
+    }
+    return type;
+}
+
+// Another character chosen while the story runs: at once (wish of the project owner, 03.11.2026),
+// as soon as the player is free (the room's game loop, no event, sub screen or movie). The room
+// starts again where the player stands, as through a door into itself (SceAtExecRoomJump): its start
+// gives the player data of the new type. Once per choice: with Ashley too far the door's message
+// shows and the change waits for the next room.
+void switchNow()
+{
+    static int tried = -1;
+    if (!pG || !pPL || !storyGame()) {
+        return;
+    }
+    int want = wantedChar();
+    if (nextType() == pG->pl_type) {
+        tried = -1;
+        return;
+    }
+    if (tried == want || pG->Rno0 != 3 || StaFlagChk(pG, STA_EVENT) || StaFlagChk(pG, STA_SUB_SCRN) ||
+        StaFlagChk(pG, STA_MOVIE_ON)) {
+        return;
+    }
+    tried = want;
+    Vec pos = pPL->pos;
+    Vec ang = pPL->ang;
+    SceAtExecRoomJump(G_ROOM_ID, &pos, &ang, pG->Part);
+    re4_log("cheat: the story's player becomes %s at once: r%03x starts again at (%.0f %.0f %.0f)%s",
+            kCharName[nextType()], (unsigned) G_ROOM_ID, pos.x, pos.y, pos.z,
+            pG->Rno0 == 4 ? "" : " - not now (Ashley too far?), from the next room on");
+}
+
+// Ada's grip hands to kAdaGripAddr, once (nothing else uses that memory). In a room's start, before
+// ReadWepData: the files' sounds go to the weapon's sound block, which the weapon's own read fills again.
+void loadAdaGrips()
+{
+    for (int k = 0; k < 3; k++) {
+        if (gAdaGrips & (1 << k)) {
+            continue;
+        }
+        DVD_READINFO info;
+        int ret;
+        int req = DvdReadN(kAdaGripFile[k], (void*) (unsigned long) kAdaGripAddr[k], 0, 0, 0, 0x8001, __FILE__,
+                           __LINE__);
+        while ((ret = Dvd.ReadCheck(req, &info)) != 1) {
+            if (ret < 0) {
+                re4_log("cheat: %s not readable: Ada holds Leon's weapons with her open hand", kAdaGripFile[k]);
+                return;
+            }
+            TaskSleep(1);
+        }
+        u32 size = info.read_size[0][0] + info.read_size[0][1];
+        if (size > kAdaGripMax || (u32) (unsigned long) info.start_addr[0][0] != kAdaGripAddr[k]) {
+            re4_log("cheat: %s is %u bytes at %p, not in its place", kAdaGripFile[k], (unsigned) size,
+                    (void*) info.start_addr[0][0]);
+            continue;
+        }
+        gAdaGrips |= 1 << k;
+        re4_log("cheat: Ada's grip hand from %s (%u bytes) read to 0x%08x", kAdaGripFile[k], (unsigned) size,
+                (unsigned) kAdaGripAddr[k]);
+    }
+}
+
+// Which of Ada's grips holds Leon's weapon `no`: 1 the TMP's (his TMP), 2 the rifle's (shotguns, rifles, the
+// Chicago Typewriter, the rocket launcher, the mine thrower), 0 the handgun's (handguns, magnums)
+int adaGripOf(int no)
+{
+    switch (no) {
+    case 0x0B:
+    case 0x14:
+        return 1;
+    case 0x07:
+    case 0x08:
+    case 0x09:
+    case 0x0A:
+    case 0x0C:
+    case 0x0D:
+    case 0x0E:
+    case 0x15:
+    case 0x18:
+    case 0x1E:
+    case 0x1F:
+    case 0x20:
+    case 0x21:
+        return 2;
+    }
+    return 0;
 }
 
 // The weapon numbers a character has files of its own for (read.cpp wep_data_*, ss_model.cpp
@@ -483,6 +598,9 @@ void re4_story_char_room(void)
     }
     if (standIn()) {
         loadLeon(leonCostume());
+        if (pG->pl_type == 2) {
+            loadAdaGrips();
+        }
     }
 }
 
@@ -510,6 +628,22 @@ int re4_story_char_costume(void)
 int re4_story_char_leon_weapon(int no)
 {
     return standIn() && !ownWeapon(pG->pl_type, no);
+}
+
+// Patch 0196 (pl02.cpp cPlAda::setRightHand): Ada's own grip hand for the weapon she holds when it is one
+// of Leon's (his grip hand is made for his skeleton: on hers it stood beside the weapon), 0 otherwise or
+// when its file could not be read
+void* re4_story_char_grip(void)
+{
+    if (!standIn() || pG->pl_type != 2 || !re4_story_char_leon_weapon(pG->weapon_no)) {
+        return 0;
+    }
+    int k = adaGripOf(pG->weapon_no);
+    if (!(gAdaGrips & (1 << k))) {
+        return 0;
+    }
+    const PlArc* arc = (const PlArc*) (unsigned long) kAdaGripAddr[k];
+    return (void*) (size_t) (arc->ofs[kAdaGripNo[k]] + kAdaGripAddr[k]);
 }
 
 // Krauser's weapon buffer when gameInit made none (he took over a story started with Leon)

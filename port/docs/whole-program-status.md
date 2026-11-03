@@ -98,6 +98,26 @@ Ashley und „Leon+Ashley“ nein; Leons Kostüme bleiben beim Spiel (kein eigen
   Koffer-Ansicht beleuchtet ein leeres Waffenmodell, wie in ihren eigenen Spielen); Ada „Invalid parts 110“ (5 Räume)
   und „MotSeqCtrl … Invalid Seq. Frame“ (6 Räume): Leons Bewegungen auf ihrem kleineren Skelett, das Spiel überspringt
   das Teil.
+- **Nach dem Gerätetest des Projektinhabers (03.11.2026, GX-Dumps `gx-dumps1..3`, Patch 0196, `runtime/cheats.cpp`):**
+  - *Adas dritte Hand* an jeder Waffe: Leons Waffen geben ihre Griffhand (`initWepHand`, das Handmodell in Leons
+    Waffendatei, für sein Skelett gebaut) an `setRightHand(1)`; auf Adas kleinerem Skelett stand sie neben der Waffe
+    (am PC nachgestellt: r20e, Ada mit Leons Pistole 6, Bild vor/nach). Jetzt nimmt Ada ihre eigene Griffhand: die
+    Handgriffe aus `em/wep38.drs` (Pistole, Eintrag 0xA), `wep39` (TMP, 0xC), `wep40` (Gewehr, 0xD), einmal gelesen nach
+    0x82300000/0x82380000/0x82400000 (nach Krausers Puffer); Pistolen und Magnums → Pistolengriff, Leons TMP →
+    TMP-Griff, Schrotflinten, Gewehre, Chicago Typewriter, Raketenwerfer, Minenwerfer → Gewehrgriff. Lesbar nicht →
+    ihre offene Hand (0x11). HUNK und Wesker mit Leons Waffen am PC angesehen: sauber, keine Änderung.
+  - *Wechsel sofort* (Wunsch des Projektinhabers): `switchNow` im Bild-Haken der Cheats: ändert sich die Figur, startet
+    der Raum neu dort, wo der Spieler steht (`SceAtExecRoomJump` in den eigenen Raum, Teil `pG->Part`), sobald der
+    Spieler frei ist (Spielschleife, kein Ereignis, kein Koffer, kein Film); einmal je Wahl, mit Ashley zu weit weg
+    zeigt die Tür ihre Meldung und es bleibt beim nächsten Raum. Testschalter `RE4_TEST_CHEAT_SET=free+N:B`
+    (`state_trace.cpp`). Am PC: r20e Leon → Ada an derselben Stelle (Bild), Ada → Leon, Ada → Wesker, Leon → HUNK.
+    Hilfetext im App-Menü in 11 Sprachen angepasst.
+  - *Waffenpose im Koffer:* die Koffer-Ansicht hat je Figur und Waffe eine eigene Datei (`SS/cmn/ss_wepNN.dat`: Hand,
+    Waffe, Pose für das Skelett der Figur); die Figuren haben sie nur für ihre Mercenaries-Waffen, für Leons Waffen
+    zeigt die Ansicht sie wie mit dem Messer (Patch 0195). Nicht geändert.
+  - *Kostüme:* der Prototyp kennt ein Spezialkostüm (`game_costume` 1, Debug-Startmenü „PL COSTUME“ 0..1): Leon
+    `pl10`, Ashley `pl05`, Ada `pl0c`; Leons Spielkostüme `pl08` (Kapitel-Jacke), `pl09` (Weste) wählt das Spiel.
+    Auf allen Discs liegen außerdem `pl02` und `pl07`, die der Code nie liest (nicht untersucht).
 - **Nicht geprüft (nur am Gerät):** wie die Figuren aussehen und sich anfühlen (Bewegungen, besonders Ada), Bosskämpfe
   und Griffe mit Spezialbewegungen (El Gigante, Mendez, U-3, Krauser-Messerkampf), Boot, Lore, Jetski, das Menü auf dem
   Gerät; ARM32/ARM64 nicht gebaut.
@@ -11424,6 +11444,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0189 `cam_qfps.cpp` | Schulterkamera-Tabellen `g_readyOfs` / `g_transOfs` der Verkaufs-Discs (US, EU/JP) vor `offsetCorrection`. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Nutzerbericht 03.11.2026 |
 | 0190 `light.cpp` | Lichtvorrat beim Verlassen des Koffers: `registCut` lädt bei zu kleinem Vorrat die ersten Lichter und kürzt die Schnitt-Daten nicht mehr, `update` legt keine Ersatzplätze an, wenn der Schnitt mehr Lichter als `nMaxLight` hat, und hört bei vollem Vorrat auf. Vorher Absturz (Ada, Mercenaries, Scheune). Fehler des Prototyps, Nutzerbericht 02.11.2026 |
 | 0195 `game.cpp`, `read.cpp`, `event.cpp`, `obj18.cpp`, `pl_sub.cpp`, `sce_at.cpp`, `ss_model.cpp`, `pl02.cpp`, `pl06.cpp`, `pl_klauser.cpp`, `pl_wesker.cpp` | Cheat „Player character“: Ada, HUNK, Krauser oder Wesker spielen die Geschichte (Wechsel beim Raumstart, Spielstände immer Leon), Leons Waffendateien für Waffen ohne eigene Datei, nächstliegende linke Hand, Leons Körper in Zwischensequenzen und auf dem Funkbildschirm, Raum-Gegenstände und Kostümregel wie Leon, Koffer-Ansicht mit Leon-Waffe wie mit dem Messer; dazu `re4_whole_prelude.h` (fehlende Archiv-Einträge aus Leons Archiv). Port-Funktion (Cheat-Menü), Wunsch des Projektinhabers 03.11.2026 |
+| 0196 `pl02.cpp` | Ada als Stellvertreterin mit Leons Waffen: ihre eigene Griffhand (aus ihren Waffendateien, `runtime/cheats.cpp`) statt Leons, die auf ihrem Skelett als dritte Hand neben der Waffe stand. Port-Funktion (Cheat-Menü), Gerätetest des Projektinhabers 03.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

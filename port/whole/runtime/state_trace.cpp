@@ -59,6 +59,10 @@
 //                          per piece, stock, the handgun's tune prices) and a
 //                          few damage values; G sets game_mode first (patch
 //                          0187, 02.11.2026)
+//   RE4_TEST_CHEAT_SET="free+N:B"  N frames after the player is free, the
+//                          cheat switches become B as the app's menu sets them
+//                          (re4_cheats_set; B 64 = Ada as the story's player:
+//                          the switch at once, 03.11.2026)
 //   RE4_TEST_SSCRN_LIGHT="free+N"  N frames after the player is free, the
 //                          room lights as closing the attache case after a
 //                          weapon change updates them: the case's 10-light
@@ -633,6 +637,9 @@ int g_streamBlock, g_streamNo;
 long g_merchantAfter = -1;   // RE4_TEST_MERCHANT
 int g_merchantMode;
 long g_sscrnLightAfter = -1;  // RE4_TEST_SSCRN_LIGHT
+long g_cheatSetAfter = -1;    // RE4_TEST_CHEAT_SET
+int g_cheatSetBits;
+extern "C" void re4_cheats_set(int bits);
 
 // RE4_TEST_MERCHANT: the Buy list as the merchant's screen makes it (price per piece, stock), the handgun's tune
 // prices, the buying price of a few items and damage values against a few enemy classes (patch 0187).
@@ -1847,6 +1854,10 @@ void frame(unsigned n)
     if (g_freeAt >= 0 && g_merchantAfter >= 0 && (long) n == g_freeAt + g_merchantAfter) {
         merchantTest(n);
     }
+    if (g_freeAt >= 0 && g_cheatSetAfter >= 0 && (long) n == g_freeAt + g_cheatSetAfter) {
+        re4_log("run: cheat switches %d (RE4_TEST_CHEAT_SET) at frame %u", g_cheatSetBits, n);
+        re4_cheats_set(g_cheatSetBits);
+    }
     if (g_freeAt >= 0 && g_sscrnLightAfter >= 0 && (long) n == g_freeAt + g_sscrnLightAfter) {
         re4_log("run: attache case lights (RE4_TEST_SSCRN_LIGHT) at frame %u: area %d", n, (int) CamCtrl.areaNo);
         LightMgr.inSscrn();
@@ -2028,6 +2039,12 @@ void configure()
     if (const char* m = getenv("RE4_TEST_MERCHANT")) {
         if (sscanf(m, "free+%ld:%d", &g_merchantAfter, &g_merchantMode) < 1) {
             re4_log("run: RE4_TEST_MERCHANT \"%s\" not understood (free+N[:game_mode])", m);
+        }
+    }
+    if (const char* m = getenv("RE4_TEST_CHEAT_SET")) {
+        if (sscanf(m, "free+%ld:%i", &g_cheatSetAfter, &g_cheatSetBits) != 2) {
+            re4_log("run: RE4_TEST_CHEAT_SET \"%s\" not understood (free+N:B)", m);
+            g_cheatSetAfter = -1;
         }
     }
     if (const char* m = getenv("RE4_TEST_SSCRN_LIGHT")) {
