@@ -153,3 +153,40 @@ bisherigen sechs.
   Freischaltung (Bit 16): Der Kern setzt die Merker in jedem Bild wieder, solange eine Systemdatei ohne sie gelesen
   wurde (kein Speichern seither); beim nächsten Speichern landet sie auf der Speicherkarte.
 
+
+## Erweiterung 03.11.2026: Spielfiguren für die Geschichte
+
+Wunsch des Projektinhabers (03.11.2026): prüfen, welche Figuren die Hauptgeschichte statt Leon spielen können; jede, die
+das sauber kann, kommt als eigener Abschnitt **„Player character“** unter die Cheat-Knöpfe und ersetzt Leon im
+Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-character.patch`) und
+`runtime/cheats.cpp` (Abschnitt „the story's player character“), Branch `claude/char-cheat-f03122`.
+
+### Was der Spielcode mitbringt
+
+- `pG->pl_type` (0x4FB8, im Spielstand): 0 Leon, 1 Ashley, 2 Ada, 3 HUNK, 4 Krauser, 5 Wesker, 6 Leon+Ashley (nur das
+  Debug-Startmenü, wird beim Start zu 0). Das Debug-Startmenü des Prototyps lässt jede Figur in jeden Raum: das Spiel
+  hat für alle Figuren eigene Spielerklassen (`pl02`, `pl06`, `pl0a`, `pl0d`), Gegner reagieren auf sie (`em10.cpp`:
+  Griffe, Tritte, Kopf je Figur), es gibt Gegner-Dateien je Figur (`EmFileTbl_Ada`, `_Wesker`, `_Klauser`).
+- **Ohne Hilfe stürzt jede Figur außer Wesker im ersten Bild ab** (PC, Debug-Start, `RE4_TEST_PLAYER`, 27 Räume):
+  Die Geschichte gibt Leons Startpaket (Pistole 0x23, Waffennummer 2); die Waffentabellen der Figuren (`read.cpp`
+  `wep_data_ada/hunk/klauser/wesker`) haben nur ihre Mercenaries-Waffen, ohne Waffenmodul fehlt die Laufbewegung
+  (`MotionSetCore(): pMot == NULL`). Wesker hat eine eigene Pistole (Nummer 2) und lief durch.
+- Weiter fehlt den Figuren außerhalb ihrer eigenen Spiele: Leons Requisiten im Spieler-Archiv (Funkgerät 0x77..0x79,
+  Raketenwerfer 0x70..0x76, Minen 0x72/0x73, Pfeife 0x7C; bei Wesker, Ada, Krauser leer oder anders belegt), Leons
+  Körper für die Zwischensequenzen (`event.cpp` setzt `em/pl00/pl000a.bin` … nur bei `pl_type == 0`; sonst fehlt der
+  Körper: „Event::ExePacket_SetOm : dat failed“), Leons linke Hände 2..5 (die Figuren kennen nur einige; eine fehlende
+  Nummer wird als Zeiger genommen: Absturz), und die Gegenstände der Räume: jeder Raum-Gegenstand hat eine Maske
+  `player_type` (1 Leon, 2 die anderen) – mit einer anderen Figur fehlten alle Gegenstände für Leon (Schlüssel, Munition,
+  Schätze).
+
+### Figuren: Ergebnis
+
+| Figur | Ergebnis | Begründung |
+| --- | --- | --- |
+| HUNK (3) | **ja** | Archiv mit Leons Bewegungen (gleiches Skelett, gleiche Größen), hat sogar Leons Requisiten; mit Patch 0195 laufen alle Waffen Leons, Gegenstände, Zwischensequenzen |
+| Krauser (4) | **ja** | eigene Bewegungen, Leons Waffen laufen; Raketenwerfer und Minenwerfer brauchen Leons Requisiten (an diesen Plätzen liegen Krausers Pfeile) |
+| Wesker (5) | **ja** | Leons Bewegungen; eigene Pistole, Killer7 und Gewehr, sonst Leons Waffen; Funkgerät und Requisiten aus Leons Archiv |
+| Ada (2) | siehe unten | eigene, kleinere Figur: Leons Waffenbewegungen melden „Invalid parts 110“ |
+| Ashley (1) | **nein** | keine Waffen, kein Koffer (`m_char` 1), das Spiel hat für sie eigene Abschnitte (r206–r20e); als Ersatz für Leon nicht spielbar |
+| Leon+Ashley (6) | **nein** | keine Figur: ein Schalter des Debug-Startmenüs (Leon mit Ashley), wird beim Start zu Leon |
+| Leons Kostüme | **nein (kein eigener Cheat)** | das Spiel wählt sie selbst (`PlSetCostume`: Weste, Kapitel 2 ohne Jacke, Spezialkostüm über `game_costume` und ein neues Spiel); die Stellvertreter folgen dieser Regel (Zwischensequenzen, Weste) |

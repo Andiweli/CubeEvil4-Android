@@ -705,8 +705,9 @@ int re4_core_instant(int operation, Re4InstantInfo* info)
 // while the menu holds the game (the answer shows in the menu), else by the next game frame.
 void re4_core_set_cheats(int bits)
 {
-    if (re4_cheats_wanted() != (bits & 31)) {
-        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept)", bits & 31);
+    if (re4_cheats_wanted() != (bits & 255)) {
+        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept, "
+                "32..224 the story's player type << 5)", bits & 255);
     }
     re4_cheats_set(bits);
 }

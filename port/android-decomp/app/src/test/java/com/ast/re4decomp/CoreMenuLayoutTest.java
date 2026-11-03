@@ -466,6 +466,17 @@ public class CoreMenuLayoutTest {
       killer7.performClick(); assertTrue(killer7.isSelected());
       org.robolectric.shadows.ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS);
       assertFalse(killer7.isSelected());
+      // the story's player character below the buttons (03.11.2026): its player type << 5, the switches kept
+      assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_character_play)));
+      Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
+      assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
+      hunk.performClick(); assertEquals(4 | 3 << 5, sent[0]);
+      assertTrue(hunk.isSelected()); assertFalse(leon.isSelected());
+      wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
+      findButton(body, "Ada").performClick(); assertEquals(4 | 2 << 5, sent[0]);
+      wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
+      health.performClick(); assertEquals(5 | 5 << 5, sent[0]);
+      leon.performClick(); assertEquals(5, sent[0]);
     }
   }
 

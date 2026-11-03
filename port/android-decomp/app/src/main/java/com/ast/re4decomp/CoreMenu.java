@@ -1103,8 +1103,8 @@ final class CoreMenu extends Dialog {
    *  player type (runtime/cheats.cpp). Saves keep Leon. */
   private void playerCharacter() {
     heading(R.string.ingame_cheat_character);
-    final String[] labels = {"Leon", "HUNK", "Krauser", "Wesker"};
-    final int[] values = {0, 3, 4, 5};
+    final String[] labels = {"Leon", "Ada", "HUNK", "Krauser", "Wesker"};
+    final int[] values = {0, 2, 3, 4, 5};
     int selected = (cheatBits & CHARACTER_BITS) >> CHARACTER_SHIFT;
     quarterChoices(R.string.ingame_cheat_character_play, labels, values, selected, value -> {
       cheatBits = (cheatBits & ~CHARACTER_BITS) | (value << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);

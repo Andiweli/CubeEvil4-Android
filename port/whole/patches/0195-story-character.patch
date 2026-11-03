@@ -16,9 +16,9 @@
 #   protects them as it would Leon.
 # - sce_at.cpp: the room items for Leon (player_type 1: the story's keys, ammo, treasure) and the system items
 #   as for Leon; with mask 2 every Leon item of the room was missing.
-# - Sscrn/ss_model.cpp: the case screen reads the character's knife file for a weapon of Leon's (it shows the
-#   character without a weapon, as its ModelInit does for numbers it lacks; the name was left unset), the
-#   radio screen shows Leon from his archive.
+# - Sscrn/ss_model.cpp: the case screen shows the character as with its knife while a weapon of Leon's is armed
+#   (its knife file; the name was left unset, the empty weapon model's light logged "litHitCk PNo0"), the radio
+#   screen shows Leon from his archive.
 # - pl06.cpp, pl0d/pl_wesker.cpp, pl02.cpp setLeftHand: Leon's weapons ask for left hands 2..5 (fore-end, TMP grip,
 #   handgun support, mine thrower) the characters partly lack; a missing number was taken as a model pointer
 #   (HUNK with Leon's handgun crashed in cModInfoMgr::create): the nearest hand of the character; Leon's hand 5
@@ -67,6 +67,54 @@
      ssModelLight(m);
  }
  
+@@ -290,6 +301,11 @@ void ashleyModelInit()
+ // model to fade/animate.
+ void adaModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec ada_pos = {850.0f, -1300.0f, 0.0f};
+@@ -512,6 +528,11 @@ void wep30Init(int no, int type)
+ // Krauser's sub screen model with weapon `no`: 0 hands (wep36), 0x1C bow (wep28), grenades (wep42).
+ void klauserModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec klauser_pos = {850.0f, -1300.0f, 0.0f};
+@@ -684,6 +705,11 @@ void wep42Init(int no, int type)
+ // (wep41).
+ void hunkModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec hunk_pos = {850.0f, -1300.0f, 0.0f};
+@@ -851,6 +877,11 @@ void wep41Init(int no, int type)
+ // handgun (wep44), 0xA rifle (wep47), grenades (wep45).
+ void weskerModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec wesker_pos = {850.0f, -1300.0f, 0.0f};
 --- a/src/game/event.cpp
 +++ b/src/game/event.cpp
 @@ -1489,6 +1489,9 @@ int Event::ExePacket_EndPac(Event* pEvt)
