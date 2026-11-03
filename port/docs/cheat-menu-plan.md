@@ -153,3 +153,71 @@ bisherigen sechs.
   Freischaltung (Bit 16): Der Kern setzt die Merker in jedem Bild wieder, solange eine Systemdatei ohne sie gelesen
   wurde (kein Speichern seither); beim nächsten Speichern landet sie auf der Speicherkarte.
 
+
+## Erweiterung 03.11.2026: Spielfiguren für die Geschichte
+
+Wunsch des Projektinhabers (03.11.2026): prüfen, welche Figuren die Hauptgeschichte statt Leon spielen können; jede, die
+das sauber kann, kommt als eigener Abschnitt **„Player character“** unter die Cheat-Knöpfe und ersetzt Leon im
+Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-character.patch`) und
+`runtime/cheats.cpp` (Abschnitt „the story's player character“), Branch `claude/char-cheat-f03122`.
+
+### Was der Spielcode mitbringt
+
+- `pG->pl_type` (0x4FB8, im Spielstand): 0 Leon, 1 Ashley, 2 Ada, 3 HUNK, 4 Krauser, 5 Wesker, 6 Leon+Ashley (nur das
+  Debug-Startmenü, wird beim Start zu 0). Das Debug-Startmenü des Prototyps lässt jede Figur in jeden Raum: das Spiel
+  hat für alle Figuren eigene Spielerklassen (`pl02`, `pl06`, `pl0a`, `pl0d`), Gegner reagieren auf sie (`em10.cpp`:
+  Griffe, Tritte, Kopf je Figur), es gibt Gegner-Dateien je Figur (`EmFileTbl_Ada`, `_Wesker`, `_Klauser`).
+- **Ohne Hilfe stürzt jede Figur außer Wesker im ersten Bild ab** (PC, Debug-Start, `RE4_TEST_PLAYER`, 27 Räume):
+  Die Geschichte gibt Leons Startpaket (Pistole 0x23, Waffennummer 2); die Waffentabellen der Figuren (`read.cpp`
+  `wep_data_ada/hunk/klauser/wesker`) haben nur ihre Mercenaries-Waffen, ohne Waffenmodul fehlt die Laufbewegung
+  (`MotionSetCore(): pMot == NULL`). Wesker hat eine eigene Pistole (Nummer 2) und lief durch.
+- Weiter fehlt den Figuren außerhalb ihrer eigenen Spiele: Leons Requisiten im Spieler-Archiv (Funkgerät 0x77..0x79,
+  Raketenwerfer 0x70..0x76, Minen 0x72/0x73, Pfeife 0x7C; bei Wesker, Ada, Krauser leer oder anders belegt), Leons
+  Körper für die Zwischensequenzen (`event.cpp` setzt `em/pl00/pl000a.bin` … nur bei `pl_type == 0`; sonst fehlt der
+  Körper: „Event::ExePacket_SetOm : dat failed“), Leons linke Hände 2..5 (die Figuren kennen nur einige; eine fehlende
+  Nummer wird als Zeiger genommen: Absturz), und die Gegenstände der Räume: jeder Raum-Gegenstand hat eine Maske
+  `player_type` (1 Leon, 2 die anderen) – mit einer anderen Figur fehlten alle Gegenstände für Leon (Schlüssel, Munition,
+  Schätze).
+
+### Figuren: Ergebnis
+
+| Figur | Ergebnis | Begründung |
+| --- | --- | --- |
+| HUNK (3) | **ja** | Archiv mit Leons Bewegungen (gleiches Skelett, gleiche Größen), hat sogar Leons Requisiten; mit Patch 0195 laufen alle Waffen Leons, Gegenstände, Zwischensequenzen |
+| Krauser (4) | **ja** | eigene Bewegungen, Leons Waffen laufen; Raketenwerfer und Minenwerfer brauchen Leons Requisiten (an diesen Plätzen liegen Krausers Pfeile) |
+| Wesker (5) | **ja** | Leons Bewegungen; eigene Pistole, Killer7 und Gewehr, sonst Leons Waffen; Funkgerät und Requisiten aus Leons Archiv |
+| Ada (2) | **ja, mit Hinweis** | eigene, kleinere Figur: läuft in allen Räumen, Leons Waffen gehen; bei einigen Leon-Bewegungen fehlt ihr ein Körperteil („MotionMoveCore(): Pl, Invalid parts 110“: das Spiel überspringt nur dieses Teil) oder ein Zeitpunkt der Bewegungsfolge („MotSeqCtrl … Invalid Seq. Frame“, 6 Räume) – kleine Bewegungsfehler möglich, am Gerät ansehen |
+| Ashley (1) | **nein** | keine Waffen, kein Koffer (`m_char` 1), das Spiel hat für sie eigene Abschnitte (r206–r20e); als Ersatz für Leon nicht spielbar |
+| Leon+Ashley (6) | **nein** | keine Figur: ein Schalter des Debug-Startmenüs (Leon mit Ashley), wird beim Start zu Leon |
+| Leons Kostüme | **nein (kein eigener Cheat)** | das Spiel wählt sie selbst (`PlSetCostume`: Weste, Kapitel 2 ohne Jacke, Spezialkostüm über `game_costume` und ein neues Spiel); die Stellvertreter folgen dieser Regel (Zwischensequenzen, Weste) |
+
+### Umsetzung (Patch 0195, `runtime/cheats.cpp`)
+
+- **Wahl:** Bits 32..224 der Cheat-Schalter = Spielertyp << 5 (2 Ada, 3 HUNK, 4 Krauser, 5 Wesker; 0 Leon). Sie reisen
+  über den vorhandenen Weg (`CoreBridge.setCheats`, `RE4_CHEATS`, gespeichert wie die anderen Schalter); keine neue
+  Schnittstelle. App: Abschnitt „Player character“ mit „Play as“ und fünf Knöpfen unter den Cheat-Knöpfen.
+- **Wechsel beim Raumstart** (`gameRoomInit` vor `ReadPlayerData`): Leon → gewählte Figur, eine vom Cheat gesetzte Figur
+  → Leon, wenn der Cheat aus ist. Nur in der Geschichte (nicht Assignment Ada, nicht Mercenaries), Ashleys Abschnitt bleibt
+  Ashleys. Eine Änderung im Menü gilt also ab der nächsten Tür, dem nächsten Laden oder dem nächsten neuen Spiel.
+- **Leons Sachen bleiben:** Koffer, Leben (1200 + gelbe Kräuter), Geld, Kostüm (Leons Regel, auch die Weste schützt),
+  die Gegenstände der Räume für Leon (`player_type` 1). Die Cheat-Knöpfe (Killer7, Koffer, Geld, Waffen) gehen auch mit
+  einer Figur.
+- **Spielstände:** `cGameSave::save` schreibt immer Leon (`pl_type` 0, sein Kostüm) – auch die Instant-Spielstände. Ein
+  Spielstand lädt deshalb mit der Figur, die gerade im Menü gewählt ist (Leon bei „Leon“); Dolphin und GameCube sehen
+  einen normalen Leon-Spielstand. Im Protokoll: „cheat: saved with Leon as the player (HUNK plays)“ und nach dem Laden
+  „cheat: the story's player is HUNK from r100 on (was Leon)“.
+- **Waffen:** eigene Dateien der Figur für Messer, Granaten und ihre Mercenaries-Waffen (Ada: Punisher, Gewehr, TMP; HUNK:
+  TMP; Krauser: Bogen; Wesker: Pistole, Killer7, Gewehr), alle anderen aus Leons Tabelle. Leons Waffen verlangen linke
+  Hände, die den Figuren fehlen: die nächstliegende eigene Hand. Im Koffer steht die Figur mit einer Leon-Waffe wie mit
+  dem Messer da (kein eigenes Waffenmodell).
+- **Leons Archiv** (`em/pl00.drs`, je Kostüm `pl08`/`pl09`/`pl10`) liegt bei einer Figur zusätzlich in der
+  Entwickler-Hälfte von MEM1 (0x82000000, frei): Zwischensequenzen und Funkbildschirm zeigen **Leon** (ihre Bewegungen und
+  Teile sind seine), Funkgerät, Raketenwerfer, Minen, Pfeife und fehlende Bewegungen kommen von dort.
+
+### Grenzen (bewusst so)
+
+- Zwischensequenzen, Funksprüche und Leons Stimme bleiben Leon; die Figur erscheint im Spiel selbst.
+- Die Lebensanzeige zeigt für HUNK, Krauser und Wesker keinen Namen (das Spiel hat dort nur „Leon“, „Ashley“, „Ada“; wie
+  in The Mercenaries).
+- Im Koffer hält die Figur Leons Waffen nicht in der Hand.
+- Spielstände merken sich die Figur nicht (Absicht: sie bleiben Leon-Spielstände).

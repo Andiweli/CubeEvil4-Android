@@ -218,6 +218,9 @@
     <string name="ingame_cheat_extras_text">Assignment Ada 和 The Mercenaries 已解锁（还有 Professional，与通关后相同）。重新启动后，标题菜单会显示它们。自上次存档以来的进度将会丢失。</string>
     <string name="ingame_cheat_extras_later">已解锁：下次重新启动后，Assignment Ada 和 The Mercenaries 会出现在标题菜单中。</string>
     <string name="ingame_cheat_extras_already">已经解锁：Assignment Ada 和 The Mercenaries 已在标题菜单中。</string>
+    <string name="ingame_cheat_character">游戏角色</string>
+    <string name="ingame_cheat_character_play">扮演</string>
+    <string name="ingame_cheat_character_help">从下一个房间开始（穿过一扇门、读取存档后或开始新游戏），该角色在剧情中取代里昂。里昂的手提箱、生命值和金钱保持不变；角色没有自己模型的武器显示为里昂的武器。阿什莉的部分仍由阿什莉进行，过场动画和无线电通话仍显示里昂。你的存档始终保存为里昂，因此读取时使用此处所选的角色。</string>
     <string name="ingame_later">稍后</string>
     <string name="ingame_controller_config">按键映射</string>
     <string name="ingame_controller_config_help">按键映射：把游戏的每个动作放到手柄或键盘的按键上。</string>

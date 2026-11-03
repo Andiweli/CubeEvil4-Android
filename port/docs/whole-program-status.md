@@ -50,6 +50,48 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
    Schnitt-Daten für immer auf 10 und lud keins, `update` rechnete 9 − 10 vorzeichenlos (≈ 4 Milliarden Ersatzplätze),
    `create` lieferte 0. **Patch 0190** (`light.cpp`): die ersten 10 laden, Daten behalten, keine Ersatzplätze dann,
    Abbruch bei vollem Vorrat. Gebaut; am PC nicht nachgestellt (Ada in der Scheune).
+## Spielfiguren für die Geschichte: Ada, HUNK, Krauser, Wesker statt Leon (03.11.2026, lokal, Branch `claude/char-cheat-f03122`, Patch 0195; nicht in `master`/`work`)
+
+Wunsch des Projektinhabers (03.11.2026): Figuren, die die Hauptgeschichte sauber statt Leon spielen können, als eigener
+Abschnitt im Cheat-Menü. Analyse, Figurenliste mit Gründen, Umsetzung und Grenzen: `port/docs/cheat-menu-plan.md`,
+„Erweiterung 03.11.2026: Spielfiguren für die Geschichte“. Ergebnis: **Ada (mit Hinweis), HUNK, Krauser, Wesker ja**;
+Ashley und „Leon+Ashley“ nein; Leons Kostüme bleiben beim Spiel (kein eigener Cheat).
+
+- **Kern:** `runtime/cheats.cpp` (Bits 32..224 der Cheat-Schalter = Spielertyp << 5), Patch **0195** (`game.cpp`,
+  `read.cpp`, `event.cpp`, `obj18.cpp`, `pl_sub.cpp`, `sce_at.cpp`, `Sscrn/ss_model.cpp`, `pl02.cpp`, `pl06.cpp`,
+  `pl0a/pl_klauser.cpp`, `pl0d/pl_wesker.cpp`), `re4_whole_prelude.h` (`re4_arc_entry`: fehlende Einträge des
+  Spieler-Archivs aus Leons Archiv). Leons Archiv liegt bei einer Figur zusätzlich bei 0x82000000 (Entwickler-Hälfte von
+  MEM1, frei; Krausers Waffenpuffer bei 0x82200000).
+- **App:** `CoreMenu.java` Abschnitt „Player character“ / „Play as“ (Leon, Ada, HUNK, Krauser, Wesker) unter den
+  Cheat-Knöpfen, Texte in 11 Sprachen (`check_translations.py`: ok), `CoreMenuLayoutTest` prüft die Bits.
+- **Ohne Patch (Befund, PC, `RE4_TEST_PLAYER`, 27 Räume „set“):** Ada, HUNK, Krauser stürzen im ersten Bild ab
+  (`MotionGetSpeed`, keine Laufbewegung ohne Waffenmodul für Leons Pistole), Wesker 27/27, aber Zwischensequenzen ohne
+  Spielerkörper („Event::ExePacket_SetOm : dat failed“). Mit dem Patch zusätzlich gefunden und behoben: HUNK mit Leons
+  Pistole (linke Hand 4 als Zeiger, `cModInfoMgr::create`), Striker bei allen (Leons Hand 5 als Archiv-Zeiger,
+  `HermiteInterpolation`), Krausers Minenwerfer (`HALT model.cpp(1907)`: an Leons Minen-Plätzen liegen Krausers
+  Bewegungen), fehlende Raum-Gegenstände für Leon (`player_type`-Maske).
+- **Geprüft am PC (WSL `~/re4-chars/RE4`, i686 -O2, Cheat über `RE4_CHEATS`):**
+  - Raum-Rundgang **alle 126 Räume, Debug-Discs: Ada 126/126, HUNK 126/126, Krauser 126/126, Wesker 126/126** ohne
+    Absturz, Stillstand oder Todesschleife (je 6000 Bilder ab der Hauptschleife). Vergleich mit Leons Rundgang: HUNK
+    und Ada in r104 nie frei (8 Tode): die QTE der Eingangsszene trifft der Tastentakt des Rundgangs nicht (Leon dort 2
+    Tode); mit „Automatic QTEs“ HUNK in r104 frei nach 2453 Bildern ohne Tod.
+  - Rundgang „set“ (27 Räume) mit **EU-, US- und JP-Discs: alle vier Figuren je 27/27** (324 Läufe); Leons Archiv wird
+    auch von den Verkaufs-Discs gelesen (`em/pl08.drs` 1057152 Bytes EU).
+  - Waffen in r100 (je Figur 21 Waffennummern 0..0x21, `RE4_TEST_WEAPON`, dann zielen, feuern, Karte, Messer, Koffer):
+    mit dem Endstand **84/84 ohne Absturz**.
+  - GX-Bilder r100: Bild 901/1201 Autofahrt mit Leon (aus seinem Archiv), Bild 2562 alle vier Figuren zielen mit Leons
+    Schrotflinte (Hände und Laser richtig).
+  - Speicherkarte (`--card-only`, HUNK): Speichern an der Schreibmaschine („saved with Leon as the player“), Laden mit
+    HUNK-Cheat → HUNK (`pl06.drs`), dieselbe Karte mit Cheat aus → Leon (nur `pl00.drs`); „ALLES OK“.
+  - Kern-Prüfungen `whole_build.sh i686` (runtime-test, core-test, Module) 0 Fehler; `gradlew testCoreDebugUnitTest`
+    bestanden.
+- **Meldungen, die bleiben (harmlos):** HUNK, Krauser, Ada „litHitCk PNo0 2 0 0 1“ beim Koffer (die Messer-Pose ihrer
+  Koffer-Ansicht beleuchtet ein leeres Waffenmodell, wie in ihren eigenen Spielen); Ada „Invalid parts 110“ (5 Räume)
+  und „MotSeqCtrl … Invalid Seq. Frame“ (6 Räume): Leons Bewegungen auf ihrem kleineren Skelett, das Spiel überspringt
+  das Teil.
+- **Nicht geprüft (nur am Gerät):** wie die Figuren aussehen und sich anfühlen (Bewegungen, besonders Ada), Bosskämpfe
+  und Griffe mit Spezialbewegungen (El Gigante, Mendez, U-3, Krauser-Messerkampf), Boot, Lore, Jetski, das Menü auf dem
+  Gerät; ARM32/ARM64 nicht gebaut.
 
 ## Version 0.97.1-beta: Händlerpreise und Waffenwerte der Verkaufsfassungen (02.11.2026, Branch `work`, Patch 0187; vom Projektinhaber auf dem Gerät bestätigt: „Die Preise sind nun korrekt“)
 
@@ -11372,6 +11414,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0188 `option.cpp` | Das Schließen der spieleigenen Optionen übergibt „reverse“ an die App (`re4_aim_options_closed`), die es als „Invert vertical“ speichert. Vorher setzte der App-Schalter es bei jedem Start zurück. Port-Patch, Nutzerbericht 03.11.2026 |
 | 0189 `cam_qfps.cpp` | Schulterkamera-Tabellen `g_readyOfs` / `g_transOfs` der Verkaufs-Discs (US, EU/JP) vor `offsetCorrection`. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Nutzerbericht 03.11.2026 |
 | 0190 `light.cpp` | Lichtvorrat beim Verlassen des Koffers: `registCut` lädt bei zu kleinem Vorrat die ersten Lichter und kürzt die Schnitt-Daten nicht mehr, `update` legt keine Ersatzplätze an, wenn der Schnitt mehr Lichter als `nMaxLight` hat, und hört bei vollem Vorrat auf. Vorher Absturz (Ada, Mercenaries, Scheune). Fehler des Prototyps, Nutzerbericht 02.11.2026 |
+| 0195 `game.cpp`, `read.cpp`, `event.cpp`, `obj18.cpp`, `pl_sub.cpp`, `sce_at.cpp`, `ss_model.cpp`, `pl02.cpp`, `pl06.cpp`, `pl_klauser.cpp`, `pl_wesker.cpp` | Cheat „Player character“: Ada, HUNK, Krauser oder Wesker spielen die Geschichte (Wechsel beim Raumstart, Spielstände immer Leon), Leons Waffendateien für Waffen ohne eigene Datei, nächstliegende linke Hand, Leons Körper in Zwischensequenzen und auf dem Funkbildschirm, Raum-Gegenstände und Kostümregel wie Leon, Koffer-Ansicht mit Leon-Waffe wie mit dem Messer; dazu `re4_whole_prelude.h` (fehlende Archiv-Einträge aus Leons Archiv). Port-Funktion (Cheat-Menü), Wunsch des Projektinhabers 03.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

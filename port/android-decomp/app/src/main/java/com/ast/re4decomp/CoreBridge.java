@@ -141,7 +141,8 @@ public final class CoreBridge {
   /**
    * The cheat menu's switches (port/docs/cheat-menu-plan.md): 1 infinite health, 2 infinite ammo,
    * 4 one-hit kill, 8 automatic QTEs, 16 the extra games kept unlocked; the game sets them in every
-   * frame while on.
+   * frame while on. Bits 32..224: the story's player character (player type << 5: 2 Ada, 3 HUNK,
+   * 4 Krauser, 5 Wesker; 0 Leon), taken over when the next room loads (patch 0195).
    */
   public static native void setCheats(int bits);
   /**

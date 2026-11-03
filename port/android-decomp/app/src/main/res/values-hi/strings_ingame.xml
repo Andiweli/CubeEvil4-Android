@@ -218,6 +218,9 @@
     <string name="ingame_cheat_extras_text">Assignment Ada और The Mercenaries अनलॉक हो गए हैं (साथ में Professional भी, जैसे गेम पूरा करने के बाद)। गेम फिर से शुरू करने के बाद टाइटल मेनू उन्हें दिखाता है। आपके आख़िरी सेव के बाद की प्रगति खो जाएगी।</string>
     <string name="ingame_cheat_extras_later">अनलॉक हो गए: गेम अगली बार फिर से शुरू होने के बाद Assignment Ada और The Mercenaries टाइटल मेनू में होंगे।</string>
     <string name="ingame_cheat_extras_already">पहले से अनलॉक: Assignment Ada और The Mercenaries टाइटल मेनू में हैं।</string>
+    <string name="ingame_cheat_character">खेलने का किरदार</string>
+    <string name="ingame_cheat_character_play">इस रूप में खेलें</string>
+    <string name="ingame_cheat_character_help">अगले कमरे से (किसी दरवाज़े से, सेव लोड करने पर या नए गेम में) यह किरदार कहानी में लियोन की जगह लेता है। लियोन का केस, जान और पैसे वैसे ही रहते हैं; जिन हथियारों का किरदार का अपना मॉडल नहीं है, वे लियोन के दिखते हैं। ऐशली का हिस्सा ऐशली का ही रहता है, कटसीन और रेडियो कॉल में लियोन ही दिखता है। आपके सेव में हमेशा लियोन रहता है, इसलिए वे यहाँ चुने गए किरदार के साथ लोड होते हैं।</string>
     <string name="ingame_later">बाद में</string>
     <string name="ingame_controller_config">बटन मैपिंग</string>
     <string name="ingame_controller_config_help">बटन मैपिंग: गेम की हर क्रिया को अपने कंट्रोलर या कीबोर्ड की कुंजियों पर रखें।</string>

@@ -218,6 +218,9 @@
     <string name="ingame_cheat_extras_text">Assignment Ada und The Mercenaries sind freigeschaltet (dazu Professional, wie nach dem Durchspielen). Das Titelmenü zeigt sie nach einem Neustart. Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="ingame_cheat_extras_later">Freigeschaltet: Assignment Ada und The Mercenaries stehen nach dem nächsten Neustart im Titelmenü.</string>
     <string name="ingame_cheat_extras_already">Schon freigeschaltet: Assignment Ada und The Mercenaries stehen im Titelmenü.</string>
+    <string name="ingame_cheat_character">Spielfigur</string>
+    <string name="ingame_cheat_character_play">Spielen als</string>
+    <string name="ingame_cheat_character_help">Die Figur übernimmt ab dem nächsten Raum Leons Platz in der Geschichte (durch eine Tür, nach dem Laden eines Spielstands oder in einem neuen Spiel). Leons Koffer, Leben und Geld bleiben; Waffen, für die die Figur kein eigenes Modell hat, zeigen Leons. Ashleys Abschnitt bleibt Ashleys, Zwischensequenzen und Funksprüche zeigen weiter Leon. Deine Spielstände behalten immer Leon und laden deshalb mit der Figur, die hier gewählt ist.</string>
     <string name="ingame_later">Später</string>
     <string name="ingame_controller_config">Tastenbelegung</string>
     <string name="ingame_controller_config_help">Tastenbelegung: jede Aktion des Spiels auf Tasten deines Controllers oder deiner Tastatur legen.</string>

@@ -220,6 +220,9 @@
     <string name="ingame_cheat_extras_text">Assignment Ada e The Mercenaries estão desbloqueados (Professional também, como depois de terminar o jogo). O menu principal os mostra depois de reiniciar. O progresso desde o seu último save será perdido.</string>
     <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada e The Mercenaries aparecem no menu principal após o próximo reinício.</string>
     <string name="ingame_cheat_extras_already">Já desbloqueados: Assignment Ada e The Mercenaries estão no menu principal.</string>
+    <string name="ingame_cheat_character">Personagem</string>
+    <string name="ingame_cheat_character_play">Jogar como</string>
+    <string name="ingame_cheat_character_help">O personagem toma o lugar de Leon na história a partir da sala seguinte (por uma porta, ao carregar um jogo salvo ou num jogo novo). A maleta, a vida e o dinheiro de Leon continuam; as armas sem modelo próprio do personagem mostram as de Leon. A parte de Ashley continua sendo de Ashley, as cenas e as chamadas de rádio continuam mostrando Leon. Seus jogos salvos guardam sempre Leon, por isso carregam com o personagem escolhido aqui.</string>
     <string name="ingame_later">Mais tarde</string>
     <string name="ingame_controller_config">Mapeamento de botões</string>
     <string name="ingame_controller_config_help">Mapeamento de botões: coloque cada ação do jogo em teclas do seu controle ou teclado.</string>
