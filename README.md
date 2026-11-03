@@ -23,6 +23,18 @@ retail data needs them. Since v0.95.2 it also plays the **Japanese retail releas
 well, two discs) in English. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
 and it contains no game data: you need your own images of both discs of one release.
 
+> [!WARNING]
+> **Built on a prototype.** CubeEvil4 runs the code of the debug build from November 2004, not the code of a
+> retail release. Even with retail discs, some things can work or feel differently from the game you know:
+> - **Bugs of the prototype** that the final game fixed: many are patched already, others may still show up.
+>   Please report them.
+> - **Balance:** with retail discs the merchant's prices, Leon's aiming stance and the camera follow those
+>   releases (with European and Japanese discs the weapon damage too); other details, such as ammo drops, the
+>   mine thrower's fuse or the fire rate of the semi-automatic weapons, stay as in the prototype.
+> - **With the debug build's discs** the game uses the prototype's own data, unfinished in places (e.g.
+>   Ashley can walk through the armor statues, which have no collision there), and holding SELECT opens the
+>   developers' debug menu.
+
 <!--
 <p align="center"><img src="port/android-decomp/app/src/main/res/drawable-nodpi/icon_cubeevil4.png" width="160" alt="CubeEvil4 icon"></p>
 -->
