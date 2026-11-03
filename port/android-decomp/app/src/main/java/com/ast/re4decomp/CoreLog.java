@@ -56,8 +56,7 @@ final class CoreLog {
   private CoreLog() {}
 
   static File folder(Context c) {
-    File base = c.getExternalFilesDir(null);
-    File dir = new File(base != null ? base : c.getFilesDir(), "logs");
+    File dir = new File(AppStorage.base(c), "logs");
     if (!dir.isDirectory() && !dir.mkdirs()) Log.w(TAG, "cannot make " + dir);
     return dir;
   }
@@ -221,6 +220,7 @@ final class CoreLog {
           CoreMenu.scaleNumber(info[2], Locale.ROOT), info[3], info[0], info[4], info[1]));
     }
     b.append("Switches: ").append(settings == null || settings.isEmpty() ? "-" : settings).append('\n');
+    b.append("Data folder: ").append(AppStorage.describe(c)).append('\n');
     // whether the error log records (the menu's switch) and whether logcat runs now
     synchronized (CoreLog.class) {
       b.append("Error log: ").append(enabled(c) ? "on (logcat " + (recorder != null ? "running" : "not running")

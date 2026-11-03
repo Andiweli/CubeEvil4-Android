@@ -221,8 +221,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
       Log.i(TAG, "game language: " + gameLanguageNow);
     }
-    // the app's own folder on the shared storage, where test switches write (RE4_AUDIO_WAV)
-    getExternalFilesDir(null);
+    // the app's own folder (on the shared storage, else internal), where test switches write (RE4_AUDIO_WAV)
+    AppStorage.base(this);
     applyGraphics();
     startProblem = imports.root == null ? "No data folder"
         : CoreBridge.start(imports.root.getAbsolutePath(), coreSettings);
@@ -874,11 +874,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   private void capture() {
     if (!tools) return;
-    File dir = getExternalFilesDir(null);
-    if (dir != null) {
-      CoreBridge.gxDump(new File(dir, "gx-dumps").getAbsolutePath());
-      Toast.makeText(this, R.string.ingame_capture_saved, Toast.LENGTH_SHORT).show();
-    }
+    File dir = AppStorage.base(this);
+    CoreBridge.gxDump(new File(dir, "gx-dumps").getAbsolutePath());
+    Toast.makeText(this, R.string.ingame_capture_saved, Toast.LENGTH_SHORT).show();
   }
 
   /** RetroTouch's editor (its gear) opened or closed: the game stands while the player arranges the controls. */

@@ -59,6 +59,19 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
    `outSscrn(1)`), Debug-Discs, alle 42 Schlossräume: **ohne 0190 Absturz in `cLightMgr::update` in 31 von 31
    Räumen**, in denen der Spieler frei wird; **mit 0190 alle 31 ohne Absturz** bis zum Ende (11 Räume: Spieler nicht
    frei, Ereignis am Raumanfang). Patch 0190 deckt damit auch diesen Bericht ab.
+## Nutzerbericht: Android 16 ohne App-Ordner (03.11.2026, Branch `work`)
+
+Bericht (über den Projektinhaber): auf manchen Android-16-Ständen START GAME und beide Importe gesperrt, „App data
+storage is unavailable“; `getExternalFilesDir` gibt null oder wirft („Failed to prepare /storage/emulated/0/Android/data//
+files“), weil das System `sys.user.0.ce_available` beim Start nie setzt (issuetracker.google.com/issues/460912704);
+mit `setprop sys.user.0.ce_available true` ging alles. **App:** neue Klasse `AppStorage` (eine Regel für Discs,
+Speicherkarten, Fehlerprotokoll, Grafik-Aufnahmen): der App-Ordner im gemeinsamen Speicher, sonst der interne
+(`getFilesDir`); hält der interne einmal `game/`, bleibt er der Datenordner, auch wenn der gemeinsame wieder geht.
+`ImportManager`, `CoreActivity` (Start, R3-Aufnahme), `CoreLog.folder` nutzen sie; der Fehlerbericht nennt den
+Datenordner („Data folder: …“); `DiscInstaller.recover` meldet verständlich, wenn gar kein Ordner geht. **Geprüft:**
+`AppStorageTest` (null, Ausnahme, gemeinsamer Ordner, interner bleibt, `ImportManager` mit Wurzel ohne gemeinsamen
+Ordner), alle App-Tests bestanden. Nicht geprüft: ein betroffenes Gerät.
+
 ## Nutzerbericht: Todesschreie der Ganados auf Disc 2 brechen ab (03.11.2026, Branch `work`, nicht nachgestellt)
 
 Bericht (über den Projektinhaber): Disc 2, Mercenaries und Geschichte, die Todesschreie der Gegner seien nicht zu

@@ -11,7 +11,8 @@ public final class DiscInstaller {
   private DiscInstaller() {}
   public static void recover(File root) throws IOException {
     if (!root.isDirectory() && !root.mkdirs())
-      throw new IOException("Data directory is unavailable");
+      throw new IOException("The app cannot make its data folder (" + root + "). Please check that the device has free "
+          + "storage, then restart the app.");
     for (int n = 1; n <= 2; n++) {
       File current = new File(root, "disc" + n),
            old = new File(root, ".old-disc" + n);
