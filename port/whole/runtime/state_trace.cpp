@@ -59,6 +59,12 @@
 //                          per piece, stock, the handgun's tune prices) and a
 //                          few damage values; G sets game_mode first (patch
 //                          0187, 02.11.2026)
+//   RE4_TEST_SSCRN_LIGHT="free+N"  N frames after the player is free, the
+//                          room lights as closing the attache case after a
+//                          weapon change updates them: the case's 10-light
+//                          pool held (inSscrn), the room's cuts 0..15 updated,
+//                          the pool given back (outSscrn 1); patch 0190
+//                          (03.11.2026)
 //   RE4_TEST_INSTANT="free+N:save[,free+M:load]"  N frames after the player is
 //                          free, the app's instant save into a buffer of the run
 //                          (re4_instant_game_capture), M frames after it loaded
@@ -626,6 +632,7 @@ long g_streamAfter = -1;     // RE4_TEST_STREAM
 int g_streamBlock, g_streamNo;
 long g_merchantAfter = -1;   // RE4_TEST_MERCHANT
 int g_merchantMode;
+long g_sscrnLightAfter = -1;  // RE4_TEST_SSCRN_LIGHT
 
 // RE4_TEST_MERCHANT: the Buy list as the merchant's screen makes it (price per piece, stock), the handgun's tune
 // prices, the buying price of a few items and damage values against a few enemy classes (patch 0187).
@@ -1840,6 +1847,15 @@ void frame(unsigned n)
     if (g_freeAt >= 0 && g_merchantAfter >= 0 && (long) n == g_freeAt + g_merchantAfter) {
         merchantTest(n);
     }
+    if (g_freeAt >= 0 && g_sscrnLightAfter >= 0 && (long) n == g_freeAt + g_sscrnLightAfter) {
+        re4_log("run: attache case lights (RE4_TEST_SSCRN_LIGHT) at frame %u: area %d", n, (int) CamCtrl.areaNo);
+        LightMgr.inSscrn();
+        for (int c = 0; c < 16; c++) {
+            LightMgr.update(c, 0);
+        }
+        LightMgr.outSscrn(1);
+        re4_log("run: attache case lights (RE4_TEST_SSCRN_LIGHT) done");
+    }
     for (int i = 0; i < g_seCount; i++) {
         const long base = g_seRoom[i] ? g_roomStart : g_freeAt;
         if (base >= 0 && (long) n == base + g_seAfter[i]) {
@@ -2012,6 +2028,11 @@ void configure()
     if (const char* m = getenv("RE4_TEST_MERCHANT")) {
         if (sscanf(m, "free+%ld:%d", &g_merchantAfter, &g_merchantMode) < 1) {
             re4_log("run: RE4_TEST_MERCHANT \"%s\" not understood (free+N[:game_mode])", m);
+        }
+    }
+    if (const char* m = getenv("RE4_TEST_SSCRN_LIGHT")) {
+        if (sscanf(m, "free+%ld", &g_sscrnLightAfter) != 1) {
+            re4_log("run: RE4_TEST_SSCRN_LIGHT \"%s\" not understood (free+N)", m);
         }
     }
     if (const char* se = getenv("RE4_TEST_SE")) {

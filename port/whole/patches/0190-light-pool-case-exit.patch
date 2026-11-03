@@ -7,7 +7,9 @@
 # lights: registCut cut the cut's data down to 10 for good and loaded none, update then took nMaxLight (held at 9)
 # minus the 10 lights as an unsigned count of spare slots (about 4 billion) and cManager<cLight>::create gave 0 once
 # the pool was full. Now registCut loads the first 10 and keeps the data, update makes no spare slots then and stops
-# at a full pool. Both disc kinds.
+# at a full pool. Both disc kinds. Second report 03.11.2026 (cubeevil4-report-20261103-133135, Leon, debug discs,
+# castle, 0.96.9): the same crash after a weapon change in the case; RE4_TEST_SSCRN_LIGHT crashes there without
+# this patch in 31 of 31 castle rooms the player is free in.
 --- a/src/game/light.cpp
 +++ b/src/game/light.cpp
 @@ -724,12 +724,17 @@

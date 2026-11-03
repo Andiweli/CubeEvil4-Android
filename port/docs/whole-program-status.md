@@ -50,6 +50,15 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
    Schnitt-Daten für immer auf 10 und lud keins, `update` rechnete 9 − 10 vorzeichenlos (≈ 4 Milliarden Ersatzplätze),
    `create` lieferte 0. **Patch 0190** (`light.cpp`): die ersten 10 laden, Daten behalten, keine Ersatzplätze dann,
    Abbruch bei vollem Vorrat. Gebaut; am PC nicht nachgestellt (Ada in der Scheune).
+10. **Derselbe Absturz mit Leon im Schloss (Bericht cubeevil4-report-20261103-133135, Samsung S25 Edge, Debug-Discs,
+   0.96.9, Absturz 02.11.2026 11:27, Spielstand r30c):** gleiche Kette `SubScreenExit` → `weaponRelease` →
+   `endCamera` → `CameraMove` → `CameraControl::Check` → `cLightMgr::update`, Adresse 0x8, Register x20 = 0xFFFFFFF5
+   (die vorzeichenlose Ersatzplatz-Zahl). Tritt bei jeder Figur auf, wenn man im Koffer die Waffe wechselt und ihn
+   schließt, sobald der Kameraschnitt viele Lichter hat. **Am PC nachgestellt** mit dem neuen Testschalter
+   `RE4_TEST_SSCRN_LIGHT=free+N` (`state_trace.cpp`: Vorrat halten wie `inSscrn`, Schnitte 0..15 aktualisieren,
+   `outSscrn(1)`), Debug-Discs, alle 42 Schlossräume: **ohne 0190 Absturz in `cLightMgr::update` in 31 von 31
+   Räumen**, in denen der Spieler frei wird; **mit 0190 alle 31 ohne Absturz** bis zum Ende (11 Räume: Spieler nicht
+   frei, Ereignis am Raumanfang). Patch 0190 deckt damit auch diesen Bericht ab.
 ## Spielfiguren für die Geschichte: Ada, HUNK, Krauser, Wesker statt Leon (03.11.2026, lokal, Branch `claude/char-cheat-f03122`, Patch 0195; am 03.11.2026 in `work` zusammengeführt, Teil von 0.98.0-beta)
 
 Wunsch des Projektinhabers (03.11.2026): Figuren, die die Hauptgeschichte sauber statt Leon spielen können, als eigener
