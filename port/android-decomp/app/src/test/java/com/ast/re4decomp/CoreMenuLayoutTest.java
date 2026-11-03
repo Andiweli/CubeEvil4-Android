@@ -467,7 +467,8 @@ public class CoreMenuLayoutTest {
       org.robolectric.shadows.ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS);
       assertFalse(killer7.isSelected());
       // the story's player character below the buttons (03.11.2026): its player type << 5, the switches kept
-      assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_character_play)));
+      // three a row without a row label (03.11.2026)
+      assertNull(findText(body, "Play as"));
       Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
       assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
       hunk.performClick(); assertEquals(4 | 3 << 5, sent[0]);
@@ -480,6 +481,7 @@ public class CoreMenuLayoutTest {
       // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
       Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
       assertSame(leon.getParent(), costume.getParent());
+      assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
       costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
       hunk.performClick(); assertEquals(5 | 256 | 3 << 5, sent[0]);
       costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());

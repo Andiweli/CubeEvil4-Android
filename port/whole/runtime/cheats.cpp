@@ -683,6 +683,14 @@ void* re4_story_char_grip(void)
     return (void*) (size_t) (arc->ofs[kAdaGripNo[k]] + kAdaGripAddr[k]);
 }
 
+// Patch 0196 (pl02.cpp cPlAda::setLeftHand): Ada's own left hand for Leon's weapon that brings a support hand
+// of its own (his handguns: a model made for his skeleton): 4 the handgun's, 1 the TMP's, 2 the rifle's
+int re4_story_char_left_grip(void)
+{
+    static const int kLeft[3] = {4, 1, 2};
+    return kLeft[adaGripOf(pG->weapon_no)];
+}
+
 // Krauser's weapon buffer when gameInit made none (he took over a story started with Leon)
 void* re4_story_char_wep_place(void)
 {

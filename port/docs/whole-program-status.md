@@ -120,6 +120,13 @@ Ashley und „Leon+Ashley“ nein; Leons Kostüme bleiben beim Spiel (kein eigen
     0x82300000/0x82380000/0x82400000 (nach Krausers Puffer); Pistolen und Magnums → Pistolengriff, Leons TMP →
     TMP-Griff, Schrotflinten, Gewehre, Chicago Typewriter, Raketenwerfer, Minenwerfer → Gewehrgriff. Lesbar nicht →
     ihre offene Hand (0x11). HUNK und Wesker mit Leons Waffen am PC angesehen: sauber, keine Änderung.
+    Nachtrag (Bildschirmfotos des Projektinhabers, 03.11.2026: „die linke Hand ist vom Armgelenk abgetrennt und zu weit
+    vorne“): Leons Pistolen 5/6/15 geben `setLeftHand` ein Stützhand-Modell ihrer Datei (`WEP_ARC_PTR(9)`), ebenso für
+    sein Skelett gebaut; Ada nimmt jetzt auch links ihre eigene Hand nach der Waffenart (4 Pistole, 1 TMP, 2 Gewehr,
+    `re4_story_char_left_grip`). Am PC (r20e, Ada, Leons Pistole 6, Bild vor/nach): das abgesetzte Teil weg.
+  - *Menü* (Wunsch des Projektinhabers): Abschnitt „Player character“ ohne Zeilenbeschriftung „Play as“, sechs
+    Knöpfe zu dritt so breit wie die Cheat-Knöpfe darüber; der sechste „Special costumes · On/Off“ mit kleinerer
+    zweiter Zeile „(Leon/Ashley only)“, so hoch wie ein einzeiliger Knopf (11 Sprachen).
   - *Wechsel sofort* (Wunsch des Projektinhabers): `switchNow` im Bild-Haken der Cheats: ändert sich die Figur, startet
     der Raum neu dort, wo der Spieler steht (`SceAtExecRoomJump` in den eigenen Raum, Teil `pG->Part`), sobald der
     Spieler frei ist (Spielschleife, kein Ereignis, kein Koffer, kein Film); einmal je Wahl, mit Ashley zu weit weg

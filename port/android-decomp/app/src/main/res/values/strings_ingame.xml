@@ -234,9 +234,9 @@
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
     <string name="ingame_cheat_extras_already">Already unlocked: Assignment Ada and The Mercenaries are in the title menu.</string>
     <string name="ingame_cheat_character">Player character</string>
-    <string name="ingame_cheat_character_play">Play as</string>
-    <string name="ingame_cheat_costume">Special costume (Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">The character takes Leon\'s place in the story at once: the room loads again where you stand (during a cutscene, from the next room on). Leon\'s case, life and money stay; weapons the character has no model of its own for show Leon\'s. Ashley\'s part stays Ashley\'s, cutscenes and radio calls still show Leon. Your saves always keep Leon, so they load as whoever is chosen here. Special costume: Leon and Ashley (and Ada as a stand-in) wear their special outfits, also at once.</string>
+    <string name="ingame_cheat_costume">Special costumes</string>
+    <string name="ingame_cheat_costume_note">(Leon/Ashley only)</string>
+    <string name="ingame_cheat_character_help">The character takes Leon\'s place in the story at once: the room loads again where you stand (during a cutscene, from the next room on). Leon\'s case, life and money stay; weapons the character has no model of its own for show Leon\'s. Ashley\'s part stays Ashley\'s, cutscenes and radio calls still show Leon. Your saves always keep Leon, so they load as whoever is chosen here. Special costumes: Leon and Ashley (and Ada as a stand-in) wear their special outfits, also at once.</string>
     <string name="ingame_later">Later</string>
     <string name="ingame_controller_config">Button Mapping</string>
     <string name="ingame_controller_config_help">Button Mapping: put every action of the game on keys of your controller or keyboard.</string>

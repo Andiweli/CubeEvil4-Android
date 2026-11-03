@@ -217,8 +217,8 @@
     <string name="ingame_cheat_extras_later">Terbuka: Assignment Ada dan The Mercenaries ada di menu judul setelah dimulai ulang.</string>
     <string name="ingame_cheat_extras_already">Sudah terbuka: Assignment Ada dan The Mercenaries ada di menu judul.</string>
     <string name="ingame_cheat_character">Karakter pemain</string>
-    <string name="ingame_cheat_character_play">Main sebagai</string>
-    <string name="ingame_cheat_costume">Kostum spesial (Leon/Ashley)</string>
+    <string name="ingame_cheat_costume">Kostum spesial</string>
+    <string name="ingame_cheat_costume_note">(hanya Leon/Ashley)</string>
     <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon dalam cerita: ruangan dimuat ulang di tempatmu berdiri (saat adegan film, mulai ruangan berikutnya). Koper, nyawa, dan uang Leon tetap; senjata yang tidak punya model milik karakter itu tampil seperti milik Leon. Bagian Ashley tetap milik Ashley, adegan film dan panggilan radio tetap menampilkan Leon. Simpananmu selalu menyimpan Leon, jadi dimuat dengan karakter yang dipilih di sini. Kostum spesial: Leon dan Ashley (dan Ada sebagai pengganti) memakai kostum spesial mereka, juga langsung.</string>
     <string name="ingame_later">Nanti</string>
     <string name="ingame_controller_config">Pemetaan Tombol</string>

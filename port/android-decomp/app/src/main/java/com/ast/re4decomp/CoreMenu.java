@@ -1102,18 +1102,53 @@ final class CoreMenu extends Dialog {
   /** The story's player character below the cheat buttons (wish of the project owner, 03.11.2026;
    *  port/docs/cheat-menu-plan.md): one of the characters that play the story cleanly takes Leon's place
    *  at once (the room starts again where the player stands); bits 32..224 of the switches hold its
-   *  player type (runtime/cheats.cpp). Saves keep Leon. In the row's free sixth place the switch for the
-   *  special costume of Leon and Ashley (wish of the project owner, 03.11.2026; bit 256). */
+   *  player type (runtime/cheats.cpp). Saves keep Leon. Three buttons a row without a row label, as wide as
+   *  the cheat buttons above (the owner, 03.11.2026), the sixth the switch for the special costumes of Leon
+   *  and Ashley (bit 256). */
   private void playerCharacter() {
     heading(R.string.ingame_cheat_character);
     final String[] labels = {"Leon", "Ada", "HUNK", "Krauser", "Wesker"};
     final int[] values = {0, 2, 3, 4, 5};
     int selected = (cheatBits & CHARACTER_BITS) >> CHARACTER_SHIFT;
-    Button[] row = quarterChoices(R.string.ingame_cheat_character_play, labels, values, selected, value -> {
-      cheatBits = (cheatBits & ~CHARACTER_BITS) | (value << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);
-    });
-    cheatSwitch((MenuLayout.Buttons) row[0].getParent(), R.string.ingame_cheat_costume, COSTUME_BIT);
+    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), 3);
+    body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    Button[] buttons = new Button[labels.length];
+    for (int i = 0; i < labels.length; i++) {
+      final int index = i;
+      Button b = cellAction(row, labels[i], v -> {
+        select(buttons, labels, index);
+        cheatBits = (cheatBits & ~CHARACTER_BITS) | (values[index] << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);
+      });
+      b.setSelected(values[i] == selected);
+      b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
+      buttons[i] = b;
+    }
+    costumeSwitch(row);
     help(R.string.ingame_cheat_character_help);
+  }
+  /** "Special costumes · On/Off" over a smaller "(Leon/Ashley only)", as tall as one line's button (the
+   *  owner, 03.11.2026: the second row as high as the first). */
+  private void costumeSwitch(MenuLayout.Buttons parent) {
+    final Button[] b = new Button[1];
+    Runnable label = () -> {
+      boolean on = (cheatBits & COSTUME_BIT) != 0;
+      SpannableStringBuilder t = new SpannableStringBuilder(getContext().getString(R.string.ingame_toggle_value,
+          s(R.string.ingame_cheat_costume), s(on ? R.string.ingame_on : R.string.ingame_off)));
+      int from = t.length(); t.append('\n').append(s(R.string.ingame_cheat_costume_note));
+      t.setSpan(new RelativeSizeSpan(.75f), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+      t.setSpan(new StyleSpan(Typeface.NORMAL), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+      b[0].setSelected(on); b[0].setText(t);
+    };
+    b[0] = cellAction(parent, "", v -> {
+      cheatBits ^= COSTUME_BIT; host.cheatsChanged(cheatBits); label.run();
+    });
+    b[0].setPadding(dp(12), dp(2), dp(12), dp(2));
+    b[0].setAccessibilityDelegate(new View.AccessibilityDelegate() {
+      @Override public void onInitializeAccessibilityNodeInfo(View view, AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(view, info); info.setCheckable(true); info.setChecked(view.isSelected());
+      }
+    });
+    label.run();
   }
   /** The game is held while the menu is open: the core does a button at once and answers. */
   private void cheatAction(int what, int label) {
