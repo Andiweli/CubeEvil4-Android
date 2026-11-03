@@ -24,12 +24,11 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
 4. **Pixelfilter: Bodentexturen flimmern (Mercenaries, ohne 60 FPS):** der Filter nahm je Zelle einen Bildpunkt aus
    dem fein gerenderten Bild; jetzt der Mittelwert ihrer vier Spielpixel (`gx_gl.cpp` MakePsx). `gx_gl_check` 0
    Fehler (TestPsx angepasst). Gerät offen.
-5. **Saddler-Belohnung 100000 statt 29018:** offen. Saddler (em31, Liste emleon07 0xA8/0xA9) hat in allen Fassungen
-   keinen Beute-Eintrag; `EmSetDropItem` → `RandomItemCk` (EU 0x89C Bytes, Debug/US 0x62C/0x668) kennt em 0x31 in der
-   EU-Fassung nicht. Nur die EU-Daten von r332 haben eine verborgene Fläche 0x87 (Nr. 135) mit item 0x71 ×100
-   (= 100000 Peseten, `cItemMgr::get`) am Startpunkt (-42020 15811 47290), aus (be 0x02); US und Debug haben sie
-   nicht. `st3_3.rel` (EU) nennt 0x87 nicht; `Evd/r332s10.evd` ist in EU anders als in Debug/US. 29018 ist kein
-   Vielfaches von 10, also kein Zufallsgeld von 0x78 – wohl der Kontostand. Wer 0x87 einschaltet, ist noch offen.
+5. **Saddler-Belohnung 100000 statt 29018:** kein Fehler. Bild des Nutzers: „You got 29018 PTAS.“ beim Goldbarren
+   gleich nach Saddler (Countdown der Insel läuft) – das ist die verborgene Fläche 0x87 der EU-Daten von r332 (item
+   0x71 ×100 = 100000 Peseten, `cItemMgr::get`); sie wird also gegeben. `addMoney` deckelt bei 99.999.999, die
+   Meldung zeigt den Zuwachs (`sceAtGetItem` Fall 8: `peseta - money`): der Nutzer hatte schon 99.970.981 (Geld-
+   Cheat). US- und Debug-Daten haben die Fläche nicht.
 6. **Kettensäge des „Riesen Salvador“ (Mercenaries, EU):** offen, kein Unterschied gefunden. Die Kettensäge nutzt
    `SndCall(6, 0x4B)` (Aufheulen aus der Ferne, `em10CsawSignSe`), `0x3E` (nah) und `0x4D` (Leerlauf, alle 60 Bilder);
    `em10CsawSignSe`, `em10ChainSawMove` und die Sägen-Angriffe sind in `em10.rel` von EU und Debug gleich (nur
