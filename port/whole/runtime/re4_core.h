@@ -279,6 +279,7 @@ void re4_core_set_potato(int mask);
  * bit 2 "Always run" (patch 0156: the run key walks), bits 8 and up "Aim speed" in percent (50..300, 100 as
  * the game: the stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
 void re4_core_set_aim(int bits);
+int re4_core_aim_from_game(void);  // patch 0188: -1, or the game's own "reverse" (0 / 1)
 /* The app menu's AUDIO page (cores since 30.10.2026, runtime/sound_volume.cpp): bits 0..7 the music, bits
  * 8..15 the sound effects volume in percent (0..100; 100 as the game). Any thread. */
 void re4_core_set_sound_volume(int bits);

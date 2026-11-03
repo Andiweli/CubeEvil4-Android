@@ -799,6 +799,14 @@ void re4_core_set_aim(int bits)
     re4_aim_set(bits);
 }
 
+extern "C" int re4_aim_from_game(void);
+
+// The game's own options changed "Invert vertical" (patch 0188): -1, else 0 / 1 for the app's preferences.
+int re4_core_aim_from_game(void)
+{
+    return re4_aim_from_game();
+}
+
 extern "C" void re4_sound_volume_set(int music, int effects);
 
 void re4_core_set_sound_volume(int bits)

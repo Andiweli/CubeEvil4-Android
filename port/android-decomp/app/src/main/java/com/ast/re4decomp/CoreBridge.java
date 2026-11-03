@@ -117,6 +117,8 @@ public final class CoreBridge {
    * aiming (CoreActivity.AIM_SPEED_MIN .. AIM_SPEED_MAX, 1 as the game).
    */
   public static native void setAim(boolean invert, float speed, boolean autoAim, boolean alwaysRun);
+  /** The game's own options changed "reverse" since the last call (patch 0188): -1, else 0 / 1 for "Invert vertical". */
+  public static native int aimFromGame();
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */
   static int potatoMask(android.content.SharedPreferences g) {
     return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);

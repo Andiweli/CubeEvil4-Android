@@ -36,6 +36,7 @@ std::atomic<bool> gFar(false);      // the app's "Far camera" (patch 0171)
 std::atomic<int> gSpeed(100);       // the app's "Aim speed" in percent
 std::atomic<bool> gPending(false);  // the game's option to be set at the next game frame
 std::atomic<bool> gHooked(false);
+std::atomic<int> gFromGame(-1);     // the game's own options changed "reverse" (patch 0188): 0 / 1 for the app
 
 void applyLock(const char* why)
 {
@@ -147,6 +148,28 @@ f32 re4_aim_speed(void)
 int re4_run_held(int held)
 {
     return gRun.load(std::memory_order_relaxed) ? !held : held != 0;
+}
+
+// Patch 0188 (OptionScreen::quit, game thread): the game's own options set "reverse"; that is the app's
+// "Invert vertical" from now on, and the app keeps it (re4_aim_from_game).
+void re4_aim_options_closed(void)
+{
+    if (!pSys || gPending.load()) {
+        return;
+    }
+    const int now = CfgFlagChk(pSys, CFG_AIM_REVERSE) != 0;
+    if (gInvert.load() == now) {
+        return;
+    }
+    gInvert = now;
+    gFromGame = now;
+    re4_log("aim: vertical aiming %s (the game's own options; the app keeps it)", now ? "inverted" : "normal");
+}
+
+// The app (core_api.cpp re4_core_aim_from_game): -1, or the game's own choice since the last call (0 / 1).
+int re4_aim_from_game(void)
+{
+    return gFromGame.exchange(-1);
 }
 
 // After the system file was read into pSys (game thread): the app's switch, not the saved one.

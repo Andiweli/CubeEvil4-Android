@@ -58,6 +58,8 @@ final class CoreTouch {
   // and the yellow)
   static final int GC_GREEN = rgb(0x10, 0x9B, 0x61), GC_RED = rgb(0xF6, 0x39, 0x2C), GC_PURPLE = rgb(0x6B, 0x5C, 0xB1),
       GC_GREY = rgb(0xDD, 0xDD, 0xDD), GC_YELLOW = rgb(0xF7, 0xC8, 0x1E);
+  /** The border of every button (wish of the project owner, 03.11.2026). */
+  static final int BORDER = 0xFF3E3C29;
   static final int[] COLOURS = {GC_GREEN, GC_RED, GC_GREY, GC_GREY, GC_PURPLE, GC_GREY, GC_GREY, GC_GREY, GC_GREY, GC_GREY,
       GC_YELLOW};
 

@@ -3905,9 +3905,9 @@ struct GxRenderer::Impl {
                               "  vUv = p;\n"
                               "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
                               "}\n";
-    // One colour per cell of the grid (the centre of its first game pixel: a cell's centre lies between two
-    // texels, which the filter mixed), 8 bits to 5 per channel after the PlayStation's
-    // ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place)
+    // One colour per cell of the grid: the mean of its four game pixels (their centres; one of them alone made
+    // fine textures on the ground flicker as the camera moved, user report 03.11.2026), 8 bits to 5 per channel
+    // after the PlayStation's ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place)
     static const char kFs[] =
         "#version 300 es\nprecision highp float;\n"
         "uniform sampler2D src;\nuniform vec2 grid;\nin vec2 vUv;\nout vec4 o;\n"
@@ -3915,7 +3915,9 @@ struct GxRenderer::Impl {
         "                                    -3.0, 1.0, -4.0, 0.0, 3.0, -1.0, 2.0, -2.0);\n"
         "void main() {\n"
         "  vec2 cell = min(floor(vUv * grid), grid - 1.0);\n"
-        "  vec3 c = texture(src, (cell + 0.25) / grid).rgb * 255.0;\n"
+        "  vec3 c = (texture(src, (cell + vec2(0.25, 0.25)) / grid).rgb + texture(src, (cell + vec2(0.75, 0.25)) / grid).rgb +\n"
+        "            texture(src, (cell + vec2(0.25, 0.75)) / grid).rgb + texture(src, (cell + vec2(0.75, 0.75)) / grid).rgb) *\n"
+        "      (255.0 / 4.0);\n"
         "  ivec2 d = ivec2(mod(cell, 4.0));\n"
         "  c = floor(clamp(c + kDither[d.y * 4 + d.x], 0.0, 255.0) / 8.0);\n"
         "  o = vec4(c * (255.0 / 31.0) / 255.0, 1.0);\n"

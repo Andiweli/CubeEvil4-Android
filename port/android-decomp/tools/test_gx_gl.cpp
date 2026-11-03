@@ -1041,9 +1041,9 @@ void TestTvFilter(re4gx::GxRenderer &r) {
 }
 
 // PSone demake: a square of an in-between colour from x 101 on. Off: x 100 is the blue around it, x 101 and 102
-// the square. On: one colour per cell of two game pixels, taken from its first pixel: x 100 and 101 share the cell
-// of x 100 (blue), x 102 and 103 the square's; each channel one of the 32 levels of 15-bit colour. Off again, the
-// square from x 101 as before.
+// the square. On: one colour per cell of two game pixels, the mean of its game pixels: x 100 and 101 share the
+// cell of x 100 (half blue, half the square), x 102 and 103 the square's; each channel one of the 32 levels of
+// 15-bit colour. Off again, the square from x 101 as before.
 void TestPsx(re4gx::GxRenderer &r) {
   const std::uint8_t kMid[4] = {100, 150, 200, 255};
   auto scene = [&]() {
@@ -1068,8 +1068,9 @@ void TestPsx(re4gx::GxRenderer &r) {
   const auto on100 = at(xfb, 100), on101 = at(xfb, 101), on102 = at(xfb, 102), on103 = at(xfb, 103);
   r.SetPsx(false);
   Check(Near(off100, 0, 0, 255) && Near(off101, 100, 150, 200), "PSone demake: off, the square from x 101");
-  const bool cells = same(on100, on101) && Near(on100, 0, 0, 255) && same(on102, on103) && Near(on102, 100, 150, 200, 8);
-  Check(cells, "PSone demake: on, cells of two game pixels from their first pixel");
+  const bool cells = same(on100, on101) && Near(on100, 50, 75, 228, 12) && same(on102, on103) &&
+                     Near(on102, 100, 150, 200, 8);
+  Check(cells, "PSone demake: on, cells of two game pixels, the mean of their pixels");
   const bool levels = level(on102[0]) && level(on102[1]) && level(on102[2]);
   Check(levels, "PSone demake: on, 15-bit colour levels");
   if (!cells || !levels)

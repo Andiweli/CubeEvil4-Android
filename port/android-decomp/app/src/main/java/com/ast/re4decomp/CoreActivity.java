@@ -620,6 +620,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     releaseAll();
     boolean paused = CoreBridge.pause(true, 800);
+    keepGameAimInvert();
     audio.stop();
     stopVibrator();
     Log.i(TAG, "menu open" + (paused ? ", the game stands" : ", the game did not stop yet (loading?)")
@@ -1479,6 +1480,20 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   // ---- aiming by touch and controllers (the menu's "Invert vertical", "Aim speed") ----
+
+  /**
+   * A change of "reverse" in the game's own options (Controller) is the menu's "Invert vertical" too (patch 0188,
+   * user report 03.11.2026: the app's switch set it back at every start): kept when the menu opens and the app
+   * leaves the front.
+   */
+  private void keepGameAimInvert() {
+    if (!menuSupported) return;
+    int fromGame = CoreBridge.aimFromGame();
+    if (fromGame < 0 || (fromGame == 1) == aimInvert) return;
+    aimInvert = fromGame == 1;
+    getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, aimInvert).apply();
+    Log.i(TAG, "aim: vertical aiming " + (aimInvert ? "inverted" : "normal") + " from the game's own options, kept");
+  }
   private boolean aimInvert, autoAim, alwaysRun;
   private float aimSpeed = 1f;
 
@@ -1747,6 +1762,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     resumed = false;
     // the game stands while the app is not in front (home screen, a file picker of the menu)
     if (menuSupported) CoreBridge.pause(true, 0);
+    keepGameAimInvert();
     selectDown = false;
     main.removeCallbacks(selectHold);
     Choreographer.getInstance().removeFrameCallback(vsyncTick);

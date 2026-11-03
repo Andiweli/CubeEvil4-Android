@@ -97,6 +97,7 @@ struct CoreApi {
   void (*setPotato)(int){};     // optional (cores since 30.10.2026): Potato mode (bit 0 weather, bit 1 special effects off)
   void (*setSoundVolume)(int){};  // optional (cores since 30.10.2026): music | effects << 8, percent
   void (*setAim)(int){};        // optional (cores since 30.10.2026): bit 0 invert vertical, bit 1 auto aim, bit 2 always run, bits 8.. aim speed in percent
+  int (*aimFromGame)(void){};   // optional (cores since 03.11.2026, patch 0188): the game's own "reverse" changed
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
@@ -438,6 +439,7 @@ void loadCore(JNIEnv *env) {
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
   api.setPotato = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_potato"));
   api.setAim = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_aim"));
+  api.aimFromGame = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_aim_from_game"));
   api.setSoundVolume = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_sound_volume"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
@@ -2363,6 +2365,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEn
   if (optAim.exchange(want) != want)
     LOG("aim: stick aiming %s, speed %d %%, auto aim %s, always run %s", invert == JNI_TRUE ? "inverted" : "normal",
         percent, autoAim == JNI_TRUE ? "on" : "off", alwaysRun == JNI_TRUE ? "on" : "off");
+}
+
+// Patch 0188: "reverse" changed in the game's own options since the last call (-1: no; with the core in its own
+// process always -1).
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_aimFromGame(JNIEnv *, jclass) {
+  return api.aimFromGame ? api.aimFromGame() : -1;
 }
 
 // "Far camera" (the menu, Controls): the shoulder camera further back while walking and standing (patch 0171),
