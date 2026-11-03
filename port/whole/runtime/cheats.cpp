@@ -30,12 +30,26 @@
 //     background; Professional comes with it, the game has one flag for all), EXT_GET_OMAKE_ADA_GAME,
 //     EXT_GET_OMAKE_ETC_GAME (the Mercenaries' records cleared the first time, as there). Not the
 //     costume (EXT_COSTUME: the new game would ask for it).
+// The story's player character (wish of the project owner, 03.11.2026; port/docs/cheat-menu-plan.md,
+// "Spielfiguren"): bits 32..224 of the switches hold a player type (pl_type << 5: 2 Ada, 3 HUNK, 4
+// Krauser, 5 Wesker; 0 Leon). Patch 0195 asks here: the room that loads next (gameRoomInit, before ReadPlayerData)
+// gets that character instead of Leon, in the story only (not Ashley's part, Assignment Ada or The
+// Mercenaries). What is Leon's stays his: the case, the life, the money, the room items for Leon
+// (SCE_AT player_type 1), the costume (his rule: the vest, chapter 2's jacket), and the save, which
+// always holds Leon (pl_type 0), so a save made with a stand-in loads with Leon or the character chosen
+// then. The character's own weapons (its Mercenaries ones) come from its own files, every other weapon
+// of Leon's from Leon's; what its player archive lacks (an empty tag, past its table) from Leon's archive,
+// which is read as well (the development half of MEM1: the radio, the rocket, the whistle); the events
+// and the radio screen show Leon from that archive, as their motions are his.
 #include "types.h"
 #include "global.h"
 #include "item.h"
 #include "main.h"
 #include "mercenaries.h"
 #include "sscrn.h"
+#include "dvd.h"
+#include "read.h"
+#include "scheduler.h"
 
 #include <atomic>
 #include <stdio.h>
@@ -47,15 +61,19 @@ extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" void re4_qte_auto(int on);                          // runtime/qte_touch.cpp
 
 int re4CheatPerform(int what);
+int PlSetCostume();  // pl_sub.cpp
 
 namespace {
 
-enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kAll = 31 };
+enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kCharShift = 5, kChar = 7 << kCharShift,
+       kAll = 31 | kChar };
 
 std::atomic<int> gWanted(-1);  // the app's switches, -1 before RE4_CHEATS was read
 int gApplied;                  // what the game frames have set so far
 std::atomic<int> gQueued(0);   // a button pressed while the game ran (the hook does it)
 int gHooked;
+// pl_type's names (the log, the story's player character)
+const char* const kCharName[8] = {"Leon", "Ashley", "Ada", "HUNK", "Krauser", "Wesker", "?", "?"};
 
 // The weapon buttons: the item and its highest levels (fire, speed, reload, capacity; 0: none), the
 // exclusive tune-ups of the merchant's last tables included (merchant.cpp level_ext_normal, level_ext_sw500 as
@@ -164,9 +182,10 @@ void apply(int wanted)
         }
     }
     if (wanted != gApplied) {
-        re4_log("cheat: health %s, ammo %s, one-hit kill %s, automatic QTEs %s, extra games %s",
+        re4_log("cheat: health %s, ammo %s, one-hit kill %s, automatic QTEs %s, extra games %s, the story's player %s",
                 wanted & kHealth ? "on" : "off", wanted & kAmmo ? "on" : "off", wanted & kOneHit ? "on" : "off",
-                wanted & kAutoQte ? "on" : "off", wanted & kExtras ? "kept unlocked" : "as the system file has them");
+                wanted & kAutoQte ? "on" : "off", wanted & kExtras ? "kept unlocked" : "as the system file has them",
+                kCharName[(wanted & kChar) >> kCharShift]);
         if ((wanted ^ gApplied) & kAutoQte) {
             re4_qte_auto(wanted & kAutoQte);
         }
@@ -206,6 +225,110 @@ void hook(unsigned)
     }
 }
 
+// ---- the story's player character ------------------------------------------------------------
+
+// Leon's player archive for a stand-in (the events, the radio screen, what the character's archive
+// lacks) and Krauser's weapon buffer (read.cpp: Game.omake_wep_addr, made by gameInit only for his own
+// game), in the development half of MEM1 that nothing else uses (re4_runtime.h: the core's and the
+// option data's second places end at 0x82000000)
+const u32 kLeonArcAddr = 0x82000000u;
+const u32 kLeonArcMax = 0x118000u;  // read.cpp ReadPlayerData: Leon's limit
+const u32 kWepPlaceAddr = 0x82200000u;
+
+int gLeonCostume = -1;  // the costume of the archive at kLeonArcAddr, -1 none
+int gSwitched;          // the type the cheat gave the story's player (0: none)
+
+int wantedChar()
+{
+    int wanted = gWanted.load(std::memory_order_acquire);
+    if (wanted < 0) {
+        const char* v = getenv("RE4_CHEATS");
+        wanted = v ? (int) strtol(v, 0, 0) & kAll : 0;
+    }
+    int type = (wanted & kChar) >> kCharShift;
+    return type >= 2 && type <= 5 ? type : 0;
+}
+
+bool storyGame()
+{
+    return !SysFlagChk(pG, SYS_OMAKE_ADA_GAME) && !SysFlagChk(pG, SYS_OMAKE_ETC_GAME);
+}
+
+// The story's player is a stand-in for Leon: Ada, HUNK, Krauser or Wesker in the story (also from the
+// debug start menu, RE4_TEST_PLAYER)
+bool standIn()
+{
+    return pG->pl_type >= 2 && pG->pl_type <= 5 && storyGame();
+}
+
+// Leon's costume by his rule (pl_sub.cpp PlSetCostume, pl_type 0)
+int leonCostume()
+{
+    if (pG->game_costume == 1) {
+        return 3;
+    }
+    if (ItemMgr.num(0xFE, 0)) {
+        return 2;
+    }
+    return ScfFlagChk(pG, SCF_R106_EVENT) ? 1 : 0;
+}
+
+// Leon's archive for that costume to kLeonArcAddr, as ReadPlayerData reads his (on the game thread,
+// in a room's start: the read waits frame by frame)
+void loadLeon(int costume)
+{
+    static const char* const names[4] = {"em/pl00.drs", "em/pl08.drs", "em/pl09.drs", "em/pl10.drs"};
+    if (gLeonCostume == costume) {
+        return;
+    }
+    gLeonCostume = -1;
+    DVD_READINFO info;
+    int ret;
+    int req = DvdReadN(names[costume], (void*) (unsigned long) kLeonArcAddr, 0, 0, 0, 0x8100, __FILE__, __LINE__);
+    while ((ret = Dvd.ReadCheck(req, &info)) != 1) {
+        if (ret < 0) {
+            re4_log("cheat: %s not readable: the events show no Leon", names[costume]);
+            return;
+        }
+        TaskSleep(1);
+    }
+    u32 size = info.read_size[0][0] + info.read_size[0][1];
+    if (size > kLeonArcMax) {
+        re4_log("cheat: %s is %u bytes, more than its place (%u)", names[costume], (unsigned) size, (unsigned) kLeonArcMax);
+        return;
+    }
+    gLeonCostume = costume;
+    re4_log("cheat: Leon's archive %s (%u bytes) read to 0x%08x for the events", names[costume], (unsigned) size,
+            (unsigned) kLeonArcAddr);
+}
+
+// The weapon numbers a character has files of its own for (read.cpp wep_data_*, ss_model.cpp
+// weaponFilename): the knife, its Mercenaries weapons and the grenades
+bool ownWeapon(int type, int no)
+{
+    switch (no) {
+    case 0x00:
+    case 0x13:
+    case 0x16:
+    case 0x17:
+    case 0x19:
+    case 0x1F:
+    case 0x20:
+        return true;
+    }
+    switch (type) {
+    case 2:
+        return no == 0x01 || no == 0x0A || no == 0x0B;
+    case 3:
+        return no == 0x0B;
+    case 4:
+        return no == 0x1C;
+    case 5:
+        return no == 0x02 || no == 0x06 || no == 0x0A;
+    }
+    return true;
+}
+
 }  // namespace
 
 int re4CheatPerform(int what)
@@ -220,8 +343,9 @@ int re4CheatPerform(int what)
         return 1;
     }
     // only Leon has the case and his own money (Ashley, Ada, HUNK ...: other inventories, PlSelect
-    // swaps the pesetas), only in the room's game loop and outside the sub screens
-    if (pG->pl_type != 0 || pG->Rno0 != 3 || StaFlagChk(pG, STA_SUB_SCRN) || StaFlagChk(pG, STA_MOVIE_ON)) {
+    // swaps the pesetas; a stand-in of the story plays with Leon's), only in the room's game loop and
+    // outside the sub screens
+    if ((pG->pl_type != 0 && !standIn()) || pG->Rno0 != 3 || StaFlagChk(pG, STA_SUB_SCRN) || StaFlagChk(pG, STA_MOVIE_ON)) {
         re4_log("cheat: %s not now (player type %d, game step %d, sub screen %d)", actionName(what), pG->pl_type,
                 pG->Rno0, StaFlagChk(pG, STA_SUB_SCRN) ? 1 : 0);
         return 0;
@@ -328,6 +452,113 @@ void re4_cheats_install(void)
         gHooked = 1;
         re4_add_frame_hook(hook);
     }
+}
+
+// Patch 0195 (game.cpp gameRoomInit, before ReadPlayerData): the story's player as the cheat wants it.
+// Leon (0) becomes the chosen character, a character the cheat gave goes back to Leon when the cheat
+// is off; Ashley's part (1) stays hers. A new type reads its player data (pl_flag), drops the weapon
+// module (each character has its own files) and takes its costume (PlSetCostume, patch 0195: Leon's
+// rule for the stand-ins but Ada).
+void re4_story_char_room(void)
+{
+    if (!storyGame()) {
+        gSwitched = 0;
+        return;
+    }
+    int want = wantedChar();
+    int type = pG->pl_type;
+    if (type == 0 && want) {
+        type = want;
+    } else if (type >= 2 && type <= 5 && type == gSwitched && type != want) {
+        type = want;  // the cheat off (0) or another character
+    }
+    if (type != pG->pl_type) {
+        re4_log("cheat: the story's player is %s from r%03x on (was %s)", kCharName[type], (unsigned) pG->room_id,
+                kCharName[pG->pl_type]);
+        pG->pl_type = (u8) type;
+        gSwitched = type >= 2 ? type : 0;
+        ReleaseWepData();
+        PlSetCostume();
+        pG->pl_flag |= 1;
+    }
+    if (standIn()) {
+        loadLeon(leonCostume());
+    }
+}
+
+// Leon's player archive while a stand-in plays the story (0 otherwise, or when it could not be read)
+void* re4_story_char_leon(void)
+{
+    return standIn() && gLeonCostume >= 0 ? (void*) (unsigned long) kLeonArcAddr : 0;
+}
+
+// 1 while the stand-in takes Leon's costume rule (HUNK, Krauser, Wesker: their archives have one
+// costume; Ada's pl_costume picks her own, pl0b or pl0c)
+int re4_story_char_leon_costume(void)
+{
+    return standIn() && pG->pl_type != 2;
+}
+
+// Leon's costume by his rule while a stand-in plays the story (the vest of PlIsArmor), else -1
+int re4_story_char_costume(void)
+{
+    return standIn() ? leonCostume() : -1;
+}
+
+// 1 when weapon number `no` is none of the stand-in's own: Leon's file is read (read.cpp ReadWepData),
+// the sub screen shows the character without a weapon (ss_model.cpp)
+int re4_story_char_leon_weapon(int no)
+{
+    return standIn() && !ownWeapon(pG->pl_type, no);
+}
+
+// Krauser's weapon buffer when gameInit made none (he took over a story started with Leon)
+void* re4_story_char_wep_place(void)
+{
+    return (void*) (unsigned long) kWepPlaceAddr;
+}
+
+// Entry `no` of the player archive `arc` that its table lacks (an empty tag, or past the table;
+// re4_whole_prelude.h re4_arc_entry): Leon's, while a stand-in plays the story and from index 0x1B on
+// (the motions and the props behind the models: the radio 0x77..0x79, the rocket 0x70..0x76, the
+// whistle 0x7C); `v` is what the table gives otherwise. Leon's props 0x70..0x7C also when the
+// character's table has its own there, while it holds one of Leon's weapons: Krauser's arrow and arm
+// (wep28) are at 0x70..0x73, where Leon has the rocket and the mines (his mine thrower stopped in
+// modelInit with Krauser's motions as a model). Each index once in the log.
+void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v)
+{
+    void* fallback = (void*) (size_t) (unsigned int) (v + (unsigned int) (size_t) arc);
+    if (no < 0x1B || no >= 0x100 || !pG || arc != (const void*) pG->pPlayer || !re4_story_char_leon()) {
+        return fallback;
+    }
+    const u32* ofs = pG->pPlayer->ofs;
+    bool lacks = no - 4 >= ofs[0] || ofs[ofs[0] + no] == 0;
+    if (!lacks && !(no - 0x70u <= 0xCu && re4_story_char_leon_weapon(pG->weapon_no))) {
+        return fallback;
+    }
+    static u8 logged[0x100 / 8];
+    if (!(logged[no >> 3] & (1 << (no & 7)))) {
+        logged[no >> 3] |= (u8) (1 << (no & 7));
+        re4_log("cheat: %s plays: player archive index 0x%x from Leon's (%s)", kCharName[pG->pl_type & 7], no,
+                lacks ? "its own lacks it" : "a prop of his weapon");
+    }
+    PlArc* leon = (PlArc*) (unsigned long) kLeonArcAddr;
+    if (no - 4 >= leon->ofs[0]) {
+        return fallback;
+    }
+    return (void*) (size_t) (leon->ofs[no] + kLeonArcAddr);
+}
+
+// Patch 0195 (game.cpp cGameSave::save): the save holds Leon. `image` is the copy of the save block
+// that starts at `start` (pG->save_data_start_addr).
+void re4_story_char_save(u8* image, const u8* start)
+{
+    if (!standIn()) {
+        return;
+    }
+    image[(const u8*) &pG->pl_type - start] = 0;
+    image[(const u8*) &pG->pl_costume - start] = (u8) leonCostume();
+    re4_log("cheat: saved with Leon as the player (%s plays)", kCharName[pG->pl_type]);
 }
 
 }  // extern "C"

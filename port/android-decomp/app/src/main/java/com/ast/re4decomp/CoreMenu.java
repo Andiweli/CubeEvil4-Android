@@ -116,6 +116,8 @@ final class CoreMenu extends Dialog {
   private static final int HOME = 0, DISPLAY = 1, AUDIO = 2, CONTROLS = 3, PERFORMANCE = 4, CHEATS = 5,
       MANAGEMENT = 6, CONTROLLER = 7;
   private static final long CHEAT_FLASH_MS = 1500;
+  /** The story's player character in the cheat switches: its player type << 5 (runtime/cheats.cpp). */
+  static final int CHARACTER_SHIFT = 5, CHARACTER_BITS = 7 << CHARACTER_SHIFT;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
@@ -1093,6 +1095,21 @@ final class CoreMenu extends Dialog {
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
     help(R.string.ingame_cheats_help);
+    playerCharacter();
+  }
+  /** The story's player character below the cheat buttons (wish of the project owner, 03.11.2026;
+   *  port/docs/cheat-menu-plan.md): one of the characters that play the story cleanly takes Leon's place
+   *  from the next room on (a door, a loaded save, a new game); bits 32..224 of the switches hold its
+   *  player type (runtime/cheats.cpp). Saves keep Leon. */
+  private void playerCharacter() {
+    heading(R.string.ingame_cheat_character);
+    final String[] labels = {"Leon", "HUNK", "Krauser", "Wesker"};
+    final int[] values = {0, 3, 4, 5};
+    int selected = (cheatBits & CHARACTER_BITS) >> CHARACTER_SHIFT;
+    quarterChoices(R.string.ingame_cheat_character_play, labels, values, selected, value -> {
+      cheatBits = (cheatBits & ~CHARACTER_BITS) | (value << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);
+    });
+    help(R.string.ingame_cheat_character_help);
   }
   /** The game is held while the menu is open: the core does a button at once and answers. */
   private void cheatAction(int what, int label) {

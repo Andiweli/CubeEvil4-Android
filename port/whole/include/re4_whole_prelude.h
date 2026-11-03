@@ -92,6 +92,11 @@ template <class B, class T> struct Re4OwnWork : B {
 extern "C" {
 #endif
 void re4_arc_past_table(unsigned int base, unsigned int no, unsigned int count, unsigned int word);
+/* The story's player character (runtime/cheats.cpp, patch 0195): an entry of the player archive that
+ * its table lacks (past the table, or an empty tag: the entry shares the next one's offset) is Leon's
+ * while a stand-in plays the story, as are his props at 0x70..0x7C while it holds one of his weapons
+ * (Krauser keeps his own there); `v` the offset otherwise. */
+void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v);
 #ifdef __cplusplus
 }
 #endif
@@ -100,12 +105,18 @@ static inline void* re4_arc_entry(const void* table, const void* arc, unsigned i
     const unsigned int* ofs = (const unsigned int*) table;
     unsigned int base = (unsigned int) (size_t) arc;
     unsigned int v = ofs[no];
+    if (no >= 4 && ofs[0] < 0x1000 && ofs[2] == 0 && ofs[3] == 0) {
+        if (no - 4 >= ofs[0]) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    if (no >= 4 && no - 4 >= ofs[0] && ofs[0] < 0x1000 && ofs[2] == 0 && ofs[3] == 0) {
-        v = __builtin_bswap32(v);
-        re4_arc_past_table(base, no, ofs[0], v);
-    }
+            v = __builtin_bswap32(v);
+            re4_arc_past_table(base, no, ofs[0], v);
 #endif
+            return re4_arc_stand_in(arc, no, v);
+        }
+        if (ofs[ofs[0] + no] == 0 || no - 0x70u <= 0xCu) {
+            return re4_arc_stand_in(arc, no, v);
+        }
+    }
     return (void*) (size_t) (unsigned int) (v + base);
 }
 
