@@ -59,6 +59,20 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
    `outSscrn(1)`), Debug-Discs, alle 42 Schlossräume: **ohne 0190 Absturz in `cLightMgr::update` in 31 von 31
    Räumen**, in denen der Spieler frei wird; **mit 0190 alle 31 ohne Absturz** bis zum Ende (11 Räume: Spieler nicht
    frei, Ereignis am Raumanfang). Patch 0190 deckt damit auch diesen Bericht ab.
+## Nutzerbericht: Todesschreie der Ganados auf Disc 2 brechen ab (03.11.2026, Branch `work`, nicht nachgestellt)
+
+Bericht (über den Projektinhaber): Disc 2, Mercenaries und Geschichte, die Todesschreie der Gegner seien nicht zu
+hören bzw. brächen zu früh ab. Code: der Schrei kommt beim tödlichen Treffer (`em10SetDamageVoice` →
+`em10CallVoiceSe2`, Block 8 = Gegner-Tonbank, an Teil 0 des Gegners); abgebrochen wird er nur, wenn der Parasit
+herauskommt (Kreischen 0x89) oder der Kopf fällt (`em10LostHead`), wie im Original. **Am PC** (i686, DSP-Spur
+`RE4_DSP_TRACE`, neue Auswertung: jede Stimme, die bis 15 Tonlisten nach einem tödlichen Treffer startet, und wie sie
+endet): Geschichte r303 (Mönch 0x1e, Leon davor gesetzt, Schrotflinte, Auto-Zielen `RE4_TEST_AIM=2`) mit Debug-, EU-,
+US- und JP-Discs; Mercenaries r401/r402/r403 (EU) und r403 (US, JP), zusammen über 40 Tode: **jede Gegnerstimme läuft
+bis zum Ende** (100 %), keine „Snd File not Read“, keine Stimmen-Verdrängung; der Körper verschwindet erst Sekunden
+nach dem Schrei. Abgebrochen werden nur Raumtöne (Regen/Umgebung, niedrige ARAM-Adressen), auch vor jedem Treffer.
+Offen: am Gerät nachhören (Retroid, ARM64), Angaben des Nutzers (Disc-Fassung, Gerät, Ort, Video mit Ton,
+Fehlerbericht direkt danach).
+
 ## Spielfiguren für die Geschichte: Ada, HUNK, Krauser, Wesker statt Leon (03.11.2026, lokal, Branch `claude/char-cheat-f03122`, Patch 0195; am 03.11.2026 in `work` zusammengeführt, Teil von 0.98.0-beta)
 
 Wunsch des Projektinhabers (03.11.2026): Figuren, die die Hauptgeschichte sauber statt Leon spielen können, als eigener
