@@ -51,7 +51,9 @@
 //   RE4_TEST_SE="free+N:B:S[,free+M:B:S...]"  N frames after the player is
 //                          free, sound effect S of block B as a menu plays it
 //                          (SndCall(B, S, 0, 0, 0, 0); up to 8): the merchant's
-//                          tune-up sound 0:0x18 and the back sound 0:5 (02.11.2026)
+//                          tune-up sound 0:0x18 and the back sound 0:5 (02.11.2026);
+//                          "room+N:B:S" counts from the room start (rooms whose
+//                          start event never lets the player free; 03.11.2026)
 //   RE4_TEST_MERCHANT="free+N[:G]"  N frames after the player is free, the
 //                          merchant's lists as his screen builds them (prices
 //                          per piece, stock, the handgun's tune prices) and a
@@ -675,6 +677,7 @@ long g_seAfter[8];           // RE4_TEST_SE
 long g_instantSave = -1, g_instantLoad = -1;  // RE4_TEST_INSTANT
 unsigned char g_instantSlot[0x12000];
 int g_seBlock[8], g_seNo[8], g_seCount;
+bool g_seRoom[8];            // RE4_TEST_SE "room+N": from the room start, not from the player being free
 long g_continueAfter = -1;   // RE4_TEST_CONTINUE
 long g_continueAt = -1;
 bool g_continueLeft;         // the room stopped running after the retry
@@ -1837,8 +1840,9 @@ void frame(unsigned n)
     if (g_freeAt >= 0 && g_merchantAfter >= 0 && (long) n == g_freeAt + g_merchantAfter) {
         merchantTest(n);
     }
-    for (int i = 0; i < g_seCount && g_freeAt >= 0; i++) {
-        if ((long) n == g_freeAt + g_seAfter[i]) {
+    for (int i = 0; i < g_seCount; i++) {
+        const long base = g_seRoom[i] ? g_roomStart : g_freeAt;
+        if (base >= 0 && (long) n == base + g_seAfter[i]) {
             u32 id = SndCall((u16) g_seBlock[i], (u16) g_seNo[i], 0, 0, 0, 0);
             re4_log("run: sound effect %d:0x%x (RE4_TEST_SE) at frame %u: id %u", g_seBlock[i], g_seNo[i], n,
                     (unsigned) id);
@@ -2012,8 +2016,9 @@ void configure()
     }
     if (const char* se = getenv("RE4_TEST_SE")) {
         const char* p = se;
-        while (g_seCount < 8 && strncmp(p, "free+", 5) == 0 &&
+        while (g_seCount < 8 && (strncmp(p, "free+", 5) == 0 || strncmp(p, "room+", 5) == 0) &&
                sscanf(p + 5, "%ld:%i:%i", &g_seAfter[g_seCount], &g_seBlock[g_seCount], &g_seNo[g_seCount]) == 3) {
+            g_seRoom[g_seCount] = p[0] == 'r';
             g_seCount++;
             p = strchr(p, ',');
             if (!p) {

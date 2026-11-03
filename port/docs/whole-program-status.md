@@ -25,9 +25,13 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
 5. **Saddler-Belohnung 100000 statt 29018:** offen. Die EU-Daten von r332 haben eine verborgene Fläche 0x87 mit
    item 0x71 ×100 (= 100000 Peseten, `cItemMgr::get`) am Startpunkt, aus (be 0x02); Debug und US haben sie nicht. Wer
    sie einschaltet, ist nicht gefunden (`st3_3.rel` nennt 0x87 nicht). Braucht Disc-Art und wo die 29018 herkamen.
-6. **Kettensäge des „Riesen Salvador“ (Mercenaries, EU, r404, Modul em20):** offen. `SndCall(6, 0x4D)` und alle
-   Tonaufrufe von em20 in EU und Debug gleich (nur die schon übernommenen Tritt-Töne 0x3A/0x3B); das Aufheulen kommt
-   also aus den Tondaten / dem Abspielen. Video des Projektinhabers zum Vergleich liegt vor.
+6. **Kettensäge des „Riesen Salvador“ (Mercenaries, EU):** offen, kein Unterschied gefunden. Die Kettensäge nutzt
+   `SndCall(6, 0x4B)` (Aufheulen aus der Ferne, `em10CsawSignSe`), `0x3E` (nah) und `0x4D` (Leerlauf, alle 60 Bilder);
+   `em10CsawSignSe`, `em10ChainSawMove` und die Sägen-Angriffe sind in `em10.rel` von EU und Debug gleich (nur
+   verschobene Adressen), alle Tonaufrufe von em20 ebenso; die Entfernungs-Tonhöhe (`sndPitchCalc`) wird je Bild
+   nachgeführt. Am PC (r101, EU) spielen alle drei Töne (`RE4_TEST_SE` kann jetzt `room+N:B:S`). Das Video des
+   Projektinhabers (Mercenaries Dorf, mit Schüssen) zeigt beim Schwingen steigende Pfeiftöne 1,4–4 kHz; wegen der
+   Schüsse kein sauberer Vergleich. In Mercenaries r400 am PC erreichte in 6000 Bildern kein Gegner Leon.
 7. **Gewehrhaltung / Kamera beim Tritt:** `g_readyOfs` / `g_transOfs` der Verkaufsfassungen weichen ab (US 7 Zeilen,
    EU/JP 17 Zeilen; Leons Standard-Haltung für Handfeuerwaffen und Gewehre, Ada; ein Übergangspunkt von Ada).
    **Patch 0189** setzt sie mit Verkaufs-Discs vor `offsetCorrection`. Am PC gebaut, r202 mit allen drei Disc-Arten
