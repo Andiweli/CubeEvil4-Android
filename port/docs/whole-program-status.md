@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Acht Nutzerberichte zu 0.97.1 (03.11.2026, Branch `work`, Patches 0188 und 0189)
+## Acht Nutzerberichte, Version 0.98.0-beta (03.11.2026, Branch `work`, Patches 0188 bis 0190; 0.97.1 wurde nicht veröffentlicht, alles geht in 0.98.0)
 
 Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschreibungen des Projektinhabers.
 
@@ -50,7 +50,7 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
    Schnitt-Daten für immer auf 10 und lud keins, `update` rechnete 9 − 10 vorzeichenlos (≈ 4 Milliarden Ersatzplätze),
    `create` lieferte 0. **Patch 0190** (`light.cpp`): die ersten 10 laden, Daten behalten, keine Ersatzplätze dann,
    Abbruch bei vollem Vorrat. Gebaut; am PC nicht nachgestellt (Ada in der Scheune).
-## Spielfiguren für die Geschichte: Ada, HUNK, Krauser, Wesker statt Leon (03.11.2026, lokal, Branch `claude/char-cheat-f03122`, Patch 0195; nicht in `master`/`work`)
+## Spielfiguren für die Geschichte: Ada, HUNK, Krauser, Wesker statt Leon (03.11.2026, lokal, Branch `claude/char-cheat-f03122`, Patch 0195; am 03.11.2026 in `work` zusammengeführt, Teil von 0.98.0-beta)
 
 Wunsch des Projektinhabers (03.11.2026): Figuren, die die Hauptgeschichte sauber statt Leon spielen können, als eigener
 Abschnitt im Cheat-Menü. Analyse, Figurenliste mit Gründen, Umsetzung und Grenzen: `port/docs/cheat-menu-plan.md`,
