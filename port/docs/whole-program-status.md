@@ -42,6 +42,14 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
    ohne Absturz; Kamerawerte im Bild nicht geprüft. Für den Tritt keine abweichende Tabelle gefunden.
 8. **RetroTouch 1.0.0-beta.8:** `libs/retrotouch.aar` ersetzt; Rand aller Knöpfe #3e3c29
    (`RetroTouchColors.withBorderColor`, `CoreTouch.BORDER`). `gradlew testCoreDebugUnitTest` ohne Fehler.
+9. **Absturz beim Öffnen/Schließen des Koffers als Ada (Mercenaries, Dorf-Scheune, EU, Bericht
+   cubeevil4-report-20261102-173511):** `crash.txt` Signal 11 bei 0x8 in `cLightMgr::update` aus
+   `CameraControl::Check` ← `cPlayer::endCamera` ← `weaponRelease` ← `SubScreenExit`; davor „LIGHT NUM OVER 10“,
+   „nMaxLight Over 15/10“. Beim offenen Koffer hält `inSscrn` den Lichtvorrat bei 10; Adas Waffen-Ablegen beim
+   Schließen aktualisiert das Raumlicht vor `outSscrn`, der Schnitt der Scheune hat 15 Lichter: `registCut` kürzte die
+   Schnitt-Daten für immer auf 10 und lud keins, `update` rechnete 9 − 10 vorzeichenlos (≈ 4 Milliarden Ersatzplätze),
+   `create` lieferte 0. **Patch 0190** (`light.cpp`): die ersten 10 laden, Daten behalten, keine Ersatzplätze dann,
+   Abbruch bei vollem Vorrat. Gebaut; am PC nicht nachgestellt (Ada in der Scheune).
 
 ## Version 0.97.1-beta: Händlerpreise und Waffenwerte der Verkaufsfassungen (02.11.2026, Branch `work`, Patch 0187; vom Projektinhaber auf dem Gerät bestätigt: „Die Preise sind nun korrekt“)
 
@@ -11363,6 +11371,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0187 `merchant.cpp`, `item.cpp`, `em_dm_val.cpp`, `game.cpp` | Händler und Schaden der Verkaufs-Discs: Preis- und Ausbautabellen (US, EU/JP), Lager-Regeln (Arten 0/1/2, Spray-Tabellen, kein `Merchant2ndRoundInit`), EU-Spray nach Heilmitteln, Schatzkarten je Gebiet, Ankauf, `itemInfo`-Stapel, Schadens-Klassentabellen, `WeaponLevelTbl`-Zeilen, EU-Rundung. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Nutzerbericht 02.11.2026 |
 | 0188 `option.cpp` | Das Schließen der spieleigenen Optionen übergibt „reverse“ an die App (`re4_aim_options_closed`), die es als „Invert vertical“ speichert. Vorher setzte der App-Schalter es bei jedem Start zurück. Port-Patch, Nutzerbericht 03.11.2026 |
 | 0189 `cam_qfps.cpp` | Schulterkamera-Tabellen `g_readyOfs` / `g_transOfs` der Verkaufs-Discs (US, EU/JP) vor `offsetCorrection`. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Nutzerbericht 03.11.2026 |
+| 0190 `light.cpp` | Lichtvorrat beim Verlassen des Koffers: `registCut` lädt bei zu kleinem Vorrat die ersten Lichter und kürzt die Schnitt-Daten nicht mehr, `update` legt keine Ersatzplätze an, wenn der Schnitt mehr Lichter als `nMaxLight` hat, und hört bei vollem Vorrat auf. Vorher Absturz (Ada, Mercenaries, Scheune). Fehler des Prototyps, Nutzerbericht 02.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
