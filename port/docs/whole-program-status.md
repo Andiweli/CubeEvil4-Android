@@ -8,9 +8,11 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschreibungen des Projektinhabers.
 
 1. **Unendlicher Raketenwerfer sprengt den Felsen vor den zwei Riesen nicht, Chicago Typewriter zerstört keine großen
-   Kisten und Sperren:** offen. Geprüft: `emRockDmCk` ist in Debug und EU gleich (leer), die Kisten-/Sperren-
-   Schadensprüfungen der Verkaufsfassungen sind etwas größer, Raum des Felsens aus den Berichten nicht eindeutig. Am PC
-   (r202, Kiste s20) traf Leon in der Testposition nicht – kein Ergebnis. Braucht Raum oder Spielstand (.gci).
+   Kisten und Sperren:** offen. Der Felsen ist die Dynamit-Stelle in r223 (Mine vor r224, `r223_Bomb`: Explosion bei
+   (-2039 525 -31894), `PlWepHitCheck2` Typ 0x12, Flächen 0x12/0x13 aus). In `st2_3.rel` der EU-Fassung ist
+   `r223_EmCheck` 0x97C statt 0x5A4 Bytes groß und `r223_Bomb` anders gebaut; Abfragen der Raketenwerfer-Nummern
+   (0x0D/0x12/0x13) hat das EU-Modul nicht – der Auslöser muss über Explosionsschaden laufen, noch nicht entschlüsselt.
+   `emRockDmCk` ist überall leer. Kisten: am PC (r202, Kiste s20) traf Leon in der Testposition nicht.
 2. **Leistung an Wasser (Dorf bei Regen, See, Insel, Verdugo-Tank):** Bericht 090435 (Mali-Handy, Debug-Discs): in
    r405 bis 22 ms je Bild für `BP` (EFB-Kopien der Wasser-/Spiegeleffekte), sonst 3–6 ms. Ohne Mali-Gerät nicht zu
    messen; offen.
@@ -22,9 +24,12 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
 4. **Pixelfilter: Bodentexturen flimmern (Mercenaries, ohne 60 FPS):** der Filter nahm je Zelle einen Bildpunkt aus
    dem fein gerenderten Bild; jetzt der Mittelwert ihrer vier Spielpixel (`gx_gl.cpp` MakePsx). `gx_gl_check` 0
    Fehler (TestPsx angepasst). Gerät offen.
-5. **Saddler-Belohnung 100000 statt 29018:** offen. Die EU-Daten von r332 haben eine verborgene Fläche 0x87 mit
-   item 0x71 ×100 (= 100000 Peseten, `cItemMgr::get`) am Startpunkt, aus (be 0x02); Debug und US haben sie nicht. Wer
-   sie einschaltet, ist nicht gefunden (`st3_3.rel` nennt 0x87 nicht). Braucht Disc-Art und wo die 29018 herkamen.
+5. **Saddler-Belohnung 100000 statt 29018:** offen. Saddler (em31, Liste emleon07 0xA8/0xA9) hat in allen Fassungen
+   keinen Beute-Eintrag; `EmSetDropItem` → `RandomItemCk` (EU 0x89C Bytes, Debug/US 0x62C/0x668) kennt em 0x31 in der
+   EU-Fassung nicht. Nur die EU-Daten von r332 haben eine verborgene Fläche 0x87 (Nr. 135) mit item 0x71 ×100
+   (= 100000 Peseten, `cItemMgr::get`) am Startpunkt (-42020 15811 47290), aus (be 0x02); US und Debug haben sie
+   nicht. `st3_3.rel` (EU) nennt 0x87 nicht; `Evd/r332s10.evd` ist in EU anders als in Debug/US. 29018 ist kein
+   Vielfaches von 10, also kein Zufallsgeld von 0x78 – wohl der Kontostand. Wer 0x87 einschaltet, ist noch offen.
 6. **Kettensäge des „Riesen Salvador“ (Mercenaries, EU):** offen, kein Unterschied gefunden. Die Kettensäge nutzt
    `SndCall(6, 0x4B)` (Aufheulen aus der Ferne, `em10CsawSignSe`), `0x3E` (nah) und `0x4D` (Leerlauf, alle 60 Bilder);
    `em10CsawSignSe`, `em10ChainSawMove` und die Sägen-Angriffe sind in `em10.rel` von EU und Debug gleich (nur
