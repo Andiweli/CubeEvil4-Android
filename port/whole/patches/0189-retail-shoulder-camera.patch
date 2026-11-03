@@ -1,0 +1,114 @@
+# Retail data (user reports 01.11. and 03.11.2026: "different rifle stance for Leon; different camera perspective when
+# kicking"; whole-program-status.md, report 6 after 0.96.8: the tables were seen then, not taken over). The shoulder
+# camera's default tables g_readyOfs / g_transOfs of the retail main.dol files (read 03.11.2026; US 0x801ff530,
+# European 0x80203dd0, the Japanese and Korean ones as the European) differ from the prototype's: Leon's default ready
+# table (handguns, rifles) in the middle site (both) and the upper and lower ones (European), Ada's three in two sites
+# (both), with the European discs also Leon's other weapons, Leon with Ashley and Krauser's / Wesker's lower sites,
+# and Ada's transition in one site (both). CameraQuasiFPS::offsetCorrection sets them before it corrects the tables.
+# The debug build's discs keep the prototype's.
+--- a/src/game/cam_qfps.cpp
++++ b/src/game/cam_qfps.cpp
+@@ -1035,11 +1035,103 @@
+     }
+ }
+ 
++/* PORT (patch 0189): the shoulder camera of the retail discs. Their g_readyOfs / g_transOfs (US main.dol
++   0x801ff530.., European 0x80203dd0..; the Japanese and Korean ones are the European) differ from the
++   prototype's in the middle and lower sites of several ready tables (Leon's default one, which the handguns and
++   the rifles use, Ada's, and with the European discs more: Leon's other weapons, with Ashley, Krauser's, Wesker's)
++   and in one transition site, set below before the tables are corrected. The debug build's discs keep the
++   prototype's tables (kept at the first call). */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_us(void);
++
++struct QfpsRetailRow {
++    u8 type, side, site;
++    QFPS_OFFSET o;
++};
++
++static const QfpsRetailRow qfps_retail_us[] = {
++    {0, 0, 1, {{{-470.0f, 1715.0f, -615.0f}, {-260.0f, 1630.0f, -125.0f}}, {-200.0f, 1345.0f, 1525.0f}, 0.0f, 45.0f}},
++    {5, 0, 1, {{{-460.0f, 1500.0f, -900.0f}, {-216.0f, 1478.0f, -148.0f}}, {-150.0f, 1380.0f, 1500.0f}, 0.0f, 45.0f}},
++    {5, 0, 2, {{{-231.0f, 2100.0f, -50.0f}, {-174.0f, 1456.0f, 197.0f}}, {-392.0f, 322.0f, 867.0f}, 0.0f, 45.0f}},
++    {6, 0, 1, {{{-460.0f, 1500.0f, -900.0f}, {-216.0f, 1478.0f, -148.0f}}, {-150.0f, 1380.0f, 1500.0f}, 0.0f, 45.0f}},
++    {6, 0, 2, {{{-231.0f, 2100.0f, -50.0f}, {-174.0f, 1456.0f, 197.0f}}, {-392.0f, 322.0f, 867.0f}, 0.0f, 45.0f}},
++    {7, 0, 1, {{{-460.0f, 1500.0f, -900.0f}, {-216.0f, 1478.0f, -148.0f}}, {-150.0f, 1380.0f, 1500.0f}, 0.0f, 45.0f}},
++    {7, 0, 2, {{{-231.0f, 2100.0f, -50.0f}, {-174.0f, 1456.0f, 197.0f}}, {-392.0f, 322.0f, 867.0f}, 0.0f, 45.0f}},
++};
++
++static const QfpsRetailRow qfps_retail_eu[] = {
++    {0, 0, 0, {{{-527.0f, 600.0f, -680.0f}, {-250.0f, 1500.0f, -350.0f}}, {-220.0f, 4080.0f, 1100.0f}, 0.0f, 45.0f}},
++    {0, 0, 1, {{{-470.0f, 1715.0f, -615.0f}, {-260.0f, 1630.0f, -125.0f}}, {-200.0f, 1345.0f, 1525.0f}, 0.0f, 45.0f}},
++    {0, 0, 2, {{{-393.0f, 2058.0f, -5.0f}, {-200.0f, 1550.0f, 220.0f}}, {-179.0f, 365.0f, 943.0f}, 0.0f, 45.0f}},
++    {1, 0, 2, {{{-563.0f, 2339.0f, -254.0f}, {-200.0f, 1550.0f, 220.0f}}, {-205.0f, 381.0f, 1010.0f}, 0.0f, 45.0f}},
++    {2, 0, 2, {{{-400.0f, 2800.0f, -1300.0f}, {-200.0f, 1550.0f, 220.0f}}, {0.0f, 500.0f, 1500.0f}, 0.0f, 45.0f}},
++    {3, 0, 0, {{{-527.0f, 867.0f, -681.0f}, {-350.0f, 1500.0f, -350.0f}}, {-163.0f, 3200.0f, 800.0f}, 0.0f, 45.0f}},
++    {3, 0, 2, {{{-393.0f, 2058.0f, -5.0f}, {-200.0f, 1550.0f, 220.0f}}, {-179.0f, 365.0f, 943.0f}, 0.0f, 45.0f}},
++    {4, 0, 2, {{{-648.0f, 2360.0f, -905.0f}, {-200.0f, 1550.0f, 220.0f}}, {-189.0f, 495.0f, 1160.0f}, 0.0f, 45.0f}},
++    {5, 0, 1, {{{-460.0f, 1500.0f, -900.0f}, {-216.0f, 1478.0f, -148.0f}}, {-150.0f, 1380.0f, 1500.0f}, 0.0f, 45.0f}},
++    {5, 0, 2, {{{-231.0f, 2100.0f, -50.0f}, {-174.0f, 1456.0f, 197.0f}}, {-392.0f, 322.0f, 867.0f}, 0.0f, 45.0f}},
++    {6, 0, 1, {{{-460.0f, 1500.0f, -900.0f}, {-216.0f, 1478.0f, -148.0f}}, {-150.0f, 1380.0f, 1500.0f}, 0.0f, 45.0f}},
++    {6, 0, 2, {{{-231.0f, 2100.0f, -50.0f}, {-174.0f, 1456.0f, 197.0f}}, {-392.0f, 322.0f, 867.0f}, 0.0f, 45.0f}},
++    {7, 0, 1, {{{-460.0f, 1500.0f, -900.0f}, {-216.0f, 1478.0f, -148.0f}}, {-150.0f, 1380.0f, 1500.0f}, 0.0f, 45.0f}},
++    {7, 0, 2, {{{-231.0f, 2100.0f, -50.0f}, {-174.0f, 1456.0f, 197.0f}}, {-392.0f, 322.0f, 867.0f}, 0.0f, 45.0f}},
++    {11, 0, 2, {{{-393.0f, 2058.0f, -5.0f}, {-200.0f, 1550.0f, 220.0f}}, {-179.0f, 365.0f, 943.0f}, 0.0f, 45.0f}},
++    {12, 0, 2, {{{-393.0f, 2058.0f, -5.0f}, {-200.0f, 1550.0f, 220.0f}}, {-179.0f, 365.0f, 943.0f}, 0.0f, 45.0f}},
++    {13, 0, 2, {{{-393.0f, 2058.0f, -5.0f}, {-200.0f, 1550.0f, 220.0f}}, {-179.0f, 365.0f, 943.0f}, 0.0f, 45.0f}},
++};
++
++// The default tables of the inserted discs, before offsetCorrection corrects them.
++static void qfpsReleaseTables()
++{
++    static QFPS_OFFSET dbgReady[14][2][3];
++    static QFPS_OFFSET dbgTrans[TRANS_DATA_AREA][2][3];
++    static int saved;
++    const QfpsRetailRow* rows = qfps_retail_eu;
++    int n = sizeof(qfps_retail_eu) / sizeof(qfps_retail_eu[0]);
++    int i, j, k;
++
++    for (i = 0; i < 14; i++) {
++        for (j = 0; j < 2; j++) {
++            for (k = 0; k < 3; k++) {
++                if (!saved) {
++                    dbgReady[i][j][k] = g_readyOfs[i][j][k];
++                }
++                g_readyOfs[i][j][k] = dbgReady[i][j][k];
++            }
++        }
++    }
++    for (i = 0; i < TRANS_DATA_AREA; i++) {
++        for (j = 0; j < 2; j++) {
++            for (k = 0; k < 3; k++) {
++                if (!saved) {
++                    dbgTrans[i][j][k] = g_transOfs[i][j][k];
++                }
++                g_transOfs[i][j][k] = dbgTrans[i][j][k];
++            }
++        }
++    }
++    saved = 1;
++    if (!re4_disc_retail()) {
++        return;
++    }
++    if (re4_disc_retail_us()) {
++        rows = qfps_retail_us;
++        n = sizeof(qfps_retail_us) / sizeof(qfps_retail_us[0]);
++    }
++    for (i = 0; i < n; i++) {
++        g_readyOfs[rows[i].type][rows[i].side][rows[i].site] = rows[i].o;
++    }
++    // Ada's transition, the middle site's camera (both retail releases)
++    g_transOfs[TRANS_DATA_ADA][0][1].m_campos[0].y = 1700.0f;
++    g_transOfs[TRANS_DATA_ADA][0][1].m_campos[0].z = -1300.0f;
++}
++
+ // Corrects every default ready (0..13) and transition (0..4) table at init.
+ void CameraQuasiFPS::offsetCorrection()
+ {
+     int i;
+ 
++    qfpsReleaseTables(); /* PORT (patch 0189): the retail discs' tables */
++
+     for (i = 0; i < 14; i++) {
+         offsetArrayCorrection(g_readyOfs[i]);
+     }
