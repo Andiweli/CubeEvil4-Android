@@ -166,6 +166,9 @@ int main(int argc, char **argv) {
       const char *full = std::getenv("RE4_GX_FULL_RESOLVE");
       options.fullResolve = full && *full == '1';
       renderer->SetOptions(options);
+      // RE4_GX_PSX=1: the PSone demake as the app's switch sets it (GxRenderer::SetPsx)
+      const char *psx = std::getenv("RE4_GX_PSX");
+      renderer->SetPsx(psx && *psx == '1');
       renderer->SetRecording(interp);
       std::string error;
       if (!renderer->InitHalves(halves, &error)) {

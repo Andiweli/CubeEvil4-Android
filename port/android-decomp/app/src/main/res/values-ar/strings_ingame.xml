@@ -24,7 +24,7 @@
     <string name="ingame_fps_display">عرض FPS أسفل اليسار</string>
     <string name="ingame_smooth60">60 إطارًا في الثانية (تجريبي)</string>
     <string name="ingame_merge_draws">دمج استدعاءات الرسم (تجريبي)</string>
-    <string name="ingame_vertex_ring">مخزن الرؤوس الدائري (تجريبي، لـ Mali)</string>
+    <string name="ingame_vertex_ring">مخزن الرؤوس الدائري (تجريبي)</string>
     <string name="ingame_force_performance">فرض الأداء</string>
     <string name="ingame_perf_default">افتراضي</string>
     <string name="ingame_perf_cores">استخدام أنوية الأداء</string>

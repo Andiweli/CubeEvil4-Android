@@ -59,6 +59,28 @@ Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschre
    `outSscrn(1)`), Debug-Discs, alle 42 Schlossräume: **ohne 0190 Absturz in `cLightMgr::update` in 31 von 31
    Räumen**, in denen der Spieler frei wird; **mit 0190 alle 31 ohne Absturz** bis zum Ende (11 Räume: Spieler nicht
    frei, Ereignis am Raumanfang). Patch 0190 deckt damit auch diesen Bericht ab.
+## Version 0.98.1-beta: Meldungen des Projektinhabers vom 03.11.2026 abends (04.11.2026, Branch `work`)
+
+Retroid (0.98.0, Bericht cubeevil4-report-20261103-235030, GX-Serien `gx-geraet-00..06`, 00–05 mit PSone-Demake):
+1. **PSone-Demake: Texturen flackern, Texturen auf Balken wandern beim Laufen.** Wandern: die affinen
+   Texturkoordinaten (wie die PlayStation) gleiten über die langen Polygone des Spiels; jetzt perspektivisch richtig
+   (`gx_gl_shader.cpp`, die Ecken rasten weiter auf das grobe Raster ein). Flackern (Serie 04, senkrechte Bretter):
+   Texturen feiner als das Raster zeigt; jetzt LOD-Verschiebung `log2(halves)` für 3D-Texturen im Demake
+   (`mapSize.z`) und je Rasterzelle der Mittelwert aus 4 × 4 statt 4 Punkten. Am PC (`gx_chunk_render` mit neuem
+   `RE4_GX_PSX=1`, 1×): Wechsel-Flackern der Serie 04 1,74 → 1,61, Serie 00 0,69 → 0,56 (ohne Demake 1,77);
+   `gx_gl_check` 0 Fehler. Am Gerät (1,5×) nicht nachgesehen.
+2. **Feuer am Boden flimmert beim Auf- und Abschauen (60 FPS):** gefunden, nicht behoben. Serie 06 mit Zwischenbildern:
+   ab Bild 6 (Kamera neigt sich) sind die Zwischenbilder im Feuerbereich 4–9 Helligkeitsstufen dunkler; bei
+   `RE4_GX_INTERP_T=0` um ~10 dunkler als das Bild davor (bei T=1 gleich dem nächsten): der große Lichtschein am Boden
+   und die Flammen. Nicht die Lichtposition (`BlendLights` aus: unverändert), nicht Texturmatrix-Sprünge (0). Nächster
+   Schritt: die betroffenen Zeichenaufträge einzeln finden (Auswahl-Werkzeug).
+3. **Instant-Save vor dem Schloss gesperrt:** r10f (Gondel, Händler und Schreibmaschine) stand als ganzer Raum in
+   `unsafePlace`; jetzt nur noch die Fahrt (`STA_RIDE_GONDOLA`). Am PC: r10f am Start und oben an der Stelle des
+   Projektinhabers (56200 −31238 −177007) gespeichert und geladen, Leon dort, 1 800 Bilder ohne Fehler; die Fahrt
+   nach dem Laden nicht gefahren.
+4. **Menü:** „Vertex ring buffer (experimental)“ ohne „for Mali“ (11 Sprachen).
+5. Version 0.98.1-beta (versionCode 95), dazu die Android-16-Behebung (Abschnitt darunter).
+
 ## Nutzerbericht: Android 16 ohne App-Ordner (03.11.2026, Branch `work`)
 
 Bericht (über den Projektinhaber): auf manchen Android-16-Ständen START GAME und beide Importe gesperrt, „App data

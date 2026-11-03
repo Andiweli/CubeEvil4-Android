@@ -22,7 +22,7 @@
     <string name="ingame_fps_display">Afficher les FPS en bas à gauche</string>
     <string name="ingame_smooth60">60 FPS (expérimental)</string>
     <string name="ingame_merge_draws">Regrouper les appels de dessin (expérimental)</string>
-    <string name="ingame_vertex_ring">Tampon circulaire de sommets (expérimental, pour Mali)</string>
+    <string name="ingame_vertex_ring">Tampon circulaire de sommets (expérimental)</string>
     <string name="ingame_force_performance">Forcer les performances</string>
     <string name="ingame_perf_default">Par défaut</string>
     <string name="ingame_perf_cores">Utiliser les cœurs performants</string>

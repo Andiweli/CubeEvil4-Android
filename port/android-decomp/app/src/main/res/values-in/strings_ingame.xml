@@ -21,7 +21,7 @@
     <string name="ingame_fps_display">Tampilan FPS di kiri bawah</string>
     <string name="ingame_smooth60">60 FPS (eksperimental)</string>
     <string name="ingame_merge_draws">Gabungkan panggilan gambar (eksperimental)</string>
-    <string name="ingame_vertex_ring">Ring buffer verteks (eksperimental, untuk Mali)</string>
+    <string name="ingame_vertex_ring">Ring buffer verteks (eksperimental)</string>
     <string name="ingame_force_performance">Paksa Performa</string>
     <string name="ingame_perf_default">Bawaan</string>
     <string name="ingame_perf_cores">Gunakan inti performa</string>

@@ -20,7 +20,7 @@
     <string name="ingame_fps_display">FPS-Anzeige unten links</string>
     <string name="ingame_smooth60">60 FPS (experimentell)</string>
     <string name="ingame_merge_draws">Zeichenaufrufe bündeln (experimentell)</string>
-    <string name="ingame_vertex_ring">Vertex-Ringpuffer (experimentell, für Mali)</string>
+    <string name="ingame_vertex_ring">Vertex-Ringpuffer (experimentell)</string>
     <string name="ingame_force_performance">Leistung erzwingen</string>
     <string name="ingame_perf_default">Standard</string>
     <string name="ingame_perf_cores">Leistungskerne nutzen</string>

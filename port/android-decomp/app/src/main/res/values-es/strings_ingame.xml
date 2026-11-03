@@ -20,7 +20,7 @@
     <string name="ingame_fps_display">Mostrar FPS abajo a la izquierda</string>
     <string name="ingame_smooth60">60 FPS (experimental)</string>
     <string name="ingame_merge_draws">Agrupar llamadas de dibujo (experimental)</string>
-    <string name="ingame_vertex_ring">Búfer circular de vértices (experimental, para Mali)</string>
+    <string name="ingame_vertex_ring">Búfer circular de vértices (experimental)</string>
     <string name="ingame_force_performance">Forzar rendimiento</string>
     <string name="ingame_perf_default">Predeterminado</string>
     <string name="ingame_perf_cores">Usar núcleos de rendimiento</string>

@@ -29,7 +29,7 @@
     <string name="ingame_fps_display">FPS display bottom left</string>
     <string name="ingame_smooth60">60 FPS (experimental)</string>
     <string name="ingame_merge_draws">Merge draw calls (experimental)</string>
-    <string name="ingame_vertex_ring">Vertex ring buffer (experimental, for Mali)</string>
+    <string name="ingame_vertex_ring">Vertex ring buffer (experimental)</string>
     <string name="ingame_force_performance">Force Performance</string>
     <string name="ingame_perf_default">Default</string>
     <string name="ingame_perf_cores">Use performance cores</string>

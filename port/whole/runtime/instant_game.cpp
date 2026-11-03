@@ -85,7 +85,8 @@ bool unsafePlace()
 {
     static const u16 rooms[] = {
         0x10B, 0x11B, // Del Lago (boat, lake)
-        0x10F,        // gondola
+        // r10f (the gondola, with a merchant and a typewriter at both ends) no longer as a whole: the ride
+        // itself is STA_RIDE_GONDOLA below (the project owner's report 03.11.2026: no instant save at the merchant)
         0x11F,        // Mendez
         0x21B, 0x223, // mine cart
         0x221,        // insect boss

@@ -141,19 +141,13 @@ std::string GxVertexShader(const ShaderKey &k) {
   if (Has(k, 1u << 12))
     out += "layout(location = 14) in uvec3 aMtx;\n";
   const char *outQ = (k.centroid & 1) ? "centroid out" : "out";
-  // PSone demake (ShaderKey::centroid bit 1, 3D only): the texture coordinates leave multiplied by w with w
-  // beside them, the fragment shader divides: interpolated so, they run straight across the screen
-  // (affine, no perspective correction, as the PlayStation drew)
+  // PSone demake (ShaderKey::centroid bit 1, 3D only): the corners snap to a coarse grid (below). The
+  // texture coordinates stay perspective-correct: affine ones, as the PlayStation drew, slid along the
+  // game's long polygons as the camera moved (beams, the project owner's report 03.11.2026)
   const bool psx = (k.centroid & 2) && !k.orthographic;
   Add(out, "%s vec4 vColor0;\n%s vec4 vColor1;\n", outQ, outQ);
-  for (unsigned i = 0; i < k.numTexGens; i++) {
-    if (psx)
-      Add(out, "vec3 vTex%u;\n%s vec3 vTexP%u;\n", i, outQ, i);
-    else
-      Add(out, "%s vec3 vTex%u;\n", outQ, i);
-  }
-  if (psx && k.numTexGens)
-    Add(out, "%s float vAffW;\n", outQ);
+  for (unsigned i = 0; i < k.numTexGens; i++)
+    Add(out, "%s vec3 vTex%u;\n", outQ, i);
   out += "int mtxByte(uvec3 m, int n) {\n"
          "  uint w = n < 4 ? m.x : n < 8 ? m.y : m.z;\n"
          "  return int((w >> uint(8 * (n & 3))) & 63u);\n"
@@ -267,12 +261,6 @@ std::string GxVertexShader(const ShaderKey &k) {
       Add(out, "    vTex%u = t;\n", i);
     }
     out += "  }\n";
-  }
-  if (psx) {
-    for (unsigned i = 0; i < k.numTexGens; i++)
-      Add(out, "  vTexP%u = vTex%u * gl_Position.w;\n", i, i);
-    if (k.numTexGens)
-      out += "  vAffW = gl_Position.w;\n";
   }
   out += "}\n";
   return out;
@@ -442,12 +430,9 @@ std::string GxFragmentShader(const ShaderKey &k) {
     if (k.texMaps & (1u << m))
       Add(out, "uniform sampler2D s%d;\n", m);
   const char *inQ = (k.centroid & 1) ? "centroid in" : "in";
-  const bool psx = (k.centroid & 2) && !k.orthographic;  // PSone demake (GxVertexShader)
   Add(out, "%s vec4 vColor0;\n%s vec4 vColor1;\n", inQ, inQ);
   for (unsigned i = 0; i < k.numTexGens; i++)
-    Add(out, psx ? "%s vec3 vTexP%u;\n" : "%s vec3 vTex%u;\n", inQ, i);
-  if (psx && k.numTexGens)
-    Add(out, "%s float vAffW;\n", inQ);
+    Add(out, "%s vec3 vTex%u;\n", inQ, i);
   out += "out vec4 oColor;\n";
   out += "int idot(ivec3 a, ivec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }\n";
   for (int m = 0; m < 8; m++)
@@ -458,9 +443,6 @@ std::string GxFragmentShader(const ShaderKey &k) {
           "}\n",
           m, m, m, m);
   out += "void main() {\n";
-  if (psx)
-    for (unsigned i = 0; i < k.numTexGens; i++)
-      Add(out, "  vec3 vTex%u = vTexP%u / vAffW;\n", i, i);
   out += "  ivec4 prev = colors[0];\n  ivec4 c0 = colors[1];\n  ivec4 c1 = colors[2];\n  ivec4 c2 = colors[3];\n";
   out += "  ivec4 rastemp = ivec4(0);\n  ivec4 textemp = ivec4(0);\n  ivec4 konsttemp = ivec4(0);\n";
   out += "  ivec4 tevin_a, tevin_b, tevin_c, tevin_d;\n";

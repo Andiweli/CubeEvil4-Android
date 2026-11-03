@@ -3008,6 +3008,10 @@ struct GxRenderer::Impl {
       px.mapSize[i][0] = static_cast<float>(bound[i].width);
       px.mapSize[i][1] = static_cast<float>(bound[i].height);
       px.mapSize[i][2] = static_cast<float>(bias) / 32.0f;
+      // PSone demake: the 3D textures no finer than the grid shows them (a cell is `halves` screen pixels
+      // wide): sharper mip levels flickered as the camera moved (fine planks, the owner's report 03.11.2026)
+      if (psxOn && !(xfReg[0x26] & 1))
+        px.mapSize[i][2] += std::log2(static_cast<float>(std::max(halves, 2)));
       px.mapSize[i][3] = 0.0f;
     }
     for (int s = 0; s < 4; s++) {
@@ -3905,9 +3909,10 @@ struct GxRenderer::Impl {
                               "  vUv = p;\n"
                               "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
                               "}\n";
-    // One colour per cell of the grid: the mean of its four game pixels (their centres; one of them alone made
-    // fine textures on the ground flicker as the camera moved, user report 03.11.2026), 8 bits to 5 per channel
-    // after the PlayStation's ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place)
+    // One colour per cell of the grid: the mean of 4 x 4 points across it (one point alone made fine textures on
+    // the ground flicker as the camera moved, user report 03.11.2026; four still let fine planks flicker at the
+    // higher picture levels, the owner's report the same day), 8 bits to 5 per channel after the PlayStation's
+    // ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place)
     static const char kFs[] =
         "#version 300 es\nprecision highp float;\n"
         "uniform sampler2D src;\nuniform vec2 grid;\nin vec2 vUv;\nout vec4 o;\n"
@@ -3915,9 +3920,11 @@ struct GxRenderer::Impl {
         "                                    -3.0, 1.0, -4.0, 0.0, 3.0, -1.0, 2.0, -2.0);\n"
         "void main() {\n"
         "  vec2 cell = min(floor(vUv * grid), grid - 1.0);\n"
-        "  vec3 c = (texture(src, (cell + vec2(0.25, 0.25)) / grid).rgb + texture(src, (cell + vec2(0.75, 0.25)) / grid).rgb +\n"
-        "            texture(src, (cell + vec2(0.25, 0.75)) / grid).rgb + texture(src, (cell + vec2(0.75, 0.75)) / grid).rgb) *\n"
-        "      (255.0 / 4.0);\n"
+        "  vec3 c = vec3(0.0);\n"
+        "  for (int y = 0; y < 4; y++)\n"
+        "    for (int x = 0; x < 4; x++)\n"
+        "      c += texture(src, (cell + (vec2(x, y) + 0.5) * 0.25) / grid).rgb;\n"
+        "  c *= 255.0 / 16.0;\n"
         "  ivec2 d = ivec2(mod(cell, 4.0));\n"
         "  c = floor(clamp(c + kDither[d.y * 4 + d.x], 0.0, 255.0) / 8.0);\n"
         "  o = vec4(c * (255.0 / 31.0) / 255.0, 1.0);\n"

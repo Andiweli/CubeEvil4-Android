@@ -20,7 +20,7 @@
     <string name="ingame_fps_display">FPS внизу слева</string>
     <string name="ingame_smooth60">60 FPS (экспериментально)</string>
     <string name="ingame_merge_draws">Объединять вызовы отрисовки (экспериментально)</string>
-    <string name="ingame_vertex_ring">Кольцевой буфер вершин (экспериментально, для Mali)</string>
+    <string name="ingame_vertex_ring">Кольцевой буфер вершин (экспериментально)</string>
     <string name="ingame_force_performance">Принудительная производительность</string>
     <string name="ingame_perf_default">По умолчанию</string>
     <string name="ingame_perf_cores">Производительные ядра</string>
