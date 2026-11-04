@@ -58,7 +58,9 @@ WSL-Baum `~/re4-fix981/RE4` (aus `~/re4-work` kopiert, Bauordner auf den neuen P
 7. **Ada in Mercenaries kurz unsichtbar (Dorf, Fass am Combo-Bonus), Weskers Schalldämpfer im Koffer:** Bericht 042936
    enthält nur eine spätere Runde (Leon r404, Ada r400 ohne Auffälligkeit im Protokoll); offen, braucht Ort/Video.
    Der Koffer baut Weskers Modell bei jedem Waffenwechsel neu (`weskerModelInit`); offen.
-8. Release-Text 0.98.1 ergänzt. Prüfungen: `whole_build.sh i686`, `gradlew testCoreDebugUnitTest` (Ergebnis unten).
+8. Release-Text 0.98.1 ergänzt. **Prüfungen:** `whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test,
+   Fernkern-Tests, Film-Test, Formatvergleich alle bestanden); `gradlew testCoreDebugUnitTest` bestanden. Nicht
+   gebaut: ARM32/ARM64, nichts davon am Gerät gesehen.
 
 ## Acht Nutzerberichte, Version 0.98.0-beta (03.11.2026, Branch `work`, Patches 0188 bis 0190; 0.97.1 wurde am 02.11.2026 veröffentlicht, der Releasetext von 0.98.0 nennt nur das Neue seit 0.97.1)
 
