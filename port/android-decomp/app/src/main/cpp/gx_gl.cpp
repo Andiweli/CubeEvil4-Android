@@ -4105,8 +4105,14 @@ struct GxRenderer::Impl {
   //     times how bright the picture is there (only a bright flame flares, not smoke or dust); followed
   //     smoothly from the picture before (flareVis[prev], a quarter of the way a picture), so a flare fades
   //     in and out and never pops;
-  //  2. the flares, additively into the EFB's colour: a small round glow and a thin horizontal streak around
-  //     each source, its colour the picture's at the source, at most about a third of full brightness.
+  //  2. the flares, additively into the EFB's colour, as a camera lens makes them (rework after the project
+  //     owner's test, 04.11.2026: "a random flicker near lights" before): at the light a soft glow with a faint
+  //     six-ray starburst, and for the largest few lights (up to three, their share followed smoothly) a row of
+  //     faint coloured ghosts, rings and hexagons in green, violet and blue, on the line from the light through
+  //     the picture's centre: they move against the light as the camera turns.
+  // Steady, no flicker: a source counts only after it was seen in 4 pictures in a row (a muzzle flash or a spark
+  // never flares), its place follows the flame's box smoothly, and its visibility (depth taps times brightness)
+  // rises over about ten pictures and falls over about seven.
   // The PSone demake, FXAA and the TV filter come later at the display copy and take the flares with the
   // picture; with MSAA they go into the multisampled EFB; the in-between pictures of 60 FPS run the same
   // (their matrices are the blended ones).
@@ -4123,12 +4129,14 @@ struct GxRenderer::Impl {
     float x = 0, y = 0, z = 0, r = 0;
     int lost = -1;     // -1 free, 0 seen in this picture, > 0 pictures since it was seen
     bool fresh = false;
+    int age = 0;          // pictures in a row it was seen (4 and more: it flares)
+    float ghost = 0.0f;   // its share of the ghosts (0..1, followed smoothly)
   };
   FlareSlot flareSlot[kFlareSlots];
   GLuint flareVisTex[2] = {}, flareVisFbo[2] = {}, flareVisProgram = 0, flareProgram = 0;
   GLuint flareColorFbo = 0;  // the EFB's colour without its depth (no MSAA): the flares go there
   int flareVisCur = 0;
-  GLint flareVisSlotLoc = -1, flareVisSizeLoc = -1, flareSlotLoc = -1, flareSizeLoc = -1;
+  GLint flareVisSlotLoc = -1, flareVisSizeLoc = -1, flareSlotLoc = -1, flareSizeLoc = -1, flareGhostLoc = -1;
   bool flareLog = false, flareLog2 = false;  // RE4_GX_FLARE_LOG=1: sources and slots, 2: seen and brightness
   unsigned flarePictures = 0;
 
@@ -4234,7 +4242,7 @@ struct GxRenderer::Impl {
         "  if (st < 0.5) { o = vec4(0.0); return; }\n"
         "  float seen = 0.0;\n"
         "  vec3 col = vec3(0.0);\n"
-        "  if (st < 2.5) {\n"
+        "  if (st < 1.5) {\n"
         "    float r = max(size.z, floor(s.w / 8.0) * 0.4);\n"
         "    for (int k = 0; k < 9; k++) {\n"
         "      vec2 off = k == 0 ? vec2(0.0) : r * vec2(cos(float(k) * 0.785398), sin(float(k) * 0.785398)) * "
@@ -4250,39 +4258,74 @@ struct GxRenderer::Impl {
         "    seen /= 9.0;\n"
         "  }\n"
         "  float lum = dot(col, vec3(0.299, 0.587, 0.114));\n"
-        "  float target = seen * smoothstep(0.3, 0.6, lum);\n"
-        "  float a = old.a + (target - old.a) * 0.25;\n"
-        "  vec3 tint = st < 2.5 && lum > 0.05 ? mix(col / max(max(col.r, col.g), col.b), vec3(1.0), 0.35) : old.rgb;\n"
-        "  o = vec4(old.a > 0.003 ? mix(old.rgb, tint, 0.3) : tint, a);\n"
+        "  float target = seen * smoothstep(0.25, 0.55, lum);\n"
+        "  float a = old.a + (target - old.a) * (target > old.a ? 0.1 : 0.14);\n"
+        "  if (a < 0.004 && target < 0.004) a = 0.0;\n"
+        "  vec3 tint = st < 1.5 && lum > 0.05 ? mix(col / max(max(col.r, col.g), col.b), vec3(1.0), 0.45) : old.rgb;\n"
+        "  o = vec4(old.a > 0.003 && dot(old.rgb, vec3(1.0)) > 0.01 ? mix(old.rgb, tint, 0.12) : tint, a);\n"
         "  if (size.w > 0.5) o = vec4(seen, lum, 0.0, a);  // (tests: RE4_GX_FLARE_LOG=2)\n"
         "}\n";
-    // six vertices a slot: the quad of its glow and streak, in EFB texels; nothing for a dark slot
+    // per slot six quads (36 vertices): 0 the glow and starburst at the light, 1..5 its ghosts on the line from the
+    // light through the picture's centre; nothing for a dark slot. slot.z: the radius in EFB texels, ghost[i]: the
+    // slot's share of the ghosts.
     static const char kFlareVs[] =
         "#version 300 es\nprecision highp float;\n"
-        "uniform sampler2D vis;\nuniform vec4 slot[32];\nuniform vec4 size;\n"
-        "out vec2 vUv;\nout vec4 vCol;\n"
+        "uniform sampler2D vis;\nuniform vec4 slot[32];\nuniform float ghost[32];\nuniform vec4 size;\n"
+        "out vec2 vUv;\nout vec4 vCol;\nflat out int vKind;\n"
+        "const vec4 kGhost[5] = vec4[5](vec4(0.42, 0.030, 0.18, 1.0), vec4(0.18, 0.016, 0.22, 2.0),\n"
+        "  vec4(-0.30, 0.055, 0.13, 3.0), vec4(-0.62, 0.024, 0.20, 4.0), vec4(-1.05, 0.080, 0.09, 5.0));\n"
+        "const vec3 kGhostCol[5] = vec3[5](vec3(0.35, 1.0, 0.55), vec3(1.0, 0.72, 0.35), vec3(0.72, 0.42, 1.0),\n"
+        "  vec3(0.35, 0.62, 1.0), vec3(0.40, 0.95, 0.85));\n"
         "void main() {\n"
-        "  int i = gl_VertexID / 6, c = gl_VertexID % 6;\n"
+        "  int q6 = gl_VertexID / 6, c = gl_VertexID % 6;\n"
+        "  int i = q6 / 6, k = q6 % 6;\n"
         "  vec4 v = texelFetch(vis, ivec2(i, 0), 0);\n"
         "  vec4 s = slot[i];\n"
         "  vec2 q = vec2(c == 1 || c == 4 || c == 5 ? 1.0 : -1.0, c == 2 || c == 3 || c == 5 ? 1.0 : -1.0);\n"
-        "  float r = s.z;\n"
-        "  vec2 half_ = vec2(r * 3.0, r);\n"
-        "  vec2 p = s.xy + q * half_;\n"
+        "  float a = v.a * size.w;\n"
+        "  vec2 centre;\n"
+        "  float rad;\n"
+        "  if (k == 0) {\n"
+        "    centre = s.xy;\n"
+        "    rad = s.z * 6.0;\n"
+        "    vCol = vec4(v.rgb, a);\n"
+        "    vKind = 0;\n"
+        "  } else {\n"
+        "    vec4 g = kGhost[k - 1];\n"
+        "    vec2 mid = size.xy * 0.5;\n"
+        "    centre = mid + (s.xy - mid) * g.x;\n"
+        "    rad = g.y * size.y * (0.8 + 0.4 * length(s.xy - mid) / size.y);\n"
+        "    a *= g.z * ghost[i];\n"
+        "    vCol = vec4(mix(kGhostCol[k - 1], v.rgb, 0.25), a);\n"
+        "    vKind = int(g.w);\n"
+        "  }\n"
         "  vUv = q;\n"
-        "  vCol = vec4(v.rgb, v.a * size.w);\n"
-        "  gl_Position = v.a * size.w < 0.004 || s.w < 0.5 ? vec4(2.0, 2.0, 2.0, 1.0)\n"
-        "                : vec4(p / size.xy * 2.0 - 1.0, 0.0, 1.0);\n"
+        "  gl_Position = a < 0.003 || s.w < 0.5 ? vec4(2.0, 2.0, 2.0, 1.0)\n"
+        "                : vec4((centre + q * rad) / size.xy * 2.0 - 1.0, 0.0, 1.0);\n"
         "}\n";
     static const char kFlareFs[] =
         "#version 300 es\nprecision mediump float;\n"
-        "in vec2 vUv;\nin vec4 vCol;\nout vec4 o;\n"
+        "in vec2 vUv;\nin vec4 vCol;\nflat in int vKind;\nout vec4 o;\n"
         "void main() {\n"
-        "  vec2 g = vec2(vUv.x * 3.0, vUv.y);\n"
-        "  float d2 = dot(g, g);\n"
-        "  float glow = exp(-d2 * 3.2) * 0.85 + exp(-d2 * 14.0) * 0.6;\n"
-        "  float streak = exp(-abs(vUv.y) * 9.0) * (1.0 - abs(vUv.x)) * (1.0 - abs(vUv.x)) * 0.45;\n"
-        "  o = vec4(vCol.rgb * (glow + streak) * vCol.a, 0.0);\n"
+        "  float d = length(vUv);\n"
+        "  if (d >= 1.0) discard;\n"
+        "  float f;\n"
+        "  if (vKind == 0) {\n"
+        "    float e = d * 6.0;\n"
+        "    float glow = exp(-e * e * 1.4) * 0.9 + exp(-e * e * 0.18) * 0.22;\n"
+        "    float ang = atan(vUv.y, vUv.x);\n"
+        "    float rays = pow(abs(cos(ang * 3.0)), 48.0) + 0.45 * pow(abs(cos(ang * 3.0 + 0.5236)), 80.0);\n"
+        "    f = glow + rays * (1.0 - d) * (1.0 - d) * exp(-d * 1.6) * 0.75;\n"
+        "  } else if (vKind == 3 || vKind == 5) {\n"
+        "    vec2 h = abs(vUv);\n"
+        "    float hex = max(h.x * 0.866 + h.y * 0.5, h.y);\n"
+        "    f = smoothstep(0.98, 0.84, hex) * 0.55 + smoothstep(0.74, 0.88, hex) * smoothstep(0.98, 0.88, hex) * 0.8;\n"
+        "  } else if (vKind == 4) {\n"
+        "    f = smoothstep(1.0, 0.86, d) * smoothstep(0.62, 0.84, d) + (1.0 - d) * 0.25;\n"
+        "  } else {\n"
+        "    f = smoothstep(1.0, 0.2, d);\n"
+        "  }\n"
+        "  o = vec4(vCol.rgb * f * vCol.a, 0.0);\n"
         "}\n";
     std::string log;
     flareVisProgram = Link(kVs, kVisFs, &log);
@@ -4301,6 +4344,7 @@ struct GxRenderer::Impl {
     glUseProgram(flareProgram);
     glUniform1i(glGetUniformLocation(flareProgram, "vis"), 0);
     flareSlotLoc = glGetUniformLocation(flareProgram, "slot");
+    flareGhostLoc = glGetUniformLocation(flareProgram, "ghost");
     flareSizeLoc = glGetUniformLocation(flareProgram, "size");
     glGenTextures(2, flareVisTex);
     glGenFramebuffers(2, flareVisFbo);
@@ -4331,7 +4375,7 @@ struct GxRenderer::Impl {
       bool joined = false;
       for (FlareCand &m : merged) {
         const float gap = std::max({f.x0 - m.x1, m.x0 - f.x1, f.y0 - m.y1, m.y0 - f.y1});
-        if (gap < 12.0f) {
+        if (gap < 16.0f) {
           m.x0 = std::min(m.x0, f.x0);
           m.y0 = std::min(m.y0, f.y0);
           m.x1 = std::max(m.x1, f.x1);
@@ -4375,15 +4419,45 @@ struct GxRenderer::Impl {
         continue;
       FlareSlot &s = flareSlot[best >= 0 ? best : freeSlot];
       s.fresh = best < 0;
-      s.x = cx;
-      s.y = cy;
+      if (s.fresh) {
+        s.x = cx;
+        s.y = cy;
+        s.r = r;
+        s.age = 0;
+        s.ghost = 0.0f;
+      } else {
+        // the flame's box flickers: its place followed (half the way a picture), a big jump (the camera) at once
+        const float k = bestD > s.r ? 1.0f : 0.5f;
+        s.x += (cx - s.x) * k;
+        s.y += (cy - s.y) * k;
+        s.r += (r - s.r) * 0.15f;
+      }
       s.z = m.z;
-      s.r = s.fresh ? r : s.r + (r - s.r) * 0.3f;
       s.lost = 0;
+      s.age = std::min(s.age + 1, 1000);
     }
-    for (FlareSlot &s : flareSlot)
+    for (FlareSlot &s : flareSlot) {
       if (s.lost > 16)
         s.lost = -1;
+      if (s.lost > 0)
+        s.age = 0;
+    }
+    // the ghosts: the three largest lights that flare, by size; each slot's share followed smoothly
+    int order[kFlareSlots], ranked = 0;
+    for (int i = 0; i < kFlareSlots; i++)
+      if (flareSlot[i].lost == 0 && flareSlot[i].age >= 4)
+        order[ranked++] = i;
+    std::sort(order, order + ranked, [this](int a, int b) { return flareSlot[a].r > flareSlot[b].r; });
+    static const float kShare[3] = {1.0f, 0.6f, 0.4f};
+    for (int i = 0; i < kFlareSlots; i++) {
+      float want = 0.0f;
+      for (int j = 0; j < ranked && j < 3; j++)
+        if (order[j] == i)
+          want = kShare[j];
+      flareSlot[i].ghost += (want - flareSlot[i].ghost) * 0.12f;
+      if (flareSlot[i].lost < 0)
+        flareSlot[i].ghost = 0.0f;
+    }
     if (flareLog && flarePictures < 400) {
       int used = 0;
       for (const FlareSlot &s : flareSlot)
@@ -4421,8 +4495,9 @@ struct GxRenderer::Impl {
       slots[i][0] = s.x * sc;
       slots[i][1] = s.y * sc;
       slots[i][2] = s.z;
-      // state (0 free, 1 seen, 2 new, 3 lost) + 8 x the radius in EFB texels (the taps reach 0.4 of it)
-      slots[i][3] = (s.lost < 0 ? 0.0f : s.lost > 0 ? 3.0f : s.fresh ? 2.0f : 1.0f) +
+      // state (0 free, 1 seen, 2 new, 3 lost, 4 seen but not yet in 4 pictures) + 8 x the radius in EFB texels
+      // (the taps reach 0.4 of it)
+      slots[i][3] = (s.lost < 0 ? 0.0f : s.lost > 0 ? 3.0f : s.fresh ? 2.0f : s.age < 4 ? 4.0f : 1.0f) +
                     (s.lost < 0 ? 0.0f : 8.0f * std::floor(s.r * sc));
     }
     // the picture's depth and colour (MSAA in own buffers: resolved), as the autofocus reads them
@@ -4460,8 +4535,11 @@ struct GxRenderer::Impl {
                 vis[i * 4], vis[i * 4 + 1], vis[i * 4 + 2]);
     }
     // the flares: their radius in EFB texels in slot.z; strength: at most about a third of white
-    for (int i = 0; i < kFlareSlots; i++)
+    float ghosts[kFlareSlots];
+    for (int i = 0; i < kFlareSlots; i++) {
       slots[i][2] = flareSlot[i].r * sc;
+      ghosts[i] = flareSlot[i].ghost;
+    }
     BindFbo(msaaFbo ? msaaFbo : flareColorFbo);
     if (!msaaFbo)
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, efbColor, 0);
@@ -4474,8 +4552,9 @@ struct GxRenderer::Impl {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, flareVisTex[flareVisCur]);
     glUniform4fv(flareSlotLoc, kFlareSlots, &slots[0][0]);
-    glUniform4f(flareSizeLoc, static_cast<float>(fw), static_cast<float>(fh), 0.0f, 0.32f);
-    glDrawArrays(GL_TRIANGLES, 0, 6 * kFlareSlots);
+    glUniform1fv(flareGhostLoc, kFlareSlots, ghosts);
+    glUniform4f(flareSizeLoc, static_cast<float>(fw), static_cast<float>(fh), 0.0f, 0.5f);
+    glDrawArrays(GL_TRIANGLES, 0, 36 * kFlareSlots);
     glDisable(GL_BLEND);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     BindFbo(DrawFbo());

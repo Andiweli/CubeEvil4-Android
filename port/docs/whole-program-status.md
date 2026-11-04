@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte, Laserfarbe (04.11.2026, Branch `work`, Patch 0198)
+## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte, Laserfarbe; Minikarte und Lichthöfe überarbeitet (04.11.2026, Branch `work`, Patch 0198)
 
 Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/releases/v0.98.2-beta.md`. WSL-Baum
 `~/re4-0982/RE4` (aus `~/re4-fix981` kopiert, Bauordner umgeschrieben).
@@ -175,6 +175,41 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    `gradlew assembleCoreDebug testCoreDebugUnitTest` bestanden, `check_translations.py` ok. Ein Gewehr mit Laser hat
    das Spiel nicht (das Gewehr zielt mit dem Zielfernrohr); das Maschinengewehr nimmt dieselbe Funktion, nicht
    eigens gezeigt. Am Gerät nicht gesehen.
+8. **Minikarte mit Wänden und Türen (Test des Projektinhabers 04.11.2026: „manche Wände werden nicht gezeichnet …
+   vor einer geschlossenen Tür … keine Wand mit Tür“, GX-Serie `gx-dumps-20261104-minimap-flares` Reihe 03):** Ursache:
+   der Umriss war nur der Rand des Bodens (Kanten, die ein einziges Boden-/Schrägen-Dreieck hat). Wo der Boden unter
+   einer Wand, einer Säule oder einer geschlossenen Tür weiterläuft (der Gang hinter der Tür, eine Wand auf der
+   Fläche), gab es keine Kante. `runtime/minimap.cpp` nimmt jetzt dazu die Wand-Dreiecke jedes Kollisionsstücks
+   (`wall_num` nach Boden und Schrägen): von jedem steilen Dreieck (Normale höchstens 30° aus der Waagerechten, sonst
+   kreuzten schräge Dächer die Karte als lange Linien) die längste Kante an seinem Fuß (beide Enden höchstens 150
+   Einheiten über dem tiefsten Punkt), jede Linie einmal (Enden auf 16 Einheiten, die tiefste Höhe gilt).
+   **Geprüft am PC (i686, Debug-Discs, `RE4_TEST_MINIMAP` + `minimap_check`):** r103 190 → 784 Kanten, r202 301 → 698,
+   r211 16 → 186 (die Gänge und Zimmer des Schlosses statt nur der Außenlinie), r305 8 → 83, r204 (Säulen in der
+   Halle), r30c, r311, r106; 0 Abstürze. Der Raum der Reihe 03 ist aus der GX-Aufnahme nicht zu bestimmen (sie enthält
+   keine Raumnummer); dass dort die Tür jetzt als Linie erscheint, ist **auf dem Gerät noch zu bestätigen**.
+9. **Lichthöfe neu (Test des Projektinhabers 04.11.2026: „mehr ein zufälliges Flackern in der Nähe von Lichtern“;
+   Vorlage: Foto einer Kamera-Linsenreflexion):** `gx_gl.cpp`. Ursache des Flackerns: die Quelle war jeder additive
+   Partikel-Haufen eines Bilds, sein Kasten springt mit der Flamme, kurze Blitze (Mündungsfeuer, Funken) flammten sofort
+   auf, Helligkeit und Lage folgten zu schnell. Neu: eine Quelle zählt erst nach 4 Bildern in Folge; ihre Lage folgt
+   dem Kasten zur Hälfte je Bild (ein großer Sprung, die Kamera, sofort); die Sichtbarkeit steigt über etwa zehn
+   Bilder und fällt über etwa sieben. Aussehen wie eine Kameralinse: am Licht ein weicher Schein mit einem feinen
+   Stern aus sechs Strahlen; für die drei größten Lichter (ihr Anteil gleitet) fünf blasse Geister auf der Linie vom
+   Licht durch die Bildmitte (grün, orange, violettes Sechseck, blauer Ring, großes türkises Sechseck), sie wandern
+   gegen das Licht, wenn die Kamera dreht. Durch Wände weiterhin nie (Tiefenproben wie vorher). **Geprüft am PC
+   (`gx_chunk_render` mit den sechs Reihen des Projektinhabers, je 12 Bilder):** Lichtmenge je Bild in allen Reihen
+   gleichmäßig steigend (Einblenden ab Bild 4, kein Sprung zurück; Reihe 03 ohne Lichter: nichts), Stern an den
+   Kerzenhaltern, Geister zur Mitte; PSone-Pixelfilter (12 Bilder) und 60 FPS mit Zwischenbildern (23 Bilder) ohne
+   Fehler, 0 Shader-Fehler, `gx_gl_check` 0 Fehler. Die rote Hängelampe (Reihe 04/05) zeichnet das Spiel nicht additiv:
+   sie bekommt keinen Lichthof. **Auf dem Gerät nicht geprüft.**
+10. **Schildgegner schlagen daneben (Nutzerbericht `report-20261104-115846`, Samsung SM-S937B, Debug-Discs):** r30c ist
+   die Geschichte, nicht Mercenaries: `game_mode 5` ist die Schwierigkeit „Normal“, Ashley ist dabei; der
+   Figuren-Cheat (HUNK, später Ada) gilt dort also richtig. Nachgestellt in r311 (Schildträger em 0x1f mit Axt, greifen
+   gleich an; der Spielstand des Nutzers in r30c liegt nicht vor), x86_64, Debug-Discs, mit Leon, Ada, HUNK, Krauser und
+   Wesker (vorübergehende Spur in `em10AtkCk`: Trefferpunkt, Blickfehler zum Spieler, Ziel Ashley ja/nein, und die
+   Trefferzonen des Spielers): die Gegner zielen bei allen Figuren gleich (Blickfehler zum Spieler 0..0,36 rad);
+   größere Abweichungen nur, wenn sie Ashley angreifen (`Be_flg 0x8000000`, Blick bis 0,7 rad neben dem Spieler), bei
+   Leon genauso; die fünf Trefferzonen (Teile 2, 3, 5, 19, 23) liegen bei allen Figuren an derselben Stelle (Abweichung
+   unter 10 Einheiten). **Kein Fehler des Ports gefunden**; offen: ein Video vom Nutzer.
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 
@@ -405,7 +440,9 @@ Probe (0x2E 1,7 s, 0x16 2,1 s, 0x36 1,7 s, em 0x1e 0x0E 3,7 s, Disc 1 0x2E 2,3 s
 Gegnergruppe), die Proben liegen lückenlos im ARAM (die nächste beginnt direkt nach dem Ende). Die Tonbank em1d ist
 in allen drei Fassungen gleich groß (0x1B2B10). Kein Unterschied 32/64 bit. **Nicht geprüft:** der Tonweg am Gerät
 (AudioTrack, Klangverarbeitung von Samsung); dafür braucht es ein kurzes Video mit Ton vom Nutzer oder Nachhören am
-Retroid (ARM64). Nebenbei gefunden: das Spurwerkzeug darf keine `.orig`-Sicherungen benutzen, `patch` legt im
+Retroid (ARM64). Zweiter Fehlerbericht derselben Sitzung (`report-20261104-105837`): die toten Soldaten werden erst
+4,5 bis 13,5 s nach dem tödlichen Treffer entfernt (`em: - sNN`), lange nach dem Ende jedes Schreis; das Entfernen
+schneidet also nichts ab. Nebenbei gefunden: das Spurwerkzeug darf keine `.orig`-Sicherungen benutzen, `patch` legt im
 vorbereiteten Baum selbst welche an (dort die Fassung ohne Patches).
 
 ## Spielfiguren für die Geschichte: Ada, HUNK, Krauser, Wesker statt Leon (03.11.2026, lokal, Branch `claude/char-cheat-f03122`, Patch 0195; am 03.11.2026 in `work` zusammengeführt, Teil von 0.98.0-beta)
