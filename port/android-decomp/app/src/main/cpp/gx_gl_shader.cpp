@@ -193,12 +193,29 @@ std::string GxVertexShader(const ShaderKey &k) {
   // fell between two rows, user report 29.10.2026). EFB rows grow with GL's y here (no flip).
   out += "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n";
   // PSone demake: the corners snap to a grid of half the GameCube's pixels (320 wide), as the
-  // PlayStation's whole-pixel corners made the polygons wobble
-  if (psx)
+  // PlayStation's whole-pixel corners made the polygons wobble. A corner with a normal moves within the
+  // plane of its surface, to where that plane meets the ray through the snapped point: a carpet or a
+  // decal drawn on a floor stays on the floor's plane. Moved on the screen at the same depth (until
+  // 0.98.1), the floor's and the carpet's corners tilted their triangles by different amounts and the
+  // carpet sank below the floor in patches that came and went as the camera swayed (castle carpets, the
+  // owner's video and dumps of 04.11.2026). Where the plane meets the ray at a grazing angle (the depth
+  // would change by more than a quarter) and in draws without normals (the figures' shadows), the
+  // corner keeps its depth as before.
+  if (psx) {
     out += "  if (gl_Position.w > 0.0) {\n"
            "    vec2 g = vec2(W, H) * 0.25;\n"
-           "    gl_Position.xy = floor(gl_Position.xy / gl_Position.w * g + 0.5) / g * gl_Position.w;\n"
+           "    vec2 s = floor(gl_Position.xy / gl_Position.w * g + 0.5) / g;\n";
+    if (Has(k, 1u))
+      out += "    vec2 r = pos.xy / pos.z - (s - gl_Position.xy / gl_Position.w) /\n"
+             "             vec2(vp[0].x * 2.0 / W * proj[0].x, vp[0].y * 2.0 / H * proj[0].z);\n"
+             "    float den = dot(nrm, vec3(r, 1.0));\n"
+             "    float z2 = den != 0.0 ? dot(nrm, pos) / den : 0.0;\n"
+             "    if (z2 < 0.0 && abs(z2 - pos.z) <= 0.25 * abs(pos.z))\n"
+             "      gl_Position.zw = vec2(2.0 * (vp[0].z * (proj[1].x * z2 + proj[1].y) - vp[1].y * z2) / 16777215.0 + z2,\n"
+             "                            -z2);\n";
+    out += "    gl_Position.xy = s * gl_Position.w;\n"
            "  }\n";
+  }
   // lighting channels
   out += "  vec4 col0 = vec4(1.0);\n  vec4 col1 = vec4(1.0);\n";
   for (unsigned c = 0; c < 2 && c < k.numChans; c++) {
