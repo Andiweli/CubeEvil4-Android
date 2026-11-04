@@ -162,6 +162,11 @@
 //                          outside the third room (patch 0170); "F:ID:HP" only leaves it
 //                          with life HP, as hits that do not kill (U-3 at 1 in the first
 //                          room jumps onto the containers and hides with life 0)
+//   RE4_TEST_STUN="free+N:ID[:R1]"  N frames after the player is free, the nearest live
+//                          enemy of id ID (hex) stands 1000 units in front of the player,
+//                          facing him, in damage routine R1 (hex, default 0x0D: em10's
+//                          Dm_Flash, blinded, the melee prompt on all along): the melee
+//                          moves of the characters (A in a pad script answers the prompt)
 //   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
 //                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
 //                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
@@ -626,6 +631,10 @@ unsigned g_rsfRoom;          // RE4_TEST_RSF
 int g_sta[8], g_staCount;    // RE4_TEST_STA
 bool g_staDone;
 unsigned g_killAt, g_killId; // RE4_TEST_EM_KILL
+long g_stunAfter = -1;       // RE4_TEST_STUN
+unsigned g_stunId, g_stunRno = 0x0D;
+cEm* g_stunEm;               // traced for 400 frames: its routine and the player's
+unsigned g_stunUntil;
 int g_killHp = -1;
 int g_rsf[8], g_rsfCount;
 bool g_rsfDone;
@@ -1751,6 +1760,42 @@ void frame(unsigned n)
                 !hit ? "not found" : g_killHp > 0 ? "left with low life" : "killed", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
                 hit ? (double) hit->pos.z : 0.0);
     }
+    if (g_stunAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_stunAfter && g->Rno0 == 3 && live(pPL)) {
+        g_stunAfter = -1;
+        cEm* hit = 0;
+        f32 best = 0.0f;
+        for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (live(e) && e->isAlive() && e->id == g_stunId && e->hp > 0) {
+                f32 dx = e->pos.x - pPL->pos.x, dz = e->pos.z - pPL->pos.z;
+                if (!hit || dx * dx + dz * dz < best) {
+                    hit = e;
+                    best = dx * dx + dz * dz;
+                }
+            }
+        }
+        if (hit) {
+            hit->setPos(pPL->pos.x + 1000.0f * sinf(pPL->ang.y), pPL->pos.y, pPL->pos.z + 1000.0f * cosf(pPL->ang.y));
+            hit->ang.y = pPL->ang.y + (pPL->ang.y > 0.0f ? -3.1415927f : 3.1415927f);
+            hit->setRno(2, (int) g_stunRno, 0, 0);
+            g_stunEm = hit;
+            g_stunUntil = n + 400;
+        }
+        re4_log("run: enemy 0x%02x %s at frame %u (RE4_TEST_STUN), routine 2/0x%x, player type %u", g_stunId,
+                hit ? "stands stunned in front of the player" : "not found", n, g_stunRno, (unsigned) pG->pl_type);
+    }
+    if (g_stunEm && n <= g_stunUntil && live(pPL)) {
+        static u32 last;
+        cEm* e = g_stunEm;
+        u32 now = (u32) e->r_no_0 << 24 | (u32) e->r_no_1 << 16 | (u32) pPL->r_no_0 << 8 | pPL->r_no_1;
+        if (now != last || n == g_stunUntil) {
+            last = now;
+            re4_log("run: stun frame %u: enemy routine %u/0x%x/%u hp %d at (%.0f %.0f %.0f) frame %.1f, player routine "
+                    "%u/0x%x/%u/%u at (%.0f %.0f %.0f) motion frame %.1f", n, e->r_no_0, e->r_no_1, e->r_no_2, e->hp,
+                    e->pos.x, e->pos.y, e->pos.z, e->Motion.Seq_frame, pPL->r_no_0, pPL->r_no_1, pPL->r_no_2,
+                    pPL->r_no_3, pPL->pos.x, pPL->pos.y, pPL->pos.z, pPL->Motion.Seq_frame);
+        }
+    }
     // RE4_TEST_HEAD_LOST=N: N frames after the player is free his head comes off as by the scythe
     // (emWepPlHeadLost: setHead 0 and the head as an obj01), only the picture of it, no death (the
     // Mercenaries report of 01.11.2026: Krauser's head floats, Ada's falls white)
@@ -2119,6 +2164,20 @@ void configure()
         g_itemUseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
         if (g_itemUseId < 0) {
             g_itemUseAfter = -1;
+        }
+    }
+    if (const char* stun = getenv("RE4_TEST_STUN")) {
+        char* end = 0;
+        if (strncmp(stun, "free+", 5) == 0) {
+            g_stunAfter = strtol(stun + 5, &end, 10);
+            g_stunId = end && *end == ':' ? (unsigned) strtoul(end + 1, &end, 16) : 0;
+            if (end && *end == ':') {
+                g_stunRno = (unsigned) strtoul(end + 1, 0, 16);
+            }
+        }
+        if (!g_stunId) {
+            g_stunAfter = -1;
+            re4_log("run: RE4_TEST_STUN=\"%s\" not understood (free+N:ID[:R1])", stun);
         }
     }
     if (const char* kill = getenv("RE4_TEST_EM_KILL")) {

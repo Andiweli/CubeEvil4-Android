@@ -93,23 +93,20 @@ size_t headerWords(u32 version)
     return version >= 3 ? sizeof(ModuleHeader) : version == 2 ? 0x48 : 0x40;
 }
 
-// Headers OSLink filled in, to tell a relink from a fresh load.
-struct Linked {
-    ModuleHeader* header;
-    const char* name;
-    u32 prolog;
-};
-Linked gLinked[64];
-int gLinkedCount;
-
-Linked* findLinked(ModuleHeader* h)
+// A relink: the header still holds the entry points OSLink wrote for the library
+// that is loaded now (a REL read from disc holds section offsets there). This
+// asks the header itself; an earlier list of the headers OSLink saw held 64
+// and forgot old ones after a long session, so a paused room REL counted as
+// fresh, its library was reloaded elsewhere and the room table of the stage
+// (St2_data_tbl ...) kept pointers into the old mapping (report 20261103-224733,
+// r222 after the sub screen: ScenarioMove jumped to an unmapped address).
+bool isRelink(ModuleHeader* h, const char* name)
 {
-    for (int i = 0; i < gLinkedCount; i++) {
-        if (gLinked[i].header == h) {
-            return &gLinked[i];
-        }
+    if (!h->prolog || !re4_module_is_loaded(name)) {
+        return false;
     }
-    return 0;
+    void* handle = re4_module_load(name);  // already loaded: only the handle
+    return handle && h->prolog == (u32) (unsigned long) dlsym(handle, "_prolog");
 }
 
 bool inList(ModuleInfo* info)
@@ -160,11 +157,10 @@ int OSLink(ModuleInfo* info, void* bss)
         re4_log("OSLink: unknown module id %u", h->info.id);
         return 0;
     }
-    Linked* known = findLinked(h);
-    bool fresh = !known || known->name != name || known->prolog != h->prolog || !h->prolog;
+    bool fresh = !isRelink(h, name);
     if (fresh) {
-        for (int i = 0; i < gLinkedCount; i++) {
-            if (gLinked[i].name == name && gLinked[i].header != h && inList(&gLinked[i].header->info)) {
+        for (ModuleInfo* m = moduleList()->head; m; m = m->next) {
+            if (m != info && re4_module_name(m->id) == name) {
                 re4_log("OSLink: module %s is linked twice; both copies share one library", name);
             }
         }
@@ -182,17 +178,6 @@ int OSLink(ModuleInfo* info, void* bss)
     if (bss && h->bssSize && fresh) {
         memset(bss, 0, h->bssSize);
     }
-    if (!known) {
-        if (gLinkedCount == (int) (sizeof(gLinked) / sizeof(gLinked[0]))) {
-            // Forget the oldest entry; only a relink of a recent header needs it.
-            memmove(&gLinked[0], &gLinked[1], sizeof(gLinked) - sizeof(gLinked[0]));
-            gLinkedCount--;
-        }
-        known = &gLinked[gLinkedCount++];
-        known->header = h;
-    }
-    known->name = name;
-    known->prolog = h->prolog;
     if (!inList(info)) {
         ModuleQueue* q = moduleList();
         info->next = 0;
@@ -215,8 +200,8 @@ int OSUnlink(ModuleInfo* info)
     }
     // The epilog already ran (DLL_Unlink); on the GameCube it also ran the
     // module's static destructors.
-    if (Linked* known = findLinked((ModuleHeader*) info)) {
-        void* handle = re4_module_is_loaded(known->name) ? re4_module_load(known->name) : 0;
+    if (const char* name = re4_module_name(info->id)) {
+        void* handle = re4_module_is_loaded(name) ? re4_module_load(name) : 0;
         if (void (*finalize)() = handle ? (void (*)()) dlsym(handle, "re4_module_finalize") : 0) {
             finalize();
         }

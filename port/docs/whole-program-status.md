@@ -3,6 +3,63 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
+
+Berichte des Projektinhabers `cubeevil4-report-20261104-010942/011134` (Retroid, EU, Ada in r202), Nutzerberichte
+`20261103-203719` (HUNK, r100), `-224733` (POCO X3, EU, r222), `-232907` (Samsung S25 Edge), `-234848` (moto g54),
+`20261104-042936` (Mercenaries, Ada/Wesker), GX-Serie `gx-dumps-Flackern-Pixelfilter` (Schloss-Gang mit Teppich).
+WSL-Baum `~/re4-fix981/RE4` (aus `~/re4-work` kopiert, Bauordner auf den neuen Pfad umgeschrieben).
+
+1. **Absturz im Lava-Raum beim Wechsel aufs Gewehr (Bericht 224733):** r222, EU-Discs, nach über 2 Stunden Spielzeit:
+   Koffer zu → `OSLink: module st2_0 (id 75)` ohne „relinked“ → `ScenarioMove` springt auf 0xdadb881c. Ursache:
+   `os_link.cpp` erkannte ein Wieder-Einhängen (`cRoomData::restartRelData`) an einer Liste der zuletzt gelinkten
+   Modul-Köpfe mit 64 Plätzen; nach langer Sitzung war der Kopf des Raum-Moduls herausgefallen, das Modul galt als
+   frisch und seine Bibliothek wurde neu geladen (anderswo), die Raumtabelle (`St2_data_tbl`, vom Prolog gefüllt) zeigte
+   noch in die alte. **Jetzt:** Wieder-Einhängen = der Kopf trägt noch genau die `_prolog`-Adresse der geladenen
+   Bibliothek (keine Liste mehr); `OSUnlink` nimmt den Namen aus der Modulnummer. **Geprüft:** neuer Fall im
+   `--runtime-test` (80 Köpfe dazwischen, danach Zustand erhalten), `runtime-test`/`core-test` 0 Fehler; r222 mit
+   EU-Discs, Koffer zweimal auf und zu (Leon, HUNK): „st2_0 … relinked“, kein Absturz. Die 2-Stunden-Lage selbst am
+   PC nicht nachgestellt.
+2. **Zurück zum Startbildschirm (Kapitel 4-1/4-2/5-2/5-3):** das ist ein Absturz des Kernprozesses; die App startet
+   danach neu. Bericht 234848 (moto g54, ARM64, r30a → r309 an der Tür): Signal 11 in `re4_bridge_capture` →
+   `captureModel` bei 0xba900018: ein Modell eines gerade ersetzten Raums zeigte auf entladenen Speicher, und die
+   Zeiger-Prüfung `re4_valid_port_ptr` (`os_thread.cpp`) merkte sich Bereiche von Modul-Bibliotheken für immer, auch
+   nach `re4_module_unload` (dlclose, Bereich freigegeben). **Jetzt:** `re4_module_unloads()` zählt Entladungen, die
+   Prüfung vergisst dann ihre Bereiche. Derselbe Nutzer hatte vorher den Licht-Absturz (Patch 0190). Bericht 232907
+   (S25 Edge): letzter Ausstieg „low memory“ (Android hat den Prozess beendet), Fehlerprotokoll aus – keine Ursache
+   im Spiel erkennbar. Am PC nicht nachstellbar (64-Bit-Fenster der Module nur auf Android).
+3. **Nahkampf der Stellvertreter friert ein (Bericht 203719, HUNK, „MotSeqCtrl … Invalid Seq. Frame“):** das Spiel wählt
+   die Griffe selbst nach `pl_type` (em10.cpp: HUNKs Genickbruch 0x2B9, Krausers Kniestoß 0x2B4, Weskers Handstoß
+   0x2B4, die Reaktionen der Ganados 0x2B5..0x2BB). Nur `em/em10.drs` (die große Ganado-Datei der Mercenaries) hat diese
+   Einträge; die Gegnerdateien der Geschichte (`em11`..`em1e`, alle Disc-Arten) enden bei 0x2B3 mit leeren Einträgen →
+   eine „Bewegung“ aus dem REL dahinter. **Jetzt** (`runtime/cheats.cpp` `loadMelee`, `re4_arc_stand_in`): mit einem
+   Stellvertreter werden die zehn Einträge 0x2B4..0x2BD einmal aus `em10.drs` gelesen (DVDRead, nur die 108 KB, ohne
+   Tonteile) nach 0x82480000, als kleines Archiv umgewandelt, und ersetzen dort die fehlenden. Neuer Testschalter
+   `RE4_TEST_STUN="free+N:ID[:R1]"` (`state_trace.cpp`: Gegner geblendet vor die Figur, Routine und Position je
+   Wechsel im Log). **Geprüft (PC, r103, Debug-Discs, A gedrückt):** Leon Tritt, Ada Drehtritt, HUNK Genickbruch
+   (Ganado stirbt, HUNK nach 80 Bildern wieder frei), Krauser Doppeltritt, Wesker Handstoß (Ganado fliegt) – je 0
+   „Invalid Seq“, 0 HALT. Krausers Kniestoß von hinten nicht ausgelöst (nutzt dieselben Einträge).
+4. **Ashley-Befehle mit Stellvertreter:** der X-Knopf-Befehl gehört zu `cPlLeon::checkXbutton`; Ada, HUNK, Wesker
+   erben `cPlayer`s leere Fassung, Krauser hat dort seinen Armangriff. **Patch 0197** (`player.h`, `pl_klauser.cpp`) +
+   `re4_story_char_xbutton` (cheats.cpp): Warten/Folgen wie bei Leon, Krauser behält den Angriff ohne Ashley. Leons
+   Ruf (SE 0x36/0x37 des Spieler-Tonblocks) entfällt, der Block hält die Töne der Figur. **Geprüft:** r113 mit Ashley
+   (`RE4_TEST_STA=101`), X dreimal: alle vier Figuren „wait/follow/wait“.
+5. **Haltung/Kamera (Gewehr, Tritt):** die Tabellen von Patch 0189 gegen die `main.dol` der EU- (0x80203dd0) und
+   US-Discs (0x801ff530) gelesen: Wert für Wert gleich. Das Zappeln/„auf den Boden klatschen“ der Stellvertreter beim
+   Nahkampf ist Punkt 3. Bildschirmfotos (Ada mit Pistole, Leon mit Gewehr hinter Ashley) ohne Angabe von Disc und
+   Moment; ohne Video nicht weiter eingegrenzt.
+6. **Pixelfilter flackert (Teppiche im Schloss):** Messung mit `gx_chunk_render` (`RE4_GX_PSX=1`, 1,5×) über die 12
+   Bilder der Serie: Anteil der Bildpunkte, die von Bild zu Bild wechseln und zurückspringen: **4,9 %** (ohne Filter
+   4,2 %). Ursache: Zellen nahe der Grenze zweier 5-Bit-Stufen springen hin und her, wenn die Texturen darunter leicht
+   schimmern. **Jetzt** (`gx_gl.cpp` `MakePsx`/`Psx`, nicht die Zwischenbild-Funktionen): das vorige Filterbild bleibt
+   (zweite Textur), eine Zelle behält ihre Stufe, solange der neue Wert bis eine Stufe darüber/darunter liegt
+   (`kHold` 1,0). Ergebnis **1,9 %** (0,5 → 3,1 %, 0,75 → 2,3 %), bei 1× und 3× ebenso 1,9–2,0 %; das Bild weicht höchstens
+   eine Stufe (9/255) ab. `gx_gl_check` 0 Fehler. Am Gerät nicht angesehen.
+7. **Ada in Mercenaries kurz unsichtbar (Dorf, Fass am Combo-Bonus), Weskers Schalldämpfer im Koffer:** Bericht 042936
+   enthält nur eine spätere Runde (Leon r404, Ada r400 ohne Auffälligkeit im Protokoll); offen, braucht Ort/Video.
+   Der Koffer baut Weskers Modell bei jedem Waffenwechsel neu (`weskerModelInit`); offen.
+8. Release-Text 0.98.1 ergänzt. Prüfungen: `whole_build.sh i686`, `gradlew testCoreDebugUnitTest` (Ergebnis unten).
+
 ## Acht Nutzerberichte, Version 0.98.0-beta (03.11.2026, Branch `work`, Patches 0188 bis 0190; 0.97.1 wurde am 02.11.2026 veröffentlicht, der Releasetext von 0.98.0 nennt nur das Neue seit 0.97.1)
 
 Berichte `cubeevil4-report-20261103-090435/103712/193635/205216.zip` und Beschreibungen des Projektinhabers.
@@ -11517,6 +11574,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0190 `light.cpp` | Lichtvorrat beim Verlassen des Koffers: `registCut` lädt bei zu kleinem Vorrat die ersten Lichter und kürzt die Schnitt-Daten nicht mehr, `update` legt keine Ersatzplätze an, wenn der Schnitt mehr Lichter als `nMaxLight` hat, und hört bei vollem Vorrat auf. Vorher Absturz (Ada, Mercenaries, Scheune). Fehler des Prototyps, Nutzerbericht 02.11.2026 |
 | 0195 `game.cpp`, `read.cpp`, `event.cpp`, `obj18.cpp`, `pl_sub.cpp`, `sce_at.cpp`, `ss_model.cpp`, `pl02.cpp`, `pl06.cpp`, `pl_klauser.cpp`, `pl_wesker.cpp` | Cheat „Player character“: Ada, HUNK, Krauser oder Wesker spielen die Geschichte (Wechsel beim Raumstart, Spielstände immer Leon), Leons Waffendateien für Waffen ohne eigene Datei, nächstliegende linke Hand, Leons Körper in Zwischensequenzen und auf dem Funkbildschirm, Raum-Gegenstände und Kostümregel wie Leon, Koffer-Ansicht mit Leon-Waffe wie mit dem Messer; dazu `re4_whole_prelude.h` (fehlende Archiv-Einträge aus Leons Archiv). Port-Funktion (Cheat-Menü), Wunsch des Projektinhabers 03.11.2026 |
 | 0196 `pl02.cpp` | Ada als Stellvertreterin mit Leons Waffen: ihre eigene Griffhand (aus ihren Waffendateien, `runtime/cheats.cpp`) statt Leons, die auf ihrem Skelett als dritte Hand neben der Waffe stand. Port-Funktion (Cheat-Menü), Gerätetest des Projektinhabers 03.11.2026 |
+| 0197 `player.h`, `pl_klauser.cpp` | Stellvertreter in der Geschichte: der X-Knopf gibt Ashley „Warten/Folgen“ wie bei Leon (`re4_story_char_xbutton`, `runtime/cheats.cpp`); Krauser behält seinen Armangriff, wenn Ashley nicht da ist. Port-Funktion (Cheat-Menü), Meldung des Projektinhabers 04.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

@@ -728,8 +728,17 @@ int re4_valid_port_ptr(const void* p)
     }
     // the libraries of the game (libre4_main, libre4_<module>): the spans
     // found so far, else the loader's list
+    // A module library unloaded since (re4_module_unload: dlclose, its range
+    // unmapped) leaves no span: a stale one let a dangling model pointer of a
+    // room being replaced pass the state bridge's check (SIGSEGV in
+    // captureModel at 0xba900018, moto g54, r30a -> r309, report 20261103-234848).
     static uintptr_t spans[256][2];
     static int spanCount;
+    static unsigned unloadsSeen;
+    if (unloadsSeen != re4_module_unloads()) {
+        unloadsSeen = re4_module_unloads();
+        spanCount = 0;
+    }
     uintptr_t a = (uintptr_t) p;
     for (int i = 0; i < spanCount; i++) {
         if (a >= spans[i][0] && a < spans[i][1]) {

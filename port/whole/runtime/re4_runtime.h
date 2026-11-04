@@ -31,6 +31,7 @@ void* re4_module_load(const char* name);
 /* Unloads a module library; trampolines of the others into it resolve again. */
 void re4_module_unload(const char* name);
 int re4_module_is_loaded(const char* name);
+unsigned re4_module_unloads(void);
 /* OSLink support (os_link.cpp): converts a big-endian REL header from disc to
  * host byte order in place. 1 = converted, 0 = was host order, -1 = no REL. */
 int re4_rel_header_to_host(void* rel);
