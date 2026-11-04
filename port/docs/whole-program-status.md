@@ -219,6 +219,20 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    Staub oder am Laser; Lichtmenge je Bild in allen Reihen gleichmäßig steigend; PSone und 60 FPS (Reihe 04, 12 und 23
    Bilder) ohne Fehler, 0 Shader-Fehler, `gx_gl_check` 0 Fehler. Nicht ausgeschlossen: der Laserpunkt auf einem
    Gegner (ein kleines helles Bild wie eine Kerze). **Auf dem Gerät nicht geprüft.**
+   **Dritter Test (04.11.2026, GX-Serie `gx-dumps-20261104-flares3`, 27 Reihen; „Linseneffekte spitze“, aber der Stern
+   „unregelmäßig, wandert beim Drehen mit, viel zu grell“; Funkeln an Leon und Ashley, an Gegenständen, an Monitoren,
+   grelle Strahler im Endboss-Level):** Messung je Quelle (Helligkeit, Sichtbarkeit, Kasten, Zahl der Zeichnungen):
+   Monitore 0,55–0,8, die Stellen an Leons Schulter/Rücken und Ashleys Rock (je ein additives Viereck) 0,36–0,64,
+   Kerzen und Lampen 0,9–1,0; ein Strahler ist rund 20 übereinanderliegende Leuchtbilder (40 bis 130 Pixel), jedes
+   bekam einen Stern. Neu: Helligkeit 0,65..0,9 und Kontrast 0,15..0,35 nötig; ein Kasten, dessen Mitte näher als ein
+   Drittel der Größe an der Mitte eines größeren liegt, ist dasselbe Licht; der Stern folgt dem Licht in jedem Bild
+   (vorher halbe Strecke je Bild, er hing beim Drehen nach; der hellste Punkt im Kasten zu drei Vierteln je Bild);
+   der Stern hat 60 % der bisherigen Helligkeit, höchstens Fackelgröße, kürzere Strahlen, ein großes Licht (Kasten
+   über 60 Pixel) höchstens 40 % davon; die Geister unverändert. **Geprüft am PC:** alle 27 Reihen vorher/nachher:
+   kein Stern mehr an Leon, Ashley und den Monitoren, die Strahler (Reihen 23/24) ein weicher Schein statt eines
+   weißen Flecks, Kerzen und Fackeln (02, 06, 08) kleine Sterne; Lichtmenge je Bild steigt in allen Reihen gleichmäßig
+   (Reihe 01: eine kleine Quelle fällt in Bild 6 weg); PSone und 60 FPS (Reihe 08) ohne Fehler, 0 Shader-Fehler,
+   `gx_gl_check` 0 Fehler. **Auf dem Gerät nicht geprüft.**
 10. **Schildgegner schlagen daneben (Nutzerbericht `report-20261104-115846`, Samsung SM-S937B, Debug-Discs):** r30c ist
    die Geschichte, nicht Mercenaries: `game_mode 5` ist die Schwierigkeit „Normal“, Ashley ist dabei; der
    Figuren-Cheat (HUNK, später Ada) gilt dort also richtig. Nachgestellt in r311 (Schildträger em 0x1f mit Axt, greifen

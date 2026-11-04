@@ -4121,6 +4121,12 @@ struct GxRenderer::Impl {
   // clearly brighter than around it (a mote in a shaft of light or in front of Ashley's white trousers is not).
   // The star sits on the brightest part of its box (the visibility pass finds it), and lights close together share
   // one glow's brightness.
+  // Third test of the project owner (04.11.2026, 27 GX series: "Funkeln an Leons Körper", pick-up items, monitors,
+  // "große Lichtstrahler extrem grell", the star "wandert beim Drehen mit"): a light must be near white (0.7..0.92;
+  // a monitor, a figure's shine or an item's sparkle is about half as bright), a box whose middle lies near a larger
+  // one's (a third of its size) is the same light (a lamp's glare is about 20 sprites on top of each other: one star,
+  // not 20), the star follows the light in every picture, has 60 % of its former brightness, at most a torch's size,
+  // and a big lamp (box over 60 pixels) down to 40 % of that; the ghosts stay as they were.
   // The PSone demake, FXAA and the TV filter come later at the display copy and take the flares with the
   // picture; with MSAA they go into the multisampled EFB; the in-between pictures of 60 FPS run the same
   // (their matrices are the blended ones).
@@ -4131,6 +4137,9 @@ struct GxRenderer::Impl {
   struct FlareCand {
     float x0, y0, x1, y1, z;  // screen box (GameCube EFB pixels) and depth (0..1 as the EFB holds it)
     int draws;
+    int normals = 0;          // draws with normals among them (lit meshes: a figure's or an object's shine)
+    std::uint32_t verts = 0;  // the most vertices of one draw
+    unsigned tev = 0;         // (the log) the TEV stages of the last draw
   };
   std::vector<FlareCand> flareCands;
   struct FlareSlot {
@@ -4140,6 +4149,7 @@ struct GxRenderer::Impl {
     int age = 0;          // pictures in a row it was seen (4 and more: it flares)
     float ghost = 0.0f;   // its share of the ghosts (0..1, followed smoothly)
     float crowd = 1.0f;   // its glow's share among lights close together (1 / sqrt(their number), followed)
+    float size = 0.0f;    // its box's larger side (GameCube pixels, followed)
   };
   FlareSlot flareSlot[kFlareSlots];
   GLuint flareVisTex[2] = {}, flareVisFbo[2] = {}, flareVisProgram = 0, flareProgram = 0;
@@ -4193,6 +4203,8 @@ struct GxRenderer::Impl {
       mtxAt += (d.layout & (RE4_GX_V_TEX0 << t)) ? 8 : 0;
     const float *vp0 = xf.viewport[0], *vp1 = xf.viewport[1], *pr0 = xf.proj[0], *pr1 = xf.proj[1];
     FlareCand f{1e9f, 1e9f, -1e9f, -1e9f, 1.0f, 1};
+    f.normals = (d.layout & RE4_GX_V_NORMAL) ? 1 : 0;
+    f.verts = d.vertexCount;
     float zSum = 0.0f;
     unsigned counted = 0;
     const unsigned step = d.vertexCount > 64 ? d.vertexCount / 64 : 1;
@@ -4278,7 +4290,7 @@ struct GxRenderer::Impl {
         "      }\n"
         "      if (wsum > 0.0) {\n"
         "        vec2 off = clamp(sum / wsum, -1.0, 1.0);\n"
-        "        off = oldAt.b > 0.5 ? mix(oldOff, off, 0.33) : off;\n"
+        "        off = oldAt.b > 0.5 ? mix(oldOff, off, 0.75) : off;\n"
         "        o = vec4(off * 0.5 + 0.5, 1.0, 1.0);\n"
         "      }\n"
         "    }\n"
@@ -4311,7 +4323,7 @@ struct GxRenderer::Impl {
         "    contrast = L(col) - (rn > 0.0 ? ring / rn : 1.0);\n"
         "  }\n"
         "  float lum = L(col);\n"
-        "  float target = seen * smoothstep(0.25, 0.55, lum) * smoothstep(0.12, 0.3, contrast);\n"
+        "  float target = seen * smoothstep(0.65, 0.9, lum) * smoothstep(0.15, 0.35, contrast);\n"
         "  float a = old.a + (target - old.a) * (target > old.a ? 0.1 : 0.14);\n"
         "  if (a < 0.004 && target < 0.004) a = 0.0;\n"
         "  vec3 tint = st < 1.5 && lum > 0.05 ? mix(col / max(max(col.r, col.g), col.b), vec3(1.0), 0.45) : old.rgb;\n"
@@ -4343,8 +4355,8 @@ struct GxRenderer::Impl {
         "  float rad;\n"
         "  if (k == 0) {\n"
         "    centre = s.xy;\n"
-        "    rad = s.z * 6.0;\n"
-        "    vCol = vec4(v.rgb, a * crowd[i]);\n"
+        "    rad = min(s.z, 10.0 * size.x / 640.0) * 6.0;\n"
+        "    vCol = vec4(v.rgb, a * crowd[i] * 0.6);\n"
         "    vKind = 0;\n"
         "  } else {\n"
         "    vec4 g = kGhost[k - 1];\n"
@@ -4371,7 +4383,7 @@ struct GxRenderer::Impl {
         "    float glow = exp(-e * e * 1.4) * 0.9 + exp(-e * e * 0.18) * 0.22;\n"
         "    float ang = atan(vUv.y, vUv.x);\n"
         "    float rays = pow(abs(cos(ang * 3.0)), 48.0) + 0.45 * pow(abs(cos(ang * 3.0 + 0.5236)), 80.0);\n"
-        "    f = glow + rays * (1.0 - d) * (1.0 - d) * exp(-d * 1.6) * 0.75;\n"
+        "    f = glow + rays * (1.0 - d) * (1.0 - d) * exp(-d * 2.0) * 0.45;\n"
         "  } else if (vKind == 3 || vKind == 5) {\n"
         "    vec2 h = abs(vUv);\n"
         "    float hex = max(h.x * 0.866 + h.y * 0.5, h.y);\n"
@@ -4441,12 +4453,30 @@ struct GxRenderer::Impl {
           m.y1 = std::max(m.y1, f.y1);
           m.z = std::min(m.z, f.z);
           m.draws++;
+          m.normals += f.normals;
+          m.verts = std::max(m.verts, f.verts);
           joined = true;
           break;
         }
       }
       if (!joined)
         merged.push_back(f);
+    }
+    std::sort(merged.begin(), merged.end(), [](const FlareCand &a, const FlareCand &b) {
+      return std::max(a.x1 - a.x0, a.y1 - a.y0) > std::max(b.x1 - b.x0, b.y1 - b.y0);
+    });
+    {
+      std::vector<FlareCand> kept;
+      for (const FlareCand &m : merged) {
+        const float cx = (m.x0 + m.x1) * 0.5f, cy = (m.y0 + m.y1) * 0.5f;
+        bool inside = false;
+        for (const FlareCand &k : kept)
+          inside = inside || std::hypot(cx - (k.x0 + k.x1) * 0.5f, cy - (k.y0 + k.y1) * 0.5f) <
+                                 0.35f * std::max(k.x1 - k.x0, k.y1 - k.y0);
+        if (!inside)
+          kept.push_back(m);
+      }
+      merged.swap(kept);
     }
     for (FlareSlot &s : flareSlot)
       if (s.lost >= 0)
@@ -4489,13 +4519,14 @@ struct GxRenderer::Impl {
         s.age = 0;
         s.ghost = 0.0f;
       } else {
-        // the flame's box flickers: its place followed (half the way a picture), a big jump (the camera) at once
-        const float k = bestD > s.r ? 1.0f : 0.5f;
-        s.x += (cx - s.x) * k;
-        s.y += (cy - s.y) * k;
+        // at the light in every picture (followed, it lagged behind the light while the camera turned: project
+        // owner's test 04.11.2026, "wandert beim Drehen mit")
+        s.x = cx;
+        s.y = cy;
         s.r += (r - s.r) * 0.15f;
       }
       s.z = m.z;
+      s.size = s.fresh ? size : s.size + (size - s.size) * 0.3f;
       s.lost = 0;
       s.age = std::min(s.age + 1, 1000);
     }
@@ -4533,7 +4564,9 @@ struct GxRenderer::Impl {
       for (const FlareSlot &o : flareSlot)
         if (o.lost >= 0 && o.age >= 4 && std::hypot(o.x - s.x, o.y - s.y) < 2.5f * std::max(s.r, o.r))
           near++;
-      const float want = 1.0f / std::sqrt(static_cast<float>(std::max(1, near)));
+      // and a big lamp (a box over 60 pixels: a floodlight) at most 40 % of a candle's star
+      const float big = std::min(1.0f, std::max(0.0f, (s.size - 60.0f) / 60.0f));
+      const float want = (1.0f - 0.6f * big) / std::sqrt(static_cast<float>(std::max(1, near)));
       s.crowd += (want - s.crowd) * 0.2f;
     }
     if (flareLog && flarePictures < 400) {
@@ -4543,8 +4576,8 @@ struct GxRenderer::Impl {
       GXLOG("lens flares: picture %u, %zu additive 3D draws, %zu sources, %d slots", flarePictures, flareCands.size(),
             merged.size(), used);
       for (const FlareCand &m : merged)
-        GXLOG("lens flares:   source (%.0f %.0f)-(%.0f %.0f) depth %.5f, %d draws", m.x0, m.y0, m.x1, m.y1, m.z,
-              m.draws);
+        GXLOG("lens flares:   source (%.0f %.0f)-(%.0f %.0f) depth %.5f, %d draws, %d with normals, up to %u vertices",
+              m.x0, m.y0, m.x1, m.y1, m.z, m.draws, m.normals, m.verts);
     }
     flarePictures++;
   }
