@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte, Laserfarbe; Minikarte und Lichthöfe überarbeitet (04.11.2026, Branch `work`, Patch 0198)
+## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte, Laserfarbe; Minikarte und Lichthöfe überarbeitet (04.11.2026, Branch `work`, Patches 0198, 0199)
 
 Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/releases/v0.98.2-beta.md`. WSL-Baum
 `~/re4-0982/RE4` (aus `~/re4-fix981` kopiert, Bauordner umgeschrieben).
@@ -228,6 +228,16 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    größere Abweichungen nur, wenn sie Ashley angreifen (`Be_flg 0x8000000`, Blick bis 0,7 rad neben dem Spieler), bei
    Leon genauso; die fünf Trefferzonen (Teile 2, 3, 5, 19, 23) liegen bei allen Figuren an derselben Stelle (Abweichung
    unter 10 Einheiten). **Kein Fehler des Ports gefunden**; offen: ein Video vom Nutzer.
+11. **Geldtruhen im Fundfenster kleiner als in Dolphin (Projektinhaber 04.11.2026, Bildschirmfotos, EU-Discs):**
+   die Größe im Fundfenster rechnet `ItemExamine::move` (`examine.cpp`) aus den Maßen des Modells geteilt durch den
+   Wert der Zeile in `exam_info`. Die Tabelle aus `src/` (= main.dol der Debug-Discs, aus der GCM gelesen) und die
+   der main.dol von EU, US und JP Zeile für Zeile verglichen: drei Zeilen anders, in allen drei Verkaufsfassungen gleich:
+   Geldtruhe 0x78 (×10 Peseten) 1,1 statt 0,8, Geldtruhe 0x79 (×100) 1,4 statt 1,1 (also etwa 1,3- bis 1,4-mal so
+   groß), 0x6D Winkel (0 0 5) statt (0 0 30), Teiler 2,5 statt 1,1, Licht 2 statt 4. Die große Truhe 0x71 (×1000) ist
+   gleich. **Patch 0199** (`examine.cpp` `examInfo`): mit Verkaufs-Discs (`re4_disc_retail`) diese drei Zeilen; mit den
+   Debug-Discs unverändert. **Geprüft am PC:** `whole_build.sh i686` 0 Baufehler, 114 Module, runtime-test und
+   core-test 0 Fehler, der Patch steht im vorbereiteten Baum. **Nicht geprüft:** das Fundfenster selbst (eine Geldtruhe
+   aufheben ließ sich ohne passenden Testschalter nicht nachstellen), am Gerät.
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 
@@ -11874,6 +11884,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0196 `pl02.cpp` | Ada als Stellvertreterin mit Leons Waffen: ihre eigene Griffhand (aus ihren Waffendateien, `runtime/cheats.cpp`) statt Leons, die auf ihrem Skelett als dritte Hand neben der Waffe stand. Port-Funktion (Cheat-Menü), Gerätetest des Projektinhabers 03.11.2026 |
 | 0197 `player.h`, `pl_klauser.cpp` | Stellvertreter in der Geschichte: der X-Knopf gibt Ashley „Warten/Folgen“ wie bei Leon (`re4_story_char_xbutton`, `runtime/cheats.cpp`); Krauser behält seinen Armangriff, wenn Ashley nicht da ist. Port-Funktion (Cheat-Menü), Meldung des Projektinhabers 04.11.2026 |
 | 0198 `esp_app.cpp`, `objWep.cpp` | Farbe des Laservisiers: nach `EspDrawLaserLine` (Strahl, est 3) und `drawPoint` (Punkt, est 0x50) ruft das Spiel `re4_laser_tint` (`runtime/laser_colour.cpp`); Standard (Rot) ändert nichts. Port-Funktion, Wunsch des Projektinhabers 04.11.2026 |
+| 0199 `examine.cpp` | Fundfenster wie die Verkaufsfassungen: mit Verkaufs-Discs die drei Zeilen von `exam_info`, die deren main.dol (EU, US, JP gleich) anders hat: Geldtruhen 0x78/0x79 Teiler 1,1/1,4 statt 0,8/1,1 (größer), 0x6D. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Meldung des Projektinhabers 04.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
