@@ -307,6 +307,11 @@ void re4_core_set_cheats(int bits);
  * extra games unlocked), 0 not now (1-3: not Leon, not in a room's play, a sub screen or a movie),
  * -1 no free room in the case. Else the next game frame does it: 3. */
 int re4_core_cheat_action(int what);
+/* The app's minimap (cores since 04.11.2026, runtime/minimap.cpp): the current room's outline, the edges of
+ * its floor collision that only one floor triangle has, in world units: up to maxEdges edges of 5 floats into
+ * `out` (x0, z0, x1, z1, height); info[0] rises with every new outline, info[1] is its room. Returns the
+ * edges (0 before the first). The first call makes the game build it (anew when the room changes). */
+int re4_core_room_outline(float* out, int maxEdges, unsigned* info);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the

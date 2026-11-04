@@ -25,6 +25,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Stretched</string>
     <string name="ingame_other_options">Other options</string>
+    <string name="ingame_minimap">Minimap</string>
     <string name="ingame_flares">Lens flares</string>
     <string name="ingame_dof">Depth of field</string>
     <string name="ingame_fps_display">FPS display bottom left</string>

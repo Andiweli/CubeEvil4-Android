@@ -316,6 +316,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setPsx(g.getBoolean("psx", false));
       CoreBridge.setFlares(g.getBoolean("flares", false));
+      CoreBridge.setMinimap(g.getBoolean("minimap", false));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
       CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));
       CoreBridge.setVertexRing(g.getBoolean("vertexRing", false));

@@ -980,6 +980,17 @@ int re4ipc_cheat_action(int what)
     return call(kCheatAction, what, 0, 0, nullptr, 0, 5000, &r) ? r.header.a : 0;
 }
 
+int re4ipc_room_outline(float* out, int maxEdges, unsigned* info)
+{
+    Reply r;
+    if (!call(kRoomOutline, maxEdges, 0, 0, nullptr, 0, 5000, &r)) return 0;
+    const int n = r.header.a;
+    if (n < 0 || n > maxEdges || r.dataBytes() != 8 + (size_t) n * 20) return 0;
+    if (info) memcpy(info, r.data(), 8);
+    if (out && n > 0) memcpy(out, (const char*) r.data() + 8, (size_t) n * 20);
+    return n;
+}
+
 void re4ipc_swipe(int dir)
 {
     post(kSwipe, dir, 0, 0);

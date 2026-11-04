@@ -16,6 +16,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Растянутое</string>
     <string name="ingame_other_options">Другие настройки</string>
+    <string name="ingame_minimap">Мини-карта</string>
     <string name="ingame_flares">Блики объектива</string>
     <string name="ingame_dof">Глубина резкости</string>
     <string name="ingame_fps_display">FPS внизу слева</string>

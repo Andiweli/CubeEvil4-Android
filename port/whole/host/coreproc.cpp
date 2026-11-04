@@ -115,6 +115,7 @@ struct Core {
     const char* (*discProblem)(void);
     void (*setCheats)(int);
     int (*cheatAction)(int);
+    int (*roomOutline)(float*, int, unsigned*);
     void (*touch)(float, float);
     void (*aimTurn)(float, float);
     void (*swipe)(int);
@@ -782,6 +783,7 @@ bool loadCore(std::string& problem)
     bind(core.discProblem, "re4_core_disc_problem");
     bind(core.setCheats, "re4_core_set_cheats");
     bind(core.cheatAction, "re4_core_cheat_action");
+    bind(core.roomOutline, "re4_core_room_outline", false);
     bind(core.touch, "re4_core_touch");
     bind(core.aimTurn, "re4_core_aim_turn");
     bind(core.swipe, "re4_core_swipe");
@@ -916,6 +918,13 @@ void serve()
         case kCheatAction:
             reply(h.id, core.cheatAction(h.a), "");
             break;
+        case kRoomOutline: {
+            const int max = h.a > 0 && h.a <= 20000 ? (int) h.a : 0;
+            std::vector<unsigned char> data(8 + (size_t) max * 20);
+            const int n = core.roomOutline ? core.roomOutline((float*) (data.data() + 8), max, (unsigned*) data.data()) : 0;
+            reply(h.id, n, "", data.data(), 8 + (size_t) (n > 0 ? n : 0) * 20);
+            break;
+        }
         case kSwipe:
             core.swipe(h.a);
             break;

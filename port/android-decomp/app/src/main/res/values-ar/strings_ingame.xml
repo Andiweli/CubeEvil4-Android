@@ -20,6 +20,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">ممتدة</string>
     <string name="ingame_other_options">خيارات أخرى</string>
+    <string name="ingame_minimap">خريطة مصغرة</string>
     <string name="ingame_flares">وهج العدسة</string>
     <string name="ingame_dof">عمق الميدان</string>
     <string name="ingame_fps_display">عرض FPS أسفل اليسار</string>

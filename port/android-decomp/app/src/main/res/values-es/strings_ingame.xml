@@ -16,6 +16,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Estirada</string>
     <string name="ingame_other_options">Otras opciones</string>
+    <string name="ingame_minimap">Minimapa</string>
     <string name="ingame_flares">Destellos de lente</string>
     <string name="ingame_dof">Profundidad de campo</string>
     <string name="ingame_fps_display">Mostrar FPS abajo a la izquierda</string>

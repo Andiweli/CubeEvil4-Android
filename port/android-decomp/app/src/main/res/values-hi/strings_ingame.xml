@@ -16,6 +16,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">खींचा हुआ</string>
     <string name="ingame_other_options">अन्य विकल्प</string>
+    <string name="ingame_minimap">मिनी-मैप</string>
     <string name="ingame_flares">लेंस फ़्लेयर</string>
     <string name="ingame_dof">डेप्थ ऑफ़ फ़ील्ड</string>
     <string name="ingame_fps_display">नीचे बाईं ओर FPS दिखाएँ</string>

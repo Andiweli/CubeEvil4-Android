@@ -85,6 +85,10 @@
 //                          ",killed+K:save" / ",killed+K:load" (up to 4) K frames
 //                          after that kill: the moments after a boss fight
 //                          (the boss rooms of 0.98.2, 04.11.2026)
+//   RE4_TEST_MINIMAP="free+N:FILE"  the app's minimap (runtime/minimap.cpp, 04.11.2026): asked for once the
+//                          player is free, N frames later the room's outline and the player's place and
+//                          facing (his model matrix's z axis) into FILE ("pose x y z fx fz room", then
+//                          "x0 z0 x1 z1 y" per edge) for tools/minimap_check.cpp
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
 //                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games)
 //                          one a frame, as the app's menu presses them while the
@@ -250,6 +254,7 @@
 #include "emdoor.h"
 #include "re4_instant.h"
 extern "C" unsigned re4_instant_game_why(void);  // instant_game.cpp, for these checks
+extern "C" int re4_core_room_outline(float* out, int maxEdges, unsigned* info);  // minimap.cpp
 #include "pl_sub.h"
 #include "sce_sys.h"
 #include "flag_rsf.h"
@@ -710,6 +715,8 @@ static void merchantTest(u32 n)
 }
 long g_seAfter[8];           // RE4_TEST_SE
 long g_instantSave = -1, g_instantLoad = -1;  // RE4_TEST_INSTANT
+long g_minimapAfter = -1;  // RE4_TEST_MINIMAP
+char g_minimapFile[256];
 long g_instantLoadedAt = -1;   // the frame of the load
 bool g_instantLeft;            // the room stopped running after the load
 long g_instantAgainAt = -1;    // the player free again after it
@@ -1945,6 +1952,25 @@ void frame(unsigned n)
     if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantSave) {
         instantSave(n);
     }
+    if (g_minimapAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + 1)
+        re4_core_room_outline(nullptr, 0, nullptr);  // the first call starts the building
+    if (g_minimapAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_minimapAfter && live(pPL)) {
+        // (malloc: no C++ container in the game-flagged code, see minimap.cpp)
+        static float* outline = (float*) malloc(12000 * 5 * sizeof(float));
+        float* edges = outline;
+        unsigned info[2] = {0, 0};
+        const int count = re4_core_room_outline(edges, 12000, info);
+        const Mtx& m = pPL->mat;
+        if (FILE* f = fopen(g_minimapFile, "w")) {
+            fprintf(f, "pose %.1f %.1f %.1f %.5f %.5f %u\n", m[0][3], m[1][3], m[2][3], m[0][2], m[2][2], info[1]);
+            for (int i = 0; i < count; i++)
+                fprintf(f, "%.1f %.1f %.1f %.1f %.1f\n", edges[i * 5], edges[i * 5 + 1], edges[i * 5 + 2], edges[i * 5 + 3],
+                        edges[i * 5 + 4]);
+            fclose(f);
+        }
+        re4_log("run: minimap of r%03x (outline %u): %d edges, player at (%.0f %.0f %.0f) -> %s", info[1], info[0],
+                count, m[0][3], m[1][3], m[2][3], g_minimapFile);
+    }
     if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantLoad) {
         re4_log("run: instant load (RE4_TEST_INSTANT) at frame %u: %d", n, re4_instant_game_restore(g_instantSlot));
         g_instantLoadedAt = (long) n;
@@ -2210,6 +2236,12 @@ void configure()
         sscanf(stream + 5, "%ld:%i:%i", &g_streamAfter, &g_streamBlock, &g_streamNo) != 3) {
         re4_log("run: RE4_TEST_STREAM \"%s\" not understood (free+N:B:S)", stream);
         g_streamAfter = -1;
+    }
+    if (const char* mm = getenv("RE4_TEST_MINIMAP")) {
+        if (sscanf(mm, "free+%ld:%255s", &g_minimapAfter, g_minimapFile) != 2) {
+            re4_log("run: RE4_TEST_MINIMAP \"%s\" not understood (free+N:FILE)", mm);
+            g_minimapAfter = -1;
+        }
     }
     if (const char* instant = getenv("RE4_TEST_INSTANT")) {
         const char* load = strstr(instant, ",free+");

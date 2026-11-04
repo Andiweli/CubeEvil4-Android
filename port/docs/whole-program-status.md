@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe (04.11.2026, Branch `work`)
+## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte (04.11.2026, Branch `work`)
 
 Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/releases/v0.98.2-beta.md`. WSL-Baum
 `~/re4-0982/RE4` (aus `~/re4-fix981` kopiert, Bauordner umgeschrieben).
@@ -123,21 +123,38 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    die freie Fackel daneben 0,27–0,6. `gx_gl_check` 0 Fehler; ausgeschaltet läuft kein neuer Code (`FlareScan` nur
    mit dem Schalter). `gradlew testCoreDebugUnitTest` bestanden, `check_translations.py` 11 Sprachen ok. Am Gerät
    nicht gesehen (Leistung auf Mali/Adreno offen: zwei kleine Durchgänge und ein Auflösen der Tiefe je Bild).
-6. **Minikarte (Wunsch des Projektinhabers 04.11.2026): untersucht, nicht gebaut** (Grundsatzfrage an den
-   Projektinhaber). Die Inventar-Karte (`src/Sscrn/ss_map.cpp`) ist eine 3D-Karte: je Gebiet eine Datei
-   `ss/Cmn/map_objNN.dat` (18 Gebiete `1`, `2`, `2a`–`2c`, `3a`–`3f`, `4a`–`4g`; unkomprimiert, ein Archiv: Anzahl,
-   Versätze; 22–567 KB; Debug und EU gleich groß), je Raum ein Unterteil mit Modellen und einer flachen
-   Boden-Kollision (SAT) im Kartenraum; Tabellen Raum → Unterteil in `mapDataInit_St1`… , Gebiet nach Raum und
-   Fortschritt in `getStageNo`/`getAreaNo`. Leons Punkt auf der Karte: `mapPositionCheck` sucht unter ihm das
-   Dreieck des echten Raumbodens und nimmt dieselben Dreiecks-Koordinaten im Dreieck gleicher Nummer der
-   Karten-Kollision (die Karte ist eine verkleinerte Kopie des Bodens). Weg: der Kern meldet Raum, Position, Richtung
-   und Gebiet; die App liest die Gebietsdatei von der importierten Disc, bildet aus den Boden-Dreiecken jedes Raums
-   seine Umrisse (Kanten, die nur ein Dreieck haben) und zeichnet sie gedreht mit Leon in der Mitte unten links
-   über das Bild (eigene Ebene der App, nicht über GX: so bleibt das HUD unberührt und es geht auf jeder Disc);
-   Leons Kartenpunkt wie `mapPositionCheck` über den Raumboden (der Kern hat ihn im Speicher). Offen vor dem Bau:
-   ob die Tabellen Raum → Unterteil mit den EU/US/JP-Kartendateien übereinstimmen (der Kern hat die Tabellen des
-   Prototyps), und ob „nur der aktuelle Raum“ (einfacher: aus dem Raumboden selbst) oder „das ganze Gebiet wie im
-   Inventar“ gewünscht ist.
+6. **Minikarte (Wunsch des Projektinhabers 04.11.2026; Entscheidung des Projektinhabers: nur der aktuelle Raum):**
+   Schalter „Minimap“ im App-Menü, Grafik → Bild (11 Sprachen, `ingame_minimap`; `CoreBridge.setMinimap`, aus).
+   Untersucht: die Inventar-Karte (`src/Sscrn/ss_map.cpp`) zeigt jeden Raum als flache Kopie seines Bodens
+   (`ss/Cmn/map_objNN.dat`, je Raum Modelle und eine Boden-Kollision mit denselben Dreiecken wie der echte
+   Raumboden; `mapPositionCheck` setzt Leon über das Dreieck unter ihm darauf). Für den aktuellen Raum braucht es
+   die Kartendatei daher nicht: **`runtime/minimap.cpp`** (libre4_main) nimmt die Boden- und Schrägen-Dreiecke
+   aller lebenden Kollisionsstücke (`SatMgr`, je Stück seine Matrix) in Weltkoordinaten; eine Kante, die nur ein
+   Dreieck hat, ist Umriss (x0 z0 x1 z1 Höhe). Gebaut im Bild-Haken des Spiels, sobald die App das erste Mal fragt,
+   neu bei Raumwechsel oder wenn sich die Stücke ändern (alle 30 Bilder geprüft). Neu `re4_core_room_outline`
+   (re4_core.h), über den eigenen Kernprozess `kRoomOutline` (re4_core_ipc.h, coreproc.cpp,
+   `re4ipc_room_outline`). App (`core_mode.cpp` `minimapDraw`, `minimap_view.h`): fragt bei Raumwechsel und einmal
+   je Sekunde; Leons Lage und Blickrichtung aus dem Spielzustand (Spielermodell, z-Achse der Matrix); Umkreis nach
+   Raumgröße (`RoomRadius`: 30 % der längeren Raumseite, 10–24 m; feste 7 bzw. 12 m zeigten in den Schlosshallen
+   nur eine Wand),
+   gedreht, Blickrichtung oben, rechts = Leons rechte Seite (rechtshändig, y oben), Umriss in den Kreis
+   geschnitten, andere Stockwerke blasser (über 600 Einheiten Höhenunterschied, mindestens 25 %); dunkle
+   Scheibe, Ring, oranger Pfeil; unten links im Spielbild (27 % der Bildhöhe, das HUD ist unten rechts); nur im
+   Spiel (Hauptschleife, kein Ereignis, kein Untermenü). Gleich auf allen Discs (keine Kartendatei, keine
+   Raumtabelle). Testschalter `RE4_TEST_MINIMAP="free+N:FILE"` (state_trace.cpp: Umriss und Lage in eine Datei),
+   Prüfprogramm `tools/minimap_check.cpp` (zeichnet die Datei mit der Umrechnung der App als PPM).
+   **Lehre:** im Code mit den Spiel-Flags (libre4_main) keine C++-Container: die Bibliothek hat den `operator new`
+   des Spiels, und eine dort erzeugte Vorlage (`std::vector<float>`) bediente über die ELF-Auflösung auch den
+   übrigen Port-Code; runtime-test und core-test stürzten im nicht optimierten Bau in `OSAllocFromHeap` ab.
+   `minimap.cpp` und der Testschalter nehmen daher malloc-Felder und eine eigene kleine Hash-Tabelle.
+   **Geprüft am PC (i686):** r103, r202, r211, r305 mit Debug-, EU-, US- und JP-Discs: Umriss gebaut (190/301/16/8
+   Kanten; US-r103 213), 0 Abstürze; die Bilder zeigen die Raumformen (Weg, Hallen mit Säulen- und Einbauflächen);
+   r106: Kartenbild gegen das Spielbild derselben Stelle (GX-Aufnahme): der Weg führt vor Leon nach vorn und nach
+   links, in der Karte ebenso (links/rechts richtig); mit dem Umkreis nach Raumgröße zeigen r202/r211 die Hallen
+   mit ihren Einbauten, EU/US/JP gleich wie Debug. `whole_build.sh i686` danach 0 Fehler (runtime-test, core-test,
+   Fernkern-Tests, Film-Test, Formatvergleich). `gradlew assembleCoreDebug testCoreDebugUnitTest` bestanden,
+   `check_translations.py` ok. **Nicht geprüft:** das Zeichnen in der App (OpenGL, Größe, Lage zu den Touch-Tasten
+   unten links) am Gerät; Räume mit beweglichen Böden (Aufzüge) und mehreren Stockwerken nur aus dem Code.
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 

@@ -18,6 +18,7 @@
 #include "gx_auto_level.h"
 #include "gx_gl.h"
 #include "gx_selfcheck.h"
+#include "minimap_view.h"
 #include "re4_card_files.h"
 #include "re4_core_client.h"
 #include "re4_cpu_info.h"
@@ -102,6 +103,7 @@ struct CoreApi {
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
   int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
+  int (*roomOutline)(float *, int, unsigned *){};  // optional (cores since 04.11.2026): the minimap's room outline
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
@@ -445,6 +447,7 @@ void loadCore(JNIEnv *env) {
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
   api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
+  api.roomOutline = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_outline"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
@@ -638,6 +641,7 @@ struct Bench {
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
+std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
@@ -1230,6 +1234,169 @@ void replayGx(int halves) {
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   LOG("GX replay: done, %u pictures", pictures);
+}
+
+// --- the minimap (CoreBridge.setMinimap; wish of the project owner, 04.11.2026: optional, the current room's
+// outline only, turning with the player) --------------------------------------------------------------------
+// The outline comes from the core (re4_core_room_outline: the room's floor collision, asked again when the room
+// changes and once a second), the player from the frame (the player model's matrix). Drawn after the picture,
+// at its bottom left (the game's HUD is at the bottom right), only while the player plays: the main loop, no
+// event, no sub screen. A dark disc, the outline (other storeys fainter), a ring and the player's arrow.
+struct MinimapState {
+  bool failed = false;
+  GLuint program = 0, vbo = 0, vao = 0;
+  GLint scaleLoc = -1;
+  std::vector<float> edges;  // x0 z0 x1 z1 height
+  std::vector<float> lines;  // the projected segments (re4mm::Project)
+  std::vector<float> verts;  // x y r g b a
+  unsigned serial = ~0u, room = 0xFFFF, askedRoom = 0xFFFF;
+  float radius = 10000.0f;  // world units to the map's edge (re4mm::RoomRadius)
+  std::chrono::steady_clock::time_point asked;
+  bool logged = false;
+} minimap;
+
+bool minimapProgram() {
+  static const char kVs[] = "#version 300 es\n"
+                            "layout(location = 0) in vec2 aPos;\nlayout(location = 1) in vec4 aCol;\n"
+                            "out vec4 vCol;\n"
+                            "void main() { vCol = aCol; gl_Position = vec4(aPos, 0.0, 1.0); }\n";
+  static const char kFs[] = "#version 300 es\nprecision mediump float;\n"
+                            "in vec4 vCol;\nout vec4 o;\n"
+                            "void main() { o = vCol; }\n";
+  auto compile = [](GLenum type, const char *src) {
+    GLuint s = glCreateShader(type);
+    glShaderSource(s, 1, &src, nullptr);
+    glCompileShader(s);
+    GLint ok = 0;
+    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+      glDeleteShader(s);
+      return 0u;
+    }
+    return s;
+  };
+  const GLuint vs = compile(GL_VERTEX_SHADER, kVs), fs = compile(GL_FRAGMENT_SHADER, kFs);
+  if (!vs || !fs)
+    return false;
+  minimap.program = glCreateProgram();
+  glAttachShader(minimap.program, vs);
+  glAttachShader(minimap.program, fs);
+  glLinkProgram(minimap.program);
+  glDeleteShader(vs);
+  glDeleteShader(fs);
+  GLint ok = 0;
+  glGetProgramiv(minimap.program, GL_LINK_STATUS, &ok);
+  if (!ok)
+    return false;
+  glGenBuffers(1, &minimap.vbo);
+  glGenVertexArrays(1, &minimap.vao);
+  glBindVertexArray(minimap.vao);
+  glBindBuffer(GL_ARRAY_BUFFER, minimap.vbo);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), reinterpret_cast<const void *>(2 * sizeof(float)));
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  return true;
+}
+
+void minimapDraw(int boxX, int boxY, int boxW, int boxH) {
+  if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
+      (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
+    return;
+  const Re4CoreModel *player = nullptr;
+  for (const Re4CoreModel &mdl : frame.models)
+    if (mdl.manager == 0 && mdl.id == 0 && (mdl.beFlag & 6) == 6) {
+      player = &mdl;
+      break;
+    }
+  re4mm::Pose pose;
+  if (!player || !re4mm::PoseFromMatrix(player->matrix, &pose))
+    return;
+  // the outline: again when the room changed, else once a second (the room's pieces may change)
+  const auto now = std::chrono::steady_clock::now();
+  if (frame.room != minimap.askedRoom || now - minimap.asked > std::chrono::seconds(1)) {
+    minimap.askedRoom = frame.room;
+    minimap.asked = now;
+    static std::vector<float> buffer(12000 * 5);
+    unsigned info[2] = {0, 0xFFFF};
+    const int n = api.roomOutline(buffer.data(), 12000, info);
+    if (info[0] != minimap.serial) {
+      minimap.serial = info[0];
+      minimap.room = info[1];
+      minimap.edges.assign(buffer.begin(), buffer.begin() + std::max(0, n) * 5);
+      minimap.radius = re4mm::RoomRadius(minimap.edges.data(), std::max(0, n));
+      LOG("minimap: r%03x, %d edges, %.0f m around the player", info[1], n, minimap.radius / 1000.0f);
+    }
+  }
+  if (minimap.room != frame.room || minimap.edges.empty())
+    return;
+  if (!minimap.program && !minimapProgram()) {
+    minimap.failed = true;
+    LOG("minimap: no shader; left out");
+    return;
+  }
+  // around the player as far as the room's size asks (re4mm::RoomRadius: 10 to 24 m)
+  re4mm::Project(minimap.edges.data(), static_cast<int>(minimap.edges.size() / 5), pose, minimap.radius, minimap.lines);
+  std::vector<float> &v = minimap.verts;
+  v.clear();
+  auto put = [&](float x, float y, float r, float g, float b, float a) {
+    v.insert(v.end(), {x, y, r, g, b, a});
+  };
+  // the disc (a fan as triangles) and the ring
+  const int kSides = 48;
+  for (int i = 0; i < kSides; i++) {
+    const float a0 = 6.2831853f * i / kSides, a1 = 6.2831853f * (i + 1) / kSides;
+    put(0, 0, 0.0f, 0.0f, 0.0f, 0.45f);
+    put(std::cos(a0), std::sin(a0), 0.0f, 0.0f, 0.0f, 0.45f);
+    put(std::cos(a1), std::sin(a1), 0.0f, 0.0f, 0.0f, 0.45f);
+  }
+  const int discVerts = static_cast<int>(v.size() / 6);
+  // the player: an arrow pointing up
+  put(0.0f, 0.13f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(-0.08f, -0.09f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.0f, -0.04f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.0f, 0.13f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.0f, -0.04f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.08f, -0.09f, 1.0f, 0.78f, 0.25f, 0.95f);
+  const int triVerts = static_cast<int>(v.size() / 6);
+  for (size_t i = 0; i + 4 < minimap.lines.size(); i += 5) {
+    const float a = 0.85f * minimap.lines[i + 4];
+    put(minimap.lines[i], minimap.lines[i + 1], 0.86f, 0.92f, 0.86f, a);
+    put(minimap.lines[i + 2], minimap.lines[i + 3], 0.86f, 0.92f, 0.86f, a);
+  }
+  for (int i = 0; i < kSides; i++) {
+    const float a0 = 6.2831853f * i / kSides, a1 = 6.2831853f * (i + 1) / kSides;
+    put(std::cos(a0) * 0.99f, std::sin(a0) * 0.99f, 0.86f, 0.92f, 0.86f, 0.5f);
+    put(std::cos(a1) * 0.99f, std::sin(a1) * 0.99f, 0.86f, 0.92f, 0.86f, 0.5f);
+  }
+  const int lineVerts = static_cast<int>(v.size() / 6) - triVerts;
+  // its square at the picture's bottom left: a quarter of the picture's height, a margin of 4 %
+  const int size = std::max(48, std::min(boxH * 27 / 100, boxW * 3 / 10)), margin = std::max(6, boxH * 4 / 100);
+  glViewport(boxX + margin, boxY + margin, size, size);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
+  glUseProgram(minimap.program);
+  glBindVertexArray(minimap.vao);
+  glBindBuffer(GL_ARRAY_BUFFER, minimap.vbo);
+  glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(v.size() * sizeof(float)), v.data(), GL_STREAM_DRAW);
+  glDrawArrays(GL_TRIANGLES, 0, discVerts);
+  glLineWidth(std::max(1.0f, static_cast<float>(size) / 160.0f));
+  glDrawArrays(GL_LINES, triVerts, lineVerts);
+  glDrawArrays(GL_TRIANGLES, discVerts, triVerts - discVerts);
+  glLineWidth(1.0f);
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glUseProgram(0);
+  glDisable(GL_BLEND);
+  glViewport(0, 0, width, height);
+  if (!minimap.logged) {
+    minimap.logged = true;
+    LOG("minimap: drawn (%d x %d at %d %d)", size, size, boxX + margin, boxY + margin);
+  }
 }
 
 // Runs the chunks the core has finished and shows the latest display copy.
@@ -1829,6 +1996,7 @@ bool drawGx() {
     notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, xh ? float(top) / float(xh) : 0.f,
                 xh ? float(rows) / float(xh) : 1.f);
   }
+  minimapDraw(picX, picY, picW, picH);
   return true;
 }
 
@@ -1998,6 +2166,7 @@ void useCoreProcess(const std::string &why) {
   api.discProblem = re4ipc_disc_problem;
   api.setCheats = re4ipc_set_cheats;
   api.cheatAction = re4ipc_cheat_action;
+  api.roomOutline = re4ipc_room_outline;
   api.touch = re4ipc_touch;
   api.aimTurn = re4ipc_aim_turn;
   api.swipe = re4ipc_swipe;
@@ -2431,6 +2600,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPsx(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optPsx.exchange(want) != want) LOG("PSone demake: %s", want ? "on" : "off");
+}
+
+// Minimap (the menu, wish of the project owner, 04.11.2026): the current room's outline at the picture's bottom left.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMinimap(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optMinimap.exchange(want) != want) LOG("minimap: %s", want ? "on" : "off");
 }
 
 // Lens flares (the menu, wish of the project owner, 04.11.2026): a faint glow at the game's lights (GxRenderer::SetFlares).

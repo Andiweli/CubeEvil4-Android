@@ -16,6 +16,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Gestreckt</string>
     <string name="ingame_other_options">Weitere Optionen</string>
+    <string name="ingame_minimap">Minikarte</string>
     <string name="ingame_flares">Lichthöfe (Lens Flares)</string>
     <string name="ingame_dof">Tiefenschärfe</string>
     <string name="ingame_fps_display">FPS-Anzeige unten links</string>

@@ -173,6 +173,8 @@ public final class CoreBridge {
   public static native void setPsx(boolean on);
   /** Lens flares at the game's lights (the menu, off by default; GxRenderer::SetFlares). */
   public static native void setFlares(boolean on);
+  /** The minimap: the current room's outline at the bottom left, turning with the player (off by default). */
+  public static native void setMinimap(boolean on);
   /** Vertex ring (experimental, for Mali): a new renderer takes it. */
   public static native void setVertexRing(boolean on);
   /**
