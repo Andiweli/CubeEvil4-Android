@@ -73,7 +73,18 @@
 //                          free, the app's instant save into a buffer of the run
 //                          (re4_instant_game_capture), M frames after it loaded
 //                          again as the in-game menu loads it (Ashley in her hide,
-//                          02.11.2026)
+//                          02.11.2026); the save line names the room, its save
+//                          flags and whether the place refuses it. After the load:
+//                          "run: after the instant load" when the room runs again,
+//                          "run: player free again" 300 free frames later, and
+//                          ",again+K:area=A" puts the player into trigger area A,
+//                          ",again+K:save" tries another save, K frames after that,
+//                          ",event+K:save" K frames after the player is free again
+//                          after an event that followed (the fight the area started),
+//                          ",again+K:kill=ID" kills every live enemy of id ID (hex),
+//                          ",killed+K:save" / ",killed+K:load" (up to 4) K frames
+//                          after that kill: the moments after a boss fight
+//                          (the boss rooms of 0.98.2, 04.11.2026)
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
 //                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games)
 //                          one a frame, as the app's menu presses them while the
@@ -238,6 +249,7 @@
 #include "atari.h"
 #include "emdoor.h"
 #include "re4_instant.h"
+extern "C" unsigned re4_instant_game_why(void);  // instant_game.cpp, for these checks
 #include "pl_sub.h"
 #include "sce_sys.h"
 #include "flag_rsf.h"
@@ -698,6 +710,19 @@ static void merchantTest(u32 n)
 }
 long g_seAfter[8];           // RE4_TEST_SE
 long g_instantSave = -1, g_instantLoad = -1;  // RE4_TEST_INSTANT
+long g_instantLoadedAt = -1;   // the frame of the load
+bool g_instantLeft;            // the room stopped running after the load
+long g_instantAgainAt = -1;    // the player free again after it
+unsigned g_instantAgainRun;
+long g_instantAgainArea = -1, g_instantAgainAreaAfter = -1, g_instantAgainSave = -1;
+long g_instantEventSave = -1, g_instantEventAt = -1;  // ",event+K:save"
+long g_instantKillAfter = -1, g_instantKilledAt = -1;  // ",again+K:kill=ID"
+unsigned g_instantKillId;
+long g_instantKilledStep[4];  // ",killed+K:save|load"
+bool g_instantKilledLoad[4];
+int g_instantKilledSteps;
+bool g_instantSawEvent;
+unsigned g_instantEventRun;
 unsigned char g_instantSlot[0x12000];
 int g_seBlock[8], g_seNo[8], g_seCount;
 bool g_seRoom[8];            // RE4_TEST_SE "room+N": from the room start, not from the player being free
@@ -717,6 +742,33 @@ unsigned g_weaponLines;
 bool g_traceWeapon;     // RE4_TRACE_WEAPON
 unsigned g_weaponAfterReload;  // frames left to log after a reload
 u32 g_weaponRoutine;           // r_no 0..3 of the last frame
+
+// Live, active enemies of the enemy manager (the player and Ashley not counted)
+int liveEnemies()
+{
+    int count = 0;
+    for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+        cEm* e = EmMgr.fastAt(i);
+        if (live(e) && e->isAlive() && e->hp > 0 && e != (cEm*) pPL && e != (cEm*) pSUB)
+            ++count;
+    }
+    return count;
+}
+
+// RE4_TEST_INSTANT's save, with the place's state: refused here (unsafePlace) or not ready at all, the room
+// and its save flags
+void instantSave(unsigned n)
+{
+    const int blocked = re4_instant_game_save_blocked();
+    const unsigned why = re4_instant_game_why();
+    const int result = re4_instant_game_capture(g_instantSlot);
+    re4_log("run: instant save (RE4_TEST_INSTANT) at frame %u: %d (refused here %d, why 0x%x) in r%03x at (%.0f %.0f "
+            "%.0f), rsf %08x, room flags %08x, player type %u, %d enemies", n, result, blocked, why,
+            (unsigned) pG->room_id,
+            (double) pPL->pos.x, (double) pPL->pos.y, (double) pPL->pos.z,
+            (unsigned) *(u32*) (RoomData.getRoomSavePtr(pG->room_id) + 4), (unsigned) pG->Room_flg[0],
+            (unsigned) pG->pl_type, liveEnemies());
+}
 
 // The weapon change of the debug option tool (t_option.cpp), in a task of
 // its own: ReadWepData waits for the read with TaskSleep.
@@ -1891,10 +1943,97 @@ void frame(unsigned n)
                 (unsigned) id);
     }
     if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantSave) {
-        re4_log("run: instant save (RE4_TEST_INSTANT) at frame %u: %d", n, re4_instant_game_capture(g_instantSlot));
+        instantSave(n);
     }
     if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantLoad) {
         re4_log("run: instant load (RE4_TEST_INSTANT) at frame %u: %d", n, re4_instant_game_restore(g_instantSlot));
+        g_instantLoadedAt = (long) n;
+    }
+    if (g_instantLoadedAt >= 0 && (long) n > g_instantLoadedAt + 1 && g_instantAgainAt < 0) {
+        if (g->Rno0 != 3) {
+            g_instantLeft = true;
+        } else if (g_instantLeft) {
+            g_instantLeft = false;
+            g_instantAgainRun = 0;
+            re4_log("run: after the instant load at frame %u: r%03x, player at (%.0f %.0f %.0f), life %d, type %u, "
+                    "rsf %08x, %d enemies", n, (unsigned) g->room_id, (double) pPL->pos.x, (double) pPL->pos.y,
+                    (double) pPL->pos.z, (int) g->pl_life, (unsigned) g->pl_type,
+                    (unsigned) *(u32*) (RoomData.getRoomSavePtr(g->room_id) + 4), liveEnemies());
+        } else {
+            const bool free = !StaFlagChk(g, STA_EVENT) && !StaFlagChk(g, STA_SUB_SCRN);
+            g_instantAgainRun = free ? g_instantAgainRun + 1 : 0;
+            if (g_instantAgainRun == kFreeFrames) {
+                g_instantAgainAt = (long) n;
+                re4_log("run: player free again at frame %u (%ld after the instant load), r%03x at (%.0f %.0f %.0f), "
+                        "life %d, type %u, rsf %08x, %d enemies", n, (long) n - g_instantLoadedAt,
+                        (unsigned) g->room_id, (double) pPL->pos.x, (double) pPL->pos.y, (double) pPL->pos.z,
+                        (int) g->pl_life, (unsigned) g->pl_type,
+                        (unsigned) *(u32*) (RoomData.getRoomSavePtr(g->room_id) + 4), liveEnemies());
+            }
+        }
+    }
+    if (g_instantAgainAt >= 0 && g_instantAgainArea >= 0 && (long) n == g_instantAgainAt + g_instantAgainAreaAfter &&
+        g->Rno0 == 3 && live(pPL)) {
+        SCE_AT_DATA* at = SceAtPtr((int) g_instantAgainArea);
+        if (at) {
+            Vec pos;
+            Vec ang = { 0.0f, 0.0f, 0.0f };
+            AreaGetCenterPos(&pos, &at->area);
+            pPL->setPos(&pos);
+            pPL->setAng(&ang);
+            re4_log("run: after the load, player placed into trigger area %ld at (%.0f %.0f %.0f), frame %u",
+                    g_instantAgainArea, (double) pos.x, (double) pos.y, (double) pos.z, n);
+        } else {
+            re4_log("run: after the load, room r%03x has no trigger area %ld", (unsigned) g->room_id,
+                    g_instantAgainArea);
+        }
+    }
+    if (g_instantAgainAt >= 0 && g_instantAgainSave >= 0 && (long) n == g_instantAgainAt + g_instantAgainSave) {
+        instantSave(n);
+    }
+    if (g_instantAgainAt >= 0 && g_instantEventSave >= 0 && g_instantEventAt < 0 && g->Rno0 == 3) {
+        if (StaFlagChk(g, STA_EVENT)) {
+            g_instantSawEvent = true;
+            g_instantEventRun = 0;
+        } else if (g_instantSawEvent && !StaFlagChk(g, STA_SUB_SCRN) && ++g_instantEventRun == kFreeFrames) {
+            g_instantEventAt = (long) n;
+            re4_log("run: player free after the event at frame %u, rsf %08x, %d enemies", n,
+                    (unsigned) *(u32*) (RoomData.getRoomSavePtr(g->room_id) + 4), liveEnemies());
+        }
+    }
+    if (g_instantEventAt >= 0 && g_instantEventSave >= 0 && (long) n == g_instantEventAt + g_instantEventSave) {
+        instantSave(n);
+    }
+    if (g_instantAgainAt >= 0 && g_instantKillAfter >= 0 && (long) n == g_instantAgainAt + g_instantKillAfter) {
+        int killed = 0;
+        for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (live(e) && e->isAlive() && e->id == g_instantKillId && e->hp > 0) {
+                e->hp = 0;
+                EmSetDie(e);
+                EmSetDieCnt(e);
+                e->r_no_0 = 3;
+                e->r_no_1 = 0;
+                e->r_no_2 = 0;
+                e->r_no_3 = 0;
+                ++killed;
+            }
+        }
+        g_instantKilledAt = (long) n;
+        re4_log("run: %d enemies 0x%02x killed at frame %u (RE4_TEST_INSTANT)", killed, g_instantKillId, n);
+    }
+    for (int k = 0; k < g_instantKilledSteps; ++k) {
+        if (g_instantKilledAt >= 0 && (long) n == g_instantKilledAt + g_instantKilledStep[k]) {
+            if (g_instantKilledLoad[k]) {
+                re4_log("run: instant load (RE4_TEST_INSTANT) at frame %u: %d", n, re4_instant_game_restore(g_instantSlot));
+                g_instantLoadedAt = (long) n;
+                g_instantAgainAt = -1;  // "player free again" once more after this load
+                g_instantAgainArea = -1;
+                g_instantKillAfter = -1;
+            } else {
+                instantSave(n);
+            }
+        }
     }
     if (g_freeAt >= 0 && g_merchantAfter >= 0 && (long) n == g_freeAt + g_merchantAfter) {
         merchantTest(n);
@@ -2079,6 +2218,28 @@ void configure()
         }
         if (load) {
             g_instantLoad = strtol(load + 6, 0, 10);
+        }
+        for (const char* q = strstr(instant, ",again+"); q; q = strstr(q + 1, ",again+")) {
+            char* end;
+            long k = strtol(q + 7, &end, 10);
+            if (strncmp(end, ":area=", 6) == 0) {
+                g_instantAgainAreaAfter = k;
+                g_instantAgainArea = strtol(end + 6, 0, 0);
+            } else if (strncmp(end, ":save", 5) == 0) {
+                g_instantAgainSave = k;
+            } else if (strncmp(end, ":kill=", 6) == 0) {
+                g_instantKillAfter = k;
+                g_instantKillId = (unsigned) strtoul(end + 6, 0, 16);
+            }
+        }
+        for (const char* q = strstr(instant, ",killed+"); q && g_instantKilledSteps < 4; q = strstr(q + 1, ",killed+")) {
+            char* end;
+            long k = strtol(q + 8, &end, 10);
+            g_instantKilledStep[g_instantKilledSteps] = k;
+            g_instantKilledLoad[g_instantKilledSteps++] = strncmp(end, ":load", 5) == 0;
+        }
+        if (const char* q = strstr(instant, ",event+")) {
+            g_instantEventSave = strtol(q + 7, 0, 10);
         }
     }
     if (const char* m = getenv("RE4_TEST_MERCHANT")) {

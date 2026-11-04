@@ -3,6 +3,104 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.98.2-beta: Android Automotive und Schnellspeichern in mehr Räumen (04.11.2026, Branch `work`)
+
+Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/releases/v0.98.2-beta.md`. WSL-Baum
+`~/re4-0982/RE4` (aus `~/re4-fix981` kopiert, Bauordner umgeschrieben).
+
+1. **INSTANT SAVE lockerer (`runtime/instant_game.cpp`):** bisher waren 19 Räume ganz gesperrt (0.91.0 aus den
+   Quelltext-Namen geschätzt, 01./02.11.2026 Bossräume und drei Szenen). Jeder Raum im Code nachgelesen: der
+   Schnellspeicher hält die Raum-Merker (Rsf), nicht die Aufgaben einer Szene, ihre Gegner und den Partner. Mitten
+   im Kampf gespeichert sieht der Raum beim Laden „begonnen“ und richtet nichts mehr ein (r119: kein Riese, kein
+   Weiterkommen; r11f: kein Mendez, keine Ashley, kein Fluchtereignis) oder nur die Hälfte (r224: Patch 0181). Vor
+   dem Start-Merker und nach dem End-Merker ist der Raum ein Raum wie jeder andere (auch das Continue des Spiels und
+   spätere Besuche nutzen diese Zustände). **Jetzt `sequenceRunning()`:** gesperrt nur, solange die Szene läuft:
+   | Raum | gesperrt solange |
+   |---|---|
+   | r10b Del Lago | immer (der Raum ist der Kampf im Boot bis zum Kapitelende) |
+   | r333 Jetski-Flucht | immer (Countdown von der Tür bis zum Abspann) |
+   | r119 El Gigante im Tal | Rsf 0 (erscheint) bis Rsf 7 (tot) |
+   | r11c belagerte Hütte | SCF 14 (Belagerung) bis SCF 25 (Ende) |
+   | r11e El Gigante Dorfweg | Rsf 6 und ein Riese (0x2B) lebt |
+   | r11f Mendez | Rsf 0 (Treffen) bis Room_flg 0x40000000 (Fluchtereignis s11) |
+   | r206 Scharfschützen-Szene | bis Rsf 0 (Ashleys Abschnitt) |
+   | r21b Lore | ab dem Startschalter (Room_flg 0x40000000) für den Rest des Besuchs |
+   | r221 Boss am Aufzug | Rsf 4 (erscheint) und der Boss (em 0x2C, Liste 0x8C oder seine erste Form 0x8D) lebt im Raum |
+   | r224 zwei El Gigantes | Room_flg 0x04000000 (Auftritt) bis SCF 0x89 (Ausgang offen) |
+   | r226 Statuen-Jagd | Rsf 9 (erwacht) bis Rsf 13 (Brücke überquert) |
+   | r228 Salazar | Rsf 0 (Thron-Ereignis) bis Rsf 1 (tot) |
+   | r317 Krauser Messerkampf | Rsf 2 ohne Rsf 0 (der Kampf ist sonst ein Ereignis) |
+   | r31b U-3 | Rsf 0xC (Einbruch) bis Rsf 0xB |
+   | r31c Krausers Arena | Rsf 0 (erstes Gespräch) bis SCF 67 (Turm gesprengt) |
+   | r332 Saddler | ab Rsf 0 (Auftritt), auch der Countdown danach |
+   Ganz frei: r106 (Felsbrocken und Ganados: ihre Merker sind gespeichert), r11b (Seeufer; das Boot ist
+   `STA_PL_BOAT`), r223 (Aufzug und Hebel: gespeicherte Merker, die Fahrten sind Ereignisse). Die Zustands-Sperren
+   (Boot, Schwimmen, Leiter, Gondelfahrt, Festhalten, Quick-Time, Händler, Zielfernrohr, Fernglas, Bulldozer,
+   Ereignisse, Pausemenü des Spiels gesperrt) bleiben. Außerdem frei: **Ashleys eigener Abschnitt** (pl_type 1: der
+   Spielstand behält sie als Spielerin) und die **Stellvertreter** Ada/HUNK/Krauser/Wesker in der Geschichte (Patch
+   0195 speichert Leon, der nächste Raum gibt wieder die gewählte Figur; neu `re4_story_char_stand_in`, cheats.cpp).
+   Gesperrt bleiben The Mercenaries und Assignment Ada (das Laden im Spiel löscht ihre Merker nicht).
+2. **Testschalter `RE4_TEST_INSTANT`** (state_trace.cpp) erweitert: die Speicherzeile nennt Raum, Rsf, Room_flg,
+   Spielertyp, lebende Gegner und `why` (neu `re4_instant_game_why`, je Bedingung ein Bit, 0x800 = Raum gesperrt);
+   nach dem Laden „player free again“; `again+K:area=A` (Auslösebereich nach dem Laden), `again+K:save`,
+   `event+K:save` (nach dem folgenden Ereignis), `again+K:kill=ID`, `killed+K:save|load`.
+   **Geprüft am PC (i686, `RE4_CHEATS=9`, Debug- und EU-Discs, jeweils dasselbe Ergebnis, 0 Abstürze):**
+   - *Vorher speichern, laden, weiterspielen, danach den Kampf/die Szene über ihren Auslösebereich starten und
+     darin speichern:* r119, r11c, r224, r226, r31b, r31c: Speichern vorher erlaubt, Laden an der Stelle, Szene
+     startet nach dem Laden normal (Riese/U-3/Krauser/Statue erscheinen), darin abgelehnt (`why 0x800`). r11e, r11f:
+     ebenso, im Kampf abgelehnt. r221 (Bereich 0xB löst ohne Vorbedingung nichts aus), r317 (der Messerkampf ist ein
+     Ereignis bis zum Ende des Laufs): Speichern/Laden vorher geprüft. r21b, r106, r11b, r223: speichern, laden,
+     2 700 Bilder weiter ohne Befund. Die Lorenfahrt in r21b selbst nicht gestartet (Schalter per Schuss).
+   - *Nach dem Kampf (Boss per Testschalter getötet), speichern, laden, weiterspielen:* r119 (Rsf 0+7), r11e (Riese
+     tot), r224 (beide Riesen tot: 60 Bilder danach abgelehnt, solange der Ausgang noch zu ist; 900 Bilder danach
+     erlaubt, geladen mit offener Tür), r221 (Boss 0x2C tot), r31b (U-3 tot, Rsf 0xB): jeweils erlaubt, geladen,
+     „player free again“, weitergespielt.
+   - *Zustand per `RE4_TEST_RSF`/`RE4_TEST_SCF`:* gesperrt bei r11f Rsf 0, r221 Rsf 4, r226 Rsf 9, r228 Rsf 0, r31b
+     Rsf 0xC, r31c Rsf 0, r11c SCF 14; erlaubt (und geladen) bei r206 Rsf 0, r224 Rsf 1, r226 Rsf 9+13, r228 Rsf 0+1,
+     r317 Rsf 0, r31b Rsf 0xB+0xC, r31c Rsf 0 + SCF 67, r11c SCF 14+25. Weiter gesperrt: r10b, r333 (ganz), r206 vor
+     Ashleys Abschnitt, r332 (dort schon das Pausemenü des Spiels gesperrt).
+   - *Ashley (RE4_TEST_PLAYER=1) in r20d und r20e, Ada (RE4_CHEATS=64) in r103, HUNK (96) in r202:* gespeichert,
+     geladen, Spielertyp danach unverändert (1/2/3), weitergespielt.
+   - **Nicht erreicht:** r11f nach dem Kampf (Mendez hat eine zweite Form, der Testschalter beendet den Kampf nicht);
+     r228 nach Salazars Tod im Lauf (Leon stirbt am Greifangriff, nur per Rsf geprüft); Krauser/Salazar/Saddler
+     nicht im Lauf besiegt. Am Gerät nichts davon gesehen.
+3. **Android Automotive (wie UT99/UE1/FileExplorerAAOS/AAOS-Check des Projektinhabers):** die anderen Ports bauen
+   eine eigene Variante „automotive“ (eigene Paketnummer, AAB für Google Play). CubeEvil4 kommt als APK von GitHub
+   (eingebaute Aktualisierung), deshalb **eine APK für alle** statt einer zweiten Variante (keine neue Grundsatzfrage:
+   Varianten und Bauwege bleiben, `coreDebug` wie bisher). Neu:
+   - Manifest: `screen.landscape`/`screen.portrait`/`type.automotive` nicht verlangt, `androidx.car.app.launchable`,
+     `distractionOptimized` false an MainActivity/CoreActivity (ein Spiel: das Auto deckt es beim Fahren ab, die App
+     pausiert wie auf dem Startbildschirm, `onPause`); CoreActivity übersteht `uiMode` (Tag/Nacht des Autos, auch
+     der Dunkelmodus-Zeitplan am Handy), `screenLayout|smallestScreenSize|density` (geteilter Bildschirm, zweites
+     Display) ohne Neustart des Fensters; MainActivity `uiMode|keyboard|keyboardHidden|navigation`.
+   - `CarDisplay.java`: nur im Auto (FEATURE_AUTOMOTIVE): Leisten zusätzlich mit `WindowInsetsController` ausblenden,
+     was sichtbar bleibt (Status-, Klima-Leiste), bekommt der Inhalt als Rand: kein Bild, keine Touch-Tasten, kein
+     App-Menü darunter (CoreActivity, GameScreenDialog, CoreMenu misst im freien Bereich); nach dem Schließen eines
+     Auto-Panels (Fokus zurück) wieder ausblenden. Handy, Retroid, TV: alle Aufrufe ohne Wirkung.
+   - `CoreAudio`: im Auto Audio-Fokus (USAGE_GAME); Verlust (Navigation, Anruf, Medien) schaltet den Spielton stumm,
+     Rückgabe wieder an; Ducken macht das Auto selbst. Handy/TV unverändert (spielt neben Musik-Apps weiter).
+   - Testbau für den x86_64-Emulator: `gradlew assembleCoreDebug -Pre4.emulatorAbi=x86_64` (CMake
+     `RE4_EMULATOR_SHELL`): die App-Hülle ohne Spielkern.
+   **Geprüft im Emulator** (Android Automotive 15, `android-35-ext15;android-automotive-playstore;x86_64`, AVD
+   `CubeEvil4_AAOS35` 1024×768, x86_64-Testbau ohne Spielkern, Platzhalter-Discs per `run-as --user 10`; die App
+   läuft im Auto als Fahrer, Benutzer 10): App im Starter des Autos, Startbildschirm zwischen Status- und
+   Klimaleiste; Spielfenster: Leisten erst 76/96 Pixel Rand, nach dem Ausblenden 0 (dieses Abbild lässt sie gehen),
+   Touch-Tasten und Meldung ganz sichtbar; Audio-Fokus GAIN mit USAGE_GAME gehalten (`dumpsys audio`);
+   Tag/Nacht-Wechsel (`cmd car_service day-night-mode`): gleicher Prozess, gleiches Fenster; Home und zurück: gleiches
+   Fenster, Ton wieder an; Bildschirm hochkant (768×1024): Spiel als Querformat in der Mitte, kein Neustart;
+   1920×720: volle Breite, kein Neustart. **Nicht geprüft:** das Spiel selbst im Auto (keine x86-Kernbibliotheken),
+   die Fahrsperre (`inject-vhal-event` ist im Play-Abbild gesperrt; in den Extended Controls „Car data“ möglich),
+   Fokusverlust an eine andere Tonquelle, ein echtes Auto. Handy/Retroid/TV: `testCoreDebugUnitTest` bestanden, am
+   Gerät nicht gesehen.
+4. **Prüfungen:** `whole_build.sh i686`: 0 Baufehler, 114 Module, runtime-test 0 Fehler, Fernkern-Tests, Film-Test,
+   Formatvergleich bestanden; core-test zuerst „instant-game FAILED“ (der Test erwartete Ashleys Abschnitt gesperrt),
+   `tests/instant_game_probe.cpp` auf die neue Regel umgestellt (Ashley und Stellvertreter erlaubt, Typ 6 gesperrt,
+   r333 gesperrt, r106 frei, r21b vor/nach dem Startschalter), danach `--core-test` 0 Fehler.
+   `gradlew testCoreDebugUnitTest` bestanden. `gradlew lintCoreDebug` meldet 3 Fehler in alten Dateien (ActionMap.java
+   IntFunction, RoomFileCheck.java Map.merge: API 24 bei minSdk 23; AppUpdate.java registerReceiver ohne
+   RECEIVER_EXPORTED), keinen in den Änderungen dieser Version; der Release-Bau prüft nur schwere Fehler. Nicht gebaut:
+   ARM32/ARM64-Kern.
+
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 
 Berichte des Projektinhabers `cubeevil4-report-20261104-010942/011134` (Retroid, EU, Ada in r202), Nutzerberichte

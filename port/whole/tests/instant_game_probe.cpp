@@ -127,9 +127,27 @@ extern "C" int re4probe_instant_game_test()
     SysFlagOn(pG, SYS_OMAKE_ADA_GAME); // Assignment Ada
     CHECK_INSTANT(!re4_instant_game_ready() && !re4_instant_game_can_load());
     SysFlagOff(pG, SYS_OMAKE_ADA_GAME);
-    pG->pl_type = 1; // Ashley section
+    // Ashley's own section saves and loads since 0.98.2 (the save keeps her as the player)
+    pG->pl_type = 1;
+    CHECK_INSTANT(re4_instant_game_ready() && re4_instant_game_can_load());
+    // Ada, HUNK, Krauser, Wesker (2..5) play the story for Leon and save Leon; any other type stays refused
+    pG->pl_type = 3;
+    CHECK_INSTANT(re4_instant_game_ready());
+    pG->pl_type = 6;
     CHECK_INSTANT(!re4_instant_game_ready() && !re4_instant_game_can_load());
     pG->pl_type = 0;
+    // 0.98.2: the boss rooms only while their sequence runs; the timed escape always
+    pG->room_id = 0x333;
+    CHECK_INSTANT(!re4_instant_game_ready() && re4_instant_game_save_blocked());
+    pG->room_id = 0x106;  // the village hall: free since 0.98.2
+    CHECK_INSTANT(re4_instant_game_ready());
+    pG->room_id = 0x21B;  // the mine cart before its start switch
+    pG->Room_flg[0] = 0;
+    CHECK_INSTANT(re4_instant_game_ready());
+    pG->Room_flg[0] = 0x40000000;  // the ride started
+    CHECK_INSTANT(!re4_instant_game_ready() && re4_instant_game_save_blocked());
+    pG->Room_flg[0] = 0;
+    pG->room_id = room;
     CHECK_INSTANT(re4_instant_game_ready());
     pG->Rno0 = 2;
     CHECK_INSTANT(!re4_instant_game_ready());

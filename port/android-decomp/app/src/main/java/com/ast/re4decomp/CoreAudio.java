@@ -44,6 +44,11 @@ final class CoreAudio {
   // the underruns noted in the core's log: the track's count at the last check, lines so far
   private static final int MAX_NOTES = 200;
   private int noted, notes;
+  // Android Automotive: the game holds the car's audio focus while it plays (the car mixes and mutes by
+  // focus); a navigation prompt or a call takes it: the game's sound stays quiet until it comes back.
+  // Phones and TVs keep playing next to other apps as before (no focus asked there).
+  private volatile float gain = 1f;
+  private Object focus;  // AudioFocusRequest (API 26), only in a car
 
   CoreAudio(Context context) {
     this.context = context;
@@ -51,6 +56,7 @@ final class CoreAudio {
 
   synchronized void start() {
     if (worker != null) return;
+    requestCarFocus();
     running = true;
     worker = new Thread(this::run, "RE4-Core-Audio");
     worker.start();
@@ -58,6 +64,7 @@ final class CoreAudio {
 
   synchronized void stop() {
     running = false;
+    abandonCarFocus();
     if (worker == null) return;
     worker.interrupt();
     try {
@@ -66,6 +73,33 @@ final class CoreAudio {
       Thread.currentThread().interrupt();
     }
     worker = null;
+  }
+
+  @android.annotation.TargetApi(26)
+  private void requestCarFocus() {
+    if (Build.VERSION.SDK_INT < 26 || !CarDisplay.is(context)) return;
+    final AudioManager manager = context.getSystemService(AudioManager.class);
+    if (manager == null) return;
+    final android.media.AudioFocusRequest request =
+        new android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).setAudioAttributes(attributes())
+            .setWillPauseWhenDucked(false).setOnAudioFocusChangeListener(change -> {
+              // ducking (a short prompt) the car does itself; a loss mutes the game, the gain unmutes it
+              gain = change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ? 0f : 1f;
+              Log.i(TAG, "sound: car audio focus " + change + ", game sound " + (gain > 0f ? "on" : "muted"));
+            }).build();
+    final int result = manager.requestAudioFocus(request);
+    gain = result == AudioManager.AUDIOFOCUS_REQUEST_FAILED ? 0f : 1f;
+    focus = request;
+    Log.i(TAG, "sound: car audio focus asked: " + result);
+  }
+
+  @android.annotation.TargetApi(26)
+  private void abandonCarFocus() {
+    if (focus == null || Build.VERSION.SDK_INT < 26) return;
+    final AudioManager manager = context.getSystemService(AudioManager.class);
+    if (manager != null) manager.abandonAudioFocusRequest((android.media.AudioFocusRequest) focus);
+    focus = null;
+    gain = 1f;
   }
 
   private static AudioAttributes attributes() {
@@ -194,7 +228,12 @@ final class CoreAudio {
       track = track(surround);
       track.play();
       int writes = 0;
+      float applied = 1f;
       while (running) {
+        if (gain != applied) {
+          applied = gain;
+          track.setVolume(applied);
+        }
         if (++writes >= CHECK_WRITES) {
           writes = 0;
           final boolean want = surroundWanted();
@@ -204,6 +243,7 @@ final class CoreAudio {
             surround = want;
             track = track(surround);
             track.play();
+            track.setVolume(applied);
           }
         }
         final short[] pcm;

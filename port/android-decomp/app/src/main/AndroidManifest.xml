@@ -3,6 +3,13 @@
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
+    <!-- Android Automotive (wish of the project owner, 04.11.2026, as in his UT99 and UE1 ports): one APK for
+         phones, the Retroid, TV and cars. A landscape lock is no requirement (car screens can stand upright,
+         the game is then letterboxed), and no automotive requirement either: the same APK still installs
+         everywhere -->
+    <uses-feature android:name="android.hardware.screen.landscape" android:required="false" />
+    <uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
+    <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
     <!-- the core mode passes the game's rumble to the device's vibrator -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- the in-game menu's update button (AppUpdate): GitHub's newest release, its APK to Android's installer -->
@@ -18,19 +25,31 @@
         android:isGame="true" android:appCategory="game" android:supportsRtl="true"
         android:localeConfig="@xml/locales_config"
         android:enableOnBackInvokedCallback="true">
+        <!-- the car's launcher lists the app (as the owner's FileExplorerAAOS) -->
+        <meta-data android:name="androidx.car.app.launchable" android:value="true" />
         <activity android:name=".StartupActivity" android:exported="false" android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name=".RoomCheckActivity" android:exported="false" />
         <!-- locale|layoutDirection: a new language (the phone's or the app's own) keeps the running
              game; the menu takes it the next time it opens -->
+        <!-- uiMode: a car switches day / night with its lights (and phones with their dark-mode schedule),
+             screenLayout|smallestScreenSize|density: a car's split screen or a second display; the running game
+             stays instead of a new start of the window. distractionOptimized false: a game, Android Automotive
+             covers it while the car drives (the game pauses as on the home screen, onPause) -->
         <activity android:name=".CoreActivity" android:exported="false" android:screenOrientation="sensorLandscape"
-            android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|locale|layoutDirection" />
+            android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|locale|layoutDirection|uiMode|screenLayout|smallestScreenSize|density">
+            <meta-data android:name="distractionOptimized" android:value="false" />
+        </activity>
         <activity android:name=".ControllerActivity" android:exported="false" android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|keyboardHidden" />
         <!-- the core mode's error report for the app it is sent with (CoreLog, M11) -->
         <provider android:name=".ReportProvider" android:authorities="${applicationId}.report"
             android:exported="false" android:grantUriPermissions="true" />
-        <activity android:name=".MainActivity" android:exported="true">
+        <!-- uiMode / keyboard / navigation: the car's day / night switch or a controller connected while discs are
+             imported keeps the screen -->
+        <activity android:name=".MainActivity" android:exported="true"
+            android:configChanges="uiMode|keyboard|keyboardHidden|navigation">
+            <meta-data android:name="distractionOptimized" android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

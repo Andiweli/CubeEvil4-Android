@@ -330,6 +330,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
     }
     setContentView(root);
+    // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
+    CarDisplay.fit(this, getWindow());
     preferSixtyHz();
     surface.setFocusable(true);
     surface.requestFocus();
@@ -1478,6 +1480,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     super.onWindowFocusChanged(focus);
     if (!focus) releaseAll();
     else main.post(this::updateMouseCapture);
+    // a car's panel (climate, notifications) closed again: its bars hidden again where the car allows it
+    if (focus && CarDisplay.is(this)) {
+      hideSystemUi();
+      CarDisplay.refocus(this, getWindow());
+    }
   }
 
   // ---- aiming by touch and controllers (the menu's "Invert vertical", "Aim speed") ----

@@ -757,6 +757,12 @@ void re4_story_char_room(void)
     }
 }
 
+// 1 while Ada, HUNK, Krauser or Wesker plays the story for Leon (the instant save allows them, 04.11.2026)
+int re4_story_char_stand_in(void)
+{
+    return standIn();
+}
+
 // Leon's player archive while a stand-in plays the story (0 otherwise, or when it could not be read)
 void* re4_story_char_leon(void)
 {

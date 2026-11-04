@@ -1363,6 +1363,12 @@ final class CoreMenu extends Dialog {
     android.util.DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
     int width = hostDecor != null && hostDecor.getWidth() > 0 ? hostDecor.getWidth() : metrics.widthPixels;
     int height = hostDecor != null && hostDecor.getHeight() > 0 ? hostDecor.getHeight() : metrics.heightPixels;
+    // in a car: within the game's area, without the bars the car keeps (CarDisplay)
+    View area = hostDecor != null && CarDisplay.is(getContext()) ? hostDecor.findViewById(android.R.id.content) : null;
+    if (area != null && area.getWidth() > 0 && area.getHeight() > 0) {
+      width = area.getWidth() - area.getPaddingLeft() - area.getPaddingRight();
+      height = area.getHeight() - area.getPaddingTop() - area.getPaddingBottom();
+    }
     getWindow().setLayout(Math.min(dp(1000), Math.round(width * .96f)),
         Math.min(dp(650), Math.round(height * .94f)));
   }

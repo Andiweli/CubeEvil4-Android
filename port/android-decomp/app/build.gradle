@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 95
+        versionCode 96
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -67,8 +67,9 @@ android {
         // 0.97.0 (wish of the project owner, 02.11.2026: the PSone demake filter, Ashley hidden after an instant load,
         // Ada's hair after a beheading), then 0.98.0 (wish of the project owner, 03.11.2026: the story characters,
         // the retail shoulder camera, the attache case light crash; after 0.97.1 of 02.11.2026: the retail merchant, then 0.98.1 (wish of the
-        // project owner, 04.11.2026: the Android 16 data folder, the PSone demake's textures, the gondola's instant save)
-        versionName '0.98.1-beta'
+        // project owner, 04.11.2026: the Android 16 data folder, the PSone demake's textures, the gondola's instant save), then 0.98.2
+        // (wish of the project owner, 04.11.2026: Android Automotive, the instant save in more rooms)
+        versionName '0.98.2-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since
@@ -97,6 +98,13 @@ android {
             minSdk 23
             ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
             externalNativeBuild { cmake { arguments '-DRE4_CORE_MODE=ON' } }
+            // a test build of the app's shell for an x86_64 emulator (the Android Automotive emulator,
+            // 04.11.2026): gradlew assembleCoreDebug -Pre4.emulatorAbi=x86_64. The game core has no x86_64
+            // libraries; menus, windows and system bars can be checked, the game cannot start there.
+            if (project.hasProperty('re4.emulatorAbi')) {
+                ndk { abiFilters project.property('re4.emulatorAbi') }
+                externalNativeBuild { cmake { arguments '-DRE4_EMULATOR_SHELL=ON' } }
+            }
         }
     }
     externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' } }

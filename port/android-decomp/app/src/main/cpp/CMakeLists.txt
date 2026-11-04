@@ -72,10 +72,11 @@ target_compile_options(re4_platform PRIVATE -Wall -Wextra -Werror -fno-fast-math
 # its state. The game core itself is built by port/tools/whole_build_android.sh
 # and packaged from app/src/core/jniLibs.
 option(RE4_CORE_MODE "core mode: the original game core runs the game" OFF)
+option(RE4_EMULATOR_SHELL "a test build of the shell for an x86_64 emulator, without a core" OFF)
 set(RE4_CORE_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../whole/runtime")
 if(ANDROID)
     if(RE4_CORE_MODE)
-        if(NOT ANDROID_ABI STREQUAL "armeabi-v7a" AND NOT ANDROID_ABI STREQUAL "arm64-v8a")
+        if(NOT ANDROID_ABI STREQUAL "armeabi-v7a" AND NOT ANDROID_ABI STREQUAL "arm64-v8a" AND NOT RE4_EMULATOR_SHELL)
             message(FATAL_ERROR "The core mode is armeabi-v7a and arm64-v8a only")
         endif()
     elseif(NOT ANDROID_ABI STREQUAL "arm64-v8a")
