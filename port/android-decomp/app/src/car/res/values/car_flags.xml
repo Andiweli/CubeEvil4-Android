@@ -1,0 +1,4 @@
+<resources>
+    <!-- The car flavor (Google Play, Android Automotive): Google Play updates the app, no update button. -->
+    <bool name="app_update">false</bool>
+</resources>

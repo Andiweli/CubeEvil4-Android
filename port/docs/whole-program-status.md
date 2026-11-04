@@ -257,6 +257,19 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    `minSdk 24` statt 23 (`app/build.gradle`); Android 6.0 kann CubeEvil4 nicht mehr installieren (auch nicht als APK).
    Die Variante `classic` bleibt bei 21. Releasetext: Zeile unter „Changed“. **Nicht gebaut** (Gradle hier nicht
    gelaufen), am Gerät nicht geprüft.
+13. **Auto-Variante für Google Play (Wunsch des Projektinhabers 04.11.2026: „nur für AAOS den Paketnamen
+   com.ast.re4decomp“):** neue Gradle-Variante `car` (Dimension `engine`, neben `classic` und `core`): App-Kennung
+   `com.ast.re4decomp` (bis 18.10.2026 die der Kern-App), sonst wie `core` (`-DRE4_CORE_MODE=ON`, armeabi-v7a und
+   arm64-v8a, minSdk 24, Ressourcen, Bibliotheken und Assets aus `src/core`; `whole_build_android.sh` muss also nichts
+   neu kennen). Dazu `src/car`: Manifest mit `android.hardware.type.automotive` als Pflicht, ohne
+   `REQUEST_INSTALL_PACKAGES` und ohne die drei Berechtigungen, die die RetroTouch-Bibliothek mitbringt (ihr Manifest
+   hat kein targetSdkVersion: READ_PHONE_STATE, READ/WRITE_EXTERNAL_STORAGE; die App braucht keine); `app_update`
+   false: kein Update-Knopf im App-Menü (Google Play aktualisiert; `CoreActivity.checkUpdate` meldet UNKNOWN, das
+   blendet ihn aus). Bauen: Android Studio „Generate Signed App Bundle“ mit `carRelease`, oder `gradlew bundleCarRelease`.
+   **Geprüft (Windows, Gradle mit dem JBR von Android Studio):** `processCarReleaseManifest` (Paket com.ast.re4decomp,
+   minSdk 24, Automotive Pflicht, nur VIBRATE und INTERNET), `mergeCarReleaseResources` (core_mode true, app_update
+   false, Name CubeEvil4), `compileCarReleaseJavaWithJavac`, `lintVitalCarRelease` ohne Befund; `processCoreReleaseManifest`
+   unverändert com.ast.cubeevil4. **Nicht geprüft:** das ganze Bundle mit den Kern-Bibliotheken, der Upload, ein Auto.
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 

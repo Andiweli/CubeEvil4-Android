@@ -731,7 +731,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.i(TAG, "touch: swipes " + (on ? "draw the knife and slash" : "leave the knife alone"));
     }
 
-    @Override public void checkUpdate(AppUpdate.Listener listener) { AppUpdate.check(CoreActivity.this, listener); }
+    @Override public void checkUpdate(AppUpdate.Listener listener) {
+      // the car flavor comes from Google Play, which updates it: no button (UNKNOWN hides it)
+      if (!getResources().getBoolean(R.bool.app_update)) {
+        listener.checked(AppUpdate.UNKNOWN);
+        return;
+      }
+      AppUpdate.check(CoreActivity.this, listener);
+    }
 
     @Override public void startUpdate(AppUpdate.Listener listener) { AppUpdate.install(CoreActivity.this, listener); }
 

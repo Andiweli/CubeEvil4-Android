@@ -107,6 +107,25 @@ android {
                 externalNativeBuild { cmake { arguments '-DRE4_EMULATOR_SHELL=ON' } }
             }
         }
+        // car: the core app for Google Play's Android Automotive track (wish of the project owner, 04.11.2026) under
+        //   the app id "com.ast.re4decomp" (the core app's until 18.10.2026); everything as "core" (its resources,
+        //   libraries and assets from src/core), plus src/car: the automotive feature required, no self-update
+        //   from GitHub (Google Play updates it; no REQUEST_INSTALL_PACKAGES). Built as carRelease / bundleCarRelease.
+        car {
+            dimension 'engine'
+            applicationId 'com.ast.re4decomp'
+            versionNameSuffix '-core'
+            minSdk 24
+            ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
+            externalNativeBuild { cmake { arguments '-DRE4_CORE_MODE=ON' } }
+        }
+    }
+    sourceSets {
+        car {
+            res.srcDirs = ['src/core/res', 'src/car/res']
+            jniLibs.srcDirs = ['src/core/jniLibs']
+            assets.srcDirs = ['src/core/assets']
+        }
     }
     externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
