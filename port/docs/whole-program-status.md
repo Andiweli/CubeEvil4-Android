@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.2-beta: Android Automotive und Schnellspeichern in mehr Räumen (04.11.2026, Branch `work`)
+## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe (04.11.2026, Branch `work`)
 
 Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/releases/v0.98.2-beta.md`. WSL-Baum
 `~/re4-0982/RE4` (aus `~/re4-fix981` kopiert, Bauordner umgeschrieben).
@@ -100,6 +100,44 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    IntFunction, RoomFileCheck.java Map.merge: API 24 bei minSdk 23; AppUpdate.java registerReceiver ohne
    RECEIVER_EXPORTED), keinen in den Änderungen dieser Version; der Release-Bau prüft nur schwere Fehler. Nicht gebaut:
    ARM32/ARM64-Kern.
+5. **Lichthöfe (Lens Flares, Wunsch des Projektinhabers 04.11.2026, aus):** Schalter „Lens flares“ im App-Menü,
+   Grafik → Bild (11 Sprachen, `ingame_flares`; `CoreBridge.setFlares`, `core_mode.cpp` optFlares, Testschalter
+   `RE4_GX_FLARES=1`). `gx_gl.cpp` (`FlareScan`, `FlareNote`, `FlareTrack`, `FlarePass`): Lichtquelle = additiv
+   gezeichneter 3D-Auftrag des Hauptbilds (GX-Mischung src·x + dst·1, Tiefentest an: Flammen, Kerzen, Glühen von
+   Lampen und Fackeln); seine Ecken gehen auf der CPU durch Positionsmatrix, Projektion und Viewport wie im
+   Vertex-Shader (Bildschirm-Rechteck, EFB-Tiefe); nahe Quellen (eine Fackel sind viele Teilchen) werden eine.
+   `FlareScan` sucht vorab im Chunk den letzten 3D-Auftrag des Hauptbilds; direkt danach (vor Überblendungen, HUD,
+   Menüs; ohne Kern-Änderung, auch mit alten GX-Aufnahmen) zwei Durchgänge: (1) Sichtbarkeit je Quelle (32 Plätze,
+   über die Bilder verfolgt) in einer 32×1-Textur: Anteil von 9 Tiefen-Proben um die Quelle, an denen die EFB-Tiefe
+   nicht näher ist (Wand, Figur davor: 0), mal Helligkeit der hellsten freien Probe (smoothstep 0,3..0,6: nur helle
+   Flammen); je Bild ein Viertel des Wegs zum neuen Wert (Ein- und Ausblenden, kein Springen; eine verlorene Quelle
+   blendet 16 Bilder lang aus); (2) Lichthof additiv in die EFB-Farbe: runder Schein (Radius 5–18 GameCube-Pixel
+   nach Quellgröße) und dünner waagerechter Streifen, Farbe aus dem Bild an der Quelle, höchstens etwa ein Drittel
+   Weiß. Pixelfilter, FXAA, TV-Filter kommen danach und nehmen ihn mit; MSAA: in die Mehrfachproben-EFB (Tiefe und
+   Farbe vorher aufgelöst); 60 FPS: die Zwischenbilder laufen genauso (mit ihren gemischten Matrizen). Testhilfe
+   `RE4_GX_FLARE_LOG=1` (Quellen, Plätze, gezeigte Stärke je Bild), `=2` (Tiefen-Anteil und Helligkeit).
+   **Geprüft (`gx_chunk_render`, GX-Serien des Projektinhabers: Feuer-Serie 2×12 mit Kerzen und Flammenwerfer,
+   Schloss/Hütte `d1104b` 6×12, Dorf `gx4` 7×12):** keine Shader- oder GL-Fehler bei 1×, 1,5×, 2,5×, 4×, mit
+   Pixelfilter, 4× MSAA und 60-FPS-Zwischenbildern; Kerzenleuchter und Fackel bekommen einen Schein, das Feuer am
+   Boden ebenso; Quellen hinter Wänden (Schloss-Serie 00: alle; Hütte: zwei hinter der Hütte) bleiben bei 0,00,
+   die freie Fackel daneben 0,27–0,6. `gx_gl_check` 0 Fehler; ausgeschaltet läuft kein neuer Code (`FlareScan` nur
+   mit dem Schalter). `gradlew testCoreDebugUnitTest` bestanden, `check_translations.py` 11 Sprachen ok. Am Gerät
+   nicht gesehen (Leistung auf Mali/Adreno offen: zwei kleine Durchgänge und ein Auflösen der Tiefe je Bild).
+6. **Minikarte (Wunsch des Projektinhabers 04.11.2026): untersucht, nicht gebaut** (Grundsatzfrage an den
+   Projektinhaber). Die Inventar-Karte (`src/Sscrn/ss_map.cpp`) ist eine 3D-Karte: je Gebiet eine Datei
+   `ss/Cmn/map_objNN.dat` (18 Gebiete `1`, `2`, `2a`–`2c`, `3a`–`3f`, `4a`–`4g`; unkomprimiert, ein Archiv: Anzahl,
+   Versätze; 22–567 KB; Debug und EU gleich groß), je Raum ein Unterteil mit Modellen und einer flachen
+   Boden-Kollision (SAT) im Kartenraum; Tabellen Raum → Unterteil in `mapDataInit_St1`… , Gebiet nach Raum und
+   Fortschritt in `getStageNo`/`getAreaNo`. Leons Punkt auf der Karte: `mapPositionCheck` sucht unter ihm das
+   Dreieck des echten Raumbodens und nimmt dieselben Dreiecks-Koordinaten im Dreieck gleicher Nummer der
+   Karten-Kollision (die Karte ist eine verkleinerte Kopie des Bodens). Weg: der Kern meldet Raum, Position, Richtung
+   und Gebiet; die App liest die Gebietsdatei von der importierten Disc, bildet aus den Boden-Dreiecken jedes Raums
+   seine Umrisse (Kanten, die nur ein Dreieck haben) und zeichnet sie gedreht mit Leon in der Mitte unten links
+   über das Bild (eigene Ebene der App, nicht über GX: so bleibt das HUD unberührt und es geht auf jeder Disc);
+   Leons Kartenpunkt wie `mapPositionCheck` über den Raumboden (der Kern hat ihn im Speicher). Offen vor dem Bau:
+   ob die Tabellen Raum → Unterteil mit den EU/US/JP-Kartendateien übereinstimmen (der Kern hat die Tabellen des
+   Prototyps), und ob „nur der aktuelle Raum“ (einfacher: aus dem Raumboden selbst) oder „das ganze Gebiet wie im
+   Inventar“ gewünscht ist.
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 

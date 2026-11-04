@@ -553,6 +553,10 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
       graphics.edit().putBoolean("dof", on).apply(); CoreBridge.setDof(on);
     });
+    // a faint glow at torches, candles and fires (wish of the project owner, 04.11.2026; off by default)
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_flares, graphics.getBoolean("flares", false), on -> {
+      graphics.edit().putBoolean("flares", on).apply(); CoreBridge.setFlares(on);
+    });
     // the picture filters in a section of their own at the end, one under the other, one general line under both
     // (wish of the project owner, 02.11.2026)
     heading(R.string.ingame_filter);

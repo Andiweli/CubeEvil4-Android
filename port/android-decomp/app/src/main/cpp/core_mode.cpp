@@ -638,6 +638,7 @@ struct Bench {
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
+std::atomic<int> optFlares{0};    // the menu's lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
@@ -1430,6 +1431,8 @@ bool drawGx() {
   gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
+  static const bool flaresEnv = getenv("RE4_GX_FLARES") && *getenv("RE4_GX_FLARES") == '1';
+  gx->SetFlares(optFlares.load() != 0 || flaresEnv);
   static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
   gx->SetMerge(optMerge.load() != 0 || mergeEnv);
   if (!smoothOn && smoothPrev) {
@@ -2428,6 +2431,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPsx(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optPsx.exchange(want) != want) LOG("PSone demake: %s", want ? "on" : "off");
+}
+
+// Lens flares (the menu, wish of the project owner, 04.11.2026): a faint glow at the game's lights (GxRenderer::SetFlares).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFlares(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optFlares.exchange(want) != want) LOG("lens flares: %s", want ? "on" : "off");
 }
 
 // FXAA (the menu): an edge smoothing pass over every picture (GxRenderer::SetFxaa).

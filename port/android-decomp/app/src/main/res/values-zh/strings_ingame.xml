@@ -17,6 +17,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">拉伸</string>
     <string name="ingame_other_options">其他选项</string>
+    <string name="ingame_flares">镜头光晕</string>
     <string name="ingame_dof">景深</string>
     <string name="ingame_fps_display">在左下角显示 FPS</string>
     <string name="ingame_smooth60">60 帧（实验性）</string>

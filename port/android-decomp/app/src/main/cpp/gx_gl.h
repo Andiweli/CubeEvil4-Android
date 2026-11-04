@@ -247,6 +247,11 @@ public:
   // last pass over every display copy (after FXAA): one colour per cell of a 320 x 224 grid in 15-bit colour
   // with the PlayStation's 4 x 4 dither. Takes effect with the next draws (new programs, made once).
   void SetPsx(bool on);
+  // Lens flares (wish of the project owner, 04.11.2026; off by default): a small, faint glow and streak around
+  // what the game draws as light (additive 3D effects: flames, candles, lamp glows), drawn after the scene's
+  // last 3D draw (under the HUD), only where the source is not hidden in the EFB depth, faded in and out over
+  // a few pictures. Takes effect with the next chunk.
+  void SetFlares(bool on);
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:

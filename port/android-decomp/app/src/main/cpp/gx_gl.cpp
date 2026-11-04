@@ -441,6 +441,7 @@ struct GxRenderer::Impl {
   // over the display copy (a 320-wide grid, 15-bit colour with the PlayStation's 4 x 4 dither) into psxTex,
   // shown instead of it while psxShown
   bool psxOn = false, psxShown = false;
+  std::uint32_t curOpAt = 0;  // the op Run executes (FlareNote)
   GLuint psxTex = 0, psxFbo = 0, psxProgram = 0;
   unsigned psxTexW = 0, psxTexH = 0;
   GLint psxGridLoc = -1;
@@ -3177,6 +3178,9 @@ struct GxRenderer::Impl {
       blended = BlendDraw(d, k, chunk);
     else if (recordDraws)
       RecordDraw(d, k);
+    // a light source for the lens flares (with the in-between picture's blended matrices)
+    if (flaresOn && flareAfter && !merge)
+      FlareNote(d, chunk, curOpAt);
     Split(GxStats::kSplitRest);
     // (the merged block first: a move of the stream it causes sends the other parts again)
     if (merge)
@@ -4088,6 +4092,411 @@ struct GxRenderer::Impl {
     fxaaShown = false;
   }
 
+  // --- lens flares (GxRenderer::SetFlares) ---------------------------------------------------
+  //
+  // A light source is what the game draws as light: a 3D draw of the picture's main view (viewport at least
+  // 500 of 512 wide) blended additively (src * x + dst * 1: flames, candles, the glow of lamps and torches,
+  // fire on the ground, muzzle flashes) with a depth test. Its vertices go through the draw's own position
+  // matrix and projection on the CPU, as the vertex shader does: the screen box and depth of the draw. Draws
+  // close together (a torch is many particles) make one source. After the scene's last 3D draw (FlareScan:
+  // the HUD, fades and menus come after it and lie over the flares) FlarePass:
+  //  1. visibility, for each tracked source a texel of flareVis[cur]: the share of nine depth taps around
+  //     its centre at which the EFB depth is not nearer than the source (a wall or a figure in front: 0),
+  //     times how bright the picture is there (only a bright flame flares, not smoke or dust); followed
+  //     smoothly from the picture before (flareVis[prev], a quarter of the way a picture), so a flare fades
+  //     in and out and never pops;
+  //  2. the flares, additively into the EFB's colour: a small round glow and a thin horizontal streak around
+  //     each source, its colour the picture's at the source, at most about a third of full brightness.
+  // The PSone demake, FXAA and the TV filter come later at the display copy and take the flares with the
+  // picture; with MSAA they go into the multisampled EFB; the in-between pictures of 60 FPS run the same
+  // (their matrices are the blended ones).
+  static constexpr int kFlareSlots = 32;
+  bool flaresOn = false, flareFailed = false;
+  std::uint32_t flareAfter = 0;  // the op offset after the scene's last 3D draw (0: none in this chunk)
+  bool flareDone = false;
+  struct FlareCand {
+    float x0, y0, x1, y1, z;  // screen box (GameCube EFB pixels) and depth (0..1 as the EFB holds it)
+    int draws;
+  };
+  std::vector<FlareCand> flareCands;
+  struct FlareSlot {
+    float x = 0, y = 0, z = 0, r = 0;
+    int lost = -1;     // -1 free, 0 seen in this picture, > 0 pictures since it was seen
+    bool fresh = false;
+  };
+  FlareSlot flareSlot[kFlareSlots];
+  GLuint flareVisTex[2] = {}, flareVisFbo[2] = {}, flareVisProgram = 0, flareProgram = 0;
+  GLuint flareColorFbo = 0;  // the EFB's colour without its depth (no MSAA): the flares go there
+  int flareVisCur = 0;
+  GLint flareVisSlotLoc = -1, flareVisSizeLoc = -1, flareSlotLoc = -1, flareSizeLoc = -1;
+  bool flareLog = false, flareLog2 = false;  // RE4_GX_FLARE_LOG=1: sources and slots, 2: seen and brightness
+  unsigned flarePictures = 0;
+
+  // The ops of `chunk`: the offset after its last draw in perspective into the main view (the XF projection
+  // type, register 0x26, as it changes on the way), 0 without one.
+  std::uint32_t FlareScan(const Re4GxChunk &chunk) const {
+    std::uint32_t proj = xfReg[0x26], half = xfReg[0x1A], after = 0;
+    for (std::uint32_t at = 0; at < chunk.opWords;) {
+      const std::uint32_t head = chunk.ops[at], op = head & 0xFF, n = head >> 8;
+      const std::uint32_t *p = chunk.ops + at + 1;
+      if (at + 1 + n > chunk.opWords)
+        break;
+      if (op == RE4_GX_OP_XF && n >= 1) {
+        const std::uint32_t a = p[0];
+        if (a <= 0x1026 && a + n - 1 > 0x1026)
+          proj = p[1 + 0x1026 - a];
+        if (a <= 0x101A && a + n - 1 > 0x101A)
+          half = p[1 + 0x101A - a];
+      } else if (op == RE4_GX_OP_DRAW && !(proj & 1) && AsFloat(half) * 2.0f >= 500.0f) {
+        after = at + 1 + n;
+      }
+      at += 1 + n;
+    }
+    return after;
+  }
+
+  // In Draw (after FillXfRegs): an additive 3D draw of the main view before the scene's end is a source.
+  void FlareNote(const Re4GxDraw &d, const Re4GxChunk &chunk, std::uint32_t opAt) {
+    if (opAt >= flareAfter || (xfReg[0x26] & 1) || !(AsFloat(xfReg[0x1A]) * 2.0f >= 500.0f))
+      return;
+    const std::uint32_t c = bp[0x41];
+    if (!(c & 1) || ((c >> 11) & 1) || ((c >> 5) & 7) != 1 || !((c >> 3) & 1) || !(bp[0x40] & 1))
+      return;
+    if (d.vertexCount == 0 || d.vertexCount > 512 || d.stride < 12)
+      return;
+    // where a per-vertex matrix index sits (Re4GxLayout)
+    unsigned mtxAt = 12;
+    if (d.layout & RE4_GX_V_NORMAL)
+      mtxAt += (d.layout & RE4_GX_V_BINORMAL_TANGENT) ? 36 : 12;
+    mtxAt += ((d.layout & RE4_GX_V_COLOR0) ? 4 : 0) + ((d.layout & RE4_GX_V_COLOR1) ? 4 : 0);
+    for (int t = 0; t < 8; t++)
+      mtxAt += (d.layout & (RE4_GX_V_TEX0 << t)) ? 8 : 0;
+    const float *vp0 = xf.viewport[0], *vp1 = xf.viewport[1], *pr0 = xf.proj[0], *pr1 = xf.proj[1];
+    FlareCand f{1e9f, 1e9f, -1e9f, -1e9f, 1.0f, 1};
+    float zSum = 0.0f;
+    unsigned counted = 0;
+    const unsigned step = d.vertexCount > 64 ? d.vertexCount / 64 : 1;
+    for (std::uint32_t v = 0; v < d.vertexCount; v += step) {
+      const std::uint8_t *at = chunk.vertices + d.vertexOffset + static_cast<std::size_t>(v) * d.stride;
+      float pos[3];
+      std::memcpy(pos, at, 12);
+      unsigned row = d.matrices[0] & 63;
+      if ((d.layout & RE4_GX_V_MATRIX) && mtxAt < d.stride)
+        row = at[mtxAt] & 63;
+      if (row > 61)
+        continue;
+      float e[3];
+      for (int r = 0; r < 3; r++)
+        e[r] = xf.posTex[row + r][0] * pos[0] + xf.posTex[row + r][1] * pos[1] + xf.posTex[row + r][2] * pos[2] +
+               xf.posTex[row + r][3];
+      const float w = -e[2];
+      if (!(w > 1.0f))
+        continue;  // behind the camera or at it
+      const float cx = pr0[0] * e[0] + pr0[1] * e[2], cy = pr0[2] * e[1] + pr0[3] * e[2], cz = pr1[0] * e[2] + pr1[1];
+      const float sx = (vp0[3] - 342.0f) + vp0[0] * cx / w, sy = (vp1[0] - 342.0f) + vp0[1] * cy / w;
+      const float sz = (vp0[2] * cz / w + vp1[1]) / 16777215.0f;
+      if (!std::isfinite(sx) || !std::isfinite(sy) || !std::isfinite(sz))
+        continue;
+      f.x0 = std::min(f.x0, sx);
+      f.x1 = std::max(f.x1, sx);
+      f.y0 = std::min(f.y0, sy);
+      f.y1 = std::max(f.y1, sy);
+      zSum += sz;
+      counted++;
+    }
+    if (!counted)
+      return;
+    f.z = zSum / static_cast<float>(counted);
+    const float cx = (f.x0 + f.x1) * 0.5f, cy = (f.y0 + f.y1) * 0.5f, size = std::max(f.x1 - f.x0, f.y1 - f.y0);
+    // on the picture, not a sheet over half of it (a fog plane, a beam), not behind the far plane
+    if (cx < 0.0f || cy < 0.0f || cx > 640.0f || cy > 480.0f || size > 160.0f || !(f.z > 0.0f && f.z < 1.0f))
+      return;
+    flareCands.push_back(f);
+  }
+
+  bool MakeFlares() {
+    static const char kVs[] = "#version 300 es\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // texel i: the source of slot i (x, y in EFB texels, depth, state 0 free, 1 seen, 2 seen and new, 3 lost
+    // plus 8 x its radius in EFB texels)
+    static const char kVisFs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform highp sampler2D depths;\nuniform sampler2D colors;\nuniform sampler2D before;\n"
+        "uniform vec4 slot[32];\nuniform vec4 size;\nout vec4 o;\n"
+        "void main() {\n"
+        "  int i = int(gl_FragCoord.x);\n"
+        "  vec4 s = slot[i];\n"
+        "  float st = mod(s.w, 8.0);\n"
+        "  vec4 old = st > 1.5 && st < 2.5 ? vec4(0.0) : texelFetch(before, ivec2(i, 0), 0);\n"
+        "  if (st < 0.5) { o = vec4(0.0); return; }\n"
+        "  float seen = 0.0;\n"
+        "  vec3 col = vec3(0.0);\n"
+        "  if (st < 2.5) {\n"
+        "    float r = max(size.z, floor(s.w / 8.0) * 0.4);\n"
+        "    for (int k = 0; k < 9; k++) {\n"
+        "      vec2 off = k == 0 ? vec2(0.0) : r * vec2(cos(float(k) * 0.785398), sin(float(k) * 0.785398)) * "
+        "(k % 2 == 0 ? 1.0 : 0.5);\n"
+        "      vec2 t = s.xy + off;\n"
+        "      if (t.x < 0.0 || t.y < 0.0 || t.x >= size.x || t.y >= size.y) continue;\n"
+        "      float z = texelFetch(depths, ivec2(t), 0).r;\n"
+        "      bool open = z >= s.z - 0.0005;\n"
+        "      seen += open ? 1.0 : 0.0;\n"
+        "      vec3 c = texelFetch(colors, ivec2(t), 0).rgb;\n"
+        "      if (open && dot(c, vec3(0.299, 0.587, 0.114)) > dot(col, vec3(0.299, 0.587, 0.114))) col = c;\n"
+        "    }\n"
+        "    seen /= 9.0;\n"
+        "  }\n"
+        "  float lum = dot(col, vec3(0.299, 0.587, 0.114));\n"
+        "  float target = seen * smoothstep(0.3, 0.6, lum);\n"
+        "  float a = old.a + (target - old.a) * 0.25;\n"
+        "  vec3 tint = st < 2.5 && lum > 0.05 ? mix(col / max(max(col.r, col.g), col.b), vec3(1.0), 0.35) : old.rgb;\n"
+        "  o = vec4(old.a > 0.003 ? mix(old.rgb, tint, 0.3) : tint, a);\n"
+        "  if (size.w > 0.5) o = vec4(seen, lum, 0.0, a);  // (tests: RE4_GX_FLARE_LOG=2)\n"
+        "}\n";
+    // six vertices a slot: the quad of its glow and streak, in EFB texels; nothing for a dark slot
+    static const char kFlareVs[] =
+        "#version 300 es\nprecision highp float;\n"
+        "uniform sampler2D vis;\nuniform vec4 slot[32];\nuniform vec4 size;\n"
+        "out vec2 vUv;\nout vec4 vCol;\n"
+        "void main() {\n"
+        "  int i = gl_VertexID / 6, c = gl_VertexID % 6;\n"
+        "  vec4 v = texelFetch(vis, ivec2(i, 0), 0);\n"
+        "  vec4 s = slot[i];\n"
+        "  vec2 q = vec2(c == 1 || c == 4 || c == 5 ? 1.0 : -1.0, c == 2 || c == 3 || c == 5 ? 1.0 : -1.0);\n"
+        "  float r = s.z;\n"
+        "  vec2 half_ = vec2(r * 3.0, r);\n"
+        "  vec2 p = s.xy + q * half_;\n"
+        "  vUv = q;\n"
+        "  vCol = vec4(v.rgb, v.a * size.w);\n"
+        "  gl_Position = v.a * size.w < 0.004 || s.w < 0.5 ? vec4(2.0, 2.0, 2.0, 1.0)\n"
+        "                : vec4(p / size.xy * 2.0 - 1.0, 0.0, 1.0);\n"
+        "}\n";
+    static const char kFlareFs[] =
+        "#version 300 es\nprecision mediump float;\n"
+        "in vec2 vUv;\nin vec4 vCol;\nout vec4 o;\n"
+        "void main() {\n"
+        "  vec2 g = vec2(vUv.x * 3.0, vUv.y);\n"
+        "  float d2 = dot(g, g);\n"
+        "  float glow = exp(-d2 * 3.2) * 0.85 + exp(-d2 * 14.0) * 0.6;\n"
+        "  float streak = exp(-abs(vUv.y) * 9.0) * (1.0 - abs(vUv.x)) * (1.0 - abs(vUv.x)) * 0.45;\n"
+        "  o = vec4(vCol.rgb * (glow + streak) * vCol.a, 0.0);\n"
+        "}\n";
+    std::string log;
+    flareVisProgram = Link(kVs, kVisFs, &log);
+    if (flareVisProgram)
+      flareProgram = Link(kFlareVs, kFlareFs, &log);
+    if (!flareVisProgram || !flareProgram) {
+      GXLOG("lens flares: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(flareVisProgram);
+    glUniform1i(glGetUniformLocation(flareVisProgram, "depths"), 0);
+    glUniform1i(glGetUniformLocation(flareVisProgram, "colors"), 1);
+    glUniform1i(glGetUniformLocation(flareVisProgram, "before"), 2);
+    flareVisSlotLoc = glGetUniformLocation(flareVisProgram, "slot");
+    flareVisSizeLoc = glGetUniformLocation(flareVisProgram, "size");
+    glUseProgram(flareProgram);
+    glUniform1i(glGetUniformLocation(flareProgram, "vis"), 0);
+    flareSlotLoc = glGetUniformLocation(flareProgram, "slot");
+    flareSizeLoc = glGetUniformLocation(flareProgram, "size");
+    glGenTextures(2, flareVisTex);
+    glGenFramebuffers(2, flareVisFbo);
+    bool ok = true;
+    for (int i = 0; i < 2; i++) {
+      glBindTexture(GL_TEXTURE_2D, flareVisTex[i]);
+      const std::uint32_t zero[kFlareSlots] = {};
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kFlareSlots, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glBindFramebuffer(GL_FRAMEBUFFER, flareVisFbo[i]);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, flareVisTex[i], 0);
+      ok = ok && glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    }
+    glGenFramebuffers(1, &flareColorFbo);
+    if (!ok)
+      GXLOG("lens flares: the visibility frame buffer is not complete");
+    flareLog = std::getenv("RE4_GX_FLARE_LOG") && *std::getenv("RE4_GX_FLARE_LOG") >= '1';
+    flareLog2 = flareLog && *std::getenv("RE4_GX_FLARE_LOG") == '2';
+    return ok;
+  }
+
+  // The picture's sources onto the tracked slots: near ones merged, each to the slot it was in (nearest within
+  // its size), new ones into free slots; a slot not seen fades out where it was and is free after 16 pictures.
+  void FlareTrack() {
+    std::vector<FlareCand> merged;
+    for (const FlareCand &f : flareCands) {
+      bool joined = false;
+      for (FlareCand &m : merged) {
+        const float gap = std::max({f.x0 - m.x1, m.x0 - f.x1, f.y0 - m.y1, m.y0 - f.y1});
+        if (gap < 12.0f) {
+          m.x0 = std::min(m.x0, f.x0);
+          m.y0 = std::min(m.y0, f.y0);
+          m.x1 = std::max(m.x1, f.x1);
+          m.y1 = std::max(m.y1, f.y1);
+          m.z = std::min(m.z, f.z);
+          m.draws++;
+          joined = true;
+          break;
+        }
+      }
+      if (!joined)
+        merged.push_back(f);
+    }
+    for (FlareSlot &s : flareSlot)
+      if (s.lost >= 0)
+        s.lost++;
+    for (const FlareCand &m : merged) {
+      const float cx = (m.x0 + m.x1) * 0.5f, cy = (m.y0 + m.y1) * 0.5f;
+      const float size = std::max(m.x1 - m.x0, m.y1 - m.y0);
+      // the flare: about the source's size, from a candle (5) to a torch's fire (18 GameCube pixels); a big fire
+      // keeps the torch's size at its middle
+      const float r = std::min(18.0f, std::max(5.0f, size * 0.5f));
+      int best = -1, freeSlot = -1;
+      float bestD = 1e9f;
+      for (int i = 0; i < kFlareSlots; i++) {
+        const FlareSlot &s = flareSlot[i];
+        if (s.lost < 0) {
+          if (freeSlot < 0)
+            freeSlot = i;
+          continue;
+        }
+        if (s.lost == 0)
+          continue;  // taken by another source of this picture
+        const float d = std::hypot(s.x - cx, s.y - cy);
+        if (d < std::max(24.0f, 2.0f * s.r) && d < bestD) {
+          best = i;
+          bestD = d;
+        }
+      }
+      if (best < 0 && freeSlot < 0)
+        continue;
+      FlareSlot &s = flareSlot[best >= 0 ? best : freeSlot];
+      s.fresh = best < 0;
+      s.x = cx;
+      s.y = cy;
+      s.z = m.z;
+      s.r = s.fresh ? r : s.r + (r - s.r) * 0.3f;
+      s.lost = 0;
+    }
+    for (FlareSlot &s : flareSlot)
+      if (s.lost > 16)
+        s.lost = -1;
+    if (flareLog && flarePictures < 400) {
+      int used = 0;
+      for (const FlareSlot &s : flareSlot)
+        used += s.lost >= 0;
+      GXLOG("lens flares: picture %u, %zu additive 3D draws, %zu sources, %d slots", flarePictures, flareCands.size(),
+            merged.size(), used);
+      for (const FlareCand &m : merged)
+        GXLOG("lens flares:   source (%.0f %.0f)-(%.0f %.0f) depth %.5f, %d draws", m.x0, m.y0, m.x1, m.y1, m.z,
+              m.draws);
+    }
+    flarePictures++;
+  }
+
+  // After the scene's last 3D draw (Run): the visibility pass, then the flares into the EFB.
+  void FlarePass() {
+    flareDone = true;
+    FlareTrack();
+    flareCands.clear();
+    bool any = false;
+    for (const FlareSlot &s : flareSlot)
+      any = any || s.lost >= 0;
+    if (!any || flareFailed)
+      return;
+    Touched();
+    if (!flareProgram && !MakeFlares()) {
+      flareFailed = true;
+      BindFbo(DrawFbo());
+      return;
+    }
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
+    const float sc = Sf(1);
+    float slots[kFlareSlots][4];
+    for (int i = 0; i < kFlareSlots; i++) {
+      const FlareSlot &s = flareSlot[i];
+      slots[i][0] = s.x * sc;
+      slots[i][1] = s.y * sc;
+      slots[i][2] = s.z;
+      // state (0 free, 1 seen, 2 new, 3 lost) + 8 x the radius in EFB texels (the taps reach 0.4 of it)
+      slots[i][3] = (s.lost < 0 ? 0.0f : s.lost > 0 ? 3.0f : s.fresh ? 2.0f : 1.0f) +
+                    (s.lost < 0 ? 0.0f : 8.0f * std::floor(s.r * sc));
+    }
+    // the picture's depth and colour (MSAA in own buffers: resolved), as the autofocus reads them
+    Resolve(0, 0, Lo(512), Lo(448), false);
+    Resolve(0, 0, Lo(512), Lo(448), true);
+    SaveAndPlainState();
+    glDepthMask(GL_FALSE);
+    glBindVertexArray(quadVao);
+    for (int i = 0; i < 3; i++)
+      glBindSampler(i, 0);
+    const int next = flareVisCur ^ 1;
+    BindFbo(flareVisFbo[next]);
+    glViewport(0, 0, kFlareSlots, 1);
+    glUseProgram(flareVisProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, efbDepth);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, efbColor);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, flareVisTex[flareVisCur]);
+    glUniform4fv(flareVisSlotLoc, kFlareSlots, &slots[0][0]);
+    glUniform4f(flareVisSizeLoc, static_cast<float>(fw), static_cast<float>(fh), std::max(1.0f, 1.5f * sc),
+                flareLog2 ? 1.0f : 0.0f);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    flareVisCur = next;
+    if (flareLog && flarePictures <= 400) {
+      // (tests) each slot's followed visibility and brightness as the flares will take them
+      std::uint8_t vis[kFlareSlots * 4];
+      glReadPixels(0, 0, kFlareSlots, 1, GL_RGBA, GL_UNSIGNED_BYTE, vis);
+      for (int i = 0; i < kFlareSlots; i++)
+        if (flareSlot[i].lost >= 0)
+          GXLOG("lens flares:   slot %d at (%.0f %.0f) r %.1f depth %.5f %s: shown %.2f, colour %u %u %u", i,
+                flareSlot[i].x, flareSlot[i].y, flareSlot[i].r, flareSlot[i].z,
+                flareSlot[i].lost > 0 ? "lost" : flareSlot[i].fresh ? "new" : "seen", vis[i * 4 + 3] / 255.0,
+                vis[i * 4], vis[i * 4 + 1], vis[i * 4 + 2]);
+    }
+    // the flares: their radius in EFB texels in slot.z; strength: at most about a third of white
+    for (int i = 0; i < kFlareSlots; i++)
+      slots[i][2] = flareSlot[i].r * sc;
+    BindFbo(msaaFbo ? msaaFbo : flareColorFbo);
+    if (!msaaFbo)
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, efbColor, 0);
+    glViewport(0, 0, fw, fh);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE);
+    glUseProgram(flareProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, flareVisTex[flareVisCur]);
+    glUniform4fv(flareSlotLoc, kFlareSlots, &slots[0][0]);
+    glUniform4f(flareSizeLoc, static_cast<float>(fw), static_cast<float>(fh), 0.0f, 0.32f);
+    glDrawArrays(GL_TRIANGLES, 0, 6 * kFlareSlots);
+    glDisable(GL_BLEND);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    BindFbo(DrawFbo());
+    current = nullptr;
+  }
+
+  void FlareRelease() {
+    if (flareVisFbo[0])
+      glDeleteFramebuffers(2, flareVisFbo);
+    if (flareVisTex[0])
+      glDeleteTextures(2, flareVisTex);
+    if (flareVisProgram)
+      glDeleteProgram(flareVisProgram);
+    if (flareProgram)
+      glDeleteProgram(flareProgram);
+    if (flareColorFbo)
+      glDeleteFramebuffers(1, &flareColorFbo);
+    flareVisFbo[0] = flareVisFbo[1] = flareVisTex[0] = flareVisTex[1] = flareVisProgram = flareProgram = 0;
+    flareColorFbo = 0;
+  }
+
   // --- the depth for the game's GXPeekZ ------------------------------------------------------
 
   bool MakePeek() {
@@ -4765,6 +5174,8 @@ GxRenderer::GxRenderer() : impl_(new Impl) {
   impl_->tvFilter = tv && *tv == '1';
   const char *psx = getenv("RE4_GX_PSX");  // the PSone demake from the start (gx_chunk_render, tests)
   impl_->psxOn = psx && *psx == '1';
+  const char *flares = getenv("RE4_GX_FLARES");  // the lens flares from the start (gx_chunk_render, tests)
+  impl_->flaresOn = flares && *flares == '1';
   if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
     const long n = std::strtol(limit, nullptr, 10);
     if (n >= 4) {
@@ -5175,8 +5586,13 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.ownerBase = 0;
   m.ownerLife = ~0u;
   m.Split(GxStats::kSplitState);
+  // lens flares: after the scene's last 3D draw (FlareScan); its light sources noted on the way (FlareNote)
+  m.flareAfter = m.flaresOn && !m.skipDraws ? m.FlareScan(chunk) : 0;
+  m.flareDone = false;
+  m.flareCands.clear();
   std::uint32_t at = 0;
   while (at < chunk.opWords) {
+    m.curOpAt = at;
     // a draw that starts a run of a chain (MergePlan): the run as one draw call
     while (m.mergeNext < m.mergeMarks.size() && m.mergeMarks[m.mergeNext].op < at)
       m.mergeNext++;
@@ -5184,6 +5600,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
       at = m.DrawMerged(chunk, at);
     else
       at = m.Op(chunk, at);
+    if (m.flareAfter && !m.flareDone && at >= m.flareAfter)
+      m.FlarePass();
   }
   m.TimerEnd();
   m.FenceAfterChunk();
@@ -5525,6 +5943,8 @@ void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
 void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
 void GxRenderer::SetPsx(bool on) { impl_->psxOn = on; }
+
+void GxRenderer::SetFlares(bool on) { impl_->flaresOn = on; }
 void GxRenderer::SetTvFilter(bool on) { impl_->tvFilter = on; }
 void GxRenderer::SetWiden(float factor) {
   impl_->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
@@ -5769,6 +6189,7 @@ void GxRenderer::Release() {
   m.PeekRelease();
   m.FxaaRelease();
   m.PsxRelease();
+  m.FlareRelease();
   if (m.timerOn) {
     glDeleteQueries(Impl::TimerPool::kQueries, m.chunkTimer.query);
     glDeleteQueries(Impl::TimerPool::kQueries, m.presentTimer.query);

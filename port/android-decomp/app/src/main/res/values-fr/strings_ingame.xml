@@ -18,6 +18,7 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Étirée</string>
     <string name="ingame_other_options">Autres options</string>
+    <string name="ingame_flares">Halos lumineux</string>
     <string name="ingame_dof">Profondeur de champ</string>
     <string name="ingame_fps_display">Afficher les FPS en bas à gauche</string>
     <string name="ingame_smooth60">60 FPS (expérimental)</string>
