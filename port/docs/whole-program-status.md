@@ -252,6 +252,11 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    Debug-Discs unverändert. **Geprüft am PC:** `whole_build.sh i686` 0 Baufehler, 114 Module, runtime-test und
    core-test 0 Fehler, der Patch steht im vorbereiteten Baum. **Nicht geprüft:** das Fundfenster selbst (eine Geldtruhe
    aufheben ließ sich ohne passenden Testschalter nicht nachstellen), am Gerät.
+12. **Mindestens Android 7.0 (Entscheidung des Projektinhabers 04.11.2026):** die Play Console lehnte das App-Bundle ab
+   („Für den automatischen Schutz von Google Play ist mindestens die SDK-Version 24 erforderlich“). Variante `core`:
+   `minSdk 24` statt 23 (`app/build.gradle`); Android 6.0 kann CubeEvil4 nicht mehr installieren (auch nicht als APK).
+   Die Variante `classic` bleibt bei 21. Releasetext: Zeile unter „Changed“. **Nicht gebaut** (Gradle hier nicht
+   gelaufen), am Gerät nicht geprüft.
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 

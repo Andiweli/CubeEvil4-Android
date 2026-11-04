@@ -94,8 +94,9 @@ android {
             applicationId 'com.ast.cubeevil4'
             versionNameSuffix '-core'
             // the core's libraries load each other from the APK by name
-            // (the module libraries at run time): Android 6.0 and later
-            minSdk 23
+            // (the module libraries at run time): Android 6.0 and later; since 0.98.2 Android 7.0 and later
+            // (decision of the project owner, 04.11.2026: Google Play's automatic protection asks for SDK 24)
+            minSdk 24
             ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
             externalNativeBuild { cmake { arguments '-DRE4_CORE_MODE=ON' } }
             // a test build of the app's shell for an x86_64 emulator (the Android Automotive emulator,
