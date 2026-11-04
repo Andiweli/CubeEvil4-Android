@@ -71,6 +71,28 @@ WSL-Baum `~/re4-fix981/RE4` (aus `~/re4-work` kopiert, Bauordner auf den neuen P
    allen Bildern vollständig, übrig bleiben nur die gewollt springenden Kanten; Schatten gleich groß wie ohne
    Einrasten; Bild ohne Filter unverändert (0 Abweichung); MSAA 2×, 60-FPS-Zwischenbilder und 1× ohne Shader-Fehler;
    `gx_gl_check` 0 Fehler. Am Gerät nicht angesehen, ARM nicht gebaut.
+   **Nachtrag (Hauptsitzung, Branch `work`):** Auf dem Retroid war der Teppich danach ruhig, aber der
+   Projektinhaber fand mit dem Pixelfilter noch vier Stellen (GX-Serien `gx-dumps.zip.001-004`, 6 × 12 Bilder):
+   Wand am Sockel im Schloss, Ashleys Gürtel hinten, Kamine von innen, blinkende Gegenstände durch Hüttenwände.
+   Ursache wie beim Teppich: die Ecken in der Ebene ihrer **Normale** zu verschieben hilft nur, wo die Normale die
+   Fläche des Dreiecks ist; bei geglätteten Normalen (Figuren, Kaminsteine, Wände an Kanten) und ohne Normale stimmt
+   die Tiefe nach dem Einrasten nicht. **Lösung (`gx_gl_shader.cpp`):** der Vertex-Shader rastet nur noch x/y ein
+   und lässt z/w unverändert; er gibt `vPsxPos` (Ecke im Blickraum, nicht eingerastet) und `vPsxClip` (eingerastete
+   Lage, xyw) weiter. Der Fragment-Shader nimmt die Ebene des Dreiecks aus `cross(dFdx(vPsxPos), dFdy(vPsxPos))`
+   (jeder Wert von `vPsxPos` ist eine Mischung der drei Ecken, liegt also in ihrer Ebene), schneidet sie mit dem
+   Strahl durch den Bildpunkt (Viewport und Projektion rückwärts aus `vPsxClip`) und schreibt diese Tiefe nach
+   `gl_FragDepth` (auch für den Nebel). Jeder Bildpunkt hat damit die Tiefe der unverrückten Fläche; nur die
+   Umrisse springen. Bei Blick genau auf die Kante oder wenn der Schnittpunkt weit weg läge: die Tiefe des
+   eingerasteten Dreiecks. Der XFL-Block steht dafür auch im Fragment-Shader (`RE4_XFL_BLOCK`). Nur im
+   Pixelfilter; `gl_FragDepth` schaltet dort das frühe Verwerfen verdeckter Bildpunkte ab (am Gerät auf die
+   Bildrate achten). **Geprüft (`gx_chunk_render`, `RE4_GX_PSX=1`, 1×, alle 6 Serien):** Anteil der Bildpunkte, die
+   nach Weichzeichnen um mehr als 30 Stufen vom Bild ohne Filter abweichen (falsche Fläche vorn): bisher 0,001 /
+   0,007 / 0,034 / 0,012 / 0,003 / 0,019 %, neu 0,002 / 0,005 / 0,002 / 0,000 / 0,000 / 0,000 %. Einzeln
+   angesehen: Ashleys Rücken (Serie 05) hatte in 3 von 12 Bildern dunkle Löcher, neu keine; Kamin (Serie 02) Bild 8
+   ein heller Streifen, neu keiner; Hütte (Serie 04) Bild 0 und 5 der blinkende Gegenstand durch die Wand, neu
+   nicht. Übrig bleibt eine Stelle an Ashleys Haar (Serie 01), alt und neu gleich (springender Umriss). 60 FPS,
+   MSAA 4× und 4 Halbstufen ohne Shader-Fehler; `gx_gl_check` 0 Fehler; `gradlew testCoreDebugUnitTest` bestanden.
+   Am Gerät nicht angesehen.
 7. **Ada in Mercenaries kurz unsichtbar (Dorf, Fass am Combo-Bonus), Weskers Schalldämpfer im Koffer:** Bericht 042936
    enthält nur eine spätere Runde (Leon r404, Ada r400 ohne Auffälligkeit im Protokoll); offen, braucht Ort/Video.
    Der Koffer baut Weskers Modell bei jedem Waffenwechsel neu (`weskerModelInit`); offen.

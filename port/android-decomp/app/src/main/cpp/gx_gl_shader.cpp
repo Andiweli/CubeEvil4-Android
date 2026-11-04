@@ -23,6 +23,13 @@ void Add(std::string &out, const char *format, ...) {
 
 // The XF block in three parts (kXfParts, gx_gl_shader.h): a draw uploads only the parts that
 // changed (the matrices of each model; not the post matrices and lights every time).
+#define RE4_XFL_BLOCK                                                                                   \
+  "layout(std140) uniform XFL {\n"                                                                      \
+  "  vec4 lights[40];\n"                                                                                \
+  "  vec4 matAmb[4];\n"                                                                                 \
+  "  vec4 vp[2];\n"                                                                                     \
+  "  vec4 proj[2];\n"                                                                                   \
+  "};\n"
 const char kUniformBlocks[] =
     "layout(std140) uniform XFM {\n"
     "  vec4 posTex[64];\n"
@@ -30,13 +37,7 @@ const char kUniformBlocks[] =
     "};\n"
     "layout(std140) uniform XFP {\n"
     "  vec4 postMtx[64];\n"
-    "};\n"
-    "layout(std140) uniform XFL {\n"
-    "  vec4 lights[40];\n"
-    "  vec4 matAmb[4];\n"
-    "  vec4 vp[2];\n"
-    "  vec4 proj[2];\n"
-    "};\n";
+    "};\n" RE4_XFL_BLOCK;
 
 const char kPixelBlock[] =
     "layout(std140) uniform PX {\n"
@@ -148,6 +149,8 @@ std::string GxVertexShader(const ShaderKey &k) {
   Add(out, "%s vec4 vColor0;\n%s vec4 vColor1;\n", outQ, outQ);
   for (unsigned i = 0; i < k.numTexGens; i++)
     Add(out, "%s vec3 vTex%u;\n", outQ, i);
+  if (psx)
+    out += "out vec3 vPsxPos;\nout vec3 vPsxClip;\n";
   out += "int mtxByte(uvec3 m, int n) {\n"
          "  uint w = n < 4 ? m.x : n < 8 ? m.y : m.z;\n"
          "  return int((w >> uint(8 * (n & 3))) & 63u);\n"
@@ -193,28 +196,20 @@ std::string GxVertexShader(const ShaderKey &k) {
   // fell between two rows, user report 29.10.2026). EFB rows grow with GL's y here (no flip).
   out += "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n";
   // PSone demake: the corners snap to a grid of half the GameCube's pixels (320 wide), as the
-  // PlayStation's whole-pixel corners made the polygons wobble. A corner with a normal moves within the
-  // plane of its surface, to where that plane meets the ray through the snapped point: a carpet or a
-  // decal drawn on a floor stays on the floor's plane. Moved on the screen at the same depth (until
-  // 0.98.1), the floor's and the carpet's corners tilted their triangles by different amounts and the
-  // carpet sank below the floor in patches that came and went as the camera swayed (castle carpets, the
-  // owner's video and dumps of 04.11.2026). Where the plane meets the ray at a grazing angle (the depth
-  // would change by more than a quarter) and in draws without normals (the figures' shadows), the
-  // corner keeps its depth as before.
+  // PlayStation's whole-pixel corners made the polygons wobble. The depth stays that of the surface as
+  // the game placed it: the fragment shader takes it from the plane through the unsnapped corners
+  // (vPsxPos) where the ray through the pixel (vPsxClip, the snapped position) meets it. With the
+  // corners' depths snapped along (until 0.98.0) or moved within the plane their normals give (the
+  // first fix of 0.98.1), surfaces close together tilted by different amounts: a carpet sank below the
+  // floor, walls flickered at the skirting, Ashley's belt and the fireplaces' bricks flickered, and
+  // blinking items showed through the walls of huts (the owner's dumps of 04.11.2026).
   if (psx) {
-    out += "  if (gl_Position.w > 0.0) {\n"
+    out += "  vPsxPos = pos;\n"
+           "  if (gl_Position.w > 0.0) {\n"
            "    vec2 g = vec2(W, H) * 0.25;\n"
-           "    vec2 s = floor(gl_Position.xy / gl_Position.w * g + 0.5) / g;\n";
-    if (Has(k, 1u))
-      out += "    vec2 r = pos.xy / pos.z - (s - gl_Position.xy / gl_Position.w) /\n"
-             "             vec2(vp[0].x * 2.0 / W * proj[0].x, vp[0].y * 2.0 / H * proj[0].z);\n"
-             "    float den = dot(nrm, vec3(r, 1.0));\n"
-             "    float z2 = den != 0.0 ? dot(nrm, pos) / den : 0.0;\n"
-             "    if (z2 < 0.0 && abs(z2 - pos.z) <= 0.25 * abs(pos.z))\n"
-             "      gl_Position.zw = vec2(2.0 * (vp[0].z * (proj[1].x * z2 + proj[1].y) - vp[1].y * z2) / 16777215.0 + z2,\n"
-             "                            -z2);\n";
-    out += "    gl_Position.xy = s * gl_Position.w;\n"
-           "  }\n";
+           "    gl_Position.xy = floor(gl_Position.xy / gl_Position.w * g + 0.5) / g * gl_Position.w;\n"
+           "  }\n"
+           "  vPsxClip = gl_Position.xyw;\n";
   }
   // lighting channels
   out += "  vec4 col0 = vec4(1.0);\n  vec4 col1 = vec4(1.0);\n";
@@ -443,6 +438,9 @@ const char *AlphaFunc(unsigned f, const char *ref) {
 std::string GxFragmentShader(const ShaderKey &k) {
   std::string out = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
   out += kPixelBlock;
+  const bool psx = (k.centroid & 2) && !k.orthographic;  // as in GxVertexShader
+  if (psx)
+    out += RE4_XFL_BLOCK "in vec3 vPsxPos;\nin vec3 vPsxClip;\n";
   for (int m = 0; m < 8; m++)
     if (k.texMaps & (1u << m))
       Add(out, "uniform sampler2D s%d;\n", m);
@@ -460,6 +458,26 @@ std::string GxFragmentShader(const ShaderKey &k) {
           "}\n",
           m, m, m, m);
   out += "void main() {\n";
+  // PSone demake: the depth of the unsnapped surface at this pixel (GxVertexShader). Its plane is the one
+  // vPsxPos lies on (every value of it is a mix of the three unsnapped corners); the ray through the pixel
+  // is the viewport and projection backwards from the snapped position. Seen edge-on or where the plane
+  // would put the pixel far off, the depth the snapped triangle gives.
+  if (psx)
+    out += "  float fragZ = gl_FragCoord.z;\n"
+           "  {\n"
+           "    float W = vp[1].z, H = vp[1].w;\n"
+           "    vec2 ndc = vPsxClip.xy / vPsxClip.z;\n"
+           "    vec2 k = vec2(vp[0].x * 2.0 / W * proj[0].x, vp[0].y * 2.0 / H * proj[0].z);\n"
+           "    vec2 c = vec2((vp[0].w - 342.0) * 2.0 / W - 1.0 - 1.0 / (6.0 * W) - vp[0].x * 2.0 / W * proj[0].y,\n"
+           "                  (vp[1].x - 342.0) * 2.0 / H - 1.0 - 1.0 / (6.0 * H) - vp[0].y * 2.0 / H * proj[0].w);\n"
+           "    vec3 ray = vec3((c - ndc) / k, 1.0);\n"
+           "    vec3 n = cross(dFdx(vPsxPos), dFdy(vPsxPos));\n"
+           "    float den = dot(n, ray);\n"
+           "    float z = dot(n, vPsxPos) / den;\n"
+           "    if (abs(den) > 1e-4 * length(n) * length(ray) && z < 0.0 && abs(z - vPsxPos.z) <= 0.5 * abs(vPsxPos.z))\n"
+           "      fragZ = clamp((vp[0].z * (proj[1].x * z + proj[1].y) / -z + vp[1].y) / 16777215.0, 0.0, 1.0);\n"
+           "  }\n"
+           "  gl_FragDepth = fragZ;\n";
   out += "  ivec4 prev = colors[0];\n  ivec4 c0 = colors[1];\n  ivec4 c1 = colors[2];\n  ivec4 c2 = colors[3];\n";
   out += "  ivec4 rastemp = ivec4(0);\n  ivec4 textemp = ivec4(0);\n  ivec4 konsttemp = ivec4(0);\n";
   out += "  ivec4 tevin_a, tevin_b, tevin_c, tevin_d;\n";
@@ -610,7 +628,7 @@ std::string GxFragmentShader(const ShaderKey &k) {
   {
     const unsigned proj = k.fog & 1, fsel = (k.fog >> 1) & 7;
     if (fsel) {
-      out += "  int zc = int(gl_FragCoord.z * 16777215.0);\n";
+      Add(out, "  int zc = int(%s * 16777215.0);\n", psx ? "fragZ" : "gl_FragCoord.z");
       if (proj == 0)
         out += "  float ze = (fogParam[0].x * 16777216.0) / (fogParam[0].z - float(zc >> int(fogParam[0].w)));\n";
       else
