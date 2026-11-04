@@ -55,6 +55,22 @@ WSL-Baum `~/re4-fix981/RE4` (aus `~/re4-work` kopiert, Bauordner auf den neuen P
    (zweite Textur), eine Zelle behält ihre Stufe, solange der neue Wert bis eine Stufe darüber/darunter liegt
    (`kHold` 1,0). Ergebnis **1,9 %** (0,5 → 3,1 %, 0,75 → 2,3 %), bei 1× und 3× ebenso 1,9–2,0 %; das Bild weicht höchstens
    eine Stufe (9/255) ab. `gx_gl_check` 0 Fehler. Am Gerät nicht angesehen.
+   **Nachtrag (Video `screen-20261104-111216.mp4`, Bildschirmfotos und GX-Serie `gx-dumps` des Projektinhabers, 4 × 12
+   Bilder, Schloss-Gang und Kerker):** das sichtbare Flackern war damit **nicht** behoben. Im Video verschwindet der
+   Teppich bei fast stehender Kamera in großen Stücken und kommt wieder (Boden darunter sichtbar). Ursache ist nicht die
+   Farbstufe, sondern das Einrasten der Ecken (`gx_gl_shader.cpp`, PSone-Bit des Schlüssels): die Ecken rückten nur auf
+   dem Bildschirm aufs 320er-Raster, bei gleicher Tiefe. Der Teppich ist ein eigenes Netz auf dem Boden; seine Ecken
+   liegen woanders als die des Bodens, beide Dreiecke kippten verschieden, der Teppich sank stellenweise unter den
+   Boden (Tiefentest), je nach leichtem Kameraschwanken. Die A-B-A-Messung oben übersah das (der Teppich wechselt über
+   mehrere Bilder, nicht in einem). **Jetzt:** eine Ecke mit Normale rückt innerhalb der Ebene ihrer Fläche bis zum
+   Strahl durch den Rasterpunkt (Tiefe neu aus diesem Punkt); Teppich und Boden bleiben in derselben Ebene. Ohne
+   Normale (in diesen Serien nur die Schatten der Figuren, Layout 0x10) oder bei streifendem Blick (Tiefe
+   ändert sich um mehr als ein Viertel) wie bisher. Die Farbstufen-Haltung (`kHold`) bleibt: ohne sie wieder 4,9 %
+   A-B-A. **Geprüft (`gx_chunk_render`, 1,5×, beide Serien):** Vergleich mit einem Lauf ganz ohne Einrasten: mit dem
+   alten Einrasten fehlen große Teppichflächen (Gang-Serie 01: Teppich halb weg), mit dem neuen ist der Teppich in
+   allen Bildern vollständig, übrig bleiben nur die gewollt springenden Kanten; Schatten gleich groß wie ohne
+   Einrasten; Bild ohne Filter unverändert (0 Abweichung); MSAA 2×, 60-FPS-Zwischenbilder und 1× ohne Shader-Fehler;
+   `gx_gl_check` 0 Fehler. Am Gerät nicht angesehen, ARM nicht gebaut.
 7. **Ada in Mercenaries kurz unsichtbar (Dorf, Fass am Combo-Bonus), Weskers Schalldämpfer im Koffer:** Bericht 042936
    enthält nur eine spätere Runde (Leon r404, Ada r400 ohne Auffälligkeit im Protokoll); offen, braucht Ort/Video.
    Der Koffer baut Weskers Modell bei jedem Waffenwechsel neu (`weskerModelInit`); offen.
