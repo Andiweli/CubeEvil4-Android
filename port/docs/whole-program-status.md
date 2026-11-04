@@ -201,6 +201,24 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    Kerzenhaltern, Geister zur Mitte; PSone-Pixelfilter (12 Bilder) und 60 FPS mit Zwischenbildern (23 Bilder) ohne
    Fehler, 0 Shader-Fehler, `gx_gl_check` 0 Fehler. Die rote Hängelampe (Reihe 04/05) zeichnet das Spiel nicht additiv:
    sie bekommt keinen Lichthof. **Auf dem Gerät nicht geprüft.**
+   **Zweiter Test des Projektinhabers (04.11.2026: „vereinzelt Lichtartefakte wie Sterne, die beim Bewegen irgendwo
+   neben einer Flamme oder einem Licht erscheinen“, GX-Serie `gx-dumps-20261104-flares2`, 10 Reihen):** Quellen-Karte
+   je Bild (Kasten, Zahl der Zeichnungen, sichtbare Plätze) zeigte vier Arten falscher Sterne: Staubteilchen in den
+   rötlichen Lichtstrahlen (1–3 Pixel, eine Zeichnung, auch vor Ashleys weißer Hose, Reihen 06/07), die Lichtstrahlen
+   selbst (7×134, 16×144, 18×100: Stern in ihrer Mitte, Reihen 07/09), Kerzengruppen, die zu einem Kasten bis 136
+   Pixel zusammengefasst wurden (Stern in der leeren Mitte zwischen den Kerzen, Reihen 00/01/09), und der rote
+   Laserstrahl des Visiers (eine GX-Linie, ältere Reihe 04). Neu: Zeichnungen verbinden sich nur, wenn sie sich fast
+   berühren (Abstand unter 6) und der Kasten höchstens 48 Pixel groß bleibt; kein Licht sind Kästen unter 4 Pixeln,
+   dünner als 3 aus weniger als drei Zeichnungen, lang und dünn (Länge über dem Dreifachen der Breite und über 24),
+   über 64 Pixel aus mehreren Zeichnungen oder über 96 aus einer (der Schein eines Kerzenhalters ist ein rundes Bild
+   von 70×82), Linien und Punkte; am Licht muss das Bild deutlich heller sein als 1,6 Radien daneben (Kontrast 0,12
+   bis 0,3). Der Stern sitzt auf dem hellsten Teil seines Kastens (die Sichtbarkeitsstufe sucht ihn in 7×7 Proben,
+   zweite Zeile der Sichtbarkeitstextur, ein Drittel des Wegs je Bild), dicht stehende Lichter teilen sich die
+   Helligkeit eines Scheins (1/√Anzahl, kein weißer Fleck über einem Kerzenhalter). **Geprüft am PC:** alle 10 neuen
+   und die 6 älteren Reihen: Sterne nur noch auf Kerzen, Lampen und dem Flammenwerfer, keine im Lichtstrahl, auf
+   Staub oder am Laser; Lichtmenge je Bild in allen Reihen gleichmäßig steigend; PSone und 60 FPS (Reihe 04, 12 und 23
+   Bilder) ohne Fehler, 0 Shader-Fehler, `gx_gl_check` 0 Fehler. Nicht ausgeschlossen: der Laserpunkt auf einem
+   Gegner (ein kleines helles Bild wie eine Kerze). **Auf dem Gerät nicht geprüft.**
 10. **Schildgegner schlagen daneben (Nutzerbericht `report-20261104-115846`, Samsung SM-S937B, Debug-Discs):** r30c ist
    die Geschichte, nicht Mercenaries: `game_mode 5` ist die Schwierigkeit „Normal“, Ashley ist dabei; der
    Figuren-Cheat (HUNK, später Ada) gilt dort also richtig. Nachgestellt in r311 (Schildträger em 0x1f mit Axt, greifen

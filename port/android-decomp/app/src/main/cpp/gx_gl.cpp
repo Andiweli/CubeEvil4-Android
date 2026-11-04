@@ -4113,6 +4113,14 @@ struct GxRenderer::Impl {
   // Steady, no flicker: a source counts only after it was seen in 4 pictures in a row (a muzzle flash or a spark
   // never flares), its place follows the flame's box smoothly, and its visibility (depth taps times brightness)
   // rises over about ten pictures and falls over about seven.
+  // Only real lights (second test of the project owner, 04.11.2026: "stars" beside flames while moving): draws
+  // join only when they nearly touch and stay a flame's size (a group of candles is several sources, no star in the
+  // empty middle of their box); not a flare: dust and embers (a box under 4 pixels, or thinner than 3 of one draw),
+  // a light shaft (long and thin), a cloud of fire or smoke (over 64 pixels of several draws, 96 of one: a lamp's
+  // halo is one round sprite); and at the light the picture must be
+  // clearly brighter than around it (a mote in a shaft of light or in front of Ashley's white trousers is not).
+  // The star sits on the brightest part of its box (the visibility pass finds it), and lights close together share
+  // one glow's brightness.
   // The PSone demake, FXAA and the TV filter come later at the display copy and take the flares with the
   // picture; with MSAA they go into the multisampled EFB; the in-between pictures of 60 FPS run the same
   // (their matrices are the blended ones).
@@ -4131,12 +4139,13 @@ struct GxRenderer::Impl {
     bool fresh = false;
     int age = 0;          // pictures in a row it was seen (4 and more: it flares)
     float ghost = 0.0f;   // its share of the ghosts (0..1, followed smoothly)
+    float crowd = 1.0f;   // its glow's share among lights close together (1 / sqrt(their number), followed)
   };
   FlareSlot flareSlot[kFlareSlots];
   GLuint flareVisTex[2] = {}, flareVisFbo[2] = {}, flareVisProgram = 0, flareProgram = 0;
   GLuint flareColorFbo = 0;  // the EFB's colour without its depth (no MSAA): the flares go there
   int flareVisCur = 0;
-  GLint flareVisSlotLoc = -1, flareVisSizeLoc = -1, flareSlotLoc = -1, flareSizeLoc = -1, flareGhostLoc = -1;
+  GLint flareVisSlotLoc = -1, flareVisSizeLoc = -1, flareSlotLoc = -1, flareSizeLoc = -1, flareGhostLoc = -1, flareCrowdLoc = -1;
   bool flareLog = false, flareLog2 = false;  // RE4_GX_FLARE_LOG=1: sources and slots, 2: seen and brightness
   unsigned flarePictures = 0;
 
@@ -4171,6 +4180,9 @@ struct GxRenderer::Impl {
     if (!(c & 1) || ((c >> 11) & 1) || ((c >> 5) & 7) != 1 || !((c >> 3) & 1) || !(bp[0x40] & 1))
       return;
     if (d.vertexCount == 0 || d.vertexCount > 512 || d.stride < 12)
+      return;
+    // lines and points are no light (the laser sight's beam is a GX line, its dot elsewhere)
+    if ((d.primitive & 0xFF) == RE4_GX_LINES || (d.primitive & 0xFF) == RE4_GX_POINTS)
       return;
     // where a per-vertex matrix index sits (Re4GxLayout)
     unsigned mtxAt = 12;
@@ -4228,37 +4240,78 @@ struct GxRenderer::Impl {
                               "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
                               "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
                               "}\n";
-    // texel i: the source of slot i (x, y in EFB texels, depth, state 0 free, 1 seen, 2 seen and new, 3 lost
-    // plus 8 x its radius in EFB texels)
+    // texel (i, 0): slot i's followed visibility (a) and colour; texel (i, 1): where its light really is in its box,
+    // the brightness-weighted middle of the bright open texels (x, y: -1..1 of its radius as 0..1, b 1 = known),
+    // followed a third of the way a picture (a group's box centre can lie beside the flames). The slot: x, y in EFB
+    // texels, depth, state 0 free, 1 seen, 2 seen and new, 3 lost, 4 waiting, plus 8 x its radius in EFB texels.
     static const char kVisFs[] =
         "#version 300 es\nprecision highp float;\n"
         "uniform highp sampler2D depths;\nuniform sampler2D colors;\nuniform sampler2D before;\n"
         "uniform vec4 slot[32];\nuniform vec4 size;\nout vec4 o;\n"
+        "float L(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }\n"
+        "bool inside(vec2 t) { return t.x >= 0.0 && t.y >= 0.0 && t.x < size.x && t.y < size.y; }\n"
         "void main() {\n"
-        "  int i = int(gl_FragCoord.x);\n"
+        "  int i = int(gl_FragCoord.x), row = int(gl_FragCoord.y);\n"
         "  vec4 s = slot[i];\n"
         "  float st = mod(s.w, 8.0);\n"
-        "  vec4 old = st > 1.5 && st < 2.5 ? vec4(0.0) : texelFetch(before, ivec2(i, 0), 0);\n"
+        "  bool fresh = st > 1.5 && st < 2.5;\n"
+        "  vec4 old = fresh ? vec4(0.0) : texelFetch(before, ivec2(i, 0), 0);\n"
+        "  vec4 oldAt = fresh ? vec4(0.0) : texelFetch(before, ivec2(i, 1), 0);\n"
         "  if (st < 0.5) { o = vec4(0.0); return; }\n"
-        "  float seen = 0.0;\n"
+        "  float R = max(2.0, floor(s.w / 8.0));\n"
+        "  vec2 oldOff = oldAt.b > 0.5 ? oldAt.xy * 2.0 - 1.0 : vec2(0.0);\n"
+        "  if (row == 1) {\n"
+        "    o = oldAt;\n"
+        "    if (st > 1.5 && st < 2.5 || st < 1.5 || st > 3.5) {\n"
+        "      vec2 sum = vec2(0.0);\n"
+        "      float wsum = 0.0;\n"
+        "      for (int y = -3; y <= 3; y++) {\n"
+        "        for (int x = -3; x <= 3; x++) {\n"
+        "          vec2 d = vec2(float(x), float(y)) / 3.0;\n"
+        "          vec2 t = s.xy + d * R;\n"
+        "          if (!inside(t)) continue;\n"
+        "          if (texelFetch(depths, ivec2(t), 0).r < s.z - 0.0005) continue;\n"
+        "          float w = max(L(texelFetch(colors, ivec2(t), 0).rgb) - 0.55, 0.0);\n"
+        "          sum += d * w * w;\n"
+        "          wsum += w * w;\n"
+        "        }\n"
+        "      }\n"
+        "      if (wsum > 0.0) {\n"
+        "        vec2 off = clamp(sum / wsum, -1.0, 1.0);\n"
+        "        off = oldAt.b > 0.5 ? mix(oldOff, off, 0.33) : off;\n"
+        "        o = vec4(off * 0.5 + 0.5, 1.0, 1.0);\n"
+        "      }\n"
+        "    }\n"
+        "    return;\n"
+        "  }\n"
+        "  vec2 c = s.xy + oldOff * R;\n"
+        "  float seen = 0.0, contrast = 0.0;\n"
         "  vec3 col = vec3(0.0);\n"
         "  if (st < 1.5) {\n"
-        "    float r = max(size.z, floor(s.w / 8.0) * 0.4);\n"
+        "    float r = max(size.z, R * 0.4);\n"
         "    for (int k = 0; k < 9; k++) {\n"
         "      vec2 off = k == 0 ? vec2(0.0) : r * vec2(cos(float(k) * 0.785398), sin(float(k) * 0.785398)) * "
         "(k % 2 == 0 ? 1.0 : 0.5);\n"
-        "      vec2 t = s.xy + off;\n"
-        "      if (t.x < 0.0 || t.y < 0.0 || t.x >= size.x || t.y >= size.y) continue;\n"
-        "      float z = texelFetch(depths, ivec2(t), 0).r;\n"
-        "      bool open = z >= s.z - 0.0005;\n"
+        "      vec2 t = c + off;\n"
+        "      if (!inside(t)) continue;\n"
+        "      bool open = texelFetch(depths, ivec2(t), 0).r >= s.z - 0.0005;\n"
         "      seen += open ? 1.0 : 0.0;\n"
-        "      vec3 c = texelFetch(colors, ivec2(t), 0).rgb;\n"
-        "      if (open && dot(c, vec3(0.299, 0.587, 0.114)) > dot(col, vec3(0.299, 0.587, 0.114))) col = c;\n"
+        "      vec3 cc = texelFetch(colors, ivec2(t), 0).rgb;\n"
+        "      if (open && L(cc) > L(col)) col = cc;\n"
         "    }\n"
         "    seen /= 9.0;\n"
+        "    float ring = 0.0, rn = 0.0;\n"
+        "    float far = max(3.0, R * 1.6);\n"
+        "    for (int k = 0; k < 8; k++) {\n"
+        "      vec2 t = c + far * vec2(cos(float(k) * 0.785398 + 0.3927), sin(float(k) * 0.785398 + 0.3927));\n"
+        "      if (!inside(t)) continue;\n"
+        "      ring += L(texelFetch(colors, ivec2(t), 0).rgb);\n"
+        "      rn += 1.0;\n"
+        "    }\n"
+        "    contrast = L(col) - (rn > 0.0 ? ring / rn : 1.0);\n"
         "  }\n"
-        "  float lum = dot(col, vec3(0.299, 0.587, 0.114));\n"
-        "  float target = seen * smoothstep(0.25, 0.55, lum);\n"
+        "  float lum = L(col);\n"
+        "  float target = seen * smoothstep(0.25, 0.55, lum) * smoothstep(0.12, 0.3, contrast);\n"
         "  float a = old.a + (target - old.a) * (target > old.a ? 0.1 : 0.14);\n"
         "  if (a < 0.004 && target < 0.004) a = 0.0;\n"
         "  vec3 tint = st < 1.5 && lum > 0.05 ? mix(col / max(max(col.r, col.g), col.b), vec3(1.0), 0.45) : old.rgb;\n"
@@ -4270,7 +4323,8 @@ struct GxRenderer::Impl {
     // slot's share of the ghosts.
     static const char kFlareVs[] =
         "#version 300 es\nprecision highp float;\n"
-        "uniform sampler2D vis;\nuniform vec4 slot[32];\nuniform float ghost[32];\nuniform vec4 size;\n"
+        "uniform sampler2D vis;\nuniform vec4 slot[32];\nuniform float ghost[32];\nuniform float crowd[32];\n"
+        "uniform vec4 size;\n"
         "out vec2 vUv;\nout vec4 vCol;\nflat out int vKind;\n"
         "const vec4 kGhost[5] = vec4[5](vec4(0.42, 0.030, 0.18, 1.0), vec4(0.18, 0.016, 0.22, 2.0),\n"
         "  vec4(-0.30, 0.055, 0.13, 3.0), vec4(-0.62, 0.024, 0.20, 4.0), vec4(-1.05, 0.080, 0.09, 5.0));\n"
@@ -4281,6 +4335,8 @@ struct GxRenderer::Impl {
         "  int i = q6 / 6, k = q6 % 6;\n"
         "  vec4 v = texelFetch(vis, ivec2(i, 0), 0);\n"
         "  vec4 s = slot[i];\n"
+        "  vec4 at = texelFetch(vis, ivec2(i, 1), 0);\n"
+        "  if (at.b > 0.5) s.xy += (at.xy * 2.0 - 1.0) * max(2.0, floor(s.w / 8.0));\n"
         "  vec2 q = vec2(c == 1 || c == 4 || c == 5 ? 1.0 : -1.0, c == 2 || c == 3 || c == 5 ? 1.0 : -1.0);\n"
         "  float a = v.a * size.w;\n"
         "  vec2 centre;\n"
@@ -4288,7 +4344,7 @@ struct GxRenderer::Impl {
         "  if (k == 0) {\n"
         "    centre = s.xy;\n"
         "    rad = s.z * 6.0;\n"
-        "    vCol = vec4(v.rgb, a);\n"
+        "    vCol = vec4(v.rgb, a * crowd[i]);\n"
         "    vKind = 0;\n"
         "  } else {\n"
         "    vec4 g = kGhost[k - 1];\n"
@@ -4345,14 +4401,15 @@ struct GxRenderer::Impl {
     glUniform1i(glGetUniformLocation(flareProgram, "vis"), 0);
     flareSlotLoc = glGetUniformLocation(flareProgram, "slot");
     flareGhostLoc = glGetUniformLocation(flareProgram, "ghost");
+    flareCrowdLoc = glGetUniformLocation(flareProgram, "crowd");
     flareSizeLoc = glGetUniformLocation(flareProgram, "size");
     glGenTextures(2, flareVisTex);
     glGenFramebuffers(2, flareVisFbo);
     bool ok = true;
     for (int i = 0; i < 2; i++) {
       glBindTexture(GL_TEXTURE_2D, flareVisTex[i]);
-      const std::uint32_t zero[kFlareSlots] = {};
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kFlareSlots, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
+      const std::uint32_t zero[kFlareSlots * 2] = {};
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, kFlareSlots, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, zero);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glBindFramebuffer(GL_FRAMEBUFFER, flareVisFbo[i]);
@@ -4375,7 +4432,9 @@ struct GxRenderer::Impl {
       bool joined = false;
       for (FlareCand &m : merged) {
         const float gap = std::max({f.x0 - m.x1, m.x0 - f.x1, f.y0 - m.y1, m.y0 - f.y1});
-        if (gap < 16.0f) {
+        const float joinedSize = std::max(std::max(m.x1, f.x1) - std::min(m.x0, f.x0),
+                                          std::max(m.y1, f.y1) - std::min(m.y0, f.y0));
+        if (gap < 6.0f && joinedSize <= 48.0f) {
           m.x0 = std::min(m.x0, f.x0);
           m.y0 = std::min(m.y0, f.y0);
           m.x1 = std::max(m.x1, f.x1);
@@ -4394,7 +4453,11 @@ struct GxRenderer::Impl {
         s.lost++;
     for (const FlareCand &m : merged) {
       const float cx = (m.x0 + m.x1) * 0.5f, cy = (m.y0 + m.y1) * 0.5f;
-      const float size = std::max(m.x1 - m.x0, m.y1 - m.y0);
+      const float size = std::max(m.x1 - m.x0, m.y1 - m.y0), thin = std::min(m.x1 - m.x0, m.y1 - m.y0);
+      // not a light: dust and embers, a shaft of light, a cloud of fire or smoke
+      if (size < 4.0f || (thin < 3.0f && m.draws < 3) || (size > 3.0f * thin && size > 24.0f) ||
+          size > (m.draws > 1 ? 64.0f : 96.0f))
+        continue;
       // the flare: about the source's size, from a candle (5) to a torch's fire (18 GameCube pixels); a big fire
       // keeps the torch's size at its middle
       const float r = std::min(18.0f, std::max(5.0f, size * 0.5f));
@@ -4458,6 +4521,21 @@ struct GxRenderer::Impl {
       if (flareSlot[i].lost < 0)
         flareSlot[i].ghost = 0.0f;
     }
+    // lights close together (the candles of one holder) share one glow's brightness, so they do not add up to a
+    // white blot
+    for (int i = 0; i < kFlareSlots; i++) {
+      FlareSlot &s = flareSlot[i];
+      if (s.lost < 0) {
+        s.crowd = 1.0f;
+        continue;
+      }
+      int near = 0;
+      for (const FlareSlot &o : flareSlot)
+        if (o.lost >= 0 && o.age >= 4 && std::hypot(o.x - s.x, o.y - s.y) < 2.5f * std::max(s.r, o.r))
+          near++;
+      const float want = 1.0f / std::sqrt(static_cast<float>(std::max(1, near)));
+      s.crowd += (want - s.crowd) * 0.2f;
+    }
     if (flareLog && flarePictures < 400) {
       int used = 0;
       for (const FlareSlot &s : flareSlot)
@@ -4510,7 +4588,7 @@ struct GxRenderer::Impl {
       glBindSampler(i, 0);
     const int next = flareVisCur ^ 1;
     BindFbo(flareVisFbo[next]);
-    glViewport(0, 0, kFlareSlots, 1);
+    glViewport(0, 0, kFlareSlots, 2);
     glUseProgram(flareVisProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, efbDepth);
@@ -4535,10 +4613,11 @@ struct GxRenderer::Impl {
                 vis[i * 4], vis[i * 4 + 1], vis[i * 4 + 2]);
     }
     // the flares: their radius in EFB texels in slot.z; strength: at most about a third of white
-    float ghosts[kFlareSlots];
+    float ghosts[kFlareSlots], crowds[kFlareSlots];
     for (int i = 0; i < kFlareSlots; i++) {
       slots[i][2] = flareSlot[i].r * sc;
       ghosts[i] = flareSlot[i].ghost;
+      crowds[i] = flareSlot[i].crowd;
     }
     BindFbo(msaaFbo ? msaaFbo : flareColorFbo);
     if (!msaaFbo)
@@ -4553,6 +4632,7 @@ struct GxRenderer::Impl {
     glBindTexture(GL_TEXTURE_2D, flareVisTex[flareVisCur]);
     glUniform4fv(flareSlotLoc, kFlareSlots, &slots[0][0]);
     glUniform1fv(flareGhostLoc, kFlareSlots, ghosts);
+    glUniform1fv(flareCrowdLoc, kFlareSlots, crowds);
     glUniform4f(flareSizeLoc, static_cast<float>(fw), static_cast<float>(fh), 0.0f, 0.5f);
     glDrawArrays(GL_TRIANGLES, 0, 36 * kFlareSlots);
     glDisable(GL_BLEND);
