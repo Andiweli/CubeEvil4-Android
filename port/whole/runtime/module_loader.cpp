@@ -231,6 +231,15 @@ extern "C" void* re4_module_load(const char* name)
     return handle;
 }
 
+// Unloads so far: the address checks that remember library spans
+// (re4_valid_port_ptr) forget them when a library is gone.
+static unsigned gUnloads;
+
+extern "C" unsigned re4_module_unloads(void)
+{
+    return gUnloads;
+}
+
 extern "C" int re4_module_is_loaded(const char* name)
 {
     return findLoaded(name) >= 0;
@@ -255,6 +264,7 @@ extern "C" void re4_module_unload(const char* name)
     // Keep load order: the newest module wins in re4_try_resolve_import.
     memmove(&gLoaded[i], &gLoaded[i + 1], (gLoadedCount - i - 1) * sizeof(gLoaded[0]));
     gLoadedCount--;
+    gUnloads++;
     // Trampolines of the other modules may still point into the unloaded one;
     // they resolve again on their next call.
     for (int k = 0; k < gLoadedCount; k++) {

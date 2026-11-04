@@ -1,0 +1,42 @@
+# The story with another player character, continued (project owner, 04.11.2026: "mit einem Stellvertreter fehlen
+# die Ashley-Befehle"). Leon's player class gives the X button its partner command (cPlLeon::checkXbutton: Ashley
+# waits or follows); the other characters' classes have none (cPlayer's returns 0), Krauser's starts his arm
+# attack there. While a stand-in plays the story and Ashley follows, the button commands her as with Leon
+# (runtime/cheats.cpp re4_story_char_xbutton; the X hint shows, the call sound of Leon's sound block is left out);
+# Krauser keeps his attack when she is not there.
+# Not a bug of the prototype: a port feature (the cheat menu, patch 0195). Without a stand-in nothing changes.
+--- a/include/player.h
++++ b/include/player.h
+@@ -14,6 +14,8 @@
+ 
+ // 0x98-byte work at cEm::p2A4 (player.cpp init1 mem_alloc); only the byte cam_ctrl reads is named.
+ class cPlayer;
++/* PORT (patch 0197): the X button of a story stand-in (runtime/cheats.cpp) */
++extern "C" int re4_story_char_xbutton(cPlayer* pl);
+ 
+ // Neck control (game/pl_class.cpp), 0x1C bytes at cEm::pNeck: turns the head towards the nearest
+ // enemy with the neck motions blended into the player's motion (cEm::m_SubMot).
+@@ -232,7 +234,8 @@
+     virtual void endEvent(u32 flag);
+     virtual void move();
+     virtual void setNoSuspend(int onoff);
+-    virtual int checkXbutton() { return 0; }
++    /* PORT (patch 0197): Ada, HUNK and Wesker standing in for Leon command Ashley as he does */
++    virtual int checkXbutton() { return re4_story_char_xbutton(this) > 0; }
+     virtual void setModel() = 0;
+     virtual void setMotion() {}
+     virtual void setRightHand(int type) = 0;
+--- a/src/pl0a/pl_klauser.cpp
++++ b/src/pl0a/pl_klauser.cpp
+@@ -212,6 +212,11 @@
+ // pl_R1_KlauserAttack, krEffWait = -1 (glow off). Returns 1 when the routine was taken.
+ int cPlKlauser::checkXbutton()
+ {
++    /* PORT (patch 0197): standing in for Leon while Ashley follows, the button commands her */
++    int cmd = re4_story_char_xbutton(this);
++    if (cmd >= 0) {
++        return cmd;
++    }
+     if ((Joy[0].trg & 0x400) && !StaFlagChk(pG, STA_KLAUSER_TRANSFORM) && krEffWait == 0) {
+         pFuncAux = pl_R1_KlauserAttack;
+         r_no_0 = 0;

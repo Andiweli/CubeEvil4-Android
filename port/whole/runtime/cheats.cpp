@@ -42,6 +42,12 @@
 // of Leon's from Leon's; what its player archive lacks (an empty tag, past its table) from Leon's archive,
 // which is read as well (the development half of MEM1: the radio, the rocket, the whistle); the events
 // and the radio screen show Leon from that archive, as their motions are his.
+// Their own melee moves (04.11.2026, patch 0197): the game picks them by pl_type (em10.cpp: HUNK's neck
+// break, Krauser's knee kick, Wesker's palm strike and heel), with the player's and the Ganado's motions
+// 0x2B4..0x2BD of the Ganado archive; only em/em10.drs, the one of The Mercenaries, has them, the story's
+// Ganados (em11..em1e) end at 0x2B3, and the empty entries made a motion of the REL behind the table (the
+// animation stood still, the Ganado slid about). Those ten entries are read from em10.drs once (loadMelee)
+// and stand in for the missing ones. The X button commands Ashley (wait / follow) as with Leon.
 #include "types.h"
 #include "global.h"
 #include "item.h"
@@ -53,6 +59,10 @@
 #include "scheduler.h"
 #include "player.h"
 #include "sce_at.h"
+#include "em.h"
+#include "pl_sub.h"
+#include "pl_npc.h"
+#include <dolphin/dvd.h>
 
 #include <atomic>
 #include <stdio.h>
@@ -60,6 +70,7 @@
 #include <string.h>
 
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" void re4_formats_part_loaded(const char* name, int nest, int index, const void* part, unsigned addr);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" void re4_qte_auto(int on);                          // runtime/qte_touch.cpp
 
@@ -252,6 +263,14 @@ const char* const kAdaGripFile[3] = {"em/wep38.drs", "em/wep39.drs", "em/wep40.d
 const u8 kAdaGripNo[3] = {0xA, 0xC, 0xD};
 int gAdaGrips;  // bit k: kAdaGripFile[k] read
 
+// The stand-ins' melee moves: entries 0x2B4..0x2BD of em/em10.drs as an archive of their own (table, then the
+// motions at their 32-byte alignment), after Ada's grips
+const u32 kMeleeAddr = 0x82480000u;
+const u32 kMeleeMax = 0x40000u;
+const unsigned kMeleeFirst = 0x2B4;
+const unsigned kMeleeCount = 10;
+int gMelee;  // 1 read, -1 not readable
+
 int gLeonCostume = -1;  // the costume of the archive at kLeonArcAddr, -1 none
 int gSwitched;          // the type the cheat gave the story's player (0: none)
 int gCostumeGiven;      // 1 while the cheat gave the special costume (game_costume 1)
@@ -419,6 +438,102 @@ void loadAdaGrips()
         re4_log("cheat: Ada's grip hand from %s (%u bytes) read to 0x%08x", kAdaGripFile[k], (unsigned) size,
                 (unsigned) kAdaGripAddr[k]);
     }
+}
+
+u32 be32At(const u8* p)
+{
+    return (u32) p[0] << 24 | (u32) p[1] << 16 | (u32) p[2] << 8 | p[3];
+}
+
+void putBe32At(u8* p, u32 v)
+{
+    p[0] = (u8) (v >> 24);
+    p[1] = (u8) (v >> 16);
+    p[2] = (u8) (v >> 8);
+    p[3] = (u8) v;
+}
+
+// The melee moves of the stand-ins (see the top), once: em10.drs's first part (the archive: its file header
+// names where), its table, then the bytes of entries 0x2B4..0x2BD up to the next entry or the REL. They go
+// to kMeleeAddr as an archive of ten entries, big-endian as on the disc, and are converted as a read archive
+// is (re4_formats_part_loaded). Read with DVDRead: none of the file's sounds reaches a sound block.
+void loadMelee()
+{
+    if (gMelee) {
+        return;
+    }
+    gMelee = -1;
+    static const char kFile[] = "em/em10.drs";
+    DVDFileInfo fi;
+    if (!DVDOpen((char*) kFile, &fi)) {
+        re4_log("cheat: %s not readable: the stand-ins' own melee moves are missing in the story", kFile);
+        return;
+    }
+    u8* const base = (u8*) (unsigned long) kMeleeAddr;
+    u8* const scratch = base + kMeleeMax;  // the file header and the table, read first
+    bool ok = false;
+    u32 partOfs = 0, partSize = 0, count = 0, rel = 0, lo = 0, hi = 0;
+    if (DVDReadPrio(&fi, scratch, 0x400, 0, 2) == 0x400) {
+        for (u32 at = 0x20; at + 0x20 <= 0x400; at += 0x20) {
+            u32 type = be32At(scratch + at);
+            if (type == 0xFFFFFFFFu) {
+                break;
+            }
+            if (type == TRANS_MRAM) {
+                partSize = be32At(scratch + at + 4);
+                partOfs = be32At(scratch + at + 0xC);
+                break;
+            }
+        }
+    }
+    if (partSize >= 0x10 && DVDReadPrio(&fi, scratch, 0x20, (s32) partOfs, 2) == 0x20) {
+        count = be32At(scratch);
+        rel = be32At(scratch + 4);
+    }
+    u32 table = (0x10 + count * 8 + 0x1F) & ~0x1Fu;
+    if (count >= kMeleeFirst - 4 + kMeleeCount && count < 0x1000 && rel && rel <= partSize &&
+        DVDReadPrio(&fi, scratch, (s32) table, (s32) partOfs, 2) == (s32) table) {
+        lo = be32At(scratch + 0x10 + (kMeleeFirst - 4) * 4);
+        hi = rel;
+        for (u32 i = kMeleeFirst - 4 + kMeleeCount; i < count; i++) {
+            u32 o = be32At(scratch + 0x10 + i * 4);
+            if (o > lo && o < hi) {
+                hi = o;
+            }
+        }
+        u32 len = (hi - lo + 0x1F) & ~0x1Fu;
+        const u32 head = 0x80;  // 0x10 + 10 offsets + 10 tags, rounded up to 32 bytes
+        if (!(lo & 0x1F) && lo < hi && head + len <= kMeleeMax && lo + len <= partSize) {
+            u8 tbl[0x10 + kMeleeCount * 8];
+            memset(tbl, 0, sizeof(tbl));
+            putBe32At(tbl, kMeleeCount);
+            for (u32 k = 0; k < kMeleeCount; k++) {
+                u32 o = be32At(scratch + 0x10 + (kMeleeFirst - 4 + k) * 4);
+                putBe32At(tbl + 0x10 + k * 4, o < lo || o > hi ? head + (hi - lo) : o - lo + head);
+                memcpy(tbl + 0x10 + kMeleeCount * 4 + k * 4, scratch + 0x10 + count * 4 + (kMeleeFirst - 4 + k) * 4, 4);
+            }
+            memset(base, 0, head);
+            memcpy(base, tbl, sizeof(tbl));
+            ok = DVDReadPrio(&fi, base + head, (s32) len, (s32) (partOfs + lo), 2) == (s32) len;
+            if (ok) {
+                DvdHeader h;
+                memset(&h, 0, sizeof(h));
+                h.type = TRANS_MRAM;
+                h.size = head + (hi - lo);
+                h.dest = kMeleeAddr;
+                re4_formats_part_loaded("em/em10_melee.drs", 0, 0, &h, kMeleeAddr);
+            }
+        }
+    }
+    DVDClose(&fi);
+    if (!ok) {
+        re4_log("cheat: %s has no melee moves at 0x%x..0x%x (%u entries, REL at 0x%x)", kFile, kMeleeFirst,
+                kMeleeFirst + kMeleeCount - 1, (unsigned) count, (unsigned) rel);
+        return;
+    }
+    gMelee = 1;
+    re4_log("cheat: the stand-ins' melee moves 0x%x..0x%x from %s (%u bytes) read to 0x%08x", kMeleeFirst,
+            kMeleeFirst + kMeleeCount - 1, kFile, (unsigned) (0x80 + hi - lo), (unsigned) kMeleeAddr);
 }
 
 // Which of Ada's grips holds Leon's weapon `no`: 1 the TMP's (his TMP), 2 the rifle's (shotguns, rifles, the
@@ -635,6 +750,7 @@ void re4_story_char_room(void)
     }
     if (standIn()) {
         loadLeon(leonCostume());
+        loadMelee();
         if (pG->pl_type == 2) {
             loadAdaGrips();
         }
@@ -707,6 +823,18 @@ void* re4_story_char_wep_place(void)
 void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v)
 {
     void* fallback = (void*) (size_t) (unsigned int) (v + (unsigned int) (size_t) arc);
+    // a Ganado archive (0x2BA entries) without the stand-ins' melee moves: em10.drs's (loadMelee)
+    if (no - kMeleeFirst < kMeleeCount && gMelee > 0 && pG && arc != (const void*) pG->pPlayer && standIn() &&
+        ((const u32*) arc)[0] == 0x2BA) {
+        static u16 logged;
+        if (!(logged & (1 << (no - kMeleeFirst)))) {
+            logged |= (u16) (1 << (no - kMeleeFirst));
+            re4_log("cheat: %s plays: Ganado archive index 0x%x from em10.drs (a melee move)",
+                    kCharName[pG->pl_type & 7], no);
+        }
+        const u32* ofs = (const u32*) (unsigned long) kMeleeAddr;
+        return (void*) (size_t) (ofs[4 + no - kMeleeFirst] + kMeleeAddr);
+    }
     if (no < 0x1B || no >= 0x100 || !pG || arc != (const void*) pG->pPlayer || !re4_story_char_leon()) {
         return fallback;
     }
@@ -726,6 +854,31 @@ void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v)
         return fallback;
     }
     return (void*) (size_t) (leon->ofs[no] + kLeonArcAddr);
+}
+
+// Patch 0197 (player.h cPlayer::checkXbutton, pl_klauser.cpp): the X button of a stand-in while Ashley
+// follows, as cPlLeon::checkXbutton (pl_leon.cpp) has it: "wait" / "follow" by turns, every 8 frames at
+// most; the command flag on (the button's hint). Leon's call (SE 0x36 / 0x37 of the player's sound block) is
+// left out: that block holds the character's own sounds. -1 without a stand-in or without Ashley (Krauser's
+// arm attack keeps the button then), else 1 when a command was given.
+int re4_story_char_xbutton(cPlayer* pl)
+{
+    if (!pG || !standIn() || pSUB == 0 || pSUB->id != 3) {
+        return -1;
+    }
+    if (pl->m_CmdTimer) {
+        pl->m_CmdTimer--;
+    }
+    StaFlagOn(pG, STA_SUBCHAR_CTRL);
+    if (pl->m_CmdTimer != 0 || SubCharCheckCtrl() == 0 || !(Key.trg & 0x200)) {
+        return 0;
+    }
+    bool wait = !(SubCharGetStatus() & 0x40000000);
+    SubCharCtrl(wait ? 0 : 1, 0);
+    re4_log("cheat: %s commands Ashley: %s", kCharName[pG->pl_type & 7], wait ? "wait" : "follow");
+    pl->m_CmdTimer = 8;
+    StaFlagOn(pG, STA_PL_FIRE);
+    return 1;
 }
 
 // Patch 0195 (game.cpp cGameSave::save): the save holds Leon. `image` is the copy of the save block

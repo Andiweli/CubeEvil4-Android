@@ -163,6 +163,18 @@ static void testLink()
     CHECK(re4_module_load("re4test_rel") == handle);
     CHECK(state() == 108);
     CHECK(OSUnlink(rel) == 1);
+    // A relink is told by the header alone, however many other headers were
+    // linked in between (a list of 64 forgot the room REL after a long session).
+    for (int k = 0; k < 80; k++) {
+        unsigned char* copy = rel + 0x3000 + k * 0x60;
+        memcpy(copy, rel, sizeof(TestModuleHeader));
+        CHECK(OSLink(copy, 0) == 1);
+        CHECK(OSUnlink(copy) == 1);
+    }
+    CHECK(OSLink(rel, bss) == 1);
+    CHECK(re4_module_load("re4test_rel") == handle);
+    CHECK(state() == 108);
+    CHECK(OSUnlink(rel) == 1);
 
     // The REL read from disc again: the library starts from its initial data,
     // and the destructors that already ran do not run again on unload.

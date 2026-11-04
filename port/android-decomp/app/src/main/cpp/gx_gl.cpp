@@ -444,6 +444,12 @@ struct GxRenderer::Impl {
   GLuint psxTex = 0, psxFbo = 0, psxProgram = 0;
   unsigned psxTexW = 0, psxTexH = 0;
   GLint psxGridLoc = -1;
+  // the picture before (its cells' colour levels hold while the new ones are near them): psxPrevTex, valid
+  // while the pass ran for the picture before at the same size
+  GLuint psxPrevTex = 0;
+  bool psxPrevValid = false;
+  GLint psxUsePrevLoc = -1;
+  int psxGridW = 0, psxGridH = 0;
   // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
   DepthSink depthSink;
   bool peekWanted = false, peekFailed = false;
@@ -3951,10 +3957,16 @@ struct GxRenderer::Impl {
     // One colour per cell of the grid: the mean of 4 x 4 points across it (one point alone made fine textures on
     // the ground flicker as the camera moved, user report 03.11.2026; four still let fine planks flicker at the
     // higher picture levels, the owner's report the same day), 8 bits to 5 per channel after the PlayStation's
-    // ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place)
+    // ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place). A cell keeps the
+    // level it had in the picture before while its new value stays within kHold of a level of that one (the
+    // owner's dumps of 04.11.2026, castle carpets and walls: cells near the edge of two levels changed level
+    // from picture to picture as the textures below shimmered, with the camera still or moving slowly; a
+    // value that leaves that band, as when the camera turns or the light changes, takes its own level)
     static const char kFs[] =
         "#version 300 es\nprecision highp float;\n"
-        "uniform sampler2D src;\nuniform vec2 grid;\nin vec2 vUv;\nout vec4 o;\n"
+        "uniform sampler2D src;\nuniform sampler2D prev;\nuniform float usePrev;\nuniform vec2 grid;\n"
+        "in vec2 vUv;\nout vec4 o;\n"
+        "const float kHold = 1.0;\n"
         "const float kDither[16] = float[16](-4.0, 0.0, -3.0, 1.0, 2.0, -2.0, 3.0, -1.0,\n"
         "                                    -3.0, 1.0, -4.0, 0.0, 3.0, -1.0, 2.0, -2.0);\n"
         "void main() {\n"
@@ -3965,7 +3977,13 @@ struct GxRenderer::Impl {
         "      c += texture(src, (cell + (vec2(x, y) + 0.5) * 0.25) / grid).rgb;\n"
         "  c *= 255.0 / 16.0;\n"
         "  ivec2 d = ivec2(mod(cell, 4.0));\n"
-        "  c = floor(clamp(c + kDither[d.y * 4 + d.x], 0.0, 255.0) / 8.0);\n"
+        "  vec3 v = clamp(c + kDither[d.y * 4 + d.x], 0.0, 255.0) / 8.0;\n"
+        "  c = floor(v);\n"
+        "  if (usePrev > 0.5) {\n"
+        "    vec3 p = floor(texture(prev, (cell + 0.5) / grid).rgb * 31.0 + 0.5);\n"
+        "    if (all(greaterThanEqual(v, p - kHold)) && all(lessThan(v, p + 1.0 + kHold)))\n"
+        "      c = p;\n"
+        "  }\n"
         "  o = vec4(c * (255.0 / 31.0) / 255.0, 1.0);\n"
         "}\n";
     std::string log;
@@ -3976,7 +3994,9 @@ struct GxRenderer::Impl {
     }
     glUseProgram(psxProgram);
     glUniform1i(glGetUniformLocation(psxProgram, "src"), 0);
+    glUniform1i(glGetUniformLocation(psxProgram, "prev"), 1);
     psxGridLoc = glGetUniformLocation(psxProgram, "grid");
+    psxUsePrevLoc = glGetUniformLocation(psxProgram, "usePrev");
     glGenFramebuffers(1, &psxFbo);
     return true;
   }
@@ -3984,27 +4004,38 @@ struct GxRenderer::Impl {
   // The display copy as shown so far (w x h texels; gw x gh of the game's pixels) through the demake pass into
   // psxTex: a grid of half the game's pixels, as the PlayStation's 320 x 240.
   void Psx(int w, int h, int gw, int gh) {
+    const bool wasShown = psxShown;
     psxShown = false;
-    if (!psxOn || !xfbTex || w < 16 || h < 16 || gw < 4 || gh < 4)
+    if (!psxOn || !xfbTex || w < 16 || h < 16 || gw < 4 || gh < 4) {
+      psxPrevValid = false;
       return;
+    }
     if (!psxProgram && !MakePsx()) {
       psxOn = false;  // no shader on this driver: off for good (the menu's switch stays)
       return;
     }
-    if (!psxTex || psxTexW != static_cast<unsigned>(w) || psxTexH != static_cast<unsigned>(h)) {
-      if (psxTex)
-        glDeleteTextures(1, &psxTex);
-      glGenTextures(1, &psxTex);
-      glBindTexture(GL_TEXTURE_2D, psxTex);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    if (!psxTex || !psxPrevTex || psxTexW != static_cast<unsigned>(w) || psxTexH != static_cast<unsigned>(h)) {
+      for (GLuint *t : {&psxTex, &psxPrevTex}) {
+        if (*t)
+          glDeleteTextures(1, t);
+        glGenTextures(1, t);
+        glBindTexture(GL_TEXTURE_2D, *t);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      }
       psxTexW = static_cast<unsigned>(w);
       psxTexH = static_cast<unsigned>(h);
+      psxPrevValid = false;
     }
     const GLuint from = ShownXfb();  // the XFB, or FXAA's copy of it
+    // the picture before becomes psxPrevTex, the new one goes to the other texture
+    std::swap(psxTex, psxPrevTex);
+    const bool usePrev = psxPrevValid && wasShown && psxGridW == gw / 2 && psxGridH == gh / 2;
+    psxGridW = gw / 2;
+    psxGridH = gh / 2;
     Touched();
     SaveAndPlainState();
     BindFbo(psxFbo);
@@ -4016,16 +4047,26 @@ struct GxRenderer::Impl {
     glBindTexture(GL_TEXTURE_2D, from);
     glBindSampler(0, 0);
     glUniform2f(psxGridLoc, static_cast<float>(gw / 2), static_cast<float>(gh / 2));
+    glUniform1f(psxUsePrevLoc, usePrev ? 1.0f : 0.0f);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, psxPrevTex);
+    glBindSampler(1, 0);
+    glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     BindFbo(DrawFbo());
     current = nullptr;
     psxShown = true;
+    psxPrevValid = true;
   }
 
   void PsxRelease() {
     if (psxTex)
       glDeleteTextures(1, &psxTex);
+    if (psxPrevTex)
+      glDeleteTextures(1, &psxPrevTex);
+    psxPrevTex = 0;
+    psxPrevValid = false;
     if (psxFbo)
       glDeleteFramebuffers(1, &psxFbo);
     if (psxProgram)
