@@ -22,6 +22,10 @@
     <string name="ingame_laser_blue">नीला</string>
     <string name="ingame_laser_green">हरा</string>
     <string name="ingame_laser_yellow">पीला</string>
+    <string name="ingame_postprocessing">पोस्ट-प्रोसेसिंग</string>
+    <string name="ingame_effects">इफ़ेक्ट्स</string>
+    <string name="ingame_optional_features">वैकल्पिक फ़ीचर</string>
+    <string name="ingame_perf_section">परफ़ॉर्मेंस</string>
     <string name="ingame_minimap">मिनी-मैप</string>
     <string name="ingame_flares">लेंस फ़्लेयर</string>
     <string name="ingame_dof">डेप्थ ऑफ़ फ़ील्ड</string>

@@ -23,6 +23,10 @@
     <string name="ingame_laser_blue">蓝色</string>
     <string name="ingame_laser_green">绿色</string>
     <string name="ingame_laser_yellow">黄色</string>
+    <string name="ingame_postprocessing">后期处理</string>
+    <string name="ingame_effects">效果</string>
+    <string name="ingame_optional_features">可选功能</string>
+    <string name="ingame_perf_section">性能</string>
     <string name="ingame_minimap">小地图</string>
     <string name="ingame_flares">镜头光晕</string>
     <string name="ingame_dof">景深</string>

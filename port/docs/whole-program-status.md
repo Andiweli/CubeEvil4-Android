@@ -270,6 +270,24 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    minSdk 24, Automotive Pflicht, nur VIBRATE und INTERNET), `mergeCarReleaseResources` (core_mode true, app_update
    false, Name CubeEvil4), `compileCarReleaseJavaWithJavac`, `lintVitalCarRelease` ohne Befund; `processCoreReleaseManifest`
    unverändert com.ast.cubeevil4. **Nicht geprüft:** das ganze Bundle mit den Kern-Bibliotheken, der Upload, ein Auto.
+14. **Lichthöfe, vierter Test, und neue Menüordnung (Projektinhaber 04.11.2026, GX-Serie `gx-dumps-20261104-flares4`,
+   Bildschirmfotos):** „fast perfekt, aber gar kein sternförmiges Funkeln mehr“; dazu ein Foto der Vorversion mit
+   Sternen auf den Buchstaben des Menüs „NEUER VERSUCH oder LADEN“. (a) Der Stern wieder sichtbar, aber dezent: 90 %
+   statt 60 % der Helligkeit, etwas breitere Strahlen (cos^28 statt ^48, Stärke 0,75). (b) Sichtbarkeit: halb freie
+   Proben zählen als ganz sichtbar, Proben auf 0,6 statt 0,4 des Radius (der eigene Kerzenhalter vor dem Schein
+   verdeckte ihn); ganz verdeckt bleibt aus. (c) Kein Lichthof auf einem Menübildschirm des Spiels
+   (`RE4_GX_CHUNK_STILL`, wie bei 60 FPS: Optionsbildschirm, Neuer-Versuch-/Laden-Menü, Unterbildschirme, Karten,
+   Ergebnisse); Reihe 09 von flares3 (das Menü) jetzt ohne. Befund: in Reihe 00 von flares4 zeichnet das Spiel die
+   Kerzenflammen nicht additiv; dort gibt es keine Lichtquelle und keinen Stern (wie schon vorher). (d) App-Menü ANZEIGE:
+   GRAFIK beginnt mit „Bildformat“, dann Auflösung usw.; neuer Abschnitt NACHBEARBEITUNG mit Zeile „Effekte“
+   (Tiefenschärfe, Lichthöfe) und Zeile „Filter“ (TV-Filter, PSone); neuer Abschnitt OPTIONALE FEATURES (Minikarte,
+   FPS-Anzeige); PERFORMANCE: Abschnitt „LEISTUNG“ statt „LEISTUNG ERZWINGEN“, die FPS-Anzeige nicht mehr unter
+   EXPERIMENTELL. Neue Texte in 11 Sprachen (`ingame_postprocessing`, `ingame_effects`, `ingame_optional_features`,
+   `ingame_perf_section`), `check_translations.py` ohne Befund. **Geprüft:** alle 27 Reihen von flares3 und die zwei von
+   flares4 am PC (kein Stern an Leon/Ashley, im Menü keiner, Kerzen und Lampen ein feiner Stern; ein Monitor in Reihe
+   20 bekommt wieder einen schwachen), PSone und 60 FPS ohne Fehler, `gx_gl_check` 0 Fehler; Gradle (JBR von Android
+   Studio): `testCoreDebugUnitTest` 23 Tests bestanden (`CoreMenuLayoutTest` prüft jetzt FPS-Anzeige und Minikarte auf
+   ANZEIGE), `lintVitalCoreRelease` und `lintVitalCarRelease` ohne Befund. **Am Gerät nicht geprüft.**
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 

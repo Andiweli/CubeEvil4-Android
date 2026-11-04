@@ -22,6 +22,10 @@
     <string name="ingame_laser_blue">Blau</string>
     <string name="ingame_laser_green">Grün</string>
     <string name="ingame_laser_yellow">Gelb</string>
+    <string name="ingame_postprocessing">Nachbearbeitung</string>
+    <string name="ingame_effects">Effekte</string>
+    <string name="ingame_optional_features">Optionale Features</string>
+    <string name="ingame_perf_section">Leistung</string>
     <string name="ingame_minimap">Minikarte</string>
     <string name="ingame_flares">Lichthöfe (Lens Flares)</string>
     <string name="ingame_dof">Tiefenschärfe</string>

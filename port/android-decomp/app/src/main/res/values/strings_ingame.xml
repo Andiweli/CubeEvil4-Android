@@ -31,6 +31,10 @@
     <string name="ingame_laser_blue">Blue</string>
     <string name="ingame_laser_green">Green</string>
     <string name="ingame_laser_yellow">Yellow</string>
+    <string name="ingame_postprocessing">Post-processing</string>
+    <string name="ingame_effects">Effects</string>
+    <string name="ingame_optional_features">Optional features</string>
+    <string name="ingame_perf_section">Performance</string>
     <string name="ingame_minimap">Minimap</string>
     <string name="ingame_flares">Lens flares</string>
     <string name="ingame_dof">Depth of field</string>

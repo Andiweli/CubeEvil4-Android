@@ -22,6 +22,10 @@
     <string name="ingame_laser_blue">Синий</string>
     <string name="ingame_laser_green">Зелёный</string>
     <string name="ingame_laser_yellow">Жёлтый</string>
+    <string name="ingame_postprocessing">Постобработка</string>
+    <string name="ingame_effects">Эффекты</string>
+    <string name="ingame_optional_features">Дополнительные функции</string>
+    <string name="ingame_perf_section">Производительность</string>
     <string name="ingame_minimap">Мини-карта</string>
     <string name="ingame_flares">Блики объектива</string>
     <string name="ingame_dof">Глубина резкости</string>

@@ -23,6 +23,10 @@
     <string name="ingame_laser_blue">Biru</string>
     <string name="ingame_laser_green">Hijau</string>
     <string name="ingame_laser_yellow">Kuning</string>
+    <string name="ingame_postprocessing">Pascaproses</string>
+    <string name="ingame_effects">Efek</string>
+    <string name="ingame_optional_features">Fitur opsional</string>
+    <string name="ingame_perf_section">Performa</string>
     <string name="ingame_minimap">Peta mini</string>
     <string name="ingame_flares">Pantulan lensa (lens flare)</string>
     <string name="ingame_dof">Kedalaman bidang (depth of field)</string>

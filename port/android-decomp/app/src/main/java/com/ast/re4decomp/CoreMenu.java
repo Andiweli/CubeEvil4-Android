@@ -531,12 +531,16 @@ final class CoreMenu extends Dialog {
     b.setMinHeight(dp(66)); b.setMinimumHeight(dp(66)); return b;
   }
 
+  // DISPLAY (order of the project owner, 04.11.2026): GRAPHICS with the picture format first, then POST-PROCESSING
+  // (effects: depth of field, lens flares; the two picture filters), then OPTIONAL FEATURES (minimap, FPS display)
   private void display() {
     heading(R.string.ingame_graphics);
     int[] info = CoreBridge.graphicsInfo();
     // Unknown GPU capabilities must not enable unsupported samples or anisotropy.
     int samples = info == null ? 1 : Math.max(1, info[0]);
     int anisotropy = info == null ? 1 : Math.max(1, info[1]);
+    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_stretched)},
+        new int[] {1, 3, 0, 2}, 0, Integer.MAX_VALUE);
     resolutionChoices();
     graphicsLine = text("", 15, false); graphicsLine.setPadding(0, dp(4), 0, dp(10)); body.addView(graphicsLine); showGraphics();
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
@@ -547,32 +551,35 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_fxaa_help);
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
-    heading(R.string.ingame_picture);
-    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_stretched)},
-        new int[] {1, 3, 0, 2}, 0, Integer.MAX_VALUE);
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
+    heading(R.string.ingame_postprocessing);
+    LinearLayout effects = labelledOptions(R.string.ingame_effects);
+    toggle(buttonsRow(effects), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
       graphics.edit().putBoolean("dof", on).apply(); CoreBridge.setDof(on);
     });
     // a faint glow at torches, candles and fires (wish of the project owner, 04.11.2026; off by default)
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_flares, graphics.getBoolean("flares", false), on -> {
+    toggle(buttonsRow(effects), R.string.ingame_flares, graphics.getBoolean("flares", false), on -> {
       graphics.edit().putBoolean("flares", on).apply(); CoreBridge.setFlares(on);
     });
+    // the picture filters one under the other, one general line under both (wish of the project owner, 02.11.2026)
+    LinearLayout filters = labelledOptions(R.string.ingame_filter);
+    // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
+    toggle(buttonsRow(filters), R.string.ingame_tv_filter, graphics.getBoolean("tvFilter", false), on -> {
+      graphics.edit().putBoolean("tvFilter", on).apply(); CoreBridge.setTvFilter(on);
+    });
+    // the 3D as a PlayStation would have drawn it (wish of the project owner, 02.11.2026)
+    toggle(buttonsRow(filters), R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
+      graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
+    });
+    help(R.string.ingame_filter_help);
+    heading(R.string.ingame_optional_features);
     // the current room's outline at the bottom left, turning with the player (wish of the project owner, 04.11.2026)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
       graphics.edit().putBoolean("minimap", on).apply(); CoreBridge.setMinimap(on);
     });
-    // the picture filters in a section of their own at the end, one under the other, one general line under both
-    // (wish of the project owner, 02.11.2026)
-    heading(R.string.ingame_filter);
-    // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_tv_filter, graphics.getBoolean("tvFilter", false), on -> {
-      graphics.edit().putBoolean("tvFilter", on).apply(); CoreBridge.setTvFilter(on);
+    // the FPS display (here since 04.11.2026, before on PERFORMANCE under EXPERIMENTAL)
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
+      graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
     });
-    // the 3D as a PlayStation would have drawn it (wish of the project owner, 02.11.2026)
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
-      graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
-    });
-    help(R.string.ingame_filter_help);
   }
   private void controls() {
     quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
@@ -995,7 +1002,7 @@ final class CoreMenu extends Dialog {
   }
 
   private void performance() {
-    heading(R.string.ingame_force_performance);
+    heading(R.string.ingame_perf_section);
     choices(R.string.ingame_force_performance, new String[] {s(R.string.ingame_perf_default), s(R.string.ingame_perf_cores)},
         new int[] {0, 1}, graphics.getInt("fastCores", 0), 1, value -> {
           graphics.edit().putInt("fastCores", value).apply(); CoreBridge.setFastCores(value == 1);
@@ -1015,9 +1022,6 @@ final class CoreMenu extends Dialog {
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026)
     heading(R.string.ingame_experimental);
     LinearLayout output = labelledOptions(R.string.ingame_output);
-    toggle(buttonsRow(output), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
-      graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
-    });
     // Frame skip leaves pictures out, 60 FPS adds pictures between: one or the other (wish of the
     // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off
     final Button[] skipAndSmooth = new Button[2];

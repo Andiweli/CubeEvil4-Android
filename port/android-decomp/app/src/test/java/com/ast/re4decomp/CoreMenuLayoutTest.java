@@ -521,14 +521,23 @@ public class CoreMenuLayoutTest {
       show.invoke(menu, 4, false);
       ViewGroup body = (ViewGroup) field(menu, "body");
       // found by their labels (the page's rows moved with the Potato mode, 30.10.2026)
-      Button fps = findButton(body, controller.get().getString(R.string.ingame_fps_display));
       Button skip = findButton(body, controller.get().getString(R.string.ingame_frame_skip));
       Button smooth = findButton(body, controller.get().getString(R.string.ingame_smooth60));
-      assertNotNull(fps); assertNotNull(skip); assertNotNull(smooth);
+      assertNotNull(skip); assertNotNull(smooth);
       assertTrue(skip.isEnabled()); assertTrue(skip.hasOnClickListeners());
       // merged draw calls: a toggle of its own below 60 FPS (30.10.2026)
       Button merge = findButton(body, controller.get().getString(R.string.ingame_merge_draws));
       assertNotNull(merge); assertTrue(merge.hasOnClickListeners());
+      // the FPS display moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of the project owner, 04.11.2026)
+      assertNull(findButton(body, controller.get().getString(R.string.ingame_fps_display)));
+      show.invoke(menu, 1, false);
+      body = (ViewGroup) field(menu, "body");
+      Button fps = findButton(body, controller.get().getString(R.string.ingame_fps_display));
+      Button minimap = findButton(body, controller.get().getString(R.string.ingame_minimap));
+      assertNotNull(fps); assertNotNull(minimap);
+      assertTrue(fps.hasOnClickListeners()); assertTrue(minimap.hasOnClickListeners());
+      assertNotNull(findButton(body, controller.get().getString(R.string.ingame_flares)));
+      assertNotNull(findButton(body, controller.get().getString(R.string.ingame_psx)));
     }
   }
 }

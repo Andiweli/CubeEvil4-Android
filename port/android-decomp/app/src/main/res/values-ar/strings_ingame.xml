@@ -26,6 +26,10 @@
     <string name="ingame_laser_blue">أزرق</string>
     <string name="ingame_laser_green">أخضر</string>
     <string name="ingame_laser_yellow">أصفر</string>
+    <string name="ingame_postprocessing">المعالجة اللاحقة</string>
+    <string name="ingame_effects">التأثيرات</string>
+    <string name="ingame_optional_features">ميزات اختيارية</string>
+    <string name="ingame_perf_section">الأداء</string>
     <string name="ingame_minimap">خريطة مصغرة</string>
     <string name="ingame_flares">وهج العدسة</string>
     <string name="ingame_dof">عمق الميدان</string>

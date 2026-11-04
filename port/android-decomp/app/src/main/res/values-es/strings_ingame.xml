@@ -22,6 +22,10 @@
     <string name="ingame_laser_blue">Azul</string>
     <string name="ingame_laser_green">Verde</string>
     <string name="ingame_laser_yellow">Amarillo</string>
+    <string name="ingame_postprocessing">Posprocesado</string>
+    <string name="ingame_effects">Efectos</string>
+    <string name="ingame_optional_features">Funciones opcionales</string>
+    <string name="ingame_perf_section">Rendimiento</string>
     <string name="ingame_minimap">Minimapa</string>
     <string name="ingame_flares">Destellos de lente</string>
     <string name="ingame_dof">Profundidad de campo</string>

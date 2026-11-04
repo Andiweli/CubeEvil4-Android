@@ -4300,7 +4300,7 @@ struct GxRenderer::Impl {
         "  float seen = 0.0, contrast = 0.0;\n"
         "  vec3 col = vec3(0.0);\n"
         "  if (st < 1.5) {\n"
-        "    float r = max(size.z, R * 0.4);\n"
+        "    float r = max(size.z, R * 0.6);\n"
         "    for (int k = 0; k < 9; k++) {\n"
         "      vec2 off = k == 0 ? vec2(0.0) : r * vec2(cos(float(k) * 0.785398), sin(float(k) * 0.785398)) * "
         "(k % 2 == 0 ? 1.0 : 0.5);\n"
@@ -4311,7 +4311,7 @@ struct GxRenderer::Impl {
         "      vec3 cc = texelFetch(colors, ivec2(t), 0).rgb;\n"
         "      if (open && L(cc) > L(col)) col = cc;\n"
         "    }\n"
-        "    seen /= 9.0;\n"
+        "    seen = min(1.0, seen / 9.0 * 2.0);  // half the taps open: in full view (a candle's holder before its glow)\n"
         "    float ring = 0.0, rn = 0.0;\n"
         "    float far = max(3.0, R * 1.6);\n"
         "    for (int k = 0; k < 8; k++) {\n"
@@ -4356,7 +4356,7 @@ struct GxRenderer::Impl {
         "  if (k == 0) {\n"
         "    centre = s.xy;\n"
         "    rad = min(s.z, 10.0 * size.x / 640.0) * 6.0;\n"
-        "    vCol = vec4(v.rgb, a * crowd[i] * 0.6);\n"
+        "    vCol = vec4(v.rgb, a * crowd[i] * 0.9);\n"
         "    vKind = 0;\n"
         "  } else {\n"
         "    vec4 g = kGhost[k - 1];\n"
@@ -4382,8 +4382,8 @@ struct GxRenderer::Impl {
         "    float e = d * 6.0;\n"
         "    float glow = exp(-e * e * 1.4) * 0.9 + exp(-e * e * 0.18) * 0.22;\n"
         "    float ang = atan(vUv.y, vUv.x);\n"
-        "    float rays = pow(abs(cos(ang * 3.0)), 48.0) + 0.45 * pow(abs(cos(ang * 3.0 + 0.5236)), 80.0);\n"
-        "    f = glow + rays * (1.0 - d) * (1.0 - d) * exp(-d * 2.0) * 0.45;\n"
+        "    float rays = pow(abs(cos(ang * 3.0)), 28.0) + 0.45 * pow(abs(cos(ang * 3.0 + 0.5236)), 56.0);\n"
+        "    f = glow + rays * (1.0 - d) * (1.0 - d) * exp(-d * 1.8) * 0.75;\n"
         "  } else if (vKind == 3 || vKind == 5) {\n"
         "    vec2 h = abs(vUv);\n"
         "    float hex = max(h.x * 0.866 + h.y * 0.5, h.y);\n"
@@ -5779,7 +5779,9 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.ownerLife = ~0u;
   m.Split(GxStats::kSplitState);
   // lens flares: after the scene's last 3D draw (FlareScan); its light sources noted on the way (FlareNote)
-  m.flareAfter = m.flaresOn && !m.skipDraws ? m.FlareScan(chunk) : 0;
+  // none on a menu screen of the game (RE4_GX_CHUNK_STILL: the option screen, the retry / load menu, sub screens,
+  // card screens, results; project owner 04.11.2026: stars on the "NEUER VERSUCH oder LADEN" menu's letters)
+  m.flareAfter = m.flaresOn && !m.skipDraws && !(chunk.flags & RE4_GX_CHUNK_STILL) ? m.FlareScan(chunk) : 0;
   m.flareDone = false;
   m.flareCands.clear();
   std::uint32_t at = 0;
