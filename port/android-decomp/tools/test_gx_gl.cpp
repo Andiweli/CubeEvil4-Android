@@ -2024,9 +2024,13 @@ void TestInterpolationParticles() {
              third = TexPixel(xfb, px(-250.0f), 264);
   Check(Near(own, 0, 255, 0) && Near(wrong, 0, 0, 0) && Near(third, 0, 0, 0),
         "particles: each halfway along its own move");
-  // the new one: as in B (-7000); halfway to the dead first one's place it would be at -6000
-  const auto fresh = TexPixel(xfb, px(-7000.0f), 264), between = TexPixel(xfb, px(-6000.0f), 264);
-  Check(Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0), "particles: one that has just started stands where it is in B");
+  // the new one: where it is in B (-7000) moved back by half the camera's move (1500, the room's pieces agree on
+  // it), as it stands still in the world: -7750 (BlendByCamera, 04.11.2026; as in B it stood apart from the
+  // room between the two); halfway to the dead first one's place it would be at -6000
+  const auto fresh = TexPixel(xfb, px(-7750.0f), 264), between = TexPixel(xfb, px(-6000.0f), 264),
+             asInB = TexPixel(xfb, px(-6800.0f), 264);
+  Check(Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0) && Near(asInB, 0, 0, 0),
+        "particles: one that has just started moves with the camera from where it is in B");
   if (!Near(own, 0, 255, 0) || !Near(wrong, 0, 0, 0) || !Near(third, 0, 0, 0) || !Near(fresh, 0, 255, 0) ||
       !Near(between, 0, 0, 0))
     Print("own", own), Print("wrong", wrong), Print("third", third), Print("fresh", fresh), Print("between", between);

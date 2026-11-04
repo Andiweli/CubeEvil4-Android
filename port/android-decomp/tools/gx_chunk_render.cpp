@@ -200,13 +200,15 @@ int main(int argc, char **argv) {
       std::printf("%s: Zwischenbild %s, %u 3D-Zeichenaufträge, %u zugeordnet, %u mit gemischten Ecken\n",
                   Stem(path).c_str(), shown ? "gezeigt" : "nicht gezeigt (Schnitt)", now.interpDraws - was.interpDraws,
                   now.interpMatched - was.interpMatched, now.interpVertexBlends - was.interpVertexBlends);
-      std::printf("%s: ohne Gegenstück Teilchen %u/%u, Figuren %u/%u, Raum %u/%u, 2D %u/%u; über das Objekt %u "
+      std::printf("%s: ohne Gegenstück Teilchen %u/%u, Figuren %u/%u, Raum %u/%u, 2D %u/%u (%u mit der Kamera "
+                  "bewegt); über das Objekt %u "
                   "(%u neu belegt); Texturmatrizen %u (%u über den Rand), TEV-Farben %u, Lichtfarben %u\n",
                   Stem(path).c_str(), now.interpKindUnmatched[0] - was.interpKindUnmatched[0],
                   now.interpKind[0] - was.interpKind[0], now.interpKindUnmatched[1] - was.interpKindUnmatched[1],
                   now.interpKind[1] - was.interpKind[1], now.interpKindUnmatched[2] - was.interpKindUnmatched[2],
                   now.interpKind[2] - was.interpKind[2], now.interpKindUnmatched[3] - was.interpKindUnmatched[3],
-                  now.interpKind[3] - was.interpKind[3], now.interpOwned - was.interpOwned,
+                  now.interpKind[3] - was.interpKind[3], now.interpCameraMoved - was.interpCameraMoved,
+                  now.interpOwned - was.interpOwned,
                   now.interpOwnedNew - was.interpOwnedNew, now.interpTexBlends - was.interpTexBlends,
                   now.interpTexWraps - was.interpTexWraps, now.interpTevBlends - was.interpTevBlends,
                   now.interpLightBlends - was.interpLightBlends);

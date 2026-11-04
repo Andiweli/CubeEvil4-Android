@@ -1735,12 +1735,13 @@ bool drawGx() {
             s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, gxBetweenDropped, smoothPacer.Offs(), behind);
         // (60fps-plan.md S0) without a counterpart, by kind; found by their object, slots used anew;
         // texture matrices blended / left out at their edge, TEV and light colours blended
-        LOG("60 FPS draws without a counterpart: particles %u of %u, figures %u of %u, room %u of %u, 2D %u of %u; "
-            "by their object %u (%u new in an old slot); texture matrices %u (%u over the edge), TEV colours %u, "
-            "light colours %u",
+        LOG("60 FPS draws without a counterpart: particles %u of %u, figures %u of %u, room %u of %u, 2D %u of %u "
+            "(%u moved with the camera); by their object %u (%u new in an old slot); texture matrices %u (%u over the "
+            "edge), TEV colours %u, light colours %u",
             s.interpKindUnmatched[0], s.interpKind[0], s.interpKindUnmatched[1], s.interpKind[1],
-            s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpOwned,
-            s.interpOwnedNew, s.interpTexBlends, s.interpTexWraps, s.interpTevBlends, s.interpLightBlends);
+            s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpCameraMoved,
+            s.interpOwned, s.interpOwnedNew, s.interpTexBlends, s.interpTexWraps, s.interpTevBlends,
+            s.interpLightBlends);
         if (behind > 2.5) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");

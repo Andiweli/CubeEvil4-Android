@@ -72,8 +72,18 @@ Retroid (0.98.0, Bericht cubeevil4-report-20261103-235030, GX-Serien `gx-geraet-
 2. **Feuer am Boden flimmert beim Auf- und Abschauen (60 FPS):** gefunden, nicht behoben. Serie 06 mit Zwischenbildern:
    ab Bild 6 (Kamera neigt sich) sind die Zwischenbilder im Feuerbereich 4–9 Helligkeitsstufen dunkler; bei
    `RE4_GX_INTERP_T=0` um ~10 dunkler als das Bild davor (bei T=1 gleich dem nächsten): der große Lichtschein am Boden
-   und die Flammen. Nicht die Lichtposition (`BlendLights` aus: unverändert), nicht Texturmatrix-Sprünge (0). Nächster
-   Schritt: die betroffenen Zeichenaufträge einzeln finden (Auswahl-Werkzeug).
+   und die Flammen. Nicht die Lichtposition (`BlendLights` aus: unverändert), nicht Texturmatrix-Sprünge (0).
+   **Behoben (04.11.2026):** Abschalten nach Art (vorübergehender Schalter) zeigte die großen Raum-Zeichenaufträge
+   (über 256 Ecken) als Auslöser, eine Spur je Zeichenauftrag die Ursache: 3 Raumteile und 12 Teilchen ohne Gegenstück
+   im Bild davor wurden wie im nächsten Bild gezeichnet, alles um sie herum zwischen den beiden; der Schein am Boden
+   lag beim Neigen nicht mehr auf dem Boden. Jetzt `BlendByCamera` (`gx_gl.cpp`): ein 3D-Zeichenauftrag ohne
+   Gegenstück wird, wenn die Bewegung der Kamera bekannt ist (`NoteCamera`, die großen Zeichenaufträge stimmen
+   darüber ab), wie ein stillstehendes Ding zwischen seine Lage im Bild davor (Kamerabewegung zurückgerechnet) und
+   jetzt gesetzt, die Lichter mit (`BlendLights`); Zähler „moved with the camera“ im 60-FPS-Protokoll.
+   Am PC: Serie 06 Zwischenbilder jetzt im Feuerbereich 141–152 statt 132–146 (die echten Bilder 140–153), bei
+   T=0 gleich dem Bild davor; Glätte (Abstand Zwischenbild zum Mittel der Nachbarbilder) Serie 06 6,35 → 5,79, acht
+   andere Gerätereihen (Dorf, Hütte, Statuen-Feuer) unverändert; `gx_gl_check` 0 Fehler (der Teilchen-Test erwartet
+   ein neues Teilchen jetzt um die halbe Kamerabewegung versetzt). Am Gerät nicht nachgesehen.
 3. **Instant-Save vor dem Schloss gesperrt:** r10f (Gondel, Händler und Schreibmaschine) stand als ganzer Raum in
    `unsafePlace`; jetzt nur noch die Fahrt (`STA_RIDE_GONDOLA`). Am PC: r10f am Start und oben an der Stelle des
    Projektinhabers (56200 −31238 −177007) gespeichert und geladen, Leon dort, 1 800 Bilder ohne Fehler; die Fahrt

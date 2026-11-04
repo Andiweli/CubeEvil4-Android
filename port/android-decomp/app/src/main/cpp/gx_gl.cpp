@@ -1377,6 +1377,45 @@ struct GxRenderer::Impl {
       out[r] = c[r][0] * q[0] + c[r][1] * q[1] + c[r][2] * q[2] + c[r][3];
   }
 
+  // A 3D draw without a counterpart in the picture before (a new flame of a fire, a slot used anew, a
+  // part of the ground that drew otherwise) while the camera's move is known (NoteCamera): its rows as if it
+  // stood still in the world, between where that move puts it in the picture before and where it is now.
+  // Drawn as in the next picture, it stood apart from the matched draws around it, which are between the
+  // two: a fire's glow on the ground went missing in every in-between picture while the camera tilted,
+  // the fire flickered at 60 FPS (the project owner's Retroid series 03.11.2026).
+  std::uint32_t BlendByCamera(std::uint32_t first, std::uint32_t rows) {
+    if (!camValid || rows != 3 || first + 3 > 64)
+      return 0;
+    const float(&c)[3][4] = cam;
+    const float det = c[0][0] * (c[1][1] * c[2][2] - c[1][2] * c[2][1]) - c[0][1] * (c[1][0] * c[2][2] - c[1][2] * c[2][0]) +
+                      c[0][2] * (c[1][0] * c[2][1] - c[1][1] * c[2][0]);
+    if (!(std::fabs(det) > 1e-12f))
+      return 0;
+    const float inv[3][3] = {{(c[1][1] * c[2][2] - c[1][2] * c[2][1]) / det, (c[0][2] * c[2][1] - c[0][1] * c[2][2]) / det,
+                              (c[0][1] * c[1][2] - c[0][2] * c[1][1]) / det},
+                             {(c[1][2] * c[2][0] - c[1][0] * c[2][2]) / det, (c[0][0] * c[2][2] - c[0][2] * c[2][0]) / det,
+                              (c[0][2] * c[1][0] - c[0][0] * c[1][2]) / det},
+                             {(c[1][0] * c[2][1] - c[1][1] * c[2][0]) / det, (c[0][1] * c[2][0] - c[0][0] * c[2][1]) / det,
+                              (c[0][0] * c[1][1] - c[0][1] * c[1][0]) / det}};
+    float now[3][4];
+    std::memcpy(now, xf.posTex[first], sizeof(now));
+    const float s = interpT;
+    // before = cam^-1 * now: the turn undone, the shift taken back
+    for (int r = 0; r < 3; r++) {
+      float before[4];
+      for (int k = 0; k < 3; k++)
+        before[k] = inv[r][0] * now[0][k] + inv[r][1] * now[1][k] + inv[r][2] * now[2][k];
+      before[3] = inv[r][0] * (now[0][3] - c[0][3]) + inv[r][1] * (now[1][3] - c[1][3]) + inv[r][2] * (now[2][3] - c[2][3]);
+      for (int k = 0; k < 4; k++)
+        xf.posTex[first + r][k] = before[k] + (now[r][k] - before[k]) * s;
+    }
+    const bool lights = BlendLights(now, xf.posTex[first]);
+    Dirty(static_cast<int>(first), static_cast<int>(first + 3));
+    Dirty(64, 96);
+    stats.interpCameraMoved++;
+    return first << 8 | rows | (lights ? 0x200000u : 0u);
+  }
+
   // c = n * p^-1 for two 3 x 4 modelviews of the same object (p: row-major, 12 floats); false when
   // p has no inverse.
   static bool CameraMove(const float *p, const float (&n)[3][4], float (&c)[3][4]) {
@@ -1491,7 +1530,7 @@ struct GxRenderer::Impl {
             ((c.life >> 16) != (curLife >> 16) || (curLife & 0xFFFF) < (c.life & 0xFFFF))) {
           stats.interpOwnedNew++;
           stats.interpKindUnmatched[kind]++;
-          return 0;
+          return flat ? 0 : BlendByCamera(first, rows);
         }
         a = &c;
         owned = sameShape;
@@ -1503,7 +1542,7 @@ struct GxRenderer::Impl {
     if (!a && curOwner && curLife != ~0u && !recOwnerDraws.count(ownerBase)) {
       stats.interpOwnedNew++;
       stats.interpKindUnmatched[kind]++;
-      return 0;
+      return flat ? 0 : BlendByCamera(first, rows);
     }
     auto it = recBySig.find(sig);
     if (!a)
@@ -1524,7 +1563,7 @@ struct GxRenderer::Impl {
     }
     if (!a) {
       stats.interpKindUnmatched[kind]++;
-      return 0;
+      return flat ? 0 : BlendByCamera(first, rows);
     }
     const float s = interpT;
     const float *src = recFloats.data() + a->data;
