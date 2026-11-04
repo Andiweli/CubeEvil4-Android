@@ -388,6 +388,26 @@ nach dem Schrei. Abgebrochen werden nur Raumtöne (Regen/Umgebung, niedrige ARAM
 Offen: am Gerät nachhören (Retroid, ARM64), Angaben des Nutzers (Disc-Fassung, Gerät, Ort, Video mit Ton,
 Fehlerbericht direkt danach).
 
+**Zweiter Bericht desselben Nutzers (04.11.2026, Branch `work`, wieder kein Fehler des Ports gefunden):** Fehlerbericht
+0.98.1-beta-core, Samsung SM-S937B, Android 17, nur 64 bit (Kern ARM64 im App-Prozess), Debug-Discs, Mercenaries r403
+(game_mode 5), Inselsoldaten em 0x1d, 60 FPS an. Im Bericht: Ton ohne Auffälligkeiten (höchstens 29 Stimmen,
+AX-Schätzung 15 %, 7-mal leer gelaufen, keine `ISS Voice Drop`, keine Zeile `sound: up to`); 16 tödliche Treffer an
+Soldaten, dazu 7-mal `head lost` (Kopfschuss, der Tritt aus dem Würgegriff): dort stoppt das Spiel den Schrei selbst
+(`em10LostHead` → `SndStop(Seid_voice)`, Platz-Geräusch 0x07; beim Würgegriff s36/s39 0,6 s nach dem Treffer), sonst
+`Be_flg 0x80` und gar kein Schrei — Originalcode. **Am PC neu gemessen** (vorübergehende Spur im vorbereiteten Baum:
+jeder `SndCall` der Gegnerbank mit Stimmgruppe, jeder `SndStop` mit Aufrufer, jede Verdrängung in
+`Snd_voice_work_open_ck`, Lautstärke jedes Todesschreis je Bild in `sndSurroundCalc`, Hüllkurve und Pegel der
+DSP-Stimme alle 40 ms): Mercenaries r403 (em 0x1d, betäubt vor Leon per `RE4_TEST_STUN`, und 4000 Bilder freier Kampf
+ohne Ein-Schuss-Cheat), Geschichte r305 (em 0x1e), Disc 1 r103 (em 0x12) zum Vergleich, je Debug-, EU- und US-Discs,
+auf **i686, x86_64 und aarch64** (unter qemu, die Code-Erzeugung des Geräts): jeder Schrei läuft bis zum Ende seiner
+Probe (0x2E 1,7 s, 0x16 2,1 s, 0x36 1,7 s, em 0x1e 0x0E 3,7 s, Disc 1 0x2E 2,3 s), Lautstärke gleichbleibend
+(126/119), nie von der CPU gestoppt, nie verdrängt (verdrängt werden nur Schüsse der Waffen- und Schritte der
+Gegnergruppe), die Proben liegen lückenlos im ARAM (die nächste beginnt direkt nach dem Ende). Die Tonbank em1d ist
+in allen drei Fassungen gleich groß (0x1B2B10). Kein Unterschied 32/64 bit. **Nicht geprüft:** der Tonweg am Gerät
+(AudioTrack, Klangverarbeitung von Samsung); dafür braucht es ein kurzes Video mit Ton vom Nutzer oder Nachhören am
+Retroid (ARM64). Nebenbei gefunden: das Spurwerkzeug darf keine `.orig`-Sicherungen benutzen, `patch` legt im
+vorbereiteten Baum selbst welche an (dort die Fassung ohne Patches).
+
 ## Spielfiguren für die Geschichte: Ada, HUNK, Krauser, Wesker statt Leon (03.11.2026, lokal, Branch `claude/char-cheat-f03122`, Patch 0195; am 03.11.2026 in `work` zusammengeführt, Teil von 0.98.0-beta)
 
 Wunsch des Projektinhabers (03.11.2026): Figuren, die die Hauptgeschichte sauber statt Leon spielen können, als eigener
