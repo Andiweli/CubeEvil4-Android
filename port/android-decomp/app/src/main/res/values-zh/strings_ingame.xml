@@ -17,6 +17,12 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">拉伸</string>
     <string name="ingame_other_options">其他选项</string>
+    <string name="ingame_laser_section">激光瞄准器</string>
+    <string name="ingame_laser_colour">颜色</string>
+    <string name="ingame_laser_red">默认（红色）</string>
+    <string name="ingame_laser_blue">蓝色</string>
+    <string name="ingame_laser_green">绿色</string>
+    <string name="ingame_laser_yellow">黄色</string>
     <string name="ingame_minimap">小地图</string>
     <string name="ingame_flares">镜头光晕</string>
     <string name="ingame_dof">景深</string>

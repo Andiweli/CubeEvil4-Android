@@ -104,6 +104,7 @@ struct CoreApi {
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
   int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
   int (*roomOutline)(float *, int, unsigned *){};  // optional (cores since 04.11.2026): the minimap's room outline
+  void (*setLaserColour)(int){};  // optional (cores since 04.11.2026, patch 0198): the laser sight's colour
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
@@ -448,6 +449,7 @@ void loadCore(JNIEnv *env) {
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
   api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
   api.roomOutline = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_outline"));
+  api.setLaserColour = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_laser_colour"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
@@ -641,6 +643,7 @@ struct Bench {
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
+std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
@@ -970,6 +973,7 @@ void benchTick(std::chrono::steady_clock::time_point now) {
     optHalfDof = bench.keepHalfDof;
     optSerial++;
     if (optDof.load() >= 0 && api.setDof) api.setDof(optDof.load());
+    if (api.setLaserColour) api.setLaserColour(optLaserColour.load());
     potatoSent = -1;
     LOG("GPU bench done; the options from before the run are back");
     bench.index = -3;
@@ -2167,6 +2171,7 @@ void useCoreProcess(const std::string &why) {
   api.setCheats = re4ipc_set_cheats;
   api.cheatAction = re4ipc_cheat_action;
   api.roomOutline = re4ipc_room_outline;
+  api.setLaserColour = re4ipc_set_laser_colour;
   api.touch = re4ipc_touch;
   api.aimTurn = re4ipc_aim_turn;
   api.swipe = re4ipc_swipe;
@@ -2600,6 +2605,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPsx(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optPsx.exchange(want) != want) LOG("PSone demake: %s", want ? "on" : "off");
+}
+
+// The laser sight's colour (the menu, CONTROLS, LASER SIGHT; wish of the project owner, 04.11.2026): 0 red .. 3 yellow.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLaserColour(JNIEnv *, jclass, jint colour) {
+  const int want = colour >= 0 && colour <= 3 ? colour : 0;
+  if (optLaserColour.exchange(want) != want) LOG("laser sight colour: %d", want);
+  if (api.setLaserColour) api.setLaserColour(want);
 }
 
 // Minimap (the menu, wish of the project owner, 04.11.2026): the current room's outline at the picture's bottom left.

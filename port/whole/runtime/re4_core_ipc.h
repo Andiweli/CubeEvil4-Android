@@ -75,6 +75,7 @@ enum MsgType : uint32_t {
     kSetPotato = 34,     // a = the Potato mode bits (no reply; re4_core_set_potato)
     kSetAim = 35,        // a = the aim settings (no reply; re4_core_set_aim)
     kSetSoundVolume = 36,  // a = music | effects << 8, percent (no reply; re4_core_set_sound_volume)
+    kSetLaserColour = 38,  // a = the laser sight's colour 0..3 (no reply; re4_core_set_laser_colour)
     kRoomOutline = 37,     // a = max edges -> a = edges; data: 2 words info, then 5 floats an edge (re4_core_room_outline)
 };
 

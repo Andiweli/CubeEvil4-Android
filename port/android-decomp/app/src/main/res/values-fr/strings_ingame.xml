@@ -18,6 +18,12 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Étirée</string>
     <string name="ingame_other_options">Autres options</string>
+    <string name="ingame_laser_section">Viseur laser</string>
+    <string name="ingame_laser_colour">Couleur</string>
+    <string name="ingame_laser_red">Par défaut (rouge)</string>
+    <string name="ingame_laser_blue">Bleu</string>
+    <string name="ingame_laser_green">Vert</string>
+    <string name="ingame_laser_yellow">Jaune</string>
     <string name="ingame_minimap">Mini-carte</string>
     <string name="ingame_flares">Halos lumineux</string>
     <string name="ingame_dof">Profondeur de champ</string>

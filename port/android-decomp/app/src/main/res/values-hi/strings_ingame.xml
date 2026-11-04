@@ -16,6 +16,12 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">खींचा हुआ</string>
     <string name="ingame_other_options">अन्य विकल्प</string>
+    <string name="ingame_laser_section">लेज़र साइट</string>
+    <string name="ingame_laser_colour">रंग</string>
+    <string name="ingame_laser_red">डिफ़ॉल्ट (लाल)</string>
+    <string name="ingame_laser_blue">नीला</string>
+    <string name="ingame_laser_green">हरा</string>
+    <string name="ingame_laser_yellow">पीला</string>
     <string name="ingame_minimap">मिनी-मैप</string>
     <string name="ingame_flares">लेंस फ़्लेयर</string>
     <string name="ingame_dof">डेप्थ ऑफ़ फ़ील्ड</string>

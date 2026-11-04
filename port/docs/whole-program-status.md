@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte (04.11.2026, Branch `work`)
+## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte, Laserfarbe (04.11.2026, Branch `work`, Patch 0198)
 
 Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/releases/v0.98.2-beta.md`. WSL-Baum
 `~/re4-0982/RE4` (aus `~/re4-fix981` kopiert, Bauordner umgeschrieben).
@@ -155,6 +155,26 @@ Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/rele
    Fernkern-Tests, Film-Test, Formatvergleich). `gradlew assembleCoreDebug testCoreDebugUnitTest` bestanden,
    `check_translations.py` ok. **Nicht geprüft:** das Zeichnen in der App (OpenGL, Größe, Lage zu den Touch-Tasten
    unten links) am Gerät; Räume mit beweglichen Böden (Aufzüge) und mehreren Stockwerken nur aus dem Code.
+7. **Farbe des Laservisiers (Wunsch des Projektinhabers 04.11.2026):** App-Menü STEUERUNG, neuer Abschnitt
+   „LASER SIGHT“ / „LASERVISIER“ nach „Touch aiming“: Farbe „Default (Red)“, „Blue“, „Green“, „Yellow“ (11 Sprachen,
+   `ingame_laser_*`; gespeichert als `laserColour` bei den Eingabe-Einstellungen; `CoreBridge.setLaserColour`,
+   `re4_core_set_laser_colour`, über den eigenen Kernprozess `kSetLaserColour`). Gefunden: der Strahl ist est 3
+   (`EspDrawLaserLine`, `esp_app.cpp`; cEsp19, eine GX-Linie in der Farbe des Effekts, 168 0 0), der Punkt est 0x50
+   (`drawPoint`, `objWep.cpp`; Farbe 250 30 50 auf einer hellen Textur); der Prototyp zeigt den Punkt nur auf einem
+   getroffenen Gegner. **Patch 0198** ruft danach `re4_laser_tint` (`runtime/laser_colour.cpp`): je Farbe (Start,
+   aktuell, Änderung) bleibt der Weißanteil w = (g + b) / 2, der Rotanteil r − w geht in die Richtung der gewählten
+   Farbe (Blau 0,25/0,55/1, Grün 0,2/1/0,25, Gelb 1/0,9/0,1); Helligkeit, Ausblenden und der helle Kern bleiben die des
+   Spiels; Standard ändert nichts. Gilt für jede Waffe mit Laser (der Prototyp zeichnet ihn an einer Stelle für alle,
+   `cObjWep::drawLaserSight`, auch das Maschinengewehr `pl_machine.cpp`) und jede Spielfigur. Testschalter
+   `RE4_LASER_COLOUR=N`. **Geprüft am PC (r103, Ganado per `RE4_TEST_STUN` vor Leon, Zielen leicht gesenkt, damit
+   der Punkt auf ihm liegt):** Standard gegen das Bild vor dem Patch: gleich bis auf die Debug-Zeitbalken am linken
+   Rand (ändern sich in jedem Lauf); Blau, Grün, Gelb: Strahl und Punkt in der Farbe, heller Kern erhalten;
+   Debug-Discs alle vier Farben, EU Rot/Blau/Gelb, US Rot/Blau/Gelb; Ada, HUNK, Krauser, Wesker (Cheat-Bits
+   64/96/128/160) mit Grün: ihre Pistolen haben denselben Laser; Pixelfilter (`RE4_GX_PSX=1`) und
+   60-FPS-Zwischenbilder (`RE4_GX_INTERP=1`) mit Rot und Blau; 14 Läufe, 0 Abstürze. `whole_build.sh i686` 0 Fehler,
+   `gradlew assembleCoreDebug testCoreDebugUnitTest` bestanden, `check_translations.py` ok. Ein Gewehr mit Laser hat
+   das Spiel nicht (das Gewehr zielt mit dem Zielfernrohr); das Maschinengewehr nimmt dieselbe Funktion, nicht
+   eigens gezeigt. Am Gerät nicht gesehen.
 
 ## Fehler für 0.98.1: Absturz nach dem Koffer, Absturz an Türen, Nahkampf und Ashley-Befehle der Stellvertreter, Pixelfilter (04.11.2026, lokal, Branch `claude/fixes-0981-0e672c`, Patch 0197)
 
@@ -11778,6 +11798,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0195 `game.cpp`, `read.cpp`, `event.cpp`, `obj18.cpp`, `pl_sub.cpp`, `sce_at.cpp`, `ss_model.cpp`, `pl02.cpp`, `pl06.cpp`, `pl_klauser.cpp`, `pl_wesker.cpp` | Cheat „Player character“: Ada, HUNK, Krauser oder Wesker spielen die Geschichte (Wechsel beim Raumstart, Spielstände immer Leon), Leons Waffendateien für Waffen ohne eigene Datei, nächstliegende linke Hand, Leons Körper in Zwischensequenzen und auf dem Funkbildschirm, Raum-Gegenstände und Kostümregel wie Leon, Koffer-Ansicht mit Leon-Waffe wie mit dem Messer; dazu `re4_whole_prelude.h` (fehlende Archiv-Einträge aus Leons Archiv). Port-Funktion (Cheat-Menü), Wunsch des Projektinhabers 03.11.2026 |
 | 0196 `pl02.cpp` | Ada als Stellvertreterin mit Leons Waffen: ihre eigene Griffhand (aus ihren Waffendateien, `runtime/cheats.cpp`) statt Leons, die auf ihrem Skelett als dritte Hand neben der Waffe stand. Port-Funktion (Cheat-Menü), Gerätetest des Projektinhabers 03.11.2026 |
 | 0197 `player.h`, `pl_klauser.cpp` | Stellvertreter in der Geschichte: der X-Knopf gibt Ashley „Warten/Folgen“ wie bei Leon (`re4_story_char_xbutton`, `runtime/cheats.cpp`); Krauser behält seinen Armangriff, wenn Ashley nicht da ist. Port-Funktion (Cheat-Menü), Meldung des Projektinhabers 04.11.2026 |
+| 0198 `esp_app.cpp`, `objWep.cpp` | Farbe des Laservisiers: nach `EspDrawLaserLine` (Strahl, est 3) und `drawPoint` (Punkt, est 0x50) ruft das Spiel `re4_laser_tint` (`runtime/laser_colour.cpp`); Standard (Rot) ändert nichts. Port-Funktion, Wunsch des Projektinhabers 04.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

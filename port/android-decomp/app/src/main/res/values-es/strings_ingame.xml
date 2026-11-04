@@ -16,6 +16,12 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Estirada</string>
     <string name="ingame_other_options">Otras opciones</string>
+    <string name="ingame_laser_section">Mira láser</string>
+    <string name="ingame_laser_colour">Color</string>
+    <string name="ingame_laser_red">Predeterminado (rojo)</string>
+    <string name="ingame_laser_blue">Azul</string>
+    <string name="ingame_laser_green">Verde</string>
+    <string name="ingame_laser_yellow">Amarillo</string>
     <string name="ingame_minimap">Minimapa</string>
     <string name="ingame_flares">Destellos de lente</string>
     <string name="ingame_dof">Profundidad de campo</string>

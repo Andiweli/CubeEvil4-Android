@@ -20,6 +20,12 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">ممتدة</string>
     <string name="ingame_other_options">خيارات أخرى</string>
+    <string name="ingame_laser_section">منظار الليزر</string>
+    <string name="ingame_laser_colour">اللون</string>
+    <string name="ingame_laser_red">افتراضي (أحمر)</string>
+    <string name="ingame_laser_blue">أزرق</string>
+    <string name="ingame_laser_green">أخضر</string>
+    <string name="ingame_laser_yellow">أصفر</string>
     <string name="ingame_minimap">خريطة مصغرة</string>
     <string name="ingame_flares">وهج العدسة</string>
     <string name="ingame_dof">عمق الميدان</string>

@@ -175,6 +175,8 @@ public final class CoreBridge {
   public static native void setFlares(boolean on);
   /** The minimap: the current room's outline at the bottom left, turning with the player (off by default). */
   public static native void setMinimap(boolean on);
+  /** The laser sight's colour (CONTROLS, LASER SIGHT): 0 the game's red, 1 blue, 2 green, 3 yellow. */
+  public static native void setLaserColour(int colour);
   /** Vertex ring (experimental, for Mali): a new renderer takes it. */
   public static native void setVertexRing(boolean on);
   /**

@@ -107,6 +107,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the menu's comfort control "Latch B" (the same; on: Leon keeps running)
   static final String TOUCH_LATCH_B = "touchLatchB";
   static final String TOUCH_AIM = "touchAim";
+  // the laser sight's colour (CoreMenu, CONTROLS, LASER SIGHT; wish of the project owner, 04.11.2026): 0 the game's red
+  static final String LASER_COLOUR = "laserColour";
   // the menu's slider of gyro aiming (GyroAim.setSensitivity, a float, 1 = as before)
   static final String GYRO_SENSITIVITY = "gyroSensitivity";
   // the menu's switches "Invert vertical" / "Invert horizontal" of gyro aiming (GyroAim.setInvert; off)
@@ -317,6 +319,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setPsx(g.getBoolean("psx", false));
       CoreBridge.setFlares(g.getBoolean("flares", false));
       CoreBridge.setMinimap(g.getBoolean("minimap", false));
+      CoreBridge.setLaserColour(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getInt(LASER_COLOUR, 0));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
       CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));
       CoreBridge.setVertexRing(g.getBoolean("vertexRing", false));

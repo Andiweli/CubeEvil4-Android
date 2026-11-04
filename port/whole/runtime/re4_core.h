@@ -312,6 +312,9 @@ int re4_core_cheat_action(int what);
  * `out` (x0, z0, x1, z1, height); info[0] rises with every new outline, info[1] is its room. Returns the
  * edges (0 before the first). The first call makes the game build it (anew when the room changes). */
 int re4_core_room_outline(float* out, int maxEdges, unsigned* info);
+/* The laser sight's colour (cores since 04.11.2026, patch 0198, runtime/laser_colour.cpp): 0 the game's red,
+ * 1 blue, 2 green, 3 yellow; the beam and the dot. Any thread. */
+void re4_core_set_laser_colour(int colour);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the

@@ -627,6 +627,14 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
     help(R.string.ingame_always_run_help); help(R.string.ingame_far_camera_help); help(R.string.ingame_aim_help);
     help(R.string.ingame_touch_aim_help); help(R.string.ingame_knife_swipe_help);
+    // the laser sight's colour, beam and dot (wish of the project owner, 04.11.2026): right after touch aiming
+    heading(R.string.ingame_laser_section);
+    choices(R.string.ingame_laser_colour, new String[] {s(R.string.ingame_laser_red), s(R.string.ingame_laser_blue),
+        s(R.string.ingame_laser_green), s(R.string.ingame_laser_yellow)}, new int[] {0, 1, 2, 3},
+        input.getInt(CoreActivity.LASER_COLOUR, 0), Integer.MAX_VALUE, 4, colour -> {
+          input.edit().putInt(CoreActivity.LASER_COLOUR, colour).apply();
+          CoreBridge.setLaserColour(colour);
+        });
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
     // since 30.10.2026 under a heading of its own
     heading(R.string.ingame_controller_section);

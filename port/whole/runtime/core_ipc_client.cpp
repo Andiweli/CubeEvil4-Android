@@ -980,6 +980,11 @@ int re4ipc_cheat_action(int what)
     return call(kCheatAction, what, 0, 0, nullptr, 0, 5000, &r) ? r.header.a : 0;
 }
 
+void re4ipc_set_laser_colour(int colour)
+{
+    post(kSetLaserColour, colour, 0, 0);
+}
+
 int re4ipc_room_outline(float* out, int maxEdges, unsigned* info)
 {
     Reply r;

@@ -25,6 +25,12 @@
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Stretched</string>
     <string name="ingame_other_options">Other options</string>
+    <string name="ingame_laser_section">Laser Sight</string>
+    <string name="ingame_laser_colour">Colour</string>
+    <string name="ingame_laser_red">Default (Red)</string>
+    <string name="ingame_laser_blue">Blue</string>
+    <string name="ingame_laser_green">Green</string>
+    <string name="ingame_laser_yellow">Yellow</string>
     <string name="ingame_minimap">Minimap</string>
     <string name="ingame_flares">Lens flares</string>
     <string name="ingame_dof">Depth of field</string>
