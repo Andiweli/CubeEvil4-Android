@@ -42,12 +42,13 @@
 // of Leon's from Leon's; what its player archive lacks (an empty tag, past its table) from Leon's archive,
 // which is read as well (the development half of MEM1: the radio, the rocket, the whistle); the events
 // and the radio screen show Leon from that archive, as their motions are his.
-// Their own melee moves (04.11.2026, patch 0197): the game picks them by pl_type (em10.cpp: HUNK's neck
-// break, Krauser's knee kick, Wesker's palm strike and heel), with the player's and the Ganado's motions
-// 0x2B4..0x2BD of the Ganado archive; only em/em10.drs, the one of The Mercenaries, has them, the story's
-// Ganados (em11..em1e) end at 0x2B3, and the empty entries made a motion of the REL behind the table (the
-// animation stood still, the Ganado slid about). Those ten entries are read from em10.drs once (loadMelee)
-// and stand in for the missing ones. The X button commands Ashley (wait / follow) as with Leon.
+// Their own moves on the Ganados (04.11.2026, patch 0197; 05.11.2026 all of them): the game picks them by
+// pl_type (em10.cpp: HUNK's neck break, Krauser's double kick and knee kick, Wesker's palm strike and heel, Ada's
+// kicks and grabs) from the Ganado archive, whose copies of The Mercenaries are made per character
+// (EmFileTbl_Ada/_Wesker/_Klauser, em46..em70); the story's Ganados (em11..em20) hold Leon's moves and lack
+// the melee block 0x2B4..0x2BD (the empty entries made a motion of the REL behind the table: the animation
+// stood still, the Ganado slid about). The character's entries are read from its Mercenaries file once
+// (loadStandInSet) and stand in for the story's. The X button commands Ashley (wait / follow) as with Leon.
 #include "types.h"
 #include "global.h"
 #include "item.h"
@@ -263,13 +264,43 @@ const char* const kAdaGripFile[3] = {"em/wep38.drs", "em/wep39.drs", "em/wep40.d
 const u8 kAdaGripNo[3] = {0xA, 0xC, 0xD};
 int gAdaGrips;  // bit k: kAdaGripFile[k] read
 
-// The stand-ins' melee moves: entries 0x2B4..0x2BD of em/em10.drs as an archive of their own (table, then the
-// motions at their 32-byte alignment), after Ada's grips
-const u32 kMeleeAddr = 0x82480000u;
-const u32 kMeleeMax = 0x40000u;
-const unsigned kMeleeFirst = 0x2B4;
-const unsigned kMeleeCount = 10;
-int gMelee;  // 1 read, -1 not readable
+// The stand-ins' own entries of the Ganado archives (patch 0197, 05.11.2026 for all of them; tester reports
+// 20261105-010526 and -162033: Krauser's knee kick played Wesker's palm strike, his kick no double kick and it
+// knocked nobody down). The game picks the Ganado file by the player (read.cpp EmFileTbl_Ada, _Wesker for HUNK
+// and Wesker, _Klauser): for The Mercenaries each character has its own copies of the Ganado kinds 0x16, 0x1C,
+// 0x1D, 0x1F and 0x20 (em46/4c/4d/4f/50 Ada, em56..60 HUNK and Wesker, em66..70 Krauser). Compared entry by
+// entry with the story's (em16, em1c, em1d, em1f, em20; debug, EU and US discs, disc 1 and 2 alike) they differ
+// only in the player's moves on a Ganado and the Ganado's answers to them: Ada 0xFB, 0x100, 0x101, 0x103,
+// 0x17A/0x17B, 0x1A7, 0x28F, 0x290, 0x292, 0x297..0x29E; Krauser 0x101, 0x103, 0x17A/0x17B, 0x1A7, 0x297..0x29E
+// (his double kick 0x29D/0x29E), 0x2B4..0x2B8 (his knee kick); HUNK and Wesker 0x2B4..0x2BB (neck break, palm
+// strike, heel kick), which the story's files lack altogether (they end at 0x2B3, em20 at its chainsaw walk
+// 0x2BC/0x2BD). The kind 0x20 file of a character holds all of them. They are read from it once per character
+// (loadStandInSet) to an archive of their own after Ada's grips and stand in for the story's entries (an
+// empty tag: the entry whose data it shares). Left out: Ada's em4d entry 0x18E, the stun rod Ganado's weapon
+// model, no motion. Leon and the stand-ins' own Mercenaries are not touched (only while a stand-in plays the
+// story).
+const u32 kSetAddr = 0x82480000u;
+const u32 kSetMax = 0x60000u;  // Ada's set: 0x41700 bytes
+const unsigned kSetLo = 0xFB;
+const unsigned kSetHi = 0x2BD;
+const unsigned kMeleeFirst = 0x2B4;  // the melee block, missing in the story's files
+u32 gSetEntry[kSetHi - kSetLo + 1];  // the character's entry (its address), 0: the story's own
+int gSetType;                        // the pl_type whose set is read, -pl_type: not readable
+
+struct StandInSet {
+    const char* file;
+    u16 idx[48];  // ends with 0
+};
+// pl_type 2..5: Ada, HUNK, Krauser, Wesker
+const StandInSet kStandInSet[4] = {
+    {"em/em50.drs", {0xFB,  0x100, 0x101, 0x103, 0x17A, 0x17B, 0x1A7, 0x28F, 0x290, 0x292, 0x297, 0x298, 0x299,
+                     0x29A, 0x29B, 0x29C, 0x29D, 0x29E, 0x2B4, 0x2B5, 0x2B6, 0x2B7, 0x2B8, 0x2B9, 0x2BA, 0x2BB,
+                     0x2BC, 0x2BD, 0}},
+    {"em/em60.drs", {0x2B4, 0x2B5, 0x2B6, 0x2B7, 0x2B8, 0x2B9, 0x2BA, 0x2BB, 0x2BC, 0x2BD, 0}},
+    {"em/em70.drs", {0x101, 0x103, 0x17A, 0x17B, 0x1A7, 0x297, 0x298, 0x299, 0x29A, 0x29B, 0x29C, 0x29D, 0x29E,
+                     0x2B4, 0x2B5, 0x2B6, 0x2B7, 0x2B8, 0x2B9, 0x2BA, 0x2BB, 0x2BC, 0x2BD, 0}},
+    {"em/em60.drs", {0x2B4, 0x2B5, 0x2B6, 0x2B7, 0x2B8, 0x2B9, 0x2BA, 0x2BB, 0x2BC, 0x2BD, 0}},
+};
 
 int gLeonCostume = -1;  // the costume of the archive at kLeonArcAddr, -1 none
 int gSwitched;          // the type the cheat gave the story's player (0: none)
@@ -453,33 +484,36 @@ void putBe32At(u8* p, u32 v)
     p[3] = (u8) v;
 }
 
-// The melee moves of the stand-ins (see the top), once: em10.drs's first part (the archive: its file header
-// names where), its table, then the bytes of entries 0x2B4..0x2BD up to the next entry or the REL. They go
-// to kMeleeAddr as an archive of ten entries, big-endian as on the disc, and are converted as a read archive
-// is (re4_formats_part_loaded). Read with DVDRead: none of the file's sounds reaches a sound block.
-void loadMelee()
+// The stand-in's entries of the Ganado archives (see kSetAddr), once per character: the file's first part (the
+// archive: its file header names where), its table, then the data of each listed entry (up to the next entry's
+// offset or the REL), each piece once (entries that share an offset share it). They go to kSetAddr as an archive
+// of their own, big-endian as on the disc with the tag of the entry that owns the data, and are converted as a
+// read archive is (re4_formats_part_loaded). Read with DVDRead: none of the file's sounds reaches a sound block.
+// On the GameCube the pieces would come in 32-byte steps; the archive keeps every offset at that alignment.
+void loadStandInSet(int type)
 {
-    if (gMelee) {
+    if (type < 2 || type > 5 || gSetType == type || gSetType == -type) {
         return;
     }
-    gMelee = -1;
-    static const char kFile[] = "em/em10.drs";
+    memset(gSetEntry, 0, sizeof(gSetEntry));
+    gSetType = -type;
+    const StandInSet& set = kStandInSet[type - 2];
     DVDFileInfo fi;
-    if (!DVDOpen((char*) kFile, &fi)) {
-        re4_log("cheat: %s not readable: the stand-ins' own melee moves are missing in the story", kFile);
+    if (!DVDOpen((char*) set.file, &fi)) {
+        re4_log("cheat: %s not readable: %s's own moves on the Ganados are missing in the story", set.file,
+                kCharName[type]);
         return;
     }
-    u8* const base = (u8*) (unsigned long) kMeleeAddr;
-    u8* const scratch = base + kMeleeMax;  // the file header and the table, read first
-    bool ok = false;
-    u32 partOfs = 0, partSize = 0, count = 0, rel = 0, lo = 0, hi = 0;
+    u8* const base = (u8*) (unsigned long) kSetAddr;
+    u8* const scratch = base + kSetMax;  // the file header and the table, read first
+    u32 partOfs = 0, partSize = 0, count = 0, rel = 0;
     if (DVDReadPrio(&fi, scratch, 0x400, 0, 2) == 0x400) {
         for (u32 at = 0x20; at + 0x20 <= 0x400; at += 0x20) {
-            u32 type = be32At(scratch + at);
-            if (type == 0xFFFFFFFFu) {
+            u32 kind = be32At(scratch + at);
+            if (kind == 0xFFFFFFFFu) {
                 break;
             }
-            if (type == TRANS_MRAM) {
+            if (kind == TRANS_MRAM) {
                 partSize = be32At(scratch + at + 4);
                 partOfs = be32At(scratch + at + 0xC);
                 break;
@@ -490,50 +524,103 @@ void loadMelee()
         count = be32At(scratch);
         rel = be32At(scratch + 4);
     }
-    u32 table = (0x10 + count * 8 + 0x1F) & ~0x1Fu;
-    if (count >= kMeleeFirst - 4 + kMeleeCount && count < 0x1000 && rel && rel <= partSize &&
-        DVDReadPrio(&fi, scratch, (s32) table, (s32) partOfs, 2) == (s32) table) {
-        lo = be32At(scratch + 0x10 + (kMeleeFirst - 4) * 4);
-        hi = rel;
-        for (u32 i = kMeleeFirst - 4 + kMeleeCount; i < count; i++) {
-            u32 o = be32At(scratch + 0x10 + i * 4);
-            if (o > lo && o < hi) {
-                hi = o;
+    const u32 table = (0x10 + count * 8 + 0x1F) & ~0x1Fu;
+    bool ok = count == 0x2BA && rel && rel <= partSize &&
+              DVDReadPrio(&fi, scratch, (s32) table, (s32) partOfs, 2) == (s32) table;
+    // the pieces: offset, end and the owning entry (the last one with that offset), in the file's order
+    enum { kPieces = 48 };
+    u32 pOfs[kPieces], pEnd[kPieces], pOwner[kPieces], pAt[kPieces];
+    unsigned n = 0;
+    for (unsigned k = 0; ok && set.idx[k]; k++) {
+        unsigned no = set.idx[k];
+        u32 o = be32At(scratch + no * 4);
+        if (o >= rel) {
+            continue;  // none in this file
+        }
+        bool have = false;
+        for (unsigned j = 0; j < n; j++) {
+            have = have || pOfs[j] == o;
+        }
+        if (have) {
+            continue;
+        }
+        u32 end = rel;
+        unsigned owner = no;
+        for (u32 i = 4; i < count + 4; i++) {
+            u32 oi = be32At(scratch + i * 4);
+            if (oi > o && oi < end) {
+                end = oi;
+            }
+            if (oi == o && i > owner) {
+                owner = i;
             }
         }
-        u32 len = (hi - lo + 0x1F) & ~0x1Fu;
-        const u32 head = 0x80;  // 0x10 + 10 offsets + 10 tags, rounded up to 32 bytes
-        if (!(lo & 0x1F) && lo < hi && head + len <= kMeleeMax && lo + len <= partSize) {
-            u8 tbl[0x10 + kMeleeCount * 8];
-            memset(tbl, 0, sizeof(tbl));
-            putBe32At(tbl, kMeleeCount);
-            for (u32 k = 0; k < kMeleeCount; k++) {
-                u32 o = be32At(scratch + 0x10 + (kMeleeFirst - 4 + k) * 4);
-                putBe32At(tbl + 0x10 + k * 4, o < lo || o > hi ? head + (hi - lo) : o - lo + head);
-                memcpy(tbl + 0x10 + kMeleeCount * 4 + k * 4, scratch + 0x10 + count * 4 + (kMeleeFirst - 4 + k) * 4, 4);
-            }
-            memset(base, 0, head);
-            memcpy(base, tbl, sizeof(tbl));
-            ok = DVDReadPrio(&fi, base + head, (s32) len, (s32) (partOfs + lo), 2) == (s32) len;
-            if (ok) {
-                DvdHeader h;
-                memset(&h, 0, sizeof(h));
-                h.type = TRANS_MRAM;
-                h.size = head + (hi - lo);
-                h.dest = kMeleeAddr;
-                re4_formats_part_loaded("em/em10_melee.drs", 0, 0, &h, kMeleeAddr);
+        if (n == kPieces || (o & 0x1F) || end <= o) {
+            ok = false;
+            break;
+        }
+        unsigned at = n;
+        while (at > 0 && pOfs[at - 1] > o) {  // sorted by offset: the converter sizes by the next one
+            pOfs[at] = pOfs[at - 1];
+            pEnd[at] = pEnd[at - 1];
+            pOwner[at] = pOwner[at - 1];
+            at--;
+        }
+        pOfs[at] = o;
+        pEnd[at] = end;
+        pOwner[at] = owner;
+        n++;
+    }
+    const u32 head = (0x10 + n * 8 + 0x1F) & ~0x1Fu;
+    u32 total = head;
+    for (unsigned j = 0; ok && j < n; j++) {
+        pAt[j] = total;
+        total += (pEnd[j] - pOfs[j] + 0x1F) & ~0x1Fu;
+        ok = total <= kSetMax;
+    }
+    if (ok && n) {
+        u8 tbl[0x10 + kPieces * 8];
+        memset(tbl, 0, sizeof(tbl));
+        putBe32At(tbl, n);
+        for (unsigned j = 0; j < n; j++) {
+            putBe32At(tbl + 0x10 + j * 4, pAt[j]);
+            memcpy(tbl + 0x10 + n * 4 + j * 4, scratch + 0x10 + count * 4 + (pOwner[j] - 4) * 4, 4);
+        }
+        for (unsigned j = 0; ok && j < n; j++) {
+            u32 len = (pEnd[j] - pOfs[j] + 0x1F) & ~0x1Fu;
+            ok = DVDReadPrio(&fi, base + pAt[j], (s32) len, (s32) (partOfs + pOfs[j]), 2) == (s32) len;
+        }
+        // the table last: the reads above used the scratch place's table, which lies after the set
+        memset(base, 0, head);
+        memcpy(base, tbl, 0x10 + n * 8);
+    }
+    if (ok && n) {
+        for (unsigned k = 0; set.idx[k]; k++) {
+            u32 o = be32At(scratch + set.idx[k] * 4);
+            for (unsigned j = 0; j < n; j++) {
+                if (pOfs[j] == o) {
+                    gSetEntry[set.idx[k] - kSetLo] = kSetAddr + pAt[j];
+                }
             }
         }
+        DvdHeader h;
+        memset(&h, 0, sizeof(h));
+        h.type = TRANS_MRAM;
+        h.size = total;
+        h.dest = kSetAddr;
+        re4_formats_part_loaded(set.file, 0, 0, &h, kSetAddr);
     }
     DVDClose(&fi);
-    if (!ok) {
-        re4_log("cheat: %s has no melee moves at 0x%x..0x%x (%u entries, REL at 0x%x)", kFile, kMeleeFirst,
-                kMeleeFirst + kMeleeCount - 1, (unsigned) count, (unsigned) rel);
+    if (!ok || !n) {
+        memset(gSetEntry, 0, sizeof(gSetEntry));
+        re4_log("cheat: %s has not %s's moves on the Ganados (%u entries, REL at 0x%x)", set.file, kCharName[type],
+                (unsigned) count, (unsigned) rel);
         return;
     }
-    gMelee = 1;
-    re4_log("cheat: the stand-ins' melee moves 0x%x..0x%x from %s (%u bytes) read to 0x%08x", kMeleeFirst,
-            kMeleeFirst + kMeleeCount - 1, kFile, (unsigned) (0x80 + hi - lo), (unsigned) kMeleeAddr);
+    gSetType = type;
+    re4_log("cheat: %s's own moves on the Ganados: %u entries 0x%x..0x%x from %s (%u bytes) read to 0x%08x",
+            kCharName[type], (unsigned) n, (unsigned) set.idx[0], (unsigned) kSetHi, set.file, (unsigned) total,
+            (unsigned) kSetAddr);
 }
 
 // Which of Ada's grips holds Leon's weapon `no`: 1 the TMP's (his TMP), 2 the rifle's (shotguns, rifles, the
@@ -563,8 +650,12 @@ int adaGripOf(int no)
 }
 
 // The weapon numbers a character has files of its own for (read.cpp wep_data_*, ss_model.cpp
-// weaponFilename): the knife, its Mercenaries weapons and the grenades
-bool ownWeapon(int type, int no)
+// weaponFilename): the knife, its Mercenaries weapons and the grenades. HUNK's TMP (wep29, Leon's wep11 code)
+// only without the stock: its models for the weapon types 1..3 (0x7..0x9, the TMP with the stock and its
+// variants) are a placeholder of a few points, the TMP vanished from his hands (tester report 20261105-010526);
+// with the stock it is Leon's TMP, as each of his weapons the character has none of its own for. `wtype` is
+// the weapon type (pG->weapon_type of the weapon held).
+bool ownWeapon(int type, int no, int wtype)
 {
     switch (no) {
     case 0x00:
@@ -580,7 +671,7 @@ bool ownWeapon(int type, int no)
     case 2:
         return no == 0x01 || no == 0x0A || no == 0x0B;
     case 3:
-        return no == 0x0B;
+        return no == 0x0B && wtype == 0;
     case 4:
         return no == 0x1C;
     case 5:
@@ -590,6 +681,12 @@ bool ownWeapon(int type, int no)
 }
 
 }  // namespace
+
+extern "C" {
+// re4_whole_prelude.h re4_arc_entry: 1 while a stand-in plays the story with its own Ganado entries read
+// (every index 0x0FB..0x2BD of a Ganado archive then asks re4_arc_stand_in)
+int re4_story_ganado;
+}
 
 int re4CheatPerform(int what)
 {
@@ -723,6 +820,7 @@ void re4_story_char_room(void)
 {
     if (!storyGame()) {
         gSwitched = 0;
+        re4_story_ganado = 0;
         return;
     }
     int costume = wantedCostume();
@@ -750,11 +848,12 @@ void re4_story_char_room(void)
     }
     if (standIn()) {
         loadLeon(leonCostume());
-        loadMelee();
+        loadStandInSet(pG->pl_type);
         if (pG->pl_type == 2) {
             loadAdaGrips();
         }
     }
+    re4_story_ganado = standIn() && gSetType == pG->pl_type;
 }
 
 // 1 while Ada, HUNK, Krauser or Wesker plays the story for Leon (the instant save allows them, 04.11.2026)
@@ -786,7 +885,7 @@ int re4_story_char_costume(void)
 // the sub screen shows the character without a weapon (ss_model.cpp)
 int re4_story_char_leon_weapon(int no)
 {
-    return standIn() && !ownWeapon(pG->pl_type, no);
+    return standIn() && !ownWeapon(pG->pl_type, no, no == pG->weapon_no ? pG->weapon_type : 0);
 }
 
 // Patch 0196 (pl02.cpp cPlAda::setRightHand): Ada's own grip hand for the weapon she holds when it is one
@@ -813,6 +912,21 @@ int re4_story_char_left_grip(void)
     return kLeft[adaGripOf(pG->weapon_no)];
 }
 
+// Patch 0200 (cam_extra.cpp CameraScope, CameraBinocular; cam_ctrl.cpp StartLookDownEm): the eyes of HUNK
+// standing in for Leon. His model has none at parts 0x20/0x21 (0x20 at his chest, 0x21 at the root), the
+// first-person cameras looked from his hips; `out` becomes the point where Leon's eyes sit in the head part 4
+// (measured: 0, 76, 85 for Leon, Wesker alike, Krauser 0, 81, 85; the head part is the same bone for all).
+// 1 when it did.
+int re4_story_char_eyes(Vec* out)
+{
+    static const Vec kEyes = {0.0f, 76.0f, 85.0f};
+    if (!pG || !pPL || !standIn() || pG->pl_type != 3 || pPL->nParts <= 4) {
+        return 0;
+    }
+    PSMTXMultVec(pPL->getPartsPtr(4)->mat, &kEyes, out);
+    return 1;
+}
+
 // Krauser's weapon buffer when gameInit made none (he took over a story started with Leon)
 void* re4_story_char_wep_place(void)
 {
@@ -829,17 +943,33 @@ void* re4_story_char_wep_place(void)
 void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v)
 {
     void* fallback = (void*) (size_t) (unsigned int) (v + (unsigned int) (size_t) arc);
-    // a Ganado archive (0x2BA entries) without the stand-ins' melee moves: em10.drs's (loadMelee)
-    if (no - kMeleeFirst < kMeleeCount && gMelee > 0 && pG && arc != (const void*) pG->pPlayer && standIn() &&
-        ((const u32*) arc)[0] == 0x2BA) {
-        static u16 logged;
-        if (!(logged & (1 << (no - kMeleeFirst)))) {
-            logged |= (u16) (1 << (no - kMeleeFirst));
-            re4_log("cheat: %s plays: Ganado archive index 0x%x from em10.drs (a melee move)",
-                    kCharName[pG->pl_type & 7], no);
+    // a Ganado archive (0x2BA entries) while a stand-in plays the story: the character's own entry
+    // (loadStandInSet). The entry whose data the game takes: an empty tag shares the next entry's (the last
+    // with that offset); the melee block 0x2B4..0x2BD by its own number (the story's files lack it, em20's
+    // empty ones share its chainsaw walk 0x2BC)
+    if (no - kSetLo <= kSetHi - kSetLo && gSetType > 0 && pG && arc != (const void*) pG->pPlayer && standIn() &&
+        gSetType == pG->pl_type && ((const u32*) arc)[0] == 0x2BA) {
+        const u32* ofs = (const u32*) arc;
+        unsigned k = no;
+        if (no < kMeleeFirst && ofs[no] != ofs[1]) {
+            while (k < kSetHi && ofs[k + 1] == ofs[no]) {
+                k++;
+            }
         }
-        const u32* ofs = (const u32*) (unsigned long) kMeleeAddr;
-        return (void*) (size_t) (ofs[4 + no - kMeleeFirst] + kMeleeAddr);
+        u32 at = gSetEntry[k - kSetLo];
+        if (at) {
+            static u8 logged[(kSetHi - kSetLo + 8) / 8];
+            unsigned bit = no - kSetLo;
+            if (!(logged[bit >> 3] & (1 << (bit & 7)))) {
+                logged[bit >> 3] |= (u8) (1 << (bit & 7));
+                re4_log("cheat: %s plays: Ganado archive index 0x%x from %s (own move%s)", kCharName[pG->pl_type & 7],
+                        no, kStandInSet[pG->pl_type - 2].file, k != no ? ", shared entry" : "");
+            }
+            return (void*) (size_t) at;
+        }
+        if (no >= kMeleeFirst || no - 4 >= ofs[0]) {
+            return fallback;
+        }
     }
     if (no < 0x1B || no >= 0x100 || !pG || arc != (const void*) pG->pPlayer || !re4_story_char_leon()) {
         return fallback;

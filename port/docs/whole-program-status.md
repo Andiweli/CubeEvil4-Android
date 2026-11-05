@@ -3,6 +3,86 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.98.3-beta: drei Nutzerberichte zu 0.98.2 (05.11.2026, Branch `work`, Patch 0200)
+
+Version 0.98.3-beta (versionCode 97), Releasetext `port/android-decomp/docs/releases/v0.98.3-beta.md`. WSL-Baum
+`~/re4-0983/RE4` (aus `~/re4-0982` kopiert, Bauordner umgeschrieben; die geänderten Dateien aus dem Worktree
+hineinkopiert, weil git in WSL den Worktree nicht lesen kann). Berichte (alle 0.98.2-beta-core):
+`report-20261104-191700` (Samsung SM-A135M), `report-20261105-010526` (moto g24 power, Bild `hunk-tmp-invisible.jpg`),
+`report-20261105-162033` (Xiaomi 2201116TG). Zuordnung: 162033 enthält die Stellvertreter in der Geschichte (Krauser
+ab r225, Wesker und HUNK in r21a, HUNK in r225, „Krauser plays … 0x2b7/0x2b8/0x2b4“); 010526 enthält nur Mercenaries
+mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen Protokollen (das Bild zeigt sie).
+
+1. **Stellvertreter: eigene Bewegungen in den Ganado-Dateien (Krausers Doppeltritt, sein Kniestoß, Adas Tritt und
+   Griffe).** Das Spiel wählt die Ganado-Datei nach der Figur (`read.cpp` `EmFileTbl_Ada`, `_Wesker` für HUNK und
+   Wesker, `_Klauser`): für die Mercenaries hat jede Figur eigene Fassungen der Ganado-Arten 0x16, 0x1C, 0x1D, 0x1F,
+   0x20 (em46/4c/4d/4f/50 Ada, em56…60 HUNK/Wesker, em66…70 Krauser). **Alle Einträge verglichen** (je Eintrag MD5;
+   Debug-, EU- und US-Discs, je Disc 1 und 2: überall gleich): sie unterscheiden sich von den Fassungen der
+   Geschichte (em16, em1c, em1d, em1f, em20) nur in den Bewegungen der Figur am Ganado und den Antworten des Ganados:
+
+   | Figur | Einträge | Inhalt |
+   |---|---|---|
+   | Ada | 0xFB, 0x100, 0x101, 0x103, 0x17A/0x17B, 0x1A7, 0x28F, 0x290, 0x292, 0x297..0x29E | Griffe, Tritt 0x29D, Stromstoß des Elektrostab-Ganados 0x1A7 |
+   | Krauser | 0x101, 0x103, 0x17A/0x17B, 0x1A7, 0x297..0x29E, 0x2B4..0x2B8 | Doppeltritt 0x29D/0x29E (in der Geschichte Leons Einzeltritt, dessen Ablauf keine Trefferbilder für Krausers `plem10Kick2` hat), Kniestoß 0x2B4 und die Antwort 0x2B7/0x2B8 |
+   | HUNK, Wesker | 0x2B4..0x2BB | Genickbruch, Handstoß, Fersentritt (fehlen den Dateien der Geschichte ganz) |
+
+   Bisher nahmen die Stellvertreter seit Patch 0197 nur 0x2B4..0x2BD aus `em/em10.drs` (dem Mercenaries-Ganado mit
+   HUNKs und Weskers Satz): Krauser bekam damit Weskers Handstoß als Kniestoß (Bericht 010526: „Krauser spielt eine
+   Animation von Wesker“) und Leons Tritt aus der Geschichte (Bericht 162033: kein Doppeltritt, wirft nicht um).
+   Adas Einträge 0x163..0x179 sind leere Einträge, die 0x17A mitbenutzen. Ausgelassen: Adas em4d-Eintrag 0x18E (das
+   Waffenmodell des Elektrostab-Ganados, keine Bewegung).
+   **Jetzt (`runtime/cheats.cpp` `loadStandInSet`, ersetzt `loadMelee`):** beim Raumstart mit einem Stellvertreter
+   werden die Einträge seiner Liste einmal aus seiner Datei der Art 0x20 gelesen (`em50` Ada 248 KB, `em60`
+   HUNK/Wesker 109 KB, `em70` Krauser 214 KB; jede hält alle Einträge der Figur), als eigenes Archiv nach 0x82480000
+   (Platz jetzt 0x60000), umgewandelt wie jedes gelesene Archiv. `re4_whole_prelude.h` `re4_arc_entry`: solange
+   `re4_story_ganado` gesetzt ist, fragt jeder Index 0xFB..0x2BD eines Archivs mit 0x2BA Einträgen
+   `re4_arc_stand_in`; der nimmt den Eintrag der Figur für den Eintrag, dessen Daten das Spiel liest (bei einem
+   leeren Eintrag den letzten mit gleichem Versatz; den Nahkampf-Block 0x2B4..0x2BD nach eigener Nummer, weil em20
+   dort leere Einträge auf seinen Kettensägen-Gang 0x2BC hat). Typabhängige Einträge (0xFB..0x103, 0x1A7: nur manche
+   Ganado-Arten haben sie) werden so nur ersetzt, wo die Art sie hat. **Regel vorab in Python geprüft:** für die Art
+   0x20 ergibt sie Eintrag für Eintrag die Mercenaries-Fassung der Figur; bei den anderen vier Arten bleiben nur
+   Einträge, die deren Mercenaries-Fassung gar nicht hat (dort wie bisher aufgefüllt), und Adas 0x18E. Leon, Ashleys
+   Abschnitt und die Mercenaries-/Ada-Spiele unverändert (nur mit Stellvertreter in der Geschichte).
+   **Geprüft am PC (i686 -O2, r103, Debug-Discs, Ganado geblendet vor der Figur, `RE4_TEST_STUN`, A gedrückt):**
+   Krauser „plays 0x29d/0x29e from em/em70.drs“, zwei Treffer (Art 0x24, 1200 → 720/800, dann 0x14 → 0, Routine
+   2/4: umgeworfen) in sechs Läufen; vorher ein Treffer, der Ganado blieb stehen (2/0). Adas Tritt aus em50, im selben
+   Lauf die Griffe 0x28F/0x290/0x297/0x298 aus em50. HUNK Genickbruch aus em60 (Ganado stirbt). Leon unverändert
+   (Tritt 1200 → 960 im selben Bild wie vorher). Ganado-Antwort auf den Kniestoß (`RE4_TEST_STUN=…:14`) und den
+   Fersentritt (`:13`): Krauser nimmt seine 55-Bilder-Bewegung aus em70, Wesker seine 38-Bilder-Bewegung aus em60.
+   Krausers Kniestoß selbst nicht ausgelöst (braucht einen Beintreffer, Dm_Small Art 8; der Testschalter setzt das
+   nicht), Weskers Handstoß in der Laufzeit nicht ausgelöst (der Ganado taumelte aus der Reichweite, wie vor der
+   Änderung). Adas Stromstoß 0x1A7 nur durch den Datenvergleich geprüft. 0 „Invalid Seq“, 0 HALT.
+2. **HUNKs TMP mit Schaft unsichtbar (Bild im Bericht 010526).** HUNKs TMP (`wep29`, Leons `wep11`-Code) wählt das
+   Modell nach dem Waffentyp (`objMachinegun.cpp`: 0x6..0x9); HUNKs Datei hat nur 0x6, die Einträge 0x7..0x9 (Typ
+   1..3: die TMP mit Schaft und ihre Abarten) teilen sich ein Platzhalter-Modell von 0x320 Bytes. Mit Schaft
+   (Gegenstand 0x31, Typ 1) war die Waffe darum weg, der Laser blieb. **Jetzt (`cheats.cpp` `ownWeapon`):** HUNKs
+   eigene TMP nur ohne Schaft; mit Schaft Leons TMP-Datei wie jede seiner Waffen, für die die Figur keine eigene hat
+   (`re4_story_char_leon_weapon` nimmt den Typ der gehaltenen Waffe). Alle eigenen Waffendateien der Stellvertreter
+   durchgesehen: nur diese hat die Lücke (Adas TMP `wep39` nimmt immer 0x6, Adas und Weskers Gewehre `wep40`/`wep47`
+   und Weskers Pistole `wep43` haben beide Modelle). **Geprüft (GX-Bilder r103, `RE4_TEST_WEAPON=free+20:11,1`):**
+   HUNK hält mit Schaft Leons TMP (`Wep11 MACHINEGUN prolog Ok`, sichtbar wie bei Leon), ohne Schaft seine eigene
+   (`Wep29`). In der Koffer-Ansicht steht HUNK mit der TMP mit Schaft wie bei Leons anderen Waffen mit dem Messer (so gebaut, nicht angesehen).
+3. **HUNKs Zielfernrohr „fällt nach unten“ (Bericht 162033).** Zielfernrohr (`CameraScope`), Fernglas
+   (`CameraBinocular`) und der Blick nach unten (`StartLookDownEm`) beginnen zwischen den Teilen 0x20/0x21 (Augen).
+   Gemessen (Leons Gewehr, r103, Höhe über den Füßen): Leon 1638/1642, Ada, Krauser und Wesker ebenso; HUNK 1132
+   (Brust) und −61 (Wurzel): Blick aus Hüfthöhe (~535). Der Blick war ruhig, nur zu tief (GX-Bilder: deutlich tiefer
+   als Leon). **Patch 0200:** mit HUNK als Stellvertreter beginnen die drei Kameras an Leons Augenpunkt im Kopfteil 4
+   (gemessen 0/76/85; die Teile 0..25 liegen bei Leon und HUNK gleich), `re4_story_char_eyes`. **Geprüft:** GX-Bild
+   durchs Zielfernrohr mit HUNK jetzt wie mit Leon (gleicher Ausschnitt). Fernglas und Blick nach unten nicht eigens
+   angesehen.
+4. **Zwischensequenzen nicht synchron (Bericht 191700, Samsung SM-A135M, Exynos 850: acht kleine Kerne, gemeldet
+   1586 MHz).** Ursache ist die Rechenleistung, kein Fehler der Ereignis-Wiedergabe: `GX core: 600 chunks, 45.4 ms
+   each, of it 2.3 ms waiting for the renderer, 0.6 ms idle … 42.4 ms of processor time` (r100): der Spiel-Thread
+   selbst braucht 41–45 ms je Bild statt 33,3 ms, das Spiel läuft mit etwa 75–80 % Tempo (gezählt 23–28 Bilder je
+   Sekunde). Der Ton läuft in Echtzeit (`audio: 2000 blocks` je 10 s, der DSP je Block), die Stimmen der Szenen
+   laufen darum dem Bild davon. Andere Geräte in den Berichten brauchen 10–19 ms je Bild. Frame skip ändert daran
+   nichts: es lässt nur Bilder aus, wenn die Grafik hinterher ist (hier 1000 ausgelassen), das Spieltempo bleibt.
+   Die veränderten Disc-Daten des Testers (EU-Discs, 172/145 Dateien anders: `Evd/*.evd`, `ss/Esp/*`, `St*/r*.das`,
+   `etc/movie.das`, `op/*.das`, `sys/fst.bin`; vermutlich eine spanische Fan-Vertonung) können zusätzlich
+   verschieben, falls die neuen Stimmen anders lang sind; ohne die Dateien nicht prüfbar. Für den Tester: „Force
+   Performance“ an, Auflösung 1×, FXAA und anisotrope Filterung aus; mit unveränderten Discs gegenprüfen. Im Code
+   nichts geändert; im Releasetext als bekanntes Problem.
+
 ## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte, Laserfarbe; Minikarte und Lichthöfe überarbeitet (04.11.2026, Branch `work`, Patches 0198, 0199)
 
 Version 0.98.2-beta (versionCode 96), Releasetext `port/android-decomp/docs/releases/v0.98.2-beta.md`. WSL-Baum
@@ -11935,6 +12015,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0197 `player.h`, `pl_klauser.cpp` | Stellvertreter in der Geschichte: der X-Knopf gibt Ashley „Warten/Folgen“ wie bei Leon (`re4_story_char_xbutton`, `runtime/cheats.cpp`); Krauser behält seinen Armangriff, wenn Ashley nicht da ist. Port-Funktion (Cheat-Menü), Meldung des Projektinhabers 04.11.2026 |
 | 0198 `esp_app.cpp`, `objWep.cpp` | Farbe des Laservisiers: nach `EspDrawLaserLine` (Strahl, est 3) und `drawPoint` (Punkt, est 0x50) ruft das Spiel `re4_laser_tint` (`runtime/laser_colour.cpp`); Standard (Rot) ändert nichts. Port-Funktion, Wunsch des Projektinhabers 04.11.2026 |
 | 0199 `examine.cpp` | Fundfenster wie die Verkaufsfassungen: mit Verkaufs-Discs die drei Zeilen von `exam_info`, die deren main.dol (EU, US, JP gleich) anders hat: Geldtruhen 0x78/0x79 Teiler 1,1/1,4 statt 0,8/1,1 (größer), 0x6D. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Meldung des Projektinhabers 04.11.2026 |
+| 0200 `cam_extra.cpp`, `cam_ctrl.cpp` | HUNK als Stellvertreter: Zielfernrohr, Fernglas und Blick nach unten (`StartLookDownEm`) beginnen an Leons Augenpunkt im Kopfteil 4 (`re4_story_char_eyes`, `runtime/cheats.cpp`) statt zwischen den Teilen 0x20/0x21, die HUNKs Modell an Brust und Wurzel hat. Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

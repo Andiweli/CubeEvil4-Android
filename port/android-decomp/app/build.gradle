@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 96
+        versionCode 97
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -68,8 +68,9 @@ android {
         // Ada's hair after a beheading), then 0.98.0 (wish of the project owner, 03.11.2026: the story characters,
         // the retail shoulder camera, the attache case light crash; after 0.97.1 of 02.11.2026: the retail merchant, then 0.98.1 (wish of the
         // project owner, 04.11.2026: the Android 16 data folder, the PSone demake's textures, the gondola's instant save), then 0.98.2
-        // (wish of the project owner, 04.11.2026: Android Automotive, the instant save in more rooms)
-        versionName '0.98.2-beta'
+        // (wish of the project owner, 04.11.2026: Android Automotive, the instant save in more rooms), then 0.98.3
+        // (the tester reports of 05.11.2026: the stand-ins' own moves on the Ganados, HUNK's TMP and scope)
+        versionName '0.98.3-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

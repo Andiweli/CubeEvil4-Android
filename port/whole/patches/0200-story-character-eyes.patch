@@ -1,0 +1,56 @@
+# The story with another player character, continued (tester report 20261105-162033: "HUNK's sniper rifle scope
+# drops down when aiming"). The first-person cameras (the rifle scope CameraScope, the binoculars CameraBinocular,
+# the look down on an enemy StartLookDownEm) start at the middle of the player's eyes, parts 0x20 and 0x21. Leon,
+# Ada, Krauser and Wesker have them at eye height (measured with Leon's rifle aimed, r103: 1640 above the feet);
+# HUNK's model has no eyes there (0x20 sits at his chest, 1132, 0x21 at the root, -61): his scope looked from his
+# hips. While HUNK stands in for Leon the cameras take the point where Leon's eyes sit in the head part 4 (the
+# same bones for both, runtime/cheats.cpp re4_story_char_eyes). HUNK's own games have no such camera.
+# Not a bug of the prototype: a port feature (the cheat menu, patch 0195). Without HUNK as a stand-in nothing
+# changes.
+--- a/src/game/cam_extra.cpp
++++ b/src/game/cam_extra.cpp
+@@ -11,6 +11,7 @@
+ #include "db_log.h"
+ #include "math_sub.h"
+ extern "C" f32 re4_aim_speed(void); /* port: runtime/aim_options.cpp (patch 0151) */
++extern "C" int re4_story_char_eyes(Vec* out); /* port: runtime/cheats.cpp (patch 0200) */
+ #include "model.h"
+ #include "motion.h"
+ #include "player.h"
+@@ -230,6 +231,8 @@
+         p[1] = pPL->getPartsPtr(0x21);
+         PSVECAdd(&p[0]->world, &p[1]->world, &pos_ofs);
+         PSVECScale(&pos_ofs, &pos_ofs, 0.5f);
++        /* PORT (patch 0200): HUNK standing in for Leon has no eyes there: the point of Leon's */
++        re4_story_char_eyes(&pos_ofs);
+         cPlayer* pl = pPL;
+ 
+         d = &m_rad;
+@@ -551,6 +554,8 @@
+         p[1] = pPL->getPartsPtr(0x21);
+         PSVECAdd(&p[0]->world, &p[1]->world, &c);
+         PSVECScale(&c, &c, 0.5f);
++        /* PORT (patch 0200): HUNK standing in for Leon has no eyes there: the point of Leon's */
++        re4_story_char_eyes(&c);
+         up.x = pPL->mat[0][2];
+         up.y = pPL->mat[1][2];
+         up.z = pPL->mat[2][2];
+--- a/src/game/cam_ctrl.cpp
++++ b/src/game/cam_ctrl.cpp
+@@ -12,6 +12,7 @@
+ #include "atari.h"
+ #include "light.h"
+ extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_story_char_eyes(Vec* out); /* port: runtime/cheats.cpp (patch 0200) */
+ #include "model.h"
+ #include "player.h"
+ #include "em.h"
+@@ -2282,6 +2283,8 @@
+     p[1] = pPL->getPartsPtr(0x21);
+     PSVECAdd(&p[0]->world, &p[1]->world, &c);
+     PSVECScale(&c, &c, 0.5f);
++    /* PORT (patch 0200): HUNK standing in for Leon has no eyes there: the point of Leon's */
++    re4_story_char_eyes(&c);
+     m_pProc = new (m_Free) CameraLookDownEm(pEm, &c);
+     r0 = 0xD;
+     AreaCheckOnOff(0);
