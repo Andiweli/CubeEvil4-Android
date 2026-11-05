@@ -174,7 +174,11 @@ public class CoreMenuLayoutTest {
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
       MenuLayout.Keys keys = findKeys(root);
       assertNotNull(keys);
-      assertEquals(8, keys.getChildCount());
+      assertEquals(9, keys.getChildCount());  // the levels and the benchmark (05.11.2026)
+      View benchKey = keys.getChildAt(8);
+      assertEquals(activity.getString(R.string.ingame_benchmark), ((Button) benchKey).getText().toString());
+      assertEquals("the benchmark under Dynamic", keys.getChildAt(0).getLeft(), benchKey.getLeft());
+      assertTrue("the benchmark in the second row", benchKey.getTop() >= keys.getChildAt(0).getBottom());
       String[] labels = {activity.getString(R.string.ingame_dynamic), "1×", "2×", "3×", "4×", "1.5×", "2.5×", "3.5×"};
       for (int i = 0; i < 8; i++) assertEquals(labels[i], ((Button) keys.getChildAt(i)).getText().toString());
       assertTrue("3x chosen before stays chosen", keys.getChildAt(3).isSelected());

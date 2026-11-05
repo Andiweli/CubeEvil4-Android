@@ -278,12 +278,13 @@ string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_formats_obj>\n")
 # picture format without the letterbox (runtime/picture.cpp), the knife by a swipe
 # (runtime/knife_swipe.cpp) and the quick-time events by a tap (runtime/qte_touch.cpp), and the instant save payload (runtime/instant_game.cpp),
 # the game language (runtime/game_language.cpp), the cheat menu (runtime/cheats.cpp) and the outline of the
-# app's minimap (runtime/minimap.cpp) and the laser sight's colour (runtime/laser_colour.cpp).
+# app's minimap (runtime/minimap.cpp), the laser sight's colour (runtime/laser_colour.cpp) and the benchmark
+# (runtime/benchmark.cpp).
 add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge.cpp runtime/movie_status.cpp
     runtime/dof.cpp runtime/gyro.cpp runtime/menu_touch.cpp runtime/picture.cpp runtime/knife_swipe.cpp
     runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp runtime/cheats.cpp
     runtime/gx_owner.cpp runtime/potato.cpp runtime/aim_options.cpp
-    runtime/sound_volume.cpp runtime/minimap.cpp runtime/laser_colour.cpp)
+    runtime/sound_volume.cpp runtime/minimap.cpp runtime/laser_colour.cpp runtime/benchmark.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")

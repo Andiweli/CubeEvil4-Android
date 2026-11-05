@@ -79,6 +79,39 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
    rechts (`CoreMenu.Heading`). Geprüft: `check_translations.py` ok, `testCoreDebugUnitTest` ok, Menübilder aller
    Seiten in 11 Sprachen angesehen (Stichproben de, en, ar, ru, hi). Nicht auf einem Gerät angesehen.
 
+16. **Nachtrag (vier Punkte des Projektinhabers, Material `reports/0984b-20261105`):**
+   - **Händler, „hoher Preis“ (Patch 0207):** der Prototyp wählt beim Verkaufen die Zeile 7 („Ahhh … zu einem hohen
+     Preis“, Stimme 0xB5) über 9 999 Peseten nur in Stage 1, ab Stage 2 erst über 29 999 (`ss_shop.cpp`). Die
+     EU-`Sscrn.rel` vergleicht überall mit 9 999 (0x247a4, keine Stage-Abfrage; `retail_code.py word/dis`), die US-Fassung
+     hat noch die Regel des Prototyps. Der Projektinhaber verkaufte in r214 (Stage 2). Jetzt wie die EU-Fassung mit allen
+     Discs. Geprüft: Code-Vergleich, Bau; den Verkauf selbst nicht im Spiel nachgestellt.
+   - **Benchmark (Anzeige → GRAFIK, unter „Dynamisch“, gedämpft):** `runtime/benchmark.cpp` (über den Cheat-Kanal
+     20 Stelle, 22 zurück, 23 Zustand; im eigenen Kernprozess ebenso), **Patch 0208** (`em.cpp`: Gegner stehen still;
+     `camera.cpp`: die Kamera kreist in 20 s einmal um Leon, 10 m Abstand, 4 m hoch, nach der Spielkamera und vor der
+     Projektion), App `core_mode.cpp` `LevelBench`: Stelle r11b, Steg mit Fackel und Boot im Regen (R3-Position des
+     Projektinhabers 127708/−175/171017); **nur diese Stelle (Entscheidung des Projektinhabers, 05.11.2026); die
+     Hängebrücke in r104 fällt vorerst weg** (ihre Lage war nicht zu finden: die Startposition seines Spielstands liegt
+     im Haus, die Fläche 0x0a an einer Mauer). Ablauf: Schnellspeicher in den Speicher, Sprung (`SceAtExecRoomJump`,
+     `DBG_NO_EVENT`, START gegen laufende Szenen), R gehalten (Leon zielt), 30 FPS dann 60 FPS: ab 4× alle 5 s eine
+     halbe Stufe tiefer, bis eine Stufe hält (je Sekunde ≥ 29 Spielbilder, bei 60 FPS zusätzlich ≥ 58 gezeigte Bilder
+     und kein ausgelassenes Zwischenbild); zurück per Schnellspeicher (geht das Laden noch nicht, erst Raumsprung an die
+     Ausgangsstelle). Ergebnis je Gerät in den Grafik-Einstellungen (`dynamicCap30/60`): „Dynamisch“ startet höchstens
+     dort (60 FPS an: der 60er-Wert). Spieler-Eingaben ruhen während des Laufs, B/Zurück/Esc bricht ab, Ende als
+     Dialog. **Nur im Dorf-Teil (Stage 1):** aus Stage 2 stürzte r11b beim Laden ab (Debug-Discs aus r204: das Boot
+     aus einem leeren Gegnerlisten-Eintrag, `R11bInit` → `setPos` auf 0), danach kommt das Spiel nie mehr dorthin; sonst
+     Meldung. **Geprüft am PC (`RE4_TEST_BENCH`, i686, Debug- und EU-Discs aus r103):** Sprung, Kamera kreist, Gegner
+     still, zurück in r103 an die alte Stelle; Stage 2 lehnt ab. US-Discs nicht (Debug-Start der Prüfstrecke geht dort
+     nicht in r103). Die Messung selbst (Render-Thread) **nur übersetzt, nicht auf einem Gerät gelaufen**.
+   - **Menü-Ausrichtung:** Überschriften, Zeilenbeschriftungen, Infotexte (links und rechts), Fußzeile und der
+     Speicherslot-Rahmen innerhalb des Knopfrasters (Abstand `MenuLayout.GAP` beidseits); Spielsprache ohne
+     Zeilenbeschriftung, je ein Drittel; Regler-Werte enden am Raster. Geprüft: Menübilder mit Hilfslinien
+     (`RE4_MENU_SHOTS_GUIDES=1`), alle Seiten, Deutsch und Arabisch angesehen; `check_translations.py`, Tests ok.
+   - **Nebel-Flackern (7 R3-Serien des Nutzers):** am PC mit Zwischenbildern nachgezeichnet: Zwischenbilder weichen
+     je 64-px-Zelle höchstens 5/255 vom Mittel ihrer Nachbarn ab, die Spielbilder selbst springen nicht. Kein Fehler in
+     den Daten; vermutet: die Bildausgabe am Gerät (Takt der Zwischenbilder), nicht behoben.
+   - **Lichtstern an Leons Hals (GX-Serien des Projektinhabers):** im Gerätebild 00-03 ein Linsenreflex links am Hals;
+     am PC aus derselben Serie nicht nachgezeichnet. Offen, braucht Serie/Bildnummer.
+
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 
 ## Version 0.98.3-beta: drei Nutzerberichte zu 0.98.2 (05.11.2026, Branch `work`, Patch 0200)
@@ -12185,6 +12218,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0204 `em.cpp`, `em10.cpp` | Cheat „Unsichtbarkeit“: `emMove` gibt Gegnern (id 0x10..0x3F) den Spielerabstand 1e16; Ganados finden den Spieler nicht (`em10FindCk`, `setFindPL`) und vergessen ihn. Port-Funktion (Cheat-Menü), Wunsch des Projektinhabers 05.11.2026 |
 | 0205 `cam_qfps.cpp` | „Sichtfeld (FoV)“: −15..+15 Grad zum Fovy der Schulterkamera (`re4_fov_offset`, Bits 24..29 der Ziel-Bits); Szenen, Zielfernrohr, Fernglas unverändert. Port-Funktion, Wunsch des Projektinhabers 05.11.2026 |
 | 0206 `objMachinegun.cpp` | Teilen sich die TMP-Modelle 0x7..0x9 einen Platzhalter (HUNKs `wep29`), nimmt die TMP das Modell ohne Schaft (HUNK zielte nach Kostümwechsel/Koffer ohne Waffe). Port-Fehler der Stellvertreter, Nutzerbild 05.11.2026 |
+| 0207 `ss_shop.cpp` | Händler: die Zeile „hoher Preis“ beim Verkaufen über 9 999 Peseten in jeder Stage, wie die EU-Fassung (der Prototyp ab Stage 2 erst über 29 999). Fehler des Prototyps, Wunsch des Projektinhabers 05.11.2026 |
+| 0208 `em.cpp`, `camera.cpp` | Benchmark (Anzeige → GRAFIK): an der Stelle stehen die Gegner still, die Kamera kreist um Leon (`re4_bench_camera`). Port-Funktion, Wunsch des Projektinhabers 05.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

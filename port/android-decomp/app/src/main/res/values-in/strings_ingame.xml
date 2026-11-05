@@ -280,4 +280,18 @@
     <string name="ingame_player_view">Pandangan Pemain</string>
     <string name="ingame_fov">Bidang pandang (FoV)</string>
     <string name="ingame_fov_help">Bidang pandang: melebarkan (+) atau menyempitkan (−) pandangan kamera bahu hingga 15 derajat, saat berjalan dan membidik; 0° adalah bawaan game. Cutscene, teropong senapan, dan teropong tetap seperti semula.</string>
+    <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
+    <string name="ingame_benchmark">Benchmark</string>
+    <string name="ingame_benchmark_start">Mulai</string>
+    <string name="ingame_benchmark_text">Game pergi ke tempat berat (dermaga danau dengan obor dan perahu, saat hujan), di mana musuh diam dan kamera berputar mengelilingi Leon. Dari resolusi tertinggi ke bawah diukur level mana yang stabil di 30 FPS dan di 60 FPS. Setelah itu \"Dinamis\" tidak pernah melebihi level ini di perangkat ini. Butuh sekitar dua menit; game Anda kembali persis ke tempatnya sekarang. B atau Kembali membatalkan.</string>
+    <string name="ingame_benchmark_starting">Benchmark: memulai …</string>
+    <string name="ingame_benchmark_going">Benchmark: menuju dermaga danau …</string>
+    <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · kini %3$d FPS · B / Kembali: batal</string>
+    <string name="ingame_benchmark_back">Benchmark: kembali ke game Anda …</string>
+    <string name="ingame_benchmark_done">Benchmark selesai. Di perangkat ini \"Dinamis\" kini naik hingga %1$s dengan 30 FPS dan hingga %2$s dengan 60 FPS.</string>
+    <string name="ingame_benchmark_cancelled">Benchmark dibatalkan. Game Anda kembali ke tempat semula.</string>
+    <string name="ingame_benchmark_refused">Benchmark hanya dimulai saat Anda bermain bebas di cerita (bukan di cutscene, menu, pertarungan bos, atau tempat serupa). Tidak ada yang diubah.</string>
+    <string name="ingame_benchmark_failed">Benchmark tidak dapat berjalan di sini. Tidak ada yang diubah.</string>
+    <string name="ingame_benchmark_unreachable">Tempat benchmark tidak dapat dicapai dari titik cerita ini. Mainkan sedikit lagi lalu coba lagi. Game Anda kembali ke tempat semula.</string>
+    <string name="ingame_benchmark_village">Benchmark dijalankan dari bagian desa dalam cerita (bab 1-1 sampai 2-3, disk pertama): tempatnya termasuk bagian itu, dan game tidak pernah kembali ke sana setelahnya. Muat simpanan dari bagian itu (atau mulai game baru), jalankan sekali, dan hasilnya tetap tersimpan di perangkat ini. Tidak ada yang diubah.</string>
 </resources>

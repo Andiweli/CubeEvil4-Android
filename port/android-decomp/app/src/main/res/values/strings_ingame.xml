@@ -297,4 +297,18 @@
     <string name="ingame_player_view">Player View</string>
     <string name="ingame_fov">Field of view (FoV)</string>
     <string name="ingame_fov_help">Field of view: widens (+) or narrows (−) the shoulder camera\'s view by up to 15 degrees, while walking and while aiming; 0° is the game\'s own. Cutscenes, the scope and the binoculars stay as they are.</string>
+    <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
+    <string name="ingame_benchmark">Benchmark</string>
+    <string name="ingame_benchmark_start">Start</string>
+    <string name="ingame_benchmark_text">The game goes to a demanding place (the lake\'s dock with the torch and the boat, in rain), where enemies stand still and the view circles Leon. From the highest resolution down it measures which level holds a steady 30 FPS and a steady 60 FPS. \"Dynamic\" then never goes above these levels on this device. It takes about two minutes; your game comes back exactly where it is now. B or Back cancels.</string>
+    <string name="ingame_benchmark_starting">Benchmark: starting …</string>
+    <string name="ingame_benchmark_going">Benchmark: going to the lake\'s dock …</string>
+    <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · now %3$d FPS · B / Back: cancel</string>
+    <string name="ingame_benchmark_back">Benchmark: back to your game …</string>
+    <string name="ingame_benchmark_done">Benchmark done. On this device \"Dynamic\" now goes up to %1$s with 30 FPS and up to %2$s with 60 FPS.</string>
+    <string name="ingame_benchmark_cancelled">Benchmark cancelled. Your game is back where it was.</string>
+    <string name="ingame_benchmark_refused">The benchmark starts only while you play freely in the story (not in a cutscene, a menu, a boss fight or a similar place). Nothing was changed.</string>
+    <string name="ingame_benchmark_failed">The benchmark could not run here. Nothing was changed.</string>
+    <string name="ingame_benchmark_unreachable">The benchmark\'s place could not be reached from this point of the story. Play on a little and try again. Your game is back where it was.</string>
+    <string name="ingame_benchmark_village">The benchmark runs from the village part of the story (chapters 1-1 to 2-3, the first disc): its place belongs to it, and the game never returns there later. Load a save from that part (or start a new game), run it once, and the result stays on this device. Nothing was changed.</string>
 </resources>

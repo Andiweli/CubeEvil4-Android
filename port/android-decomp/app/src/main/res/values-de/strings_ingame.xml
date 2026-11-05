@@ -282,4 +282,18 @@
     <string name="ingame_player_view">Spielersicht</string>
     <string name="ingame_fov">Sichtfeld (FoV)</string>
     <string name="ingame_fov_help">Sichtfeld: macht den Blick der Schulterkamera beim Gehen und Zielen um bis zu 15 Grad weiter (+) oder enger (−); 0° ist der des Spiels. Zwischensequenzen, Zielfernrohr und Fernglas bleiben, wie sie sind.</string>
+    <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
+    <string name="ingame_benchmark">Benchmark</string>
+    <string name="ingame_benchmark_start">Starten</string>
+    <string name="ingame_benchmark_text">Das Spiel geht an eine anspruchsvolle Stelle (der Steg am See mit Fackel und Boot, im Regen); dort stehen die Gegner still und die Kamera kreist um Leon. Von der höchsten Auflösung abwärts misst es, welche Stufe stabile 30 FPS und stabile 60 FPS hält. „Dynamisch“ geht auf diesem Gerät danach nie über diese Stufen. Dauert etwa zwei Minuten; dein Spiel kommt danach genau dorthin zurück, wo es jetzt ist. B oder Zurück bricht ab.</string>
+    <string name="ingame_benchmark_starting">Benchmark: startet …</string>
+    <string name="ingame_benchmark_going">Benchmark: zum Steg am See …</string>
+    <string name="ingame_benchmark_running">Benchmark · %1$d FPS · Stufe %2$s · gerade %3$d FPS · B / Zurück: abbrechen</string>
+    <string name="ingame_benchmark_back">Benchmark: zurück zu deinem Spiel …</string>
+    <string name="ingame_benchmark_done">Benchmark fertig. „Dynamisch“ geht auf diesem Gerät jetzt bis %1$s mit 30 FPS und bis %2$s mit 60 FPS.</string>
+    <string name="ingame_benchmark_cancelled">Benchmark abgebrochen. Dein Spiel ist wieder dort, wo es war.</string>
+    <string name="ingame_benchmark_refused">Der Benchmark startet nur, während du frei in der Geschichte spielst (nicht in einer Zwischensequenz, einem Menü, einem Bosskampf oder an einer ähnlichen Stelle). Nichts wurde geändert.</string>
+    <string name="ingame_benchmark_failed">Der Benchmark konnte hier nicht laufen. Nichts wurde geändert.</string>
+    <string name="ingame_benchmark_unreachable">Die Stelle des Benchmarks war von diesem Punkt der Geschichte aus nicht erreichbar. Spiel ein Stück weiter und versuch es dann noch einmal. Dein Spiel ist wieder dort, wo es war.</string>
+    <string name="ingame_benchmark_village">Der Benchmark läuft aus dem Dorf-Teil der Geschichte (Kapitel 1-1 bis 2-3, erste Disc): Seine Stelle gehört dazu, und das Spiel kehrt später nie dorthin zurück. Lade einen Spielstand aus diesem Teil (oder starte ein neues Spiel), lass ihn einmal laufen; das Ergebnis bleibt auf diesem Gerät. Nichts wurde geändert.</string>
 </resources>

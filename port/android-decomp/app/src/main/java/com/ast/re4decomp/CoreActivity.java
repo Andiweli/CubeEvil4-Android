@@ -284,6 +284,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // the surface takes the fingers beside the touch controls: Android gives the further fingers
     // of a touch only to views that took one, so a thumb beside the buttons would block them
     surface.setOnTouchListener((v, e) -> true);
+    // the benchmark's line at the top while it runs (Display -> GRAPHICS -> Benchmark)
+    benchView = new TextView(this);
+    benchView.setTextSize(14);
+    benchView.setTextColor(Color.WHITE);
+    benchView.setBackgroundColor(0xA0000000);
+    benchView.setPadding(24, 10, 24, 10);
+    benchView.setGravity(Gravity.CENTER);
+    benchView.setVisibility(View.GONE);
+    root.addView(benchView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT,
+        FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
     fpsView = new TextView(this);
     fpsView.setTypeface(Typeface.MONOSPACE);
     fpsView.setTextSize(11);
@@ -345,6 +355,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));
       CoreBridge.setFov(fovOffset(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE)));
       CoreBridge.setVertexRing(g.getBoolean("vertexRing", false));
+      // "Dynamic" up to the benchmark's levels on this device, when it ran
+      CoreBridge.setDynamicCaps(g.getInt(CoreMenu.DYN_CAP_30, 0), g.getInt(CoreMenu.DYN_CAP_60, 0));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
       CoreBridge.setPotato(CoreBridge.potatoMask(g));
       CoreBridge.sendSoundVolume(g);
@@ -817,6 +829,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
 
     @Override public boolean gameLanguages() { return retailEu; }
+    @Override public void startBenchmark() { benchmarkStart(); }
 
     @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
 
@@ -1333,6 +1346,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int code = e.getKeyCode();
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
+    // the benchmark: the keys belong to it; B, Back or Esc cancel it
+    if (benchRunning) {
+      if (first && (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)) {
+        CoreBridge.cancelBenchmark();
+        benchView.setText(R.string.ingame_benchmark_back);
+      }
+      return true;
+    }
     boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
     int function = input.appFunctionOf(code, keyboard);
     if (function != CoreInput.APP_NONE && first) {
@@ -1563,6 +1584,58 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     input.remove(id);
     send();
     touchControls.update();
+  }
+
+  // ---- the benchmark (Display -> GRAPHICS -> Benchmark; the measurement is in core_mode.cpp) -----------------
+  private TextView benchView;
+  private boolean benchRunning;
+  private final Runnable benchPoll = this::benchmarkPoll;
+
+  private void benchmarkStart() {
+    benchRunning = true;
+    benchView.setText(R.string.ingame_benchmark_starting);
+    benchView.setVisibility(View.VISIBLE);
+    CoreBridge.startBenchmark();
+    main.removeCallbacks(benchPoll);
+    main.postDelayed(benchPoll, 500);
+  }
+
+  private void benchmarkPoll() {
+    int[] st = CoreBridge.benchmarkState();
+    if (st == null || st.length < 6) { benchmarkEnd(R.string.ingame_benchmark_failed, null); return; }
+    int phase = st[0], run = st[1];
+    switch (phase) {
+      case 1: benchView.setText(R.string.ingame_benchmark_going); break;
+      case 2:
+        benchView.setText(getString(R.string.ingame_benchmark_running, (run & 1) != 0 ? 60 : 30,
+            CoreMenu.scaleNumber(st[2], Locale.getDefault()) + "×", Math.round(st[5] / 10f)));
+        break;
+      case 3: case 6: benchView.setText(R.string.ingame_benchmark_back); break;
+      case 4: {
+        SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+        g.edit().putInt(CoreMenu.DYN_CAP_30, st[3]).putInt(CoreMenu.DYN_CAP_60, st[4]).apply();
+        CoreBridge.setDynamicCaps(st[3], st[4]);
+        benchmarkEnd(0, getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
+            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×"));
+        return;
+      }
+      case 5: benchmarkEnd(R.string.ingame_benchmark_cancelled, null); return;
+      case -1: benchmarkEnd(R.string.ingame_benchmark_refused, null); return;
+      case -3: benchmarkEnd(R.string.ingame_benchmark_unreachable, null); return;
+      case -4: benchmarkEnd(R.string.ingame_benchmark_village, null); return;
+      case 0: break;
+      default: benchmarkEnd(R.string.ingame_benchmark_failed, null); return;
+    }
+    main.postDelayed(benchPoll, 250);
+  }
+
+  private void benchmarkEnd(int message, String text) {
+    benchRunning = false;
+    main.removeCallbacks(benchPoll);
+    benchView.setVisibility(View.GONE);
+    Log.i(TAG, "benchmark: " + (text != null ? text : getString(message)));
+    new android.app.AlertDialog.Builder(this).setTitle(R.string.ingame_benchmark)
+        .setMessage(text != null ? text : getString(message)).setPositiveButton(android.R.string.ok, null).show();
   }
 
   /** Nothing held while the game is not in front (no stuck keys after a dialog or the home screen). */

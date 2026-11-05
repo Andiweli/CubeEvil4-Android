@@ -88,6 +88,13 @@ final class MenuLayout {
     private final int whites, firstGap;
     private final int[] order;
     private int columns, cell, rowHeight;
+    private View under;  // a button under the first white key (the benchmark under "Dynamic"), or null
+
+    /** A button under the first white key in the piano's second row (in rows of cells: after the others). */
+    void addUnderFirst(View button) {
+      addButton(button);
+      under = button;
+    }
 
     Keys(Context context, int whites, int firstGap, int[] order) {
       super(context);
@@ -136,17 +143,17 @@ final class MenuLayout {
       int left = getPaddingLeft(), top = getPaddingTop(), side = dp(getContext(), GAP), up = dp(getContext(), GAP);
       for (int i = 0; i < getChildCount(); i++) {
         int x, y;
+        View child = getChildAt(i);
         if (piano()) {
-          // a black key's left edge half a cell before the line it is centred on
-          x = i < whites ? i * cell : (firstGap + i - whites + 1) * cell - cell / 2;
+          // a black key's left edge half a cell before the line it is centred on; the button under the first one
+          x = child == under ? 0 : i < whites ? i * cell : (firstGap + i - whites + 1) * cell - cell / 2;
           y = i < whites ? 0 : rowHeight;
         } else {
           int at = 0;
-          while (at < order.length && order[at] != i) at++;
+          while (at < order.length && order[at] != i) at++;  // (not in the order: after all of it)
           x = (at % columns) * cell;
           y = (at / columns) * rowHeight;
         }
-        View child = getChildAt(i);
         child.layout(left + x + side, top + y + up, left + x + side + child.getMeasuredWidth(),
             top + y + up + child.getMeasuredHeight());
       }

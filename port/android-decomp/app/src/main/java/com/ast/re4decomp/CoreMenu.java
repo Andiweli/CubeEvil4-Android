@@ -94,6 +94,8 @@ final class CoreMenu extends Dialog {
     boolean gameLanguages();
     /** The game's language of a "Game language" choice (2..6; 0 the device's). */
     int gameLanguageOf(int choice);
+    /** The benchmark (Display -> GRAPHICS, below "Dynamic"): the menu closes and the game measures. */
+    void startBenchmark();
     /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it); the
      *  game restarts when its language changes (the menu asked first). */
     void gameLanguageChanged(int choice);
@@ -423,7 +425,29 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       keys.addButton(b); buttons[i] = b;
     }
+    // the benchmark under "Dynamic" in a quieter look (wish of the project owner, 05.11.2026): the game goes to two
+    // places and measures which level holds 30 and 60 FPS; Dynamic goes up to them from then on
+    Button bench = button(s(R.string.ingame_benchmark), v -> askBenchmark());
+    StateListDrawable quiet = new StateListDrawable();
+    quiet.addState(new int[] {android.R.attr.state_focused}, focused(PANEL));
+    quiet.addState(new int[] {android.R.attr.state_pressed}, shape(SURFACE, MUTED, 6));
+    quiet.addState(new int[0], shape(PANEL, BORDER, 6));
+    bench.setBackground(quiet);
+    bench.setTextColor(MUTED);
+    bench.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
+    bench.setEnabled(host != null);
+    keys.addUnderFirst(bench);
     body.addView(outer);
+  }
+  /** "Start the benchmark?" with what it does; the menu closes for it. */
+  private void askBenchmark() {
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_benchmark)
+        .setMessage(R.string.ingame_benchmark_text)
+        .setNegativeButton(R.string.ingame_cancel, null)
+        .setPositiveButton(R.string.ingame_benchmark_start, (d, w) -> { close(); host.startBenchmark(); }).create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    dialog.show();
   }
   /** The chosen resolution in halves (0: Dynamic; 2: 1×, 3: 1.5× … 8: 4×); until 27.10.2026 "scale" in whole levels. */
   static int scaleHalves(SharedPreferences g) {
@@ -466,6 +490,8 @@ final class CoreMenu extends Dialog {
   }
   /** The depth of field's level (0 off, 1 light, 2 strong); until 0.98.3 the switch "dof" (on: light). */
   static final String DOF_LEVEL = "dofLevel";
+  /** The benchmark's levels on this device (halves): "Dynamic" goes up to them with 30 / 60 FPS. */
+  static final String DYN_CAP_30 = "dynamicCap30", DYN_CAP_60 = "dynamicCap60";
   static int dofLevel(SharedPreferences g) {
     if (g.contains(DOF_LEVEL)) return Math.max(0, Math.min(2, g.getInt(DOF_LEVEL, 1)));
     return g.getBoolean("dof", true) ? 1 : 0;
@@ -1457,7 +1483,11 @@ final class CoreMenu extends Dialog {
   /** The resolution the chosen level gives. */
   private void showGraphics() {
     int chosen = scaleHalves(graphics), halves = chosen;
-    if (halves < 2 || halves > 8) halves = 2 * autoScale(screenWidth, screenHeight);
+    if (halves < 2 || halves > 8) {
+      // Dynamic: the benchmark's level for 30 or 60 FPS, else the screen's
+      int cap = graphics.getInt(graphics.getBoolean("smooth60", false) ? DYN_CAP_60 : DYN_CAP_30, 0);
+      halves = cap >= 2 && cap <= 8 ? cap : 2 * autoScale(screenWidth, screenHeight);
+    }
     int aspect = graphics.getInt("aspect", 0);
     boolean original = aspect == 1 || aspect == 3;
     // the numbers as digits 0..9 in every language (Locale.ROOT), the level with the language's separator

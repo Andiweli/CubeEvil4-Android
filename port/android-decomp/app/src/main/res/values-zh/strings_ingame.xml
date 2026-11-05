@@ -282,4 +282,18 @@
     <string name="ingame_player_view">玩家视角</string>
     <string name="ingame_fov">视野 (FoV)</string>
     <string name="ingame_fov_help">视野：行走和瞄准时，将肩后镜头的视野最多放宽 (+) 或收窄 (−) 15 度；0° 为游戏原本的视野。过场动画、瞄准镜和望远镜保持不变。</string>
+    <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
+    <string name="ingame_benchmark">性能测试</string>
+    <string name="ingame_benchmark_start">开始</string>
+    <string name="ingame_benchmark_text">游戏会前往一个高负荷的地点（雨中带火把和小船的湖边码头），敌人在那里静止不动，镜头绕着 Leon 旋转。从最高分辨率开始逐级测量，哪个等级能稳定保持 30 FPS 和 60 FPS。之后在这台设备上，“动态”不会再超过这些等级。大约需要两分钟；游戏会准确回到现在的位置。按 B 或返回键可取消。</string>
+    <string name="ingame_benchmark_starting">性能测试：正在开始 …</string>
+    <string name="ingame_benchmark_going">性能测试：前往湖边码头 …</string>
+    <string name="ingame_benchmark_running">性能测试 · %1$d FPS · 等级 %2$s · 当前 %3$d FPS · B / 返回：取消</string>
+    <string name="ingame_benchmark_back">性能测试：正在返回你的游戏 …</string>
+    <string name="ingame_benchmark_done">性能测试完成。在这台设备上，“动态”现在在 30 FPS 时最高到 %1$s，在 60 FPS 时最高到 %2$s。</string>
+    <string name="ingame_benchmark_cancelled">性能测试已取消。游戏已回到原来的位置。</string>
+    <string name="ingame_benchmark_refused">只有在剧情中自由行动时才能开始性能测试（不在过场动画、菜单、首领战或类似场合）。没有任何更改。</string>
+    <string name="ingame_benchmark_failed">性能测试无法在这里运行。没有任何更改。</string>
+    <string name="ingame_benchmark_unreachable">从故事的当前进度无法到达性能测试的地点。再玩一段后重试。游戏已回到原来的位置。</string>
+    <string name="ingame_benchmark_village">性能测试需在故事的村庄部分进行（第 1-1 至 2-3 章，第一张光盘）：它的地点属于这一部分，之后游戏不会再回到那里。请读取该部分的存档（或开始新游戏），运行一次，结果会保存在这台设备上。没有任何更改。</string>
 </resources>

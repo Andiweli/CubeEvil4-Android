@@ -291,4 +291,18 @@
     <string name="ingame_player_view">رؤية اللاعب</string>
     <string name="ingame_fov">مجال الرؤية (FoV)</string>
     <string name="ingame_fov_help">مجال الرؤية: يوسّع (+) أو يضيّق (−) رؤية كاميرا الكتف حتى 15 درجة أثناء المشي والتصويب؛ و0° هي رؤية اللعبة نفسها. المشاهد السينمائية والمنظار والمنظار المزدوج تبقى كما هي.</string>
+    <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
+    <string name="ingame_benchmark">اختبار الأداء</string>
+    <string name="ingame_benchmark_start">ابدأ</string>
+    <string name="ingame_benchmark_text">تنتقل اللعبة إلى مكان ثقيل (رصيف البحيرة مع المشعل والقارب تحت المطر)، حيث يقف الأعداء بلا حركة وتدور الكاميرا حول ليون. من أعلى دقة نزولًا تقيس أي مستوى يثبت على 30 إطارًا ثابتة و60 إطارًا ثابتة. بعد ذلك لا يتجاوز وضع \"ديناميكي\" هذه المستويات على هذا الجهاز. يستغرق نحو دقيقتين؛ وتعود لعبتك تمامًا إلى حيث هي الآن. B أو رجوع يلغي.</string>
+    <string name="ingame_benchmark_starting">اختبار الأداء: يبدأ …</string>
+    <string name="ingame_benchmark_going">اختبار الأداء: الانتقال إلى رصيف البحيرة …</string>
+    <string name="ingame_benchmark_running">اختبار الأداء · %1$d FPS · المستوى %2$s · الآن %3$d FPS · B / رجوع: إلغاء</string>
+    <string name="ingame_benchmark_back">اختبار الأداء: العودة إلى لعبتك …</string>
+    <string name="ingame_benchmark_done">انتهى اختبار الأداء. على هذا الجهاز يصل \"ديناميكي\" الآن حتى %1$s مع 30 إطارًا وحتى %2$s مع 60 إطارًا.</string>
+    <string name="ingame_benchmark_cancelled">أُلغي اختبار الأداء. عادت لعبتك إلى حيث كانت.</string>
+    <string name="ingame_benchmark_refused">لا يبدأ اختبار الأداء إلا أثناء اللعب الحر في القصة (لا في مشهد سينمائي أو قائمة أو قتال زعيم أو مكان مشابه). لم يتغير شيء.</string>
+    <string name="ingame_benchmark_failed">تعذّر تشغيل اختبار الأداء هنا. لم يتغير شيء.</string>
+    <string name="ingame_benchmark_unreachable">تعذّر الوصول إلى مكان اختبار الأداء من هذه النقطة في القصة. العب قليلًا ثم حاول مرة أخرى. عادت لعبتك إلى حيث كانت.</string>
+    <string name="ingame_benchmark_village">يعمل اختبار الأداء من جزء القرية في القصة (الفصول 1-1 إلى 2-3، القرص الأول): مكانه جزء منه، ولا تعود اللعبة إليه لاحقًا. حمّل حفظًا من ذلك الجزء (أو ابدأ لعبة جديدة)، وشغّله مرة واحدة؛ وتبقى النتيجة على هذا الجهاز. لم يتغير شيء.</string>
 </resources>

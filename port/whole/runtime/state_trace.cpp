@@ -177,6 +177,9 @@
 //                          outside the third room (patch 0170); "F:ID:HP" only leaves it
 //                          with life HP, as hits that do not kill (U-3 at 1 in the first
 //                          room jumps onto the containers and hides with life 0)
+//   RE4_TEST_BENCH="free+N:C[,free+M:C]..."  the app's benchmark commands (runtime/benchmark.cpp) N frames after
+//                          the player is first free: C 20/21 a place, 22 back; its state ("run: benchmark state")
+//                          every 60 frames from the first command on
 //   RE4_TEST_WEPTYPE="free+N:T"  N frames after the player is free, the weapon type becomes T and the
 //                          weapon object is made again from the weapon file already read (weaponRelease,
 //                          weaponInit, as PlChangeData does after a costume change): a type the file was
@@ -659,6 +662,10 @@ unsigned g_killAt, g_killId; // RE4_TEST_EM_KILL
 long g_stunAfter = -1;       // RE4_TEST_STUN
 long g_lifeAfter = -1;       // RE4_TEST_LIFE
 long g_wepTypeAfter = -1;    // RE4_TEST_WEPTYPE
+long g_benchAt[4] = {-1, -1, -1, -1};  // RE4_TEST_BENCH
+int g_benchCmd[4];
+long g_benchFirst = -1;
+extern "C" int re4_bench_command(int what);
 int g_wepType;
 int g_lifeA, g_lifeAMax, g_lifeL = -1, g_lifeLMax = -1, g_lifeStep;
 unsigned g_stunId, g_stunRno = 0x0D;
@@ -1831,6 +1838,20 @@ void frame(unsigned n)
                 !hit ? "not found" : g_killHp > 0 ? "left with low life" : "killed", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
                 hit ? (double) hit->pos.z : 0.0);
     }
+    for (int i = 0; i < 4; i++) {
+        if (g_benchAt[i] >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_benchAt[i]) {
+            re4_log("run: benchmark command %d at frame %u (RE4_TEST_BENCH)", g_benchCmd[i], n);
+            re4_bench_command(g_benchCmd[i]);
+            if (g_benchFirst < 0) {
+                g_benchFirst = n;
+            }
+        }
+    }
+    if (g_benchFirst >= 0 && ((long) n - g_benchFirst) % 60 == 0) {
+        re4_log("run: benchmark state %d at frame %u, r%03x, player at (%.0f %.0f %.0f)", re4_bench_command(23), n,
+                (unsigned) g->room_id, live(pPL) ? (double) pPL->pos.x : 0.0, live(pPL) ? (double) pPL->pos.y : 0.0,
+                live(pPL) ? (double) pPL->pos.z : 0.0);
+    }
     if (g_wepTypeAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_wepTypeAfter && g->Rno0 == 3 && live(pPL)) {
         g_wepTypeAfter = -1;
         g->weapon_type = (u8) g_wepType;
@@ -2393,6 +2414,15 @@ void configure()
         g_itemUseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
         if (g_itemUseId < 0) {
             g_itemUseAfter = -1;
+        }
+    }
+    if (const char* bench = getenv("RE4_TEST_BENCH")) {
+        const char* at = bench;
+        for (int i = 0; i < 4 && at && strncmp(at, "free+", 5) == 0; i++) {
+            char* end = 0;
+            g_benchAt[i] = strtol(at + 5, &end, 10);
+            g_benchCmd[i] = end && *end == ':' ? (int) strtol(end + 1, &end, 10) : 0;
+            at = end && *end == ',' ? end + 1 : 0;
         }
     }
     if (const char* wt = getenv("RE4_TEST_WEPTYPE")) {

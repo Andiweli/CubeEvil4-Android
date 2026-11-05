@@ -283,4 +283,18 @@
     <string name="ingame_player_view">Visuale del giocatore</string>
     <string name="ingame_fov">Campo visivo (FoV)</string>
     <string name="ingame_fov_help">Campo visivo: allarga (+) o restringe (−) la visuale della telecamera sulla spalla fino a 15 gradi, camminando e mirando; 0° è quella del gioco. Filmati, mirino telescopico e binocolo restano come sono.</string>
+    <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
+    <string name="ingame_benchmark">Benchmark</string>
+    <string name="ingame_benchmark_start">Avvia</string>
+    <string name="ingame_benchmark_text">Il gioco va in un punto impegnativo (il molo del lago con la torcia e la barca, sotto la pioggia), dove i nemici restano fermi e la telecamera gira intorno a Leon. Dalla risoluzione più alta in giù misura quale livello tiene 30 FPS stabili e 60 FPS stabili. \"Dinamica\" poi non supera più questi livelli su questo dispositivo. Dura circa due minuti; la partita torna esattamente dov\'è ora. B o Indietro annulla.</string>
+    <string name="ingame_benchmark_starting">Benchmark: avvio …</string>
+    <string name="ingame_benchmark_going">Benchmark: verso il molo del lago …</string>
+    <string name="ingame_benchmark_running">Benchmark · %1$d FPS · livello %2$s · ora %3$d FPS · B / Indietro: annulla</string>
+    <string name="ingame_benchmark_back">Benchmark: ritorno alla partita …</string>
+    <string name="ingame_benchmark_done">Benchmark completato. Su questo dispositivo \"Dinamica\" arriva ora fino a %1$s con 30 FPS e fino a %2$s con 60 FPS.</string>
+    <string name="ingame_benchmark_cancelled">Benchmark annullato. La partita è tornata dov\'era.</string>
+    <string name="ingame_benchmark_refused">Il benchmark parte solo mentre giochi liberamente nella storia (non in un filmato, un menu, uno scontro con un boss o un punto simile). Non è stato cambiato nulla.</string>
+    <string name="ingame_benchmark_failed">Il benchmark non è potuto partire qui. Non è stato cambiato nulla.</string>
+    <string name="ingame_benchmark_unreachable">Non è stato possibile raggiungere il punto del benchmark da questo punto della storia. Gioca ancora un po\' e riprova. La partita è tornata dov\'era.</string>
+    <string name="ingame_benchmark_village">Il benchmark parte dalla parte del villaggio della storia (capitoli da 1-1 a 2-3, primo disco): il suo punto ne fa parte e il gioco non ci torna più in seguito. Carica un salvataggio di quella parte (o inizia una nuova partita), eseguilo una volta e il risultato resta su questo dispositivo. Non è stato cambiato nulla.</string>
 </resources>

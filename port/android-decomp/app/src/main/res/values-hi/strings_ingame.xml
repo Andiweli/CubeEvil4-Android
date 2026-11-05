@@ -282,4 +282,18 @@
     <string name="ingame_player_view">खिलाड़ी का दृश्य</string>
     <string name="ingame_fov">दृश्य क्षेत्र (FoV)</string>
     <string name="ingame_fov_help">दृश्य क्षेत्र: चलते और निशाना लगाते समय कंधे वाले कैमरे का दृश्य 15 डिग्री तक चौड़ा (+) या संकरा (−) करता है; 0° गेम का अपना है। कटसीन, स्कोप और दूरबीन वैसे ही रहते हैं।</string>
+    <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
+    <string name="ingame_benchmark">बेंचमार्क</string>
+    <string name="ingame_benchmark_start">शुरू करें</string>
+    <string name="ingame_benchmark_text">गेम एक भारी जगह पर जाता है (बारिश में मशाल और नाव वाला झील का घाट), जहाँ दुश्मन खड़े रहते हैं और कैमरा Leon के चारों ओर घूमता है। सबसे ऊँचे रिज़ॉल्यूशन से नीचे की ओर मापा जाता है कि कौन सा स्तर स्थिर 30 FPS और स्थिर 60 FPS बनाए रखता है। इसके बाद इस डिवाइस पर \"डायनामिक\" इन स्तरों से ऊपर नहीं जाता। लगभग दो मिनट लगते हैं; आपका गेम ठीक वहीं लौट आता है जहाँ अभी है। B या Back रद्द करता है।</string>
+    <string name="ingame_benchmark_starting">बेंचमार्क: शुरू हो रहा है …</string>
+    <string name="ingame_benchmark_going">बेंचमार्क: झील के घाट पर जा रहे हैं …</string>
+    <string name="ingame_benchmark_running">बेंचमार्क · %1$d FPS · स्तर %2$s · अभी %3$d FPS · B / Back: रद्द करें</string>
+    <string name="ingame_benchmark_back">बेंचमार्क: आपके गेम पर वापस …</string>
+    <string name="ingame_benchmark_done">बेंचमार्क पूरा हुआ। इस डिवाइस पर \"डायनामिक\" अब 30 FPS के साथ %1$s तक और 60 FPS के साथ %2$s तक जाता है।</string>
+    <string name="ingame_benchmark_cancelled">बेंचमार्क रद्द किया गया। आपका गेम वहीं लौट आया जहाँ था।</string>
+    <string name="ingame_benchmark_refused">बेंचमार्क तभी शुरू होता है जब आप कहानी में खुलकर खेल रहे हों (कटसीन, मेनू, बॉस लड़ाई या ऐसी जगह में नहीं)। कुछ नहीं बदला गया।</string>
+    <string name="ingame_benchmark_failed">बेंचमार्क यहाँ नहीं चल सका। कुछ नहीं बदला गया।</string>
+    <string name="ingame_benchmark_unreachable">कहानी के इस मोड़ से बेंचमार्क की जगह तक नहीं पहुँचा जा सका। थोड़ा आगे खेलें और फिर से कोशिश करें। आपका गेम वहीं लौट आया जहाँ था।</string>
+    <string name="ingame_benchmark_village">बेंचमार्क कहानी के गाँव वाले हिस्से से चलता है (अध्याय 1-1 से 2-3, पहली डिस्क): इसकी जगह उसी हिस्से की है, और बाद में गेम वहाँ कभी नहीं लौटता। उस हिस्से का सेव लोड करें (या नया गेम शुरू करें), इसे एक बार चलाएँ; परिणाम इस डिवाइस पर रहता है। कुछ नहीं बदला गया।</string>
 </resources>

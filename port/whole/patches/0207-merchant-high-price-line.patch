@@ -1,0 +1,23 @@
+# Port patch, a bug of the prototype (wish of the project owner, 05.11.2026: selling a treasure worth more than
+# 10 000 pesetas the original has the merchant answer with his "high price" line): the sell confirmation
+# (ss_shop.cpp) chose that line (message 7, voice 0xB5) above 9 999 pesetas in stage 1 only and above 29 999 from
+# stage 2 on. The European release compares with 9 999 in every stage (its Sscrn.rel at 0x247a4: no stage check;
+# the US release still has the prototype's rule). Now as the European one, with all discs.
+--- a/src/Sscrn/ss_shop.cpp
++++ b/src/Sscrn/ss_shop.cpp
+@@ -1192,11 +1192,10 @@
+             int msg = 6;
+             int price = m->buyupPrice(sw->m_p_item, 1);
+ 
+-            if (pG->stage_no > 1) {
+-                if (price > 29999) {
+-                    msg = 7;
+-                }
+-            } else if (price > 9999) {
++            /* port (patch 0207), a bug of the prototype: the merchant's "high price" line from 10 000 pesetas on in
++               every stage, as the European release has it (its Sscrn.rel compares with 9999 only); the prototype
++               (and the US release) wanted 30 000 after stage 1 */
++            if (price > 9999) {
+                 msg = 7;
+             }
+             u = IdSub.unitPtr(0xFC, IDC_SSCRN_CKPT_0);

@@ -712,8 +712,12 @@ void re4_core_set_cheats(int bits)
     re4_cheats_set(bits);
 }
 
+extern "C" int re4_bench_command(int what);  // runtime/benchmark.cpp
+
 int re4_core_cheat_action(int what)
 {
+    // 20..23: the app's benchmark (runtime/benchmark.cpp), queued for the game's next frame or a state, any thread
+    if (what >= 20 && what <= 23) return re4_bench_command(what);
     if (what < 1 || what > 9) return 0;
     pthread_mutex_lock(&gPauseLock);
     if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {
