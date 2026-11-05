@@ -177,6 +177,14 @@
 //                          outside the third room (patch 0170); "F:ID:HP" only leaves it
 //                          with life HP, as hits that do not kill (U-3 at 1 in the first
 //                          room jumps onto the containers and hides with life 0)
+//   RE4_TEST_WEPTYPE="free+N:T"  N frames after the player is free, the weapon type becomes T and the
+//                          weapon object is made again from the weapon file already read (weaponRelease,
+//                          weaponInit, as PlChangeData does after a costume change): a type the file was
+//                          not read for (HUNK's TMP file with the stock's type, patch 0206)
+//   RE4_TEST_LIFE="free+N:A,AMAX[,L,LMAX][/STEP]"  from N frames after the player is free on, Ashley's
+//                          life A of AMAX (and Leon's L of LMAX) set in every frame; with /STEP the
+//                          life goes down by STEP every 60 frames (A first, then L): the life meters
+//                          (cockpit.cpp LifeMeter) at every level, in GX pictures (RE4_GX_DUMP_FREE)
 //   RE4_TEST_STUN="free+N:ID[:R1]"  N frames after the player is free, the nearest live
 //                          enemy of id ID (hex) stands 1000 units in front of the player,
 //                          facing him, in damage routine R1 (hex, default 0x0D: em10's
@@ -649,6 +657,10 @@ int g_sta[8], g_staCount;    // RE4_TEST_STA
 bool g_staDone;
 unsigned g_killAt, g_killId; // RE4_TEST_EM_KILL
 long g_stunAfter = -1;       // RE4_TEST_STUN
+long g_lifeAfter = -1;       // RE4_TEST_LIFE
+long g_wepTypeAfter = -1;    // RE4_TEST_WEPTYPE
+int g_wepType;
+int g_lifeA, g_lifeAMax, g_lifeL = -1, g_lifeLMax = -1, g_lifeStep;
 unsigned g_stunId, g_stunRno = 0x0D;
 cEm* g_stunEm;               // traced for 400 frames: its routine and the player's
 unsigned g_stunUntil;
@@ -1819,6 +1831,30 @@ void frame(unsigned n)
                 !hit ? "not found" : g_killHp > 0 ? "left with low life" : "killed", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
                 hit ? (double) hit->pos.z : 0.0);
     }
+    if (g_wepTypeAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_wepTypeAfter && g->Rno0 == 3 && live(pPL)) {
+        g_wepTypeAfter = -1;
+        g->weapon_type = (u8) g_wepType;
+        pPL->weaponRelease();
+        pPL->weaponInit();
+        re4_log("run: weapon %d made again with type %d at frame %u (RE4_TEST_WEPTYPE)", (int) g->weapon_no, g_wepType, n);
+    }
+    if (g_lifeAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_lifeAfter && g->Rno0 == 3) {
+        const long steps = g_lifeStep > 0 ? ((long) n - g_freeAt - g_lifeAfter) / 60 : 0;
+        int a = g_lifeA - (int) (steps * g_lifeStep);
+        if (a < 1) {
+            a = 1;
+        }
+        g->ashley_life_max = (s16) g_lifeAMax;
+        g->ashley_life = (s16) a;
+        if (g_lifeL >= 0) {
+            g->pl_life_max = (s16) g_lifeLMax;
+            g->pl_life = (s16) g_lifeL;
+        }
+        if (((long) n - g_freeAt - g_lifeAfter) % 60 == 0) {
+            re4_log("run: RE4_TEST_LIFE at frame %u: Ashley %d/%d, Leon %d/%d", n, (int) (s16) g->ashley_life,
+                    (int) (s16) g->ashley_life_max, (int) (s16) g->pl_life, (int) (s16) g->pl_life_max);
+        }
+    }
     if (g_stunAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_stunAfter && g->Rno0 == 3 && live(pPL)) {
         g_stunAfter = -1;
         cEm* hit = 0;
@@ -2357,6 +2393,34 @@ void configure()
         g_itemUseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
         if (g_itemUseId < 0) {
             g_itemUseAfter = -1;
+        }
+    }
+    if (const char* wt = getenv("RE4_TEST_WEPTYPE")) {
+        if (strncmp(wt, "free+", 5) == 0) {
+            char* end = 0;
+            g_wepTypeAfter = strtol(wt + 5, &end, 10);
+            g_wepType = end && *end == ':' ? atoi(end + 1) : 0;
+        }
+    }
+    if (const char* life = getenv("RE4_TEST_LIFE")) {
+        char* end = 0;
+        if (strncmp(life, "free+", 5) == 0) {
+            g_lifeAfter = strtol(life + 5, &end, 10);
+            if (end && *end == ':' && sscanf(end + 1, "%d,%d", &g_lifeA, &g_lifeAMax) == 2) {
+                const char* more = strchr(end + 1, ',');
+                more = more ? strchr(more + 1, ',') : 0;
+                if (more) {
+                    sscanf(more + 1, "%d,%d", &g_lifeL, &g_lifeLMax);
+                }
+                if (const char* step = strchr(end + 1, '/')) {
+                    g_lifeStep = atoi(step + 1);
+                }
+            } else {
+                g_lifeAfter = -1;
+            }
+        }
+        if (g_lifeAfter < 0) {
+            re4_log("run: RE4_TEST_LIFE=\"%s\" not understood (free+N:A,AMAX[,L,LMAX][/STEP])", life);
         }
     }
     if (const char* stun = getenv("RE4_TEST_STUN")) {

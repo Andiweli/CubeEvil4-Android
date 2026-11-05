@@ -190,6 +190,8 @@ void fillMagazine()
     }
 }
 
+void repairPartnerLife();
+
 void apply(int wanted)
 {
     struct {
@@ -227,12 +229,35 @@ void apply(int wanted)
         if (pG->pl_life > 0 && pG->pl_life < pG->pl_life_max) {
             pG->pl_life = pG->pl_life_max;
         }
-        if (pG->ashley_life > 0 && pG->ashley_life < pG->ashley_life_max) {
+        // the partner only while Ashley is the partner: in her own part (pl_type 1) PlSelect (pl_sub.cpp) keeps
+        // Leon's maximum in ashley_life_max, and filling up to it left Ashley above her own maximum afterwards
+        // (tester picture 05.11.2026: gaps in her life meter, 0.98.4)
+        if (pG->pl_type != 1 && pG->ashley_life > 0 && pG->ashley_life < pG->ashley_life_max) {
             pG->ashley_life = pG->ashley_life_max;
         }
     }
+    repairPartnerLife();
     if (wanted & kAmmo) {
         fillMagazine();
+    }
+}
+
+// Ashley's life above her maximum while she is the partner: the game never does that (healing stops at the
+// maximum), but infinite health before 0.98.4 did in Ashley's own part (see apply), and saves keep it. Her
+// life meter (cockpit.cpp LifeMeter::move: two covers turned by life / 200, made for at most 1200) then turned
+// a cover too far and showed gaps. Put back to her maximum, once per case, logged.
+void repairPartnerLife()
+{
+    static int logged;
+    const s16 life = (s16) pG->ashley_life, max = (s16) pG->ashley_life_max;
+    if (pG->pl_type == 1 || max <= 0 || life <= max) {
+        return;
+    }
+    pG->ashley_life = max;
+    if (logged < 5) {
+        logged++;
+        re4_log("cheat: Ashley's life %d above her maximum %d (infinite health in her own part before 0.98.4): "
+                "set to %d", (int) life, (int) max, (int) max);
     }
 }
 
