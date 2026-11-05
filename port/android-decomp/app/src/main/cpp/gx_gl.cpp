@@ -4114,6 +4114,10 @@ struct GxRenderer::Impl {
   //     six-ray starburst, and for the largest few lights (up to three, their share followed smoothly) a row of
   //     faint coloured ghosts, rings and hexagons in green, violet and blue, on the line from the light through
   //     the picture's centre: they move against the light as the camera turns.
+  // Fourth report of the project owner (05.11.2026, GX series 00 in r104's house: "Funkeln in Leons Hals" with the lens
+  // flares on): a faint glow sprite on the dark wall beside Leon took its brightness from his lit neck at the edge of
+  // its box. A light is bright at the middle of its own box (a flame, a lamp's glare): where that middle is dark
+  // (below 0.3 .. 0.5), it does not flare.
   // Steady, no flicker: a source counts only after it was seen in 4 pictures in a row (a muzzle flash or a spark
   // never flares), its place follows the flame's box smoothly, and its visibility (depth taps times brightness)
   // rises over about ten pictures and falls over about seven.
@@ -4144,6 +4148,8 @@ struct GxRenderer::Impl {
     int normals = 0;          // draws with normals among them (lit meshes: a figure's or an object's shine)
     std::uint32_t verts = 0;  // the most vertices of one draw
     unsigned tev = 0;         // (the log) the TEV stages of the last draw
+    std::uint32_t zmode = 0, blend = 0, tevc = 0;  // (the log) BP 0x40, 0x41, the TEV colour of the last draw
+    std::uint32_t layout = 0;
   };
   std::vector<FlareCand> flareCands;
   struct FlareSlot {
@@ -4209,6 +4215,10 @@ struct GxRenderer::Impl {
     FlareCand f{1e9f, 1e9f, -1e9f, -1e9f, 1.0f, 1};
     f.normals = (d.layout & RE4_GX_V_NORMAL) ? 1 : 0;
     f.verts = d.vertexCount;
+    f.zmode = bp[0x40];
+    f.layout = d.layout;
+    f.blend = c;
+    f.tevc = bp[0xC0];
     float zSum = 0.0f;
     unsigned counted = 0;
     const unsigned step = d.vertexCount > 64 ? d.vertexCount / 64 : 1;
@@ -4301,7 +4311,7 @@ struct GxRenderer::Impl {
         "    return;\n"
         "  }\n"
         "  vec2 c = s.xy + oldOff * R;\n"
-        "  float seen = 0.0, contrast = 0.0;\n"
+        "  float seen = 0.0, contrast = 0.0, core = 1.0;\n"
         "  vec3 col = vec3(0.0);\n"
         "  if (st < 1.5) {\n"
         "    float r = max(size.z, R * 0.6);\n"
@@ -4325,9 +4335,10 @@ struct GxRenderer::Impl {
         "      rn += 1.0;\n"
         "    }\n"
         "    contrast = L(col) - (rn > 0.0 ? ring / rn : 1.0);\n"
+        "    core = L(texelFetch(colors, ivec2(clamp(s.xy, vec2(0.0), size.xy - 1.0)), 0).rgb);\n"
         "  }\n"
         "  float lum = L(col);\n"
-        "  float target = seen * smoothstep(0.65, 0.9, lum) * smoothstep(0.15, 0.35, contrast);\n"
+        "  float target = seen * smoothstep(0.65, 0.9, lum) * smoothstep(0.15, 0.35, contrast) * smoothstep(0.3, 0.5, core);\n"
         "  float a = old.a + (target - old.a) * (target > old.a ? 0.1 : 0.14);\n"
         "  if (a < 0.004 && target < 0.004) a = 0.0;\n"
         "  vec3 tint = st < 1.5 && lum > 0.05 ? mix(col / max(max(col.r, col.g), col.b), vec3(1.0), 0.45) : old.rgb;\n"
@@ -4580,8 +4591,9 @@ struct GxRenderer::Impl {
       GXLOG("lens flares: picture %u, %zu additive 3D draws, %zu sources, %d slots", flarePictures, flareCands.size(),
             merged.size(), used);
       for (const FlareCand &m : merged)
-        GXLOG("lens flares:   source (%.0f %.0f)-(%.0f %.0f) depth %.5f, %d draws, %d with normals, up to %u vertices",
-              m.x0, m.y0, m.x1, m.y1, m.z, m.draws, m.normals, m.verts);
+        GXLOG("lens flares:   source (%.0f %.0f)-(%.0f %.0f) depth %.5f, %d draws, %d with normals, up to %u vertices, "
+              "z %06x blend %06x tev %06x layout %08x", m.x0, m.y0, m.x1, m.y1, m.z, m.draws, m.normals, m.verts,
+              m.zmode & 0xFFFFFF, m.blend & 0xFFFFFF, m.tevc & 0xFFFFFF, m.layout);
     }
     flarePictures++;
   }

@@ -109,8 +109,14 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
    - **Nebel-Flackern (7 R3-Serien des Nutzers):** am PC mit Zwischenbildern nachgezeichnet: Zwischenbilder weichen
      je 64-px-Zelle höchstens 5/255 vom Mittel ihrer Nachbarn ab, die Spielbilder selbst springen nicht. Kein Fehler in
      den Daten; vermutet: die Bildausgabe am Gerät (Takt der Zwischenbilder), nicht behoben.
-   - **Lichtstern an Leons Hals (GX-Serien des Projektinhabers):** im Gerätebild 00-03 ein Linsenreflex links am Hals;
-     am PC aus derselben Serie nicht nachgezeichnet. Offen, braucht Serie/Bildnummer.
+   - **Funkeln an Leons Hals (GX-Serie 00, Bilder 00-00 bis 00-11, nur mit Lens Flares):** ein schwacher, additiver
+     Leuchtfleck an der dunklen Wand neben Leon (4 Ecken, Kasten etwa 138..207 × 200..256 GC-Pixel, gleiche
+     Blend-/TEV-Einstellung wie Kerzen) holte seine Helligkeit vom beleuchteten Hals am Rand seines Kastens. Behoben in
+     `gx_gl.cpp` (Sichtbarkeits-Shader `kVisFs`): ein Licht muss auch in der Mitte seines Kastens hell sein
+     (`smoothstep(0.3, 0.5, core)`). Gemessen mit `gx_chunk_render` und `RE4_GX_FLARE_LOG` (stärkster Reflex, vorher →
+     nachher): Serie 00 0,39 → 0,00, Serie 01 0,05 → 0,00, Kerzen im Schloss (Serien 02, 03) 0,41 und 0,61 unverändert.
+     Der weiße Punkt auf Leons Rücken bleibt auch ohne Lens Flares: ein Detail des Modells (Gurtschnalle). Am Gerät
+     nicht geprüft.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 
