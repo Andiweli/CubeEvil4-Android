@@ -18,7 +18,6 @@
     <string name="ingame_stretched">拉伸</string>
     <string name="ingame_other_options">其他选项</string>
     <string name="ingame_laser_section">激光瞄准器</string>
-    <string name="ingame_laser_colour">颜色</string>
     <string name="ingame_laser_red">默认（红色）</string>
     <string name="ingame_laser_blue">蓝色</string>
     <string name="ingame_laser_green">绿色</string>
@@ -35,10 +34,9 @@
     <string name="ingame_fps_bottom_centre">下方居中</string>
     <string name="ingame_fps_top_left">左上</string>
     <string name="ingame_fps_top_centre">上方居中</string>
-    <string name="ingame_smooth60">60 帧（实验性）</string>
-    <string name="ingame_merge_draws">合并绘制调用（实验性）</string>
-    <string name="ingame_vertex_ring">顶点环形缓冲区（实验性）</string>
-    <string name="ingame_force_performance">强制性能</string>
+    <string name="ingame_smooth60">60 帧</string>
+    <string name="ingame_merge_draws">合并绘制调用</string>
+    <string name="ingame_vertex_ring">顶点环形缓冲区</string>
     <string name="ingame_perf_default">默认</string>
     <string name="ingame_perf_cores">使用性能核心</string>
     <string name="ingame_perf_help">性能核心：游戏和图形在设备最快的核心上运行，并请求 Android 提高频率。在许多设备上更流畅，但需要更多 CPU 性能，设备也会更热。默认：由 Android 决定。</string>
@@ -166,7 +164,6 @@
     <string name="ingame_music_volume">音乐</string>
     <string name="ingame_effects_volume">音效</string>
     <string name="ingame_volume_help">音乐指背景音乐；音效指游戏中的其他所有声音（枪声、人声、脚步）。过场影片的声音保持不变。下面两个按钮可完全关闭音乐或音效；重新打开后按上方设定的音量播放。</string>
-    <string name="ingame_output">图像输出</string>
     <string name="ingame_smooth_help">生成额外的中间帧。游戏逻辑仍以每秒 30 帧运行。</string>
     <string name="ingame_instant_save">保存</string>
     <string name="ingame_instant_load">读取</string>
@@ -221,7 +218,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">手提箱 L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。自动 QTE 会在每次快速反应提示时替你按键。解锁额外游戏会像通关后一样把 Assignment Ada 和 The Mercenaries 加入标题菜单；下一次存档会保留它们。</string>
+    <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。自动 QTE 会在每次快速反应提示时替你按键。解锁额外游戏会像通关后一样把 Assignment Ada 和 The Mercenaries 加入标题菜单；下一次存档会保留它们。隐身：敌人不会察觉你，也不会攻击；首领和固定剧情仍可能攻击。</string>
     <string name="ingame_cheat_done">完成：%1$s。</string>
     <string name="ingame_cheat_already">已经有了：%1$s。</string>
     <string name="ingame_cheat_raised">已有 %1$s：现已升到最高等级。</string>
@@ -275,4 +272,14 @@
     <string name="ingame_mouse_sensitivity">鼠标灵敏度</string>
     <string name="ingame_map_controller">手柄</string>
     <string name="ingame_map_device">设备</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">隐身</string>
+    <string name="ingame_cheat_section_player">玩家与物品栏</string>
+    <string name="ingame_cheat_section_weapons">武器</string>
+    <string name="ingame_cheat_section_game">游戏</string>
+    <string name="ingame_dof_light">轻度</string>
+    <string name="ingame_dof_strong">强烈</string>
+    <string name="ingame_player_view">玩家视角</string>
+    <string name="ingame_fov">视野 (FoV)</string>
+    <string name="ingame_fov_help">视野：行走和瞄准时，将肩后镜头的视野最多放宽 (+) 或收窄 (−) 15 度；0° 为游戏原本的视野。过场动画、瞄准镜和望远镜保持不变。</string>
 </resources>

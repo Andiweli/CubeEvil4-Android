@@ -94,8 +94,9 @@ public final class CoreBridge {
   /** The game's debug menu at its next frame (SELECT held, patch 0061). */
   public static native void debugMenu();
   /** The game's depth of field (patch 0065) and, where the game asks for none while the player is free, the
-   *  gameplay autofocus of the first Android port; on unless switched off. */
-  public static native void setDof(boolean on);
+   *  gameplay autofocus of the first Android port: 0 off, 1 light (as until 0.98.3), 2 strong (the autofocus
+   *  blurs more and wider; wish of the project owner, 05.11.2026). */
+  public static native void setDof(int level);
   /**
    * The menu's "Force Performance": true keeps the game and the graphics thread on the fast cores
    * with Android's performance hint, false (the default) leaves them to Android.
@@ -168,6 +169,9 @@ public final class CoreBridge {
   public static native void setMerge(boolean on);
   /** "Far camera": the shoulder camera further back while walking and standing (patch 0171). */
   public static native void setFarCamera(boolean on);
+  /** "Field of view" (PLAYER VIEW): the shoulder camera's vertical field of view changed by `degrees`
+   *  (-15 .. +15; 0 as the game; patch 0205), sent with the aim settings. */
+  public static native void setFov(int degrees);
   /** Original TV filter: the game's vertical copy filter on the picture. */
   public static native void setTvFilter(boolean on);
   public static native void setPsx(boolean on);

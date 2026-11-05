@@ -17,7 +17,6 @@
     <string name="ingame_stretched">खींचा हुआ</string>
     <string name="ingame_other_options">अन्य विकल्प</string>
     <string name="ingame_laser_section">लेज़र साइट</string>
-    <string name="ingame_laser_colour">रंग</string>
     <string name="ingame_laser_red">डिफ़ॉल्ट (लाल)</string>
     <string name="ingame_laser_blue">नीला</string>
     <string name="ingame_laser_green">हरा</string>
@@ -34,10 +33,9 @@
     <string name="ingame_fps_bottom_centre">नीचे बीच में</string>
     <string name="ingame_fps_top_left">ऊपर बाएँ</string>
     <string name="ingame_fps_top_centre">ऊपर बीच में</string>
-    <string name="ingame_smooth60">60 FPS (प्रयोगात्मक)</string>
-    <string name="ingame_merge_draws">ड्रॉ कॉल मिलाएँ (प्रयोगात्मक)</string>
-    <string name="ingame_vertex_ring">वर्टेक्स रिंग बफ़र (प्रयोगात्मक)</string>
-    <string name="ingame_force_performance">परफ़ॉर्मेंस ज़बरदस्ती</string>
+    <string name="ingame_smooth60">60 FPS</string>
+    <string name="ingame_merge_draws">ड्रॉ कॉल मिलाएँ</string>
+    <string name="ingame_vertex_ring">वर्टेक्स रिंग बफ़र</string>
     <string name="ingame_perf_default">डिफ़ॉल्ट</string>
     <string name="ingame_perf_cores">परफ़ॉर्मेंस कोर इस्तेमाल करें</string>
     <string name="ingame_perf_help">परफ़ॉर्मेंस कोर: गेम और ग्राफ़िक्स डिवाइस के सबसे तेज़ कोर पर चलते हैं और Android से ऊँची क्लॉक माँगते हैं। कई डिवाइस पर ज़्यादा स्मूद, लेकिन इसमें ज़्यादा CPU पावर लगती है और डिवाइस ज़्यादा गर्म होता है। डिफ़ॉल्ट: Android तय करता है।</string>
@@ -166,7 +164,6 @@
     <string name="ingame_music_volume">संगीत</string>
     <string name="ingame_effects_volume">साउंड इफ़ेक्ट</string>
     <string name="ingame_volume_help">संगीत पृष्ठभूमि संगीत है; साउंड इफ़ेक्ट गेम की बाकी सभी आवाज़ें हैं (गोलियाँ, आवाज़ें, कदम)। फ़िल्मों की आवाज़ वैसी ही रहती है। दोनों बटन संगीत या साउंड इफ़ेक्ट को पूरी तरह बंद कर देते हैं; फिर से चालू करने पर वे ऊपर तय की गई आवाज़ पर बजते हैं।</string>
-    <string name="ingame_output">चित्र आउटपुट</string>
     <string name="ingame_smooth_help">अतिरिक्त बीच के फ़्रेम। गेम लॉजिक 30 फ़्रेम/सेकंड पर रहता है।</string>
     <string name="ingame_instant_save">सेव करें</string>
     <string name="ingame_instant_load">लोड करें</string>
@@ -221,7 +218,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">अटैची केस L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखता। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं। ऑटोमैटिक QTE हर क्विक-टाइम संकेत पर आपके लिए बटन दबाता है। एक्स्ट्रा गेम अनलॉक करें, गेम पूरा करने के बाद की तरह, Assignment Ada और The Mercenaries को टाइटल मेनू में जोड़ता है; आपका अगला सेव उन्हें रखता है।</string>
+    <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखता। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं। ऑटोमैटिक QTE हर क्विक-टाइम संकेत पर आपके लिए बटन दबाता है। एक्स्ट्रा गेम अनलॉक करें, गेम पूरा करने के बाद की तरह, Assignment Ada और The Mercenaries को टाइटल मेनू में जोड़ता है; आपका अगला सेव उन्हें रखता है। अदृश्यता: दुश्मन आपको नहीं देखते और हमला नहीं करते; बॉस और तय दृश्य फिर भी कर सकते हैं।</string>
     <string name="ingame_cheat_done">हो गया: %1$s।</string>
     <string name="ingame_cheat_already">पहले से है: %1$s।</string>
     <string name="ingame_cheat_raised">%1$s पहले से है: अब सबसे ऊँचे लेवल पर।</string>
@@ -275,4 +272,14 @@
     <string name="ingame_mouse_sensitivity">माउस संवेदनशीलता</string>
     <string name="ingame_map_controller">कंट्रोलर</string>
     <string name="ingame_map_device">डिवाइस</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">अदृश्यता</string>
+    <string name="ingame_cheat_section_player">खिलाड़ी और इन्वेंटरी</string>
+    <string name="ingame_cheat_section_weapons">हथियार</string>
+    <string name="ingame_cheat_section_game">गेम</string>
+    <string name="ingame_dof_light">हल्का</string>
+    <string name="ingame_dof_strong">तेज़</string>
+    <string name="ingame_player_view">खिलाड़ी का दृश्य</string>
+    <string name="ingame_fov">दृश्य क्षेत्र (FoV)</string>
+    <string name="ingame_fov_help">दृश्य क्षेत्र: चलते और निशाना लगाते समय कंधे वाले कैमरे का दृश्य 15 डिग्री तक चौड़ा (+) या संकरा (−) करता है; 0° गेम का अपना है। कटसीन, स्कोप और दूरबीन वैसे ही रहते हैं।</string>
 </resources>

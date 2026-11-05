@@ -40,26 +40,24 @@ final class CornerInset {
   /**
    * The distance (pixels) of the FPS display from the window's left edge and from its bottom (or top) edge. In
    * the corners the rounded corner there counts; centred on that edge no rounded corner reaches (the left
-   * distance is then of no use).
+   * distance is then of no use). Since 0.98.4 the display touches the top or bottom edge (wish of the project
+   * owner, 05.11.2026): the second value is 0 in all four places; the distance from the left keeps the corner,
+   * the cutout and the bars as before (a box of a text line at the edge stays inside the arc that far in).
    */
   static int[] place(WindowInsets insets, float density, boolean car, boolean top, boolean centre) {
     int left = 0;
-    int edge = 0;
     if (Build.VERSION.SDK_INT >= 28) {
       final DisplayCutout cutout = insets.getDisplayCutout();
       if (cutout != null) {
         left = cutout.getSafeInsetLeft();
-        edge = top ? cutout.getSafeInsetTop() : cutout.getSafeInsetBottom();
       }
     }
     if (!car) {
       if (Build.VERSION.SDK_INT >= 30) {
         final android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
         left = Math.max(left, bars.left);
-        edge = Math.max(edge, top ? bars.top : bars.bottom);
       } else {
         left = Math.max(left, insets.getSystemWindowInsetLeft());
-        edge = Math.max(edge, top ? insets.getSystemWindowInsetTop() : insets.getSystemWindowInsetBottom());
       }
     }
     int radius = 0;
@@ -67,7 +65,7 @@ final class CornerInset {
       final RoundedCorner corner = insets.getRoundedCorner(top ? RoundedCorner.POSITION_TOP_LEFT : RoundedCorner.POSITION_BOTTOM_LEFT);
       if (corner != null) radius = corner.getRadius();
     }
-    return new int[] {inset(left, radius, density), inset(edge, centre ? 0 : radius, density)};
+    return new int[] {inset(left, radius, density), 0};
   }
 
 }

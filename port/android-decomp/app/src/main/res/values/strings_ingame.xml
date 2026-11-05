@@ -26,7 +26,6 @@
     <string name="ingame_stretched">Stretched</string>
     <string name="ingame_other_options">Other options</string>
     <string name="ingame_laser_section">Laser Sight</string>
-    <string name="ingame_laser_colour">Colour</string>
     <string name="ingame_laser_red">Default (Red)</string>
     <string name="ingame_laser_blue">Blue</string>
     <string name="ingame_laser_green">Green</string>
@@ -43,10 +42,9 @@
     <string name="ingame_fps_bottom_centre">Bottom centre</string>
     <string name="ingame_fps_top_left">Top left</string>
     <string name="ingame_fps_top_centre">Top centre</string>
-    <string name="ingame_smooth60">60 FPS (experimental)</string>
-    <string name="ingame_merge_draws">Merge draw calls (experimental)</string>
-    <string name="ingame_vertex_ring">Vertex ring buffer (experimental)</string>
-    <string name="ingame_force_performance">Force Performance</string>
+    <string name="ingame_smooth60">60 FPS</string>
+    <string name="ingame_merge_draws">Merge draw calls</string>
+    <string name="ingame_vertex_ring">Vertex ring buffer</string>
     <string name="ingame_perf_default">Default</string>
     <string name="ingame_perf_cores">Use performance cores</string>
     <string name="ingame_perf_help">Performance cores: the game and the graphics run on the phone\'s fastest cores and ask Android for higher clocks. Smoother on many phones, but it needs more CPU power and the device gets warmer. Default: Android decides.</string>
@@ -181,7 +179,6 @@
     <string name="ingame_music_volume">Music</string>
     <string name="ingame_effects_volume">Sound effects</string>
     <string name="ingame_volume_help">Music is the background music; sound effects are everything else in the game (shots, voices, steps). The movies keep their sound as it is. The two buttons switch the music or the sound effects off entirely; switched on again, they play at the volume above.</string>
-    <string name="ingame_output">Picture output</string>
     <string name="ingame_smooth_help">Extra in-between pictures. The game logic stays at 30 frames/s.</string>
     <string name="ingame_instant_save">Save</string>
     <string name="ingame_instant_load">Load</string>
@@ -236,7 +233,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Attaché case L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">The switches stay on until you switch them off; your save does not keep them. Some attacks still kill Leon at once (a chainsaw, a grab, a boulder). The buttons change your game: the weapon, the case and the money stay in your next save. Automatic QTEs presses the buttons of every quick-time prompt for you. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu, as after finishing the game; your next save keeps them.</string>
+    <string name="ingame_cheats_help">The switches stay on until you switch them off; your save does not keep them. Some attacks still kill Leon at once (a chainsaw, a grab, a boulder). The buttons change your game: the weapon, the case and the money stay in your next save. Automatic QTEs presses the buttons of every quick-time prompt for you. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu, as after finishing the game; your next save keeps them. Invisibility: enemies take no notice of you and do not attack; bosses and scripted scenes still can.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s already owned: now at its highest levels.</string>
@@ -290,4 +287,14 @@
     <string name="ingame_mouse_sensitivity">Mouse Sensitivity</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Device</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">Invisibility</string>
+    <string name="ingame_cheat_section_player">Player &amp; Inventory</string>
+    <string name="ingame_cheat_section_weapons">Weapons</string>
+    <string name="ingame_cheat_section_game">Game</string>
+    <string name="ingame_dof_light">Light</string>
+    <string name="ingame_dof_strong">Strong</string>
+    <string name="ingame_player_view">Player View</string>
+    <string name="ingame_fov">Field of view (FoV)</string>
+    <string name="ingame_fov_help">Field of view: widens (+) or narrows (−) the shoulder camera\'s view by up to 15 degrees, while walking and while aiming; 0° is the game\'s own. Cutscenes, the scope and the binoculars stay as they are.</string>
 </resources>

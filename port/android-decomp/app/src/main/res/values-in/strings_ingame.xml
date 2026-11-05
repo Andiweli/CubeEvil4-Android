@@ -18,7 +18,6 @@
     <string name="ingame_stretched">Direntangkan</string>
     <string name="ingame_other_options">Opsi lain</string>
     <string name="ingame_laser_section">Bidikan laser</string>
-    <string name="ingame_laser_colour">Warna</string>
     <string name="ingame_laser_red">Bawaan (merah)</string>
     <string name="ingame_laser_blue">Biru</string>
     <string name="ingame_laser_green">Hijau</string>
@@ -35,10 +34,9 @@
     <string name="ingame_fps_bottom_centre">Tengah bawah</string>
     <string name="ingame_fps_top_left">Kiri atas</string>
     <string name="ingame_fps_top_centre">Tengah atas</string>
-    <string name="ingame_smooth60">60 FPS (eksperimental)</string>
-    <string name="ingame_merge_draws">Gabungkan panggilan gambar (eksperimental)</string>
-    <string name="ingame_vertex_ring">Ring buffer verteks (eksperimental)</string>
-    <string name="ingame_force_performance">Paksa Performa</string>
+    <string name="ingame_smooth60">60 FPS</string>
+    <string name="ingame_merge_draws">Gabungkan panggilan gambar</string>
+    <string name="ingame_vertex_ring">Ring buffer verteks</string>
     <string name="ingame_perf_default">Bawaan</string>
     <string name="ingame_perf_cores">Gunakan inti performa</string>
     <string name="ingame_perf_help">Inti performa: game dan grafis berjalan di inti tercepat ponsel dan meminta Android menaikkan kecepatan clock. Lebih lancar di banyak ponsel, tetapi butuh daya CPU lebih besar dan perangkat menjadi lebih hangat. Bawaan: Android yang memutuskan.</string>
@@ -165,7 +163,6 @@
     <string name="ingame_music_volume">Musik</string>
     <string name="ingame_effects_volume">Efek suara</string>
     <string name="ingame_volume_help">Musik adalah musik latar; efek suara adalah semua suara lain di dalam game (tembakan, suara karakter, langkah kaki). Suara film tetap seperti aslinya. Kedua tombol mematikan musik atau efek suara sepenuhnya; saat diaktifkan lagi, keduanya berbunyi dengan volume yang diatur di atas.</string>
-    <string name="ingame_output">Keluaran gambar</string>
     <string name="ingame_smooth_help">Gambar sisipan tambahan. Logika game tetap 30 frame/detik.</string>
     <string name="ingame_instant_save">Simpan</string>
     <string name="ingame_instant_load">Muat</string>
@@ -219,7 +216,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Koper L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; data simpanan Anda tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. QTE otomatis menekan tombol setiap perintah quick-time untuk Anda. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul, seperti setelah menamatkan game; simpanan berikutnya menyimpannya.</string>
+    <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; data simpanan Anda tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. QTE otomatis menekan tombol setiap perintah quick-time untuk Anda. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul, seperti setelah menamatkan game; simpanan berikutnya menyimpannya. Tak terlihat: musuh tidak menyadari Anda dan tidak menyerang; bos dan adegan tetap masih bisa.</string>
     <string name="ingame_cheat_done">Selesai: %1$s.</string>
     <string name="ingame_cheat_already">Sudah ada: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s sudah dimiliki: kini di tingkat tertingginya.</string>
@@ -273,4 +270,14 @@
     <string name="ingame_mouse_sensitivity">Sensitivitas Mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Perangkat</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">Tak terlihat</string>
+    <string name="ingame_cheat_section_player">Pemain &amp; Inventaris</string>
+    <string name="ingame_cheat_section_weapons">Senjata</string>
+    <string name="ingame_cheat_section_game">Permainan</string>
+    <string name="ingame_dof_light">Ringan</string>
+    <string name="ingame_dof_strong">Kuat</string>
+    <string name="ingame_player_view">Pandangan Pemain</string>
+    <string name="ingame_fov">Bidang pandang (FoV)</string>
+    <string name="ingame_fov_help">Bidang pandang: melebarkan (+) atau menyempitkan (−) pandangan kamera bahu hingga 15 derajat, saat berjalan dan membidik; 0° adalah bawaan game. Cutscene, teropong senapan, dan teropong tetap seperti semula.</string>
 </resources>

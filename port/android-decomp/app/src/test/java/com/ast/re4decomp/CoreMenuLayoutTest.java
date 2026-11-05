@@ -271,10 +271,10 @@ public class CoreMenuLayoutTest {
       Button autoAim = findButton(body, activity.getString(R.string.ingame_auto_aim));
       Button alwaysRun = findButton(body, activity.getString(R.string.ingame_always_run));
       assertNotNull(autoAim); assertNotNull(alwaysRun);
-      // "Far camera" in its own row under them (01.11.2026, patch 0171)
+      // "Far camera" since 05.11.2026 in PLAYER VIEW, beside the field of view's slider
       Button farCamera = findButton(body, activity.getString(R.string.ingame_far_camera));
       assertNotNull(farCamera);
-      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 2),
+      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 1),
           activity.getString(R.string.ingame_aim_invert_v));
       Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
@@ -282,14 +282,25 @@ public class CoreMenuLayoutTest {
       Button mapping = findButton(body, activity.getString(R.string.ingame_controller_config));
       assertNotNull(alternate); assertNotNull(latch); assertNotNull(aimInvert); assertNotNull(touchAim);
       assertNotNull(gyro); assertNotNull(gyroInvert); assertNotNull(mapping);
-      int motion = -1, comfort = -1, devices = -1;
-      for (int i = 0; i < body.getChildCount(); i++) {
-        if (!(body.getChildAt(i) instanceof TextView) || body.getChildAt(i) instanceof Button) continue;
-        String t = ((TextView) body.getChildAt(i)).getText().toString();
-        if (t.equals(activity.getString(R.string.ingame_motion).toUpperCase(Locale.getDefault()))) motion = i;
-        if (t.equals(activity.getString(R.string.ingame_comfort).toUpperCase(Locale.getDefault()))) comfort = i;
-        if (t.equals(activity.getString(R.string.ingame_controller_section).toUpperCase(Locale.getDefault()))) devices = i;
-      }
+      int motion = heading(body, activity, R.string.ingame_motion), comfort = heading(body, activity, R.string.ingame_comfort);
+      int devices = heading(body, activity, R.string.ingame_controller_section);
+      int touch = heading(body, activity, R.string.ingame_touch_controls), aiming = heading(body, activity, R.string.ingame_touch_aim);
+      int view = heading(body, activity, R.string.ingame_player_view), laser = heading(body, activity, R.string.ingame_laser_section);
+      // 05.11.2026: TOUCH CONTROLS first, a third of the row each; TOUCH AIMING after the comfort controls, PLAYER VIEW
+      // (far camera | field of view) above the LASER SIGHT (a quarter of the row each)
+      assertEquals("touch controls first", 0, touch);
+      Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
+      assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
+      assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
+      assertTrue("touch aiming after the comfort controls", aiming > comfort);
+      assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
+      assertTrue("player view after touch aiming", view > aiming);
+      assertEquals("far camera under player view", view + 1, rowIndex(farCamera, body));
+      assertTrue("the laser after player view", laser > view && devices > laser);
+      Button red = findButton(body, activity.getString(R.string.ingame_laser_red));
+      assertEquals("the colours under their heading", laser + 1, rowIndex(red, body));
+      assertEquals(4, ((ViewGroup) red.getParent()).getChildCount());
+      assertEquals("the colours side by side", red.getTop(), findButton(body, activity.getString(R.string.ingame_laser_yellow)).getTop());
       // motion controls first (wish of the project owner, 30.10.2026): the gyro switch with its slider, its directions
       assertTrue("the motion heading", motion >= 0);
       assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
@@ -299,9 +310,7 @@ public class CoreMenuLayoutTest {
       assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
       assertEquals("auto aim right under the latches", rowIndex(latch, body) + 1, rowIndex(autoAim, body));
       assertEquals("always run beside auto aim", rowIndex(autoAim, body), rowIndex(alwaysRun, body));
-      assertEquals("far camera right under them", rowIndex(autoAim, body) + 1, rowIndex(farCamera, body));
-      assertEquals("the aim row right under it", rowIndex(farCamera, body) + 1, rowIndex(aimInvert, body));
-      assertEquals("touch aiming right under the aim row", rowIndex(aimInvert, body) + 1, rowIndex(touchAim, body));
+      assertEquals("the aim row right under them", rowIndex(autoAim, body) + 1, rowIndex(aimInvert, body));
       // the button mapping at the bottom, under a heading of its own
       assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));
       assertEquals("the button mapping right under its heading", devices + 1, rowIndex(mapping, body));
@@ -410,6 +419,21 @@ public class CoreMenuLayoutTest {
     }
   }
 
+  /** The body's row of a section heading (CoreMenu.Heading), -1 when there is none. */
+  private static int heading(ViewGroup body, Activity activity, int id) {
+    String want = activity.getString(id).toUpperCase(Locale.getDefault());
+    for (int i = 0; i < body.getChildCount(); i++) {
+      View v = body.getChildAt(i);
+      if (v instanceof CoreMenu.Heading && ((CoreMenu.Heading) v).title().equals(want)) {
+        // the faint line beside the text (05.11.2026), to the end of the row
+        View rule = ((ViewGroup) v).getChildAt(1);
+        assertTrue("a line right of the heading", rule.getLeft() >= ((ViewGroup) v).getChildAt(0).getRight());
+        return i;
+      }
+    }
+    return -1;
+  }
+
   private static TextView findText(View view, String text) {
     if (view instanceof TextView && !(view instanceof Button) && ((TextView) view).getText().toString().equals(text)) {
       return (TextView) view;
@@ -438,30 +462,41 @@ public class CoreMenuLayoutTest {
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       show.invoke(menu, 5, false);  // CHEATS, a page of its own since 30.10.2026
       ViewGroup body = (ViewGroup) field(menu, "body");
-      // the switches, then the weapons (01.11.2026: two rows of three, Killer7 last), then the case and the money
-      ViewGroup switches = (ViewGroup) body.getChildAt(0), weapons = (ViewGroup) body.getChildAt(1);
-      ViewGroup actions = (ViewGroup) body.getChildAt(2), caseMoney = (ViewGroup) body.getChildAt(3);
-      assertEquals(3, switches.getChildCount()); assertEquals(3, weapons.getChildCount());
-      assertEquals(3, actions.getChildCount()); assertEquals(2, caseMoney.getChildCount());
-      assertTrue(((Button) weapons.getChildAt(0)).getText().toString()
-          .contains(activity.getString(R.string.ingame_cheat_handcannon)));
-      assertTrue(((Button) caseMoney.getChildAt(1)).getText().toString()
-          .contains(activity.getString(R.string.ingame_cheat_money)));
-      Button health = (Button) switches.getChildAt(0), oneHit = (Button) switches.getChildAt(2);
+      // 05.11.2026: PLAYER & INVENTORY (health, ammo, invisibility; one-hit kill, case, money), WEAPONS (Handcannon,
+      // Killer7, Matilda; Chicago Typewriter, Mine Thrower, rocket launcher), GAME (QTEs, extra games)
+      assertEquals(0, heading(body, activity, R.string.ingame_cheat_section_player));
+      ViewGroup switches = (ViewGroup) body.getChildAt(1), inventory = (ViewGroup) body.getChildAt(2);
+      assertEquals(3, heading(body, activity, R.string.ingame_cheat_section_weapons));
+      ViewGroup weapons = (ViewGroup) body.getChildAt(4), launchers = (ViewGroup) body.getChildAt(5);
+      assertEquals(6, heading(body, activity, R.string.ingame_cheat_section_game));
+      assertEquals(3, switches.getChildCount()); assertEquals(3, inventory.getChildCount());
+      assertEquals(3, weapons.getChildCount()); assertEquals(3, launchers.getChildCount());
+      String[][] labels = {{"ingame_cheat_health", "ingame_cheat_ammo", "ingame_cheat_invisible"},
+          {"ingame_cheat_onehit", "ingame_cheat_case", "ingame_cheat_money"},
+          {"ingame_cheat_handcannon", "ingame_cheat_killer7", "ingame_cheat_matilda"},
+          {"ingame_cheat_chicago", "ingame_cheat_mine", "ingame_cheat_rocket"}};
+      ViewGroup[] rows = {switches, inventory, weapons, launchers};
+      for (int r = 0; r < 4; r++) for (int c = 0; c < 3; c++) {
+        int id = activity.getResources().getIdentifier(labels[r][c], "string", activity.getPackageName());
+        assertTrue(labels[r][c], ((Button) rows[r].getChildAt(c)).getText().toString().contains(activity.getString(id)));
+      }
+      Button health = (Button) switches.getChildAt(0), oneHit = (Button) inventory.getChildAt(0);
+      Button invisible = (Button) switches.getChildAt(2);
       assertFalse(health.isSelected());
       health.performClick(); assertEquals(1, sent[0]);
       oneHit.performClick(); assertEquals(5, sent[0]);
+      invisible.performClick(); assertEquals(5 | CoreMenu.INVISIBLE_BIT, sent[0]);
+      invisible.performClick(); assertEquals(5, sent[0]);
       health.performClick(); assertEquals(4, sent[0]);
       // the bottom row (29.10.2026): two, automatic QTEs (bit 8) and the extra games' button
-      ViewGroup more = (ViewGroup) body.getChildAt(4);
+      ViewGroup more = (ViewGroup) body.getChildAt(7);
       assertEquals(2, more.getChildCount());
       Button qte = (Button) more.getChildAt(0), extras = (Button) more.getChildAt(1);
       assertTrue(qte.getText().toString().contains(activity.getString(R.string.ingame_cheat_qte)));
       assertTrue(extras.getText().toString().contains(activity.getString(R.string.ingame_cheat_extras)));
       qte.performClick(); assertEquals(12, sent[0]);
       qte.performClick(); assertEquals(4, sent[0]);
-      Button killer7 = (Button) actions.getChildAt(2);
-      assertTrue(killer7.getText().toString().contains(activity.getString(R.string.ingame_cheat_killer7)));
+      Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());
       org.robolectric.shadows.ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS);

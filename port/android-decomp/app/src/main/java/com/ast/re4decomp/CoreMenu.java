@@ -120,6 +120,8 @@ final class CoreMenu extends Dialog {
   static final int CHARACTER_SHIFT = 5, CHARACTER_BITS = 7 << CHARACTER_SHIFT;
   /** The special costume of Leon and Ashley in the cheat switches (runtime/cheats.cpp). */
   static final int COSTUME_BIT = 256;
+  /** "Invisibility" in the cheat switches (wish of the project owner, 05.11.2026; runtime/cheats.cpp). */
+  static final int INVISIBLE_BIT = 512;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
@@ -264,13 +266,43 @@ final class CoreMenu extends Dialog {
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
     lp.setMargins(0, dp(10), 0, dp(8)); parent.addView(v, lp);
   }
+  /** A section's heading with a faint line to its right up to the end of the row, so the sections stand
+   *  apart (wish of the project owner, 05.11.2026); the line is the separators' colour, centred on the text. */
   private void heading(int id) {
+    LinearLayout line = new Heading(getContext());
+    line.setPadding(0, dp(16), 0, dp(8));
     TextView v = text(s(id).toUpperCase(Locale.getDefault()), 14, true); v.setTextColor(MUTED); v.setLetterSpacing(.08f);
-    v.setPadding(0, dp(16), 0, dp(8)); body.addView(v);
+    // a little air on both sides: joined scripts (Arabic) measure the letter spacing a little short
+    v.setPaddingRelative(dp(2), 0, dp(2), 0);
+    line.addView(v, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    View rule = new View(getContext()); rule.setBackgroundColor(BORDER);
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(1), 1);
+    lp.setMarginStart(dp(12)); lp.gravity = Gravity.CENTER_VERTICAL;
+    line.addView(rule, lp);
+    body.addView(line);
+  }
+  /** A section heading's row (its text, then the line): the tests find the headings by it. */
+  static final class Heading extends LinearLayout {
+    Heading(Context context) { super(context); setBaselineAligned(false); setGravity(Gravity.CENTER_VERTICAL); }
+    /** The heading's text as shown (upper case). */
+    String title() { return ((TextView) getChildAt(0)).getText().toString(); }
   }
   private void help(int id) { help(body, id); }
   private void help(LinearLayout parent, int id) {
     TextView t = text(s(id), 15, false); t.setPadding(0, dp(4), 0, dp(8)); parent.addView(t);
+  }
+  /**
+   * An explanation on DISPLAY that starts below the buttons' left edge (wish of the project owner, 05.11.2026):
+   * beside the rows' labels the option column (where the buttons stand, plus their margin), stacked on narrow
+   * windows the buttons' margin.
+   */
+  private TextView indentedHelp(String label) {
+    MenuLayout.Columns outer = new MenuLayout.Columns(getContext(), 170, 640, true);
+    outer.addView(new View(getContext()));
+    TextView t = text(label, 15, false); t.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    outer.addView(t);
+    body.addView(outer);
+    return t;
   }
   /** Row label as tall as one button row (48 dp minimum + the margins above and below), centred on the first row. */
   private TextView rowLabel(String label) {
@@ -334,6 +366,27 @@ final class CoreMenu extends Dialog {
       buttons[i] = b;
     }
     body.addView(outer);
+    return buttons;
+  }
+  /**
+   * Choices without a row label over the whole row, `columns` a row (each a half, a third or a quarter of the
+   * menu's width; wishes of the project owner, 05.11.2026); a long translation wraps onto two lines before the
+   * row loses a column.
+   */
+  private Button[] rowChoices(String[] labels, int[] values, int selected, int columns, Changed<Integer> changed) {
+    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), columns, 2);
+    body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    Button[] buttons = new Button[labels.length];
+    for (int i = 0; i < labels.length; i++) {
+      final int index = i;
+      Button b = cellAction(row, labels[i], v -> {
+        select(buttons, labels, index);
+        changed.accept(values[index]);
+      });
+      b.setSelected(values[i] == selected);
+      b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
+      buttons[i] = b;
+    }
     return buttons;
   }
   private void select(Button[] buttons, String[] labels, int index) {
@@ -403,9 +456,17 @@ final class CoreMenu extends Dialog {
     });
     return b;
   }
-  private void fpsLabel(Button b, int place, boolean on) {
+  private void fpsLabel(Button b, int place, boolean on) { valueLabel(b, R.string.ingame_fps_display, place, on); }
+  /** "Name · value" on a button that moves through its values with each press, lit while not off. */
+  private void valueLabel(Button b, int name, int value, boolean on) {
     b.setSelected(on);
-    b.setText(getContext().getString(R.string.ingame_toggle_value, s(R.string.ingame_fps_display), s(place)));
+    b.setText(getContext().getString(R.string.ingame_toggle_value, s(name), s(value)));
+  }
+  /** The depth of field's level (0 off, 1 light, 2 strong); until 0.98.3 the switch "dof" (on: light). */
+  static final String DOF_LEVEL = "dofLevel";
+  static int dofLevel(SharedPreferences g) {
+    if (g.contains(DOF_LEVEL)) return Math.max(0, Math.min(2, g.getInt(DOF_LEVEL, 1)));
+    return g.getBoolean("dof", true) ? 1 : 0;
   }
   private void toggleLabel(Button b, int label, boolean on) {
     b.setSelected(on);
@@ -546,20 +607,26 @@ final class CoreMenu extends Dialog {
     graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_stretched)},
         new int[] {1, 3, 0, 2}, 0, Integer.MAX_VALUE);
     resolutionChoices();
-    graphicsLine = text("", 15, false); graphicsLine.setPadding(0, dp(4), 0, dp(10)); body.addView(graphicsLine); showGraphics();
+    graphicsLine = indentedHelp(""); graphicsLine.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(10)); showGraphics();
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
         new int[] {1, 2, 4}, 1, samples);
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_fxaa, graphics.getBoolean("fxaa", false), on -> {
       graphics.edit().putBoolean("fxaa", on).apply(); CoreBridge.setFxaa(on);
     });
-    help(R.string.ingame_fxaa_help);
+    indentedHelp(s(R.string.ingame_fxaa_help));
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
     heading(R.string.ingame_postprocessing);
     LinearLayout effects = labelledOptions(R.string.ingame_effects);
-    toggle(buttonsRow(effects), R.string.ingame_dof, graphics.getBoolean("dof", true), on -> {
-      graphics.edit().putBoolean("dof", on).apply(); CoreBridge.setDof(on);
+    // each press moves the depth of field on: off, light (as before), strong (wish of the project owner, 05.11.2026)
+    final int[] dofLabels = {R.string.ingame_off, R.string.ingame_dof_light, R.string.ingame_dof_strong};
+    Button dof = cellAction(buttonsRow(effects), "", v -> {
+      int next = (dofLevel(graphics) + 1) % 3;
+      graphics.edit().putInt(DOF_LEVEL, next).putBoolean("dof", next != 0).apply();
+      valueLabel((Button) v, R.string.ingame_dof, dofLabels[next], next != 0);
+      CoreBridge.setDof(next);
     });
+    valueLabel(dof, R.string.ingame_dof, dofLabels[dofLevel(graphics)], dofLevel(graphics) != 0);
     // a faint glow at torches, candles and fires (wish of the project owner, 04.11.2026; off by default)
     toggle(buttonsRow(effects), R.string.ingame_flares, graphics.getBoolean("flares", false), on -> {
       graphics.edit().putBoolean("flares", on).apply(); CoreBridge.setFlares(on);
@@ -574,7 +641,7 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(filters), R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
       graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
     });
-    help(R.string.ingame_filter_help);
+    indentedHelp(s(R.string.ingame_filter_help));
     heading(R.string.ingame_optional_features);
     // the current room's outline at the bottom left, turning with the player (wish of the project owner, 04.11.2026)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
@@ -595,8 +662,10 @@ final class CoreMenu extends Dialog {
     fpsLabel(fps, fpsLabels[fpsNow], fpsNow != 0);
   }
   private void controls() {
-    quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
-        new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input),
+    // the touch controls under a heading of their own, a third of the row each (wish of the project owner, 05.11.2026)
+    heading(R.string.ingame_touch_controls);
+    rowChoices(new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
+        new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input), 3,
         mode -> host.touchModeChanged(mode));
     help(R.string.ingame_touch_help);
     // the gyro in a section of its own, above the comfort controls (wishes of the project owner, 30.10.2026)
@@ -630,28 +699,39 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons third = buttonsRow(body);
     toggle(third, R.string.ingame_auto_aim, input.getBoolean(CoreActivity.AUTO_AIM, false), on -> host.autoAimChanged(on));
     toggle(third, R.string.ingame_always_run, input.getBoolean(CoreActivity.ALWAYS_RUN, false), on -> host.alwaysRunChanged(on));
-    // the shoulder camera further back (a user's wish, 01.11.2026; patch 0171)
-    toggle(buttonsRow(body), R.string.ingame_far_camera, input.getBoolean(CoreActivity.FAR_CAMERA, false), on -> {
-      input.edit().putBoolean(CoreActivity.FAR_CAMERA, on).apply(); CoreBridge.setFarCamera(on);
-    });
     // aiming the knife and the guns by touch or a controller (wish of the project owner, 30.10.2026): the game's
     // own "reverse" option and the stick's speed while aiming, right under the latches
     switchWithSlider(R.string.ingame_aim_invert_v, input.getBoolean(CoreActivity.AIM_INVERT_V, false),
         on -> host.aimInvertChanged(on), R.string.ingame_aim_speed, CoreActivity.AIM_SPEED_MIN,
         CoreActivity.AIM_SPEED_MAX, CoreActivity.AIM_SPEED_STEP,
         CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
-    // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held
-    quarterChoices(R.string.ingame_touch_aim, new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
-        s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
-        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), mode -> host.touchAimChanged(mode));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
-    help(R.string.ingame_always_run_help); help(R.string.ingame_far_camera_help); help(R.string.ingame_aim_help);
-    help(R.string.ingame_touch_aim_help); help(R.string.ingame_knife_swipe_help);
-    // the laser sight's colour, beam and dot (wish of the project owner, 04.11.2026): right after touch aiming
+    help(R.string.ingame_always_run_help); help(R.string.ingame_aim_help); help(R.string.ingame_knife_swipe_help);
+    // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held; since 05.11.2026 a section
+    // of its own, a third of the row each
+    heading(R.string.ingame_touch_aim);
+    rowChoices(new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
+        s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
+        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), 3, mode -> host.touchAimChanged(mode));
+    help(R.string.ingame_touch_aim_help);
+    // PLAYER VIEW above the laser sight (wish of the project owner, 05.11.2026): the far camera (a user's wish,
+    // 01.11.2026; patch 0171) in the left half, the field of view (patch 0205) as a slider in the right half
+    heading(R.string.ingame_player_view);
+    View[] view = switchWithSlider(R.string.ingame_far_camera, input.getBoolean(CoreActivity.FAR_CAMERA, false), on -> {
+      input.edit().putBoolean(CoreActivity.FAR_CAMERA, on).apply(); CoreBridge.setFarCamera(on);
+    }, R.string.ingame_fov, -CoreActivity.FOV_RANGE, CoreActivity.FOV_RANGE, 1,
+        CoreActivity.fovOffset(input), value -> {
+          int degrees = Math.round(value);
+          input.edit().putInt(CoreActivity.FOV_OFFSET, degrees).apply(); CoreBridge.setFov(degrees);
+        }, CoreMenu::degrees);
+    view[1].setContentDescription(s(R.string.ingame_fov));
+    help(R.string.ingame_far_camera_help); help(R.string.ingame_fov_help);
+    // the laser sight's colour, beam and dot (wish of the project owner, 04.11.2026); since 05.11.2026 without a
+    // row label, a quarter of the row each
     heading(R.string.ingame_laser_section);
-    choices(R.string.ingame_laser_colour, new String[] {s(R.string.ingame_laser_red), s(R.string.ingame_laser_blue),
+    rowChoices(new String[] {s(R.string.ingame_laser_red), s(R.string.ingame_laser_blue),
         s(R.string.ingame_laser_green), s(R.string.ingame_laser_yellow)}, new int[] {0, 1, 2, 3},
-        input.getInt(CoreActivity.LASER_COLOUR, 0), Integer.MAX_VALUE, 4, colour -> {
+        input.getInt(CoreActivity.LASER_COLOUR, 0), 4, colour -> {
           input.edit().putInt(CoreActivity.LASER_COLOUR, colour).apply();
           CoreBridge.setLaserColour(colour);
         });
@@ -671,8 +751,13 @@ final class CoreMenu extends Dialog {
    * least 32 dp); the slider's title above it, `min` + n × `step` up to `max`, its value as "1.25×".
    * The switch, the slider and its value, for the caller to enable.
    */
+  private interface Format { String of(float value); }
   private View[] switchWithSlider(int label, boolean on, Changed<Boolean> toggled, int title, float min, float max,
       float step, float stored, Changed<Float> moved) {
+    return switchWithSlider(label, on, toggled, title, min, max, step, stored, moved, CoreMenu::times);
+  }
+  private View[] switchWithSlider(int label, boolean on, Changed<Boolean> toggled, int title, float min, float max,
+      float step, float stored, Changed<Float> moved, Format format) {
     LinearLayout line = new MenuLayout.Columns(getContext(), 0, 540, false);
     line.setGravity(Gravity.CENTER_VERTICAL);
     body.addView(line);
@@ -699,11 +784,11 @@ final class CoreMenu extends Dialog {
     bar.setMax(Math.round((max - min) / step)); bar.setProgress(Math.round((stored - min) / step));
     bar.setContentDescription(s(title));
     bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
-    value.setText(times(stored));
+    value.setText(format.of(stored));
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
         float now = min + progress * step;
-        value.setText(times(now)); if (fromUser) moved.accept(now);
+        value.setText(format.of(now)); if (fromUser) moved.accept(now);
       }
       @Override public void onStartTrackingTouch(SeekBar b) {}
       @Override public void onStopTrackingTouch(SeekBar b) {}
@@ -1016,8 +1101,9 @@ final class CoreMenu extends Dialog {
 
   private void performance() {
     heading(R.string.ingame_perf_section);
-    choices(R.string.ingame_force_performance, new String[] {s(R.string.ingame_perf_default), s(R.string.ingame_perf_cores)},
-        new int[] {0, 1}, graphics.getInt("fastCores", 0), 1, value -> {
+    // without a row label, half the row each (wish of the project owner, 05.11.2026)
+    rowChoices(new String[] {s(R.string.ingame_perf_default), s(R.string.ingame_perf_cores)},
+        new int[] {0, 1}, graphics.getInt("fastCores", 0), 2, value -> {
           graphics.edit().putInt("fastCores", value).apply(); CoreBridge.setFastCores(value == 1);
         });
     help(R.string.ingame_perf_help);
@@ -1032,20 +1118,22 @@ final class CoreMenu extends Dialog {
       graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
     });
     help(R.string.ingame_potato_help);
-    // the picture output under a heading of its own (wish of the project owner, 30.10.2026)
+    // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
+    // without a row label in two columns, frame skip | 60 FPS over merged draws | vertex ring, the explanations
+    // over the whole width
     heading(R.string.ingame_experimental);
-    LinearLayout output = labelledOptions(R.string.ingame_output);
+    MenuLayout.Buttons output = buttonsRow(body), more = buttonsRow(body);
     // Frame skip leaves pictures out, 60 FPS adds pictures between: one or the other (wish of the
     // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off
     final Button[] skipAndSmooth = new Button[2];
-    skipAndSmooth[0] = toggle(buttonsRow(output), R.string.ingame_frame_skip, graphics.getBoolean("frameskip", false), on -> {
+    skipAndSmooth[0] = toggle(output, R.string.ingame_frame_skip, graphics.getBoolean("frameskip", false), on -> {
       graphics.edit().putBoolean("frameskip", on).apply(); CoreBridge.setFrameSkip(on);
       if (on && skipAndSmooth[1].isSelected()) {
         toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
         graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
       }
     });
-    skipAndSmooth[1] = toggle(buttonsRow(output), R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
+    skipAndSmooth[1] = toggle(output, R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
       graphics.edit().putBoolean("smooth60", on).apply(); CoreBridge.setSmooth(on);
       if (on && skipAndSmooth[0].isSelected()) {
         toggleLabel(skipAndSmooth[0], R.string.ingame_frame_skip, false);
@@ -1054,18 +1142,18 @@ final class CoreMenu extends Dialog {
     });
     // merged draw calls (an experiment for phones with a slow graphics driver; wish of the project
     // owner, 30.10.2026: below 60 FPS); the renderer leaves it out while 60 FPS is on
-    toggle(buttonsRow(output), R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
+    toggle(more, R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
       graphics.edit().putBoolean("mergeDraws", on).apply(); CoreBridge.setMerge(on);
     });
     // the vertex ring at the bottom (wish of the project owner, 01.11.2026: off by default, for Mali)
-    toggle(buttonsRow(output), R.string.ingame_vertex_ring, graphics.getBoolean("vertexRing", false), on -> {
+    toggle(more, R.string.ingame_vertex_ring, graphics.getBoolean("vertexRing", false), on -> {
       graphics.edit().putBoolean("vertexRing", on).apply(); CoreBridge.setVertexRing(on);
     });
-    help(output, R.string.ingame_frame_skip_help);
-    help(output, R.string.ingame_smooth_help);
-    help(output, R.string.ingame_skip_or_smooth);
-    help(output, R.string.ingame_merge_help);
-    help(output, R.string.ingame_vertex_ring_help);
+    help(R.string.ingame_frame_skip_help);
+    help(R.string.ingame_smooth_help);
+    help(R.string.ingame_skip_or_smooth);
+    help(R.string.ingame_merge_help);
+    help(R.string.ingame_vertex_ring_help);
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);
@@ -1092,35 +1180,46 @@ final class CoreMenu extends Dialog {
       cheatBits = on ? cheatBits | bit : cheatBits & ~bit; host.cheatsChanged(cheatBits);
     });
   }
-  /** The CHEATS page (out of MANAGEMENT since 30.10.2026, wish of the project owner). */
+  /** A cheat button that changes the game once: lit up for a moment after a press (wish of the project owner,
+   *  27.10.2026: they gave no sign); `what` is the core's button number (runtime/cheats.cpp). */
+  private void cheatButton(MenuLayout.Buttons parent, int what, int label) {
+    cellAction(parent, s(label), v -> {
+      v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
+      cheatAction(what, label);
+    });
+  }
+  private MenuLayout.Buttons cheatRow(int columns) {
+    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), columns);
+    body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    return row;
+  }
+  /** The CHEATS page (out of MANAGEMENT since 30.10.2026, wish of the project owner). Since 05.11.2026 in three
+   *  sections (wish of the project owner): PLAYER & INVENTORY (the switches health, ammo, invisibility; one-hit
+   *  kill, the case, the money), WEAPONS (each at its highest levels), GAME (automatic QTEs, the extra games). */
   private void cheats() {
     cheatBits = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).getInt(CoreActivity.CHEATS, 0);
-    MenuLayout.Buttons switches = new MenuLayout.Buttons(getContext(), 3);
-    body.addView(switches, new LinearLayout.LayoutParams(-1, -2));
-    final int[] switchLabels = {R.string.ingame_cheat_health, R.string.ingame_cheat_ammo, R.string.ingame_cheat_onehit};
-    for (int i = 0; i < switchLabels.length; i++) cheatSwitch(switches, switchLabels[i], 1 << i);
-    // the weapons right below the switches (wish of the project owner, 01.11.2026), each at its highest levels,
-    // then the case and the money; the core's button numbers (runtime/cheats.cpp)
-    final int[][] rows = {{5, 6, 7}, {8, 9, 1}, {2, 3}};
-    final int[] rowLabels = {0, R.string.ingame_cheat_killer7, R.string.ingame_cheat_case, R.string.ingame_cheat_money, 0,
-        R.string.ingame_cheat_handcannon, R.string.ingame_cheat_chicago, R.string.ingame_cheat_rocket,
-        R.string.ingame_cheat_mine, R.string.ingame_cheat_matilda};
-    for (int[] row : rows) {
-      MenuLayout.Buttons actions = new MenuLayout.Buttons(getContext(), row.length);
-      body.addView(actions, new LinearLayout.LayoutParams(-1, -2));
-      for (int what : row) {
-        final int label = rowLabels[what];
-        // lit up for a moment after a press (wish of the project owner, 27.10.2026: they gave no sign)
-        cellAction(actions, s(label), v -> {
-          v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
-          cheatAction(what, label);
-        });
-      }
-    }
-    // the bottom row (wish of the project owner, 29.10.2026): two, each as wide as half the row, the
-    // switch "Automatic QTEs" and the button "Unlock extra games" (Assignment Ada, The Mercenaries)
-    MenuLayout.Buttons more = new MenuLayout.Buttons(getContext(), 2);
-    body.addView(more, new LinearLayout.LayoutParams(-1, -2));
+    heading(R.string.ingame_cheat_section_player);
+    MenuLayout.Buttons player = cheatRow(3);
+    cheatSwitch(player, R.string.ingame_cheat_health, 1);
+    cheatSwitch(player, R.string.ingame_cheat_ammo, 2);
+    cheatSwitch(player, R.string.ingame_cheat_invisible, INVISIBLE_BIT);
+    MenuLayout.Buttons inventory = cheatRow(3);
+    cheatSwitch(inventory, R.string.ingame_cheat_onehit, 4);
+    cheatButton(inventory, 2, R.string.ingame_cheat_case);
+    cheatButton(inventory, 3, R.string.ingame_cheat_money);
+    heading(R.string.ingame_cheat_section_weapons);
+    MenuLayout.Buttons weapons = cheatRow(3);
+    cheatButton(weapons, 5, R.string.ingame_cheat_handcannon);
+    cheatButton(weapons, 1, R.string.ingame_cheat_killer7);
+    cheatButton(weapons, 9, R.string.ingame_cheat_matilda);
+    MenuLayout.Buttons launchers = cheatRow(3);
+    cheatButton(launchers, 6, R.string.ingame_cheat_chicago);
+    cheatButton(launchers, 8, R.string.ingame_cheat_mine);
+    cheatButton(launchers, 7, R.string.ingame_cheat_rocket);
+    // the switch "Automatic QTEs" and the button "Unlock extra games" (Assignment Ada, The Mercenaries), half the
+    // row each (wish of the project owner, 29.10.2026)
+    heading(R.string.ingame_cheat_section_game);
+    MenuLayout.Buttons more = cheatRow(2);
     cheatSwitch(more, R.string.ingame_cheat_qte, 8);
     cellAction(more, s(R.string.ingame_cheat_extras), v -> {
       v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
@@ -1307,6 +1406,11 @@ final class CoreMenu extends Dialog {
       String v = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName;
       return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
     } catch (android.content.pm.PackageManager.NameNotFoundException e) { return null; }
+  }
+  /** "+5°", "0°", "−5°": the field of view's change in degrees, digits 0..9 in every language. */
+  static String degrees(float value) {
+    int d = Math.round(value);
+    return (d > 0 ? "+" : d < 0 ? "\u2212" : "") + Math.abs(d) + "°";
   }
   /** "1×", "1.25×", "3×": the gyro's sensitivity, digits 0..9 in every language (Locale.ROOT). */
   static String times(float value) {

@@ -124,6 +124,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
+  // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
+  // camera's vertical field of view, -FOV_RANGE .. FOV_RANGE, 0 as the game (CoreBridge.setFov, patch 0205)
+  static final String FOV_OFFSET = "fovOffset";
+  static final int FOV_RANGE = 15;
+  static int fovOffset(SharedPreferences input) {
+    return Math.max(-FOV_RANGE, Math.min(FOV_RANGE, input.getInt(FOV_OFFSET, 0)));
+  }
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
   static final String GRAPHICS_PREFS = "core_graphics";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
@@ -322,7 +329,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         FrameLayout.LayoutParams.MATCH_PARENT));
     if (startProblem.isEmpty()) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
-      CoreBridge.setDof(g.getBoolean("dof", true));
+      CoreBridge.setDof(CoreMenu.dofLevel(g));
       // one or the other (CoreMenu): saved with both on before 26.10.2026, 60 FPS stays
       if (g.getBoolean("smooth60", false) && g.getBoolean("frameskip", false))
         g.edit().putBoolean("frameskip", false).apply();
@@ -336,6 +343,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setLaserColour(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getInt(LASER_COLOUR, 0));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
       CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));
+      CoreBridge.setFov(fovOffset(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE)));
       CoreBridge.setVertexRing(g.getBoolean("vertexRing", false));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
       CoreBridge.setPotato(CoreBridge.potatoMask(g));
@@ -1204,6 +1212,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private static boolean controller(android.view.InputEvent e) {
+    // a keyboard's events carry the D-pad's source too when it has arrow keys (keyboardDevice)
+    if (keyboardDevice(e.getDevice())) return false;
     return (e.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
         || (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
         || (e.getSource() & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
@@ -1251,17 +1261,35 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     Log.i(TAG, describeDevice(d));
   }
 
-  /** Game controllers and gamepad-like devices, for the connect lines and controllers.txt. */
-  /** A real keyboard (letters), not a controller that also reports keys (the Retroid's built-in one). */
+  /**
+   * A real keyboard (letters), not a controller that also reports keys (the Retroid's built-in one, which is a
+   * gamepad and a joystick). Android gives every keyboard with arrow keys the D-pad's source as well (sources
+   * 0x301): that alone does not make it a controller (tester report 05.11.2026, OnePlus 9R: a keyboard was taken
+   * for a controller, its keys did nothing in the game and in the button mapping).
+   */
   static boolean keyboardDevice(InputDevice d) {
-    if (d == null || d.isVirtual() || gameDevice(d)) return false;
-    return (d.getSources() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD
-        && d.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
+    if (d == null || d.isVirtual()) return false;
+    return keyboardSources(d.getSources(), d.getKeyboardType());
   }
 
+  /** keyboardDevice by the device's sources and keyboard type (InputDevice), for the tests. */
+  static boolean keyboardSources(int s, int keyboardType) {
+    if ((s & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+        || (s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) return false;
+    return (s & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD
+        && keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
+  }
+
+  /** Game controllers and gamepad-like devices (a remote's D-pad too, not a keyboard's arrow keys), for the
+   *  connect lines and controllers.txt. */
   private static boolean gameDevice(InputDevice d) {
     if (d == null || d.isVirtual()) return false;
-    int s = d.getSources();
+    return gameSources(d.getSources(), d.getKeyboardType());
+  }
+
+  /** gameDevice by the device's sources and keyboard type (InputDevice), for the tests. */
+  static boolean gameSources(int s, int keyboardType) {
+    if (keyboardSources(s, keyboardType)) return false;
     return (s & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
         || (s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
         || (s & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
@@ -1273,14 +1301,21 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (gameDevice(d) && controllerLog.firstDevice(id)) Log.i(TAG, "connected: " + describeDevice(d));
   }
 
-  /** controllers.txt of the error report: every game controller connected now. */
+  /** controllers.txt of the error report: every game controller connected now, then keyboards and mice (since
+   *  0.98.4: a report about a keyboard listed nothing of it). */
   private String controllerList() {
-    StringBuilder out = new StringBuilder();
+    StringBuilder out = new StringBuilder(), other = new StringBuilder();
     for (int id : InputDevice.getDeviceIds()) {
       InputDevice d = InputDevice.getDevice(id);
       if (gameDevice(d)) out.append(describeDevice(d)).append('\n');
+      else if (keyboardDevice(d) || mouseDevice(d)) {
+        other.append(describeDevice(d)).append(keyboardDevice(d) ? " (keyboard)" : "").append(mouseDevice(d) ? " (mouse)" : "")
+            .append('\n');
+      }
     }
-    return out.length() == 0 ? "(no game controller connected)\n" : out.toString();
+    if (out.length() == 0) out.append("(no game controller connected)\n");
+    out.append(other.length() == 0 ? "(no keyboard or mouse connected)\n" : "keyboards and mice:\n" + other);
+    return out.toString();
   }
 
   @Override

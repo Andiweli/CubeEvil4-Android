@@ -21,7 +21,6 @@
     <string name="ingame_stretched">ممتدة</string>
     <string name="ingame_other_options">خيارات أخرى</string>
     <string name="ingame_laser_section">منظار الليزر</string>
-    <string name="ingame_laser_colour">اللون</string>
     <string name="ingame_laser_red">افتراضي (أحمر)</string>
     <string name="ingame_laser_blue">أزرق</string>
     <string name="ingame_laser_green">أخضر</string>
@@ -38,10 +37,9 @@
     <string name="ingame_fps_bottom_centre">أسفل الوسط</string>
     <string name="ingame_fps_top_left">أعلى اليسار</string>
     <string name="ingame_fps_top_centre">أعلى الوسط</string>
-    <string name="ingame_smooth60">60 إطارًا في الثانية (تجريبي)</string>
-    <string name="ingame_merge_draws">دمج استدعاءات الرسم (تجريبي)</string>
-    <string name="ingame_vertex_ring">مخزن الرؤوس الدائري (تجريبي)</string>
-    <string name="ingame_force_performance">فرض الأداء</string>
+    <string name="ingame_smooth60">60 إطارًا في الثانية</string>
+    <string name="ingame_merge_draws">دمج استدعاءات الرسم</string>
+    <string name="ingame_vertex_ring">مخزن الرؤوس الدائري</string>
     <string name="ingame_perf_default">افتراضي</string>
     <string name="ingame_perf_cores">استخدام أنوية الأداء</string>
     <string name="ingame_perf_help">أنوية الأداء: تعمل اللعبة والرسومات على أسرع أنوية الجهاز وتطلب من Android ترددات أعلى. أكثر سلاسة على كثير من الأجهزة، لكنها تحتاج إلى قدرة معالج أكبر ويصبح الجهاز أكثر حرارة. افتراضي: يقرر Android.</string>
@@ -175,7 +173,6 @@
     <string name="ingame_music_volume">الموسيقى</string>
     <string name="ingame_effects_volume">المؤثرات الصوتية</string>
     <string name="ingame_volume_help">الموسيقى هي موسيقى الخلفية؛ والمؤثرات الصوتية هي كل الأصوات الأخرى في اللعبة (الطلقات والأصوات والخطوات). تحتفظ الأفلام بصوتها كما هو. يوقف الزرّان الموسيقى أو المؤثرات الصوتية تمامًا؛ وعند إعادة تشغيلها تعمل بمستوى الصوت المضبوط أعلاه.</string>
-    <string name="ingame_output">‏إخراج الصورة</string>
     <string name="ingame_smooth_help">‏إطارات وسيطة إضافية. يظل منطق اللعبة عند 30 إطارًا في الثانية.</string>
     <string name="ingame_instant_save">‏حفظ</string>
     <string name="ingame_instant_load">‏تحميل</string>
@@ -230,7 +227,7 @@
     <string name="ingame_cheat_matilda">‏Matilda</string>
     <string name="ingame_cheat_case">الحقيبة L</string>
     <string name="ingame_cheat_money">‏+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا يحفظها ملف الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). تغيّر الأزرار لعبتك: يبقى السلاح والحقيبة والمال في الحفظ التالي. تضغط QTE التلقائية الأزرار عنك في كل تنبيه سريع. ويضيف فتح الألعاب الإضافية Assignment Ada و The Mercenaries إلى قائمة العنوان كما بعد إنهاء اللعبة؛ ويحتفظ بها الحفظ التالي.</string>
+    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا يحفظها ملف الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). تغيّر الأزرار لعبتك: يبقى السلاح والحقيبة والمال في الحفظ التالي. تضغط QTE التلقائية الأزرار عنك في كل تنبيه سريع. ويضيف فتح الألعاب الإضافية Assignment Ada و The Mercenaries إلى قائمة العنوان كما بعد إنهاء اللعبة؛ ويحتفظ بها الحفظ التالي. الاختفاء: لا يلاحظك الأعداء ولا يهاجمونك؛ لكن الزعماء والمشاهد المعدّة مسبقًا ما زالت تستطيع ذلك.</string>
     <string name="ingame_cheat_done">تم: %1$s.</string>
     <string name="ingame_cheat_already">موجود بالفعل: %1$s.</string>
     <string name="ingame_cheat_raised">‏%1$s موجود بالفعل: أصبح الآن في أعلى المستويات.</string>
@@ -284,4 +281,14 @@
     <string name="ingame_mouse_sensitivity">حساسية الفأرة</string>
     <string name="ingame_map_controller">وحدة التحكم</string>
     <string name="ingame_map_device">الجهاز</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">الاختفاء</string>
+    <string name="ingame_cheat_section_player">اللاعب والمخزون</string>
+    <string name="ingame_cheat_section_weapons">الأسلحة</string>
+    <string name="ingame_cheat_section_game">اللعبة</string>
+    <string name="ingame_dof_light">خفيف</string>
+    <string name="ingame_dof_strong">قوي</string>
+    <string name="ingame_player_view">رؤية اللاعب</string>
+    <string name="ingame_fov">مجال الرؤية (FoV)</string>
+    <string name="ingame_fov_help">مجال الرؤية: يوسّع (+) أو يضيّق (−) رؤية كاميرا الكتف حتى 15 درجة أثناء المشي والتصويب؛ و0° هي رؤية اللعبة نفسها. المشاهد السينمائية والمنظار والمنظار المزدوج تبقى كما هي.</string>
 </resources>

@@ -17,7 +17,6 @@
     <string name="ingame_stretched">Gestreckt</string>
     <string name="ingame_other_options">Weitere Optionen</string>
     <string name="ingame_laser_section">Laservisier</string>
-    <string name="ingame_laser_colour">Farbe</string>
     <string name="ingame_laser_red">Standard (Rot)</string>
     <string name="ingame_laser_blue">Blau</string>
     <string name="ingame_laser_green">Grün</string>
@@ -34,10 +33,9 @@
     <string name="ingame_fps_bottom_centre">Unten mittig</string>
     <string name="ingame_fps_top_left">Oben links</string>
     <string name="ingame_fps_top_centre">Oben mittig</string>
-    <string name="ingame_smooth60">60 FPS (experimentell)</string>
-    <string name="ingame_merge_draws">Zeichenaufrufe bündeln (experimentell)</string>
-    <string name="ingame_vertex_ring">Vertex-Ringpuffer (experimentell)</string>
-    <string name="ingame_force_performance">Leistung erzwingen</string>
+    <string name="ingame_smooth60">60 FPS</string>
+    <string name="ingame_merge_draws">Zeichenaufrufe bündeln</string>
+    <string name="ingame_vertex_ring">Vertex-Ringpuffer</string>
     <string name="ingame_perf_default">Standard</string>
     <string name="ingame_perf_cores">Leistungskerne nutzen</string>
     <string name="ingame_perf_help">Leistungskerne: Spiel und Grafik laufen auf den schnellsten Kernen des Geräts und bitten Android um höhere Taktraten. Auf vielen Geräten flüssiger, braucht aber mehr CPU-Leistung, und das Gerät wird wärmer. Standard: Android entscheidet.</string>
@@ -166,7 +164,6 @@
     <string name="ingame_music_volume">Musik</string>
     <string name="ingame_effects_volume">Soundeffekte</string>
     <string name="ingame_volume_help">Musik ist die Hintergrundmusik; Soundeffekte sind alle anderen Töne im Spiel (Schüsse, Stimmen, Schritte). Die Filme behalten ihren Ton. Die beiden Schalter schalten Musik oder Soundeffekte ganz aus; wieder an, spielen sie mit der Lautstärke darüber.</string>
-    <string name="ingame_output">Bildausgabe</string>
     <string name="ingame_smooth_help">Zusätzliche Zwischenbilder. Die Spiellogik bleibt bei 30 Bildern/s.</string>
     <string name="ingame_instant_save">Speichern</string>
     <string name="ingame_instant_load">Laden</string>
@@ -221,7 +218,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Aktenkoffer L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; der Spielstand merkt sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Die Knöpfe ändern dein Spiel: Waffe, Koffer und Geld bleiben im nächsten Spielstand. Automatische QTEs drückt bei jeder Tastenaufforderung die Tasten für dich. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü, wie nach dem Durchspielen; dein nächster Spielstand behält sie.</string>
+    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; der Spielstand merkt sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Die Knöpfe ändern dein Spiel: Waffe, Koffer und Geld bleiben im nächsten Spielstand. Automatische QTEs drückt bei jeder Tastenaufforderung die Tasten für dich. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü, wie nach dem Durchspielen; dein nächster Spielstand behält sie. Unsichtbarkeit: Gegner bemerken dich nicht und greifen nicht an; Bosse und feste Szenen können es trotzdem.</string>
     <string name="ingame_cheat_done">Erledigt: %1$s.</string>
     <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s schon vorhanden: jetzt auf den höchsten Stufen.</string>
@@ -275,4 +272,14 @@
     <string name="ingame_mouse_sensitivity">Maus-Empfindlichkeit</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Gerät</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">Unsichtbarkeit</string>
+    <string name="ingame_cheat_section_player">Spieler und Inventar</string>
+    <string name="ingame_cheat_section_weapons">Waffen</string>
+    <string name="ingame_cheat_section_game">Spiel allgemein</string>
+    <string name="ingame_dof_light">Leicht</string>
+    <string name="ingame_dof_strong">Stark</string>
+    <string name="ingame_player_view">Spielersicht</string>
+    <string name="ingame_fov">Sichtfeld (FoV)</string>
+    <string name="ingame_fov_help">Sichtfeld: macht den Blick der Schulterkamera beim Gehen und Zielen um bis zu 15 Grad weiter (+) oder enger (−); 0° ist der des Spiels. Zwischensequenzen, Zielfernrohr und Fernglas bleiben, wie sie sind.</string>
 </resources>

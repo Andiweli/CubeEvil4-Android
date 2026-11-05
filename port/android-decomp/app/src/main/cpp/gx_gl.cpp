@@ -521,6 +521,10 @@ struct GxRenderer::Impl {
   GLuint halfProgram = 0, mixProgram = 0, halfTex = 0, halfFbo = 0, colorFbo = 0;
   GLint halfRegion = -1, halfSize = -1, halfZ = -1, halfRadius = -1;
   GLint mixRegion = -1, mixSize = -1, mixZ = -1;
+  // the menu's depth of field "Strong" (0.98.4): more of the blur (blurStrength, mixStrength: 0.8 instead of 0.6)
+  // and the taps further apart
+  GLint blurStrength = -1, mixStrength = -1;
+  bool dofStrong = false;
   bool autofocusFailed = false;
   // the last perspective projection (XF 0x1024/0x1025, type 0 at 0x1026):
   // the scene's, for the distances behind the depths
@@ -4896,8 +4900,11 @@ struct GxRenderer::Impl {
     glUniform1f(focusRestart, restart ? 1.0f : 0.0f);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     focusCur = next;
-    // the first port's tap distance: 1.5 pixels of a 480-line picture
-    const float radius = std::min(4.0f, std::max(1.0f, rh / 480.0f * 1.5f));
+    // the first port's tap distance: 1.5 pixels of a 480-line picture; "Strong" (the menu, 0.98.4) 2.5, and up to
+    // 80 % of the blur instead of 60 %
+    const float radius = dofStrong ? std::min(6.0f, std::max(1.5f, rh / 480.0f * 2.5f))
+                                   : std::min(4.0f, std::max(1.0f, rh / 480.0f * 1.5f));
+    const float strength = dofStrong ? 0.8f : 0.6f;
     if (options.halfDof && halfProgram) {
       // GPU step e: the blur at half the resolution (a quarter of the pixels, each of them the
       // four EFB texels around its centre and the taps behind the focus)
@@ -4937,6 +4944,7 @@ struct GxRenderer::Impl {
       glUniform4f(mixRegion, rx, ry, rw, rh);
       glUniform2f(mixSize, static_cast<float>(fw), static_cast<float>(fh));
       glUniform4f(mixZ, perspA, perspB, zRange, zFar);
+      glUniform1f(mixStrength, strength);
       glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
       glDisable(GL_BLEND);
       glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -4960,6 +4968,7 @@ struct GxRenderer::Impl {
     glUniform2f(blurSize, static_cast<float>(fw), static_cast<float>(fh));
     glUniform4f(blurZ, perspA, perspB, zRange, zFar);
     glUniform1f(blurRadius, radius);
+    glUniform1f(blurStrength, strength);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     // back into the EFB: colour only, alpha and depth stay
     BindFbo(DrawFbo());
@@ -5052,14 +5061,14 @@ struct GxRenderer::Impl {
         "}\n";
     const std::string blurFs =
         std::string("#version 300 es\nprecision highp float;\nprecision highp int;\n") + kDistance +
-        "uniform sampler2D frame;\nuniform sampler2D focus;\nuniform float radius;\nout vec4 o;\n"
+        "uniform sampler2D frame;\nuniform sampler2D focus;\nuniform float radius;\nuniform float strength;\nout vec4 o;\n"
         "void main() {\n"
         "  vec2 t = gl_FragCoord.xy;\n"
         "  vec4 original = texelFetch(frame, ivec2(t), 0);\n"
         "  vec4 f = texelFetch(focus, ivec2(0), 0);\n"
         "  float focal = round(f.r * 255.0) * 256.0 + round(f.g * 255.0);\n"
         "  float start = focal + max(800.0, focal * 0.25), end = focal + max(2500.0, focal);\n"
-        "  float amount = 0.6 * f.b * smoothstep(start, end, distanceAt(t));\n"
+        "  float amount = strength * f.b * smoothstep(start, end, distanceAt(t));\n"
         "  if (amount <= 0.0) { o = original; return; }\n"
         "  vec3 sum = original.rgb * 2.0;\n"
         "  float weight = 2.0;\n"
@@ -5107,14 +5116,14 @@ struct GxRenderer::Impl {
     // the texels around are mostly foreground
     const std::string mixFs =
         std::string("#version 300 es\nprecision highp float;\nprecision highp int;\n") + kDistance +
-        "uniform sampler2D blurred;\nuniform sampler2D focus;\nout vec4 o;\n"
+        "uniform sampler2D blurred;\nuniform sampler2D focus;\nuniform float strength;\nout vec4 o;\n"
         "void main() {\n"
         "  vec2 t = gl_FragCoord.xy;\n"
         "  vec4 f = texelFetch(focus, ivec2(0), 0);\n"
         "  if (f.b <= 0.0) discard;\n"
         "  float focal = round(f.r * 255.0) * 256.0 + round(f.g * 255.0);\n"
         "  float start = focal + max(800.0, focal * 0.25), end = focal + max(2500.0, focal);\n"
-        "  float amount = 0.6 * f.b * smoothstep(start, end, distanceAt(t));\n"
+        "  float amount = strength * f.b * smoothstep(start, end, distanceAt(t));\n"
         "  if (amount <= 0.0) discard;\n"
         "  vec2 lo = region.xy + 1.0, hi = region.xy + region.zw - 1.0;\n"
         "  vec4 b = texture(blurred, clamp(t, lo, hi) / size);\n"
@@ -5145,6 +5154,7 @@ struct GxRenderer::Impl {
     mixRegion = glGetUniformLocation(mixProgram, "region");
     mixSize = glGetUniformLocation(mixProgram, "size");
     mixZ = glGetUniformLocation(mixProgram, "zmap");
+    mixStrength = glGetUniformLocation(mixProgram, "strength");
     glUseProgram(focusProgram);
     glUniform1i(glGetUniformLocation(focusProgram, "depths"), 0);
     glUniform1i(glGetUniformLocation(focusProgram, "history"), 1);
@@ -5161,6 +5171,7 @@ struct GxRenderer::Impl {
     blurSize = glGetUniformLocation(blurProgram, "size");
     blurZ = glGetUniformLocation(blurProgram, "zmap");
     blurRadius = glGetUniformLocation(blurProgram, "radius");
+    blurStrength = glGetUniformLocation(blurProgram, "strength");
     glGenTextures(1, &blurTex);
     glBindTexture(GL_TEXTURE_2D, blurTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, fw, fh, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -6139,6 +6150,7 @@ void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
 void GxRenderer::SetPsx(bool on) { impl_->psxOn = on; }
 
 void GxRenderer::SetFlares(bool on) { impl_->flaresOn = on; }
+void GxRenderer::SetDofStrong(bool on) { impl_->dofStrong = on; }
 void GxRenderer::SetTvFilter(bool on) { impl_->tvFilter = on; }
 void GxRenderer::SetWiden(float factor) {
   impl_->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);

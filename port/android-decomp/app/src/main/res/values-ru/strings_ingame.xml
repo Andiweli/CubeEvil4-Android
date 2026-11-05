@@ -17,7 +17,6 @@
     <string name="ingame_stretched">Растянутое</string>
     <string name="ingame_other_options">Другие настройки</string>
     <string name="ingame_laser_section">Лазерный прицел</string>
-    <string name="ingame_laser_colour">Цвет</string>
     <string name="ingame_laser_red">По умолчанию (красный)</string>
     <string name="ingame_laser_blue">Синий</string>
     <string name="ingame_laser_green">Зелёный</string>
@@ -34,10 +33,9 @@
     <string name="ingame_fps_bottom_centre">Внизу по центру</string>
     <string name="ingame_fps_top_left">Вверху слева</string>
     <string name="ingame_fps_top_centre">Вверху по центру</string>
-    <string name="ingame_smooth60">60 FPS (экспериментально)</string>
-    <string name="ingame_merge_draws">Объединять вызовы отрисовки (экспериментально)</string>
-    <string name="ingame_vertex_ring">Кольцевой буфер вершин (экспериментально)</string>
-    <string name="ingame_force_performance">Принудительная производительность</string>
+    <string name="ingame_smooth60">60 FPS</string>
+    <string name="ingame_merge_draws">Объединять вызовы отрисовки</string>
+    <string name="ingame_vertex_ring">Кольцевой буфер вершин</string>
     <string name="ingame_perf_default">По умолчанию</string>
     <string name="ingame_perf_cores">Производительные ядра</string>
     <string name="ingame_perf_help">Производительные ядра: игра и графика работают на самых быстрых ядрах устройства и просят Android повысить частоты. На многих устройствах плавнее, но требует больше мощности процессора, и устройство сильнее нагревается. По умолчанию: решает Android.</string>
@@ -168,7 +166,6 @@
     <string name="ingame_music_volume">Музыка</string>
     <string name="ingame_effects_volume">Звуковые эффекты</string>
     <string name="ingame_volume_help">Музыка — это фоновая музыка; звуковые эффекты — все остальные звуки игры (выстрелы, голоса, шаги). Звук роликов не меняется. Две кнопки полностью выключают музыку или звуковые эффекты; после включения они звучат с громкостью, заданной выше.</string>
-    <string name="ingame_output">Вывод изображения</string>
     <string name="ingame_smooth_help">Дополнительные промежуточные кадры. Логика игры остаётся на 30 кадрах/с.</string>
     <string name="ingame_instant_save">Сохранить</string>
     <string name="ingame_instant_load">Загрузить</string>
@@ -223,7 +220,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Кейс L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
-    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранение их не запоминает. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Автоматические QTE» сами нажимают кнопки при каждой подсказке быстрого действия. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню, как после прохождения игры; следующее сохранение их запомнит.</string>
+    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранение их не запоминает. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Автоматические QTE» сами нажимают кнопки при каждой подсказке быстрого действия. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню, как после прохождения игры; следующее сохранение их запомнит. «Невидимость»: враги вас не замечают и не нападают; боссы и постановочные сцены всё ещё могут.</string>
     <string name="ingame_cheat_done">Готово: %1$s.</string>
     <string name="ingame_cheat_already">Уже есть: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s уже есть: теперь на максимальных уровнях.</string>
@@ -277,4 +274,14 @@
     <string name="ingame_mouse_sensitivity">Чувствительность мыши</string>
     <string name="ingame_map_controller">Контроллер</string>
     <string name="ingame_map_device">Устройство</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">Невидимость</string>
+    <string name="ingame_cheat_section_player">Игрок и инвентарь</string>
+    <string name="ingame_cheat_section_weapons">Оружие</string>
+    <string name="ingame_cheat_section_game">Игра</string>
+    <string name="ingame_dof_light">Слабая</string>
+    <string name="ingame_dof_strong">Сильная</string>
+    <string name="ingame_player_view">Вид игрока</string>
+    <string name="ingame_fov">Поле зрения (FoV)</string>
+    <string name="ingame_fov_help">Поле зрения: расширяет (+) или сужает (−) обзор камеры из-за плеча до 15 градусов при ходьбе и прицеливании; 0° — как в игре. Ролики, оптический прицел и бинокль не меняются.</string>
 </resources>

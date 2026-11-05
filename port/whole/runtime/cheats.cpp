@@ -14,6 +14,12 @@
 //   4 one-hit kill      DBG_EM_WEAK (LifeDownSet2: a hit takes the enemy's whole life)
 //   8 automatic QTEs    every quick-time prompt answered without a press (runtime/qte_touch.cpp
 //                       re4_qte_auto; wish of the project owner, 29.10.2026)
+// 512 invisibility      (wish of the project owner, 05.11.2026) enemies take no notice of the player: patch
+//                       0204 makes the player as far away as can be to every enemy (cEm id 0x10..0x3F, em.cpp
+//                       emMove: nothing that asks the distance finds, approaches or attacks him), and the
+//                       Ganados (em10) find him by nothing else either (sight, steps, shots, the bell, a hit, a
+//                       neighbour's alert) and forget him; DBG_EM_NO_ATK, the debug bit of the Ganados'
+//                       attacks, is set with it. Bosses and room scripts that attack by themselves still can.
 //  16 extra games       kept on by the app after button 4: the unlock below set again in every frame,
 //                       so a system file read from the card without it (the player has not saved since)
 //                       does not take it back; the next save writes it to the card (system file)
@@ -81,7 +87,7 @@ int PlSetCostume();  // pl_sub.cpp
 namespace {
 
 enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kCharShift = 5, kChar = 7 << kCharShift,
-       kCostume = 256, kAll = 31 | kChar | kCostume };
+       kCostume = 256, kInvisible = 512, kAll = 31 | kChar | kCostume | kInvisible };
 
 std::atomic<int> gWanted(-1);  // the app's switches, -1 before RE4_CHEATS was read
 int gApplied;                  // what the game frames have set so far
@@ -188,7 +194,8 @@ void apply(int wanted)
 {
     struct {
         int bit, flag;
-    } const bits[] = {{kHealth, DBG_NO_DEATH}, {kAmmo, DBG_INF_BULLET}, {kOneHit, DBG_EM_WEAK}};
+    } const bits[] = {{kHealth, DBG_NO_DEATH}, {kAmmo, DBG_INF_BULLET}, {kOneHit, DBG_EM_WEAK},
+                      {kInvisible, DBG_EM_NO_ATK}};
     for (const auto& b : bits) {
         if (wanted & b.bit) {
             DbgFlagOn(pG, b.flag);
@@ -203,6 +210,9 @@ void apply(int wanted)
                 kCharName[(wanted & kChar) >> kCharShift]);
         if ((wanted ^ gApplied) & kCostume) {
             re4_log("cheat: special costume %s", wanted & kCostume ? "on" : "off");
+        }
+        if ((wanted ^ gApplied) & kInvisible) {
+            re4_log("cheat: invisibility %s", wanted & kInvisible ? "on" : "off");
         }
         if ((wanted ^ gApplied) & kAutoQte) {
             re4_qte_auto(wanted & kAutoQte);
@@ -776,6 +786,13 @@ int re4CheatPerform(int what)
 }
 
 extern "C" {
+
+// Patch 0204 (em.cpp, em10.cpp): the cheat "Invisibility" (any thread; the game frames read it).
+int re4_invisible(void)
+{
+    const int wanted = gWanted.load(std::memory_order_relaxed);
+    return wanted > 0 && (wanted & kInvisible) ? 1 : 0;
+}
 
 void re4_cheats_set(int bits)
 {

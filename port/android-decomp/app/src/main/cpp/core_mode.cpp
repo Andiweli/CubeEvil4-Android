@@ -641,7 +641,7 @@ struct Bench {
   int keepScale = 0, keepSamples = 1, keepAnisotropy = 1, keepInvalidate = 0, keepTiled = 0, keepHalfDof = 1;
 };
 Bench bench;
-std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
+std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof: 0 off, 1 light, 2 strong); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
@@ -689,6 +689,9 @@ int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU b
 // project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
 std::atomic<int> optAim{100 << 8};
 std::atomic<int> optFarCamera{0};  // the menu's "Far camera" (CoreBridge.setFarCamera), bit 3 of the aim bits
+// the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
+// degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
+std::atomic<int> optFov{0};
 int aimSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
 // percent (the core's runtime/sound_volume.cpp).
@@ -1614,6 +1617,7 @@ bool drawGx() {
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
   static const bool flaresEnv = getenv("RE4_GX_FLARES") && *getenv("RE4_GX_FLARES") == '1';
   gx->SetFlares(optFlares.load() != 0 || flaresEnv);
+  gx->SetDofStrong(optDof.load() == 2);
   static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
   gx->SetMerge(optMerge.load() != 0 || mergeEnv);
   if (!smoothOn && smoothPrev) {
@@ -1785,7 +1789,8 @@ bool drawGx() {
       api.setPotato(potato);
       potatoSent = potato;
     }
-    const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0);  // bit 3 "Far camera" (patch 0171)
+    const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
+                    | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
       aimSent = aim;
@@ -2524,10 +2529,19 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_debugMenu(JN
   if (api.debugMenu) api.debugMenu();
 }
 
-// The depth of field switch of the menu (cores since 17.10.2026; older ones keep it on).
-extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDof(JNIEnv *, jclass, jboolean on) {
-  optDof = on ? 1 : 0;
-  if (api.setDof) api.setDof(on ? 1 : 0);
+// The depth of field of the menu (cores since 17.10.2026; older ones keep it on): 0 off, 1 light, 2 strong (since
+// 0.98.4: the app's gameplay autofocus blurs more and wider, GxRenderer::SetDofStrong; the core only hears on/off).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDof(JNIEnv *, jclass, jint level) {
+  const int want = level >= 0 && level <= 2 ? static_cast<int>(level) : 1;
+  if (optDof.exchange(want) != want) LOG("depth of field: %s", want == 0 ? "off" : want == 1 ? "light" : "strong");
+  if (api.setDof) api.setDof(want != 0 ? 1 : 0);
+}
+
+// "Field of view" (the menu, CONTROLS, PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the
+// shoulder camera's vertical field of view (patch 0205), sent with the aim settings (bits 24..29).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFov(JNIEnv *, jclass, jint degrees) {
+  const int want = std::clamp(static_cast<int>(degrees), -15, 15);
+  if (optFov.exchange(want) != want) LOG("field of view: %+d degrees", want);
 }
 
 // The menu's "Force Performance" (drawGx tells the core and places the render thread).

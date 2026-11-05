@@ -17,7 +17,6 @@
     <string name="ingame_stretched">Allungata</string>
     <string name="ingame_other_options">Altre opzioni</string>
     <string name="ingame_laser_section">Mirino laser</string>
-    <string name="ingame_laser_colour">Colore</string>
     <string name="ingame_laser_red">Predefinito (rosso)</string>
     <string name="ingame_laser_blue">Blu</string>
     <string name="ingame_laser_green">Verde</string>
@@ -34,10 +33,9 @@
     <string name="ingame_fps_bottom_centre">In basso al centro</string>
     <string name="ingame_fps_top_left">In alto a sinistra</string>
     <string name="ingame_fps_top_centre">In alto al centro</string>
-    <string name="ingame_smooth60">60 FPS (sperimentale)</string>
-    <string name="ingame_merge_draws">Unisci le chiamate di disegno (sperimentale)</string>
-    <string name="ingame_vertex_ring">Buffer circolare dei vertici (sperimentale)</string>
-    <string name="ingame_force_performance">Forza prestazioni</string>
+    <string name="ingame_smooth60">60 FPS</string>
+    <string name="ingame_merge_draws">Unisci le chiamate di disegno</string>
+    <string name="ingame_vertex_ring">Buffer circolare dei vertici</string>
     <string name="ingame_perf_default">Predefinito</string>
     <string name="ingame_perf_cores">Usa core ad alte prestazioni</string>
     <string name="ingame_perf_help">Core ad alte prestazioni: il gioco e la grafica girano sui core più veloci del dispositivo e chiedono ad Android frequenze più alte. Più fluido su molti dispositivi, ma richiede più potenza della CPU e il dispositivo si scalda di più. Predefinito: decide Android.</string>
@@ -167,7 +165,6 @@
     <string name="ingame_music_volume">Musica</string>
     <string name="ingame_effects_volume">Effetti sonori</string>
     <string name="ingame_volume_help">La musica è la musica di sottofondo; gli effetti sonori sono tutto il resto del gioco (spari, voci, passi). I filmati mantengono il loro audio. I due pulsanti spengono del tutto la musica o gli effetti sonori; riattivati, suonano al volume impostato sopra.</string>
-    <string name="ingame_output">Uscita video</string>
     <string name="ingame_smooth_help">Fotogrammi intermedi aggiuntivi. La logica resta a 30 fotogrammi/s.</string>
     <string name="ingame_instant_save">Salva</string>
     <string name="ingame_instant_load">Carica</string>
@@ -222,7 +219,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Valigetta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; il salvataggio non li conserva. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). I pulsanti cambiano la partita: l’arma, la valigetta e il denaro restano nel prossimo salvataggio. QTE automatici preme per te i tasti di ogni sequenza di azione rapida. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale, come dopo aver finito il gioco; il prossimo salvataggio li conserva.</string>
+    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; il salvataggio non li conserva. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). I pulsanti cambiano la partita: l’arma, la valigetta e il denaro restano nel prossimo salvataggio. QTE automatici preme per te i tasti di ogni sequenza di azione rapida. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale, come dopo aver finito il gioco; il prossimo salvataggio li conserva. Invisibilità: i nemici non si accorgono di te e non attaccano; i boss e le scene fisse possono ancora farlo.</string>
     <string name="ingame_cheat_done">Fatto: %1$s.</string>
     <string name="ingame_cheat_already">Già presente: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s già presente: ora ai livelli massimi.</string>
@@ -276,4 +273,14 @@
     <string name="ingame_mouse_sensitivity">Sensibilità del mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Dispositivo</string>
+    <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
+    <string name="ingame_cheat_invisible">Invisibilità</string>
+    <string name="ingame_cheat_section_player">Giocatore e inventario</string>
+    <string name="ingame_cheat_section_weapons">Armi</string>
+    <string name="ingame_cheat_section_game">Gioco</string>
+    <string name="ingame_dof_light">Leggera</string>
+    <string name="ingame_dof_strong">Forte</string>
+    <string name="ingame_player_view">Visuale del giocatore</string>
+    <string name="ingame_fov">Campo visivo (FoV)</string>
+    <string name="ingame_fov_help">Campo visivo: allarga (+) o restringe (−) la visuale della telecamera sulla spalla fino a 15 gradi, camminando e mirando; 0° è quella del gioco. Filmati, mirino telescopico e binocolo restano come sono.</string>
 </resources>
