@@ -51,7 +51,7 @@ public class CoreMenuShotTest {
         Field bodyField = CoreMenu.class.getDeclaredField("body"); bodyField.setAccessible(true);
         View root = (View) rootField.get(menu), body = (View) bodyField.get(menu);
         root.setLayoutDirection(config.getLayoutDirection());
-        for (int page = 1; page < names.length; page++) {
+        for (int page = 0; page < names.length; page++) {
           show.invoke(menu, page, false);
           int width = 900;
           body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -61,6 +61,13 @@ public class CoreMenuShotTest {
           Canvas canvas = new Canvas(picture);
           canvas.drawColor(0xff191f1c);
           body.draw(canvas);
+          if (System.getenv("RE4_MENU_SHOTS_GUIDES") != null) {
+            // the buttons' grid edges (MenuLayout.GAP in from both sides): the alignment check
+            android.graphics.Paint guide = new android.graphics.Paint(); guide.setColor(0x80ff3030);
+            float gap = MenuLayout.GAP * activity.getResources().getDisplayMetrics().density;
+            canvas.drawRect(gap - 0.5f, 0, gap + 0.5f, picture.getHeight(), guide);
+            canvas.drawRect(width - gap - 0.5f, 0, width - gap + 0.5f, picture.getHeight(), guide);
+          }
           try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-" + names[page] + ".png"))) {
             picture.compress(Bitmap.CompressFormat.PNG, 100, out);
           }

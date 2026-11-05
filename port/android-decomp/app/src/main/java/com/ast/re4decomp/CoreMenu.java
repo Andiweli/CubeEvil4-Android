@@ -270,10 +270,12 @@ final class CoreMenu extends Dialog {
    *  apart (wish of the project owner, 05.11.2026); the line is the separators' colour, centred on the text. */
   private void heading(int id) {
     LinearLayout line = new Heading(getContext());
-    line.setPadding(0, dp(16), 0, dp(8));
+    // the text and the line within the buttons' grid: the text starts where the buttons and the row labels
+    // start, the line ends where the buttons end (wish of the project owner, 05.11.2026: one left edge)
+    line.setPaddingRelative(dp(MenuLayout.GAP), dp(16), dp(MenuLayout.GAP), dp(8));
     TextView v = text(s(id).toUpperCase(Locale.getDefault()), 14, true); v.setTextColor(MUTED); v.setLetterSpacing(.08f);
-    // a little air on both sides: joined scripts (Arabic) measure the letter spacing a little short
-    v.setPaddingRelative(dp(2), 0, dp(2), 0);
+    // a little air at its end: joined scripts (Arabic) measure the letter spacing a little short
+    v.setPaddingRelative(0, 0, dp(3), 0);
     line.addView(v, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     View rule = new View(getContext()); rule.setBackgroundColor(BORDER);
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(1), 1);
@@ -289,7 +291,7 @@ final class CoreMenu extends Dialog {
   }
   private void help(int id) { help(body, id); }
   private void help(LinearLayout parent, int id) {
-    TextView t = text(s(id), 15, false); t.setPadding(0, dp(4), 0, dp(8)); parent.addView(t);
+    TextView t = text(s(id), 15, false); t.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8)); parent.addView(t);
   }
   /**
    * An explanation on DISPLAY that starts below the buttons' left edge (wish of the project owner, 05.11.2026):
@@ -307,7 +309,7 @@ final class CoreMenu extends Dialog {
   /** Row label as tall as one button row (48 dp minimum + the margins above and below), centred on the first row. */
   private TextView rowLabel(String label) {
     TextView caption = text(label, 16, true);
-    caption.setPadding(0, 0, dp(8), 0); caption.setMinHeight(dp(48 + 2 * MenuLayout.GAP)); caption.setMinimumHeight(dp(48 + 2 * MenuLayout.GAP));
+    caption.setPaddingRelative(dp(MenuLayout.GAP), 0, dp(8), 0); caption.setMinHeight(dp(48 + 2 * MenuLayout.GAP)); caption.setMinimumHeight(dp(48 + 2 * MenuLayout.GAP));
     caption.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
     return caption;
   }
@@ -496,7 +498,7 @@ final class CoreMenu extends Dialog {
     else management();
     separator(body);
     TextView footer = text(s(R.string.ingame_navigation), 14, false);
-    footer.setPadding(0, dp(8), 0, 0); body.addView(footer);
+    footer.setPadding(dp(MenuLayout.GAP), dp(8), dp(MenuLayout.GAP), 0); body.addView(footer);
     main.post(() -> {
       scroll.scrollTo(0, scrollY[page]);
       if (focus) { if (page == HOME) resume.requestFocus(); else back.requestFocus(); }
@@ -541,8 +543,14 @@ final class CoreMenu extends Dialog {
     actions.setLayoutDirection(getContext().getResources().getConfiguration().getLayoutDirection());
     saveSlot = cellAction(actions, s(R.string.ingame_instant_save), v -> confirmInstant(1)); saveSlot.setSelected(true);
     loadSlot = cellAction(actions, s(R.string.ingame_instant_load), v -> confirmInstant(2));
-    saveSlot.setEnabled(false); loadSlot.setEnabled(false); slot.addView(actions); body.addView(slot);
-    slotStatus = text(s(R.string.ingame_instant_checking), 15, false); slotStatus.setPadding(0, dp(6), 0, dp(6));
+    saveSlot.setEnabled(false); loadSlot.setEnabled(false); slot.addView(actions);
+    // the frame as wide as the buttons' grid below it (wish of the project owner, 05.11.2026: it stuck out)
+    LinearLayout.LayoutParams frame = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    frame.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
+    body.addView(slot, frame);
+    slotStatus = text(s(R.string.ingame_instant_checking), 15, false);
+    slotStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(6));
     slotStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); body.addView(slotStatus);
     heading(R.string.ingame_settings);
     MenuLayout.Buttons first = buttonsRow(body), second = buttonsRow(body), third = buttonsRow(body);
@@ -565,7 +573,8 @@ final class CoreMenu extends Dialog {
     final int[] current = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
         .getInt(CoreActivity.GAME_LANGUAGE, 0)};
     final Button[][] buttons = new Button[1][];
-    buttons[0] = quarterChoices(R.string.ingame_game_language, labels, values, current[0], value -> {
+    // without a row label under its heading, a third of the row each (wish of the project owner, 05.11.2026)
+    buttons[0] = rowChoices(labels, values, current[0], 3, value -> {
       if (value == current[0]) return;
       if (host.gameLanguageOf(value) == host.gameLanguageOf(current[0])) {
         current[0] = value; host.gameLanguageChanged(value); return;
@@ -778,7 +787,7 @@ final class CoreMenu extends Dialog {
     box.addView(heading, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT));
     LinearLayout slider = row();
-    slider.addView(bar, barSize); slider.addView(value);
+    slider.addView(bar, barSize); slider.addView(value); slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);
     box.addView(slider);
     line.addView(box);
     bar.setMax(Math.round((max - min) / step)); bar.setProgress(Math.round((stored - min) / step));
@@ -886,7 +895,8 @@ final class CoreMenu extends Dialog {
       bindingButtons[a] = cellAction(box, keys, v -> startCapture(action));
       line.setPadding(0, dp(1), 0, dp(1)); body.addView(line);
     }
-    mapStatus = text("", 15, true); mapStatus.setTextColor(GOLD); mapStatus.setPadding(0, dp(6), 0, dp(4));
+    mapStatus = text("", 15, true); mapStatus.setTextColor(GOLD);
+    mapStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(4));
     mapStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
     mapStatus.setVisibility(pendingStatus == null ? View.GONE : View.VISIBLE);
     if (pendingStatus != null) mapStatus.setText(pendingStatus);
@@ -909,6 +919,7 @@ final class CoreMenu extends Dialog {
     TextView value = text("", 15, false);
     slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
     slider.addView(value);
+    slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);  // the value ends where the buttons end
     line.addView(slider);
     float now = host == null ? 1f : host.mouseSensitivity();
     bar.setMax(Math.round((CoreActivity.MOUSE_MAX - min) / step));
@@ -1081,6 +1092,7 @@ final class CoreMenu extends Dialog {
     TextView value = text("", 15, false);
     slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
     slider.addView(value);
+    slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);  // the value ends where the buttons end
     line.addView(slider);
     int now = Math.max(0, Math.min(100, graphics.getInt(key, 100)));
     bar.setMax(20);
@@ -1157,7 +1169,7 @@ final class CoreMenu extends Dialog {
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);
-    cardLine = text("", 15, false); body.addView(cardLine);
+    cardLine = text("", 15, false); cardLine.setPadding(dp(MenuLayout.GAP), 0, dp(MenuLayout.GAP), 0); body.addView(cardLine);
     MenuLayout.Buttons cardButtons = buttonsRow(body);
     exportAll = cellAction(cardButtons, s(R.string.ingame_export), v -> host.exportAll());
     cellAction(cardButtons, s(R.string.ingame_import), v -> host.importFiles()); refreshCard();
@@ -1225,7 +1237,7 @@ final class CoreMenu extends Dialog {
       v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
       cheatAction(4, R.string.ingame_cheat_extras);
     });
-    cheatStatus = text("", 15, false); cheatStatus.setPadding(0, dp(6), 0, dp(2));
+    cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
     help(R.string.ingame_cheats_help);
