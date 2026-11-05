@@ -120,7 +120,19 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    Möglich bleibt eine Bewegung, die erst in einer bestimmten Lage kommt (Griff eines Ganados, Ereignis, Leiter,
    Sprung); 0.98.3 gibt Ada ihre eigenen Griff- und Trittbewegungen an den Ganados (Punkt 1). Braucht den
    Fehlerbericht direkt danach (App-Menü → Send report) und Raum/Handlung.
-8. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
+8. **Bild wird dunkel, wenn Ashley warten soll (Nutzerbericht `report-20261105-072424`, Xiaomi 21121210G, EU,
+   Krauser in r200, zwei Bilder; Protokoll: „Krauser commands Ashley: wait/follow“ im Wechsel).** Ursache
+   (`CameraControl::areaHitCheck`): die Kamera-Bereiche eines Raums (Schnitt und Lichtsatz je Schnitt) werden nach
+   einem Figuren-Bit gewählt: 2 solange Ashley folgt, sonst der Spielertyp (Leon 1, Ada 8, HUNK 0x20, Wesker 0x10,
+   Krauser 0x40). Die Räume der Geschichte kennzeichnen nur Leon und Leon mit Ashley (r200: 0x1 und 0x3). Ein
+   Stellvertreter fand darum keinen Bereich, sobald Ashley nicht folgte (auch ganz ohne Ashley): keine Schnitte,
+   Standardkamera und `LightMgr.update(0, -1)`, das Standardlicht. **Patch 0201:** mit Stellvertreter in der
+   Geschichte werden die Bereiche wie für Leon gewählt; die Schulterkamera-Tabellen je Figur (`cam_qfps.cpp`)
+   bleiben. **Geprüft (PC, i686 -O2, EU-Discs, vorübergehende Spur von Kamera und Ashley-Zustand):** r200 mit Ashley
+   (`RE4_TEST_STA=101`), X zweimal: vorher Krauser „warten“ → Kamera −1, Bereich −1, Leon Kamera 1; jetzt alle fünf
+   Figuren Kamera 1 in beiden Zuständen. Ohne Ashley r200, r20e, r30d: Krauser dieselben Kameras wie Leon.
+   Mercenaries r400 mit Krauser unverändert. Am Gerät nicht angesehen.
+9. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
    Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
    kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
    **Raum-Rundgang „set“ (27 Räume, 4000 Bilder, i686 -O2) mit Ada, HUNK, Krauser, Wesker auf Debug-, EU- und
@@ -12063,6 +12075,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0198 `esp_app.cpp`, `objWep.cpp` | Farbe des Laservisiers: nach `EspDrawLaserLine` (Strahl, est 3) und `drawPoint` (Punkt, est 0x50) ruft das Spiel `re4_laser_tint` (`runtime/laser_colour.cpp`); Standard (Rot) ändert nichts. Port-Funktion, Wunsch des Projektinhabers 04.11.2026 |
 | 0199 `examine.cpp` | Fundfenster wie die Verkaufsfassungen: mit Verkaufs-Discs die drei Zeilen von `exam_info`, die deren main.dol (EU, US, JP gleich) anders hat: Geldtruhen 0x78/0x79 Teiler 1,1/1,4 statt 0,8/1,1 (größer), 0x6D. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Meldung des Projektinhabers 04.11.2026 |
 | 0200 `cam_extra.cpp`, `cam_ctrl.cpp` | HUNK als Stellvertreter: Zielfernrohr, Fernglas und Blick nach unten (`StartLookDownEm`) beginnen an Leons Augenpunkt im Kopfteil 4 (`re4_story_char_eyes`, `runtime/cheats.cpp`) statt zwischen den Teilen 0x20/0x21, die HUNKs Modell an Brust und Wurzel hat. Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
+| 0201 `cam_ctrl.cpp` | Stellvertreter in der Geschichte: `areaHitCheck` wählt die Kamera-Bereiche (Schnitte und Licht) wie für Leon; die Räume der Geschichte kennen die Figuren-Bits der Mercenaries-Figuren nicht (Bild dunkel, wenn Ashley wartete). Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
