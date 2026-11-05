@@ -82,7 +82,16 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    verschieben, falls die neuen Stimmen anders lang sind; ohne die Dateien nicht prüfbar. Für den Tester: „Force
    Performance“ an, Auflösung 1×, FXAA und anisotrope Filterung aus; mit unveränderten Discs gegenprüfen. Im Code
    nichts geändert; im Releasetext als bekanntes Problem.
-5. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
+5. **FPS-Anzeige in runden Bildschirmecken abgeschnitten (Meldung des Projektinhabers, 05.11.2026, Bild eines
+   Handys mit 2340×1080):** die Anzeige saß bündig links unten, die runde Ecke schnitt „30 FPS“ an. **Jetzt
+   (`CornerInset.java`, `CoreActivity` am `fpsView`):** Abstand von links und unten = Kameraaussparung bzw.
+   sichtbare Systemleiste auf dieser Seite (im Auto nicht, dort hält `CarDisplay` den Inhalt schon frei) plus
+   max(12 dp, Eckradius × (1 − 1/√2) + 4 dp) (die Ecke des Kastens liegt dann innerhalb des Bogens), neu bei jeder
+   Drehung. Eckradius ab Android 12 (`getRoundedCorner(BOTTOM_LEFT)`, die Ecke des Fensters in jeder Drehung).
+   `CornerInsetTest` prüft die Formel. **Geprüft (Emulator, Test-Build mit eingeblendeter Anzeige ohne Kern):**
+   Pixel-8-Profil (Eckradius 102 px, Kameraloch): Querformat 174/42 px (Aussparung 132 px links), umgekehrtes
+   Querformat 41/41 px; Automotive-Emulator ohne runde Ecken 12/12 px. Auf einem echten Handy nicht angesehen.
+6. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
    Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
    kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
    **Raum-Rundgang „set“ (27 Räume, 4000 Bilder, i686 -O2) mit Ada, HUNK, Krauser, Wesker auf Debug-, EU- und

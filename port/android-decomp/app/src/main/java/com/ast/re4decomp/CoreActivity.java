@@ -280,6 +280,19 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     fpsView.setTextDirection(View.TEXT_DIRECTION_LTR);
     root.addView(fpsView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT,
         FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.LEFT));
+    // kept clear of the screen's rounded corner, a cutout and bars that stay (CornerInset; tester report
+    // 05.11.2026: the corner cut the text off); asked again when the window turns or the bars come and go
+    fpsView.setOnApplyWindowInsetsListener((v, insets) -> {
+      final int[] at = CornerInset.bottomLeft(insets, getResources().getDisplayMetrics().density, CarDisplay.is(this));
+      final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) v.getLayoutParams();
+      if (lp.leftMargin != at[0] || lp.bottomMargin != at[1]) {
+        lp.leftMargin = at[0];
+        lp.bottomMargin = at[1];
+        v.setLayoutParams(lp);
+        Log.i(TAG, "FPS display: " + at[0] + " pixels from the left, " + at[1] + " from the bottom");
+      }
+      return insets;
+    });
     showFps(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean("fps", false));
     // the touch controls above everything
     touchControls = new TouchControls(this, input, touchMode(inputPrefs), touchHost);
