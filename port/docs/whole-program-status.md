@@ -49,7 +49,13 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
    nichts an. **Jetzt (`CoreActivity`):** eine alphabetische Tastatur ohne Gamepad-/Joystick-Quelle ist eine Tastatur
    (`keyboardSources`, `gameSources`), ihre Ereignisse keine Controller-Tasten; `controllers.txt` nennt auch Tastaturen
    und Mäuse. Test `InputDeviceKindTest` (Tastatur mit Pfeilen, Kombigerät mit Maus, Retroid, Fernbedienung,
-   OnePlus-Schieber). Nicht auf einem Gerät mit Tastatur geprüft.
+   OnePlus-Schieber). **Nachtrag (Tastatur und Maus des Nutzers per Bluetooth):** eine Tastatur mit Buchstaben und
+   ohne Stick gilt auch dann als Tastatur, wenn Android ihr die Gamepad-Quelle gibt (manche Bluetooth-Tastaturen
+   melden einzelne Gamepad-Tasten; deren Tasten gehen weiter den Controller-Weg, `isGamepadButton` zuerst);
+   Controller mit Sticks und ohne Buchstaben bleiben Controller. Jedes Ereignis wird über sein Gerät
+   (`e.getDevice()`) bewertet: vor oder nach dem Start verbundene Geräte gleich, auch im Tastenbelegungs-Menü. Neu
+   im Protokoll: „connected: … (keyboard)/(mouse)“ beim Verbinden und für schon verbundene Geräte beim Start.
+   Nicht auf einem Gerät mit Tastatur geprüft.
 7. **Nebel flackert leicht bei 60 FPS (r100).** Bildfolge in r100 beim Gehen mit Zwischenbildern
    (`RE4_GX_INTERP=1`) aufgenommen; Zwischenbilder gegen das Mittel ihrer Nachbarn (PSNR) ohne Ausreißer, Teilchen
    fast alle zugeordnet. Kein Fehler gefunden, nicht behoben; braucht eine R3-Serie vom Gerät an der Stelle.

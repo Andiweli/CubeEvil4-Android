@@ -1272,10 +1272,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     return keyboardSources(d.getSources(), d.getKeyboardType());
   }
 
-  /** keyboardDevice by the device's sources and keyboard type (InputDevice), for the tests. */
+  /**
+   * keyboardDevice by the device's sources and keyboard type (InputDevice), for the tests. A device with letters
+   * (KEYBOARD_TYPE_ALPHABETIC) and no stick is a keyboard, even when Android also gives it the gamepad's source
+   * (some Bluetooth keyboards declare a few gamepad buttons in their HID description; the tester's keyboard and
+   * mouse were Bluetooth, 05.11.2026); its gamepad buttons, if any, still go the controller's way (dispatchKeyEvent
+   * checks KeyEvent.isGamepadButton first). Controllers with sticks (the Retroid, Xbox and PlayStation pads) and
+   * those without letters stay controllers.
+   */
   static boolean keyboardSources(int s, int keyboardType) {
-    if ((s & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
-        || (s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) return false;
+    if ((s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) return false;
     return (s & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD
         && keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
   }
@@ -1299,6 +1305,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void noteConnected(int id) {
     InputDevice d = InputDevice.getDevice(id);
     if (gameDevice(d) && controllerLog.firstDevice(id)) Log.i(TAG, "connected: " + describeDevice(d));
+    // keyboards and mice too (a Bluetooth keyboard's report, 05.11.2026: nothing of it was in the log)
+    else if ((keyboardDevice(d) || mouseDevice(d)) && controllerLog.firstDevice(id)) {
+      Log.i(TAG, "connected: " + describeDevice(d) + (keyboardDevice(d) ? " (keyboard)" : "") + (mouseDevice(d) ? " (mouse)" : ""));
+    }
   }
 
   /** controllers.txt of the error report: every game controller connected now, then keyboards and mice (since
@@ -1847,6 +1857,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (gyroAim != null) gyroAim.resume();
     InputManager im = (InputManager) getSystemService(Context.INPUT_SERVICE);
     if (im != null) im.registerInputDeviceListener(this, main);
+    // what was connected before (a Bluetooth keyboard paired before the start): one line each, once
+    for (int id : InputDevice.getDeviceIds()) noteConnected(id);
     if (menu == null && !touchEditing) {
       main.removeCallbacks(rumbleTick);
       main.post(rumbleTick);

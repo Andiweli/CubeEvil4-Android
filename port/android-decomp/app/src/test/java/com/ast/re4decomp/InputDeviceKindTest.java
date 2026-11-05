@@ -20,6 +20,10 @@ public class InputDeviceKindTest {
     assertTrue(CoreActivity.keyboardSources(combo, ALPHA));
     assertFalse(CoreActivity.gameSources(combo, ALPHA));
     assertTrue(CoreActivity.keyboardSources(InputDevice.SOURCE_KEYBOARD, ALPHA));
+    // a Bluetooth keyboard that declares a few gamepad buttons as well (0x701 and no stick): still a keyboard
+    int btKeyboard = InputDevice.SOURCE_KEYBOARD | InputDevice.SOURCE_DPAD | InputDevice.SOURCE_GAMEPAD;
+    assertTrue(CoreActivity.keyboardSources(btKeyboard, ALPHA));
+    assertFalse(CoreActivity.gameSources(btKeyboard, ALPHA));
   }
 
   @Test public void controllersStayControllers() {
