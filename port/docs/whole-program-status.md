@@ -43,9 +43,9 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    0x20 ergibt sie Eintrag für Eintrag die Mercenaries-Fassung der Figur; bei den anderen vier Arten bleiben nur
    Einträge, die deren Mercenaries-Fassung gar nicht hat (dort wie bisher aufgefüllt), und Adas 0x18E. Leon, Ashleys
    Abschnitt und die Mercenaries-/Ada-Spiele unverändert (nur mit Stellvertreter in der Geschichte).
-   **Geprüft am PC (i686 -O2, r103, Debug-Discs, Ganado geblendet vor der Figur, `RE4_TEST_STUN`, A gedrückt):**
+   **Geprüft am PC (i686 -O2, r103, Debug-, EU- und US-Discs, Ganado geblendet vor der Figur, `RE4_TEST_STUN`, A gedrückt):**
    Krauser „plays 0x29d/0x29e from em/em70.drs“, zwei Treffer (Art 0x24, 1200 → 720/800, dann 0x14 → 0, Routine
-   2/4: umgeworfen) in sechs Läufen; vorher ein Treffer, der Ganado blieb stehen (2/0). Adas Tritt aus em50, im selben
+   2/4: umgeworfen) in acht Läufen auf allen drei Disc-Arten; vorher ein Treffer, der Ganado blieb stehen (2/0). Adas Tritt aus em50, im selben
    Lauf die Griffe 0x28F/0x290/0x297/0x298 aus em50. HUNK Genickbruch aus em60 (Ganado stirbt). Leon unverändert
    (Tritt 1200 → 960 im selben Bild wie vorher). Ganado-Antwort auf den Kniestoß (`RE4_TEST_STUN=…:14`) und den
    Fersentritt (`:13`): Krauser nimmt seine 55-Bilder-Bewegung aus em70, Wesker seine 38-Bilder-Bewegung aus em60.
@@ -82,6 +82,15 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    verschieben, falls die neuen Stimmen anders lang sind; ohne die Dateien nicht prüfbar. Für den Tester: „Force
    Performance“ an, Auflösung 1×, FXAA und anisotrope Filterung aus; mit unveränderten Discs gegenprüfen. Im Code
    nichts geändert; im Releasetext als bekanntes Problem.
+5. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
+   Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
+   kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
+   **Raum-Rundgang „set“ (27 Räume, 4000 Bilder, i686 -O2) mit Ada, HUNK, Krauser, Wesker auf Debug-, EU- und
+   US-Discs (dazu ein zweiter EU-Durchgang): 16 × 27/27 ohne Fehler**; in den Läufen benutzt (Krauser, EU): 0x17A,
+   0x17B, 0x1A7, 0x297, 0x298, 0x29A..0x29C aus em70. GX-Bilder von HUNKs TMP und Zielfernrohr auch mit
+   PSone-Filter (`RE4_GX_PSX=1`) und 60-FPS-Zwischenbildern (`RE4_GX_INTERP=1`) ohne Shader-Fehler, Bild wie ohne.
+   **Nicht geprüft:** nichts davon auf einem Gerät; Krausers Kniestoß selbst, Weskers Handstoß, Fernglas und Blick
+   nach unten mit HUNK nicht eigens ausgelöst; ARM nur gebaut, nicht gespielt.
 
 ## Version 0.98.2-beta: Android Automotive, Schnellspeichern in mehr Räumen, Lichthöfe, Minikarte, Laserfarbe; Minikarte und Lichthöfe überarbeitet (04.11.2026, Branch `work`, Patches 0198, 0199)
 
