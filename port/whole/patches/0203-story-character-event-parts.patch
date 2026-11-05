@@ -1,0 +1,30 @@
+# The story with another player character, continued (PC check of patch 0202, 05.11.2026: with Ada standing in,
+# Leon's body in r329's cutscene wore a high collar and a vest over his outfit). Event::ExePacket_SetParts puts
+# the costume's own part on Leon (pl000e from his archive instead of the event file's ev000e / ev001e, his first
+# jacket) for pl_costume 1 and 2. A stand-in's events show Leon's body from his archive in his costume (cheats.cpp
+# leonCostume), but an Ada stand-in's pl_costume holds her own outfit (0 or 1): the event file's jacket went over
+# Leon's other costume. HUNK, Krauser and Wesker hold Leon's costume there already. The part is chosen by Leon's
+# costume while a stand-in plays the story. Not a bug of the prototype: a port feature (the cheat menu, patch 0195).
+--- a/src/game/event.cpp
++++ b/src/game/event.cpp
+@@ -933,14 +933,19 @@
+ 
+ // Packet 4 (SetParts): attaches a parts model to a parent, substituting the costume-specific
+ // files (pl000e / ev0100.tpl) for Leon's alternate costumes and Ashley's armour.
++/* PORT (patch 0203): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" int re4_story_char_costume(void);
++
+ int Event::ExePacket_SetParts(Event* pEvt)
+ {
+     EvtPacket* pac = pEvt->pPacket;
++    /* PORT (patch 0203): a stand-in of the story: Leon's costume (Ada's pl_costume picks her own outfit) */
++    const int plCostume = re4_story_char_costume() >= 0 ? re4_story_char_costume() : pG->pl_costume;
+ 
+     switch (pG->game_costume) {
+     case 0:
+     default:
+-        switch (pG->pl_costume) {
++        switch (plCostume) {
+         case 1:
+         case 2:
+             if (strcmp(pac->parts.name, "ev000e") == 0 || strcmp(pac->parts.name, "ev001e") == 0) {

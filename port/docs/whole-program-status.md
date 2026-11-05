@@ -140,10 +140,15 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    sonst 0x40 (andere Figuren), und viele Szenen beleuchten nur die Spielerklasse. **Patch 0202:** mit
    Stellvertreter werden die Klassen wie mit Leon vergeben (auch Adas Szenenfigur, die bei Ada als Stellvertreterin
    sonst die Spielerklasse bekam). **Geprüft:** r329, Bild 901/951: Leon 32,0/32,5, HUNK, Krauser, Wesker jetzt
-   32,0/32,5 (vorher schwarz), Ada 29,7/30,3; Rundgang „set“ EU mit HUNK und Ada je 27/27. **Offen:** in Szenen mit
-   Ada als Stellvertreterin trägt Leons Körper ein fremdes Kleidungsteil (hoher Kragen, Weste; r329) – vermutlich
-   wählt die Szene Leons Teile nach `pl_costume`, das bei Ada ihr eigenes Kostüm hält; ein Versuch über den
-   Stoff-Nachbau (`PlClothSetLeon` mit Leons Kostüm) änderte nichts und ist nicht drin.
+   32,0/32,5 (vorher schwarz), Ada 29,7/30,3; Rundgang „set“ EU mit HUNK und Ada je 27/27.
+   **Dazu Patch 0203 (Adas Szenen):** mit Ada als Stellvertreterin trug Leons Körper in Szenen ein fremdes Teil
+   (hoher Kragen, Weste; r329). `Event::ExePacket_SetParts` setzt bei Leons Kostüm 1 und 2 das Teil seines Kostüms
+   (`pl000e` aus seinem Archiv) statt `ev000e`/`ev001e` der Szenendatei (seine erste Jacke) und fragt dazu
+   `pl_costume`; bei Ada hält es ihr eigenes Kostüm (0/1), also kam die erste Jacke über Leons Kapitel-Kostüm
+   (`pl08`). Jetzt nach Leons Kostüm (`re4_story_char_costume`). Ein Versuch über den Stoff-Nachbau
+   (`PlClothSetLeon`) änderte nichts und ist nicht drin. **Geprüft:** r329 Szene: Leon mit Ada wie mit Leon, mit
+   Sonderkostüm bei beiden die Polizeiuniform; Szenen in r101, r206, r10e, r300, r311, r21a mit Ada gegen Leon (72
+   Bilder, Unterschiede nur durch die Spielfigur im Bild); Rundgang „set“ mit Ada EU und Debug je 27/27.
 10. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
    Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
    kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
@@ -12089,6 +12094,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0200 `cam_extra.cpp`, `cam_ctrl.cpp` | HUNK als Stellvertreter: Zielfernrohr, Fernglas und Blick nach unten (`StartLookDownEm`) beginnen an Leons Augenpunkt im Kopfteil 4 (`re4_story_char_eyes`, `runtime/cheats.cpp`) statt zwischen den Teilen 0x20/0x21, die HUNKs Modell an Brust und Wurzel hat. Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0201 `cam_ctrl.cpp` | Stellvertreter in der Geschichte: `areaHitCheck` wählt die Kamera-Bereiche (Schnitte und Licht) wie für Leon; die Räume der Geschichte kennen die Figuren-Bits der Mercenaries-Figuren nicht (Bild dunkel, wenn Ashley wartete). Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0202 `obj18.cpp` | Stellvertreter in der Geschichte: die Figuren einer Szene bekommen ihre Lichtklasse wie mit Leon (Leons Körper die des Spielers; vorher in manchen Szenen schwarz). Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
+| 0203 `event.cpp` | Stellvertreter in der Geschichte: `ExePacket_SetParts` wählt Leons Kostüm-Teil nach seinem Kostüm (bei Ada hielt `pl_costume` ihr eigenes: Leon trug in Szenen seine erste Jacke über dem späteren Kostüm). Port-Funktion (Cheat-Menü), PC-Prüfung 05.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
