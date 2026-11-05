@@ -132,7 +132,19 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    (`RE4_TEST_STA=101`), X zweimal: vorher Krauser „warten“ → Kamera −1, Bereich −1, Leon Kamera 1; jetzt alle fünf
    Figuren Kamera 1 in beiden Zuständen. Ohne Ashley r200, r20e, r30d: Krauser dieselben Kameras wie Leon.
    Mercenaries r400 mit Krauser unverändert. Am Gerät nicht angesehen.
-9. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
+9. **Dunkle Zwischensequenzen mit HUNK (Meldung eines Nutzers, ohne Protokoll).** Patch 0201 (Punkt 8) ändert daran
+   nichts: GX-Bilder von Szenen in 18 Räumen (r101, r206, r207, r10e, r200, r204, r20b, r211, r216, r21a, r223, r22c,
+   r300, r305, r311, r31a, r320, r329; EU, Leon gegen HUNK, mit und ohne 0201) – dieselben Werte. Gefunden in r329:
+   Leons Körper (den die Szenen bei Stellvertretern zeigen) mit HUNK völlig schwarz. Ursache (`SetObj18`): die Figuren
+   einer Szene bekommen eine Lichtklasse nach ihrem Typ; Leons Körper die des Spielers (1) nur bei `pl_type` 0,
+   sonst 0x40 (andere Figuren), und viele Szenen beleuchten nur die Spielerklasse. **Patch 0202:** mit
+   Stellvertreter werden die Klassen wie mit Leon vergeben (auch Adas Szenenfigur, die bei Ada als Stellvertreterin
+   sonst die Spielerklasse bekam). **Geprüft:** r329, Bild 901/951: Leon 32,0/32,5, HUNK, Krauser, Wesker jetzt
+   32,0/32,5 (vorher schwarz), Ada 29,7/30,3; Rundgang „set“ EU mit HUNK und Ada je 27/27. **Offen:** in Szenen mit
+   Ada als Stellvertreterin trägt Leons Körper ein fremdes Kleidungsteil (hoher Kragen, Weste; r329) – vermutlich
+   wählt die Szene Leons Teile nach `pl_costume`, das bei Ada ihr eigenes Kostüm hält; ein Versuch über den
+   Stoff-Nachbau (`PlClothSetLeon` mit Leons Kostüm) änderte nichts und ist nicht drin.
+10. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
    Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
    kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
    **Raum-Rundgang „set“ (27 Räume, 4000 Bilder, i686 -O2) mit Ada, HUNK, Krauser, Wesker auf Debug-, EU- und
@@ -12076,6 +12088,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0199 `examine.cpp` | Fundfenster wie die Verkaufsfassungen: mit Verkaufs-Discs die drei Zeilen von `exam_info`, die deren main.dol (EU, US, JP gleich) anders hat: Geldtruhen 0x78/0x79 Teiler 1,1/1,4 statt 0,8/1,1 (größer), 0x6D. Debug-Discs unverändert. Port-Patch für Verkaufsdaten, Meldung des Projektinhabers 04.11.2026 |
 | 0200 `cam_extra.cpp`, `cam_ctrl.cpp` | HUNK als Stellvertreter: Zielfernrohr, Fernglas und Blick nach unten (`StartLookDownEm`) beginnen an Leons Augenpunkt im Kopfteil 4 (`re4_story_char_eyes`, `runtime/cheats.cpp`) statt zwischen den Teilen 0x20/0x21, die HUNKs Modell an Brust und Wurzel hat. Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0201 `cam_ctrl.cpp` | Stellvertreter in der Geschichte: `areaHitCheck` wählt die Kamera-Bereiche (Schnitte und Licht) wie für Leon; die Räume der Geschichte kennen die Figuren-Bits der Mercenaries-Figuren nicht (Bild dunkel, wenn Ashley wartete). Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
+| 0202 `obj18.cpp` | Stellvertreter in der Geschichte: die Figuren einer Szene bekommen ihre Lichtklasse wie mit Leon (Leons Körper die des Spielers; vorher in manchen Szenen schwarz). Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
