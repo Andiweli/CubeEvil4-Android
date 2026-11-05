@@ -110,7 +110,17 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    bei „4:3“ und „4:3 (GC)“ auf Höhe der Lebensanzeige und mit ihrem Abstand vom Bildrand. App für beide ABIs gebaut,
    `testCoreDebugUnitTest` bestanden. Nicht auf einem Gerät angesehen; die Drehung ändert nur die Fenstergröße
    (keine Seiten-Unterschiede), nicht eigens im Emulator angesehen.
-7. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
+7. **Bild eines Nutzers ohne Protokoll (05.11.2026): Ada als Stellvertreterin im Zweitkostüm (`pl0c`, schwarze
+   Kampfkleidung), Ashley folgt, Dorf bei Nacht und Regen, Gewehrmunition 24 (halbautomatisches Gewehr, höchste
+   Stufe), 30 FPS ohne Zwischenbilder.** Ihr Oberkörper mit Armen und Kopf ist vom Unterkörper abgerissen und liegt
+   waagerecht weit rechts daneben, die Waffe bleibt an der Hüfte. **Nicht nachgestellt (PC, i686 -O2, r103,
+   Debug-Discs, GX-Bilder):** Ada in beiden Kostümen mit ihrem Gewehr (Typ 0/1/2) und Leons Gewehr: stehen, laufen,
+   zielen, schießen, nachladen; Tritt am geblendeten Ganado mit 0.98.2-Verhalten und mit 0.98.3: alles sauber.
+   `pl0b` und `pl0c` haben dieselben Einträge. In den Rundgängen nimmt Ada aus Leons Archiv nur den Funk (0x77..0x79).
+   Möglich bleibt eine Bewegung, die erst in einer bestimmten Lage kommt (Griff eines Ganados, Ereignis, Leiter,
+   Sprung); 0.98.3 gibt Ada ihre eigenen Griff- und Trittbewegungen an den Ganados (Punkt 1). Braucht den
+   Fehlerbericht direkt danach (App-Menü → Send report) und Raum/Handlung.
+8. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
    Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
    kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
    **Raum-Rundgang „set“ (27 Räume, 4000 Bilder, i686 -O2) mit Ada, HUNK, Krauser, Wesker auf Debug-, EU- und
