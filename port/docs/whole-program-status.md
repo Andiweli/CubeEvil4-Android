@@ -3,6 +3,78 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP (05.11.2026, Branch `work`, Patches 0204–0206)
+
+Version 0.98.4-beta (versionCode 98), Releasetext `port/android-decomp/docs/releases/v0.98.4-beta.md`. WSL-Baum
+`~/re4-0983/RE4` (auf `origin/work` gesetzt, geänderte Dateien aus dem Worktree hineinkopiert). Material:
+`reports/0984-20261105` (Bilder `ashley-health-gaps.webp`, `hunk-missing-weapon.jpg`, `leon-missing-head.jpg`;
+Protokolle `leon-light-glitch/` vivo V2426, `keyboard/` OnePlus 9R, `fog-flicker/` Xiaomi 25102PCBEG, alle 0.98.3).
+Neue Prüfhilfen in `runtime/state_trace.cpp`: `RE4_TEST_LIFE="free+N:A,AMAX[,L,LMAX][/STEP]"` (Ashleys/Leons Leben
+setzen, mit `/STEP` alle 60 Bilder weniger) und `RE4_TEST_WEPTYPE="free+N:T"` (Waffentyp T, Waffe aus der schon
+gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in allen 11 Sprachen:
+`CoreMenuShotTest` (Robolectric mit echter Grafik, nur mit `RE4_MENU_SHOTS=ORDNER`).
+
+1. **FPS-Anzeige (Wunsch des Projektinhabers):** seitlicher Abstand wie bisher (links nach Ecke/Aussparung/Leiste,
+   mittig), zum oberen bzw. unteren Rand 0 in allen vier Lagen (`CornerInset.place` gibt als zweiten Wert 0).
+   Geprüft: `testCoreDebugUnitTest`. Nicht auf einem Gerät angesehen.
+2. **Ashleys Lebensanzeige mit Lücken (Bild im Koffer, EU, Deutsch).** Nachgestellt (PC, EU-Discs, r200 mit Ashley,
+   `RE4_TEST_LIFE`): bei Leben bis 1200 ist der Ring bei jedem Höchstwert (600–1200) ganz; über 1200 dreht
+   `LifeMeter::move` (zwei Blenden, gedreht um Leben/200 × 30°, gebaut für höchstens 1200) die zweite Blende zu weit:
+   genau die Lücke des Bildes (1400/960, 1500/1080). Ursache im Port: `PlSelect` tauscht in Ashleys Abschnitt die
+   Höchstwerte (in `ashley_life_max` steht dann Leons), und der Cheat „Unendlich Gesundheit“ füllte `ashley_life` bis
+   dorthin auf; nach dem Abschnitt blieb Ashleys Leben über ihrem Maximum (auch im Spielstand). **Jetzt
+   (`runtime/cheats.cpp`):** der Cheat füllt Ashley nur, wenn sie Partnerin ist (`pl_type != 1`); dazu in jedem Bild
+   `repairPartnerLife`: Leben über dem Maximum als Partnerin → Maximum (Zeile „cheat: Ashley's life … above her
+   maximum“, höchstens 5-mal). Geprüft: 1400/960 → 960, Ring ganz (GX-Bild). Ashleys Abschnitt selbst nicht gespielt
+   (der Ablauf ist aus dem Code abgeleitet).
+3. **HUNK ohne sichtbare Waffe (Bild, laut Nutzer die TMP).** Alle Waffennummern 0..32 und 15 Varianten mit HUNK auf
+   Debug- und EU-Discs beim Zielen angesehen: alle sichtbar, auch die TMP mit Schaft (0.98.3). Nachgestellt: wird die
+   Waffe aus HUNKs eigener TMP-Datei (`wep29`) mit dem Typ der TMP mit Schaft neu aufgebaut (das Spiel tut das ohne
+   neues Lesen nach einem Kostümwechsel, `PlChangeData`, und wenn der Koffer den Typ vom Gegenstand übernommen hat),
+   nimmt `cObjMachinegun::init` den Platzhalter 0x7: Laser ohne Waffe, wie im Bild (`RE4_TEST_WEPTYPE`). **Patch
+   0206:** teilen sich die Einträge 0x7..0x9 ein Modell (nur HUNKs Datei), nimmt die TMP das Modell ohne Schaft.
+   Geprüft: HUNK hält danach seine TMP; Leon mit Schaft unverändert.
+4. **Leon ohne Kopf (Bild, Schloss-Balkon, Polizei-Uniform, große Pistole, 60 FPS an).** Nicht nachgestellt: Leon im
+   Spezialkostüm in r200, r204, r205, r209 (EU) beim Zielen, nach oben gerichtet mit Handcannon (auch die
+   60-FPS-Zwischenbilder), Kostüm im Raum an- und ausgeschaltet, Kopfverlust (`RE4_TEST_HEAD_LOST`) mit Schnellladen
+   und mit „Weiter“: Kopf immer da. `setHead(0)` (ersetzt Gesicht, Kopf, Haare) ruft das Spiel nur bei Kopf-Toden.
+   Braucht den Fehlerbericht direkt danach und was vorher geschah.
+5. **Licht durch Leons Kopf (Video, r102 Höhle, schwingende Laterne, 60 FPS an).** Die Höhle am PC erreicht
+   (`RE4_TEST_PLACE=free+30:-534,-8578,16351,4.95`): mit ruhender Laterne über/hinter dem Kopf bleibt der Hinterkopf
+   dunkel, auch in den Zwischenbildern; die Lichtberechnung (`gx_gl_shader.cpp`, Punktlicht, N·L geklemmt)
+   entspricht der des GameCube. Das Schwingen der Laterne ließ sich nicht auslösen. Nicht behoben.
+6. **Tastatur nicht erkannt (OnePlus 9R).** Android gibt jeder Tastatur mit Pfeiltasten auch die Quelle des
+   Steuerkreuzes (0x301); `gameDevice` hielt sie darum für einen Controller, `keyboardDevice` für keine Tastatur, und
+   auch das einzelne Ereignis galt als Controller-Taste (`controller(e)`): im Spiel und in der Tastenbelegung kam
+   nichts an. **Jetzt (`CoreActivity`):** eine alphabetische Tastatur ohne Gamepad-/Joystick-Quelle ist eine Tastatur
+   (`keyboardSources`, `gameSources`), ihre Ereignisse keine Controller-Tasten; `controllers.txt` nennt auch Tastaturen
+   und Mäuse. Test `InputDeviceKindTest` (Tastatur mit Pfeilen, Kombigerät mit Maus, Retroid, Fernbedienung,
+   OnePlus-Schieber). Nicht auf einem Gerät mit Tastatur geprüft.
+7. **Nebel flackert leicht bei 60 FPS (r100).** Bildfolge in r100 beim Gehen mit Zwischenbildern
+   (`RE4_GX_INTERP=1`) aufgenommen; Zwischenbilder gegen das Mittel ihrer Nachbarn (PSNR) ohne Ausreißer, Teilchen
+   fast alle zugeordnet. Kein Fehler gefunden, nicht behoben; braucht eine R3-Serie vom Gerät an der Stelle.
+8. **Cheat-Menü:** drei Abschnitte SPIELER UND INVENTAR (Unendlich Gesundheit, Unendlich Munition, **Unsichtbarkeit**;
+   One-Hit-Kill, Aktenkoffer L, +1.000.000 PTAS), WAFFEN (Handcannon, Killer7, Matilda; Chicago Typewriter,
+   Minenwerfer, Raketenwerfer; die vorhandenen Knöpfe 1, 5..9), SPIEL ALLGEMEIN (Automatische QTEs, Extra-Spiele).
+   **Unsichtbarkeit (Bit 512, Patch 0204):** `emMove` gibt jedem Gegner (id 0x10..0x3F) den Abstand zum Spieler als
+   1e16, die Ganados finden ihn auch sonst nicht (`em10FindCk`, `setFindPL`), vergessen ihn (`clearFindPL`), dazu
+   `DBG_EM_NO_ATK`. Geprüft (PC, Mercenaries r400, 3600 Bilder, Debug- und EU-Discs): ohne 5 Treffer und Tod, mit 0
+   Treffern, die Ganados kommen nicht näher. Andere Gegnerarten (Hunde, Bosse …) nur über den Abstand, nicht eigens
+   geprüft.
+9. **Tiefenschärfe Aus → Leicht → Stark:** `dofLevel` (aus dem alten Schalter „dof“ übernommen), `CoreBridge.setDof(int)`;
+   „Stark“: Autofokus-Unschärfe bis 80 % statt 60 %, Abstand der Abtastpunkte 2,5 statt 1,5 Pixel je 480 Zeilen
+   (`GxRenderer::SetDofStrong`). Nicht auf einem Gerät angesehen.
+10.–15. **Menü:** Laservisier ohne Zeilenbeschriftung, vier Viertel; neuer Abschnitt SPIELERSICHT über dem Laservisier
+   (links „Kamera weiter weg“, rechts Regler „Sichtfeld (FoV)“ −15..+15°, **Patch 0205**: `CameraQuasiFPS::move` addiert
+   die Grad zu ihrem Fovy, nur die Schulterkamera; geprüft r103: 50/45° → 65/60° bzw. 35/30°, Bilder); LEISTUNG ohne
+   „Force Performance“-Beschriftung, zwei Hälften; EXPERIMENTELL zwei Spalten, „(experimentell)“ aus den Namen (alle
+   Sprachen), Erklärungen über die ganze Breite; STEUERUNG: TOUCHSTEUERUNG und TOUCH-ZIELEN als eigene Abschnitte, je
+   ein Drittel; ANZEIGE: Erklärungen unter der linken Kante der Knöpfe; jede Abschnittsüberschrift mit feiner Linie
+   rechts (`CoreMenu.Heading`). Geprüft: `check_translations.py` ok, `testCoreDebugUnitTest` ok, Menübilder aller
+   Seiten in 11 Sprachen angesehen (Stichproben de, en, ar, ru, hi). Nicht auf einem Gerät angesehen.
+
+Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
+
 ## Version 0.98.3-beta: drei Nutzerberichte zu 0.98.2 (05.11.2026, Branch `work`, Patch 0200)
 
 Version 0.98.3-beta (versionCode 97), Releasetext `port/android-decomp/docs/releases/v0.98.3-beta.md`. WSL-Baum
@@ -12104,6 +12176,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0201 `cam_ctrl.cpp` | Stellvertreter in der Geschichte: `areaHitCheck` wählt die Kamera-Bereiche (Schnitte und Licht) wie für Leon; die Räume der Geschichte kennen die Figuren-Bits der Mercenaries-Figuren nicht (Bild dunkel, wenn Ashley wartete). Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0202 `obj18.cpp` | Stellvertreter in der Geschichte: die Figuren einer Szene bekommen ihre Lichtklasse wie mit Leon (Leons Körper die des Spielers; vorher in manchen Szenen schwarz). Port-Funktion (Cheat-Menü), Nutzerbericht 05.11.2026 |
 | 0203 `event.cpp` | Stellvertreter in der Geschichte: `ExePacket_SetParts` wählt Leons Kostüm-Teil nach seinem Kostüm (bei Ada hielt `pl_costume` ihr eigenes: Leon trug in Szenen seine erste Jacke über dem späteren Kostüm). Port-Funktion (Cheat-Menü), PC-Prüfung 05.11.2026 |
+| 0204 `em.cpp`, `em10.cpp` | Cheat „Unsichtbarkeit“: `emMove` gibt Gegnern (id 0x10..0x3F) den Spielerabstand 1e16; Ganados finden den Spieler nicht (`em10FindCk`, `setFindPL`) und vergessen ihn. Port-Funktion (Cheat-Menü), Wunsch des Projektinhabers 05.11.2026 |
+| 0205 `cam_qfps.cpp` | „Sichtfeld (FoV)“: −15..+15 Grad zum Fovy der Schulterkamera (`re4_fov_offset`, Bits 24..29 der Ziel-Bits); Szenen, Zielfernrohr, Fernglas unverändert. Port-Funktion, Wunsch des Projektinhabers 05.11.2026 |
+| 0206 `objMachinegun.cpp` | Teilen sich die TMP-Modelle 0x7..0x9 einen Platzhalter (HUNKs `wep29`), nimmt die TMP das Modell ohne Schaft (HUNK zielte nach Kostümwechsel/Koffer ohne Waffe). Port-Fehler der Stellvertreter, Nutzerbild 05.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
