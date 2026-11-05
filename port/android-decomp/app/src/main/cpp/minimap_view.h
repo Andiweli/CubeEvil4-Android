@@ -4,6 +4,7 @@
 // and the PC check (tools/minimap_check.cpp), so the check sees the same picture.
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -81,6 +82,67 @@ inline float RoomRadius(const float *edges, int n) {
       z1 = std::fmax(z1, z);
     }
   return std::fmin(24000.0f, std::fmax(10000.0f, 0.3f * std::fmax(x1 - x0, z1 - z0)));
+}
+
+// --- where the map goes (owner's report 05.11.2026: right with "16:9" and "Stretched", too far left and over the
+// picture's edge with "4:3", hanging into the bar below the picture with "4:3 (GC)") ---------------------------
+// Rectangles on the screen in pixels, from its bottom left (OpenGL: y up).
+struct Rect {
+  int x = 0, y = 0, w = 0, h = 0;
+};
+
+// The picture's box and the game's own HUD on the screen for the menu's picture format, as drawGx (core_mode.cpp)
+// presents the XFB (`xh` lines): 0 "16:9" and 2 "Stretched" show the lines 56..391 of 448 (the game's letterboxed
+// part) in the box; 1 "4:3 (GC)" all lines in a 4:3 frame of 480, the HUD in the lines 56..391 of it; 3 "4:3" all
+// 448 lines in an exact 4:3 box with the flat draws (the HUD) 15/14 wider than the box. The game draws its gauge
+// (life, ammo) in those lines in each format (it sits at line 384 in all of them), so the map, placed in the
+// HUD's rectangle, mirrors the gauge at the bottom right in every format. The boxes must stay those of drawGx.
+inline void PictureRects(int format, int width, int height, int xh, Rect *hud, Rect *pic) {
+  if (xh <= 0)
+    xh = 448;
+  if (format == 3) {
+    int boxW = width, boxH = static_cast<int>(width * 3.0 / 4.0 + 0.5);
+    if (boxH > height) {
+      boxH = height;
+      boxW = static_cast<int>(height * 4.0 / 3.0 + 0.5);
+    }
+    const int layerW = static_cast<int>(boxW * 15.0 / 14.0 + 0.5);
+    *pic = {(width - boxW) / 2, (height - boxH) / 2, boxW, boxH};
+    *hud = {(width - layerW) / 2, pic->y + boxH * 56 / 448, layerW, boxH * 336 / 448};
+  } else if (format == 1) {
+    int boxW = width, boxH = width * 3 / 4;
+    if (boxH > height) {
+      boxH = height;
+      boxW = height * 4 / 3;
+    }
+    const int picH = boxH * xh / 480;
+    const int top = xh * 56 / 448, rows = xh * 336 / 448;
+    *pic = {(width - boxW) / 2, (height - picH) / 2, boxW, picH};
+    *hud = {pic->x, pic->y + picH * (xh - top - rows) / xh, boxW, picH * rows / xh};
+  } else {
+    int boxW = width, boxH = width * 9 / 16;
+    if (format == 2) {
+      boxH = height;
+    } else if (boxH > height) {
+      boxH = height;
+      boxW = height * 16 / 9;
+    }
+    *pic = {(width - boxW) / 2, (height - boxH) / 2, boxW, boxH};
+    *hud = *pic;
+  }
+}
+
+// The map's square: a little over a quarter of the HUD's height, 2.25 % of its width from its left and 4 % of its
+// height from its bottom (with "16:9" both are the 4 % of the height that was right before), and never left of
+// the picture's box (with "4:3" the HUD's layer is wider than the box) nor below it.
+inline Rect Place(const Rect &hud, const Rect &pic) {
+  const int size = std::max(48, std::min(hud.h * 27 / 100, hud.w * 3 / 10));
+  const int mx = std::max(6, hud.w * 9 / 400), my = std::max(6, hud.h * 4 / 100);
+  Rect r;
+  r.x = std::max(hud.x + mx, pic.x + std::max(6, pic.w * 9 / 400));
+  r.y = std::max(hud.y + my, pic.y + 6);
+  r.w = r.h = size;
+  return r;
 }
 
 }  // namespace re4mm

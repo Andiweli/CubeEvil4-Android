@@ -91,7 +91,26 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    `CornerInsetTest` prüft die Formel. **Geprüft (Emulator, Test-Build mit eingeblendeter Anzeige ohne Kern):**
    Pixel-8-Profil (Eckradius 102 px, Kameraloch): Querformat 174/42 px (Aussparung 132 px links), umgekehrtes
    Querformat 41/41 px; Automotive-Emulator ohne runde Ecken 12/12 px. Auf einem echten Handy nicht angesehen.
-6. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
+6. **Minikarte je Bildformat an anderer Stelle (Meldung des Projektinhabers, 05.11.2026, drei Bilder 1920×1080 in
+   `reports/minimap-aspect-20261105`: `shot-122803` = „4:3“, `-122822` = „4:3 (GC)“, `-122839` = „16:9“, an den
+   Rändern erkannt).** Die Karte stand an der linken unteren Ecke des gezeigten Kastens (`picX/picY`): bei „4:3“
+   ist das die um 15/14 breitere Ebene der flachen Zeichnungen (Karte über dem linken Bildrand), bei „4:3 (GC)“ das
+   ganze Bild mit den Balken des Spiels (Karte im unteren Balken). **Jetzt (`minimap_view.h` `PictureRects`,
+   `Place`; `core_mode.cpp` `minimapDraw(format, xh)`):** die Karte steht im Bereich der Spielanzeigen (die Zeilen
+   56..391 der 448, in der Breite der flachen Ebene), wo das Spiel auch die Lebens-/Munitionsanzeige zeichnet (ihre
+   Unterkante in allen Formaten auf Zeile 384): 2,25 % der Breite von links, 4 % der Höhe von unten, Größe 27 % der
+   Höhe, nie links neben oder unter dem Bildkasten. Bei „16:9“ ergibt das genau die alte Lage; bei „Stretched“ auf
+   breiten Bildschirmen wächst der seitliche Abstand mit der Breite wie bei der Anzeige. Neu berechnet in jedem
+   Bild (Drehung, Formatwechsel, Auflösung, Auto-Leisten über die Fenstergröße). Den Touch-Steuerelementen weicht
+   die Karte nicht aus (sie spiegelt die Lebensanzeige, die ebenfalls unter Knöpfen liegt); runde Ecken schneiden
+   den Kreis nicht (bei 4 % Rand und Eckradien um 100 px liegt der Kreis innerhalb). **Geprüft:** neues Prüfprogramm
+   `tools/minimap_place_check.cpp`: 4 Formate × 7 Bildschirme (16:9, 20:9, 19,5:9, 2000×923, 1280×720, 4:3,
+   1600×720) – Karte immer im Bild, Unterkante auf Spielzeile 379 in jedem Format, „16:9“ unverändert, 0 Probleme;
+   der neue Kreis in die drei Bilder des Projektinhabers gezeichnet: bei „16:9“ deckungsgleich mit der alten Karte,
+   bei „4:3“ und „4:3 (GC)“ auf Höhe der Lebensanzeige und mit ihrem Abstand vom Bildrand. App für beide ABIs gebaut,
+   `testCoreDebugUnitTest` bestanden. Nicht auf einem Gerät angesehen; die Drehung ändert nur die Fenstergröße
+   (keine Seiten-Unterschiede), nicht eigens im Emulator angesehen.
+7. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
    Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
    kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
    **Raum-Rundgang „set“ (27 Räume, 4000 Bilder, i686 -O2) mit Ada, HUNK, Krauser, Wesker auf Debug-, EU- und

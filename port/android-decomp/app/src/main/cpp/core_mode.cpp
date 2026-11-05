@@ -1257,6 +1257,7 @@ struct MinimapState {
   float radius = 10000.0f;  // world units to the map's edge (re4mm::RoomRadius)
   std::chrono::steady_clock::time_point asked;
   bool logged = false;
+  long long placeLogged = -1;  // the place last logged (minimapDraw)
 } minimap;
 
 bool minimapProgram() {
@@ -1305,7 +1306,9 @@ bool minimapProgram() {
   return true;
 }
 
-void minimapDraw(int boxX, int boxY, int boxW, int boxH) {
+// The map in the picture: the menu's picture format and the XFB's lines (re4mm::PictureRects / Place, where the
+// game's own gauge sits; owner's report 05.11.2026)
+void minimapDraw(int format, unsigned xh) {
   if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
       (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
     return;
@@ -1376,9 +1379,12 @@ void minimapDraw(int boxX, int boxY, int boxW, int boxH) {
     put(std::cos(a1) * 0.99f, std::sin(a1) * 0.99f, 0.86f, 0.92f, 0.86f, 0.5f);
   }
   const int lineVerts = static_cast<int>(v.size() / 6) - triVerts;
-  // its square at the picture's bottom left: a quarter of the picture's height, a margin of 4 %
-  const int size = std::max(48, std::min(boxH * 27 / 100, boxW * 3 / 10)), margin = std::max(6, boxH * 4 / 100);
-  glViewport(boxX + margin, boxY + margin, size, size);
+  // its square at the bottom left of the game's HUD, mirroring the gauge at the bottom right in every format
+  re4mm::Rect hud, pic;
+  re4mm::PictureRects(format, width, height, static_cast<int>(xh), &hud, &pic);
+  const re4mm::Rect at = re4mm::Place(hud, pic);
+  const int size = at.w;
+  glViewport(at.x, at.y, size, size);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_DEPTH_TEST);
@@ -1397,9 +1403,13 @@ void minimapDraw(int boxX, int boxY, int boxW, int boxH) {
   glUseProgram(0);
   glDisable(GL_BLEND);
   glViewport(0, 0, width, height);
-  if (!minimap.logged) {
+  // once, and again when the place changes (another picture format, the screen turned or resized)
+  const long long key = (static_cast<long long>(format + 1) << 48) ^ (static_cast<long long>(at.x) << 32) ^
+                        (static_cast<long long>(at.y) << 16) ^ size;
+  if (!minimap.logged || key != minimap.placeLogged) {
     minimap.logged = true;
-    LOG("minimap: drawn (%d x %d at %d %d)", size, size, boxX + margin, boxY + margin);
+    minimap.placeLogged = key;
+    LOG("minimap: drawn (%d x %d at %d %d, picture format %d)", size, size, at.x, at.y, format);
   }
 }
 
@@ -2000,7 +2010,8 @@ bool drawGx() {
     notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, xh ? float(top) / float(xh) : 0.f,
                 xh ? float(rows) / float(xh) : 1.f);
   }
-  minimapDraw(picX, picY, picW, picH);
+  // the map: "4:3 (GC)" also when RE4_GX_ASPECT asks for 4:3 (as above)
+  minimapDraw(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, xh);
   return true;
 }
 
