@@ -29,7 +29,11 @@
     <string name="ingame_minimap">Мини-карта</string>
     <string name="ingame_flares">Блики объектива</string>
     <string name="ingame_dof">Глубина резкости</string>
-    <string name="ingame_fps_display">FPS внизу слева</string>
+    <string name="ingame_fps_display">Показ FPS</string>
+    <string name="ingame_fps_bottom_left">Внизу слева</string>
+    <string name="ingame_fps_bottom_centre">Внизу по центру</string>
+    <string name="ingame_fps_top_left">Вверху слева</string>
+    <string name="ingame_fps_top_centre">Вверху по центру</string>
     <string name="ingame_smooth60">60 FPS (экспериментально)</string>
     <string name="ingame_merge_draws">Объединять вызовы отрисовки (экспериментально)</string>
     <string name="ingame_vertex_ring">Кольцевой буфер вершин (экспериментально)</string>

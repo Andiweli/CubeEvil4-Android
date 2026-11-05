@@ -30,7 +30,11 @@
     <string name="ingame_minimap">小地图</string>
     <string name="ingame_flares">镜头光晕</string>
     <string name="ingame_dof">景深</string>
-    <string name="ingame_fps_display">在左下角显示 FPS</string>
+    <string name="ingame_fps_display">FPS 显示</string>
+    <string name="ingame_fps_bottom_left">左下</string>
+    <string name="ingame_fps_bottom_centre">下方居中</string>
+    <string name="ingame_fps_top_left">左上</string>
+    <string name="ingame_fps_top_centre">上方居中</string>
     <string name="ingame_smooth60">60 帧（实验性）</string>
     <string name="ingame_merge_draws">合并绘制调用（实验性）</string>
     <string name="ingame_vertex_ring">顶点环形缓冲区（实验性）</string>

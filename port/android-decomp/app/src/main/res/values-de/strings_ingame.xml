@@ -29,7 +29,11 @@
     <string name="ingame_minimap">Minikarte</string>
     <string name="ingame_flares">Lichthöfe (Lens Flares)</string>
     <string name="ingame_dof">Tiefenschärfe</string>
-    <string name="ingame_fps_display">FPS-Anzeige unten links</string>
+    <string name="ingame_fps_display">FPS-Anzeige</string>
+    <string name="ingame_fps_bottom_left">Unten links</string>
+    <string name="ingame_fps_bottom_centre">Unten mittig</string>
+    <string name="ingame_fps_top_left">Oben links</string>
+    <string name="ingame_fps_top_centre">Oben mittig</string>
     <string name="ingame_smooth60">60 FPS (experimentell)</string>
     <string name="ingame_merge_draws">Zeichenaufrufe bündeln (experimentell)</string>
     <string name="ingame_vertex_ring">Vertex-Ringpuffer (experimentell)</string>

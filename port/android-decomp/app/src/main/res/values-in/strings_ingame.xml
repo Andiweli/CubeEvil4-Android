@@ -30,7 +30,11 @@
     <string name="ingame_minimap">Peta mini</string>
     <string name="ingame_flares">Pantulan lensa (lens flare)</string>
     <string name="ingame_dof">Kedalaman bidang (depth of field)</string>
-    <string name="ingame_fps_display">Tampilan FPS di kiri bawah</string>
+    <string name="ingame_fps_display">Tampilan FPS</string>
+    <string name="ingame_fps_bottom_left">Kiri bawah</string>
+    <string name="ingame_fps_bottom_centre">Tengah bawah</string>
+    <string name="ingame_fps_top_left">Kiri atas</string>
+    <string name="ingame_fps_top_centre">Tengah atas</string>
     <string name="ingame_smooth60">60 FPS (eksperimental)</string>
     <string name="ingame_merge_draws">Gabungkan panggilan gambar (eksperimental)</string>
     <string name="ingame_vertex_ring">Ring buffer verteks (eksperimental)</string>

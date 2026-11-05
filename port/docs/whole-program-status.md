@@ -149,7 +149,16 @@ mit Krauser (r400) und den Titel, die Geschichte mit HUNK steht nicht in seinen 
    (`PlClothSetLeon`) änderte nichts und ist nicht drin. **Geprüft:** r329 Szene: Leon mit Ada wie mit Leon, mit
    Sonderkostüm bei beiden die Polizeiuniform; Szenen in r101, r206, r10e, r300, r311, r21a mit Ada gegen Leon (72
    Bilder, Unterschiede nur durch die Spielfigur im Bild); Rundgang „set“ mit Ada EU und Debug je 27/27.
-10. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
+10. **FPS-Anzeige an vier Stellen (Wunsch des Projektinhabers, 05.11.2026: sie verdeckte unten die Minikarte).**
+   App-Menü → ANZEIGE: der Knopf „FPS-Anzeige“ schaltet bei jedem Druck weiter: Aus → unten links → unten mittig →
+   oben links → oben mittig → Aus (`CoreMenu`, Einstellung `fpsPlace` 0..4; das alte `fps` = an zählt als „unten
+   links“ und wird mitgeschrieben). `CoreActivity.placeFps`, `CornerInset.place`: oben mit Aussparung/Leiste oben und
+   der runden Ecke oben links, mittig ohne Eckabstand (nur der Mindestabstand). Texte in 11 Sprachen
+   (`check_translations.py`: ok). **Geprüft (Emulator Pixel 8, Test-Build mit eingeblendeter Anzeige):** alle vier
+   Stellen, Abstände 174/42, Mitte 32 unten, 174/42 oben, Mitte 32 oben; App gebaut, `testCoreDebugUnitTest`
+   bestanden. Oben mittig liegt bei eingeblendeten Touch-Tasten zwischen MENU und START. Den Menüknopf selbst nicht
+   gesehen (das Menü braucht den Spielkern, der im Emulator nicht läuft).
+11. **Prüfungen:** `RE4_OPT=2 whole_build.sh i686`: 0 Fehler (114 Module, runtime-test, core-test, Fernkern-, Film-,
    Formatvergleich); `whole_build_android.sh --abi all`: ARM32 und ARM64 0 Fehler (die Android-Bauordner des
    kopierten Baums trugen alte Pfade: gelöscht und neu gebaut); `gradlew testCoreDebugUnitTest` bestanden.
    **Raum-Rundgang „set“ (27 Räume, 4000 Bilder, i686 -O2) mit Ada, HUNK, Krauser, Wesker auf Debug-, EU- und

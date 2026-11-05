@@ -31,7 +31,11 @@
     <string name="ingame_minimap">Mini-carte</string>
     <string name="ingame_flares">Halos lumineux</string>
     <string name="ingame_dof">Profondeur de champ</string>
-    <string name="ingame_fps_display">Afficher les FPS en bas à gauche</string>
+    <string name="ingame_fps_display">Afficher les FPS</string>
+    <string name="ingame_fps_bottom_left">En bas à gauche</string>
+    <string name="ingame_fps_bottom_centre">En bas au centre</string>
+    <string name="ingame_fps_top_left">En haut à gauche</string>
+    <string name="ingame_fps_top_centre">En haut au centre</string>
     <string name="ingame_smooth60">60 FPS (expérimental)</string>
     <string name="ingame_merge_draws">Regrouper les appels de dessin (expérimental)</string>
     <string name="ingame_vertex_ring">Tampon circulaire de sommets (expérimental)</string>

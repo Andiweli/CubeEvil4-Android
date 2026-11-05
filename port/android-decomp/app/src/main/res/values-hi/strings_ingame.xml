@@ -29,7 +29,11 @@
     <string name="ingame_minimap">मिनी-मैप</string>
     <string name="ingame_flares">लेंस फ़्लेयर</string>
     <string name="ingame_dof">डेप्थ ऑफ़ फ़ील्ड</string>
-    <string name="ingame_fps_display">नीचे बाईं ओर FPS दिखाएँ</string>
+    <string name="ingame_fps_display">FPS दिखाएँ</string>
+    <string name="ingame_fps_bottom_left">नीचे बाएँ</string>
+    <string name="ingame_fps_bottom_centre">नीचे बीच में</string>
+    <string name="ingame_fps_top_left">ऊपर बाएँ</string>
+    <string name="ingame_fps_top_centre">ऊपर बीच में</string>
     <string name="ingame_smooth60">60 FPS (प्रयोगात्मक)</string>
     <string name="ingame_merge_draws">ड्रॉ कॉल मिलाएँ (प्रयोगात्मक)</string>
     <string name="ingame_vertex_ring">वर्टेक्स रिंग बफ़र (प्रयोगात्मक)</string>

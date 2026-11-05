@@ -33,7 +33,11 @@
     <string name="ingame_minimap">خريطة مصغرة</string>
     <string name="ingame_flares">وهج العدسة</string>
     <string name="ingame_dof">عمق الميدان</string>
-    <string name="ingame_fps_display">عرض FPS أسفل اليسار</string>
+    <string name="ingame_fps_display">عرض FPS</string>
+    <string name="ingame_fps_bottom_left">أسفل اليسار</string>
+    <string name="ingame_fps_bottom_centre">أسفل الوسط</string>
+    <string name="ingame_fps_top_left">أعلى اليسار</string>
+    <string name="ingame_fps_top_centre">أعلى الوسط</string>
     <string name="ingame_smooth60">60 إطارًا في الثانية (تجريبي)</string>
     <string name="ingame_merge_draws">دمج استدعاءات الرسم (تجريبي)</string>
     <string name="ingame_vertex_ring">مخزن الرؤوس الدائري (تجريبي)</string>

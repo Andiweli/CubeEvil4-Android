@@ -36,6 +36,7 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -181,6 +182,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // ("30 FPS (Game) · 60 Hz": the game makes 30 pictures a second, as on the GameCube; a phone's
   // own counter shows the screen's rate, which is not the game's)
   private TextView fpsView;
+  // where it is (the menu's button, wish of the project owner, 05.11.2026: it covered the minimap): 0 off, 1 bottom
+  // left, 2 bottom centre, 3 top left, 4 top centre; before 05.11.2026 the switch "fps" alone (on: bottom left)
+  static final String FPS_PLACE = "fpsPlace";
+  static final int FPS_PLACES = 5;
+  private int fpsPlace;
+  private WindowInsets fpsInsets;
   private long fpsFrames = -1, fpsPictures, fpsSince;
   // a game that stands without a pause (a hang): reported once per stand
   private long lastFrames = -1, framesSince;
@@ -283,17 +290,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // kept clear of the screen's rounded corner, a cutout and bars that stay (CornerInset; tester report
     // 05.11.2026: the corner cut the text off); asked again when the window turns or the bars come and go
     fpsView.setOnApplyWindowInsetsListener((v, insets) -> {
-      final int[] at = CornerInset.bottomLeft(insets, getResources().getDisplayMetrics().density, CarDisplay.is(this));
-      final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) v.getLayoutParams();
-      if (lp.leftMargin != at[0] || lp.bottomMargin != at[1]) {
-        lp.leftMargin = at[0];
-        lp.bottomMargin = at[1];
-        v.setLayoutParams(lp);
-        Log.i(TAG, "FPS display: " + at[0] + " pixels from the left, " + at[1] + " from the bottom");
-      }
+      fpsInsets = insets;
+      placeFps();
       return insets;
     });
-    showFps(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean("fps", false));
+    showFps(fpsPlace(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE)));
     // the touch controls above everything
     touchControls = new TouchControls(this, input, touchMode(inputPrefs), touchHost);
     touchControls.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false));
@@ -473,10 +474,38 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     main.postDelayed(this::tick, 500);
   }
 
-  private void showFps(boolean on) {
-    fpsView.setVisibility(on && menuSupported ? View.VISIBLE : View.GONE);
+  /** The FPS display's place (FPS_PLACE, else the old switch "fps": bottom left). */
+  static int fpsPlace(SharedPreferences graphics) {
+    int place = graphics.contains(FPS_PLACE) ? graphics.getInt(FPS_PLACE, 0) : graphics.getBoolean("fps", false) ? 1 : 0;
+    return place >= 0 && place < FPS_PLACES ? place : 0;
+  }
+
+  private void showFps(int place) {
+    fpsPlace = place;
+    fpsView.setVisibility(place != 0 && menuSupported ? View.VISIBLE : View.GONE);
     fpsView.setText(getString(R.string.ingame_fps_none) + screenHz() + resolution());
     fpsFrames = -1;
+    placeFps();
+  }
+
+  /** The FPS display at its place, kept clear of rounded corners, a cutout and bars that stay (CornerInset). */
+  private void placeFps() {
+    if (fpsInsets == null || fpsPlace == 0) return;
+    final boolean top = fpsPlace >= 3, centre = fpsPlace == 2 || fpsPlace == 4;
+    final int[] at = CornerInset.place(fpsInsets, getResources().getDisplayMetrics().density, CarDisplay.is(this), top, centre);
+    final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) fpsView.getLayoutParams();
+    final int gravity = (top ? Gravity.TOP : Gravity.BOTTOM) | (centre ? Gravity.CENTER_HORIZONTAL : Gravity.LEFT);
+    final int left = centre ? 0 : at[0];
+    final int topMargin = top ? at[1] : 0, bottomMargin = top ? 0 : at[1];
+    if (lp.gravity != gravity || lp.leftMargin != left || lp.topMargin != topMargin || lp.bottomMargin != bottomMargin) {
+      lp.gravity = gravity;
+      lp.leftMargin = left;
+      lp.topMargin = topMargin;
+      lp.bottomMargin = bottomMargin;
+      fpsView.setLayoutParams(lp);
+      Log.i(TAG, "FPS display: place " + fpsPlace + ", " + (centre ? "centred" : left + " pixels from the left") + ", "
+          + at[1] + " from the " + (top ? "top" : "bottom"));
+    }
   }
 
   /**
@@ -691,7 +720,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(R3_CAPTURE, on).apply();
     }
 
-    @Override public void fpsChanged(boolean on) { showFps(on); }
+    @Override public void fpsChanged(int place) { showFps(place); }
 
     @Override public void touchModeChanged(int mode) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(TOUCH_MODE, mode).apply();

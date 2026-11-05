@@ -38,7 +38,11 @@
     <string name="ingame_minimap">Minimap</string>
     <string name="ingame_flares">Lens flares</string>
     <string name="ingame_dof">Depth of field</string>
-    <string name="ingame_fps_display">FPS display bottom left</string>
+    <string name="ingame_fps_display">FPS display</string>
+    <string name="ingame_fps_bottom_left">Bottom left</string>
+    <string name="ingame_fps_bottom_centre">Bottom centre</string>
+    <string name="ingame_fps_top_left">Top left</string>
+    <string name="ingame_fps_top_centre">Top centre</string>
     <string name="ingame_smooth60">60 FPS (experimental)</string>
     <string name="ingame_merge_draws">Merge draw calls (experimental)</string>
     <string name="ingame_vertex_ring">Vertex ring buffer (experimental)</string>

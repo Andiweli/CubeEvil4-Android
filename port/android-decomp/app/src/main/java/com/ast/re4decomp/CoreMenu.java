@@ -49,7 +49,7 @@ final class CoreMenu extends Dialog {
     void saveReport();
     void logChanged(boolean on);
     void toolsChanged(boolean on);
-    void fpsChanged(boolean on);
+    void fpsChanged(int place);  // CoreActivity.FPS_PLACE: 0 off, 1..4 where
     /** The setting "Touch Controls": TouchShowRule.AUTO, FORCE or SUPPRESS (the preferences hold it). */
     void touchModeChanged(int mode);
     /** The switch "Use Gyro-Aiming" (the preferences hold it). */
@@ -403,6 +403,10 @@ final class CoreMenu extends Dialog {
     });
     return b;
   }
+  private void fpsLabel(Button b, int place, boolean on) {
+    b.setSelected(on);
+    b.setText(getContext().getString(R.string.ingame_toggle_value, s(R.string.ingame_fps_display), s(place)));
+  }
   private void toggleLabel(Button b, int label, boolean on) {
     b.setSelected(on);
     b.setText(getContext().getString(R.string.ingame_toggle_value, s(label), s(on ? R.string.ingame_on : R.string.ingame_off)));
@@ -576,10 +580,19 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
       graphics.edit().putBoolean("minimap", on).apply(); CoreBridge.setMinimap(on);
     });
-    // the FPS display (here since 04.11.2026, before on PERFORMANCE under EXPERIMENTAL)
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_fps_display, graphics.getBoolean("fps", false), on -> {
-      graphics.edit().putBoolean("fps", on).apply(); host.fpsChanged(on);
+    // the FPS display (here since 04.11.2026, before on PERFORMANCE under EXPERIMENTAL); each press moves it on
+    // (wish of the project owner, 05.11.2026: it covered the minimap): off, bottom left, bottom centre, top left,
+    // top centre, off again
+    final int[] fpsLabels = {R.string.ingame_off, R.string.ingame_fps_bottom_left, R.string.ingame_fps_bottom_centre,
+        R.string.ingame_fps_top_left, R.string.ingame_fps_top_centre};
+    Button fps = cellAction(buttonsRow(labelledOptions(0)), "", v -> {
+      int next = (CoreActivity.fpsPlace(graphics) + 1) % CoreActivity.FPS_PLACES;
+      graphics.edit().putInt(CoreActivity.FPS_PLACE, next).putBoolean("fps", next != 0).apply();
+      fpsLabel((Button) v, fpsLabels[next], next != 0);
+      host.fpsChanged(next);
     });
+    int fpsNow = CoreActivity.fpsPlace(graphics);
+    fpsLabel(fps, fpsLabels[fpsNow], fpsNow != 0);
   }
   private void controls() {
     quarterChoices(R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},

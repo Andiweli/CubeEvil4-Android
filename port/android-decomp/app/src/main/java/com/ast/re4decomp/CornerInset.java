@@ -6,7 +6,8 @@ import android.view.RoundedCorner;
 import android.view.WindowInsets;
 
 /**
- * How far the FPS display keeps from the window's bottom-left corner (tester report, 05.11.2026: on screens with
+ * How far the FPS display keeps from the window's corner or edge (since 05.11.2026 at one of four places, the
+ * menu's choice; before at the bottom left) (tester report, 05.11.2026: on screens with
  * rounded corners the corner cut off "30 FPS (Game)"). The display is a box flush in that corner; it stays whole
  * when its own corner lies inside the screen's rounded corner of radius r, i.e. at least r * (1 - 1/sqrt 2) from
  * both edges (the arc's point at 45 degrees), plus a little air. Screens that report no rounded corner (before
@@ -36,32 +37,37 @@ final class CornerInset {
     return Math.max(0, edgePx) + Math.max(min, corner);
   }
 
-  /** The left and bottom distance (pixels) of the FPS display for these insets. */
-  static int[] bottomLeft(WindowInsets insets, float density, boolean car) {
+  /**
+   * The distance (pixels) of the FPS display from the window's left edge and from its bottom (or top) edge. In
+   * the corners the rounded corner there counts; centred on that edge no rounded corner reaches (the left
+   * distance is then of no use).
+   */
+  static int[] place(WindowInsets insets, float density, boolean car, boolean top, boolean centre) {
     int left = 0;
-    int bottom = 0;
+    int edge = 0;
     if (Build.VERSION.SDK_INT >= 28) {
       final DisplayCutout cutout = insets.getDisplayCutout();
       if (cutout != null) {
         left = cutout.getSafeInsetLeft();
-        bottom = cutout.getSafeInsetBottom();
+        edge = top ? cutout.getSafeInsetTop() : cutout.getSafeInsetBottom();
       }
     }
     if (!car) {
       if (Build.VERSION.SDK_INT >= 30) {
         final android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
         left = Math.max(left, bars.left);
-        bottom = Math.max(bottom, bars.bottom);
+        edge = Math.max(edge, top ? bars.top : bars.bottom);
       } else {
         left = Math.max(left, insets.getSystemWindowInsetLeft());
-        bottom = Math.max(bottom, insets.getSystemWindowInsetBottom());
+        edge = Math.max(edge, top ? insets.getSystemWindowInsetTop() : insets.getSystemWindowInsetBottom());
       }
     }
     int radius = 0;
     if (Build.VERSION.SDK_INT >= 31) {
-      final RoundedCorner corner = insets.getRoundedCorner(RoundedCorner.POSITION_BOTTOM_LEFT);
+      final RoundedCorner corner = insets.getRoundedCorner(top ? RoundedCorner.POSITION_TOP_LEFT : RoundedCorner.POSITION_BOTTOM_LEFT);
       if (corner != null) radius = corner.getRadius();
     }
-    return new int[] {inset(left, radius, density), inset(bottom, radius, density)};
+    return new int[] {inset(left, radius, density), inset(edge, centre ? 0 : radius, density)};
   }
+
 }

@@ -30,7 +30,11 @@
     <string name="ingame_minimap">Minimapa</string>
     <string name="ingame_flares">Reflexos de lente</string>
     <string name="ingame_dof">Profundidade de campo</string>
-    <string name="ingame_fps_display">Mostrar FPS no canto inferior esquerdo</string>
+    <string name="ingame_fps_display">Mostrar FPS</string>
+    <string name="ingame_fps_bottom_left">Canto inferior esquerdo</string>
+    <string name="ingame_fps_bottom_centre">Inferior ao centro</string>
+    <string name="ingame_fps_top_left">Canto superior esquerdo</string>
+    <string name="ingame_fps_top_centre">Superior ao centro</string>
     <string name="ingame_smooth60">60 FPS (experimental)</string>
     <string name="ingame_merge_draws">Agrupar chamadas de desenho (experimental)</string>
     <string name="ingame_vertex_ring">Buffer circular de vértices (experimental)</string>
