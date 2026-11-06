@@ -43,7 +43,7 @@ Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerar
    Zeilen neben `lp64_int_casts.json`, Fenster ±40). **Geprüft am PC (r404, Debug-Discs, Wellen per
    `RE4_TEST_EM_KILL`/`RE4_TEST_EM_SET`, Raketen-Ganados DC, D8, D7, AF):** vorher Leon 0x70/0x71, Ada Modell =
    Textur = Platzhalter, Krauser eigener Eintrag; nachher Ada, Krauser, Wesker Leons Rakete (Adresse 0x820e7260 =
-   Leons #6C), Leon unverändert. Ein klares GX-Bild der fliegenden Rakete gelang nicht (sie kommt in 4–22 Bildern von
+   Leons #6C), Leon unverändert; derselbe Ada-Lauf unter aarch64 (qemu, 64 bit wie ARM64): gleich. Ein klares GX-Bild der fliegenden Rakete gelang nicht (sie kommt in 4–22 Bildern von
    hinten oder aus dem Rauch); Raketenflug und Treffer ohne Absturz. EU-Discs nur über den Datenvergleich.
 3. **Kamera beim Aufspringen (Kip-up).** Nachgestellt in r404 (Leon von einer Rakete umgeworfen, `RE4_TRACE`, GX-Serie
    2136–2184): beim Wegfliegen die Kamera der Bewegung (r0 0x11, `CameraAttachedToMotion`), am Boden die
@@ -58,6 +58,8 @@ Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerar
    Patches (0171 weite Kamera, 0205 FoV, 0201 Kameraflächen der Stellvertreter, 0189 Schultertabellen) und die
    60-FPS-Zwischenbilder berühren diesen Ablauf nicht. Nicht geändert; eine längere Bodenkamera wäre eine Abweichung
    vom Original (Entscheidung des Projektinhabers).
+4. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
+   Kern-, Karten-, Fernprozess-, Format- und Filmtests, libc++); aarch64 übersetzt. Nicht auf einem Gerät.
 
 ## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP, Benchmark, Kartenziel (05./06.11.2026, Branch `work`, Patches 0204–0209)
 
