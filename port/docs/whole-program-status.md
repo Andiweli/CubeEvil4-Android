@@ -98,6 +98,19 @@ Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerar
      von CubeEvil4 eine R3-Serie genau im Moment des Schimmers mit dem Fehlerbericht direkt danach, und ob es mit 60 FPS
      aus genauso aussieht. Am PC ließ sich das Schwingen nicht auslösen; die PC-Läufe haben keinen Renderer, der dem Kern
      Tiefenkarten gibt (dort antwortet `GXPeekZ` immer „frei“).
+   - **Nachtrag (Antwort des Nutzers):** Lens Flares aus, MSAA aus, Tiefenschärfe an, FXAA an, Anisotropie 16, feste
+     Stufe 4x; neu: das blaue Licht des Händlers blitzt einen Augenblick durch eine Wand. Also allgemein, nicht nur
+     Laterne und Kopf. Geprüft: Zeitpunkt der Tiefe stimmt (das Spiel prüft in `after_render_proc`, Liste 0x16, nach dem
+     ganzen `Render` und vor `GXCopyDisp`; der Port nimmt die Tiefe an der Bildschirmkopie); der Autofokus schreibt keine
+     Tiefe (`glDepthMask(GL_FALSE)`), FXAA und PSone-Filter arbeiten auf der Kopie; `ClearZbuf` liegt vor der Welt.
+     **Verbleibende Ursache: das Alter der Karte.** Der GameCube liest die Tiefe des aktuellen Bildes, der Port die eines
+     früheren (Kern und Renderer laufen nebeneinander, die Karte kommt erst, wenn die GPU das Bild fertig hat; mit 60 FPS
+     wartet jedes Bild zusätzlich auf das nächste). Dreht oder bewegt sich die Kamera, liegt eine Wandkante in der alten
+     Karte woanders: ein Licht knapp hinter der Kante gilt für ein Bild als frei und blitzt auf. Mit ruhender Kamera gleich
+     wie auf dem GameCube. **Neu (`gx_fifo.cpp`):** alle 900 abfragenden Bilder eine Zeile „GXPeekZ: … map ages 1: …,
+     2: …“ im Protokoll (wie alt die antwortenden Karten am Gerät sind). Abhilfe wäre, die alte Karte mit den beiden
+     Kameras auf das aktuelle Bild umzurechnen (Leon und nahe Dinge bewegen sich mit der Kamera und blieben stehen); nicht
+     umgesetzt, Entscheidung des Projektinhabers. Kern-Tests (`--core-test` peek depth, `--runtime-test`) ok.
 7. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
    Kern-, Karten-, Fernprozess-, Format- und Filmtests, libc++); aarch64 übersetzt. Nicht auf einem Gerät.
 
