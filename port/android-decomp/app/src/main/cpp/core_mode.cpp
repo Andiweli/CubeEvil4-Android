@@ -2030,6 +2030,8 @@ bool drawGx() {
       bench.runCount++;
     }
     levelBenchTick(now, !between);
+    // the FPS display's level: the one the renderer really draws at (the benchmark's or Dynamic's steps, a new renderer)
+    infoScale = gx->Halves();
     // Dynamic: another level from the next chunk on (not while an R3 series or the hit pictures are
     // recorded, the app's menu is open or the GPU measurement runs; never while the benchmark runs: it would set
     // its own level over the benchmark's)

@@ -181,6 +181,10 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      4× → 3,5× → 3× → 2,5× → 2×, 60 FPS wieder ab 4× bis 1,5×; langsam: bis 1×, nicht stabil, Ende nach 70 s; ein
      stockendes Spiel mit Sekunden 9 s auseinander: Ende durch die Zeitgrenze; eine schlechte Sekunde bei 4×: 3,5×).
      App-Tests und Bau. Am Gerät nicht gelaufen; der Kern ist unverändert.
+   - **FPS-Anzeige „B×H (N×)“:** zeigte `infoScale`, das der Benchmark und „Dynamisch“ setzten; im Gerätetest stand
+     sie beim ersten Lauf auf 1×, beim zweiten durchgehend auf 3,5× (die Stufe von „Dynamisch“, die die des Benchmarks
+     bei jedem Chunk überschrieb, siehe oben). Jetzt nach jedem Chunk die Stufe, in der der Renderer wirklich zeichnet
+     (`gx->Halves()`); die 4× des ersten Schritts erscheinen dort nach dem ersten Chunk. Am Gerät nicht geprüft.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 
