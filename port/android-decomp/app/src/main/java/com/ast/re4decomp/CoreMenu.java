@@ -1487,9 +1487,9 @@ final class CoreMenu extends Dialog {
   private void showGraphics() {
     int chosen = scaleHalves(graphics), halves = chosen;
     if (halves < 2 || halves > 8) {
-      // Dynamic: the benchmark's level for 30 or 60 FPS, else the screen's
+      // Dynamic: half a level above the benchmark's level for 30 or 60 FPS (4x at most; core_mode.cpp), else the screen's
       int cap = graphics.getInt(graphics.getBoolean("smooth60", false) ? DYN_CAP_60 : DYN_CAP_30, 0);
-      halves = cap >= 2 && cap <= 8 ? cap : 2 * autoScale(screenWidth, screenHeight);
+      halves = cap >= 2 && cap <= 8 ? Math.min(8, cap + 1) : 2 * autoScale(screenWidth, screenHeight);
     }
     int aspect = graphics.getInt("aspect", 0);
     boolean original = aspect == 1 || aspect == 3;

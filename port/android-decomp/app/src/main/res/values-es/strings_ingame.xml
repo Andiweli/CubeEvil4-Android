@@ -286,12 +286,12 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Iniciar</string>
-    <string name="ingame_benchmark_text">Mide qué resolución mantiene 30 y 60 FPS estables en una escena muy exigente (el muelle del lago con agua, lluvia y niebla). Tarda entre dos y tres minutos. Después la resolución pasa a \"Dinámica\" con los límites medidos y vuelves a donde estabas. Tus demás opciones se quedan como están. B o Atrás cancela.</string>
+    <string name="ingame_benchmark_text">Mide qué resolución mantiene 30 y 60 FPS estables en una escena muy exigente (el muelle del lago con agua, lluvia y niebla). Tarda entre dos y tres minutos. Después la resolución pasa a \"Dinámica\": usa hasta medio nivel más que el medido y baja donde haga falta. Vuelves a donde estabas. Tus demás opciones se quedan como están. B o Atrás cancela.</string>
     <string name="ingame_benchmark_starting">Benchmark: iniciando …</string>
     <string name="ingame_benchmark_going">Benchmark: yendo al muelle del lago …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · nivel %2$s · ahora %3$d FPS · B / Atrás: cancelar</string>
     <string name="ingame_benchmark_back">Benchmark: volviendo a donde estabas …</string>
-    <string name="ingame_benchmark_done">Benchmark terminado. La resolución es ahora \"Dinámica\": en este dispositivo hasta %1$s con 30 FPS y hasta %2$s con 60 FPS.</string>
+    <string name="ingame_benchmark_done">Benchmark terminado. Medido: %1$s con 30 FPS, %2$s con 60 FPS. La resolución es ahora \"Dinámica\" y usa hasta %3$s con 30 FPS y %4$s con 60 FPS (medio nivel más); baja donde haga falta.</string>
     <string name="ingame_benchmark_cancelled">Benchmark cancelado. Has vuelto a donde estabas.</string>
     <string name="ingame_benchmark_refused">El benchmark se inicia desde el menú del título o mientras juegas libremente en la historia (no en una escena, un menú, una pelea contra un jefe o un lugar parecido). No se cambió nada.</string>
     <string name="ingame_benchmark_failed">El benchmark no pudo ejecutarse aquí. No se cambió nada.</string>

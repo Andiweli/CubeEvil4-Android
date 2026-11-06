@@ -224,6 +224,30 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
     alone“. Geprüft: Laufzeit-Test mit den Kernen des PCs (unterste Hälfte langsam, oberster Kern schnell: Render-Thread
     nur dort, Spiel-Thread auf den mittleren), `HasPrimeCores` für Snapdragon 865, A30s und gleiche Kerne; App-Bau. Am
     Gerät nicht gemessen (Wirkung auf FPS und Wärme offen).
+21. **Benchmark nach dem Gerätelauf mit fd651711 (Retroid; 30 FPS 2,5×, 60 FPS 1,5×; „Ja, beides“ des
+    Projektinhabers, 06.11.2026):**
+   - **60-FPS-Fenster:** der Taktgeber (`SmoothPacer`) schaltete bei 3,5×, 3×, 2,5× und 2× nach 4 s die Zwischenbilder für
+     5 s ab (bei 2× „27 of 60 chunks“ hinterher), die Hälfte des 10-s-Fensters. Jetzt ruht der Taktgeber während des
+     Benchmarks ganz (auch `smoothTooSlow`): jede Stufe zeigt, was der Renderer schafft, ausgelassene Zwischenbilder
+     zählen (höchstens 3 %). Die ersten 2,5 s nach einem Wechsel zählen nicht (seit 21dd6116). **2× mit 60 FPS hätte
+     bei seinen Zahlen nicht gehalten:** 27 von 60 Spielbildern hinterher heißt etwa 13 ausgelassene Zwischenbilder je
+     Sekunde, also rund 46 gezeigte (verlangt 57 im Schnitt); 1,5× hielt mit 59,5.
+   - **Render-Thread vom schnellsten Kern verdrängt:** eingerichtet auf Kern 7, lief er die meiste Zeit auf den
+     mittleren Kernen bei 1286–1574 MHz, Kern 7 am Ende bei 1516 von 2841 MHz („the system gave no session“): der
+     Kern war heiß gedrosselt oder zeitweise aus, das stur auf Kern 7 gesetzte Zurücklegen half dann nicht.
+     **Jetzt (`re4_cpu_info.h`):** `KeepOnFastCores` sucht für den Render-Thread jede Sekunde die eingeschalteten Kerne
+     mit dem höchsten erlaubten Takt (`scaling_max_freq`, die Drosselung eingeschlossen; `FastestCoresNow`); bei
+     gedrosseltem oder abgeschaltetem Kern 7 die mittleren. Bei jedem Benchmark-Schritt eine Zeile „cores now: 4
+     …/…, 7 …/… MHz (now/allowed); the render thread on core N“ (`DescribeClocks`), Abschaltungen als „offline“.
+   - **Spielraum für „Dynamisch“:** gespeichert bleibt die gemessene Stufe je Durchgang; „Dynamisch“ startet und deckelt
+     eine halbe Stufe höher, höchstens 4× (`core_mode.cpp`; Menüzeile `CoreMenu.showGraphics` ebenso): bei ihm 3× mit
+     30 FPS, 2× mit 60 FPS. Abwärts geht „Dynamisch“ wie bisher eine halbe Stufe, sobald die GPU hinterherhängt, aufwärts
+     wieder nach 10 s mit Luft (frühestens 30 s nach dem letzten Schritt abwärts, `gx_auto_level.h`); ein Schritt legt
+     nur die EFB-Puffer neu an (`RescaleHalves`, zwischen zwei Bildern, kein Neuaufbau der Shader). Abschlussmeldung
+     (gemessen und „Dynamisch bis“) und Hinweistext in 11 Sprachen.
+   - Geprüft: Laufzeit-Tests (`FastestCoresNow`, `DescribeClocks`), App-Tests, Bau. Am Gerät nicht geprüft: das
+     60-FPS-Ergebnis ohne Pause, das Halten des Render-Threads auf dem schnellsten Kern bei Wärme, der Start von
+     „Dynamisch“ eine halbe Stufe höher.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 

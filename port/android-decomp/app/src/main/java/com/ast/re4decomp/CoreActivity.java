@@ -1641,8 +1641,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         applyGraphics();
         // a pass where even 1x did not hold its rate: said as well (its result is 1x)
         int held = st.length > 6 ? st[6] : 3;
+        // measured, and what Dynamic uses: half a level more, 4x at most (core_mode.cpp)
         String text = getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×");
+            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×",
+            CoreMenu.scaleNumber(Math.min(8, st[3] + 1), Locale.getDefault()) + "×",
+            CoreMenu.scaleNumber(Math.min(8, st[4] + 1), Locale.getDefault()) + "×");
         if ((held & 1) == 0) text += " " + getString(R.string.ingame_benchmark_low, 30);
         if ((held & 2) == 0) text += " " + getString(R.string.ingame_benchmark_low, 60);
         benchmarkEnd(0, text);

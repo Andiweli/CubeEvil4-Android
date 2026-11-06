@@ -285,12 +285,12 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">बेंचमार्क</string>
     <string name="ingame_benchmark_start">शुरू करें</string>
-    <string name="ingame_benchmark_text">मापता है कि एक बहुत भारी दृश्य (पानी, बारिश और कोहरे वाला झील का घाट) में कौन सा रिज़ॉल्यूशन स्थिर 30 और 60 FPS बनाए रखता है। दो से तीन मिनट लगते हैं। इसके बाद रिज़ॉल्यूशन मापी गई सीमाओं के साथ \"डायनामिक\" पर सेट हो जाता है और आप वहीं लौट आते हैं जहाँ थे। आपके बाकी विकल्प वैसे ही रहते हैं। B या वापस रद्द करता है।</string>
+    <string name="ingame_benchmark_text">मापता है कि एक बहुत भारी दृश्य (पानी, बारिश और कोहरे वाला झील का घाट) में कौन सा रिज़ॉल्यूशन स्थिर 30 और 60 FPS बनाए रखता है। दो से तीन मिनट लगते हैं। इसके बाद रिज़ॉल्यूशन \"डायनामिक\" पर सेट हो जाता है: यह मापे गए स्तर से आधा स्तर ऊपर तक जाता है और ज़रूरत पड़ने पर नीचे आता है। आप वहीं लौट आते हैं जहाँ थे। आपके बाकी विकल्प वैसे ही रहते हैं। B या वापस रद्द करता है।</string>
     <string name="ingame_benchmark_starting">बेंचमार्क: शुरू हो रहा है …</string>
     <string name="ingame_benchmark_going">बेंचमार्क: झील के घाट पर जा रहे हैं …</string>
     <string name="ingame_benchmark_running">बेंचमार्क · %1$d FPS · स्तर %2$s · अभी %3$d FPS · B / Back: रद्द करें</string>
     <string name="ingame_benchmark_back">बेंचमार्क: वहीं वापस जहाँ आप थे …</string>
-    <string name="ingame_benchmark_done">बेंचमार्क पूरा हुआ। रिज़ॉल्यूशन अब \"डायनामिक\" है: इस डिवाइस पर 30 FPS के साथ %1$s तक और 60 FPS के साथ %2$s तक।</string>
+    <string name="ingame_benchmark_done">बेंचमार्क पूरा हुआ। मापा गया: 30 FPS के साथ %1$s, 60 FPS के साथ %2$s। रिज़ॉल्यूशन अब \"डायनामिक\" है और 30 FPS के साथ %3$s तक तथा 60 FPS के साथ %4$s तक जाता है (आधा स्तर ऊपर); ज़रूरत पड़ने पर नीचे आता है।</string>
     <string name="ingame_benchmark_cancelled">बेंचमार्क रद्द किया गया। आप वहीं वापस हैं जहाँ थे।</string>
     <string name="ingame_benchmark_refused">बेंचमार्क टाइटल मेनू से या कहानी में खुलकर खेलते समय शुरू होता है (कटसीन, मेनू, बॉस लड़ाई या ऐसी किसी जगह पर नहीं)। कुछ नहीं बदला गया।</string>
     <string name="ingame_benchmark_failed">बेंचमार्क यहाँ नहीं चल सका। कुछ नहीं बदला गया।</string>

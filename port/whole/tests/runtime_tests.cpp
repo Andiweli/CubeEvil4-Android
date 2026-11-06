@@ -2183,6 +2183,14 @@ static void testCpuInfo()
     // three kinds (the Retroid's Snapdragon 865): the render thread on the fastest kind alone, the game thread on
     // the middle kind (06.11.2026); two kinds (A30s) or RE4_PRIME_CORE=0: no prime core
     ok &= re4cpu::HasPrimeCores(sd) && !re4cpu::HasPrimeCores(a30) && !re4cpu::HasPrimeCores(alike);
+    // the render thread's cores now (FastestCoresNow): with the clocks a machine allows not readable, the fastest
+    // kind of the layout (the Snapdragon 865's core 7); the clocks line names the cores off the slowest kind
+    if (re4cpu::AllowedKHz(7) == 0 && re4cpu::CoreOnline(4) && re4cpu::CoreOnline(7)) {
+        cpu_set_t best;
+        ok &= re4cpu::FastestCoresNow(sd, &best) && CPU_COUNT(&best) == 1 && CPU_ISSET(7, &best);
+    }
+    re4cpu::DescribeClocks(sd, text, sizeof(text));
+    ok &= strstr(text, "cores now:") == text && strstr(text, " 4 ") != nullptr && strstr(text, " 3 ") == nullptr;
     setenv("RE4_PRIME_CORE", "0", 1);
     ok &= !re4cpu::HasPrimeCores(sd);
     unsetenv("RE4_PRIME_CORE");

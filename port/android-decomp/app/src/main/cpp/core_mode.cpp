@@ -1573,7 +1573,14 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     const re4gx::BenchSteps::Step step =
         b.steps.Second(std::chrono::duration<double>(now - b.start).count(), c, sh, dropped, &line);
     b.rate10 = b.steps.Rate10();
-    if (step != re4gx::BenchSteps::kNone) LOG("%s", line.c_str());
+    if (step != re4gx::BenchSteps::kNone) {
+      LOG("%s", line.c_str());
+      // the cores' clocks at each step: a device that grows hot (the clock it may reach falls) or switches its
+      // fastest core off shows in the report (the project owner's log 06.11.2026: the render thread at 1286 MHz)
+      char clocks[320];
+      re4cpu::DescribeClocks(re4cpu::GetLayout(), clocks, sizeof(clocks));
+      LOG("benchmark: %s; the render thread on core %d", clocks, sched_getcpu());
+    }
     switch (step) {
     case re4gx::BenchSteps::kLevel:
       levelBenchSet(b.steps.Level());
@@ -1642,12 +1649,14 @@ bool drawGx() {
       // CoreMenu.autoScale is the same)
       const int rows = std::min(height, width * 9 / 16);
       scale = 2 * std::max(1, std::min(3, (rows + 168) / 336) - 1);
-      // measured by the benchmark on this device: its level for 30 or 60 pictures a second instead
+      // measured by the benchmark on this device: its level for 30 or 60 pictures a second and half a level more
+      // (wish of the project owner, 06.11.2026: the rainy dock is one of the heaviest places of the game; Dynamic
+      // starts there and goes down half a level where the GPU falls behind, up again where it keeps up), 4x at most
       const int cap = optSmooth.load() ? optCap60.load() : optCap30.load();
       if (cap >= 2 && cap <= 8) {
-        scale = cap;
-        LOG("dynamic resolution: up to %sx, the benchmark's level for %d pictures a second", ScaleName(cap).c_str(),
-            optSmooth.load() ? 60 : 30);
+        scale = std::min(8, cap + 1);
+        LOG("dynamic resolution: up to %sx, half a level above the benchmark's %sx for %d pictures a second",
+            ScaleName(scale).c_str(), ScaleName(cap).c_str(), optSmooth.load() ? 60 : 30);
       }
     }
     // once per run: does this GPU compute the movie colours like the GameCube (gx_selfcheck.cpp;
@@ -1933,7 +1942,9 @@ bool drawGx() {
       gxBetweenDropped++;  // behind: this chunk at once, without the picture between
     // an even pace (60fps-plan.md S4): behind again and again, the in-between pictures pause
     bool paced = !stream60;
-    if (smoothOn && !deferred && smoothPrev && !stream60) {
+    // (not while the benchmark measures: its 5 s pause ate half of a level's window, the project owner's log
+    // 06.11.2026; there every in-between picture the renderer manages counts, the left-out ones too)
+    if (smoothOn && !deferred && smoothPrev && !stream60 && !levelBench.active) {
       std::string why;
       paced = smoothPacer.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), behind, &why);
       if (!why.empty())
@@ -2132,7 +2143,7 @@ bool drawGx() {
             s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpCameraMoved,
             s.interpOwned, s.interpOwnedNew, s.interpTexBlends, s.interpTexWraps, s.interpTevBlends,
             s.interpLightBlends);
-        if (behind > 2.5) {
+        if (behind > 2.5 && !levelBench.active) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");
         }

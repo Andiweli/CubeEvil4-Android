@@ -283,12 +283,12 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Mulai</string>
-    <string name="ingame_benchmark_text">Mengukur resolusi mana yang stabil di 30 dan 60 FPS dalam adegan yang sangat berat (dermaga danau dengan air, hujan, dan kabut). Butuh dua hingga tiga menit. Setelah itu resolusi diatur ke \"Dinamis\" dengan batas yang diukur dan Anda kembali ke tempat semula. Opsi Anda yang lain tetap seperti apa adanya. B atau Kembali membatalkan.</string>
+    <string name="ingame_benchmark_text">Mengukur resolusi mana yang stabil di 30 dan 60 FPS dalam adegan yang sangat berat (dermaga danau dengan air, hujan, dan kabut). Butuh dua hingga tiga menit. Setelah itu resolusi diatur ke \"Dinamis\": memakai hingga setengah level di atas hasil ukur dan turun bila perlu. Anda kembali ke tempat semula. Opsi Anda yang lain tetap seperti apa adanya. B atau Kembali membatalkan.</string>
     <string name="ingame_benchmark_starting">Benchmark: memulai …</string>
     <string name="ingame_benchmark_going">Benchmark: menuju dermaga danau …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · kini %3$d FPS · B / Kembali: batal</string>
     <string name="ingame_benchmark_back">Benchmark: kembali ke tempat semula …</string>
-    <string name="ingame_benchmark_done">Benchmark selesai. Resolusi kini \"Dinamis\": di perangkat ini hingga %1$s dengan 30 FPS dan hingga %2$s dengan 60 FPS.</string>
+    <string name="ingame_benchmark_done">Benchmark selesai. Hasil ukur: %1$s dengan 30 FPS, %2$s dengan 60 FPS. Resolusi kini \"Dinamis\" dan memakai hingga %3$s dengan 30 FPS serta %4$s dengan 60 FPS (setengah level lebih tinggi); turun bila perlu.</string>
     <string name="ingame_benchmark_cancelled">Benchmark dibatalkan. Anda kembali ke tempat semula.</string>
     <string name="ingame_benchmark_refused">Benchmark dimulai dari menu judul atau saat Anda bermain bebas dalam cerita (bukan saat adegan, menu, pertarungan bos, atau tempat serupa). Tidak ada yang diubah.</string>
     <string name="ingame_benchmark_failed">Benchmark tidak dapat berjalan di sini. Tidak ada yang diubah.</string>

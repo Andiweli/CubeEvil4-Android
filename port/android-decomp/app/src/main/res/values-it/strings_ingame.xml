@@ -286,12 +286,12 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Avvia</string>
-    <string name="ingame_benchmark_text">Misura quale risoluzione tiene 30 e 60 FPS stabili in una scena molto impegnativa (il molo del lago con acqua, pioggia e nebbia). Dura da due a tre minuti. Poi la risoluzione passa a \"Dinamica\" con i limiti misurati e torni dov\'eri. Le altre opzioni restano come sono. B o Indietro annulla.</string>
+    <string name="ingame_benchmark_text">Misura quale risoluzione tiene 30 e 60 FPS stabili in una scena molto impegnativa (il molo del lago con acqua, pioggia e nebbia). Dura da due a tre minuti. Poi la risoluzione passa a \"Dinamica\": usa fino a mezzo livello in più di quello misurato e scende dove serve. Torni dov\'eri. Le altre opzioni restano come sono. B o Indietro annulla.</string>
     <string name="ingame_benchmark_starting">Benchmark: avvio …</string>
     <string name="ingame_benchmark_going">Benchmark: verso il molo del lago …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · livello %2$s · ora %3$d FPS · B / Indietro: annulla</string>
     <string name="ingame_benchmark_back">Benchmark: ritorno dov\'eri …</string>
-    <string name="ingame_benchmark_done">Benchmark completato. La risoluzione ora è \"Dinamica\": su questo dispositivo fino a %1$s con 30 FPS e fino a %2$s con 60 FPS.</string>
+    <string name="ingame_benchmark_done">Benchmark completato. Misurato: %1$s con 30 FPS, %2$s con 60 FPS. La risoluzione ora è \"Dinamica\" e usa fino a %3$s con 30 FPS e %4$s con 60 FPS (mezzo livello in più); scende dove serve.</string>
     <string name="ingame_benchmark_cancelled">Benchmark annullato. Sei tornato dov\'eri.</string>
     <string name="ingame_benchmark_refused">Il benchmark parte dal menu del titolo o mentre giochi liberamente nella storia (non durante una scena, un menu, uno scontro con un boss o un punto simile). Non è stato cambiato nulla.</string>
     <string name="ingame_benchmark_failed">Il benchmark non è potuto partire qui. Non è stato cambiato nulla.</string>

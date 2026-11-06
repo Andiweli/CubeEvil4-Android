@@ -288,12 +288,12 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Démarrer</string>
-    <string name="ingame_benchmark_text">Mesure quelle résolution tient 30 et 60 FPS stables dans une scène très exigeante (le ponton du lac avec l\'eau, la pluie et le brouillard). Cela dure deux à trois minutes. Ensuite la résolution passe sur « Dynamique » avec les limites mesurées et vous revenez là où vous étiez. Vos autres options restent telles quelles. B ou Retour annule.</string>
+    <string name="ingame_benchmark_text">Mesure quelle résolution tient 30 et 60 FPS stables dans une scène très exigeante (le ponton du lac avec l\'eau, la pluie et le brouillard). Cela dure deux à trois minutes. Ensuite la résolution passe sur « Dynamique » : elle utilise jusqu\'à un demi-niveau de plus que la mesure et descend là où c\'est nécessaire. Vous revenez là où vous étiez. Vos autres options restent telles quelles. B ou Retour annule.</string>
     <string name="ingame_benchmark_starting">Benchmark : démarrage …</string>
     <string name="ingame_benchmark_going">Benchmark : vers le ponton du lac …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · niveau %2$s · actuel %3$d FPS · B / Retour : annuler</string>
     <string name="ingame_benchmark_back">Benchmark : retour là où vous étiez …</string>
-    <string name="ingame_benchmark_done">Benchmark terminé. La résolution est maintenant « Dynamique » : sur cet appareil jusqu\'à %1$s à 30 FPS et jusqu\'à %2$s à 60 FPS.</string>
+    <string name="ingame_benchmark_done">Benchmark terminé. Mesuré : %1$s à 30 FPS, %2$s à 60 FPS. La résolution est maintenant « Dynamique » et utilise jusqu\'à %3$s à 30 FPS et %4$s à 60 FPS (un demi-niveau de plus) ; elle descend là où c\'est nécessaire.</string>
     <string name="ingame_benchmark_cancelled">Benchmark annulé. Vous êtes de retour là où vous étiez.</string>
     <string name="ingame_benchmark_refused">Le benchmark démarre depuis le menu titre ou pendant que vous jouez librement dans l\'histoire (pas pendant une cinématique, un menu, un combat de boss ou un endroit semblable). Rien n\'a été modifié.</string>
     <string name="ingame_benchmark_failed">Le benchmark n\'a pas pu s\'exécuter ici. Rien n\'a été modifié.</string>

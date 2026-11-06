@@ -300,12 +300,12 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Start</string>
-    <string name="ingame_benchmark_text">Measures which resolution holds a steady 30 and 60 FPS in a very demanding scene (the lake\'s dock with water, rain and fog). Takes two to three minutes. Afterwards the resolution is set to \"Dynamic\" with the measured limits and you are back where you were. Your other options stay as they are. B or Back cancels.</string>
+    <string name="ingame_benchmark_text">Measures which resolution holds a steady 30 and 60 FPS in a very demanding scene (the lake\'s dock with water, rain and fog). Takes two to three minutes. Afterwards the resolution is set to \"Dynamic\": it uses up to half a level above the measured one and steps down where needed. You are back where you were. Your other options stay as they are. B or Back cancels.</string>
     <string name="ingame_benchmark_starting">Benchmark: starting …</string>
     <string name="ingame_benchmark_going">Benchmark: going to the lake\'s dock …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · now %3$d FPS · B / Back: cancel</string>
     <string name="ingame_benchmark_back">Benchmark: back to where you were …</string>
-    <string name="ingame_benchmark_done">Benchmark done. The resolution is now \"Dynamic\": on this device up to %1$s with 30 FPS and up to %2$s with 60 FPS.</string>
+    <string name="ingame_benchmark_done">Benchmark done. Measured: %1$s with 30 FPS, %2$s with 60 FPS. The resolution is now \"Dynamic\" and uses up to %3$s with 30 FPS and %4$s with 60 FPS (half a level more), stepping down where needed.</string>
     <string name="ingame_benchmark_cancelled">Benchmark cancelled. You are back where you were.</string>
     <string name="ingame_benchmark_refused">The benchmark starts from the title menu or while you play freely in the story (not in a cutscene, a menu, a boss fight or a similar place). Nothing was changed.</string>
     <string name="ingame_benchmark_failed">The benchmark could not run here. Nothing was changed.</string>

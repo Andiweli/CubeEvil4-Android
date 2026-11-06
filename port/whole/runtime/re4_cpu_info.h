@@ -52,6 +52,33 @@ inline unsigned CurrentKHz(int cpu)
     return ReadNumber(path);
 }
 
+// the clock core `cpu` may reach now in kHz: its scaling_max_freq, which the system lowers while the device is hot
+// (0: not readable)
+inline unsigned AllowedKHz(int cpu)
+{
+    char path[96];
+    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+    return ReadNumber(path);
+}
+
+// core `cpu` is online (switched on); true when the system does not say (core 0 has no switch)
+inline bool CoreOnline(int cpu)
+{
+    char path[96];
+    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/online", cpu);
+    if (access(path, R_OK) != 0) {
+        return true;
+    }
+    char c = '1';
+    if (FILE* f = fopen(path, "r")) {
+        if (fread(&c, 1, 1, f) != 1) {
+            c = '1';
+        }
+        fclose(f);
+    }
+    return c != '0';
+}
+
 struct Layout {
     static constexpr int kMax = 32;
     int count = 0;
@@ -175,6 +202,7 @@ inline int ThreadId()
 struct WantedCores {
     cpu_set_t set;
     bool on;
+    int role;  // CoreRole: the render thread's cores follow the fastest one allowed now (KeepOnFastCores)
 };
 inline WantedCores& Wanted()
 {
@@ -263,7 +291,60 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role =
     }
     Wanted().set = set;
     Wanted().on = true;
+    Wanted().role = prime ? role : kAnyThread;
     return true;
+}
+
+// The render thread's cores now (prime cores): the online cores off the slowest kind whose allowed clock is the
+// highest (AllowedKHz, the thermal limit included). The fastest kind normally; when it is switched off or held
+// below the middle kind while the device is hot, the middle cores (the project owner's log 06.11.2026: put on
+// core 7, the render thread still ran on the middle cores at 1286 MHz most of the run). False when nothing is known.
+inline bool FastestCoresNow(const Layout& l, cpu_set_t* set)
+{
+    CPU_ZERO(set);
+    unsigned best = 0;
+    unsigned allowed[Layout::kMax] = {};
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        if (!l.maxKHz[cpu] || l.Kind(cpu) == 0 || !CoreOnline(cpu)) {
+            continue;
+        }
+        allowed[cpu] = AllowedKHz(cpu);
+        if (!allowed[cpu]) {
+            allowed[cpu] = l.maxKHz[cpu];
+        }
+        best = allowed[cpu] > best ? allowed[cpu] : best;
+    }
+    int n = 0;
+    for (int cpu = 0; cpu < l.count && best; cpu++) {
+        if (allowed[cpu] == best) {
+            CPU_SET(cpu, set);
+            n++;
+        }
+    }
+    return n > 0;
+}
+
+// "cores now: 4 1286/2419, 5 1286/2419, 6 1574/2419, 7 1516/2841 MHz (now/allowed), 7 offline": the cores off the
+// slowest kind, their clock and the clock they may reach now (each step of the benchmark logs it: throttling).
+inline void DescribeClocks(const Layout& l, char* out, size_t size)
+{
+    int len = snprintf(out, size, "cores now:");
+    bool any = false;
+    for (int cpu = 0; cpu < l.count && len < static_cast<int>(size); cpu++) {
+        if (!l.maxKHz[cpu] || l.Kind(cpu) == 0) {
+            continue;
+        }
+        if (!CoreOnline(cpu)) {
+            len += snprintf(out + len, size - len, "%s %d offline", any ? "," : "", cpu);
+        } else {
+            len += snprintf(out + len, size - len, "%s %d %u/%u", any ? "," : "", cpu, CurrentKHz(cpu) / 1000,
+                            AllowedKHz(cpu) / 1000);
+        }
+        any = true;
+    }
+    if (len < static_cast<int>(size)) {
+        snprintf(out + len, size - len, any ? " MHz (now/allowed)" : " clocks not readable");
+    }
 }
 
 // The calling thread back on every core Android allows (the menu's "Force Performance: Default"
@@ -289,6 +370,13 @@ inline bool KeepOnFastCores()
     WantedCores& w = Wanted();
     if (!w.on) {
         return false;
+    }
+    // the render thread on prime cores: the fastest cores allowed now (switched off or held back while hot: others)
+    if (w.role == kRenderThread) {
+        cpu_set_t best;
+        if (FastestCoresNow(GetLayout(), &best)) {
+            w.set = best;
+        }
     }
     cpu_set_t now;
     CPU_ZERO(&now);
