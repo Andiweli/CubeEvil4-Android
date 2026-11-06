@@ -579,4 +579,23 @@ public class CoreMenuLayoutTest {
       assertNotNull(findButton(body, controller.get().getString(R.string.ingame_psx)));
     }
   }
+
+  // the button mapping names the debug menu (SELECT held) only with the debug build's discs; the retail discs have
+  // none (a user with the European discs held SELECT for it, 06.11.2026)
+  @Test public void appMenuNamesTheDebugMenuOnlyWithTheDebugDiscs() throws Exception {
+    final boolean[] debug = {false};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> method.getName().equals("debugMenu") ? debug[0]
+            : method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+            : method.getReturnType() == float.class ? (Object) 1f : null);
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method label = CoreMenu.class.getDeclaredMethod("actionLabel", int.class); label.setAccessible(true);
+      assertEquals(activity.getString(R.string.ingame_act_menu_app), label.invoke(menu, ActionMap.APP_MENU));
+      debug[0] = true;
+      assertEquals(activity.getString(R.string.ingame_act_menu), label.invoke(menu, ActionMap.APP_MENU));
+      assertEquals(activity.getString(R.string.ingame_act_map), label.invoke(menu, ActionMap.MAP));
+    }
+  }
 }

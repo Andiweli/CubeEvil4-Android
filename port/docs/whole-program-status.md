@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.6-beta: japanische Discs ohne Zensur (06.11.2026, Branch `work`, Patch 0212)
+## Version 0.98.6-beta: japanische Discs ohne Zensur, Leuchten nur bei sichtbarer Lichtquelle, SELECT-Hinweis mit Verkaufs-Discs (06.11.2026, Branch `work`, Patches 0212–0213)
 
 Version 0.98.6-beta (versionCode 100), Releasetext `port/android-decomp/docs/releases/v0.98.6-beta.md`. Wunsch eines
 Nutzers (baut eine chinesische Übersetzung auf den JP-Discs, weil die Schrift der US-Fassung kein Chinesisch kann):
@@ -68,9 +68,33 @@ hineinkopiert), Läufe und Skripte in `~/p0986` (`run.sh NAME RAUM debug|us|eu|j
      zu 80 % sichtbar und zeichnet den Schein über alles, auf dem GameCube ebenso. Die Karten sind untereinander gleich:
      das Alter der Tiefenkarte spielt hier keine Rolle, eine Umrechnung der Karte würde an diesem Bild nichts ändern.
      Kontrollbild mit den 12 Punkten im Notizordner der Sitzungsgruppe (`0986-lantern-test-points.png`).
-   - Offen: (a) ob der Projektinhaber eine Abweichung vom Original will (z. B. die Mitte als 13. Punkt prüfen: ist die
-     Lichtquelle selbst verdeckt, kein Schein); (b) das Aufblitzen durch Wände bei **bewegter** Kamera (Händlerlicht)
-     zeigt diese Serie nicht; dafür braucht es eine Serie in dem Moment mit eingeschaltetem Fehlerprotokoll („GXPeekZ:“).
+   - **Entscheidung des Projektinhabers (06.11.2026): die Mitte prüfen** (Abweichung vom Original). **Patch 0213**
+     (`esp0e.cpp`, `esp45.cpp`, `espgen01.cpp`): nach dem Ring fragt jedes Leuchten `re4_glow_center_hidden`
+     (`runtime/glow_check.cpp`): liegt an der Bildstelle des Lichts selbst etwas **mehr als 1 m davor**, geht das
+     Leuchten sofort aus wie bei ganz verdecktem Ring (Einblenden danach wie bisher, 60 % je Bild). Die 1 m halten
+     Glas, Schirm und Gehäuse einer Lampe heraus; außerhalb des Bildes (und der Balken) und mit dem Licht näher als 1 m
+     an der Kamera entscheidet der Ring allein. Logzeile „glow: a light behind something …“ (erste, dann jede 1800.).
+     Geprüft: Kern-Test `glow centre` (Kopf 4,5 m vor dem Licht: aus; Glas 0,5 m davor, Wand dahinter, außerhalb, Licht
+     nah an der Kamera: an; 1,1 m davor: aus) in i686 und x86_64, Laufzeit-/Kerntests 0 Fehler, Spielläufe r101/r102
+     (JP, US) ohne Absturz (am PC gibt es keine Tiefenkarte: dort ändert sich nichts). Mit den Karten der Serie: Mitte
+     (193, 173) zeigt den Kopf (0xEE9…, etwa 1,5 m), Laterne etwa 6 m: der Schein wäre aus. **Nicht am Gerät geprüft.**
+   - Offen: das Aufblitzen durch Wände bei **bewegter** Kamera (Händlerlicht) zeigt diese Serie nicht; dafür braucht es
+     eine Serie in dem Moment mit eingeschaltetem Fehlerprotokoll („GXPeekZ:“).
+8. **SELECT gedrückt halten mit Verkaufs-Discs (Bericht `start-fail-20261106-101515`, Galaxy A17, 0.98.5, EU-Discs).**
+   Nutzer: „weder Debug- noch US-Version starten“. Im Protokoll nur EU-Discs, das Spiel läuft (r100, 50–60 FPS), kein
+   Absturz; achtmal „SELECT held: no debug menu with the retail discs“: er suchte per SELECT das Debug-Menü, und die App
+   zeigte nichts, warb aber in der Tastenbelegung mit „App Menu (held: debug menu)“. **Jetzt (`CoreActivity`,
+   `CoreMenu`):** mit Verkaufs-Discs zeigt SELECT halten den Hinweis „The debug menu exists only with the debug build's
+   discs. To play another version, import both of its discs on the start screen.“ (`ingame_debug_menu_retail`, in allen
+   11 Sprachen des Menüs, Übersetzungen der Sitzung); „(held: debug menu)“ in der Tastenbelegung (neu
+   `ingame_act_menu_app`, `Host.debugMenu()`) und in der Protokollzeile „layout:“ nur noch mit Debug-Discs. Der Text
+   `ingame_hint` wurde nirgends angezeigt: entfernt. Geprüft: `check_translations.py` (je 281 Texte ok), Java-Bau,
+   `CoreMenuLayoutTest` 9/9 (neu: Beschriftung je nach Discs). Am Gerät nicht geprüft.
+   **Andere Discs über vorhandene importieren** (`DiscInstaller` mit den echten Abbildern am PC, EU → US → Debug, Disc
+   für Disc): jede Disc ersetzt nur ihren Ordner sauber (keine Reste), dazwischen ist der Satz gemischt (Startbildschirm:
+   „Disc 1 is the …, Disc 2 the …: import both discs of one release.“, Start gesperrt), nach Disc 2 vollständig. Die
+   Speicherkarte (`game/memcard/card-a.bin`) bleibt Byte für Byte; App-Einstellungen hängen nicht an den Discs. Nichts
+   geändert.
 
 ## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen, „Dynamisch“ schneller zurück, Bildtakt mit Touch-Tasten (06.11.2026, Branch `work`, Patches 0210–0211)
 
@@ -12598,6 +12622,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0210 `emdoor.cpp` | Türen wie die Verkaufsfassungen (US, EU, JP): Magnums (Schadensarten 5, 6, 0xF) und 0x2C zerbrechen eine Holztür mit einem Schuss samt Schlössern und Ketten und brechen an Eisentüren alle Schlösser und Ketten (Prototyp: eine Planke je Schuss wie die Gewehre bzw. nur das getroffene Schloss aus der Nähe); Eier (0x19, 0x1F, 0x20) wirken nicht; die fallende Tür (Typ 2) verliert beide Schlösser; keine Explosion bricht eine verriegelte Holztür (`Be_flg` Bit 0, nur EU/JP). Fehler des Prototyps, Nutzerbericht 06.11.2026 |
 | 0211 `em10.cpp` | Die fliegende Rakete eines Ganados (`em10_R1_ShotRocket`) mit Leons Raketenmodell (`re4_ganado_rocket`, `runtime/cheats.cpp`), wenn das Spielerarchiv an Index 0x70/0x71 keine Rakete hat (Ada, Wesker: Platzhalter; Krauser: sein Pfeil); Leons Archiv wird dafür in Mercenaries und den Extra-Spielen einmal gelesen. Deklaration in `re4_whole_prelude.h` (em10.cpp behält seine Zeilen). Fehler des Originalspiels (alle Fassungen), Nutzerbericht 06.11.2026 |
 | 0212 `em10.cpp`, `em25.cpp`, `em2c.cpp`, `em2d.cpp`, `em31.cpp`, `em32.cpp`, `emwep.cpp`, `obj16.cpp`, `r100.cpp`, `r101.cpp`, `r103.cpp` | Japanische Discs (und die koreanische Übersetzung) mit dem Gore der US-Fassung, immer, ohne Schalter: jede Gore-Abfrage von `pSys->eff_country` (Kopfschuss `em10LostHeadCk`, Kettensäge, Leons Enthauptungen, Kameras dazu, Leichen in r100/r101/r103) fragt `re4_gore_country()` (`runtime/game_language.cpp`: das Land, mit JP-Discs 1 wie US); ersetzt die Korea-Weiche von 0147. Zeilen der Spieldateien unverändert (Deklaration in `re4_whole_prelude.h`). Port-Patch für Verkaufsdaten, Entscheidung des Projektinhabers 06.11.2026 |
+| 0213 `esp0e.cpp`, `esp45.cpp`, `espgen01.cpp` | Leuchten (Bildschirm-Sprites über allem): außer dem Ring der Prüfpunkte zählt das Licht selbst; liegt an seiner Bildstelle etwas mehr als 1 m davor (`re4_glow_center_hidden`, `runtime/glow_check.cpp`), geht das Leuchten aus wie bei ganz verdecktem Ring. Abweichung vom Original (Entscheidung des Projektinhabers 06.11.2026: die Laterne in r102 schien über Leons Kopf, weil der Ring größer als der Kopf war; GameCube ebenso). Port-Patch |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

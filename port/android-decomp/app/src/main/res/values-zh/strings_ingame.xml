@@ -3,7 +3,6 @@
      values/strings_ingame.xml, same names and placeholders. -->
 <resources>
     <string name="ingame_title">CubeEvil4 游戏内菜单</string>
-    <string name="ingame_hint">SELECT（短按）= 本菜单  ·  SELECT（长按）= 游戏的调试菜单</string>
     <string name="ingame_back">返回游戏</string>
 
     <string name="ingame_graphics">图形</string>
@@ -119,6 +118,7 @@
     <string name="ingame_end">结束</string>
     <string name="ingame_continue">继续</string>
     <string name="ingame_no_debug_menu">此核心尚无调试菜单</string>
+    <string name="ingame_debug_menu_retail">调试菜单仅在调试版光盘下可用。要游玩其他版本，请在开始界面导入该版本的两张光盘。</string>
     <string name="ingame_no_menu">此核心尚无菜单</string>
     <string name="ingame_no_file_picker">此设备上没有文件选择器</string>
     <string name="ingame_report_saved">报告已保存</string>
@@ -242,6 +242,7 @@
     <string name="ingame_controller_help">选择一个动作，然后按下它的按键。由两个按键组成的动作（开火、装弹、挥刀）会先询问要按住的按键，再询问第二个按键。如果该按键属于另一个动作，那个动作会得到原来的按键。游戏菜单保持默认按键；游戏提示仍显示 GameCube 按键。</string>
     <string name="ingame_controller_alternate_note">替代操作已开启：它保留自己的配置；关闭后此配置才会生效。</string>
     <string name="ingame_act_menu">应用菜单（按住：调试菜单）</string>
+    <string name="ingame_act_menu_app">应用菜单</string>
     <string name="ingame_act_options">选项 / 跳过</string>
     <string name="ingame_act_map">地图</string>
     <string name="ingame_act_inventory">物品栏</string>

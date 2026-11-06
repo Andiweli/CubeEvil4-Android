@@ -2,7 +2,6 @@
 <!-- Russian (Русский): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
     <string name="ingame_title">CubeEvil4 · Игровое меню</string>
-    <string name="ingame_hint">SELECT (коротко) = это меню  ·  SELECT (удерживать) = отладочное меню игры</string>
     <string name="ingame_back">Вернуться в игру</string>
 
     <string name="ingame_graphics">Графика</string>
@@ -118,6 +117,7 @@
     <string name="ingame_end">Завершить</string>
     <string name="ingame_continue">Продолжить</string>
     <string name="ingame_no_debug_menu">У этого ядра пока нет отладочного меню</string>
+    <string name="ingame_debug_menu_retail">Отладочное меню есть только с дисками отладочной версии. Чтобы играть в другую версию, импортируйте оба её диска на стартовом экране.</string>
     <string name="ingame_no_menu">У этого ядра пока нет меню</string>
     <string name="ingame_no_file_picker">На этом устройстве нет средства выбора файлов</string>
     <string name="ingame_report_saved">Отчёт сохранён</string>
@@ -244,6 +244,7 @@
     <string name="ingame_controller_help">Выберите действие, затем нажмите его кнопку. Действие из двух кнопок (огонь, перезарядка, удар ножом) сначала спрашивает кнопку, которую держат, затем вторую. Если кнопка была у другого действия, оно получает старую. В меню игры действует стандартная раскладка; подсказки игры по-прежнему показывают кнопки GameCube.</string>
     <string name="ingame_controller_alternate_note">Альтернативное управление включено: у него своя раскладка; эта действует, когда оно выключено.</string>
     <string name="ingame_act_menu">Меню приложения (держать: отладка)</string>
+    <string name="ingame_act_menu_app">Меню приложения</string>
     <string name="ingame_act_options">Настройки / Пропустить</string>
     <string name="ingame_act_map">Карта</string>
     <string name="ingame_act_inventory">Инвентарь</string>

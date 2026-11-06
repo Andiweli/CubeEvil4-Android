@@ -2,7 +2,6 @@
 <!-- Italian (Italiano): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
     <string name="ingame_title">CubeEvil4 · Menu di gioco</string>
-    <string name="ingame_hint">SELECT (pressione breve) = questo menu  ·  SELECT (pressione lunga) = menu di debug del gioco</string>
     <string name="ingame_back">Torna al gioco</string>
 
     <string name="ingame_graphics">Grafica</string>
@@ -118,6 +117,7 @@
     <string name="ingame_end">Termina</string>
     <string name="ingame_continue">Continua</string>
     <string name="ingame_no_debug_menu">Questo core non ha ancora un menu di debug</string>
+    <string name="ingame_debug_menu_retail">Il menu di debug esiste solo con i dischi della versione debug. Per giocare un’altra versione, importa i suoi due dischi dalla schermata iniziale.</string>
     <string name="ingame_no_menu">Questo core non ha ancora un menu</string>
     <string name="ingame_no_file_picker">Nessun selettore di file su questo dispositivo</string>
     <string name="ingame_report_saved">Rapporto salvato</string>
@@ -243,6 +243,7 @@
     <string name="ingame_controller_help">Scegli un’azione, poi premi il suo tasto. Un’azione a due tasti (sparare, ricaricare, coltellata) chiede prima il tasto da tenere, poi il secondo. Se un’altra azione aveva il tasto, riceve quello vecchio. I menu del gioco mantengono l’assegnazione predefinita; i suoi suggerimenti mostrano ancora i tasti GameCube.</string>
     <string name="ingame_controller_alternate_note">I comandi alternativi sono attivi: mantengono la propria configurazione; questa vale quando sono disattivati.</string>
     <string name="ingame_act_menu">Menu dell’app (tenuto: menu debug)</string>
+    <string name="ingame_act_menu_app">Menu dell’app</string>
     <string name="ingame_act_options">Opzioni / Salta</string>
     <string name="ingame_act_map">Mappa</string>
     <string name="ingame_act_inventory">Inventario</string>

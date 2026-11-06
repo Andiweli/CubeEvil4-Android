@@ -2,7 +2,6 @@
 <!-- German (Deutsch): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
     <string name="ingame_title">CubeEvil4 Ingame-Menü</string>
-    <string name="ingame_hint">SELECT (kurz drücken) = dieses Menü  ·  SELECT (lang drücken) = Debug-Menü des Spiels</string>
     <string name="ingame_back">Zurück zum Spiel</string>
 
     <string name="ingame_graphics">Grafik</string>
@@ -118,6 +117,7 @@
     <string name="ingame_end">Beenden</string>
     <string name="ingame_continue">Weiterspielen</string>
     <string name="ingame_no_debug_menu">Dieser Kern hat noch kein Debug-Menü</string>
+    <string name="ingame_debug_menu_retail">Das Debug-Menü gibt es nur mit den Discs der Debug-Fassung. Für eine andere Version importiere ihre beiden Discs auf dem Startbildschirm.</string>
     <string name="ingame_no_menu">Dieser Kern hat noch kein Menü</string>
     <string name="ingame_no_file_picker">Keine Dateiauswahl auf diesem Gerät</string>
     <string name="ingame_report_saved">Bericht gespeichert</string>
@@ -242,6 +242,7 @@
     <string name="ingame_controller_help">Wähle eine Aktion, dann drücke ihre Taste. Eine Aktion aus zwei Tasten (Feuern, Nachladen, Messerhieb) fragt erst nach der Taste zum Halten, dann nach der zweiten. Hatte eine andere Aktion die Taste, bekommt sie die alte Taste. In den Menüs des Spiels gilt die Standardbelegung; seine Hinweise zeigen weiter die GameCube-Tasten.</string>
     <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: sie behält ihre eigene Belegung; diese gilt, sobald sie aus ist.</string>
     <string name="ingame_act_menu">App-Menü (gehalten: Debug-Menü)</string>
+    <string name="ingame_act_menu_app">App-Menü</string>
     <string name="ingame_act_options">Optionen / Überspringen</string>
     <string name="ingame_act_map">Karte</string>
     <string name="ingame_act_inventory">Inventar</string>

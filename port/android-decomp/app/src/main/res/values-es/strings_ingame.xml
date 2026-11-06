@@ -2,7 +2,6 @@
 <!-- Spanish (Español): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
     <string name="ingame_title">CubeEvil4 · Menú del juego</string>
-    <string name="ingame_hint">SELECT (pulsación corta) = este menú  ·  SELECT (pulsación larga) = menú de depuración del juego</string>
     <string name="ingame_back">Volver al juego</string>
 
     <string name="ingame_graphics">Gráficos</string>
@@ -118,6 +117,7 @@
     <string name="ingame_end">Terminar</string>
     <string name="ingame_continue">Continuar</string>
     <string name="ingame_no_debug_menu">Este núcleo aún no tiene menú de depuración</string>
+    <string name="ingame_debug_menu_retail">El menú de depuración solo existe con los discos de la versión debug. Para jugar otra versión, importa sus dos discos en la pantalla de inicio.</string>
     <string name="ingame_no_menu">Este núcleo aún no tiene menú</string>
     <string name="ingame_no_file_picker">No hay selector de archivos en este dispositivo</string>
     <string name="ingame_report_saved">Informe guardado</string>
@@ -243,6 +243,7 @@
     <string name="ingame_controller_help">Elige una acción y pulsa su tecla. Una acción de dos teclas (disparar, recargar, cuchillada) pide primero la tecla que se mantiene y luego la segunda. Si otra acción tenía la tecla, recibe la tecla antigua. Los menús del juego mantienen la asignación por defecto; sus avisos siguen mostrando los botones de GameCube.</string>
     <string name="ingame_controller_alternate_note">Los controles alternativos están activados: mantienen su propia asignación; esta se aplica cuando estén desactivados.</string>
     <string name="ingame_act_menu">Menú de la app (mantener: menú debug)</string>
+    <string name="ingame_act_menu_app">Menú de la app</string>
     <string name="ingame_act_options">Opciones / Saltar</string>
     <string name="ingame_act_map">Mapa</string>
     <string name="ingame_act_inventory">Inventario</string>

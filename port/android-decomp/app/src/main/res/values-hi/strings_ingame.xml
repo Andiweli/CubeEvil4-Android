@@ -2,7 +2,6 @@
 <!-- Hindi (हिन्दी): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
     <string name="ingame_title">CubeEvil4 इन-गेम मेन्यू</string>
-    <string name="ingame_hint">SELECT (छोटा दबाएँ) = यह मेनू  ·  SELECT (देर तक दबाएँ) = गेम का डीबग मेनू</string>
     <string name="ingame_back">गेम पर लौटें</string>
 
     <string name="ingame_graphics">ग्राफ़िक्स</string>
@@ -118,6 +117,7 @@
     <string name="ingame_end">बंद करें</string>
     <string name="ingame_continue">जारी रखें</string>
     <string name="ingame_no_debug_menu">इस कोर में अभी डीबग मेनू नहीं है</string>
+    <string name="ingame_debug_menu_retail">डीबग मेनू केवल डीबग संस्करण की डिस्क के साथ है। कोई दूसरा संस्करण खेलने के लिए, स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करें।</string>
     <string name="ingame_no_menu">इस कोर में अभी मेनू नहीं है</string>
     <string name="ingame_no_file_picker">इस डिवाइस पर फ़ाइल चुनने का कोई ऐप नहीं है</string>
     <string name="ingame_report_saved">रिपोर्ट सहेजी गई</string>
@@ -242,6 +242,7 @@
     <string name="ingame_controller_help">एक क्रिया चुनें, फिर उसकी कुंजी दबाएँ। दो कुंजियों वाली क्रिया (फ़ायर, रीलोड, चाकू वार) पहले पकड़ी जाने वाली कुंजी पूछती है, फिर दूसरी। अगर कुंजी किसी और क्रिया की थी, उसे पुरानी कुंजी मिलती है। गेम के मेनू में डिफ़ॉल्ट रहता है; उसके संकेत अब भी GameCube बटन दिखाते हैं।</string>
     <string name="ingame_controller_alternate_note">वैकल्पिक नियंत्रण चालू है: वह अपना लेआउट रखता है; यह उसे बंद करने पर लागू होगा।</string>
     <string name="ingame_act_menu">ऐप मेनू (पकड़ें: डीबग मेनू)</string>
+    <string name="ingame_act_menu_app">ऐप मेनू</string>
     <string name="ingame_act_options">विकल्प / छोड़ें</string>
     <string name="ingame_act_map">नक्शा</string>
     <string name="ingame_act_inventory">इन्वेंटरी</string>

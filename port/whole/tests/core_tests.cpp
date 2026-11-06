@@ -1259,6 +1259,43 @@ void testPeekDepth()
     report("peek depth", ok);
 }
 
+// A glow's light itself behind something (patch 0213, runtime/glow_check.cpp): hidden when the depth at its screen
+// position lies more than 1 m in front of it (Leon's head 4.5 m before the r102 lantern), not for the lamp's own glass
+// 0.5 m before it, a wall behind it, off the picture or with the light within 1 m of the camera.
+extern "C" int re4_glow_center_hidden_at(float sx, float sy, float viewZ, float width, float height, float margin,
+                                         float znear, float zfar);
+
+void testGlowCentre()
+{
+    bool ok = true;
+    static unsigned cells[RE4_GX_DEPTH_W * RE4_GX_DEPTH_H];
+    const float znear = 100.0f, zfar = 1000000.0f;
+    // the 24-bit GX depth of a point `d` units in front of the camera (the game's projection)
+    auto depth = [&](float d) {
+        const float z = -d, inv = 1.0f / (zfar - znear);
+        return (unsigned) ((((-(zfar * znear) * inv) + (-znear * inv) * z) / -z + 1.0f) * 16777215.0f);
+    };
+    const int x = 193, y = 172;
+    auto deliver = [&](float d) {
+        cells[(y >> 1) * RE4_GX_DEPTH_W + (x >> 1)] = depth(d);
+        re4_gx_peek_new_frame();
+        re4_core_gx_depth(cells, re4_gx_peek_picture());
+        re4_gx_peek_new_frame();
+    };
+    deliver(1500.0f);  // Leon's head before the lantern 6 m away
+    CHECK(re4_glow_center_hidden_at(193.0f, 172.8f, -6000.0f, 512.0f, 448.0f, 0.0f, znear, zfar) == 1);
+    CHECK(re4_glow_center_hidden_at(193.0f, 172.8f, -6000.0f, 512.0f, 448.0f, 200.0f, znear, zfar) == 0);  // margin
+    CHECK(re4_glow_center_hidden_at(600.0f, 172.8f, -6000.0f, 512.0f, 448.0f, 0.0f, znear, zfar) == 0);    // off
+    CHECK(re4_glow_center_hidden_at(193.0f, 172.8f, -900.0f, 512.0f, 448.0f, 0.0f, znear, zfar) == 0);     // near
+    deliver(5500.0f);  // the lamp's own glass, 0.5 m before the light
+    CHECK(re4_glow_center_hidden_at(193.0f, 172.8f, -6000.0f, 512.0f, 448.0f, 0.0f, znear, zfar) == 0);
+    deliver(8000.0f);  // the wall behind the light
+    CHECK(re4_glow_center_hidden_at(193.0f, 172.8f, -6000.0f, 512.0f, 448.0f, 0.0f, znear, zfar) == 0);
+    deliver(4900.0f);  // 1.1 m before it
+    CHECK(re4_glow_center_hidden_at(193.0f, 172.8f, -6000.0f, 512.0f, 448.0f, 0.0f, znear, zfar) == 1);
+    report("glow centre", ok);
+}
+
 }  // namespace
 
 int re4_core_tests()
@@ -1308,6 +1345,7 @@ int re4_core_tests()
     }
     testPause();
     testPeekDepth();
+    testGlowCentre();
     re4_log("core-test: %d failed", gFailures);
     return gFailures;
 }

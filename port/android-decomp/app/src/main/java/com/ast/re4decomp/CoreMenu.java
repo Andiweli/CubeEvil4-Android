@@ -92,6 +92,8 @@ final class CoreMenu extends Dialog {
     void alwaysRunChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
     boolean gameLanguages();
+    /** The debug build's discs are imported: SELECT held opens the game's debug menu (the button mapping says so). */
+    boolean debugMenu();
     /** The game's language of a "Game language" choice (2..6; 0 the device's). */
     int gameLanguageOf(int choice);
     /** The benchmark (Display -> GRAPHICS, below "Dynamic"): the menu closes and the game measures. */
@@ -841,6 +843,14 @@ final class CoreMenu extends Dialog {
       R.string.ingame_act_slash, R.string.ingame_act_ashley, R.string.ingame_act_inventory, R.string.ingame_act_map,
       R.string.ingame_act_options, R.string.ingame_act_menu};
 
+  /** An action's name; the app menu's says "held: debug menu" only with the debug build's discs (the retail discs
+   *  have none, 06.11.2026). */
+  private String actionLabel(int a) {
+    int id = ACTION_LABELS[a];
+    if (id == R.string.ingame_act_menu && (host == null || !host.debugMenu())) id = R.string.ingame_act_menu_app;
+    return s(id);
+  }
+
   /** A key's name on its button: the controller's labels, the D-pad as arrows, else Android's name. */
   static String keyName(int keyCode) {
     switch (keyCode) {
@@ -914,7 +924,7 @@ final class CoreMenu extends Dialog {
       if (!ActionMap.available(mapKind, a)) continue;
       final int action = a;
       LinearLayout line = new MenuLayout.Columns(getContext(), -300, 420, false);
-      line.addView(rowLabel(s(ACTION_LABELS[a])));
+      line.addView(rowLabel(actionLabel(a)));
       MenuLayout.Buttons box = new MenuLayout.Buttons(getContext(), 1);
       line.addView(box);
       String keys = keysText(m.keys(a));
@@ -1016,7 +1026,7 @@ final class CoreMenu extends Dialog {
     } else {
       for (int a = 0; a < ActionMap.ACTIONS; a++) {
         if (a != action && ActionMap.available(mapKind, a) && !java.util.Arrays.equals(before.keys(a), after.keys(a))) {
-          pendingStatus = getContext().getString(R.string.ingame_map_swapped, s(ACTION_LABELS[a]), keysText(after.keys(a)));
+          pendingStatus = getContext().getString(R.string.ingame_map_swapped, actionLabel(a), keysText(after.keys(a)));
         }
       }
       host.mappingChanged(after);

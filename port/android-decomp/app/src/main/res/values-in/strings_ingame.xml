@@ -3,7 +3,6 @@
      The folder is values-in, the code every Android version uses for Indonesian (locales_config: id). -->
 <resources>
     <string name="ingame_title">Menu Dalam Game CubeEvil4</string>
-    <string name="ingame_hint">SELECT (tekan singkat) = menu ini  ·  SELECT (tekan lama) = menu debug game</string>
     <string name="ingame_back">Kembali ke game</string>
 
     <string name="ingame_graphics">Grafis</string>
@@ -119,6 +118,7 @@
     <string name="ingame_end">Akhiri</string>
     <string name="ingame_continue">Lanjutkan</string>
     <string name="ingame_no_debug_menu">Inti ini belum memiliki menu debug</string>
+    <string name="ingame_debug_menu_retail">Menu debug hanya ada dengan disk versi debug. Untuk memainkan versi lain, impor kedua disknya di layar awal.</string>
     <string name="ingame_no_menu">Inti ini belum memiliki menu</string>
     <string name="ingame_no_file_picker">Tidak ada pemilih file di perangkat ini</string>
     <string name="ingame_report_saved">Laporan disimpan</string>
@@ -240,6 +240,7 @@
     <string name="ingame_controller_help">Pilih aksi, lalu tekan tombolnya. Aksi dengan dua tombol (tembak, isi ulang, tebas) meminta tombol yang ditahan dulu, lalu tombol kedua. Tombol yang sebelumnya dipakai aksi lain berpindah ke tombol lama aksi itu. Menu game tetap memakai tata letak bawaan; petunjuk di layar tetap menampilkan tombol GameCube.</string>
     <string name="ingame_controller_alternate_note">Kontrol Alternatif aktif: kontrol itu memakai tata letaknya sendiri; tata letak ini berlaku setelah dinonaktifkan.</string>
     <string name="ingame_act_menu">Menu Aplikasi (tahan: menu debug)</string>
+    <string name="ingame_act_menu_app">Menu Aplikasi</string>
     <string name="ingame_act_options">Opsi / Lewati</string>
     <string name="ingame_act_map">Peta</string>
     <string name="ingame_act_inventory">Inventaris</string>

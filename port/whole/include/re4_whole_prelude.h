@@ -109,6 +109,10 @@ void* re4_ganado_rocket(int tpl);
  * they see, pSys->eff_country, but the US release's 1 with the Japanese discs and the Korean translation built on
  * them (runtime/game_language.cpp; declared here so the game files keep their line numbers). */
 int re4_gore_country(void);
+/* Patch 0213 (esp0e, esp45, espgen01): 1 when something lies more than 1 m in front of a glow's light at its screen
+ * position (sx, sy; viewZ the light's view-space z): the glow goes off as when its whole ring is hidden
+ * (runtime/glow_check.cpp). */
+int re4_glow_center_hidden(float sx, float sy, float viewZ);
 #ifdef __cplusplus
 }
 #endif

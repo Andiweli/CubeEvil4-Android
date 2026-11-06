@@ -669,9 +669,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     selectHeld = true;
     // the retail discs have no debug menu (decision of the project owner, 26.10.2026; the cheat menu
     // of the in-game menu instead; the US and the Japanese discs lack the debug tools as well): holding
-    // SELECT opens nothing
+    // SELECT says so and where another version's discs are imported (a user with the European discs held
+    // SELECT again and again and took it for the debug or US version not starting, 06.11.2026)
     if (retail) {
-      Log.i(TAG, "SELECT held: no debug menu with the retail discs");
+      Toast.makeText(this, R.string.ingame_debug_menu_retail, Toast.LENGTH_LONG).show();
+      Log.i(TAG, "SELECT held: no debug menu with the retail discs (said so)");
       return;
     }
     if (!menuSupported) {
@@ -847,6 +849,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
 
     @Override public boolean gameLanguages() { return retailEu; }
+    @Override public boolean debugMenu() { return !retail; }
     @Override public void startBenchmark() { benchmarkStart(); }
 
     @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
@@ -937,7 +940,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     Log.i(TAG, "layout: A B X Y by label" + (input.swapFace() ? ", A/B and X/Y swapped" : "")
         + (input.alternate() ? ", alternate controls: L1 = L, L2 = R, R1 = Y, R2 = A, Y = Z, aiming with the right stick"
             : ", R2 = R, L2 = L, R1 = Z")
-        + ", SELECT menu (held: debug menu), R3 " + (tools ? "graphics capture" : "unused") + extra
+        + ", SELECT menu" + (retail ? "" : " (held: debug menu)") + ", R3 " + (tools ? "graphics capture" : "unused") + extra
         + (menuSupported ? "" : "; this core has no menu functions"));
   }
 

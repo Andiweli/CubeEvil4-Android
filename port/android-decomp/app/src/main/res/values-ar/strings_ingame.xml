@@ -6,7 +6,6 @@
      stays left to right (CoreActivity). tools/check_translations.py checks all three. -->
 <resources>
     <string name="ingame_title">‏قائمة CubeEvil4 داخل اللعبة</string>
-    <string name="ingame_hint">&#x200F;SELECT (ضغطة قصيرة) = هذه القائمة  ·  SELECT (ضغطة مطوّلة) = قائمة التصحيح في اللعبة</string>
     <string name="ingame_back">العودة إلى اللعبة</string>
 
     <string name="ingame_graphics">الرسومات</string>
@@ -122,6 +121,7 @@
     <string name="ingame_end">إنهاء</string>
     <string name="ingame_continue">متابعة</string>
     <string name="ingame_no_debug_menu">لا تحتوي هذه النواة على قائمة تصحيح بعد</string>
+    <string name="ingame_debug_menu_retail">قائمة التصحيح موجودة فقط مع أقراص نسخة التصحيح. لتلعب نسخة أخرى، استورد قرصيها كليهما من شاشة البدء.</string>
     <string name="ingame_no_menu">لا تحتوي هذه النواة على قائمة بعد</string>
     <string name="ingame_no_file_picker">لا توجد أداة لاختيار الملفات على هذا الجهاز</string>
     <string name="ingame_report_saved">تم حفظ التقرير</string>
@@ -251,6 +251,7 @@
     <string name="ingame_controller_help">&#x200F;اختر حركة، ثم اضغط زرها. الحركة ذات الزرين (إطلاق النار، إعادة التلقيم، ضربة السكين) تطلب أولًا الزر الذي يُضغط باستمرار ثم الثاني. إذا كان الزر لحركة أخرى فإنها تأخذ الزر القديم. تحتفظ قوائم اللعبة بالتعيين الافتراضي؛ وتظل تلميحاتها تعرض أزرار GameCube.</string>
     <string name="ingame_controller_alternate_note">التحكم البديل مفعّل: يحتفظ بتوزيعه الخاص؛ يُطبَّق هذا التوزيع عند إيقافه.</string>
     <string name="ingame_act_menu">قائمة التطبيق (ضغط مستمر: قائمة التصحيح)</string>
+    <string name="ingame_act_menu_app">قائمة التطبيق</string>
     <string name="ingame_act_options">الخيارات / تخطٍ</string>
     <string name="ingame_act_map">الخريطة</string>
     <string name="ingame_act_inventory">الحقيبة</string>

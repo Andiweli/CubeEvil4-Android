@@ -4,7 +4,6 @@
      character itself into a normal space), as French typography wants it. -->
 <resources>
     <string name="ingame_title">CubeEvil4 · Menu en jeu</string>
-    <string name="ingame_hint">SELECT (appui court) = ce menu  ·  SELECT (appui long) = menu de débogage du jeu</string>
     <string name="ingame_back">Retour au jeu</string>
 
     <string name="ingame_graphics">Graphismes</string>
@@ -120,6 +119,7 @@
     <string name="ingame_end">Terminer</string>
     <string name="ingame_continue">Continuer</string>
     <string name="ingame_no_debug_menu">Ce cœur n’a pas encore de menu de débogage</string>
+    <string name="ingame_debug_menu_retail">Le menu de débogage n’existe qu’avec les disques de la version debug. Pour jouer à une autre version, importez ses deux disques depuis l’écran de démarrage.</string>
     <string name="ingame_no_menu">Ce cœur n’a pas encore de menu</string>
     <string name="ingame_no_file_picker">Aucun sélecteur de fichiers sur cet appareil</string>
     <string name="ingame_report_saved">Rapport enregistré</string>
@@ -245,6 +245,7 @@
     <string name="ingame_controller_help">Choisissez une action, puis appuyez sur sa touche. Une action à deux touches (tirer, recharger, coup de couteau) demande d’abord la touche à maintenir, puis la seconde. Si une autre action avait la touche, elle reçoit l’ancienne. Les menus du jeu gardent la configuration par défaut ; ses indications montrent toujours les boutons GameCube.</string>
     <string name="ingame_controller_alternate_note">Les commandes alternatives sont activées\u00A0: elles gardent leur propre disposition\u00A0; celle-ci s\'applique dès qu\'elles sont désactivées.</string>
     <string name="ingame_act_menu">Menu de l’app (maintenu : menu debug)</string>
+    <string name="ingame_act_menu_app">Menu de l’app</string>
     <string name="ingame_act_options">Options / Passer</string>
     <string name="ingame_act_map">Carte</string>
     <string name="ingame_act_inventory">Inventaire</string>

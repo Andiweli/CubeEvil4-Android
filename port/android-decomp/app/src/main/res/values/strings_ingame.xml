@@ -10,7 +10,6 @@
 <resources>
     <!-- the menu's top -->
     <string name="ingame_title">CubeEvil4 Ingame Menu</string>
-    <string name="ingame_hint">SELECT (short-press) = this Menu  ·  SELECT (long-press) = the Game\'s Debug Menu</string>
     <string name="ingame_back">Back to the game</string>
 
     <!-- Graphics -->
@@ -133,6 +132,7 @@
     <string name="ingame_end">End</string>
     <string name="ingame_continue">Continue</string>
     <string name="ingame_no_debug_menu">This core has no debug menu yet</string>
+    <string name="ingame_debug_menu_retail">The debug menu exists only with the debug build\'s discs. To play another version, import both of its discs on the start screen.</string>
     <string name="ingame_no_menu">This core has no menu yet</string>
     <string name="ingame_no_file_picker">No file picker on this device</string>
     <string name="ingame_report_saved">Report saved</string>
@@ -257,6 +257,7 @@
     <string name="ingame_controller_help">Choose an action, then press its key. An action of two keys (fire, reload, slash) asks for the key to hold first, then the second. A key another action had goes to that one\'s old key. The game\'s menus keep the default; its prompts still show the GameCube buttons.</string>
     <string name="ingame_controller_alternate_note">Alternate Controls are on: they keep their own layout; this one applies once they are off.</string>
     <string name="ingame_act_menu">App Menu (held: debug menu)</string>
+    <string name="ingame_act_menu_app">App Menu</string>
     <string name="ingame_act_options">Options / Skip</string>
     <string name="ingame_act_map">Map</string>
     <string name="ingame_act_inventory">Inventory</string>
