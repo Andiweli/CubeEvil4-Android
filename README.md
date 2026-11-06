@@ -89,12 +89,6 @@ and it contains no game data: you need your own images of both discs of one rele
 | Gyroscope | – | for gyro aiming (optional) |
 | Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`), the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
 
-> [!NOTE]
-> **32-bit-only devices:** some of them cannot start the game. One with Android 14 showed
-> "core not started: MEM1 … is taken in this process": Android keeps its own memory at the
-> address the game needs. This does not depend on the amount of RAM. A device that runs 64-bit
-> apps is recommended.
-
 ## Status
 
 Beta: the whole game can be played from start to finish.  
