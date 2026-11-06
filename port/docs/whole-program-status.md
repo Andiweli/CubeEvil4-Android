@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen, „Dynamisch“ schneller zurück (06.11.2026, Branch `work`, Patches 0210–0211)
+## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen, „Dynamisch“ schneller zurück, Bildtakt mit Touch-Tasten (06.11.2026, Branch `work`, Patches 0210–0211)
 
 Version 0.98.5-beta (versionCode 99), Releasetext `port/android-decomp/docs/releases/v0.98.5-beta.md`. Drei
 Nutzerberichte zu älteren 0.98.x ohne Protokoll oder Bild. WSL-Baum `~/re4-0983/RE4` (auf `master` = a88d9e31
@@ -112,7 +112,31 @@ Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerar
      Kameras auf das aktuelle Bild umzurechnen (Leon und nahe Dinge bewegen sich mit der Kamera und blieben stehen); nicht
      umgesetzt: **Entscheidung des Projektinhabers (06.11.2026): erst den Fehlerbericht des Nutzers mit der Zeile
      „GXPeekZ:“ abwarten.** Die Kamera beim Aufspringen bleibt wie im Original. Kern-Tests (`--core-test` peek depth, `--runtime-test`) ok.
-7. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
+7. **Bilder fallen weg, solange die Touch-Tasten zu sehen sind (Xiaomi 2412DPC0AG, 120 Hz, Bluetooth-Controller,
+   Bericht 20261106-172545, 0.98.4).** Im Protokoll von „touch controls shown“ bis „hidden“ 52–59 statt 60 Bilder pro
+   Sekunde, „left out (the renderer behind)“ 8 → 53, eine Pause der Zwischenbilder; die Zeit des Renderers pro Bild
+   (7–9 ms) und „GPU Runs behind“ (0,1) unverändert, also nicht die Grafik selbst. Ursache (aus dem Code, am Gerät
+   nicht gemessen): Bei einem Bildschirm, der schneller als 60 Hz bleibt (`FramePacing.every()` 2), gab der
+   Bildtakt `vsyncTick` jedes zweite Bild auf dem **UI-Faden** frei (`requestRender`) und zählte dabei die Aufrufe,
+   nicht die Bildwechsel. RetroTouch zeichnet die Touch-Tasten bei jeder Fingerbewegung neu (`movePointer` →
+   `invalidate`, auf demselben UI-Faden, bei 120 Hz bei jedem Bildwechsel); kommt ein Aufruf dadurch einen
+   Bildwechsel zu spät, liefert Android ihn nur einmal, der Takt verschob sich und ein Bild fiel weg (der Kern war
+   dann schon beim nächsten Bild: Zwischenbild ausgelassen). **Mit oder ohne Controller gleich** (die Tasten und ihr
+   Neuzeichnen hängen nicht am Controller, `TouchShowRule` entscheidet nur über Zeigen/Verbergen); ohne Controller
+   spielt man nur immer so und sieht den Unterschied nicht. 60-Hz-Bildschirme (Retroid) betrifft es nicht: dort
+   zeichnet `GLSurfaceView` fortlaufend, ohne den UI-Faden. **Neu:** Der Bildtakt läuft auf einem eigenen Faden
+   (`RE4-Vsync`, `HandlerThread` mit eigenem `Choreographer`, Priorität `URGENT_DISPLAY`), und `FramePacing.due()`
+   zählt die Bildwechsel nach ihren Zeitstempeln (ein verspäteter Aufruf holt das Bild seines Platzes sofort nach,
+   statt den Takt zu verschieben). Der UI-Faden zählt nur noch mit (`uiTick`): alle 30 s, wenn ein Faden zu spät war,
+   eine Zeile „vsync beat (its own thread): … late …; the UI thread … late (… missed), the touch controls shown … s“.
+   Sie zeigt im nächsten Bericht, ob die Ursache stimmt; bleibt der Takt pünktlich und fallen trotzdem Bilder weg,
+   kostet das Neuzeichnen der Tasten die Grafik selbst (Abhilfe dann in RetroTouch: nur neu zeichnen, wenn sich
+   ihr Aussehen ändert). Host-Test `FramePacingTests` (3445 Prüfungen, neu: jeder fünfte Aufruf fehlt → bisher 48,
+   jetzt 60 Bilder pro Sekunde; jeder vierte; Zeitstempel ±1 ms; gleicher oder älterer Zeitstempel; 100 ms Stillstand;
+   Pause; 60 Hz fordert nichts an), `tools/test_host.sh` bis auf `RoomRepositoryTest` (scheitert unter Windows am
+   Umbenennen über eine vorhandene Datei, unverändert seit 14.10.2026) ohne Fehler, Gradle übersetzt die Java-Quellen
+   beider Varianten. **Nicht auf einem Gerät geprüft** (der Retroid hat 60 Hz).
+8. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
    Kern-, Karten-, Fernprozess-, Format- und Filmtests, libc++); aarch64 übersetzt. Nicht auf einem Gerät.
 
 ## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP, Benchmark, Kartenziel (05./06.11.2026, Branch `work`, Patches 0204–0209)

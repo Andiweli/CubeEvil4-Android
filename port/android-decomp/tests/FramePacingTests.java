@@ -25,6 +25,125 @@ public final class FramePacingTests {
     return changes;
   }
 
+  /** A pacing on 120 Hz with every() 2, the vsyncs and the beat measured (vsync and due at each). */
+  static FramePacing at120(long[] at) {
+    FramePacing p = new FramePacing();
+    for (int i = 0; i < 3 * FramePacing.WINDOW; i++) {
+      at[0] += Math.round(1e9 / 120);
+      p.vsync(at[0]);
+      p.due(at[0]);
+    }
+    check(p.every() == 2 && Math.abs(p.hz() - 120) < 0.5);
+    p.takeCounts();
+    return p;
+  }
+
+  /**
+   * The beat (due, 0.98.5): the vsyncs counted by their times. `missEvery`: of each that many
+   * vsyncs the callback of the last does not come (0: all come); `jitterNs`: the times off by up to that much.
+   * Returns the pictures requested in `seconds` at 120 Hz and checks that no two fall in one
+   * slot of two vsyncs.
+   */
+  static int beatRun(FramePacing p, long[] at, int seconds, int missEvery, long jitterNs, int[] oldCount) {
+    final double period = 1e9 / 120;
+    final long start = at[0];
+    int pictures = 0, callbacks = 0;
+    long lastSlot = -1;
+    for (int i = 1; i <= 120 * seconds; i++) {
+      if (missEvery > 0 && i % missEvery == missEvery - 1) continue;
+      final long jitter = jitterNs == 0 ? 0 : (i * 7919L % (2 * jitterNs + 1)) - jitterNs;
+      final long t = start + Math.round(i * period) + jitter;
+      p.vsync(t);
+      callbacks++;
+      if (p.due(t)) {
+        pictures++;
+        final long slot = i / 2;
+        check(slot != lastSlot);
+        lastSlot = slot;
+      }
+    }
+    at[0] = start + Math.round(120 * seconds * period);
+    // until 0.98.4: every second callback, whatever its time
+    if (oldCount != null) oldCount[0] = callbacks / 2;
+    return pictures;
+  }
+
+  static void beat(long[] at) {
+    // on time: every second vsync, 60 a second
+    FramePacing p = at120(at);
+    check(beatRun(p, at, 10, 0, 0, null) == 600);
+    int[] c = p.takeCounts();
+    check(c[0] == 1200 && c[1] == 0 && c[2] == 0);
+
+    // the UI thread busy (the tester's Xiaomi with the touch controls, report 06.11.2026): every
+    // fifth callback missing, the next one a vsync late; counted by callbacks until 0.98.4 only
+    // 48 pictures a second, by the vsyncs' times still 60
+    p = at120(at);
+    int[] old = {0};
+    check(beatRun(p, at, 10, 5, 0, old) == 600);
+    check(old[0] == 480);
+    c = p.takeCounts();
+    check(c[0] == 960 && c[1] == 240 && c[2] == 240);
+
+    // every fourth missing: each slot of two vsyncs still has a callback, 60 a second (with every
+    // second one late the median would take the display for 60 Hz, WINDOW)
+    p = at120(at);
+    check(beatRun(p, at, 10, 4, 0, old) == 600);
+    check(old[0] == 450 && p.every() == 2);
+
+    // the vsyncs' times a little off (up to 1 ms of 8.3) count the same
+    p = at120(at);
+    check(beatRun(p, at, 10, 0, 1_000_000L, null) == 600);
+    check(p.takeCounts()[1] == 0);
+    p = at120(at);
+    check(beatRun(p, at, 10, 5, 1_000_000L, null) == 600);
+
+    // the same vsync twice or an older one: nothing counted, no picture
+    p = at120(at);
+    at[0] += Math.round(1e9 / 120);
+    p.vsync(at[0]);
+    p.due(at[0]);
+    check(p.step(at[0]) == 0 && !p.due(at[0]) && !p.due(at[0] - 1_000_000L));
+
+    // a stall of 100 ms: one picture at once, then the beat goes on
+    long t = at[0] + 100_000_000L;
+    p.vsync(t);
+    check(p.due(t));
+    c = p.takeCounts();
+    check(c[1] == 1 && c[2] == 11);
+
+    // after a pause the first callback counts as one vsync
+    p.restart();
+    at[0] += 3_000_000_000L;
+    check(p.step(at[0]) == 1);
+
+    // 60 Hz: drawn at each vsync by GLSurfaceView itself, the beat requests nothing
+    p = new FramePacing();
+    int requested = 0;
+    for (int i = 0; i < 600; i++) {
+      at[0] += Math.round(1e9 / 60);
+      p.vsync(at[0]);
+      if (p.due(at[0])) requested++;
+    }
+    check(p.every() == 1 && requested == 0);
+
+    // step alone (the UI thread watched): late callbacks and the vsyncs they missed
+    p = new FramePacing();
+    for (int i = 0; i < 3 * FramePacing.WINDOW; i++) {
+      at[0] += Math.round(1e9 / 120);
+      p.vsync(at[0]);
+    }
+    p.takeCounts();
+    at[0] += Math.round(1e9 / 120);
+    check(p.step(at[0]) == 1);
+    at[0] += Math.round(3e9 / 120);
+    check(p.step(at[0]) == 3);
+    c = p.takeCounts();
+    check(c[0] == 2 && c[1] == 1 && c[2] == 2);
+    c = p.takeCounts();
+    check(c[0] == 0 && c[1] == 0 && c[2] == 0);
+  }
+
   public static void main(String[] args) {
     // the rule: the most vsyncs per picture that still give 59.94 pictures a second
     check(FramePacing.everyFor(59.94) == 1 && FramePacing.everyFor(60) == 1 && FramePacing.everyFor(50) == 1);
@@ -87,6 +206,8 @@ public final class FramePacingTests {
     p = new FramePacing();
     run(p, 240, 3 * FramePacing.WINDOW, at);
     check(p.every() == 4);
+
+    beat(at);
     System.out.println("FramePacingTests: " + checks + " checks passed");
   }
 }

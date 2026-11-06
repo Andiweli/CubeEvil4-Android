@@ -18,7 +18,9 @@ import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.Process;
 import android.os.SystemClock;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
@@ -168,11 +170,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
   private final List<byte[]> pendingImports = new ArrayList<>();
-  private boolean resumed;
+  // (read by the picture's beat on its own thread too)
+  private volatile boolean resumed;
   // GPU step c: the picture drawn at each vsync or, on a faster screen, at every n-th
   private final FramePacing pacing = new FramePacing();
-  private int vsyncs;
   private boolean paceLogged;
+  // the beat's own thread (0.98.5): its Choreographer, not the UI thread's (vsyncTick)
+  private HandlerThread beatThread;
+  private Handler beat;
+  // the UI thread's vsyncs, only counted for the log (uiTick): late callbacks, the touch controls shown
+  private final FramePacing uiBeat = new FramePacing();
+  private long uiLogAt = Long.MIN_VALUE;
+  private int uiShownVsyncs;
   // the screen was asked for 60 Hz (preferSixtyHz): the surface too, once it exists
   private boolean askSixty;
   // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator
@@ -1887,16 +1896,85 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // every vsync of the display while the game is shown: the core's retraces
   // follow it (runtime/vi.cpp), so the pictures do not drift against 60 Hz.
   // A screen faster than 60 Hz has the picture drawn at every n-th vsync only
-  // (FramePacing, GPU step c)
+  // (FramePacing, GPU step c). On the beat's own thread since 0.98.5 (startBeat):
+  // on the UI thread a callback late by a vsync left a picture out, and the UI
+  // thread is most likely late while it redraws the touch controls at each vsync
+  // (a finger moving on them; the tester's Xiaomi at 120 Hz, report 06.11.2026:
+  // 52 instead of 60 pictures a second while they were shown, the renderer
+  // itself not slower; uiTick's line says which thread was late). GLSurfaceView's
+  // requestRender and setRenderMode and CoreBridge.vsync may be called from any thread.
   private final Choreographer.FrameCallback vsyncTick = new Choreographer.FrameCallback() {
     @Override public void doFrame(long frameTimeNanos) {
       if (!resumed) return;
       CoreBridge.vsync(frameTimeNanos);
       if (pacing.vsync(frameTimeNanos) || (!paceLogged && pacing.hz() > 0)) pace();
-      if (pacing.every() > 1 && ++vsyncs % pacing.every() == 0) surface.requestRender();
+      if (pacing.due(frameTimeNanos)) surface.requestRender();
       Choreographer.getInstance().postFrameCallback(this);
     }
   };
+
+  // the UI thread's vsyncs, only watched: every 30 s a line when it or the beat came a vsync
+  // late or more (which thread was late, the touch controls shown meanwhile)
+  private final Choreographer.FrameCallback uiTick = new Choreographer.FrameCallback() {
+    @Override public void doFrame(long frameTimeNanos) {
+      if (!resumed) return;
+      final int n = uiBeat.step(frameTimeNanos);
+      if (touchControls != null && touchControls.shown()) uiShownVsyncs += n;
+      if (uiLogAt == Long.MIN_VALUE) uiLogAt = frameTimeNanos;
+      if (frameTimeNanos - uiLogAt >= 30_000_000_000L) {
+        logBeat((frameTimeNanos - uiLogAt) / 1e9);
+        uiLogAt = frameTimeNanos;
+      }
+      Choreographer.getInstance().postFrameCallback(this);
+    }
+  };
+
+  private void logBeat(double seconds) {
+    final int[] b = pacing.takeCounts(), u = uiBeat.takeCounts();
+    final int shown = uiShownVsyncs;
+    uiShownVsyncs = 0;
+    if (b[1] == 0 && u[1] == 0) return;
+    final double hz = pacing.hz();
+    Log.i(TAG, String.format(Locale.ROOT, "vsync beat (its own thread): %d callbacks in %.0f s, %d late by a vsync or "
+        + "more (%d vsyncs missed); the UI thread %d late (%d missed), the touch controls shown %.0f s",
+        b[0], seconds, b[1], b[2], u[1], u[2], hz > 0 ? shown / hz : 0.0));
+  }
+
+  /** The beat (vsyncTick) on its own thread and the UI thread's watch (uiTick): from onResume. */
+  private void startBeat() {
+    if (beatThread == null) {
+      beatThread = new HandlerThread("RE4-Vsync");
+      beatThread.start();
+      beat = new Handler(beatThread.getLooper());
+      beat.post(() -> {
+        try {
+          Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
+        } catch (RuntimeException e) {
+          Log.w(TAG, "vsync beat: priority " + e);
+        }
+      });
+    }
+    beat.post(() -> {
+      Choreographer c = Choreographer.getInstance();
+      c.removeFrameCallback(vsyncTick);
+      c.postFrameCallback(vsyncTick);
+    });
+    Choreographer.getInstance().removeFrameCallback(uiTick);
+    Choreographer.getInstance().postFrameCallback(uiTick);
+  }
+
+  /** onPause: both stop; the next vsync after the pause starts a new interval. */
+  private void stopBeat() {
+    if (beat != null) {
+      beat.post(() -> {
+        Choreographer.getInstance().removeFrameCallback(vsyncTick);
+        pacing.restart();
+      });
+    }
+    Choreographer.getInstance().removeFrameCallback(uiTick);
+    uiBeat.restart();
+    uiLogAt = Long.MIN_VALUE;  // the time away is no part of a window
+  }
 
   /** The screen's rate measured anew (FramePacing): the picture drawn at each vsync or at every n-th. */
   private void pace() {
@@ -1959,8 +2037,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     resumed = true;
     // the game runs again unless the menu or the touch editor is open (a file picker of the menu came back)
     if (menuSupported && menu == null && !touchEditing) CoreBridge.pause(false, 0);
-    Choreographer.getInstance().removeFrameCallback(vsyncTick);
-    Choreographer.getInstance().postFrameCallback(vsyncTick);
+    startBeat();
     if (gyroAim != null) gyroAim.resume();
     InputManager im = (InputManager) getSystemService(Context.INPUT_SERVICE);
     if (im != null) im.registerInputDeviceListener(this, main);
@@ -1981,8 +2058,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     keepGameAimInvert();
     selectDown = false;
     main.removeCallbacks(selectHold);
-    Choreographer.getInstance().removeFrameCallback(vsyncTick);
-    pacing.restart();
+    stopBeat();
     if (gyroAim != null) gyroAim.pause();
     // the sound pauses with the app (the core skips what it played meanwhile)
     audio.stop();
@@ -2036,6 +2112,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     destroyed = true;
     if (isFinishing()) CoreLog.stop();
     main.removeCallbacksAndMessages(null);
+    if (beatThread != null) beatThread.quitSafely();
     rooms.shutdownNow();
     super.onDestroy();
   }
