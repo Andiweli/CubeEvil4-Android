@@ -3,6 +3,62 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen (06.11.2026, Branch `work`, Patches 0210–0211)
+
+Version 0.98.5-beta (versionCode 99), Releasetext `port/android-decomp/docs/releases/v0.98.5-beta.md`. Drei
+Nutzerberichte zu älteren 0.98.x ohne Protokoll oder Bild. WSL-Baum `~/re4-0983/RE4` (auf `master` = a88d9e31
+gesetzt, geänderte Dateien aus dem Worktree hineinkopiert), Läufe in `~/p0985/runs`. Neue Prüfhilfen in
+`runtime/state_trace.cpp`: `RE4_TEST_DOORS=1` (Zeile „door:“ bei jeder Änderung einer Tür: Leben, Routine,
+gebrochene Planken, Schlösser, Ketten, letzte Schadensart), `RE4_TEST_EMWEP=1` (Zeile „emwep:“ für jede
+Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerarchivs), `RE4_TEST_EM_SET="F:NO,…"`
+(Einträge der Gegnerliste wie ein Raumskript setzen und zum Spieler schicken), `RE4_TEST_EM_KILL="F:ID:all[/E/K]"`
+(alle lebenden Gegner einer Art). Mercenaries am PC: `RE4_TEST_MERC=1 RE4_TEST_PLAYER=T` braucht
+`RE4_PAD_ROOM_SCRIPT=A@400-900/30`, sonst wartet der Start auf einen Knopf und die Gegner stehen still.
+
+1. **Killer7 und Holztüren (Patch 0210).** Der Prototyp sortierte in `emDoorDmCkWood` die Magnums (Schadensarten
+   5 Broken Butterfly, 6 Killer7, 0xF Handcannon) und 0x2C zu den Gewehren: je Schuss eine Planke (`Door_hp` 0), vier
+   Planken brechen die Tür. Die `main.dol` von US, EU und JP (`retail_code.py`, Funktionen über die Reihenfolge in
+   `emdoor.cpp` gefunden, Verzweigungen für jede Schadensart 0..0x3F simuliert) schicken sie in den Zweig der
+   Sprengstoffe: Tür samt Schlössern und Ketten mit einem Schuss. Ebenso an Eisentüren (`emDoorDmCkIron`, `Iron2`,
+   `IronDown`): alle Schlösser und Ketten statt nur das getroffene aus der Nähe. Dazu in allen drei Fassungen: Eier
+   (0x19, 0x1F, 0x20) wirken auf keine Tür (der Prototyp schickte sie in den Sprengstoff-Zweig), die fallende Tür (Typ
+   2) verliert beide Schlösser; nur EU/JP: keine Explosion bricht eine verriegelte Holztür (`Be_flg` Bit 0). Jetzt wie
+   die EU-Fassung mit allen Discs. Schrotflinten (7, 8, 0x21) unverändert (in allen Fassungen eine Planke je Schuss
+   aus der Nähe). **Geprüft am PC (i686, r105 Tür 6, Leon 2 m davor, `RE4_TEST_DOORS`, je Waffe zielen und feuern):**
+   mit Patch Broken Butterfly, Killer7, Handcannon: Tür mit dem ersten Treffer zerbrochen (Debug- und EU-Discs);
+   Schrotflinte, Striker, Riot Gun: 4 Schüsse, 4 Planken (unverändert); Handfeuerwaffen, Gewehre, TMP: eine Planke je
+   Treffer. Gegenprobe ohne Patch: Killer7 4 Schüsse für 4 Planken, Broken Butterfly und Handcannon 3 Planken im
+   Zeitfenster. Eisentüren, Eier und die verriegelte Tür nur aus dem Code, nicht im Spiel.
+2. **Ganado-Rakete in Mercenaries „Waterworld“ (r404, Patch 0211).** Ein Raketen-Ganado (`em10_R1_ShotRocket`)
+   blendet die Rakete auf seinem Werfer aus und feuert eine aus dem **Spielerarchiv** (Index 0x70 Modell, 0x71
+   Textur; Archiv-Eintrag #6C/#6D). Leons (`pl00`, `pl08..pl10`) und HUNKs (`pl06`) Archiv haben dort die Rakete; Adas
+   (`pl0b`, `pl0c`) und Weskers (`pl0d`) Einträge sind leer und teilen ein kleines Platzhaltermodell weiter hinten
+   (als Modell **und** als Textur genommen), Krausers (`pl0a`) sind sein Pfeil (wep28). Debug-, US-, EU- und JP-Discs
+   gleich; der EU-Code (`em10.rel` in `em/em10.drs`, Text 0x1625c) ist bis auf Konstanten-Adressen gleich: ein Fehler
+   des Originalspiels. Im Story-Modus mit Stellvertretern bekam die Rakete schon Leons (`re4_arc_stand_in`, leerer
+   Eintrag), außer bei Krauser. **Jetzt:** `re4_ganado_rocket` gibt für Ada, Krauser und Wesker Leons Rakete; Leons
+   Archiv (`kLeonArcAddr`) liest `re4_story_char_room` dafür in Mercenaries und den Extra-Spielen einmal
+   (`loadLeon(0)`), im Story-Modus liest es die Stellvertreter-Funktion ohnehin. Die Deklaration steht in
+   `re4_whole_prelude.h`, damit em10.cpp seine Zeilen behält (die geprüften LP64-Stellen weiter unten liegen schon 38
+   Zeilen neben `lp64_int_casts.json`, Fenster ±40). **Geprüft am PC (r404, Debug-Discs, Wellen per
+   `RE4_TEST_EM_KILL`/`RE4_TEST_EM_SET`, Raketen-Ganados DC, D8, D7, AF):** vorher Leon 0x70/0x71, Ada Modell =
+   Textur = Platzhalter, Krauser eigener Eintrag; nachher Ada, Krauser, Wesker Leons Rakete (Adresse 0x820e7260 =
+   Leons #6C), Leon unverändert. Ein klares GX-Bild der fliegenden Rakete gelang nicht (sie kommt in 4–22 Bildern von
+   hinten oder aus dem Rauch); Raketenflug und Treffer ohne Absturz. EU-Discs nur über den Datenvergleich.
+3. **Kamera beim Aufspringen (Kip-up).** Nachgestellt in r404 (Leon von einer Rakete umgeworfen, `RE4_TRACE`, GX-Serie
+   2136–2184): beim Wegfliegen die Kamera der Bewegung (r0 0x11, `CameraAttachedToMotion`), am Boden die
+   Bodenkamera (r0 0xB, `CameraLookAt`), die `CameraControl::Check` wählt, solange Leons Hüfte (Teil 1) höchstens 500
+   Einheiten über seinen Füßen ist; steigt sie darüber, Rückkehr zur Schulterkamera (`m_Inter.set(30)`, in Räumen ohne
+   Kamerafläche setzt `switchCamera` die Überblendung auf 0, dann nur die Glättung von etwa ⅓ s). Im Aufspringen
+   (Bewegung 0x4F/0x50, 42 Bilder) geschieht das 20 Bilder vor dem Ende: die Kamera fährt von 0,5 m auf 1,76 m, während
+   Leon noch halb in der Hocke ist – genau die Beobachtung des Testers. **Original:** `Check` (Grenzwert 500.0 in
+   beiden), `switchCamera`, `CameraInterpolation`, `CameraSmooth`, `CameraLookAt` sind in der EU-`main.dol` gleich (EU
+   ergänzt in `Check` nur eine Sperre nach Zwischensequenzen, Flag 0x40 aus `Comeback`, und ein Schnitt-Reset nach der
+   Bewegungskamera); die Bewegungsdaten des Aufspringens (pl00 #4B/#4C) sind in allen vier Fassungen gleich. Unsere
+   Patches (0171 weite Kamera, 0205 FoV, 0201 Kameraflächen der Stellvertreter, 0189 Schultertabellen) und die
+   60-FPS-Zwischenbilder berühren diesen Ablauf nicht. Nicht geändert; eine längere Bodenkamera wäre eine Abweichung
+   vom Original (Entscheidung des Projektinhabers).
+
 ## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP, Benchmark, Kartenziel (05./06.11.2026, Branch `work`, Patches 0204–0209)
 
 Version 0.98.4-beta (versionCode 98), Releasetext `port/android-decomp/docs/releases/v0.98.4-beta.md`. WSL-Baum
@@ -12389,6 +12445,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0207 `ss_shop.cpp` | Händler: die Zeile „hoher Preis“ beim Verkaufen über 9 999 Peseten in jeder Stage, wie die EU-Fassung (der Prototyp ab Stage 2 erst über 29 999). Fehler des Prototyps, Wunsch des Projektinhabers 05.11.2026 |
 | 0208 `em.cpp`, `camera.cpp` | Benchmark (Anzeige → GRAFIK): an der Stelle stehen die Gegner still, die Kamera kreist um Leon (`re4_bench_camera`). Port-Funktion, Wunsch des Projektinhabers 05.11.2026 |
 | 0209 `ss_map.cpp` | Kartenziel mit Verkaufs-Discs: die Zieltabellen ihrer `Sscrn.rel` (Dorf 12 Teile mit den Flags 0xA7, 0xA8; EU/JP/KR in Gebiet 9 zusätzlich 0xB8). Port-Patch für Verkaufsdaten, Nutzerbericht 06.11.2026 |
+| 0210 `emdoor.cpp` | Türen wie die Verkaufsfassungen (US, EU, JP): Magnums (Schadensarten 5, 6, 0xF) und 0x2C zerbrechen eine Holztür mit einem Schuss samt Schlössern und Ketten und brechen an Eisentüren alle Schlösser und Ketten (Prototyp: eine Planke je Schuss wie die Gewehre bzw. nur das getroffene Schloss aus der Nähe); Eier (0x19, 0x1F, 0x20) wirken nicht; die fallende Tür (Typ 2) verliert beide Schlösser; keine Explosion bricht eine verriegelte Holztür (`Be_flg` Bit 0, nur EU/JP). Fehler des Prototyps, Nutzerbericht 06.11.2026 |
+| 0211 `em10.cpp` | Die fliegende Rakete eines Ganados (`em10_R1_ShotRocket`) mit Leons Raketenmodell (`re4_ganado_rocket`, `runtime/cheats.cpp`), wenn das Spielerarchiv an Index 0x70/0x71 keine Rakete hat (Ada, Wesker: Platzhalter; Krauser: sein Pfeil); Leons Archiv wird dafür in Mercenaries und den Extra-Spielen einmal gelesen. Deklaration in `re4_whole_prelude.h` (em10.cpp behält seine Zeilen). Fehler des Originalspiels (alle Fassungen), Nutzerbericht 06.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
