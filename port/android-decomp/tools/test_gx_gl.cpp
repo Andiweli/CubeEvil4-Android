@@ -1353,12 +1353,24 @@ void TestBenchSteps() {
   // seconds that come late (a stalling game): the pass's time limit ends it all the same
   re4gx::BenchSteps late = RunBench("seconds 9 s apart", [](int, bool) { return 20; }, [](int, bool) { return 20; }, 9.0);
   Check(late.Finished(), "benchmark: ends with seconds far apart too");
-  // a short dip in one second at a level: that level does not hold
+  // one hitch at a level is allowed, two are not
   int calls = 0;
   re4gx::BenchSteps dip = RunBench("one bad second at 4x",
                                    [&calls](int, bool) { return ++calls == 3 ? 25 : 30; },
                                    [](int, bool sixty) { return sixty ? 60 : 30; });
-  Check(dip.Result(0) == 7 && dip.Result(1) == 8, "benchmark: one bad second at 4x: 3.5x for 30, 4x for 60");
+  Check(dip.Result(0) == 8 && dip.Result(1) == 8, "benchmark: one bad second at 4x: still 4x");
+  int calls2 = 0;
+  re4gx::BenchSteps dip2 = RunBench("two bad seconds at 4x",
+                                    [&calls2](int, bool) { ++calls2; return calls2 == 3 || calls2 == 6 ? 25 : 30; },
+                                    [](int, bool sixty) { return sixty ? 60 : 30; });
+  Check(dip2.Result(0) == 7 && dip2.Result(1) == 8, "benchmark: two bad seconds at 4x: 3.5x for 30, 4x for 60");
+  // fairly steady (the project owner's Retroid at 2x): 29-30 with a hitch now and then holds
+  int calls3 = 0;
+  re4gx::BenchSteps steady = RunBench(
+      "fairly steady at 2x and below", [&calls3](int level, bool) { ++calls3; return level > 4 ? 24 : calls3 % 3 ? 30 : 29; },
+      [](int level, bool sixty) { return sixty ? (level > 4 ? 48 : 58) : (level > 4 ? 24 : 30); });
+  Check(steady.Result(0) == 4 && steady.Result(1) == 4 && steady.Held(0) && steady.Held(1),
+        "benchmark: 29-30 a second at 2x holds 2x for 30 and 60");
 }
 
 void TestAutoLevel() {

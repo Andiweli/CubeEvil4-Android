@@ -194,6 +194,14 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      sie beim ersten Lauf auf 1×, beim zweiten durchgehend auf 3,5× (die Stufe von „Dynamisch“, die die des Benchmarks
      bei jedem Chunk überschrieb, siehe oben). Jetzt nach jedem Chunk die Stufe, in der der Renderer wirklich zeichnet
      (`gx->Halves()`); die 4× des ersten Schritts erscheinen dort nach dem ersten Chunk. Am Gerät nicht geprüft.
+   - **10 s je Stufe, Regel „halbwegs stabil“ (Wunsch des Projektinhabers nach seinem Test, 06.11.2026):** sein
+     Retroid bekam 1× empfohlen, obwohl er bei 2× halbwegs stabil spielt. Die alte Regel verlangte in jeder Sekunde
+     29 Bilder (58 gezeigte) und kein einziges ausgelassenes Zwischenbild: ein Ruckler ließ eine Stufe durchfallen.
+     Jetzt: jede Stufe 10 s; stabil bei im Schnitt 29 Bildern je Sekunde und höchstens einer schwachen Sekunde (unter
+     27), mit 60 FPS zusätzlich im Schnitt 57 gezeigte (schwach unter 54) und höchstens 3 % ausgelassene Zwischenbilder.
+     Höchstens 100 s je Durchgang, 360 s für alles; Hinweistext „zwei bis drei Minuten“ (11 Sprachen). Geprüft:
+     `TestBenchSteps` (u. a. 29–30 mit gelegentlichem Ruckler bei 2× ergibt 2× für 30 und 60; eine schwache Sekunde bei
+     4× bleibt 4×, zwei ergeben 3,5×), App-Tests und Bau. Am Gerät nicht geprüft.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 

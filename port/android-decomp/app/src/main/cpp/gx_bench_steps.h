@@ -1,13 +1,15 @@
 // The benchmark's steps (app menu Display -> GRAPHICS -> Benchmark; core_mode.cpp LevelBench leads it on the
 // render thread): two passes, 30 then 60 pictures a second. Each pass starts at 4x, whatever the menu's
-// resolution, holds every level 5 seconds and goes down half a level (4 -> 3.5 -> 3 -> 2.5 -> 2 -> 1.5 -> 1) until a
+// resolution, holds every level 10 seconds and goes down half a level (4 -> 3.5 -> 3 -> 2.5 -> 2 -> 1.5 -> 1) until a
 // level holds; that level is the pass's result. When even 1x does not hold, the result is 1x, marked as not held.
 // A pass ends after kPassLimit seconds at the latest (the result then the level it stood at, not held), so the
 // benchmark never runs on (the project owner's device test 06.11.2026: once only a moment at 1x, once without an
 // end at 3.5x: "Dynamic" set its own level over the benchmark's on every chunk).
-// A level holds when, in its seconds after the first kSettle (a new EFB, new shader programs), the game made at
-// least 29 pictures in each second and 29.5 on average; for 60 also 58 pictures shown in each second and no
-// in-between picture left out. Fed once a second with that second's figures (Second), on a clock of its own: the
+// A level holds when, in its seconds after the first kSettle (a new EFB, new shader programs), the game made 29
+// pictures a second on average with at most one weak second (below 27); for 60 also 57 shown on average (a weak
+// second: below 54) and at most 3 % of the in-between pictures left out. Until 06.11.2026 every second needed 29
+// (58 shown) and not one in-between picture could be missing: one hitch failed a level, and the project owner's
+// Retroid, which plays at 2x fairly steadily, was given 1x. Fed once a second with that second's figures (Second), on a clock of its own: the
 // renderer's statistics start over with a new renderer, these do not. No GL here: the host test runs it
 // (tools/test_gx_gl.cpp TestBenchSteps) with slow and fast devices.
 #pragma once
@@ -21,10 +23,16 @@ namespace re4gx {
 class BenchSteps {
 public:
   static constexpr int kTop = 8, kBottom = 2;  // halves: 4x, 1x
-  static constexpr double kHold = 5.0;         // seconds a level
+  static constexpr double kHold = 10.0;        // seconds a level (the project owner, 06.11.2026: 5 s was too short)
   static constexpr double kSettle = 1.5;       // its first seconds do not count
-  static constexpr double kPassLimit = 60.0;   // seconds a pass at most (7 levels: 35 s)
-  static constexpr int kMinChunks = 29, kMinShown = 58;
+  static constexpr double kPassLimit = 100.0;  // seconds a pass at most (7 levels: 70 s)
+  static constexpr int kMinSamples = 5;        // counted seconds a level needs
+  static constexpr double kAvgChunks = 29.0;   // game pictures a second on average
+  static constexpr double kAvgShown = 57.0;    // with 60: pictures shown a second on average
+  static constexpr int kWeakChunks = 27;       // a second below this (or below kWeakShown with 60) is weak
+  static constexpr int kWeakShown = 54;
+  static constexpr int kWeakSeconds = 1;       // weak seconds a level may have (a hitch: a sound, a shader)
+  static constexpr unsigned kDroppedPercent = 3;  // with 60: in-between pictures left out, % of the game's
 
   enum Step { kNone, kLevel, kPassDone, kDone };
 
@@ -49,20 +57,24 @@ public:
     if (t - levelAt_ > kSettle) {
       samples_++;
       sumChunks_ += chunks;
+      sumShown_ += shown;
       minChunks_ = std::min(minChunks_, chunks);
       minShown_ = std::min(minShown_, shown);
       dropped_ += dropped;
+      if (chunks < kWeakChunks || (sixty && shown < kWeakShown)) weak_++;
     }
     const bool overTime = t - passAt_ >= kPassLimit;
     if (t - levelAt_ < kHold && !overTime) return kNone;
-    const bool holds = samples_ >= 3 && minChunks_ >= kMinChunks && sumChunks_ * 2 >= (2 * kMinChunks + 1) * samples_ &&
-                       (!sixty || (minShown_ >= kMinShown && dropped_ == 0));
-    char line[320];
+    const double avgChunks = samples_ ? static_cast<double>(sumChunks_) / samples_ : 0.0;
+    const double avgShown = samples_ ? static_cast<double>(sumShown_) / samples_ : 0.0;
+    const bool holds = samples_ >= kMinSamples && avgChunks >= kAvgChunks && weak_ <= kWeakSeconds &&
+                       (!sixty || (avgShown >= kAvgShown && dropped_ * 100 <= static_cast<unsigned>(sumChunks_) * kDroppedPercent));
+    char line[360];
     std::snprintf(line, sizeof(line),
-                  "benchmark: %d FPS pass, level %s for %.1f s: game %d..%.1f pictures a second, shown at least %d, %u "
-                  "in-between left out: %s",
-                  sixty ? 60 : 30, Name(level_).c_str(), t - levelAt_, samples_ ? minChunks_ : 0,
-                  samples_ ? static_cast<double>(sumChunks_) / samples_ : 0.0, samples_ ? minShown_ : 0, dropped_,
+                  "benchmark: %d FPS pass, level %s for %.1f s: game %.1f pictures a second on average (at least %d), "
+                  "shown %.1f (at least %d), %d weak seconds, %u in-between left out: %s",
+                  sixty ? 60 : 30, Name(level_).c_str(), t - levelAt_, avgChunks, samples_ ? minChunks_ : 0, avgShown,
+                  samples_ ? minShown_ : 0, weak_, dropped_,
                   holds ? "stable" : overTime ? "not stable, the pass's time is up" : "not stable");
     if (log) *log = line;
     if (!holds && level_ > kBottom && !overTime) {
@@ -95,14 +107,14 @@ private:
   }
   void NewLevel(double t) {
     levelAt_ = t;
-    samples_ = sumChunks_ = 0;
+    samples_ = sumChunks_ = sumShown_ = weak_ = 0;
     minChunks_ = minShown_ = 1000;
     dropped_ = 0;
   }
 
   int pass_ = 0, level_ = kTop;
   double passAt_ = 0.0, levelAt_ = 0.0;
-  int samples_ = 0, sumChunks_ = 0, minChunks_ = 1000, minShown_ = 1000;
+  int samples_ = 0, sumChunks_ = 0, sumShown_ = 0, weak_ = 0, minChunks_ = 1000, minShown_ = 1000;
   unsigned dropped_ = 0;
   int result_[2] = {0, 0};
   bool held_[2] = {false, false};

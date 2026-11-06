@@ -701,7 +701,7 @@ std::atomic<int> optCap30{0}, optCap60{0};
 // goes to the lake's dock in r11b (runtime/benchmark.cpp through the cheat channel: 20 the place, 22 back, 23 the
 // state; since 06.11.2026 the project owner's instant save of the place, from the title or any chapter),
 // where the enemies stand still, Leon stands and the view goes round him; here, on the render thread, the steps of
-// gx_bench_steps.h: a 30 and a 60 FPS pass, each from 4x down half a level every 5 s until a level holds. While it
+// gx_bench_steps.h: a 30 and a 60 FPS pass, each from 4x down half a level every 10 s until a level holds. While it
 // runs the level is the benchmark's alone: "Dynamic" does not change it (it set its own over it on every chunk, the
 // project owner's device test 06.11.2026), a new renderer (new picture options) starts at it, and the pictures are
 // counted here, not in the renderer's statistics, which start over with a new renderer. It is fed on every refresh,
@@ -721,7 +721,7 @@ struct LevelBench {
   unsigned droppedAt = 0, polls = 0;
 };
 LevelBench levelBench;
-constexpr double kBenchLimit = 240.0;  // seconds for the whole benchmark at most (the way there and back included)
+constexpr double kBenchLimit = 360.0;  // seconds for the whole benchmark at most (the way there and back included)
 int aimSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
 // percent (the core's runtime/sound_volume.cpp).
