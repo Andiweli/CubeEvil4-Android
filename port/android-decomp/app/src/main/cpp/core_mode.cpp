@@ -714,6 +714,7 @@ struct LevelBench {
   std::atomic<int> phase{0}, run{0}, level{0}, res30{0}, res60{0}, rate10{0};
   std::atomic<int> held{0};   // bit 0: the 30 result held, bit 1: the 60 result held (1x not held: the result is 1x)
   bool active = false, failed = false;
+  bool touched = false;       // the benchmark set levels or 60 FPS: the renderer anew with the menu's at the end
   int keepSmooth = 0;
   re4gx::BenchSteps steps;
   std::chrono::steady_clock::time_point since, start, secondAt;
@@ -1486,7 +1487,10 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     b.phase = phase;
     b.active = false;
     optSmooth = b.keepSmooth;
-    optSerial++;  // the renderer anew with the menu's level
+    // the renderer anew with the menu's level, only when the benchmark changed it: a refused start (the title's logos,
+    // an event) made a new renderer for nothing, which lost the title's EFB copies ("3 missing", the project owner's
+    // log 06.11.2026)
+    if (b.touched) optSerial++;
     LOG("benchmark: %s", phase == 4 ? "done" : phase == 5 ? "cancelled" : "stopped");
   };
   auto goBack = [&](const char *why) {
@@ -1506,6 +1510,7 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     b.chunks = 0;
     b.polls = 0;
     b.failed = false;
+    b.touched = false;
     b.active = true;
     b.keepSmooth = optSmooth.load();
     b.phase = 1;
@@ -1539,6 +1544,7 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     }
     if ((state & 15) == 2) {
       b.run = 0;
+      b.touched = true;
       optSmooth = 0;
       b.steps.Start(std::chrono::duration<double>(now - b.start).count());
       levelBenchSet(b.steps.Level());
@@ -1579,7 +1585,9 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
       // fastest core off shows in the report (the project owner's log 06.11.2026: the render thread at 1286 MHz)
       char clocks[320];
       re4cpu::DescribeClocks(re4cpu::GetLayout(), clocks, sizeof(clocks));
-      LOG("benchmark: %s; the render thread on core %d", clocks, sched_getcpu());
+      char may[96];
+      re4cpu::AffinityText(may, sizeof(may));
+      LOG("benchmark: %s; the render thread on core %d, may use %s", clocks, sched_getcpu(), may);
     }
     switch (step) {
     case re4gx::BenchSteps::kLevel:
@@ -1831,6 +1839,22 @@ bool drawGx() {
   }
   // the room the game is in: Prewarm takes the programs this room drew with before (01.11.2026)
   gx->SetRoom(frame.room);
+  // a break for Dynamic and the 60 FPS pacer: a room starts (its loading, its programs made ahead) or the core ran
+  // again after a pause (the app menu); their windows start anew after a few quiet seconds (the project owner's log
+  // 06.11.2026: 2x -> 1.5x 1.6 s after r11b started, the window before had spanned the menu)
+  {
+    static int breakRoom = -1;
+    static bool breakPaused = false;
+    const bool paused = corePaused.load();
+    const bool roomStart = breakRoom >= 0 && static_cast<int>(frame.room) != breakRoom;
+    if (roomStart || (breakPaused && !paused)) {
+      const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+      autoLevel.Restart(t);
+      if (!levelBench.active) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+    }
+    breakRoom = static_cast<int>(frame.room);
+    breakPaused = paused;
+  }
   const Re4GxChunk *deferred = smoothNext;
   smoothNext = nullptr;
   const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
@@ -2029,6 +2053,12 @@ bool drawGx() {
     if (fast && ++coreChecks % 30 == 0 && re4cpu::KeepOnFastCores() && ++coreMoves <= 4)
       LOG("cores: the render thread put back on its cores (Android had moved it, %u times so far)", coreMoves);
     gxRunMs += ms;
+    // a Run this long is a stall (programs made, textures in), not a GPU too slow: a break as above
+    if (ms > 250.0) {
+      const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
+      autoLevel.Restart(t);
+      if (!levelBench.active) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+    }
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;
     // the title runs 60 chunks a second, so no refresh comes without one: the programs ahead after it

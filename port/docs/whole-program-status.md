@@ -248,6 +248,32 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
    - Geprüft: Laufzeit-Tests (`FastestCoresNow`, `DescribeClocks`), App-Tests, Bau. Am Gerät nicht geprüft: das
      60-FPS-Ergebnis ohne Pause, das Halten des Render-Threads auf dem schnellsten Kern bei Wärme, der Start von
      „Dynamisch“ eine halbe Stufe höher.
+22. **Nach den Gerätelogs mit 8c3b709a (Retroid, EU-Discs, 06.11.2026):**
+   - **„Dynamisch“ nach Raumwechsel und Menü (vom Projektinhaber freigegeben):** 1,6 s nach dem Start von r11b ging es
+     von 2× auf 1,5× (und hielt danach 30 s): das Fenster, das beim Öffnen des Menüs offen war, umfasste die Menüzeit,
+     das nächste das Laden des Raums; zwei „langsame“ Fenster. Der 60-FPS-Taktgeber reichte mit seinen 4 s ebenso über
+     das Laden. **Jetzt (`gx_auto_level.h`):** `AutoLevel::Restart` verwirft das offene Fenster und die Zählung, die
+     nächsten 4 s zählen nicht (`kQuiet`); eine Lücke von über 1 s ohne Chunk (`kGap`: Menü, Laden) gilt von selbst als
+     Bruch. `core_mode.cpp` ruft ihn (und `SmoothPacer::Restart` mit 4 s) bei einem Raumwechsel, nach einer Pause des
+     Kerns (App-Menü) und nach einem Run über 250 ms (Shader-Vorbereitung eines Raums). Der Halt von 30 s nach einem
+     Schritt abwärts entsteht so nicht mehr aus einem Bruch. Test `gx_gl_check`: Menü 20 s, Laden 3 s langsam → kein
+     Schritt; Raumstart, 3,5 s langsam → kein Schritt; danach weiter langsam → eine halbe Stufe tiefer; Taktgeber ohne
+     Pause in der Ruhezeit.
+   - **Abgelehnter Benchmark-Start baute den Renderer neu:** am Ende setzte der Benchmark immer `optSerial++`; bei einer
+     Ablehnung (Titel-Logos) entstand ein neuer Renderer ohne die EFB-Kopien des Titels („3 missing“ bis zum nächsten
+     Neuaufbau). Jetzt nur, wenn der Benchmark Stufen oder 60 FPS verstellt hat (`LevelBench::touched`).
+   - **Start während der Titel-Logos:** der Prototyp hat vor dem Titelmenü nur die Logos (Capcom, CRI, Dolby; START
+     überspringt sie). Kommt der Benchmark-Wunsch dort (`re4_instant_title_step` 2..4), drückt `benchmark.cpp` alle 20
+     Bilder START, bis das Titelmenü wartet, und startet dann wie aus dem Menü (höchstens 20 s; während des
+     Kartenchecks kein START). Geprüft am PC (US-Disc, `RE4_TEST_BENCH=boot+300:20`): Logos, Titelmenü nach 117
+     Bildern, Steg, zurück zum Titel.
+   - **Render-Thread und schnellster Kern:** `FastestCoresNow` liest den erlaubten Höchsttakt (`scaling_max_freq`),
+     nicht den aktuellen; daran lag es nicht. Wahrscheinlich hielt Android die App zeitweise in einer Kerngruppe ohne
+     Kern 7, das Festlegen schlug dann still fehl. Jetzt nimmt der Render-Thread dann die Kerne ohne die sparsamsten
+     und versucht Kern 7 jede Sekunde wieder; die Benchmark-Zeile nennt „may use cores …“ (`AffinityText`). Seine
+     Werte sind in beiden Leistungsmodi gleich (GPU-gebunden): das Ergebnis stimmt.
+   - Geprüft: `gx_gl_check`, Prüfreihe am PC, App-Tests und Bau. Am Gerät nicht geprüft: „Dynamisch“ nach Menü und
+     Raumwechsel, der Start aus den Logos, das Verhalten des Render-Threads bei verweigertem Kern 7.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 

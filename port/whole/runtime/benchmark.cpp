@@ -36,6 +36,7 @@ extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" void re4_pad_add(u16 buttons);                      // runtime/pad.cpp
 extern "C" int re4_instant_game_ready(void);                   // runtime/instant_game.cpp
 extern "C" int re4_instant_game_at_title(void);
+extern "C" int re4_instant_title_step(void);
 extern "C" int re4_instant_game_capture(unsigned char* out);
 extern "C" int re4_instant_game_restore(const unsigned char* in);
 extern "C" int re4_bench_place_payload(unsigned char* out);   // runtime/instant_store.cpp
@@ -66,6 +67,7 @@ std::atomic<int> gAsk(0);          // 20, 22 from the app; 0 nothing
 unsigned char* gSave;              // the game as it was (an instant save in memory); 0: from the title
 unsigned char* gPlace;             // the place's save, host order
 bool gFromTitle;
+unsigned gLogoWait;                // frames the start waited for the title's menu (0: not waiting)
 bool gResetAsked;                  // the soft reset to the title was asked for
 bool gHooked;
 unsigned gArrived;                 // frames since the place's load was handed over
@@ -93,6 +95,15 @@ void go()
 {
     if (!pG) {
         gState = kRefused;
+        return;
+    }
+    // the title's logos (Capcom, CRI, Dolby; the project owner was refused there, 06.11.2026): START until the main
+    // menu waits, then the start from the title's menu as always (hook)
+    const int step = re4_instant_title_step();
+    if (!re4_instant_game_at_title() && step >= 1 && step <= 4) {
+        gLogoWait = 1;
+        gState = kGoing;
+        re4_log("benchmark: the title's logos (step %d): START until its menu waits", step);
         return;
     }
     gFromTitle = re4_instant_game_at_title() != 0;
@@ -174,11 +185,29 @@ void hook(unsigned)
             go();
         }
     } else if (ask == 22) {
-        if (gState == kGoing || gState == kReady) {
+        if (gLogoWait) {
+            gLogoWait = 0;  // cancelled while the logos ran: nothing loaded yet
+            gState = kDone;
+        } else if (gState == kGoing || gState == kReady) {
             back();  // the view and the enemies free at once; the way back follows
         } else if (gState != kBack) {
             gState = kDone;
         }
+    }
+    if (gLogoWait) {
+        // waiting for the title's menu: START during the logos (not during the card check, step 1), at most 20 s
+        const int step = re4_instant_title_step();
+        if (re4_instant_game_at_title()) {
+            gLogoWait = 0;
+            go();
+        } else if (++gLogoWait > 600 || step < 1 || step > 5) {
+            gLogoWait = 0;
+            gState = kRefused;
+            re4_log("benchmark: the title's menu did not come (step %d)", step);
+        } else if (step >= 2 && step <= 4 && (gLogoWait % 20) == 0) {
+            re4_pad_add(0x1000);
+        }
+        return;
     }
     switch (gState.load()) {
     case kGoing:
@@ -251,6 +280,7 @@ int re4_bench_command(int what)
     }
     if (what == 20) {
         gState = kIdle;
+        gLogoWait = 0;
     }
     gAsk = what;
     return 3;  // queued

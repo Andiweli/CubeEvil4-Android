@@ -1378,6 +1378,12 @@ void TestBenchSteps() {
   Check(off, "60 FPS pacer: behind again and again, the in-between pictures pause");
   pacer.Restart(7.0);
   Check(!pacer.Off() && pacer.Chunk(7.05, false, nullptr), "60 FPS pacer: Restart: in-between pictures at once");
+  // a break with 4 s of grace: behind all the while within it, no pause
+  re4gx::SmoothPacer loading;
+  loading.Restart(0.0, 4.0);
+  bool paused = false;
+  for (int i = 1; i < 110; i++) paused |= !loading.Chunk(i / 30.0, true, nullptr) && loading.Off();
+  Check(!paused, "60 FPS pacer: no pause within the grace after a break (a room loading)");
 }
 
 void TestAutoLevel() {
@@ -1406,6 +1412,22 @@ void TestAutoLevel() {
     // straight down again: the next wait doubles (60 s)
     r.Play(6.5, 20.0, 2);
     Check(r.a.Level() == 2 || r.a.Hold() == 60.0, "auto level: down again soon: the next wait 60 s");
+  }
+  {
+    // breaks (06.11.2026): the app menu (no chunks for 20 s), then a room's loading and its programs (3 s slow with
+    // the GPU behind): no step down, no hold; slow on after the quiet seconds: down as before
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true);
+    r.Play(1.5, 30.0, 0);             // a window open when the menu opens
+    r.t += 20.0;                      // the menu: no chunks
+    r.Play(3.0, 20.0, 1);             // the room loads, the renderer behind
+    r.Play(10.0, 30.0, 0);
+    Check(r.a.Level() == 4 && r.a.Downs() == 0 && r.lines.empty(), "auto level: menu and room loading: no step down");
+    r.a.Restart(r.t);                 // a room starts (core_mode.cpp)
+    r.Play(3.5, 20.0, 1);             // its loading within the quiet seconds
+    Check(r.a.Level() == 4 && r.a.Downs() == 0, "auto level: the quiet seconds after a room start are not counted");
+    r.Play(6.0, 20.0, 1);             // slow on after them: the GPU really behind
+    Check(r.a.Level() == 3 && r.a.Downs() == 1, "auto level: slow after the quiet seconds: half a level down");
   }
   {
     // the bounce right after a step up

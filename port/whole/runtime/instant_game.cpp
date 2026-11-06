@@ -309,6 +309,15 @@ extern "C" int re4_instant_game_at_title(void)
     return titleReady() ? 1 : 0;
 }
 
+// The title's step (TITLE_WORK Rno0: 1 waiting for the card check, 2..4 the logos, 5 the main menu), -1 outside
+// the title (the benchmark asked during the logos, runtime/benchmark.cpp).
+extern "C" int re4_instant_title_step(void)
+{
+    if (!live(pG) || !StaFlagChk(pG, STA_TITLE) || !live(gTitle))
+        return -1;
+    return gTitle->Rno0;
+}
+
 extern "C" void re4_instant_game_pause(int on)
 {
     if (on) {

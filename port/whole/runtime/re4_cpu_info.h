@@ -209,6 +209,7 @@ inline WantedCores& Wanted()
     static thread_local WantedCores w;
     return w;
 }
+inline bool KeepOnFastCores();  // below
 
 // Which cores KeepOffSlowCores gives a thread. With three kinds of core (a prime core: the Retroid Pocket Flip 2's
 // Snapdragon 865 has one at 2841 MHz, three at 2419 and four at 1804) the render thread gets the fastest kind alone
@@ -277,7 +278,18 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role =
         return false;
     }
     if (sched_setaffinity(0, sizeof(set), &set) != 0) {
-        snprintf(out, size, "left to Android (not allowed: %s)", strerror(errno));
+        const int error = errno;
+        if (prime && role == kRenderThread) {
+            // the fastest core refused now: off the slowest meanwhile; KeepOnFastCores tries the fastest again
+            Wanted().set = set;
+            Wanted().on = true;
+            Wanted().role = kRenderThread;
+            const bool off = KeepOnFastCores();
+            snprintf(out, size, "%s (the fastest core refused now: %s)", off ? "off the slowest cores" : "left to Android",
+                     strerror(error));
+            return off;
+        }
+        snprintf(out, size, "left to Android (not allowed: %s)", strerror(error));
         return false;
     }
     if (len < static_cast<int>(size)) {
@@ -383,7 +395,42 @@ inline bool KeepOnFastCores()
     if (sched_getaffinity(0, sizeof(now), &now) != 0 || CPU_EQUAL(&now, &w.set)) {
         return false;
     }
-    return sched_setaffinity(0, sizeof(w.set), &w.set) == 0;
+    if (sched_setaffinity(0, sizeof(w.set), &w.set) == 0) {
+        return true;
+    }
+    // the fastest core refused (Android keeps the app in a group of cores without it now): the render thread on the
+    // cores off the slowest kind meanwhile, the fastest again at a later call (the project owner's log 06.11.2026: it
+    // sat on the middle cores while core 7 was free)
+    if (w.role == kRenderThread) {
+        const Layout& l = GetLayout();
+        cpu_set_t off;
+        CPU_ZERO(&off);
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (l.maxKHz[cpu] && l.Kind(cpu) != 0 && CoreOnline(cpu)) {
+                CPU_SET(cpu, &off);
+            }
+        }
+        return !CPU_EQUAL(&now, &off) && sched_setaffinity(0, sizeof(off), &off) == 0;
+    }
+    return false;
+}
+
+// "cores 4 5 6": the cores the calling thread may use now (what Android and KeepOffSlowCores left it)
+inline void AffinityText(char* out, size_t size)
+{
+    cpu_set_t now;
+    CPU_ZERO(&now);
+    int len = snprintf(out, size, "cores");
+    if (sched_getaffinity(0, sizeof(now), &now) != 0) {
+        snprintf(out, size, "cores not readable");
+        return;
+    }
+    const long n = sysconf(_SC_NPROCESSORS_CONF);
+    for (long cpu = 0; cpu < n && cpu < CPU_SETSIZE && len < static_cast<int>(size); cpu++) {
+        if (CPU_ISSET(cpu, &now)) {
+            len += snprintf(out + len, size - len, " %ld", cpu);
+        }
+    }
 }
 
 inline bool KeepOffSlowCores(char* out, size_t size, int role = kAnyThread)
