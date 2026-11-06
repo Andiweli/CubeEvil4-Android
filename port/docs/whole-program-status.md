@@ -127,8 +127,17 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      Tabellen der Verkaufsfassungen mit deren Discs. Geprüft: Datenvergleich, Bau; die Karte selbst nicht im Spiel
      geöffnet. Kein Fehler eines Patches, Cheats oder Schnellspeichers: die Karte liest nur die Story-Flags.
    - **Licht durch Leons Kopf (r102, neues Nutzer-Log):** US-Disc, Lens Flares aus, Spielstand am Raumanfang
-     (−16658, 0, −15732), Tiefenschärfe mit Autofokus. Also kein Linsenreflex. Ohne GX-Aufnahme (R3) nicht
-     nachzustellen; die Aufnahme des Nutzers ist angekündigt.
+     (−16658, 0, −15732), Tiefenschärfe mit Autofokus. Also kein Linsenreflex.
+     **GX-Aufnahme des Nutzers (`reports/0984d-lightning-gx`, zwei Serien zu 12 Bildern):** in Serie 01 sitzt in
+     mehreren Bildern ein gelb-oranger Lichtfleck am Rand von Leons Hinterkopf; die Laterne hängt an der Kette hinter
+     ihm, ihr Leuchten (esp09/esp0e) wird ohne Tiefentest gezeichnet, ob es zu sehen ist, entscheidet das Spiel selbst
+     per `GXPeekZ` an einzelnen Bildpunkten. Am PC (`gx_chunk_render`) zeichnet die Serie den Fleck genauso: das Spiel
+     bekam „frei“ zur Antwort. Das Tiefenraster für `GXPeekZ` hat halbe GameCube-Auflösung und nahm je 2×2-Block
+     **einen** Punkt; am Kopfrand sah die Zelle so die Wand dahinter. **Jetzt (`gx_gl.cpp`, `MakePeek`):** je Zelle
+     die nächstgelegene Tiefe der vier GameCube-Pixel; liegt in der Zelle etwas vor dem Licht, bleibt es aus. Geprüft:
+     `gx_gl_check` (Tiefenraster-Tests), Bau. Nicht geprüft: am Gerät; aus der Aufnahme selbst nicht nachweisbar (sie
+     enthält die Zeichenaufträge nach der Entscheidung des Spiels). Liegt die Laterne wirklich neben dem Kopf, leuchtet
+     sie wie auf dem GameCube weiter.
    - **Eingabe-Verzögerung mit Bluetooth-Controller (Xbox 045e:02e0, moto g15):** der Weg: jede Android-Meldung
      geht sofort per JNI an den Kern (`re4_pad_live`), das Spiel liest einmal pro Bild (PADRead, 33 ms bei 30 FPS);
      dazwischen keine Warteschlange. Knöpfe kommen von Android sofort, Stick-Bewegungen sammelte Android bisher bis

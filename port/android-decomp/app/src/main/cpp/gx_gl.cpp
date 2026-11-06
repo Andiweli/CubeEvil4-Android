@@ -4713,16 +4713,19 @@ struct GxRenderer::Impl {
                               "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
                               "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
                               "}\n";
-    // cell (x, y) of kDepthWidth x kDepthHeight: the depth at the EFB pixel (2x + 1, 2y + 1) (the
-    // game peeks single pixels; the centre of a 2 x 2 block stands for it), as GX's 24 bits in
-    // r (low byte), g, b (a 0: a cell is the 24-bit value)
+    // cell (x, y) of kDepthWidth x kDepthHeight: the nearest depth of the EFB pixels (2x .. 2x + 1, 2y .. 2y + 1)
+    // at their centres (the game peeks single pixels, a cell stands for four), as GX's 24 bits in r (low byte), g, b
+    // (a 0: a cell is the 24-bit value). Until 06.11.2026 the depth at one point of the block: a lantern swinging just
+    // behind the edge of Leon's head in r102 peeked a cell that saw the wall behind him, its glow (esp09/esp0e) shone
+    // through his head (user report with GX series, 4x). Nearest: anything in front within the cell hides the glow.
     static const char kFs[] =
         "#version 300 es\nprecision highp float;\nprecision highp int;\n"
         "uniform highp sampler2D depths;\nuniform vec2 size;\nuniform float scale;\nout vec4 o;\n"
+        "float at(vec2 p) { return texelFetch(depths, ivec2(min(p * scale, size - 1.0)), 0).r; }\n"
         "void main() {\n"
-        "  vec2 c = floor(gl_FragCoord.xy);\n"
-        "  ivec2 t = ivec2(min((c * 2.0 + 1.0) * scale, size - 1.0));\n"
-        "  uint z = min(uint(texelFetch(depths, t, 0).r * 16777215.0 + 0.5), 16777215u);\n"
+        "  vec2 c = floor(gl_FragCoord.xy) * 2.0;\n"
+        "  float d = min(min(at(c + vec2(0.5, 0.5)), at(c + vec2(1.5, 0.5))), min(at(c + vec2(0.5, 1.5)), at(c + vec2(1.5, 1.5))));\n"
+        "  uint z = min(uint(d * 16777215.0 + 0.5), 16777215u);\n"
         "  o = vec4(float(z & 255u), float((z >> 8) & 255u), float((z >> 16) & 255u), 0.0) / 255.0;\n"
         "}\n";
     std::string log;
