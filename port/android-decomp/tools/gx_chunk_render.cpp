@@ -197,6 +197,27 @@ int main(int argc, char **argv) {
       if (const char *cache = std::getenv("RE4_GX_PROGRAM_CACHE"))
         if (*cache && !renderer->SetProgramCache(cache))
           std::fprintf(stderr, "program cache: the driver keeps no binaries\n");
+      // RE4_GX_PEEK_AT=x,y (GameCube pixels, as the game's GXPeekZ): the depth map the core would answer from
+      // (GxRenderer::SetDepthSink), the 7 x 7 cells around (x, y) of each map the renderer hands over, 24-bit
+      // depths in hex (the light through Leon's head, r102, 06.11.2026)
+      if (const char *at = std::getenv("RE4_GX_PEEK_AT")) {
+        int px = 0, py = 0;
+        if (std::sscanf(at, "%d,%d", &px, &py) == 2)
+          renderer->SetDepthSink([px, py](const std::uint32_t *cells, std::uint32_t serial) {
+            const int cx = px / 2, cy = py / 2;
+            std::printf("depth map of picture %u around (%d, %d), cell (%d, %d) in the middle:\n", serial, px, py, cx, cy);
+            for (int y = cy - 3; y <= cy + 3; y++) {
+              std::printf("  ");
+              for (int x = cx - 3; x <= cx + 3; x++) {
+                const bool in = x >= 0 && y >= 0 && x < re4gx::GxRenderer::kDepthWidth &&
+                                y < re4gx::GxRenderer::kDepthHeight;
+                std::printf(x == cx && y == cy ? "[%06x]" : " %06x ",
+                            in ? cells[y * re4gx::GxRenderer::kDepthWidth + x] & 0xFFFFFFu : 0u);
+              }
+              std::printf("\n");
+            }
+          });
+      }
     }
     lastSequence = chunk.sequence;
     lastFrame = loaded.frame;

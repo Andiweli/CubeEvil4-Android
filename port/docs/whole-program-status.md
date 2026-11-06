@@ -76,7 +76,29 @@ Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerar
    Wechsel 20–21 ms, das Bild danach 38–42 ms (davor 50, danach 34–37); mit MSAA der Wechsel 30–42 ms, das Bild danach
    68–125 ms (danach 55–60). Bilder vor, direkt nach und nach dem Wechsel richtig. Am Gerät nicht gemessen: dort kostet
    ein Wechsel vermutlich höchstens ein Bild (neue EFB-Texturen, MSAA-Puffer, die Kopien umkopiert).
-6. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
+6. **Licht durch Leons Kopf (r102, Nutzer meldet es auch mit 0.98.4), erneut untersucht, nichts geändert.**
+   - **Wie das Spiel prüft** (`esp0e.cpp Esp0e_HideCheck`, nach dem Zeichnen des Bildes, `EspAddOtAfterRender`): 12
+     Punkte im Kreis `hide_r` um die Laterne (Bildposition `scrOld`), je `GXPeekZ` nach `GXDrawDone` (auf dem GameCube die
+     Tiefe des **aktuellen** Bildes); verdeckt, wer mehr als 5000 vor dem Leuchten liegt; Helligkeit `1 − 0,1 × verdeckte
+     Punkte` (alle 12 verdeckt: sofort 0), sonst je Bild 60 % näher an den neuen Wert. Das Leuchten (Bildschirm-Sprite)
+     wird ohne Tiefentest gezeichnet und liegt dann über allem, auch über dem Kopf.
+   - **Port:** `re4_gx_efb_peek` antwortet aus der Tiefenkarte eines früheren Bildes (bis 8 alt, typisch 2–3, mit 60 FPS
+     eines mehr). Für einen **ruhenden** Kopf ist das gleich (der Kopf deckt in jeder Karte dieselben Punkte); anders nur,
+     wenn sich das Verdeckende bewegt (Leon, Kamera).
+   - **GX-Serie des Nutzers (`reports/0984d-lightning-gx` 01, US-Disc, 0.98.3):** neues `gx_chunk_render
+     RE4_GX_PEEK_AT=x,y` gibt die Zellen der Karte aus, die der Kern bekäme. Am Lichtfleck (XFB 218, 158) zeigt die Karte
+     des **aktuellen** Bildes die Laterne selbst (Tiefe 0xFBC49C), links daneben den Kopf (0xEF…), weiter rechts die Wand
+     (0xFD6…): die Laterne schaut dort am Kopfrand vorbei, das Spiel zeichnet sein Leuchten nach den eigenen Regeln, auf
+     dem GameCube ebenso.
+   - **Video des Nutzers (`reports/0984-20261105/leon-light-glitch`, 4x, 60 FPS an, 30 Spielbilder je Sekunde):** die
+     Laterne schwingt hinter den Kopf; noch 3–4 Bilder danach liegt ein rötlicher Schimmer auf der rechten Haarseite und
+     klingt ab. Das passt zum Ausblenden des Spiels (einige der 12 Punkte schauen noch am Rand vorbei, 60 % je Bild), nicht
+     zu einer falschen Tiefe. Nicht belegt, ob der GameCube genau so aussieht.
+   - **Offen / gebraucht:** ein Vergleich in Dolphin an derselben Stelle (Laterne zum Schwingen bringen, gleiche Haltung),
+     von CubeEvil4 eine R3-Serie genau im Moment des Schimmers mit dem Fehlerbericht direkt danach, und ob es mit 60 FPS
+     aus genauso aussieht. Am PC ließ sich das Schwingen nicht auslösen; die PC-Läufe haben keinen Renderer, der dem Kern
+     Tiefenkarten gibt (dort antwortet `GXPeekZ` immer „frei“).
+7. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
    Kern-, Karten-, Fernprozess-, Format- und Filmtests, libc++); aarch64 übersetzt. Nicht auf einem Gerät.
 
 ## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP, Benchmark, Kartenziel (05./06.11.2026, Branch `work`, Patches 0204–0209)
