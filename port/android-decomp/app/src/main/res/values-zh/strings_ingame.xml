@@ -94,6 +94,11 @@
     <string name="ingame_card_none">没有记忆卡。</string>
     <string name="ingame_export">导出存档（.gci）</string>
     <string name="ingame_import">导入存档（.gci、.zip、.raw）</string>
+    <string name="ingame_discs">光盘</string>
+    <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
+    <string name="ingame_import_discs">导入其他光盘</string>
+    <string name="ingame_import_discs_text">游戏将结束并打开开始界面：请在那里导入两张光盘，然后开始游戏。未保存的进度将会丢失；存档、记忆卡和设置都会保留。</string>
+    <string name="ingame_start_screen">开始界面</string>
 
     <string name="ingame_log">错误日志</string>
     <string name="ingame_log_help">记录应用的报告（崩溃或卡死时也会记录）。报告包含本次和上一次运行的日志。</string>
@@ -118,7 +123,7 @@
     <string name="ingame_end">结束</string>
     <string name="ingame_continue">继续</string>
     <string name="ingame_no_debug_menu">此核心尚无调试菜单</string>
-    <string name="ingame_debug_menu_retail">调试菜单仅在调试版光盘下可用。要游玩其他版本，请在开始界面导入该版本的两张光盘。</string>
+    <string name="ingame_debug_menu_retail">调试菜单仅在调试版光盘下可用。要游玩其他版本，请打开应用菜单（按 SELECT），选择“管理”，再选择“导入其他光盘”。</string>
     <string name="ingame_no_menu">此核心尚无菜单</string>
     <string name="ingame_no_file_picker">此设备上没有文件选择器</string>
     <string name="ingame_report_saved">报告已保存</string>
@@ -155,7 +160,7 @@
     <string name="ingame_display_summary">分辨率、画面比例与效果</string>
     <string name="ingame_controls_summary">触控、陀螺仪与便捷操作</string>
     <string name="ingame_performance_summary">性能核心、60 FPS 与帧率显示</string>
-    <string name="ingame_management_summary">记忆卡、报告与源代码</string>
+    <string name="ingame_management_summary">记忆卡、光盘、报告与源代码</string>
     <string name="ingame_audio">音频</string>
     <string name="ingame_audio_summary">音乐与音效</string>
     <string name="ingame_cheats_summary">生命、弹药、金钱与额外游戏</string>

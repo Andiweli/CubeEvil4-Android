@@ -93,6 +93,11 @@
     <string name="ingame_card_none">कोई मेमोरी कार्ड नहीं।</string>
     <string name="ingame_export">सेव गेम एक्सपोर्ट करें (.gci)</string>
     <string name="ingame_import">सेव गेम इम्पोर्ट करें (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">डिस्क</string>
+    <string name="ingame_discs_help">कोई दूसरा संस्करण खेलने के लिए: गेम बंद होगा, और आप स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करेंगे। सेव, मेमोरी कार्ड और सेटिंग्स बनी रहेंगी।</string>
+    <string name="ingame_import_discs">दूसरी डिस्क इम्पोर्ट करें</string>
+    <string name="ingame_import_discs_text">गेम बंद होगा और स्टार्ट स्क्रीन खुलेगी: वहाँ दोनों डिस्क इम्पोर्ट करें, फिर गेम शुरू करें। जो प्रगति सेव नहीं हुई, वह खो जाएगी; सेव, मेमोरी कार्ड और सेटिंग्स बनी रहेंगी।</string>
+    <string name="ingame_start_screen">स्टार्ट स्क्रीन</string>
 
     <string name="ingame_log">त्रुटि लॉग</string>
     <string name="ingame_log_help">ऐप की रिपोर्ट रिकॉर्ड करता है (क्रैश होने या अटकने पर भी)। रिपोर्ट में इस और पिछले रन का लॉग होता है।</string>
@@ -117,7 +122,7 @@
     <string name="ingame_end">बंद करें</string>
     <string name="ingame_continue">जारी रखें</string>
     <string name="ingame_no_debug_menu">इस कोर में अभी डीबग मेनू नहीं है</string>
-    <string name="ingame_debug_menu_retail">डीबग मेनू केवल डीबग संस्करण की डिस्क के साथ है। कोई दूसरा संस्करण खेलने के लिए, स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करें।</string>
+    <string name="ingame_debug_menu_retail">डीबग मेनू केवल डीबग संस्करण की डिस्क के साथ है। कोई दूसरा संस्करण खेलने के लिए, ऐप मेनू खोलें (SELECT दबाएँ) और प्रबंधन चुनें, फिर दूसरी डिस्क इम्पोर्ट करें।</string>
     <string name="ingame_no_menu">इस कोर में अभी मेनू नहीं है</string>
     <string name="ingame_no_file_picker">इस डिवाइस पर फ़ाइल चुनने का कोई ऐप नहीं है</string>
     <string name="ingame_report_saved">रिपोर्ट सहेजी गई</string>
@@ -155,7 +160,7 @@
     <string name="ingame_display_summary">रिज़ॉल्यूशन, चित्र और प्रभाव</string>
     <string name="ingame_controls_summary">टच, जाइरो और सुविधाजनक नियंत्रण</string>
     <string name="ingame_performance_summary">तेज़ कोर, 60 FPS और जानकारी</string>
-    <string name="ingame_management_summary">मेमोरी कार्ड, रिपोर्ट और सोर्स</string>
+    <string name="ingame_management_summary">मेमोरी कार्ड, डिस्क, रिपोर्ट और सोर्स</string>
     <string name="ingame_audio">ऑडियो</string>
     <string name="ingame_audio_summary">संगीत और साउंड इफ़ेक्ट</string>
     <string name="ingame_cheats_summary">स्वास्थ्य, गोला-बारूद, पैसा और अतिरिक्त गेम</string>

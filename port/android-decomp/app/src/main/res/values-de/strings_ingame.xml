@@ -93,6 +93,11 @@
     <string name="ingame_card_none">Keine Speicherkarte.</string>
     <string name="ingame_export">Spielstände exportieren (.gci)</string>
     <string name="ingame_import">Spielstände importieren (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">Discs</string>
+    <string name="ingame_discs_help">Für eine andere Version: Das Spiel endet, und du importierst ihre beiden Discs auf dem Startbildschirm. Spielstände, Speicherkarte und Einstellungen bleiben erhalten.</string>
+    <string name="ingame_import_discs">Andere Discs importieren</string>
+    <string name="ingame_import_discs_text">Das Spiel endet und der Startbildschirm öffnet sich: Importiere dort beide Discs und starte dann das Spiel. Nicht gespeicherter Fortschritt geht verloren; Spielstände, Speicherkarte und Einstellungen bleiben erhalten.</string>
+    <string name="ingame_start_screen">Startbildschirm</string>
 
     <string name="ingame_log">Fehlerprotokoll</string>
     <string name="ingame_log_help">Zeichnet einen Bericht der App auf (auch nach einem Absturz oder wenn sie hängt). Der Bericht enthält das Protokoll dieses und des vorigen Laufs.</string>
@@ -117,7 +122,7 @@
     <string name="ingame_end">Beenden</string>
     <string name="ingame_continue">Weiterspielen</string>
     <string name="ingame_no_debug_menu">Dieser Kern hat noch kein Debug-Menü</string>
-    <string name="ingame_debug_menu_retail">Das Debug-Menü gibt es nur mit den Discs der Debug-Fassung. Für eine andere Version importiere ihre beiden Discs auf dem Startbildschirm.</string>
+    <string name="ingame_debug_menu_retail">Das Debug-Menü gibt es nur mit den Discs der Debug-Fassung. Für eine andere Version öffne das App-Menü (SELECT drücken) und wähle Management, dann Andere Discs importieren.</string>
     <string name="ingame_no_menu">Dieser Kern hat noch kein Menü</string>
     <string name="ingame_no_file_picker">Keine Dateiauswahl auf diesem Gerät</string>
     <string name="ingame_report_saved">Bericht gespeichert</string>
@@ -155,7 +160,7 @@
     <string name="ingame_display_summary">Auflösung, Bildformat &amp; Effekte</string>
     <string name="ingame_controls_summary">Touch, Gyro &amp; Komfortsteuerung</string>
     <string name="ingame_performance_summary">Leistungskerne, 60 FPS &amp; Anzeige</string>
-    <string name="ingame_management_summary">Speicherkarte, Berichte &amp; Quelle</string>
+    <string name="ingame_management_summary">Speicherkarte, Discs, Berichte &amp; Quelle</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musik &amp; Soundeffekte</string>
     <string name="ingame_cheats_summary">Gesundheit, Munition, Geld &amp; Extraspiele</string>

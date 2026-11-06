@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.7-beta: Laser in den 60-FPS-Zwischenbildern (06.11.2026, Branch `work`)
+## Version 0.98.7-beta: Laser in den 60-FPS-Zwischenbildern, andere Discs importieren (06.11.2026, Branch `work`)
 
 Version 0.98.7-beta (versionCode 101), Releasetext `port/android-decomp/docs/releases/v0.98.7-beta.md`. Der Laser-Fix
 (Commit 192a6a87) entstand, nachdem 0.98.6 schon beschlossen war. Der Projektinhaber hat 0.98.6-beta ohne ihn
@@ -30,6 +30,29 @@ verschoben, `v0.98.6-beta.md` wieder wie veröffentlicht.
    Nachbarn. `gx_chunk_render` zählt „Einbild-Effekte wiedererkannt“. **Am Gerät nicht geprüft;** den Laserpunkt auf
    einem Gegner gab es in keiner Serie (gleiche Regel). Gyro-Zielen bewegt den Laser schneller: dort wirkte der Fehler
    stärker, der Fix gleich.
+2. **Andere Discs über vorhandene importieren (Vorschlag der Elternsitzung, vom Projektinhaber angenommen, 06.11.2026).**
+   Mit fertig importierten Discs sprang der Startbildschirm (`MainActivity.changed`: `startupShown` ist in jedem neuen
+   Prozess false) sofort ins Spiel, und das Spiel endet nur (`CoreActivity.quit`: `finishAndRemoveTask`,
+   `System.exit`): Der Startbildschirm war nicht mehr zu erreichen, obwohl der SELECT-Hinweis von 0.98.6 und die
+   Disc-Fehlermeldungen auf ihn verweisen. Einziger Ausweg war App-Speicher löschen (mit Spielständen). Der Import
+   selbst konnte es schon (`ImportManager` ersetzt die Disc, `mixedReleases` meldet gemischte Versionen).
+   **Jetzt:** Management hat einen Abschnitt „Discs“ mit „Import other discs“ (Rückfrage wie bei „End“: Fortschritt
+   ohne Speichern geht verloren; „Start screen“ / „Cancel“). Danach `CoreActivity.openStartScreen`: Protokoll aus,
+   `LauncherRestartActivity` (eigener Prozess `:restart`, eigene Aufgabe, durchsichtig) starten, Spiel-Aufgabe
+   schließen. Die neue Activity beendet den Spielprozess (`Process.killProcess`, wartet bis zu 2 s, bis
+   `/proc/<pid>` weg ist; der Kernprozess endet mit, `coreproc serve`), öffnet `MainActivity` mit
+   `SHOW_LAUNCHER` in einem neuen Prozess (dort kann der Kern wieder starten) und beendet sich. `SHOW_LAUNCHER` setzt
+   `startupShown`: Disc 1/2 importieren und „Start game“ von Hand. `Re4Application` lädt im Prozess `:restart`
+   weder Kern noch Import. Falls die Activity nicht kommt, endet das Spiel nach 3 s wie mit „End“ (eigener Handler,
+   weil `onDestroy` die Nachrichten von `main` löscht). Spielstände, Speicherkarte und Einstellungen sind Dateien der
+   App und bleiben. Auch die Disc-Fehlermeldungen (Abbild beschädigt, Kopie beschädigt, unbekannt; nicht „Lesen
+   fehlgeschlagen“) haben jetzt „Start screen“ statt „Quit“. Der SELECT-Hinweis nennt den Weg („open the app menu
+   (press SELECT) and choose Management, then Import other discs“), die Zusammenfassung von Management nennt „discs“.
+   Texte in allen 11 Sprachen (Übersetzungen der Sitzung). Geprüft: `check_translations.py` (je 286 Texte ok),
+   Java-Bau core und classic, `CoreMenuLayoutTest` (neu `managementOffersOtherDiscsAndAsksFirst`: Knopf da,
+   Rückfrage, Cancel ruft nichts, „Start screen“ ruft `importDiscs`; alle Seiten in 10 Sprachen ohne Überlauf).
+   **Am Gerät nicht geprüft:** der Prozesswechsel selbst (Spiel endet, Startbildschirm ohne Autostart, danach Start
+   des Kerns im neuen Prozess, auch mit Kern im eigenen Prozess auf 64 bit).
 
 Offen aus 0.98.6 (warten auf Material): das Händlerlicht, das bei bewegter Kamera durch Wände blitzt, braucht eine
 R3-Serie des Testers mit eingeschaltetem Fehlerprotokoll (Zeile „GXPeekZ:“; Mittenprüfung Patch 0213, Ringprüfung der

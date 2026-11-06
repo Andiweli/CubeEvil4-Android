@@ -93,6 +93,11 @@
     <string name="ingame_card_none">Нет карты памяти.</string>
     <string name="ingame_export">Экспорт сохранений (.gci)</string>
     <string name="ingame_import">Импорт сохранений (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">Диски</string>
+    <string name="ingame_discs_help">Чтобы играть в другую версию: игра завершится, и вы импортируете оба её диска на стартовом экране. Сохранения, карта памяти и настройки останутся.</string>
+    <string name="ingame_import_discs">Импорт других дисков</string>
+    <string name="ingame_import_discs_text">Игра завершится, и откроется стартовый экран: импортируйте там оба диска, затем запустите игру. Несохранённый прогресс будет потерян; сохранения, карта памяти и настройки останутся.</string>
+    <string name="ingame_start_screen">Стартовый экран</string>
 
     <string name="ingame_log">Журнал ошибок</string>
     <string name="ingame_log_help">Записывает отчёт приложения (в том числе после сбоя или зависания). Отчёт содержит журнал этого и предыдущего запуска.</string>
@@ -117,7 +122,7 @@
     <string name="ingame_end">Завершить</string>
     <string name="ingame_continue">Продолжить</string>
     <string name="ingame_no_debug_menu">У этого ядра пока нет отладочного меню</string>
-    <string name="ingame_debug_menu_retail">Отладочное меню есть только с дисками отладочной версии. Чтобы играть в другую версию, импортируйте оба её диска на стартовом экране.</string>
+    <string name="ingame_debug_menu_retail">Отладочное меню есть только с дисками отладочной версии. Чтобы играть в другую версию, откройте меню приложения (нажмите SELECT) и выберите «Управление данными», затем «Импорт других дисков».</string>
     <string name="ingame_no_menu">У этого ядра пока нет меню</string>
     <string name="ingame_no_file_picker">На этом устройстве нет средства выбора файлов</string>
     <string name="ingame_report_saved">Отчёт сохранён</string>
@@ -157,7 +162,7 @@
     <string name="ingame_display_summary">Разрешение, формат и эффекты</string>
     <string name="ingame_controls_summary">Сенсор, гироскоп и удобство</string>
     <string name="ingame_performance_summary">Мощные ядра, 60 FPS и счётчик</string>
-    <string name="ingame_management_summary">Карта памяти, отчёты и исходники</string>
+    <string name="ingame_management_summary">Карта памяти, диски, отчёты и исходники</string>
     <string name="ingame_audio">Звук</string>
     <string name="ingame_audio_summary">Музыка и звуковые эффекты</string>
     <string name="ingame_cheats_summary">Здоровье, патроны, деньги и доп. игры</string>

@@ -93,6 +93,11 @@
     <string name="ingame_card_none">No hay tarjeta de memoria.</string>
     <string name="ingame_export">Exportar partidas (.gci)</string>
     <string name="ingame_import">Importar partidas (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">Discos</string>
+    <string name="ingame_discs_help">Para jugar otra versión: la partida termina e importas sus dos discos en la pantalla de inicio. Las partidas guardadas, la tarjeta de memoria y los ajustes se conservan.</string>
+    <string name="ingame_import_discs">Importar otros discos</string>
+    <string name="ingame_import_discs_text">La partida termina y se abre la pantalla de inicio: importa allí los dos discos y luego inicia el juego. Se perderá el progreso no guardado; las partidas guardadas, la tarjeta de memoria y los ajustes se conservan.</string>
+    <string name="ingame_start_screen">Pantalla de inicio</string>
 
     <string name="ingame_log">Registro de errores</string>
     <string name="ingame_log_help">Graba un informe de la app (también tras un cierre inesperado o si se bloquea). El informe contiene el registro de esta sesión y de la anterior.</string>
@@ -117,7 +122,7 @@
     <string name="ingame_end">Terminar</string>
     <string name="ingame_continue">Continuar</string>
     <string name="ingame_no_debug_menu">Este núcleo aún no tiene menú de depuración</string>
-    <string name="ingame_debug_menu_retail">El menú de depuración solo existe con los discos de la versión debug. Para jugar otra versión, importa sus dos discos en la pantalla de inicio.</string>
+    <string name="ingame_debug_menu_retail">El menú de depuración solo existe con los discos de la versión debug. Para jugar otra versión, abre el menú de la app (pulsa SELECT) y elige Gestión y luego Importar otros discos.</string>
     <string name="ingame_no_menu">Este núcleo aún no tiene menú</string>
     <string name="ingame_no_file_picker">No hay selector de archivos en este dispositivo</string>
     <string name="ingame_report_saved">Informe guardado</string>
@@ -156,7 +161,7 @@
     <string name="ingame_display_summary">Resolución, formato y efectos</string>
     <string name="ingame_controls_summary">Táctil, giroscopio y comodidad</string>
     <string name="ingame_performance_summary">Núcleos de rendimiento, 60 FPS e indicador</string>
-    <string name="ingame_management_summary">Tarjeta, informes y código fuente</string>
+    <string name="ingame_management_summary">Tarjeta, discos, informes y código fuente</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Música y efectos de sonido</string>
     <string name="ingame_cheats_summary">Salud, munición, dinero y juegos extra</string>

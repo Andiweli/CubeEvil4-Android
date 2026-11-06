@@ -45,6 +45,8 @@ final class CoreMenu extends Dialog {
     void graphicsChanged();
     void exportAll();
     void importFiles();
+    /** "Import other discs" (the menu asked first): the game ends and the start screen opens without starting it. */
+    void importDiscs();
     void shareReport();
     void saveReport();
     void logChanged(boolean on);
@@ -443,6 +445,16 @@ final class CoreMenu extends Dialog {
     bench.setEnabled(host != null);
     keys.addUnderFirst(bench);
     body.addView(outer);
+  }
+  /** "Import other discs": the game ends for it (progress not saved is lost), so the menu asks first. */
+  private void askImportDiscs() {
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_import_discs)
+        .setMessage(R.string.ingame_import_discs_text)
+        .setNegativeButton(R.string.ingame_cancel, null)
+        .setPositiveButton(R.string.ingame_start_screen, (d, w) -> host.importDiscs()).create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    dialog.show();
   }
   /** "Start the benchmark?" with what it does; the menu closes for it. */
   private void askBenchmark() {
@@ -1212,6 +1224,9 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons cardButtons = buttonsRow(body);
     exportAll = cellAction(cardButtons, s(R.string.ingame_export), v -> host.exportAll());
     cellAction(cardButtons, s(R.string.ingame_import), v -> host.importFiles()); refreshCard();
+    // another release over the imported discs (wish of the project owner, 06.11.2026)
+    heading(R.string.ingame_discs); help(R.string.ingame_discs_help);
+    cellAction(buttonsRow(body), s(R.string.ingame_import_discs), v -> askImportDiscs());
     heading(R.string.ingame_log); help(R.string.ingame_log_help);
     MenuLayout.Buttons log = buttonsRow(body);
     toggle(log, R.string.ingame_log_record, CoreLog.enabled(getContext()), on -> host.logChanged(on));

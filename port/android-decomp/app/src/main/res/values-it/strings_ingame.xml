@@ -93,6 +93,11 @@
     <string name="ingame_card_none">Nessuna Memory Card.</string>
     <string name="ingame_export">Esporta salvataggi (.gci)</string>
     <string name="ingame_import">Importa salvataggi (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">Dischi</string>
+    <string name="ingame_discs_help">Per giocare un’altra versione: la partita termina e importi i suoi due dischi dalla schermata iniziale. Salvataggi, Memory Card e impostazioni restano.</string>
+    <string name="ingame_import_discs">Importa altri dischi</string>
+    <string name="ingame_import_discs_text">La partita termina e si apre la schermata iniziale: importa lì i due dischi, poi avvia il gioco. I progressi non salvati andranno persi; salvataggi, Memory Card e impostazioni restano.</string>
+    <string name="ingame_start_screen">Schermata iniziale</string>
 
     <string name="ingame_log">Registro errori</string>
     <string name="ingame_log_help">Registra un rapporto dell’app (anche dopo un arresto anomalo o un blocco). Il rapporto contiene il registro di questa sessione e di quella precedente.</string>
@@ -117,7 +122,7 @@
     <string name="ingame_end">Termina</string>
     <string name="ingame_continue">Continua</string>
     <string name="ingame_no_debug_menu">Questo core non ha ancora un menu di debug</string>
-    <string name="ingame_debug_menu_retail">Il menu di debug esiste solo con i dischi della versione debug. Per giocare un’altra versione, importa i suoi due dischi dalla schermata iniziale.</string>
+    <string name="ingame_debug_menu_retail">Il menu di debug esiste solo con i dischi della versione debug. Per giocare un’altra versione, apri il menu dell’app (premi SELECT) e scegli Gestione, poi Importa altri dischi.</string>
     <string name="ingame_no_menu">Questo core non ha ancora un menu</string>
     <string name="ingame_no_file_picker">Nessun selettore di file su questo dispositivo</string>
     <string name="ingame_report_saved">Rapporto salvato</string>
@@ -156,7 +161,7 @@
     <string name="ingame_display_summary">Risoluzione, formato ed effetti</string>
     <string name="ingame_controls_summary">Touch, giroscopio e comodità</string>
     <string name="ingame_performance_summary">Core prestanti, 60 FPS e indicatore</string>
-    <string name="ingame_management_summary">Scheda, rapporti e sorgenti</string>
+    <string name="ingame_management_summary">Scheda, dischi, rapporti e sorgenti</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musica ed effetti sonori</string>
     <string name="ingame_cheats_summary">Salute, munizioni, soldi e giochi extra</string>

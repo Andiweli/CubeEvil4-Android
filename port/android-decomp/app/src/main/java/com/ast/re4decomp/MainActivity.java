@@ -15,6 +15,9 @@ import java.util.concurrent.*;
 
 /** One action prepares the verified room bundle and opens gameplay. */
 public final class MainActivity extends Activity implements ImportManager.Listener {
+  /** Opened from the game (LauncherRestartActivity: "Import other discs"): the launcher stays, the game does not
+   *  start at once with the discs there; "Start game" starts it. */
+  static final String SHOW_LAUNCHER = "showLauncher";
   private final ExecutorService worker = Executors.newSingleThreadExecutor();
   private final Handler main = new Handler(Looper.getMainLooper());
   private volatile boolean destroyed;
@@ -30,6 +33,7 @@ public final class MainActivity extends Activity implements ImportManager.Listen
   private List<RoomCatalog.Entry> shown = Collections.emptyList();
   @Override public void onCreate(Bundle state) {
     super.onCreate(state); startupShown=state!=null&&state.getBoolean("startupShown",false); imports = ((Re4Application)getApplication()).imports;
+    if (getIntent().getBooleanExtra(SHOW_LAUNCHER, false)) startupShown = true;
     core = getResources().getBoolean(R.bool.core_mode);
     LinearLayout body = new LinearLayout(this); body.setOrientation(LinearLayout.VERTICAL);
     int p = dp(20); body.setPadding(p, core ? dp(12) : p, p, core ? dp(12) : p);

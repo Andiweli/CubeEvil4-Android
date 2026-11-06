@@ -104,6 +104,11 @@
     <string name="ingame_card_none">No memory card.</string>
     <string name="ingame_export">Export Savegames (.gci)</string>
     <string name="ingame_import">Import Savegames (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">Discs</string>
+    <string name="ingame_discs_help">To play another version: the game ends, and you import both of its discs on the start screen. Saves, memory card and settings stay.</string>
+    <string name="ingame_import_discs">Import other discs</string>
+    <string name="ingame_import_discs_text">The game ends and the start screen opens: import both discs there, then start the game. Progress not saved is lost; saves, memory card and settings stay.</string>
+    <string name="ingame_start_screen">Start screen</string>
 
     <!-- Error log -->
     <string name="ingame_log">Error log</string>
@@ -132,7 +137,7 @@
     <string name="ingame_end">End</string>
     <string name="ingame_continue">Continue</string>
     <string name="ingame_no_debug_menu">This core has no debug menu yet</string>
-    <string name="ingame_debug_menu_retail">The debug menu exists only with the debug build\'s discs. To play another version, import both of its discs on the start screen.</string>
+    <string name="ingame_debug_menu_retail">The debug menu exists only with the debug build\'s discs. To play another version, open the app menu (press SELECT) and choose Management, then Import other discs.</string>
     <string name="ingame_no_menu">This core has no menu yet</string>
     <string name="ingame_no_file_picker">No file picker on this device</string>
     <string name="ingame_report_saved">Report saved</string>
@@ -170,7 +175,7 @@
     <string name="ingame_display_summary">Resolution, picture &amp; effects</string>
     <string name="ingame_controls_summary">Touch, gyro &amp; comfort controls</string>
     <string name="ingame_performance_summary">Performance cores, 60 FPS &amp; display</string>
-    <string name="ingame_management_summary">Memory card, reports &amp; source</string>
+    <string name="ingame_management_summary">Memory card, discs, reports &amp; source</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Music &amp; sound effects</string>
     <string name="ingame_cheats_summary">Health, ammo, money &amp; extra games</string>

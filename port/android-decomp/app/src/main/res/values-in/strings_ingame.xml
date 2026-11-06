@@ -94,6 +94,11 @@
     <string name="ingame_card_none">Tidak ada kartu memori.</string>
     <string name="ingame_export">Ekspor Data Simpanan (.gci)</string>
     <string name="ingame_import">Impor Data Simpanan (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">Disk</string>
+    <string name="ingame_discs_help">Untuk memainkan versi lain: game berakhir, lalu Anda mengimpor kedua disknya di layar awal. Data simpanan, kartu memori, dan pengaturan tetap ada.</string>
+    <string name="ingame_import_discs">Impor disk lain</string>
+    <string name="ingame_import_discs_text">Game berakhir dan layar awal terbuka: impor kedua disk di sana, lalu mulai game. Kemajuan yang belum disimpan akan hilang; data simpanan, kartu memori, dan pengaturan tetap ada.</string>
+    <string name="ingame_start_screen">Layar awal</string>
 
     <string name="ingame_log">Log kesalahan</string>
     <string name="ingame_log_help">Merekam laporan aplikasi (juga saat crash atau macet). Laporan berisi log dari sesi ini dan sesi sebelumnya.</string>
@@ -118,7 +123,7 @@
     <string name="ingame_end">Akhiri</string>
     <string name="ingame_continue">Lanjutkan</string>
     <string name="ingame_no_debug_menu">Inti ini belum memiliki menu debug</string>
-    <string name="ingame_debug_menu_retail">Menu debug hanya ada dengan disk versi debug. Untuk memainkan versi lain, impor kedua disknya di layar awal.</string>
+    <string name="ingame_debug_menu_retail">Menu debug hanya ada dengan disk versi debug. Untuk memainkan versi lain, buka Menu Aplikasi (tekan SELECT) lalu pilih Pengelolaan, kemudian Impor disk lain.</string>
     <string name="ingame_no_menu">Inti ini belum memiliki menu</string>
     <string name="ingame_no_file_picker">Tidak ada pemilih file di perangkat ini</string>
     <string name="ingame_report_saved">Laporan disimpan</string>
@@ -154,7 +159,7 @@
     <string name="ingame_display_summary">Resolusi, gambar &amp; efek</string>
     <string name="ingame_controls_summary">Kontrol sentuh, giroskop &amp; nyaman</string>
     <string name="ingame_performance_summary">Inti performa, 60 FPS &amp; tampilan</string>
-    <string name="ingame_management_summary">Kartu memori, laporan &amp; sumber</string>
+    <string name="ingame_management_summary">Kartu memori, disk, laporan &amp; sumber</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musik &amp; efek suara</string>
     <string name="ingame_cheats_summary">Nyawa, amunisi, uang &amp; game tambahan</string>

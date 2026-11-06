@@ -598,4 +598,37 @@ public class CoreMenuLayoutTest {
       assertEquals(activity.getString(R.string.ingame_act_map), label.invoke(menu, ActionMap.MAP));
     }
   }
+
+  /** Management: "Import other discs" asks first (the game ends for it); Cancel keeps the game, the other answer
+   *  hands it to the host (CoreActivity: the start screen without the game starting at once). */
+  @Test public void managementOffersOtherDiscsAndAsksFirst() throws Exception {
+    final int[] calls = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("importDiscs")) calls[0]++;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 6, false);  // MANAGEMENT
+      Button discs = findButton((View) field(menu, "root"), activity.getString(R.string.ingame_import_discs));
+      assertNotNull("Management has Import other discs", discs);
+      discs.performClick();
+      android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertNotNull("it asks first", ask);
+      assertEquals(0, calls[0]);
+      ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
+      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
+      assertEquals("Cancel keeps the game", 0, calls[0]);
+      discs.performClick();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertEquals(activity.getString(R.string.ingame_start_screen), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
+      ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      assertEquals("Start screen ends the game for the start screen", 1, calls[0]);
+    }
+  }
 }

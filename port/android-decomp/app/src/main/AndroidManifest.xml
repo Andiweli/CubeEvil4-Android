@@ -42,6 +42,12 @@
         </activity>
         <activity android:name=".ControllerActivity" android:exported="false" android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|screenSize|keyboardHidden" />
+        <!-- the way back to the start screen from a running game (Management: "Import other discs"): ends the game's
+             process from a process of its own and opens the launcher in a new one (the core cannot restart inside
+             its process); its own task, so the game's task can go first -->
+        <activity android:name=".LauncherRestartActivity" android:exported="false" android:process=":restart"
+            android:taskAffinity="${applicationId}.restart" android:excludeFromRecents="true" android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <!-- the core mode's error report for the app it is sent with (CoreLog, M11) -->
         <provider android:name=".ReportProvider" android:authorities="${applicationId}.report"
             android:exported="false" android:grantUriPermissions="true" />

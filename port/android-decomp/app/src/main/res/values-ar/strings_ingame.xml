@@ -97,6 +97,11 @@
     <string name="ingame_card_none">لا توجد بطاقة ذاكرة.</string>
     <string name="ingame_export">تصدير ملفات الحفظ (&#x200E;.gci)</string>
     <string name="ingame_import">استيراد ملفات الحفظ (&#x200E;.gci، &#x200E;.zip، &#x200E;.raw)</string>
+    <string name="ingame_discs">الأقراص</string>
+    <string name="ingame_discs_help">لتلعب نسخة أخرى: تنتهي اللعبة، ثم تستورد قرصيها كليهما من شاشة البدء. تبقى ملفات الحفظ وبطاقة الذاكرة والإعدادات كما هي.</string>
+    <string name="ingame_import_discs">استيراد أقراص أخرى</string>
+    <string name="ingame_import_discs_text">تنتهي اللعبة وتُفتح شاشة البدء: استورد القرصين كليهما هناك، ثم ابدأ اللعبة. سيضيع التقدم غير المحفوظ؛ تبقى ملفات الحفظ وبطاقة الذاكرة والإعدادات كما هي.</string>
+    <string name="ingame_start_screen">شاشة البدء</string>
 
     <string name="ingame_log">سجل الأخطاء</string>
     <string name="ingame_log_help">يسجّل تقريرًا للتطبيق (حتى بعد تعطّله أو توقّفه عن الاستجابة). يحتوي التقرير على سجل هذا التشغيل والتشغيل السابق.</string>
@@ -121,7 +126,7 @@
     <string name="ingame_end">إنهاء</string>
     <string name="ingame_continue">متابعة</string>
     <string name="ingame_no_debug_menu">لا تحتوي هذه النواة على قائمة تصحيح بعد</string>
-    <string name="ingame_debug_menu_retail">قائمة التصحيح موجودة فقط مع أقراص نسخة التصحيح. لتلعب نسخة أخرى، استورد قرصيها كليهما من شاشة البدء.</string>
+    <string name="ingame_debug_menu_retail">قائمة التصحيح موجودة فقط مع أقراص نسخة التصحيح. لتلعب نسخة أخرى، افتح قائمة التطبيق (اضغط SELECT) واختر الإدارة، ثم استيراد أقراص أخرى.</string>
     <string name="ingame_no_menu">لا تحتوي هذه النواة على قائمة بعد</string>
     <string name="ingame_no_file_picker">لا توجد أداة لاختيار الملفات على هذا الجهاز</string>
     <string name="ingame_report_saved">تم حفظ التقرير</string>
@@ -164,7 +169,7 @@
     <string name="ingame_display_summary">‏الدقة وأبعاد الصورة والمؤثرات</string>
     <string name="ingame_controls_summary">‏اللمس والجيروسكوب وخيارات الراحة</string>
     <string name="ingame_performance_summary">‏أنوية الأداء و60 FPS وعرض الإطارات</string>
-    <string name="ingame_management_summary">‏بطاقة الذاكرة والتقارير والمصدر</string>
+    <string name="ingame_management_summary">‏بطاقة الذاكرة والأقراص والتقارير والمصدر</string>
     <string name="ingame_audio">الصوت</string>
     <string name="ingame_audio_summary">‏الموسيقى والمؤثرات الصوتية</string>
     <string name="ingame_cheats_summary">‏الصحة والذخيرة والمال والألعاب الإضافية</string>

@@ -467,11 +467,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int text = cause == RoomFileCheck.Cause.IMAGE ? R.string.ingame_disc_image
         : cause == RoomFileCheck.Cause.DEVICE ? R.string.ingame_disc_device
         : cause == RoomFileCheck.Cause.READ ? R.string.ingame_disc_read : R.string.ingame_disc_unknown;
+    // the disc to import again: "Start screen" (it opens without starting the game) in place of "Quit"
+    boolean reimport = cause != RoomFileCheck.Cause.READ;
     new AlertDialog.Builder(this)
         .setTitle(R.string.ingame_disc_title)
         .setMessage(getString(text, path, disc))
         .setPositiveButton(R.string.ingame_send_report, (dlg, w) -> shareReport())
-        .setNegativeButton(R.string.ingame_quit, (dlg, w) -> quit())
+        .setNegativeButton(reimport ? R.string.ingame_start_screen : R.string.ingame_quit,
+            (dlg, w) -> { if (reimport) openStartScreen("disc " + disc + " to import again"); else quit(); })
         .setNeutralButton(R.string.ingame_continue, null)
         .setCancelable(false).show();
   }
@@ -661,6 +664,24 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     main.postDelayed(() -> System.exit(0), 300);
   }
 
+  /**
+   * Management -> "Import other discs" and the disc problems (wish of the project owner, 06.11.2026: with both
+   * discs imported the launcher started the game at once and the game only ended, so another release could not be
+   * imported over the discs): the game ends as with quit(), and LauncherRestartActivity, in a process of its own,
+   * ends this one and opens the start screen in a new process without starting the game. Discs, saves, the memory
+   * card and the settings stay.
+   */
+  private void openStartScreen(String why) {
+    Log.i(TAG, "the game ends, the start screen opens (" + why + ")");
+    CoreLog.stop();
+    startActivity(new Intent(this, LauncherRestartActivity.class)
+        .putExtra(LauncherRestartActivity.GAME_PID, Process.myPid()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    finishAndRemoveTask();
+    // LauncherRestartActivity ends this process; should it not come, the game ends as with quit() (a handler of its
+    // own: onDestroy empties `main`)
+    new Handler(Looper.getMainLooper()).postDelayed(() -> System.exit(0), 3000);
+  }
+
   // --- the menu (SELECT) -------------------------------------------------------
 
   /** SELECT held for a second: the game's debug menu (patch 0061), once per press. */
@@ -738,6 +759,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void exportAll() {
       startForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_EXPORT_ALL);
     }
+
+    @Override public void importDiscs() { openStartScreen("menu: import other discs"); }
 
     @Override public void importFiles() {
       Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")

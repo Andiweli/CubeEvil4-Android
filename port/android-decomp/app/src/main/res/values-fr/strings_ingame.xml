@@ -95,6 +95,11 @@
     <string name="ingame_card_none">Aucune carte mémoire.</string>
     <string name="ingame_export">Exporter les sauvegardes (.gci)</string>
     <string name="ingame_import">Importer des sauvegardes (.gci, .zip, .raw)</string>
+    <string name="ingame_discs">Disques</string>
+    <string name="ingame_discs_help">Pour jouer à une autre version\u00A0: la partie se termine et vous importez ses deux disques depuis l’écran de démarrage. Les sauvegardes, la carte mémoire et les réglages sont conservés.</string>
+    <string name="ingame_import_discs">Importer d’autres disques</string>
+    <string name="ingame_import_discs_text">La partie se termine et l’écran de démarrage s’ouvre\u00A0: importez-y les deux disques, puis lancez le jeu. La progression non sauvegardée sera perdue\u00A0; les sauvegardes, la carte mémoire et les réglages sont conservés.</string>
+    <string name="ingame_start_screen">Écran de démarrage</string>
 
     <string name="ingame_log">Journal d’erreurs</string>
     <string name="ingame_log_help">Enregistre un rapport de l’application (même après un plantage ou un blocage). Le rapport contient le journal de cette session et de la précédente.</string>
@@ -119,7 +124,7 @@
     <string name="ingame_end">Terminer</string>
     <string name="ingame_continue">Continuer</string>
     <string name="ingame_no_debug_menu">Ce cœur n’a pas encore de menu de débogage</string>
-    <string name="ingame_debug_menu_retail">Le menu de débogage n’existe qu’avec les disques de la version debug. Pour jouer à une autre version, importez ses deux disques depuis l’écran de démarrage.</string>
+    <string name="ingame_debug_menu_retail">Le menu de débogage n’existe qu’avec les disques de la version debug. Pour jouer à une autre version, ouvrez le menu de l’app (appuyez sur SELECT) et choisissez Gestion, puis Importer d’autres disques.</string>
     <string name="ingame_no_menu">Ce cœur n’a pas encore de menu</string>
     <string name="ingame_no_file_picker">Aucun sélecteur de fichiers sur cet appareil</string>
     <string name="ingame_report_saved">Rapport enregistré</string>
@@ -158,7 +163,7 @@
     <string name="ingame_display_summary">Résolution, format et effets</string>
     <string name="ingame_controls_summary">Tactile, gyroscope et confort</string>
     <string name="ingame_performance_summary">Cœurs performants, 60 FPS et compteur</string>
-    <string name="ingame_management_summary">Carte mémoire, rapports et sources</string>
+    <string name="ingame_management_summary">Carte mémoire, disques, rapports et sources</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musique et effets sonores</string>
     <string name="ingame_cheats_summary">Santé, munitions, argent et jeux bonus</string>
