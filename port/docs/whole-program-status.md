@@ -48,7 +48,29 @@ hineinkopiert), Läufe und Skripte in `~/p0986` (`run.sh NAME RAUM debug|us|eu|j
    geschmolzene Schädel), em31, em32, emwep (Sense), obj16 (Plaga-Kopf), die Kamerawinkel und die Leichen im Bild
    (nur die Flächen/kein Absturz); Gerät (Retroid) nicht.
 
-Aufgabe B (Licht durch Leons Kopf und Wände) wartet weiter auf den R3-Mitschnitt mit „GXPeekZ:“ (0.98.5).
+7. **Licht durch Leons Kopf: R3-Serie des Testers (`reports/0985-light-gx-20261106`, vivo V2426, 0.98.5, 4x, 60 FPS
+   an, Linsenreflexe aus, Fehlerprotokoll aus: keine Zeile „GXPeekZ:“).** r102 (Höhle), Leon zielt, Kamera hinter
+   der rechten Schulter, 12 Bilder. **Befund: Verhalten des Originals, kein Fehler des Ports.**
+   - Bilder: zwischen den Bildern höchstens 1/255 im Mittel; kein Hell-Dunkel-Wechsel gerade/ungerade. Leons Haar wird
+     von Bild 00 bis 06 etwas heller (64,7 → 73,0) und bleibt dann. Differenzbilder: ein runder Schein über dem Kopf.
+   - Zeichenbefehle (`gx_chunk_inspect.py`, Skripte der Sitzung): additive 2D-Sprites ohne Tiefentest, in allen 12
+     Bildern genau bei (193,0; 172,8) (Kamera, Leon, Laterne stehen still); die große Lage (220 px) mit Farbe
+     254/202/154, Deckkraft 30 → 35 (00–05), dann 35; dazu Lagen mit Deckkraft 1–5. Die Laterne selbst (Befehle 100/101,
+     etwa 6 m vor der Kamera) liegt **genau hinter der Mitte des Kopfes** (Kopf etwa 1,5 m).
+   - Der Effekt: Laternen-Modell von r102 (`r102.das` ETM, EFF bei +0xE100, est 0 Satz 0): esp0e, Farbe 255/203/155,
+     Deckkraft 60, Größe 200, **Prüfradius 50** (`Vec1.x`). `Esp0e_HideCheck` prüft 12 Punkte auf einem Ring (senkrecht
+     50 px, waagrecht 50 × 0,74 px durch die Skalierung des Originals), **nicht die Mitte**. In US, EU und JP gleich
+     (Funktion 0x2B4 Bytes, nur eine Adresse anders).
+   - Nachgerechnet auf den Tiefenkarten des Renderers (`gx_chunk_render`, neu `RE4_GX_PEEK_DUMP=DIR`): in allen
+     11 Karten nur 2 der 12 Punkte verdeckt (Schulter/Hals unten), 10 sehen die Wand hinter der Laterne: Ziel 0,8,
+     Anstieg 0,48 → 0,80 (60 % je Bild) wie die gezeichnete Deckkraft 30 → 35 (Beginn vermutlich nach dem
+     Kamerawechsel beim Zielen, der den Wert auf 0 setzt). Der Ring ist größer als der Kopf: das Spiel hält das Licht für
+     zu 80 % sichtbar und zeichnet den Schein über alles, auf dem GameCube ebenso. Die Karten sind untereinander gleich:
+     das Alter der Tiefenkarte spielt hier keine Rolle, eine Umrechnung der Karte würde an diesem Bild nichts ändern.
+     Kontrollbild mit den 12 Punkten im Notizordner der Sitzungsgruppe (`0986-lantern-test-points.png`).
+   - Offen: (a) ob der Projektinhaber eine Abweichung vom Original will (z. B. die Mitte als 13. Punkt prüfen: ist die
+     Lichtquelle selbst verdeckt, kein Schein); (b) das Aufblitzen durch Wände bei **bewegter** Kamera (Händlerlicht)
+     zeigt diese Serie nicht; dafür braucht es eine Serie in dem Moment mit eingeschaltetem Fehlerprotokoll („GXPeekZ:“).
 
 ## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen, „Dynamisch“ schneller zurück, Bildtakt mit Touch-Tasten (06.11.2026, Branch `work`, Patches 0210–0211)
 

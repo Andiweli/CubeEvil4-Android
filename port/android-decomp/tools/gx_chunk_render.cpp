@@ -200,10 +200,22 @@ int main(int argc, char **argv) {
       // RE4_GX_PEEK_AT=x,y (GameCube pixels, as the game's GXPeekZ): the depth map the core would answer from
       // (GxRenderer::SetDepthSink), the 7 x 7 cells around (x, y) of each map the renderer hands over, 24-bit
       // depths in hex (the light through Leon's head, r102, 06.11.2026)
+      // RE4_GX_PEEK_DUMP=DIR (with RE4_GX_PEEK_AT): each map also as DIR/depth-<picture>.bin, kDepthWidth x
+      // kDepthHeight little-endian 32-bit cells (the game's 12-point glow test re-run on them, 06.11.2026)
       if (const char *at = std::getenv("RE4_GX_PEEK_AT")) {
         int px = 0, py = 0;
+        const char *dumpDir = std::getenv("RE4_GX_PEEK_DUMP");
+        const std::string peekDump = dumpDir ? dumpDir : "";
         if (std::sscanf(at, "%d,%d", &px, &py) == 2)
-          renderer->SetDepthSink([px, py](const std::uint32_t *cells, std::uint32_t serial) {
+          renderer->SetDepthSink([px, py, peekDump](const std::uint32_t *cells, std::uint32_t serial) {
+            if (!peekDump.empty()) {
+              const std::string name = peekDump + "/depth-" + std::to_string(serial) + ".bin";
+              if (FILE *f = std::fopen(name.c_str(), "wb")) {
+                std::fwrite(cells, sizeof(std::uint32_t),
+                            re4gx::GxRenderer::kDepthWidth * re4gx::GxRenderer::kDepthHeight, f);
+                std::fclose(f);
+              }
+            }
             const int cx = px / 2, cy = py / 2;
             std::printf("depth map of picture %u around (%d, %d), cell (%d, %d) in the middle:\n", serial, px, py, cx, cy);
             for (int y = cy - 3; y <= cy + 3; y++) {
