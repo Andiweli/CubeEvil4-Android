@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 100
+        versionCode 101
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -72,8 +72,9 @@ android {
         // (the tester reports of 05.11.2026: the stand-ins' own moves on the Ganados, HUNK's TMP and scope), then 0.98.4
         // (the menu rework, invisibility, field of view, the benchmark), then 0.98.5 (tester reports of 06.11.2026: the
         // magnums and the wooden doors, the Mercenaries rocket, the camera of the kip-up), then 0.98.6 (decision of the
-        // project owner, 06.11.2026: the Japanese discs with the gore of the US release)
-        versionName '0.98.6-beta'
+        // project owner, 06.11.2026: the Japanese discs with the gore of the US release), then 0.98.7 (the laser sight
+        // of the 60 FPS in-between pictures, made after 0.98.6 had been decided)
+        versionName '0.98.7-beta'
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since
