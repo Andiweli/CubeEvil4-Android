@@ -2001,7 +2001,7 @@ bool drawGx() {
       renderFast = fast;
       if (fast) {
         char cores[160];
-        re4cpu::KeepOffSlowCores(cores, sizeof(cores));
+        re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kRenderThread);
         LOG("cores: the render thread %s", cores);
         const int tid = re4cpu::ThreadId();
         const char *why = "";

@@ -182,13 +182,37 @@ inline WantedCores& Wanted()
     return w;
 }
 
+// Which cores KeepOffSlowCores gives a thread. With three kinds of core (a prime core: the Retroid Pocket Flip 2's
+// Snapdragon 865 has one at 2841 MHz, three at 2419 and four at 1804) the render thread gets the fastest kind alone
+// and the game thread the middle kind (wish of the project owner, 06.11.2026: at the lake's dock the render thread
+// took 9-12 ms of processor time a picture on the middle cores at 1862 MHz while the fastest core stayed unused).
+// With two kinds, or RE4_PRIME_CORE=0, both stay off the slowest kind as before.
+enum CoreRole { kAnyThread = 0, kRenderThread = 1, kGameThread = 2 };
+
+// A middle kind of core exists (three kinds), so the fastest kind can be one thread's.
+inline bool HasPrimeCores(const Layout& l)
+{
+    const char* env = getenv("RE4_PRIME_CORE");
+    if (env && *env == '0') {
+        return false;
+    }
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        if (l.maxKHz[cpu] && l.Kind(cpu) == 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Keeps the calling thread off the slowest kind of core (decision of the project owner,
 // 23.10.2026): the game's thread and the renderer's each need a whole core, and Android put them
 // on the slow ones at times (Retroid: the core thread 40 % of the pictures on them at the title;
 // Galaxy A30s: two fast cores, six slow). Not when all cores are alike, the clocks are not
 // readable or RE4_FAST_CORES=0. `out`: the cores the thread may use now, or why it stays as it was.
-inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size)
+// `role`: see CoreRole (the fastest kind for the render thread, the middle one for the game thread).
+inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role = kAnyThread)
 {
+    const bool prime = role != kAnyThread && HasPrimeCores(l);
     const char* env = getenv("RE4_FAST_CORES");
     if (env && *env == '0') {
         snprintf(out, size, "left to Android (RE4_FAST_CORES=0)");
@@ -211,6 +235,9 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size)
         if (l.Kind(cpu) == 0 || !CPU_ISSET(cpu, &allowed)) {
             continue;
         }
+        if (prime && (role == kRenderThread ? l.Kind(cpu) != 2 : l.Kind(cpu) == 2)) {
+            continue;
+        }
         CPU_SET(cpu, &set);
         n++;
         if (len < static_cast<int>(size)) {
@@ -226,7 +253,13 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size)
         return false;
     }
     if (len < static_cast<int>(size)) {
-        snprintf(out + len, size - len, ", off the slowest (at most %u MHz)", l.slowest / 1000);
+        if (prime) {
+            snprintf(out + len, size - len, role == kRenderThread ? ", the fastest (at most %u MHz) for it alone"
+                                                                  : ", off the slowest and off the fastest (at most %u MHz, the render thread's)",
+                     l.fastest / 1000);
+        } else {
+            snprintf(out + len, size - len, ", off the slowest (at most %u MHz)", l.slowest / 1000);
+        }
     }
     Wanted().set = set;
     Wanted().on = true;
@@ -265,9 +298,9 @@ inline bool KeepOnFastCores()
     return sched_setaffinity(0, sizeof(w.set), &w.set) == 0;
 }
 
-inline bool KeepOffSlowCores(char* out, size_t size)
+inline bool KeepOffSlowCores(char* out, size_t size, int role = kAnyThread)
 {
-    return KeepOffSlowCores(GetLayout(), out, size);
+    return KeepOffSlowCores(GetLayout(), out, size, role);
 }
 
 // The cores faster than the slowest kind (0 when all are alike or the clocks are not readable).

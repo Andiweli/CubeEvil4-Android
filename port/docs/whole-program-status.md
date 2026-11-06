@@ -214,6 +214,16 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      Stufen), App-Tests, Bau. Am Gerät nicht geprüft.
    - **Hinweistext gekürzt** (Wunsch des Projektinhabers): keine Gegner, kein Abstand; „sehr anspruchsvolle Szene (Steg
      am See mit Wasser, Regen und Nebel)“, Dauer, danach „Dynamisch“, übrige Einstellungen bleiben, B/Zurück (11 Sprachen).
+20. **Render-Thread auf dem schnellsten Kern (Wunsch des Projektinhabers nach seinem Log, 06.11.2026):** mit „Force
+    Performance: Leistungskerne“ und drei Kernsorten (Retroid Pocket Flip 2, Snapdragon 865: ein Kern 2841 MHz, drei
+    2419, vier 1804) bekommt der Render-Thread die schnellste Sorte allein, der Spiel-Thread die mittlere
+    (`re4_cpu_info.h` `KeepOffSlowCores(…, role)`, `CoreRole`, `HasPrimeCores`; `core_mode.cpp` und `gx_decode.cpp`).
+    Vorher beide auf allen nicht langsamen Kernen; am Steg lief der Render-Thread mit 9–12 ms je Bild auf den mittleren
+    Kernen bei 1862 MHz. Mit zwei Kernsorten wie bisher; `RE4_PRIME_CORE=0` schaltet es ab. Die Hilfs-Threads für die
+    Eckpunkte bleiben, wie sie sind. Log: „cores: the render thread on cores 7, the fastest (at most 2841 MHz) for it
+    alone“. Geprüft: Laufzeit-Test mit den Kernen des PCs (unterste Hälfte langsam, oberster Kern schnell: Render-Thread
+    nur dort, Spiel-Thread auf den mittleren), `HasPrimeCores` für Snapdragon 865, A30s und gleiche Kerne; App-Bau. Am
+    Gerät nicht gemessen (Wirkung auf FPS und Wärme offen).
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 

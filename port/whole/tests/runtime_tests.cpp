@@ -2180,6 +2180,53 @@ static void testCpuInfo()
             re4_log("  cpuinfo: placement %s", where);
         }
     }
+    // three kinds (the Retroid's Snapdragon 865): the render thread on the fastest kind alone, the game thread on
+    // the middle kind (06.11.2026); two kinds (A30s) or RE4_PRIME_CORE=0: no prime core
+    ok &= re4cpu::HasPrimeCores(sd) && !re4cpu::HasPrimeCores(a30) && !re4cpu::HasPrimeCores(alike);
+    setenv("RE4_PRIME_CORE", "0", 1);
+    ok &= !re4cpu::HasPrimeCores(sd);
+    unsetenv("RE4_PRIME_CORE");
+    if (cores >= 4 && cores <= re4cpu::Layout::kMax) {
+        // this machine's cores: the lower half slow, the top one fastest, the rest middle
+        re4cpu::Layout three;
+        three.count = cores;
+        for (int i = 0; i < cores; i++) {
+            three.maxKHz[i] = i < cores / 2 ? 1000000 : i < cores - 1 ? 2000000 : 3000000;
+        }
+        three.slowest = 1000000;
+        three.fastest = 3000000;
+        bool render = true, game = true, given = true;
+        char where[2][200] = {"", ""};
+        for (int role = 1; role <= 2; role++) {
+            std::thread([&] {
+                cpu_set_t before;
+                CPU_ZERO(&before);
+                sched_getaffinity(0, sizeof(before), &before);
+                for (int i = 0; i < cores; i++) {
+                    given &= CPU_ISSET(i, &before) != 0;
+                }
+                if (!given) {
+                    return;
+                }
+                const bool placed = re4cpu::KeepOffSlowCores(three, where[role - 1], sizeof(where[0]), role);
+                cpu_set_t now;
+                CPU_ZERO(&now);
+                sched_getaffinity(0, sizeof(now), &now);
+                for (int i = 0; i < cores; i++) {
+                    const bool on = CPU_ISSET(i, &now) != 0;
+                    if (role == re4cpu::kRenderThread) {
+                        render &= placed && on == (i == cores - 1);
+                    } else {
+                        game &= placed && on == (i >= cores / 2 && i < cores - 1);
+                    }
+                }
+            }).join();
+        }
+        ok &= !given || (render && game);
+        if (given && (!render || !game)) {
+            re4_log("  cpuinfo: render thread %s; game thread %s", where[0], where[1]);
+        }
+    }
     // the helpers on the slow cores (PutOnSlowCores) only with two faster cores or fewer: the A30s
     // (two) yes, the Retroid (four) and alike cores no; a helper thread of this machine, the cores
     // above the lowest two made slow, lands below them; RE4_HELPERS_SLOW=0 leaves it

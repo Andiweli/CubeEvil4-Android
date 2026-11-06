@@ -536,7 +536,7 @@ void hintChunk()
         gFastNow = fast;
         if (fast) {
             char cores[160];
-            re4cpu::KeepOffSlowCores(cores, sizeof(cores));
+            re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kGameThread);
             re4_log("cores: the game thread %s", cores);
             // with only two fast cores the vertex threads on the slow ones (re4_cpu_info.h)
             gSlowHelpers = 0;
