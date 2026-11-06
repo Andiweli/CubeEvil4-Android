@@ -1,6 +1,6 @@
 # Port patch, a new function (wish of the project owner, 05.11.2026; the app menu Display -> GRAPHICS -> Benchmark,
 # runtime/benchmark.cpp): at a place of the benchmark the enemies stand still (emMove: no routine and no damage for
-# cEm id 0x10..0x3F; drawn as they stand) and the view goes round Leon at 10 m (CameraMove: re4_bench_camera puts
+# cEm id 0x10..0x3F; drawn as they stand) and the view goes round Leon at 5 m (06.11.2026; 10 m before) (CameraMove: re4_bench_camera puts
 # the camera point and target into pG->Camera after the game's camera and before the projection, so the culling
 # follows). Outside the benchmark: as the game.
 --- a/src/game/em.cpp

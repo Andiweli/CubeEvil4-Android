@@ -14,8 +14,11 @@
 // that runs anyway is skipped with START.
 // At the place: every enemy (cEm id 0x10..0x3F) stands still (patch 0208, em.cpp emMove: no routine, no damage;
 // drawn as it stands), Leon just stands (the app sends no pad), and the view goes round him once every 20 seconds
-// at 10 m (patch 0208, camera.cpp CameraMove: re4_bench_camera puts the camera's point and target in pG->Camera
-// after the game's camera, before the projection, so the view culling follows).
+// at 5 m (patch 0208, camera.cpp CameraMove: re4_bench_camera puts the camera's point and target in pG->Camera
+// after the game's camera, before the projection, and makes its orientation anew: pG->Camera.mat and Look, from
+// which View's frustum (scenery) and the draw lists (AddOt*: figures, effects) cull. Without it they kept the game
+// camera's orientation behind Leon: on the far half of the round Leon, the boat, the torch's flame and the land
+// behind the dock were left out, device test of the project owner 06.11.2026).
 #include "types.h"
 #include "global.h"
 #include "camera.h"
@@ -51,8 +54,8 @@ enum {
 };
 
 const u16 kRoom = 0x11B;           // the place's room
-f32 kRadius = 10000.0f;            // 10 m (RE4_BENCH_RADIUS for checks on the PC)
-f32 kEye = 4000.0f;                // the view's height over Leon's feet, looking down on him (RE4_BENCH_EYE)
+f32 kRadius = 5000.0f;             // 5 m (the project owner, 06.11.2026: half of the first 10 m; RE4_BENCH_RADIUS on the PC)
+f32 kEye = 2000.0f;                // the view's height over Leon's feet, looking down on him (RE4_BENCH_EYE)
 const f32 kLook = 1100.0f;         // what it looks at: Leon's chest
 const unsigned kRound = 600;       // game frames a round (20 s)
 const unsigned kSettle = 90;       // free frames at the place before it counts as ready
@@ -273,6 +276,7 @@ void re4_bench_camera(CAMERA* cam)
     cam->param.Target.y = pPL->pos.y + kLook;
     cam->param.Target.z = pPL->pos.z;
     cam->param.Roll = 0.0f;
+    CameraSetOrientationRoll(cam);  // the camera's matrix and look vector: the culling follows the view shown
 }
 
 }  // extern "C"

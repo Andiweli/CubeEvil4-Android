@@ -137,6 +137,8 @@ final class CoreMenu extends Dialog {
   private final Button back, resume, update;
   private static final int UPDATE_GREEN = 0xff2d5233, UPDATE_GREEN_EDGE = 0xff4f8a57;
   private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
+  // the Benchmark button: the green of "Up to date", quieter (wish of the project owner, 06.11.2026)
+  private static final int BENCH_GREEN = 0xff223a27, BENCH_GREEN_EDGE = 0xff3b6343, BENCH_TEXT = 0xffc3d6c5;
   private final Handler main = new Handler(Looper.getMainLooper());
   private final int[] scrollY = new int[8];
   private final Button[] navigation = new Button[7];
@@ -425,16 +427,16 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       keys.addButton(b); buttons[i] = b;
     }
-    // the benchmark under "Dynamic" in a quieter look (wish of the project owner, 05.11.2026): the game goes to the
+    // the benchmark under "Dynamic" in a quiet green (wish of the project owner, 05./06.11.2026): the game goes to the
     // lake's dock (the project owner's save there, 06.11.2026) and measures which level holds 30 and 60 FPS with the
     // other options as they are; then the resolution becomes Dynamic, up to those levels
     Button bench = button(s(R.string.ingame_benchmark), v -> askBenchmark());
     StateListDrawable quiet = new StateListDrawable();
-    quiet.addState(new int[] {android.R.attr.state_focused}, focused(PANEL));
-    quiet.addState(new int[] {android.R.attr.state_pressed}, shape(SURFACE, MUTED, 6));
-    quiet.addState(new int[0], shape(PANEL, BORDER, 6));
+    quiet.addState(new int[] {android.R.attr.state_focused}, focused(BENCH_GREEN));
+    quiet.addState(new int[] {android.R.attr.state_pressed}, shape(BENCH_GREEN, UPDATE_GREEN_EDGE, 6));
+    quiet.addState(new int[0], shape(BENCH_GREEN, BENCH_GREEN_EDGE, 6));
     bench.setBackground(quiet);
-    bench.setTextColor(MUTED);
+    bench.setTextColor(BENCH_TEXT);
     bench.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
     bench.setEnabled(host != null);
     keys.addUnderFirst(bench);

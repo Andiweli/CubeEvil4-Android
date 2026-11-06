@@ -150,6 +150,18 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      und zurück an dieselbe Stelle, EU-Disc aus r100 (Bilder: Steg, Regen, Fackel, Boot, Leon steht), US- und
      JP-Disc aus dem Titelmenü hin und zurück zum Titel; auf der Karte danach nur die Systemdatei des Kartenchecks.
      Die Messung selbst nicht auf einem Gerät gelaufen.
+18. **Benchmark nach dem Gerätetest des Projektinhabers (3219de42):**
+   - **Land und Figuren fehlten (behoben):** `re4_bench_camera` setzte nur Kamerapunkt und Ziel. Die Sichtprüfungen
+     nehmen aber `pG->Camera.mat` (View-Frustum für die Kulisse, `VIEW::orientation`) und `Look` (Zeichenlisten
+     `AddOt*` für Figuren und Effekte); beide setzt erst `CameraSetOrientationRoll`, die das Spiel nach seiner Kamera
+     aufruft. So blieb die Ausrichtung der Spielkamera hinter Leon: auf der abgewandten Kreishälfte fehlten Leon, das
+     Boot, die Fackelflamme und das Land hinter dem Steg. Jetzt ruft `re4_bench_camera` sie nach dem Setzen auf. Das
+     Nachladen der Raumteile (`cBlock`) hängt an Leons Position und war nicht beteiligt.
+   - **Abstand halbiert:** 5 m statt 10 m, Höhe 2 m statt 4 m.
+   - **Knopf „Benchmark“:** gedämpftes Grün (wie „Aktuell“, ruhiger).
+   - **Geprüft am PC (EU-Disc, i686):** 12 GX-Bilder rund um den Kreis (alle 50 Spielbilder): in jedem Bild Leon, die
+     Fackelflamme, Felsen, Hügel und Häuser hinter dem Steg; das Boot, wo es im Blickfeld liegt. Vorher fehlten Leon,
+     Boot und Flamme in 5 von 12 Bildern. Menübild des Knopfs angesehen. Am Gerät nicht geprüft.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 
