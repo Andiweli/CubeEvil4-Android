@@ -101,6 +101,10 @@ void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v);
  * loadStandInSet: its moves on a Ganado and the Ganado's answers, from its Mercenaries copy): every index
  * 0xFB..0x2BD of an archive of 0x2BA entries asks re4_arc_stand_in, whose own entries the game takes. */
 extern int re4_story_ganado;
+/* Patch 0211 (em10.cpp em10_R1_ShotRocket): the model (tpl 0) or texture (tpl 1) of the rocket a Ganado fires: the
+ * player archive's index 0x70 / 0x71 as in the original, Leon's where Ada's, Krauser's or Wesker's has none there
+ * (runtime/cheats.cpp; declared here, in no game file, so em10.cpp keeps its line numbers). */
+void* re4_ganado_rocket(int tpl);
 #ifdef __cplusplus
 }
 #endif

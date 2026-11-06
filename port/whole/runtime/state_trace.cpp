@@ -176,7 +176,16 @@
 //                          last hit kills it (hp 0, EmSetDie, routine 3): r31b's U-3 (0x32)
 //                          outside the third room (patch 0170); "F:ID:HP" only leaves it
 //                          with life HP, as hits that do not kill (U-3 at 1 in the first
-//                          room jumps onto the containers and hides with life 0)
+//                          room jumps onto the containers and hides with life 0);
+//                          "F:ID:all/E/K" kills every live one of the id, every E frames, K times
+//                          (Mercenaries: the next waves come in, r404's rocket Ganados)
+//   RE4_TEST_EM_SET="F:NO[,NO...]"  at game frame F the room's enemy list entries NO (hex) are set as a
+//                          room script sets them (cEmWrap::setEm, sent towards the player: r404_setEm)
+//   RE4_TEST_DOORS=1       a "door:" line whenever a door (id 0x41) changes: life, routine, broken
+//                          panes, pane hits left, lock and chain life, the last damage kind (patch 0210)
+//   RE4_TEST_EMWEP=1       an "emwep:" line whenever an enemy weapon object (id 0x42: the Ganados' rockets,
+//                          arrows, axes) changes its routine: position, model and texture with the player
+//                          archive entries they came from, number of parts
 //   RE4_TEST_BENCH="free+N:C[,free+M:C]..."  the app's benchmark commands (runtime/benchmark.cpp) N frames after
 //                          the player is first free: C 20 the place, 22 back; its state ("run: benchmark state")
 //                          every 60 frames from the first command on; "title+N" N frames after the title's main
@@ -272,6 +281,7 @@ extern "C" int re4_core_room_outline(float* out, int maxEdges, unsigned* info); 
 #include "sce_sys.h"
 #include "flag_rsf.h"
 #include "em_set.h"
+#include "em_wrap.h"
 #include "etc_model.h"
 #include "scroll.h"
 #include "area.h"
@@ -678,6 +688,8 @@ unsigned g_stunId, g_stunRno = 0x0D;
 cEm* g_stunEm;               // traced for 400 frames: its routine and the player's
 unsigned g_stunUntil;
 int g_killHp = -1;
+int g_killAll;                // RE4_TEST_EM_KILL "all": kills left
+unsigned g_killEvery;         // and the frames between them
 int g_rsf[8], g_rsfCount;
 bool g_rsfDone;
 int g_itemLoseId;
@@ -1820,7 +1832,124 @@ void frame(unsigned n)
                     g_rsfRoom, n);
         }
     }
-    if (g_killAt && n >= g_killAt) {
+    // RE4_TEST_DOORS=1: one "door:" line for every door (id 0x41) when its state changes: type, life, routine,
+    // broken panes (flag bits 0x8000 >> pane), pane hits left, lock and chain life, the last damage kind and
+    // its timer (the weapon checks of patch 0210)
+    static const bool doors = getenv("RE4_TEST_DOORS") != 0;
+    if (doors) {
+        static u32 seen[48][4];
+        for (u32 i = 0; i < EmMgr.getArrayNum() && i < 48; i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (!live(e) || !e->isAlive() || e->id != 0x41) {
+                continue;
+            }
+            const FREE_EMDOOR* w = EMDOOR_WK(e);
+            u32 panes = 0;
+            for (int b = 0; b < 8; b++) {
+                panes += (e->flag & (0x8000u >> b)) ? 1 : 0;
+            }
+            const u32 sig[4] = {(u32) e->hp << 16 | (u32) e->r_no_1 << 8 | panes,
+                                (u32) (w->Lock_L_hp & 0xFF) << 24 | (u32) (w->Lock_R_hp & 0xFF) << 16 |
+                                    (u32) (w->Chain_hp[0] & 0xF) << 8 | (u32) (w->Chain_hp[1] & 0xF) << 4 |
+                                    (u32) (w->Chain_hp[2] & 0xF),
+                                (u32) e->dmg.m_Wep << 8 | e->dmg.m_Timer, (u32) (w->Door_hp * 16.0f)};
+            if (memcmp(seen[i], sig, sizeof sig) != 0) {
+                memcpy(seen[i], sig, sizeof sig);
+                re4_log("door: frame %u r%03x door %u type %d at (%.0f %.0f %.0f) ang %.2f: hp %d r_no %d/%d, panes "
+                        "broken %u (bits 0x%04x), pane hits left %.0f, locks L %d R %d, chains %d %d %d, be_flg 0x%x, "
+                        "last kind 0x%02x timer %d",
+                        n, (unsigned) pG->room_id, i, (int) e->type, (double) e->pos.x, (double) e->pos.y,
+                        (double) e->pos.z, (double) e->ang.y, (int) e->hp, (int) e->r_no_0, (int) e->r_no_1, panes,
+                        (unsigned) (e->flag & 0xFF00), (double) w->Door_hp, w->Lock_L_hp, w->Lock_R_hp,
+                        w->Chain_hp[0], w->Chain_hp[1], w->Chain_hp[2], (unsigned) w->Be_flg,
+                        (unsigned) e->dmg.m_Wep, (int) e->dmg.m_Timer);
+            }
+        }
+    }
+    // RE4_TEST_EMWEP=1: one "emwep:" line whenever an enemy weapon object (id 0x42: rockets, arrows, axes...)
+    // changes its routine, with the archive entries its model came from (player or the Ganados' archive) and
+    // its position (the Mercenaries rocket report, 06.11.2026)
+    static const bool emweps = getenv("RE4_TEST_EMWEP") != 0;
+    if (emweps) {
+        static u32 seen[256];
+        for (u32 i = 0; i < EmMgr.getArrayNum() && i < 256; i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (!live(e) || !e->isAlive() || e->id != 0x42) {
+                seen[i] = 0;
+                continue;
+            }
+            const u32 sig = 0x80000000u | (u32) e->r_no_0 << 16 | (u32) e->r_no_1 << 8 | (u32) e->r_no_2;
+            if (seen[i] == sig) {
+                continue;
+            }
+            seen[i] = sig;
+            const cModelInfo* mi = live(e->pModelInfo) ? e->pModelInfo : 0;
+            const u32 bin = mi ? (u32) (uintptr_t) mi->model_addr : 0, tpl = mi ? (u32) (uintptr_t) mi->tpl_addr : 0;
+            int binNo = -1, tplNo = -1;
+            const PlArc* arc = live(pG->pPlayer) ? pG->pPlayer : 0;
+            for (int k = 4; arc && k < 0x100; k++) {
+                const u32 at = arc->ofs[k] + (u32) (uintptr_t) arc;
+                if (at == bin && binNo < 0) {
+                    binNo = k;
+                }
+                if (at == tpl && tplNo < 0) {
+                    tplNo = k;
+                }
+            }
+            int parts = 0;
+            for (const cModelInfo* p = mi; p && live(p) && parts < 64; p = p->pList) {
+                parts++;
+            }
+            re4_log("emwep: frame %u r%03x slot %u routine %d/%d/%d at (%.0f %.0f %.0f), model 0x%08x texture 0x%08x "
+                    "(player archive entries %d / %d, player type %d), %d parts, scale %.2f",
+                    n, (unsigned) pG->room_id, i, (int) e->r_no_0, (int) e->r_no_1, (int) e->r_no_2, (double) e->pos.x,
+                    (double) e->pos.y, (double) e->pos.z, bin, tpl, binNo, tplNo, (int) pG->pl_type, parts,
+                    (double) e->scale.x);
+        }
+    }
+    // RE4_TEST_EM_SET="F:NO[,NO...]" (frame decimal, list entries hex): at game frame F the entries of the room's
+    // enemy list are set as a room script sets them (cEmWrap::setEm and setGoto, inline: those live in the room
+    // modules; r404_setEm)
+    static const char* emSet = getenv("RE4_TEST_EM_SET");
+    static unsigned emSetAt = emSet ? (unsigned) strtoul(emSet, 0, 10) : 0;
+    if (emSetAt && n >= emSetAt) {
+        emSetAt = 0;
+        const char* q = strchr(emSet, ':');
+        while (q && *q) {
+            char* end = 0;
+            const unsigned no = (unsigned) strtoul(q + 1, &end, 16);
+            cEm* e = (pG->Em_list[no].be_flag & 2) ? GetEmPtrFromList((int) no) : EmSetFromList2((int) no, 1);
+            const int ok = e != 0 && e != errEm;
+            if (ok) {
+                EmListSetAlive((int) no, 1);
+                if (e->id >= 0x10 && e->id <= 0x20 && live(pPL)) {
+                    ((cEmGanado*) e)->setGoto(&pPL->pos, 0xC);
+                }
+            }
+            re4_log("run: enemy list entry 0x%02x %s at frame %u (RE4_TEST_EM_SET)", no, ok ? "set" : "not set", n);
+            q = end && *end == ',' ? end : 0;
+        }
+    }
+    if (g_killAt && n >= g_killAt && g_killAll) {
+        // "F:ID:all[/E/K]": every live enemy of the id, again every E frames, K times in all
+        int killed = 0;
+        for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (live(e) && e->isAlive() && e->id == g_killId && e->hp > 0) {
+                e->hp = 0;
+                EmSetDie(e);
+                EmSetDieCnt(e);
+                e->r_no_0 = 3;
+                e->r_no_1 = 0;
+                e->r_no_2 = 0;
+                e->r_no_3 = 0;
+                ++killed;
+            }
+        }
+        re4_log("run: %d enemies 0x%02x killed at frame %u (RE4_TEST_EM_KILL all)", killed, g_killId, n);
+        g_killAt = g_killEvery && --g_killAll > 0 ? n + g_killEvery : 0;
+    }
+    if (g_killAt && n >= g_killAt && !g_killAll) {
         g_killAt = 0;
         cEm* hit = 0;
         for (u32 i = 0; i < EmMgr.getArrayNum() && !hit; i++) {
@@ -2486,7 +2615,16 @@ void configure()
         char* end = 0;
         g_killAt = (unsigned) strtoul(kill, &end, 10);
         g_killId = end && *end == ':' ? (unsigned) strtoul(end + 1, &end, 16) : 0;
-        g_killHp = end && *end == ':' ? (int) strtol(end + 1, 0, 10) : -1;
+        if (end && strncmp(end, ":all", 4) == 0) {
+            g_killAll = 1;
+            end += 4;
+            if (*end == '/') {
+                g_killEvery = (unsigned) strtoul(end + 1, &end, 10);
+                g_killAll = *end == '/' ? (int) strtol(end + 1, 0, 10) : 1;
+            }
+        } else {
+            g_killHp = end && *end == ':' ? (int) strtol(end + 1, 0, 10) : -1;
+        }
         if (!g_killId) {
             g_killAt = 0;
         }

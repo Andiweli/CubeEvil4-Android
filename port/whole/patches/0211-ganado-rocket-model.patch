@@ -1,0 +1,22 @@
+# Port patch, a bug of the original game (tester report 06.11.2026, The Mercenaries, Waterworld: "the rocket model
+# fired by the ganado looked weird"): a rocket Ganado (em10_R1_ShotRocket) hides the rocket on its launcher and fires
+# one made from the player's archive (index 0x70 model, 0x71 texture), where Leon's archive has the rocket. HUNK's
+# has it too; Ada's (pl0b, pl0c) and Wesker's (pl0d) entries there are empty and share a small placeholder model
+# further on (taken as model and as texture), Krauser's (pl0a) are his arrow. So with Ada or Wesker the rocket flew
+# as a few untextured points, with Krauser as an arrow. The debug build's files and those of the US, European and
+# Japanese releases are alike there, and the European em10 code is the same (em10.rel in em/em10.drs). Now
+# runtime/cheats.cpp re4_ganado_rocket gives Leon's rocket for those three (his archive, read once for The
+# Mercenaries and the extra games, as it is for the stand-ins' story); the player's own entries otherwise, as before.
+# The declaration is in port/whole/include/re4_whole_prelude.h, so em10.cpp keeps its line numbers (the reviewed
+# LP64 cast sites further down are already 38 lines from where port/whole/lp64_int_casts.json has them).
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -9416,7 +9416,7 @@
+         ofs.y = 57.4f;
+         ofs.z = 232.98f;
+         PSMTXMultVec(w->pWeapon->mat, &ofs, &ofs);
+-        wep = SetWeapon(PL_ARC_PTR(pG->pPlayer, 0x70), PL_ARC_PTR(pG->pPlayer, 0x71), &ofs, &em->ang, 0);
++        wep = SetWeapon(re4_ganado_rocket(0), re4_ganado_rocket(1), &ofs, &em->ang, 0);  /* port: patch 0211 */
+         if (wep) {
+             spd.x = -500.0f;
+             spd.y = 0.0f;

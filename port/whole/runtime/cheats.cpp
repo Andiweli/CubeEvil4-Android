@@ -401,6 +401,16 @@ int leonCostume()
     return ScfFlagChk(pG, SCF_R106_EVENT) ? 1 : 0;
 }
 
+// Patch 0211: 1 for the characters whose player archive has no rocket where the Ganados take theirs (index 0x70
+// model, 0x71 texture; em10.cpp em10_R1_ShotRocket): Ada's (pl0b, pl0c) and Wesker's (pl0d) entries there are
+// empty and share a small model of Ada's / Wesker's further on, Krauser's (pl0a) are his arrow. Leon's archives
+// (pl00, pl08..pl10) and HUNK's (pl06) have the rocket; Ashley's (pl01, pl05) have motions there, and no Ganado
+// with a rocket meets her. The same in the debug build's and every release's files (US, EU, JP).
+bool lacksRocket(int type)
+{
+    return type == 2 || type == 4 || type == 5;
+}
+
 // Leon's archive for that costume to kLeonArcAddr, as ReadPlayerData reads his (on the game thread,
 // in a room's start: the read waits frame by frame)
 void loadLeon(int costume)
@@ -426,8 +436,8 @@ void loadLeon(int costume)
         return;
     }
     gLeonCostume = costume;
-    re4_log("cheat: Leon's archive %s (%u bytes) read to 0x%08x for the events", names[costume], (unsigned) size,
-            (unsigned) kLeonArcAddr);
+    re4_log("cheat: Leon's archive %s (%u bytes) read to 0x%08x for the events and the Ganados' rocket", names[costume],
+            (unsigned) size, (unsigned) kLeonArcAddr);
 }
 
 // The type re4_story_char_room gives the story's player in the next room (the current one when
@@ -863,6 +873,11 @@ void re4_story_char_room(void)
     if (!storyGame()) {
         gSwitched = 0;
         re4_story_ganado = 0;
+        // patch 0211: the Ganados' flying rocket takes Leon's model (re4_ganado_rocket); The Mercenaries and the
+        // extra games with Ada, Krauser or Wesker read his archive once for it
+        if (lacksRocket(pG->pl_type) && gLeonCostume < 0) {
+            loadLeon(0);
+        }
         return;
     }
     int costume = wantedCostume();
@@ -908,6 +923,28 @@ int re4_story_char_stand_in(void)
 void* re4_story_char_leon(void)
 {
     return standIn() && gLeonCostume >= 0 ? (void*) (unsigned long) kLeonArcAddr : 0;
+}
+
+// Patch 0211 (em10.cpp em10_R1_ShotRocket): the model (tpl 0) or texture (tpl 1) of the rocket a Ganado fires,
+// which the original takes from the player's archive (index 0x70 / 0x71). Ada, Krauser and Wesker have none there
+// (lacksRocket): Leon's archive at kLeonArcAddr (read for the stand-ins' story and, for this, for The Mercenaries
+// and the extra games: re4_story_char_room). The player's own entry otherwise, as in the original.
+void* re4_ganado_rocket(int tpl)
+{
+    const unsigned no = tpl ? 0x71 : 0x70;
+    const PlArc* own = pG->pPlayer;
+    void* entry = (void*) (size_t) (own->ofs[no] + (u32) (size_t) own);
+    if (!lacksRocket(pG->pl_type) || gLeonCostume < 0) {
+        return entry;
+    }
+    const PlArc* leon = (const PlArc*) (unsigned long) kLeonArcAddr;
+    static int logged;
+    if (!logged) {
+        logged = 1;
+        re4_log("ganado rocket: %s's archive has no rocket, Leon's model and texture (patch 0211)",
+                kCharName[pG->pl_type & 7]);
+    }
+    return (void*) (size_t) (leon->ofs[no] + kLeonArcAddr);
 }
 
 // 1 while the stand-in takes Leon's costume rule (HUNK, Krauser, Wesker: their archives have one
