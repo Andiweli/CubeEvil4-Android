@@ -2391,6 +2391,69 @@ void TestInterpolationSparkle() {
   r.Release();
 }
 
+// The laser sight: the game makes its beam (a GX line, effect id 0x19) and dot anew every picture (life 1, another
+// object each time), moved by their vertices while the view stays. In the in-between picture each is the one of
+// its id before, halfway between the two: the beam (x -4000 -> 0, more than the 1500 units a figure may move) at
+// -2000, the dot (a quad, -1000 -> 0) at -500. Taken for new, both stood where they are in B (users 06.11.2026:
+// the laser briefly doubled while it moved).
+void LaserScene(Builder &b, std::uint32_t sequence, float beamX, float dotX, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  b.Owner(0x80400000u + sequence * 0x200u, 0x81234590u, 0x11, 0x00190001u);
+  b.XfF(0, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+  std::vector<std::uint8_t> beam;
+  V(beam, beamX, -3000.0f, 0.0f, kGreen);
+  V(beam, beamX, 3000.0f, 0.0f, kGreen);
+  b.Draw(RE4_GX_V_COLOR0, 16, beam, 2, 0xA8, RE4_GX_LINES);
+  b.Owner(0x80400100u + sequence * 0x200u, 0x812345A0u, 0x11, 0x00000001u);
+  std::vector<std::uint8_t> dot;
+  V(dot, dotX - 250.0f, -250.0f, 0.0f, kGreen);
+  V(dot, dotX + 250.0f, -250.0f, 0.0f, kGreen);
+  V(dot, dotX + 250.0f, 250.0f, 0.0f, kGreen);
+  V(dot, dotX - 250.0f, 250.0f, 0.0f, kGreen);
+  b.Draw(RE4_GX_V_COLOR0, 16, dot, 4, 0x80);
+  b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationOneFrame() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  LaserScene(ba, 1, -4000.0f, -1000.0f, &a);
+  LaserScene(bb, 2, 0.0f, 0.0f, &b);
+  r.Run(a);
+  Check(r.Interpolate(a, b, 0.5f), "laser: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  // the 1-pixel beam: green within a pixel of its place
+  auto beamAt = [&](float x) {
+    for (int dx = -1; dx <= 1; dx++)
+      if (Near(TexPixel(xfb, px(x) + dx, 264), 0, 255, 0, 60))
+        return true;
+    return false;
+  };
+  const auto dotHalf = TexPixel(xfb, px(-500.0f), 264), dotB = TexPixel(xfb, px(200.0f), 264);
+  const bool right = beamAt(-2000.0f) && !beamAt(0.0f) && !beamAt(-4000.0f) && Near(dotHalf, 0, 255, 0) &&
+                     Near(dotB, 0, 0, 0);
+  Check(right, "laser: beam and dot made anew each picture lie halfway between A and B");
+  Check(r.Stats().interpOneFrame == 2, "laser: both found as the one-frame effects of their ids");
+  if (!right)
+    std::printf("  beam at -2000 %d, at 0 %d, at -4000 %d\n", beamAt(-2000.0f), beamAt(0.0f), beamAt(-4000.0f)),
+        Print("dot halfway", dotHalf), Print("dot as in B", dotB);
+  Check(glGetError() == GL_NO_ERROR, "laser: no GL error");
+  r.Release();
+}
+
 // An object whose number of quads changes from one picture to the next (a flame's trail of sprites):
 // not matched by "n-th draw of the object" (its sprites would take each other's places), the old way
 // instead; with the same number as before by its object as usual.
@@ -3342,6 +3405,7 @@ int main() {
   TestInterpolationOwners();
   TestInterpolationRoomPart();
   TestInterpolationSparkle();
+  TestInterpolationOneFrame();
   TestInterpolationTrail();
   TestInterpolationExtras();
   TestSmoothPacer();

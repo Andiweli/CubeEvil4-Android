@@ -128,6 +128,8 @@ struct GxStats {
            interpLightBlends = 0, interpIndBlends = 0, interpOwnedRecount = 0;
   // draws without a counterpart moved by the camera's move instead (BlendByCamera)
   unsigned interpCameraMoved = 0;
+  // one-frame effects the game makes anew each picture (the laser sight), matched to the one of their id before
+  unsigned interpOneFrame = 0;
   // (interpOwnedRecount: draws of objects that drew another number of quads than in the picture before:
   // matched the old way, not by "n-th draw")
 };

@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.6-beta: japanische Discs ohne Zensur, Leuchten nur bei sichtbarer Lichtquelle, SELECT-Hinweis mit Verkaufs-Discs (06.11.2026, Branch `work`, Patches 0212–0213)
+## Version 0.98.6-beta: japanische Discs ohne Zensur, Leuchten nur bei sichtbarer Lichtquelle, SELECT-Hinweis mit Verkaufs-Discs, Laser in den 60-FPS-Zwischenbildern (06.11.2026, Branch `work`, Patches 0212–0213)
 
 Version 0.98.6-beta (versionCode 100), Releasetext `port/android-decomp/docs/releases/v0.98.6-beta.md`. Wunsch eines
 Nutzers (baut eine chinesische Übersetzung auf den JP-Discs, weil die Schrift der US-Fassung kein Chinesisch kann):
@@ -95,6 +95,25 @@ hineinkopiert), Läufe und Skripte in `~/p0986` (`run.sh NAME RAUM debug|us|eu|j
    „Disc 1 is the …, Disc 2 the …: import both discs of one release.“, Start gesperrt), nach Disc 2 vollständig. Die
    Speicherkarte (`game/memcard/card-a.bin`) bleibt Byte für Byte; App-Einstellungen hängen nicht an den Discs. Nichts
    geändert.
+9. **Laser kurz doppelt beim Bewegen (60 FPS, mehrere Nutzer, ohne Bericht).** Strahl (`EspDrawLaserLine`, esp19, eine
+   GX-Linie mit 2 Ecken) und Punkt (`drawPoint`, est 0x50, nur auf Gegnern) legt das Spiel **jedes Bild neu an**
+   (`EspEstSetSelect`): jedes Mal ein anderes Objekt, Lebensdauer 1 (Besitzer-Kennung id 0x19, life 1). Die
+   Zwischenbilder (`gx_gl.cpp BlendDraw`) hielten das für einen neuen Effekt in einem leeren Platz und schoben ihn mit
+   der geschätzten Kamerabewegung (`BlendByCamera`). **Nachgestellt am PC** (r101, Debug-Discs, Pistole, zielen und
+   nach rechts drehen, Serie von 16 Bildern, `RE4_GX_INTERP=1`, rote Bildpunkte gezählt): Strahlende in den echten
+   Bildern 441, 442, 443 …, in **jedem** Zwischenbild 451, 452, 453 …, also 9–10 Bildpunkte neben beiden Nachbarn: bei
+   60 FPS springt der Strahl ständig hin und her, sobald sich Kamera und Ziel bewegen. **Jetzt:** ein Effekt mit
+   Lebensdauer 1 wird dem Einbild-Effekt derselben id und Form im Bild davor zugeordnet (`MatchDraw` unter diesen;
+   Objekte, die weiterleben, bleiben reserviert), Lage und Ecken werden gemischt, bei Linien ohne die 1500-Einheiten-
+   Grenze (das Ende springt von einer nahen auf eine ferne Wand). Ergebnis derselben Serie: Zwischenbild 441, 442, 443,
+   445 … immer zwischen den Nachbarn, auch beim Sprung 455 → 438 (446). Echte Bilder Byte für Byte gleich. Neuer Test
+   `TestInterpolationOneFrame` in `gx_gl_check` (Strahl −4000 → 0 auf −2000, Punkt −1000 → 0 auf −500; Gegenprobe ohne
+   die Zuordnung: beide wie in Bild B, Test rot), `gx_gl_check` 0 Fehler. Alle Geräte-Serien mit Zwischenbildern
+   (flares2/3/4, minimap-flares, Höhle, Gewitter) neu gerendert: ohne Laser keine Änderung (0 Bildpunkte), auch wo
+   andere Einbild-Effekte (Lampenschimmer, bis 14 je Bild) jetzt so zugeordnet werden; mit Laser näher an der Mitte der
+   Nachbarn. `gx_chunk_render` zählt „Einbild-Effekte wiedererkannt“. **Am Gerät nicht geprüft;** den Laserpunkt auf
+   einem Gegner gab es in keiner Serie (gleiche Regel). Gyro-Zielen bewegt den Laser schneller: dort wirkte der Fehler
+   stärker, der Fix gleich.
 
 ## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen, „Dynamisch“ schneller zurück, Bildtakt mit Touch-Tasten (06.11.2026, Branch `work`, Patches 0210–0211)
 

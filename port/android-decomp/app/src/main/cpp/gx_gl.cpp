@@ -1183,6 +1183,7 @@ struct GxRenderer::Impl {
   std::unordered_set<std::uint64_t> interpUploads;        // textures it uploaded (Run(next) skips them)
   bool skipInterpUploads = false;
   std::vector<std::uint8_t> blendVertices;
+  std::vector<std::uint32_t> oneFrameCands;  // BlendDraw: the one-frame draws of an id in the picture before
   // the pass's counts: perspective draws, matched, turned more than 20 degrees
   unsigned ipDraws = 0, ipMatched = 0, ipTurned = 0;
   // The camera's move from the picture before to the next one in the pass (view space: next =
@@ -1548,6 +1549,26 @@ struct GxRenderer::Impl {
         stats.interpOwned++;
       }
     }
+    // a one-frame effect the game makes anew every picture (the laser sight: EspDrawLaserLine and drawPoint select
+    // a new cEsp each picture, life 1, mostly in another slot): not new, the same effect as a one-frame one of its
+    // id and look in the picture before (by MatchDraw among those; draws of objects that go on are reserved), its
+    // rows and ends blended. Taken for new, the beam was moved by the camera's guessed move instead and its far end
+    // lay 9-10 pixels beside both pictures' in every in-between picture (users 06.11.2026: the laser briefly
+    // doubled while it moved; PC series r101, aiming and turning)
+    bool oneFrame = false;
+    if (!a && curOwner && curLife != ~0u && (curLife & 0xFFFF) <= 1) {
+      auto same = recBySig.find(sig);
+      if (same != recBySig.end()) {
+        oneFrameCands.clear();
+        for (std::uint32_t i : same->second)
+          if (rec[i].life != ~0u && (rec[i].life >> 16) == (curLife >> 16) && (rec[i].life & 0xFFFF) <= 1)
+            oneFrameCands.push_back(i);
+        if (!oneFrameCands.empty() && (a = MatchDraw(oneFrameCands, t, rows, d.vertexCount, flat)) != nullptr) {
+          oneFrame = true;
+          stats.interpOneFrame++;
+        }
+      }
+    }
     // a particle whose slot drew nothing in the picture before: a new one (a turn of the r307 puzzle
     // starts sparkles), drawn as in the next picture; guessed, it took another's place
     if (!a && curOwner && curLife != ~0u && !recOwnerDraws.count(ownerBase)) {
@@ -1785,10 +1806,11 @@ struct GxRenderer::Impl {
             fb[c] = fa[c] + (fb[c] - fa[c]) * s;
           std::memcpy(blendVertices.data() + v * d.stride, fb, normals ? 24 : 12);
         }
-        // more than 1500 units in one game picture (2D: kFlatMove): not the same figure. The blended
-        // vertices go to a place of blendVbo no draw has used in this pass: no waiting, no copy of
-        // the buffer
-        if (far <= (flat ? kFlatMove : 1500.0f)) {
+        // more than 1500 units in one game picture (2D: kFlatMove): not the same figure. A one-frame line
+        // matched by its id is the same at any distance (the laser's far end jumps from a near wall to a far one).
+        // The blended vertices go to a place of blendVbo no draw has used in this pass: no waiting, no copy
+        // of the buffer
+        if (far <= (flat ? kFlatMove : 1500.0f) || (oneFrame && (d.primitive & 0xFF) == RE4_GX_LINES)) {
           const std::size_t at = (blendUsed + d.stride - 1) / d.stride * d.stride;
           if (blendMap && at + bytes <= blendCap) {
             std::memcpy(blendMap + at, blendVertices.data(), bytes);
