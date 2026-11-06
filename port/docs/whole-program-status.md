@@ -110,7 +110,8 @@ Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerar
      wie auf dem GameCube. **Neu (`gx_fifo.cpp`):** alle 900 abfragenden Bilder eine Zeile „GXPeekZ: … map ages 1: …,
      2: …“ im Protokoll (wie alt die antwortenden Karten am Gerät sind). Abhilfe wäre, die alte Karte mit den beiden
      Kameras auf das aktuelle Bild umzurechnen (Leon und nahe Dinge bewegen sich mit der Kamera und blieben stehen); nicht
-     umgesetzt, Entscheidung des Projektinhabers. Kern-Tests (`--core-test` peek depth, `--runtime-test`) ok.
+     umgesetzt: **Entscheidung des Projektinhabers (06.11.2026): erst den Fehlerbericht des Nutzers mit der Zeile
+     „GXPeekZ:“ abwarten.** Die Kamera beim Aufspringen bleibt wie im Original. Kern-Tests (`--core-test` peek depth, `--runtime-test`) ok.
 7. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
    Kern-, Karten-, Fernprozess-, Format- und Filmtests, libc++); aarch64 übersetzt. Nicht auf einem Gerät.
 
