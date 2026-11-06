@@ -3,6 +3,30 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Prüfung der Forks (06.11.2026, Branch `claude/keen-carson-26xxjq`, nichts übernommen)
+
+22 Forks über die GitHub-Suche gefunden (`fork:only`, auch umbenannte: `CubeEvil4-Port-i-o-s`, `CubeEvil4-PocoM5`),
+alle Branches per `git fetch` geholt. Da die Historie von `origin` neu geschrieben ist, zählen nur Commits, die
+kein Vorfahre eines Commits des Projektinhabers sind: 230 Commits von 6 Fork-Besitzern, der Rest ist alte eigene
+Historie. Ergebnis:
+
+- **Noname267** (`Noname267-patch-1`, auf 0.98.4): Bildformat „19.5:9“ (echtes Breitbild: Patch mit
+  `re4_view_aspect()` statt 4/3 in 16 Spieldateien für Projektion und Sichtkegel, HUD 32/39 schmaler, Untermenüs
+  gestreckt). Patch passt sauber auf `src/` (Probelauf `patch --dry-run`), Nummer 0210 ist bei uns schon belegt,
+  Menütext nicht übersetzt, nicht gebaut und nicht getestet. Kandidat, braucht Entscheidung des Projektinhabers
+  und einen Test auf dem Retroid. Außerdem ein GitHub-Actions-Workflow, der Kern und APK baut (`build.yml`).
+- **QianfoamsmallXianxian**, **aaqed378-svg**: weitere Build-Workflows (der von aaqed378 liegt im falschen Ordner
+  `github/` und baut nichts). Der von Noname267 ist der brauchbarste.
+- **christofermiquilinideabreu-ops**: README mit einem Tippfehler (`README.md` vor dem Bild), nicht übernehmen.
+- **alexbatistaribeiro777-cpu**: iOS-Anfang (Mach-O-Boost.Context, Werkzeugkette, `#if __APPLE__` in 8 Laufzeit-
+  dateien). Für Android ohne Wirkung, noch keine lauffähige App.
+- **dehalbuq** (208 Commits, R36S/Linux-Handheld, Stand 23.–26.10.): Messwerkzeuge und Startskripte fürs Gerät;
+  allgemein nur drei Ideen: (1) `toMemory` in `runtime/gx_fifo.cpp` am Stück per `memorySpan` statt Byte für Byte –
+  gleichwertig, aber das Spiel nimmt Anzeigelisten nur in `dbmodule.cpp` (Debug-Formen) auf, also kein Gewinn;
+  (2) BP/XF-Schreiben mit gleichem Wert überspringen – unsicher (BP-Register mit Nebenwirkung wie Token, PE_DONE,
+  Textur-/TLUT-Laden würden ausfallen); (3) Puffer-Wiederverwendung und Shader-Binärcache – hat unsere App schon
+  (Ring mit dauerhafter Abbildung, `glProgramBinary`).
+
 ## Version 0.98.6-beta: japanische Discs ohne Zensur, Leuchten nur bei sichtbarer Lichtquelle, SELECT-Hinweis mit Verkaufs-Discs (06.11.2026, Branch `work`, Patches 0212–0213)
 
 Version 0.98.6-beta (versionCode 100), Releasetext `port/android-decomp/docs/releases/v0.98.6-beta.md`. Wunsch eines
