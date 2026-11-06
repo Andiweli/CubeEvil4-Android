@@ -13,6 +13,9 @@
 
 **[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
+> [!IMPORTANT]
+> Due to the new update feature within the app—which establishes an internet connection to GitHub to check for a newer version—Android may display a Google Play Protect warning. This warning is completely harmless.
+
 **CubeEvil4** is an unofficial, native Android port of the GameCube debug build of Resident Evil 4
 (`G4BE08`, the "Nov 25 2004" prototype on two discs). It does not recreate the game: the app runs
 the original game code, compiled from the complete decompilation in this repository for ARM.
@@ -80,7 +83,7 @@ and it contains no game data: you need your own images of both discs of one rele
 
 | | Minimum | Recommended |
 |---|---|---|
-| Android | 6.0 | – |
+| Android | 7.0 | – |
 | Processor | ARM, 32- or 64-bit | 64-bit (see the note below) |
 | Graphics | OpenGL ES 3.0 | – |
 | RAM | – | 4 GB or more |
