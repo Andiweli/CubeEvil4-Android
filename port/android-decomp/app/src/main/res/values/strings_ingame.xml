@@ -311,4 +311,5 @@
     <string name="ingame_benchmark_failed">The benchmark could not run here. Nothing was changed.</string>
     <string name="ingame_benchmark_unreachable">The benchmark\'s place could not be reached. You are back where you were.</string>
     <string name="ingame_benchmark_discs">The benchmark\'s place does not fit these game discs. Nothing was changed.</string>
+    <string name="ingame_benchmark_low">With %1$d FPS no level was quite stable on this device; that value is the last level tried.</string>
 </resources>

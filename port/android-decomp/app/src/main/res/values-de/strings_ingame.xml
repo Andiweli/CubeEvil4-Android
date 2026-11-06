@@ -296,4 +296,5 @@
     <string name="ingame_benchmark_failed">Der Benchmark konnte hier nicht laufen. Nichts wurde geändert.</string>
     <string name="ingame_benchmark_unreachable">Die Stelle des Benchmarks war nicht erreichbar. Du bist wieder dort, wo du warst.</string>
     <string name="ingame_benchmark_discs">Die Stelle des Benchmarks passt nicht zu diesen Spiel-Discs. Nichts wurde geändert.</string>
+    <string name="ingame_benchmark_low">Mit %1$d FPS war auf diesem Gerät keine Stufe ganz stabil; dieser Wert ist die zuletzt getestete Stufe.</string>
 </resources>

@@ -296,4 +296,5 @@
     <string name="ingame_benchmark_failed">बेंचमार्क यहाँ नहीं चल सका। कुछ नहीं बदला गया।</string>
     <string name="ingame_benchmark_unreachable">बेंचमार्क की जगह तक नहीं पहुँचा जा सका। आप वहीं वापस हैं जहाँ थे।</string>
     <string name="ingame_benchmark_discs">बेंचमार्क की जगह इन गेम डिस्क से मेल नहीं खाती। कुछ नहीं बदला गया।</string>
+    <string name="ingame_benchmark_low">%1$d FPS पर इस डिवाइस पर कोई भी स्तर पूरी तरह स्थिर नहीं रहा; यह मान आख़िरी जाँचा गया स्तर है।</string>
 </resources>

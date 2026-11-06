@@ -162,6 +162,25 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
    - **Geprüft am PC (EU-Disc, i686):** 12 GX-Bilder rund um den Kreis (alle 50 Spielbilder): in jedem Bild Leon, die
      Fackelflamme, Felsen, Hügel und Häuser hinter dem Steg; das Boot, wo es im Blickfeld liegt. Vorher fehlten Leon,
      Boot und Flamme in 5 von 12 Bildern. Menübild des Knopfs angesehen. Am Gerät nicht geprüft.
+19. **Benchmark-Stufen (Gerätetest des Projektinhabers mit 435fd10f: einmal nur kurz bei 1×, einmal ohne Ende bei
+    3,5×):**
+   - **Ursache:** „Dynamisch“ (`AutoLevel::Chunk`) gibt auch dann seine eigene Stufe zurück, wenn es nichts ändern
+     darf, und `drawGx` setzte sie bei jedem Chunk über die des Benchmarks (`RescaleHalves`). Dazu begann ein neuer
+     Renderer (neue Bildoptionen, z. B. beim Schließen des Menüs) mit der Menü-Stufe und mit Statistiken ab 0, aus
+     denen der Benchmark seine Bilder je Sekunde las; und der Benchmark lief nur bei echten Chunks weiter.
+   - **Neu:** `gx_bench_steps.h` (`BenchSteps`, ohne GL, am PC getestet): zwei Durchgänge, 30 dann 60 FPS, jeder ab 4×
+     unabhängig von der Menü-Einstellung, jede Stufe 5 s (die ersten 1,5 s zählen nicht), dann eine halbe Stufe tiefer
+     bis 1×; der erste stabile Wert ist das Ergebnis; hält auch 1× nicht, ist es 1×, als „nicht stabil“ vermerkt
+     (eigene Zeile in der Abschlussmeldung, 11 Sprachen). Höchstens 60 s je Durchgang, 240 s für den ganzen Benchmark
+     (Hin- und Rückweg eingeschlossen). In `core_mode.cpp`: „Dynamisch“ ruht, solange der Benchmark läuft; ein neuer
+     Renderer beginnt auf dessen Stufe; Bilder werden selbst gezählt (nicht in den Renderer-Statistiken); der Takt
+     läuft bei jedem Bildwechsel, auch ohne Chunk. Je Stufe eine Log-Zeile („benchmark: 30 FPS pass, level 3.5x for
+     5.0 s: game 27..28.6 pictures a second, shown at least 28, 0 in-between left out: not stable“), dazu Zeilen beim
+     Stufenwechsel und Durchgangsende. Auf dem Bildschirm wie bisher: Ziel (30/60 FPS), Stufe, FPS jetzt.
+   - **Geprüft am PC:** `gx_gl_check` `TestBenchSteps` mit simulierten Geräten (schnell: 4×/4×; mittel: 30 FPS
+     4× → 3,5× → 3× → 2,5× → 2×, 60 FPS wieder ab 4× bis 1,5×; langsam: bis 1×, nicht stabil, Ende nach 70 s; ein
+     stockendes Spiel mit Sekunden 9 s auseinander: Ende durch die Zeitgrenze; eine schlechte Sekunde bei 4×: 3,5×).
+     App-Tests und Bau. Am Gerät nicht gelaufen; der Kern ist unverändert.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 

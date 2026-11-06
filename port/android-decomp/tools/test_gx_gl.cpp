@@ -14,6 +14,7 @@
 //     swap tables, konst selections, indirect stages) all compile
 //   - merged draw calls (RE4_GX_MERGE): draws that differ only in their
 //     matrices and material colours in few calls, the picture unchanged
+#include "gx_bench_steps.h"
 #include "gx_auto_level.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
@@ -1311,6 +1312,54 @@ struct AutoRun {
     }
   }
 };
+
+// The benchmark's steps (gx_bench_steps.h) with simulated devices: `game(level, sixty)` the game pictures a second
+// at a level, `shown(level, sixty)` those shown; one call a second. The log lines go to stderr, so the whole
+// sequence 4x -> ... -> result is visible.
+template <typename Game, typename Shown>
+re4gx::BenchSteps RunBench(const char *name, Game game, Shown shown, double tick = 1.0) {
+  re4gx::BenchSteps b;
+  b.Start(0.0);
+  std::fprintf(stderr, "benchmark simulation: %s\n", name);
+  double t = 0.0;
+  for (int i = 0; i < 400 && !b.Finished(); i++) {
+    t += tick;
+    const bool sixty = b.Pass() == 1;
+    std::string line;
+    const re4gx::BenchSteps::Step step = b.Second(t, game(b.Level(), sixty), shown(b.Level(), sixty), 0, &line);
+    if (step != re4gx::BenchSteps::kNone) std::fprintf(stderr, "  %5.1f s  %s\n", t, line.c_str());
+  }
+  std::fprintf(stderr, "  result: %s (%s) with 30, %s (%s) with 60 after %.0f s\n", re4gx::BenchSteps::Name(b.Result(0)).c_str(),
+               b.Held(0) ? "stable" : "not stable", re4gx::BenchSteps::Name(b.Result(1)).c_str(),
+               b.Held(1) ? "stable" : "not stable", t);
+  return b;
+}
+
+void TestBenchSteps() {
+  // a fast device: 4x holds both
+  re4gx::BenchSteps fast = RunBench("fast", [](int, bool) { return 30; }, [](int, bool sixty) { return sixty ? 60 : 30; });
+  Check(fast.Finished() && fast.Result(0) == 8 && fast.Result(1) == 8 && fast.Held(0) && fast.Held(1),
+        "benchmark: a fast device: 4x for 30 and 60");
+  // a middle one: 30 pictures from 2x down, 60 shown from 1.5x down
+  re4gx::BenchSteps mid = RunBench(
+      "middle (30 up to 2x, 60 up to 1.5x)", [](int level, bool) { return level <= 4 ? 30 : 24; },
+      [](int level, bool sixty) { return sixty ? (level <= 3 ? 60 : 47) : (level <= 4 ? 30 : 24); });
+  Check(mid.Finished() && mid.Result(0) == 4 && mid.Result(1) == 3 && mid.Held(0) && mid.Held(1),
+        "benchmark: steps 4x 3.5x 3x 2.5x 2x for 30, the 60 pass again from 4x down to 1.5x");
+  // a slow one: not even 1x
+  re4gx::BenchSteps slow = RunBench("slow (not even 1x)", [](int, bool) { return 22; }, [](int, bool) { return 22; });
+  Check(slow.Finished() && slow.Result(0) == 2 && slow.Result(1) == 2 && !slow.Held(0) && !slow.Held(1),
+        "benchmark: 1x does not hold: 1x, marked not held, and it ends");
+  // seconds that come late (a stalling game): the pass's time limit ends it all the same
+  re4gx::BenchSteps late = RunBench("seconds 9 s apart", [](int, bool) { return 20; }, [](int, bool) { return 20; }, 9.0);
+  Check(late.Finished(), "benchmark: ends with seconds far apart too");
+  // a short dip in one second at a level: that level does not hold
+  int calls = 0;
+  re4gx::BenchSteps dip = RunBench("one bad second at 4x",
+                                   [&calls](int, bool) { return ++calls == 3 ? 25 : 30; },
+                                   [](int, bool sixty) { return sixty ? 60 : 30; });
+  Check(dip.Result(0) == 7 && dip.Result(1) == 8, "benchmark: one bad second at 4x: 3.5x for 30, 4x for 60");
+}
 
 void TestAutoLevel() {
   {
@@ -3124,6 +3173,7 @@ int main() {
   TestPrewarm();
   TestRescale();
   TestAutoLevel();
+  TestBenchSteps();
   TestHandOverCopies();
   TestMerge();
   TestVertexRing();

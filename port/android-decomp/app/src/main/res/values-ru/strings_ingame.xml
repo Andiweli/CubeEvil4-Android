@@ -298,4 +298,5 @@
     <string name="ingame_benchmark_failed">Тест не удалось выполнить здесь. Ничего не изменено.</string>
     <string name="ingame_benchmark_unreachable">Место теста оказалось недоступно. Вы снова там, где были.</string>
     <string name="ingame_benchmark_discs">Место теста не подходит к этим игровым дискам. Ничего не изменено.</string>
+    <string name="ingame_benchmark_low">При %1$d FPS ни один уровень не был полностью стабильным на этом устройстве; это значение — последний проверенный уровень.</string>
 </resources>

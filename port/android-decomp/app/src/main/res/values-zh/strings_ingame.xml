@@ -296,4 +296,5 @@
     <string name="ingame_benchmark_failed">性能测试无法在这里运行。没有任何更改。</string>
     <string name="ingame_benchmark_unreachable">无法到达性能测试的地点。你已回到原来的位置。</string>
     <string name="ingame_benchmark_discs">性能测试的地点与这些游戏光盘不匹配。没有任何更改。</string>
+    <string name="ingame_benchmark_low">在 %1$d FPS 下，这台设备上没有任何等级完全稳定；该数值是最后测试的等级。</string>
 </resources>

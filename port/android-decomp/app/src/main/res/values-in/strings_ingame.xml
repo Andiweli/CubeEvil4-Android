@@ -294,4 +294,5 @@
     <string name="ingame_benchmark_failed">Benchmark tidak dapat berjalan di sini. Tidak ada yang diubah.</string>
     <string name="ingame_benchmark_unreachable">Tempat benchmark tidak dapat dicapai. Anda kembali ke tempat semula.</string>
     <string name="ingame_benchmark_discs">Tempat benchmark tidak cocok dengan disk game ini. Tidak ada yang diubah.</string>
+    <string name="ingame_benchmark_low">Dengan %1$d FPS tidak ada level yang benar-benar stabil di perangkat ini; nilai itu adalah level terakhir yang dicoba.</string>
 </resources>

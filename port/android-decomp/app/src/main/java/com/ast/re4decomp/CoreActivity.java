@@ -1639,8 +1639,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         g.edit().putInt(CoreMenu.DYN_CAP_30, st[3]).putInt(CoreMenu.DYN_CAP_60, st[4]).putInt("scaleHalves", 0).apply();
         CoreBridge.setDynamicCaps(st[3], st[4]);
         applyGraphics();
-        benchmarkEnd(0, getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×"));
+        // a pass where even 1x did not hold its rate: said as well (its result is 1x)
+        int held = st.length > 6 ? st[6] : 3;
+        String text = getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
+            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×");
+        if ((held & 1) == 0) text += " " + getString(R.string.ingame_benchmark_low, 30);
+        if ((held & 2) == 0) text += " " + getString(R.string.ingame_benchmark_low, 60);
+        benchmarkEnd(0, text);
         return;
       }
       case 5: benchmarkEnd(R.string.ingame_benchmark_cancelled, null); return;

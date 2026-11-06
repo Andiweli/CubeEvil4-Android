@@ -305,4 +305,5 @@
     <string name="ingame_benchmark_failed">تعذّر تشغيل اختبار الأداء هنا. لم يتغير شيء.</string>
     <string name="ingame_benchmark_unreachable">تعذر الوصول إلى مكان اختبار الأداء. عدت إلى حيث كنت.</string>
     <string name="ingame_benchmark_discs">مكان اختبار الأداء لا يناسب أقراص اللعبة هذه. لم يتغير شيء.</string>
+    <string name="ingame_benchmark_low">مع %1$d إطارًا لم يكن أي مستوى ثابتًا تمامًا على هذا الجهاز؛ هذه القيمة هي آخر مستوى جُرّب.</string>
 </resources>

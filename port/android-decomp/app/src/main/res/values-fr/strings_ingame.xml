@@ -299,4 +299,5 @@
     <string name="ingame_benchmark_failed">Le benchmark n\'a pas pu s\'exécuter ici. Rien n\'a été modifié.</string>
     <string name="ingame_benchmark_unreachable">L\'endroit du benchmark n\'a pas pu être atteint. Vous êtes de retour là où vous étiez.</string>
     <string name="ingame_benchmark_discs">L\'endroit du benchmark ne correspond pas à ces disques du jeu. Rien n\'a été modifié.</string>
+    <string name="ingame_benchmark_low">À %1$d FPS, aucun niveau n\'a été tout à fait stable sur cet appareil ; cette valeur est le dernier niveau essayé.</string>
 </resources>
