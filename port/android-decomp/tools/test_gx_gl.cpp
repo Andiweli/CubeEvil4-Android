@@ -1371,6 +1371,13 @@ void TestBenchSteps() {
       [](int level, bool sixty) { return sixty ? (level > 4 ? 48 : 58) : (level > 4 ? 24 : 30); });
   Check(steady.Result(0) == 4 && steady.Result(1) == 4 && steady.Held(0) && steady.Held(1),
         "benchmark: 29-30 a second at 2x holds 2x for 30 and 60");
+  // the 60 FPS pause does not carry over into the benchmark's next level (SmoothPacer::Restart)
+  re4gx::SmoothPacer pacer;
+  bool off = false;
+  for (int i = 0; i < 200 && !off; i++) off = !pacer.Chunk(i / 30.0, true, nullptr) && pacer.Off();
+  Check(off, "60 FPS pacer: behind again and again, the in-between pictures pause");
+  pacer.Restart(7.0);
+  Check(!pacer.Off() && pacer.Chunk(7.05, false, nullptr), "60 FPS pacer: Restart: in-between pictures at once");
 }
 
 void TestAutoLevel() {

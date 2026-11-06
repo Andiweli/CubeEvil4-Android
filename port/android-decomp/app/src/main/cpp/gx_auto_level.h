@@ -229,6 +229,15 @@ public:
   }
   bool Off() const { return offUntil_ >= 0.0; }
   unsigned Offs() const { return offs_; }
+  // A new start at `t` (the benchmark's next level, gx_bench_steps.h): in-between pictures on at once, with
+  // the grace of kGrace seconds; a pause from the level before does not carry over (the project owner's
+  // log 06.11.2026: the pause from 2x ran 2.5 s into 1.5x, which then failed with 30 shown in those seconds).
+  void Restart(double t) {
+    offUntil_ = -1.0;
+    graceUntil_ = t + kGrace;
+    for (double &d : times_)
+      d = -1e9;
+  }
 
 private:
   double times_[kRing] = {};

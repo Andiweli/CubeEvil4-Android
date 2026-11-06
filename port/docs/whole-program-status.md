@@ -202,6 +202,18 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      Höchstens 100 s je Durchgang, 360 s für alles; Hinweistext „zwei bis drei Minuten“ (11 Sprachen). Geprüft:
      `TestBenchSteps` (u. a. 29–30 mit gelegentlichem Ruckler bei 2× ergibt 2× für 30 und 60; eine schwache Sekunde bei
      4× bleibt 4×, zwei ergeben 3,5×), App-Tests und Bau. Am Gerät nicht geprüft.
+   - **Gerätelog des Projektinhabers (Retroid, Snapdragon 865, 1,5× und 2× MSAA, FXAA, Lens Flares, Tiefenschärfe
+     stark, 60 FPS an; 06.11.2026):** 30-FPS-Durchgang 4× 14,1 · 3,5× 18,6 · 3× 25,1 · 2,5× 29,9 stabil → 2,5×.
+     60-FPS-Durchgang: 2,5× 31,8 gezeigt, 2× 38,8, 1,5× 54,1 mit zwei schwachen Sekunden, 1× 60 → 1×. **Messfehler:** bei
+     2× schaltete der 60-FPS-Taktgeber (`SmoothPacer`, Renderer hinterher) die Zwischenbilder für 5 s ab; die Pause lief
+     2,5 s in 1,5× hinein (30 gezeigt), 1,5× fiel daran durch. **Jetzt:** `SmoothPacer::Restart` bei jedem Stufenwechsel
+     des Benchmarks, Einschwingzeit 2,5 s statt 1,5 s. Die Stelle selbst ist schwer: 700–830 Zeichenaufträge je Bild
+     (Titelmenü etwa 80), etwa 10 EFB-Kopien je Bild; der Render-Thread braucht dort 9–12 ms Prozessorzeit je Bild und
+     läuft auf den mittleren Kernen bei 1862 MHz (der schnellste Kern, 2841 MHz, bleibt ungenutzt; „performance hint:
+     the system gave no session“); mit 60 FPS rechnet er jedes Bild zweimal. Geprüft: `gx_gl_check` (Taktgeber-Neustart,
+     Stufen), App-Tests, Bau. Am Gerät nicht geprüft.
+   - **Hinweistext gekürzt** (Wunsch des Projektinhabers): keine Gegner, kein Abstand; „sehr anspruchsvolle Szene (Steg
+     am See mit Wasser, Regen und Nebel)“, Dauer, danach „Dynamisch“, übrige Einstellungen bleiben, B/Zurück (11 Sprachen).
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 

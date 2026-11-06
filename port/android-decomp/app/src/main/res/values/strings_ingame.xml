@@ -300,7 +300,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Start</string>
-    <string name="ingame_benchmark_text">The game goes to a demanding place: the lake\'s dock with the torch and the boat, in rain. Leon just stands, enemies stand still and the view circles him at about 10 m. From the highest resolution down it measures which level holds a steady 30 FPS and a steady 60 FPS. Your other options (MSAA, FXAA, filters, lens flares, depth of field and the rest) stay as they are, so the result fits them. Afterwards the resolution is set to \"Dynamic\", which then never goes above the measured levels on this device. It takes two to three minutes and starts from the title menu or while you play freely in any chapter; afterwards you are back exactly where you were. Nothing is saved to your memory card. B or Back cancels.</string>
+    <string name="ingame_benchmark_text">Measures which resolution holds a steady 30 and 60 FPS in a very demanding scene (the lake\'s dock with water, rain and fog). Takes two to three minutes. Afterwards the resolution is set to \"Dynamic\" with the measured limits and you are back where you were. Your other options stay as they are. B or Back cancels.</string>
     <string name="ingame_benchmark_starting">Benchmark: starting …</string>
     <string name="ingame_benchmark_going">Benchmark: going to the lake\'s dock …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · now %3$d FPS · B / Back: cancel</string>

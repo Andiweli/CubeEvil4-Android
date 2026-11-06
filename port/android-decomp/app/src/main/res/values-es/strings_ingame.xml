@@ -286,7 +286,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Iniciar</string>
-    <string name="ingame_benchmark_text">El juego va a un lugar exigente: el muelle del lago con la antorcha y la barca, bajo la lluvia. Leon solo está de pie, los enemigos se quedan quietos y la cámara gira a su alrededor a unos 10 m. Desde la resolución más alta hacia abajo mide qué nivel mantiene 30 FPS estables y 60 FPS estables. Tus demás opciones (MSAA, FXAA, filtros, destellos de lente, profundidad de campo y el resto) se quedan como están, para que el resultado se ajuste a ellas. Después la resolución pasa a \"Dinámica\", que en este dispositivo nunca supera los niveles medidos. Tarda entre dos y tres minutos y se inicia desde el menú del título o mientras juegas libremente en cualquier capítulo; después vuelves exactamente a donde estabas. No se guarda nada en tu tarjeta de memoria. B o Atrás cancela.</string>
+    <string name="ingame_benchmark_text">Mide qué resolución mantiene 30 y 60 FPS estables en una escena muy exigente (el muelle del lago con agua, lluvia y niebla). Tarda entre dos y tres minutos. Después la resolución pasa a \"Dinámica\" con los límites medidos y vuelves a donde estabas. Tus demás opciones se quedan como están. B o Atrás cancela.</string>
     <string name="ingame_benchmark_starting">Benchmark: iniciando …</string>
     <string name="ingame_benchmark_going">Benchmark: yendo al muelle del lago …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · nivel %2$s · ahora %3$d FPS · B / Atrás: cancelar</string>

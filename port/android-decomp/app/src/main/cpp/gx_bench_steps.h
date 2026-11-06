@@ -24,7 +24,7 @@ class BenchSteps {
 public:
   static constexpr int kTop = 8, kBottom = 2;  // halves: 4x, 1x
   static constexpr double kHold = 10.0;        // seconds a level (the project owner, 06.11.2026: 5 s was too short)
-  static constexpr double kSettle = 1.5;       // its first seconds do not count
+  static constexpr double kSettle = 2.5;       // its first seconds do not count (a new EFB, in-between pictures on again)
   static constexpr double kPassLimit = 100.0;  // seconds a pass at most (7 levels: 70 s)
   static constexpr int kMinSamples = 5;        // counted seconds a level needs
   static constexpr double kAvgChunks = 29.0;   // game pictures a second on average

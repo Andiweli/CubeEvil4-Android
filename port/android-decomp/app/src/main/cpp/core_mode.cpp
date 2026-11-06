@@ -1459,6 +1459,8 @@ void levelBenchSet(int halves) {
   infoScale = halves;
   levelBench.level = halves;
   smoothTooSlow = false;
+  // a pause of the in-between pictures from the level before does not carry over (60 FPS pass)
+  smoothPacer.Restart(std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
 // The benchmark's results and the way back.

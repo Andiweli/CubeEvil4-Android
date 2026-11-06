@@ -283,7 +283,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Mulai</string>
-    <string name="ingame_benchmark_text">Game pergi ke tempat berat: dermaga danau dengan obor dan perahu, saat hujan. Leon hanya berdiri, musuh diam dan kamera berputar mengelilinginya pada jarak sekitar 10 m. Dari resolusi tertinggi ke bawah diukur level mana yang stabil di 30 FPS dan di 60 FPS. Opsi Anda yang lain (MSAA, FXAA, filter, pantulan lensa, kedalaman bidang, dan lainnya) tetap seperti apa adanya, sehingga hasilnya sesuai dengannya. Setelah itu resolusi diatur ke \"Dinamis\", yang di perangkat ini tidak pernah melebihi level yang diukur. Butuh dua hingga tiga menit dan dimulai dari menu judul atau saat Anda bermain bebas di bab mana pun; setelahnya Anda kembali persis ke tempat semula. Tidak ada yang disimpan ke kartu memori Anda. B atau Kembali membatalkan.</string>
+    <string name="ingame_benchmark_text">Mengukur resolusi mana yang stabil di 30 dan 60 FPS dalam adegan yang sangat berat (dermaga danau dengan air, hujan, dan kabut). Butuh dua hingga tiga menit. Setelah itu resolusi diatur ke \"Dinamis\" dengan batas yang diukur dan Anda kembali ke tempat semula. Opsi Anda yang lain tetap seperti apa adanya. B atau Kembali membatalkan.</string>
     <string name="ingame_benchmark_starting">Benchmark: memulai …</string>
     <string name="ingame_benchmark_going">Benchmark: menuju dermaga danau …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · kini %3$d FPS · B / Kembali: batal</string>
