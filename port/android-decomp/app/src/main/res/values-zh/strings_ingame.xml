@@ -285,7 +285,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">性能测试</string>
     <string name="ingame_benchmark_start">开始</string>
-    <string name="ingame_benchmark_text">测量在一个高负荷场景（有水、雨和雾的湖边码头）中，哪个分辨率能稳定保持 30 和 60 FPS。需要两到三分钟。之后分辨率会设为“动态”：最高比测得的等级高半级，需要时自动降低。你会回到原来的位置。其他选项保持不变。按 B 或返回键可取消。</string>
+    <string name="ingame_benchmark_text">测量在一个高负荷场景（有水、雨和雾的湖边码头）中，哪个分辨率能稳定保持 30 和 60 FPS。需要两到三分钟，期间声音静音。之后分辨率会设为“动态”：最高比测得的等级高半级，需要时自动降低。你会回到原来的位置。其他选项保持不变。按 B 或返回键可取消。</string>
     <string name="ingame_benchmark_starting">性能测试：正在开始 …</string>
     <string name="ingame_benchmark_going">性能测试：前往湖边码头 …</string>
     <string name="ingame_benchmark_running">性能测试 · %1$d FPS · 等级 %2$s · 当前 %3$d FPS · B / 返回：取消</string>

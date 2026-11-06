@@ -283,7 +283,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Mulai</string>
-    <string name="ingame_benchmark_text">Mengukur resolusi mana yang stabil di 30 dan 60 FPS dalam adegan yang sangat berat (dermaga danau dengan air, hujan, dan kabut). Butuh dua hingga tiga menit. Setelah itu resolusi diatur ke \"Dinamis\": memakai hingga setengah level di atas hasil ukur dan turun bila perlu. Anda kembali ke tempat semula. Opsi Anda yang lain tetap seperti apa adanya. B atau Kembali membatalkan.</string>
+    <string name="ingame_benchmark_text">Mengukur resolusi mana yang stabil di 30 dan 60 FPS dalam adegan yang sangat berat (dermaga danau dengan air, hujan, dan kabut). Butuh dua hingga tiga menit; suara dibisukan selama itu. Setelah itu resolusi diatur ke \"Dinamis\": memakai hingga setengah level di atas hasil ukur dan turun bila perlu. Anda kembali ke tempat semula. Opsi Anda yang lain tetap seperti apa adanya. B atau Kembali membatalkan.</string>
     <string name="ingame_benchmark_starting">Benchmark: memulai …</string>
     <string name="ingame_benchmark_going">Benchmark: menuju dermaga danau …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · kini %3$d FPS · B / Kembali: batal</string>

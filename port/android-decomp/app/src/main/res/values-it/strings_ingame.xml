@@ -286,7 +286,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Avvia</string>
-    <string name="ingame_benchmark_text">Misura quale risoluzione tiene 30 e 60 FPS stabili in una scena molto impegnativa (il molo del lago con acqua, pioggia e nebbia). Dura da due a tre minuti. Poi la risoluzione passa a \"Dinamica\": usa fino a mezzo livello in più di quello misurato e scende dove serve. Torni dov\'eri. Le altre opzioni restano come sono. B o Indietro annulla.</string>
+    <string name="ingame_benchmark_text">Misura quale risoluzione tiene 30 e 60 FPS stabili in una scena molto impegnativa (il molo del lago con acqua, pioggia e nebbia). Dura da due a tre minuti; nel frattempo l\'audio è disattivato. Poi la risoluzione passa a \"Dinamica\": usa fino a mezzo livello in più di quello misurato e scende dove serve. Torni dov\'eri. Le altre opzioni restano come sono. B o Indietro annulla.</string>
     <string name="ingame_benchmark_starting">Benchmark: avvio …</string>
     <string name="ingame_benchmark_going">Benchmark: verso il molo del lago …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · livello %2$s · ora %3$d FPS · B / Indietro: annulla</string>

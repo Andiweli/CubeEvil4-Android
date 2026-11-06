@@ -300,7 +300,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Start</string>
-    <string name="ingame_benchmark_text">Measures which resolution holds a steady 30 and 60 FPS in a very demanding scene (the lake\'s dock with water, rain and fog). Takes two to three minutes. Afterwards the resolution is set to \"Dynamic\": it uses up to half a level above the measured one and steps down where needed. You are back where you were. Your other options stay as they are. B or Back cancels.</string>
+    <string name="ingame_benchmark_text">Measures which resolution holds a steady 30 and 60 FPS in a very demanding scene (the lake\'s dock with water, rain and fog). Takes two to three minutes; the sound is muted meanwhile. Afterwards the resolution is set to \"Dynamic\": it uses up to half a level above the measured one and steps down where needed. You are back where you were. Your other options stay as they are. B or Back cancels.</string>
     <string name="ingame_benchmark_starting">Benchmark: starting …</string>
     <string name="ingame_benchmark_going">Benchmark: going to the lake\'s dock …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · level %2$s · now %3$d FPS · B / Back: cancel</string>

@@ -274,6 +274,11 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      Werte sind in beiden Leistungsmodi gleich (GPU-gebunden): das Ergebnis stimmt.
    - Geprüft: `gx_gl_check`, Prüfreihe am PC, App-Tests und Bau. Am Gerät nicht geprüft: „Dynamisch“ nach Menü und
      Raumwechsel, der Start aus den Logos, das Verhalten des Render-Threads bei verweigertem Kern 7.
+   - **Benchmark stumm („Ja, stumm“ des Projektinhabers):** bei 4×–3× läuft das Spiel mit 14–25 Bildern je Sekunde, der
+     Ton lief dabei rund 120-mal leer und knackte. Jetzt steht die AudioTrack-Lautstärke während des Laufs auf 0
+     (`CoreAudio.setMuted`, `CoreActivity.benchmarkStart`/`benchmarkEnd`, auch bei Abbruch und Ablehnung); Mischen
+     (AX/DSP), Streams und das Schreiben laufen wie im Spiel, die Lautstärken des Menüs bleiben unberührt. Hinweistext
+     (11 Sprachen) und Changelog-Zeile nennen es. Geprüft: App-Tests und Bau; am Gerät nicht gehört.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 

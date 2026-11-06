@@ -1614,6 +1614,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   private void benchmarkStart() {
     benchRunning = true;
+    audio.setMuted(true);  // the speaker silent while it runs (the game's sound goes on inside: an honest measurement)
     benchView.setText(R.string.ingame_benchmark_starting);
     benchView.setVisibility(View.VISIBLE);
     CoreBridge.startBenchmark();
@@ -1663,6 +1664,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   private void benchmarkEnd(int message, String text) {
     benchRunning = false;
+    audio.setMuted(false);
     main.removeCallbacks(benchPoll);
     benchView.setVisibility(View.GONE);
     Log.i(TAG, "benchmark: " + (text != null ? text : getString(message)));

@@ -48,10 +48,18 @@ final class CoreAudio {
   // focus); a navigation prompt or a call takes it: the game's sound stays quiet until it comes back.
   // Phones and TVs keep playing next to other apps as before (no focus asked there).
   private volatile float gain = 1f;
+  // the benchmark (wish of the project owner, 06.11.2026): the track at volume 0 while it runs; the game's mixing, its
+  // streams and the writes go on as in play, so the measurement stays the same; the menu's volumes are not touched
+  private volatile boolean muted;
   private Object focus;  // AudioFocusRequest (API 26), only in a car
 
   CoreAudio(Context context) {
     this.context = context;
+  }
+
+  /** Silent while the benchmark runs (true), audible again (false); nothing else changes. */
+  void setMuted(boolean on) {
+    muted = on;
   }
 
   synchronized void start() {
@@ -230,8 +238,9 @@ final class CoreAudio {
       int writes = 0;
       float applied = 1f;
       while (running) {
-        if (gain != applied) {
-          applied = gain;
+        final float volume = muted ? 0f : gain;
+        if (volume != applied) {
+          applied = volume;
           track.setVolume(applied);
         }
         if (++writes >= CHECK_WRITES) {

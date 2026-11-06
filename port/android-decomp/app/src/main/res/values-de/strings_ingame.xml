@@ -285,7 +285,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Starten</string>
-    <string name="ingame_benchmark_text">Misst, welche Auflösung in einer sehr anspruchsvollen Szene (Steg am See mit Wasser, Regen und Nebel) stabile 30 und 60 FPS hält. Dauert zwei bis drei Minuten. Danach steht die Auflösung auf „Dynamisch“: Es nutzt bis zu eine halbe Stufe mehr als gemessen und geht dort, wo nötig, tiefer. Du bist wieder dort, wo du warst. Deine übrigen Einstellungen bleiben, wie sie sind. B oder Zurück bricht ab.</string>
+    <string name="ingame_benchmark_text">Misst, welche Auflösung in einer sehr anspruchsvollen Szene (Steg am See mit Wasser, Regen und Nebel) stabile 30 und 60 FPS hält. Dauert zwei bis drei Minuten, der Ton ist währenddessen stumm. Danach steht die Auflösung auf „Dynamisch“: Es nutzt bis zu eine halbe Stufe mehr als gemessen und geht dort, wo nötig, tiefer. Du bist wieder dort, wo du warst. Deine übrigen Einstellungen bleiben, wie sie sind. B oder Zurück bricht ab.</string>
     <string name="ingame_benchmark_starting">Benchmark: startet …</string>
     <string name="ingame_benchmark_going">Benchmark: zum Steg am See …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · Stufe %2$s · gerade %3$d FPS · B / Zurück: abbrechen</string>

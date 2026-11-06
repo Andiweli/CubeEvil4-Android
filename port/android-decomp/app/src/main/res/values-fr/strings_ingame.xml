@@ -288,7 +288,7 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Démarrer</string>
-    <string name="ingame_benchmark_text">Mesure quelle résolution tient 30 et 60 FPS stables dans une scène très exigeante (le ponton du lac avec l\'eau, la pluie et le brouillard). Cela dure deux à trois minutes. Ensuite la résolution passe sur « Dynamique » : elle utilise jusqu\'à un demi-niveau de plus que la mesure et descend là où c\'est nécessaire. Vous revenez là où vous étiez. Vos autres options restent telles quelles. B ou Retour annule.</string>
+    <string name="ingame_benchmark_text">Mesure quelle résolution tient 30 et 60 FPS stables dans une scène très exigeante (le ponton du lac avec l\'eau, la pluie et le brouillard). Cela dure deux à trois minutes ; le son est coupé pendant ce temps. Ensuite la résolution passe sur « Dynamique » : elle utilise jusqu\'à un demi-niveau de plus que la mesure et descend là où c\'est nécessaire. Vous revenez là où vous étiez. Vos autres options restent telles quelles. B ou Retour annule.</string>
     <string name="ingame_benchmark_starting">Benchmark : démarrage …</string>
     <string name="ingame_benchmark_going">Benchmark : vers le ponton du lac …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · niveau %2$s · actuel %3$d FPS · B / Retour : annuler</string>
