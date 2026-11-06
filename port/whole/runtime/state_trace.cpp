@@ -178,7 +178,9 @@
 //                          with life HP, as hits that do not kill (U-3 at 1 in the first
 //                          room jumps onto the containers and hides with life 0);
 //                          "F:ID:all/E/K" kills every live one of the id, every E frames, K times
-//                          (Mercenaries: the next waves come in, r404's rocket Ganados)
+//                          (Mercenaries: the next waves come in, r404's rocket Ganados);
+//                          "F:ID:head[/E/K]" leaves the first live one with life 1 and hits its
+//                          head with a handgun bullet (the head burst, patch 0212)
 //   RE4_TEST_EM_SET="F:NO[,NO...]"  at game frame F the room's enemy list entries NO (hex) are set as a
 //                          room script sets them (cEmWrap::setEm, sent towards the player: r404_setEm)
 //   RE4_TEST_DOORS=1       a "door:" line whenever a door (id 0x41) changes: life, routine, broken
@@ -274,6 +276,7 @@
 #include "dmg.h"
 #include "atari.h"
 #include "emdoor.h"
+#include "pl_body.h"
 #include "re4_instant.h"
 extern "C" unsigned re4_instant_game_why(void);  // instant_game.cpp, for these checks
 extern "C" int re4_core_room_outline(float* out, int maxEdges, unsigned* info);  // minimap.cpp
@@ -690,6 +693,7 @@ unsigned g_stunUntil;
 int g_killHp = -1;
 int g_killAll;                // RE4_TEST_EM_KILL "all": kills left
 unsigned g_killEvery;         // and the frames between them
+bool g_killHead;              // RE4_TEST_EM_KILL "head": a handgun shot in the head instead of the kill
 int g_rsf[8], g_rsfCount;
 bool g_rsfDone;
 int g_itemLoseId;
@@ -1346,6 +1350,15 @@ void playerLog(unsigned n, GLOBAL_WK* g)
         g_player.died = true;
     }
     g_player.dying = dying;
+    // Leon's head taken off by a death (setHead(0): his face, head and hair models go, the neck model of the
+    // player archive's 0xB comes; em10PlHeadLost, emWepPlHeadLost, obj16PlHeadLost ..., patch 0212)
+    static bool headless;
+    const bool noFace = live(pPL->Body) && pPL->Body->m_pFace == 0;
+    if (noFace && !headless) {
+        re4_log("pl: Leon's head is off in r%03x (frame %u, %u frames after the room started), life %d",
+                (unsigned) g->room_id, n, n - g_player.start, (int) (s16) g->pl_life);
+    }
+    headless = noFace;
     bool lost = !finite(p);
     if (lost && !g_player.lost) {
         re4_log("pl: Leon's position is not a number in r%03x (frame %u, %u frames after the room started)",
@@ -1930,7 +1943,34 @@ void frame(unsigned n)
             q = end && *end == ',' ? end : 0;
         }
     }
-    if (g_killAt && n >= g_killAt && g_killAll) {
+    if (g_killAt && n >= g_killAt && g_killHead) {
+        // "F:ID:head[/E/K]": the first live enemy of the id left with life 1 and hit in the head (its hit box of
+        // parts 5) by a handgun bullet (weapon 1) from the player's place, as PlWepHitCheck2 registers a hit; its
+        // own damage routine takes it in the next frame (em10: the head bursts where em10LostHeadCk lets it,
+        // "em: sN head lost"). Again every E frames, K times in all (the next live one each time).
+        cEm* hit = 0;
+        YARARE_INFO* head = 0;
+        for (u32 i = 0; i < EmMgr.getArrayNum() && !hit; i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (live(e) && e->isAlive() && e->id == g_killId && e->hp > 0 && !(e->dmg.m_Flag & 1)) {
+                hit = e;
+            }
+        }
+        for (YARARE_INFO* p = hit ? &hit->hitInfo : 0; p && !head; p = p->pList) {
+            if (p->parts_no == 5) {
+                head = p;
+            }
+        }
+        if (head) {
+            hit->hp = 1;
+            hit->dmg.set(0, 10, 1, &pPL->pos, head->len, head);
+        }
+        re4_log("run: enemy 0x%02x %s at frame %u (RE4_TEST_EM_KILL head), at (%.0f %.0f %.0f)", g_killId,
+                !hit ? "not found" : head ? "shot in the head" : "has no head hit box", n,
+                hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0, hit ? (double) hit->pos.z : 0.0);
+        g_killAt = g_killEvery && --g_killAll > 0 ? n + g_killEvery : 0;
+    }
+    if (g_killAt && n >= g_killAt && g_killAll && !g_killHead) {
         // "F:ID:all[/E/K]": every live enemy of the id, again every E frames, K times in all
         int killed = 0;
         for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
@@ -2615,7 +2655,15 @@ void configure()
         char* end = 0;
         g_killAt = (unsigned) strtoul(kill, &end, 10);
         g_killId = end && *end == ':' ? (unsigned) strtoul(end + 1, &end, 16) : 0;
-        if (end && strncmp(end, ":all", 4) == 0) {
+        if (end && strncmp(end, ":head", 5) == 0) {
+            g_killHead = true;
+            g_killAll = 1;
+            end += 5;
+            if (*end == '/') {
+                g_killEvery = (unsigned) strtoul(end + 1, &end, 10);
+                g_killAll = *end == '/' ? (int) strtol(end + 1, 0, 10) : 1;
+            }
+        } else if (end && strncmp(end, ":all", 4) == 0) {
             g_killAll = 1;
             end += 4;
             if (*end == '/') {

@@ -105,6 +105,10 @@ extern int re4_story_ganado;
  * player archive's index 0x70 / 0x71 as in the original, Leon's where Ada's, Krauser's or Wesker's has none there
  * (runtime/cheats.cpp; declared here, in no game file, so em10.cpp keeps its line numbers). */
 void* re4_ganado_rocket(int tpl);
+/* Patch 0212 (the gore checks of em10, em25, em2c, em2d, em31, em32, emwep, obj16, r100, r101, r103): the country
+ * they see, pSys->eff_country, but the US release's 1 with the Japanese discs and the Korean translation built on
+ * them (runtime/game_language.cpp; declared here so the game files keep their line numbers). */
+int re4_gore_country(void);
 #ifdef __cplusplus
 }
 #endif

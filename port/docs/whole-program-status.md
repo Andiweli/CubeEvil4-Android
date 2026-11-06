@@ -3,6 +3,53 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.98.6-beta: japanische Discs ohne Zensur (06.11.2026, Branch `work`, Patch 0212)
+
+Version 0.98.6-beta (versionCode 100), Releasetext `port/android-decomp/docs/releases/v0.98.6-beta.md`. Wunsch eines
+Nutzers (baut eine chinesische Übersetzung auf den JP-Discs, weil die Schrift der US-Fassung kein Chinesisch kann):
+der Kopfschuss-Effekt wie mit der US-Disc. Entscheidung des Projektinhabers: Gore der US-Fassung für die JP-Discs,
+dauerhaft, ohne Schalter; japanische Texte und Schriften bleiben. Der Nutzer meldet außerdem: der erste JP-Absturz
+(Start) ist seit der Vorversion weg. WSL-Baum `~/re4-0983/RE4` (auf `master` = 47cb1770 gesetzt, geänderte Dateien
+hineinkopiert), Läufe und Skripte in `~/p0986` (`run.sh NAME RAUM debug|us|eu|jp|kr`, `matrix.sh TAG`).
+
+1. **Wo die Zensur sitzt (Code der Discs).** Suchskript über alle Code-Stücke jeder Disc (`main.dol` über r13, jedes
+   REL-Modul über seine Relokationen auf `pSys`/`SystemSave`): Lesestellen von `pSys->eff_country` (+9) und
+   `language` (+8). Debug und US gleich aufgebaut (em10-Familie je 11 Stellen, em2d 2, Raummodule r100/r101/r103/r31c
+   mit Abfragen); **JP gleich EU** (em10-Familie je 16, em2d 4, em32 3, Raummodule ohne Abfrage; der em10-Code von JP
+   und EU ist Wort für Wort gleich). Die Zensur ist also nur die Ländernummer 0 zur Laufzeit, keine fehlenden Daten.
+   JP/EU haben 5 Abfragen mehr in em10 (3 in `em10AtkCk`: tödlicher Treffer → JP Blut/Schrei, sonst ein anderer
+   Weg; je 1 in `plem10_C_SawHit` und `plem10_C_SawCriHit`); die gibt es im Prototyp und in der US-Fassung nicht, also
+   auch im Port nicht (nichts zu tun). `game_country` und `language` steuern nur Texte und (EU/JP) die
+   Schwierigkeitsklasse (0140), kein Gore.
+2. **Koreanische Übersetzung.** Sie ändert nicht nur die zwei Befehle in `main.dol` (0147), sondern in `em10..em17`
+   (Dorf-Ganados) **alle 16** Länder-Lesestellen in `li rX, 1` (Code JP→KR verglichen, nur diese 16 Wörter anders).
+   Im Port lief Korea bisher nur mit den zwei `main.dol`-Stellen ungeschnitten; jetzt wie Japan ganz wie US.
+3. **Daten.** Eintrag für Eintrag verglichen (`arccmp.py`, `effcmp.py`, `roomcmp.py` der Sitzung): alle `em/*.drs`
+   der JP-Discs gleich den EU-Discs (nur `pl12` FCV-Gesichtsdaten anders), die Effektdatei von em10 (163 Effekte)
+   gleich EU; US hat 162 Effekte mit 6 abweichenden (0x00, 0x14, 0xA0–0xA4; älterer Stand). Raumarchive r100/r101/r103
+   (Leichen-Modelle 0x31–0x33, 0x20/0x21 …) in allen fünf Fassungen gleich. Nichts fehlt; die EU-Fassung spielt mit
+   genau diesen Daten ungeschnitten.
+4. **Patch 0212.** Alle 26 Gore-Abfragen des Prototyps (`em10.cpp` 11: Kopfschuss `em10LostHeadCk`, Kettensäge
+   `C_SawHit`/`C_SawCriHit`/Angriffswahl, Krallen-Kritisch, `em10CamMoveCri`, `em10PlHeadLost`; `em25`, `em2c`,
+   `em2d` 2, `em31`, `em32` 4, `emwep`, `obj16`, `r100`, `r101` 2 mit dem Fernglas-Blick auf die brennende Leiche,
+   `r103`) fragen `re4_gore_country()` (`runtime/game_language.cpp`): `pSys->eff_country`, mit JP-Discs (auch Korea)
+   1. Die Korea-Weiche von 0147 geht darin auf. Ausgenommen: r31c (Turmexplosion: Überleben/Tod, kein Gore), alle
+   Text-Abfragen. Zeilenzahl der Spieldateien mit geprüften Zeilen (em10, em2c, em32, r10x) unverändert.
+5. **Prüfhilfen.** `RE4_TEST_EM_KILL="F:ID:head[/E/K]"`: erster lebender Gegner der Art mit Leben 1, Pistolentreffer
+   (Waffe 1) in die Trefferbox von Teil 5 (Kopf), wie `PlWepHitCheck2` ihn einträgt. Neue Logzeile (auch in
+   Fehlerberichten) „pl: Leon's head is off in rNNN …“, wenn Leons Gesichtsmodell wegfällt (`setHead(0)`).
+6. **Geprüft am PC (i686 -O2, r101, Leon bei den Ganados; `matrix.sh`):** Kopfschüsse auf drei Dorf-Ganados (0x15,
+   Typen 0, 0xB, 3) und Kettensägen-Ganado (Liste 0x3C) gegen den stehenden Leon. **Mit Patch:** JP, KR, US, EU, Debug
+   je 3 von 3 „head lost“, Leon „head is off“ und Tod; Fläche 0x20 (Leiche r101) an. **Ohne Patch (Gegenprobe):** JP
+   und KR 0 von 3, Tod ohne Enthauptung, Fläche 0x20 aus; US, EU, Debug wie mit Patch (Protokolle bis auf
+   Speicheradressen gleich). JP/KR r100 und r103 je 2 500 Bilder ohne Absturz. Laufzeit- und Kerntests 0 Fehler.
+   x86_64 -O2 (64 bit wie ARM64): Bau, Laufzeit- und Kerntests 0 Fehler, JP-Lauf mit Patch gleich (3 von 3, Leon
+   ohne Kopf). Android-Bau (armeabi-v7a, arm64-v8a) nicht hier. **Nicht im Spiel geprüft:** die Enthauptungen von em25, em2c, em2d (auch der
+   geschmolzene Schädel), em31, em32, emwep (Sense), obj16 (Plaga-Kopf), die Kamerawinkel und die Leichen im Bild
+   (nur die Flächen/kein Absturz); Gerät (Retroid) nicht.
+
+Aufgabe B (Licht durch Leons Kopf und Wände) wartet weiter auf den R3-Mitschnitt mit „GXPeekZ:“ (0.98.5).
+
 ## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen, „Dynamisch“ schneller zurück, Bildtakt mit Touch-Tasten (06.11.2026, Branch `work`, Patches 0210–0211)
 
 Version 0.98.5-beta (versionCode 99), Releasetext `port/android-decomp/docs/releases/v0.98.5-beta.md`. Drei
@@ -2832,7 +2879,8 @@ Branch `retail-jp` (von `golden-master`). Plan und Befunde: `port/docs/retail-jp
 - **Patches (J4):** Code beider Verkaufsfassungen an den Patch-Stellen verglichen; 0120, 0123–0126, 0129, 0133, 0135
   jetzt `re4_disc_retail()`, 0128, 0136, 0138, 0140, 0141, 0145 EU oder Japan, 0121/0122/0131/0132/0139/0142 nur EU.
 - **Korea (J5):** **Patch 0147** (`emwep.cpp`, `obj16.cpp`): die Enthauptungs-Tode wie in der US-Fassung, wie die
-  Übersetzung (0146 ist der Handcannon-Patch auf `golden-master`).
+  Übersetzung (0146 ist der Handcannon-Patch auf `golden-master`). Seit 0.98.6 geht diese Weiche in Patch 0212 auf
+  (Japan und Korea mit dem ganzen Gore der US-Fassung).
 - **Geprüft (PC, i686):** Laufzeittests 0 Fehler (neu: Japan/Korea in `disc release`), Java-`DiscTests` 24 Prüfungen,
   echter App-Import beider Abbildpaare (je 4 082 Prüfungen, `release=jp`/`kr`); Prüfstrecke mit `--room-info` der
   Debug-Disc: **Japan „ALLES OK“** (Formatvergleich, Spiellauf r100, Filme, Speichern und Laden; Systemdatei
@@ -12527,6 +12575,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0209 `ss_map.cpp` | Kartenziel mit Verkaufs-Discs: die Zieltabellen ihrer `Sscrn.rel` (Dorf 12 Teile mit den Flags 0xA7, 0xA8; EU/JP/KR in Gebiet 9 zusätzlich 0xB8). Port-Patch für Verkaufsdaten, Nutzerbericht 06.11.2026 |
 | 0210 `emdoor.cpp` | Türen wie die Verkaufsfassungen (US, EU, JP): Magnums (Schadensarten 5, 6, 0xF) und 0x2C zerbrechen eine Holztür mit einem Schuss samt Schlössern und Ketten und brechen an Eisentüren alle Schlösser und Ketten (Prototyp: eine Planke je Schuss wie die Gewehre bzw. nur das getroffene Schloss aus der Nähe); Eier (0x19, 0x1F, 0x20) wirken nicht; die fallende Tür (Typ 2) verliert beide Schlösser; keine Explosion bricht eine verriegelte Holztür (`Be_flg` Bit 0, nur EU/JP). Fehler des Prototyps, Nutzerbericht 06.11.2026 |
 | 0211 `em10.cpp` | Die fliegende Rakete eines Ganados (`em10_R1_ShotRocket`) mit Leons Raketenmodell (`re4_ganado_rocket`, `runtime/cheats.cpp`), wenn das Spielerarchiv an Index 0x70/0x71 keine Rakete hat (Ada, Wesker: Platzhalter; Krauser: sein Pfeil); Leons Archiv wird dafür in Mercenaries und den Extra-Spielen einmal gelesen. Deklaration in `re4_whole_prelude.h` (em10.cpp behält seine Zeilen). Fehler des Originalspiels (alle Fassungen), Nutzerbericht 06.11.2026 |
+| 0212 `em10.cpp`, `em25.cpp`, `em2c.cpp`, `em2d.cpp`, `em31.cpp`, `em32.cpp`, `emwep.cpp`, `obj16.cpp`, `r100.cpp`, `r101.cpp`, `r103.cpp` | Japanische Discs (und die koreanische Übersetzung) mit dem Gore der US-Fassung, immer, ohne Schalter: jede Gore-Abfrage von `pSys->eff_country` (Kopfschuss `em10LostHeadCk`, Kettensäge, Leons Enthauptungen, Kameras dazu, Leichen in r100/r101/r103) fragt `re4_gore_country()` (`runtime/game_language.cpp`: das Land, mit JP-Discs 1 wie US); ersetzt die Korea-Weiche von 0147. Zeilen der Spieldateien unverändert (Deklaration in `re4_whole_prelude.h`). Port-Patch für Verkaufsdaten, Entscheidung des Projektinhabers 06.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

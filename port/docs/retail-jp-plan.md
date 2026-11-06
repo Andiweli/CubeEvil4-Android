@@ -93,3 +93,24 @@ Auf Easy lädt der EU-Code Kartenobjekte aus `SS/Esy`, das die JP-Discs nicht ha
 **Vorfilm-Untertitel (30.10.2026, Nutzermeldung Korea).** Zu 0136 fehlte der japanische Zweig: bei Sprache 0 nimmt
 `cSofdec` die Schrift aus `etc/movie.das` (Eintrag 5) als Schrift 2 und setzt danach die Stage-Schrift zurück; ohne
 sie falsche Zeichen (Kana-Gemisch, sinnloses Hangul). Patch 0150, am PC mit JP-, KR- und EU-Discs geprüft.
+
+## Gore (06.11.2026, Version 0.98.6, Patch 0212)
+
+Entscheidung des Projektinhabers (06.11.2026): die japanischen Discs (und die koreanische Übersetzung) spielen mit dem
+Gore der US-Fassung, dauerhaft, ohne Schalter; Texte, Schriften, Speicherkarten-Namen bleiben japanisch.
+
+- **Wie die JP-Fassung schneidet:** nur über die Ländernummer `pSys->eff_country` 0 zur Laufzeit. Der em10-Code der
+  JP-Discs ist Wort für Wort der der EU-Discs (16 Länder-Abfragen je Modul der em10-Familie, em2d 4, em32 3, Raummodule
+  keine); Debug und US haben 11 / 2 / 4 bzw. 2 und die Raum-Abfragen in r100, r101, r103, r31c.
+- **Was der Prototyp für Land 0 schneidet:** Kopfschuss bei Dorf-Ganados (Typen 0/1/3/4/0xB/0xC nur mit
+  Parasiten-Augen, `em10LostHeadCk`), Leons Enthauptungen (Kettensäge, em25, em2c, em2d mit geschmolzenem Schädel,
+  em31, em32 mit Zweiteilung, Sense `emWepPlHeadLost`, Plaga-Kopf `obj16PlHeadLost`) mit eigenen Schreien und
+  Kamerawinkeln, die Kettensägen-Angriffswahl (nie der Kritische), die Leichen in r100, r101 (mit dem Fernglas-Blick)
+  und r103.
+- **Daten:** alle Gegnerarchive und die Raumarchive r100/r101/r103 der JP-Discs sind (bis auf Gesichtsdaten in
+  `pl12`) die der EU-Discs, die ungeschnitten spielen; es fehlt nichts.
+- **Korea:** die Übersetzung lädt in `main.dol` (2 Stellen) und in `em10..em17` (alle 16 Stellen) 1 statt des Landes;
+  im Port jetzt wie Japan (Patch 0212 ersetzt die Korea-Weiche aus 0147).
+- **Patch 0212:** alle 26 Gore-Abfragen fragen `re4_gore_country()` (`runtime/game_language.cpp`). Nicht geändert:
+  r31c (Turmexplosion, kein Gore), Text-Abfragen nach Land und Sprache. Geprüft am PC (i686): Kopfschuss und
+  Kettensägen-Tod in r101 mit allen fünf Disc-Arten, Gegenprobe ohne Patch (Status-Datei, Abschnitt 0.98.6).

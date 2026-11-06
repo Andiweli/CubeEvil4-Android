@@ -114,6 +114,19 @@ extern "C" int re4_game_language_value(void)
     return wanted >= 2 && wanted <= 6 ? wanted : 2;
 }
 
+// The country the game's gore checks see (patch 0212, port/docs/retail-jp-plan.md "Gore"): pSys->eff_country,
+// but the US release's 1 with the Japanese discs (and the Korean translation built on them), whose country is 0
+// for their Japanese texts, fonts, memory card names and DVD messages. The Japanese release cuts the gore for
+// country 0 (Ganado heads burst only where the parasites show, Leon keeps his head, the village corpses are
+// gone); the project owner wants it as on the US disc, always, without a setting (06.11.2026, a user who builds
+// a Chinese translation on the Japanese discs). The Korean translation's own code does the same in its
+// main.dol and in em10..em17 (every country read there loads 1). Debug, US and EU discs: their own country.
+extern "C" int re4_gore_country(void)
+{
+    int country = pSys->eff_country;
+    return country == 0 && re4_disc_retail_jp() ? 1 : country;
+}
+
 // After the system file was read into pSys (card.cpp): the app's language, not the saved one. With
 // the debug build's discs the build's own language 1 (setLanguage): they hold the sub screens in
 // English only (ss/Eng), and a system file saved with the European discs holds their language
