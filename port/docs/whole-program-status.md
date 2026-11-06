@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen (06.11.2026, Branch `work`, Patches 0210–0211)
+## Version 0.98.5-beta: Magnums gegen Holztüren, Ganado-Rakete in Mercenaries, Kamera beim Aufspringen, „Dynamisch“ schneller zurück (06.11.2026, Branch `work`, Patches 0210–0211)
 
 Version 0.98.5-beta (versionCode 99), Releasetext `port/android-decomp/docs/releases/v0.98.5-beta.md`. Drei
 Nutzerberichte zu älteren 0.98.x ohne Protokoll oder Bild. WSL-Baum `~/re4-0983/RE4` (auf `master` = a88d9e31
@@ -58,7 +58,25 @@ Gegnerwaffe, id 0x42: Routine, Lage, Modell/Textur mit dem Eintrag des Spielerar
    Patches (0171 weite Kamera, 0205 FoV, 0201 Kameraflächen der Stellvertreter, 0189 Schultertabellen) und die
    60-FPS-Zwischenbilder berühren diesen Ablauf nicht. Nicht geändert; eine längere Bodenkamera wäre eine Abweichung
    vom Original (Entscheidung des Projektinhabers).
-4. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
+5. **„Dynamisch“ geht nach einer schweren Stelle früher wieder hoch (Wunsch des Projektinhabers, `gx_auto_level.h`).**
+   Bisher: nach einem Schritt abwärts frühestens nach 30 s wieder aufwärts (`kFirstHold`), dazu 5 gute 2-s-Fenster;
+   ging es innerhalb von 15 s nach einem Schritt aufwärts wieder abwärts, verdoppelte sich die Sperre (höchstens 5 min)
+   und **blieb so bis zum nächsten Renderer-Start**. Simulation (eigenes Hilfsprogramm der Sitzung, die Fälle im Host-Test nachgebaut; GPU 40 ms bei 2x an der schweren
+   Stelle, 24 ms im leichten Bereich): ein Rückschritt an der schweren Stelle → Sperre 60 s, nach dem Wechsel in den
+   leichten Bereich erst nach 59 s wieder 2x. **Jetzt:** erste Sperre 10 s (`kFirstHold`), Verdoppeln wie bisher (10,
+   20, 40, 80, 160, 300 s), und hält ein Schritt aufwärts 60 s (`kSettle`), gilt wieder die erste Sperre. Die 5 guten
+   Fenster (10 s) bleiben. Simulation neu: leichter Bereich nach der schweren Stelle sofort bzw. nach höchstens 23 s
+   auf 2x (vorher 39–59 s); dauerhaft schwere Stelle 10 min: 7 statt 5 Rückschritte (je etwa 4 s mit 25 Bildern/s, die
+   Abstände wachsen); Verdreifachen statt Verdoppeln verworfen (nach zwei Rückschritten 84 s Wartezeit im leichten
+   Bereich). Eine Vorhersage aus der GPU-Zeit verworfen: die Zeitmessung ist nur Diagnose, auf Mali aus und auf dem
+   Retroid unzuverlässig. Host-Test `TestAutoLevel` angepasst und erweitert („schwer, leicht, schwer“ mit einem
+   simulierten Gerät, `AutoRun::PlayGpu`; Sperre 10 → 20 s, Rücksetzen nach 60 s), `gx_gl_check` 0 failed.
+   **Kosten eines Schritts** (`gx_chunk_render`, neu `RE4_GX_RESCALE=K:hN` und `RE4_GX_TIME=1`; Serie
+   `reports/0984d-lightning-gx` 01, 2x → 1,5x vor Bild 6, PC mit Software-Grafik llvmpipe, je dreimal): ohne MSAA der
+   Wechsel 20–21 ms, das Bild danach 38–42 ms (davor 50, danach 34–37); mit MSAA der Wechsel 30–42 ms, das Bild danach
+   68–125 ms (danach 55–60). Bilder vor, direkt nach und nach dem Wechsel richtig. Am Gerät nicht gemessen: dort kostet
+   ein Wechsel vermutlich höchstens ein Bild (neue EFB-Texturen, MSAA-Puffer, die Kopien umkopiert).
+6. **Prüfstrecke:** `RE4_OPT=2 port/tools/whole_build.sh i686` ohne Fehler (Selbsttest, 114 Module, Laufzeit-,
    Kern-, Karten-, Fernprozess-, Format- und Filmtests, libc++); aarch64 übersetzt. Nicht auf einem Gerät.
 
 ## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP, Benchmark, Kartenziel (05./06.11.2026, Branch `work`, Patches 0204–0209)

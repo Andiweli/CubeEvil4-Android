@@ -8,8 +8,12 @@
 // shader: the Retroid's report 23.10.2026 15:06 went down at the start of r10c and 4 s after a step
 // up), not a GPU too slow. A game that is slow on its own (the processor, loading) leaves the GPU
 // idle and the level as it is. Up again one level after 5 windows in a row (10 s) at 29.5
-// pictures a second or more with the GPU keeping up (under 0.1 behind), at the earliest 30 s after
-// the last step down; down again within 15 s of a step up doubles that wait (at most 5 minutes).
+// pictures a second or more with the GPU keeping up (under 0.1 behind), at the earliest 10 s after
+// the last step down; down again within 15 s of a step up doubles that wait (at most 5 minutes), and
+// a step up that holds for 60 s brings it back to 10 s. Until 0.98.4 the wait was 30 s and never came
+// back down: after one bounce at a heavy spot the next step up took a minute or more, also after
+// moving on into a light area (the project owner, 06.11.2026; host test TestAutoLevel "heavy, light,
+// heavy": up again 10 s into the light stretch instead of 59 s).
 // With 60 FPS the in-between pictures the renderer left out because it was behind (core_mode.cpp)
 // count as well: a window with more than a tenth of them left out while the GPU is behind is slow
 // too (the game keeps its pace then, the GPU still does not keep up: Retroid 26.10.2026, level 2 with
@@ -42,9 +46,10 @@ public:
   static constexpr double kBehindUp = 0.1;
   static constexpr int kGoodWindows = 5;
   static constexpr int kBadWindows = 2;
-  static constexpr double kFirstHold = 30.0;  // seconds after a step down before a step up
+  static constexpr double kFirstHold = 10.0;  // seconds after a step down before a step up (30 until 0.98.4)
   static constexpr double kMostHold = 300.0;
   static constexpr double kBounce = 15.0;     // down again this soon after up: the wait doubles
+  static constexpr double kSettle = 60.0;     // a step up that holds this long: the wait back to kFirstHold
   static constexpr double kDroppedDown = 0.10; // share of the chunks without their in-between picture
   static constexpr double kDroppedUp = 0.05;
   static constexpr double kWaitDown = 10.0;    // ms a chunk the render thread waits for the GPU
@@ -104,6 +109,11 @@ public:
     behindChecks_ = behindChecks;
     dropped_ = dropped;
     waitMs_ = waitMs;
+    // a step up that held kSettle seconds: that level suits again, the next wait is the first one
+    if (upAt_ >= 0.0 && t - upAt_ >= kSettle) {
+      upAt_ = -1.0;
+      hold_ = kFirstHold;
+    }
     if (!mayChange) {
       good_ = bad_ = 0;
       return level_;

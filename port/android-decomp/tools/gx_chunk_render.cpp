@@ -40,6 +40,7 @@
 #include <GLES3/gl3.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -103,13 +104,24 @@ int main(int argc, char **argv) {
   const char *halvesText = std::getenv("RE4_GX_HALVES");
   const int halves = halvesText && std::atoi(halvesText) >= 2 && std::atoi(halvesText) <= 8 ? std::atoi(halvesText)
                                                                                            : 2 * scale;
-  const auto scaled = [&](unsigned v) { return (v * static_cast<unsigned>(halves) + 1) / 2; };
+  int shownHalves = halves;  // the running renderer's level (after RE4_GX_RESCALE)
+  const auto scaled = [&](unsigned v) { return (v * static_cast<unsigned>(shownHalves) + 1) / 2; };
   // RE4_GX_RESCALE=K:S: before the K-th file (from 0) the running renderer goes to scale S
-  // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels
+  // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels.
+  // RE4_GX_RESCALE=K:hN: to N halves (GxRenderer::RescaleHalves, a step of "Dynamic": 3 is 1.5x)
   int rescaleAt = -1, rescaleTo = 0;
-  if (const char *rescale = std::getenv("RE4_GX_RESCALE"))
-    if (std::sscanf(rescale, "%d:%d", &rescaleAt, &rescaleTo) != 2 || rescaleTo < 1 || rescaleTo > 4)
+  if (const char *rescale = std::getenv("RE4_GX_RESCALE")) {
+    int n = 0;
+    if (std::sscanf(rescale, "%d:h%d", &rescaleAt, &n) == 2 && n >= 2 && n <= 8)
+      rescaleTo = n;
+    else if (std::sscanf(rescale, "%d:%d", &rescaleAt, &rescaleTo) == 2 && rescaleTo >= 1 && rescaleTo <= 4)
+      rescaleTo *= 2;
+    else
       rescaleAt = -1;
+  }
+  // RE4_GX_TIME=1: the wall time of each picture (Run with glFinish) and of a rescale, in ms (the cost of a step
+  // of "Dynamic", 06.11.2026)
+  const bool timed = std::getenv("RE4_GX_TIME") && *std::getenv("RE4_GX_TIME") == '1';
   for (int i = 2; i < argc; i++) {
     const std::string path = argv[i];
     auto loadedHere = std::make_unique<re4gxio::Loaded>();
@@ -232,12 +244,29 @@ int main(int argc, char **argv) {
       }
     }
     if (i - 2 == rescaleAt && renderer) {
-      renderer->Rescale(rescaleTo);
+      glFinish();
+      const auto t0 = std::chrono::steady_clock::now();
+      renderer->RescaleHalves(rescaleTo);
+      if (timed)
+        glFinish();
+      const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
       scale = renderer->Scale();
-      std::printf("%s: EFB-Stufe %d (Rescale)\n", Stem(path).c_str(), scale);
+      shownHalves = renderer->Halves();
+      if (timed)
+        std::printf("%s: EFB-Stufe %d/2 (Rescale), %.2f ms\n", Stem(path).c_str(), shownHalves, ms);
+      else
+        std::printf("%s: EFB-Stufe %d/2 (Rescale)\n", Stem(path).c_str(), shownHalves);
     }
     const re4gx::GxStats before = renderer->Stats();
+    if (timed)
+      glFinish();
+    const auto runStart = std::chrono::steady_clock::now();
     renderer->Run(chunk);
+    if (timed) {
+      glFinish();
+      std::printf("%s: Run %.2f ms (mit glFinish)\n", Stem(path).c_str(),
+                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - runStart).count());
+    }
     // the merged draw calls' programs this chunk wanted, made as the app makes them between two chunks
     if (renderer->Merging())
       renderer->Prewarm(1e9);

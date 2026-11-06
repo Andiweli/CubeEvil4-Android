@@ -1311,6 +1311,30 @@ struct AutoRun {
         lines.push_back(why);
     }
   }
+  // A device whose GPU needs `ms2x` ms a picture at 2x and the pixels' share of that at the other levels (in
+  // halves: 1.5x 56 %, 1x 25 %): 30 pictures a second while it fits into 33 ms, else the GPU's pace with the
+  // fence behind and the render thread waiting. Returns the times of the level changes.
+  void PlayGpu(double seconds, double ms2x, std::vector<double> *downs = nullptr, std::vector<double> *ups = nullptr) {
+    const double end = t + seconds;
+    while (t < end) {
+      const double share = a.Level() / 4.0;
+      const double gpu = ms2x * share * share;
+      const bool over = gpu > 1000.0 / 30.0 + 0.1;
+      t += (over ? gpu : 1000.0 / 30.0) / 1000.0;
+      sum += over ? 1 : 0;
+      checks++;
+      waited += over ? gpu - 1000.0 / 30.0 : 0.0;
+      const int was = a.Level();
+      std::string why;
+      a.Chunk(t, sum, checks, true, &why, dropped, waited);
+      if (!why.empty())
+        lines.push_back(why);
+      if (a.Level() < was && downs)
+        downs->push_back(t);
+      if (a.Level() > was && ups)
+        ups->push_back(t);
+    }
+  }
 };
 
 // The benchmark's steps (gx_bench_steps.h) with simulated devices: `game(level, sixty)` the game pictures a second
@@ -1405,13 +1429,55 @@ void TestAutoLevel() {
     Check(!r.lines.empty() && r.lines.back().find("level 2 -> 1") != std::string::npos, "auto level: logged");
     r.Play(10.0, 20.0, 1);
     Check(r.a.Level() == 1, "auto level: never below 1");
-    r.Play(15.0, 30.0, 0);  // at most 26 s after the step down (it came 4-6.5 s into the slow part)
-    Check(r.a.Level() == 1, "auto level: not up before 30 s after the step down");
-    r.Play(12.0, 30.0, 0);
-    Check(r.a.Level() == 2 && r.a.Ups() == 1, "auto level: up again after 30 s, 10 s keeping up");
-    // straight down again: the next wait doubles (60 s)
+    r.Play(9.0, 30.0, 0);  // four windows keeping up
+    Check(r.a.Level() == 1, "auto level: not up before 10 s keeping up");
+    r.Play(3.0, 30.0, 0);
+    Check(r.a.Level() == 2 && r.a.Ups() == 1, "auto level: up again after 10 s keeping up (the wait of 10 s over)");
+    // straight down again: the next wait doubles (20 s)
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 2 || r.a.Hold() == 60.0, "auto level: down again soon: the next wait 60 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again soon: the next wait 20 s");
+  }
+  {
+    // not before 10 s after a step down, even with every window keeping up
+    AutoRun r;
+    r.a.Start(2, 0.0);
+    r.Play(4.1, 20.0, 1);
+    Check(r.a.Level() == 1, "auto level: down after two slow windows");
+    const double downAt = r.t;
+    while (r.a.Ups() == 0 && r.t < 100.0)
+      r.Play(0.1, 30.0, 0);
+    Check(r.a.Ups() == 1 && r.t - downAt >= 9.9 && r.t - downAt < 11.0, "auto level: up 10 s after the step down");
+  }
+  {
+    // heavy, light, heavy (the project owner, 06.11.2026: 30 s too long when the way goes on into a lighter area): a
+    // GPU that needs 40 ms at 2x (22.5 ms at 1.5x) at the heavy spot, 24 ms at 2x in the light stretch
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true);
+    std::vector<double> downs, ups;
+    r.PlayGpu(40.0, 40.0, &downs, &ups);
+    Check(!downs.empty() && downs.front() < 5.0, "auto level, heavy spot: half a level down within 5 s");
+    const double light = r.t;
+    const size_t upsBefore = ups.size(), downsBefore = downs.size();
+    r.PlayGpu(120.0, 24.0, &downs, &ups);
+    Check(r.a.Level() == 4 && downs.size() == downsBefore, "auto level, light stretch: 2x again, no step down there");
+    Check(r.a.Level() == 4 && (ups.size() == upsBefore || ups.back() - light <= 25.0),
+          "auto level, light stretch: back at 2x at most 25 s into it (until 0.98.4: 59 s)");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level, light stretch: the wait back to 10 s once 2x held 60 s");
+    // the next heavy spot starts with the short wait again: down, up after 10 s, down again (a bounce), then 20 s
+    downs.clear();
+    ups.clear();
+    r.PlayGpu(40.0, 40.0, &downs, &ups);
+    Check(downs.size() >= 1 && ups.size() >= 1 && ups.front() - downs.front() < 12.0,
+          "auto level, the next heavy spot: the first try up after about 10 s");
+    // heavy for 10 minutes: the bounces grow apart (10, 20, 40, 80, 160, 300 s), at most 7 steps down in all
+    r.PlayGpu(600.0, 40.0, &downs, &ups);
+    r.PlayGpu(5.0, 40.0, &downs, &ups);  // a try up in the last seconds is back down after two slow windows
+    std::fprintf(stderr, "auto level, heavy for 10 minutes: %zu steps down, %zu up, level %s, wait %.0f s\n",
+                 downs.size(), ups.size(), r.a.Name(r.a.Level()).c_str(), r.a.Hold());
+    Check(downs.size() <= 7 && r.a.Level() == 3, "auto level, heavy for 10 minutes: few bounces, ends at 1.5x");
+    Check(r.a.Hold() >= 160.0, "auto level, heavy for 10 minutes: the wait grown to minutes");
+    for (size_t i = 2; i < ups.size(); i++)
+      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, heavy for 10 minutes: each try up later than the last");
   }
   {
     // breaks (06.11.2026): the app menu (no chunks for 20 s), then a room's loading and its programs (3 s slow with
@@ -1439,13 +1505,16 @@ void TestAutoLevel() {
       r.Play(0.5, 30.0, 0);
     Check(r.a.Ups() == 1, "auto level: up");
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 1 && r.a.Hold() == 60.0, "auto level: down again within 15 s of the step up: the next wait 60 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again within 15 s of the step up: the next wait 20 s");
     const double downAt = r.t;
     while (r.a.Ups() == 1 && r.t < 400.0)
       r.Play(0.5, 30.0, 0);
-    Check(r.t - downAt >= 55.0, "auto level: the longer wait holds");  // the step down came during the slow part
-    r.Play(100.0, 30.0, 0);
+    Check(r.t - downAt >= 15.0, "auto level: the longer wait holds");  // the step down came during the slow part
+    r.Play(59.0, 30.0, 0);
+    Check(r.a.Hold() == 20.0, "auto level: the longer wait kept while the step up holds less than 60 s");
+    r.Play(41.0, 30.0, 0);
     Check(r.a.Level() == 2, "auto level: never above the screen's level");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level: a step up that held 60 s: the wait back to 10 s");
   }
   {
     AutoRun r;
