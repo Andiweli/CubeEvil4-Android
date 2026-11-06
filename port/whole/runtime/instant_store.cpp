@@ -94,6 +94,32 @@ int readSlot(const char* path, unsigned char* file, Re4InstantInfo* info)
 }
 }
 
+// The benchmark's place (runtime/benchmark.cpp): the project owner's instant save at the lake's dock in r11b
+// (06.11.2026, port/whole/data/benchmark-place.ce4benchmark), built into the core (RE4_BENCH_PLACE: its path,
+// port/whole/CMakeLists.txt). Never a file of the player's: no slot, nothing on the memory card.
+__asm__(".section .rodata\n"
+        ".balign 32\n"
+        ".global re4_bench_place_file\n"
+        ".hidden re4_bench_place_file\n"
+        "re4_bench_place_file:\n"
+        ".incbin \"" RE4_BENCH_PLACE "\"\n"
+        ".global re4_bench_place_end\n"
+        ".hidden re4_bench_place_end\n"
+        "re4_bench_place_end:\n"
+        ".previous\n");
+extern "C" const unsigned char re4_bench_place_file[], re4_bench_place_end[];
+
+// The place's payload in host order into `out` (0x12000 bytes) after the checks of a slot file; 0 when fine.
+extern "C" int re4_bench_place_payload(unsigned char* out)
+{
+    const unsigned char* p = re4_bench_place_file;
+    if ((size_t) (re4_bench_place_end - p) != kFileBytes || memcmp(p, kMagic, 8) || get(p + 8) != 1 ||
+        get(p + 12) != kPayload || get(p + 28) != checksum(p, 28) || get(p + 20) != checksum(p + kHeader, kPayload))
+        return RE4_INSTANT_BAD;
+    memcpy(out, p + kHeader, kPayload);
+    return convert(out, 0);
+}
+
 extern "C" int re4_instant_perform(int operation, Re4InstantInfo* info)
 {
     if (!info)

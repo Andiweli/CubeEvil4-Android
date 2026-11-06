@@ -425,8 +425,9 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       keys.addButton(b); buttons[i] = b;
     }
-    // the benchmark under "Dynamic" in a quieter look (wish of the project owner, 05.11.2026): the game goes to two
-    // places and measures which level holds 30 and 60 FPS; Dynamic goes up to them from then on
+    // the benchmark under "Dynamic" in a quieter look (wish of the project owner, 05.11.2026): the game goes to the
+    // lake's dock (the project owner's save there, 06.11.2026) and measures which level holds 30 and 60 FPS with the
+    // other options as they are; then the resolution becomes Dynamic, up to those levels
     Button bench = button(s(R.string.ingame_benchmark), v -> askBenchmark());
     StateListDrawable quiet = new StateListDrawable();
     quiet.addState(new int[] {android.R.attr.state_focused}, focused(PANEL));

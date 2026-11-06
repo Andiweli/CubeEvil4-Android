@@ -697,17 +697,17 @@ std::atomic<int> optFov{0};
 std::atomic<int> optCap30{0}, optCap60{0};
 
 // The benchmark (wish of the project owner, 05.11.2026; the app menu Display -> GRAPHICS -> Benchmark). The game
-// goes to the lake's dock in r11b (runtime/benchmark.cpp through the cheat channel: 20 the place (21 a second
-// one, not used since the project owner's decision of 05.11.2026), 22 back, 23 the state),
-// where the enemies stand still, Leon aims and the view goes round him; here, on the render thread, each place
+// goes to the lake's dock in r11b (runtime/benchmark.cpp through the cheat channel: 20 the place, 22 back, 23 the
+// state; since 06.11.2026 the project owner's instant save of the place, from the title or any chapter),
+// where the enemies stand still, Leon stands and the view goes round him; here, on the render thread, each place
 // runs once for 30 and once for 60 pictures a second: from 4x down half a level every 5 s until a level holds
 // (each of its last 4 seconds: 29 game pictures or more, 118 in all; for 60 also 58 shown pictures a second and
 // no in-between picture left out). The lower level of the two places is the result for 30 and for 60.
 struct LevelBench {
   std::atomic<int> ask{0};    // 1 start, 2 cancel (CoreBridge)
   // 0 idle, 1 going to a place, 2 measuring, 3 going back, 4 done (results), 5 cancelled, 6 going back
-  // after a cancel; -1 refused (not in free play), -2 failed (the game could not be kept), -3 no place reached, -4 not in
-  // the village part (stage 1)
+  // after a cancel; -1 refused (neither free play nor the title's menu), -2 failed (the game could not be kept), -3 no
+  // place reached, -4 the place's save does not fit these discs
   std::atomic<int> phase{0}, run{0}, level{0}, res30{0}, res60{0}, rate10{0};
   bool active = false;
   int keepSmooth = 0, results[4] = {};
@@ -2503,7 +2503,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_pad(
   auto clampU = [](jint v) { return static_cast<std::uint8_t>(v < 0 ? 0 : v > 255 ? 255 : v); };
   Re4CorePad pad{static_cast<std::uint16_t>(buttons), clampS(stickX), clampS(stickY),
                  clampS(substickX), clampS(substickY), clampU(triggerL), clampU(triggerR)};
-  if (levelBench.active) pad = Re4CorePad{};  // the benchmark: no player's input (its own R comes from the core)
+  if (levelBench.active) pad = Re4CorePad{};  // the benchmark: no player's input (Leon just stands)
   api.pad(&pad);
 }
 

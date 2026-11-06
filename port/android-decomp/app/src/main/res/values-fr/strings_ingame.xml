@@ -288,15 +288,15 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Démarrer</string>
-    <string name="ingame_benchmark_text">Le jeu se rend à un endroit exigeant (le ponton du lac avec la torche et la barque, sous la pluie), où les ennemis restent immobiles et la caméra tourne autour de Leon. De la plus haute résolution vers le bas, il mesure quel niveau tient 30 FPS stables et 60 FPS stables. « Dynamique » ne dépasse ensuite plus ces niveaux sur cet appareil. Cela dure environ deux minutes ; votre partie revient exactement où elle est maintenant. B ou Retour annule.</string>
+    <string name="ingame_benchmark_text">Le jeu se rend à un endroit exigeant : le ponton du lac avec la torche et la barque, sous la pluie. Leon reste simplement debout, les ennemis restent immobiles et la caméra tourne autour de lui à environ 10 m. De la plus haute résolution vers le bas, il mesure quel niveau tient 30 FPS stables et 60 FPS stables. Vos autres options (MSAA, FXAA, filtres, halos lumineux, profondeur de champ et le reste) restent telles quelles, pour que le résultat leur corresponde. Ensuite la résolution passe sur « Dynamique », qui ne dépasse jamais les niveaux mesurés sur cet appareil. Cela dure environ deux minutes et démarre depuis le menu titre ou pendant que vous jouez librement dans n\'importe quel chapitre ; ensuite vous êtes exactement là où vous étiez. Rien n\'est enregistré sur votre carte mémoire. B ou Retour annule.</string>
     <string name="ingame_benchmark_starting">Benchmark : démarrage …</string>
     <string name="ingame_benchmark_going">Benchmark : vers le ponton du lac …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · niveau %2$s · actuel %3$d FPS · B / Retour : annuler</string>
-    <string name="ingame_benchmark_back">Benchmark : retour à votre partie …</string>
-    <string name="ingame_benchmark_done">Benchmark terminé. Sur cet appareil, « Dynamique » monte maintenant jusqu\'à %1$s à 30 FPS et jusqu\'à %2$s à 60 FPS.</string>
-    <string name="ingame_benchmark_cancelled">Benchmark annulé. Votre partie est revenue où elle était.</string>
-    <string name="ingame_benchmark_refused">Le benchmark ne démarre que pendant que vous jouez librement dans l\'histoire (pas dans une cinématique, un menu, un combat de boss ou un endroit semblable). Rien n\'a été modifié.</string>
+    <string name="ingame_benchmark_back">Benchmark : retour là où vous étiez …</string>
+    <string name="ingame_benchmark_done">Benchmark terminé. La résolution est maintenant « Dynamique » : sur cet appareil jusqu\'à %1$s à 30 FPS et jusqu\'à %2$s à 60 FPS.</string>
+    <string name="ingame_benchmark_cancelled">Benchmark annulé. Vous êtes de retour là où vous étiez.</string>
+    <string name="ingame_benchmark_refused">Le benchmark démarre depuis le menu titre ou pendant que vous jouez librement dans l\'histoire (pas pendant une cinématique, un menu, un combat de boss ou un endroit semblable). Rien n\'a été modifié.</string>
     <string name="ingame_benchmark_failed">Le benchmark n\'a pas pu s\'exécuter ici. Rien n\'a été modifié.</string>
-    <string name="ingame_benchmark_unreachable">L\'endroit du benchmark n\'a pas pu être atteint depuis ce point de l\'histoire. Jouez encore un peu et réessayez. Votre partie est revenue où elle était.</string>
-    <string name="ingame_benchmark_village">Le benchmark se lance depuis la partie du village (chapitres 1-1 à 2-3, premier disque) : son endroit en fait partie et le jeu n\'y revient jamais ensuite. Chargez une sauvegarde de cette partie (ou commencez une nouvelle partie), lancez-le une fois et le résultat reste sur cet appareil. Rien n\'a été modifié.</string>
+    <string name="ingame_benchmark_unreachable">L\'endroit du benchmark n\'a pas pu être atteint. Vous êtes de retour là où vous étiez.</string>
+    <string name="ingame_benchmark_discs">L\'endroit du benchmark ne correspond pas à ces disques du jeu. Rien n\'a été modifié.</string>
 </resources>

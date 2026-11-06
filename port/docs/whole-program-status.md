@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP (05.11.2026, Branch `work`, Patches 0204–0206)
+## Version 0.98.4-beta: Menü-Umbau, Unsichtbarkeit, Sichtfeld, Tastatur, Ashleys Anzeige, HUNKs TMP, Benchmark, Kartenziel (05./06.11.2026, Branch `work`, Patches 0204–0209)
 
 Version 0.98.4-beta (versionCode 98), Releasetext `port/android-decomp/docs/releases/v0.98.4-beta.md`. WSL-Baum
 `~/re4-0983/RE4` (auf `origin/work` gesetzt, geänderte Dateien aus dem Worktree hineinkopiert). Material:
@@ -117,6 +117,39 @@ gelesenen Datei neu aufbauen wie `PlChangeData`). Menü-Bilder aller Seiten in a
      nachher): Serie 00 0,39 → 0,00, Serie 01 0,05 → 0,00, Kerzen im Schloss (Serien 02, 03) 0,41 und 0,61 unverändert.
      Der weiße Punkt auf Leons Rücken bleibt auch ohne Lens Flares: ein Detail des Modells (Gurtschnalle). Am Gerät
      nicht geprüft.
+17. **Nachtrag 2 (vier Punkte, Material `reports/0984c-20261106`):**
+   - **Kartenziel am falschen Ort (Patch 0209):** der rote Zielpunkt der Karte ist ein Teil des Zielmodells
+     (`SS/cmn/map_objNN.dat` Unterdatei 6), gewählt über eine Tabelle von Story-Flags je Gebiet (`markGoalPosition`, das
+     höchste gesetzte Flag gewinnt). Die Verkaufs-Discs haben im Dorf 12 Zielteile (Debug-Disc 10), ihre `Sscrn.rel`
+     zwei Flags mehr (0xA7, 0xA8 nach 0x2C); EU, JP und KR zusätzlich in Gebiet 9 (3e) eines (0xB8). Mit der Tabelle
+     des Prototyps zeigte der Punkt mit Verkaufs-Discs auf falsche Teile (Nutzer: auf dem Weg zu Luis' Hütte am See).
+     Gelesen aus den `Sscrn.rel` und `map_obj`-Dateien aller fünf Fassungen (Teilezahl am Modellkopf +0x19); jetzt die
+     Tabellen der Verkaufsfassungen mit deren Discs. Geprüft: Datenvergleich, Bau; die Karte selbst nicht im Spiel
+     geöffnet. Kein Fehler eines Patches, Cheats oder Schnellspeichers: die Karte liest nur die Story-Flags.
+   - **Licht durch Leons Kopf (r102, neues Nutzer-Log):** US-Disc, Lens Flares aus, Spielstand am Raumanfang
+     (−16658, 0, −15732), Tiefenschärfe mit Autofokus. Also kein Linsenreflex. Ohne GX-Aufnahme (R3) nicht
+     nachzustellen; die Aufnahme des Nutzers ist angekündigt.
+   - **Eingabe-Verzögerung mit Bluetooth-Controller (Xbox 045e:02e0, moto g15):** der Weg: jede Android-Meldung
+     geht sofort per JNI an den Kern (`re4_pad_live`), das Spiel liest einmal pro Bild (PADRead, 33 ms bei 30 FPS);
+     dazwischen keine Warteschlange. Knöpfe kommen von Android sofort, Stick-Bewegungen sammelte Android bisher bis
+     zum nächsten Bildwechsel (bis 17 ms): jetzt `requestUnbufferedDispatch(SOURCE_CLASS_JOYSTICK)` (Android 11+).
+     Neu im Fehlerbericht: „input delay (Android to the app …)“ alle 30 s (`InputDelay`, Knöpfe/Sticks, zurückgehaltene
+     Stick-Meldungen) und „pad: a press waited … for the game's read“ alle 20 s (`pad.cpp`). Unveränderlich: das
+     Warten auf das nächste Spielbild, das Bild selbst und Androids Bildpuffer; „60 FPS (Zwischenbilder)“ hält jedes
+     Spielbild bis zum nächsten zurück (+33 ms). Was Bluetooth vor Android braucht, sieht die App nicht.
+     Geprüft: Bau, Unit-Test `InputDelayTest`; am Gerät nicht gemessen.
+   - **Benchmark überarbeitet:** die Stelle ist jetzt der Schnellspeicher des Projektinhabers am Steg
+     (`port/whole/data/benchmark-place.ce4benchmark`, r11b, Kapitel 1-3, (125434, −700, 149214); per `.incbin` im
+     Kern, `instant_store.cpp re4_bench_place_payload`; kein Slot, nichts auf der Speicherkarte). Er lädt wie ein
+     Schnellspeicher aus dem Titelmenü oder aus freiem Spiel in jedem Kapitel (die Dorf-Sperre fällt weg); vorher
+     kommt das Spiel als Schnellspeicher in den Speicher, danach lädt er wieder bzw. ein Soft-Reset bringt das
+     Titelmenü. Leon zielt nicht mehr, er steht; die Kamera kreist in 10 m. Nach einem Lauf steht die Auflösung auf
+     „Dynamisch“ mit den gemessenen Grenzen; die übrigen Optionen bleiben (Hinweis im Fenster des Knopfs, 11
+     Sprachen). Der Spielstand stammt aus Kapitel 1-3 und lädt mit Debug-, EU-, US- und JP-Discs (gleiche Größe der Raumdaten; KR nicht geprüft).
+     **Geprüft am PC (i686, `RE4_TEST_BENCH`, neu „title+N“):** Debug-Disc aus r100 und aus r300 (zweite Disc) hin
+     und zurück an dieselbe Stelle, EU-Disc aus r100 (Bilder: Steg, Regen, Fackel, Boot, Leon steht), US- und
+     JP-Disc aus dem Titelmenü hin und zurück zum Titel; auf der Karte danach nur die Systemdatei des Kartenchecks.
+     Die Messung selbst nicht auf einem Gerät gelaufen.
 
 Prüfreihe `whole_build.sh i686` (O2) mit allen Änderungen: 0 Baufehler, alle Prüfungen Exit 0.
 
@@ -12226,6 +12259,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0206 `objMachinegun.cpp` | Teilen sich die TMP-Modelle 0x7..0x9 einen Platzhalter (HUNKs `wep29`), nimmt die TMP das Modell ohne Schaft (HUNK zielte nach Kostümwechsel/Koffer ohne Waffe). Port-Fehler der Stellvertreter, Nutzerbild 05.11.2026 |
 | 0207 `ss_shop.cpp` | Händler: die Zeile „hoher Preis“ beim Verkaufen über 9 999 Peseten in jeder Stage, wie die EU-Fassung (der Prototyp ab Stage 2 erst über 29 999). Fehler des Prototyps, Wunsch des Projektinhabers 05.11.2026 |
 | 0208 `em.cpp`, `camera.cpp` | Benchmark (Anzeige → GRAFIK): an der Stelle stehen die Gegner still, die Kamera kreist um Leon (`re4_bench_camera`). Port-Funktion, Wunsch des Projektinhabers 05.11.2026 |
+| 0209 `ss_map.cpp` | Kartenziel mit Verkaufs-Discs: die Zieltabellen ihrer `Sscrn.rel` (Dorf 12 Teile mit den Flags 0xA7, 0xA8; EU/JP/KR in Gebiet 9 zusätzlich 0xB8). Port-Patch für Verkaufsdaten, Nutzerbericht 06.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

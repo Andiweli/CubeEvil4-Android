@@ -149,6 +149,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final CoreAudio audio = new CoreAudio(this);
   private final Set<Integer> seenDevices = new HashSet<>();
   private final ControllerLog controllerLog = new ControllerLog();
+  /** How long a controller's input took from Android to the app (InputDelay), for the error log. */
+  private final InputDelay inputDelay = new InputDelay();
   private GLSurfaceView surface;
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
@@ -374,6 +376,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     preferSixtyHz();
     surface.setFocusable(true);
     surface.requestFocus();
+    // sticks, triggers and the hat at once (Android 11 and later): Android otherwise holds a controller's
+    // motion back for the next refresh of the screen (up to 17 ms) and hands over a batch (controller lag report,
+    // 05.11.2026); buttons come at once anyway
+    if (Build.VERSION.SDK_INT >= 30) {
+      surface.requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_JOYSTICK);
+      getWindow().getDecorView().requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_JOYSTICK);
+    }
     if (Build.VERSION.SDK_INT >= 33)
       getOnBackInvokedDispatcher().registerOnBackInvokedCallback(0, this::askExit);
     if (!startProblem.isEmpty()) {
@@ -1269,6 +1278,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /** Once per device: what it reports (name, sources, axes), for the device test's log. */
+  /** Every 30 seconds with controller input: its delay from Android to the app (InputDelay) in the error log. */
+  private void noteInputDelay(InputDevice d) {
+    String line = inputDelay.due(SystemClock.uptimeMillis(), d == null ? "?" : "\"" + d.getName() + "\""
+        + (Build.VERSION.SDK_INT >= 30 ? ", motion unbuffered" : ""));
+    if (line != null) Log.i(TAG, line);
+  }
+
   private void noteDevice(InputDevice d) {
     if (d == null || !seenDevices.add(d.getId())) return;
     Log.i(TAG, describeDevice(d));
@@ -1402,6 +1418,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
       if (e.getRepeatCount() > 0) return true;  // held: nothing changes
       if (input.key(e.getDeviceId(), code, down)) {
+        inputDelay.button(e.getEventTime(), SystemClock.uptimeMillis());
+        noteInputDelay(e.getDevice());
         if (down) {
           touchControls.controllerUsed();
           noteDevice(e.getDevice());
@@ -1477,6 +1495,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       float r = Math.max(axis(e, d, MotionEvent.AXIS_RTRIGGER, true), axis(e, d, MotionEvent.AXIS_GAS, true));
       float hx = axis(e, d, MotionEvent.AXIS_HAT_X, false), hy = axis(e, d, MotionEvent.AXIS_HAT_Y, false);
       noteUnreadAxes(e, d);
+      inputDelay.stick(e.getEventTime(), e.getHistorySize() > 0 ? e.getHistoricalEventTime(0) : e.getEventTime(),
+          SystemClock.uptimeMillis());
+      noteInputDelay(d);
       input.motion(e.getDeviceId(), lx, ly, rx, ry, l, r, hx, hy);
       // a stick, trigger or hat moved on purpose: the touch controls go again (TouchShowRule)
       if (TouchShowRule.moved(lx, ly, rx, ry, l, r, hx, hy)) touchControls.controllerUsed();
@@ -1612,9 +1633,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         break;
       case 3: case 6: benchView.setText(R.string.ingame_benchmark_back); break;
       case 4: {
+        // the resolution becomes "Dynamic" with the measured levels as its limits (wish of the project owner,
+        // 06.11.2026); the other graphics options stay as they are
         SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
-        g.edit().putInt(CoreMenu.DYN_CAP_30, st[3]).putInt(CoreMenu.DYN_CAP_60, st[4]).apply();
+        g.edit().putInt(CoreMenu.DYN_CAP_30, st[3]).putInt(CoreMenu.DYN_CAP_60, st[4]).putInt("scaleHalves", 0).apply();
         CoreBridge.setDynamicCaps(st[3], st[4]);
+        applyGraphics();
         benchmarkEnd(0, getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
             CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×"));
         return;
@@ -1622,7 +1646,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       case 5: benchmarkEnd(R.string.ingame_benchmark_cancelled, null); return;
       case -1: benchmarkEnd(R.string.ingame_benchmark_refused, null); return;
       case -3: benchmarkEnd(R.string.ingame_benchmark_unreachable, null); return;
-      case -4: benchmarkEnd(R.string.ingame_benchmark_village, null); return;
+      case -4: benchmarkEnd(R.string.ingame_benchmark_discs, null); return;
       case 0: break;
       default: benchmarkEnd(R.string.ingame_benchmark_failed, null); return;
     }

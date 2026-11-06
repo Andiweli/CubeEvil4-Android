@@ -303,6 +303,12 @@ extern "C" int re4_instant_game_can_load(void)
     return pauseReady() || titleReady();
 }
 
+// The title's main menu waits, a load would be taken from there (the benchmark, runtime/benchmark.cpp).
+extern "C" int re4_instant_game_at_title(void)
+{
+    return titleReady() ? 1 : 0;
+}
+
 extern "C" void re4_instant_game_pause(int on)
 {
     if (on) {

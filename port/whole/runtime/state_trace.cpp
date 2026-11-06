@@ -178,8 +178,9 @@
 //                          with life HP, as hits that do not kill (U-3 at 1 in the first
 //                          room jumps onto the containers and hides with life 0)
 //   RE4_TEST_BENCH="free+N:C[,free+M:C]..."  the app's benchmark commands (runtime/benchmark.cpp) N frames after
-//                          the player is first free: C 20/21 a place, 22 back; its state ("run: benchmark state")
-//                          every 60 frames from the first command on
+//                          the player is first free: C 20 the place, 22 back; its state ("run: benchmark state")
+//                          every 60 frames from the first command on; "title+N" N frames after the title's main
+//                          menu first waits (a start from the title, 06.11.2026)
 //   RE4_TEST_WEPTYPE="free+N:T"  N frames after the player is free, the weapon type becomes T and the
 //                          weapon object is made again from the weapon file already read (weaponRelease,
 //                          weaponInit, as PlChangeData does after a costume change): a type the file was
@@ -665,7 +666,10 @@ long g_wepTypeAfter = -1;    // RE4_TEST_WEPTYPE
 long g_benchAt[4] = {-1, -1, -1, -1};  // RE4_TEST_BENCH
 int g_benchCmd[4];
 long g_benchFirst = -1;
+bool g_benchTitle[4];        // RE4_TEST_BENCH "title+N": counted from the title's main menu
+long g_titleAt = -1;         // the first frame the title's main menu waited
 extern "C" int re4_bench_command(int what);
+extern "C" int re4_instant_game_at_title(void);
 int g_wepType;
 int g_lifeA, g_lifeAMax, g_lifeL = -1, g_lifeLMax = -1, g_lifeStep;
 unsigned g_stunId, g_stunRno = 0x0D;
@@ -1838,8 +1842,13 @@ void frame(unsigned n)
                 !hit ? "not found" : g_killHp > 0 ? "left with low life" : "killed", n, hit ? (double) hit->pos.x : 0.0, hit ? (double) hit->pos.y : 0.0,
                 hit ? (double) hit->pos.z : 0.0);
     }
+    if (g_titleAt < 0 && g_benchAt[0] >= 0 && re4_instant_game_at_title()) {
+        g_titleAt = (long) n;
+        re4_log("run: the title's main menu waits at frame %u", n);
+    }
     for (int i = 0; i < 4; i++) {
-        if (g_benchAt[i] >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_benchAt[i]) {
+        const long base = g_benchTitle[i] ? g_titleAt : g_freeAt;
+        if (g_benchAt[i] >= 0 && base >= 0 && (long) n == base + g_benchAt[i]) {
             re4_log("run: benchmark command %d at frame %u (RE4_TEST_BENCH)", g_benchCmd[i], n);
             re4_bench_command(g_benchCmd[i]);
             if (g_benchFirst < 0) {
@@ -2418,9 +2427,10 @@ void configure()
     }
     if (const char* bench = getenv("RE4_TEST_BENCH")) {
         const char* at = bench;
-        for (int i = 0; i < 4 && at && strncmp(at, "free+", 5) == 0; i++) {
+        for (int i = 0; i < 4 && at && (strncmp(at, "free+", 5) == 0 || strncmp(at, "title+", 6) == 0); i++) {
             char* end = 0;
-            g_benchAt[i] = strtol(at + 5, &end, 10);
+            g_benchTitle[i] = at[0] == 't';
+            g_benchAt[i] = strtol(at + (g_benchTitle[i] ? 6 : 5), &end, 10);
             g_benchCmd[i] = end && *end == ':' ? (int) strtol(end + 1, &end, 10) : 0;
             at = end && *end == ',' ? end + 1 : 0;
         }

@@ -299,6 +299,11 @@ add_library(re4_glue_obj OBJECT
     runtime/game_heap.cpp
     runtime/sn_runtime.cpp)
 target_include_directories(re4_glue_obj PRIVATE runtime)
+# the benchmark's place (runtime/instant_store.cpp re4_bench_place_payload): the project owner's instant save at
+# the lake's dock, built into libre4_main (.incbin)
+set(RE4_BENCH_PLACE "${CMAKE_CURRENT_SOURCE_DIR}/data/benchmark-place.ce4benchmark")
+target_compile_definitions(re4_glue_obj PRIVATE RE4_BENCH_PLACE=\"${RE4_BENCH_PLACE}\")
+set_source_files_properties(runtime/instant_store.cpp PROPERTIES OBJECT_DEPENDS "${RE4_BENCH_PLACE}")
 string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_glue_obj>\n")
 
 # Portable C parts of the Dolphin SDK (src/lib), compiled unchanged: the heap
@@ -579,6 +584,7 @@ endif()
 if(NOT ANDROID)
     add_executable(re4_instant_store_test tests/instant_store_test.cpp runtime/instant_store.cpp runtime/gci.cpp)
     target_include_directories(re4_instant_store_test PRIVATE runtime)
+    target_compile_definitions(re4_instant_store_test PRIVATE RE4_BENCH_PLACE=\"${RE4_BENCH_PLACE}\")
     target_compile_features(re4_instant_store_test PRIVATE cxx_std_17)
     # tests/game_probe.cpp: checks that need the game's flags and headers
     add_library(re4_probe_obj OBJECT tests/game_probe.cpp tests/core_probe.cpp tests/stream_probe.cpp

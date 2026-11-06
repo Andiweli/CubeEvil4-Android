@@ -286,15 +286,15 @@
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Iniciar</string>
-    <string name="ingame_benchmark_text">El juego va a un lugar exigente (el muelle del lago con la antorcha y la barca, bajo la lluvia), donde los enemigos se quedan quietos y la cámara gira alrededor de Leon. Desde la resolución más alta hacia abajo mide qué nivel mantiene 30 FPS estables y 60 FPS estables. \"Dinámica\" ya no supera esos niveles en este dispositivo. Tarda unos dos minutos; tu partida vuelve exactamente a donde está ahora. B o Atrás cancela.</string>
+    <string name="ingame_benchmark_text">El juego va a un lugar exigente: el muelle del lago con la antorcha y la barca, bajo la lluvia. Leon solo está de pie, los enemigos se quedan quietos y la cámara gira a su alrededor a unos 10 m. Desde la resolución más alta hacia abajo mide qué nivel mantiene 30 FPS estables y 60 FPS estables. Tus demás opciones (MSAA, FXAA, filtros, destellos de lente, profundidad de campo y el resto) se quedan como están, para que el resultado se ajuste a ellas. Después la resolución pasa a \"Dinámica\", que en este dispositivo nunca supera los niveles medidos. Tarda unos dos minutos y se inicia desde el menú del título o mientras juegas libremente en cualquier capítulo; después vuelves exactamente a donde estabas. No se guarda nada en tu tarjeta de memoria. B o Atrás cancela.</string>
     <string name="ingame_benchmark_starting">Benchmark: iniciando …</string>
     <string name="ingame_benchmark_going">Benchmark: yendo al muelle del lago …</string>
     <string name="ingame_benchmark_running">Benchmark · %1$d FPS · nivel %2$s · ahora %3$d FPS · B / Atrás: cancelar</string>
-    <string name="ingame_benchmark_back">Benchmark: volviendo a tu partida …</string>
-    <string name="ingame_benchmark_done">Benchmark terminado. En este dispositivo \"Dinámica\" llega ahora hasta %1$s con 30 FPS y hasta %2$s con 60 FPS.</string>
-    <string name="ingame_benchmark_cancelled">Benchmark cancelado. Tu partida ha vuelto a donde estaba.</string>
-    <string name="ingame_benchmark_refused">El benchmark solo empieza mientras juegas libremente en la historia (no en una escena, un menú, un combate contra un jefe o un lugar parecido). No se cambió nada.</string>
+    <string name="ingame_benchmark_back">Benchmark: volviendo a donde estabas …</string>
+    <string name="ingame_benchmark_done">Benchmark terminado. La resolución es ahora \"Dinámica\": en este dispositivo hasta %1$s con 30 FPS y hasta %2$s con 60 FPS.</string>
+    <string name="ingame_benchmark_cancelled">Benchmark cancelado. Has vuelto a donde estabas.</string>
+    <string name="ingame_benchmark_refused">El benchmark se inicia desde el menú del título o mientras juegas libremente en la historia (no en una escena, un menú, una pelea contra un jefe o un lugar parecido). No se cambió nada.</string>
     <string name="ingame_benchmark_failed">El benchmark no pudo ejecutarse aquí. No se cambió nada.</string>
-    <string name="ingame_benchmark_unreachable">No se pudo llegar al lugar del benchmark desde este punto de la historia. Juega un poco más y vuelve a intentarlo. Tu partida ha vuelto a donde estaba.</string>
-    <string name="ingame_benchmark_village">El benchmark se ejecuta desde la parte del pueblo de la historia (capítulos 1-1 a 2-3, primer disco): su lugar pertenece a ella y el juego no vuelve allí más tarde. Carga una partida de esa parte (o empieza una nueva), ejecútalo una vez y el resultado se queda en este dispositivo. No se cambió nada.</string>
+    <string name="ingame_benchmark_unreachable">No se pudo llegar al lugar del benchmark. Has vuelto a donde estabas.</string>
+    <string name="ingame_benchmark_discs">El lugar del benchmark no corresponde a estos discos del juego. No se cambió nada.</string>
 </resources>

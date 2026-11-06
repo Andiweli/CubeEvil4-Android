@@ -33,6 +33,7 @@
 #include "re4_runtime.h"
 
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <stdlib.h>
 #include <string.h>
@@ -295,12 +296,26 @@ static bool g_hasLive;
 // from the statue, report 25.10.2026 by video: "A rapidly" with fast taps, the game saw few presses).
 static u8 g_presses[16];
 static u16 g_reported;  // buttons the game got at the last read
+// How long a press waits for the game's read (the controller lag report, 05.11.2026): from the app's
+// call (re4_pad_live) to PADRead, which the game makes once a picture. Every 20 s with presses, one line.
+static long long g_pressAt;  // ns of the oldest press the game has not read yet (0: none)
+static long long g_waitSum, g_waitMax;
+static unsigned g_waits, g_waitReads;
+
+static long long padNowNs()
+{
+    return (long long) std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 void re4_pad_live(const Re4CorePad* pad)
 {
     std::lock_guard<std::mutex> lock(g_liveLock);
     if (pad) {
         const u16 down = pad->buttons & ~g_live.buttons;
+        if (down && !g_pressAt) {
+            g_pressAt = padNowNs();
+        }
         for (int i = 0; i < 16; i++) {
             if ((down >> i & 1) && g_presses[i] < 4) {
                 g_presses[i]++;
@@ -360,6 +375,19 @@ u32 PADRead(PADStatus* status)
     status[0].analogB = (scripted.buttons & 0x0200) ? 0xFF : 0;
     if (!gScriptLen) {
         std::lock_guard<std::mutex> lock(g_liveLock);
+        if (g_pressAt) {
+            const long long w = padNowNs() - g_pressAt;
+            g_waitSum += w;
+            g_waitMax = w > g_waitMax ? w : g_waitMax;
+            g_waits++;
+            g_pressAt = 0;
+        }
+        if (++g_waitReads >= 600 && g_waits) {
+            re4_log("pad: a press waited %.1f ms on average for the game's read (at most %.1f ms, %u presses; the "
+                    "game reads once a picture)", g_waitSum / 1e6 / g_waits, g_waitMax / 1e6, g_waits);
+            g_waitSum = g_waitMax = 0;
+            g_waits = g_waitReads = 0;
+        }
         if (g_hasLive) {
             u16 buttons = g_live.buttons, released = 0;
             for (int i = 0; i < 16; i++) {
