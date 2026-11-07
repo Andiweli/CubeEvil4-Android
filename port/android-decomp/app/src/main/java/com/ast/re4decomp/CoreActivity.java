@@ -170,6 +170,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
   private final List<byte[]> pendingImports = new ArrayList<>();
+  // the touch layout file the chosen files hold (TouchLayoutFile), after the .gci files
+  private byte[] pendingTouch;
   // (read by the picture's beat on its own thread too)
   private volatile boolean resumed;
   // GPU step c: the picture drawn at each vsync or, on a faster screen, at every n-th
@@ -1042,6 +1044,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         exportAllInto(data.getData());
       } else if (request == REQUEST_IMPORT) {
         pendingImports.clear();
+        pendingTouch = null;
         if (data.getClipData() != null) {
           for (int i = 0; i < data.getClipData().getItemCount(); i++) readImport(data.getClipData().getItemAt(i).getUri());
         } else if (data.getData() != null) {
@@ -1069,6 +1072,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return;
     }
     Uri folder = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
+    // the player's own touch layout as a file of its own (wish of the project owner, 07.11.2026); none: nothing
+    int[] screen = touchScreen();
+    byte[] touchFile = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), screen[0], screen[1],
+        appVersion());
     int done = 0;
     StringBuilder problems = new StringBuilder();
     for (String row : rows) {
@@ -1087,8 +1094,44 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       done++;
     }
+    String touchLine = "";
+    if (touchFile != null) {
+      Uri file = DocumentsContract.createDocument(getContentResolver(), folder, "application/json", TouchLayoutFile.NAME);
+      if (file == null) throw new IOException(TouchLayoutFile.NAME);
+      try (OutputStream out = getContentResolver().openOutputStream(file)) {
+        if (out == null) throw new IOException(TouchLayoutFile.NAME);
+        out.write(touchFile);
+      }
+      touchLine = "\n" + getString(R.string.ingame_exported_touch, TouchLayoutFile.NAME);
+      Log.i(TAG, "export: the touch layout too (" + touchFile.length + " bytes, screen " + screen[0] + "x" + screen[1] + ")");
+    }
     message(String.format(java.util.Locale.ROOT, getResources().getQuantityString(R.plurals.ingame_exported, done), done)
-        + problems);
+        + touchLine + problems);
+  }
+
+  /** RetroTouch's preferences (TouchLayoutFile.PREFS: the saved layout). */
+  private SharedPreferences touchPrefs() {
+    return getSharedPreferences(TouchLayoutFile.PREFS, Context.MODE_PRIVATE);
+  }
+
+  /** The touch controls' size in pixels (the window, else the display): what RetroTouch's parts refer to. */
+  private int[] touchScreen() {
+    View v = touchControls != null ? touchControls.view() : null;
+    if (v != null && v.getWidth() > 0 && v.getHeight() > 0) return new int[] {v.getWidth(), v.getHeight()};
+    View d = getWindow().getDecorView();
+    if (d.getWidth() > 0 && d.getHeight() > 0) return new int[] {d.getWidth(), d.getHeight()};
+    android.util.DisplayMetrics m = getResources().getDisplayMetrics();
+    return new int[] {m.widthPixels, m.heightPixels};
+  }
+
+  /** The app's version ("0.99.2-rc"), for the touch layout file. */
+  private String appVersion() {
+    try {
+      String v = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+      return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
+    } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+      return "";
+    }
   }
 
   private void readImport(Uri uri) throws IOException {
@@ -1097,7 +1140,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       // a .gci, a whole Dolphin card (.raw, .gcp) or a ZIP of either: the .gci files of this game
       StringBuilder found = new StringBuilder();
       try {
-        pendingImports.addAll(SaveImport.files(CoreLog.readAll(in), found));
+        List<byte[]> touch = new ArrayList<>();
+        pendingImports.addAll(SaveImport.files(CoreLog.readAll(in), found, touch));
+        if (!touch.isEmpty()) pendingTouch = touch.get(touch.size() - 1);
       } catch (IllegalArgumentException e) {
         throw new IOException(e.getMessage());
       }
@@ -1128,6 +1173,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The chosen .gci files one by one; a file already on the card is replaced only when asked. */
   private void importNext(StringBuilder report) {
     if (pendingImports.isEmpty()) {
+      if (pendingTouch != null) {
+        importTouch(report);
+        return;
+      }
       if (report.length() > 0) message(report.toString().trim());
       if (menu != null) menu.refreshCard();
       return;
@@ -1151,6 +1200,60 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     report.append(importText(r, name)).append('\n');
     importNext(report);
+  }
+
+  /**
+   * The touch layout of the import, after its .gci files: replaces the player's own only when asked; in use at once
+   * (TouchControls.reloadSaved), every control on this screen.
+   */
+  private void importTouch(StringBuilder report) {
+    byte[] file = pendingTouch;
+    pendingTouch = null;
+    TouchLayoutFile.Parsed parsed;
+    try {
+      parsed = TouchLayoutFile.parse(file);
+    } catch (IllegalArgumentException e) {
+      Log.i(TAG, "import: touch layout: " + e.getMessage());
+      report.append(getString(R.string.ingame_touch_import_bad, e.getMessage())).append('\n');
+      importNext(report);
+      return;
+    }
+    SharedPreferences prefs = touchPrefs();
+    String saved = TouchLayoutFile.saved(prefs);
+    if (TouchLayoutFile.ownSaved(prefs, TouchControls.defaultLayout()) && !TouchLayoutFile.same(saved, parsed.layout)) {
+      new AlertDialog.Builder(this)
+          .setMessage(R.string.ingame_touch_import_exists)
+          .setPositiveButton(R.string.ingame_replace, (d, w) -> {
+            applyTouch(parsed, report);
+            importNext(report);
+          })
+          .setNegativeButton(R.string.ingame_skip, (d, w) -> {
+            Log.i(TAG, "import: touch layout skipped (the player's own kept)");
+            report.append(getString(R.string.ingame_touch_skipped)).append('\n');
+            importNext(report);
+          })
+          .setCancelable(false).show();
+      return;
+    }
+    applyTouch(parsed, report);
+    importNext(report);
+  }
+
+  private void applyTouch(TouchLayoutFile.Parsed parsed, StringBuilder report) {
+    int[] screen = touchScreen();
+    try {
+      int moved = TouchLayoutFile.apply(touchPrefs(), parsed, screen[0], screen[1], getResources().getDisplayMetrics().density);
+      if (touchControls != null) touchControls.reloadSaved();
+      Log.i(TAG, "import: touch layout saved, " + moved + " controls moved onto the screen " + screen[0] + "x" + screen[1]);
+      report.append(getString(R.string.ingame_touch_imported)).append('\n');
+      if (moved > 0) {
+        report.append(String.format(java.util.Locale.ROOT,
+            getResources().getQuantityString(R.plurals.ingame_touch_moved, moved), moved)).append('\n');
+      }
+    } catch (IllegalArgumentException e) {
+      Log.i(TAG, "import: touch layout: " + e.getMessage());
+      report.append(getString(R.string.ingame_touch_import_bad, e.getMessage())).append('\n');
+    }
   }
 
   private String reportName() {

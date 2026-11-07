@@ -100,7 +100,7 @@
 
     <!-- Memory card -->
     <string name="ingame_card">Memory card (slot A)</string>
-    <string name="ingame_card_help">Export and Import Savegames as .gci (for Dolphin or GameCube).</string>
+    <string name="ingame_card_help">Export and Import Savegames as .gci (for Dolphin or GameCube). A touch layout of your own goes along as CubeEvil4-touch-layout.json, and the import brings it back.</string>
     <string name="ingame_card_busy">The card is in use (the game saves or loads) or the game is still loading – close the menu and open it again in a moment.</string>
     <string name="ingame_card_none">No memory card.</string>
     <string name="ingame_export">Export Savegames (.gci)</string>
@@ -148,6 +148,11 @@
         <item quantity="one">%1$d file exported.</item>
         <item quantity="other">%1$d files exported.</item>
     </plurals>
+    <string name="ingame_exported_touch">Your touch layout too: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d control was partly off this screen and was moved onto it.</item>
+        <item quantity="other">%1$d controls were partly off this screen and were moved onto it.</item>
+    </plurals>
     <string name="ingame_imported">Imported: %1$s</string>
     <string name="ingame_import_no_space">No space on the card for %1$s</string>
     <string name="ingame_import_busy">The game uses the card: %1$s</string>
@@ -156,6 +161,10 @@
     <string name="ingame_import_exists">%1$s is on the card already. Replace it?</string>
     <string name="ingame_replace">Replace</string>
     <string name="ingame_skip">Skip</string>
+    <string name="ingame_touch_import_exists">You have a touch layout of your own already. Replace it with the imported one?</string>
+    <string name="ingame_touch_imported">Touch layout imported: in use right away.</string>
+    <string name="ingame_touch_skipped">Touch layout skipped: yours stays.</string>
+    <string name="ingame_touch_import_bad">Touch layout not imported: %1$s</string>
     <string name="ingame_report_chooser">Send the error report</string>
     <string name="ingame_report_failed">The report could not be made: %1$s</string>
     <string name="ingame_capture_saved">Graphics capture saved</string>

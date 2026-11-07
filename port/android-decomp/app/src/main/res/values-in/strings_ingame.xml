@@ -90,7 +90,7 @@
     <string name="ingame_update_allow">Izinkan CubeEvil4 memasang aplikasi, lalu tekan Perbarui lagi.</string>
 
     <string name="ingame_card">Kartu memori (slot A)</string>
-    <string name="ingame_card_help">Ekspor dan impor data simpanan sebagai .gci (untuk Dolphin atau GameCube).</string>
+    <string name="ingame_card_help">Ekspor dan impor data simpanan sebagai .gci (untuk Dolphin atau GameCube). Tata letak sentuh milik Anda ikut diekspor sebagai CubeEvil4-touch-layout.json, dan impor memulihkannya.</string>
     <string name="ingame_card_busy">Kartu sedang dipakai (game sedang menyimpan atau memuat) atau game masih memuat – tutup menu dan buka lagi sebentar lagi.</string>
     <string name="ingame_card_none">Tidak ada kartu memori.</string>
     <string name="ingame_export">Ekspor Data Simpanan (.gci)</string>
@@ -133,6 +133,10 @@
     <plurals name="ingame_exported">
         <item quantity="other">%1$d file diekspor.</item>
     </plurals>
+    <string name="ingame_exported_touch">Tata letak sentuh Anda juga: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="other">%1$d kontrol sebagian berada di luar layar ini dan dipindahkan ke dalam.</item>
+    </plurals>
     <string name="ingame_imported">Diimpor: %1$s</string>
     <string name="ingame_import_no_space">Tidak ada ruang di kartu untuk %1$s</string>
     <string name="ingame_import_busy">Game sedang memakai kartu: %1$s</string>
@@ -141,6 +145,10 @@
     <string name="ingame_import_exists">%1$s sudah ada di kartu. Ganti?</string>
     <string name="ingame_replace">Ganti</string>
     <string name="ingame_skip">Lewati</string>
+    <string name="ingame_touch_import_exists">Anda sudah punya tata letak sentuh sendiri. Ganti dengan yang diimpor?</string>
+    <string name="ingame_touch_imported">Tata letak sentuh diimpor: langsung dipakai.</string>
+    <string name="ingame_touch_skipped">Tata letak sentuh dilewati: milik Anda tetap.</string>
+    <string name="ingame_touch_import_bad">Tata letak sentuh tidak diimpor: %1$s</string>
     <string name="ingame_report_chooser">Kirim laporan kesalahan</string>
     <string name="ingame_report_failed">Laporan tidak dapat dibuat: %1$s</string>
     <string name="ingame_capture_saved">Tangkapan grafis disimpan</string>

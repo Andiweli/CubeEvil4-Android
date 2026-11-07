@@ -12,7 +12,8 @@ import java.util.zip.ZipInputStream;
 /**
  * What the import of the app's menu takes from one chosen file, as .gci files for the core (runtime/gci.cpp): a .gci
  * as it is, the files of this game on a whole Dolphin card (.raw, .gcp; DolphinCard), or a ZIP holding either (a
- * Dolphin GCI folder or an export of the app, packed). Other files in a ZIP are left out.
+ * Dolphin GCI folder or an export of the app, packed). The touch layout of an export (TouchLayoutFile, a file of its
+ * own or in the ZIP) goes to the caller's list. Other files in a ZIP are left out.
  */
 final class SaveImport {
   static final int MAX_GCI = 4 << 20, MAX_FILE = 16 << 20, MAX_ZIP = 64 << 20;
@@ -21,9 +22,22 @@ final class SaveImport {
 
   /** The .gci files in `data`; `log` gets one line on what was found. IllegalArgumentException when none. */
   static List<byte[]> files(byte[] data, StringBuilder log) {
+    return files(data, log, null);
+  }
+
+  /**
+   * The same, and a touch layout file (TouchLayoutFile.is) into `touch` when it is given: then `data` holding only
+   * a touch layout is no error.
+   */
+  static List<byte[]> files(byte[] data, StringBuilder log, List<byte[]> touch) {
     List<byte[]> out = new ArrayList<>();
+    if (touch != null && TouchLayoutFile.is(data)) {
+      touch.add(data);
+      log.append("touch layout file");
+      return out;
+    }
     if (isZip(data)) {
-      int skipped = 0, cards = 0;
+      int skipped = 0, cards = 0, layouts = 0;
       long total = 0;
       try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(data))) {
         for (ZipEntry e; (e = zip.getNextEntry()) != null; ) {
@@ -38,6 +52,9 @@ final class SaveImport {
             cards++;
           } else if (base.endsWith(".gci") && file.length <= MAX_GCI) {
             out.add(file);
+          } else if (touch != null && TouchLayoutFile.is(file)) {
+            touch.add(file);
+            layouts++;
           } else {
             skipped++;
           }
@@ -46,8 +63,9 @@ final class SaveImport {
         throw new IllegalArgumentException("the ZIP file cannot be read (" + e.getMessage() + ")");
       }
       log.append("ZIP file: ").append(out.size()).append(" files to import (").append(cards)
-          .append(" memory cards in it), ").append(skipped).append(" other files left out");
-      if (out.isEmpty()) throw new IllegalArgumentException("no saves (.gci, .raw) in the ZIP file");
+          .append(" memory cards in it), ").append(layouts).append(" touch layouts, ").append(skipped)
+          .append(" other files left out");
+      if (out.isEmpty() && layouts == 0) throw new IllegalArgumentException("no saves (.gci, .raw) in the ZIP file");
       return out;
     }
     if (DolphinCard.isCard(data)) {

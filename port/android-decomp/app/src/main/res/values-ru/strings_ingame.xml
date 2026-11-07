@@ -89,7 +89,7 @@
     <string name="ingame_update_allow">Разрешите CubeEvil4 устанавливать приложения и снова нажмите «Обновить».</string>
 
     <string name="ingame_card">Карта памяти (слот A)</string>
-    <string name="ingame_card_help">Экспорт и импорт сохранений в формате .gci (для Dolphin или GameCube).</string>
+    <string name="ingame_card_help">Экспорт и импорт сохранений в формате .gci (для Dolphin или GameCube). Ваша собственная сенсорная раскладка сохраняется в CubeEvil4-touch-layout.json, импорт восстанавливает её.</string>
     <string name="ingame_card_busy">Карта памяти занята (игра сохраняет или загружает) или игра ещё загружается — закройте меню и откройте его снова чуть позже.</string>
     <string name="ingame_card_none">Нет карты памяти.</string>
     <string name="ingame_export">Экспорт сохранений (.gci)</string>
@@ -135,6 +135,13 @@
         <item quantity="many">Экспортировано %1$d файлов.</item>
         <item quantity="other">Экспортировано файлов: %1$d.</item>
     </plurals>
+    <string name="ingame_exported_touch">Также ваша сенсорная раскладка: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d элемент управления выходил за край этого экрана и был перемещён на экран.</item>
+        <item quantity="few">%1$d элемента управления выходили за край этого экрана и были перемещены на экран.</item>
+        <item quantity="many">%1$d элементов управления выходили за край этого экрана и были перемещены на экран.</item>
+        <item quantity="other">Элементов управления, перемещённых на экран: %1$d.</item>
+    </plurals>
     <string name="ingame_imported">Импортировано: %1$s</string>
     <string name="ingame_import_no_space">На карте нет места для %1$s</string>
     <string name="ingame_import_busy">Игра использует карту: %1$s</string>
@@ -143,6 +150,10 @@
     <string name="ingame_import_exists">%1$s уже есть на карте. Заменить?</string>
     <string name="ingame_replace">Заменить</string>
     <string name="ingame_skip">Пропустить</string>
+    <string name="ingame_touch_import_exists">У вас уже есть своя сенсорная раскладка. Заменить её импортированной?</string>
+    <string name="ingame_touch_imported">Сенсорная раскладка импортирована и сразу действует.</string>
+    <string name="ingame_touch_skipped">Сенсорная раскладка пропущена: ваша остаётся.</string>
+    <string name="ingame_touch_import_bad">Сенсорная раскладка не импортирована: %1$s</string>
     <string name="ingame_report_chooser">Отправить отчёт об ошибках</string>
     <string name="ingame_report_failed">Не удалось создать отчёт: %1$s</string>
     <string name="ingame_capture_saved">Снимок графики сохранён</string>

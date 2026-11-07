@@ -90,7 +90,7 @@
     <string name="ingame_update_allow">Permita que o CubeEvil4 instale apps e toque em Atualizar novamente.</string>
 
     <string name="ingame_card">Cartão de memória (slot A)</string>
-    <string name="ingame_card_help">Exportar e importar jogos salvos como .gci (para Dolphin ou GameCube).</string>
+    <string name="ingame_card_help">Exportar e importar jogos salvos como .gci (para Dolphin ou GameCube). Seu próprio layout de toque vai junto como CubeEvil4-touch-layout.json, e a importação o restaura.</string>
     <string name="ingame_card_busy">O cartão está em uso (o jogo está salvando ou carregando) ou o jogo ainda está carregando – feche o menu e abra-o de novo em instantes.</string>
     <string name="ingame_card_none">Nenhum cartão de memória.</string>
     <string name="ingame_export">Exportar jogos salvos (.gci)</string>
@@ -135,6 +135,12 @@
         <item quantity="many">%1$d arquivos exportados.</item>
         <item quantity="other">%1$d arquivos exportados.</item>
     </plurals>
+    <string name="ingame_exported_touch">Seu layout de toque também: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d controle ficava em parte fora desta tela e foi movido para dentro.</item>
+        <item quantity="many">%1$d controles ficavam em parte fora desta tela e foram movidos para dentro.</item>
+        <item quantity="other">%1$d controles ficavam em parte fora desta tela e foram movidos para dentro.</item>
+    </plurals>
     <string name="ingame_imported">Importado: %1$s</string>
     <string name="ingame_import_no_space">Sem espaço no cartão para %1$s</string>
     <string name="ingame_import_busy">O jogo está usando o cartão: %1$s</string>
@@ -143,6 +149,10 @@
     <string name="ingame_import_exists">%1$s já está no cartão. Substituir?</string>
     <string name="ingame_replace">Substituir</string>
     <string name="ingame_skip">Pular</string>
+    <string name="ingame_touch_import_exists">Você já tem seu próprio layout de toque. Substituir pelo importado?</string>
+    <string name="ingame_touch_imported">Layout de toque importado: em uso imediatamente.</string>
+    <string name="ingame_touch_skipped">Layout de toque ignorado: o seu continua.</string>
+    <string name="ingame_touch_import_bad">Layout de toque não importado: %1$s</string>
     <string name="ingame_report_chooser">Enviar o relatório de erros</string>
     <string name="ingame_report_failed">Não foi possível criar o relatório: %1$s</string>
     <string name="ingame_capture_saved">Captura gráfica salva</string>

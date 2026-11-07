@@ -89,7 +89,7 @@
     <string name="ingame_update_allow">Consenti a CubeEvil4 di installare app, poi premi di nuovo Aggiorna.</string>
 
     <string name="ingame_card">Memory Card (slot A)</string>
-    <string name="ingame_card_help">Esporta e importa i salvataggi come .gci (per Dolphin o GameCube).</string>
+    <string name="ingame_card_help">Esporta e importa i salvataggi come .gci (per Dolphin o GameCube). Il tuo layout touch personalizzato viene esportato come CubeEvil4-touch-layout.json e l’importazione lo ripristina.</string>
     <string name="ingame_card_busy">La Memory Card è in uso (il gioco sta salvando o caricando) oppure il gioco sta ancora caricando: chiudi il menu e riaprilo tra un momento.</string>
     <string name="ingame_card_none">Nessuna Memory Card.</string>
     <string name="ingame_export">Esporta salvataggi (.gci)</string>
@@ -134,6 +134,12 @@
         <item quantity="many">%1$d file esportati.</item>
         <item quantity="other">%1$d file esportati.</item>
     </plurals>
+    <string name="ingame_exported_touch">Anche il tuo layout touch: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d comando usciva in parte da questo schermo ed è stato spostato dentro.</item>
+        <item quantity="many">%1$d comandi uscivano in parte da questo schermo e sono stati spostati dentro.</item>
+        <item quantity="other">%1$d comandi uscivano in parte da questo schermo e sono stati spostati dentro.</item>
+    </plurals>
     <string name="ingame_imported">Importato: %1$s</string>
     <string name="ingame_import_no_space">Spazio insufficiente sulla Memory Card per %1$s</string>
     <string name="ingame_import_busy">Il gioco sta usando la Memory Card: %1$s</string>
@@ -142,6 +148,10 @@
     <string name="ingame_import_exists">%1$s è già sulla Memory Card. Sostituirlo?</string>
     <string name="ingame_replace">Sostituisci</string>
     <string name="ingame_skip">Salta</string>
+    <string name="ingame_touch_import_exists">Hai già un layout touch personalizzato. Sostituirlo con quello importato?</string>
+    <string name="ingame_touch_imported">Layout touch importato: attivo da subito.</string>
+    <string name="ingame_touch_skipped">Layout touch saltato: resta il tuo.</string>
+    <string name="ingame_touch_import_bad">Layout touch non importato: %1$s</string>
     <string name="ingame_report_chooser">Invia il rapporto errori</string>
     <string name="ingame_report_failed">Impossibile creare il rapporto: %1$s</string>
     <string name="ingame_capture_saved">Cattura grafica salvata</string>

@@ -93,7 +93,7 @@
     <string name="ingame_update_allow">اسمح لـ CubeEvil4 بتثبيت التطبيقات، ثم اضغط تحديث مرة أخرى.</string>
 
     <string name="ingame_card">بطاقة الذاكرة (الفتحة A)</string>
-    <string name="ingame_card_help">تصدير ملفات الحفظ واستيرادها بصيغة &#x200E;.gci (لـ Dolphin أو GameCube).</string>
+    <string name="ingame_card_help">تصدير ملفات الحفظ واستيرادها بصيغة &#x200E;.gci (لـ Dolphin أو GameCube). يُصدَّر تخطيط اللمس الخاص بك معها في الملف &#x200E;CubeEvil4-touch-layout.json، ويعيده الاستيراد.</string>
     <string name="ingame_card_busy">بطاقة الذاكرة قيد الاستخدام (اللعبة تحفظ أو تحمّل) أو أن اللعبة ما زالت تُحمَّل – أغلق القائمة وافتحها مجددًا بعد لحظات.</string>
     <string name="ingame_card_none">لا توجد بطاقة ذاكرة.</string>
     <string name="ingame_export">تصدير ملفات الحفظ (&#x200E;.gci)</string>
@@ -142,6 +142,15 @@
         <item quantity="many">عدد الملفات المُصدَّرة: %1$d.</item>
         <item quantity="other">عدد الملفات المُصدَّرة: %1$d.</item>
     </plurals>
+    <string name="ingame_exported_touch">وتخطيط اللمس الخاص بك أيضًا: &#x200E;%1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="zero">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="one">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="two">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="few">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="many">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="other">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+    </plurals>
     <string name="ingame_imported">تم الاستيراد: %1$s</string>
     <string name="ingame_import_no_space">لا توجد مساحة على البطاقة لـ %1$s</string>
     <string name="ingame_import_busy">اللعبة تستخدم البطاقة: %1$s</string>
@@ -150,6 +159,10 @@
     <string name="ingame_import_exists">&#x200F;%1$s موجود على البطاقة بالفعل. هل تريد استبداله؟</string>
     <string name="ingame_replace">استبدال</string>
     <string name="ingame_skip">تخطي</string>
+    <string name="ingame_touch_import_exists">لديك بالفعل تخطيط لمس خاص بك. هل تريد استبداله بالتخطيط المستورد؟</string>
+    <string name="ingame_touch_imported">تم استيراد تخطيط اللمس، وهو مُستخدم فورًا.</string>
+    <string name="ingame_touch_skipped">تم تخطي تخطيط اللمس، ويبقى تخطيطك.</string>
+    <string name="ingame_touch_import_bad">لم يتم استيراد تخطيط اللمس: %1$s</string>
     <string name="ingame_report_chooser">إرسال تقرير الأخطاء</string>
     <string name="ingame_report_failed">تعذّر إنشاء التقرير: %1$s</string>
     <string name="ingame_capture_saved">تم حفظ لقطة الرسومات</string>

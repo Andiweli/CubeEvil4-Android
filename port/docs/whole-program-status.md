@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.2-rc: Tor nach den zwei El Gigantes (07.11.2026, Branch `work`, Patch 0216)
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export (07.11.2026, Branch `work`, Patch 0216)
 
 Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
 v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
@@ -38,6 +38,46 @@ v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1
      "0x224:1"`, EU): Bereich 10 aus, Tor offen. `whole_build.sh i686` mit `RE4_OPT=2`: alle Prüfungen grün.
      Hinweis für spätere Läufe: in der Mitte von Bereich 9 liegt die Lava, und ein umfallender Riese erschlägt Leon in
      seiner Nähe (beides Original). **Nicht geprüft:** Gerät; KR-Discs im Lauf (derselbe Code wie JP).
+
+2. **Touch-Layout beim Export und Import der Spielstände (Wunsch des Projektinhabers, 07.11.2026).** Wortlaut: „dass
+   beim Export der Spielstände auch eine etwaige Einstellung bzw. Konfiguration von RetroTouch mitgespeichert wird.
+   Bitte dann auch beim Import beachten.“
+   - **Wo RetroTouch speichert** (Quelltext 1.0.0-beta.9, `E:\Development\Android\RetroTouch\Beta9`, gleich der AAR
+     in `app/libs`): SharedPreferences `retrotouch_layouts`, Schlüssel `layout_cubeevil4` (`RetroTouchLayout.toJson`:
+     je Bedienelement Mitte x/y, Breite/Höhe als Anteil der Bildschirmbreite/-höhe, Deckkraft, Typ; Farben nicht) und
+     `layout_cubeevil4_editor` (Zahnrad: Platz, Größe, Deckkraft; Höhe der Editor-Leiste). Gespeichert nur über
+     „Speichern“ im Editor und beim Zurücksetzen (dann die Vorgabe). Keine eigene Export-API.
+   - **Export** (`CoreActivity.exportAllInto`, neue Klasse `TouchLayoutFile`): nur wenn ein eigenes Layout gespeichert
+     ist (lesbar und anders als die Vorgabe der App, `TouchControls.defaultLayout`; Vergleich je Element über
+     id/Typ/Aktion/x/y/Breite/Höhe/Deckkraft), kommt `CubeEvil4-touch-layout.json` mit in den Ordner: JSON mit dem
+     Kennzeichen `cubeevil4_touch_layout: 1` als erstem Schlüssel, App-Version, Bildschirm des exportierenden Geräts,
+     dem Layout und dem Editor-Zustand. Meldung „Your touch layout too: …“.
+   - **Import** (`SaveImport.files(…, touch)`): die Datei allein oder in einem ZIP (am Inhalt erkannt, nicht am Namen);
+     ein ZIP nur mit ihr ist kein Fehler mehr. Nach den .gci-Dateien: steht schon ein eigenes, anderes Layout da,
+     fragt die App („You have a touch layout of your own already. Replace it with the imported one?“, Replace / Skip).
+     Gespeichert wird über `RetroTouchLayout.fromJson(…).toJson()` (RetroTouchs eigenes Format), dazu der
+     Editor-Zustand (fehlt er in der Datei: entfernt, RetroTouch nimmt seine Vorgaben). `TouchControls.reloadSaved`
+     (`setGameplayLayout`): **gilt sofort** (sind die Touch-Tasten gerade aus, beim nächsten Einblenden).
+     Beschädigte Dateien, ein anderes Spiel oder ein neueres Format: „Touch layout not imported: …“.
+   - **Andere Bildschirme:** Alles ist relativ zur Bildschirmgröße, also kein Pixel-Bezug. Auf einem anderen
+     Seitenverhältnis behalten die Elemente ihren Platz relativ zu den Rändern; runde (Durchmesser = kleinerer Wert
+     von Breite × Bildschirmbreite und Höhe × Bildschirmhöhe) werden etwas größer oder kleiner und können so über einen
+     Rand ragen. Der Import rückt jedes Element, dessen sichtbare Form (samt halbem Rand, mehr als 2 px) über einen
+     Rand dieses Bildschirms ragen würde, herein, wie RetroTouchs Editor ein gezogenes Element setzt (`placeControl`,
+     `visibleRect`, `buttonRect`: START/MENU Rechteck 1,2 × 0,6, L/R Schulter 1,5 × 0,75 des Durchmessers);
+     Meldung „N controls were partly off this screen and were moved onto it.“ Das Zahnrad hält RetroTouch selbst im
+     Bild. **Grenzen:** dichter zusammenrückende oder sich überlappende Elemente richtet der Import nicht neu aus;
+     RetroTouch selbst rückt bei einer späteren Änderung der Fenstergröße (Drehen, Klapphandy) nichts herein.
+   - **Nicht dabei:** die Touch-Schalter des App-Menüs (Touch Controls Auto/Force/Suppress, L/R und B einrasten,
+     Zielen per Touch); das sind Einstellungen der App, nicht von RetroTouch.
+   - **Texte:** Hilfe „Memory card“ (`ingame_card_help`) und 6 neue Texte (`ingame_exported_touch`,
+     `ingame_touch_import_exists`, `ingame_touch_imported`, `ingame_touch_skipped`, `ingame_touch_import_bad`,
+     Plural `ingame_touch_moved`) in 11 Sprachen (von mir übersetzt), `check_translations.py`: 292 Texte je Sprache, ok.
+   - **Geprüft am PC:** Java-Bau core, Tests `TouchLayoutFileTest` (neu, Robolectric: kein Export ohne eigenes Layout,
+     nach dem Zurücksetzen oder bei beschädigtem; hin und zurück samt Editor; Vorgabe auf 16:9 und 20:9 unverändert;
+     Element am Rand hereingerückt; Platz am Rand eines 20:9-Handys auf 4:3; unbrauchbare Dateien), `SaveImportTest`
+     (Datei allein, im Export-ZIP, ZIP nur mit ihr), `CoreMenuLayoutTest`, `AppUpdateTest`: alle 49 App-Tests grün (`testCoreDebugUnitTest`; vorher fielen 4, weil die Blickzone mit ihrem Randstrich als „über den Rand“ galt: bei ihr jetzt ohne Rand). Java-Bau classic ebenfalls.
+     **Nicht geprüft:** Gerät (Export in einen Ordner, Import, Rückfrage, sofortiges Neuladen, anderes Gerät).
 
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 

@@ -89,7 +89,7 @@
     <string name="ingame_update_allow">Erlaube CubeEvil4, Apps zu installieren, und drücke dann noch einmal Update.</string>
 
     <string name="ingame_card">Speicherkarte (Steckplatz A)</string>
-    <string name="ingame_card_help">Spielstände als .gci exportieren und importieren (für Dolphin oder GameCube).</string>
+    <string name="ingame_card_help">Spielstände als .gci exportieren und importieren (für Dolphin oder GameCube). Ein eigenes Touch-Layout kommt als CubeEvil4-touch-layout.json mit, der Import holt es zurück.</string>
     <string name="ingame_card_busy">Die Karte wird gerade benutzt (das Spiel speichert oder lädt) oder das Spiel lädt noch – Menü schließen und gleich noch einmal öffnen.</string>
     <string name="ingame_card_none">Keine Speicherkarte.</string>
     <string name="ingame_export">Spielstände exportieren (.gci)</string>
@@ -133,6 +133,11 @@
         <item quantity="one">%1$d Datei exportiert.</item>
         <item quantity="other">%1$d Dateien exportiert.</item>
     </plurals>
+    <string name="ingame_exported_touch">Dein Touch-Layout auch: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d Bedienelement lag teils außerhalb dieses Bildschirms und wurde hereingerückt.</item>
+        <item quantity="other">%1$d Bedienelemente lagen teils außerhalb dieses Bildschirms und wurden hereingerückt.</item>
+    </plurals>
     <string name="ingame_imported">Importiert: %1$s</string>
     <string name="ingame_import_no_space">Kein Platz auf der Karte für %1$s</string>
     <string name="ingame_import_busy">Das Spiel benutzt die Karte: %1$s</string>
@@ -141,6 +146,10 @@
     <string name="ingame_import_exists">%1$s ist schon auf der Karte. Ersetzen?</string>
     <string name="ingame_replace">Ersetzen</string>
     <string name="ingame_skip">Überspringen</string>
+    <string name="ingame_touch_import_exists">Du hast schon ein eigenes Touch-Layout. Durch das importierte ersetzen?</string>
+    <string name="ingame_touch_imported">Touch-Layout importiert: gilt ab sofort.</string>
+    <string name="ingame_touch_skipped">Touch-Layout übersprungen: deins bleibt.</string>
+    <string name="ingame_touch_import_bad">Touch-Layout nicht importiert: %1$s</string>
     <string name="ingame_report_chooser">Fehlerbericht senden</string>
     <string name="ingame_report_failed">Der Bericht konnte nicht erstellt werden: %1$s</string>
     <string name="ingame_capture_saved">Grafikaufnahme gespeichert</string>

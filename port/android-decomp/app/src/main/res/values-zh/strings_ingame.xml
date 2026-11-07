@@ -90,7 +90,7 @@
     <string name="ingame_update_allow">请允许 CubeEvil4 安装应用，然后再次点按“更新”。</string>
 
     <string name="ingame_card">记忆卡（插槽 A）</string>
-    <string name="ingame_card_help">以 .gci 格式导出和导入存档（用于 Dolphin 或 GameCube）。</string>
+    <string name="ingame_card_help">以 .gci 格式导出和导入存档（用于 Dolphin 或 GameCube）。你自己的触控布局会一并导出为 CubeEvil4-touch-layout.json，导入时会恢复。</string>
     <string name="ingame_card_busy">记忆卡正在使用中（游戏正在保存或读取），或者游戏仍在加载——请关闭菜单，稍后再打开。</string>
     <string name="ingame_card_none">没有记忆卡。</string>
     <string name="ingame_export">导出存档（.gci）</string>
@@ -133,6 +133,10 @@
     <plurals name="ingame_exported">
         <item quantity="other">已导出 %1$d 个文件。</item>
     </plurals>
+    <string name="ingame_exported_touch">你的触控布局也已导出：%1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="other">有 %1$d 个控件部分超出此屏幕，已移回屏幕内。</item>
+    </plurals>
     <string name="ingame_imported">已导入：%1$s</string>
     <string name="ingame_import_no_space">记忆卡空间不足，无法导入 %1$s</string>
     <string name="ingame_import_busy">游戏正在使用记忆卡：%1$s</string>
@@ -141,6 +145,10 @@
     <string name="ingame_import_exists">%1$s 已在记忆卡上。是否替换？</string>
     <string name="ingame_replace">替换</string>
     <string name="ingame_skip">跳过</string>
+    <string name="ingame_touch_import_exists">你已有自己的触控布局。是否用导入的布局替换？</string>
+    <string name="ingame_touch_imported">触控布局已导入，立即生效。</string>
+    <string name="ingame_touch_skipped">已跳过触控布局：保留你的布局。</string>
+    <string name="ingame_touch_import_bad">触控布局未导入：%1$s</string>
     <string name="ingame_report_chooser">发送错误报告</string>
     <string name="ingame_report_failed">无法生成报告：%1$s</string>
     <string name="ingame_capture_saved">图形捕获已保存</string>

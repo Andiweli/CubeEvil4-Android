@@ -89,7 +89,7 @@
     <string name="ingame_update_allow">Permite que CubeEvil4 instale aplicaciones y vuelve a pulsar Actualizar.</string>
 
     <string name="ingame_card">Tarjeta de memoria (ranura A)</string>
-    <string name="ingame_card_help">Exportar e importar partidas guardadas como .gci (para Dolphin o GameCube).</string>
+    <string name="ingame_card_help">Exportar e importar partidas guardadas como .gci (para Dolphin o GameCube). Tu propia disposición táctil se exporta como CubeEvil4-touch-layout.json y la importación la recupera.</string>
     <string name="ingame_card_busy">La tarjeta está en uso (el juego guarda o carga) o el juego aún está cargando: cierra el menú y vuelve a abrirlo en un momento.</string>
     <string name="ingame_card_none">No hay tarjeta de memoria.</string>
     <string name="ingame_export">Exportar partidas (.gci)</string>
@@ -134,6 +134,12 @@
         <item quantity="many">%1$d archivos exportados.</item>
         <item quantity="other">%1$d archivos exportados.</item>
     </plurals>
+    <string name="ingame_exported_touch">También tu disposición táctil: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d control quedaba en parte fuera de esta pantalla y se movió dentro.</item>
+        <item quantity="many">%1$d controles quedaban en parte fuera de esta pantalla y se movieron dentro.</item>
+        <item quantity="other">%1$d controles quedaban en parte fuera de esta pantalla y se movieron dentro.</item>
+    </plurals>
     <string name="ingame_imported">Importado: %1$s</string>
     <string name="ingame_import_no_space">No hay espacio en la tarjeta para %1$s</string>
     <string name="ingame_import_busy">El juego está usando la tarjeta: %1$s</string>
@@ -142,6 +148,10 @@
     <string name="ingame_import_exists">%1$s ya está en la tarjeta. ¿Reemplazarlo?</string>
     <string name="ingame_replace">Reemplazar</string>
     <string name="ingame_skip">Omitir</string>
+    <string name="ingame_touch_import_exists">Ya tienes tu propia disposición táctil. ¿Reemplazarla por la importada?</string>
+    <string name="ingame_touch_imported">Disposición táctil importada: se usa de inmediato.</string>
+    <string name="ingame_touch_skipped">Disposición táctil omitida: se mantiene la tuya.</string>
+    <string name="ingame_touch_import_bad">Disposición táctil no importada: %1$s</string>
     <string name="ingame_report_chooser">Enviar el informe de errores</string>
     <string name="ingame_report_failed">No se pudo crear el informe: %1$s</string>
     <string name="ingame_capture_saved">Captura de gráficos guardada</string>
