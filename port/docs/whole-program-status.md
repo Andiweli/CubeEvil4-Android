@@ -2139,6 +2139,31 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   PSone, Reflexe+Tiefenschärfe stark, 1,5×, Native 1600×720 mit Schärfen) = **4 371 Bilder**, zweimal gezeichnet
   bytegleich (llvmpipe ist hier also verlässlich). **Schritt a: alle 4 371 Bilder und alle Arbeitszähler bytegleich**,
   `gx_gl_check` 0 Fehler, `core_mode.cpp`/`gx_gl.cpp`/`gx_renderer.cpp` mit dem NDK für beide ABIs übersetzt.
+- **E1 Aufteilung, Schritte b–f (07.11.2026, fertig am PC):** der GX-Nachbau liegt jetzt in `GxCore`
+  (`gx_core.h`/`gx_core.cpp`, ~3 100 Zeilen): Register (BP, XF, TMEM), Shader-Schlüssel, Inhalt der Uniform-Blöcke,
+  der Ablauf eines Bildstücks (`Run`, `Op`), Zeichnen (`Draw`), Zeichenzustand als neutrale Beschreibung
+  `DrawState` (Schere, Tiefe, Schreibmasken, Mischen, Seite, Linienbreite), EFB-Kopien (`EfbCopy` mit
+  `CopyParams`), Texturen binden/vergessen, 60-FPS-Zwischenbilder (`Interpolate`, `BlendDraw`, `RecordDraw`),
+  Bündeln (`MergePlan`, `DrawMerged`), Linsenreflex-Logik, Frame skip (`CanSkip`, `Skip`), Raumlisten, alle
+  Schalter. `GlRenderer` (`gx_gl.cpp`, jetzt ~4 000 statt 6 600 Zeilen) behält nur, was mit der GPU spricht, über
+  rund 40 Aufrufe (`RunBegin`, `UploadChunk`, `ApplyDrawState`, `UploadUniform`, `SubmitDraw`, `CopyPass`,
+  `PutBlendedVertices`, …). Die Extras (Autofokus, FXAA, Nachschärfen, PSone, Reflexe-Durchgang, Tiefenkarte)
+  sind noch ganze GL-Durchgänge; ihre Logik wird beim Vulkan-Bau (E5) geteilt. Neu: `GxRenderer::ReadXfb` und
+  `ReadPresented` (Bilder als Pixel, für jede API; `gx_chunk_render` nutzt sie). Der Code wurde mit Skripten
+  verschoben (Text unverändert), Mischstellen von Hand getrennt.
+  **Geprüft:** nach jedem der acht Schritte alle 4 371 Bilder und die Arbeitszähler der Protokolle **bytegleich**
+  zur Basis, `gx_gl_check` 0 Fehler; `core_mode.cpp` und der Renderer mit dem NDK für beide ABIs übersetzt;
+  **Gradle-Bau der nativen App-Teile** (`externalNativeBuildCoreDebug`, armeabi-v7a und arm64-v8a, mit glslang)
+  fehlerfrei. **Nicht geprüft:** Gerät (die App zeichnet wie vorher über GL; kein Test-APK gebaut).
+- **E2 Shader-Dialekt (07.11.2026, fertig am PC):** `gx_vk_shader.h/.cpp` schreibt die GLSL-ES-3.00-Texte des
+  Erzeugers (unverändert, damit auch die Programm-Caches der Geräte) Zeile für Zeile als GLSL 450 für Vulkan um:
+  `#version 450`, Uniform-Blöcke in Satz 0 (Bindungen wie in GL: XFM 0, PX 1, XFP 2, XFL 3, XFMM 4), die acht
+  Texturen in Satz 1, `uMtx`/`uWiden` als Push-Konstanten (`VkDrawConstants`, 16 Bytes), feste Plätze für die Werte
+  zwischen den Stufen, `gl_VertexIndex`, Tiefe 0..1 statt −1..1. Prüfprogramm `tools/vk_shader_check.cpp`.
+  **Geprüft (WSL):** alle 9 174 Schlüssel von `gx-programs.keys` × (Ecken, gebündelte Ecken, Pixel) = 27 522
+  Shader nach SPIR-V übersetzt, 0 Fehler, `spirv-val --target-env vulkan1.0` 0 ungültig; glslang im Mittel 1,45 ms
+  je Shader (PC), höchstens 7,8 ms, 16 KB SPIR-V. Die festen Shader des Renderers (Kopie, Anzeige, Palette, FXAA …)
+  folgen mit ihren Vulkan-Durchgängen in E3/E5.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

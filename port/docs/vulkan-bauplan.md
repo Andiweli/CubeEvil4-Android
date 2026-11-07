@@ -243,6 +243,6 @@ Bis zur Antwort baue ich weiter an dem, was davon nicht abhängt (E0 Werkzeuge a
 | Etappe | Stand |
 |---|---|
 | E0 | **fertig am PC (07.11.2026):** `vk_api` (Laden per `dlopen`), `vk_context` (Gerät, Prüfschicht), `vk_shader` (glslang 11.11.0 aus dem NDK, `cmake/glslang.cmake`), `tools/vk_probe.cpp`; Lizenztexte `third_party/glslang/LICENSE.txt`; `port/tools/vk_tools_linux.sh` (Werkzeuge ohne Root nach `~/vk-tools`). Gemessen: glslang gestrippt 2,1 MB (arm64) / 1,6 MB (armv7), gepackt zusammen ≈ 1,3 MB mehr APK. Für Android gebaut (beide ABIs), noch nicht in `libre4decomp.so` gelinkt |
-| E1 | offen |
-| E2 | offen |
+| E1 | **fertig am PC (07.11.2026):** `GxCore` (gemeinsamer GX-Nachbau, `gx_core.h/.cpp`) mit rund 40 GPU-Aufrufen, `GlRenderer` (`gx_gl.cpp`) nur noch GPU-Arbeit; Bilder über `ReadXfb`/`ReadPresented`; nach jedem Schritt 4 371 Bilder bytegleich, Gradle-Bau beider ABIs fehlerfrei. Extras (Autofokus, FXAA, Schärfen, PSone, Reflexe, Tiefenkarte) noch ganze GL-Durchgänge, ihre Logik wird in E5 geteilt. Gerät: nicht geprüft |
+| E2 | **fertig am PC (07.11.2026):** `gx_vk_shader` (GLSL ES → GLSL 450 für Vulkan); 27 522 Shader der App-Liste nach SPIR-V, 0 Fehler, `spirv-val` 0 ungültig; glslang 1,45 ms je Shader am PC. Feste Shader in E3/E5 |
 | E3–E9 | offen |
