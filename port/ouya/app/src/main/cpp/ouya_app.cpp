@@ -424,6 +424,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
             "decoded, %u draws",
             gFrames ? gRunMicros / 1000.0 / gFrames : 0.0, gRunMax / 1000.0, since(st.programs, gStatsBefore.programs),
             since(st.textures, gStatsBefore.textures), since(st.draws, gStatsBefore.draws));
+        LOG("textures: %.0f ms decoding, %.0f ms into the GPU; %u of skipped pictures kept as they came "
+            "(%u of them drawn later)",
+            since(st.decodeMicros, gStatsBefore.decodeMicros) / 1000.0,
+            since(st.uploadMicros, gStatsBefore.uploadMicros) / 1000.0,
+            since(st.texturesDeferred, gStatsBefore.texturesDeferred),
+            since(st.deferredUploaded, gStatsBefore.deferredUploaded));
         gStatsBefore = st;
       }
     }

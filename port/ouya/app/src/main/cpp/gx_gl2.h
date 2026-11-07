@@ -56,6 +56,10 @@ struct GxStats {
   unsigned compactDraws = 0;     // draws with the compact vertex
   unsigned textures16 = 0;       // texture levels uploaded with 16 bits (GxOptions::tex16)
   unsigned skippedChunks = 0;    // chunks run without drawing (Skip): state and textures only
+  unsigned texturesDeferred = 0; // textures of skipped chunks kept as they came, not decoded (a movie's)
+  unsigned deferredUploaded = 0; // of them decoded later: a drawn chunk bound them
+  unsigned decodeMicros = 0;     // time decoding texels (GX formats to RGBA)
+  unsigned uploadMicros = 0;     // time in glTexImage2D
   // GL work per draw
   unsigned uniformUploads = 0, programSwitches = 0, textureBinds = 0, stateChanges = 0, attributeSetups = 0;
   unsigned presents = 0;

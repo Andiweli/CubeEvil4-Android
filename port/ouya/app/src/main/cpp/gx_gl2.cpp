@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -268,6 +269,14 @@ struct GxRenderer::Impl {
   GLuint whiteTex = 0;
   std::unordered_map<ShaderKey, Program, KeyHash, KeyEqual> programs;
   std::unordered_map<std::uint64_t, Texture> textures;
+  // Textures a skipped chunk brought (Skip): their texels as they came, decoded when a drawn chunk
+  // binds them (a movie brings two new ones a picture; decoding those of the pictures left out cost
+  // the OUYA about 100 ms a picture, its films ran at 1 picture a second, 07.11.2026)
+  struct Deferred {
+    Re4GxTexture t;
+    std::vector<std::uint8_t> texels;
+  };
+  std::unordered_map<std::uint64_t, Deferred> deferred;
   std::unordered_map<std::uint32_t, Copy> copies;       // by destination address
   std::unordered_map<std::uint64_t, Texture> paletted;  // copies read through a palette
   std::unordered_map<GLuint, TexParams> texParams;      // by GL texture
@@ -648,10 +657,17 @@ struct GxRenderer::Impl {
       const std::size_t bytes = re4gx::GxTextureLevelBytes(t.format, w, h);
       if (bytes > left)
         break;
+      const auto decodeStart = std::chrono::steady_clock::now();
       re4gx::GxDecodeTexture(data, bytes, t.format, w, h, palette, entries, (t.tlut >> 10) & 3, rgba);
       if (l == 0)
         form = TextureForm(rgba);
+      const auto uploadStart = std::chrono::steady_clock::now();
       TexImage(static_cast<GLint>(l), w, h, rgba, form);
+      const auto uploadEnd = std::chrono::steady_clock::now();
+      stats.decodeMicros += static_cast<unsigned>(
+          std::chrono::duration_cast<std::chrono::microseconds>(uploadStart - decodeStart).count());
+      stats.uploadMicros += static_cast<unsigned>(
+          std::chrono::duration_cast<std::chrono::microseconds>(uploadEnd - uploadStart).count());
       levels++;
       lw = w;
       lh = h;
@@ -802,8 +818,34 @@ struct GxRenderer::Impl {
     const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
     if (key == 0)
       return;
-    if (t.dataBytes)
+    if (t.dataBytes && skipDraws && !re4gx::GxIsPaletted(t.format) && t.dataOffset + t.dataBytes <= chunk.blobBytes) {
+      // a skipped chunk draws nothing: its texels kept for later (a paletted texture needs the TLUT
+      // of now, it is decoded at once)
+      Deferred &d = deferred[key];
+      d.t = t;
+      d.t.dataOffset = 0;
+      d.texels.assign(chunk.blob + t.dataOffset, chunk.blob + t.dataOffset + t.dataBytes);
+      stats.texturesDeferred++;
+      return;
+    }
+    if (t.dataBytes) {
+      deferred.erase(key);
       Upload(t, chunk);
+    } else {
+      auto later = deferred.find(key);
+      if (later != deferred.end() && !skipDraws) {
+        Re4GxChunk from = chunk;
+        from.blob = later->second.texels.data();
+        from.blobBytes = static_cast<std::uint32_t>(later->second.texels.size());
+        Re4GxTexture lt = later->second.t;
+        lt.map = t.map;
+        Upload(lt, from);
+        deferred.erase(later);
+        stats.deferredUploaded++;
+      } else if (later != deferred.end()) {
+        return;  // still not drawn
+      }
+    }
     auto it = textures.find(key);
     if (it == textures.end()) {
       stats.missingTextures++;
@@ -814,6 +856,7 @@ struct GxRenderer::Impl {
   }
 
   void Forget(std::uint64_t key) {
+    deferred.erase(key);
     Touched(); // a deleted texture is unbound
     auto it = textures.find(key);
     if (it != textures.end()) {
@@ -823,6 +866,7 @@ struct GxRenderer::Impl {
   }
 
   void DropTextures() {
+    deferred.clear();
     Touched();
     for (auto &t : textures)
       DeleteTexture(t.second.id);
@@ -1064,6 +1108,30 @@ struct GxRenderer::Impl {
       for (unsigned s = 0; s < k.numIndStages && s < 4; s++)
         k.texMaps |= 1u << ((k.indRef >> (6 * s)) & 7);
     }
+    // what no stage reads stays out of the key (the code is the same; on the OUYA each such
+    // difference built a shader of its own, 150-300 ms, 07.11.2026): the swap tables of neither a
+    // stage's texture nor its rasterized colour, konstant selections of a stage without a KONST input
+    std::uint32_t swapsRead = 0;
+    for (unsigned s = 0; s < k.numStages; s++) {
+      const std::uint32_t cc = k.colorEnv[s], ac = k.alphaEnv[s], o = k.order[s];
+      const unsigned channel = (o >> 7) & 7;
+      if (((o >> 6) & 1) && (k.texMaps & (1u << (o & 7))))
+        swapsRead |= 1u << ((ac >> 2) & 3);
+      if (channel == 0 || channel == 1)
+        swapsRead |= 1u << (ac & 3);
+      bool colorKonst = false, alphaKonst = false;
+      for (unsigned shift = 0; shift < 16; shift += 4)
+        colorKonst = colorKonst || ((cc >> shift) & 15) == 14;  // GX_CC_KONST
+      for (unsigned shift = 4; shift < 16; shift += 3)
+        alphaKonst = alphaKonst || ((ac >> shift) & 7) == 6;  // GX_CA_KONST
+      if (!colorKonst)
+        k.konst[s] &= ~0xFFu;
+      if (!alphaKonst)
+        k.konst[s] &= ~0xFF00u;
+    }
+    for (int t = 0; t < 4; t++)
+      if (!(swapsRead & (1u << t)))
+        k.swap[t] = 0;
     k.alphaTest = (bp[0xF3] >> 16) & 0xFF;
     k.fog = (bp[0xF1] >> 20) & 15;
     k.texelCoords = options.texelCoords ? 1 : 0;
