@@ -293,6 +293,12 @@ const u64 kSentBudget = 96u << 20;      // texture bytes the renderer keeps at m
 // Y8 and C4:4 planes (1.4 MB decoded at 512 x 448); without this limit the
 // renderer would hold some 400 MB of past frames before kForgetAfter.
 const u64 kDecodedBudget = 256u << 20;
+// RE4_GX_TEXTURE_BUDGET_MB=N (16 or more): another limit (the OUYA app: 64, its GPU shares 1 GB)
+const u64 gDecodedLimit = [] {
+    const char* v = getenv("RE4_GX_TEXTURE_BUDGET_MB");
+    const unsigned long mb = v && *v ? strtoul(v, 0, 10) : 0;
+    return mb >= 16 ? (u64) mb << 20 : kDecodedBudget;
+}();
 
 // Per chunk: texture descriptor -> key (hashing once per chunk), and what each
 // map is bound to.
@@ -403,7 +409,7 @@ void emitFullState()
 
 void forgetTextures()
 {
-    if (gSequence % 64 != 0 && gSentBytes <= kSentBudget && gDecodedBytes <= kDecodedBudget) {
+    if (gSequence % 64 != 0 && gSentBytes <= kSentBudget && gDecodedBytes <= gDecodedLimit) {
         return;
     }
     std::vector<std::pair<u32, u64>> old;
@@ -413,7 +419,7 @@ void forgetTextures()
     std::sort(old.begin(), old.end());
     for (auto& o : old) {
         bool stale = o.first + kForgetAfter < gSequence;
-        if (!stale && gSentBytes <= kSentBudget && gDecodedBytes <= kDecodedBudget) {
+        if (!stale && gSentBytes <= kSentBudget && gDecodedBytes <= gDecodedLimit) {
             break;
         }
         auto it = gSent.find(o.second);

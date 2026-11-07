@@ -46,6 +46,9 @@ namespace {
 const char *const kCoreSettings[][2] = {
     {"RE4_GX_COMPACT", "1"},              // the compact vertex, read by the renderer as it is
     {"RE4_GX_TEXTURE_CHECK", "sampled"},  // textures checked by samples from frame to frame
+    // the textures the renderer keeps decoded: a movie brings 1.4 MB a picture, the main app's 256 MB
+    // filled the OUYA's memory (its film stuttered, 07.11.2026)
+    {"RE4_GX_TEXTURE_BUDGET_MB", "64"},
     {"RE4_DEBUG_HUD", "0"},               // none of the debug build's displays
     {"RE4_ROOM_MENU", "0"},               // "New Game" without the debug build's room menu
 };
@@ -57,6 +60,8 @@ std::atomic<bool> gRunning{false};
 std::unique_ptr<re4gx2::GxRenderer> gRenderer;
 int gWidth = 0, gHeight = 0;
 unsigned gFrames = 0, gChunks = 0, gSkipped = 0, gWaited = 0;
+long long gRunMicros = 0, gRunMax = 0;  // the renderer's time for the chunks of the 10 s, the longest frame
+re4gx2::GxStats gStatsBefore;           // the renderer's counters at the last log line
 
 // The menu's settings (OuyaMenu.Settings, nativeSettings): the renderer's (a new renderer when they
 // change, on the GL thread) and the core's (the environment before its start, then messages)
@@ -135,6 +140,12 @@ long long NowMs() {
   timespec t{};
   clock_gettime(CLOCK_MONOTONIC, &t);
   return static_cast<long long>(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
+}
+
+long long NowMicros() {
+  timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return t.tv_sec * 1000000LL + t.tv_nsec / 1000;
 }
 
 std::string Text(JNIEnv *env, jstring s) {
@@ -350,6 +361,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
       got.swap(gChunkQueue);
     }
     gQueueCv.notify_all();  // room in the queue again
+    const long long runStart = NowMicros();
     for (size_t i = 0; i < got.size(); i++) {
       if (gWaitReset) {
         // chunks the core built before it started over need the old renderer's state
@@ -365,6 +377,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
       }
       gChunks++;
     }
+    const long long ran = NowMicros() - runStart;
+    gRunMicros += ran;
+    gRunMax = ran > gRunMax ? ran : gRunMax;
     std::lock_guard<std::mutex> l(gQueueLock);
     for (auto &o : got)
       if (gSpare.size() < kQueue)
@@ -393,10 +408,23 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   gFrames++;
   const long long now = NowMs();
   if (now - gLogAt >= 10000) {
-    if (gLogAt)
+    if (gLogAt) {
       LOG("10 s: %u display frames, %u game pictures (%u left out), the game waited %u times for the renderer",
           gFrames, gChunks, gSkipped, gWaited);
+      if (gRenderer) {
+        // where the renderer's time went: the chunks (per display frame, the longest), shaders built,
+        // textures decoded (a counter that went down: a new renderer)
+        const re4gx2::GxStats &st = gRenderer->Stats();
+        auto since = [](unsigned now, unsigned before) { return now >= before ? now - before : now; };
+        LOG("renderer: %.1f ms of chunks per display frame (at most %.0f ms), %u shaders built, %u textures "
+            "decoded, %u draws",
+            gFrames ? gRunMicros / 1000.0 / gFrames : 0.0, gRunMax / 1000.0, since(st.programs, gStatsBefore.programs),
+            since(st.textures, gStatsBefore.textures), since(st.draws, gStatsBefore.draws));
+        gStatsBefore = st;
+      }
+    }
     gFrames = gChunks = gSkipped = gWaited = 0;
+    gRunMicros = gRunMax = 0;
     gLogAt = now;
   }
 }
