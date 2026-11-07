@@ -10,9 +10,10 @@
 // <data>/settings.txt with lines NAME=VALUE (RE4_* only) sets more or overrides them (tests).
 //
 // A renderer slower than the game does not slow the game down: a thread of its own takes each chunk the
-// core finishes at once (a copy; the core process has only three places for them and waited for the
-// renderer, 22 ms a picture in r100, 07.11.2026), and of the chunks taken since the last frame of the
-// display the older ones run as state only (GxRenderer::Skip), the newest is drawn.
+// core finishes at once (it stays in its slot of the shared memory, 8 of them, until run; with 3 the
+// core process waited for the renderer, 22 ms a picture in r100, 07.11.2026), and of the chunks taken
+// since the last frame of the display the older ones run as state only (GxRenderer::Skip), the newest
+// is drawn.
 #include "gx_gl2.h"
 #include "re4_core.h"
 #include "re4_core_client.h"
@@ -75,34 +76,14 @@ std::atomic<bool> gFrameSkip{true};  // older pictures left out while the render
 int gViewPercent = 50, gPotato = 3, gAim = 100 << 8;  // under gLock
 bool gWaitReset = false;  // GL thread: a new renderer draws from the next chunk that starts over
 
-// A chunk copied out of the core process's shared memory (the view's pointers into the vectors)
-struct Owned {
-  Re4GxChunk view;
-  std::vector<uint32_t> ops;
-  std::vector<uint8_t> vertices, blob;
-  std::vector<uint16_t> indices;
-};
-const size_t kQueue = 12;  // chunks taken but not run yet; more: the fetch waits (the game with it)
+// The chunks the fetch thread took and the renderer has not run yet: in the core process's shared
+// memory (8 slots, re4_core_ipc.h; until 07.11.2026 copied out, 2.5 MB a picture in r100), given
+// back once run
+const size_t kQueue = 6;  // chunks taken but not run yet; more: the fetch waits (the game with it)
 std::mutex gQueueLock;
 std::condition_variable gQueueCv;
-std::deque<std::unique_ptr<Owned>> gChunkQueue;
-std::vector<std::unique_ptr<Owned>> gSpare;  // copies run already, kept for their capacity
-bool gDetach = false;                        // the renderer went (a new EGL context): start over
-
-std::unique_ptr<Owned> Copy(const Re4GxChunk &c, std::unique_ptr<Owned> o) {
-  if (!o)
-    o.reset(new Owned);
-  o->ops.assign(c.ops, c.ops + c.opWords);
-  o->vertices.assign(c.vertices, c.vertices + c.vertexBytes);
-  o->indices.assign(c.indices, c.indices + c.indexCount);
-  o->blob.assign(c.blob, c.blob + c.blobBytes);
-  o->view = c;
-  o->view.ops = o->ops.data();
-  o->view.vertices = o->vertices.data();
-  o->view.indices = o->indices.data();
-  o->view.blob = o->blob.data();
-  return o;
-}
+std::deque<const Re4GxChunk *> gChunkQueue;
+bool gDetach = false;  // the renderer went (a new EGL context): start over
 
 // The fetch thread: every chunk the core finishes, at once
 void Fetch() {
@@ -110,6 +91,8 @@ void Fetch() {
     {
       std::unique_lock<std::mutex> l(gQueueLock);
       if (gDetach) {
+        for (const Re4GxChunk *c : gChunkQueue)
+          re4ipc_gx_release(c);
         gChunkQueue.clear();
         re4ipc_gx_detach();  // the next chunk starts over (a full state for the new renderer)
         gDetach = false;
@@ -126,18 +109,8 @@ void Fetch() {
       usleep(2000);
       continue;
     }
-    std::unique_ptr<Owned> spare;
-    {
-      std::lock_guard<std::mutex> l(gQueueLock);
-      if (!gSpare.empty()) {
-        spare = std::move(gSpare.back());
-        gSpare.pop_back();
-      }
-    }
-    std::unique_ptr<Owned> o = Copy(*c, std::move(spare));
-    re4ipc_gx_release(c);
     std::lock_guard<std::mutex> l(gQueueLock);
-    gChunkQueue.push_back(std::move(o));
+    gChunkQueue.push_back(c);
   }
 }
 long long gLogAt = 0;
@@ -361,7 +334,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   }
   if (gRenderer && gRunning) {
     // the chunks taken since the last frame; none yet: wait a little (the game makes about 30 a second)
-    std::deque<std::unique_ptr<Owned>> got;
+    std::deque<const Re4GxChunk *> got;
     {
       std::unique_lock<std::mutex> l(gQueueLock);
       if (gChunkQueue.empty())
@@ -373,25 +346,23 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     for (size_t i = 0; i < got.size(); i++) {
       if (gWaitReset) {
         // chunks the core built before it started over need the old renderer's state
-        if (!(got[i]->view.flags & RE4_GX_CHUNK_RESET))
+        if (!(got[i]->flags & RE4_GX_CHUNK_RESET))
           continue;
         gWaitReset = false;
       }
-      if (gFrameSkip && i + 1 < got.size() && gRenderer->CanSkip(got[i]->view, got[i + 1]->view)) {
-        gRenderer->Skip(got[i]->view);
+      if (gFrameSkip && i + 1 < got.size() && gRenderer->CanSkip(*got[i], *got[i + 1])) {
+        gRenderer->Skip(*got[i]);
         gSkipped++;
       } else {
-        gRenderer->Run(got[i]->view);
+        gRenderer->Run(*got[i]);
       }
       gChunks++;
     }
     const long long ran = NowMicros() - runStart;
     gRunMicros += ran;
     gRunMax = ran > gRunMax ? ran : gRunMax;
-    std::lock_guard<std::mutex> l(gQueueLock);
-    for (auto &o : got)
-      if (gSpare.size() < kQueue)
-        gSpare.push_back(std::move(o));
+    for (const Re4GxChunk *c : got)
+      re4ipc_gx_release(c);  // the slot back to the core process
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glDisable(GL_SCISSOR_TEST);

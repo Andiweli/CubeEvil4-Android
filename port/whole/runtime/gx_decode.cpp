@@ -250,7 +250,9 @@ struct Chunk {
     }
 };
 
-const int kSlots = 4;
+// 10 (the OUYA branch; master 4): the core process holds a chunk until the app gives its slot back
+// (re4_core_ipc.h kGxSlots 8)
+const int kSlots = 10;
 // kPending: ended with a display copy, waits for the game to put it on screen
 // (VISetNextFrameBuffer before VIFlush) or not (SYS_SCREEN_STOP holds the old
 // picture while an event or a room is set up)

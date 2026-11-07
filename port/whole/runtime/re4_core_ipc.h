@@ -91,7 +91,9 @@ struct MsgHeader {
 
 // --- shared memory ---------------------------------------------------------------
 
-const int kGxSlots = 3;
+// 8 (the OUYA branch, 07.11.2026; master 3): the OUYA app holds the chunks it has not drawn yet in
+// their slots instead of copying them out (2.5 MB a picture in r100)
+const int kGxSlots = 8;
 const uint32_t kPadQueue = 64;    // a tap between two game frames is not lost (re4_pad_live)
 const uint32_t kVsyncQueue = 16;
 const uint32_t kAudioFrames = 4096;  // the sound ring (a power of two)
