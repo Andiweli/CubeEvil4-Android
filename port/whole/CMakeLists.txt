@@ -468,6 +468,11 @@ endforeach()
 if(CMAKE_CXX_COMPILER_TARGET)
     set(RE4_TARGET_FLAG "--target=${CMAKE_CXX_COMPILER_TARGET}")
 endif()
+if(CMAKE_SYSROOT)
+    # the toolchain's sysroot, not the compiler's own (the OUYA build: the NDK r28c's clang with the
+    # r23c's sysroot, port/tools/whole_build_android.sh)
+    list(APPEND RE4_TARGET_FLAG "--sysroot=${CMAKE_SYSROOT}")
+endif()
 if(ANDROID)
     # the trial link must see the Android logging and loader libraries, or
     # their functions would be planned as stubs

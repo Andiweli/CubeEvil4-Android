@@ -67,8 +67,29 @@ while [ $# -gt 0 ]; do
 done
 if [ -z "$ndk" ]; then
     if [ "$ouya" -eq 1 ]; then
-        # not $ANDROID_NDK_HOME: that is the app's NDK, which cannot build for Android 4.1
-        ndk=/opt/android-ndk-r23c
+        # not $ANDROID_NDK_HOME: that is the app's NDK, which cannot build for Android 4.1. The
+        # NDK r23c's own compiler (clang 12) does not clamp float -> u8/s8/u16/s16 even with
+        # -fno-strict-float-cast-overflow (it wraps: the title logo's alpha jumped, the menu lost
+        # its background, OUYA 07.11.2026); the r28c's clang 19 clamps like the GameCube. So the
+        # r28c's compiler with the r23c's build files and sysroot (Android 4.1's libraries,
+        # libc++ 12 and its libc++_shared.so), put together once in ~/.cache/re4-ndk-ouya.
+        old=/opt/android-ndk-r23c
+        new=/opt/android-ndk-r28c
+        ndk="$HOME/.cache/re4-ndk-ouya"
+        host=toolchains/llvm/prebuilt/linux-x86_64
+        if [ -d "$old/$host/sysroot" ] && [ -x "$new/$host/bin/clang" ] &&
+            [ "$(readlink "$ndk/$host/bin" 2> /dev/null)" != "$new/$host/bin" ]; then
+            rm -rf "$ndk"
+            mkdir -p "$ndk/$host"
+            cp -r "$old/build" "$old/meta" "$old/source.properties" "$ndk/"
+            # clang 19 no longer knows -gcc-toolchain (CMake passes it for the EXTERNAL_TOOLCHAIN)
+            sed -i '/_COMPILER_EXTERNAL_TOOLCHAIN/d' "$ndk/build/cmake/android-legacy.toolchain.cmake"
+            for part in bin lib libexec share python3; do
+                [ -e "$new/$host/$part" ] && ln -s "$new/$host/$part" "$ndk/$host/$part"
+            done
+            ln -s "$old/$host/sysroot" "$ndk/$host/sysroot"
+        fi
+        [ -x "$ndk/$host/bin/clang" ] || ndk=$old
     else
         ndk="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-/opt/android-ndk-r28c}}"
     fi
@@ -132,7 +153,11 @@ case "$1" in
     *) echo "unknown ABI: $1" >&2; return 2 ;;
 esac
 build="$root/port/build/whole-android-$tag"
-[ "$ouya" -eq 1 ] && build="$root/port/build/whole-android-ouya"
+if [ "$ouya" -eq 1 ]; then
+    build="$root/port/build/whole-android-ouya"
+    # another compiler (the r23c's before 07.11.2026): CMake keeps the first one, so a fresh folder
+    grep -q "CMAKE_TOOLCHAIN_FILE:[A-Z]*=$toolchain\$" "$build/CMakeCache.txt" 2> /dev/null || rm -rf "$build"
+fi
 log="$build.log"
 out="$app/src/core/jniLibs/$1"
 assets="$app/src/core/assets"
