@@ -627,3 +627,15 @@ Bilder/s, die Szene lief dem Ton um ein paar Sekunden davon; alle vier Kerne war
   Munition, Unsichtbarkeit, One-Hit-Kill, automatische QTEs (Schalter, gemerkt, beim Start über
   `RE4_CHEATS`), Koffer L, +1.000.000 Ptas und die sechs Waffen der Haupt-App (Knöpfe, mit Antwort
   darunter). Texte aus der Haupt-App mit allen Übersetzungen.
+- **Disc-Installer** (Wunsch des Projektinhabers, 07.11.2026, Punkte 1 und 3 der Liste oben;
+  `OuyaInstaller.java`): erscheint beim Start, wenn noch keine Discs eingerichtet sind, oder über
+  „Andere Discs importieren“ im Menü auf L3 (die App startet dann neu; „Zurück zum Spiel“ nimmt die
+  bisherigen). Sucht Disc-Abbilder (ISO, GCM, RVZ) im internen Speicher und auf USB-Speichern (bis zwei
+  Ordner tief), zeigt Disc und Fassung (Debug, US, EU, JP), fragt nach dem Ziel (intern oder ein
+  USB-Speicher, mit freiem Platz) und richtet dort `RE4-OUYA/disc1` und `disc2` ein, wie die Haupt-App
+  (Prüfung gegen die Code-Liste der Fassung, beide Discs derselben Fassung). Lesen, Prüfen und Entpacken
+  mit den Klassen der Haupt-App (`com.ast.re4decomp.disc`, kopiert von
+  `port/ouya/tools/sync_disc_import.py`, ohne das erst ab Android 4.4 vorhandene `StandardCharsets`),
+  RVZ über deren C-Teil (zstd) als `libre4rvz.so`. Mit den EU-Discs bekommt das Spiel die Sprache der
+  OUYA (`RE4_GAME_LANGUAGE`). Gebaut und installiert; der Lauf des Installers auf der OUYA ist noch nicht
+  getestet (intern ist dort zu wenig Platz frei: Abbild und Dateien brauchen knapp 3 GB).
