@@ -2430,6 +2430,100 @@ std::uint32_t GxCore::DrawMerged(const Re4GxChunk &chunk, std::uint32_t at) {
   return next;
 }
 
+void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
+  const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
+  if (t.dataBytes == 0 || t.dataOffset + t.dataBytes > chunk.blobBytes)
+    return;
+  Texture tex;
+  tex.width = t.width;
+  tex.height = t.height;
+  tex.levels = t.levels ? t.levels : 1;
+  tex.id = BeginTexture(t.width, t.height, tex.levels);
+  const std::uint8_t *data = chunk.blob + t.dataOffset;
+  std::size_t left = t.dataBytes;
+  const std::uint8_t *palette = nullptr;
+  unsigned entries = 0;
+  if (GxIsPaletted(t.format)) {
+    const unsigned offset = (t.tlut & 0x3FF) << 9;
+    palette = tlut.data() + offset;
+    entries = std::min<unsigned>(GxPaletteEntries(t.format), (kTlutBytes - offset) / 2);
+  }
+  unsigned w = t.width, h = t.height, levels = 0;
+  std::vector<std::uint8_t> &rgba = decoded;
+  for (unsigned l = 0; l < tex.levels; l++) {
+    const std::size_t bytes = GxTextureLevelBytes(t.format, w, h);
+    if (bytes > left)
+      break;
+    GxDecodeTexture(data, bytes, t.format, w, h, palette, entries, (t.tlut >> 10) & 3, rgba);
+    TextureLevel(tex.id, l, w, h, rgba.data());
+    levels++;
+    data += bytes;
+    left -= bytes;
+    w = std::max(1u, w / 2);
+    h = std::max(1u, h / 2);
+  }
+  tex.levels = std::max(1u, levels);
+  EndTexture(tex.id, tex.levels);
+  auto old = textures.find(key);
+  if (old != textures.end())
+    DeleteTexture(old->second.id);
+  textures[key] = tex;
+  stats.textures++;
+}
+
+GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point) const {
+  GxSamplerDesc s;
+  static const std::uint8_t wrap[4] = {0, 1, 2, 1};  // clamp, repeat, mirror, (repeat)
+  s.wrapS = wrap[mode0 & 3];
+  s.wrapT = wrap[(mode0 >> 2) & 3];
+  s.magLinear = (mode0 >> 4) & 1;
+  const unsigned minFilter = (mode0 >> 5) & 7;
+  // GX's minification filters: near, near mip near, near mip lin, -, lin, lin mip near, lin mip lin, -
+  static const std::uint8_t minLinear[8] = {0, 0, 0, 0, 1, 1, 1, 1};
+  static const std::uint8_t mip[8] = {0, 1, 2, 0, 0, 1, 2, 0};
+  s.minLinear = minLinear[minFilter];
+  s.mip = mip[minFilter];
+  if (levels <= 1) {
+    s.minLinear = minFilter >= 4;
+    s.mip = 0;
+  }
+  if (point) {
+    s.magLinear = false;
+    s.minLinear = false;
+    s.mip = levels > 1 ? 1 : 0;
+  }
+  s.minLod = static_cast<float>(mode1 & 0xFF) / 16.0f;
+  s.maxLod = static_cast<float>((mode1 >> 8) & 0xFF) / 16.0f;
+  // anisotropic filtering (the menu's option): only where the game filters
+  // linearly through mipmaps; point-sampled effects keep their look
+  s.anisotropy = anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6 && !point
+                     ? anisotropy
+                     : 1.0f;
+  return s;
+}
+
+void GxCore::ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) {
+  if (!((control >> 11) & 1))
+    return;
+  const std::uint32_t c = bp[0x41];
+  GxClearRect r;
+  r.color = (c >> 3) & 1;
+  r.alpha = (c >> 4) & 1;
+  r.depth = (bp[0x40] >> 4) & 1;
+  if (r.color || r.alpha || r.depth)
+    UseEfb();  // MSAA on the tiles: the EFB back first, the clear is only the copy's region
+  r.rect[0] = Lo(x);
+  r.rect[1] = Lo(y);
+  r.rect[2] = Lo(x + w) - Lo(x);
+  r.rect[3] = Lo(y + h) - Lo(y);
+  r.rgba[0] = static_cast<float>(bp[0x4F] & 255) / 255.0f;
+  r.rgba[3] = static_cast<float>((bp[0x4F] >> 8) & 255) / 255.0f;
+  r.rgba[2] = static_cast<float>(bp[0x50] & 255) / 255.0f;
+  r.rgba[1] = static_cast<float>((bp[0x50] >> 8) & 255) / 255.0f;
+  r.z = static_cast<float>(bp[0x51] & 0xFFFFFF) / 16777215.0f;
+  ClearRect(r);
+}
+
 // ---- end of the part moved from GlRenderer ----
 
 } // namespace re4gx

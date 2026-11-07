@@ -116,6 +116,23 @@ struct CopyParams {
   float limit[2] = {-1e9f, 1e9f};
 };
 
+// A texture sampler as the GX texture mode registers ask for it (GxCore::SamplerFor), in terms both APIs have.
+struct GxSamplerDesc {
+  std::uint8_t wrapS = 0, wrapT = 0;  // 0 clamp to edge, 1 repeat, 2 mirrored repeat
+  bool magLinear = false, minLinear = false;
+  std::uint8_t mip = 0;  // 0 no mipmaps (the base level), 1 nearest level, 2 linear between levels
+  float minLod = 0.0f, maxLod = 0.0f;
+  float anisotropy = 1.0f;  // 1: off
+};
+
+// The clear after an EFB copy (GxCore::ClearAfterCopy): the region at the scale, what is cleared, the values.
+struct GxClearRect {
+  int rect[4] = {};  // x, y, width, height
+  bool color = false, alpha = false, depth = false;
+  float rgba[4] = {};
+  float z = 1.0f;
+};
+
 struct GxCore {
   explicit GxCore(GxApi a) : api(a) {}
   virtual ~GxCore() = default;
@@ -594,7 +611,7 @@ struct GxCore {
   virtual void ClearAfterCopyPlain(std::uint32_t control, int x, int y, int w, int h) = 0;
   virtual void GpuFinish() = 0;
   virtual unsigned PalettedCopy(const Copy &copy, const Re4GxTexture &t) = 0;
-  virtual void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) = 0;
+  void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk);
   virtual void Touched() = 0;
   virtual void DeleteTexture(unsigned id) = 0;
   unsigned whiteTex = 0;  // the white stand-in texture (the API's handle)
@@ -611,7 +628,7 @@ struct GxCore {
   virtual void CopyPass(const CopyParams &p) = 0;
   virtual void DisplayEffects(int pixelWidth, int pixelHeight, int y, int h, int w) = 0;
   virtual void SnapshotDepth() = 0;
-  virtual void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) = 0;
+  void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h);
   virtual void PlainEfb() = 0;
   // the in-between pass's GPU side: before it (the store of its blended vertices), after it; whether the key's
   // program exists, whether its merged draw calls' program does (made by Prewarm when not: a run draws one by one)
@@ -624,6 +641,14 @@ struct GxCore {
   // A draw op that starts a chain's run (mergeMarks[mergeNext]): the run's draws as one draw call;
   // the next op to run.
   std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at);
+  // a texture's texels to the GPU (Upload): a new texture of `levels` levels (its handle), each level's RGBA8
+  // texels, the end (the levels that came); the clear after a copy; the sampler of a texture map's mode registers
+  virtual unsigned BeginTexture(unsigned width, unsigned height, unsigned levels) = 0;
+  virtual void TextureLevel(unsigned id, unsigned level, unsigned width, unsigned height, const std::uint8_t *rgba) = 0;
+  virtual void EndTexture(unsigned id, unsigned levels) = 0;
+  virtual void ClearRect(const GxClearRect &r) = 0;
+  GxSamplerDesc SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point) const;
+  std::vector<std::uint8_t> decoded;  // Upload's texels of a level
   // ---- end of the part moved from GlRenderer ----
 
   // GxRenderer's calls, with the same meaning (see gx_gl.h)

@@ -1250,83 +1250,26 @@ struct GlRenderer final : GxCore {
     auto it = samplers.find(key);
     if (it != samplers.end())
       return it->second;
+    const GxSamplerDesc d = SamplerFor(mode0, mode1, levels, point);
     GLuint s = 0;
     glGenSamplers(1, &s);
-    static const GLenum wrap[4] = {GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT, GL_REPEAT};
-    glSamplerParameteri(s, GL_TEXTURE_WRAP_S, wrap[mode0 & 3]);
-    glSamplerParameteri(s, GL_TEXTURE_WRAP_T, wrap[(mode0 >> 2) & 3]);
-    glSamplerParameteri(s, GL_TEXTURE_MAG_FILTER, (mode0 >> 4) & 1 ? GL_LINEAR : GL_NEAREST);
-    const unsigned minFilter = (mode0 >> 5) & 7;
-    static const GLenum minTable[8] = {GL_NEAREST,
-                                       GL_NEAREST_MIPMAP_NEAREST,
-                                       GL_NEAREST_MIPMAP_LINEAR,
-                                       GL_NEAREST,
-                                       GL_LINEAR,
-                                       GL_LINEAR_MIPMAP_NEAREST,
-                                       GL_LINEAR_MIPMAP_LINEAR,
-                                       GL_LINEAR};
-    GLenum min = minTable[minFilter];
-    if (levels <= 1)
-      min = (minFilter >= 4) ? GL_LINEAR : GL_NEAREST;
-    if (point) {
-      glSamplerParameteri(s, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      min = levels > 1 ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST;
-    }
-    glSamplerParameteri(s, GL_TEXTURE_MIN_FILTER, min);
-    glSamplerParameterf(s, GL_TEXTURE_MIN_LOD, static_cast<float>(mode1 & 0xFF) / 16.0f);
-    glSamplerParameterf(s, GL_TEXTURE_MAX_LOD, static_cast<float>((mode1 >> 8) & 0xFF) / 16.0f);
-    // anisotropic filtering (the menu's option): only where the game filters
-    // linearly through mipmaps; point-sampled effects keep their look
-    if (anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6 && !point)
-      glSamplerParameterf(s, kMaxAnisotropy, anisotropy);
+    static const GLenum wrap[3] = {GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT};
+    glSamplerParameteri(s, GL_TEXTURE_WRAP_S, wrap[d.wrapS]);
+    glSamplerParameteri(s, GL_TEXTURE_WRAP_T, wrap[d.wrapT]);
+    glSamplerParameteri(s, GL_TEXTURE_MAG_FILTER, d.magLinear ? GL_LINEAR : GL_NEAREST);
+    // [linear][mip]: none, nearest, linear
+    static const GLenum min[2][3] = {{GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST_MIPMAP_LINEAR},
+                                     {GL_LINEAR, GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_LINEAR}};
+    glSamplerParameteri(s, GL_TEXTURE_MIN_FILTER, min[d.minLinear ? 1 : 0][d.mip]);
+    glSamplerParameterf(s, GL_TEXTURE_MIN_LOD, d.minLod);
+    glSamplerParameterf(s, GL_TEXTURE_MAX_LOD, d.maxLod);
+    if (d.anisotropy > 1.0f)
+      glSamplerParameterf(s, kMaxAnisotropy, d.anisotropy);
     samplers[key] = s;
     return s;
   }
 
-  void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) override {
-    const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
-    if (t.dataBytes == 0 || t.dataOffset + t.dataBytes > chunk.blobBytes)
-      return;
-    Touched(); // binds the new texture
-    Texture tex;
-    tex.width = t.width;
-    tex.height = t.height;
-    tex.levels = t.levels ? t.levels : 1;
-    glGenTextures(1, &tex.id);
-    glBindTexture(GL_TEXTURE_2D, tex.id);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    const std::uint8_t *data = chunk.blob + t.dataOffset;
-    std::size_t left = t.dataBytes;
-    const std::uint8_t *palette = nullptr;
-    unsigned entries = 0;
-    if (GxIsPaletted(t.format)) {
-      const unsigned offset = (t.tlut & 0x3FF) << 9;
-      palette = tlut.data() + offset;
-      entries = std::min<unsigned>(GxPaletteEntries(t.format), (kTlutBytes - offset) / 2);
-    }
-    unsigned w = t.width, h = t.height, levels = 0;
-    std::vector<std::uint8_t> rgba;
-    for (unsigned l = 0; l < tex.levels; l++) {
-      const std::size_t bytes = GxTextureLevelBytes(t.format, w, h);
-      if (bytes > left)
-        break;
-      GxDecodeTexture(data, bytes, t.format, w, h, palette, entries, (t.tlut >> 10) & 3, rgba);
-      glTexImage2D(GL_TEXTURE_2D, static_cast<GLint>(l), GL_RGBA8, static_cast<GLsizei>(w), static_cast<GLsizei>(h),
-                   0, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
-      levels++;
-      data += bytes;
-      left -= bytes;
-      w = std::max(1u, w / 2);
-      h = std::max(1u, h / 2);
-    }
-    tex.levels = std::max(1u, levels);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, static_cast<GLint>(tex.levels - 1));
-    auto old = textures.find(key);
-    if (old != textures.end())
-      glDeleteTextures(1, &old->second.id);
-    textures[key] = tex;
-    stats.textures++;
-  }
+
 
   // A texture copy read through a palette (C4/C8/C14X2 over a copy): the copy's
   // values looked up in TMEM's palette, on the GPU.
@@ -2939,31 +2882,7 @@ struct GlRenderer final : GxCore {
 
   // clear the copied region: colour if colour/alpha update is on, depth if
   // depth update is on (GXCopyDisp/GXCopyTex set the registers for it)
-  void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) override {
-    if ((control >> 11) & 1) {
-      const std::uint32_t c = bp[0x41];
-      const bool color = (c >> 3) & 1, alpha = (c >> 4) & 1, zupdate = (bp[0x40] >> 4) & 1;
-      if (color || alpha || zupdate)
-        UseEfb();  // MSAA on the tiles: the EFB back first, the clear is only the copy's region
-      glEnable(GL_SCISSOR_TEST);
-      glScissor(Lo(x), Lo(y), Lo(x + w) - Lo(x), Lo(y + h) - Lo(y));
-      glColorMask(color, color, color, alpha);
-      glDepthMask(zupdate ? GL_TRUE : GL_FALSE);
-      const float r = static_cast<float>(bp[0x4F] & 255) / 255.0f, a = static_cast<float>((bp[0x4F] >> 8) & 255) / 255.0f;
-      const float b = static_cast<float>(bp[0x50] & 255) / 255.0f, g = static_cast<float>((bp[0x50] >> 8) & 255) / 255.0f;
-      glClearColor(r, g, b, a);
-      glClearDepthf(static_cast<float>(bp[0x51] & 0xFFFFFF) / 16777215.0f);
-      GLbitfield mask = 0;
-      if (color || alpha)
-        mask |= GL_COLOR_BUFFER_BIT;
-      if (zupdate)
-        mask |= GL_DEPTH_BUFFER_BIT;
-      if (mask)
-        glClear(mask);
-      glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-      glDepthMask(GL_TRUE);
-    }
-  }
+
 
   // --- programs of the renderer itself --------------------------------------------------
 
@@ -3230,6 +3149,40 @@ struct GlRenderer final : GxCore {
   }
   bool KeyProgramReady() const override { return keyProgram != nullptr; }
   bool MergedProgramReady() override { return MergedProgram(key) != nullptr; }
+  // ---- the GPU side of the textures (GxCore::Upload) ----
+  unsigned BeginTexture(unsigned, unsigned, unsigned) override {
+    Touched(); // binds the new texture
+    GLuint id = 0;
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    return id;
+  }
+  void TextureLevel(unsigned, unsigned level, unsigned w, unsigned h, const std::uint8_t *rgba) override {
+    glTexImage2D(GL_TEXTURE_2D, static_cast<GLint>(level), GL_RGBA8, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+  }
+  void EndTexture(unsigned, unsigned levels) override {
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, static_cast<GLint>(levels - 1));
+  }
+  // the clear after a copy (GxCore::ClearAfterCopy)
+  void ClearRect(const GxClearRect &r) override {
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(r.rect[0], r.rect[1], r.rect[2], r.rect[3]);
+    glColorMask(r.color, r.color, r.color, r.alpha);
+    glDepthMask(r.depth ? GL_TRUE : GL_FALSE);
+    glClearColor(r.rgba[0], r.rgba[1], r.rgba[2], r.rgba[3]);
+    glClearDepthf(r.z);
+    GLbitfield mask = 0;
+    if (r.color || r.alpha)
+      mask |= GL_COLOR_BUFFER_BIT;
+    if (r.depth)
+      mask |= GL_DEPTH_BUFFER_BIT;
+    if (mask)
+      glClear(mask);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+  }
   // ---- Run's GPU side (GxCore::Run) ----
   void RunBegin() override {
     GlRenderer &m = *this;
