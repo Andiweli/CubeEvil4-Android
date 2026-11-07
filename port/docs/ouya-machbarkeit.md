@@ -493,3 +493,53 @@ Läufe (mit den warmen) liegen um 115–130 ms.
 `ouya-probe.ps1`, Läufe „-gp“); Grafik `RE4_GX2_FAST_TEV=1`, `RE4_GX2_SCALE=0.75`,
 `RE4_GX2_LIGHTS=2`. Damit in Wald und Dorf etwa 80–120 ms je Bild, also 8–12 Bilder/s; kleine
 Räume 40–65 ms.
+
+## Stufe O3: die spielbare OUYA-App (07.11.2026)
+
+**Wunsch des Projektinhabers (07.11.2026):** eine Fassung, die er selbst auf der OUYA spielen kann,
+zuerst mit der Debug-Disc (G4BE08).
+
+- **Die App:** `port/ouya/app` (Gradle, Paket `com.ast.cubeevil4.ouya`, Android 4.1 = API 16,
+  nur `armeabi-v7a`, NDK 23.2 für den App-Teil). Der Spielkern läuft wie in der Haupt-App in einem
+  eigenen Prozess (`libre4_coreproc.so`, Verbindung `core_ipc`); die App zeigt sein Bild mit dem
+  GLES-2-Renderer aus O2, spielt den Ton über OpenSL ES (32 kHz) und gibt den OUYA-Controller als
+  GameCube-Controller weiter (O = A, A = B, U = X, Y = Y, R1 = Z, L2/R2 = L/R, OUYA-Knopf = START).
+  Disc 1 liegt auf `/sdcard/RE4-OUYA/disc0`, Speicherkarte und `core.log` daneben. Das Bild füllt
+  den Schirm wie in der Haupt-App (Zeilen 56..391 des Spiels als 16:9).
+- **Bauen und aufspielen:** `port/scripts/ouya-app.ps1` (Kern in WSL, App mit Gradle, unter der
+  ADB-Sperre installieren, Disc kopieren, starten, Protokoll holen; `-SkipCore`, `-SkipDisc`,
+  `-Seconds`). Ergebnis in `Desktop\RE4-OUYA-Probe\app` (`bericht.txt`, `logcat.txt`, `core.log`).
+- **Hürden von Android 4.1** (alle behoben): Bibliotheken der App werden nicht von selbst geladen
+  (`c++_shared` zuerst); `dladdr` nennt keinen Ordner (Bibliotheksordner aus Java); `dlsym` sucht
+  nur in der genannten Bibliothek (Kernprozess fragt auch `libre4_platform.so`); der Kernel vergibt
+  Adressen von unten (Kernprozess startet sich ohne Adress-Zufall neu und hält die Bereiche unter
+  0x83000000 frei, wie die Probe O1); kein `memfd` (`/dev/ashmem`); `PR_SET_PDEATHSIG` gilt je
+  Thread (der Start-Thread bleibt bestehen); der Kernel bricht bei schief liegenden
+  Mehrfach-Ladebefehlen ab (Compiler-Schalter `-arm-assume-misaligned-load-store`).
+- **Compiler (Fund vom 07.11.2026):** der Compiler des NDK r23c (clang 12) kappt Kommazahlen beim
+  Umwandeln in kleine Ganzzahlen (u8, s8, u16, s16) **nicht**, auch nicht mit
+  `-fno-strict-float-cast-overflow`: 300 wird 44 statt 255. Der GameCube und der Compiler der
+  Haupt-App (NDK r28c, clang 19) kappen. Folge auf der OUYA: das Titel-Logo blendete plötzlich aus,
+  das Spielmenü verlor seinen Hintergrund. Seitdem baut `whole_build_android.sh --ouya` den Kern mit
+  dem Compiler des NDK r28c, aber den Bauvorlagen und Bibliotheken des r23c (Android 4.1,
+  libc++ 12); zusammengestellt einmal in `~/.cache/re4-ndk-ouya`. Geprüft am Maschinencode
+  (`idSysMove02` vergleicht mit 255); auf der OUYA vom Projektinhaber zu bestätigen.
+- **Bildfluss:** ein eigener Thread der App holt jedes fertige Bildpaket sofort aus dem
+  gemeinsamen Speicher (der Kernprozess hat nur drei Plätze und wartete sonst auf den Renderer);
+  von mehreren seit dem letzten Bildschirmbild gezeichneten Paketen wird nur das neueste gezeichnet,
+  die älteren laufen ohne Zeichnen durch (`Skip`). Der Renderer behält höchstens 64 MB entpackte
+  Texturen (`RE4_GX_TEXTURE_BUDGET_MB`; ein Film bringt 1,4 MB je Bild, die 256 MB der Haupt-App
+  füllten den Speicher der OUYA).
+- **App-Menü auf L3** (Wunsch des Projektinhabers, 07.11.2026: Inhalt Grafik und Komfort, im
+  Aussehen der Haupt-App): Auflösung (62/75/100 %), Sichtweite (50/75/100 %, wirkt ab der nächsten
+  Tür oder Szene; neue Kern-Nachricht `kSetViewDistance`), Farbberechnung (vereinfacht/genau),
+  Potato-Schalter, automatisch zielen, immer rennen, weite Kamera. Das Spiel hält an, solange es
+  offen ist. Texte aus dem Menü der Haupt-App mit allen Übersetzungen
+  (`port/ouya/tools/menu_strings.py`), die fünf neuen auf Englisch und Deutsch.
+
+**Erster Stand auf der OUYA (07.11.2026, Debug-Disc):** startet, Logos, Titel und Film laufen,
+Spiel bis r100 ohne Absturz. Titel und Logos 30 Bilder/s. In r100 schafft das Spiel nur etwa 15
+Bilder/s (der Kern rechnet 52 ms je Bild, davon 37 ms die Umrechnung von etwa 120.000 Eckpunkten),
+der Bildschirm zeigt 8–9 Bilder/s. Beim Betreten eines Raums ein Stocken von bis zu 20 s
+(vermutlich das Übersetzen der Shader, je etwa 120 ms). Der Film ruckelte stark (Ursache offen,
+Texturspeicher als erster Verdacht).

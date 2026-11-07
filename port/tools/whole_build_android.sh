@@ -18,9 +18,10 @@
 #                  the built checkout); port/scripts/test-core-app.ps1 passes
 #                  the Windows checkout's app folder
 #   --ouya         the OUYA probe (port/docs/ouya-machbarkeit.md, step O1):
-#                  Android 4.1 (android-16) with the NDK r23c
-#                  (/opt/android-ndk-r23c, sudo port/tools/whole_setup_linux.sh
-#                  --ouya), armeabi-v7a only, build folder whole-android-ouya;
+#                  Android 4.1 (android-16) with the NDK r23c's build files and
+#                  libraries (/opt/android-ndk-r23c, sudo port/tools/whole_setup_linux.sh
+#                  --ouya) and the NDK r28c's compiler (since 07.11.2026, see below),
+#                  armeabi-v7a only, build folder whole-android-ouya;
 #                  the libraries, the module libraries, libc++_shared.so and the
 #                  probe re4_probe go flat into --stage DIR (default
 #                  port/build/ouya-probe), not into the app
