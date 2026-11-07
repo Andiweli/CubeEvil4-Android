@@ -153,6 +153,18 @@ for t in "${targets[@]}"; do
     code=$?
     echo "  re4_host --runtime-test, GX vertices on the core thread: exit $code | $(echo "$out" | grep -E 'runtime-test (gx|sections):|runtime-test: [0-9]+ failed' | tr '\n' ' ' | sed 's/\[re4\] //g')"
     [ "$code" -ne 0 ] && status=1
+    # the OUYA branch: the same with the GP on a thread of its own (runtime/gx_thread.cpp,
+    # RE4_GX_THREAD=1, as the OUYA app runs it): the decoder's fingerprint and the core test's chunks
+    # unchanged
+    if [ "${RE4_GX_THREAD:-0}" != 1 ]; then
+        for check in --runtime-test --core-test; do
+            out=$(cd "$build" && RE4_GX_THREAD=1 RE4_CARD_TEST_FILE="$build/card-test-gp.bin" \
+                RE4_GCI_TEST_FILE="$build/card-test-gp.gci" timeout 300 "${run[@]}" ./re4_host "$check" 2>&1)
+            code=$?
+            echo "  re4_host $check (GP thread): exit $code | $(echo "$out" | grep -E 'runtime-test: [0-9]+ failed|core-test: [0-9]+ failed|runtime-test gx:' | tr '\n' ' ' | sed 's/\[re4\] //g')"
+            [ "$code" -ne 0 ] && { echo "$out" | grep -E 'failed|FAILED' | head -n 10 | sed 's/^/    /'; status=1; }
+        done
+    fi
     out=$(python3 "$root/port/tools/memcard_list.py" "$card" --expect-system --expect-save 0 2>&1)
     code=$?
     echo "  memcard_list.py (the card of the core test): exit $code | $(echo "$out" | grep -cE '^  file ') files, $(echo "$out" | grep -oE 'CRC[^;,]*' | tr '\n' ' ')"

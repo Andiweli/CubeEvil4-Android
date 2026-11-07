@@ -44,6 +44,10 @@ namespace {
 
 // (the Potato switches and the view distance come from the menu's settings, nativeSettings)
 const char *const kCoreSettings[][2] = {
+    // the GX decoder on a thread of its own (runtime/gx_thread.cpp): r100 took the game's thread 42 ms a
+    // frame, 41 % of it the decoder (07.11.2026)
+    {"RE4_GX_THREAD", "1"},
+    {"RE4_BRIDGE_MODELS", "0"},           // no models in the state snapshot (this app reads none)
     {"RE4_GX_COMPACT", "1"},              // the compact vertex, read by the renderer as it is
     {"RE4_GX_TEXTURE_CHECK", "sampled"},  // textures checked by samples from frame to frame
     // the textures the renderer keeps decoded: a movie brings 1.4 MB a picture, the main app's 256 MB
