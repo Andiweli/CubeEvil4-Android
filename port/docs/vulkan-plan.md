@@ -1,5 +1,9 @@
 # Vulkan zusätzlich zu GLES – Studie
 
+> **Seit 07.11.2026 wird gebaut** (Auftrag des Projektinhabers, Branch `vulkan`): der Bauplan mit den Etappen
+> E0–E9, dem Stand seit 0.96.4 und den offenen Fragen steht in **`vulkan-bauplan.md`**. Diese Studie bleibt die
+> Grundlage (Teile T1–T15, Risiken); ihre Zahlen zu `gx_gl.cpp` sind vom 31.10.2026.
+
 Wunsch des Projektinhabers (31.10.2026): prüfen, was CubeEvil4 für eine **zusätzliche** Vulkan-Ausgabe
 bräuchte. Nur eine Bestandsaufnahme, kein Code geändert. Branch `vulkan` (von `master`, 0.96.4-beta).
 Vorgeschichte: Am 29.10.2026 hatte der Projektinhaber Vulkan nach einer ersten groben Schätzung „bis auf

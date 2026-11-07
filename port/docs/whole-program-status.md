@@ -2093,6 +2093,24 @@ mit `RE4_AUDIO_WAV`, Debug- gegen US-Discs; `retail_code.py`: die `SndCall`-Numm
 `BuyMenuSelect`/`BuyItemNum`/`SellMenuSelect`/`LvUpMenuSelect` gegen den Prototyp, dazu die SITs dieser Nummern in der
 US-Kern-Tonbank (Lautstärke, Typ). Die Händlerstimme (Ereignis-Streams 0xB4–0xC2) bleibt am Rand mitzuprüfen.
 
+## Vulkan als zweiter Renderpfad: Bau (seit 07.11.2026, lokal, Branch `vulkan`)
+
+Auftrag des Projektinhabers (07.11.2026, über die Hauptsitzung): einen zweiten Renderpfad über Vulkan planen und
+bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan` (von `master` 0.99.2-rc,
+`a6b3945f`). Die Entscheidung vom 29.10.2026 („Vulkan bis auf Weiteres ausgeschlossen“) ist damit aufgehoben.
+
+- **Plan:** `port/docs/vulkan-bauplan.md` – Stand seit der Studie (Nachschärfen, PSone, Linsenreflexe, Dynamic mit
+  Benchmark, Native, Minikarte …), Aufbau (gemeinsamer GX-Teil `GxRenderer`, Schnittstelle `GxBackend`, Backends
+  GL und Vulkan), Etappen E0–E9 mit Prüfung am PC und am Gerät, alle Pflichtpunkte (SPIR-V, Pipeline-Cache,
+  Durchgänge für Kachel-GPUs, Synchronisation, Swapchain/Pre-Rotation, Pausieren, Dynamic, Formate und Filter,
+  Bericht und Rückfall, Mindestversion, APK-Größe, Lizenzen), Zeitplan 45–69 Arbeitstage plus Testerrunden.
+- **Offene Fragen an den Projektinhaber:** Mindestversion (Vorschlag Android 10 + Vulkan 1.1), glslang aus dem NDK
+  ja / VMA nein (eigener Speicherverwalter), APK etwa +2–3 MB, anfangs fehlende Extras unter Vulkan in Test-APKs.
+- **Lizenzen (Vermerk):** glslang 11.11.0 aus dem NDK r28 (`sources/third_party/shaderc/third_party/glslang`):
+  BSD-3-Clause, BSD-2-Clause, MIT-ähnlich (Khronos), Apache-2.0 (`SPIRV/bitutils.h`, `hex_float.h`), GPL-3.0 mit
+  Bison-Ausnahme (`glslang_tab.cpp`, erzeugte Grammatik). Noch nichts davon eingebaut.
+- **Stand:** nur der Plan (kein Code, nichts gebaut). Etappenstand in der Tabelle am Ende des Bauplans.
+
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 
 *(Übernommen nach `master` am 02.11.2026 mit `port/docs/vulkan-plan.md`. Der Vertex-Ring kam schon vorher als Schalter nach `master`, standardmäßig aus: Commit `21cbf1ea`, Abschnitt „Vertex-Ringpuffer als Schalter“.)*
