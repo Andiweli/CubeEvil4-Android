@@ -1372,7 +1372,68 @@ u32 convertCompact(const Format& f, const DrawArrays& arrays, const u8* in, u32 
     const u32 nrmBytes = f.nrmComps * nrmCs;
     u32 skipped = 0;
     memset(out, 0, (size_t) count * stride);  // what a vertex does not have stays 0
+    // The array elements of the vertex kAhead on asked for before they are read (the OUYA branch,
+    // 07.11.2026: the Tegra 3's Cortex-A9 waits about 100 ns for each element not in its caches, the
+    // indexed vertices of r100 cost some 320 ns each; the indices in the stream say where they lie).
+    // Only a hint to the processor: the vertices come out the same.
+    struct Ahead {
+        u32 offset, mode, bytes;
+        const Array* a;
+    };
+    Ahead ahead[12];
+    u32 nAhead = 0, o = f.anyMatrix ? f.cMatrixBytes : 0;
+    auto indexed = [&](u32 mode, const Array& a, u32 bytes) {
+        if (nAhead < 12) {
+            ahead[nAhead++] = Ahead{o, mode, bytes, &a};
+        }
+        o += indexSize(mode);
+    };
+    if (f.posMode == 1) {
+        o += f.posBytes;
+    } else if (f.posMode) {
+        indexed(f.posMode, arrays.a[0], f.posBytes);
+    }
+    if (f.nrmMode == 1) {
+        o += nrmBytes;
+    } else if (f.nbt3) {
+        for (u32 part = 0; part < 3; part++) {
+            indexed(f.nrmMode, arrays.a[1], 9 * nrmCs);
+        }
+    } else if (f.nrmMode) {
+        indexed(f.nrmMode, arrays.a[1], nrmBytes);
+    }
+    for (int k = 0; k < 2; k++) {
+        if (f.clrMode[k] == 1) {
+            o += f.clrBytes[k];
+        } else if (f.clrMode[k]) {
+            indexed(f.clrMode[k], arrays.a[2 + k], f.clrBytes[k]);
+        }
+    }
+    for (u32 j = 0; j < f.texCount; j++) {
+        const u32 i = f.texList[j];
+        if (f.texMode[i] == 1) {
+            o += f.texBytes[i];
+        } else {
+            indexed(f.texMode[i], arrays.a[4 + i], f.texBytes[i]);
+        }
+    }
+    const u32 kAhead = 6;
+    const u8* const first = in;
+    const u32 inSize = f.inSize;
+    if (o != inSize) {
+        nAhead = 0;  // the stream's layout not as described: no hints
+    }
     for (u32 v = 0; v < count; v++, out += stride) {
+        if (nAhead && v + kAhead < count) {
+            const u8* p = first + (size_t) (v + kAhead) * inSize;
+            for (u32 k = 0; k < nAhead; k++) {
+                const Ahead& h = ahead[k];
+                const u32 index = h.mode == 2 ? p[h.offset] : rd16(p + h.offset, be);
+                if (const u8* src = at(*h.a, index, h.bytes)) {
+                    __builtin_prefetch(src);
+                }
+            }
+        }
         if (f.anyMatrix) {  // the indices the vertex carries; the others are the draw's defaults
             u8* matrix = out + f.offMatrix;
             for (u32 j = 0; j < f.cMatrixBytes; j++) {
