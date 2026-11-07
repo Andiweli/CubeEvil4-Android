@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">Non c’è spazio nella valigetta.</string>
     <string name="ingame_cheat_queued">Verrà fatto appena il gioco riprende.</string>
     <string name="ingame_cheat_unsupported">Questo nucleo di gioco non ha trucchi.</string>
+    <string name="ingame_discs">Dischi</string>
+    <string name="ingame_discs_help">Per giocare un’altra versione: la partita termina e importi i suoi due dischi dalla schermata iniziale. Salvataggi, Memory Card e impostazioni restano.</string>
+    <string name="ingame_import_discs">Importa altri dischi</string>
 </resources>

@@ -17,7 +17,9 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_cheat_case', 'ingame_cheat_money', 'ingame_cheat_handcannon', 'ingame_cheat_killer7',
         'ingame_cheat_matilda', 'ingame_cheat_chicago', 'ingame_cheat_mine', 'ingame_cheat_rocket', 'ingame_cheat_qte',
         'ingame_cheats_help', 'ingame_cheat_done', 'ingame_cheat_already', 'ingame_cheat_raised',
-        'ingame_cheat_not_now', 'ingame_cheat_no_room', 'ingame_cheat_queued', 'ingame_cheat_unsupported']
+        'ingame_cheat_not_now', 'ingame_cheat_no_room', 'ingame_cheat_queued', 'ingame_cheat_unsupported',
+        # the disc installer again (OuyaInstaller)
+        'ingame_discs', 'ingame_discs_help', 'ingame_import_discs']
 Q = "\\'"  # an apostrophe in an Android string
 own = {
     'values': {

@@ -219,7 +219,8 @@ bool StartSound() {
 // runs, else why not. Any thread but the GL thread (it waits for the core process's start).
 extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeStart(JNIEnv *env, jclass,
                                                                                           jstring dataDir,
-                                                                                          jstring libraryDir) {
+                                                                                          jstring libraryDir,
+                                                                                          jint gameLanguage) {
   std::lock_guard<std::mutex> l(gLock);
   if (gStarted)
     return env->NewStringUTF(gProblem.c_str());
@@ -234,6 +235,11 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
   setenv("RE4_POTATO", value, 1);  // bit 0 weather, bit 1 special effects left out
   snprintf(value, sizeof(value), "%d", gCheats);
   setenv("RE4_CHEATS", value, 1);  // the menu's cheat switches (runtime/cheats.cpp)
+  if (gameLanguage >= 2 && gameLanguage <= 6) {
+    // the European discs: the game's language (the main app's RE4_GAME_LANGUAGE, retail-eu-plan.md R7)
+    snprintf(value, sizeof(value), "%d", static_cast<int>(gameLanguage));
+    setenv("RE4_GAME_LANGUAGE", value, 1);
+  }
   setenv("RE4_LOG_FILE", (data + "/core.log").c_str(), 1);
   ReadSettings(data);
   // the core process: a program among the app's libraries (extracted at installation; the folder from

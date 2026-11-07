@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">अटैची केस में जगह नहीं है।</string>
     <string name="ingame_cheat_queued">गेम चलते ही हो जाएगा।</string>
     <string name="ingame_cheat_unsupported">इस गेम कोर में चीट्स नहीं हैं।</string>
+    <string name="ingame_discs">डिस्क</string>
+    <string name="ingame_discs_help">कोई दूसरा संस्करण खेलने के लिए: गेम बंद होगा, और आप स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करेंगे। सेव, मेमोरी कार्ड और सेटिंग्स बनी रहेंगी।</string>
+    <string name="ingame_import_discs">दूसरी डिस्क इम्पोर्ट करें</string>
 </resources>

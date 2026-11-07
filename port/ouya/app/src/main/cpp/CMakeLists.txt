@@ -7,7 +7,7 @@
 #   cmake -S port/ouya/app/src/main/cpp -B BUILD && cmake --build BUILD && ctest --test-dir BUILD
 # or port/ouya/tools/check.sh.
 cmake_minimum_required(VERSION 3.22.1)
-project(re4_ouya LANGUAGES CXX)
+project(re4_ouya LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # shared with the main app and left as they are there: the GX texture decoder, the chunk format;
@@ -37,6 +37,12 @@ if(ANDROID)
         target_include_directories(re4ouya PRIVATE "${RE4_CORE_INCLUDE}")
         target_link_libraries(re4ouya PRIVATE re4_gx2 GLESv2 EGL OpenSLES log dl)
         target_compile_options(re4ouya PRIVATE -Wall -Wextra)
+        # the disc installer's RVZ reader (the main app's com.ast.re4decomp.disc.RvzImage, copied by
+        # port/ouya/tools/sync_disc_import.py): its native side and zstd from the main app's folder
+        add_library(re4rvz SHARED "${RE4_MAIN_APP_CPP}/disc_rvz_jni.cpp" "${RE4_MAIN_APP_CPP}/disc_rvz.cpp"
+            "${RE4_MAIN_APP_CPP}/third_party/zstd/zstddeclib.c")
+        set_source_files_properties("${RE4_MAIN_APP_CPP}/third_party/zstd/zstddeclib.c" PROPERTIES LANGUAGE C)
+        target_include_directories(re4rvz PRIVATE "${RE4_MAIN_APP_CPP}")
     endif()
 else()
     enable_testing()

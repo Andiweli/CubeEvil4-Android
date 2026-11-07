@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">Sem espaço na maleta.</string>
     <string name="ingame_cheat_queued">Será feito assim que o jogo continuar.</string>
     <string name="ingame_cheat_unsupported">Este núcleo do jogo não tem trapaças.</string>
+    <string name="ingame_discs">Discos</string>
+    <string name="ingame_discs_help">Para jogar outra versão: o jogo é encerrado e você importa os dois discos dela na tela inicial. Os jogos salvos, o cartão de memória e as configurações são mantidos.</string>
+    <string name="ingame_import_discs">Importar outros discos</string>
 </resources>

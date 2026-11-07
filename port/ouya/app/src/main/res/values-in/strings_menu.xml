@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">Tidak ada ruang di koper.</string>
     <string name="ingame_cheat_queued">Akan dilakukan segera setelah game berjalan.</string>
     <string name="ingame_cheat_unsupported">Inti game ini tidak memiliki cheat.</string>
+    <string name="ingame_discs">Disk</string>
+    <string name="ingame_discs_help">Untuk memainkan versi lain: game berakhir, lalu Anda mengimpor kedua disknya di layar awal. Data simpanan, kartu memori, dan pengaturan tetap ada.</string>
+    <string name="ingame_import_discs">Impor disk lain</string>
 </resources>

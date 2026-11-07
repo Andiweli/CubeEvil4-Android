@@ -49,6 +49,9 @@
     <string name="ingame_cheat_no_room">Kein Platz im Aktenkoffer.</string>
     <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
     <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
+    <string name="ingame_discs">Discs</string>
+    <string name="ingame_discs_help">Für eine andere Version: Das Spiel endet, und du importierst ihre beiden Discs auf dem Startbildschirm. Spielstände, Speicherkarte und Einstellungen bleiben erhalten.</string>
+    <string name="ingame_import_discs">Andere Discs importieren</string>
     <string name="ouya_view_distance">Sichtweite</string>
     <string name="ouya_colours">Farbberechnung</string>
     <string name="ouya_colours_simple">Vereinfacht</string>

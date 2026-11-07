@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">No hay sitio en el maletín.</string>
     <string name="ingame_cheat_queued">Se hará en cuanto el juego siga.</string>
     <string name="ingame_cheat_unsupported">Este núcleo del juego no tiene trucos.</string>
+    <string name="ingame_discs">Discos</string>
+    <string name="ingame_discs_help">Para jugar otra versión: la partida termina e importas sus dos discos en la pantalla de inicio. Las partidas guardadas, la tarjeta de memoria y los ajustes se conservan.</string>
+    <string name="ingame_import_discs">Importar otros discos</string>
 </resources>

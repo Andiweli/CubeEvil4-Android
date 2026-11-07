@@ -17,7 +17,11 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import com.ast.re4decomp.disc.DiscInstaller;
+import com.ast.re4decomp.disc.GameCubeDisc;
+
 import java.io.File;
+import java.util.Locale;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -34,7 +38,7 @@ import javax.microedition.khronos.opengles.GL10;
  * app's menu (OuyaMenu, the main app's SELECT menu for the OUYA; wish of the project owner, 07.11.2026).
  * The picture fills the screen as the main app's default: the game's 16:9 rows (56..391).
  */
-public class OuyaActivity extends Activity implements OuyaMenu.Host {
+public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstaller.Host {
     static {
         // Android before 4.3 does not look in the app's library folder for what a library needs:
         // the C++ library first
@@ -42,7 +46,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
         System.loadLibrary("re4ouya");
     }
 
-    static native String nativeStart(String dataDir, String libraryDir);
+    /** gameLanguage: the European discs' language (2 English .. 6 Italian, RE4_GAME_LANGUAGE), 0 none. */
+    static native String nativeStart(String dataDir, String libraryDir, int gameLanguage);
     static native void nativeSurfaceCreated();
     static native void nativeSurfaceChanged(int width, int height);
     static native void nativeFrame();
@@ -68,6 +73,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
     private int hat;                        // D-pad from the hat axes (other controllers)
     private int tapped;                     // buttons pressed for a moment (the OUYA button)
     private OuyaMenu menu;                  // the app's menu while it is open
+    private OuyaInstaller installer;        // the disc installer while it is shown
+    private FrameLayout root;
     private boolean paused;                 // the activity is in the background
     private final Handler handler = new Handler();
     private final Runnable untap = new Runnable() {
@@ -82,7 +89,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
         view = new GLSurfaceView(this);
         view.setEGLContextClientVersion(2);
@@ -115,19 +122,76 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
         setContentView(root);
         view.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
 
-        final File data = new File(Environment.getExternalStorageDirectory(), "RE4-OUYA");
-        if (!new File(data, "disc0/sys/fst.bin").isFile()) {
-            message.setText("Disc 1 is missing.\n\nCopy it from the PC with port/scripts/ouya-app.ps1\n(into "
-                    + data.getPath() + "/disc0).");
+        // the discs: installed by the app's installer (OuyaInstaller), else the developer's folder of
+        // port/scripts/ouya-app.ps1 (disc 1 as /sdcard/RE4-OUYA/disc0), else the installer
+        File data = OuyaInstaller.installedRoot(this);
+        if (data == null) {
+            File legacy = new File(Environment.getExternalStorageDirectory(), "RE4-OUYA");
+            if (new File(legacy, "disc0/sys/fst.bin").isFile())
+                data = legacy;
+        }
+        final boolean again = getSharedPreferences(OuyaInstaller.PREFS, MODE_PRIVATE).getBoolean(OuyaInstaller.AGAIN, false);
+        if (data == null || again) {
+            existing = data;
+            message.setVisibility(View.GONE);
+            installer = new OuyaInstaller(this, this, data != null);
+            root.addView(installer, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT));
             return;
         }
+        startGame(data);
+    }
+
+    private File existing;  // the discs installed before, while the installer runs again
+
+    @Override
+    public void cancelled() {
+        getSharedPreferences(OuyaInstaller.PREFS, MODE_PRIVATE).edit().putBoolean(OuyaInstaller.AGAIN, false).apply();
+        root.removeView(installer);
+        installer = null;
+        message.setVisibility(View.VISIBLE);
+        startGame(existing);
+    }
+
+    /** The menu's "Import other discs": the game ends (its core cannot start again in this process), the app
+     *  starts anew with the installer */
+    @Override
+    public void importDiscs() {
+        getSharedPreferences(OuyaInstaller.PREFS, MODE_PRIVATE).edit().putBoolean(OuyaInstaller.AGAIN, true).commit();
+        android.app.AlarmManager alarms = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
+        android.content.Intent start = new android.content.Intent(this, OuyaActivity.class);
+        alarms.set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 800, android.app.PendingIntent.getActivity(
+                this, 0, start, android.app.PendingIntent.FLAG_CANCEL_CURRENT));
+        finish();
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
+    @Override
+    public void installed(File data) {
+        root.removeView(installer);
+        installer = null;
+        message.setVisibility(View.VISIBLE);
+        startGame(data);
+    }
+
+    /** The European discs: the game's language from the OUYA's (as the main app's default, CoreActivity) */
+    private static int gameLanguage(File data) {
+        if (!GameCubeDisc.EUROPEAN.equals(DiscInstaller.release(new File(data, "disc1"))))
+            return 0;
+        String language = Locale.getDefault().getLanguage();
+        return "de".equals(language) ? 3 : "fr".equals(language) ? 4 : "es".equals(language) ? 5
+                : "it".equals(language) ? 6 : 2;
+    }
+
+    private void startGame(final File data) {
+        final int language = gameLanguage(data);
         message.setText("Starting the game ...");
         settingsChanged();
         new Thread(new Runnable() {
             @Override
             public void run() {
                 // the core process lies among the app's libraries (Android 4.1's dladdr gives no folder)
-                final String problem = nativeStart(data.getPath(), getApplicationInfo().nativeLibraryDir);
+                final String problem = nativeStart(data.getPath(), getApplicationInfo().nativeLibraryDir, language);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -231,6 +295,13 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (installer != null) {
+            // the installer: D-pad between its buttons, O chooses
+            if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_A)
+                return super.dispatchKeyEvent(new KeyEvent(event.getDownTime(), event.getEventTime(), event.getAction(),
+                        KeyEvent.KEYCODE_DPAD_CENTER, event.getRepeatCount()));
+            return super.dispatchKeyEvent(event);
+        }
         // the OUYA's system button (short): Android gets only its release (KEYCODE_MENU), no press;
         // START for a fifth of a second (the game reads the pad once a frame)
         if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {

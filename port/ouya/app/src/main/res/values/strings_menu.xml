@@ -49,6 +49,9 @@
     <string name="ingame_cheat_no_room">No room in the attaché case.</string>
     <string name="ingame_cheat_queued">Will be done as soon as the game runs.</string>
     <string name="ingame_cheat_unsupported">This game core has no cheats.</string>
+    <string name="ingame_discs">Discs</string>
+    <string name="ingame_discs_help">To play another version: the game ends, and you import both of its discs on the start screen. Saves, memory card and settings stay.</string>
+    <string name="ingame_import_discs">Import other discs</string>
     <string name="ouya_view_distance">View distance</string>
     <string name="ouya_colours">Colour calculation</string>
     <string name="ouya_colours_simple">Simplified</string>

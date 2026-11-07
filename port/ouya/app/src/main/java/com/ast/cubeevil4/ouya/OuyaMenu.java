@@ -43,6 +43,8 @@ final class OuyaMenu extends Dialog {
         /** A cheat button (runtime/cheats.cpp re4_core_cheat_action): 1 done, 2 already there (a weapon:
          *  raised to its highest levels), 0 not now, -1 no room, 3 queued, else unsupported. Any thread. */
         int cheatAction(int what);
+        /** "Import other discs": the game ends, the app starts again with its disc installer. */
+        void importDiscs();
     }
 
     /** The preferences and their defaults: the light OUYA version (port/docs/ouya-machbarkeit.md). */
@@ -157,6 +159,18 @@ final class OuyaMenu extends Dialog {
         help(R.string.ingame_always_run_help);
         help(R.string.ingame_far_camera_help);
         cheats();
+        heading(R.string.ingame_discs);
+        LinearLayout discs = buttonsRow();
+        Button other = button(s(R.string.ingame_import_discs), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dismiss();
+                host.importDiscs();
+            }
+        });
+        discs.addView(other, cell());
+        discs.addView(new View(getContext()), cell());
+        help(R.string.ingame_discs_help);
     }
 
     // --- the cheats (the main app's CoreMenu.cheats, without the characters and the extra games) ---

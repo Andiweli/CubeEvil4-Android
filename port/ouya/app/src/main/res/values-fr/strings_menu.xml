@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">Pas de place dans la mallette.</string>
     <string name="ingame_cheat_queued">Ce sera fait dès que le jeu reprendra.</string>
     <string name="ingame_cheat_unsupported">Ce cœur de jeu n’a pas de triches.</string>
+    <string name="ingame_discs">Disques</string>
+    <string name="ingame_discs_help">Pour jouer à une autre version\u00A0: la partie se termine et vous importez ses deux disques depuis l’écran de démarrage. Les sauvegardes, la carte mémoire et les réglages sont conservés.</string>
+    <string name="ingame_import_discs">Importer d’autres disques</string>
 </resources>

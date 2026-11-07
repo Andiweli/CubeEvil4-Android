@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">手提箱里没有空位。</string>
     <string name="ingame_cheat_queued">游戏继续后就会完成。</string>
     <string name="ingame_cheat_unsupported">这个游戏核心没有作弊功能。</string>
+    <string name="ingame_discs">光盘</string>
+    <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
+    <string name="ingame_import_discs">导入其他光盘</string>
 </resources>

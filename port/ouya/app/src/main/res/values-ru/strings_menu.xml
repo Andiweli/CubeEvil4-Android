@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">В кейсе нет места.</string>
     <string name="ingame_cheat_queued">Будет сделано, как только игра продолжится.</string>
     <string name="ingame_cheat_unsupported">В этом ядре игры нет читов.</string>
+    <string name="ingame_discs">Диски</string>
+    <string name="ingame_discs_help">Чтобы играть в другую версию: игра завершится, и вы импортируете оба её диска на стартовом экране. Сохранения, карта памяти и настройки останутся.</string>
+    <string name="ingame_import_discs">Импорт других дисков</string>
 </resources>

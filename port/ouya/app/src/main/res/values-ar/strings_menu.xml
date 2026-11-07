@@ -49,4 +49,7 @@
     <string name="ingame_cheat_no_room">لا توجد مساحة في الحقيبة.</string>
     <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
     <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
+    <string name="ingame_discs">الأقراص</string>
+    <string name="ingame_discs_help">لتلعب نسخة أخرى: تنتهي اللعبة، ثم تستورد قرصيها كليهما من شاشة البدء. تبقى ملفات الحفظ وبطاقة الذاكرة والإعدادات كما هي.</string>
+    <string name="ingame_import_discs">استيراد أقراص أخرى</string>
 </resources>
