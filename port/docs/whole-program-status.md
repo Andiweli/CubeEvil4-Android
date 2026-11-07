@@ -18,7 +18,8 @@ Patch in diesem Abschnitt (nächste freie Nummer 0219).
      gewählte Figur wechseln sofort wie bisher. Der Hinweis ist der übliche Dialog des Menüs (`AlertDialog`) in Rot:
      dunkelroter Grund (`WARN_RED` 0xff4e1f1c), Rand in der Farbe des „Update“-Knopfs (2 dp). Aufbau nach Wunsch des
      Projektinhabers (08.11.2026, nach der ersten Fassung mit Titel links und „OK“ rechts unten): **oben mittig der
-     Name der gewählten Figur**, darunter der Text in der Schriftfarbe des Menüs (scrollt bei großer Schrift, der Knopf
+     Name der gewählten Figur**, darunter **mittig** der Text in der Schriftfarbe des Menüs (zuerst linksbündig, mittig
+     auf Wunsch des Projektinhabers vom 08.11.2026; scrollt bei großer Schrift, der Knopf
      bleibt sichtbar), **unten mittig ein Knopf „Ich habe verstanden“** im Rot des „Update“-Knopfs mit dem
      Fokusrahmen des Menüs (eigener Inhalt per `setView`, ohne die Knöpfe des `AlertDialog`).
    - **Nur dieser Knopf wechselt** (Tippen, Klick, A, Enter). **Zurück, B, Esc, START, SELECT** und ein Tippen neben
@@ -34,7 +35,7 @@ Patch in diesem Abschnitt (nächste freie Nummer 0219).
      ein Satz vor den Spezialkostümen („Characters other than Leon are not made for the main game, so choosing one
      shows a warning first: "I understand" switches, Back keeps your current character.“).
    - **Geprüft am PC:** `check_translations.py` ok (305 Texte je Sprache); `CoreMenuLayoutTest.cheatsPageSwitchesSendTheirBits`
-     erweitert (Hinweis mit Name mittig oben, Text darunter und genau einem Knopf mittig darunter; vor dem Knopf
+     erweitert (Hinweis mit Name mittig oben, Text mittig darunter und genau einem Knopf mittig darunter; vor dem Knopf
      nichts gesendet, Auswahl unverändert; B, Zurück, Esc, START, SELECT schließen ohne Wechsel, X tut nichts, A =
      der Knopf; Ada → Wesker fragt, Leon und die gewählte Figur fragen nicht); `CoreMenuShotTest` zeichnet den Hinweis je Sprache (`<sprache>-character-warning.png`, 500 dp
      breit wie auf dem Retroid Pocket Flip 2; Bilder in `E:\Development\Android\reports\0993-character-warning\`):

@@ -591,7 +591,7 @@ public class CoreMenuLayoutTest {
   }
 
   /** The warning before another player character (the owner, 08.11.2026): shown; the character's name centred on
-   *  top, the warning under it, the one button "I understand" centred under that. */
+   *  top, the warning centred under it, the one button "I understand" centred under that. */
   private static android.app.AlertDialog warning(Activity activity, String name) {
     android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
     assertNotNull("a warning for " + name, ask);
@@ -604,6 +604,10 @@ public class CoreMenuLayoutTest {
     assertNotNull("the name on top", title); assertNotNull("the warning", text);
     assertEquals(activity.getString(R.string.ingame_understood), understood.getText().toString());
     assertEquals(android.view.Gravity.CENTER_HORIZONTAL, title.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK);
+    // the warning centred too (the owner, 08.11.2026), over the whole width
+    assertEquals(android.view.Gravity.CENTER_HORIZONTAL, text.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK);
+    assertEquals(View.TEXT_ALIGNMENT_GRAVITY, text.getTextAlignment());
+    assertEquals(((View) text.getParent()).getWidth(), text.getWidth());
     int[] t = new int[2], m = new int[2], b = new int[2];
     title.getLocationInWindow(t); text.getLocationInWindow(m); understood.getLocationInWindow(b);
     assertTrue("the name over the warning", t[1] + title.getHeight() <= m[1]);

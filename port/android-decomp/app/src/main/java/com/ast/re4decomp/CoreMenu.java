@@ -1415,7 +1415,7 @@ final class CoreMenu extends Dialog {
   }
   /** Before Ada, HUNK, Krauser or Wesker take Leon's place (wish of the project owner, 08.11.2026): a reddish
    *  warning that they are not made for the main game, the menu's other questions' dialog in red: the chosen
-   *  character's name centred on top, the warning under it, the one button "I understand" centred below
+   *  character's name centred on top, the warning centred under it, the one button "I understand" centred below
    *  (the owner, 08.11.2026). Only that button switches (touch, click, A, Enter); Back, B, Esc, START, SELECT or
    *  a touch beside it keep the character (the buttons' choice is only changed by it). The other gamepad
    *  buttons do nothing here: Android would take X and START for a confirmation. */
@@ -1428,8 +1428,9 @@ final class CoreMenu extends Dialog {
     // the text scrolls if a big font leaves too little room, the button stays below it
     TextView message = text(s(R.string.ingame_cheat_character_warning), 16, false);
     message.setTextColor(INK); message.setLineSpacing(0, 1.1f);
+    message.setGravity(Gravity.CENTER_HORIZONTAL); message.setTextAlignment(View.TEXT_ALIGNMENT_GRAVITY);
     ScrollView scroller = new ScrollView(getContext());
-    scroller.addView(message);
+    scroller.addView(message, new ViewGroup.LayoutParams(-1, -2));
     LinearLayout.LayoutParams between = new LinearLayout.LayoutParams(-1, -2, 1);
     between.setMargins(0, dp(12), 0, dp(18));
     box.addView(scroller, between);
