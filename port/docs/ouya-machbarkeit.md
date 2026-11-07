@@ -562,3 +562,28 @@ Bildschirmbild, gebaute Shader, Auspacken und Hochladen der Texturen; `ouya-log.
 - **Ergebnis im Eröffnungsfilm:** etwa 32 Bildschirmbilder/s, der Film in Echtzeit (161 Bilder in
   5,35 s, keines ausgelassen). Der Ton läuft im Film fast ohne Lücken; in r100 läuft er trocken,
   weil das Spiel dort langsamer als Echtzeit rechnet (Kern 52 ms je Bild).
+
+**Spieltempo: die GX-Umrechnung wieder auf einem eigenen Thread (07.11.2026, Wunsch des
+Projektinhabers: r100 schneller; die Autoszene lief dem Ton davon).** Die Kern-Probe (ohne Bild,
+`ouya-probe.ps1 -Runs r100-schnell-gp`, neu: `-RemoteData /sdcard/RE4-OUYA` nimmt die Disc der App,
+`-Env` weitere Schalter) maß den Spiel-Thread in r100 mit 41,6 ms je Bild (24 Bilder/s ohne Bremse;
+am 21.10. mit dem eigenen Grafik-Thread 51): 40,6 % die Umrechnung der GX-Befehle, dazu ein Teil der
+10,8 % Speicherkopien, 19,4 % Spiellogik, 3 % die Zustandsbrücke. Seit dem Abgleich mit master
+(28.10.) lief die Umrechnung auf dem Spiel-Thread, nur die Punkte gingen an einen Helfer.
+
+- **Grafik-Thread** (`runtime/gx_thread.cpp`, `RE4_GX_THREAD=1`, in der App an): der Bau vom
+  21.10. auf master's Umrechnung neu aufgesetzt. Die Bytes des FIFO gehen über einen Ring an den
+  Thread `re4-gp`, die Aufrufe des Ports dazwischen (VI, Markierungen, Listen, `re4_gx_still`)
+  als Ereignisse an ihrer Stelle; die Punkt-Helfer arbeiten nun dem Grafik-Thread zu. Der
+  Spiel-Thread holt ihn ein, bevor er ein Display-List-Ziel überschreibt, und bei jedem
+  Bildwechsel; wartet ein Spiel-Thread, bekommt er, was die Grafik schon fertig hat, und ganz
+  gewartet wird erst, wenn das Spiel sonst nichts zu tun hat (wie Prozessor und Grafikchip des
+  GameCube). Ohne den Schalter bleibt alles wie in master.
+- **Zustandsbrücke ohne Figuren** (`RE4_BRIDGE_MODELS=0`): die OUYA-App liest keine Schnappschüsse.
+- **Geprüft (PC, WSL, i686 `-O2`):** `whole_build.sh` ohne und mit `RE4_GX_THREAD=1` vollständig
+  bestanden (Fingerabdruck der Umrechnung, Kerntest, Kern im eigenen Prozess, Formatvergleich,
+  Film); `whole_build.sh` prüft Laufzeit- und Kerntest jetzt immer auch mit dem Grafik-Thread. Die
+  Tests nehmen Bildpakete erst ab, wenn der Thread aufgeholt hat.
+- **Gemessen auf der OUYA (Probe, r100 ohne Bremse, Leon frei):** mit dem Grafik-Thread (noch mit
+  dem Aufholen bei jedem Warten) 37,4 statt 24,0 Bilder/s; Spiel-Thread 18,7 ms je Bild, Grafik-
+  Thread 16,5 ms daneben.
