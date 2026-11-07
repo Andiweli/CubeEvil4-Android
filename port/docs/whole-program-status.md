@@ -74,6 +74,16 @@ Forks“ unten) ein Bildformat „Native“, das das echte Seitenverhältnis des
    ein Tablet ist nötig), Zielfernrohr, Händler, Inventar, Gegenstand aufheben, Spiegel, Wasser und Hitzeflimmern
    im breiten Bild, Gegner, die am breiteren Rand auftauchen (Sichtkegel und Bildschirmprüfungen der Gegner folgen
    der breiten Projektion), das Abdunkeln an Türen.
+8. **Zwischenstufen ×1,25 / ×1,75 für „Dynamisch“ (Frage des Projektinhabers): nicht eingebaut** (Entscheidung des
+   Projektinhabers, 07.11.2026, nach der Abwägung). Nutzen klein: im Schnitt eine Viertelstufe schärfer (etwa 5–10 %),
+   am meisten zwischen ×1 und ×1,5; die Bildrate wird nicht ruhiger (Dynamisch hält 30 Bilder/s so oder so). Risiken:
+   (1) Die Stufen zählen in Hälften (`GxRenderer::Lo/Hi`, `halves`): bei ×1,5/×2,5/×3,5 fällt jede gerade GX-Position
+   (Bildkopien, Scissor, Viewport; GX kopiert an geraden Stellen) auf einen ganzen Bildpunkt, bei Viertelstufen jede
+   zweite auf einen halben (Rundung: Versatz, Ränder, Flimmern an Schatten, Hitzeflimmern, Leuchten, Unschärfe, Wasser);
+   (2) jedes Umschalten legt die EFB-Ziele neu an (am PC 20–42 ms, erstes Bild danach bis +70 ms), doppelt so viele
+   Stufen = öfter umschalten, und näher an der Grenze fällt Dynamisch leichter zurück; (3) nach unten eine Stufe je
+   etwa 4 s: von 4× bis 1× 12 statt 6 Schritte; (4) Speicher kein Problem (alle unter der höchsten Stufe). Falls Tester
+   mit schwachen Geräten auf ×1 hängen und das Bild zu unscharf finden: gezielt nur ×1,25 prüfen.
 
 ## Prüfung der Forks (06.11.2026 im Branch `claude/keen-carson-26xxjq`, nachgeprüft 07.11.2026; nichts übernommen)
 
