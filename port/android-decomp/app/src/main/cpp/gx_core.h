@@ -100,6 +100,22 @@ struct DrawState {
   float lineWidth = 1.0f;  // lines and points, in pixels at the scale (the APIs take at least 1)
 };
 
+// An EFB copy as GxCore::EfbCopy sets it up for the API's copy pass (CopyPass): the target texture, the EFB region
+// (GameCube pixels), the target's size, the copy shader's mode (CopyMode; 0 for a display copy), the copy filter's
+// gain, the TV filter's taps (at < 0: off) one line (`step` pixels) apart, the rows the copy repeats at its edges
+// (`limited`: limit[0], limit[1] in pixels at the scale, else -1e9 / 1e9)
+struct CopyParams {
+  unsigned target = 0;
+  bool toXfb = false, depth = false, half = false;
+  int mode = 0;
+  int x = 0, y = 0, w = 0, h = 0, tw = 0, th = 0;
+  float gain = 1.0f;
+  float taps[3] = {0.0f, -1.0f, 0.0f};
+  float step = 0.0f;
+  bool limited = false;
+  float limit[2] = {-1e9f, 1e9f};
+};
+
 struct GxCore {
   explicit GxCore(GxApi a) : api(a) {}
   virtual ~GxCore() = default;
@@ -575,7 +591,6 @@ struct GxCore {
   // after a copy with the plain state; waiting for the GPU (RE4_GX_COPY_TIME); a copy read through a palette (its
   // texture); a texture's texels to the GPU (into textures); the API's own caches of bound objects forgotten; a
   // texture deleted (GL at once; an API that draws later when the GPU is done with it)
-  virtual void EfbCopy(std::uint32_t control) = 0;
   virtual void Autofocus(std::uint32_t player) = 0;
   virtual void ClearAfterCopyPlain(std::uint32_t control, int x, int y, int w, int h) = 0;
   virtual void GpuFinish() = 0;
@@ -588,6 +603,17 @@ struct GxCore {
   void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk);
   void Forget(std::uint64_t key);
   void DropTextures();
+  // an EFB copy (BP 0x52) and its GPU side: the display copy's texture; a copy's texture (Copy::id, made or kept);
+  // the copy pass; the effects after a display copy (FXAA, Sharpen, PSone); the depth map for GXPeekZ; the clear
+  // after a copy; the EFB with the plain state
+  void EfbCopy(std::uint32_t control);
+  virtual unsigned DisplayTarget(int w, int h) = 0;
+  virtual void CopyTarget(Copy &c, int w, int h) = 0;
+  virtual void CopyPass(const CopyParams &p) = 0;
+  virtual void DisplayEffects(int pixelWidth, int pixelHeight, int y, int h, int w) = 0;
+  virtual void SnapshotDepth() = 0;
+  virtual void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) = 0;
+  virtual void PlainEfb() = 0;
   // ---- end of the part moved from GlRenderer ----
 
   // GxRenderer's calls, with the same meaning (see gx_gl.h)

@@ -2105,6 +2105,134 @@ void GxCore::DropTextures() {
   paletted.clear();
 }
 
+void GxCore::EfbCopy(std::uint32_t control) {
+  const bool copyTime = std::getenv("RE4_GX_COPY_TIME") && *std::getenv("RE4_GX_COPY_TIME") == '1';
+  std::chrono::steady_clock::time_point copyStart;
+  if (copyTime) {
+    GpuFinish();
+    copyStart = std::chrono::steady_clock::now();
+  }
+  Touched(); // its own pass
+  const int x = static_cast<int>(bp[0x49] & 0x3FF), y = static_cast<int>((bp[0x49] >> 10) & 0x3FF);
+  const int w = static_cast<int>(bp[0x4A] & 0x3FF) + 1, h = static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1;
+  const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
+  const bool toXfb = (control >> 14) & 1;
+  const bool half = !toXfb && ((control >> 9) & 1);
+  const bool depth = !toXfb && (bp[0x43] & 7) == 3;
+  int mode = 0;
+  unsigned kind = 0;
+  if (!toXfb)
+    CopyMode(control, depth, &mode, &kind);
+  const int ow = half ? std::max(1, w / 2) : w, oh = half ? std::max(1, h / 2) : h;
+  if (toXfb && holdXfb) {
+    // the VI stays on the picture before (RE4_GX_CHUNK_HOLD, SYS_SCREEN_STOP):
+    // nothing to show, only the clear of the EFB
+    stats.heldCopies++;
+    PlainEfb();
+    if (peekWanted)
+      SnapshotDepth();
+    ClearAfterCopy(control, x, y, w, h);
+    sceneBottom = 0;
+    return;
+  }
+  CopyParams p;
+  if (toXfb) {
+    p.target = DisplayTarget(w, h);
+    haveXfb = true;
+    xfbWide = chunkWide;
+    stats.displayCopies++;
+  } else {
+    // the in-between pass copies into its own textures: the next real Run still reads what the
+    // picture before copied (effects that blend the last picture in)
+    if (interpPass)
+      interpCopied.insert(dest);
+    Copy &c = interpPass ? interpCopies[dest] : copies[dest];
+    if (c.id && !c.read && !interpPass)
+      stats.copyOverwrittenUnread++;
+    c.read = false;
+    CopyTarget(c, ow, oh);
+    c.serial = ++copySerial;
+    c.kind = kind;
+    p.target = c.id;
+    stats.textureCopies++;
+    // copies read through a palette are made anew from this copy (their key holds the copy's
+    // serial: those of the in-between pass's own copies stay apart)
+    for (auto it = paletted.begin(); !interpPass && it != paletted.end();) {
+      DeleteTexture(it->second.id);
+      it = paletted.erase(it);
+    }
+  }
+  // render the EFB region into the target
+  p.toXfb = toXfb;
+  p.depth = depth;
+  p.half = half;
+  p.mode = toXfb ? 0 : mode;
+  p.x = x;
+  p.y = y;
+  p.w = w;
+  p.h = h;
+  p.tw = toXfb ? w : ow;
+  p.th = toXfb ? h : oh;
+  p.gain = depth ? 1.0f : CopyFilterGain();
+  // the TV filter: a display copy blends the lines above and below with the copy filter's taps (they
+  // hold the gain as well), one original line (the scale) apart
+  if (toXfb && !depth && tvFilter) {
+    float above = 0.0f, at = 1.0f, below = 0.0f;
+    CopyFilterTaps(&above, &at, &below);
+    p.taps[0] = above;
+    p.taps[1] = at;
+    p.taps[2] = below;
+    p.step = Sf(1);
+    if (!tvLogged) {
+      tvLogged = true;
+      GXLOG("TV filter: the line above %.3f, the line %.3f, the line below %.3f", above, at, below);
+    }
+  }
+  // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
+  // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
+  // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew
+  // (black) would show as dark waves at the bottom edge. Repeat the last drawn row below it.
+  // In the 16:9 formats the app shows rows 56..391 only: there a copy of the whole picture (the
+  // shimmer of the logos at the start, IdShimmerTrans: rows 0..447, a movie drawn into 56..391
+  // under a full scissor; the depth of field at the edge) repeats the edge rows of what is shown
+  // instead of reading the unseen bars (black waves at the bottom of the intro, 0.91.0 test).
+  int top = 0, bottom = kEfbHeight;
+  if (!toXfb && !depth && x == 0 && w >= 500) {
+    if (half && sceneBottom > y + h / 2 && sceneBottom < y + h)
+      bottom = sceneBottom;
+    const int shownT = shownTop.load(std::memory_order_relaxed), shownB = shownBottom.load(std::memory_order_relaxed);
+    if (shownB > y + h / 2 && shownB < y + h)
+      bottom = std::min(bottom, shownB);
+    if (shownT > y && shownT < y + h / 2)
+      top = shownT;
+  }
+  p.limited = top > 0 || bottom < kEfbHeight;
+  p.limit[0] = p.limited ? Sf(top) : -1e9f;
+  p.limit[1] = p.limited && bottom < kEfbHeight ? Sf(bottom) : 1e9f;
+  if (p.limited)
+    stats.limitedCopies++;
+  CopyPass(p);
+  if (toXfb)
+    DisplayEffects(Hi(w), Hi(h), y, h, w);
+  if (toXfb && peekWanted)
+    SnapshotDepth();  // the picture is complete, the clear comes next
+  ClearAfterCopy(control, x, y, w, h);
+  if (toXfb)
+    sceneBottom = 0;
+  {
+    const int k = toXfb ? GxStats::kCopyDisplay
+                  : depth ? GxStats::kCopyDepth
+                  : half ? GxStats::kCopyHalf : x == 0 && w >= 500 ? GxStats::kCopyFull : GxStats::kCopySmall;
+    stats.copyCount[k]++;
+    stats.copyTexels[k] += static_cast<unsigned long long>(Hi(ow)) * Hi(oh);
+    if (copyTime) {
+      GpuFinish();
+      stats.copyNs[k] += static_cast<unsigned long long>(
+          std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - copyStart).count());
+    }
+  }
+}
+
 // ---- end of the part moved from GlRenderer ----
 
 } // namespace re4gx

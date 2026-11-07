@@ -1813,170 +1813,6 @@ struct GlRenderer final : GxCore {
   // --- EFB copies -------------------------------------------------------------------
 
 
-  void EfbCopy(std::uint32_t control) override {
-    const bool copyTime = std::getenv("RE4_GX_COPY_TIME") && *std::getenv("RE4_GX_COPY_TIME") == '1';
-    std::chrono::steady_clock::time_point copyStart;
-    if (copyTime) {
-      glFinish();
-      copyStart = std::chrono::steady_clock::now();
-    }
-    Touched(); // its own pass
-    const int x = static_cast<int>(bp[0x49] & 0x3FF), y = static_cast<int>((bp[0x49] >> 10) & 0x3FF);
-    const int w = static_cast<int>(bp[0x4A] & 0x3FF) + 1, h = static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1;
-    const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
-    const bool toXfb = (control >> 14) & 1;
-    const bool half = !toXfb && ((control >> 9) & 1);
-    const bool depth = !toXfb && (bp[0x43] & 7) == 3;
-    int mode = 0;
-    unsigned kind = 0;
-    if (!toXfb)
-      CopyMode(control, depth, &mode, &kind);
-    const int ow = half ? std::max(1, w / 2) : w, oh = half ? std::max(1, h / 2) : h;
-    if (toXfb && holdXfb) {
-      // the VI stays on the picture before (RE4_GX_CHUNK_HOLD, SYS_SCREEN_STOP):
-      // nothing to show, only the clear of the EFB
-      stats.heldCopies++;
-      SaveAndPlainState();
-      BindFbo(DrawFbo());
-      if (peekWanted)
-        SnapshotDepth();
-      ClearAfterCopy(control, x, y, w, h);
-      sceneBottom = 0;
-      return;
-    }
-    GLuint target = 0;
-    if (toXfb) {
-      if (!xfbTex || xfbWidth != static_cast<unsigned>(w) || xfbHeight != static_cast<unsigned>(h)) {
-        if (xfbTex)
-          glDeleteTextures(1, &xfbTex);
-        glGenTextures(1, &xfbTex);
-        glBindTexture(GL_TEXTURE_2D, xfbTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(w), Hi(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        xfbWidth = static_cast<unsigned>(w);
-        xfbHeight = static_cast<unsigned>(h);
-      }
-      target = xfbTex;
-      haveXfb = true;
-      xfbWide = chunkWide;
-      stats.displayCopies++;
-    } else {
-      // the in-between pass copies into its own textures: the next real Run still reads what the
-      // picture before copied (effects that blend the last picture in)
-      if (interpPass)
-        interpCopied.insert(dest);
-      Copy &c = interpPass ? interpCopies[dest] : copies[dest];
-      if (c.id && !c.read && !interpPass)
-        stats.copyOverwrittenUnread++;
-      c.read = false;
-      if (!c.id || c.width != static_cast<unsigned>(ow) || c.height != static_cast<unsigned>(oh)) {
-        if (c.id)
-          glDeleteTextures(1, &c.id);
-        glGenTextures(1, &c.id);
-        glBindTexture(GL_TEXTURE_2D, c.id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(ow), Hi(oh), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-        c.width = static_cast<unsigned>(ow);
-        c.height = static_cast<unsigned>(oh);
-      }
-      c.serial = ++copySerial;
-      c.kind = kind;
-      target = c.id;
-      stats.textureCopies++;
-      // copies read through a palette are made anew from this copy (their key holds the copy's
-      // serial: those of the in-between pass's own copies stay apart)
-      for (auto it = paletted.begin(); !interpPass && it != paletted.end();) {
-        glDeleteTextures(1, &it->second.id);
-        it = paletted.erase(it);
-      }
-    }
-    // render the EFB region into the target
-    Resolve(Lo(x), Lo(y), Hi(x + w) - Lo(x), Hi(y + h) - Lo(y), depth);
-    BindFbo(xfbFbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
-    SaveAndPlainState();
-    // the copy draws over all of its target (the viewport is the texture)
-    ForgetColor();
-    const int tw = toXfb ? w : ow, th = toXfb ? h : oh;
-    glViewport(0, 0, Hi(tw), Hi(th));
-    glUseProgram(copyProgram);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, depth ? efbDepth : efbColor);
-    glBindSampler(0, 0);
-    glUniform1i(copyMode, toXfb ? 0 : mode);
-    glUniform4f(copyRect, Sf(x), Sf(y), Sf(w), Sf(h));
-    glUniform2f(copySize, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
-    glUniform1i(copyHalf, half ? 1 : 0);
-    glUniform1f(copyGain, depth ? 1.0f : CopyFilterGain());
-    // the TV filter: a display copy blends the lines above and below with the copy filter's taps (they
-    // hold the gain as well), one original line (the scale) apart
-    if (toXfb && !depth && tvFilter) {
-      float above = 0.0f, at = 1.0f, below = 0.0f;
-      CopyFilterTaps(&above, &at, &below);
-      glUniform3f(copyTaps, above, at, below);
-      glUniform1f(copyStep, Sf(1));
-      if (!tvLogged) {
-        tvLogged = true;
-        GXLOG("TV filter: the line above %.3f, the line %.3f, the line below %.3f", above, at, below);
-      }
-    } else {
-      glUniform3f(copyTaps, 0.0f, -1.0f, 0.0f);  // at < 0: no TV filter
-      glUniform1f(copyStep, 0.0f);
-    }
-    // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
-    // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
-    // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew
-    // (black) would show as dark waves at the bottom edge. Repeat the last drawn row below it.
-    // In the 16:9 formats the app shows rows 56..391 only: there a copy of the whole picture (the
-    // shimmer of the logos at the start, IdShimmerTrans: rows 0..447, a movie drawn into 56..391
-    // under a full scissor; the depth of field at the edge) repeats the edge rows of what is shown
-    // instead of reading the unseen bars (black waves at the bottom of the intro, 0.91.0 test).
-    int top = 0, bottom = kEfbHeight;
-    if (!toXfb && !depth && x == 0 && w >= 500) {
-      if (half && sceneBottom > y + h / 2 && sceneBottom < y + h)
-        bottom = sceneBottom;
-      const int shownT = shownTop.load(std::memory_order_relaxed), shownB = shownBottom.load(std::memory_order_relaxed);
-      if (shownB > y + h / 2 && shownB < y + h)
-        bottom = std::min(bottom, shownB);
-      if (shownT > y && shownT < y + h / 2)
-        top = shownT;
-    }
-    const bool limited = top > 0 || bottom < kEfbHeight;
-    glUniform2f(copyLimit, limited ? Sf(top) : -1e9f, limited && bottom < kEfbHeight ? Sf(bottom) : 1e9f);
-    if (limited)
-      stats.limitedCopies++;
-    glBindVertexArray(quadVao);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    if (limited)
-      glUniform2f(copyLimit, -1e9f, 1e9f);
-    current = nullptr;
-    BindFbo(DrawFbo());
-    if (toXfb) {
-      Fxaa(Hi(w), Hi(h));
-      Sharpen(Hi(w), Hi(h), y, h);
-      Psx(Hi(w), Hi(h), w, h);
-    }
-    if (toXfb && peekWanted)
-      SnapshotDepth();  // the picture is complete, the clear comes next
-    ClearAfterCopy(control, x, y, w, h);
-    if (toXfb)
-      sceneBottom = 0;
-    {
-      const int k = toXfb ? GxStats::kCopyDisplay
-                    : depth ? GxStats::kCopyDepth
-                    : half ? GxStats::kCopyHalf : x == 0 && w >= 500 ? GxStats::kCopyFull : GxStats::kCopySmall;
-      stats.copyCount[k]++;
-      stats.copyTexels[k] += static_cast<unsigned long long>(Hi(ow)) * Hi(oh);
-      if (copyTime) {
-        glFinish();
-        stats.copyNs[k] += static_cast<unsigned long long>(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - copyStart).count());
-      }
-    }
-  }
 
   // --- FXAA ------------------------------------------------------------------------------------
 
@@ -2718,7 +2554,7 @@ struct GlRenderer final : GxCore {
   }
 
   // At the display copy of a picture whose chunk peeked (the marker): the depth of the picture.
-  void SnapshotDepth() {
+  void SnapshotDepth() override {
     peekWanted = false;
     if (!depthSink || peekFailed)
       return;
@@ -3170,7 +3006,7 @@ struct GlRenderer final : GxCore {
 
   // clear the copied region: colour if colour/alpha update is on, depth if
   // depth update is on (GXCopyDisp/GXCopyTex set the registers for it)
-  void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) {
+  void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) override {
     if ((control >> 11) & 1) {
       const std::uint32_t c = bp[0x41];
       const bool color = (c >> 3) & 1, alpha = (c >> 4) & 1, zupdate = (bp[0x40] >> 4) & 1;
@@ -3354,6 +3190,77 @@ struct GlRenderer final : GxCore {
   }
   void GpuFinish() override { glFinish(); }
   void DeleteTexture(unsigned id) override { glDeleteTextures(1, &id); }
+  // ---- the GPU side of the EFB copies (GxCore::EfbCopy) ----
+  // the display copy's texture at w x h GameCube pixels (made anew when the size changes)
+  unsigned DisplayTarget(int w, int h) override {
+    if (!xfbTex || xfbWidth != static_cast<unsigned>(w) || xfbHeight != static_cast<unsigned>(h)) {
+      if (xfbTex)
+        glDeleteTextures(1, &xfbTex);
+      glGenTextures(1, &xfbTex);
+      glBindTexture(GL_TEXTURE_2D, xfbTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(w), Hi(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      xfbWidth = static_cast<unsigned>(w);
+      xfbHeight = static_cast<unsigned>(h);
+    }
+    return xfbTex;
+  }
+  // a copy's texture at w x h GameCube pixels (made anew when it has none or another size)
+  void CopyTarget(Copy &c, int w, int h) override {
+    if (!c.id || c.width != static_cast<unsigned>(w) || c.height != static_cast<unsigned>(h)) {
+      if (c.id)
+        glDeleteTextures(1, &c.id);
+      glGenTextures(1, &c.id);
+      glBindTexture(GL_TEXTURE_2D, c.id);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Hi(w), Hi(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+      c.width = static_cast<unsigned>(w);
+      c.height = static_cast<unsigned>(h);
+    }
+  }
+  // the EFB region into the target with the copy shader (the format's conversion, half size, the copy filter)
+  void CopyPass(const CopyParams &p) override {
+    const int x = p.x, y = p.y, w = p.w, h = p.h;
+    Resolve(Lo(x), Lo(y), Hi(x + w) - Lo(x), Hi(y + h) - Lo(y), p.depth);
+    BindFbo(xfbFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, p.target, 0);
+    SaveAndPlainState();
+    // the copy draws over all of its target (the viewport is the texture)
+    ForgetColor();
+    glViewport(0, 0, Hi(p.tw), Hi(p.th));
+    glUseProgram(copyProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, p.depth ? efbDepth : efbColor);
+    glBindSampler(0, 0);
+    glUniform1i(copyMode, p.mode);
+    glUniform4f(copyRect, Sf(x), Sf(y), Sf(w), Sf(h));
+    glUniform2f(copySize, static_cast<float>(Lo(kEfbWidth)), static_cast<float>(Lo(kEfbHeight)));
+    glUniform1i(copyHalf, p.half ? 1 : 0);
+    glUniform1f(copyGain, p.gain);
+    glUniform3f(copyTaps, p.taps[0], p.taps[1], p.taps[2]);
+    glUniform1f(copyStep, p.step);
+    glUniform2f(copyLimit, p.limit[0], p.limit[1]);
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    if (p.limited)
+      glUniform2f(copyLimit, -1e9f, 1e9f);
+    current = nullptr;
+    BindFbo(DrawFbo());
+  }
+  // after a display copy: FXAA, Sharpen, the PSone demake (each when on)
+  void DisplayEffects(int pw, int ph, int y, int h, int w) override {
+    Fxaa(pw, ph);
+    Sharpen(pw, ph, y, h);
+    Psx(pw, ph, w, h);
+  }
+  // the EFB bound with the plain state
+  void PlainEfb() override {
+    SaveAndPlainState();
+    BindFbo(DrawFbo());
+  }
   // ---- Run's GPU side (GxCore::Run) ----
   void RunBegin() override {
     GlRenderer &m = *this;
