@@ -2,6 +2,8 @@
 // uniform block contents, in-between pictures (60 FPS), merged draw calls, the lens flares' logic.
 #include "gx_core.h"
 
+#include "gx_texture.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -1973,6 +1975,134 @@ std::uint32_t GxCore::BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re
   // texture matrices or TEV colours (texRowsBlended)
   return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u) | (colors ? 0x400000u : 0u) |
          (extras ? 0x800000u : 0u);
+}
+
+void GxCore::BpWrite(std::uint32_t word, bool action) {
+  const unsigned reg = word >> 24;
+  const std::uint32_t value = word & 0xFFFFFF;
+  if (bp[reg] != value || !action) {
+    // registers the generated shader depends on (MakeKey)
+    if (reg == 0x00 || (reg >= 0x10 && reg <= 0x1F) || (reg >= 0x27 && reg <= 0x2F) ||
+        (reg >= 0xC0 && reg <= 0xDF) || reg == 0xF1 || reg == 0xF3 || (reg >= 0xF6 && reg <= 0xFD))
+      keyDirty = true;
+    // registers of the PX block (FillPixel)
+    if ((reg >= 0x06 && reg <= 0x0E) || reg == 0x25 || reg == 0x26 || (reg >= 0x30 && reg <= 0x3F) ||
+        (reg >= 0x80 && reg <= 0x87) || (reg >= 0xA0 && reg <= 0xA7) || (reg >= 0xE0 && reg <= 0xE7) ||
+        (reg >= 0xEE && reg <= 0xF3))
+      pxDirty = true;
+  }
+  bp[reg] = value;
+  if (reg >= 0xE0 && reg <= 0xE7) {
+    const unsigned i = (reg - 0xE0) / 2;
+    std::int32_t *dst = (value >> 23) & 1 ? tevKonst[i] : tevColor[i];
+    if ((reg & 1) == 0) { // RA
+      dst[0] = Signed11(value);
+      dst[3] = Signed11(value >> 12);
+    } else { // BG
+      dst[2] = Signed11(value);
+      dst[1] = Signed11(value >> 12);
+    }
+  }
+  if (action && reg == 0x52) {
+    if (!skipDraws) {
+      EfbCopy(value);
+    } else if ((value >> 14) & 1) {
+      // a skipped picture: nothing to show, only the clear of the EFB that the next picture needs
+      stats.skippedChunks++;
+      ClearAfterCopyPlain(value, static_cast<int>(bp[0x49] & 0x3FF), static_cast<int>((bp[0x49] >> 10) & 0x3FF),
+                     static_cast<int>(bp[0x4A] & 0x3FF) + 1, static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1);
+      sceneBottom = 0;
+    } // a copy for a texture: CanSkip said the next chunk copies there first, nobody reads this one
+  }
+  if (action && reg == 0x5A && !skipDraws) {
+    const bool focusTime = std::getenv("RE4_GX_COPY_TIME") && *std::getenv("RE4_GX_COPY_TIME") == '1';
+    std::chrono::steady_clock::time_point focusStart;
+    if (focusTime) {
+      GpuFinish();
+      focusStart = std::chrono::steady_clock::now();
+    }
+    Autofocus(value);
+    stats.copyCount[GxStats::kCopyFocus]++;
+    if (focusTime) {
+      GpuFinish();
+      stats.copyNs[GxStats::kCopyFocus] += static_cast<unsigned long long>(
+          std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - focusStart).count());
+    }
+  }
+  if (action && reg == 0x5B && !interpPass && !skipDraws) {
+    peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
+    peekPicture = value & 0xFFFFFF;  // with the picture's number (the core answers by the map's age)
+  }
+}
+
+void GxCore::BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) {
+  const unsigned map = t.map & 7;
+  pxDirty = true; // the map's size is in the PX block
+  Bound &b = bound[map];
+  b.id = whiteTex;
+  b.width = t.width ? t.width : 1;
+  b.height = t.height ? t.height : 1;
+  b.levels = 1;
+  if (t.flags & RE4_GX_TEX_COPY) {
+    boundKey[map] = 1ull << 63 | t.address;
+    // the in-between pass reads its own copies, and the real ones of the picture before
+    const bool own = interpPass && interpCopied.count(t.address);
+    auto &from = own ? interpCopies : copies;
+    auto it = from.find(t.address);
+    if (it == from.end()) {
+      stats.missingTextures++;
+      return;
+    }
+    if (!it->second.read) {
+      it->second.read = true;
+      stats.copyRead++;
+    }
+    b.id = GxIsPaletted(t.format) ? PalettedCopy(it->second, t) : it->second.id;
+    // a texture of the copy's width but another height reads the copy's
+    // rows one to one, as the texels lie in memory (the heat haze over the
+    // fires of r101 copies rows 56-447 and reads 336 of them as 256x168):
+    // texel coordinates go by the copy's size, not by the texture's; scaled
+    // to it, the rows below the picture (black) showed as a dark band
+    if (it->second.width == b.width && it->second.height) {
+      b.height = it->second.height;
+    }
+    return;
+  }
+  const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
+  boundKey[map] = key;
+  if (key == 0)
+    return;
+  // a texture the in-between pass uploaded already (the same key: the same texels)
+  if (t.dataBytes && !(skipInterpUploads && interpUploads.count(key)))
+    Upload(t, chunk);
+  if (interpPass && t.dataBytes)
+    interpUploads.insert(key);
+  auto it = textures.find(key);
+  if (it == textures.end()) {
+    stats.missingTextures++;
+    return;
+  }
+  b.id = it->second.id;
+  b.levels = it->second.levels;
+}
+
+void GxCore::Forget(std::uint64_t key) {
+  Touched(); // a deleted texture is unbound
+  auto it = textures.find(key);
+  if (it != textures.end()) {
+    DeleteTexture(it->second.id);
+    textures.erase(it);
+  }
+}
+
+void GxCore::DropTextures() {
+  Touched();
+  for (auto &t : textures)
+    DeleteTexture(t.second.id);
+  textures.clear();
+  for (auto &t : paletted)
+    DeleteTexture(t.second.id);
+  paletted.clear();
 }
 
 // ---- end of the part moved from GlRenderer ----

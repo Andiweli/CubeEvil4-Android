@@ -363,7 +363,6 @@ struct GlRenderer final : GxCore {
   GLint copyTaps = -1, copyStep = -1;  // the TV filter (SetTvFilter): taps of the lines above/at/below, a line
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint quadVao = 0;
-  GLuint whiteTex = 0;
   std::unordered_map<ShaderKey, Program, KeyHash, KeyEqual> programs;
   std::unordered_map<std::uint64_t, GLuint> samplers;
   // the gameplay autofocus (Autofocus): made at its first marker
@@ -404,7 +403,7 @@ struct GlRenderer final : GxCore {
 
 
   // Other passes (uploads, copies, palettes, presenting) changed GL state.
-  void Touched() {
+  void Touched() override {
     stateValid = false;
     unitsValid = false;
     vaoBound = false;
@@ -905,65 +904,6 @@ struct GlRenderer final : GxCore {
   // --- state -----------------------------------------------------------------
 
 
-  void BpWrite(std::uint32_t word, bool action) override {
-    const unsigned reg = word >> 24;
-    const std::uint32_t value = word & 0xFFFFFF;
-    if (bp[reg] != value || !action) {
-      // registers the generated shader depends on (MakeKey)
-      if (reg == 0x00 || (reg >= 0x10 && reg <= 0x1F) || (reg >= 0x27 && reg <= 0x2F) ||
-          (reg >= 0xC0 && reg <= 0xDF) || reg == 0xF1 || reg == 0xF3 || (reg >= 0xF6 && reg <= 0xFD))
-        keyDirty = true;
-      // registers of the PX block (FillPixel)
-      if ((reg >= 0x06 && reg <= 0x0E) || reg == 0x25 || reg == 0x26 || (reg >= 0x30 && reg <= 0x3F) ||
-          (reg >= 0x80 && reg <= 0x87) || (reg >= 0xA0 && reg <= 0xA7) || (reg >= 0xE0 && reg <= 0xE7) ||
-          (reg >= 0xEE && reg <= 0xF3))
-        pxDirty = true;
-    }
-    bp[reg] = value;
-    if (reg >= 0xE0 && reg <= 0xE7) {
-      const unsigned i = (reg - 0xE0) / 2;
-      std::int32_t *dst = (value >> 23) & 1 ? tevKonst[i] : tevColor[i];
-      if ((reg & 1) == 0) { // RA
-        dst[0] = Signed11(value);
-        dst[3] = Signed11(value >> 12);
-      } else { // BG
-        dst[2] = Signed11(value);
-        dst[1] = Signed11(value >> 12);
-      }
-    }
-    if (action && reg == 0x52) {
-      if (!skipDraws) {
-        EfbCopy(value);
-      } else if ((value >> 14) & 1) {
-        // a skipped picture: nothing to show, only the clear of the EFB that the next picture needs
-        stats.skippedChunks++;
-        SaveAndPlainState();
-        BindFbo(DrawFbo());
-        ClearAfterCopy(value, static_cast<int>(bp[0x49] & 0x3FF), static_cast<int>((bp[0x49] >> 10) & 0x3FF),
-                       static_cast<int>(bp[0x4A] & 0x3FF) + 1, static_cast<int>((bp[0x4A] >> 10) & 0x3FF) + 1);
-        sceneBottom = 0;
-      } // a copy for a texture: CanSkip said the next chunk copies there first, nobody reads this one
-    }
-    if (action && reg == 0x5A && !skipDraws) {
-      const bool focusTime = std::getenv("RE4_GX_COPY_TIME") && *std::getenv("RE4_GX_COPY_TIME") == '1';
-      std::chrono::steady_clock::time_point focusStart;
-      if (focusTime) {
-        glFinish();
-        focusStart = std::chrono::steady_clock::now();
-      }
-      Autofocus(value);
-      stats.copyCount[GxStats::kCopyFocus]++;
-      if (focusTime) {
-        glFinish();
-        stats.copyNs[GxStats::kCopyFocus] += static_cast<unsigned long long>(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - focusStart).count());
-      }
-    }
-    if (action && reg == 0x5B && !interpPass && !skipDraws) {
-      peekWanted = true;  // the game's GXPeekZ is used in this picture: its depth goes to the core
-      peekPicture = value & 0xFFFFFF;  // with the picture's number (the core answers by the map's age)
-    }
-  }
 
 
 
@@ -1345,7 +1285,7 @@ struct GlRenderer final : GxCore {
     return s;
   }
 
-  void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
+  void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) override {
     const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
     if (t.dataBytes == 0 || t.dataOffset + t.dataBytes > chunk.blobBytes)
       return;
@@ -1392,7 +1332,7 @@ struct GlRenderer final : GxCore {
 
   // A texture copy read through a palette (C4/C8/C14X2 over a copy): the copy's
   // values looked up in TMEM's palette, on the GPU.
-  GLuint PalettedCopy(const Copy &copy, const Re4GxTexture &t) {
+  unsigned PalettedCopy(const Copy &copy, const Re4GxTexture &t) override {
     Touched(); // its own pass
     const unsigned offset = (t.tlut & 0x3FF) << 9;
     const unsigned entries = std::min<unsigned>(GxPaletteEntries(t.format), (kTlutBytes - offset) / 2);
@@ -1457,75 +1397,8 @@ struct GlRenderer final : GxCore {
     return out.id;
   }
 
-  void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) override {
-    const unsigned map = t.map & 7;
-    pxDirty = true; // the map's size is in the PX block
-    Bound &b = bound[map];
-    b.id = whiteTex;
-    b.width = t.width ? t.width : 1;
-    b.height = t.height ? t.height : 1;
-    b.levels = 1;
-    if (t.flags & RE4_GX_TEX_COPY) {
-      boundKey[map] = 1ull << 63 | t.address;
-      // the in-between pass reads its own copies, and the real ones of the picture before
-      const bool own = interpPass && interpCopied.count(t.address);
-      auto &from = own ? interpCopies : copies;
-      auto it = from.find(t.address);
-      if (it == from.end()) {
-        stats.missingTextures++;
-        return;
-      }
-      if (!it->second.read) {
-        it->second.read = true;
-        stats.copyRead++;
-      }
-      b.id = GxIsPaletted(t.format) ? PalettedCopy(it->second, t) : it->second.id;
-      // a texture of the copy's width but another height reads the copy's
-      // rows one to one, as the texels lie in memory (the heat haze over the
-      // fires of r101 copies rows 56-447 and reads 336 of them as 256x168):
-      // texel coordinates go by the copy's size, not by the texture's; scaled
-      // to it, the rows below the picture (black) showed as a dark band
-      if (it->second.width == b.width && it->second.height) {
-        b.height = it->second.height;
-      }
-      return;
-    }
-    const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
-    boundKey[map] = key;
-    if (key == 0)
-      return;
-    // a texture the in-between pass uploaded already (the same key: the same texels)
-    if (t.dataBytes && !(skipInterpUploads && interpUploads.count(key)))
-      Upload(t, chunk);
-    if (interpPass && t.dataBytes)
-      interpUploads.insert(key);
-    auto it = textures.find(key);
-    if (it == textures.end()) {
-      stats.missingTextures++;
-      return;
-    }
-    b.id = it->second.id;
-    b.levels = it->second.levels;
-  }
 
-  void Forget(std::uint64_t key) override {
-    Touched(); // a deleted texture is unbound
-    auto it = textures.find(key);
-    if (it != textures.end()) {
-      glDeleteTextures(1, &it->second.id);
-      textures.erase(it);
-    }
-  }
 
-  void DropTextures() override {
-    Touched();
-    for (auto &t : textures)
-      glDeleteTextures(1, &t.second.id);
-    textures.clear();
-    for (auto &t : paletted)
-      glDeleteTextures(1, &t.second.id);
-    paletted.clear();
-  }
 
   // --- GL state ---------------------------------------------------------------
 
@@ -1940,7 +1813,7 @@ struct GlRenderer final : GxCore {
   // --- EFB copies -------------------------------------------------------------------
 
 
-  void EfbCopy(std::uint32_t control) {
+  void EfbCopy(std::uint32_t control) override {
     const bool copyTime = std::getenv("RE4_GX_COPY_TIME") && *std::getenv("RE4_GX_COPY_TIME") == '1';
     std::chrono::steady_clock::time_point copyStart;
     if (copyTime) {
@@ -2916,7 +2789,7 @@ struct GlRenderer final : GxCore {
   // often on Leon): the nine depths at the centre, or, when fewer than five
   // of them lie behind Leon, 35 around it (15 % across, 12 % up and down);
   // none behind him: no blur.
-  void Autofocus(std::uint32_t player) {
+  void Autofocus(std::uint32_t player) override {
     if (autofocusFailed || !havePerspective)
       return;
     Touched(); // its own passes
@@ -3472,6 +3345,15 @@ struct GlRenderer final : GxCore {
     blendAt = static_cast<std::int64_t>(at);
     return true;
   }
+  // ---- the GPU side of the BP writes and texture ops (GxCore::BpWrite, BindTexture, Forget) ----
+  // the clear after a copy, on the EFB with the plain state (a skipped picture's display copy)
+  void ClearAfterCopyPlain(std::uint32_t control, int x, int y, int w, int h) override {
+    SaveAndPlainState();
+    BindFbo(DrawFbo());
+    ClearAfterCopy(control, x, y, w, h);
+  }
+  void GpuFinish() override { glFinish(); }
+  void DeleteTexture(unsigned id) override { glDeleteTextures(1, &id); }
   // ---- Run's GPU side (GxCore::Run) ----
   void RunBegin() override {
     GlRenderer &m = *this;

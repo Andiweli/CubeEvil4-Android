@@ -527,9 +527,6 @@ struct GxCore {
   // One op of the chunk at `at` (Run); the next op's place (the end when the op is cut off).
   std::uint32_t Op(const Re4GxChunk &chunk, std::uint32_t at);
   // the GPU side of the ops (Op): the API renderer's
-  virtual void BpWrite(std::uint32_t word, bool action) = 0;
-  virtual void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) = 0;
-  virtual void Forget(std::uint64_t key) = 0;
   void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *merge = nullptr);
   // Run's GPU side, in this order: before the chunk; its vertices and indices (not when skipped or uploaded by the
   // in-between pass); the state before the first op; after the last op; leaving the API for the app's other code
@@ -541,7 +538,6 @@ struct GxCore {
   // a run of a merged chain as one draw call (MergePlan); the lens flares' pass; every texture forgotten (a reset)
   virtual std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at) = 0;
   virtual void FlarePass() = 0;
-  virtual void DropTextures() = 0;
   // the counters after the draw before (GxStats::mergeSame / mergeUniform), valid within a chunk
   struct MergeSnap {
     unsigned uniforms, programs, binds, states, setups, copies, displays;
@@ -575,6 +571,23 @@ struct GxCore {
   // the blended vertices of the draw BlendDraw is on to a place of their own (false: no room left in this pass)
   virtual bool PutBlendedVertices(const std::uint8_t *data, std::size_t bytes, std::uint32_t stride) = 0;
   std::uint32_t BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re4GxChunk &chunk);
+  // the GPU side of BpWrite, BindTexture, Forget: an EFB copy (BP 0x52); the gameplay autofocus (BP 0x5A); the clear
+  // after a copy with the plain state; waiting for the GPU (RE4_GX_COPY_TIME); a copy read through a palette (its
+  // texture); a texture's texels to the GPU (into textures); the API's own caches of bound objects forgotten; a
+  // texture deleted (GL at once; an API that draws later when the GPU is done with it)
+  virtual void EfbCopy(std::uint32_t control) = 0;
+  virtual void Autofocus(std::uint32_t player) = 0;
+  virtual void ClearAfterCopyPlain(std::uint32_t control, int x, int y, int w, int h) = 0;
+  virtual void GpuFinish() = 0;
+  virtual unsigned PalettedCopy(const Copy &copy, const Re4GxTexture &t) = 0;
+  virtual void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) = 0;
+  virtual void Touched() = 0;
+  virtual void DeleteTexture(unsigned id) = 0;
+  unsigned whiteTex = 0;  // the white stand-in texture (the API's handle)
+  void BpWrite(std::uint32_t word, bool action);
+  void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk);
+  void Forget(std::uint64_t key);
+  void DropTextures();
   // ---- end of the part moved from GlRenderer ----
 
   // GxRenderer's calls, with the same meaning (see gx_gl.h)
