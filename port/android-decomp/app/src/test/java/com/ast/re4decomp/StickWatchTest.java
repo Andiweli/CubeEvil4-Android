@@ -38,6 +38,19 @@ public class StickWatchTest {
     assertTrue(line, line.contains("at most 72 of 72 (raw 101 of 101"));
     assertTrue(line, line.contains("1 direction changes"));
     assertTrue(line, line.contains("less than 150 ms 0 times"));
+    assertTrue(line, line.endsWith("the app's stick dead zone 0 %, range 100 %"));
+  }
+
+  @Test public void theLineNamesTheMenusSettings() {
+    StickWatch w = new StickWatch();
+    w.setShape(10, 85);
+    String line = null;
+    for (long t = 0; t <= 31000; t += 10) {
+      String l = w.sample(t, 0, 101);
+      if (l != null) line = l;
+    }
+    assertNotNull(line);
+    assertTrue(line, line.endsWith("the app's stick dead zone 10 %, range 85 %"));
   }
 
   @Test public void aStickAtTheThresholdShowsItsDropOuts() {

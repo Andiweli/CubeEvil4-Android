@@ -255,6 +255,8 @@
     <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
     <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
     <string name="ingame_cheat_qte">&#x200F;QTE تلقائية</string>
+    <string name="ingame_cheat_random_items">عناصر عشوائية</string>
+    <string name="ingame_cheat_random_items_help">عناصر عشوائية: العناصر الموجودة في غرف القصة (الذخيرة والأعشاب وعناصر العلاج الأخرى والقنابل والبيزيتا والكنوز) يُعاد توزيعها في كل غرفة تدخلها من ذلك الحين، وتعطي الغرفة دائمًا العناصر نفسها حتى توقف هذا الخيار وتشغّله من جديد. تبقى المفاتيح والأسلحة والملفات وعناصر القصة الأخرى كما هي، فيمكن دائمًا إنهاء اللعبة. ما التقطته يبقى ملتقطًا؛ ويحتفظ الأعداء والبراميل والصناديق بغنائمهم. ليس في Assignment Ada وThe Mercenaries.</string>
     <string name="ingame_cheat_extras">فتح الألعاب الإضافية</string>
     <string name="ingame_cheat_extras_text">تم فتح Assignment Ada و The Mercenaries (وProfessional أيضًا، كما بعد إنهاء اللعبة). تعرضها قائمة العنوان بعد إعادة التشغيل. سيضيع التقدم منذ آخر حفظ.</string>
     <string name="ingame_cheat_extras_later">تم الفتح: ستظهر Assignment Ada و The Mercenaries في قائمة العنوان بعد إعادة التشغيل التالية.</string>
@@ -266,6 +268,13 @@
     <string name="ingame_later">لاحقًا</string>
     <string name="ingame_controller_config">&#x200F;تعيين الأزرار</string>
     <string name="ingame_controller_config_help">&#x200F;تعيين الأزرار: ضع كل حركة في اللعبة على أزرار وحدة التحكم أو لوحة المفاتيح.</string>
+    <string name="ingame_stick_dead_zone">المنطقة الميتة للعصا</string>
+    <string name="ingame_stick_range">مدى العصا</string>
+    <string name="ingame_stick_help">المنطقة الميتة للعصا: تُتجاهَل الحركات الصغيرة لعصا وحدة التحكم حول مركزها (لعصا تنحرف أو ترتجف من تلقاء نفسها). مدى العصا: العصا المدفوعة إلى هذا الحد تُحسب مدفوعة إلى النهاية، ليمشي Leon ويركض ويستدير بثبات حتى لو لم تصل عصاك إلى حافتها. القيم الافتراضية تترك العصوين كما هما. لا يتأثر التحكم باللمس.</string>
+    <string name="ingame_vibration">الاهتزاز</string>
+    <string name="ingame_vibration_device">الجهاز</string>
+    <string name="ingame_vibration_controller">وحدة التحكم</string>
+    <string name="ingame_vibration_help">أين تشعر باهتزاز اللعبة. تلقائي: في وحدة تحكم متصلة لها محركاتها الخاصة (Android 12 وما بعده)، وإلا ففي هذا الهاتف أو الجهاز المحمول. الجهاز: دائمًا في هذا الهاتف أو الجهاز المحمول. وحدة التحكم: في وحدة التحكم فقط (لا شيء إن لم تكن لها محركات؛ قبل Android 12 في هذا الجهاز). إيقاف: بلا اهتزاز. لا يزال بإمكان خيار الاهتزاز في اللعبة نفسها إيقافه.</string>
     <string name="ingame_controller_default">التوزيع الافتراضي</string>
     <string name="ingame_controller_help">&#x200F;اختر حركة، ثم اضغط زرها. الحركة ذات الزرين (إطلاق النار، إعادة التلقيم، ضربة السكين) تطلب أولًا الزر الذي يُضغط باستمرار ثم الثاني. إذا كان الزر لحركة أخرى فإنها تأخذ الزر القديم. تحتفظ قوائم اللعبة بالتعيين الافتراضي؛ وتظل تلميحاتها تعرض أزرار GameCube.</string>
     <string name="ingame_controller_alternate_note">التحكم البديل مفعّل: يحتفظ بتوزيعه الخاص؛ يُطبَّق هذا التوزيع عند إيقافه.</string>

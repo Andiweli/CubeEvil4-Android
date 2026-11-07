@@ -434,6 +434,31 @@ void logItems(const char* when)
     }
 }
 
+// RE4_TRACE_ITEMS=1 once the player is free: the pesetas and the case again whenever they change (an item picked
+// up; the random items of the cheat menu, 0.99.2)
+void watchItems()
+{
+    static const char* items = getenv("RE4_TRACE_ITEMS");
+    static long lastPesetas = -1, lastSum = -1;
+    if (!items || *items != '1') {
+        return;
+    }
+    long sum = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; p && i < ItemMgr.m_array_num; i++, p++) {
+        if (p->isAlive(pG->pl_type == 1 ? 1 : 0)) {
+            sum += (long) p->id * 1000 + p->num;
+        }
+    }
+    const long pesetas = (long) pG->peseta;
+    if (lastSum >= 0 && (pesetas != lastPesetas || sum != lastSum)) {
+        re4_log("items (taken): pesetas %ld (was %ld)", pesetas, lastPesetas);
+        logItems("taken");
+    }
+    lastPesetas = pesetas;
+    lastSum = sum;
+}
+
 // The room's scene areas once its main loop runs: where the room scripts'
 // triggers are (r100: 0x0A starts the s03 event at the first house), for
 // placing the player in the checks (RE4_TEST_PLACE).
@@ -1633,6 +1658,9 @@ void frame(unsigned n)
         lastLife = life;
     } else {
         lastLife = -1;
+    }
+    if (g_freeAt >= 0) {
+        watchItems();
     }
     if (g_roomStart >= 0 && g_freeAt < 0) {
         bool free = g->Rno0 == 3 && !StaFlagChk(g, STA_EVENT) && !StaFlagChk(g, STA_SUB_SCRN);

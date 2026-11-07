@@ -179,6 +179,41 @@ public final class CoreInput {
 
   public boolean swapFace() { return swapFace; }
 
+  /**
+   * The controller sticks' dead zone and range (the menu's "Stick dead zone" and "Stick range", wish of the project
+   * owner, 07.11.2026, GitHub issue #168: a left stick that stuttered while walking, the D-pad did not), in percent
+   * of a stick's way. Within the dead zone a stick counts as at rest (round: a diagonal keeps its direction); from
+   * there to the range its way is stretched to the whole way, beyond the range it counts as fully pushed, so a stick
+   * that does not reach its edge still passes the game's thresholds for walking, running and turning (game/pad.cpp
+   * PadRead after the SDK's PADClamp, which stays as it is). 0 % and 100 % (the defaults) leave the sticks exactly as
+   * Android reports them. Not the touch controls' sticks (touchStick) nor the mouse.
+   */
+  public static final int DEAD_ZONE_MAX = 30, RANGE_MIN = 50;
+  private int deadZone, range = 100;
+
+  public void setStickShape(int deadZonePercent, int rangePercent) {
+    deadZone = clampDeadZone(deadZonePercent);
+    range = clampRange(rangePercent);
+  }
+
+  public int deadZone() { return deadZone; }
+
+  public int range() { return range; }
+
+  static int clampDeadZone(int v) { return Math.max(0, Math.min(DEAD_ZONE_MAX, v)); }
+
+  static int clampRange(int v) { return v < RANGE_MIN || v > 100 ? 100 : v; }
+
+  /** A stick (-1..1 each way) after the dead zone and the range in percent: {x, y}. */
+  static float[] shape(float x, float y, int deadZonePercent, int rangePercent) {
+    if (deadZonePercent <= 0 && rangePercent >= 100) return new float[] {x, y};
+    float dead = deadZonePercent / 100f, full = rangePercent / 100f;
+    float m = (float) Math.sqrt((double) x * x + (double) y * y);
+    if (m <= dead) return new float[] {0f, 0f};
+    float k = Math.min(1f, (m - dead) / (full - dead)) / m;
+    return new float[] {x * k, y * k};
+  }
+
   /** The alternate controls (see above) or the agreed layout. */
   public void setAlternate(boolean on) {
     if (on != alternate) clear();
@@ -399,10 +434,13 @@ public final class CoreInput {
   public void motion(int device, float lx, float ly, float rx, float ry, float lt, float rt,
       float hatX, float hatY) {
     Device d = device(device);
-    d.lx = clamp(lx, -1, 1);
-    d.ly = clamp(ly, -1, 1);
-    d.rx = clamp(rx, -1, 1);
-    d.ry = clamp(ry, -1, 1);
+    // the menu's dead zone and range (setStickShape), each stick on its own
+    float[] left = shape(clamp(lx, -1, 1), clamp(ly, -1, 1), deadZone, range);
+    float[] right = shape(clamp(rx, -1, 1), clamp(ry, -1, 1), deadZone, range);
+    d.lx = left[0];
+    d.ly = left[1];
+    d.rx = right[0];
+    d.ry = right[1];
     d.lt = clamp(lt, 0, 1);
     d.rt = clamp(rt, 0, 1);
     d.hats = (hatY < -0.5f ? GC_UP : 0) | (hatY > 0.5f ? GC_DOWN : 0)

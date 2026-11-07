@@ -26,6 +26,7 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.os.CombinedVibration;
 import android.provider.DocumentsContract;
 import android.util.Log;
 import android.view.Choreographer;
@@ -122,6 +123,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // project owner, 30.10.2026; CoreBridge.setAim: the game's own "reverse" option and the stick's turn while
   // aiming, the touch area's swipes too; off, 1 = as the game)
   static final String AIM_INVERT_V = "aimInvertVertical", AIM_SPEED = "aimSpeed";
+  // the menu's "Stick dead zone" and "Stick range" of the controller sticks in percent (wish of the project owner,
+  // 07.11.2026, GitHub issue #168; CoreInput.setStickShape: 0 and 100, the defaults, leave the sticks as they are)
+  // and "Vibration" (RumbleTarget: 0 Auto, 1 Device, 2 Controller, 3 Off)
+  static final String STICK_DEAD_ZONE = "stickDeadZone", STICK_RANGE = "stickRange", VIBRATION = "vibration";
   // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
   // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
@@ -188,8 +193,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private int uiShownVsyncs;
   // the screen was asked for 60 Hz (preferSixtyHz): the surface too, once it exists
   private boolean askSixty;
-  // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator
+  // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator or, since 0.99.2, a controller's motors
+  // (the menu's "Vibration", RumbleTarget; chooseRumble)
   private Vibrator vibrator;
+  private int rumbleMode, rumbleTarget, lastPad = -1;
+  private VibratorManager padMotors;  // the controller's motors while they are the target (Android 12 and later)
+  private boolean padAmplitude;
+  private String rumbleLine = "";
   /**
    * Each start of the motor by its level 1..4 (the game's motor in the last four frames): 190 up to
    * 310 ms (120 until 27.10.2026, then 170: a shotgun still felt like a slingshot, device test).
@@ -277,6 +287,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // R3 saves graphics data with the test scripts (RE4_APP_TOOLS=1) or when the menu switched it on
     tools = settings.contains("RE4_APP_TOOLS=1") || inputPrefs.getBoolean(R3_CAPTURE, false);
     logLayout();
+    rumbleMode = RumbleTarget.clampMode(inputPrefs.getInt(VIBRATION, RumbleTarget.AUTO));
     setUpVibrator();
     // the volume buttons set the game's volume
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
@@ -338,6 +349,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
     alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
     aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
+    input.setStickShape(inputPrefs.getInt(STICK_DEAD_ZONE, 0), inputPrefs.getInt(STICK_RANGE, 100));
+    stickWatch.setShape(input.deadZone(), input.range());
+    if (input.deadZone() != 0 || input.range() != 100) {
+      Log.i(TAG, "sticks: dead zone " + input.deadZone() + " %, range " + input.range() + " %");
+    }
     // the mouse (step 2 of the button mapping, 29.10.2026): captured while the game is in front, its
     // buttons through the keyboard's mapping, its movement the camera and, while aiming, the aim
     if (Build.VERSION.SDK_INT >= 26) {
@@ -869,6 +885,20 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
     }
 
+    @Override public void stickShapeChanged(int deadZone, int range) {
+      input.setStickShape(deadZone, range);
+      stickWatch.setShape(input.deadZone(), input.range());
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(STICK_DEAD_ZONE, input.deadZone())
+          .putInt(STICK_RANGE, input.range()).apply();
+      Log.i(TAG, "sticks: dead zone " + input.deadZone() + " %, range " + input.range() + " %");
+    }
+
+    @Override public void vibrationChanged(int mode) {
+      rumbleMode = RumbleTarget.clampMode(mode);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(VIBRATION, rumbleMode).apply();
+      chooseRumble("the menu");
+    }
+
     @Override public void aimSpeedChanged(float value) {
       aimSpeed = clampAimSpeed(value);
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(AIM_SPEED, aimSpeed).apply();
@@ -896,7 +926,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
       Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept, player type "
           + ((bits & CoreMenu.CHARACTER_BITS) >> CoreMenu.CHARACTER_SHIFT)
-          + ((bits & CoreMenu.COSTUME_BIT) != 0 ? ", special costume" : "") + ")");
+          + ((bits & CoreMenu.COSTUME_BIT) != 0 ? ", special costume" : "")
+          + ((bits & CoreMenu.INVISIBLE_BIT) != 0 ? ", invisibility" : "")
+          + ((bits & CoreMenu.RANDOM_ITEMS_BIT) != 0 ? ", random items with seed "
+              + ((bits & CoreMenu.SEED_BITS) >>> CoreMenu.SEED_SHIFT) : "") + ")");
       CoreBridge.setCheats(bits);
     }
 
@@ -1560,6 +1593,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
       if (e.getRepeatCount() > 0) return true;  // held: nothing changes
       if (input.key(e.getDeviceId(), code, down)) {
+        if (down) padUsed(e.getDevice());
         inputDelay.button(e.getEventTime(), SystemClock.uptimeMillis());
         noteInputDelay(e.getDevice());
         if (down) {
@@ -1627,6 +1661,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (e.getAction() == MotionEvent.ACTION_MOVE && controller(e)) {
       InputDevice d = e.getDevice();
       noteDevice(d);
+      padUsed(d);
       // the right stick: Z/RZ on most Android controllers, RX/RY on others
       boolean zr = d != null && d.getMotionRange(MotionEvent.AXIS_Z, e.getSource()) != null
           && d.getMotionRange(MotionEvent.AXIS_RZ, e.getSource()) != null;
@@ -1735,6 +1770,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); updateMouseCapture(); }
   @Override public void onInputDeviceChanged(int id) {
+    if (id == lastPad) chooseRumble("controller changed");
     input.remove(id);
     seenDevices.remove(id);
     controllerLog.forget(id);
@@ -1743,6 +1779,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.update();
   }
   @Override public void onInputDeviceRemoved(int id) {
+    if (id == lastPad) {
+      // its motors stop with it; the device's vibrator until another controller is used
+      lastPad = -1;
+      chooseRumble("controller removed");
+    }
     controllerLog.forget(id);
     input.remove(id);
     send();
@@ -1956,6 +1997,74 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     amplitudeControl = vibrator != null && Build.VERSION.SDK_INT >= 26 && vibrator.hasAmplitudeControl();
     Log.i(TAG, vibrator == null ? "rumble: no vibrator"
         : "rumble: vibrator" + (amplitudeControl ? " with amplitude control" : " (on/off only)"));
+    chooseRumble("start");
+  }
+
+  /** A controller's key or stick: when it is another one than before, the rumble's target may change. */
+  private void padUsed(InputDevice d) {
+    if (d == null || d.getId() == lastPad || !gameDevice(d)) return;
+    lastPad = d.getId();
+    chooseRumble("controller used");
+  }
+
+  /**
+   * The rumble's target by the menu's "Vibration" (RumbleTarget) and the controller used last; both vibrators
+   * stopped first, so none runs on after a change. Each new choice goes into the log: which vibrator, with or
+   * without amplitude control.
+   */
+  private void chooseRumble(String why) {
+    cancelBoth();
+    padMotors = null;
+    padAmplitude = false;
+    InputDevice d = lastPad >= 0 ? InputDevice.getDevice(lastPad) : null;
+    VibratorManager m = null;
+    int motors = 0;
+    boolean amplitude = true, external = false;
+    if (Build.VERSION.SDK_INT >= RumbleTarget.PAD_SDK && d != null) {
+      try {
+        m = d.getVibratorManager();
+        int[] ids = m.getVibratorIds();
+        motors = ids.length;
+        for (int id : ids) amplitude &= m.getVibrator(id).hasAmplitudeControl();
+        external = d.isExternal();
+      } catch (RuntimeException e) {
+        Log.w(TAG, "rumble: the controller's motors: " + e);
+        motors = 0;
+      }
+    }
+    rumbleTarget = RumbleTarget.choose(rumbleMode, Build.VERSION.SDK_INT, motors > 0, external, vibrator != null);
+    String line;
+    if (rumbleTarget == RumbleTarget.PAD) {
+      padMotors = m;
+      padAmplitude = amplitude;
+      line = "the controller \"" + d.getName() + "\" (" + motors + (motors == 1 ? " motor" : " motors")
+          + (amplitude ? ", with amplitude control)" : ", on/off only)");
+    } else if (rumbleTarget == RumbleTarget.PHONE) {
+      line = "this device's vibrator" + (amplitudeControl ? " with amplitude control" : " (on/off only)");
+      if (d != null) {
+        line += motors > 0 ? ", not the built-in controller's motors"
+            : Build.VERSION.SDK_INT < RumbleTarget.PAD_SDK ? ", a controller's motors need Android 12"
+            : ", \"" + d.getName() + "\" has no motors";
+      }
+    } else {
+      line = rumbleMode == RumbleTarget.OFF ? "none (switched off)"
+          : "none" + (d == null ? " (no controller used yet)" : ", \"" + d.getName() + "\" has no motors");
+    }
+    line = "rumble (" + RumbleTarget.modeName(rumbleMode) + "): " + line;
+    if (!line.equals(rumbleLine)) Log.i(TAG, line + " [" + why + "]");
+    rumbleLine = line;
+  }
+
+  /** Both vibrators stopped (a target change, the game paused or gone). */
+  private void cancelBoth() {
+    try {
+      if (vibrator != null) vibrator.cancel();
+      if (padMotors != null) padMotors.cancel();
+    } catch (RuntimeException e) {
+      Log.w(TAG, "rumble: cancel: " + e);
+    }
+    vibrating = false;
+    rumbleLevel = 0;
   }
 
   /**
@@ -1999,7 +2108,21 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @SuppressWarnings("deprecation")
   private void vibrate(int level) {
-    if (vibrator == null) return;
+    if (rumbleTarget == RumbleTarget.PAD && padMotors != null && Build.VERSION.SDK_INT >= RumbleTarget.PAD_SDK) {
+      // the controller's motors, all of them at once; without amplitude control at their default strength: the
+      // pulses' length carries the level, as on a phone without it
+      try {
+        int strength = padAmplitude ? 230 + 25 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
+        padMotors.vibrate(CombinedVibration.createParallel(VibrationEffect.createOneShot(rumblePulseMs(level), strength)),
+            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
+      } catch (RuntimeException e) {
+        Log.w(TAG, "rumble: the controller: " + e);
+        padMotors = null;
+        rumbleTarget = RumbleTarget.NONE;
+      }
+      return;
+    }
+    if (rumbleTarget != RumbleTarget.PHONE || vibrator == null) return;
     try {
       if (Build.VERSION.SDK_INT >= 26) {
         // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid; 150 and
@@ -2021,7 +2144,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void stopVibrator() {
-    if (vibrating && vibrator != null) vibrator.cancel();
+    // both, the device's and a controller's (0.99.2)
+    if (vibrating) cancelBoth();
     vibrating = false;
     rumbleLevel = 0;
   }

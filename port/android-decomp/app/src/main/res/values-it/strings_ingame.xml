@@ -244,6 +244,8 @@
     <string name="ingame_cheat_queued">Verrà fatto appena il gioco riprende.</string>
     <string name="ingame_cheat_unsupported">Questo nucleo di gioco non ha trucchi.</string>
     <string name="ingame_cheat_qte">QTE automatici</string>
+    <string name="ingame_cheat_random_items">Oggetti casuali</string>
+    <string name="ingame_cheat_random_items_help">Oggetti casuali: gli oggetti che si trovano nelle stanze della storia (munizioni, erbe e altri oggetti curativi, granate, pesetas, tesori) vengono ridistribuiti in ogni stanza in cui entri da quel momento, e una stanza dà sempre gli stessi oggetti finché non disattivi e riattivi l’opzione. Chiavi, armi, documenti e altri oggetti della storia restano come sono, quindi il gioco si può sempre finire. Ciò che hai già raccolto resta raccolto; nemici, barili e casse tengono il loro bottino. Non in Assignment Ada né in The Mercenaries.</string>
     <string name="ingame_cheat_extras">Sblocca giochi extra</string>
     <string name="ingame_cheat_extras_text">Assignment Ada e The Mercenaries sono sbloccati (anche Professional, come dopo aver finito il gioco). Il menu principale li mostra dopo un riavvio. I progressi dall’ultimo salvataggio andranno persi.</string>
     <string name="ingame_cheat_extras_later">Sbloccati: Assignment Ada e The Mercenaries saranno nel menu principale al prossimo riavvio.</string>
@@ -255,6 +257,13 @@
     <string name="ingame_later">Più tardi</string>
     <string name="ingame_controller_config">Assegnazione tasti</string>
     <string name="ingame_controller_config_help">Assegnazione tasti: metti ogni azione del gioco su tasti del controller o della tastiera.</string>
+    <string name="ingame_stick_dead_zone">Zona morta dello stick</string>
+    <string name="ingame_stick_range">Portata dello stick</string>
+    <string name="ingame_stick_help">Zona morta dello stick: i piccoli movimenti di uno stick del controller attorno al centro vengono ignorati (per uno stick che deriva o trema). Portata dello stick: uno stick spinto fin qui conta già come spinto fino in fondo, così Leon cammina, corre e si gira senza intoppi anche se il tuo stick non arriva al bordo. I valori predefiniti lasciano gli stick come sono. I comandi touch non cambiano.</string>
+    <string name="ingame_vibration">Vibrazione</string>
+    <string name="ingame_vibration_device">Dispositivo</string>
+    <string name="ingame_vibration_controller">Controller</string>
+    <string name="ingame_vibration_help">Dove senti la vibrazione del gioco. Auto: in un controller collegato con motori propri (Android 12 e successivi), altrimenti in questo telefono o console portatile. Dispositivo: sempre in questo telefono o console portatile. Controller: solo nel controller (niente se non ha motori; prima di Android 12 in questo dispositivo). Disattivato: nessuna vibrazione. L’opzione Vibrazione del gioco può ancora disattivarla.</string>
     <string name="ingame_controller_default">Configurazione predefinita</string>
     <string name="ingame_controller_help">Scegli un’azione, poi premi il suo tasto. Un’azione a due tasti (sparare, ricaricare, coltellata) chiede prima il tasto da tenere, poi il secondo. Se un’altra azione aveva il tasto, riceve quello vecchio. I menu del gioco mantengono l’assegnazione predefinita; i suoi suggerimenti mostrano ancora i tasti GameCube.</string>
     <string name="ingame_controller_alternate_note">I comandi alternativi sono attivi: mantengono la propria configurazione; questa vale quando sono disattivati.</string>

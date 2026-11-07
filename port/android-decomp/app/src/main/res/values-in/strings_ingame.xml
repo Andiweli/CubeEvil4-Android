@@ -239,6 +239,8 @@
     <string name="ingame_cheat_queued">Akan dilakukan segera setelah game berjalan.</string>
     <string name="ingame_cheat_unsupported">Inti game ini tidak memiliki cheat.</string>
     <string name="ingame_cheat_qte">QTE otomatis</string>
+    <string name="ingame_cheat_random_items">Item acak</string>
+    <string name="ingame_cheat_random_items_help">Item acak: item yang tergeletak di ruangan cerita (amunisi, herba dan item pemulihan lain, granat, peseta, harta) dibagikan ulang di setiap ruangan yang Anda masuki sejak saat itu, dan satu ruangan selalu memberi item yang sama sampai Anda mematikan lalu menyalakannya lagi. Kunci, senjata, dokumen, dan item cerita lain tetap seperti semula, jadi game selalu bisa diselesaikan. Item yang sudah diambil tetap terambil; musuh, tong, dan peti menyimpan jarahan mereka sendiri. Tidak di Assignment Ada dan The Mercenaries.</string>
     <string name="ingame_cheat_extras">Buka game tambahan</string>
     <string name="ingame_cheat_extras_text">Assignment Ada dan The Mercenaries telah terbuka (juga Professional, seperti setelah menamatkan game). Menu judul menampilkannya setelah dimulai ulang. Kemajuan sejak penyimpanan terakhir akan hilang.</string>
     <string name="ingame_cheat_extras_later">Terbuka: Assignment Ada dan The Mercenaries ada di menu judul setelah dimulai ulang.</string>
@@ -250,6 +252,13 @@
     <string name="ingame_later">Nanti</string>
     <string name="ingame_controller_config">Pemetaan Tombol</string>
     <string name="ingame_controller_config_help">Pemetaan Tombol: tempatkan setiap aksi game pada tombol controller atau keyboard Anda.</string>
+    <string name="ingame_stick_dead_zone">Zona mati stik</string>
+    <string name="ingame_stick_range">Jangkauan stik</string>
+    <string name="ingame_stick_help">Zona mati stik: gerakan kecil stik controller di sekitar tengahnya diabaikan (untuk stik yang bergeser atau bergetar sendiri). Jangkauan stik: stik yang ditekan sejauh ini sudah dihitung ditekan penuh, agar Leon berjalan, berlari, dan berbelok dengan mantap walaupun stik Anda tidak sampai ke tepinya. Nilai bawaan membiarkan stik apa adanya. Kontrol sentuh tidak terpengaruh.</string>
+    <string name="ingame_vibration">Getaran</string>
+    <string name="ingame_vibration_device">Perangkat</string>
+    <string name="ingame_vibration_controller">Controller</string>
+    <string name="ingame_vibration_help">Di mana getaran game terasa. Otomatis: di controller tersambung yang punya motor sendiri (Android 12 dan setelahnya), jika tidak di ponsel atau handheld ini. Perangkat: selalu di ponsel atau handheld ini. Controller: hanya di controller (tidak ada jika tidak punya motor; sebelum Android 12 di perangkat ini). Nonaktif: tanpa getaran. Opsi Getaran milik game sendiri tetap bisa mematikannya.</string>
     <string name="ingame_controller_default">Tata Letak Bawaan</string>
     <string name="ingame_controller_help">Pilih aksi, lalu tekan tombolnya. Aksi dengan dua tombol (tembak, isi ulang, tebas) meminta tombol yang ditahan dulu, lalu tombol kedua. Tombol yang sebelumnya dipakai aksi lain berpindah ke tombol lama aksi itu. Menu game tetap memakai tata letak bawaan; petunjuk di layar tetap menampilkan tombol GameCube.</string>
     <string name="ingame_controller_alternate_note">Kontrol Alternatif aktif: kontrol itu memakai tata letaknya sendiri; tata letak ini berlaku setelah dinonaktifkan.</string>

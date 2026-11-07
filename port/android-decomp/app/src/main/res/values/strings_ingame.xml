@@ -257,6 +257,8 @@
     <string name="ingame_cheat_queued">Will be done as soon as the game runs.</string>
     <string name="ingame_cheat_unsupported">This game core has no cheats.</string>
     <string name="ingame_cheat_qte">Automatic QTEs</string>
+    <string name="ingame_cheat_random_items">Random items</string>
+    <string name="ingame_cheat_random_items_help">Random items: the items lying in the story\'s rooms (ammo, herbs and other recovery items, grenades, pesetas, treasures) are dealt anew in every room you enter from then on, and a room always gives the same items until you switch this off and on again. Keys, weapons, files and other story items stay as they are, so the game can always be finished. Items you already picked up stay picked up; enemies, barrels and boxes keep their own drops. Not in Assignment Ada and The Mercenaries.</string>
     <string name="ingame_cheat_extras">Unlock extra games</string>
     <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
@@ -268,6 +270,13 @@
     <string name="ingame_later">Later</string>
     <string name="ingame_controller_config">Button Mapping</string>
     <string name="ingame_controller_config_help">Button Mapping: put every action of the game on keys of your controller or keyboard.</string>
+    <string name="ingame_stick_dead_zone">Stick dead zone</string>
+    <string name="ingame_stick_range">Stick range</string>
+    <string name="ingame_stick_help">Stick dead zone: small movements of a controller stick around its centre are ignored (for a stick that drifts or trembles). Stick range: a stick pushed this far already counts as pushed all the way, so Leon walks, runs and turns reliably even if your stick does not reach its edge. The defaults leave the sticks as they are. The touch controls are not affected.</string>
+    <string name="ingame_vibration">Vibration</string>
+    <string name="ingame_vibration_device">Device</string>
+    <string name="ingame_vibration_controller">Controller</string>
+    <string name="ingame_vibration_help">Where you feel the game\'s vibration. Auto: in a connected controller that has its own motors (Android 12 and later), otherwise in this phone or handheld. Device: always in this phone or handheld. Controller: only in the controller (nothing if it has no motors; before Android 12 in this device). Off: no vibration. The game\'s own option Vibration can still switch it off.</string>
     <string name="ingame_controller_default">Default Layout</string>
     <string name="ingame_controller_help">Choose an action, then press its key. An action of two keys (fire, reload, slash) asks for the key to hold first, then the second. A key another action had goes to that one\'s old key. The game\'s menus keep the default; its prompts still show the GameCube buttons.</string>
     <string name="ingame_controller_alternate_note">Alternate Controls are on: they keep their own layout; this one applies once they are off.</string>

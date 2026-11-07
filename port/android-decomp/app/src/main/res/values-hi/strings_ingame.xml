@@ -242,6 +242,8 @@
     <string name="ingame_cheat_queued">गेम चलते ही हो जाएगा।</string>
     <string name="ingame_cheat_unsupported">इस गेम कोर में चीट्स नहीं हैं।</string>
     <string name="ingame_cheat_qte">ऑटोमैटिक QTE</string>
+    <string name="ingame_cheat_random_items">रैंडम आइटम</string>
+    <string name="ingame_cheat_random_items_help">रैंडम आइटम: कहानी के कमरों में पड़े आइटम (गोला-बारूद, जड़ी-बूटियाँ और दूसरे इलाज के आइटम, ग्रेनेड, पेसेटा, खज़ाने) उसके बाद आप जिस भी कमरे में जाते हैं, वहाँ नए सिरे से बाँटे जाते हैं, और एक कमरा हमेशा वही आइटम देता है जब तक आप इसे बंद करके फिर से चालू न करें। चाबियाँ, हथियार, फ़ाइलें और कहानी के दूसरे आइटम वैसे ही रहते हैं, इसलिए गेम हमेशा पूरा किया जा सकता है। जो आप उठा चुके हैं वह उठाया हुआ ही रहता है; दुश्मन, बैरल और बक्से अपना सामान खुद रखते हैं। Assignment Ada और The Mercenaries में नहीं।</string>
     <string name="ingame_cheat_extras">एक्स्ट्रा गेम अनलॉक करें</string>
     <string name="ingame_cheat_extras_text">Assignment Ada और The Mercenaries अनलॉक हो गए हैं (साथ में Professional भी, जैसे गेम पूरा करने के बाद)। गेम फिर से शुरू करने के बाद टाइटल मेनू उन्हें दिखाता है। आपके आख़िरी सेव के बाद की प्रगति खो जाएगी।</string>
     <string name="ingame_cheat_extras_later">अनलॉक हो गए: गेम अगली बार फिर से शुरू होने के बाद Assignment Ada और The Mercenaries टाइटल मेनू में होंगे।</string>
@@ -253,6 +255,13 @@
     <string name="ingame_later">बाद में</string>
     <string name="ingame_controller_config">बटन मैपिंग</string>
     <string name="ingame_controller_config_help">बटन मैपिंग: गेम की हर क्रिया को अपने कंट्रोलर या कीबोर्ड की कुंजियों पर रखें।</string>
+    <string name="ingame_stick_dead_zone">स्टिक डेड ज़ोन</string>
+    <string name="ingame_stick_range">स्टिक रेंज</string>
+    <string name="ingame_stick_help">स्टिक डेड ज़ोन: कंट्रोलर स्टिक की बीच के आसपास की छोटी हलचल अनदेखी की जाती है (ऐसी स्टिक के लिए जो अपने आप खिसकती या काँपती है)। स्टिक रेंज: इतनी दबाई गई स्टिक पूरी दबाई गई मानी जाती है, ताकि आपकी स्टिक किनारे तक न पहुँचे तब भी Leon भरोसे से चले, दौड़े और मुड़े। डिफ़ॉल्ट मान स्टिक को वैसे ही रहने देते हैं। टच कंट्रोल पर इसका असर नहीं होता।</string>
+    <string name="ingame_vibration">वाइब्रेशन</string>
+    <string name="ingame_vibration_device">डिवाइस</string>
+    <string name="ingame_vibration_controller">कंट्रोलर</string>
+    <string name="ingame_vibration_help">गेम का वाइब्रेशन कहाँ महसूस होता है। ऑटो: अपने मोटर वाले जुड़े हुए कंट्रोलर में (Android 12 और बाद में), वरना इसी फ़ोन या हैंडहेल्ड में। डिवाइस: हमेशा इसी फ़ोन या हैंडहेल्ड में। कंट्रोलर: सिर्फ़ कंट्रोलर में (मोटर न हों तो कुछ नहीं; Android 12 से पहले इसी डिवाइस में)। बंद: कोई वाइब्रेशन नहीं। गेम का अपना विकल्प वाइब्रेशन इसे अब भी बंद कर सकता है।</string>
     <string name="ingame_controller_default">डिफ़ॉल्ट लेआउट</string>
     <string name="ingame_controller_help">एक क्रिया चुनें, फिर उसकी कुंजी दबाएँ। दो कुंजियों वाली क्रिया (फ़ायर, रीलोड, चाकू वार) पहले पकड़ी जाने वाली कुंजी पूछती है, फिर दूसरी। अगर कुंजी किसी और क्रिया की थी, उसे पुरानी कुंजी मिलती है। गेम के मेनू में डिफ़ॉल्ट रहता है; उसके संकेत अब भी GameCube बटन दिखाते हैं।</string>
     <string name="ingame_controller_alternate_note">वैकल्पिक नियंत्रण चालू है: वह अपना लेआउट रखता है; यह उसे बंद करने पर लागू होगा।</string>

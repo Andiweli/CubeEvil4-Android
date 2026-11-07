@@ -232,6 +232,17 @@ public class CoreMenuLayoutTest {
   }
 
   private static int rowIndex(View v, ViewGroup body) { return body.indexOfChild(rowOf(v, body)); }
+  /** The first view below `view` whose content description is `text`. */
+  private static View byDescription(View view, String text) {
+    if (text.contentEquals(view.getContentDescription() == null ? "" : view.getContentDescription())) return view;
+    if (view instanceof ViewGroup) {
+      for (int i = 0; i < ((ViewGroup) view).getChildCount(); i++) {
+        View found = byDescription(((ViewGroup) view).getChildAt(i), text);
+        if (found != null) return found;
+      }
+    }
+    return null;
+  }
 
   @Test public void updateButtonSitsLeftOfResumeAndComparesVersions() throws Exception {
     assertEquals(0, AppUpdate.compare("0.95.2-beta", "0.95.2-beta"));
@@ -317,7 +328,23 @@ public class CoreMenuLayoutTest {
       assertEquals("the aim row right under them", rowIndex(autoAim, body) + 1, rowIndex(aimInvert, body));
       // the button mapping at the bottom, under a heading of its own
       assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));
-      assertEquals("the button mapping right under its heading", devices + 1, rowIndex(mapping, body));
+      // since 0.99.2 first the sticks' dead zone and range (sliders 0..30 and 50..100 in steps of 5) and the choice
+      // where the vibration goes (four buttons), then the button mapping
+      View deadZone = byDescription(body, activity.getString(R.string.ingame_stick_dead_zone));
+      View range = byDescription(body, activity.getString(R.string.ingame_stick_range));
+      assertTrue(deadZone instanceof android.widget.SeekBar && range instanceof android.widget.SeekBar);
+      assertEquals("the dead zone right under the heading", devices + 1, rowIndex(deadZone, body));
+      assertEquals("the range under it", devices + 2, rowIndex(range, body));
+      assertEquals(6, ((android.widget.SeekBar) deadZone).getMax());
+      assertEquals(0, ((android.widget.SeekBar) deadZone).getProgress());
+      assertEquals(10, ((android.widget.SeekBar) range).getMax());
+      assertEquals(10, ((android.widget.SeekBar) range).getProgress());
+      Button device = findButton(body, activity.getString(R.string.ingame_vibration_device));
+      assertNotNull(device);
+      assertEquals(4, ((ViewGroup) device.getParent()).getChildCount());
+      assertTrue("Auto chosen", ((Button) ((ViewGroup) device.getParent()).getChildAt(0)).isSelected());
+      assertTrue("the vibration after the sticks", rowIndex(device, body) > rowIndex(range, body));
+      assertTrue("the button mapping after the vibration", rowIndex(mapping, body) > rowIndex(device, body));
       // one gap between all rows of buttons, the rows with a slider too (wish of the project owner, 30.10.2026)
       int gap = top(latch, body) - top(alternate, body) - alternate.getHeight();
       assertEquals("the gap of the rows of two", Math.round(2 * MenuLayout.GAP * activity.getResources().getDisplayMetrics().density), gap, 1);
@@ -500,6 +527,13 @@ public class CoreMenuLayoutTest {
       assertTrue(extras.getText().toString().contains(activity.getString(R.string.ingame_cheat_extras)));
       qte.performClick(); assertEquals(12, sent[0]);
       qte.performClick(); assertEquals(4, sent[0]);
+      // "Random items" (0.99.2): a row of its own, on with a seed in bits 11..30, off without one
+      ViewGroup items = (ViewGroup) body.getChildAt(8);
+      Button random = (Button) items.getChildAt(0);
+      assertTrue(random.getText().toString().contains(activity.getString(R.string.ingame_cheat_random_items)));
+      random.performClick();
+      assertEquals(4 | CoreMenu.RANDOM_ITEMS_BIT, sent[0] & ~CoreMenu.SEED_BITS);
+      random.performClick(); assertEquals(4, sent[0]);
       Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());

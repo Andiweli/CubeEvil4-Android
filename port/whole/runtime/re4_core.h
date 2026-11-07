@@ -299,7 +299,8 @@ const char* re4_core_disc_problem(void);
 /* The cheat menu (cores since 27.10.2026, runtime/cheats.cpp, port/docs/cheat-menu-plan.md), with
  * both kinds of discs. The switches, kept by the app like its other settings (at the start also the
  * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic
- * QTEs, 16 the extra games kept unlocked (after button 4); set in every game frame while on. Any thread. */
+ * QTEs, 16 the extra games kept unlocked (after button 4); set in every game frame while on; 1024 random items
+ * (0.99.2, the rooms loaded from then on) with its seed in bits 11..30. Any thread. */
 void re4_core_set_cheats(int bits);
 /* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas, 4 unlock the
  * extra games (Assignment Ada, The Mercenaries; at any time). While the app's menu holds the game it is

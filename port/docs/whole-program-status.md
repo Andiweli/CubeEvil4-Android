@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung (07.11.2026, Branch `work`, Patches 0216–0217)
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer (07.11.2026, Branch `work`, Patches 0216–0218)
 
 Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
 v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
@@ -130,6 +130,89 @@ v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1
      zwischen Leons Kopf und ihr (die Wand-Prüfung des Originals). `whole_build.sh i686` mit `RE4_OPT=2`: alle
      Prüfungen grün. **Nicht geprüft:** Gerät; die Reaktion beim Hochschauen (z. B. unter ihr an einer Leiter oder
      Treppe, wenn sie wartet).
+5. **Stick: Totzone und Reichweite (Auftrag des Projektinhabers, 07.11.2026, Anlass GitHub-Issue #168 = Punkt 3).**
+   - Zwei Regler im Steuerungsmenü unter „Controller, Keyboard and Mouse“, für beide Controller-Sticks zusammen:
+     „Stick dead zone“ 0–30 % und „Stick range“ 50–100 %, je in Schritten von 5 (`CoreMenu.percentSlider`), darunter
+     ein Hilfetext. Gespeichert in `core_input` (`stickDeadZone`, `stickRange`).
+   - `CoreInput.setStickShape` / `shape`: in `motion()` (nur Controller; nicht die Touch-Sticks, nicht die Maus, nicht
+     die Bewegungstasten der Tastatur) je Stick **rund**: Betrag ≤ Totzone → Ruhe; darüber bis zur Reichweite auf den
+     ganzen Weg gestreckt, darüber voll; die Richtung bleibt (Diagonalen kippen nicht). Mit 0 % / 100 % (Vorgabe) gehen
+     die Werte unverändert durch (eigener Weg ohne Rechnung): heutiges Verhalten exakt. `PADClamp` im Kern unverändert.
+   - `StickWatch` nennt die Einstellung am Ende jeder 30-s-Zeile („the app's stick dead zone N %, range M %“), dazu
+     eine Zeile „sticks: dead zone …“ beim Start (wenn nicht Vorgabe) und bei jeder Änderung.
+   - **Geprüft am PC:** `tests/CoreInputTests` (über `tools/test_host.sh`, 1816 Checks): mit 0/100 jeder Wert eines
+     21×21-Gitters beider Sticks gleich wie ohne Einstellung, die Ecke eines eckigen Controllers wie vorher; Totzone
+     rund, Diagonale bleibt gleich, voller Ausschlag bleibt voll; ein Stick mit 60 % Ausschlag kommt mit Reichweite 70 %
+     weiter über die Gehschwelle, bei 70 % voll (72 nach der Klemme); rechter Stick ebenso, Trigger nicht; Werte
+     außerhalb fallen zurück; Touch-Stick unberührt. `StickWatchTest` (6 Tests), `CoreMenuLayoutTest` (Regler unter
+     der Überschrift, 0..30 / 50..100). **Nicht geprüft:** Gerät (der Stick des Testers aus Punkt 3).
+6. **Vibration im Controller (Auftrag des Projektinhabers, 07.11.2026).** Bis 0.99.1 nur der Vibrator des Geräts
+   (`getDefaultVibrator`): mit einem Bluetooth-Controller am Handy kamen die Treffer im Handy an.
+   - Neue Auswahl „Vibration“ im Steuerungsmenü (selber Abschnitt): **Auto** (Vorgabe), **Device**, **Controller**,
+     **Off**, mit Hilfetext; `core_input` `vibration`. Regel in `RumbleTarget` (reines Java, `RumbleTargetTest`): Auto =
+     die Motoren des zuletzt benutzten Controllers, wenn er welche hat und **nicht eingebaut** ist
+     (`InputDevice.isExternal`), sonst das Gerät. So bleibt es auf Handhelds (Retroid, AYN: der eingebaute Controller
+     ist das Gerät) beim Vibrator des Geräts wie bisher. Controller = nur der Controller (ohne Motoren nichts);
+     vor Android 12 beides das Gerät (Controller-Motoren erst ab API 31 über `InputDevice.getVibratorManager`).
+   - `CoreActivity.chooseRumble`: beim Start, bei der ersten Taste/Achse eines anderen Controllers (`padUsed`), bei
+     Änderung oder Trennen dieses Controllers und bei einer Menüänderung; vorher stoppen **beide** Vibratoren
+     (`cancelBoth`, auch in `stopVibrator`). Der Controller bekommt `CombinedVibration.createParallel` (alle Motoren),
+     mit Stärke, wenn alle Motoren sie können, sonst als An/Aus-Impulse wie ein Gerät ohne Stärkeregelung (die Länge
+     trägt die Stufe). Die bestehenden Regeln (Menü-Bit, Pause, Spieloption „Vibration“) bleiben (`rumbleTick`
+     unverändert). Protokoll: eine Zeile je neuer Wahl, z. B. „rumble (Auto): the controller "Xbox Wireless
+     Controller" (2 motors, with amplitude control) [controller used]“ oder „rumble (Auto): this device's vibrator
+     with amplitude control, not the built-in controller's motors“.
+   - **Geprüft am PC:** `RumbleTargetTest` (4 Tests: Auto mit externem Controller → Controller, eingebauter oder ohne
+     Motoren oder vor Android 12 → Gerät, die anderen Wahlen), Kompilieren beider Varianten. **Nicht geprüft:** Gerät
+     (Retroid: Auto muss beim Gerät bleiben; Handy mit Bluetooth-Controller mit und ohne Motoren; Trennen während es
+     rüttelt).
+7. **Gegenstands-Randomizer als Cheat (Auftrag des Projektinhabers, 07.11.2026, Anlass GitHub-Issue #161).**
+   - Schalter „Random items“ unter Cheats → „Game“ (eigene Zeile, Hilfetext). Bit 1024 der Cheat-Schalter, der
+     Startwert (Seed, 20 Bit) in Bit 11..30: bei jedem Einschalten ein neuer, beim Ausschalten weg
+     (`CoreMenu.withRandomItems`). Die App hält die Schalter wie bisher in `core_game` `cheats` (nicht im Spielstand);
+     derselbe Weg zum Kern (`re4_core_set_cheats`, auch über den Kernprozess), keine neue Schnittstelle.
+   - **Wo die Gegenstände liegen:** die ITA-Datensätze des Raumarchivs (`SCE_AT_ITEM`, 0x9C Bytes; `SceAtInit`). Die
+     Modelle kommen aus dem ITM-Block **des Raums** (`ItemGetBinTplAddr`): er enthält nur die Modelle der Gegenstände
+     des Raums und dessen, was seine Gegner fallen lassen (alle Räume der vier Disc-Arten am 07.11.2026 ausgelesen,
+     Skripte `itadump.py`/`itastat.py` der Sitzung). Ein Gegenstand ohne Modell im Raum läge nur als Glitzern da.
+     Deshalb tauscht der Randomizer **nur gegen Gegenstände, deren Modell der Raum hat**.
+   - **Patch 0218** (`sce_at.cpp sceAtSetItem`) ruft `re4_item_random` (`runtime/cheats.cpp`); der erste Aufruf in
+     einem Raum kommt nach dem Laden der Modelle und bevor ein Gegenstand des Raums ein Modell bekam. Dann einmal alle
+     Datensätze des Raums: markiert (`SCE_AT_UNIT pad2[0]` = 0xA5, auf allen Discs sonst 0), getauscht nur bei
+     Schalter an, Story (`!SYS_OMAKE_ADA_GAME && !SYS_OMAKE_ETC_GAME`), nicht in Ashleys Teil (`pl_type` 1).
+     Ein später eingeschalteter Schalter lässt den laufenden Raum, wie er ist.
+   - **Was getauscht wird:** Datensätze, die frei im Raum liegen (`waiting_type` 0: kein Gegner, kein Fass, keine
+     Kiste hält sie) mit `ctrl_flag` 0 (nicht an einen Gegner gegeben, kein hängender oder fallender Gegenstand, keiner
+     der vom Spiel selbst gewürfelten Drops, die es aus dem Spielstand zurückschreibt), deren Gegenstand im Topf ist:
+     Leons Munition (0x00, 0x04, 0x07, 0x18, 0x20), Granaten (0x01, 0x02, 0x0E), Heilmittel (Kräuter, Spray, Eier,
+     Fisch, Mischungen), Peseten (0x71, 0x78, 0x79), Schätze (Typ 5 und 12 laut `itemInfo`, ohne 0x89, 0x8A, 0xA2, die
+     Skripte in r103/r105 und ein Raum per Nummer behandeln). **Nie:** Schlüssel und Story-Gegenstände (Typ 7, 11,
+     14), Dokumente (10), Waffen und Zubehör (1, 3 außer Granaten, 9), die Mercenaries-Gegenstände (0x73, 0x75), die
+     Zufallsdrops des Spiels (0x1000…), Händlerware (nicht in ITA), Gegner (unverändert).
+   - **Wie:** Gruppe nach festem Anteil (Munition 36, Heilmittel 26, Peseten 14, Granaten 12, Schätze 12 von 100), hat
+     der Raum aus ihr kein Modell, die nächste Gruppe; darin ein Gegenstand mit Modell im Raum. Alles aus einem Hash
+     von Seed, Raum, Datensatz und altem Gegenstand (nur `u32`-Rechnung): derselbe Raum gibt mit demselben Seed nach
+     Neuladen, Tod oder Raumwechsel dieselben Gegenstände. Mengen: Handgun 10/15/20, Shotgun 5/10, Gewehr 5, TMP 25/50,
+     Magnum 3/5, Peseten 300–1000 je Beutel (0x78 Zehner, 0x79 Hunderter, 0x71 Tausender), sonst die Vorgabe des Spiels;
+     bleibt der Gegenstand gleich, bleibt die Menge. Die Flags des Datensatzes bleiben: Aufgehobenes bleibt
+     aufgehoben, ein Spielstand spielt mit und ohne Schalter. Ausschalten: der nächste Raum wird wieder von der Disc
+     gelesen (`ReadAreaData`), also im Original.
+   - Protokoll: eine Zeile je Raum „cheat: random items in r100 (seed N): 11 of 11 items of the pool changed, 24
+     records: area 0x80 0x02 x0 -> 0x06 x0 (recovery), …“; `RE4_TRACE_ITEMS=1` meldet jetzt auch jede Änderung von
+     Koffer und Peseten („items (taken): …“, `state_trace.cpp watchItems`).
+   - **Geprüft am PC (i686 -O2):** r100 (Debug) mit Seed 12345: 11 von 11 Gegenständen des Topfs getauscht; mit
+     `RE4_TEST_PLACE="free+30:area=143"` und A aufgehoben: Peseten (Seed 12345, +300), Schrotpatronen ×5 (Seed 1),
+     Erste-Hilfe-Spray (Seed 2), Blendgranate (Seed 6) landen im Koffer. Mehrere Läufe mit demselben Seed: dieselbe
+     Zeile. **Rundgang aller 126 Räume** (Debug-Start, 600 Bilder, Seed 4242) mit **Debug-, EU-, US- und JP-Discs**:
+     kein Absturz, je 121 Räume verteilt (r120, r215, r22b, r312, r333 ohne Gegenstandsbereich in der Zeit), rund 700
+     Tausche je Disc; jeder Tausch mit `rndcheck.py` gegen die Raumdaten geprüft (alter Gegenstand wie in den Daten,
+     Datensatz frei liegend, alt und neu im Topf, Modell des neuen im Raum): **0 Fehler** auf allen vier. Damit auch:
+     kein Schlüssel- oder Story-Gegenstand verändert (Dorf r100/r101, Burg r2xx, Insel r3xx alle dabei).
+     `whole_build.sh` i686 und x86_64 mit `RE4_OPT=2`: siehe Abschluss. **Nicht geprüft:** Gerät; Tod/Weiterspielen
+     und Raumwechsel im selben Lauf (dieselbe Rechnung, der Raum wird neu gelesen); ARM32/ARM64 im Lauf.
+   - **Bewusst weggelassen:** Gegenstände in Kisten, Fässern und bei Gegnern, auch feste (`waiting_type` 1/2, die
+     Vorgabe des Auftrags), hängende/fallende Gegenstände (eigene Modelle), Datensätze mit besonderen Flags; Gegenstände,
+     deren Modell der Raum nicht hat (sonst nur Glitzern).
 
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 
@@ -12987,6 +13070,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0215 `id_sys.cpp` | Lebensanzeige in der Ecke: die fünf Stellen, an denen eine ID-Einheit mit `IDSystem::m_scrn_mat` gezeichnet wird (normal, negativ, Flimmern samt Texturprojektion), nehmen die Matrix von `re4_hud_scrn(u)`: für den Baum unter Einheit 0 der Klasse `IDC_LIFE_METER` (Ring, Ashleys Ring, Munition samt `IDC_BLLT_ICON`, Namensfeld) in die rechte untere Ecke der gezeigten Zeilen verschoben (bei „Gestreckt“ schmaler), sonst unverändert; ohne Vorgabe der App (`re4_core_set_hud_layout`) immer unverändert. Jede Ersetzung auf ihrer Zeile, Funktion in `re4_whole_prelude.h`. Port-Funktion, Wunsch des Projektinhabers 07.11.2026 |
 | 0216 `r224.cpp` | Lava-Halle der zwei El Gigantes: mit EU-, JP- und KR-Discs Bereich 10 (Meldung 1 „Damn! It's locked …“ vor dem Ausgangstor) aus beim Betreten, an, wenn das Tor hinter den Riesen zufällt (`door_close`), aus, wenn es nach dem Kampf aufgeht (`door_open`), wie deren Code (`st2_3.rel`); Debug- und US-Daten haben den Bereich nicht. Port-Patch für Verkaufsdaten, Nutzerbericht 07.11.2026 |
 | 0217 `pl_npc.cpp`, `r208.cpp` | Ashleys Rock-Reaktion („pervert“) wie die Verkaufsfassungen (US/EU/JP `main.dol`, `st2_0.rel`): in Leons Routinen 0/0..6 (stehen, gehen, laufen, drehen, zielen) muss die Kamera (`pG->Camera`) mindestens π/7 (25,7°) nach oben schauen, sonst zählt die Lage allein; 240 Bilder Sperre nach `r208_CarryOnShoulder` (`re4_ashley_pants_wait`). Abweichung vom Debug-Code, Entscheidung des Projektinhabers 07.11.2026 |
+| 0218 `sce_at.cpp` | Cheat „Random items“: `sceAtSetItem` ruft `re4_item_random` (`runtime/cheats.cpp`), das beim ersten Aufruf eines Raums seine frei liegenden Gegenstände des Topfs (Munition, Granaten, Heilmittel, Peseten, Schätze) aus Seed, Raum und Datensatz neu verteilt, nur gegen Gegenstände mit Modell im Raum, nur in der Story. Wunsch des Projektinhabers 07.11.2026, Issue #161 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

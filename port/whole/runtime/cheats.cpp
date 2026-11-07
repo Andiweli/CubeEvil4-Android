@@ -20,6 +20,8 @@
 //                       Ganados (em10) find him by nothing else either (sight, steps, shots, the bell, a hit, a
 //                       neighbour's alert) and forget him; DBG_EM_NO_ATK, the debug bit of the Ganados'
 //                       attacks, is set with it. Bosses and room scripts that attack by themselves still can.
+// 1024 random items     (wish of the project owner, 07.11.2026, issue #161) the items lying in the story's rooms
+//                       dealt anew, the seed in bits 11..30 (the app's; patch 0218, re4_item_random below)
 //  16 extra games       kept on by the app after button 4: the unlock below set again in every frame,
 //                       so a system file read from the card without it (the player has not saved since)
 //                       does not take it back; the next save writes it to the card (system file)
@@ -66,12 +68,14 @@
 #include "scheduler.h"
 #include "player.h"
 #include "sce_at.h"
+#include "item_model.h"
 #include "em.h"
 #include "pl_sub.h"
 #include "pl_npc.h"
 #include <dolphin/dvd.h>
 
 #include <atomic>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,7 +91,8 @@ int PlSetCostume();  // pl_sub.cpp
 namespace {
 
 enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kCharShift = 5, kChar = 7 << kCharShift,
-       kCostume = 256, kInvisible = 512, kAll = 31 | kChar | kCostume | kInvisible };
+       kCostume = 256, kInvisible = 512, kItemRandom = 1024, kSeedShift = 11, kSeedMask = 0xFFFFF << kSeedShift,
+       kAll = 31 | kChar | kCostume | kInvisible | kItemRandom | kSeedMask };
 
 std::atomic<int> gWanted(-1);  // the app's switches, -1 before RE4_CHEATS was read
 int gApplied;                  // what the game frames have set so far
@@ -215,6 +220,14 @@ void apply(int wanted)
         }
         if ((wanted ^ gApplied) & kInvisible) {
             re4_log("cheat: invisibility %s", wanted & kInvisible ? "on" : "off");
+        }
+        if ((wanted ^ gApplied) & (kItemRandom | kSeedMask)) {
+            if (wanted & kItemRandom) {
+                re4_log("cheat: random items on (seed %u), from the next room on",
+                        (unsigned) ((u32) (wanted & kSeedMask) >> kSeedShift));
+            } else {
+                re4_log("cheat: random items off, from the next room on");
+            }
         }
         if ((wanted ^ gApplied) & kAutoQte) {
             re4_qte_auto(wanted & kAutoQte);
@@ -725,9 +738,228 @@ bool ownWeapon(int type, int no, int wtype)
     return true;
 }
 
+// ---- random items (wish of the project owner, 07.11.2026, GitHub issue #161) ----------------------------------
+// The switch kItemRandom with its seed (bits 11..30, kept by the app; a new one each time the switch goes on)
+// deals the items lying free in the story's rooms anew: patch 0218 calls re4_item_random at the start of
+// sceAtSetItem, whose first call in a room comes after the room's item models (ITM) are loaded and before any of
+// its item areas made a model. That first call walks all ITA records of the room once and marks them
+// (SCE_AT_UNIT pad2[0], zero on every disc: ITA records of the debug, European, US and Japanese discs read on
+// 07.11.2026), so the room is dealt once per load and a switch turned on later leaves it as it is.
+//
+// What may change (port/docs/whole-program-status.md, version 0.99.2, item 7): records lying free (waiting_type 0:
+// no enemy, barrel or box holds them, those the game fills itself), with ctrl_flag 0 (not handed to an enemy, no
+// hanging or falling item, none the game's own random drop wrote back from the save), an item of the pool: Leon's
+// ammunition, the grenades, recovery (herbs, the spray, eggs, fish), pesetas, treasures (types 5 and 12 but the
+// three a room script handles by its id: 0x89, 0x8A in r103/r105, 0xA2). Never keys, files, maps, weapons, parts,
+// the Mercenaries' items, the game's random drops (ids 0x1000..), anything in Ashley's part (she cannot use ammo)
+// or in Assignment Ada and The Mercenaries. The new item is drawn from the pool's group by a fixed share (ammo 36,
+// recovery 26, pesetas 14, grenades 12, treasures 12 of 100) and only among the items whose model the room
+// already has (ItemGetBinTplAddr: the ITM block holds the models of the room's items and of what its enemies may
+// drop); a group with none there gives way to the next. The draw is a hash of the seed, the room, the record and
+// its item: the same room deals the same items after a reload, a death or a room change. The item's flags stay,
+// so what was taken stays taken and a save plays with the switch on or off alike.
+const u8 kMark = 0xA5;  // pad2[0] of a record the deal has seen
+const u8 kAmmoIds[] = {0x04, 0x18, 0x07, 0x20, 0x00};
+const u8 kGrenadeIds[] = {0x01, 0x02, 0x0E};
+const u8 kHealIds[] = {0x06, 0x19, 0x1C, 0x05, 0x08, 0x09, 0x0A, 0x12, 0x13, 0x14, 0x15, 0x16, 0xA8, 0x95, 0x97};
+const u8 kMoneyIds[] = {0x78, 0x79, 0x71};
+enum { kGroupAmmo, kGroupHeal, kGroupMoney, kGroupGrenade, kGroupTreasure, kGroups };
+const u8 kShare[kGroups] = {36, 26, 14, 12, 12};
+const char* const kGroupName[kGroups] = {"ammo", "recovery", "pesetas", "grenade", "treasure"};
+
+bool treasureId(unsigned id)
+{
+    if (id == 0x89 || id == 0x8A || id == 0xA2) {
+        return false;
+    }
+    const u8 t = itemType((ITEM_ID) id);
+    return t == 5 || t == 12;
+}
+
+template <size_t N> bool inList(const u8 (&list)[N], unsigned id)
+{
+    for (u8 v : list) {
+        if (v == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The pool's group of item `id`, -1 when it is not in the pool.
+int itemGroup(unsigned id)
+{
+    if (inList(kAmmoIds, id)) {
+        return kGroupAmmo;
+    }
+    if (inList(kHealIds, id)) {
+        return kGroupHeal;
+    }
+    if (inList(kMoneyIds, id)) {
+        return kGroupMoney;
+    }
+    if (inList(kGrenadeIds, id)) {
+        return kGroupGrenade;
+    }
+    return id < 0x100 && treasureId(id) ? kGroupTreasure : -1;
+}
+
+bool roomModel(unsigned id)
+{
+    void* bin;
+    void* tpl;
+    return ItemGetBinTplAddr((u8) id, &bin, &tpl) != 0;
+}
+
+// The items of group `g` whose model the room has, in a fixed order; their number.
+int groupCandidates(int g, u8* out)
+{
+    int n = 0;
+    auto take = [&](unsigned id) {
+        if (roomModel(id)) {
+            out[n++] = (u8) id;
+        }
+    };
+    switch (g) {
+    case kGroupAmmo:
+        for (u8 id : kAmmoIds) take(id);
+        break;
+    case kGroupHeal:
+        for (u8 id : kHealIds) take(id);
+        break;
+    case kGroupMoney:
+        for (u8 id : kMoneyIds) take(id);
+        break;
+    case kGroupGrenade:
+        for (u8 id : kGrenadeIds) take(id);
+        break;
+    default:
+        for (unsigned id = 0; id < 0x100; id++) {
+            if (treasureId(id)) take(id);
+        }
+        break;
+    }
+    return n;
+}
+
+// A count that suits item `id` (0: its default count, as most records of the discs have it): the ammunition as
+// the rooms hold it, pesetas 300 to 1000 whatever bag it is (0x78 counts tens, 0x79 hundreds, 0x71 thousands).
+u16 itemCount(unsigned id, u32 h)
+{
+    static const u16 kHandgun[] = {10, 15, 20}, kShotgun[] = {5, 10}, kTmp[] = {25, 50}, kMagnum[] = {3, 5},
+                     kSmallBag[] = {0, 50, 100}, kBag[] = {5, 10};
+    switch (id) {
+    case 0x04: return kHandgun[h % 3];
+    case 0x18: return kShotgun[h % 2];
+    case 0x07: return 5;
+    case 0x20: return kTmp[h % 2];
+    case 0x00: return kMagnum[h % 2];
+    case 0x78: return kSmallBag[h % 3];
+    case 0x79: return kBag[h % 2];
+    case 0x71: return 1;
+    }
+    return 0;
+}
+
+u32 mix(u32 x)
+{
+    x ^= x >> 16;
+    x *= 0x7FEB352Du;
+    x ^= x >> 15;
+    x *= 0x846CA68Bu;
+    x ^= x >> 16;
+    return x;
+}
+
+// The deal of one room: every record of its ITA once (see above).
+void dealRoom(SCE_AT_DATA* work, int num)
+{
+    const int wanted = wantedBits();
+    const bool on = (wanted & kItemRandom) && storyGame() && pG->pl_type != 1;
+    const u32 seed = (u32) (wanted & kSeedMask) >> kSeedShift;
+    int pool = 0, changed = 0;
+    char list[600];
+    int len = 0;
+    list[0] = 0;
+    for (int i = 0; i < num; i++) {
+        SCE_AT_ITEM* r = (SCE_AT_ITEM*) ((u8*) work + i * sizeof(SCE_AT_DATA));
+        if (r->pad2[0] == kMark) {
+            continue;
+        }
+        r->pad2[0] = kMark;
+        SCE_AT_DATA_ITEM& it = r->item;
+        if (!on || r->id != SCEAT_ID_ITEM || r->waiting_type != 0 || it.ctrl_flag != 0) {
+            continue;
+        }
+        const unsigned old = it.item_id;
+        const int own = itemGroup(old);
+        if (own < 0) {
+            continue;
+        }
+        pool++;
+        u32 h = mix(seed * 0x9E3779B1u ^ mix((u32) pG->room_id << 16 | (u32) i << 8 | old));
+        // the group by its share, then the first group from there with a model in the room
+        int pick = (int) (h % 100), g = 0;
+        while (g < kGroups - 1 && pick >= kShare[g]) {
+            pick -= kShare[g];
+            g++;
+        }
+        u8 cand[256];
+        int n = 0;
+        for (int k = 0; k < kGroups && n == 0; k++) {
+            n = groupCandidates((g + k) % kGroups, cand);
+            if (n) {
+                g = (g + k) % kGroups;
+            }
+        }
+        if (n == 0) {
+            continue;
+        }
+        h = mix(h);
+        const unsigned id = cand[h % (u32) n];
+        if (id == old) {
+            continue;  // drawn as it was: its count stays
+        }
+        const u16 count = itemCount(id, mix(h));
+        changed++;
+        if (len < (int) sizeof(list) - 40) {
+            len += snprintf(list + len, sizeof(list) - len, "%s area 0x%02x 0x%02x x%u -> 0x%02x x%u (%s)",
+                            changed > 1 ? "," : ":", (unsigned) r->no, old, (unsigned) it.item_num, id,
+                            (unsigned) count, kGroupName[g]);
+        }
+        it.item_id = (u16) id;
+        it.item_num = count;
+    }
+    if (on) {
+        re4_log("cheat: random items in r%03x (seed %u): %d of %d items of the pool changed, %d records%s",
+                (unsigned) pG->room_id, (unsigned) seed, changed, pool, num, list);
+    }
+}
+
 }  // namespace
 
 extern "C" {
+// Patch 0218 (sce_at.cpp sceAtSetItem): the room's items dealt once, at the first of its item areas set up.
+// `head` the room's ITA file (SceAtSys.pItemData, a former room's when this one has none), `work` its records.
+void re4_item_random(SCE_AT_ITEM* w, void* head, SCE_AT_DATA* work)
+{
+    struct Head {
+        char magic[4];
+        u16 version;
+        u16 num;
+    };
+    if (!w || !head || !work || memcmp(head, "ITA", 4) != 0 || w->pad2[0] == kMark) {
+        return;
+    }
+    const int num = ((const Head*) head)->num;
+    const uintptr_t a = (uintptr_t) w, b = (uintptr_t) work, size = sizeof(SCE_AT_DATA);
+    // an item area of the room's ITA (the areas made at run time, dropped items, live elsewhere)
+    if (a < b || a >= b + num * size || (a - b) % size != 0) {
+        return;
+    }
+    dealRoom(work, num);
+}
+
 // re4_whole_prelude.h re4_arc_entry: 1 while a stand-in plays the story with its own Ganado entries read
 // (every index 0x0FB..0x2BD of a Ganado archive then asks re4_arc_stand_in)
 int re4_story_ganado;

@@ -245,6 +245,8 @@
     <string name="ingame_cheat_queued">Será feito assim que o jogo continuar.</string>
     <string name="ingame_cheat_unsupported">Este núcleo do jogo não tem trapaças.</string>
     <string name="ingame_cheat_qte">QTEs automáticos</string>
+    <string name="ingame_cheat_random_items">Itens aleatórios</string>
+    <string name="ingame_cheat_random_items_help">Itens aleatórios: os itens que ficam nas salas da história (munição, ervas e outros itens de cura, granadas, pesetas, tesouros) são redistribuídos em cada sala em que você entrar a partir daí, e uma sala sempre dá os mesmos itens até você desligar e ligar de novo. Chaves, armas, documentos e outros itens da história continuam como estão, então o jogo sempre pode ser terminado. O que você já pegou continua pego; inimigos, barris e caixas mantêm o próprio saque. Não no Assignment Ada nem no The Mercenaries.</string>
     <string name="ingame_cheat_extras">Desbloquear jogos extras</string>
     <string name="ingame_cheat_extras_text">Assignment Ada e The Mercenaries estão desbloqueados (Professional também, como depois de terminar o jogo). O menu principal os mostra depois de reiniciar. O progresso desde o seu último save será perdido.</string>
     <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada e The Mercenaries aparecem no menu principal após o próximo reinício.</string>
@@ -256,6 +258,13 @@
     <string name="ingame_later">Mais tarde</string>
     <string name="ingame_controller_config">Mapeamento de botões</string>
     <string name="ingame_controller_config_help">Mapeamento de botões: coloque cada ação do jogo em teclas do seu controle ou teclado.</string>
+    <string name="ingame_stick_dead_zone">Zona morta do analógico</string>
+    <string name="ingame_stick_range">Alcance do analógico</string>
+    <string name="ingame_stick_help">Zona morta do analógico: pequenos movimentos de um analógico do controle em torno do centro são ignorados (para um analógico que desvia ou treme). Alcance do analógico: um analógico empurrado até aqui já conta como empurrado até o fim, para que Leon ande, corra e vire sem falhas mesmo que seu analógico não chegue à borda. Os valores padrão deixam os analógicos como estão. Os controles de toque não mudam.</string>
+    <string name="ingame_vibration">Vibração</string>
+    <string name="ingame_vibration_device">Aparelho</string>
+    <string name="ingame_vibration_controller">Controle</string>
+    <string name="ingame_vibration_help">Onde você sente a vibração do jogo. Auto: em um controle conectado com motores próprios (Android 12 ou posterior); senão, neste celular ou portátil. Aparelho: sempre neste celular ou portátil. Controle: só no controle (nada se ele não tiver motores; antes do Android 12, neste aparelho). Desligado: sem vibração. A opção Vibração do próprio jogo ainda pode desligá-la.</string>
     <string name="ingame_controller_default">Configuração padrão</string>
     <string name="ingame_controller_help">Escolha uma ação e pressione a tecla dela. Uma ação de duas teclas (atirar, recarregar, golpe de faca) pede primeiro a tecla a segurar, depois a segunda. Se outra ação tinha a tecla, ela recebe a antiga. Os menus do jogo mantêm o padrão; os avisos dele continuam mostrando os botões do GameCube.</string>
     <string name="ingame_controller_alternate_note">Os controles alternativos estão ativados: mantêm a sua própria configuração; esta vale quando estiverem desativados.</string>

@@ -10,7 +10,8 @@ import java.util.Locale;
  * 110) and the two sides (30 to 150); the D-pad sets the same bits directly. A stick that wanders around one of these
  * borders switches Leon between walking and standing or walking and turning, the D-pad cannot.
  *
- * <p>Fed with every controller state the app hands the core (CoreInput.pad: raw values, up positive), it writes one
+ * <p>Fed with every controller state the app hands the core (CoreInput.pad: raw values, up positive, after the
+ * menu's stick dead zone and range, which the line names), it writes one
  * line for each 30 s in which the stick was past the threshold for at least 2 s: how long, how far it reached, how often
  * the bits changed, how often "up" dropped out for less than BLIP_MS, and how many states lay within 6 of the threshold.
  * Pure Java (StickWatchTest).
@@ -27,6 +28,13 @@ final class StickWatch {
   private long usedMs;
   private float maxMag;
   private int maxRaw;
+  private int deadZone, range = 100;  // the menu's stick settings (CoreInput.setStickShape), for the line
+
+  /** The menu's dead zone and range in percent, named in each line (0.99.2: what the next report was made with). */
+  void setShape(int deadZonePercent, int rangePercent) {
+    deadZone = deadZonePercent;
+    range = rangePercent;
+  }
 
   /** src/lib/Padclamp.c ClampStick with the main stick's region (15, 72, 40): {x, y}. */
   static int[] clamp(int px, int py) {
@@ -97,7 +105,8 @@ final class StickWatch {
     return String.format(Locale.ROOT,
         "stick (as the game reads it for walking): %.0f s past its threshold in the last %.0f s, at most %.0f of 72 "
             + "(raw %d of 101; walking from 30), %d direction changes, \"up\" lost for less than %d ms %d times, "
-            + "%d of %d states within %.0f of the threshold",
-        usedMs / 1000.0, window / 1000.0, maxMag, maxRaw, changes, BLIP_MS, blips, near, samples, NEAR);
+            + "%d of %d states within %.0f of the threshold; the app's stick dead zone %d %%, range %d %%",
+        usedMs / 1000.0, window / 1000.0, maxMag, maxRaw, changes, BLIP_MS, blips, near, samples, NEAR, deadZone,
+        range);
   }
 }

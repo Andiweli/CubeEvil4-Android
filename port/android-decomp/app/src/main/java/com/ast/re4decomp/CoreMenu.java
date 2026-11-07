@@ -88,6 +88,11 @@ final class CoreMenu extends Dialog {
     void aimInvertChanged(boolean on);
     /** The slider "Aim speed" of aiming by touch and controllers (the preferences hold it). */
     void aimSpeedChanged(float value);
+    /** The sliders "Stick dead zone" and "Stick range" of the controller sticks in percent (CoreInput.setStickShape;
+     *  the host keeps them). */
+    void stickShapeChanged(int deadZone, int range);
+    /** The choice "Vibration": RumbleTarget.AUTO, DEVICE, CONTROLLER or OFF (the host keeps it). */
+    void vibrationChanged(int mode);
     /** "Auto aim": the game's own lock-on (CoreBridge.setAim). */
     void autoAimChanged(boolean on);
     /** "Always run": Leon runs without the run key, which walks instead (CoreBridge.setAim). */
@@ -128,6 +133,9 @@ final class CoreMenu extends Dialog {
   static final int COSTUME_BIT = 256;
   /** "Invisibility" in the cheat switches (wish of the project owner, 05.11.2026; runtime/cheats.cpp). */
   static final int INVISIBLE_BIT = 512;
+  /** "Random items" in the cheat switches (wish of the project owner, 07.11.2026, GitHub issue #161; runtime/cheats.cpp)
+   *  and its seed in bits 11..30, a new one each time the switch goes on (the rooms dealt alike until then). */
+  static final int RANDOM_ITEMS_BIT = 1024, SEED_SHIFT = 11, SEED_BITS = 0xFFFFF << SEED_SHIFT;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
@@ -791,6 +799,24 @@ final class CoreMenu extends Dialog {
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
     // since 30.10.2026 under a heading of its own
     heading(R.string.ingame_controller_section);
+    // the controller sticks' dead zone and range (wish of the project owner, 07.11.2026, GitHub issue #168: a left stick
+    // that stuttered while walking) and where the game's vibration goes (07.11.2026: a Bluetooth controller's
+    // motors instead of the phone's)
+    final int[] shape = {CoreInput.clampDeadZone(input.getInt(CoreActivity.STICK_DEAD_ZONE, 0)),
+        CoreInput.clampRange(input.getInt(CoreActivity.STICK_RANGE, 100))};
+    percentSlider(R.string.ingame_stick_dead_zone, 0, CoreInput.DEAD_ZONE_MAX, shape[0], value -> {
+      shape[0] = value; host.stickShapeChanged(shape[0], shape[1]);
+    });
+    percentSlider(R.string.ingame_stick_range, CoreInput.RANGE_MIN, 100, shape[1], value -> {
+      shape[1] = value; host.stickShapeChanged(shape[0], shape[1]);
+    });
+    help(R.string.ingame_stick_help);
+    choices(R.string.ingame_vibration, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_vibration_device),
+        s(R.string.ingame_vibration_controller), s(R.string.ingame_off)}, new int[] {RumbleTarget.AUTO,
+        RumbleTarget.DEVICE, RumbleTarget.CONTROLLER, RumbleTarget.OFF},
+        RumbleTarget.clampMode(input.getInt(CoreActivity.VIBRATION, RumbleTarget.AUTO)), Integer.MAX_VALUE, 4,
+        mode -> host.vibrationChanged(mode));
+    help(R.string.ingame_vibration_help);
     controllerButton = cellAction(buttonsRow(body), s(R.string.ingame_controller_config) + "   ›",
         v -> showPage(CONTROLLER, true));
     controllerButton.setEnabled(host != null && (host.controllerConnected() || host.keyboardConnected()));
@@ -1135,6 +1161,33 @@ final class CoreMenu extends Dialog {
     });
     help(R.string.ingame_volume_help);
   }
+  /** A percentage as the volumes' sliders: `min` .. `max` in steps of 5 from `now`, each move to `moved`. */
+  private void percentSlider(int label, int min, int max, int now, Changed<Integer> moved) {
+    LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
+    line.addView(rowLabel(s(label)));
+    LinearLayout slider = row();
+    SeekBar bar = new SeekBar(getContext());
+    TextView value = text("", 15, false);
+    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
+    slider.addView(value);
+    slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);  // the value ends where the buttons end
+    line.addView(slider);
+    bar.setMax((max - min) / 5);
+    bar.setProgress(Math.round((Math.max(min, Math.min(max, now)) - min) / 5f));
+    bar.setContentDescription(s(label));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    value.setText(now + " %");
+    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
+        int v = min + progress * 5;
+        value.setText(v + " %");
+        if (fromUser && host != null) moved.accept(v);
+      }
+      @Override public void onStartTrackingTouch(SeekBar b) {}
+      @Override public void onStopTrackingTouch(SeekBar b) {}
+    });
+    body.addView(line);
+  }
   /** A volume of the AUDIO page as the mouse's slider: 0 .. 100 % in steps of 5, kept in `key`. */
   private void volumeSlider(int label, String key) {
     LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
@@ -1255,6 +1308,11 @@ final class CoreMenu extends Dialog {
       cheatAction(what, label);
     });
   }
+  /** The cheat switches with "Random items" on (with `seed`, 0 .. 2^20 - 1) or off (no seed). */
+  static int withRandomItems(int bits, boolean on, int seed) {
+    bits &= ~(RANDOM_ITEMS_BIT | SEED_BITS);
+    return on ? bits | RANDOM_ITEMS_BIT | ((seed << SEED_SHIFT) & SEED_BITS) : bits;
+  }
   private MenuLayout.Buttons cheatRow(int columns) {
     MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), columns);
     body.addView(row, new LinearLayout.LayoutParams(-1, -2));
@@ -1292,10 +1350,17 @@ final class CoreMenu extends Dialog {
       v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
       cheatAction(4, R.string.ingame_cheat_extras);
     });
+    // "Random items" (wish of the project owner, 07.11.2026, GitHub issue #161): a new seed each time it goes on
+    MenuLayout.Buttons items = cheatRow(2);
+    toggle(items, R.string.ingame_cheat_random_items, (cheatBits & RANDOM_ITEMS_BIT) != 0, on -> {
+      cheatBits = withRandomItems(cheatBits, on, new java.util.Random().nextInt(1 << 20));
+      host.cheatsChanged(cheatBits);
+    });
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
     help(R.string.ingame_cheats_help);
+    help(R.string.ingame_cheat_random_items_help);
     playerCharacter();
   }
   /** The story's player character below the cheat buttons (wish of the project owner, 03.11.2026;

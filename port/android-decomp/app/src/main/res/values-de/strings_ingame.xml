@@ -242,6 +242,8 @@
     <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
     <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
     <string name="ingame_cheat_qte">Automatische QTEs</string>
+    <string name="ingame_cheat_random_items">Zufällige Gegenstände</string>
+    <string name="ingame_cheat_random_items_help">Zufällige Gegenstände: Die Gegenstände, die in den Räumen der Story liegen (Munition, Kräuter und andere Heilmittel, Granaten, Peseten, Schätze), werden ab dann in jedem Raum, den du betrittst, neu verteilt; ein Raum gibt immer dieselben Gegenstände, bis du den Schalter aus- und wieder einschaltest. Schlüssel, Waffen, Dokumente und andere Story-Gegenstände bleiben, wie sie sind, das Spiel ist also immer schaffbar. Schon Aufgehobenes bleibt aufgehoben; Gegner, Fässer und Kisten behalten ihre eigene Beute. Nicht in Assignment Ada und The Mercenaries.</string>
     <string name="ingame_cheat_extras">Extra-Spiele freischalten</string>
     <string name="ingame_cheat_extras_text">Assignment Ada und The Mercenaries sind freigeschaltet (dazu Professional, wie nach dem Durchspielen). Das Titelmenü zeigt sie nach einem Neustart. Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="ingame_cheat_extras_later">Freigeschaltet: Assignment Ada und The Mercenaries stehen nach dem nächsten Neustart im Titelmenü.</string>
@@ -253,6 +255,13 @@
     <string name="ingame_later">Später</string>
     <string name="ingame_controller_config">Tastenbelegung</string>
     <string name="ingame_controller_config_help">Tastenbelegung: jede Aktion des Spiels auf Tasten deines Controllers oder deiner Tastatur legen.</string>
+    <string name="ingame_stick_dead_zone">Stick-Totzone</string>
+    <string name="ingame_stick_range">Stick-Reichweite</string>
+    <string name="ingame_stick_help">Stick-Totzone: Kleine Bewegungen eines Controller-Sticks um die Mitte werden ignoriert (für einen Stick, der von selbst wandert oder zittert). Stick-Reichweite: So weit gedrückt zählt der Stick schon als ganz gedrückt, damit Leon auch mit einem Stick, der nicht bis zum Rand kommt, sicher geht, läuft und sich dreht. Die Standardwerte lassen die Sticks, wie sie sind. Die Touch-Steuerung ist davon nicht betroffen.</string>
+    <string name="ingame_vibration">Vibration</string>
+    <string name="ingame_vibration_device">Gerät</string>
+    <string name="ingame_vibration_controller">Controller</string>
+    <string name="ingame_vibration_help">Wo du die Vibration des Spiels spürst. Auto: in einem verbundenen Controller mit eigenen Motoren (ab Android 12), sonst in diesem Handy oder Handheld. Gerät: immer in diesem Handy oder Handheld. Controller: nur im Controller (nichts, wenn er keine Motoren hat; vor Android 12 im Gerät). Aus: keine Vibration. Die Spieloption „Vibration“ kann sie weiterhin ausschalten.</string>
     <string name="ingame_controller_default">Standardbelegung</string>
     <string name="ingame_controller_help">Wähle eine Aktion, dann drücke ihre Taste. Eine Aktion aus zwei Tasten (Feuern, Nachladen, Messerhieb) fragt erst nach der Taste zum Halten, dann nach der zweiten. Hatte eine andere Aktion die Taste, bekommt sie die alte Taste. In den Menüs des Spiels gilt die Standardbelegung; seine Hinweise zeigen weiter die GameCube-Tasten.</string>
     <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: sie behält ihre eigene Belegung; diese gilt, sobald sie aus ist.</string>

@@ -246,6 +246,8 @@
     <string name="ingame_cheat_queued">Ce sera fait dès que le jeu reprendra.</string>
     <string name="ingame_cheat_unsupported">Ce cœur de jeu n’a pas de triches.</string>
     <string name="ingame_cheat_qte">QTE automatiques</string>
+    <string name="ingame_cheat_random_items">Objets aléatoires</string>
+    <string name="ingame_cheat_random_items_help">Objets aléatoires : les objets posés dans les salles de l’histoire (munitions, herbes et autres soins, grenades, pesetas, trésors) sont redistribués dans chaque salle où vous entrez à partir de là, et une salle donne toujours les mêmes objets jusqu’à ce que vous désactiviez puis réactiviez l’option. Les clés, les armes, les documents et les autres objets de l’histoire restent tels quels : le jeu peut toujours être terminé. Ce que vous avez déjà ramassé reste ramassé ; les ennemis, tonneaux et caisses gardent leur propre butin. Pas dans Assignment Ada ni dans The Mercenaries.</string>
     <string name="ingame_cheat_extras">Débloquer les jeux bonus</string>
     <string name="ingame_cheat_extras_text">Assignment Ada et The Mercenaries sont débloqués (Professional aussi, comme après avoir fini le jeu). Le menu titre les affiche après un redémarrage. La progression depuis votre dernière sauvegarde est perdue.</string>
     <string name="ingame_cheat_extras_later">Débloqués : Assignment Ada et The Mercenaries apparaîtront dans le menu titre au prochain redémarrage.</string>
@@ -257,6 +259,13 @@
     <string name="ingame_later">Plus tard</string>
     <string name="ingame_controller_config">Configuration des touches</string>
     <string name="ingame_controller_config_help">Configuration des touches : placez chaque action du jeu sur des touches de votre manette ou de votre clavier.</string>
+    <string name="ingame_stick_dead_zone">Zone morte du stick</string>
+    <string name="ingame_stick_range">Portée du stick</string>
+    <string name="ingame_stick_help">Zone morte du stick : les petits mouvements d’un stick de la manette autour de son centre sont ignorés (pour un stick qui dérive ou tremble). Portée du stick : un stick poussé jusque-là compte déjà comme poussé à fond, pour que Leon marche, coure et tourne sans à-coups même si votre stick n’atteint pas son bord. Les valeurs par défaut laissent les sticks tels quels. Les commandes tactiles ne sont pas concernées.</string>
+    <string name="ingame_vibration">Vibration</string>
+    <string name="ingame_vibration_device">Appareil</string>
+    <string name="ingame_vibration_controller">Manette</string>
+    <string name="ingame_vibration_help">Où vous sentez la vibration du jeu. Auto : dans une manette connectée qui a ses propres moteurs (Android 12 et ultérieur), sinon dans ce téléphone ou cette console portable. Appareil : toujours dans ce téléphone ou cette console portable. Manette : seulement dans la manette (rien si elle n’a pas de moteurs ; avant Android 12, dans cet appareil). Désactivé : pas de vibration. L’option Vibration du jeu peut toujours la désactiver.</string>
     <string name="ingame_controller_default">Disposition par défaut</string>
     <string name="ingame_controller_help">Choisissez une action, puis appuyez sur sa touche. Une action à deux touches (tirer, recharger, coup de couteau) demande d’abord la touche à maintenir, puis la seconde. Si une autre action avait la touche, elle reçoit l’ancienne. Les menus du jeu gardent la configuration par défaut ; ses indications montrent toujours les boutons GameCube.</string>
     <string name="ingame_controller_alternate_note">Les commandes alternatives sont activées\u00A0: elles gardent leur propre disposition\u00A0; celle-ci s\'applique dès qu\'elles sont désactivées.</string>
