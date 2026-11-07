@@ -543,3 +543,22 @@ Bilder/s (der Kern rechnet 52 ms je Bild, davon 37 ms die Umrechnung von etwa 12
 der Bildschirm zeigt 8–9 Bilder/s. Beim Betreten eines Raums ein Stocken von bis zu 20 s
 (vermutlich das Übersetzen der Shader, je etwa 120 ms). Der Film ruckelte stark (Ursache offen,
 Texturspeicher als erster Verdacht).
+
+**Filme und Shader (07.11.2026, gemessen mit dem neuen Protokoll der App: Zeit des Renderers je
+Bildschirmbild, gebaute Shader, Auspacken und Hochladen der Texturen; `ouya-log.ps1` holt es):**
+
+- **Die App lief unoptimiert:** Gradle baut die Debug-Fassung, deren C++-Teil ohne Optimierung
+  (`-O0`); die Messungen mit `ouya-gx-render.ps1` waren optimiert. Ein Filmbild auszupacken kostete
+  so etwa 23 ms je Textur, der Film lief mit 1 Bild/s. Jetzt `-O2` auch in der Debug-Fassung
+  (`CMakeLists.txt`): dieselben 44 Texturen 60 statt 1006 ms.
+- **Ausgelassene Bilder packen nichts mehr aus:** Texturen eines Bildpakets, das der Frameskip nur
+  durchlaufen lässt, bleiben roh liegen und werden erst ausgepackt, wenn ein gezeigtes Bild sie
+  braucht (bei Filmen nie).
+- **Shader:** einer kostet die OUYA 150–300 ms. Beim Betreten eines Raums entstanden viele, die sich
+  nur in Dingen unterschieden, die kein Schritt liest (Farbtausch-Tabellen, Konstanten-Auswahl) oder
+  nur in der Nummer der Lichter: diese Teile sind jetzt aus dem Schlüssel (am PC geprüft: 30 echte
+  Bilder unverändert, mit 2 Lichtern dieselben Pixel wie vorher, 26 statt 28 Shader). Jeder neue
+  Shader schreibt ins Protokoll, worin sich sein Schlüssel vom nächsten unterscheidet.
+- **Ergebnis im Eröffnungsfilm:** etwa 32 Bildschirmbilder/s, der Film in Echtzeit (161 Bilder in
+  5,35 s, keines ausgelassen). Der Ton läuft im Film fast ohne Lücken; in r100 läuft er trocken,
+  weil das Spiel dort langsamer als Echtzeit rechnet (Kern 52 ms je Bild).
