@@ -1397,6 +1397,584 @@ void GxCore::Run(const Re4GxChunk &chunk) {
 }
 
 
+void GxCore::Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *merge) {
+  // (every draw op counts for "n-th draw of its object", as Interpolate counts them ahead)
+  curOwner = ownerBase ? (ownerBase ^ (static_cast<std::uint64_t>(ownerDraws++) + 1) * 0x9E3779B97F4A7C15ull) | 1 : 0;
+  curLife = ownerLife;
+  if (ownerBase && recordDraws && !interpPass)
+    recOwnerDrawsNew[ownerBase]++;
+  Split(GxStats::kSplitRest);
+  if (d.indexCount == 0 || d.vertexOffset + static_cast<std::uint64_t>(d.vertexCount) * d.stride > chunk.vertexBytes ||
+      d.indexOffset + d.indexCount > chunk.indexCount)
+    return;
+  // the shader: the one of the last draw while no register that shapes it changed
+  if (keyDirty || d.layout != keyLayout) {
+    key = MakeKey(d);
+    if (KeyProgram())
+      NoteKey(key);
+    keyLayout = d.layout;
+    keyDirty = false;
+  }
+  const void *p = DrawProgram(merge != nullptr);
+  Split(GxStats::kSplitProgram);
+  if (!p)
+    return;
+  const ShaderKey &k = key;
+  const unsigned primitive = d.primitive & 0xFF;
+  UseEfb();
+  ApplyState(primitive);
+  const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * Sf(1);
+  if (xf.proj[1][3] != pointSize) {
+    xf.proj[1][3] = pointSize;
+    Dirty(207, 208);
+  }
+  if (xfRegsDirty)
+    FillXfRegs();
+  Split(GxStats::kSplitState);
+  std::uint32_t blended = 0;
+  if (interpPass)
+    blended = BlendDraw(d, k, chunk);
+  else if (recordDraws)
+    RecordDraw(d, k);
+  // a light source for the lens flares (with the in-between picture's blended matrices)
+  if (flaresOn && flareAfter && !merge)
+    FlareNote(d, chunk, curOpAt);
+  Split(GxStats::kSplitRest);
+  // (the merged block first: a move of the stream it causes sends the other parts again)
+  if (merge)
+    UploadMerged(merge->draws);
+  UploadXf(merge != nullptr);
+  if (pxDirty || !pxValid) {
+    FillPixel(k);
+    pxDirty = false;
+    if (!pxValid || std::memcmp(&px, &pxSent, sizeof(px)) != 0) {
+      UploadUniform(kPixelBinding, &px, 0, sizeof(PixelBlock), sizeof(PixelBlock));
+      mergePixel = true;
+      pxSent = px;
+      pxValid = true;
+    }
+  }
+  Split(GxStats::kSplitUniform);
+  // the program, its constants, the textures, the vertices and the draw call
+  SubmitDraw(d, p, merge);
+  if (!interpPass) {
+    const MergeSnap now{stats.uniformUploads, stats.programSwitches, stats.textureBinds, stats.stateChanges,
+                        stats.attributeSetups, stats.textureCopies, stats.displayCopies, primitive};
+    if (mergeValid && !blended && now.programs == mergeLast.programs && now.binds == mergeLast.binds &&
+        now.states == mergeLast.states && now.setups == mergeLast.setups && now.copies == mergeLast.copies &&
+        now.displays == mergeLast.displays && now.mode == mergeLast.mode) {
+      if (now.uniforms == mergeLast.uniforms && !mergeMatrix)
+        stats.mergeSame++;
+      else {
+        stats.mergeUniform++;
+        if (!mergePixel)
+          stats.mergeMatrixOnly++;
+      }
+    }
+    mergeLast = now;
+    mergeValid = !blended;
+    mergeMatrix = mergePixel = false;
+  }
+  stats.draws += merge ? merge->draws : 1;
+  if (merge) {
+    stats.mergeBatches++;
+    stats.mergeTaken += merge->draws;
+  }
+  if (primitive != RE4_GX_LINES && primitive != RE4_GX_POINTS)
+    stats.triangles += (merge ? merge->count : d.indexCount) / 3;
+  if (blended)
+    BlendRestore(blended);
+}
+
+void GxCore::ApplyState(unsigned primitive) {
+  // the picture's extent: the full-width scissors the draws of this picture ran under
+  {
+    const int xo = static_cast<int>(bp[0x59] & 0x3FF) * 2, yo = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+    const int sx0 = static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xo, sx1 = static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xo + 1;
+    if (sx1 - sx0 >= 500)
+      sceneBottom = std::max(sceneBottom, std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yo + 1));
+  }
+  // the registers below, as last applied: nothing to do while they hold
+  const std::uint32_t sig[10] = {bp[0x20],     bp[0x21],     bp[0x59],       bp[0x40] & 0x1F, bp[0x41] & 0xFFFF,
+                                 bp[0x43] & 7, (bp[0x00] >> 14) & 3, bp[0x22] & 0xFF, primitive, bp[0x42] & 0x1FF};
+  if (stateValid && std::memcmp(sig, stateSig, sizeof(sig)) == 0)
+    return;
+  std::memcpy(stateSig, sig, sizeof(sig));
+  stateValid = true;
+  stats.stateChanges++;
+  DrawState s;
+  // scissor: registers in EFB pixels + 342, minus the scissor offset (BP 0x59, in 2 pixels)
+  const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+  const int x0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
+  const int y0 = std::max(0, static_cast<int>(bp[0x20] & 0x7FF) - yoff);
+  const int x1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
+  const int y1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
+  s.scissor[0] = Lo(x0);
+  s.scissor[1] = Lo(y0);
+  s.scissor[2] = std::max(0, Lo(x1) - Lo(x0));
+  s.scissor[3] = std::max(0, Lo(y1) - Lo(y0));
+  // depth
+  const std::uint32_t z = bp[0x40];
+  s.depthTest = (z & 1) != 0;
+  s.depthFunc = (z >> 1) & 7;
+  s.depthWrite = s.depthTest && ((z >> 4) & 1);
+  // blending, colour and alpha update
+  const std::uint32_t c = bp[0x41];
+  const bool alphaFormat = (bp[0x43] & 7) == 1; // RGBA6_Z24 keeps alpha
+  const bool alphaWrite = ((c >> 4) & 1) && alphaFormat, colorWrite = (c >> 3) & 1;
+  s.colorWrite = colorWrite;
+  s.alphaWrite = alphaWrite;
+  // destination alpha (GXSetDstAlpha, BP 0x42): the EFB alpha gets this
+  // constant instead of the TEV alpha, which still drives the blending; the
+  // shader writes it (PX alphaRef.z) unless the colour blending needs the
+  // TEV alpha (colour written with SRC_ALPHA factors), then the alpha blend
+  // factors make it (0 only: other values would need dual-source blending;
+  // counted in Stats().dstAlphaApprox)
+  const bool dstAlpha = alphaWrite && ((bp[0x42] >> 8) & 1);
+  const int dstValue = static_cast<int>(bp[0x42] & 0xFF);
+  int shaderAlpha = -1;
+  using F = DrawState;
+  if ((c >> 11) & 1) { // subtract: dst - src
+    s.blend = true;
+    s.eqColor = F::kReverseSubtract;
+    s.eqAlpha = dstAlpha ? F::kAdd : F::kReverseSubtract;
+    s.srcColor = s.dstColor = s.srcAlpha = F::kOne;
+    s.dstAlpha = dstAlpha ? F::kZero : F::kOne;
+    if (dstAlpha)
+      shaderAlpha = dstValue;
+  } else if (c & 1) {
+    static const DrawState::Factor src[8] = {F::kZero,     F::kOne,           F::kDstColor, F::kOneMinusDstColor,
+                                             F::kSrcAlpha, F::kOneMinusSrcAlpha, F::kDstAlpha, F::kOneMinusDstAlpha};
+    static const DrawState::Factor dst[8] = {F::kZero,     F::kOne,           F::kSrcColor, F::kOneMinusSrcColor,
+                                             F::kSrcAlpha, F::kOneMinusSrcAlpha, F::kDstAlpha, F::kOneMinusDstAlpha};
+    const unsigned sf = (c >> 8) & 7, df = (c >> 5) & 7;
+    s.blend = true;
+    s.eqColor = s.eqAlpha = F::kAdd;
+    s.srcColor = src[sf];
+    s.dstColor = dst[df];
+    if (!dstAlpha) {
+      s.srcAlpha = src[sf];
+      s.dstAlpha = dst[df];
+    } else if (!colorWrite || (sf != 4 && sf != 5 && df != 4 && df != 5)) {
+      s.srcAlpha = F::kOne; // TEV alpha not needed: the shader writes it
+      s.dstAlpha = F::kZero;
+      shaderAlpha = dstValue;
+    } else {
+      s.srcAlpha = s.dstAlpha = F::kZero;
+      if (dstValue != 0)
+        stats.dstAlphaApprox++;
+    }
+  } else if ((c >> 1) & 1) { // logic operations: the common ones
+    const unsigned op = (c >> 12) & 15;
+    s.blend = true;
+    s.eqColor = s.eqAlpha = F::kAdd;
+    if (op == 0) { // clear
+      s.srcColor = F::kZero;
+      s.dstColor = F::kZero;
+    } else if (op == 5) { // noop
+      s.srcColor = F::kZero;
+      s.dstColor = F::kOne;
+    } else if (op == 15) { // set: approximated
+      s.srcColor = F::kOne;
+      s.dstColor = F::kOne;
+    } else { // copy and the rest
+      s.srcColor = F::kOne;
+      s.dstColor = F::kZero;
+    }
+    s.srcAlpha = s.srcColor;
+    s.dstAlpha = s.dstColor;
+    if (dstAlpha && op != 0 && op != 5 && op != 15)
+      shaderAlpha = dstValue;
+  } else {
+    s.blend = false;
+    if (dstAlpha)
+      shaderAlpha = dstValue;
+  }
+  if (px.alphaRef[2] != shaderAlpha) {
+    px.alphaRef[2] = shaderAlpha;
+    pxDirty = true;
+  }
+  // culling: only triangles (hardware 1 = back, 2 = front, 3 = all)
+  const unsigned cull = (bp[0x00] >> 14) & 3;
+  s.cull = primitive != RE4_GX_TRIANGLES ? 0 : cull;
+  // lines and points: width in 1/6 pixel
+  s.lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * Sf(1);
+  ApplyDrawState(s);
+}
+
+void GxCore::UploadXf(bool merged) {
+  for (int round = 0; round < 2; round++) {
+    if (streamMoved) {
+      streamMoved = false;
+      Dirty(0, kXfPartRow[kXfParts]);
+      pxValid = false;
+      for (bool &v : xfSentValid)
+        v = false;
+    }
+    for (int i = merged ? 1 : 0; i < kXfParts; i++) {
+      if (dirtyLo[i] >= dirtyHi[i])
+        continue;
+      const std::size_t first = static_cast<std::size_t>(kXfPartRow[i]) * 16;
+      const std::size_t partBytes = static_cast<std::size_t>(kXfPartRow[i + 1] - kXfPartRow[i]) * 16;
+      const auto *now = reinterpret_cast<const std::uint8_t *>(&xf) + first;
+      auto *sent = reinterpret_cast<std::uint8_t *>(&xfSent) + first;
+      // the rows that changed are as sent: the part bound now still holds them (in the stream
+      // a part is never written again in place; the small buffers keep what they got)
+      const std::size_t lo = static_cast<std::size_t>(dirtyLo[i]) * 16, hi = static_cast<std::size_t>(dirtyHi[i]) * 16;
+      // RE4_GX_UNIFORM_SAME=0: every changed part sent (the counter-check)
+      static const bool sendSame = std::getenv("RE4_GX_UNIFORM_SAME") && *std::getenv("RE4_GX_UNIFORM_SAME") == '0';
+      if (!sendSame && xfSentValid[i] && std::memcmp(now + (lo - first), sent + (lo - first), hi - lo) == 0) {
+        stats.uniformSame++;
+        dirtyLo[i] = kXfPartRow[kXfParts];
+        dirtyHi[i] = 0;
+        continue;
+      }
+      std::memcpy(sent, now, partBytes);
+      xfSentValid[i] = true;
+      UploadUniform(kXfPartBinding[i], reinterpret_cast<const std::uint8_t *>(&xf) + first,
+                  static_cast<std::size_t>(dirtyLo[i]) * 16 - first,
+                  static_cast<std::size_t>(dirtyHi[i] - dirtyLo[i]) * 16,
+                  static_cast<std::size_t>(kXfPartRow[i + 1] - kXfPartRow[i]) * 16);
+      dirtyLo[i] = kXfPartRow[kXfParts];
+      dirtyHi[i] = 0;
+    }
+    if (!streamMoved)
+      break;
+  }
+}
+
+void GxCore::UploadMerged(unsigned draws) {
+  const std::size_t bytes = offsetof(MergeBlock, xf) + static_cast<std::size_t>(draws) * sizeof(mergeBlock.xf[0]);
+  UploadUniform(kMergeBinding, &mergeBlock, 0, bytes, sizeof(MergeBlock), bytes);
+}
+
+std::uint32_t GxCore::BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re4GxChunk &chunk) {
+  const bool flat = k.orthographic;
+  std::uint32_t first = 0, rows = 0;
+  bool lights = false;
+  DrawRows(d, &first, &rows);
+  if (flat && rows != 3)
+    return 0;
+  if (!flat)
+    ipDraws++;
+  float t[3] = {};
+  if (rows)
+    for (int c = 0; c < 3; c++)
+      t[c] = xf.posTex[first + c][3];
+  const std::uint64_t sig = DrawSig(d, k);
+  // its kind for the counts (60fps-plan.md S0): 0 a particle, 1 a figure (matrices per vertex),
+  // 2 the room and other 3D, 3 2D
+  const int kind = flat ? 3 : rows == 30 ? 1 : rows == 3 && d.vertexCount <= 16 ? 0 : 2;
+  stats.interpKind[kind]++;
+  // the object's draw of the picture before (S2): the same object, the same shape; a particle's
+  // slot used anew (another effect, fewer life frames) is a new one, drawn as in the next picture
+  const DrawRec *a = nullptr;
+  bool owned = false;
+  bool sameCount = false;
+  if (curOwner) {
+    auto pc = recOwnerDraws.find(ownerBase), nc = nextOwnerDraws.find(ownerBase);
+    sameCount = pc != recOwnerDraws.end() && nc != nextOwnerDraws.end() && pc->second == nc->second;
+    if (!sameCount)
+      stats.interpOwnedRecount++;
+  }
+  if (curOwner && sameCount) {
+    auto o = recByOwner.find(curOwner);
+    // not a particle, the same vertices and position rows, only another shader or texture matrix index:
+    // still that draw. Its position is blended, its texture matrices and colours (S3) are not. Retroid
+    // series 01.11.2026, r101: a house door switched a texture matrix index between identity and a row
+    // from one game picture to the next; unmatched, its lower half was drawn where it is in the next
+    // picture, a step against the wall around it in each in-between picture (flickering walls)
+    const bool sameShape = o != recByOwner.end() && rec[o->second].shape == DrawSig(d, k, false);
+    const bool samePlace = o != recByOwner.end() && kind != 0 && rec[o->second].rows == rows &&
+                           rec[o->second].posRow == first && rec[o->second].vertexCount == d.vertexCount &&
+                           rec[o->second].stride == d.stride && rec[o->second].layout == d.layout;
+    if (o != recByOwner.end() && !recUsed[o->second] && (sameShape || samePlace)) {
+      const DrawRec &c = rec[o->second];
+      recUsed[o->second] = 1;
+      if (c.life != ~0u && curLife != ~0u &&
+          ((c.life >> 16) != (curLife >> 16) || (curLife & 0xFFFF) < (c.life & 0xFFFF))) {
+        stats.interpOwnedNew++;
+        stats.interpKindUnmatched[kind]++;
+        return flat ? 0 : BlendByCamera(first, rows);
+      }
+      a = &c;
+      owned = sameShape;
+      stats.interpOwned++;
+    }
+  }
+  // a one-frame effect the game makes anew every picture (the laser sight: EspDrawLaserLine and drawPoint select
+  // a new cEsp each picture, life 1, mostly in another slot): not new, the same effect as a one-frame one of its
+  // id and look in the picture before (by MatchDraw among those; draws of objects that go on are reserved), its
+  // rows and ends blended. Taken for new, the beam was moved by the camera's guessed move instead and its far end
+  // lay 9-10 pixels beside both pictures' in every in-between picture (users 06.11.2026: the laser briefly
+  // doubled while it moved; PC series r101, aiming and turning)
+  bool oneFrame = false;
+  if (!a && curOwner && curLife != ~0u && (curLife & 0xFFFF) <= 1) {
+    auto same = recBySig.find(sig);
+    if (same != recBySig.end()) {
+      oneFrameCands.clear();
+      for (std::uint32_t i : same->second)
+        if (rec[i].life != ~0u && (rec[i].life >> 16) == (curLife >> 16) && (rec[i].life & 0xFFFF) <= 1)
+          oneFrameCands.push_back(i);
+      if (!oneFrameCands.empty() && (a = MatchDraw(oneFrameCands, t, rows, d.vertexCount, flat)) != nullptr) {
+        oneFrame = true;
+        stats.interpOneFrame++;
+      }
+    }
+  }
+  // a particle whose slot drew nothing in the picture before: a new one (a turn of the r307 puzzle
+  // starts sparkles), drawn as in the next picture; guessed, it took another's place
+  if (!a && curOwner && curLife != ~0u && !recOwnerDraws.count(ownerBase)) {
+    stats.interpOwnedNew++;
+    stats.interpKindUnmatched[kind]++;
+    return flat ? 0 : BlendByCamera(first, rows);
+  }
+  auto it = recBySig.find(sig);
+  if (!a)
+    a = it != recBySig.end() ? MatchDraw(it->second, t, rows, d.vertexCount, flat) : nullptr;
+  // a particle with none of its look: by the look without its textures. Flames show a new picture
+  // of their animation, a texture of its own, every game picture (Retroid report 26.10.2026, the
+  // merchant's brazier: unmatched, the flames were drawn where they are in the next picture and
+  // lagged behind the brazier while the camera turned). The texture stays the next picture's.
+  if (!a && !flat && rows == 3 && d.vertexCount <= 16) {
+    auto look = recByLook.find(DrawSig(d, k, false));
+    if (look != recByLook.end())
+      a = MatchDraw(look->second, t, rows, d.vertexCount);
+  }
+  if (a && !flat && rows == 3 && a->rows == 3 && a->posRow == first && d.vertexCount >= 64) {
+    float now[3][4];
+    std::memcpy(now, xf.posTex[first], sizeof(now));
+    NoteCamera(sig, recFloats.data() + a->data, now);
+  }
+  if (!a) {
+    stats.interpKindUnmatched[kind]++;
+    return flat ? 0 : BlendByCamera(first, rows);
+  }
+  const float s = interpT;
+  const float *src = recFloats.data() + a->data;
+  if (flat) {
+    const float dx = xf.posTex[first][3] - src[3], dy = xf.posTex[first + 1][3] - src[7];
+    if (a->rows != 3 || a->posRow != first || !(dx * dx + dy * dy <= kFlatMove * kFlatMove))
+      return 0;
+    for (int r = 0; r < 3; r++)
+      for (int c = 0; c < 3; c++)
+        if (!(std::fabs(xf.posTex[first + r][c] - src[r * 4 + c]) <= 1e-3f * std::max(1.0f, std::fabs(src[r * 4 + c]))))
+          return 0;
+  } else {
+    ipMatched++;
+  }
+  if (rows && a->rows == rows && a->posRow == first) {
+    // turned more than 20 degrees: a cut of the camera, most likely (Interpolate counts them)
+    if (rows == 3 && !flat) {
+      float lowest = 1.0f;
+      for (int r = 0; r < 3; r++) {
+        const float *pa = src + r * 4, *pb = xf.posTex[first + r];
+        const float la = std::sqrt(pa[0] * pa[0] + pa[1] * pa[1] + pa[2] * pa[2]);
+        const float lb = std::sqrt(pb[0] * pb[0] + pb[1] * pb[1] + pb[2] * pb[2]);
+        if (la > 0.0f && lb > 0.0f)
+          lowest = std::min(lowest, (pa[0] * pb[0] + pa[1] * pb[1] + pa[2] * pb[2]) / (la * lb));
+      }
+      if (lowest < 0.94f)
+        ipTurned++;
+    }
+    float now[3][4] = {};
+    if (rows == 3)
+      std::memcpy(now, xf.posTex[first], sizeof(now));
+    for (std::uint32_t r = 0; r < rows; r++)
+      for (int c = 0; c < 4; c++)
+        xf.posTex[first + r][c] = src[r * 4 + c] + (xf.posTex[first + r][c] - src[r * 4 + c]) * s;
+    // the lights (in view space, as the game loaded them for the next picture) moved with the
+    // camera between the two: tester's report 24.10.2026, light pools that swam in 60 FPS
+    if (rows == 3 && !flat && BlendLights(now, xf.posTex[first]))
+      lights = true;
+    const float *nrm = src + rows * 4;
+    for (std::uint32_t r = 0; r < rows; r++)
+      for (int c = 0; c < 3; c++)
+        xf.normal[(first + r) & 31][c] = nrm[r * 3 + c] + (xf.normal[(first + r) & 31][c] - nrm[r * 3 + c]) * s;
+    Dirty(static_cast<int>(first), static_cast<int>(first + rows));
+    Dirty(64, 96);
+  }
+  // the projection (a zoom): between the two
+  const float *proj = src + rows * 4 + rows * 3;
+  if (a->perspective && (a->rows == rows)) {
+    for (int i = 0; i < 6; i++)
+      xf.proj[i / 4][i % 4] = proj[i] + (xf.proj[i / 4][i % 4] - proj[i]) * s;
+    Dirty(206, 208);
+  }
+  // the material and ambient colours: between the two (particles fade in and out by their
+  // material colour; Retroid report 26.10.2026: the flames changed only with the game's 30
+  // pictures a second). FillXfRegs puts them back after the draw.
+  bool colors = false;
+  const float *mat = src + a->rows * 4 + a->rows * 3 + 6;
+  if (std::memcmp(mat, &xf.matAmb[0][0], sizeof(xf.matAmb)) != 0) {
+    for (int i = 0; i < 16; i++)
+      xf.matAmb[i / 4][i % 4] = mat[i] + (xf.matAmb[i / 4][i % 4] - mat[i]) * s;
+    Dirty(200, 204);
+    colors = true;
+  }
+  // with the object sure (an owned draw, S3): its texture matrices (flowing water, lava, drifting
+  // fog) unless a coordinate jumped by more than half the texture (it ran over its edge and
+  // starts again), the TEV colours (a glow) and the light colours (torchlight) between the two
+  bool extras = false;
+  if (owned && a->extra != ~0u) {
+    const float *ex = recFloats.data() + a->extra;
+    texRowsBlended.clear();
+    for (int n = 0; n < 8; n++) {
+      const std::uint32_t row = TexRow(d, n);
+      if (row >= 60 || row + 3 > 64)
+        continue;
+      const float *was = ex + n * 12;
+      bool same = true, jump = false;
+      for (int r = 0; r < 3; r++) {
+        for (int c = 0; c < 4; c++) {
+          const float diff = xf.posTex[row + r][c] - was[r * 4 + c];
+          same = same && diff == 0.0f;
+          if (c == 3 && r < 2 && std::fabs(diff) > 0.5f)
+            jump = true;
+        }
+      }
+      if (same || std::find(texRowsBlended.begin(), texRowsBlended.end(), row) != texRowsBlended.end())
+        continue;
+      if (jump) {
+        stats.interpTexWraps++;
+        continue;
+      }
+      for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 4; c++)
+          xf.posTex[row + r][c] = was[r * 4 + c] + (xf.posTex[row + r][c] - was[r * 4 + c]) * s;
+      texRowsBlended.push_back(row);
+      Dirty(static_cast<int>(row), static_cast<int>(row + 3));
+      stats.interpTexBlends++;
+      extras = true;
+    }
+    std::int32_t tev[2][4][4];
+    std::memcpy(tev, ex + 96, sizeof(tev));
+    if (std::memcmp(tev[0], tevColor, sizeof(tevColor)) != 0 || std::memcmp(tev[1], tevKonst, sizeof(tevKonst)) != 0) {
+      std::memcpy(tevSave[0], tevColor, sizeof(tevColor));
+      std::memcpy(tevSave[1], tevKonst, sizeof(tevKonst));
+      for (int i = 0; i < 4; i++) {
+        for (int c = 0; c < 4; c++) {
+          tevColor[i][c] = static_cast<std::int32_t>(std::lround(tev[0][i][c] + (tevColor[i][c] - tev[0][i][c]) * s));
+          tevKonst[i][c] = static_cast<std::int32_t>(std::lround(tev[1][i][c] + (tevKonst[i][c] - tev[1][i][c]) * s));
+        }
+      }
+      pxDirty = true;
+      stats.interpTevBlends++;
+      extras = true;
+      texRowsBlended.push_back(0x100);
+    }
+    // post-transform matrices, as the texture matrices
+    for (int n = 0; k.dualTex && n < 8; n++) {
+      const std::uint32_t row = k.postGen[n] & 63;
+      if (row + 3 > 64 ||
+          std::find(texRowsBlended.begin(), texRowsBlended.end(), 0x200 + row) != texRowsBlended.end())
+        continue;
+      const float *was = ex + 160 + n * 12;
+      bool same = true, jump = false;
+      for (int r = 0; r < 3; r++) {
+        for (int c = 0; c < 4; c++) {
+          const float diff = xf.post[row + r][c] - was[r * 4 + c];
+          same = same && diff == 0.0f;
+          if (c == 3 && r < 2 && std::fabs(diff) > 0.5f)
+            jump = true;
+        }
+      }
+      if (same)
+        continue;
+      if (jump) {
+        stats.interpTexWraps++;
+        continue;
+      }
+      for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 4; c++)
+          xf.post[row + r][c] = was[r * 4 + c] + (xf.post[row + r][c] - was[r * 4 + c]) * s;
+      texRowsBlended.push_back(0x200 + row);
+      Dirty(static_cast<int>(96 + row), static_cast<int>(96 + row + 3));
+      stats.interpTexBlends++;
+      extras = true;
+    }
+    // the indirect matrices, each element between the two when the scale stayed (it is shared by
+    // the matrix's three words; a new scale is a new matrix: as in the next picture)
+    {
+      std::uint32_t was[9];
+      std::memcpy(was, ex + 256, sizeof(was));
+      bool changed = false;
+      for (int i = 0; i < 9; i++)
+        changed = changed || (was[i] & 0xFFFFFF) != (bp[0x06 + i] & 0xFFFFFF);
+      if (changed) {
+        std::memcpy(indSave, &bp[0x06], sizeof(indSave));
+        for (int m = 0; m < 3; m++) {
+          bool sameScale = true;
+          for (int w = 0; w < 3; w++)
+            sameScale = sameScale && ((was[3 * m + w] >> 22) & 3) == ((bp[0x06 + 3 * m + w] >> 22) & 3);
+          if (!sameScale)
+            continue;
+          for (int w = 0; w < 3; w++) {
+            const std::uint32_t a = was[3 * m + w], b = bp[0x06 + 3 * m + w];
+            std::uint32_t v = b & ~0x3FFFFFu;
+            for (int half = 0; half < 2; half++) {
+              const int ea = Signed11(a >> (11 * half)), eb = Signed11(b >> (11 * half));
+              const int e = static_cast<int>(std::lround(ea + (eb - ea) * s));
+              v |= (static_cast<std::uint32_t>(e) & 0x7FFu) << (11 * half);
+            }
+            bp[0x06 + 3 * m + w] = v;
+          }
+        }
+        pxDirty = true;
+        texRowsBlended.push_back(0x300);
+        stats.interpIndBlends++;
+        extras = true;
+      }
+    }
+    const float *lc = ex + 128;
+    bool lightsDiffer = false;
+    for (int l = 0; l < 8 && !lightsDiffer; l++)
+      lightsDiffer = std::memcmp(lc + l * 4, xf.light[l][0], 4 * sizeof(float)) != 0;
+    if (lightsDiffer) {
+      for (int l = 0; l < 8; l++)
+        for (int c = 0; c < 4; c++)
+          xf.light[l][0][c] = lc[l * 4 + c] + (xf.light[l][0][c] - lc[l * 4 + c]) * s;
+      Dirty(160, 200);
+      lights = true;
+      stats.interpLightBlends++;
+    }
+  }
+  // vertices the game moved itself (skinning): positions and normals between the two
+  if (interpPrev && a->vertexCount == d.vertexCount && a->stride == d.stride && a->layout == d.layout &&
+      d.stride >= 12 && a->vertexOffset + static_cast<std::uint64_t>(a->vertexCount) * a->stride <=
+                            interpPrev->vertexBytes) {
+    const std::uint8_t *pa = interpPrev->vertices + a->vertexOffset, *pb = chunk.vertices + d.vertexOffset;
+    const std::size_t bytes = static_cast<std::size_t>(d.vertexCount) * d.stride;
+    if (std::memcmp(pa, pb, bytes) != 0) {
+      blendVertices.assign(pb, pb + bytes);
+      const bool normals = (d.layout & RE4_GX_V_NORMAL) != 0 && d.stride >= 24;
+      float far = 0.0f;
+      for (std::uint32_t v = 0; v < d.vertexCount; v++) {
+        float fa[6], fb[6];
+        std::memcpy(fa, pa + v * d.stride, normals ? 24 : 12);
+        std::memcpy(fb, pb + v * d.stride, normals ? 24 : 12);
+        for (int c = 0; c < 3; c++)
+          far = std::max(far, std::fabs(fb[c] - fa[c]));
+        for (int c = 0; c < (normals ? 6 : 3); c++)
+          fb[c] = fa[c] + (fb[c] - fa[c]) * s;
+        std::memcpy(blendVertices.data() + v * d.stride, fb, normals ? 24 : 12);
+      }
+      // more than 1500 units in one game picture (2D: kFlatMove): not the same figure. A one-frame line
+      // matched by its id is the same at any distance (the laser's far end jumps from a near wall to a far one).
+      // The blended vertices go to a place of blendVbo no draw has used in this pass: no waiting, no copy
+      // of the buffer
+      if (far <= (flat ? kFlatMove : 1500.0f) || (oneFrame && (d.primitive & 0xFF) == RE4_GX_LINES)) {
+        if (PutBlendedVertices(blendVertices.data(), bytes, d.stride))
+          stats.interpVertexBlends++;
+      }
+    }
+  }
+  // 0x100000: only the projection; 0x200000: the lights too; 0x400000: the colours; 0x800000:
+  // texture matrices or TEV colours (texRowsBlended)
+  return (rows ? first << 8 | rows : 0x100000) | (lights ? 0x200000u : 0u) | (colors ? 0x400000u : 0u) |
+         (extras ? 0x800000u : 0u);
+}
+
 // ---- end of the part moved from GlRenderer ----
 
 } // namespace re4gx

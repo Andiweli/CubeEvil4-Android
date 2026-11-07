@@ -81,6 +81,25 @@ struct Copy {
   bool read = false;  // read as a texture since it was made (GxStats::copyRead, a measurement)
 };
 
+// The draw state the GX registers ask for (GxCore::ApplyState), in terms both APIs have: the scissor, depth test,
+// colour and alpha writes, blending, culling and the width of lines.
+struct DrawState {
+  int scissor[4] = {};  // x, y, width, height in EFB pixels at the scale (row 0 = the EFB's row 0)
+  bool depthTest = false, depthWrite = false;
+  unsigned depthFunc = 7;  // GX's order: never, less, equal, lequal, greater, notequal, gequal, always
+  bool colorWrite = true, alphaWrite = true;
+  bool blend = false;
+  enum Eq : std::uint8_t { kAdd, kReverseSubtract };
+  enum Factor : std::uint8_t {
+    kZero, kOne, kSrcColor, kOneMinusSrcColor, kDstColor, kOneMinusDstColor, kSrcAlpha, kOneMinusSrcAlpha, kDstAlpha,
+    kOneMinusDstAlpha
+  };
+  Eq eqColor = kAdd, eqAlpha = kAdd;
+  Factor srcColor = kOne, dstColor = kZero, srcAlpha = kOne, dstAlpha = kZero;
+  unsigned cull = 0;  // triangles only: 0 none, 1 back, 2 front, 3 all
+  float lineWidth = 1.0f;  // lines and points, in pixels at the scale (the APIs take at least 1)
+};
+
 struct GxCore {
   explicit GxCore(GxApi a) : api(a) {}
   virtual ~GxCore() = default;
@@ -511,7 +530,7 @@ struct GxCore {
   virtual void BpWrite(std::uint32_t word, bool action) = 0;
   virtual void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) = 0;
   virtual void Forget(std::uint64_t key) = 0;
-  virtual void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *merge = nullptr) = 0;
+  void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *merge = nullptr);
   // Run's GPU side, in this order: before the chunk; its vertices and indices (not when skipped or uploaded by the
   // in-between pass); the state before the first op; after the last op; leaving the API for the app's other code
   virtual void RunBegin() = 0;
@@ -529,6 +548,33 @@ struct GxCore {
     unsigned mode;  // the primitive (GL: GL_TRIANGLES ...)
   } mergeLast{};
   bool mergeValid = false, mergeMatrix = false, mergePixel = false;
+  // the draw state of the GX registers for the next draw (when they changed since the last one)
+  void ApplyState(unsigned primitive);
+  // Draw's GPU side: the program of `key` for the draws from now on (false: none, the draws are left out); the program
+  // of this draw (the merged one's for a merged draw call; null: none); the EFB ready to be drawn into; the draw
+  // state; a uniform block to its binding (kXfPartBinding ..., `copyBytes`: only the block's first bytes are
+  // new); the draw itself with its program, constants (uMtx, uWiden), textures, vertices and indices
+  virtual bool KeyProgram() = 0;
+  virtual const void *DrawProgram(bool merged) = 0;
+  virtual void UseEfb() = 0;
+  virtual void ApplyDrawState(const DrawState &s) = 0;
+  virtual void UploadUniform(int binding, const void *data, std::size_t offset, std::size_t bytes,
+                             std::size_t blockBytes, std::size_t copyBytes = 0) = 0;
+  virtual void SubmitDraw(const Re4GxDraw &d, const void *program, const MergeCall *merge) = 0;
+  std::uint32_t stateSig[10] = {};   // ApplyState's registers as last applied
+  bool stateValid = false;
+  bool streamMoved = false;          // StreamNextPart since the last draw's uploads (UploadXf)
+  // The parts of the XF block that changed since the last draw, to the GPU. In the stream a part
+  // goes whole into a new place; after the stream moved to its next quarter every part goes again
+  // (a part bound in an old quarter could be written over before the GPU reads it).
+  // `merged`: not the XFM part (a merged draw call has its own, UploadMerged); it stays dirty for
+  // the next single draw.
+  void UploadXf(bool merged = false);
+  // The merged block's first `draws` slots (and the slot table) to its binding.
+  void UploadMerged(unsigned draws);
+  // the blended vertices of the draw BlendDraw is on to a place of their own (false: no room left in this pass)
+  virtual bool PutBlendedVertices(const std::uint8_t *data, std::size_t bytes, std::uint32_t stride) = 0;
+  std::uint32_t BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re4GxChunk &chunk);
   // ---- end of the part moved from GlRenderer ----
 
   // GxRenderer's calls, with the same meaning (see gx_gl.h)
