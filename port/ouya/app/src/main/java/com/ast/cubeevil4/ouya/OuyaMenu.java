@@ -29,8 +29,10 @@ import java.util.Locale;
  * app's in-game menu (port/android-decomp/.../CoreMenu.java: its colours, buttons, headings), with what
  * the owner chose for the OUYA: GRAPHICS (resolution, view distance, colour calculation, the two Potato
  * switches), PERFORMANCE (frame skip; wish of the project owner, 07.11.2026: the main app's other
- * performance options do nothing on the OUYA or belong to its GLES 3 renderer) and COMFORT CONTROLS
- * (auto aim, always run, far camera). The game pauses while it is open.
+ * performance options do nothing on the OUYA or belong to its GLES 3 renderer), COMFORT CONTROLS
+ * (auto aim, always run, far camera) and CHEATS (wish of the project owner, 07.11.2026: the main app's
+ * switches and buttons for the player and the weapons, not its characters and extra games). The game
+ * pauses while it is open.
  * Exclusive choices are selected buttons, switches show "On" / "Off". D-pad or left stick move, O
  * chooses, A, L3 or the OUYA button go back to the game. Android 4.1: no lambdas on API 17+ calls.
  */
@@ -38,6 +40,9 @@ final class OuyaMenu extends Dialog {
     /** The settings (Settings.PREFS); the activity sends them to the core and the renderer. */
     interface Host {
         void settingsChanged();
+        /** A cheat button (runtime/cheats.cpp re4_core_cheat_action): 1 done, 2 already there (a weapon:
+         *  raised to its highest levels), 0 not now, -1 no room, 3 queued, else unsupported. Any thread. */
+        int cheatAction(int what);
     }
 
     /** The preferences and their defaults: the light OUYA version (port/docs/ouya-machbarkeit.md). */
@@ -45,13 +50,15 @@ final class OuyaMenu extends Dialog {
         static final String PREFS = "settings";
         static final String EIGHTHS = "resolutionEighths", FAST_TEV = "fastTev", VIEW = "viewPercent",
                 WEATHER = "weatherEffects", SPECIAL = "specialEffects", AUTO_AIM = "autoAim",
-                ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera", FRAME_SKIP = "frameSkip";
+                ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera", FRAME_SKIP = "frameSkip", CHEATS = "cheats";
         static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 50;
 
         static int eighths(SharedPreferences p) { return p.getInt(EIGHTHS, EIGHTHS_DEFAULT); }
         static boolean fastTev(SharedPreferences p) { return p.getBoolean(FAST_TEV, true); }
         /** On: while the graphics lag, older pictures are left out (the main app's Frame skip). */
         static boolean frameSkip(SharedPreferences p) { return p.getBoolean(FRAME_SKIP, true); }
+        /** The cheat switches (runtime/cheats.cpp): 1 health, 2 ammo, 4 one-hit kill, 8 QTEs, 512 invisibility. */
+        static int cheats(SharedPreferences p) { return p.getInt(CHEATS, 0); }
         static int view(SharedPreferences p) { return p.getInt(VIEW, VIEW_DEFAULT); }
         /** Bit 0 weather, bit 1 special effects left out (runtime/potato.cpp); both off on the OUYA. */
         static int potato(SharedPreferences p) {
@@ -71,6 +78,8 @@ final class OuyaMenu extends Dialog {
 
     private final Host host;
     private final SharedPreferences prefs;
+    private final android.os.Handler main = new android.os.Handler();
+    private TextView cheatStatus;
     private final LinearLayout body;
     private final Button resume;
     private Button first;
@@ -147,6 +156,119 @@ final class OuyaMenu extends Dialog {
         help(R.string.ingame_auto_aim_help);
         help(R.string.ingame_always_run_help);
         help(R.string.ingame_far_camera_help);
+        cheats();
+    }
+
+    // --- the cheats (the main app's CoreMenu.cheats, without the characters and the extra games) ---
+
+    private void cheats() {
+        heading(R.string.ingame_cheats);
+        subheading(R.string.ingame_cheat_section_player);
+        LinearLayout player = buttonsRow();
+        cheatSwitch(player, R.string.ingame_cheat_health, 1);
+        cheatSwitch(player, R.string.ingame_cheat_ammo, 2);
+        cheatSwitch(player, R.string.ingame_cheat_invisible, 512);
+        LinearLayout inventory = buttonsRow();
+        cheatSwitch(inventory, R.string.ingame_cheat_onehit, 4);
+        cheatButton(inventory, 2, R.string.ingame_cheat_case);
+        cheatButton(inventory, 3, R.string.ingame_cheat_money);
+        subheading(R.string.ingame_cheat_section_weapons);
+        LinearLayout weapons = buttonsRow();
+        cheatButton(weapons, 5, R.string.ingame_cheat_handcannon);
+        cheatButton(weapons, 1, R.string.ingame_cheat_killer7);
+        cheatButton(weapons, 9, R.string.ingame_cheat_matilda);
+        LinearLayout launchers = buttonsRow();
+        cheatButton(launchers, 6, R.string.ingame_cheat_chicago);
+        cheatButton(launchers, 8, R.string.ingame_cheat_mine);
+        cheatButton(launchers, 7, R.string.ingame_cheat_rocket);
+        subheading(R.string.ingame_cheat_section_game);
+        LinearLayout game = buttonsRow();
+        cheatSwitch(game, R.string.ingame_cheat_qte, 8);
+        game.addView(new View(getContext()), cell());
+        game.addView(new View(getContext()), cell());
+        cheatStatus = text("", 15, false);
+        cheatStatus.setTextColor(GOLD);
+        cheatStatus.setPadding(dp(GAP), dp(6), dp(GAP), dp(2));
+        cheatStatus.setVisibility(View.GONE);
+        body.addView(cheatStatus);
+        help(R.string.ingame_cheats_help);
+    }
+
+    /** A section's second level: its name in the muted colour, without the line */
+    private void subheading(int id) {
+        TextView v = text(s(id), 15, true);
+        v.setTextColor(MUTED);
+        v.setPadding(dp(GAP), dp(10), dp(GAP), dp(2));
+        body.addView(v);
+    }
+
+    private void cheatSwitch(LinearLayout parent, final int label, final int bit) {
+        final Button b = button("", null);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean next = !b.isSelected();
+                toggleLabel(b, label, next);
+                int bits = Settings.cheats(prefs);
+                prefs.edit().putInt(Settings.CHEATS, next ? bits | bit : bits & ~bit).apply();
+                host.settingsChanged();
+            }
+        });
+        toggleLabel(b, label, (Settings.cheats(prefs) & bit) != 0);
+        parent.addView(b, cell());
+    }
+
+    /** A button that changes the game once (the weapon, the case and the money stay in the next save): lit
+     *  up for a moment, its answer below the buttons */
+    private void cheatButton(LinearLayout parent, final int what, final int label) {
+        final Button b = button(s(label), null);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                b.setSelected(true);
+                main.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        b.setSelected(false);
+                    }
+                }, 600);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        final int done = host.cheatAction(what);
+                        main.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                showCheatResult(what, label, done);
+                            }
+                        });
+                    }
+                }, "cheat").start();
+            }
+        });
+        parent.addView(b, cell());
+    }
+
+    private void showCheatResult(int what, int label, int done) {
+        if (!isShowing() || cheatStatus == null)
+            return;
+        final String text;
+        if (done == 1)
+            text = getContext().getString(R.string.ingame_cheat_done, s(label));
+        else if (done == 2 && (what == 1 || what >= 5))
+            text = getContext().getString(R.string.ingame_cheat_raised, s(label));
+        else if (done == 2)
+            text = getContext().getString(R.string.ingame_cheat_already, s(label));
+        else if (done == 0)
+            text = s(R.string.ingame_cheat_not_now);
+        else if (done == -1)
+            text = s(R.string.ingame_cheat_no_room);
+        else if (done == 3)
+            text = s(R.string.ingame_cheat_queued);
+        else
+            text = s(R.string.ingame_cheat_unsupported);
+        cheatStatus.setText(text);
+        cheatStatus.setVisibility(View.VISIBLE);
     }
 
     @Override

@@ -9,7 +9,15 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_toggle_value', 'ingame_potato', 'ingame_potato_weather', 'ingame_potato_special',
         'ingame_potato_help', 'ingame_comfort', 'ingame_auto_aim', 'ingame_always_run', 'ingame_far_camera',
         'ingame_auto_aim_help', 'ingame_always_run_help', 'ingame_far_camera_help', 'ingame_perf_section',
-        'ingame_frame_skip', 'ingame_frame_skip_help']
+        'ingame_frame_skip', 'ingame_frame_skip_help',
+        # the cheats (wish of the project owner, 07.11.2026: the basic ones and the weapons, not the
+        # characters and the extra games)
+        'ingame_cheats', 'ingame_cheat_section_player', 'ingame_cheat_section_weapons', 'ingame_cheat_section_game',
+        'ingame_cheat_health', 'ingame_cheat_ammo', 'ingame_cheat_invisible', 'ingame_cheat_onehit',
+        'ingame_cheat_case', 'ingame_cheat_money', 'ingame_cheat_handcannon', 'ingame_cheat_killer7',
+        'ingame_cheat_matilda', 'ingame_cheat_chicago', 'ingame_cheat_mine', 'ingame_cheat_rocket', 'ingame_cheat_qte',
+        'ingame_cheats_help', 'ingame_cheat_done', 'ingame_cheat_already', 'ingame_cheat_raised',
+        'ingame_cheat_not_now', 'ingame_cheat_no_room', 'ingame_cheat_queued', 'ingame_cheat_unsupported']
 Q = "\\'"  # an apostrophe in an Android string
 own = {
     'values': {

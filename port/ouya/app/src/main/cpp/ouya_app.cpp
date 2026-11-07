@@ -85,7 +85,7 @@ re4gx2::GxStats gStatsBefore;           // the renderer's counters at the last l
 std::atomic<int> gWantEighths{6};
 std::atomic<bool> gWantFastTev{true};
 std::atomic<bool> gFrameSkip{true};  // older pictures left out while the renderer lags (off: each drawn)
-int gViewPercent = 50, gPotato = 3, gAim = 100 << 8;  // under gLock
+int gViewPercent = 50, gPotato = 3, gAim = 100 << 8, gCheats = 0;  // under gLock
 bool gWaitReset = false;  // GL thread: a new renderer draws from the next chunk that starts over
 
 // The chunks the fetch thread took and the renderer has not run yet: in the core process's shared
@@ -232,6 +232,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
   setenv("RE4_VIEW_DISTANCE", value, 1);  // the distance fog and the far plane (patch 0900)
   snprintf(value, sizeof(value), "%d", gPotato);
   setenv("RE4_POTATO", value, 1);  // bit 0 weather, bit 1 special effects left out
+  snprintf(value, sizeof(value), "%d", gCheats);
+  setenv("RE4_CHEATS", value, 1);  // the menu's cheat switches (runtime/cheats.cpp)
   setenv("RE4_LOG_FILE", (data + "/core.log").c_str(), 1);
   ReadSettings(data);
   // the core process: a program among the app's libraries (extracted at installation; the folder from
@@ -299,12 +301,15 @@ void StartOver() {
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeSettings(JNIEnv *, jclass, jint eighths,
                                                                                          jboolean fastTev,
                                                                                          jint viewPercent, jint potato,
-                                                                                         jint aim, jboolean frameSkip) {
+                                                                                         jint aim, jboolean frameSkip,
+                                                                                         jint cheats) {
   gFrameSkip = frameSkip == JNI_TRUE;
   gWantEighths = eighths < 4 ? 4 : eighths > 8 ? 8 : static_cast<int>(eighths);
   gWantFastTev = fastTev == JNI_TRUE;
   std::lock_guard<std::mutex> l(gLock);
-  const bool view = viewPercent != gViewPercent, pot = potato != gPotato, aimed = aim != gAim;
+  const bool view = viewPercent != gViewPercent, pot = potato != gPotato, aimed = aim != gAim,
+             cheated = cheats != gCheats;
+  gCheats = cheats;
   gViewPercent = viewPercent < 20 ? 20 : viewPercent > 100 ? 100 : static_cast<int>(viewPercent);
   gPotato = potato & 3;
   gAim = aim;
@@ -316,8 +321,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     re4ipc_set_potato(gPotato);
   if (aimed)
     re4ipc_set_aim(gAim);
-  LOG("settings: view %d %%, potato %d, aim 0x%x, frame skip %s", gViewPercent, gPotato, gAim,
-      gFrameSkip ? "on" : "off");
+  if (cheated)
+    re4ipc_set_cheats(gCheats);
+  LOG("settings: view %d %%, potato %d, aim 0x%x, frame skip %s, cheats 0x%x", gViewPercent, gPotato, gAim,
+      gFrameSkip ? "on" : "off", gCheats);
 }
 
 // A new EGL context: a renderer of its own (the chunks begin anew with a full state)
@@ -469,6 +476,15 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     gRunMicros = gRunMax = 0;
     gLogAt = now;
   }
+}
+
+// A cheat button of the menu (runtime/cheats.cpp re4_core_cheat_action); the menu's thread, not the GL one
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeCheatAction(JNIEnv *, jclass, jint what) {
+  if (!gRunning)
+    return -2;
+  const int done = re4ipc_cheat_action(what);
+  LOG("cheat %d: %d", static_cast<int>(what), done);
+  return done;
 }
 
 // The controller as a GameCube pad (OuyaActivity maps the keys and axes)

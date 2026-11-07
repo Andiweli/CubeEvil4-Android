@@ -51,7 +51,9 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
     static native void nativePause(boolean on);
     /** The menu's settings (OuyaMenu.Settings): before the start for the core's start, then at once. */
     static native void nativeSettings(int resolutionEighths, boolean fastTev, int viewPercent, int potato, int aim,
-            boolean frameSkip);
+            boolean frameSkip, int cheats);
+    /** A cheat button of the menu (runtime/cheats.cpp); the answer as OuyaMenu.Host.cheatAction. */
+    static native int nativeCheatAction(int what);
 
     // GameCube buttons (PADStatus)
     static final int GC_LEFT = 0x0001, GC_RIGHT = 0x0002, GC_DOWN = 0x0004, GC_UP = 0x0008, GC_Z = 0x0010,
@@ -174,7 +176,13 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
     public void settingsChanged() {
         SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
         nativeSettings(OuyaMenu.Settings.eighths(p), OuyaMenu.Settings.fastTev(p), OuyaMenu.Settings.view(p),
-                OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p), OuyaMenu.Settings.frameSkip(p));
+                OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p), OuyaMenu.Settings.frameSkip(p),
+                OuyaMenu.Settings.cheats(p));
+    }
+
+    @Override
+    public int cheatAction(int what) {
+        return running ? nativeCheatAction(what) : -2;
     }
 
     private void openMenu() {
