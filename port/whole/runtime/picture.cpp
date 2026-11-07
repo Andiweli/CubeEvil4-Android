@@ -25,8 +25,12 @@ extern "C" int re4_movie_playing(void);                    // runtime/movie_stat
 
 extern "C" int re4_letterbox_open(void)
 {
-    const int open = re4_letterbox_off() && pG && pG->Rno0 == 3 && !StaFlagChk(pG, STA_SUB_SCRN) &&
-                     !StaFlagChk(pG, STA_EVENT);
+    // RE4_TEST_LETTERBOX_MENU=1 (the PC's check, 08.11.2026): open in the sub screens too. Not for the app: the sub
+    // screens are made for the band (rows 56..392); above it the attache case's lid shows, below it bits of the
+    // screen's parts (GX pictures of r315 with the US discs)
+    static const char* menuTest = getenv("RE4_TEST_LETTERBOX_MENU");
+    const int open = re4_letterbox_off() && pG && pG->Rno0 == 3 &&
+                     (!StaFlagChk(pG, STA_SUB_SCRN) || (menuTest && *menuTest == '1')) && !StaFlagChk(pG, STA_EVENT);
     // each change into the error log (at most 40): whether the game drew without its bars
     static int last = -1;
     static unsigned changes;
@@ -174,6 +178,7 @@ bool gHudNarrow;                    // draw the ring 1 / gHudStretch as wide (ke
 // Wesker); while Ashley is the partner her small ring and its plate (unit 1's group) 96 (hudExtent, every frame).
 const float kRingBelow = 46.0f, kRingRight = 91.0f, kRingRightPartner = 96.0f;
 const float kHudMargin = 0.04f;  // of the shown part's height, as re4mm::Place
+const int kBandTop = 56, kBandBottom = 392;  // the band between the game's letterbox bars (cinesco.cpp, the scissor)
 float gRingRight = kRingRight;   // the right end of what is shown
 
 }  // namespace
@@ -206,7 +211,7 @@ extern "C" float (*re4_hud_scrn(const void* unit))[4]
 {
     static Mtx moved;
     const ID_UNIT* u = (const ID_UNIT*) unit;
-    const int top = gHudTop, bottom = gHudBottom;
+    int top = gHudTop, bottom = gHudBottom;
     if (!u || top < 0) {
         return IDSystem::m_scrn_mat;
     }
@@ -216,6 +221,14 @@ extern "C" float (*re4_hud_scrn(const void* unit))[4]
     }
     if (root->pParent || root->classNo != IDC_LIFE_METER || root->markNo != 0 || root->levelNo != 0) {
         return IDSystem::m_scrn_mat;
+    }
+    // While the game draws its letterbox (sub screens, events, door scenes: everything but play with "4:3" or the
+    // "Native" of a screen narrower than 16:9, re4_letterbox_open), the rows the screen shows end at its bars: the
+    // ring goes into the corner of the band between them, as with "4:3 (GC)" (user's report 08.11.2026, "4:3" and the
+    // US discs: in the inventory and the files the ring lay half under the lower bar)
+    if (!re4_letterbox_open()) {
+        top = top > kBandTop ? top : kBandTop;
+        bottom = bottom < kBandBottom ? bottom : kBandBottom;
     }
     // the picture's units: 240 x the projection's aspect to the side, (224 - row) x 480 / 448 up
     const float aspect = re4_gx_wide_now() == 1 && gChunkAspect > 1.3333334f ? gChunkAspect : 1.3333334f;

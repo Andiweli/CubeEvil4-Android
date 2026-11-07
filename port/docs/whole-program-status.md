@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer (07.11.2026, Branch `work`, Patches 0216–0218)
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs (07./08.11.2026, Branch `work`, Patches 0216–0218)
 
 Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
 v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
@@ -213,6 +213,38 @@ v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1
    - **Bewusst weggelassen:** Gegenstände in Kisten, Fässern und bei Gegnern, auch feste (`waiting_type` 1/2, die
      Vorgabe des Auftrags), hängende/fallende Gegenstände (eigene Modelle), Datensätze mit besonderen Flags; Gegenstände,
      deren Modell der Raum nicht hat (sonst nur Glitzern).
+8. **„4:3“: Menüs, Lebensanzeige und Übergänge oben und unten abgeschnitten (Nutzerbericht 08.11.2026, Discord;
+   Infinix X6882, Android 14, 0.99.1-rc, US-Discs, Bildformat „4:3“, Stufe 2; Bericht
+   `reports/0992-43-hud-cut-20261108-005243`, Bild `screenshot-files-menu.jpg`: Dateien „Village Files“ in r315 mit
+   Ashley).** Wortlaut: „Bug Visual in 4:3 Screen. HUD and Files and transitions that are cut off“.
+   - **Befund (am PC, US-Discs, r315 und r100, GX-Bilder mit dem Renderer der App):** Bei „4:3“ lässt Patch 0105 die
+     Balken des Spiels nur beim freien Spielen weg; in Untermenüs (Koffer, Karte, Dateien, Händler), Ereignissen und
+     Türszenen zeichnet das Spiel sie wie im Original (Schere auf die Zeilen 56..392, `Draw_cinesco`, `IDC_CINESCO`).
+     Das Menü selbst ist **für dieses Band gemacht**: ohne Balken (Prüfschalter `RE4_TEST_LETTERBOX_MENU=1`,
+     `picture.cpp`) zeigt der Koffer darüber seinen Deckel und darunter Reste (farbige Kästchen), seine Leisten enden
+     am Bandrand. Mit „4:3 (GC)“ sieht das Menü genauso aus wie im Bild des Nutzers. **Abgeschnitten war nur die
+     Lebensanzeige:** Patch 0215 setzt sie bei „4:3“ in die Ecke der vollen 448 Zeilen, auch wenn das Spiel gerade
+     seine Balken zeichnet; dort lag sie halb unter dem unteren Balken (im Bild: Ashleys Ring und Leons Anzeige
+     unten rechts). Dasselbe bei „Native“ auf Bildschirmen schmaler als 16:9 (dort auch keine Balken beim Spielen).
+   - **Behoben** (`runtime/picture.cpp re4_hud_scrn`): Solange das Spiel seine Balken zeichnet
+     (`!re4_letterbox_open()`), nimmt die Lebensanzeige die Ecke des Bands (Zeilen 56..392) statt der Zeilen, die die
+     App meldet: im Menü genau wie bei „4:3 (GC)“. Beim freien Spielen bleibt sie in der Ecke des gezeigten Bildes
+     (Wunsch aus 0.99.1, Minikarte gegenüber, gleicher Abstand). Formate mit dem Band ohnehin (16:9, Gestreckt,
+     „4:3 (GC)“, „Native“ breit) ändern sich nicht. Die Minikarte der App wird nur beim freien Spielen gezeichnet
+     (dieselbe Bedingung wie das Weglassen der Balken), sie war nicht betroffen.
+   - **Übergänge:** Türszenen, Ereignisse und das Öffnen/Schließen der Menüs behalten bei „4:3“ ihre Balken wie im
+     Original und wie seit 0105 entschieden (das Spiel schneidet Ereignisbilder selbst auf das Band zu); das Bild
+     wechselt dabei zwischen voller Höhe und Band. Nichts darin ist über das Original hinaus abgeschnitten.
+   - **r315 „Balken bleiben an“:** kein eigener Fehler. Das Protokoll schreibt höchstens 40 Wechsel („the game draws
+     with/without its letterbox“); der Bericht hat genau 40, der letzte beim Betreten von r315. Am PC (US, r315,
+     „4:3“): nach dem Eingangsereignis wieder „without“, beim Spielen ohne Balken, im Inventar mit.
+   - **Geprüft am PC (i686 -O2, US-Discs, `RE4_TEST_LETTERBOX_OFF=1` und `RE4_HUD_LAYOUT` wie die App je Format):**
+     r315 mit Ashley (`RE4_TEST_STA=101`) in allen sechs Fällen („4:3“ 0..448, „4:3 (GC)“ 56..392 ×15/14, „16:9“,
+     „Gestreckt“ 56..392 ×1,25 schmaler, „Native“ breit 1,6667, „Native“ schmal 38..411 ohne Balken): beim Spielen
+     die Anzeige in der Ecke wie vorher, im Koffer im Band, bei „4:3“ an derselben Stelle wie bei „4:3 (GC)“; vor der
+     Korrektur bei „4:3“ und „Native“ schmal unter dem Balken. r100 („4:3“): Spielen und Koffer ebenso; durch die Tür
+     nach r101 (Funkspruch): Band wie im Original. **Nicht geprüft:** Gerät; das Dateien-Menü selbst (derselbe
+     Untermenü-Zustand wie der Koffer, am PC kein Reiterwechsel).
 
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 
