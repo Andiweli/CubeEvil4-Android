@@ -28,7 +28,9 @@ import java.util.Locale;
  * The OUYA app's menu (L3; wish of the project owner, 07.11.2026): one page in the look of the main
  * app's in-game menu (port/android-decomp/.../CoreMenu.java: its colours, buttons, headings), with what
  * the owner chose for the OUYA: GRAPHICS (resolution, view distance, colour calculation, the two Potato
- * switches) and COMFORT CONTROLS (auto aim, always run, far camera). The game pauses while it is open.
+ * switches), PERFORMANCE (frame skip; wish of the project owner, 07.11.2026: the main app's other
+ * performance options do nothing on the OUYA or belong to its GLES 3 renderer) and COMFORT CONTROLS
+ * (auto aim, always run, far camera). The game pauses while it is open.
  * Exclusive choices are selected buttons, switches show "On" / "Off". D-pad or left stick move, O
  * chooses, A, L3 or the OUYA button go back to the game. Android 4.1: no lambdas on API 17+ calls.
  */
@@ -43,11 +45,13 @@ final class OuyaMenu extends Dialog {
         static final String PREFS = "settings";
         static final String EIGHTHS = "resolutionEighths", FAST_TEV = "fastTev", VIEW = "viewPercent",
                 WEATHER = "weatherEffects", SPECIAL = "specialEffects", AUTO_AIM = "autoAim",
-                ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
+                ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera", FRAME_SKIP = "frameSkip";
         static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 50;
 
         static int eighths(SharedPreferences p) { return p.getInt(EIGHTHS, EIGHTHS_DEFAULT); }
         static boolean fastTev(SharedPreferences p) { return p.getBoolean(FAST_TEV, true); }
+        /** On: while the graphics lag, older pictures are left out (the main app's Frame skip). */
+        static boolean frameSkip(SharedPreferences p) { return p.getBoolean(FRAME_SKIP, true); }
         static int view(SharedPreferences p) { return p.getInt(VIEW, VIEW_DEFAULT); }
         /** Bit 0 weather, bit 1 special effects left out (runtime/potato.cpp); both off on the OUYA. */
         static int potato(SharedPreferences p) {
@@ -126,6 +130,11 @@ final class OuyaMenu extends Dialog {
         toggle(potato, R.string.ingame_potato_weather, Settings.WEATHER);
         toggle(potato, R.string.ingame_potato_special, Settings.SPECIAL);
         help(R.string.ingame_potato_help);
+        heading(R.string.ingame_perf_section);
+        LinearLayout performance = buttonsRow();
+        toggle(performance, R.string.ingame_frame_skip, Settings.FRAME_SKIP, true);
+        performance.addView(new View(getContext()), cell());
+        help(R.string.ingame_frame_skip_help);
         heading(R.string.ingame_comfort);
         LinearLayout comfort = buttonsRow();
         toggle(comfort, R.string.ingame_auto_aim, Settings.AUTO_AIM);
@@ -300,7 +309,11 @@ final class OuyaMenu extends Dialog {
     }
 
     /** A switch "Label · On" (selected) or "Label · Off", as the main app's. */
-    private void toggle(LinearLayout parent, final int label, final String key) {
+    private void toggle(LinearLayout parent, int label, String key) {
+        toggle(parent, label, key, false);
+    }
+
+    private void toggle(LinearLayout parent, final int label, final String key, boolean fallback) {
         final Button b = button("", null);
         b.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -311,7 +324,7 @@ final class OuyaMenu extends Dialog {
                 host.settingsChanged();
             }
         });
-        toggleLabel(b, label, prefs.getBoolean(key, false));
+        toggleLabel(b, label, prefs.getBoolean(key, fallback));
         parent.addView(b, cell());
     }
 

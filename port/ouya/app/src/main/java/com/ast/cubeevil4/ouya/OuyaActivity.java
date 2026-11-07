@@ -50,7 +50,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
             int triggerR);
     static native void nativePause(boolean on);
     /** The menu's settings (OuyaMenu.Settings): before the start for the core's start, then at once. */
-    static native void nativeSettings(int resolutionEighths, boolean fastTev, int viewPercent, int potato, int aim);
+    static native void nativeSettings(int resolutionEighths, boolean fastTev, int viewPercent, int potato, int aim,
+            boolean frameSkip);
 
     // GameCube buttons (PADStatus)
     static final int GC_LEFT = 0x0001, GC_RIGHT = 0x0002, GC_DOWN = 0x0004, GC_UP = 0x0008, GC_Z = 0x0010,
@@ -173,7 +174,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host {
     public void settingsChanged() {
         SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
         nativeSettings(OuyaMenu.Settings.eighths(p), OuyaMenu.Settings.fastTev(p), OuyaMenu.Settings.view(p),
-                OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p));
+                OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p), OuyaMenu.Settings.frameSkip(p));
     }
 
     private void openMenu() {

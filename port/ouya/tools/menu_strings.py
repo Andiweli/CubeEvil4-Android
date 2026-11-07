@@ -8,7 +8,8 @@ dst = os.path.join(repo, 'port/ouya/app/src/main/res')
 keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', 'ingame_on', 'ingame_off',
         'ingame_toggle_value', 'ingame_potato', 'ingame_potato_weather', 'ingame_potato_special',
         'ingame_potato_help', 'ingame_comfort', 'ingame_auto_aim', 'ingame_always_run', 'ingame_far_camera',
-        'ingame_auto_aim_help', 'ingame_always_run_help', 'ingame_far_camera_help']
+        'ingame_auto_aim_help', 'ingame_always_run_help', 'ingame_far_camera_help', 'ingame_perf_section',
+        'ingame_frame_skip', 'ingame_frame_skip_help']
 Q = "\\'"  # an apostrophe in an Android string
 own = {
     'values': {

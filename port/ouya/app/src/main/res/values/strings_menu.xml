@@ -21,6 +21,9 @@
     <string name="ingame_auto_aim_help">Auto aim: when you raise your weapon, the aim jumps to the nearest enemy in front of you and follows it for a moment (the game\'s own lock-on).</string>
     <string name="ingame_always_run_help">Always run: Leon runs whenever you move; hold the run button (e.g. B) to walk instead.</string>
     <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon while walking and standing. Aiming and tight spots bring it close as before; it moves smoothly in between.</string>
+    <string name="ingame_perf_section">Performance</string>
+    <string name="ingame_frame_skip">Frame skip</string>
+    <string name="ingame_frame_skip_help">While the graphics lag, skips a picture so the game keeps its normal speed. Fewer pictures are shown, nothing is slowed down.</string>
     <string name="ouya_view_distance">View distance</string>
     <string name="ouya_colours">Colour calculation</string>
     <string name="ouya_colours_simple">Simplified</string>

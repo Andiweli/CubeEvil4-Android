@@ -21,4 +21,7 @@
     <string name="ingame_auto_aim_help">Apuntado automático: al levantar el arma, la mira salta al enemigo más cercano delante de ti y lo sigue un momento (la ayuda de puntería del propio juego).</string>
     <string name="ingame_always_run_help">Correr siempre: Leon corre siempre que te mueves; mantén el botón de correr (p. ej. B) para caminar.</string>
     <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon al caminar y al estar quieto. Al apuntar y en sitios estrechos se acerca como antes; entre ambos se mueve con suavidad.</string>
+    <string name="ingame_perf_section">Rendimiento</string>
+    <string name="ingame_frame_skip">Salto de fotogramas</string>
+    <string name="ingame_frame_skip_help">Si los gráficos van lentos, omite una imagen para que el juego mantenga su velocidad. Se muestran menos imágenes, nada se ralentiza.</string>
 </resources>

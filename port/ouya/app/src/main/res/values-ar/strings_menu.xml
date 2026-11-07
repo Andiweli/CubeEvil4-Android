@@ -21,4 +21,7 @@
     <string name="ingame_auto_aim_help">‏التصويب التلقائي: عند رفع السلاح يقفز التصويب إلى أقرب عدو أمامك ويتبعه لحظة (مساعدة التصويب المدمجة في اللعبة).</string>
     <string name="ingame_always_run_help">‏الركض دائمًا: يركض ليون كلما تحركت؛ اضغط باستمرار على زر الركض (مثل B) للمشي بدلًا من ذلك.</string>
     <string name="ingame_far_camera_help">تُبقي كاميرا الكتف أبعد قليلًا خلف ليون أثناء المشي والوقوف. عند التصويب وفي الأماكن الضيقة تقترب كما من قبل، وتتحرك بسلاسة بينهما.</string>
+    <string name="ingame_perf_section">الأداء</string>
+    <string name="ingame_frame_skip">‏تخطي الإطارات</string>
+    <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
 </resources>

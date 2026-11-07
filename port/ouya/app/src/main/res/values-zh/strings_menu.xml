@@ -21,4 +21,7 @@
     <string name="ingame_auto_aim_help">自动瞄准：举起武器时，准星会跳到你前方最近的敌人身上并短暂跟随（游戏自带的瞄准辅助）。</string>
     <string name="ingame_always_run_help">始终奔跑：只要移动，里昂就会奔跑；按住奔跑键（例如 B）即可改为行走。</string>
     <string name="ingame_far_camera_help">行走和站立时让肩后镜头离 Leon 稍远一些。瞄准时和狭窄处会像以前一样靠近；两者之间平滑过渡。</string>
+    <string name="ingame_perf_section">性能</string>
+    <string name="ingame_frame_skip">跳帧</string>
+    <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
 </resources>

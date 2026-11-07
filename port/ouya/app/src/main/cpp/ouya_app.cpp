@@ -67,6 +67,7 @@ re4gx2::GxStats gStatsBefore;           // the renderer's counters at the last l
 // change, on the GL thread) and the core's (the environment before its start, then messages)
 std::atomic<int> gWantEighths{6};
 std::atomic<bool> gWantFastTev{true};
+std::atomic<bool> gFrameSkip{true};  // older pictures left out while the renderer lags (off: each drawn)
 int gViewPercent = 50, gPotato = 3, gAim = 100 << 8;  // under gLock
 bool gWaitReset = false;  // GL thread: a new renderer draws from the next chunk that starts over
 
@@ -109,7 +110,8 @@ void Fetch() {
         re4ipc_gx_detach();  // the next chunk starts over (a full state for the new renderer)
         gDetach = false;
       }
-      if (gChunkQueue.size() >= kQueue) {
+      // without frame skip only two ahead: the game waits for the renderer instead of running ahead
+      if (gChunkQueue.size() >= (gFrameSkip ? kQueue : 2)) {
         gWaited++;
         gQueueCv.wait_for(l, std::chrono::milliseconds(20));
         continue;
@@ -308,7 +310,8 @@ void StartOver() {
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeSettings(JNIEnv *, jclass, jint eighths,
                                                                                          jboolean fastTev,
                                                                                          jint viewPercent, jint potato,
-                                                                                         jint aim) {
+                                                                                         jint aim, jboolean frameSkip) {
+  gFrameSkip = frameSkip == JNI_TRUE;
   gWantEighths = eighths < 4 ? 4 : eighths > 8 ? 8 : static_cast<int>(eighths);
   gWantFastTev = fastTev == JNI_TRUE;
   std::lock_guard<std::mutex> l(gLock);
@@ -324,7 +327,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     re4ipc_set_potato(gPotato);
   if (aimed)
     re4ipc_set_aim(gAim);
-  LOG("settings: view %d %%, potato %d, aim 0x%x", gViewPercent, gPotato, gAim);
+  LOG("settings: view %d %%, potato %d, aim 0x%x, frame skip %s", gViewPercent, gPotato, gAim,
+      gFrameSkip ? "on" : "off");
 }
 
 // A new EGL context: a renderer of its own (the chunks begin anew with a full state)
@@ -369,7 +373,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
           continue;
         gWaitReset = false;
       }
-      if (i + 1 < got.size() && gRenderer->CanSkip(got[i]->view, got[i + 1]->view)) {
+      if (gFrameSkip && i + 1 < got.size() && gRenderer->CanSkip(got[i]->view, got[i + 1]->view)) {
         gRenderer->Skip(got[i]->view);
         gSkipped++;
       } else {
