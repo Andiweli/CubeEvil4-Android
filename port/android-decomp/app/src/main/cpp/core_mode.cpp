@@ -650,6 +650,7 @@ struct Bench {
 Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof: 0 off, 1 light, 2 strong); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
+std::atomic<int> optSharpen{0};  // the menu's sharpening (CoreBridge.setSharpen: 0 off, 1 light, 2 strong)
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
@@ -1830,6 +1831,8 @@ bool drawGx() {
   const bool smoothOn = optSmooth.load() != 0 && !smoothTooSlow;
   gx->SetRecording(smoothOn);
   gx->SetFxaa(optFxaa.load() != 0);
+  static const int sharpenEnv = getenv("RE4_GX_SHARPEN") ? atoi(getenv("RE4_GX_SHARPEN")) : 0;
+  gx->SetSharpen(sharpenEnv > 0 ? sharpenEnv : optSharpen.load());
   static const bool tvEnv = getenv("RE4_GX_TV_FILTER") && *getenv("RE4_GX_TV_FILTER") == '1';
   gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
@@ -2975,6 +2978,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFlares(JN
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFxaa.exchange(want) != want) LOG("FXAA: %s", want ? "on" : "off");
+}
+
+// Sharpen (the menu, 0.99.2): a contrast-adaptive sharpening of every picture after FXAA, movies left out
+// (GxRenderer::SetSharpen); 0 off, 1 light, 2 strong.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharpen(JNIEnv *, jclass, jint level) {
+  const int want = level < 0 ? 0 : level > 2 ? 2 : level;
+  if (optSharpen.exchange(want) != want)
+    LOG("sharpen: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
 }
 
 // 60 FPS (experimental): in-between pictures of the renderer (drawGx).

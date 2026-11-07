@@ -267,6 +267,7 @@ int gPending = -1;  // slot waiting for the game's VIFlush (kPending); -1: none
 u32 gViNext;        // physical address of the XFB the VI shows next (0: never set)
 bool gViBlack;      // the VI outputs black (VISetBlack, from VIFlush on): RE4_GX_CHUNK_BLACK
 std::atomic<bool> gStill(false);  // a menu screen of the game (re4_gx_still): RE4_GX_CHUNK_STILL
+std::atomic<bool> gMovie(false);  // a movie plays (re4_gx_movie): RE4_GX_CHUNK_MOVIE
 // the picture format "Native" (re4_gx_wide): the first load of the camera's projection in this chunk was the wide
 // one (1), the game's 4:3 (0), none yet (-1): RE4_GX_CHUNK_WIDE
 std::atomic<int> gWide(-1);
@@ -655,6 +656,9 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         v.flags |= RE4_GX_CHUNK_XFB;
         if (gStill.load()) {
             v.flags |= RE4_GX_CHUNK_STILL;
+        }
+        if (gMovie.load()) {
+            v.flags |= RE4_GX_CHUNK_MOVIE;
         }
         if (wide == 1) {
             v.flags |= RE4_GX_CHUNK_WIDE;
@@ -2355,6 +2359,11 @@ void re4_gx_mark(void)
 void re4_gx_still(int on)
 {
     gStill.store(on != 0);
+}
+
+void re4_gx_movie(int on)
+{
+    gMovie.store(on != 0);
 }
 
 // The picture format "Native" (runtime/picture.cpp re4_view_load, patch 0214): whether the camera's projection

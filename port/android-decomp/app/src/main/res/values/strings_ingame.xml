@@ -219,6 +219,8 @@
     <string name="ingame_psx">Retro pixel filter</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filters change the look of the whole picture and can be combined.</string>
+    <string name="ingame_sharpen">Sharpen</string>
+    <string name="ingame_sharpen_help">Sharpen brings back the detail of textures that gets soft when the picture is enlarged to the screen (mostly in the wide picture formats). Movies stay as they are.</string>
     <string name="ingame_frame_skip_help">While the graphics lag, skips a picture so the game keeps its normal speed. Fewer pictures are shown, nothing is slowed down.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow graphics driver (e.g. Mali GPUs) and may cost a little on others. No effect while 60 FPS is on.</string>

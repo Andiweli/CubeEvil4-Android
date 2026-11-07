@@ -206,6 +206,8 @@
     <string name="ingame_psx">Filtro pixel retrò</string>
     <string name="ingame_filter">Filtri</string>
     <string name="ingame_filter_help">I filtri cambiano l\'aspetto di tutta l\'immagine e si possono combinare.</string>
+    <string name="ingame_sharpen">Nitidezza</string>
+    <string name="ingame_sharpen_help">Nitidezza restituisce alle texture il dettaglio che l’ingrandimento dell’immagine sullo schermo ammorbidisce (soprattutto nei formati d’immagine larghi). I filmati restano invariati.</string>
     <string name="ingame_frame_skip_help">Se la grafica è in ritardo, salta un’immagine per mantenere la velocità normale del gioco. Si vedono meno immagini, nulla rallenta.</string>
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
     <string name="ingame_merge_help">Unisce più oggetti in una sola chiamata al driver grafico. Può aiutare i telefoni con un driver grafico lento (ad es. GPU Mali) e costare un po’ sugli altri. Nessun effetto finché i 60 FPS sono attivi.</string>

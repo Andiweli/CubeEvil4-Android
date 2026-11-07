@@ -34,6 +34,8 @@ public class CoreMenuLayoutTest {
   public static class Bridge {
     @Implementation public static int[] graphicsInfo() { return new int[] {4, 16}; }
     @Implementation public static String[] cardList() { return new String[0]; }
+    static int sharpen = -1;  // the last level the menu sent (setSharpen)
+    @Implementation public static void setSharpen(int level) { sharpen = level; }
   }
 
   private static Object field(Object owner, String name) throws Exception {
@@ -611,6 +613,21 @@ public class CoreMenuLayoutTest {
       assertTrue(fps.hasOnClickListeners()); assertTrue(minimap.hasOnClickListeners());
       assertNotNull(findButton(body, controller.get().getString(R.string.ingame_flares)));
       assertNotNull(findButton(body, controller.get().getString(R.string.ingame_psx)));
+      // the filter "Sharpen" (08.11.2026): a third row under the two filters, off by default; each press moves it on,
+      // off, light, strong, off, and sends the level
+      Button sharpen = findButton(body, controller.get().getString(R.string.ingame_sharpen));
+      assertNotNull(sharpen);
+      String off = controller.get().getString(R.string.ingame_off);
+      assertTrue(sharpen.getText().toString().endsWith(off)); assertFalse(sharpen.isSelected());
+      sharpen.performClick();
+      assertEquals(1, Bridge.sharpen); assertTrue(sharpen.isSelected());
+      assertTrue(sharpen.getText().toString().endsWith(controller.get().getString(R.string.ingame_dof_light)));
+      sharpen.performClick();
+      assertEquals(2, Bridge.sharpen);
+      assertTrue(sharpen.getText().toString().endsWith(controller.get().getString(R.string.ingame_dof_strong)));
+      sharpen.performClick();
+      assertEquals(0, Bridge.sharpen); assertFalse(sharpen.isSelected());
+      assertTrue(sharpen.getText().toString().endsWith(off));
     }
   }
 

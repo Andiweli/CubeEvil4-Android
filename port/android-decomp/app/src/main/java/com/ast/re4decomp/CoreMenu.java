@@ -521,6 +521,11 @@ final class CoreMenu extends Dialog {
     if (g.contains(DOF_LEVEL)) return Math.max(0, Math.min(2, g.getInt(DOF_LEVEL, 1)));
     return g.getBoolean("dof", true) ? 1 : 0;
   }
+  /** The filter "Sharpen" (0.99.2): 0 off (the default), 1 light, 2 strong. */
+  static final String SHARPEN_LEVEL = "sharpenLevel";
+  static int sharpenLevel(SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt(SHARPEN_LEVEL, 0)));
+  }
   private void toggleLabel(Button b, int label, boolean on) {
     b.setSelected(on);
     b.setText(getContext().getString(R.string.ingame_toggle_value, s(label), s(on ? R.string.ingame_on : R.string.ingame_off)));
@@ -702,7 +707,17 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(filters), R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
       graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
     });
-    indentedHelp(s(R.string.ingame_filter_help));
+    // a sharpening for the 16:9 formats, whose 336 rows are enlarged to the screen's height (wish of the project
+    // owner, 08.11.2026); each press moves it on: off, light, strong, as the depth of field
+    final int[] sharpenLabels = {R.string.ingame_off, R.string.ingame_dof_light, R.string.ingame_dof_strong};
+    Button sharpen = cellAction(buttonsRow(filters), "", v -> {
+      int next = (sharpenLevel(graphics) + 1) % 3;
+      graphics.edit().putInt(SHARPEN_LEVEL, next).apply();
+      valueLabel((Button) v, R.string.ingame_sharpen, sharpenLabels[next], next != 0);
+      CoreBridge.setSharpen(next);
+    });
+    valueLabel(sharpen, R.string.ingame_sharpen, sharpenLabels[sharpenLevel(graphics)], sharpenLevel(graphics) != 0);
+    indentedHelp(s(R.string.ingame_filter_help) + " " + s(R.string.ingame_sharpen_help));
     heading(R.string.ingame_optional_features);
     // the current room's outline at the bottom left, turning with the player (wish of the project owner, 04.11.2026)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {

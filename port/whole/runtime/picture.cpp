@@ -18,6 +18,7 @@ extern GLOBAL_WK* pG;
 extern "C" int re4_letterbox_off(void);
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_gx_still(int on);                      // runtime/gx_decode.cpp
+extern "C" void re4_gx_movie(int on);                      // runtime/gx_decode.cpp
 extern "C" void re4_gx_wide(int on);                       // runtime/gx_decode.cpp
 extern "C" int re4_gx_wide_now(void);                      // runtime/gx_decode.cpp
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
@@ -298,6 +299,7 @@ void stillHook(unsigned)
     }
     last = still;
     re4_gx_still(still);
+    re4_gx_movie(re4_movie_playing());  // the app's "Sharpen" leaves a movie's pictures as they are
     re4_letterbox_frame();
     hudExtent();
     // "Native": the projection this frame builds (CameraMove) is the wide one while the player plays

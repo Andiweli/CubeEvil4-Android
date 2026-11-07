@@ -204,6 +204,8 @@
     <string name="ingame_psx">Retro-Pixel-Filter</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filter verändern das Aussehen des ganzen Bildes und lassen sich kombinieren.</string>
+    <string name="ingame_sharpen">Nachschärfen</string>
+    <string name="ingame_sharpen_help">Nachschärfen holt die Details der Texturen zurück, die beim Vergrößern auf den Bildschirm weich werden (vor allem in den breiten Bildformaten). Filme bleiben, wie sie sind.</string>
     <string name="ingame_frame_skip_help">Überspringt bei ruckelnder Grafik ein Bild, damit das Spiel nicht in Zeitlupe läuft. Es werden weniger Bilder gezeigt, nichts wird langsamer.</string>
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
     <string name="ingame_merge_help">Fasst mehrere Objekte zu einem Aufruf an den Grafiktreiber zusammen. Kann Handys mit langsamem Grafiktreiber helfen (z. B. Mali-GPUs) und auf anderen etwas kosten. Wirkt nicht, solange 60 FPS an ist.</string>

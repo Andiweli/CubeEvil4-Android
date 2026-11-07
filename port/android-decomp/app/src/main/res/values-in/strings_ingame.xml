@@ -202,6 +202,8 @@
     <string name="ingame_psx">Filter piksel retro</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filter mengubah tampilan seluruh gambar dan dapat digabungkan.</string>
+    <string name="ingame_sharpen">Penajaman</string>
+    <string name="ingame_sharpen_help">Penajaman mengembalikan detail tekstur yang menjadi lembut saat gambar diperbesar ke layar (terutama pada format gambar lebar). Video tetap seperti aslinya.</string>
     <string name="ingame_frame_skip_help">Saat grafis tertinggal, satu gambar dilewati agar game tetap berjalan dengan kecepatan normal. Lebih sedikit gambar yang ditampilkan, tidak ada yang diperlambat.</string>
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver grafis lambat (mis. GPU Mali) dan mungkin sedikit memperlambat ponsel lain. Tidak berpengaruh selama 60 FPS aktif.</string>

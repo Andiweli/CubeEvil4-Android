@@ -377,6 +377,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
       CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
+      CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setPsx(g.getBoolean("psx", false));
       CoreBridge.setFlares(g.getBoolean("flares", false));

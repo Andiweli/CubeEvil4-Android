@@ -163,11 +163,14 @@ enum Re4GxChunkFlags {
                                      picture between it and the one before (the
                                      app's 60 FPS; its text lists scroll, the
                                      letters cannot be told apart) */
-    RE4_GX_CHUNK_WIDE = 1u << 6   /* the app's picture format "Native" (0.99.0,
+    RE4_GX_CHUNK_WIDE = 1u << 6,  /* the app's picture format "Native" (0.99.0,
                                      re4_core_set_view_aspect): the camera's 3D
                                      of this picture was drawn for the screen's
                                      wider aspect (re4_gx_wide); the app shows it
                                      over the whole screen, else in a 16:9 box */
+    RE4_GX_CHUNK_MOVIE = 1u << 7  /* a movie plays (re4_gx_movie, 0.99.2): the
+                                     app's "Sharpen" leaves its pictures as they
+                                     are (the blocks of the compression) */
 };
 
 typedef struct Re4GxChunk {

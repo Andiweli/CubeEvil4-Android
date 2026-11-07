@@ -198,6 +198,8 @@ public final class CoreBridge {
   public static native void setFrameSkip(boolean on);
   /** FXAA: an edge smoothing pass over every finished picture. */
   public static native void setFxaa(boolean on);
+  /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
+  public static native void setSharpen(int level);
   /**
    * Gyro aiming (GyroAim): the device's turn rates in rad/s about the screen's axes (yaw, pitch);
    * the core turns the aim by them while Leon aims a gun. 0, 0: still.

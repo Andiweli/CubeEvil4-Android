@@ -99,6 +99,9 @@ void *GlExtension(const char *name) {
 
 constexpr int kEfbWidth = 640;
 constexpr int kEfbHeight = 528;
+// the menu's "Sharpen" (GxRenderer::SetSharpen): how far a texel moves away from its neighbours' mean ("Light",
+// "Strong"; RE4_GX_SHARPEN_AMOUNT=A,B for the PC's comparisons)
+constexpr float kSharpLight = 0.6f, kSharpStrong = 1.2f;
 // GL_EXT_texture_filter_anisotropic (not in the GLES 3.0 headers)
 constexpr GLenum kMaxAnisotropy = 0x84FE, kMaxAnisotropyLimit = 0x84FF;
 constexpr unsigned kTlutBytes = 0x80000;
@@ -437,6 +440,13 @@ struct GxRenderer::Impl {
   GLuint fxaaTex = 0, fxaaFbo = 0, fxaaProgram = 0;
   unsigned fxaaTexW = 0, fxaaTexH = 0;
   GLint fxaaTexelLoc = -1;
+  // Sharpen (GxRenderer::SetSharpen): 0 off, 1 light, 2 strong; the display copy (after FXAA) sharpened into
+  // sharpTex, shown instead of it while sharpShown. A movie's pictures stay as they are (RE4_GX_CHUNK_MOVIE)
+  int sharpLevel = 0;
+  bool sharpShown = false, chunkMovie = false;
+  GLuint sharpTex = 0, sharpFbo = 0, sharpProgram = 0;
+  unsigned sharpTexW = 0, sharpTexH = 0;
+  GLint sharpAmountLoc = -1, sharpLimitLoc = -1;
   // PSone demake (GxRenderer::SetPsx): the 3D programs' key bit and point-sampled textures, and the last pass
   // over the display copy (a 320-wide grid, 15-bit colour with the PlayStation's 4 x 4 dither) into psxTex,
   // shown instead of it while psxShown
@@ -3865,6 +3875,7 @@ struct GxRenderer::Impl {
     BindFbo(DrawFbo());
     if (toXfb) {
       Fxaa(Hi(w), Hi(h));
+      Sharpen(Hi(w), Hi(h), y, h);
       Psx(Hi(w), Hi(h), w, h);
     }
     if (toXfb && peekWanted)
@@ -3974,8 +3985,130 @@ struct GxRenderer::Impl {
     stats.fxaaPasses++;
   }
 
+  // --- Sharpen ---------------------------------------------------------------------------------
+
+  bool MakeSharpen() {
+    static const char kVs[] = "#version 300 es\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                              "}\n";
+    // Contrast-adaptive sharpening of the finished picture (written for the port, 08.11.2026, after the idea of
+    // AMD's CAS/RCAS, no code of theirs): a texel and its four neighbours, five reads. The texel moves away from
+    // the neighbours' mean by `amount`: not where the neighbourhood's contrast is within a few steps of 8-bit
+    // colour (fog, gradients, the noise of dark areas stay as they are), half as much at hard edges (outlines,
+    // text: they are sharp already), less for a lone texel (sparkle), and never beyond the neighbourhood's own
+    // darkest and brightest colour (no bright or dark seams at edges, letters and the HUD). lim: the last column,
+    // the first and the last row shown (GxRenderer::SetShownRows): the rows outside are copied as they are (the
+    // screenshot shows them; the screen shows at most the one next to the edge, through its bilinear filter), the
+    // reads of the rows inside stay inside (the game's black bars do not darken or lighten the edge rows).
+    static const char kFs[] =
+        "#version 300 es\nprecision mediump float;\n"
+        "uniform mediump sampler2D src;\nuniform float amount;\nuniform ivec3 lim;\nout vec4 o;\n"
+        "const vec3 kLuma = vec3(0.299, 0.587, 0.114);\n"
+        "void main() {\n"
+        "  ivec2 p = ivec2(gl_FragCoord.xy);\n"
+        "  vec3 c = texelFetch(src, p, 0).rgb;\n"
+        "  if (p.y < lim.y || p.y > lim.z) { o = vec4(c, 1.0); return; }\n"
+        "  vec3 n = texelFetch(src, ivec2(p.x, max(p.y - 1, lim.y)), 0).rgb;\n"
+        "  vec3 s = texelFetch(src, ivec2(p.x, min(p.y + 1, lim.z)), 0).rgb;\n"
+        "  vec3 w = texelFetch(src, ivec2(max(p.x - 1, 0), p.y), 0).rgb;\n"
+        "  vec3 e = texelFetch(src, ivec2(min(p.x + 1, lim.x), p.y), 0).rgb;\n"
+        "  vec3 lo = min(c, min(min(n, s), min(w, e)));\n"
+        "  vec3 hi = max(c, max(max(n, s), max(w, e)));\n"
+        "  vec3 mean = 0.25 * (n + s + w + e);\n"
+        "  float range = dot(hi - lo, kLuma);\n"
+        "  float k = amount * smoothstep(0.012, 0.05, range) * (1.0 - 0.5 * smoothstep(0.3, 0.8, range));\n"
+        "  float lone = abs(dot(c - mean, kLuma)) / max(range, 0.004);\n"
+        "  k *= 1.0 - 0.5 * lone * lone;\n"
+        "  o = vec4(clamp(c + k * (c - mean), lo, hi), 1.0);\n"
+        "}\n";
+    std::string log;
+    sharpProgram = Link(kVs, kFs, &log);
+    if (!sharpProgram) {
+      GXLOG("sharpen: shader failed: %s", log.c_str());
+      return false;
+    }
+    glUseProgram(sharpProgram);
+    glUniform1i(glGetUniformLocation(sharpProgram, "src"), 0);
+    sharpAmountLoc = glGetUniformLocation(sharpProgram, "amount");
+    sharpLimitLoc = glGetUniformLocation(sharpProgram, "lim");
+    glGenFramebuffers(1, &sharpFbo);
+    return true;
+  }
+
+  // The display copy just made (after FXAA; w x h texels of the EFB rows y..y+rows) sharpened into sharpTex: that
+  // is shown now. Not for a movie's pictures: sharpened, the blocks of their compression would stand out.
+  void Sharpen(int w, int h, int y, int rows) {
+    sharpShown = false;
+    if (sharpLevel <= 0 || chunkMovie || !xfbTex || w < 16 || h < 16 || rows < 1)
+      return;
+    if (!sharpProgram && !MakeSharpen()) {
+      sharpLevel = 0;  // no shader on this driver: off for good (the menu's switch stays)
+      return;
+    }
+    if (!sharpTex || sharpTexW != static_cast<unsigned>(w) || sharpTexH != static_cast<unsigned>(h)) {
+      if (sharpTex)
+        glDeleteTextures(1, &sharpTex);
+      glGenTextures(1, &sharpTex);
+      glBindTexture(GL_TEXTURE_2D, sharpTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      sharpTexW = static_cast<unsigned>(w);
+      sharpTexH = static_cast<unsigned>(h);
+    }
+    // the rows shown, in texels of this copy (row 0 its top)
+    const int shownT = shownTop.load(std::memory_order_relaxed), shownB = shownBottom.load(std::memory_order_relaxed);
+    const int first = std::max(0, std::min(h - 1, (shownT - y) * h / rows));
+    const int last = std::max(first, std::min(h - 1, (shownB - y) * h / rows - 1));
+    const GLuint from = fxaaShown && fxaaTex ? fxaaTex : xfbTex;
+    Touched();
+    SaveAndPlainState();
+    BindFbo(sharpFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sharpTex, 0);
+    ForgetColor();  // all of it is drawn over
+    glViewport(0, 0, w, h);
+    glUseProgram(sharpProgram);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, from);
+    glBindSampler(0, 0);
+    static float amounts[2] = {-1.0f, -1.0f};
+    if (amounts[0] < 0.0f) {
+      amounts[0] = kSharpLight;
+      amounts[1] = kSharpStrong;
+      if (const char *test = std::getenv("RE4_GX_SHARPEN_AMOUNT"))
+        std::sscanf(test, "%f,%f", &amounts[0], &amounts[1]);
+    }
+    glUniform1f(sharpAmountLoc, amounts[sharpLevel >= 2 ? 1 : 0]);
+    glUniform3i(sharpLimitLoc, w - 1, first, last);
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    BindFbo(DrawFbo());
+    current = nullptr;
+    sharpShown = true;
+    stats.sharpenPasses++;
+  }
+
+  void SharpenRelease() {
+    if (sharpTex)
+      glDeleteTextures(1, &sharpTex);
+    if (sharpFbo)
+      glDeleteFramebuffers(1, &sharpFbo);
+    if (sharpProgram)
+      glDeleteProgram(sharpProgram);
+    sharpTex = sharpFbo = sharpProgram = 0;
+    sharpTexW = sharpTexH = 0;
+    sharpShown = false;
+  }
+
   GLuint ShownXfb() const {
-    return psxShown && psxTex ? psxTex : fxaaShown && fxaaTex ? fxaaTex : xfbTex;
+    return psxShown && psxTex ? psxTex
+           : sharpShown && sharpTex ? sharpTex
+           : fxaaShown && fxaaTex ? fxaaTex
+                                  : xfbTex;
   }
 
   // --- PSone demake ----------------------------------------------------------------------------
@@ -5713,6 +5846,12 @@ void GxRenderer::RescaleHalves(int halves) {
     m.fxaaTexW = m.fxaaTexH = 0;
     m.fxaaShown = false;
   }
+  if (m.sharpTex) { // the same for the sharpened copy
+    glDeleteTextures(1, &m.sharpTex);
+    m.sharpTex = 0;
+    m.sharpTexW = m.sharpTexH = 0;
+    m.sharpShown = false;
+  }
   for (auto &c : m.copies) {
     if (!c.second.id)
       continue;
@@ -5761,6 +5900,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     m.StreamChunkBegin();
   m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
   m.chunkWide = (chunk.flags & RE4_GX_CHUNK_WIDE) != 0;
+  m.chunkMovie = (chunk.flags & RE4_GX_CHUNK_MOVIE) != 0;
   if (chunk.flags & RE4_GX_CHUNK_XFB)
     m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
   if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
@@ -6195,6 +6335,7 @@ GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
 void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
+void GxRenderer::SetSharpen(int level) { impl_->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 void GxRenderer::SetPsx(bool on) { impl_->psxOn = on; }
 
 void GxRenderer::SetFlares(bool on) { impl_->flaresOn = on; }
@@ -6442,6 +6583,7 @@ void GxRenderer::Release() {
   m.FenceRelease();
   m.PeekRelease();
   m.FxaaRelease();
+  m.SharpenRelease();
   m.PsxRelease();
   m.FlareRelease();
   if (m.timerOn) {

@@ -203,6 +203,8 @@
     <string name="ingame_psx">复古像素滤镜</string>
     <string name="ingame_filter">滤镜</string>
     <string name="ingame_filter_help">滤镜会改变整个画面的外观，可以同时开启。</string>
+    <string name="ingame_sharpen">锐化</string>
+    <string name="ingame_sharpen_help">锐化可找回画面放大到屏幕时变得模糊的纹理细节（尤其是宽屏画面格式）。影片保持不变。</string>
     <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
     <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
     <string name="ingame_merge_help">将多个物体合并为一次图形驱动调用。可能对图形驱动较慢的手机（如 Mali GPU）有帮助，在其他设备上可能略有开销。开启 60 帧时不起作用。</string>

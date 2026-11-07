@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs, Knöpfe „Spieldaten“ (07./08.11.2026, Branch `work`, Patches 0216–0218)
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs, Knöpfe „Spieldaten“, Filter „Nachschärfen“ (07./08.11.2026, Branch `work`, Patches 0216–0218)
 
 Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
 v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
@@ -261,6 +261,46 @@ v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1
      Releasetexte, Entwürfe in `docs/gui-optimisations/` und frühere Einträge dieser Datei bleiben wie geschrieben.
    - **Geprüft:** `check_translations.py` (301 Texte, alle Sprachen ok), App-Tests. **Nicht geprüft:** Gerät
      (Zeilenumbruch der Knöpfe in den längeren Sprachen).
+10. **Filter „Nachschärfen“ (Wunsch des Projektinhabers, 08.11.2026).** Wortlaut: „Ich wäre für 3, einen zusätzlichen
+    dritten Filter der optisch nachschärft“. Anlass (Nutzermeldung): Texturen wirken außer bei „4:3“ verwaschen, weil
+    „16:9“, „Gestreckt“ und „Native“ nur die 336 Zeilen des Bands zeigen und auf die volle Höhe vergrößern (2400×1080,
+    Stufe ×2: „16:9“ 1,5×1,6, „Native“/„Gestreckt“ 1,9×1,6, „4:3“ 1,1×1,2).
+    - **Menü:** Anzeige → Filter, dritte Zeile unter „Original GameCube TV filter“ und „Retro pixel filter“: „Sharpen ·
+      Off/Light/Strong“ (jeder Druck weiter, wie die Tiefenschärfe; ab Werk aus; Einstellung `sharpenLevel`), der
+      Hilfesatz `ingame_sharpen_help` hinter dem allgemeinen der Filter, 11 Sprachen (Deutsch „Nachschärfen“).
+      `CoreBridge.setSharpen(int)`, Protokollzeile „sharpen: light/strong/off“ (beim Start nur, wenn an).
+    - **Renderer** (`gx_gl.cpp`, `GxRenderer::SetSharpen`, selbst geschrieben nach der Idee von AMD CAS/RCAS, kein
+      fremder Code): ein Durchgang je Bildkopie in der Auflösung des Spiels, nach FXAA, vor dem Retro-Filter, in eine
+      eigene Textur, die `Present` beim Vergrößern zeigt. Fünf Texelzugriffe (Punkt und vier Nachbarn): der Punkt rückt
+      um `amount` vom Mittel der Nachbarn weg (Leicht 0,6, Stark 1,2); nicht, wo der Kontrast der Nachbarschaft unter
+      ein paar 8-bit-Stufen liegt (Nebel, Verläufe, Rauschen dunkler Flächen), halb so stark an harten Kanten, weniger
+      für einzelne Ausreißer, und nie über den hellsten/dunkelsten Nachbarn hinaus (keine hellen Säume). Zeilen
+      außerhalb der gezeigten (`SetShownRows`) werden unverändert kopiert (Bildschirmfoto), die Zugriffe der gezeigten
+      bleiben in ihnen. Am Bildschirm-Maßstab gleichwertig zum Schärfen beim Vergrößern (der lineare Teil vertauscht
+      mit der bilinearen Vergrößerung), aber billiger: Spielbild statt Bildschirm, einmal je Spielbild statt je
+      Bildwiederholung.
+    - **Filme** bleiben ungeschärft: neues Kennzeichen `RE4_GX_CHUNK_MOVIE` (`re4_gx_frame.h`, `re4_gx_movie` in
+      `gx_decode.cpp`, je Bild gesetzt von `picture.cpp` aus `re4_movie_playing`). Am PC (Eröffnungsfilm, debug-Discs,
+      Prüfschalter `RE4_GX_SHARPEN_MOVIES=1`) machte das Schärfen die Blöcke der Kompression in glatten Flächen
+      sichtbarer.
+    - **PC-Werkzeug** `gx_chunk_render`: `RE4_GX_SHARPEN`, `RE4_GX_FXAA`, `RE4_GX_TV_FILTER`,
+      `RE4_GX_SHARPEN_AMOUNT`, `RE4_GX_SHARPEN_MOVIES` und `RE4_GX_SCREEN=WxH:FORMAT` (jedes Bild auch so, wie der
+      Bildschirm der App es im Bildformat zeigt, Kästen aus `minimap_view.h`). Renderer-Test `TestSharpen`
+      (`test_gx_gl.cpp`): ein Durchgang je Bildkopie, weiche Kante steiler (210 → 218), kein Texel außerhalb der
+      beiden Grautöne, glatte Flächen gleich, Zeilen außerhalb gleich, Film unverändert, aus wieder die reine Kopie.
+    - **Geprüft am PC** (i686 -O2, US-Discs, Renderer der App auf llvmpipe, 2400×1080, Stufe ×2): r100 in „16:9“ und
+      „Native“ 20:9, r315 (mit Ashley) in allen sechs Fällen. Feinzeichnung (Hochpass) +12–14 % Leicht, +17–21 %
+      Stark; Rauschen glatter dunkler Flächen und des Nebels unverändert (0,331 → 0,331/0,332; 0,549 → 0,544/0,547);
+      Punkte mehr als 8 Stufen über der 5×5-Umgebung des Originals: 17 (Leicht) bzw. 92 (Stark) von 2,6 Mio.; Ränder
+      der gezeigten Zeilen und Spalten in allen Formaten gleich (±0,2). Inventar: Schrift ohne Säume. Zusammen mit
+      FXAA (nach dem Glätten: 1,94 → 2,51), TV-Filter, Retro-Filter (danach kaum Wirkung, dessen Raster kommt
+      später), 60 FPS (Zwischenbilder geschärft), „Dynamic“ (Stufenwechsel 2× → 1,5× in der Reihe) ohne Fehler.
+      **Aufwand** (Bildkopie mit den Durchgängen danach, glFinish, 1024×896): ohne 1,7–2,2 ms, mit Nachschärfen
+      4,0–4,4 ms (+2,3 ms), mit FXAA 5,0–5,6 ms (+3,2 ms): etwa 70 % von FXAA (fünf statt neun Zugriffe). Vergleichs-
+      bilder für den Projektinhaber: `E:\Development\Android\reports\0992-sharpen-compare\`. Kernprüfung
+      `whole_build.sh i686` (O2) und `gx_gl_check` grün, App-Tests, ARM32-Bau des App-Codes.
+    - **Nicht geprüft:** Gerät (Wirkung und Kosten auf Mali/Adreno, Helio G99 und Snapdragon 7s Gen 2 aus Issue #157);
+      das Zielfernrohr eigens (dieselbe Bildkopie wie jedes Bild, mit „Native“ im 16:9-Kasten).
 
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 
