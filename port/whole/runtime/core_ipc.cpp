@@ -14,6 +14,7 @@
 #include <unistd.h>
 #if defined(__ANDROID__)
 #include <dlfcn.h>
+#include <sys/ioctl.h>
 #endif
 
 #ifndef SYS_memfd_create
@@ -109,6 +110,20 @@ int shmCreate(const char* name, size_t size)
         if (fd >= 0) {
             fcntl(fd, F_SETFD, FD_CLOEXEC);
             return fd;
+        }
+    }
+    // Android before 8.0 on a kernel before 3.17 (the OUYA branch: Android 4.1, kernel 3.1): the
+    // ashmem device, which ASharedMemory_create uses too (<linux/ashmem.h>: name, then size)
+    {
+        int fd = open("/dev/ashmem", O_RDWR | O_CLOEXEC);
+        if (fd >= 0) {
+            char label[256] = {0};
+            strncpy(label, name, sizeof(label) - 1);
+            ioctl(fd, _IOW(0x77, 1, char[256]) /* ASHMEM_SET_NAME */, label);
+            if (ioctl(fd, _IOW(0x77, 3, size_t) /* ASHMEM_SET_SIZE */, size) == 0) {
+                return fd;
+            }
+            close(fd);
         }
     }
 #endif

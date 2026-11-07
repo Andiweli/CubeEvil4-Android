@@ -1,6 +1,7 @@
 # Native code of the OUYA app (port/docs/ouya-machbarkeit.md; a separate app, decision of the
 # project owner, 22.10.2026). Stage O2: the GX renderer for GLES 2 (gx_gl2.cpp) and its checks on
-# the PC; the app around it is stage O3.
+# the PC; stage O3: the app around it (ouya_app.cpp, built by Gradle: port/ouya/app/build.gradle,
+# -DRE4_OUYA_APP=ON).
 #
 # On the PC (Linux, WSL; Mesa's EGL and GLES):
 #   cmake -S port/ouya/app/src/main/cpp -B BUILD && cmake --build BUILD && ctest --test-dir BUILD
@@ -22,6 +23,15 @@ set_target_properties(re4_gx2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(ANDROID)
     target_link_libraries(re4_gx2 PUBLIC GLESv2 log)
+    option(RE4_OUYA_APP "the OUYA app's library (Gradle)" OFF)
+    if(RE4_OUYA_APP)
+        # the app: the core process's client (runtime/core_ipc*.cpp), the renderer, OpenSL ES
+        add_library(re4ouya SHARED ouya_app.cpp "${RE4_CORE_INCLUDE}/core_ipc.cpp"
+            "${RE4_CORE_INCLUDE}/core_ipc_client.cpp")
+        target_include_directories(re4ouya PRIVATE "${RE4_CORE_INCLUDE}")
+        target_link_libraries(re4ouya PRIVATE re4_gx2 GLESv2 EGL OpenSLES log dl)
+        target_compile_options(re4ouya PRIVATE -Wall -Wextra)
+    endif()
 else()
     enable_testing()
     find_path(RE4_GLES_INCLUDE_DIR GLES2/gl2.h REQUIRED)

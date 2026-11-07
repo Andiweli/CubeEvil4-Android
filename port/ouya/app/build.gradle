@@ -1,0 +1,32 @@
+plugins { id 'com.android.application' }
+
+// The OUYA app (stage O3 of port/docs/ouya-machbarkeit.md; decisions of the project owner, 22.10.2026: an
+// app of its own, Android 4.1, ARM32 only, the game core always in a process of its own, its own app id).
+// Before building it, the game core for Android 4.1 into src/main/jniLibs/armeabi-v7a (not in git):
+// port/scripts/ouya-app.ps1 does both, builds, installs and copies disc 1 to the OUYA.
+android {
+    namespace 'com.ast.cubeevil4.ouya'
+    compileSdk 35
+    // the last NDK for Android 4.1 (the game core is built with it as well: whole_build_android.sh --ouya)
+    ndkVersion '23.2.8568313'
+    defaultConfig {
+        applicationId 'com.ast.cubeevil4.ouya'
+        minSdk 16
+        targetSdk 16
+        versionCode 1
+        versionName '0.1.0-ouya'
+        ndk { abiFilters 'armeabi-v7a' }
+        externalNativeBuild { cmake { arguments '-DRE4_OUYA_APP=ON', '-DANDROID_STL=c++_shared' } }
+    }
+    externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' } }
+    packagingOptions {
+        jniLibs {
+            // Android runs the core process (libre4_coreproc.so) only from the extracted library folder
+            useLegacyPackaging true
+            // libc++_shared.so of the NDK comes with this library and with the core's
+            pickFirsts += ['**/libc++_shared.so']
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+    lint { checkReleaseBuilds false; abortOnError false }
+}

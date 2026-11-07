@@ -55,6 +55,7 @@ struct GxStats {
   unsigned skippedDraws = 0;     // draws left out: no vertex format, or too many attributes
   unsigned compactDraws = 0;     // draws with the compact vertex
   unsigned textures16 = 0;       // texture levels uploaded with 16 bits (GxOptions::tex16)
+  unsigned skippedChunks = 0;    // chunks run without drawing (Skip): state and textures only
   // GL work per draw
   unsigned uniformUploads = 0, programSwitches = 0, textureBinds = 0, stateChanges = 0, attributeSetups = 0;
   unsigned presents = 0;
@@ -138,6 +139,15 @@ public:
   // Draws the latest display copy into the current framebuffer's viewport (x, y, w, h),
   // upright; rows > 0: only XFB rows top .. top + rows - 1. False when there is none yet.
   bool Present(int x, int y, int w, int h, unsigned top = 0, unsigned rows = 0);
+  // Frame skip (the OUYA app; gx_gl.cpp's of the main app, 26.10.2026): the renderer is behind when
+  // the core has finished two chunks, `a` need not be drawn when `b` (the next one) is drawn at once.
+  // Skip runs `a` without its draws and copies: the register, palette and texture state the game
+  // builds on is applied, nothing is drawn, the EFB is cleared as the display copy would. The game is
+  // not slowed down by a renderer that cannot keep up. CanSkip: false when `a` starts over, is held,
+  // black or marked, ends without a display copy, or makes an EFB copy for a texture that `b` could
+  // still read (unless `b` copies to the same place first).
+  bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const;
+  void Skip(const Re4GxChunk &a);
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
   int Scale() const;

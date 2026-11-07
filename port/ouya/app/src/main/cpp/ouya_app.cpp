@@ -1,0 +1,285 @@
+// The OUYA app's native side (stage O3 of port/docs/ouya-machbarkeit.md; decisions of the project
+// owner, 22.10.2026: an app of its own, Android 4.1, ARM32, the game core always in a process of its
+// own). OuyaActivity gives the surface, the display's frames and the controller; this side starts the
+// core process (runtime/core_ipc_client.cpp, libre4_coreproc.so in the app's library folder), draws its
+// GX chunks with the GLES 2 renderer (gx_gl2.cpp) in the light version's settings and plays its sound
+// through OpenSL ES.
+//
+// The light version (port/docs/ouya-machbarkeit.md, "Leichte OUYA-Fassung"): the core's part as the
+// environment the core process inherits (kCoreSettings), the renderer's as options. A file
+// <data>/settings.txt with lines NAME=VALUE (RE4_* only) sets more or overrides them (tests).
+//
+// A renderer slower than the game does not slow the game down: of the chunks the core finished since
+// the last frame of the display the older ones run as state only (GxRenderer::Skip), the newest is drawn.
+#include "gx_gl2.h"
+#include "re4_core.h"
+#include "re4_core_client.h"
+#include "re4_gx_frame.h"
+
+#include <GLES2/gl2.h>
+#include <SLES/OpenSLES.h>
+#include <SLES/OpenSLES_Android.h>
+#include <android/log.h>
+#include <dlfcn.h>
+#include <jni.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <string>
+
+#define LOG(...) __android_log_print(ANDROID_LOG_INFO, "RE4OUYA", __VA_ARGS__)
+
+namespace {
+
+const char *const kCoreSettings[][2] = {
+    {"RE4_POTATO", "3"},                  // weather and special effects left out (both switches)
+    {"RE4_VIEW_DISTANCE", "0.5"},         // the distance fog and the far plane at half (patch 0900)
+    {"RE4_GX_COMPACT", "1"},              // the compact vertex, read by the renderer as it is
+    {"RE4_GX_TEXTURE_CHECK", "sampled"},  // textures checked by samples from frame to frame
+    {"RE4_DEBUG_HUD", "0"},               // none of the debug build's displays
+    {"RE4_ROOM_MENU", "0"},               // "New Game" without the debug build's room menu
+};
+
+std::mutex gLock;
+std::string gProblem;  // why the game does not run ("" while it does or before the start)
+bool gStarted = false;
+std::atomic<bool> gRunning{false};
+std::unique_ptr<re4gx2::GxRenderer> gRenderer;
+int gWidth = 0, gHeight = 0;
+unsigned gFrames = 0, gChunks = 0, gSkipped = 0;
+long long gLogAt = 0;
+
+long long NowMs() {
+  timespec t{};
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return static_cast<long long>(t.tv_sec) * 1000 + t.tv_nsec / 1000000;
+}
+
+std::string Text(JNIEnv *env, jstring s) {
+  const char *c = env->GetStringUTFChars(s, nullptr);
+  std::string out = c ? c : "";
+  env->ReleaseStringUTFChars(s, c);
+  return out;
+}
+
+// <data>/settings.txt: NAME=VALUE per line, RE4_* only
+void ReadSettings(const std::string &data) {
+  FILE *f = fopen((data + "/settings.txt").c_str(), "r");
+  if (!f)
+    return;
+  char line[256];
+  while (fgets(line, sizeof(line), f)) {
+    line[strcspn(line, "\r\n")] = 0;
+    char *eq = strchr(line, '=');
+    if (!eq || strncmp(line, "RE4_", 4) != 0)
+      continue;
+    *eq = 0;
+    setenv(line, eq + 1, 1);
+    LOG("setting %s=%s", line, eq + 1);
+  }
+  fclose(f);
+}
+
+// --- sound: OpenSL ES, 32 kHz stereo as the core gives it --------------------------------------
+const int kSoundFrames = 1024;  // 32 ms
+const int kSoundBuffers = 3;
+int16_t gSound[kSoundBuffers][kSoundFrames * 2];
+int gSoundNext = 0;
+SLObjectItf gEngineObject = nullptr, gMixObject = nullptr, gPlayerObject = nullptr;
+SLPlayItf gPlay = nullptr;
+SLAndroidSimpleBufferQueueItf gQueue = nullptr;
+
+void SoundCallback(SLAndroidSimpleBufferQueueItf queue, void *) {
+  int16_t *buffer = gSound[gSoundNext];
+  gSoundNext = (gSoundNext + 1) % kSoundBuffers;
+  if (gRunning)
+    re4ipc_audio(buffer, kSoundFrames);
+  else
+    memset(buffer, 0, sizeof(gSound[0]));
+  (*queue)->Enqueue(queue, buffer, sizeof(gSound[0]));
+}
+
+bool StartSound() {
+  SLEngineItf engine;
+  if (slCreateEngine(&gEngineObject, 0, nullptr, 0, nullptr, nullptr) != SL_RESULT_SUCCESS ||
+      (*gEngineObject)->Realize(gEngineObject, SL_BOOLEAN_FALSE) != SL_RESULT_SUCCESS ||
+      (*gEngineObject)->GetInterface(gEngineObject, SL_IID_ENGINE, &engine) != SL_RESULT_SUCCESS)
+    return false;
+  if ((*engine)->CreateOutputMix(engine, &gMixObject, 0, nullptr, nullptr) != SL_RESULT_SUCCESS ||
+      (*gMixObject)->Realize(gMixObject, SL_BOOLEAN_FALSE) != SL_RESULT_SUCCESS)
+    return false;
+  SLDataLocator_AndroidSimpleBufferQueue queueLocator = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, kSoundBuffers};
+  SLDataFormat_PCM format = {SL_DATAFORMAT_PCM,           2,
+                             SL_SAMPLINGRATE_32,          SL_PCMSAMPLEFORMAT_FIXED_16,
+                             SL_PCMSAMPLEFORMAT_FIXED_16, SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
+                             SL_BYTEORDER_LITTLEENDIAN};
+  SLDataSource source = {&queueLocator, &format};
+  SLDataLocator_OutputMix mixLocator = {SL_DATALOCATOR_OUTPUTMIX, gMixObject};
+  SLDataSink sink = {&mixLocator, nullptr};
+  const SLInterfaceID ids[1] = {SL_IID_ANDROIDSIMPLEBUFFERQUEUE};
+  const SLboolean required[1] = {SL_BOOLEAN_TRUE};
+  if ((*engine)->CreateAudioPlayer(engine, &gPlayerObject, &source, &sink, 1, ids, required) != SL_RESULT_SUCCESS ||
+      (*gPlayerObject)->Realize(gPlayerObject, SL_BOOLEAN_FALSE) != SL_RESULT_SUCCESS ||
+      (*gPlayerObject)->GetInterface(gPlayerObject, SL_IID_PLAY, &gPlay) != SL_RESULT_SUCCESS ||
+      (*gPlayerObject)->GetInterface(gPlayerObject, SL_IID_ANDROIDSIMPLEBUFFERQUEUE, &gQueue) != SL_RESULT_SUCCESS)
+    return false;
+  (*gQueue)->RegisterCallback(gQueue, SoundCallback, nullptr);
+  for (int i = 0; i < kSoundBuffers - 1; i++)
+    SoundCallback(gQueue, nullptr);
+  return (*gPlay)->SetPlayState(gPlay, SL_PLAYSTATE_PLAYING) == SL_RESULT_SUCCESS;
+}
+
+}  // namespace
+
+// The game core in its process (once per app process; the core cannot be restarted): "" when it
+// runs, else why not. Any thread but the GL thread (it waits for the core process's start).
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeStart(JNIEnv *env, jclass,
+                                                                                          jstring dataDir) {
+  std::lock_guard<std::mutex> l(gLock);
+  if (gStarted)
+    return env->NewStringUTF(gProblem.c_str());
+  gStarted = true;
+  const std::string data = Text(env, dataDir);
+  for (const auto &s : kCoreSettings)
+    setenv(s[0], s[1], 1);
+  setenv("RE4_LOG_FILE", (data + "/core.log").c_str(), 1);
+  ReadSettings(data);
+  // the core process: a program among the app's libraries (extracted at installation)
+  re4ipc::Spawn spawn;
+  Dl_info info{};
+  const std::string lib =
+      dladdr(reinterpret_cast<void *>(&Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeStart), &info) && info.dli_fname
+          ? info.dli_fname
+          : "";
+  const auto slash = lib.rfind('/');
+  spawn.libraryDir = slash == std::string::npos ? std::string() : lib.substr(0, slash);
+  spawn.program = spawn.libraryDir + "/libre4_coreproc.so";
+  spawn.name = "com.ast.cubeevil4.ouya:core";
+  spawn.helloSeconds = 60;
+  re4ipc::configure(spawn);
+  LOG("core process %s, data %s", spawn.program.c_str(), data.c_str());
+  if (!re4ipc_reserve(data.c_str(), "") || !re4ipc_start()) {
+    const char *m = re4ipc_message();
+    gProblem = m && *m ? m : "the game core did not start";
+  } else if (re4ipc_state() == RE4_CORE_FAILED) {
+    gProblem = re4ipc_message();
+  }
+  if (!gProblem.empty()) {
+    LOG("core: %s", gProblem.c_str());
+    return env->NewStringUTF(gProblem.c_str());
+  }
+  gRunning = true;
+  if (!StartSound())
+    LOG("no sound (OpenSL ES)");
+  return env->NewStringUTF("");
+}
+
+// A new EGL context: a renderer of its own (the chunks begin anew with a full state)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeSurfaceCreated(JNIEnv *, jclass) {
+  if (gRenderer) {
+    // the GL objects went with the old context; the core sends everything again after a detach
+    (void) gRenderer.release();
+    if (gRunning)
+      re4ipc_gx_detach();
+  }
+  re4gx2::GxOptions options;
+  options.fastTev = true;            // the TEV in fractions
+  options.resolutionEighths = 6;     // 480 x 396
+  options.maxLights = 2;             // the two strongest lights per vertex
+  gRenderer.reset(new re4gx2::GxRenderer);
+  gRenderer->SetOptions(options);    // RE4_GX2_* in the environment (settings.txt) still override them
+  std::string error;
+  if (!gRenderer->Init(1, &error)) {
+    LOG("renderer: %s", error.c_str());
+    gRenderer.reset();
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeSurfaceChanged(JNIEnv *, jclass,
+                                                                                                jint width, jint height) {
+  gWidth = width;
+  gHeight = height;
+}
+
+// One frame of the display (GLSurfaceView's render thread)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeFrame(JNIEnv *, jclass) {
+  if (gRenderer && gRunning) {
+    // the chunks the core finished; none yet: wait a little (the game makes about 30 a second)
+    const Re4GxChunk *got[8];
+    int n = 0;
+    const long long until = NowMs() + 30;
+    for (;;) {
+      while (n < 8) {
+        const Re4GxChunk *c = re4ipc_gx_acquire();
+        if (!c)
+          break;
+        got[n++] = c;
+      }
+      if (n || NowMs() >= until)
+        break;
+      usleep(2000);
+    }
+    for (int i = 0; i < n; i++) {
+      if (i + 1 < n && gRenderer->CanSkip(*got[i], *got[i + 1])) {
+        gRenderer->Skip(*got[i]);
+        gSkipped++;
+      } else {
+        gRenderer->Run(*got[i]);
+      }
+      re4ipc_gx_release(got[i]);
+      gChunks++;
+    }
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glDisable(GL_SCISSOR_TEST);
+  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  glViewport(0, 0, gWidth, gHeight);
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
+  if (gRenderer) {
+    // the game's 4:3 picture in the middle of the screen
+    int h = gHeight, w = h * 4 / 3;
+    if (w > gWidth) {
+      w = gWidth;
+      h = w * 3 / 4;
+    }
+    gRenderer->Present((gWidth - w) / 2, (gHeight - h) / 2, w, h);
+  }
+  gFrames++;
+  const long long now = NowMs();
+  if (now - gLogAt >= 10000) {
+    if (gLogAt)
+      LOG("10 s: %u display frames, %u game pictures (%u left out)", gFrames, gChunks, gSkipped);
+    gFrames = gChunks = gSkipped = 0;
+    gLogAt = now;
+  }
+}
+
+// The controller as a GameCube pad (OuyaActivity maps the keys and axes)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativePad(JNIEnv *, jclass, jint buttons,
+                                                                                     jint stickX, jint stickY, jint substickX,
+                                                                                     jint substickY, jint triggerL,
+                                                                                     jint triggerR) {
+  if (!gRunning)
+    return;
+  auto clampS = [](jint v) { return static_cast<int8_t>(v < -127 ? -127 : v > 127 ? 127 : v); };
+  auto clampU = [](jint v) { return static_cast<uint8_t>(v < 0 ? 0 : v > 255 ? 255 : v); };
+  Re4CorePad pad{static_cast<uint16_t>(buttons), clampS(stickX),   clampS(stickY), clampS(substickX),
+                 clampS(substickY),              clampU(triggerL), clampU(triggerR)};
+  re4ipc_pad(&pad);
+}
+
+// The app goes to the background (or comes back): the game and its sound stop (go on)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativePause(JNIEnv *, jclass, jboolean on) {
+  if (!gRunning)
+    return;
+  re4ipc_pause(on ? 1 : 0, 500);
+  if (gPlay)
+    (*gPlay)->SetPlayState(gPlay, on ? SL_PLAYSTATE_PAUSED : SL_PLAYSTATE_PLAYING);
+}

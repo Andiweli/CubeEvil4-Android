@@ -1,0 +1,8 @@
+// The OUYA app (port/ouya/app; stage O3 of port/docs/ouya-machbarkeit.md), apart from the main app
+pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = 'CubeEvil4-OUYA'
+include ':app'

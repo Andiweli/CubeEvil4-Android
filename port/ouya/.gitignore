@@ -1,0 +1,8 @@
+# Gradle and the native build
+.gradle/
+build/
+app/build/
+app/.cxx/
+local.properties
+# the game core for Android 4.1 (port/scripts/ouya-app.ps1 puts it there)
+app/src/main/jniLibs/
