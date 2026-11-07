@@ -641,3 +641,12 @@ Bilder/s, die Szene lief dem Ton um ein paar Sekunden davon; alle vier Kerne war
   OUYA (`RE4_GAME_LANGUAGE`). Die Speicherkarte des bisherigen Ordners kommt mit, wenn am neuen Ort keine
   liegt. Gebaut und installiert; der Lauf des Installers auf der OUYA ist noch nicht
   getestet (intern ist dort zu wenig Platz frei: Abbild und Dateien brauchen knapp 3 GB).
+
+**Abgleich mit master 0.99.2-rc (07.11.2026, Punkt 2 der Liste oben).** Die 7 neuen Commits
+zusammengeführt: in die OUYA-Fassung kommen über den Kern das Eisentor von r224 mit den
+Verkaufs-Discs (Patch 0216), Ashleys Rock-Reaktion wie in den Verkaufsfassungen (0217) und der
+Item-Zufall (0218). Nur für die Haupt-App (nicht übernommen): Schärfefilter (GLES 3), Lebensanzeige
+im Band beim Bildformat 4:3, Vibration im Controller, Export der Touch-Belegung, Texte der
+Speicherkarten-Tasten; Totzone und Reichweite der Sticks wären für den OUYA-Controller möglich.
+master belegt Bit 7 der Paket-Kennzeichen mit `RE4_GX_CHUNK_MOVIE`, `RE4_GX_CHUNK_DRAWLESS` liegt
+seitdem auf Bit 8.
