@@ -1,0 +1,61 @@
+# The app menu's AUDIO page (wish of the project owner, 30.10.2026): music and sound effects volume, 0..100 %.
+# The sound driver's three volume calculations (I.S.S. sound effects, sequences, streams) scale their output
+# volume by runtime/sound_volume.cpp; type 2 sequences and streams count as sound effects, the others as music.
+# The game's own system volumes, mute and fades stay as they are. At 100 % (the default) nothing changes.
+--- a/src/game/snd_iss4.cpp
++++ b/src/game/snd_iss4.cpp
+@@ -1,6 +1,7 @@
+ // game/snd_iss4: sound driver AX voice works (SND_AXV, one per hardware voice of a SE). Their
+ // parameter updates are deferred and pushed to the AX / MIX libraries by Snd_axv_work_control.
+ #include "snd_drv.h"
++extern "C" int re4_sound_volume(int music); /* port: runtime/sound_volume.cpp (patch 0153) */
+ 
+ // Clears the 64 AX voice works (numbered).
+ void Snd_axv_work_clear(void)
+@@ -168,6 +169,8 @@
+     axv->out_vol = ctrl->vol_mas_se / 127 * (ctrl->vol_iss_se >> 8);
+     axv->out_vol = axv->out_vol / 127 * (axv->now_vol >> 8);
+     axv->out_vol = axv->out_vol / 127 * (axv->adsr_vol >> 8);
++    /* port (patch 0153): the app menu's sound effects volume */
++    axv->out_vol = (s16) (axv->out_vol * re4_sound_volume(0) / 100);
+     axv->ax_vol = Snd_vol_syn_to_ax((s16) (axv->out_vol >> 8));
+ }
+ 
+--- a/src/game/snd_seq3.cpp
++++ b/src/game/snd_seq3.cpp
+@@ -1,6 +1,7 @@
+ // game/snd_seq3: the sound driver's sequence works (SND_SEQ), from starting a sequence on an
+ // ISS play request to closing it when the last note has died.
+ #include "snd_drv.h"
++extern "C" int re4_sound_volume(int music); /* port: runtime/sound_volume.cpp (patch 0153) */
+ 
+ // Clears the 8 sequence works (numbered).
+ void Snd_seq_work_clear(void)
+@@ -122,6 +123,8 @@
+         seq->out_vol = ctrl->vol_mas_bgm / 127 * (ctrl->vol_iss_bgm >> 8);
+     }
+     seq->out_vol = seq->out_vol / 127 * (seq->now_vol >> 8);
++    /* port (patch 0153): the app menu's music volume (type 2: sound effects volume) */
++    seq->out_vol = (s16) (seq->out_vol * re4_sound_volume(seq->seq_type != 2) / 100);
+     seq->ax_vol = Snd_vol_syn_to_ax((s16) (seq->out_vol >> 8));
+ }
+ 
+--- a/src/game/snd_str4.cpp
++++ b/src/game/snd_str4.cpp
+@@ -1,6 +1,7 @@
+ // game/snd_str4: sound driver stream works (SND_STR), with their volume, pan and DVD error
+ // recovery, plus the setters the game uses from snd.cpp SndStrReq.
+ #include "snd_drv.h"
++extern "C" int re4_sound_volume(int music); /* port: runtime/sound_volume.cpp (patch 0153) */
+ 
+ // Clears the 4 stream works (numbered).
+ void Snd_str_work_clear(void)
+@@ -70,6 +71,8 @@
+         str->out_vol = ctrl->vol_mas_bgm / 127 * (ctrl->vol_str_bgm >> 8);
+     }
+     str->out_vol = str->out_vol / 127 * (str->now_vol >> 8);
++    /* port (patch 0153): the app menu's music volume (type 2: sound effects volume) */
++    str->out_vol = (s16) (str->out_vol * re4_sound_volume(str->str_type != 2) / 100);
+     str->ax_vol = Snd_vol_syn_to_ax((s16) (str->out_vol >> 8));
+ }
+ 

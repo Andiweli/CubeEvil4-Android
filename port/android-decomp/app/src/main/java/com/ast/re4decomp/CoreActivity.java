@@ -18,7 +18,9 @@ import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.Process;
 import android.os.SystemClock;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
@@ -36,6 +38,7 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -89,26 +92,54 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_AIM = "gyroAiming";
   // the menu's switch "Alternate Controls" (CoreInput.setAlternate)
   static final String ALT_CONTROLS = "alternateControls";
-  // the menu's "Controller configuration": the free keys' functions (CoreInput.encode; absent: the
-  // default); "bindings" and "extraKeys" held the two first versions (27.10.2026), dropped
-  static final String KEY_MAP = "keyMap";
+  // the menu's "Button Mapping" (ActionMap.encode; absent: the default), the controller's and the
+  // keyboard's; "bindings", "extraKeys" (27.10.2026) and "keyMap" (the free keys until 29.10.2026) held
+  // the versions before, dropped
+  static final String BINDINGS_CONTROLLER = "mappingController", BINDINGS_KEYBOARD = "mappingKeyboard";
+  static final String OLD_KEY_MAP = "keyMap";
+  // the mouse's sensitivity (the button mapping's slider, 0.25 .. 3, 1 = as below)
+  static final String MOUSE_SENSITIVITY = "mouseSensitivity";
+  static final float MOUSE_MIN = 0.25f, MOUSE_MAX = 3f, MOUSE_STEP = 0.25f;
+  /** The aim's turn per count of the captured mouse at sensitivity 1 (about 400 counts a radian). */
+  static final float MOUSE_AIM_RADIANS = 0.0025f;
+  /** The camera's C stick per count of the captured mouse in one event at sensitivity 1. */
+  static final float MOUSE_LOOK = 0.05f;
   // the menu's comfort control "Latch L and R" (CoreTouch.setLatch, CoreInput.setLatch; off: held
   // while touched or pressed); the touch controls' only until 23.10.2026, the name stays
   static final String TOUCH_LATCH = "touchLatchLR";
   // the menu's comfort control "Latch B" (the same; on: Leon keeps running)
   static final String TOUCH_LATCH_B = "touchLatchB";
   static final String TOUCH_AIM = "touchAim";
+  // the laser sight's colour (CoreMenu, CONTROLS, LASER SIGHT; wish of the project owner, 04.11.2026): 0 the game's red
+  static final String LASER_COLOUR = "laserColour";
   // the menu's slider of gyro aiming (GyroAim.setSensitivity, a float, 1 = as before)
   static final String GYRO_SENSITIVITY = "gyroSensitivity";
   // the menu's switches "Invert vertical" / "Invert horizontal" of gyro aiming (GyroAim.setInvert; off)
   static final String GYRO_INVERT_V = "gyroInvertVertical", GYRO_INVERT_H = "gyroInvertHorizontal";
   // the menu's switch "Knife by Swipe" (watchTap: a swipe while playing draws the knife and slashes; on)
   static final String KNIFE_SWIPE = "knifeSwipe";
-  /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
+  // the menu's "Invert vertical" and "Aim speed" of aiming by touch and controllers, not the gyro (wish of the
+  // project owner, 30.10.2026; CoreBridge.setAim: the game's own "reverse" option and the stick's turn while
+  // aiming, the touch area's swipes too; off, 1 = as the game)
+  static final String AIM_INVERT_V = "aimInvertVertical", AIM_SPEED = "aimSpeed";
+  // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
+  // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
+  static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
+  static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
+  // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
+  // camera's vertical field of view, -FOV_RANGE .. FOV_RANGE, 0 as the game (CoreBridge.setFov, patch 0205)
+  static final String FOV_OFFSET = "fovOffset";
+  static final int FOV_RANGE = 15;
+  static int fovOffset(SharedPreferences input) {
+    return Math.max(-FOV_RANGE, Math.min(FOV_RANGE, input.getInt(FOV_OFFSET, 0)));
+  }
+  /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars, 5 Native). */
   static final String GRAPHICS_PREFS = "core_graphics";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
-  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill; off). */
+  /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
+   *  extra games kept unlocked, the story's player character << 5 (2 Ada, 3 HUNK, 4 Krauser, 5 Wesker), 256 the
+   *  special costume; off). */
   static final String CHEATS = "cheats";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
@@ -120,6 +151,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final CoreAudio audio = new CoreAudio(this);
   private final Set<Integer> seenDevices = new HashSet<>();
   private final ControllerLog controllerLog = new ControllerLog();
+  /** How long a controller's input took from Android to the app (InputDelay), for the error log. */
+  private final InputDelay inputDelay = new InputDelay();
   private GLSurfaceView surface;
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
@@ -131,16 +164,24 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the language at the start or the last change (onConfigurationChanged)
   private String shownLanguage = "";
   private boolean retailEu;  // the European discs are imported: the menu offers the game's language
+  private boolean retail;  // any retail discs (European, US, Japanese, Korean): no debug menu (retail-us-plan.md, retail-jp-plan.md)
   private int gameLanguageNow;  // the language the game runs with (European discs)
   // the menu (SELECT) and the debug menu (SELECT held)
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
   private final List<byte[]> pendingImports = new ArrayList<>();
-  private boolean resumed;
+  // (read by the picture's beat on its own thread too)
+  private volatile boolean resumed;
   // GPU step c: the picture drawn at each vsync or, on a faster screen, at every n-th
   private final FramePacing pacing = new FramePacing();
-  private int vsyncs;
   private boolean paceLogged;
+  // the beat's own thread (0.98.5): its Choreographer, not the UI thread's (vsyncTick)
+  private HandlerThread beatThread;
+  private Handler beat;
+  // the UI thread's vsyncs, only counted for the log (uiTick): late callbacks, the touch controls shown
+  private final FramePacing uiBeat = new FramePacing();
+  private long uiLogAt = Long.MIN_VALUE;
+  private int uiShownVsyncs;
   // the screen was asked for 60 Hz (preferSixtyHz): the surface too, once it exists
   private boolean askSixty;
   // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator
@@ -159,6 +200,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // ("30 FPS (Game) · 60 Hz": the game makes 30 pictures a second, as on the GameCube; a phone's
   // own counter shows the screen's rate, which is not the game's)
   private TextView fpsView;
+  // where it is (the menu's button, wish of the project owner, 05.11.2026: it covered the minimap): 0 off, 1 bottom
+  // left, 2 bottom centre, 3 top left, 4 top centre; before 05.11.2026 the switch "fps" alone (on: bottom left)
+  static final String FPS_PLACE = "fpsPlace";
+  static final int FPS_PLACES = 5;
+  private int fpsPlace;
+  private WindowInsets fpsInsets;
   private long fpsFrames = -1, fpsPictures, fpsSince;
   // a game that stands without a pause (a hang): reported once per stand
   private long lastFrames = -1, framesSince;
@@ -192,15 +239,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
     // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
-    retailEu = imports.root != null && com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(
-        com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1")));
+    String release = imports.root == null ? null
+        : com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1"));
+    retailEu = com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(release);
+    retail = release != null && !com.ast.re4decomp.disc.GameCubeDisc.DEBUG.equals(release);
     gameLanguageNow = gameLanguage(this);
     if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
       coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
       Log.i(TAG, "game language: " + gameLanguageNow);
     }
-    // the app's own folder on the shared storage, where test switches write (RE4_AUDIO_WAV)
-    getExternalFilesDir(null);
+    // the app's own folder (on the shared storage, else internal), where test switches write (RE4_AUDIO_WAV)
+    AppStorage.base(this);
     applyGraphics();
     startProblem = imports.root == null ? "No data folder"
         : CoreBridge.start(imports.root.getAbsolutePath(), coreSettings);
@@ -208,7 +257,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences inputPrefs = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE);
     input.setSwapFace(inputPrefs.getBoolean(SWAP_FACE, false));
     input.setAlternate(inputPrefs.getBoolean(ALT_CONTROLS, false));
-    input.setKeyMap(CoreInput.decode(inputPrefs.getString(KEY_MAP, null)));
+    if (inputPrefs.contains(OLD_KEY_MAP)) {
+      Log.i(TAG, "layout: the free keys of the controller configuration (" + inputPrefs.getString(OLD_KEY_MAP, "")
+          + ") dropped; the button mapping starts from the default");
+      inputPrefs.edit().remove(OLD_KEY_MAP).apply();
+    }
+    input.setControllerMap(ActionMap.decode(ActionMap.KIND_CONTROLLER, inputPrefs.getString(BINDINGS_CONTROLLER, null)));
+    input.setKeyboardMap(ActionMap.decode(ActionMap.KIND_KEYBOARD, inputPrefs.getString(BINDINGS_KEYBOARD, null)));
     if (inputPrefs.contains("bindings") || inputPrefs.contains("extraKeys")) {
       inputPrefs.edit().remove("bindings").remove("extraKeys").apply();
     }
@@ -240,6 +295,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // the surface takes the fingers beside the touch controls: Android gives the further fingers
     // of a touch only to views that took one, so a thumb beside the buttons would block them
     surface.setOnTouchListener((v, e) -> true);
+    // the benchmark's line at the top while it runs (Display -> GRAPHICS -> Benchmark)
+    benchView = new TextView(this);
+    benchView.setTextSize(14);
+    benchView.setTextColor(Color.WHITE);
+    benchView.setBackgroundColor(0xA0000000);
+    benchView.setPadding(24, 10, 24, 10);
+    benchView.setGravity(Gravity.CENTER);
+    benchView.setVisibility(View.GONE);
+    root.addView(benchView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT,
+        FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
     fpsView = new TextView(this);
     fpsView.setTypeface(Typeface.MONOSPACE);
     fpsView.setTextSize(11);
@@ -250,27 +315,63 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     fpsView.setTextDirection(View.TEXT_DIRECTION_LTR);
     root.addView(fpsView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT,
         FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.LEFT));
-    showFps(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean("fps", false));
+    // kept clear of the screen's rounded corner, a cutout and bars that stay (CornerInset; tester report
+    // 05.11.2026: the corner cut the text off); asked again when the window turns or the bars come and go
+    fpsView.setOnApplyWindowInsetsListener((v, insets) -> {
+      fpsInsets = insets;
+      placeFps();
+      return insets;
+    });
+    showFps(fpsPlace(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE)));
     // the touch controls above everything
     touchControls = new TouchControls(this, input, touchMode(inputPrefs), touchHost);
     touchControls.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false));
     touchControls.setLatchB(inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     gyroAim = new GyroAim(this, main);
     gyroAim.setSensitivity(inputPrefs.getFloat(GYRO_SENSITIVITY, 1f));
+    mouseSensitivity = clampMouse(inputPrefs.getFloat(MOUSE_SENSITIVITY, 1f));
+    aimInvert = inputPrefs.getBoolean(AIM_INVERT_V, false);
+    autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
+    alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
+    aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
+    // the mouse (step 2 of the button mapping, 29.10.2026): captured while the game is in front, its
+    // buttons through the keyboard's mapping, its movement the camera and, while aiming, the aim
+    if (Build.VERSION.SDK_INT >= 26) {
+      surface.setFocusable(true);
+      surface.setFocusableInTouchMode(true);
+      surface.setOnCapturedPointerListener((v, e) -> {
+        capturedMouse(e);
+        return true;
+      });
+    }
     gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
     if (startProblem.isEmpty()) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
-      CoreBridge.setDof(g.getBoolean("dof", true));
+      CoreBridge.setDof(CoreMenu.dofLevel(g));
       // one or the other (CoreMenu): saved with both on before 26.10.2026, 60 FPS stays
       if (g.getBoolean("smooth60", false) && g.getBoolean("frameskip", false))
         g.edit().putBoolean("frameskip", false).apply();
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
       CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
+      CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
+      CoreBridge.setPsx(g.getBoolean("psx", false));
+      CoreBridge.setFlares(g.getBoolean("flares", false));
+      CoreBridge.setMinimap(g.getBoolean("minimap", false));
+      CoreBridge.setLaserColour(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getInt(LASER_COLOUR, 0));
+      CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
+      CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));
+      CoreBridge.setFov(fovOffset(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE)));
+      CoreBridge.setVertexRing(g.getBoolean("vertexRing", false));
+      // "Dynamic" up to the benchmark's levels on this device, when it ran
+      CoreBridge.setDynamicCaps(g.getInt(CoreMenu.DYN_CAP_30, 0), g.getInt(CoreMenu.DYN_CAP_60, 0));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
+      CoreBridge.setPotato(CoreBridge.potatoMask(g));
+      CoreBridge.sendSoundVolume(g);
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
       // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
       int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
       if (!settings.contains("RE4_CHEATS=")) {
@@ -279,9 +380,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
     }
     setContentView(root);
+    // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
+    CarDisplay.fit(this, getWindow());
     preferSixtyHz();
     surface.setFocusable(true);
     surface.requestFocus();
+    // sticks, triggers and the hat at once (Android 11 and later): Android otherwise holds a controller's
+    // motion back for the next refresh of the screen (up to 17 ms) and hands over a batch (controller lag report,
+    // 05.11.2026); buttons come at once anyway
+    if (Build.VERSION.SDK_INT >= 30) {
+      surface.requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_JOYSTICK);
+      getWindow().getDecorView().requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_JOYSTICK);
+    }
     if (Build.VERSION.SDK_INT >= 33)
       getOnBackInvokedDispatcher().registerOnBackInvokedCallback(0, this::askExit);
     if (!startProblem.isEmpty()) {
@@ -302,8 +412,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /**
-   * The core in a process of its own (32-bit devices whose Java heap lies where the game's memory
-   * must be): when that process ends (a crash), the app stays and says so, with the error report
+   * The core in a process of its own (devices whose Java heap lies where the game's memory must be:
+   * 32 bit with Android 14, some 64-bit ones since 31.10.2026): when that process ends (a crash), the app stays and says so, with the error report
    * to send (the crash is in it).
    */
   private void checkCoreProcess() {
@@ -357,11 +467,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int text = cause == RoomFileCheck.Cause.IMAGE ? R.string.ingame_disc_image
         : cause == RoomFileCheck.Cause.DEVICE ? R.string.ingame_disc_device
         : cause == RoomFileCheck.Cause.READ ? R.string.ingame_disc_read : R.string.ingame_disc_unknown;
+    // the disc to import again: "Start screen" (it opens without starting the game) in place of "Quit"
+    boolean reimport = cause != RoomFileCheck.Cause.READ;
     new AlertDialog.Builder(this)
         .setTitle(R.string.ingame_disc_title)
         .setMessage(getString(text, path, disc))
         .setPositiveButton(R.string.ingame_send_report, (dlg, w) -> shareReport())
-        .setNegativeButton(R.string.ingame_quit, (dlg, w) -> quit())
+        .setNegativeButton(reimport ? R.string.ingame_start_screen : R.string.ingame_quit,
+            (dlg, w) -> { if (reimport) openStartScreen("disc " + disc + " to import again"); else quit(); })
         .setNeutralButton(R.string.ingame_continue, null)
         .setCancelable(false).show();
   }
@@ -402,10 +515,38 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     main.postDelayed(this::tick, 500);
   }
 
-  private void showFps(boolean on) {
-    fpsView.setVisibility(on && menuSupported ? View.VISIBLE : View.GONE);
+  /** The FPS display's place (FPS_PLACE, else the old switch "fps": bottom left). */
+  static int fpsPlace(SharedPreferences graphics) {
+    int place = graphics.contains(FPS_PLACE) ? graphics.getInt(FPS_PLACE, 0) : graphics.getBoolean("fps", false) ? 1 : 0;
+    return place >= 0 && place < FPS_PLACES ? place : 0;
+  }
+
+  private void showFps(int place) {
+    fpsPlace = place;
+    fpsView.setVisibility(place != 0 && menuSupported ? View.VISIBLE : View.GONE);
     fpsView.setText(getString(R.string.ingame_fps_none) + screenHz() + resolution());
     fpsFrames = -1;
+    placeFps();
+  }
+
+  /** The FPS display at its place, kept clear of rounded corners, a cutout and bars that stay (CornerInset). */
+  private void placeFps() {
+    if (fpsInsets == null || fpsPlace == 0) return;
+    final boolean top = fpsPlace >= 3, centre = fpsPlace == 2 || fpsPlace == 4;
+    final int[] at = CornerInset.place(fpsInsets, getResources().getDisplayMetrics().density, CarDisplay.is(this), top, centre);
+    final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) fpsView.getLayoutParams();
+    final int gravity = (top ? Gravity.TOP : Gravity.BOTTOM) | (centre ? Gravity.CENTER_HORIZONTAL : Gravity.LEFT);
+    final int left = centre ? 0 : at[0];
+    final int topMargin = top ? at[1] : 0, bottomMargin = top ? 0 : at[1];
+    if (lp.gravity != gravity || lp.leftMargin != left || lp.topMargin != topMargin || lp.bottomMargin != bottomMargin) {
+      lp.gravity = gravity;
+      lp.leftMargin = left;
+      lp.topMargin = topMargin;
+      lp.bottomMargin = bottomMargin;
+      fpsView.setLayoutParams(lp);
+      Log.i(TAG, "FPS display: place " + fpsPlace + ", " + (centre ? "centred" : left + " pixels from the left") + ", "
+          + at[1] + " from the " + (top ? "top" : "bottom"));
+    }
   }
 
   /**
@@ -417,7 +558,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int[] info = CoreBridge.graphicsInfo();
     if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
-    int rows = aspect == 1 || aspect == 3 ? 448 : 336;
+    int rows = CoreMenu.pictureRows(aspect, surface.getWidth(), surface.getHeight());
     return String.format(Locale.ROOT, " · %d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
         CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }
@@ -523,16 +664,37 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     main.postDelayed(() -> System.exit(0), 300);
   }
 
+  /**
+   * Management -> "Import other discs" and the disc problems (wish of the project owner, 06.11.2026: with both
+   * discs imported the launcher started the game at once and the game only ended, so another release could not be
+   * imported over the discs): the game ends as with quit(), and LauncherRestartActivity, in a process of its own,
+   * ends this one and opens the start screen in a new process without starting the game. Discs, saves, the memory
+   * card and the settings stay.
+   */
+  private void openStartScreen(String why) {
+    Log.i(TAG, "the game ends, the start screen opens (" + why + ")");
+    CoreLog.stop();
+    startActivity(new Intent(this, LauncherRestartActivity.class)
+        .putExtra(LauncherRestartActivity.GAME_PID, Process.myPid()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    finishAndRemoveTask();
+    // LauncherRestartActivity ends this process; should it not come, the game ends as with quit() (a handler of its
+    // own: onDestroy empties `main`)
+    new Handler(Looper.getMainLooper()).postDelayed(() -> System.exit(0), 3000);
+  }
+
   // --- the menu (SELECT) -------------------------------------------------------
 
   /** SELECT held for a second: the game's debug menu (patch 0061), once per press. */
   private final Runnable selectHold = () -> {
     if (!selectDown || menu != null) return;
     selectHeld = true;
-    // the European discs have no debug menu (decision of the project owner, 26.10.2026; a cheat menu
-    // of the in-game menu comes later): holding SELECT opens nothing
-    if (retailEu) {
-      Log.i(TAG, "SELECT held: no debug menu with the European discs");
+    // the retail discs have no debug menu (decision of the project owner, 26.10.2026; the cheat menu
+    // of the in-game menu instead; the US and the Japanese discs lack the debug tools as well): holding
+    // SELECT says so and where another version's discs are imported (a user with the European discs held
+    // SELECT again and again and took it for the debug or US version not starting, 06.11.2026)
+    if (retail) {
+      Toast.makeText(this, R.string.ingame_debug_menu_retail, Toast.LENGTH_LONG).show();
+      Log.i(TAG, "SELECT held: no debug menu with the retail discs (said so)");
       return;
     }
     if (!menuSupported) {
@@ -569,6 +731,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     releaseAll();
     boolean paused = CoreBridge.pause(true, 800);
+    keepGameAimInvert();
     audio.stop();
     stopVibrator();
     Log.i(TAG, "menu open" + (paused ? ", the game stands" : ", the game did not stop yet (loading?)")
@@ -585,6 +748,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       Log.i(TAG, "menu closed");
       surface.requestFocus();
+      main.post(this::updateMouseCapture);
     });
     menu.show();
   }
@@ -595,6 +759,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void exportAll() {
       startForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_EXPORT_ALL);
     }
+
+    @Override public void importDiscs() { openStartScreen("menu: import other discs"); }
 
     @Override public void importFiles() {
       Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
@@ -617,7 +783,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(R3_CAPTURE, on).apply();
     }
 
-    @Override public void fpsChanged(boolean on) { showFps(on); }
+    @Override public void fpsChanged(int place) { showFps(place); }
 
     @Override public void touchModeChanged(int mode) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(TOUCH_MODE, mode).apply();
@@ -670,7 +836,44 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.i(TAG, "touch: swipes " + (on ? "draw the knife and slash" : "leave the knife alone"));
     }
 
+    @Override public void checkUpdate(AppUpdate.Listener listener) {
+      // the car flavor comes from Google Play, which updates it: no button (UNKNOWN hides it)
+      if (!getResources().getBoolean(R.bool.app_update)) {
+        listener.checked(AppUpdate.UNKNOWN);
+        return;
+      }
+      AppUpdate.check(CoreActivity.this, listener);
+    }
+
+    @Override public void startUpdate(AppUpdate.Listener listener) { AppUpdate.install(CoreActivity.this, listener); }
+
+    @Override public void aimInvertChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, on).apply();
+      aimInvert = on;
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void autoAimChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AUTO_AIM, on).apply();
+      autoAim = on;
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void alwaysRunChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(ALWAYS_RUN, on).apply();
+      alwaysRun = on;
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void aimSpeedChanged(float value) {
+      aimSpeed = clampAimSpeed(value);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(AIM_SPEED, aimSpeed).apply();
+      CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
     @Override public boolean gameLanguages() { return retailEu; }
+    @Override public boolean debugMenu() { return !retail; }
+    @Override public void startBenchmark() { benchmarkStart(); }
 
     @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
 
@@ -687,8 +890,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public void cheatsChanged(int bits) {
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
-      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill)");
+      Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept, player type "
+          + ((bits & CoreMenu.CHARACTER_BITS) >> CoreMenu.CHARACTER_SHIFT)
+          + ((bits & CoreMenu.COSTUME_BIT) != 0 ? ", special costume" : "") + ")");
       CoreBridge.setCheats(bits);
+    }
+
+    @Override public void restartGame() {
+      Log.i(TAG, "the game restarts (extra games), its language stays");
+      CoreBridge.restartGame(0);
     }
 
     @Override public int cheatAction(int what) {
@@ -704,38 +914,56 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       logLayout();
     }
 
-    @Override public void keyMapChanged(int[] map) {
-      String text = CoreInput.encode(map);
+    @Override public void mappingChanged(ActionMap map) {
+      String text = map.encode();
+      String key = map.kind == ActionMap.KIND_KEYBOARD ? BINDINGS_KEYBOARD : BINDINGS_CONTROLLER;
       SharedPreferences.Editor e = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit();
-      if (text == null) e.remove(KEY_MAP); else e.putString(KEY_MAP, text);
+      if (text == null) e.remove(key); else e.putString(key, text);
       e.apply();
-      input.setKeyMap(map);
+      if (map.kind == ActionMap.KIND_KEYBOARD) input.setKeyboardMap(map); else input.setControllerMap(map);
       send();
       logLayout();
     }
+
+    @Override public ActionMap mapping(int kind) {
+      return kind == ActionMap.KIND_KEYBOARD ? input.keyboardMap() : input.controllerMap();
+    }
+
+    @Override public int faceLabel(int keyCode) { return input.faceLabel(keyCode); }
 
     @Override public boolean controllerConnected() {
       for (int id : InputDevice.getDeviceIds()) if (gameDevice(InputDevice.getDevice(id))) return true;
       return false;
     }
+
+    @Override public boolean keyboardConnected() {
+      for (int id : InputDevice.getDeviceIds()) {
+        InputDevice d = InputDevice.getDevice(id);
+        if (keyboardDevice(d) || mouseDevice(d)) return true;
+      }
+      return false;
+    }
+
+    @Override public float mouseSensitivity() { return mouseSensitivity; }
+
+    @Override public void mouseSensitivityChanged(float value) {
+      mouseSensitivity = clampMouse(value);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(MOUSE_SENSITIVITY, mouseSensitivity).apply();
+      Log.i(TAG, "mouse: sensitivity " + mouseSensitivity);
+    }
   };
 
   private void logLayout() {
-    // the free keys' functions of the controller configuration (not with the alternate controls)
-    StringBuilder extra = new StringBuilder();
-    String[] names = {"A", "B", "X", "Y", "Z", "L", "R", "START", "UP", "DOWN", "LEFT", "RIGHT", "menu"};
-    int[] map = input.keyMap();
-    if (map != null && !input.alternate()) {
-      extra.append(", free keys (controller configuration):");
-      for (int i = 0; i < map.length; i++) {
-        extra.append(i == 0 ? " " : ", ").append(KeyEvent.keyCodeToString(CoreInput.MOVABLE[i]).replace("KEYCODE_", ""))
-            .append(" = ").append(map[i] < 0 ? "none" : names[map[i]]);
-      }
-    }
+    // the controller's own mapping (not with the alternate controls) and the keyboard's
+    String extra = (input.ownControllerMap() && !input.alternate()
+        ? "; own controller mapping (in the game, the menus keep the layout): "
+            + input.controllerMap().describe(CoreMenu::keyName) : "")
+        + "; keyboard: " + (input.keyboardMap().isDefault() ? "default" : "own")
+        + " mapping: " + input.keyboardMap().describe(CoreMenu::keyName);
     Log.i(TAG, "layout: A B X Y by label" + (input.swapFace() ? ", A/B and X/Y swapped" : "")
         + (input.alternate() ? ", alternate controls: L1 = L, L2 = R, R1 = Y, R2 = A, Y = Z, aiming with the right stick"
             : ", R2 = R, L2 = L, R1 = Z")
-        + ", SELECT menu (held: debug menu), R3 " + (tools ? "graphics capture" : "unused") + extra
+        + ", SELECT menu" + (retail ? "" : " (held: debug menu)") + ", R3 " + (tools ? "graphics capture" : "unused") + extra
         + (menuSupported ? "" : "; this core has no menu functions"));
   }
 
@@ -767,11 +995,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   private void capture() {
     if (!tools) return;
-    File dir = getExternalFilesDir(null);
-    if (dir != null) {
-      CoreBridge.gxDump(new File(dir, "gx-dumps").getAbsolutePath());
-      Toast.makeText(this, R.string.ingame_capture_saved, Toast.LENGTH_SHORT).show();
-    }
+    File dir = AppStorage.base(this);
+    CoreBridge.gxDump(new File(dir, "gx-dumps").getAbsolutePath());
+    Toast.makeText(this, R.string.ingame_capture_saved, Toast.LENGTH_SHORT).show();
   }
 
   /** RetroTouch's editor (its gear) opened or closed: the game stands while the player arranges the controls. */
@@ -779,6 +1005,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchEditing = on;
     input.clear();
     send();
+    updateMouseCapture();
     if (!menuSupported) return;
     if (on) {
       boolean paused = CoreBridge.pause(true, 800);
@@ -867,9 +1094,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void readImport(Uri uri) throws IOException {
     try (InputStream in = getContentResolver().openInputStream(uri)) {
       if (in == null) throw new IOException(String.valueOf(uri));
-      byte[] gci = CoreLog.readAll(in);
-      if (gci.length > 4 << 20) throw new IOException("too big for a .gci");
-      pendingImports.add(gci);
+      // a .gci, a whole Dolphin card (.raw, .gcp) or a ZIP of either: the .gci files of this game
+      StringBuilder found = new StringBuilder();
+      try {
+        pendingImports.addAll(SaveImport.files(CoreLog.readAll(in), found));
+      } catch (IllegalArgumentException e) {
+        throw new IOException(e.getMessage());
+      }
+      if (found.length() > 0) Log.i(TAG, "import: " + found);
     }
   }
 
@@ -996,8 +1228,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       try (InputStream catalog = imports.roomCatalog(folder)) {
         RoomFileCheck c = RoomFileCheck.verify(folder, catalog, n);
         t.append(c.checked).append(c.everyFile ? " files" : " room files").append(" checked (the import's hashes), ");
-        t.append(c.bad.isEmpty() ? "all as on the original disc" : c.bad.size() + " differ: " + String.join(", ",
-            c.bad.subList(0, Math.min(20, c.bad.size()))));
+        t.append(c.bad.isEmpty() ? "all as on the original disc"
+            : c.bad.size() + " differ (" + c.byFolder() + "): " + String.join(", ", c.bad));
       } catch (IOException | RuntimeException e) {
         t.append("no check: ").append(e);
       }
@@ -1037,6 +1269,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private static boolean controller(android.view.InputEvent e) {
+    // a keyboard's events carry the D-pad's source too when it has arrow keys (keyboardDevice)
+    if (keyboardDevice(e.getDevice())) return false;
     return (e.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
         || (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
         || (e.getSource() & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
@@ -1045,6 +1279,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void send() {
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
+    // swipe aiming (Touch Aiming: Touch Area): the finger's way since the last event as angles, with the
+    // menu's "Aim speed" and "Invert vertical" as the sticks
+    float[] turn = input.takeAimSwipe();
+    if (turn != null) CoreBridge.aimTurn(turn[0] * aimSpeed, (aimInvert ? -turn[1] : turn[1]) * aimSpeed);
   }
 
   /** The keys the game maps or the app uses: which of them a device reports. */
@@ -1075,15 +1313,53 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /** Once per device: what it reports (name, sources, axes), for the device test's log. */
+  /** Every 30 seconds with controller input: its delay from Android to the app (InputDelay) in the error log. */
+  private void noteInputDelay(InputDevice d) {
+    String line = inputDelay.due(SystemClock.uptimeMillis(), d == null ? "?" : "\"" + d.getName() + "\""
+        + (Build.VERSION.SDK_INT >= 30 ? ", motion unbuffered" : ""));
+    if (line != null) Log.i(TAG, line);
+  }
+
   private void noteDevice(InputDevice d) {
     if (d == null || !seenDevices.add(d.getId())) return;
     Log.i(TAG, describeDevice(d));
   }
 
-  /** Game controllers and gamepad-like devices, for the connect lines and controllers.txt. */
+  /**
+   * A real keyboard (letters), not a controller that also reports keys (the Retroid's built-in one, which is a
+   * gamepad and a joystick). Android gives every keyboard with arrow keys the D-pad's source as well (sources
+   * 0x301): that alone does not make it a controller (tester report 05.11.2026, OnePlus 9R: a keyboard was taken
+   * for a controller, its keys did nothing in the game and in the button mapping).
+   */
+  static boolean keyboardDevice(InputDevice d) {
+    if (d == null || d.isVirtual()) return false;
+    return keyboardSources(d.getSources(), d.getKeyboardType());
+  }
+
+  /**
+   * keyboardDevice by the device's sources and keyboard type (InputDevice), for the tests. A device with letters
+   * (KEYBOARD_TYPE_ALPHABETIC) and no stick is a keyboard, even when Android also gives it the gamepad's source
+   * (some Bluetooth keyboards declare a few gamepad buttons in their HID description; the tester's keyboard and
+   * mouse were Bluetooth, 05.11.2026); its gamepad buttons, if any, still go the controller's way (dispatchKeyEvent
+   * checks KeyEvent.isGamepadButton first). Controllers with sticks (the Retroid, Xbox and PlayStation pads) and
+   * those without letters stay controllers.
+   */
+  static boolean keyboardSources(int s, int keyboardType) {
+    if ((s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) return false;
+    return (s & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD
+        && keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
+  }
+
+  /** Game controllers and gamepad-like devices (a remote's D-pad too, not a keyboard's arrow keys), for the
+   *  connect lines and controllers.txt. */
   private static boolean gameDevice(InputDevice d) {
     if (d == null || d.isVirtual()) return false;
-    int s = d.getSources();
+    return gameSources(d.getSources(), d.getKeyboardType());
+  }
+
+  /** gameDevice by the device's sources and keyboard type (InputDevice), for the tests. */
+  static boolean gameSources(int s, int keyboardType) {
+    if (keyboardSources(s, keyboardType)) return false;
     return (s & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
         || (s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
         || (s & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
@@ -1093,16 +1369,27 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void noteConnected(int id) {
     InputDevice d = InputDevice.getDevice(id);
     if (gameDevice(d) && controllerLog.firstDevice(id)) Log.i(TAG, "connected: " + describeDevice(d));
+    // keyboards and mice too (a Bluetooth keyboard's report, 05.11.2026: nothing of it was in the log)
+    else if ((keyboardDevice(d) || mouseDevice(d)) && controllerLog.firstDevice(id)) {
+      Log.i(TAG, "connected: " + describeDevice(d) + (keyboardDevice(d) ? " (keyboard)" : "") + (mouseDevice(d) ? " (mouse)" : ""));
+    }
   }
 
-  /** controllers.txt of the error report: every game controller connected now. */
+  /** controllers.txt of the error report: every game controller connected now, then keyboards and mice (since
+   *  0.98.4: a report about a keyboard listed nothing of it). */
   private String controllerList() {
-    StringBuilder out = new StringBuilder();
+    StringBuilder out = new StringBuilder(), other = new StringBuilder();
     for (int id : InputDevice.getDeviceIds()) {
       InputDevice d = InputDevice.getDevice(id);
       if (gameDevice(d)) out.append(describeDevice(d)).append('\n');
+      else if (keyboardDevice(d) || mouseDevice(d)) {
+        other.append(describeDevice(d)).append(keyboardDevice(d) ? " (keyboard)" : "").append(mouseDevice(d) ? " (mouse)" : "")
+            .append('\n');
+      }
     }
-    return out.length() == 0 ? "(no game controller connected)\n" : out.toString();
+    if (out.length() == 0) out.append("(no game controller connected)\n");
+    out.append(other.length() == 0 ? "(no keyboard or mouse connected)\n" : "keyboards and mice:\n" + other);
+    return out.toString();
   }
 
   @Override
@@ -1110,7 +1397,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int code = e.getKeyCode();
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
-    int function = input.appFunctionOf(code);
+    // the benchmark: the keys belong to it; B, Back or Esc cancel it
+    if (benchRunning) {
+      if (first && (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)) {
+        CoreBridge.cancelBenchmark();
+        benchView.setText(R.string.ingame_benchmark_back);
+      }
+      return true;
+    }
+    boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
+    int function = input.appFunctionOf(code, keyboard);
     if (function != CoreInput.APP_NONE && first) {
       String what = function == CoreInput.APP_MENU ? "menu" : tools ? "graphics capture" : "nothing (tools off)";
       Log.i(TAG, "key " + KeyEvent.keyCodeToString(code) + " (" + code + ") -> app " + what);
@@ -1119,7 +1415,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       case CoreInput.APP_MENU:
         // pressed: the menu when let go; held for a second: the game's debug menu
         if (first) {
-          if (controller(e)) touchControls.controllerUsed();
+          if (controller(e) || keyboard) touchControls.controllerUsed();
           select(true);
         } else if (e.getAction() == KeyEvent.ACTION_UP) {
           select(false);
@@ -1133,10 +1429,32 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       default:
         break;
     }
+    // a keyboard (the button mapping, 29.10.2026): its mapping's keys and the fixed ones go to the game;
+    // Esc always (Android would make it "back" and ask to quit), the rest to Android
+    if (keyboard) {
+      if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
+      if (e.getRepeatCount() > 0) return true;
+      boolean taken = input.keyboardKey(e.getDeviceId(), code, down);
+      if (taken || code == KeyEvent.KEYCODE_ESCAPE) {
+        if (down) {
+          touchControls.controllerUsed();
+          noteDevice(e.getDevice());
+          if (controllerLog.firstKey(e.getDeviceId(), code)) {
+            Log.i(TAG, "keyboard " + KeyEvent.keyCodeToString(code) + " (" + code + ", device " + e.getDeviceId()
+                + ") -> GC " + CoreInput.names(input.keyboardButton(code)) + (input.menu() ? " (a game menu)" : ""));
+          }
+        }
+        send();
+        return true;
+      }
+      return super.dispatchKeyEvent(e);
+    }
     if (controller(e) || KeyEvent.isGamepadButton(code)) {
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
       if (e.getRepeatCount() > 0) return true;  // held: nothing changes
       if (input.key(e.getDeviceId(), code, down)) {
+        inputDelay.button(e.getEventTime(), SystemClock.uptimeMillis());
+        noteInputDelay(e.getDevice());
         if (down) {
           touchControls.controllerUsed();
           noteDevice(e.getDevice());
@@ -1212,6 +1530,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       float r = Math.max(axis(e, d, MotionEvent.AXIS_RTRIGGER, true), axis(e, d, MotionEvent.AXIS_GAS, true));
       float hx = axis(e, d, MotionEvent.AXIS_HAT_X, false), hy = axis(e, d, MotionEvent.AXIS_HAT_Y, false);
       noteUnreadAxes(e, d);
+      inputDelay.stick(e.getEventTime(), e.getHistorySize() > 0 ? e.getHistoricalEventTime(0) : e.getEventTime(),
+          SystemClock.uptimeMillis());
+      noteInputDelay(d);
       input.motion(e.getDeviceId(), lx, ly, rx, ry, l, r, hx, hy);
       // a stick, trigger or hat moved on purpose: the touch controls go again (TouchShowRule)
       if (TouchShowRule.moved(lx, ly, rx, ry, l, r, hx, hy)) touchControls.controllerUsed();
@@ -1227,6 +1548,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   @Override
   public boolean dispatchTouchEvent(MotionEvent e) {
+    // a mouse on the picture while the game is in front: it is captured (its clicks are no taps)
+    if (Build.VERSION.SDK_INT >= 26 && e.isFromSource(InputDevice.SOURCE_MOUSE) && mouseWanted()) {
+      if (e.getActionMasked() == MotionEvent.ACTION_DOWN) updateMouseCapture();
+      return true;
+    }
     watchTap(e);
     if (touchControls == null) return super.dispatchTouchEvent(e);
     touchControls.before(e);
@@ -1300,7 +1626,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   }
 
-  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); }
+  @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); updateMouseCapture(); }
   @Override public void onInputDeviceChanged(int id) {
     input.remove(id);
     seenDevices.remove(id);
@@ -1316,9 +1642,76 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.update();
   }
 
+  // ---- the benchmark (Display -> GRAPHICS -> Benchmark; the measurement is in core_mode.cpp) -----------------
+  private TextView benchView;
+  private boolean benchRunning;
+  private final Runnable benchPoll = this::benchmarkPoll;
+
+  private void benchmarkStart() {
+    benchRunning = true;
+    audio.setMuted(true);  // the speaker silent while it runs (the game's sound goes on inside: an honest measurement)
+    benchView.setText(R.string.ingame_benchmark_starting);
+    benchView.setVisibility(View.VISIBLE);
+    CoreBridge.startBenchmark();
+    main.removeCallbacks(benchPoll);
+    main.postDelayed(benchPoll, 500);
+  }
+
+  private void benchmarkPoll() {
+    int[] st = CoreBridge.benchmarkState();
+    if (st == null || st.length < 6) { benchmarkEnd(R.string.ingame_benchmark_failed, null); return; }
+    int phase = st[0], run = st[1];
+    switch (phase) {
+      case 1: benchView.setText(R.string.ingame_benchmark_going); break;
+      case 2:
+        benchView.setText(getString(R.string.ingame_benchmark_running, (run & 1) != 0 ? 60 : 30,
+            CoreMenu.scaleNumber(st[2], Locale.getDefault()) + "×", Math.round(st[5] / 10f)));
+        break;
+      case 3: case 6: benchView.setText(R.string.ingame_benchmark_back); break;
+      case 4: {
+        // the resolution becomes "Dynamic" with the measured levels as its limits (wish of the project owner,
+        // 06.11.2026); the other graphics options stay as they are
+        SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+        g.edit().putInt(CoreMenu.DYN_CAP_30, st[3]).putInt(CoreMenu.DYN_CAP_60, st[4]).putInt("scaleHalves", 0).apply();
+        CoreBridge.setDynamicCaps(st[3], st[4]);
+        applyGraphics();
+        // a pass where even 1x did not hold its rate: said as well (its result is 1x)
+        int held = st.length > 6 ? st[6] : 3;
+        // measured, and what Dynamic uses: half a level more, 4x at most (core_mode.cpp)
+        String text = getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
+            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×",
+            CoreMenu.scaleNumber(Math.min(8, st[3] + 1), Locale.getDefault()) + "×",
+            CoreMenu.scaleNumber(Math.min(8, st[4] + 1), Locale.getDefault()) + "×");
+        if ((held & 1) == 0) text += " " + getString(R.string.ingame_benchmark_low, 30);
+        if ((held & 2) == 0) text += " " + getString(R.string.ingame_benchmark_low, 60);
+        benchmarkEnd(0, text);
+        return;
+      }
+      case 5: benchmarkEnd(R.string.ingame_benchmark_cancelled, null); return;
+      case -1: benchmarkEnd(R.string.ingame_benchmark_refused, null); return;
+      case -3: benchmarkEnd(R.string.ingame_benchmark_unreachable, null); return;
+      case -4: benchmarkEnd(R.string.ingame_benchmark_discs, null); return;
+      case 0: break;
+      default: benchmarkEnd(R.string.ingame_benchmark_failed, null); return;
+    }
+    main.postDelayed(benchPoll, 250);
+  }
+
+  private void benchmarkEnd(int message, String text) {
+    benchRunning = false;
+    audio.setMuted(false);
+    main.removeCallbacks(benchPoll);
+    benchView.setVisibility(View.GONE);
+    Log.i(TAG, "benchmark: " + (text != null ? text : getString(message)));
+    new android.app.AlertDialog.Builder(this).setTitle(R.string.ingame_benchmark)
+        .setMessage(text != null ? text : getString(message)).setPositiveButton(android.R.string.ok, null).show();
+  }
+
   /** Nothing held while the game is not in front (no stuck keys after a dialog or the home screen). */
   private void releaseAll() {
     input.clear();
+    mouseButtons = 0;
+    main.removeCallbacks(mouseRest);
     if (touchControls != null) touchControls.reset();
     send();
   }
@@ -1327,6 +1720,121 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   public void onWindowFocusChanged(boolean focus) {
     super.onWindowFocusChanged(focus);
     if (!focus) releaseAll();
+    else main.post(this::updateMouseCapture);
+    // a car's panel (climate, notifications) closed again: its bars hidden again where the car allows it
+    if (focus && CarDisplay.is(this)) {
+      hideSystemUi();
+      CarDisplay.refocus(this, getWindow());
+    }
+  }
+
+  // ---- aiming by touch and controllers (the menu's "Invert vertical", "Aim speed") ----
+
+  /**
+   * A change of "reverse" in the game's own options (Controller) is the menu's "Invert vertical" too (patch 0188,
+   * user report 03.11.2026: the app's switch set it back at every start): kept when the menu opens and the app
+   * leaves the front.
+   */
+  private void keepGameAimInvert() {
+    if (!menuSupported) return;
+    int fromGame = CoreBridge.aimFromGame();
+    if (fromGame < 0 || (fromGame == 1) == aimInvert) return;
+    aimInvert = fromGame == 1;
+    getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, aimInvert).apply();
+    Log.i(TAG, "aim: vertical aiming " + (aimInvert ? "inverted" : "normal") + " from the game's own options, kept");
+  }
+  private boolean aimInvert, autoAim, alwaysRun;
+  private float aimSpeed = 1f;
+
+  /** The stored aim speed on the slider's steps (1 for anything else). */
+  static float clampAimSpeed(float v) {
+    if (Float.isNaN(v) || v < AIM_SPEED_MIN || v > AIM_SPEED_MAX) return 1f;
+    return Math.round(v / AIM_SPEED_STEP) * AIM_SPEED_STEP;
+  }
+
+  // ---- the mouse ----
+  private float mouseSensitivity = 1f;
+  private int mouseButtons;  // the captured mouse's buttons held (MotionEvent.BUTTON_*)
+  private int mouseCaptures;
+  private final Runnable mouseRest = () -> {
+    input.mouseLook(0, 0);
+    send();
+  };
+
+  static float clampMouse(float v) {
+    return Float.isNaN(v) ? 1f : Math.max(MOUSE_MIN, Math.min(MOUSE_MAX, v));
+  }
+
+  /** A real mouse is connected (not a touchpad of the screen). */
+  static boolean mouseDevice(InputDevice d) {
+    return d != null && !d.isVirtual() && (d.getSources() & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE;
+  }
+
+  private boolean mouseConnected() {
+    for (int id : InputDevice.getDeviceIds()) if (mouseDevice(InputDevice.getDevice(id))) return true;
+    return false;
+  }
+
+  /** The game in front, no menu, no touch editor, a mouse there: the mouse belongs to the game. */
+  private boolean mouseWanted() {
+    return resumed && hasWindowFocus() && menu == null && !touchEditing && mouseConnected();
+  }
+
+  /** Captures the mouse (Android 8 and later) when the game wants it, lets it go when not. */
+  private void updateMouseCapture() {
+    if (Build.VERSION.SDK_INT < 26 || surface == null) return;
+    boolean want = mouseWanted();
+    if (want && !surface.hasPointerCapture()) {
+      surface.requestFocus();
+      surface.requestPointerCapture();
+      if (++mouseCaptures <= 20) Log.i(TAG, "mouse: captured (its buttons through the keyboard's mapping, F1 or the "
+          + "app menu's key frees it), sensitivity " + mouseSensitivity);
+    } else if (!want && surface.hasPointerCapture()) {
+      surface.releasePointerCapture();
+    }
+  }
+
+  /** An event of the captured mouse: its buttons as keys (ActionMap.MOUSE_*), its movement camera and aim. */
+  private void capturedMouse(MotionEvent e) {
+    int state = e.getButtonState() & 31;
+    int changed = state ^ mouseButtons;
+    mouseButtons = state;
+    for (int bit = 1; bit <= 16; bit <<= 1) {
+      if ((changed & bit) == 0) continue;
+      int code = ActionMap.mouseButton(bit);
+      boolean down = (state & bit) != 0;
+      if (input.appFunctionOf(code, true) == CoreInput.APP_MENU) {
+        select(down);
+        continue;
+      }
+      input.keyboardKey(e.getDeviceId(), code, down);
+      if (down) {
+        touchControls.controllerUsed();
+        if (controllerLog.firstKey(e.getDeviceId(), code)) {
+          Log.i(TAG, "mouse button " + CoreMenu.keyName(code) + " -> GC " + CoreInput.names(input.keyboardButton(code))
+              + (input.menu() ? " (a game menu)" : ""));
+        }
+      }
+    }
+    int action = e.getActionMasked();
+    if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
+      // relative counts, the batched ones too
+      float dx = e.getX(), dy = e.getY();
+      for (int h = 0; h < e.getHistorySize(); h++) {
+        dx += e.getHistoricalX(h);
+        dy += e.getHistoricalY(h);
+      }
+      if (dx != 0 || dy != 0) {
+        // while aiming the core turns the aim by it (and ignores it otherwise); the camera's C stick as long
+        // as the mouse moves
+        float k = MOUSE_AIM_RADIANS * mouseSensitivity;
+        CoreBridge.aimTurn(-dx * k, -dy * k);
+        input.mouseLook(dx * MOUSE_LOOK * mouseSensitivity, dy * MOUSE_LOOK * mouseSensitivity);
+        main.removeCallbacks(mouseRest);
+        main.postDelayed(mouseRest, 60);
+      }
+    }
+    send();
   }
 
   @SuppressWarnings("deprecation")
@@ -1353,6 +1861,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (destroyed || !resumed) return;
       int r = CoreBridge.rumble();
       long now = SystemClock.uptimeMillis();
+      // the game shows a menu (bit 4): the button mappings give way to the devices' defaults
+      boolean gameMenu = (r & 0x10) != 0;
+      if (gameMenu != input.menu()) {
+        input.setMenu(gameMenu);
+        send();
+      }
       int frames = r >>> 8;
       if (frames != rumbleFrames) {
         rumbleFrames = frames;
@@ -1408,16 +1922,85 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // every vsync of the display while the game is shown: the core's retraces
   // follow it (runtime/vi.cpp), so the pictures do not drift against 60 Hz.
   // A screen faster than 60 Hz has the picture drawn at every n-th vsync only
-  // (FramePacing, GPU step c)
+  // (FramePacing, GPU step c). On the beat's own thread since 0.98.5 (startBeat):
+  // on the UI thread a callback late by a vsync left a picture out, and the UI
+  // thread is most likely late while it redraws the touch controls at each vsync
+  // (a finger moving on them; the tester's Xiaomi at 120 Hz, report 06.11.2026:
+  // 52 instead of 60 pictures a second while they were shown, the renderer
+  // itself not slower; uiTick's line says which thread was late). GLSurfaceView's
+  // requestRender and setRenderMode and CoreBridge.vsync may be called from any thread.
   private final Choreographer.FrameCallback vsyncTick = new Choreographer.FrameCallback() {
     @Override public void doFrame(long frameTimeNanos) {
       if (!resumed) return;
       CoreBridge.vsync(frameTimeNanos);
       if (pacing.vsync(frameTimeNanos) || (!paceLogged && pacing.hz() > 0)) pace();
-      if (pacing.every() > 1 && ++vsyncs % pacing.every() == 0) surface.requestRender();
+      if (pacing.due(frameTimeNanos)) surface.requestRender();
       Choreographer.getInstance().postFrameCallback(this);
     }
   };
+
+  // the UI thread's vsyncs, only watched: every 30 s a line when it or the beat came a vsync
+  // late or more (which thread was late, the touch controls shown meanwhile)
+  private final Choreographer.FrameCallback uiTick = new Choreographer.FrameCallback() {
+    @Override public void doFrame(long frameTimeNanos) {
+      if (!resumed) return;
+      final int n = uiBeat.step(frameTimeNanos);
+      if (touchControls != null && touchControls.shown()) uiShownVsyncs += n;
+      if (uiLogAt == Long.MIN_VALUE) uiLogAt = frameTimeNanos;
+      if (frameTimeNanos - uiLogAt >= 30_000_000_000L) {
+        logBeat((frameTimeNanos - uiLogAt) / 1e9);
+        uiLogAt = frameTimeNanos;
+      }
+      Choreographer.getInstance().postFrameCallback(this);
+    }
+  };
+
+  private void logBeat(double seconds) {
+    final int[] b = pacing.takeCounts(), u = uiBeat.takeCounts();
+    final int shown = uiShownVsyncs;
+    uiShownVsyncs = 0;
+    if (b[1] == 0 && u[1] == 0) return;
+    final double hz = pacing.hz();
+    Log.i(TAG, String.format(Locale.ROOT, "vsync beat (its own thread): %d callbacks in %.0f s, %d late by a vsync or "
+        + "more (%d vsyncs missed); the UI thread %d late (%d missed), the touch controls shown %.0f s",
+        b[0], seconds, b[1], b[2], u[1], u[2], hz > 0 ? shown / hz : 0.0));
+  }
+
+  /** The beat (vsyncTick) on its own thread and the UI thread's watch (uiTick): from onResume. */
+  private void startBeat() {
+    if (beatThread == null) {
+      beatThread = new HandlerThread("RE4-Vsync");
+      beatThread.start();
+      beat = new Handler(beatThread.getLooper());
+      beat.post(() -> {
+        try {
+          Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
+        } catch (RuntimeException e) {
+          Log.w(TAG, "vsync beat: priority " + e);
+        }
+      });
+    }
+    beat.post(() -> {
+      Choreographer c = Choreographer.getInstance();
+      c.removeFrameCallback(vsyncTick);
+      c.postFrameCallback(vsyncTick);
+    });
+    Choreographer.getInstance().removeFrameCallback(uiTick);
+    Choreographer.getInstance().postFrameCallback(uiTick);
+  }
+
+  /** onPause: both stop; the next vsync after the pause starts a new interval. */
+  private void stopBeat() {
+    if (beat != null) {
+      beat.post(() -> {
+        Choreographer.getInstance().removeFrameCallback(vsyncTick);
+        pacing.restart();
+      });
+    }
+    Choreographer.getInstance().removeFrameCallback(uiTick);
+    uiBeat.restart();
+    uiLogAt = Long.MIN_VALUE;  // the time away is no part of a window
+  }
 
   /** The screen's rate measured anew (FramePacing): the picture drawn at each vsync or at every n-th. */
   private void pace() {
@@ -1480,11 +2063,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     resumed = true;
     // the game runs again unless the menu or the touch editor is open (a file picker of the menu came back)
     if (menuSupported && menu == null && !touchEditing) CoreBridge.pause(false, 0);
-    Choreographer.getInstance().removeFrameCallback(vsyncTick);
-    Choreographer.getInstance().postFrameCallback(vsyncTick);
+    startBeat();
     if (gyroAim != null) gyroAim.resume();
     InputManager im = (InputManager) getSystemService(Context.INPUT_SERVICE);
     if (im != null) im.registerInputDeviceListener(this, main);
+    // what was connected before (a Bluetooth keyboard paired before the start): one line each, once
+    for (int id : InputDevice.getDeviceIds()) noteConnected(id);
     if (menu == null && !touchEditing) {
       main.removeCallbacks(rumbleTick);
       main.post(rumbleTick);
@@ -1497,10 +2081,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     resumed = false;
     // the game stands while the app is not in front (home screen, a file picker of the menu)
     if (menuSupported) CoreBridge.pause(true, 0);
+    keepGameAimInvert();
     selectDown = false;
     main.removeCallbacks(selectHold);
-    Choreographer.getInstance().removeFrameCallback(vsyncTick);
-    pacing.restart();
+    stopBeat();
     if (gyroAim != null) gyroAim.pause();
     // the sound pauses with the app (the core skips what it played meanwhile)
     audio.stop();
@@ -1554,6 +2138,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     destroyed = true;
     if (isFinishing()) CoreLog.stop();
     main.removeCallbacksAndMessages(null);
+    if (beatThread != null) beatThread.quitSafely();
     rooms.shutdownNow();
     super.onDestroy();
   }

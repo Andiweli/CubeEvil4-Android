@@ -1,0 +1,37 @@
+# Port patch, a new option (wish of the project owner, 05.11.2026; the app menu's CONTROLS page, PLAYER VIEW, "Field
+# of view (FoV)", 0 by default): the shoulder camera's (CameraQuasiFPS::move) vertical field of view changed by
+# -15 .. +15 degrees, walking, standing and aiming alike (the game's own tables and its blend between them stay; the
+# change is added to what they give). Only this camera: the event cameras of the cutscenes, the scope and the
+# binoculars (CameraScope, CameraBinocular), the room cameras and the item view keep their own. The view's culling
+# (View::move) reads pG->Camera's Fovy, so it follows. re4_fov_offset (runtime/aim_options.cpp, bits 24..29 of the
+# app's aim bits); 0: as the game.
+--- a/src/game/cam_qfps.cpp
++++ b/src/game/cam_qfps.cpp
+@@ -21,6 +21,19 @@
+ #include "pl_npc.h"
+ 
+ 
++/* port (patch 0205): the app's "Field of view" (wish of the project owner, 05.11.2026), degrees added to the
++   game's own field of view of this camera, kept between 10 and 120 degrees; 0 as the game. */
++extern "C" f32 re4_fov_offset(void); /* port: runtime/aim_options.cpp */
++static f32 re4FovOf(f32 fovy)
++{
++    f32 add = re4_fov_offset();
++
++    if (add == 0.0f) {
++        return fovy;
++    }
++    fovy += add;
++    return fovy < 10.0f ? 10.0f : fovy > 120.0f ? 120.0f : fovy;
++}
+ void offsetCorrection(QFPS_OFFSET* o);
+ static void offsetArrayCorrection(QFPS_OFFSET (*o)[3]);
+ 
+@@ -1303,6 +1316,6 @@
+     cam.param.Campos = c.param.Campos;
+     cam.param.Target = c.param.Target;
+     cam.param.Roll = c.param.Roll;
+-    cam.param.Fovy = c.param.Fovy;
++    cam.param.Fovy = re4FovOf(c.param.Fovy); /* port (patch 0205) */
+     m_init_flag = 0;
+ }

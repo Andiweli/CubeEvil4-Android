@@ -1,0 +1,18 @@
+# A bug of the prototype (tester report 31.10.2026, EU discs: at the end of a Mercenaries game or after "Game Reset"
+# the title picture shows for a moment before the Mercenaries menu). After the restart titleWait sets the title
+# (titleSet, state 5) and, for an Ada / Mercenaries session, goes on to the omake screens (state 6, titleSub), whose
+# first step starts reading omk_t0/1.dat and fades to black over 5 frames: the title showed while it faded. The
+# European titleSub (0x80166ADC, read with retail_code.py on 31.10.2026) fades in 0 frames: black at once (FadeSet
+# with time 0 takes the end colour in its first frame). Its other fades are the prototype's. All discs.
+--- a/src/game/title.cpp
++++ b/src/game/title.cpp
+@@ -877,7 +877,8 @@
+         if (w->req == 0) {
+             break;
+         }
+-        FadeSetW(0, 5, 0, 0);
++        /* port (patch 0163, a bug of the prototype): black at once, as the European titleSub */
++        FadeSetW(0, 0, 0, 0);
+         w->Rno1++;
+         if (FlagChkSignW(pG->System_flg, SYS_OMAKE_ADA_GAME)) {
+             snd_id = SndStrReq(0, 60, 0x80000003, 0, 0, 0.0f);

@@ -28,6 +28,10 @@
 // counterpart by kind (particles, figures, room, 2D), those found by their object (owner tags,
 // patch 0137) and the texture matrices / TEV colours blended (60fps-plan.md S0-S3).
 // RE4_GX_NO_OWNERS=1: the owner tags left out (the counter-check: the in-between pictures as before).
+//
+// RE4_GX_WORK=1: the GL work of each picture and the render thread's time by kind; with RE4_GX_MERGE=1
+// draws in a row that differ only in their matrices are merged into one draw call (GxRenderer::SetMerge):
+// the pictures must stay the same.
 #include "gx_gl.h"
 #include "re4_gx_frame_io.h"
 
@@ -36,6 +40,7 @@
 #include <GLES3/gl3.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -95,12 +100,28 @@ int main(int argc, char **argv) {
   // the pictures then have that many times the pixels
   const char *scaleText = std::getenv("RE4_GX_SCALE");
   int scale = scaleText && std::atoi(scaleText) >= 1 && std::atoi(scaleText) <= 4 ? std::atoi(scaleText) : 1;
+  // RE4_GX_HALVES=N: the app menu's in-between levels in halves (3: 1.5x, 5: 2.5x ...); wins over RE4_GX_SCALE
+  const char *halvesText = std::getenv("RE4_GX_HALVES");
+  const int halves = halvesText && std::atoi(halvesText) >= 2 && std::atoi(halvesText) <= 8 ? std::atoi(halvesText)
+                                                                                           : 2 * scale;
+  int shownHalves = halves;  // the running renderer's level (after RE4_GX_RESCALE)
+  const auto scaled = [&](unsigned v) { return (v * static_cast<unsigned>(shownHalves) + 1) / 2; };
   // RE4_GX_RESCALE=K:S: before the K-th file (from 0) the running renderer goes to scale S
-  // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels
+  // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels.
+  // RE4_GX_RESCALE=K:hN: to N halves (GxRenderer::RescaleHalves, a step of "Dynamic": 3 is 1.5x)
   int rescaleAt = -1, rescaleTo = 0;
-  if (const char *rescale = std::getenv("RE4_GX_RESCALE"))
-    if (std::sscanf(rescale, "%d:%d", &rescaleAt, &rescaleTo) != 2 || rescaleTo < 1 || rescaleTo > 4)
+  if (const char *rescale = std::getenv("RE4_GX_RESCALE")) {
+    int n = 0;
+    if (std::sscanf(rescale, "%d:h%d", &rescaleAt, &n) == 2 && n >= 2 && n <= 8)
+      rescaleTo = n;
+    else if (std::sscanf(rescale, "%d:%d", &rescaleAt, &rescaleTo) == 2 && rescaleTo >= 1 && rescaleTo <= 4)
+      rescaleTo *= 2;
+    else
       rescaleAt = -1;
+  }
+  // RE4_GX_TIME=1: the wall time of each picture (Run with glFinish) and of a rescale, in ms (the cost of a step
+  // of "Dynamic", 06.11.2026)
+  const bool timed = std::getenv("RE4_GX_TIME") && *std::getenv("RE4_GX_TIME") == '1';
   for (int i = 2; i < argc; i++) {
     const std::string path = argv[i];
     auto loadedHere = std::make_unique<re4gxio::Loaded>();
@@ -157,9 +178,12 @@ int main(int argc, char **argv) {
       const char *full = std::getenv("RE4_GX_FULL_RESOLVE");
       options.fullResolve = full && *full == '1';
       renderer->SetOptions(options);
+      // RE4_GX_PSX=1: the PSone demake as the app's switch sets it (GxRenderer::SetPsx)
+      const char *psx = std::getenv("RE4_GX_PSX");
+      renderer->SetPsx(psx && *psx == '1');
       renderer->SetRecording(interp);
       std::string error;
-      if (!renderer->Init(scale, &error)) {
+      if (!renderer->InitHalves(halves, &error)) {
         std::printf("%s: Renderer: %s\n", Stem(path).c_str(), error.c_str());
         renderer.reset();
         failures++;
@@ -173,6 +197,39 @@ int main(int argc, char **argv) {
       if (const char *cache = std::getenv("RE4_GX_PROGRAM_CACHE"))
         if (*cache && !renderer->SetProgramCache(cache))
           std::fprintf(stderr, "program cache: the driver keeps no binaries\n");
+      // RE4_GX_PEEK_AT=x,y (GameCube pixels, as the game's GXPeekZ): the depth map the core would answer from
+      // (GxRenderer::SetDepthSink), the 7 x 7 cells around (x, y) of each map the renderer hands over, 24-bit
+      // depths in hex (the light through Leon's head, r102, 06.11.2026)
+      // RE4_GX_PEEK_DUMP=DIR (with RE4_GX_PEEK_AT): each map also as DIR/depth-<picture>.bin, kDepthWidth x
+      // kDepthHeight little-endian 32-bit cells (the game's 12-point glow test re-run on them, 06.11.2026)
+      if (const char *at = std::getenv("RE4_GX_PEEK_AT")) {
+        int px = 0, py = 0;
+        const char *dumpDir = std::getenv("RE4_GX_PEEK_DUMP");
+        const std::string peekDump = dumpDir ? dumpDir : "";
+        if (std::sscanf(at, "%d,%d", &px, &py) == 2)
+          renderer->SetDepthSink([px, py, peekDump](const std::uint32_t *cells, std::uint32_t serial) {
+            if (!peekDump.empty()) {
+              const std::string name = peekDump + "/depth-" + std::to_string(serial) + ".bin";
+              if (FILE *f = std::fopen(name.c_str(), "wb")) {
+                std::fwrite(cells, sizeof(std::uint32_t),
+                            re4gx::GxRenderer::kDepthWidth * re4gx::GxRenderer::kDepthHeight, f);
+                std::fclose(f);
+              }
+            }
+            const int cx = px / 2, cy = py / 2;
+            std::printf("depth map of picture %u around (%d, %d), cell (%d, %d) in the middle:\n", serial, px, py, cx, cy);
+            for (int y = cy - 3; y <= cy + 3; y++) {
+              std::printf("  ");
+              for (int x = cx - 3; x <= cx + 3; x++) {
+                const bool in = x >= 0 && y >= 0 && x < re4gx::GxRenderer::kDepthWidth &&
+                                y < re4gx::GxRenderer::kDepthHeight;
+                std::printf(x == cx && y == cy ? "[%06x]" : " %06x ",
+                            in ? cells[y * re4gx::GxRenderer::kDepthWidth + x] & 0xFFFFFFu : 0u);
+              }
+              std::printf("\n");
+            }
+          });
+      }
     }
     lastSequence = chunk.sequence;
     lastFrame = loaded.frame;
@@ -188,21 +245,25 @@ int main(int argc, char **argv) {
       std::printf("%s: Zwischenbild %s, %u 3D-Zeichenaufträge, %u zugeordnet, %u mit gemischten Ecken\n",
                   Stem(path).c_str(), shown ? "gezeigt" : "nicht gezeigt (Schnitt)", now.interpDraws - was.interpDraws,
                   now.interpMatched - was.interpMatched, now.interpVertexBlends - was.interpVertexBlends);
-      std::printf("%s: ohne Gegenstück Teilchen %u/%u, Figuren %u/%u, Raum %u/%u, 2D %u/%u; über das Objekt %u "
-                  "(%u neu belegt); Texturmatrizen %u (%u über den Rand), TEV-Farben %u, Lichtfarben %u\n",
+      std::printf("%s: ohne Gegenstück Teilchen %u/%u, Figuren %u/%u, Raum %u/%u, 2D %u/%u (%u mit der Kamera "
+                  "bewegt); über das Objekt %u "
+                  "(%u neu belegt, %u Einbild-Effekte wiedererkannt); Texturmatrizen %u (%u über den Rand), "
+                  "TEV-Farben %u, Lichtfarben %u\n",
                   Stem(path).c_str(), now.interpKindUnmatched[0] - was.interpKindUnmatched[0],
                   now.interpKind[0] - was.interpKind[0], now.interpKindUnmatched[1] - was.interpKindUnmatched[1],
                   now.interpKind[1] - was.interpKind[1], now.interpKindUnmatched[2] - was.interpKindUnmatched[2],
                   now.interpKind[2] - was.interpKind[2], now.interpKindUnmatched[3] - was.interpKindUnmatched[3],
-                  now.interpKind[3] - was.interpKind[3], now.interpOwned - was.interpOwned,
-                  now.interpOwnedNew - was.interpOwnedNew, now.interpTexBlends - was.interpTexBlends,
+                  now.interpKind[3] - was.interpKind[3], now.interpCameraMoved - was.interpCameraMoved,
+                  now.interpOwned - was.interpOwned,
+                  now.interpOwnedNew - was.interpOwnedNew, now.interpOneFrame - was.interpOneFrame,
+                  now.interpTexBlends - was.interpTexBlends,
                   now.interpTexWraps - was.interpTexWraps, now.interpTevBlends - was.interpTevBlends,
                   now.interpLightBlends - was.interpLightBlends);
       unsigned iw = 0, ih = 0;
       const GLuint between = renderer->Xfb(&iw, &ih);
       if (shown && between && iw && ih) {
-        iw *= static_cast<unsigned>(scale);
-        ih *= static_cast<unsigned>(scale);
+        iw = scaled(iw);
+        ih = scaled(ih);
         std::vector<unsigned char> rgba(static_cast<std::size_t>(iw) * ih * 4);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, between, 0);
@@ -218,12 +279,32 @@ int main(int argc, char **argv) {
       }
     }
     if (i - 2 == rescaleAt && renderer) {
-      renderer->Rescale(rescaleTo);
+      glFinish();
+      const auto t0 = std::chrono::steady_clock::now();
+      renderer->RescaleHalves(rescaleTo);
+      if (timed)
+        glFinish();
+      const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
       scale = renderer->Scale();
-      std::printf("%s: EFB-Stufe %d (Rescale)\n", Stem(path).c_str(), scale);
+      shownHalves = renderer->Halves();
+      if (timed)
+        std::printf("%s: EFB-Stufe %d/2 (Rescale), %.2f ms\n", Stem(path).c_str(), shownHalves, ms);
+      else
+        std::printf("%s: EFB-Stufe %d/2 (Rescale)\n", Stem(path).c_str(), shownHalves);
     }
     const re4gx::GxStats before = renderer->Stats();
+    if (timed)
+      glFinish();
+    const auto runStart = std::chrono::steady_clock::now();
     renderer->Run(chunk);
+    if (timed) {
+      glFinish();
+      std::printf("%s: Run %.2f ms (mit glFinish)\n", Stem(path).c_str(),
+                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - runStart).count());
+    }
+    // the merged draw calls' programs this chunk wanted, made as the app makes them between two chunks
+    if (renderer->Merging())
+      renderer->Prewarm(1e9);
     if (held)
       std::printf("%s: Bild war angehalten (nicht auf dem Bildschirm)%s\n", Stem(path).c_str(),
                   follows ? ", gezeigt bleibt das Bild davor" : "");
@@ -240,17 +321,69 @@ int main(int argc, char **argv) {
                 s.shaderErrors > before.shaderErrors ? ", FEHLER: Shader" : "");
     if (std::getenv("RE4_GX_WORK"))
       std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB, %u gleiche ausgelassen), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
-                  "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild)\n",
+                  "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild), "
+                  "Eckdaten-Ring %s (%u gewartet); "
+                  "zusammenfassbar: %u ohne jede Änderung, %u nur mit anderen Uniforms (%u davon nur Matrizen/Licht)\n",
                   s.uniformUploads - before.uniformUploads, (s.uniformBytes - before.uniformBytes) / 1024,
                   s.uniformSame - before.uniformSame,
                   s.programSwitches - before.programSwitches, s.textureBinds - before.textureBinds,
                   s.stateChanges - before.stateChanges, s.attributeSetups - before.attributeSetups,
-                  s.streamSwitches - before.streamSwitches, s.streamSplits - before.streamSplits);
+                  s.streamSwitches - before.streamSwitches, s.streamSplits - before.streamSplits,
+                  s.ringChunks > before.ringChunks ? "an" : "aus", s.ringWaits - before.ringWaits,
+                  s.mergeSame - before.mergeSame, s.mergeUniform - before.mergeUniform,
+                  s.mergeMatrixOnly - before.mergeMatrixOnly);
+    // RE4_GX_MERGE=1: the merged draw calls; and the render thread's time by kind of work (GxStats::splitNs)
+    if (std::getenv("RE4_GX_WORK")) {
+      const unsigned draws = s.draws - before.draws, taken = s.mergeTaken - before.mergeTaken,
+                     batches = s.mergeBatches - before.mergeBatches;
+      static const char *kinds[re4gx::GxStats::kSplitKinds] = {"Zeichenaufrufe", "Uniforms", "Bindungen", "Zustand",
+                                                               "Programme", "Texturen", "BP", "XF", "Ecken", "Rest"};
+      std::string split;
+      double all = 0.0;
+      for (int k = 0; k < re4gx::GxStats::kSplitKinds; k++) {
+        const double ms = (s.splitNs[k] - before.splitNs[k]) / 1e6;
+        all += ms;
+        char part[64];
+        std::snprintf(part, sizeof(part), "%s%s %.2f", k ? ", " : "", kinds[k], ms);
+        split += part;
+      }
+      std::printf("  GL-Zeichenaufrufe: %u (%u Zeichenaufträge in %u zusammengefasst); Render-Thread %.2f ms: %s\n",
+                  draws - taken + batches, taken, batches, all, split.c_str());
+    }
+    // the EFB copies of this picture and why merged runs ended (measurements, 31.10.2026)
+    if (std::getenv("RE4_GX_WORK")) {
+      static const char *copyKinds[re4gx::GxStats::kCopyKinds] = {"ganz", "halb", "Tiefe", "klein", "Anzeige",
+                                                                     "Autofokus"};
+      std::string part;
+      for (int k = 0; k < re4gx::GxStats::kCopyKinds; k++) {
+        char one[96];
+        std::snprintf(one, sizeof(one), "%s%s %u (%llu Texel, %.2f ms)", k ? ", " : "", copyKinds[k],
+                      s.copyCount[k] - before.copyCount[k], s.copyTexels[k] - before.copyTexels[k],
+                      (s.copyNs[k] - before.copyNs[k]) / 1e6);
+        part += one;
+      }
+      std::printf("  EFB-Kopien: %s; gelesen %u, ungelesen überschrieben %u\n", part.c_str(),
+                  s.copyRead - before.copyRead, s.copyOverwrittenUnread - before.copyOverwrittenUnread);
+      static const char *planKinds[re4gx::GxStats::kPlanKinds] = {"Kopie/Marke", "Textur mit Daten", "Kopie-Textur", "andere Op", "Layout",
+                                                                  "Schrittweite", "Primitive", "Ecken", "Indizes"};
+      static const char *runKinds[re4gx::GxStats::kRunKinds] = {"Plätze voll", "Kettenende", "kein Programm",
+                                                                "BP-Marke", "TEV-Farbe", "BP-Wert", "XF sonst", "XF Texturmatrix",
+                                                                "XF Licht", "XF Register", "Textur",
+                                                                "andere Op"};
+      std::string plan, run;
+      for (int k = 0; k < re4gx::GxStats::kPlanKinds; k++)
+        plan += std::string(k ? ", " : "") + planKinds[k] + " " +
+                std::to_string(s.mergePlanBreak[k] - before.mergePlanBreak[k]);
+      for (int k = 0; k < re4gx::GxStats::kRunKinds; k++)
+        run += std::string(k ? ", " : "") + runKinds[k] + " " +
+               std::to_string(s.mergeRunBreak[k] - before.mergeRunBreak[k]);
+      std::printf("  Ketten-Abbruch (Plan): %s; Lauf-Ende: %s\n", plan.c_str(), run.c_str());
+    }
     if (s.shaderErrors > before.shaderErrors)
       failures++;
     if (xfb && w && h) {
-      w *= static_cast<unsigned>(scale);  // the texture holds the scaled picture
-      h *= static_cast<unsigned>(scale);
+      w = scaled(w);  // the texture holds the scaled picture
+      h = scaled(h);
       std::vector<unsigned char> rgba(static_cast<std::size_t>(w) * h * 4);
       glBindFramebuffer(GL_FRAMEBUFFER, fbo);
       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, xfb, 0);

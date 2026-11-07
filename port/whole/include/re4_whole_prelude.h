@@ -95,6 +95,42 @@ template <class B, class T> struct Re4OwnWork : B {
 extern "C" {
 #endif
 void re4_arc_past_table(unsigned int base, unsigned int no, unsigned int count, unsigned int word);
+/* The story's player character (runtime/cheats.cpp, patch 0195): an entry of the player archive that
+ * its table lacks (past the table, or an empty tag: the entry shares the next one's offset) is Leon's
+ * while a stand-in plays the story, as are his props at 0x70..0x7C while it holds one of his weapons
+ * (Krauser keeps his own there); `v` the offset otherwise. */
+void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v);
+/* 1 while a stand-in plays the story with its own entries of the Ganado archives read (runtime/cheats.cpp
+ * loadStandInSet: its moves on a Ganado and the Ganado's answers, from its Mercenaries copy): every index
+ * 0xFB..0x2BD of an archive of 0x2BA entries asks re4_arc_stand_in, whose own entries the game takes. */
+extern int re4_story_ganado;
+/* Patch 0211 (em10.cpp em10_R1_ShotRocket): the model (tpl 0) or texture (tpl 1) of the rocket a Ganado fires: the
+ * player archive's index 0x70 / 0x71 as in the original, Leon's where Ada's, Krauser's or Wesker's has none there
+ * (runtime/cheats.cpp; declared here, in no game file, so em10.cpp keeps its line numbers). */
+void* re4_ganado_rocket(int tpl);
+/* Patch 0212 (the gore checks of em10, em25, em2c, em2d, em31, em32, emwep, obj16, r100, r101, r103): the country
+ * they see, pSys->eff_country, but the US release's 1 with the Japanese discs and the Korean translation built on
+ * them (runtime/game_language.cpp; declared here so the game files keep their line numbers). */
+int re4_gore_country(void);
+/* Patch 0213 (esp0e, esp45, espgen01): 1 when something lies more than 1 m in front of a glow's light at its screen
+ * position (sx, sy; viewZ the light's view-space z): the glow goes off as when its whole ring is hidden
+ * (runtime/glow_check.cpp). */
+int re4_glow_center_hidden(float sx, float sy, float viewZ);
+/* Patch 0214, the app's picture format "Native" (runtime/picture.cpp; declared here so the game files keep their
+ * line numbers): re4_view_aspect the aspect of the camera's projection being built (camera.cpp, view.cpp), the
+ * screen's wider one while the player plays, else the game's 4:3 (1.3333334f exactly); re4_view_mtx_aspect that of
+ * a projection matrix, re4_view_camera_aspect that of pG->Camera's (for what projects with that camera);
+ * re4_view_load(type) returns type and notes the camera's projection a picture loads first; re4_view_flat_edge the
+ * left (right 0) or right edge of a flat layer `width` wide (mes.cpp) that keeps its shape in a wide picture. */
+float re4_view_aspect(void);
+float re4_view_mtx_aspect(const float (*m)[4]);
+float re4_view_camera_aspect(void);
+int re4_view_load(int type);
+float re4_view_flat_edge(float width, int right);
+/* Patch 0215 (id_sys.cpp, runtime/picture.cpp): the screen matrix an id unit is drawn with, IDSystem::m_scrn_mat or,
+ * for the units of the life gauge, that matrix moved into the bottom right corner of the part of the picture the
+ * screen shows (re4_core_set_hud_layout). */
+float (*re4_hud_scrn(const void* unit))[4];
 #ifdef __cplusplus
 }
 #endif
@@ -103,12 +139,21 @@ static inline void* re4_arc_entry(const void* table, const void* arc, unsigned i
     const unsigned int* ofs = (const unsigned int*) table;
     unsigned int base = (unsigned int) (size_t) arc;
     unsigned int v = ofs[no];
+    if (no >= 4 && ofs[0] < 0x1000 && ofs[2] == 0 && ofs[3] == 0) {
+        if (re4_story_ganado && ofs[0] == 0x2BAu && no - 0xFBu <= 0x2BDu - 0xFBu) {
+            return re4_arc_stand_in(arc, no, v);
+        }
+        if (no - 4 >= ofs[0]) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    if (no >= 4 && no - 4 >= ofs[0] && ofs[0] < 0x1000 && ofs[2] == 0 && ofs[3] == 0) {
-        v = __builtin_bswap32(v);
-        re4_arc_past_table(base, no, ofs[0], v);
-    }
+            v = __builtin_bswap32(v);
+            re4_arc_past_table(base, no, ofs[0], v);
 #endif
+            return re4_arc_stand_in(arc, no, v);
+        }
+        if (ofs[ofs[0] + no] == 0 || no - 0x70u <= 0xCu) {
+            return re4_arc_stand_in(arc, no, v);
+        }
+    }
     return (void*) (size_t) (unsigned int) (v + base);
 }
 

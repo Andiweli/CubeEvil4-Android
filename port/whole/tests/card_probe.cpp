@@ -403,6 +403,14 @@ void gciTest(const char* path)
     other[8 + 9] = '1';
     CHECK(re4_gci_import(other, sizeof(other), 0, note, sizeof(note)) == RE4_CARD_OK);
     CHECK(re4_card_free_blocks() == 251 - 17);
+    // a save of the European release (G4BP08, the same form): over it, kept as G4BE08
+    memcpy(other, "G4BP", 4);
+    CHECK(re4_gci_import(other, sizeof(other), 1, note, sizeof(note)) == RE4_CARD_OK);
+    CHECK(re4_card_free_blocks() == 251 - 17);
+    n = re4_card_list(files, 8);
+    int eu = findFile(files, n, "bh4_data01");
+    CHECK(eu >= 0 && files[eu].intact && re4_gci_file_name(files[eu].index, name, sizeof(name)) == RE4_CARD_OK
+          && strcmp(name, "08-G4BE-bh4_data01.gci") == 0);
     // refused: another game, cut short, a wrong CRC, another version
     memcpy(other, gci, sizeof(gci));
     memcpy(other, "GZLE", 4);

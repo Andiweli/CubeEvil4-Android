@@ -24,11 +24,13 @@
 #include <strings.h>
 
 extern "C" int re4_disc_retail_eu(void);       // runtime/dvd.cpp
+extern "C" int re4_disc_retail_jp(void);       // runtime/dvd.cpp
 extern "C" int re4_core_language_wanted(void);  // runtime/core_api.cpp: 2..6, or -1
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" int re4_game_language_value(void);
 extern "C" void re4_core_restart_game(int language);  // runtime/core_api.cpp
+extern "C" void re4_aim_after_card(void);              // runtime/aim_options.cpp
 
 namespace {
 
@@ -96,15 +98,33 @@ void testSetUp()
 
 }  // namespace
 
-// The language the game gets with the European discs (2..6), -1 with the debug build's discs.
+// The language the game gets with the European discs (2..6), with the Japanese ones 0 (they hold
+// Japanese only: ss/Jpn, the *_j fonts; the Korean translation writes Korean into the same places;
+// port/docs/retail-jp-plan.md), -1 with the debug build's discs.
 extern "C" int re4_game_language_value(void)
 {
     testSetUp();
+    if (re4_disc_retail_jp()) {
+        return 0;
+    }
     if (!re4_disc_retail_eu()) {
         return -1;
     }
     int wanted = re4_core_language_wanted();
     return wanted >= 2 && wanted <= 6 ? wanted : 2;
+}
+
+// The country the game's gore checks see (patch 0212, port/docs/retail-jp-plan.md "Gore"): pSys->eff_country,
+// but the US release's 1 with the Japanese discs (and the Korean translation built on them), whose country is 0
+// for their Japanese texts, fonts, memory card names and DVD messages. The Japanese release cuts the gore for
+// country 0 (Ganado heads burst only where the parasites show, Leon keeps his head, the village corpses are
+// gone); the project owner wants it as on the US disc, always, without a setting (06.11.2026, a user who builds
+// a Chinese translation on the Japanese discs). The Korean translation's own code does the same in its
+// main.dol and in em10..em17 (every country read there loads 1). Debug, US and EU discs: their own country.
+extern "C" int re4_gore_country(void)
+{
+    int country = pSys->eff_country;
+    return country == 0 && re4_disc_retail_jp() ? 1 : country;
 }
 
 // After the system file was read into pSys (card.cpp): the app's language, not the saved one. With
@@ -114,6 +134,8 @@ extern "C" int re4_game_language_value(void)
 // loaded with the debug discs).
 extern "C" void re4_game_language_after_card(void)
 {
+    // the app's "Invert vertical" over the saved one too (runtime/aim_options.cpp)
+    re4_aim_after_card();
     int language = re4_game_language_value();
     const char* why = "the app's choice";
     if (language < 0) {

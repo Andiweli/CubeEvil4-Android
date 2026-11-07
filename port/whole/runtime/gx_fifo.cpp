@@ -337,6 +337,34 @@ const unsigned int kPeekFresh = 8;
 // a renderer that hands over no fresh map for this many peeking pictures in a row (2 s) does not
 // deliver any more: "far" as without maps
 const unsigned int kPeekGiveUp = 60;
+// How old the maps are that answer (pictures between the one that peeks and the map's; 0.98.5, the glows
+// that flash through a wall or Leon's head for a picture: on the GameCube the game reads this picture's depth,
+// here an earlier picture's, and an edge that moved since lets a glow through). Counted per peeking picture;
+// a log line every 900 pictures that peeked ("GXPeekZ: ...").
+unsigned int gPeekAge[9];        // ages 0..7, [8]: 8 and the stale ones
+unsigned int gPeekAgeCounted;    // the picture whose age is counted
+unsigned int gPeekPictures;      // pictures that peeked since the last line
+unsigned int gPeekLastAnswered, gPeekLastFar, gPeekLastHidden;
+void peekAgeNote(unsigned int age)
+{
+    if (gPeekAgeCounted == gPeekPicture) {
+        return;
+    }
+    gPeekAgeCounted = gPeekPicture;
+    gPeekAge[age < 8 ? age : 8]++;
+    if (++gPeekPictures < 900) {
+        return;
+    }
+    re4_log("GXPeekZ: %u pictures peeked, map ages 1: %u, 2: %u, 3: %u, 4: %u, 5: %u, 6-7: %u, 8 or more: %u; "
+            "%u answered, %u far (no map), %u hidden (map too old)",
+            gPeekPictures, gPeekAge[1], gPeekAge[2], gPeekAge[3], gPeekAge[4], gPeekAge[5], gPeekAge[6] + gPeekAge[7],
+            gPeekAge[8], gPeekAnswered - gPeekLastAnswered, gPeekFar - gPeekLastFar, gPeekHidden - gPeekLastHidden);
+    memset(gPeekAge, 0, sizeof(gPeekAge));
+    gPeekPictures = 0;
+    gPeekLastAnswered = gPeekAnswered;
+    gPeekLastFar = gPeekFar;
+    gPeekLastHidden = gPeekHidden;
+}
 }  // namespace
 
 extern "C" {
@@ -400,6 +428,7 @@ unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z)
         return 0x00FFFFFF;  // no map (a renderer without them): depth far, nothing in front, as before
     }
     const unsigned int age = (gPeekPicture - serial) & 0x00FFFFFF;
+    peekAgeNote(age);
     if (age > kPeekFresh) {
         // the map is of an older view (the peeks start when a torch comes into view: the last map is
         // from when one was seen before): in front, the glow waits for the map of this view a picture

@@ -33,6 +33,7 @@
 #include "re4_runtime.h"
 
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <stdlib.h>
 #include <string.h>
@@ -228,14 +229,16 @@ static void noteRumble()
     static u32 offFrames = 30, starts;
     const u32 before = g_rumble;
     const u32 on = g_motor == 1;
+    // bit 4 a menu (the app's button mapping gives way to the device's default there), bit 5 a button
+    // prompt (only noted: switching the mapping at prompts made it unusable, device test 27.10.2026)
     const int probe = g_menuProbe ? g_menuProbe() : 0;  // 1 a menu, 2 a button prompt
-    const u32 menu = probe ? 0x10u : 0u;
+    const u32 menu = probe == 1 ? 0x10u : probe == 2 ? 0x20u : 0u;
     static u32 menuLines;
-    if (menu != (before & 0x10u) && menuLines < 60) {
+    if (menu != (before & 0x30u) && menuLines < 60) {
         menuLines++;
-        re4_log("pad: game %s at frame %u (the app's own controller bindings %s)",
-                menu ? (probe == 2 ? "button prompt shown" : "menu shown") : "menu or prompt closed", gFrame,
-                menu ? "paused" : "apply");
+        re4_log("pad: game %s at frame %u", menu == 0x10u ? "menu shown (the app's button mapping: the default)"
+                                            : menu ? "button prompt shown" : "menu or prompt closed",
+                gFrame);
     }
     g_rumble = ((gFrame + 1) << 8) | menu | (((before << 1) | on) & 0xF);
     if (on && offFrames >= 30 && starts < 16) {
@@ -249,7 +252,7 @@ static void noteRumble()
 // state trace (runtime/state_trace.cpp, re4_set_frame_hook replaces it) and
 // the core bridge (runtime/core_api.cpp, re4_add_frame_hook).
 static void (*g_frameHook)(unsigned);
-static void (*g_moreHooks[8])(unsigned);
+static void (*g_moreHooks[16])(unsigned);  // (8 until 29.10.2026: with the automatic QTEs nearly full)
 
 void re4_set_frame_hook(void (*hook)(unsigned))
 {
@@ -293,12 +296,26 @@ static bool g_hasLive;
 // from the statue, report 25.10.2026 by video: "A rapidly" with fast taps, the game saw few presses).
 static u8 g_presses[16];
 static u16 g_reported;  // buttons the game got at the last read
+// How long a press waits for the game's read (the controller lag report, 05.11.2026): from the app's
+// call (re4_pad_live) to PADRead, which the game makes once a picture. Every 20 s with presses, one line.
+static long long g_pressAt;  // ns of the oldest press the game has not read yet (0: none)
+static long long g_waitSum, g_waitMax;
+static unsigned g_waits, g_waitReads;
+
+static long long padNowNs()
+{
+    return (long long) std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 void re4_pad_live(const Re4CorePad* pad)
 {
     std::lock_guard<std::mutex> lock(g_liveLock);
     if (pad) {
         const u16 down = pad->buttons & ~g_live.buttons;
+        if (down && !g_pressAt) {
+            g_pressAt = padNowNs();
+        }
         for (int i = 0; i < 16; i++) {
             if ((down >> i & 1) && g_presses[i] < 4) {
                 g_presses[i]++;
@@ -358,6 +375,19 @@ u32 PADRead(PADStatus* status)
     status[0].analogB = (scripted.buttons & 0x0200) ? 0xFF : 0;
     if (!gScriptLen) {
         std::lock_guard<std::mutex> lock(g_liveLock);
+        if (g_pressAt) {
+            const long long w = padNowNs() - g_pressAt;
+            g_waitSum += w;
+            g_waitMax = w > g_waitMax ? w : g_waitMax;
+            g_waits++;
+            g_pressAt = 0;
+        }
+        if (++g_waitReads >= 600 && g_waits) {
+            re4_log("pad: a press waited %.1f ms on average for the game's read (at most %.1f ms, %u presses; the "
+                    "game reads once a picture)", g_waitSum / 1e6 / g_waits, g_waitMax / 1e6, g_waits);
+            g_waitSum = g_waitMax = 0;
+            g_waits = g_waitReads = 0;
+        }
         if (g_hasLive) {
             u16 buttons = g_live.buttons, released = 0;
             for (int i = 0; i < 16; i++) {

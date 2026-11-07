@@ -51,6 +51,13 @@ extern "C" void re4_movie_status(MWPLY hn, const char* fname, const MWS_FRM* frm
     }
 }
 
+// 1 while a movie plays (from its first playback step to re4_movie_end): the picture format "Native" shows it in
+// the 16:9 box (runtime/picture.cpp; the movie's quad fills the picture, it has no wider view).
+extern "C" int re4_movie_playing(void)
+{
+    return gSteps > 0;
+}
+
 extern "C" void re4_movie_end(MWPLY hn, int skipped)
 {
     if (gSteps > 0 && hn) {

@@ -1,0 +1,18 @@
+# A bug of the prototype (user's report 02.11.2026, The Mercenaries, Xiaomi, EU discs: when Ada is beheaded her head
+# flies off but her hair stays on the falling body). cPlAda::setModel builds her hair (archive entries 9 / 0xA,
+# be_flag 0x40) as a model of its own but did not keep it in Body->m_pHair; cPlAda::setHead (patch 0175, as the retail
+# releases) removes face, head and Body->m_pHair, so the hair stayed. The retail releases' setModel (EU pl02 module,
+# text 0x558 + 0x108: stw r31, 0x28(Body)) keep it there. Checked on the PC (r400, EU discs, Ada,
+# RE4_TEST_HEAD_LOST=60): before, a dark head of hair on the body; after, none.
+--- a/src/pl02/pl02.cpp
++++ b/src/pl02/pl02.cpp
+@@ -213,6 +213,9 @@
+     }
+     info->be_flag |= 0x40;
+     addModel(info);
++    /* port (patch 0185, a bug of the prototype): her hair is Body->m_pHair, as in the retail releases'
++       cPlAda::setModel; setHead (patch 0175) takes it away with the head, else it stayed on the body */
++    Body->m_pHair = info;
+     TevScaleGroup = 1;
+     setFace(0);
+     setRightHand(0);

@@ -277,11 +277,15 @@ string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_formats_obj>\n")
 # gyro aiming (runtime/gyro.cpp), the taps in the sub screens (runtime/menu_touch.cpp), the
 # picture format without the letterbox (runtime/picture.cpp), the knife by a swipe
 # (runtime/knife_swipe.cpp) and the quick-time events by a tap (runtime/qte_touch.cpp), and the instant save payload (runtime/instant_game.cpp),
-# the game language (runtime/game_language.cpp) and the cheat menu (runtime/cheats.cpp).
+# the game language (runtime/game_language.cpp), the cheat menu (runtime/cheats.cpp) and the outline of the
+# app's minimap (runtime/minimap.cpp), the laser sight's colour (runtime/laser_colour.cpp), the benchmark
+# (runtime/benchmark.cpp) and the glows' test of the light itself (runtime/glow_check.cpp, patch 0213).
 add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge.cpp runtime/movie_status.cpp
     runtime/dof.cpp runtime/gyro.cpp runtime/menu_touch.cpp runtime/picture.cpp runtime/knife_swipe.cpp
     runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp runtime/cheats.cpp
-    runtime/gx_owner.cpp)
+    runtime/gx_owner.cpp runtime/potato.cpp runtime/aim_options.cpp
+    runtime/sound_volume.cpp runtime/minimap.cpp runtime/laser_colour.cpp runtime/benchmark.cpp
+    runtime/glow_check.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")
@@ -296,6 +300,11 @@ add_library(re4_glue_obj OBJECT
     runtime/game_heap.cpp
     runtime/sn_runtime.cpp)
 target_include_directories(re4_glue_obj PRIVATE runtime)
+# the benchmark's place (runtime/instant_store.cpp re4_bench_place_payload): the project owner's instant save at
+# the lake's dock, built into libre4_main (.incbin)
+set(RE4_BENCH_PLACE "${CMAKE_CURRENT_SOURCE_DIR}/data/benchmark-place.ce4benchmark")
+target_compile_definitions(re4_glue_obj PRIVATE RE4_BENCH_PLACE=\"${RE4_BENCH_PLACE}\")
+set_source_files_properties(runtime/instant_store.cpp PROPERTIES OBJECT_DEPENDS "${RE4_BENCH_PLACE}")
 string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_glue_obj>\n")
 
 # Portable C parts of the Dolphin SDK (src/lib), compiled unchanged: the heap
@@ -567,10 +576,11 @@ target_link_libraries(re4test_rel PRIVATE re4_main)
 set_target_properties(re4test_rel PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules"
     OUTPUT_NAME re4_re4test_rel)
 
-# --- the core process on Android (armeabi-v7a) -------------------------------------
+# --- the core process on Android (armeabi-v7a, arm64-v8a) ---------------------------
 # A program in the app's library folder (named lib*.so so that the APK carries it):
-# the core runs in it when MEM1 is taken in the app's process (port/docs/32bit-kernprozess.md).
-if(ANDROID AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+# the core runs in it when MEM1 is taken in the app's process (port/docs/32bit-kernprozess.md;
+# on 64 bit since 31.10.2026, ART's moving heap on MEM1).
+if(ANDROID)
     add_executable(re4_coreproc host/coreproc.cpp runtime/core_ipc.cpp)
     target_include_directories(re4_coreproc PRIVATE runtime)
     target_compile_features(re4_coreproc PRIVATE cxx_std_17)
@@ -592,6 +602,7 @@ endif()
 if(NOT ANDROID)
     add_executable(re4_instant_store_test tests/instant_store_test.cpp runtime/instant_store.cpp runtime/gci.cpp)
     target_include_directories(re4_instant_store_test PRIVATE runtime)
+    target_compile_definitions(re4_instant_store_test PRIVATE RE4_BENCH_PLACE=\"${RE4_BENCH_PLACE}\")
     target_compile_features(re4_instant_store_test PRIVATE cxx_std_17)
     # tests/game_probe.cpp: checks that need the game's flags and headers
     add_library(re4_probe_obj OBJECT tests/game_probe.cpp tests/core_probe.cpp tests/stream_probe.cpp

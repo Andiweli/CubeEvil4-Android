@@ -1,0 +1,44 @@
+# The laser sight's colour (wish of the project owner, 04.11.2026: the app menu, CONTROLS, LASER SIGHT: Default (Red),
+# Blue, Green, Yellow). The game makes two effects for the sight each frame: the beam (EspDrawLaserLine, est 3, a
+# GX line in the effect's colour) and the dot (drawPoint, est 0x50). Right after it set them up, the port's
+# re4_laser_tint (runtime/laser_colour.cpp) turns their colours to the chosen one; with Default (Red) it does
+# nothing, the picture is the game's.
+# Not a bug of the prototype: a port feature.
+--- a/src/game/esp_app.cpp
++++ b/src/game/esp_app.cpp
+@@ -11,6 +11,8 @@
+ #include "TexRender.h"
+ #include "esp.h"
+ #include "espgen.h"
++/* PORT (patch 0198): the laser sight colour of the app menu (runtime/laser_colour.cpp) */
++extern "C" void re4_laser_tint(cEsp* esp, int dot);
+ 
+ // laser line: cEsp19 (game/esp19.cpp) work
+ typedef struct tagESP19_WK {
+@@ -482,6 +484,7 @@
+         esp->m_Logic_op = 0;
+         esp->m_Col_a *= 0.8f;
+     }
++    re4_laser_tint(esp, 0); /* PORT (patch 0198) */
+ }
+ 
+ // Draws a laser line of the given colour in both directions (two est-3 lines so it is visible from
+--- a/src/game/objWep.cpp
++++ b/src/game/objWep.cpp
+@@ -2,6 +2,8 @@
+ #include "at_sub2.h"
+ #include "obj.h"
+ #include "esp.h"
++/* PORT (patch 0198): the laser sight colour of the app menu (runtime/laser_colour.cpp) */
++extern "C" void re4_laser_tint(cEsp* esp, int dot);
+ #include "global.h"
+ #include "math_sub.h"
+ #include "snd.h"
+@@ -329,6 +331,7 @@
+         esp->m_Dst_factor = 5;
+         esp->m_Logic_op = 0;
+     }
++    re4_laser_tint(esp, 1); /* PORT (patch 0198) */
+ }
+ 
+ // Muzzle position and aim end for the current weapon_no: muzzle offset table `ofs` on parts 0

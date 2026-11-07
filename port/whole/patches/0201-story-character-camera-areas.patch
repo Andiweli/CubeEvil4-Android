@@ -1,0 +1,29 @@
+# The story with another player character, continued (user report 20261105-072424 with two pictures: Krauser in
+# r200, "when I tell Ashley to stop, the image goes dark; when I tell her to come with me, the lighting returns").
+# CameraControl::areaHitCheck picks a room's camera areas (their cuts and the light set of each cut) by a
+# character bit: 2 while Ashley follows, else the player type (Leon 1, Ashley 4, Ada 8, HUNK 0x20, Wesker 0x10,
+# Krauser 0x40). The story's rooms only mark Leon's and Leon-with-Ashley's areas (r200: 0x1 and 0x3), so a stand-in
+# found none whenever Ashley was not following: no cut, the default camera and LightMgr.update(0, -1), the
+# default light (traced on the PC: Krauser, Ashley waits -> camera -1, area -1; Leon keeps camera 1). While a
+# stand-in plays the story the areas are chosen as for Leon. The shoulder camera's offsets per character
+# (cam_qfps.cpp) stay the character's. Not a bug of the prototype: a port feature (the cheat menu, patch 0195).
+--- a/src/game/cam_ctrl.cpp
++++ b/src/game/cam_ctrl.cpp
+@@ -13,6 +13,7 @@
+ #include "light.h"
+ extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
+ extern "C" int re4_story_char_eyes(Vec* out); /* port: runtime/cheats.cpp (patch 0200) */
++extern "C" int re4_story_char_stand_in(void); /* port: runtime/cheats.cpp (patch 0201) */
+ #include "model.h"
+ #include "player.h"
+ #include "em.h"
+@@ -912,7 +913,8 @@
+     if (SubCharGetStatus() & 0x20000000) {
+         attr = 2;
+     } else {
+-        switch (pG->pl_type) {
++        /* PORT (patch 0201): a stand-in of the story takes Leon's areas (the story's rooms have none of theirs) */
++        switch (re4_story_char_stand_in() ? 0 : pG->pl_type) {
+         case 0:
+             break;
+         case 1:

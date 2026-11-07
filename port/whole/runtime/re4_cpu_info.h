@@ -52,6 +52,33 @@ inline unsigned CurrentKHz(int cpu)
     return ReadNumber(path);
 }
 
+// the clock core `cpu` may reach now in kHz: its scaling_max_freq, which the system lowers while the device is hot
+// (0: not readable)
+inline unsigned AllowedKHz(int cpu)
+{
+    char path[96];
+    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+    return ReadNumber(path);
+}
+
+// core `cpu` is online (switched on); true when the system does not say (core 0 has no switch)
+inline bool CoreOnline(int cpu)
+{
+    char path[96];
+    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/online", cpu);
+    if (access(path, R_OK) != 0) {
+        return true;
+    }
+    char c = '1';
+    if (FILE* f = fopen(path, "r")) {
+        if (fread(&c, 1, 1, f) != 1) {
+            c = '1';
+        }
+        fclose(f);
+    }
+    return c != '0';
+}
+
 struct Layout {
     static constexpr int kMax = 32;
     int count = 0;
@@ -175,11 +202,35 @@ inline int ThreadId()
 struct WantedCores {
     cpu_set_t set;
     bool on;
+    int role;  // CoreRole: the render thread's cores follow the fastest one allowed now (KeepOnFastCores)
 };
 inline WantedCores& Wanted()
 {
     static thread_local WantedCores w;
     return w;
+}
+inline bool KeepOnFastCores();  // below
+
+// Which cores KeepOffSlowCores gives a thread. With three kinds of core (a prime core: the Retroid Pocket Flip 2's
+// Snapdragon 865 has one at 2841 MHz, three at 2419 and four at 1804) the render thread gets the fastest kind alone
+// and the game thread the middle kind (wish of the project owner, 06.11.2026: at the lake's dock the render thread
+// took 9-12 ms of processor time a picture on the middle cores at 1862 MHz while the fastest core stayed unused).
+// With two kinds, or RE4_PRIME_CORE=0, both stay off the slowest kind as before.
+enum CoreRole { kAnyThread = 0, kRenderThread = 1, kGameThread = 2 };
+
+// A middle kind of core exists (three kinds), so the fastest kind can be one thread's.
+inline bool HasPrimeCores(const Layout& l)
+{
+    const char* env = getenv("RE4_PRIME_CORE");
+    if (env && *env == '0') {
+        return false;
+    }
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        if (l.maxKHz[cpu] && l.Kind(cpu) == 1) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Keeps the calling thread off the slowest kind of core (decision of the project owner,
@@ -187,8 +238,10 @@ inline WantedCores& Wanted()
 // on the slow ones at times (Retroid: the core thread 40 % of the pictures on them at the title;
 // Galaxy A30s: two fast cores, six slow). Not when all cores are alike, the clocks are not
 // readable or RE4_FAST_CORES=0. `out`: the cores the thread may use now, or why it stays as it was.
-inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size)
+// `role`: see CoreRole (the fastest kind for the render thread, the middle one for the game thread).
+inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role = kAnyThread)
 {
+    const bool prime = role != kAnyThread && HasPrimeCores(l);
     const char* env = getenv("RE4_FAST_CORES");
     if (env && *env == '0') {
         snprintf(out, size, "left to Android (RE4_FAST_CORES=0)");
@@ -211,6 +264,9 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size)
         if (l.Kind(cpu) == 0 || !CPU_ISSET(cpu, &allowed)) {
             continue;
         }
+        if (prime && (role == kRenderThread ? l.Kind(cpu) != 2 : l.Kind(cpu) == 2)) {
+            continue;
+        }
         CPU_SET(cpu, &set);
         n++;
         if (len < static_cast<int>(size)) {
@@ -222,15 +278,85 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size)
         return false;
     }
     if (sched_setaffinity(0, sizeof(set), &set) != 0) {
-        snprintf(out, size, "left to Android (not allowed: %s)", strerror(errno));
+        const int error = errno;
+        if (prime && role == kRenderThread) {
+            // the fastest core refused now: off the slowest meanwhile; KeepOnFastCores tries the fastest again
+            Wanted().set = set;
+            Wanted().on = true;
+            Wanted().role = kRenderThread;
+            const bool off = KeepOnFastCores();
+            snprintf(out, size, "%s (the fastest core refused now: %s)", off ? "off the slowest cores" : "left to Android",
+                     strerror(error));
+            return off;
+        }
+        snprintf(out, size, "left to Android (not allowed: %s)", strerror(error));
         return false;
     }
     if (len < static_cast<int>(size)) {
-        snprintf(out + len, size - len, ", off the slowest (at most %u MHz)", l.slowest / 1000);
+        if (prime) {
+            snprintf(out + len, size - len, role == kRenderThread ? ", the fastest (at most %u MHz) for it alone"
+                                                                  : ", off the slowest and off the fastest (at most %u MHz, the render thread's)",
+                     l.fastest / 1000);
+        } else {
+            snprintf(out + len, size - len, ", off the slowest (at most %u MHz)", l.slowest / 1000);
+        }
     }
     Wanted().set = set;
     Wanted().on = true;
+    Wanted().role = prime ? role : kAnyThread;
     return true;
+}
+
+// The render thread's cores now (prime cores): the online cores off the slowest kind whose allowed clock is the
+// highest (AllowedKHz, the thermal limit included). The fastest kind normally; when it is switched off or held
+// below the middle kind while the device is hot, the middle cores (the project owner's log 06.11.2026: put on
+// core 7, the render thread still ran on the middle cores at 1286 MHz most of the run). False when nothing is known.
+inline bool FastestCoresNow(const Layout& l, cpu_set_t* set)
+{
+    CPU_ZERO(set);
+    unsigned best = 0;
+    unsigned allowed[Layout::kMax] = {};
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        if (!l.maxKHz[cpu] || l.Kind(cpu) == 0 || !CoreOnline(cpu)) {
+            continue;
+        }
+        allowed[cpu] = AllowedKHz(cpu);
+        if (!allowed[cpu]) {
+            allowed[cpu] = l.maxKHz[cpu];
+        }
+        best = allowed[cpu] > best ? allowed[cpu] : best;
+    }
+    int n = 0;
+    for (int cpu = 0; cpu < l.count && best; cpu++) {
+        if (allowed[cpu] == best) {
+            CPU_SET(cpu, set);
+            n++;
+        }
+    }
+    return n > 0;
+}
+
+// "cores now: 4 1286/2419, 5 1286/2419, 6 1574/2419, 7 1516/2841 MHz (now/allowed), 7 offline": the cores off the
+// slowest kind, their clock and the clock they may reach now (each step of the benchmark logs it: throttling).
+inline void DescribeClocks(const Layout& l, char* out, size_t size)
+{
+    int len = snprintf(out, size, "cores now:");
+    bool any = false;
+    for (int cpu = 0; cpu < l.count && len < static_cast<int>(size); cpu++) {
+        if (!l.maxKHz[cpu] || l.Kind(cpu) == 0) {
+            continue;
+        }
+        if (!CoreOnline(cpu)) {
+            len += snprintf(out + len, size - len, "%s %d offline", any ? "," : "", cpu);
+        } else {
+            len += snprintf(out + len, size - len, "%s %d %u/%u", any ? "," : "", cpu, CurrentKHz(cpu) / 1000,
+                            AllowedKHz(cpu) / 1000);
+        }
+        any = true;
+    }
+    if (len < static_cast<int>(size)) {
+        snprintf(out + len, size - len, any ? " MHz (now/allowed)" : " clocks not readable");
+    }
 }
 
 // The calling thread back on every core Android allows (the menu's "Force Performance: Default"
@@ -257,17 +383,155 @@ inline bool KeepOnFastCores()
     if (!w.on) {
         return false;
     }
+    // the render thread on prime cores: the fastest cores allowed now (switched off or held back while hot: others)
+    if (w.role == kRenderThread) {
+        cpu_set_t best;
+        if (FastestCoresNow(GetLayout(), &best)) {
+            w.set = best;
+        }
+    }
     cpu_set_t now;
     CPU_ZERO(&now);
     if (sched_getaffinity(0, sizeof(now), &now) != 0 || CPU_EQUAL(&now, &w.set)) {
         return false;
     }
-    return sched_setaffinity(0, sizeof(w.set), &w.set) == 0;
+    if (sched_setaffinity(0, sizeof(w.set), &w.set) == 0) {
+        return true;
+    }
+    // the fastest core refused (Android keeps the app in a group of cores without it now): the render thread on the
+    // cores off the slowest kind meanwhile, the fastest again at a later call (the project owner's log 06.11.2026: it
+    // sat on the middle cores while core 7 was free)
+    if (w.role == kRenderThread) {
+        const Layout& l = GetLayout();
+        cpu_set_t off;
+        CPU_ZERO(&off);
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (l.maxKHz[cpu] && l.Kind(cpu) != 0 && CoreOnline(cpu)) {
+                CPU_SET(cpu, &off);
+            }
+        }
+        return !CPU_EQUAL(&now, &off) && sched_setaffinity(0, sizeof(off), &off) == 0;
+    }
+    return false;
 }
 
-inline bool KeepOffSlowCores(char* out, size_t size)
+// "cores 4 5 6": the cores the calling thread may use now (what Android and KeepOffSlowCores left it)
+inline void AffinityText(char* out, size_t size)
 {
-    return KeepOffSlowCores(GetLayout(), out, size);
+    cpu_set_t now;
+    CPU_ZERO(&now);
+    int len = snprintf(out, size, "cores");
+    if (sched_getaffinity(0, sizeof(now), &now) != 0) {
+        snprintf(out, size, "cores not readable");
+        return;
+    }
+    const long n = sysconf(_SC_NPROCESSORS_CONF);
+    for (long cpu = 0; cpu < n && cpu < CPU_SETSIZE && len < static_cast<int>(size); cpu++) {
+        if (CPU_ISSET(cpu, &now)) {
+            len += snprintf(out + len, size - len, " %ld", cpu);
+        }
+    }
+}
+
+inline bool KeepOffSlowCores(char* out, size_t size, int role = kAnyThread)
+{
+    return KeepOffSlowCores(GetLayout(), out, size, role);
+}
+
+// The cores faster than the slowest kind (0 when all are alike or the clocks are not readable).
+inline int FasterCores(const Layout& l)
+{
+    if (!l.fastest || l.slowest == l.fastest) {
+        return 0;
+    }
+    int n = 0;
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        n += l.maxKHz[cpu] && l.Kind(cpu) != 0;
+    }
+    return n;
+}
+
+// Puts thread `tid` (a helper, e.g. a vertex thread) on the slowest kind of core when no more than
+// two cores are faster: those two are for the game thread and the render thread, which each need a
+// whole one (decision of the project owner, 29.10.2026; Redmi 15C, Helio G81 with two fast cores
+// and six slow ones, 28.10.2026: in r101 the render thread had 29.8 ms of processor time in 37.7 ms,
+// the game thread 22 ms in 43 ms, with the vertex threads on the two fast cores too; Galaxy S7: two
+// and two). With more fast cores (Retroid: four) the helper stays as it is. RE4_FAST_CORES=0 or
+// RE4_HELPERS_SLOW=0 leave it. `set` (may be null): the cores it got. `out`: what happened.
+inline bool PutOnSlowCores(const Layout& l, int tid, cpu_set_t* set, char* out, size_t size)
+{
+    const char* env = getenv("RE4_FAST_CORES");
+    const char* helpers = getenv("RE4_HELPERS_SLOW");
+    if ((env && *env == '0') || (helpers && *helpers == '0')) {
+        snprintf(out, size, "left to Android (%s=0)", env && *env == '0' ? "RE4_FAST_CORES" : "RE4_HELPERS_SLOW");
+        return false;
+    }
+    const int faster = FasterCores(l);
+    if (!faster) {
+        snprintf(out, size, "left to Android (%s)", l.fastest ? "all cores alike" : "clocks not readable");
+        return false;
+    }
+    if (faster > 2) {
+        snprintf(out, size, "left to Android (%d faster cores: room for them too)", faster);
+        return false;
+    }
+    cpu_set_t allowed;
+    CPU_ZERO(&allowed);
+    if (sched_getaffinity(tid, sizeof(allowed), &allowed) != 0) {
+        snprintf(out, size, "left to Android (its cores not readable)");
+        return false;
+    }
+    cpu_set_t slow;
+    CPU_ZERO(&slow);
+    int n = 0, len = snprintf(out, size, "on cores");
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        if (l.Kind(cpu) != 0 || !CPU_ISSET(cpu, &allowed)) {
+            continue;
+        }
+        CPU_SET(cpu, &slow);
+        n++;
+        if (len < static_cast<int>(size)) {
+            len += snprintf(out + len, size - len, " %d", cpu);
+        }
+    }
+    if (!n) {
+        snprintf(out, size, "left to Android (no slow core allowed to the app)");
+        return false;
+    }
+    if (sched_setaffinity(tid, sizeof(slow), &slow) != 0) {
+        snprintf(out, size, "left to Android (not allowed: %s)", strerror(errno));
+        return false;
+    }
+    if (len < static_cast<int>(size)) {
+        snprintf(out + len, size - len, ", the slowest (only %d faster cores)", faster);
+    }
+    if (set) {
+        *set = slow;
+    }
+    return true;
+}
+
+// Thread `tid` back on every core Android allows (after PutOnSlowCores).
+inline void ReleaseThread(int tid)
+{
+    cpu_set_t all;
+    CPU_ZERO(&all);
+    const long n = sysconf(_SC_NPROCESSORS_CONF);
+    for (long cpu = 0; cpu < n && cpu < CPU_SETSIZE; cpu++) {
+        CPU_SET(cpu, &all);
+    }
+    sched_setaffinity(tid, sizeof(all), &all);
+}
+
+// Thread `tid` back on `set` when Android gave it other cores (as KeepOnFastCores). true when it had to.
+inline bool KeepThreadOn(int tid, const cpu_set_t& set)
+{
+    cpu_set_t now;
+    CPU_ZERO(&now);
+    if (sched_getaffinity(tid, sizeof(now), &now) != 0 || CPU_EQUAL(&now, &set)) {
+        return false;
+    }
+    return sched_setaffinity(tid, sizeof(set), &set) == 0;
 }
 
 // Android's performance hint (APerformanceHint of the NDK, Android 13; looked up at run time:

@@ -12,6 +12,9 @@
 //     position, an EFB copy used as a texture, a paletted texture, linear fog
 //   - shader generation: random TEV setups (inputs, compare modes, scales,
 //     swap tables, konst selections, indirect stages) all compile
+//   - merged draw calls (RE4_GX_MERGE): draws that differ only in their
+//     matrices and material colours in few calls, the picture unchanged
+#include "gx_bench_steps.h"
 #include "gx_auto_level.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
@@ -27,6 +30,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -171,6 +175,69 @@ const std::uint8_t kGreen[4] = {0, 255, 0, 255};
 const std::uint8_t kBlue[4] = {0, 0, 255, 255};
 const std::uint8_t kBlack[4] = {0, 0, 0, 255};
 const std::uint8_t kWhite[4] = {255, 255, 255, 255};
+
+// The console's pixel centre (7/12 of a pixel, Dolphin's correction; the rifle scope's horizontal line
+// at 1x, 29.10.2026): a line 0.94 pixels thick on the edge between rows 223 and 224 (and columns 319
+// and 320) covers row 223 (column 319) only, as the GameCube draws it; a quad whose left edge is at
+// 10.55 covers column 10 (its sample at 10.583), one at 50.65 not column 50.
+void TestPixelCentre(re4gx::GxRenderer &r) {
+  Builder b;
+  Baseline(b);
+  b.flags |= RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  Quad(b, 100, 223.53f, 300, 224.47f, 0, kGreen);
+  Quad(b, 319.53f, 300, 320.47f, 400, 0, kRed);
+  Quad(b, 10.55f, 440, 40, 460, 0, kBlue);
+  Quad(b, 50.65f, 440, 80, 460, 0, kWhite);
+  DisplayCopy(b, false, kBlack);
+  r.Run(b.Chunk());
+  const auto row = EfbPixel(r, 200, 223), above = EfbPixel(r, 200, 222), below = EfbPixel(r, 200, 224);
+  Check(Near(row, 0, 255, 0) && Near(above, 0, 0, 0) && Near(below, 0, 0, 0),
+        "pixel centre: a horizontal line thinner than a pixel on a row edge drawn in one row (the scope)");
+  if (!Near(row, 0, 255, 0))
+    Print("row 223", row), Print("row 224", below);
+  Check(Near(EfbPixel(r, 319, 350), 255, 0, 0) && Near(EfbPixel(r, 320, 350), 0, 0, 0),
+        "pixel centre: a vertical line thinner than a pixel on a column edge drawn in one column");
+  Check(Near(EfbPixel(r, 10, 450), 0, 0, 255), "pixel centre: an edge at 10.55 covers column 10 (sample at 10.583)");
+  Check(Near(EfbPixel(r, 50, 450), 0, 0, 0) && Near(EfbPixel(r, 51, 450), 255, 255, 255),
+        "pixel centre: an edge at 50.65 leaves column 50");
+}
+
+// "4:3 (exact)" (GxRenderer::SetWiden, 29.10.2026): a flat draw over the whole screen is drawn 15/14
+// wider around the screen's centre (columns 200..300 of 640: 191.4..298.6); a flat draw into a part
+// of the EFB (a viewport 200 wide, a picture for a texture) stays as sent, and so does everything at 1.
+void TestWiden(re4gx::GxRenderer &r) {
+  auto run = [&](float widen, bool part) {
+    r.SetWiden(widen);
+    Builder b;
+    Baseline(b);
+    b.flags |= RE4_GX_CHUNK_XFB;
+    DisplayCopy(b, true, kBlack);
+    if (part)
+      b.XfF(0x101A, {100.0f, -264.0f, 16777215.0f, 342.0f + 100.0f, 342.0f + 264.0f, 16777215.0f});
+    Quad(b, 200, 100, 300, 150, 0, kGreen);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  };
+  run(15.0f / 14.0f, false);
+  Check(Near(EfbPixel(r, 192, 120), 0, 255, 0) && Near(EfbPixel(r, 190, 120), 0, 0, 0) &&
+            Near(EfbPixel(r, 297, 120), 0, 255, 0) && Near(EfbPixel(r, 300, 120), 0, 0, 0),
+        "4:3 exact: a flat draw over the whole screen is 15/14 wider around the centre");
+  run(1.0f, false);
+  Check(Near(EfbPixel(r, 195, 120), 0, 0, 0) && Near(EfbPixel(r, 200, 120), 0, 255, 0) &&
+            Near(EfbPixel(r, 299, 120), 0, 255, 0) && Near(EfbPixel(r, 300, 120), 0, 0, 0),
+        "4:3 exact off: the flat draw as sent");
+  run(1.0f, true);
+  std::vector<std::vector<std::uint8_t>> asSent;
+  for (int x = 0; x < 640; x += 4)
+    asSent.push_back(EfbPixel(r, x, 120));
+  run(15.0f / 14.0f, true);
+  bool same = true;
+  for (int x = 0, i = 0; x < 640; x += 4, i++)
+    same = same && EfbPixel(r, x, 120) == asSent[static_cast<std::size_t>(i)];
+  Check(same, "4:3 exact: a flat draw into a part of the EFB stays as sent");
+  r.SetWiden(1.0f);
+}
 
 void TestBasics(re4gx::GxRenderer &r) {
   // frame 1: clear to blue by a display copy, then a green quad top left, a
@@ -688,6 +755,157 @@ void TestHandOverCopies() {
   b.Release();
 }
 
+// Merged draw calls (SetMerge, RE4_GX_MERGE, 30.10.2026): 24 squares, each moved by its own position
+// matrix (every second one in PNMTX1, another uMtx) and coloured by its own material colour, with a
+// blend mode set and back and owner tags between them as the game sends them; after square 11 a
+// register stays changed (the dither bit: the picture stays, the run must end). With merging the
+// squares go in a few draw calls (once Prewarm made the programs), the picture the same as without.
+void TestMerge() {
+  const auto build = [](Builder &b) {
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    b.Xf(0x100E, {0});  // colour 0 from the material register, no lighting
+    for (unsigned i = 0; i < 24; i++) {
+      const float x = static_cast<float>(i % 6) * 40.0f, y = static_cast<float>(i / 6) * 40.0f;
+      const unsigned row = (i & 1) ? 3 : 0;
+      b.XfF(row * 4, {1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, 0});
+      b.Xf(0x100C, {(40u + i * 8) << 24 | (255u - i * 9) << 16 | ((i * 37) & 255) << 8 | 255u});
+      b.Bp(0x41, b.bp[0x41] | 1u << 0);  // blending on and off again (the game between two objects)
+      b.Bp(0x41, b.bp[0x41] & ~1u);
+      if (i % 5 == 0)
+        b.Owner(0x80001000u + i, 0x80002000u, 0x80003000u);
+      Quad(b, 10, 10, 30, 30, 0, kWhite);
+      Re4GxDraw d;
+      std::memcpy(&d, &b.ops[b.ops.size() - sizeof(d) / 4], sizeof(d));
+      d.matrices[0] = (d.matrices[0] & ~0xFFu) | row;
+      std::memcpy(&b.ops[b.ops.size() - sizeof(d) / 4], &d, sizeof(d));
+      if (i == 11)
+        b.Bp(0x41, b.bp[0x41] | 1u << 2);  // dither on: stays
+    }
+    b.Bp(0x41, b.bp[0x41] & ~(1u << 2));
+    DisplayCopy(b, false, kBlack);
+  };
+  std::string error;
+  re4gx::GxRenderer single, merged;
+  Require(single.Init(1, &error), error.c_str());
+  Require(merged.Init(1, &error), error.c_str());
+  merged.SetMerge(true);
+  Builder a, b, c;
+  build(a);
+  single.Run(a.Chunk());
+  build(b);
+  merged.Run(b.Chunk());
+  const unsigned before = merged.Stats().mergeBatches;
+  Check(merged.Prewarm(1e9) == false, "merged draws: Prewarm makes the programs the chunk wanted");
+  build(c);
+  const re4gx::GxStats was = merged.Stats();
+  merged.Run(c.Chunk());
+  const re4gx::GxStats &s = merged.Stats();
+  const unsigned draws = s.draws - was.draws, taken = s.mergeTaken - was.mergeTaken,
+                 calls = s.mergeBatches - was.mergeBatches;
+  char what[160];
+  std::snprintf(what, sizeof(what), "merged draws: none before the programs are made (%u)", before);
+  Check(before == 0, what);
+  std::snprintf(what, sizeof(what), "merged draws: 24 squares in %u draw calls (%u merged in %u)",
+                draws - taken + calls, taken, calls);
+  // runs of up to 10: 0-9, 10-11 (the dither stays after 11), 12-21, 22-23
+  Check(draws == 24 && taken == 24 && calls == 4, what);
+  bool same = true, right = true;
+  for (unsigned i = 0; i < 24; i++) {
+    const int x = static_cast<int>(i % 6) * 40 + 20, y = static_cast<int>(i / 6) * 40 + 20;
+    const auto p = TexPixel(single.Xfb(nullptr, nullptr), x, y), q = TexPixel(merged.Xfb(nullptr, nullptr), x, y);
+    same = same && p == q;
+    right = right && Near(q, static_cast<int>(40 + i * 8), static_cast<int>(255 - i * 9), static_cast<int>((i * 37) & 255));
+    for (const int dx : {-12, 12})
+      same = same && TexPixel(single.Xfb(nullptr, nullptr), x + dx, y) == TexPixel(merged.Xfb(nullptr, nullptr), x + dx, y);
+  }
+  Check(right, "merged draws: each square at its matrix's place in its material colour");
+  Check(same, "merged draws: the picture as with single draw calls");
+  // off again: one by one
+  merged.SetMerge(false);
+  Builder e;
+  build(e);
+  const unsigned callsBefore = merged.Stats().mergeBatches;
+  merged.Run(e.Chunk());
+  Check(merged.Stats().mergeBatches == callsBefore, "merged draws: off, every draw on its own");
+  Check(glGetError() == GL_NO_ERROR, "merged draws: no GL error");
+  single.Release();
+  merged.Release();
+}
+
+// The vertex ring (GxOptions::vertexRing, V0b of port/docs/vulkan-plan.md, 31.10.2026): 48 chunks of 300
+// squares each, their places and colours different in every chunk, so the ring goes round its quarters
+// many times; every 12th chunk three large draws more (180 000 vertices, 2.9 MB: more than a quarter of
+// 2 MB), so it grows. Every picture as a renderer without the ring draws it (a buffer per chunk).
+void TestVertexRing() {
+  std::string error;
+  re4gx::GxRenderer ring, plain;
+  re4gx::GxOptions on, off;
+  on.vertexRing = true;  // off by default (the app menu's switch)
+  off.vertexRing = false;
+  ring.SetOptions(on);
+  plain.SetOptions(off);
+  Require(ring.Init(1, &error), error.c_str());
+  Require(plain.Init(1, &error), error.c_str());
+  const auto build = [](Builder &b, unsigned n) {
+    if (n == 0)
+      Baseline(b);
+    else
+      b.flags = 0;
+    DisplayCopy(b, true, kBlack);
+    if (n % 12 == 11) {
+      // three draws of 60 000 vertices of triangles without area, drawn below the squares
+      std::vector<std::uint8_t> v;
+      for (unsigned i = 0; i < 60000; i++)
+        V(v, static_cast<float>(i % 600), static_cast<float>(i / 600), 0, kWhite);
+      for (int k = 0; k < 3; k++)
+        b.Draw(RE4_GX_V_COLOR0, 16, v, 60000, 0x90);
+    }
+    for (unsigned i = 0; i < 300; i++) {
+      const float x = static_cast<float>((i * 7 + n * 13) % 40) * 16.0f, y = static_cast<float>((i + n) % 33) * 16.0f;
+      const std::uint8_t c[4] = {static_cast<std::uint8_t>(i * 5 + n), static_cast<std::uint8_t>(255 - i),
+                                 static_cast<std::uint8_t>(n * 9), 255};
+      Quad(b, x + 2, y + 2, x + 14, y + 14, 0, c);
+    }
+    DisplayCopy(b, false, kBlack);
+  };
+  const re4gx::GxStats before = ring.Stats();
+  bool same = true;
+  unsigned chunks = 0;
+  for (unsigned n = 0; n < 48; n++) {
+    Builder a, b;
+    build(a, n);
+    build(b, n);
+    ring.Run(a.Chunk());
+    plain.Run(b.Chunk());
+    chunks++;
+    unsigned w = 0, h = 0;
+    const GLuint ra = ring.Xfb(&w, &h), pa = plain.Xfb(nullptr, nullptr);
+    std::vector<std::uint8_t> p(static_cast<std::size_t>(w) * h * 4), q(p.size());
+    glBindFramebuffer(GL_FRAMEBUFFER, gReadFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ra, 0);
+    glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, p.data());
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pa, 0);
+    glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, q.data());
+    same = same && w && p == q;
+  }
+  const re4gx::GxStats &s = ring.Stats();
+  char what[160];
+  std::snprintf(what, sizeof(what), "vertex ring: %u chunks went into it (%u), it grew for the large ones (%u), "
+                "%u waits", chunks, s.ringChunks - before.ringChunks, s.ringGrows - before.ringGrows,
+                s.ringWaits - before.ringWaits);
+  std::fprintf(stderr, "  %s\n", what);
+  // (RE4_GX_VERTEX_RING=0: all of gx_gl_check without the ring; then only the pictures are compared)
+  const char *forcedOff = std::getenv("RE4_GX_VERTEX_RING");
+  if (!(forcedOff && *forcedOff == '0'))
+    Check(s.ringChunks - before.ringChunks == chunks && s.ringGrows - before.ringGrows >= 1, what);
+  Check(plain.Stats().ringChunks == 0, "vertex ring: off, a buffer per chunk");
+  Check(same, "vertex ring: every picture as with a buffer per chunk");
+  Check(glGetError() == GL_NO_ERROR, "vertex ring: no GL error");
+  ring.Release();
+  plain.Release();
+}
+
 // The game's GXPeekZ (a torch's glow hides itself behind a wall by reading the depth around it): the
 // core marks the chunk with BP 0x5B; at its display copy the depth goes, half the resolution, to the
 // sink once the GPU is through (the next chunk). A quad at depth 0.5 on the left, cleared (far) elsewhere.
@@ -781,6 +999,85 @@ void TestFxaa(re4gx::GxRenderer &r) {
   r.SetFxaa(false);
   scene();
   Check(r.Xfb(nullptr, nullptr) == plain, "FXAA: off, the plain display copy is shown again");
+}
+
+// Original TV filter (the app menu's switch): the display copy takes the copy filter's vertical taps (the
+// NTSC deflicker filter 8 8 10 12 10 8 8: the line above 16/64, the line 32/64, the line below 16/64), one
+// original line apart at any scale. A red line one original line tall on blue: switched off it stays one
+// line, switched on its neighbours get a quarter of its red and it keeps half.
+void TestTvFilter(re4gx::GxRenderer &r) {
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    b.Bp(0x53, 8u | 8u << 6 | 10u << 12 | 12u << 18);
+    b.Bp(0x54, 10u | 8u << 6 | 8u << 12);
+    DisplayCopy(b, true, kBlue);
+    std::vector<std::uint8_t> v;
+    V(v, 100, 200, 0, kRed);
+    V(v, 300, 200, 0, kRed);
+    V(v, 100, 201, 0, kRed);
+    V(v, 300, 200, 0, kRed);
+    V(v, 300, 201, 0, kRed);
+    V(v, 100, 201, 0, kRed);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 6);
+    DisplayCopy(b, false, kBlue);
+    r.Run(b.Chunk());
+    return r.Xfb(nullptr, nullptr);
+  };
+  const int f = r.Scale();
+  const auto red = [&](GLuint xfb, int y) { return static_cast<int>(TexPixel(xfb, 200 * f, y * f)[0]); };
+  GLuint xfb = scene();
+  const int offAbove = red(xfb, 199), offAt = red(xfb, 200), offBelow = red(xfb, 201);
+  r.SetTvFilter(true);
+  xfb = scene();
+  const int onAbove = red(xfb, 199), onAt = red(xfb, 200), onBelow = red(xfb, 201);
+  r.SetTvFilter(false);
+  std::fprintf(stderr, "  TV filter: red above/at/below off %d %d %d, on %d %d %d\n", offAbove, offAt, offBelow, onAbove,
+               onAt, onBelow);
+  Check(offAbove < 10 && offAt > 245 && offBelow < 10, "TV filter: off, the line stays one line");
+  Check(onAbove > 50 && onAbove < 80 && onAt > 115 && onAt < 140 && onBelow > 50 && onBelow < 80,
+        "TV filter: on, a quarter above and below, half on the line (the taps 16 32 16 of 64)");
+  xfb = scene();
+  Check(red(xfb, 199) < 10, "TV filter: off again, the line is sharp");
+}
+
+// PSone demake: a square of an in-between colour from x 101 on. Off: x 100 is the blue around it, x 101 and 102
+// the square. On: one colour per cell of two game pixels, the mean of its game pixels: x 100 and 101 share the
+// cell of x 100 (half blue, half the square), x 102 and 103 the square's; each channel one of the 32 levels of
+// 15-bit colour. Off again, the square from x 101 as before.
+void TestPsx(re4gx::GxRenderer &r) {
+  const std::uint8_t kMid[4] = {100, 150, 200, 255};
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    Quad(b, 101, 100, 300, 200, 0, kMid);
+    DisplayCopy(b, false, kBlue);
+    r.Run(b.Chunk());
+    return r.Xfb(nullptr, nullptr);
+  };
+  const int f = r.Scale();
+  auto at = [&](GLuint xfb, int x) { return TexPixel(xfb, x * f, 150 * f); };
+  auto level = [](int v) { return std::abs(std::lround(v * 31.0 / 255.0) * 255.0 / 31.0 - v) <= 1.0; };
+  auto same = [](const std::vector<std::uint8_t> &a, const std::vector<std::uint8_t> &b) {
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+  };
+  GLuint xfb = scene();
+  const auto off100 = at(xfb, 100), off101 = at(xfb, 101);
+  r.SetPsx(true);
+  xfb = scene();
+  const auto on100 = at(xfb, 100), on101 = at(xfb, 101), on102 = at(xfb, 102), on103 = at(xfb, 103);
+  r.SetPsx(false);
+  Check(Near(off100, 0, 0, 255) && Near(off101, 100, 150, 200), "PSone demake: off, the square from x 101");
+  const bool cells = same(on100, on101) && Near(on100, 50, 75, 228, 12) && same(on102, on103) &&
+                     Near(on102, 100, 150, 200, 8);
+  Check(cells, "PSone demake: on, cells of two game pixels, the mean of their pixels");
+  const bool levels = level(on102[0]) && level(on102[1]) && level(on102[2]);
+  Check(levels, "PSone demake: on, 15-bit colour levels");
+  if (!cells || !levels)
+    Print("100", on100), Print("101", on101), Print("102", on102), Print("103", on103);
+  xfb = scene();
+  Check(Near(at(xfb, 101), 100, 150, 200), "PSone demake: off again, the picture as before");
 }
 
 // Frame skip: a chunk that is not drawn (the renderer is behind and the next chunk is there). The state
@@ -1014,7 +1311,104 @@ struct AutoRun {
         lines.push_back(why);
     }
   }
+  // A device whose GPU needs `ms2x` ms a picture at 2x and the pixels' share of that at the other levels (in
+  // halves: 1.5x 56 %, 1x 25 %): 30 pictures a second while it fits into 33 ms, else the GPU's pace with the
+  // fence behind and the render thread waiting. Returns the times of the level changes.
+  void PlayGpu(double seconds, double ms2x, std::vector<double> *downs = nullptr, std::vector<double> *ups = nullptr) {
+    const double end = t + seconds;
+    while (t < end) {
+      const double share = a.Level() / 4.0;
+      const double gpu = ms2x * share * share;
+      const bool over = gpu > 1000.0 / 30.0 + 0.1;
+      t += (over ? gpu : 1000.0 / 30.0) / 1000.0;
+      sum += over ? 1 : 0;
+      checks++;
+      waited += over ? gpu - 1000.0 / 30.0 : 0.0;
+      const int was = a.Level();
+      std::string why;
+      a.Chunk(t, sum, checks, true, &why, dropped, waited);
+      if (!why.empty())
+        lines.push_back(why);
+      if (a.Level() < was && downs)
+        downs->push_back(t);
+      if (a.Level() > was && ups)
+        ups->push_back(t);
+    }
+  }
 };
+
+// The benchmark's steps (gx_bench_steps.h) with simulated devices: `game(level, sixty)` the game pictures a second
+// at a level, `shown(level, sixty)` those shown; one call a second. The log lines go to stderr, so the whole
+// sequence 4x -> ... -> result is visible.
+template <typename Game, typename Shown>
+re4gx::BenchSteps RunBench(const char *name, Game game, Shown shown, double tick = 1.0) {
+  re4gx::BenchSteps b;
+  b.Start(0.0);
+  std::fprintf(stderr, "benchmark simulation: %s\n", name);
+  double t = 0.0;
+  for (int i = 0; i < 400 && !b.Finished(); i++) {
+    t += tick;
+    const bool sixty = b.Pass() == 1;
+    std::string line;
+    const re4gx::BenchSteps::Step step = b.Second(t, game(b.Level(), sixty), shown(b.Level(), sixty), 0, &line);
+    if (step != re4gx::BenchSteps::kNone) std::fprintf(stderr, "  %5.1f s  %s\n", t, line.c_str());
+  }
+  std::fprintf(stderr, "  result: %s (%s) with 30, %s (%s) with 60 after %.0f s\n", re4gx::BenchSteps::Name(b.Result(0)).c_str(),
+               b.Held(0) ? "stable" : "not stable", re4gx::BenchSteps::Name(b.Result(1)).c_str(),
+               b.Held(1) ? "stable" : "not stable", t);
+  return b;
+}
+
+void TestBenchSteps() {
+  // a fast device: 4x holds both
+  re4gx::BenchSteps fast = RunBench("fast", [](int, bool) { return 30; }, [](int, bool sixty) { return sixty ? 60 : 30; });
+  Check(fast.Finished() && fast.Result(0) == 8 && fast.Result(1) == 8 && fast.Held(0) && fast.Held(1),
+        "benchmark: a fast device: 4x for 30 and 60");
+  // a middle one: 30 pictures from 2x down, 60 shown from 1.5x down
+  re4gx::BenchSteps mid = RunBench(
+      "middle (30 up to 2x, 60 up to 1.5x)", [](int level, bool) { return level <= 4 ? 30 : 24; },
+      [](int level, bool sixty) { return sixty ? (level <= 3 ? 60 : 47) : (level <= 4 ? 30 : 24); });
+  Check(mid.Finished() && mid.Result(0) == 4 && mid.Result(1) == 3 && mid.Held(0) && mid.Held(1),
+        "benchmark: steps 4x 3.5x 3x 2.5x 2x for 30, the 60 pass again from 4x down to 1.5x");
+  // a slow one: not even 1x
+  re4gx::BenchSteps slow = RunBench("slow (not even 1x)", [](int, bool) { return 22; }, [](int, bool) { return 22; });
+  Check(slow.Finished() && slow.Result(0) == 2 && slow.Result(1) == 2 && !slow.Held(0) && !slow.Held(1),
+        "benchmark: 1x does not hold: 1x, marked not held, and it ends");
+  // seconds that come late (a stalling game): the pass's time limit ends it all the same
+  re4gx::BenchSteps late = RunBench("seconds 9 s apart", [](int, bool) { return 20; }, [](int, bool) { return 20; }, 9.0);
+  Check(late.Finished(), "benchmark: ends with seconds far apart too");
+  // one hitch at a level is allowed, two are not
+  int calls = 0;
+  re4gx::BenchSteps dip = RunBench("one bad second at 4x",
+                                   [&calls](int, bool) { return ++calls == 3 ? 25 : 30; },
+                                   [](int, bool sixty) { return sixty ? 60 : 30; });
+  Check(dip.Result(0) == 8 && dip.Result(1) == 8, "benchmark: one bad second at 4x: still 4x");
+  int calls2 = 0;
+  re4gx::BenchSteps dip2 = RunBench("two bad seconds at 4x",
+                                    [&calls2](int, bool) { ++calls2; return calls2 == 3 || calls2 == 6 ? 25 : 30; },
+                                    [](int, bool sixty) { return sixty ? 60 : 30; });
+  Check(dip2.Result(0) == 7 && dip2.Result(1) == 8, "benchmark: two bad seconds at 4x: 3.5x for 30, 4x for 60");
+  // fairly steady (the project owner's Retroid at 2x): 29-30 with a hitch now and then holds
+  int calls3 = 0;
+  re4gx::BenchSteps steady = RunBench(
+      "fairly steady at 2x and below", [&calls3](int level, bool) { ++calls3; return level > 4 ? 24 : calls3 % 3 ? 30 : 29; },
+      [](int level, bool sixty) { return sixty ? (level > 4 ? 48 : 58) : (level > 4 ? 24 : 30); });
+  Check(steady.Result(0) == 4 && steady.Result(1) == 4 && steady.Held(0) && steady.Held(1),
+        "benchmark: 29-30 a second at 2x holds 2x for 30 and 60");
+  // the 60 FPS pause does not carry over into the benchmark's next level (SmoothPacer::Restart)
+  re4gx::SmoothPacer pacer;
+  bool off = false;
+  for (int i = 0; i < 200 && !off; i++) off = !pacer.Chunk(i / 30.0, true, nullptr) && pacer.Off();
+  Check(off, "60 FPS pacer: behind again and again, the in-between pictures pause");
+  pacer.Restart(7.0);
+  Check(!pacer.Off() && pacer.Chunk(7.05, false, nullptr), "60 FPS pacer: Restart: in-between pictures at once");
+  // a break with 4 s of grace: behind all the while within it, no pause
+  re4gx::SmoothPacer loading;
+  loading.Restart(0.0, 4.0);
+  bool paused = false;
+  for (int i = 1; i < 110; i++) paused |= !loading.Chunk(i / 30.0, true, nullptr) && loading.Off();
+  Check(!paused, "60 FPS pacer: no pause within the grace after a break (a room loading)");
+}
 
 void TestAutoLevel() {
   {
@@ -1035,13 +1429,71 @@ void TestAutoLevel() {
     Check(!r.lines.empty() && r.lines.back().find("level 2 -> 1") != std::string::npos, "auto level: logged");
     r.Play(10.0, 20.0, 1);
     Check(r.a.Level() == 1, "auto level: never below 1");
-    r.Play(15.0, 30.0, 0);  // at most 26 s after the step down (it came 4-6.5 s into the slow part)
-    Check(r.a.Level() == 1, "auto level: not up before 30 s after the step down");
-    r.Play(12.0, 30.0, 0);
-    Check(r.a.Level() == 2 && r.a.Ups() == 1, "auto level: up again after 30 s, 10 s keeping up");
-    // straight down again: the next wait doubles (60 s)
+    r.Play(9.0, 30.0, 0);  // four windows keeping up
+    Check(r.a.Level() == 1, "auto level: not up before 10 s keeping up");
+    r.Play(3.0, 30.0, 0);
+    Check(r.a.Level() == 2 && r.a.Ups() == 1, "auto level: up again after 10 s keeping up (the wait of 10 s over)");
+    // straight down again: the next wait doubles (20 s)
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 2 || r.a.Hold() == 60.0, "auto level: down again soon: the next wait 60 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again soon: the next wait 20 s");
+  }
+  {
+    // not before 10 s after a step down, even with every window keeping up
+    AutoRun r;
+    r.a.Start(2, 0.0);
+    r.Play(4.1, 20.0, 1);
+    Check(r.a.Level() == 1, "auto level: down after two slow windows");
+    const double downAt = r.t;
+    while (r.a.Ups() == 0 && r.t < 100.0)
+      r.Play(0.1, 30.0, 0);
+    Check(r.a.Ups() == 1 && r.t - downAt >= 9.9 && r.t - downAt < 11.0, "auto level: up 10 s after the step down");
+  }
+  {
+    // heavy, light, heavy (the project owner, 06.11.2026: 30 s too long when the way goes on into a lighter area): a
+    // GPU that needs 40 ms at 2x (22.5 ms at 1.5x) at the heavy spot, 24 ms at 2x in the light stretch
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true);
+    std::vector<double> downs, ups;
+    r.PlayGpu(40.0, 40.0, &downs, &ups);
+    Check(!downs.empty() && downs.front() < 5.0, "auto level, heavy spot: half a level down within 5 s");
+    const double light = r.t;
+    const size_t upsBefore = ups.size(), downsBefore = downs.size();
+    r.PlayGpu(120.0, 24.0, &downs, &ups);
+    Check(r.a.Level() == 4 && downs.size() == downsBefore, "auto level, light stretch: 2x again, no step down there");
+    Check(r.a.Level() == 4 && (ups.size() == upsBefore || ups.back() - light <= 25.0),
+          "auto level, light stretch: back at 2x at most 25 s into it (until 0.98.4: 59 s)");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level, light stretch: the wait back to 10 s once 2x held 60 s");
+    // the next heavy spot starts with the short wait again: down, up after 10 s, down again (a bounce), then 20 s
+    downs.clear();
+    ups.clear();
+    r.PlayGpu(40.0, 40.0, &downs, &ups);
+    Check(downs.size() >= 1 && ups.size() >= 1 && ups.front() - downs.front() < 12.0,
+          "auto level, the next heavy spot: the first try up after about 10 s");
+    // heavy for 10 minutes: the bounces grow apart (10, 20, 40, 80, 160, 300 s), at most 7 steps down in all
+    r.PlayGpu(600.0, 40.0, &downs, &ups);
+    r.PlayGpu(5.0, 40.0, &downs, &ups);  // a try up in the last seconds is back down after two slow windows
+    std::fprintf(stderr, "auto level, heavy for 10 minutes: %zu steps down, %zu up, level %s, wait %.0f s\n",
+                 downs.size(), ups.size(), r.a.Name(r.a.Level()).c_str(), r.a.Hold());
+    Check(downs.size() <= 7 && r.a.Level() == 3, "auto level, heavy for 10 minutes: few bounces, ends at 1.5x");
+    Check(r.a.Hold() >= 160.0, "auto level, heavy for 10 minutes: the wait grown to minutes");
+    for (size_t i = 2; i < ups.size(); i++)
+      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, heavy for 10 minutes: each try up later than the last");
+  }
+  {
+    // breaks (06.11.2026): the app menu (no chunks for 20 s), then a room's loading and its programs (3 s slow with
+    // the GPU behind): no step down, no hold; slow on after the quiet seconds: down as before
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true);
+    r.Play(1.5, 30.0, 0);             // a window open when the menu opens
+    r.t += 20.0;                      // the menu: no chunks
+    r.Play(3.0, 20.0, 1);             // the room loads, the renderer behind
+    r.Play(10.0, 30.0, 0);
+    Check(r.a.Level() == 4 && r.a.Downs() == 0 && r.lines.empty(), "auto level: menu and room loading: no step down");
+    r.a.Restart(r.t);                 // a room starts (core_mode.cpp)
+    r.Play(3.5, 20.0, 1);             // its loading within the quiet seconds
+    Check(r.a.Level() == 4 && r.a.Downs() == 0, "auto level: the quiet seconds after a room start are not counted");
+    r.Play(6.0, 20.0, 1);             // slow on after them: the GPU really behind
+    Check(r.a.Level() == 3 && r.a.Downs() == 1, "auto level: slow after the quiet seconds: half a level down");
   }
   {
     // the bounce right after a step up
@@ -1053,13 +1505,16 @@ void TestAutoLevel() {
       r.Play(0.5, 30.0, 0);
     Check(r.a.Ups() == 1, "auto level: up");
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 1 && r.a.Hold() == 60.0, "auto level: down again within 15 s of the step up: the next wait 60 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again within 15 s of the step up: the next wait 20 s");
     const double downAt = r.t;
     while (r.a.Ups() == 1 && r.t < 400.0)
       r.Play(0.5, 30.0, 0);
-    Check(r.t - downAt >= 55.0, "auto level: the longer wait holds");  // the step down came during the slow part
-    r.Play(100.0, 30.0, 0);
+    Check(r.t - downAt >= 15.0, "auto level: the longer wait holds");  // the step down came during the slow part
+    r.Play(59.0, 30.0, 0);
+    Check(r.a.Hold() == 20.0, "auto level: the longer wait kept while the step up holds less than 60 s");
+    r.Play(41.0, 30.0, 0);
     Check(r.a.Level() == 2, "auto level: never above the screen's level");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level: a step up that held 60 s: the wait back to 10 s");
   }
   {
     AutoRun r;
@@ -1512,6 +1967,28 @@ void TestUniformStream(re4gx::GxRenderer &r, const char *tag) {
   std::snprintf(what, sizeof(what), "%s: uniform stream, after the large chunk one of 2400 draws right, none inside",
                 tag);
   Check(after.first && after.second.first == 1 && after.second.second == 0, what);
+  // the render thread's split (GxStats::splitNs): the kinds add up to the Run's time, the draw calls,
+  // uniform blocks and binds of a chunk of 2400 draws each take some of it
+  {
+    const re4gx::GxStats before = r.Stats();
+    const auto from = std::chrono::steady_clock::now();
+    const auto res = chunk(2400, false);
+    const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count() * 1e9;
+    const re4gx::GxStats &s = r.Stats();
+    double sum = 0;
+    for (int k = 0; k < re4gx::GxStats::kSplitKinds; k++)
+      sum += static_cast<double>(s.splitNs[k] - before.splitNs[k]);
+    const auto part = [&](int k) { return s.splitNs[k] - before.splitNs[k]; };
+    std::fprintf(stderr, "  %s split of 2400 draws: %.2f of %.2f ms (draw calls %.2f, uniform %.2f, binds %.2f, rest %.2f)\n",
+                 tag, sum / 1e6, wall / 1e6, part(re4gx::GxStats::kSplitDraw) / 1e6,
+                 part(re4gx::GxStats::kSplitUniform) / 1e6, part(re4gx::GxStats::kSplitBind) / 1e6,
+                 part(re4gx::GxStats::kSplitRest) / 1e6);
+    std::snprintf(what, sizeof(what), "%s: render thread split adds up to the Run (%.2f of %.2f ms)", tag, sum / 1e6,
+                  wall / 1e6);
+    Check(res.first && sum > 0 && sum <= wall && part(re4gx::GxStats::kSplitDraw) > 0 &&
+              part(re4gx::GxStats::kSplitUniform) > 0 && part(re4gx::GxStats::kSplitBind) > 0,
+          what);
+  }
 }
 
 // The menu's picture options (M11): a multisampled EFB is resolved before
@@ -1580,6 +2057,8 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestShownRowsCopy(r, true, false);
   TestDepthMap(r, true);
   TestFxaa(r);
+  TestTvFilter(r);
+  TestPsx(r);
   TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
   TestAutofocus(r, r.Samples() > 1);
@@ -1704,9 +2183,13 @@ void TestInterpolationParticles() {
              third = TexPixel(xfb, px(-250.0f), 264);
   Check(Near(own, 0, 255, 0) && Near(wrong, 0, 0, 0) && Near(third, 0, 0, 0),
         "particles: each halfway along its own move");
-  // the new one: as in B (-7000); halfway to the dead first one's place it would be at -6000
-  const auto fresh = TexPixel(xfb, px(-7000.0f), 264), between = TexPixel(xfb, px(-6000.0f), 264);
-  Check(Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0), "particles: one that has just started stands where it is in B");
+  // the new one: where it is in B (-7000) moved back by half the camera's move (1500, the room's pieces agree on
+  // it), as it stands still in the world: -7750 (BlendByCamera, 04.11.2026; as in B it stood apart from the
+  // room between the two); halfway to the dead first one's place it would be at -6000
+  const auto fresh = TexPixel(xfb, px(-7750.0f), 264), between = TexPixel(xfb, px(-6000.0f), 264),
+             asInB = TexPixel(xfb, px(-6800.0f), 264);
+  Check(Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0) && Near(asInB, 0, 0, 0),
+        "particles: one that has just started moves with the camera from where it is in B");
   if (!Near(own, 0, 255, 0) || !Near(wrong, 0, 0, 0) || !Near(third, 0, 0, 0) || !Near(fresh, 0, 255, 0) ||
       !Near(between, 0, 0, 0))
     Print("own", own), Print("wrong", wrong), Print("third", third), Print("fresh", fresh), Print("between", between);
@@ -1785,6 +2268,190 @@ void TestInterpolationOwners() {
     Check(glGetError() == GL_NO_ERROR, "owners: no GL error");
     r.Release();
   }
+}
+
+// A room part of 24 vertices (not a particle) whose texture matrix index changes from A (identity) to B
+// (row 36), as a house door in r101 did (Retroid series 01.11.2026), moved 2000 to the right by the camera:
+// by its object it goes halfway (-1000), not where it is in B (0). With `tags` false the counter-check: its
+// look differs, it stands where it is in B.
+void RoomPartScene(Builder &b, std::uint32_t sequence, bool second, bool tags, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  if (tags)
+    b.Owner(0x80200000u, 0x81234570u, 0x10);
+  b.XfF(0, {1, 0, 0, second ? 0.0f : -2000.0f, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+  std::vector<std::uint8_t> v;
+  for (int q = 0; q < 4; q++) {
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+  }
+  b.Draw(RE4_GX_V_COLOR0, 16, v, 24, 0x90, RE4_GX_TRIANGLES, second ? 36 : 60);
+  if (tags)
+    b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationRoomPart() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  for (int tags = 1; tags >= 0; tags--) {
+    std::string error;
+    re4gx::GxRenderer r;
+    Require(r.Init(1, &error), error.c_str());
+    r.SetRecording(true);
+    Builder ba, bb;
+    Re4GxChunk a, b;
+    RoomPartScene(ba, 1, false, tags != 0, &a);
+    RoomPartScene(bb, 2, true, tags != 0, &b);
+    r.Run(a);
+    // without the tags nothing is matched: no in-between picture (as a cut), B stays
+    const bool shown = r.Interpolate(a, b, 0.5f);
+    if (tags)
+      Check(shown, "room part: the in-between picture is shown");
+    const GLuint xfb = r.Xfb(nullptr, nullptr);
+    const auto half = TexPixel(xfb, px(-1000.0f), 264), next = TexPixel(xfb, px(200.0f), 264);
+    if (tags) {
+      Check(Near(half, 0, 255, 0) && Near(next, 0, 0, 0),
+            "room part: another texture matrix index, by its object halfway along its move");
+      if (!Near(half, 0, 255, 0) || !Near(next, 0, 0, 0))
+        Print("half", half), Print("next", next);
+    } else {
+      Check(Near(half, 0, 0, 0) && Near(next, 0, 255, 0), "room part: without tags as in B (counter-check)");
+    }
+    Check(glGetError() == GL_NO_ERROR, "room part: no GL error");
+    r.Release();
+  }
+}
+
+// A new particle in B (a slot that drew nothing in A, the sparkles of a turn of the r307 puzzle) drawn
+// before three alike ones that stand still: it stands where it is in B (-2000), and the three keep their
+// own places. Guessed, it took the first one's place (halfway at -3000), the first then the second's
+// (-2000) and so on down the line: ghosts between the puzzle's fields (30.10.2026).
+void SparkleScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  auto particle = [&](std::uint32_t object, std::uint32_t life, float x) {
+    b.Owner(object, 0x81234560u, 0x12, life);
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  };
+  if (second)
+    particle(0x80100540u, 0x00070001u, -2000.0f);
+  particle(0x80100000u, second ? 0x00050011u : 0x00050010u, -4000.0f);
+  particle(0x80100150u, second ? 0x00050011u : 0x00050010u, 0.0f);
+  particle(0x801002A0u, second ? 0x00050011u : 0x00050010u, 4000.0f);
+  b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationSparkle() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  SparkleScene(ba, 1, false, &a);
+  SparkleScene(bb, 2, true, &b);
+  r.Run(a);
+  Check(r.Interpolate(a, b, 0.5f), "sparkle: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  const auto fresh = TexPixel(xfb, px(-2000.0f), 264), between = TexPixel(xfb, px(-3000.0f), 264),
+             p1 = TexPixel(xfb, px(-4000.0f), 264), p2 = TexPixel(xfb, px(0.0f), 264),
+             p3 = TexPixel(xfb, px(4000.0f), 264), off = TexPixel(xfb, px(2000.0f), 264);
+  const bool right = Near(fresh, 0, 255, 0) && Near(between, 0, 0, 0) && Near(p1, 0, 255, 0) &&
+                     Near(p2, 0, 255, 0) && Near(p3, 0, 255, 0) && Near(off, 0, 0, 0);
+  Check(right, "sparkle: a new particle stands where it is in B, the others keep their places");
+  Check(r.Stats().interpOwned == 3 && r.Stats().interpOwnedNew == 1, "sparkle: three found by their object, one new");
+  if (!right)
+    Print("fresh", fresh), Print("between", between), Print("p1", p1), Print("p2", p2), Print("p3", p3),
+        Print("off", off);
+  Check(glGetError() == GL_NO_ERROR, "sparkle: no GL error");
+  r.Release();
+}
+
+// The laser sight: the game makes its beam (a GX line, effect id 0x19) and dot anew every picture (life 1, another
+// object each time), moved by their vertices while the view stays. In the in-between picture each is the one of
+// its id before, halfway between the two: the beam (x -4000 -> 0, more than the 1500 units a figure may move) at
+// -2000, the dot (a quad, -1000 -> 0) at -500. Taken for new, both stood where they are in B (users 06.11.2026:
+// the laser briefly doubled while it moved).
+void LaserScene(Builder &b, std::uint32_t sequence, float beamX, float dotX, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  b.Owner(0x80400000u + sequence * 0x200u, 0x81234590u, 0x11, 0x00190001u);
+  b.XfF(0, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+  std::vector<std::uint8_t> beam;
+  V(beam, beamX, -3000.0f, 0.0f, kGreen);
+  V(beam, beamX, 3000.0f, 0.0f, kGreen);
+  b.Draw(RE4_GX_V_COLOR0, 16, beam, 2, 0xA8, RE4_GX_LINES);
+  b.Owner(0x80400100u + sequence * 0x200u, 0x812345A0u, 0x11, 0x00000001u);
+  std::vector<std::uint8_t> dot;
+  V(dot, dotX - 250.0f, -250.0f, 0.0f, kGreen);
+  V(dot, dotX + 250.0f, -250.0f, 0.0f, kGreen);
+  V(dot, dotX + 250.0f, 250.0f, 0.0f, kGreen);
+  V(dot, dotX - 250.0f, 250.0f, 0.0f, kGreen);
+  b.Draw(RE4_GX_V_COLOR0, 16, dot, 4, 0x80);
+  b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationOneFrame() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  LaserScene(ba, 1, -4000.0f, -1000.0f, &a);
+  LaserScene(bb, 2, 0.0f, 0.0f, &b);
+  r.Run(a);
+  Check(r.Interpolate(a, b, 0.5f), "laser: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  // the 1-pixel beam: green within a pixel of its place
+  auto beamAt = [&](float x) {
+    for (int dx = -1; dx <= 1; dx++)
+      if (Near(TexPixel(xfb, px(x) + dx, 264), 0, 255, 0, 60))
+        return true;
+    return false;
+  };
+  const auto dotHalf = TexPixel(xfb, px(-500.0f), 264), dotB = TexPixel(xfb, px(200.0f), 264);
+  const bool right = beamAt(-2000.0f) && !beamAt(0.0f) && !beamAt(-4000.0f) && Near(dotHalf, 0, 255, 0) &&
+                     Near(dotB, 0, 0, 0);
+  Check(right, "laser: beam and dot made anew each picture lie halfway between A and B");
+  Check(r.Stats().interpOneFrame == 2, "laser: both found as the one-frame effects of their ids");
+  if (!right)
+    std::printf("  beam at -2000 %d, at 0 %d, at -4000 %d\n", beamAt(-2000.0f), beamAt(0.0f), beamAt(-4000.0f)),
+        Print("dot halfway", dotHalf), Print("dot as in B", dotB);
+  Check(glGetError() == GL_NO_ERROR, "laser: no GL error");
+  r.Release();
 }
 
 // An object whose number of quads changes from one picture to the next (a flame's trail of sprites):
@@ -2481,9 +3148,10 @@ void TestTevMath() {
 }
 
 // The programs ahead of their first draw (GxRenderer::Prewarm, Retroid report 22.10.2026 23:42):
-// a renderer keeps each program's key next to its binary; a new renderer makes them all before any
-// draw, and the same draws then make none. A key under an old name (the sources changed) is
-// linked anew and its old files go.
+// a renderer keeps each program's key next to its binary and the keys a room drew with in the room's
+// list (01.11.2026: before, every program of the cache; a Mi 11 ran out of mappings with 10242); a new
+// renderer in that room makes them before any draw, and the same draws then make none. A key under an
+// old name (the sources changed) is linked anew and its old files go.
 namespace {
 
 std::vector<std::string> CacheFiles(const std::string &dir, const char *ending) {
@@ -2514,6 +3182,7 @@ void TestPrewarm() {
     re4gx::GxRenderer r;
     Require(r.Init(1, &error), error.c_str());
     Check(r.SetProgramCache(dir), "prewarm: the driver keeps program binaries");
+    r.SetRoom(0x101);
     Check(!r.Prewarm(100.0), "prewarm: an empty cache, nothing to make");
     TestShaderVariety(r);
     made = r.Stats().programs;
@@ -2554,6 +3223,7 @@ void TestPrewarm() {
     Require(r.Init(1, &error), error.c_str());
     r.SetProgramCache(dir);
     r.SetProgramList(list);
+    r.SetRoom(0x101);
     int calls = 0;
     while (r.Prewarm(0.0) && calls < 10000)
       calls++;
@@ -2591,13 +3261,37 @@ void TestPrewarm() {
     Require(r.Init(1, &error), error.c_str());
     r.SetProgramCache(dir);
     r.SetProgramList(list);
+    r.SetRoom(0x101);
     while (r.Prewarm(1000.0)) {
     }
     const re4gx::GxStats s = r.Stats();
-    Check(s.programsAhead == made + 2 && s.programsLoaded == made + 2 && s.programs == made + 2,
-          "prewarm: after the warm every program from the cache, the list's one too");
+    Check(s.programsAhead == made && s.programsLoaded == made && s.programs == made,
+          "prewarm: after the warm the room's programs from the cache (the list's one is no room's)");
     TestShaderVariety(r);
-    Check(r.Stats().programs == made + 2, "prewarm: the same draws make no program");
+    Check(r.Stats().programs == made, "prewarm: the same draws make no program");
+    // another room: its list is empty, nothing ahead
+    r.SetRoom(0x102);
+    const unsigned ahead = r.Stats().programsAhead;
+    while (r.Prewarm(1000.0)) {
+    }
+    Check(r.Stats().programsAhead == ahead, "prewarm: a room without a list takes no program ahead");
+    r.Release();
+  }
+  {
+    // at most RE4_GX_MAX_PROGRAMS programs kept: those that went longest unused are deleted, a draw
+    // takes its program again from the cache and draws the same
+    setenv("RE4_GX_MAX_PROGRAMS", "8", 1);
+    re4gx::GxRenderer r;
+    unsetenv("RE4_GX_MAX_PROGRAMS");
+    Require(r.Init(1, &error), error.c_str());
+    r.SetProgramCache(dir);
+    r.SetRoom(0x103);
+    TestShaderVariety(r);
+    const re4gx::GxStats s = r.Stats();
+    std::fprintf(stderr, "  limit 8: %u programs made, %u kept, %u deleted\n", s.programs, s.programsLive,
+                 s.programsDeleted);
+    Check(s.programsLive <= 8 && s.programsDeleted > 0 && s.programs == s.programsLoaded,
+          "limit: at most 8 programs kept, the others deleted and taken from the cache again");
     r.Release();
   }
   {
@@ -2615,6 +3309,10 @@ void TestPrewarm() {
     r.Release();
   }
   // the error report's list: every key of the cache once
+  Check(access((dir + "/room-101.keys").c_str(), F_OK) == 0 && access((dir + "/room-103.keys").c_str(), F_OK) == 0,
+        "prewarm: the rooms' lists written");
+  std::remove((dir + "/room-101.keys").c_str());
+  std::remove((dir + "/room-103.keys").c_str());
   Check(re4gx::WriteProgramKeyList(dir, dir + "-report.keys") == made + 2, "key list: the cache's keys");
   {
     FILE *f = std::fopen((dir + "-report.keys").c_str(), "rb");
@@ -2648,7 +3346,10 @@ int main() {
   TestPrewarm();
   TestRescale();
   TestAutoLevel();
+  TestBenchSteps();
   TestHandOverCopies();
+  TestMerge();
+  TestVertexRing();
   // twice: as the app runs it, and with the copy targets, the blur and the focus painted magenta
   // where the GPU may forget them (GPU step b): every picture must stay the same
   for (int poison = 0; poison < 2; poison++) {
@@ -2662,6 +3363,8 @@ int main() {
     std::string error;
     Require(renderer.Init(1, &error), error.c_str());
     TestBasics(renderer);
+    TestPixelCentre(renderer);
+    TestWiden(renderer);
     TestTexture(renderer);
     TestTev(renderer);
     TestLighting(renderer);
@@ -2700,6 +3403,9 @@ int main() {
   TestInterpolationEffects();
   TestInterpolationForget();
   TestInterpolationOwners();
+  TestInterpolationRoomPart();
+  TestInterpolationSparkle();
+  TestInterpolationOneFrame();
   TestInterpolationTrail();
   TestInterpolationExtras();
   TestSmoothPacer();

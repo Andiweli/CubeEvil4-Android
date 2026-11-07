@@ -1,0 +1,70 @@
+# Port patch for retail data (report of the project owner 31.10.2026, Retroid, EU discs, German: at r202's cannon the
+# action button read "aaa"). Patch 0123 moves every core message number from 0x56 on up by 15, as the retail core
+# tables (EU, US, JP) have 15 messages more there. Those 15 are the action button labels of the kinds 64..78 (0x56
+# HOP DOWN, 0x57 FIRE, 0x58 ROTATE ...; the prototype's table has two placeholders "aaa" at 0x56 / 0x57 and no
+# more). The retail AEV gives the cannon of r202 (area 4) kind 65 (ACT_FIRE; the prototype's 20, OPERATE), so the
+# label asked for 0x57 and got the moved 0x66, the prototype's placeholder. Now cActionButton::disp asks for the
+# labels 0x56..0x64 with RE4_MES_RETAIL_NO and MessageData::getAddr takes such a number as it is. Also kind 64
+# (ACT_GET_DOWN_1M, pl_class.cpp). Debug discs unchanged (their table has the placeholders).
+--- a/src/game/mes.cpp
++++ b/src/game/mes.cpp
+@@ -249,6 +249,7 @@
+ }
+ 
+ extern "C" int re4_disc_retail(void), re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
++#define RE4_MES_RETAIL_NO 0x10000 /* port (patch 0168): a core message number of the retail table, not moved */
+ 
+ u16* MessageData::getAddr(int no, int data_type)
+ {
+@@ -258,7 +259,12 @@
+     /* port: the European core table (etc/core.das CORE_MESSAGE, 173 messages instead of 153) has 15
+        more from 0x56 on: the European code asks for 0x90.. where this build asks for 0x81.. (the
+        option screen showed "ZOOM" for most of its help lines) */
+-    if (no >= 0x56 && (void*) tbl == CORE_ARC(CORE_MESSAGE) && re4_disc_retail()) {
++    /* port (patch 0168): those 15 are the retail releases' action button labels of the kinds 64..78
++       (HOP DOWN, FIRE, ROTATE ...; the prototype has two placeholders "aaa" at 0x56 / 0x57): the action
++       button asks with RE4_MES_RETAIL_NO, the number as it is in the retail table */
++    if (no & RE4_MES_RETAIL_NO) {
++        no &= ~RE4_MES_RETAIL_NO;
++    } else if (no >= 0x56 && (void*) tbl == CORE_ARC(CORE_MESSAGE) && re4_disc_retail()) {
+         no += 15;
+     }
+     if (no > (int) blk->count - 1) {
+--- a/src/game/act_btn.cpp
++++ b/src/game/act_btn.cpp
+@@ -95,6 +95,17 @@
+     init();
+ }
+ 
++/* port (patch 0168): the label of action kind `kind`, core message kind + 0x16. The retail releases
++   have the labels of the kinds 64..78 there (0x56..0x64: HOP DOWN, FIRE, ROTATE ...), the 15 messages
++   patch 0123 moves the later numbers past; asked as they are (RE4_MES_RETAIL_NO in mes.cpp getAddr).
++   Without it r202's cannon (kind 65, FIRE) showed the moved 0x66, a placeholder "aaa". */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
++static inline int re4ActLabel(int kind)
++{
++    const int no = kind + 0x16;
++    return re4_disc_retail() && no >= 0x56 && no < 0x56 + 15 ? (no | 0x10000) : no;
++}
++
+ // Shows the prompt: the message (kind + 0x16) at the layout position for the button icon, and
+ // tells the cockpit which button icon to draw.
+ void cActionButton::disp(ACT_WORK* work)
+@@ -126,7 +137,7 @@
+         x = (s16) (((f32) sx + 320.0f) * 0.8f);
+         y = cMes.getFontHeight(1) / 2;
+         y = (s16) ((240.0f - (f32) sy) * 0.8f) - y;
+-        cMes.MesSet(kind + 0x16, x, (s16) y, 0x200F1, 1, col, 4);
++        cMes.MesSet(re4ActLabel(kind), x, (s16) y, 0x200F1, 1, col, 4);
+         break;
+     default:
+         u = IdSys.unitPtr(0xF0, IDC_ACT_BUTTON);
+@@ -135,7 +146,7 @@
+         x = (s16) (((f32) sx + 320.0f) * 0.8f);
+         y = cMes.getFontHeight(1) / 2;
+         y = (s16) ((240.0f - (f32) sy) * 0.8f) - y;
+-        cMes.MesSet(kind + 0x16, x, (s16) y, 0xF1, 1, col, 4);
++        cMes.MesSet(re4ActLabel(kind), x, (s16) y, 0xF1, 1, col, 4);
+         break;
+     }
+     Cckpt.m_ActBttn.setDispFlag(btn);

@@ -1,0 +1,27 @@
+# The app menu's Potato mode (decision of the project owner, 30.10.2026: two switches, weather effects and
+# special effects): EspTrans asks runtime/potato.cpp for each live effect sprite whether to draw it this frame.
+# A sprite left out goes on as before (life, sound, what the game reads from it), it is only not drawn. With
+# both switches off (the default) nothing changes. RE4_ESP_CENSUS=N logs the live sprites by kind (checks).
+--- a/src/game/esp.cpp
++++ b/src/game/esp.cpp
+@@ -10,6 +10,8 @@
+ #include "esp.h"
+ #include "espgen.h"
+ 
++extern "C" int re4_esp_skip(cEsp* esp); /* port: runtime/potato.cpp (patch 0149) */
++
+ // number of live effects per owner id (debug display)
+ u16 esp_num_list[EFF_MAX];
+ EspTransFunc EspTransTbl[0xFF];
+@@ -346,6 +348,11 @@
+         if (trans == NULL) {
+             continue;
+         }
++        /* port (patch 0149): the app menu's Potato mode leaves the expensive surroundings effects undrawn
++           (runtime/potato.cpp: weather effects, special effects); also the effect census of the checks */
++        if (re4_esp_skip(esp)) {
++            continue;
++        }
+         if (esp->info.Core_flg & 0x400) {
+             if (StaFlagChk(pG, STA_THERMO_GRAPH)) {
+                 continue;

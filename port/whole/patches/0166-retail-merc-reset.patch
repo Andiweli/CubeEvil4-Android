@@ -1,0 +1,114 @@
+# Port patch for retail data (tester report 31.10.2026, EU discs: in r403 nearly every Ganado ran at the player at
+# once). The retail discs have a rebuilt Mercenaries enemy list (etc/omake02.esl, the same on the US, EU and JP discs;
+# r403 nearly every entry, r404 70 of 84) for the prototype's room code, whose start sets and reset groups the retail
+# st4_0.rel keeps (r400, r403, r404 read with retail_code.py on 31.10.2026). What the retail rooms changed:
+# - r403 em_reset and r404_setEm set no enemy while the player is on a ladder (PlGetStatus() & 0x40000): US, EU, JP.
+# - r400 / r403 em_reset and r404_setEm send the re-set Ganados with goto mode 15 (patch 0165) instead of 0xC: they
+#   stop 3 m before where the player was instead of attacking on arrival: EU and JP (the US release keeps 0xC).
+# - R403Main refills zones 0 and 0x10 too: their check timer > 1800 never held (the timer counts 1..300); EU and JP
+#   dropped it, the US release keeps it.
+# r402 differs more (its own enemy set code, R402EmSetMain) and is not covered here. Debug discs unchanged.
+--- a/src/st4/r400.cpp
++++ b/src/st4/r400.cpp
+@@ -480,6 +480,10 @@
+ }
+ 
+ // Resets list entry `no` (chk: only while fewer than 10 enemies are alive); 1 when it was set.
++extern "C" int re4_disc_retail(void);     /* port: runtime/dvd.cpp (patch 0166) */
++extern "C" int re4_disc_retail_eu(void);
++extern "C" int re4_disc_retail_jp(void);
++u32 PlGetStatus();
+ int em_reset(int no, int chk)
+ {
+     if (chk == 1 && r400_work->cnt > 9) {
+@@ -490,7 +494,8 @@
+     }
+     cEmWrap em;
+     em.setEm(no, -1, 1, 1, 1);
+-    em.setGoto(&pPL->pos, 0xC);
++    /* port (patch 0166): the European / Japanese release send them with goto mode 15 */
++    em.setGoto(&pPL->pos, re4_disc_retail_eu() || re4_disc_retail_jp() ? 0xF : 0xC);
+     r400_work->base++;
+     r400_work->cnt++;
+     SceDebugDisp("RESET[%d]", no);
+--- a/src/st4/r403.cpp
++++ b/src/st4/r403.cpp
+@@ -206,6 +206,10 @@
+     OpenBoxMain(OpenBoxPartsUpXM, 1, -1, no, -1, -1);
+ }
+ 
++extern "C" int re4_disc_retail(void);     /* port: runtime/dvd.cpp (patch 0166) */
++extern "C" int re4_disc_retail_eu(void);
++extern "C" int re4_disc_retail_jp(void);
++u32 PlGetStatus();
+ // Resets list entry `no` (chk: only while fewer than 10 enemies are alive); 1 when it was set.
+ static int em_reset(int no, int chk)
+ {
+@@ -215,9 +219,14 @@
+     if (pG->Em_list[no].be_flag & 2) {
+         return 0;
+     }
++    /* port (patch 0166): the retail releases set none while the player is on a ladder (PlGetStatus 0x40000) */
++    if (re4_disc_retail() && (PlGetStatus() & 0x40000)) {
++        return 0;
++    }
+     cEmWrap em;
+     em.setEm(no, -1, 1, 1, 1);
+-    em.setGoto(&pPL->pos, 0xC);
++    /* port (patch 0166): the European / Japanese release send them with goto mode 15 */
++    em.setGoto(&pPL->pos, re4_disc_retail_eu() || re4_disc_retail_jp() ? 0xF : 0xC);
+     r403_work->base++;
+     r403_work->cnt++;
+     SceDebugDisp("RESET[%d]", no);
+@@ -545,7 +554,9 @@
+         }
+         r403_work->cnt = SceCountEmAlive(0x10, 0x20);
+         SceDebugDisp("EM_NUM[%d/%d]", r403_work->cnt, r403_work->base);
+-        if (r403_work->timer > 1800) {
++        /* port (patch 0166): timer counts 1..300 only, so zones 0 and 0x10 never refilled; the European /
++           Japanese release dropped the check */
++        if (r403_work->timer > 1800 || re4_disc_retail_eu() || re4_disc_retail_jp()) {
+             if (pG->Room_flg[2] & 0x80000000) {
+                 reset_40();
+             }
+@@ -595,7 +606,7 @@
+         if (pG->Room_flg[2] & 0x00010000) {
+             reset_4f();
+         }
+-        if (r403_work->timer > 1800) {
++        if (r403_work->timer > 1800 || re4_disc_retail_eu() || re4_disc_retail_jp()) { /* port (patch 0166) */
+             if (pG->Room_flg[2] & 0x8000) {
+                 reset_50();
+             }
+--- a/src/st4/r404.cpp
++++ b/src/st4/r404.cpp
+@@ -268,11 +268,19 @@
+ }
+ 
+ // Sets (or resets) list entry `no`; force 0: only while fewer than 10 are alive. 1 when it was set.
++extern "C" int re4_disc_retail(void);     /* port: runtime/dvd.cpp (patch 0166) */
++extern "C" int re4_disc_retail_eu(void);
++extern "C" int re4_disc_retail_jp(void);
++u32 PlGetStatus();
+ int r404_setEm(u32 no, int force)
+ {
+     if (force == 0 && r404_work->cnt > 9) {
+         return 0;
+     }
++    /* port (patch 0166): the retail releases set none while the player is on a ladder (PlGetStatus 0x40000) */
++    if (re4_disc_retail() && (PlGetStatus() & 0x40000)) {
++        return 0;
++    }
+     cEmWrap em;
+     if (!(pG->Em_list[no].be_flag & 2)) {
+         em.setEm(no, -1, 1, 1, 1);
+@@ -284,7 +292,8 @@
+         em.setReset();
+     }
+     if (no % 5 != 0) {
+-        em.setGoto(&pPL->pos, 0xC);
++        /* port (patch 0166): the European / Japanese release send them with goto mode 15 */
++        em.setGoto(&pPL->pos, re4_disc_retail_eu() || re4_disc_retail_jp() ? 0xF : 0xC);
+     }
+     r404_work->total++;
+     r404_work->cnt++;

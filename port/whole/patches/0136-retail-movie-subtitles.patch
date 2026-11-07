@@ -11,6 +11,7 @@
 # table from the header initApp reads anyway and compares with mwPlyGetTime. One difference: message
 # table 2 is put back afterwards (theirs keeps pointing at the freed texts). Nothing changes with the
 # debug build's discs. A port patch for retail data.
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here).
 --- a/src/game/sofdec.cpp
 +++ b/src/game/sofdec.cpp
 @@ -12,6 +12,7 @@
@@ -26,7 +27,7 @@
  extern "C" void re4_movie_status(MWPLY hn, const char* fname, const MWS_FRM* frm, int stat);
  extern "C" void re4_movie_end(MWPLY hn, int skipped);
 +/* port: the movie subtitles of the European discs (runtime/movie_status.cpp, patch 0136) */
-+extern "C" int re4_disc_retail_eu(void);
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void);
 +extern "C" int re4_movie_subtitles(const void* head, int size, int channel);
 +extern "C" int re4_movie_subtitle(MWPLY hn);
 +static void* re4_movie_mes;     /* etc/movie.das (their cSofdec + 0x248) */
@@ -44,7 +45,7 @@
 +       the layout of message work 0; the font only for Japanese, which the app never sets */
 +    re4_movie_mes = 0;
 +    re4_movie_sbt_shown = 0;
-+    if (re4_disc_retail_eu()) {
++    if ((re4_disc_retail_eu() || re4_disc_retail_jp())) {
 +        req = DvdReadN("etc/movie.das", 0, 0, 0, 0, 0x8005, __FILE__, __LINE__);
 +        Dvd.ReadCheck(req, 0, 0, &re4_movie_mes);
 +        if (re4_movie_mes) {
@@ -110,7 +111,7 @@
      m_disp_flg_bak = pG->Disp_flg;
      pG->Disp_flg = 0xFFFFFFFF;
 +    /* port: their initWork (0x8016188C) leaves the messages on during a movie (the subtitles) */
-+    if (re4_disc_retail_eu()) {
++    if ((re4_disc_retail_eu() || re4_disc_retail_jp())) {
 +        DpfFlagOff(pG, DPF_MESSAGE);
 +    }
      if (!StaFlagChk(pG, STA_TITLE)) {

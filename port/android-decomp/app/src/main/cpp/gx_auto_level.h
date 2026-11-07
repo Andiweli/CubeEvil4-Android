@@ -8,8 +8,12 @@
 // shader: the Retroid's report 23.10.2026 15:06 went down at the start of r10c and 4 s after a step
 // up), not a GPU too slow. A game that is slow on its own (the processor, loading) leaves the GPU
 // idle and the level as it is. Up again one level after 5 windows in a row (10 s) at 29.5
-// pictures a second or more with the GPU keeping up (under 0.1 behind), at the earliest 30 s after
-// the last step down; down again within 15 s of a step up doubles that wait (at most 5 minutes).
+// pictures a second or more with the GPU keeping up (under 0.1 behind), at the earliest 10 s after
+// the last step down; down again within 15 s of a step up doubles that wait (at most 5 minutes), and
+// a step up that holds for 60 s brings it back to 10 s. Until 0.98.4 the wait was 30 s and never came
+// back down: after one bounce at a heavy spot the next step up took a minute or more, also after
+// moving on into a light area (the project owner, 06.11.2026; host test TestAutoLevel "heavy, light,
+// heavy": up again 10 s into the light stretch instead of 59 s).
 // With 60 FPS the in-between pictures the renderer left out because it was behind (core_mode.cpp)
 // count as well: a window with more than a tenth of them left out while the GPU is behind is slow
 // too (the game keeps its pace then, the GPU still does not keep up: Retroid 26.10.2026, level 2 with
@@ -42,13 +46,16 @@ public:
   static constexpr double kBehindUp = 0.1;
   static constexpr int kGoodWindows = 5;
   static constexpr int kBadWindows = 2;
-  static constexpr double kFirstHold = 30.0;  // seconds after a step down before a step up
+  static constexpr double kFirstHold = 10.0;  // seconds after a step down before a step up (30 until 0.98.4)
   static constexpr double kMostHold = 300.0;
   static constexpr double kBounce = 15.0;     // down again this soon after up: the wait doubles
+  static constexpr double kSettle = 60.0;     // a step up that holds this long: the wait back to kFirstHold
   static constexpr double kDroppedDown = 0.10; // share of the chunks without their in-between picture
   static constexpr double kDroppedUp = 0.05;
   static constexpr double kWaitDown = 10.0;    // ms a chunk the render thread waits for the GPU
   static constexpr double kWaitUp = 5.0;
+  static constexpr double kQuiet = 4.0;        // seconds not counted after a break (Restart)
+  static constexpr double kGap = 1.0;          // seconds without a chunk that count as a break
 
   // A renderer started at `top` (the screen's level, its highest) at `t` seconds; never below `bottom`;
   // `halves`: the levels are halves (only how the log line writes them).
@@ -70,8 +77,18 @@ public:
             unsigned long long dropped = 0, double waitMs = 0.0) {
     if (!started_)
       return level_;
+    // a gap without chunks (the app menu, a room loading, a long stall): a break as Restart
+    if (lastChunk_ > 0.0 && t - lastChunk_ > kGap)
+      Restart(t);
+    lastChunk_ = t;
+    if (t < quietUntil_) {
+      windowOpen_ = false;
+      chunks_ = 0;
+      return level_;
+    }
     if (!windowOpen_) {
       windowOpen_ = true;
+      since_ = t;
       behindSum_ = behindSum;
       behindChecks_ = behindChecks;
       dropped_ = dropped;
@@ -92,6 +109,11 @@ public:
     behindChecks_ = behindChecks;
     dropped_ = dropped;
     waitMs_ = waitMs;
+    // a step up that held kSettle seconds: that level suits again, the next wait is the first one
+    if (upAt_ >= 0.0 && t - upAt_ >= kSettle) {
+      upAt_ = -1.0;
+      hold_ = kFirstHold;
+    }
     if (!mayChange) {
       good_ = bad_ = 0;
       return level_;
@@ -140,6 +162,21 @@ public:
     return level_;
   }
 
+  // A break at `t`: a room starts, the core paused (the app menu) or the renderer stalled (its programs for a new
+  // room). The window open now is dropped, the slow and good windows in a row start anew, and the next kQuiet
+  // seconds are not counted. The project owner's log 06.11.2026: the window open when the menu opened spanned the
+  // menu, the next one the room's loading: two "slow" windows, 2x -> 1.5x 1.6 s after the room started (and the
+  // 30 s hold after it). Nothing else changes: the level, the hold after a real step down.
+  void Restart(double t) {
+    if (!started_)
+      return;
+    windowOpen_ = false;
+    chunks_ = 0;
+    good_ = bad_ = 0;
+    quietUntil_ = std::max(quietUntil_, t + kQuiet);
+  }
+  bool Quiet(double t) const { return t < quietUntil_; }
+
   int Level() const { return level_; }
   int Top() const { return top_; }
   unsigned Downs() const { return downs_; }
@@ -167,6 +204,7 @@ private:
   int good_ = 0, bad_ = 0;
   double upAt_ = -1.0, holdUntil_ = 0.0, hold_ = kFirstHold;
   unsigned downs_ = 0, ups_ = 0;
+  double lastChunk_ = 0.0, quietUntil_ = 0.0;
 };
 
 // 60 FPS at an even pace (port/docs/60fps-plan.md S4, decision of the project owner, 28.10.2026): an
@@ -229,6 +267,17 @@ public:
   }
   bool Off() const { return offUntil_ >= 0.0; }
   unsigned Offs() const { return offs_; }
+  // A new start at `t` (the benchmark's next level, gx_bench_steps.h): in-between pictures on at once, with
+  // the grace of kGrace seconds; a pause from the level before does not carry over (the project owner's
+  // log 06.11.2026: the pause from 2x ran 2.5 s into 1.5x, which then failed with 30 shown in those seconds).
+  // Also at a break (a room starts, the app menu closes, a stall: core_mode.cpp, with AutoLevel::Restart) with the
+  // grace `grace`: its span of kSpan seconds no longer reaches back over a room's loading.
+  void Restart(double t, double grace = kGrace) {
+    offUntil_ = -1.0;
+    graceUntil_ = t + grace;
+    for (double &d : times_)
+      d = -1e9;
+  }
 
 private:
   double times_[kRing] = {};

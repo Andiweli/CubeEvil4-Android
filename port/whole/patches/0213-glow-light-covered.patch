@@ -1,0 +1,51 @@
+# Port patch, decision of the project owner (06.11.2026): a glow goes off when its light itself is covered. The
+# game's glows (esp0e, esp45, the espgen01 flare) are screen sprites drawn over everything; after the picture each
+# tests GXPeekZ at 12 (esp45: 24) points on a ring of hide_r pixels around the light, never at the light itself, and
+# shows the glow at 1 - 0.1 x hidden points. In r102 the lantern exactly behind Leon's head had a ring of 50 px, larger
+# than his head: 10 of 12 points saw the wall, the glow shone over his head at 80 % (tester's R3 series, 06.11.2026).
+# The GameCube does the same (the US, EU and Japanese code test the same way). Now the light's own point counts too:
+# when something lies more than 1 m in front of the light there (re4_glow_center_hidden, runtime/glow_check.cpp),
+# the glow goes off as when the whole ring is hidden. The 1 m keeps a lamp's own glass, shade or housing out of it;
+# off the picture and within 1 m of the camera the ring decides alone, as before. A port patch, not a fix of the
+# prototype.
+--- a/src/game/esp0e.cpp
++++ b/src/game/esp0e.cpp
+@@ -308,6 +308,12 @@
+             ox = oy;
+         }
+     }
++    /* port: the light itself clearly behind something (more than 1 m in front of it): no glow, as when all 12
++       points are hidden (patch 0213, decision of the project owner 06.11.2026; the ring alone let a lantern behind
++       Leon's head shine over it) */
++    if (re4_glow_center_hidden(w->scrOld.x, w->scrOld.y, w->scrOld.z)) {
++        hidden = 12;
++    }
+     if (hidden == 12) {
+         w->hide_alpha = 0.0f;
+     } else {
+--- a/src/game/esp45.cpp
++++ b/src/game/esp45.cpp
+@@ -228,6 +228,10 @@
+             ox = oy;
+         }
+     }
++    /* port: the light itself clearly behind something: no glow (patch 0213, as esp0e) */
++    if (re4_glow_center_hidden(w->scrOld.x, w->scrOld.y, w->scrOld.z)) {
++        hidden = 24;
++    }
+     if (hidden == 24) {
+         w->hide_alpha = 0.0f;
+     } else {
+--- a/src/game/espgen01.cpp
++++ b/src/game/espgen01.cpp
+@@ -324,6 +324,10 @@
+             }
+         }
+     }
++    /* port: the light itself clearly behind something: no glow (patch 0213, as esp0e; v.z is 150 nearer) */
++    if (re4_glow_center_hidden(p->pos_x, p->pos_y, v.z - 150.0f)) {
++        cnt = 12;
++    }
+     if (cnt == 12) {
+         p->hide_alpha = 0.0f;
+     } else {

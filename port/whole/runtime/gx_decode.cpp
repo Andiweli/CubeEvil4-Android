@@ -271,6 +271,9 @@ int gPending = -1;  // slot waiting for the game's VIFlush (kPending); -1: none
 u32 gViNext;        // physical address of the XFB the VI shows next (0: never set)
 bool gViBlack;      // the VI outputs black (VISetBlack, from VIFlush on): RE4_GX_CHUNK_BLACK
 std::atomic<bool> gStill(false);  // a menu screen of the game (re4_gx_still): RE4_GX_CHUNK_STILL
+// the picture format "Native" (re4_gx_wide): the first load of the camera's projection in this chunk was the wide
+// one (1), the game's 4:3 (0), none yet (-1): RE4_GX_CHUNK_WIDE
+std::atomic<int> gWide(-1);
 u32 gSequence;
 bool gNeedReset = true;
 
@@ -530,6 +533,8 @@ int gHintTids[9], gHintTidCount;
 std::atomic<int> gFastWanted(0);      // the menu's setting (any thread)
 int gFastNow = -1;                    // the setting the threads run with (-1: none yet)
 long long gHintFrom, gHintIdle, gHintWait;  // ns: the chunk before, re4_idle_ns() then, the wait since
+int gSlowHelpers;                     // the vertex threads put on the slow cores (gHintTids[1..])
+cpu_set_t gSlowSet;                   // their cores
 
 void hintChunk()
 {
@@ -556,8 +561,19 @@ void hintChunk()
         gFastNow = fast;
         if (fast) {
             char cores[160];
-            re4cpu::KeepOffSlowCores(cores, sizeof(cores));
+            re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kGameThread);
             re4_log("cores: the game thread %s", cores);
+            // with only two fast cores the vertex threads on the slow ones (re4_cpu_info.h)
+            gSlowHelpers = 0;
+            for (int i = 1; i < gHintTidCount; i++) {
+                if (!re4cpu::PutOnSlowCores(re4cpu::GetLayout(), gHintTids[i], &gSlowSet, cores, sizeof(cores))) {
+                    break;
+                }
+                gSlowHelpers = i;
+            }
+            if (gHintTidCount > 1) {
+                re4_log("cores: the %d vertex threads %s", gHintTidCount - 1, cores);
+            }
             const char* why = "";
             gHint.Open(gHintTids, gHintTidCount, 33333333LL, &why);
             re4_log("performance hint: %s (the game thread and %d vertex threads, 33.3 ms a picture)", why,
@@ -567,6 +583,10 @@ void hintChunk()
             if (!first) {
                 re4cpu::ReleaseCores();
             }
+            for (int i = 1; i <= gSlowHelpers; i++) {
+                re4cpu::ReleaseThread(gHintTids[i]);
+            }
+            gSlowHelpers = 0;
             re4_log("cores: the game thread and the vertex threads left to Android (Force Performance: Default)");
         }
         gHintFrom = 0;
@@ -575,8 +595,15 @@ void hintChunk()
     }
     // about once a second: back on the fast cores if Android moved the thread off them
     static unsigned checks, moves;
-    if (fast && ++checks % 30 == 0 && re4cpu::KeepOnFastCores() && ++moves <= 4) {
-        re4_log("cores: the game thread put back on its cores (Android had moved it, %u times so far)", moves);
+    if (fast && ++checks % 30 == 0) {
+        bool moved = re4cpu::KeepOnFastCores();
+        for (int i = 1; i <= gSlowHelpers; i++) {
+            moved |= re4cpu::KeepThreadOn(gHintTids[i], gSlowSet);
+        }
+        if (moved && ++moves <= 4) {
+            re4_log("cores: the game thread and the vertex threads put back on their cores (Android had moved "
+                    "them, %u times so far)", moves);
+        }
     }
     gHintFrom = now;
     gHintIdle = idle;
@@ -639,6 +666,9 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
             gHintWait += nowNs() - fromNs;
         }
     } waited = {start, nowNs()};
+    // "Native": what this picture's first load of the camera's projection was; the next picture decides anew,
+    // also while no chunk is recorded (no renderer, a dropped chunk: else a 4:3 load of long before would stay)
+    const int wide = gWide.exchange(-1);
     std::unique_lock<std::mutex> lock(gMutex);
     if (gCurrent >= 0) {
         Chunk* c = chunk();
@@ -647,6 +677,9 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         v.flags |= RE4_GX_CHUNK_XFB;
         if (gStill.load()) {
             v.flags |= RE4_GX_CHUNK_STILL;
+        }
+        if (wide == 1) {
+            v.flags |= RE4_GX_CHUNK_WIDE;
         }
         v.ops = c->ops.data();
         v.opWords = (u32) c->ops.size();
@@ -2537,8 +2570,9 @@ void feed(const uint8_t* bytes, size_t n)
 
 extern "C" {
 
-// The app menu's "Force Performance" (core_api.cpp re4_core_set_fast_cores): 1 the game thread and
-// the vertex threads on the fast cores with Android's performance hint, 0 left to Android.
+// The app menu's "Force Performance" (core_api.cpp re4_core_set_fast_cores): 1 the game thread off
+// the slow cores, the vertex threads on the slow ones when only two cores are faster, and Android's
+// performance hint for them; 0 left to Android.
 void re4_gx_set_fast_cores(int on)
 {
     gFastWanted.store(on ? 1 : 0);
@@ -2557,6 +2591,20 @@ void re4_gx_mark(void)
 void re4_gx_still(int on)
 {
     gStill.store(on != 0);
+}
+
+// The picture format "Native" (runtime/picture.cpp re4_view_load, patch 0214): whether the camera's projection
+// was the wide one; the first load after a display copy decides for the chunk (the game loads the projection it
+// built in the frame before, then builds the next one in its logic and loads that for its HUD).
+void re4_gx_wide(int on)
+{
+    int none = -1;
+    gWide.compare_exchange_strong(none, on ? 1 : 0);
+}
+
+int re4_gx_wide_now(void)
+{
+    return gWide.load();
 }
 
 void re4_gx_host_order_list(const void* list, unsigned int size)

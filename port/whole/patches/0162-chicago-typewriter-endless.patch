@@ -1,0 +1,33 @@
+# A bug of the prototype (tester report 31.10.2026: "The Chicago Typewriter should have infinite ammo by default, but
+# its ammunition is limited to just 20 rounds"). cItemMgr::construct gave item 0x34 the levels fire 7, speed 1,
+# reload 3, capacity 6 (lv 0x6025: 50 rounds, loaded with level 1's 20). The European construct (read with
+# retail_code.py on 29.10.2026, whole-program-status.md "Handcannon und Schuss-Ton") gives lv 0x6006: capacity level
+# 7, which patch 0146 made the endless 0x8000 of the European wep_info (no round used, HUD "---"), and reload level 1;
+# its wep_level_info row 0x34 is {6, 1, 1, 6}. Both taken over: a Typewriter is complete when bought, the merchant
+# offers no tune-up for it (specialTuned). A Typewriter already in a save keeps its levels. All discs.
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -128,7 +128,7 @@
+     {0x2D, {6, 1, 3, 6}}, {0x94, {6, 1, 3, 6}}, {0x2E, {6, 1, 3, 6}}, {0x6B, {6, 1, 3, 6}},
+     {0x99, {6, 1, 3, 6}}, {0x2F, {6, 1, 3, 6}}, {0x6C, {6, 1, 3, 6}}, {0x51, {6, 1, 3, 6}},
+     {0x30, {6, 1, 3, 6}}, {0x31, {6, 1, 3, 6}}, {0x32, {6, 1, 3, 6}}, {0x33, {6, 1, 3, 6}},
+-    {0x3E, {6, 1, 3, 6}}, {0x36, {3, 1, 2, 3}}, {0xAB, {3, 1, 2, 3}}, {0x34, {6, 1, 3, 6}},
++    {0x3E, {6, 1, 3, 6}}, {0x36, {3, 1, 2, 3}}, {0xAB, {3, 1, 2, 3}}, {0x34, {6, 1, 1, 6}}, /* port: patch 0162 */
+     {0x2A, {3, 1, 3, 3}}, {0x2B, {3, 1, 3, 3}}, {0x37, {6, 1, 3, 6}},
+ };
+ 
+@@ -1654,10 +1654,12 @@
+             p->setBulletLevel(0);
+             break;
+         case 0x34:
+-            p->setBulletLevel(5);
++            /* port (patch 0162, a bug of the prototype): the Chicago Typewriter comes with capacity level 7,
++               endless ammo, and reload level 1, as the European construct (lv 0x6006) */
++            p->setBulletLevel(6);
+             p->setPowerLevel(6);
+             p->setSpeedLevel(0);
+-            p->setReloadLevel(2);
++            p->setReloadLevel(0);
+             break;
+         default:
+             p->setBulletLevel(0);

@@ -1,0 +1,48 @@
+# Retail data: the map's goal mark with the retail discs. Their goal parts (SS/cmn/map_objNN.dat sub-file 6)
+# have 12 places in the village (this build's discs: 10), with two more stage flags 0xA7, 0xA8 after 0x2C; the
+# European, Japanese and Korean discs also one more in area 9 (flag 0xB8). Their Sscrn.rel tables
+# (markGoalPosition) were read from every release's disc. With this build's tables the village's red mark
+# picked the wrong parts: on the way to Luis' cabin it stood at the lake (user report, 06.11.2026). Nothing
+# changes with the debug build's discs. A port patch for retail data.
+--- a/src/Sscrn/ss_map.cpp
++++ b/src/Sscrn/ss_map.cpp
+@@ -610,9 +610,17 @@
+ 
+ // Current goal position: the parts of the goal model whose stage flag (per-area table, the highest
+ // set flag wins) is on, parts 0 when none. Always returns 1.
++/* port: the retail discs' goal parts (SS/cmn/map_objNN.dat sub-file 6) have two more places in the village
++   (flags 0xA7, 0xA8 after 0x2C), the European, Japanese and Korean ones also one more in area 9 (flag 0xB8):
++   their Sscrn.rel tables. With this build's tables the village's mark picked the wrong parts (the lake on the
++   way to Luis' cabin, user report 06.11.2026). */
++extern "C" int re4_disc_retail(void), re4_disc_retail_us(void); /* port: runtime/dvd.cpp */
++
+ int markGoalPosition(SUB_SCREEN* wk, Vec* pos)
+ {
+     int none[1] = {0};
++    int st1r[12] = {0, 0x11, 0x12, 0x13, 0x14, 0x15, 0x2C, 0xA7, 0xA8, 0x17, 0x0B, 0x2E}; /* port: retail */
++    int st3er[7] = {0, 0xB8, 0x4F, 0x50, 0x51, 0x52, 0x53}; /* port: European, Japanese, Korean */
+     int st1[10] = {0, 0x11, 0x12, 0x13, 0x14, 0x15, 0x2C, 0x17, 0x0B, 0x2E};
+     int st2a[6] = {0x28, 0x0F, 0x2D, 0x44, 0x23, 0x45};
+     int st2b[3] = {0x46, 0x47, 0x48};
+@@ -636,6 +644,10 @@
+     case 1:
+         tbl = st1;
+         n = 10;
++        if (re4_disc_retail()) { /* port: retail goal parts */
++            tbl = st1r;
++            n = 12;
++        }
+         break;
+     case 2:
+         tbl = st2a;
+@@ -664,6 +676,10 @@
+     case 9:
+         tbl = st3e;
+         n = 6;
++        if (re4_disc_retail() && !re4_disc_retail_us()) { /* port: retail goal parts */
++            tbl = st3er;
++            n = 7;
++        }
+         break;
+     case 10:
+         tbl = st3f;

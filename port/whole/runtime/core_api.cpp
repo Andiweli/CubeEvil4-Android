@@ -311,6 +311,13 @@ char gGxDir[1024];
 unsigned gGxCount;
 bool gGxAttached;
 
+// RE4_GX_DUMP_SERIES=N: each chosen frame starts a series of N chunks, the one that starts over
+// and the N-1 right after it, numbered on (gx-<frame>.bin, frame + 1 ...), as the app's R3 series:
+// gx_chunk_render draws them on one renderer and with RE4_GX_INTERP=1 the in-between pictures of
+// 60 FPS between them (the ghosts of the r307 puzzle, 30.10.2026: until then only the device made
+// such series)
+unsigned gGxSeries, gGxSeriesLeft, gGxSeriesFrame;
+
 // RE4_GX_DUMP_FREE="150,600": also these frames after the player became free
 // (state_trace.cpp), e.g. while the test script has the map open
 extern "C" long re4_trace_free_at(void);
@@ -360,6 +367,9 @@ bool gxWanted(unsigned frame)
     if (gxWantedAfterFree(frame) || gxWantedAt(frame)) {
         return true;
     }
+    if (gGxSeries) {
+        return false;  // series: only the frames asked for
+    }
     static const unsigned kEarly[] = {60, 300, 600, 900, 1200, 1500, 1800, 2400};
     for (unsigned f : kEarly) {
         if (frame == f) {
@@ -382,12 +392,17 @@ bool gxWanted(unsigned frame)
 void gxDumpHook(unsigned frame)
 {
     if (gGxAttached) {
-        if (const Re4GxChunk* c = re4_core_gx_acquire()) {
-            if (c->flags & RE4_GX_CHUNK_RESET) {
+        while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+            const bool reset = (c->flags & RE4_GX_CHUNK_RESET) != 0;
+            if (reset || gGxSeriesLeft) {
+                if (reset) {
+                    gGxSeriesFrame = frame;
+                    gGxSeriesLeft = gGxSeries;
+                }
                 char path[1100];
-                snprintf(path, sizeof(path), "%s/gx-%06u.bin", gGxDir, frame);
+                snprintf(path, sizeof(path), "%s/gx-%06u.bin", gGxDir, gGxSeriesFrame);
                 if (FILE* f = fopen(path, "wb")) {
-                    bool ok = re4gxio::Write(f, *c, frame);
+                    bool ok = re4gxio::Write(f, *c, gGxSeriesFrame);
                     fclose(f);
                     if (ok) {
                         gGxCount++;
@@ -395,14 +410,21 @@ void gxDumpHook(unsigned frame)
                                 (unsigned) c->draws, (unsigned) c->vertexCount, (unsigned) c->textureBytes);
                     }
                 }
+                gGxSeriesFrame++;
+                if (!reset && gGxSeriesLeft) {
+                    gGxSeriesLeft--;
+                }
             }
             re4_core_gx_release(c);
-            re4_core_gx_detach();
-            gGxAttached = false;
+            if (!gGxSeriesLeft) {
+                re4_core_gx_detach();
+                gGxAttached = false;
+                return;
+            }
         }
         return;
     }
-    if (gGxCount < 24 && gxWanted(frame + 1)) {
+    if (gGxCount < 24 * (gGxSeries + 1) && gxWanted(frame + 1)) {
         re4_core_gx_acquire();  // attaches; the chunk after the next display copy starts over
         gGxAttached = true;
     }
@@ -439,6 +461,9 @@ struct DumpInstall {
         const char* gx = getenv("RE4_GX_DUMP");
         if (gx && *gx) {
             snprintf(gGxDir, sizeof(gGxDir), "%s", gx);
+            const char* series = getenv("RE4_GX_DUMP_SERIES");
+            gGxSeries = series ? (unsigned) strtoul(series, 0, 10) : 0;
+            gGxSeries = gGxSeries > 1 ? gGxSeries - 1 : 0;
             re4_add_frame_hook(gxDumpHook);
         }
     }
@@ -680,15 +705,20 @@ int re4_core_instant(int operation, Re4InstantInfo* info)
 // while the menu holds the game (the answer shows in the menu), else by the next game frame.
 void re4_core_set_cheats(int bits)
 {
-    if (re4_cheats_wanted() != (bits & 7)) {
-        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill)", bits & 7);
+    if (re4_cheats_wanted() != (bits & 511)) {
+        re4_log("core: cheats %d (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept, "
+                "32..224 the story's player type << 5, 256 special costume)", bits & 511);
     }
     re4_cheats_set(bits);
 }
 
+extern "C" int re4_bench_command(int what);  // runtime/benchmark.cpp
+
 int re4_core_cheat_action(int what)
 {
-    if (what < 1 || what > 3) return 0;
+    // 20..23: the app's benchmark (runtime/benchmark.cpp), queued for the game's next frame or a state, any thread
+    if (what >= 20 && what <= 23) return re4_bench_command(what);
+    if (what < 1 || what > 9) return 0;
     pthread_mutex_lock(&gPauseLock);
     if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {
         pthread_mutex_unlock(&gPauseLock);
@@ -706,9 +736,10 @@ int re4_core_cheat_action(int what)
 
 void re4_core_debug_menu(void)
 {
-    // the European discs: no debug menu (port/docs/retail-eu-plan.md, decision 2; R6)
-    if (re4_disc_retail_eu()) {
-        re4_log("core: debug menu asked for (SELECT held), none with the European discs");
+    // the retail discs: no debug menu (port/docs/retail-eu-plan.md, decision 2; R6; the US and the Japanese
+    // discs lack the debug tools as well, port/docs/retail-us-plan.md, port/docs/retail-jp-plan.md)
+    if (re4_disc_retail()) {
+        re4_log("core: debug menu asked for (SELECT held), none with the retail discs");
         return;
     }
     gDebugMenuWanted = 1;
@@ -759,6 +790,35 @@ void re4_core_set_fast_cores(int on)
     re4_gx_set_fast_cores(on);
 }
 
+extern "C" void re4_potato_set(int mask);
+
+void re4_core_set_potato(int mask)
+{
+    re4_potato_set(mask);
+}
+
+extern "C" void re4_aim_set(int bits);
+
+void re4_core_set_aim(int bits)
+{
+    re4_aim_set(bits);
+}
+
+extern "C" int re4_aim_from_game(void);
+
+// The game's own options changed "Invert vertical" (patch 0188): -1, else 0 / 1 for the app's preferences.
+int re4_core_aim_from_game(void)
+{
+    return re4_aim_from_game();
+}
+
+extern "C" void re4_sound_volume_set(int music, int effects);
+
+void re4_core_set_sound_volume(int bits)
+{
+    re4_sound_volume_set(bits & 0xFF, (bits >> 8) & 0xFF);
+}
+
 void re4_core_gx_depth(const unsigned* cells, unsigned serial)
 {
     re4_gx_depth_put(cells, serial);
@@ -797,6 +857,12 @@ void re4_game_restart(void);  // runtime/game_language.cpp
 
 void re4_core_restart_game(int language)
 {
+    // 0: the language stays (the cheat menu's extra games, 29.10.2026)
+    if (language == 0) {
+        re4_log("core: restart asked by the app, the game language stays");
+        re4_game_restart();
+        return;
+    }
     int value = language >= 2 && language <= 6 ? language : -1;
     re4_log("core: restart with game language %d asked by the app (European discs: 2 English .. 6 Italian)", value);
     gLanguageWanted = value;

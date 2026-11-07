@@ -11,8 +11,12 @@
 // block goes into a ring the app reads (re4_audio_read, any thread), which
 // also absorbs the bursts of the retrace delivery and the drift between the
 // game's clock and the device's: the reader keeps about 60 ms in the ring by
-// playing a little faster or slower (at most 0.5 %, inaudible), and skips
-// ahead after a pause of the app.
+// playing a little faster or slower, and skips ahead after a pause of the app.
+// A steady difference it learns (at most 0.75 %): a display locked within
+// 0.5 % of 59.94 Hz (vi.cpp) runs the game up to 0.5 % slower or faster, and
+// the device's sound clock adds its own. Before 01.11.2026 the reader only
+// followed the fill (at most 0.37 % with the ring empty): at 59.7 Hz the ring
+// ran dry about twice a second, each time a crackle (user reports).
 //
 // RE4_AUDIO_WAV=file writes every block into a WAV file as well (checks;
 // RE4_AUDIO_WAV_SECONDS=N stops after N seconds of game time).
@@ -43,6 +47,8 @@ const u32 kBlockFrames = 160;   // 5 ms at 32 kHz
 const u32 kRing = 1 << 14;      // frames (512 ms), a power of two
 const u32 kTarget = 1920;       // frames the reader keeps (60 ms)
 const u32 kSkip = 8000;         // more than this (250 ms): skip to the target
+const float kMaxLearn = 492;    // the learned rate difference, 1/65536 steps (0.75 %)
+const int kMaxAdjust = 655;     // the whole rate difference (1 %, 17 cents: only when far off)
 
 AIDCallback gCallback;
 bool gInit;                     // AIInit done (AIReset clears it, as in ai.c)
@@ -67,6 +73,10 @@ std::atomic<u32> gWrite{0}, gRead{0};
 std::atomic<u32> gOverruns{0}, gUnderruns{0}, gSkips{0};
 // the reader's resampling position between ring frames (16.16)
 u32 gFrac;
+// the fill smoothed over about 16 reads (the blocks come in bursts, a field's at once) and the
+// learned rate difference (1/65536 steps): the reader's state, under gReadLock
+float gFillAvg = kTarget;
+float gLearn;
 // the readers' lock: pthread, as <mutex> brings <memory>, which the libc++ of the NDK r23c
 // cannot read next to the game's stand-in <new> (the OUYA build, port/docs/ouya-machbarkeit.md)
 pthread_mutex_t gReadLock = PTHREAD_MUTEX_INITIALIZER;
@@ -175,14 +185,16 @@ void tick()
     play(gPlayAddr, gPlayLength);
     gBlocks++;
     if (gBlocks % 2000 == 0) {  // every 10 s
-        unsigned lists, voiceMs, peak;
+        unsigned lists, voiceMs, peak, compressed, clipped;
         re4_dsp_stats(&lists, &voiceMs, &peak);
+        re4_dsp_loudness(&compressed, &clipped);
         static unsigned lastVoiceMs;
-        re4_log("audio: %u blocks, %u ms waiting, %u lost, %u ran dry, %u skips; DSP %u lists, %.1f voices "
-                "(at most %u), AX estimate at most %u of %u cycles, %u blocks over",
+        re4_log("audio: %u blocks, %u ms waiting, %u lost, %u ran dry, %u skips, reader rate %+.2f %%; DSP %u "
+                "lists, %.1f voices (at most %u), AX estimate at most %u of %u cycles, %u blocks over; compressor "
+                "%u blocks, %u samples clipped",
                 gBlocks, (gWrite.load() - gRead.load()) / 32, gOverruns.load(), gUnderruns.load(),
-                gSkips.load(), lists, (voiceMs - lastVoiceMs) / 10000.0, peak, gPeakCycles,
-                AXGetMaxDspCycles(), gOverBudget);
+                gSkips.load(), gLearn * (100.0f / 65536.0f), lists, (voiceMs - lastVoiceMs) / 10000.0, peak, gPeakCycles,
+                AXGetMaxDspCycles(), gOverBudget, compressed, clipped);
         lastVoiceMs = voiceMs;
         gPeakCycles = 0;
     }
@@ -262,34 +274,54 @@ static int readRing(short* out, int frames, int channels)
         fill = kTarget;
         gFrac = 0;
         gSkips++;
+        gFillAvg = kTarget;
     }
-    // a little faster when the ring fills up, slower when it runs low
-    int adjust = ((int) fill - (int) kTarget) / 8;  // 1/65536 steps
-    adjust = adjust > 328 ? 328 : adjust < -328 ? -328 : adjust;
+    // a little faster when the ring fills up, slower when it runs low, plus the learned difference
+    // between the game's clock and the device's: the ring stays near its target (01.11.2026)
+    gFillAvg += ((float) fill - gFillAvg) / 16.0f;
+    const float error = gFillAvg - (float) kTarget;
+    int adjust = (int) (error / 4.0f + gLearn);  // 1/65536 steps
+    adjust = adjust > kMaxAdjust ? kMaxAdjust : adjust < -kMaxAdjust ? -kMaxAdjust : adjust;
     const u32 step = (u32) (65536 + adjust);
+    // 4-point cubic (Catmull-Rom) between the frames: linear dulled the highs by up to 3 dB at
+    // 8 kHz, changing about 100 times a second with the position between two frames (tester
+    // report 29.10.2026: "not clear"); the frame before the reader stays in the ring
     int got = 0;
     for (int i = 0; i < frames; i++) {
-        if (w - r < 2) {
+        if (w - r < 3) {
             for (int c = 0; c < channels; c++) {
                 out[i * channels + c] = 0;
             }
             continue;
         }
-        const u32 a = r & (kRing - 1), b = (r + 1) & (kRing - 1);
-        const int f = (int) (gFrac >> 4);  // 12 bits
+        const u32 z = (r - 1) & (kRing - 1), a = r & (kRing - 1), b = (r + 1) & (kRing - 1),
+                  d = (r + 2) & (kRing - 1);
+        const float t = (float) gFrac * (1.0f / 65536.0f);
         short* o = out + i * channels;
         for (int s = 0; s < nSources; s++) {
             const int16_t* ring = sources[s].ring;
             const int n = sources[s].channels;
             for (int c = 0; c < n; c++) {
-                const int16_t va = ring[a * n + c], vb = ring[b * n + c];
-                *o++ = (int16_t) (va + ((vb - va) * f >> 12));
+                const float v0 = ring[z * n + c], v1 = ring[a * n + c], v2 = ring[b * n + c],
+                            v3 = ring[d * n + c];
+                const float v = v1 + 0.5f * t * (v2 - v0 + t * (2.0f * v0 - 5.0f * v1 + 4.0f * v2 - v3 +
+                                                                 t * (3.0f * (v1 - v2) + v3 - v0)));
+                const int q = (int) (v < 0 ? v - 0.5f : v + 0.5f);
+                *o++ = (int16_t) (q < -32768 ? -32768 : q > 32767 ? 32767 : q);
             }
         }
         got++;
         gFrac += step;
         r += gFrac >> 16;
         gFrac &= 0xFFFF;
+    }
+    // learned only while the sound flows (not before the game plays, not while it stands) and not
+    // from a ring filled far past its target: a room loading on the Retroid (31.10.2026) left it
+    // full for seconds, the learned rate rose to +0.75 % and then emptied the ring three times
+    if (got == frames && error < kTarget / 2) {
+        const float step = error < -(float) (kTarget / 2) ? -(float) (kTarget / 2) : error;
+        gLearn += step / 4096.0f;
+        gLearn = gLearn > kMaxLearn ? kMaxLearn : gLearn < -kMaxLearn ? -kMaxLearn : gLearn;
     }
     // a dropout: the sound broke off (not every read while there is none yet)
     static bool dry = true;

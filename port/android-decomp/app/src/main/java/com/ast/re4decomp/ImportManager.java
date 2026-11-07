@@ -25,23 +25,20 @@ public final class ImportManager {
   private Listener listener;
   public volatile boolean busy;
   /** The status before anything happened (the core launcher shows its own heading instead). */
-  public static final String PROMPT = "Select ISO/GCM/RVZ files of the debug build or of the European release. "
+  public static final String PROMPT = "Select ISO/GCM/RVZ files of the debug build, the European, the US or the Japanese release. "
       + "RVZ files are unpacked first and need extra free storage (about 3 GB per disc).";
   public volatile String status = PROMPT;
   public final File root;
   public ImportManager(Context context) {
     this.context = context.getApplicationContext();
-    File external = context.getExternalFilesDir(null);
-    root = external == null ? null : new File(external, "game");
-    if (root == null)
-      status = "App data storage is unavailable. Please check the storage device.";
-    else
-      try {
-        DiscInstaller.recover(root);
-        status = installedWarning(status);
-      } catch (IOException e) {
-        status = e.getMessage();
-      }
+    // the shared storage's app folder, else the internal one (AppStorage: an Android 16 bug)
+    root = new File(AppStorage.base(context), "game");
+    try {
+      DiscInstaller.recover(root);
+      status = installedWarning(status);
+    } catch (IOException e) {
+      status = e.getMessage();
+    }
   }
   /** Imports of older versions never compared the room files with the verified disc: do it from their manifest. */
   private String installedWarning(String otherwise) {
@@ -72,7 +69,7 @@ public final class ImportManager {
   }
   /** The name of a release for the launcher's texts. */
   public static String releaseName(String release) {
-    return GameCubeDisc.EUROPEAN.equals(release) ? "European release" : "debug build";
+    return GameCubeDisc.DEBUG.equals(release) || release == null ? "debug build" : GameCubeDisc.releaseTitle(release);
   }
   /** Null, or the line saying that the two imported discs are of different releases. */
   public String mixedReleases() {

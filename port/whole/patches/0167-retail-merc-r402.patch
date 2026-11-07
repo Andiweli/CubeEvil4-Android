@@ -1,0 +1,468 @@
+# Port patch for retail data: The Mercenaries room r402 (the waterworld) sets its enemies as the retail st4_0.rel
+# does (US, EU, JP read with retail_code.py on 31.10.2026; the JP code is the EU code). The retail list
+# etc/omake01.esl has three new entries for r402 (0xE3, 0xE7, 0xEB; US, EU and JP alike, EU/JP also make 0xAB/0xAC
+# hide and jump), and the room code changed with it:
+# - R402EmSetMain: the order of the areas changed, the boat events (area 0x4000000) start with up to 8 active
+#   enemies instead of 6, a new wave in area 0x2000 (entries 0xE3 / 0xE7 / 0xEB, up to 15) takes slots 0x5A..0x5C,
+#   the later slots moved (0x72 slots instead of 0x70; door event 01 uses 0x5D..0x5F, door event 02 0x65..0x6B).
+# - R402Init: the six starting enemies 0xA2..0xA7 search for the player instead of walking to him.
+# - em_destroy (every 300 frames): the retail releases keep inactive enemies that are still on their way.
+# - R402EmSetSub: goto mode 15 (patch 0165) instead of 0xC, and the list entry is recorded in the enemy
+#   (emset_no; EmSetEvent leaves 0xFF): EU and JP only, the US release keeps 0xC and 0xFF.
+# Debug discs unchanged (the prototype's list has no entries 0xE3 / 0xE7 / 0xEB).
+--- a/src/st4/r402.cpp
++++ b/src/st4/r402.cpp
+@@ -28,7 +28,8 @@
+ // flags 0x17C), the sliding doors, the two boat events and the treasure cases.
+ 
+ struct R402Work {
+-    cEmWrap em[0x70];    // 0x000
++    cEmWrap em[0x72];    // 0x000  port (patch 0167): 0x72 as in the retail st4_0.rel (the prototype has 0x70;
++                         //        the offsets below are the prototype's)
+     cSat* sat[2];        // 0x540  the door 02 collision pieces
+     cSat* eat[2];        // 0x548
+     int c550;            // 0x550  per-wave respawn counts (R402EmSetSubMugen)
+@@ -46,6 +47,7 @@
+     int c580;
+     int c584;            // 0x584  frames since event 03-00 (event 03-01 after 150)
+     int timer;           // 0x588  em_destroy every 300 frames
++    int c588;            // port (patch 0167): the retail count of the wave of area flag 0x2000
+ };
+ 
+ 
+@@ -86,6 +88,23 @@
+ static void R402EmSetMain();
+ int R402CalcActiveEmWarp();
+ 
++extern "C" int re4_disc_retail(void);     /* port: runtime/dvd.cpp (patch 0167) */
++extern "C" int re4_disc_retail_eu(void);
++extern "C" int re4_disc_retail_jp(void);
++static void R402EmSetMainRetail();
++
++// port (patch 0167): the slots the room uses (0x72 in the retail releases)
++static int r402_emNum()
++{
++    return re4_disc_retail() ? 0x72 : 0x70;
++}
++
++// port (patch 0167): the European / Japanese release send their enemies with goto mode 15 (patch 0165)
++static int r402_gotoMode()
++{
++    return re4_disc_retail_eu() || re4_disc_retail_jp() ? 0xF : 0xC;
++}
++
+ // Room init (Mercenaries: the waterworld): three treasure case item events; doors 0x18/0x19 paired;
+ // the starting enemies (R402EmSetSub), the wave task, door 02 with its collision, areas 0xF/0x10 = the
+ // door events, area 0x11 off; the ladders 0x15/0x1E with Ada's motions; the Mercenaries system with
+@@ -107,13 +126,15 @@
+     }
+     R402EmSetSub(0x27, 0xA0, 0);
+     R402EmSetSub(0x28, 0xA1, 0);
+-    R402EmSetSub(0x29, 0xA2, 1);
+-    R402EmSetSub(0x2A, 0xA3, 1);
+-    R402EmSetSub(0x2B, 0xA4, 1);
+-    R402EmSetSub(0x2C, 0xA5, 1);
+-    R402EmSetSub(0x2D, 0xA6, 1);
+-    R402EmSetSub(0x2E, 0xA7, 1);
+-    SceExec(0x12, (TaskFunc) R402EmSetMain, 0, 0, SCE_PRIO_DEF_2, 0);
++    /* port (patch 0167): in the retail releases these six search for the player instead of walking to him */
++    int findPl = re4_disc_retail() ? 0 : 1;
++    R402EmSetSub(0x29, 0xA2, findPl);
++    R402EmSetSub(0x2A, 0xA3, findPl);
++    R402EmSetSub(0x2B, 0xA4, findPl);
++    R402EmSetSub(0x2C, 0xA5, findPl);
++    R402EmSetSub(0x2D, 0xA6, findPl);
++    R402EmSetSub(0x2E, 0xA7, findPl);
++    SceExec(0x12, (TaskFunc) (re4_disc_retail() ? R402EmSetMainRetail : R402EmSetMain), 0, 0, SCE_PRIO_DEF_2, 0); /* port (patch 0167) */
+     R402InitDoor02();
+     SceAtDataSet_exec(0x10, SCE_LEVEL10, 0, (TaskFunc) R402ExecEvent02Main, 0, 1);
+     SceAtDataSet_exec(0xF, SCE_LEVEL10, 0, (TaskFunc) R402ExecEvent01Main, 0, 1);
+@@ -244,6 +265,7 @@
+ {
+     cObjLadder* ladder;
+     int i;
++    int s = re4_disc_retail() ? 3 : 0;   /* port (patch 0167): the retail slots 0x5D..0x5F */
+ 
+     if (pG->Room_flg[0] & 0x80000000) {
+         return;
+@@ -251,14 +273,14 @@
+     pG->Room_flg[0] |= 0x80000000;
+     SceAtSetEnable(0xF, 0);
+     pG->Room_flg[0] |= 0x1000;
+-    R402EmSetSub(0x5A, 0xE4, 1);
+-    R402EmSetSub(0x5B, 0xE5, 1);
+-    R402EmSetSub(0x5C, 0xE6, 1);
++    R402EmSetSub(0x5A + s, 0xE4, 1);
++    R402EmSetSub(0x5B + s, 0xE5, 1);
++    R402EmSetSub(0x5C + s, 0xE6, 1);
+     R402EmSetSub(0x39, 0xB4, 1);
+     R402EmSetSub(0x3A, 0xB5, 1);
+-    r402_work->em[0x5A].setNoSuspend(1);
+-    r402_work->em[0x5B].setNoSuspend(1);
+-    r402_work->em[0x5C].setNoSuspend(1);
++    r402_work->em[0x5A + s].setNoSuspend(1);
++    r402_work->em[0x5B + s].setNoSuspend(1);
++    r402_work->em[0x5C + s].setNoSuspend(1);
+     if (getRoomEtcLadder(0x15, &ladder, 1)) {
+         ladder->setOn();
+         ladder->setDowned();
+@@ -274,9 +296,9 @@
+     for (i = 0; i < 20; i++) {
+         SceSleep(1);
+     }
+-    r402_work->em[0x5A].setGoto(&r402_gotoPos0, 2);
+-    r402_work->em[0x5B].setGoto(&r402_gotoPos1, 1);
+-    r402_work->em[0x5C].setGoto(&r402_gotoPos2, 1);
++    r402_work->em[0x5A + s].setGoto(&r402_gotoPos0, 2);
++    r402_work->em[0x5B + s].setGoto(&r402_gotoPos1, 1);
++    r402_work->em[0x5C + s].setGoto(&r402_gotoPos2, 1);
+     for (i = 0; i < 60; i++) {
+         SceSleep(1);
+     }
+@@ -288,13 +310,15 @@
+ // placed at their goto points and released, camera back, SceEventEnd, task exit.
+ static void R402ExecEvent01End()
+ {
++    int s = re4_disc_retail() ? 3 : 0;   /* port (patch 0167): the retail slots 0x5D..0x5F */
++
+     SceExec(0x12, (TaskFunc) R402MoveDoor02, 0, 2, SCE_PRIO_DEF_2, 0);
+-    r402_work->em[0x5A].setPos(&r402_gotoPos0);
+-    r402_work->em[0x5B].setPos(&r402_gotoPos1);
+-    r402_work->em[0x5C].setPos(&r402_gotoPos2);
+-    r402_work->em[0x5A].setNoSuspend(0);
+-    r402_work->em[0x5B].setNoSuspend(0);
+-    r402_work->em[0x5C].setNoSuspend(0);
++    r402_work->em[0x5A + s].setPos(&r402_gotoPos0);
++    r402_work->em[0x5B + s].setPos(&r402_gotoPos1);
++    r402_work->em[0x5C + s].setPos(&r402_gotoPos2);
++    r402_work->em[0x5A + s].setNoSuspend(0);
++    r402_work->em[0x5B + s].setNoSuspend(0);
++    r402_work->em[0x5C + s].setNoSuspend(0);
+     r402_work->em[0x39].setNoSuspend(0);
+     r402_work->em[0x3A].setNoSuspend(0);
+     CamCtrl.Comeback(0);
+@@ -310,14 +334,16 @@
+         SceAtSetEnable(0x10, 0);
+         if (!(pG->Room_flg[0] & 0x400)) {
+             if (R402CalcActiveEmWarp() <= 4) {
++                int s = re4_disc_retail() ? 2 : 0;   /* port (patch 0167): the retail slots 0x65..0x6B */
++
+                 pG->Room_flg[0] |= 0x400;
+-                R402EmSetSub(0x63, 0xF0, 1);
+-                R402EmSetSub(0x64, 0xF1, 1);
+-                R402EmSetSub(0x65, 0xF2, 1);
+-                R402EmSetSub(0x66, 0xF3, 1);
+-                R402EmSetSub(0x67, 0xF4, 1);
+-                R402EmSetSub(0x68, 0xF5, 1);
+-                R402EmSetSub(0x69, 0xF6, 1);
++                R402EmSetSub(0x63 + s, 0xF0, 1);
++                R402EmSetSub(0x64 + s, 0xF1, 1);
++                R402EmSetSub(0x65 + s, 0xF2, 1);
++                R402EmSetSub(0x66 + s, 0xF3, 1);
++                R402EmSetSub(0x67 + s, 0xF4, 1);
++                R402EmSetSub(0x68 + s, 0xF5, 1);
++                R402EmSetSub(0x69 + s, 0xF6, 1);
+             }
+         }
+         R402MoveDoor02(1);
+@@ -544,8 +570,12 @@
+ {
+     int i;
+ 
+-    for (i = 0; i < 0x70; i++) {
++    for (i = 0; i < r402_emNum(); i++) {   /* port (patch 0167) */
+         if (r402_work->em[i].isAlive() == 1 && r402_work->em[i].isActive() == 0) {
++            /* port (patch 0167): the retail releases keep the ones still on their way (goto mode set) */
++            if (re4_disc_retail() && r402_work->em[i].ckGoto() != 0) {
++                continue;
++            }
+             r402_work->em[i].destroy();
+         }
+     }
+@@ -572,10 +602,15 @@
+     if (em == errEm) {
+         pLog->err(0, 0, "R402EmSetSub : EmSetEvent error");
+     } else {
++        /* port (patch 0167): the European / Japanese release record the list entry (EmSetEvent leaves 0xFF):
++           the Ganados take their route, frame slot and choices from it, as the room list's do */
++        if (re4_disc_retail_eu() || re4_disc_retail_jp()) {
++            em->emset_no = list;
++        }
+         r402_work->em[no].setPtr(em, 1);
+         r402_work->em[no].setFlag(1);
+         if (findPl == 1) {
+-            r402_work->em[no].setGoto(&pPL->pos, 0xC);
++            r402_work->em[no].setGoto(&pPL->pos, r402_gotoMode()); /* port (patch 0167) */
+         } else {
+             r402_work->em[no].setFindPL();
+         }
+@@ -851,10 +886,268 @@
+     int n = 0;
+     int i;
+ 
+-    for (i = 0; i < 0x70; i++) {
++    for (i = 0; i < r402_emNum(); i++) {   /* port (patch 0167) */
+         if (r402_work->em[i].isActive() == 1) {
+             n++;
+         }
+     }
+     return n;
+ }
++
++// port (patch 0167): R402EmSetMain of the retail st4_0.rel (US, EU and JP alike but the goto mode; read with
++// retail_code.py on 31.10.2026). The same waves as the prototype's, other than: the order of the areas; the
++// boat events of area 0x4000000 start with up to 8 active enemies (the prototype: 6); a new wave in area 0x2000
++// (list entries 0xE3 / 0xE7 / 0xEB, up to 15) in slots 0x5A..0x5C, so the later slots moved (0x72 in all);
++// list entries 0xAB / 0xAC go to their points with goto mode 15 in the European / Japanese release. The prototype's
++// list has no entries 0xE3 / 0xE7 / 0xEB: debug discs keep R402EmSetMain.
++static void R402EmSetMainRetail()
++{
++    int n = 0;
++
++    r402_work->c550 = 0;
++    r402_work->c554 = 0;
++    r402_work->c558 = 0;
++    r402_work->c55C = 0;
++    r402_work->c560 = 0;
++    r402_work->c564 = 0;
++    r402_work->c568 = 0;
++    r402_work->c584 = 0;
++    r402_work->c56C = 0;
++    r402_work->c570 = 0;
++    r402_work->c574 = 0;
++    r402_work->c578 = 0;
++    r402_work->c57C = 0;
++    r402_work->c580 = 0;
++    r402_work->c588 = 0;
++    SceSleep(1);
++    for (;;) {
++        n = R402CalcActiveEmWarp();
++        if (n <= 8) {
++            if (!(pG->Room_flg[1] & 0x20000)) {
++                if (r402_work->em[0x27].isActive() == 0 && r402_work->em[0x28].isActive() == 0) {
++                    pG->Room_flg[1] |= 0x20000;
++                }
++            } else {
++                Vec p0 = {11320.0f, 12295.0f, -46200.0f};
++                Vec p1 = {9240.0f, 12295.0f, -46200.0f};
++                if (R402EmSetSubMugen(0x31, 0xAB, &r402_work->c578, 5, 1)) {
++                    r402_work->em[0x31].setGoto(&p0, r402_gotoMode());
++                }
++                if (R402EmSetSubMugen(0x32, 0xAC, &r402_work->c578, 5, 1)) {
++                    r402_work->em[0x32].setGoto(&p1, r402_gotoMode());
++                }
++            }
++        }
++        if ((pG->Room_flg[2] & 0x8000) && n <= 9) {
++            if (!(pG->Room_flg[1] & 0x10000) && MercSysWk.kill > 24) {
++                pG->Room_flg[1] |= 0x10000;
++                R402EmSetSub(0x38, 0xB3, 1);
++            }
++        }
++        if (pG->Room_flg[2] & 0x4000000) {
++            if (n <= 8) {
++                if (!(pG->Room_flg[0] & 0x200)) {
++                    if (MercSysWk.kill > 19) {
++                        if (r402_work->em[0x38].isActive() != 1 || !(pG->Room_flg[1] & 0x10000)) {
++                            pG->Room_flg[0] |= 0x200;
++                            SceExec(0x12, (TaskFunc) R402ExecEvent03Main00, 0, 0, SCE_PRIO_DEF_2, 0);
++                        }
++                    }
++                } else if (!(pG->Room_flg[0] & 0x100)) {
++                    if (r402_work->c584 > 149) {
++                        if (MercSysWk.kill > 89) {
++                            pG->Room_flg[0] |= 0x100;
++                            SceExec(0x12, (TaskFunc) R402ExecEvent03Main01, 0, 0, SCE_PRIO_DEF_2, 0);
++                        }
++                    } else {
++                        r402_work->c584++;
++                    }
++                }
++            }
++            if (n <= 6) {
++                R402EmSetSubMugen(0, 0x78, &r402_work->c574, 30, 1);
++                R402EmSetSubMugen(1, 0x79, &r402_work->c574, 30, 1);
++                R402EmSetSubMugen(2, 0x7A, &r402_work->c574, 30, 1);
++                R402EmSetSubMugen(3, 0x7B, &r402_work->c574, 30, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x2000) && n <= 7) {
++            R402EmSetSubMugen(0x5A, 0xE3, &r402_work->c588, 15, 1);
++            R402EmSetSubMugen(0x5B, 0xE7, &r402_work->c588, 15, 1);
++            R402EmSetSubMugen(0x5C, 0xEB, &r402_work->c588, 15, 1);
++        }
++        if ((pG->Room_flg[2] & 0x100000) && n <= 6) {
++            if (!(pG->Room_flg[0] & 0x80)) {
++                pG->Room_flg[0] |= 0x80;
++                R402EmSetSub(0x6C, 0xFA, 1);
++                R402EmSetSub(0x6D, 0xF8, 1);
++            } else if (!(pG->Room_flg[0] & 0x40)) {
++                pG->Room_flg[0] |= 0x40;
++                R402EmSetSub(0x6E, 0xFB, 1);
++                R402EmSetSub(0x6F, 0xFC, 1);
++            } else if (!(pG->Room_flg[0] & 0x20)) {
++                pG->Room_flg[0] |= 0x20;
++                R402EmSetSub(0x70, 0xFD, 1);
++            } else if (!(pG->Room_flg[0] & 0x10)) {
++                pG->Room_flg[0] |= 0x10;
++                R402EmSetSub(0x71, 0xF9, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x80000) && n <= 6) {
++            if (!(pG->Room_flg[0] & 8)) {
++                pG->Room_flg[0] |= 8;
++                R402EmSetSub(0x1A, 0x93, 0);
++            } else if (!(pG->Room_flg[0] & 4)) {
++                pG->Room_flg[0] |= 4;
++                R402EmSetSub(0x1B, 0x94, 1);
++            } else if (!(pG->Room_flg[0] & 2)) {
++                pG->Room_flg[0] |= 2;
++                R402EmSetSub(0x1C, 0x97, 1);
++            } else if ((pG->Room_flg[0] & 1) == 0) {
++                pG->Room_flg[0] |= 1;
++                R402EmSetSub(0x1D, 0x9B, 1);
++            } else if (!(pG->Room_flg[1] & 0x80000000)) {
++                pG->Room_flg[1] |= 0x80000000;
++                R402EmSetSub(0x1E, 0x9C, 1);
++            } else if (!(pG->Room_flg[1] & 0x40000000)) {
++                pG->Room_flg[1] |= 0x40000000;
++                R402EmSetSub(0x1F, 0x95, 1);
++            } else if (!(pG->Room_flg[1] & 0x20000000)) {
++                pG->Room_flg[1] |= 0x20000000;
++                R402EmSetSub(0x20, 0x96, 1);
++            } else if (!(pG->Room_flg[1] & 0x10000000)) {
++                pG->Room_flg[1] |= 0x10000000;
++                R402EmSetSub(0x21, 0x98, 1);
++            } else if (!(pG->Room_flg[1] & 0x8000000)) {
++                pG->Room_flg[1] |= 0x8000000;
++                R402EmSetSub(0x22, 0x99, 1);
++            } else if (!(pG->Room_flg[1] & 0x4000000)) {
++                pG->Room_flg[1] |= 0x4000000;
++                R402EmSetSub(0x23, 0x9D, 1);
++            } else if (!(pG->Room_flg[1] & 0x2000000)) {
++                pG->Room_flg[1] |= 0x2000000;
++                R402EmSetSub(0x24, 0x9E, 1);
++            } else if (!(pG->Room_flg[1] & 0x1000000)) {
++                pG->Room_flg[1] |= 0x1000000;
++                R402EmSetSub(0x25, 0x9A, 1);
++            } else if (!(pG->Room_flg[1] & 0x800000)) {
++                pG->Room_flg[1] |= 0x800000;
++                R402EmSetSub(0x26, 0x9F, 1);
++            } else {
++                R402EmSetSubMugen(0xF, 0x85, &r402_work->c564, 10, 1);
++                R402EmSetSubMugen(0x10, 0x86, &r402_work->c564, 10, 1);
++                R402EmSetSubMugen(0x11, 0x87, &r402_work->c564, 10, 1);
++                R402EmSetSubMugen(0x12, 0x88, &r402_work->c564, 10, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x40000) && n <= 6) {
++            R402EmSetSubMugen(0xC, 0x81, &r402_work->c568, 20, 1);
++            R402EmSetSubMugen(0xD, 0x82, &r402_work->c568, 20, 1);
++            R402EmSetSubMugen(0xE, 0x83, &r402_work->c568, 20, 1);
++        }
++        if ((pG->Room_flg[2] & 0x80000000) && n <= 8) {
++            if (!(pG->Room_flg[0] & 0x800000)) {
++                pG->Room_flg[0] |= 0x800000;
++                R402EmSetSub(0x4D, 0xD5, 0);
++                R402EmSetSub(0x4E, 0xD6, 0);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x80000000) && n <= 7) {
++            if (!(pG->Room_flg[0] & 0x4000000)) {
++                pG->Room_flg[0] |= 0x4000000;
++                R402EmSetSub(0x4B, 0xD2, 1);
++                R402EmSetSub(0x48, 0xCE, 1);
++                R402EmSetSub(0x49, 0xCF, 1);
++            } else if (!(pG->Room_flg[0] & 0x2000000)) {
++                pG->Room_flg[0] |= 0x2000000;
++                R402EmSetSub(0x4C, 0xD3, 1);
++                R402EmSetSub(0x4A, 0xDA, 1);
++            } else {
++                R402EmSetSubMugen(0x15, 0x8C, &r402_work->c554, 30, 1);
++                R402EmSetSubMugen(0x16, 0x8D, &r402_work->c554, 30, 1);
++                R402EmSetSubMugen(0x17, 0x8E, &r402_work->c554, 30, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x40000000) && n <= 7) {
++            if (!(pG->Room_flg[0] & 0x400000)) {
++                pG->Room_flg[0] |= 0x400000;
++                R402EmSetSub(0x43, 0xC8, 0);
++                R402EmSetSub(0x44, 0xC9, 0);
++                R402EmSetSub(0x45, 0xCA, 1);
++            } else if (!(pG->Room_flg[0] & 0x200000)) {
++                pG->Room_flg[0] |= 0x200000;
++                R402EmSetSub(0x46, 0xCB, 1);
++                R402EmSetSub(0x47, 0xCC, 1);
++            } else {
++                R402EmSetSubMugen(0x63, 0xED, &r402_work->c558, 18, 1);
++                R402EmSetSubMugen(0x64, 0xEE, &r402_work->c558, 18, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x2000000) && n <= 8) {
++            if (!(pG->Room_flg[0] & 0x80000)) {
++                pG->Room_flg[0] |= 0x80000;
++                R402EmSetSub(0x51, 0xDA, 1);
++                R402EmSetSub(0x52, 0xDB, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x20000000) && n <= 6) {
++            if (!(pG->Room_flg[0] & 0x40000)) {
++                pG->Room_flg[0] |= 0x40000;
++                R402EmSetSub(0x4F, 0xD8, 1);
++                R402EmSetSub(0x50, 0xD9, 1);
++            } else {
++                R402EmSetSubMugen(0x18, 0x90, &r402_work->c55C, 25, 1);
++                R402EmSetSubMugen(0x19, 0x91, &r402_work->c55C, 25, 1);
++                R402EmSetSubMugen(0x13, 0x8A, &r402_work->c55C, 25, 1);
++                R402EmSetSubMugen(0x14, 0x8B, &r402_work->c55C, 25, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x800000) && n <= 8) {
++            if (!(pG->Room_flg[0] & 0x8000)) {
++                cEmDoor* door;
++
++                getRoomEtcDoor(0x1B, &door, 1);
++                if (door->flag & 0x10000000) {
++                    pG->Room_flg[0] |= 0x8000;
++                    R402EmSetSub(0x53, 0xDC, 1);
++                    R402EmSetSub(0x54, 0xDD, 1);
++                }
++            }
++        }
++        if ((pG->Room_flg[2] & 0x10000000) && n <= 8) {
++            R402EmSetSubMugen(0x58, 0xE1, &r402_work->c560, 10, 1);
++            R402EmSetSubMugen(0x59, 0xE2, &r402_work->c560, 10, 1);
++        }
++        if ((pG->Room_flg[2] & 0x10000) && n <= 7) {
++            R402EmSetSubMugen(0x60, 0xE8, &r402_work->c57C, 15, 1);
++            R402EmSetSubMugen(0x61, 0xE9, &r402_work->c57C, 15, 1);
++            R402EmSetSubMugen(0x62, 0xEA, &r402_work->c57C, 15, 1);
++        }
++        if ((pG->Room_flg[2] & 0x4000) && n <= 7) {
++            R402EmSetSubMugen(0x55, 0xDE, &r402_work->c580, 20, 1);
++            R402EmSetSubMugen(0x56, 0xDF, &r402_work->c580, 20, 1);
++            R402EmSetSubMugen(0x57, 0xE0, &r402_work->c580, 20, 1);
++        }
++        if ((pG->Room_flg[2] & 0x20000) && n <= 6) {
++            if (!(pG->Room_flg[0] & 0x40000000)) {
++                R402EmSetSubMugen(4, 0xB7, &r402_work->c56C, 20, 1);
++                R402EmSetSubMugen(5, 0xB8, &r402_work->c56C, 20, 1);
++                R402EmSetSubMugen(6, 0xB9, &r402_work->c56C, 20, 1);
++                R402EmSetSubMugen(7, 0xBA, &r402_work->c56C, 20, 1);
++            } else {
++                R402EmSetSubMugen(8, 0x7C, &r402_work->c570, 25, 1);
++                R402EmSetSubMugen(9, 0x7D, &r402_work->c570, 25, 1);
++                R402EmSetSubMugen(0xA, 0x7E, &r402_work->c570, 25, 1);
++                R402EmSetSubMugen(0xB, 0x7F, &r402_work->c570, 25, 1);
++            }
++        }
++        if ((pG->Room_flg[2] & 0x8000000) && n <= 5) {
++            R402EmSetSubMugen(0x33, 0xAD, &r402_work->c550, 45, 1);
++            R402EmSetSubMugen(0x34, 0xAE, &r402_work->c550, 45, 0);
++            R402EmSetSubMugen(0x35, 0xAF, &r402_work->c550, 45, 1);
++            R402EmSetSubMugen(0x36, 0xB0, &r402_work->c550, 45, 1);
++            R402EmSetSubMugen(0x37, 0xB1, &r402_work->c550, 45, 1);
++        }
++        SceSleep(1);
++    }
++}

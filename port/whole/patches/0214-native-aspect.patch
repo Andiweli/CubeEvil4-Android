@@ -1,0 +1,242 @@
+# Port patch, wish of the project owner (07.11.2026): the app's picture format "Native", the screen's own aspect, on
+# the widescreen of Noname267's fork (19.5:9, branch Noname267-patch-1, its 0210-widescreen-aspect.patch; not taken
+# over as it was). The game computes its 3D for 4:3: C_MTXPerspective with 4/3 in camera.cpp, the culling frustum
+# VIEW_ASPECT in view.cpp, and everything that projects with the camera's fovy at 4/3 (the effects that lay a copy of
+# the picture over the scene: esp08, esp0f, esp18, esp_sub, Espgen42, espgen45, id_sys, trans; the mirrors' render
+# texture TexRender and mirror; the item camera of examine; the camera's near plane against walls, cam_qfps, and water,
+# cam_ctrl; the ray through a screen point, CamPos2ScrnVec). The app shows the rows 56..392 of the picture, the 16:9
+# inside the game's letterbox, over a screen wider than 16:9; with "Native" on and while the player plays,
+# re4_view_aspect (runtime/picture.cpp) gives 4/3 x (the screen's aspect) / (16/9) for the camera's projection (19.5:9:
+# 1.625) and re4_view_camera_aspect the aspect of the projection pG->Camera has to the others, so the game draws and
+# culls the wider view. The id system's HUD is drawn in front of the camera with its projection and keeps its 16:9
+# shape in the middle; the message text is drawn flat (messageCamera, 512 x 384) and gets the same narrowing
+# (re4_view_flat_edge). CameraSetProjection tells the GX layer which projection a picture loads first (re4_view_load,
+# RE4_GX_CHUNK_WIDE): the app shows a wide picture over the whole screen, any other in the 16:9 box. Sub screens,
+# the memory card and option screens, the result tables, the rifle's scope and movies stay 4:3 (shown in the 16:9 box,
+# as "16:9"). Every replacement is on its line (the files keep their line numbers); the functions are declared in
+# re4_whole_prelude.h. Off, and in every other picture format, each gives the original's 4:3 constant (1.3333334f;
+# 0 and 512 for the text), so nothing changes. A port feature, not a fix of the prototype.
+--- a/src/game/Espgen42.cpp
++++ b/src/game/Espgen42.cpp
+@@ -789,7 +789,7 @@
+             Mtx pm;
+             GXInitTexObj(&tex, buf, (u32) Screen.width / 2, (u32) ((f32) ((u32) Screen.height / 2) - ofs), 6, 0, 0, 0);
+             GXLoadTexObj(&tex, st->texMap);
+-            C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.6666667f, 0.5f, 0.5f);
++            C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.6666667f, 0.5f, 0.5f);
+             PSMTXConcat(pm, mv, tm);
+             GXLoadTexMtxImm(tm, 0x1E, 0);
+             GXSetTexCoordGen(st->texCoord, 0, 0, 0x1E);
+--- a/src/game/TexRender.cpp
++++ b/src/game/TexRender.cpp
+@@ -374,7 +374,7 @@
+     pWk->pProc->move();
+     pWk->CameraBak = pG->Camera;
+     pG->Camera = *pWk->pProc;
+-    C_MTXPerspective(pG->Camera.ProjMat, pG->Camera.param.Fovy, 4.0f / 3.0f, ((F32S*) &ZNEAR)->v, ((F32S*) &ZFAR)->v);
++    C_MTXPerspective(pG->Camera.ProjMat, pG->Camera.param.Fovy, re4_view_mtx_aspect(pWk->CameraBak.ProjMat), ((F32S*) &ZNEAR)->v, ((F32S*) &ZFAR)->v);
+     C_MTXLookAt(pG->Camera.v_mat, &pG->Camera.param.Campos, &pG->Camera.Up, &pG->Camera.param.Target);
+ }
+ 
+--- a/src/game/cam_ctrl.cpp
++++ b/src/game/cam_ctrl.cpp
+@@ -1251,7 +1251,7 @@
+     if (!StaFlagChk(pG, STA_EVENT)) {
+         if (GetWaterHeight(&cur.Campos, &water_y)) {
+             t = sinf(cur.Fovy * PI / 360.0f) / cosf(cur.Fovy * PI / 360.0f);
+-            lim = gain * (ZNEAR * t * 1.3333334f) + water_y;
++            lim = gain * (ZNEAR * t * re4_view_camera_aspect()) + water_y;
+             if (cur.Campos.y < lim) {
+                 cur.Campos.y = lim;
+             }
+--- a/src/game/cam_qfps.cpp
++++ b/src/game/cam_qfps.cpp
+@@ -749,7 +749,7 @@
+         Draw_line3d(&l0, &l1, 0xFFFF0000, 0);
+     }
+     t = sinf(ofs->m_fovy * PI / 360.0f) / cosf(ofs->m_fovy * PI / 360.0f);
+-    w = ZNEAR * t * 1.3333334f * OFFSET_GAIN;
++    w = ZNEAR * t * re4_view_camera_aspect() * OFFSET_GAIN;
+     {
+         Vec up = {0.0f, 1.0f, 0.0f};
+         Vec dd;
+--- a/src/game/camera.cpp
++++ b/src/game/camera.cpp
+@@ -29,7 +29,7 @@
+     ProjType = projType;
+     switch (projType) {
+     case 1:
+-        GXSetProjection(pG->Camera.ProjMat, 0);
++        GXSetProjection(pG->Camera.ProjMat, re4_view_load(0));
+         break;
+     case 2:
+         GXSetProjection(pG->Camera.ProjMat, 1);
+@@ -98,7 +98,7 @@
+     }
+     switch (ProjType) {
+     case 1:
+-        C_MTXPerspective(cam->ProjMat, cam->param.Fovy, 1.3333334f, ZNEAR, ZFAR);
++        C_MTXPerspective(cam->ProjMat, cam->param.Fovy, re4_view_aspect(), ZNEAR, ZFAR);
+         break;
+     case 2:
+         C_MTXOrtho(cam->ProjMat, ORTHO_T, ORTHO_B, ORTHO_L, ORTHO_R, 0.0f, ZFAR);
+@@ -186,7 +186,7 @@
+ 
+     vec->x = sX - Screen.width * 0.5f;
+     vec->y = -(sY - Screen.height * 0.5f);
+-    vec->x *= 640.0f / Screen.width;
++    vec->x *= 640.0f / Screen.width * (re4_view_camera_aspect() * 0.75f);
+     ang = ang * 0.5f;
+     ang = ang * PI;
+     ang = ang / 180.0f;
+--- a/src/game/esp08.cpp
++++ b/src/game/esp08.cpp
+@@ -684,9 +684,9 @@
+     } else {
+         f32 fovy = pG->Camera.param.Fovy;
+         if (SysFlagChk(pG, SYS_SCISSOR_ON)) {
+-            C_MTXLightPerspective(pm, fovy, 1.3333334f, 0.5f, -0.6666667f, 0.5f, 0.5f);
++            C_MTXLightPerspective(pm, fovy, re4_view_camera_aspect(), 0.5f, -0.6666667f, 0.5f, 0.5f);
+         } else {
+-            C_MTXLightPerspective(pm, fovy, 1.3333334f, 0.5f, -0.5f, 0.5f, 0.5f);
++            C_MTXLightPerspective(pm, fovy, re4_view_camera_aspect(), 0.5f, -0.5f, 0.5f, 0.5f);
+         }
+         PSMTXConcat(pm, esp->m_Mat, tm);
+         GXLoadTexMtxImm(tm, 0x1E, 0);
+--- a/src/game/esp0f.cpp
++++ b/src/game/esp0f.cpp
+@@ -158,7 +158,7 @@
+         Mtx tm;
+         Mtx pm;
+ 
+-        C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.5f, 0.5f, 0.5f);
++        C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.5f, 0.5f, 0.5f);
+         PSMTXConcat(pm, esp->m_Mat, tm);
+         GXLoadTexMtxImm(tm, 0x1E, 0);
+         GXSetTexCoordGen(0, 0, 0, 0x1E);
+--- a/src/game/esp18.cpp
++++ b/src/game/esp18.cpp
+@@ -297,7 +297,7 @@
+             GXSetTexCoordGen(texGens, 1, 0, 0x1E);
+             texGens++;
+         } else {
+-            C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.6666667f, rx * (1.0f / 512.0f) * e18mx + 0.5f,
++            C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.6666667f, rx * (1.0f / 512.0f) * e18mx + 0.5f,
+                                   ry / 392.0f * e18my + 0.5f);
+             PSMTXConcat(pm, esp->m_Mat, tm);
+             GXLoadTexMtxImm(tm, 0x1E, 0);
+--- a/src/game/esp_sub.cpp
++++ b/src/game/esp_sub.cpp
+@@ -491,7 +491,7 @@
+         GXLoadTexMtxImm(tm, 0x1E, 1);
+         GXSetTexCoordGen(texGens, 1, 0, 0x1E);
+     } else {
+-        C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.6666667f, 0.5f, 0.5f);
++        C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.6666667f, 0.5f, 0.5f);
+         PSMTXConcat(pm, esp->m_Mat, tm);
+         GXLoadTexMtxImm(tm, 0x1E, 0);
+         GXSetTexCoordGen(texGens, 0, 0, 0x1E);
+@@ -755,7 +755,7 @@
+         Mtx tm;
+         Mtx pm;
+ 
+-        C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.6666667f, 0.5f, 0.5f);
++        C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.6666667f, 0.5f, 0.5f);
+         PSMTXConcat(pm, esp->m_Mat, tm);
+         GXLoadTexMtxImm(tm, 0x1E, 0);
+         GXSetTexCoordGen(0, 0, 0, 0x1E);
+--- a/src/game/espgen45.cpp
++++ b/src/game/espgen45.cpp
+@@ -515,7 +515,7 @@
+             Mtx pm;
+             GXInitTexObj(&tex, buf, (u32) Screen.width / 2, (u32) ((f32) ((u32) Screen.height / 2) - ofs), 6, 0, 0, 0);
+             GXLoadTexObj(&tex, st->texMap);
+-            C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.6666667f, 0.5f, 0.5f);
++            C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.6666667f, 0.5f, 0.5f);
+             PSMTXConcat(pm, mv, tm);
+             GXLoadTexMtxImm(tm, 0x1E, 0);
+             GXSetTexCoordGen(st->texCoord, 0, 0, 0x1E);
+--- a/src/game/examine.cpp
++++ b/src/game/examine.cpp
+@@ -874,7 +874,7 @@
+         itemCamera.Up = _up;
+         itemCamera.param.Fovy = _fovy;
+     }
+-    C_MTXPerspective(itemCamera.ProjMat, itemCamera.param.Fovy, 1.3333334f, ZNEAR, ZFAR);
++    C_MTXPerspective(itemCamera.ProjMat, itemCamera.param.Fovy, re4_view_camera_aspect(), ZNEAR, ZFAR);
+     C_MTXLookAt(itemCamera.v_mat, &itemCamera.param.Campos, &itemCamera.Up, &itemCamera.param.Target);
+     LightMgr.setModel2(m_pModel);
+     if (!StaFlagChk(pG, STA_SUB_SCRN)) {
+--- a/src/game/id_sys.cpp
++++ b/src/game/id_sys.cpp
+@@ -1213,7 +1213,7 @@
+     Mtx tm2;
+     Mtx pm;
+     Mtx tm;
+-    C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.5f, 0.5f, 0.5f);
++    C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.5f, 0.5f, 0.5f);
+     PSMTXConcat(IDSystem::m_scrn_mat, u->mat, tm);
+     PSMTXConcat(pm, tm, tm2);
+     GXLoadTexMtxImm(tm2, 0x1E, 0);
+@@ -1323,7 +1323,7 @@
+     Mtx tm2;
+     Mtx pm;
+     Mtx tm;
+-    C_MTXLightPerspective(pm, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.5f, 0.5f, 0.5f);
++    C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.5f, 0.5f, 0.5f);
+     PSMTXConcat(IDSystem::m_scrn_mat, u->mat, tm);
+     PSMTXConcat(pm, tm, tm2);
+     GXLoadTexMtxImm(tm2, 0x1E, 0);
+--- a/src/game/mes.cpp
++++ b/src/game/mes.cpp
+@@ -1107,7 +1107,7 @@
+     Mtx44 proj;
+     Mtx m;
+ 
+-    C_MTXOrtho(proj, 0.0f, 384.0f, 0.0f, 512.0f, 0.0f, -100.0f);
++    C_MTXOrtho(proj, 0.0f, 384.0f, re4_view_flat_edge(512.0f, 0), re4_view_flat_edge(512.0f, 1), 0.0f, -100.0f);
+     GXSetProjection(proj, 1);
+     PSMTXIdentity(m);
+     GXLoadPosMtxImm(m, 0);
+--- a/src/game/mirror.cpp
++++ b/src/game/mirror.cpp
+@@ -85,7 +85,7 @@
+         }
+         GXSetCullMode(1);
+         GXLoadTexObj(GetTexRenderMgrAddr(0)->GetTexObj(), st->texMap);
+-        C_MTXLightPerspective(proj, pG->Camera.param.Fovy, 1.3333334f, 0.5f, -0.5f, 0.5f, 0.5f);
++        C_MTXLightPerspective(proj, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.5f, 0.5f, 0.5f);
+         PSMTXConcat(proj, mv, tex);
+         GXLoadTexMtxImm(tex, 0x1E, 0);
+         GXSetTexCoordGen2(st->texCoord, 0, 0, 0x1E, 0, 0x7D);
+--- a/src/game/trans.cpp
++++ b/src/game/trans.cpp
+@@ -2716,7 +2716,7 @@
+         Mtx m2;
+         Mtx proj;
+         mtx = getTexMtx();
+-        C_MTXLightPerspective(proj, pG->Camera.param.Fovy, 1.33333333f, 0.5f, -0.66666667f, 0.5f, 0.5f);
++        C_MTXLightPerspective(proj, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.66666667f, 0.5f, 0.5f);
+         PSMTXConcat(proj, mv, m2);
+         GXLoadTexMtxImm(m2, mtx, 0);
+     }
+--- a/src/game/view.cpp
++++ b/src/game/view.cpp
+@@ -7,7 +7,7 @@
+ #include "db_log.h"
+ #include "view.h"
+ 
+-#define VIEW_ASPECT 1.33333333f
++#define VIEW_ASPECT re4_view_aspect()
+ 
+ VIEW View;
+ u8 ViewHit[0xD00];
+@@ -37,7 +37,7 @@
+ // Per frame: rebuilds the frustum when the fovy or far plane changed, then orients it to the camera.
+ void VIEW::move()
+ {
+-    if (_old_fovy != _p_camera->param.Fovy || _old_zfar != _zfar) {
++    if (_old_fovy != _p_camera->param.Fovy || _old_zfar != _zfar || _aspect != VIEW_ASPECT) {
+         initPerspective(_p_camera->param.Fovy, VIEW_ASPECT, ZNEAR, _zfar);
+     }
+     orientation();

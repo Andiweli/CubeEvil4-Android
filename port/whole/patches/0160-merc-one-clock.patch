@@ -1,0 +1,19 @@
+# A bug of the prototype (tester report 30.10.2026, EU discs): two clocks in The Mercenaries. The mode shows its own
+# clock (mercId, id400.dat, unit 0 and the digits 1/3/5, set every frame by MercSysMoveScore) and runs the cockpit's
+# count-down only as the timer behind it: MercSysMoveStart starts it and slides its frame out
+# (transCountDownTimer(0)), which leaves it hidden without the hidden bit (TIMER_STA_ERASE). The sub screen saves and
+# restores the count-down's display (sscrn.cpp: saveCountDownTimer / loadCountDownTimer); loadDisp shows every alive
+# count-down whose saved state lacks that bit, so after the first inventory the cockpit's clock appeared next to the
+# mode's own (01'44"90 and 01'44"86 in the report; a retry from the pause menu hid it again, Cckpt.roomInit). Now the
+# start also hides it with the bit (dispCountDownTimer(0)); it keeps counting, the mode reads it as before. The
+# European code was not compared (no disc in the cloud). All discs.
+--- a/src/game/mercenaries.cpp
++++ b/src/game/mercenaries.cpp
+@@ -243,6 +243,7 @@
+     pPL->setNoSuspend(1);
+     Cckpt.startCountDownTimer(MercMin, MercSec, MercCes);
+     Cckpt.transCountDownTimer(0);
++    Cckpt.dispCountDownTimer(0); /* port (patch 0160): the HUD's own clock only, also after the sub screens */
+     st[0] = 1;
+     do {
+         switch (st[1]) {

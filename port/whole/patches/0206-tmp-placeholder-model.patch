@@ -1,0 +1,25 @@
+# Port patch, a bug fix of the stand-ins (tester picture 05.11.2026, HUNK aiming with the laser but no gun; the
+# tester: the TMP): HUNK's TMP file (em/wep29.drs, Leon's TMP code in src/wep/objMachinegun.cpp) has models only for
+# the TMP without the stock: its entries 0x7..0x9 (weapon types 1..3, the TMP with the stock and its variants) share
+# one placeholder of a few points. runtime/cheats.cpp reads Leon's TMP file for those types, but the weapon object
+# is also made again from the file already read (PlChangeData after a costume change, sscrn.cpp after the case
+# set the type from the item) with whatever type the TMP has then: with HUNK's file and the stock it took the
+# placeholder, and the TMP was gone. Entries 0x7..0x9 that share one model are no models of their own: the TMP
+# without the stock instead. Leon's and the other files have four models: unchanged. Checked on the PC: r103, HUNK,
+# own TMP read, the weapon made again with type 1 (RE4_TEST_WEPTYPE): before only the laser, now his TMP.
+--- a/src/wep/objMachinegun.cpp
++++ b/src/wep/objMachinegun.cpp
+@@ -46,6 +46,13 @@
+         bin = WEP_ARC_PTR(0x9);
+         break;
+     }
++    /* port (patch 0206): HUNK's TMP file (wep29) has no TMP with the stock: its entries 0x7..0x9 share one
++       placeholder of a few points, and a TMP with the stock in his hands was gone (tester pictures 05.11.2026).
++       Entries that share one model are no models of their own: the TMP without the stock instead. */
++    if (pG->weapon_type >= 1 && pG->weapon_type <= 3 && WEP_ARC_PTR(0x7) == WEP_ARC_PTR(0x8) &&
++        WEP_ARC_PTR(0x8) == WEP_ARC_PTR(0x9)) {
++        bin = WEP_ARC_PTR(0x6);
++    }
+     if (modelInit(bin, WEP_ARC_PTR(0x5)) == 0) {
+         pLog->err(0, 0, "cObjMachinegun::init() modelInit() failed.");
+         ObjMgr.destroy(this);

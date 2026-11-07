@@ -46,6 +46,8 @@ struct GxStats {
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
   unsigned missingTextures = 0;  // bound keys the renderer did not have
   unsigned shaderErrors = 0;
+  unsigned programsLive = 0;     // programs kept now (at most 3000, RE4_GX_MAX_PROGRAMS)
+  unsigned programsDeleted = 0;  // programs deleted that went longest unused (EvictPrograms)
   unsigned dstAlphaApprox = 0;   // draws whose constant destination alpha is not 0 and not exact
   unsigned autofocus = 0;        // blur passes of the gameplay autofocus (BP 0x5A, the core's marker)
   unsigned efbRestores = 0;      // MSAA on the tiles: the EFB drawn back after a pass ended (GPU step d2)
@@ -56,9 +58,51 @@ struct GxStats {
   unsigned uniformUploads = 0, uniformBytes = 0, programSwitches = 0, textureBinds = 0, stateChanges = 0,
            attributeSetups = 0;
   unsigned streamWaits = 0;  // the uniform stream waited for the GPU before reusing a quarter
+  // draws that needed no GL change after the draw before them in the same chunk (same program, textures,
+  // samplers, state, attribute setup, uniforms, primitive, no copy between): one draw call could take
+  // them together; and those that differed only in uploaded uniforms (the matrices or colours). A
+  // measurement for merging draw calls (tester's proposal 30.10.2026), not used for drawing
+  unsigned mergeSame = 0, mergeUniform = 0;
+  unsigned mergeMatrixOnly = 0;  // of mergeUniform: only the vertex side (XF: matrices, lights) changed
+  // merged draw calls (RE4_GX_MERGE=1, SetMerge): the calls that drew several draws, and those draws
+  // (GL draw calls: draws - mergeTaken + mergeBatches)
+  unsigned mergeBatches = 0, mergeTaken = 0;
+  // Measurement of the EFB copies (a user's proposal 31.10.2026, "Deferred EFB Copies"): copies to a texture read
+  // as a texture at least once, drawn over before anyone read them, their texels at the EFB scale by size (the
+  // whole picture w >= 500, half size, depth, smaller), and the render thread's time for them
+  // (RE4_GX_COPY_TIME=1: glFinish before and after each copy, so it is the GPU's time too; a measurement only)
+  unsigned copyRead = 0, copyOverwrittenUnread = 0;
+  // (and, as kinds of their own, the display copy with its FXAA and the gameplay autofocus: the other big
+  // parts of the BP time)
+  enum { kCopyFull, kCopyHalf, kCopyDepth, kCopySmall, kCopyDisplay, kCopyFocus, kCopyKinds };
+  unsigned copyCount[kCopyKinds] = {};
+  unsigned long long copyTexels[kCopyKinds] = {}, copyNs[kCopyKinds] = {};
+  // Why merged runs end (RE4_GX_MERGE=1; a user's question 31.10.2026: r11d merges 89 draws, r11b 833). In
+  // MergePlan, why a draw does not join the chain before it: an op between them (EFB copy / autofocus / depth
+  // marker, a texture with texels or a copy, another op such as CP or a clear), another layout, stride or
+  // primitive, vertices not after the chain's, indices past u16; while drawing, why a run stops: the slots are
+  // full, the chain ends, no merged program yet, or the ops between change a BP register (a copy or marker, a
+  // TEV colour, another register's value), an XF value, a bound texture, or another op
+  enum { kPlanCopyMark, kPlanTexture, kPlanTextureCopy, kPlanOtherOp, kPlanLayout, kPlanStride, kPlanPrimitive, kPlanVertices,
+         kPlanIndices, kPlanKinds };
+  unsigned mergePlanBreak[kPlanKinds] = {};
+  // (an XF write by where: the post-transform texture matrices 0x500-0x5FF, the lights 0x600-0x7FF, the
+  // registers 0x1000-0x1057, else the other memory)
+  enum { kRunSlots, kRunChainEnd, kRunNoProgram, kRunBpMark, kRunTevColour, kRunBpValue, kRunXf, kRunXfPost,
+         kRunXfLight, kRunXfReg, kRunTexture, kRunOtherOp, kRunKinds };
+  unsigned mergeRunBreak[kRunKinds] = {};
   // the uniform stream moved on to its next quarter: in all, and inside a chunk (a chunk larger
   // than the room left; between chunks otherwise, gx_gl.cpp)
   unsigned streamSwitches = 0, streamSplits = 0;
+  // the vertex ring (GxOptions::vertexRing): chunks whose vertices and indices went into it, waits for the GPU
+  // before a quarter was written again, and how often it grew for a larger chunk
+  unsigned ringChunks = 0, ringWaits = 0, ringGrows = 0;
+  // the render thread's time in Run by kind of work (ns, steady clock; every Run): which part is the
+  // driver's (the draw calls, uniform blocks, binds, state) and which the renderer's own (Testers'
+  // logs 28.10.2026: 29.8 ms of processor time for 862 draws on a Mali-G52, 12 ms for 873 on an Adreno 642L)
+  enum { kSplitDraw, kSplitUniform, kSplitBind, kSplitState, kSplitProgram, kSplitTexture, kSplitBp, kSplitXf,
+         kSplitVertices, kSplitRest, kSplitKinds };
+  unsigned long long splitNs[kSplitKinds] = {};
   // GPU time of the chunks (EXT_disjoint_timer_query; 0 when the driver has none)
   unsigned long long gpuMicros = 0;
   unsigned gpuTimed = 0;
@@ -82,6 +126,10 @@ struct GxStats {
   unsigned interpKind[4] = {}, interpKindUnmatched[4] = {};
   unsigned interpOwned = 0, interpOwnedNew = 0, interpTexBlends = 0, interpTexWraps = 0, interpTevBlends = 0,
            interpLightBlends = 0, interpIndBlends = 0, interpOwnedRecount = 0;
+  // draws without a counterpart moved by the camera's move instead (BlendByCamera)
+  unsigned interpCameraMoved = 0;
+  // one-frame effects the game makes anew each picture (the laser sight), matched to the one of their id before
+  unsigned interpOneFrame = 0;
   // (interpOwnedRecount: draws of objects that drew another number of quads than in the picture before:
   // matched the old way, not by "n-th draw")
 };
@@ -125,6 +173,14 @@ struct GxOptions {
   // MSAA in own buffers: every resolve of the whole EFB, not only of the region a copy reads
   // (a test of the device replay)
   bool fullResolve = false;
+  // the vertex ring (V0b of port/docs/vulkan-plan.md, 31.10.2026): every chunk's vertices and indices are
+  // copied into two buffers mapped once for good (EXT_buffer_storage), a quarter at a time with a fence,
+  // as the uniform stream does, instead of a new buffer per chunk (glBufferData). The Galaxy S10e's Mali-G76
+  // spent 5.9 ms a picture on the vertex buffers (the Retroid ~1 ms). Without the extension, or with
+  // RE4_GX_VERTEX_RING=0 / RE4_GX_PERSISTENT=0: as before. Off by default since 0.96.7: a switch in the app
+  // menu, Performance, Experimental (wish of the project owner, 01.11.2026: the Mali tester's vertex upload
+  // 20-35 % cheaper, no more pictures a second)
+  bool vertexRing = false;
 };
 
 class GxRenderer {
@@ -182,11 +238,34 @@ public:
   // Xfb() and Present show that. Works with or without MSAA and at any resolution; takes effect with
   // the next display copy. Costs one pass over the XFB per picture (the in-between pictures too).
   void SetFxaa(bool on);
+  // Original TV filter (wish of the project owner, 01.11.2026): the display copies take the vertical
+  // taps of the game's copy filter (GXSetCopyFilter, BP 0x53/0x54: the line above, the line, the line
+  // below; the deflicker filter of the TV picture) one original line apart at any resolution, as the
+  // GameCube blurs its picture for the TV. Off: the picture stays sharp (the taps' sum only, the
+  // brightness option). Takes effect with the next display copy.
+  void SetTvFilter(bool on);
+  // PSone demake (wish of the project owner, 02.11.2026): the 3D draws as a PlayStation drew them, corners on a
+  // 320-wide grid (the polygons wobble), textures without perspective correction and without filtering; then a
+  // last pass over every display copy (after FXAA): one colour per cell of a 320 x 224 grid in 15-bit colour
+  // with the PlayStation's 4 x 4 dither. Takes effect with the next draws (new programs, made once).
+  void SetPsx(bool on);
+  // Lens flares (wish of the project owner, 04.11.2026; off by default): a small, faint glow and streak around
+  // what the game draws as light (additive 3D effects: flames, candles, lamp glows), drawn after the scene's
+  // last 3D draw (under the HUD), only where the source is not hidden in the EFB depth, faded in and out over
+  // a few pictures. Takes effect with the next chunk.
+  void SetFlares(bool on);
+  // the menu's depth of field "Strong" (0.98.4): the gameplay autofocus blurs more and wider than "Light"
+  void SetDofStrong(bool on);
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:
   // black waves at the bottom of the intro and under water). Default: all rows. Any thread.
   void SetShownRows(int top, int bottom);
+  // "4:3 (exact)" (the app menu, 29.10.2026): the game computes its 3D picture for 4:3 but its
+  // 512 x 448 picture showed 10:7 on a television; shown in a 4:3 box the 3D is exact and the flat
+  // draws of the whole screen (HUD, menus, text) would be narrower. They are drawn `factor` wider
+  // around the screen's centre (15/14 for that box; 1: as the game sends them). Any thread.
+  void SetWiden(float factor);
   // Frame skip (the app menu, 26.10.2026). The renderer is behind when the core has finished two
   // chunks: `a` need not be drawn when `b` (the next one) is drawn at once. Skip runs `a` without its
   // draws and its display copy: the register and texture state the game builds on (BP, XF, palettes,
@@ -202,6 +281,14 @@ public:
   // 60 FPS (experimental, decision of the project owner 22.10.2026): on, every Run notes how each
   // of its draws was drawn (the position and normal matrices, the projection) for Interpolate.
   void SetRecording(bool on);
+  // Merged draw calls (an experiment for low-end phones, 30.10.2026; default off, RE4_GX_MERGE=1 at
+  // Init or the app menu's switch under Performance, Experimental turns it on): draws in a row that differ only in the position, texture and normal matrices
+  // (the XFM part) and their matrix indices go to the GPU as one draw call, up to kMergeSlots of
+  // them (gx_gl_shader.h). Not while recording (60 FPS) and not without glDrawElementsBaseVertex.
+  // Their programs are made by Prewarm (a refresh without a chunk), not while drawing: till then a
+  // run draws one by one.
+  void SetMerge(bool on);
+  bool Merging() const;
   // The picture between `prev`, the chunk run last (the caller still holds it: its vertices), and
   // `next` at t (0 prev .. 1 next), into the XFB: `next` once more, every draw that matches one
   // of `prev` with its matrices (and changed vertices, the figures the game skins on the CPU)
@@ -212,6 +299,9 @@ public:
   // The latest display copy: an RGBA8 texture, GameCube row 0 at GL row 0;
   // 0 before the first display copy.
   GLuint Xfb(unsigned *width, unsigned *height) const;
+  // The picture format "Native" (0.99.0): the latest display copy came from a chunk with RE4_GX_CHUNK_WIDE, its 3D
+  // drawn for the screen's wider aspect (shown over the whole screen; else in the 16:9 box).
+  bool XfbWide() const;
   // Draws the latest display copy into the current framebuffer's viewport
   // (x, y, w, h), upright; rows > 0: only XFB rows top .. top + rows - 1
   // (the letterbox cut off). False when there is none yet.
@@ -237,6 +327,9 @@ public:
   // The app's list of programs (a key list file, WriteProgramKeyList): Prewarm takes them too, for
   // the MSAA setting in use. Before the first Prewarm.
   void SetProgramList(const std::string &path);
+  // The game's room (pG->room_id), each picture: Prewarm takes the programs this room drew with
+  // before (<cache>/room-XXX.keys), not every program of the cache (01.11.2026).
+  void SetRoom(unsigned room);
   // Frees the GL objects (context current).
   void Release();
 

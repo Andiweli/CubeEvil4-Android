@@ -84,7 +84,8 @@ public class CoreMenuLayoutTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class},
         // gameLanguages: the home page with the European discs' "Game language" too
-        (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE : null);
+        (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE
+            : method.getReturnType() == float.class ? (Object) 1f : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
     for (String language : languages) for (float scale : new float[] {1f, 1.5f, 2f}) {
@@ -94,12 +95,18 @@ public class CoreMenuLayoutTest {
         config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+        // the update button beside "Back to the game": both of its labels
+        menu.showUpdate(scale == 1.5f ? AppUpdate.CURRENT : AppUpdate.OLDER);
         View root = (View) field(menu, "root");
         root.setLayoutDirection(config.getLayoutDirection());
-        for (int page = 0; page < 7; page++) {  // 5: the controller configuration, 6: a free key's functions
-          show.invoke(menu, page, false);
+        for (int page = 0; page < 9; page++) {  // 7: the button mapping of the controller, 8: of the keyboard
+          if (page >= 7) {
+            java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
+            kind.setInt(menu, page == 7 ? ActionMap.KIND_CONTROLLER : ActionMap.KIND_KEYBOARD);
+          }
+          show.invoke(menu, Math.min(page, 7), false);
           if (page == 0) metadata.invoke(menu, (Object) new long[] {0, 1, 1, 1, 0x100, 101, 123456, 1792841040});
-          if (page == 4) {
+          if (page == 5) {
             // the cheat buttons' longest answer shown under them
             TextView answer = (TextView) field(menu, "cheatStatus");
             answer.setText(activity.getString(R.string.ingame_cheat_not_now)); answer.setVisibility(View.VISIBLE);
@@ -150,7 +157,8 @@ public class CoreMenuLayoutTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("graphicsChanged")) changed[0]++;
-          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -166,7 +174,11 @@ public class CoreMenuLayoutTest {
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
       MenuLayout.Keys keys = findKeys(root);
       assertNotNull(keys);
-      assertEquals(8, keys.getChildCount());
+      assertEquals(9, keys.getChildCount());  // the levels and the benchmark (05.11.2026)
+      View benchKey = keys.getChildAt(8);
+      assertEquals(activity.getString(R.string.ingame_benchmark), ((Button) benchKey).getText().toString());
+      assertEquals("the benchmark under Dynamic", keys.getChildAt(0).getLeft(), benchKey.getLeft());
+      assertTrue("the benchmark in the second row", benchKey.getTop() >= keys.getChildAt(0).getBottom());
       String[] labels = {activity.getString(R.string.ingame_dynamic), "1×", "2×", "3×", "4×", "1.5×", "2.5×", "3.5×"};
       for (int i = 0; i < 8; i++) assertEquals(labels[i], ((Button) keys.getChildAt(i)).getText().toString());
       assertTrue("3x chosen before stays chosen", keys.getChildAt(3).isSelected());
@@ -212,90 +224,218 @@ public class CoreMenuLayoutTest {
     return null;
   }
 
-  @Test public void gyroSwitchKeepsTheSameGapAboveAndBelow() throws Exception {
+  /** The body's direct child that holds `v`. */
+  private static View rowOf(View v, View body) {
+    View at = v;
+    while (at.getParent() != body) at = (View) at.getParent();
+    return at;
+  }
+
+  private static int rowIndex(View v, ViewGroup body) { return body.indexOfChild(rowOf(v, body)); }
+
+  @Test public void updateButtonSitsLeftOfResumeAndComparesVersions() throws Exception {
+    assertEquals(0, AppUpdate.compare("0.95.2-beta", "0.95.2-beta"));
+    assertEquals(-1, AppUpdate.compare("0.95.2-beta", "0.96.0-beta"));
+    assertEquals(-1, AppUpdate.compare("0.95.2-beta", "v0.95.10-beta"));
+    assertEquals(1, AppUpdate.compare("1.0", "1.0-beta"));
+    assertEquals(1, AppUpdate.compare("0.96.0-beta", "0.95.2-beta"));
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+      Button update = (Button) field(menu, "update"), resume = (Button) field(menu, "resume");
+      assertEquals("hidden until GitHub answered", View.GONE, update.getVisibility());
+      menu.showUpdate(AppUpdate.CURRENT);
+      View root = (View) field(menu, "root");
+      measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
+          Math.round(300 * activity.getResources().getDisplayMetrics().density));
+      assertEquals(activity.getString(R.string.ingame_up_to_date), update.getText().toString());
+      assertFalse("up to date: not clickable", update.isEnabled());
+      assertTrue("left of Back to the game", update.getRight() <= resume.getLeft());
+      assertEquals("in the same row", update.getTop(), resume.getTop());
+      menu.showUpdate(AppUpdate.OLDER);
+      assertEquals(activity.getString(R.string.ingame_update), update.getText().toString());
+      assertTrue("an update: clickable", update.isEnabled());
+    }
+  }
+
+  @Test public void controlsPageHasMotionComfortAndControllerSectionsWithOneGap() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      show.invoke(menu, 2, false);
+      show.invoke(menu, 3, false);
       View root = (View) field(menu, "root");
       ViewGroup body = (ViewGroup) field(menu, "body");
       measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
+      Button alternate = findButton(body, activity.getString(R.string.ingame_alternate));
+      Button latch = findButton(body, activity.getString(R.string.ingame_latch));
+      // "Auto aim" and "Always run" under the latches (30.10.2026), then the comfort controls' "Invert vertical"
+      // (the gyro's above it may read the same): the one after them
+      Button autoAim = findButton(body, activity.getString(R.string.ingame_auto_aim));
+      Button alwaysRun = findButton(body, activity.getString(R.string.ingame_always_run));
+      assertNotNull(autoAim); assertNotNull(alwaysRun);
+      // "Far camera" since 05.11.2026 in PLAYER VIEW, beside the field of view's slider
+      Button farCamera = findButton(body, activity.getString(R.string.ingame_far_camera));
+      assertNotNull(farCamera);
+      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 1),
+          activity.getString(R.string.ingame_aim_invert_v));
+      Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
-      Button above = findButton(body, activity.getString(R.string.ingame_latch).split(" ")[0]);
-      Button below = findButton(body, activity.getString(R.string.ingame_gyro_invert_v).split(" ")[0]);
-      assertNotNull(gyro); assertNotNull(above); assertNotNull(below);
-      int gapAbove = top(gyro, body) - (top(above, body) + above.getHeight());
-      int gapBelow = top(below, body) - (top(gyro, body) + gyro.getHeight());
-      assertTrue("a gap above", gapAbove > 0);
-      assertEquals("the same gap above and below the gyro switch", gapBelow, gapAbove, 2);
+      Button gyroInvert = findButton(body, activity.getString(R.string.ingame_gyro_invert_h));
+      Button mapping = findButton(body, activity.getString(R.string.ingame_controller_config));
+      assertNotNull(alternate); assertNotNull(latch); assertNotNull(aimInvert); assertNotNull(touchAim);
+      assertNotNull(gyro); assertNotNull(gyroInvert); assertNotNull(mapping);
+      int motion = heading(body, activity, R.string.ingame_motion), comfort = heading(body, activity, R.string.ingame_comfort);
+      int devices = heading(body, activity, R.string.ingame_controller_section);
+      int touch = heading(body, activity, R.string.ingame_touch_controls), aiming = heading(body, activity, R.string.ingame_touch_aim);
+      int view = heading(body, activity, R.string.ingame_player_view), laser = heading(body, activity, R.string.ingame_laser_section);
+      // 05.11.2026: TOUCH CONTROLS first, a third of the row each; TOUCH AIMING after the comfort controls, PLAYER VIEW
+      // (far camera | field of view) above the LASER SIGHT (a quarter of the row each)
+      assertEquals("touch controls first", 0, touch);
+      Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
+      assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
+      assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
+      assertTrue("touch aiming after the comfort controls", aiming > comfort);
+      assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
+      assertTrue("player view after touch aiming", view > aiming);
+      assertEquals("far camera under player view", view + 1, rowIndex(farCamera, body));
+      assertTrue("the laser after player view", laser > view && devices > laser);
+      Button red = findButton(body, activity.getString(R.string.ingame_laser_red));
+      assertEquals("the colours under their heading", laser + 1, rowIndex(red, body));
+      assertEquals(4, ((ViewGroup) red.getParent()).getChildCount());
+      assertEquals("the colours side by side", red.getTop(), findButton(body, activity.getString(R.string.ingame_laser_yellow)).getTop());
+      // motion controls first (wish of the project owner, 30.10.2026): the gyro switch with its slider, its directions
+      assertTrue("the motion heading", motion >= 0);
+      assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
+      assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
+      // then the comfort controls: under the latches "Auto aim" with "Always run", then "Invert vertical" with
+      // "Aim speed", then touch aiming
+      assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
+      assertEquals("auto aim right under the latches", rowIndex(latch, body) + 1, rowIndex(autoAim, body));
+      assertEquals("always run beside auto aim", rowIndex(autoAim, body), rowIndex(alwaysRun, body));
+      assertEquals("the aim row right under them", rowIndex(autoAim, body) + 1, rowIndex(aimInvert, body));
+      // the button mapping at the bottom, under a heading of its own
+      assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));
+      assertEquals("the button mapping right under its heading", devices + 1, rowIndex(mapping, body));
+      // one gap between all rows of buttons, the rows with a slider too (wish of the project owner, 30.10.2026)
+      int gap = top(latch, body) - top(alternate, body) - alternate.getHeight();
+      assertEquals("the gap of the rows of two", Math.round(2 * MenuLayout.GAP * activity.getResources().getDisplayMetrics().density), gap, 1);
+      // the rows with a slider: as tall as a row of buttons where the title leaves the slider 32 dp or more (on
+      // the devices; this test's fonts are about twice as tall), the switch in the middle: the same gap
+      float density = activity.getResources().getDisplayMetrics().density;
+      for (Button b : new Button[] {aimInvert, gyro}) {
+        ViewGroup row = (ViewGroup) rowOf(b, body), box = (ViewGroup) row.getChildAt(1);
+        int title = box.getChildAt(0).getHeight(), slider = box.getChildAt(1).getHeight();
+        int buttons = b.getHeight() + Math.round(2 * MenuLayout.GAP * density);
+        int expected = Math.max(buttons, title + Math.max(Math.round(32 * density), slider));
+        assertEquals("the slider row's height", expected, row.getHeight(), 1);
+        assertEquals("the slider fills what the title leaves", Math.max(Math.round(32 * density), buttons - title),
+            ((ViewGroup) box.getChildAt(1)).getChildAt(0).getHeight(), 1);
+        int above = top(b, body) - top(row, body), below = top(row, body) + row.getHeight() - top(b, body) - b.getHeight();
+        assertEquals("the switch in the middle of its row", below, above, 2);
+      }
     }
   }
 
-  @Test public void controllerConfigurationGivesTheFreeKeysTheirFunctions() throws Exception {
-    final int[][] sent = {null};
-    final boolean[] controller = {false};
+  @Test public void buttonMappingPutsActionsOnKeysAndCombinationsOnTwo() throws Exception {
+    final ActionMap[] current = {ActionMap.defaults(ActionMap.KIND_CONTROLLER), ActionMap.defaults(ActionMap.KIND_KEYBOARD)};
+    final boolean[] controller = {false}, keyboard = {false};
     final int[] calls = {0};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
-          if (method.getName().equals("keyMapChanged")) { sent[0] = (int[]) args[0]; calls[0]++; }
-          if (method.getName().equals("controllerConnected")) return controller[0];
-          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+          switch (method.getName()) {
+            case "mappingChanged": { ActionMap m = (ActionMap) args[0]; current[m.kind] = m; calls[0]++; return null; }
+            case "mapping": return current[(Integer) args[0]];
+            case "faceLabel": return args[0];
+            case "controllerConnected": return controller[0];
+            case "keyboardConnected": return keyboard[0];
+            default: return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
+          }
         });
     try (var controllerActivity = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controllerActivity.get();
       activity.getSharedPreferences(CoreActivity.INPUT_PREFS, 0).edit().clear().apply();
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      // on the controls page, at the bottom: only with a controller
-      show.invoke(menu, 2, false);
+      // on the controls page, at the bottom: with a controller or a keyboard
+      show.invoke(menu, 3, false);
       Button open = (Button) field(menu, "controllerButton");
-      assertNotNull(open);
-      assertFalse("without a controller", open.isEnabled());
-      controller[0] = true;
-      show.invoke(menu, 2, false);
+      assertFalse("without a controller or a keyboard", open.isEnabled());
+      keyboard[0] = true;
+      show.invoke(menu, 3, false);
       open = (Button) field(menu, "controllerButton");
-      assertTrue("with a controller", open.isEnabled());
+      assertTrue("with a keyboard", open.isEnabled());
       open.performClick();
       Button[] keys = (Button[]) field(menu, "bindingButtons");
-      assertEquals("X, Y, L1, R1, L3, R3", 6, keys.length);
-      int xi = CoreInput.movable(android.view.KeyEvent.KEYCODE_BUTTON_X);
-      int l1 = CoreInput.movable(android.view.KeyEvent.KEYCODE_BUTTON_L1);
-      int r1 = CoreInput.movable(android.view.KeyEvent.KEYCODE_BUTTON_R1);
-      assertTrue(keys[xi].getText().toString().startsWith(activity.getString(R.string.ingame_fn_ashley)));
-      assertTrue(keys[l1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_none)));
-      assertTrue(keys[r1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_map)));
-      // L1: the list of functions; the map: R1 had it and takes L1's old function (none)
-      keys[l1].performClick();
-      assertEquals(6, (int) (Integer) field(menu, "page"));
-      ViewGroup body = (ViewGroup) field(menu, "body");
-      Button map = findButton(body, activity.getString(R.string.ingame_fn_map));
-      assertNotNull(map);
-      map.performClick();
-      assertEquals("back on the free keys", 5, (int) (Integer) field(menu, "page"));
-      assertEquals(1, calls[0]);
-      assertEquals(CoreInput.F_Z, sent[0][l1]);
-      assertEquals(CoreInput.F_NONE, sent[0][r1]);
+      assertEquals("the keyboard's page first without a controller", ActionMap.KIND_KEYBOARD, (int) (Integer) field(menu, "mapKind"));
+      assertNotNull("the keyboard moves with keys", keys[ActionMap.MOVE_FORWARD]);
+      assertTrue(keys[ActionMap.FIRE].getText().toString().startsWith("Mouse R + Mouse L"));
+      // the controller's page: no move keys (its stick), fire is R2 + A
+      java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
+      kind.setInt(menu, ActionMap.KIND_CONTROLLER);
+      show.invoke(menu, 7, false);
       keys = (Button[]) field(menu, "bindingButtons");
-      assertTrue(keys[l1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_map)));
-      assertTrue(keys[r1].getText().toString().startsWith(activity.getString(R.string.ingame_fn_none)));
-      // X: no function: Ashley on no button, the page says so
-      keys[xi].performClick();
-      findButton((ViewGroup) field(menu, "body"), activity.getString(R.string.ingame_fn_none)).performClick();
-      assertEquals(CoreInput.F_NONE, sent[0][xi]);
-      String warn = activity.getString(R.string.ingame_controller_missing, activity.getString(R.string.ingame_fn_ashley));
-      assertNotNull("the warning", findText((ViewGroup) field(menu, "body"), warn));
+      assertNull(keys[ActionMap.MOVE_FORWARD]);
+      assertEquals("R2 + A", keys[ActionMap.FIRE].getText().toString());
+      // fire on L2 + R2: the key to hold, then the second
+      keys[ActionMap.FIRE].performClick();
+      assertEquals(activity.getString(R.string.ingame_map_hold), keys[ActionMap.FIRE].getText().toString());
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L2));
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_BUTTON_L2));
+      assertEquals(activity.getString(R.string.ingame_map_second, "L2"), keys[ActionMap.FIRE].getText().toString());
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_R2));
+      assertEquals(1, calls[0]);
+      assertArrayEquals(new int[] {android.view.KeyEvent.KEYCODE_BUTTON_L2, android.view.KeyEvent.KEYCODE_BUTTON_R2},
+          current[ActionMap.KIND_CONTROLLER].keys(ActionMap.FIRE));
+      keys = (Button[]) field(menu, "bindingButtons");
+      assertTrue(keys[ActionMap.FIRE].getText().toString().startsWith("L2 + R2\n"));
+      assertTrue(keys[ActionMap.FIRE].getText().toString().endsWith(activity.getString(R.string.ingame_map_default, "R2 + A")));
+      // run on L1, then the action on L1: run takes the action's old key (A), the page says so
+      keys[ActionMap.RUN].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L1));
+      keys = (Button[]) field(menu, "bindingButtons");
+      keys[ActionMap.ACTION].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_L1));
+      ActionMap now = current[ActionMap.KIND_CONTROLLER];
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_L1, now.keys(ActionMap.ACTION)[0]);
+      assertEquals(android.view.KeyEvent.KEYCODE_BUTTON_A, now.keys(ActionMap.RUN)[0]);
+      String swapped = activity.getString(R.string.ingame_map_swapped, activity.getString(R.string.ingame_act_run), "A");
+      assertEquals(swapped, ((TextView) field(menu, "mapStatus")).getText().toString());
+      // the D-pad stays the D-pad: refused, still waiting
+      keys = (Button[]) field(menu, "bindingButtons");
+      keys[ActionMap.MAP].performClick();
+      menu.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_UP));
+      assertEquals(activity.getString(R.string.ingame_map_fixed_key), ((TextView) field(menu, "mapStatus")).getText().toString());
+      assertEquals(ActionMap.MAP, (int) (Integer) field(menu, "captureAction"));
+      // the same button again: no change
+      keys[ActionMap.MAP].performClick();
+      assertEquals(-1, (int) (Integer) field(menu, "captureAction"));
+      assertEquals(3, calls[0]);
       // the default layout again
       findButton((ViewGroup) field(menu, "body"), activity.getString(R.string.ingame_controller_default)).performClick();
-      assertNull(sent[0]);
-      keys = (Button[]) field(menu, "bindingButtons");
-      assertTrue(keys[xi].getText().toString().startsWith(activity.getString(R.string.ingame_fn_ashley)));
+      assertTrue(current[ActionMap.KIND_CONTROLLER].isDefault());
       // back goes to the controls page
       Method back = CoreMenu.class.getDeclaredMethod("goBack"); back.setAccessible(true);
       back.invoke(menu);
-      assertEquals(2, (int) (Integer) field(menu, "page"));
+      assertEquals(3, (int) (Integer) field(menu, "page"));
     }
+  }
+
+  /** The body's row of a section heading (CoreMenu.Heading), -1 when there is none. */
+  private static int heading(ViewGroup body, Activity activity, int id) {
+    String want = activity.getString(id).toUpperCase(Locale.getDefault());
+    for (int i = 0; i < body.getChildCount(); i++) {
+      View v = body.getChildAt(i);
+      if (v instanceof CoreMenu.Heading && ((CoreMenu.Heading) v).title().equals(want)) {
+        // the faint line beside the text (05.11.2026), to the end of the row
+        View rule = ((ViewGroup) v).getChildAt(1);
+        assertTrue("a line right of the heading", rule.getLeft() >= ((ViewGroup) v).getChildAt(0).getRight());
+        return i;
+      }
+    }
+    return -1;
   }
 
   private static TextView findText(View view, String text) {
@@ -312,34 +452,78 @@ public class CoreMenuLayoutTest {
     return null;
   }
 
-  @Test public void cheatsComeFirstOnManagementAndSwitchesSendTheirBits() throws Exception {
+  @Test public void cheatsPageSwitchesSendTheirBits() throws Exception {
     final int[] sent = {-1};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
-          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : null;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      show.invoke(menu, 4, false);
+      show.invoke(menu, 5, false);  // CHEATS, a page of its own since 30.10.2026
       ViewGroup body = (ViewGroup) field(menu, "body");
-      assertTrue(((TextView) body.getChildAt(0)).getText().toString()
-          .equalsIgnoreCase(activity.getString(R.string.ingame_cheats)));
-      ViewGroup switches = (ViewGroup) body.getChildAt(1), actions = (ViewGroup) body.getChildAt(2);
-      assertEquals(3, switches.getChildCount()); assertEquals(3, actions.getChildCount());
-      Button health = (Button) switches.getChildAt(0), oneHit = (Button) switches.getChildAt(2);
+      // 05.11.2026: PLAYER & INVENTORY (health, ammo, invisibility; one-hit kill, case, money), WEAPONS (Handcannon,
+      // Killer7, Matilda; Chicago Typewriter, Mine Thrower, rocket launcher), GAME (QTEs, extra games)
+      assertEquals(0, heading(body, activity, R.string.ingame_cheat_section_player));
+      ViewGroup switches = (ViewGroup) body.getChildAt(1), inventory = (ViewGroup) body.getChildAt(2);
+      assertEquals(3, heading(body, activity, R.string.ingame_cheat_section_weapons));
+      ViewGroup weapons = (ViewGroup) body.getChildAt(4), launchers = (ViewGroup) body.getChildAt(5);
+      assertEquals(6, heading(body, activity, R.string.ingame_cheat_section_game));
+      assertEquals(3, switches.getChildCount()); assertEquals(3, inventory.getChildCount());
+      assertEquals(3, weapons.getChildCount()); assertEquals(3, launchers.getChildCount());
+      String[][] labels = {{"ingame_cheat_health", "ingame_cheat_ammo", "ingame_cheat_invisible"},
+          {"ingame_cheat_onehit", "ingame_cheat_case", "ingame_cheat_money"},
+          {"ingame_cheat_handcannon", "ingame_cheat_killer7", "ingame_cheat_matilda"},
+          {"ingame_cheat_chicago", "ingame_cheat_mine", "ingame_cheat_rocket"}};
+      ViewGroup[] rows = {switches, inventory, weapons, launchers};
+      for (int r = 0; r < 4; r++) for (int c = 0; c < 3; c++) {
+        int id = activity.getResources().getIdentifier(labels[r][c], "string", activity.getPackageName());
+        assertTrue(labels[r][c], ((Button) rows[r].getChildAt(c)).getText().toString().contains(activity.getString(id)));
+      }
+      Button health = (Button) switches.getChildAt(0), oneHit = (Button) inventory.getChildAt(0);
+      Button invisible = (Button) switches.getChildAt(2);
       assertFalse(health.isSelected());
       health.performClick(); assertEquals(1, sent[0]);
       oneHit.performClick(); assertEquals(5, sent[0]);
+      invisible.performClick(); assertEquals(5 | CoreMenu.INVISIBLE_BIT, sent[0]);
+      invisible.performClick(); assertEquals(5, sent[0]);
       health.performClick(); assertEquals(4, sent[0]);
-      Button killer7 = (Button) actions.getChildAt(0);
-      assertTrue(killer7.getText().toString().contains(activity.getString(R.string.ingame_cheat_killer7)));
+      // the bottom row (29.10.2026): two, automatic QTEs (bit 8) and the extra games' button
+      ViewGroup more = (ViewGroup) body.getChildAt(7);
+      assertEquals(2, more.getChildCount());
+      Button qte = (Button) more.getChildAt(0), extras = (Button) more.getChildAt(1);
+      assertTrue(qte.getText().toString().contains(activity.getString(R.string.ingame_cheat_qte)));
+      assertTrue(extras.getText().toString().contains(activity.getString(R.string.ingame_cheat_extras)));
+      qte.performClick(); assertEquals(12, sent[0]);
+      qte.performClick(); assertEquals(4, sent[0]);
+      Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());
       org.robolectric.shadows.ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS);
       assertFalse(killer7.isSelected());
+      // the story's player character below the buttons (03.11.2026): its player type << 5, the switches kept
+      // three a row without a row label (03.11.2026)
+      assertNull(findText(body, "Play as"));
+      Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
+      assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
+      hunk.performClick(); assertEquals(4 | 3 << 5, sent[0]);
+      assertTrue(hunk.isSelected()); assertFalse(leon.isSelected());
+      wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
+      findButton(body, "Ada").performClick(); assertEquals(4 | 2 << 5, sent[0]);
+      wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
+      health.performClick(); assertEquals(5 | 5 << 5, sent[0]);
+      leon.performClick(); assertEquals(5, sent[0]);
+      // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
+      Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
+      assertSame(leon.getParent(), costume.getParent());
+      assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
+      costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
+      hunk.performClick(); assertEquals(5 | 256 | 3 << 5, sent[0]);
+      costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
     }
   }
 
@@ -373,17 +557,78 @@ public class CoreMenuLayoutTest {
       assertEquals(View.VISIBLE, status.getVisibility());
       assertEquals(controller.get().getString(R.string.ingame_instant_failed), status.getText().toString());
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
-      show.invoke(menu, 3, false);
+      show.invoke(menu, 4, false);
       ViewGroup body = (ViewGroup) field(menu, "body");
-      MenuLayout.Columns output = (MenuLayout.Columns) body.getChildAt(3);
-      ViewGroup options = (ViewGroup) output.getChildAt(1);
-      Button fps = (Button) ((ViewGroup) options.getChildAt(0)).getChildAt(0);
-      Button skip = (Button) ((ViewGroup) options.getChildAt(1)).getChildAt(0);
-      Button smooth = (Button) ((ViewGroup) options.getChildAt(2)).getChildAt(0);
-      assertTrue(fps.getText().toString().contains(controller.get().getString(R.string.ingame_fps_display)));
-      assertTrue(skip.getText().toString().contains(controller.get().getString(R.string.ingame_frame_skip)));
+      // found by their labels (the page's rows moved with the Potato mode, 30.10.2026)
+      Button skip = findButton(body, controller.get().getString(R.string.ingame_frame_skip));
+      Button smooth = findButton(body, controller.get().getString(R.string.ingame_smooth60));
+      assertNotNull(skip); assertNotNull(smooth);
       assertTrue(skip.isEnabled()); assertTrue(skip.hasOnClickListeners());
-      assertTrue(smooth.getText().toString().contains(controller.get().getString(R.string.ingame_smooth60)));
+      // merged draw calls: a toggle of its own below 60 FPS (30.10.2026)
+      Button merge = findButton(body, controller.get().getString(R.string.ingame_merge_draws));
+      assertNotNull(merge); assertTrue(merge.hasOnClickListeners());
+      // the FPS display moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of the project owner, 04.11.2026)
+      assertNull(findButton(body, controller.get().getString(R.string.ingame_fps_display)));
+      show.invoke(menu, 1, false);
+      body = (ViewGroup) field(menu, "body");
+      Button fps = findButton(body, controller.get().getString(R.string.ingame_fps_display));
+      Button minimap = findButton(body, controller.get().getString(R.string.ingame_minimap));
+      assertNotNull(fps); assertNotNull(minimap);
+      assertTrue(fps.hasOnClickListeners()); assertTrue(minimap.hasOnClickListeners());
+      assertNotNull(findButton(body, controller.get().getString(R.string.ingame_flares)));
+      assertNotNull(findButton(body, controller.get().getString(R.string.ingame_psx)));
+    }
+  }
+
+  // the button mapping names the debug menu (SELECT held) only with the debug build's discs; the retail discs have
+  // none (a user with the European discs held SELECT for it, 06.11.2026)
+  @Test public void appMenuNamesTheDebugMenuOnlyWithTheDebugDiscs() throws Exception {
+    final boolean[] debug = {false};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> method.getName().equals("debugMenu") ? debug[0]
+            : method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+            : method.getReturnType() == float.class ? (Object) 1f : null);
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method label = CoreMenu.class.getDeclaredMethod("actionLabel", int.class); label.setAccessible(true);
+      assertEquals(activity.getString(R.string.ingame_act_menu_app), label.invoke(menu, ActionMap.APP_MENU));
+      debug[0] = true;
+      assertEquals(activity.getString(R.string.ingame_act_menu), label.invoke(menu, ActionMap.APP_MENU));
+      assertEquals(activity.getString(R.string.ingame_act_map), label.invoke(menu, ActionMap.MAP));
+    }
+  }
+
+  /** Management: "Import other discs" asks first (the game ends for it); Cancel keeps the game, the other answer
+   *  hands it to the host (CoreActivity: the start screen without the game starting at once). */
+  @Test public void managementOffersOtherDiscsAndAsksFirst() throws Exception {
+    final int[] calls = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("importDiscs")) calls[0]++;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 6, false);  // MANAGEMENT
+      Button discs = findButton((View) field(menu, "root"), activity.getString(R.string.ingame_import_discs));
+      assertNotNull("Management has Import other discs", discs);
+      discs.performClick();
+      android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertNotNull("it asks first", ask);
+      assertEquals(0, calls[0]);
+      ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
+      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
+      assertEquals("Cancel keeps the game", 0, calls[0]);
+      discs.performClick();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertEquals(activity.getString(R.string.ingame_start_screen), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
+      ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      assertEquals("Start screen ends the game for the start screen", 1, calls[0]);
     }
   }
 }

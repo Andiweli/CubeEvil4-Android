@@ -15,9 +15,11 @@ fi
 
 javac -d "$task_build/java" "$task_root/app/src/main/java/com/ast/re4decomp/ControllerPolicy.java" "$task_root/tests/ControllerPolicyTests.java"
 java -cp "$task_build/java" ControllerPolicyTests
-javac -Xlint:all -d "$task_build/java" "$task_root/app/src/main/java/com/ast/re4decomp/CoreInput.java" "$task_root/tests/CoreInputTests.java"
+javac -Xlint:all -d "$task_build/java" "$task_root/app/src/main/java/com/ast/re4decomp/CoreInput.java" "$task_root/app/src/main/java/com/ast/re4decomp/ActionMap.java" "$task_root/tests/ActionMapTests.java"
+java -cp "$task_build/java" com.ast.re4decomp.ActionMapTests
+javac -Xlint:all -d "$task_build/java" "$task_root/app/src/main/java/com/ast/re4decomp/CoreInput.java" "$task_root/app/src/main/java/com/ast/re4decomp/ActionMap.java" "$task_root/tests/CoreInputTests.java"
 java -cp "$task_build/java" CoreInputTests
-javac -Xlint:all -d "$task_build/java" "$task_root/app/src/main/java/com/ast/re4decomp/CoreInput.java" "$task_root/app/src/main/java/com/ast/re4decomp/CoreTouch.java" "$task_root/tests/CoreTouchTests.java"
+javac -Xlint:all -d "$task_build/java" "$task_root/app/src/main/java/com/ast/re4decomp/CoreInput.java" "$task_root/app/src/main/java/com/ast/re4decomp/ActionMap.java" "$task_root/app/src/main/java/com/ast/re4decomp/CoreTouch.java" "$task_root/tests/CoreTouchTests.java"
 java -cp "$task_build/java" com.ast.re4decomp.CoreTouchTests
 javac -Xlint:all -d "$task_build/java" "$task_root/app/src/main/java/com/ast/re4decomp/FramePacing.java" "$task_root/tests/FramePacingTests.java"
 java -cp "$task_build/java" com.ast.re4decomp.FramePacingTests

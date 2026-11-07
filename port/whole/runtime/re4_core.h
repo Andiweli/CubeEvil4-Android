@@ -203,9 +203,9 @@ void re4_core_pad(const Re4CorePad* pad);
  * the last four frames (bit 0 the newest), bits 8-31 = frames so far (the app
  * stops vibrating when they stand still). Bit 4: the game shows a menu in the
  * last frame (the title and its menus, loading, a sub screen: inventory, map,
- * files, merchant, options, radio, typewriter) or a button prompt ("A Open",
- * the quick-time events); the app's own controller bindings apply only
- * outside (27.10.2026). */
+ * files, merchant, options, radio, typewriter); there the app's button mapping
+ * gives way to the device's default (29.10.2026). Bit 5: a button prompt ("A
+ * Open", the quick-time events; noted only). */
 unsigned re4_core_rumble(void);
 /* A vsync of the device's display at `ns` (CLOCK_MONOTONIC, e.g. the
  * Choreographer's frame time), any thread, every vsync while the game is
@@ -268,12 +268,28 @@ void re4_core_set_letterbox(int off);
  * performance hint (re4_cpu_info.h), 0 (the default) leaves them to Android.
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_fast_cores(int on);
+/* The app menu's Potato mode (cores since 30.10.2026, runtime/potato.cpp): bit 0 leaves the weather
+ * effects out (fog banks, rain, water spray), bit 1 the special effects (steam, heat shimmer,
+ * water); 0 (the default) draws everything. Effects in events and cut scenes always stay.
+ * Takes effect at the next picture. Any thread. */
+void re4_core_set_potato(int mask);
+/* The app menu's aim settings for touch and controllers (cores since 30.10.2026, runtime/aim_options.cpp):
+ * bit 0 "Invert vertical" (the game's own option CFG_AIM_REVERSE, set at the next game frame and again
+ * after the system file was read), bit 1 "Auto aim" (the game's own lock-on, CFG_LOCK_ON, set the same way),
+ * bit 2 "Always run" (patch 0156: the run key walks), bits 8 and up "Aim speed" in percent (50..300, 100 as
+ * the game: the stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
+void re4_core_set_aim(int bits);
+int re4_core_aim_from_game(void);  // patch 0188: -1, or the game's own "reverse" (0 / 1)
+/* The app menu's AUDIO page (cores since 30.10.2026, runtime/sound_volume.cpp): bits 0..7 the music, bits
+ * 8..15 the sound effects volume in percent (0..100; 100 as the game). Any thread. */
+void re4_core_set_sound_volume(int bits);
 /* The game's language with the European discs (cores since 26.10.2026, port/docs/retail-eu-plan.md
  * R7): 2 English, 3 German, 4 French, 5 Spanish, 6 Italian (pSys->language of the European release).
  * The app menu's choice: the game takes it and restarts (its own soft reset at the next game frame,
  * once no memory card access holds it; runtime/game_language.cpp). At the start the environment
  * variable RE4_GAME_LANGUAGE gives it (eng, ger, fra, esp, ita or the number). The language is
- * ignored with the debug build's discs. Any thread. */
+ * ignored with the debug build's discs; 0 restarts with the language as it is (the cheat menu's extra
+ * games, 29.10.2026). Any thread. */
 void re4_core_restart_game(int language);
 /* The first disc file the game could not read (cores since 27.10.2026, runtime/dvd.cpp): "" while
  * every read went well, else "<disc>\t<path on the disc>\t<why>" (disc 1 or 2, the path as in the
@@ -282,14 +298,33 @@ void re4_core_restart_game(int language);
 const char* re4_core_disc_problem(void);
 /* The cheat menu (cores since 27.10.2026, runtime/cheats.cpp, port/docs/cheat-menu-plan.md), with
  * both kinds of discs. The switches, kept by the app like its other settings (at the start also the
- * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill; set in
- * every game frame while on. Any thread. */
+ * environment variable RE4_CHEATS): bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic
+ * QTEs, 16 the extra games kept unlocked (after button 4); set in every game frame while on. Any thread. */
 void re4_core_set_cheats(int bits);
-/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas. While the
- * app's menu holds the game it is done right away: 1 done, 2 already so (Killer7 owned: raised to the
- * highest levels; case L or XL), 0 not now (not Leon, not in a room's play, a sub screen or a movie),
+/* A button: 1 Killer7 with the highest levels, 2 attache case L, 3 +1 000 000 pesetas, 4 unlock the
+ * extra games (Assignment Ada, The Mercenaries; at any time). While the app's menu holds the game it is
+ * done right away: 1 done, 2 already so (Killer7 owned: raised to the highest levels; case L or XL; the
+ * extra games unlocked), 0 not now (1-3: not Leon, not in a room's play, a sub screen or a movie),
  * -1 no free room in the case. Else the next game frame does it: 3. */
 int re4_core_cheat_action(int what);
+/* The app's minimap (cores since 04.11.2026, runtime/minimap.cpp): the current room's outline, the edges of
+ * its floor collision that only one floor triangle has, in world units: up to maxEdges edges of 5 floats into
+ * `out` (x0, z0, x1, z1, height); info[0] rises with every new outline, info[1] is its room. Returns the
+ * edges (0 before the first). The first call makes the game build it (anew when the room changes). */
+int re4_core_room_outline(float* out, int maxEdges, unsigned* info);
+/* The laser sight's colour (cores since 04.11.2026, patch 0198, runtime/laser_colour.cpp): 0 the game's red,
+ * 1 blue, 2 green, 3 yellow; the beam and the dot. Any thread. */
+void re4_core_set_laser_colour(int colour);
+/* The picture format "Native" (cores since 07.11.2026, patch 0214, runtime/picture.cpp): the aspect of the game's 3D
+ * while the player plays, x 10000 (the app: 4/3 x the screen's aspect / (16/9), for a screen wider than 16:9);
+ * 0 (or up to 13334) the game's 4:3. The pictures drawn so carry RE4_GX_CHUNK_WIDE. Any thread. */
+void re4_core_set_view_aspect(int aspect_e4);
+/* The life gauge in the corner (cores since 07.11.2026, patch 0215, runtime/picture.cpp): the game's rows the screen
+ * shows (`rows`: top | bottom << 16, of 448), how much wider one unit shows across than down (x 10000: 15/14 with
+ * "4:3 (GC)", the screen's aspect / (16/9) with "Stretched", else 1) and flags (bit 0: draw the ring that much
+ * narrower, it keeps its shape). The ring goes to the bottom right corner of those rows, 4 % of their height from
+ * the side and from the bottom. rows -1: where the game puts it. Any thread. */
+void re4_core_set_hud_layout(int rows, int stretch_e4, int flags);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the
@@ -303,6 +338,10 @@ int re4_letterbox_off(void);
  * game frame while a sub screen is open (tabs, the attache case and its
  * command menu), ignored elsewhere. Any thread. */
 void re4_core_touch(float u, float v);
+/* Swipe aiming (cores since 29.10.2026; runtime/gyro.cpp): the touch area's finger moved while the player
+ * aims, as angles in radians (yaw positive left, pitch positive up), added up to the next game frame and
+ * turned there as the gyro turns the aim (the scope's zoom too). Any thread. */
+void re4_core_aim_turn(float yaw, float pitch);
 /* A swipe across the picture (cores since 22.10.2026): dir 1 the next tab of
  * the sub screen (a swipe to the left), -1 the one before, nothing beyond the
  * first and the last; ignored outside the normal inventory. Any thread. */

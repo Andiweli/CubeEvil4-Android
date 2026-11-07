@@ -1,0 +1,118 @@
+# Port patch, two user reports (02.11.2026, OPPO CPH2127, EU discs, with a picture of the retail game): after the
+# merchant's exclusive tune-up (Handgun, Punisher, Shotgun, Handcannon, Mine Thrower) the examine text did not
+# change, and the Mine Thrower's firepower read "0.0".
+# - SsItemExamine::move: the retail releases (EU / US Sscrn.rel) show the exclusive's own text when a level of the
+#   weapon is above its table maximum: messages 0x100 Punisher, 0x101 Handgun, 0x102 Shotgun, 0x103 Mine Thrower,
+#   0x104 Handcannon, 0x105 Mine Thrower with scope (European table only, the US one has 261 messages). With the
+#   debug discs as before (their table ends at 0xFF).
+# - getPowerRatio, a bug of the prototype: the Mine Thrower's level 4 (the homing mines) gave 0.0 and the one with
+#   scope (0xAB) went through the generic table; the retail releases give both 2/4/6/6 (EU main.dol 0x800189d4).
+# Checked on the PC (r100, examine): Handgun 7/3/3/6 shows "No longer your average 9mm handgun..." with EU and US
+# discs, "A standard 9mm handgun." with the debug discs; Mine Thrower with scope 4/1/2/3: firepower 6.0, the
+# homing-mines text with EU discs.
+--- a/src/Sscrn/ss_main.cpp
++++ b/src/Sscrn/ss_main.cpp
+@@ -476,12 +476,56 @@
+     itemInfo(id, info);
+ }
+ 
++extern "C" int re4_disc_release(void);  /* port: runtime/dvd.cpp (patch 0180) */
++
++/* port (patch 0180, a user's report 02.11.2026): after the exclusive tune-up (a level above the weapon's table
++   maximum) the retail releases' SsItemExamine::move shows the weapon's own text of it, messages 0x100.. of their
++   ss_item.dat (European 262 messages, US 261: without 0x105, the Mine Thrower with scope); the debug build's
++   table ends at 0xFF and it shows the item's text. 0: the item's text. */
++static u16 exclusiveMes(cItem* w)
++{
++    const int release = re4_disc_release();
++    u16 id;
++    int k;
++    int over = 0;
++
++    if (release != 1 && release != 2) {  /* RE4_DISC_RETAIL_EU, RE4_DISC_RETAIL_US */
++        return 0;
++    }
++    id = ItemMgr.weaponId(w);
++    for (k = 0; k < 4; k++) {
++        static const int shift[4] = {12, 8, 4, 0};
++        if (((w->lv >> shift[k]) & 0xF) + 1 > WeaponId2MaxLevel(w->id, k)) {
++            over = 1;
++        }
++    }
++    if (!over) {
++        return 0;
++    }
++    switch (id) {
++    case 0x21:
++        return 0x100;
++    case 0x23:
++        return 0x101;
++    case 0x2C:
++        return 0x102;
++    case 0x36:
++        return 0x103;
++    case 0x37:
++        return 0x104;
++    case 0xAB:
++        return release == 1 ? 0x105 : 0;
++    }
++    return 0;
++}
++
+ // Item examine: reads the item's model (.bin) and texture (.tpl) into the examine buffer, shows it
+ // with the examine camera and returns to the caller widget on cancel.
+ void SsItemExamine::move(SUB_SCREEN* wk)
+ {
+     static int exam_read_req;
+     static u16 exam_id;
++    static u16 exam_mes;  /* port (patch 0180): the exclusive tune-up's text, 0 the item's own */
+     char name[0x100];
+     char name2[0x100];
+     ITEM_INFO info;
+@@ -489,6 +533,7 @@
+ 
+     switch (_rno) {
+     case 0: {
++        exam_mes = 0;
+         ssItemInfo(wk->p_exam_item->id, &info);
+         switch (info.type) {
+         case 1:
+@@ -583,6 +628,7 @@
+             }
+             if (w) {
+                 _itemExam.level((w->lv >> 12) + 1, ((w->lv >> 8) & 0xF) + 1, ((w->lv >> 4) & 0xF) + 1, (w->lv8[1] & 0xF) + 1);
++                exam_mes = exclusiveMes(w);
+             }
+         }
+         ssItemInfo(exam_id, &info);
+@@ -599,7 +645,7 @@
+         _itemExam.trans();
+         pos = IdSub.unitPtr(0xFE, IDC_DATA);
+         cMes.setLayout(7, LAYOUT_SUBSCRN);
+-        cMes.MesSet(exam_id, (int) ((pos->pos0.x + 320.0f) * 0.8f), (int) ((240.0f - pos->pos0.y) * 0.8f), 0x20084, 7, 0, 4);
++        cMes.MesSet(exam_mes ? exam_mes : exam_id, (int) ((pos->pos0.x + 320.0f) * 0.8f), (int) ((240.0f - pos->pos0.y) * 0.8f), 0x20084, 7, 0, 4);
+         if (Key.trg & 0x20000) {
+             ssItemInfo(exam_id, &info);
+             if (info.type == 0xD) {
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -200,7 +200,10 @@
+     if (itemType(id) != 1) {
+         return 0.0f;
+     }
+-    if (id == 0x36) {
++    /* port (patch 0180, a bug of the prototype; a user's report 02.11.2026: "0.0" at the exclusive tune-up): the
++       retail releases' getPowerRatio give the Mine Thrower with scope (0xAB) the same and level 4 (the homing
++       mines, merchant.cpp level_r301) the 6.0 of level 3 */
++    if (id == 0x36 || id == 0xAB) {
+         switch (level) {
+         case 1:
+             ret = 2.0f;
+@@ -209,6 +212,7 @@
+             ret = 4.0f;
+             break;
+         case 3:
++        case 4:
+             ret = 6.0f;
+             break;
+         default:

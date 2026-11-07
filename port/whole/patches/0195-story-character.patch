@@ -1,0 +1,412 @@
+# The story with another player character (wish of the project owner, 03.11.2026: the cheat menu's section
+# "Player character"; runtime/cheats.cpp, port/docs/cheat-menu-plan.md). The game itself can play every room with
+# Ada, HUNK, Krauser or Wesker (its debug start menu picks pl_type), but outside their own games their tables
+# end with their Mercenaries weapons and their archives lack Leon's story props; the events, the radio screen
+# and the room items assume Leon. With this patch a stand-in plays the story as Leon would:
+# - game.cpp gameRoomInit: before the player data is read, re4_story_char_room sets the type the cheat wants
+#   (Leon becomes the character, the character Leon again when the cheat is off; Ashley's part stays hers);
+#   cGameSave::save writes Leon (pl_type 0, his costume) into every save made with a stand-in.
+# - read.cpp ReadWepData: a weapon of Leon's the character has no file of its own for (every one but the knife,
+#   the grenades and its Mercenaries weapons) is read from Leon's table, with bit 0x80 in oldWepId (Wesker's
+#   numbers 4 and 5 are his grenades and rifle); Krauser's own buffer when gameInit made none.
+# - event.cpp, obj18.cpp: the events get Leon's body and cloth from Leon's archive (read by the cheat into the
+#   development half of MEM1), as their motions and parts are Leon's; without it the body was missing
+#   ("Event::ExePacket_SetOm : dat failed").
+# - pl_sub.cpp: HUNK, Krauser and Wesker keep Leon's costume rule (the events' parts, the vest), PlIsArmor
+#   protects them as it would Leon.
+# - sce_at.cpp: the room items for Leon (player_type 1: the story's keys, ammo, treasure) and the system items
+#   as for Leon; with mask 2 every Leon item of the room was missing.
+# - Sscrn/ss_model.cpp: the case screen shows the character as with its knife while a weapon of Leon's is armed
+#   (its knife file; the name was left unset, the empty weapon model's light logged "litHitCk PNo0"), the radio
+#   screen shows Leon from his archive.
+# - pl06.cpp, pl0d/pl_wesker.cpp, pl02.cpp setLeftHand: Leon's weapons ask for left hands 2..5 (fore-end, TMP grip,
+#   handgun support, mine thrower) the characters partly lack; a missing number was taken as a model pointer
+#   (HUNK with Leon's handgun crashed in cModInfoMgr::create): the nearest hand of the character; Leon's hand 5
+#   that his Striker passes as a pointer into the player archive (pl0a/pl_klauser.cpp as well).
+# Not a bug of the prototype: a port feature (the cheat menu). Without a stand-in nothing changes.
+--- a/src/Sscrn/ss_model.cpp
++++ b/src/Sscrn/ss_model.cpp
+@@ -60,8 +60,17 @@ void wep47Init(int no);
+ // 2 Ada, 3 HUNK, 4 Krauser, 5 Wesker): SS/cmn/ss_wepNN.dat, NN = the wepNN module that owns the
+ // weapon (grenades 0x13/0x16/0x17/0x19/0x1F/0x20 share one file per character; Leon's 0x1D uses
+ // wep10's, unknown numbers wep02's).
++/* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" int re4_story_char_leon_weapon(int no);
++extern "C" void* re4_story_char_leon(void);
++
+ void weaponFilename(char* name, int no)
+ {
++    /* PORT (patch 0195): a weapon of Leon's that a stand-in of the story has no file of its own for:
++       its knife's file (the character's ModelInit shows it without a weapon for that number) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     switch (pG->pl_type) {
+     case 0:
+         switch (no) {
+@@ -164,9 +173,11 @@ extern "C" int re4_disc_retail(void), re4_disc_retail_eu(void), re4_disc_retail_
+ void tel00ModelInit(cModel* m, u32* arc)
+ {
+     SUB_SCREEN* wk = &SubScreenWk;
++    /* PORT (patch 0195): a stand-in of the story: Leon from his archive (the pose is his) */
++    PlArc* leon = re4_story_char_leon() ? (PlArc*) re4_story_char_leon() : pG->pPlayer;
+ 
+-    m->modelInit(PL_ARC(4), PL_ARC(5));
+-    m->addModel(ssModInfoMgr.create(PL_ARC(10), PL_ARC(5)));
++    m->modelInit(PL_ARC_PTR(leon, 4), PL_ARC_PTR(leon, 5));
++    m->addModel(ssModInfoMgr.create(PL_ARC_PTR(leon, 10), PL_ARC_PTR(leon, 5)));
+     m->addModel(ssModInfoMgr.create(SS_ARC_PTR(wk->pTermDat, 10), SS_ARC_PTR(wk->pTermDat, 11)));
+     /* port: the European ss_term.dat has no texture at sub-file 13 (its motion moved there); the
+        European code takes this part's texture from the partner's ss_ocNNN.dat, sub-file 16,
+@@ -176,7 +187,7 @@ void tel00ModelInit(cModel* m, u32* arc)
+     } else {
+         m->addModel(ssModInfoMgr.create(SS_ARC_PTR(wk->pTermDat, 12), SS_ARC_PTR(wk->pTermDat, 13)));
+     }
+-    m->addModel(ssModInfoMgr.create(PL_ARC(9), PL_ARC(7)));
++    m->addModel(ssModInfoMgr.create(PL_ARC_PTR(leon, 9), PL_ARC_PTR(leon, 7)));
+     ssModelLight(m);
+ }
+ 
+@@ -290,6 +301,11 @@ void ashleyModelInit()
+ // model to fade/animate.
+ void adaModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec ada_pos = {850.0f, -1300.0f, 0.0f};
+@@ -512,6 +528,11 @@ void wep30Init(int no, int type)
+ // Krauser's sub screen model with weapon `no`: 0 hands (wep36), 0x1C bow (wep28), grenades (wep42).
+ void klauserModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec klauser_pos = {850.0f, -1300.0f, 0.0f};
+@@ -684,6 +705,11 @@ void wep42Init(int no, int type)
+ // (wep41).
+ void hunkModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec hunk_pos = {850.0f, -1300.0f, 0.0f};
+@@ -851,6 +877,11 @@ void wep41Init(int no, int type)
+ // handgun (wep44), 0xA rifle (wep47), grenades (wep45).
+ void weskerModelInit(u16 no, u16 type)
+ {
++    /* PORT (patch 0195): a weapon of Leon's as the knife (no weapon model, whose light found no parts:
++       "litHitCk PNo0" in every case screen) */
++    if (re4_story_char_leon_weapon(no)) {
++        no = 0;
++    }
+     cModel* m = ssPlModel;
+     cModel* wep = ssWepModel;
+     static Vec wesker_pos = {850.0f, -1300.0f, 0.0f};
+--- a/src/game/event.cpp
++++ b/src/game/event.cpp
+@@ -1489,6 +1489,9 @@ int Event::ExePacket_EndPac(Event* pEvt)
+ // start), sets Status_flg[2] 0x80000/0x10000 (event running), loads the event font, runs the evt
+ // func in begin mode (0), registers Leon's own model files as bins, clears messages and inits the
+ // event sound unless the header's sndFlag sign bit is set.
++/* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" void* re4_story_char_leon(void);
++
+ void Event::ExeBeginEvt(Event* pEvt, int FlagCommon)
+ {
+     int i;
+@@ -1504,13 +1507,16 @@ void Event::ExeBeginEvt(Event* pEvt, int FlagCommon)
+     StaFlagOff(pG, STA_EVENT_CANCEL);
+     cMes.loadEventFont();
+     ExeFunc(0, 0);
+-    if (pG->pl_type == 0) {
+-        EvtMgr.SetBin("em/pl00/pl000a.bin", PL_ARC_PTR(pG->pPlayer, 4), 0, 2);
+-        EvtMgr.SetBin("em/pl00/pl000a.tpl", PL_ARC_PTR(pG->pPlayer, 5), 0, 2);
+-        EvtMgr.SetBin("em/pl00/pl000d.bin", PL_ARC_PTR(pG->pPlayer, 9), 0, 2);
+-        EvtMgr.SetBin("em/pl00/pl000b.tpl", PL_ARC_PTR(pG->pPlayer, 7), 0, 2);
+-        EvtMgr.SetBin("em/pl00/pl000e.bin", PL_ARC_PTR(pG->pPlayer, 0xA), 0, 2);
+-        EvtMgr.SetBin("em/pl00/pl000l.bin", PL_ARC_PTR(pG->pPlayer, 0x10), 0, 2);
++    /* PORT (patch 0195): a stand-in of the story: Leon's body from his archive (the events' motions
++       and parts are his) */
++    if (pG->pl_type == 0 || re4_story_char_leon()) {
++        PlArc* leon = pG->pl_type == 0 ? pG->pPlayer : (PlArc*) re4_story_char_leon();
++        EvtMgr.SetBin("em/pl00/pl000a.bin", PL_ARC_PTR(leon, 4), 0, 2);
++        EvtMgr.SetBin("em/pl00/pl000a.tpl", PL_ARC_PTR(leon, 5), 0, 2);
++        EvtMgr.SetBin("em/pl00/pl000d.bin", PL_ARC_PTR(leon, 9), 0, 2);
++        EvtMgr.SetBin("em/pl00/pl000b.tpl", PL_ARC_PTR(leon, 7), 0, 2);
++        EvtMgr.SetBin("em/pl00/pl000e.bin", PL_ARC_PTR(leon, 0xA), 0, 2);
++        EvtMgr.SetBin("em/pl00/pl000l.bin", PL_ARC_PTR(leon, 0x10), 0, 2);
+         EvtMgr.SetBin("etc/core/dummy.bin", CORE_ARC(CORE_DUMMY_BIN), 0, 2);
+         EvtMgr.SetBin("etc/core/dummy.tpl", CORE_ARC(CORE_DUMMY_TPL), 0, 2);
+     }
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -370,6 +370,10 @@ void gameStageInit()
+ 
+ // Rno0 == 2: room set-up after the room archive is loaded. Sizes every manager from the room "CNS"
+ // counts, loads the room data blocks, then fades in and sets Rno0 = 3.
++/* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" void re4_story_char_room(void);
++extern "C" void re4_story_char_save(u8* image, const u8* start);
++
+ void gameRoomInit()
+ {
+     int n;
+@@ -388,6 +392,9 @@ void gameRoomInit()
+         DbgFlagOff(pG, DBG_FOG_FAR_GREEN);
+     }
+     DbgFlagOn(pG, DBG_WIND_ON);
++    /* PORT (patch 0195): the story's player as the cheat menu chooses it (Leon or a stand-in), before
++       its data is read */
++    re4_story_char_room();
+     ReadPlayerData(pG->pl_type, pG->pl_costume);
+     ReadAreaData();
+     DC.initDataUnit();
+@@ -891,6 +898,8 @@ bool cGameSave::save(SAVE_DATA_HEAD* data, int mode)
+     }
+     pG->SaveKind = mode;
+     *data->pGlobal = *(GameSaveBlock*) pG->save_data_start_addr;
++    /* PORT (patch 0195): a stand-in of the story saves as Leon */
++    re4_story_char_save((u8*) data->pGlobal, (const u8*) pG->save_data_start_addr);
+     RoomData.save(data->pRm);
+     SscrnDataSave(data->pSs);
+     MerchantDataSave(data->pMr);
+--- a/src/game/obj18.cpp
++++ b/src/game/obj18.cpp
+@@ -11,6 +11,9 @@
+ #include <string.h>
+ #include "em_cloth.h"
+ 
++/* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" int re4_story_char_leon_costume(void);
++
+ void obj18SetOya(cObj18* obj);
+ 
+ // Unused work-size error message.
+@@ -181,7 +184,8 @@ cObj* SetObj18(void* bin, void* tpl, Vec* pos, Vec* rot, int type)
+     w->ObjChainFlagCommon = 0;
+     switch (w->obj18_type) {
+     case OBJ18_TYPE_LEON:
+-        if (pG->pl_type == 0) {
++        /* PORT (patch 0195): also for a stand-in with Leon's costume rule (its pl_costume is his) */
++        if (pG->pl_type == 0 || re4_story_char_leon_costume()) {
+             PlClothSetLeon(obj, &Evt_leonHair, &Evt_leonJacket, &Evt_leonHolster);
+         }
+         break;
+@@ -300,7 +304,7 @@ void cObj18::move()
+     if (!(w->be_flag & 0x40)) {
+         switch (w->obj18_type) {
+         case OBJ18_TYPE_LEON:
+-            if (pG->pl_type == 0) {
++            if (pG->pl_type == 0 || re4_story_char_leon_costume()) {
+                 PlClothMoveLeon(this, &Evt_leonHair, &Evt_leonJacket, &Evt_leonHolster);
+             }
+             break;
+--- a/src/game/pl_sub.cpp
++++ b/src/game/pl_sub.cpp
+@@ -63,12 +63,18 @@ void PlSelect(int type)
+ // Chooses pl_costume: Leon = 2 with the armor item (0xFE), 1 after finding item 0x200000 (the
+ // chapter 5 outfit), 3 in the special costume mode, else 0; the others use game_costume. Kept as
+ // is when the save system flags (System_flg bit31 / 0x40000000) are set. Returns the costume.
++/* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" int re4_story_char_leon_costume(void);
++extern "C" int re4_story_char_costume(void);
++
+ int PlSetCostume()
+ {
+     if (FlagChkSignW(pG->System_flg, SYS_OMAKE_ADA_GAME) || FlagChkSignW(pG->System_flg, SYS_OMAKE_ETC_GAME)) {
+         return pG->pl_costume;
+     }
+-    if (pG->pl_type == 0) {
++    /* PORT (patch 0195): HUNK, Krauser and Wesker in the story keep Leon's costume (the events, the vest;
++       their archives have one) */
++    if (pG->pl_type == 0 || re4_story_char_leon_costume()) {
+         if (pG->game_costume != 1) {
+             if (ItemMgr.num(0xFE, 0)) {
+                 pG->pl_costume = 2;
+@@ -1044,7 +1050,8 @@ int PlIsArmor()
+         return 0;
+     }
+     if (pG->pl_type != 0) {
+-        return 0;
++        /* PORT (patch 0195): a stand-in of the story wears Leon's vest when he would */
++        return re4_story_char_costume() >= 2;
+     }
+     return pG->pl_costume == 2 || pG->pl_costume == 3;
+ }
+--- a/src/game/read.cpp
++++ b/src/game/read.cpp
+@@ -818,6 +818,10 @@ ReadFile wep_data_klauser[46] = {
+ // (grenades / eggs -> 0x13, the special shotgun / rifles / launcher variants) in the per-character
+ // table, skips when it is already loaded (oldWepId), reads it to WEP_DATA_ADDR (Game.pWepBuf for
+ // Krauser), links the REL and runs its prolog (which registers WeaponInitFunc). pG->pWep = data.
++/* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" int re4_story_char_leon_weapon(int no);
++extern "C" void* re4_story_char_wep_place(void);
++
+ void ReadWepData(u32 no, u32 type)
+ {
+     DVD_READINFO info;
+@@ -834,10 +838,18 @@ void ReadWepData(u32 no, u32 type)
+ 
+     if (pG->pl_type == 4) {
+         data = (u8*) Game.omake_wep_addr;
++        /* PORT (patch 0195): Krauser took over a story gameInit started with Leon (no buffer of his) */
++        if (data == NULL) {
++            data = (u8*) (Game.omake_wep_addr = re4_story_char_wep_place());
++        }
+     } else {
+         data = (u8*) WEP_DATA_ADDR;
+     }
+-    switch (pG->pl_type) {
++    /* PORT (patch 0195): a weapon of Leon's that a stand-in of the story has no file of its own for
++       (its tables hold its Mercenaries weapons; Wesker's numbers 4 and 5 are his grenades and rifle):
++       Leon's file. Its number goes into oldWepId with bit 0x80, apart from the character's own. */
++    int leonWep = re4_story_char_leon_weapon(no);
++    switch (leonWep ? 0 : pG->pl_type) {
+     case 0:
+     default:
+         if (no == 0x19 || no == 0x1F || no == 0x20 || no == 0x16 || no == 0x17) {
+@@ -870,6 +882,9 @@ void ReadWepData(u32 no, u32 type)
+             no = 0x1E;
+         }
+         e = &wep_data_leon[no];
++        if (leonWep) {
++            no |= 0x80;
++        }
+         break;
+     case 2:
+         switch (no) {
+--- a/src/game/sce_at.cpp
++++ b/src/game/sce_at.cpp
+@@ -52,6 +52,9 @@
+ #include "item_model.h"
+ #include "read.h"
+ 
++/* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
++extern "C" int re4_story_char_costume(void);
++
+ // Scenario trigger areas: the room's AEV (areas) and ITA (items) records plus the areas created at
+ // run time, checked against the player, the partner and the enemies every frame. Each record is a
+ // SCE_AT_DATA whose `type` selects its handler in sceAtFunc_tbl.
+@@ -3894,7 +3897,7 @@ int SceAtCheckSystemItemSet(u32 id, int* outId, int* outNum, Vec* pos, Vec* rot)
+     case 0x1003:
+         // The switches run on the result variables (the case-5 `num = 5` of 0x1004 folds into the
+         // switch register, 0x1005's arms load straight into `no`).
+-        no = pG->pl_type;
++        no = re4_story_char_costume() >= 0 ? 0 : pG->pl_type;  /* PORT (patch 0195): Leon's */
+         switch (no) {
+         default:
+         case 0:
+@@ -3919,7 +3922,7 @@ int SceAtCheckSystemItemSet(u32 id, int* outId, int* outNum, Vec* pos, Vec* rot)
+         *outNum = num;
+         break;
+     case 0x1004:
+-        num = pG->pl_type;
++        num = re4_story_char_costume() >= 0 ? 0 : pG->pl_type;  /* PORT (patch 0195): Leon's */
+         switch (num) {
+         default:
+         case 0:
+@@ -3947,7 +3950,7 @@ int SceAtCheckSystemItemSet(u32 id, int* outId, int* outNum, Vec* pos, Vec* rot)
+         *outNum = num;
+         break;
+     case 0x1005:
+-        no = pG->pl_type;
++        no = re4_story_char_costume() >= 0 ? 0 : pG->pl_type;  /* PORT (patch 0195): Leon's */
+         switch (no) {
+         case 0:
+             no = 4;
+@@ -4013,7 +4016,8 @@ void sceAtSetItem(SCE_AT_ITEM* w)
+     int ok2;
+     cObj* obj;
+ 
+-    if (pG->pl_type == 0) {
++    /* PORT (patch 0195): a stand-in of the story gets Leon's items (player_type 1) */
++    if (pG->pl_type == 0 || re4_story_char_costume() >= 0) {
+         mask = 1;
+     }
+     switch (w->waiting_type) {
+--- a/src/pl02/pl02.cpp
++++ b/src/pl02/pl02.cpp
+@@ -275,6 +275,17 @@ void cPlAda::setLeftHand(u32 no)
+     if (no == 0x63) {
+         no = Body->oldLhandNo;
+     }
++    /* PORT (patch 0195): Leon's Striker (wep08.cpp) passes his hand 5 as a pointer into the player
++       archive, which is no hand in the characters' archives */
++    if (no == (u32) PL_ARC_PTR(pG->pPlayer, 0x19)) {
++        no = 5;
++    }
++    /* PORT (patch 0195): Leon's weapons with Ada, who has 0, 1 (her TMP's grip), 2 and 4 */
++    if (no == 3) {
++        no = 1;
++    } else if (no == 5) {
++        no = 4;
++    }
+     switch (no) {
+     case 0:
+         data = PL_ARC(0x12);
+--- a/src/pl06/pl06.cpp
++++ b/src/pl06/pl06.cpp
+@@ -137,6 +137,15 @@ void cPlHunk::setLeftHand(u32 no)
+     if (no == 0x63) {
+         no = Body->oldLhandNo;
+     }
++    /* PORT (patch 0195): Leon's Striker (wep08.cpp) passes his hand 5 as a pointer into the player
++       archive, which is no hand in the characters' archives */
++    if (no == (u32) PL_ARC_PTR(pG->pPlayer, 0x19)) {
++        no = 5;
++    }
++    /* PORT (patch 0195): Leon's weapons with HUNK, who has 0 and the grip 1 / 3 */
++    if (no == 2 || no == 4 || no == 5) {
++        no = 3;
++    }
+     switch (no) {
+     case 0:
+         data = PL_ARC(0x14);
+--- a/src/pl0a/pl_klauser.cpp
++++ b/src/pl0a/pl_klauser.cpp
+@@ -352,6 +352,11 @@ void cPlKlauser::setLeftHand(u32 no)
+     if (no == 0x63) {
+         no = Body->oldLhandNo;
+     }
++    /* PORT (patch 0195): Leon's Striker (wep08.cpp) passes his hand 5 as a pointer into the player
++       archive, which is no hand in the characters' archives */
++    if (no == (u32) PL_ARC_PTR(pG->pPlayer, 0x19)) {
++        no = 5;
++    }
+     switch (no) {
+     case 0:
+     case 1:
+--- a/src/pl0d/pl_wesker.cpp
++++ b/src/pl0d/pl_wesker.cpp
+@@ -225,6 +225,17 @@ void cPlWesker::setLeftHand(u32 no)
+     if (no == 0x63) {
+         no = Body->oldLhandNo;
+     }
++    /* PORT (patch 0195): Leon's Striker (wep08.cpp) passes his hand 5 as a pointer into the player
++       archive, which is no hand in the characters' archives */
++    if (no == (u32) PL_ARC_PTR(pG->pPlayer, 0x19)) {
++        no = 5;
++    }
++    /* PORT (patch 0195): Leon's weapons with Wesker, who has 0, 2 and 4 */
++    if (no == 1 || no == 5) {
++        no = 4;
++    } else if (no == 3) {
++        no = 2;
++    }
+     switch (no) {
+     case 0:
+         data = PL_ARC(0x14);

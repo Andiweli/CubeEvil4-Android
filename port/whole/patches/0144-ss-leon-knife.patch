@@ -1,0 +1,24 @@
+# A bug of the prototype (user report 30.10.2026, European discs): in the sub screens (inventory, files,
+# merchant) Leon's model on the right had no knife on his chest. Without the jacket (pl_costume 1..3; the
+# debug start gives 1 everywhere but the first village rooms) the game adds Leon's part PL_ARC(0x10) with
+# PL_ARC(5) (cPlLeon::setModel: the knife in its sheath on the chest strap; entry 0xD is the knife in the
+# hand, scaled to 0 by setKnife(false)). The prototype's leonModelInit leaves 0x10 out; the European one
+# (Sscrn.rel 0x17000, read with retail_code.py: the only read of pl_costume in the European Sscrn.rel, none
+# in the debug build's) adds it after part 0xA for costumes 1..3, the rest of the function is the same.
+# em/pl00.drs has the same table on both disc kinds (archive_dump.py), so the fix is for both.
+--- a/src/Sscrn/ss_model.cpp
++++ b/src/Sscrn/ss_model.cpp
+@@ -1075,6 +1075,13 @@
+ 
+     m->modelInit(PL_ARC(4), PL_ARC(5));
+     m->addModel(ssModInfoMgr.create(PL_ARC(10), PL_ARC(5)));
++    /* PORT (patch 0144, a bug of the prototype): without the jacket (costumes 1..3) the knife in its
++       sheath on the chest strap, as cPlLeon::setModel adds it in the game and the European
++       leonModelInit (Sscrn.rel 0x17080) does here too (user report 30.10.2026: no knife in the
++       inventory) */
++    if (pG->pl_costume >= 1 && pG->pl_costume <= 3) {
++        m->addModel(ssModInfoMgr.create(PL_ARC(0x10), PL_ARC(5)));
++    }
+     m->addModel(ssModInfoMgr.create(PL_ARC(8), PL_ARC(7)));
+     m->addModel(ssModInfoMgr.create(PL_ARC(6), PL_ARC(7)));
+     m->addModel(ssModInfoMgr.create(PL_ARC(9), PL_ARC(7)));

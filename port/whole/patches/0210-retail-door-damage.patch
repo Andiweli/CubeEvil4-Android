@@ -1,0 +1,187 @@
+# Port patch, a bug of the prototype (tester report 06.11.2026: "the Killer7 is supposed to destroy wooden doors in
+# a single shot, here they just break a single piece at a time"): the door's damage checks (emdoor.cpp) sorted the
+# magnums (damage kinds 5 Broken Butterfly, 6 Killer7, 0xF Handcannon) and 0x2C with the rifles: one pane of a
+# wooden door per shot (four panes break it), and on iron doors only the hit lock, from close by. The US, European
+# and Japanese main.dol (emDoorDmCkWood, emDoorDmCkIron, emDoorDmCkIron2, emDoorDmCkIronDown, read with
+# port/tools/retail_code.py) send them to the branch of the explosives: a wooden door breaks with its locks and
+# chains in one shot, an iron door loses every lock and chain. The releases also ignore the thrown eggs (kinds
+# 0x19, 0x1F, 0x20; the prototype's switch sent them to the explosive branch), break both locks of the falling
+# door (type 2) like those of types 3 and 7, and (European and Japanese only) let no explosion break a locked
+# wooden door (Be_flg bit 0). Now as the European release, with all discs.
+--- a/src/game/emdoor.cpp
++++ b/src/game/emdoor.cpp
+@@ -225,7 +225,9 @@
+     Vec out;
+     int kind;
+ 
+-    if (pEm->hp > 0) {
++    /* port (patch 0210), a bug of the prototype: an explosion no longer breaks a locked door (Be_flg bit 0),
++       as the European and Japanese releases have it */
++    if (pEm->hp > 0 && !(w->Be_flg & 1)) {
+         v.x = 0.0f;
+         v.y = 0.0f;
+         v.z = 0.0f;
+@@ -261,6 +263,11 @@
+     if (wep == 0xE) {
+         return;
+     }
++    /* port (patch 0210), a bug of the prototype: the thrown eggs do nothing to a door, as in the releases (the
++       prototype's switch below sent them to the branch that breaks the whole door) */
++    if (wep == 0x19 || wep == 0x1F || wep == 0x20) {
++        return;
++    }
+     pEm->dmg.m_Timer = 1;
+     if (wep == 0x10) {
+         pEm->dmg.m_Timer = 0x11;
+@@ -324,13 +331,12 @@
+         }
+         emDoorSetDmgDoor(pEm);
+         break;
+-    case 5:
+-    case 6:
++    /* port (patch 0210), a bug of the prototype: the magnums (5 Broken Butterfly, 6 Killer7, 0xF Handcannon) and
++       0x2C break the whole door with one shot, as in the US, European and Japanese releases; the prototype broke
++       one pane per shot with them, like the rifles */
+     case 9:
+     case 0xA:
+-    case 0xF:
+     case 0x28:
+-    case 0x2C:
+         if (part == &w->hit[12]) {
+             if (w->Be_flg & 2) {
+                 w->Lock_L_hp -= 4;
+@@ -410,6 +416,10 @@
+         break;
+     case 0xE:
+         break;
++    case 5:
++    case 6:
++    case 0xF:
++    case 0x2C:
+     case 0xD:
+     case 0x12:
+     case 0x13:
+@@ -501,6 +511,9 @@
+             emDoorSetDmgLock_R(em, 1);
+         }
+         break;
++    /* port (patch 0210), a bug of the prototype: type 2 (the door that falls, emDoorDmCkIronDown) loses both
++       locks, as in the releases */
++    case 2:
+     case 3:
+     case 7:
+         emDoorSetDmgLock_L(em, 1);
+@@ -541,6 +554,10 @@
+     if (wep == 0xE) {
+         return;
+     }
++    /* port (patch 0210), a bug of the prototype: the eggs do nothing, as in the releases */
++    if (wep == 0x19 || wep == 0x1F || wep == 0x20) {
++        return;
++    }
+     pEm->dmg.m_Timer = 1;
+     if (wep == 0x10) {
+         pEm->dmg.m_Timer = 0x11;
+@@ -620,13 +637,11 @@
+         }
+         EmDmBloodSet2(pEm, w->Eff_id, 2, 0, 0, 0);
+         return;
+-    case 5:
+-    case 6:
++    /* port (patch 0210), a bug of the prototype: the magnums (5, 6, 0xF) and 0x2C break every lock and chain
++       as the explosives do, as in the releases; the prototype treated them like the shotguns */
+     case 7:
+     case 8:
+-    case 0xF:
+     case 0x21:
+-    case 0x2C:
+         if (part == &w->hit[12]) {
+             emDoorLockHitNearL(pEm, w);
+             return;
+@@ -654,6 +669,10 @@
+         return;
+     case 0xE:
+         return;
++    case 5:
++    case 6:
++    case 0xF:
++    case 0x2C:
+     case 0xD:
+     case 0x12:
+     case 0x13:
+@@ -697,6 +716,10 @@
+     if (wep == 0xE) {
+         return;
+     }
++    /* port (patch 0210), a bug of the prototype: the eggs do nothing, as in the releases */
++    if (wep == 0x19 || wep == 0x1F || wep == 0x20) {
++        return;
++    }
+     pEm->dmg.m_Timer = 1;
+     if (wep == 0x10) {
+         pEm->dmg.m_Timer = 0x11;
+@@ -786,13 +809,11 @@
+         }
+         EmDmBloodSet2(pEm, w->Eff_id, 2, 0, 0, 0);
+         return;
+-    case 5:
+-    case 6:
++    /* port (patch 0210), a bug of the prototype: the magnums (5, 6, 0xF) and 0x2C break every lock and chain
++       as the explosives do, as in the releases; the prototype treated them like the shotguns */
+     case 7:
+     case 8:
+-    case 0xF:
+     case 0x21:
+-    case 0x2C:
+         if (part == &w->hit[12]) {
+             emDoorLockHitNearL(pEm, w);
+             return;
+@@ -825,6 +846,10 @@
+         return;
+     case 0xE:
+         return;
++    case 5:
++    case 6:
++    case 0xF:
++    case 0x2C:
+     case 0xD:
+     case 0x12:
+     case 0x13:
+@@ -873,6 +898,10 @@
+     if (wep == 0xE) {
+         return;
+     }
++    /* port (patch 0210), a bug of the prototype: the eggs do nothing, as in the releases */
++    if (wep == 0x19 || wep == 0x1F || wep == 0x20) {
++        return;
++    }
+     pEm->dmg.m_Timer = 1;
+     if (wep == 0x10) {
+         pEm->dmg.m_Timer = 0x11;
+@@ -952,13 +981,11 @@
+         }
+         EmDmBloodSet2(pEm, w->Eff_id, 2, 0, 0, 0);
+         return;
+-    case 5:
+-    case 6:
++    /* port (patch 0210), a bug of the prototype: the magnums (5, 6, 0xF) and 0x2C break every lock and chain
++       as the explosives do, as in the releases; the prototype treated them like the shotguns */
+     case 7:
+     case 8:
+-    case 0xF:
+     case 0x21:
+-    case 0x2C:
+         if (part == &w->hit[12]) {
+             emDoorLockHitNearL(pEm, w);
+             return;
+@@ -986,6 +1013,10 @@
+         return;
+     case 0xE:
+         return;
++    case 5:
++    case 6:
++    case 0xF:
++    case 0x2C:
+     case 0xD:
+     case 0x12:
+     case 0x13:

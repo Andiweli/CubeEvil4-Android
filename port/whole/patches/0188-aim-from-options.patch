@@ -1,0 +1,19 @@
+# Port patch (user report 03.11.2026, 0.97.1, log 090435: "aim: vertical aiming normal (the app's switch over the
+# system file)" at every start). The game's own Options (Controller, "reverse", CFG_AIM_REVERSE) and the app
+# menu's "Invert vertical" set the same flag; the app's switch wins after the system file was read
+# (runtime/aim_options.cpp), so a change in the game's options was lost at the next start. When the option
+# screen closes, runtime/aim_options.cpp now takes the game's choice over and hands it to the app, which keeps it
+# in its preferences.
+--- a/src/game/option.cpp
++++ b/src/game/option.cpp
+@@ -161,8 +161,10 @@
+ }
+ 
+ // Frees the option textures and kills both id groups.
++extern "C" void re4_aim_options_closed(void); /* port (patch 0188): runtime/aim_options.cpp */
+ void OptionScreen::quit()
+ {
++    re4_aim_options_closed(); /* PORT (patch 0188): the game's "reverse" as the app's "Invert vertical" */
+     IdTexRelease(TEX_OWNER_ID_DEAD);
+     IdSys.kill(0xFF, IDC_OPTION_BG);
+     IdSys.kill(0xFF, IDC_OPTION);

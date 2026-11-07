@@ -62,7 +62,9 @@ final class TouchControls implements CoreTouch.Host {
     // shown by the controllers present, not hidden for a while by their keys
     view.setAutoHideOnController(false);
     for (int i = 0; i < CoreTouch.ACTIONS.length; i++) {
-      final RetroTouchColors colours = CoreTouch.COLOURS[i] == 0 ? null : RetroTouchColors.of(CoreTouch.COLOURS[i]);
+      // the border of every button #3e3c29 (wish of the project owner, 03.11.2026; RetroTouch 1.0.0-beta.8)
+      final RetroTouchColors colours = CoreTouch.COLOURS[i] == 0 ? null
+          : RetroTouchColors.of(CoreTouch.COLOURS[i]).withBorderColor(CoreTouch.BORDER);
       // the C stick: an analog stick of its own (RetroTouch 1.0.0-beta.7's stick action)
       if (CoreTouch.isStick(CoreTouch.ACTIONS[i])) view.registerStickAction(CoreTouch.ACTIONS[i], CoreTouch.LABELS[i], colours);
       else view.registerAction(CoreTouch.ACTIONS[i], CoreTouch.LABELS[i], colours);

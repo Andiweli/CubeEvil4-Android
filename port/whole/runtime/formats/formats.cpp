@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 
 namespace re4fmt {
 
@@ -634,6 +635,50 @@ void normalise(const char* in, char* out, size_t size)
 
 char g_packedName[64];
 
+}  // namespace
+
+// The time loading costs the game's thread (a tester's report, 01.11.2026: are the conversions behind the
+// stutters?): each conversion and Yz2 unpacking of 20 ms or more into the log (at most 100 lines a run), and
+// every 10 s with loading a summary: the files, the time in all, the longest.
+extern "C" long long re4_formats_now_ns(void)
+{
+    timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (long long) t.tv_sec * 1000000000LL + t.tv_nsec;
+}
+
+extern "C" void re4_formats_timed(const char* label, unsigned bytes, long long ns, const char* what)
+{
+    static int lines;
+    static long long windowStart, windowNs, longestNs;
+    static unsigned windowFiles;
+    static char longest[128];
+    const long long ms = ns / 1000000;
+    if (ms >= 20 && lines < 100) {
+        lines++;
+        re4_log("formats: %s (%u bytes) took %lld ms to %s", label, bytes, ms, what);
+    }
+    const long long now = re4_formats_now_ns();
+    if (windowFiles == 0) {
+        windowStart = now;
+    }
+    windowFiles++;
+    windowNs += ns;
+    if (ns > longestNs) {
+        longestNs = ns;
+        snprintf(longest, sizeof(longest), "%s, %s", label, what);
+    }
+    if (now - windowStart >= 10000000000LL) {
+        re4_log("formats: %u files in the last %.0f s, %.1f ms on the game's thread in all, the longest %.1f ms (%s)",
+                windowFiles, (double) (now - windowStart) / 1e9, (double) windowNs / 1e6, (double) longestNs / 1e6,
+                longest);
+        windowFiles = 0;
+        windowNs = longestNs = 0;
+    }
+}
+
+namespace {
+
 // Archives the European release orders differently (port/docs/retail-eu-plan.md, R2): the same
 // entries, a few at other places. The game's code (the debug build's) takes entries by index
 // (PL_ARC, SS_ARC_PTR); the table of such an archive is put back into the debug build's order
@@ -684,7 +729,7 @@ bool retailOrder(Blob& b, const char* name)
         char key[96];
         snprintf(key, sizeof(key), "retail order %s", name);
         if (firstReport(key)) {
-            re4_log("formats: %s: entries %u..%u put into the debug build's order (European release)", name,
+            re4_log("formats: %s: entries %u..%u put into the debug build's order (retail release)", name,
                     (unsigned) r.first, (unsigned) (r.first + r.n - 1));
         }
         return true;
@@ -720,10 +765,12 @@ extern "C" void re4_formats_part_loaded(const char* rawName, int nest, int index
         return;  // DSP-ADPCM samples: read by the audio layer (M8)
     }
     if (h->type == TRANS_SND_BLK) {
+        const long long t0 = re4_formats_now_ns();
         convertSoundBlock(b, part);
+        re4_formats_timed(label, (unsigned) h->size, re4_formats_now_ns() - t0, "convert");
         return;
     }
-    if (re4_disc_release() == RE4_DISC_RETAIL_EU) {
+    if (re4_disc_retail()) {  // the European, US and Japanese releases order them alike
         retailOrder(b, name);
     }
     for (const Rule& r : kRules) {
@@ -731,7 +778,11 @@ extern "C" void re4_formats_part_loaded(const char* rawName, int nest, int index
             if (r.convert == packed) {
                 snprintf(g_packedName, sizeof(g_packedName), "%s", name);
             }
+            // a slow conversion stalls the game's thread (the user reports of a stutter in r101 with
+            // evd/r101s21.evd, 30.10.2026): re4_formats_timed
+            const long long t0 = re4_formats_now_ns();
             r.convert(b, part);
+            re4_formats_timed(label, (unsigned) h->size, re4_formats_now_ns() - t0, "convert");
             if (firstReport(name)) {
                 re4_log("formats: %s: %s%s", label, r.what, b.ok ? "" : " (incomplete)");
             }
@@ -752,7 +803,9 @@ extern "C" void re4_formats_unpacked(void* dst, unsigned size)
     snprintf(label, sizeof(label), "%s (unpacked)", g_packedName[0] ? g_packedName : "yz2 stream");
     Blob b = blob(dst, size, label);
     Part part = { g_packedName[0] ? g_packedName : label, 0, 0, TRANS_MRAM, 0, 0xFFFFFFFFu };
+    const long long t0 = re4_formats_now_ns();
     convertArchive(b, part);
+    re4_formats_timed(label, size, re4_formats_now_ns() - t0, "convert");
     re4_log("formats: %s: archive, %u bytes%s", label, size, b.ok ? "" : " (incomplete)");
 }
 

@@ -1,0 +1,52 @@
+# The story with another player character, continued (user reports 05.11.2026: dark cutscenes with HUNK). An
+# event's figure gets a light class by its type (SetObj18): Leon's body (type 1) the player's class 1 only while
+# Leon is the player type, else 0x40, the class of the other figures; many events light the player's class
+# alone, so with a stand-in Leon's body (which the events show for it, patch 0195) stayed black (PC, EU discs,
+# r329's cutscene: Leon lit with Leon, a black figure with HUNK). Ada's event figure took the player's class while
+# she stood in (pl_type 2) though she is not the player there. While a stand-in plays the story the classes are
+# given as with Leon. Not a bug of the prototype: a port feature (the cheat menu, patch 0195).
+--- a/src/game/obj18.cpp
++++ b/src/game/obj18.cpp
+@@ -13,6 +13,7 @@
+ 
+ /* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
+ extern "C" int re4_story_char_leon_costume(void);
++extern "C" int re4_story_char_stand_in(void); /* patch 0202 */
+ 
+ void obj18SetOya(cObj18* obj);
+ 
+@@ -67,27 +68,30 @@
+     }
+     obj->atari.off();
+     lightFlag = 4;
++    /* PORT (patch 0202): a stand-in of the story: the event's figures lit as with Leon (his body is the player's,
++       Ada's is not) */
++    const int plType = re4_story_char_stand_in() ? 0 : pG->pl_type;
+     if (type == 1) {
+         lightFlag = 0x40;
+-        if (pG->pl_type == 0) {
++        if (plType == 0) {
+             lightFlag = 1;
+         }
+     }
+     if (type == 2) {
+         lightFlag = 0x40;
+-        if (pG->pl_type == 1) {
++        if (plType == 1) {
+             lightFlag = 1;
+         }
+     }
+     if (type == 3) {
+         lightFlag = 0x40;
+-        if (pG->pl_type == 2) {
++        if (plType == 2) {
+             lightFlag = 1;
+         }
+     }
+     if (type == 0x17) {
+         lightFlag = 0x40;
+-        if (pG->pl_type == 2) {
++        if (plType == 2) {
+             lightFlag = 1;
+         }
+     }

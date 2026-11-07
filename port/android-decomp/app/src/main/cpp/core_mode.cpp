@@ -16,8 +16,10 @@
 // (tests).
 #include "core_scene.h"
 #include "gx_auto_level.h"
+#include "gx_bench_steps.h"
 #include "gx_gl.h"
 #include "gx_selfcheck.h"
+#include "minimap_view.h"
 #include "re4_card_files.h"
 #include "re4_core_client.h"
 #include "re4_cpu_info.h"
@@ -77,6 +79,8 @@ struct CoreApi {
   // optional (cores since 20.10.2026): the four channels (Dolby Pro Logic II) and whether the game uses them
   int (*audio4)(int16_t *, int){};
   int (*audioSurround)(void){};
+  // optional: a line of the app into the core's log file (the error log's core-log.txt, also without logcat)
+  void (*logFileLine)(const char *){};
   const Re4CoreSnapshot *(*acquire)(void){};
   void (*release)(const Re4CoreSnapshot *){};
   int (*logTail)(char *, int){};
@@ -92,11 +96,20 @@ struct CoreApi {
   void (*depth)(const unsigned *, unsigned){};  // optional (cores since 26.10.2026): the depth for the game's GXPeekZ
   void (*setLetterbox)(int){};  // optional (cores since 22.10.2026): 4:3 without the bars
   void (*setFastCores)(int){};  // optional (cores since 24.10.2026): Force Performance
+  void (*setPotato)(int){};     // optional (cores since 30.10.2026): Potato mode (bit 0 weather, bit 1 special effects off)
+  void (*setSoundVolume)(int){};  // optional (cores since 30.10.2026): music | effects << 8, percent
+  void (*setAim)(int){};        // optional (cores since 30.10.2026): bit 0 invert vertical, bit 1 auto aim, bit 2 always run, bits 8.. aim speed in percent
+  int (*aimFromGame)(void){};   // optional (cores since 03.11.2026, patch 0188): the game's own "reverse" changed
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
   int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
+  int (*roomOutline)(float *, int, unsigned *){};  // optional (cores since 04.11.2026): the minimap's room outline
+  void (*setLaserColour)(int){};  // optional (cores since 04.11.2026, patch 0198): the laser sight's colour
+  void (*setViewAspect)(int){};   // optional (cores since 07.11.2026, patch 0214): "Native", the 3D's aspect x 10000
+  void (*setHudLayout)(int, int, int){};  // optional (cores since 07.11.2026, patch 0215): the life gauge's corner
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
+  void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
   int (*instant)(int, Re4InstantInfo *){};
@@ -113,9 +126,7 @@ struct CoreApi {
 
 // The core in a process of its own (useCoreProcess): why, for the report; "" in this process.
 std::string coreProcessWhy;
-#if !defined(__aarch64__)
 void useCoreProcess(const std::string &why);
-#endif
 
 template <class F> bool bind(F &slot, const char *name) {
   slot = reinterpret_cast<F>(dlsym(api.main, name));
@@ -364,6 +375,13 @@ void loadCore(JNIEnv *env) {
   } else if (holdMem1InLargeObjectSpace(env)) {
     setenv("RE4_MEM1_PLACEHOLDER", "1", 1);
     gAddressMap += "MEM1 placeholder: reserved inside the large object space\n";
+  } else if (!gMem1Owner.empty()) {
+    // ART's moving heap ("dalvik-main space (region space)", Xiaomi 22081212C, Android 15,
+    // 31.10.2026): nothing of it can be held; the core runs in a process of its own as on 32 bit
+    // (wish of the project owner, 31.10.2026)
+    gAddressMap += "MEM1 placeholder: NOT reserved: the core runs in a process of its own\n";
+    useCoreProcess("MEM1 is taken in the app's process (by " + gMem1Owner + ")");
+    return;
   } else {
     gAddressMap += "MEM1 placeholder: NOT reserved\n";
   }
@@ -417,18 +435,28 @@ void loadCore(JNIEnv *env) {
   api.vsync = reinterpret_cast<void (*)(int64_t)>(dlsym(api.main, "re4_core_vsync"));
   api.audio4 = reinterpret_cast<int (*)(int16_t *, int)>(dlsym(api.main, "re4_core_audio4"));
   api.audioSurround = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_audio_surround"));
-  api.pause = reinterpret_cast<int (*)(int, int)>(dlsym(api.main, "re4_core_pause"));
+  api.logFileLine = reinterpret_cast<void (*)(const char *)>(dlsym(api.main, "re4_log_file_line"));
+  api.pause =reinterpret_cast<int (*)(int, int)>(dlsym(api.main, "re4_core_pause"));
   api.debugMenu = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_debug_menu"));
   api.setDof = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_dof"));
   api.gyro = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_gyro"));
   api.depth = reinterpret_cast<void (*)(const unsigned *, unsigned)>(dlsym(api.main, "re4_core_gx_depth"));
   api.setLetterbox = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_letterbox"));
   api.setFastCores = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_fast_cores"));
+  api.setPotato = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_potato"));
+  api.setAim = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_aim"));
+  api.aimFromGame = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_aim_from_game"));
+  api.setSoundVolume = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_sound_volume"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
   api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
+  api.roomOutline = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_outline"));
+  api.setLaserColour = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_laser_colour"));
+  api.setViewAspect = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_view_aspect"));
+  api.setHudLayout = reinterpret_cast<void (*)(int, int, int)>(dlsym(api.main, "re4_core_set_hud_layout"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
+  api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
   api.instant = reinterpret_cast<int (*)(int, Re4InstantInfo *)>(dlsym(api.main, "re4_core_instant"));
@@ -498,6 +526,8 @@ int gxMode = -1;  // -1 undecided, 0 bridge, 1 GX
 // optScale: the EFB scale in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x; the menu's in-between levels)
 std::atomic<int> optScale{0}, optSamples{1}, optAnisotropy{1}, optAspect{-1};
 int letterboxSent = -1;  // what the core was told last (drawGx; -1: nothing yet)
+int viewAspectSent = -1;  // "Native": the 3D's aspect the core was told last (drawGx; -1: nothing yet)
+re4mm::HudLayout hudSent{-1, -1, -1, -1};  // the life gauge's corner the core was told last (drawGx)
 // Where drawGx showed the last picture, for taps (CoreBridge.tap): left and top on the surface (y
 // down), size in pixels, and the part of the XFB's rows it shows (first and count, 0..1).
 std::atomic<int> picX{0}, picY{0}, picW{0}, picH{0};
@@ -567,6 +597,11 @@ constexpr unsigned kGxHitSeries = 4, kGxHitShots = 24;
 // shader programs ahead of their first draw on a refresh without a chunk: until this much time is
 // spent (at least one; linking one anew took about 16 ms on the Retroid, one from the cache 1-2 ms)
 constexpr double kPrewarmMs = 4.0;
+// in the game's menus, the title and its loading (the core's rumble bit 4, re4_core.h) up to this much of
+// a refresh, also after a chunk with what it left (owner's Retroid reports 30.10.2026: 13 s after loading
+// a save the programs were not all made, r104 and its Ganados made theirs at the first draw, 780 / 519 ms)
+constexpr double kPrewarmMenuMs = 10.0;
+bool gameMenuNow() { return api.rumble && (api.rumble() & 0x10) != 0; }
 int gxHitDumps = -1;  // hits still to record as GX data; -1: settings not read yet
 unsigned gxHitShotsLeft = 0, gxHitShotPart = 0, gxHitCount = 0;
 bool gxHitSeriesPending = false;  // the chunk after a marked one starts over: a series from there
@@ -591,10 +626,11 @@ unsigned gxShotW = 0, gxShotH = 0;
 // 490 ms per picture with 2x MSAA and the autofocus while 30 pictures/s came: the timer alone does
 // not tell there.
 struct BenchStep {
-  int scale, samples, anisotropy, dof;
+  int scale, samples, anisotropy, dof;  // scale in halves ("2.5" in RE4_GPU_BENCH: 5)
   int invalidate = 0;  // GPU step b: copy targets forgotten before they are drawn over
   int tiled = 0;       // GPU step d: MSAA on the tiles
   int halfDof = 1;     // GPU step e: the depth of field's blur at half the resolution
+  int potato = -1;     // the Potato mode bits for the step (-1: as the menu has them; r21d, 30.10.2026)
 };
 struct Bench {
   std::vector<BenchStep> steps;
@@ -612,9 +648,16 @@ struct Bench {
   int keepScale = 0, keepSamples = 1, keepAnisotropy = 1, keepInvalidate = 0, keepTiled = 0, keepHalfDof = 1;
 };
 Bench bench;
-std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof); -1 not set yet
+std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof: 0 off, 1 light, 2 strong); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
+std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
+std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
+std::atomic<int> optFlares{0};    // the menu's lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
+std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
+std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
+std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
+std::atomic<int> optVertexRing{0};  // the menu's vertex ring (CoreBridge.setVertexRing; or RE4_GX_VERTEX_RING=1)
 // pictures put on the screen so far, each once: the game's and the in-between ones (the FPS display)
 std::atomic<long long> picturesMade{0};
 // 60 FPS (experimental): the chunk run last, kept for the in-between picture after it (its
@@ -645,6 +688,52 @@ int renderPlaced = 0;  // the render thread set up
 // cores with Android's performance hint), 0 "Default" (the default: Android decides).
 std::atomic<int> optFastCores{0};
 int fastSent = -1;    // what the core was told last (-1: nothing yet)
+// The menu's Potato mode (CoreBridge.setPotato, decision of the project owner, 30.10.2026): bit 0 the weather
+// effects off, bit 1 the special effects off (the core's runtime/potato.cpp); 0 the default.
+std::atomic<int> optPotato{0};
+int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU bench sets its own)
+// The menu's "Invert vertical" and "Aim speed" for touch and controllers (CoreBridge.setAim, wish of the
+// project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
+std::atomic<int> optAim{100 << 8};
+std::atomic<int> optFarCamera{0};  // the menu's "Far camera" (CoreBridge.setFarCamera), bit 3 of the aim bits
+// the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
+// degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
+std::atomic<int> optFov{0};
+// "Dynamic" up to the benchmark's levels (CoreBridge.setDynamicCaps, the app keeps them per device): with 30 FPS,
+// with 60 FPS; in halves, 0: none measured (the screen's level as before)
+std::atomic<int> optCap30{0}, optCap60{0};
+
+// The benchmark (wish of the project owner, 05.11.2026; the app menu Display -> GRAPHICS -> Benchmark). The game
+// goes to the lake's dock in r11b (runtime/benchmark.cpp through the cheat channel: 20 the place, 22 back, 23 the
+// state; since 06.11.2026 the project owner's instant save of the place, from the title or any chapter),
+// where the enemies stand still, Leon stands and the view goes round him; here, on the render thread, the steps of
+// gx_bench_steps.h: a 30 and a 60 FPS pass, each from 4x down half a level every 10 s until a level holds. While it
+// runs the level is the benchmark's alone: "Dynamic" does not change it (it set its own over it on every chunk, the
+// project owner's device test 06.11.2026), a new renderer (new picture options) starts at it, and the pictures are
+// counted here, not in the renderer's statistics, which start over with a new renderer. It is fed on every refresh,
+// with or without a chunk, so its clock goes on when the game stalls; at most kBenchLimit seconds in all.
+struct LevelBench {
+  std::atomic<int> ask{0};    // 1 start, 2 cancel (CoreBridge)
+  // 0 idle, 1 going to the place, 2 measuring, 3 going back, 4 done (results), 5 cancelled, 6 going back
+  // after a cancel or a stop; -1 refused (neither free play nor the title's menu), -2 failed (the game could not be
+  // kept, or the time limit), -3 no place reached, -4 the place's save does not fit these discs
+  std::atomic<int> phase{0}, run{0}, level{0}, res30{0}, res60{0}, rate10{0};
+  std::atomic<int> held{0};   // bit 0: the 30 result held, bit 1: the 60 result held (1x not held: the result is 1x)
+  bool active = false, failed = false;
+  bool touched = false;       // the benchmark set levels or 60 FPS: the renderer anew with the menu's at the end
+  int keepSmooth = 0;
+  re4gx::BenchSteps steps;
+  std::chrono::steady_clock::time_point since, start, secondAt;
+  unsigned long long chunks = 0, chunksAt = 0, shownAt = 0;
+  unsigned droppedAt = 0, polls = 0;
+};
+LevelBench levelBench;
+constexpr double kBenchLimit = 360.0;  // seconds for the whole benchmark at most (the way there and back included)
+int aimSent = -1;  // what the core was told last (-1: nothing yet)
+// The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
+// percent (the core's runtime/sound_volume.cpp).
+std::atomic<int> optSound{100 | 100 << 8};
+int soundSent = -1;  // what the core was told last (-1: nothing yet)
 int renderFast = -1;  // the setting the render thread runs with (-1: none yet)
 
 // Shader programs made ahead on a thread of its own (decision of the project owner, 23.10.2026):
@@ -750,7 +839,7 @@ double gpuBusyPercent() {
 }
 
 void benchApply(const BenchStep &step) {
-  optScale = step.scale * 2;
+  optScale = step.scale;
   optSamples = step.samples;
   optAnisotropy = step.anisotropy;
   optInvalidate = step.invalidate;
@@ -758,6 +847,7 @@ void benchApply(const BenchStep &step) {
   optHalfDof = step.halfDof;
   optSerial++;
   if (api.setDof) api.setDof(step.dof);
+  if (api.setPotato) api.setPotato(step.potato >= 0 ? step.potato : optPotato.load());
 }
 
 // Once per displayed frame (GL thread), after the chunk.
@@ -777,17 +867,20 @@ void benchTick(std::chrono::steady_clock::time_point now) {
       // setting twice up to 5 % apart; 4x at scale 3: 24 pictures/s.
       // "S/M/A/D/I/T/H,..." names other steps (I: copy targets forgotten, T: MSAA on the tiles,
       // H: the depth of field at half the resolution, 1 when left out)
-      bench.steps = {{3, 1, 1, 0}, {3, 1, 1, 1}, {3, 2, 8, 1}, {3, 4, 8, 1}, {2, 4, 8, 1}, {3, 1, 1, 0}};
+      bench.steps = {{6, 1, 1, 0}, {6, 1, 1, 1}, {6, 2, 8, 1}, {6, 4, 8, 1}, {4, 4, 8, 1}, {6, 1, 1, 0}};
     } else {
       for (const char *at = spec; *at;) {
         BenchStep step{};
         int used = 0;
-        if (std::sscanf(at, "%d/%d/%d/%d%n", &step.scale, &step.samples, &step.anisotropy, &step.dof, &used) != 4)
+        float scale = 0;  // whole or half levels ("2.5")
+        if (std::sscanf(at, "%f/%d/%d/%d%n", &scale, &step.samples, &step.anisotropy, &step.dof, &used) != 4)
           break;
+        step.scale = static_cast<int>(scale * 2 + 0.5f);
         int more = 0;
         if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.invalidate, &more) == 1) used += more;
         if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.tiled, &more) == 1) used += more;
         if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.halfDof, &more) == 1) used += more;
+        if (at[used] == '/' && std::sscanf(at + used, "/%d%n", &step.potato, &more) == 1) used += more;
         bench.steps.push_back(step);
         at += used;
         if (*at == ',') at++;
@@ -895,7 +988,7 @@ void benchTick(std::chrono::steady_clock::time_point now) {
   if (gx->TiledMsaa())
     std::snprintf(tiles, sizeof(tiles), " on the tiles (EFB drawn back %.1fx per picture)",
                   chunks ? static_cast<double>(s.efbRestores - bench.at.efbRestores) / chunks : 0.0);
-  LOG("GPU bench %d/%zu: scale %s, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s: "
+  LOG("GPU bench %d/%zu: scale %s, %d samples%s, anisotropy %.0f, depth of field %s%s, copy targets forgotten %s%s: "
       "GPU %s per picture, "
       "present %s, %.1f pictures/s, %.1f presents/s, renderer CPU %.1f ms, GPU clock %s, load %s, "
       "work (load x clock) %s, GPU behind %s, %.0f draws per picture",
@@ -903,7 +996,10 @@ void benchTick(std::chrono::steady_clock::time_point now) {
       gx->Samples() > 1 ? (gx->TiledMsaa() ? tiles : " in own buffers") : "", gx->Anisotropy(),
       step.dof ? "on" : "off",
       step.dof ? (gx->HalfDof() ? " (blur at half resolution)" : " (blur at full resolution)") : "",
-      gx->Invalidates() ? "yes" : "no", gpu, present, pictures, secs > 0 ? (s.presents - bench.at.presents) / secs : 0.0,
+      gx->Invalidates() ? "yes" : "no",
+      step.potato < 0 ? "" : step.potato == 0 ? ", Potato mode off" : step.potato == 1 ? ", weather effects off"
+                           : step.potato == 2 ? ", special effects off" : ", weather and special effects off",
+      gpu, present, pictures, secs > 0 ? (s.presents - bench.at.presents) / secs : 0.0,
       bench.runCount ? bench.runMs / bench.runCount : 0.0, clock, busy, work, behind,
       chunks ? static_cast<double>(s.draws - bench.at.draws) / chunks : 0.0);
   bench.measuring = false;
@@ -917,6 +1013,8 @@ void benchTick(std::chrono::steady_clock::time_point now) {
     optHalfDof = bench.keepHalfDof;
     optSerial++;
     if (optDof.load() >= 0 && api.setDof) api.setDof(optDof.load());
+    if (api.setLaserColour) api.setLaserColour(optLaserColour.load());
+    potatoSent = -1;
     LOG("GPU bench done; the options from before the run are back");
     bench.index = -3;
     return;
@@ -991,6 +1089,96 @@ void SaveShot(const char *path) { SaveShot(*gx, path); }
 // whether this GPU draws the same chunks the same every time and with which options a picture
 // differs (thin branches went paler for one picture with 2x MSAA on the Retroid only,
 // 20.10.2026). Once per process; the game waits meanwhile.
+// Measurement (RE4_GX_REPLAY_WORK=1 with RE4_GX_REPLAY; a user's ideas on EFB copies and merged draw calls,
+// 31.10.2026): every series at 1x and 1.5x, at 1.5x also with merged draw calls, each picture finished
+// (glFinish) and timed with the menu's MSAA, anisotropy and depth of field; then twice more with the EFB
+// copies, the display copy and the autofocus timed one by one (RE4_GX_COPY_TIME, glFinish around each). The
+// first 5 pictures of a series (programs, uploads) are not counted. One "GX work" line per series and variant;
+// no pictures kept, the game waits meanwhile.
+static void replayWork(const std::vector<std::unique_ptr<re4gxio::Loaded>> &chunks,
+                       const std::vector<std::string> &stems) {
+  struct Work {
+    const char *name;
+    int halves;
+    bool merge, copyTime;
+  };
+  static const Work kWork[] = {{"1x", 2, false, false},        {"1.5x", 3, false, false},
+                               {"1.5x-merge", 3, true, false}, {"1x-copies", 2, false, true},
+                               {"1.5x-copies", 3, false, true}};
+  static const char *kKinds[re4gx::GxStats::kCopyKinds] = {"whole", "half", "depth", "small", "display", "focus"};
+  for (const Work &v : kWork) {
+    if (v.copyTime)
+      setenv("RE4_GX_COPY_TIME", "1", 1);
+    else
+      unsetenv("RE4_GX_COPY_TIME");
+    std::unique_ptr<re4gx::GxRenderer> r;
+    uint32_t lastSequence = 0, lastFrame = 0;
+    std::string series;
+    re4gx::GxStats at;
+    double ms = 0.0;
+    unsigned timed = 0, run = 0;
+    const auto report = [&]() {
+      if (!r || !timed) return;
+      const re4gx::GxStats &s = r->Stats();
+      char copies[512];
+      int o = 0;
+      for (int k = 0; k < re4gx::GxStats::kCopyKinds && o < static_cast<int>(sizeof(copies)); k++)
+        o += std::snprintf(copies + o, sizeof(copies) - o, "%s %s %.1f (%.2f ms)", k ? "," : "", kKinds[k],
+                           (s.copyCount[k] - at.copyCount[k]) / static_cast<double>(timed),
+                           (s.copyNs[k] - at.copyNs[k]) / 1e6 / timed);
+      const unsigned draws = s.draws - at.draws;
+      const unsigned calls = draws - (s.mergeTaken - at.mergeTaken) + (s.mergeBatches - at.mergeBatches);
+      LOG("GX work %s series %s: %u pictures, %.2f ms each (Run + glFinish), %.0f draws in %.0f GL calls; "
+          "copies%s; read %.1f, drawn over unread %.1f",
+          v.name, series.c_str(), timed, ms / timed, draws / static_cast<double>(timed),
+          calls / static_cast<double>(timed), copies, (s.copyRead - at.copyRead) / static_cast<double>(timed),
+          (s.copyOverwrittenUnread - at.copyOverwrittenUnread) / static_cast<double>(timed));
+    };
+    for (size_t i = 0; i < chunks.size(); i++) {
+      Re4GxChunk chunk = chunks[i]->chunk;
+      const bool follows = r && chunk.sequence == lastSequence + 1 && chunks[i]->frame == lastFrame + 1;
+      if (!follows) {
+        if (!(chunk.flags & RE4_GX_CHUNK_RESET)) continue;
+        report();
+        if (r) r->Release();
+        r = std::make_unique<re4gx::GxRenderer>();
+        re4gx::GxOptions options;
+        options.samples = std::max(1, optSamples.load());
+        options.anisotropy = static_cast<float>(std::max(1, optAnisotropy.load()));
+        options.halfDof = optHalfDof.load() != 0;
+        r->SetOptions(options);
+        std::string error;
+        if (!r->InitHalves(v.halves, &error)) {
+          LOG("GX work %s: renderer: %s", v.name, error.c_str());
+          r.reset();
+          continue;
+        }
+        r->SetMerge(v.merge);
+        chunk.flags &= ~RE4_GX_CHUNK_HOLD;
+        series = stems[i].substr(0, 2);
+        ms = 0.0;
+        timed = run = 0;
+      }
+      lastSequence = chunk.sequence;
+      lastFrame = chunks[i]->frame;
+      if (run == 5) at = r->Stats();
+      glFinish();
+      const auto start = std::chrono::steady_clock::now();
+      r->Run(chunk);
+      glFinish();
+      const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+      if (run++ >= 5) {
+        ms += took;
+        timed++;
+      }
+    }
+    report();
+    if (r) r->Release();
+  }
+  unsetenv("RE4_GX_COPY_TIME");
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 bool gxReplayDone = false;
 
 void replayGx(int halves) {
@@ -1033,6 +1221,13 @@ void replayGx(int halves) {
                                       {"s2full", 2, false, true, 1}, {"s1", 1, true, false, 1},
                                       {"s4cen", 4, true, false, 1}};
   LOG("GX replay: %zu chunks from %s, EFB scale %s", chunks.size(), dir, ScaleName(halves).c_str());
+  if (const char *work = getenv("RE4_GX_REPLAY_WORK")) {
+    if (*work == '1') {
+      replayWork(chunks, stems);
+      LOG("GX replay: measurement done");
+      return;
+    }
+  }
   const char *cache = getenv("RE4_GX_PROGRAM_CACHE");
   unsigned pictures = 0;
   for (const Variant &v : kVariants) {
@@ -1085,8 +1280,349 @@ void replayGx(int halves) {
   LOG("GX replay: done, %u pictures", pictures);
 }
 
+// --- the minimap (CoreBridge.setMinimap; wish of the project owner, 04.11.2026: optional, the current room's
+// outline only, turning with the player) --------------------------------------------------------------------
+// The outline comes from the core (re4_core_room_outline: the room's floor collision, asked again when the room
+// changes and once a second), the player from the frame (the player model's matrix). Drawn after the picture,
+// at its bottom left (the game's HUD is at the bottom right), only while the player plays: the main loop, no
+// event, no sub screen. A dark disc, the outline (other storeys fainter), a ring and the player's arrow.
+struct MinimapState {
+  bool failed = false;
+  GLuint program = 0, vbo = 0, vao = 0;
+  GLint scaleLoc = -1;
+  std::vector<float> edges;  // x0 z0 x1 z1 height
+  std::vector<float> lines;  // the projected segments (re4mm::Project)
+  std::vector<float> verts;  // x y r g b a
+  unsigned serial = ~0u, room = 0xFFFF, askedRoom = 0xFFFF;
+  float radius = 10000.0f;  // world units to the map's edge (re4mm::RoomRadius)
+  std::chrono::steady_clock::time_point asked;
+  bool logged = false;
+  long long placeLogged = -1;  // the place last logged (minimapDraw)
+} minimap;
+
+bool minimapProgram() {
+  static const char kVs[] = "#version 300 es\n"
+                            "layout(location = 0) in vec2 aPos;\nlayout(location = 1) in vec4 aCol;\n"
+                            "out vec4 vCol;\n"
+                            "void main() { vCol = aCol; gl_Position = vec4(aPos, 0.0, 1.0); }\n";
+  static const char kFs[] = "#version 300 es\nprecision mediump float;\n"
+                            "in vec4 vCol;\nout vec4 o;\n"
+                            "void main() { o = vCol; }\n";
+  auto compile = [](GLenum type, const char *src) {
+    GLuint s = glCreateShader(type);
+    glShaderSource(s, 1, &src, nullptr);
+    glCompileShader(s);
+    GLint ok = 0;
+    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+      glDeleteShader(s);
+      return 0u;
+    }
+    return s;
+  };
+  const GLuint vs = compile(GL_VERTEX_SHADER, kVs), fs = compile(GL_FRAGMENT_SHADER, kFs);
+  if (!vs || !fs)
+    return false;
+  minimap.program = glCreateProgram();
+  glAttachShader(minimap.program, vs);
+  glAttachShader(minimap.program, fs);
+  glLinkProgram(minimap.program);
+  glDeleteShader(vs);
+  glDeleteShader(fs);
+  GLint ok = 0;
+  glGetProgramiv(minimap.program, GL_LINK_STATUS, &ok);
+  if (!ok)
+    return false;
+  glGenBuffers(1, &minimap.vbo);
+  glGenVertexArrays(1, &minimap.vao);
+  glBindVertexArray(minimap.vao);
+  glBindBuffer(GL_ARRAY_BUFFER, minimap.vbo);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), reinterpret_cast<const void *>(2 * sizeof(float)));
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  return true;
+}
+
+// The map in the picture: the menu's picture format and the XFB's lines (re4mm::PictureRects / Place, where the
+// game's own gauge sits; owner's report 05.11.2026)
+void minimapDraw(int format, unsigned xh, bool wide) {
+  if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
+      (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
+    return;
+  const Re4CoreModel *player = nullptr;
+  for (const Re4CoreModel &mdl : frame.models)
+    if (mdl.manager == 0 && mdl.id == 0 && (mdl.beFlag & 6) == 6) {
+      player = &mdl;
+      break;
+    }
+  re4mm::Pose pose;
+  if (!player || !re4mm::PoseFromMatrix(player->matrix, &pose))
+    return;
+  // the outline: again when the room changed, else once a second (the room's pieces may change)
+  const auto now = std::chrono::steady_clock::now();
+  if (frame.room != minimap.askedRoom || now - minimap.asked > std::chrono::seconds(1)) {
+    minimap.askedRoom = frame.room;
+    minimap.asked = now;
+    static std::vector<float> buffer(12000 * 5);
+    unsigned info[2] = {0, 0xFFFF};
+    const int n = api.roomOutline(buffer.data(), 12000, info);
+    if (info[0] != minimap.serial) {
+      minimap.serial = info[0];
+      minimap.room = info[1];
+      minimap.edges.assign(buffer.begin(), buffer.begin() + std::max(0, n) * 5);
+      minimap.radius = re4mm::RoomRadius(minimap.edges.data(), std::max(0, n));
+      LOG("minimap: r%03x, %d edges, %.0f m around the player", info[1], n, minimap.radius / 1000.0f);
+    }
+  }
+  if (minimap.room != frame.room || minimap.edges.empty())
+    return;
+  if (!minimap.program && !minimapProgram()) {
+    minimap.failed = true;
+    LOG("minimap: no shader; left out");
+    return;
+  }
+  // around the player as far as the room's size asks (re4mm::RoomRadius: 10 to 24 m)
+  re4mm::Project(minimap.edges.data(), static_cast<int>(minimap.edges.size() / 5), pose, minimap.radius, minimap.lines);
+  std::vector<float> &v = minimap.verts;
+  v.clear();
+  auto put = [&](float x, float y, float r, float g, float b, float a) {
+    v.insert(v.end(), {x, y, r, g, b, a});
+  };
+  // the disc (a fan as triangles) and the ring
+  const int kSides = 48;
+  for (int i = 0; i < kSides; i++) {
+    const float a0 = 6.2831853f * i / kSides, a1 = 6.2831853f * (i + 1) / kSides;
+    put(0, 0, 0.0f, 0.0f, 0.0f, 0.45f);
+    put(std::cos(a0), std::sin(a0), 0.0f, 0.0f, 0.0f, 0.45f);
+    put(std::cos(a1), std::sin(a1), 0.0f, 0.0f, 0.0f, 0.45f);
+  }
+  const int discVerts = static_cast<int>(v.size() / 6);
+  // the player: an arrow pointing up
+  put(0.0f, 0.13f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(-0.08f, -0.09f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.0f, -0.04f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.0f, 0.13f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.0f, -0.04f, 1.0f, 0.78f, 0.25f, 0.95f);
+  put(0.08f, -0.09f, 1.0f, 0.78f, 0.25f, 0.95f);
+  const int triVerts = static_cast<int>(v.size() / 6);
+  for (size_t i = 0; i + 4 < minimap.lines.size(); i += 5) {
+    const float a = 0.85f * minimap.lines[i + 4];
+    put(minimap.lines[i], minimap.lines[i + 1], 0.86f, 0.92f, 0.86f, a);
+    put(minimap.lines[i + 2], minimap.lines[i + 3], 0.86f, 0.92f, 0.86f, a);
+  }
+  for (int i = 0; i < kSides; i++) {
+    const float a0 = 6.2831853f * i / kSides, a1 = 6.2831853f * (i + 1) / kSides;
+    put(std::cos(a0) * 0.99f, std::sin(a0) * 0.99f, 0.86f, 0.92f, 0.86f, 0.5f);
+    put(std::cos(a1) * 0.99f, std::sin(a1) * 0.99f, 0.86f, 0.92f, 0.86f, 0.5f);
+  }
+  const int lineVerts = static_cast<int>(v.size() / 6) - triVerts;
+  // its square at the bottom left of the game's HUD, mirroring the gauge at the bottom right in every format
+  re4mm::Rect hud, pic;
+  re4mm::PictureRects(format, width, height, static_cast<int>(xh), &hud, &pic, wide);
+  const re4mm::Rect at = re4mm::Place(hud, re4mm::Shown(format, hud, pic));
+  const int size = at.w;
+  glViewport(at.x, at.y, size, size);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
+  glUseProgram(minimap.program);
+  glBindVertexArray(minimap.vao);
+  glBindBuffer(GL_ARRAY_BUFFER, minimap.vbo);
+  glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(v.size() * sizeof(float)), v.data(), GL_STREAM_DRAW);
+  glDrawArrays(GL_TRIANGLES, 0, discVerts);
+  glLineWidth(std::max(1.0f, static_cast<float>(size) / 160.0f));
+  glDrawArrays(GL_LINES, triVerts, lineVerts);
+  glDrawArrays(GL_TRIANGLES, discVerts, triVerts - discVerts);
+  glLineWidth(1.0f);
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glUseProgram(0);
+  glDisable(GL_BLEND);
+  glViewport(0, 0, width, height);
+  // once, and again when the place changes (another picture format, the screen turned or resized)
+  const long long key = (static_cast<long long>(format + 1) << 48) ^ (static_cast<long long>(at.x) << 32) ^
+                        (static_cast<long long>(at.y) << 16) ^ size;
+  if (!minimap.logged || key != minimap.placeLogged) {
+    minimap.logged = true;
+    minimap.placeLogged = key;
+    LOG("minimap: drawn (%d x %d at %d %d, picture format %d)", size, size, at.x, at.y, format);
+  }
+}
+
 // Runs the chunks the core has finished and shows the latest display copy.
 // False while there is nothing to show yet (the caller draws the bridge).
+// The benchmark's level on the renderer (no in-between picture across the change); each level gets its own chance
+// with in-between pictures (a GPU too slow at 4x may keep up at 2x).
+void levelBenchSet(int halves) {
+  if (smoothPrev) {
+    api.gxRelease(smoothPrev);
+    smoothPrev = nullptr;
+  }
+  if (gx) gx->RescaleHalves(halves);
+  infoScale = halves;
+  levelBench.level = halves;
+  smoothTooSlow = false;
+  // a pause of the in-between pictures from the level before does not carry over (60 FPS pass)
+  smoothPacer.Restart(std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+
+// The benchmark's results and the way back.
+void levelBenchResults(std::chrono::steady_clock::time_point now) {
+  LevelBench &b = levelBench;
+  const re4gx::BenchSteps &s = b.steps;
+  b.res30 = s.Result(0);
+  b.res60 = s.Result(1);
+  b.held = (s.Held(0) ? 1 : 0) | (s.Held(1) ? 2 : 0);
+  api.cheatAction(22);
+  b.phase = 3;
+  b.since = now;
+  LOG("benchmark: result %s with 30 pictures a second (%s), %s with 60 (%s)", re4gx::BenchSteps::Name(s.Result(0)).c_str(),
+      s.Held(0) ? "stable" : "not stable even there", re4gx::BenchSteps::Name(s.Result(1)).c_str(),
+      s.Held(1) ? "stable" : "not stable even there");
+}
+
+// The benchmark's next step, at every refresh (`chunk`: a real chunk of the game ran in it).
+void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
+  LevelBench &b = levelBench;
+  const int ask = b.ask.exchange(0);
+  auto finish = [&](int phase) {
+    b.phase = phase;
+    b.active = false;
+    optSmooth = b.keepSmooth;
+    // the renderer anew with the menu's level, only when the benchmark changed it: a refused start (the title's logos,
+    // an event) made a new renderer for nothing, which lost the title's EFB copies ("3 missing", the project owner's
+    // log 06.11.2026)
+    if (b.touched) optSerial++;
+    LOG("benchmark: %s", phase == 4 ? "done" : phase == 5 ? "cancelled" : "stopped");
+  };
+  auto goBack = [&](const char *why) {
+    api.cheatAction(22);
+    b.phase = 6;
+    b.since = now;
+    LOG("benchmark: %s, back without a result", why);
+  };
+  if (ask == 1 && !b.active) {
+    if (!api.cheatAction) {
+      b.phase = -2;
+      return;
+    }
+    b.run = 0;
+    b.level = 0;
+    b.res30 = b.res60 = b.rate10 = b.held = 0;
+    b.chunks = 0;
+    b.polls = 0;
+    b.failed = false;
+    b.touched = false;
+    b.active = true;
+    b.keepSmooth = optSmooth.load();
+    b.phase = 1;
+    b.since = b.start = now;
+    api.cheatAction(20);
+    LOG("benchmark: started (the lake's dock; a 30 and a 60 FPS pass, each from 4x down half a level every %.0f s)",
+        re4gx::BenchSteps::kHold);
+    return;
+  }
+  if (!b.active) return;
+  if (chunk) b.chunks++;
+  if (ask == 2 && b.phase.load() != 6 && b.phase.load() != 3) {
+    goBack("cancelled");
+    return;
+  }
+  const double inPhase = std::chrono::duration<double>(now - b.since).count();
+  const double inAll = std::chrono::duration<double>(now - b.start).count();
+  if ((b.phase.load() == 1 || b.phase.load() == 2) && inAll > kBenchLimit) {
+    b.failed = true;
+    goBack("the time limit is up");
+    return;
+  }
+  // the game's state (a call to the core; not every refresh)
+  int state = 0;
+  if (b.phase.load() != 2 || (++b.polls % 30) == 0) state = api.cheatAction(23);
+  switch (b.phase.load()) {
+  case 1: {  // going to the place
+    if (state < 0) {
+      finish(state == -1 || state == -4 ? state : -2);
+      return;
+    }
+    if ((state & 15) == 2) {
+      b.run = 0;
+      b.touched = true;
+      optSmooth = 0;
+      b.steps.Start(std::chrono::duration<double>(now - b.start).count());
+      levelBenchSet(b.steps.Level());
+      b.phase = 2;
+      b.secondAt = now;
+      b.chunksAt = b.chunks;
+      b.shownAt = picturesMade.load();
+      b.droppedAt = gxBetweenDropped;
+      LOG("benchmark: at the place; the 30 FPS pass from %s", re4gx::BenchSteps::Name(b.steps.Level()).c_str());
+    } else if (inPhase > 60.0) {
+      b.failed = true;
+      goBack("the place was not ready in 60 s");
+    }
+    return;
+  }
+  case 2: {  // measuring
+    if (state < 0 || (b.polls % 30 == 0 && (state & 15) != 2)) {
+      b.failed = true;
+      goBack("the place was left");
+      return;
+    }
+    const double sec = std::chrono::duration<double>(now - b.secondAt).count();
+    if (sec < 1.0) return;
+    const int c = static_cast<int>(std::lround((b.chunks - b.chunksAt) / sec));
+    const int sh = static_cast<int>(std::lround((picturesMade.load() - b.shownAt) / sec));
+    const unsigned dropped = gxBetweenDropped - b.droppedAt;
+    b.chunksAt = b.chunks;
+    b.shownAt = picturesMade.load();
+    b.droppedAt = gxBetweenDropped;
+    b.secondAt = now;
+    std::string line;
+    const re4gx::BenchSteps::Step step =
+        b.steps.Second(std::chrono::duration<double>(now - b.start).count(), c, sh, dropped, &line);
+    b.rate10 = b.steps.Rate10();
+    if (step != re4gx::BenchSteps::kNone) {
+      LOG("%s", line.c_str());
+      // the cores' clocks at each step: a device that grows hot (the clock it may reach falls) or switches its
+      // fastest core off shows in the report (the project owner's log 06.11.2026: the render thread at 1286 MHz)
+      char clocks[320];
+      re4cpu::DescribeClocks(re4cpu::GetLayout(), clocks, sizeof(clocks));
+      char may[96];
+      re4cpu::AffinityText(may, sizeof(may));
+      LOG("benchmark: %s; the render thread on core %d, may use %s", clocks, sched_getcpu(), may);
+    }
+    switch (step) {
+    case re4gx::BenchSteps::kLevel:
+      levelBenchSet(b.steps.Level());
+      LOG("benchmark: %d FPS pass, now %s", b.steps.Pass() ? 60 : 30, re4gx::BenchSteps::Name(b.steps.Level()).c_str());
+      break;
+    case re4gx::BenchSteps::kPassDone:
+      b.run = 1;
+      optSmooth = 1;
+      levelBenchSet(b.steps.Level());
+      LOG("benchmark: 30 FPS pass: %s (%s); the 60 FPS pass from %s", re4gx::BenchSteps::Name(b.steps.Result(0)).c_str(),
+          b.steps.Held(0) ? "stable" : "not stable even there", re4gx::BenchSteps::Name(b.steps.Level()).c_str());
+      break;
+    case re4gx::BenchSteps::kDone:
+      levelBenchResults(now);
+      break;
+    default:
+      break;
+    }
+    return;
+  }
+  case 3:
+  case 6:  // going back
+    if ((state & 15) == 4 || state < 0 || inPhase > 90.0)
+      finish(b.phase.load() == 3 ? 4 : b.failed ? -3 : 5);
+    return;
+  }
+}
+
 bool drawGx() {
   if (gxMode < 0) {
     const char *view = getenv("RE4_VIEW");
@@ -1127,6 +1663,15 @@ bool drawGx() {
       // CoreMenu.autoScale is the same)
       const int rows = std::min(height, width * 9 / 16);
       scale = 2 * std::max(1, std::min(3, (rows + 168) / 336) - 1);
+      // measured by the benchmark on this device: its level for 30 or 60 pictures a second and half a level more
+      // (wish of the project owner, 06.11.2026: the rainy dock is one of the heaviest places of the game; Dynamic
+      // starts there and goes down half a level where the GPU falls behind, up again where it keeps up), 4x at most
+      const int cap = optSmooth.load() ? optCap60.load() : optCap30.load();
+      if (cap >= 2 && cap <= 8) {
+        scale = std::min(8, cap + 1);
+        LOG("dynamic resolution: up to %sx, half a level above the benchmark's %sx for %d pictures a second",
+            ScaleName(scale).c_str(), ScaleName(cap).c_str(), optSmooth.load() ? 60 : 30);
+      }
     }
     // once per run: does this GPU compute the movie colours like the GameCube (gx_selfcheck.cpp;
     // the Galaxy A36 showed them green and brown)? Before any renderer, on a renderer of its own;
@@ -1135,6 +1680,11 @@ bool drawGx() {
     if (!gpuChecked) {
       gpuChecked = true;
       LOG("%s", re4gx::MovieColourCheck(nullptr).c_str());
+    }
+    if (levelBench.active && levelBench.phase.load() == 2) {
+      scale = levelBench.level.load();
+      autoLevelOn = false;
+      LOG("benchmark: the new renderer at the benchmark's level %s", re4gx::BenchSteps::Name(scale).c_str());
     }
     replayGx(scale);
     gx = std::make_unique<re4gx::GxRenderer>();
@@ -1148,6 +1698,8 @@ bool drawGx() {
     options.invalidate = optInvalidate.load() != 0;
     options.tiledMsaa = optTiled.load() != 0;
     options.halfDof = optHalfDof.load() != 0;
+    const char *ringEnv = getenv("RE4_GX_VERTEX_RING");
+    options.vertexRing = optVertexRing.load() != 0 || (ringEnv && *ringEnv == '1');
     gx->SetOptions(options);
     // the depth of the pictures whose chunks peeked (GXPeekZ), to the core: the glow of torches stays
     // behind walls (a GameCube; before 26.10.2026 it shone through them)
@@ -1278,9 +1830,36 @@ bool drawGx() {
   const bool smoothOn = optSmooth.load() != 0 && !smoothTooSlow;
   gx->SetRecording(smoothOn);
   gx->SetFxaa(optFxaa.load() != 0);
+  static const bool tvEnv = getenv("RE4_GX_TV_FILTER") && *getenv("RE4_GX_TV_FILTER") == '1';
+  gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
+  static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
+  gx->SetPsx(optPsx.load() != 0 || psxEnv);
+  static const bool flaresEnv = getenv("RE4_GX_FLARES") && *getenv("RE4_GX_FLARES") == '1';
+  gx->SetFlares(optFlares.load() != 0 || flaresEnv);
+  gx->SetDofStrong(optDof.load() == 2);
+  static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
+  gx->SetMerge(optMerge.load() != 0 || mergeEnv);
   if (!smoothOn && smoothPrev) {
     api.gxRelease(smoothPrev);
     smoothPrev = nullptr;
+  }
+  // the room the game is in: Prewarm takes the programs this room drew with before (01.11.2026)
+  gx->SetRoom(frame.room);
+  // a break for Dynamic and the 60 FPS pacer: a room starts (its loading, its programs made ahead) or the core ran
+  // again after a pause (the app menu); their windows start anew after a few quiet seconds (the project owner's log
+  // 06.11.2026: 2x -> 1.5x 1.6 s after r11b started, the window before had spanned the menu)
+  {
+    static int breakRoom = -1;
+    static bool breakPaused = false;
+    const bool paused = corePaused.load();
+    const bool roomStart = breakRoom >= 0 && static_cast<int>(frame.room) != breakRoom;
+    if (roomStart || (breakPaused && !paused)) {
+      const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+      autoLevel.Restart(t);
+      if (!levelBench.active) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+    }
+    breakRoom = static_cast<int>(frame.room);
+    breakPaused = paused;
   }
   const Re4GxChunk *deferred = smoothNext;
   smoothNext = nullptr;
@@ -1393,7 +1972,9 @@ bool drawGx() {
       gxBetweenDropped++;  // behind: this chunk at once, without the picture between
     // an even pace (60fps-plan.md S4): behind again and again, the in-between pictures pause
     bool paced = !stream60;
-    if (smoothOn && !deferred && smoothPrev && !stream60) {
+    // (not while the benchmark measures: its 5 s pause ate half of a level's window, the project owner's log
+    // 06.11.2026; there every in-between picture the renderer manages counts, the left-out ones too)
+    if (smoothOn && !deferred && smoothPrev && !stream60 && !levelBench.active) {
       std::string why;
       paced = smoothPacer.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), behind, &why);
       if (!why.empty())
@@ -1439,12 +2020,29 @@ bool drawGx() {
       api.setFastCores(fast);
       fastSent = fast;
     }
+    const int potato = optPotato.load();
+    // (while the GPU bench runs its steps set the Potato mode; afterwards the menu's again)
+    if (api.setPotato && potato != potatoSent && bench.index < 0) {
+      api.setPotato(potato);
+      potatoSent = potato;
+    }
+    const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
+                    | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
+    if (api.setAim && aim != aimSent) {
+      api.setAim(aim);
+      aimSent = aim;
+    }
+    const int sound = optSound.load();
+    if (api.setSoundVolume && sound != soundSent) {
+      api.setSoundVolume(sound);
+      soundSent = sound;
+    }
     if (fast != renderFast) {
       const bool first = renderFast < 0;
       renderFast = fast;
       if (fast) {
         char cores[160];
-        re4cpu::KeepOffSlowCores(cores, sizeof(cores));
+        re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kRenderThread);
         LOG("cores: the render thread %s", cores);
         const int tid = re4cpu::ThreadId();
         const char *why = "";
@@ -1461,8 +2059,16 @@ bool drawGx() {
     if (fast && ++coreChecks % 30 == 0 && re4cpu::KeepOnFastCores() && ++coreMoves <= 4)
       LOG("cores: the render thread put back on its cores (Android had moved it, %u times so far)", coreMoves);
     gxRunMs += ms;
+    // a Run this long is a stall (programs made, textures in), not a GPU too slow: a break as above
+    if (ms > 250.0) {
+      const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
+      autoLevel.Restart(t);
+      if (!levelBench.active) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+    }
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;
+    // the title runs 60 chunks a second, so no refresh comes without one: the programs ahead after it
+    if (ms + 1.0 < kPrewarmMenuMs && gameMenuNow()) gx->Prewarm(kPrewarmMenuMs - ms);
     const long long cpuNs = re4cpu::ThreadNs() - cpuNow;
     gxRunCpuNs += cpuNs;
     if (cpuNow)  // (0: no thread clock on this device, no waiting known)
@@ -1472,14 +2078,19 @@ bool drawGx() {
       bench.runMs += ms;
       bench.runCount++;
     }
+    levelBenchTick(now, !between);
+    // the FPS display's level: the one the renderer really draws at (the benchmark's or Dynamic's steps, a new renderer)
+    infoScale = gx->Halves();
     // Dynamic: another level from the next chunk on (not while an R3 series or the hit pictures are
-    // recorded, the app's menu is open or the GPU measurement runs)
-    if (autoLevelOn && !between) {
+    // recorded, the app's menu is open or the GPU measurement runs; never while the benchmark runs: it would set
+    // its own level over the benchmark's)
+    if (autoLevelOn && !between && !levelBench.active) {
       const auto &st = gx->Stats();
       std::string why;
       const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
                                         st.behindChecks,
-                                        !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring,
+                                        !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring &&
+                                            !levelBench.active,
                                         &why, gxBetweenDropped,  // (counts only while 60 FPS is on; never falls back)
                                         gxRunWaitMs);
       if (level != gx->Halves()) {
@@ -1499,11 +2110,12 @@ bool drawGx() {
       const double seconds = std::chrono::duration<double>(now - gxSince).count();
       LOG("GX: %u chunks, %u draws (%u per chunk), run %.1f ms (max %.1f), shown %.1f/s, %u programs, %u textures, "
           "%u copies, %u held pictures, %u missing, %u shader errors, %u inexact dst alpha, %u programs from the cache, "
-          "%u ahead of their first draw, base vertex %s, %u autofocus passes, %u EFB restores (MSAA on the tiles), "
-          "%u skipped",
+          "%u ahead of their first draw, %u kept, %u deleted unused, base vertex %s, %u autofocus passes, %u EFB "
+          "restores (MSAA on the tiles), %u skipped",
           s.chunks, s.draws, gxRunCount ? (s.draws - gxDraws) / gxRunCount : 0, gxRunCount ? gxRunMs / gxRunCount : 0.0,
           gxRunMax, seconds > 0 ? gxFrames / seconds : 0.0, s.programs, s.textures, s.textureCopies, s.heldCopies,
           s.missingTextures, s.shaderErrors, s.dstAlphaApprox, s.programsLoaded, s.programsAhead,
+          s.programsLive, s.programsDeleted,
           gx->BaseVertex() ? "yes" : "no",
           s.autofocus, s.efbRestores, s.skippedChunks);
       // the GL work per chunk since the last line, and the GPU time when the driver measures it
@@ -1514,12 +2126,13 @@ bool drawGx() {
         if (timed)
           std::snprintf(gpu, sizeof(gpu), "%.1f ms", (s.gpuMicros - gxWork.gpuMicros) / 1000.0 / timed);
         LOG("GX work per chunk: %.0f uniform uploads (%.0f KB, %.0f the same not sent), %.0f program switches, %.0f texture binds, "
-            "%.0f state changes, %u stream waits, %u stream switches (%u inside a chunk), GPU %s",
+            "%.0f state changes, %u stream waits, %u stream switches (%u inside a chunk), %u vertex ring waits, GPU %s",
             (s.uniformUploads - gxWork.uniformUploads) / n, (s.uniformBytes - gxWork.uniformBytes) / n / 1024.0,
             (s.uniformSame - gxWork.uniformSame) / n,
             (s.programSwitches - gxWork.programSwitches) / n, (s.textureBinds - gxWork.textureBinds) / n,
             (s.stateChanges - gxWork.stateChanges) / n, s.streamWaits - gxWork.streamWaits,
-            s.streamSwitches - gxWork.streamSwitches, s.streamSplits - gxWork.streamSplits, gpu);
+            s.streamSwitches - gxWork.streamSwitches, s.streamSplits - gxWork.streamSplits,
+            s.ringWaits - gxWork.ringWaits, gpu);
         // the render thread's processor time in Run: about the run time when the thread computes
         // (driver calls), less when it waits for the GPU; and the kind of core it got
         const int cpu = sched_getcpu();
@@ -1528,6 +2141,25 @@ bool drawGx() {
             "%.0f/%.0f/%.0f %%, now on core %d at %u MHz",
             gxRunCpuNs / 1e6 / n, gxRunMs / n, gxRunOnKind[2] * 100.0 / n, gxRunOnKind[1] * 100.0 / n,
             gxRunOnKind[0] * 100.0 / n, cpu, khz / 1000);
+        // where the run time went (GxStats::splitNs): the driver's calls first, the renderer's own work after
+        // (per real chunk; the in-between pictures' Runs of 60 FPS are in it as well)
+        using re4gx::GxStats;
+        double split[GxStats::kSplitKinds];
+        for (int k = 0; k < GxStats::kSplitKinds; k++)
+          split[k] = (s.splitNs[k] - gxWork.splitNs[k]) / 1e6 / n;
+        LOG("GX render thread split per chunk: draw calls %.1f ms, uniform blocks %.1f, binds (programs, textures, "
+            "vertex setup) %.1f, render state %.1f, vertex buffers %.1f; shader keys and programs %.1f, textures in "
+            "(decode, upload) %.1f, BP (EFB copies, clears, effects) %.1f, XF %.1f, the rest %.1f",
+            split[GxStats::kSplitDraw], split[GxStats::kSplitUniform], split[GxStats::kSplitBind],
+            split[GxStats::kSplitState], split[GxStats::kSplitVertices], split[GxStats::kSplitProgram],
+            split[GxStats::kSplitTexture], split[GxStats::kSplitBp], split[GxStats::kSplitXf],
+            split[GxStats::kSplitRest]);
+        // merged draw calls (RE4_GX_MERGE=1, an experiment for low-end phones)
+        if (gx->Merging())
+          LOG("GX merged draw calls per chunk: %.0f GL draw calls for %.0f draws, %.0f of them in %.0f merged calls",
+              (s.draws - gxWork.draws - (s.mergeTaken - gxWork.mergeTaken) + (s.mergeBatches - gxWork.mergeBatches)) / n,
+              (s.draws - gxWork.draws) / n, (s.mergeTaken - gxWork.mergeTaken) / n,
+              (s.mergeBatches - gxWork.mergeBatches) / n);
       }
       // 60 FPS: how far the GPU lags behind (fences after every Run, the in-between ones too); more
       // than 2.5 Runs on average: off for this renderer, the menu's switch stays (a lower
@@ -1540,13 +2172,14 @@ bool drawGx() {
             s.interpPictures, s.interpCuts, s.interpMatched, s.interpDraws, gxBetweenDropped, smoothPacer.Offs(), behind);
         // (60fps-plan.md S0) without a counterpart, by kind; found by their object, slots used anew;
         // texture matrices blended / left out at their edge, TEV and light colours blended
-        LOG("60 FPS draws without a counterpart: particles %u of %u, figures %u of %u, room %u of %u, 2D %u of %u; "
-            "by their object %u (%u new in an old slot); texture matrices %u (%u over the edge), TEV colours %u, "
-            "light colours %u",
+        LOG("60 FPS draws without a counterpart: particles %u of %u, figures %u of %u, room %u of %u, 2D %u of %u "
+            "(%u moved with the camera); by their object %u (%u new in an old slot); texture matrices %u (%u over the "
+            "edge), TEV colours %u, light colours %u",
             s.interpKindUnmatched[0], s.interpKind[0], s.interpKindUnmatched[1], s.interpKind[1],
-            s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpOwned,
-            s.interpOwnedNew, s.interpTexBlends, s.interpTexWraps, s.interpTevBlends, s.interpLightBlends);
-        if (behind > 2.5) {
+            s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpCameraMoved,
+            s.interpOwned, s.interpOwnedNew, s.interpTexBlends, s.interpTexWraps, s.interpTevBlends,
+            s.interpLightBlends);
+        if (behind > 2.5 && !levelBench.active) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");
         }
@@ -1563,7 +2196,8 @@ bool drawGx() {
     // a refresh without a new chunk (the game draws 30 pictures a second): the shader programs
     // this device made before, ahead of their first draw, a few milliseconds' worth at a time
     // (Retroid report 22.10.2026 23:42: chunks of up to 435 ms while r10b's effects made theirs)
-    gx->Prewarm(kPrewarmMs);
+    gx->Prewarm(gameMenuNow() ? kPrewarmMenuMs : kPrewarmMs);
+    levelBenchTick(now, false);  // the benchmark's clock goes on without a chunk too
   }
   benchTick(now);
   unsigned xw = 0, xh = 0;
@@ -1574,31 +2208,75 @@ bool drawGx() {
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   // the menu's picture format (1: 4:3, 0: 16:9, 2: stretched, 3: 4:3 without the game's
-  // letterbox bars while playing, Anbernic RG 477V report 22.10.2026), else RE4_GX_ASPECT
+  // letterbox bars while playing, Anbernic RG 477V report 22.10.2026, in an exact 4:3 box since
+  // 29.10.2026; 4, the exact box's first own number, is 3; 5: "Native", the screen's own aspect,
+  // 07.11.2026), else RE4_GX_ASPECT
   const char *aspect = getenv("RE4_GX_ASPECT");
-  const int format = optAspect.load();
-  const int noBars = format == 3 ? 1 : 0;
+  const int format = optAspect.load() == 4 ? 3 : optAspect.load();
+  // "Native": the screen's aspect decides (re4mm::Native, minimap_view.h); a picture whose 3D the core drew wider
+  // (GxRenderer::XfbWide) fills a screen wider than 16:9, any other goes into the 16:9 box
+  const bool xfbWide = gx->XfbWide();
+  const re4mm::NativeView native = re4mm::Native(width, height, xfbWide);
+  const int noBars = format == 3 || (format == 5 && native.mode == -1) ? 1 : 0;
   if (api.setLetterbox && noBars != letterboxSent) {
     api.setLetterbox(noBars);
     letterboxSent = noBars;
   }
+  const int aspect3d = format == 5 ? re4mm::NativeAspect3d(width, height) : 0;
+  if (api.setViewAspect && aspect3d != viewAspectSent) {
+    api.setViewAspect(aspect3d);
+    viewAspectSent = aspect3d;
+    if (format == 5)
+      LOG("picture format Native: screen %dx%d (%.3f:1), %s", width, height,
+          height ? static_cast<double>(width) / height : 0.0,
+          native.mode == 1    ? "the 3D wider while playing, menus in the 16:9 box"
+          : native.mode == -1 ? "no letterbox while playing, more rows above and below"
+                              : "as 16:9");
+  }
+  // the game's life gauge in the bottom right corner of the shown part (patch 0215; the map in the bottom left
+  // corner, minimapDraw): its rows and how the screen shows them, for every format
+  {
+    const re4mm::HudLayout hud =
+        re4mm::Hud(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, width, height, native);
+    if (api.setHudLayout && (hud.top != hudSent.top || hud.bottom != hudSent.bottom ||
+                             hud.stretch != hudSent.stretch || hud.flags != hudSent.flags)) {
+      api.setHudLayout(hud.top | hud.bottom << 16, hud.stretch, hud.flags);
+      hudSent = hud;
+      LOG("life gauge: bottom right corner of the rows %d..%d, %.4f wider across%s", hud.top, hud.bottom,
+          hud.stretch / 10000.0, hud.flags & 1 ? ", drawn narrower" : "");
+    }
+  }
   // the rows shown: in the 16:9 formats (0, 2) the crop below leaves the game's letterbox bars out,
   // and texture copies repeat the shown edge rows instead of reading the bars (GxRenderer::SetShownRows)
   const bool crop = !(format == 3 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
-  gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
-  if (format == 3) {
-    // 4:3 without the bars: the picture's lines fill the height (device test 22.10.2026: in a 4:3
-    // frame of 480 lines thin bars stayed above and below on the Retroid), in their own shape
-    // 640 x 448 (10:7); on screens narrower than that down to 4:3, the lines a little taller, so a
-    // 4:3 screen is full
-    const double shape = std::min(10.0 / 7.0, std::max(4.0 / 3.0, double(width) / double(height)));
-    int boxW = width, boxH = static_cast<int>(width / shape + 0.5);
+  if (format == 5)
+    gx->SetShownRows(native.top, native.top + native.rows);
+  else
+    gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
+  // the game computes its 3D for 4:3 (camera.cpp) into 512 x 448 pixels that a television showed
+  // as 10:7; in an exact 4:3 box the 3D is right and the flat draws (HUD, menus, text) are drawn
+  // 15/14 wider by the renderer, so they keep the shape they had on the television
+  gx->SetWiden(format == 3 ? 15.0f / 14.0f : 1.0f);
+  if (format == 5) {
+    // "Native": the shown rows over the box (whole screen, or the 16:9 box for a menu, the scope, a movie)
+    const unsigned top = xh * static_cast<unsigned>(native.top) / 448,
+                   rows = xh * static_cast<unsigned>(native.rows) / 448;
+    gx->Present(native.pic.x, native.pic.y, native.pic.w, native.pic.h, top, rows);
+    notePicture(native.pic.x, native.pic.y, native.pic.w, native.pic.h, xh ? float(top) / float(xh) : 0.f,
+                xh ? float(rows) / float(xh) : 1.f);
+  } else if (format == 3) {
+    // 4:3 without the bars: the picture's lines fill the height of an exact 4:3 box (wish of the
+    // project owner, 29.10.2026: no bars, nothing cut off, the user interface in its shape; before,
+    // a 10:7 box in the lines' own shape); a 4:3 screen is full
+    int boxW = width, boxH = static_cast<int>(width * 3.0 / 4.0 + 0.5);
     if (boxH > height) {
       boxH = height;
-      boxW = static_cast<int>(height * shape + 0.5);
+      boxW = static_cast<int>(height * 4.0 / 3.0 + 0.5);
     }
     gx->Present((width - boxW) / 2, (height - boxH) / 2, boxW, boxH);
-    notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, 0.f, 1.f);
+    // taps go by the flat layer (the sub screens): its 512 pixels span the box 15/14 times
+    const int layerW = static_cast<int>(boxW * 15.0 / 14.0 + 0.5);
+    notePicture((width - layerW) / 2, (height - boxH) / 2, layerW, boxH, 0.f, 1.f);
   } else if (format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3")) {
     // the whole picture: 640 wide in a 4:3 frame of 480 lines (the XFB holds xh of them)
     int boxW = width, boxH = width * 3 / 4;
@@ -1625,6 +2303,8 @@ bool drawGx() {
     notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, xh ? float(top) / float(xh) : 0.f,
                 xh ? float(rows) / float(xh) : 1.f);
   }
+  // the map: "4:3 (GC)" also when RE4_GX_ASPECT asks for 4:3 (as above)
+  minimapDraw(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, xh, xfbWide);
   return true;
 }
 
@@ -1731,7 +2411,6 @@ void onHangSample(int, siginfo_t *, void *context) {
   crashContext(context);
 }
 
-#if !defined(__aarch64__)
 // The table's calls to the core process (runtime/re4_core_client.h); it starts with the first
 // re4ipc_reserve (CoreBridge.start). Its program lies in this library's folder: the libraries
 // are extracted at installation (build.gradle useLegacyPackaging, decision of the project owner,
@@ -1788,11 +2467,19 @@ void useCoreProcess(const std::string &why) {
   api.depth = re4ipc_gx_depth;
   api.setLetterbox = re4ipc_set_letterbox;
   api.setFastCores = re4ipc_set_fast_cores;
+  api.setPotato = re4ipc_set_potato;
+  api.setAim = re4ipc_set_aim;
+  api.setSoundVolume = re4ipc_set_sound_volume;
   api.restartGame = re4ipc_restart_game;
   api.discProblem = re4ipc_disc_problem;
   api.setCheats = re4ipc_set_cheats;
   api.cheatAction = re4ipc_cheat_action;
+  api.roomOutline = re4ipc_room_outline;
+  api.setLaserColour = re4ipc_set_laser_colour;
+  api.setViewAspect = re4ipc_set_view_aspect;
+  api.setHudLayout = re4ipc_set_hud_layout;
   api.touch = re4ipc_touch;
+  api.aimTurn = re4ipc_aim_turn;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
   api.instant = re4ipc_instant;
@@ -1809,7 +2496,6 @@ void useCoreProcess(const std::string &why) {
   gAddressMap += note;
   LOG("%s", note);
 }
-#endif
 
 void installCrashHandler() {
   struct sigaction action {};
@@ -1885,11 +2571,7 @@ Java_com_ast_re4decomp_CoreBridge_start(JNIEnv *env, jclass, jstring gameRoot, j
     // the core in a process of its own also with MEM1 free (tests; test-core-app.ps1 -CoreProcess)
     const char *own = getenv("RE4_CORE_PROCESS");
     if (own && std::string(own) == "1" && coreProcessWhy.empty()) {
-#if defined(__aarch64__)
-      LOG("RE4_CORE_PROCESS=1: only for 32 bit; the core runs in the app's process");
-#else
       useCoreProcess("RE4_CORE_PROCESS=1");
-#endif
     }
   }
   {
@@ -1913,6 +2595,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_pad(
   auto clampU = [](jint v) { return static_cast<std::uint8_t>(v < 0 ? 0 : v > 255 ? 255 : v); };
   Re4CorePad pad{static_cast<std::uint16_t>(buttons), clampS(stickX), clampS(stickY),
                  clampS(substickX), clampS(substickY), clampU(triggerL), clampU(triggerR)};
+  if (levelBench.active) pad = Re4CorePad{};  // the benchmark: no player's input (Leon just stands)
   api.pad(&pad);
 }
 
@@ -1990,6 +2673,19 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_audio4(JNIEn
   return got;
 }
 
+// A line of the sound output (CoreAudio: the AudioTrack ran out) into the core's log file, with the
+// game frame: core-log.txt is in every error log, logcat not on every device. The core in a process
+// of its own (32 bit fallback) writes its file there: only logcat then.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_audioNote(JNIEnv *env, jclass, jstring line) {
+  if (!api.logFileLine || !coreProcessWhy.empty() || !line) return;
+  const char *text = env->GetStringUTFChars(line, nullptr);
+  if (!text) return;
+  char buf[256];
+  std::snprintf(buf, sizeof(buf), "%s (game frame %u)", text, api.frameCount ? api.frameCount() : 0u);
+  env->ReleaseStringUTFChars(line, text);
+  api.logFileLine(buf);
+}
+
 // 1 while the game plays in Dolby Pro Logic II (its rear in the four channels).
 extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_audioSurround(JNIEnv *, jclass) {
   return api.audioSurround && api.audioSurround() ? JNI_TRUE : JNI_FALSE;
@@ -2056,7 +2752,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   if (auto *s = currentScene()) s->contextCreated();
   lastDraw = {};
   letterboxSent = -1;
+  viewAspectSent = -1;
+  hudSent = {-1, -1, -1, -1};
   fastSent = -1;
+  potatoSent = -1;
+  aimSent = -1;
+  soundSent = -1;
   // a new GL context: the renderer's objects are gone; the core starts over
   // (full state, every texture again) once chunks are taken again
   gx.reset();
@@ -2121,16 +2822,65 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_debugMenu(JN
   if (api.debugMenu) api.debugMenu();
 }
 
-// The depth of field switch of the menu (cores since 17.10.2026; older ones keep it on).
-extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDof(JNIEnv *, jclass, jboolean on) {
-  optDof = on ? 1 : 0;
-  if (api.setDof) api.setDof(on ? 1 : 0);
+// The depth of field of the menu (cores since 17.10.2026; older ones keep it on): 0 off, 1 light, 2 strong (since
+// 0.98.4: the app's gameplay autofocus blurs more and wider, GxRenderer::SetDofStrong; the core only hears on/off).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDof(JNIEnv *, jclass, jint level) {
+  const int want = level >= 0 && level <= 2 ? static_cast<int>(level) : 1;
+  if (optDof.exchange(want) != want) LOG("depth of field: %s", want == 0 ? "off" : want == 1 ? "light" : "strong");
+  if (api.setDof) api.setDof(want != 0 ? 1 : 0);
+}
+
+// "Field of view" (the menu, CONTROLS, PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the
+// shoulder camera's vertical field of view (patch 0205), sent with the aim settings (bits 24..29).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFov(JNIEnv *, jclass, jint degrees) {
+  const int want = std::clamp(static_cast<int>(degrees), -15, 15);
+  if (optFov.exchange(want) != want) LOG("field of view: %+d degrees", want);
 }
 
 // The menu's "Force Performance" (drawGx tells the core and places the render thread).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFastCores.exchange(want) != want) LOG("Force Performance: %s", want ? "use performance cores" : "default");
+}
+
+// The menu's Potato mode (drawGx tells the core): bit 0 weather effects off, bit 1 special effects off.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPotato(JNIEnv *, jclass, jint mask) {
+  const int want = static_cast<int>(mask) & 3;
+  if (optPotato.exchange(want) != want)
+    LOG("Potato mode: weather effects %s, special effects %s", want & 1 ? "off" : "on", want & 2 ? "off" : "on");
+}
+
+// The menu's "Invert vertical" and "Aim speed" (drawGx tells the core): stick aiming with touch and controllers.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEnv *, jclass, jboolean invert, jfloat speed,
+                                                                         jboolean autoAim, jboolean alwaysRun) {
+  int percent = static_cast<int>(speed * 100.0f + 0.5f);
+  if (!(speed == speed) || percent < 50 || percent > 300) percent = 100;
+  // bit 1 "Auto aim", bit 2 "Always run" (wish of the project owner, 30.10.2026; runtime/aim_options.cpp)
+  const int want = percent << 8 | (invert == JNI_TRUE ? 1 : 0) | (autoAim == JNI_TRUE ? 2 : 0) |
+                   (alwaysRun == JNI_TRUE ? 4 : 0);
+  if (optAim.exchange(want) != want)
+    LOG("aim: stick aiming %s, speed %d %%, auto aim %s, always run %s", invert == JNI_TRUE ? "inverted" : "normal",
+        percent, autoAim == JNI_TRUE ? "on" : "off", alwaysRun == JNI_TRUE ? "on" : "off");
+}
+
+// Patch 0188: "reverse" changed in the game's own options since the last call (-1: no; with the core in its own
+// process always -1).
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_aimFromGame(JNIEnv *, jclass) {
+  return api.aimFromGame ? api.aimFromGame() : -1;
+}
+
+// "Far camera" (the menu, Controls): the shoulder camera further back while walking and standing (patch 0171),
+// sent with the aim settings (bit 3).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFarCamera(JNIEnv *, jclass, jboolean on) {
+  const int want = on == JNI_TRUE ? 1 : 0;
+  if (optFarCamera.exchange(want) != want) LOG("far camera: %s", want ? "on" : "off");
+}
+
+// The menu's AUDIO page (drawGx tells the core): music and sound effects volume in percent.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSoundVolume(JNIEnv *, jclass, jint music, jint effects) {
+  const int m = std::clamp(static_cast<int>(music), 0, 100), e = std::clamp(static_cast<int>(effects), 0, 100);
+  const int want = m | e << 8;
+  if (optSound.exchange(want) != want) LOG("sound: music %d %%, sound effects %d %%", m, e);
 }
 
 // The menu's "Game language" with the European discs (decisions of the project owner, 26./27.10.2026;
@@ -2163,6 +2913,64 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip
   if (optFrameSkip.exchange(want) != want) LOG("frame skip: %s", want ? "on (chunks are left out while the renderer is behind)" : "off");
 }
 
+// Original TV filter (the menu): the game's vertical copy filter on the picture (GxRenderer::SetTvFilter).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optTvFilter.exchange(want) != want) LOG("original TV filter: %s", want ? "on" : "off");
+}
+
+// PSone demake (the menu): the 3D as the PlayStation drew it and a 320-wide, 15-bit picture (GxRenderer::SetPsx).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPsx(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optPsx.exchange(want) != want) LOG("PSone demake: %s", want ? "on" : "off");
+}
+
+// The laser sight's colour (the menu, CONTROLS, LASER SIGHT; wish of the project owner, 04.11.2026): 0 red .. 3 yellow.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLaserColour(JNIEnv *, jclass, jint colour) {
+  const int want = colour >= 0 && colour <= 3 ? colour : 0;
+  if (optLaserColour.exchange(want) != want) LOG("laser sight colour: %d", want);
+  if (api.setLaserColour) api.setLaserColour(want);
+}
+
+// The benchmark (the menu, Display -> GRAPHICS; LevelBench): start and cancel; the state as {phase, run (0: the 30,
+// 1: the 60 FPS pass), level in halves, result with 30, result with 60, pictures a second * 10, held bits}.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_startBenchmark(JNIEnv *, jclass) {
+  levelBench.ask = 1;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_cancelBenchmark(JNIEnv *, jclass) {
+  levelBench.ask = 2;
+}
+
+extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_benchmarkState(JNIEnv *env, jclass) {
+  const LevelBench &b = levelBench;
+  const jint v[7] = {b.phase.load(), b.run.load(), b.level.load(), b.res30.load(), b.res60.load(), b.rate10.load(),
+                     b.held.load()};
+  jintArray out = env->NewIntArray(7);
+  if (out) env->SetIntArrayRegion(out, 0, 7, v);
+  return out;
+}
+
+// The benchmark's levels kept by the app (per device): "Dynamic" goes up to them (halves, 0: none).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setDynamicCaps(JNIEnv *, jclass, jint cap30, jint cap60) {
+  const int a = cap30 >= 2 && cap30 <= 8 ? cap30 : 0, b = cap60 >= 2 && cap60 <= 8 ? cap60 : 0;
+  const bool changed = optCap30.exchange(a) != a;
+  if ((optCap60.exchange(b) != b || changed) && optScale.load() == 0) optSerial++;  // Dynamic starts anew
+  if (changed || a || b) LOG("dynamic resolution: up to %d / %d halves with 30 / 60 pictures a second (benchmark)", a, b);
+}
+
+// Minimap (the menu, wish of the project owner, 04.11.2026): the current room's outline at the picture's bottom left.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMinimap(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optMinimap.exchange(want) != want) LOG("minimap: %s", want ? "on" : "off");
+}
+
+// Lens flares (the menu, wish of the project owner, 04.11.2026): a faint glow at the game's lights (GxRenderer::SetFlares).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFlares(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optFlares.exchange(want) != want) LOG("lens flares: %s", want ? "on" : "off");
+}
+
 // FXAA (the menu): an edge smoothing pass over every picture (GxRenderer::SetFxaa).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
@@ -2172,7 +2980,32 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIE
 // 60 FPS (experimental): in-between pictures of the renderer (drawGx).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSmooth(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
-  if (optSmooth.exchange(want) != want) LOG("60 FPS from in-between pictures: %s", want ? "on" : "off");
+  if (optSmooth.exchange(want) != want) {
+    LOG("60 FPS from in-between pictures: %s", want ? "on" : "off");
+    // Dynamic with the benchmark's levels: the other one applies now
+    if (optScale.load() == 0 && optCap30.load() != optCap60.load()) optSerial++;
+  }
+}
+
+// Merged draw calls (experimental): draws that differ only in their matrices in one call (drawGx).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMerge(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optMerge.exchange(want) != want) LOG("merged draw calls: %s", want ? "on" : "off");
+}
+
+// Vertex ring (experimental, for Mali): every chunk's vertices into buffers mapped for good; a new
+// renderer takes it (GxOptions::vertexRing, wish of the project owner, 01.11.2026).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setVertexRing(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optVertexRing.exchange(want) != want) {
+    LOG("vertex ring: %s", want ? "on" : "off");
+    optSerial++;
+  }
+}
+
+// Swipe aiming (CoreInput.takeAimSwipe): the touch area's finger as angles (cores since 29.10.2026).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_aimTurn(JNIEnv *, jclass, jfloat yaw, jfloat pitch) {
+  if (api.aimTurn) api.aimTurn(yaw, pitch);
 }
 
 // Gyro aiming (GyroAim.java): the turn rates to the core (cores since 19.10.2026; older ones: none).
@@ -2259,7 +3092,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_cardNote(
 }
 
 // The picture options: scale 0 (automatic) or 1-4, samples 1/2/4, anisotropy
-// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched) or 3 (4:3 without the bars while playing).
+// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched), 3 (4:3 without the bars while playing, in an exact
+// 4:3 box; 4 is the same) or 5 (Native: the screen's own aspect, re4mm::Native).
 // Applied at the next picture while the game runs.
 // scale: in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(JNIEnv *, jclass, jint scale,
@@ -2273,7 +3107,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(
   if (rebuild) optSerial++;
   LOG("picture options: scale %s, %d samples, anisotropy %d, %s", scale ? ScaleName(scale).c_str() : "dynamic",
       samples, anisotropy,
-      aspect == 1 ? "4:3" : aspect == 2 ? "stretched" : aspect == 3 ? "4:3 without the bars" : "16:9");
+      aspect == 1   ? "4:3"
+      : aspect == 2 ? "stretched"
+      : aspect == 3 || aspect == 4 ? "4:3 without the bars"
+      : aspect == 5                ? "Native"
+                                   : "16:9");
 }
 
 // {most samples, strongest anisotropy, scale (in halves), samples, anisotropy in use}; null before the renderer started.

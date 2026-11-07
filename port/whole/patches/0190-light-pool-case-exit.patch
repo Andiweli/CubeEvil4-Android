@@ -1,0 +1,44 @@
+# A bug of the prototype (user report 02.11.2026, report cubeevil4-report-20261102-173511, EU discs: "In Mercenaries mode,
+# while playing as Ada, the game crashes whenever I open or close the attache case - especially in the village barn";
+# crash.txt: signal 11 at 0x8 in cLightMgr::update from CameraControl::Check, CameraMove, cPlayer::endCamera,
+# cPlayer::weaponRelease, SubScreenExit; just before: "LightRegistCut() LIGHT NUM OVER 10", "nMaxLight Over 15/10").
+# While the case is open cLightMgr::inSscrn holds the light pool at 10; closing it, Ada's weapon release ends her
+# camera and the camera check updates the room lights before outSscrn gives the pool back. The barn's cut has 15
+# lights: registCut cut the cut's data down to 10 for good and loaded none, update then took nMaxLight (held at 9)
+# minus the 10 lights as an unsigned count of spare slots (about 4 billion) and cManager<cLight>::create gave 0 once
+# the pool was full. Now registCut loads the first 10 and keeps the data, update makes no spare slots then and stops
+# at a full pool. Both disc kinds. Second report 03.11.2026 (cubeevil4-report-20261103-133135, Leon, debug discs,
+# castle, 0.96.9): the same crash after a weapon change in the case; RE4_TEST_SSCRN_LIGHT crashes there without
+# this patch in 31 of 31 castle rooms the player is free in.
+--- a/src/game/light.cpp
++++ b/src/game/light.cpp
+@@ -724,12 +724,17 @@
+         max = nArray - 1;
+         pLitHeader->nMaxLight = max;
+     }
+-    n = pLitHeader->nMaxLight - cut->nLight;
++    /* PORT (patch 0190): no spare slots when the cut has more lights than nMaxLight (the unsigned difference
++       ran to about 4 billion), and no more than the pool holds (create gives 0 when it is full) */
++    n = pLitHeader->nMaxLight > cut->nLight ? pLitHeader->nMaxLight - cut->nLight : 0;
+     if (n < 10) {
+         n = 10;
+     }
+     for (i = 0; i < n; i++) {
+         l = cManager<cLight>::create();
++        if (l == 0) {
++            break;
++        }
+         l->be_flag |= 4;
+         l->be_flag &= ~2;
+     }
+@@ -766,7 +771,9 @@
+     setEnv(pLe, hokan);
+     if (pLe->nLight > nArray) {
+         pLog->err(0, 0, "LightRegistCut() LIGHT NUM OVER %d", nArray);
+-        pLe->nLight = nArray;
++        /* PORT (patch 0190): the first nArray lights, the cut's data kept (it was cut down to nArray for good:
++           the attache case's 10-light pool cost the room's cut its other lights) */
++        loadLit(pLe->getLightWork(0), nArray);
+         return 0;
+     }
+     loadLit(pLe->getLightWork(0), pLe->nLight);

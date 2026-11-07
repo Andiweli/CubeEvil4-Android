@@ -1,0 +1,33 @@
+# Port patch (user report 01.11.2026, Xiaomi 2412DPC0AG, EU discs: "after killing him inside the maze, the game froze";
+# pause and the case still worked, Leon could fire). r31b, U-3 (0x32): its death cut (R31bExecRoom03U3DieMain: camera
+# on the third room's shutter, shutter up, door and gondola open, Leon to the exit) starts only when the third room's
+# catch (room flag 0x1C, R31bExecRoom03U3Main) happened. After a retry from a continue point behind the break-in
+# (flag 0xC), R31bEmSetMain sets U-3 straight into the third room's mode (setNext 4: its last form can come and it can
+# die) wherever the player is; the tester killed it in the first rooms (at 9531 0 2664), its body went to the third
+# room's floor and nothing else happened: no way on. The retail releases' R31bMain and R31bEmSetMain are the same
+# (EU checked). Now a dead U-3 without 0x1C counts as caught (0x1C set, the catch area 0x23 off) and the death cut
+# runs. Checked on the PC (RE4_TEST_RSF=31b:12, RE4_TEST_EM_KILL=900:32, EU and debug discs): cut from frame 901 to
+# 1154, Leon at the exit (55080 4266 13710); with 0x1C as before.
+# Corrected 02.11.2026 (user report, US discs, "the picture freezes in all 3 versions"): dead means U-3's die routine
+# (r_no_0 3, as em32DmCk and EmSetDie leave it). Life 0 alone is also its retreat in the first room: hit down to 1
+# there, it jumps onto the containers and em32_R1_C_Wait sets its life to 0 while it waits hidden above Leon (the
+# original game; the first room's U-3 cut gives it new life). The patch took that for its death and started the death
+# cut in the first room: camera on the third room's shutter, the event never ended. Checked on the PC
+# (RE4_TEST_EM_KILL=1700:32:1, US discs): before, stuck in the event from frame 1794; now no cut, Leon free.
+--- a/src/st3/r31b.cpp
++++ b/src/st3/r31b.cpp
+@@ -409,6 +409,14 @@
+             }
+             if (RsfCheck(G_ROOM_ID, 0x17) == 0 && (pG->Room_flg[2] & 0x80000000)) {
+                 SceExec(0x12, (TaskFunc) R31bExecRoom01U3Main, 0, 0, 2, 0);
++            }
++            /* port (patch 0170): U-3 dead before the third room's catch (0x1C): after a retry R31bEmSetMain
++               sets it into the third room's mode wherever it is, it can be killed in the first rooms, and
++               without 0x1C its death cut (shutter up, exit open) never came; the catch counts as done. Dead is
++               its die routine (3): life 0 alone is also its first room's retreat (em32_R1_C_Wait) */
++            if (RsfCheck(G_ROOM_ID, 0xB) == 0 && RsfCheck(G_ROOM_ID, 0x1C) == 0 && em->hp <= 0 && em->r_no_0 == 3) {
++                RsfSet(G_ROOM_ID, 0x1C);
++                SceAtSetEnable(0x23, 0);
+             }
+             if (RsfCheck(G_ROOM_ID, 0xB) == 0 && RsfCheck(G_ROOM_ID, 0x1C) && em->hp <= 0) {
+                 SceExec(0x12, (TaskFunc) R31bExecRoom03U3DieMain, 0, 0, 2, 0);

@@ -1,0 +1,60 @@
+# Port patch, a safety net (user report 01.11.2026, Infinix X6882, US discs): a save in r201 where the prison key
+# (item 0xC3, item area 0x80, room flag 1) counts as taken, the battle-area door to the Garrador is still locked
+# (KYF_R201_DOOR) and the key is not in the case. R201Init then sets up neither the picture (area 0x20, "CHECK",
+# r201_checkPicture) nor the key, and the door stays shut for good (the tester's video: no "CHECK" at the picture).
+# How the save got there is not known (no .gci in the report; on the PC with US and debug discs the key hangs in the
+# picture, is taken and kept, a retry from the continue point clears its flag again). Now R201Init puts the key back
+# when all three hold; a key taken and used (KYF_R201_DOOR) or taken and kept (in the case) is not touched. One log
+# line says so. All discs.
+--- a/src/st2/r201.cpp
++++ b/src/st2/r201.cpp
+@@ -101,6 +101,41 @@
+ static void r201_execEvent00();
+ static void r201_execEvent00_sub();
+ 
++#include "room_data.h"
++extern "C" void re4_log(const char* fmt, ...); /* port: runtime/log.cpp */
++
++/* port (patch 0169): the prison key (item 0xC3, item area 0x80) marked as taken while the door it opens is still
++   locked (KYF_R201_DOOR) and the key is not in the case: the picture (area 0x20) would offer nothing and the door
++   would stay shut. The key goes back into the picture. A key that was taken and used sets KYF_R201_DOOR, a key
++   that was taken and kept is in the case: neither is touched. */
++static void r201_prisonKeyBack()
++{
++    SCE_AT_DATA* w = SceAtPtr(0x80);
++    SCE_AT_DATA_ITEM* it;
++    u32* flags;
++    u16 no;
++
++    if (w == 0 || w->id != SCEAT_ID_ITEM || KyfFlagChk(pG, KYF_R201_DOOR) || SceAtItemFlgCk(0x80) == 0 ||
++        ItemMgr.num(0xC3) != 0) {
++        return;
++    }
++    it = &((SCE_AT_ITEM*) w)->item;
++    if (it->item_flg != 0) {
++        flags = pG->Item_flg;
++        no = it->item_flg;
++    } else {
++        u8* room = RoomData.getRoomSavePtr(pG->room_id);
++        if (room == 0) {
++            return;
++        }
++        flags = (u32*) (room + 8);  /* ROOM_SAVE_DATA item_flg */
++        no = it->auto_item_flg;
++    }
++    flags[no >> 5] &= ~(0x80000000 >> (no & 31));
++    re4_log("r201: the prison key was marked as taken, but it is neither in the case nor used (the door is locked): "
++            "back in the picture (patch 0169)");
++}
++
+ // Room init: the altar, the claw-man's appearance until it is dead, the battle-area door locked
+ // until the dungeon key, and the entrance event r201s00. JumpPoint 2 skips ahead past the claw-man.
+ void R201Init()
+@@ -125,6 +160,7 @@
+         SceAtSetEnable(0x25, 1);
+         SceAtSetActColor(0x25, 1);
+     }
++    r201_prisonKeyBack(); /* port (patch 0169) */
+     if (SceAtItemFlgCk(0x80) == 0) {
+         cModel* m;
+ 

@@ -1,0 +1,43 @@
+# Port patch, a user's report (01.11.2026, The Mercenaries as Krauser, with pictures of the retail game): Krauser's bow
+# (item 0x52, weapon 0x1C) showed a "0" in the case and no arrow picture in the weapon circle of the HUD. The case: a bug
+# of the prototype, the bow keeps no count (its arrows are an item of their own, 0x72); as the European pieceModelDisp
+# (Sscrn.rel 0x1b834) the bow draws no number. The HUD: the retail releases' dispBulletIconMarkNo answers weapon 0x1C
+# with the arrow icon 0x3B of their core archive; the debug build's core has no such icon, so with the debug discs
+# nothing as before (re4_disc_retail, runtime/dvd.cpp). Checked on the PC (r400, EU discs, RE4_TEST_MERC=1,
+# RE4_TEST_PLAYER=4): the arrow in the circle, the bow in the case without a number.
+--- a/src/Sscrn/ss_pzzl.cpp
++++ b/src/Sscrn/ss_pzzl.cpp
+@@ -1024,7 +1024,10 @@
+             pzzlItemInfo(item->id, &info);
+             /* PORT (patch 0146, a bug of the prototype): endless ammo (capacity 0x8000, item.cpp) and the endless
+                rocket launcher 0x6D show the infinity sign, as in the European case (Sscrn.rel 0x1b834) */
+-            if (info.type == 1 || item->id == 0x6D) {
++            if (item->id == 0x52) {
++                /* port (patch 0172): Krauser's bow shows no count (its arrows are items of their own, 0x72): a bug
++                   of the prototype ("0" on the bow), as the retail releases' pieceModelDisp */
++            } else if (info.type == 1 || item->id == 0x6D) {
+                 u32 x8 = item->bullet;
+                 u32 num = x8 & 0x1FFF;
+ 
+--- a/src/game/cockpit.cpp
++++ b/src/game/cockpit.cpp
+@@ -716,6 +716,8 @@
+ 
+ // Bullet icon (IDC_BLLT_ICON id) for weapon number `no`: handgun / shotgun / rifle / magnum / TMP /
+ // launcher / mine... ammo pictures; 0xFF none.
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp (patch 0172) */
++
+ u8 dispBulletIconMarkNo(u8 weapon_no)
+ {
+     if (pG->pl_type == 1) {
+@@ -763,6 +765,10 @@
+     case 0x1F:
+     case 0x20:
+         return 0x3A;
++    case 0x1C:
++        /* port (patch 0172): Krauser's bow, the arrow icon of the retail releases' core (IDC_BLLT_ICON 0x3B, as their
++           dispBulletIconMarkNo); the debug build's core has none */
++        return re4_disc_retail() ? 0x3B : 0xFF;
+     }
+     return 0xFF;
+ }

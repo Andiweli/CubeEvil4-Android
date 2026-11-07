@@ -1,0 +1,77 @@
+# Port patch, a new option (a user's wish, 01.11.2026; the app menu's Controls page, "Far camera", off by default): the
+# shoulder camera (CameraQuasiFPS::move) further back while walking and standing (m_site 2, 3: the transit tables),
+# up to 1.4 times as far from its close point, easing there and back over about a third of a second. Aiming (the ready
+# tables) as the game, the game's own blend between the tables stays. The game's wall check (hitCheck) runs on the
+# far point as before; after it the camera may come closer at once (no view through walls) but goes out again by at
+# most 40 units a frame (no back and forth in narrow places). Off (re4_far_camera, runtime/aim_options.cpp, bit 3 of
+# the app's aim bits): as the game. Checked on the PC (r201, US discs, RE4_TRACE_POS): standing 1290 -> 1740 units,
+# aiming 793 as before, back to 1740 smoothly; with a wall behind Leon 381 / 476 as the game.
+--- a/src/game/cam_qfps.cpp
++++ b/src/game/cam_qfps.cpp
+@@ -1186,6 +1186,56 @@
+ // while the stick is held), aim angles, the blended offset, the collision-corrected camera, and
+ // the smoothing (CamSmth: ratio m_walk_ratio while walking, snapped on the first frame after a
+ // reset); the result lands in cam.param for CameraControl.
++/* port (patch 0171): the far camera (the app menu's "Far camera", wish of the project owner, 01.11.2026). While
++   walking and standing (m_site 2, 3: the transit tables) the camera point moves out along the line from the
++   close point, up to RE4_FAR_FACTOR times as far, easing there and back (aiming: the ready tables, as the
++   game). The game's wall check then runs as before; after it the camera may come closer at once (no view
++   through walls) but goes out again only RE4_FAR_OUT units a frame (no back and forth in narrow places). Off:
++   as the game. */
++extern "C" int re4_far_camera(void); /* port: runtime/aim_options.cpp */
++#define RE4_FAR_FACTOR 1.4f
++#define RE4_FAR_EASE 0.2f
++#define RE4_FAR_OUT 40.0f
++static f32 re4FarRatio = 1.0f;
++static f32 re4FarDist = -1.0f;
++
++static void re4FarBefore(QFPS_OFFSET* ofs, int walking, int init)
++{
++    f32 want = re4_far_camera() && walking ? RE4_FAR_FACTOR : 1.0f;
++    Vec d;
++
++    if (init) {
++        re4FarRatio = want;
++    } else {
++        re4FarRatio += (want - re4FarRatio) * RE4_FAR_EASE;
++    }
++    if (re4FarRatio > 1.001f) {
++        PSVECSubtract(&ofs->m_campos[0], &ofs->m_campos[1], &d);
++        PSVECScale(&d, &d, re4FarRatio);
++        PSVECAdd(&ofs->m_campos[1], &d, &ofs->m_campos[0]);
++    }
++}
++
++static void re4FarAfter(QFPS_OFFSET* ofs, CAMERA_POINT* out, int init)
++{
++    f32 dist;
++    Vec d;
++
++    if (!re4_far_camera() && re4FarRatio <= 1.001f) {
++        re4FarDist = -1.0f;
++        return;
++    }
++    dist = PSVECDistance(&out->Campos, &ofs->m_campos[1]);
++    if (init || re4FarDist < 0.0f || dist <= re4FarDist + RE4_FAR_OUT) {
++        re4FarDist = dist;
++        return;
++    }
++    re4FarDist += RE4_FAR_OUT;
++    PSVECSubtract(&out->Campos, &ofs->m_campos[1], &d);
++    PSVECScale(&d, &d, re4FarDist / dist);
++    PSVECAdd(&ofs->m_campos[1], &d, &out->Campos);
++}
++
+ void CameraQuasiFPS::move()
+ {
+     static Vec campos_aim_eff;
+@@ -1226,7 +1276,9 @@
+         calcDepressionRatio();
+     }
+     calcOffset(&ofs);
++    re4FarBefore(&ofs, m_site >= 2, m_init_flag); /* port (patch 0171) */
+     hitCheck(m, &ofs, &prm);
++    re4FarAfter(&ofs, &prm, m_init_flag); /* port (patch 0171) */
+     p2 = prm;
+     if (m_init_flag) {
+         campos_aim_eff = p2.Campos;

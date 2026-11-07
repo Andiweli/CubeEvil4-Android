@@ -1,0 +1,50 @@
+# Port patch, a user's report (01.11.2026: zoomed in with the rifle and grabbed, the camera "struggled", looked into
+# the sky). A bug of the prototype: cPlayer::endCamera (scope, binoculars, push, thermal scope) set the camera
+# (CameraMove) and the light again only while a sub screen was open; the retail releases' endCamera (EU main.dol
+# 0x80140fa8) have all four tests turned round: right away in the game, not in the case. Checked on the PC (r100,
+# debug discs, the rifle with scope, RE4_TEST_WEAPON): zoom, shot, zoom again, lowered: the pictures as before.
+# The grab itself not staged on the PC.
+--- a/src/game/pl_class.cpp
++++ b/src/game/pl_class.cpp
+@@ -1138,16 +1138,21 @@
+ {
+     int ret = 0;
+ 
++    /* port (patch 0178, a bug of the prototype): the camera and the light are set again right away when no sub
++       screen is open, as the retail releases' endCamera (all four tests turned round there); the prototype did it
++       only inside the case, so a grab while zoomed in with the rifle left the camera at the scope's (a user's
++       report, 01.11.2026: the camera "in the sky") */
++
+     if (stat.check(F_THERMO)) {
+         stat.off(F_THERMO);
+         StaFlagOff(pG, STA_THERMO_GRAPH);
+-        if (StaFlagChk(pG, STA_SUB_SCRN)) {
++        if (!StaFlagChk(pG, STA_SUB_SCRN)) {
+             LightMgr.update(CamCtrl.areaNo, 0);
+         }
+     }
+     if (stat.check(F_SCOPE)) {
+         CamCtrl.endScope();
+-        if (StaFlagChk(pG, STA_SUB_SCRN)) {
++        if (!StaFlagChk(pG, STA_SUB_SCRN)) {
+             CameraMove();
+         }
+         stat.off(F_SCOPE);
+@@ -1156,7 +1161,7 @@
+     }
+     if (stat.check(F_BINOCULAR)) {
+         CamCtrl.LowerBinocular();
+-        if (StaFlagChk(pG, STA_SUB_SCRN)) {
++        if (!StaFlagChk(pG, STA_SUB_SCRN)) {
+             CameraMove();
+         }
+         stat.off(F_BINOCULAR);
+@@ -1165,7 +1170,7 @@
+     }
+     if (stat.check(F_OBJPUSH)) {
+         CamCtrl.endPushObject();
+-        if (StaFlagChk(pG, STA_SUB_SCRN)) {
++        if (!StaFlagChk(pG, STA_SUB_SCRN)) {
+             CameraMove();
+         }
+         stat.off(F_OBJPUSH);

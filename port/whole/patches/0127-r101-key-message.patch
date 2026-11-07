@@ -1,7 +1,11 @@
 # A bug of the prototype: r101, the key of the door to r102. Once the player holds it, r101_checkDoor102KeyUse
-# shows room message 0xB, "The shelf is nailed to the wall. ..." in both releases' tables; "You used the
-# ..." is message 0x14. The European r101 (st1_1.rel, found by its message calls: 0xB there is 0x14) asks
-# for 0x14; so does this one, with both releases' discs (their tables agree up to 0x16).
+# shows message 0xB; "You used the ..." is message 0x14 of the room's table (r101), in both releases' tables.
+# The European r101 (st1_1.rel, found by its message calls: 0xB there is 0x14) asks for 0x14; so does this one,
+# with both releases' discs (their tables agree up to 0x16). Fixed 31.10.2026 (report of the project owner, EU
+# discs, German: "Sie erhalten 10" after the door): the call keeps the debug build's flags 1, which take the core
+# table (SceMesSet: flags bit 0 -> attr 1 -> MessageData type 0), and the core's 0x14 is the money pick-up
+# ("You got N PTAS", with the number of the last pick-up); flags 0 take the room's table (type 1) like the
+# room's other messages.
 --- a/src/st1/r101.cpp
 +++ b/src/st1/r101.cpp
 @@ -845,7 +845,9 @@
@@ -9,9 +13,9 @@
      }
      SndCall(6, 0x25, 0, 0, 0, 0);
 -    SceMesSet(0xB, 1, 1, 0x64, 0x150 - cMes.getLineGap(0) - cMes.getFontHeight(0) - 1);
-+    /* port: message 0x14 "You used the ...", as the European r101 (st1_1.rel); 0xB is "The shelf is
-+       nailed to the wall" in both releases' tables (a bug of the prototype) */
-+    SceMesSet(0x14, 1, 1, 0x64, 0x150 - cMes.getLineGap(0) - cMes.getFontHeight(0) - 1);
++    /* port: room message 0x14 "You used the ...", as the European r101 (st1_1.rel); flags 0: the room's
++       table, flags 1 would take the core's 0x14 (the money pick-up) (a bug of the prototype) */
++    SceMesSet(0x14, 0, 1, 0x64, 0x150 - cMes.getLineGap(0) - cMes.getFontHeight(0) - 1);
      KyfFlagOn(pG, KYF_R101_IRON_DOOR);
      SceAtDataReset(0x19);
  }

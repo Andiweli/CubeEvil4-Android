@@ -1,0 +1,48 @@
+# Port patch, a new function (wish of the project owner, 05.11.2026; the app menu Display -> GRAPHICS -> Benchmark,
+# runtime/benchmark.cpp): at a place of the benchmark the enemies stand still (emMove: no routine and no damage for
+# cEm id 0x10..0x3F; drawn as they stand) and the view goes round Leon at 5 m (06.11.2026; 10 m before) (CameraMove: re4_bench_camera puts
+# the camera point and target into pG->Camera after the game's camera and before the projection, so the culling
+# follows). Outside the benchmark: as the game.
+--- a/src/game/em.cpp
++++ b/src/game/em.cpp
+@@ -31,6 +31,7 @@
+ #include "read.h"
+ #include "shape.h"
+ extern "C" int re4_invisible(void); /* port (patch 0204): runtime/cheats.cpp, the cheat "Invisibility" */
++extern "C" int re4_bench_freeze(void); /* port (patch 0208): runtime/benchmark.cpp */
+ 
+ 
+ // cManager<T>::arrayFree / arrayAlloc: definitions in cManager.h (game.cpp instantiates them too).
+@@ -377,8 +378,11 @@
+         pEm->l_pl = 1e16f;
+     }
+     pEm->l_sub = 1e16f;
+-    pEm->dmg.move();
+-    pEm->move();
++    /* port (patch 0208): at a place of the app's benchmark the enemies stand still (no routine, no damage) */
++    if (!(pEm->id >= 0x10 && pEm->id < 0x40 && re4_bench_freeze())) {
++        pEm->dmg.move();
++        pEm->move();
++    }
+     if (!pEm->isAlive()) {
+         return;
+     }
+--- a/src/game/camera.cpp
++++ b/src/game/camera.cpp
+@@ -37,6 +37,8 @@
+     }
+ }
+ 
++extern "C" void re4_bench_camera(CAMERA* cam); /* port (patch 0208): runtime/benchmark.cpp */
++
+ // Re-loads the current projection (effects and debug draws restore it after their own).
+ void CameraCurrentProjection()
+ {
+@@ -88,6 +90,7 @@
+             QuakeMove();
+         }
+     }
++    re4_bench_camera(cam); /* port (patch 0208): the app's benchmark turns the view round Leon */
+     CamDbg.move(cam, &Joy[1], 0);
+     if (cam->param.Fovy == 0.0f) {
+         pLog->err(0, 0, "CameraMove(): Fovy = 0.0f");

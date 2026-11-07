@@ -1,0 +1,72 @@
+# Port patch, a new cheat (wish of the project owner, 05.11.2026; the app menu's CHEATS page, PLAYER & INVENTORY,
+# "Invisibility", off by default): the enemies take no notice of the player. emMove (em.cpp) gives every enemy (cEm
+# id 0x10..0x3F: the Ganados, the animals, the giants, the bosses; not Ashley, Luis, the boats or the objects such
+# as doors and boxes, which open by the distance too) the player's distance as 1e16 (what em_set.cpp gives the
+# partner's before it is known), so whatever asks the distance does not see, approach or attack him. The Ganados
+# (em10) also find him by sight, his steps, his shots, the bell, a hit or a neighbour's alert: em10FindCk finds
+# nothing, setFindPL tells them nothing, and one that had found him forgets him (clearFindPL) in its next frame.
+# runtime/cheats.cpp re4_invisible (bit 512 of the app's cheat switches) also sets DBG_EM_NO_ATK, the debug bit
+# that holds the Ganados' attacks. Off: as the game.
+--- a/src/game/em.cpp
++++ b/src/game/em.cpp
+@@ -30,6 +30,7 @@
+ #include "em_sub.h"
+ #include "read.h"
+ #include "shape.h"
++extern "C" int re4_invisible(void); /* port (patch 0204): runtime/cheats.cpp, the cheat "Invisibility" */
+ 
+ 
+ // cManager<T>::arrayFree / arrayAlloc: definitions in cManager.h (game.cpp instantiates them too).
+@@ -369,6 +370,12 @@
+     dz = pPL->pos.z - pEm->pos.z;
+     dx = pPL->pos.x - pEm->pos.x;
+     pEm->l_pl = dx * dx + dz * dz;
++    /* port (patch 0204): "Invisibility": to the enemies (ids 0x10..0x3F; not Ashley, Luis, the boats, the
++       objects) the player is as far away as the partner is before it is set (em_set.cpp), so nothing that
++       asks the distance finds, approaches or attacks him */
++    if (pEm->id >= 0x10 && pEm->id < 0x40 && re4_invisible()) {
++        pEm->l_pl = 1e16f;
++    }
+     pEm->l_sub = 1e16f;
+     pEm->dmg.move();
+     pEm->move();
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -58,6 +58,7 @@
+ #include "em.h"
+ #include <dolphin/os.h>
+ #include "obj16.h"
++extern "C" int re4_invisible(void); /* port (patch 0204): runtime/cheats.cpp, the cheat "Invisibility" */
+ 
+ 
+ // The 0x34-byte COMMON block every original module carries (uninitialised static data members of
+@@ -2445,6 +2446,9 @@
+     Mtx m;
+     Vec v;
+ 
++    if (re4_invisible() && (w->Be_flg & 0x100)) { /* port (patch 0204): one that had found him forgets him */
++        clearFindPL();
++    }
+     if (r_no_0) {
+         em10DmCk(this);
+     }
+@@ -21316,6 +21320,9 @@
+     int find = 0;
+     int dead;
+ 
++    if (re4_invisible()) { /* port (patch 0204): no sight, step, shot, alarm or hit finds the player */
++        return 0;
++    }
+     if (w->Be_flg & 0x100) {
+         return 0;
+     }
+@@ -23961,6 +23968,9 @@
+ {
+     FREE_EM10* w = EM10_WK(this);
+ 
++    if (re4_invisible()) { /* port (patch 0204): a room's script or a neighbour's alert does not tell it either */
++        return;
++    }
+     if (hp > 0 && checkStatus(EM_STATUS_ACTIVE) && type != 6) {
+         w->Be_flg |= 0x100;
+         w->Be_flg &= ~0x800000;

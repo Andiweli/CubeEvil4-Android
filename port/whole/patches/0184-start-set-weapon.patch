@@ -1,0 +1,22 @@
+# A bug of the prototype (user's report 01.11.2026: in The Mercenaries Leon starts with the story's handgun in his
+# hands instead of the Blacktail; the Blacktail shows only after switching to the shotgun and back in the case).
+# PlayerInit gives Leon (and Ashley) weapon number 2, the handgun, before cItemMgr::gameInit hands out the start
+# set: The Mercenaries' set_char(0) arms the Blacktail (item 0x27) in the case, but pG->weapon_no, which picks the
+# weapon's model and module, stayed the handgun's. The retail releases (European main.dol, cItemMgr::gameInit
+# 0x80019a40, its end at 0x80019b0c; read with retail_code.py on 02.11.2026) set weapon_no and weapon_type from the
+# armed weapon (WeaponId2WeaponNo / WeaponId2WeaponType of m_wep_id) at the end of gameInit for every kind of game;
+# their PlayerInit no longer writes them. For the story's Leon nothing changes (the handgun, number 2).
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -1250,6 +1250,11 @@
+             set_char(pG->pl_type);
+         }
+     }
++    /* port (patch 0184, a bug of the prototype): the player's weapon as the start set armed it, as the retail
++       releases do here (PlayerInit gave Leon the handgun's number 2: in The Mercenaries he held the handgun's
++       model while his case armed the Blacktail, until a change of weapons in the case) */
++    pG->weapon_no = WeaponId2WeaponNo(m_wep_id);
++    pG->weapon_type = WeaponId2WeaponType(m_wep_id);
+ }
+ 
+ // Room init: clears the availability flags and selects the inventory set by player type.

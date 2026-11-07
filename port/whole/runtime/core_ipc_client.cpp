@@ -934,6 +934,21 @@ void re4ipc_set_fast_cores(int on)
     post(kSetFastCores, on, 0, 0);
 }
 
+void re4ipc_set_potato(int mask)
+{
+    post(kSetPotato, mask, 0, 0);
+}
+
+void re4ipc_set_aim(int bits)
+{
+    post(kSetAim, bits, 0, 0);
+}
+
+void re4ipc_set_sound_volume(int bits)
+{
+    post(kSetSoundVolume, bits, 0, 0);
+}
+
 void re4ipc_restart_game(int language)
 {
     post(kRestartGame, language, 0, 0);
@@ -965,6 +980,32 @@ int re4ipc_cheat_action(int what)
     return call(kCheatAction, what, 0, 0, nullptr, 0, 5000, &r) ? r.header.a : 0;
 }
 
+void re4ipc_set_laser_colour(int colour)
+{
+    post(kSetLaserColour, colour, 0, 0);
+}
+
+void re4ipc_set_view_aspect(int aspect_e4)
+{
+    post(kSetViewAspect, aspect_e4, 0, 0);
+}
+
+void re4ipc_set_hud_layout(int rows, int stretch_e4, int flags)
+{
+    post(kSetHudLayout, rows, stretch_e4, flags);
+}
+
+int re4ipc_room_outline(float* out, int maxEdges, unsigned* info)
+{
+    Reply r;
+    if (!call(kRoomOutline, maxEdges, 0, 0, nullptr, 0, 5000, &r)) return 0;
+    const int n = r.header.a;
+    if (n < 0 || n > maxEdges || r.dataBytes() != 8 + (size_t) n * 20) return 0;
+    if (info) memcpy(info, r.data(), 8);
+    if (out && n > 0) memcpy(out, (const char*) r.data() + 8, (size_t) n * 20);
+    return n;
+}
+
 void re4ipc_swipe(int dir)
 {
     post(kSwipe, dir, 0, 0);
@@ -975,6 +1016,14 @@ void re4ipc_slash(float tilt)
     int32_t a;
     memcpy(&a, &tilt, 4);
     post(kSlash, a, 0, 0);
+}
+
+void re4ipc_aim_turn(float yaw, float pitch)
+{
+    int32_t a, b;
+    memcpy(&a, &yaw, 4);
+    memcpy(&b, &pitch, 4);
+    post(kAimTurn, a, b, 0);
 }
 
 void re4ipc_touch(float u, float v)

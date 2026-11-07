@@ -224,7 +224,7 @@ def analyse(room, log_path, meta):
             m = re.match(r"(\S+?):(\d+):(\d+): runtime error: (.*)", l)
             key = f"{m.group(1)}:{m.group(2)}: {numbers_out(m.group(4))}" if m else numbers_out(l)
             note("ubsan", (key, l))
-        elif l.startswith("heap: no room"):
+        elif l.startswith("heap: no room") or l.startswith("heap: heap "):
             note("heap", (numbers_out(l), l))
         elif l.startswith("stub called: "):
             note("stub", (l[13:], l))

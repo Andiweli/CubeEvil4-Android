@@ -9,13 +9,14 @@
 # neither branch, so with the European discs nobody got down there (tester report and owner's test on
 # the Retroid, 28.10.2026). Both branches as their code, the byte read from game_mode. Nothing changes
 # with the debug build's discs. A port patch for retail data.
+# Also the Japanese discs (port/docs/retail-jp-plan.md, J4: their code is the European one here).
 --- a/src/st2/r20b.cpp
 +++ b/src/st2/r20b.cpp
 @@ -85,6 +85,15 @@
  void Evt_R20BS00_Func(Event* e, u32);
  void EvtTexRenderCamTrans(Event* e, int cut);
  
-+extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
 +
 +/* port: the European releases' "maze open" byte (pG + 0x4F9F there): above Easy, not in the bonus games
 +   (patch 0138) */
@@ -32,7 +33,7 @@
  #line 60 "D:/Bio4/Prog/r20b.cpp"
      r20b_work = (R20bWork*) MEM_CALLOC(sizeof(R20bWork), 1, 0xd);
 +    /* port: the hedge maze by difficulty with retail data, as the European R20bInit (patch 0138) */
-+    if (re4_disc_retail_eu()) {
++    if ((re4_disc_retail_eu() || re4_disc_retail_jp())) {
 +        if (R20bMazeOpen()) {
 +            SceAtSetEnable(0x1C, 0);
 +            SmdSetTrans(0xA6, 0);
@@ -82,7 +83,7 @@
 -        SceExec(0x12, (TaskFunc) SceBgmCheck, 0, 0, SCE_PRIO_DEF_2, 0);
 +    /* port: with retail data radio call, entry camera and enemies only with the maze open (European
 +       R20bInit, patch 0138) */
-+    if (!re4_disc_retail_eu() || R20bMazeOpen()) {
++    if (!(re4_disc_retail_eu() || re4_disc_retail_jp()) || R20bMazeOpen()) {
 +        if (RsfCheck(G_ROOM_ID, 17) == 0) {
 +            SceAtDataSet_exec(0x16, SCE_LEVEL10, 0, (TaskFunc) R20bOpenTerm, 0, 1);
 +        }

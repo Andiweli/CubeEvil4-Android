@@ -1,0 +1,43 @@
+# The app menu's "Auto aim" (the game's lock-on CFG_LOCK_ON, wish of the project owner 30.10.2026; owner's test the
+# same evening: with the shotgun the laser stayed level while the locked enemy stood above on a slope). The handgun's
+# aim start sets the pitch to the locked enemy (wep02_r3_ready00: lockInit, PlSetLockPitch); the shotgun's, the
+# machine guns' and the rocket launcher's set the camera's pitch and call lockInit only, so the lock-on turned them
+# at once but raised them only by PlWepAutoTrack's small steps. With the lock-on on and a target found they now take
+# its pitch as the handgun does. The lock-on is a debug-menu option of this build that the release never shows;
+# nothing changes without it. A port patch.
+--- a/src/wep/pl_shotgun.cpp
++++ b/src/wep/pl_shotgun.cpp
+@@ -121,6 +121,9 @@
+     pl->Neck->init(0, 0, 0);
+     pl->Wep->m_CamAdjY = CamCtrl.getCameraDirection();
+     pl->Wep->lockInit();
++    if (CfgFlagChk(pSys, CFG_LOCK_ON) && pl->m_pEm) { /* port (patch 0159): the locked enemy's pitch, as the handgun */
++        PlSetLockPitch(pl);
++    }
+     hokan = 4;
+     if (!(pl->stat.check(cPlayer::F_CROUCH))) {
+         hokan = 5;
+--- a/src/wep/pl_machine.cpp
++++ b/src/wep/pl_machine.cpp
+@@ -124,6 +124,9 @@
+         SndCall(2, 9, &pl->getPartsPtr(0xA)->world, 0, 0, 0);
+     }
+     pl->Wep->lockInit();
++    if (CfgFlagChk(pSys, CFG_LOCK_ON) && pl->m_pEm) { /* port (patch 0159): the locked enemy's pitch, as the handgun */
++        PlSetLockPitch(pl);
++    }
+     mot = WEP_ARC_PTR(0x1A);
+     mot3.set(pl, mot, mot, mot, 0, 3, 0, 4, 0);
+     mot3.move(m3r);
+--- a/src/wep/pl_rocket.cpp
++++ b/src/wep/pl_rocket.cpp
+@@ -123,6 +123,9 @@
+     pl->Wep->m_CamAdjY = CamCtrl.getCameraDirection();
+     pl->Neck->init(0, 0, 0);
+     pl->Wep->lockInit();
++    if (CfgFlagChk(pSys, CFG_LOCK_ON) && pl->m_pEm) { /* port (patch 0159): the locked enemy's pitch, as the handgun */
++        PlSetLockPitch(pl);
++    }
+     mot = WEP_ARC_PTR(0x18);
+     mot3.set(pl, mot, mot, mot, 0, 3, 0, 4, 0);
+     mot3.move(m3r);

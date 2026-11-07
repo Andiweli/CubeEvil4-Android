@@ -1,0 +1,103 @@
+# The app menu's "Aim speed" (wish of the project owner, 30.10.2026: the Controls page, beside "Invert vertical",
+# for aiming the knife and the guns by touch or a controller, not by the gyro): the stick's turn while aiming is
+# multiplied by runtime/aim_options.cpp's factor (0.5 .. 3, 1 as the game). PlWepLockCtrl (the guns, the knife
+# stance, the bow; pitch blend m3r, waist yaw m_Fwork0 and the body's turn at the waist limit) and the scope
+# (CameraScope::move: body yaw and scope pitch, the zoom's gain kept). The D-pad's fixed steps stay as they are.
+# With the factor 1 (the default) nothing changes. "Invert vertical" is the game's own CFG_AIM_REVERSE.
+--- a/src/game/pl_wep.cpp
++++ b/src/game/pl_wep.cpp
+@@ -23,6 +23,8 @@
+ #include "read.h"
+ #include "em_sub.h"
+ 
++extern "C" f32 re4_aim_speed(void); /* port: runtime/aim_options.cpp (patch 0151) */
++
+ f32 rangeDist(Vec* pos, cEm* em, f32 range);
+ int lockEmCk(cEm* em, Vec* pos);
+ cEm* searchLockEm(Vec* pos, cEm* skip, f32 range);
+@@ -879,6 +881,8 @@
+     f32 d;
+     int moved;
+     f32 tmp;
++    /* port (patch 0151): the app menu's "Aim speed" scales the stick's turn while aiming */
++    const f32 aim = re4_aim_speed();
+ 
+     switch (pG->weapon_no) {
+     default:
+@@ -962,7 +966,7 @@
+             if (Joy[0].on & 4) {
+                 d += 0.035f;
+             }
+-            d -= spd2 * (f32) Joy[0].stickY * repCtr * 0.15f / 200.0f / 10.0f;
++            d -= spd2 * aim * (f32) Joy[0].stickY * repCtr * 0.15f / 200.0f / 10.0f;
+         } else {
+             if (Joy[0].on & 8) {
+                 d = 0.035f;
+@@ -970,7 +974,7 @@
+             if (Joy[0].on & 4) {
+                 d -= 0.035f;
+             }
+-            d += spd2 * (f32) Joy[0].stickY * repCtr * 0.15f / 200.0f / 10.0f;
++            d += spd2 * aim * (f32) Joy[0].stickY * repCtr * 0.15f / 200.0f / 10.0f;
+         }
+         if (m3r > 0.0f) {
+             d *= 0.8f;
+@@ -987,7 +991,7 @@
+         if (Joy[0].on & 1) {
+             d += 0.05f;
+         }
+-        d -= (f32) Joy[0].stickX * repCtr * PI / 10.0f / 200.0f / 20.0f;
++        d -= aim * (f32) Joy[0].stickX * repCtr * PI / 10.0f / 200.0f / 20.0f;
+         if (d != 0.0f) {
+             moved = 1;
+         }
+@@ -997,7 +1001,7 @@
+             if (Joy[0].on & 1) {
+                 pl->ang.y += 0.039269908f;
+             } else {
+-                pl->ang.y -= spd * (f32) Joy[0].stickX * repCtr * PI / 10.0f / 200.0f / 20.0f;
++                pl->ang.y -= spd * aim * (f32) Joy[0].stickX * repCtr * PI / 10.0f / 200.0f / 20.0f;
+             }
+         }
+         if (pl->m_Fwork0 < -lim * 0.8f) {
+@@ -1005,7 +1009,7 @@
+             if (Joy[0].on & 2) {
+                 pl->ang.y -= 0.039269908f;
+             } else {
+-                pl->ang.y -= spd * (f32) Joy[0].stickX * repCtr * PI / 10.0f / 200.0f / 20.0f;
++                pl->ang.y -= spd * aim * (f32) Joy[0].stickX * repCtr * PI / 10.0f / 200.0f / 20.0f;
+             }
+         }
+     }
+--- a/src/game/cam_extra.cpp
++++ b/src/game/cam_extra.cpp
+@@ -10,6 +10,7 @@
+ #include "atari.h"
+ #include "db_log.h"
+ #include "math_sub.h"
++extern "C" f32 re4_aim_speed(void); /* port: runtime/aim_options.cpp (patch 0151) */
+ #include "model.h"
+ #include "motion.h"
+ #include "player.h"
+@@ -357,9 +358,11 @@
+         param.Fovy = m_zoom_ratio * (limit - param.Fovy) + param.Fovy;
+     }
+     gain = m_zoom_ratio * -0.9f + 1.0f;
++    /* port (patch 0151): the app menu's "Aim speed" scales the stick's turn of the scope */
++    const f32 aim = re4_aim_speed();
+     if (Key.on & 0x10) {
+         if (Joy[0].stickX != 0 || (Joy[0].on & 3)) {
+-            add = gain * (f32) Joy[0].stickX * -0.05f * DEG2RAD;
++            add = gain * aim * (f32) Joy[0].stickX * -0.05f * DEG2RAD;
+             if (Joy[0].on & 1) {
+                 add = gain * SCOP_VEL_Y + add;
+             }
+@@ -371,7 +374,7 @@
+     }
+     if (Key.on & 0x10) {
+         if (Joy[0].stickY != 0 || (Joy[0].on & 0xC)) {
+-            add = gain * (f32) Joy[0].stickY * -0.05f * DEG2RAD;
++            add = gain * aim * (f32) Joy[0].stickY * -0.05f * DEG2RAD;
+             if (Joy[0].on & 8) {
+                 add = add - gain * SCOP_VEL_X;
+             }

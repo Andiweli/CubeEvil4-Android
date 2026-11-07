@@ -1,0 +1,299 @@
+# Retail data (port/docs/retail-jp-plan.md, "Gore"): the Japanese discs (G4BJ08) play with the gore of the US
+# release, always, without a setting (decision of the project owner, 06.11.2026; a user builds a Chinese
+# translation on the Japanese discs and asked for the Ganado headshot as on the US disc). The game runs with
+# country 0 for the Japanese discs (runtime/game_language.cpp: their texts, fonts, memory card names and DVD
+# messages), and this build cuts the gore for country 0: a shot Ganado of the village keeps its head
+# (em10LostHeadCk: only where the parasites show), the chainsaw and the head-loss deaths of Leon (em10, em25,
+# em2c, em2d, em31, em32, emwep, obj16) only scream and bleed, with other camera angles, and the corpses of
+# r100, r101 (also the binoculars' view of it) and r103 are left out. Every read of pSys->eff_country in these
+# files is such a gore check; each now asks re4_gore_country() (runtime/game_language.cpp): the country, but the
+# US release's 1 with the Japanese discs. Their data hold everything the US way needs: the models, effects and
+# room entries are those of the European discs, which play it so (checked entry by entry, 06.11.2026). The Korean
+# translation of the Japanese discs is a Japanese disc here too; its own code does the same (its main.dol and
+# em10..em17 load 1 for every country read), patch 0147's Korean-only switch in emwep/obj16 goes into this one.
+# Left as they are: r31c's tower explosion end (not gore), the texts by country and language. Debug, US and EU
+# discs: unchanged. A port patch for retail data.
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -11129,7 +11129,7 @@
+         case 0:
+         case 3:
+         case 5:
+-            if (pSys->eff_country && w->Atk_ck && (s16) pG->pl_life <= 0) {
++            if (re4_gore_country() && w->Atk_ck && (s16) pG->pl_life <= 0) { /* port: patch 0212 */
+                 pG->pl_life = 1;
+                 em->setRno(1, 0x2E, 0, 0);
+             }
+@@ -11472,7 +11472,7 @@
+         PlSetDamageSe(0);
+         SndStop(w->Seid_csaw, 0);
+         w->TmpU32 = SndCall(6, 0x4F, &em->pos, 0, 0, em);
+-        if (pSys->eff_country == 0 && (u8) (Rnd() % 10) > 4) {
++        if (re4_gore_country() == 0 && (u8) (Rnd() % 10) > 4) { /* port: patch 0212 */
+             em->r_no_3 = 1;
+         } else {
+             em->r_no_3 = 3;
+@@ -11590,7 +11590,7 @@
+         MotionSetCore(pl, &pl->Motion, PL_ARC_PTR(pl->subArc, 0x101), 0, 5, 1, 0);
+         pl->atari.set(400.0f, 700.0f, 10);
+         pl->m_Work2 = SndCall(1, 0xC, &pPL->pos, 0, 0, pPL);
+-        if (pSys->eff_country == 0) {
++        if (re4_gore_country() == 0) { /* port: patch 0212 */
+             SndCall(6, 0x5C, &pPL->pos, 0, 0, pPL);
+         }
+         pl->r_no_2++;
+@@ -11624,7 +11624,7 @@
+         break;
+     case 4:
+         MotionSetCore(pl, &pl->Motion, PL_ARC_PTR(pG->pPlayer, 0x4C), PL_ARC_PTR(pG->pPlayer, 0x4D), 5, 1, 0);
+-        if (pSys->eff_country == 0) {
++        if (re4_gore_country() == 0) { /* port: patch 0212 */
+             PlSetDamageSe(0xD);
+             EstSet(pPL, -1, 0, 0, EFF_EM10, 0x57, 0, ESP_CORE_KIND_NONE, pPL, 0);
+         }
+@@ -11634,7 +11634,7 @@
+         if (pl->Motion.Seq_frame > 71.7f && pl->Motion.Seq_frame < 72.3f) {
+             EstSet(pl, -1, 0, 0, EFF_EM10, 0x4D, 0, ESP_CORE_KIND_NONE, pl, 0);
+         }
+-        if (pl->m_Work0 && --pl->m_Work0 == 0 && pSys->eff_country) {
++        if (pl->m_Work0 && --pl->m_Work0 == 0 && re4_gore_country()) { /* port: patch 0212 */
+             SndStop(pl->m_Work2, 0);
+             em10PlHeadLost();
+         }
+@@ -11724,7 +11724,7 @@
+         w->Timer3 = 0;
+         w->Timer = 18;
+         GameAddPoint(LVADD_PL_DAMAGE);
+-        if (pSys->eff_country == 0) {
++        if (re4_gore_country() == 0) { /* port: patch 0212 */
+             SndCall(6, 0x5C, &pPL->pos, 0, 0, pPL);
+         }
+         VibSetData((VibDataTbl*) CORE_ARC(CORE_VIBRATION), 0xD, 1);
+@@ -17563,7 +17563,7 @@
+ // while the eye glow (parasite) effect is enabled for the room, every other type always.
+ int em10LostHeadCk(cEm10* em)
+ {
+-    if (pSys->eff_country != 0) {
++    if (re4_gore_country() != 0) { /* port: patch 0212 */
+         return 1;
+     }
+     switch (em->type) {
+@@ -20984,7 +20984,7 @@
+             return 0;
+         }
+         r = Rnd() % 100;
+-        if (r <= 29 || pSys->eff_country == 0) {
++        if (r <= 29 || re4_gore_country() == 0) { /* port: patch 0212 */
+             em->setRno(1, 0x2F, hit, hit);
+         } else {
+             em->setRno(1, 0x31, hit, hit);
+@@ -22135,7 +22135,7 @@
+         w->Cam.param.Fovy = 50.0f;
+         break;
+     case 1:
+-        if (pSys->eff_country == 0) {
++        if (re4_gore_country() == 0) { /* port: patch 0212 */
+             a.x = 762.0f;
+             a.y = 1953.0f;
+             a.z = 263.0f;
+@@ -22162,7 +22162,7 @@
+         w->Cam.param.Fovy = 30.0f;
+         break;
+     case 3:
+-        if (pSys->eff_country == 0) {
++        if (re4_gore_country() == 0) { /* port: patch 0212 */
+             a.x = -1120.0f;
+             a.y = 1269.0f;
+             a.z = -494.1f;
+@@ -26803,7 +26803,7 @@
+     Vec ofs;
+     cObj* o;
+     cParts* p;
+-    int region = pSys->eff_country;
++    int region = re4_gore_country(); /* port: patch 0212 */
+ 
+     if (region == 0) {
+         PlSetDamageSe(0xD);
+--- a/src/em25/em25.cpp
++++ b/src/em25/em25.cpp
+@@ -1744,7 +1744,7 @@
+     cParts* p;
+     cObj* obj;
+ 
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         PlSetDamageSe(0xD);
+         EstSet(pPL, -1, 0, 0, EFF_EM25, 0xA, 0, ESP_CORE_KIND_NONE, pPL, 0);
+         return;
+--- a/src/em2c/em2c.cpp
++++ b/src/em2c/em2c.cpp
+@@ -5284,7 +5284,7 @@
+     cParts* p3;
+     cObj* obj;
+ 
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         PlSetDamageSe(0xD);
+         EstSet(pPL, -1, 0, 0, EFF_EM2C, 0x2E, 0, ESP_CORE_KIND_NONE, pPL, 0);
+         return;
+--- a/src/em2d/em2d.cpp
++++ b/src/em2d/em2d.cpp
+@@ -5547,7 +5547,7 @@
+     cParts* p3;
+     cObj* obj;
+ 
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         PlSetDamageSe(0xD);
+         EstSet(pPL, -1, 0, 0, EFF_EM2D, 0x2C, 0, ESP_CORE_KIND_NONE, pPL, 0);
+         return;
+@@ -5578,7 +5578,7 @@
+ // Swaps the player's head for the acid-melted skull (player archive 0x6D / 0x6E) after the face grab kill.
+ void em2dPlHeadMelt(cPlayer* pl)
+ {
+-    if (pSys->eff_country) {
++    if (re4_gore_country()) { /* port: patch 0212 */
+         pPL->setHead(EM_ARC(pl, EM2D_BIN_PL_HEAD_MELT), EM_ARC(pl, EM2D_TPL_PL_HEAD_MELT));
+     }
+ }
+--- a/src/em31/em31.cpp
++++ b/src/em31/em31.cpp
+@@ -5027,7 +5027,7 @@
+     cParts* p;
+     cObj* obj;
+ 
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         PlSetDamageSe(0xD);
+         EstSet(pPL, -1, 0, 0, EFF_EM31, 0x29, 0, ESP_CORE_KIND_NONE, pPL, 0);
+         return;
+--- a/src/em32/em32.cpp
++++ b/src/em32/em32.cpp
+@@ -3233,7 +3233,7 @@
+         MotionSetCore(pl, &pl->Motion, EM_ARC(pl, EM32_MOT_PL_P_CATCH_HIT_09F), 0, 0, 1, 0);
+         EmCatchMotionMove(pl, 1.0f, 1.0f);
+         PlSetFace(1);
+-        if (pSys->eff_country) {
++        if (re4_gore_country()) { /* port: patch 0212 */
+             EstSet(pl, -1, 0, 0, EFF_EM32, 0x2C, 0, w->espKind[1], pl->pEmCatch, 0);
+         } else {
+             EstSet(pl, -1, 0, 0, EFF_EM32, 0x2D, 0, w->espKind[1], pl->pEmCatch, 0);
+@@ -3242,7 +3242,7 @@
+         break;
+     case 1:
+         EmCatchMotionMove(pl, 1.0f, 1.0f);
+-        if (pl->Motion.Seq_frame > 109.699997f && pl->Motion.Seq_frame < 110.300003f && pSys->eff_country) {
++        if (pl->Motion.Seq_frame > 109.699997f && pl->Motion.Seq_frame < 110.300003f && re4_gore_country()) { /* port: patch 0212 */
+             em32PlDivideSet2((cEm32*)pl->pEmCatch);
+             pl->be_flag &= ~2;
+         }
+@@ -4248,7 +4248,7 @@
+ // The player's head comes off (regions other than Japan).
+ void em32PlHeadLost()
+ {
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         PlSetDamageSe(0xD);
+         return;
+     }
+@@ -4264,7 +4264,7 @@
+     Vec rot;
+     cObj* obj;
+ 
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         return;
+     }
+     pPL->getPartsPtr(3);
+--- a/src/game/emwep.cpp
++++ b/src/game/emwep.cpp
+@@ -2452,8 +2452,6 @@
+     }
+ }
+ 
+-extern "C" int re4_disc_retail_kr(void); /* port: runtime/dvd.cpp */
+-
+ // The scythe took the player's head off: the head becomes an obj01 (blood effects on both).
+ void emWepPlHeadLost()
+ {
+@@ -2462,9 +2460,9 @@
+     cParts* p;
+     cObj* obj;
+ 
+-    /* port: the Korean translation of the Japanese discs takes the US release's way here (its main.dol
+-       loads 1 instead of the country, patch 0147) */
+-    if (pSys->eff_country == 0 && !re4_disc_retail_kr()) {
++    /* port: the Japanese discs take the US release's way here, as every gore check (patch 0212; the Korean
++       translation of them loads 1 instead of the country in its main.dol, patch 0147) */
++    if (re4_gore_country() == 0) {
+         PlSetDamageSe(0xD);
+         EstSet(pPL, -1, 0, 0, EFF_EM10, 0x57, 0, ESP_CORE_KIND_NONE, pPL, 0);
+         return;
+--- a/src/game/obj16.cpp
++++ b/src/game/obj16.cpp
+@@ -1140,8 +1140,6 @@
+ // The decapitation: player life 0, death damage type 6, region-specific scream, the player's head
+ // hidden and the body's own head-lost effect by enemy id.
+ // The head bit the player's head off: game over.
+-extern "C" int re4_disc_retail_kr(void); /* port: runtime/dvd.cpp */
+-
+ void obj16PlHeadLost(cObj16* obj)
+ {
+     FREE_OBJ16* w = OBJ16_WK(obj);
+@@ -1149,11 +1147,9 @@
+ 
+     pG->pl_life = 0;
+     PlSetDamage(PL_DM_FRONT, 0, 0);
+-    region = pSys->eff_country;
+-    /* port: the Korean translation takes the US release's way (patch 0147) */
+-    if (re4_disc_retail_kr()) {
+-        region = 1;
+-    }
++    /* port: the Japanese discs take the US release's way here, as every gore check (patch 0212; the Korean
++       translation of them loads 1 instead of the country in its main.dol, patch 0147) */
++    region = re4_gore_country();
+     if (region == 0) {
+         PlSetDamageSe(0xD);
+         if (w->pOya) {
+--- a/src/st1/r100.cpp
++++ b/src/st1/r100.cpp
+@@ -130,7 +130,7 @@
+ #line 207 "D:/Bio4/Prog/r100.cpp"
+     W = (R100Work*) MEM_CALLOC(sizeof(R100Work), 1, 0xd);
+     EmReadSearch(0x12, 0, 0);
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         SetSstDispFlag(0x12, 0);
+         SceAtSetEnable(0x17, 0);
+     } else {
+--- a/src/st1/r101.cpp
++++ b/src/st1/r101.cpp
+@@ -160,7 +160,7 @@
+             r101_work->ladder[2]->setOff();
+         }
+     }
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         SceAtSetEnable(0x20, 0);
+     } else {
+         Vec pos;
+@@ -996,7 +996,7 @@
+     }
+     pPL->dmg.set(0, 0x80);
+     ang = pPL->pos;
+-    if (pSys->eff_country == 0) {   // struct view: the pSys load stays below the `ang` copy stores
++    if (re4_gore_country() == 0) { /* port: patch 0212 */  // struct view: the pSys load stays below the `ang` copy stores
+         at.x = 3492.0f;
+         at.y = 1100.0f;
+         at.z = 3695.0f;
+--- a/src/st1/r103.cpp
++++ b/src/st1/r103.cpp
+@@ -82,7 +82,7 @@
+ #line 72 "D:/Bio4/Prog/r103.cpp"
+     r103_work = (R103Work*) MEM_CALLOC(sizeof(R103Work), 1, 0xd);
+ 
+-    if (pSys->eff_country == 0) {
++    if (re4_gore_country() == 0) { /* port: patch 0212 */
+         SceAtSetEnable(0xB, 0);
+     } else {
+         r103_setCorpse(ROOM_ARC_PTR(pG->pRoom, 0x1F), ROOM_ARC_PTR(pG->pRoom, 0x20), ROOM_ARC_PTR(pG->pRoom, 0x21),

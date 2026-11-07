@@ -1,0 +1,24 @@
+# Retail data on Easy (user report 30.10.2026, EU discs, 0.95.2, crash log): r203, the reunion with Ashley at the
+# archway (area 3, r203_EventMeetAgain) crashed every time on Easy. The event borrows the memory of the Ganado
+# module (SearchEmModule(0x11)) for its data (MemorySwap with the event in ARAM). On Easy the European R203Init sets
+# none of the room's Ganados (patch 0141), so after loading a save in r203 no Ganado module is loaded and the event
+# read the module pointer 0 (fault address 0x88). The European r203_EventMeetAgain is the debug build's word for word.
+# Here the module is loaded for the event when it is missing (EmReadSearch with the event's size, as the event
+# manager does for its enemies); without it the event is left out and Leon and Ashley are placed as after it.
+# Nothing changes when the module is there (the debug build's discs, Normal, Professional). A port patch.
+--- a/src/st2/r203.cpp
++++ b/src/st2/r203.cpp
+@@ -261,7 +261,12 @@
+     RsfSet(G_ROOM_ID, 3);
+     m = SearchEmModule(0x11);
+     SceEventStart(0);
+-    if (r203_work->data->waitLoadOk() == 1) {
++    /* port (patch 0157): on Easy no Ganado of the room loaded the module whose memory the event borrows */
++    if (m == NULL && r203_work->data->waitLoadOk() == 1) {
++        EmReadSearch(0x11, 0, r203_work->data->getSize());
++        m = SearchEmModule(0x11);
++    }
++    if (m != NULL && r203_work->data->waitLoadOk() == 1) {
+         MemorySwap(m->pData, r203_work->data->getAddr(), r203_work->data->getSize());
+         EvtMgr.SetEvt(m->pData, 0);
+         while (EvtMgr.IsAliveEvt(EvtMgr.GetNowExeEvtNamePtr(), 0, 0) != 0) {

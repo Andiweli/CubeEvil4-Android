@@ -1,0 +1,39 @@
+# Retail data (wish of the project owner, 04.11.2026: "the treasure chests ... are a bit smaller with us than in Dolphin").
+# The examine view of a picked-up item (game/examine.cpp exam_info: start angle, the divisor of the camera distance,
+# light set) has three other rows in the retail main.dol files (EU, US and Japanese alike, compared row by row on
+# 04.11.2026): the money chests 0x78 (x10 pesetas) and 0x79 (x100) with the
+# divisors 1.1 and 1.4 instead of the prototype's 0.8 and 1.1 (shown about 1.3 to 1.4 times larger), and 0x6D.
+# Taken over for the retail discs only (re4_disc_retail); the debug build's discs keep the prototype's table. A port
+# patch for retail data.
+--- a/src/game/examine.cpp
++++ b/src/game/examine.cpp
+@@ -34,6 +34,7 @@
+ void store();
+ void render();
+ ITEM_EXAMINE_INFO* examInfo(int id, int ext);
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp (patch 0199) */
+ 
+ f32 cap_dist_min = 8000.0f;
+ f32 cap_dist_max = 10000.0f;
+@@ -408,6 +409,21 @@
+             }
+         }
+     }
++    /* PORT (patch 0199): the rows of the retail discs (EU, US and Japanese main.dol alike, read 04.11.2026): the
++       money chests 0x78 / 0x79 show larger (camera divisor 1.1 / 1.4, the prototype 0.8 / 1.1), 0x6D turned
++       5 degrees, divisor 2.5, light 2. */
++    if (re4_disc_retail()) {
++        static ITEM_EXAMINE_INFO retail[3] = {
++            { 0x6D, 0, { 0.0f, 0.0f, 5.0f }, 2.5f, 2, 0, 0 },
++            { 0x78, 0, { 20.0f, 0.0f, 0.0f }, 1.1f, 4, 0, 0 },
++            { 0x79, 0, { 30.0f, 0.0f, 0.0f }, 1.4f, 4, 0, 0 },
++        };
++        for (i = 0; i < 3; i++) {
++            if (id == retail[i].item_id) {
++                return &retail[i];
++            }
++        }
++    }
+     p = exam_info;
+     for (i = 0; i < 225; i++, p++) {
+         if (id == p->item_id) {

@@ -66,6 +66,7 @@ abstract class GameScreenDialog extends Dialog {
       if (Build.VERSION.SDK_INT >= 33)
         getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
             android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::back);
+      CarDisplay.fit(getContext(), w);
     }
   }
   @Override protected void onStart() {

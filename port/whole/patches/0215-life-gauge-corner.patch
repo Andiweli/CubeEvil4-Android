@@ -1,0 +1,57 @@
+# Port patch, wish of the project owner (07.11.2026): the life gauge in the bottom right corner of the picture, as far
+# from the side as from the bottom, in every picture format (the app's minimap mirrors it in the bottom left corner).
+# The HUD's ring (Leon's and Ashley's life, the ammo with its bullet icon, the name) is a tree of id units under the
+# life meter's unit 0 (IDC_LIFE_METER, design place 217, -130), drawn in front of the camera with its projection: each
+# draw concatenates the screen matrix IDSystem::m_scrn_mat with the unit's matrix (the common draw, the negative and
+# the shimmer draws, which project the picture's copy with the same matrix). Those five places take the screen matrix
+# from re4_hud_scrn (runtime/picture.cpp): m_scrn_mat, or for the ring's units the same moved to the corner of the
+# rows the app shows (re4_core_set_hud_layout), and drawn narrower with "Stretched" so that the ring keeps its shape.
+# Every other unit, and every unit while the app gives no layout, as the original. Each replacement is on its line;
+# the function is declared in re4_whole_prelude.h. A port feature, not a fix of the prototype.
+--- a/src/game/id_sys.cpp
++++ b/src/game/id_sys.cpp
+@@ -1112,7 +1112,7 @@
+     CameraCurrentProjection();
+     {
+         Mtx m;
+-        PSMTXConcat(IDSystem::m_scrn_mat, u->mat, m);
++        PSMTXConcat(re4_hud_scrn(u), u->mat, m);
+         GXLoadPosMtxImm(m, 0);
+         GXLoadNrmMtxImm(m, 0);
+     }
+@@ -1188,7 +1188,7 @@
+     CameraCurrentProjection();
+     {
+         Mtx m;
+-        PSMTXConcat(IDSystem::m_scrn_mat, u->mat, m);
++        PSMTXConcat(re4_hud_scrn(u), u->mat, m);
+         GXLoadPosMtxImm(m, 0);
+         GXLoadNrmMtxImm(m, 0);
+     }
+@@ -1214,7 +1214,7 @@
+     Mtx pm;
+     Mtx tm;
+     C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.5f, 0.5f, 0.5f);
+-    PSMTXConcat(IDSystem::m_scrn_mat, u->mat, tm);
++    PSMTXConcat(re4_hud_scrn(u), u->mat, tm);
+     PSMTXConcat(pm, tm, tm2);
+     GXLoadTexMtxImm(tm2, 0x1E, 0);
+     GXSetTexCoordGen(0, 0, 0, 0x1E);
+@@ -1294,7 +1294,7 @@
+     CameraCurrentProjection();
+     {
+         Mtx m;
+-        PSMTXConcat(IDSystem::m_scrn_mat, u->mat, m);
++        PSMTXConcat(re4_hud_scrn(u), u->mat, m);
+         GXLoadPosMtxImm(m, 0);
+         GXLoadNrmMtxImm(m, 0);
+     }
+@@ -1324,7 +1324,7 @@
+     Mtx pm;
+     Mtx tm;
+     C_MTXLightPerspective(pm, pG->Camera.param.Fovy, re4_view_camera_aspect(), 0.5f, -0.5f, 0.5f, 0.5f);
+-    PSMTXConcat(IDSystem::m_scrn_mat, u->mat, tm);
++    PSMTXConcat(re4_hud_scrn(u), u->mat, tm);
+     PSMTXConcat(pm, tm, tm2);
+     GXLoadTexMtxImm(tm2, 0x1E, 0);
+     GXSetTexCoordGen(nGen++, 0, 0, 0x1E);

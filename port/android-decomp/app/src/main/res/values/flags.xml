@@ -1,5 +1,7 @@
 <resources>
     <!-- The core flavor (src/core) sets these: the original game core runs the game. -->
     <bool name="core_mode">false</bool>
+    <!-- the in-game menu's update button (AppUpdate, GitHub's releases); the car flavor (Google Play) has none -->
+    <bool name="app_update">true</bool>
     <string name="app_label" translatable="false">RE4 Decomp</string>
 </resources>

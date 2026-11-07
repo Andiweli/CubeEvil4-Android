@@ -1,0 +1,863 @@
+# Retail data (user report 02.11.2026: "the prices for TMP, Mine Thrower, Treasure Map, First Aid Sprays still retain
+# their prices from the US version"; treasure maps 3000/6000/9000 by area; upgrades; first aid sprays "rely on how many
+# you have"). The retail main.dol files, read with retail_code.py on 02.11.2026 (port/docs/whole-program-status.md,
+# "Händlerpreise und Waffenwerte der Verkaufsfassungen"), have their own merchant and damage balance; the Japanese
+# (and Korean) code and data are the European ones. Taken over for the retail discs only, the debug build's discs keep
+# the prototype's (patch 0146 had left the balance out):
+# - merchant.cpp: g_item_price_tbl (values and order, US and European), level_price rows 0x23 / 0x2A (both) and 0x2C
+#   (European), the stock tables r20f / r229 with a first aid spray more and one with a spray alone, MerchantRoomInit
+#   with modes (a cleared game adds a spray per room and the extra tables at every room; no Merchant2ndRoundInit),
+#   level_r229 in r229 and level_r10e_day at night (European), add_stock with the count and at most 999 (0x6D one at
+#   most), stockAdd (European: a weapon sold goes into the stock), stockNum (European: first aid sprays by the healing
+#   items in the case, the endless rocket launcher once, the vest not on Professional), the treasure maps only in their
+#   area, buyupPrice (weapon parts half, 500,000 for 0x6D / 0x34, the handcannon without ammo), sellPrice (European:
+#   attache case M 12,000 on Easy);
+# - item.cpp itemInfo: 0xA2 and the gems 0xDC..0xF3 one per slot; European Easy 20 rifle rounds, 25 shells, 10 darts;
+# - em_dm_val.cpp: the class tables (US: em31, em39; European: all but em3c / sml, one table more for 0x36, another
+#   for 0x32 / 0x35 / 0x38), WeaponLevelTbl rows 3, 4, 9, 0x11 (European) and 0x2C (both), rounding (European);
+# - game.cpp: no Merchant2ndRoundInit with the retail discs.
+# Not taken over: em10SetDmVal's European halving of weapon 0x0B (em10.rel, patch 0152) and other enemy modules.
+--- a/src/game/em_dm_val.cpp
++++ b/src/game/em_dm_val.cpp
+@@ -119,6 +119,143 @@
+     { 2.5f, 2.8f, 3.0f, 3.3f, 3.5f, 4.0f, 8.0f },
+ };
+ 
++/* PORT (patch 0187): the damage tables of the retail discs (read with retail_code.py on 02.11.2026). The US
++   main.dol (0x8020349c Dmg_tbl_em10 ..) differs in two class tables; the European one (0x80207d3c ..; the
++   Japanese and Korean discs alike) has one class table more (GetWepDmVal 0x800cadc4 gives it to 0x36, a second
++   form of em3c's to 0x32, 0x35 and 0x38) and other values in most, other firepower multipliers for the red9,
++   the blacktail, the bolt-action rifle and the matilda, and rounds the damage. Row 0x2C is the retail one in
++   both. The debug build's discs keep the prototype's tables. */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_eu(void);
++extern "C" int re4_disc_retail_jp(void);
++
++static const int Dmg_tbl_us_em31[0x2E] = {
++    0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 4000, 0, 15,
++    15, 15, 1000, 125, 15, 100, 0, 0, 0, 0, 15, 15, 15, 15, 15, 0,
++    0, 15, 0, 0, 30, 60, 15, 15, 15, 250, 0, 15, 15, 125,
++};
++static const int Dmg_tbl_us_em39[0x2E] = {
++    0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 4000, 0, 15,
++    400, 15, 1000, 250, 15, 50, 0, 0, 0, 0, 600, 15, 15, 15, 15, 0,
++    0, 15, 0, 0, 30, 60, 15, 15, 15, 250, 0, 15, 15, 250,
++};
++
++static const int Dmg_tbl_eu_em10[0x2E] = {
++    0, 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 210, 150, 9999, 0, 150,
++    200, 150, 9999, 2500, 200, 500, 0, 0, 100, 0, 200, 150, 150, 150, 150, 0,
++    0, 150, 0, 0, 400, 2000, 150, 150, 150, 2500, 0, 150, 150, 2500,
++};
++static const int Dmg_tbl_eu_em31[0x2E] = {
++    0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 12, 15, 4000, 0, 15,
++    15, 15, 1000, 125, 15, 100, 0, 0, 0, 0, 15, 15, 15, 15, 15, 0,
++    0, 15, 0, 0, 30, 60, 15, 15, 15, 250, 0, 15, 15, 125,
++};
++static const int Dmg_tbl_eu_em36[0x2E] = {
++    0, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 9999, 0, 20,
++    60, 20, 9999, 500, 20, 100, 0, 0, 0, 0, 60, 20, 20, 20, 20, 0,
++    0, 20, 0, 0, 120, 240, 20, 20, 20, 500, 0, 20, 20, 500,
++};
++static const int Dmg_tbl_eu_em39[0x2E] = {
++    0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 12, 15, 4000, 0, 15,
++    400, 15, 1000, 250, 15, 50, 0, 0, 0, 0, 400, 15, 15, 15, 15, 0,
++    0, 15, 0, 0, 30, 60, 15, 15, 15, 250, 0, 15, 15, 250,
++};
++static const int Dmg_tbl_eu_em32[0x2E] = {
++    0, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 12, 15, 9999, 0, 15,
++    30, 15, 2500, 250, 15, 50, 0, 0, 0, 0, 30, 15, 15, 15, 15, 0,
++    0, 15, 0, 0, 30, 60, 15, 15, 15, 250, 0, 15, 15, 250,
++};
++static const int Dmg_tbl_eu_em2b[0x2E] = {
++    0, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 25, 9999, 0, 30,
++    60, 30, 2500, 600, 20, 100, 0, 600, 0, 0, 30, 30, 30, 30, 30, 0,
++    0, 30, 0, 0, 40, 80, 30, 30, 30, 600, 0, 30, 30, 600,
++};
++static const int Dmg_tbl_eu_em2c[0x2E] = {
++    0, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 9999, 0, 25,
++    50, 25, 2500, 750, 200, 25, 0, 0, 25, 0, 50, 25, 25, 25, 25, 0,
++    0, 25, 0, 0, 400, 800, 25, 25, 25, 750, 0, 25, 25, 750,
++};
++static const int Dmg_tbl_eu_em2d[0x2E] = {
++    0, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 9999, 0, 50,
++    100, 50, 9999, 750, 100, 50, 0, 0, 25, 0, 100, 50, 50, 50, 50, 0,
++    0, 50, 0, 0, 200, 400, 50, 50, 50, 750, 0, 50, 50, 750,
++};
++
++static const f32 WeaponLevel_eu_red9[7] = { 1.6f, 1.8f, 2.1f, 2.5f, 3.0f, 3.7f, 6.5f };
++static const f32 WeaponLevel_eu_blacktail[7] = { 1.6f, 1.8f, 2.0f, 2.3f, 2.7f, 3.2f, 4.5f };
++static const f32 WeaponLevel_eu_rifle[7] = { 4.0f, 5.0f, 6.0f, 8.0f, 10.0f, 12.0f, 30.0f };
++static const f32 WeaponLevel_eu_matilda[7] = { 1.5f, 1.7f, 1.9f, 2.1f, 2.3f, 2.5f, 2.5f };
++static const f32 WeaponLevel_retail_2c[7] = { 25.0f, 30.0f, 35.0f, 35.0f, 35.0f, 35.0f, 35.0f };
++
++static int dmValEu()
++{
++    return re4_disc_retail_eu() || re4_disc_retail_jp();
++}
++
++// The retail class table for enemy `id`, 0 where it is the debug build's.
++static const int* retailDmgTable(int id)
++{
++    if (!re4_disc_retail()) {
++        return 0;
++    }
++    if (!dmValEu()) {
++        return id == 0x31 ? Dmg_tbl_us_em31 : (id == 0x39 ? Dmg_tbl_us_em39 : 0);
++    }
++    switch (id) {
++    case 0x23:
++    case 0x24:
++    case 0x27:
++    case 0x28:
++    case 0x29:
++    case 0x2A:
++    case 0x2E:
++    case 0x3C:
++        return 0;
++    case 0x2B:
++        return Dmg_tbl_eu_em2b;
++    case 0x2C:
++        return Dmg_tbl_eu_em2c;
++    case 0x2D:
++        return Dmg_tbl_eu_em2d;
++    case 0x31:
++        return Dmg_tbl_eu_em31;
++    case 0x32:
++    case 0x35:
++    case 0x38:
++        return Dmg_tbl_eu_em32;
++    case 0x36:
++        return Dmg_tbl_eu_em36;
++    case 0x39:
++        return Dmg_tbl_eu_em39;
++    }
++    return Dmg_tbl_eu_em10;
++}
++
++// The retail firepower multipliers of weapon `wep_no`, 0 where they are the debug build's.
++static const f32* retailLevelRow(u32 wep_no)
++{
++    if (!re4_disc_retail()) {
++        return 0;
++    }
++    if (wep_no == 0x2C) {
++        return WeaponLevel_retail_2c;
++    }
++    if (!dmValEu()) {
++        return 0;
++    }
++    switch (wep_no) {
++    case 3:
++        return WeaponLevel_eu_red9;
++    case 4:
++        return WeaponLevel_eu_blacktail;
++    case 9:
++        return WeaponLevel_eu_rifle;
++    case 0x11:
++        return WeaponLevel_eu_matilda;
++    }
++    return 0;
++}
++
+ // Damage of weapon `wep` hitting enemy `em`: the enemy class table value x the firepower level
+ // multiplier (pG->weapon_lv_power, 0..7). flag == 0 is a body hit (shotguns 7 / 8 / 0x21 use
+ // their own pellet rate table), non-zero a head / special hit. Weapon 0x14 (knife) gets x2 / x5
+@@ -253,6 +390,19 @@
+         lv = 7;
+     }
+     rate = WeaponLevelTbl[wep_no][lv];
++    /* PORT (patch 0187): the retail discs' class tables and multipliers (level 7 reads the next row's first,
++       which the retail discs keep) */
++    {
++        const int* t = retailDmgTable(pEm->id);
++        const f32* r = retailLevelRow(wep_no);
++
++        if (t) {
++            val = t[wep_no];
++        }
++        if (r && lv < 7) {
++            rate = r[lv];
++        }
++    }
+     if (near == 0) {
+         switch (wep_no) {
+         case 7:
+@@ -278,5 +428,8 @@
+     if (pG->pl_type == 2 && wep_no == 0x14) {
+         val *= 2;
+     }
++    if (re4_disc_retail() && dmValEu()) {
++        return (int) ((f32) val * rate + 0.5f); /* PORT (patch 0187): the European one rounds */
++    }
+     return (int) ((f32) val * rate);
+ }
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -290,6 +290,7 @@
+ // 3 on, except r22c), saves the game (GameSave.save) when allowed and starts the room load
+ // (StageSet); Rno0 = 2.
+ extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void); /* port (patch 0187) */
+ 
+ void gameStageInit()
+ {
+@@ -859,7 +860,9 @@
+         SndBgmTblInit();
+         MerchantDataLoad(head->pMr);
+         ItemMgr.load(head->pItm);
+-        if (pG->game_cnt == 1) {
++        /* PORT (patch 0187): the retail discs' merchant adds the cleared game's tables at every room
++           (MerchantRoomInit); their cGameSave::load (European main.dol 0x80119fa0) has no Merchant2ndRoundInit */
++        if (pG->game_cnt == 1 && !re4_disc_retail()) {
+             Merchant2ndRoundInit();
+         }
+         ItemMgr.dumpType(7);
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -22,6 +22,7 @@
+ #include "player.h"
+ #include "em_dm_val.h"
+ extern "C" int re4_disc_retail_eu(void), re4_disc_retail_jp(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail(void); /* port (patch 0187) */
+ 
+ 
+ // One weapon (22 bytes): item id, bullet attribute, weapon number/type, bullet item id, magazine size per
+@@ -1648,6 +1649,23 @@
+         info->maxNum = 1;
+         break;
+     }
++    /* PORT (patch 0187): the retail discs' itemInfo (European main.dol 0x80019c90, US 0x800198e4): the
++       treasure 0xA2 and the gems 0xDC..0xF3 take a slot each; the European one (also the Japanese discs) puts
++       20 rifle rounds, 25 shells and 10 mine-thrower darts into a slot on Easy */
++    if (re4_disc_retail()) {
++        if (id == 0xA2 || (id >= 0xDC && id <= 0xF3)) {
++            info->maxNum = 1;
++        }
++        if ((re4_disc_retail_eu() || re4_disc_retail_jp()) && pG->game_mode <= 3) {
++            if (id == 0x07) {
++                info->maxNum = 20;
++            } else if (id == 0x18) {
++                info->maxNum = 25;
++            } else if (id == 0x46) {
++                info->maxNum = 10;
++            }
++        }
++    }
+ }
+ 
+ // Initialises a slot for item `id`: weapons get their level nibbles (special fixed ones: 0x21
+--- a/src/game/merchant.cpp
++++ b/src/game/merchant.cpp
+@@ -694,11 +694,15 @@
+     levelDataAdd(merchantData, level_r329);
+ }
+ 
++static void merchantReleaseData(); /* PORT (patch 0187) */
++static void merchantRoomInitRetail();
++
+ // New game: favor 50, no discount, empty stock and tune tables.
+ void MerchantGameInit()
+ {
+     int i;
+ 
++    merchantReleaseData(); /* PORT (patch 0187): the prices of the inserted discs */
+     for (i = 0; i < MERCHANT_NUM; i++) {
+         MERCHANT_DATA* d = &merchantData[i];
+         d->friendship = 50;
+@@ -728,11 +732,475 @@
+     merchantChar.setChar(&merchant_info_A, merchantData, sell_price_ext, exer_price_ext, level_price);
+ }
+ 
++/* PORT (patch 0187): the merchant of the retail discs. Their main.dol (read with retail_code.py on
++   02.11.2026: European 0x801f81e0 merchant_info_A .. 0x801f8dd0, US 0x801f3954 ..) has other prices and tune
++   prices, two stock tables more (a first aid spray in r20f and r229, one alone for a cleared game) and its
++   own merchant code (European MerchantRoomInit 0x80020770, stockDataAdd 0x80021208, levelDataAdd 0x800213e0,
++   add_stock 0x80021160, Merchant::stockAdd 0x80021824, stockNum 0x800219b4, checkSellingItem 0x80022128,
++   buyupPrice 0x80022554 / 0x80022688, sellPrice 0x80022904; the US ones alike). The Japanese (and Korean)
++   discs have the European data and code. The debug build's discs keep the prototype's merchant. */
++extern "C" int re4_disc_retail(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_eu(void);
++extern "C" int re4_disc_retail_jp(void);
++
++// The European rules (also the Japanese discs).
++static int merchantEu()
++{
++    return re4_disc_retail_eu() || re4_disc_retail_jp();
++}
++
++static const PRICE_INFO g_item_price_tbl_us[] = {
++    {0x7F, 7300, 1}, {0x7E, 4000, 1}, {0x7D, 3000, 1}, {0xFE, 6000, 1},
++    {0xA9, 1000, 1}, {0x54, 1000, 1}, {0x55, 1000, 1}, {0x04, 10, 1},
++    {0x18, 24, 1}, {0x00, 100, 1}, {0x07, 30, 1}, {0x20, 4, 1},
++    {0x46, 100, 1}, {0x6A, 10, 1}, {0x1A, 120, 1}, {0x0E, 100, 1},
++    {0x02, 200, 1}, {0x01, 400, 1}, {0x23, 700, 1}, {0x25, 1320, 1},
++    {0x40, 0, 1}, {0x21, 1900, 1}, {0x27, 2250, 1}, {0x29, 3200, 1},
++    {0x2A, 7070, 1}, {0x03, 6850, 1}, {0x37, 0, 1}, {0x2C, 1856, 1},
++    {0x94, 3032, 1}, {0x2D, 4012, 1}, {0x2E, 1050, 1}, {0x2F, 3200, 1},
++    {0x30, 1380, 1}, {0x36, 2300, 1}, {0x34, 65535, 1}, {0x35, 3000, 1},
++    {0x17, 6000, 1}, {0x6D, 65535, 1}, {0x42, 400, 1}, {0x43, 400, 1},
++    {0x44, 700, 1}, {0x45, 1000, 1}, {0xAA, 800, 1}, {0xC5, 2000, 1},
++    {0x08, 60, 1}, {0x09, 120, 1}, {0x0A, 600, 1}, {0x95, 150, 1},
++    {0x97, 460, 1}, {0x06, 100, 1}, {0x19, 200, 1}, {0x1C, 600, 1},
++    {0x12, 240, 1}, {0x13, 400, 1}, {0x14, 400, 1}, {0x16, 900, 1},
++    {0xA8, 1000, 1}, {0x15, 2000, 1}, {0x05, 1000, 1}, {0x57, 200, 1},
++    {0x77, 1000, 1}, {0x58, 1000, 1}, {0x89, 100, 1}, {0x59, 1000, 1},
++    {0x8A, 100, 1}, {0x5A, 1000, 1}, {0x5B, 1000, 1}, {0x5C, 1000, 1},
++    {0x5D, 1000, 1}, {0x5F, 300, 1}, {0x60, 300, 1}, {0x61, 300, 1},
++    {0x5E, 300, 1}, {0x62, 1000, 1}, {0x63, 1000, 1}, {0x64, 1000, 1},
++    {0x65, 1500, 1}, {0x66, 1500, 1}, {0x67, 1500, 1}, {0x68, 2000, 1},
++    {0xB9, 100, 1}, {0xBA, 150, 1}, {0xBB, 300, 1}, {0xB8, 450, 1},
++    {0xBC, 650, 1}, {0xBD, 700, 1}, {0xBE, 850, 1}, {0xBF, 1100, 1},
++    {0xC0, 1300, 1}, {0xC1, 1500, 1}, {0xC2, 3200, 1}, {0xC7, 300, 1},
++    {0xC8, 300, 1}, {0xC9, 300, 1}, {0xC6, 300, 1}, {0xCA, 1000, 1},
++    {0xCB, 1000, 1}, {0xCC, 1000, 1}, {0xCD, 1500, 1}, {0xCE, 1500, 1},
++    {0xCF, 1500, 1}, {0xD0, 2000, 1}, {0x56, 250, 1}, {0x8F, 850, 1},
++    {0x98, 1200, 1}, {0x70, 2000, 1}, {0x93, 1300, 1}, {0x90, 1000, 1},
++    {0x91, 1200, 1}, {0x96, 1200, 1}, {0x9B, 1100, 1}, {0x9C, 1300, 1},
++    {0x9A, 900, 1}, {0x9D, 2500, 1}, {0x9E, 2700, 1}, {0x9F, 4800, 1},
++    {0xA1, 300, 1}, {0xD1, 1500, 1}, {0xD2, 350, 1}, {0xD3, 350, 1},
++    {0xD4, 350, 1}, {0xD5, 2000, 1}, {0xD6, 2000, 1}, {0xD7, 2000, 1},
++    {0xD8, 2500, 1}, {0xD9, 2500, 1}, {0xDA, 2500, 1}, {0xDB, 3500, 1},
++    {0xFFFF},
++};
++
++static const PRICE_INFO g_item_price_tbl_eu[] = {
++    {0x7F, 7300, 1}, {0x7E, 4000, 1}, {0x7D, 2400, 1}, {0xFE, 6000, 1},
++    {0xA9, 300, 1}, {0x54, 600, 1}, {0x55, 900, 1}, {0x04, 10, 1},
++    {0x18, 24, 1}, {0x00, 100, 1}, {0x07, 30, 1}, {0x20, 4, 1},
++    {0x46, 100, 1}, {0x6A, 10, 1}, {0x1A, 120, 1}, {0x0E, 100, 1},
++    {0x02, 200, 1}, {0x01, 400, 1}, {0x23, 700, 1}, {0x25, 1320, 1},
++    {0x40, 0, 1}, {0x21, 1900, 1}, {0x27, 2250, 1}, {0x03, 6850, 1},
++    {0x29, 3200, 1}, {0x2A, 7070, 1}, {0x37, 0, 1}, {0x2C, 1856, 1},
++    {0x94, 3032, 1}, {0x2D, 4012, 1}, {0x2E, 1050, 1}, {0x2F, 3200, 1},
++    {0x30, 880, 1}, {0x36, 480, 1}, {0x34, 65535, 1}, {0x35, 3000, 1},
++    {0x17, 6000, 1}, {0x6D, 65535, 1}, {0x42, 400, 1}, {0x43, 400, 1},
++    {0x44, 700, 1}, {0x45, 1000, 1}, {0xAA, 800, 1}, {0xC5, 2000, 1},
++    {0x08, 60, 1}, {0x09, 120, 1}, {0x0A, 600, 1}, {0x95, 150, 1},
++    {0x97, 460, 1}, {0x06, 100, 1}, {0x19, 200, 1}, {0x1C, 600, 1},
++    {0x12, 240, 1}, {0x13, 400, 1}, {0x14, 400, 1}, {0x16, 900, 1},
++    {0xA8, 1000, 1}, {0x15, 2000, 1}, {0x05, 500, 1}, {0x57, 200, 1},
++    {0x56, 250, 1}, {0xA1, 300, 1}, {0x77, 1000, 1}, {0x58, 1000, 1},
++    {0x89, 100, 1}, {0x59, 1000, 1}, {0x8A, 100, 1}, {0x5A, 1000, 1},
++    {0x5B, 1000, 1}, {0x5C, 1000, 1}, {0x5D, 1000, 1}, {0x5F, 300, 1},
++    {0x60, 300, 1}, {0x61, 300, 1}, {0x5E, 300, 1}, {0x62, 1000, 1},
++    {0x63, 1000, 1}, {0x64, 1000, 1}, {0x65, 1500, 1}, {0x66, 1500, 1},
++    {0x67, 1500, 1}, {0x68, 2000, 1}, {0xB9, 100, 1}, {0xBA, 150, 1},
++    {0xBB, 300, 1}, {0xB8, 450, 1}, {0xBC, 650, 1}, {0xBD, 700, 1},
++    {0xBE, 850, 1}, {0xBF, 1100, 1}, {0xC0, 1300, 1}, {0xC1, 1500, 1},
++    {0xC2, 3200, 1}, {0xC7, 300, 1}, {0xC8, 300, 1}, {0xC9, 300, 1},
++    {0xC6, 300, 1}, {0xCA, 1000, 1}, {0xCB, 1000, 1}, {0xCC, 1000, 1},
++    {0xCD, 1500, 1}, {0xCE, 1500, 1}, {0xCF, 1500, 1}, {0xD0, 2000, 1},
++    {0x8F, 850, 1}, {0x98, 1200, 1}, {0x70, 2000, 1}, {0x93, 1300, 1},
++    {0x90, 1000, 1}, {0x91, 1200, 1}, {0x96, 1200, 1}, {0x9B, 1100, 1},
++    {0x9C, 1300, 1}, {0x9A, 900, 1}, {0x9D, 2500, 1}, {0x9E, 2700, 1},
++    {0x9F, 4800, 1}, {0xD2, 350, 1}, {0xD3, 350, 1}, {0xD4, 350, 1},
++    {0xD1, 1500, 1}, {0xD5, 2000, 1}, {0xD6, 2000, 1}, {0xD7, 2000, 1},
++    {0xD8, 2500, 1}, {0xD9, 2500, 1}, {0xDA, 2500, 1}, {0xDB, 3500, 1},
++    {0xFFFF},
++};
++
++// Tune prices of both retail releases: the handgun's firepower 4..6 and capacity 3..5, the Killer7's firepower;
++// the shotgun's firepower 5..6 only in the European one.
++static const LEVEL_PRICE level_price_retail_23 = {
++    0x23, {700, 1000, 1500, 1800, 2000, 5700, 0}, {500, 1200, 0}, {400, 1000, 0}, {400, 600, 800, 1000, 1200, 0, 0}};
++static const s16 level_price_retail_2a[7] = {6200, 7800, 0, 0, 0, 0, 0};
++static const s16 level_price_eu_2c[7] = {1500, 2000, 2500, 3000, 4000, 4000, 0};
++
++static StockEntry stock_r20f_retail[] = {
++    {0x7F, 1},
++    {0x05, 1},
++    {0xFFFF},
++};
++
++static StockEntry stock_r229_retail[] = {
++    {0x2D, 1},
++    {0x05, 1},
++    {0xFFFF},
++};
++
++// a cleared game: each room's stock is only a first aid spray (stockDataAddRetail)
++static StockEntry stock_firstaid_retail[] = {
++    {0x05, 1},
++    {0xFFFF},
++};
++
++// The price and tune tables of the inserted discs: the retail ones, else the debug build's (kept at the first call).
++static void merchantReleaseData()
++{
++    static PRICE_INFO dbg_price[sizeof(g_item_price_tbl) / sizeof(g_item_price_tbl[0])];
++    static LEVEL_PRICE dbg_level[sizeof(level_price) / sizeof(level_price[0])];
++    static int saved;
++    const PRICE_INFO* src = g_item_price_tbl_us;
++    u32 i;
++
++    if (!saved) {
++        for (i = 0; i < sizeof(dbg_price) / sizeof(dbg_price[0]); i++) {
++            dbg_price[i] = g_item_price_tbl[i];
++        }
++        for (i = 0; i < sizeof(dbg_level) / sizeof(dbg_level[0]); i++) {
++            dbg_level[i] = level_price[i];
++        }
++        saved = 1;
++    }
++    if (!re4_disc_retail()) {
++        src = dbg_price;
++    } else if (merchantEu()) {
++        src = g_item_price_tbl_eu;
++    }
++    for (i = 0; i < sizeof(dbg_price) / sizeof(dbg_price[0]); i++) {
++        g_item_price_tbl[i] = src[i];
++    }
++    for (i = 0; i < sizeof(dbg_level) / sizeof(dbg_level[0]); i++) {
++        LEVEL_PRICE* l = &level_price[i];
++        int k;
++
++        *l = dbg_level[i];
++        if (!re4_disc_retail()) {
++            continue;
++        }
++        if (l->id == 0x23) {
++            *l = level_price_retail_23;
++        } else if (l->id == 0x2A) {
++            for (k = 0; k < 7; k++) {
++                l->power[k] = level_price_retail_2a[k];
++            }
++        } else if (l->id == 0x2C && merchantEu()) {
++            for (k = 0; k < 7; k++) {
++                l->power[k] = level_price_eu_2c[k];
++            }
++        }
++    }
++}
++
++// add_stock of the retail discs: the count to add, the endless rocket launcher 0x6D one at most like the rocket
++// launcher 0x35 (the US one only with other texts than Japanese, as the debug build), at most 999.
++static void add_stock_retail(StockEntry* dst, int num)
++{
++    switch (itemType(dst->id)) {
++    case 1:
++    case 9:
++        dst->num = 1;
++        return;
++    case 3:
++        if (dst->id == 0x6D || (dst->id == 0x35 && (merchantEu() || pSys->language != 0))) {
++            dst->num = 1;
++            return;
++        }
++        break;
++    }
++    dst->num += num;
++    if (dst->num > 998) {
++        dst->num = 999;
++    }
++}
++
++// stockDataAdd of the retail discs. mode 0: a room's table, in a cleared game (game_cnt) only a first aid spray;
++// 1: a table of the cleared game; 2: an unlocked weapon (the "new" marks stay). The European one leaves the
++// bulletproof vest 0xFE out on Professional.
++static void stockDataAddRetail(MERCHANT_DATA* d, StockEntry* tbl, int mode)
++{
++    StockEntry* s;
++    int i;
++
++    if (mode == 0 && pG->game_cnt != 0) {
++        tbl = stock_firstaid_retail;
++    }
++    if (mode != 2) {
++        for (s = d->stock.e, i = 0; i < STOCK_MAX && s->id != 0xFFFF; i++, s++) {
++            s->isNew = 0;
++        }
++    }
++    for (; tbl->id != 0xFFFF; tbl++) {
++        int found = 0;
++
++        for (s = d->stock.e, i = 0; i < STOCK_MAX && s->id != 0xFFFF; i++, s++) {
++            if (s->id == tbl->id) {
++                add_stock_retail(s, tbl->num);
++                found = 1;
++                break;
++            }
++        }
++        if (merchantEu() && pG->game_mode > 5 && tbl->id == 0xFE) {
++            found = 1;
++        }
++        if (!found) {
++            for (s = d->stock.e, i = 0; i < STOCK_MAX; i++, s++) {
++                if (s->id == 0xFFFF) {
++                    s->id = tbl->id;
++                    add_stock_retail(s, tbl->num);
++                    s->isNew = 1;
++                    break;
++                }
++            }
++        }
++    }
++}
++
++// levelDataAdd of the retail discs: the modes as stockDataAddRetail; a room's table adds nothing in a cleared game.
++static void levelDataAddRetail(MERCHANT_DATA* d, LevelEntry* tbl, int mode)
++{
++    LevelEntry* l;
++    int i;
++    int j;
++
++    if (mode == 0 && pG->game_cnt != 0) {
++        return;
++    }
++    if (mode != 2) {
++        for (l = d->level.e, i = 0; i < LEVEL_MAX && l->id != 0xFFFF; i++, l++) {
++            l->isNew = 0;
++        }
++    }
++    for (; tbl->id != 0xFFFF; tbl++) {
++        int found = 0;
++
++        for (l = d->level.e, i = 0; i < LEVEL_MAX && l->id != 0xFFFF; i++, l++) {
++            if (l->id == tbl->id) {
++                for (j = 0; j < 4; j++) {
++                    if (l->lv[j] < tbl->lv[j]) {
++                        l->isNew = 1;
++                        l->lv[j] = tbl->lv[j];
++                    }
++                }
++                found = 1;
++                break;
++            }
++        }
++        if (!found) {
++            for (l = d->level.e, i = 0; i < LEVEL_MAX; i++, l++) {
++                if (l->id == 0xFFFF) {
++                    l->id = tbl->id;
++                    for (j = 0; j < 4; j++) {
++                        l->lv[j] = tbl->lv[j];
++                    }
++                    l->isNew = 1;
++                    break;
++                }
++            }
++        }
++    }
++}
++
++// The room's stock and tune table once per room, as the debug build; also in a cleared game (then mode 0
++// adds a first aid spray), whose extra tables follow at every room: the matilda and the endless rocket
++// launcher (mode 1), the handcannon and the chicago typewriter once unlocked (mode 2; the typewriter brings
++// no tune table). The European one adds the striker's tune table in r229 and the punisher's day table also
++// at night.
++static void merchantRoomInitRetail()
++{
++    MERCHANT_DATA* d = merchantData;
++
++    merchantChar.setChar(&merchant_info_A, d, g_item_price_tbl, g_item_price_tbl, level_price);
++    switch (pG->room_id) {
++    case 0x104:
++        if (!RoomData.checkPassed(0x104, 0)) {
++            levelDataAddRetail(d, level_first, 0);
++            stockDataAddRetail(d, stock_r104, 0);
++        }
++        break;
++    case 0x102:
++        if (!RoomData.checkPassed(0x102, 0)) {
++            levelDataAddRetail(d, level_styer, 0);
++            stockDataAddRetail(d, stock_r102, 0);
++        }
++        break;
++    case 0x10D:
++        if (!RoomData.checkPassed(0x10D, 0)) {
++            levelDataAddRetail(d, level_null, 0);
++            stockDataAddRetail(d, stock_r10d, 0);
++        }
++        break;
++    case 0x10F:
++        if (!RoomData.checkPassed(0x10F, 0)) {
++            levelDataAddRetail(d, level_null, 0);
++            stockDataAddRetail(d, stock_r10f, 0);
++        }
++        break;
++    case 0x112:
++        if (!RoomData.checkPassed(0x112, 0)) {
++            levelDataAddRetail(d, level_r112, 0);
++            stockDataAddRetail(d, stock_r112, 0);
++        }
++        break;
++    }
++    if (pG->room_id == 0x10E) {
++        if (ScfFlagChk(pG, SCF_ST1_NIGHT)) {
++            if (!ScfFlagChk(pG, SCF_R10E_STOCK_NIGHT)) {
++                levelDataAddRetail(d, level_null, 0);
++                stockDataAddRetail(d, stock_r10e_night, 0);
++                ScfFlagOn(pG, SCF_R10E_STOCK_NIGHT);
++            }
++        } else {
++            if (!ScfFlagChk(pG, SCF_R10E_STOCK_DAY)) {
++                levelDataAddRetail(d, level_r10e_day, 0);
++                stockDataAddRetail(d, stock_r10e_day, 0);
++                ScfFlagOn(pG, SCF_R10E_STOCK_DAY);
++            }
++        }
++    }
++    if (chkFlag51C0(0x01000000) && !chkFlag51C0(0x2000)) {
++        if (merchantEu()) {
++            levelDataAddRetail(d, level_r10e_day, 0);
++        }
++        levelDataAddRetail(d, level_1st_night, 0);
++        ScfFlagOn(pG, SCF_ST1_NIGHT_LV_ADD);
++    }
++    switch (pG->room_id) {
++    case 0x202:
++        if (!RoomData.checkPassed(0x202, 0)) {
++            levelDataAddRetail(d, level_r202, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x204:
++        if (!RoomData.checkPassed(0x204, 0)) {
++            levelDataAddRetail(d, level_r204, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x20B:
++        if (!RoomData.checkPassed(0x20B, 0)) {
++            levelDataAddRetail(d, level_r20b, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x20F:
++        if (!RoomData.checkPassed(0x20F, 0)) {
++            levelDataAddRetail(d, level_null, 0);
++            stockDataAddRetail(d, stock_r20f_retail, 0);
++        }
++        break;
++    case 0x211:
++        if (!RoomData.checkPassed(0x211, 0)) {
++            levelDataAddRetail(d, level_r211, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x214:
++        if (!RoomData.checkPassed(0x214, 0)) {
++            levelDataAddRetail(d, level_r214, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x229:
++        if (!RoomData.checkPassed(0x229, 0)) {
++            levelDataAddRetail(d, merchantEu() ? level_r229 : level_null, 0);
++            stockDataAddRetail(d, stock_r229_retail, 0);
++        }
++        break;
++    case 0x220:
++        if (!RoomData.checkPassed(0x220, 0)) {
++            levelDataAddRetail(d, level_r220, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x225:
++        if (!RoomData.checkPassed(0x225, 0)) {
++            levelDataAddRetail(d, level_r225, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x227:
++        if (!RoomData.checkPassed(0x227, 0)) {
++            levelDataAddRetail(d, level_r227, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    case 0x22A:
++        if (!RoomData.checkPassed(0x22A, 0)) {
++            levelDataAddRetail(d, level_r22a, 0);
++            stockDataAddRetail(d, stock_2st_general, 0);
++        }
++        break;
++    }
++    switch (pG->room_id) {
++    case 0x301:
++        if (!RoomData.checkPassed(0x301, 0)) {
++            levelDataAddRetail(d, level_r301, 0);
++            stockDataAddRetail(d, stock_r301, 0);
++        }
++        break;
++    case 0x305:
++        if (!RoomData.checkPassed(0x305, 0)) {
++            levelDataAddRetail(d, level_r305, 0);
++            stockDataAddRetail(d, stock_r305, 0);
++        }
++        break;
++    case 0x30A:
++    case 0x30F:
++    case 0x312:
++    case 0x315:
++    case 0x331:
++        if (!RoomData.checkPassed(pG->room_id, 0)) {
++            levelDataAddRetail(d, level_null, 0);
++            stockDataAddRetail(d, stock_3st_general, 0);
++        }
++        break;
++    case 0x31A:
++        if (!RoomData.checkPassed(0x31A, 0)) {
++            levelDataAddRetail(d, level_r31a, 0);
++            stockDataAddRetail(d, stock_3st_general, 0);
++        }
++        break;
++    case 0x31D:
++        if (!RoomData.checkPassed(0x31D, 0)) {
++            levelDataAddRetail(d, level_r31d, 0);
++            stockDataAddRetail(d, stock_3st_general, 0);
++        }
++        break;
++    case 0x329:
++        if (!RoomData.checkPassed(0x329, 0)) {
++            levelDataAddRetail(d, level_r329, 0);
++            stockDataAddRetail(d, stock_3st_general, 0);
++        }
++        break;
++    }
++    if (pG->game_cnt != 0) {
++        levelDataAddRetail(d, level_ext_normal, 1);
++        stockDataAddRetail(d, stock_ext_normal, 1);
++        if (ExtFlagChk(pSys, EXT_GET_SW500)) {
++            levelDataAddRetail(d, level_ext_sw500, 2);
++            stockDataAddRetail(d, stock_ext_sw500, 2);
++        }
++        if (ExtFlagChk(pSys, EXT_GET_TOMPSON)) {
++            stockDataAddRetail(d, stock_ext_tompson, 2);
++        }
++    }
++}
++
+ // Room entry: builds the merchant's stock for the current room. A cleared game only adds the unlock
+ // extras (Handcannon, Chicago Typewriter). Otherwise each stage table is added the first time its
+ // room is passed (RoomData.checkPassed).
+ void MerchantRoomInit()
+ {
++    /* PORT (patch 0187): the retail discs' merchant (prices, tune prices, stock rules) */
++    merchantReleaseData();
++    if (re4_disc_retail()) {
++        merchantRoomInitRetail();
++        return;
++    }
+     if (pG->game_cnt != 0) {
+         if (ExtFlagChk(pSys, EXT_GET_SW500)) {
+             levelDataAdd(merchantData, level_ext_sw500);
+@@ -1185,8 +1653,29 @@
+ {
+     StockEntry* s = stockPtr(id);
+ 
++    /* PORT (patch 0187): the retail discs' stockAdd counts as add_stock_retail (at most 999); the European one
++       puts a weapon sold to the merchant into his stock even when he never had it */
++    if (re4_disc_retail() && merchantEu()) {
++        if (s == 0 && itemType(id) == 1) {
++            int i;
++
++            for (s = m_stock.e, i = 0; i < STOCK_MAX && s->id != 0xFFFF; i++, s++) {
++            }
++            if (i >= STOCK_MAX) {
++                return;
++            }
++            s->id = id;
++        }
++        if (s) {
++            add_stock_retail(s, num);
++        }
++        return;
++    }
+     if (s && s->num != -2 && s->num != -1) {
+         s->num += num;
++        if (re4_disc_retail() && s->num > 998) {
++            s->num = 999;
++        }
+     }
+ }
+ 
+@@ -1207,6 +1696,27 @@
+ {
+     StockEntry* s = stockPtr(id);
+ 
++    /* PORT (patch 0187): the European stockNum (also the Japanese discs): the endless rocket launcher 0x6D once
++       like a weapon; first aid sprays by the healing items in the case (sprays and mixed herbs count two, green
++       herbs one: 2 sprays at 0..1, 1 at 2..3, none above); the bulletproof vest 0xFE not on Professional, for
++       every costume */
++    if (re4_disc_retail() && merchantEu()) {
++        if (itemType(id) == 1 || itemType(id) == 9 || id == 0x38 || id == 0x35 || id == 0x6D) {
++            return ItemMgr.search(id) == 0;
++        }
++        if (id == 0x05) {
++            int heal = (ItemMgr.num(0x12) + ItemMgr.num(0x14) + ItemMgr.num(0x16) + ItemMgr.num(0x13) +
++                        ItemMgr.num(0x15) + ItemMgr.num(0x05)) * 2 + ItemMgr.num(0x06);
++
++            return heal > 3 ? 0 : (heal > 1 ? 1 : 2);
++        }
++        if (id == 0xFE) {
++            if (pG->game_mode > 5) {
++                return 0;
++            }
++            return ItemMgr.num(0xFE) == 0;
++        }
++    }
+     if (itemType(id) == 1) {
+         return ItemMgr.search(id) == 0;
+     }
+@@ -1409,6 +1919,17 @@
+     case 0xC5:
+         ret = 0;
+         break;
++    /* PORT (patch 0187): the retail discs sell each treasure map only in its own area (village, castle,
++       island) */
++    case 0xA9:
++        ret = !re4_disc_retail() || pG->stage_no == 1;
++        break;
++    case 0x54:
++        ret = !re4_disc_retail() || pG->stage_no == 2;
++        break;
++    case 0x55:
++        ret = !re4_disc_retail() || pG->stage_no == 3;
++        break;
+     }
+     return ret;
+ }
+@@ -1582,6 +2103,9 @@
+     if (type == 3 || type == 6) {
+         return (int) ((f32) price * half);
+     }
++    if (type == 9 && re4_disc_retail()) { /* PORT (patch 0187): the retail discs pay half for weapon parts too */
++        return (int) ((f32) price * half);
++    }
+     if (id == 0xFE) {
+         return (int) ((f32) price * half);
+     }
+@@ -1597,8 +2121,20 @@
+     int type;
+     int lv;
+ 
++    /* PORT (patch 0187): the retail discs pay 500,000 for the endless rocket launcher and the chicago
++       typewriter, the handcannon without ammo (the US one also without its tune-ups, as the stock 0x40) */
++    if (re4_disc_retail()) {
++        if (item->id == 0x6D || item->id == 0x34) {
++            return 500000;
++        }
++        if (!merchantEu() && (item->id == 0x40 || item->id == 0x37)) {
++            return price;
++        }
++    }
+     if (itemType(item->id) == 1 && num == 1) {
+-        price += buyupPrice(WeaponId2BulletId(item->id, item->getBulletType()), item->bullet & 0x1FFF);
++        if (!re4_disc_retail() || item->id != 0x37) {
++            price += buyupPrice(WeaponId2BulletId(item->id, item->getBulletType()), item->bullet & 0x1FFF);
++        }
+         for (type = 0; type <= 3; type++) {
+             int lvMax = 0;
+ 
+@@ -1668,6 +2204,11 @@
+     } else if (id == 0x6D || id == 0x34) {
+         price = 1000000;
+     } else {
++        /* PORT (patch 0187): the European merchant (also the Japanese discs) sells attache case M for 12,000
++           on Easy */
++        if (re4_disc_retail() && merchantEu() && pG->game_mode <= 4 && id == 0x7D) {
++            price = 12000;
++        }
+         if (itemType(id) == 1 && num == 1) {
+             u16 bid = WeaponId2BulletId(id, 0);
+             int m = WeaponId2ChargeNum(id, 1);
