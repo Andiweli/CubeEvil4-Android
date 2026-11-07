@@ -83,6 +83,8 @@ void re4ipc_set_potato(int mask);
 void re4ipc_set_aim(int bits);
 // The distance fog and the view's far plane in percent of the room's (the OUYA branch; patch 0900)
 void re4ipc_set_view_distance(int percent);
+// Only one chunk in `every` with its draws, the others as state only (RE4_GX_CHUNK_DRAWLESS); 0: all
+void re4ipc_set_drawless(int every);
 void re4ipc_set_sound_volume(int bits);
 void re4ipc_restart_game(int language);
 const char* re4ipc_disc_problem(void);

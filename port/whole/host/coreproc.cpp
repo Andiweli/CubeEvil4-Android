@@ -115,6 +115,7 @@ struct Core {
     void (*setPotato)(int);
     void (*setAim)(int);
     void (*setViewDistance)(float);
+    void (*setDrawless)(int);
     void (*setSoundVolume)(int);
     void (*restartGame)(int);
     const char* (*discProblem)(void);
@@ -792,6 +793,7 @@ bool loadCore(std::string& problem)
     bind(core.setFastCores, "re4_core_set_fast_cores");
     bind(core.setPotato, "re4_core_set_potato");
     bind(core.setViewDistance, "re4_view_distance_set", false);  // the OUYA branch (patch 0900)
+    bind(core.setDrawless, "re4_gx_set_drawless", false);         // the OUYA branch
     bind(core.setAim, "re4_core_set_aim");
     bind(core.setSoundVolume, "re4_core_set_sound_volume");
     bind(core.restartGame, "re4_core_restart_game");
@@ -924,6 +926,11 @@ void serve()
         case kSetViewDistance:
             if (core.setViewDistance) {
                 core.setViewDistance(h.a / 100.0f);
+            }
+            break;
+        case kSetDrawless:
+            if (core.setDrawless) {
+                core.setDrawless(h.a);
             }
             break;
         case kSetSoundVolume:

@@ -2314,6 +2314,12 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
   if (a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION || (a.flags & refuse) ||
       !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
     return false;
+  return !CopiesReadLater(a, b);
+}
+
+// A texture copy of `a` that `b` reads before it copies there again (what Skip(a) would get wrong)
+bool GxRenderer::CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b) const {
+  const Impl &m = *impl_;
   // the EFB copies for textures in `a` (their targets as the BP state decides them), and which copy
   // each texture map holds (0: none), from the chunk run last on
   std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
@@ -2331,7 +2337,7 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
     const std::uint32_t head = a.ops[at];
     const std::uint32_t op = head & 0xFF, n = head >> 8;
     if (at + 1 + n > a.opWords)
-      return false;
+      return true;
     const std::uint32_t *p = a.ops + at + 1;
     Re4GxTexture t;
     if (op == RE4_GX_OP_BP && n >= 1) {
@@ -2348,7 +2354,7 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
     at += 1 + n;
   }
   if (pending.empty())
-    return true;
+    return false;
   auto isPending = [&](std::uint32_t address) {
     return address && std::find(pending.begin(), pending.end(), address) != pending.end();
   };
@@ -2358,7 +2364,7 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
     const std::uint32_t head = b.ops[at];
     const std::uint32_t op = head & 0xFF, n = head >> 8;
     if (at + 1 + n > b.opWords)
-      return false;
+      return true;
     const std::uint32_t *p = b.ops + at + 1;
     Re4GxTexture t;
     if (op == RE4_GX_OP_DRAW) {
@@ -2367,16 +2373,16 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
       for (unsigned st = 0; st < stages; st++) {
         const std::uint32_t o = bp[0x28 + st / 2] >> ((st & 1) ? 12 : 0);
         if (((o >> 6) & 1) && isPending(mapCopy[o & 7]))
-          return false;
+          return true;
       }
       for (unsigned st = 0; st < indStages && st < 4; st++)
         if (isPending(mapCopy[(bp[0x27] >> (6 * st)) & 7]))
-          return false;
+          return true;
     } else if (op == RE4_GX_OP_TEXTURE) {
       if (!texture(p, n, &t))
-        return false;
+        return true;
       if ((t.flags & RE4_GX_TEX_COPY) && isPending(t.address))
-        return false;
+        return true;
     } else if (op == RE4_GX_OP_BP && n >= 1) {
       const unsigned reg = p[0] >> 24;
       bp[reg] = p[0] & 0xFFFFFF;
@@ -2390,7 +2396,7 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
     }
     at += 1 + n;
   }
-  return pending.empty();
+  return !pending.empty();
 }
 
 void GxRenderer::Skip(const Re4GxChunk &a) {

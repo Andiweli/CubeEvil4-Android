@@ -949,6 +949,11 @@ void re4ipc_set_view_distance(int percent)
     post(kSetViewDistance, percent, 0, 0);
 }
 
+void re4ipc_set_drawless(int every)
+{
+    post(kSetDrawless, every, 0, 0);
+}
+
 void re4ipc_set_sound_volume(int bits)
 {
     post(kSetSoundVolume, bits, 0, 0);

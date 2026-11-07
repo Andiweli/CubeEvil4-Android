@@ -622,6 +622,7 @@ void VIWaitForRetrace(void);
 unsigned VIGetRetraceCount(void);
 int re4probe_valid_ptr(int onThread);  // tests/game_probe.cpp
 void re4_gx_sync(void);               // runtime/gx_thread.cpp
+void re4_gx_set_drawless(int every);  // runtime/gx_decode.cpp
 }
 
 // A chunk the GP finished: with the GP on its own thread (RE4_GX_THREAD=1) once it caught up with
@@ -1141,6 +1142,42 @@ static void testGx()
         CHECK(still == 2 && chunks >= 3 && !(last & RE4_GX_CHUNK_STILL));
         if (still != 2 || chunks < 3 || (last & RE4_GX_CHUNK_STILL)) {
             re4_log("  gx still: %u of %u chunks marked, the last 0x%x", still, chunks, last);
+        }
+        re4_core_gx_detach();
+    }
+    // chunks without draws (the OUYA branch, re4_gx_set_drawless): one in two with its draws, the other
+    // marked, without draw records and vertices; with 0 all as before
+    {
+        void* fifo = (void*) (unsigned long) 0x82800000u;
+        void* xfb = (void*) (unsigned long) 0x82830000u;
+        re4gx_test_take();  // attach
+        re4probe_gx_produce(fifo, xfb, 2, 0);
+        while (const Re4GxChunk* c = re4gx_test_take()) {
+            re4_core_gx_release(c);
+        }
+        re4_gx_set_drawless(2);
+        unsigned drawless = 0, full = 0, bad = 0;
+        for (int i = 0; i < 6; i++) {
+            re4probe_gx_produce(fifo, xfb, 1, 0);
+            while (const Re4GxChunk* c = re4gx_test_take()) {
+                unsigned draws = 0;
+                for (uint32_t k = 0; k < c->opWords; k += 1 + (c->ops[k] >> 8)) {
+                    draws += (c->ops[k] & 0xFF) == RE4_GX_OP_DRAW;
+                }
+                if (c->flags & RE4_GX_CHUNK_DRAWLESS) {
+                    drawless++;
+                    bad += draws != 0 || c->vertexBytes != 0;
+                } else {
+                    full++;
+                    bad += draws == 0;
+                }
+                re4_core_gx_release(c);
+            }
+        }
+        re4_gx_set_drawless(0);
+        CHECK(drawless == 3 && full == 3 && bad == 0);
+        if (drawless != 3 || full != 3 || bad) {
+            re4_log("  gx drawless: %u without draws, %u with, %u wrong", drawless, full, bad);
         }
         re4_core_gx_detach();
     }

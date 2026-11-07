@@ -253,6 +253,18 @@ struct Chunk {
 // 10 (the OUYA branch; master 4): the core process holds a chunk until the app gives its slot back
 // (re4_core_ipc.h kGxSlots 8)
 const int kSlots = 10;
+
+// Chunks without draws (the OUYA branch, 07.11.2026; re4_gx_set_drawless): the app shows only about one
+// picture in three in r100, the core converted every one (30-50 ms of the processor's time a picture
+// on the OUYA). With `every` >= 2 only every `every`-th chunk carries its draws; the others carry
+// state, textures and copies (RE4_GX_CHUNK_DRAWLESS), the renderer runs them as state only. Never
+// while a sub screen of the game is open (its picture behind is a copy the game reads for as long as
+// it stays: re4_gx_screen), never a chunk that starts over.
+std::atomic<int> gDrawlessEvery{0};
+std::atomic<int> gGameScreen{0};  // RE4_CORE_SCREEN_* of the game's last frame (core_bridge.cpp)
+int gSinceFull;                   // drawless chunks since the last full one
+bool gChunkDrawless;              // the chunk being recorded leaves its draws out
+u32 gDrawlessChunks, gDrawlessDraws;  // since the last "GX core" line
 // kPending: ended with a display copy, waits for the game to put it on screen
 // (VISetNextFrameBuffer before VIFlush) or not (SYS_SCREEN_STOP holds the old
 // picture while an event or a room is set up)
@@ -466,6 +478,17 @@ bool beginLocked()
     } else {
         forgetTextures();
     }
+    const int every = gDrawlessEvery.load();
+    gChunkDrawless = false;
+    if (every >= 2 && !(c->view.flags & RE4_GX_CHUNK_RESET) && !(gGameScreen.load() & 1 /* RE4_CORE_SCREEN_SUB */) &&
+        gSinceFull + 1 < every) {
+        gChunkDrawless = true;
+        gSinceFull++;
+        c->view.flags |= RE4_GX_CHUNK_DRAWLESS;
+        gDrawlessChunks++;
+    } else {
+        gSinceFull = 0;
+    }
     return true;
 }
 
@@ -654,10 +677,13 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
             const long long idle = re4_idle_ns();
             re4_log("GX core: 600 chunks, %.1f ms each, of it %.1f ms waiting for the renderer, %.1f ms idle, "
                     "%.0f KB FIFO, %.0f KB display lists, %.0f vertices; %s; vertices: %.0f batches in %.1f ms on "
-                    "%d more threads (with the core thread's share), %.0f draws at once",
+                    "%d more threads (with the core thread's share), %.0f draws at once; %u chunks without draws "
+                    "(%u draws left out)",
                     gFrameMs / 600.0, gWaitMs / 600.0, (idle - gIdleAt) / 1e6 / 600.0, gFifoBytes / 1024.0 / 600.0,
                     gListBytes / 1024.0 / 600.0, gFifoVertices / 600.0, use, gJobCount / 600.0,
-                    gJobMicros.exchange(0) / 1000.0 / 600.0, gJobsOn ? gWorkers : 0, gJobInline / 600.0);
+                    gJobMicros.exchange(0) / 1000.0 / 600.0, gJobsOn ? gWorkers : 0, gJobInline / 600.0,
+                    gDrawlessChunks, gDrawlessDraws);
+            gDrawlessChunks = gDrawlessDraws = 0;
             gJobCount = gJobInline = 0;
             gIdleAt = idle;
             gTimedChunks = 0;
@@ -1897,6 +1923,10 @@ void draw(u8 op, u32 count, const u8* data, bool be, bool stable)
     if (!c || count == 0) {
         return;
     }
+    if (gChunkDrawless) {
+        gDrawlessDraws++;  // left out: the renderer runs this chunk as state only
+        return;
+    }
     if (gWorkers < 0) {
         decideWorkers();
     }
@@ -2708,6 +2738,26 @@ extern "C" {
 void re4_gx_set_fast_cores(int on)
 {
     gFastWanted.store(on ? 1 : 0);
+}
+
+// The OUYA app (re4ipc_set_drawless): from the next chunk on only every `every`-th carries its draws
+// (0 or 1: all, as before)
+void re4_gx_set_drawless(int every)
+{
+    const int want = every < 2 ? 0 : every > 6 ? 6 : every;
+    if (gDrawlessEvery.exchange(want) != want) {
+        re4_log("GX: chunks with their draws: %s (re4_gx_set_drawless)", want ? "one in so many" : "every one");
+        if (want) {
+            re4_log("GX: one chunk in %d with its draws", want);
+        }
+    }
+}
+
+// The game's screen this frame (core_bridge.cpp, RE4_CORE_SCREEN_*): no chunks without draws while a
+// sub screen is open
+void re4_gx_screen(int flags)
+{
+    gGameScreen.store(flags);
 }
 
 void re4_gx_mark(void)

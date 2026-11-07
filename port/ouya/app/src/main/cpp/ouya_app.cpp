@@ -66,6 +66,18 @@ std::unique_ptr<re4gx2::GxRenderer> gRenderer;
 int gWidth = 0, gHeight = 0;
 unsigned gFrames = 0, gChunks = 0, gSkipped = 0, gWaited = 0;
 long long gRunMicros = 0, gRunMax = 0;  // the renderer's time for the chunks of the 10 s, the longest frame
+
+// Chunks without draws (re4ipc_set_drawless, RE4_GX_CHUNK_DRAWLESS; 07.11.2026: the core converted every
+// picture of r100, the renderer showed about one in three): the renderer tells the core how many it can
+// show (from its time for a shown chunk), the core leaves the draws of the others out. Off for a while
+// after a key that may open a screen of the game (its picture behind is a copy the game keeps) and when
+// a later chunk read a copy a chunk without draws should have made (the check: CopiesReadLater).
+std::atomic<long long> gDrawlessHoldUntil{0};  // ms (NowMs): keys of the controller (nativePad)
+long long gViolationHoldUntil = 0;             // GL thread
+int gDrawlessSent = 0, gDrawlessWant = 0;      // what the core was told, what the renderer's times ask
+long long gShowMicros = 0;                     // the time of the shown chunks since the last choice
+unsigned gShowCount = 0, gDrawlessRun = 0, gViolations = 0, gDrawlessBehind = 0;
+long long gChoiceAt = 0;
 re4gx2::GxStats gStatsBefore;           // the renderer's counters at the last log line
 
 // The menu's settings (OuyaMenu.Settings, nativeSettings): the renderer's (a new renderer when they
@@ -343,6 +355,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     }
     gQueueCv.notify_all();  // room in the queue again
     const long long runStart = NowMicros();
+    // the newest chunk with its draws is shown; the core's chunks without draws only run as state
+    int show = -1;
+    for (int i = static_cast<int>(got.size()) - 1; i >= 0 && show < 0; i--)
+      if (!(got[i]->flags & RE4_GX_CHUNK_DRAWLESS))
+        show = i;
+    if (show < 0 && !got.empty())
+      gDrawlessBehind++;  // none to show this frame: the picture before stays
     for (size_t i = 0; i < got.size(); i++) {
       if (gWaitReset) {
         // chunks the core built before it started over need the old renderer's state
@@ -350,11 +369,24 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
           continue;
         gWaitReset = false;
       }
-      if (gFrameSkip && i + 1 < got.size() && gRenderer->CanSkip(*got[i], *got[i + 1])) {
+      if (got[i]->flags & RE4_GX_CHUNK_DRAWLESS) {
+        // the check: a later chunk reads a copy this one should have made
+        if (i + 1 < got.size() && gRenderer->CopiesReadLater(*got[i], *got[i + 1])) {
+          gViolations++;
+          gViolationHoldUntil = NowMs() + 3000;
+        }
+        gRenderer->Skip(*got[i]);
+        gDrawlessRun++;
+      } else if (gFrameSkip && static_cast<int>(i) < show && gRenderer->CanSkip(*got[i], *got[i + 1])) {
         gRenderer->Skip(*got[i]);
         gSkipped++;
       } else {
+        const long long t0 = NowMicros();
         gRenderer->Run(*got[i]);
+        if (static_cast<int>(i) == show) {
+          gShowMicros += NowMicros() - t0;
+          gShowCount++;
+        }
       }
       gChunks++;
     }
@@ -386,10 +418,34 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   }
   gFrames++;
   const long long now = NowMs();
+  if (gRunning && now - gChoiceAt >= 1000) {
+    // the renderer's time for a shown chunk against the game's 33 ms a picture: one in so many with
+    // its draws (1: all), changed only when two seconds in a row ask for the same
+    const double showMs = gShowCount ? gShowMicros / 1000.0 / gShowCount : 0.0;
+    int want = showMs > 0.0 ? static_cast<int>(showMs / 33.3 + 0.7) : 1;
+    want = want < 1 ? 1 : want > 4 ? 4 : want;
+    static int asked = 1;
+    if (want == asked)
+      gDrawlessWant = want;
+    asked = want;
+    gShowMicros = 0;
+    gShowCount = 0;
+    gChoiceAt = now;
+  }
+  {
+    const bool hold = !gFrameSkip || now < gDrawlessHoldUntil.load() || now < gViolationHoldUntil;
+    const int every = hold || gDrawlessWant < 2 ? 0 : gDrawlessWant;
+    if (gRunning && every != gDrawlessSent) {
+      re4ipc_set_drawless(every);
+      gDrawlessSent = every;
+    }
+  }
   if (now - gLogAt >= 10000) {
     if (gLogAt) {
-      LOG("10 s: %u display frames, %u game pictures (%u left out), the game waited %u times for the renderer",
-          gFrames, gChunks, gSkipped, gWaited);
+      LOG("10 s: %u display frames, %u game pictures (%u left out, %u without draws from the core: one in %d with "
+          "them now), the game waited %u times for the renderer; %u frames with none to show, %u copy checks failed",
+          gFrames, gChunks, gSkipped, gDrawlessRun, gDrawlessSent ? gDrawlessSent : 1, gWaited, gDrawlessBehind,
+          gViolations);
       if (gRenderer) {
         // where the renderer's time went: the chunks (per display frame, the longest), shaders built,
         // textures decoded (a counter that went down: a new renderer)
@@ -409,6 +465,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
       }
     }
     gFrames = gChunks = gSkipped = gWaited = 0;
+    gDrawlessRun = gDrawlessBehind = gViolations = 0;
     gRunMicros = gRunMax = 0;
     gLogAt = now;
   }
@@ -423,6 +480,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     return;
   auto clampS = [](jint v) { return static_cast<int8_t>(v < -127 ? -127 : v > 127 ? 127 : v); };
   auto clampU = [](jint v) { return static_cast<uint8_t>(v < 0 ? 0 : v > 255 ? 255 : v); };
+  // START, Y, X, Z, and A without aiming (R): may open a screen of the game (inventory, map, the
+  // merchant, the typewriter): every chunk with its draws for a while (its picture behind is a copy)
+  static int last = 0;
+  const int pressed = buttons & ~last;
+  last = buttons;
+  if ((pressed & (0x1000 | 0x0800 | 0x0400 | 0x0010)) || ((pressed & 0x0100) && !(buttons & 0x0020)))
+    gDrawlessHoldUntil = NowMs() + 800;
   Re4CorePad pad{static_cast<uint16_t>(buttons), clampS(stickX),   clampS(stickY), clampS(substickX),
                  clampS(substickY),              clampU(triggerL), clampU(triggerR)};
   re4ipc_pad(&pad);

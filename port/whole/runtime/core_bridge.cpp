@@ -39,6 +39,8 @@ extern cObjMgr ObjMgr;
 extern "C" int re4_dvd_inserted_disc(void);
 extern "C" int re4_valid_port_ptr(const void* p);
 
+extern "C" void re4_gx_screen(int flags);  // runtime/gx_decode.cpp
+
 namespace {
 
 // The faces' running shapes (CalculateShape_new per model info) only for the bridge view
@@ -315,6 +317,7 @@ extern "C" void re4_bridge_capture(Re4CoreSnapshot* s)
     s->screen = (StaFlagChk(g, STA_SUB_SCRN) ? RE4_CORE_SCREEN_SUB : 0) |
                 (StaFlagChk(g, STA_EVENT) ? RE4_CORE_SCREEN_EVENT : 0) |
                 (DbgFlagChk(g, DBG_DBG_CAM) ? RE4_CORE_SCREEN_DEBUGCAM : 0);
+    re4_gx_screen(s->screen);  // the OUYA branch: no chunks without draws in a sub screen (gx_decode.cpp)
     // a sub screen draws its own items with its own camera in pG->Camera
     // (sscrn.cpp keeps the world camera aside); the world behind it is the
     // controller's camera

@@ -80,6 +80,7 @@ enum MsgType : uint32_t {
     kSetViewAspect = 39,   // a = the 3D's aspect x 10000, 0 the game's (no reply; re4_core_set_view_aspect, "Native")
     kSetHudLayout = 40,    // a = rows, b = stretch x 10000, c = flags (no reply; re4_core_set_hud_layout)
     kSetViewDistance = 41, // a = percent (the OUYA branch's menu; no reply; re4_view_distance_set, patch 0900)
+    kSetDrawless = 42,     // a = one chunk in a with its draws, 0 all (the OUYA app; no reply; re4_gx_set_drawless)
 };
 
 struct MsgHeader {
