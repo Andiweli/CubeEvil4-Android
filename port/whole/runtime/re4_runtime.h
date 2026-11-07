@@ -205,6 +205,8 @@ int re4_os_hw_interrupt(short interrupt);
 /* VALID_PTR outside MEM1 (patch 0037): 1 for the host stacks of the OS
  * threads and the static data of the game libraries. */
 int re4_valid_port_ptr(const void* p);
+/* only the game's libraries, safe on any thread (the GP thread, gx_thread.cpp) */
+int re4_game_library_ptr(const void* p);
 /* The emulated graphics processor (gx_fifo.cpp): its pending PE interrupts
  * (draw done, token) are delivered when a thread starts waiting and with the
  * video retraces, the moments the GP would have caught up on the GameCube. */

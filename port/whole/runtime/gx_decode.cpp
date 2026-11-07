@@ -2572,7 +2572,67 @@ void feed(const uint8_t* bytes, size_t n)
     }
 }
 
+// The port's calls between the bytes (gx_internal.h Event): at once, or on the GP thread in their
+// place in the stream (gx_thread.cpp)
+void apply(const Event& e)
+{
+    switch (e.kind) {
+    case Event::kViNext: {
+        std::lock_guard<std::mutex> lock(gMutex);
+        gViNext = (u32) e.pointer & 0x03FFFFE0;  // as BP 0x4B holds a copy destination
+        break;
+    }
+    case Event::kViBlack: {
+        std::lock_guard<std::mutex> lock(gMutex);
+        gViBlack = e.value != 0;
+        break;
+    }
+    case Event::kViFlush: {
+        drain();
+        std::lock_guard<std::mutex> lock(gMutex);
+        publishPendingLocked();
+        break;
+    }
+    case Event::kMark:
+        // the chunk being recorded carries the mark; the next one starts over, so
+        // that the app can keep it (and those after it) as files of their own
+        if (Chunk* c = chunk()) {
+            c->view.flags |= RE4_GX_CHUNK_MARK;
+        }
+        gNeedReset = true;
+        break;
+    case Event::kHostList: {
+        HostList h;
+        h.size = e.value;
+        h.hash = e.hash;
+        gHostLists[e.pointer] = h;
+        gStats.hostLists++;
+        break;
+    }
+    }
+}
+
 }  // namespace re4gx
+
+namespace {
+
+// An event at once (the game's thread decodes) or in its place in the stream (the GP thread)
+void dispatch(re4gx::Event::Kind kind, uintptr_t pointer = 0, u32 value = 0, u64 hash = 0)
+{
+    re4gx::Event e;
+    e.kind = kind;
+    e.at = 0;
+    e.pointer = pointer;
+    e.value = value;
+    e.hash = hash;
+    if (re4gx::gThreaded) {
+        re4gx::post(e);
+    } else {
+        re4gx::apply(e);
+    }
+}
+
+}  // namespace
 
 extern "C" {
 
@@ -2586,12 +2646,7 @@ void re4_gx_set_fast_cores(int on)
 
 void re4_gx_mark(void)
 {
-    // the chunk being recorded carries the mark; the next one starts over, so
-    // that the app can keep it (and those after it) as files of their own
-    if (Chunk* c = chunk()) {
-        c->view.flags |= RE4_GX_CHUNK_MARK;
-    }
-    gNeedReset = true;
+    dispatch(re4gx::Event::kMark);
 }
 
 void re4_gx_still(int on)
@@ -2613,13 +2668,10 @@ int re4_gx_wide_now(void)
     return gWide.load();
 }
 
+// the bytes as the game registers them (the GP thread may read the list later)
 void re4_gx_host_order_list(const void* list, unsigned int size)
 {
-    HostList h;
-    h.size = size;
-    h.hash = hashBytes((const u8*) list, size, 0);
-    gHostLists[(uintptr_t) list] = h;
-    gStats.hostLists++;
+    dispatch(re4gx::Event::kHostList, (uintptr_t) list, size, hashBytes((const u8*) list, size, 0));
 }
 
 const Re4GxChunk* re4_core_gx_acquire(void)
@@ -2651,25 +2703,21 @@ void re4_core_gx_release(const Re4GxChunk* chunk)
 // (VISetNextFrameBuffer, virtual or physical address) ...
 void re4_gx_vi_next(const void* fb)
 {
-    std::lock_guard<std::mutex> lock(gMutex);
-    gViNext = (u32) (uintptr_t) fb & 0x03FFFFE0;  // as BP 0x4B holds a copy destination
+    dispatch(re4gx::Event::kViNext, (uintptr_t) fb);
 }
 
 // VISetBlack as VIFlush applies it (vi.cpp): the pictures from now on are
 // black on screen until it is lifted
 void re4_gx_vi_black(int black)
 {
-    std::lock_guard<std::mutex> lock(gMutex);
-    gViBlack = black != 0;
+    dispatch(re4gx::Event::kViBlack, 0, black != 0);
 }
 
 // ... and VIFlush, which ends the game's frame (Render_swap): the display copy
 // made before it is shown, or held when the VI stays on the other XFB.
 void re4_gx_vi_flush(void)
 {
-    re4gx::drain();
-    std::lock_guard<std::mutex> lock(gMutex);
-    publishPendingLocked();
+    dispatch(re4gx::Event::kViFlush);
 }
 
 void re4_core_gx_notify(void (*notify)(void))
@@ -2689,7 +2737,7 @@ void re4_core_gx_detach(void)
 // writes memory a draw before read).
 void re4_gx_wait_jobs(void)
 {
-    re4gx::drain();
+    re4gx::catchUp();
     re4gx::finishJobs();
 }
 
@@ -2697,6 +2745,7 @@ void re4_gx_wait_jobs(void)
 // (0: every draw on the core thread) or as by default (-1). Returns the workers running.
 int re4_gx_threads(int n)
 {
+    re4gx::catchUp();
     re4gx::finishJobs();
     if (gWorkers < 0) {
         gWorkers = 0;
@@ -2714,7 +2763,7 @@ int re4_gx_threads(int n)
 // Tests (runtime_tests.cpp, gx_probe.cpp): what the GP has seen.
 void re4_gx_stats(unsigned out[11])
 {
-    re4gx::drain();
+    re4gx::catchUp();
     re4gx::finishJobs();
     const u32 v[11] = {gStats.bytes, gStats.commands, gStats.bp, gStats.cp, gStats.xf, gStats.xfIndexed,
                        gStats.draws, gStats.vertices, gStats.calls, gStats.unknown, gStats.dlBytes};
@@ -2726,7 +2775,7 @@ void re4_gx_stats(unsigned out[11])
 // vertices.
 void re4_gx_stats2(unsigned out[9])
 {
-    re4gx::drain();
+    re4gx::catchUp();
     re4gx::finishJobs();
     const u32 v[9] = {gStats.xfbCopies, gStats.texCopies, gStats.tlutLoads, gStats.textures, gStats.textureBytes,
                       gStats.chunks, gStats.dropped, gStats.hostLists, gStats.skipped};
@@ -2737,7 +2786,7 @@ void re4_gx_stats2(unsigned out[9])
 // asks; returns the mode before
 int re4_gx_texture_check(int sampled)
 {
-    re4gx::drain();
+    re4gx::catchUp();
     const int was = gTexturesSampled ? 1 : 0;
     if (sampled >= 0) {
         gTexturesSampled = sampled != 0;
@@ -2750,7 +2799,7 @@ int re4_gx_texture_check(int sampled)
 // -1 only asks; returns the mode before
 int re4_gx_compact(int on)
 {
-    re4gx::drain();
+    re4gx::catchUp();
     const int was = gCompact ? 1 : 0;
     if (on >= 0 && (on != 0) != gCompact) {
         re4gx::finishJobs();  // batches of the other form are converted first
@@ -2765,13 +2814,13 @@ int re4_gx_compact(int on)
 
 unsigned re4_gx_bp(unsigned reg)
 {
-    re4gx::drain();
+    re4gx::catchUp();
     return gGp.bp[reg & 0xFF];
 }
 
 unsigned re4_gx_xf(unsigned address)
 {
-    re4gx::drain();
+    re4gx::catchUp();
     u32* slot = xfSlot(address);
     return slot ? *slot : 0;
 }

@@ -94,6 +94,9 @@ param(
     [switch]$SkipSetup,
     [switch]$SkipData,
     [switch]$NoCopy,
+    # the disc on the device: default the probe's own copy ($remote/data); the OUYA app's
+    # (/sdcard/RE4-OUYA, with -SkipData: no second 1.3 GB copy, 07.11.2026)
+    [string]$RemoteData = '',
     [string]$Distro = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -101,7 +104,8 @@ $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $stage = Join-Path $repo 'port\build\ouya-probe'
 $remote = '/data/local/tmp/re4-ouya'
 $remoteBin = "$remote/bin"
-$remoteDisc = "$remote/data/disc0"
+if (-not $RemoteData) { $RemoteData = "$remote/data" }
+$remoteDisc = "$RemoteData/disc0"
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $report = Join-Path $OutDir 'bericht.txt'
 # results of an earlier run must not pass for this one's
@@ -283,6 +287,8 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
     Say "3. Geraet $Serial`: $model, Android $release (API $sdk)"
     Say "   Speicher /data: $(((Invoke-Adb shell df /data) | Where-Object { $_.Trim() } | Select-Object -Last 1))"
     Stop-Probe
+    # the OUYA app would share the processor with the probe
+    Invoke-Adb shell am force-stop com.ast.cubeevil4.ouya | Out-Null
 
     Say '3. Probe auf das Geraet kopieren ...'
     Invoke-Adb shell rm -r $remoteBin | Out-Null
@@ -300,7 +306,7 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
         if ($ready -ne "$discFiles") {
             Say "3. Disc 1 auf das Geraet kopieren ($discFiles Dateien, etwa 1,4 GB; einige Minuten) ..."
             Invoke-Adb shell rm -r $remoteDisc | Out-Null
-            Invoke-Adb shell mkdir "$remote/data" | Out-Null
+            Invoke-Adb shell mkdir $RemoteData | Out-Null
             $pushed = Invoke-Adb push $disc $remoteDisc
             Say "   $(($pushed | Select-Object -Last 1))"
             if (-not (Test-Remote "$remoteDisc/sys/fst.bin")) {
@@ -344,7 +350,7 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
         if ($runNoCopy) { $copyArg = ' --no-copy' }
         # where the game's thread spends its time (port/tools/probe_profile.py names the functions)
         $profileRemote = "$remote/profile-$run.txt"
-        $command = "cd $remoteBin && LD_LIBRARY_PATH=$remoteBin $($settings -join ' ') ./re4_probe --data $remote/data " +
+        $command = "cd $remoteBin && LD_LIBRARY_PATH=$remoteBin $($settings -join ' ') ./re4_probe --data $RemoteData " +
             "--seconds $Seconds$copyArg --profile $profileRemote 2>&1"
         $log = Join-Path $OutDir "probe-$run.log"
         $label = if ($fast) { 'ohne Bremse' } else { 'Echtzeit' }

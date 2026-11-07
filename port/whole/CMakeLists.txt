@@ -224,6 +224,7 @@ add_library(re4_platform_obj OBJECT
     runtime/gci.cpp
     runtime/gx_fifo.cpp
     runtime/gx_decode.cpp
+    runtime/gx_thread.cpp
     runtime/host_file.cpp
     runtime/log.cpp
     runtime/mem1.cpp

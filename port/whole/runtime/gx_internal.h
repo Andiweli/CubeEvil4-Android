@@ -42,6 +42,30 @@ void drain();
 // memory the GP read may change (a display list recorded over it).
 void finishJobs();
 
+// The port's calls between the bytes of the stream (VI, marks, host-order lists), applied in
+// their place: at once, or by the GP thread (gx_thread.cpp)
+struct Event {
+    enum Kind { kViNext, kViBlack, kViFlush, kMark, kHostList } kind;
+    uint64_t at;        // after this many bytes of the stream (post())
+    uintptr_t pointer;  // kViNext: the XFB; kHostList: the list
+    uint32_t value;     // kViBlack: black; kHostList: its size
+    uint64_t hash;      // kHostList: its bytes when the game registered it
+};
+void apply(const Event& e);
+
+// gx_thread.cpp -----------------------------------------------------------
+
+// The GP on a thread of its own (RE4_GX_THREAD=1, re4_gx_threaded; the OUYA branch, 21.10.2026,
+// set up again on master's decoder 07.11.2026): the FIFO's bytes and the events go through a ring
+// to that thread
+extern bool gThreaded;
+void ringPut(const uint8_t* bytes, size_t n);  // the game's thread (gx_fifo.cpp)
+void post(Event e);                            // an event after the bytes put so far
+void sync();  // waits until the GP thread has worked through all of it
+// Before the game's thread reads or changes what the GP works with: the GP caught up (and with
+// the GP thread idle, its vertex jobs done)
+void catchUp();
+
 }  // namespace re4gx
 
 #endif
