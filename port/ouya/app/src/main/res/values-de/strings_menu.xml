@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">CubeEvil4 Ingame-Menü</string>
+    <string name="ingame_back">Zurück zum Spiel</string>
+    <string name="ingame_graphics">Grafik</string>
+    <string name="ingame_resolution">Auflösung</string>
+    <string name="ingame_on">An</string>
+    <string name="ingame_off">Aus</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">Potato-Modus</string>
+    <string name="ingame_potato_weather">Wettereffekte</string>
+    <string name="ingame_potato_special">Spezialeffekte</string>
+    <string name="ingame_potato_help">Wettereffekte: Nebelschwaden, Regen, Wasserspritzer. Spezialeffekte: Dampf, Hitzeflimmern, Wasser. Aus spart Grafikleistung auf schwächeren Geräten; Mündungsfeuer, Blut, Explosionen, Feuer, Treffer und Hinweise bleiben, ebenso alle Effekte in Zwischensequenzen.</string>
+    <string name="ingame_comfort">Komfortsteuerung</string>
+    <string name="ingame_auto_aim">Auto-Zielen</string>
+    <string name="ingame_always_run">Immer laufen</string>
+    <string name="ingame_far_camera">Kamera weiter weg</string>
+    <string name="ingame_auto_aim_help">Auto-Zielen: Beim Anlegen der Waffe springt das Ziel auf den nächsten Gegner vor dir und folgt ihm einen Moment (die eingebaute Zielhilfe des Spiels).</string>
+    <string name="ingame_always_run_help">Immer laufen: Leon läuft, sobald du dich bewegst; halte die Lauftaste (z. B. B), um stattdessen zu gehen.</string>
+    <string name="ingame_far_camera_help">Hält die Schulterkamera beim Laufen und Stehen etwas weiter hinter Leon. Beim Zielen und an engen Stellen kommt sie wie bisher nah heran; dazwischen gleitet sie weich.</string>
+    <string name="ouya_view_distance">Sichtweite</string>
+    <string name="ouya_colours">Farbberechnung</string>
+    <string name="ouya_colours_simple">Vereinfacht</string>
+    <string name="ouya_colours_exact">Genau</string>
+    <string name="ouya_graphics_help">Auflösung: das Bild des Spiels als Anteil der 640 × 528 Punkte des GameCube; weniger ist schneller. Die vereinfachte Farbberechnung spart Grafikarbeit; Farben können ganz leicht abweichen. Sichtweite: wie weit du bis zum Distanznebel siehst; was dahinter liegt, wird nicht gezeichnet. Sie wirkt ab der nächsten Tür oder Zwischensequenz.</string>
+</resources>

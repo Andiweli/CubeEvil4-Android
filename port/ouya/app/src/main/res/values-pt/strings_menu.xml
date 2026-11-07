@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">CubeEvil4 · Menu do jogo</string>
+    <string name="ingame_back">Voltar ao jogo</string>
+    <string name="ingame_graphics">Gráficos</string>
+    <string name="ingame_resolution">Resolução</string>
+    <string name="ingame_on">Ativado</string>
+    <string name="ingame_off">Desligado</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">Modo Potato</string>
+    <string name="ingame_potato_weather">Efeitos climáticos</string>
+    <string name="ingame_potato_special">Efeitos especiais</string>
+    <string name="ingame_potato_help">Efeitos climáticos: bancos de neblina, chuva, respingos de água. Efeitos especiais: vapor, distorção de calor, água. Desligados, poupam trabalho gráfico em aparelhos mais fracos; clarões de tiro, sangue, explosões, fogo, impactos e dicas continuam, assim como todos os efeitos das cenas.</string>
+    <string name="ingame_comfort">Controles de conforto</string>
+    <string name="ingame_auto_aim">Mira automática</string>
+    <string name="ingame_always_run">Correr sempre</string>
+    <string name="ingame_far_camera">Câmara afastada</string>
+    <string name="ingame_auto_aim_help">Mira automática: ao erguer a arma, a mira salta para o inimigo mais próximo à sua frente e o segue por um momento (a assistência de mira do próprio jogo).</string>
+    <string name="ingame_always_run_help">Correr sempre: Leon corre sempre que você se move; segure o botão de correr (ex.: B) para andar.</string>
+    <string name="ingame_far_camera_help">Mantém a câmara de ombro um pouco mais atrás de Leon ao andar e parado. Ao apontar e em sítios apertados aproxima-se como antes; entre os dois move-se suavemente.</string>
+</resources>

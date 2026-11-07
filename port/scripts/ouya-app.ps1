@@ -89,7 +89,7 @@ Say "Repository: $repo"
 # ---- 1. the game core for Android 4.1 (WSL) ---------------------------------------------------
 if (-not $SkipCore) {
     $repoWsl = ConvertTo-WslPath $repo
-    Say '1. Spielkern fuer Android 4.1 bauen (WSL, NDK r23c) ...'
+    Say '1. Spielkern fuer Android 4.1 bauen (WSL, Compiler des NDK r28c, Bibliotheken des r23c) ...'
     $code = Invoke-Logged (Join-Path $OutDir 'kern-build.log') {
         wsl.exe @wslBase --exec bash "$repoWsl/port/tools/whole_build_android.sh" --ouya --source $repoWsl `
             --work re4-ouya --stage "$repoWsl/port/build/ouya-probe"

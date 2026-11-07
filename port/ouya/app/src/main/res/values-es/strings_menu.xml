@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">CubeEvil4 · Menú del juego</string>
+    <string name="ingame_back">Volver al juego</string>
+    <string name="ingame_graphics">Gráficos</string>
+    <string name="ingame_resolution">Resolución</string>
+    <string name="ingame_on">Activado</string>
+    <string name="ingame_off">Desactivado</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">Modo Potato</string>
+    <string name="ingame_potato_weather">Efectos climáticos</string>
+    <string name="ingame_potato_special">Efectos especiales</string>
+    <string name="ingame_potato_help">Efectos climáticos: bancos de niebla, lluvia, salpicaduras de agua. Efectos especiales: vapor, calima, agua. Desactivarlos ahorra trabajo gráfico en dispositivos menos potentes; los fogonazos, la sangre, las explosiones, el fuego, los impactos y las pistas se mantienen, igual que todos los efectos de las escenas.</string>
+    <string name="ingame_comfort">Controles de comodidad</string>
+    <string name="ingame_auto_aim">Apuntado automático</string>
+    <string name="ingame_always_run">Correr siempre</string>
+    <string name="ingame_far_camera">Cámara lejana</string>
+    <string name="ingame_auto_aim_help">Apuntado automático: al levantar el arma, la mira salta al enemigo más cercano delante de ti y lo sigue un momento (la ayuda de puntería del propio juego).</string>
+    <string name="ingame_always_run_help">Correr siempre: Leon corre siempre que te mueves; mantén el botón de correr (p. ej. B) para caminar.</string>
+    <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon al caminar y al estar quieto. Al apuntar y en sitios estrechos se acerca como antes; entre ambos se mueve con suavidad.</string>
+</resources>

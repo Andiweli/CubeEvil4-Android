@@ -42,9 +42,8 @@
 
 namespace {
 
+// (the Potato switches and the view distance come from the menu's settings, nativeSettings)
 const char *const kCoreSettings[][2] = {
-    {"RE4_POTATO", "3"},                  // weather and special effects left out (both switches)
-    {"RE4_VIEW_DISTANCE", "0.5"},         // the distance fog and the far plane at half (patch 0900)
     {"RE4_GX_COMPACT", "1"},              // the compact vertex, read by the renderer as it is
     {"RE4_GX_TEXTURE_CHECK", "sampled"},  // textures checked by samples from frame to frame
     {"RE4_DEBUG_HUD", "0"},               // none of the debug build's displays
@@ -58,6 +57,13 @@ std::atomic<bool> gRunning{false};
 std::unique_ptr<re4gx2::GxRenderer> gRenderer;
 int gWidth = 0, gHeight = 0;
 unsigned gFrames = 0, gChunks = 0, gSkipped = 0, gWaited = 0;
+
+// The menu's settings (OuyaMenu.Settings, nativeSettings): the renderer's (a new renderer when they
+// change, on the GL thread) and the core's (the environment before its start, then messages)
+std::atomic<int> gWantEighths{6};
+std::atomic<bool> gWantFastTev{true};
+int gViewPercent = 50, gPotato = 3, gAim = 100 << 8;  // under gLock
+bool gWaitReset = false;  // GL thread: a new renderer draws from the next chunk that starts over
 
 // A chunk copied out of the core process's shared memory (the view's pointers into the vectors)
 struct Owned {
@@ -219,6 +225,11 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
   const std::string data = Text(env, dataDir);
   for (const auto &s : kCoreSettings)
     setenv(s[0], s[1], 1);
+  char value[32];
+  snprintf(value, sizeof(value), "%.2f", gViewPercent / 100.0);
+  setenv("RE4_VIEW_DISTANCE", value, 1);  // the distance fog and the far plane (patch 0900)
+  snprintf(value, sizeof(value), "%d", gPotato);
+  setenv("RE4_POTATO", value, 1);  // bit 0 weather, bit 1 special effects left out
   setenv("RE4_LOG_FILE", (data + "/core.log").c_str(), 1);
   ReadSettings(data);
   // the core process: a program among the app's libraries (extracted at installation; the folder from
@@ -241,10 +252,68 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
     return env->NewStringUTF(gProblem.c_str());
   }
   gRunning = true;
+  re4ipc_set_aim(gAim);  // auto aim, always run, far camera (no environment for them)
   std::thread(Fetch).detach();
   if (!StartSound())
     LOG("no sound (OpenSL ES)");
   return env->NewStringUTF("");
+}
+
+namespace {
+
+int gHaveEighths = 0;
+bool gHaveFastTev = false;
+
+// The renderer with the menu's settings (GL thread)
+void MakeRenderer() {
+  re4gx2::GxOptions options;
+  gHaveFastTev = gWantFastTev.load();
+  gHaveEighths = gWantEighths.load();
+  options.fastTev = gHaveFastTev;              // the TEV in fractions
+  options.resolutionEighths = gHaveEighths;    // 6: 480 x 396
+  options.maxLights = 2;                       // the two strongest lights per vertex
+  gRenderer.reset(new re4gx2::GxRenderer);
+  gRenderer->SetOptions(options);  // RE4_GX2_* in the environment (settings.txt) still override them
+  std::string error;
+  if (!gRenderer->Init(1, &error)) {
+    LOG("renderer: %s", error.c_str());
+    gRenderer.reset();
+  } else {
+    LOG("renderer: resolution %d/8, colour calculation %s", gHaveEighths, gHaveFastTev ? "simplified" : "exact");
+  }
+}
+
+// The core sends everything again (a full state from the next chunk on); the renderer waits for it
+void StartOver() {
+  std::lock_guard<std::mutex> l(gQueueLock);
+  gDetach = true;
+  gWaitReset = true;
+}
+
+}  // namespace
+
+// The menu's settings (OuyaMenu.Settings): before the start they go into the core's environment,
+// afterwards to the core process at once; the renderer's are taken by the next display frame
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeSettings(JNIEnv *, jclass, jint eighths,
+                                                                                         jboolean fastTev,
+                                                                                         jint viewPercent, jint potato,
+                                                                                         jint aim) {
+  gWantEighths = eighths < 4 ? 4 : eighths > 8 ? 8 : static_cast<int>(eighths);
+  gWantFastTev = fastTev == JNI_TRUE;
+  std::lock_guard<std::mutex> l(gLock);
+  const bool view = viewPercent != gViewPercent, pot = potato != gPotato, aimed = aim != gAim;
+  gViewPercent = viewPercent < 20 ? 20 : viewPercent > 100 ? 100 : static_cast<int>(viewPercent);
+  gPotato = potato & 3;
+  gAim = aim;
+  if (!gRunning)
+    return;
+  if (view)
+    re4ipc_set_view_distance(gViewPercent);
+  if (pot)
+    re4ipc_set_potato(gPotato);
+  if (aimed)
+    re4ipc_set_aim(gAim);
+  LOG("settings: view %d %%, potato %d, aim 0x%x", gViewPercent, gPotato, gAim);
 }
 
 // A new EGL context: a renderer of its own (the chunks begin anew with a full state)
@@ -252,20 +321,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   if (gRenderer) {
     // the GL objects went with the old context; the core sends everything again after a detach
     (void) gRenderer.release();
-    std::lock_guard<std::mutex> l(gQueueLock);
-    gDetach = true;
+    StartOver();
   }
-  re4gx2::GxOptions options;
-  options.fastTev = true;            // the TEV in fractions
-  options.resolutionEighths = 6;     // 480 x 396
-  options.maxLights = 2;             // the two strongest lights per vertex
-  gRenderer.reset(new re4gx2::GxRenderer);
-  gRenderer->SetOptions(options);    // RE4_GX2_* in the environment (settings.txt) still override them
-  std::string error;
-  if (!gRenderer->Init(1, &error)) {
-    LOG("renderer: %s", error.c_str());
-    gRenderer.reset();
-  }
+  MakeRenderer();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeSurfaceChanged(JNIEnv *, jclass,
@@ -276,6 +334,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
 
 // One frame of the display (GLSurfaceView's render thread)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeFrame(JNIEnv *, jclass) {
+  if (gRenderer && (gWantEighths != gHaveEighths || gWantFastTev != gHaveFastTev)) {
+    // the menu changed the resolution or the colour calculation: a new renderer, the state anew
+    gRenderer.reset();
+    MakeRenderer();
+    StartOver();
+  }
   if (gRenderer && gRunning) {
     // the chunks taken since the last frame; none yet: wait a little (the game makes about 30 a second)
     std::deque<std::unique_ptr<Owned>> got;
@@ -287,6 +351,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     }
     gQueueCv.notify_all();  // room in the queue again
     for (size_t i = 0; i < got.size(); i++) {
+      if (gWaitReset) {
+        // chunks the core built before it started over need the old renderer's state
+        if (!(got[i]->view.flags & RE4_GX_CHUNK_RESET))
+          continue;
+        gWaitReset = false;
+      }
       if (i + 1 < got.size() && gRenderer->CanSkip(got[i]->view, got[i + 1]->view)) {
         gRenderer->Skip(got[i]->view);
         gSkipped++;

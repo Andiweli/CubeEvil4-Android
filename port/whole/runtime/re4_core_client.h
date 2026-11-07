@@ -81,6 +81,8 @@ void re4ipc_slash(float tilt);
 void re4ipc_set_fast_cores(int on);
 void re4ipc_set_potato(int mask);
 void re4ipc_set_aim(int bits);
+// The distance fog and the view's far plane in percent of the room's (the OUYA branch; patch 0900)
+void re4ipc_set_view_distance(int percent);
 void re4ipc_set_sound_volume(int bits);
 void re4ipc_restart_game(int language);
 const char* re4ipc_disc_problem(void);

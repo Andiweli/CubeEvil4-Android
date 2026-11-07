@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">CubeEvil4 · Игровое меню</string>
+    <string name="ingame_back">Вернуться в игру</string>
+    <string name="ingame_graphics">Графика</string>
+    <string name="ingame_resolution">Разрешение</string>
+    <string name="ingame_on">Вкл.</string>
+    <string name="ingame_off">Выкл.</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">Режим Potato</string>
+    <string name="ingame_potato_weather">Погодные эффекты</string>
+    <string name="ingame_potato_special">Спецэффекты</string>
+    <string name="ingame_potato_help">Погодные эффекты: клубы тумана, дождь, брызги воды. Спецэффекты: пар, марево, вода. Отключение снижает нагрузку на графику на слабых устройствах; вспышки выстрелов, кровь, взрывы, огонь, попадания и подсказки остаются, как и все эффекты в роликах.</string>
+    <string name="ingame_comfort">Удобное управление</string>
+    <string name="ingame_auto_aim">Автоприцел</string>
+    <string name="ingame_always_run">Всегда бежать</string>
+    <string name="ingame_far_camera">Дальняя камера</string>
+    <string name="ingame_auto_aim_help">Автоприцел: когда вы поднимаете оружие, прицел перескакивает на ближайшего врага впереди и ненадолго следует за ним (встроенная помощь прицеливания игры).</string>
+    <string name="ingame_always_run_help">Всегда бежать: Леон бежит, как только вы двигаетесь; удерживайте кнопку бега (например, B), чтобы идти шагом.</string>
+    <string name="ingame_far_camera_help">Держит камеру из-за плеча чуть дальше позади Леона при ходьбе и на месте. При прицеливании и в тесных местах она приближается, как раньше; переходы плавные.</string>
+</resources>

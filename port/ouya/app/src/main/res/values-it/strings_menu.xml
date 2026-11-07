@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">CubeEvil4 · Menu di gioco</string>
+    <string name="ingame_back">Torna al gioco</string>
+    <string name="ingame_graphics">Grafica</string>
+    <string name="ingame_resolution">Risoluzione</string>
+    <string name="ingame_on">Attivo</string>
+    <string name="ingame_off">Disattivato</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">Modalità Potato</string>
+    <string name="ingame_potato_weather">Effetti meteo</string>
+    <string name="ingame_potato_special">Effetti speciali</string>
+    <string name="ingame_potato_help">Effetti meteo: banchi di nebbia, pioggia, schizzi d\'acqua. Effetti speciali: vapore, distorsione da calore, acqua. Disattivarli riduce il lavoro grafico sui dispositivi meno potenti; vampe degli spari, sangue, esplosioni, fuoco, colpi e indicazioni restano, come tutti gli effetti dei filmati.</string>
+    <string name="ingame_comfort">Comandi comfort</string>
+    <string name="ingame_auto_aim">Mira automatica</string>
+    <string name="ingame_always_run">Corri sempre</string>
+    <string name="ingame_far_camera">Telecamera lontana</string>
+    <string name="ingame_auto_aim_help">Mira automatica: quando alzi l’arma, il mirino salta sul nemico più vicino davanti a te e lo segue per un momento (l’aiuto alla mira del gioco).</string>
+    <string name="ingame_always_run_help">Corri sempre: Leon corre ogni volta che ti muovi; tieni premuto il tasto corsa (es. B) per camminare.</string>
+    <string name="ingame_far_camera_help">Tiene la telecamera sulla spalla un po\' più lontana dietro Leon mentre cammina e sta fermo. Mirando e nei punti stretti si avvicina come prima; nel mezzo si muove in modo fluido.</string>
+</resources>

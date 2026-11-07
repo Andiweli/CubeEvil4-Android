@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">CubeEvil4 游戏内菜单</string>
+    <string name="ingame_back">返回游戏</string>
+    <string name="ingame_graphics">图形</string>
+    <string name="ingame_resolution">分辨率</string>
+    <string name="ingame_on">开</string>
+    <string name="ingame_off">关</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">土豆模式</string>
+    <string name="ingame_potato_weather">天气效果</string>
+    <string name="ingame_potato_special">特殊效果</string>
+    <string name="ingame_potato_help">天气效果：雾气、雨、水花。特殊效果：蒸汽、热浪扭曲、水面。关闭可减轻性能较弱设备的图形负担；枪口火光、血迹、爆炸、火焰、命中效果和提示保留，过场动画中的所有效果也保留。</string>
+    <string name="ingame_comfort">便捷操作</string>
+    <string name="ingame_auto_aim">自动瞄准</string>
+    <string name="ingame_always_run">始终奔跑</string>
+    <string name="ingame_far_camera">远距离镜头</string>
+    <string name="ingame_auto_aim_help">自动瞄准：举起武器时，准星会跳到你前方最近的敌人身上并短暂跟随（游戏自带的瞄准辅助）。</string>
+    <string name="ingame_always_run_help">始终奔跑：只要移动，里昂就会奔跑；按住奔跑键（例如 B）即可改为行走。</string>
+    <string name="ingame_far_camera_help">行走和站立时让肩后镜头离 Leon 稍远一些。瞄准时和狭窄处会像以前一样靠近；两者之间平滑过渡。</string>
+</resources>

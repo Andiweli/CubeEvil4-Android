@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">Menu Dalam Game CubeEvil4</string>
+    <string name="ingame_back">Kembali ke game</string>
+    <string name="ingame_graphics">Grafis</string>
+    <string name="ingame_resolution">Resolusi</string>
+    <string name="ingame_on">Aktif</string>
+    <string name="ingame_off">Nonaktif</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">Mode kentang</string>
+    <string name="ingame_potato_weather">Efek cuaca</string>
+    <string name="ingame_potato_special">Efek khusus</string>
+    <string name="ingame_potato_help">Efek cuaca: kabut tebal, hujan, percikan air. Efek khusus: uap, getaran udara panas, air. Jika dinonaktifkan, beban grafis berkurang di perangkat yang lebih lemah; kilatan tembakan, darah, ledakan, api, efek kena tembak dan petunjuk tetap ada, begitu pula semua efek dalam adegan cerita.</string>
+    <string name="ingame_comfort">Kontrol Nyaman</string>
+    <string name="ingame_auto_aim">Bidik otomatis</string>
+    <string name="ingame_always_run">Selalu lari</string>
+    <string name="ingame_far_camera">Kamera jauh</string>
+    <string name="ingame_auto_aim_help">Bidik otomatis: saat Anda mengangkat senjata, bidikan melompat ke musuh terdekat di depan Anda dan mengikutinya sesaat (penguncian bawaan game).</string>
+    <string name="ingame_always_run_help">Selalu lari: Leon berlari setiap kali Anda bergerak; tahan tombol lari (mis. B) untuk berjalan.</string>
+    <string name="ingame_far_camera_help">Menjaga kamera bahu sedikit lebih jauh di belakang Leon saat berjalan dan diam. Saat membidik dan di tempat sempit kamera mendekat seperti sebelumnya; perpindahannya halus.</string>
+</resources>

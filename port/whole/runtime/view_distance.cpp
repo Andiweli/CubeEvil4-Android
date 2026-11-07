@@ -39,9 +39,11 @@ void readEnv()
 
 }  // namespace
 
+// The OUYA app's menu (re4ipc_set_view_distance): from the next fog the game sets (a door, a cut)
 extern "C" void re4_view_distance_set(float factor)
 {
     gFactor = factor < 0.2f ? 0.2f : factor > 1.0f ? 1.0f : factor;
+    re4_log("view: the distance fog and the view's far plane at %.2f of the room's (the app's menu)", gFactor);
 }
 
 extern "C" void re4_view_distance(int type, float* start, float* end)

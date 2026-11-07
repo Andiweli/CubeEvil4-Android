@@ -1,6 +1,8 @@
 package com.ast.cubeevil4.ouya;
 
 import android.app.Activity;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
@@ -28,10 +30,11 @@ import javax.microedition.khronos.opengles.GL10;
  *
  * Controller (as the main app's CoreInput, its default layout): O = A, A = B, U = X, Y = Y, R1 = Z,
  * L2 / R2 = L / R (analog), the left stick the main stick, the right stick the C stick, the D-pad the
- * D-pad. The OUYA has no START button: the system button's short press (MENU) and L3 are START. The
- * picture fills the screen as the main app's default: the game's 16:9 rows (56..391).
+ * D-pad. The OUYA has no START button: the system button's short press (MENU) is START. L3 opens the
+ * app's menu (OuyaMenu, the main app's SELECT menu for the OUYA; wish of the project owner, 07.11.2026).
+ * The picture fills the screen as the main app's default: the game's 16:9 rows (56..391).
  */
-public class OuyaActivity extends Activity {
+public class OuyaActivity extends Activity implements OuyaMenu.Host {
     static {
         // Android before 4.3 does not look in the app's library folder for what a library needs:
         // the C++ library first
@@ -46,6 +49,8 @@ public class OuyaActivity extends Activity {
     static native void nativePad(int buttons, int stickX, int stickY, int substickX, int substickY, int triggerL,
             int triggerR);
     static native void nativePause(boolean on);
+    /** The menu's settings (OuyaMenu.Settings): before the start for the core's start, then at once. */
+    static native void nativeSettings(int resolutionEighths, boolean fastTev, int viewPercent, int potato, int aim);
 
     // GameCube buttons (PADStatus)
     static final int GC_LEFT = 0x0001, GC_RIGHT = 0x0002, GC_DOWN = 0x0004, GC_UP = 0x0008, GC_Z = 0x0010,
@@ -59,6 +64,8 @@ public class OuyaActivity extends Activity {
     private float lx, ly, rx, ry, lt, rt;   // the axes
     private int hat;                        // D-pad from the hat axes (other controllers)
     private int tapped;                     // buttons pressed for a moment (the OUYA button)
+    private OuyaMenu menu;                  // the app's menu while it is open
+    private boolean paused;                 // the activity is in the background
     private final Handler handler = new Handler();
     private final Runnable untap = new Runnable() {
         @Override
@@ -112,6 +119,7 @@ public class OuyaActivity extends Activity {
             return;
         }
         message.setText("Starting the game ...");
+        settingsChanged();
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -144,6 +152,7 @@ public class OuyaActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        paused = true;
         view.onPause();
         nativePause(true);
     }
@@ -151,8 +160,43 @@ public class OuyaActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        paused = false;
         view.onResume();
-        nativePause(false);
+        if (menu == null) {
+            nativePause(false);
+        }
+    }
+
+    // --- the app's menu (L3) -----------------------------------------------------------------------
+
+    @Override
+    public void settingsChanged() {
+        SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
+        nativeSettings(OuyaMenu.Settings.eighths(p), OuyaMenu.Settings.fastTev(p), OuyaMenu.Settings.view(p),
+                OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p));
+    }
+
+    private void openMenu() {
+        if (menu != null || !running) {
+            return;
+        }
+        // no button stays held while the game waits; the game and its sound stop
+        keys = hat = tapped = 0;
+        lx = ly = rx = ry = lt = rt = 0;
+        handler.removeCallbacks(untap);
+        sendPad();
+        nativePause(true);
+        menu = new OuyaMenu(this, this);
+        menu.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                menu = null;
+                if (!paused) {
+                    nativePause(false);
+                }
+            }
+        });
+        menu.show();
     }
 
     // --- the controller --------------------------------------------------------------------------
@@ -167,8 +211,7 @@ public class OuyaActivity extends Activity {
         case KeyEvent.KEYCODE_BUTTON_R1: return GC_Z;
         case KeyEvent.KEYCODE_BUTTON_L2: return GC_L;
         case KeyEvent.KEYCODE_BUTTON_R2: return GC_R;
-        case KeyEvent.KEYCODE_BUTTON_START:
-        case KeyEvent.KEYCODE_BUTTON_THUMBL: return GC_START;
+        case KeyEvent.KEYCODE_BUTTON_START: return GC_START;
         case KeyEvent.KEYCODE_DPAD_UP: return GC_UP;
         case KeyEvent.KEYCODE_DPAD_DOWN: return GC_DOWN;
         case KeyEvent.KEYCODE_DPAD_LEFT: return GC_LEFT;
@@ -187,6 +230,12 @@ public class OuyaActivity extends Activity {
                 sendPad();
                 handler.removeCallbacks(untap);
                 handler.postDelayed(untap, 200);
+            }
+            return true;
+        }
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_THUMBL) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                openMenu();
             }
             return true;
         }

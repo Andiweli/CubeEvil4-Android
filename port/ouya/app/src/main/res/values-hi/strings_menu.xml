@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The OUYA app menu (L3): the texts of the main app's in-game menu
+     (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
+     translations by a script) and the OUYA's own (English and German). -->
+<resources>
+    <string name="ingame_title">CubeEvil4 इन-गेम मेन्यू</string>
+    <string name="ingame_back">गेम पर लौटें</string>
+    <string name="ingame_graphics">ग्राफ़िक्स</string>
+    <string name="ingame_resolution">रिज़ॉल्यूशन</string>
+    <string name="ingame_on">चालू</string>
+    <string name="ingame_off">बंद</string>
+    <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
+    <string name="ingame_potato">पोटैटो मोड</string>
+    <string name="ingame_potato_weather">मौसम प्रभाव</string>
+    <string name="ingame_potato_special">विशेष प्रभाव</string>
+    <string name="ingame_potato_help">मौसम प्रभाव: कोहरे के बादल, बारिश, पानी के छींटे। विशेष प्रभाव: भाप, गर्मी की लहरें, पानी। बंद करने से कमज़ोर डिवाइस पर ग्राफ़िक्स का काम कम होता है; गोली की चमक, खून, विस्फोट, आग, हिट और संकेत बने रहते हैं, और कटसीन के सभी प्रभाव भी।</string>
+    <string name="ingame_comfort">आसान नियंत्रण</string>
+    <string name="ingame_auto_aim">ऑटो-निशाना</string>
+    <string name="ingame_always_run">हमेशा दौड़ें</string>
+    <string name="ingame_far_camera">दूर कैमरा</string>
+    <string name="ingame_auto_aim_help">ऑटो-निशाना: हथियार उठाते ही निशाना आपके सामने सबसे पास वाले दुश्मन पर चला जाता है और कुछ पल उसके साथ रहता है (गेम की अपनी निशाना-सहायता)।</string>
+    <string name="ingame_always_run_help">हमेशा दौड़ें: चलते ही लियोन दौड़ता है; चलने के लिए दौड़ने वाला बटन (जैसे B) दबाए रखें।</string>
+    <string name="ingame_far_camera_help">चलते और खड़े रहते समय कंधे वाले कैमरे को लियोन के थोड़ा और पीछे रखता है। निशाना लगाते समय और तंग जगहों पर यह पहले की तरह पास आ जाता है; बीच में यह सहजता से चलता है।</string>
+</resources>
