@@ -135,9 +135,10 @@ void put(const u8* bytes, int n)
 
 // --- the PE -------------------------------------------------------------------
 
-bool gPendingFinish;
-bool gPendingToken;
-u16 gToken;
+// raised by the decoder (with the GP thread on that thread), delivered on the game's thread
+std::atomic<bool> gPendingFinish{false};
+std::atomic<bool> gPendingToken{false};
+std::atomic<u16> gToken{0};
 bool gDelivering;
 
 }  // namespace
@@ -226,14 +227,14 @@ uint8_t* listMemory(uint32_t address, uint32_t size)
 
 void peFinish()
 {
-    gPendingFinish = true;
+    gPendingFinish.store(true);
 }
 
 void peToken(uint16_t token, bool interrupt)
 {
     if (interrupt) {
-        gToken = token;
-        gPendingToken = true;
+        gToken.store(token);
+        gPendingToken.store(true);
     } else {
         __atomic_store_n(&gPe[7], token, __ATOMIC_RELAXED);  // the GP thread: the game may read it meanwhile
     }
@@ -469,6 +470,22 @@ unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z)
     return gDepthCells[cy * RE4_GX_DEPTH_W + cx] & 0x00FFFFFF;
 }
 
+namespace {
+
+// The PE's interrupts raised so far
+void deliverRaised()
+{
+    if (gPendingToken.exchange(false)) {
+        __atomic_store_n(&gPe[7], gToken.load(), __ATOMIC_RELAXED);
+        re4_os_hw_interrupt(0x12);  // __OS_INTERRUPT_PI_PE_TOKEN
+    }
+    if (gPendingFinish.exchange(false)) {
+        re4_os_hw_interrupt(0x13);  // __OS_INTERRUPT_PI_PE_FINISH
+    }
+}
+
+}  // namespace
+
 void re4_gx_deliver_interrupts(void)
 {
     if (gDelivering) {
@@ -478,16 +495,36 @@ void re4_gx_deliver_interrupts(void)
     // the GP catches up first: on the game's thread what has arrived, on the GP thread
     // (gx_thread.cpp) everything sent so far
     re4gx::catchUp();
-    if (gPendingToken) {
-        gPendingToken = false;
-        gPe[7] = gToken;
-        re4_os_hw_interrupt(0x12);  // __OS_INTERRUPT_PI_PE_TOKEN
-    }
-    if (gPendingFinish) {
-        gPendingFinish = false;
-        re4_os_hw_interrupt(0x13);  // __OS_INTERRUPT_PI_PE_FINISH
-    }
+    deliverRaised();
     gDelivering = false;
+}
+
+// A thread starts waiting (OSSleepThread): without the GP thread as re4_gx_deliver_interrupts; with
+// it (RE4_GX_THREAD=1) only what the GP finished so far, without waiting for the rest: the game's
+// other threads go on meanwhile, as on the GameCube. A thread that waits for the GP (GXDrawDone) is
+// woken once the OS has no thread to run: re4_gx_gp_idle_work (the OS's idle loop, vi.cpp) waits for
+// the GP then (07.11.2026: catching up at every wait left the GP thread's work beside the game's
+// thread only 11 of 28 ms a frame in r100)
+void re4_gx_deliver_finished(void)
+{
+    if (!re4gx::gThreaded) {
+        re4_gx_deliver_interrupts();
+        return;
+    }
+    if (gDelivering) {
+        return;
+    }
+    gDelivering = true;
+    deliverRaised();
+    gDelivering = false;
+}
+
+// The OS has no thread to run (re4_os_idle): 1 when the GP thread still works or raised interrupts
+// not delivered yet: the caller waits for it then (re4_gx_deliver_interrupts) instead of sleeping
+// until the next retrace
+int re4_gx_gp_idle_work(void)
+{
+    return re4gx::gThreaded && (re4gx::busy() || gPendingToken.load() || gPendingFinish.load());
 }
 
 }  // extern "C"

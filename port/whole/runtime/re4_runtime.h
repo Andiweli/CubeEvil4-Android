@@ -211,6 +211,10 @@ int re4_game_library_ptr(const void* p);
  * (draw done, token) are delivered when a thread starts waiting and with the
  * video retraces, the moments the GP would have caught up on the GameCube. */
 void re4_gx_deliver_interrupts(void);
+/* At OSSleepThread: the same, with the GP thread (RE4_GX_THREAD=1, gx_thread.cpp) only what it
+ * finished so far; re4_gx_gp_idle_work: 1 while it still works (the idle loop waits for it) */
+void re4_gx_deliver_finished(void);
+int re4_gx_gp_idle_work(void);
 /* EXI (exi.cpp, M10): the memory card's pending transfer ends and "done"
  * interrupts, and the due OS alarms (alarm.cpp), delivered at the interrupt
  * points (re4_os_idle, OSSleepThread). */

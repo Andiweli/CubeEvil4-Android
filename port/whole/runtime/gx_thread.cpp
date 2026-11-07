@@ -284,6 +284,15 @@ void catchUp()
     }
 }
 
+bool busy()
+{
+    if (!gThread) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(gLock);
+    return gBusy || gDone != gPut || !gEvents.empty();
+}
+
 void sync()
 {
     if (!gThread) {

@@ -209,6 +209,14 @@ void re4_os_idle(void)
     // what the EXI devices (memory card) and the alarms have pending comes
     // first: the card library continues its transfers in those handlers
     re4_exi_deliver();
+    // the GP on a thread of its own (RE4_GX_THREAD=1) still works: the CPU idles until it is done,
+    // its draw done may ready a thread (OSSleepThread delivers only what it finished so far)
+    if (re4_gx_gp_idle_work()) {
+        re4_os_interrupt_begin();
+        re4_gx_deliver_interrupts();
+        re4_os_interrupt_end();
+        return;
+    }
     if (gFast) {
         deliver();
         return;

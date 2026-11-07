@@ -62,6 +62,7 @@ extern bool gThreaded;
 void ringPut(const uint8_t* bytes, size_t n);  // the game's thread (gx_fifo.cpp)
 void post(Event e);                            // an event after the bytes put so far
 void sync();  // waits until the GP thread has worked through all of it
+bool busy();  // the GP thread has bytes or events it did not work through yet
 // Before the game's thread reads or changes what the GP works with: the GP caught up (and with
 // the GP thread idle, its vertex jobs done)
 void catchUp();
