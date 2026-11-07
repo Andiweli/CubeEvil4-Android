@@ -2744,12 +2744,13 @@ void re4_gx_set_fast_cores(int on)
 // (0 or 1: all, as before)
 void re4_gx_set_drawless(int every)
 {
+    // the log: only the first switch on (the app changes it every few seconds; its own line every 10 s
+    // says how many chunks came without draws)
     const int want = every < 2 ? 0 : every > 6 ? 6 : every;
-    if (gDrawlessEvery.exchange(want) != want) {
-        re4_log("GX: chunks with their draws: %s (re4_gx_set_drawless)", want ? "one in so many" : "every one");
-        if (want) {
-            re4_log("GX: one chunk in %d with its draws", want);
-        }
+    static bool logged;
+    if (gDrawlessEvery.exchange(want) != want && want && !logged) {
+        logged = true;
+        re4_log("GX: one chunk in %d with its draws (re4_gx_set_drawless; later changes not logged)", want);
     }
 }
 

@@ -597,3 +597,27 @@ am 21.10. mit dem eigenen Grafik-Thread 51): 40,6 % die Umrechnung der GX-Befehl
    für den OUYA-Renderer und die OUYA-App einzeln nachgezogen werden.
 3. Der Installer fragt auf der OUYA, ob die Spieldaten in den internen Speicher oder auf einen
    USB-Speicher kommen.
+
+**Spieltempo 30 Bilder/s (07.11.2026, Wunsch des Projektinhabers: „stabile 30, egal was man
+runterschrauben müsste“).** Mit dem Grafik-Thread kam das Spiel in der Autoszene und in r100 auf 27–28
+Bilder/s, die Szene lief dem Ton um ein paar Sekunden davon; alle vier Kerne waren ausgelastet
+(Spiel, Grafik-Thread, Punkt-Helfer, Renderer, Kopien). Schritte:
+
+- **Keine zweite Kopie:** 8 statt 3 Plätze im gemeinsamen Speicher (`re4_core_ipc.h`), 10 statt 4
+  Bildpuffer im Kern; die App lässt die Bildpakete in ihren Plätzen, bis der Renderer fertig ist (bisher
+  kopierte sie jedes, in r100 2,5 MB). Der Test des Kerns im eigenen Prozess holt jetzt jedes fertige
+  Paket ab (mit 8 Plätzen kam die Tiefenkarte sonst zu spät).
+- **Punkte vorab angefordert** (`convertCompact`: die Elemente 6 Punkte voraus, `__builtin_prefetch`;
+  Ergebnis unverändert), dazu probeweise zwei Punkt-Helfer (`RE4_GX_THREADS=2` über `settings.txt`):
+  28–29 Bilder/s.
+- **Frameskip im Kern** (`RE4_GX_CHUNK_DRAWLESS`, `re4ipc_set_drawless`): der Renderer zeigt in r100
+  nur jedes dritte bis vierte Spielbild, der Kern rechnete aber jedes um (30–50 ms Rechenzeit je Bild).
+  Jetzt meldet der Renderer aus seiner Zeit je gezeigtem Bild, das wievielte er braucht; die übrigen
+  Bildpakete tragen Zustand, Texturen und Bildkopien, aber keine Zeichenbefehle und Punkte, der
+  Renderer lässt sie nur durchlaufen. Nie bei offenem Unterbildschirm des Spiels, 0,8 s aus nach START,
+  Y, X, Z und A ohne Zielen (Tasten, die einen Unterbildschirm öffnen können: sein Hintergrund ist eine
+  Bildkopie), 3 s aus, wenn ein späteres Bild eine Kopie eines ausgelassenen liest (Selbstkontrolle
+  `CopiesReadLater`, im Protokoll „copy checks failed“). PC: Laufzeittest für Bilder ohne Punkte.
+- **Ergebnis auf der OUYA** (Autoszene und r100, 50 % Sicht): **29–30 Spielbilder/s** (meist 300 in
+  10 s), der Kern hat je Bild noch etwa 7 ms Luft; der Bildschirm zeigt 9–14 Bilder/s; die
+  Selbstkontrolle schlug in gut 4 Minuten zweimal an (welcher Effekt, noch offen).
