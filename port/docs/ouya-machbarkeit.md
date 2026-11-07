@@ -621,3 +621,9 @@ Bilder/s, die Szene lief dem Ton um ein paar Sekunden davon; alle vier Kerne war
 - **Ergebnis auf der OUYA** (Autoszene und r100, 50 % Sicht): **29–30 Spielbilder/s** (meist 300 in
   10 s), der Kern hat je Bild noch etwa 7 ms Luft; der Bildschirm zeigt 9–14 Bilder/s; die
   Selbstkontrolle schlug in gut 4 Minuten zweimal an (welcher Effekt, noch offen).
+- **Cheats im OUYA-Menü** (Wunsch des Projektinhabers, 07.11.2026: die grundlegenden und die Waffen,
+  keine Spielfiguren und Extra-Spiele): wie die Cheat-Seite der Haupt-App, über den Spielkern
+  (`runtime/cheats.cpp`, `re4ipc_set_cheats`, `re4ipc_cheat_action`): unendlich Leben, unendlich
+  Munition, Unsichtbarkeit, One-Hit-Kill, automatische QTEs (Schalter, gemerkt, beim Start über
+  `RE4_CHEATS`), Koffer L, +1.000.000 Ptas und die sechs Waffen der Haupt-App (Knöpfe, mit Antwort
+  darunter). Texte aus der Haupt-App mit allen Übersetzungen.
