@@ -1296,6 +1296,48 @@ void testGlowCentre()
     report("glow centre", ok);
 }
 
+// The picture format "Native" (patch 0214, runtime/picture.cpp): the aspect of a projection matrix (the original's
+// 4:3 constant exactly for a 4:3 one and for no perspective, a wider one as it is), the flat layer's edges and the
+// camera's aspect outside a wide picture (as the original), the switch on and off.
+extern "C" float re4_view_mtx_aspect(const float (*m)[4]);
+extern "C" float re4_view_flat_edge(float width, int right);
+extern "C" float re4_view_aspect(void);
+extern "C" void re4_core_set_view_aspect(int aspect_e4);
+
+void testNativeAspect()
+{
+    bool ok = true;
+    auto perspective = [](float m[4][4], float fovy, float aspect) {
+        memset(m, 0, sizeof(float) * 16);
+        const float cot = 1.0f / tanf(fovy * 0.5f * 3.14159265f / 180.0f);
+        m[0][0] = cot / aspect;
+        m[1][1] = cot;
+        m[2][2] = -0.0001f;
+        m[2][3] = -100.0f;
+        m[3][2] = -1.0f;
+    };
+    float m[4][4];
+    perspective(m, 50.0f, 1.3333334f);
+    CHECK(re4_view_mtx_aspect(m) == 1.3333334f);
+    perspective(m, 37.5f, 4.0f / 3.0f);
+    CHECK(re4_view_mtx_aspect(m) == 1.3333334f);
+    perspective(m, 50.0f, 1.6667f);
+    CHECK(fabsf(re4_view_mtx_aspect(m) - 1.6667f) < 1e-4f);
+    perspective(m, 50.0f, 1.0f);  // a light's square view: not wider
+    CHECK(re4_view_mtx_aspect(m) == 1.3333334f);
+    m[3][2] = 0.0f;  // no perspective (an orthographic projection)
+    m[3][3] = 1.0f;
+    CHECK(re4_view_mtx_aspect(m) == 1.3333334f);
+    CHECK(re4_view_mtx_aspect(nullptr) == 1.3333334f);
+    re4_core_set_view_aspect(16667);
+    // no game frame of play has been latched here: the camera's projection stays the game's 4:3
+    CHECK(re4_view_aspect() == 1.3333334f);
+    CHECK(re4_view_flat_edge(512.0f, 0) == 0.0f && re4_view_flat_edge(512.0f, 1) == 512.0f);
+    re4_core_set_view_aspect(0);
+    CHECK(re4_view_aspect() == 1.3333334f);
+    report("native aspect", ok);
+}
+
 }  // namespace
 
 int re4_core_tests()
@@ -1346,6 +1388,7 @@ int re4_core_tests()
     testPause();
     testPeekDepth();
     testGlowCentre();
+    testNativeAspect();
     re4_log("core-test: %d failed", gFailures);
     return gFailures;
 }

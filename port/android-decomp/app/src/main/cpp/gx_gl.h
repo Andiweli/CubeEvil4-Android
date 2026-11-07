@@ -299,6 +299,9 @@ public:
   // The latest display copy: an RGBA8 texture, GameCube row 0 at GL row 0;
   // 0 before the first display copy.
   GLuint Xfb(unsigned *width, unsigned *height) const;
+  // The picture format "Native" (0.99.0): the latest display copy came from a chunk with RE4_GX_CHUNK_WIDE, its 3D
+  // drawn for the screen's wider aspect (shown over the whole screen; else in the 16:9 box).
+  bool XfbWide() const;
   // Draws the latest display copy into the current framebuffer's viewport
   // (x, y, w, h), upright; rows > 0: only XFB rows top .. top + rows - 1
   // (the letterbox cut off). False when there is none yet.

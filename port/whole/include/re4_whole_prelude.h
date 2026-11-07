@@ -113,6 +113,17 @@ int re4_gore_country(void);
  * position (sx, sy; viewZ the light's view-space z): the glow goes off as when its whole ring is hidden
  * (runtime/glow_check.cpp). */
 int re4_glow_center_hidden(float sx, float sy, float viewZ);
+/* Patch 0214, the app's picture format "Native" (runtime/picture.cpp; declared here so the game files keep their
+ * line numbers): re4_view_aspect the aspect of the camera's projection being built (camera.cpp, view.cpp), the
+ * screen's wider one while the player plays, else the game's 4:3 (1.3333334f exactly); re4_view_mtx_aspect that of
+ * a projection matrix, re4_view_camera_aspect that of pG->Camera's (for what projects with that camera);
+ * re4_view_load(type) returns type and notes the camera's projection a picture loads first; re4_view_flat_edge the
+ * left (right 0) or right edge of a flat layer `width` wide (mes.cpp) that keeps its shape in a wide picture. */
+float re4_view_aspect(void);
+float re4_view_mtx_aspect(const float (*m)[4]);
+float re4_view_camera_aspect(void);
+int re4_view_load(int type);
+float re4_view_flat_edge(float width, int right);
 #ifdef __cplusplus
 }
 #endif

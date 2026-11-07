@@ -91,15 +91,83 @@ struct Rect {
   int x = 0, y = 0, w = 0, h = 0;
 };
 
+// "Native" (format 5, wish of the project owner, 07.11.2026): the screen's own aspect, measured from the surface.
+// Wider than 16:9 the game's 3D is drawn wider while the player plays (patch 0214; NativeAspect3d below is what the
+// core is told): such a picture (RE4_GX_CHUNK_WIDE, GxRenderer::XfbWide) shows the rows 56..392 of 448 over the whole
+// screen, its HUD keeps the 16:9 shape in the middle; every other picture (the game's menus, the scope, movies)
+// goes into the 16:9 box, as "16:9". Up to 16:9 (a 16:10 tablet, a 4:3 handheld) the game draws without its
+// letterbox in play (as "4:3", re4_core_set_letterbox) and the screen shows the middle 336 x (16/9) / aspect rows
+// (all 448 at 4:3) over its whole width: more above and below, nothing cut at the sides, the HUD and the menus in
+// their 16:9 shape; narrower than 4:3 a 4:3 box. Exactly 16:9 (within half a percent) is "16:9".
+struct NativeView {
+  int mode = 0;      // 1 wider than 16:9, -1 narrower (no letterbox in play), 0 as "16:9"
+  int top = 56, rows = 336;  // the EFB rows shown (of 448)
+  Rect pic, hud;     // the picture's box and the HUD in it, from the screen's bottom left
+};
+
+inline int NativeMode(int width, int height) {
+  if (width <= 0 || height <= 0)
+    return 0;
+  const double a = static_cast<double>(width) / height, wide = 16.0 / 9.0;
+  return a > wide * 1.005 ? 1 : a < wide / 1.005 ? -1 : 0;
+}
+
+// The aspect of the game's 3D the core is told (x 10000, re4_core_set_view_aspect): 4/3 x aspect / (16/9) wider
+// than 16:9, else 0 (the game's 4:3).
+inline int NativeAspect3d(int width, int height) {
+  return NativeMode(width, height) == 1 ? static_cast<int>(0.75 * width / height * 10000.0 + 0.5) : 0;
+}
+
+inline NativeView Native(int width, int height, bool wideChunk) {
+  NativeView v;
+  v.mode = NativeMode(width, height);
+  if (v.mode == 1 && wideChunk) {
+    v.pic = {0, 0, width, height};
+    const int hudW = std::min(width, static_cast<int>(height * 16.0 / 9.0 + 0.5));
+    v.hud = {(width - hudW) / 2, 0, hudW, height};
+    return v;
+  }
+  if (v.mode == -1) {
+    // the rows that fill the width at the screen's aspect (the 336 of the letterbox are 16:9), at most all 448
+    const double a = static_cast<double>(width) / height;
+    v.rows = std::min(448, static_cast<int>(336.0 * 16.0 / 9.0 / a + 0.5) & ~1);
+    v.top = (448 - v.rows) / 2;
+    int boxW = width, boxH = height;
+    if (v.rows == 448) {
+      boxH = std::min(height, static_cast<int>(width * 3.0 / 4.0 + 0.5));
+      boxW = std::min(width, static_cast<int>(boxH * 4.0 / 3.0 + 0.5));
+    }
+    v.pic = {(width - boxW) / 2, (height - boxH) / 2, boxW, boxH};
+    v.hud = {v.pic.x, v.pic.y + boxH * (56 - v.top) / v.rows, boxW, boxH * 336 / v.rows};
+    return v;
+  }
+  // as "16:9": the 16:9 box in the middle
+  int boxW = width, boxH = width * 9 / 16;
+  if (boxH > height) {
+    boxH = height;
+    boxW = height * 16 / 9;
+  }
+  v.pic = {(width - boxW) / 2, (height - boxH) / 2, boxW, boxH};
+  v.hud = v.pic;
+  return v;
+}
+
 // The picture's box and the game's own HUD on the screen for the menu's picture format, as drawGx (core_mode.cpp)
 // presents the XFB (`xh` lines): 0 "16:9" and 2 "Stretched" show the lines 56..391 of 448 (the game's letterboxed
 // part) in the box; 1 "4:3 (GC)" all lines in a 4:3 frame of 480, the HUD in the lines 56..391 of it; 3 "4:3" all
 // 448 lines in an exact 4:3 box with the flat draws (the HUD) 15/14 wider than the box. The game draws its gauge
 // (life, ammo) in those lines in each format (it sits at line 384 in all of them), so the map, placed in the
 // HUD's rectangle, mirrors the gauge at the bottom right in every format. The boxes must stay those of drawGx.
-inline void PictureRects(int format, int width, int height, int xh, Rect *hud, Rect *pic) {
+inline void PictureRects(int format, int width, int height, int xh, Rect *hud, Rect *pic, bool wideChunk = false) {
   if (xh <= 0)
     xh = 448;
+  if (format == 5) {
+    // "Native" (the rows the XFB holds of the 448 do not matter: the shown part is in the game's 448)
+    const NativeView v = Native(width, height, wideChunk);
+    *pic = v.pic;
+    *hud = v.hud;
+    return;
+  }
   if (format == 3) {
     int boxW = width, boxH = static_cast<int>(width * 3.0 / 4.0 + 0.5);
     if (boxH > height) {

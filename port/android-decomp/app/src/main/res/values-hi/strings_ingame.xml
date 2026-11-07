@@ -14,6 +14,7 @@
     <string name="ingame_original_43">4:3 (GC)</string>
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">खींचा हुआ</string>
+    <string name="ingame_native">नेटिव</string>
     <string name="ingame_other_options">अन्य विकल्प</string>
     <string name="ingame_laser_section">लेज़र साइट</string>
     <string name="ingame_laser_red">डिफ़ॉल्ट (लाल)</string>

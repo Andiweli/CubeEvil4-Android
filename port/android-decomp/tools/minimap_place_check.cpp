@@ -4,10 +4,14 @@
 //
 //   g++ -O2 -std=c++17 -I app/src/main/cpp tools/minimap_place_check.cpp -o minimap_place_check
 //   minimap_place_check                         the table: formats x screens, checks
-//   minimap_place_check IN.ppm FORMAT OUT.ppm   the map's ring drawn into a screenshot (binary PPM, P6)
+//   minimap_place_check IN.ppm FORMAT OUT.ppm   the map's ring drawn into a screenshot (binary PPM, P6;
+//                                               FORMAT 6: "Native" with a wide picture)
 //
 // Checks per format and screen: the map inside the picture's box, its bottom at the HUD's bottom plus the
-// margin, and with "16:9" exactly the place the app had before (the owner: right there).
+// margin, and with "16:9" exactly the place the app had before (the owner: right there). "Native" (0.99.0,
+// re4mm::Native) twice, with a picture the core drew wide (RE4_GX_CHUNK_WIDE) and with any other: on a 16:9 screen
+// both, and on every screen the other, exactly as "16:9"; a wide picture over the whole screen wider than 16:9 with
+// the HUD in a 16:9 box in its middle; narrower than 16:9 the picture over the whole width, its HUD 16:9 in it.
 #include "minimap_view.h"
 
 #include <cmath>
@@ -27,17 +31,67 @@ const char *Name(int format) {
     return "Stretched";
   case 3:
     return "4:3";
+  case 5:
+    return "Native";
+  case 6:
+    return "Native/W";
   }
   return "?";
 }
 
+// format 6 here: "Native" (5) with a wide picture
+void Rects(int format, int w, int h, re4mm::Rect *hud, re4mm::Rect *pic) {
+  re4mm::PictureRects(format == 6 ? 5 : format, w, h, 448, hud, pic, format == 6);
+}
+
+// The checks of "Native" on one screen: false with the reason printed
+bool NativeRight(int w, int h, int format, const re4mm::Rect &hud, const re4mm::Rect &pic) {
+  re4mm::Rect hud0, pic0;
+  re4mm::PictureRects(0, w, h, 448, &hud0, &pic0);
+  const auto same = [](const re4mm::Rect &a, const re4mm::Rect &b) {
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+  };
+  const int mode = re4mm::NativeMode(w, h);
+  const re4mm::NativeView v = re4mm::Native(w, h, format == 6);
+  const char *why = nullptr;
+  if (mode == 0 || (mode == 1 && format == 5)) {
+    if (!same(pic, pic0) || !same(hud, hud0))
+      why = "not as 16:9";
+    if (v.top != 56 || v.rows != 336)
+      why = "rows not 56..392";
+  } else if (mode == 1) {
+    const int hudW = static_cast<int>(h * 16.0 / 9.0 + 0.5);
+    if (pic.x != 0 || pic.y != 0 || pic.w != w || pic.h != h)
+      why = "wide picture not over the whole screen";
+    else if (hud.h != h || std::abs(hud.w - hudW) > 1 || std::abs(hud.x - (w - hud.w) / 2) > 1)
+      why = "HUD not the 16:9 middle";
+    else if (std::abs(re4mm::NativeAspect3d(w, h) - 0.75 * w / h * 10000.0) > 1.0)
+      why = "3D aspect";
+  } else {
+    // the shown rows at the screen's aspect: (4/3) x 448 / rows = the box's aspect, rows symmetric
+    const double shown = 4.0 / 3.0 * 448.0 / v.rows, box = double(pic.w) / pic.h;
+    if (v.top * 2 + v.rows != 448 || v.rows < 336 || v.rows > 448 || std::fabs(shown - box) > 0.01)
+      why = "rows";
+    else if (v.rows < 448 && (pic.w != w || pic.h != h))
+      why = "not over the whole screen";
+    else if (std::fabs(double(hud.w) / hud.h - 16.0 / 9.0) > 0.01 || hud.y < pic.y || hud.y + hud.h > pic.y + pic.h)
+      why = "HUD not 16:9 in the picture";
+    else if (re4mm::NativeAspect3d(w, h) != 0)
+      why = "3D aspect not the game's";
+  }
+  if (why)
+    std::printf("  %dx%d %s: %s\n", w, h, Name(format), why);
+  return !why;
+}
+
 int Table() {
-  const int screens[][2] = {{1920, 1080}, {2400, 1080}, {2340, 1080}, {2000, 923}, {1280, 720}, {1024, 768}, {1600, 720}};
+  const int screens[][2] = {{1920, 1080}, {2400, 1080}, {2340, 1080}, {2000, 923}, {1280, 720}, {1024, 768}, {1600, 720},
+                            {2560, 1600}, {1920, 1200}, {2560, 1080}, {3200, 1440}, {1280, 1024}, {1919, 1080}};
   int bad = 0;
   for (const auto &s : screens) {
-    for (int format : {1, 3, 0, 2}) {
+    for (int format : {1, 3, 0, 2, 5, 6}) {
       re4mm::Rect hud, pic;
-      re4mm::PictureRects(format, s[0], s[1], 448, &hud, &pic);
+      Rects(format, s[0], s[1], &hud, &pic);
       const re4mm::Rect at = re4mm::Place(hud, pic);
       const bool inside = at.x >= pic.x && at.y >= pic.y && at.x + at.w <= pic.x + pic.w && at.y + at.h <= pic.y + pic.h;
       const bool onHud = at.y >= hud.y && at.y + at.h <= hud.y + hud.h;
@@ -54,6 +108,8 @@ int Table() {
                   s[0], s[1], Name(format), pic.x, pic.y, pic.w, pic.h, hud.x, hud.y, hud.w, hud.h, at.x, at.y, at.w,
                   mapLine, inside ? "inside" : "OUTSIDE", onHud ? "" : " OFF-HUD", same ? "" : " CHANGED");
       bad += !inside || !onHud || !same;
+      if (format >= 5)
+        bad += !NativeRight(s[0], s[1], format, hud, pic);
     }
   }
   std::printf("%d problems\n", bad);
@@ -73,7 +129,7 @@ int Draw(const char *in, int format, const char *out) {
     return 1;
   std::fclose(f);
   re4mm::Rect hud, pic;
-  re4mm::PictureRects(format, w, h, 448, &hud, &pic);
+  Rects(format, w, h, &hud, &pic);
   const re4mm::Rect at = re4mm::Place(hud, pic);
   const double cx = at.x + at.w / 2.0, cy = at.y + at.h / 2.0, r = at.w / 2.0;
   for (int y = 0; y < h; y++)

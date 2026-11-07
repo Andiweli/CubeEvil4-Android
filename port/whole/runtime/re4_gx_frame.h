@@ -158,11 +158,16 @@ enum Re4GxChunkFlags {
     RE4_GX_CHUNK_BLACK = 1u << 4, /* the VI shows black (VISetBlack): run it, show
                                      black instead of its picture until a chunk
                                      without the flag */
-    RE4_GX_CHUNK_STILL = 1u << 5  /* a menu screen of the game (a sub screen, the
+    RE4_GX_CHUNK_STILL = 1u << 5, /* a menu screen of the game (a sub screen, the
                                      memory card screens; re4_gx_still): no
                                      picture between it and the one before (the
                                      app's 60 FPS; its text lists scroll, the
                                      letters cannot be told apart) */
+    RE4_GX_CHUNK_WIDE = 1u << 6   /* the app's picture format "Native" (0.99.0,
+                                     re4_core_set_view_aspect): the camera's 3D
+                                     of this picture was drawn for the screen's
+                                     wider aspect (re4_gx_wide); the app shows it
+                                     over the whole screen, else in a 16:9 box */
 };
 
 typedef struct Re4GxChunk {

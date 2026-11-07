@@ -23,6 +23,7 @@
     <string name="ingame_original_43">4:3 (GC)</string>
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Stretched</string>
+    <string name="ingame_native">Native</string>
     <string name="ingame_other_options">Other options</string>
     <string name="ingame_laser_section">Laser Sight</string>
     <string name="ingame_laser_red">Default (Red)</string>

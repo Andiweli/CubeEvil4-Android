@@ -656,8 +656,9 @@ final class CoreMenu extends Dialog {
     // Unknown GPU capabilities must not enable unsupported samples or anisotropy.
     int samples = info == null ? 1 : Math.max(1, info[0]);
     int anisotropy = info == null ? 1 : Math.max(1, info[1]);
-    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_stretched)},
-        new int[] {1, 3, 0, 2}, 0, Integer.MAX_VALUE);
+    // "Native" (5, wish of the project owner, 07.11.2026): the screen's own aspect (core_mode.cpp, re4mm::Native)
+    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_native), s(R.string.ingame_stretched)},
+        new int[] {1, 3, 0, 5, 2}, 0, Integer.MAX_VALUE);
     resolutionChoices();
     graphicsLine = indentedHelp(""); graphicsLine.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(10)); showGraphics();
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
@@ -1508,6 +1509,19 @@ final class CoreMenu extends Dialog {
     return Math.max(1, Math.min(3, (rows + 168) / 336) - 1);
   }
 
+  /**
+   * The game's picture rows the screen shows for a picture format: all 448 with "4:3 (GC)" and "4:3", the 336 of
+   * the letterbox with the 16:9 formats; "Native" on a screen narrower than 16:9 the rows that fill its width
+   * (336 x (16/9) / aspect, at most 448; core_mode.cpp, re4mm::Native), else 336.
+   */
+  static int pictureRows(int aspect, int screenWidth, int screenHeight) {
+    if (aspect == 1 || aspect == 3 || aspect == 4) return 448;
+    if (aspect != 5 || screenWidth <= 0 || screenHeight <= 0) return 336;
+    double a = (double) screenWidth / screenHeight;
+    if (a >= 16.0 / 9.0 / 1.005) return 336;
+    return Math.min(448, (int) (336.0 * 16.0 / 9.0 / a + 0.5) & ~1);
+  }
+
   /** The resolution the chosen level gives. */
   private void showGraphics() {
     int chosen = scaleHalves(graphics), halves = chosen;
@@ -1516,12 +1530,11 @@ final class CoreMenu extends Dialog {
       int cap = graphics.getInt(graphics.getBoolean("smooth60", false) ? DYN_CAP_60 : DYN_CAP_30, 0);
       halves = cap >= 2 && cap <= 8 ? Math.min(8, cap + 1) : 2 * autoScale(screenWidth, screenHeight);
     }
-    int aspect = graphics.getInt("aspect", 0);
-    boolean original = aspect == 1 || aspect == 3;
+    int rows = pictureRows(graphics.getInt("aspect", 0), screenWidth, screenHeight);
     // the numbers as digits 0..9 in every language (Locale.ROOT), the level with the language's separator
     if (graphicsLine == null) return;
     graphicsLine.setText(String.format(Locale.ROOT, s(chosen == 0 ? R.string.ingame_resolution_line_auto
-        : R.string.ingame_resolution_line), 640 * halves / 2, (original ? 448 : 336) * halves / 2,
+        : R.string.ingame_resolution_line), 640 * halves / 2, rows * halves / 2,
         scaleNumber(halves, Locale.getDefault()), screenWidth, screenHeight));
   }
 

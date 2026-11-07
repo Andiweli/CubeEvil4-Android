@@ -249,8 +249,9 @@ public final class CoreBridge {
   /**
    * The picture options: scale 0 (automatic) or 1-4 (EFB resolution
    * multiple), samples 1/2/4 (multisampling), anisotropy 1-16, aspect 0
-   * (16:9), 1 (4:3), 2 (stretched over the whole screen) or 3 (4:3 without
-   * the game's letterbox bars while playing); applied at the
+   * (16:9), 1 (4:3), 2 (stretched over the whole screen), 3 (4:3 without
+   * the game's letterbox bars while playing) or 5 (Native: the screen's own
+   * aspect, core_mode.cpp re4mm::Native); applied at the
    * next picture while the game runs.
    */
   /** scale in halves: 0 Dynamic, 2 = 1×, 3 = 1.5× … 8 = 4× (CoreMenu.scaleHalves). */

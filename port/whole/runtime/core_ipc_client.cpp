@@ -985,6 +985,11 @@ void re4ipc_set_laser_colour(int colour)
     post(kSetLaserColour, colour, 0, 0);
 }
 
+void re4ipc_set_view_aspect(int aspect_e4)
+{
+    post(kSetViewAspect, aspect_e4, 0, 0);
+}
+
 int re4ipc_room_outline(float* out, int maxEdges, unsigned* info)
 {
     Reply r;

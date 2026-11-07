@@ -461,6 +461,9 @@ struct GxRenderer::Impl {
   GLint peekSizeLoc = -1, peekScaleLoc = -1;
   bool skipDraws = false;  // Skip: this chunk's draws, EFB copies and markers are left out
   bool holdXfb = false;  // this chunk's display copy is not shown (RE4_GX_CHUNK_HOLD)
+  // "Native" (0.99.0): this chunk's 3D was drawn for the screen's wider aspect (RE4_GX_CHUNK_WIDE), and the
+  // display copy shown now came from such a chunk (XfbWide)
+  bool chunkWide = false, xfbWide = false;
   bool viBlack = false;  // the VI shows black (RE4_GX_CHUNK_BLACK, VISetBlack): Present draws black
   GLuint vao = 0, vbo = 0, ibo = 0;
   // the in-between pass's blended vertices (60 FPS): a buffer of their own, each draw's at a place of
@@ -3767,6 +3770,7 @@ struct GxRenderer::Impl {
       }
       target = xfbTex;
       haveXfb = true;
+      xfbWide = chunkWide;
       stats.displayCopies++;
     } else {
       // the in-between pass copies into its own textures: the next real Run still reads what the
@@ -5756,6 +5760,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   if (m.stream)
     m.StreamChunkBegin();
   m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
+  m.chunkWide = (chunk.flags & RE4_GX_CHUNK_WIDE) != 0;
   if (chunk.flags & RE4_GX_CHUNK_XFB)
     m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
   if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
@@ -5988,6 +5993,10 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
       RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK | RE4_GX_CHUNK_STILL;
   if (prev.flags & RE4_GX_CHUNK_STILL)
     return false;
+  // "Native": from a wide picture to one in the 16:9 box or back (a menu screen, the scope, a movie) the app's box
+  // changes; nothing lies between them
+  if ((prev.flags ^ next.flags) & RE4_GX_CHUNK_WIDE)
+    return false;
   if (!m.recordDraws || !m.recValid || m.recSequence != prev.sequence || next.sequence != prev.sequence + 1 ||
       (next.flags & refuse) || !(next.flags & RE4_GX_CHUNK_XFB) || next.version != RE4_GX_FRAME_VERSION ||
       m.viBlack || m.rec.empty())
@@ -6133,6 +6142,8 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   m.stats.interpPictures++;
   return true;
 }
+
+bool GxRenderer::XfbWide() const { return impl_->haveXfb && impl_->xfbWide; }
 
 GLuint GxRenderer::Xfb(unsigned *width, unsigned *height) const {
   if (width)

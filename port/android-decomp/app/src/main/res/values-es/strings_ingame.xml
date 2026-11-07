@@ -14,6 +14,7 @@
     <string name="ingame_original_43">4:3 (GC)</string>
     <string name="ingame_43_no_bars">4:3</string>
     <string name="ingame_stretched">Estirada</string>
+    <string name="ingame_native">Nativa</string>
     <string name="ingame_other_options">Otras opciones</string>
     <string name="ingame_laser_section">Mira láser</string>
     <string name="ingame_laser_red">Predeterminado (rojo)</string>

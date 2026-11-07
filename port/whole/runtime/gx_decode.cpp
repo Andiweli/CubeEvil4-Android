@@ -267,6 +267,9 @@ int gPending = -1;  // slot waiting for the game's VIFlush (kPending); -1: none
 u32 gViNext;        // physical address of the XFB the VI shows next (0: never set)
 bool gViBlack;      // the VI outputs black (VISetBlack, from VIFlush on): RE4_GX_CHUNK_BLACK
 std::atomic<bool> gStill(false);  // a menu screen of the game (re4_gx_still): RE4_GX_CHUNK_STILL
+// the picture format "Native" (re4_gx_wide): the first load of the camera's projection in this chunk was the wide
+// one (1), the game's 4:3 (0), none yet (-1): RE4_GX_CHUNK_WIDE
+std::atomic<int> gWide(-1);
 u32 gSequence;
 bool gNeedReset = true;
 
@@ -641,6 +644,9 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
             gHintWait += nowNs() - fromNs;
         }
     } waited = {start, nowNs()};
+    // "Native": what this picture's first load of the camera's projection was; the next picture decides anew,
+    // also while no chunk is recorded (no renderer, a dropped chunk: else a 4:3 load of long before would stay)
+    const int wide = gWide.exchange(-1);
     std::unique_lock<std::mutex> lock(gMutex);
     if (gCurrent >= 0) {
         Chunk* c = chunk();
@@ -649,6 +655,9 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         v.flags |= RE4_GX_CHUNK_XFB;
         if (gStill.load()) {
             v.flags |= RE4_GX_CHUNK_STILL;
+        }
+        if (wide == 1) {
+            v.flags |= RE4_GX_CHUNK_WIDE;
         }
         v.ops = c->ops.data();
         v.opWords = (u32) c->ops.size();
@@ -2346,6 +2355,20 @@ void re4_gx_mark(void)
 void re4_gx_still(int on)
 {
     gStill.store(on != 0);
+}
+
+// The picture format "Native" (runtime/picture.cpp re4_view_load, patch 0214): whether the camera's projection
+// was the wide one; the first load after a display copy decides for the chunk (the game loads the projection it
+// built in the frame before, then builds the next one in its logic and loads that for its HUD).
+void re4_gx_wide(int on)
+{
+    int none = -1;
+    gWide.compare_exchange_strong(none, on ? 1 : 0);
+}
+
+int re4_gx_wide_now(void)
+{
+    return gWide.load();
 }
 
 void re4_gx_host_order_list(const void* list, unsigned int size)

@@ -7,9 +7,73 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 Version 0.99.0-beta (versionCode 102), Releasetext `port/android-decomp/docs/releases/v0.99.0-beta.md`. Wunsch des
 Projektinhabers (07.11.2026): auf Grundlage der Breitbild-Umsetzung im Fork von Noname267 (siehe „Prüfung der
-Forks“ unten) ein Bildformat „Native“, das das echte Seitenverhältnis des Geräts nutzt.
+Forks“ unten) ein Bildformat „Native“, das das echte Seitenverhältnis des Geräts nutzt. Patch 0214.
 
-(in Arbeit)
+1. **Wie die Bildformate bisher arbeiten.** Das Spiel rechnet sein 3D für 4:3 (`camera.cpp`: `C_MTXPerspective` mit
+   4/3 über die 448 Zeilen) und malt im Spiel einen Letterbox-Rand (Zeilen 0..56 und 392..448). „16:9“ (0) zeigt die
+   Zeilen 56..392 in einer 16:9-Box: genau 16:9 und unverzerrt, auf breiteren Handys mit schwarzen Rändern links und
+   rechts. „Gestreckt“ (2) zieht diese Zeilen über den ganzen Bildschirm (verzerrt). „4:3“ (3, Patch 0105) lässt den
+   Rand im Spiel weg und zeigt alle 448 Zeilen in einer 4:3-Box, flache Zeichnungen 15/14 breiter; „4:3 (GC)“ (1) das
+   ganze Bild wie am Fernseher. Die App entscheidet das in `core_mode.cpp drawGx` (Box, gezeigte Zeilen, `SetWiden`),
+   der Kern nur über den Schalter `re4_core_set_letterbox`.
+2. **Noname267s Breitbild (19.5:9, auf 0.98.4).** Sein Patch ersetzt 4/3 in 16 Spieldateien durch `re4_view_aspect()`
+   (1.625 = 4/3 × 39/32, solange kein Untermenü offen ist), die App zeigt die Zeilen 56..392 in einer 19.5:9-Box und
+   macht alle flachen Zeichnungen über die ganze Breite 32/39 schmaler, außer in den Menübildern (die bleiben
+   gestreckt). Übernommen: die Idee und die Liste der Stellen. Nicht übernommen: die feste Zahl 19.5:9, die gestreckten
+   Untermenüs und das pauschale Schmälern: das trifft auch Blenden (Abdunkeln an Türen: `fade.cpp` zeichnet über die
+   ganze Breite, wäre an den Seiten offen geblieben), den Letterbox und die Leuchtsprites, die an einer 3D-Stelle
+   sitzen (`esp0e`: Bildschirmposition aus der Kameraprojektion, wären zur Mitte gerutscht).
+3. **Was gezeichnet wird.** Die Lebens- und Munitionsanzeige und die meisten Menüteile zeichnet das ID-System des
+   Spiels **mit der Kameraprojektion** (Flächen im Abstand 240/tan(fovy/2) vor der Kamera, `id_sys.cpp`): mit breiter
+   Projektion behalten sie von selbst ihre 16:9-Form in der Mitte. Flach (orthografisch) zeichnen Text (`mes.cpp
+   messageCamera`, 512 × 384), Blenden, Letterbox, Bildfilter, Bildschirm-Effekte (`ESP_PARTS_SCREEN`, an
+   projizierten 3D-Stellen) und Debug-Anzeigen. Nur der Text wird schmaler (`re4_view_flat_edge`: die Ränder der
+   Ortho-Projektion weiter außen); alles andere bleibt über die ganze Breite bzw. an seiner 3D-Stelle.
+4. **Wann breit.** Nur während gespielt wird (Hauptschleife Rno0 3, auch in Ereignissen/Zwischensequenzen), nicht in
+   Menübildern des Spiels (`re4_picture_still`: Untermenüs wie Inventar, Karte, Händler, Dateien, Funkgerät; Speicher-
+   karte; Optionen; Ergebnistabellen), nicht im Zielfernrohr (seine schwarze Maske ist nur 4:3 breit; im 16:9-Rahmen
+   ist sie schwarz bis zum Rand wie bisher) und nicht während eines Films. Titel und Logos laufen nicht in Rno0 3. Diese
+   Bilder bleiben 4:3 und erscheinen in der 16:9-Box in der Mitte, genau wie mit „16:9“: nichts gestreckt.
+5. **Kern (`runtime/picture.cpp`).** `re4_core_set_view_aspect(aspect × 10000)` (auch über den Kernprozess:
+   `kSetViewAspect`, `coreproc.cpp`; am PC `RE4_VIEW_ASPECT=1.6667`). Pro Spielbild (Hook beim Pad-Lesen) wird
+   entschieden, ob die Kamera breit gebaut wird (`re4_view_aspect`, `CameraMove` und Sichtkegel). Die übrigen Stellen
+   nehmen das Seitenverhältnis der Projektionsmatrix, die die Kamera gerade hat (`re4_view_camera_aspect` aus
+   m11/m00; 4:3 wird exakt die Konstante des Originals). Außerhalb des Spiels setzt der Hook eine noch breite Matrix
+   auf 4:3 zurück (ein Untermenü zeichnet mit der Projektion von vorher). Weil das Spiel die Projektion in seiner
+   Logik baut und erst im nächsten Bild damit zeichnet, meldet `CameraSetProjection` die **erste geladene**
+   Kameraprojektion eines Bildes an die GX-Schicht (`re4_view_load` → `re4_gx_wide`), die das Bild mit
+   `RE4_GX_CHUNK_WIDE` kennzeichnet. Die Entscheidung wird bei **jeder** Displaykopie zurückgesetzt, auch wenn kein
+   Bild aufgezeichnet wird (Fehler im ersten Lauf: am PC wird nur um die Mitschnitte herum aufgezeichnet, ein Bild
+   behielt die 4:3-Meldung aus dem Funkgerät und kam gestaucht in die 16:9-Box).
+6. **App.** Menü Anzeige → Bildformat: „4:3 (GC)“, „4:3“, „16:9“, **„Native“** (Wert 5), „Gestreckt“; Text in 11
+   Sprachen (`ingame_native`: Native, Nativ, Nativa, Natif …). Seitenverhältnis A aus der echten Zeichenfläche
+   (`width`/`height` der GL-Fläche). `re4mm::Native` (`minimap_view.h`, gemeinsam für Bild und Minikarte):
+   - **A breiter als 16:9** (mehr als 0,5 %): der Kern bekommt 0,75 × A; ein breites Bild (`GxRenderer::XfbWide`)
+     zeigt die Zeilen 56..392 über den ganzen Bildschirm, das HUD (und die Minikarte) in der 16:9-Mitte; jedes andere
+     Bild in der 16:9-Box.
+   - **A schmaler als 16:9** (16:10-Tablet, 4:3-Handheld): kein Letterbox im Spiel (wie „4:3“, Patch 0105), die
+     mittleren 336 × (16/9) / A Zeilen (bei 4:3 alle 448) über die ganze Breite; 3D bleibt 4:3, oben und unten mehr
+     zu sehen, HUD in 16:9-Form. Schmaler als 4:3 eine 4:3-Box.
+   - **Genau 16:9** (Retroid 1920 × 1080): wie „16:9“, nichts ändert sich.
+   60 FPS: kein Zwischenbild, wenn das Kennzeichen zwischen zwei Bildern wechselt (die Box wechselt). Die
+   Auflösungszeile im Menü und im Fehlerbericht zählt die gezeigten Zeilen (`CoreMenu.pictureRows`).
+7. **Geprüft am PC (i686 -O2, Debug-Discs, r101, Leon zielt; 20:9 = `RE4_VIEW_ASPECT=1.6667`, Bilder mit dem Renderer
+   der App gezeichnet und wie `drawGx` auf 2400 × 1080 gelegt, Skript `present.py` der Sitzung):** Gegen „16:9“ im
+   gleichen Moment: links und rechts mehr Wald, Leon gleich groß und gleich geformt, Laser und Lebens-/Munitionsanzeige
+   an derselben Stelle in derselben Größe (in der 16:9-Mitte); mehr Zeichnungen im Bild (787 statt 726: der breitere
+   Sichtkegel). Speicherkarten-Meldung, Capcom-Logo, Funkgerät (mit Untertiteln), Karte, Optionen und der Übergang
+   in Karte/Optionen (eingefrorenes Spielbild): 16:9-Box, unverzerrt (Leon in derselben Form wie bei „16:9“).
+   Zwischensequenz r100 (Fahrt im Auto, Brücke): breit, Figuren unverzerrt; mit den EU-Discs auf Deutsch die
+   Untertitel bei „Native“ und „16:9“ in derselben Größe und Lage. Schmaler als 16:9 (Letterbox aus,
+   `RE4_TEST_LETTERBOX_OFF=1`) auf 1280 × 800 und 1024 × 768: ganzer Bildschirm, mehr Zeilen, unverzerrt.
+   `minimap_place_check` (neu: „Native“ mit breitem und anderem Bild, 13 Bildschirme von 4:3 bis 3200 × 1440): 0
+   Probleme. Kerntest „native aspect“ (Matrix-Seitenverhältnis, 4:3 exakt, Schalter), `whole_build.sh` i686 -O2 alle
+   Prüfungen grün, `gx_gl_check` 0 Fehler, `check_translations.py` (288 Texte je Sprache), Java-Bau core,
+   `CoreMenuLayoutTest` 10/10 (Bildformat-Zeile mit 5 Knöpfen in allen Sprachen ohne Überlauf).
+   **Nicht geprüft:** Gerät (der Retroid ist genau 16:9, dort sieht „Native“ wie „16:9“ aus; ein Handy mit 20:9 oder
+   ein Tablet ist nötig), Zielfernrohr, Händler, Inventar, Gegenstand aufheben, Spiegel, Wasser und Hitzeflimmern
+   im breiten Bild, Gegner, die am breiteren Rand auftauchen (Sichtkegel und Bildschirmprüfungen der Gegner folgen
+   der breiten Projektion), das Abdunkeln an Türen.
 
 ## Prüfung der Forks (06.11.2026 im Branch `claude/keen-carson-26xxjq`, nachgeprüft 07.11.2026; nichts übernommen)
 
@@ -12721,6 +12785,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0211 `em10.cpp` | Die fliegende Rakete eines Ganados (`em10_R1_ShotRocket`) mit Leons Raketenmodell (`re4_ganado_rocket`, `runtime/cheats.cpp`), wenn das Spielerarchiv an Index 0x70/0x71 keine Rakete hat (Ada, Wesker: Platzhalter; Krauser: sein Pfeil); Leons Archiv wird dafür in Mercenaries und den Extra-Spielen einmal gelesen. Deklaration in `re4_whole_prelude.h` (em10.cpp behält seine Zeilen). Fehler des Originalspiels (alle Fassungen), Nutzerbericht 06.11.2026 |
 | 0212 `em10.cpp`, `em25.cpp`, `em2c.cpp`, `em2d.cpp`, `em31.cpp`, `em32.cpp`, `emwep.cpp`, `obj16.cpp`, `r100.cpp`, `r101.cpp`, `r103.cpp` | Japanische Discs (und die koreanische Übersetzung) mit dem Gore der US-Fassung, immer, ohne Schalter: jede Gore-Abfrage von `pSys->eff_country` (Kopfschuss `em10LostHeadCk`, Kettensäge, Leons Enthauptungen, Kameras dazu, Leichen in r100/r101/r103) fragt `re4_gore_country()` (`runtime/game_language.cpp`: das Land, mit JP-Discs 1 wie US); ersetzt die Korea-Weiche von 0147. Zeilen der Spieldateien unverändert (Deklaration in `re4_whole_prelude.h`). Port-Patch für Verkaufsdaten, Entscheidung des Projektinhabers 06.11.2026 |
 | 0213 `esp0e.cpp`, `esp45.cpp`, `espgen01.cpp` | Leuchten (Bildschirm-Sprites über allem): außer dem Ring der Prüfpunkte zählt das Licht selbst; liegt an seiner Bildstelle etwas mehr als 1 m davor (`re4_glow_center_hidden`, `runtime/glow_check.cpp`), geht das Leuchten aus wie bei ganz verdecktem Ring. Abweichung vom Original (Entscheidung des Projektinhabers 06.11.2026: die Laterne in r102 schien über Leons Kopf, weil der Ring größer als der Kopf war; GameCube ebenso). Port-Patch |
+| 0214 `camera.cpp`, `view.cpp`, `TexRender.cpp`, `mirror.cpp`, `trans.cpp`, `esp08.cpp`, `esp0f.cpp`, `esp18.cpp`, `esp_sub.cpp`, `Espgen42.cpp`, `espgen45.cpp`, `id_sys.cpp`, `examine.cpp`, `mes.cpp`, `cam_qfps.cpp`, `cam_ctrl.cpp` | Bildformat „Native“: die Projektion der Kamera und der Sichtkegel mit `re4_view_aspect()` statt 4/3 (breiter, solange gespielt wird), alles, was mit der Kamera projiziert (Effekte mit Bildkopie, Spiegel, Gegenstandskamera, Nahebene gegen Wände und Wasser, Bildpunkt zu Strahl), mit `re4_view_camera_aspect()`; `CameraSetProjection` meldet die erste geladene Projektion eines Bildes (`re4_view_load`, `RE4_GX_CHUNK_WIDE`); der Text (`messageCamera`) mit `re4_view_flat_edge` so schmal wie das HUD. Jede Ersetzung auf ihrer Zeile, Funktionen in `re4_whole_prelude.h`. Aus und in jedem anderen Bildformat der Wert des Originals (1.3333334f; 0 und 512). Port-Funktion, Wunsch des Projektinhabers 07.11.2026, auf Grundlage des Breitbilds im Fork von Noname267 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

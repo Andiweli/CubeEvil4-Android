@@ -106,6 +106,7 @@ struct CoreApi {
   int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
   int (*roomOutline)(float *, int, unsigned *){};  // optional (cores since 04.11.2026): the minimap's room outline
   void (*setLaserColour)(int){};  // optional (cores since 04.11.2026, patch 0198): the laser sight's colour
+  void (*setViewAspect)(int){};   // optional (cores since 07.11.2026, patch 0214): "Native", the 3D's aspect x 10000
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
@@ -451,6 +452,7 @@ void loadCore(JNIEnv *env) {
   api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
   api.roomOutline = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_outline"));
   api.setLaserColour = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_laser_colour"));
+  api.setViewAspect = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_view_aspect"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
@@ -522,6 +524,7 @@ int gxMode = -1;  // -1 undecided, 0 bridge, 1 GX
 // optScale: the EFB scale in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x; the menu's in-between levels)
 std::atomic<int> optScale{0}, optSamples{1}, optAnisotropy{1}, optAspect{-1};
 int letterboxSent = -1;  // what the core was told last (drawGx; -1: nothing yet)
+int viewAspectSent = -1;  // "Native": the 3D's aspect the core was told last (drawGx; -1: nothing yet)
 // Where drawGx showed the last picture, for taps (CoreBridge.tap): left and top on the surface (y
 // down), size in pixels, and the part of the XFB's rows it shows (first and count, 0..1).
 std::atomic<int> picX{0}, picY{0}, picW{0}, picH{0};
@@ -1342,7 +1345,7 @@ bool minimapProgram() {
 
 // The map in the picture: the menu's picture format and the XFB's lines (re4mm::PictureRects / Place, where the
 // game's own gauge sits; owner's report 05.11.2026)
-void minimapDraw(int format, unsigned xh) {
+void minimapDraw(int format, unsigned xh, bool wide) {
   if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
       (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
     return;
@@ -1415,7 +1418,7 @@ void minimapDraw(int format, unsigned xh) {
   const int lineVerts = static_cast<int>(v.size() / 6) - triVerts;
   // its square at the bottom left of the game's HUD, mirroring the gauge at the bottom right in every format
   re4mm::Rect hud, pic;
-  re4mm::PictureRects(format, width, height, static_cast<int>(xh), &hud, &pic);
+  re4mm::PictureRects(format, width, height, static_cast<int>(xh), &hud, &pic, wide);
   const re4mm::Rect at = re4mm::Place(hud, pic);
   const int size = at.w;
   glViewport(at.x, at.y, size, size);
@@ -2203,23 +2206,49 @@ bool drawGx() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   // the menu's picture format (1: 4:3, 0: 16:9, 2: stretched, 3: 4:3 without the game's
   // letterbox bars while playing, Anbernic RG 477V report 22.10.2026, in an exact 4:3 box since
-  // 29.10.2026; 4, the exact box's first own number, is 3), else RE4_GX_ASPECT
+  // 29.10.2026; 4, the exact box's first own number, is 3; 5: "Native", the screen's own aspect,
+  // 07.11.2026), else RE4_GX_ASPECT
   const char *aspect = getenv("RE4_GX_ASPECT");
   const int format = optAspect.load() == 4 ? 3 : optAspect.load();
-  const int noBars = format == 3 ? 1 : 0;
+  // "Native": the screen's aspect decides (re4mm::Native, minimap_view.h); a picture whose 3D the core drew wider
+  // (GxRenderer::XfbWide) fills a screen wider than 16:9, any other goes into the 16:9 box
+  const bool xfbWide = gx->XfbWide();
+  const re4mm::NativeView native = re4mm::Native(width, height, xfbWide);
+  const int noBars = format == 3 || (format == 5 && native.mode == -1) ? 1 : 0;
   if (api.setLetterbox && noBars != letterboxSent) {
     api.setLetterbox(noBars);
     letterboxSent = noBars;
   }
+  const int aspect3d = format == 5 ? re4mm::NativeAspect3d(width, height) : 0;
+  if (api.setViewAspect && aspect3d != viewAspectSent) {
+    api.setViewAspect(aspect3d);
+    viewAspectSent = aspect3d;
+    if (format == 5)
+      LOG("picture format Native: screen %dx%d (%.3f:1), %s", width, height,
+          height ? static_cast<double>(width) / height : 0.0,
+          native.mode == 1    ? "the 3D wider while playing, menus in the 16:9 box"
+          : native.mode == -1 ? "no letterbox while playing, more rows above and below"
+                              : "as 16:9");
+  }
   // the rows shown: in the 16:9 formats (0, 2) the crop below leaves the game's letterbox bars out,
   // and texture copies repeat the shown edge rows instead of reading the bars (GxRenderer::SetShownRows)
   const bool crop = !(format == 3 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
-  gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
+  if (format == 5)
+    gx->SetShownRows(native.top, native.top + native.rows);
+  else
+    gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
   // the game computes its 3D for 4:3 (camera.cpp) into 512 x 448 pixels that a television showed
   // as 10:7; in an exact 4:3 box the 3D is right and the flat draws (HUD, menus, text) are drawn
   // 15/14 wider by the renderer, so they keep the shape they had on the television
   gx->SetWiden(format == 3 ? 15.0f / 14.0f : 1.0f);
-  if (format == 3) {
+  if (format == 5) {
+    // "Native": the shown rows over the box (whole screen, or the 16:9 box for a menu, the scope, a movie)
+    const unsigned top = xh * static_cast<unsigned>(native.top) / 448,
+                   rows = xh * static_cast<unsigned>(native.rows) / 448;
+    gx->Present(native.pic.x, native.pic.y, native.pic.w, native.pic.h, top, rows);
+    notePicture(native.pic.x, native.pic.y, native.pic.w, native.pic.h, xh ? float(top) / float(xh) : 0.f,
+                xh ? float(rows) / float(xh) : 1.f);
+  } else if (format == 3) {
     // 4:3 without the bars: the picture's lines fill the height of an exact 4:3 box (wish of the
     // project owner, 29.10.2026: no bars, nothing cut off, the user interface in its shape; before,
     // a 10:7 box in the lines' own shape); a 4:3 screen is full
@@ -2259,7 +2288,7 @@ bool drawGx() {
                 xh ? float(rows) / float(xh) : 1.f);
   }
   // the map: "4:3 (GC)" also when RE4_GX_ASPECT asks for 4:3 (as above)
-  minimapDraw(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, xh);
+  minimapDraw(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, xh, xfbWide);
   return true;
 }
 
@@ -2431,6 +2460,7 @@ void useCoreProcess(const std::string &why) {
   api.cheatAction = re4ipc_cheat_action;
   api.roomOutline = re4ipc_room_outline;
   api.setLaserColour = re4ipc_set_laser_colour;
+  api.setViewAspect = re4ipc_set_view_aspect;
   api.touch = re4ipc_touch;
   api.aimTurn = re4ipc_aim_turn;
   api.swipe = re4ipc_swipe;
@@ -2705,6 +2735,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   if (auto *s = currentScene()) s->contextCreated();
   lastDraw = {};
   letterboxSent = -1;
+  viewAspectSent = -1;
   fastSent = -1;
   potatoSent = -1;
   aimSent = -1;
@@ -3043,8 +3074,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_cardNote(
 }
 
 // The picture options: scale 0 (automatic) or 1-4, samples 1/2/4, anisotropy
-// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched) or 3 (4:3 without the bars while playing, in an exact
-// 4:3 box; 4 is the same).
+// 1-16, aspect 0 (16:9), 1 (4:3), 2 (stretched), 3 (4:3 without the bars while playing, in an exact
+// 4:3 box; 4 is the same) or 5 (Native: the screen's own aspect, re4mm::Native).
 // Applied at the next picture while the game runs.
 // scale: in halves (0: dynamic; 2: 1x, 3: 1.5x ... 8: 4x)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(JNIEnv *, jclass, jint scale,
@@ -3061,6 +3092,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGraphics(
       aspect == 1   ? "4:3"
       : aspect == 2 ? "stretched"
       : aspect == 3 || aspect == 4 ? "4:3 without the bars"
+      : aspect == 5                ? "Native"
                                    : "16:9");
 }
 

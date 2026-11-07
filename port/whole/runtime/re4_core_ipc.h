@@ -77,6 +77,7 @@ enum MsgType : uint32_t {
     kSetSoundVolume = 36,  // a = music | effects << 8, percent (no reply; re4_core_set_sound_volume)
     kSetLaserColour = 38,  // a = the laser sight's colour 0..3 (no reply; re4_core_set_laser_colour)
     kRoomOutline = 37,     // a = max edges -> a = edges; data: 2 words info, then 5 floats an edge (re4_core_room_outline)
+    kSetViewAspect = 39,   // a = the 3D's aspect x 10000, 0 the game's (no reply; re4_core_set_view_aspect, "Native")
 };
 
 struct MsgHeader {

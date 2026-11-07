@@ -133,7 +133,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static int fovOffset(SharedPreferences input) {
     return Math.max(-FOV_RANGE, Math.min(FOV_RANGE, input.getInt(FOV_OFFSET, 0)));
   }
-  /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars). */
+  /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars, 5 Native). */
   static final String GRAPHICS_PREFS = "core_graphics";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
@@ -558,7 +558,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int[] info = CoreBridge.graphicsInfo();
     if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
-    int rows = aspect == 1 || aspect == 3 ? 448 : 336;
+    int rows = CoreMenu.pictureRows(aspect, surface.getWidth(), surface.getHeight());
     return String.format(Locale.ROOT, " · %d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
         CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }

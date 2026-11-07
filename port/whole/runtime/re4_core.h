@@ -315,6 +315,10 @@ int re4_core_room_outline(float* out, int maxEdges, unsigned* info);
 /* The laser sight's colour (cores since 04.11.2026, patch 0198, runtime/laser_colour.cpp): 0 the game's red,
  * 1 blue, 2 green, 3 yellow; the beam and the dot. Any thread. */
 void re4_core_set_laser_colour(int colour);
+/* The picture format "Native" (cores since 07.11.2026, patch 0214, runtime/picture.cpp): the aspect of the game's 3D
+ * while the player plays, x 10000 (the app: 4/3 x the screen's aspect / (16/9), for a screen wider than 16:9);
+ * 0 (or up to 13334) the game's 4:3. The pictures drawn so carry RE4_GX_CHUNK_WIDE. Any thread. */
+void re4_core_set_view_aspect(int aspect_e4);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the

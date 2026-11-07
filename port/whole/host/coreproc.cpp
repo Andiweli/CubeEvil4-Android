@@ -117,6 +117,7 @@ struct Core {
     int (*cheatAction)(int);
     int (*roomOutline)(float*, int, unsigned*);
     void (*setLaserColour)(int);
+    void (*setViewAspect)(int);
     void (*touch)(float, float);
     void (*aimTurn)(float, float);
     void (*swipe)(int);
@@ -786,6 +787,7 @@ bool loadCore(std::string& problem)
     bind(core.cheatAction, "re4_core_cheat_action");
     bind(core.roomOutline, "re4_core_room_outline", false);
     bind(core.setLaserColour, "re4_core_set_laser_colour", false);
+    bind(core.setViewAspect, "re4_core_set_view_aspect", false);
     bind(core.touch, "re4_core_touch");
     bind(core.aimTurn, "re4_core_aim_turn");
     bind(core.swipe, "re4_core_swipe");
@@ -922,6 +924,9 @@ void serve()
             break;
         case kSetLaserColour:
             if (core.setLaserColour) core.setLaserColour(h.a);
+            break;
+        case kSetViewAspect:
+            if (core.setViewAspect) core.setViewAspect(h.a);
             break;
         case kRoomOutline: {
             const int max = h.a > 0 && h.a <= 20000 ? (int) h.a : 0;
