@@ -1414,15 +1414,38 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_cheat_character_help);
   }
   /** Before Ada, HUNK, Krauser or Wesker take Leon's place (wish of the project owner, 08.11.2026): a reddish
-   *  warning that they are not made for the main game, the menu's other questions' dialog in red. Only OK
-   *  switches (touch, click, A, Enter); Back, B, Esc, START, SELECT or a touch beside it keep the character
-   *  (the buttons' choice is only changed by OK). The other gamepad buttons do nothing here: Android would take
-   *  X and START for a confirmation. */
+   *  warning that they are not made for the main game, the menu's other questions' dialog in red: the chosen
+   *  character's name centred on top, the warning under it, the one button "I understand" centred below
+   *  (the owner, 08.11.2026). Only that button switches (touch, click, A, Enter); Back, B, Esc, START, SELECT or
+   *  a touch beside it keep the character (the buttons' choice is only changed by it). The other gamepad
+   *  buttons do nothing here: Android would take X and START for a confirmation. */
   private void warnCharacter(String name, Runnable choose) {
-    AlertDialog dialog = new AlertDialog.Builder(getContext())
-        .setTitle(name)
-        .setMessage(R.string.ingame_cheat_character_warning)
-        .setPositiveButton(R.string.ingame_ok, (d, w) -> choose.run()).create();
+    LinearLayout box = column();
+    box.setPadding(dp(24), dp(20), dp(24), dp(18));
+    TextView title = text(name, 20, true);
+    title.setGravity(Gravity.CENTER); title.setTextAlignment(View.TEXT_ALIGNMENT_GRAVITY);
+    box.addView(title, new LinearLayout.LayoutParams(-1, -2));
+    // the text scrolls if a big font leaves too little room, the button stays below it
+    TextView message = text(s(R.string.ingame_cheat_character_warning), 16, false);
+    message.setTextColor(INK); message.setLineSpacing(0, 1.1f);
+    ScrollView scroller = new ScrollView(getContext());
+    scroller.addView(message);
+    LinearLayout.LayoutParams between = new LinearLayout.LayoutParams(-1, -2, 1);
+    between.setMargins(0, dp(12), 0, dp(18));
+    box.addView(scroller, between);
+    final AlertDialog[] shown = new AlertDialog[1];
+    Button understood = button(s(R.string.ingame_understood), v -> { shown[0].dismiss(); choose.run(); });
+    StateListDrawable look = new StateListDrawable();
+    look.addState(new int[] {android.R.attr.state_focused}, focused(UPDATE_RED));
+    look.addState(new int[] {android.R.attr.state_pressed}, shape(UPDATE_RED, INK, 6));
+    look.addState(new int[0], shape(UPDATE_RED, UPDATE_RED_EDGE, 6));
+    understood.setBackground(look); understood.setTextColor(INK);
+    understood.setPadding(dp(24), dp(8), dp(24), dp(8));
+    LinearLayout.LayoutParams centred = new LinearLayout.LayoutParams(-2, -2);
+    centred.gravity = Gravity.CENTER_HORIZONTAL;
+    box.addView(understood, centred);
+    AlertDialog dialog = new AlertDialog.Builder(getContext()).setView(box).create();
+    shown[0] = dialog;
     GradientDrawable frame = shape(WARN_RED, UPDATE_RED_EDGE, 10); frame.setStroke(dp(2), UPDATE_RED_EDGE);
     dialog.getWindow().setBackgroundDrawable(frame);
     dialog.setOnKeyListener((d, key, event) -> {
@@ -1436,18 +1459,7 @@ final class CoreMenu extends Dialog {
           && event.getRepeatCount() == 0) dialog.cancel();
       return true;
     });
-    dialog.setOnShowListener(d -> {
-      TextView message = dialog.findViewById(android.R.id.message);
-      if (message != null) message.setTextColor(INK);
-      Button ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-      StateListDrawable look = new StateListDrawable();
-      look.addState(new int[] {android.R.attr.state_focused}, focused(UPDATE_RED));
-      look.addState(new int[] {android.R.attr.state_pressed}, shape(UPDATE_RED, INK, 6));
-      look.addState(new int[0], shape(UPDATE_RED, UPDATE_RED_EDGE, 6));
-      ok.setBackground(look); ok.setTextColor(INK); ok.setAllCaps(false); ok.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-      ok.setPadding(dp(24), dp(8), dp(24), dp(8));
-      ok.requestFocus();
-    });
+    dialog.setOnShowListener(d -> understood.requestFocus());
     dialog.show();
   }
   /** "Special costumes · On/Off" over a smaller "(Leon/Ashley only)", as tall as one line's button (the

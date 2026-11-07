@@ -546,16 +546,14 @@ public class CoreMenuLayoutTest {
       assertNull(findText(body, "Play as"));
       Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
       assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
-      // another character than Leon warns first (08.11.2026): its name over the warning, one button OK; only OK
-      // switches, the choice stays until then
+      // another character than Leon warns first (08.11.2026): its name centred on top, the warning, one button
+      // "I understand" centred below; only that button switches, the choice stays until then
       hunk.performClick();
       android.app.AlertDialog ask = warning(activity, "HUNK");
       assertEquals(4, sent[0]); assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
-      assertEquals("one button", View.GONE, ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).getVisibility());
-      assertEquals("one button", View.GONE, ask.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).getVisibility());
       ok(ask); assertEquals(4 | 3 << 5, sent[0]);
       assertTrue(hunk.isSelected()); assertFalse(leon.isSelected());
-      // B (as Back, Esc, START, SELECT) closes it without the switch; X does nothing here, A is OK
+      // B (as Back, Esc, START, SELECT) closes it without the switch; X does nothing here, A is the button
       int[] cancels = {android.view.KeyEvent.KEYCODE_BUTTON_B, android.view.KeyEvent.KEYCODE_BACK,
           android.view.KeyEvent.KEYCODE_ESCAPE, android.view.KeyEvent.KEYCODE_BUTTON_START,
           android.view.KeyEvent.KEYCODE_BUTTON_SELECT};
@@ -568,11 +566,11 @@ public class CoreMenuLayoutTest {
         assertTrue(hunk.isSelected()); assertFalse(wesker.isSelected());
       }
       wesker.performClick(); ask = warning(activity, "Wesker");
-      // a controller leaves the touch mode; OK has the focus then (the dialog gives it)
-      ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).requestFocusFromTouch();
-      assertTrue(ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isFocused());
+      // a controller leaves the touch mode; the button has the focus then (the dialog gives it)
+      understood(ask).requestFocusFromTouch();
+      assertTrue(understood(ask).isFocused());
       press(ask, android.view.KeyEvent.KEYCODE_BUTTON_A);
-      assertFalse("A is OK", ask.isShowing()); assertEquals(4 | 5 << 5, sent[0]); assertTrue(wesker.isSelected());
+      assertFalse("A is the button", ask.isShowing()); assertEquals(4 | 5 << 5, sent[0]); assertTrue(wesker.isSelected());
       // also from one of them to another; the one already chosen and Leon at once
       findButton(body, "Ada").performClick(); ok(warning(activity, "Ada")); assertEquals(4 | 2 << 5, sent[0]);
       wesker.performClick(); ok(warning(activity, "Wesker")); assertEquals(4 | 5 << 5, sent[0]);
@@ -592,19 +590,45 @@ public class CoreMenuLayoutTest {
     }
   }
 
-  /** The warning before another player character: shown, the character's name as its title, the warning's text. */
+  /** The warning before another player character (the owner, 08.11.2026): shown; the character's name centred on
+   *  top, the warning under it, the one button "I understand" centred under that. */
   private static android.app.AlertDialog warning(Activity activity, String name) {
     android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
     assertNotNull("a warning for " + name, ask);
     assertTrue("the warning for " + name + " is shown", ask.isShowing());
-    org.robolectric.shadows.ShadowAlertDialog shadow = org.robolectric.Shadows.shadowOf(ask);
-    assertEquals(name, shadow.getTitle().toString());
-    assertEquals(activity.getString(R.string.ingame_cheat_character_warning), shadow.getMessage().toString());
-    assertEquals(activity.getString(R.string.ingame_ok), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // laid out
+    View decor = ask.getWindow().getDecorView();
+    TextView title = findText(decor, name);
+    TextView text = findText(decor, activity.getString(R.string.ingame_cheat_character_warning));
+    Button understood = understood(ask);
+    assertNotNull("the name on top", title); assertNotNull("the warning", text);
+    assertEquals(activity.getString(R.string.ingame_understood), understood.getText().toString());
+    assertEquals(android.view.Gravity.CENTER_HORIZONTAL, title.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK);
+    int[] t = new int[2], m = new int[2], b = new int[2];
+    title.getLocationInWindow(t); text.getLocationInWindow(m); understood.getLocationInWindow(b);
+    assertTrue("the name over the warning", t[1] + title.getHeight() <= m[1]);
+    assertTrue("the button under the warning", m[1] + text.getHeight() <= b[1]);
+    View row = (View) understood.getParent();
+    assertEquals("the button centred", row.getWidth() / 2f, understood.getLeft() + understood.getWidth() / 2f, 1f);
+    assertEquals("the name centred", row.getWidth() / 2f, title.getLeft() + title.getWidth() / 2f, 1f);
     return ask;
   }
+  /** The warning's only button shown. */
+  private static Button understood(android.app.AlertDialog ask) {
+    java.util.List<Button> shown = new java.util.ArrayList<>();
+    java.util.ArrayDeque<View> todo = new java.util.ArrayDeque<>();
+    todo.add(ask.getWindow().getDecorView());
+    while (!todo.isEmpty()) {
+      View v = todo.poll();
+      if (!v.isShown()) continue;
+      if (v instanceof Button) shown.add((Button) v);
+      if (v instanceof ViewGroup) for (int i = 0; i < ((ViewGroup) v).getChildCount(); i++) todo.add(((ViewGroup) v).getChildAt(i));
+    }
+    assertEquals("one button", 1, shown.size());
+    return shown.get(0);
+  }
   private static void ok(android.app.AlertDialog ask) {
-    ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+    understood(ask).performClick();
     org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
     assertFalse(ask.isShowing());
   }
