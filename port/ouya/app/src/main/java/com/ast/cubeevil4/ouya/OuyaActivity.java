@@ -31,10 +31,13 @@ import javax.microedition.khronos.opengles.GL10;
  */
 public class OuyaActivity extends Activity {
     static {
+        // Android before 4.3 does not look in the app's library folder for what a library needs:
+        // the C++ library first
+        System.loadLibrary("c++_shared");
         System.loadLibrary("re4ouya");
     }
 
-    static native String nativeStart(String dataDir);
+    static native String nativeStart(String dataDir, String libraryDir);
     static native void nativeSurfaceCreated();
     static native void nativeSurfaceChanged(int width, int height);
     static native void nativeFrame();
@@ -101,7 +104,8 @@ public class OuyaActivity extends Activity {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                final String problem = nativeStart(data.getPath());
+                // the core process lies among the app's libraries (Android 4.1's dladdr gives no folder)
+                final String problem = nativeStart(data.getPath(), getApplicationInfo().nativeLibraryDir);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {

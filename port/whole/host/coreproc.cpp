@@ -83,6 +83,7 @@ const unsigned long kMem1Start = 0x80000000ul, kMem1Size = 0x3000000ul;
 
 struct Core {
     void* main;
+    void* platform;  // libre4_platform.so (Android 4.1: bind looks there too)
     int (*mem1Init)(void);
     int (*reserve)(const char*, const char*);
     int (*start)(void);
@@ -141,9 +142,14 @@ struct Core {
 
 std::string gMissing;
 
+// Android 4.1's dlsym (the OUYA branch) looks only into the library it is given, not into the ones it
+// needs (as host/probe.cpp): what libre4_platform.so defines (re4_log ...) is looked up there too.
 template <class F> void bind(F& slot, const char* name, bool needed = true)
 {
     slot = reinterpret_cast<F>(dlsym(core.main, name));
+    if (!slot && core.platform) {
+        slot = reinterpret_cast<F>(dlsym(core.platform, name));
+    }
     if (!slot && needed && gMissing.empty()) {
         gMissing = name;
     }
@@ -745,6 +751,7 @@ bool loadCore(std::string& problem)
 #elif defined(__ANDROID__)
     // by name from the app's library folder (LD_LIBRARY_PATH); RTLD_LOCAL as in the app
     core.main = dlopen("libre4_main.so", RTLD_NOW | RTLD_LOCAL);
+    core.platform = dlopen("libre4_platform.so", RTLD_NOW | RTLD_LOCAL);
 #else
     core.main = dlopen((gExeDir + "/libre4_main.so").c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif

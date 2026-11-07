@@ -20,7 +20,6 @@
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 #include <android/log.h>
-#include <dlfcn.h>
 #include <jni.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -140,7 +139,8 @@ bool StartSound() {
 // The game core in its process (once per app process; the core cannot be restarted): "" when it
 // runs, else why not. Any thread but the GL thread (it waits for the core process's start).
 extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeStart(JNIEnv *env, jclass,
-                                                                                          jstring dataDir) {
+                                                                                          jstring dataDir,
+                                                                                          jstring libraryDir) {
   std::lock_guard<std::mutex> l(gLock);
   if (gStarted)
     return env->NewStringUTF(gProblem.c_str());
@@ -150,15 +150,10 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
     setenv(s[0], s[1], 1);
   setenv("RE4_LOG_FILE", (data + "/core.log").c_str(), 1);
   ReadSettings(data);
-  // the core process: a program among the app's libraries (extracted at installation)
+  // the core process: a program among the app's libraries (extracted at installation; the folder from
+  // Java, ApplicationInfo.nativeLibraryDir: Android 4.1's dladdr names a library without its folder)
   re4ipc::Spawn spawn;
-  Dl_info info{};
-  const std::string lib =
-      dladdr(reinterpret_cast<void *>(&Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeStart), &info) && info.dli_fname
-          ? info.dli_fname
-          : "";
-  const auto slash = lib.rfind('/');
-  spawn.libraryDir = slash == std::string::npos ? std::string() : lib.substr(0, slash);
+  spawn.libraryDir = Text(env, libraryDir);
   spawn.program = spawn.libraryDir + "/libre4_coreproc.so";
   spawn.name = "com.ast.cubeevil4.ouya:core";
   spawn.helloSeconds = 60;
