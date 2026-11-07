@@ -1251,16 +1251,27 @@ void playerLog(unsigned n, GLOBAL_WK* g)
             }
         }
     }
-    // RE4_TRACE_AT=1: an item area taken or found, an event starting or ending (the r201 key, 01.11.2026)
+    // RE4_TRACE_AT=1: an item area taken or found, an event starting or ending (the r201 key, 01.11.2026), an area
+    // switched on or off or the player stepping in or out (07.11.2026)
     static const char* watchAt = getenv("RE4_TRACE_AT");
     if (watchAt && *watchAt == '1') {
-        static unsigned char seenItem[256];
+        static unsigned char seenItem[256], seenArea[256];
         static unsigned seenRoom, seenEvent;
         if (seenRoom != g->room_id) {
             seenRoom = g->room_id;
             memset(seenItem, 0, sizeof seenItem);
+            memset(seenArea, 0, sizeof seenArea);
         }
         for (SCE_AT_DATA* w = sceAtSetOtStart(); (w = sceAtGetOtAddr(w)) != 0;) {
+            // every area switched on or off, and the player in it (hit: only an area that is on; a message or door
+            // area then offers its button): r224's gate message after the fight (patch 0216, 07.11.2026)
+            const unsigned area = 0x80 | (w->be_flg & 1) | SceAtHitCheck(w->no) << 1;
+            if (seenArea[w->no] && seenArea[w->no] != area) {
+                re4_log("at: frame %u area %u (id %u) %s, player %s, Leon at (%.0f %.0f %.0f)", n, (unsigned) w->no,
+                        (unsigned) w->id, (area & 1) ? "on" : "off", (area & 2) ? "in it" : "not in it", (double) p.x,
+                        (double) p.y, (double) p.z);
+            }
+            seenArea[w->no] = (unsigned char) area;
             if (w->id != SCEAT_ID_ITEM) {
                 continue;
             }

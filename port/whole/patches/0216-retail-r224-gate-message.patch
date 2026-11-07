@@ -1,0 +1,60 @@
+# Port patch for retail data (EU, JP and KR discs; a user's report 07.11.2026, OPPO CPH2127, EU discs, 0.99.0: "after
+# defeating El Gigante, the iron door opens, but you can still check with the door itself even though it is already
+# open"). The European, Japanese and Korean r224 data (the lava hall of the two El Gigantes) hold an eleventh area,
+# 10: a MES area in front of the exit gate (smd 0x16) with room message 1, "Damn! It's locked. Guess I have to kill
+# those giants!". Their code (st2_3.rel, read with retail_code.py on 07.11.2026: European text 0x10c60 in R224Init,
+# 0x12874 in door_open, 0x12a44 in door_close; the Japanese and Korean the same) switches it off at the room's start,
+# on when the gate shuts behind the giants and off when it opens after the fight. The debug code here never touches
+# area 10, so with those discs the open gate still offered the check and the message. The debug and US data and
+# code have no area 10; with those discs nothing changes.
+--- a/src/st2/r224.cpp
++++ b/src/st2/r224.cpp
+@@ -94,6 +94,15 @@
+ // the cart object with its motion paused and an ambient boost; a bare collision object for the grate;
+ // the lever / grate / lid / door posed per Room_flg bits (fight done, grate open); the two Novistador
+ // handles and the battle stream.
++extern "C" int re4_disc_retail_eu(void); /* port: runtime/dvd.cpp */
++extern "C" int re4_disc_retail_jp(void);
++/* port (patch 0216): area 10 of the European, Japanese and Korean data, the gate's "shut" message (MES, message 1,
++   in front of the exit gate 0x16); the debug and US data have no area 10 */
++static int r224_gate_mes_area()
++{
++    return re4_disc_retail_eu() || re4_disc_retail_jp();
++}
++
+ void R224Init()
+ {
+     cObj* yagura;
+@@ -102,6 +111,10 @@
+     r224_work = (R224Work*) MEM_CALLOC(sizeof(R224Work), 1, 0xd);
+     SceAtDataSet_exec(3, SCE_LEVEL10, 0, (TaskFunc) r224_toroko, 0, 1);
+     SceAtDataSet_exec(4, SCE_LEVEL10, 0, (TaskFunc) reva_move, 0, 1);
++    /* port (patch 0216): those discs' code switches the gate message off at the room's start */
++    if (r224_gate_mes_area()) {
++        SceAtSetEnable(10, 0);
++    }
+     EatMgr.registEffInfo(EAT_ET_WATER, (AtEffInfo*) &r224_eff_info);
+     Vec pos = {0.0f, 0.0f, 0.0f};
+     Vec rot = {0.0f, 0.0f, 0.0f};
+@@ -658,6 +671,10 @@
+     SndCall(6, 2, &SmdGetObjPtr(0x16)->pos, 0, 0, 0);
+     SndCall(6, 6, &SmdGetObjPtr(0x12)->pos, 0, 0, 0);
+     SceAtDataReset(0);
++    /* port (patch 0216): the gate is open, its message off (European, Japanese and Korean code) */
++    if (r224_gate_mes_area()) {
++        SceAtSetEnable(10, 0);
++    }
+     SceAtSetEnable(8, 0);
+     SceEventStart(1);
+     CamCtrl.CutCall(6);
+@@ -691,6 +708,10 @@
+     SndCall(6, 2, &SmdGetObjPtr(0x16)->pos, 0, 0, 0);
+     SndCall(6, 6, &SmdGetObjPtr(0x12)->pos, 0, 0, 0);
+     SceAtDataSet_exec(0, SCE_LEVEL10, 0, (TaskFunc) r224_door_mes, 0, 1);
++    /* port (patch 0216): the gate is shut, its message on (European, Japanese and Korean code) */
++    if (r224_gate_mes_area()) {
++        SceAtSetEnable(10, 1);
++    }
+     SceAtSetEnable(8, 1);
+     for (;;) {
+         u32 cnt = 0;

@@ -3,6 +3,42 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes (07.11.2026, Branch `work`, Patch 0216)
+
+Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
+v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
+
+1. **Eisentor in der Lava-Halle (Nutzerbericht 07.11.2026, OPPO CPH2127, Android 12, 64 bit, 0.99.0-beta, EU-Discs,
+   alle Dateien wie im Original; Bericht `reports/0991-lava-door-20261107-204156`).** Wortlaut: „after defeating El
+   Gigante, the iron door opens, but you can still check with the door itself even though it is already open“. Laut
+   Protokoll r220 → r223 → r224 (20:39:58 bis zum Bericht 20:42): der Kampf war **r224**, die Halle der zwei El
+   Gigantes (r223 ist die Mine davor).
+   - **Ursache: Fehler der Portierung (Verkaufsdaten mit dem Code des Prototyps).** Die Prüfbereiche (AEV) von r224:
+     Debug- und US-Discs 10 Bereiche (0–9), **EU-, JP- und KR-Discs 11**: dazu Bereich 10, ein Meldungsbereich (Typ 5,
+     Meldung 1 des Raums: „Damn! It's locked. Guess I have to kill those giants!“) vor dem Ausgangstor (Modell 0x16,
+     Kollision Bereich 8). Ein Meldungsbereich bekommt beim Raumstart die Aktionstaste („Untersuchen“). Der Code dieser
+     Discs (`st2_3.rel`, mit `retail_code.py` und einem Relocations-Leser verglichen; EU, JP und KR an denselben
+     Stellen: Text 0x10c60, 0x12874, 0x12a44) schaltet ihn mit `SceAtSetEnable(10, …)` **aus** beim Betreten
+     (`R224Init`), **an**, wenn das Tor hinter den Riesen zufällt (`door_close`), und **aus**, wenn es nach dem Kampf
+     aufgeht (`door_open`). Der Code des Prototyps (und der US-Fassung) kennt Bereich 10 nicht: mit EU/JP/KR-Discs war
+     er immer an, am offenen Tor kam weiter „Untersuchen“ mit „It's locked“. Alle übrigen Funktionen von r224 sind in
+     den Fassungen gleich (Aufrufe und Längen; nur `R224Init` +8, `door_open` und `door_close` je +0xC Bytes).
+     Im Original (EU, JP, KR, US, Debug) gibt es den Fehler also nicht.
+   - **Patch 0216** (`r224.cpp`): die drei Aufrufe wie im Code dieser Discs, nur mit EU- oder JP-Discs (KR zählt als
+     JP; `re4_disc_retail_eu/jp`). Mit Debug- und US-Discs ändert sich nichts. Prüfung über die Disc statt über
+     `SceAtPtr(10)`: ein zur Laufzeit angelegter Bereich bekäme bei 10 Datenbereichen die freie Nummer 10.
+   - **Testausgabe:** `RE4_TRACE_AT=1` meldet jetzt auch jeden Bereich, der an- oder ausgeht, und ob der Spieler darin
+     steht („at: frame N area 10 (id 5) off, player not in it …“; `state_trace.cpp`).
+   - **Geprüft am PC (i686 -O2, Debug-Start r224, `RE4_TEST_PLACE="free+30:4000,0,0,0"` in den Auslösebereich 9,
+     `RE4_TEST_EM_KILL="1000:2b:all/30/2"`, `RE4_TEST_PLACE2="1550:13511,0,-5888,2.6"` vor das offene Tor):**
+     ohne Patch mit EU-Discs Bereich 10 beim Betreten an (`be 0x03`), nach dem Öffnen (Ereignis Bild 1475–1525,
+     Bereich 8 aus) „area 10 on, player in it“ = der Fehler. Mit Patch: beim Betreten aus (`be 0x02`), an bei Bild 950
+     (Tor zu), aus bei 1475 (Tor auf), vor dem offenen Tor keine Prüfung. JP-Discs ebenso; Debug- und US-Discs ohne
+     Bereich 10, Tor wie vorher, keine „AT NOT FOUND“-Meldung. Erneutes Betreten nach dem Kampf (`RE4_TEST_RSF=
+     "0x224:1"`, EU): Bereich 10 aus, Tor offen. `whole_build.sh i686` mit `RE4_OPT=2`: alle Prüfungen grün.
+     Hinweis für spätere Läufe: in der Mitte von Bereich 9 liegt die Lava, und ein umfallender Riese erschlägt Leon in
+     seiner Nähe (beides Original). **Nicht geprüft:** Gerät; KR-Discs im Lauf (derselbe Code wie JP).
+
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 
 Version 0.99.1-rc (versionCode 103), Releasetext `port/android-decomp/docs/releases/v0.99.1-rc.md`. Entscheidung des
@@ -12857,6 +12893,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0213 `esp0e.cpp`, `esp45.cpp`, `espgen01.cpp` | Leuchten (Bildschirm-Sprites über allem): außer dem Ring der Prüfpunkte zählt das Licht selbst; liegt an seiner Bildstelle etwas mehr als 1 m davor (`re4_glow_center_hidden`, `runtime/glow_check.cpp`), geht das Leuchten aus wie bei ganz verdecktem Ring. Abweichung vom Original (Entscheidung des Projektinhabers 06.11.2026: die Laterne in r102 schien über Leons Kopf, weil der Ring größer als der Kopf war; GameCube ebenso). Port-Patch |
 | 0214 `camera.cpp`, `view.cpp`, `TexRender.cpp`, `mirror.cpp`, `trans.cpp`, `esp08.cpp`, `esp0f.cpp`, `esp18.cpp`, `esp_sub.cpp`, `Espgen42.cpp`, `espgen45.cpp`, `id_sys.cpp`, `examine.cpp`, `mes.cpp`, `cam_qfps.cpp`, `cam_ctrl.cpp` | Bildformat „Native“: die Projektion der Kamera und der Sichtkegel mit `re4_view_aspect()` statt 4/3 (breiter, solange gespielt wird), alles, was mit der Kamera projiziert (Effekte mit Bildkopie, Spiegel, Gegenstandskamera, Nahebene gegen Wände und Wasser, Bildpunkt zu Strahl), mit `re4_view_camera_aspect()`; `CameraSetProjection` meldet die erste geladene Projektion eines Bildes (`re4_view_load`, `RE4_GX_CHUNK_WIDE`); der Text (`messageCamera`) mit `re4_view_flat_edge` so schmal wie das HUD. Jede Ersetzung auf ihrer Zeile, Funktionen in `re4_whole_prelude.h`. Aus und in jedem anderen Bildformat der Wert des Originals (1.3333334f; 0 und 512). Port-Funktion, Wunsch des Projektinhabers 07.11.2026, auf Grundlage des Breitbilds im Fork von Noname267 |
 | 0215 `id_sys.cpp` | Lebensanzeige in der Ecke: die fünf Stellen, an denen eine ID-Einheit mit `IDSystem::m_scrn_mat` gezeichnet wird (normal, negativ, Flimmern samt Texturprojektion), nehmen die Matrix von `re4_hud_scrn(u)`: für den Baum unter Einheit 0 der Klasse `IDC_LIFE_METER` (Ring, Ashleys Ring, Munition samt `IDC_BLLT_ICON`, Namensfeld) in die rechte untere Ecke der gezeigten Zeilen verschoben (bei „Gestreckt“ schmaler), sonst unverändert; ohne Vorgabe der App (`re4_core_set_hud_layout`) immer unverändert. Jede Ersetzung auf ihrer Zeile, Funktion in `re4_whole_prelude.h`. Port-Funktion, Wunsch des Projektinhabers 07.11.2026 |
+| 0216 `r224.cpp` | Lava-Halle der zwei El Gigantes: mit EU-, JP- und KR-Discs Bereich 10 (Meldung 1 „Damn! It's locked …“ vor dem Ausgangstor) aus beim Betreten, an, wenn das Tor hinter den Riesen zufällt (`door_close`), aus, wenn es nach dem Kampf aufgeht (`door_open`), wie deren Code (`st2_3.rel`); Debug- und US-Daten haben den Bereich nicht. Port-Patch für Verkaufsdaten, Nutzerbericht 07.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
