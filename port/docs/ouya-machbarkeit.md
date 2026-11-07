@@ -445,3 +445,51 @@ master lässt die Bildverzerrungen weg, die das Bild kopieren) billiger werden; 
 zweite Bild zeigen“ in einer späteren OUYA-App (dann reichen 66 ms je Bild für 15 Bilder/s).
 Noch nicht gemessen: die Kern-Probe (`ouya-probe.ps1`) mit master's Hilfs-Threads statt des
 eigenen Grafik-Threads.
+
+### Potato-Modus, weniger Licht, 16-Bit-Farben (07.11.2026, zweiter Teil)
+
+**Wünsche des Projektinhabers (07.11.2026):** auf der OUYA der Potato-Modus von master mit
+beiden Schaltern (Wetter- und Spezialeffekte aus), das Licht je Eckpunkt vereinfachen, und die
+Frage, ob weniger Farben (16 Bit) schneller wären.
+
+- **Potato-Modus** (`RE4_POTATO=3`, Kern, unverändert von master): lässt in Wald und Dorf viele
+  Effektfiguren weg, vor allem die großen halbdurchsichtigen Nebel- und Staubschleier über dem
+  Bild (Dorf r101-001201: 499 → 257 Zeichenaufträge, Dreiecke fast gleich); die 8–9 Bildkopien
+  je Bild bleiben (sie gehören zum Spiel selbst). Bilder: `potato-*`.
+- **Höchstens 2 Lichter je Eckpunkt** (`RE4_GX2_LIGHTS=2`, OUYA-Grafik): gemessen an den
+  Mitschnitten rechnen beleuchtete Eckpunkte meist 2 Lichter (40–100 %), sonst 3, selten 4–7;
+  die Winkel-Abschwächung wird fast immer gebraucht; die zwei stärksten Lichter geben am Objekt
+  92–100 % des Lichts. Deshalb wählt die Grafik je Zeichenauftrag die zwei stärksten (an seinem
+  Ursprung) und gibt die übrigen als gleichmäßigen Anteil dazu (ihr Licht am Ursprung, halb, wo
+  die Richtung zählt): nichts verschwindet, nichts springt. Bildvergleich gegen alle Lichter: im
+  Mittel höchstens 1,6 von 255 Stufen, höchstens 7,5 % der Pixel mehr als 8 Stufen; mit nur
+  einem Licht bis 69 % der Pixel (sichtbar heller und flacher). Bilder: `licht*`.
+- **16 Bit:** Texturen in 16 Bit (`RE4_GX2_TEX16=1`: RGB565 ohne Alpha, RGBA5551 für
+  Ausschnitte, weiches Alpha bleibt 32 Bit) sehen gleich aus (im Mittel unter 1 von 255
+  Stufen), bringen auf der OUYA aber **nichts Messbares** (schnellste Läufe 82 gegen 82 ms): die
+  OUYA hängt am Rechnen, nicht an der Datenmenge. Das Bild selbst in 16 Bit
+  (`RE4_GX2_EFB16=1`, RGB565) geht nicht: RE4 legt jedes Bild durch einen Farbfilter, der den
+  Alpha-Kanal des Bildes liest; ohne ihn wird alles orange und zu hell (Bild `efb16-*`). Beide
+  Schalter bleiben als Messvarianten, nicht in der Voreinstellung.
+- **Messmethode:** nach Stunden Last schwankt die OUYA stark (dasselbe Bild 41 oder 105 ms;
+  nacheinander gemessene Varianten wurden langsamer, weil sie sich erwärmt). Jetzt
+  `ouya-gx-render.ps1 -Interleave` (jedes Bild in allen Varianten direkt nacheinander) und
+  `gx_gl2_render` meldet zusätzlich den schnellsten Lauf je Bild; verglichen wird der Median
+  der schnellsten Läufe.
+
+**Messung** (12 schwere Bilder aus r100 und r101, Sicht 0,5, vereinfachte Farben, 0,75×;
+abwechselnd, schnellste Läufe):
+
+| | alle Lichter | 2 Lichter |
+|---|---|---|
+| ohne Potato | 98 ms | 85 ms |
+| mit Potato (beide Schalter) | 81 ms | 80 ms |
+
+Potato und weniger Licht bringen je 13–17 %, zusammen etwa 18 %; die Zeiten im Median aller
+Läufe (mit den warmen) liegen um 115–130 ms.
+
+**Voreinstellung der leichten OUYA-Fassung (Stand 07.11.2026):** Kern `RE4_POTATO=3`,
+`RE4_VIEW_DISTANCE=0.5` (dazu `RE4_GX_COMPACT=1`, `RE4_GX_TEXTURE_CHECK=sampled`; so in
+`ouya-probe.ps1`, Läufe „-gp“); Grafik `RE4_GX2_FAST_TEV=1`, `RE4_GX2_SCALE=0.75`,
+`RE4_GX2_LIGHTS=2`. Damit in Wald und Dorf etwa 80–120 ms je Bild, also 8–12 Bilder/s; kleine
+Räume 40–65 ms.
