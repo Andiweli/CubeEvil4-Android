@@ -378,9 +378,21 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
       }
       if (got[i]->flags & RE4_GX_CHUNK_DRAWLESS) {
         // the check: a later chunk reads a copy this one should have made
-        if (i + 1 < got.size() && gRenderer->CopiesReadLater(*got[i], *got[i + 1])) {
+        std::uint32_t kept = 0;
+        if (i + 1 < got.size() && gRenderer->CopiesReadLater(*got[i], *got[i + 1], &kept)) {
           gViolations++;
           gViolationHoldUntil = NowMs() + 3000;
+          // which copy (the first few targets): to tell what effect keeps it
+          static std::uint32_t logged[8];
+          static unsigned nLogged;
+          bool seen = false;
+          for (unsigned k = 0; k < nLogged; k++)
+            seen = seen || logged[k] == kept;
+          if (!seen && nLogged < 8) {
+            logged[nLogged++] = kept;
+            LOG("copy check: a chunk without draws should have made the copy at 0x%08x, the next one reads it",
+                kept);
+          }
         }
         gRenderer->Skip(*got[i]);
         gDrawlessRun++;

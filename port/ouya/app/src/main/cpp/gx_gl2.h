@@ -151,9 +151,20 @@ public:
   // black or marked, ends without a display copy, or makes an EFB copy for a texture that `b` could
   // still read (unless `b` copies to the same place first).
   bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const;
-  // A texture copy of `a` that `b` reads before copying there again (CanSkip without its other rules;
-  // the OUYA app checks the chunks the core left without draws with it)
-  bool CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b) const;
+  // A texture copy of `a` that `b` reads and does not copy again (kept for later pictures, a menu's
+  // background; *address: its target): what the OUYA app checks the chunks the core left without
+  // draws with. A copy `b` reads before copying there again (a running effect) does not count.
+  bool CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b, std::uint32_t *address = nullptr) const;
+
+ private:
+  struct CopyUse {
+    bool allRecopied;          // `b` copies to every target of `a` again
+    bool keptRead;             // `b` reads a target of `a` it does not copy again
+    std::uint32_t keptAddress; // that target
+  };
+  CopyUse UseOfCopies(const Re4GxChunk &a, const Re4GxChunk &b) const;
+
+ public:
   void Skip(const Re4GxChunk &a);
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;

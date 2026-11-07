@@ -2314,12 +2314,28 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
   if (a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION || (a.flags & refuse) ||
       !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
     return false;
-  return !CopiesReadLater(a, b);
+  return UseOfCopies(a, b).allRecopied;
 }
 
-// A texture copy of `a` that `b` reads before it copies there again (what Skip(a) would get wrong)
-bool GxRenderer::CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b) const {
+bool GxRenderer::CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b, std::uint32_t *address) const {
+  const CopyUse use = UseOfCopies(a, b);
+  if (address)
+    *address = use.keptAddress;
+  return use.keptRead;
+}
+
+// What `b` does with the texture copies `a` makes (their targets as the BP state decides them):
+// allRecopied, `b` copies to each of them again (a read before that sees an older copy, as a running
+// effect does that reads the picture before and copies anew, r101's: with Skip(a) it sees the copy
+// of the last chunk run, a few pictures older; the OUYA's frame skip, 07.11.2026); keptRead, `b`
+// reads one it does not copy again (a copy kept for the pictures after, a menu's background: Skip(a)
+// would leave it wrong)
+GxRenderer::CopyUse GxRenderer::UseOfCopies(const Re4GxChunk &a, const Re4GxChunk &b) const {
   const Impl &m = *impl_;
+  CopyUse use;
+  use.allRecopied = false;
+  use.keptRead = true;
+  use.keptAddress = 0;
   // the EFB copies for textures in `a` (their targets as the BP state decides them), and which copy
   // each texture map holds (0: none), from the chunk run last on
   std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
@@ -2337,7 +2353,7 @@ bool GxRenderer::CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b) const
     const std::uint32_t head = a.ops[at];
     const std::uint32_t op = head & 0xFF, n = head >> 8;
     if (at + 1 + n > a.opWords)
-      return true;
+      return use;
     const std::uint32_t *p = a.ops + at + 1;
     Re4GxTexture t;
     if (op == RE4_GX_OP_BP && n >= 1) {
@@ -2353,18 +2369,24 @@ bool GxRenderer::CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b) const
     }
     at += 1 + n;
   }
-  if (pending.empty())
-    return false;
+  if (pending.empty()) {
+    use.allRecopied = true;
+    use.keptRead = false;
+    return use;
+  }
+  std::vector<std::uint32_t> read;  // targets read while still pending
   auto isPending = [&](std::uint32_t address) {
     return address && std::find(pending.begin(), pending.end(), address) != pending.end();
   };
-  // `b` must copy to each of them again before it reads one (a texture op for it, or a draw whose
-  // stages sample a map still holding it)
-  for (std::uint32_t at = 0; at < b.opWords && !pending.empty();) {
+  auto readOf = [&](std::uint32_t address) {
+    if (isPending(address) && std::find(read.begin(), read.end(), address) == read.end())
+      read.push_back(address);
+  };
+  for (std::uint32_t at = 0; at < b.opWords;) {
     const std::uint32_t head = b.ops[at];
     const std::uint32_t op = head & 0xFF, n = head >> 8;
     if (at + 1 + n > b.opWords)
-      return true;
+      return use;
     const std::uint32_t *p = b.ops + at + 1;
     Re4GxTexture t;
     if (op == RE4_GX_OP_DRAW) {
@@ -2372,17 +2394,16 @@ bool GxRenderer::CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b) const
       const unsigned stages = ((gen >> 10) & 15) + 1, indStages = (gen >> 16) & 7;
       for (unsigned st = 0; st < stages; st++) {
         const std::uint32_t o = bp[0x28 + st / 2] >> ((st & 1) ? 12 : 0);
-        if (((o >> 6) & 1) && isPending(mapCopy[o & 7]))
-          return true;
+        if ((o >> 6) & 1)
+          readOf(mapCopy[o & 7]);
       }
       for (unsigned st = 0; st < indStages && st < 4; st++)
-        if (isPending(mapCopy[(bp[0x27] >> (6 * st)) & 7]))
-          return true;
+        readOf(mapCopy[(bp[0x27] >> (6 * st)) & 7]);
     } else if (op == RE4_GX_OP_TEXTURE) {
       if (!texture(p, n, &t))
-        return true;
-      if ((t.flags & RE4_GX_TEX_COPY) && isPending(t.address))
-        return true;
+        return use;
+      if (t.flags & RE4_GX_TEX_COPY)
+        readOf(t.address);
     } else if (op == RE4_GX_OP_BP && n >= 1) {
       const unsigned reg = p[0] >> 24;
       bp[reg] = p[0] & 0xFFFFFF;
@@ -2396,7 +2417,15 @@ bool GxRenderer::CopiesReadLater(const Re4GxChunk &a, const Re4GxChunk &b) const
     }
     at += 1 + n;
   }
-  return !pending.empty();
+  use.allRecopied = pending.empty();
+  use.keptRead = false;
+  for (std::uint32_t address : read)
+    if (isPending(address)) {
+      use.keptRead = true;
+      use.keptAddress = address;
+      break;
+    }
+  return use;
 }
 
 void GxRenderer::Skip(const Re4GxChunk &a) {
