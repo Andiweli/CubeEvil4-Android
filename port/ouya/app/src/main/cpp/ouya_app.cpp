@@ -238,13 +238,18 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   if (gRenderer) {
-    // the game's 4:3 picture in the middle of the screen
-    int h = gHeight, w = h * 4 / 3;
-    if (w > gWidth) {
-      w = gWidth;
-      h = w * 3 / 4;
+    // full screen as the main app's default (core_mode.cpp): the game letterboxes everything, its
+    // rows 56..391 of 448 (on a 4:3 television exactly 16:9) fill a 16:9 box
+    unsigned xw = 0, xh = 0;
+    gRenderer->Xfb(&xw, &xh);
+    const int eighths = gRenderer->ResolutionEighths();
+    xh = eighths ? xh * 8 / static_cast<unsigned>(eighths) : xh;  // the GameCube's rows
+    int w = gWidth, h = gWidth * 9 / 16;
+    if (h > gHeight) {
+      h = gHeight;
+      w = gHeight * 16 / 9;
     }
-    gRenderer->Present((gWidth - w) / 2, (gHeight - h) / 2, w, h);
+    gRenderer->Present((gWidth - w) / 2, (gHeight - h) / 2, w, h, xh * 56 / 448, xh * 336 / 448);
   }
   gFrames++;
   const long long now = NowMs();

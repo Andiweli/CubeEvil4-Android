@@ -59,6 +59,19 @@ endif()
 # effects, a few runtime functions; armhf (VFPv3) and x86 have none, so the 32/64-bit compare
 # on the PC could not see it (19.10.2026). whole_build.sh counts them in the aarch64 build.
 add_compile_options(-ffp-contract=off)
+# Android 4.x on 32-bit ARM (the OUYA branch): its kernel stops a program at a double or multiple load
+# or store (LDRD, LDM, STRD, STM) from an address that is not on 4 bytes (SIGBUS, BUS_ADRALN), where
+# newer kernels fix the access up. The GameCube code copies 32-bit words from addresses that are only
+# on 2 bytes (the SDK's AXSetVoiceAddr with the movies' sound, 07.11.2026), which clang merges into
+# such instructions: not merged here (single LDR / STR take any address).
+set(RE4_LEVEL "${ANDROID_PLATFORM_LEVEL}")
+if(NOT RE4_LEVEL)
+    set(RE4_LEVEL "${CMAKE_SYSTEM_VERSION}")
+endif()
+if(ANDROID AND ANDROID_ABI STREQUAL "armeabi-v7a" AND RE4_LEVEL AND RE4_LEVEL LESS 21)
+    add_compile_options("SHELL:-mllvm -arm-assume-misaligned-load-store=true")
+    message(STATUS "Android ${RE4_LEVEL} on 32-bit ARM: loads and stores not merged (misaligned addresses)")
+endif()
 # Check build with sanitizers (whole_build.sh RE4_SANITIZE=address,undefined: build folder
 # whole-<target>-O2-san; the room tour of the PC check, whole_r100_check.sh --sanitize).
 # AddressSanitizer stops at the first access outside a global, a local or a block of the C

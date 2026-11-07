@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -27,7 +28,8 @@ import javax.microedition.khronos.opengles.GL10;
  *
  * Controller (as the main app's CoreInput, its default layout): O = A, A = B, U = X, Y = Y, R1 = Z,
  * L2 / R2 = L / R (analog), the left stick the main stick, the right stick the C stick, the D-pad the
- * D-pad. The OUYA has no START button: the system button's short press (MENU) and L3 are START.
+ * D-pad. The OUYA has no START button: the system button's short press (MENU) and L3 are START. The
+ * picture fills the screen as the main app's default: the game's 16:9 rows (56..391).
  */
 public class OuyaActivity extends Activity {
     static {
@@ -56,6 +58,15 @@ public class OuyaActivity extends Activity {
     private int keys;                       // GameCube buttons held by keys
     private float lx, ly, rx, ry, lt, rt;   // the axes
     private int hat;                        // D-pad from the hat axes (other controllers)
+    private int tapped;                     // buttons pressed for a moment (the OUYA button)
+    private final Handler handler = new Handler();
+    private final Runnable untap = new Runnable() {
+        @Override
+        public void run() {
+            tapped = 0;
+            sendPad();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle state) {
@@ -117,6 +128,15 @@ public class OuyaActivity extends Activity {
                         }
                     }
                 });
+                // the core process ends with the thread that started it (PR_SET_PDEATHSIG goes by
+                // the thread, not the process): this one stays for the app's life
+                while (problem.isEmpty()) {
+                    try {
+                        Thread.sleep(Long.MAX_VALUE);
+                    } catch (InterruptedException e) {
+                        // on
+                    }
+                }
             }
         }, "re4-start").start();
     }
@@ -147,7 +167,6 @@ public class OuyaActivity extends Activity {
         case KeyEvent.KEYCODE_BUTTON_R1: return GC_Z;
         case KeyEvent.KEYCODE_BUTTON_L2: return GC_L;
         case KeyEvent.KEYCODE_BUTTON_R2: return GC_R;
-        case KeyEvent.KEYCODE_MENU:                      // the OUYA's system button, short
         case KeyEvent.KEYCODE_BUTTON_START:
         case KeyEvent.KEYCODE_BUTTON_THUMBL: return GC_START;
         case KeyEvent.KEYCODE_DPAD_UP: return GC_UP;
@@ -160,6 +179,17 @@ public class OuyaActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // the OUYA's system button (short): Android gets only its release (KEYCODE_MENU), no press;
+        // START for a fifth of a second (the game reads the pad once a frame)
+        if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
+            if (event.getRepeatCount() == 0) {
+                tapped = GC_START;
+                sendPad();
+                handler.removeCallbacks(untap);
+                handler.postDelayed(untap, 200);
+            }
+            return true;
+        }
         int bit = buttonOf(event.getKeyCode());
         if (bit == 0) {
             return super.dispatchKeyEvent(event);
@@ -194,7 +224,7 @@ public class OuyaActivity extends Activity {
         if (!running) {
             return;
         }
-        int buttons = keys | hat;
+        int buttons = keys | hat | tapped;
         // the analog triggers pressed through: the digital L / R as well (as on the GameCube)
         if (lt > 0.9f) {
             buttons |= GC_L;
