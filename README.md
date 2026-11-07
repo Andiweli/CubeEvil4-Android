@@ -13,6 +13,9 @@
 
 **[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
+> [!IMPORTANT]
+> Due to the new update feature within the app—which establishes an internet connection to GitHub to check for a newer version—Android may display a Google Play Protect warning. This warning is completely harmless.
+
 **CubeEvil4** is an unofficial, native Android port of the GameCube debug build of Resident Evil 4
 (`G4BE08`, the "Nov 25 2004" prototype on two discs). It does not recreate the game: the app runs
 the original game code, compiled from the complete decompilation in this repository for ARM.
@@ -80,7 +83,7 @@ and it contains no game data: you need your own images of both discs of one rele
 
 | | Minimum | Recommended |
 |---|---|---|
-| Android | 6.0 | – |
+| Android | 7.0 | – |
 | Processor | ARM, 32- or 64-bit | 64-bit (see the note below) |
 | Graphics | OpenGL ES 3.0 | – |
 | RAM | – | 4 GB or more |
@@ -88,12 +91,6 @@ and it contains no game data: you need your own images of both discs of one rele
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
 | Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`), the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
-
-> [!NOTE]
-> **32-bit-only devices:** some of them cannot start the game. One with Android 14 showed
-> "core not started: MEM1 … is taken in this process": Android keeps its own memory at the
-> address the game needs. This does not depend on the amount of RAM. A device that runs 64-bit
-> apps is recommended.
 
 ## Status
 
