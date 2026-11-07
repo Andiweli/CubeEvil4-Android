@@ -2609,6 +2609,9 @@ void apply(const Event& e)
         gStats.hostLists++;
         break;
     }
+    case Event::kStill:
+        gStill.store(e.value != 0);
+        break;
     }
 }
 
@@ -2651,7 +2654,7 @@ void re4_gx_mark(void)
 
 void re4_gx_still(int on)
 {
-    gStill.store(on != 0);
+    dispatch(re4gx::Event::kStill, 0, on != 0);
 }
 
 // The picture format "Native" (runtime/picture.cpp re4_view_load, patch 0214): whether the camera's projection

@@ -209,6 +209,15 @@ void VISetBlack(int black);
 void re4_dof_autofocus_mark(void* w);
 int re4_gx_texture_check(int sampled);
 int re4_gx_compact(int on);
+void re4_gx_sync(void);
+}
+
+// A chunk the GP finished: with the GP on its own thread (RE4_GX_THREAD=1, gx_thread.cpp) once it
+// caught up with what the test sent
+static const Re4GxChunk* take()
+{
+    re4_gx_sync();
+    return re4_core_gx_acquire();
 }
 
 namespace {
@@ -338,11 +347,11 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     memset(m, 0, 0x3000);
 
     GXInit(fifo, 0x10000);
-    if (re4_core_gx_acquire() != 0) {  // attaches; nothing built yet
+    if (take() != 0) {  // attaches; nothing built yet
         failed |= 0x1;
     }
     copyDisp(xfb);  // the chunk starts at this frame boundary
-    if (re4_core_gx_acquire() != 0) {
+    if (take() != 0) {
         failed |= 0x1;
     }
 
@@ -447,7 +456,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     triangle();
 
     copyDisp(xfb);
-    const Re4GxChunk* c1 = re4_core_gx_acquire();
+    const Re4GxChunk* c1 = take();
     if (!c1 || c1->version != RE4_GX_FRAME_VERSION || c1->flags != (RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB) ||
         c1->xfbAddress != re4_gx_physical(xfb) || c1->xfbWidth != 640 || c1->xfbHeight != 448) {
         return failed | 0x2;
@@ -575,7 +584,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     GXLoadTexObj(&tex, 0);
     triangle();
     copyDisp(xfb);
-    const Re4GxChunk* c2 = re4_core_gx_acquire();
+    const Re4GxChunk* c2 = take();
     if (!c2 || c2->flags != RE4_GX_CHUNK_XFB || c2->sequence != c1->sequence + 1) {
         failed |= 0x800;
     } else {
@@ -595,7 +604,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     // is run but held; the next one shown is not
     triangle();
     copyDisp(xfb + 0x100, false);
-    const Re4GxChunk* c3 = re4_core_gx_acquire();
+    const Re4GxChunk* c3 = take();
     if (!c3 || c3->flags != (RE4_GX_CHUNK_XFB | RE4_GX_CHUNK_HOLD)) {
         failed |= 0x2000;
     }
@@ -604,7 +613,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     }
     triangle();
     copyDisp(xfb + 0x100);
-    const Re4GxChunk* c4 = re4_core_gx_acquire();
+    const Re4GxChunk* c4 = take();
     if (!c4 || c4->flags != RE4_GX_CHUNK_XFB) {
         failed |= 0x2000;
     }
@@ -616,7 +625,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     VISetBlack(1);
     triangle();
     copyDisp(xfb);
-    const Re4GxChunk* c5 = re4_core_gx_acquire();
+    const Re4GxChunk* c5 = take();
     if (!c5 || c5->flags != (RE4_GX_CHUNK_XFB | RE4_GX_CHUNK_BLACK)) {
         failed |= 0x4000;
     }
@@ -626,7 +635,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     VISetBlack(0);
     triangle();
     copyDisp(xfb);
-    const Re4GxChunk* c6 = re4_core_gx_acquire();
+    const Re4GxChunk* c6 = take();
     if (!c6 || c6->flags != RE4_GX_CHUNK_XFB) {
         failed |= 0x4000;
     }
@@ -640,7 +649,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     triangle();
     re4_dof_autofocus_mark(0);
     copyDisp(xfb);
-    const Re4GxChunk* c7 = re4_core_gx_acquire();
+    const Re4GxChunk* c7 = take();
     {
         int marks = 0;
         for (uint32_t at = 0; c7 && at < c7->opWords; at += 1 + (c7->ops[at] >> 8)) {
@@ -655,7 +664,7 @@ extern "C" int re4probe_gx_frame_test(void* fifo, void* mem)
     }
     re4_core_gx_detach();
     copyDisp(xfb);  // no renderer: nothing is built
-    if (re4_core_gx_acquire() != 0) {
+    if (take() != 0) {
         failed |= 0x1000;
     }
     re4_core_gx_detach();
@@ -886,9 +895,9 @@ extern "C" unsigned long long re4probe_gx_fingerprint(void* fifo, void* mem, voi
             re4_gx_put_u8(bytes[i]);
         }
     }
-    re4_core_gx_acquire();  // attach
+    take();  // attach
     copyDisp(xfb);
-    if (const Re4GxChunk* c = re4_core_gx_acquire()) {
+    if (const Re4GxChunk* c = take()) {
         re4_core_gx_release(c);
     }
     u8* m = (u8*) mem;
@@ -1015,7 +1024,7 @@ extern "C" unsigned long long re4probe_gx_fingerprint(void* fifo, void* mem, voi
             re4_gx_stats(st);
             re4_log("  gx fingerprint frame %d: %u vertices so far", frame, st[kVertices]);
         }
-        const Re4GxChunk* c = re4_core_gx_acquire();
+        const Re4GxChunk* c = take();
         if (!c) {
             hash = fnv(hash, "none", 4);
             continue;
@@ -1061,9 +1070,9 @@ extern "C" unsigned re4probe_gx_bench(void* fifo, void* mem, void* xfb, int fram
 {
     static u8 bytes[64];
     GXInit(fifo, 0x10000);
-    re4_core_gx_acquire();  // attach
+    take();  // attach
     copyDisp(xfb);
-    if (const Re4GxChunk* c = re4_core_gx_acquire()) {
+    if (const Re4GxChunk* c = take()) {
         re4_core_gx_release(c);
     }
     u8* m = (u8*) mem;
@@ -1125,7 +1134,7 @@ extern "C" unsigned re4probe_gx_bench(void* fifo, void* mem, void* xfb, int fram
         copyDisp(xfb);
         clock_gettime(CLOCK_MONOTONIC, &t1);
         total += (t1.tv_sec - t0.tv_sec) * 1e6 + (t1.tv_nsec - t0.tv_nsec) / 1e3;
-        if (const Re4GxChunk* c = re4_core_gx_acquire()) {
+        if (const Re4GxChunk* c = take()) {
             re4_core_gx_release(c);
         }
     }
@@ -1144,9 +1153,9 @@ extern "C" int re4probe_gx_texture_check_test(void* fifo, void* mem, void* xfb)
     int failed = 0;
     const int was = re4_gx_texture_check(1);
     GXInit(fifo, 0x10000);
-    re4_core_gx_acquire();  // attach
+    take();  // attach
     copyDisp(xfb);
-    if (const Re4GxChunk* c = re4_core_gx_acquire()) {
+    if (const Re4GxChunk* c = take()) {
         re4_core_gx_release(c);
     }
     u8* texels = (u8*) mem;  // 64x64 RGB5A3: 8192 bytes
@@ -1164,7 +1173,7 @@ extern "C" int re4probe_gx_texture_check_test(void* fifo, void* mem, void* xfb)
         triangle();
         copyDisp(xfb);
         uint64_t key = 0;
-        if (const Re4GxChunk* c = re4_core_gx_acquire()) {
+        if (const Re4GxChunk* c = take()) {
             Parsed p;
             parse(c, p);
             for (int i = 0; i < p.textureCount; i++) {

@@ -27,9 +27,9 @@
 // measured the game's thread at 42 ms a frame in r100, 41 % of it the decoder (port/docs/
 // ouya-machbarkeit.md, "Stufe O3"). master's additions: the vertex jobs run from the GP thread (it
 // hands out the batches and helps); the game's thread waits for them only after sync() (a display
-// list recorded over memory they read, the tests). re4_gx_still and re4_gx_wide stay flags the GP
-// reads at the display copy: the app's 60 FPS and its picture format "Native", which the OUYA app
-// does not have.
+// list recorded over memory they read, the tests); re4_gx_still (the app's 60 FPS) an event in its
+// place. re4_gx_wide stays a flag the GP reads at the display copy (the picture format "Native",
+// which the OUYA app does not have; the game reads it back itself in its frame).
 #include "gx_internal.h"
 #include "re4_runtime.h"
 

@@ -45,10 +45,10 @@ void finishJobs();
 // The port's calls between the bytes of the stream (VI, marks, host-order lists), applied in
 // their place: at once, or by the GP thread (gx_thread.cpp)
 struct Event {
-    enum Kind { kViNext, kViBlack, kViFlush, kMark, kHostList } kind;
+    enum Kind { kViNext, kViBlack, kViFlush, kMark, kHostList, kStill } kind;
     uint64_t at;        // after this many bytes of the stream (post())
     uintptr_t pointer;  // kViNext: the XFB; kHostList: the list
-    uint32_t value;     // kViBlack: black; kHostList: its size
+    uint32_t value;     // kViBlack: black; kHostList: its size; kStill: on
     uint64_t hash;      // kHostList: its bytes when the game registered it
 };
 void apply(const Event& e);

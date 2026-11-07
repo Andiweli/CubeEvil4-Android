@@ -97,6 +97,8 @@ param(
     # the disc on the device: default the probe's own copy ($remote/data); the OUYA app's
     # (/sdcard/RE4-OUYA, with -SkipData: no second 1.3 GB copy, 07.11.2026)
     [string]$RemoteData = '',
+    # more settings for every run, e.g. -Env 'RE4_GX_THREAD=1','RE4_BRIDGE_MODELS=0'
+    [string[]]$Env = @(),
     [string]$Distro = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -346,6 +348,7 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
         $float = $run -like '*-gleitkomma'
         if ($gp -and -not $float) { $settings += 'RE4_GX_COMPACT=1' }
 
+        $settings += $Env
         $copyArg = ''
         if ($runNoCopy) { $copyArg = ' --no-copy' }
         # where the game's thread spends its time (port/tools/probe_profile.py names the functions)

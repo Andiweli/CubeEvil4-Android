@@ -621,6 +621,15 @@ void VIInit(void);
 void VIWaitForRetrace(void);
 unsigned VIGetRetraceCount(void);
 int re4probe_valid_ptr(int onThread);  // tests/game_probe.cpp
+void re4_gx_sync(void);               // runtime/gx_thread.cpp
+}
+
+// A chunk the GP finished: with the GP on its own thread (RE4_GX_THREAD=1) once it caught up with
+// what the test sent (the test's own thread; a renderer thread takes chunks as they come)
+static const Re4GxChunk* re4gx_test_take()
+{
+    re4_gx_sync();
+    return re4_core_gx_acquire();
 }
 
 namespace {
@@ -1000,7 +1009,7 @@ static void testGx()
         void* xfb = (void*) (unsigned long) 0x82830000u;
         std::atomic<bool> stop(false);
         std::atomic<int> received(0), outOfOrder(0), resets(0);
-        re4_core_gx_acquire();  // attach
+        re4gx_test_take();  // attach
         re4probe_gx_produce(fifo, xfb, 1, 1);  // the boundary where recording starts
         std::thread renderer([&] {
             unsigned last = 0;
@@ -1032,7 +1041,7 @@ static void testGx()
         CHECK(waited < 3.0);
         const Re4GxChunk* first = 0;
         for (int i = 0; i < 4 && !first; i++) {  // attach again; the next chunk starts over
-            first = re4_core_gx_acquire();
+            first = re4gx_test_take();
             if (!first) {
                 re4probe_gx_produce(fifo, xfb, 1, 0);
             }
@@ -1082,16 +1091,16 @@ static void testGx()
     {
         void* fifo = (void*) (unsigned long) 0x82800000u;
         void* xfb = (void*) (unsigned long) 0x82830000u;
-        re4_core_gx_acquire();  // attach
+        re4gx_test_take();  // attach
         re4probe_gx_produce(fifo, xfb, 2, 1);
-        while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+        while (const Re4GxChunk* c = re4gx_test_take()) {
             re4_core_gx_release(c);
         }
         re4_gx_mark();
         re4probe_gx_produce(fifo, xfb, 3, 0);
         unsigned flags[3] = {0, 0, 0};
         for (int i = 0; i < 3; i++) {
-            if (const Re4GxChunk* c = re4_core_gx_acquire()) {
+            if (const Re4GxChunk* c = re4gx_test_take()) {
                 flags[i] = c->flags | 0x100;
                 re4_core_gx_release(c);
             }
@@ -1110,9 +1119,9 @@ static void testGx()
     {
         void* fifo = (void*) (unsigned long) 0x82800000u;
         void* xfb = (void*) (unsigned long) 0x82830000u;
-        re4_core_gx_acquire();  // attach
+        re4gx_test_take();  // attach
         re4probe_gx_produce(fifo, xfb, 2, 0);
-        while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+        while (const Re4GxChunk* c = re4gx_test_take()) {
             re4_core_gx_release(c);
         }
         // one frame at a time, taking what is queued after each (4 slots: a renderer that takes
@@ -1121,7 +1130,7 @@ static void testGx()
         for (int i = 0; i < 4; i++) {
             re4_gx_still(i < 2);
             re4probe_gx_produce(fifo, xfb, 1, 0);
-            while (const Re4GxChunk* c = re4_core_gx_acquire()) {
+            while (const Re4GxChunk* c = re4gx_test_take()) {
                 chunks++;
                 still += (c->flags & RE4_GX_CHUNK_STILL) ? 1 : 0;
                 last = c->flags;

@@ -326,6 +326,14 @@ extern "C" void re4_bridge_capture(Re4CoreSnapshot* s)
     s->cameraRoll = cam.Roll;
     s->cameraFovy = cam.Fovy;
     s->cameraValid = cam.Fovy > 0.0f && cam.Fovy < 180.0f;
-    captureManager(s, EmMgr, 0);
-    captureManager(s, ObjMgr, 1);
+    // RE4_BRIDGE_MODELS=0 (the OUYA app, which reads no snapshots; 07.11.2026: 3 % of the game's
+    // thread in r100): room, screen and camera only, no models
+    static const bool models = [] {
+        const char* v = getenv("RE4_BRIDGE_MODELS");
+        return !(v && *v == '0');
+    }();
+    if (models) {
+        captureManager(s, EmMgr, 0);
+        captureManager(s, ObjMgr, 1);
+    }
 }

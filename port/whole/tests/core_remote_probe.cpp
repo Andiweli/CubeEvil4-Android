@@ -46,6 +46,7 @@ int re4_letterbox_off(void);
 int re4_debug_menu_request(void);
 unsigned int re4_gx_efb_peek(unsigned short x, unsigned short y, int z);
 void re4probe_gx_produce(void* fifo, void* xfb, int frames, int init);
+void re4_gx_sync(void);  // runtime/gx_thread.cpp
 void AIInit(unsigned char* stack);
 void AIInitDMA(unsigned start, unsigned length);
 void AIStartDMA(void);
@@ -121,6 +122,9 @@ extern "C" __attribute__((visibility("default"))) int re4_coreproc_test_entry(vo
             debugMenu++;
         }
         re4probe_gx_produce(fifo, xfb, 1, frames == 0);
+        // the GP thread (RE4_GX_THREAD=1) catches up once a frame, as in the game at the retrace
+        // (re4_gx_deliver_interrupts); this loop has no retrace and would run ahead of it
+        re4_gx_sync();
         if (p.button & 0x1000) {
             break;
         }

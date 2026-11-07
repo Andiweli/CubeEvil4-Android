@@ -38,6 +38,7 @@ void* GXInit(void* base, u32 size);
 void VISetNextFrameBuffer(void* fb);
 void VIFlush(void);
 void MIXSetSoundMode(u32 mode);
+void re4_gx_sync(void);  // runtime/gx_thread.cpp: the GP thread caught up (RE4_GX_THREAD=1)
 void MIXUpdateSettings(void);
 typedef void (*AXCallback)(void);
 AXCallback AXRegisterCallback(AXCallback callback);
@@ -189,6 +190,7 @@ void gxDrawFrame(const char* dir, int fno, const u8* ybuf, const u8* cbuf, u32 y
     GXInitTexObj(&tex->ctobj, ct, (u16) w2, (u16) (texH / 2), 3, 0, 0, 0);  // IA8, clamp
     Sofdec.drawTex();
     gxCopy();
+    re4_gx_sync();
     const Re4GxChunk* c = re4_core_gx_acquire();
     if (!c) {
         fprintf(stderr, "[movie] GX: no chunk for frame %d\n", fno);
