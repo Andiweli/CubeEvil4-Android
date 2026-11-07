@@ -209,7 +209,7 @@ enum Re4GxChunkFlags {
                                      picture between it and the one before (the
                                      app's 60 FPS; its text lists scroll, the
                                      letters cannot be told apart) */
-    RE4_GX_CHUNK_WIDE = 1u << 6   /* the app's picture format "Native" (0.99.0,
+    RE4_GX_CHUNK_WIDE = 1u << 6,  /* the app's picture format "Native" (0.99.0,
                                      re4_core_set_view_aspect): the camera's 3D
                                      of this picture was drawn for the screen's
                                      wider aspect (re4_gx_wide); the app shows it
