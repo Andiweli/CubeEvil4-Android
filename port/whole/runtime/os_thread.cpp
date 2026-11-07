@@ -664,6 +664,11 @@ void OSSleepThread(OSThreadQueue* q)
     re4_gx_deliver_finished();
     // ... and the memory card's transfers end (runtime/exi.cpp)
     re4_exi_deliver();
+    // with the GP on a thread of its own: no other thread to run (or no scheduler: the tests) and the GP
+    // still at work: the CPU waits for it here, its draw done may wake this very thread
+    if (t->state != kReady && re4_gx_gp_idle_work() && (!gDispatching || !pickReady())) {
+        re4_gx_deliver_interrupts();
+    }
     if (t->state == kReady) {
         t->state = kRunning;
     }
