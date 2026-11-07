@@ -395,12 +395,6 @@ struct GlRenderer final : GxCore {
   bool vaoBound = false;
   std::uint32_t attribMask = 0;      // enabled vertex attributes of vao
   std::uint32_t attribLayout = ~0u, attribStride = 0, attribBase = ~0u;
-  // the counters after the draw before (GxStats::mergeSame / mergeUniform), valid within a chunk
-  struct MergeSnap {
-    unsigned uniforms, programs, binds, states, setups, copies, displays;
-    GLenum mode;
-  } mergeLast{};
-  bool mergeValid = false, mergeMatrix = false, mergePixel = false;
   GLuint attribBuffer = 0;
   // glDrawElementsBaseVertex (GLES 3.2 / OES / EXT): one attribute setup for
   // all draws of a layout; null: pointers per draw
@@ -1259,7 +1253,7 @@ struct GlRenderer final : GxCore {
   // --- state -----------------------------------------------------------------
 
 
-  void BpWrite(std::uint32_t word, bool action) {
+  void BpWrite(std::uint32_t word, bool action) override {
     const unsigned reg = word >> 24;
     const std::uint32_t value = word & 0xFFFFFF;
     if (bp[reg] != value || !action) {
@@ -1856,7 +1850,7 @@ struct GlRenderer final : GxCore {
     return out.id;
   }
 
-  void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) {
+  void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) override {
     const unsigned map = t.map & 7;
     pxDirty = true; // the map's size is in the PX block
     Bound &b = bound[map];
@@ -1907,7 +1901,7 @@ struct GlRenderer final : GxCore {
     b.levels = it->second.levels;
   }
 
-  void Forget(std::uint64_t key) {
+  void Forget(std::uint64_t key) override {
     Touched(); // a deleted texture is unbound
     auto it = textures.find(key);
     if (it != textures.end()) {
@@ -1916,7 +1910,7 @@ struct GlRenderer final : GxCore {
     }
   }
 
-  void DropTextures() {
+  void DropTextures() override {
     Touched();
     for (auto &t : textures)
       glDeleteTextures(1, &t.second.id);
@@ -2231,7 +2225,7 @@ struct GlRenderer final : GxCore {
 
   // `merge`: the merged draw call of a run that starts with `d` (DrawMerged; the XFM parts and
   // uMtx of its draws in mergeBlock).
-  void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *merge = nullptr) {
+  void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *merge = nullptr) override {
     // (every draw op counts for "n-th draw of its object", as Interpolate counts them ahead)
     curOwner = ownerBase ? (ownerBase ^ (static_cast<std::uint64_t>(ownerDraws++) + 1) * 0x9E3779B97F4A7C15ull) | 1 : 0;
     curLife = ownerLife;
@@ -2407,7 +2401,7 @@ struct GlRenderer final : GxCore {
 
   // A draw op that starts a chain's run (mergeMarks[mergeNext]): the run's draws as one draw call;
   // the next op to run.
-  std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at) {
+  std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at) override {
     std::size_t i = mergeNext;
     const MergeMark &start = mergeMarks[i];
     Re4GxDraw first;
@@ -2482,68 +2476,6 @@ struct GlRenderer final : GxCore {
     return nullptr;
   }
 
-  // One op of the chunk at `at` (Run); the next op's place (the end when the op is cut off).
-  std::uint32_t Op(const Re4GxChunk &chunk, std::uint32_t at) {
-    const std::uint32_t head = chunk.ops[at];
-    const std::uint32_t op = head & 0xFF, n = head >> 8;
-    const std::uint32_t *p = chunk.ops + at + 1;
-    if (at + 1 + n > chunk.opWords)
-      return chunk.opWords;
-    switch (op) {
-    case RE4_GX_OP_BP:
-      if (n >= 1)
-        BpWrite(p[0], true);
-      break;
-    case RE4_GX_OP_BP_STATE:
-      for (std::uint32_t r = 0; r < n && r < 256; r++)
-        BpWrite(r << 24 | (p[r] & 0xFFFFFF), false);
-      break;
-    case RE4_GX_OP_XF:
-      if (n >= 1)
-        XfWrite(p[0], p + 1, n - 1);
-      break;
-    case RE4_GX_OP_TLUT:
-      if (n >= 3 && p[0] < kTlutBytes && p[2] + p[1] <= chunk.blobBytes)
-        std::memcpy(tlut.data() + p[0], chunk.blob + p[2], std::min<std::uint32_t>(p[1], kTlutBytes - p[0]));
-      break;
-    case RE4_GX_OP_TEXTURE:
-      if (n * 4 >= sizeof(Re4GxTexture)) {
-        Re4GxTexture t;
-        std::memcpy(&t, p, sizeof(t));
-        BindTexture(t, chunk);
-      }
-      break;
-    case RE4_GX_OP_OWNER:
-      if (n >= 4)
-        SetOwner(p);
-      break;
-    case RE4_GX_OP_FORGET:
-      // the real Run forgets (the in-between pass runs before it). A texture the core sends again in
-      // this chunk (it forgot it for its budget) the in-between pass uploaded already: after the forget
-      // it is uploaded again, else it stays gone and draws white (itel P661N, 28.10.2026: Ganados with
-      // white weapons after some 20 minutes with 60 FPS)
-      if (n >= 2 && !interpPass) {
-        const std::uint64_t key = static_cast<std::uint64_t>(p[1]) << 32 | p[0];
-        Forget(key);
-        interpUploads.erase(key);
-      }
-      break;
-    case RE4_GX_OP_DRAW:
-      if (!skipDraws && n * 4 >= sizeof(Re4GxDraw)) {
-        Re4GxDraw d;
-        std::memcpy(&d, p, sizeof(d));
-        Draw(d, chunk);
-      }
-      break;
-    default:
-      break;
-    }
-    Split(op == RE4_GX_OP_BP || op == RE4_GX_OP_BP_STATE ? GxStats::kSplitBp
-          : op == RE4_GX_OP_XF                          ? GxStats::kSplitXf
-          : op == RE4_GX_OP_TEXTURE                     ? GxStats::kSplitTexture
-                                                        : GxStats::kSplitRest);
-    return at + 1 + n;
-  }
 
 
   // --- EFB copies -------------------------------------------------------------------
@@ -3272,7 +3204,7 @@ struct GlRenderer final : GxCore {
 
 
   // After the scene's last 3D draw (Run): the visibility pass, then the flares into the EFB.
-  void FlarePass() {
+  void FlarePass() override {
     flareDone = true;
     FlareTrack();
     flareCands.clear();
@@ -4058,44 +3990,95 @@ struct GlRenderer final : GxCore {
     glUniform1i(glGetUniformLocation(restoreProgram, "depth"), 1);
     return true;
   }
+  // ---- Run's GPU side (GxCore::Run) ----
+  void RunBegin() override {
+    GlRenderer &m = *this;
+    m.Touched();
+    if (!m.interpPass && m.peekProgram)
+      m.DeliverDepth();  // the depth maps the GPU finished since the last chunk go to the core
+    if (m.stream)
+      m.StreamChunkBegin();
+    // this chunk's vertices and indices
+    glBindVertexArray(m.vao);
+  }
+  void UploadChunk(const Re4GxChunk &chunk) override {
+    GlRenderer &m = *this;
+    if (m.RingUpload(chunk))
+      return;
+    m.drawVbo = m.vbo;
+    m.vtxBase = m.idxBase = 0;
+    glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
+    glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
+    if (m.mergeMarks.empty()) {
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
+    } else {
+      const std::size_t own = static_cast<std::size_t>(chunk.indexCount) * 2, moved = m.mergeIndices.size() * 2;
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(own + moved), nullptr, GL_STREAM_DRAW);
+      glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(own), chunk.indices);
+      glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLintptr>(own), static_cast<GLsizeiptr>(moved),
+                      m.mergeIndices.data());
+    }
+  }
+  void RunState() override {
+    GlRenderer &m = *this;
+    // the app drew the screen since the last chunk: a new pass
+    m.efbLeft = true;
+    m.BindFbo(m.DrawFbo());
+    // state other GL code of the app may have left
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    glDisable(GL_DITHER);
+    glFrontFace(GL_CCW);
+    if (m.stream) {
+      // both blocks again into the stream at the first draw: the places bound
+      // last may since have been written over
+      m.Dirty(0, static_cast<int>(sizeof(XfBlock) / 16));
+      for (bool &v : m.xfSentValid)
+        v = false;
+      m.pxDirty = true;
+      m.pxValid = false;
+    } else {
+      for (int i = 0; i < kXfParts; i++)
+        glBindBufferBase(GL_UNIFORM_BUFFER, kXfPartBinding[i], m.xfUbo[i]);
+      glBindBufferBase(GL_UNIFORM_BUFFER, kPixelBinding, m.pxUbo);
+      if (m.mergeUbo)
+        glBindBufferBase(GL_UNIFORM_BUFFER, kMergeBinding, m.mergeUbo);
+    }
+    m.TimerBegin();
+    m.current = nullptr;
+  }
+  void RunEnd() override {
+    GlRenderer &m = *this;
+    m.TimerEnd();
+    m.FenceAfterChunk();
+  }
+  void RunLeave() override {
+    GlRenderer &m = *this;
+    // leave GL as the app's other renderers expect it
+    glBindVertexArray(0);
+    for (GLuint unit = 0; unit < 8; unit++)
+      glBindSampler(unit, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glUseProgram(0);
+    m.Touched();
+    m.SaveAndPlainState();
+    m.BindFbo(0);
+  }
+
   // GxCore (the calls of GxRenderer, defined below)
   bool InitHalves(int halves, std::string *error) override;
   void RescaleHalves(int halves) override;
   void HandOverCopies(GxCore &to) override;
-  void SetOptions(const GxOptions &options) override;
-  int Samples() const override;
-  float Anisotropy() const override;
-  bool Invalidates() const override;
   bool TiledMsaa() const override;
-  bool HalfDof() const override;
-  void Run(const Re4GxChunk &chunk) override;
-  void SetDepthSink(GxRenderer::DepthSink sink) override;
-  void SetFxaa(bool on) override;
-  void SetSharpen(int level) override;
-  void SetTvFilter(bool on) override;
-  void SetPsx(bool on) override;
-  void SetFlares(bool on) override;
-  void SetDofStrong(bool on) override;
-  void SetShownRows(int top, int bottom) override;
-  void SetWiden(float factor) override;
-  bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const override;
-  void Skip(const Re4GxChunk &a) override;
-  void SetRecording(bool on) override;
-  void SetMerge(bool on) override;
-  bool Merging() const override;
   bool Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) override;
   unsigned Xfb(unsigned *width, unsigned *height) const override;
-  bool XfbWide() const override;
   bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) override;
   unsigned EfbColor() const override;
-  int Scale() const override;
-  int Halves() const override;
-  const GxStats &Stats() const override;
   bool BaseVertex() const override;
   bool SetProgramCache(const std::string &folder) override;
   bool Prewarm(double budgetMs) override;
-  void SetProgramList(const std::string &path) override;
-  void SetRoom(unsigned room) override;
   void Release() override;
   void ApplyTestEnvironment() override;
   std::uintptr_t ProgramTag() const override { return reinterpret_cast<std::uintptr_t>(keyProgram); }
@@ -4429,255 +4412,6 @@ void GlRenderer::RescaleHalves(int halves) {
   m.Touched();
 }
 
-void GlRenderer::Run(const Re4GxChunk &chunk) {
-  GlRenderer &m = *this;
-  if (chunk.version != RE4_GX_FRAME_VERSION)
-    return;
-  if (!m.interpPass)
-    m.stats.chunks++;
-  if (m.roomDirty && m.stats.chunks - m.roomSaved >= 900)  // every 30 s while new keys come
-    m.SaveRoom();
-  m.mergeValid = false;
-  m.splitAt = std::chrono::steady_clock::now();
-  // a real Run notes its draws for the in-between picture after it
-  const bool record = m.recordDraws && !m.interpPass;
-  if (record) {
-    m.recNew.clear();
-    m.recFloatsNew.clear();
-    m.recOwnerDrawsNew.clear();
-  }
-  m.Touched();
-  if (!m.interpPass && m.peekProgram)
-    m.DeliverDepth();  // the depth maps the GPU finished since the last chunk go to the core
-  if (m.stream)
-    m.StreamChunkBegin();
-  m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
-  m.chunkWide = (chunk.flags & RE4_GX_CHUNK_WIDE) != 0;
-  m.chunkMovie = (chunk.flags & RE4_GX_CHUNK_MOVIE) != 0;
-  if (chunk.flags & RE4_GX_CHUNK_XFB)
-    m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
-  if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
-    m.stats.resets++;
-    m.DropTextures();
-  }
-  // this chunk's vertices and indices
-  glBindVertexArray(m.vao);
-  const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
-  m.uploadedBy = nullptr;
-  // merged draw calls: the chains and their indices (after the chunk's in ibo)
-  m.mergeMarks.clear();
-  m.mergeNext = 0;
-  if (m.mergeOn && m.drawBaseVertex && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded)
-    m.MergePlan(chunk);
-  if (!m.skipDraws && !uploaded && m.RingUpload(chunk)) {
-    if (m.interpPass) {
-      m.uploadedBy = &chunk;
-      m.uploadedSequence = chunk.sequence;
-    }
-  } else if (!m.skipDraws && !uploaded) {
-    m.drawVbo = m.vbo;
-    m.vtxBase = m.idxBase = 0;
-    glBindBuffer(GL_ARRAY_BUFFER, m.vbo);
-    glBufferData(GL_ARRAY_BUFFER, chunk.vertexBytes ? chunk.vertexBytes : 4, chunk.vertices, GL_STREAM_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
-    if (m.mergeMarks.empty()) {
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, chunk.indexCount ? chunk.indexCount * 2 : 4, chunk.indices, GL_STREAM_DRAW);
-    } else {
-      const std::size_t own = static_cast<std::size_t>(chunk.indexCount) * 2, moved = m.mergeIndices.size() * 2;
-      glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(own + moved), nullptr, GL_STREAM_DRAW);
-      glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(own), chunk.indices);
-      glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLintptr>(own), static_cast<GLsizeiptr>(moved),
-                      m.mergeIndices.data());
-    }
-    if (m.interpPass) {
-      m.uploadedBy = &chunk;
-      m.uploadedSequence = chunk.sequence;
-    }
-  }
-  m.Split(GxStats::kSplitVertices);
-  // the app drew the screen since the last chunk: a new pass
-  m.efbLeft = true;
-  m.BindFbo(m.DrawFbo());
-  // state other GL code of the app may have left
-  glDisable(GL_POLYGON_OFFSET_FILL);
-  glDisable(GL_STENCIL_TEST);
-  glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-  glDisable(GL_DITHER);
-  glFrontFace(GL_CCW);
-  if (m.stream) {
-    // both blocks again into the stream at the first draw: the places bound
-    // last may since have been written over
-    m.Dirty(0, static_cast<int>(sizeof(XfBlock) / 16));
-    for (bool &v : m.xfSentValid)
-      v = false;
-    m.pxDirty = true;
-    m.pxValid = false;
-  } else {
-    for (int i = 0; i < kXfParts; i++)
-      glBindBufferBase(GL_UNIFORM_BUFFER, kXfPartBinding[i], m.xfUbo[i]);
-    glBindBufferBase(GL_UNIFORM_BUFFER, kPixelBinding, m.pxUbo);
-    if (m.mergeUbo)
-      glBindBufferBase(GL_UNIFORM_BUFFER, kMergeBinding, m.mergeUbo);
-  }
-  m.TimerBegin();
-  m.current = nullptr;
-  m.ownerBase = 0;
-  m.ownerLife = ~0u;
-  m.Split(GxStats::kSplitState);
-  // lens flares: after the scene's last 3D draw (FlareScan); its light sources noted on the way (FlareNote)
-  // none on a menu screen of the game (RE4_GX_CHUNK_STILL: the option screen, the retry / load menu, sub screens,
-  // card screens, results; project owner 04.11.2026: stars on the "NEUER VERSUCH oder LADEN" menu's letters)
-  m.flareAfter = m.flaresOn && !m.skipDraws && !(chunk.flags & RE4_GX_CHUNK_STILL) ? m.FlareScan(chunk) : 0;
-  m.flareDone = false;
-  m.flareCands.clear();
-  std::uint32_t at = 0;
-  while (at < chunk.opWords) {
-    m.curOpAt = at;
-    // a draw that starts a run of a chain (MergePlan): the run as one draw call
-    while (m.mergeNext < m.mergeMarks.size() && m.mergeMarks[m.mergeNext].op < at)
-      m.mergeNext++;
-    if (m.mergeNext < m.mergeMarks.size() && m.mergeMarks[m.mergeNext].op == at)
-      at = m.DrawMerged(chunk, at);
-    else
-      at = m.Op(chunk, at);
-    if (m.flareAfter && !m.flareDone && at >= m.flareAfter)
-      m.FlarePass();
-  }
-  m.TimerEnd();
-  m.FenceAfterChunk();
-  if (record) {
-    m.rec.swap(m.recNew);
-    m.recOwnerDraws.swap(m.recOwnerDrawsNew);
-    m.recFloats.swap(m.recFloatsNew);
-    m.recSequence = chunk.sequence;
-    m.recValid = true;
-  } else if (!m.interpPass) {
-    m.recValid = false;
-  }
-  if (!m.interpPass) {
-    // the in-between pass's uploads served this Run
-    m.skipInterpUploads = false;
-    m.interpUploads.clear();
-  }
-  // leave GL as the app's other renderers expect it
-  glBindVertexArray(0);
-  for (GLuint unit = 0; unit < 8; unit++)
-    glBindSampler(unit, 0);
-  glActiveTexture(GL_TEXTURE0);
-  glUseProgram(0);
-  m.Touched();
-  m.SaveAndPlainState();
-  m.BindFbo(0);
-  m.Split(GxStats::kSplitRest);
-}
-
-bool GlRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
-  const GlRenderer &m = *this;
-  const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
-  if (m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
-      (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
-    return false;
-  // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them); and
-  // which copy each texture map holds (0: none), from the chunk run last on
-  std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
-  std::uint32_t mapCopy[8];
-  for (int i = 0; i < 8; i++)
-    mapCopy[i] = (m.boundKey[i] >> 63) ? static_cast<std::uint32_t>(m.boundKey[i]) : 0;
-  auto texture = [&](const std::uint32_t *p, std::uint32_t n, Re4GxTexture *t) {
-    if (n * 4 < sizeof(Re4GxTexture))
-      return false;
-    std::memcpy(t, p, sizeof(*t));
-    mapCopy[t->map & 7] = (t->flags & RE4_GX_TEX_COPY) ? t->address : 0;
-    return true;
-  };
-  for (std::uint32_t at = 0; at < a.opWords;) {
-    const std::uint32_t head = a.ops[at];
-    const std::uint32_t op = head & 0xFF, n = head >> 8;
-    if (at + 1 + n > a.opWords)
-      return false;
-    const std::uint32_t *p = a.ops + at + 1;
-    Re4GxTexture t;
-    if (op == RE4_GX_OP_BP && n >= 1) {
-      const unsigned reg = p[0] >> 24;
-      bp[reg] = p[0] & 0xFFFFFF;
-      if (reg == 0x52 && !((bp[0x52] >> 14) & 1))
-        pending.push_back((bp[0x4B] & 0x1FFFFF) << 5);
-    } else if (op == RE4_GX_OP_BP_STATE) {
-      for (std::uint32_t r = 0; r < n && r < 256; r++)
-        bp[r] = p[r] & 0xFFFFFF;
-    } else if (op == RE4_GX_OP_TEXTURE) {
-      texture(p, n, &t);
-    }
-    at += 1 + n;
-  }
-  if (pending.empty())
-    return true;
-  auto isPending = [&](std::uint32_t address) {
-    return address && std::find(pending.begin(), pending.end(), address) != pending.end();
-  };
-  // `b` must copy to each of them again (else a later chunk reads a copy `a` never made), and must not
-  // read one before: a texture op for it, or a draw whose TEV stages sample a map still holding it
-  // (until 26.10.2026 any draw counted: almost every picture of a room makes a copy, shadows and the
-  // depth of field, and draws before it copies, so Frame skip almost never skipped)
-  for (std::uint32_t at = 0; at < b.opWords && !pending.empty();) {
-    const std::uint32_t head = b.ops[at];
-    const std::uint32_t op = head & 0xFF, n = head >> 8;
-    if (at + 1 + n > b.opWords)
-      return false;
-    const std::uint32_t *p = b.ops + at + 1;
-    Re4GxTexture t;
-    if (op == RE4_GX_OP_DRAW) {
-      const std::uint32_t gen = bp[0x00];
-      const unsigned stages = ((gen >> 10) & 15) + 1, indStages = (gen >> 16) & 7;
-      for (unsigned st = 0; st < stages; st++) {
-        const std::uint32_t o = bp[0x28 + st / 2] >> ((st & 1) ? 12 : 0);
-        if (((o >> 6) & 1) && isPending(mapCopy[o & 7]))
-          return false;
-      }
-      for (unsigned st = 0; st < indStages && st < 4; st++)
-        if (isPending(mapCopy[(bp[0x27] >> (6 * st)) & 7]))
-          return false;
-    } else if (op == RE4_GX_OP_TEXTURE) {
-      if (!texture(p, n, &t))
-        return false;
-      if ((t.flags & RE4_GX_TEX_COPY) && isPending(t.address))
-        return false;
-    } else if (op == RE4_GX_OP_BP && n >= 1) {
-      const unsigned reg = p[0] >> 24;
-      bp[reg] = p[0] & 0xFFFFFF;
-      if (reg == 0x52 && !((bp[0x52] >> 14) & 1)) {
-        const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
-        pending.erase(std::remove(pending.begin(), pending.end(), dest), pending.end());
-      }
-    } else if (op == RE4_GX_OP_BP_STATE) {
-      for (std::uint32_t r = 0; r < n && r < 256; r++)
-        bp[r] = p[r] & 0xFFFFFF;
-    }
-    at += 1 + n;
-  }
-  return pending.empty();
-}
-
-void GlRenderer::Skip(const Re4GxChunk &a) {
-  this->skipDraws = true;
-  Run(a);
-  this->skipDraws = false;
-  this->recValid = false;  // 60 FPS: no in-between picture across a chunk left out
-}
-
-void GlRenderer::SetMerge(bool on) { this->mergeOn = on; }
-
-bool GlRenderer::Merging() const { return this->mergeOn && this->drawBaseVertex && !this->recordDraws; }
-
-void GlRenderer::SetRecording(bool on) {
-  GlRenderer &m = *this;
-  m.recordDraws = on;
-  if (!on) {
-    m.recValid = false;
-    m.rec.clear();
-    m.recFloats.clear();
-  }
-}
 
 bool GlRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) {
   GlRenderer &m = *this;
@@ -4836,8 +4570,6 @@ bool GlRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   return true;
 }
 
-bool GlRenderer::XfbWide() const { return this->haveXfb && this->xfbWide; }
-
 unsigned GlRenderer::Xfb(unsigned *width, unsigned *height) const {
   if (width)
     *width = this->xfbWidth;
@@ -4885,32 +4617,7 @@ bool GlRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
 
 unsigned GlRenderer::EfbColor() const { return this->efbColor; }
 
-void GlRenderer::SetOptions(const GxOptions &options) { this->options = options; }
-void GlRenderer::SetDepthSink(GxRenderer::DepthSink sink) { this->depthSink = std::move(sink); }
-void GlRenderer::SetFxaa(bool on) { this->fxaaOn = on; }
-void GlRenderer::SetSharpen(int level) { this->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
-void GlRenderer::SetPsx(bool on) { this->psxOn = on; }
-
-void GlRenderer::SetFlares(bool on) { this->flaresOn = on; }
-void GlRenderer::SetDofStrong(bool on) { this->dofStrong = on; }
-void GlRenderer::SetTvFilter(bool on) { this->tvFilter = on; }
-void GlRenderer::SetWiden(float factor) {
-  this->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
-}
-void GlRenderer::SetShownRows(int top, int bottom) {
-  this->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
-  this->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);
-}
-
-int GlRenderer::Samples() const { return this->samples; }
-
-float GlRenderer::Anisotropy() const { return this->anisotropy; }
-
-bool GlRenderer::Invalidates() const { return this->options.invalidate; }
-
 bool GlRenderer::TiledMsaa() const { return this->tiledMsaa; }
-
-bool GlRenderer::HalfDof() const { return this->options.halfDof; }
 
 void GxRenderer::Limits(int *maxSamples, float *maxAnisotropy) {
   GLint samples = 1;
@@ -4924,11 +4631,6 @@ void GxRenderer::Limits(int *maxSamples, float *maxAnisotropy) {
     *maxAnisotropy = std::max(1.0f, static_cast<float>(most));
   }
 }
-
-int GlRenderer::Scale() const { return this->halves / 2; }
-int GlRenderer::Halves() const { return this->halves; }
-
-const GxStats &GlRenderer::Stats() const { return this->stats; }
 
 bool GlRenderer::BaseVertex() const { return this->drawBaseVertex != nullptr; }
 
@@ -5003,19 +4705,6 @@ bool GlRenderer::Prewarm(double budgetMs) {
     GXLOG("GX programs ahead of their first draw: %u from the cache, %u linked anew, %.0f ms in all", m.aheadLoaded,
           m.aheadLinked, m.aheadMs);
   return m.aheadNext < m.ahead.size();
-}
-
-void GlRenderer::SetProgramList(const std::string &path) { this->programList = path; }
-
-void GlRenderer::SetRoom(unsigned room) {
-  GlRenderer &m = *this;
-  if (room == m.room)
-    return;
-  if (m.roomDirty)
-    m.SaveRoom();
-  m.room = room;
-  m.roomUsed.clear();
-  m.aheadRead = false;  // Prewarm reads the new room's list
 }
 
 bool ProgramCacheWarming() { return gWarming.load() > 0; }

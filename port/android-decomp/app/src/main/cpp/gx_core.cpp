@@ -1108,6 +1108,295 @@ void GxCore::FlareTrack() {
   flarePictures++;
 }
 
+bool GxCore::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
+  const GxCore &m = *this;
+  const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
+  if (m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
+      (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
+    return false;
+  // the EFB copies for textures in `a`: their targets (the BP state at that moment decides them); and
+  // which copy each texture map holds (0: none), from the chunk run last on
+  std::vector<std::uint32_t> bp(m.bp, m.bp + 256), pending;
+  std::uint32_t mapCopy[8];
+  for (int i = 0; i < 8; i++)
+    mapCopy[i] = (m.boundKey[i] >> 63) ? static_cast<std::uint32_t>(m.boundKey[i]) : 0;
+  auto texture = [&](const std::uint32_t *p, std::uint32_t n, Re4GxTexture *t) {
+    if (n * 4 < sizeof(Re4GxTexture))
+      return false;
+    std::memcpy(t, p, sizeof(*t));
+    mapCopy[t->map & 7] = (t->flags & RE4_GX_TEX_COPY) ? t->address : 0;
+    return true;
+  };
+  for (std::uint32_t at = 0; at < a.opWords;) {
+    const std::uint32_t head = a.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > a.opWords)
+      return false;
+    const std::uint32_t *p = a.ops + at + 1;
+    Re4GxTexture t;
+    if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1))
+        pending.push_back((bp[0x4B] & 0x1FFFFF) << 5);
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      texture(p, n, &t);
+    }
+    at += 1 + n;
+  }
+  if (pending.empty())
+    return true;
+  auto isPending = [&](std::uint32_t address) {
+    return address && std::find(pending.begin(), pending.end(), address) != pending.end();
+  };
+  // `b` must copy to each of them again (else a later chunk reads a copy `a` never made), and must not
+  // read one before: a texture op for it, or a draw whose TEV stages sample a map still holding it
+  // (until 26.10.2026 any draw counted: almost every picture of a room makes a copy, shadows and the
+  // depth of field, and draws before it copies, so Frame skip almost never skipped)
+  for (std::uint32_t at = 0; at < b.opWords && !pending.empty();) {
+    const std::uint32_t head = b.ops[at];
+    const std::uint32_t op = head & 0xFF, n = head >> 8;
+    if (at + 1 + n > b.opWords)
+      return false;
+    const std::uint32_t *p = b.ops + at + 1;
+    Re4GxTexture t;
+    if (op == RE4_GX_OP_DRAW) {
+      const std::uint32_t gen = bp[0x00];
+      const unsigned stages = ((gen >> 10) & 15) + 1, indStages = (gen >> 16) & 7;
+      for (unsigned st = 0; st < stages; st++) {
+        const std::uint32_t o = bp[0x28 + st / 2] >> ((st & 1) ? 12 : 0);
+        if (((o >> 6) & 1) && isPending(mapCopy[o & 7]))
+          return false;
+      }
+      for (unsigned st = 0; st < indStages && st < 4; st++)
+        if (isPending(mapCopy[(bp[0x27] >> (6 * st)) & 7]))
+          return false;
+    } else if (op == RE4_GX_OP_TEXTURE) {
+      if (!texture(p, n, &t))
+        return false;
+      if ((t.flags & RE4_GX_TEX_COPY) && isPending(t.address))
+        return false;
+    } else if (op == RE4_GX_OP_BP && n >= 1) {
+      const unsigned reg = p[0] >> 24;
+      bp[reg] = p[0] & 0xFFFFFF;
+      if (reg == 0x52 && !((bp[0x52] >> 14) & 1)) {
+        const std::uint32_t dest = (bp[0x4B] & 0x1FFFFF) << 5;
+        pending.erase(std::remove(pending.begin(), pending.end(), dest), pending.end());
+      }
+    } else if (op == RE4_GX_OP_BP_STATE) {
+      for (std::uint32_t r = 0; r < n && r < 256; r++)
+        bp[r] = p[r] & 0xFFFFFF;
+    }
+    at += 1 + n;
+  }
+  return pending.empty();
+}
+void GxCore::Skip(const Re4GxChunk &a) {
+  this->skipDraws = true;
+  Run(a);
+  this->skipDraws = false;
+  this->recValid = false;  // 60 FPS: no in-between picture across a chunk left out
+}
+void GxCore::SetMerge(bool on) { this->mergeOn = on; }
+bool GxCore::Merging() const { return this->mergeOn && this->BaseVertex() && !this->recordDraws; }
+void GxCore::SetRecording(bool on) {
+  GxCore &m = *this;
+  m.recordDraws = on;
+  if (!on) {
+    m.recValid = false;
+    m.rec.clear();
+    m.recFloats.clear();
+  }
+}
+bool GxCore::XfbWide() const { return this->haveXfb && this->xfbWide; }
+void GxCore::SetOptions(const GxOptions &options) { this->options = options; }
+void GxCore::SetDepthSink(DepthSink sink) { this->depthSink = std::move(sink); }
+void GxCore::SetFxaa(bool on) { this->fxaaOn = on; }
+void GxCore::SetSharpen(int level) { this->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
+void GxCore::SetPsx(bool on) { this->psxOn = on; }
+void GxCore::SetFlares(bool on) { this->flaresOn = on; }
+void GxCore::SetDofStrong(bool on) { this->dofStrong = on; }
+void GxCore::SetTvFilter(bool on) { this->tvFilter = on; }
+void GxCore::SetWiden(float factor) {
+  this->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
+}
+void GxCore::SetShownRows(int top, int bottom) {
+  this->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
+  this->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);
+}
+int GxCore::Samples() const { return this->samples; }
+float GxCore::Anisotropy() const { return this->anisotropy; }
+bool GxCore::Invalidates() const { return this->options.invalidate; }
+bool GxCore::HalfDof() const { return this->options.halfDof; }
+int GxCore::Scale() const { return this->halves / 2; }
+int GxCore::Halves() const { return this->halves; }
+const GxStats &GxCore::Stats() const { return this->stats; }
+void GxCore::SetProgramList(const std::string &path) { this->programList = path; }
+void GxCore::SetRoom(unsigned room) {
+  GxCore &m = *this;
+  if (room == m.room)
+    return;
+  if (m.roomDirty)
+    m.SaveRoom();
+  m.room = room;
+  m.roomUsed.clear();
+  m.aheadRead = false;  // Prewarm reads the new room's list
+}
+std::uint32_t GxCore::Op(const Re4GxChunk &chunk, std::uint32_t at) {
+  const std::uint32_t head = chunk.ops[at];
+  const std::uint32_t op = head & 0xFF, n = head >> 8;
+  const std::uint32_t *p = chunk.ops + at + 1;
+  if (at + 1 + n > chunk.opWords)
+    return chunk.opWords;
+  switch (op) {
+  case RE4_GX_OP_BP:
+    if (n >= 1)
+      BpWrite(p[0], true);
+    break;
+  case RE4_GX_OP_BP_STATE:
+    for (std::uint32_t r = 0; r < n && r < 256; r++)
+      BpWrite(r << 24 | (p[r] & 0xFFFFFF), false);
+    break;
+  case RE4_GX_OP_XF:
+    if (n >= 1)
+      XfWrite(p[0], p + 1, n - 1);
+    break;
+  case RE4_GX_OP_TLUT:
+    if (n >= 3 && p[0] < kTlutBytes && p[2] + p[1] <= chunk.blobBytes)
+      std::memcpy(tlut.data() + p[0], chunk.blob + p[2], std::min<std::uint32_t>(p[1], kTlutBytes - p[0]));
+    break;
+  case RE4_GX_OP_TEXTURE:
+    if (n * 4 >= sizeof(Re4GxTexture)) {
+      Re4GxTexture t;
+      std::memcpy(&t, p, sizeof(t));
+      BindTexture(t, chunk);
+    }
+    break;
+  case RE4_GX_OP_OWNER:
+    if (n >= 4)
+      SetOwner(p);
+    break;
+  case RE4_GX_OP_FORGET:
+    // the real Run forgets (the in-between pass runs before it). A texture the core sends again in
+    // this chunk (it forgot it for its budget) the in-between pass uploaded already: after the forget
+    // it is uploaded again, else it stays gone and draws white (itel P661N, 28.10.2026: Ganados with
+    // white weapons after some 20 minutes with 60 FPS)
+    if (n >= 2 && !interpPass) {
+      const std::uint64_t key = static_cast<std::uint64_t>(p[1]) << 32 | p[0];
+      Forget(key);
+      interpUploads.erase(key);
+    }
+    break;
+  case RE4_GX_OP_DRAW:
+    if (!skipDraws && n * 4 >= sizeof(Re4GxDraw)) {
+      Re4GxDraw d;
+      std::memcpy(&d, p, sizeof(d));
+      Draw(d, chunk);
+    }
+    break;
+  default:
+    break;
+  }
+  Split(op == RE4_GX_OP_BP || op == RE4_GX_OP_BP_STATE ? GxStats::kSplitBp
+        : op == RE4_GX_OP_XF                          ? GxStats::kSplitXf
+        : op == RE4_GX_OP_TEXTURE                     ? GxStats::kSplitTexture
+                                                      : GxStats::kSplitRest);
+  return at + 1 + n;
+}
+
+void GxCore::Run(const Re4GxChunk &chunk) {
+  GxCore &m = *this;
+  if (chunk.version != RE4_GX_FRAME_VERSION)
+    return;
+  if (!m.interpPass)
+    m.stats.chunks++;
+  if (m.roomDirty && m.stats.chunks - m.roomSaved >= 900)  // every 30 s while new keys come
+    m.SaveRoom();
+  m.mergeValid = false;
+  m.splitAt = std::chrono::steady_clock::now();
+  // a real Run notes its draws for the in-between picture after it
+  const bool record = m.recordDraws && !m.interpPass;
+  if (record) {
+    m.recNew.clear();
+    m.recFloatsNew.clear();
+    m.recOwnerDrawsNew.clear();
+  }
+  // the API's state before the chunk (GL: its caches forgotten, the depth maps the GPU finished since the
+  // last chunk to the core, the uniform stream's next place, its vertex array)
+  m.RunBegin();
+  m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
+  m.chunkWide = (chunk.flags & RE4_GX_CHUNK_WIDE) != 0;
+  m.chunkMovie = (chunk.flags & RE4_GX_CHUNK_MOVIE) != 0;
+  if (chunk.flags & RE4_GX_CHUNK_XFB)
+    m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
+  if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
+    m.stats.resets++;
+    m.DropTextures();
+  }
+  const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
+  m.uploadedBy = nullptr;
+  // merged draw calls: the chains and their indices (after the chunk's in ibo)
+  m.mergeMarks.clear();
+  m.mergeNext = 0;
+  if (m.mergeOn && m.BaseVertex() && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded)
+    m.MergePlan(chunk);
+  if (!m.skipDraws && !uploaded) {
+    // the vertices and indices (and the merged chains' indices) to the GPU
+    m.UploadChunk(chunk);
+    if (m.interpPass) {
+      m.uploadedBy = &chunk;
+      m.uploadedSequence = chunk.sequence;
+    }
+  }
+  m.Split(GxStats::kSplitVertices);
+  // a new pass, the state other code of the app may have left, the uniform blocks, the GPU timer
+  m.RunState();
+  m.ownerBase = 0;
+  m.ownerLife = ~0u;
+  m.Split(GxStats::kSplitState);
+  // lens flares: after the scene's last 3D draw (FlareScan); its light sources noted on the way (FlareNote)
+  // none on a menu screen of the game (RE4_GX_CHUNK_STILL: the option screen, the retry / load menu, sub screens,
+  // card screens, results; project owner 04.11.2026: stars on the "NEUER VERSUCH oder LADEN" menu's letters)
+  m.flareAfter = m.flaresOn && !m.skipDraws && !(chunk.flags & RE4_GX_CHUNK_STILL) ? m.FlareScan(chunk) : 0;
+  m.flareDone = false;
+  m.flareCands.clear();
+  std::uint32_t at = 0;
+  while (at < chunk.opWords) {
+    m.curOpAt = at;
+    // a draw that starts a run of a chain (MergePlan): the run as one draw call
+    while (m.mergeNext < m.mergeMarks.size() && m.mergeMarks[m.mergeNext].op < at)
+      m.mergeNext++;
+    if (m.mergeNext < m.mergeMarks.size() && m.mergeMarks[m.mergeNext].op == at)
+      at = m.DrawMerged(chunk, at);
+    else
+      at = m.Op(chunk, at);
+    if (m.flareAfter && !m.flareDone && at >= m.flareAfter)
+      m.FlarePass();
+  }
+  m.RunEnd();  // the GPU timer, the fence after the chunk (GxStats::behind*)
+  if (record) {
+    m.rec.swap(m.recNew);
+    m.recOwnerDraws.swap(m.recOwnerDrawsNew);
+    m.recFloats.swap(m.recFloatsNew);
+    m.recSequence = chunk.sequence;
+    m.recValid = true;
+  } else if (!m.interpPass) {
+    m.recValid = false;
+  }
+  if (!m.interpPass) {
+    // the in-between pass's uploads served this Run
+    m.skipInterpUploads = false;
+    m.interpUploads.clear();
+  }
+  // the API left as the app's other renderers expect it
+  m.RunLeave();
+  m.Split(GxStats::kSplitRest);
+}
+
+
 // ---- end of the part moved from GlRenderer ----
 
 } // namespace re4gx

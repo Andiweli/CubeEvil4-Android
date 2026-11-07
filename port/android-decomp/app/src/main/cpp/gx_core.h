@@ -505,6 +505,30 @@ struct GxCore {
   // The picture's sources onto the tracked slots: near ones merged, each to the slot it was in (nearest within
   // its size), new ones into free slots; a slot not seen fades out where it was and is free after 16 pictures.
   void FlareTrack();
+  // One op of the chunk at `at` (Run); the next op's place (the end when the op is cut off).
+  std::uint32_t Op(const Re4GxChunk &chunk, std::uint32_t at);
+  // the GPU side of the ops (Op): the API renderer's
+  virtual void BpWrite(std::uint32_t word, bool action) = 0;
+  virtual void BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) = 0;
+  virtual void Forget(std::uint64_t key) = 0;
+  virtual void Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *merge = nullptr) = 0;
+  // Run's GPU side, in this order: before the chunk; its vertices and indices (not when skipped or uploaded by the
+  // in-between pass); the state before the first op; after the last op; leaving the API for the app's other code
+  virtual void RunBegin() = 0;
+  virtual void UploadChunk(const Re4GxChunk &chunk) = 0;
+  virtual void RunState() = 0;
+  virtual void RunEnd() = 0;
+  virtual void RunLeave() = 0;
+  // a run of a merged chain as one draw call (MergePlan); the lens flares' pass; every texture forgotten (a reset)
+  virtual std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at) = 0;
+  virtual void FlarePass() = 0;
+  virtual void DropTextures() = 0;
+  // the counters after the draw before (GxStats::mergeSame / mergeUniform), valid within a chunk
+  struct MergeSnap {
+    unsigned uniforms, programs, binds, states, setups, copies, displays;
+    unsigned mode;  // the primitive (GL: GL_TRIANGLES ...)
+  } mergeLast{};
+  bool mergeValid = false, mergeMatrix = false, mergePixel = false;
   // ---- end of the part moved from GlRenderer ----
 
   // GxRenderer's calls, with the same meaning (see gx_gl.h)
@@ -512,40 +536,40 @@ struct GxCore {
   virtual void RescaleHalves(int halves) = 0;
   // `to`: a renderer of the same API (copies stay on their API's GPU objects); else nothing is handed over
   virtual void HandOverCopies(GxCore &to) = 0;
-  virtual void SetOptions(const GxOptions &options) = 0;
-  virtual int Samples() const = 0;
-  virtual float Anisotropy() const = 0;
-  virtual bool Invalidates() const = 0;
+  void SetOptions(const GxOptions &options);
+  int Samples() const;
+  float Anisotropy() const;
+  bool Invalidates() const;
   virtual bool TiledMsaa() const = 0;
-  virtual bool HalfDof() const = 0;
-  virtual void Run(const Re4GxChunk &chunk) = 0;
-  virtual void SetDepthSink(GxRenderer::DepthSink sink) = 0;
-  virtual void SetFxaa(bool on) = 0;
-  virtual void SetSharpen(int level) = 0;
-  virtual void SetTvFilter(bool on) = 0;
-  virtual void SetPsx(bool on) = 0;
-  virtual void SetFlares(bool on) = 0;
-  virtual void SetDofStrong(bool on) = 0;
-  virtual void SetShownRows(int top, int bottom) = 0;
-  virtual void SetWiden(float factor) = 0;
-  virtual bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const = 0;
-  virtual void Skip(const Re4GxChunk &a) = 0;
-  virtual void SetRecording(bool on) = 0;
-  virtual void SetMerge(bool on) = 0;
-  virtual bool Merging() const = 0;
+  bool HalfDof() const;
+  void Run(const Re4GxChunk &chunk);
+  void SetDepthSink(GxRenderer::DepthSink sink);
+  void SetFxaa(bool on);
+  void SetSharpen(int level);
+  void SetTvFilter(bool on);
+  void SetPsx(bool on);
+  void SetFlares(bool on);
+  void SetDofStrong(bool on);
+  void SetShownRows(int top, int bottom);
+  void SetWiden(float factor);
+  bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const;
+  void Skip(const Re4GxChunk &a);
+  void SetRecording(bool on);
+  void SetMerge(bool on);
+  bool Merging() const;
   virtual bool Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) = 0;
   virtual unsigned Xfb(unsigned *width, unsigned *height) const = 0;
-  virtual bool XfbWide() const = 0;
+  bool XfbWide() const;
   virtual bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) = 0;
   virtual unsigned EfbColor() const = 0;
-  virtual int Scale() const = 0;
-  virtual int Halves() const = 0;
-  virtual const GxStats &Stats() const = 0;
+  int Scale() const;
+  int Halves() const;
+  const GxStats &Stats() const;
   virtual bool BaseVertex() const = 0;
   virtual bool SetProgramCache(const std::string &folder) = 0;
   virtual bool Prewarm(double budgetMs) = 0;
-  virtual void SetProgramList(const std::string &path) = 0;
-  virtual void SetRoom(unsigned room) = 0;
+  void SetProgramList(const std::string &path);
+  void SetRoom(unsigned room);
   virtual void Release() = 0;
   // the start-up switches of the tests (RE4_GX_TV_FILTER, RE4_GX_PSX, RE4_GX_FLARES, RE4_GX_MAX_PROGRAMS), applied
   // by GxRenderer's constructor
