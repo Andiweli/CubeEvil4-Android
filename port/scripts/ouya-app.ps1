@@ -42,6 +42,9 @@ param(
     [switch]$SkipBuild,
     [switch]$SkipDisc,
     [switch]$NoStart,
+    # only the game core: built and copied into the app (app\src\main\jniLibs), then the app is built by hand
+    # in Android Studio (port\ouya; wish of the project owner, 07.11.2026)
+    [switch]$PrepareOnly,
     [string]$Distro = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -105,6 +108,11 @@ New-Item -ItemType Directory -Force -Path $jniLibs | Out-Null
 $libs = @(Get-ChildItem -LiteralPath $stage -File -Filter 'libre4_*.so')
 $libs | Copy-Item -Destination $jniLibs
 Say "   $($libs.Count) Kern-Bibliotheken in die App ($([math]::Round(($libs | Measure-Object Length -Sum).Sum / 1MB)) MB)"
+
+if ($PrepareOnly) {
+    Say "Kern liegt in $jniLibs. Jetzt in Android Studio $project oeffnen und bauen (Build > Build APK, oder Run)."
+    return
+}
 
 # ---- 2. the app (Windows, Gradle) ---------------------------------------------------------------
 if (-not $SkipBuild) {

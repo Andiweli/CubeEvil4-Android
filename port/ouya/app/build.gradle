@@ -27,6 +27,15 @@ android {
             pickFirsts += ['**/libc++_shared.so']
         }
     }
+    // release (wish of the project owner, 07.11.2026: built by hand in Android Studio): the Java part not
+    // debuggable, signed with the debug key of the PC as the debug build (an update over it keeps the data);
+    // the native code is optimised in both (CMakeLists.txt, the core's libraries -O2)
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
     lint { checkReleaseBuilds false; abortOnError false }
 }
