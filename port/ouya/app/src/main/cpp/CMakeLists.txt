@@ -16,6 +16,12 @@ set(RE4_MAIN_APP_CPP "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../android-decomp/
 set(RE4_CORE_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../whole/runtime")
 set(RE4_OUYA_TOOLS "${CMAKE_CURRENT_SOURCE_DIR}/../../../../tools")
 
+if(ANDROID AND NOT CMAKE_BUILD_TYPE MATCHES "Rel")
+    # Gradle's debug build compiles with -O0: the renderer then ran unoptimised in the app (the
+    # texture decoder took 23 ms a texture on the OUYA, its films 1 picture a second, 07.11.2026;
+    # the measurements of ouya-gx-render.ps1 were optimised). -O2 comes after the build type's -O0
+    add_compile_options(-O2)
+endif()
 add_library(re4_gx2 STATIC gx_gl2.cpp gx_gl2_shader.cpp "${RE4_MAIN_APP_CPP}/gx_texture.cpp")
 target_include_directories(re4_gx2 PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${RE4_MAIN_APP_CPP}" "${RE4_CORE_INCLUDE}")
 target_compile_options(re4_gx2 PRIVATE -Wall -Wextra -Werror)
