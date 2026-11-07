@@ -117,8 +117,10 @@ final class OuyaMenu extends Dialog {
         heading(R.string.ingame_graphics);
         first = choices(s(R.string.ingame_resolution), new String[] {"62 %", "75 %", "100 %"}, new int[] {5, 6, 8},
                 Settings.eighths(prefs), Settings.EIGHTHS)[0];
-        choices(s(R.string.ouya_view_distance), new String[] {"50 %", "75 %", "100 %"}, new int[] {50, 75, 100},
-                Settings.view(prefs), Settings.VIEW);
+        // 35 %: fewer vertices for the core and the GPU (wish of the project owner, 07.11.2026: a steady
+        // 30, whatever it takes)
+        choices(s(R.string.ouya_view_distance), new String[] {"35 %", "50 %", "75 %", "100 %"},
+                new int[] {35, 50, 75, 100}, Settings.view(prefs), Settings.VIEW);
         final Button[] colours = choices(s(R.string.ouya_colours),
                 new String[] {s(R.string.ouya_colours_simple), s(R.string.ouya_colours_exact)}, new int[] {1, 0},
                 Settings.fastTev(prefs) ? 1 : 0, null);
