@@ -90,11 +90,11 @@
     <string name="ingame_update_allow">请允许 CubeEvil4 安装应用，然后再次点按“更新”。</string>
 
     <string name="ingame_card">记忆卡（插槽 A）</string>
-    <string name="ingame_card_help">以 .gci 格式导出和导入存档（用于 Dolphin 或 GameCube）。你自己的触控布局会一并导出为 CubeEvil4-touch-layout.json，导入时会恢复。</string>
+    <string name="ingame_card_help">导出和导入游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），你自己的触控布局为 CubeEvil4-touch-layout.json。导入时两者都会恢复。</string>
     <string name="ingame_card_busy">记忆卡正在使用中（游戏正在保存或读取），或者游戏仍在加载——请关闭菜单，稍后再打开。</string>
     <string name="ingame_card_none">没有记忆卡。</string>
-    <string name="ingame_export">导出存档（.gci）</string>
-    <string name="ingame_import">导入存档（.gci、.zip、.raw）</string>
+    <string name="ingame_export">导出游戏数据（.gci）</string>
+    <string name="ingame_import">导入游戏数据（.gci、.zip、.raw）</string>
     <string name="ingame_discs">光盘</string>
     <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
     <string name="ingame_import_discs">导入其他光盘</string>

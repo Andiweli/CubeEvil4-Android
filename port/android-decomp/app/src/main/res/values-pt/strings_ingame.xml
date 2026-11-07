@@ -90,11 +90,11 @@
     <string name="ingame_update_allow">Permita que o CubeEvil4 instale apps e toque em Atualizar novamente.</string>
 
     <string name="ingame_card">Cartão de memória (slot A)</string>
-    <string name="ingame_card_help">Exportar e importar jogos salvos como .gci (para Dolphin ou GameCube). Seu próprio layout de toque vai junto como CubeEvil4-touch-layout.json, e a importação o restaura.</string>
+    <string name="ingame_card_help">Exportar e importar os dados do jogo: os jogos salvos como .gci (para Dolphin ou GameCube) e seu próprio layout de toque como CubeEvil4-touch-layout.json. A importação restaura os dois.</string>
     <string name="ingame_card_busy">O cartão está em uso (o jogo está salvando ou carregando) ou o jogo ainda está carregando – feche o menu e abra-o de novo em instantes.</string>
     <string name="ingame_card_none">Nenhum cartão de memória.</string>
-    <string name="ingame_export">Exportar jogos salvos (.gci)</string>
-    <string name="ingame_import">Importar jogos salvos (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Exportar dados do jogo (.gci)</string>
+    <string name="ingame_import">Importar dados do jogo (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Discos</string>
     <string name="ingame_discs_help">Para jogar outra versão: o jogo é encerrado e você importa os dois discos dela na tela inicial. Os jogos salvos, o cartão de memória e as configurações são mantidos.</string>
     <string name="ingame_import_discs">Importar outros discos</string>

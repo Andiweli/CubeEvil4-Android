@@ -89,11 +89,11 @@
     <string name="ingame_update_allow">Erlaube CubeEvil4, Apps zu installieren, und drücke dann noch einmal Update.</string>
 
     <string name="ingame_card">Speicherkarte (Steckplatz A)</string>
-    <string name="ingame_card_help">Spielstände als .gci exportieren und importieren (für Dolphin oder GameCube). Ein eigenes Touch-Layout kommt als CubeEvil4-touch-layout.json mit, der Import holt es zurück.</string>
+    <string name="ingame_card_help">Spieldaten exportieren und importieren: die Spielstände als .gci (für Dolphin oder GameCube) und ein eigenes Touch-Layout als CubeEvil4-touch-layout.json. Der Import holt beides zurück.</string>
     <string name="ingame_card_busy">Die Karte wird gerade benutzt (das Spiel speichert oder lädt) oder das Spiel lädt noch – Menü schließen und gleich noch einmal öffnen.</string>
     <string name="ingame_card_none">Keine Speicherkarte.</string>
-    <string name="ingame_export">Spielstände exportieren (.gci)</string>
-    <string name="ingame_import">Spielstände importieren (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Spieldaten exportieren (.gci)</string>
+    <string name="ingame_import">Spieldaten importieren (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">Für eine andere Version: Das Spiel endet, und du importierst ihre beiden Discs auf dem Startbildschirm. Spielstände, Speicherkarte und Einstellungen bleiben erhalten.</string>
     <string name="ingame_import_discs">Andere Discs importieren</string>

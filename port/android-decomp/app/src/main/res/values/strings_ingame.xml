@@ -100,11 +100,11 @@
 
     <!-- Memory card -->
     <string name="ingame_card">Memory card (slot A)</string>
-    <string name="ingame_card_help">Export and Import Savegames as .gci (for Dolphin or GameCube). A touch layout of your own goes along as CubeEvil4-touch-layout.json, and the import brings it back.</string>
+    <string name="ingame_card_help">Export and Import Player Data: your saves as .gci (for Dolphin or GameCube) and a touch layout of your own as CubeEvil4-touch-layout.json. The import brings both back.</string>
     <string name="ingame_card_busy">The card is in use (the game saves or loads) or the game is still loading – close the menu and open it again in a moment.</string>
     <string name="ingame_card_none">No memory card.</string>
-    <string name="ingame_export">Export Savegames (.gci)</string>
-    <string name="ingame_import">Import Savegames (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Export Player Data (.gci)</string>
+    <string name="ingame_import">Import Player Data (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">To play another version: the game ends, and you import both of its discs on the start screen. Saves, memory card and settings stay.</string>
     <string name="ingame_import_discs">Import other discs</string>

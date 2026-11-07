@@ -91,11 +91,11 @@
     <string name="ingame_update_allow">Autorisez CubeEvil4 à installer des applications, puis appuyez de nouveau sur Mettre à jour.</string>
 
     <string name="ingame_card">Carte mémoire (emplacement A)</string>
-    <string name="ingame_card_help">Exporter et importer les sauvegardes au format .gci (pour Dolphin ou GameCube). Votre disposition tactile personnalisée est exportée dans CubeEvil4-touch-layout.json, et l’importation la restaure.</string>
+    <string name="ingame_card_help">Exporter et importer les données de jeu\u00A0: les sauvegardes au format .gci (pour Dolphin ou GameCube) et votre disposition tactile personnalisée dans CubeEvil4-touch-layout.json. L’importation restaure les deux.</string>
     <string name="ingame_card_busy">La carte est utilisée (le jeu sauvegarde ou charge) ou le jeu charge encore – fermez le menu et rouvrez-le dans un instant.</string>
     <string name="ingame_card_none">Aucune carte mémoire.</string>
-    <string name="ingame_export">Exporter les sauvegardes (.gci)</string>
-    <string name="ingame_import">Importer des sauvegardes (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Exporter les données de jeu (.gci)</string>
+    <string name="ingame_import">Importer des données de jeu (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Disques</string>
     <string name="ingame_discs_help">Pour jouer à une autre version\u00A0: la partie se termine et vous importez ses deux disques depuis l’écran de démarrage. Les sauvegardes, la carte mémoire et les réglages sont conservés.</string>
     <string name="ingame_import_discs">Importer d’autres disques</string>

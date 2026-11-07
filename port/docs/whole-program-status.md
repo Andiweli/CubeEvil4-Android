@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs (07./08.11.2026, Branch `work`, Patches 0216–0218)
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs, Knöpfe „Spieldaten“ (07./08.11.2026, Branch `work`, Patches 0216–0218)
 
 Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
 v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
@@ -245,6 +245,22 @@ v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1
      Korrektur bei „4:3“ und „Native“ schmal unter dem Balken. r100 („4:3“): Spielen und Koffer ebenso; durch die Tür
      nach r101 (Funkspruch): Band wie im Original. **Nicht geprüft:** Gerät; das Dateien-Menü selbst (derselbe
      Untermenü-Zustand wie der Koffer, am PC kein Reiterwechsel).
+9. **Knöpfe „Spieldaten“ statt „Spielstände“ (Wunsch des Projektinhabers, 08.11.2026).** Wortlaut: „Unter MANAGEMENT
+   die beiden Buttons zum export/import der Spielstände evtl umbenenen: "Spieldaten" statt "Spielstände", da ja auch
+   das Layout dabei ist.“
+   - `ingame_export`/`ingame_import` in allen 11 Sprachen: Deutsch „Spieldaten exportieren (.gci)“ / „Spieldaten
+     importieren (.gci, .zip, .raw)“, die anderen Sprachen sinngemäß („datos del juego“, „données de jeu“, „dati di
+     gioco“, „dados do jogo“, „игровые данные“, „游戏数据“, „गेम डेटा“, „Data Game“, „بيانات اللعبة“); Dateiendungen in
+     Klammern wie bisher.
+   - **Englisch „Export Player Data“ / „Import Player Data“**, nicht „Game Data“: der Startbildschirm nennt die Discs
+     „Game data / Disc import“ (`strings.xml browser_data`, nur Englisch), ebenso das README („Game data: your own disc
+     images“). In den anderen Sprachen heißen die Discs im Spielmenü „Discs“/„discos“ …, dort keine Verwechslung.
+   - Hilfetext `ingame_card_help` in allen Sprachen neu: „Export and Import Player Data: your saves as .gci (for Dolphin
+     or GameCube) and a touch layout of your own as CubeEvil4-touch-layout.json. The import brings both back.“
+     Meldungen nennen die Knöpfe nicht. Releasetext 0.99.2: Hinweis oben und die New-Zeile zum Touch-Layout. Ältere
+     Releasetexte, Entwürfe in `docs/gui-optimisations/` und frühere Einträge dieser Datei bleiben wie geschrieben.
+   - **Geprüft:** `check_translations.py` (301 Texte, alle Sprachen ok), App-Tests. **Nicht geprüft:** Gerät
+     (Zeilenumbruch der Knöpfe in den längeren Sprachen).
 
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 

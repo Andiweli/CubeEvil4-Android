@@ -89,11 +89,11 @@
     <string name="ingame_update_allow">Разрешите CubeEvil4 устанавливать приложения и снова нажмите «Обновить».</string>
 
     <string name="ingame_card">Карта памяти (слот A)</string>
-    <string name="ingame_card_help">Экспорт и импорт сохранений в формате .gci (для Dolphin или GameCube). Ваша собственная сенсорная раскладка сохраняется в CubeEvil4-touch-layout.json, импорт восстанавливает её.</string>
+    <string name="ingame_card_help">Экспорт и импорт игровых данных: сохранения в формате .gci (для Dolphin или GameCube) и ваша собственная сенсорная раскладка в CubeEvil4-touch-layout.json. Импорт восстанавливает и то, и другое.</string>
     <string name="ingame_card_busy">Карта памяти занята (игра сохраняет или загружает) или игра ещё загружается — закройте меню и откройте его снова чуть позже.</string>
     <string name="ingame_card_none">Нет карты памяти.</string>
-    <string name="ingame_export">Экспорт сохранений (.gci)</string>
-    <string name="ingame_import">Импорт сохранений (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Экспорт игровых данных (.gci)</string>
+    <string name="ingame_import">Импорт игровых данных (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Диски</string>
     <string name="ingame_discs_help">Чтобы играть в другую версию: игра завершится, и вы импортируете оба её диска на стартовом экране. Сохранения, карта памяти и настройки останутся.</string>
     <string name="ingame_import_discs">Импорт других дисков</string>

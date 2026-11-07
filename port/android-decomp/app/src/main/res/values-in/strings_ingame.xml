@@ -90,11 +90,11 @@
     <string name="ingame_update_allow">Izinkan CubeEvil4 memasang aplikasi, lalu tekan Perbarui lagi.</string>
 
     <string name="ingame_card">Kartu memori (slot A)</string>
-    <string name="ingame_card_help">Ekspor dan impor data simpanan sebagai .gci (untuk Dolphin atau GameCube). Tata letak sentuh milik Anda ikut diekspor sebagai CubeEvil4-touch-layout.json, dan impor memulihkannya.</string>
+    <string name="ingame_card_help">Ekspor dan impor data game: data simpanan sebagai .gci (untuk Dolphin atau GameCube) dan tata letak sentuh milik Anda sebagai CubeEvil4-touch-layout.json. Impor memulihkan keduanya.</string>
     <string name="ingame_card_busy">Kartu sedang dipakai (game sedang menyimpan atau memuat) atau game masih memuat – tutup menu dan buka lagi sebentar lagi.</string>
     <string name="ingame_card_none">Tidak ada kartu memori.</string>
-    <string name="ingame_export">Ekspor Data Simpanan (.gci)</string>
-    <string name="ingame_import">Impor Data Simpanan (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Ekspor Data Game (.gci)</string>
+    <string name="ingame_import">Impor Data Game (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Disk</string>
     <string name="ingame_discs_help">Untuk memainkan versi lain: game berakhir, lalu Anda mengimpor kedua disknya di layar awal. Data simpanan, kartu memori, dan pengaturan tetap ada.</string>
     <string name="ingame_import_discs">Impor disk lain</string>
