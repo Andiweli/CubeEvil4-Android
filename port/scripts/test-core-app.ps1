@@ -404,7 +404,9 @@ if ($aapt) {
 }
 if ($apkVersion) {
     Say "   APK-Version: $apkVersion (Stand im Repository: $wantVersion)"
-    if ($wantVersion -and -not $apkVersion.StartsWith($wantVersion)) {
+    # (a branch's test APK, -Pre4.versionName: the same numbers with its own suffix, "0.99.2-vulkan1")
+    $sameNumbers = $wantVersion -and (($apkVersion -replace '-.*$', '') -eq ($wantVersion -replace '-.*$', ''))
+    if ($wantVersion -and -not $apkVersion.StartsWith($wantVersion) -and -not $sameNumbers) {
         throw ("Die APK ist $apkVersion, der Stand im Repository ${wantVersion}: sie ist veraltet. Das Skript " +
             "ohne -SkipApk starten (es baut sie dann selbst) oder in Android Studio Build > Build App Bundle(s) / " +
             "APK(s) > Build APK(s) waehlen (Run in Android Studio erneuert diese Datei nicht).")

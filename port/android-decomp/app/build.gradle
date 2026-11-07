@@ -80,6 +80,9 @@ android {
         // is exactly the release's tag on GitHub (AppUpdate compares the two): a suffix until 1.0 ("-rc"), none from 1.0
         // on (the project owner, 07.11.2026)
         versionName '0.99.2-rc'
+        // a branch's test APK names itself with -Pre4.versionName (the Vulkan branch: "0.99.2-vulkan1"; AppUpdate
+        // takes a different suffix word for the same version)
+        if (project.hasProperty('re4.versionName')) versionName project.property('re4.versionName')
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

@@ -30,6 +30,10 @@ public class AppUpdateTest {
     same("0.99.0-beta", "0.99.0-rc");
     same("0.99.0-rc", "0.99.0-rc");
     same("0.99.0-beta-core", "0.99.0-rc");
+    // a branch's test APK (the Vulkan branch, 08.11.2026): the same version as its release, the next one an update
+    same("0.99.2-vulkan1", "0.99.2-rc");
+    same("0.99.2-vulkan1-core", "0.99.2-rc");
+    older("0.99.2-vulkan3", "0.99.3-rc");
   }
 
   @Test public void theNumbersDecide() {

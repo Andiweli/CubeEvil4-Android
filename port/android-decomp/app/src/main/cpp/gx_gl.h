@@ -330,6 +330,11 @@ public:
   // screenH pixels, black around it, read back as RGBA8 with row 0 at the top (gx_chunk_render's RE4_GX_SCREEN).
   bool ReadPresented(int screenW, int screenH, int x, int y, int w, int h, unsigned top, unsigned rows,
                      std::vector<std::uint8_t> *rgba);
+  // The screen of a Vulkan renderer: the Android window (ANativeWindow*, the SurfaceView's; null when it went) and
+  // its size in pixels (Present's rectangles count in it). GL draws into the current context's surface: ignored.
+  void SetWindow(void *window, int width, int height);
+  // "OpenGL ES 3.2 ..., Adreno (TM) 650" or "Vulkan 1.1.128 ..., driver ...": for the log and the error report.
+  std::string ApiInfo() const;
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
   int Scale() const;   // whole multiples (1.5x: 1)

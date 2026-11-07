@@ -65,6 +65,8 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
   return impl_->Present(x, y, w, h, top, rows);
 }
 GLuint GxRenderer::EfbColor() const { return impl_->EfbColor(); }
+void GxRenderer::SetWindow(void *window, int width, int height) { impl_->SetWindow(window, width, height); }
+std::string GxRenderer::ApiInfo() const { return impl_->ApiInfo(); }
 bool GxRenderer::ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height) {
   return impl_->ReadXfb(rgba, width, height);
 }

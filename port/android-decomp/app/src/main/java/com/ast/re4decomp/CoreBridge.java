@@ -76,6 +76,15 @@ public final class CoreBridge {
   /** Saves the graphics data of the next picture into `folder` (diagnosis; R3). */
   public static native void gxDump(String folder);
   public static native void surfaceCreated();
+  /**
+   * The Vulkan surface's window (VulkanSurface, on its render thread; null when it went): the Vulkan renderer
+   * presents to it (core started with RE4_GX_API=vulkan).
+   */
+  public static native void vkWindow(android.view.Surface surface);
+  /** Why the Vulkan renderer could not start; "" while it runs or with OpenGL ES. CoreActivity then goes to GLES. */
+  public static native String rendererProblem();
+  /** The renderer's API, device and driver ("" before the first picture); the report's renderer.txt. */
+  public static native String rendererInfo();
   public static native void resize(int width, int height);
   public static native void draw();
 

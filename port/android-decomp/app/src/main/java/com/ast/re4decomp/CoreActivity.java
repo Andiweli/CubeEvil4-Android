@@ -7,6 +7,7 @@ import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -37,7 +38,9 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewConfiguration;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -160,7 +163,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final InputDelay inputDelay = new InputDelay();
   // the main stick as the game reads it for walking, a line every 30 s of use (StickWatch; report of 07.11.2026)
   private final StickWatch stickWatch = new StickWatch();
-  private GLSurfaceView surface;
+  // the view the picture is drawn into: GameSurface.Gl (OpenGL ES) or VulkanSurface (Vulkan, vulkan-bauplan.md E6);
+  // picture is the same view's render calls (volatile: the beat's thread asks for pictures)
+  private SurfaceView surface;
+  private volatile GameSurface picture;
+  private int renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY;
+  // Vulkan from Android 10 (API 29) on and with Vulkan 1.1 (the plan's minimum; vulkan-bauplan.md)
+  static final int VULKAN_MIN_SDK = 29;
+  private static final int VULKAN_1_1 = (1 << 22) | (1 << 12);
+  private boolean vulkan;
+  // the renderer of this run for the report's renderer.txt (and why it is not Vulkan when Vulkan was asked for)
+  private String rendererLine = "OpenGL ES";
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
   private GyroAim gyroAim;
@@ -252,6 +265,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     String programList = programList();
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
+    // the renderer: Vulkan (the test switch RE4_GX_API=vulkan) or OpenGL ES; the core hears it as RE4_GX_API
+    vulkan = chooseVulkan();
+    coreSettings = withRenderer(coreSettings, vulkan);
     // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
     String release = imports.root == null ? null
         : com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1"));
@@ -293,23 +309,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     FrameLayout root = new FrameLayout(this);
-    surface = new GLSurfaceView(this);
-    surface.setEGLContextClientVersion(3);
-    surface.setPreserveEGLContextOnPause(true);
-    surface.setRenderer(new GLSurfaceView.Renderer() {
-      @Override public void onSurfaceCreated(GL10 gl, EGLConfig config) { CoreBridge.surfaceCreated(); }
-      @Override public void onSurfaceChanged(GL10 gl, int w, int h) { CoreBridge.resize(w, h); }
-      @Override public void onDrawFrame(GL10 gl) { CoreBridge.draw(); }
-    });
+    if (vulkan) {
+      VulkanSurface v = new VulkanSurface(this, this::vulkanFailed);
+      surface = v;
+      picture = v;
+    } else {
+      surface = glSurface();
+    }
     root.addView(surface);
-    surface.getHolder().addCallback(new SurfaceHolder.Callback() {
-      @Override public void surfaceCreated(SurfaceHolder holder) { surfaceSixtyHz(holder.getSurface()); }
-      @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {}
-      @Override public void surfaceDestroyed(SurfaceHolder holder) {}
-    });
-    // the surface takes the fingers beside the touch controls: Android gives the further fingers
-    // of a touch only to views that took one, so a thumb beside the buttons would block them
-    surface.setOnTouchListener((v, e) -> true);
+    surfaceCallbacks(surface);
     // the benchmark's line at the top while it runs (Display -> GRAPHICS -> Benchmark)
     benchView = new TextView(this);
     benchView.setTextSize(14);
@@ -1346,10 +1354,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     String map = CoreBridge.addressMap();
     String controllers = controllerList();
     String discs = discCheckText();
+    String renderer = rendererText();
     if (map == null || map.isEmpty())
-      return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs}};
+      return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs},
+          {"renderer.txt", renderer}};
     return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers},
-        {"disc-check.txt", discs}};
+        {"disc-check.txt", discs}, {"renderer.txt", renderer}};
   }
 
   /** The report's disc-check.txt: each imported disc against the original's files, and a file the game could not read. */
@@ -2166,7 +2176,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (!resumed) return;
       CoreBridge.vsync(frameTimeNanos);
       if (pacing.vsync(frameTimeNanos) || (!paceLogged && pacing.hz() > 0)) pace();
-      if (pacing.due(frameTimeNanos)) surface.requestRender();
+      if (pacing.due(frameTimeNanos)) picture.requestRender();
       Choreographer.getInstance().postFrameCallback(this);
     }
   };
@@ -2238,7 +2248,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void pace() {
     paceLogged = true;
     int every = pacing.every();
-    surface.setRenderMode(every > 1 ? GLSurfaceView.RENDERMODE_WHEN_DIRTY : GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+    renderMode = every > 1 ? GLSurfaceView.RENDERMODE_WHEN_DIRTY : GLSurfaceView.RENDERMODE_CONTINUOUSLY;
+    picture.setRenderMode(renderMode);
     Log.i(TAG, String.format(Locale.ROOT, "display at %.1f Hz: the picture drawn %s", pacing.hz(),
         every > 1 ? "at every " + every + " vsyncs (the screen stayed faster than 60 Hz)" : "at each vsync"));
   }
@@ -2287,11 +2298,116 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   }
 
+  /** The OpenGL ES view (GLSurfaceView, as always): its render thread draws with a GLES 3 context. */
+  private GameSurface.Gl glSurface() {
+    GameSurface.Gl gl = new GameSurface.Gl(this);
+    gl.setEGLContextClientVersion(3);
+    gl.setPreserveEGLContextOnPause(true);
+    gl.setRenderer(new GLSurfaceView.Renderer() {
+      @Override public void onSurfaceCreated(GL10 g, EGLConfig config) { CoreBridge.surfaceCreated(); }
+      @Override public void onSurfaceChanged(GL10 g, int w, int h) { CoreBridge.resize(w, h); }
+      @Override public void onDrawFrame(GL10 g) { CoreBridge.draw(); }
+    });
+    picture = gl;
+    return gl;
+  }
+
+  /** The picture's view: 60 pictures a second on a faster screen, the fingers beside the touch controls. */
+  @SuppressLint("ClickableViewAccessibility")
+  private void surfaceCallbacks(SurfaceView view) {
+    view.getHolder().addCallback(new SurfaceHolder.Callback() {
+      @Override public void surfaceCreated(SurfaceHolder holder) { surfaceSixtyHz(holder.getSurface()); }
+      @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {}
+      @Override public void surfaceDestroyed(SurfaceHolder holder) {}
+    });
+    // the surface takes the fingers beside the touch controls: Android gives the further fingers
+    // of a touch only to views that took one, so a thumb beside the buttons would block them
+    view.setOnTouchListener((v, e) -> true);
+  }
+
+  /**
+   * Vulkan for this run (port/docs/vulkan-bauplan.md): asked for by the test switch RE4_GX_API=vulkan (the menu's
+   * choice follows in step E7), from Android 10 on and with Vulkan 1.1; else OpenGL ES.
+   */
+  private boolean chooseVulkan() {
+    if (!settings.contains("RE4_GX_API=vulkan")) return false;
+    if (Build.VERSION.SDK_INT < VULKAN_MIN_SDK) {
+      rendererLine = "OpenGL ES (Vulkan asked for: needs Android 10, this is API " + Build.VERSION.SDK_INT + ")";
+    } else if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, VULKAN_1_1)) {
+      rendererLine = "OpenGL ES (Vulkan asked for: the device has no Vulkan 1.1)";
+    } else {
+      rendererLine = "Vulkan";
+      Log.i(TAG, "renderer: Vulkan");
+      return true;
+    }
+    Log.w(TAG, "renderer: " + rendererLine);
+    return false;
+  }
+
+  /** The core's settings with the renderer: RE4_GX_API=vulkan for Vulkan, none for OpenGL ES. */
+  static String withRenderer(String coreSettings, boolean vulkan) {
+    StringBuilder out = new StringBuilder();
+    for (String part : coreSettings.split(";")) {
+      if (part.isEmpty() || part.startsWith("RE4_GX_API=")) continue;
+      if (out.length() > 0) out.append(';');
+      out.append(part);
+    }
+    if (vulkan) out.append(out.length() > 0 ? ";" : "").append("RE4_GX_API=vulkan");
+    return out.toString();
+  }
+
+  /**
+   * The Vulkan renderer could not start (VulkanSurface): the picture goes over to OpenGL ES in place (a GLSurfaceView
+   * where the Vulkan surface was; the core sends the whole state again), the player hears it once.
+   */
+  private void vulkanFailed(String problem) {
+    if (destroyed || !(surface instanceof VulkanSurface)) return;
+    rendererLine = "OpenGL ES (Vulkan could not start: " + problem + ")";
+    Log.w(TAG, "renderer: " + rendererLine);
+    VulkanSurface old = (VulkanSurface) surface;
+    ViewGroup root = (ViewGroup) old.getParent();
+    final int at = root.indexOfChild(old);
+    final boolean focused = old.hasFocus();
+    old.stop();
+    GameSurface.Gl gl = glSurface();
+    surface = gl;
+    root.removeView(old);
+    root.addView(gl, at);
+    surfaceCallbacks(gl);
+    if (Build.VERSION.SDK_INT >= 26) {
+      gl.setFocusable(true);
+      gl.setFocusableInTouchMode(true);
+      gl.setOnCapturedPointerListener((v, e) -> {
+        capturedMouse(e);
+        return true;
+      });
+    }
+    if (Build.VERSION.SDK_INT >= 30) gl.requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_JOYSTICK);
+    gl.setRenderMode(renderMode);
+    if (!resumed) gl.onPause();
+    if (focused || menu == null) gl.requestFocus();
+    Toast.makeText(this, "Vulkan could not start on this device. The game draws with OpenGL ES.", Toast.LENGTH_LONG)
+        .show();
+  }
+
+  /** The report's renderer.txt: the renderer of this run, its device and driver. */
+  private String rendererText() {
+    String info;
+    try {
+      info = CoreBridge.rendererInfo();
+    } catch (UnsatisfiedLinkError e) {
+      info = "(" + e.getMessage() + ")";
+    }
+    return "Renderer: " + rendererLine + "\nDevice and driver: " + (info.isEmpty() ? "(no renderer yet)" : info)
+        + "\nAndroid: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + "), " + Build.MANUFACTURER + " "
+        + Build.MODEL + ", " + Build.HARDWARE + "\n";
+  }
+
   @Override
   protected void onResume() {
     super.onResume();
     hideSystemUi();
-    surface.onResume();
+    picture.onResume();
     resumed = true;
     // the game runs again unless the menu or the touch editor is open (a file picker of the menu came back)
     if (menuSupported && menu == null && !touchEditing) CoreBridge.pause(false, 0);
@@ -2325,7 +2441,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     InputManager im = (InputManager) getSystemService(Context.INPUT_SERVICE);
     if (im != null) im.unregisterInputDeviceListener(this);
     releaseAll();
-    surface.onPause();
+    picture.onPause();
     super.onPause();
   }
 

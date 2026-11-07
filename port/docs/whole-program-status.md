@@ -2188,6 +2188,28 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   ist wieder heraus. GL nach allen Umzügen weiter bytegleich (4 371 Bilder), alle Renderer-Dateien mit dem NDK für
   beide ABIs übersetzt. **Nicht geprüft:** Gerät; die Tiefenkarte und Paletten-Kopien nur gebaut, nicht gezielt
   verglichen.
+- **E6 Vulkan in der App (08.11.2026, vor E4/E5 gezogen, damit das Gerät früh prüft):** `VulkanSurface.java`
+  (`SurfaceView` mit eigenem Zeichen-Thread wie `GLSurfaceView`: `requestRender`, `setRenderMode`, `onPause`,
+  `onResume`; das Fenster geht per `CoreBridge.vkWindow` an den Renderer und wird ihm genommen, bevor
+  `surfaceDestroyed` zurückkehrt), `GameSurface.java` (gemeinsame Aufrufe; GLES-Weg unverändert ein
+  `GLSurfaceView`). `CoreActivity`: Vulkan nur mit dem Test-Schalter `RE4_GX_API=vulkan` (Menüschalter folgt in E7),
+  ab Android 10 und Vulkan 1.1, sonst GLES; der Kern hört es als `RE4_GX_API`. Rückfall: kann Vulkan nicht starten
+  (`CoreBridge.rendererProblem`), ersetzt die App die Fläche an Ort und Stelle durch ein `GLSurfaceView` (der Kern
+  schickt alles neu) und meldet es einmal („Vulkan could not start on this device. The game draws with OpenGL ES.“);
+  Test-Schalter `RE4_VK_FAIL=1` erzwingt ihn. Fehlerbericht: neue Datei `renderer.txt` (Renderer, Gerät, Treiber,
+  Android). `gx_vk.cpp`: Swapchain (FIFO, 3 Bilder, Größe wie die Fläche der App, Drehung durch Android; eigene
+  Drehung zum Ausprobieren mit `RE4_VK_PRETRANSFORM=1`), `Present` mit Box des Bildformats und sichtbaren Zeilen,
+  Fenster weg/wieder da ohne neuen Renderer. `core_mode.cpp`: Wahl der API, ohne GL-Kontext keine Zustandsbrücke,
+  Filmfarben-Prüfung und GX-Wiedergabe nur unter GLES, Minikarte unter Vulkan noch aus (E5), Bildschirmfoto über
+  `ReadPresented`. CMake: `gx_vk.cpp` und `re4_vulkan` in `libre4decomp.so` (`RE4_GX_VULKAN=1`). Test-APKs heißen
+  per `-Pre4.versionName=0.99.2-vulkanN` (`build.gradle`; die Prüfung in `test-core-app.ps1` nimmt gleiche Nummern
+  mit anderem Zusatz an; `AppUpdateTest`: „0.99.2-vulkan1“ ist dieselbe Version wie „0.99.2-rc“).
+  **Geprüft (PC):** Kern für beide ABIs gebaut (je 0 Fehler, Stubs wie erwartet), Gradle `assembleCoreDebug` beider
+  ABIs fehlerfrei, `AppUpdateTest` 7/7; GL weiter bytegleich (4 371 Bilder, `gx_gl_check` 0 Fehler); Vulkan auf
+  lavapipe alle 10 Folgen ohne Meldung der Prüfschicht, kein Bild über 1 % Pixel mit mehr als 16 Stufen. Test-APK
+  `E:\Development\Android\builds\vulkan\CubeEvil4-0.99.2-vulkan1.apk` (22,8 MB, `versionCode` 104, beide ABIs,
+  Debug-Schlüssel dieses PCs wie Android Studio). **Nicht geprüft:** alles am Gerät (Swapchain, Drehung,
+  Pausieren, Rückfall, Bild gegen GLES); die Swapchain gibt es am PC nicht.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

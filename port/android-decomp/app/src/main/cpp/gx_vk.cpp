@@ -28,6 +28,10 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef __ANDROID__
+#include <android/native_window.h>
+#endif
+
 namespace re4gx {
 
 namespace {
@@ -128,6 +132,23 @@ const char kClearFs[] = "#version 450\n"
                         "layout(location = 0) out vec4 o;\n"
                         "void main() { o = color; }\n";
 
+// the screen's picture (Present): the box (clip space, y down), the display's turn (a 2 x 2 matrix), the XFB's rows
+[[maybe_unused]] const char kSwapVs[] = "#version 450\n"
+                       "layout(push_constant) uniform P { vec4 rect; vec4 rot; vec2 rows; };\n"
+                       "layout(location = 0) out vec2 vUv;\n"
+                       "void main() {\n"
+                       "  vec2 p = vec2(float(gl_VertexIndex & 1), float(gl_VertexIndex >> 1));\n"
+                       "  vUv = p;\n"
+                       "  vec2 q = mix(rect.xy, rect.zw, p);\n"
+                       "  gl_Position = vec4(rot.x * q.x + rot.y * q.y, rot.z * q.x + rot.w * q.y, 0.0, 1.0);\n"
+                       "}\n";
+[[maybe_unused]] const char kSwapFs[] = "#version 450\n"
+                       "layout(push_constant) uniform P { vec4 rect; vec4 rot; vec2 rows; };\n"
+                       "layout(set = 0, binding = 0) uniform sampler2D src;\n"
+                       "layout(location = 0) in vec2 vUv;\n"
+                       "layout(location = 0) out vec4 o;\n"
+                       "void main() { o = vec4(texture(src, vec2(vUv.x, rows.x + vUv.y * rows.y)).rgb, 1.0); }\n";
+
 } // namespace
 
 struct VkRenderer final : GxCore {
@@ -182,6 +203,22 @@ struct VkRenderer final : GxCore {
   Block readback;
   Image screen;
   unsigned pipelineLog = 0;
+  // the screen (Android): the window, the app's screen size (as drawGx counts), its surface and swapchain
+  void *window = nullptr;
+  int screenW = 0, screenH = 0;
+  VkSurfaceKHR surfaceKhr = VK_NULL_HANDLE;
+  VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+  VkFormat swapFormat = VK_FORMAT_UNDEFINED;
+  VkExtent2D swapExtent{};
+  VkSurfaceTransformFlagBitsKHR swapTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+  std::vector<VkImage> swapImages;
+  std::vector<VkImageView> swapViews;
+  std::vector<VkFramebuffer> swapFbs;
+  std::vector<VkSemaphore> renderSem;  // per swapchain image: the picture done (the present waits)
+  VkSemaphore acquireSem[kFrames] = {};  // per frame: the image acquired (the frame's submit waits)
+  VkRenderPass swapPass = VK_NULL_HANDLE;
+  Fixed swapPresent;
+  bool swapStale = false;
   // every recording a number; done: the highest whose fence was seen signalled
   std::uint64_t serial = 0, done = 0;
   // the depth map for GXPeekZ (SnapshotDepth): its image, the pass, two read-back places
@@ -476,7 +513,8 @@ struct VkRenderer final : GxCore {
   }
   // The frame to the GPU. wait: until it is done; next: the next frame is another one (else this frame goes on
   // with its blocks as they are: a submit in the middle of a chunk)
-  void Submit(bool wait, bool next) {
+  // (waitSem: the swapchain's image acquired, before the colour output; signalSem: the picture done, for the present)
+  void Submit(bool wait, bool next, VkSemaphore waitSem = VK_NULL_HANDLE, VkSemaphore signalSem = VK_NULL_HANDLE) {
     if (!recording)
       return;
     Frame &f = F();
@@ -487,6 +525,16 @@ struct VkRenderer final : GxCore {
     auto si = Make<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
     si.commandBufferCount = f.uploads ? 2 : 1;
     si.pCommandBuffers = f.uploads ? cbs : cbs + 1;
+    const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if (waitSem) {
+      si.waitSemaphoreCount = 1;
+      si.pWaitSemaphores = &waitSem;
+      si.pWaitDstStageMask = &waitStage;
+    }
+    if (signalSem) {
+      si.signalSemaphoreCount = 1;
+      si.pSignalSemaphores = &signalSem;
+    }
     vkResetFences(dev, 1, &f.fence);
     const VkResult r = vkQueueSubmit(vk.queue, 1, &si, f.fence);
     Check(r, "vkQueueSubmit");
@@ -803,11 +851,14 @@ struct VkRenderer final : GxCore {
   // a fixed shader's pipeline: the quad (4 vertices, a strip) with `fs`, its constants as push constants, its
   // textures in set 0; plain state with the colour mask `mask`, depth always (written when `depthWrite`)
   bool MakeFixed(Fixed &f, const std::string &vsEs, const std::string &fsEs, VkRenderPass renderPass,
-                 VkColorComponentFlags mask, bool depthWrite, std::string *error, bool vkGlsl = false) {
+                 VkColorComponentFlags mask, bool depthWrite, std::string *error, bool vkGlsl = false,
+                 const VkFixedLayout *given = nullptr) {
     VkFixedLayout vl, fl;
     const std::string vs = vkGlsl ? vsEs : VulkanFixedGlsl(vsEs, true, &vl);
     const std::string fs = vkGlsl ? fsEs : VulkanFixedGlsl(fsEs, false, &fl);
-    if (vkGlsl) {
+    if (vkGlsl && given) {
+      fl = *given;
+    } else if (vkGlsl) {
       fl.constants = {{"color", 0, 16}, {"z", 16, 4}};
       fl.bytes = 32;
     }
@@ -1544,12 +1595,259 @@ struct VkRenderer final : GxCore {
     BindFixed(present, &view, &s, 1, pc);
     vkCmdDraw(cb, 4, 1, 0, 0);
   }
-  bool Present(int, int, int, int, unsigned, unsigned) override {
-    // the screen (E6: the swapchain); for now the frame goes to the GPU
+  // ---- the screen: the Android window's swapchain (E6) ----
+  void SetWindow(void *w, int width, int height) override {
+    if (w == window) {
+      if (width != screenW || height != screenH)
+        swapStale = true;
+      screenW = width;
+      screenH = height;
+      return;
+    }
+    DropSwapchain(true);
+#ifdef __ANDROID__
+    if (window)
+      ANativeWindow_release(static_cast<ANativeWindow *>(window));
+    if (w)
+      ANativeWindow_acquire(static_cast<ANativeWindow *>(w));
+#endif
+    window = w;
+    screenW = width;
+    screenH = height;
+    swapStale = true;
+  }
+  // the swapchain, its images and the semaphores gone (andSurface: the window's surface too)
+  void DropSwapchain(bool andSurface) {
+    if (!dev)
+      return;
+    if (recording)
+      Submit(false, true);
+    vkDeviceWaitIdle(dev);
+    for (VkFramebuffer fb : swapFbs)
+      vkDestroyFramebuffer(dev, fb, nullptr);
+    for (VkImageView v : swapViews)
+      vkDestroyImageView(dev, v, nullptr);
+    for (VkSemaphore s : renderSem)
+      vkDestroySemaphore(dev, s, nullptr);
+    swapFbs.clear();
+    swapViews.clear();
+    swapImages.clear();
+    renderSem.clear();
+    if (swapchain)
+      vkDestroySwapchainKHR(dev, swapchain, nullptr);
+    swapchain = VK_NULL_HANDLE;
+    if (andSurface && surfaceKhr) {
+      vkDestroySurfaceKHR(vk.instance, surfaceKhr, nullptr);
+      surfaceKhr = VK_NULL_HANDLE;
+    }
+  }
+  bool MakeSwapchain() {
+#ifdef __ANDROID__
+    if (!window || !vkCreateAndroidSurfaceKHR || !vkCreateSwapchainKHR)
+      return false;
+    DropSwapchain(false);
+    swapStale = false;
+    if (!surfaceKhr) {
+      auto sci = Make<VkAndroidSurfaceCreateInfoKHR>(VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR);
+      sci.window = static_cast<ANativeWindow *>(window);
+      if (!Check(vkCreateAndroidSurfaceKHR(vk.instance, &sci, nullptr, &surfaceKhr), "vkCreateAndroidSurfaceKHR"))
+        return false;
+    }
+    VkBool32 supported = VK_FALSE;
+    vkGetPhysicalDeviceSurfaceSupportKHR(vk.physical, vk.family, surfaceKhr, &supported);
+    if (!supported) {
+      GXLOG("Vulkan: the queue cannot present to this window");
+      return false;
+    }
+    VkSurfaceCapabilitiesKHR caps{};
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk.physical, surfaceKhr, &caps);
+    std::uint32_t n = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vk.physical, surfaceKhr, &n, nullptr);
+    std::vector<VkSurfaceFormatKHR> formats(n);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vk.physical, surfaceKhr, &n, formats.data());
+    if (formats.empty())
+      return false;
+    // the picture as GL's window shows it: 8 bits, no sRGB conversion
+    VkSurfaceFormatKHR format = formats[0];
+    for (VkFormat want : {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM})
+      for (const VkSurfaceFormatKHR &f : formats)
+        if (f.format == want && format.format != VK_FORMAT_R8G8B8A8_UNORM) {
+          format = f;
+          break;
+        }
+    // pre-rotation (RE4_VK_PRETRANSFORM=1, to be checked on phones): the picture drawn turned as the display is;
+    // else the compositor turns it (a phone held across)
+    const char *pre = std::getenv("RE4_VK_PRETRANSFORM");
+    const bool preRotate = pre && *pre == '1';
+    const VkSurfaceTransformFlagBitsKHR current = caps.currentTransform;
+    const bool turned = current & (VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR | VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR);
+    swapTransform = preRotate || !(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+                        ? current
+                        : VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    VkExtent2D extent = caps.currentExtent;
+    if (extent.width == 0xFFFFFFFFu) {
+      extent = {static_cast<std::uint32_t>(std::max(1, screenW)), static_cast<std::uint32_t>(std::max(1, screenH))};
+    } else if (swapTransform == VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
+      // drawn as the app sees the screen (the compositor turns it): the app's size, in whichever order the driver
+      // gave it
+      if (screenW != screenH && extent.width == static_cast<std::uint32_t>(screenH) &&
+          extent.height == static_cast<std::uint32_t>(screenW))
+        std::swap(extent.width, extent.height);
+    } else if (turned && extent.width == static_cast<std::uint32_t>(screenW) &&
+               extent.height == static_cast<std::uint32_t>(screenH)) {
+      std::swap(extent.width, extent.height);  // pre-rotated: the display's own orientation
+    }
+    extent.width = std::max(caps.minImageExtent.width, std::min(extent.width, std::max(caps.maxImageExtent.width, 1u)));
+    extent.height =
+        std::max(caps.minImageExtent.height, std::min(extent.height, std::max(caps.maxImageExtent.height, 1u)));
+    std::uint32_t images = std::max(caps.minImageCount, 3u);
+    if (caps.maxImageCount)
+      images = std::min(images, caps.maxImageCount);
+    VkCompositeAlphaFlagBitsKHR alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    for (VkCompositeAlphaFlagBitsKHR a : {VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+                                          VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+                                          VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR})
+      if (caps.supportedCompositeAlpha & a) {
+        alpha = a;
+        break;
+      }
+    auto ci = Make<VkSwapchainCreateInfoKHR>(VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR);
+    ci.surface = surfaceKhr;
+    ci.minImageCount = images;
+    ci.imageFormat = format.format;
+    ci.imageColorSpace = format.colorSpace;
+    ci.imageExtent = extent;
+    ci.imageArrayLayers = 1;
+    ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    ci.preTransform = swapTransform;
+    ci.compositeAlpha = alpha;
+    ci.presentMode = VK_PRESENT_MODE_FIFO_KHR;  // waits for the display's refresh, as eglSwapBuffers
+    ci.clipped = VK_TRUE;
+    if (!Check(vkCreateSwapchainKHR(dev, &ci, nullptr, &swapchain), "vkCreateSwapchainKHR"))
+      return false;
+    swapExtent = extent;
+    vkGetSwapchainImagesKHR(dev, swapchain, &n, nullptr);
+    swapImages.resize(n);
+    vkGetSwapchainImagesKHR(dev, swapchain, &n, swapImages.data());
+    if (format.format != swapFormat || !swapPass) {
+      if (swapPass)
+        vkDestroyRenderPass(dev, swapPass, nullptr);
+      FreeFixed(swapPresent);
+      swapFormat = format.format;
+      swapPass = MakePass(swapFormat, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+      VkFixedLayout l;
+      l.constants = {{"rect", 0, 16}, {"rot", 16, 16}, {"rows", 32, 8}};
+      l.samplers = {"src"};
+      l.bytes = 48;
+      std::string error;
+      const VkColorComponentFlags all = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+      if (!swapPass || !MakeFixed(swapPresent, kSwapVs, kSwapFs, swapPass, all, false, &error, true, &l)) {
+        GXLOG("Vulkan: the screen's pass: %s", error.c_str());
+        return false;
+      }
+    }
+    for (VkImage image : swapImages) {
+      Image tmp;
+      tmp.image = image;
+      tmp.format = swapFormat;
+      const VkImageView v = MakeView(tmp, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+      swapViews.push_back(v);
+      swapFbs.push_back(MakeFb(swapPass, {v}, extent.width, extent.height));
+      VkSemaphore s = VK_NULL_HANDLE;
+      auto sem = Make<VkSemaphoreCreateInfo>(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
+      vkCreateSemaphore(dev, &sem, nullptr, &s);
+      renderSem.push_back(s);
+    }
+    GXLOG("Vulkan screen: %ux%u, %u images, format %d, the display's turn %u (%s), app screen %dx%d", extent.width,
+          extent.height, n, static_cast<int>(swapFormat), static_cast<unsigned>(current),
+          swapTransform == VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR ? "turned by the compositor" : "pre-rotated",
+          screenW, screenH);
+    return true;
+#else
+    return false;
+#endif
+  }
+  bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) override {
     if (!haveXfb)
       return false;
     stats.presents++;
-    Submit(false, true);
+    if (!window || ((!swapchain || swapStale) && !MakeSwapchain())) {
+      Submit(false, true);  // no screen: the frame to the GPU all the same
+      return true;
+    }
+    Begin();
+    const int slot = cur;
+    std::uint32_t index = 0;
+    VkResult r = vkAcquireNextImageKHR(dev, swapchain, 1000000000ull, acquireSem[slot], VK_NULL_HANDLE, &index);
+    if (r == VK_ERROR_OUT_OF_DATE_KHR || (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR)) {
+      swapStale = true;
+      if (r != VK_ERROR_OUT_OF_DATE_KHR)
+        Check(r, "vkAcquireNextImageKHR");
+      Submit(false, true);
+      return true;
+    }
+    if (r == VK_SUBOPTIMAL_KHR)
+      swapStale = true;
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
+    rbi.renderPass = swapPass;
+    rbi.framebuffer = swapFbs[index];
+    rbi.renderArea = {{0, 0}, swapExtent};
+    VkClearValue black{};
+    black.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    rbi.clearValueCount = 1;
+    rbi.pClearValues = &black;
+    vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
+    pass = kOtherPass;
+    boundPipeline = VK_NULL_HANDLE;
+    scissorValid = false;
+    Image *xfb = ImageOf(xfbId);
+    if (!viBlack && xfb && xfb->view && screenW > 0 && screenH > 0) {
+      const VkViewport vp{0.0f, 0.0f, float(swapExtent.width), float(swapExtent.height), 0.0f, 1.0f};
+      const VkRect2D sc{{0, 0}, swapExtent};
+      vkCmdSetViewport(cb, 0, 1, &vp);
+      vkCmdSetScissor(cb, 0, 1, &sc);
+      // the box in the app's screen (GL's viewport: from the bottom left) as Vulkan's clip space (y down)
+      const float W = float(screenW), H = float(screenH);
+      float pc[12] = {2.0f * x / W - 1.0f, 1.0f - 2.0f * (y + h) / H, 2.0f * (x + w) / W - 1.0f, 1.0f - 2.0f * y / H,
+                      1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+      // pre-rotation: the clip space turned as the display (x' = x cos - y sin, y' = x sin + y cos)
+      if (swapTransform == VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR) {
+        pc[4] = 0.0f, pc[5] = -1.0f, pc[6] = 1.0f, pc[7] = 0.0f;
+      } else if (swapTransform == VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR) {
+        pc[4] = -1.0f, pc[5] = 0.0f, pc[6] = 0.0f, pc[7] = -1.0f;
+      } else if (swapTransform == VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
+        pc[4] = 0.0f, pc[5] = 1.0f, pc[6] = -1.0f, pc[7] = 0.0f;
+      }
+      const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
+      if (rows && top + rows <= xfbHeight) {
+        pc[8] = static_cast<float>(top) / lines;
+        pc[9] = static_cast<float>(rows) / lines;
+      }
+      std::vector<std::uint8_t> bytes(48);
+      std::memcpy(bytes.data(), pc, 48);
+      const VkImageView view = xfb->view;
+      BindFixed(swapPresent, &view, &linearClamp, 1, bytes);
+      vkCmdDraw(cb, 4, 1, 0, 0);
+    }
+    EndPass();
+    const VkSemaphore done = renderSem[index];
+    Submit(false, true, acquireSem[slot], done);
+    auto pi = Make<VkPresentInfoKHR>(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
+    pi.waitSemaphoreCount = 1;
+    pi.pWaitSemaphores = &done;
+    pi.swapchainCount = 1;
+    pi.pSwapchains = &swapchain;
+    pi.pImageIndices = &index;
+    r = vkQueuePresentKHR(vk.queue, &pi);
+    if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR)
+      swapStale = true;
+    else if (r != VK_SUCCESS)
+      Check(r, "vkQueuePresentKHR");
     return true;
   }
   unsigned EfbColor() const override { return 0; }
@@ -1618,10 +1916,18 @@ struct VkRenderer final : GxCore {
     if (!error)
       error = &dummy;
     halves = std::max(2, h);
+    // the fallback to GLES tried on purpose (test switch, port/docs/vulkan-bauplan.md E6)
+    if (const char *fail = std::getenv("RE4_VK_FAIL"); fail && *fail == '1') {
+      *error = "made to fail on purpose (RE4_VK_FAIL=1)";
+      return false;
+    }
     ContextOptions o;
     const char *validation = std::getenv("RE4_VK_VALIDATION");
     o.validation = validation && *validation >= '1';
     o.syncValidation = validation && *validation == '2';
+#ifdef __ANDROID__
+    o.surface = true;  // the window's swapchain (Present)
+#endif
     o.log = VkLogLine;
     if (!vk.Create(o, error))
       return false;
@@ -1702,6 +2008,10 @@ struct VkRenderer final : GxCore {
       auto fci = Make<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
       vkCreateFence(dev, &fci, nullptr, &f.fence);
     }
+    for (VkSemaphore &s : acquireSem) {
+      auto sem = Make<VkSemaphoreCreateInfo>(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
+      vkCreateSemaphore(dev, &sem, nullptr, &s);
+    }
     linearClamp = PlainSampler(true);
     nearestClamp = PlainSampler(false);
     // the fixed shaders: the copy (the EFB into a copy), the display (row 0 at the top here: no flip)
@@ -1758,6 +2068,7 @@ struct VkRenderer final : GxCore {
   }
   void HandOverCopies(GxCore &) override {}  // E4
   bool TiledMsaa() const override { return false; }
+  std::string ApiInfo() const override { return dev ? vk.Describe() : "Vulkan (not started)"; }
   bool BaseVertex() const override { return true; }
   bool SetProgramCache(const std::string &) override { return false; }  // E8
   bool Prewarm(double) override { return false; }
@@ -1777,6 +2088,21 @@ struct VkRenderer final : GxCore {
     if (recording)
       Submit(true, false);
     vkDeviceWaitIdle(dev);
+    DropSwapchain(true);
+#ifdef __ANDROID__
+    if (window)
+      ANativeWindow_release(static_cast<ANativeWindow *>(window));
+#endif
+    window = nullptr;
+    if (swapPass)
+      vkDestroyRenderPass(dev, swapPass, nullptr);
+    swapPass = VK_NULL_HANDLE;
+    FreeFixed(swapPresent);
+    for (VkSemaphore &s : acquireSem) {
+      if (s)
+        vkDestroySemaphore(dev, s, nullptr);
+      s = VK_NULL_HANDLE;
+    }
     if (roomDirty)
       SaveRoom();
     for (Frame &f : frames) {

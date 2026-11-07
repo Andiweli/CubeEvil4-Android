@@ -28,6 +28,9 @@
 
 #include <EGL/egl.h>
 #include <android/log.h>
+#ifdef __ANDROID__
+#include <android/native_window_jni.h>
+#endif
 #include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
@@ -520,6 +523,20 @@ std::chrono::steady_clock::time_point lastDraw;
 // else RE4_GX_SCALE
 std::unique_ptr<re4gx::GxRenderer> gx;
 int gxMode = -1;  // -1 undecided, 0 bridge, 1 GX
+// The GX renderer's graphics API (port/docs/vulkan-bauplan.md): Vulkan when CoreActivity made a Vulkan surface (it then
+// passes RE4_GX_API=vulkan) and its window came (CoreBridge.vkWindow, on the render thread); else GLES. A Vulkan
+// renderer that could not start leaves its reason in vulkanProblem: CoreActivity asks for it (CoreBridge.rendererProblem)
+// and goes over to GLES.
+bool gxVulkan() {
+  static const bool vulkan = getenv("RE4_GX_API") && std::string(getenv("RE4_GX_API")) == "vulkan";
+  return vulkan;
+}
+void *vkWindow = nullptr;  // ANativeWindow of the Vulkan surface (one reference held here)
+bool glContextLive = false;  // a GL context is current on the render thread (GLSurfaceView; not the Vulkan surface)
+std::mutex vulkanProblemLock;
+std::string vulkanProblem;
+std::string rendererInfoText;  // the renderer's API, device and driver (GxRenderer::ApiInfo; the report's renderer.txt)
+bool vulkanFailed = false;
 // the menu's picture options (M11, any thread -> GL thread): a change builds
 // the renderer anew at the next picture while the game runs (the core then
 // starts over with the full state); 0 scale: automatic
@@ -1029,6 +1046,17 @@ void SaveShot(re4gx::GxRenderer &renderer, const char *path) {
   unsigned w = 0, h = 0;
   if (!renderer.Xfb(&w, &h) || !w || !h)
     return;
+  std::vector<unsigned char> rgba(static_cast<size_t>(w) * h * 4);
+  if (renderer.Api() == re4gx::GxApi::kVulkan) {
+    // Vulkan: the same picture read back (rows from the top: turned to GL's order, bottom up, for the BMP)
+    std::vector<std::uint8_t> top;
+    if (!renderer.ReadPresented(static_cast<int>(w), static_cast<int>(h), 0, 0, static_cast<int>(w),
+                                static_cast<int>(h), 0, 0, &top) || top.size() != rgba.size())
+      return;
+    const size_t row = static_cast<size_t>(w) * 4;
+    for (unsigned y = 0; y < h; y++)
+      std::memcpy(rgba.data() + (h - 1 - y) * row, top.data() + y * row, row);
+  } else {
   if (!gxShotFbo || gxShotW != w || gxShotH != h) {
     if (!gxShotFbo)
       glGenFramebuffers(1, &gxShotFbo);
@@ -1046,9 +1074,9 @@ void SaveShot(re4gx::GxRenderer &renderer, const char *path) {
   glBindFramebuffer(GL_FRAMEBUFFER, gxShotFbo);
   glDisable(GL_SCISSOR_TEST);
   renderer.Present(0, 0, static_cast<int>(w), static_cast<int>(h));
-  std::vector<unsigned char> rgba(static_cast<size_t>(w) * h * 4);
   glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
   // BMP rows go bottom up, as glReadPixels returns them
   const unsigned rowBytes = (w * 3 + 3) & ~3u;
   const uint32_t dataBytes = rowBytes * h, fileBytes = 54 + dataBytes;
@@ -1187,6 +1215,10 @@ void replayGx(int halves) {
   gxReplayDone = true;
   const char *dir = getenv("RE4_GX_REPLAY");
   if (!dir || !*dir) return;
+  if (gxVulkan() && !vulkanFailed) {
+    LOG("GX replay: GLES only (the app draws with Vulkan)");
+    return;
+  }
   std::vector<std::string> names;
   if (DIR *d = opendir(dir)) {
     while (const dirent *e = readdir(d)) {
@@ -1678,7 +1710,7 @@ bool drawGx() {
     // the Galaxy A36 showed them green and brown)? Before any renderer, on a renderer of its own;
     // on wrong pixels it picks a way of writing the TEV's lerp that this GPU computes right.
     static bool gpuChecked = false;
-    if (!gpuChecked) {
+    if (!gpuChecked && !(gxVulkan() && !vulkanFailed)) {
       gpuChecked = true;
       LOG("%s", re4gx::MovieColourCheck(nullptr).c_str());
     }
@@ -1688,7 +1720,24 @@ bool drawGx() {
       LOG("benchmark: the new renderer at the benchmark's level %s", re4gx::BenchSteps::Name(scale).c_str());
     }
     replayGx(scale);
-    gx = std::make_unique<re4gx::GxRenderer>();
+    const bool vulkan = gxVulkan() && !vulkanFailed;
+    if (vulkan && !vkWindow)
+      return false;  // the Vulkan surface's window has not come yet
+    gx = std::make_unique<re4gx::GxRenderer>(vulkan ? re4gx::GxApi::kVulkan : re4gx::GxApi::kGl);
+    if (vulkan && gx->Api() != re4gx::GxApi::kVulkan) {
+      // a build without the Vulkan renderer: the surface has no GL context, CoreActivity goes over to GLES
+      LOG("GX renderer (Vulkan): not in this build; over to OpenGL ES");
+      {
+        std::lock_guard<std::mutex> lock(vulkanProblemLock);
+        vulkanProblem = "this build has no Vulkan renderer";
+      }
+      vulkanFailed = true;
+      gx.reset();
+      if (previous) previous->Release();
+      return false;
+    }
+    if (vulkan)
+      gx->SetWindow(vkWindow, width, height);
     re4gx::GxOptions options;
     options.samples = std::max(1, optSamples.load());
     options.anisotropy = static_cast<float>(std::max(1, optAnisotropy.load()));
@@ -1708,6 +1757,18 @@ bool drawGx() {
       gx->SetDepthSink([](const std::uint32_t *cells, std::uint32_t serial) { api.depth(cells, serial); });
     std::string error;
     if (!gx->InitHalves(scale, &error)) {
+      if (vulkan) {
+        // Vulkan could not start: CoreActivity hears it (rendererProblem) and goes over to GLES
+        LOG("GX renderer (Vulkan): %s; over to OpenGL ES", error.c_str());
+        {
+          std::lock_guard<std::mutex> lock(vulkanProblemLock);
+          vulkanProblem = error.empty() ? "Vulkan could not start" : error;
+        }
+        vulkanFailed = true;
+        gx.reset();
+        if (previous) previous->Release();
+        return false;
+      }
       LOG("GX renderer: %s; the bridge draws", error.c_str());
       gx.reset();
       if (previous) previous->Release();
@@ -1734,7 +1795,15 @@ bool drawGx() {
       startWarm(cache, programList ? programList : "", gx->Samples() > 1 && options.centroid ? 1u : 0u);
     int maxSamples = 1;
     float maxAnisotropy = 1.0f;
-    re4gx::GxRenderer::Limits(&maxSamples, &maxAnisotropy);
+    if (vulkan)
+      maxAnisotropy = gx->Anisotropy();  // (E4: MSAA and the device's limits under Vulkan)
+    else
+      re4gx::GxRenderer::Limits(&maxSamples, &maxAnisotropy);
+    LOG("GX renderer: %s", gx->ApiInfo().c_str());
+    {
+      std::lock_guard<std::mutex> lock(vulkanProblemLock);
+      rendererInfoText = gx->ApiInfo();
+    }
     infoMaxSamples = maxSamples;
     infoMaxAnisotropy = static_cast<int>(maxAnisotropy);
     infoScale = scale;
@@ -2205,11 +2274,15 @@ bool drawGx() {
   benchTick(now);
   unsigned xw = 0, xh = 0;
   if (!gx->Xfb(&xw, &xh)) return false;
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport(0, 0, width, height);
-  glDisable(GL_SCISSOR_TEST);
-  glClearColor(0, 0, 0, 1);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  if (gx->Api() == re4gx::GxApi::kVulkan) {
+    gx->SetWindow(vkWindow, width, height);  // (Present clears the screen itself)
+  } else {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, width, height);
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  }
   // the menu's picture format (1: 4:3, 0: 16:9, 2: stretched, 3: 4:3 without the game's
   // letterbox bars while playing, Anbernic RG 477V report 22.10.2026, in an exact 4:3 box since
   // 29.10.2026; 4, the exact box's first own number, is 3; 5: "Native", the screen's own aspect,
@@ -2307,7 +2380,15 @@ bool drawGx() {
                 xh ? float(rows) / float(xh) : 1.f);
   }
   // the map: "4:3 (GC)" also when RE4_GX_ASPECT asks for 4:3 (as above)
-  minimapDraw(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, xh, xfbWide);
+  if (gx->Api() == re4gx::GxApi::kVulkan) {
+    static bool told = false;
+    if (!told) {
+      told = true;
+      LOG("minimap: not drawn with Vulkan yet");
+    }
+  } else {
+    minimapDraw(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, xh, xfbWide);
+  }
   return true;
 }
 
@@ -2752,6 +2833,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_gxDump(JNIEn
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreated(JNIEnv *, jclass) {
+  glContextLive = true;
   if (auto *s = currentScene()) s->contextCreated();
   lastDraw = {};
   letterboxSent = -1;
@@ -2766,6 +2848,39 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   gx.reset();
   smoothDrop();
   if (api.gxDetach) api.gxDetach();
+}
+
+// The Vulkan surface's window (CoreActivity's VulkanSurface, on its render thread; null when it went): the renderer
+// presents to it. The renderer and its textures stay while the window is away (no new start of the core).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_vkWindow(JNIEnv *env, jclass, jobject surface) {
+#ifdef __ANDROID__
+  ANativeWindow *w = surface ? ANativeWindow_fromSurface(env, surface) : nullptr;
+#else
+  void *w = nullptr;  // (the host's link check: no windows)
+  (void)env;
+  (void)surface;
+#endif
+  if (gx && gx->Api() == re4gx::GxApi::kVulkan)
+    gx->SetWindow(w, width, height);  // (it holds a reference of its own)
+#ifdef __ANDROID__
+  if (vkWindow)
+    ANativeWindow_release(static_cast<ANativeWindow *>(vkWindow));
+#endif
+  vkWindow = w;
+  glContextLive = false;
+  LOG("Vulkan surface: %s", w ? "window came" : "window went");
+}
+
+// Why the Vulkan renderer could not start ("" when it runs or GLES was chosen); CoreActivity then goes over to GLES.
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_rendererProblem(JNIEnv *env, jclass) {
+  std::lock_guard<std::mutex> lock(vulkanProblemLock);
+  return env->NewStringUTF(vulkanProblem.c_str());
+}
+
+// The renderer's API, device and driver ("" before the first one; the report's renderer.txt).
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_rendererInfo(JNIEnv *env, jclass) {
+  std::lock_guard<std::mutex> lock(vulkanProblemLock);
+  return env->NewStringUTF(rendererInfoText.c_str());
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_resize(JNIEnv *, jclass, jint w,
@@ -2789,6 +2904,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_draw(JNIEnv 
                              : std::chrono::duration<double>(now - lastDraw).count();
   lastDraw = now;
   if (drawGx()) return;
+  if (gxVulkan() && !glContextLive) return;  // the Vulkan surface: no GL context for the bridge
   try {
     s->draw(frame, width, height, seconds);
   } catch (const std::exception &e) {

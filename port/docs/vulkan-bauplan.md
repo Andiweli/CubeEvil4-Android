@@ -247,4 +247,6 @@ Bis zur Antwort baue ich weiter an dem, was davon nicht abhängt (E0 Werkzeuge a
 | E2 | **fertig am PC (07.11.2026):** `gx_vk_shader` (GLSL ES → GLSL 450 für Vulkan); 27 522 Shader der App-Liste nach SPIR-V, 0 Fehler, `spirv-val` 0 ungültig; glslang 1,45 ms je Shader am PC. Feste Shader in E3/E5 |
 | E3 | **großteils am PC (08.11.2026):** `gx_vk.cpp` zeichnet alle GX-Folgen (normal, gebündelt, 60 FPS, 1,5×, Native) auf lavapipe ohne Meldung der Prüfschicht; kein Bild mit mehr als 1 % Pixeln über 16 Stufen Abweichung zu GL; Rest = Treiber-Rundung (Zink zeigt dasselbe), Kantenregel, 1-Pixel-Linien. `ImageHeap`, Paletten-Kopien, Tiefenkarte gebaut. Offen: Pipeline-Cache auf Platte |
 | E4 | offen: MSAA, Auflösungswechsel, Übergabe der Kopien (Tiefenkarte und Paletten schon in E3) |
-| E5–E9 | offen |
+| E5 | offen |
+| E6 | **gebaut (08.11.2026, vor E4/E5 gezogen):** `VulkanSurface` (eigener Zeichen-Thread), Swapchain, `Present`, Rückfall auf GLES an Ort und Stelle mit Meldung, `renderer.txt` im Fehlerbericht; Vulkan nur per Test-Schalter `RE4_GX_API=vulkan` (ab Android 10, Vulkan 1.1), Rückfall erzwingbar mit `RE4_VK_FAIL=1`. Test-APK `0.99.2-vulkan1` (22,8 MB). Am PC: GL bytegleich, Vulkan-Folgen ohne Meldung. Gerät: noch nicht geprüft |
+| E7–E9 | offen |

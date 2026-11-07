@@ -3213,6 +3213,11 @@ struct GlRenderer final : GxCore {
   bool Prewarm(double budgetMs) override;
   void Release() override;
   void ApplyTestEnvironment() override;
+  std::string ApiInfo() const override {
+    const char *renderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+    const char *version = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+    return std::string(version ? version : "OpenGL ES") + ", " + (renderer ? renderer : "?");
+  }
   std::uintptr_t ProgramTag() const override { return reinterpret_cast<std::uintptr_t>(keyProgram); }
 };
 

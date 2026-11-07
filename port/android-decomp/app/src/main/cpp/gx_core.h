@@ -700,6 +700,10 @@ struct GxCore {
   // the start-up switches of the tests (RE4_GX_TV_FILTER, RE4_GX_PSX, RE4_GX_FLARES, RE4_GX_MAX_PROGRAMS), applied
   // by GxRenderer's constructor
   virtual void ApplyTestEnvironment() = 0;
+  // the screen to present to (Vulkan: an ANativeWindow; GL draws into the current context's) and its size in pixels
+  virtual void SetWindow(void *, int, int) {}
+  // the API, the GPU and its driver, for the log and the error report
+  virtual std::string ApiInfo() const = 0;
 };
 
 // A renderer's inside for `api` (GlRenderer in gx_gl.cpp ...); null when this build has none for it.
