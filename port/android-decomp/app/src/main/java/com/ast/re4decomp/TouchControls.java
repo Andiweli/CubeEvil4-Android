@@ -127,6 +127,19 @@ final class TouchControls implements CoreTouch.Host {
     return new RetroTouchLayout(LAYOUT_ID, controls);
   }
 
+  /** The app's own layout, RetroTouch's "reset" (TouchLayoutFile: is the saved one the player's own?). */
+  static RetroTouchLayout defaultLayout() { return layout(); }
+
+  /**
+   * The saved layout again (after an import, TouchLayoutFile.apply): RetroTouch reads it from its preferences when it
+   * shows a layout, now when the controls are shown, else the next time they are.
+   */
+  void reloadSaved() {
+    quietly(() -> view.setGameplayLayout(layout()));
+    touch.reset();
+    Log.i(CoreActivity.TAG, "touch controls: the saved layout read again (" + (shown ? "shown" : "hidden") + ")");
+  }
+
   View view() { return view; }
 
   boolean shown() { return shown; }

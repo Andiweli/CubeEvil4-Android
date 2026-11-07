@@ -1041,6 +1041,68 @@ void TestTvFilter(re4gx::GxRenderer &r) {
   Check(red(xfb, 199) < 10, "TV filter: off again, the line is sharp");
 }
 
+// Sharpen (the app menu's filter, 08.11.2026): a grey band (160) on grey (100), softened by the TV filter (its rows
+// above and below get in-between greys). Strong: the in-between rows move away from the middle (the edge gets
+// steeper), every texel stays within the two greys (no seams), flat parts stay as they are, one pass per display
+// copy. A movie's chunk (RE4_GX_CHUNK_MOVIE) and the rows outside the shown ones (SetShownRows) stay as they are.
+// Off again: the plain copy.
+void TestSharpen(re4gx::GxRenderer &r) {
+  const std::uint8_t kDark[4] = {100, 100, 100, 255}, kLight[4] = {160, 160, 160, 255};
+  auto scene = [&](std::uint32_t flags) {
+    Builder b;
+    Baseline(b);
+    b.flags |= flags;
+    b.Bp(0x53, 8u | 8u << 6 | 10u << 12 | 12u << 18);
+    b.Bp(0x54, 10u | 8u << 6 | 8u << 12);
+    DisplayCopy(b, true, kDark);
+    Quad(b, 100, 200, 300, 260, 0, kLight);
+    Quad(b, 100, 20, 300, 40, 0, kLight);  // above the rows shown in the 16:9 formats (56..392)
+    DisplayCopy(b, false, kDark);
+    r.Run(b.Chunk());
+    return r.Xfb(nullptr, nullptr);
+  };
+  const int f = r.Scale();
+  const auto grey = [&](GLuint xfb, int y) { return static_cast<int>(TexPixel(xfb, 200 * f, y)[0]); };
+  // how far the texels around an edge (rows from..to of the game) are from the middle grey, and whether all stay
+  // within the two greys
+  const auto steep = [&](GLuint xfb, int from, int to, bool *inside) {
+    int sum = 0;
+    for (int y = from * f; y < to * f; y++) {
+      const int v = grey(xfb, y);
+      sum += std::abs(v - 130);
+      if (v < 99 || v > 161)
+        *inside = false;
+    }
+    return sum;
+  };
+  r.SetTvFilter(true);
+  GLuint xfb = scene(0);
+  const GLuint plain = xfb;
+  bool inside = true;
+  const int offEdge = steep(xfb, 196, 204, &inside), offTop = grey(xfb, 19 * f);
+  const unsigned before = r.Stats().sharpenPasses;
+  r.SetSharpen(2);
+  r.SetShownRows(56, 392);
+  xfb = scene(0);
+  const int onEdge = steep(xfb, 196, 204, &inside), onTop = grey(xfb, 19 * f);
+  std::fprintf(stderr, "  sharpen: the band's edge %d -> %d from the middle grey; row 19 (not shown) %d -> %d\n",
+               offEdge, onEdge, offTop, onTop);
+  Check(r.Stats().sharpenPasses == before + 2, "sharpen: one pass per display copy (the scene has two)");
+  Check(xfb != plain && xfb != 0, "sharpen: the shown picture is the sharpened copy");
+  Check(onEdge > offEdge + 2, "sharpen: the softened edge gets steeper");
+  Check(inside, "sharpen: no texel beyond the two greys (no seams)");
+  Check(Near(TexPixel(xfb, 100 * f, 300 * f), 100, 100, 100, 1) && Near(TexPixel(xfb, 200 * f, 230 * f), 160, 160, 160, 1),
+        "sharpen: flat parts stay as they are");
+  Check(onTop == offTop, "sharpen: the rows outside the shown ones are copied as they are");
+  xfb = scene(RE4_GX_CHUNK_MOVIE);
+  Check(r.Stats().sharpenPasses == before + 2 && xfb == plain, "sharpen: a movie's pictures stay as they are");
+  r.SetSharpen(0);
+  r.SetShownRows(0, 1 << 16);
+  xfb = scene(0);
+  Check(xfb == plain && steep(xfb, 196, 204, &inside) == offEdge, "sharpen: off again, the plain display copy");
+  r.SetTvFilter(false);
+}
+
 // PSone demake: a square of an in-between colour from x 101 on. Off: x 100 is the blue around it, x 101 and 102
 // the square. On: one colour per cell of two game pixels, the mean of its game pixels: x 100 and 101 share the
 // cell of x 100 (half blue, half the square), x 102 and 103 the square's; each channel one of the 32 levels of
@@ -2058,6 +2120,7 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestDepthMap(r, true);
   TestFxaa(r);
   TestTvFilter(r);
+  TestSharpen(r);
   TestPsx(r);
   TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
@@ -3375,6 +3438,7 @@ int main() {
     TestShownRowsCopy(renderer, false, false);
     TestDepthMap(renderer, false);
     TestFxaa(renderer);
+    TestSharpen(renderer);
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);

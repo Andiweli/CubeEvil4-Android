@@ -89,11 +89,11 @@
     <string name="ingame_update_allow">Разрешите CubeEvil4 устанавливать приложения и снова нажмите «Обновить».</string>
 
     <string name="ingame_card">Карта памяти (слот A)</string>
-    <string name="ingame_card_help">Экспорт и импорт сохранений в формате .gci (для Dolphin или GameCube).</string>
+    <string name="ingame_card_help">Экспорт и импорт игровых данных: сохранения в формате .gci (для Dolphin или GameCube) и ваша собственная сенсорная раскладка в CubeEvil4-touch-layout.json. Импорт восстанавливает и то, и другое.</string>
     <string name="ingame_card_busy">Карта памяти занята (игра сохраняет или загружает) или игра ещё загружается — закройте меню и откройте его снова чуть позже.</string>
     <string name="ingame_card_none">Нет карты памяти.</string>
-    <string name="ingame_export">Экспорт сохранений (.gci)</string>
-    <string name="ingame_import">Импорт сохранений (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Экспорт игровых данных (.gci)</string>
+    <string name="ingame_import">Импорт игровых данных (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Диски</string>
     <string name="ingame_discs_help">Чтобы играть в другую версию: игра завершится, и вы импортируете оба её диска на стартовом экране. Сохранения, карта памяти и настройки останутся.</string>
     <string name="ingame_import_discs">Импорт других дисков</string>
@@ -135,6 +135,13 @@
         <item quantity="many">Экспортировано %1$d файлов.</item>
         <item quantity="other">Экспортировано файлов: %1$d.</item>
     </plurals>
+    <string name="ingame_exported_touch">Также ваша сенсорная раскладка: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d элемент управления выходил за край этого экрана и был перемещён на экран.</item>
+        <item quantity="few">%1$d элемента управления выходили за край этого экрана и были перемещены на экран.</item>
+        <item quantity="many">%1$d элементов управления выходили за край этого экрана и были перемещены на экран.</item>
+        <item quantity="other">Элементов управления, перемещённых на экран: %1$d.</item>
+    </plurals>
     <string name="ingame_imported">Импортировано: %1$s</string>
     <string name="ingame_import_no_space">На карте нет места для %1$s</string>
     <string name="ingame_import_busy">Игра использует карту: %1$s</string>
@@ -143,6 +150,10 @@
     <string name="ingame_import_exists">%1$s уже есть на карте. Заменить?</string>
     <string name="ingame_replace">Заменить</string>
     <string name="ingame_skip">Пропустить</string>
+    <string name="ingame_touch_import_exists">У вас уже есть своя сенсорная раскладка. Заменить её импортированной?</string>
+    <string name="ingame_touch_imported">Сенсорная раскладка импортирована и сразу действует.</string>
+    <string name="ingame_touch_skipped">Сенсорная раскладка пропущена: ваша остаётся.</string>
+    <string name="ingame_touch_import_bad">Сенсорная раскладка не импортирована: %1$s</string>
     <string name="ingame_report_chooser">Отправить отчёт об ошибках</string>
     <string name="ingame_report_failed">Не удалось создать отчёт: %1$s</string>
     <string name="ingame_capture_saved">Снимок графики сохранён</string>
@@ -197,6 +208,8 @@
     <string name="ingame_psx">Ретро-пиксельный фильтр</string>
     <string name="ingame_filter">Фильтры</string>
     <string name="ingame_filter_help">Фильтры меняют вид всего изображения, их можно сочетать.</string>
+    <string name="ingame_sharpen">Резкость</string>
+    <string name="ingame_sharpen_help">Резкость возвращает текстурам детали, которые размываются при увеличении картинки до размера экрана (особенно в широких форматах изображения). Видеоролики остаются без изменений.</string>
     <string name="ingame_frame_skip_help">Если графика не успевает, пропускает кадр, чтобы игра шла с обычной скоростью. Показывается меньше кадров, ничего не замедляется.</string>
     <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
     <string name="ingame_merge_help">Объединяет несколько объектов в один вызов графического драйвера. Может помочь телефонам с медленным графическим драйвером (например, GPU Mali) и немного замедлить другие. Не действует, пока включены 60 FPS.</string>
@@ -235,6 +248,8 @@
     <string name="ingame_cheat_queued">Будет сделано, как только игра продолжится.</string>
     <string name="ingame_cheat_unsupported">В этом ядре игры нет читов.</string>
     <string name="ingame_cheat_qte">Автоматические QTE</string>
+    <string name="ingame_cheat_random_items">Случайные предметы</string>
+    <string name="ingame_cheat_random_items_help">Случайные предметы: предметы, лежащие в комнатах сюжета (патроны, травы и другие лечебные предметы, гранаты, песеты, сокровища), заново распределяются в каждой комнате, в которую вы входите с этого момента, и комната всегда даёт одни и те же предметы, пока вы не выключите и снова не включите эту функцию. Ключи, оружие, документы и другие сюжетные предметы остаются как есть, поэтому игру всегда можно пройти. Уже подобранное остаётся подобранным; враги, бочки и ящики сохраняют свою добычу. Не в Assignment Ada и The Mercenaries.</string>
     <string name="ingame_cheat_extras">Открыть доп. игры</string>
     <string name="ingame_cheat_extras_text">Assignment Ada и The Mercenaries открыты (а также Professional, как после прохождения игры). Главное меню покажет их после перезапуска. Прогресс с последнего сохранения будет потерян.</string>
     <string name="ingame_cheat_extras_later">Открыто: Assignment Ada и The Mercenaries появятся в главном меню после следующего перезапуска.</string>
@@ -246,6 +261,13 @@
     <string name="ingame_later">Позже</string>
     <string name="ingame_controller_config">Назначение кнопок</string>
     <string name="ingame_controller_config_help">Назначение кнопок: каждое действие игры на кнопки контроллера или клавиатуры.</string>
+    <string name="ingame_stick_dead_zone">Мёртвая зона стика</string>
+    <string name="ingame_stick_range">Диапазон стика</string>
+    <string name="ingame_stick_help">Мёртвая зона стика: мелкие движения стика контроллера около центра не учитываются (для стика, который сам смещается или дрожит). Диапазон стика: стик, отклонённый настолько, уже считается отклонённым до упора, чтобы Леон уверенно шёл, бежал и поворачивал, даже если ваш стик не доходит до края. Значения по умолчанию оставляют стики как есть. На сенсорное управление это не влияет.</string>
+    <string name="ingame_vibration">Вибрация</string>
+    <string name="ingame_vibration_device">Устройство</string>
+    <string name="ingame_vibration_controller">Контроллер</string>
+    <string name="ingame_vibration_help">Где ощущается вибрация игры. Авто: в подключённом контроллере со своими моторами (Android 12 и новее), иначе в этом телефоне или портативной консоли. Устройство: всегда в этом телефоне или портативной консоли. Контроллер: только в контроллере (ничего, если у него нет моторов; до Android 12 — в этом устройстве). Выкл.: без вибрации. Собственная настройка игры «Вибрация» по-прежнему может её выключить.</string>
     <string name="ingame_controller_default">Стандартная раскладка</string>
     <string name="ingame_controller_help">Выберите действие, затем нажмите его кнопку. Действие из двух кнопок (огонь, перезарядка, удар ножом) сначала спрашивает кнопку, которую держат, затем вторую. Если кнопка была у другого действия, оно получает старую. В меню игры действует стандартная раскладка; подсказки игры по-прежнему показывают кнопки GameCube.</string>
     <string name="ingame_controller_alternate_note">Альтернативное управление включено: у него своя раскладка; эта действует, когда оно выключено.</string>

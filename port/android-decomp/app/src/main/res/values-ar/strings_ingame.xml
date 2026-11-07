@@ -93,11 +93,11 @@
     <string name="ingame_update_allow">اسمح لـ CubeEvil4 بتثبيت التطبيقات، ثم اضغط تحديث مرة أخرى.</string>
 
     <string name="ingame_card">بطاقة الذاكرة (الفتحة A)</string>
-    <string name="ingame_card_help">تصدير ملفات الحفظ واستيرادها بصيغة &#x200E;.gci (لـ Dolphin أو GameCube).</string>
+    <string name="ingame_card_help">تصدير بيانات اللعبة واستيرادها: ملفات الحفظ بصيغة &#x200E;.gci (لـ Dolphin أو GameCube) وتخطيط اللمس الخاص بك في الملف &#x200E;CubeEvil4-touch-layout.json. يعيد الاستيراد كليهما.</string>
     <string name="ingame_card_busy">بطاقة الذاكرة قيد الاستخدام (اللعبة تحفظ أو تحمّل) أو أن اللعبة ما زالت تُحمَّل – أغلق القائمة وافتحها مجددًا بعد لحظات.</string>
     <string name="ingame_card_none">لا توجد بطاقة ذاكرة.</string>
-    <string name="ingame_export">تصدير ملفات الحفظ (&#x200E;.gci)</string>
-    <string name="ingame_import">استيراد ملفات الحفظ (&#x200E;.gci، &#x200E;.zip، &#x200E;.raw)</string>
+    <string name="ingame_export">تصدير بيانات اللعبة (&#x200E;.gci)</string>
+    <string name="ingame_import">استيراد بيانات اللعبة (&#x200E;.gci، &#x200E;.zip، &#x200E;.raw)</string>
     <string name="ingame_discs">الأقراص</string>
     <string name="ingame_discs_help">لتلعب نسخة أخرى: تنتهي اللعبة، ثم تستورد قرصيها كليهما من شاشة البدء. تبقى ملفات الحفظ وبطاقة الذاكرة والإعدادات كما هي.</string>
     <string name="ingame_import_discs">استيراد أقراص أخرى</string>
@@ -142,6 +142,15 @@
         <item quantity="many">عدد الملفات المُصدَّرة: %1$d.</item>
         <item quantity="other">عدد الملفات المُصدَّرة: %1$d.</item>
     </plurals>
+    <string name="ingame_exported_touch">وتخطيط اللمس الخاص بك أيضًا: &#x200E;%1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="zero">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="one">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="two">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="few">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="many">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+        <item quantity="other">عدد عناصر التحكم التي كانت خارج هذه الشاشة جزئيًا ونُقلت إليها: %1$d.</item>
+    </plurals>
     <string name="ingame_imported">تم الاستيراد: %1$s</string>
     <string name="ingame_import_no_space">لا توجد مساحة على البطاقة لـ %1$s</string>
     <string name="ingame_import_busy">اللعبة تستخدم البطاقة: %1$s</string>
@@ -150,6 +159,10 @@
     <string name="ingame_import_exists">&#x200F;%1$s موجود على البطاقة بالفعل. هل تريد استبداله؟</string>
     <string name="ingame_replace">استبدال</string>
     <string name="ingame_skip">تخطي</string>
+    <string name="ingame_touch_import_exists">لديك بالفعل تخطيط لمس خاص بك. هل تريد استبداله بالتخطيط المستورد؟</string>
+    <string name="ingame_touch_imported">تم استيراد تخطيط اللمس، وهو مُستخدم فورًا.</string>
+    <string name="ingame_touch_skipped">تم تخطي تخطيط اللمس، ويبقى تخطيطك.</string>
+    <string name="ingame_touch_import_bad">لم يتم استيراد تخطيط اللمس: %1$s</string>
     <string name="ingame_report_chooser">إرسال تقرير الأخطاء</string>
     <string name="ingame_report_failed">تعذّر إنشاء التقرير: %1$s</string>
     <string name="ingame_capture_saved">تم حفظ لقطة الرسومات</string>
@@ -204,6 +217,8 @@
     <string name="ingame_psx">مرشّح البكسل الكلاسيكي</string>
     <string name="ingame_filter">المرشّحات</string>
     <string name="ingame_filter_help">تغيّر المرشّحات مظهر الصورة كلها ويمكن الجمع بينها.</string>
+    <string name="ingame_sharpen">زيادة الحدة</string>
+    <string name="ingame_sharpen_help">تعيد زيادة الحدة تفاصيل الخامات التي تصبح ناعمة عند تكبير الصورة إلى الشاشة (خاصة في تنسيقات الصورة العريضة). تبقى مقاطع الفيديو كما هي.</string>
     <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
     <string name="ingame_skip_or_smooth">‏تخطي الإطارات و60 إطارًا في الثانية لا يعملان معًا: تشغيل أحدهما يوقف الآخر.</string>
     <string name="ingame_merge_help">‏يدمج عدة أجسام في استدعاء واحد لبرنامج تشغيل الرسوميات. قد يفيد الهواتف ذات برنامج تشغيل رسوميات بطيء (مثل وحدات Mali) وقد يكلّف قليلًا على غيرها. لا يعمل ما دامت 60 إطارًا في الثانية مفعّلة.</string>
@@ -242,6 +257,8 @@
     <string name="ingame_cheat_queued">سيتم ذلك بمجرد استمرار اللعبة.</string>
     <string name="ingame_cheat_unsupported">نواة اللعبة هذه لا تحتوي على غش.</string>
     <string name="ingame_cheat_qte">&#x200F;QTE تلقائية</string>
+    <string name="ingame_cheat_random_items">عناصر عشوائية</string>
+    <string name="ingame_cheat_random_items_help">عناصر عشوائية: العناصر الموجودة في غرف القصة (الذخيرة والأعشاب وعناصر العلاج الأخرى والقنابل والبيزيتا والكنوز) يُعاد توزيعها في كل غرفة تدخلها من ذلك الحين، وتعطي الغرفة دائمًا العناصر نفسها حتى توقف هذا الخيار وتشغّله من جديد. تبقى المفاتيح والأسلحة والملفات وعناصر القصة الأخرى كما هي، فيمكن دائمًا إنهاء اللعبة. ما التقطته يبقى ملتقطًا؛ ويحتفظ الأعداء والبراميل والصناديق بغنائمهم. ليس في Assignment Ada وThe Mercenaries.</string>
     <string name="ingame_cheat_extras">فتح الألعاب الإضافية</string>
     <string name="ingame_cheat_extras_text">تم فتح Assignment Ada و The Mercenaries (وProfessional أيضًا، كما بعد إنهاء اللعبة). تعرضها قائمة العنوان بعد إعادة التشغيل. سيضيع التقدم منذ آخر حفظ.</string>
     <string name="ingame_cheat_extras_later">تم الفتح: ستظهر Assignment Ada و The Mercenaries في قائمة العنوان بعد إعادة التشغيل التالية.</string>
@@ -253,6 +270,13 @@
     <string name="ingame_later">لاحقًا</string>
     <string name="ingame_controller_config">&#x200F;تعيين الأزرار</string>
     <string name="ingame_controller_config_help">&#x200F;تعيين الأزرار: ضع كل حركة في اللعبة على أزرار وحدة التحكم أو لوحة المفاتيح.</string>
+    <string name="ingame_stick_dead_zone">المنطقة الميتة للعصا</string>
+    <string name="ingame_stick_range">مدى العصا</string>
+    <string name="ingame_stick_help">المنطقة الميتة للعصا: تُتجاهَل الحركات الصغيرة لعصا وحدة التحكم حول مركزها (لعصا تنحرف أو ترتجف من تلقاء نفسها). مدى العصا: العصا المدفوعة إلى هذا الحد تُحسب مدفوعة إلى النهاية، ليمشي Leon ويركض ويستدير بثبات حتى لو لم تصل عصاك إلى حافتها. القيم الافتراضية تترك العصوين كما هما. لا يتأثر التحكم باللمس.</string>
+    <string name="ingame_vibration">الاهتزاز</string>
+    <string name="ingame_vibration_device">الجهاز</string>
+    <string name="ingame_vibration_controller">وحدة التحكم</string>
+    <string name="ingame_vibration_help">أين تشعر باهتزاز اللعبة. تلقائي: في وحدة تحكم متصلة لها محركاتها الخاصة (Android 12 وما بعده)، وإلا ففي هذا الهاتف أو الجهاز المحمول. الجهاز: دائمًا في هذا الهاتف أو الجهاز المحمول. وحدة التحكم: في وحدة التحكم فقط (لا شيء إن لم تكن لها محركات؛ قبل Android 12 في هذا الجهاز). إيقاف: بلا اهتزاز. لا يزال بإمكان خيار الاهتزاز في اللعبة نفسها إيقافه.</string>
     <string name="ingame_controller_default">التوزيع الافتراضي</string>
     <string name="ingame_controller_help">&#x200F;اختر حركة، ثم اضغط زرها. الحركة ذات الزرين (إطلاق النار، إعادة التلقيم، ضربة السكين) تطلب أولًا الزر الذي يُضغط باستمرار ثم الثاني. إذا كان الزر لحركة أخرى فإنها تأخذ الزر القديم. تحتفظ قوائم اللعبة بالتعيين الافتراضي؛ وتظل تلميحاتها تعرض أزرار GameCube.</string>
     <string name="ingame_controller_alternate_note">التحكم البديل مفعّل: يحتفظ بتوزيعه الخاص؛ يُطبَّق هذا التوزيع عند إيقافه.</string>

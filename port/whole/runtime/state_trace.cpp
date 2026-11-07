@@ -288,6 +288,7 @@ extern "C" int re4_core_room_outline(float* out, int maxEdges, unsigned* info); 
 #include "etc_model.h"
 #include "scroll.h"
 #include "area.h"
+#include "math_sub.h"
 #include "act_btn.h"
 #include "cockpit.h"
 #include "merchant.h"
@@ -431,6 +432,31 @@ void logItems(const char* when)
                     (double) it.item_pos.y, (double) it.item_pos.z);
         }
     }
+}
+
+// RE4_TRACE_ITEMS=1 once the player is free: the pesetas and the case again whenever they change (an item picked
+// up; the random items of the cheat menu, 0.99.2)
+void watchItems()
+{
+    static const char* items = getenv("RE4_TRACE_ITEMS");
+    static long lastPesetas = -1, lastSum = -1;
+    if (!items || *items != '1') {
+        return;
+    }
+    long sum = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; p && i < ItemMgr.m_array_num; i++, p++) {
+        if (p->isAlive(pG->pl_type == 1 ? 1 : 0)) {
+            sum += (long) p->id * 1000 + p->num;
+        }
+    }
+    const long pesetas = (long) pG->peseta;
+    if (lastSum >= 0 && (pesetas != lastPesetas || sum != lastSum)) {
+        re4_log("items (taken): pesetas %ld (was %ld)", pesetas, lastPesetas);
+        logItems("taken");
+    }
+    lastPesetas = pesetas;
+    lastSum = sum;
 }
 
 // The room's scene areas once its main loop runs: where the room scripts'
@@ -1251,16 +1277,27 @@ void playerLog(unsigned n, GLOBAL_WK* g)
             }
         }
     }
-    // RE4_TRACE_AT=1: an item area taken or found, an event starting or ending (the r201 key, 01.11.2026)
+    // RE4_TRACE_AT=1: an item area taken or found, an event starting or ending (the r201 key, 01.11.2026), an area
+    // switched on or off or the player stepping in or out (07.11.2026)
     static const char* watchAt = getenv("RE4_TRACE_AT");
     if (watchAt && *watchAt == '1') {
-        static unsigned char seenItem[256];
+        static unsigned char seenItem[256], seenArea[256];
         static unsigned seenRoom, seenEvent;
         if (seenRoom != g->room_id) {
             seenRoom = g->room_id;
             memset(seenItem, 0, sizeof seenItem);
+            memset(seenArea, 0, sizeof seenArea);
         }
         for (SCE_AT_DATA* w = sceAtSetOtStart(); (w = sceAtGetOtAddr(w)) != 0;) {
+            // every area switched on or off, and the player in it (hit: only an area that is on; a message or door
+            // area then offers its button): r224's gate message after the fight (patch 0216, 07.11.2026)
+            const unsigned area = 0x80 | (w->be_flg & 1) | SceAtHitCheck(w->no) << 1;
+            if (seenArea[w->no] && seenArea[w->no] != area) {
+                re4_log("at: frame %u area %u (id %u) %s, player %s, Leon at (%.0f %.0f %.0f)", n, (unsigned) w->no,
+                        (unsigned) w->id, (area & 1) ? "on" : "off", (area & 2) ? "in it" : "not in it", (double) p.x,
+                        (double) p.y, (double) p.z);
+            }
+            seenArea[w->no] = (unsigned char) area;
             if (w->id != SCEAT_ID_ITEM) {
                 continue;
             }
@@ -1280,15 +1317,49 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                     (double) p.y, (double) p.z);
         }
     }
+    // Ashley's skirt reaction (cSubChar::movePants, her routine 0/6; patch 0217, 07.11.2026): a line each time it
+    // starts, with Leon's routine and how far the camera looks up (the retail rule: 25.7 degrees in his routines 0/0..6)
+    static bool pants;
+    const bool nowPants = live(pSUB) && pSUB->r_no_0 == 0 && pSUB->r_no_1 == 6;
+    if (nowPants && !pants) {
+        const Vec& t = g->Camera.param.Target;
+        const Vec& c = g->Camera.param.Campos;
+        const float dx = t.x - c.x, dy = t.y - c.y, dz = t.z - c.z;
+        re4_log("partner: Ashley's skirt reaction at frame %u in r%03x, Leon in routine %u/%u at (%.0f %.0f %.0f), the "
+                "camera %.0f degrees up", n, (unsigned) g->room_id, (unsigned) pPL->r_no_0, (unsigned) pPL->r_no_1,
+                (double) p.x, (double) p.y, (double) p.z,
+                (double) (atan2f(dy, sqrtf(dx * dx + dz * dz)) * 57.29578f));
+    }
+    pants = nowPants;
     // RE4_TRACE_POS=N: Leon's place every N frames (where a walk of a test script got to)
     static const long tracePos = getenv("RE4_TRACE_POS") ? strtol(getenv("RE4_TRACE_POS"), 0, 10) : 0;
     if (tracePos > 0 && (n - g_player.start) % (unsigned long) tracePos == 0) {
         // with the camera's distance to Leon (the far camera, patch 0171)
         const Vec& c = CamCtrl.camera.param.Campos;
         const float dx = c.x - p.x, dz = c.z - p.z;
-        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f, camera %.0f away, %.0f above", (unsigned) g->room_id,
+        // and how far the game's camera (pG->Camera) looks up, with Leon's routine (Ashley's skirt check, patch 0217)
+        const Vec& gt = g->Camera.param.Target;
+        const Vec& gc = g->Camera.param.Campos;
+        const float vx = gt.x - gc.x, vy = gt.y - gc.y, vz = gt.z - gc.z;
+        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f, camera %.0f away, %.0f above, looking %.0f "
+                "degrees up, Leon's routine %u/%u", (unsigned) g->room_id,
                 n, (double) p.x, (double) p.y, (double) p.z, (double) pPL->ang.y, (double) sqrtf(dx * dx + dz * dz),
-                (double) (c.y - p.y));
+                (double) (c.y - p.y), (double) (atan2f(vy, sqrtf(vx * vx + vz * vz)) * 57.29578f), (unsigned) pPL->r_no_0,
+                (unsigned) pPL->r_no_1);
+        // Ashley as her skirt check sees her (cSubChar::pantsCheck): his head to her, within 5 m, at least 45 degrees
+        // up, within 45 degrees of his facing, no wall between
+        if (live(pSUB) && live(pSUB->pList)) {
+            Vec* hp = &pPL->getPartsPtr(4)->world;
+            Vec* sp = &pSUB->pList->world;
+            Vec d;
+            PSVECSubtract(sp, hp, &d);
+            re4_log("room: Ashley at (%.0f %.0f %.0f), %.1f m from his head, %.0f degrees up, %.0f degrees beside his facing, "
+                    "%s, her routine %u/%u", (double) pSUB->pos.x, (double) pSUB->pos.y, (double) pSUB->pos.z,
+                    (double) (sqrtf(GetDistance(hp, sp)) / 1000.0f), (double) (VecElevation(&d) * 57.29578f),
+                    (double) (Muku(hp, sp, pPL->ang.y, 6.2831855f) * 57.29578f),
+                    EatMgr.hitCheck(hp, sp, 0, 0, 0, 0) ? "a wall between" : "no wall", (unsigned) pSUB->r_no_0,
+                    (unsigned) pSUB->r_no_1);
+        }
     }
     // RE4_TRACE_LOCK=1: while a gun is aimed at a locked enemy (the app's auto aim, patch 0174) the aim's
     // pitch and, above the enemy's feet, the laser's end, the lock point, its highest part (the head) and the
@@ -1587,6 +1658,9 @@ void frame(unsigned n)
         lastLife = life;
     } else {
         lastLife = -1;
+    }
+    if (g_freeAt >= 0) {
+        watchItems();
     }
     if (g_roomStart >= 0 && g_freeAt < 0) {
         bool free = g->Rno0 == 3 && !StaFlagChk(g, STA_EVENT) && !StaFlagChk(g, STA_SUB_SCRN);

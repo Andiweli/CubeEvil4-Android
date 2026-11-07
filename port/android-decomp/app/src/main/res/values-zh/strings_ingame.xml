@@ -90,11 +90,11 @@
     <string name="ingame_update_allow">请允许 CubeEvil4 安装应用，然后再次点按“更新”。</string>
 
     <string name="ingame_card">记忆卡（插槽 A）</string>
-    <string name="ingame_card_help">以 .gci 格式导出和导入存档（用于 Dolphin 或 GameCube）。</string>
+    <string name="ingame_card_help">导出和导入游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），你自己的触控布局为 CubeEvil4-touch-layout.json。导入时两者都会恢复。</string>
     <string name="ingame_card_busy">记忆卡正在使用中（游戏正在保存或读取），或者游戏仍在加载——请关闭菜单，稍后再打开。</string>
     <string name="ingame_card_none">没有记忆卡。</string>
-    <string name="ingame_export">导出存档（.gci）</string>
-    <string name="ingame_import">导入存档（.gci、.zip、.raw）</string>
+    <string name="ingame_export">导出游戏数据（.gci）</string>
+    <string name="ingame_import">导入游戏数据（.gci、.zip、.raw）</string>
     <string name="ingame_discs">光盘</string>
     <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
     <string name="ingame_import_discs">导入其他光盘</string>
@@ -133,6 +133,10 @@
     <plurals name="ingame_exported">
         <item quantity="other">已导出 %1$d 个文件。</item>
     </plurals>
+    <string name="ingame_exported_touch">你的触控布局也已导出：%1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="other">有 %1$d 个控件部分超出此屏幕，已移回屏幕内。</item>
+    </plurals>
     <string name="ingame_imported">已导入：%1$s</string>
     <string name="ingame_import_no_space">记忆卡空间不足，无法导入 %1$s</string>
     <string name="ingame_import_busy">游戏正在使用记忆卡：%1$s</string>
@@ -141,6 +145,10 @@
     <string name="ingame_import_exists">%1$s 已在记忆卡上。是否替换？</string>
     <string name="ingame_replace">替换</string>
     <string name="ingame_skip">跳过</string>
+    <string name="ingame_touch_import_exists">你已有自己的触控布局。是否用导入的布局替换？</string>
+    <string name="ingame_touch_imported">触控布局已导入，立即生效。</string>
+    <string name="ingame_touch_skipped">已跳过触控布局：保留你的布局。</string>
+    <string name="ingame_touch_import_bad">触控布局未导入：%1$s</string>
     <string name="ingame_report_chooser">发送错误报告</string>
     <string name="ingame_report_failed">无法生成报告：%1$s</string>
     <string name="ingame_capture_saved">图形捕获已保存</string>
@@ -195,6 +203,8 @@
     <string name="ingame_psx">复古像素滤镜</string>
     <string name="ingame_filter">滤镜</string>
     <string name="ingame_filter_help">滤镜会改变整个画面的外观，可以同时开启。</string>
+    <string name="ingame_sharpen">锐化</string>
+    <string name="ingame_sharpen_help">锐化可找回画面放大到屏幕时变得模糊的纹理细节（尤其是宽屏画面格式）。影片保持不变。</string>
     <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
     <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
     <string name="ingame_merge_help">将多个物体合并为一次图形驱动调用。可能对图形驱动较慢的手机（如 Mali GPU）有帮助，在其他设备上可能略有开销。开启 60 帧时不起作用。</string>
@@ -233,6 +243,8 @@
     <string name="ingame_cheat_queued">游戏继续后就会完成。</string>
     <string name="ingame_cheat_unsupported">这个游戏核心没有作弊功能。</string>
     <string name="ingame_cheat_qte">自动 QTE</string>
+    <string name="ingame_cheat_random_items">随机物品</string>
+    <string name="ingame_cheat_random_items_help">随机物品：剧情房间里放置的物品（弹药、草药和其他回复物品、手雷、比塞塔、宝物）会在此后你进入的每个房间里重新分配，同一个房间始终给出相同的物品，直到你关闭后再重新打开此开关。钥匙、武器、文件和其他剧情物品保持不变，因此游戏始终可以通关。已经拾取的物品保持已拾取；敌人、木桶和箱子保留各自的掉落。不适用于 Assignment Ada 和 The Mercenaries。</string>
     <string name="ingame_cheat_extras">解锁额外游戏</string>
     <string name="ingame_cheat_extras_text">Assignment Ada 和 The Mercenaries 已解锁（还有 Professional，与通关后相同）。重新启动后，标题菜单会显示它们。自上次存档以来的进度将会丢失。</string>
     <string name="ingame_cheat_extras_later">已解锁：下次重新启动后，Assignment Ada 和 The Mercenaries 会出现在标题菜单中。</string>
@@ -244,6 +256,13 @@
     <string name="ingame_later">稍后</string>
     <string name="ingame_controller_config">按键映射</string>
     <string name="ingame_controller_config_help">按键映射：把游戏的每个动作放到手柄或键盘的按键上。</string>
+    <string name="ingame_stick_dead_zone">摇杆死区</string>
+    <string name="ingame_stick_range">摇杆范围</string>
+    <string name="ingame_stick_help">摇杆死区：忽略手柄摇杆在中心附近的小幅移动（适用于会漂移或抖动的摇杆）。摇杆范围：摇杆推到这个程度就算推到底，这样即使你的摇杆推不到边缘，Leon 也能稳定地行走、奔跑和转身。默认值保持摇杆原样。不影响触控操作。</string>
+    <string name="ingame_vibration">振动</string>
+    <string name="ingame_vibration_device">设备</string>
+    <string name="ingame_vibration_controller">手柄</string>
+    <string name="ingame_vibration_help">在哪里感受到游戏的振动。自动：在已连接且有自带马达的手柄中（Android 12 及以上），否则在这台手机或掌机中。设备：始终在这台手机或掌机中。手柄：只在手柄中（手柄没有马达时不振动；Android 12 以前在本设备中）。关：不振动。游戏自己的“振动”选项仍可将其关闭。</string>
     <string name="ingame_controller_default">默认配置</string>
     <string name="ingame_controller_help">选择一个动作，然后按下它的按键。由两个按键组成的动作（开火、装弹、挥刀）会先询问要按住的按键，再询问第二个按键。如果该按键属于另一个动作，那个动作会得到原来的按键。游戏菜单保持默认按键；游戏提示仍显示 GameCube 按键。</string>
     <string name="ingame_controller_alternate_note">替代操作已开启：它保留自己的配置；关闭后此配置才会生效。</string>

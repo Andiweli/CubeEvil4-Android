@@ -3,6 +3,305 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs, Knöpfe „Spieldaten“, Filter „Nachschärfen“ (07./08.11.2026, Branch `work`, Patches 0216–0218)
+
+Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
+v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
+
+1. **Eisentor in der Lava-Halle (Nutzerbericht 07.11.2026, OPPO CPH2127, Android 12, 64 bit, 0.99.0-beta, EU-Discs,
+   alle Dateien wie im Original; Bericht `reports/0991-lava-door-20261107-204156`).** Wortlaut: „after defeating El
+   Gigante, the iron door opens, but you can still check with the door itself even though it is already open“. Laut
+   Protokoll r220 → r223 → r224 (20:39:58 bis zum Bericht 20:42): der Kampf war **r224**, die Halle der zwei El
+   Gigantes (r223 ist die Mine davor).
+   - **Ursache: Fehler der Portierung (Verkaufsdaten mit dem Code des Prototyps).** Die Prüfbereiche (AEV) von r224:
+     Debug- und US-Discs 10 Bereiche (0–9), **EU-, JP- und KR-Discs 11**: dazu Bereich 10, ein Meldungsbereich (Typ 5,
+     Meldung 1 des Raums: „Damn! It's locked. Guess I have to kill those giants!“) vor dem Ausgangstor (Modell 0x16,
+     Kollision Bereich 8). Ein Meldungsbereich bekommt beim Raumstart die Aktionstaste („Untersuchen“). Der Code dieser
+     Discs (`st2_3.rel`, mit `retail_code.py` und einem Relocations-Leser verglichen; EU, JP und KR an denselben
+     Stellen: Text 0x10c60, 0x12874, 0x12a44) schaltet ihn mit `SceAtSetEnable(10, …)` **aus** beim Betreten
+     (`R224Init`), **an**, wenn das Tor hinter den Riesen zufällt (`door_close`), und **aus**, wenn es nach dem Kampf
+     aufgeht (`door_open`). Der Code des Prototyps (und der US-Fassung) kennt Bereich 10 nicht: mit EU/JP/KR-Discs war
+     er immer an, am offenen Tor kam weiter „Untersuchen“ mit „It's locked“. Alle übrigen Funktionen von r224 sind in
+     den Fassungen gleich (Aufrufe und Längen; nur `R224Init` +8, `door_open` und `door_close` je +0xC Bytes).
+     Im Original (EU, JP, KR, US, Debug) gibt es den Fehler also nicht.
+   - **Patch 0216** (`r224.cpp`): die drei Aufrufe wie im Code dieser Discs, nur mit EU- oder JP-Discs (KR zählt als
+     JP; `re4_disc_retail_eu/jp`). Mit Debug- und US-Discs ändert sich nichts. Prüfung über die Disc statt über
+     `SceAtPtr(10)`: ein zur Laufzeit angelegter Bereich bekäme bei 10 Datenbereichen die freie Nummer 10.
+   - **Testausgabe:** `RE4_TRACE_AT=1` meldet jetzt auch jeden Bereich, der an- oder ausgeht, und ob der Spieler darin
+     steht („at: frame N area 10 (id 5) off, player not in it …“; `state_trace.cpp`).
+   - **Geprüft am PC (i686 -O2, Debug-Start r224, `RE4_TEST_PLACE="free+30:4000,0,0,0"` in den Auslösebereich 9,
+     `RE4_TEST_EM_KILL="1000:2b:all/30/2"`, `RE4_TEST_PLACE2="1550:13511,0,-5888,2.6"` vor das offene Tor):**
+     ohne Patch mit EU-Discs Bereich 10 beim Betreten an (`be 0x03`), nach dem Öffnen (Ereignis Bild 1475–1525,
+     Bereich 8 aus) „area 10 on, player in it“ = der Fehler. Mit Patch: beim Betreten aus (`be 0x02`), an bei Bild 950
+     (Tor zu), aus bei 1475 (Tor auf), vor dem offenen Tor keine Prüfung. JP-Discs ebenso; Debug- und US-Discs ohne
+     Bereich 10, Tor wie vorher, keine „AT NOT FOUND“-Meldung. Erneutes Betreten nach dem Kampf (`RE4_TEST_RSF=
+     "0x224:1"`, EU): Bereich 10 aus, Tor offen. `whole_build.sh i686` mit `RE4_OPT=2`: alle Prüfungen grün.
+     Hinweis für spätere Läufe: in der Mitte von Bereich 9 liegt die Lava, und ein umfallender Riese erschlägt Leon in
+     seiner Nähe (beides Original). **Nicht geprüft:** Gerät; KR-Discs im Lauf (derselbe Code wie JP).
+
+2. **Touch-Layout beim Export und Import der Spielstände (Wunsch des Projektinhabers, 07.11.2026).** Wortlaut: „dass
+   beim Export der Spielstände auch eine etwaige Einstellung bzw. Konfiguration von RetroTouch mitgespeichert wird.
+   Bitte dann auch beim Import beachten.“
+   - **Wo RetroTouch speichert** (Quelltext 1.0.0-beta.9, `E:\Development\Android\RetroTouch\Beta9`, gleich der AAR
+     in `app/libs`): SharedPreferences `retrotouch_layouts`, Schlüssel `layout_cubeevil4` (`RetroTouchLayout.toJson`:
+     je Bedienelement Mitte x/y, Breite/Höhe als Anteil der Bildschirmbreite/-höhe, Deckkraft, Typ; Farben nicht) und
+     `layout_cubeevil4_editor` (Zahnrad: Platz, Größe, Deckkraft; Höhe der Editor-Leiste). Gespeichert nur über
+     „Speichern“ im Editor und beim Zurücksetzen (dann die Vorgabe). Keine eigene Export-API.
+   - **Export** (`CoreActivity.exportAllInto`, neue Klasse `TouchLayoutFile`): nur wenn ein eigenes Layout gespeichert
+     ist (lesbar und anders als die Vorgabe der App, `TouchControls.defaultLayout`; Vergleich je Element über
+     id/Typ/Aktion/x/y/Breite/Höhe/Deckkraft), kommt `CubeEvil4-touch-layout.json` mit in den Ordner: JSON mit dem
+     Kennzeichen `cubeevil4_touch_layout: 1` als erstem Schlüssel, App-Version, Bildschirm des exportierenden Geräts,
+     dem Layout und dem Editor-Zustand. Meldung „Your touch layout too: …“.
+   - **Import** (`SaveImport.files(…, touch)`): die Datei allein oder in einem ZIP (am Inhalt erkannt, nicht am Namen);
+     ein ZIP nur mit ihr ist kein Fehler mehr. Nach den .gci-Dateien: steht schon ein eigenes, anderes Layout da,
+     fragt die App („You have a touch layout of your own already. Replace it with the imported one?“, Replace / Skip).
+     Gespeichert wird über `RetroTouchLayout.fromJson(…).toJson()` (RetroTouchs eigenes Format), dazu der
+     Editor-Zustand (fehlt er in der Datei: entfernt, RetroTouch nimmt seine Vorgaben). `TouchControls.reloadSaved`
+     (`setGameplayLayout`): **gilt sofort** (sind die Touch-Tasten gerade aus, beim nächsten Einblenden).
+     Beschädigte Dateien, ein anderes Spiel oder ein neueres Format: „Touch layout not imported: …“.
+   - **Andere Bildschirme:** Alles ist relativ zur Bildschirmgröße, also kein Pixel-Bezug. Auf einem anderen
+     Seitenverhältnis behalten die Elemente ihren Platz relativ zu den Rändern; runde (Durchmesser = kleinerer Wert
+     von Breite × Bildschirmbreite und Höhe × Bildschirmhöhe) werden etwas größer oder kleiner und können so über einen
+     Rand ragen. Der Import rückt jedes Element, dessen sichtbare Form (samt halbem Rand, mehr als 2 px) über einen
+     Rand dieses Bildschirms ragen würde, herein, wie RetroTouchs Editor ein gezogenes Element setzt (`placeControl`,
+     `visibleRect`, `buttonRect`: START/MENU Rechteck 1,2 × 0,6, L/R Schulter 1,5 × 0,75 des Durchmessers);
+     Meldung „N controls were partly off this screen and were moved onto it.“ Das Zahnrad hält RetroTouch selbst im
+     Bild. **Grenzen:** dichter zusammenrückende oder sich überlappende Elemente richtet der Import nicht neu aus;
+     RetroTouch selbst rückt bei einer späteren Änderung der Fenstergröße (Drehen, Klapphandy) nichts herein.
+   - **Nicht dabei:** die Touch-Schalter des App-Menüs (Touch Controls Auto/Force/Suppress, L/R und B einrasten,
+     Zielen per Touch); das sind Einstellungen der App, nicht von RetroTouch.
+   - **Texte:** Hilfe „Memory card“ (`ingame_card_help`) und 6 neue Texte (`ingame_exported_touch`,
+     `ingame_touch_import_exists`, `ingame_touch_imported`, `ingame_touch_skipped`, `ingame_touch_import_bad`,
+     Plural `ingame_touch_moved`) in 11 Sprachen (von mir übersetzt), `check_translations.py`: 292 Texte je Sprache, ok.
+   - **Geprüft am PC:** Java-Bau core, Tests `TouchLayoutFileTest` (neu, Robolectric: kein Export ohne eigenes Layout,
+     nach dem Zurücksetzen oder bei beschädigtem; hin und zurück samt Editor; Vorgabe auf 16:9 und 20:9 unverändert;
+     Element am Rand hereingerückt; Platz am Rand eines 20:9-Handys auf 4:3; unbrauchbare Dateien), `SaveImportTest`
+     (Datei allein, im Export-ZIP, ZIP nur mit ihr), `CoreMenuLayoutTest`, `AppUpdateTest`: alle 49 App-Tests grün (`testCoreDebugUnitTest`; vorher fielen 4, weil die Blickzone mit ihrem Randstrich als „über den Rand“ galt: bei ihr jetzt ohne Rand). Java-Bau classic ebenfalls.
+     **Nicht geprüft:** Gerät (Export in einen Ordner, Import, Rückfrage, sofortiges Neuladen, anderes Gerät).
+
+3. **Linker Stick ruckelt beim Gehen, das Steuerkreuz nicht (Nutzerbericht 07.11.2026, Xiaomi 2510DPC44G, Android 16,
+   64 bit, 0.99.1-rc; Bericht `reports/0992-stick-stutter-20261107-221829`).** Wortlaut: „Why does my left analog stick
+   stutter when I'm walking or running, yet everything runs perfectly smoothly when I use the D-pad?“ Controller
+   „GamePadPlus V3 Consumer Control“ (vendor 1949, product 0402, Bluetooth; Achsen X/Y/Z/RZ flat 0,118, Steuerkreuz als
+   HAT-Achse, keine DPAD-Tasten im Protokoll), eigene Tastenbelegung, 120-Hz-Bildschirm, 60 FPS mit Zwischenbildern.
+   - **Aus dem Bericht:** Bildtakt sauber (60,0 Bilder/s, „vsync beat“ 1 von 3601 zu spät, Renderer 5–6 ms), Eingabe
+     ohne Verzug (Sticks 0,9–1,6 ms vom Android-Ereignis zur App, ungepuffert). Die eingeblendeten Touch-Tasten
+     überschreiben den Controller-Stick nicht (`CoreInput.pad`: je Stick das weiter ausgelenkte Gerät). Die Vermutung
+     einer zweiten HID-Sammlung, deren Meldungen die Stick-Achsen auf 0 setzen, passt nicht: das Steuerkreuz kommt hier
+     in denselben Meldungen (HAT) und liefe dann genauso unrund.
+   - **Wie das Spiel geht:** Leon läuft digital. `game/pad.cpp PadRead` macht aus dem Stick nach `PADClamp` (Totzone 15,
+     Achteck 72/40) Richtungsbits: ab Betrag 30 (roh 45 von 101, also 45 % Auslenkung) „vor“ bis 70° zur Seite,
+     „drehen“ ab 30°; das Steuerkreuz setzt dieselben Bits direkt. Die Laufroutinen lesen den Stick sonst nicht (nur
+     Zielen, `pl_wep.cpp`). Ein Stick, der um eine dieser Grenzen pendelt (zu wenig Ausschlag, Rauschen, ein runder
+     Rand statt des Achteck-Rands des GameCube), schaltet Leon zwischen Gehen und Stehen oder Gehen und Drehen.
+     Ursache im Bericht nicht messbar (keine Stick-Werte im Protokoll).
+   - **Neu: Stick-Messung** (`StickWatch`, in `CoreActivity.send`): rechnet die Werte, die die App dem Kern gibt, wie
+     `PADClamp` und `PadRead` um und schreibt alle 30 s mit mindestens 2 s Benutzung eine Zeile „stick (as the game
+     reads it for walking): N s past its threshold …, at most M of 72 (raw R of 101; walking from 30), K direction
+     changes, "up" lost for less than 150 ms B times, X of Y states within 6 of the threshold“. Der nächste Bericht des
+     Testers (30 s mit dem Stick gehen) zeigt, ob der Stick zu wenig Ausschlag hat oder um die Schwelle springt. Test
+     `StickWatchTest` (Klemme wie das SDK, Richtungen, ruhiger Stick 1 Wechsel, pendelnder Stick 29 Aussetzer in 30 s).
+   - **Für den Tester:** Stick in einer Gamepad-Test-App prüfen (erreicht er voll ±1, springt er im Halten?), den Modus
+     des Controllers wechseln (viele haben X-Input/D-Input oder Android-Modus), Firmware aktualisieren.
+     Releasetext: unter „Known issues“ die Bitte um einen Bericht nach 30 s Gehen mit dem Stick.
+4. **Ashleys Rock-Reaktion (Nutzerbericht 07.11.2026, ohne Fehlerbericht; Wortlaut: „When I look at Ashley's lower,
+   sensitive area … she shows no reaction whatsoever“).** Der Projektinhaber meinte, wir hätten sie in der
+   Debug-Fassung ganz ausgebaut: **stimmt nicht**, es gab keinen Patch, sie war an (am PC: Reaktion am Ende der
+   Schulterszene in r208). Die Prüfung des Prototyps (`cSubChar::pantsCheck`) ist rein geometrisch: Leons Kopf
+   höchstens 5 m unter ihr, mindestens 45° nach oben, sie innerhalb ±45° seiner Blickrichtung, keine Wand dazwischen,
+   nicht im Kostüm 1 (Schleife statt Rock). Auf ebenem Boden reagiert sie deshalb nie (ihre Hüfte liegt unter Leons
+   Kopf), in keiner Fassung.
+   - **Verkaufsfassungen** (US/EU/JP `main.dol`, `pantsCheck` 0x174 statt 0x108 Bytes): (1) in Leons Routinen 0/0..6
+     (stehen, gehen, rückwärts, laufen, drehen, umdrehen, zielen) muss die Kamera (`pG->Camera` Target − Campos)
+     mindestens π/7 = 25,7° nach oben schauen, in anderen Routinen (Leiter, Hocken, Fallen, Ereignisse …) die Lage
+     allein; (2) eine Sperre in Bildern (`cSubChar + 0x7D8`, von `pantsCheck` heruntergezählt), gesetzt nur von
+     `r208_CarryOnShoulder` (`st2_0.rel`, EU 0x11ec0, US 0x11cb4, JP 0x11e9c): 240 nach dem Hochheben auf die Mauer.
+   - **Patch 0217** (Wunsch des Projektinhabers: nur wenn Leon aktiv hochschaut, nicht wenn er unter ihr steht, um sie
+     aufzufangen; Bedingung der Verkaufsfassung): beides wie dort, für alle Discs. Sperre als `static` in
+     `pl_npc.cpp` mit `re4_ashley_pants_wait` (die Klasse behält ihre Form). Kostüm-Prüfung unverändert.
+   - **Testausgabe:** eine Zeile „partner: Ashley's skirt reaction at frame N in rXXX, Leon in routine A/B …, the
+     camera N degrees up“ bei jedem Beginn; `RE4_TRACE_POS` nennt jetzt auch den Blickwinkel der Kamera, Leons Routine
+     und Ashley, wie ihre Prüfung sie sieht (Abstand, Winkel, Wand, ihre Routine).
+   - **Geprüft am PC (i686 -O2, Debug-Discs, r208, `RE4_TEST_STA=101`, `RE4_TEST_PLACE="free+30:area=14"`, A
+     gedrückt: die Schulterszene Bild 842–1193):** ohne Patch die Reaktion am Ende der Szene (Leon steht 0/0, Kamera
+     −2°, Ashley 3,2 m, 51° über seinem Kopf), mit Patch keine. Beim Zielen nach oben schaut die Kamera 51° hoch
+     (Leon 0/6). Eine Reaktion **mit** Patch (Leon schaut aktiv hoch) ließ sich am PC nicht herstellen: Ashley läuft
+     nach der Szene auf der Mauer weg (nach 3 s über 9 m), und unter ihrem späteren Platz liegt die Mauerkante
+     zwischen Leons Kopf und ihr (die Wand-Prüfung des Originals). `whole_build.sh i686` mit `RE4_OPT=2`: alle
+     Prüfungen grün. **Nicht geprüft:** Gerät; die Reaktion beim Hochschauen (z. B. unter ihr an einer Leiter oder
+     Treppe, wenn sie wartet).
+5. **Stick: Totzone und Reichweite (Auftrag des Projektinhabers, 07.11.2026, Anlass GitHub-Issue #168 = Punkt 3).**
+   - Zwei Regler im Steuerungsmenü unter „Controller, Keyboard and Mouse“, für beide Controller-Sticks zusammen:
+     „Stick dead zone“ 0–30 % und „Stick range“ 50–100 %, je in Schritten von 5 (`CoreMenu.percentSlider`), darunter
+     ein Hilfetext. Gespeichert in `core_input` (`stickDeadZone`, `stickRange`).
+   - `CoreInput.setStickShape` / `shape`: in `motion()` (nur Controller; nicht die Touch-Sticks, nicht die Maus, nicht
+     die Bewegungstasten der Tastatur) je Stick **rund**: Betrag ≤ Totzone → Ruhe; darüber bis zur Reichweite auf den
+     ganzen Weg gestreckt, darüber voll; die Richtung bleibt (Diagonalen kippen nicht). Mit 0 % / 100 % (Vorgabe) gehen
+     die Werte unverändert durch (eigener Weg ohne Rechnung): heutiges Verhalten exakt. `PADClamp` im Kern unverändert.
+   - `StickWatch` nennt die Einstellung am Ende jeder 30-s-Zeile („the app's stick dead zone N %, range M %“), dazu
+     eine Zeile „sticks: dead zone …“ beim Start (wenn nicht Vorgabe) und bei jeder Änderung.
+   - **Geprüft am PC:** `tests/CoreInputTests` (über `tools/test_host.sh`, 1816 Checks): mit 0/100 jeder Wert eines
+     21×21-Gitters beider Sticks gleich wie ohne Einstellung, die Ecke eines eckigen Controllers wie vorher; Totzone
+     rund, Diagonale bleibt gleich, voller Ausschlag bleibt voll; ein Stick mit 60 % Ausschlag kommt mit Reichweite 70 %
+     weiter über die Gehschwelle, bei 70 % voll (72 nach der Klemme); rechter Stick ebenso, Trigger nicht; Werte
+     außerhalb fallen zurück; Touch-Stick unberührt. `StickWatchTest` (6 Tests), `CoreMenuLayoutTest` (Regler unter
+     der Überschrift, 0..30 / 50..100). **Nicht geprüft:** Gerät (der Stick des Testers aus Punkt 3).
+6. **Vibration im Controller (Auftrag des Projektinhabers, 07.11.2026).** Bis 0.99.1 nur der Vibrator des Geräts
+   (`getDefaultVibrator`): mit einem Bluetooth-Controller am Handy kamen die Treffer im Handy an.
+   - Neue Auswahl „Vibration“ im Steuerungsmenü (selber Abschnitt): **Auto** (Vorgabe), **Device**, **Controller**,
+     **Off**, mit Hilfetext; `core_input` `vibration`. Regel in `RumbleTarget` (reines Java, `RumbleTargetTest`): Auto =
+     die Motoren des zuletzt benutzten Controllers, wenn er welche hat und **nicht eingebaut** ist
+     (`InputDevice.isExternal`), sonst das Gerät. So bleibt es auf Handhelds (Retroid, AYN: der eingebaute Controller
+     ist das Gerät) beim Vibrator des Geräts wie bisher. Controller = nur der Controller (ohne Motoren nichts);
+     vor Android 12 beides das Gerät (Controller-Motoren erst ab API 31 über `InputDevice.getVibratorManager`).
+   - `CoreActivity.chooseRumble`: beim Start, bei der ersten Taste/Achse eines anderen Controllers (`padUsed`), bei
+     Änderung oder Trennen dieses Controllers und bei einer Menüänderung; vorher stoppen **beide** Vibratoren
+     (`cancelBoth`, auch in `stopVibrator`). Der Controller bekommt `CombinedVibration.createParallel` (alle Motoren),
+     mit Stärke, wenn alle Motoren sie können, sonst als An/Aus-Impulse wie ein Gerät ohne Stärkeregelung (die Länge
+     trägt die Stufe). Die bestehenden Regeln (Menü-Bit, Pause, Spieloption „Vibration“) bleiben (`rumbleTick`
+     unverändert). Protokoll: eine Zeile je neuer Wahl, z. B. „rumble (Auto): the controller "Xbox Wireless
+     Controller" (2 motors, with amplitude control) [controller used]“ oder „rumble (Auto): this device's vibrator
+     with amplitude control, not the built-in controller's motors“.
+   - **Geprüft am PC:** `RumbleTargetTest` (4 Tests: Auto mit externem Controller → Controller, eingebauter oder ohne
+     Motoren oder vor Android 12 → Gerät, die anderen Wahlen), Kompilieren beider Varianten. **Nicht geprüft:** Gerät
+     (Retroid: Auto muss beim Gerät bleiben; Handy mit Bluetooth-Controller mit und ohne Motoren; Trennen während es
+     rüttelt).
+7. **Gegenstands-Randomizer als Cheat (Auftrag des Projektinhabers, 07.11.2026, Anlass GitHub-Issue #161).**
+   - Schalter „Random items“ unter Cheats → „Game“ (eigene Zeile, Hilfetext). Bit 1024 der Cheat-Schalter, der
+     Startwert (Seed, 20 Bit) in Bit 11..30: bei jedem Einschalten ein neuer, beim Ausschalten weg
+     (`CoreMenu.withRandomItems`). Die App hält die Schalter wie bisher in `core_game` `cheats` (nicht im Spielstand);
+     derselbe Weg zum Kern (`re4_core_set_cheats`, auch über den Kernprozess), keine neue Schnittstelle.
+   - **Wo die Gegenstände liegen:** die ITA-Datensätze des Raumarchivs (`SCE_AT_ITEM`, 0x9C Bytes; `SceAtInit`). Die
+     Modelle kommen aus dem ITM-Block **des Raums** (`ItemGetBinTplAddr`): er enthält nur die Modelle der Gegenstände
+     des Raums und dessen, was seine Gegner fallen lassen (alle Räume der vier Disc-Arten am 07.11.2026 ausgelesen,
+     Skripte `itadump.py`/`itastat.py` der Sitzung). Ein Gegenstand ohne Modell im Raum läge nur als Glitzern da.
+     Deshalb tauscht der Randomizer **nur gegen Gegenstände, deren Modell der Raum hat**.
+   - **Patch 0218** (`sce_at.cpp sceAtSetItem`) ruft `re4_item_random` (`runtime/cheats.cpp`); der erste Aufruf in
+     einem Raum kommt nach dem Laden der Modelle und bevor ein Gegenstand des Raums ein Modell bekam. Dann einmal alle
+     Datensätze des Raums: markiert (`SCE_AT_UNIT pad2[0]` = 0xA5, auf allen Discs sonst 0), getauscht nur bei
+     Schalter an, Story (`!SYS_OMAKE_ADA_GAME && !SYS_OMAKE_ETC_GAME`), nicht in Ashleys Teil (`pl_type` 1).
+     Ein später eingeschalteter Schalter lässt den laufenden Raum, wie er ist.
+   - **Was getauscht wird:** Datensätze, die frei im Raum liegen (`waiting_type` 0: kein Gegner, kein Fass, keine
+     Kiste hält sie) mit `ctrl_flag` 0 (nicht an einen Gegner gegeben, kein hängender oder fallender Gegenstand, keiner
+     der vom Spiel selbst gewürfelten Drops, die es aus dem Spielstand zurückschreibt), deren Gegenstand im Topf ist:
+     Leons Munition (0x00, 0x04, 0x07, 0x18, 0x20), Granaten (0x01, 0x02, 0x0E), Heilmittel (Kräuter, Spray, Eier,
+     Fisch, Mischungen), Peseten (0x71, 0x78, 0x79), Schätze (Typ 5 und 12 laut `itemInfo`, ohne 0x89, 0x8A, 0xA2, die
+     Skripte in r103/r105 und ein Raum per Nummer behandeln). **Nie:** Schlüssel und Story-Gegenstände (Typ 7, 11,
+     14), Dokumente (10), Waffen und Zubehör (1, 3 außer Granaten, 9), die Mercenaries-Gegenstände (0x73, 0x75), die
+     Zufallsdrops des Spiels (0x1000…), Händlerware (nicht in ITA), Gegner (unverändert).
+   - **Wie:** Gruppe nach festem Anteil (Munition 36, Heilmittel 26, Peseten 14, Granaten 12, Schätze 12 von 100), hat
+     der Raum aus ihr kein Modell, die nächste Gruppe; darin ein Gegenstand mit Modell im Raum. Alles aus einem Hash
+     von Seed, Raum, Datensatz und altem Gegenstand (nur `u32`-Rechnung): derselbe Raum gibt mit demselben Seed nach
+     Neuladen, Tod oder Raumwechsel dieselben Gegenstände. Mengen: Handgun 10/15/20, Shotgun 5/10, Gewehr 5, TMP 25/50,
+     Magnum 3/5, Peseten 300–1000 je Beutel (0x78 Zehner, 0x79 Hunderter, 0x71 Tausender), sonst die Vorgabe des Spiels;
+     bleibt der Gegenstand gleich, bleibt die Menge. Die Flags des Datensatzes bleiben: Aufgehobenes bleibt
+     aufgehoben, ein Spielstand spielt mit und ohne Schalter. Ausschalten: der nächste Raum wird wieder von der Disc
+     gelesen (`ReadAreaData`), also im Original.
+   - Protokoll: eine Zeile je Raum „cheat: random items in r100 (seed N): 11 of 11 items of the pool changed, 24
+     records: area 0x80 0x02 x0 -> 0x06 x0 (recovery), …“; `RE4_TRACE_ITEMS=1` meldet jetzt auch jede Änderung von
+     Koffer und Peseten („items (taken): …“, `state_trace.cpp watchItems`).
+   - **Geprüft am PC (i686 -O2):** r100 (Debug) mit Seed 12345: 11 von 11 Gegenständen des Topfs getauscht; mit
+     `RE4_TEST_PLACE="free+30:area=143"` und A aufgehoben: Peseten (Seed 12345, +300), Schrotpatronen ×5 (Seed 1),
+     Erste-Hilfe-Spray (Seed 2), Blendgranate (Seed 6) landen im Koffer. Mehrere Läufe mit demselben Seed: dieselbe
+     Zeile. **Rundgang aller 126 Räume** (Debug-Start, 600 Bilder, Seed 4242) mit **Debug-, EU-, US- und JP-Discs**:
+     kein Absturz, je 121 Räume verteilt (r120, r215, r22b, r312, r333 ohne Gegenstandsbereich in der Zeit), rund 700
+     Tausche je Disc; jeder Tausch mit `rndcheck.py` gegen die Raumdaten geprüft (alter Gegenstand wie in den Daten,
+     Datensatz frei liegend, alt und neu im Topf, Modell des neuen im Raum): **0 Fehler** auf allen vier. Damit auch:
+     kein Schlüssel- oder Story-Gegenstand verändert (Dorf r100/r101, Burg r2xx, Insel r3xx alle dabei).
+     `whole_build.sh` i686 und x86_64 mit `RE4_OPT=2`: siehe Abschluss. **Nicht geprüft:** Gerät; Tod/Weiterspielen
+     und Raumwechsel im selben Lauf (dieselbe Rechnung, der Raum wird neu gelesen); ARM32/ARM64 im Lauf.
+   - **Bewusst weggelassen:** Gegenstände in Kisten, Fässern und bei Gegnern, auch feste (`waiting_type` 1/2, die
+     Vorgabe des Auftrags), hängende/fallende Gegenstände (eigene Modelle), Datensätze mit besonderen Flags; Gegenstände,
+     deren Modell der Raum nicht hat (sonst nur Glitzern).
+8. **„4:3“: Menüs, Lebensanzeige und Übergänge oben und unten abgeschnitten (Nutzerbericht 08.11.2026, Discord;
+   Infinix X6882, Android 14, 0.99.1-rc, US-Discs, Bildformat „4:3“, Stufe 2; Bericht
+   `reports/0992-43-hud-cut-20261108-005243`, Bild `screenshot-files-menu.jpg`: Dateien „Village Files“ in r315 mit
+   Ashley).** Wortlaut: „Bug Visual in 4:3 Screen. HUD and Files and transitions that are cut off“.
+   - **Befund (am PC, US-Discs, r315 und r100, GX-Bilder mit dem Renderer der App):** Bei „4:3“ lässt Patch 0105 die
+     Balken des Spiels nur beim freien Spielen weg; in Untermenüs (Koffer, Karte, Dateien, Händler), Ereignissen und
+     Türszenen zeichnet das Spiel sie wie im Original (Schere auf die Zeilen 56..392, `Draw_cinesco`, `IDC_CINESCO`).
+     Das Menü selbst ist **für dieses Band gemacht**: ohne Balken (Prüfschalter `RE4_TEST_LETTERBOX_MENU=1`,
+     `picture.cpp`) zeigt der Koffer darüber seinen Deckel und darunter Reste (farbige Kästchen), seine Leisten enden
+     am Bandrand. Mit „4:3 (GC)“ sieht das Menü genauso aus wie im Bild des Nutzers. **Abgeschnitten war nur die
+     Lebensanzeige:** Patch 0215 setzt sie bei „4:3“ in die Ecke der vollen 448 Zeilen, auch wenn das Spiel gerade
+     seine Balken zeichnet; dort lag sie halb unter dem unteren Balken (im Bild: Ashleys Ring und Leons Anzeige
+     unten rechts). Dasselbe bei „Native“ auf Bildschirmen schmaler als 16:9 (dort auch keine Balken beim Spielen).
+   - **Behoben** (`runtime/picture.cpp re4_hud_scrn`): Solange das Spiel seine Balken zeichnet
+     (`!re4_letterbox_open()`), nimmt die Lebensanzeige die Ecke des Bands (Zeilen 56..392) statt der Zeilen, die die
+     App meldet: im Menü genau wie bei „4:3 (GC)“. Beim freien Spielen bleibt sie in der Ecke des gezeigten Bildes
+     (Wunsch aus 0.99.1, Minikarte gegenüber, gleicher Abstand). Formate mit dem Band ohnehin (16:9, Gestreckt,
+     „4:3 (GC)“, „Native“ breit) ändern sich nicht. Die Minikarte der App wird nur beim freien Spielen gezeichnet
+     (dieselbe Bedingung wie das Weglassen der Balken), sie war nicht betroffen.
+   - **Übergänge:** Türszenen, Ereignisse und das Öffnen/Schließen der Menüs behalten bei „4:3“ ihre Balken wie im
+     Original und wie seit 0105 entschieden (das Spiel schneidet Ereignisbilder selbst auf das Band zu); das Bild
+     wechselt dabei zwischen voller Höhe und Band. Nichts darin ist über das Original hinaus abgeschnitten.
+   - **r315 „Balken bleiben an“:** kein eigener Fehler. Das Protokoll schreibt höchstens 40 Wechsel („the game draws
+     with/without its letterbox“); der Bericht hat genau 40, der letzte beim Betreten von r315. Am PC (US, r315,
+     „4:3“): nach dem Eingangsereignis wieder „without“, beim Spielen ohne Balken, im Inventar mit.
+   - **Geprüft am PC (i686 -O2, US-Discs, `RE4_TEST_LETTERBOX_OFF=1` und `RE4_HUD_LAYOUT` wie die App je Format):**
+     r315 mit Ashley (`RE4_TEST_STA=101`) in allen sechs Fällen („4:3“ 0..448, „4:3 (GC)“ 56..392 ×15/14, „16:9“,
+     „Gestreckt“ 56..392 ×1,25 schmaler, „Native“ breit 1,6667, „Native“ schmal 38..411 ohne Balken): beim Spielen
+     die Anzeige in der Ecke wie vorher, im Koffer im Band, bei „4:3“ an derselben Stelle wie bei „4:3 (GC)“; vor der
+     Korrektur bei „4:3“ und „Native“ schmal unter dem Balken. r100 („4:3“): Spielen und Koffer ebenso; durch die Tür
+     nach r101 (Funkspruch): Band wie im Original. **Nicht geprüft:** Gerät; das Dateien-Menü selbst (derselbe
+     Untermenü-Zustand wie der Koffer, am PC kein Reiterwechsel).
+9. **Knöpfe „Spieldaten“ statt „Spielstände“ (Wunsch des Projektinhabers, 08.11.2026).** Wortlaut: „Unter MANAGEMENT
+   die beiden Buttons zum export/import der Spielstände evtl umbenenen: "Spieldaten" statt "Spielstände", da ja auch
+   das Layout dabei ist.“
+   - `ingame_export`/`ingame_import` in allen 11 Sprachen: Deutsch „Spieldaten exportieren (.gci)“ / „Spieldaten
+     importieren (.gci, .zip, .raw)“, die anderen Sprachen sinngemäß („datos del juego“, „données de jeu“, „dati di
+     gioco“, „dados do jogo“, „игровые данные“, „游戏数据“, „गेम डेटा“, „Data Game“, „بيانات اللعبة“); Dateiendungen in
+     Klammern wie bisher.
+   - **Englisch „Export Player Data“ / „Import Player Data“**, nicht „Game Data“: der Startbildschirm nennt die Discs
+     „Game data / Disc import“ (`strings.xml browser_data`, nur Englisch), ebenso das README („Game data: your own disc
+     images“). In den anderen Sprachen heißen die Discs im Spielmenü „Discs“/„discos“ …, dort keine Verwechslung.
+   - Hilfetext `ingame_card_help` in allen Sprachen neu: „Export and Import Player Data: your saves as .gci (for Dolphin
+     or GameCube) and a touch layout of your own as CubeEvil4-touch-layout.json. The import brings both back.“
+     Meldungen nennen die Knöpfe nicht. Releasetext 0.99.2: Hinweis oben und die New-Zeile zum Touch-Layout. Ältere
+     Releasetexte, Entwürfe in `docs/gui-optimisations/` und frühere Einträge dieser Datei bleiben wie geschrieben.
+   - **Geprüft:** `check_translations.py` (301 Texte, alle Sprachen ok), App-Tests. **Nicht geprüft:** Gerät
+     (Zeilenumbruch der Knöpfe in den längeren Sprachen).
+10. **Filter „Nachschärfen“ (Wunsch des Projektinhabers, 08.11.2026).** Wortlaut: „Ich wäre für 3, einen zusätzlichen
+    dritten Filter der optisch nachschärft“. Anlass (Nutzermeldung): Texturen wirken außer bei „4:3“ verwaschen, weil
+    „16:9“, „Gestreckt“ und „Native“ nur die 336 Zeilen des Bands zeigen und auf die volle Höhe vergrößern (2400×1080,
+    Stufe ×2: „16:9“ 1,5×1,6, „Native“/„Gestreckt“ 1,9×1,6, „4:3“ 1,1×1,2).
+    - **Menü:** Anzeige → Filter, dritte Zeile unter „Original GameCube TV filter“ und „Retro pixel filter“: „Sharpen ·
+      Off/Light/Strong“ (jeder Druck weiter, wie die Tiefenschärfe; ab Werk aus; Einstellung `sharpenLevel`), der
+      Hilfesatz `ingame_sharpen_help` hinter dem allgemeinen der Filter, 11 Sprachen (Deutsch „Nachschärfen“).
+      `CoreBridge.setSharpen(int)`, Protokollzeile „sharpen: light/strong/off“ (beim Start nur, wenn an).
+    - **Renderer** (`gx_gl.cpp`, `GxRenderer::SetSharpen`, selbst geschrieben nach der Idee von AMD CAS/RCAS, kein
+      fremder Code): ein Durchgang je Bildkopie in der Auflösung des Spiels, nach FXAA, vor dem Retro-Filter, in eine
+      eigene Textur, die `Present` beim Vergrößern zeigt. Fünf Texelzugriffe (Punkt und vier Nachbarn): der Punkt rückt
+      um `amount` vom Mittel der Nachbarn weg (Leicht 0,6, Stark 1,2); nicht, wo der Kontrast der Nachbarschaft unter
+      ein paar 8-bit-Stufen liegt (Nebel, Verläufe, Rauschen dunkler Flächen), halb so stark an harten Kanten, weniger
+      für einzelne Ausreißer, und nie über den hellsten/dunkelsten Nachbarn hinaus (keine hellen Säume). Zeilen
+      außerhalb der gezeigten (`SetShownRows`) werden unverändert kopiert (Bildschirmfoto), die Zugriffe der gezeigten
+      bleiben in ihnen. Am Bildschirm-Maßstab gleichwertig zum Schärfen beim Vergrößern (der lineare Teil vertauscht
+      mit der bilinearen Vergrößerung), aber billiger: Spielbild statt Bildschirm, einmal je Spielbild statt je
+      Bildwiederholung.
+    - **Filme** bleiben ungeschärft: neues Kennzeichen `RE4_GX_CHUNK_MOVIE` (`re4_gx_frame.h`, `re4_gx_movie` in
+      `gx_decode.cpp`, je Bild gesetzt von `picture.cpp` aus `re4_movie_playing`). Am PC (Eröffnungsfilm, debug-Discs,
+      Prüfschalter `RE4_GX_SHARPEN_MOVIES=1`) machte das Schärfen die Blöcke der Kompression in glatten Flächen
+      sichtbarer.
+    - **PC-Werkzeug** `gx_chunk_render`: `RE4_GX_SHARPEN`, `RE4_GX_FXAA`, `RE4_GX_TV_FILTER`,
+      `RE4_GX_SHARPEN_AMOUNT`, `RE4_GX_SHARPEN_MOVIES` und `RE4_GX_SCREEN=WxH:FORMAT` (jedes Bild auch so, wie der
+      Bildschirm der App es im Bildformat zeigt, Kästen aus `minimap_view.h`). Renderer-Test `TestSharpen`
+      (`test_gx_gl.cpp`): ein Durchgang je Bildkopie, weiche Kante steiler (210 → 218), kein Texel außerhalb der
+      beiden Grautöne, glatte Flächen gleich, Zeilen außerhalb gleich, Film unverändert, aus wieder die reine Kopie.
+    - **Geprüft am PC** (i686 -O2, US-Discs, Renderer der App auf llvmpipe, 2400×1080, Stufe ×2): r100 in „16:9“ und
+      „Native“ 20:9, r315 (mit Ashley) in allen sechs Fällen. Feinzeichnung (Hochpass) +12–14 % Leicht, +17–21 %
+      Stark; Rauschen glatter dunkler Flächen und des Nebels unverändert (0,331 → 0,331/0,332; 0,549 → 0,544/0,547);
+      Punkte mehr als 8 Stufen über der 5×5-Umgebung des Originals: 17 (Leicht) bzw. 92 (Stark) von 2,6 Mio.; Ränder
+      der gezeigten Zeilen und Spalten in allen Formaten gleich (±0,2). Inventar: Schrift ohne Säume. Zusammen mit
+      FXAA (nach dem Glätten: 1,94 → 2,51), TV-Filter, Retro-Filter (danach kaum Wirkung, dessen Raster kommt
+      später), 60 FPS (Zwischenbilder geschärft), „Dynamic“ (Stufenwechsel 2× → 1,5× in der Reihe) ohne Fehler.
+      **Aufwand** (Bildkopie mit den Durchgängen danach, glFinish, 1024×896): ohne 1,7–2,2 ms, mit Nachschärfen
+      4,0–4,4 ms (+2,3 ms), mit FXAA 5,0–5,6 ms (+3,2 ms): etwa 70 % von FXAA (fünf statt neun Zugriffe). Vergleichs-
+      bilder für den Projektinhaber: `E:\Development\Android\reports\0992-sharpen-compare\`. Kernprüfung
+      `whole_build.sh i686` (O2) und `gx_gl_check` grün, App-Tests, ARM32-Bau des App-Codes.
+    - **Nicht geprüft:** Gerät (Wirkung und Kosten auf Mali/Adreno, Helio G99 und Snapdragon 7s Gen 2 aus Issue #157);
+      das Zielfernrohr eigens (dieselbe Bildkopie wie jedes Bild, mit „Native“ im 16:9-Kasten).
+
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 
 Version 0.99.1-rc (versionCode 103), Releasetext `port/android-decomp/docs/releases/v0.99.1-rc.md`. Entscheidung des
@@ -13218,6 +13517,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0214 `camera.cpp`, `view.cpp`, `TexRender.cpp`, `mirror.cpp`, `trans.cpp`, `esp08.cpp`, `esp0f.cpp`, `esp18.cpp`, `esp_sub.cpp`, `Espgen42.cpp`, `espgen45.cpp`, `id_sys.cpp`, `examine.cpp`, `mes.cpp`, `cam_qfps.cpp`, `cam_ctrl.cpp` | Bildformat „Native“: die Projektion der Kamera und der Sichtkegel mit `re4_view_aspect()` statt 4/3 (breiter, solange gespielt wird), alles, was mit der Kamera projiziert (Effekte mit Bildkopie, Spiegel, Gegenstandskamera, Nahebene gegen Wände und Wasser, Bildpunkt zu Strahl), mit `re4_view_camera_aspect()`; `CameraSetProjection` meldet die erste geladene Projektion eines Bildes (`re4_view_load`, `RE4_GX_CHUNK_WIDE`); der Text (`messageCamera`) mit `re4_view_flat_edge` so schmal wie das HUD. Jede Ersetzung auf ihrer Zeile, Funktionen in `re4_whole_prelude.h`. Aus und in jedem anderen Bildformat der Wert des Originals (1.3333334f; 0 und 512). Port-Funktion, Wunsch des Projektinhabers 07.11.2026, auf Grundlage des Breitbilds im Fork von Noname267 |
 | 0900 `light.cpp` | (nur Branch `ouya-discarded`) Kürzere Sicht der leichten OUYA-Fassung: `cLightMgr::setFog` und `hokanMove` geben GX den Nebel, den `re4_view_distance` (`runtime/view_distance.cpp`) aus dem des Raums macht (`RE4_VIEW_DISTANCE=f`: Beginn und Ende mal f, das Ende nicht unter 6 m), und setzen die Sichtgrenze des `View` aus diesem Ende statt aus dem des Raums; `LightEnv.Fog` bleibt unverändert. Ohne den Schalter wie das Original. Port-Funktion, Wunsch des Projektinhabers 07.11.2026 |
 | 0215 `id_sys.cpp` | Lebensanzeige in der Ecke: die fünf Stellen, an denen eine ID-Einheit mit `IDSystem::m_scrn_mat` gezeichnet wird (normal, negativ, Flimmern samt Texturprojektion), nehmen die Matrix von `re4_hud_scrn(u)`: für den Baum unter Einheit 0 der Klasse `IDC_LIFE_METER` (Ring, Ashleys Ring, Munition samt `IDC_BLLT_ICON`, Namensfeld) in die rechte untere Ecke der gezeigten Zeilen verschoben (bei „Gestreckt“ schmaler), sonst unverändert; ohne Vorgabe der App (`re4_core_set_hud_layout`) immer unverändert. Jede Ersetzung auf ihrer Zeile, Funktion in `re4_whole_prelude.h`. Port-Funktion, Wunsch des Projektinhabers 07.11.2026 |
+| 0216 `r224.cpp` | Lava-Halle der zwei El Gigantes: mit EU-, JP- und KR-Discs Bereich 10 (Meldung 1 „Damn! It's locked …“ vor dem Ausgangstor) aus beim Betreten, an, wenn das Tor hinter den Riesen zufällt (`door_close`), aus, wenn es nach dem Kampf aufgeht (`door_open`), wie deren Code (`st2_3.rel`); Debug- und US-Daten haben den Bereich nicht. Port-Patch für Verkaufsdaten, Nutzerbericht 07.11.2026 |
+| 0217 `pl_npc.cpp`, `r208.cpp` | Ashleys Rock-Reaktion („pervert“) wie die Verkaufsfassungen (US/EU/JP `main.dol`, `st2_0.rel`): in Leons Routinen 0/0..6 (stehen, gehen, laufen, drehen, zielen) muss die Kamera (`pG->Camera`) mindestens π/7 (25,7°) nach oben schauen, sonst zählt die Lage allein; 240 Bilder Sperre nach `r208_CarryOnShoulder` (`re4_ashley_pants_wait`). Abweichung vom Debug-Code, Entscheidung des Projektinhabers 07.11.2026 |
+| 0218 `sce_at.cpp` | Cheat „Random items“: `sceAtSetItem` ruft `re4_item_random` (`runtime/cheats.cpp`), das beim ersten Aufruf eines Raums seine frei liegenden Gegenstände des Topfs (Munition, Granaten, Heilmittel, Peseten, Schätze) aus Seed, Raum und Datensatz neu verteilt, nur gegen Gegenstände mit Modell im Raum, nur in der Story. Wunsch des Projektinhabers 07.11.2026, Issue #161 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

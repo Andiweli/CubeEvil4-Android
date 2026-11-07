@@ -91,11 +91,11 @@
     <string name="ingame_update_allow">Autorisez CubeEvil4 à installer des applications, puis appuyez de nouveau sur Mettre à jour.</string>
 
     <string name="ingame_card">Carte mémoire (emplacement A)</string>
-    <string name="ingame_card_help">Exporter et importer les sauvegardes au format .gci (pour Dolphin ou GameCube).</string>
+    <string name="ingame_card_help">Exporter et importer les données de jeu\u00A0: les sauvegardes au format .gci (pour Dolphin ou GameCube) et votre disposition tactile personnalisée dans CubeEvil4-touch-layout.json. L’importation restaure les deux.</string>
     <string name="ingame_card_busy">La carte est utilisée (le jeu sauvegarde ou charge) ou le jeu charge encore – fermez le menu et rouvrez-le dans un instant.</string>
     <string name="ingame_card_none">Aucune carte mémoire.</string>
-    <string name="ingame_export">Exporter les sauvegardes (.gci)</string>
-    <string name="ingame_import">Importer des sauvegardes (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Exporter les données de jeu (.gci)</string>
+    <string name="ingame_import">Importer des données de jeu (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Disques</string>
     <string name="ingame_discs_help">Pour jouer à une autre version\u00A0: la partie se termine et vous importez ses deux disques depuis l’écran de démarrage. Les sauvegardes, la carte mémoire et les réglages sont conservés.</string>
     <string name="ingame_import_discs">Importer d’autres disques</string>
@@ -136,6 +136,12 @@
         <item quantity="many">%1$d fichiers exportés.</item>
         <item quantity="other">%1$d fichiers exportés.</item>
     </plurals>
+    <string name="ingame_exported_touch">Votre disposition tactile aussi\u00A0: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d commande dépassait de cet écran et a été déplacée dedans.</item>
+        <item quantity="many">%1$d commandes dépassaient de cet écran et ont été déplacées dedans.</item>
+        <item quantity="other">%1$d commandes dépassaient de cet écran et ont été déplacées dedans.</item>
+    </plurals>
     <string name="ingame_imported">Importé\u00A0: %1$s</string>
     <string name="ingame_import_no_space">Pas assez d’espace sur la carte pour %1$s</string>
     <string name="ingame_import_busy">Le jeu utilise la carte\u00A0: %1$s</string>
@@ -144,6 +150,10 @@
     <string name="ingame_import_exists">%1$s est déjà sur la carte. Le remplacer\u00A0?</string>
     <string name="ingame_replace">Remplacer</string>
     <string name="ingame_skip">Ignorer</string>
+    <string name="ingame_touch_import_exists">Vous avez déjà votre propre disposition tactile. La remplacer par celle importée\u00A0?</string>
+    <string name="ingame_touch_imported">Disposition tactile importée\u00A0: active immédiatement.</string>
+    <string name="ingame_touch_skipped">Disposition tactile ignorée\u00A0: la vôtre est conservée.</string>
+    <string name="ingame_touch_import_bad">Disposition tactile non importée\u00A0: %1$s</string>
     <string name="ingame_report_chooser">Envoyer le rapport d’erreurs</string>
     <string name="ingame_report_failed">Impossible de créer le rapport\u00A0: %1$s</string>
     <string name="ingame_capture_saved">Capture graphique enregistrée</string>
@@ -198,6 +208,8 @@
     <string name="ingame_psx">Filtre pixels rétro</string>
     <string name="ingame_filter">Filtres</string>
     <string name="ingame_filter_help">Les filtres changent l\'aspect de toute l\'image et peuvent être combinés.</string>
+    <string name="ingame_sharpen">Netteté</string>
+    <string name="ingame_sharpen_help">Netteté redonne aux textures le détail que l’agrandissement de l’image à l’écran adoucit (surtout dans les formats d’image larges). Les vidéos restent telles quelles.</string>
     <string name="ingame_frame_skip_help">Si le rendu est à la traîne, saute une image pour que le jeu garde sa vitesse normale. Moins d’images s’affichent, rien n’est ralenti.</string>
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
     <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote graphique lent (p. ex. GPU Mali) et coûter un peu sur les autres. Sans effet tant que les 60 FPS sont activés.</string>
@@ -236,6 +248,8 @@
     <string name="ingame_cheat_queued">Ce sera fait dès que le jeu reprendra.</string>
     <string name="ingame_cheat_unsupported">Ce cœur de jeu n’a pas de triches.</string>
     <string name="ingame_cheat_qte">QTE automatiques</string>
+    <string name="ingame_cheat_random_items">Objets aléatoires</string>
+    <string name="ingame_cheat_random_items_help">Objets aléatoires : les objets posés dans les salles de l’histoire (munitions, herbes et autres soins, grenades, pesetas, trésors) sont redistribués dans chaque salle où vous entrez à partir de là, et une salle donne toujours les mêmes objets jusqu’à ce que vous désactiviez puis réactiviez l’option. Les clés, les armes, les documents et les autres objets de l’histoire restent tels quels : le jeu peut toujours être terminé. Ce que vous avez déjà ramassé reste ramassé ; les ennemis, tonneaux et caisses gardent leur propre butin. Pas dans Assignment Ada ni dans The Mercenaries.</string>
     <string name="ingame_cheat_extras">Débloquer les jeux bonus</string>
     <string name="ingame_cheat_extras_text">Assignment Ada et The Mercenaries sont débloqués (Professional aussi, comme après avoir fini le jeu). Le menu titre les affiche après un redémarrage. La progression depuis votre dernière sauvegarde est perdue.</string>
     <string name="ingame_cheat_extras_later">Débloqués : Assignment Ada et The Mercenaries apparaîtront dans le menu titre au prochain redémarrage.</string>
@@ -247,6 +261,13 @@
     <string name="ingame_later">Plus tard</string>
     <string name="ingame_controller_config">Configuration des touches</string>
     <string name="ingame_controller_config_help">Configuration des touches : placez chaque action du jeu sur des touches de votre manette ou de votre clavier.</string>
+    <string name="ingame_stick_dead_zone">Zone morte du stick</string>
+    <string name="ingame_stick_range">Portée du stick</string>
+    <string name="ingame_stick_help">Zone morte du stick : les petits mouvements d’un stick de la manette autour de son centre sont ignorés (pour un stick qui dérive ou tremble). Portée du stick : un stick poussé jusque-là compte déjà comme poussé à fond, pour que Leon marche, coure et tourne sans à-coups même si votre stick n’atteint pas son bord. Les valeurs par défaut laissent les sticks tels quels. Les commandes tactiles ne sont pas concernées.</string>
+    <string name="ingame_vibration">Vibration</string>
+    <string name="ingame_vibration_device">Appareil</string>
+    <string name="ingame_vibration_controller">Manette</string>
+    <string name="ingame_vibration_help">Où vous sentez la vibration du jeu. Auto : dans une manette connectée qui a ses propres moteurs (Android 12 et ultérieur), sinon dans ce téléphone ou cette console portable. Appareil : toujours dans ce téléphone ou cette console portable. Manette : seulement dans la manette (rien si elle n’a pas de moteurs ; avant Android 12, dans cet appareil). Désactivé : pas de vibration. L’option Vibration du jeu peut toujours la désactiver.</string>
     <string name="ingame_controller_default">Disposition par défaut</string>
     <string name="ingame_controller_help">Choisissez une action, puis appuyez sur sa touche. Une action à deux touches (tirer, recharger, coup de couteau) demande d’abord la touche à maintenir, puis la seconde. Si une autre action avait la touche, elle reçoit l’ancienne. Les menus du jeu gardent la configuration par défaut ; ses indications montrent toujours les boutons GameCube.</string>
     <string name="ingame_controller_alternate_note">Les commandes alternatives sont activées\u00A0: elles gardent leur propre disposition\u00A0; celle-ci s\'applique dès qu\'elles sont désactivées.</string>

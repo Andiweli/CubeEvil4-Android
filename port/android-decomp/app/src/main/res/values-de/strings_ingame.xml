@@ -89,11 +89,11 @@
     <string name="ingame_update_allow">Erlaube CubeEvil4, Apps zu installieren, und drücke dann noch einmal Update.</string>
 
     <string name="ingame_card">Speicherkarte (Steckplatz A)</string>
-    <string name="ingame_card_help">Spielstände als .gci exportieren und importieren (für Dolphin oder GameCube).</string>
+    <string name="ingame_card_help">Spieldaten exportieren und importieren: die Spielstände als .gci (für Dolphin oder GameCube) und ein eigenes Touch-Layout als CubeEvil4-touch-layout.json. Der Import holt beides zurück.</string>
     <string name="ingame_card_busy">Die Karte wird gerade benutzt (das Spiel speichert oder lädt) oder das Spiel lädt noch – Menü schließen und gleich noch einmal öffnen.</string>
     <string name="ingame_card_none">Keine Speicherkarte.</string>
-    <string name="ingame_export">Spielstände exportieren (.gci)</string>
-    <string name="ingame_import">Spielstände importieren (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Spieldaten exportieren (.gci)</string>
+    <string name="ingame_import">Spieldaten importieren (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">Für eine andere Version: Das Spiel endet, und du importierst ihre beiden Discs auf dem Startbildschirm. Spielstände, Speicherkarte und Einstellungen bleiben erhalten.</string>
     <string name="ingame_import_discs">Andere Discs importieren</string>
@@ -133,6 +133,11 @@
         <item quantity="one">%1$d Datei exportiert.</item>
         <item quantity="other">%1$d Dateien exportiert.</item>
     </plurals>
+    <string name="ingame_exported_touch">Dein Touch-Layout auch: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d Bedienelement lag teils außerhalb dieses Bildschirms und wurde hereingerückt.</item>
+        <item quantity="other">%1$d Bedienelemente lagen teils außerhalb dieses Bildschirms und wurden hereingerückt.</item>
+    </plurals>
     <string name="ingame_imported">Importiert: %1$s</string>
     <string name="ingame_import_no_space">Kein Platz auf der Karte für %1$s</string>
     <string name="ingame_import_busy">Das Spiel benutzt die Karte: %1$s</string>
@@ -141,6 +146,10 @@
     <string name="ingame_import_exists">%1$s ist schon auf der Karte. Ersetzen?</string>
     <string name="ingame_replace">Ersetzen</string>
     <string name="ingame_skip">Überspringen</string>
+    <string name="ingame_touch_import_exists">Du hast schon ein eigenes Touch-Layout. Durch das importierte ersetzen?</string>
+    <string name="ingame_touch_imported">Touch-Layout importiert: gilt ab sofort.</string>
+    <string name="ingame_touch_skipped">Touch-Layout übersprungen: deins bleibt.</string>
+    <string name="ingame_touch_import_bad">Touch-Layout nicht importiert: %1$s</string>
     <string name="ingame_report_chooser">Fehlerbericht senden</string>
     <string name="ingame_report_failed">Der Bericht konnte nicht erstellt werden: %1$s</string>
     <string name="ingame_capture_saved">Grafikaufnahme gespeichert</string>
@@ -195,6 +204,8 @@
     <string name="ingame_psx">Retro-Pixel-Filter</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filter verändern das Aussehen des ganzen Bildes und lassen sich kombinieren.</string>
+    <string name="ingame_sharpen">Nachschärfen</string>
+    <string name="ingame_sharpen_help">Nachschärfen holt die Details der Texturen zurück, die beim Vergrößern auf den Bildschirm weich werden (vor allem in den breiten Bildformaten). Filme bleiben, wie sie sind.</string>
     <string name="ingame_frame_skip_help">Überspringt bei ruckelnder Grafik ein Bild, damit das Spiel nicht in Zeitlupe läuft. Es werden weniger Bilder gezeigt, nichts wird langsamer.</string>
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
     <string name="ingame_merge_help">Fasst mehrere Objekte zu einem Aufruf an den Grafiktreiber zusammen. Kann Handys mit langsamem Grafiktreiber helfen (z. B. Mali-GPUs) und auf anderen etwas kosten. Wirkt nicht, solange 60 FPS an ist.</string>
@@ -233,6 +244,8 @@
     <string name="ingame_cheat_queued">Wird erledigt, sobald das Spiel läuft.</string>
     <string name="ingame_cheat_unsupported">Dieser Spielkern hat keine Cheats.</string>
     <string name="ingame_cheat_qte">Automatische QTEs</string>
+    <string name="ingame_cheat_random_items">Zufällige Gegenstände</string>
+    <string name="ingame_cheat_random_items_help">Zufällige Gegenstände: Die Gegenstände, die in den Räumen der Story liegen (Munition, Kräuter und andere Heilmittel, Granaten, Peseten, Schätze), werden ab dann in jedem Raum, den du betrittst, neu verteilt; ein Raum gibt immer dieselben Gegenstände, bis du den Schalter aus- und wieder einschaltest. Schlüssel, Waffen, Dokumente und andere Story-Gegenstände bleiben, wie sie sind, das Spiel ist also immer schaffbar. Schon Aufgehobenes bleibt aufgehoben; Gegner, Fässer und Kisten behalten ihre eigene Beute. Nicht in Assignment Ada und The Mercenaries.</string>
     <string name="ingame_cheat_extras">Extra-Spiele freischalten</string>
     <string name="ingame_cheat_extras_text">Assignment Ada und The Mercenaries sind freigeschaltet (dazu Professional, wie nach dem Durchspielen). Das Titelmenü zeigt sie nach einem Neustart. Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="ingame_cheat_extras_later">Freigeschaltet: Assignment Ada und The Mercenaries stehen nach dem nächsten Neustart im Titelmenü.</string>
@@ -244,6 +257,13 @@
     <string name="ingame_later">Später</string>
     <string name="ingame_controller_config">Tastenbelegung</string>
     <string name="ingame_controller_config_help">Tastenbelegung: jede Aktion des Spiels auf Tasten deines Controllers oder deiner Tastatur legen.</string>
+    <string name="ingame_stick_dead_zone">Stick-Totzone</string>
+    <string name="ingame_stick_range">Stick-Reichweite</string>
+    <string name="ingame_stick_help">Stick-Totzone: Kleine Bewegungen eines Controller-Sticks um die Mitte werden ignoriert (für einen Stick, der von selbst wandert oder zittert). Stick-Reichweite: So weit gedrückt zählt der Stick schon als ganz gedrückt, damit Leon auch mit einem Stick, der nicht bis zum Rand kommt, sicher geht, läuft und sich dreht. Die Standardwerte lassen die Sticks, wie sie sind. Die Touch-Steuerung ist davon nicht betroffen.</string>
+    <string name="ingame_vibration">Vibration</string>
+    <string name="ingame_vibration_device">Gerät</string>
+    <string name="ingame_vibration_controller">Controller</string>
+    <string name="ingame_vibration_help">Wo du die Vibration des Spiels spürst. Auto: in einem verbundenen Controller mit eigenen Motoren (ab Android 12), sonst in diesem Handy oder Handheld. Gerät: immer in diesem Handy oder Handheld. Controller: nur im Controller (nichts, wenn er keine Motoren hat; vor Android 12 im Gerät). Aus: keine Vibration. Die Spieloption „Vibration“ kann sie weiterhin ausschalten.</string>
     <string name="ingame_controller_default">Standardbelegung</string>
     <string name="ingame_controller_help">Wähle eine Aktion, dann drücke ihre Taste. Eine Aktion aus zwei Tasten (Feuern, Nachladen, Messerhieb) fragt erst nach der Taste zum Halten, dann nach der zweiten. Hatte eine andere Aktion die Taste, bekommt sie die alte Taste. In den Menüs des Spiels gilt die Standardbelegung; seine Hinweise zeigen weiter die GameCube-Tasten.</string>
     <string name="ingame_controller_alternate_note">Die alternative Steuerung ist an: sie behält ihre eigene Belegung; diese gilt, sobald sie aus ist.</string>

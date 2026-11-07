@@ -68,4 +68,41 @@ public class SaveImportTest {
       assertTrue(e.getMessage().contains("ZIP"));
     }
   }
+
+  // the touch layout of an export (TouchLayoutFile; wish of the project owner, 07.11.2026)
+  private static final byte[] TOUCH = ("{\n  \"" + TouchLayoutFile.MARK + "\": 1,\n  \"layout\": {}\n}")
+      .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+  @Test public void aTouchLayoutAlone() {
+    List<byte[]> touch = new java.util.ArrayList<>();
+    StringBuilder log = new StringBuilder();
+    assertTrue(SaveImport.files(TOUCH, log, touch).isEmpty());
+    assertEquals(1, touch.size());
+    assertSame(TOUCH, touch.get(0));
+    assertEquals("touch layout file", log.toString());
+  }
+
+  @Test public void aTouchLayoutInAnExportZip() throws IOException {
+    List<byte[]> touch = new java.util.ArrayList<>();
+    StringBuilder log = new StringBuilder();
+    List<byte[]> f = SaveImport.files(zip("export/08-G4BP-bh4_data00.gci", gci("bh4_data00"),
+        "export/" + TouchLayoutFile.NAME, TOUCH), log, touch);
+    assertEquals(1, f.size());
+    assertEquals(1, touch.size());
+    assertTrue(log.toString(), log.toString().contains("1 touch layouts, 0 other files left out"));
+    // a ZIP of the layout alone is no error when the caller takes layouts
+    assertTrue(SaveImport.files(zip(TouchLayoutFile.NAME, TOUCH), new StringBuilder(), touch).isEmpty());
+    assertEquals(2, touch.size());
+  }
+
+  @Test public void withoutTheListTheLayoutIsNoSave() throws IOException {
+    try {
+      SaveImport.files(zip(TouchLayoutFile.NAME, TOUCH), new StringBuilder());
+      fail();
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("ZIP"));
+    }
+    // any other JSON is no touch layout
+    assertFalse(TouchLayoutFile.is("{\"format\": 2}".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  }
 }

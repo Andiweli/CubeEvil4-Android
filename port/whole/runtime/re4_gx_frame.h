@@ -214,7 +214,10 @@ enum Re4GxChunkFlags {
                                      of this picture was drawn for the screen's
                                      wider aspect (re4_gx_wide); the app shows it
                                      over the whole screen, else in a 16:9 box */
-    RE4_GX_CHUNK_DRAWLESS = 1u << 7 /* the OUYA branch (re4_gx_set_drawless): the core
+    RE4_GX_CHUNK_MOVIE = 1u << 7, /* a movie plays (re4_gx_movie, 0.99.2): the
+                                     app's "Sharpen" leaves its pictures as they
+                                     are (the blocks of the compression) */
+    RE4_GX_CHUNK_DRAWLESS = 1u << 8 /* the OUYA branch (re4_gx_set_drawless): the core
                                      left this chunk's draws out, its state, textures
                                      and copies are there; the renderer runs it as
                                      state only and never shows it */

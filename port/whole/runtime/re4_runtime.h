@@ -327,6 +327,9 @@ void re4_gx_mark(void);
  * now on carry RE4_GX_CHUNK_STILL (runtime/gx_decode.cpp). Set every frame by
  * runtime/picture.cpp (sub screens, the memory card screens). */
 void re4_gx_still(int on);
+/* A movie plays (1) or not (0): the chunks closed from now on carry RE4_GX_CHUNK_MOVIE (runtime/gx_decode.cpp).
+ * Set every frame by runtime/picture.cpp (re4_movie_playing). */
+void re4_gx_movie(int on);
 /* The picture format "Native" (runtime/picture.cpp, patch 0214): the camera's projection was loaded wide (1) or
  * as the game's 4:3 (0); the first call after a display copy decides the chunk's RE4_GX_CHUNK_WIDE.
  * re4_gx_wide_now: that decision so far, -1 none yet in this chunk. */

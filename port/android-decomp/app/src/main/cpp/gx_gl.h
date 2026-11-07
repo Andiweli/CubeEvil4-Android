@@ -38,6 +38,7 @@ struct GxStats {
   unsigned heldCopies = 0;       // of them not shown: the VI kept the picture before (RE4_GX_CHUNK_HOLD)
   unsigned skippedChunks = 0;    // chunks run without drawing (Frame skip): state and textures only
   unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
+  unsigned sharpenPasses = 0;    // display copies sharpened (SetSharpen)
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
   unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
@@ -238,6 +239,13 @@ public:
   // Xfb() and Present show that. Works with or without MSAA and at any resolution; takes effect with
   // the next display copy. Costs one pass over the XFB per picture (the in-between pictures too).
   void SetFxaa(bool on);
+  // Sharpen (wish of the project owner, 08.11.2026; 0 off, 1 light, 2 strong): while on, every display copy goes
+  // through one more pass after FXAA (before the PSone demake's), a contrast-adaptive sharpening of the finished
+  // picture at the game's resolution (five reads a texel; the rows outside the shown ones are copied as they are)
+  // into a texture of its own, and Xfb() and Present show that: the 16:9 formats show 336 of the 448 rows enlarged
+  // to the screen's height, which blurs the textures. Not for a movie's pictures (RE4_GX_CHUNK_MOVIE). Takes
+  // effect with the next display copy; costs one pass over the XFB per picture (the in-between pictures too).
+  void SetSharpen(int level);
   // Original TV filter (wish of the project owner, 01.11.2026): the display copies take the vertical
   // taps of the game's copy filter (GXSetCopyFilter, BP 0x53/0x54: the line above, the line, the line
   // below; the deflicker filter of the TV picture) one original line apart at any resolution, as the

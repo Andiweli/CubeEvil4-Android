@@ -29,10 +29,21 @@
 // patch 0137) and the texture matrices / TEV colours blended (60fps-plan.md S0-S3).
 // RE4_GX_NO_OWNERS=1: the owner tags left out (the counter-check: the in-between pictures as before).
 //
+// RE4_GX_SHARPEN=1 (light) or 2 (strong), RE4_GX_FXAA=1, RE4_GX_TV_FILTER=1: the app menu's switches
+// (GxRenderer::SetSharpen, SetFxaa, SetTvFilter; RE4_GX_SHARPEN_AMOUNT=A,B the strengths of light and strong).
+// A movie's pictures (RE4_GX_CHUNK_MOVIE) say "Film" in their line; RE4_GX_SHARPEN_MOVIES=1 drops that flag (the
+// check whether sharpening would make the blocks of the movie's compression stand out).
+//
+// RE4_GX_SCREEN=WxH:FORMAT (the sharpening's comparisons, 08.11.2026): each picture also as the app's screen of
+// W x H pixels shows it in the menu's picture format (0 "16:9", 1 "4:3 (GC)", 2 "Stretched", 3 "4:3", 5 "Native";
+// the rows shown and the boxes of core_mode.cpp drawGx, minimap_view.h) as OUTPUT_DIR/<name>-screen.ppm. Native
+// wider than 16:9 needs the core's wide pictures (RE4_VIEW_ASPECT=0.75 x W/H, e.g. 1.6667 for 20:9).
+//
 // RE4_GX_WORK=1: the GL work of each picture and the render thread's time by kind; with RE4_GX_MERGE=1
 // draws in a row that differ only in their matrices are merged into one draw call (GxRenderer::SetMerge):
 // the pictures must stay the same.
 #include "gx_gl.h"
+#include "minimap_view.h"
 #include "re4_gx_frame_io.h"
 
 #include <EGL/egl.h>
@@ -122,6 +133,17 @@ int main(int argc, char **argv) {
   // RE4_GX_TIME=1: the wall time of each picture (Run with glFinish) and of a rescale, in ms (the cost of a step
   // of "Dynamic", 06.11.2026)
   const bool timed = std::getenv("RE4_GX_TIME") && *std::getenv("RE4_GX_TIME") == '1';
+  int screenW = 0, screenH = 0, screenFormat = 0;
+  if (const char *screen = std::getenv("RE4_GX_SCREEN"))
+    if (std::sscanf(screen, "%dx%d:%d", &screenW, &screenH, &screenFormat) != 3 || screenW < 16 || screenH < 16)
+      screenW = screenH = 0;
+  GLuint screenFbo = 0, screenTex = 0;
+  if (screenW > 0) {
+    glGenTextures(1, &screenTex);
+    glBindTexture(GL_TEXTURE_2D, screenTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glGenFramebuffers(1, &screenFbo);
+  }
   for (int i = 2; i < argc; i++) {
     const std::string path = argv[i];
     auto loadedHere = std::make_unique<re4gxio::Loaded>();
@@ -181,6 +203,23 @@ int main(int argc, char **argv) {
       // RE4_GX_PSX=1: the PSone demake as the app's switch sets it (GxRenderer::SetPsx)
       const char *psx = std::getenv("RE4_GX_PSX");
       renderer->SetPsx(psx && *psx == '1');
+      const char *sharpen = std::getenv("RE4_GX_SHARPEN");
+      renderer->SetSharpen(sharpen ? std::atoi(sharpen) : 0);
+      const char *fxaa = std::getenv("RE4_GX_FXAA");
+      renderer->SetFxaa(fxaa && *fxaa == '1');
+      const char *tv = std::getenv("RE4_GX_TV_FILTER");
+      renderer->SetTvFilter(tv && *tv == '1');
+      // the rows the format shows and its widening, as drawGx sets them before each picture
+      if (screenW > 0) {
+        if (screenFormat == 5) {
+          const re4mm::NativeView v = re4mm::Native(screenW, screenH, false);
+          renderer->SetShownRows(v.top, v.top + v.rows);
+        } else {
+          const bool crop = screenFormat == 0 || screenFormat == 2;
+          renderer->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
+        }
+        renderer->SetWiden(screenFormat == 3 ? 15.0f / 14.0f : 1.0f);
+      }
       renderer->SetRecording(interp);
       std::string error;
       if (!renderer->InitHalves(halves, &error)) {
@@ -238,6 +277,10 @@ int main(int argc, char **argv) {
     const bool held = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
     if (!follows)
       chunk.flags &= ~RE4_GX_CHUNK_HOLD;
+    const bool movie = (chunk.flags & RE4_GX_CHUNK_MOVIE) != 0;
+    if (const char *sharpenMovies = std::getenv("RE4_GX_SHARPEN_MOVIES"))
+      if (*sharpenMovies == '1')
+        chunk.flags &= ~RE4_GX_CHUNK_MOVIE;
     if (interp && follows && previous) {
       const re4gx::GxStats was = renderer->Stats();
       const bool shown = renderer->Interpolate(previous->chunk, chunk, interpT);
@@ -311,8 +354,8 @@ int main(int argc, char **argv) {
     unsigned w = 0, h = 0;
     const GLuint xfb = renderer->Xfb(&w, &h);
     const re4gx::GxStats &s = renderer->Stats();
-    std::printf("%s (Bild %u%s): %ux%u, %u Zeichenaufträge, %u Dreiecke, %u Texturen, %u Kopien, %u Shader%s%s%s%s\n",
-                Stem(path).c_str(), loaded.frame, follows ? ", Folgebild" : "", w, h, s.draws - before.draws,
+    std::printf("%s (Bild %u%s%s): %ux%u, %u Zeichenaufträge, %u Dreiecke, %u Texturen, %u Kopien, %u Shader%s%s%s%s\n",
+                Stem(path).c_str(), loaded.frame, follows ? ", Folgebild" : "", movie ? ", Film" : "", w, h, s.draws - before.draws,
                 s.triangles - before.triangles, s.textures - before.textures, s.textureCopies - before.textureCopies,
                 s.programs, s.autofocus > before.autofocus ? ", Autofokus" : "",
                 s.efbRestores > before.efbRestores ? (", EFB " + std::to_string(s.efbRestores - before.efbRestores) +
@@ -395,6 +438,39 @@ int main(int argc, char **argv) {
         for (unsigned y = 0; y < h; y++)
           for (unsigned x = 0; x < w; x++)
             std::fwrite(&rgba[(static_cast<std::size_t>(y) * w + x) * 4], 1, 3, p);
+        std::fclose(p);
+      }
+    }
+    // the screen as drawGx (core_mode.cpp) fills it: the box of the format, the rows it shows
+    if (xfb && screenW > 0 && !held) {
+      unsigned xw = 0, xh = 0;
+      renderer->Xfb(&xw, &xh);
+      glBindFramebuffer(GL_FRAMEBUFFER, screenFbo);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTex, 0);
+      glViewport(0, 0, screenW, screenH);
+      glDisable(GL_SCISSOR_TEST);
+      glClearColor(0, 0, 0, 1);
+      glClear(GL_COLOR_BUFFER_BIT);
+      re4mm::Rect hud, pic;
+      re4mm::PictureRects(screenFormat, screenW, screenH, static_cast<int>(xh), &hud, &pic, renderer->XfbWide());
+      if (screenFormat == 5) {
+        const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
+        renderer->Present(pic.x, pic.y, pic.w, pic.h, xh * static_cast<unsigned>(v.top) / 448,
+                          xh * static_cast<unsigned>(v.rows) / 448);
+      } else if (screenFormat == 0 || screenFormat == 2) {
+        renderer->Present(pic.x, pic.y, pic.w, pic.h, xh * 56 / 448, xh * 336 / 448);
+      } else {
+        renderer->Present(pic.x, pic.y, pic.w, pic.h);
+      }
+      std::vector<unsigned char> rgba(static_cast<std::size_t>(screenW) * screenH * 4);
+      glBindFramebuffer(GL_FRAMEBUFFER, screenFbo);
+      glReadPixels(0, 0, screenW, screenH, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+      const std::string file = out + "/" + Stem(path) + "-screen.ppm";
+      if (FILE *p = std::fopen(file.c_str(), "wb")) {
+        std::fprintf(p, "P6\n%d %d\n255\n", screenW, screenH);
+        for (int y = screenH - 1; y >= 0; y--)  // the screen's rows go bottom up
+          for (int x = 0; x < screenW; x++)
+            std::fwrite(&rgba[(static_cast<std::size_t>(y) * screenW + x) * 4], 1, 3, p);
         std::fclose(p);
       }
     }

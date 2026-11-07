@@ -505,7 +505,59 @@ public final class CoreInputTests {
       kb.keyboardKey(5, keyShift, true);
       check(kb.pad()[0] == (CoreInput.GC_A | CoreInput.GC_B));
     }
+    // the menu's stick dead zone and range (0.99.2, issue #168): the defaults leave every value as it was
+    {
+      CoreInput plain = new CoreInput(), shaped = new CoreInput();
+      shaped.setStickShape(0, 100);
+      for (float x = -1f; x <= 1f; x += 0.05f) {
+        for (float y = -1f; y <= 1f; y += 0.05f) {
+          plain.motion(1, x, y, -y, x, 0, 0, 0, 0);
+          shaped.motion(1, x, y, -y, x, 0, 0, 0, 0);
+          check(java.util.Arrays.equals(plain.pad(), shaped.pad()));
+        }
+      }
+      // a square controller's corner as before as well
+      plain.motion(1, 1f, -1f, 0, 0, 0, 0, 0, 0);
+      check(plain.pad()[1] == 101 && plain.pad()[2] == 101);
+      // the dead zone is round: 0.1 each way (0.14 from the centre) is at rest with 15 %, a diagonal past it keeps
+      // its direction
+      CoreInput dz = new CoreInput();
+      dz.setStickShape(15, 100);
+      dz.motion(1, 0.1f, 0.1f, 0, 0, 0, 0, 0, 0);
+      check(dz.pad()[1] == 0 && dz.pad()[2] == 0);
+      dz.motion(1, 0.5f, -0.5f, 0, 0, 0, 0, 0, 0);
+      int[] d = dz.pad();
+      check(d[1] == d[2] && d[1] > 0);
+      // full deflection stays full
+      dz.motion(1, 0f, -1f, 0, 0, 0, 0, 0, 0);
+      check(dz.pad()[2] == 101);
+      // the range: a stick that reaches only 60 % of its way passes the walking threshold (game: 30 of 72 after
+      // the clamp) with a range of 70 %, not without; at 70 % it counts as pushed all the way
+      int[] short60 = stick(0f, -0.6f);
+      CoreInput rg = new CoreInput();
+      rg.setStickShape(0, 70);
+      rg.motion(1, 0f, -0.6f, 0, 0, 0, 0, 0, 0);
+      int[] longer = rg.pad();
+      check(mainStick(longer)[1] > mainStick(short60)[1]);
+      rg.motion(1, 0f, -0.7f, 0, 0, 0, 0, 0, 0);
+      check(rg.pad()[2] == 101 && mainStick(rg.pad())[1] == 72);
+      // a half-pushed stick at 45 degrees with the range: the diagonal is kept (no tilt to one axis)
+      rg.motion(1, 0.3f, -0.3f, 0, 0, 0, 0, 0, 0);
+      check(rg.pad()[1] == rg.pad()[2]);
+      // the right stick too, the triggers not
+      rg.motion(1, 0, 0, 0.7f, 0, 0.5f, 0, 0, 0);
+      check(rg.pad()[3] == 92 && rg.pad()[5] == Math.round(0.5f * 255f));
+      // out of range settings fall back: dead zone at most 30, a range below 50 or above 100 is 100
+      CoreInput bad = new CoreInput();
+      bad.setStickShape(80, 20);
+      check(bad.deadZone() == CoreInput.DEAD_ZONE_MAX && bad.range() == 100);
+      // the touch controls' sticks are not shaped
+      CoreInput touch = new CoreInput();
+      touch.setStickShape(30, 50);
+      touch.touchStick(false, 0.2f, 0f);
+      check(touch.pad()[1] == Math.round(0.2f * 101f));
+    }
     System.out.println("Core controller: layout, swap, alternate controls, free keys, sticks and triggers through "
-        + "PADClamp, devices, button mapping, keyboard: " + checks + " checks PASS");
+        + "PADClamp, devices, button mapping, keyboard, stick dead zone and range: " + checks + " checks PASS");
   }
 }

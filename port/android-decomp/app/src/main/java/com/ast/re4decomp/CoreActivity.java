@@ -26,6 +26,7 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.os.CombinedVibration;
 import android.provider.DocumentsContract;
 import android.util.Log;
 import android.view.Choreographer;
@@ -122,6 +123,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // project owner, 30.10.2026; CoreBridge.setAim: the game's own "reverse" option and the stick's turn while
   // aiming, the touch area's swipes too; off, 1 = as the game)
   static final String AIM_INVERT_V = "aimInvertVertical", AIM_SPEED = "aimSpeed";
+  // the menu's "Stick dead zone" and "Stick range" of the controller sticks in percent (wish of the project owner,
+  // 07.11.2026, GitHub issue #168; CoreInput.setStickShape: 0 and 100, the defaults, leave the sticks as they are)
+  // and "Vibration" (RumbleTarget: 0 Auto, 1 Device, 2 Controller, 3 Off)
+  static final String STICK_DEAD_ZONE = "stickDeadZone", STICK_RANGE = "stickRange", VIBRATION = "vibration";
   // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
   // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
@@ -153,6 +158,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final ControllerLog controllerLog = new ControllerLog();
   /** How long a controller's input took from Android to the app (InputDelay), for the error log. */
   private final InputDelay inputDelay = new InputDelay();
+  // the main stick as the game reads it for walking, a line every 30 s of use (StickWatch; report of 07.11.2026)
+  private final StickWatch stickWatch = new StickWatch();
   private GLSurfaceView surface;
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
@@ -170,6 +177,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
   private final List<byte[]> pendingImports = new ArrayList<>();
+  // the touch layout file the chosen files hold (TouchLayoutFile), after the .gci files
+  private byte[] pendingTouch;
   // (read by the picture's beat on its own thread too)
   private volatile boolean resumed;
   // GPU step c: the picture drawn at each vsync or, on a faster screen, at every n-th
@@ -184,8 +193,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private int uiShownVsyncs;
   // the screen was asked for 60 Hz (preferSixtyHz): the surface too, once it exists
   private boolean askSixty;
-  // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator
+  // rumble: the game's motor (CoreBridge.rumble) on the device's vibrator or, since 0.99.2, a controller's motors
+  // (the menu's "Vibration", RumbleTarget; chooseRumble)
   private Vibrator vibrator;
+  private int rumbleMode, rumbleTarget, lastPad = -1;
+  private VibratorManager padMotors;  // the controller's motors while they are the target (Android 12 and later)
+  private boolean padAmplitude;
+  private String rumbleLine = "";
   /**
    * Each start of the motor by its level 1..4 (the game's motor in the last four frames): 190 up to
    * 310 ms (120 until 27.10.2026, then 170: a shotgun still felt like a slingshot, device test).
@@ -273,6 +287,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // R3 saves graphics data with the test scripts (RE4_APP_TOOLS=1) or when the menu switched it on
     tools = settings.contains("RE4_APP_TOOLS=1") || inputPrefs.getBoolean(R3_CAPTURE, false);
     logLayout();
+    rumbleMode = RumbleTarget.clampMode(inputPrefs.getInt(VIBRATION, RumbleTarget.AUTO));
     setUpVibrator();
     // the volume buttons set the game's volume
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
@@ -334,6 +349,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
     alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
     aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
+    input.setStickShape(inputPrefs.getInt(STICK_DEAD_ZONE, 0), inputPrefs.getInt(STICK_RANGE, 100));
+    stickWatch.setShape(input.deadZone(), input.range());
+    if (input.deadZone() != 0 || input.range() != 100) {
+      Log.i(TAG, "sticks: dead zone " + input.deadZone() + " %, range " + input.range() + " %");
+    }
     // the mouse (step 2 of the button mapping, 29.10.2026): captured while the game is in front, its
     // buttons through the keyboard's mapping, its movement the camera and, while aiming, the aim
     if (Build.VERSION.SDK_INT >= 26) {
@@ -357,6 +377,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
       CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
+      CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setPsx(g.getBoolean("psx", false));
       CoreBridge.setFlares(g.getBoolean("flares", false));
@@ -865,6 +886,20 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
     }
 
+    @Override public void stickShapeChanged(int deadZone, int range) {
+      input.setStickShape(deadZone, range);
+      stickWatch.setShape(input.deadZone(), input.range());
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(STICK_DEAD_ZONE, input.deadZone())
+          .putInt(STICK_RANGE, input.range()).apply();
+      Log.i(TAG, "sticks: dead zone " + input.deadZone() + " %, range " + input.range() + " %");
+    }
+
+    @Override public void vibrationChanged(int mode) {
+      rumbleMode = RumbleTarget.clampMode(mode);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(VIBRATION, rumbleMode).apply();
+      chooseRumble("the menu");
+    }
+
     @Override public void aimSpeedChanged(float value) {
       aimSpeed = clampAimSpeed(value);
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(AIM_SPEED, aimSpeed).apply();
@@ -892,7 +927,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
       Log.i(TAG, "cheats: " + bits + " (1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 extra games kept, player type "
           + ((bits & CoreMenu.CHARACTER_BITS) >> CoreMenu.CHARACTER_SHIFT)
-          + ((bits & CoreMenu.COSTUME_BIT) != 0 ? ", special costume" : "") + ")");
+          + ((bits & CoreMenu.COSTUME_BIT) != 0 ? ", special costume" : "")
+          + ((bits & CoreMenu.INVISIBLE_BIT) != 0 ? ", invisibility" : "")
+          + ((bits & CoreMenu.RANDOM_ITEMS_BIT) != 0 ? ", random items with seed "
+              + ((bits & CoreMenu.SEED_BITS) >>> CoreMenu.SEED_SHIFT) : "") + ")");
       CoreBridge.setCheats(bits);
     }
 
@@ -1042,6 +1080,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         exportAllInto(data.getData());
       } else if (request == REQUEST_IMPORT) {
         pendingImports.clear();
+        pendingTouch = null;
         if (data.getClipData() != null) {
           for (int i = 0; i < data.getClipData().getItemCount(); i++) readImport(data.getClipData().getItemAt(i).getUri());
         } else if (data.getData() != null) {
@@ -1069,6 +1108,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return;
     }
     Uri folder = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
+    // the player's own touch layout as a file of its own (wish of the project owner, 07.11.2026); none: nothing
+    int[] screen = touchScreen();
+    byte[] touchFile = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), screen[0], screen[1],
+        appVersion());
     int done = 0;
     StringBuilder problems = new StringBuilder();
     for (String row : rows) {
@@ -1087,8 +1130,44 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       done++;
     }
+    String touchLine = "";
+    if (touchFile != null) {
+      Uri file = DocumentsContract.createDocument(getContentResolver(), folder, "application/json", TouchLayoutFile.NAME);
+      if (file == null) throw new IOException(TouchLayoutFile.NAME);
+      try (OutputStream out = getContentResolver().openOutputStream(file)) {
+        if (out == null) throw new IOException(TouchLayoutFile.NAME);
+        out.write(touchFile);
+      }
+      touchLine = "\n" + getString(R.string.ingame_exported_touch, TouchLayoutFile.NAME);
+      Log.i(TAG, "export: the touch layout too (" + touchFile.length + " bytes, screen " + screen[0] + "x" + screen[1] + ")");
+    }
     message(String.format(java.util.Locale.ROOT, getResources().getQuantityString(R.plurals.ingame_exported, done), done)
-        + problems);
+        + touchLine + problems);
+  }
+
+  /** RetroTouch's preferences (TouchLayoutFile.PREFS: the saved layout). */
+  private SharedPreferences touchPrefs() {
+    return getSharedPreferences(TouchLayoutFile.PREFS, Context.MODE_PRIVATE);
+  }
+
+  /** The touch controls' size in pixels (the window, else the display): what RetroTouch's parts refer to. */
+  private int[] touchScreen() {
+    View v = touchControls != null ? touchControls.view() : null;
+    if (v != null && v.getWidth() > 0 && v.getHeight() > 0) return new int[] {v.getWidth(), v.getHeight()};
+    View d = getWindow().getDecorView();
+    if (d.getWidth() > 0 && d.getHeight() > 0) return new int[] {d.getWidth(), d.getHeight()};
+    android.util.DisplayMetrics m = getResources().getDisplayMetrics();
+    return new int[] {m.widthPixels, m.heightPixels};
+  }
+
+  /** The app's version ("0.99.2-rc"), for the touch layout file. */
+  private String appVersion() {
+    try {
+      String v = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+      return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
+    } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+      return "";
+    }
   }
 
   private void readImport(Uri uri) throws IOException {
@@ -1097,7 +1176,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       // a .gci, a whole Dolphin card (.raw, .gcp) or a ZIP of either: the .gci files of this game
       StringBuilder found = new StringBuilder();
       try {
-        pendingImports.addAll(SaveImport.files(CoreLog.readAll(in), found));
+        List<byte[]> touch = new ArrayList<>();
+        pendingImports.addAll(SaveImport.files(CoreLog.readAll(in), found, touch));
+        if (!touch.isEmpty()) pendingTouch = touch.get(touch.size() - 1);
       } catch (IllegalArgumentException e) {
         throw new IOException(e.getMessage());
       }
@@ -1128,6 +1209,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The chosen .gci files one by one; a file already on the card is replaced only when asked. */
   private void importNext(StringBuilder report) {
     if (pendingImports.isEmpty()) {
+      if (pendingTouch != null) {
+        importTouch(report);
+        return;
+      }
       if (report.length() > 0) message(report.toString().trim());
       if (menu != null) menu.refreshCard();
       return;
@@ -1151,6 +1236,60 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     report.append(importText(r, name)).append('\n');
     importNext(report);
+  }
+
+  /**
+   * The touch layout of the import, after its .gci files: replaces the player's own only when asked; in use at once
+   * (TouchControls.reloadSaved), every control on this screen.
+   */
+  private void importTouch(StringBuilder report) {
+    byte[] file = pendingTouch;
+    pendingTouch = null;
+    TouchLayoutFile.Parsed parsed;
+    try {
+      parsed = TouchLayoutFile.parse(file);
+    } catch (IllegalArgumentException e) {
+      Log.i(TAG, "import: touch layout: " + e.getMessage());
+      report.append(getString(R.string.ingame_touch_import_bad, e.getMessage())).append('\n');
+      importNext(report);
+      return;
+    }
+    SharedPreferences prefs = touchPrefs();
+    String saved = TouchLayoutFile.saved(prefs);
+    if (TouchLayoutFile.ownSaved(prefs, TouchControls.defaultLayout()) && !TouchLayoutFile.same(saved, parsed.layout)) {
+      new AlertDialog.Builder(this)
+          .setMessage(R.string.ingame_touch_import_exists)
+          .setPositiveButton(R.string.ingame_replace, (d, w) -> {
+            applyTouch(parsed, report);
+            importNext(report);
+          })
+          .setNegativeButton(R.string.ingame_skip, (d, w) -> {
+            Log.i(TAG, "import: touch layout skipped (the player's own kept)");
+            report.append(getString(R.string.ingame_touch_skipped)).append('\n');
+            importNext(report);
+          })
+          .setCancelable(false).show();
+      return;
+    }
+    applyTouch(parsed, report);
+    importNext(report);
+  }
+
+  private void applyTouch(TouchLayoutFile.Parsed parsed, StringBuilder report) {
+    int[] screen = touchScreen();
+    try {
+      int moved = TouchLayoutFile.apply(touchPrefs(), parsed, screen[0], screen[1], getResources().getDisplayMetrics().density);
+      if (touchControls != null) touchControls.reloadSaved();
+      Log.i(TAG, "import: touch layout saved, " + moved + " controls moved onto the screen " + screen[0] + "x" + screen[1]);
+      report.append(getString(R.string.ingame_touch_imported)).append('\n');
+      if (moved > 0) {
+        report.append(String.format(java.util.Locale.ROOT,
+            getResources().getQuantityString(R.plurals.ingame_touch_moved, moved), moved)).append('\n');
+      }
+    } catch (IllegalArgumentException e) {
+      Log.i(TAG, "import: touch layout: " + e.getMessage());
+      report.append(getString(R.string.ingame_touch_import_bad, e.getMessage())).append('\n');
+    }
   }
 
   private String reportName() {
@@ -1279,6 +1418,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void send() {
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
+    String stick = stickWatch.sample(SystemClock.uptimeMillis(), p[1], p[2]);
+    if (stick != null) Log.i(TAG, stick);
     // swipe aiming (Touch Aiming: Touch Area): the finger's way since the last event as angles, with the
     // menu's "Aim speed" and "Invert vertical" as the sticks
     float[] turn = input.takeAimSwipe();
@@ -1453,6 +1594,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
       if (e.getRepeatCount() > 0) return true;  // held: nothing changes
       if (input.key(e.getDeviceId(), code, down)) {
+        if (down) padUsed(e.getDevice());
         inputDelay.button(e.getEventTime(), SystemClock.uptimeMillis());
         noteInputDelay(e.getDevice());
         if (down) {
@@ -1520,6 +1662,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (e.getAction() == MotionEvent.ACTION_MOVE && controller(e)) {
       InputDevice d = e.getDevice();
       noteDevice(d);
+      padUsed(d);
       // the right stick: Z/RZ on most Android controllers, RX/RY on others
       boolean zr = d != null && d.getMotionRange(MotionEvent.AXIS_Z, e.getSource()) != null
           && d.getMotionRange(MotionEvent.AXIS_RZ, e.getSource()) != null;
@@ -1628,6 +1771,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @Override public void onInputDeviceAdded(int id) { noteConnected(id); touchControls.update(); updateMouseCapture(); }
   @Override public void onInputDeviceChanged(int id) {
+    if (id == lastPad) chooseRumble("controller changed");
     input.remove(id);
     seenDevices.remove(id);
     controllerLog.forget(id);
@@ -1636,6 +1780,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.update();
   }
   @Override public void onInputDeviceRemoved(int id) {
+    if (id == lastPad) {
+      // its motors stop with it; the device's vibrator until another controller is used
+      lastPad = -1;
+      chooseRumble("controller removed");
+    }
     controllerLog.forget(id);
     input.remove(id);
     send();
@@ -1849,6 +1998,74 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     amplitudeControl = vibrator != null && Build.VERSION.SDK_INT >= 26 && vibrator.hasAmplitudeControl();
     Log.i(TAG, vibrator == null ? "rumble: no vibrator"
         : "rumble: vibrator" + (amplitudeControl ? " with amplitude control" : " (on/off only)"));
+    chooseRumble("start");
+  }
+
+  /** A controller's key or stick: when it is another one than before, the rumble's target may change. */
+  private void padUsed(InputDevice d) {
+    if (d == null || d.getId() == lastPad || !gameDevice(d)) return;
+    lastPad = d.getId();
+    chooseRumble("controller used");
+  }
+
+  /**
+   * The rumble's target by the menu's "Vibration" (RumbleTarget) and the controller used last; both vibrators
+   * stopped first, so none runs on after a change. Each new choice goes into the log: which vibrator, with or
+   * without amplitude control.
+   */
+  private void chooseRumble(String why) {
+    cancelBoth();
+    padMotors = null;
+    padAmplitude = false;
+    InputDevice d = lastPad >= 0 ? InputDevice.getDevice(lastPad) : null;
+    VibratorManager m = null;
+    int motors = 0;
+    boolean amplitude = true, external = false;
+    if (Build.VERSION.SDK_INT >= RumbleTarget.PAD_SDK && d != null) {
+      try {
+        m = d.getVibratorManager();
+        int[] ids = m.getVibratorIds();
+        motors = ids.length;
+        for (int id : ids) amplitude &= m.getVibrator(id).hasAmplitudeControl();
+        external = d.isExternal();
+      } catch (RuntimeException e) {
+        Log.w(TAG, "rumble: the controller's motors: " + e);
+        motors = 0;
+      }
+    }
+    rumbleTarget = RumbleTarget.choose(rumbleMode, Build.VERSION.SDK_INT, motors > 0, external, vibrator != null);
+    String line;
+    if (rumbleTarget == RumbleTarget.PAD) {
+      padMotors = m;
+      padAmplitude = amplitude;
+      line = "the controller \"" + d.getName() + "\" (" + motors + (motors == 1 ? " motor" : " motors")
+          + (amplitude ? ", with amplitude control)" : ", on/off only)");
+    } else if (rumbleTarget == RumbleTarget.PHONE) {
+      line = "this device's vibrator" + (amplitudeControl ? " with amplitude control" : " (on/off only)");
+      if (d != null) {
+        line += motors > 0 ? ", not the built-in controller's motors"
+            : Build.VERSION.SDK_INT < RumbleTarget.PAD_SDK ? ", a controller's motors need Android 12"
+            : ", \"" + d.getName() + "\" has no motors";
+      }
+    } else {
+      line = rumbleMode == RumbleTarget.OFF ? "none (switched off)"
+          : "none" + (d == null ? " (no controller used yet)" : ", \"" + d.getName() + "\" has no motors");
+    }
+    line = "rumble (" + RumbleTarget.modeName(rumbleMode) + "): " + line;
+    if (!line.equals(rumbleLine)) Log.i(TAG, line + " [" + why + "]");
+    rumbleLine = line;
+  }
+
+  /** Both vibrators stopped (a target change, the game paused or gone). */
+  private void cancelBoth() {
+    try {
+      if (vibrator != null) vibrator.cancel();
+      if (padMotors != null) padMotors.cancel();
+    } catch (RuntimeException e) {
+      Log.w(TAG, "rumble: cancel: " + e);
+    }
+    vibrating = false;
+    rumbleLevel = 0;
   }
 
   /**
@@ -1892,7 +2109,21 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @SuppressWarnings("deprecation")
   private void vibrate(int level) {
-    if (vibrator == null) return;
+    if (rumbleTarget == RumbleTarget.PAD && padMotors != null && Build.VERSION.SDK_INT >= RumbleTarget.PAD_SDK) {
+      // the controller's motors, all of them at once; without amplitude control at their default strength: the
+      // pulses' length carries the level, as on a phone without it
+      try {
+        int strength = padAmplitude ? 230 + 25 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
+        padMotors.vibrate(CombinedVibration.createParallel(VibrationEffect.createOneShot(rumblePulseMs(level), strength)),
+            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
+      } catch (RuntimeException e) {
+        Log.w(TAG, "rumble: the controller: " + e);
+        padMotors = null;
+        rumbleTarget = RumbleTarget.NONE;
+      }
+      return;
+    }
+    if (rumbleTarget != RumbleTarget.PHONE || vibrator == null) return;
     try {
       if (Build.VERSION.SDK_INT >= 26) {
         // a quarter of the game's motor already clearly felt (70 was too weak on the Retroid; 150 and
@@ -1914,7 +2145,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void stopVibrator() {
-    if (vibrating && vibrator != null) vibrator.cancel();
+    // both, the device's and a controller's (0.99.2)
+    if (vibrating) cancelBoth();
     vibrating = false;
     rumbleLevel = 0;
   }

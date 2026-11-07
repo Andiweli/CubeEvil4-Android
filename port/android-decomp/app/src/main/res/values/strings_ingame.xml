@@ -100,11 +100,11 @@
 
     <!-- Memory card -->
     <string name="ingame_card">Memory card (slot A)</string>
-    <string name="ingame_card_help">Export and Import Savegames as .gci (for Dolphin or GameCube).</string>
+    <string name="ingame_card_help">Export and Import Player Data: your saves as .gci (for Dolphin or GameCube) and a touch layout of your own as CubeEvil4-touch-layout.json. The import brings both back.</string>
     <string name="ingame_card_busy">The card is in use (the game saves or loads) or the game is still loading – close the menu and open it again in a moment.</string>
     <string name="ingame_card_none">No memory card.</string>
-    <string name="ingame_export">Export Savegames (.gci)</string>
-    <string name="ingame_import">Import Savegames (.gci, .zip, .raw)</string>
+    <string name="ingame_export">Export Player Data (.gci)</string>
+    <string name="ingame_import">Import Player Data (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">To play another version: the game ends, and you import both of its discs on the start screen. Saves, memory card and settings stay.</string>
     <string name="ingame_import_discs">Import other discs</string>
@@ -148,6 +148,11 @@
         <item quantity="one">%1$d file exported.</item>
         <item quantity="other">%1$d files exported.</item>
     </plurals>
+    <string name="ingame_exported_touch">Your touch layout too: %1$s</string>
+    <plurals name="ingame_touch_moved">
+        <item quantity="one">%1$d control was partly off this screen and was moved onto it.</item>
+        <item quantity="other">%1$d controls were partly off this screen and were moved onto it.</item>
+    </plurals>
     <string name="ingame_imported">Imported: %1$s</string>
     <string name="ingame_import_no_space">No space on the card for %1$s</string>
     <string name="ingame_import_busy">The game uses the card: %1$s</string>
@@ -156,6 +161,10 @@
     <string name="ingame_import_exists">%1$s is on the card already. Replace it?</string>
     <string name="ingame_replace">Replace</string>
     <string name="ingame_skip">Skip</string>
+    <string name="ingame_touch_import_exists">You have a touch layout of your own already. Replace it with the imported one?</string>
+    <string name="ingame_touch_imported">Touch layout imported: in use right away.</string>
+    <string name="ingame_touch_skipped">Touch layout skipped: yours stays.</string>
+    <string name="ingame_touch_import_bad">Touch layout not imported: %1$s</string>
     <string name="ingame_report_chooser">Send the error report</string>
     <string name="ingame_report_failed">The report could not be made: %1$s</string>
     <string name="ingame_capture_saved">Graphics capture saved</string>
@@ -210,6 +219,8 @@
     <string name="ingame_psx">Retro pixel filter</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filters change the look of the whole picture and can be combined.</string>
+    <string name="ingame_sharpen">Sharpen</string>
+    <string name="ingame_sharpen_help">Sharpen brings back the detail of textures that gets soft when the picture is enlarged to the screen (mostly in the wide picture formats). Movies stay as they are.</string>
     <string name="ingame_frame_skip_help">While the graphics lag, skips a picture so the game keeps its normal speed. Fewer pictures are shown, nothing is slowed down.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow graphics driver (e.g. Mali GPUs) and may cost a little on others. No effect while 60 FPS is on.</string>
@@ -248,6 +259,8 @@
     <string name="ingame_cheat_queued">Will be done as soon as the game runs.</string>
     <string name="ingame_cheat_unsupported">This game core has no cheats.</string>
     <string name="ingame_cheat_qte">Automatic QTEs</string>
+    <string name="ingame_cheat_random_items">Random items</string>
+    <string name="ingame_cheat_random_items_help">Random items: the items lying in the story\'s rooms (ammo, herbs and other recovery items, grenades, pesetas, treasures) are dealt anew in every room you enter from then on, and a room always gives the same items until you switch this off and on again. Keys, weapons, files and other story items stay as they are, so the game can always be finished. Items you already picked up stay picked up; enemies, barrels and boxes keep their own drops. Not in Assignment Ada and The Mercenaries.</string>
     <string name="ingame_cheat_extras">Unlock extra games</string>
     <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
@@ -259,6 +272,13 @@
     <string name="ingame_later">Later</string>
     <string name="ingame_controller_config">Button Mapping</string>
     <string name="ingame_controller_config_help">Button Mapping: put every action of the game on keys of your controller or keyboard.</string>
+    <string name="ingame_stick_dead_zone">Stick dead zone</string>
+    <string name="ingame_stick_range">Stick range</string>
+    <string name="ingame_stick_help">Stick dead zone: small movements of a controller stick around its centre are ignored (for a stick that drifts or trembles). Stick range: a stick pushed this far already counts as pushed all the way, so Leon walks, runs and turns reliably even if your stick does not reach its edge. The defaults leave the sticks as they are. The touch controls are not affected.</string>
+    <string name="ingame_vibration">Vibration</string>
+    <string name="ingame_vibration_device">Device</string>
+    <string name="ingame_vibration_controller">Controller</string>
+    <string name="ingame_vibration_help">Where you feel the game\'s vibration. Auto: in a connected controller that has its own motors (Android 12 and later), otherwise in this phone or handheld. Device: always in this phone or handheld. Controller: only in the controller (nothing if it has no motors; before Android 12 in this device). Off: no vibration. The game\'s own option Vibration can still switch it off.</string>
     <string name="ingame_controller_default">Default Layout</string>
     <string name="ingame_controller_help">Choose an action, then press its key. An action of two keys (fire, reload, slash) asks for the key to hold first, then the second. A key another action had goes to that one\'s old key. The game\'s menus keep the default; its prompts still show the GameCube buttons.</string>
     <string name="ingame_controller_alternate_note">Alternate Controls are on: they keep their own layout; this one applies once they are off.</string>

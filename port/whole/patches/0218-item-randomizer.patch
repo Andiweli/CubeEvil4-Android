@@ -1,0 +1,28 @@
+# Port patch, wish of the project owner (07.11.2026, GitHub issue #161): the cheat "Random items" of the app's cheat
+# menu deals the items lying in the story's rooms anew (runtime/cheats.cpp re4_item_random). The game sets an item
+# area up in sceAtSetItem; its first call in a room comes after the room's item models (the ITM block) are loaded
+# and before any of its item areas made a model, so the hook here sees the room's ITA records once, untouched, and
+# changes what it may there (item id and count of records lying free in the room: no enemy, barrel or box holds
+# them, no flag of the game's own random drops, no key, file, weapon or part). Only to an item whose model the
+# room has. With the cheat off nothing changes; the next room is read from the disc again.
+--- a/src/game/sce_at.cpp
++++ b/src/game/sce_at.cpp
+@@ -54,6 +54,8 @@
+ 
+ /* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
+ extern "C" int re4_story_char_costume(void);
++/* port (patch 0218): the cheat "Random items" (runtime/cheats.cpp) */
++extern "C" void re4_item_random(SCE_AT_ITEM* w, void* head, SCE_AT_DATA* work);
+ 
+ // Scenario trigger areas: the room's AEV (areas) and ITA (items) records plus the areas created at
+ // run time, checked against the player, the partner and the enemies every frame. Each record is a
+@@ -4016,6 +4018,9 @@
+     int ok2;
+     cObj* obj;
+ 
++    /* port (patch 0218): the cheat "Random items" deals the room's items anew once, at the first of its item
++       areas (the room's models are loaded then, none of its items is set up yet) */
++    re4_item_random(w, pS->pItemData, (SCE_AT_DATA*) pS->pItemWork);
+     /* PORT (patch 0195): a stand-in of the story gets Leon's items (player_type 1) */
+     if (pG->pl_type == 0 || re4_story_char_costume() >= 0) {
+         mask = 1;
