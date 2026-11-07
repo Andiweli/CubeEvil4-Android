@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export (07.11.2026, Branch `work`, Patch 0216)
+## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung (07.11.2026, Branch `work`, Patches 0216–0217)
 
 Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since
 v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag.
@@ -78,6 +78,58 @@ v0.99.1.“, APK `CubeEvil4-0.99.2-rc.apk`). Der versionName ist wie seit 0.99.1
      Element am Rand hereingerückt; Platz am Rand eines 20:9-Handys auf 4:3; unbrauchbare Dateien), `SaveImportTest`
      (Datei allein, im Export-ZIP, ZIP nur mit ihr), `CoreMenuLayoutTest`, `AppUpdateTest`: alle 49 App-Tests grün (`testCoreDebugUnitTest`; vorher fielen 4, weil die Blickzone mit ihrem Randstrich als „über den Rand“ galt: bei ihr jetzt ohne Rand). Java-Bau classic ebenfalls.
      **Nicht geprüft:** Gerät (Export in einen Ordner, Import, Rückfrage, sofortiges Neuladen, anderes Gerät).
+
+3. **Linker Stick ruckelt beim Gehen, das Steuerkreuz nicht (Nutzerbericht 07.11.2026, Xiaomi 2510DPC44G, Android 16,
+   64 bit, 0.99.1-rc; Bericht `reports/0992-stick-stutter-20261107-221829`).** Wortlaut: „Why does my left analog stick
+   stutter when I'm walking or running, yet everything runs perfectly smoothly when I use the D-pad?“ Controller
+   „GamePadPlus V3 Consumer Control“ (vendor 1949, product 0402, Bluetooth; Achsen X/Y/Z/RZ flat 0,118, Steuerkreuz als
+   HAT-Achse, keine DPAD-Tasten im Protokoll), eigene Tastenbelegung, 120-Hz-Bildschirm, 60 FPS mit Zwischenbildern.
+   - **Aus dem Bericht:** Bildtakt sauber (60,0 Bilder/s, „vsync beat“ 1 von 3601 zu spät, Renderer 5–6 ms), Eingabe
+     ohne Verzug (Sticks 0,9–1,6 ms vom Android-Ereignis zur App, ungepuffert). Die eingeblendeten Touch-Tasten
+     überschreiben den Controller-Stick nicht (`CoreInput.pad`: je Stick das weiter ausgelenkte Gerät). Die Vermutung
+     einer zweiten HID-Sammlung, deren Meldungen die Stick-Achsen auf 0 setzen, passt nicht: das Steuerkreuz kommt hier
+     in denselben Meldungen (HAT) und liefe dann genauso unrund.
+   - **Wie das Spiel geht:** Leon läuft digital. `game/pad.cpp PadRead` macht aus dem Stick nach `PADClamp` (Totzone 15,
+     Achteck 72/40) Richtungsbits: ab Betrag 30 (roh 45 von 101, also 45 % Auslenkung) „vor“ bis 70° zur Seite,
+     „drehen“ ab 30°; das Steuerkreuz setzt dieselben Bits direkt. Die Laufroutinen lesen den Stick sonst nicht (nur
+     Zielen, `pl_wep.cpp`). Ein Stick, der um eine dieser Grenzen pendelt (zu wenig Ausschlag, Rauschen, ein runder
+     Rand statt des Achteck-Rands des GameCube), schaltet Leon zwischen Gehen und Stehen oder Gehen und Drehen.
+     Ursache im Bericht nicht messbar (keine Stick-Werte im Protokoll).
+   - **Neu: Stick-Messung** (`StickWatch`, in `CoreActivity.send`): rechnet die Werte, die die App dem Kern gibt, wie
+     `PADClamp` und `PadRead` um und schreibt alle 30 s mit mindestens 2 s Benutzung eine Zeile „stick (as the game
+     reads it for walking): N s past its threshold …, at most M of 72 (raw R of 101; walking from 30), K direction
+     changes, "up" lost for less than 150 ms B times, X of Y states within 6 of the threshold“. Der nächste Bericht des
+     Testers (30 s mit dem Stick gehen) zeigt, ob der Stick zu wenig Ausschlag hat oder um die Schwelle springt. Test
+     `StickWatchTest` (Klemme wie das SDK, Richtungen, ruhiger Stick 1 Wechsel, pendelnder Stick 29 Aussetzer in 30 s).
+   - **Für den Tester:** Stick in einer Gamepad-Test-App prüfen (erreicht er voll ±1, springt er im Halten?), den Modus
+     des Controllers wechseln (viele haben X-Input/D-Input oder Android-Modus), Firmware aktualisieren.
+     Releasetext: unter „Known issues“ die Bitte um einen Bericht nach 30 s Gehen mit dem Stick.
+4. **Ashleys Rock-Reaktion (Nutzerbericht 07.11.2026, ohne Fehlerbericht; Wortlaut: „When I look at Ashley's lower,
+   sensitive area … she shows no reaction whatsoever“).** Der Projektinhaber meinte, wir hätten sie in der
+   Debug-Fassung ganz ausgebaut: **stimmt nicht**, es gab keinen Patch, sie war an (am PC: Reaktion am Ende der
+   Schulterszene in r208). Die Prüfung des Prototyps (`cSubChar::pantsCheck`) ist rein geometrisch: Leons Kopf
+   höchstens 5 m unter ihr, mindestens 45° nach oben, sie innerhalb ±45° seiner Blickrichtung, keine Wand dazwischen,
+   nicht im Kostüm 1 (Schleife statt Rock). Auf ebenem Boden reagiert sie deshalb nie (ihre Hüfte liegt unter Leons
+   Kopf), in keiner Fassung.
+   - **Verkaufsfassungen** (US/EU/JP `main.dol`, `pantsCheck` 0x174 statt 0x108 Bytes): (1) in Leons Routinen 0/0..6
+     (stehen, gehen, rückwärts, laufen, drehen, umdrehen, zielen) muss die Kamera (`pG->Camera` Target − Campos)
+     mindestens π/7 = 25,7° nach oben schauen, in anderen Routinen (Leiter, Hocken, Fallen, Ereignisse …) die Lage
+     allein; (2) eine Sperre in Bildern (`cSubChar + 0x7D8`, von `pantsCheck` heruntergezählt), gesetzt nur von
+     `r208_CarryOnShoulder` (`st2_0.rel`, EU 0x11ec0, US 0x11cb4, JP 0x11e9c): 240 nach dem Hochheben auf die Mauer.
+   - **Patch 0217** (Wunsch des Projektinhabers: nur wenn Leon aktiv hochschaut, nicht wenn er unter ihr steht, um sie
+     aufzufangen; Bedingung der Verkaufsfassung): beides wie dort, für alle Discs. Sperre als `static` in
+     `pl_npc.cpp` mit `re4_ashley_pants_wait` (die Klasse behält ihre Form). Kostüm-Prüfung unverändert.
+   - **Testausgabe:** eine Zeile „partner: Ashley's skirt reaction at frame N in rXXX, Leon in routine A/B …, the
+     camera N degrees up“ bei jedem Beginn; `RE4_TRACE_POS` nennt jetzt auch den Blickwinkel der Kamera, Leons Routine
+     und Ashley, wie ihre Prüfung sie sieht (Abstand, Winkel, Wand, ihre Routine).
+   - **Geprüft am PC (i686 -O2, Debug-Discs, r208, `RE4_TEST_STA=101`, `RE4_TEST_PLACE="free+30:area=14"`, A
+     gedrückt: die Schulterszene Bild 842–1193):** ohne Patch die Reaktion am Ende der Szene (Leon steht 0/0, Kamera
+     −2°, Ashley 3,2 m, 51° über seinem Kopf), mit Patch keine. Beim Zielen nach oben schaut die Kamera 51° hoch
+     (Leon 0/6). Eine Reaktion **mit** Patch (Leon schaut aktiv hoch) ließ sich am PC nicht herstellen: Ashley läuft
+     nach der Szene auf der Mauer weg (nach 3 s über 9 m), und unter ihrem späteren Platz liegt die Mauerkante
+     zwischen Leons Kopf und ihr (die Wand-Prüfung des Originals). `whole_build.sh i686` mit `RE4_OPT=2`: alle
+     Prüfungen grün. **Nicht geprüft:** Gerät; die Reaktion beim Hochschauen (z. B. unter ihr an einer Leiter oder
+     Treppe, wenn sie wartet).
 
 ## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
 
@@ -12934,6 +12986,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0214 `camera.cpp`, `view.cpp`, `TexRender.cpp`, `mirror.cpp`, `trans.cpp`, `esp08.cpp`, `esp0f.cpp`, `esp18.cpp`, `esp_sub.cpp`, `Espgen42.cpp`, `espgen45.cpp`, `id_sys.cpp`, `examine.cpp`, `mes.cpp`, `cam_qfps.cpp`, `cam_ctrl.cpp` | Bildformat „Native“: die Projektion der Kamera und der Sichtkegel mit `re4_view_aspect()` statt 4/3 (breiter, solange gespielt wird), alles, was mit der Kamera projiziert (Effekte mit Bildkopie, Spiegel, Gegenstandskamera, Nahebene gegen Wände und Wasser, Bildpunkt zu Strahl), mit `re4_view_camera_aspect()`; `CameraSetProjection` meldet die erste geladene Projektion eines Bildes (`re4_view_load`, `RE4_GX_CHUNK_WIDE`); der Text (`messageCamera`) mit `re4_view_flat_edge` so schmal wie das HUD. Jede Ersetzung auf ihrer Zeile, Funktionen in `re4_whole_prelude.h`. Aus und in jedem anderen Bildformat der Wert des Originals (1.3333334f; 0 und 512). Port-Funktion, Wunsch des Projektinhabers 07.11.2026, auf Grundlage des Breitbilds im Fork von Noname267 |
 | 0215 `id_sys.cpp` | Lebensanzeige in der Ecke: die fünf Stellen, an denen eine ID-Einheit mit `IDSystem::m_scrn_mat` gezeichnet wird (normal, negativ, Flimmern samt Texturprojektion), nehmen die Matrix von `re4_hud_scrn(u)`: für den Baum unter Einheit 0 der Klasse `IDC_LIFE_METER` (Ring, Ashleys Ring, Munition samt `IDC_BLLT_ICON`, Namensfeld) in die rechte untere Ecke der gezeigten Zeilen verschoben (bei „Gestreckt“ schmaler), sonst unverändert; ohne Vorgabe der App (`re4_core_set_hud_layout`) immer unverändert. Jede Ersetzung auf ihrer Zeile, Funktion in `re4_whole_prelude.h`. Port-Funktion, Wunsch des Projektinhabers 07.11.2026 |
 | 0216 `r224.cpp` | Lava-Halle der zwei El Gigantes: mit EU-, JP- und KR-Discs Bereich 10 (Meldung 1 „Damn! It's locked …“ vor dem Ausgangstor) aus beim Betreten, an, wenn das Tor hinter den Riesen zufällt (`door_close`), aus, wenn es nach dem Kampf aufgeht (`door_open`), wie deren Code (`st2_3.rel`); Debug- und US-Daten haben den Bereich nicht. Port-Patch für Verkaufsdaten, Nutzerbericht 07.11.2026 |
+| 0217 `pl_npc.cpp`, `r208.cpp` | Ashleys Rock-Reaktion („pervert“) wie die Verkaufsfassungen (US/EU/JP `main.dol`, `st2_0.rel`): in Leons Routinen 0/0..6 (stehen, gehen, laufen, drehen, zielen) muss die Kamera (`pG->Camera`) mindestens π/7 (25,7°) nach oben schauen, sonst zählt die Lage allein; 240 Bilder Sperre nach `r208_CarryOnShoulder` (`re4_ashley_pants_wait`). Abweichung vom Debug-Code, Entscheidung des Projektinhabers 07.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

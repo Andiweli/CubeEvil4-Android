@@ -1,0 +1,77 @@
+# Port patch, wish of the project owner (07.11.2026, after a user's report: "she shows no reaction whatsoever" when
+# Leon looks up her skirt): Ashley's skirt reaction ("pervert", cSubChar::movePants, routine 0/6) only when Leon
+# looks up at her, as the retail releases do it, not when he only stands below her (the prototype reacted every time
+# he stood below her to catch her). The debug build's pantsCheck is geometric only (his head within 5 m below her,
+# at least 45 degrees up, she within 45 degrees of his facing, no wall between). The US, European and Japanese
+# main.dol (read with retail_code.py on 07.11.2026: pantsCheck 0x174 bytes instead of 0x108, EU 0x8004d67c, US
+# 0x8004caf0, JP 0x8004d4c0) add two things: (1) while the player is in routine 0/0..6 (stands, walks, backs, runs,
+# turns, aims; pPL->r_no_0 == 0, r_no_1 <= 6) the camera's view (pG->Camera Target - Campos) must rise at least pi/7
+# (0.4488, 25.7 degrees), in his other routines (ladder, crouch, fall, events ...) the geometry alone counts; (2) a
+# wait in frames (their cSubChar + 0x7D8, counted down by pantsCheck, set through a SubChar function only by
+# r208_CarryOnShoulder in st2_0.rel: 240 after the lift onto the wall). Both as there, for every disc (the owner's
+# decision). The costume check (game_costume 1: no skirt) is unchanged. A deliberate deviation from the debug code.
+--- a/src/game/pl_npc.cpp
++++ b/src/game/pl_npc.cpp
+@@ -2526,6 +2526,15 @@
+     return h;
+ }
+ 
++// port (patch 0217): the retail releases' wait after the player lifted her onto the wall in r208
++// (r208_CarryOnShoulder: 240 frames), counted down by pantsCheck (their cSubChar + 0x7D8)
++static int re4_pants_wait;
++
++extern "C" void re4_ashley_pants_wait(int frames)
++{
++    re4_pants_wait = frames;
++}
++
+ // status bit2: the player's head is close below her and looking up.
+ void cSubChar::pantsCheck()
+ {
+@@ -2535,6 +2544,11 @@
+ 
+     status.off(S_PANTS);
+     if (pG->game_costume == 1) {
++        return;
++    }
++    /* port (patch 0217): no reaction for a while after the lift in r208 (retail) */
++    if (re4_pants_wait != 0) {
++        re4_pants_wait--;
+         return;
+     }
+     hp = &pPL->getPartsPtr(4)->world;
+@@ -2551,6 +2565,14 @@
+     }
+     if (EatMgr.hitCheck(hp, sp, 0, 0, 0, 0)) {
+         return;
++    }
++    /* port (patch 0217): as the retail releases, while the player stands, walks, turns or aims (routine 0/0..6)
++       the camera must look up at least pi/7 (25.7 degrees): standing below her (to catch her) is no look up */
++    if (pPL->r_no_0 == 0 && pPL->r_no_1 <= 6) {
++        PSVECSubtract(&pG->Camera.param.Target, &pG->Camera.param.Campos, &d);
++        if (VecElevation(&d) < 0.44879895f) {
++            return;
++        }
+     }
+     status.on(S_PANTS);
+ }
+--- a/src/st2/r208.cpp
++++ b/src/st2/r208.cpp
+@@ -1540,6 +1540,8 @@
+     }    }
+ }
+ 
++extern "C" void re4_ashley_pants_wait(int frames); /* port: game/pl_npc.cpp (patch 0217) */
++
+ // The player lifts Ashley onto the wall (camera event, side by the player's x).
+ void r208_CarryOnShoulder()
+ {
+@@ -1610,6 +1612,8 @@
+         SetPosAng(pSUB, &b, &pPL->ang);
+         SubCharCtrl(SCC_CHASE, 0);
+         SceEventEnd(0);
++        /* port (patch 0217): as the retail releases, 8 s without her skirt reaction (the player stands below her) */
++        re4_ashley_pants_wait(240);
+     }
+ }
+ 

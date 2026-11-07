@@ -288,6 +288,7 @@ extern "C" int re4_core_room_outline(float* out, int maxEdges, unsigned* info); 
 #include "etc_model.h"
 #include "scroll.h"
 #include "area.h"
+#include "math_sub.h"
 #include "act_btn.h"
 #include "cockpit.h"
 #include "merchant.h"
@@ -1291,15 +1292,49 @@ void playerLog(unsigned n, GLOBAL_WK* g)
                     (double) p.y, (double) p.z);
         }
     }
+    // Ashley's skirt reaction (cSubChar::movePants, her routine 0/6; patch 0217, 07.11.2026): a line each time it
+    // starts, with Leon's routine and how far the camera looks up (the retail rule: 25.7 degrees in his routines 0/0..6)
+    static bool pants;
+    const bool nowPants = live(pSUB) && pSUB->r_no_0 == 0 && pSUB->r_no_1 == 6;
+    if (nowPants && !pants) {
+        const Vec& t = g->Camera.param.Target;
+        const Vec& c = g->Camera.param.Campos;
+        const float dx = t.x - c.x, dy = t.y - c.y, dz = t.z - c.z;
+        re4_log("partner: Ashley's skirt reaction at frame %u in r%03x, Leon in routine %u/%u at (%.0f %.0f %.0f), the "
+                "camera %.0f degrees up", n, (unsigned) g->room_id, (unsigned) pPL->r_no_0, (unsigned) pPL->r_no_1,
+                (double) p.x, (double) p.y, (double) p.z,
+                (double) (atan2f(dy, sqrtf(dx * dx + dz * dz)) * 57.29578f));
+    }
+    pants = nowPants;
     // RE4_TRACE_POS=N: Leon's place every N frames (where a walk of a test script got to)
     static const long tracePos = getenv("RE4_TRACE_POS") ? strtol(getenv("RE4_TRACE_POS"), 0, 10) : 0;
     if (tracePos > 0 && (n - g_player.start) % (unsigned long) tracePos == 0) {
         // with the camera's distance to Leon (the far camera, patch 0171)
         const Vec& c = CamCtrl.camera.param.Campos;
         const float dx = c.x - p.x, dz = c.z - p.z;
-        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f, camera %.0f away, %.0f above", (unsigned) g->room_id,
+        // and how far the game's camera (pG->Camera) looks up, with Leon's routine (Ashley's skirt check, patch 0217)
+        const Vec& gt = g->Camera.param.Target;
+        const Vec& gc = g->Camera.param.Campos;
+        const float vx = gt.x - gc.x, vy = gt.y - gc.y, vz = gt.z - gc.z;
+        re4_log("room: r%03x frame %u, Leon at (%.0f %.0f %.0f) facing %.2f, camera %.0f away, %.0f above, looking %.0f "
+                "degrees up, Leon's routine %u/%u", (unsigned) g->room_id,
                 n, (double) p.x, (double) p.y, (double) p.z, (double) pPL->ang.y, (double) sqrtf(dx * dx + dz * dz),
-                (double) (c.y - p.y));
+                (double) (c.y - p.y), (double) (atan2f(vy, sqrtf(vx * vx + vz * vz)) * 57.29578f), (unsigned) pPL->r_no_0,
+                (unsigned) pPL->r_no_1);
+        // Ashley as her skirt check sees her (cSubChar::pantsCheck): his head to her, within 5 m, at least 45 degrees
+        // up, within 45 degrees of his facing, no wall between
+        if (live(pSUB) && live(pSUB->pList)) {
+            Vec* hp = &pPL->getPartsPtr(4)->world;
+            Vec* sp = &pSUB->pList->world;
+            Vec d;
+            PSVECSubtract(sp, hp, &d);
+            re4_log("room: Ashley at (%.0f %.0f %.0f), %.1f m from his head, %.0f degrees up, %.0f degrees beside his facing, "
+                    "%s, her routine %u/%u", (double) pSUB->pos.x, (double) pSUB->pos.y, (double) pSUB->pos.z,
+                    (double) (sqrtf(GetDistance(hp, sp)) / 1000.0f), (double) (VecElevation(&d) * 57.29578f),
+                    (double) (Muku(hp, sp, pPL->ang.y, 6.2831855f) * 57.29578f),
+                    EatMgr.hitCheck(hp, sp, 0, 0, 0, 0) ? "a wall between" : "no wall", (unsigned) pSUB->r_no_0,
+                    (unsigned) pSUB->r_no_1);
+        }
     }
     // RE4_TRACE_LOCK=1: while a gun is aimed at a locked enemy (the app's auto aim, patch 0174) the aim's
     // pitch and, above the enemy's feet, the laser's end, the lock point, its highest part (the head) and the

@@ -153,6 +153,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final ControllerLog controllerLog = new ControllerLog();
   /** How long a controller's input took from Android to the app (InputDelay), for the error log. */
   private final InputDelay inputDelay = new InputDelay();
+  // the main stick as the game reads it for walking, a line every 30 s of use (StickWatch; report of 07.11.2026)
+  private final StickWatch stickWatch = new StickWatch();
   private GLSurfaceView surface;
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
@@ -1382,6 +1384,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void send() {
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
+    String stick = stickWatch.sample(SystemClock.uptimeMillis(), p[1], p[2]);
+    if (stick != null) Log.i(TAG, stick);
     // swipe aiming (Touch Aiming: Touch Area): the finger's way since the last event as angles, with the
     // menu's "Aim speed" and "Invert vertical" as the sticks
     float[] turn = input.takeAimSwipe();
