@@ -69,7 +69,10 @@
 #if defined(__aarch64__)
 #include <android/dlext.h>
 #endif
-#else
+#endif
+#if !defined(__ANDROID__) || (!defined(__aarch64__) && __ANDROID_API__ < 21)
+// (Android 4.x, the OUYA branch: no module window without android_dlopen_ext, the low ranges are held
+// as on Linux, as host/probe.cpp does)
 #include "low_memory.h"
 #endif
 
@@ -1063,7 +1066,37 @@ int main(int argc, char** argv)
     signal(SIGPIPE, SIG_IGN);
     // MEM1 at once, before anything else maps memory (the core's libraries load above it)
     const char* placeholder;
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) && !defined(__aarch64__) && __ANDROID_API__ < 21
+    // Android 4.x (the OUYA branch): the kernel hands out addresses from the bottom up and there is
+    // no module window (android_dlopen_ext): as host/probe.cpp, once more without address
+    // randomisation (the C library's heap right behind the program, not up to 32 MB further, which
+    // can be inside MEM1), then everything below 0x83000000 held, MEM1 first: the libraries load above
+    if (!getenv("RE4_CORE_FIXED")) {
+        const long persona = syscall(SYS_personality, 0xffffffffUL);
+        if (persona != -1 && !(persona & 0x0040000 /* ADDR_NO_RANDOMIZE */) &&
+            syscall(SYS_personality, (unsigned long) persona | 0x0040000) != -1) {
+            setenv("RE4_CORE_FIXED", "1", 1);
+            execv("/proc/self/exe", argv);
+        }
+        setenv("RE4_CORE_FIXED", "randomized", 1);
+    }
+    unsetenv("RE4_MEM1_PLACEHOLDER");
+    reserveLowMemory();
+    placeholder = getenv("RE4_MEM1_PLACEHOLDER") ? "reserved" : "NOT reserved";
+    if (DIR* d = opendir("/proc/self/fd")) {
+        std::vector<int> stray;
+        while (dirent* e = readdir(d)) {
+            const int fd = atoi(e->d_name);
+            if (fd > kSocketFd && fd != dirfd(d)) {
+                stray.push_back(fd);
+            }
+        }
+        closedir(d);
+        for (int fd : stray) {
+            close(fd);
+        }
+    }
+#elif defined(__ANDROID__)
     void* want = (void*) kMem1Start;
     void* p = mmap(want, kMem1Size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | 0x100000 /* NOREPLACE */,
                    -1, 0);
