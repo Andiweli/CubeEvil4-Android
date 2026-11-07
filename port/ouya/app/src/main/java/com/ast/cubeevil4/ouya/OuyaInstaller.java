@@ -70,12 +70,14 @@ final class OuyaInstaller extends ScrollView {
     private final TextView status;
     private final List<Found> found = new ArrayList<Found>();
     private final boolean canCancel;
+    private final File previous;  // the data folder before (its memory card comes along), or null
     private boolean working;
 
-    OuyaInstaller(Context context, Host host, boolean canCancel) {
+    OuyaInstaller(Context context, Host host, File previous) {
         super(context);
         this.host = host;
-        this.canCancel = canCancel;
+        this.canCancel = previous != null;
+        this.previous = previous;
         GameCubeDisc.importEverything = true;  // the game core reads every file through its own table
         GameCubeDisc.retailAllowed = true;
         setBackgroundColor(0xff000000);
@@ -370,6 +372,43 @@ final class OuyaInstaller extends ScrollView {
         File old = new File(root, "disc0");
         if (old.isDirectory())
             DiscInstaller.delete(old);
+        // the memory card of the folder before (the player's saves), when the new place has none yet
+        copyCard(root);
+    }
+
+    private void copyCard(File root) throws IOException {
+        if (previous == null)
+            return;
+        File from = new File(previous, "memcard"), to = new File(root, "memcard");
+        File[] files = from.listFiles();
+        if (files == null || files.length == 0 || to.isDirectory() && to.list() != null && to.list().length > 0)
+            return;
+        try {
+            if (from.getCanonicalFile().equals(to.getCanonicalFile()))
+                return;
+        } catch (IOException e) {
+            return;
+        }
+        if (!to.isDirectory() && !to.mkdirs())
+            throw new IOException("Cannot make the folder " + to);
+        byte[] buffer = new byte[64 * 1024];
+        for (File f : files) {
+            if (!f.isFile())
+                continue;
+            say("Copying the memory card: " + f.getName());
+            java.io.InputStream in = new java.io.FileInputStream(f);
+            try {
+                java.io.OutputStream out = new java.io.FileOutputStream(new File(to, f.getName()));
+                try {
+                    for (int n; (n = in.read(buffer)) > 0;)
+                        out.write(buffer, 0, n);
+                } finally {
+                    out.close();
+                }
+            } finally {
+                in.close();
+            }
+        }
     }
 
     private long lastProgress;

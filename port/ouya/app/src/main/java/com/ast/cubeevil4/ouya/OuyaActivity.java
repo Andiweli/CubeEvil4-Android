@@ -134,7 +134,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         if (data == null || again) {
             existing = data;
             message.setVisibility(View.GONE);
-            installer = new OuyaInstaller(this, this, data != null);
+            installer = new OuyaInstaller(this, this, data);
             root.addView(installer, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT));
             return;
