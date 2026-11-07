@@ -587,3 +587,13 @@ am 21.10. mit dem eigenen Grafik-Thread 51): 40,6 % die Umrechnung der GX-Befehl
 - **Gemessen auf der OUYA (Probe, r100 ohne Bremse, Leon frei):** mit dem Grafik-Thread (noch mit
   dem Aufholen bei jedem Warten) 37,4 statt 24,0 Bilder/s; Spiel-Thread 18,7 ms je Bild, Grafik-
   Thread 16,5 ms daneben.
+
+**Für später (Wünsche des Projektinhabers, 07.11.2026, „wenn alles läuft“):**
+
+1. Die OUYA-App bleibt eine eigene APK, unabhängig von der Haupt-App, und bekommt einen eigenen
+   Installer für Disc 1 und 2: Debug-Disc, dazu die Verkaufs-Discs US, EU und JP.
+2. Alle Spiel-Fixes der Haupt-App auch in der OUYA-Fassung. Die Fixes im Spielkern kommen mit jedem
+   Abgleich mit master; die der Haupt-App außerhalb des Kerns (GLES-3-Renderer, Java-Teil) müssen
+   für den OUYA-Renderer und die OUYA-App einzeln nachgezogen werden.
+3. Der Installer fragt auf der OUYA, ob die Spieldaten in den internen Speicher oder auf einen
+   USB-Speicher kommen.
