@@ -3,6 +3,49 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.0-beta: Bildformat „Native“ (07.11.2026, Branch `work`)
+
+Version 0.99.0-beta (versionCode 102), Releasetext `port/android-decomp/docs/releases/v0.99.0-beta.md`. Wunsch des
+Projektinhabers (07.11.2026): auf Grundlage der Breitbild-Umsetzung im Fork von Noname267 (siehe „Prüfung der
+Forks“ unten) ein Bildformat „Native“, das das echte Seitenverhältnis des Geräts nutzt.
+
+(in Arbeit)
+
+## Prüfung der Forks (06.11.2026 im Branch `claude/keen-carson-26xxjq`, nachgeprüft 07.11.2026; nichts übernommen)
+
+Übernommen aus Commit f62c7ce0 (Branch `claude/keen-carson-26xxjq`, den der Projektinhaber löscht):
+
+22 Forks über die GitHub-Suche gefunden (`fork:only`, auch umbenannte: `CubeEvil4-Port-i-o-s`, `CubeEvil4-PocoM5`),
+alle Branches per `git fetch` geholt. Da die Historie von `origin` neu geschrieben ist, zählen nur Commits, die
+kein Vorfahre eines Commits des Projektinhabers sind: 230 Commits von 6 Fork-Besitzern, der Rest ist alte eigene
+Historie. Ergebnis:
+
+- **Noname267** (`Noname267-patch-1`, auf 0.98.4): Bildformat „19.5:9“ (echtes Breitbild: Patch mit
+  `re4_view_aspect()` statt 4/3 in 16 Spieldateien für Projektion und Sichtkegel, HUD 32/39 schmaler, Untermenüs
+  gestreckt). Patch passt sauber auf `src/` (Probelauf `patch --dry-run`), Nummer 0210 ist bei uns schon belegt,
+  Menütext nicht übersetzt, nicht gebaut und nicht getestet. Kandidat, braucht Entscheidung des Projektinhabers
+  und einen Test auf dem Retroid. Außerdem ein GitHub-Actions-Workflow, der Kern und APK baut (`build.yml`).
+- **QianfoamsmallXianxian**, **aaqed378-svg**: weitere Build-Workflows (der von aaqed378 liegt im falschen Ordner
+  `github/` und baut nichts). Der von Noname267 ist der brauchbarste.
+- **christofermiquilinideabreu-ops**: README mit einem Tippfehler (`README.md` vor dem Bild), nicht übernehmen.
+- **alexbatistaribeiro777-cpu**: iOS-Anfang (Mach-O-Boost.Context, Werkzeugkette, `#if __APPLE__` in 8 Laufzeit-
+  dateien). Für Android ohne Wirkung, noch keine lauffähige App.
+- **dehalbuq** (208 Commits, R36S/Linux-Handheld, Stand 23.–26.10.): Messwerkzeuge und Startskripte fürs Gerät;
+  allgemein nur drei Ideen: (1) `toMemory` in `runtime/gx_fifo.cpp` am Stück per `memorySpan` statt Byte für Byte –
+  gleichwertig, aber das Spiel nimmt Anzeigelisten nur in `dbmodule.cpp` (Debug-Formen) auf, also kein Gewinn;
+  (2) BP/XF-Schreiben mit gleichem Wert überspringen – unsicher (BP-Register mit Nebenwirkung wie Token, PE_DONE,
+  Textur-/TLUT-Laden würden ausfallen); (3) Puffer-Wiederverwendung und Shader-Binärcache – hat unsere App schon
+  (Ring mit dauerhafter Abbildung, `glProgramBinary`).
+
+**Nachprüfung 07.11.2026** (öffentliche GitHub-API per curl: `repos/Andiweli/CubeEvil4-Android/forks` und die Suche
+`CubeEvil4 fork:only`, dann `git ls-remote` aller 22 Forks): weiter 22 Forks, keiner seit der Prüfung verändert
+(letzte Pushes: Noname267 06.11. 13:11 UTC, dehalbuq 03.11., alle anderen früher) bis auf **Diegoprofeta** (angelegt
+06.11., Push 07.11. 01:54 UTC): dessen einziger Branch `master` = adb53d30, ein Commit des Projektinhabers (README,
+Android 7.0), also nichts Eigenes. Noname267 erneut geholt: `Noname267-patch-1` = 0f820dee (6 Commits „Add 19.5:9“ /
+„Add files via upload“ auf 0.98.4 = a88d9e31), `master` = e0b8ed86 (nur der Workflow `build.yml`), unverändert.
+Übernommen wird nur die Idee des Breitbilds als Grundlage von „Native“ (Abschnitt 0.99.0), nicht der Patch selbst
+und nicht der Workflow (der braucht das OK des Projektinhabers).
+
 ## Version 0.98.7-beta: Laser in den 60-FPS-Zwischenbildern, andere Discs importieren (06.11.2026, Branch `work`)
 
 Version 0.98.7-beta (versionCode 101), Releasetext `port/android-decomp/docs/releases/v0.98.7-beta.md`. Der Laser-Fix
