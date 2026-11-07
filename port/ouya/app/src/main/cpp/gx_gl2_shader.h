@@ -46,6 +46,7 @@ struct ShaderKey {
   std::uint32_t alphaTest;    // BP 0xF3 bits 16-23: comp0, comp1, logic
   std::uint32_t fog;          // BP 0xF1 bits 20-23: projection, function
   std::uint32_t texMaps;      // maps the stages sample (bit per map)
+  std::uint32_t fastTev;      // 1: the TEV in plain fractions 0..1, not to the step (GxOptions::fastTev)
   // both
   std::uint32_t texelCoords;  // 1: every coordinate in 1/128 texels, as the GLES 3 renderer (tests)
 };

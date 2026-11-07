@@ -878,7 +878,10 @@ std::vector<SceneEntry> Scenes() {
       // GLES 3 renderer, the other in this one, scaled by two in the stages after
       {"random tev, indirect", [](std::vector<Builder> &c, std::mt19937 &r) { SceneRandomTev(c, r, true); }, 1, 0.016,
        0.016, 0.016, false},
-      {"texture formats", SceneTextureFormats, 2, 0.002, 0, 0.002, false},
+      // direct: coordinates as floats, the GLES 3 renderer's in 1/128 texels; with the pixel centre
+      // at 7/12 (since 29.10.2026) more sample points of the nearest-read cells fall within 1/128 of
+      // a texel edge (833 pixels at the cells' edge columns; exact: 0)
+      {"texture formats", SceneTextureFormats, 2, 0.003, 0, 0.003, false},
       {"texgen", SceneTexgen, 2, 0.002, 0, 0.002, false},
       {"emboss", SceneEmboss, 2, 0.02, 0, 0.02, false},
       {"skinning", SceneSkinning, 2, 0.002, 0, 0.002, false},

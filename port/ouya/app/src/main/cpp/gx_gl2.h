@@ -96,6 +96,14 @@ struct GxOptions {
   bool probeNoAttrib = false, probeNoUniform = false, probeSimpleVs = false;
   // "half": the draws into a quarter of the EFB's pixels (what a lower resolution would save)
   bool probeHalf = false;
+  // the EFB's resolution in eighths of the GameCube's 640x528 (0: Init's scale; 6: 0.75x,
+  // 480x396; 2..32). RE4_GX2_SCALE=0.75 does the same. Copies and the display copy follow it.
+  int resolutionEighths = 0;
+  // the TEV in plain fractions 0..1 (RE4_GX2_FAST_TEV=1): no whole numbers 0..255, no rounding
+  // and wrapping to 8 bits, the lerp as mix(); compare stages and the alpha test still on the
+  // 255 steps. Close to the GameCube, not to the step: far fewer instructions per pixel (the TEV
+  // was 50-80 % of a frame on the OUYA)
+  bool fastTev = false;
 };
 
 class GxRenderer {
@@ -114,6 +122,7 @@ public:
   // Runs one chunk (in sequence order).
   void Run(const Re4GxChunk &chunk);
   // The latest display copy: an RGBA texture, GameCube row 0 at GL row 0; 0 before the first.
+  // `width`, `height`: its pixels (the GameCube's at resolution 1x, fewer below).
   GLuint Xfb(unsigned *width, unsigned *height) const;
   // Draws the latest display copy into the current framebuffer's viewport (x, y, w, h),
   // upright; rows > 0: only XFB rows top .. top + rows - 1. False when there is none yet.
@@ -121,6 +130,8 @@ public:
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
   int Scale() const;
+  // the EFB's resolution in eighths (8: 640x528)
+  int ResolutionEighths() const;
   const GxStats &Stats() const;
   // Frees the GL objects (context current).
   void Release();

@@ -24,6 +24,9 @@ Farbe), nocopy (ohne EFB-Kopien), nodraw (ohne glDrawElements), noupload (Punkte
 hochgeladen), noattrib (Attribute nur bei neuem Format gesetzt), nouniform (Uniforms nur beim
 ersten Mal), simplevs (Vertex-Shader ohne Licht und Texturkoordinaten, mit flat), half (nur ein
 Viertel der Pixel: was eine kleinere Aufloesung spart), auch kombiniert ("flat+nocopy").
+Dazu die Einstellungen der leichten OUYA-Fassung (die Bilder sind dann richtig, nur einfacher):
+fasttev (vereinfachte Farbberechnung, RE4_GX2_FAST_TEV=1), scaleX (EFB-Aufloesung X mal die der
+GameCube, RE4_GX2_SCALE, z. B. scale0.75), kombinierbar ("fasttev+scale0.75").
 -Only waehlt Bilder aus (Platzhalter).
 
 .EXAMPLE
@@ -155,7 +158,16 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
     $names = ($frameFiles | ForEach-Object { "$remote/frames/$($_.Name)" }) -join ' '
     foreach ($probe in $Probes) {
         Say "   zeichnen ($probe) ..."
-        $setting = if ($probe -eq 'normal') { '' } else { "RE4_GX2_PROBE=$($probe -replace '\+', ',') " }
+        # the parts of a variant: settings of the light OUYA version, the rest measurements
+        $setting = ''
+        $measure = @()
+        foreach ($part in ($probe -split '\+')) {
+            if ($part -eq 'normal') { continue }
+            if ($part -eq 'fasttev') { $setting += 'RE4_GX2_FAST_TEV=1 ' }
+            elseif ($part -match '^scale([0-9.]+)$') { $setting += "RE4_GX2_SCALE=$($Matches[1]) " }
+            else { $measure += $part }
+        }
+        if ($measure.Count) { $setting += "RE4_GX2_PROBE=$($measure -join ',') " }
         $lines = Invoke-Adb shell "cd $remote && $setting RE4_GX2_REPEAT=$Repeat ./gx_gl2_render out $names"
         $file = if ($probe -eq 'normal') { 'render.txt' } else { "render-$probe.txt" }
         $lines | Set-Content -LiteralPath (Join-Path $OutDir $file) -Encoding UTF8

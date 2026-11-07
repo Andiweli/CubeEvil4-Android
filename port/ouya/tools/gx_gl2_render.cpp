@@ -196,6 +196,37 @@ int main(int argc, char **argv) {
             std::fwrite(&rgba[(static_cast<std::size_t>(y) * w + x) * 4], 1, 3, p);
         std::fclose(p);
       }
+      // RE4_GX2_PRESENT=WxH: the picture as the screen shows it (Present: scaled up linearly into
+      // W x H, e.g. 1440x1080, the 4:3 of a 1080p television), to judge a lower resolution
+      unsigned pw = 0, ph = 0;
+      if (const char *present = std::getenv("RE4_GX2_PRESENT"))
+        std::sscanf(present, "%ux%u", &pw, &ph);
+      if (pw && ph) {
+        GLuint tv = 0, tvFbo = 0;
+        glGenTextures(1, &tv);
+        glBindTexture(GL_TEXTURE_2D, tv);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, static_cast<GLsizei>(pw), static_cast<GLsizei>(ph), 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, nullptr);
+        glGenFramebuffers(1, &tvFbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, tvFbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tv, 0);
+        renderer->Present(0, 0, static_cast<int>(pw), static_cast<int>(ph));
+        std::vector<unsigned char> big(static_cast<std::size_t>(pw) * ph * 4);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 0, static_cast<GLsizei>(pw), static_cast<GLsizei>(ph), GL_RGBA, GL_UNSIGNED_BYTE, big.data());
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDeleteFramebuffers(1, &tvFbo);
+        glDeleteTextures(1, &tv);
+        const std::string file = out + "/" + Stem(path) + "-" + tag + "-tv.ppm";
+        if (FILE *p = std::fopen(file.c_str(), "wb")) {
+          // Present draws upright (GL row 0 at the bottom): rows from the top
+          std::fprintf(p, "P6\n%u %u\n255\n", pw, ph);
+          for (unsigned y = ph; y-- > 0;)
+            for (unsigned x = 0; x < pw; x++)
+              std::fwrite(&big[(static_cast<std::size_t>(y) * pw + x) * 4], 1, 3, p);
+          std::fclose(p);
+        }
+      }
     }
     // again, as the next frames of the game would come
     std::vector<std::uint32_t> ops;
@@ -238,8 +269,11 @@ int main(int argc, char **argv) {
                 allSteady.size(), Median(allSteady), *std::max_element(allSteady.begin(), allSteady.end()));
   if (renderer) {
     const re4gx2::GxCaps &c = renderer->Caps();
-    std::printf("device: %s; EFB depth %d bits%s; depth copies %s\n", c.renderer.c_str(), c.depthBits,
-                c.depthNonlinear ? " (nonlinear)" : "", c.depthTexture ? "on the GPU" : c.readDepth ? "read back" : "lost");
+    const int e = renderer->ResolutionEighths();
+    std::printf("device: %s; EFB depth %d bits%s; depth copies %s; EFB %dx%d (%.3gx)\n", c.renderer.c_str(),
+                c.depthBits, c.depthNonlinear ? " (nonlinear)" : "",
+                c.depthTexture ? "on the GPU" : c.readDepth ? "read back" : "lost", (640 * e + 4) / 8,
+                (528 * e + 4) / 8, e / 8.0);
     renderer->Release();
   }
   std::printf(failures ? "gx_gl2_render: %d FAILED\n" : "gx_gl2_render: done\n", failures);

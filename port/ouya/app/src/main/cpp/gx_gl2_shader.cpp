@@ -667,6 +667,53 @@ std::string AlphaFunc(unsigned f, const char *ref) {
 // uLodBias / uMapScale entries of map m
 std::string Bias(unsigned m) { return "uLodBias[" + std::to_string(m / 4) + "]." + kXyzw[m % 4]; }
 
+// The fast TEV (ShaderKey::fastTev): a value in fractions 0..1 (255 steps = 1) and the constant it
+// is (in steps), if one.
+struct Frac {
+  std::string e;
+  int constant = -1;
+};
+
+Frac FracConstant(int steps, bool vec) {
+  Frac f;
+  const std::string v = steps == 0 ? "0.0" : steps == 255 ? "1.0" : Number(steps / 255.0);
+  f.e = vec ? "vec3(" + v + ")" : v;
+  f.constant = steps;
+  return f;
+}
+
+// (d + bias) op mix(a, b, c), scaled: GX's arithmetic without its 8-bit steps (c' = c + c / 255
+// stands for the hardware's c + (c >= 128); no rounding)
+std::string FastOp(const Frac &a, const Frac &b, const Frac &c, const Frac &d, unsigned bias, unsigned op,
+                   unsigned scale, bool vec) {
+  std::string lerp;
+  if (c.constant == 0 || a.e == b.e)
+    lerp = a.e;
+  else if (c.constant == 255)
+    lerp = b.e;
+  else if (a.constant == 0)
+    lerp = "(" + b.e + " * " + c.e + ")";
+  else if (b.constant == 0)
+    lerp = "(" + a.e + " * (1.0 - " + c.e + "))";
+  else
+    lerp = "mix(" + a.e + ", " + b.e + ", " + c.e + ")";
+  const bool noLerp = (a.constant == 0 && b.constant == 0) || (c.constant == 0 && a.constant == 0) ||
+                      (c.constant == 255 && b.constant == 0);
+  std::string v = d.constant == 0 ? "" : d.e;
+  if (bias == 1)
+    v = v.empty() ? (vec ? "vec3(0.50196)" : "0.50196") : "(" + v + " + 0.50196)";
+  else if (bias == 2)
+    v = v.empty() ? (vec ? "vec3(-0.50196)" : "-0.50196") : "(" + v + " - 0.50196)";
+  if (!noLerp)
+    v = v.empty() ? (op ? "-" + lerp : lerp) : "(" + v + (op ? " - " : " + ") + lerp + ")";
+  if (v.empty())
+    v = vec ? "vec3(0.0)" : "0.0";
+  static const char *mul[4] = {"", " * 2.0", " * 4.0", " * 0.5"};
+  if (scale)
+    v = "(" + v + mul[scale] + ")";
+  return v;
+}
+
 } // namespace
 
 std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
@@ -715,8 +762,13 @@ std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
             "  return to8(texture2D(s%d, c * uMapScale[%d].xy, %s));\n"
             "}\n",
             m, m, m, Bias(static_cast<unsigned>(m)).c_str());
+  const bool fast = k.fastTev != 0;
   out += "void main() {\n";
-  out += "  vec4 prev = uColors[0];\n  vec4 c0 = uColors[1];\n  vec4 c1 = uColors[2];\n  vec4 c2 = uColors[3];\n";
+  if (fast)
+    out += "  const float k255 = 1.0 / 255.0;\n  vec4 prev = uColors[0] * k255;\n  vec4 c0 = uColors[1] * k255;\n"
+           "  vec4 c1 = uColors[2] * k255;\n  vec4 c2 = uColors[3] * k255;\n";
+  else
+    out += "  vec4 prev = uColors[0];\n  vec4 c0 = uColors[1];\n  vec4 c1 = uColors[2];\n  vec4 c2 = uColors[3];\n";
   out += "  vec4 rastemp = vec4(0.0);\n  vec4 textemp = vec4(0.0);\n";
   // what the stages leave in the registers (prev, c0, c1, c2; colour, alpha): range, written
   double regLo[4][2], regHi[4][2];
@@ -727,8 +779,13 @@ std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
       regHi[r][part] = 1023.0;
     }
   out += "  vec2 tevcoord = vec2(0.0);\n  float alphabump = 0.0;\n";
-  out += "  vec4 ras0 = to8(clamp(vColor0, 0.0, 1.0));\n";
-  out += "  vec4 ras1 = to8(clamp(vColor1, 0.0, 1.0));\n";
+  if (fast) {
+    out += "  vec4 ras0 = clamp(vColor0, 0.0, 1.0);\n";
+    out += "  vec4 ras1 = clamp(vColor1, 0.0, 1.0);\n";
+  } else {
+    out += "  vec4 ras0 = to8(clamp(vColor0, 0.0, 1.0));\n";
+    out += "  vec4 ras1 = to8(clamp(vColor1, 0.0, 1.0));\n";
+  }
   // coordinates in 1/128 texels: truncated like the GLES 3 renderer's integers
   for (unsigned i = 0; i < k.numTexGens; i++)
     if (s.coordMap[i] == -1) {
@@ -804,26 +861,29 @@ std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
     }
     const std::string rswap = Swizzle(k.swap[ac & 3]);
     const std::string tswap = Swizzle(k.swap[(ac >> 2) & 3]);
+    // fast: the texel as it comes (0..1); from the fixed-point coordinates in steps, scaled
+    const char *to8 = fast ? "" : "to8";
+    const char *steps = fast ? " * k255" : "";
     if (enable && (k.texMaps & (1u << map))) {
       if (indirect) {
-        Add(out, "    textemp = texmap%u(tevcoord).%s;\n", map, tswap.c_str());
+        Add(out, "    textemp = texmap%u(tevcoord).%s%s;\n", map, tswap.c_str(), steps);
       } else if (hasCoord && s.coordMap[coord] == static_cast<int>(map)) {
         // read as the vertex shader scaled it
         if (s.projective[coord])
-          Add(out, "    textemp = to8(texture2DProj(s%u, vTex%u, %s)).%s;\n", map, coord,
+          Add(out, "    textemp = %s(texture2DProj(s%u, vTex%u, %s)).%s;\n", to8, map, coord,
               Bias(map).c_str(), tswap.c_str());
         else
-          Add(out, "    textemp = to8(texture2D(s%u, vTex%u, %s)).%s;\n", map, coord, Bias(map).c_str(),
+          Add(out, "    textemp = %s(texture2D(s%u, vTex%u, %s)).%s;\n", to8, map, coord, Bias(map).c_str(),
               tswap.c_str());
       } else if (hasCoord && s.coordMap[coord] == -1) {
-        Add(out, "    textemp = texmap%u(fixuv%u).%s;\n", map, coord, tswap.c_str());
+        Add(out, "    textemp = texmap%u(fixuv%u).%s%s;\n", map, coord, tswap.c_str(), steps);
       } else {
         // no coordinate: texel 0 as the GLES 3 renderer reads it
-        Add(out, "    textemp = to8(texture2D(s%u, vec2(0.0), %s)).%s;\n", map, Bias(map).c_str(),
+        Add(out, "    textemp = %s(texture2D(s%u, vec2(0.0), %s)).%s;\n", to8, map, Bias(map).c_str(),
             tswap.c_str());
       }
     } else {
-      out += "    textemp = vec4(255.0);\n";
+      out += fast ? "    textemp = vec4(1.0);\n" : "    textemp = vec4(255.0);\n";
     }
     switch (chan) {
     case 0:
@@ -833,10 +893,11 @@ std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
       Add(out, "    rastemp = ras1.%s;\n", rswap.c_str());
       break;
     case 5:
-      out += "    rastemp = vec4(alphabump);\n";
+      out += fast ? "    rastemp = vec4(alphabump * k255);\n" : "    rastemp = vec4(alphabump);\n";
       break;
     case 6:
-      out += "    rastemp = vec4(alphabump + floor(alphabump / 32.0));\n";
+      out += fast ? "    rastemp = vec4((alphabump + floor(alphabump / 32.0)) * k255);\n"
+                  : "    rastemp = vec4(alphabump + floor(alphabump / 32.0));\n";
       break;
     default:
       out += "    rastemp = vec4(0.0);\n";
@@ -889,6 +950,90 @@ std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
       default: return Constant(0, false);
       }
     };
+    if (fast) {
+      // inputs a, b, c are 8 bits on the GameCube (registers and konstants & 255; here clamped to
+      // 0..1 where a stage before may have left more), d as it is
+      auto fracReg = [&](unsigned r, int part, const char *swz, bool in8) {
+        Frac f;
+        if (!regWritten[r][part])
+          f.e = std::string(in8 ? "uColorsW[" : "uColors[") + std::to_string(r) + "]." + swz + " * k255";
+        else if (in8 && !(regLo[r][part] >= 0.0 && regHi[r][part] <= 255.0))
+          f.e = std::string("clamp(") + kDest[r] + "." + swz + ", 0.0, 1.0)";
+        else
+          f.e = std::string(kDest[r]) + "." + swz;
+        f.e = "(" + f.e + ")";
+        return f;
+      };
+      auto fracKonst = [&](unsigned sel, bool vec) {
+        if (sel < 8)
+          return FracConstant(kKonstValue[sel], vec);
+        Frac f;
+        if (vec && sel >= 0x0C && sel <= 0x0F)
+          f.e = "(uKonstW[" + std::to_string(sel - 0x0C) + "].rgb * k255)";
+        else if (sel >= 0x10)
+          f.e = "(uKonstW[" + std::to_string(sel & 3) + "]." + std::string(vec ? 3 : 1, kChannel[(sel - 0x10) >> 2]) +
+                " * k255)";
+        else
+          return FracConstant(0, vec);
+        return f;
+      };
+      auto fracColor = [&](unsigned sel, bool in8) {
+        if (sel < 8)
+          return fracReg(sel / 2, sel & 1, sel & 1 ? "aaa" : "rgb", in8);
+        Frac f;
+        switch (sel) {
+        case 8: if (!texOn) return FracConstant(255, true); f.e = "textemp.rgb"; return f;
+        case 9: if (!texOn) return FracConstant(255, true); f.e = "textemp.aaa"; return f;
+        case 10: if (!rasOn) return FracConstant(0, true); f.e = "rastemp.rgb"; return f;
+        case 11: if (!rasOn) return FracConstant(0, true); f.e = "rastemp.aaa"; return f;
+        case 12: return FracConstant(255, true);
+        case 13: return FracConstant(128, true);
+        case 14: return fracKonst(kc, true);
+        default: return FracConstant(0, true);
+        }
+      };
+      auto fracAlpha = [&](unsigned sel, bool in8) {
+        if (sel < 4)
+          return fracReg(sel, 1, "a", in8);
+        Frac f;
+        switch (sel) {
+        case 4: if (!texOn) return FracConstant(255, false); f.e = "textemp.a"; return f;
+        case 5: if (!rasOn) return FracConstant(0, false); f.e = "rastemp.a"; return f;
+        case 6: return fracKonst(ka, false);
+        default: return FracConstant(0, false);
+        }
+      };
+      const Frac fa = fracColor((cc >> 12) & 15, true), fb = fracColor((cc >> 8) & 15, true),
+                 fc = fracColor((cc >> 4) & 15, true), fd = fracColor(cc & 15, false);
+      const Frac ga = fracAlpha((ac >> 13) & 7, true), gb = fracAlpha((ac >> 10) & 7, true),
+                 gc = fracAlpha((ac >> 7) & 7, true), gd = fracAlpha((ac >> 4) & 7, false);
+      const bool colorCompare = ((cc >> 16) & 3) == 3, alphaCompare = ((ac >> 16) & 3) == 3;
+      if (colorCompare || alphaCompare) {
+        // compares on the 255 steps, as the exact TEV (the helpers take whole numbers)
+        Add(out, "    vec4 tevin_a = floor(vec4(%s, %s) * 255.0 + 0.5);\n", fa.e.c_str(), ga.e.c_str());
+        Add(out, "    vec4 tevin_b = floor(vec4(%s, %s) * 255.0 + 0.5);\n", fb.e.c_str(), gb.e.c_str());
+        Add(out, "    vec4 tevin_c = vec4(%s, %s);\n", fc.e.c_str(), gc.e.c_str());
+      }
+      for (int part = 0; part < 2; part++) {
+        const std::uint32_t env = part ? ac : cc;
+        const unsigned b = (env >> 16) & 3, op = (env >> 18) & 1, clampOut = (env >> 19) & 1,
+                       scale = (env >> 20) & 3, dest = (env >> 22) & 3;
+        std::string v;
+        if (b == 3)
+          v = "(" + (part ? gd.e : fd.e) + " + " + (part ? kAlphaCompare : kColorCompare)[op | scale << 1] + ")";
+        else
+          v = part ? FastOp(ga, gb, gc, gd, b, op, scale, false) : FastOp(fa, fb, fc, fd, b, op, scale, true);
+        if (clampOut)
+          v = part ? "clamp(" + v + ", 0.0, 1.0)" : "clamp(" + v + ", vec3(0.0), vec3(1.0))";
+        Add(out, "    %s.%s = %s;\n", kDest[dest], part ? "a" : "rgb", v.c_str());
+        // the range in steps, for the inputs of the stages after (clamped: 0..255)
+        regLo[dest][part] = clampOut ? 0.0 : -1024.0;
+        regHi[dest][part] = clampOut ? 255.0 : 1023.0;
+        regWritten[dest][part] = true;
+      }
+      out += "  }\n";
+      continue;
+    }
     const Term ca = colorIn((cc >> 12) & 15, true), cb = colorIn((cc >> 8) & 15, true),
                cc3 = colorIn((cc >> 4) & 15, true), cd = colorIn(cc & 15, false);
     const Term aa = alphaIn((ac >> 13) & 7, true), ab = alphaIn((ac >> 10) & 7, true),
@@ -944,19 +1089,30 @@ std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
       regHi[0][1] = regHi[ad][1];
     }
   }
-  // prev & 255, where it can be outside
-  if (!(regLo[0][0] >= 0.0 && regHi[0][0] <= 255.0))
-    out += "  prev.rgb = wrap8(prev.rgb);\n";
-  if (!(regLo[0][1] >= 0.0 && regHi[0][1] <= 255.0))
-    out += "  prev.a = wrap8(prev.a);\n";
+  // prev & 255, where it can be outside (fast: clamped, by the framebuffer; the alpha test reads
+  // the steps of the clamped alpha)
+  if (fast) {
+    out += "  float pa = floor(clamp(prev.a, 0.0, 1.0) * 255.0 + 0.5);\n";
+  } else {
+    if (!(regLo[0][0] >= 0.0 && regHi[0][0] <= 255.0))
+      out += "  prev.rgb = wrap8(prev.rgb);\n";
+    if (!(regLo[0][1] >= 0.0 && regHi[0][1] <= 255.0))
+      out += "  prev.a = wrap8(prev.a);\n";
+  }
   // alpha test
   {
     const unsigned f0 = k.alphaTest & 7, f1 = (k.alphaTest >> 3) & 7, logic = (k.alphaTest >> 6) & 3;
     static const char *logicOp[4] = {"&&", "||", "!=", "=="};
     const bool always = (f0 == 7 && f1 == 7) || (logic == 1 && (f0 == 7 || f1 == 7));
-    if (!always)
-      Add(out, "  if (!(%s %s %s)) discard;\n", AlphaFunc(f0, "uAlphaRef.x").c_str(), logicOp[logic],
-          AlphaFunc(f1, "uAlphaRef.y").c_str());
+    if (!always) {
+      std::string t0 = AlphaFunc(f0, "uAlphaRef.x"), t1 = AlphaFunc(f1, "uAlphaRef.y");
+      if (fast) {
+        for (std::string *t : {&t0, &t1})
+          if (t->compare(0, 7, "(prev.a") == 0)
+            t->replace(1, 6, "pa");
+      }
+      Add(out, "  if (!(%s %s %s)) discard;\n", t0.c_str(), logicOp[logic], t1.c_str());
+    }
   }
   // fog: uFog[0] = A, C, B magnitude / 2^24, 2^-shift (z * (2^24 - 1) >> shift as a fraction of 2^24)
   {
@@ -975,11 +1131,15 @@ std::string GxFragmentShader(const ShaderKey &k, const ShaderInfo &s) {
         out += "  fog = exp2(-8.0 * (1.0 - fog));\n";
       else if (fsel == 7)
         out += "  fog = 1.0 - fog;\n  fog = exp2(-8.0 * fog * fog);\n";
-      out += "  float ifog = floor(fog * 256.0 + 0.5);\n";
-      out += "  prev.rgb = prev.rgb + floor((uFog[1].rgb - prev.rgb) * (ifog / 256.0));\n";
+      if (fast) {
+        out += "  prev.rgb = mix(prev.rgb, uFog[1].rgb * k255, fog);\n";
+      } else {
+        out += "  float ifog = floor(fog * 256.0 + 0.5);\n";
+        out += "  prev.rgb = prev.rgb + floor((uFog[1].rgb - prev.rgb) * (ifog / 256.0));\n";
+      }
     }
   }
-  out += "  gl_FragColor = prev / 255.0;\n";
+  out += fast ? "  gl_FragColor = prev;\n" : "  gl_FragColor = prev / 255.0;\n";
   // destination alpha (GXSetDstAlpha) when the renderer lets the shader write it
   out += "  if (uAlphaRef.z >= 0.0) gl_FragColor.a = uAlphaRef.z / 255.0;\n}\n";
   return out;

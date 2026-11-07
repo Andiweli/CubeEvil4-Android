@@ -211,7 +211,11 @@ struct AttrFormat {
 } // namespace
 
 struct GxRenderer::Impl {
-  int scale = 1;
+  // the EFB's resolution in eighths of the GameCube's 640x528 (8: 1x; 6: 0.75x, 480x396; Init's
+  // scale times 8, or GxOptions::resolutionEighths, RE4_GX2_SCALE)
+  int eighths = 8;
+  // a length in GameCube pixels in EFB pixels (rounded; edges through S, sizes as differences)
+  int S(int v) const { return (v * eighths + 4) / 8; }
   GxStats stats;
   GxCaps caps;
   GxOptions options;
@@ -391,11 +395,14 @@ struct GxRenderer::Impl {
     // shader's gl_Position), worked out here, not per vertex (the Tegra 3 counts each
     // instruction); depth as the registers say: the shader rounds it as the GLES 3 renderer does,
     // pictures at the far end (z = w) stay in
+    // The console samples a pixel at 7/12 of its width and height, GLES at 1/2 (Dolphin's pixel
+    // centre correction, the GLES 3 renderer's since 29.10.2026): everything 1/12 of a GameCube pixel
+    // up and left, so a line thinner than a pixel on a pixel's edge (the rifle scope's at 1x) is drawn
     const double w = kEfbWidth, h = kEfbHeight;
     viewport[0][0] = static_cast<float>(AsFloat(xfReg[0x1A]) * 2.0 / w);
-    viewport[0][1] = static_cast<float>((AsFloat(xfReg[0x1D]) - 342.0) * 2.0 / w - 1.0);
+    viewport[0][1] = static_cast<float>((AsFloat(xfReg[0x1D]) - 342.0) * 2.0 / w - 1.0 - 1.0 / (6.0 * w));
     viewport[0][2] = static_cast<float>(AsFloat(xfReg[0x1B]) * 2.0 / h);
-    viewport[0][3] = static_cast<float>((AsFloat(xfReg[0x1E]) - 342.0) * 2.0 / h - 1.0);
+    viewport[0][3] = static_cast<float>((AsFloat(xfReg[0x1E]) - 342.0) * 2.0 / h - 1.0 - 1.0 / (6.0 * h));
     viewport[1][0] = AsFloat(xfReg[0x1C]);
     viewport[1][1] = AsFloat(xfReg[0x1F]);
     viewport[1][2] = viewport[1][3] = 0.0f;
@@ -670,8 +677,8 @@ struct GxRenderer::Impl {
     out.height = copy.height;
     glGenTextures(1, &out.id);
     glBindTexture(GL_TEXTURE_2D, out.id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, static_cast<GLsizei>(copy.width * scale),
-                 static_cast<GLsizei>(copy.height * scale), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, S(static_cast<int>(copy.width)), S(static_cast<int>(copy.height)), 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     PlainParams(GL_NEAREST);
     texParams[out.id] = TexParams{GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false};
     GLuint fbo = 0;
@@ -679,7 +686,7 @@ struct GxRenderer::Impl {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, out.id, 0);
     PlainState();
-    glViewport(0, 0, static_cast<GLsizei>(copy.width * scale), static_cast<GLsizei>(copy.height * scale));
+    glViewport(0, 0, S(static_cast<int>(copy.width)), S(static_cast<int>(copy.height)));
     glUseProgram(paletteProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, copy.id);
@@ -857,7 +864,7 @@ struct GxRenderer::Impl {
     glBindFramebuffer(GL_FRAMEBUFFER, efbFbo);
     // (the "half" measurement: a quarter of the pixels)
     const int div = options.probeHalf ? 2 : 1;
-    glViewport(0, 0, kEfbWidth * scale / div, kEfbHeight * scale / div);
+    glViewport(0, 0, S(kEfbWidth) / div, S(kEfbHeight) / div);
     // scissor: registers in EFB pixels + 342, minus the scissor offset (BP 0x59, in 2 pixels)
     const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
     const int x0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
@@ -865,7 +872,7 @@ struct GxRenderer::Impl {
     const int x1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
     const int y1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
     glEnable(GL_SCISSOR_TEST);
-    glScissor(x0 * scale / div, y0 * scale / div, std::max(0, x1 - x0) * scale / div, std::max(0, y1 - y0) * scale / div);
+    glScissor(S(x0) / div, S(y0) / div, std::max(0, S(x1) - S(x0)) / div, std::max(0, S(y1) - S(y0)) / div);
     const std::uint32_t z = bp[0x40];
     if (z & 1) {
       static const GLenum func[8] = {GL_NEVER, GL_LESS, GL_EQUAL, GL_LEQUAL, GL_GREATER, GL_NOTEQUAL, GL_GEQUAL, GL_ALWAYS};
@@ -939,7 +946,7 @@ struct GxRenderer::Impl {
       glEnable(GL_CULL_FACE);
       glCullFace(cull == 1 ? GL_BACK : cull == 2 ? GL_FRONT : GL_FRONT_AND_BACK);
     }
-    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float lineWidth = static_cast<float>(bp[0x22] & 0xFF) / 6.0f * static_cast<float>(eighths) / 8.0f;
     glLineWidth(std::max(1.0f, lineWidth));
   }
 
@@ -994,6 +1001,7 @@ struct GxRenderer::Impl {
     k.alphaTest = (bp[0xF3] >> 16) & 0xFF;
     k.fog = (bp[0xF1] >> 20) & 15;
     k.texelCoords = options.texelCoords ? 1 : 0;
+    k.fastTev = options.fastTev ? 1 : 0;
     return k;
   }
 
@@ -1296,7 +1304,7 @@ struct GxRenderer::Impl {
     }
     const unsigned primitive = d.primitive & 0xFF;
     ApplyState(primitive);
-    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * static_cast<float>(scale);
+    const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * static_cast<float>(eighths) / 8.0f;
     if (xfRegsDirty)
       FillXfRegs();
     if (proj[1][3] != pointSize) {
@@ -1484,7 +1492,7 @@ struct GxRenderer::Impl {
           DeleteTexture(xfbTex);
         glGenTextures(1, &xfbTex);
         glBindTexture(GL_TEXTURE_2D, xfbTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w * scale, h * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, S(w), S(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         PlainParams(GL_LINEAR);
         xfbWidth = static_cast<unsigned>(w);
         xfbHeight = static_cast<unsigned>(h);
@@ -1499,7 +1507,7 @@ struct GxRenderer::Impl {
           DeleteTexture(c.id);
         glGenTextures(1, &c.id);
         glBindTexture(GL_TEXTURE_2D, c.id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ow * scale, oh * scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, S(ow), S(oh), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         PlainParams(GL_LINEAR);
         texParams[c.id] = TexParams{GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR, false};
         c.width = static_cast<unsigned>(ow);
@@ -1520,12 +1528,12 @@ struct GxRenderer::Impl {
       stats.depthCopies++;
       if (!efbDepthTex) {
         glBindTexture(GL_TEXTURE_2D, target);
-        if (DepthReadBack(x * scale, y * scale, w * scale, h * scale, half, mode, tw * scale, th * scale)) {
+        if (DepthReadBack(S(x), S(y), S(x + w) - S(x), S(y + h) - S(y), half, mode, S(tw), S(th))) {
           stats.depthReadBacks++;
         } else {
           // neither way: far away everywhere
-          std::vector<std::uint8_t> white(static_cast<std::size_t>(tw * scale) * th * scale * 4, 255);
-          glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tw * scale, th * scale, GL_RGBA, GL_UNSIGNED_BYTE, white.data());
+          std::vector<std::uint8_t> white(static_cast<std::size_t>(S(tw)) * S(th) * 4, 255);
+          glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, S(tw), S(th), GL_RGBA, GL_UNSIGNED_BYTE, white.data());
           stats.depthCopiesLost++;
         }
         glBindFramebuffer(GL_FRAMEBUFFER, efbFbo);
@@ -1543,13 +1551,14 @@ struct GxRenderer::Impl {
       return;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, TargetFbo(target));
-    glViewport(0, 0, tw * scale, th * scale);
+    glViewport(0, 0, S(tw), S(th));
     glUseProgram(program->id);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depth ? efbDepthTex : efbColor);
-    const float fw = static_cast<float>(kEfbWidth * scale), fh = static_cast<float>(kEfbHeight * scale);
-    glUniform4f(program->rect, static_cast<float>(x * scale) / fw, static_cast<float>(y * scale) / fh,
-                static_cast<float>(w * scale) / fw, static_cast<float>(h * scale) / fh);
+    // the region as a share of the EFB (the same at any resolution)
+    const float fw = static_cast<float>(S(kEfbWidth)), fh = static_cast<float>(S(kEfbHeight));
+    glUniform4f(program->rect, static_cast<float>(x) / kEfbWidth, static_cast<float>(y) / kEfbHeight,
+                static_cast<float>(w) / kEfbWidth, static_cast<float>(h) / kEfbHeight);
     if (program->texel >= 0)
       glUniform2f(program->texel, 0.5f / fw, 0.5f / fh);
     if (program->gain >= 0)
@@ -1565,7 +1574,7 @@ struct GxRenderer::Impl {
       const std::uint32_t c = bp[0x41];
       const bool color = (c >> 3) & 1, alpha = (c >> 4) & 1, zupdate = (bp[0x40] >> 4) & 1;
       glEnable(GL_SCISSOR_TEST);
-      glScissor(x * scale, y * scale, w * scale, h * scale);
+      glScissor(S(x), S(y), S(x + w) - S(x), S(y + h) - S(y));
       glColorMask(color, color, color, alpha);
       glDepthMask(zupdate ? GL_TRUE : GL_FALSE);
       const float r = static_cast<float>(bp[0x4F] & 255) / 255.0f, a = static_cast<float>((bp[0x4F] >> 8) & 255) / 255.0f;
@@ -1802,7 +1811,11 @@ bool GxRenderer::Init(int scale, std::string *error) {
   std::string dummy;
   if (!error)
     error = &dummy;
-  m.scale = std::max(1, scale);
+  m.eighths = 8 * std::max(1, scale);
+  if (const char *res = std::getenv("RE4_GX2_SCALE"))
+    m.options.resolutionEighths = static_cast<int>(std::atof(res) * 8.0 + 0.5);
+  if (m.options.resolutionEighths > 0)
+    m.eighths = std::min(32, std::max(2, m.options.resolutionEighths));
   if (const char *probe = std::getenv("RE4_GX2_PROBE")) {
     const std::string p = std::string(",") + probe + ",";
     m.options.probeFlat = m.options.probeFlat || p.find(",flat,") != std::string::npos;
@@ -1814,6 +1827,8 @@ bool GxRenderer::Init(int scale, std::string *error) {
     m.options.probeSimpleVs = m.options.probeSimpleVs || p.find(",simplevs,") != std::string::npos;
     m.options.probeHalf = m.options.probeHalf || p.find(",half,") != std::string::npos;
   }
+  if (const char *fast = std::getenv("RE4_GX2_FAST_TEV"))
+    m.options.fastTev = *fast == '1';
   const char *tegra3 = std::getenv("RE4_GX2_TEGRA3");
   if (tegra3 && *tegra3 == '1')
     m.options.tegra3 = true;
@@ -1826,7 +1841,7 @@ bool GxRenderer::Init(int scale, std::string *error) {
   for (auto &s : m.lightStamp)
     s = 1;
   m.Capabilities();
-  const int w = kEfbWidth * m.scale, h = kEfbHeight * m.scale;
+  const int w = m.S(kEfbWidth), h = m.S(kEfbHeight);
   glGenTextures(1, &m.efbColor);
   glBindTexture(GL_TEXTURE_2D, m.efbColor);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -1981,9 +1996,9 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
 
 GLuint GxRenderer::Xfb(unsigned *width, unsigned *height) const {
   if (width)
-    *width = impl_->xfbWidth;
+    *width = static_cast<unsigned>(impl_->S(static_cast<int>(impl_->xfbWidth)));
   if (height)
-    *height = impl_->xfbHeight;
+    *height = static_cast<unsigned>(impl_->S(static_cast<int>(impl_->xfbHeight)));
   return impl_->haveXfb ? impl_->xfbTex : 0;
 }
 
@@ -2021,7 +2036,8 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
 
 GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
 
-int GxRenderer::Scale() const { return impl_->scale; }
+int GxRenderer::Scale() const { return impl_->eighths / 8; }
+int GxRenderer::ResolutionEighths() const { return impl_->eighths; }
 
 const GxStats &GxRenderer::Stats() const { return impl_->stats; }
 
