@@ -12,6 +12,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <cstddef>
 #include <cstring>
 #include <unordered_map>
 #include <vector>
@@ -1086,8 +1087,11 @@ struct GxRenderer::Impl {
           same = false;
         }
       }
-      if (same && common && Popcount8(common) > static_cast<unsigned>(options.maxLights)) {
-        const std::uint32_t slots = (1u << options.maxLights) - 1;
+      // also with no more lights than that: the lights in the first slots (lights 2 and 5 the same
+      // shader as 0 and 1; each set of lights built a shader of its own, on the OUYA 150 ms each)
+      if (same && common) {
+        const unsigned count = std::min(Popcount8(common), static_cast<unsigned>(options.maxLights));
+        const std::uint32_t slots = (1u << count) - 1;
         for (int i = 0; i < 4; i++) {
           std::uint32_t &c = k.chan[i];
           const std::uint32_t m = ((c >> 2) & 15) | (((c >> 11) & 15) << 4);
@@ -1103,10 +1107,61 @@ struct GxRenderer::Impl {
     return k;
   }
 
+  // Diagnosis (the OUYA's stalls, 07.11.2026: a shader costs it about 150 ms): for the first new
+  // shaders, how the key differs from the nearest one built before (field[index] old -> new)
+  void LogKeyDifference(const ShaderKey &k) {
+    if (stats.programs > 400 || programs.empty())
+      return;
+    struct Field {
+      const char *name;
+      std::size_t offset, words;
+    };
+#define RE4_FIELD(f) {#f, offsetof(ShaderKey, f), sizeof(ShaderKey::f) / 4}
+    static const Field fields[] = {RE4_FIELD(layout),      RE4_FIELD(mtxSlots),  RE4_FIELD(numChans),
+                                   RE4_FIELD(numTexGens),  RE4_FIELD(chan),      RE4_FIELD(texGen),
+                                   RE4_FIELD(postGen),     RE4_FIELD(dualTex),   RE4_FIELD(orthographic),
+                                   RE4_FIELD(numStages),   RE4_FIELD(numIndStages), RE4_FIELD(colorEnv),
+                                   RE4_FIELD(alphaEnv),    RE4_FIELD(order),     RE4_FIELD(konst),
+                                   RE4_FIELD(swap),        RE4_FIELD(indCmd),    RE4_FIELD(indRef),
+                                   RE4_FIELD(alphaTest),   RE4_FIELD(fog),       RE4_FIELD(texMaps),
+                                   RE4_FIELD(fastTev),     RE4_FIELD(texelCoords), RE4_FIELD(lightFold)};
+#undef RE4_FIELD
+    const std::uint32_t *now = reinterpret_cast<const std::uint32_t *>(&k);
+    const std::size_t words = sizeof(ShaderKey) / 4;
+    const ShaderKey *best = nullptr;
+    std::size_t bestDiff = words + 1;
+    for (const auto &e : programs) {
+      const std::uint32_t *w = reinterpret_cast<const std::uint32_t *>(&e.first);
+      std::size_t d = 0;
+      for (std::size_t i = 0; i < words && d < bestDiff; i++)
+        d += w[i] != now[i];
+      if (d < bestDiff) {
+        bestDiff = d;
+        best = &e.first;
+      }
+    }
+    const std::uint32_t *was = reinterpret_cast<const std::uint32_t *>(best);
+    std::string text;
+    for (const Field &f : fields)
+      for (std::size_t i = 0; i < f.words; i++) {
+        const std::size_t at = f.offset / 4 + i;
+        if (was[at] == now[at])
+          continue;
+        char part[96];
+        if (f.words > 1)
+          snprintf(part, sizeof(part), " %s[%zu] %x->%x", f.name, i, was[at], now[at]);
+        else
+          snprintf(part, sizeof(part), " %s %x->%x", f.name, was[at], now[at]);
+        text += part;
+      }
+    GXLOG("new shader %u: %zu words from the nearest:%s", stats.programs + 1, bestDiff, text.c_str());
+  }
+
   Program *ProgramFor(const ShaderKey &k) {
     auto it = programs.find(k);
     if (it != programs.end())
       return it->second.id ? &it->second : nullptr;
+    LogKeyDifference(k);
     Program p;
     ShaderKey vk = k;
     if (options.probeSimpleVs) {
