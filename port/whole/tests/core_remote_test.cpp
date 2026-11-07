@@ -111,7 +111,10 @@ struct Receiver {
 
     void step()
     {
-        if (const Re4GxChunk* c = re4ipc_gx_acquire()) {
+        // every chunk that is ready (with the OUYA branch's 8 slots, re4_core_ipc.h, one a step let
+        // the core process run 8 and more pictures ahead: the depth maps came back too old for its
+        // peeks, 07.11.2026)
+        while (const Re4GxChunk* c = re4ipc_gx_acquire()) {
             if (chunks == 0 && !(c->flags & RE4_GX_CHUNK_RESET)) {
                 firstNotReset++;
             }
@@ -398,7 +401,9 @@ void mainRun(const char* modules, const char* gciPath)
     CHECK(f[0] == 6);         // pads: every change in order
     CHECK(f[1] == r.vsyncs);  // vsyncs
     CHECK(f[2] >= 1 && f[2] <= r.gyros);
-    CHECK(f[5] >= 3);         // memory pieces made (RE4_CORE_IPC_SEGMENT=4096: they had to grow)
+    // memory pieces made (RE4_CORE_IPC_SEGMENT=4096: they had to grow); 2: the test's renderer takes
+    // every chunk as it comes (above), two of the OUYA branch's 8 slots take turns
+    CHECK(f[5] >= 2);
     unsigned stats[5];
     re4ipc_audio_stats(stats);
     const unsigned blocks = number(probe, "AI blocks ");
