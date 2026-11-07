@@ -22,6 +22,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 struct Re4GxChunk;
 
@@ -321,6 +322,14 @@ public:
   // (x, y, w, h), upright; rows > 0: only XFB rows top .. top + rows - 1
   // (the letterbox cut off). False when there is none yet.
   bool Present(int x, int y, int w, int h, unsigned top = 0, unsigned rows = 0);
+  // The latest display copy as shown (after FXAA, Sharpen and the PSone pass): RGBA8, row 0 the picture's top row,
+  // *width x *height pixels at the EFB scale; false before the first display copy. For tests and screenshots, any
+  // API (port/docs/vulkan-bauplan.md, E1).
+  bool ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height);
+  // Present (x, y, w, h, top, rows as Present takes them: x, y from the bottom left) into a picture of screenW x
+  // screenH pixels, black around it, read back as RGBA8 with row 0 at the top (gx_chunk_render's RE4_GX_SCREEN).
+  bool ReadPresented(int screenW, int screenH, int x, int y, int w, int h, unsigned top, unsigned rows,
+                     std::vector<std::uint8_t> *rgba);
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
   int Scale() const;   // whole multiples (1.5x: 1)

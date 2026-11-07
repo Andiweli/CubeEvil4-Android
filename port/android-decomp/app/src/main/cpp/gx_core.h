@@ -657,6 +657,9 @@ struct GxCore {
   bool XfbWide() const;
   virtual bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) = 0;
   virtual unsigned EfbColor() const = 0;
+  virtual bool ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height) = 0;
+  virtual bool ReadPresented(int screenW, int screenH, int x, int y, int w, int h, unsigned top, unsigned rows,
+                             std::vector<std::uint8_t> *rgba) = 0;
   int Scale() const;
   int Halves() const;
   const GxStats &Stats() const;

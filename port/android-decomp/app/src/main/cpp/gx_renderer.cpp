@@ -61,6 +61,13 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
   return impl_->Present(x, y, w, h, top, rows);
 }
 GLuint GxRenderer::EfbColor() const { return impl_->EfbColor(); }
+bool GxRenderer::ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height) {
+  return impl_->ReadXfb(rgba, width, height);
+}
+bool GxRenderer::ReadPresented(int screenW, int screenH, int x, int y, int w, int h, unsigned top, unsigned rows,
+                               std::vector<std::uint8_t> *rgba) {
+  return impl_->ReadPresented(screenW, screenH, x, y, w, h, top, rows, rgba);
+}
 int GxRenderer::Scale() const { return impl_->Scale(); }
 int GxRenderer::Halves() const { return impl_->Halves(); }
 const GxStats &GxRenderer::Stats() const { return impl_->Stats(); }

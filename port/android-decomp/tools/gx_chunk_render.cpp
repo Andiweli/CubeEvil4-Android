@@ -98,8 +98,6 @@ int main(int argc, char **argv) {
   }
   const std::string out = argv[1];
   int failures = 0;
-  GLuint fbo = 0;
-  glGenFramebuffers(1, &fbo);
   std::unique_ptr<re4gx::GxRenderer> renderer;
   uint32_t lastSequence = 0, lastFrame = 0;
   const char *interpText = std::getenv("RE4_GX_INTERP");
@@ -117,7 +115,6 @@ int main(int argc, char **argv) {
   const int halves = halvesText && std::atoi(halvesText) >= 2 && std::atoi(halvesText) <= 8 ? std::atoi(halvesText)
                                                                                            : 2 * scale;
   int shownHalves = halves;  // the running renderer's level (after RE4_GX_RESCALE)
-  const auto scaled = [&](unsigned v) { return (v * static_cast<unsigned>(shownHalves) + 1) / 2; };
   // RE4_GX_RESCALE=K:S: before the K-th file (from 0) the running renderer goes to scale S
   // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels.
   // RE4_GX_RESCALE=K:hN: to N halves (GxRenderer::RescaleHalves, a step of "Dynamic": 3 is 1.5x)
@@ -138,13 +135,6 @@ int main(int argc, char **argv) {
   if (const char *screen = std::getenv("RE4_GX_SCREEN"))
     if (std::sscanf(screen, "%dx%d:%d", &screenW, &screenH, &screenFormat) != 3 || screenW < 16 || screenH < 16)
       screenW = screenH = 0;
-  GLuint screenFbo = 0, screenTex = 0;
-  if (screenW > 0) {
-    glGenTextures(1, &screenTex);
-    glBindTexture(GL_TEXTURE_2D, screenTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glGenFramebuffers(1, &screenFbo);
-  }
   for (int i = 2; i < argc; i++) {
     const std::string path = argv[i];
     auto loadedHere = std::make_unique<re4gxio::Loaded>();
@@ -310,14 +300,8 @@ int main(int argc, char **argv) {
                   now.interpTexWraps - was.interpTexWraps, now.interpTevBlends - was.interpTevBlends,
                   now.interpLightBlends - was.interpLightBlends);
       unsigned iw = 0, ih = 0;
-      const GLuint between = renderer->Xfb(&iw, &ih);
-      if (shown && between && iw && ih) {
-        iw = scaled(iw);
-        ih = scaled(ih);
-        std::vector<unsigned char> rgba(static_cast<std::size_t>(iw) * ih * 4);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, between, 0);
-        glReadPixels(0, 0, static_cast<GLsizei>(iw), static_cast<GLsizei>(ih), GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+      std::vector<std::uint8_t> rgba;
+      if (shown && renderer->ReadXfb(&rgba, &iw, &ih) && iw && ih) {
         const std::string file = out + "/" + Stem(path) + "-zw.ppm";
         if (FILE *p = std::fopen(file.c_str(), "wb")) {
           std::fprintf(p, "P6\n%u %u\n255\n", iw, ih);
@@ -431,13 +415,9 @@ int main(int argc, char **argv) {
     }
     if (s.shaderErrors > before.shaderErrors)
       failures++;
-    if (xfb && w && h) {
-      w = scaled(w);  // the texture holds the scaled picture
-      h = scaled(h);
-      std::vector<unsigned char> rgba(static_cast<std::size_t>(w) * h * 4);
-      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, xfb, 0);
-      glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    std::vector<std::uint8_t> rgba;
+    if (xfb && w && h && renderer->ReadXfb(&rgba, &w, &h)) {
+      // (the picture's pixels: the scaled size)
       // XFB row 0 is the picture's top row
       const std::string file = out + "/" + Stem(path) + ".ppm";
       if (FILE *p = std::fopen(file.c_str(), "wb")) {
@@ -452,30 +432,21 @@ int main(int argc, char **argv) {
     if (xfb && screenW > 0 && !held) {
       unsigned xw = 0, xh = 0;
       renderer->Xfb(&xw, &xh);
-      glBindFramebuffer(GL_FRAMEBUFFER, screenFbo);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTex, 0);
-      glViewport(0, 0, screenW, screenH);
-      glDisable(GL_SCISSOR_TEST);
-      glClearColor(0, 0, 0, 1);
-      glClear(GL_COLOR_BUFFER_BIT);
       re4mm::Rect hud, pic;
       re4mm::PictureRects(screenFormat, screenW, screenH, static_cast<int>(xh), &hud, &pic, renderer->XfbWide());
       if (screenFormat == 5) {
         const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
-        renderer->Present(pic.x, pic.y, pic.w, pic.h, xh * static_cast<unsigned>(v.top) / 448,
-                          xh * static_cast<unsigned>(v.rows) / 448);
+        renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * static_cast<unsigned>(v.top) / 448,
+                                xh * static_cast<unsigned>(v.rows) / 448, &rgba);
       } else if (screenFormat == 0 || screenFormat == 2) {
-        renderer->Present(pic.x, pic.y, pic.w, pic.h, xh * 56 / 448, xh * 336 / 448);
+        renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * 56 / 448, xh * 336 / 448, &rgba);
       } else {
-        renderer->Present(pic.x, pic.y, pic.w, pic.h);
+        renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, 0, 0, &rgba);
       }
-      std::vector<unsigned char> rgba(static_cast<std::size_t>(screenW) * screenH * 4);
-      glBindFramebuffer(GL_FRAMEBUFFER, screenFbo);
-      glReadPixels(0, 0, screenW, screenH, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
       const std::string file = out + "/" + Stem(path) + "-screen.ppm";
       if (FILE *p = std::fopen(file.c_str(), "wb")) {
         std::fprintf(p, "P6\n%d %d\n255\n", screenW, screenH);
-        for (int y = screenH - 1; y >= 0; y--)  // the screen's rows go bottom up
+        for (int y = 0; y < screenH; y++)  // ReadPresented: row 0 at the top
           for (int x = 0; x < screenW; x++)
             std::fwrite(&rgba[(static_cast<std::size_t>(y) * screenW + x) * 4], 1, 3, p);
         std::fclose(p);

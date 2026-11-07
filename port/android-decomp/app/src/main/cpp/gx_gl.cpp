@@ -3315,6 +3315,60 @@ struct GlRenderer final : GxCore {
   unsigned Xfb(unsigned *width, unsigned *height) const override;
   bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) override;
   unsigned EfbColor() const override;
+  bool ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height) override {
+    if (!haveXfb || !xfbWidth || !xfbHeight)
+      return false;
+    const unsigned w = static_cast<unsigned>(Hi(static_cast<int>(xfbWidth))),
+                   h = static_cast<unsigned>(Hi(static_cast<int>(xfbHeight)));
+    rgba->resize(static_cast<std::size_t>(w) * h * 4);
+    if (!readFbo)
+      glGenFramebuffers(1, &readFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, readFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ShownXfb(), 0);
+    glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, rgba->data());
+    BindFbo(0);
+    Touched();
+    *width = w;
+    *height = h;
+    return true;
+  }
+  bool ReadPresented(int screenW, int screenH, int x, int y, int w, int h, unsigned top, unsigned rows,
+                     std::vector<std::uint8_t> *out) override {
+    if (!haveXfb || screenW < 1 || screenH < 1)
+      return false;
+    if (!screenTex || screenTexW != screenW || screenTexH != screenH) {
+      if (screenTex)
+        glDeleteTextures(1, &screenTex);
+      glGenTextures(1, &screenTex);
+      glBindTexture(GL_TEXTURE_2D, screenTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+      screenTexW = screenW;
+      screenTexH = screenH;
+    }
+    if (!readFbo)
+      glGenFramebuffers(1, &readFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, readFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTex, 0);
+    glViewport(0, 0, screenW, screenH);
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    Present(x, y, w, h, top, rows);
+    std::vector<std::uint8_t> rgba(static_cast<std::size_t>(screenW) * screenH * 4);
+    glBindFramebuffer(GL_FRAMEBUFFER, readFbo);
+    glReadPixels(0, 0, screenW, screenH, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    BindFbo(0);
+    Touched();
+    // the screen's rows go bottom up in GL
+    out->resize(rgba.size());
+    const std::size_t row = static_cast<std::size_t>(screenW) * 4;
+    for (int r = 0; r < screenH; r++)
+      std::memcpy(out->data() + static_cast<std::size_t>(r) * row, rgba.data() + static_cast<std::size_t>(screenH - 1 - r) * row, row);
+    return true;
+  }
+  // the pictures' read-back (ReadXfb, ReadPresented): a framebuffer of their own, the screen's texture
+  GLuint readFbo = 0, screenTex = 0;
+  int screenTexW = 0, screenTexH = 0;
   bool BaseVertex() const override;
   bool SetProgramCache(const std::string &folder) override;
   bool Prewarm(double budgetMs) override;
@@ -3888,6 +3942,10 @@ void GlRenderer::Release() {
   glDeleteFramebuffers(1, &m.spareFbo);
   const GLuint textures[] = {m.efbColor, m.efbDepth, m.xfbTex, m.whiteTex};
   glDeleteTextures(4, textures);
+  if (m.readFbo)
+    glDeleteFramebuffers(1, &m.readFbo);
+  if (m.screenTex)
+    glDeleteTextures(1, &m.screenTex);
   const GLuint fbos[] = {m.efbFbo, m.xfbFbo, m.msaaFbo};
   glDeleteFramebuffers(3, fbos);
   const GLuint renderbuffers[] = {m.msaaColor, m.msaaDepth};
