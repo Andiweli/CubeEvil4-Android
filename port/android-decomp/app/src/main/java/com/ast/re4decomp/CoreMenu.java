@@ -149,6 +149,8 @@ final class CoreMenu extends Dialog {
   private final Button back, resume, update;
   private static final int UPDATE_GREEN = 0xff2d5233, UPDATE_GREEN_EDGE = 0xff4f8a57;
   private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
+  // the warning before another player character (08.11.2026): a dark red under the text, the "Update" button's edge
+  private static final int WARN_RED = 0xff4e1f1c;
   // the Benchmark button: the green of "Up to date", quieter (wish of the project owner, 06.11.2026)
   private static final int BENCH_GREEN = 0xff223a27, BENCH_GREEN_EDGE = 0xff3b6343, BENCH_TEXT = 0xffc3d6c5;
   private final Handler main = new Handler(Looper.getMainLooper());
@@ -1395,8 +1397,14 @@ final class CoreMenu extends Dialog {
     for (int i = 0; i < labels.length; i++) {
       final int index = i;
       Button b = cellAction(row, labels[i], v -> {
-        select(buttons, labels, index);
-        cheatBits = (cheatBits & ~CHARACTER_BITS) | (values[index] << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);
+        Runnable choose = () -> {
+          select(buttons, labels, index);
+          cheatBits = (cheatBits & ~CHARACTER_BITS) | (values[index] << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);
+        };
+        // a character other than Leon warns first, also from one of them to another (wish of the project owner,
+        // 08.11.2026); the character already chosen and Leon switch at once as before
+        int current = (cheatBits & CHARACTER_BITS) >> CHARACTER_SHIFT;
+        if (values[index] == 0 || values[index] == current) choose.run(); else warnCharacter(labels[index], choose);
       });
       b.setSelected(values[i] == selected);
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
@@ -1404,6 +1412,43 @@ final class CoreMenu extends Dialog {
     }
     costumeSwitch(row);
     help(R.string.ingame_cheat_character_help);
+  }
+  /** Before Ada, HUNK, Krauser or Wesker take Leon's place (wish of the project owner, 08.11.2026): a reddish
+   *  warning that they are not made for the main game, the menu's other questions' dialog in red. Only OK
+   *  switches (touch, click, A, Enter); Back, B, Esc, START, SELECT or a touch beside it keep the character
+   *  (the buttons' choice is only changed by OK). The other gamepad buttons do nothing here: Android would take
+   *  X and START for a confirmation. */
+  private void warnCharacter(String name, Runnable choose) {
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(name)
+        .setMessage(R.string.ingame_cheat_character_warning)
+        .setPositiveButton(R.string.ingame_ok, (d, w) -> choose.run()).create();
+    GradientDrawable frame = shape(WARN_RED, UPDATE_RED_EDGE, 10); frame.setStroke(dp(2), UPDATE_RED_EDGE);
+    dialog.getWindow().setBackgroundDrawable(frame);
+    dialog.setOnKeyListener((d, key, event) -> {
+      if (key == KeyEvent.KEYCODE_BUTTON_A) {
+        return dialog.getWindow().superDispatchKeyEvent(new KeyEvent(event.getDownTime(), event.getEventTime(),
+            event.getAction(), KeyEvent.KEYCODE_DPAD_CENTER, event.getRepeatCount()));
+      }
+      if (key != KeyEvent.KEYCODE_ESCAPE && !KeyEvent.isGamepadButton(key)) return false;
+      if ((key == KeyEvent.KEYCODE_ESCAPE || key == KeyEvent.KEYCODE_BUTTON_B || key == KeyEvent.KEYCODE_BUTTON_START
+          || key == KeyEvent.KEYCODE_BUTTON_SELECT) && event.getAction() == KeyEvent.ACTION_DOWN
+          && event.getRepeatCount() == 0) dialog.cancel();
+      return true;
+    });
+    dialog.setOnShowListener(d -> {
+      TextView message = dialog.findViewById(android.R.id.message);
+      if (message != null) message.setTextColor(INK);
+      Button ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+      StateListDrawable look = new StateListDrawable();
+      look.addState(new int[] {android.R.attr.state_focused}, focused(UPDATE_RED));
+      look.addState(new int[] {android.R.attr.state_pressed}, shape(UPDATE_RED, INK, 6));
+      look.addState(new int[0], shape(UPDATE_RED, UPDATE_RED_EDGE, 6));
+      ok.setBackground(look); ok.setTextColor(INK); ok.setAllCaps(false); ok.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+      ok.setPadding(dp(24), dp(8), dp(24), dp(8));
+      ok.requestFocus();
+    });
+    dialog.show();
   }
   /** "Special costumes · On/Off" over a smaller "(Leon/Ashley only)", as tall as one line's button (the
    *  owner, 03.11.2026: the second row as high as the first). */

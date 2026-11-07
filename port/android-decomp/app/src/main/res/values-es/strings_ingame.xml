@@ -255,7 +255,9 @@
     <string name="ingame_cheat_character">Personaje</string>
     <string name="ingame_cheat_costume">Trajes especiales</string>
     <string name="ingame_cheat_costume_note">(solo Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">El personaje ocupa al instante el lugar de Leon en la historia: la sala se vuelve a cargar donde estás (durante una escena, desde la siguiente sala). El maletín, la vida y el dinero de Leon se mantienen; las armas sin modelo propio del personaje muestran las de Leon. La parte de Ashley sigue siendo de Ashley; las escenas y las llamadas de radio siguen mostrando a Leon. Tus partidas guardadas siempre conservan a Leon, así que se cargan con el personaje elegido aquí. Trajes especiales: Leon y Ashley (y Ada como sustituta) llevan sus trajes especiales, también al instante.</string>
+    <string name="ingame_cheat_character_help">El personaje ocupa al instante el lugar de Leon en la historia: la sala se vuelve a cargar donde estás (durante una escena, desde la siguiente sala). El maletín, la vida y el dinero de Leon se mantienen; las armas sin modelo propio del personaje muestran las de Leon. La parte de Ashley sigue siendo de Ashley; las escenas y las llamadas de radio siguen mostrando a Leon. Tus partidas guardadas siempre conservan a Leon, así que se cargan con el personaje elegido aquí. Los personajes distintos de Leon no están pensados para el juego principal, así que al elegir uno aparece antes un aviso: Aceptar cambia, Atrás mantiene tu personaje actual. Trajes especiales: Leon y Ashley (y Ada como sustituta) llevan sus trajes especiales, también al instante.</string>
+    <string name="ingame_cheat_character_warning">Atención: este personaje no está pensado para el juego principal. ¡Pueden aparecer y aparecerán errores, y son inevitables!</string>
+    <string name="ingame_ok">Aceptar</string>
     <string name="ingame_later">Más tarde</string>
     <string name="ingame_controller_config">Asignación de botones</string>
     <string name="ingame_controller_config_help">Asignación de botones: pon cada acción del juego en teclas de tu mando o teclado.</string>

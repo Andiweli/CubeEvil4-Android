@@ -253,7 +253,9 @@
     <string name="ingame_cheat_character">Spielfigur</string>
     <string name="ingame_cheat_costume">Spezialkostüme</string>
     <string name="ingame_cheat_costume_note">(nur Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">Die Figur übernimmt sofort Leons Platz in der Geschichte: Der Raum lädt dort neu, wo du stehst (während einer Zwischensequenz ab dem nächsten Raum). Leons Koffer, Leben und Geld bleiben; Waffen, für die die Figur kein eigenes Modell hat, zeigen Leons. Ashleys Abschnitt bleibt Ashleys, Zwischensequenzen und Funksprüche zeigen weiter Leon. Deine Spielstände behalten immer Leon und laden deshalb mit der Figur, die hier gewählt ist. Spezialkostüme: Leon und Ashley (und Ada als Stellvertreterin) tragen ihre Spezialkostüme, ebenfalls sofort.</string>
+    <string name="ingame_cheat_character_help">Die Figur übernimmt sofort Leons Platz in der Geschichte: Der Raum lädt dort neu, wo du stehst (während einer Zwischensequenz ab dem nächsten Raum). Leons Koffer, Leben und Geld bleiben; Waffen, für die die Figur kein eigenes Modell hat, zeigen Leons. Ashleys Abschnitt bleibt Ashleys, Zwischensequenzen und Funksprüche zeigen weiter Leon. Deine Spielstände behalten immer Leon und laden deshalb mit der Figur, die hier gewählt ist. Figuren außer Leon sind nicht für das Hauptspiel gedacht, deshalb erscheint bei ihrer Wahl zuerst eine Warnung: OK wechselt, Zurück behält deine bisherige Figur. Spezialkostüme: Leon und Ashley (und Ada als Stellvertreterin) tragen ihre Spezialkostüme, ebenfalls sofort.</string>
+    <string name="ingame_cheat_character_warning">Achtung: Diese Spielfigur ist nicht für das Hauptspiel gedacht, es können und werden Fehler auftreten, diese sind unumgänglich!</string>
+    <string name="ingame_ok">OK</string>
     <string name="ingame_later">Später</string>
     <string name="ingame_controller_config">Tastenbelegung</string>
     <string name="ingame_controller_config_help">Tastenbelegung: jede Aktion des Spiels auf Tasten deines Controllers oder deiner Tastatur legen.</string>

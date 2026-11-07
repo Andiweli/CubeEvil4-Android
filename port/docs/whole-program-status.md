@@ -3,6 +3,40 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.3-rc: Warnung vor einer anderen Spielfigur (08.11.2026, Branch `work`)
+
+Version 0.99.3-rc (versionCode 105), Releasetext `port/android-decomp/docs/releases/v0.99.3-rc.md` („Changes since
+v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag. Noch kein
+Patch in diesem Abschnitt (nächste freie Nummer 0219).
+
+1. **Warnung vor Ada, HUNK, Krauser und Wesker (Wunsch des Projektinhabers, 08.11.2026).** Wortlaut: „Im CHEAT Menu
+   soll bitte beim Auswählen einer anderen Spielfigur als Leon ein rötliches Popup erscheinen, das der User bestätigen
+   muss. Hinweistext ‚Achtung: Diese Spielfigur ist nicht für das Hauptspiel gedacht, es können und werden Fehler
+   auftreten, diese sind unumgänglich!‘ und mit OK bestätigen.“
+   - **App-Menü → Cheats → Spielfigur** (`CoreMenu.playerCharacter`, neu `warnCharacter`): Wer eine Figur außer Leon
+     wählt, bekommt zuerst den Hinweis, auch beim Wechsel von einer dieser Figuren zur anderen. Leon und die schon
+     gewählte Figur wechseln sofort wie bisher. Der Hinweis ist der übliche Dialog des Menüs (`AlertDialog`) in Rot:
+     dunkelroter Grund (`WARN_RED` 0xff4e1f1c), Rand in der Farbe des „Update“-Knopfs (2 dp), der Name der Figur als
+     Titel, der Text in der Schriftfarbe des Menüs, **ein Knopf „OK“** im Rot des „Update“-Knopfs mit dem Fokusrahmen
+     des Menüs.
+   - **Nur OK wechselt** (Tippen, Klick, A, Enter). **Zurück, B, Esc, START, SELECT** und ein Tippen neben den Dialog
+     schließen ihn ohne Wechsel; die Auswahl bleibt bei der bisherigen Figur (die Knöpfe ändern sich erst mit OK). Die
+     übrigen Controller-Tasten tun im Dialog nichts: Android nähme sonst X und START als Bestätigung (Ersatztasten des
+     Systems). A geht wie im Menü als Bestätigungstaste an den Knopf.
+   - **Texte in 11 Sprachen:** `ingame_cheat_character_warning` (Deutsch wörtlich wie gewünscht, Englisch „Warning:
+     This character is not meant for the main game. Bugs can and will occur, and they cannot be avoided!“),
+     `ingame_ok` (u. a. Spanisch „Aceptar“, Russisch „ОК“, Chinesisch „确定“, Arabisch „حسنًا“, Hindi „ठीक है“), im
+     Hilfetext der Spielfigur ein Satz vor den Spezialkostümen („Characters other than Leon are not made for the main
+     game, so choosing one shows a warning first: OK switches, Back keeps your current character.“).
+   - **Geprüft am PC:** `check_translations.py` ok (305 Texte je Sprache); `CoreMenuLayoutTest.cheatsPageSwitchesSendTheirBits`
+     erweitert (Hinweis mit Name, Text und nur einem Knopf; vor OK nichts gesendet, Auswahl unverändert; B, Zurück,
+     Esc, START, SELECT schließen ohne Wechsel, X tut nichts, A = OK; Ada → Wesker fragt, Leon und die gewählte Figur
+     fragen nicht); `CoreMenuShotTest` zeichnet den Hinweis je Sprache (`<sprache>-character-warning.png`, 500 dp
+     breit wie auf dem Retroid Pocket Flip 2; Bilder in `E:\Development\Android\reports\0993-character-warning\`):
+     alle 11 Sprachen brechen sauber um, Arabisch von rechts. App-Tests 59 grün (core und classic, einer übersprungen:
+     die Bilder ohne `RE4_MENU_SHOTS`), `compileClassicDebugJavaWithJavac` und `compileCoreDebugJavaWithJavac` ok.
+     **Nicht geprüft:** Gerät (Controller, Touch, Tastatur und Maus am echten Dialog).
+
 ## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs, Knöpfe „Spieldaten“, Filter „Nachschärfen“ (07./08.11.2026, Branch `work`, Patches 0216–0218)
 
 Version 0.99.2-rc (versionCode 104), Releasetext `port/android-decomp/docs/releases/v0.99.2-rc.md` („Changes since

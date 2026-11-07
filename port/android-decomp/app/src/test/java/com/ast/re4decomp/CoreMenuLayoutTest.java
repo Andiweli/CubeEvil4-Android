@@ -546,21 +546,73 @@ public class CoreMenuLayoutTest {
       assertNull(findText(body, "Play as"));
       Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
       assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
-      hunk.performClick(); assertEquals(4 | 3 << 5, sent[0]);
+      // another character than Leon warns first (08.11.2026): its name over the warning, one button OK; only OK
+      // switches, the choice stays until then
+      hunk.performClick();
+      android.app.AlertDialog ask = warning(activity, "HUNK");
+      assertEquals(4, sent[0]); assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
+      assertEquals("one button", View.GONE, ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).getVisibility());
+      assertEquals("one button", View.GONE, ask.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).getVisibility());
+      ok(ask); assertEquals(4 | 3 << 5, sent[0]);
       assertTrue(hunk.isSelected()); assertFalse(leon.isSelected());
-      wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
-      findButton(body, "Ada").performClick(); assertEquals(4 | 2 << 5, sent[0]);
+      // B (as Back, Esc, START, SELECT) closes it without the switch; X does nothing here, A is OK
+      int[] cancels = {android.view.KeyEvent.KEYCODE_BUTTON_B, android.view.KeyEvent.KEYCODE_BACK,
+          android.view.KeyEvent.KEYCODE_ESCAPE, android.view.KeyEvent.KEYCODE_BUTTON_START,
+          android.view.KeyEvent.KEYCODE_BUTTON_SELECT};
+      for (int key : cancels) {
+        wesker.performClick(); ask = warning(activity, "Wesker");
+        press(ask, android.view.KeyEvent.KEYCODE_BUTTON_X); assertTrue("X does not answer", ask.isShowing());
+        press(ask, key);
+        assertFalse(key + " closes the warning", ask.isShowing());
+        assertEquals(key + " keeps the character", 4 | 3 << 5, sent[0]);
+        assertTrue(hunk.isSelected()); assertFalse(wesker.isSelected());
+      }
+      wesker.performClick(); ask = warning(activity, "Wesker");
+      // a controller leaves the touch mode; OK has the focus then (the dialog gives it)
+      ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).requestFocusFromTouch();
+      assertTrue(ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).isFocused());
+      press(ask, android.view.KeyEvent.KEYCODE_BUTTON_A);
+      assertFalse("A is OK", ask.isShowing()); assertEquals(4 | 5 << 5, sent[0]); assertTrue(wesker.isSelected());
+      // also from one of them to another; the one already chosen and Leon at once
+      findButton(body, "Ada").performClick(); ok(warning(activity, "Ada")); assertEquals(4 | 2 << 5, sent[0]);
+      wesker.performClick(); ok(warning(activity, "Wesker")); assertEquals(4 | 5 << 5, sent[0]);
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
       wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
       health.performClick(); assertEquals(5 | 5 << 5, sent[0]);
       leon.performClick(); assertEquals(5, sent[0]);
+      assertSame("Leon and the chosen one ask nothing", ask, org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog());
+      assertTrue(leon.isSelected()); assertFalse(wesker.isSelected());
       // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
       Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
       assertSame(leon.getParent(), costume.getParent());
       assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
       costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
-      hunk.performClick(); assertEquals(5 | 256 | 3 << 5, sent[0]);
+      hunk.performClick(); ok(warning(activity, "HUNK")); assertEquals(5 | 256 | 3 << 5, sent[0]);
       costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
     }
+  }
+
+  /** The warning before another player character: shown, the character's name as its title, the warning's text. */
+  private static android.app.AlertDialog warning(Activity activity, String name) {
+    android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+    assertNotNull("a warning for " + name, ask);
+    assertTrue("the warning for " + name + " is shown", ask.isShowing());
+    org.robolectric.shadows.ShadowAlertDialog shadow = org.robolectric.Shadows.shadowOf(ask);
+    assertEquals(name, shadow.getTitle().toString());
+    assertEquals(activity.getString(R.string.ingame_cheat_character_warning), shadow.getMessage().toString());
+    assertEquals(activity.getString(R.string.ingame_ok), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
+    return ask;
+  }
+  private static void ok(android.app.AlertDialog ask) {
+    ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
+    assertFalse(ask.isShowing());
+  }
+  private static void press(android.app.Dialog dialog, int key) {
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // laid out: the keys reach its buttons
+    dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, key));
+    dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, key));
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
   }
 
   @Test public void navigationHasBoldTitleAndNormalSmallerSummary() throws Exception {

@@ -255,7 +255,9 @@
     <string name="ingame_cheat_character">Personaggio</string>
     <string name="ingame_cheat_costume">Costumi speciali</string>
     <string name="ingame_cheat_costume_note">(solo Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">Il personaggio prende subito il posto di Leon nella storia: la stanza si ricarica dove ti trovi (durante una scena, dalla stanza successiva). La valigetta, la vita e il denaro di Leon restano; le armi senza un modello proprio del personaggio mostrano quelle di Leon. La parte di Ashley resta di Ashley, le scene e le chiamate radio mostrano sempre Leon. I tuoi salvataggi tengono sempre Leon, quindi si caricano con il personaggio scelto qui. Costumi speciali: Leon e Ashley (e Ada come sostituta) indossano i loro costumi speciali, anche questo subito.</string>
+    <string name="ingame_cheat_character_help">Il personaggio prende subito il posto di Leon nella storia: la stanza si ricarica dove ti trovi (durante una scena, dalla stanza successiva). La valigetta, la vita e il denaro di Leon restano; le armi senza un modello proprio del personaggio mostrano quelle di Leon. La parte di Ashley resta di Ashley, le scene e le chiamate radio mostrano sempre Leon. I tuoi salvataggi tengono sempre Leon, quindi si caricano con il personaggio scelto qui. I personaggi diversi da Leon non sono pensati per il gioco principale, quindi sceglierne uno mostra prima un avviso: OK cambia, Indietro mantiene il tuo personaggio attuale. Costumi speciali: Leon e Ashley (e Ada come sostituta) indossano i loro costumi speciali, anche questo subito.</string>
+    <string name="ingame_cheat_character_warning">Attenzione: questo personaggio non è pensato per il gioco principale. Gli errori possono verificarsi e si verificheranno, sono inevitabili!</string>
+    <string name="ingame_ok">OK</string>
     <string name="ingame_later">Più tardi</string>
     <string name="ingame_controller_config">Assegnazione tasti</string>
     <string name="ingame_controller_config_help">Assegnazione tasti: metti ogni azione del gioco su tasti del controller o della tastiera.</string>
