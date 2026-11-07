@@ -8,7 +8,7 @@ App-Ordner, intern oder auf USB, sonst /sdcard/RE4-OUYA; das neueste). Die App l
 Ergebnis in -OutDir (Standard: Desktop\RE4-OUYA-Probe\log): logcat.txt, core.log, app.txt (nur
 die Zeilen der App: Bilder je 10 s, Zeit des Renderers, Shader, Texturen).
 .EXAMPLE
-.\port\scripts\ouya-log.ps1
+powershell -ExecutionPolicy Bypass -File .\port\scripts\ouya-log.ps1
 #>
 param(
     [string]$Serial = '015d46d9751c1613',

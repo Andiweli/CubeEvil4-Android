@@ -26,11 +26,17 @@ Controller: O = A, A = B, U = X, Y = Y, R1 = Z, L2/R2 = L/R, linker Stick, recht
 C-Stick, Steuerkreuz; START = OUYA-Taste kurz gedrueckt oder L3.
 
 .EXAMPLE
-.\port\scripts\ouya-app.ps1
+powershell -ExecutionPolicy Bypass -File .\port\scripts\ouya-app.ps1
+(Windows fuehrt nicht signierte Skripte sonst nicht aus; -ExecutionPolicy Bypass gilt nur fuer
+diesen einen Aufruf und aendert keine Einstellung.)
 
 .EXAMPLE
-.\port\scripts\ouya-app.ps1 -SkipCore -Seconds 120
+powershell -ExecutionPolicy Bypass -File .\port\scripts\ouya-app.ps1 -SkipCore -Seconds 120
 Nur die App neu bauen und installieren (der Kern ist schon gebaut), zwei Minuten mitschreiben.
+
+.EXAMPLE
+powershell -ExecutionPolicy Bypass -File .\port\scripts\ouya-app.ps1 -PrepareOnly
+Nur den Kern bauen und in die App legen, fuer einen Bau von Hand in Android Studio.
 #>
 param(
     [string]$Serial = '',

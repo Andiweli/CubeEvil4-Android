@@ -509,6 +509,14 @@ zuerst mit der Debug-Disc (G4BE08).
 - **Bauen und aufspielen:** `port/scripts/ouya-app.ps1` (Kern in WSL, App mit Gradle, unter der
   ADB-Sperre installieren, Disc kopieren, starten, Protokoll holen; `-SkipCore`, `-SkipDisc`,
   `-Seconds`). Ergebnis in `Desktop\RE4-OUYA-Probe\app` (`bericht.txt`, `logcat.txt`, `core.log`).
+  Aufruf mit `powershell -ExecutionPolicy Bypass -File .\port\scripts\ouya-app.ps1`: Windows führt
+  nicht signierte Skripte sonst nicht aus; der Schalter gilt nur für diesen Aufruf.
+- **Von Hand in Android Studio** (seit 08.11.2026 baut der Projektinhaber selbst): erst
+  `ouya-app.ps1 -PrepareOnly` (Kern in WSL bauen und nach `app\src\main\jniLibs\armeabi-v7a`
+  legen; nur nötig, wenn sich am Kern etwas geändert hat), dann den Ordner `port\ouya` öffnen
+  (NDK 23.2.8568313, CMake 3.22.1), Variante `debug` oder `release` wählen; beide sind mit dem
+  Debug-Schlüssel des PCs signiert und lassen sich übereinander installieren. Der App-Teil ist in
+  beiden mit `-O2` übersetzt, `release` ist deshalb kaum schneller.
 - **Hürden von Android 4.1** (alle behoben): Bibliotheken der App werden nicht von selbst geladen
   (`c++_shared` zuerst); `dladdr` nennt keinen Ordner (Bibliotheksordner aus Java); `dlsym` sucht
   nur in der genannten Bibliothek (Kernprozess fragt auch `libre4_platform.so`); der Kernel vergibt
