@@ -373,8 +373,6 @@ struct GlRenderer final : GxCore {
   // the focus (3 x 1 texels: the focus in use, the last two measurements), two in turn: each
   // autofocus reads the one before and writes the other (focusCur: the one in use)
   GLuint focusTex[2] = {}, focusFbo[2] = {};
-  int focusCur = 0;
-  unsigned focusChunk = ~0u;  // the chunk of the last autofocus (stats.chunks)
   GLint focusRestart = -1;
   // GPU step e: the blur at half the resolution into halfTex, mixed into the EFB at the full one
   // (colorFbo: the EFB's colour without its depth, which the mix reads)
@@ -1731,71 +1729,6 @@ struct GlRenderer final : GxCore {
 
 
 
-  // A draw op that starts a chain's run (mergeMarks[mergeNext]): the run's draws as one draw call;
-  // the next op to run.
-  std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at) override {
-    std::size_t i = mergeNext;
-    const MergeMark &start = mergeMarks[i];
-    Re4GxDraw first;
-    std::memcpy(&first, chunk.ops + at + 1, sizeof(first));
-    const auto end = [&](std::uint32_t op) { return op + 1 + (chunk.ops[op] >> 8); };
-    // the program of the run (its draws have the shader of the first: nothing between them changes it)
-    if (keyDirty || first.layout != keyLayout) {
-      key = MakeKey(first);
-      keyProgram = ProgramFor(key);
-      if (keyProgram)
-        NoteKey(key);
-      keyLayout = first.layout;
-      keyDirty = false;
-    }
-    unsigned draws = 0;
-    std::uint32_t count = 0, next = end(at);
-    if (!keyProgram || !MergedProgram(key))
-      stats.mergeRunBreak[GxStats::kRunNoProgram]++;
-    else {
-      for (;;) {
-        const MergeMark &m = mergeMarks[i];
-        Re4GxDraw d;
-        std::memcpy(&d, chunk.ops + m.op + 1, sizeof(d));
-        if (xfRegsDirty)
-          FillXfRegs();
-        std::memcpy(mergeBlock.xf[draws], xf.posTex, sizeof(xf.posTex) + sizeof(xf.normal));
-        std::memcpy(mergeBlock.xf[draws][96], xf.matAmb, sizeof(xf.matAmb));
-        std::memcpy(mergeBlock.slot[draws], d.matrices, sizeof(d.matrices));
-        mergeBlock.slot[draws][3] = m.first;
-        draws++;
-        count += d.indexCount;
-        next = end(m.op);
-        int why = GxStats::kRunOtherOp;
-        if (draws == kMergeSlots || i + 1 >= mergeMarks.size() || mergeMarks[i + 1].chain != start.chain ||
-            !MergeQuiet(chunk, next, mergeMarks[i + 1].op, &why)) {
-          stats.mergeRunBreak[draws == kMergeSlots ? GxStats::kRunSlots
-                              : i + 1 >= mergeMarks.size() || mergeMarks[i + 1].chain != start.chain
-                                  ? GxStats::kRunChainEnd
-                                  : why]++;
-          break;
-        }
-        // the ops between (the owner tags only count for the recording, which is off while merging)
-        for (std::uint32_t op = next; op < mergeMarks[i + 1].op;)
-          op = Op(chunk, op);
-        i++;
-      }
-    }
-    mergeNext = i + 1;
-    if (draws < 2) {
-      Draw(first, chunk);
-      return end(at);
-    }
-    for (int s = static_cast<int>(draws); s < kMergeSlots; s++)
-      mergeBlock.slot[s][3] = ~0u;
-    MergeCall call;
-    call.draws = draws;
-    call.index = start.index;
-    call.count = count;
-    call.base = start.base;
-    Draw(first, chunk, &call);
-    return next;
-  }
 
   // The merged draw calls' program of `k`; null while Prewarm has yet to make it (mergeWanted).
   const Program *MergedProgram(const ShaderKey &k) {
@@ -3261,6 +3194,42 @@ struct GlRenderer final : GxCore {
     SaveAndPlainState();
     BindFbo(DrawFbo());
   }
+  // ---- the GPU side of the in-between pass (GxCore::Interpolate) ----
+  // before the pass: the store of its blended vertices; after it: their fence
+  void InterpBegin(const Re4GxChunk &next) override {
+    GlRenderer &m = *this;
+    // the store for the pass's blended vertices: the next quarter of the mapped ring once the GPU is
+    // through with it, else a fresh buffer (the last pass's may still be read by the GPU)
+    if (!m.blendRingTried)
+      m.BlendRingInit();
+    if (m.blendMap) {
+      m.blendPart = (m.blendPart + 1) % GlRenderer::kBlendParts;
+      if (GLsync fence = m.blendFence[m.blendPart]) {
+        if (glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0) == GL_TIMEOUT_EXPIRED)
+          glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000ull);
+        glDeleteSync(fence);
+        m.blendFence[m.blendPart] = nullptr;
+      }
+      m.blendUsed = m.blendPart * GlRenderer::kBlendPart;
+      m.blendCap = m.blendUsed + GlRenderer::kBlendPart;
+    } else {
+      if (!m.blendVbo)
+        glGenBuffers(1, &m.blendVbo);
+      m.blendCap = std::max<std::size_t>(next.vertexBytes, 65536);
+      glBindBuffer(GL_ARRAY_BUFFER, m.blendVbo);
+      glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m.blendCap), nullptr, GL_STREAM_DRAW);
+      m.blendUsed = 0;
+    }
+    m.blendAt = -1;
+  }
+  void InterpEnd() override {
+    GlRenderer &m = *this;
+    m.blendAt = -1;
+    if (m.blendMap)
+      m.blendFence[m.blendPart] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+  }
+  bool KeyProgramReady() const override { return keyProgram != nullptr; }
+  bool MergedProgramReady() override { return MergedProgram(key) != nullptr; }
   // ---- Run's GPU side (GxCore::Run) ----
   void RunBegin() override {
     GlRenderer &m = *this;
@@ -3343,7 +3312,6 @@ struct GlRenderer final : GxCore {
   void RescaleHalves(int halves) override;
   void HandOverCopies(GxCore &to) override;
   bool TiledMsaa() const override;
-  bool Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) override;
   unsigned Xfb(unsigned *width, unsigned *height) const override;
   bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) override;
   unsigned EfbColor() const override;
@@ -3684,162 +3652,6 @@ void GlRenderer::RescaleHalves(int halves) {
 }
 
 
-bool GlRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) {
-  GlRenderer &m = *this;
-  // (STILL: a menu screen of the game, its scrolling text lists; also when prev was one: the cut out of it)
-  const std::uint32_t refuse =
-      RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK | RE4_GX_CHUNK_STILL;
-  if (prev.flags & RE4_GX_CHUNK_STILL)
-    return false;
-  // "Native": from a wide picture to one in the 16:9 box or back (a menu screen, the scope, a movie) the app's box
-  // changes; nothing lies between them
-  if ((prev.flags ^ next.flags) & RE4_GX_CHUNK_WIDE)
-    return false;
-  if (!m.recordDraws || !m.recValid || m.recSequence != prev.sequence || next.sequence != prev.sequence + 1 ||
-      (next.flags & refuse) || !(next.flags & RE4_GX_CHUNK_XFB) || next.version != RE4_GX_FRAME_VERSION ||
-      m.viBlack || m.rec.empty())
-    return false;
-  // nothing in perspective noted (title, movies, 2D menus): nothing to place between
-  bool any3d = false;
-  for (const GlRenderer::DrawRec &r : m.rec)
-    any3d = any3d || r.perspective;
-  if (!any3d)
-    return false;
-  // what the pass changes and Run(next) expects as after prev
-  std::vector<std::uint32_t> bp(m.bp, m.bp + 256), xfMem(m.xfMem, m.xfMem + 0x800), xfReg(m.xfReg, m.xfReg + 0x58);
-  std::int32_t tevColor[4][4], tevKonst[4][4];
-  std::memcpy(tevColor, m.tevColor, sizeof(tevColor));
-  std::memcpy(tevKonst, m.tevKonst, sizeof(tevKonst));
-  GlRenderer::Bound bound[8];
-  std::uint64_t boundKey[8];
-  for (int i = 0; i < 8; i++) {
-    bound[i] = m.bound[i];
-    boundKey[i] = m.boundKey[i];
-  }
-  const float perspA = m.perspA, perspB = m.perspB;
-  const bool havePerspective = m.havePerspective, holdXfb = m.holdXfb, viBlack = m.viBlack;
-  const int focusCur = m.focusCur;
-  const unsigned focusChunk = m.focusChunk;
-  // palette loads of next (TMEM): only then the palettes
-  bool tlutLoads = false;
-  for (std::uint32_t at = 0; at < next.opWords;) {
-    const std::uint32_t head = next.ops[at];
-    tlutLoads = tlutLoads || (head & 0xFF) == RE4_GX_OP_TLUT;
-    at += 1 + (head >> 8);
-  }
-  std::vector<std::uint8_t> tlut;
-  if (tlutLoads)
-    tlut = m.tlut;
-  // the noted draws by signature, in their order
-  m.recBySig.clear();
-  m.recByLook.clear();
-  m.recByOwner.clear();
-  m.nextOwnerDraws.clear();
-  {
-    std::uint64_t owner = 0;
-    for (std::uint32_t at = 0; at < next.opWords;) {
-      const std::uint32_t head = next.ops[at], op = head & 0xFF, n = head >> 8;
-      if (at + 1 + n > next.opWords)
-        break;
-      if (op == RE4_GX_OP_OWNER && n >= 4)
-        owner = GlRenderer::OwnerKey(next.ops + at + 1);
-      else if (op == RE4_GX_OP_DRAW && owner)
-        m.nextOwnerDraws[owner]++;
-      at += 1 + n;
-    }
-  }
-  for (std::uint32_t i = 0; i < m.rec.size(); i++) {
-    if (m.rec[i].owner)
-      m.recByOwner.emplace(m.rec[i].owner, i);
-    m.recBySig[m.rec[i].sig].push_back(i);
-    if (m.rec[i].look)
-      m.recByLook[m.rec[i].look].push_back(i);
-  }
-  m.recUsed.assign(m.rec.size(), 0);
-  m.recReserved.assign(m.rec.size(), 0);
-  for (std::uint32_t i = 0; i < m.rec.size(); i++) {
-    if (!m.rec[i].base)
-      continue;
-    auto pc = m.recOwnerDraws.find(m.rec[i].base), nc = m.nextOwnerDraws.find(m.rec[i].base);
-    m.recReserved[i] = pc != m.recOwnerDraws.end() && nc != m.nextOwnerDraws.end() && pc->second == nc->second;
-  }
-  m.ipDraws = m.ipMatched = m.ipTurned = 0;
-  m.camValid = false;
-  m.camGuesses = m.camVotes = 0;
-  m.interpCopied.clear();
-  m.interpUploads.clear();
-  // the store for the pass's blended vertices: the next quarter of the mapped ring once the GPU is
-  // through with it, else a fresh buffer (the last pass's may still be read by the GPU)
-  if (!m.blendRingTried)
-    m.BlendRingInit();
-  if (m.blendMap) {
-    m.blendPart = (m.blendPart + 1) % GlRenderer::kBlendParts;
-    if (GLsync fence = m.blendFence[m.blendPart]) {
-      if (glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0) == GL_TIMEOUT_EXPIRED)
-        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000ull);
-      glDeleteSync(fence);
-      m.blendFence[m.blendPart] = nullptr;
-    }
-    m.blendUsed = m.blendPart * GlRenderer::kBlendPart;
-    m.blendCap = m.blendUsed + GlRenderer::kBlendPart;
-  } else {
-    if (!m.blendVbo)
-      glGenBuffers(1, &m.blendVbo);
-    m.blendCap = std::max<std::size_t>(next.vertexBytes, 65536);
-    glBindBuffer(GL_ARRAY_BUFFER, m.blendVbo);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(m.blendCap), nullptr, GL_STREAM_DRAW);
-    m.blendUsed = 0;
-  }
-  m.blendAt = -1;
-  m.interpPass = true;
-  m.interpT = t;
-  m.interpPrev = &prev;
-  Run(next);
-  m.blendAt = -1;
-  if (m.blendMap)
-    m.blendFence[m.blendPart] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-  m.interpPass = false;
-  m.interpPrev = nullptr;
-  m.skipInterpUploads = true;
-  // back to the state after prev
-  std::memcpy(m.bp, bp.data(), sizeof(m.bp));
-  std::memcpy(m.xfMem, xfMem.data(), sizeof(m.xfMem));
-  std::memcpy(m.xfReg, xfReg.data(), sizeof(m.xfReg));
-  std::memcpy(m.tevColor, tevColor, sizeof(tevColor));
-  std::memcpy(m.tevKonst, tevKonst, sizeof(tevKonst));
-  for (int i = 0; i < 8; i++) {
-    m.bound[i] = bound[i];
-    m.boundKey[i] = boundKey[i];
-  }
-  if (tlutLoads)
-    m.tlut.swap(tlut);
-  m.perspA = perspA;
-  m.perspB = perspB;
-  m.havePerspective = havePerspective;
-  m.holdXfb = holdXfb;
-  m.viBlack = viBlack;
-  m.focusCur = focusCur;
-  m.focusChunk = focusChunk;
-  for (std::uint32_t a = 0; a < 0x800; a++)
-    m.XfMemToBlock(a);
-  m.FillXfRegs();
-  m.Dirty(0, static_cast<int>(sizeof(XfBlock) / 16));
-  m.keyDirty = true;
-  m.keyLayout = ~0u;
-  m.pxDirty = true;
-  m.pxValid = false;
-  m.Touched();
-  // a cut: few draws found again, or most of them turned (the camera jumped)
-  m.stats.interpDraws += m.ipDraws;
-  m.stats.interpMatched += m.ipMatched;
-  const bool cut = m.ipDraws == 0 || m.ipMatched * 2 < m.ipDraws || m.ipTurned * 10 > m.ipMatched * 3;
-  if (cut) {
-    m.stats.interpCuts++;
-    return false;
-  }
-  m.stats.interpPictures++;
-  return true;
-}
 
 unsigned GlRenderer::Xfb(unsigned *width, unsigned *height) const {
   if (width)

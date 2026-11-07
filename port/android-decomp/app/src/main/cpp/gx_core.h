@@ -552,7 +552,6 @@ struct GxCore {
   virtual void RunEnd() = 0;
   virtual void RunLeave() = 0;
   // a run of a merged chain as one draw call (MergePlan); the lens flares' pass; every texture forgotten (a reset)
-  virtual std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at) = 0;
   virtual void FlarePass() = 0;
   // the counters after the draw before (GxStats::mergeSame / mergeUniform), valid within a chunk
   struct MergeSnap {
@@ -614,6 +613,17 @@ struct GxCore {
   virtual void SnapshotDepth() = 0;
   virtual void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) = 0;
   virtual void PlainEfb() = 0;
+  // the in-between pass's GPU side: before it (the store of its blended vertices), after it; whether the key's
+  // program exists, whether its merged draw calls' program does (made by Prewarm when not: a run draws one by one)
+  virtual void InterpBegin(const Re4GxChunk &next) = 0;
+  virtual void InterpEnd() = 0;
+  virtual bool KeyProgramReady() const = 0;
+  virtual bool MergedProgramReady() = 0;
+  int focusCur = 0;
+  unsigned focusChunk = ~0u;  // the chunk of the last autofocus (stats.chunks)
+  // A draw op that starts a chain's run (mergeMarks[mergeNext]): the run's draws as one draw call;
+  // the next op to run.
+  std::uint32_t DrawMerged(const Re4GxChunk &chunk, std::uint32_t at);
   // ---- end of the part moved from GlRenderer ----
 
   // GxRenderer's calls, with the same meaning (see gx_gl.h)
@@ -642,7 +652,7 @@ struct GxCore {
   void SetRecording(bool on);
   void SetMerge(bool on);
   bool Merging() const;
-  virtual bool Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) = 0;
+  bool Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t);
   virtual unsigned Xfb(unsigned *width, unsigned *height) const = 0;
   bool XfbWide() const;
   virtual bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) = 0;
