@@ -876,6 +876,38 @@ else()
     target_link_libraries(yz2_tool PRIVATE re4_platform)
 endif()
 
+# The Vulkan renderer next to GLES (port/docs/vulkan-bauplan.md): Vulkan loaded at run time (vk_api), its device
+# (vk_context), GLSL to SPIR-V with glslang from the Android NDK (vk_shader, cmake/glslang.cmake). Off, or without
+# glslang or the Vulkan headers: GLES only, as before.
+option(RE4_VULKAN "the Vulkan renderer next to GLES" ON)
+set(RE4_HAVE_VULKAN OFF)
+if(RE4_VULKAN AND (ANDROID OR RE4_BUILD_VK_CHECK))
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/glslang.cmake")
+    if(NOT ANDROID)
+        # the PC: libvulkan-dev, or the headers unpacked into ~/vk-tools (port/tools/vk_tools_linux.sh)
+        find_path(RE4_VULKAN_INCLUDE_DIR vulkan/vulkan.h HINTS "$ENV{VK_TOOLS}/usr/include" "$ENV{HOME}/vk-tools/root/usr/include")
+    endif()
+    if(RE4_HAVE_GLSLANG AND (ANDROID OR RE4_VULKAN_INCLUDE_DIR))
+        set(RE4_HAVE_VULKAN ON)
+        add_library(re4_vulkan STATIC vk_api.cpp vk_context.cpp vk_shader.cpp)
+        target_include_directories(re4_vulkan PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+        if(RE4_VULKAN_INCLUDE_DIR)
+            target_include_directories(re4_vulkan SYSTEM PUBLIC "${RE4_VULKAN_INCLUDE_DIR}")
+        endif()
+        target_link_libraries(re4_vulkan PUBLIC re4_glslang ${CMAKE_DL_LIBS})
+        target_compile_options(re4_vulkan PRIVATE -Wall -Wextra -Werror -O2)
+        set_target_properties(re4_vulkan PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        if(NOT ANDROID)
+            # the first check of the tools: device, glslang, a triangle read back (lavapipe, validation layer)
+            add_executable(vk_probe ../../../../tools/vk_probe.cpp)
+            target_link_libraries(vk_probe PRIVATE re4_vulkan)
+            target_compile_options(vk_probe PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+        endif()
+    else()
+        message(STATUS "Vulkan renderer: left out (glslang ${RE4_HAVE_GLSLANG}, headers ${RE4_VULKAN_INCLUDE_DIR})")
+    endif()
+endif()
+
 # Android and host scene/JNI checks share the actual independent menu backend.
 # It preserves room and actor resources while an original item is examined.
 get_directory_property(task_scene_targets BUILDSYSTEM_TARGETS)

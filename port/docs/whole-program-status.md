@@ -2109,7 +2109,27 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
 - **Lizenzen (Vermerk):** glslang 11.11.0 aus dem NDK r28 (`sources/third_party/shaderc/third_party/glslang`):
   BSD-3-Clause, BSD-2-Clause, MIT-ähnlich (Khronos), Apache-2.0 (`SPIRV/bitutils.h`, `hex_float.h`), GPL-3.0 mit
   Bison-Ausnahme (`glslang_tab.cpp`, erzeugte Grammatik). Noch nichts davon eingebaut.
-- **Stand:** nur der Plan (kein Code, nichts gebaut). Etappenstand in der Tabelle am Ende des Bauplans.
+- **Stand:** Etappenstand in der Tabelle am Ende des Bauplans.
+- **E0 Werkzeuge (07.11.2026, fertig am PC):** neu in `port/android-decomp/app/src/main/cpp`: `vk_api.h/.cpp`
+  (Vulkan-Funktionen per `dlopen` von `libvulkan.so`, als Zeiger im Namensraum `re4vk`, damit sie nie mit den
+  Symbolen des Laders kollidieren), `vk_context.h/.cpp` (Instanz, Gerät, Warteschlange, Speicherarten,
+  Formatwahl, Prüfschicht mit Zählern, `Describe()` für den Bericht: Vulkan-Version, Gerät, Treiber),
+  `vk_shader.h/.cpp` (GLSL 450 → SPIR-V 1.0 mit glslang, beliebiger Thread), `cmake/glslang.cmake` (glslang 11.11.0
+  aus dem NDK: `ANDROID_NDK`, `ANDROID_NDK_HOME/ROOT` oder `/opt/android-ndk-r28c`; ohne HLSL und Optimierer;
+  `build_info.h` aus `CHANGES.md`), `third_party/glslang/LICENSE.txt` (die Hinweise aller gebauten Dateien nach
+  Lizenz gruppiert, dazu der Text der Apache-Lizenz 2.0 aus der `NOTICE`-Datei des NDK). CMake: Option `RE4_VULKAN`
+  (an), Bibliothek `re4_vulkan`; am PC mit `RE4_BUILD_VK_CHECK=ON` das Prüfprogramm `tools/vk_probe.cpp`. Für Android
+  wird `re4_vulkan` mitgebaut, aber noch nicht in `libre4decomp.so` gelinkt (die APK ändert sich nicht).
+  `port/tools/vk_tools_linux.sh` packt `libvulkan-dev`, `vulkan-validationlayers`, `spirv-tools`, `glslang-tools`
+  und `vulkan-tools` ohne Root nach `~/vk-tools` (`. ~/vk-tools/env.sh`); `whole_setup_linux.sh` installiert sie mit
+  Root.
+  **Geprüft (WSL, Baum `~/re4-vk/RE4`):** `vk_probe` auf lavapipe (Mesa 25.2.8, Vulkan 1.4.318) mit Prüfschicht
+  1.3.275, auch mit Synchronisationsprüfung: Shader übersetzt (erster Aufruf 76 ms samt Aufbau von glslang), ein
+  falscher abgelehnt mit Meldung, Tiefenformat `D24_UNORM_S8_UINT` als Ziel und Textur, Dreieck gezeichnet und
+  zurückgelesen: Speicherzeile 0 = NDC y −1 (wie das EFB im GLES-Renderer), Farben richtig, 0 Fehler, 0 Warnungen.
+  `gx_gl_check` im selben Baum 0 Fehler. glslang für Android (NDK r28c, beide ABIs) gebaut und gemessen: gestrippt
+  2,1 MB (arm64) / 1,6 MB (armv7), gepackt zusammen ≈ 1,3 MB. **Nicht geprüft:** Gradle-Bau der App (dieselben
+  Quellen mit demselben NDK in WSL gebaut), Gerät.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

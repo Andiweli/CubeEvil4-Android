@@ -187,8 +187,10 @@ dieselbe Schnittstelle.
   64-bit-Geräte Vulkan 1.1 können). Darunter steht im Menü nur OpenGL ES (der Vulkan-Knopf ausgegraut mit Hinweis).
 
 ### APK-Größe
-- Neu kommt nur glslang dazu (ohne HLSL und ohne SPIR-V-Optimierer). Geschätzt 1,5–2,5 MB je ABI ungepackt, in der
-  APK (gepackt, beide ABIs) etwa +2–3 MB auf heute 20,8 MB. Gemessen wird in E0.
+- Neu kommt nur glslang dazu (ohne HLSL und ohne SPIR-V-Optimierer). **Gemessen in E0** (NDK r28c, `-O2`,
+  gestrippt): 2,1 MB (arm64-v8a) und 1,6 MB (armeabi-v7a) ungepackt, gepackt zusammen etwa **1,3 MB** mehr APK auf
+  heute 20,8 MB (≈ +6 %); installiert auf einem 64-bit-Gerät +2,1 MB. Der Vulkan-Teil selbst kommt später dazu
+  (geschätzt einige hundert KB).
 
 ### Lizenzen von Fremdbibliotheken
 - **glslang** (Khronos; nötig): kommt mit dem NDK (`sources/third_party/shaderc/third_party/glslang`, Fassung
@@ -220,8 +222,8 @@ dieselbe Schnittstelle.
    *Empfehlung: ja.* (Alternative: ab Android 7 / Vulkan 1.0 – mehr Geräte, aber alte Treiber mit vielen Fehlern.)
 2. **Fremdbibliothek glslang** (nötig, BSD u. a., aus dem NDK, Lizenztexte in die App) – einverstanden?
    **VMA** nicht nehmen, sondern einen eigenen kleinen Speicherverwalter? *Empfehlung: glslang ja, VMA nein.*
-3. **APK etwa 2–3 MB größer** (≈ +12 %) für glslang – in Ordnung? *Empfehlung: ja* (wird in E0 gemessen; ist es
-   deutlich mehr, frage ich noch einmal).
+3. **APK größer** für glslang – in Ordnung? *Empfehlung: ja.* Geschätzt waren 2–3 MB; in E0 gemessen: **≈ 1,3 MB**
+   (beide ABIs gepackt, ≈ +6 %), installiert +2,1 MB auf 64-bit.
 4. **Anfangs fehlende Funktionen:** die ersten Test-APKs (E6) zeigen das Spiel mit Vulkan noch ohne einen Teil der
    Extras (z. B. Linsenreflexe, PSone, Tiefenschärfe), die dann unter Vulkan ausgegraut sind; fertig wird es erst
    mit allen. *Empfehlung: ja, so testen wir früher am Gerät.*
@@ -240,7 +242,7 @@ Bis zur Antwort baue ich weiter an dem, was davon nicht abhängt (E0 Werkzeuge a
 
 | Etappe | Stand |
 |---|---|
-| E0 | offen |
+| E0 | **fertig am PC (07.11.2026):** `vk_api` (Laden per `dlopen`), `vk_context` (Gerät, Prüfschicht), `vk_shader` (glslang 11.11.0 aus dem NDK, `cmake/glslang.cmake`), `tools/vk_probe.cpp`; Lizenztexte `third_party/glslang/LICENSE.txt`; `port/tools/vk_tools_linux.sh` (Werkzeuge ohne Root nach `~/vk-tools`). Gemessen: glslang gestrippt 2,1 MB (arm64) / 1,6 MB (armv7), gepackt zusammen ≈ 1,3 MB mehr APK. Für Android gebaut (beide ABIs), noch nicht in `libre4decomp.so` gelinkt |
 | E1 | offen |
 | E2 | offen |
 | E3–E9 | offen |
