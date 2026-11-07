@@ -92,7 +92,15 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "usage: gx_chunk_render OUTPUT_DIR gx-*.bin\n");
     return 2;
   }
-  if (!Context()) {
+  // RE4_GX_API=vulkan: the Vulkan renderer (port/docs/vulkan-bauplan.md), on the PC Mesa's lavapipe
+  // (. ~/vk-tools/env.sh; RE4_VK_VALIDATION=1 with the Khronos validation layer, 2 with its synchronization checks)
+  const char *apiText = std::getenv("RE4_GX_API");
+  const bool vulkan = apiText && std::string(apiText) == "vulkan";
+  const auto Finish = [vulkan]() {
+    if (!vulkan)
+      glFinish();
+  };
+  if (!vulkan && !Context()) {
     std::fprintf(stderr, "no EGL/GLES3 context (Mesa packages: port/tools/whole_setup_linux.sh)\n");
     return 1;
   }
@@ -172,7 +180,7 @@ int main(int argc, char **argv) {
       }
       if (renderer)
         renderer->Release();
-      renderer = std::make_unique<re4gx::GxRenderer>();
+      renderer = std::make_unique<re4gx::GxRenderer>(vulkan ? re4gx::GxApi::kVulkan : re4gx::GxApi::kGl);
       const char *poison = std::getenv("RE4_GX_INVALIDATE_POISON");
       re4gx::GxOptions options;
       options.poison = poison && *poison == '1';
@@ -313,11 +321,11 @@ int main(int argc, char **argv) {
       }
     }
     if (i - 2 == rescaleAt && renderer) {
-      glFinish();
+      Finish();
       const auto t0 = std::chrono::steady_clock::now();
       renderer->RescaleHalves(rescaleTo);
       if (timed)
-        glFinish();
+        Finish();
       const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
       scale = renderer->Scale();
       shownHalves = renderer->Halves();
@@ -328,11 +336,11 @@ int main(int argc, char **argv) {
     }
     const re4gx::GxStats before = renderer->Stats();
     if (timed)
-      glFinish();
+      Finish();
     const auto runStart = std::chrono::steady_clock::now();
     renderer->Run(chunk);
     if (timed) {
-      glFinish();
+      Finish();
       std::printf("%s: Run %.2f ms (mit glFinish)\n", Stem(path).c_str(),
                   std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - runStart).count());
     }
@@ -455,7 +463,7 @@ int main(int argc, char **argv) {
     previous = std::move(loadedHere);
   }
   if (renderer && std::getenv("RE4_GX_WORK")) {
-    glFinish();
+    Finish();
     const re4gx::GxStats &s = renderer->Stats();
     if (s.gpuTimed)
       std::printf("GPU-Zeit (Timer-Abfrage): %.1f ms je Bildstück aus %u Messungen\n",

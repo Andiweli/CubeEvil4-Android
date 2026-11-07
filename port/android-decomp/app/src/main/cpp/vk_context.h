@@ -48,6 +48,9 @@ public:
   std::string driverName, driverInfo;  // VK_KHR_driver_properties / Vulkan 1.2 (empty without)
   std::vector<std::string> deviceExtensions;
   bool validation = false;  // the layer is on
+  // VK_EXT_depth_clip_control is on: clip space z from -w to w, as GL's (the GX shaders keep GL's depth formula and
+  // round as GL does; lavapipe and newer drivers have it)
+  bool depthClipControl = false;
   std::atomic<unsigned> validationErrors{0}, validationWarnings{0};
 
   bool HasExtension(const char *name) const;

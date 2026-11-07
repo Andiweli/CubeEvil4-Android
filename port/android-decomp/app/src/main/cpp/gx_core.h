@@ -610,7 +610,10 @@ struct GxCore {
   virtual void Autofocus(std::uint32_t player) = 0;
   virtual void ClearAfterCopyPlain(std::uint32_t control, int x, int y, int w, int h) = 0;
   virtual void GpuFinish() = 0;
-  virtual unsigned PalettedCopy(const Copy &copy, const Re4GxTexture &t) = 0;
+  unsigned PalettedCopy(const Copy &copy, const Re4GxTexture &t);
+  // the GPU side: the copy through the palette (rgba, pw x ph colours) into a new texture of the copy's size
+  virtual unsigned DrawPaletted(const Copy &copy, const Re4GxTexture &t, const std::uint8_t *rgba, unsigned pw,
+                                unsigned ph) = 0;
   void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk);
   virtual void Touched() = 0;
   virtual void DeleteTexture(unsigned id) = 0;
@@ -701,6 +704,7 @@ struct GxCore {
 
 // A renderer's inside for `api` (GlRenderer in gx_gl.cpp ...); null when this build has none for it.
 std::unique_ptr<GxCore> MakeGlCore();
+std::unique_ptr<GxCore> MakeVkCore();  // gx_vk.cpp (builds with RE4_GX_VULKAN)
 std::unique_ptr<GxCore> MakeCore(GxApi api);
 
 } // namespace re4gx

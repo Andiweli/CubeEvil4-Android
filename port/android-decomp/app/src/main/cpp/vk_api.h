@@ -55,7 +55,7 @@
   X(vkGetPipelineCacheData) X(vkCreateGraphicsPipelines) X(vkDestroyPipeline)                                      \
   X(vkCreatePipelineLayout) X(vkDestroyPipelineLayout) X(vkCreateDescriptorSetLayout)                              \
   X(vkDestroyDescriptorSetLayout) X(vkCreateDescriptorPool) X(vkDestroyDescriptorPool) X(vkResetDescriptorPool)     \
-  X(vkAllocateDescriptorSets) X(vkUpdateDescriptorSets)                                                            \
+  X(vkAllocateDescriptorSets) X(vkFreeDescriptorSets) X(vkUpdateDescriptorSets)                                                            \
   X(vkCreateQueryPool) X(vkDestroyQueryPool) X(vkGetQueryPoolResults)                                              \
   X(vkCmdBeginRenderPass) X(vkCmdEndRenderPass) X(vkCmdBindPipeline) X(vkCmdBindVertexBuffers)                      \
   X(vkCmdBindIndexBuffer) X(vkCmdBindDescriptorSets) X(vkCmdPushConstants) X(vkCmdDraw) X(vkCmdDrawIndexed)         \

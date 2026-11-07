@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace re4vk {
@@ -260,6 +261,22 @@ bool Context::Create(const ContextOptions &options, std::string *error) {
   enabled.largePoints = have.largePoints;              // GX points
   enabled.fragmentStoresAndAtomics = VK_FALSE;
   std::vector<const char *> want;
+  // GL's depth range in clip space (RE4_VK_DEPTH_CLIP_CONTROL=0: never, the shaders map the depth to 0..1)
+  auto clip = Make<VkPhysicalDeviceDepthClipControlFeaturesEXT>(
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_CONTROL_FEATURES_EXT);
+  {
+    const char *off = std::getenv("RE4_VK_DEPTH_CLIP_CONTROL");
+    if (vkGetPhysicalDeviceFeatures2 && HasExtension(VK_EXT_DEPTH_CLIP_CONTROL_EXTENSION_NAME) && !(off && *off == '0')) {
+      auto f2 = Make<VkPhysicalDeviceFeatures2>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+      f2.pNext = &clip;
+      vkGetPhysicalDeviceFeatures2(physical, &f2);
+      depthClipControl = clip.depthClipControl == VK_TRUE;
+    }
+    if (depthClipControl) {
+      want.push_back(VK_EXT_DEPTH_CLIP_CONTROL_EXTENSION_NAME);
+      clip.pNext = nullptr;
+    }
+  }
   if (options.surface) {
     if (!HasExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
       return fail(std::string("no VK_KHR_swapchain on ") + properties.deviceName);
@@ -276,6 +293,8 @@ bool Context::Create(const ContextOptions &options, std::string *error) {
   dci2.enabledExtensionCount = static_cast<std::uint32_t>(want.size());
   dci2.ppEnabledExtensionNames = want.data();
   dci2.pEnabledFeatures = &enabled;
+  if (depthClipControl)
+    dci2.pNext = &clip;
   r = vkCreateDevice(physical, &dci2, nullptr, &device);
   if (r != VK_SUCCESS) {
     device = VK_NULL_HANDLE;

@@ -2524,6 +2524,32 @@ void GxCore::ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) {
   ClearRect(r);
 }
 
+unsigned GxCore::PalettedCopy(const Copy &copy, const Re4GxTexture &t) {
+  Touched(); // its own pass
+  const unsigned offset = (t.tlut & 0x3FF) << 9;
+  const unsigned entries = std::min<unsigned>(GxPaletteEntries(t.format), (kTlutBytes - offset) / 2);
+  const std::uint64_t key =
+      Fnv(tlut.data() + offset, entries * 2, (static_cast<std::uint64_t>(copy.serial) << 32) ^ t.address ^ t.tlut);
+  auto it = paletted.find(key);
+  if (it != paletted.end())
+    return it->second.id;
+  std::vector<std::uint8_t> rgba(static_cast<std::size_t>(entries) * 4);
+  for (unsigned i = 0; i < entries; i++) {
+    std::vector<std::uint8_t> one;
+    std::uint8_t tile[32] = {};
+    tile[0] = 0;
+    GxDecodeTexture(tile, 32, kTexC8, 1, 1, tlut.data() + offset + i * 2, 1, (t.tlut >> 10) & 3, one);
+    std::memcpy(rgba.data() + i * 4, one.data(), 4);
+  }
+  const unsigned pw = std::min(entries, 256u), ph = std::max(1u, entries / 256);
+  Texture out;
+  out.width = copy.width;
+  out.height = copy.height;
+  out.id = DrawPaletted(copy, t, rgba.data(), pw, ph);
+  paletted[key] = out;
+  return out.id;
+}
+
 // ---- end of the part moved from GlRenderer ----
 
 } // namespace re4gx

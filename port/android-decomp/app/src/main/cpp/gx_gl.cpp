@@ -1,6 +1,7 @@
 #include "gx_gl.h"
 
 #include "gx_core.h"
+#include "gx_fixed_shaders.h"
 
 #include "gx_gl_shader.h"
 #include "gx_texture.h"
@@ -1273,49 +1274,28 @@ struct GlRenderer final : GxCore {
 
   // A texture copy read through a palette (C4/C8/C14X2 over a copy): the copy's
   // values looked up in TMEM's palette, on the GPU.
-  unsigned PalettedCopy(const Copy &copy, const Re4GxTexture &t) override {
-    Touched(); // its own pass
-    const unsigned offset = (t.tlut & 0x3FF) << 9;
-    const unsigned entries = std::min<unsigned>(GxPaletteEntries(t.format), (kTlutBytes - offset) / 2);
-    const std::uint64_t key =
-        Fnv(tlut.data() + offset, entries * 2, (static_cast<std::uint64_t>(copy.serial) << 32) ^ t.address ^ t.tlut);
-    auto it = paletted.find(key);
-    if (it != paletted.end())
-      return it->second.id;
-    // the palette as a 256 x (entries / 256) RGBA texture
-    std::vector<std::uint8_t> rgba(static_cast<std::size_t>(entries) * 4);
-    std::vector<std::uint8_t> idx(entries);
-    for (unsigned i = 0; i < entries; i++)
-      idx[i] = static_cast<std::uint8_t>(i);
-    // decode the palette entries through the C8 path (one entry per texel)
-    for (unsigned i = 0; i < entries; i++) {
-      std::vector<std::uint8_t> one;
-      std::uint8_t tile[32] = {};
-      tile[0] = 0;
-      GxDecodeTexture(tile, 32, kTexC8, 1, 1, tlut.data() + offset + i * 2, 1, (t.tlut >> 10) & 3, one);
-      std::memcpy(rgba.data() + i * 4, one.data(), 4);
-    }
-    const unsigned pw = std::min(entries, 256u), ph = std::max(1u, entries / 256);
+  // a copy read through a palette (GxCore::PalettedCopy): the copy's values through the palette's colours
+  // (rgba, pw x ph) into a new texture of the copy's size
+  unsigned DrawPaletted(const Copy &copy, const Re4GxTexture &t, const std::uint8_t *rgba, unsigned pw,
+                        unsigned ph) override {
     GLuint pal = 0;
     glGenTextures(1, &pal);
     glBindTexture(GL_TEXTURE_2D, pal);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(pw), static_cast<GLsizei>(ph), 0, GL_RGBA,
-                 GL_UNSIGNED_BYTE, rgba.data());
+                 GL_UNSIGNED_BYTE, rgba);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    Texture out;
-    out.width = copy.width;
-    out.height = copy.height;
-    glGenTextures(1, &out.id);
-    glBindTexture(GL_TEXTURE_2D, out.id);
+    GLuint out = 0;
+    glGenTextures(1, &out);
+    glBindTexture(GL_TEXTURE_2D, out);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(copy.width), static_cast<GLsizei>(copy.height), 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
     GLuint fbo = 0;
     glGenFramebuffers(1, &fbo);
     BindFbo(fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, out.id, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, out, 0);
     SaveAndPlainState();
     glViewport(0, 0, static_cast<GLsizei>(copy.width), static_cast<GLsizei>(copy.height));
     glUseProgram(paletteProgram);
@@ -1334,8 +1314,7 @@ struct GlRenderer final : GxCore {
     glDeleteTextures(1, &pal);
     BindFbo(DrawFbo());
     current = nullptr;
-    paletted[key] = out;
-    return out.id;
+    return out;
   }
 
 
@@ -2357,28 +2336,10 @@ struct GlRenderer final : GxCore {
   // --- the depth for the game's GXPeekZ ------------------------------------------------------
 
   bool MakePeek() {
-    static const char kVs[] = "#version 300 es\n"
-                              "void main() {\n"
-                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
-                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
-                              "}\n";
-    // cell (x, y) of kDepthWidth x kDepthHeight: the nearest depth of the EFB pixels (2x .. 2x + 1, 2y .. 2y + 1)
-    // at their centres (the game peeks single pixels, a cell stands for four), as GX's 24 bits in r (low byte), g, b
-    // (a 0: a cell is the 24-bit value). Until 06.11.2026 the depth at one point of the block: a lantern swinging just
-    // behind the edge of Leon's head in r102 peeked a cell that saw the wall behind him, its glow (esp09/esp0e) shone
-    // through his head (user report with GX series, 4x). Nearest: anything in front within the cell hides the glow.
-    static const char kFs[] =
-        "#version 300 es\nprecision highp float;\nprecision highp int;\n"
-        "uniform highp sampler2D depths;\nuniform vec2 size;\nuniform float scale;\nout vec4 o;\n"
-        "float at(vec2 p) { return texelFetch(depths, ivec2(min(p * scale, size - 1.0)), 0).r; }\n"
-        "void main() {\n"
-        "  vec2 c = floor(gl_FragCoord.xy) * 2.0;\n"
-        "  float d = min(min(at(c + vec2(0.5, 0.5)), at(c + vec2(1.5, 0.5))), min(at(c + vec2(0.5, 1.5)), at(c + vec2(1.5, 1.5))));\n"
-        "  uint z = min(uint(d * 16777215.0 + 0.5), 16777215u);\n"
-        "  o = vec4(float(z & 255u), float((z >> 8) & 255u), float((z >> 16) & 255u), 0.0) / 255.0;\n"
-        "}\n";
+    using fixed::kPeekVs;  // gx_fixed_shaders.h
+    using fixed::kPeekFs;
     std::string log;
-    peekProgram = Link(kVs, kFs, &log);
+    peekProgram = Link(kPeekVs, kPeekFs, &log);
     if (!peekProgram) {
       GXLOG("depth map for GXPeekZ: shader failed: %s", log.c_str());
       return false;
@@ -2887,73 +2848,7 @@ struct GlRenderer final : GxCore {
   // --- programs of the renderer itself --------------------------------------------------
 
   bool MakeUtilityPrograms(std::string *error) {
-    static const char kQuadVs[] = "#version 300 es\n"
-                                  "out vec2 vUv;\n"
-                                  "void main() {\n"
-                                  "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
-                                  "  vUv = p;\n"
-                                  "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
-                                  "}\n";
-    // EFB to a copy: the source rectangle (EFB texels), optionally the 2x2 box
-    // filter, then the conversion of the copy format
-    static const char kCopyFs[] =
-        "#version 300 es\nprecision highp float;\nprecision highp int;\n"
-        "uniform sampler2D src;\nuniform int mode;\nuniform vec4 rect;\nuniform vec2 size;\nuniform int halfScale;\n"
-        "uniform float gain;\nuniform vec2 limitY;\nuniform vec3 taps;\nuniform float lineStep;\n"
-        "in vec2 vUv;\nout vec4 o;\n"
-        "vec4 fetch(vec2 p) { return texture(src, p / size); }\n"
-        "void main() {\n"
-        "  vec2 p = rect.xy + vUv * rect.zw;\n"
-        "  p.y = clamp(p.y, limitY.x + 1.0, limitY.y - 1.0);\n"
-        "  vec4 c = halfScale != 0 ? 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
-        "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5))) : fetch(p);\n"
-        "  if (taps.y >= 0.0) {\n"
-        "    float ya = max(p.y - lineStep, limitY.x + 1.0), yb = min(p.y + lineStep, limitY.y - 1.0);\n"
-        "    c.rgb = min(taps.x * fetch(vec2(p.x, ya)).rgb + taps.y * c.rgb + taps.z * fetch(vec2(p.x, yb)).rgb, "
-        "vec3(1.0));\n"
-        "  } else if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
-        "  float y = clamp(0.257 * c.r + 0.504 * c.g + 0.098 * c.b + 16.0 / 255.0, 0.0, 1.0);\n"
-        "  uint z = uint(c.r * 16777215.0);\n"
-        "  float zh = float((z >> 16) & 255u) / 255.0, zm = float((z >> 8) & 255u) / 255.0, zl = float(z & 255u) / "
-        "255.0;\n"
-        "  if (mode == 0) o = c;\n"
-        "  else if (mode == 1) o = vec4(floor(c.rgb * vec3(31.0, 63.0, 31.0) + 0.5) / vec3(31.0, 63.0, 31.0), 1.0);\n"
-        "  else if (mode == 2) o = c.a >= 0.999 ? vec4(floor(c.rgb * 31.0 + 0.5) / 31.0, 1.0) : "
-        "vec4(floor(c * vec4(15.0, 15.0, 15.0, 7.0) + 0.5) / vec4(15.0, 15.0, 15.0, 7.0));\n"
-        "  else if (mode == 3) o = vec4(y);\n"
-        "  else if (mode == 4) o = vec4(y, y, y, c.a);\n"
-        "  else if (mode == 5) o = vec4(c.r);\n"
-        "  else if (mode == 6) o = vec4(c.g);\n"
-        "  else if (mode == 7) o = vec4(c.b);\n"
-        "  else if (mode == 8) o = vec4(c.a);\n"
-        "  else if (mode == 9) o = vec4(c.g, c.g, c.g, c.r);\n"
-        "  else if (mode == 10) o = vec4(c.b, c.b, c.b, c.g);\n"
-        "  else if (mode == 11) o = vec4(c.r, c.r, c.r, c.a);\n"
-        "  else if (mode == 12) o = vec4(zh);\n"
-        "  else if (mode == 13) o = vec4(zm);\n"
-        "  else if (mode == 14) o = vec4(zl);\n"
-        "  else if (mode == 15) o = vec4(zm, zm, zm, zh);\n"
-        "  else o = vec4(zh, zm, zl, 1.0);\n"
-        "}\n";
-    // a copy read through a palette: the copy's value (one channel: .r; two
-    // channels: .a high byte, .r low byte) indexes the palette texture
-    static const char kPaletteFs[] =
-        "#version 300 es\nprecision highp float;\nprecision highp int;\n"
-        "uniform sampler2D src;\nuniform sampler2D pal;\nuniform vec2 palSize;\nuniform int kind;\nuniform int "
-        "format;\n"
-        "in vec2 vUv;\nout vec4 o;\n"
-        "void main() {\n"
-        "  vec4 c = texture(src, vUv);\n"
-        "  int index = kind == 2 ? (int(round(c.a * 255.0)) << 8 | int(round(c.r * 255.0))) & 16383 : "
-        "int(round(c.r * 255.0));\n"
-        "  if (format == 8) index = index >> 4;\n"
-        "  int w = int(palSize.x);\n"
-        "  o = texelFetch(pal, ivec2(index % w, index / w), 0);\n"
-        "}\n";
-    // rows: XFB texture rows shown (offset, span; 0..1), row 0 at the top
-    static const char kPresentFs[] = "#version 300 es\nprecision highp float;\n"
-                                     "uniform sampler2D src;\nuniform vec2 rows;\nin vec2 vUv;\nout vec4 o;\n"
-                                     "void main() { o = vec4(texture(src, vec2(vUv.x, rows.x + (1.0 - vUv.y) * rows.y)).rgb, 1.0); }\n";
+    using namespace fixed;  // gx_fixed_shaders.h
     std::string log;
     copyProgram = Link(kQuadVs, kCopyFs, &log);
     if (!copyProgram) {
@@ -2991,15 +2886,6 @@ struct GlRenderer final : GxCore {
     glUseProgram(presentProgram);
     glUniform1i(glGetUniformLocation(presentProgram, "src"), 0);
     presentRows = glGetUniformLocation(presentProgram, "rows");
-    // d2: the EFB drawn back from the other set of textures, colour and depth texel for texel
-    // (the depth as sampled, no arithmetic: the 24 bits come back as they were)
-    static const char kRestoreFs[] = "#version 300 es\nprecision highp float;\n"
-                                     "uniform sampler2D color;\nuniform highp sampler2D depth;\nout vec4 o;\n"
-                                     "void main() {\n"
-                                     "  ivec2 p = ivec2(gl_FragCoord.xy);\n"
-                                     "  o = texelFetch(color, p, 0);\n"
-                                     "  gl_FragDepth = texelFetch(depth, p, 0).r;\n"
-                                     "}\n";
     restoreProgram = Link(kQuadVs, kRestoreFs, &log);
     if (!restoreProgram) {
       *error = "EFB restore shader: " + log;

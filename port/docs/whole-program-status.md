@@ -2164,6 +2164,30 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   Shader nach SPIR-V übersetzt, 0 Fehler, `spirv-val --target-env vulkan1.0` 0 ungültig; glslang im Mittel 1,45 ms
   je Shader (PC), höchstens 7,8 ms, 16 KB SPIR-V. Die festen Shader des Renderers (Kopie, Anzeige, Palette, FXAA …)
   folgen mit ihren Vulkan-Durchgängen in E3/E5.
+- **E3 Vulkan-Grundgerüst (08.11.2026, am PC):** `gx_vk.cpp` (`VkRenderer`, erfüllt alle GPU-Aufrufe von `GxCore`):
+  zwei Bilder im Flug mit eigenen Befehlspuffern (Hochladen vor den Zeichnungen), wachsende host-sichtbare Blöcke für
+  Uniforms (dynamische Offsets, Satz 0), Ecken/Indizes und Texturdaten, Deskriptor-Vorräte je Bild, Lösch-Warteliste
+  bis zum Fence; EFB als Farb- und Tiefenbild (`D24_UNORM_S8_UINT`, sonst `X8_D24`/`D32`) in Durchgängen mit „laden“;
+  Pipelines aus Programm (Shader-Schlüssel), Zeichenzustand, Grundform, Eckformat; Sampler aus `GxSamplerDesc`
+  (nur Basisstufe: maxLod 0,25); Kopien, Anzeige-Kopie, Paletten-Kopien, Löschen nach der Kopie
+  (`vkCmdClearAttachments`, bei getrennter Farb-/Alphamaske ein Rechteck), Tiefenkarte für GXPeekZ (zwei Leseplätze,
+  ein Bild später), `ReadXfb`/`ReadPresented`. `vk_memory` (`ImageHeap`): Bilder in 32-MB-Blöcken (Android erlaubt oft
+  nur 4 096 Speicherblöcke). `VK_EXT_depth_clip_control`, wo vorhanden: Tiefe in GLs Bereich, gleiche Rundung.
+  Gemeinsam gemacht (GL bytegleich): Textur-Entpacken (`Upload`), Sampler-Beschreibung, Löschen nach der Kopie,
+  Paletten-Kopie (`PalettedCopy` → `DrawPaletted`), die festen Shader in `gx_fixed_shaders.h`; `VulkanFixedGlsl`
+  (einfache Uniforms → Push-Konstanten). `gx_chunk_render`: `RE4_GX_API=vulkan`, `RE4_VK_VALIDATION=1`/`2`.
+  Noch nicht: MSAA, Auflösungswechsel/Übergabe der Kopien, FXAA/Nachschärfen/PSone-Durchgang/Linsenreflexe/Autofokus,
+  Pipeline-Cache auf Platte, Android-Anbindung.
+  **Geprüft (WSL, lavapipe, Prüfschicht 1.3.275):** alle 10 Folgen in den Arten normal, gebündelt, 60 FPS, 1,5×,
+  Native: **0 Meldungen der Prüfschicht**, kein Absturz. Bildvergleich gegen GL (llvmpipe): kein Bild bytegleich, aber
+  **kein Bild mit mehr als 1 % Pixeln über 16 Stufen Abweichung**; „gebündelt“ = „normal“. Restunterschiede: flächiges
+  Rauschen von ±1–6 Stufen und einzelne Pixel an feinen fernen Texturen (Mesa übersetzt GLSL und SPIR-V
+  unterschiedlich: Zink, also GL über dieselbe lavapipe, weicht von llvmpipe genauso ab, p11d bis 121 000 Pixel um
+  höchstens 6), die Kantenregel (Film: 357 Pixel um höchstens 8) und 1-Pixel-Linien (Laser-Strahl: andere
+  Linienregel). Ein Versuch, das EFB gespiegelt zu zeichnen (wie GL die Kantenregel wählt), machte es schlechter und
+  ist wieder heraus. GL nach allen Umzügen weiter bytegleich (4 371 Bilder), alle Renderer-Dateien mit dem NDK für
+  beide ABIs übersetzt. **Nicht geprüft:** Gerät; die Tiefenkarte und Paletten-Kopien nur gebaut, nicht gezielt
+  verglichen.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

@@ -10,7 +10,11 @@ std::unique_ptr<GxCore> MakeCore(GxApi api) {
   case GxApi::kGl:
     return MakeGlCore();
   case GxApi::kVulkan:
+#ifdef RE4_GX_VULKAN
+    return MakeVkCore();
+#else
     break;
+#endif
   }
   return nullptr;
 }

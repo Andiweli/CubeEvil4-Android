@@ -47,7 +47,7 @@ void ReplaceAll(std::string &s, const std::string &from, const std::string &to) 
 
 } // namespace
 
-std::string VulkanGlsl(const std::string &es, bool vertex) {
+std::string VulkanGlsl(const std::string &es, bool vertex, bool glDepth) {
   std::string out;
   out.reserve(es.size() + 512);
   bool constants = false;
@@ -120,9 +120,74 @@ std::string VulkanGlsl(const std::string &es, bool vertex) {
   if (vertex) {
     ReplaceAll(out, "gl_VertexID", "gl_VertexIndex");
     // GL's clip z runs from -w to w, Vulkan's from 0 to w: the same window depth without the GL mapping
-    ReplaceAll(out, "2.0 * (vp[0].z * clip.z + vp[1].y * clip.w) / 16777215.0 - clip.w",
+    if (!glDepth)
+      ReplaceAll(out, "2.0 * (vp[0].z * clip.z + vp[1].y * clip.w) / 16777215.0 - clip.w",
                "(vp[0].z * clip.z + vp[1].y * clip.w) / 16777215.0");
   }
+  return out;
+}
+
+const VkFixedLayout::Constant *VkFixedLayout::Find(const char *name) const {
+  for (const Constant &c : constants)
+    if (c.name == name)
+      return &c;
+  return nullptr;
+}
+
+std::string VulkanFixedGlsl(const std::string &es, bool vertex, VkFixedLayout *layout) {
+  VkFixedLayout l;
+  std::string decls, rest;
+  std::size_t at = 0;
+  while (at < es.size()) {
+    std::size_t end = es.find('\n', at);
+    if (end == std::string::npos)
+      end = es.size();
+    std::string line = es.substr(at, end - at);
+    at = end + 1;
+    if (line == "#version 300 es" || Starts(line, "precision "))
+      continue;
+    if (Starts(line, "uniform ")) {
+      std::string d = line.substr(8);
+      if (Starts(d, "highp ") || Starts(d, "mediump ") || Starts(d, "lowp "))
+        d = d.substr(d.find(' ') + 1);
+      const std::size_t sp = d.find(' ');
+      const std::string type = d.substr(0, sp), name = d.substr(sp + 1, d.size() - sp - 2);
+      if (type == "sampler2D") {
+        char b[128];
+        std::snprintf(b, sizeof(b), "layout(set = 0, binding = %zu) uniform sampler2D %s;\n", l.samplers.size(),
+                      name.c_str());
+        decls += b;
+        l.samplers.push_back(name);
+        continue;
+      }
+      // std430: scalars 4, vec2 8, vec3 and vec4 16 aligned
+      std::uint32_t size = 4, align = 4;
+      if (type == "vec2" || type == "ivec2" || type == "uvec2")
+        size = align = 8;
+      else if (type == "vec3" || type == "ivec3" || type == "uvec3")
+        size = 12, align = 16;
+      else if (type == "vec4" || type == "ivec4" || type == "uvec4")
+        size = align = 16;
+      const std::uint32_t offset = (l.bytes + align - 1) / align * align;
+      l.constants.push_back({name, offset, size});
+      l.bytes = offset + size;
+      rest += "  " + type + " " + name + ";\n";
+      continue;
+    }
+    if (line == "out vec2 vUv;" || line == "in vec2 vUv;" || (!vertex && Starts(line, "out vec4 "))) {
+      decls += "layout(location = 0) " + line + "\n";
+      continue;
+    }
+    decls += line + "\n";
+  }
+  std::string out = "#version 450\n";
+  if (!l.constants.empty())
+    out += "layout(push_constant) uniform P {\n" + rest + "};\n";
+  out += decls;
+  ReplaceAll(out, "gl_VertexID", "gl_VertexIndex");
+  l.bytes = (l.bytes + 15) / 16 * 16;
+  if (layout)
+    *layout = l;
   return out;
 }
 
