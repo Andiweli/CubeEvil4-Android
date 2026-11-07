@@ -49,6 +49,9 @@ struct ShaderKey {
   std::uint32_t fastTev;      // 1: the TEV in plain fractions 0..1, not to the step (GxOptions::fastTev)
   // both
   std::uint32_t texelCoords;  // 1: every coordinate in 1/128 texels, as the GLES 3 renderer (tests)
+  // 1: the lit channels' light masks are the first n slots (GxOptions::maxLights: the strongest
+  // lights of the draw, chosen by the renderer), the others come as uFold, a constant per draw
+  std::uint32_t lightFold;
 };
 
 // Vertex inputs (attribute sources), in the order the generator gives them locations.

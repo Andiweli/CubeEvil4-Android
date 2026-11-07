@@ -165,7 +165,12 @@ struct Program {
   GLint matAmb = -1, vp = -1, proj = -1, mtxDef = -1, dequant = -1, tcScale = -1;
   GLint colors = -1, konst = -1, alphaRef = -1, fog = -1, lodBias = -1, mapScale = -1, indScale = -1, indMtx = -1;
   GLint colorsW = -1, konstW = -1;
+  GLint fold = -1;
   std::uint64_t seen = 0;
+  // ShaderKey::lightFold: the lights in its slots and the light state then, the fold sent
+  int lightSel[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
+  std::uint64_t lightSelSeen = 0;
+  float foldSent[8] = {};
   float mtxDefSent[12] = {};
   bool mtxDefValid = false;
   float tcScaleSent[16] = {};
@@ -269,6 +274,9 @@ struct GxRenderer::Impl {
 
   // --- what GL already has ---------------------------------------------------------------------
   bool keyDirty = true;
+  // GxOptions::maxLights: the lights of the lit channels of the current key (all the same), its
+  // diffuse and attenuation functions
+  std::uint32_t foldMask = 0, foldDiffuse = 0, foldAttn = 0;
   std::uint32_t keyLayout = ~0u;
   ShaderKey key = {};
   Program *keyProgram = nullptr;
@@ -553,6 +561,48 @@ struct GxRenderer::Impl {
       }
   }
 
+  // GxOptions::tex16: how a texture goes to the GPU, from its first level: 0 RGBA8, 1 RGB565
+  // (opaque), 2 RGBA5551 (alpha only 0 and 255)
+  int TextureForm(const std::vector<std::uint8_t> &rgba) const {
+    if (!options.tex16)
+      return 0;
+    bool opaque = true, cut = true;
+    for (std::size_t i = 3; i < rgba.size() && cut; i += 4) {
+      opaque = opaque && rgba[i] == 255;
+      cut = rgba[i] == 0 || rgba[i] == 255;
+    }
+    return opaque ? 1 : cut ? 2 : 0;
+  }
+
+  // One level in the form TextureForm chose
+  void TexImage(GLint level, unsigned w, unsigned h, const std::vector<std::uint8_t> &rgba, int form) {
+    if (form == 0) {
+      glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0, GL_RGBA,
+                   GL_UNSIGNED_BYTE, rgba.data());
+      return;
+    }
+    const std::size_t n = static_cast<std::size_t>(w) * h;
+    texels16.resize(n);
+    for (std::size_t i = 0; i < n; i++) {
+      const std::uint8_t *p = &rgba[i * 4];
+      const unsigned r5 = (p[0] * 31u + 127u) / 255u, b5 = (p[2] * 31u + 127u) / 255u;
+      if (form == 1)
+        texels16[i] = static_cast<std::uint16_t>(r5 << 11 | ((p[1] * 63u + 127u) / 255u) << 5 | b5);
+      else
+        texels16[i] = static_cast<std::uint16_t>(r5 << 11 | ((p[1] * 31u + 127u) / 255u) << 6 | b5 << 1 | (p[3] ? 1u : 0u));
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+    if (form == 1)
+      glTexImage2D(GL_TEXTURE_2D, level, GL_RGB, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0, GL_RGB,
+                   GL_UNSIGNED_SHORT_5_6_5, texels16.data());
+    else
+      glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0, GL_RGBA,
+                   GL_UNSIGNED_SHORT_5_5_5_1, texels16.data());
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    stats.textures16++;
+  }
+  std::vector<std::uint16_t> texels16;
+
   void Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
     const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
     if (t.dataBytes == 0 || t.dataOffset + t.dataBytes > chunk.blobBytes)
@@ -579,13 +629,15 @@ struct GxRenderer::Impl {
     }
     unsigned w = t.width, h = t.height, levels = 0, lw = w, lh = h;
     std::vector<std::uint8_t> rgba, smaller;
+    int form = 0; // TextureForm of level 0: every level the same (else the texture is incomplete)
     for (unsigned l = 0; l < want; l++) {
       const std::size_t bytes = re4gx::GxTextureLevelBytes(t.format, w, h);
       if (bytes > left)
         break;
       re4gx::GxDecodeTexture(data, bytes, t.format, w, h, palette, entries, (t.tlut >> 10) & 3, rgba);
-      glTexImage2D(GL_TEXTURE_2D, static_cast<GLint>(l), GL_RGBA, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0,
-                   GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+      if (l == 0)
+        form = TextureForm(rgba);
+      TexImage(static_cast<GLint>(l), w, h, rgba, form);
       levels++;
       lw = w;
       lh = h;
@@ -608,8 +660,7 @@ struct GxRenderer::Impl {
         rgba.swap(smaller);
         lw = std::max(1u, lw / 2);
         lh = std::max(1u, lh / 2);
-        glTexImage2D(GL_TEXTURE_2D, static_cast<GLint>(levels), GL_RGBA, static_cast<GLsizei>(lw),
-                     static_cast<GLsizei>(lh), 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+        TexImage(static_cast<GLint>(levels), lw, lh, rgba, form);
         levels++;
         stats.mipmapsMade++;
       }
@@ -1002,6 +1053,39 @@ struct GxRenderer::Impl {
     k.fog = (bp[0xF1] >> 20) & 15;
     k.texelCoords = options.texelCoords ? 1 : 0;
     k.fastTev = options.fastTev ? 1 : 0;
+    // at most maxLights lights per vertex: where every lit channel with lights has the same ones
+    // and there are more, the channels get the first slots; Uniforms puts the strongest there
+    foldMask = 0;
+    if (options.maxLights > 0) {
+      std::uint32_t common = 0, diffuse = 0, attn = 0;
+      bool same = true;
+      for (int i = 0; i < 4; i++) {
+        const std::uint32_t c = k.chan[i];
+        const std::uint32_t m = ((c >> 2) & 15) | (((c >> 11) & 15) << 4);
+        if (!(c & 2) || !m)
+          continue;
+        if (!common) {
+          common = m;
+          diffuse = (c >> 7) & 3;
+          attn = (c >> 9) & 3;
+        } else if (m != common) {
+          same = false;
+        }
+      }
+      if (same && common && Popcount8(common) > static_cast<unsigned>(options.maxLights)) {
+        const std::uint32_t slots = (1u << options.maxLights) - 1;
+        for (int i = 0; i < 4; i++) {
+          std::uint32_t &c = k.chan[i];
+          const std::uint32_t m = ((c >> 2) & 15) | (((c >> 11) & 15) << 4);
+          if ((c & 2) && m)
+            c = (c & ~(15u << 2 | 15u << 11)) | (slots & 15) << 2 | ((slots >> 4) & 15) << 11;
+        }
+        k.lightFold = 1;
+        foldMask = common;
+        foldDiffuse = diffuse;
+        foldAttn = attn;
+      }
+    }
     return k;
   }
 
@@ -1090,6 +1174,7 @@ struct GxRenderer::Impl {
     p.colors = Location(id, "uColors");
     p.konst = Location(id, "uKonst");
     p.colorsW = Location(id, "uColorsW");
+    p.fold = Location(id, "uFold");
     p.konstW = Location(id, "uKonstW");
     p.alphaRef = Location(id, "uAlphaRef");
     p.fog = Location(id, "uFog");
@@ -1125,6 +1210,85 @@ struct GxRenderer::Impl {
     }
   }
 
+  // GxOptions::maxLights: the strongest lights of foldMask at the draw's origin (the translation of
+  // its default position matrix, view space as the lights) into the program's light slots, the
+  // others as uFold (their light there; half of it where the diffuse function reads the normal,
+  // whose angle to them is not known here)
+  void FoldLights(Program &p, const Re4GxDraw &d) {
+    const unsigned row = std::min(61u, d.matrices[0] & 0xFF);
+    const float ox = posTex[row][3], oy = posTex[row + 1][3], oz = posTex[row + 2][3];
+    float strength[8] = {};
+    for (unsigned l = 0; l < 8; l++) {
+      if (!(foldMask & (1u << l)))
+        continue;
+      const float *c = light[l][0], *a = light[l][1], *k = light[l][2], *pos = light[l][3], *dir = light[l][4];
+      float at = 1.0f;
+      if (foldAttn == 3) {  // spot: the angle and the distance (gx_gl2_shader.cpp Light)
+        const float dx = pos[0] - ox, dy = pos[1] - oy, dz = pos[2] - oz;
+        const float d2 = dx * dx + dy * dy + dz * dz, dist = std::sqrt(d2);
+        const float cosv = dist > 0.0f ? std::max(0.0f, (dx * dir[0] + dy * dir[1] + dz * dir[2]) / dist) : 1.0f;
+        const float den = k[0] + k[1] * dist + k[2] * d2;
+        at = std::max(0.0f, a[0] + a[1] * cosv + a[2] * cosv * cosv) / (den > 1e-6f ? den : 1e-6f);
+      }
+      strength[l] = at;
+      (void) c;
+    }
+    // the strongest maxLights (in light order, so a draw keeps its slots while the order holds)
+    int sel[8], n = 0;
+    std::uint32_t chosen = 0;
+    for (int j = 0; j < options.maxLights; j++) {
+      int best = -1;
+      float bestValue = -1.0f;
+      for (unsigned l = 0; l < 8; l++) {
+        if (!(foldMask & (1u << l)) || (chosen & (1u << l)))
+          continue;
+        const float *c = light[l][0];
+        const float v = strength[l] * (c[0] + c[1] + c[2] + 1e-3f);
+        if (v > bestValue) {
+          bestValue = v;
+          best = static_cast<int>(l);
+        }
+      }
+      if (best >= 0)
+        chosen |= 1u << best;
+    }
+    for (unsigned l = 0; l < 8; l++)
+      if (chosen & (1u << l))
+        sel[n++] = static_cast<int>(l);
+    float fold[8] = {};
+    const float share = foldDiffuse == 0 ? 1.0f : 0.5f;
+    for (unsigned l = 0; l < 8; l++)
+      if ((foldMask & (1u << l)) && !(chosen & (1u << l)))
+        for (int c = 0; c < 4; c++)
+          fold[c] += strength[l] * share * light[l][0][c];
+    for (int c = 0; c < 4; c++)
+      fold[4 + c] = fold[c];
+    bool resend = lightNewest > p.lightSelSeen;
+    for (int j = 0; j < n; j++)
+      resend = resend || p.lightSel[j] != sel[j];
+    if (resend) {
+      for (int j = 0; j < n; j++) {
+        if (p.light[j] >= 0)
+          glUniform4fv(p.light[j], 5, light[sel[j]][0]);
+        p.lightSel[j] = sel[j];
+        stats.uniformUploads++;
+      }
+      p.lightSelSeen = lightNewest;
+    }
+    if (p.fold >= 0 && std::memcmp(fold, p.foldSent, sizeof(fold)) != 0) {
+      glUniform4fv(p.fold, 2, fold);
+      std::memcpy(p.foldSent, fold, sizeof(fold));
+      stats.uniformUploads++;
+    }
+  }
+
+  static unsigned Popcount8(std::uint32_t v) {
+    unsigned n = 0;
+    for (; v; v &= v - 1)
+      n++;
+    return n;
+  }
+
   // What the program does not have yet of the state.
   void Uniforms(Program &p, const Re4GxDraw &d) {
     const std::uint64_t seen = p.seen;
@@ -1140,7 +1304,9 @@ struct GxRenderer::Impl {
           stats.uniformUploads++;
         }
       }
-    if (p.info.lights && lightNewest > seen)
+    if (p.info.lights && key.lightFold)
+      FoldLights(p, d);
+    else if (p.info.lights && lightNewest > seen)
       for (unsigned l = 0; l < 8; l++)
         if (p.light[l] >= 0 && lightStamp[l] > seen) {
           glUniform4fv(p.light[l], 5, light[l][0]);
@@ -1829,6 +1995,12 @@ bool GxRenderer::Init(int scale, std::string *error) {
   }
   if (const char *fast = std::getenv("RE4_GX2_FAST_TEV"))
     m.options.fastTev = *fast == '1';
+  if (const char *tex16 = std::getenv("RE4_GX2_TEX16"))
+    m.options.tex16 = *tex16 == '1';
+  if (const char *efb16 = std::getenv("RE4_GX2_EFB16"))
+    m.options.efb16 = *efb16 == '1';
+  if (const char *lights = std::getenv("RE4_GX2_LIGHTS"))
+    m.options.maxLights = std::min(7, std::max(0, std::atoi(lights)));
   const char *tegra3 = std::getenv("RE4_GX2_TEGRA3");
   if (tegra3 && *tegra3 == '1')
     m.options.tegra3 = true;
@@ -1844,7 +2016,10 @@ bool GxRenderer::Init(int scale, std::string *error) {
   const int w = m.S(kEfbWidth), h = m.S(kEfbHeight);
   glGenTextures(1, &m.efbColor);
   glBindTexture(GL_TEXTURE_2D, m.efbColor);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  if (m.options.efb16)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, nullptr);
+  else
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
   // copies read whole pixels, as the GameCube's (the GLES 3 renderer filters linearly at the
   // pixel centres: a coordinate a little off mixes in the neighbour, with the Tegra's fp20
   // coordinates by up to a tenth of a pixel; the 2x2 box of half copies reads pixel centres too);

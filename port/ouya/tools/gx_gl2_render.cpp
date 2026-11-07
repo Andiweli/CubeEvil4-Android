@@ -250,7 +250,8 @@ int main(int argc, char **argv) {
     const unsigned runs = static_cast<unsigned>(repeat) + 1;
     std::printf("%s (frame %u%s): %u draws (%u compact), %u triangles, %u textures (%u levels made), %u copies, %u "
                 "shaders (%u new)%s%s%s; first run %.1f ms (%.1f to hand over); again %.1f ms to hand over, %.1f ms "
-                "with the GPU, %.1f ms processor; per run %u uniform uploads, %u program switches, %u texture binds\n",
+                "with the GPU, %.1f ms processor; per run %u uniform uploads, %u program switches, %u texture binds; "
+                "fastest %.1f ms\n",
                 Stem(path).c_str(), loaded.frame, follows ? ", follows" : "", first.draws - before.draws,
                 first.compactDraws - before.compactDraws, first.triangles - before.triangles,
                 first.textures - before.textures, first.mipmapsMade - before.mipmapsMade,
@@ -259,7 +260,8 @@ int main(int argc, char **argv) {
                 first.leanShaders > before.leanShaders ? ", lean vertex shaders" : "",
                 first.missingTextures > before.missingTextures ? ", missing textures" : "", Ms(t0, t2), Ms(t0, t1),
                 Median(submit), Median(total), Median(cpu), (s.uniformUploads - before.uniformUploads) / runs,
-                (s.programSwitches - before.programSwitches) / runs, (s.textureBinds - before.textureBinds) / runs);
+                (s.programSwitches - before.programSwitches) / runs, (s.textureBinds - before.textureBinds) / runs,
+                total.empty() ? 0.0 : *std::min_element(total.begin(), total.end()));
     std::fflush(stdout);
     if (first.shaderErrors > before.shaderErrors)
       failures++;

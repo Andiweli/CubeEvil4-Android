@@ -54,6 +54,7 @@ struct GxStats {
   unsigned autofocusMarks = 0;   // BP 0x5A markers (the main app's depth of field), ignored here
   unsigned skippedDraws = 0;     // draws left out: no vertex format, or too many attributes
   unsigned compactDraws = 0;     // draws with the compact vertex
+  unsigned textures16 = 0;       // texture levels uploaded with 16 bits (GxOptions::tex16)
   // GL work per draw
   unsigned uniformUploads = 0, programSwitches = 0, textureBinds = 0, stateChanges = 0, attributeSetups = 0;
   unsigned presents = 0;
@@ -104,6 +105,16 @@ struct GxOptions {
   // 255 steps. Close to the GameCube, not to the step: far fewer instructions per pixel (the TEV
   // was 50-80 % of a frame on the OUYA)
   bool fastTev = false;
+  // at most this many lights per vertex (RE4_GX2_LIGHTS=n; 0: all, as the GameCube): for each draw
+  // the strongest at the model's origin (its default position matrix), the others added as a
+  // constant (their light at the origin, half of it where the diffuse function reads the normal).
+  // The two strongest give 92-100 % of the light there in r100 and r101 (07.11.2026)
+  int maxLights = 0;
+  // 16-bit colour (wish of the project owner, 07.11.2026): textures (RE4_GX2_TEX16=1) as RGB565
+  // when opaque, RGBA5551 when their alpha is only 0 and 255 (cut-outs), else as they are (a soft
+  // alpha in 4 bits would band); the EFB (RE4_GX2_EFB16=1) as RGB565 with the GPU's dithering
+  // (no destination alpha: it reads as 1)
+  bool tex16 = false, efb16 = false;
 };
 
 class GxRenderer {

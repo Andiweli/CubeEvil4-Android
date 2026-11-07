@@ -271,6 +271,10 @@ void Light(std::string &out, const ShaderKey &k, const ShaderInfo &s, int chan, 
     else
       Add(out, "    %s lacc = uMatAmb[%d].%s;\n", type, 2 + chan, sw);
     const unsigned mask = LightMask(c);
+    // the lights left out of this draw (ShaderKey::lightFold), as the renderer worked them out at
+    // the model's origin
+    if (k.lightFold && mask)
+      Add(out, "    lacc += uFold[%d].%s;\n", chan, sw);
     const unsigned diffuse = (c >> 7) & 3, attn = (c >> 9) & 3;
     for (unsigned i = 0; i < 8; i++) {
       if (!(mask & (1u << i)))
@@ -341,6 +345,8 @@ std::string GxVertexShader(const ShaderKey &k, const ShaderInfo &s, bool lean) {
     Add(out, "uniform vec4 uPost[%d];\n", s.postCount);
   if (s.lights)
     Add(out, "uniform vec4 uLight[%u];\n", 5 * Popcount(s.lights));
+  if (k.lightFold)
+    out += "uniform vec4 uFold[2];\n";
   out += "uniform vec4 uMatAmb[4];\nuniform vec4 uVp[2];\nuniform vec4 uProj[2];\n";
   if (s.mtxDefaults)
     out += "uniform vec4 uMtxDef[3];\n";

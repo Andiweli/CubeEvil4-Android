@@ -22,7 +22,9 @@ Drei Schritte:
        ...-gp        derselbe Lauf mit den OUYA-Einstellungen: der Decoder prueft
                      Texturen nur stichprobenweise (RE4_GX_TEXTURE_CHECK=sampled) und
                      schreibt die Punkte im kompakten Format der GameCube
-                     (RE4_GX_COMPACT=1): r100-gp, r101-gp, r100-schnell-gp. Den eigenen
+                     (RE4_GX_COMPACT=1), dazu die leichte Fassung des Kerns: Potato-Modus
+                     mit beiden Schaltern (RE4_POTATO=3) und halbe Sicht (RE4_VIEW_DISTANCE=0.5):
+                     r100-gp, r101-gp, r100-schnell-gp. Den eigenen
                      Grafik-Thread von frueher gibt es seit dem Abgleich mit master
                      (28.10.2026) nicht mehr; die Punkte rechnen dort bis zu 3 Hilfs-Threads
                      um (RE4_GX_THREADS, Standard: Prozessorkerne minus 3).
@@ -331,6 +333,9 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
         # time otherwise; the GP thread of the first measurements is gone since the merge with
         # master, 28.10.2026: master's vertex jobs instead)
         if ($gp) { $settings += 'RE4_GX_TEXTURE_CHECK=sampled' }
+        # the light OUYA version's core side (port/docs/ouya-machbarkeit.md): the Potato mode with
+        # both switches (weather and special effects left out) and the view to half the fog
+        if ($gp) { $settings += 'RE4_POTATO=3'; $settings += 'RE4_VIEW_DISTANCE=0.5' }
         # the compact vertex (re4_gx_frame.h): about half the bytes; -gleitkomma: the float vertex
         $float = $run -like '*-gleitkomma'
         if ($gp -and -not $float) { $settings += 'RE4_GX_COMPACT=1' }

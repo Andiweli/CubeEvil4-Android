@@ -26,7 +26,9 @@ ersten Mal), simplevs (Vertex-Shader ohne Licht und Texturkoordinaten, mit flat)
 Viertel der Pixel: was eine kleinere Aufloesung spart), auch kombiniert ("flat+nocopy").
 Dazu die Einstellungen der leichten OUYA-Fassung (die Bilder sind dann richtig, nur einfacher):
 fasttev (vereinfachte Farbberechnung, RE4_GX2_FAST_TEV=1), scaleX (EFB-Aufloesung X mal die der
-GameCube, RE4_GX2_SCALE, z. B. scale0.75), kombinierbar ("fasttev+scale0.75").
+GameCube, RE4_GX2_SCALE, z. B. scale0.75), lightsN (hoechstens N Lichter je Eckpunkt,
+RE4_GX2_LIGHTS), tex16 (Texturen in 16 Bit), efb16 (das Bild in 16 Bit), kombinierbar
+("fasttev+scale0.75+lights2").
 -Only waehlt Bilder aus (Platzhalter).
 
 .EXAMPLE
@@ -45,6 +47,10 @@ param(
     [string[]]$Only = @(),
     [string[]]$Probes = @('normal'),
     [switch]$SkipCompare,
+    # the variants in turn for each frame (frame 1 in every variant, then frame 2 ...), not one
+    # variant after the other: the OUYA warms up and slows down over minutes, so measured one
+    # after the other the later variants came out slower (07.11.2026)
+    [switch]$Interleave,
     [string]$Distro = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -156,8 +162,8 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
     Invoke-Adb shell chmod 755 "$remote/gx_gl2_render" | Out-Null
     foreach ($file in $frameFiles) { Invoke-Adb push $file.FullName "$remote/frames/$($file.Name)" | Out-Null }
     $names = ($frameFiles | ForEach-Object { "$remote/frames/$($_.Name)" }) -join ' '
+    $settings = @{}
     foreach ($probe in $Probes) {
-        Say "   zeichnen ($probe) ..."
         # the parts of a variant: settings of the light OUYA version, the rest measurements
         $setting = ''
         $measure = @()
@@ -165,17 +171,46 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
             if ($part -eq 'normal') { continue }
             if ($part -eq 'fasttev') { $setting += 'RE4_GX2_FAST_TEV=1 ' }
             elseif ($part -match '^scale([0-9.]+)$') { $setting += "RE4_GX2_SCALE=$($Matches[1]) " }
+            elseif ($part -match '^lights([0-9])$') { $setting += "RE4_GX2_LIGHTS=$($Matches[1]) " }
+            elseif ($part -eq 'tex16') { $setting += 'RE4_GX2_TEX16=1 ' }
+            elseif ($part -eq 'efb16') { $setting += 'RE4_GX2_EFB16=1 ' }
             else { $measure += $part }
         }
         if ($measure.Count) { $setting += "RE4_GX2_PROBE=$($measure -join ',') " }
-        $lines = Invoke-Adb shell "cd $remote && $setting RE4_GX2_REPEAT=$Repeat ./gx_gl2_render out $names"
+        $settings[$probe] = $setting
+    }
+    $rounds = if ($Interleave) { @($frameFiles | ForEach-Object { "$remote/frames/$($_.Name)" }) } else { @($names) }
+    foreach ($probe in $Probes) {
         $file = if ($probe -eq 'normal') { 'render.txt' } else { "render-$probe.txt" }
-        $lines | Set-Content -LiteralPath (Join-Path $OutDir $file) -Encoding UTF8
-        $lines | Where-Object { $_ -match '^(in all|device|gx_gl2_render|GPU|RE4GX2)' } | ForEach-Object { Say "   $_" }
-        if ($probe -eq 'normal') {
+        Remove-Item -LiteralPath (Join-Path $OutDir $file) -ErrorAction SilentlyContinue
+    }
+    foreach ($round in $rounds) {
+      foreach ($probe in $Probes) {
+        if (-not $Interleave) { Say "   zeichnen ($probe) ..." }
+        $lines = Invoke-Adb shell "cd $remote && $($settings[$probe]) RE4_GX2_REPEAT=$Repeat ./gx_gl2_render out $round"
+        $file = if ($probe -eq 'normal') { 'render.txt' } else { "render-$probe.txt" }
+        $lines | Add-Content -LiteralPath (Join-Path $OutDir $file) -Encoding UTF8
+        if (-not $Interleave) {
+            $lines | Where-Object { $_ -match '^(in all|device|gx_gl2_render|GPU|RE4GX2)' } | ForEach-Object { Say "   $_" }
+        }
+        if ($probe -eq 'normal' -and $round -eq $rounds[-1]) {
             foreach ($frame in $frameFiles) {
                 $stem = [IO.Path]::GetFileNameWithoutExtension($frame.Name)
                 Invoke-Adb pull "$remote/out/$stem-ouya.ppm" (Join-Path $pictures "$stem-ouya.ppm") | Out-Null
+            }
+        }
+      }
+    }
+    if ($Interleave) {
+        # per variant: the median over the frames of each frame's median and fastest run
+        foreach ($probe in $Probes) {
+            $file = if ($probe -eq 'normal') { 'render.txt' } else { "render-$probe.txt" }
+            $rows = @(Get-Content -LiteralPath (Join-Path $OutDir $file) -Encoding UTF8 | Where-Object { $_ -match '^gx-' })
+            $med = @($rows | ForEach-Object { if ($_ -match '([0-9.]+) ms with the GPU') { [double]$Matches[1] } } | Sort-Object)
+            $fast = @($rows | ForEach-Object { if ($_ -match 'fastest ([0-9.]+) ms') { [double]$Matches[1] } } | Sort-Object)
+            if ($med.Count) {
+                Say ("   {0}: {1} Bilder, Median {2} ms (schnellste Laeufe: Median {3} ms), langsamstes {4} ms" -f $probe,
+                    $med.Count, $med[[int][math]::Floor($med.Count / 2)], $fast[[int][math]::Floor($fast.Count / 2)], $med[-1])
             }
         }
     }
