@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The OUYA app menu (L3): the texts of the main app's in-game menu
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
-     translations by a script) and the OUYA's own (English and German). -->
+     translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
     <string name="ingame_title">CubeEvil4 इन-गेम मेन्यू</string>
     <string name="ingame_back">गेम पर लौटें</string>
@@ -52,4 +52,9 @@
     <string name="ingame_discs">डिस्क</string>
     <string name="ingame_discs_help">कोई दूसरा संस्करण खेलने के लिए: गेम बंद होगा, और आप स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करेंगे। सेव, मेमोरी कार्ड और सेटिंग्स बनी रहेंगी।</string>
     <string name="ingame_import_discs">दूसरी डिस्क इम्पोर्ट करें</string>
+    <string name="ouya_view_distance">दृश्य दूरी</string>
+    <string name="ouya_colours">रंग गणना</string>
+    <string name="ouya_colours_simple">सरलीकृत</string>
+    <string name="ouya_colours_exact">सटीक</string>
+    <string name="ouya_graphics_help">रिज़ॉल्यूशन: GameCube के 640 × 528 बिंदुओं के हिस्से के रूप में गेम की तस्वीर; कम होने पर तेज़। सरलीकृत रंग गणना ग्राफ़िक्स का काम कम करती है; रंग बहुत थोड़े अलग हो सकते हैं। दृश्य दूरी: दूरी के कोहरे से पहले कितनी दूर तक दिखता है; उसके पीछे का हिस्सा नहीं बनाया जाता। यह अगले दरवाज़े या कटसीन से लागू होती है।</string>
 </resources>

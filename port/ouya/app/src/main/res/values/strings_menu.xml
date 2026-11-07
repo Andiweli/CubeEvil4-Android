@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The OUYA app menu (L3): the texts of the main app's in-game menu
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
-     translations by a script) and the OUYA's own (English and German). -->
+     translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
     <string name="ingame_title">CubeEvil4 Ingame Menu</string>
     <string name="ingame_back">Back to the game</string>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The OUYA app menu (L3): the texts of the main app's in-game menu
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
-     translations by a script) and the OUYA's own (English and German). -->
+     translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
     <string name="ingame_title">CubeEvil4 · Игровое меню</string>
     <string name="ingame_back">Вернуться в игру</string>
@@ -52,4 +52,9 @@
     <string name="ingame_discs">Диски</string>
     <string name="ingame_discs_help">Чтобы играть в другую версию: игра завершится, и вы импортируете оба её диска на стартовом экране. Сохранения, карта памяти и настройки останутся.</string>
     <string name="ingame_import_discs">Импорт других дисков</string>
+    <string name="ouya_view_distance">Дальность обзора</string>
+    <string name="ouya_colours">Расчёт цветов</string>
+    <string name="ouya_colours_simple">Упрощённый</string>
+    <string name="ouya_colours_exact">Точный</string>
+    <string name="ouya_graphics_help">Разрешение: изображение игры как доля от 640 × 528 точек GameCube; меньше — быстрее. Упрощённый расчёт цветов снижает нагрузку на графику; цвета могут совсем немного отличаться. Дальность обзора: как далеко видно до дальнего тумана; то, что за ним, не рисуется. Действует со следующей двери или ролика.</string>
 </resources>

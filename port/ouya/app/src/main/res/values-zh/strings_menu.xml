@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The OUYA app menu (L3): the texts of the main app's in-game menu
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
-     translations by a script) and the OUYA's own (English and German). -->
+     translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
     <string name="ingame_title">CubeEvil4 游戏内菜单</string>
     <string name="ingame_back">返回游戏</string>
@@ -52,4 +52,9 @@
     <string name="ingame_discs">光盘</string>
     <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
     <string name="ingame_import_discs">导入其他光盘</string>
+    <string name="ouya_view_distance">视距</string>
+    <string name="ouya_colours">颜色计算</string>
+    <string name="ouya_colours_simple">简化</string>
+    <string name="ouya_colours_exact">精确</string>
+    <string name="ouya_graphics_help">分辨率：游戏画面占 GameCube 640 × 528 像素点的比例；越低越快。简化的颜色计算可减轻图形负担；颜色可能有极细微的差别。视距：在远处雾气之前能看多远；雾气后面的内容不会绘制。从下一扇门或下一段过场动画起生效。</string>
 </resources>

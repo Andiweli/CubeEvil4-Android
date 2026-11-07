@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The OUYA app menu (L3): the texts of the main app's in-game menu
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
-     translations by a script) and the OUYA's own (English and German). -->
+     translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
     <string name="ingame_title">CubeEvil4 · Menú del juego</string>
     <string name="ingame_back">Volver al juego</string>
@@ -52,4 +52,9 @@
     <string name="ingame_discs">Discos</string>
     <string name="ingame_discs_help">Para jugar otra versión: la partida termina e importas sus dos discos en la pantalla de inicio. Las partidas guardadas, la tarjeta de memoria y los ajustes se conservan.</string>
     <string name="ingame_import_discs">Importar otros discos</string>
+    <string name="ouya_view_distance">Distancia de visión</string>
+    <string name="ouya_colours">Cálculo de colores</string>
+    <string name="ouya_colours_simple">Simplificado</string>
+    <string name="ouya_colours_exact">Exacto</string>
+    <string name="ouya_graphics_help">Resolución: la imagen del juego como parte de los 640 × 528 puntos de la GameCube; menos es más rápido. El cálculo de colores simplificado ahorra trabajo gráfico; los colores pueden variar muy ligeramente. Distancia de visión: hasta dónde llega la vista antes de la niebla lejana; lo que queda detrás no se dibuja. Se aplica a partir de la próxima puerta o escena.</string>
 </resources>

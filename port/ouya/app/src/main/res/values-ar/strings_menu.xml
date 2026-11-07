@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The OUYA app menu (L3): the texts of the main app's in-game menu
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
-     translations by a script) and the OUYA's own (English and German). -->
+     translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
     <string name="ingame_title">‏قائمة CubeEvil4 داخل اللعبة</string>
     <string name="ingame_back">العودة إلى اللعبة</string>
@@ -52,4 +52,9 @@
     <string name="ingame_discs">الأقراص</string>
     <string name="ingame_discs_help">لتلعب نسخة أخرى: تنتهي اللعبة، ثم تستورد قرصيها كليهما من شاشة البدء. تبقى ملفات الحفظ وبطاقة الذاكرة والإعدادات كما هي.</string>
     <string name="ingame_import_discs">استيراد أقراص أخرى</string>
+    <string name="ouya_view_distance">مدى الرؤية</string>
+    <string name="ouya_colours">حساب الألوان</string>
+    <string name="ouya_colours_simple">مبسّط</string>
+    <string name="ouya_colours_exact">دقيق</string>
+    <string name="ouya_graphics_help">الدقة: صورة اللعبة كنسبة من 640&#x200E; × &#x200E;528 نقطة في GameCube؛ الأقل أسرع. يخفف حساب الألوان المبسّط عبء الرسوميات؛ وقد تختلف الألوان اختلافًا طفيفًا جدًا. مدى الرؤية: إلى أي مدى تمتد الرؤية قبل ضباب المسافة؛ وما يقع خلفه لا يُرسم. يسري من الباب التالي أو المشهد السينمائي التالي.</string>
 </resources>

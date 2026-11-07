@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The OUYA app menu (L3): the texts of the main app's in-game menu
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
-     translations by a script) and the OUYA's own (English and German). -->
+     translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
     <string name="ingame_title">Menu Dalam Game CubeEvil4</string>
     <string name="ingame_back">Kembali ke game</string>
@@ -52,4 +52,9 @@
     <string name="ingame_discs">Disk</string>
     <string name="ingame_discs_help">Untuk memainkan versi lain: game berakhir, lalu Anda mengimpor kedua disknya di layar awal. Data simpanan, kartu memori, dan pengaturan tetap ada.</string>
     <string name="ingame_import_discs">Impor disk lain</string>
+    <string name="ouya_view_distance">Jarak pandang</string>
+    <string name="ouya_colours">Perhitungan warna</string>
+    <string name="ouya_colours_simple">Disederhanakan</string>
+    <string name="ouya_colours_exact">Tepat</string>
+    <string name="ouya_graphics_help">Resolusi: gambar game sebagai bagian dari 640 × 528 titik GameCube; lebih rendah lebih cepat. Perhitungan warna yang disederhanakan mengurangi beban grafis; warna bisa sedikit sekali berbeda. Jarak pandang: seberapa jauh pandangan sampai kabut jarak jauh; yang ada di baliknya tidak digambar. Berlaku mulai pintu atau cutscene berikutnya.</string>
 </resources>
