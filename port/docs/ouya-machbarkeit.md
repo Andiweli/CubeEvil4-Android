@@ -9,7 +9,10 @@ weitergeführt und nicht in die Haupt-App übernommen.
 
 **Wieder aufgenommen am 28.10.2026 (Wunsch des Projektinhabers):** `ouya-discarded` mit
 `master` abgeglichen, um auf dem neuen Stand weiterzutesten (Abschnitt „Abgleich mit master“
-am Ende). Nichts davon geht in die Haupt-App.
+am Ende). Nichts davon geht in die Haupt-App. **07.11.2026:** erneut mit `master` (0.99.1-rc)
+abgeglichen und eine **leichte OUYA-Fassung** gebaut (kürzere Sicht mit näherem Nebel,
+vereinfachte Farbberechnung, kleinere Auflösung): auf der OUYA im Median 89 statt 210 ms je
+Bild (Abschnitt „Leichte OUYA-Fassung“ am Ende).
 
 Stand 21.10.2026, Branch `claude/adoring-mendel-vclbu8`. Nur Bestandsaufnahme
 in der Cloud: nichts gebaut, nichts auf einer OUYA geprüft. Die Angaben zum
@@ -378,3 +381,67 @@ zusammengeführt. **Entscheidung des Projektinhabers (28.10.2026): master ist di
   (`port/ouya/tools/compare_frames.sh --data …`): die alten tragen das Kompaktformat unter
   Nummer 8, die jetzt `OWNER` heißt; dann `ouya-probe.ps1` (Kern auf der OUYA, mit master's
   Hilfs-Threads) und `ouya-gx-render.ps1` (Grafik).
+
+## Leichte OUYA-Fassung (07.11.2026)
+
+**Wunsch des Projektinhabers (07.11.2026):** die OUYA-Fassung bekommt eine kürzere Sicht mit
+näherem Nebel, die vereinfachte Farbberechnung und eine kleinere Auflösung, „ohne dass das
+Spiel Pixelbrei wird“. Vorher `master` (0.99.1-rc, `33f87637`, 256 Commits) in
+`ouya-discarded` geholt: ein Konflikt (`ai.cpp`: master's lernender Tonleser mit der
+pthread-Sperre der OUYA); die OUYA-Grafik übernimmt die Pixelmitte bei 7/12 des
+GLES-3-Renderers (seit 29.10.2026; in die vorberechneten Bildausschnitt-Werte eingerechnet,
+keine Anweisung mehr im Shader).
+
+**Die drei Schalter** (alle aus = wie bisher):
+
+| Schalter | Wo | Was |
+|---|---|---|
+| `RE4_VIEW_DISTANCE=f` | Kern: Patch 0900, `runtime/view_distance.cpp` | Das Spiel koppelt seine Sichtgrenze schon an den Nebel (`cLightMgr::setFog`, `hokanMove`: hinter dem Nebelende wird nichts gezeichnet). Der Patch gibt der GPU Nebelbeginn und -ende mal f (das Ende nicht unter 6 m) und setzt die Sichtgrenze auf dieses Ende; der Nebelwert des Raums selbst bleibt (die Überblendung zwischen zwei Lichtschnitten liest ihn jedes Bild). Räume ohne Nebel (meist innen) bleiben unverändert. |
+| `RE4_GX2_FAST_TEV=1` | OUYA-Grafik (`gx_gl2_shader.cpp`, `ShaderKey::fastTev`) | Die Farbstufen (TEV) in Bruchteilen 0..1 statt in ganzen Stufen 0..255: ohne Runden, Abschneiden auf 8 Bit und Überlauf; die Mischung als `mix()`. Vergleichsstufen und Alpha-Test weiter auf den 255 Stufen. |
+| `RE4_GX2_SCALE=x` | OUYA-Grafik (`GxOptions::resolutionEighths`) | Das EFB in Achteln der GameCube-Auflösung (0,75: 480×396); Kopien und das Bild für den Schirm folgen. |
+
+**Geprüft am PC** (WSL; Mitschnitte r100 und r101 wie `compare_frames.sh`, je 15 Bilder, mit
+f = 1 und 0,5 an denselben Stellen):
+
+- Kern i686 `-O2` und für Android 4.1 gebaut, alle Prüfungen von `whole_build.sh` bestanden,
+  keine Systemfunktion fehlt unter API 16 (119 Dateien geprüft).
+- `check.sh`: 22 künstliche Szenen in allen drei Läufen bestanden (die Szene „texture formats“
+  mit etwas mehr Spielraum: durch die Pixelmitte bei 7/12 fallen im Lauf „wie er läuft“ mehr
+  Abtastpunkte an Texelkanten, 833 Pixel; mit der Rundung von GLES 3: 0).
+- **Sichtweite 0,5:** Nebelende im Dorf 175 → 87 m, im Wald 107 → 53 m. Gezeichnet wird in den
+  schweren Bildern ungefähr die Hälfte: Wald (r100-003074) 137 000 → 70 000 Dreiecke, 524 → 357
+  Zeichenaufträge; Dorf (r101-001201) 124 000 → 66 000 Dreiecke, 921 → 499 Aufträge; leichte
+  Bilder und Innenräume unverändert. Am Bild: hinten neblig statt abgeschnitten.
+- **Vereinfachte Farben:** auf den Spielbildern im Mittel unter 1 von 255 Stufen anders, kein
+  Pixel mehr als 8 Stufen (künstliche Szenen: einfache Stufen höchstens 3; nur die
+  Zufalls-TEV-Szenen mit absichtlichen Überläufen weichen stark ab).
+- **Auflösung** (`gx_gl2_render` mit `RE4_GX2_PRESENT=1440x1080`: so hochgerechnet, wie ein
+  1080p-Fernseher das 4:3-Bild zeigt; 1:1-Ausschnitte verglichen): **0,75× gut** (etwas
+  weicher, Munitionszahl und Namensfeld gut lesbar); 0,625× Grenzfall (Treppenkanten an
+  Leons Hand, Ziffern unsauber); **0,5× Pixelbrei** (die Munitionszahl nicht mehr lesbar).
+  Bilder: Desktop `RE4-OUYA-Probe\leicht-bilder` (`sicht-*`, `farbe-*`, `aufl-*`).
+
+**Auf der OUYA** (`ouya-gx-render.ps1`, neue Varianten `fasttev`, `scaleX`):
+
+| Fassung | vier schwerste Bilder (Wald, Dorf), Median / langsamstes | alle 30 Bilder, Median / langsamstes |
+|---|---|---|
+| wie bisher | 356 / 408 ms | 210 / 377 ms (Lauf vom 22.10.) |
+| nur Sichtweite 0,5 | 322 / 352 ms | – |
+| Farben vereinfacht + 0,75×, volle Sicht | 225 / 269 ms | – |
+| **Sicht 0,5 + Farben vereinfacht + 0,75×** | **123 / 197 ms** | **89 / 124 ms (etwa 11 Bilder/s)** |
+| dasselbe mit 0,625× | 105 / 113 ms | 90 / 175 ms |
+
+Die Werte schwanken auf der OUYA stark (dasselbe Bild 54 oder 90 ms in zwei Läufen; nach
+langer Last offenbar Wärme und Taktsenkung); Unterschiede unter etwa einem Viertel sagen
+nichts. **0,625× bringt gegenüber 0,75× kaum etwas** und sieht schlechter aus: die Pixel sind
+nicht mehr der Engpass. Was bleibt (Messvarianten, Dorfbild r101-001201 mit der leichten
+Fassung): Farbberechnung je Pixel etwa 50 ms, Licht und Texturkoordinaten je Eckpunkt etwa
+55 ms, Kopien und der Rest etwa 35 ms; ohne die Zeichenaufrufe 14 ms.
+
+**Empfehlung:** Sicht 0,5, vereinfachte Farben und 0,75× als Grundeinstellung der leichten
+Fassung. Für mehr als etwa 11 Bilder/s (30 Bilder/s = 33 ms je Bild) müssten noch das Licht je
+Eckpunkt (weniger Lichter oder einfachere Abschwächung) und die Kopien (der Potato-Modus von
+master lässt die Bildverzerrungen weg, die das Bild kopieren) billiger werden; dazu „nur jedes
+zweite Bild zeigen“ in einer späteren OUYA-App (dann reichen 66 ms je Bild für 15 Bilder/s).
+Noch nicht gemessen: die Kern-Probe (`ouya-probe.ps1`) mit master's Hilfs-Threads statt des
+eigenen Grafik-Threads.
