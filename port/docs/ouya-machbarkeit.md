@@ -632,10 +632,12 @@ Bilder/s, die Szene lief dem Ton um ein paar Sekunden davon; alle vier Kerne war
   „Andere Discs importieren“ im Menü auf L3 (die App startet dann neu; „Zurück zum Spiel“ nimmt die
   bisherigen). Sucht Disc-Abbilder (ISO, GCM, RVZ) im internen Speicher und auf USB-Speichern (bis zwei
   Ordner tief), zeigt Disc und Fassung (Debug, US, EU, JP), fragt nach dem Ziel (intern oder ein
-  USB-Speicher, mit freiem Platz) und richtet dort `RE4-OUYA/disc1` und `disc2` ein, wie die Haupt-App
+  USB-Speicher, mit freiem Platz) und richtet dort im Ordner der App (`Android/data/com.ast.cubeevil4.ouya/files`,
+  wie die Haupt-App; Wunsch des Projektinhabers) `disc1` und `disc2` ein, wie die Haupt-App
   (Prüfung gegen die Code-Liste der Fassung, beide Discs derselben Fassung). Lesen, Prüfen und Entpacken
   mit den Klassen der Haupt-App (`com.ast.re4decomp.disc`, kopiert von
   `port/ouya/tools/sync_disc_import.py`, ohne das erst ab Android 4.4 vorhandene `StandardCharsets`),
   RVZ über deren C-Teil (zstd) als `libre4rvz.so`. Mit den EU-Discs bekommt das Spiel die Sprache der
-  OUYA (`RE4_GAME_LANGUAGE`). Gebaut und installiert; der Lauf des Installers auf der OUYA ist noch nicht
+  OUYA (`RE4_GAME_LANGUAGE`). Die Speicherkarte des bisherigen Ordners kommt mit, wenn am neuen Ort keine
+  liegt. Gebaut und installiert; der Lauf des Installers auf der OUYA ist noch nicht
   getestet (intern ist dort zu wenig Platz frei: Abbild und Dateien brauchen knapp 3 GB).

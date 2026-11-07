@@ -30,7 +30,8 @@ import java.util.Locale;
 /**
  * The OUYA app's disc installer (wishes of the project owner, 07.11.2026): disc 1 and 2 of the debug build or of
  * the US, European or Japanese release, from disc images (ISO, GCM, RVZ) on the OUYA's own storage or a USB
- * drive, into the internal storage or a USB drive as the player chooses (RE4-OUYA there). The discs are read,
+ * drive, into the internal storage or a USB drive as the player chooses (the app's folder there,
+ * Android/data/com.ast.cubeevil4.ouya/files, as the main app's). The discs are read,
  * checked against the release's code catalog and unpacked with the main app's classes
  * (com.ast.re4decomp.disc, copied by port/ouya/tools/sync_disc_import.py); the folder then holds disc1 and
  * disc2 as the main app's import does, which the game core reads (runtime/dvd.cpp). In the main app's look;
@@ -143,6 +144,18 @@ final class OuyaInstaller extends ScrollView {
         roots.add(dir);
     }
 
+    /** The app's own folder on a storage, as the main app keeps its discs (Android/data/<app>/files; wish of the
+     *  project owner, 07.11.2026): on the internal storage Android's (removed with the app), on a USB drive the
+     *  same path there */
+    private File appFolder(File root) {
+        if (internal(root)) {
+            File own = getContext().getExternalFilesDir(null);
+            if (own != null)
+                return own;
+        }
+        return new File(root, "Android/data/" + getContext().getPackageName() + "/files");
+    }
+
     private static boolean internal(File root) {
         try {
             return root.getCanonicalFile().equals(Environment.getExternalStorageDirectory().getCanonicalFile());
@@ -230,7 +243,7 @@ final class OuyaInstaller extends ScrollView {
                 @Override
                 public void onClick(View v) {
                     if (!working && writable)
-                        install(new File(root, "RE4-OUYA"));
+                        install(appFolder(root));
                 }
             });
             b.setEnabled(writable && !found.isEmpty());
