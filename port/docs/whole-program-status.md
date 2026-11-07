@@ -3,7 +3,68 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.0-beta: Bildformat „Native“, Lebensanzeige und Minikarte in den Ecken (07.11.2026, Branch `work`, Patches 0214–0215)
+## Version 0.99.1-rc: Lebensanzeige und Minikarte in den Ecken, Update-Hinweis (07.11.2026, Branch `work`, Patch 0215)
+
+Version 0.99.1-rc (versionCode 103), Releasetext `port/android-decomp/docs/releases/v0.99.1-rc.md`. Entscheidung des
+Projektinhabers (07.11.2026): 0.99.0 ist veröffentlicht (Tag „0.99.0-rc“, Titel „CubeEvil4 v0.99.0 Release
+Candidate“, APK `CubeEvil4-0.99.0-rc.apk` von 3f6c93a9, versionName darin noch „0.99.0-beta“); die Lebensanzeige in
+den Ecken und der Fix des Update-Hinweises kommen in 0.99.1. **Ab jetzt ist der versionName genau der spätere
+GitHub-Tag** (hier „0.99.1-rc“, Wahl des Projektinhabers; Endung bis 1.0, ab „1.0“ keine mehr), der Releasetext
+heißt `v<Tag>.md`, das APK `CubeEvil4-<Tag>.apk`. `v0.99.0-beta.md` steht wieder wie veröffentlicht (Stand
+3f6c93a9).
+
+1. **Update-Hinweis kam mit 0.99.0 immer wieder (Bericht des Projektinhabers, 07.11.2026).** `releases/latest` liefert
+   den Tag „0.99.0-rc“, das APK trägt „0.99.0-beta“; `AppUpdate.compare` verglich bei gleichen Zahlen die Endungen als
+   Text, „beta“ < „rc“: Update angeboten, nach der Installation dasselbe APK, der Hinweis wieder (Endlosschleife). Auch
+   „rc2“ gegen „rc10“ war falsch. **Jetzt:** die Zahlen entscheiden (fehlende Teile 0, „1.0“ = „1.0.0“); bei gleichen
+   Zahlen ist nur eine Version ohne Endung neuer als eine mit („1.0“ nach „1.0-rc“, „0.99.0“ nach „0.99.0-beta“);
+   dasselbe Wort mit Zahl zählt die Zahl („rc10“ nach „rc2“, „rc.2“ / „rc-2“ ebenso); verschiedene Wörter („beta“ /
+   „rc“) gelten als dieselbe Version; Groß/klein, ein führendes „v“, Leerzeichen und „-core“ zählen nicht; was keine
+   Versionsnummer ist, ist nie älter (kein Hinweis). Neuer Test `AppUpdateTest` (7 Fälle mit beiden Richtungen:
+   0.99.0-beta/0.99.0-rc gleich, 0.99.0-rc/0.99.1-rc, 0.99.0-rc/1.0, 1.0-rc/1.0, 1.0/1.0.0 gleich, 1.0/1.0.1,
+   v-Präfix, 1.0-rc2/1.0-rc10 …), mit Robolectric (AppUpdate hält einen Handler). Geprüft: `AppUpdateTest` 7/7,
+   `CoreMenuLayoutTest` 10/10 (dort die alten Vergleiche unverändert grün).
+   **Für Nutzer von 0.99.0:** deren eingebauter Vergleich ändert sich erst mit einem neuen APK. 0.99.1-rc hat höhere
+   Zahlen, also bietet auch der alte Code das Update richtig an; danach gilt der neue. Bis 0.99.1 erscheint, bleibt
+   der Hinweis bei 0.99.0 (alternativ: den Tag des 0.99.0-Releases auf „0.99.0-beta“ ändern, dann ist der alte
+   Vergleich gleich; oder 0.99.0 mit versionName „0.99.0-rc“ neu bauen und das APK ersetzen). GitHub lässt bei
+   `releases/latest` Releases weg, die als „Pre-release“ markiert sind: die App sähe ein so markiertes RC nicht.
+2. **Lebensanzeige und Minikarte in die Ecken (Wunsch des Projektinhabers, 07.11.2026, nach „Native“ am Gerät mit
+   20:9, Bild `reports/0990-native-hud-20261107/native-20to9-hud.webp`; Patch 0215).** Wortlaut: das HUD (Anzeige von
+   Leon und Ashley unten rechts) weiter nach rechts, die Minikarte weiter nach links, links und rechts jeweils mit
+   Abstand und von unten derselbe Abstand, für 4:3, 16:9, Gestreckt und Native. Bei „Native“ saß der Ring in der
+   16:9-Mitte (rechts davon rund 360 px frei), die Karte unter dem MOVE-Stick. **Entscheidung des Projektinhabers
+   (07.11.2026, Vergleichsbild A/B):** bei Formaten mit schwarzen Rändern in die Ecken des sichtbaren Bildes, nicht auf
+   den Rand (den Ring zeichnet das Spiel in sein Bild; auf dem Rand müsste die App ihn getrennt zeichnen).
+   - **Aufbau des Rings** (Ausgabe der Einheiten am PC, r101): ein Baum von ID-Einheiten unter Einheit 0 der Klasse
+     `IDC_LIFE_METER` (Platz 217, −130 in Einheiten: ein Bildpunkt von 480 Zeilen, 240 × Seitenverhältnis zur Seite):
+     Ring, Nadel, Munition (Symbol in `IDC_BLLT_ICON`, Kind darin), Namensfeld (Gruppe unter Einheit 0, darin Name
+     0x40 Leon, 0x41 Ashley, 0x42 Ada; die Stellvertreter HUNK/Krauser/Wesker ohne Namen, das Feld bleibt), Ashleys
+     kleiner Ring (Gruppe Einheit 1, sichtbar solange sie Partnerin ist, `LifeMeter::move`). Gezeichnet vor der Kamera
+     mit ihrer Projektion; die übrigen Einheiten der Klasse (bei y −280 unter dem Bild) gehören nicht zum Baum.
+   - **Kern:** `re4_core_set_hud_layout(Zeilen, Breite, Flags)` (IPC `kSetHudLayout`, am PC `RE4_HUD_LAYOUT`):
+     die gezeigten Zeilen (56..392 bei 16:9, Gestreckt, 4:3 (GC) und Native breit; 0..448 bei 4:3; die mittleren bei
+     Native schmaler als 16:9), wie viel breiter eine Einheit quer als hoch erscheint (4:3 (GC) 15/14, Gestreckt
+     Seitenverhältnis/(16/9), sonst 1) und ob der Ring so viel schmaler gezeichnet wird (Gestreckt: Form bleibt).
+     `re4_hud_scrn` setzt den Baum (Anker: Platz von Einheit 0, damit Einblenden und Nadel bleiben) so, dass sein
+     sichtbares Ende rechts (Namensfeld 91, mit Ashleys Ring 96 Einheiten rechts vom Anker; Gerätebild mit Wesker und
+     PC-Bilder) und unten (Ring 46 unter dem Anker) je 4 % der Höhe der gezeigten Zeilen vom Rand entfernt ist; quer in
+     Bildschirmpunkten gleich viel (geteilt durch die Breite). Seitenrand bei breiter Projektion: 240 × deren
+     Seitenverhältnis (das erste Laden der Kamera im Bild, wie beim Text).
+   - **App:** `re4mm::Hud` (Vorgabe je Format), `re4mm::Shown` (der gezeigte Teil: die Box, bei 4:3 (GC) die Zeilen
+     56..392 darin), `re4mm::Place`: Karte in dessen linke untere Ecke, Abstand zur Seite = nach unten = 4 % seiner
+     Höhe (bei 16:9 der Platz wie bisher). Menüs bleiben wie gehabt; im Zielfernrohr gibt es den Ring nicht.
+   - **Geprüft am PC (i686 -O2, r101 Debug-Discs, Leon zielt; r200 EU-Discs mit Ashley `RE4_TEST_STA=101`; Wesker
+     `RE4_CHEATS=160`):** Bilder wie `drawGx` auf 2000 × 900 (Native auch 1280 × 800) in allen sechs Fällen (16:9,
+     Gestreckt, 4:3 (GC), 4:3, Native 20:9, Native 16:10): Ring unten rechts, Karte unten links, unten beide 36 px
+     (4 %), Ring bei Gestreckt rund; Leon, Wesker (Feld ohne Namen) und Leon mit Ashley (beide Ringe, Name „Ashley“):
+     Unterkante auf der 36-px-Linie, das Namensfeld rechts bis unter den Debug-Balken der PC-Läufe (den gibt es am
+     Gerät nicht). `minimap_place_check` 0 Probleme (Ecke, gleiche Abstände, Vorgabe je Format), Kern- und
+     Laufzeittests 0 Fehler, App nativ (armeabi-v7a, arm64-v8a) und Java gebaut.
+     **Nicht geprüft:** Gerät; Ada (eigenes Spiel), HUNK und Krauser; Aktionshinweise und Countdown neben dem Ring in
+     der Ecke (der Aktionshinweis sitzt unten in der Mitte bei x −34..0, der Ring rückt von ihm weg).
+
+## Version 0.99.0-beta: Bildformat „Native“ (07.11.2026, Branch `work`, Patch 0214; veröffentlicht als Tag „0.99.0-rc“ mit dem APK von 3f6c93a9)
 
 Version 0.99.0-beta (versionCode 102), Releasetext `port/android-decomp/docs/releases/v0.99.0-beta.md`. Wunsch des
 Projektinhabers (07.11.2026): auf Grundlage der Breitbild-Umsetzung im Fork von Noname267 (siehe „Prüfung der
@@ -84,41 +145,6 @@ Forks“ unten) ein Bildformat „Native“, das das echte Seitenverhältnis des
    Stufen = öfter umschalten, und näher an der Grenze fällt Dynamisch leichter zurück; (3) nach unten eine Stufe je
    etwa 4 s: von 4× bis 1× 12 statt 6 Schritte; (4) Speicher kein Problem (alle unter der höchsten Stufe). Falls Tester
    mit schwachen Geräten auf ×1 hängen und das Bild zu unscharf finden: gezielt nur ×1,25 prüfen.
-9. **Lebensanzeige und Minikarte in die Ecken (Wunsch des Projektinhabers, 07.11.2026, nach „Native“ am Gerät mit
-   20:9, Bild `reports/0990-native-hud-20261107/native-20to9-hud.webp`; Patch 0215).** Wortlaut: das HUD (Anzeige von
-   Leon und Ashley unten rechts) weiter nach rechts, die Minikarte weiter nach links, links und rechts jeweils mit
-   Abstand und von unten derselbe Abstand, für 4:3, 16:9, Gestreckt und Native. Bei „Native“ saß der Ring in der
-   16:9-Mitte (rechts davon rund 360 px frei), die Karte unter dem MOVE-Stick. **Entscheidung des Projektinhabers
-   (07.11.2026, Vergleichsbild A/B):** bei Formaten mit schwarzen Rändern in die Ecken des sichtbaren Bildes, nicht auf
-   den Rand (den Ring zeichnet das Spiel in sein Bild; auf dem Rand müsste die App ihn getrennt zeichnen).
-   - **Aufbau des Rings** (Ausgabe der Einheiten am PC, r101): ein Baum von ID-Einheiten unter Einheit 0 der Klasse
-     `IDC_LIFE_METER` (Platz 217, −130 in Einheiten: ein Bildpunkt von 480 Zeilen, 240 × Seitenverhältnis zur Seite):
-     Ring, Nadel, Munition (Symbol in `IDC_BLLT_ICON`, Kind darin), Namensfeld (Gruppe unter Einheit 0, darin Name
-     0x40 Leon, 0x41 Ashley, 0x42 Ada; die Stellvertreter HUNK/Krauser/Wesker ohne Namen, das Feld bleibt), Ashleys
-     kleiner Ring (Gruppe Einheit 1, sichtbar solange sie Partnerin ist, `LifeMeter::move`). Gezeichnet vor der Kamera
-     mit ihrer Projektion; die übrigen Einheiten der Klasse (bei y −280 unter dem Bild) gehören nicht zum Baum.
-   - **Kern:** `re4_core_set_hud_layout(Zeilen, Breite, Flags)` (IPC `kSetHudLayout`, am PC `RE4_HUD_LAYOUT`):
-     die gezeigten Zeilen (56..392 bei 16:9, Gestreckt, 4:3 (GC) und Native breit; 0..448 bei 4:3; die mittleren bei
-     Native schmaler als 16:9), wie viel breiter eine Einheit quer als hoch erscheint (4:3 (GC) 15/14, Gestreckt
-     Seitenverhältnis/(16/9), sonst 1) und ob der Ring so viel schmaler gezeichnet wird (Gestreckt: Form bleibt).
-     `re4_hud_scrn` setzt den Baum (Anker: Platz von Einheit 0, damit Einblenden und Nadel bleiben) so, dass sein
-     sichtbares Ende rechts (Namensfeld 91, mit Ashleys Ring 96 Einheiten rechts vom Anker; Gerätebild mit Wesker und
-     PC-Bilder) und unten (Ring 46 unter dem Anker) je 4 % der Höhe der gezeigten Zeilen vom Rand entfernt ist; quer in
-     Bildschirmpunkten gleich viel (geteilt durch die Breite). Seitenrand bei breiter Projektion: 240 × deren
-     Seitenverhältnis (das erste Laden der Kamera im Bild, wie beim Text).
-   - **App:** `re4mm::Hud` (Vorgabe je Format), `re4mm::Shown` (der gezeigte Teil: die Box, bei 4:3 (GC) die Zeilen
-     56..392 darin), `re4mm::Place`: Karte in dessen linke untere Ecke, Abstand zur Seite = nach unten = 4 % seiner
-     Höhe (bei 16:9 der Platz wie bisher). Menüs bleiben wie gehabt; im Zielfernrohr gibt es den Ring nicht.
-   - **Geprüft am PC (i686 -O2, r101 Debug-Discs, Leon zielt; r200 EU-Discs mit Ashley `RE4_TEST_STA=101`; Wesker
-     `RE4_CHEATS=160`):** Bilder wie `drawGx` auf 2000 × 900 (Native auch 1280 × 800) in allen sechs Fällen (16:9,
-     Gestreckt, 4:3 (GC), 4:3, Native 20:9, Native 16:10): Ring unten rechts, Karte unten links, unten beide 36 px
-     (4 %), Ring bei Gestreckt rund; Leon, Wesker (Feld ohne Namen) und Leon mit Ashley (beide Ringe, Name „Ashley“):
-     Unterkante auf der 36-px-Linie, das Namensfeld rechts bis unter den Debug-Balken der PC-Läufe (den gibt es am
-     Gerät nicht). `minimap_place_check` 0 Probleme (Ecke, gleiche Abstände, Vorgabe je Format), Kern- und
-     Laufzeittests 0 Fehler, App nativ (armeabi-v7a, arm64-v8a) und Java gebaut.
-     **Nicht geprüft:** Gerät; Ada (eigenes Spiel), HUNK und Krauser; Aktionshinweise und Countdown neben dem Ring in
-     der Ecke (der Aktionshinweis sitzt unten in der Mitte bei x −34..0, der Ring rückt von ihm weg).
-
 ## Prüfung der Forks (06.11.2026 im Branch `claude/keen-carson-26xxjq`, nachgeprüft 07.11.2026; nichts übernommen)
 
 Übernommen aus Commit f62c7ce0 (Branch `claude/keen-carson-26xxjq`, den der Projektinhaber löscht):

@@ -60,29 +60,51 @@ final class AppUpdate {
   }
 
   /**
-   * "0.95.2-beta" against "0.96.0-beta": the numbers part by part, then a version without a suffix
-   * ahead of one with it ("1.0" after "1.0-beta"), then the suffixes; a leading "v" does not count.
+   * "0.99.0-rc" against "0.99.1-rc": the numbers decide, part by part (a missing part is 0: "1.0" is "1.0.0").
+   * With the same numbers only a version without a suffix is ahead of one with it ("1.0" after "1.0-rc"); the
+   * same suffix word with a number counts that number ("1.0-rc10" after "1.0-rc2"); different words are the
+   * same version ("0.99.0-beta" and "0.99.0-rc": the APK of 0.99.0 is named "-beta", its release "-rc";
+   * until 0.99.0 the words were compared as text and "beta" stayed older than "rc", the update came again
+   * after every install: owner's report 07.11.2026). Case, a leading "v" and the build's "-core" do not
+   * count; a version that is no version ("", "latest") is never older.
    */
   static int compare(String a, String b) {
     String[] x = split(a), y = split(b);
+    if (x == null || y == null) return 0;
     String[] p = x[0].split("\\."), q = y[0].split("\\.");
     for (int i = 0; i < Math.max(p.length, q.length); i++) {
-      int m = i < p.length ? number(p[i]) : 0, n = i < q.length ? number(q[i]) : 0;
+      long m = i < p.length ? number(p[i]) : 0, n = i < q.length ? number(q[i]) : 0;
       if (m != n) return m < n ? -1 : 1;
     }
     if (x[1].isEmpty() != y[1].isEmpty()) return x[1].isEmpty() ? 1 : -1;
-    return Integer.signum(x[1].compareTo(y[1]));
+    if (x[1].isEmpty()) return 0;
+    // the suffix: its word and the number at its end ("rc10": rc, 10; "beta": beta, none = 0)
+    String[] s = suffix(x[1]), t = suffix(y[1]);
+    if (!s[0].equals(t[0])) return 0;
+    return Long.signum(number(s[1]) - number(t[1]));
   }
 
+  /** {numbers, suffix} of a version, lower case, without "v", "-core" and blanks; null when it has no number. */
   private static String[] split(String v) {
-    v = v == null ? "" : v.trim();
-    if (v.startsWith("v") || v.startsWith("V")) v = v.substring(1);
+    v = v == null ? "" : v.trim().toLowerCase(java.util.Locale.ROOT);
+    if (v.startsWith("v")) v = v.substring(1).trim();
+    if (v.endsWith("-core")) v = v.substring(0, v.length() - 5);
     int dash = v.indexOf('-');
-    return dash < 0 ? new String[] {v, ""} : new String[] {v.substring(0, dash), v.substring(dash + 1)};
+    String numbers = dash < 0 ? v : v.substring(0, dash), rest = dash < 0 ? "" : v.substring(dash + 1);
+    if (!numbers.matches("\\d+(\\.\\d+)*")) return null;
+    return new String[] {numbers, rest};
   }
 
-  private static int number(String s) {
-    try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return 0; }
+  /** "rc10" -> {"rc", "10"}, "beta" -> {"beta", ""}, "rc.2" / "rc-2" -> {"rc", "2"}. */
+  private static String[] suffix(String s) {
+    int end = s.length();
+    while (end > 0 && Character.isDigit(s.charAt(end - 1))) end--;
+    String word = s.substring(0, end).replaceAll("[^a-z]", "");
+    return new String[] {word, s.substring(end)};
+  }
+
+  private static long number(String s) {
+    try { return s.isEmpty() ? 0 : Long.parseLong(s.trim()); } catch (NumberFormatException e) { return 0; }
   }
 
   /** Asks GitHub once per run (a thread of its own); `listener` hears the answer. */
