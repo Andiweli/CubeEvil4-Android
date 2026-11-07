@@ -184,10 +184,17 @@ struct GxOptions {
   bool vertexRing = false;
 };
 
+// The graphics API a renderer draws with (port/docs/vulkan-bauplan.md): GLES 3 (the default and the fallback) or
+// Vulkan (experimental, later).
+enum class GxApi { kGl, kVulkan };
+
+struct GxCore;
+
 class GxRenderer {
 public:
-  GxRenderer();
+  explicit GxRenderer(GxApi api = GxApi::kGl);
   ~GxRenderer();
+  GxApi Api() const { return api_; }
   GxRenderer(const GxRenderer &) = delete;
   GxRenderer &operator=(const GxRenderer &) = delete;
 
@@ -342,8 +349,8 @@ public:
   void Release();
 
 private:
-  struct Impl;
-  std::unique_ptr<Impl> impl_;
+  GxApi api_;
+  std::unique_ptr<GxCore> impl_;  // gx_core.h: the API's renderer
 };
 
 // Shader programs made ahead (decision of the project owner, 23.10.2026: a list in the app, so the

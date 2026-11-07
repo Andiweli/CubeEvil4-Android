@@ -2130,6 +2130,15 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   `gx_gl_check` im selben Baum 0 Fehler. glslang für Android (NDK r28c, beide ABIs) gebaut und gemessen: gestrippt
   2,1 MB (arm64) / 1,6 MB (armv7), gepackt zusammen ≈ 1,3 MB. **Nicht geprüft:** Gradle-Bau der App (dieselben
   Quellen mit demselben NDK in WSL gebaut), Gerät.
+- **E1 Aufteilung, Schritt a (07.11.2026):** `GxRenderer` leitet jeden Aufruf an ein `GxCore` der gewählten
+  Grafikschnittstelle weiter (`gx_core.h`, `gx_renderer.cpp`; `enum class GxApi { kGl, kVulkan }`, Standard GL,
+  ohne Vulkan-Renderer im Bau: GL). Der bisherige `GxRenderer::Impl` heißt `GlRenderer` und erfüllt `GxCore`,
+  sein Code ist unverändert. `gx_chunk_render`: neu `RE4_GX_FLARES=1`, `RE4_GX_DOF_STRONG=1`.
+  **Vergleichsbasis für E1** (WSL `~/vk-ref`, Skripte in der Sitzung): 10 GX-Folgen (r204-Serie, perf-11b, perf-11d,
+  Film, Laser, PSone, Nebel, EU-Kapitel, r101, lf) × 9 Arten (normal, gebündelt, 60 FPS, 4× MSAA, FXAA+Schärfen+TV,
+  PSone, Reflexe+Tiefenschärfe stark, 1,5×, Native 1600×720 mit Schärfen) = **4 371 Bilder**, zweimal gezeichnet
+  bytegleich (llvmpipe ist hier also verlässlich). **Schritt a: alle 4 371 Bilder und alle Arbeitszähler bytegleich**,
+  `gx_gl_check` 0 Fehler, `core_mode.cpp`/`gx_gl.cpp`/`gx_renderer.cpp` mit dem NDK für beide ABIs übersetzt.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

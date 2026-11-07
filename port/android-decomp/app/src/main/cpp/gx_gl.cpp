@@ -1,5 +1,7 @@
 #include "gx_gl.h"
 
+#include "gx_core.h"
+
 #include "gx_gl_shader.h"
 #include "gx_texture.h"
 #include "re4_gx_frame.h"
@@ -390,7 +392,11 @@ struct Copy {
 
 } // namespace
 
-struct GxRenderer::Impl {
+struct GlRenderer final : GxCore {
+  GlRenderer() : GxCore(GxApi::kGl) {}
+  static constexpr int kDepthWidth = GxRenderer::kDepthWidth, kDepthHeight = GxRenderer::kDepthHeight;
+  using DepthSink = GxRenderer::DepthSink;
+
   // the EFB scale in halves of the GameCube's resolution (2: 1x, 3: 1.5x ... 8: 4x; the app menu's
   // in-between levels, wish of the project owner, 27.10.2026). Lo / Hi: EFB pixels (the
   // GameCube's) to pixels here, rounded down / up. A region runs from Lo(x) to Lo(x + w), so
@@ -5544,30 +5550,68 @@ struct GxRenderer::Impl {
     glUniform1i(glGetUniformLocation(restoreProgram, "depth"), 1);
     return true;
   }
+  // GxCore (the calls of GxRenderer, defined below)
+  bool InitHalves(int halves, std::string *error) override;
+  void RescaleHalves(int halves) override;
+  void HandOverCopies(GxCore &to) override;
+  void SetOptions(const GxOptions &options) override;
+  int Samples() const override;
+  float Anisotropy() const override;
+  bool Invalidates() const override;
+  bool TiledMsaa() const override;
+  bool HalfDof() const override;
+  void Run(const Re4GxChunk &chunk) override;
+  void SetDepthSink(GxRenderer::DepthSink sink) override;
+  void SetFxaa(bool on) override;
+  void SetSharpen(int level) override;
+  void SetTvFilter(bool on) override;
+  void SetPsx(bool on) override;
+  void SetFlares(bool on) override;
+  void SetDofStrong(bool on) override;
+  void SetShownRows(int top, int bottom) override;
+  void SetWiden(float factor) override;
+  bool CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const override;
+  void Skip(const Re4GxChunk &a) override;
+  void SetRecording(bool on) override;
+  void SetMerge(bool on) override;
+  bool Merging() const override;
+  bool Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) override;
+  unsigned Xfb(unsigned *width, unsigned *height) const override;
+  bool XfbWide() const override;
+  bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) override;
+  unsigned EfbColor() const override;
+  int Scale() const override;
+  int Halves() const override;
+  const GxStats &Stats() const override;
+  bool BaseVertex() const override;
+  bool SetProgramCache(const std::string &folder) override;
+  bool Prewarm(double budgetMs) override;
+  void SetProgramList(const std::string &path) override;
+  void SetRoom(unsigned room) override;
+  void Release() override;
+  void ApplyTestEnvironment() override;
 };
 
-GxRenderer::GxRenderer() : impl_(new Impl) {
+std::unique_ptr<GxCore> MakeGlCore() { return std::unique_ptr<GxCore>(new GlRenderer()); }
+
+void GlRenderer::ApplyTestEnvironment() {
   const char *tv = getenv("RE4_GX_TV_FILTER");  // the TV filter from the start (gx_chunk_render, tests)
-  impl_->tvFilter = tv && *tv == '1';
+  tvFilter = tv && *tv == '1';
   const char *psx = getenv("RE4_GX_PSX");  // the PSone demake from the start (gx_chunk_render, tests)
-  impl_->psxOn = psx && *psx == '1';
+  psxOn = psx && *psx == '1';
   const char *flares = getenv("RE4_GX_FLARES");  // the lens flares from the start (gx_chunk_render, tests)
-  impl_->flaresOn = flares && *flares == '1';
+  flaresOn = flares && *flares == '1';
   if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
     const long n = std::strtol(limit, nullptr, 10);
     if (n >= 4) {
-      impl_->maxPrograms = static_cast<std::size_t>(n);
-      impl_->maxMerged = static_cast<std::size_t>(n);
+      maxPrograms = static_cast<std::size_t>(n);
+      maxMerged = static_cast<std::size_t>(n);
     }
   }
 }
 
-GxRenderer::~GxRenderer() = default;
-
-bool GxRenderer::Init(int scale, std::string *error) { return InitHalves(2 * std::max(1, scale), error); }
-
-bool GxRenderer::InitHalves(int halves, std::string *error) {
-  Impl &m = *impl_;
+bool GlRenderer::InitHalves(int halves, std::string *error) {
+  GlRenderer &m = *this;
   std::string dummy;
   if (!error)
     error = &dummy;
@@ -5590,7 +5634,7 @@ bool GxRenderer::InitHalves(int halves, std::string *error) {
       if (!f && ext && std::strstr(ext, "GL_EXT_draw_elements_base_vertex"))
         f = dlsym(RTLD_DEFAULT, "glDrawElementsBaseVertexEXT");
     }
-    m.drawBaseVertex = reinterpret_cast<Impl::DrawBaseVertex>(f);
+    m.drawBaseVertex = reinterpret_cast<GlRenderer::DrawBaseVertex>(f);
   }
   // once per process: the GPU and what step d (MSAA on the tiles) needs of it
   static bool described = false;
@@ -5612,7 +5656,7 @@ bool GxRenderer::InitHalves(int halves, std::string *error) {
       GXLOG("GPU extensions (%zu/%zu): %s", i + 1, pieces, all.substr(i * piece, piece).c_str());
   }
   const int w = m.Lo(kEfbWidth), h = m.Lo(kEfbHeight);
-  Impl::MakeEfbTextures(w, h, &m.efbColor, &m.efbDepth);
+  GlRenderer::MakeEfbTextures(w, h, &m.efbColor, &m.efbDepth);
   glGenFramebuffers(1, &m.efbFbo);
   glBindFramebuffer(GL_FRAMEBUFFER, m.efbFbo);
   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m.efbColor, 0);
@@ -5625,7 +5669,7 @@ bool GxRenderer::InitHalves(int halves, std::string *error) {
   {
     int maxSamples = 1;
     float maxAnisotropy = 1.0f;
-    Limits(&maxSamples, &maxAnisotropy);
+    GxRenderer::Limits(&maxSamples, &maxAnisotropy);
     m.anisotropy = std::max(1.0f, std::min(m.options.anisotropy, maxAnisotropy));
     const int want = std::min(m.options.samples, maxSamples);
     // RE4_GX_DOF_HALF=0 / 1: the depth of field's blur at the full or half resolution (experiments)
@@ -5713,8 +5757,10 @@ bool GxRenderer::InitHalves(int halves, std::string *error) {
   return true;
 }
 
-void GxRenderer::HandOverCopies(GxRenderer &to) {
-  Impl &m = *impl_, &n = *to.impl_;
+void GlRenderer::HandOverCopies(GxCore &to) {
+  if (to.api != GxApi::kGl)
+    return;
+  GlRenderer &m = *this, &n = static_cast<GlRenderer &>(to);
   if (&m == &n || m.copies.empty())
     return;
   m.Touched();
@@ -5758,10 +5804,8 @@ void GxRenderer::HandOverCopies(GxRenderer &to) {
   n.stats.handedCopies += moved;
 }
 
-void GxRenderer::Rescale(int scale) { RescaleHalves(2 * std::max(1, scale)); }
-
-void GxRenderer::RescaleHalves(int halves) {
-  Impl &m = *impl_;
+void GlRenderer::RescaleHalves(int halves) {
+  GlRenderer &m = *this;
   halves = std::max(2, halves);
   if (halves == m.halves)
     return;
@@ -5876,8 +5920,8 @@ void GxRenderer::RescaleHalves(int halves) {
   m.Touched();
 }
 
-void GxRenderer::Run(const Re4GxChunk &chunk) {
-  Impl &m = *impl_;
+void GlRenderer::Run(const Re4GxChunk &chunk) {
+  GlRenderer &m = *this;
   if (chunk.version != RE4_GX_FRAME_VERSION)
     return;
   if (!m.interpPass)
@@ -6018,8 +6062,8 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
   m.Split(GxStats::kSplitRest);
 }
 
-bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
-  const Impl &m = *impl_;
+bool GlRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
+  const GlRenderer &m = *this;
   const std::uint32_t refuse = RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK;
   if (m.interpPass || a.version != RE4_GX_FRAME_VERSION || b.version != RE4_GX_FRAME_VERSION ||
       (a.flags & refuse) || !(a.flags & RE4_GX_CHUNK_XFB) || m.viBlack)
@@ -6105,19 +6149,19 @@ bool GxRenderer::CanSkip(const Re4GxChunk &a, const Re4GxChunk &b) const {
   return pending.empty();
 }
 
-void GxRenderer::Skip(const Re4GxChunk &a) {
-  impl_->skipDraws = true;
+void GlRenderer::Skip(const Re4GxChunk &a) {
+  this->skipDraws = true;
   Run(a);
-  impl_->skipDraws = false;
-  impl_->recValid = false;  // 60 FPS: no in-between picture across a chunk left out
+  this->skipDraws = false;
+  this->recValid = false;  // 60 FPS: no in-between picture across a chunk left out
 }
 
-void GxRenderer::SetMerge(bool on) { impl_->mergeOn = on; }
+void GlRenderer::SetMerge(bool on) { this->mergeOn = on; }
 
-bool GxRenderer::Merging() const { return impl_->mergeOn && impl_->drawBaseVertex && !impl_->recordDraws; }
+bool GlRenderer::Merging() const { return this->mergeOn && this->drawBaseVertex && !this->recordDraws; }
 
-void GxRenderer::SetRecording(bool on) {
-  Impl &m = *impl_;
+void GlRenderer::SetRecording(bool on) {
+  GlRenderer &m = *this;
   m.recordDraws = on;
   if (!on) {
     m.recValid = false;
@@ -6126,8 +6170,8 @@ void GxRenderer::SetRecording(bool on) {
   }
 }
 
-bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) {
-  Impl &m = *impl_;
+bool GlRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, float t) {
+  GlRenderer &m = *this;
   // (STILL: a menu screen of the game, its scrolling text lists; also when prev was one: the cut out of it)
   const std::uint32_t refuse =
       RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_HOLD | RE4_GX_CHUNK_BLACK | RE4_GX_CHUNK_MARK | RE4_GX_CHUNK_STILL;
@@ -6143,7 +6187,7 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
     return false;
   // nothing in perspective noted (title, movies, 2D menus): nothing to place between
   bool any3d = false;
-  for (const Impl::DrawRec &r : m.rec)
+  for (const GlRenderer::DrawRec &r : m.rec)
     any3d = any3d || r.perspective;
   if (!any3d)
     return false;
@@ -6152,7 +6196,7 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   std::int32_t tevColor[4][4], tevKonst[4][4];
   std::memcpy(tevColor, m.tevColor, sizeof(tevColor));
   std::memcpy(tevKonst, m.tevKonst, sizeof(tevKonst));
-  Impl::Bound bound[8];
+  GlRenderer::Bound bound[8];
   std::uint64_t boundKey[8];
   for (int i = 0; i < 8; i++) {
     bound[i] = m.bound[i];
@@ -6184,7 +6228,7 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
       if (at + 1 + n > next.opWords)
         break;
       if (op == RE4_GX_OP_OWNER && n >= 4)
-        owner = Impl::OwnerKey(next.ops + at + 1);
+        owner = GlRenderer::OwnerKey(next.ops + at + 1);
       else if (op == RE4_GX_OP_DRAW && owner)
         m.nextOwnerDraws[owner]++;
       at += 1 + n;
@@ -6215,15 +6259,15 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   if (!m.blendRingTried)
     m.BlendRingInit();
   if (m.blendMap) {
-    m.blendPart = (m.blendPart + 1) % Impl::kBlendParts;
+    m.blendPart = (m.blendPart + 1) % GlRenderer::kBlendParts;
     if (GLsync fence = m.blendFence[m.blendPart]) {
       if (glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 0) == GL_TIMEOUT_EXPIRED)
         glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 2000000000ull);
       glDeleteSync(fence);
       m.blendFence[m.blendPart] = nullptr;
     }
-    m.blendUsed = m.blendPart * Impl::kBlendPart;
-    m.blendCap = m.blendUsed + Impl::kBlendPart;
+    m.blendUsed = m.blendPart * GlRenderer::kBlendPart;
+    m.blendCap = m.blendUsed + GlRenderer::kBlendPart;
   } else {
     if (!m.blendVbo)
       glGenBuffers(1, &m.blendVbo);
@@ -6283,18 +6327,18 @@ bool GxRenderer::Interpolate(const Re4GxChunk &prev, const Re4GxChunk &next, flo
   return true;
 }
 
-bool GxRenderer::XfbWide() const { return impl_->haveXfb && impl_->xfbWide; }
+bool GlRenderer::XfbWide() const { return this->haveXfb && this->xfbWide; }
 
-GLuint GxRenderer::Xfb(unsigned *width, unsigned *height) const {
+unsigned GlRenderer::Xfb(unsigned *width, unsigned *height) const {
   if (width)
-    *width = impl_->xfbWidth;
+    *width = this->xfbWidth;
   if (height)
-    *height = impl_->xfbHeight;
-  return impl_->haveXfb ? impl_->ShownXfb() : 0;
+    *height = this->xfbHeight;
+  return this->haveXfb ? this->ShownXfb() : 0;
 }
 
-bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows) {
-  Impl &m = *impl_;
+bool GlRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows) {
+  GlRenderer &m = *this;
   if (!m.haveXfb)
     return false;
   m.stats.presents++;
@@ -6330,34 +6374,34 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
   return true;
 }
 
-GLuint GxRenderer::EfbColor() const { return impl_->efbColor; }
+unsigned GlRenderer::EfbColor() const { return this->efbColor; }
 
-void GxRenderer::SetOptions(const GxOptions &options) { impl_->options = options; }
-void GxRenderer::SetDepthSink(DepthSink sink) { impl_->depthSink = std::move(sink); }
-void GxRenderer::SetFxaa(bool on) { impl_->fxaaOn = on; }
-void GxRenderer::SetSharpen(int level) { impl_->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
-void GxRenderer::SetPsx(bool on) { impl_->psxOn = on; }
+void GlRenderer::SetOptions(const GxOptions &options) { this->options = options; }
+void GlRenderer::SetDepthSink(GxRenderer::DepthSink sink) { this->depthSink = std::move(sink); }
+void GlRenderer::SetFxaa(bool on) { this->fxaaOn = on; }
+void GlRenderer::SetSharpen(int level) { this->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
+void GlRenderer::SetPsx(bool on) { this->psxOn = on; }
 
-void GxRenderer::SetFlares(bool on) { impl_->flaresOn = on; }
-void GxRenderer::SetDofStrong(bool on) { impl_->dofStrong = on; }
-void GxRenderer::SetTvFilter(bool on) { impl_->tvFilter = on; }
-void GxRenderer::SetWiden(float factor) {
-  impl_->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
+void GlRenderer::SetFlares(bool on) { this->flaresOn = on; }
+void GlRenderer::SetDofStrong(bool on) { this->dofStrong = on; }
+void GlRenderer::SetTvFilter(bool on) { this->tvFilter = on; }
+void GlRenderer::SetWiden(float factor) {
+  this->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
 }
-void GxRenderer::SetShownRows(int top, int bottom) {
-  impl_->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
-  impl_->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);
+void GlRenderer::SetShownRows(int top, int bottom) {
+  this->shownTop.store(std::max(0, std::min(top, kEfbHeight)), std::memory_order_relaxed);
+  this->shownBottom.store(std::max(0, std::min(bottom, kEfbHeight)), std::memory_order_relaxed);
 }
 
-int GxRenderer::Samples() const { return impl_->samples; }
+int GlRenderer::Samples() const { return this->samples; }
 
-float GxRenderer::Anisotropy() const { return impl_->anisotropy; }
+float GlRenderer::Anisotropy() const { return this->anisotropy; }
 
-bool GxRenderer::Invalidates() const { return impl_->options.invalidate; }
+bool GlRenderer::Invalidates() const { return this->options.invalidate; }
 
-bool GxRenderer::TiledMsaa() const { return impl_->tiledMsaa; }
+bool GlRenderer::TiledMsaa() const { return this->tiledMsaa; }
 
-bool GxRenderer::HalfDof() const { return impl_->options.halfDof; }
+bool GlRenderer::HalfDof() const { return this->options.halfDof; }
 
 void GxRenderer::Limits(int *maxSamples, float *maxAnisotropy) {
   GLint samples = 1;
@@ -6372,15 +6416,15 @@ void GxRenderer::Limits(int *maxSamples, float *maxAnisotropy) {
   }
 }
 
-int GxRenderer::Scale() const { return impl_->halves / 2; }
-int GxRenderer::Halves() const { return impl_->halves; }
+int GlRenderer::Scale() const { return this->halves / 2; }
+int GlRenderer::Halves() const { return this->halves; }
 
-const GxStats &GxRenderer::Stats() const { return impl_->stats; }
+const GxStats &GlRenderer::Stats() const { return this->stats; }
 
-bool GxRenderer::BaseVertex() const { return impl_->drawBaseVertex != nullptr; }
+bool GlRenderer::BaseVertex() const { return this->drawBaseVertex != nullptr; }
 
-bool GxRenderer::SetProgramCache(const std::string &folder) {
-  Impl &m = *impl_;
+bool GlRenderer::SetProgramCache(const std::string &folder) {
+  GlRenderer &m = *this;
   m.programCache.clear();
   GLint formats = 0;
   glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &formats);
@@ -6393,8 +6437,8 @@ bool GxRenderer::SetProgramCache(const std::string &folder) {
   return true;
 }
 
-bool GxRenderer::Prewarm(double budgetMs) {
-  Impl &m = *impl_;
+bool GlRenderer::Prewarm(double budgetMs) {
+  GlRenderer &m = *this;
   const auto start = std::chrono::steady_clock::now();
   double ms = 0.0;
   bool made = false;
@@ -6417,7 +6461,7 @@ bool GxRenderer::Prewarm(double budgetMs) {
     return false;
   const std::uint32_t centroid = m.options.centroid && m.samples > 1 ? 1 : 0;
   while (m.aheadNext < m.ahead.size() && !(made && ms >= budgetMs)) {
-    Impl::AheadKey &a = m.ahead[m.aheadNext];
+    GlRenderer::AheadKey &a = m.ahead[m.aheadNext];
     if (a.listed)
       a.key.centroid = centroid;  // the list holds each program once, for every MSAA setting
     // another MSAA setting's program, or drawn already
@@ -6452,10 +6496,10 @@ bool GxRenderer::Prewarm(double budgetMs) {
   return m.aheadNext < m.ahead.size();
 }
 
-void GxRenderer::SetProgramList(const std::string &path) { impl_->programList = path; }
+void GlRenderer::SetProgramList(const std::string &path) { this->programList = path; }
 
-void GxRenderer::SetRoom(unsigned room) {
-  Impl &m = *impl_;
+void GlRenderer::SetRoom(unsigned room) {
+  GlRenderer &m = *this;
   if (room == m.room)
     return;
   if (m.roomDirty)
@@ -6537,8 +6581,8 @@ GxWarmResult WarmProgramCache(const std::string &cache, const std::string &list,
   return r;
 }
 
-void GxRenderer::Release() {
-  Impl &m = *impl_;
+void GlRenderer::Release() {
+  GlRenderer &m = *this;
   if (m.roomDirty)
     m.SaveRoom();
   m.DropTextures();
@@ -6587,8 +6631,8 @@ void GxRenderer::Release() {
   m.PsxRelease();
   m.FlareRelease();
   if (m.timerOn) {
-    glDeleteQueries(Impl::TimerPool::kQueries, m.chunkTimer.query);
-    glDeleteQueries(Impl::TimerPool::kQueries, m.presentTimer.query);
+    glDeleteQueries(GlRenderer::TimerPool::kQueries, m.chunkTimer.query);
+    glDeleteQueries(GlRenderer::TimerPool::kQueries, m.presentTimer.query);
   }
   const GLuint vaos[] = {m.vao, m.quadVao};
   glDeleteVertexArrays(2, vaos);
@@ -6607,7 +6651,6 @@ void GxRenderer::Release() {
   glDeleteTextures(3, autofocusTextures);
   const GLuint autofocusFbos[] = {m.blurFbo, m.focusFbo[0], m.focusFbo[1]};
   glDeleteFramebuffers(3, autofocusFbos);
-  impl_.reset(new Impl);
 }
 
 } // namespace re4gx

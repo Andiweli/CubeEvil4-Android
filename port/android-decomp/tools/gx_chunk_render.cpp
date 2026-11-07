@@ -29,8 +29,9 @@
 // patch 0137) and the texture matrices / TEV colours blended (60fps-plan.md S0-S3).
 // RE4_GX_NO_OWNERS=1: the owner tags left out (the counter-check: the in-between pictures as before).
 //
-// RE4_GX_SHARPEN=1 (light) or 2 (strong), RE4_GX_FXAA=1, RE4_GX_TV_FILTER=1: the app menu's switches
-// (GxRenderer::SetSharpen, SetFxaa, SetTvFilter; RE4_GX_SHARPEN_AMOUNT=A,B the strengths of light and strong).
+// RE4_GX_SHARPEN=1 (light) or 2 (strong), RE4_GX_FXAA=1, RE4_GX_TV_FILTER=1, RE4_GX_FLARES=1, RE4_GX_DOF_STRONG=1:
+// the app menu's switches (GxRenderer::SetSharpen, SetFxaa, SetTvFilter, SetFlares, SetDofStrong;
+// RE4_GX_SHARPEN_AMOUNT=A,B the strengths of light and strong).
 // A movie's pictures (RE4_GX_CHUNK_MOVIE) say "Film" in their line; RE4_GX_SHARPEN_MOVIES=1 drops that flag (the
 // check whether sharpening would make the blocks of the movie's compression stand out).
 //
@@ -209,6 +210,12 @@ int main(int argc, char **argv) {
       renderer->SetFxaa(fxaa && *fxaa == '1');
       const char *tv = std::getenv("RE4_GX_TV_FILTER");
       renderer->SetTvFilter(tv && *tv == '1');
+      // RE4_GX_FLARES=1, RE4_GX_DOF_STRONG=1: the menu's lens flares and depth of field "Strong" (SetFlares,
+      // SetDofStrong; the pictures of every switch for the comparisons of the Vulkan renderer, vulkan-bauplan.md)
+      const char *flares = std::getenv("RE4_GX_FLARES");
+      renderer->SetFlares(flares && *flares == '1');
+      const char *dofStrong = std::getenv("RE4_GX_DOF_STRONG");
+      renderer->SetDofStrong(dofStrong && *dofStrong == '1');
       // the rows the format shows and its widening, as drawGx sets them before each picture
       if (screenW > 0) {
         if (screenFormat == 5) {

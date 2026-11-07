@@ -86,7 +86,7 @@ if(ANDROID)
     target_link_libraries(re4decomp PRIVATE re4_platform GLESv3 log)
     if(RE4_CORE_MODE)
         # the core in a process of its own when MEM1 is taken here (port/docs/32bit-kernprozess.md)
-        target_sources(re4decomp PRIVATE core_mode.cpp core_scene.cpp gx_gl.cpp gx_gl_shader.cpp gx_selfcheck.cpp gx_texture.cpp
+        target_sources(re4decomp PRIVATE core_mode.cpp core_scene.cpp gx_gl.cpp gx_renderer.cpp gx_gl_shader.cpp gx_selfcheck.cpp gx_texture.cpp
             "${RE4_CORE_INCLUDE}/core_ipc.cpp" "${RE4_CORE_INCLUDE}/core_ipc_client.cpp")
         target_include_directories(re4decomp PRIVATE "${RE4_CORE_INCLUDE}")
         target_link_libraries(re4decomp PRIVATE dl EGL)
@@ -284,7 +284,7 @@ else()
         if(JNI_INCLUDE_DIRS)
             enable_language(C)
             add_library(re4decomp_link_check SHARED android_bridge.cpp scene_gl.cpp event_focus_gl.cpp foot_shadow_gl.cpp environment_gl.cpp world_effects_gl.cpp actor_gl.cpp event_actor_gl.cpp event_mirror_gl.cpp
-                core_mode.cpp core_scene.cpp gx_gl.cpp gx_gl_shader.cpp gx_selfcheck.cpp gx_texture.cpp
+                core_mode.cpp core_scene.cpp gx_gl.cpp gx_renderer.cpp gx_gl_shader.cpp gx_selfcheck.cpp gx_texture.cpp
                 "${RE4_CORE_INCLUDE}/core_ipc.cpp" "${RE4_CORE_INCLUDE}/core_ipc_client.cpp" ../../../../tools/host_android/android_log.c)
             target_include_directories(re4decomp_link_check PRIVATE ${RE4_GLES_INCLUDE_DIR} "${RE4_CORE_INCLUDE}"
                 ../../../../tools/host_android ${JNI_INCLUDE_DIRS})
@@ -299,13 +299,13 @@ else()
         target_link_libraries(core_snapshot_render PRIVATE re4_platform ${RE4_EGL_LIBRARY} ${RE4_GLES_LIBRARY})
         target_compile_options(core_snapshot_render PRIVATE -Wall -Wextra -Werror)
         # GX renderer of the core mode (gx_gl.cpp) with synthetic chunks
-        add_executable(gx_gl_check ../../../../tools/test_gx_gl.cpp gx_gl.cpp gx_gl_shader.cpp gx_selfcheck.cpp gx_texture.cpp)
+        add_executable(gx_gl_check ../../../../tools/test_gx_gl.cpp gx_gl.cpp gx_renderer.cpp gx_gl_shader.cpp gx_selfcheck.cpp gx_texture.cpp)
         target_include_directories(gx_gl_check PRIVATE ${RE4_GLES_INCLUDE_DIR} "${RE4_CORE_INCLUDE}")
         target_link_libraries(gx_gl_check PRIVATE re4_platform ${RE4_EGL_LIBRARY} ${RE4_GLES_LIBRARY})
         target_compile_options(gx_gl_check PRIVATE -Wall -Wextra -Werror -UNDEBUG)
         add_test(NAME gx_gl_check COMMAND gx_gl_check)
         # GX frames of the game core (RE4_GX_DUMP) as pictures: the local check
-        add_executable(gx_chunk_render ../../../../tools/gx_chunk_render.cpp gx_gl.cpp gx_gl_shader.cpp gx_texture.cpp)
+        add_executable(gx_chunk_render ../../../../tools/gx_chunk_render.cpp gx_gl.cpp gx_renderer.cpp gx_gl_shader.cpp gx_texture.cpp)
         target_include_directories(gx_chunk_render PRIVATE ${RE4_GLES_INCLUDE_DIR} "${RE4_CORE_INCLUDE}")
         target_link_libraries(gx_chunk_render PRIVATE re4_platform ${RE4_EGL_LIBRARY} ${RE4_GLES_LIBRARY})
         target_compile_options(gx_chunk_render PRIVATE -Wall -Wextra -Werror)
