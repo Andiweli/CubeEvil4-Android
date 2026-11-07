@@ -9,8 +9,10 @@
 // environment the core process inherits (kCoreSettings), the renderer's as options. A file
 // <data>/settings.txt with lines NAME=VALUE (RE4_* only) sets more or overrides them (tests).
 //
-// A renderer slower than the game does not slow the game down: of the chunks the core finished since
-// the last frame of the display the older ones run as state only (GxRenderer::Skip), the newest is drawn.
+// A renderer slower than the game does not slow the game down: a thread of its own takes each chunk the
+// core finishes at once (a copy; the core process has only three places for them and waited for the
+// renderer, 22 ms a picture in r100, 07.11.2026), and of the chunks taken since the last frame of the
+// display the older ones run as state only (GxRenderer::Skip), the newest is drawn.
 #include "gx_gl2.h"
 #include "re4_core.h"
 #include "re4_core_client.h"
@@ -28,9 +30,13 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <condition_variable>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
+#include <vector>
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "RE4OUYA", __VA_ARGS__)
 
@@ -51,7 +57,72 @@ bool gStarted = false;
 std::atomic<bool> gRunning{false};
 std::unique_ptr<re4gx2::GxRenderer> gRenderer;
 int gWidth = 0, gHeight = 0;
-unsigned gFrames = 0, gChunks = 0, gSkipped = 0;
+unsigned gFrames = 0, gChunks = 0, gSkipped = 0, gWaited = 0;
+
+// A chunk copied out of the core process's shared memory (the view's pointers into the vectors)
+struct Owned {
+  Re4GxChunk view;
+  std::vector<uint32_t> ops;
+  std::vector<uint8_t> vertices, blob;
+  std::vector<uint16_t> indices;
+};
+const size_t kQueue = 12;  // chunks taken but not run yet; more: the fetch waits (the game with it)
+std::mutex gQueueLock;
+std::condition_variable gQueueCv;
+std::deque<std::unique_ptr<Owned>> gChunkQueue;
+std::vector<std::unique_ptr<Owned>> gSpare;  // copies run already, kept for their capacity
+bool gDetach = false;                        // the renderer went (a new EGL context): start over
+
+std::unique_ptr<Owned> Copy(const Re4GxChunk &c, std::unique_ptr<Owned> o) {
+  if (!o)
+    o.reset(new Owned);
+  o->ops.assign(c.ops, c.ops + c.opWords);
+  o->vertices.assign(c.vertices, c.vertices + c.vertexBytes);
+  o->indices.assign(c.indices, c.indices + c.indexCount);
+  o->blob.assign(c.blob, c.blob + c.blobBytes);
+  o->view = c;
+  o->view.ops = o->ops.data();
+  o->view.vertices = o->vertices.data();
+  o->view.indices = o->indices.data();
+  o->view.blob = o->blob.data();
+  return o;
+}
+
+// The fetch thread: every chunk the core finishes, at once
+void Fetch() {
+  for (;;) {
+    {
+      std::unique_lock<std::mutex> l(gQueueLock);
+      if (gDetach) {
+        gChunkQueue.clear();
+        re4ipc_gx_detach();  // the next chunk starts over (a full state for the new renderer)
+        gDetach = false;
+      }
+      if (gChunkQueue.size() >= kQueue) {
+        gWaited++;
+        gQueueCv.wait_for(l, std::chrono::milliseconds(20));
+        continue;
+      }
+    }
+    const Re4GxChunk *c = re4ipc_gx_acquire();
+    if (!c) {
+      usleep(2000);
+      continue;
+    }
+    std::unique_ptr<Owned> spare;
+    {
+      std::lock_guard<std::mutex> l(gQueueLock);
+      if (!gSpare.empty()) {
+        spare = std::move(gSpare.back());
+        gSpare.pop_back();
+      }
+    }
+    std::unique_ptr<Owned> o = Copy(*c, std::move(spare));
+    re4ipc_gx_release(c);
+    std::lock_guard<std::mutex> l(gQueueLock);
+    gChunkQueue.push_back(std::move(o));
+  }
+}
 long long gLogAt = 0;
 
 long long NowMs() {
@@ -170,6 +241,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
     return env->NewStringUTF(gProblem.c_str());
   }
   gRunning = true;
+  std::thread(Fetch).detach();
   if (!StartSound())
     LOG("no sound (OpenSL ES)");
   return env->NewStringUTF("");
@@ -180,8 +252,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   if (gRenderer) {
     // the GL objects went with the old context; the core sends everything again after a detach
     (void) gRenderer.release();
-    if (gRunning)
-      re4ipc_gx_detach();
+    std::lock_guard<std::mutex> l(gQueueLock);
+    gDetach = true;
   }
   re4gx2::GxOptions options;
   options.fastTev = true;            // the TEV in fractions
@@ -205,31 +277,28 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
 // One frame of the display (GLSurfaceView's render thread)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeFrame(JNIEnv *, jclass) {
   if (gRenderer && gRunning) {
-    // the chunks the core finished; none yet: wait a little (the game makes about 30 a second)
-    const Re4GxChunk *got[8];
-    int n = 0;
-    const long long until = NowMs() + 30;
-    for (;;) {
-      while (n < 8) {
-        const Re4GxChunk *c = re4ipc_gx_acquire();
-        if (!c)
-          break;
-        got[n++] = c;
-      }
-      if (n || NowMs() >= until)
-        break;
-      usleep(2000);
+    // the chunks taken since the last frame; none yet: wait a little (the game makes about 30 a second)
+    std::deque<std::unique_ptr<Owned>> got;
+    {
+      std::unique_lock<std::mutex> l(gQueueLock);
+      if (gChunkQueue.empty())
+        gQueueCv.wait_for(l, std::chrono::milliseconds(30));
+      got.swap(gChunkQueue);
     }
-    for (int i = 0; i < n; i++) {
-      if (i + 1 < n && gRenderer->CanSkip(*got[i], *got[i + 1])) {
-        gRenderer->Skip(*got[i]);
+    gQueueCv.notify_all();  // room in the queue again
+    for (size_t i = 0; i < got.size(); i++) {
+      if (i + 1 < got.size() && gRenderer->CanSkip(got[i]->view, got[i + 1]->view)) {
+        gRenderer->Skip(got[i]->view);
         gSkipped++;
       } else {
-        gRenderer->Run(*got[i]);
+        gRenderer->Run(got[i]->view);
       }
-      re4ipc_gx_release(got[i]);
       gChunks++;
     }
+    std::lock_guard<std::mutex> l(gQueueLock);
+    for (auto &o : got)
+      if (gSpare.size() < kQueue)
+        gSpare.push_back(std::move(o));
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glDisable(GL_SCISSOR_TEST);
@@ -255,8 +324,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   const long long now = NowMs();
   if (now - gLogAt >= 10000) {
     if (gLogAt)
-      LOG("10 s: %u display frames, %u game pictures (%u left out)", gFrames, gChunks, gSkipped);
-    gFrames = gChunks = gSkipped = 0;
+      LOG("10 s: %u display frames, %u game pictures (%u left out), the game waited %u times for the renderer",
+          gFrames, gChunks, gSkipped, gWaited);
+    gFrames = gChunks = gSkipped = gWaited = 0;
     gLogAt = now;
   }
 }
