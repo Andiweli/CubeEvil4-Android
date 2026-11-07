@@ -87,11 +87,11 @@ final class OuyaInstaller extends ScrollView {
         frame.setGravity(Gravity.CENTER);
         body = new LinearLayout(context);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(24), dp(18), dp(24), dp(18));
+        body.setPadding(dp(22), dp(14), dp(22), dp(14));
         body.setBackgroundDrawable(shape(PANEL, BORDER, 10));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Math.min(dp(900),
                 getResources().getDisplayMetrics().widthPixels * 9 / 10), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, dp(24), 0, dp(24));
+        lp.setMargins(0, dp(12), 0, dp(12));
         frame.addView(body, lp);
         addView(frame, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         status = text("", 16, false);
@@ -204,41 +204,47 @@ final class OuyaInstaller extends ScrollView {
         }
     }
 
+    // One page without scrolling (wishes of the project owner, 07.11.2026): the images found (the search
+    // button only when there are none), the storages side by side, the progress line
     private void show() {
         body.removeAllViews();
-        TextView title = text("CubeEvil4 for OUYA: install the game discs", 22, true);
-        body.addView(title);
+        body.addView(text("CubeEvil4 for OUYA: install the game discs", 20, true));
         separator();
-        help("Put disc images of Resident Evil 4 for the GameCube (ISO, GCM or RVZ: disc 1, and disc 2 for the "
-                + "later chapters) on the OUYA's storage or a USB drive. The debug build and the US, European and "
-                + "Japanese releases work; both discs must be of the same one. The installer checks them and "
-                + "unpacks the game files (about 1.4 GB a disc).");
-        heading("Disc images found");
+        help("Disc images (ISO, GCM, RVZ) of Resident Evil 4 for the GameCube on the OUYA or a USB drive: disc 1, and "
+                + "disc 2 for the later chapters, both of one release (debug build, US, European, Japanese).");
+        Button again = null;
         if (found.isEmpty()) {
-            help("None. Copy the images to the OUYA (for example into Download) or plug in a USB drive with them, "
-                    + "then search again.");
-        }
-        for (Found f : found) {
-            String what = f.rvz ? "RVZ image (disc and release known after unpacking)"
-                    : "Disc " + f.disc + ", " + GameCubeDisc.releaseTitle(f.release);
-            TextView row = text(what + "\n" + f.file.getPath(), 15, false);
-            row.setPadding(dp(8), dp(4), dp(8), dp(4));
-            body.addView(row);
-        }
-        Button again = button("Search again", new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!working)
-                    search();
+            help("No disc images found. Copy them to the OUYA (for example into Download) or plug in a USB drive "
+                    + "with them.");
+            again = button("Search again", new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (!working)
+                        search();
+                }
+            });
+            body.addView(again, cell());
+        } else {
+            heading("Found");
+            for (Found f : found) {
+                String what = f.rvz ? "RVZ image" : "Disc " + f.disc + ", " + GameCubeDisc.releaseTitle(f.release);
+                TextView row = text(what + "   " + f.file.getName(), 15, false);
+                row.setTextColor(INK);
+                row.setSingleLine(true);
+                row.setPadding(dp(7), dp(2), dp(7), dp(2));
+                body.addView(row);
             }
-        });
-        body.addView(again, cell());
+        }
         heading("Install to");
-        List<File> roots = storages();
-        Button first = null;
-        for (final File root : roots) {
+        LinearLayout targets = new LinearLayout(getContext());
+        targets.setOrientation(LinearLayout.HORIZONTAL);
+        body.addView(targets, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        Button first = null, back = null;
+        for (final File root : storages()) {
             final boolean writable = root.canWrite();
-            String label = nameOf(root) + ", " + gb(root.getUsableSpace()) + " free" + (writable ? "" : " (read only)");
+            String label = (internal(root) ? "Internal storage" : "USB storage") + "\n" + gb(root.getUsableSpace())
+                    + " free" + (writable ? "" : ", read only");
             Button b = button(label, new OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -246,27 +252,40 @@ final class OuyaInstaller extends ScrollView {
                         install(appFolder(root));
                 }
             });
+            b.setGravity(Gravity.CENTER);
             b.setEnabled(writable && !found.isEmpty());
-            body.addView(b, cell());
+            targets.addView(b, side());
             if (first == null && b.isEnabled())
                 first = b;
         }
-        help("The game data needs about 3 GB with both discs (an RVZ image needs another 1.5 GB while it is "
-                + "unpacked). Saves go to the same place.");
-        body.addView(status);
         if (canCancel) {
-            body.addView(button("Back to the game (the discs installed before)", new OnClickListener() {
+            back = button("Back to the game\n(the discs before)", new OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (!working)
                         host.cancelled();
                 }
-            }), cell());
+            });
+            back.setGravity(Gravity.CENTER);
+            targets.addView(back, side());
         }
+        help("About 3 GB with both discs (an RVZ image another 1.5 GB while it is unpacked); the saves go to the same "
+                + "place.");
+        status.setPadding(dp(7), dp(2), dp(7), 0);
+        body.addView(status);
         if (first != null)
             first.requestFocus();
-        else
+        else if (again != null)
             again.requestFocus();
+        else if (back != null)
+            back.requestFocus();
+    }
+
+    /** A button of a row: an equal share of it */
+    private LinearLayout.LayoutParams side() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        lp.setMargins(dp(7), dp(5), dp(7), dp(5));
+        return lp;
     }
 
     // --- installing -----------------------------------------------------------------------------------
@@ -464,14 +483,14 @@ final class OuyaInstaller extends ScrollView {
 
     private void help(String s) {
         TextView t = text(s, 15, false);
-        t.setPadding(dp(7), dp(4), dp(7), dp(8));
+        t.setPadding(dp(7), dp(2), dp(7), dp(4));
         body.addView(t);
     }
 
     private void heading(String s) {
         TextView v = text(s.toUpperCase(Locale.ROOT), 14, true);
         v.setTextColor(MUTED);
-        v.setPadding(dp(7), dp(16), dp(7), dp(8));
+        v.setPadding(dp(7), dp(10), dp(7), dp(4));
         body.addView(v);
     }
 
