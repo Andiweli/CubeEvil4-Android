@@ -319,6 +319,12 @@ void re4_core_set_laser_colour(int colour);
  * while the player plays, x 10000 (the app: 4/3 x the screen's aspect / (16/9), for a screen wider than 16:9);
  * 0 (or up to 13334) the game's 4:3. The pictures drawn so carry RE4_GX_CHUNK_WIDE. Any thread. */
 void re4_core_set_view_aspect(int aspect_e4);
+/* The life gauge in the corner (cores since 07.11.2026, patch 0215, runtime/picture.cpp): the game's rows the screen
+ * shows (`rows`: top | bottom << 16, of 448), how much wider one unit shows across than down (x 10000: 15/14 with
+ * "4:3 (GC)", the screen's aspect / (16/9) with "Stretched", else 1) and flags (bit 0: draw the ring that much
+ * narrower, it keeps its shape). The ring goes to the bottom right corner of those rows, 4 % of their height from
+ * the side and from the bottom. rows -1: where the game puts it. Any thread. */
+void re4_core_set_hud_layout(int rows, int stretch_e4, int flags);
 /* The depth of the last pictures for the game's GXPeekZ (cores since 26.10.2026; the torches' and the
  * merchant's glow hide themselves behind walls by it, runtime/gx_fifo.cpp). The renderer, once a
  * picture's display copy is done: RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells of 24-bit GX depth at half the

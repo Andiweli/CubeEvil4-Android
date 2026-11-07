@@ -9,7 +9,9 @@
 #include "global.h"
 #include "id_sys.h"
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 extern GLOBAL_WK* pG;
 
@@ -148,6 +150,105 @@ extern "C" float re4_view_flat_edge(float width, int right)
     return right ? half + wider : half - wider;
 }
 
+// The life gauge in the picture's corner (wish of the project owner, 07.11.2026; patch 0215): the ring of the HUD
+// (Leon's and Ashley's life, the ammo, the name; the id system's tree under the life meter's unit 0, class
+// IDC_LIFE_METER, with the bullet icon of IDC_BLLT_ICON in it) goes to the bottom right corner of the part of the
+// picture the screen shows, as far from the side as from the bottom: 4 % of that part's height, the margin the app
+// gives its minimap in the bottom left corner (re4mm::Place). The app tells the core that part and how the screen
+// shows it (re4_core_set_hud_layout): the game's rows (56..392 in the 16:9 formats and "4:3 (GC)", whose letterbox
+// covers the rest; all 448 with "4:3"; the middle rows of "Native" on a screen narrower than 16:9), how much wider
+// one unit shows across than down (15/14 with "4:3 (GC)", the screen's aspect / (16/9) with "Stretched") and whether
+// the ring is drawn that much narrower to keep its shape ("Stretched"). The ring is drawn in front of the camera with
+// its projection (IDSystem::m_scrn_mat: one unit a pixel of 480 lines, 240 x the projection's aspect to the side):
+// game/id_sys.cpp takes the screen matrix from re4_hud_scrn, which adds the move (and the narrowing) for the ring's
+// units. Its anchor is the tree's design place (pos0 of unit 0: 217, -130), so its own motions (sliding in and out,
+// the needle) stay. Without a layout from the app (the PC, other picture formats before 0.99.0) nothing changes.
+namespace {
+
+int gHudTop = -1, gHudBottom = -1;  // re4_core_set_hud_layout: the game's rows the screen shows (-1: no layout)
+float gHudStretch = 1.0f;           // one unit across / down on the screen
+bool gHudNarrow;                    // draw the ring 1 / gHudStretch as wide (keeps its shape)
+// The ring's visible extent from its anchor (the tree's unit 0 at its design place), in units: its lowest pixel 46
+// below; to the right the plate under it that holds the player's name (unit 0x0F of the name's group, drawn for every
+// character, empty for the stand-ins), 91 (the PC's pictures of r101 and the tester's picture of 07.11.2026 with
+// Wesker); while Ashley is the partner her small ring and its plate (unit 1's group) 96 (hudExtent, every frame).
+const float kRingBelow = 46.0f, kRingRight = 91.0f, kRingRightPartner = 96.0f;
+const float kHudMargin = 0.04f;  // of the shown part's height, as re4mm::Place
+float gRingRight = kRingRight;   // the right end of what is shown
+
+}  // namespace
+
+extern "C" void re4_core_set_hud_layout(int rows, int stretch_e4, int flags)
+{
+    const int top = rows & 0xFFFF, bottom = (rows >> 16) & 0xFFFF;
+    const float stretch = stretch_e4 > 0 ? (float) stretch_e4 / 10000.0f : 1.0f;
+    const bool narrow = (flags & 1) != 0;
+    if (rows < 0 || bottom <= top || bottom > 448 || !(stretch > 0.25f && stretch < 4.0f)) {
+        if (gHudTop >= 0) {
+            re4_log("core: life gauge where the game puts it");
+        }
+        gHudTop = gHudBottom = -1;
+        return;
+    }
+    if (top != gHudTop || bottom != gHudBottom || stretch != gHudStretch || narrow != gHudNarrow) {
+        re4_log("core: life gauge in the bottom right corner of the rows %d..%d, %.4f wider across%s", top, bottom,
+                stretch, narrow ? ", drawn that much narrower" : "");
+    }
+    gHudStretch = stretch;
+    gHudNarrow = narrow;
+    gHudBottom = bottom;
+    gHudTop = top;
+}
+
+// game/id_sys.cpp (patch 0215): the screen matrix a unit is drawn with; IDSystem::m_scrn_mat, for the life gauge's
+// units moved into the corner (see above).
+extern "C" float (*re4_hud_scrn(const void* unit))[4]
+{
+    static Mtx moved;
+    const ID_UNIT* u = (const ID_UNIT*) unit;
+    const int top = gHudTop, bottom = gHudBottom;
+    if (!u || top < 0) {
+        return IDSystem::m_scrn_mat;
+    }
+    const ID_UNIT* root = u;
+    for (int depth = 0; root->pParent && depth < 16; depth++) {
+        root = root->pParent;
+    }
+    if (root->pParent || root->classNo != IDC_LIFE_METER || root->markNo != 0 || root->levelNo != 0) {
+        return IDSystem::m_scrn_mat;
+    }
+    // the picture's units: 240 x the projection's aspect to the side, (224 - row) x 480 / 448 up
+    const float aspect = re4_gx_wide_now() == 1 && gChunkAspect > 1.3333334f ? gChunkAspect : 1.3333334f;
+    const float side = 240.0f * aspect, low = (224.0f - (float) bottom) * (480.0f / 448.0f),
+                high = (224.0f - (float) top) * (480.0f / 448.0f);
+    const float my = kHudMargin * (high - low), mx = my / gHudStretch, g = gHudNarrow ? 1.0f / gHudStretch : 1.0f;
+    const float ax = root->pos0.x, ay = root->pos0.y;
+    const float tx = side - mx - g * gRingRight, ty = low + my + kRingBelow;
+    memcpy(moved, IDSystem::m_scrn_mat, sizeof(moved));
+    moved[0][0] *= g;
+    moved[0][3] += tx - g * ax;
+    moved[1][3] += ty - ay;
+    return moved;
+}
+
+// Every frame while the gauge is in the corner: whether Ashley's small ring is shown (unit 1 of the life meter, as
+// LifeMeter::move sets it while she is the partner), which reaches further right.
+static void hudExtent()
+{
+    if (gHudTop < 0 || !pG || !IdSys.setCk(IDC_LIFE_METER)) {
+        return;
+    }
+    const ID_UNIT* partner = IdSys.unitPtr(1, IDC_LIFE_METER);
+    const float right = partner->be_flag != 0xFF && (partner->be_flag & 8) ? kRingRightPartner : kRingRight;
+    if (right != gRingRight) {
+        static unsigned told;
+        if (told++ < 20) {
+            re4_log("picture: life gauge %s Ashley's ring", right == kRingRightPartner ? "with" : "without");
+        }
+        gRingRight = right;
+    }
+}
+
 static bool gCinescoHidden;  // re4_letterbox_frame turned the HUD's letterbox units off
 
 // The game letterboxes play a third time (Retroid report 29.10.2026, the GX capture of r104: the 3D
@@ -185,6 +286,7 @@ void stillHook(unsigned)
     last = still;
     re4_gx_still(still);
     re4_letterbox_frame();
+    hudExtent();
     // "Native": the projection this frame builds (CameraMove) is the wide one while the player plays
     const bool wide = gViewAspectE4 && pG && pG->Rno0 == 3 && !still && !StaFlagChk(pG, STA_SCOPE_CAMERA) &&
                       !re4_movie_playing();
@@ -209,10 +311,19 @@ struct Install {
     Install()
     {
         re4_add_frame_hook(stillHook);
-        // the PC's checks: RE4_VIEW_ASPECT=1.625 (the 3D's aspect, as the app's "Native" sends it)
+        // the PC's checks: RE4_VIEW_ASPECT=1.625 (the 3D's aspect, as the app's "Native" sends it),
+        // RE4_HUD_LAYOUT=TOP,BOTTOM,STRETCH[,NARROW] (the life gauge's corner, as re4_core_set_hud_layout)
         const char* v = getenv("RE4_VIEW_ASPECT");
         if (v && *v) {
             re4_core_set_view_aspect((int) (atof(v) * 10000.0 + 0.5));
+        }
+        const char* hud = getenv("RE4_HUD_LAYOUT");
+        if (hud && *hud) {
+            int top = 0, bottom = 0, narrow = 0;
+            float stretch = 1.0f;
+            if (sscanf(hud, "%d,%d,%f,%d", &top, &bottom, &stretch, &narrow) >= 3) {
+                re4_core_set_hud_layout(top | bottom << 16, (int) (stretch * 10000.0f + 0.5f), narrow);
+            }
         }
     }
 } g_install;

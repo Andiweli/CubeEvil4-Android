@@ -78,6 +78,7 @@ enum MsgType : uint32_t {
     kSetLaserColour = 38,  // a = the laser sight's colour 0..3 (no reply; re4_core_set_laser_colour)
     kRoomOutline = 37,     // a = max edges -> a = edges; data: 2 words info, then 5 floats an edge (re4_core_room_outline)
     kSetViewAspect = 39,   // a = the 3D's aspect x 10000, 0 the game's (no reply; re4_core_set_view_aspect, "Native")
+    kSetHudLayout = 40,    // a = rows, b = stretch x 10000, c = flags (no reply; re4_core_set_hud_layout)
 };
 
 struct MsgHeader {

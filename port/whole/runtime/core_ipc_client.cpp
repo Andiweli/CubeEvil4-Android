@@ -990,6 +990,11 @@ void re4ipc_set_view_aspect(int aspect_e4)
     post(kSetViewAspect, aspect_e4, 0, 0);
 }
 
+void re4ipc_set_hud_layout(int rows, int stretch_e4, int flags)
+{
+    post(kSetHudLayout, rows, stretch_e4, flags);
+}
+
 int re4ipc_room_outline(float* out, int maxEdges, unsigned* info)
 {
     Reply r;

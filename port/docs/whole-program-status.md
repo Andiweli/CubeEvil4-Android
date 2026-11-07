@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.0-beta: Bildformat „Native“ (07.11.2026, Branch `work`)
+## Version 0.99.0-beta: Bildformat „Native“, Lebensanzeige und Minikarte in den Ecken (07.11.2026, Branch `work`, Patches 0214–0215)
 
 Version 0.99.0-beta (versionCode 102), Releasetext `port/android-decomp/docs/releases/v0.99.0-beta.md`. Wunsch des
 Projektinhabers (07.11.2026): auf Grundlage der Breitbild-Umsetzung im Fork von Noname267 (siehe „Prüfung der
@@ -84,6 +84,40 @@ Forks“ unten) ein Bildformat „Native“, das das echte Seitenverhältnis des
    Stufen = öfter umschalten, und näher an der Grenze fällt Dynamisch leichter zurück; (3) nach unten eine Stufe je
    etwa 4 s: von 4× bis 1× 12 statt 6 Schritte; (4) Speicher kein Problem (alle unter der höchsten Stufe). Falls Tester
    mit schwachen Geräten auf ×1 hängen und das Bild zu unscharf finden: gezielt nur ×1,25 prüfen.
+9. **Lebensanzeige und Minikarte in die Ecken (Wunsch des Projektinhabers, 07.11.2026, nach „Native“ am Gerät mit
+   20:9, Bild `reports/0990-native-hud-20261107/native-20to9-hud.webp`; Patch 0215).** Wortlaut: das HUD (Anzeige von
+   Leon und Ashley unten rechts) weiter nach rechts, die Minikarte weiter nach links, links und rechts jeweils mit
+   Abstand und von unten derselbe Abstand, für 4:3, 16:9, Gestreckt und Native. Bei „Native“ saß der Ring in der
+   16:9-Mitte (rechts davon rund 360 px frei), die Karte unter dem MOVE-Stick. **Entscheidung des Projektinhabers
+   (07.11.2026, Vergleichsbild A/B):** bei Formaten mit schwarzen Rändern in die Ecken des sichtbaren Bildes, nicht auf
+   den Rand (den Ring zeichnet das Spiel in sein Bild; auf dem Rand müsste die App ihn getrennt zeichnen).
+   - **Aufbau des Rings** (Ausgabe der Einheiten am PC, r101): ein Baum von ID-Einheiten unter Einheit 0 der Klasse
+     `IDC_LIFE_METER` (Platz 217, −130 in Einheiten: ein Bildpunkt von 480 Zeilen, 240 × Seitenverhältnis zur Seite):
+     Ring, Nadel, Munition (Symbol in `IDC_BLLT_ICON`, Kind darin), Namensfeld (Gruppe unter Einheit 0, darin Name
+     0x40 Leon, 0x41 Ashley, 0x42 Ada; die Stellvertreter HUNK/Krauser/Wesker ohne Namen, das Feld bleibt), Ashleys
+     kleiner Ring (Gruppe Einheit 1, sichtbar solange sie Partnerin ist, `LifeMeter::move`). Gezeichnet vor der Kamera
+     mit ihrer Projektion; die übrigen Einheiten der Klasse (bei y −280 unter dem Bild) gehören nicht zum Baum.
+   - **Kern:** `re4_core_set_hud_layout(Zeilen, Breite, Flags)` (IPC `kSetHudLayout`, am PC `RE4_HUD_LAYOUT`):
+     die gezeigten Zeilen (56..392 bei 16:9, Gestreckt, 4:3 (GC) und Native breit; 0..448 bei 4:3; die mittleren bei
+     Native schmaler als 16:9), wie viel breiter eine Einheit quer als hoch erscheint (4:3 (GC) 15/14, Gestreckt
+     Seitenverhältnis/(16/9), sonst 1) und ob der Ring so viel schmaler gezeichnet wird (Gestreckt: Form bleibt).
+     `re4_hud_scrn` setzt den Baum (Anker: Platz von Einheit 0, damit Einblenden und Nadel bleiben) so, dass sein
+     sichtbares Ende rechts (Namensfeld 91, mit Ashleys Ring 96 Einheiten rechts vom Anker; Gerätebild mit Wesker und
+     PC-Bilder) und unten (Ring 46 unter dem Anker) je 4 % der Höhe der gezeigten Zeilen vom Rand entfernt ist; quer in
+     Bildschirmpunkten gleich viel (geteilt durch die Breite). Seitenrand bei breiter Projektion: 240 × deren
+     Seitenverhältnis (das erste Laden der Kamera im Bild, wie beim Text).
+   - **App:** `re4mm::Hud` (Vorgabe je Format), `re4mm::Shown` (der gezeigte Teil: die Box, bei 4:3 (GC) die Zeilen
+     56..392 darin), `re4mm::Place`: Karte in dessen linke untere Ecke, Abstand zur Seite = nach unten = 4 % seiner
+     Höhe (bei 16:9 der Platz wie bisher). Menüs bleiben wie gehabt; im Zielfernrohr gibt es den Ring nicht.
+   - **Geprüft am PC (i686 -O2, r101 Debug-Discs, Leon zielt; r200 EU-Discs mit Ashley `RE4_TEST_STA=101`; Wesker
+     `RE4_CHEATS=160`):** Bilder wie `drawGx` auf 2000 × 900 (Native auch 1280 × 800) in allen sechs Fällen (16:9,
+     Gestreckt, 4:3 (GC), 4:3, Native 20:9, Native 16:10): Ring unten rechts, Karte unten links, unten beide 36 px
+     (4 %), Ring bei Gestreckt rund; Leon, Wesker (Feld ohne Namen) und Leon mit Ashley (beide Ringe, Name „Ashley“):
+     Unterkante auf der 36-px-Linie, das Namensfeld rechts bis unter den Debug-Balken der PC-Läufe (den gibt es am
+     Gerät nicht). `minimap_place_check` 0 Probleme (Ecke, gleiche Abstände, Vorgabe je Format), Kern- und
+     Laufzeittests 0 Fehler, App nativ (armeabi-v7a, arm64-v8a) und Java gebaut.
+     **Nicht geprüft:** Gerät; Ada (eigenes Spiel), HUNK und Krauser; Aktionshinweise und Countdown neben dem Ring in
+     der Ecke (der Aktionshinweis sitzt unten in der Mitte bei x −34..0, der Ring rückt von ihm weg).
 
 ## Prüfung der Forks (06.11.2026 im Branch `claude/keen-carson-26xxjq`, nachgeprüft 07.11.2026; nichts übernommen)
 
@@ -12796,6 +12830,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0212 `em10.cpp`, `em25.cpp`, `em2c.cpp`, `em2d.cpp`, `em31.cpp`, `em32.cpp`, `emwep.cpp`, `obj16.cpp`, `r100.cpp`, `r101.cpp`, `r103.cpp` | Japanische Discs (und die koreanische Übersetzung) mit dem Gore der US-Fassung, immer, ohne Schalter: jede Gore-Abfrage von `pSys->eff_country` (Kopfschuss `em10LostHeadCk`, Kettensäge, Leons Enthauptungen, Kameras dazu, Leichen in r100/r101/r103) fragt `re4_gore_country()` (`runtime/game_language.cpp`: das Land, mit JP-Discs 1 wie US); ersetzt die Korea-Weiche von 0147. Zeilen der Spieldateien unverändert (Deklaration in `re4_whole_prelude.h`). Port-Patch für Verkaufsdaten, Entscheidung des Projektinhabers 06.11.2026 |
 | 0213 `esp0e.cpp`, `esp45.cpp`, `espgen01.cpp` | Leuchten (Bildschirm-Sprites über allem): außer dem Ring der Prüfpunkte zählt das Licht selbst; liegt an seiner Bildstelle etwas mehr als 1 m davor (`re4_glow_center_hidden`, `runtime/glow_check.cpp`), geht das Leuchten aus wie bei ganz verdecktem Ring. Abweichung vom Original (Entscheidung des Projektinhabers 06.11.2026: die Laterne in r102 schien über Leons Kopf, weil der Ring größer als der Kopf war; GameCube ebenso). Port-Patch |
 | 0214 `camera.cpp`, `view.cpp`, `TexRender.cpp`, `mirror.cpp`, `trans.cpp`, `esp08.cpp`, `esp0f.cpp`, `esp18.cpp`, `esp_sub.cpp`, `Espgen42.cpp`, `espgen45.cpp`, `id_sys.cpp`, `examine.cpp`, `mes.cpp`, `cam_qfps.cpp`, `cam_ctrl.cpp` | Bildformat „Native“: die Projektion der Kamera und der Sichtkegel mit `re4_view_aspect()` statt 4/3 (breiter, solange gespielt wird), alles, was mit der Kamera projiziert (Effekte mit Bildkopie, Spiegel, Gegenstandskamera, Nahebene gegen Wände und Wasser, Bildpunkt zu Strahl), mit `re4_view_camera_aspect()`; `CameraSetProjection` meldet die erste geladene Projektion eines Bildes (`re4_view_load`, `RE4_GX_CHUNK_WIDE`); der Text (`messageCamera`) mit `re4_view_flat_edge` so schmal wie das HUD. Jede Ersetzung auf ihrer Zeile, Funktionen in `re4_whole_prelude.h`. Aus und in jedem anderen Bildformat der Wert des Originals (1.3333334f; 0 und 512). Port-Funktion, Wunsch des Projektinhabers 07.11.2026, auf Grundlage des Breitbilds im Fork von Noname267 |
+| 0215 `id_sys.cpp` | Lebensanzeige in der Ecke: die fünf Stellen, an denen eine ID-Einheit mit `IDSystem::m_scrn_mat` gezeichnet wird (normal, negativ, Flimmern samt Texturprojektion), nehmen die Matrix von `re4_hud_scrn(u)`: für den Baum unter Einheit 0 der Klasse `IDC_LIFE_METER` (Ring, Ashleys Ring, Munition samt `IDC_BLLT_ICON`, Namensfeld) in die rechte untere Ecke der gezeigten Zeilen verschoben (bei „Gestreckt“ schmaler), sonst unverändert; ohne Vorgabe der App (`re4_core_set_hud_layout`) immer unverändert. Jede Ersetzung auf ihrer Zeile, Funktion in `re4_whole_prelude.h`. Port-Funktion, Wunsch des Projektinhabers 07.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

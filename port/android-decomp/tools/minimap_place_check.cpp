@@ -7,8 +7,10 @@
 //   minimap_place_check IN.ppm FORMAT OUT.ppm   the map's ring drawn into a screenshot (binary PPM, P6;
 //                                               FORMAT 6: "Native" with a wide picture)
 //
-// Checks per format and screen: the map inside the picture's box, its bottom at the HUD's bottom plus the
-// margin, and with "16:9" exactly the place the app had before (the owner: right there). "Native" (0.99.0,
+// Checks per format and screen: the map inside the shown part of the picture (re4mm::Shown), in its bottom left
+// corner as far from the side as from the bottom (since 07.11.2026, the life gauge mirrors it at the bottom right),
+// and with "16:9" exactly the place the app had before (the owner: right there). The life gauge's layout the core
+// is told (re4mm::Hud): its rows the shown part's, a ring of the same shape. "Native" (0.99.0,
 // re4mm::Native) twice, with a picture the core drew wide (RE4_GX_CHUNK_WIDE) and with any other: on a 16:9 screen
 // both, and on every screen the other, exactly as "16:9"; a wide picture over the whole screen wider than 16:9 with
 // the HUD in a 16:9 box in its middle; narrower than 16:9 the picture over the whole width, its HUD 16:9 in it.
@@ -92,9 +94,19 @@ int Table() {
     for (int format : {1, 3, 0, 2, 5, 6}) {
       re4mm::Rect hud, pic;
       Rects(format, s[0], s[1], &hud, &pic);
-      const re4mm::Rect at = re4mm::Place(hud, pic);
-      const bool inside = at.x >= pic.x && at.y >= pic.y && at.x + at.w <= pic.x + pic.w && at.y + at.h <= pic.y + pic.h;
-      const bool onHud = at.y >= hud.y && at.y + at.h <= hud.y + hud.h;
+      const re4mm::Rect shown = re4mm::Shown(format == 6 ? 5 : format, hud, pic);
+      const re4mm::Rect at = re4mm::Place(hud, shown);
+      const bool inside = at.x >= shown.x && at.y >= shown.y && at.x + at.w <= shown.x + shown.w &&
+                          at.y + at.h <= shown.y + shown.h && at.x >= pic.x && at.y >= pic.y;
+      // the same margin to the side and to the bottom; the gauge's rows the shown part's rows
+      bool onHud = at.x - shown.x == at.y - shown.y;
+      const re4mm::HudLayout layout = re4mm::Hud(format == 6 ? 5 : format, s[0], s[1], re4mm::Native(s[0], s[1], format == 6));
+      const double rowsShown = layout.bottom - layout.top, boxRows = format == 1 ? 336.0 : rowsShown;
+      onHud = onHud && std::abs(rowsShown - boxRows) < 0.5 && layout.top >= 0 && layout.bottom <= 448;
+      if (format == 2)
+        onHud = onHud && layout.flags == 1 && std::abs(layout.stretch / 10000.0 - double(s[0]) / s[1] * 9.0 / 16.0) < 1e-3;
+      else
+        onHud = onHud && layout.flags == 0 && layout.stretch == (format == 1 ? 10714 : 10000);
       bool same = true;
       if (format == 0) {
         // the place before 05.11.2026: margin 4 % of the box's height on both sides
@@ -106,7 +118,7 @@ int Table() {
       const double mapLine = 56.0 + 336.0 * (1.0 - double(at.y - hud.y) / hud.h);
       std::printf("%4dx%-4d %-9s  picture %4d,%4d %4dx%4d  HUD %4d,%4d %4dx%4d  map %4d,%4d size %3d  bottom at line %.0f  %s%s%s\n",
                   s[0], s[1], Name(format), pic.x, pic.y, pic.w, pic.h, hud.x, hud.y, hud.w, hud.h, at.x, at.y, at.w,
-                  mapLine, inside ? "inside" : "OUTSIDE", onHud ? "" : " OFF-HUD", same ? "" : " CHANGED");
+                  mapLine, inside ? "inside" : "OUTSIDE", onHud ? "" : " NOT-IN-CORNER", same ? "" : " CHANGED");
       bad += !inside || !onHud || !same;
       if (format >= 5)
         bad += !NativeRight(s[0], s[1], format, hud, pic);
@@ -130,7 +142,7 @@ int Draw(const char *in, int format, const char *out) {
   std::fclose(f);
   re4mm::Rect hud, pic;
   Rects(format, w, h, &hud, &pic);
-  const re4mm::Rect at = re4mm::Place(hud, pic);
+  const re4mm::Rect at = re4mm::Place(hud, re4mm::Shown(format == 6 ? 5 : format, hud, pic));
   const double cx = at.x + at.w / 2.0, cy = at.y + at.h / 2.0, r = at.w / 2.0;
   for (int y = 0; y < h; y++)
     for (int x = 0; x < w; x++) {

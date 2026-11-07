@@ -107,6 +107,7 @@ struct CoreApi {
   int (*roomOutline)(float *, int, unsigned *){};  // optional (cores since 04.11.2026): the minimap's room outline
   void (*setLaserColour)(int){};  // optional (cores since 04.11.2026, patch 0198): the laser sight's colour
   void (*setViewAspect)(int){};   // optional (cores since 07.11.2026, patch 0214): "Native", the 3D's aspect x 10000
+  void (*setHudLayout)(int, int, int){};  // optional (cores since 07.11.2026, patch 0215): the life gauge's corner
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
@@ -453,6 +454,7 @@ void loadCore(JNIEnv *env) {
   api.roomOutline = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_outline"));
   api.setLaserColour = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_laser_colour"));
   api.setViewAspect = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_view_aspect"));
+  api.setHudLayout = reinterpret_cast<void (*)(int, int, int)>(dlsym(api.main, "re4_core_set_hud_layout"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
@@ -525,6 +527,7 @@ int gxMode = -1;  // -1 undecided, 0 bridge, 1 GX
 std::atomic<int> optScale{0}, optSamples{1}, optAnisotropy{1}, optAspect{-1};
 int letterboxSent = -1;  // what the core was told last (drawGx; -1: nothing yet)
 int viewAspectSent = -1;  // "Native": the 3D's aspect the core was told last (drawGx; -1: nothing yet)
+re4mm::HudLayout hudSent{-1, -1, -1, -1};  // the life gauge's corner the core was told last (drawGx)
 // Where drawGx showed the last picture, for taps (CoreBridge.tap): left and top on the surface (y
 // down), size in pixels, and the part of the XFB's rows it shows (first and count, 0..1).
 std::atomic<int> picX{0}, picY{0}, picW{0}, picH{0};
@@ -1419,7 +1422,7 @@ void minimapDraw(int format, unsigned xh, bool wide) {
   // its square at the bottom left of the game's HUD, mirroring the gauge at the bottom right in every format
   re4mm::Rect hud, pic;
   re4mm::PictureRects(format, width, height, static_cast<int>(xh), &hud, &pic, wide);
-  const re4mm::Rect at = re4mm::Place(hud, pic);
+  const re4mm::Rect at = re4mm::Place(hud, re4mm::Shown(format, hud, pic));
   const int size = at.w;
   glViewport(at.x, at.y, size, size);
   glEnable(GL_BLEND);
@@ -2230,6 +2233,19 @@ bool drawGx() {
           : native.mode == -1 ? "no letterbox while playing, more rows above and below"
                               : "as 16:9");
   }
+  // the game's life gauge in the bottom right corner of the shown part (patch 0215; the map in the bottom left
+  // corner, minimapDraw): its rows and how the screen shows them, for every format
+  {
+    const re4mm::HudLayout hud =
+        re4mm::Hud(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, width, height, native);
+    if (api.setHudLayout && (hud.top != hudSent.top || hud.bottom != hudSent.bottom ||
+                             hud.stretch != hudSent.stretch || hud.flags != hudSent.flags)) {
+      api.setHudLayout(hud.top | hud.bottom << 16, hud.stretch, hud.flags);
+      hudSent = hud;
+      LOG("life gauge: bottom right corner of the rows %d..%d, %.4f wider across%s", hud.top, hud.bottom,
+          hud.stretch / 10000.0, hud.flags & 1 ? ", drawn narrower" : "");
+    }
+  }
   // the rows shown: in the 16:9 formats (0, 2) the crop below leaves the game's letterbox bars out,
   // and texture copies repeat the shown edge rows instead of reading the bars (GxRenderer::SetShownRows)
   const bool crop = !(format == 3 || format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3"));
@@ -2461,6 +2477,7 @@ void useCoreProcess(const std::string &why) {
   api.roomOutline = re4ipc_room_outline;
   api.setLaserColour = re4ipc_set_laser_colour;
   api.setViewAspect = re4ipc_set_view_aspect;
+  api.setHudLayout = re4ipc_set_hud_layout;
   api.touch = re4ipc_touch;
   api.aimTurn = re4ipc_aim_turn;
   api.swipe = re4ipc_swipe;
@@ -2736,6 +2753,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   lastDraw = {};
   letterboxSent = -1;
   viewAspectSent = -1;
+  hudSent = {-1, -1, -1, -1};
   fastSent = -1;
   potatoSent = -1;
   aimSent = -1;

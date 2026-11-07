@@ -124,6 +124,10 @@ float re4_view_mtx_aspect(const float (*m)[4]);
 float re4_view_camera_aspect(void);
 int re4_view_load(int type);
 float re4_view_flat_edge(float width, int right);
+/* Patch 0215 (id_sys.cpp, runtime/picture.cpp): the screen matrix an id unit is drawn with, IDSystem::m_scrn_mat or,
+ * for the units of the life gauge, that matrix moved into the bottom right corner of the part of the picture the
+ * screen shows (re4_core_set_hud_layout). */
+float (*re4_hud_scrn(const void* unit))[4];
 #ifdef __cplusplus
 }
 #endif

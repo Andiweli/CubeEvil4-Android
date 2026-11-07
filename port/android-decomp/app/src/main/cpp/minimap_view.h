@@ -200,17 +200,46 @@ inline void PictureRects(int format, int width, int height, int xh, Rect *hud, R
   }
 }
 
-// The map's square: a little over a quarter of the HUD's height, 2.25 % of its width from its left and 4 % of its
-// height from its bottom (with "16:9" both are the 4 % of the height that was right before), and never left of
-// the picture's box (with "4:3" the HUD's layer is wider than the box) nor below it.
-inline Rect Place(const Rect &hud, const Rect &pic) {
+// The part of the picture the screen shows: the box, but with "4:3 (GC)" (1) the rows 56..392 in it (the game's
+// letterbox covers the others). The core puts the game's life gauge in its bottom right corner (patch 0215,
+// re4_core_set_hud_layout), the map goes into its bottom left corner.
+inline Rect Shown(int format, const Rect &hud, const Rect &pic) { return format == 1 ? hud : pic; }
+
+// The map's square: a little over a quarter of the HUD's height, in the bottom left corner of the shown part, as
+// far from its side as from its bottom: 4 % of its height (wish of the project owner, 07.11.2026: map and life gauge
+// in the corners with the same margin, the gauge mirrors it at the bottom right; with "16:9" the place it had).
+inline Rect Place(const Rect &hud, const Rect &shown) {
   const int size = std::max(48, std::min(hud.h * 27 / 100, hud.w * 3 / 10));
-  const int mx = std::max(6, hud.w * 9 / 400), my = std::max(6, hud.h * 4 / 100);
+  const int m = std::max(6, shown.h * 4 / 100);
   Rect r;
-  r.x = std::max(hud.x + mx, pic.x + std::max(6, pic.w * 9 / 400));
-  r.y = std::max(hud.y + my, pic.y + 6);
+  r.x = shown.x + m;
+  r.y = shown.y + m;
   r.w = r.h = size;
   return r;
+}
+
+// What the core is told for its life gauge (re4_core_set_hud_layout): the game's rows the shown part has, how much
+// wider one unit of the game's HUD shows across than down (x 10000) and whether the ring is drawn that much narrower
+// to keep its shape (flags bit 0, "Stretched"). `native` as Native() gave it for format 5.
+struct HudLayout {
+  int top = 56, bottom = 392, stretch = 10000, flags = 0;
+};
+inline HudLayout Hud(int format, int width, int height, const NativeView &native) {
+  HudLayout h;
+  if (format == 3) {
+    h.top = 0;  // "4:3": all 448 rows in an exact 4:3 box
+    h.bottom = 448;
+  } else if (format == 1) {
+    h.stretch = 10714;  // "4:3 (GC)": the 448 rows in a 4:3 frame of 480, 15/14 as wide as exact
+  } else if (format == 2 && height > 0) {
+    // "Stretched": the 16:9 rows over the whole screen; the ring keeps its shape
+    h.stretch = static_cast<int>(static_cast<double>(width) / height * 9.0 / 16.0 * 10000.0 + 0.5);
+    h.flags = 1;
+  } else if (format == 5 && native.mode == -1) {
+    h.top = native.top;  // "Native" narrower than 16:9: the middle rows
+    h.bottom = native.top + native.rows;
+  }
+  return h;
 }
 
 }  // namespace re4mm

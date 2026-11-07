@@ -89,6 +89,7 @@ int re4ipc_cheat_action(int what);
 int re4ipc_room_outline(float* out, int maxEdges, unsigned* info);
 void re4ipc_set_laser_colour(int colour);
 void re4ipc_set_view_aspect(int aspect_e4);
+void re4ipc_set_hud_layout(int rows, int stretch_e4, int flags);
 void re4ipc_gyro(float yaw, float pitch);
 // The renderer's depth map for the game's GXPeekZ (RE4_GX_DEPTH_W x RE4_GX_DEPTH_H cells): into the shared memory the core process reads
 void re4ipc_gx_depth(const unsigned* cells, unsigned serial);
