@@ -197,6 +197,12 @@
 //                          weapon object is made again from the weapon file already read (weaponRelease,
 //                          weaponInit, as PlChangeData does after a costume change): a type the file was
 //                          not read for (HUNK's TMP file with the stock's type, patch 0206)
+//   RE4_TEST_ASHLEY_DIES="free+N"  N frames after the player is free, Ashley's life becomes 0 once: the
+//                          player's dejection (routine 6) before the game over (0.99.3, Ada's pose)
+//   RE4_TEST_PL_MOTION="free+N:IDX[-LAST/EVERY][,SEQ][,own]"  N frames after the player is free, Leon's
+//                          archive motion IDX (sequence SEQ; ",own" the player's own archive) on the player,
+//                          held (routine 6/1): a stand-in with a motion of Leon's it lacks; with -LAST/EVERY
+//                          every motion entry up to LAST in turn, EVERY frames each
 //   RE4_TEST_LIFE="free+N:A,AMAX[,L,LMAX][/STEP]"  from N frames after the player is free on, Ashley's
 //                          life A of AMAX (and Leon's L of LMAX) set in every frame; with /STEP the
 //                          life goes down by STEP every 60 frames (A first, then L): the life meters
@@ -272,6 +278,7 @@
 #include "espgen.h"
 #include "main_mem.h"
 #include "model.h"
+#include "motion.h"
 #include "light.h"
 #include "dmg.h"
 #include "atari.h"
@@ -702,6 +709,10 @@ bool g_staDone;
 unsigned g_killAt, g_killId; // RE4_TEST_EM_KILL
 long g_stunAfter = -1;       // RE4_TEST_STUN
 long g_lifeAfter = -1;       // RE4_TEST_LIFE
+long g_ashleyDiesAfter = -1; // RE4_TEST_ASHLEY_DIES
+long g_plMotionAfter = -1;   // RE4_TEST_PL_MOTION
+unsigned g_plMotion, g_plMotionLast, g_plMotionEvery, g_plMotionSeq;
+bool g_plMotionOwn;
 long g_wepTypeAfter = -1;    // RE4_TEST_WEPTYPE
 long g_benchAt[4] = {-1, -1, -1, -1};  // RE4_TEST_BENCH
 int g_benchCmd[4];
@@ -2113,6 +2124,47 @@ void frame(unsigned n)
         pPL->weaponInit();
         re4_log("run: weapon %d made again with type %d at frame %u (RE4_TEST_WEPTYPE)", (int) g->weapon_no, g_wepType, n);
     }
+    // RE4_TEST_PL_MOTION: an archive motion IDX (and sequence SEQ) on the player as the player routines start
+    // them (MotionSetCore ..., 3, 1, 0), held in routine 6/1 (pl_R0_Dijection only moves the motion on): what a
+    // stand-in looks like with a motion of Leon's it lacks (cheats.cpp re4_arc_stand_in; 0.99.3, Ada's pose).
+    // Leon's own archive with Leon, else his copy at 0x82000000 (cheats.cpp kLeonArcAddr); ",own" the player's
+    // own archive. IDX-LAST/EVERY: every motion entry (tag FCV) from IDX to LAST in turn, EVERY frames each
+    if (g_plMotionAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_plMotionAfter && g->Rno0 == 3 && live(pPL)) {
+        g_plMotionAfter = -1;
+        const u32* arc = g->pl_type == 0 || g_plMotionOwn ? (const u32*) g->pPlayer
+                                                          : (const u32*) (unsigned long) 0x82000000u;
+        unsigned idx = g_plMotion;
+        while (idx <= g_plMotionLast && idx - 4 < arc[0] && memcmp(&arc[arc[0] + idx], "FCV", 3) != 0) {
+            idx++;
+        }
+        if (idx <= g_plMotionLast && idx - 4 < arc[0] && (!g_plMotionSeq || g_plMotionSeq - 4 < arc[0])) {
+            void* data = (void*) (unsigned long) (arc[idx] + (u32) (unsigned long) arc);
+            void* seq = g_plMotionSeq ? (void*) (unsigned long) (arc[g_plMotionSeq] + (u32) (unsigned long) arc) : 0;
+            pPL->setRno(6, 1, 0, 0);
+            MotionSetCore(pPL, &pPL->Motion, data, seq, 3, 1, 0);
+            re4_log("run: player type %d plays %s motion 0x%x (sequence 0x%x) at frame %u (RE4_TEST_PL_MOTION)",
+                    (int) g->pl_type, arc == (const u32*) g->pPlayer ? "its own" : "Leon's", idx, g_plMotionSeq, n);
+            if (idx < g_plMotionLast) {
+                g_plMotion = idx + 1;
+                g_plMotionAfter = (long) n - g_freeAt + (long) g_plMotionEvery;
+            }
+        } else {
+            re4_log("run: RE4_TEST_PL_MOTION: no motion from 0x%x on (archive of %u entries)", g_plMotion, arc[0]);
+        }
+    }
+    // RE4_TEST_ASHLEY_DIES: her life 0 once (the player's cPlayer::subCharLiveCheck then puts him in routine 6, the
+    // dejection before the game over)
+    if (g_ashleyDiesAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_ashleyDiesAfter && g->Rno0 == 3) {
+        g_ashleyDiesAfter = -1;
+        if (live(pSUB) && pSUB->id == 3) {
+            pSUB->hp = 0;
+            g->ashley_life = 0;
+            re4_log("run: Ashley's life 0 at frame %u (RE4_TEST_ASHLEY_DIES), the player's routine %u/%u", n,
+                    live(pPL) ? (unsigned) pPL->r_no_0 : 0u, live(pPL) ? (unsigned) pPL->r_no_1 : 0u);
+        } else {
+            re4_log("run: RE4_TEST_ASHLEY_DIES: no Ashley at frame %u", n);
+        }
+    }
     if (g_lifeAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_lifeAfter && g->Rno0 == 3) {
         const long steps = g_lifeStep > 0 ? ((long) n - g_freeAt - g_lifeAfter) / 60 : 0;
         int a = g_lifeA - (int) (steps * g_lifeStep);
@@ -2709,6 +2761,33 @@ void configure()
         }
         if (g_lifeAfter < 0) {
             re4_log("run: RE4_TEST_LIFE=\"%s\" not understood (free+N:A,AMAX[,L,LMAX][/STEP])", life);
+        }
+    }
+    if (const char* mot = getenv("RE4_TEST_PL_MOTION")) {
+        char* end = 0;
+        if (strncmp(mot, "free+", 5) == 0) {
+            g_plMotionAfter = strtol(mot + 5, &end, 10);
+            g_plMotion = end && *end == ':' ? (unsigned) strtoul(end + 1, &end, 0) : 0;
+            g_plMotionLast = g_plMotion;
+            if (end && *end == '-') {
+                g_plMotionLast = (unsigned) strtoul(end + 1, &end, 0);
+                g_plMotionEvery = end && *end == '/' ? (unsigned) strtoul(end + 1, &end, 10) : 60;
+            }
+            if (end && *end == ',' && end[1] >= '0' && end[1] <= '9') {
+                g_plMotionSeq = (unsigned) strtoul(end + 1, &end, 0);
+            }
+            g_plMotionOwn = strstr(mot, ",own") != 0;
+        }
+        if (g_plMotionAfter < 0 || g_plMotion == 0) {
+            g_plMotionAfter = -1;
+            re4_log("run: RE4_TEST_PL_MOTION=\"%s\" not understood (free+N:IDX[-LAST/EVERY][,SEQ][,own])", mot);
+        }
+    }
+    if (const char* dies = getenv("RE4_TEST_ASHLEY_DIES")) {
+        if (strncmp(dies, "free+", 5) == 0) {
+            g_ashleyDiesAfter = strtol(dies + 5, 0, 10);
+        } else {
+            re4_log("run: RE4_TEST_ASHLEY_DIES=\"%s\" not understood (free+N)", dies);
         }
     }
     if (const char* stun = getenv("RE4_TEST_STUN")) {
