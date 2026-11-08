@@ -2240,7 +2240,8 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   - GL weiter bytegleich (4 371 Bilder); NDK-Übersetzung beider ABIs.
 
   **Nicht geprüft:** Gerät; der Kopie-Übergang nur im Test (`gx_chunk_render` hat keinen neuen Renderer mitten in der
-  Folge).
+  Folge). Test-APK `E:\Development\Androiduildsulkan\CubeEvil4-0.99.2-vulkan2.apk` (E6 und E4, ersetzt das
+  ungetestete `-vulkan1`).
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 
