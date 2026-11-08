@@ -3,6 +3,72 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.4-rc: drei Nutzerberichte ohne Kontext, r100 nach dem Sofortwechsel der Spielfigur (08.11.2026, Branch `work`, Patch 0220)
+
+Version 0.99.4-rc (versionCode 106), Releasetext `port/android-decomp/docs/releases/v0.99.4-rc.md` („Changes since
+v0.99.3.“, APK `CubeEvil4-0.99.4-rc.apk`; Known issues aus 0.99.3 übernommen, eine Zeile zu zu hoher Auflösung
+neu). Patch 0220 (nächste freie Nummer 0221). Berichte unter `E:\Development\Android\reports\0994-check-*`.
+
+1. **Bericht `0994-check-20261107-182125` (Xiaomi 2109119DG „lisa“, Snapdragon 778G / Adreno 642L, Android 14,
+   0.99.2-rc, EU-Discs, Spanisch).**
+   - **Die Discs sind verändert:** 172 bzw. 145 Dateien anders (`Evd`, `St1`–`St4`, `ss/Esp`, `op`, `etc`,
+     `sys/fst.bin`). Genau dieselben Zahlen wie im Bericht 191700 (05.11.2026, Samsung SM-A135M, Abschnitt 0.98.3
+     Punkt 4): derselbe Abzug geht offenbar herum, vermutlich eine spanische Fan-Vertonung/-Übersetzung. Was sich
+     prüfen ließ, passt: `etc/core.das` 2 338 208 Bytes (Original 2 337 856) und `SS/esp/option.dat` 306 880 (Original
+     299 648) liegen auf den Ersatzplätzen des Ports (Patches 0117/0121, die App prüft die Größe); die Szenen von r100
+     haben dieselben Größen wie das Original.
+   - **Die Neustarts am Rücksetzpunkt:** 18:10:37 der Sofortwechsel Krauser → Leon im Cheat-Menü („r100 starts again
+     at …“), 18:13:42 und 18:15:36 „Retry“ aus dem Pausemenü (START, dreimal A). Kein Tod: keine „die:“-Zeile,
+     Leben 1200/1200, kein „continue after a death“.
+   - **Fehler des Ports: die Szene im ersten Haus fehlte** („ARAM over: evd/r100s03.evd“, „r100::readEvent() : out of
+     memory“, später „ARAM over: st1/r100_01.dat (1000 times)“). Ursache: `switchNow` startet den Raum durch eine Tür
+     in sich selbst; der Raumstart speichert dabei auch den Rücksetzpunkt (`game.cpp` `GameSave.save(pSaveData, -1)`),
+     „Retry“ kommt also wieder dorthin. Mit Raum-Flag 13 gesetzt und 10 frei liest `R100Init` die Startszene s40
+     (2,2 MB) ins ARAM, aber nur `r100_StartEvent` (läuft bei Flag 13 frei) gibt sie frei: s03 passte nicht mehr in
+     den ARAM-Bereich der Daten (0x800000..0xD00000). Mit Flag 0 gesetzt (Wechsel hinter Bereich 6) lädt `R100Main`
+     s03/s20 nie wieder vor. Die EU- und US-`st1_0.rel` lesen dieselben vier Szenen unter derselben einen Bedingung
+     vor (`relcalls.py`), das Original verhält sich also gleich; nur der Sofortwechsel erzeugt diese Zustände.
+     **Patch 0220** (`r100.cpp`): s40 nur bei Flag 13 frei, s03 (bis Flag 3) und s20 wieder bei Flag 0.
+   - **Am PC geprüft (WSL `~/re4-0994/RE4` = 029d0167 + Patch, i686 -O2; neues Spiel über r120 mit START, Krauser,
+     `RE4_TEST_CHEAT_SET`, `RE4_TEST_PLACE=free+500:area=6`, Haus über `RE4_TEST_PLACE2`, `RE4_TEST_EM_KILL=…:12`;
+     Skripte `~/p0994/house2.sh`, `run.sh`, `bld.sh`):** ohne Patch genau das Bild des Berichts (EU:
+     ARAM over, Szene 5 Bilder lang); mit Patch Fall A (Wechsel vor Bereich 6), B (nach Bereich 6), C (nach der
+     Haus-Szene, vor dem Tod des Ganados) und D (Wechsel, dann „Retry“, `RE4_TEST_CONTINUE`) wie der Gegenlauf ohne
+     Wechsel: Haus-Szene ab Bild 1701 bis 3176, Szene nach dem Ganado ab 3177. Ohne Patch fehlten in B beide
+     Szenen; in C blieb s40 unnötig im ARAM. Fall A auch mit Debug- und US-Discs. `whole_build.sh i686` (O2) grün.
+   - **Tempo:** Der Spiel-Thread hält den Takt (11–13 ms Rechenzeit, 33,3 ms je Bild). Mit 60 FPS, „Native“
+     (2400×1080, 3D 1,667:1) und 2× braucht die GPU in r100 12–36 ms je Spielbild; 18-mal „the renderer was behind
+     … no in-between pictures for 5 s“, das Bild wechselt also zwischen 60 und 30. Die „GX core“-Zeilen mit
+     55–169 ms je Bild zählen die Pausen im App-Menü mit (gemessen von Bildkopie zu Bildkopie; jede solche Zeile folgt
+     auf eine Pause), ohne Pause 33,3–38,6 ms. **Nicht gebaut:** die Pausen aus dieser Messung herausnehmen.
+   - **Zweiter Lauf (18:16): Hänger bis 1,75 s.** Der Shader-Zwischenspeicher der App war beim Start leer (keine
+     Raumliste, kein „GX programs made ahead“, „0 programs from the cache“); die Programme entstanden beim ersten
+     Zeichnen (14 ms je Bild, einzeln bis 1752 ms). Im Lauf davor war er voll (9246 Programme). Dazwischen beendete
+     Xiaomi die App beim Wegwischen („SwipeUpClean“, `exit.txt`), 4 s später der Neustart; die App löscht
+     `cache/gx-programs` selbst nicht. **Vermutung:** das System räumte dabei den Cache-Ordner der App
+     (`getCacheDir`). Abhilfe wäre ein Ordner, den Android nicht räumt (`getNoBackupFilesDir`); nicht gebaut,
+     Entscheidung offen.
+   - **App:** die Warnung des Startbildschirms nach dem Import (`RoomFileCheck.warning`) nennt jetzt auch veränderte
+     Abzüge („damaged or modified (a fan translation or a mod, for example) … made for the original discs“) statt
+     nur „damaged“; `RoomFileCheckTest` prüft den Text. Der Fehlerbericht listete die Dateien schon.
+2. **Bericht `0994-check-20261108-051045` (Infinix X6882, Mali-G57 MC2, Android 14, 0.99.2-rc, US-Discs wie das
+   Original, 26 min r321–r327).** Kein Absturz, keine Fehlerzeile. Der Nutzer probierte viele Einstellungen
+   (Bildformat, Auflösung 2× bis 4×, FXAA, Nachschärfen, Potato, Merged draw calls, Lens flares).
+   - **Vorheriger Lauf, Ton („237 ran dry“):** bei 3,5× und 4× wartete der Kern 15–33 ms je Bild auf den Renderer,
+     das Spiel lief mit 44–52 ms je Bild (65–75 % Tempo), und „ran dry“ stieg in diesen Minuten von 18 auf 68 und
+     von 79 auf 230. Bei 2× und 2,5×: 33,5 ms, kein Warten. Der Benchmark des Geräts nennt 2× (30 FPS) bzw. 1×
+     (60 FPS). Known issue im Releasetext.
+   - **Letzter Lauf (2×, 30 FPS, Frame skip):** Spiel im Takt (33,5 ms, 0,1 ms Warten), Ton fast ohne Lücken
+     (21 in 26 min). Frame skip ließ etwa 6000 von rund 47 000 Bildern aus (≈ 13 %, in r327 bis 7 je Sekunde, nach
+     „Lens flares: off“ unter 2 je Sekunde): sichtbares Ungleichmaß. Der Render-Thread rechnet dabei selbst (CPU
+     900–1400 MHz auf den Kernen 6/7). Die letzte Minute vor „core: paused“ (r327) ist unauffällig.
+   - Bericht 3 ist dasselbe Gerät (0.99.1); **Vermutung:** derselbe Tester prüft 0.99.2. Nichts zu beheben;
+     Bitte an den Nutzer in der Meldung an die Hauptsitzung.
+3. **Bericht `0994-check-20261108-005243`:** dateigleich mit `0992-43-hud-cut-20261108-005243` (`diff -rq`, dort
+   nur das Bildschirmfoto zusätzlich): die Lebensanzeige bei „4:3“ in Menüs, behoben in 0.99.2 (Abschnitt 0.99.2
+   Punkt 8). Nichts Neues.
+- **Nicht geprüft:** Patch 0220 auf einem Gerät; die veränderten Discs selbst (nicht vorhanden).
+
 ## Version 0.99.3-rc: Warnung vor einer anderen Spielfigur, Potato-Modus mit Partikeleffekten und Schatten & Licht, Vulkan als Option (08.11.2026, Branch `work`, Patch 0219)
 
 **3. Vulkan (experimentell) als zweiter Renderer (Entscheidung des Projektinhabers, 08.11.2026, Wortlaut auf die
@@ -13677,6 +13743,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0217 `pl_npc.cpp`, `r208.cpp` | Ashleys Rock-Reaktion („pervert“) wie die Verkaufsfassungen (US/EU/JP `main.dol`, `st2_0.rel`): in Leons Routinen 0/0..6 (stehen, gehen, laufen, drehen, zielen) muss die Kamera (`pG->Camera`) mindestens π/7 (25,7°) nach oben schauen, sonst zählt die Lage allein; 240 Bilder Sperre nach `r208_CarryOnShoulder` (`re4_ashley_pants_wait`). Abweichung vom Debug-Code, Entscheidung des Projektinhabers 07.11.2026 |
 | 0218 `sce_at.cpp` | Cheat „Random items“: `sceAtSetItem` ruft `re4_item_random` (`runtime/cheats.cpp`), das beim ersten Aufruf eines Raums seine frei liegenden Gegenstände des Topfs (Munition, Granaten, Heilmittel, Peseten, Schätze) aus Seed, Raum und Datensatz neu verteilt, nur gegen Gegenstände mit Modell im Raum, nur in der Story. Wunsch des Projektinhabers 07.11.2026, Issue #161 |
 | 0219 `shadow.cpp`, `foot_shadow.cpp` | Potato-Modus „Schatten & Licht“ aus: `ShadowTrans` kehrt nach dem Löschen der Schattenverwalter und der Flags `STA_SHADOW_EQCOL`/`STA_USE_SHADOW_LIGHT` zurück (keine Schattentexturen, kein zweites Zeichnen der Empfänger, keine projizierten Lichtbilder auf Figuren), `DrawFootShadow` zeichnet nichts; `re4_potato_no_shadows` (`runtime/potato.cpp`), nicht in Ereignissen. Wunsch eines Nutzers über den Projektinhaber, 08.11.2026 |
+| 0220 `r100.cpp` | Port-Fehler (Sofortwechsel der Spielfigur, `cheats.cpp switchNow`: Raum neu durch eine Tür in sich selbst, und damit auch der Rücksetzpunkt für „Retry“): `R100Init` liest die Startszene s40 (2,2 MB ARAM) nur noch, wenn `r100_StartEvent` läuft und sie freigibt (Raum-Flag 13 frei), und s03/s20 wieder, wenn Bereich 6 schon passiert ist (Flag 0; s03 bis zur Haus-Szene, Flag 3). Vorher fehlten die Haus-Szene („ARAM over: evd/r100s03.evd“) und nach einem Wechsel hinter Bereich 6 auch die Szene nach dem Ganado; EU-/US-`st1_0.rel` lesen genauso vor. In jedem Zustand, den das Spiel selbst erreicht, unverändert. Bericht eines Nutzers 07.11.2026 (Xiaomi, EU-Discs, 0.99.2) |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

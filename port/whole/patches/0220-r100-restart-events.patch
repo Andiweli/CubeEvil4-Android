@@ -1,0 +1,36 @@
+# Port patch (a user's report 07.11.2026, Xiaomi 2109119DG, EU discs, 0.99.2: "the room starts again at the reset
+# point"; port/docs/whole-program-status.md, version 0.99.4, item 1). The app's character switch "at once"
+# (runtime/cheats.cpp switchNow) starts the room again through a door into itself (SceAtExecRoomJump), and the
+# room's start saves that state as the continue point, so a later "Retry" starts there too. In r100 that gives
+# states the game itself never starts the room in: before the officers' death (room flag 10 clear) with the room
+# entry done (13 set) or with area 6 passed (0 set). R100Init reads the start event s40 (2.2 MB, event 9) to ARAM
+# whenever flag 10 is clear; only r100_StartEvent, run when 13 is clear, frees it. With 13 set it stayed: the s03
+# event (the Ganado in the first house) no longer fit ("ARAM over: evd/r100s03.evd", "r100::readEvent() : out of
+# memory"), its scene was left out, and the room's blocks could not go to ARAM ("ARAM over: st1/r100_01.dat").
+# With flag 0 set R100Main does not read s03 and s20 again (it does at the first hit of area 6 only), and
+# r100_Sce_look found no s03. Now R100Init reads s40 only when its start event runs, and s03 (until the house
+# scene, flag 3) and s20 again when area 6 is passed: what the game holds at that point when it runs on. The
+# European and US st1_0.rel read the same four events under the same one check (relcalls.py, 08.11.2026). In every
+# state the game reaches on its own (13 and 0 clear whenever 10 is), nothing changes.
+--- a/src/st1/r100.cpp
++++ b/src/st1/r100.cpp
+@@ -153,7 +153,18 @@
+         readEvent(5, 0, 0);
+         readEvent(7, 0, 0);
+         readEvent(8, 0, 0);
+-        readEvent(9, 0, 0);
++        /* port (patch 0220): the start event only when r100_StartEvent runs and frees it (the room started again
++           by the app's character switch has flag 13 set); s03 and s20 again when area 6 is passed (flag 0), as
++           R100Main read them there */
++        if (RsfCheck(G_ROOM_ID, 13) == 0) {
++            readEvent(9, 0, 0);
++        }
++        if (RsfCheck(G_ROOM_ID, 0)) {
++            if (RsfCheck(G_ROOM_ID, 3) == 0) {
++                readEvent(0, 0, 0);
++            }
++            readEvent(3, 0, 0);
++        }
+     }
+     SmdGetObjPtr(0x37)->be_flag &= ~2;
+     SmdGetObjPtr(0x38)->be_flag &= ~2;
