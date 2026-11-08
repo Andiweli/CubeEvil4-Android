@@ -29,6 +29,22 @@ Gerätetests am Retroid).
   - **Potato unter Vulkan:** Mit den aufgezeichneten Folgen nicht prüfbar, weil der Potato-Modus vor GX im Kern
     wirkt. Geprüft ist er im Kern (Test `potato`), der Renderer bekommt nur weniger Zeichnungen.
   - **Nicht geprüft:** Gerät (Läufe 2–4 macht der Projektinhaber mit diesem Bau).
+- **Läufe 2–4 am Retroid mit 0.99.3-rc (`e8a176c0`, eigener Bau des Projektinhabers, 08.11.2026; Daten
+  `E:\Development\Android\reports\0993-vulkan-devtest-20261108`):**
+  - **Drehen:** Vulkan mit 60/s, Swapchain einmal gebaut (pre-rotated), eine Spitze von 413 ms gleich am Anfang
+    (kalte Szene). Home und Drehen stehen nicht im Protokoll (nach 91 s von Hand beendet); die Hauptsitzung fragt
+    nach.
+  - **Rückfall:** richtig (Meldung, danach GLES mit 60/s).
+  - **Menü:** Der Neustart ins Spiel mit Vulkan lief sauber (neuer Prozess, Speicher geladen, 403 Programme und 486
+    Pipelines in 156 ms vorab gebaut). Das Testskript hielt den neuen Prozess aber für einen Absturz und beendete den
+    Lauf.
+  - **Behoben in `port/scripts/test-core-app.ps1`:** Wechselt die Prozessnummer und steht seit dem Start eine neue
+    Zeile „the app restarts into the game“ (`RE4Input`) im Protokoll, wartet das Skript bis 30 s auf den neuen
+    Prozess und beobachtet ihn weiter (Bilder, Kernprozess, am Ende das Protokoll beider Prozesse). Jede solche Zeile
+    zählt einmal; ein neuer Prozess ohne sie bleibt ein Absturz.
+  - **Geprüft (PC):** Das Skript liest PowerShell ohne Fehler ein. Die Erkennung lief gegen ein nachgestelltes
+    ADB: mit Zeile Neustart, ohne neue Zeile Absturz, eine zweite Zeile wieder Neustart. **Nicht geprüft:** Gerät
+    (der Menü-Lauf kommt noch einmal).
 
 Version 0.99.3-rc (versionCode 105), Releasetext `port/android-decomp/docs/releases/v0.99.3-rc.md` („Changes since
 v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag. Patch 0219
