@@ -2374,6 +2374,41 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
     - die Freigabe des Projektinhabers für `master`.
   - **Bekannte Restunterschiede zu GLES:** Rauschen der Treiber, die Kantenregel und 1-Pixel-Linien ohne MSAA (die
     Linienregel von Vulkan).
+- **Zweiter Gerätetest (vulkan5; Retroid, Adreno 650, Vulkan 1.1.128, Treiber 0.746.0; 08.11.2026):** die Läufe ohne
+  Drehen, ausgewertet von der Hauptsitzung (Daten `E:\Development\Android\reports\vulkan5-devtest-20261108`):
+  - **Swapchain:** einmal gebaut („1080x1920 … pre-rotated … swapchain 1“), danach nie wieder; das Bild steht
+    richtig. Der Fehler des ersten Tests ist am Gerät behoben.
+  - **1a, Vulkan kalt (leere Speicher):** im Mittel 58,4 Bilder/s, mindestens 48,7, 23 Spitzen über 100 ms (bis
+    628 ms) beim ersten Auftreten neuer Szenen.
+    - Je neuem Shader ≈ 3 ms glslang (257 in 780 ms).
+    - Je neuer Pipeline im Mittel ≈ 13 ms Treiber, bis 34 ms; bis 84 Pipelines in 10 s.
+  - **1b, Vulkan warm** (359 Shader im SPIR-V-Speicher, 4,4 MB Treiber-Cache): im Mittel 60,0 Bilder/s, mindestens
+    58,9, eine Spitze von 102 ms, auch in der Polizeifahrt ruhig.
+    - Kein Shader übersetzt.
+    - Der Treiber baute 460 Pipelines aus seinem Cache in zusammen 87 ms (0,2 ms je Pipeline statt ≈ 13 ms).
+    - Der ruhigste der drei Läufe.
+  - **1c, GLES:** im Mittel 59,9 Bilder/s, eine Spitze von 266 ms.
+  - **Prozessorzeit des Zeichen-Threads je Bildstück:** Vulkan warm 4,13 ms (höchstens 7,8), GLES 4,52 ms (8,4),
+    Vulkan kalt 4,72 ms. Auf dem Retroid ≈ 9 % weniger als GLES; der große Nutzen wird auf Mali erwartet.
+  - **acquire + present ≈ 15 ms je Bild bei 0 ms Warten auf die GPU:** Das ist das Warten auf die Bildwiederholung
+    (FIFO, wie `eglSwapBuffers` unter GLES); der Thread schläft dabei, es ist keine Rechenzeit.
+  - **Absturz-Wächter** in beiden Vulkan-Läufen nach den ersten Bildern gelöscht.
+  - **Noch aus:** Lauf 2 (Drehen, Home), 3 (Rückfall), 4 (Menü).
+- **Spitzen beim ersten Auftreten einer Szene (Vulkan kalt): bekanntes Verhalten, bewusst so gelassen
+  (08.11.2026).** Wie unter GLES ohne fertige Programme ruckelt das erste Auftreten einer Szene auf einem Gerät; ab
+  dem zweiten Mal ist es flüssig (SPIR-V-Speicher, Treiber-Cache, Pipelines je Raum vorab).
+  - **Geprüft und verworfen:** Pipelines auf einem Hilfs-Thread bauen und die Zeichnung so lange weglassen oder mit
+    einem Platzhalter zeichnen, wie Dolphins „asynchrone Shader“.
+    - Unsicher für dieses Spiel: Eine weggelassene Zeichnung fehlt nicht nur einen Augenblick. Sie fehlt auch in
+      EFB-Kopien, die das Spiel nur einmal macht (beim Betreten eines Raums: Wasser, Spiegel, Texturen aus dem Bild).
+    - Sie fehlt auch in der Tiefenkarte (GXPeekZ, Fackellicht) und in Effekten, die das Bild lesen; diese Fehler
+      blieben bis zum nächsten Raum.
+    - Ein Platzhalter, der alles richtig zeichnet (Dolphins Über-Shader), wäre ein Projekt für sich.
+  - **Ein Vorab-Bau aus einer mitgelieferten Liste** hilft beim ersten Lauf kaum: Die Liste der App kennt nur
+    Shader, nicht die Zustände der Pipelines. Alle SPIR-V der Liste wären ≈ 270 MB, und der Treiber bräuchte für
+    jede Pipeline trotzdem seine ≈ 13 ms.
+  - **Später denkbar:** `VK_EXT_graphics_pipeline_library`, das das Zusammenbauen der Pipelines billig macht, wo
+    der Treiber es kann (der Retroid-Treiber 0.746 kann es nach heutigem Stand nicht).
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 
