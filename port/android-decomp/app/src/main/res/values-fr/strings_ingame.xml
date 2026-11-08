@@ -44,7 +44,12 @@
     <string name="ingame_potato">Mode Potato</string>
     <string name="ingame_potato_weather">Effets météo</string>
     <string name="ingame_potato_special">Effets spéciaux</string>
-    <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Désactivés, ils allègent le travail graphique sur les appareils modestes ; les flashs de tir, le sang, les explosions, le feu, les impacts et les indications restent, ainsi que tous les effets des cinématiques.</string>
+    <string name="ingame_potato_particles">Effets de particules</string>
+    <string name="ingame_particles_normal">Normaux</string>
+    <string name="ingame_particles_less">Réduits</string>
+    <string name="ingame_particles_none">Aucun</string>
+    <string name="ingame_potato_shadows">Ombres et lumière</string>
+    <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Effets de particules : sang, poussière, fumée, éclaboussures, étincelles et feu ; Réduits en dessine la moitié, Aucun les retire tous sauf le feu et les explosions, qui restent à moitié comme avertissement. Ombres et lumière : désactivé retire les ombres (aussi dans les cinématiques), les halos et les rayons de lumière ; les pièces gardent leur éclairage. Chaque réglage allège le travail graphique sur les appareils modestes ; le point d\'impact, les indications, le laser et tous les effets des cinématiques restent.</string>
     <string name="ingame_resolution_line">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s) · écran %4$d × %5$d · s’applique à la fermeture du menu. Les niveaux plus élevés demandent plus de puissance.</string>
     <string name="ingame_resolution_line_auto">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s, Dynamique) · écran %4$d × %5$d · s’applique à la fermeture du menu. Dynamique descend d’un niveau tant que le GPU ne suit pas.</string>
 
@@ -257,7 +262,9 @@
     <string name="ingame_cheat_character">Personnage joué</string>
     <string name="ingame_cheat_costume">Costumes spéciaux</string>
     <string name="ingame_cheat_costume_note">(Leon/Ashley seulement)</string>
-    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon dans l\'histoire : la pièce se recharge là où tu te trouves (pendant une cinématique, à partir de la pièce suivante). La mallette, la vie et l\'argent de Leon restent ; les armes sans modèle propre au personnage montrent celles de Leon. La partie d\'Ashley reste à Ashley, les cinématiques et les appels radio montrent toujours Leon. Tes sauvegardes gardent toujours Leon : elles se chargent avec le personnage choisi ici. Costumes spéciaux : Leon et Ashley (et Ada en remplaçante) portent leurs costumes spéciaux, aussitôt aussi.</string>
+    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon dans l\'histoire : la pièce se recharge là où tu te trouves (pendant une cinématique, à partir de la pièce suivante). La mallette, la vie et l\'argent de Leon restent ; les armes sans modèle propre au personnage montrent celles de Leon. La partie d\'Ashley reste à Ashley, les cinématiques et les appels radio montrent toujours Leon. Tes sauvegardes gardent toujours Leon : elles se chargent avec le personnage choisi ici. Les personnages autres que Leon ne sont pas prévus pour le jeu principal, donc en choisir un affiche d\'abord un avertissement\u00A0: «\u00A0J\'ai compris\u00A0» change de personnage, Retour garde ton personnage actuel. Costumes spéciaux : Leon et Ashley (et Ada en remplaçante) portent leurs costumes spéciaux, aussitôt aussi.</string>
+    <string name="ingame_cheat_character_warning">Attention\u00A0: ce personnage n\'est pas prévu pour le jeu principal. Des bugs peuvent survenir et surviendront, ils sont inévitables\u00A0!</string>
+    <string name="ingame_understood">J\'ai compris</string>
     <string name="ingame_later">Plus tard</string>
     <string name="ingame_controller_config">Configuration des touches</string>
     <string name="ingame_controller_config_help">Configuration des touches : placez chaque action du jeu sur des touches de votre manette ou de votre clavier.</string>

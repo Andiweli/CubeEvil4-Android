@@ -1,0 +1,56 @@
+# Port patch, a user's wish through the project owner (08.11.2026; port/docs/whole-program-status.md, version 0.99.3,
+# item 2): the app menu's Potato mode gets "Shadows and light effects". Off, the game draws no shadows: ShadowTrans
+# returns right after it cleared the frame's shadow managers (g_Shd_num, g_SelfShdNum) and the flags
+# STA_SHADOW_EQCOL / STA_USE_SHADOW_LIGHT, as it does for the debug flag DPF_SHADOW but with the flags cleared, so no
+# light renders the models into a shadow texture (EFB copies), no receiver is drawn a second time with the shadow
+# projected on it, and trans.cpp projects no light pictures onto figures (cast shadows need STA_USE_SHADOW_LIGHT).
+# DrawFootShadow draws no foot shadows. runtime/potato.cpp re4_potato_no_shadows answers 1 while the setting is off,
+# also in events and cut scenes, where the game draws nearly all its shadow textures. Nothing the game reads changes:
+# g_Shd_num, the shadow managers and the two flags are only used for drawing. Not the room code's own DPF_SHADOW
+# switching (r21d, r22a, r225), which stays as it was.
+--- a/src/game/shadow.cpp
++++ b/src/game/shadow.cpp
+@@ -12,6 +12,8 @@
+ #include "view.h"
+ #include "main_sub.h"
+ #include "main_mem.h"
++
++extern "C" int re4_potato_no_shadows(void); /* port: runtime/potato.cpp (patch 0219) */
+ #include "math_sub.h"
+ #include "db_log.h"
+ #include "trans_ot.h"
+@@ -281,6 +283,12 @@
+     }
+     StaFlagOff(pG, STA_SHADOW_EQCOL);
+     StaFlagOff(pG, STA_USE_SHADOW_LIGHT);
++    /* port (patch 0219): the app menu's "Shadows and light effects" off (Potato mode): no shadow manager, so no
++       shadow textures, no receivers drawn again and, with STA_USE_SHADOW_LIGHT off, no projected light pictures
++       on figures (trans.cpp cast shadows); also in cut scenes (runtime/potato.cpp) */
++    if (re4_potato_no_shadows()) {
++        return;
++    }
+ 
+     found = 0;
+     l = LightMgr.getActiveWork();
+--- a/src/game/foot_shadow.cpp
++++ b/src/game/foot_shadow.cpp
+@@ -10,6 +10,8 @@
+ #include "math_sub.h"
+ #include "foot_shadow.h"
+ 
++extern "C" int re4_potato_no_shadows(void); /* port: runtime/potato.cpp (patch 0219) */
++
+ // One shadow quad.
+ struct SHD_DISP {
+     Vec pos;
+@@ -41,6 +43,10 @@
+     if (DpfFlagChk(pG, DPF_SHADOW)) {
+         return;
+     }
++    /* port (patch 0219): no foot shadows with "Shadows and light effects" off (Potato mode) */
++    if (re4_potato_no_shadows()) {
++        return;
++    }
+     if (pMod->Shd_color == 0xFF) {
+         return;
+     }

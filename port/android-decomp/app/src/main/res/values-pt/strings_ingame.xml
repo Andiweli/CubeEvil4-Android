@@ -43,7 +43,12 @@
     <string name="ingame_potato">Modo Potato</string>
     <string name="ingame_potato_weather">Efeitos climáticos</string>
     <string name="ingame_potato_special">Efeitos especiais</string>
-    <string name="ingame_potato_help">Efeitos climáticos: bancos de neblina, chuva, respingos de água. Efeitos especiais: vapor, distorção de calor, água. Desligados, poupam trabalho gráfico em aparelhos mais fracos; clarões de tiro, sangue, explosões, fogo, impactos e dicas continuam, assim como todos os efeitos das cenas.</string>
+    <string name="ingame_potato_particles">Efeitos de partículas</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Menos</string>
+    <string name="ingame_particles_none">Nenhum</string>
+    <string name="ingame_potato_shadows">Sombras e luz</string>
+    <string name="ingame_potato_help">Efeitos climáticos: bancos de neblina, chuva, respingos de água. Efeitos especiais: vapor, distorção de calor, água. Efeitos de partículas: sangue, poeira, fumaça, respingos, faíscas e fogo; Menos desenha metade deles, Nenhum tira todos menos o fogo e as explosões, que ficam pela metade como aviso. Sombras e luz: desligado tira as sombras (também nas cenas), os brilhos e os raios de luz; as salas mantêm sua iluminação. Cada ajuste poupa trabalho gráfico em aparelhos mais fracos; o ponto do impacto, as dicas, o laser e todos os efeitos das cenas continuam.</string>
     <string name="ingame_resolution_line">Resolução: %1$d × %2$d pixels (nível %3$s) · tela %4$d × %5$d · aplicada ao fechar o menu. Níveis mais altos exigem mais desempenho.</string>
     <string name="ingame_resolution_line_auto">Resolução: %1$d × %2$d pixels (nível %3$s, Dinâmica) · tela %4$d × %5$d · aplicada ao fechar o menu. A Dinâmica desce um nível enquanto a GPU não acompanha.</string>
 
@@ -256,7 +261,9 @@
     <string name="ingame_cheat_character">Personagem</string>
     <string name="ingame_cheat_costume">Trajes especiais</string>
     <string name="ingame_cheat_costume_note">(só Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">O personagem toma na hora o lugar de Leon na história: a sala carrega de novo onde você está (durante uma cena, a partir da sala seguinte). A maleta, a vida e o dinheiro de Leon continuam; as armas sem modelo próprio do personagem mostram as de Leon. A parte de Ashley continua sendo de Ashley, as cenas e as chamadas de rádio continuam mostrando Leon. Seus jogos salvos guardam sempre Leon, por isso carregam com o personagem escolhido aqui. Trajes especiais: Leon e Ashley (e Ada como substituta) usam seus trajes especiais, também na hora.</string>
+    <string name="ingame_cheat_character_help">O personagem toma na hora o lugar de Leon na história: a sala carrega de novo onde você está (durante uma cena, a partir da sala seguinte). A maleta, a vida e o dinheiro de Leon continuam; as armas sem modelo próprio do personagem mostram as de Leon. A parte de Ashley continua sendo de Ashley, as cenas e as chamadas de rádio continuam mostrando Leon. Seus jogos salvos guardam sempre Leon, por isso carregam com o personagem escolhido aqui. Os personagens além de Leon não foram feitos para o jogo principal, por isso escolher um deles mostra antes um aviso: \"Entendi\" troca, Voltar mantém seu personagem atual. Trajes especiais: Leon e Ashley (e Ada como substituta) usam seus trajes especiais, também na hora.</string>
+    <string name="ingame_cheat_character_warning">Atenção: este personagem não foi feito para o jogo principal. Erros podem acontecer e vão acontecer, e são inevitáveis!</string>
+    <string name="ingame_understood">Entendi</string>
     <string name="ingame_later">Mais tarde</string>
     <string name="ingame_controller_config">Mapeamento de botões</string>
     <string name="ingame_controller_config_help">Mapeamento de botões: coloque cada ação do jogo em teclas do seu controle ou teclado.</string>

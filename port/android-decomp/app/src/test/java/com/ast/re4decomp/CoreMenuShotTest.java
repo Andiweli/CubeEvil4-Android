@@ -72,7 +72,41 @@ public class CoreMenuShotTest {
             picture.compress(Bitmap.CompressFormat.PNG, 100, out);
           }
         }
+        // the warning before another player character (08.11.2026), about as wide as Android's alert in landscape
+        // on a handheld (65 % of the Retroid Pocket Flip 2's 768 dp)
+        show.invoke(menu, 5, false);
+        View hunk = withText(body, "HUNK");
+        hunk.performClick();
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // shown: its look is set
+        android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+        View decor = ask.getWindow().getDecorView();
+        decor.setLayoutDirection(config.getLayoutDirection());
+        int width = 500;
+        decor.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        decor.layout(0, 0, width, decor.getMeasuredHeight());
+        // as before a frame on the device: the one-line title scrolls to its text's place (right to left: the right)
+        decor.getViewTreeObserver().dispatchOnPreDraw();
+        Bitmap picture = Bitmap.createBitmap(width, decor.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(picture);
+        canvas.drawColor(0xff0b0d0c);
+        decor.draw(canvas);
+        try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-character-warning.png"))) {
+          picture.compress(Bitmap.CompressFormat.PNG, 100, out);
+        }
+        ask.dismiss();
       }
     }
+  }
+  private static View withText(View view, String text) {
+    if (view instanceof android.widget.TextView && text.equals(((android.widget.TextView) view).getText().toString())) return view;
+    if (view instanceof android.view.ViewGroup) {
+      android.view.ViewGroup group = (android.view.ViewGroup) view;
+      for (int i = 0; i < group.getChildCount(); i++) {
+        View found = withText(group.getChildAt(i), text);
+        if (found != null) return found;
+      }
+    }
+    return null;
   }
 }

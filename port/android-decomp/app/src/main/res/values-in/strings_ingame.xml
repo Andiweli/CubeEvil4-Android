@@ -43,7 +43,12 @@
     <string name="ingame_potato">Mode kentang</string>
     <string name="ingame_potato_weather">Efek cuaca</string>
     <string name="ingame_potato_special">Efek khusus</string>
-    <string name="ingame_potato_help">Efek cuaca: kabut tebal, hujan, percikan air. Efek khusus: uap, getaran udara panas, air. Jika dinonaktifkan, beban grafis berkurang di perangkat yang lebih lemah; kilatan tembakan, darah, ledakan, api, efek kena tembak dan petunjuk tetap ada, begitu pula semua efek dalam adegan cerita.</string>
+    <string name="ingame_potato_particles">Efek partikel</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Sedikit</string>
+    <string name="ingame_particles_none">Tidak ada</string>
+    <string name="ingame_potato_shadows">Bayangan &amp; cahaya</string>
+    <string name="ingame_potato_help">Efek cuaca: kabut tebal, hujan, percikan air. Efek khusus: uap, getaran udara panas, air. Efek partikel: darah, debu, asap, percikan, bunga api, dan api; Sedikit menggambar separuhnya, Tidak ada menghapus semuanya kecuali api dan ledakan, yang tetap separuh sebagai peringatan. Bayangan &amp; cahaya: nonaktif menghapus bayangan (juga dalam adegan cerita), pendar cahaya, dan berkas cahaya; pencahayaan ruangan tetap sama. Setiap pengaturan mengurangi beban grafis di perangkat yang lebih lemah; titik kena tembak, petunjuk, laser, dan semua efek dalam adegan cerita tetap ada.</string>
     <string name="ingame_resolution_line">Resolusi: %1$d × %2$d piksel (tingkat %3$s) · layar %4$d × %5$d · berlaku saat menu ditutup. Tingkat yang lebih tinggi butuh daya lebih besar.</string>
     <string name="ingame_resolution_line_auto">Resolusi: %1$d × %2$d piksel (tingkat %3$s, Dinamis) · layar %4$d × %5$d · berlaku saat menu ditutup. Dinamis turun satu tingkat selama GPU tidak sanggup mengikuti.</string>
 
@@ -250,7 +255,9 @@
     <string name="ingame_cheat_character">Karakter pemain</string>
     <string name="ingame_cheat_costume">Kostum spesial</string>
     <string name="ingame_cheat_costume_note">(hanya Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon dalam cerita: ruangan dimuat ulang di tempatmu berdiri (saat adegan film, mulai ruangan berikutnya). Koper, nyawa, dan uang Leon tetap; senjata yang tidak punya model milik karakter itu tampil seperti milik Leon. Bagian Ashley tetap milik Ashley, adegan film dan panggilan radio tetap menampilkan Leon. Simpananmu selalu menyimpan Leon, jadi dimuat dengan karakter yang dipilih di sini. Kostum spesial: Leon dan Ashley (dan Ada sebagai pengganti) memakai kostum spesial mereka, juga langsung.</string>
+    <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon dalam cerita: ruangan dimuat ulang di tempatmu berdiri (saat adegan film, mulai ruangan berikutnya). Koper, nyawa, dan uang Leon tetap; senjata yang tidak punya model milik karakter itu tampil seperti milik Leon. Bagian Ashley tetap milik Ashley, adegan film dan panggilan radio tetap menampilkan Leon. Simpananmu selalu menyimpan Leon, jadi dimuat dengan karakter yang dipilih di sini. Karakter selain Leon tidak dibuat untuk permainan utama, jadi memilih salah satunya menampilkan peringatan dulu: \"Saya mengerti\" mengganti, Kembali mempertahankan karaktermu saat ini. Kostum spesial: Leon dan Ashley (dan Ada sebagai pengganti) memakai kostum spesial mereka, juga langsung.</string>
+    <string name="ingame_cheat_character_warning">Perhatian: karakter ini tidak dibuat untuk permainan utama. Bug bisa dan akan terjadi, dan tidak bisa dihindari!</string>
+    <string name="ingame_understood">Saya mengerti</string>
     <string name="ingame_later">Nanti</string>
     <string name="ingame_controller_config">Pemetaan Tombol</string>
     <string name="ingame_controller_config_help">Pemetaan Tombol: tempatkan setiap aksi game pada tombol controller atau keyboard Anda.</string>

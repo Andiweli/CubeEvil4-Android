@@ -42,7 +42,12 @@
     <string name="ingame_potato">Modalità Potato</string>
     <string name="ingame_potato_weather">Effetti meteo</string>
     <string name="ingame_potato_special">Effetti speciali</string>
-    <string name="ingame_potato_help">Effetti meteo: banchi di nebbia, pioggia, schizzi d\'acqua. Effetti speciali: vapore, distorsione da calore, acqua. Disattivarli riduce il lavoro grafico sui dispositivi meno potenti; vampe degli spari, sangue, esplosioni, fuoco, colpi e indicazioni restano, come tutti gli effetti dei filmati.</string>
+    <string name="ingame_potato_particles">Effetti particellari</string>
+    <string name="ingame_particles_normal">Normali</string>
+    <string name="ingame_particles_less">Ridotti</string>
+    <string name="ingame_particles_none">Nessuno</string>
+    <string name="ingame_potato_shadows">Ombre e luce</string>
+    <string name="ingame_potato_help">Effetti meteo: banchi di nebbia, pioggia, schizzi d\'acqua. Effetti speciali: vapore, distorsione da calore, acqua. Effetti particellari: sangue, polvere, fumo, schizzi, scintille e fuoco; Ridotti ne disegna la metà, Nessuno li toglie tutti tranne fuoco ed esplosioni, che restano a metà come avviso. Ombre e luce: disattivato toglie ombre (anche nei filmati), aloni e raggi di luce; le stanze mantengono la loro illuminazione. Ogni impostazione riduce il lavoro grafico sui dispositivi meno potenti; il punto colpito, le indicazioni, il laser e tutti gli effetti dei filmati restano.</string>
     <string name="ingame_resolution_line">Risoluzione: %1$d × %2$d pixel (livello %3$s) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
     <string name="ingame_resolution_line_auto">Risoluzione: %1$d × %2$d pixel (livello %3$s, Dinamica) · schermo %4$d × %5$d · si applica alla chiusura del menu. Dinamica scende di un livello finché la GPU non tiene il passo.</string>
 
@@ -255,7 +260,9 @@
     <string name="ingame_cheat_character">Personaggio</string>
     <string name="ingame_cheat_costume">Costumi speciali</string>
     <string name="ingame_cheat_costume_note">(solo Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">Il personaggio prende subito il posto di Leon nella storia: la stanza si ricarica dove ti trovi (durante una scena, dalla stanza successiva). La valigetta, la vita e il denaro di Leon restano; le armi senza un modello proprio del personaggio mostrano quelle di Leon. La parte di Ashley resta di Ashley, le scene e le chiamate radio mostrano sempre Leon. I tuoi salvataggi tengono sempre Leon, quindi si caricano con il personaggio scelto qui. Costumi speciali: Leon e Ashley (e Ada come sostituta) indossano i loro costumi speciali, anche questo subito.</string>
+    <string name="ingame_cheat_character_help">Il personaggio prende subito il posto di Leon nella storia: la stanza si ricarica dove ti trovi (durante una scena, dalla stanza successiva). La valigetta, la vita e il denaro di Leon restano; le armi senza un modello proprio del personaggio mostrano quelle di Leon. La parte di Ashley resta di Ashley, le scene e le chiamate radio mostrano sempre Leon. I tuoi salvataggi tengono sempre Leon, quindi si caricano con il personaggio scelto qui. I personaggi diversi da Leon non sono pensati per il gioco principale, quindi sceglierne uno mostra prima un avviso: \"Ho capito\" cambia, Indietro mantiene il tuo personaggio attuale. Costumi speciali: Leon e Ashley (e Ada come sostituta) indossano i loro costumi speciali, anche questo subito.</string>
+    <string name="ingame_cheat_character_warning">Attenzione: questo personaggio non è pensato per il gioco principale. Gli errori possono verificarsi e si verificheranno, sono inevitabili!</string>
+    <string name="ingame_understood">Ho capito</string>
     <string name="ingame_later">Più tardi</string>
     <string name="ingame_controller_config">Assegnazione tasti</string>
     <string name="ingame_controller_config_help">Assegnazione tasti: metti ogni azione del gioco su tasti del controller o della tastiera.</string>

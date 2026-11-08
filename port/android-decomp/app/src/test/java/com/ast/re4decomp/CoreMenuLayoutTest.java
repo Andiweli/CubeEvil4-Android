@@ -36,6 +36,8 @@ public class CoreMenuLayoutTest {
     @Implementation public static String[] cardList() { return new String[0]; }
     static int sharpen = -1;  // the last level the menu sent (setSharpen)
     @Implementation public static void setSharpen(int level) { sharpen = level; }
+    static int potato = -1;   // the last Potato mode bits the menu sent (setPotato)
+    @Implementation public static void setPotato(int mask) { potato = mask; }
   }
 
   private static Object field(Object owner, String name) throws Exception {
@@ -546,21 +548,101 @@ public class CoreMenuLayoutTest {
       assertNull(findText(body, "Play as"));
       Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
       assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
-      hunk.performClick(); assertEquals(4 | 3 << 5, sent[0]);
+      // another character than Leon warns first (08.11.2026): its name centred on top, the warning, one button
+      // "I understand" centred below; only that button switches, the choice stays until then
+      hunk.performClick();
+      android.app.AlertDialog ask = warning(activity, "HUNK");
+      assertEquals(4, sent[0]); assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
+      ok(ask); assertEquals(4 | 3 << 5, sent[0]);
       assertTrue(hunk.isSelected()); assertFalse(leon.isSelected());
-      wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
-      findButton(body, "Ada").performClick(); assertEquals(4 | 2 << 5, sent[0]);
+      // B (as Back, Esc, START, SELECT) closes it without the switch; X does nothing here, A is the button
+      int[] cancels = {android.view.KeyEvent.KEYCODE_BUTTON_B, android.view.KeyEvent.KEYCODE_BACK,
+          android.view.KeyEvent.KEYCODE_ESCAPE, android.view.KeyEvent.KEYCODE_BUTTON_START,
+          android.view.KeyEvent.KEYCODE_BUTTON_SELECT};
+      for (int key : cancels) {
+        wesker.performClick(); ask = warning(activity, "Wesker");
+        press(ask, android.view.KeyEvent.KEYCODE_BUTTON_X); assertTrue("X does not answer", ask.isShowing());
+        press(ask, key);
+        assertFalse(key + " closes the warning", ask.isShowing());
+        assertEquals(key + " keeps the character", 4 | 3 << 5, sent[0]);
+        assertTrue(hunk.isSelected()); assertFalse(wesker.isSelected());
+      }
+      wesker.performClick(); ask = warning(activity, "Wesker");
+      // a controller leaves the touch mode; the button has the focus then (the dialog gives it)
+      understood(ask).requestFocusFromTouch();
+      assertTrue(understood(ask).isFocused());
+      press(ask, android.view.KeyEvent.KEYCODE_BUTTON_A);
+      assertFalse("A is the button", ask.isShowing()); assertEquals(4 | 5 << 5, sent[0]); assertTrue(wesker.isSelected());
+      // also from one of them to another; the one already chosen and Leon at once
+      findButton(body, "Ada").performClick(); ok(warning(activity, "Ada")); assertEquals(4 | 2 << 5, sent[0]);
+      wesker.performClick(); ok(warning(activity, "Wesker")); assertEquals(4 | 5 << 5, sent[0]);
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
       wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
       health.performClick(); assertEquals(5 | 5 << 5, sent[0]);
       leon.performClick(); assertEquals(5, sent[0]);
+      assertSame("Leon and the chosen one ask nothing", ask, org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog());
+      assertTrue(leon.isSelected()); assertFalse(wesker.isSelected());
       // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
       Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
       assertSame(leon.getParent(), costume.getParent());
       assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
       costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
-      hunk.performClick(); assertEquals(5 | 256 | 3 << 5, sent[0]);
+      hunk.performClick(); ok(warning(activity, "HUNK")); assertEquals(5 | 256 | 3 << 5, sent[0]);
       costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
     }
+  }
+
+  /** The warning before another player character (the owner, 08.11.2026): shown; the character's name centred on
+   *  top, the warning centred under it, the one button "I understand" centred under that. */
+  private static android.app.AlertDialog warning(Activity activity, String name) {
+    android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+    assertNotNull("a warning for " + name, ask);
+    assertTrue("the warning for " + name + " is shown", ask.isShowing());
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // laid out
+    View decor = ask.getWindow().getDecorView();
+    TextView title = findText(decor, name);
+    TextView text = findText(decor, activity.getString(R.string.ingame_cheat_character_warning));
+    Button understood = understood(ask);
+    assertNotNull("the name on top", title); assertNotNull("the warning", text);
+    assertEquals(activity.getString(R.string.ingame_understood), understood.getText().toString());
+    assertEquals(android.view.Gravity.CENTER_HORIZONTAL, title.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK);
+    // the warning centred too (the owner, 08.11.2026), over the whole width
+    assertEquals(android.view.Gravity.CENTER_HORIZONTAL, text.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK);
+    assertEquals(View.TEXT_ALIGNMENT_GRAVITY, text.getTextAlignment());
+    assertEquals(((View) text.getParent()).getWidth(), text.getWidth());
+    int[] t = new int[2], m = new int[2], b = new int[2];
+    title.getLocationInWindow(t); text.getLocationInWindow(m); understood.getLocationInWindow(b);
+    assertTrue("the name over the warning", t[1] + title.getHeight() <= m[1]);
+    assertTrue("the button under the warning", m[1] + text.getHeight() <= b[1]);
+    View row = (View) understood.getParent();
+    assertEquals("the button centred", row.getWidth() / 2f, understood.getLeft() + understood.getWidth() / 2f, 1f);
+    assertEquals("the name centred", row.getWidth() / 2f, title.getLeft() + title.getWidth() / 2f, 1f);
+    return ask;
+  }
+  /** The warning's only button shown. */
+  private static Button understood(android.app.AlertDialog ask) {
+    java.util.List<Button> shown = new java.util.ArrayList<>();
+    java.util.ArrayDeque<View> todo = new java.util.ArrayDeque<>();
+    todo.add(ask.getWindow().getDecorView());
+    while (!todo.isEmpty()) {
+      View v = todo.poll();
+      if (!v.isShown()) continue;
+      if (v instanceof Button) shown.add((Button) v);
+      if (v instanceof ViewGroup) for (int i = 0; i < ((ViewGroup) v).getChildCount(); i++) todo.add(((ViewGroup) v).getChildAt(i));
+    }
+    assertEquals("one button", 1, shown.size());
+    return shown.get(0);
+  }
+  private static void ok(android.app.AlertDialog ask) {
+    understood(ask).performClick();
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
+    assertFalse(ask.isShowing());
+  }
+  private static void press(android.app.Dialog dialog, int key) {
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // laid out: the keys reach its buttons
+    dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, key));
+    dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, key));
+    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
   }
 
   @Test public void navigationHasBoldTitleAndNormalSmallerSummary() throws Exception {
@@ -603,6 +685,31 @@ public class CoreMenuLayoutTest {
       // merged draw calls: a toggle of its own below 60 FPS (30.10.2026)
       Button merge = findButton(body, controller.get().getString(R.string.ingame_merge_draws));
       assertNotNull(merge); assertTrue(merge.hasOnClickListeners());
+      // Potato mode, 0.99.3: "Particle effects" in three steps (normal, less, none: bits 2..3) and "Shadows & light"
+      // (bit 4 when off) in a second row under weather and special effects, all as before by default
+      Button weather = findButton(body, controller.get().getString(R.string.ingame_potato_weather));
+      Button particles = findButton(body, controller.get().getString(R.string.ingame_potato_particles));
+      Button shadows = findButton(body, controller.get().getString(R.string.ingame_potato_shadows));
+      assertNotNull(particles); assertNotNull(shadows);
+      assertNotSame(weather.getParent(), particles.getParent()); assertSame(particles.getParent(), shadows.getParent());
+      String normal = controller.get().getString(R.string.ingame_particles_normal);
+      assertTrue(particles.getText().toString().endsWith(normal)); assertTrue(particles.isSelected());
+      assertTrue(shadows.isSelected());
+      particles.performClick();
+      assertEquals(4, Bridge.potato); assertFalse(particles.isSelected());
+      assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_less)));
+      particles.performClick();
+      assertEquals(8, Bridge.potato);
+      assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_none)));
+      shadows.performClick();
+      assertEquals(8 | 16, Bridge.potato); assertFalse(shadows.isSelected());
+      weather.performClick();
+      assertEquals(1 | 8 | 16, Bridge.potato);
+      particles.performClick();
+      assertEquals(1 | 16, Bridge.potato); assertTrue(particles.isSelected());
+      assertTrue(particles.getText().toString().endsWith(normal));
+      shadows.performClick(); weather.performClick();
+      assertEquals(0, Bridge.potato);
       // the FPS display moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of the project owner, 04.11.2026)
       assertNull(findButton(body, controller.get().getString(R.string.ingame_fps_display)));
       show.invoke(menu, 1, false);

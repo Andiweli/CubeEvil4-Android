@@ -13,6 +13,7 @@
 #include "global.h"
 #include "main_mem.h"
 #include "esp.h"
+#include "rnd.h"
 #include "path.h"
 #include "at_sub.h"
 #include "at_mod.h"
@@ -1906,11 +1907,13 @@ extern "C" int re4probe_handcannon(void)
 extern "C" int re4_esp_skip(cEsp* esp);
 extern "C" void re4_potato_set(int mask);
 extern "C" int re4_potato_mask(void);
+extern "C" int re4_potato_no_shadows(void);
 void EspCommonTrans(cEsp* esp);
 extern EspTransFunc EspTransTbl[0xFF];
 
-// The app menu's Potato mode (runtime/potato.cpp, patch 0149): which sprites the two switches leave out.
-// Bits: each failed check.
+// The app menu's Potato mode (runtime/potato.cpp, patch 0149): which sprites the two switches leave out; since
+// 0.99.3 the particle effects (less: every second, none: all but glowing ones, which stay at half) and shadows and
+// light effects (glows, shafts, blooms; re4_potato_no_shadows for patch 0219). Bits: each failed check.
 extern "C" int re4probe_potato(void)
 {
     static cEsp e;
@@ -1948,6 +1951,56 @@ extern "C" int re4probe_potato(void)
     bad |= re4_esp_skip(sprite(EFF_SST, 0x5001, 0, 0, 0.0f)) ? 0x400 : 0;          // event cut effects stay
     StaFlagOn(pG, STA_EVENT);
     bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 0.0f)) ? 0x800 : 0;          // all stay in events
+    StaFlagOff(pG, STA_EVENT);
+    // 0.99.3: two sprites side by side in a pool, so that "every second" takes exactly one of them
+    static cEsp pair[2];
+    static u32 model[4];  // only its address counts (re4_esp_skip reads m_pMod != 0)
+    auto fx = [](int i, u8 owner, u16 core, u8 id, u8 dst, bool onModel) {
+        cEsp& s = pair[i];
+        memset(&s, 0, sizeof(s));
+        s.m_Be_flg = 1;
+        s.info.owner = owner;
+        s.info.Core_flg = core;
+        s.m_Id = id;
+        s.m_Blend_type = dst == 1 ? 1 : 0;
+        s.m_Src_factor = 4;
+        s.m_Dst_factor = dst;
+        s.m_pMod = onModel ? (cModel*) model : 0;
+        return &s;
+    };
+    auto both = [&](u8 owner, u16 core, u8 id, u8 dst, bool onModel) {  // how many of the two are left out
+        return re4_esp_skip(fx(0, owner, core, id, dst, onModel)) + re4_esp_skip(fx(1, owner, core, id, dst, onModel));
+    };
+    re4_potato_set(4);  // particle effects less
+    bad |= both(EFF_EM10, 0, 0x1A, 5, false) != 1 ? 0x1000 : 0;                    // blood spray: half
+    bad |= both(EFF_EM10, 0, 0x00, 1, false) != 1 ? 0x2000 : 0;                    // free glowing particles: half
+    bad |= both(EFF_CORE, 0, 0x0B, 5, false) != 0 ? 0x4000 : 0;                    // the hit at its point stays
+    re4_potato_set(8);  // particle effects none
+    bad |= both(EFF_EM10, 0, 0x1A, 5, false) != 2 ? 0x8000 : 0;                    // blood spray: gone
+    bad |= both(EFF_EM10, 0, 0x10, 5, false) != 2 ? 0x10000 : 0;                   // blood pool (decal): gone
+    bad |= both(EFF_EM10, 0, 0x00, 1, false) != 1 ? 0x20000 : 0;                   // fire, explosions: half
+    bad |= both(EFF_EM10, 0, 0x00, 1, true) != 0 ? 0x40000 : 0;                    // a fuse / torch on a model stays
+    bad |= both(EFF_WEP02, 0, 0x00, 1, true) != 2 ? 0x80000 : 0;                   // flash at the player's gun: gone
+    bad |= both(EFF_WEP02, 0, 0x19, 1, false) != 0 ? 0x100000 : 0;                 // the laser stays
+    bad |= both(EFF_ROOM, 0, 0x00, 5, false) != 0 ? 0x200000 : 0;                  // the room code's smoke stays
+    bad |= both(EFF_EM10, 0, 0x46, 5, false) != 0 ? 0x400000 : 0;                  // the screen filter stays
+    bad |= both(EFF_EM10, 0x1000, 0x1A, 5, false) != 0 ? 0x800000 : 0;             // event effects stay
+    // a left out jitter (esp 0x0B, Core_flg 0x8000) takes the two random numbers its trans takes
+    RndInit(0x1234);
+    const bool jitterOut = re4_esp_skip(fx(0, EFF_EM10, 0x8000, 0x0B, 5, false)) != 0;
+    const u8 after = Rnd();
+    RndInit(0x1234);
+    fRand1_1();
+    fRand1_1();
+    bad |= !jitterOut || after != Rnd() ? 0x1000000 : 0;
+    bad |= re4_potato_no_shadows() ? 0x2000000 : 0;                                 // shadows stay
+    re4_potato_set(16);  // shadows and light effects off
+    bad |= both(EFF_EM10, 0, 0x1A, 5, false) != 0 ? 0x4000000 : 0;                 // particles as they are
+    bad |= both(EFF_SST, 0x4001, 0x0E, 1, false) != 2 ? 0x8000000 : 0;             // lens glow
+    bad |= (both(EFF_SST, 0x4001, 0x14, 1, false) != 2 || both(EFF_ROOM, 0, 0x45, 1, false) != 2) ? 0x10000000 : 0;
+    bad |= !re4_potato_no_shadows() ? 0x20000000 : 0;                               // no shadows
+    StaFlagOn(pG, STA_EVENT);  // events: no shadows either, their glows stay
+    bad |= (!re4_potato_no_shadows() || both(EFF_SST, 0x4001, 0x0E, 1, false) != 0) ? 0x40000000 : 0;
     memcpy(pG->Status_flg, keepSta, sizeof(keepSta));
     EspTransTbl[0] = keepTrans;
     re4_potato_set(keepMask < 0 ? 0 : keepMask);
