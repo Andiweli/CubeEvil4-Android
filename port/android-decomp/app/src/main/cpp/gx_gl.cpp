@@ -3267,8 +3267,9 @@ bool GlRenderer::Prewarm(double budgetMs) {
     GlRenderer::AheadKey &a = m.ahead[m.aheadNext];
     if (a.listed)
       a.key.centroid = centroid;  // the list holds each program once, for every MSAA setting
-    // another MSAA setting's program, or drawn already
-    if (a.key.centroid != centroid || m.programs.count(a.key)) {
+    // another MSAA setting's program, the PSone demake's (bit 1) while it is off, or drawn already (until 0.99.5 the
+    // whole field against bit 0: with the PSone demake on its programs were never made ahead)
+    if ((a.key.centroid & 1) != centroid || ((a.key.centroid & 2) && !m.psxOn) || m.programs.count(a.key)) {
       m.aheadNext++;
       continue;
     }

@@ -272,8 +272,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     Log.i(TAG, "shader cache: " + ShaderCache.prepare(this));
     String programs = "RE4_GX_PROGRAM_CACHE=" + ShaderCache.dir(this).getAbsolutePath();
     // the app's list of shader programs (port/tools/gx_program_list.py): made ahead from the first start
-    String programList = programList();
+    String programList = assetFile("gx-programs.keys");
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
+    // Vulkan's pipelines of all rooms (port/tools/gx_vkpipe_list.py, 0.99.5): made ahead on a thread of the renderer
+    String pipeList = assetFile("gx-vkpipes.keys");
+    if (pipeList != null) programs += ";RE4_GX_VK_PIPE_LIST=" + pipeList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
     // the renderer: Vulkan (the test switch RE4_GX_API=vulkan) or OpenGL ES; the core hears it as RE4_GX_API
     vulkan = chooseVulkan();
@@ -1349,17 +1352,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   /** The card's file list (without the saves themselves) for the report. */
   /**
-   * The asset gx-programs.keys (the shader programs of all devices' error reports, merged by
-   * port/tools/gx_program_list.py) as a file the core reads; null when the app has none.
+   * An asset as a file the core reads, in the cache folder (written again only when it changed); null when the app has
+   * none: gx-programs.keys (the shader programs of all devices' error reports, merged by port/tools/gx_program_list.py),
+   * gx-vkpipes.keys (Vulkan's pipelines of the PC's room tours and the reports, port/tools/gx_vkpipe_list.py).
    */
-  private String programList() {
+  private String assetFile(String name) {
     byte[] list;
-    try (InputStream in = getAssets().open("gx-programs.keys")) {
+    try (InputStream in = getAssets().open(name)) {
       list = CoreLog.readAll(in);
     } catch (IOException e) {
       return null;
     }
-    File file = new File(getCacheDir(), "gx-programs.keys");
+    File file = new File(getCacheDir(), name);
     try {
       boolean same = false;
       if (file.length() == list.length) {
@@ -1374,7 +1378,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       return file.getAbsolutePath();
     } catch (IOException e) {
-      Log.w(TAG, "program list: " + e);
+      Log.w(TAG, "asset " + name + ": " + e);
       return null;
     }
   }
@@ -1385,6 +1389,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.writeProgramKeys(new File(CoreLog.folder(this), "program-keys.bin").getAbsolutePath());
     } catch (UnsatisfiedLinkError e) {
       Log.w(TAG, "program keys: " + e);
+    }
+    // Vulkan's pipelines of the rooms this device drew (they go into the app's list, port/tools/gx_vkpipe_list.py)
+    File pipes = new File(CoreLog.folder(this), "vk-pipes.bin");
+    try {
+      if (!ShaderCache.writeRoomPipes(ShaderCache.dir(this), pipes)) pipes.delete();
+    } catch (IOException e) {
+      Log.w(TAG, "pipeline lists: " + e);
     }
     StringBuilder card = new StringBuilder();
     String[] rows = CoreBridge.cardList();

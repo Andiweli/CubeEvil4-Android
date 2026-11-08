@@ -422,8 +422,10 @@ const char *kAlphaCompare[8] = {
     "((tevin_a.a == tevin_b.a) ? tevin_c.a : 0)"};
 
 const char *AlphaFunc(unsigned f, const char *ref) {
-  static char buffer[2][64];
-  static int n;
+  // per thread (0.99.5): the shaders are generated on the render thread and on threads of their own at the same time
+  // (GL's WarmProgramCache, Vulkan's AheadThread); one buffer pair for all could hand a thread the other's text
+  static thread_local char buffer[2][64];
+  static thread_local int n;
   static const char *op[8] = {"false", "<", "==", "<=", ">", "!=", ">=", "true"};
   char *b = buffer[n++ & 1];
   if (f == 0 || f == 7)

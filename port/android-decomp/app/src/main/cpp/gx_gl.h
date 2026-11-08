@@ -33,6 +33,7 @@ struct GxStats {
   unsigned programs = 0;         // shaders built
   unsigned programsLoaded = 0;   // of them taken from the program cache
   unsigned programsAhead = 0;    // of them made before their first draw (Prewarm)
+  unsigned pipelinesAhead = 0;   // Vulkan: pipelines of the app's list made on a thread of their own (AheadThread)
   unsigned textures = 0;         // textures decoded
   unsigned textureCopies = 0;    // EFB copies to a texture
   unsigned displayCopies = 0;    // EFB copies to the XFB

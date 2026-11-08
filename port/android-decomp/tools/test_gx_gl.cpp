@@ -3508,6 +3508,92 @@ std::vector<std::string> CacheFiles(const std::string &dir, const char *ending) 
 // The shader programs made ahead (decision of the project owner, 23.10.2026): the render thread's
 // Prewarm only loads binaries; WarmProgramCache, on a thread with a context of its own, links what
 // the cache's keys and the app's list (a key list file) still lack and removes old files.
+#ifdef RE4_GX_VULKAN
+// The app's pipeline list made ahead (0.99.5, gx_vk.cpp AheadThread): a Vulkan renderer draws the random TEV setups in
+// room 0x227 and leaves its room list (room-227.vkpipes); that list as the app's list (RE4VKL01, as
+// port/tools/gx_vkpipe_list.py writes it) goes through the thread of a second renderer on an empty cache folder while it
+// draws: every pipeline made, the list marked; a third renderer on that folder leaves it out (the mark), one with merged
+// draws on goes through it again (the mark names the setting).
+void TestVkAhead() {
+  char a[] = "/tmp/re4-vkahead-a-XXXXXX", b[] = "/tmp/re4-vkahead-b-XXXXXX";
+  Require(mkdtemp(a) != nullptr && mkdtemp(b) != nullptr, "vk ahead: folders for the caches");
+  const std::string dirA = a, dirB = b, list = dirB + ".keys";
+  std::string error;
+  {
+    re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+    Require(r.Init(1, &error), error.c_str());
+    Check(r.SetProgramCache(dirA), "vk ahead: the cache folder");
+    r.SetRoom(0x227);
+    TestShaderVariety(r);
+    r.Release();
+  }
+  std::vector<char> room;
+  if (FILE *f = std::fopen((dirA + "/room-227.vkpipes").c_str(), "rb")) {
+    char buffer[65536];
+    for (std::size_t n; (n = std::fread(buffer, 1, sizeof(buffer), f)) > 0;)
+      room.insert(room.end(), buffer, buffer + n);
+    std::fclose(f);
+  }
+  std::uint32_t head[2] = {};
+  if (room.size() >= 16)
+    std::memcpy(head, room.data() + 8, sizeof(head));
+  const std::uint32_t count = head[1];
+  Check(room.size() >= 16 && std::memcmp(room.data(), "RE4VKP01", 8) == 0 && count >= 10 &&
+            room.size() == 16 + static_cast<std::size_t>(count) * (head[0] + 24),
+        "vk ahead: the room's pipeline list written");
+  {
+    FILE *f = std::fopen(list.c_str(), "wb");
+    Require(f != nullptr, "vk ahead: the app's list");
+    const std::uint32_t h[3] = {head[0], count, 1};
+    std::fwrite("RE4VKL01", 8, 1, f);
+    std::fwrite(h, sizeof(h), 1, f);
+    std::fwrite(room.data() + 16, 1, room.size() - 16, f);
+    const std::uint32_t r[2] = {0x227, count};
+    std::fwrite(r, sizeof(r), 1, f);
+    for (std::uint32_t i = 0; i < count; i++)
+      std::fwrite(&i, 4, 1, f);
+    std::fclose(f);
+  }
+  setenv("RE4_GX_VK_PIPE_LIST", list.c_str(), 1);
+  auto run = [&](bool merge, const char *what, bool psx = false) {
+    re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+    Require(r.Init(1, &error), error.c_str());
+    Check(r.SetProgramCache(dirB), "vk ahead: the second cache folder");
+    // (as core_mode: the menu's settings after SetProgramCache, before the first Run, where the thread starts)
+    r.SetMerge(merge);
+    r.SetPsx(psx);
+    r.SetRoom(0x227);
+    // drawing on meanwhile (the thread made its pipelines beside the render thread)
+    const auto start = std::chrono::steady_clock::now();
+    unsigned made = 0;
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
+      Builder bl;
+      Baseline(bl);
+      DisplayCopy(bl, true, kBlack);
+      Quad(bl, 0, 0, 32, 32, 0, kRed);
+      DisplayCopy(bl, false, kBlack);
+      r.Run(bl.Chunk());
+      made = r.Stats().pipelinesAhead;
+      if (made >= count || (std::string(what) == "again" && std::chrono::steady_clock::now() - start >
+                                                                 std::chrono::seconds(2)))
+        break;
+    }
+    r.Release();
+    std::fprintf(stderr, "  vk ahead (%s): %u of %u made ahead\n", what, made, count);
+    return made;
+  };
+  Check(run(false, "first") == count, "vk ahead: every pipeline of the list made ahead");
+  FILE *mark = std::fopen((dirB + "/vk-ahead.done").c_str(), "rb");
+  Check(mark != nullptr, "vk ahead: the list marked as made");
+  if (mark)
+    std::fclose(mark);
+  Check(run(false, "again") == 0, "vk ahead: a list made on this driver before is left out");
+  Check(run(true, "merged draws on") == count, "vk ahead: another setting (merged draws) goes through it again");
+  Check(run(true, "PSone demake on", true) == count, "vk ahead: the PSone demake's keys made too (another mark)");
+  unsetenv("RE4_GX_VK_PIPE_LIST");
+}
+#endif
+
 void TestPrewarm() {
   char folder[] = "/tmp/re4-prewarm-XXXXXX";
   Require(mkdtemp(folder) != nullptr, "prewarm: a folder for the program cache");
@@ -3689,6 +3775,7 @@ int main() {
     TestVkRescale();
     TestVkHandOverCopies();
     TestVkOverlay();
+    TestVkAhead();
   }
 #endif
   TestMerge();

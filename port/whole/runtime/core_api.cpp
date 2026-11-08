@@ -424,7 +424,12 @@ void gxDumpHook(unsigned frame)
         }
         return;
     }
-    if (gGxCount < 24 * (gGxSeries + 1) && gxWanted(frame + 1)) {
+    // at most 24 chosen frames (RE4_GX_DUMP_MAX=N: N, the Vulkan pipeline list's room tours, 08.11.2026)
+    static const unsigned most = [] {
+        const char* m = getenv("RE4_GX_DUMP_MAX");
+        return m && *m ? (unsigned) strtoul(m, 0, 10) : 24u;
+    }();
+    if (gGxCount < most * (gGxSeries + 1) && gxWanted(frame + 1)) {
         re4_core_gx_acquire();  // attaches; the chunk after the next display copy starts over
         gGxAttached = true;
     }

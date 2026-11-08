@@ -62,6 +62,50 @@ public class ShaderCacheTest {
     assertEquals(0, left == null ? -1 : left.length);
   }
 
+  /** A room's pipeline list (gx_vk.cpp SaveRoomPipes) with records of `size` bytes: the key, 24 state bytes. */
+  private static void roomPipes(File f, int keySize, byte... firstBytes) throws IOException {
+    f.getParentFile().mkdirs();
+    java.nio.ByteBuffer b = java.nio.ByteBuffer.allocate(16 + firstBytes.length * (keySize + 24))
+        .order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    b.put("RE4VKP01".getBytes(java.nio.charset.StandardCharsets.US_ASCII)).putInt(keySize).putInt(firstBytes.length);
+    for (byte first : firstBytes) {
+      byte[] rec = new byte[keySize + 24];
+      rec[0] = first;
+      b.put(rec);
+    }
+    try (FileOutputStream out = new FileOutputStream(f)) {
+      out.write(b.array());
+    }
+  }
+
+  @Test public void roomPipesGoIntoOneListForTheReport() throws Exception {
+    File dir = new File(tmp.getRoot(), "shader-cache"), out = new File(tmp.getRoot(), "vk-pipes.bin");
+    roomPipes(new File(dir, "room-100.vkpipes"), 8, (byte) 1, (byte) 2);
+    roomPipes(new File(dir, "room-22a.vkpipes"), 8, (byte) 2, (byte) 3);
+    write(new File(dir, "room-100.keys"), 50);  // (the programs' lists stay out)
+    assertTrue(ShaderCache.writeRoomPipes(dir, out));
+    java.nio.ByteBuffer b = java.nio.ByteBuffer.wrap(java.nio.file.Files.readAllBytes(out.toPath()))
+        .order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    assertEquals("RE4VKL01", new String(b.array(), 0, 8, java.nio.charset.StandardCharsets.US_ASCII));
+    assertEquals(8, b.getInt(8));
+    assertEquals(3, b.getInt(12));  // the pipelines once each: 1, 2, 3
+    assertEquals(2, b.getInt(16));  // two rooms
+    int rooms = 20 + 3 * 32;
+    assertEquals(1, b.get(20));
+    assertEquals(2, b.get(20 + 32));
+    assertEquals(3, b.get(20 + 64));
+    assertEquals(0x100, b.getInt(rooms));
+    assertEquals(2, b.getInt(rooms + 4));
+    assertEquals(0, b.getInt(rooms + 8));
+    assertEquals(1, b.getInt(rooms + 12));
+    assertEquals(0x22a, b.getInt(rooms + 16));
+    assertEquals(2, b.getInt(rooms + 20));
+    assertEquals(1, b.getInt(rooms + 24));
+    assertEquals(2, b.getInt(rooms + 28));
+    assertEquals(rooms + 32, b.capacity());
+    assertFalse(ShaderCache.writeRoomPipes(new File(tmp.getRoot(), "none"), new File(tmp.getRoot(), "x.bin")));
+  }
+
   @Test public void describeNamesBothRenderers() throws Exception {
     File old = new File(tmp.getRoot(), "cache/gx-programs"), now = new File(tmp.getRoot(), "no_backup/shader-cache");
     write(new File(now, "0123456789abcdef.bin"), 1 << 20);
@@ -78,5 +122,11 @@ public class ShaderCacheTest {
     assertTrue(d, d.contains("Vulkan: SPIR-V store 2.0 MB, the driver's pipeline cache 0.5 MB, 1 rooms' pipeline lists"));
     assertTrue(d, d.contains("In all: 6 files, 3.5 MB\n"));
     assertTrue(d, d.contains("): gone\n"));
+    assertTrue(d, d.contains("the app's pipeline list not made ahead yet\n"));
+    write(new File(now, "vk-ahead.done"), 60);
+    d = ShaderCache.describe(now, old, "in place");
+    assertTrue(d, d.contains("the app's pipeline list made ahead on this driver\n"));
+    assertTrue(d, d.contains("In all: 6 files, 3.5 MB\n"));  // (the mark is not counted, not "Other")
+    assertFalse(d, d.contains("Other:"));
   }
 }

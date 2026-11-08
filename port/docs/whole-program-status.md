@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.5-rc: fünf Rückmeldungen des Projektinhabers mit Vulkan (08.11.2026, Branch `work`, Patch 0221)
+## Version 0.99.5-rc: fünf Rückmeldungen des Projektinhabers mit Vulkan, Vulkan-Pipelines vorab (08.11.2026, Branch `work`, Patch 0221)
 
 Version 0.99.5-rc (versionCode 107), Releasetext `port/android-decomp/docs/releases/v0.99.5-rc.md` („Changes since
 v0.99.4.“, APK `CubeEvil4-0.99.5-rc.apk`). Patch 0221 (nächste freie Nummer 0222). Material des Projektinhabers:
@@ -72,9 +72,7 @@ Android-Looper), nicht aus diesem Lauf.
    neue in 294 ms, einzeln bis 54 ms; r300 beim ersten Besuch mit Vulkan in 40 s 246 neue in 3,6 s, angezeigt
    38–47 Bilder/s. Nicht schuld: 60 FPS, FXAA/Schärfen (feste Pipelines, einmal beim Start), Auflösungswechsel von
    „Dynamisch“ (danach keine Welle neuer Pipelines), ein neuer Renderer (214 Pipelines in 38 ms aus dem Cache).
-   - **Nächster Schritt (Vorschlag, eigene Aufgabe):** eine Pipeline-Liste in der App (wie `gx-programs.keys`, aus
-     PC-Rundgängen mit Vulkan und aus Fehlerberichten gesammelt) und ein eigener Thread, der sie beim Start in den
-     Treiber-Cache baut; dazu die Raumlisten (`room-NNN.vkpipes`) in den Fehlerbericht.
+   - **Umgesetzt in Punkt 6** (Pipeline-Liste in der App, eigener Thread, Raumlisten im Fehlerbericht).
 
 4. **Aufzug fehlt auf dem Weg zu Salazar, aber „Benutzen“ (beide Renderer, Port-Fehler): Patch 0221.** r227, die
    Gondel (Objekt 0xA2, `r227_initGondola`, 6850 Einheiten zwischen unterer Station Bereich 5, Höhe 28 625, und
@@ -102,8 +100,62 @@ Android-Looper), nicht aus diesem Lauf.
      darunter gelegt, wie das Spiel die Beute von Gegnern ablegt (`EatMgr.getFloor`), aber nur, wenn sie höchstens
      100 Einheiten tiefer liegt (sonst ein Boden unter Möbeln ohne Kollision: Höhe wie im Datensatz). Protokollzeile
      „(%d put down onto the surface below)“. Am PC: Kraut und Granate liegen auf der Kiste; in r227 6 von 8
-     ausgetauschten abgelegt. Ohne Randomizer unverändert (Original). **Offen (Entscheidung des Projektinhabers):**
-     auch die Original-Gegenstände auf ihre Fläche legen (weicht von den Original-Daten ab).
+     ausgetauschten abgelegt. Ohne Randomizer unverändert (Original). **Die Original-Gegenstände bleiben, wie die
+     Original-Daten sie legen (Entscheidung des Projektinhabers, 08.11.2026, Wortlaut über die Hauptsitzung: „Zu den
+     Originaldaten von deiner Frage. Einstweilen belassen.“).**
+
+6. **Vulkan-Pipelines aller Räume vorab gebaut (Auftrag des Projektinhabers direkt an diese Sitzung, 08.11.2026,
+   Wortlaut: „Erledige diese Aufgabe hier: ‚Vulkan pipelines built ahead (first-visit stutter)‘“; zu Punkt 3). Die
+   Vulkan-Sitzung hatte dieselbe Aufgabe begonnen und auf Bitte der Hauptsitzung abgebrochen (nichts gepusht); ihre
+   drei Befunde sind hier eingebaut (unten).**
+   - **Liste in der App:** Asset `gx-vkpipes.keys` („RE4VKL01“: Schlüsselgröße, Pipelines, Räume; je Pipeline der
+     Programmschlüssel samt Eckenformat, Schrittweite und 16 Bytes Zustand wie `room-NNN.vkpipes`; je Raum seine
+     Nummer und die Indizes seiner Pipelines). Erste Fassung: 4 999 Pipelines (1 020 davon für zusammengefasste
+     Zeichnungen) aus 126 Räumen, 2,5 MB (im APK gepackt rund 80 KB). Erzeugt mit `port/tools/gx_vkpipe_list.py make` aus einem PC-Rundgang über
+     alle 126 Räume mit EU-Discs: Debug-Start, Tasten des Raum-Rundgangs („wander“: gehen, laufen, zielen und schießen,
+     Karte, Messer), Cheats Gesundheit/Munition, alle 40 Bilder eine GX-Aufnahme (149 je Raum; neu `RE4_GX_DUMP_MAX` in
+     `runtime/core_api.cpp`, sonst höchstens 24), jede mit `gx_chunk_render` unter Vulkan (lavapipe) einmal ohne, einmal
+     mit zusammengefassten Zeichnungen (`RE4_GX_PROGRAM_CACHE`, `RE4_GX_ROOM`: die Raumlisten). Skripte im Scratchpad
+     dieser Sitzung (`pipetour.sh`, `pipeall.sh`; WSL `~/p0995`), knapp 3 Stunden mit 6 Läufen nebeneinander. Gegenprobe mit
+     den echten Szenen des Projektinhabers (36 Aufnahmen oben in r227): 30 Pipelines, alle in der Liste (die von r227
+     allein hat 19). Zum Vergleich die Messung der Vulkan-Sitzung: r100 470 Pipelines in allen Varianten (235 in der
+     Standard-Einstellung), r300 rund 700; hier 227 (189 Standard) bzw. 429 (325 Standard): der Rundgang aus dem Debug-Start erfasst nicht alles (Zwischensequenzen, Kämpfe); den Rest füllen die Fehlerberichte (`vk-pipes.bin`) nach, und der Zähler „anew“ zeigt am Gerät, was fehlt.
+   - **Gerät (`gx_vk.cpp`, `StartAhead`/`AheadThread`):** `CoreActivity` legt das Asset in den Cache-Ordner
+     (`assetFile`, wie `gx-programs.keys`) und gibt es als `RE4_GX_VK_PIPE_LIST`. Beim ersten Bildstück eines Renderers
+     (`RunBegin`; erst dann hat `core_mode` PSone und zusammengefasste Zeichnungen gesetzt) startet ein eigener Thread
+     (Priorität unter dem Spiel, `nice 10`), liest die Liste selbst (kein Hänger auf dem Zeichen-Thread) und baut jede
+     Pipeline in den gemeinsamen Pipeline-Cache des Treibers (`CreateGxPipeline`, aus `MakePipeline` herausgelöst) und
+     gibt sie gleich wieder frei; die Zeichnung, die sie später braucht, findet sie dort (unter 1 ms statt 20–54 ms). Der
+     Raum, in dem der Render-Thread ist, kommt zuerst (`Prewarm` setzt `aheadWantRoom`). Programme (SPIR-V) aus dem
+     Speicher oder neu übersetzt und dort abgelegt. Ohne zusammengefasste Zeichnungen bleiben deren Pipelines weg;
+     MSAA-Bit und PSone-Bit (für 3D-Schlüssel, wie `MakeKey`) setzt das Gerät nach seinen Einstellungen. Der Treiber-Cache
+     wird alle 200 neuen Pipelines (frühestens nach 30 s) und am Ende gesichert (`SaveCacheFile`), Obergrenze der Datei
+     192 MB statt 64 MB (darüber eine Logzeile statt stillem Verlust). Ist die Liste ganz durch, schreibt der Thread
+     `vk-ahead.done` (Hash der Liste, Treiber-UUID, Gerät, MSAA, zusammengefasste Zeichnungen, PSone); stimmt die Marke
+     beim nächsten Start, läuft nichts. Neuer Treiber, andere Einstellungen oder „Clear shader cache“: wieder ganz.
+     `Release` beendet den Thread vorher (höchstens die laufende Pipeline).
+   - **Protokoll:** „Vulkan pipelines ahead (the app's list, a thread of its own): N of M made (… anew, … ms; … from
+     the driver's cache), … left out (other settings), … failed, … shaders compiled, … times a room's first, … s“ bzw.
+     „… was made on this driver before“; die Zeile „Vulkan per picture“ zählt zusätzlich „K of them anew, not from the
+     driver's cache“ (Pipelines, die beim Zeichnen doch neu gebaut wurden: was die Liste nicht hat oder noch nicht
+     gebaut war) und „N of the app's list made ahead so far“; `shader-cache.txt` nennt, ob die Liste vorab gebaut ist.
+   - **Fehlerbericht:** `logs/vk-pipes.bin` (neu, `ShaderCache.writeRoomPipes`): die Raumlisten des Geräts in der Form
+     der App-Liste; `gx_vkpipe_list.py make` nimmt Berichte (.zip) mit, so wächst die Liste wie `gx-programs.keys`.
+   - **Befunde der Vulkan-Sitzung, eingebaut:** (1) `AlphaFunc` (`gx_gl_shader.cpp`) schrieb in einen statischen
+     Puffer: zwei Threads, die gleichzeitig Shader erzeugen (Zeichen-Thread und Vorab-Thread; unter GLES schon
+     `WarmProgramCache`), konnten sich den Alpha-Test-Ausdruck verfälschen; jetzt `thread_local`, Ausgabe gleich.
+     (2) `SavePipelines` las den Treiber-Cache (`vkGetPipelineCacheData`) alle 64 neuen Pipelines auf dem Zeichen-Thread
+     aus; mit der ganzen Liste (zig MB) ein Hänger: jetzt auf einem Thread (einer zur Zeit, `Release` wartet darauf).
+     (3) `Prewarm` verglich das ganze Feld `centroid` mit dem MSAA-Bit: mit PSone an kamen dessen Schlüssel (Bit 1) aus
+     `room-NNN.keys`/`.vkpipes` nie vorab dran; jetzt Bit 0 gegen MSAA, Bit 1 nur bei PSone an (Vulkan und GLES).
+   - **Geprüft am PC:** `gx_gl_check` mit Prüfschicht samt Synchronisations-Prüfung 0 Fehler; neuer Test `TestVkAhead`
+     (Raumliste eines Renderers als App-Liste: ein zweiter Renderer baut alle 60 vorab, während er zeichnet; ein
+     dritter läuft wegen der Marke nicht; mit zusammengefassten Zeichnungen bzw. PSone wieder alle). Probe mit r227 und
+     den 12 Aufnahmen des Projektinhabers: 201 von 246 (45 zusammengefasste ohne Merge), 1,8 s auf lavapipe,
+     0 Meldungen; zweiter Lauf übersprungen. Ganze Liste mit denselben Aufnahmen: ohne Merge 3 979 von 4 999 gebaut (1 020 zusammengefasste weggelassen), mit Merge alle 4 999, 0 Fehler, 0 Meldungen der Prüfschicht, 19 bzw. 24 s auf lavapipe; zweiter Start übersprungen (lavapipe hat keinen echten Pipeline-Cache: ob die Zeichnungen danach aus dem Cache kommen, zeigt nur das Gerät). Java: `ShaderCacheTest.roomPipesGoIntoOneListForTheReport`,
+     Beschreibung mit Marke; App-Tests je 66, 0 Fehler; App-C++ beider ABIs gebaut. `whole_build.sh i686` grün (alle Kern- und Laufzeittests, `RE4_OPT=2`).
+   - **Nicht geprüft:** Gerät (Dauer auf dem Adreno, Speicher, ob die Zeichnungen danach aus dem Cache kommen).
+     Geschätzt auf dem Retroid: 4 999 Pipelines (mit Merge; ohne 3 979) × 20–54 ms ≈ 2–4½ Minuten im Hintergrund beim ersten Vulkan-Start, dazu SPIR-V noch fehlender Programme (3 371 verschiedene Schlüssel; auf lavapipe ~1 000 neu übersetzt) ≈ ½ Minute; der Treiber-Cache danach geschätzt 30–40 MB (beim Projektinhaber 10,3 MB für seine bisherigen Pipelines).
 
 - **Geprüft am PC insgesamt:** `RE4_OPT=2 whole_build.sh i686` grün (alle Kern- und Laufzeittests, darunter
   `instant-game`, `potato`, `cheatextras`); `gx_gl_check` (GL und Vulkan, mit Prüfschicht) 0 Fehler. Gradle mit eigenem

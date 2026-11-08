@@ -34,6 +34,10 @@
 #include <vector>
 
 #include <unistd.h>
+#ifdef __linux__
+#include <pthread.h>
+#include <sys/resource.h>
+#endif
 
 #ifdef __ANDROID__
 #include <android/native_window.h>
@@ -50,6 +54,9 @@ void VkLogLine(const char *line) { LogTo("RE4VK", "%s", line); }
 constexpr int kFrames = 2;
 constexpr VkDeviceSize kBlockBytes = VkDeviceSize(8) << 20;
 constexpr std::uint32_t kTexSetsPerPool = 512;
+// the driver's pipeline cache on disk at most (vk-pipelines.bin; 64 MB until 0.99.5: the app's pipeline list made ahead
+// holds thousands of pipelines, a few KB each)
+constexpr std::size_t kPipelineFileMost = std::size_t(192) << 20;
 
 // the uniform blocks of the GX shaders in set 0 (gx_vk_shader.h) and their sizes
 constexpr int kUboCount = 5;
@@ -313,6 +320,9 @@ bool PipelineCacheFits(const std::vector<char> &data, const VkPhysicalDeviceProp
 
 // bytes to a file through a temporary one (never half written)
 bool WriteFileBytes(const std::string &path, const std::vector<char> &data) {
+  // (one at a time: the render thread, the threads that save the pipeline cache and AheadThread write the same files)
+  static std::mutex writing;
+  std::lock_guard<std::mutex> g(writing);
   const std::string temp = path + ".tmp";
   FILE *f = std::fopen(temp.c_str(), "wb");
   if (!f)
@@ -1165,7 +1175,27 @@ struct VkRenderer final : GxCore {
   VkPipeline MakePipeline(const PipeKey &k) {
     const auto t0 = std::chrono::steady_clock::now();
     const Program *p = k.program;
-    const bool merged = k.merged != 0;
+    const VkPipeline made = CreateGxPipeline(k, k.merged ? p->merged : p->vs, p->fs);
+    pipelines[k] = made;
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    timing.pipelines++;
+    timing.pipelineMs += ms;
+    timing.pipelineMax = std::max(timing.pipelineMax, ms);
+    // made anew, not from the driver's cache (at least 2 ms): what the app's list missed or had not made yet
+    if (ms >= 2.0)
+      timing.pipelinesAnew++;
+    if (made)
+      NotePipe(p->key, k);
+    // the driver's cache to disk now and then (the app may end without Release)
+    if (++pipelinesSinceSave >= 64 &&
+        std::chrono::steady_clock::now() - pipelinesSavedAt > std::chrono::seconds(20))
+      SavePipelines(false);
+    return made;
+  }
+  // The pipeline of a GX key with its vertex and fragment modules (`k.program` is not read). Any thread: it reads only
+  // what Init made (the EFB's pass, the layout, the samples) and creates into the shared pipeline cache, which the
+  // driver keeps safe across threads (AheadThread).
+  VkPipeline CreateGxPipeline(const PipeKey &k, VkShaderModule vertexModule, VkShaderModule fragmentModule) {
     const unsigned primitive = k.topology;
     const std::uint32_t layout = k.layout, stride = k.stride;
     // vertex attributes as GL's SetAttributes (gx_gl.cpp)
@@ -1219,10 +1249,10 @@ struct VkRenderer final : GxCore {
     for (auto &s : stages)
       s = Make<VkPipelineShaderStageCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
     stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    stages[0].module = merged ? p->merged : p->vs;
+    stages[0].module = vertexModule;
     stages[0].pName = "main";
     stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    stages[1].module = p->fs;
+    stages[1].module = fragmentModule;
     stages[1].pName = "main";
     auto ds = Make<VkPipelineDepthStencilStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
     ds.depthTestEnable = k.depthTest;
@@ -1239,19 +1269,7 @@ struct VkRenderer final : GxCore {
     cba.dstAlphaBlendFactor = static_cast<VkBlendFactor>(k.dstAlpha);
     cba.colorBlendOp = k.eqColor == DrawState::kReverseSubtract ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
     cba.alphaBlendOp = k.eqAlpha == DrawState::kReverseSubtract ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
-    const VkPipeline made = MakeGraphics(stages, vin, ia, rs, ds, cba, gxLayout, efbPass, true, vk.depthClipControl);
-    pipelines[k] = made;
-    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    timing.pipelines++;
-    timing.pipelineMs += ms;
-    timing.pipelineMax = std::max(timing.pipelineMax, ms);
-    if (made)
-      NotePipe(p->key, k);
-    // the driver's cache to disk now and then (the app may end without Release)
-    if (++pipelinesSinceSave >= 64 &&
-        std::chrono::steady_clock::now() - pipelinesSavedAt > std::chrono::seconds(20))
-      SavePipelines(false);
-    return made;
+    return MakeGraphics(stages, vin, ia, rs, ds, cba, gxLayout, efbPass, true, vk.depthClipControl);
   }
   // ---- E8: the caches on disk, the room's pipelines ahead ----
   // a room's pipelines: the program's key and the pipeline's state (the key without its program)
@@ -1274,6 +1292,14 @@ struct VkRenderer final : GxCore {
     char name[40];
     std::snprintf(name, sizeof(name), "/room-%03x.vkpipes", r);
     return programCache + name;
+  }
+  // one record of a pipeline list (PipeBytes: a room's list, the app's list)
+  static void ReadPipeRecord(const char *at, PipeRecord *r) {
+    std::memset(&r->k, 0, sizeof(r->k));
+    std::memcpy(&r->key, at, sizeof(ShaderKey));
+    std::memcpy(&r->k.layout, at + sizeof(ShaderKey), 4);
+    std::memcpy(&r->k.stride, at + sizeof(ShaderKey) + 4, 4);
+    std::memcpy(&r->k.merged, at + sizeof(ShaderKey) + 8, kPipeStateBytes);
   }
   static std::string PipeBytes(const ShaderKey &key, const PipeKey &k) {
     std::string b(reinterpret_cast<const char *>(&key), sizeof(key));
@@ -1333,40 +1359,296 @@ struct VkRenderer final : GxCore {
     if (head[0] != sizeof(ShaderKey) || data.size() < 16 + static_cast<std::size_t>(head[1]) * recordBytes)
       return;
     for (std::uint32_t i = 0; i < head[1]; i++) {
-      const char *at = data.data() + 16 + static_cast<std::size_t>(i) * recordBytes;
       PipeRecord r;
-      std::memset(&r.k, 0, sizeof(r.k));
-      std::memcpy(&r.key, at, sizeof(ShaderKey));
-      std::memcpy(&r.k.layout, at + sizeof(ShaderKey), 4);
-      std::memcpy(&r.k.stride, at + sizeof(ShaderKey) + 4, 4);
-      std::memcpy(&r.k.merged, at + sizeof(ShaderKey) + 8, kPipeStateBytes);
+      ReadPipeRecord(data.data() + 16 + static_cast<std::size_t>(i) * recordBytes, &r);
       if (roomPipeSeen.insert(PipeBytes(r.key, r.k)).second) {
         roomPipes.push_back(r);
         pipesAhead.push_back(r);
       }
     }
   }
-  // the driver's pipeline cache to disk (now: at once, at the end; else on a thread of its own)
+  // the driver's pipeline cache to disk (now: at once, at the end; else on a thread of its own). Since 0.99.5 also its
+  // reading (vkGetPipelineCacheData) is off the render thread: with the app's list made ahead the cache holds tens of
+  // MB, and reading it every 64 new pipelines was a hitch of its own (found by the Vulkan session, 08.11.2026). One
+  // save at a time; Release waits for it before the device goes.
+  std::thread saveThread;
+  std::atomic<bool> saveBusy{false};
   void SavePipelines(bool now) {
     pipelinesSinceSave = 0;
     pipelinesSavedAt = std::chrono::steady_clock::now();
-    if (pipelineFile.empty() || !pipelineCache || !dev)
-      return;
-    std::size_t size = 0;
-    if (vkGetPipelineCacheData(dev, pipelineCache, &size, nullptr) != VK_SUCCESS || !size || size > (64u << 20))
-      return;
-    std::vector<char> data(size);
-    if (vkGetPipelineCacheData(dev, pipelineCache, &size, data.data()) != VK_SUCCESS)
-      return;
-    data.resize(size);
     if (roomPipesDirty)
       SaveRoomPipes();
+    if (pipelineFile.empty() || !pipelineCache || !dev)
+      return;
     if (now) {
-      WriteFileBytes(pipelineFile, data);
+      JoinSave();
+      SaveCacheFile(pipelineFile);
       return;
     }
-    const std::string file = pipelineFile;
-    std::thread([file, data] { WriteFileBytes(file, data); }).detach();
+    if (saveBusy.load())
+      return;
+    JoinSave();
+    saveBusy = true;
+    saveThread = std::thread([this, file = pipelineFile] {
+      SaveCacheFile(file);
+      saveBusy = false;
+    });
+  }
+  void JoinSave() {
+    if (saveThread.joinable())
+      saveThread.join();
+  }
+  // ---- the app's pipeline list made ahead on a thread of its own (0.99.5) ----
+  // A device made a pipeline when a draw first needed it, ahead only from its own lists of the rooms it saw with
+  // Vulkan (room-NNN.vkpipes): every other room stuttered at its first visit, 20-54 ms a pipeline on the Retroid's
+  // Adreno 650 (the project owner's report 08.11.2026: r300 246 pipelines in 3.6 s, 38-47 pictures a second; GLES makes
+  // all its programs at the start, startWarm in core_mode.cpp). The app's list (asset gx-vkpipes.keys,
+  // RE4_GX_VK_PIPE_LIST from CoreActivity; made from the PC's room tours with Vulkan and the devices' reports,
+  // port/tools/gx_vkpipe_list.py) goes through AheadThread, below the game's priority: each pipeline is made into the
+  // shared pipeline cache and let go, so the draw that needs it later finds it in the driver's cache (under a
+  // millisecond). The room the render thread is in comes first (aheadWantRoom). A list gone through to its end is
+  // marked (vk-ahead.done: the list's hash, the driver, the samples, centroid and merged draws) and not again.
+  // List: "RE4VKL01", the key's size, the pipelines, the rooms; the pipelines (PipeBytes); per room its number,
+  // the count and the pipelines' indices (all little-endian 32 bit).
+  std::thread aheadThread;
+  std::atomic<bool> aheadStop{false};
+  std::atomic<unsigned> aheadWantRoom{~0u};  // the render thread's room (Prewarm): its pipelines first
+  std::atomic<unsigned> aheadMade{0};        // pipelines made by AheadThread so far (the timing line)
+  // At the first chunk (RunBegin), not in SetProgramCache: core_mode applies the menu's PSone demake and merged draws
+  // to a new renderer only before its first Run, and both change the pipelines the list needs. The list is read and
+  // checked on the thread (a few MB: no hitch on the render thread).
+  bool aheadTried = false;
+  void StartAhead() {
+    aheadTried = true;
+    const char *list = std::getenv("RE4_GX_VK_PIPE_LIST");
+    if (!list || !*list || programCache.empty() || aheadThread.joinable() || !dev)
+      return;
+    AheadSettings a;
+    a.list = list;
+    a.markFile = programCache + "/vk-ahead.done";
+    a.cacheFile = pipelineFile;
+    a.centroid = options.centroid && samples > 1 ? 1 : 0;
+    a.merge = mergeOn;
+    a.psx = psxOn;
+    aheadStop = false;
+    aheadThread = std::thread([this, a] { AheadThread(a); });
+  }
+  // what AheadThread works with, taken on the render thread at its start
+  struct AheadSettings {
+    std::string list, markFile, cacheFile;
+    std::uint32_t centroid = 0;
+    bool merge = false, psx = false;
+  };
+  void StopAhead() {
+    if (!aheadThread.joinable())
+      return;
+    // (RE4_GX_AHEAD_WAIT=1, the PC's checks: the renderer waits for the whole list)
+    static const bool wait = std::getenv("RE4_GX_AHEAD_WAIT") && *std::getenv("RE4_GX_AHEAD_WAIT") == '1';
+    if (!wait)
+      aheadStop = true;
+    aheadThread.join();  // (at most the pipeline being made: some 50 ms)
+  }
+  // a shader module of the app's list (AheadThread): its SPIR-V from the store or compiled and kept (as Module, without
+  // the render thread's counts)
+  VkShaderModule AheadModule(const std::string &glsl, bool vertex, unsigned *compiled) {
+    std::vector<std::uint32_t> spirv;
+    static const std::uint64_t compiler = Fnv(CompilerName(), std::strlen(CompilerName()));
+    const std::uint64_t h = Fnv(glsl.data(), glsl.size(), compiler ^ (vertex ? 0x5653ull : 0x4653ull));
+    if (!Spirv().Find(h, &spirv)) {
+      std::string log;
+      if (!CompileGlsl(vertex ? ShaderStage::kVertex : ShaderStage::kFragment, glsl, &spirv, &log))
+        return VK_NULL_HANDLE;
+      (*compiled)++;
+      Spirv().Put(h, spirv);
+    }
+    auto sci = Make<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
+    sci.codeSize = spirv.size() * 4;
+    sci.pCode = spirv.data();
+    VkShaderModule m = VK_NULL_HANDLE;
+    return vkCreateShaderModule(dev, &sci, nullptr, &m) == VK_SUCCESS ? m : VK_NULL_HANDLE;
+  }
+  // the driver's pipeline cache to `file` (AheadThread, the saving thread of SavePipelines, Release: never in the middle
+  // of drawing; it is tens of MB once the app's list is made)
+  void SaveCacheFile(const std::string &file) {
+    std::size_t size = 0;
+    if (file.empty() || vkGetPipelineCacheData(dev, pipelineCache, &size, nullptr) != VK_SUCCESS || !size)
+      return;
+    if (size > kPipelineFileMost) {
+      static std::atomic<bool> told{false};
+      if (!told.exchange(true))
+        GXLOG("Vulkan caches: the driver's pipeline cache (%zu MB) is over %zu MB: not saved", size >> 20,
+              kPipelineFileMost >> 20);
+      return;
+    }
+    std::vector<char> data(size);
+    if (vkGetPipelineCacheData(dev, pipelineCache, &size, data.data()) == VK_SUCCESS) {
+      data.resize(size);
+      WriteFileBytes(file, data);
+    }
+  }
+  void AheadThread(const AheadSettings &a) {
+#ifdef __linux__
+    pthread_setname_np(pthread_self(), "re4-vk-ahead");
+    setpriority(PRIO_PROCESS, 0, 10);  // (this thread: below the game and the renderer)
+#endif
+    const auto start = std::chrono::steady_clock::now();
+    const std::vector<char> data = ReadFileBytes(a.list, 64u << 20);
+    std::uint32_t head[3] = {};
+    if (data.size() < 20 || std::memcmp(data.data(), "RE4VKL01", 8) != 0) {
+      GXLOG("Vulkan pipelines ahead: no list of the app (%s)", a.list.c_str());
+      return;
+    }
+    std::memcpy(head, data.data() + 8, sizeof(head));
+    const std::size_t recordBytes = sizeof(ShaderKey) + 8 + kPipeStateBytes;
+    if (head[0] != sizeof(ShaderKey) || head[1] > (data.size() - 20) / recordBytes) {
+      GXLOG("Vulkan pipelines ahead: the app's list does not fit this renderer (key of %u bytes, %u pipelines)",
+            head[0], head[1]);
+      return;
+    }
+    // the mark: the list, the driver, what changes the pipelines (samples, centroid, merged draws, PSone demake)
+    char markText[160];
+    std::snprintf(markText, sizeof(markText), "%016llx %016llx%016llx %d %u %d %d",
+                  static_cast<unsigned long long>(Fnv(data.data(), data.size())),
+                  static_cast<unsigned long long>(Fnv(vk.properties.pipelineCacheUUID, VK_UUID_SIZE)),
+                  static_cast<unsigned long long>(vk.properties.vendorID) << 32 | vk.properties.deviceID, samples,
+                  a.centroid, a.merge ? 1 : 0, a.psx ? 1 : 0);
+    const std::string mark = markText;
+    const std::vector<char> was = ReadFileBytes(a.markFile, 1024);
+    if (std::string(was.begin(), was.end()) == mark) {
+      GXLOG("Vulkan pipelines ahead: the app's list (%u pipelines) was made on this driver before", head[1]);
+      return;
+    }
+    const std::uint32_t count = head[1];
+    const char *records = data.data() + 20;
+    // the rooms' lists: indices into the pipelines
+    std::unordered_map<unsigned, std::vector<std::uint32_t>> byRoom;
+    std::size_t at = 20 + static_cast<std::size_t>(count) * recordBytes;
+    for (std::uint32_t r = 0; r < head[2] && at + 8 <= data.size(); r++) {
+      std::uint32_t room = 0, n = 0;
+      std::memcpy(&room, data.data() + at, 4);
+      std::memcpy(&n, data.data() + at + 4, 4);
+      at += 8;
+      if (n > (data.size() - at) / 4)
+        break;
+      std::vector<std::uint32_t> &v = byRoom[room];
+      for (std::uint32_t i = 0; i < n; i++) {
+        std::uint32_t index = 0;
+        std::memcpy(&index, data.data() + at + static_cast<std::size_t>(i) * 4, 4);
+        if (index < count)
+          v.push_back(index);
+      }
+      at += static_cast<std::size_t>(n) * 4;
+    }
+    std::vector<std::uint8_t> done(count, 0);
+    struct Modules {
+      VkShaderModule vs = VK_NULL_HANDLE, fs = VK_NULL_HANDLE, merged = VK_NULL_HANDLE;
+      bool mergedTried = false;
+    };
+    std::unordered_map<ShaderKey, Modules, KeyHash, KeyEqual> modules;
+    auto dropModules = [&] {
+      for (auto &m : modules)
+        for (VkShaderModule s : {m.second.vs, m.second.fs, m.second.merged})
+          if (s)
+            vkDestroyShaderModule(dev, s, nullptr);
+      modules.clear();
+    };
+    unsigned made = 0, fresh = 0, failed = 0, skipped = 0, compiled = 0, roomsFirst = 0, freshSinceSave = 0;
+    double freshMs = 0.0;
+    auto savedAt = std::chrono::steady_clock::now();
+    std::size_t next = 0, roomNext = 0;
+    unsigned room = ~0u;
+    bool finished = false;
+    const std::vector<std::uint32_t> *roomList = nullptr;
+    while (!aheadStop.load()) {
+      // the render thread's room first, then the list in its order
+      const unsigned want = aheadWantRoom.load();
+      if (want != room) {
+        room = want;
+        auto it = byRoom.find(room);
+        roomList = it != byRoom.end() ? &it->second : nullptr;
+        roomNext = 0;
+        if (roomList)
+          roomsFirst++;
+      }
+      std::uint32_t i = count;
+      while (roomList && roomNext < roomList->size() && i == count) {
+        const std::uint32_t c = (*roomList)[roomNext++];
+        if (!done[c])
+          i = c;
+      }
+      while (i == count && next < count) {
+        if (!done[next])
+          i = static_cast<std::uint32_t>(next);
+        next++;
+      }
+      if (i == count) {
+        finished = true;  // (the whole list: marked even when the renderer ends right now)
+        break;
+      }
+      done[i] = 1;
+      PipeRecord r;
+      ReadPipeRecord(records + static_cast<std::size_t>(i) * recordBytes, &r);
+      // (merged draws without them on: another setting; the list holds no PSone keys)
+      if ((r.key.centroid & 2) || (r.k.merged && !a.merge)) {
+        skipped++;
+        continue;
+      }
+      // this device's MSAA setting, and the PSone demake's bit for the 3D draws as MakeKey sets it
+      r.key.centroid = a.centroid | (a.psx && !(r.key.orthographic & 1) ? 2u : 0u);
+      if (modules.size() >= 256)
+        dropModules();  // (the list runs room by room: a program's pipelines lie close together)
+      auto found = modules.find(r.key);
+      if (found == modules.end()) {
+        Modules m;
+        m.vs = AheadModule(VulkanGlsl(GxVertexShader(r.key), true, vk.depthClipControl), true, &compiled);
+        m.fs = AheadModule(VulkanGlsl(GxFragmentShader(r.key), false), false, &compiled);
+        found = modules.emplace(r.key, m).first;
+      }
+      Modules &m = found->second;
+      if (r.k.merged && !m.mergedTried) {
+        m.mergedTried = true;
+        m.merged = AheadModule(VulkanGlsl(GxMergedVertexShader(r.key), true, vk.depthClipControl), true, &compiled);
+      }
+      const VkShaderModule vertex = r.k.merged ? m.merged : m.vs;
+      if (!vertex || !m.fs) {
+        failed++;
+        continue;
+      }
+      const auto t0 = std::chrono::steady_clock::now();
+      const VkPipeline p = CreateGxPipeline(r.k, vertex, m.fs);
+      const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+      if (!p) {
+        failed++;
+        continue;
+      }
+      vkDestroyPipeline(dev, p, nullptr);
+      made++;
+      aheadMade++;
+      // made anew (not from the driver's cache): at least 2 ms
+      if (ms >= 2.0) {
+        fresh++;
+        freshSinceSave++;
+        freshMs += ms;
+      }
+      // the driver's cache to disk now and then (the app may be ended any time)
+      if (freshSinceSave >= 200 && std::chrono::steady_clock::now() - savedAt > std::chrono::seconds(30)) {
+        SaveCacheFile(a.cacheFile);
+        freshSinceSave = 0;
+        savedAt = std::chrono::steady_clock::now();
+      }
+    }
+    dropModules();
+    const bool all = finished;
+    if (freshSinceSave)
+      SaveCacheFile(a.cacheFile);
+    if (all)
+      WriteFileBytes(a.markFile, std::vector<char>(mark.begin(), mark.end()));
+    GXLOG("Vulkan pipelines ahead (the app's list, a thread of its own): %u of %u made (%u anew, %.0f ms; %u from the "
+          "driver's cache), %u left out (other settings), %u failed, %u shaders compiled, %u times a room's first, "
+          "%.1f s%s",
+          made, count, fresh, freshMs, made - fresh, skipped, failed, compiled, roomsFirst,
+          std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(),
+          all ? "" : " (stopped: the renderer ends)");
   }
   VkPipeline MakeGraphics(const std::vector<VkPipelineShaderStageCreateInfo> &stages,
                           const VkPipelineVertexInputStateCreateInfo &vin,
@@ -1668,6 +1950,9 @@ struct VkRenderer final : GxCore {
         done = std::max(done, f.serial);
   }
   void RunBegin() override {
+    if (!aheadTried && !interpPass)
+      StartAhead();  // the app's pipeline list (RE4_GX_VK_PIPE_LIST) on a thread of its own
+    stats.pipelinesAhead = aheadMade.load();
     if (!interpPass && peekReady)
       DeliverDepth();  // the depth maps the GPU finished since the last chunk go to the core
     Begin();
@@ -3496,7 +3781,7 @@ struct VkRenderer final : GxCore {
     pipelinesSavedAt = std::chrono::steady_clock::now();
     if (!shared->diskMerged && pipelineCache) {
       shared->diskMerged = true;
-      std::vector<char> data = ReadFileBytes(pipelineFile, 64u << 20);
+      std::vector<char> data = ReadFileBytes(pipelineFile, kPipelineFileMost);
       const char *why = nullptr;
       if (!data.empty() && !PipelineCacheFits(data, vk.properties, &why)) {
         GXLOG("Vulkan caches: the driver's pipeline cache of the last run (%zu KB) left out: %s", data.size() / 1024,
@@ -3523,6 +3808,7 @@ struct VkRenderer final : GxCore {
   // Prewarm; the programs' SPIR-V comes from the store when a run before compiled it)
   bool Prewarm(double budgetMs) override {
     mergeWanted.clear();  // (merged draws make their programs at their first draw under Vulkan)
+    aheadWantRoom.store(room);  // AheadThread: this room's pipelines of the app's list first
     if (programCache.empty() || !ready || room == ~0u)
       return false;
     const auto start = std::chrono::steady_clock::now();
@@ -3539,7 +3825,9 @@ struct VkRenderer final : GxCore {
     const std::uint32_t centroid = options.centroid && samples > 1 ? 1 : 0;
     while (aheadNext < ahead.size() && !spent()) {
       AheadKey &a = ahead[aheadNext++];
-      if (a.key.centroid != centroid || programs.count(a.key))
+      // another MSAA setting, the PSone demake's keys (bit 1) while it is off, or made already (until 0.99.5 the whole
+      // field against bit 0: with the PSone demake on its keys were never made ahead; found by the Vulkan session)
+      if ((a.key.centroid & 1) != centroid || ((a.key.centroid & 2) && !psxOn) || programs.count(a.key))
         continue;
       if (ProgramFor(a.key)) {
         stats.programsAhead++;
@@ -3549,7 +3837,7 @@ struct VkRenderer final : GxCore {
     }
     while (aheadNext >= ahead.size() && pipesNext < pipesAhead.size() && !spent()) {
       PipeRecord &r = pipesAhead[pipesNext++];
-      if (r.k.merged || r.key.centroid != centroid)
+      if (r.k.merged || (r.key.centroid & 1) != centroid || ((r.key.centroid & 2) && !psxOn))
         continue;
       Program *p = ProgramFor(r.key);
       if (!p)
@@ -3574,19 +3862,20 @@ struct VkRenderer final : GxCore {
   // ---- the timing line (TimingLine, the log every 300 chunks) ----
   struct Timing {
     double acquireMs = 0, fenceMs = 0, submitMs = 0, presentMs = 0, compileMs = 0, pipelineMs = 0, pipelineMax = 0;
-    unsigned presents = 0, compiled = 0, spirvFound = 0, pipelines = 0, swapchains = 0;
+    unsigned presents = 0, compiled = 0, spirvFound = 0, pipelines = 0, pipelinesAnew = 0, swapchains = 0;
   } timing;
   std::string TimingLine() override {
     Timing &t = timing;
     const double n = std::max(1u, t.presents);
-    char line[512];
+    char line[640];
     std::snprintf(line, sizeof(line),
                   "Vulkan per picture: acquire %.2f ms, waits for the GPU %.2f ms, submit %.2f ms, present %.2f ms "
                   "(%u pictures); %u shaders compiled (%.0f ms), %u from the SPIR-V store (%zu kept); %u pipelines "
-                  "made (%.0f ms, the longest %.1f ms); %u swapchains made; images %.0f of %.0f MB",
+                  "made (%.0f ms, the longest %.1f ms; %u of them anew, not from the driver's cache); %u swapchains "
+                  "made; images %.0f of %.0f MB; %u of the app's list made ahead so far",
                   t.acquireMs / n, t.fenceMs / n, t.submitMs / n, t.presentMs / n, t.presents, t.compiled,
-                  t.compileMs, t.spirvFound, Spirv().Count(), t.pipelines, t.pipelineMs, t.pipelineMax,
-                  swapMade - t.swapchains, heap.Used() / 1048576.0, heap.Reserved() / 1048576.0);
+                  t.compileMs, t.spirvFound, Spirv().Count(), t.pipelines, t.pipelineMs, t.pipelineMax, t.pipelinesAnew,
+                  swapMade - t.swapchains, heap.Used() / 1048576.0, heap.Reserved() / 1048576.0, aheadMade.load());
     const unsigned made = swapMade;
     t = Timing();
     t.swapchains = made;
@@ -3606,6 +3895,8 @@ struct VkRenderer final : GxCore {
     flaresOn = flares && *flares == '1';
   }
   void Release() override {
+    StopAhead();  // (before anything it uses goes)
+    JoinSave();
     if (!dev)
       return;  // (the shared device goes with the last renderer)
     if (recording)

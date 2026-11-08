@@ -3,6 +3,7 @@ package com.ast.re4decomp;
 import android.content.Context;
 import android.content.SharedPreferences;
 import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 
 /**
@@ -25,6 +26,8 @@ final class ShaderCache {
   static final String OLD_FOLDER = "gx-programs";
   static final String PREFS = "shader_cache";
   static final String CLEAR_AT_START = "clearAtStart";
+  /** Vulkan: the app's pipeline list was made ahead on this driver (gx_vk.cpp AheadThread, 0.99.5). */
+  static final String AHEAD_MARK = "vk-ahead.done";
 
   /** What this process's start did with the folder (for the report). */
   private static volatile String startNote = "not prepared in this run";
@@ -112,6 +115,7 @@ final class ShaderCache {
       for (File f : files) {
         if (!f.isFile()) continue;
         String n = f.getName();
+        if (n.equals(AHEAD_MARK)) continue;
         Count to = n.equals("vk-spirv.bin") ? spirv
             : n.equals("vk-pipelines.bin") ? pipelines
             : n.startsWith("room-") && n.endsWith(".keys") ? roomKeys
@@ -139,13 +143,81 @@ final class ShaderCache {
         .append(")\n");
     b.append("Vulkan: SPIR-V store ").append(spirv.files == 0 ? "none" : mb(spirv.bytes))
         .append(", the driver's pipeline cache ").append(pipelines.files == 0 ? "none" : mb(pipelines.bytes))
-        .append(", ").append(vkPipes.files).append(" rooms' pipeline lists (").append(mb(vkPipes.bytes)).append(")\n");
+        .append(", ").append(vkPipes.files).append(" rooms' pipeline lists (").append(mb(vkPipes.bytes))
+        .append("), the app's pipeline list ").append(new File(dir, AHEAD_MARK).isFile()
+            ? "made ahead on this driver" : "not made ahead yet").append('\n');
     if (temp.files + other.files > 0)
       b.append("Other: ").append(temp.files).append(" unfinished (.tmp), ").append(other.files).append(" others (")
           .append(mb(temp.bytes + other.bytes)).append(")\n");
     b.append("Old folder (").append(old.getAbsolutePath()).append("): ").append(old.exists() ? "still there" : "gone")
         .append('\n');
     return b.toString();
+  }
+
+  /**
+   * The rooms' pipeline lists of this device (room-NNN.vkpipes, gx_vk.cpp SaveRoomPipes: "RE4VKP01", the key's size,
+   * the count, the records) in one file of the app list's form (asset gx-vkpipes.keys, port/tools/gx_vkpipe_list.py:
+   * "RE4VKL01", the key's size, the pipelines, the rooms; the records once each; per room its number, the count and the
+   * indices) for the error report, so the app's list can grow by what devices drew. False when there is none.
+   */
+  static boolean writeRoomPipes(File dir, File out) throws IOException {
+    File[] files = dir.listFiles();
+    if (files == null) return false;
+    java.util.Arrays.sort(files);
+    int keySize = 0;
+    java.util.LinkedHashMap<java.nio.ByteBuffer, Integer> index = new java.util.LinkedHashMap<>();
+    java.util.TreeMap<Integer, java.util.List<Integer>> rooms = new java.util.TreeMap<>();
+    for (File f : files) {
+      String n = f.getName();
+      if (!f.isFile() || !n.startsWith("room-") || !n.endsWith(".vkpipes")) continue;
+      int room;
+      try {
+        room = Integer.parseInt(n.substring(5, n.length() - 8), 16);
+      } catch (NumberFormatException e) {
+        continue;
+      }
+      byte[] data;
+      try (java.io.InputStream in = new java.io.FileInputStream(f)) {
+        data = CoreLog.readAll(in);
+      }
+      java.nio.ByteBuffer b = java.nio.ByteBuffer.wrap(data).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+      if (data.length < 16 || !new String(data, 0, 8, java.nio.charset.StandardCharsets.US_ASCII).equals("RE4VKP01"))
+        continue;
+      int size = b.getInt(8), count = b.getInt(12), record = size + 24;
+      if (size <= 0 || count < 0 || (keySize != 0 && size != keySize) || 16L + (long) count * record > data.length)
+        continue;
+      keySize = size;
+      java.util.List<Integer> list = rooms.computeIfAbsent(room, r -> new java.util.ArrayList<>());
+      for (int i = 0; i < count; i++) {
+        java.nio.ByteBuffer rec = java.nio.ByteBuffer.wrap(java.util.Arrays.copyOfRange(data, 16 + i * record,
+            16 + (i + 1) * record));
+        Integer at = index.get(rec);
+        if (at == null) {
+          at = index.size();
+          index.put(rec, at);
+        }
+        if (!list.contains(at)) list.add(at);
+      }
+    }
+    if (index.isEmpty()) return false;
+    try (java.io.DataOutputStream o = new java.io.DataOutputStream(
+        new java.io.BufferedOutputStream(new java.io.FileOutputStream(out)))) {
+      o.write("RE4VKL01".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+      writeLe(o, keySize);
+      writeLe(o, index.size());
+      writeLe(o, rooms.size());
+      for (java.nio.ByteBuffer rec : index.keySet()) o.write(rec.array());
+      for (java.util.Map.Entry<Integer, java.util.List<Integer>> e : rooms.entrySet()) {
+        writeLe(o, e.getKey());
+        writeLe(o, e.getValue().size());
+        for (int i : e.getValue()) writeLe(o, i);
+      }
+    }
+    return true;
+  }
+
+  private static void writeLe(java.io.DataOutputStream o, int v) throws IOException {
+    o.writeInt(Integer.reverseBytes(v));
   }
 
   /** Files and their bytes. */
