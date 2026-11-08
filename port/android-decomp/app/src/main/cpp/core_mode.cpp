@@ -2191,13 +2191,17 @@ bool drawGx() {
     // its own level over the benchmark's)
     if (autoLevelOn && !between && !levelBench.active) {
       const auto &st = gx->Stats();
-      std::string why;
+      std::string why, status;
       const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
                                         st.behindChecks,
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring &&
                                             !levelBench.active,
                                         &why, gxBetweenDropped,  // (counts only while 60 FPS is on; never falls back)
-                                        gxRunWaitMs);
+                                        gxRunWaitMs,
+                                        // 60 FPS making in-between pictures now: a step up by them, not the fences
+                                        optSmooth.load() != 0 && !smoothTooSlow && !smoothPacer.Off(), &status);
+      if (!status.empty())
+        LOG("%s", status.c_str());  // why it stays below the top (every 10 s at most)
       if (level != gx->Halves()) {
         LOG("%s", why.c_str());
         // no in-between picture across the change (a chunk taken ahead, skipNext, is not run yet:

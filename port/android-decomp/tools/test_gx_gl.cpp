@@ -1856,6 +1856,83 @@ void TestAutoLevel() {
     Check(none.a.Level() == 2 && none.a.Ups() == 0, "auto level, no benchmark: not up with the GPU a third behind");
   }
   {
+    // 60 FPS (0.99.5, the project owner's reports 08.11.2026, GLES and Vulkan): a heavy moment at 2x took it to 1.5x;
+    // then he stood still facing a wall, 60 shown a second, no in-between picture left out, the fences 0.7 behind, and
+    // it never went back up. Now: up again 10-20 s later; a level too heavy goes back within 5 s, and each next try
+    // waits longer (no pendulum); below the top a status line every 10 s says why it stays.
+    // `behindOf10`: of every 10 looks that many find the GPU behind; `droppedEvery`: one in-between picture of so many
+    // chunks left out (0: none)
+    auto play60 = [](AutoRun &r, double seconds, unsigned behindOf10, unsigned droppedEvery,
+                     std::vector<std::string> *status) {
+      const double end = r.t + seconds;
+      while (r.t < end) {
+        r.t += 1.0 / 30.0;
+        r.checks++;
+        r.sum += r.checks % 10 < behindOf10 ? 1u : 0u;
+        if (droppedEvery && r.checks % droppedEvery == 0)
+          r.dropped++;
+        std::string why, line;
+        r.a.Chunk(r.t, r.sum, r.checks, true, &why, r.dropped, r.waited, true, &line);
+        if (!why.empty())
+          r.lines.push_back(why);
+        if (!line.empty() && status)
+          status->push_back(line);
+      }
+    };
+    AutoRun r;
+    std::vector<std::string> status;
+    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x (the owner's Retroid)
+    play60(r, 6.5, 10, 4, &status);  // heavy: a quarter left out, the GPU behind
+    Check(r.a.Level() == 3, "auto level, 60 FPS: a heavy moment takes 2x to 1.5x");
+    const double downAt = r.t;
+    while (r.a.Ups() == 0 && r.t < downAt + 120.0)
+      play60(r, 0.5, 7, 0, &status);  // standing still: none left out, the fences 0.7 behind (as the owner's GLES log)
+    Check(r.a.Level() == 4 && r.t - downAt >= 9.9 && r.t - downAt <= 20.5,
+          "auto level, 60 FPS: steady at 1.5x (none left out, fences 0.7 behind): back at 2x within 10-20 s");
+    std::fprintf(stderr, "  auto level, 60 FPS: back at 2x %.1f s after the step down\n", r.t - downAt);
+    Check(!r.lines.empty() && r.lines.back().find("every in-between picture shown") != std::string::npos,
+          "auto level, 60 FPS: the step up logged");
+    bool told = false;
+    for (const std::string &l : status)
+      told = told || l.find("dynamic resolution: stays at 1.5x below 2x: ") != std::string::npos;
+    Check(told, "auto level, 60 FPS: a status line says why it stays below the top");
+    const unsigned downs = r.a.Downs();
+    play60(r, 60.0, 9, 0, &status);  // steady at 2x: it stays
+    Check(r.a.Level() == 4 && r.a.Downs() == downs, "auto level, 60 FPS: steady at 2x, it stays");
+    // in-between pictures left out at 1.5x: no step up, the status says so
+    AutoRun lost;
+    std::vector<std::string> lostStatus;
+    lost.a.Start(4, 0.0, 2, true, 3);
+    play60(lost, 6.5, 10, 4, &lostStatus);
+    play60(lost, 60.0, 7, 20, &lostStatus);  // a twentieth left out (5 %): not steady
+    // (the window across the switch from heavy to light may take it half a level further down: no matter)
+    Check(lost.a.Level() <= 3 && lost.a.Ups() == 0, "auto level, 60 FPS: not up while in-between pictures are left out");
+    told = false;
+    for (const std::string &l : lostStatus)
+      told = told || l.find("in-between pictures left out") != std::string::npos;
+    Check(told, "auto level, 60 FPS: the status names the in-between pictures left out");
+    // too heavy at 2x, fine at 1.5x for 5 minutes: tries 2x again and again, each try later than the last
+    AutoRun swing;
+    swing.a.Start(4, 0.0, 2, true, 3);
+    std::vector<double> ups;
+    while (swing.t < 300.0) {
+      const unsigned before = swing.a.Ups();
+      if (swing.a.Level() == 4)
+        play60(swing, 0.5, 10, 4, nullptr);
+      else
+        play60(swing, 0.5, 7, 0, nullptr);
+      if (swing.a.Ups() != before)
+        ups.push_back(swing.t);
+    }
+    std::fprintf(stderr, "  auto level, 60 FPS, 2x too heavy for 5 minutes: %u steps down, %zu up, the wait %.0f s\n",
+                 swing.a.Downs(), ups.size(), swing.a.Hold());
+    Check(swing.a.Downs() <= 6 && swing.a.Downs() >= 2, "auto level, 60 FPS: 2x too heavy: few tries in 5 minutes");
+    Check(!ups.empty() && ups.front() <= 25.0, "auto level, 60 FPS: the first try within 25 s");
+    for (size_t i = 2; i < ups.size(); i++)
+      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, 60 FPS: each try later than the last");
+    Check(swing.a.Hold() >= 80.0, "auto level, 60 FPS: the wait grown after the bounces");
+  }
+  {
     // in halves (the app): from 2x (4) half a level at a time, never below 1x (2), named "1.5x"
     AutoRun r;
     r.a.Start(4, 0.0, 2, true);

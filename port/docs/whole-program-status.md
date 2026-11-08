@@ -62,6 +62,28 @@ Android-Looper), nicht aus diesem Lauf.
    - **Nicht geprüft:** Gerät (Swapchain, Anzeige, ob „Dynamisch“ dort wieder hochschaltet).
    - **Nebenbefund:** Der Schritt 1,5× → 1× um 15:49:59 kam beim ersten Vulkan-Besuch von r228 (124 neue Pipelines in
      633 ms, 11 % Zwischenbilder ausgelassen), siehe Punkt 3.
+   - **Nachtrag: auch das reichte nicht (Gerätetest des Projektinhabers mit GLES, 08.11.2026, Bericht
+     `reports/0995-dynamic-20261108-200137`, 0.99.5-rc, 60 FPS, 2× MSAA, FXAA, Schärfen leicht, 16:9).** Wortlaut über
+     die Hauptsitzung: „Leider schaltet Dynamic Resolution nachwievor nur runter, aber nicht mehr rauf wenn die Leistung
+     stabil ist. Das betrifft Vulkan als auch OpenGLES. Sie fallen beide auf x1,5. Ich stehe still, blicke gegen eine
+     Wand und sie steigen nicht mehr auf x2.“ Protokoll: 20:00:23 „2x -> 1.5x (… the GPU 1.0 chunks behind … 23 %
+     without their in-between picture)“, danach über 60 s „shown 60.0/s“, kein Zwischenbild ausgelassen, „the GPU
+     0.7 Runs behind“. **Ursache:** 1,5× ist die Benchmark-Stufe; für den Schritt darüber (2×, die Obergrenze) galt
+     noch „unter 0,1 hinterher“, und bei 60 FPS steht diese Messung prinzipbedingt hoch (der Zaun des neuesten
+     Zwischenbilds wird eine halbe Spielbild-Zeit nach dem Absenden angesehen). **Behoben (`gx_auto_level.h`, beide
+     Renderer):** Mit 60 FPS (an und nicht von `SmoothPacer` pausiert, `core_mode.cpp`) zählt fürs Hochschalten statt
+     der Zäune: Spiel im Takt (≥ 29,5), Zeichen-Thread wartet < 5 ms, höchstens 2 % Zwischenbilder ausgelassen; 5
+     solche Fenster zu 2 s (10 s), frühestens 10 s nach einem Herunterschalten, bis zur Obergrenze. Hält die neue Stufe
+     nicht, nehmen zwei langsame Fenster sie zurück, und der nächste Versuch wartet doppelt so lange (20 s, 40 s … 5 min;
+     hält eine Stufe 60 s, wieder 10 s). Ohne 60 FPS wie bisher (Zäune). **Neu im Protokoll:** unter der Obergrenze
+     alle 10 s „dynamic resolution: stays at 1.5x below 2x: <Grund> (… game pictures/s, the GPU … chunks behind, the
+     render thread waiting … ms a chunk, … % without their in-between picture, 60 FPS on/off)“, Gründe: „steady, the
+     next try in N s“, „steady for N of 5 windows“, „in-between pictures left out“, „the render thread waits for the
+     GPU“, „the game slower than 29.5 pictures a second“, „no change now (the app menu …)“; der Schritt nach oben nennt
+     „every in-between picture shown“. **Geprüft am PC:** `TestAutoLevel` neu: der Fall des Projektinhabers (schwerer
+     Moment: 2× → 1,5×; still: kein Zwischenbild aus, Zäune 0,7: wieder 2× nach 10–20 s, gemessen 14 s; 2× ruhig:
+     bleibt), 5 % ausgelassen: bleibt unten, die Statuszeile nennt es; 2× zu schwer 5 Minuten lang: 5 Schritte nach unten, 4 Versuche nach oben, jeder später als der vorige (Wartezeit am Ende 160 s); alle
+     bisherigen Fälle unverändert. `gx_gl_check` (GL und Vulkan, Prüfschicht) 0 Fehler; Gradle: App-C++ beider ABIs gebaut, App-Tests je 66, 0 Fehler. **Nicht geprüft:** Gerät.
 
 3. **Ruckeln unter Vulkan (nur Vulkan): Ursache benannt, nicht behoben.** Die Shader sind da (SPIR-V-Speicher 962
    bis 977, je 5 s fast immer „0 shaders compiled“; einzelne neue 3–7 ms). Was ruckelt, sind die **Pipelines** (Shader

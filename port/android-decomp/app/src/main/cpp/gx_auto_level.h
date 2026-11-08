@@ -26,6 +26,13 @@
 // MSAA: 22-25 pictures a second, the render thread waiting 11-35 ms a chunk, never more than 8.4 ms
 // in the smooth parts). A slow window with at least kWaitDown ms of such waiting on average counts as
 // the GPU behind; up again only with less than kWaitUp.
+// With 60 FPS (since 0.99.5, both renderers) a step up asks for (almost) every in-between picture shown instead of
+// the fences: there the newest in-between picture's fence is looked at half a game picture after it was sent and stood
+// at 0.7-1.0 "behind" with 60 pictures shown a second and none left out (the project owner's reports 08.11.2026, GLES
+// and Vulkan: down from 2x to 1.5x after a heavy moment, then never back up while he stood still facing a wall). The
+// next level is tried after 10 s that steady; if it does not hold, two slow windows take it back and the next try
+// waits twice as long (20 s, 40 s ... at most 5 minutes; a level that held 60 s brings the wait back to 10 s).
+// Below the top a status line every 10 s says why it stays (Chunk's `status`).
 // core_mode.cpp applies a new level between two Runs (GxRenderer::RescaleHalves). It counts the levels in
 // halves (Start's `halves`: 4 is 2x, 3 is 1.5x; the app menu's in-between levels, wish of the project
 // owner, 27.10.2026: from 2x straight to 1x the picture lost too much), down to `bottom` (2: 1x).
@@ -55,6 +62,8 @@ public:
   static constexpr double kDroppedUp = 0.05;
   static constexpr double kWaitDown = 10.0;    // ms a chunk the render thread waits for the GPU
   static constexpr double kWaitUp = 5.0;
+  static constexpr double kDroppedUpSmooth = 0.02;  // 60 FPS: a step up with at most this share left out
+  static constexpr double kStatusEvery = 10.0; // seconds between the lines why it stays below the top
   static constexpr double kQuiet = 4.0;        // seconds not counted after a break (Restart)
   static constexpr double kGap = 1.0;          // seconds without a chunk that count as a break
 
@@ -74,10 +83,11 @@ public:
   // After each real chunk: the time, the GPU's fences so far (GxStats::behindSum / behindChecks),
   // whether the level may change now (no menu open, no R3 series running), and the in-between
   // pictures left out so far (60 FPS; 0 without), the ms the render thread waited in its Runs so far
-  // (run time minus processor time). The level to use from the next chunk on; on a change `why` says
-  // why (a log line).
+  // (run time minus processor time), and whether 60 FPS makes in-between pictures now (`smooth`: on, not paused by
+  // SmoothPacer). The level to use from the next chunk on; on a change `why` says why (a log line); below the top,
+  // every kStatusEvery seconds, `status` says why it stays (a log line).
   int Chunk(double t, unsigned long long behindSum, unsigned behindChecks, bool mayChange, std::string *why,
-            unsigned long long dropped = 0, double waitMs = 0.0) {
+            unsigned long long dropped = 0, double waitMs = 0.0, bool smooth = false, std::string *status = nullptr) {
     if (!started_)
       return level_;
     // a gap without chunks (the app menu, a room loading, a long stall): a break as Restart
@@ -117,11 +127,24 @@ public:
       upAt_ = -1.0;
       hold_ = kFirstHold;
     }
+    char line[320];
+    // the line why it stays below the top (at most every kStatusEvery seconds)
+    auto tell = [&](const char *reason) {
+      if (!status || level_ >= top_ || t - statusAt_ < kStatusEvery)
+        return;
+      statusAt_ = t;
+      std::snprintf(line, sizeof(line),
+                    "dynamic resolution: stays at %s below %s: %s (%.1f game pictures/s, the GPU %.1f chunks behind, the "
+                    "render thread waiting %.1f ms a chunk, %.0f %% without their in-between picture, 60 FPS %s)",
+                    Name(level_).c_str(), Name(top_).c_str(), reason, rate, behind, wait, droppedShare * 100.0,
+                    smooth ? "on" : "off");
+      *status = line;
+    };
     if (!mayChange) {
       good_ = bad_ = 0;
+      tell("no change now (the app menu, an R3 series, the benchmark)");
       return level_;
     }
-    char line[256];
     const bool slow =
         (rate < kSlow || droppedShare > kDroppedDown) && (behind >= kBehindDown || wait >= kWaitDown) && level_ > bottom_;
     bad_ = slow ? bad_ + 1 : 0;
@@ -152,22 +175,49 @@ public:
     // half a game picture after it was sent, so "keeping up" (under kBehindUp) needs a GPU at a third of its time or
     // less; a step down to 1x after a hitch (new pipelines, a heavy fog bank) never came back up to the benchmark's
     // 1.5x (the project owner's Retroid report 08.11.2026; no report showed a step up at 60 FPS). Above it, as before
+    // With 60 FPS (`smooth`) instead: (almost) every in-between picture shown (see above)
     const double behindUp = level_ < proven_ ? kBehindDown : kBehindUp;
-    if (rate >= kFast && behind < behindUp && wait < kWaitUp && droppedShare < kDroppedUp && level_ < top_) {
+    const char *no = nullptr;
+    char reason[96];
+    if (rate < kFast)
+      no = "the game slower than 29.5 pictures a second";
+    else if (wait >= kWaitUp)
+      no = "the render thread waits for the GPU (5 ms a chunk or more)";
+    else if (smooth && droppedShare > kDroppedUpSmooth)
+      no = "in-between pictures left out (more than 2 %)";
+    else if (!smooth && droppedShare >= kDroppedUp)
+      no = "in-between pictures left out (5 % or more)";
+    else if (!smooth && behind >= behindUp) {
+      std::snprintf(reason, sizeof(reason), "the GPU behind (%.1f or more without 60 FPS)", behindUp);
+      no = reason;
+    }
+    if (!no && level_ < top_) {
       if (++good_ >= kGoodWindows && t >= holdUntil_) {
         good_ = 0;
         upAt_ = t;
         std::snprintf(line, sizeof(line),
-                      "dynamic resolution: level %s -> %s (%.0f s at %.1f game pictures/s, the GPU keeping up)",
-                      Name(level_).c_str(), Name(level_ + 1).c_str(), kGoodWindows * kWindow, rate);
+                      "dynamic resolution: level %s -> %s (%.0f s at %.1f game pictures/s, %s)", Name(level_).c_str(),
+                      Name(level_ + 1).c_str(), kGoodWindows * kWindow, rate,
+                      smooth ? "every in-between picture shown" : "the GPU keeping up");
         level_++;
         ups_++;
+        statusAt_ = t;
         if (why)
           *why = line;
+        return level_;
       }
+      if (t < holdUntil_) {
+        std::snprintf(reason, sizeof(reason), "steady, the next try in %.0f s (a wait of %.0f s after a step down)",
+                      holdUntil_ - t, hold_);
+      } else {
+        std::snprintf(reason, sizeof(reason), "steady for %d of %d windows of 2 s", good_, kGoodWindows);
+      }
+      tell(reason);
       return level_;
     }
     good_ = 0;
+    if (no)
+      tell(no);
     return level_;
   }
 
@@ -204,6 +254,7 @@ public:
 private:
   bool started_ = false, windowOpen_ = false;
   int top_ = 1, level_ = 1, bottom_ = 1, proven_ = 0;
+  double statusAt_ = -1e9;  // the last status line
   bool halves_ = false;
   double since_ = 0.0;
   unsigned chunks_ = 0;
