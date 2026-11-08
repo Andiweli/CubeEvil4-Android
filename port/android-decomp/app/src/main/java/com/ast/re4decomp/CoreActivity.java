@@ -172,6 +172,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final int VULKAN_MIN_SDK = 29;
   private static final int VULKAN_1_1 = (1 << 22) | (1 << 12);
   private boolean vulkan;
+  // the menu's renderer (GRAPHICS_PREFS): "gles" (the default) or "vulkan"; the crash guard: set while Vulkan starts,
+  // cleared once it has drawn for a few seconds (vulkanGuard); still set at the next start: that one ended in Vulkan's
+  // start, OpenGL ES then (vulkan-bauplan.md E7)
+  static final String RENDERER = "renderer", VULKAN_STARTING = "vulkanStarting";
+  private static final long VULKAN_GUARD_MS = 2000;
+  private static final long VULKAN_GUARD_PICTURES = 120;
+  private int vulkanGuardChecks;
   // the renderer of this run for the report's renderer.txt (and why it is not Vulkan when Vulkan was asked for)
   private String rendererLine = "OpenGL ES";
   // the touch controls (RetroTouch) and its editor, during which the game stands
@@ -313,6 +320,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       VulkanSurface v = new VulkanSurface(this, this::vulkanFailed);
       surface = v;
       picture = v;
+      main.postDelayed(vulkanGuard, VULKAN_GUARD_MS);
     } else {
       surface = glSurface();
     }
@@ -700,6 +708,20 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * ends this one and opens the start screen in a new process without starting the game. Discs, saves, the memory
    * card and the settings stay.
    */
+  /**
+   * The menu's renderer (vulkan-bauplan.md E7): it takes a new process (the renderer and its surface are chosen at the
+   * start), so the game ends as with quit(), and LauncherRestartActivity ends this process and opens the game again.
+   */
+  private void restartIntoGame(String why) {
+    Log.i(TAG, "the app restarts into the game (" + why + ")");
+    CoreLog.stop();
+    startActivity(new Intent(this, LauncherRestartActivity.class)
+        .putExtra(LauncherRestartActivity.GAME_PID, Process.myPid())
+        .putExtra(LauncherRestartActivity.BACK_TO_GAME, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    finishAndRemoveTask();
+    new Handler(Looper.getMainLooper()).postDelayed(() -> System.exit(0), 3000);
+  }
+
   private void openStartScreen(String why) {
     Log.i(TAG, "the game ends, the start screen opens (" + why + ")");
     CoreLog.stop();
@@ -945,6 +967,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void restartGame() {
       Log.i(TAG, "the game restarts (extra games), its language stays");
       CoreBridge.restartGame(0);
+    }
+
+    @Override public boolean vulkanSupported() { return CoreActivity.this.vulkanSupported(); }
+
+    @Override public boolean vulkanChosen() {
+      return "vulkan".equals(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getString(RENDERER, "gles"));
+    }
+
+    @Override public void rendererChanged(boolean on) {
+      getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putString(RENDERER, on ? "vulkan" : "gles")
+          .putBoolean(VULKAN_STARTING, false).commit();
+      restartIntoGame("renderer " + (on ? "Vulkan" : "OpenGL ES"));
     }
 
     @Override public int cheatAction(int what) {
@@ -2325,24 +2359,59 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     view.setOnTouchListener((v, e) -> true);
   }
 
+  /** Vulkan can run here: Android 10 and later with Vulkan 1.1 (the plan's minimum; vulkan-bauplan.md). */
+  boolean vulkanSupported() {
+    return Build.VERSION.SDK_INT >= VULKAN_MIN_SDK
+        && getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, VULKAN_1_1);
+  }
+
   /**
-   * Vulkan for this run (port/docs/vulkan-bauplan.md): asked for by the test switch RE4_GX_API=vulkan (the menu's
-   * choice follows in step E7), from Android 10 on and with Vulkan 1.1; else OpenGL ES.
+   * Vulkan for this run (port/docs/vulkan-bauplan.md): the menu's choice (GRAPHICS -> Renderer) or the test switch
+   * RE4_GX_API=vulkan, where Vulkan can run; else OpenGL ES. The menu's choice has the crash guard: a start that
+   * ended while Vulkan started goes to OpenGL ES (the player hears it); the test switch always tries.
    */
   private boolean chooseVulkan() {
-    if (!settings.contains("RE4_GX_API=vulkan")) return false;
-    if (Build.VERSION.SDK_INT < VULKAN_MIN_SDK) {
-      rendererLine = "OpenGL ES (Vulkan asked for: needs Android 10, this is API " + Build.VERSION.SDK_INT + ")";
-    } else if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, VULKAN_1_1)) {
-      rendererLine = "OpenGL ES (Vulkan asked for: the device has no Vulkan 1.1)";
-    } else {
-      rendererLine = "Vulkan";
-      Log.i(TAG, "renderer: Vulkan");
-      return true;
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    final boolean test = settings.contains("RE4_GX_API=vulkan");
+    final boolean chosen = "vulkan".equals(g.getString(RENDERER, "gles"));
+    if (settings.contains("RE4_GX_API=gles")) {
+      rendererLine = "OpenGL ES (test switch)";  // (a comparison run, whatever the menu chose)
+      return false;
     }
-    Log.w(TAG, "renderer: " + rendererLine);
-    return false;
+    if (!test && !chosen) return false;
+    if (!vulkanSupported()) {
+      rendererLine = Build.VERSION.SDK_INT < VULKAN_MIN_SDK
+          ? "OpenGL ES (Vulkan asked for: needs Android 10, this is API " + Build.VERSION.SDK_INT + ")"
+          : "OpenGL ES (Vulkan asked for: the device has no Vulkan 1.1)";
+      Log.w(TAG, "renderer: " + rendererLine);
+      return false;
+    }
+    if (!test && g.getBoolean(VULKAN_STARTING, false)) {
+      // the last start with Vulkan ended before it drew (a driver's crash): OpenGL ES, the menu's choice back
+      g.edit().putString(RENDERER, "gles").putBoolean(VULKAN_STARTING, false).commit();
+      rendererLine = "OpenGL ES (the last start with Vulkan ended while Vulkan started)";
+      Log.w(TAG, "renderer: " + rendererLine);
+      main.post(() -> message(getString(R.string.ingame_vulkan_crashed)));
+      return false;
+    }
+    if (!test) g.edit().putBoolean(VULKAN_STARTING, true).commit();  // (commit: it must be on disk before Vulkan)
+    rendererLine = test ? "Vulkan (test switch)" : "Vulkan";
+    Log.i(TAG, "renderer: " + rendererLine);
+    return true;
   }
+
+  /** The crash guard is cleared once Vulkan has drawn for a few seconds (VULKAN_GUARD_PICTURES pictures). */
+  private final Runnable vulkanGuard = new Runnable() {
+    @Override public void run() {
+      if (destroyed || !(surface instanceof VulkanSurface)) return;
+      if (CoreBridge.pictures() >= VULKAN_GUARD_PICTURES && CoreBridge.rendererProblem().isEmpty()) {
+        getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putBoolean(VULKAN_STARTING, false).apply();
+        Log.i(TAG, "renderer: Vulkan drew " + CoreBridge.pictures() + " pictures; the crash guard is cleared");
+        return;
+      }
+      if (++vulkanGuardChecks < 150) main.postDelayed(this, VULKAN_GUARD_MS);
+    }
+  };
 
   /** The core's settings with the renderer: RE4_GX_API=vulkan for Vulkan, none for OpenGL ES. */
   static String withRenderer(String coreSettings, boolean vulkan) {
@@ -2364,6 +2433,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (destroyed || !(surface instanceof VulkanSurface)) return;
     rendererLine = "OpenGL ES (Vulkan could not start: " + problem + ")";
     Log.w(TAG, "renderer: " + rendererLine);
+    // the next start with OpenGL ES at once (the menu shows it); the guard is done
+    getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putString(RENDERER, "gles")
+        .putBoolean(VULKAN_STARTING, false).apply();
     VulkanSurface old = (VulkanSurface) surface;
     ViewGroup root = (ViewGroup) old.getParent();
     final int at = root.indexOfChild(old);
@@ -2386,8 +2458,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gl.setRenderMode(renderMode);
     if (!resumed) gl.onPause();
     if (focused || menu == null) gl.requestFocus();
-    Toast.makeText(this, "Vulkan could not start on this device. The game draws with OpenGL ES.", Toast.LENGTH_LONG)
-        .show();
+    message(getString(R.string.ingame_vulkan_failed));
   }
 
   /** The report's renderer.txt: the renderer of this run, its device and driver. */

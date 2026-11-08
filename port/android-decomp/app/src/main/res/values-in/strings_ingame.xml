@@ -321,4 +321,13 @@
     <string name="ingame_benchmark_unreachable">Tempat benchmark tidak dapat dicapai. Anda kembali ke tempat semula.</string>
     <string name="ingame_benchmark_discs">Tempat benchmark tidak cocok dengan disk game ini. Tidak ada yang diubah.</string>
     <string name="ingame_benchmark_low">Dengan %1$d FPS tidak ada level yang benar-benar stabil di perangkat ini; nilai itu adalah level terakhir yang dicoba.</string>
+    <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
+    <string name="ingame_renderer">Perender</string>
+    <string name="ingame_renderer_gles">OpenGL ES</string>
+    <string name="ingame_renderer_vulkan">Vulkan (eksperimental)</string>
+    <string name="ingame_renderer_help">Vulkan bisa lebih cepat di beberapa perangkat, terutama dengan grafis Mali. Jika tidak bisa dimulai, game kembali sendiri ke OpenGL ES. Perubahan akan memulai ulang game.</string>
+    <string name="ingame_renderer_restart_text">Perender baru dipakai setelah game dimulai ulang. Progres sejak penyimpanan terakhir akan hilang.</string>
+    <string name="ingame_renderer_unavailable">Vulkan memerlukan Android 10 dan grafis dengan Vulkan 1.1; perangkat ini menggambar dengan OpenGL ES.</string>
+    <string name="ingame_vulkan_failed">Vulkan tidak dapat dimulai di perangkat ini. Game menggambar dengan OpenGL ES.</string>
+    <string name="ingame_vulkan_crashed">Game berhenti saat dimulai dengan Vulkan. Sekarang game dimulai dengan OpenGL ES; Vulkan dapat dipilih lagi di menu (Tampilan).</string>
 </resources>

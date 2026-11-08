@@ -324,4 +324,13 @@
     <string name="ingame_benchmark_unreachable">बेंचमार्क की जगह तक नहीं पहुँचा जा सका। आप वहीं वापस हैं जहाँ थे।</string>
     <string name="ingame_benchmark_discs">बेंचमार्क की जगह इन गेम डिस्क से मेल नहीं खाती। कुछ नहीं बदला गया।</string>
     <string name="ingame_benchmark_low">%1$d FPS पर इस डिवाइस पर कोई भी स्तर पूरी तरह स्थिर नहीं रहा; यह मान आख़िरी जाँचा गया स्तर है।</string>
+    <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
+    <string name="ingame_renderer">रेंडरर</string>
+    <string name="ingame_renderer_gles">OpenGL ES</string>
+    <string name="ingame_renderer_vulkan">Vulkan (प्रायोगिक)</string>
+    <string name="ingame_renderer_help">कुछ डिवाइसों पर, खासकर Mali ग्राफ़िक्स के साथ, Vulkan तेज़ हो सकता है। अगर यह शुरू न हो, तो गेम अपने आप OpenGL ES पर लौट जाता है। बदलाव करने पर गेम फिर से शुरू होता है।</string>
+    <string name="ingame_renderer_restart_text">नया रेंडरर गेम को फिर से शुरू करने के बाद इस्तेमाल होता है। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
+    <string name="ingame_renderer_unavailable">Vulkan के लिए Android 10 और Vulkan 1.1 वाला ग्राफ़िक्स चाहिए; यह डिवाइस OpenGL ES से बनाता है।</string>
+    <string name="ingame_vulkan_failed">इस डिवाइस पर Vulkan शुरू नहीं हो सका। गेम OpenGL ES से बनाता है।</string>
+    <string name="ingame_vulkan_crashed">Vulkan के साथ शुरू होते समय गेम बंद हो गया। अब यह OpenGL ES के साथ शुरू होता है; मेनू (डिस्प्ले) में Vulkan फिर से चुना जा सकता है।</string>
 </resources>

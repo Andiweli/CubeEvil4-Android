@@ -323,4 +323,13 @@
     <string name="ingame_benchmark_unreachable">无法到达性能测试的地点。你已回到原来的位置。</string>
     <string name="ingame_benchmark_discs">性能测试的地点与这些游戏光盘不匹配。没有任何更改。</string>
     <string name="ingame_benchmark_low">在 %1$d FPS 下，这台设备上没有任何等级完全稳定；该数值是最后测试的等级。</string>
+    <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
+    <string name="ingame_renderer">渲染器</string>
+    <string name="ingame_renderer_gles">OpenGL ES</string>
+    <string name="ingame_renderer_vulkan">Vulkan（实验性）</string>
+    <string name="ingame_renderer_help">在部分设备上 Vulkan 可能更快，尤其是 Mali 显卡。如果无法启动，游戏会自动改回 OpenGL ES。更改后游戏会重新启动。</string>
+    <string name="ingame_renderer_restart_text">新的渲染器将在游戏重新启动后使用。上次存档之后的进度将会丢失。</string>
+    <string name="ingame_renderer_unavailable">Vulkan 需要 Android 10 和支持 Vulkan 1.1 的显卡；此设备使用 OpenGL ES 绘制。</string>
+    <string name="ingame_vulkan_failed">Vulkan 无法在此设备上启动。游戏使用 OpenGL ES 绘制。</string>
+    <string name="ingame_vulkan_crashed">游戏在使用 Vulkan 启动时结束。现在将使用 OpenGL ES 启动；可在菜单（显示）中重新选择 Vulkan。</string>
 </resources>

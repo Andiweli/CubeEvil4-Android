@@ -116,6 +116,12 @@ final class CoreMenu extends Dialog {
     int cheatAction(int what);
     /** The game restarts with its language as it is (the extra games; the menu asked first). */
     void restartGame();
+    /** The renderer (port/docs/vulkan-bauplan.md): Vulkan can run here (Android 10, Vulkan 1.1). */
+    boolean vulkanSupported();
+    /** Vulkan is the menu's choice (it may not run: not supported, or it fell back to OpenGL ES). */
+    boolean vulkanChosen();
+    /** The menu's new choice: kept, and the app restarts into the game with it (the menu asked first). */
+    void rendererChanged(boolean vulkan);
     /** Asks GitHub for the newest release (AppUpdate.check), once per run; `listener` hears it. */
     void checkUpdate(AppUpdate.Listener listener);
     /** The update button: downloads the newest APK and hands it to Android's installer (AppUpdate.install). */
@@ -665,6 +671,7 @@ final class CoreMenu extends Dialog {
   // (effects: depth of field, lens flares; the two picture filters), then OPTIONAL FEATURES (minimap, FPS display)
   private void display() {
     heading(R.string.ingame_graphics);
+    renderer();
     int[] info = CoreBridge.graphicsInfo();
     // Unknown GPU capabilities must not enable unsupported samples or anisotropy.
     int samples = info == null ? 1 : Math.max(1, info[0]);
@@ -736,6 +743,31 @@ final class CoreMenu extends Dialog {
     });
     int fpsNow = CoreActivity.fpsPlace(graphics);
     fpsLabel(fps, fpsLabels[fpsNow], fpsNow != 0);
+  }
+  /** "Renderer": OpenGL ES or Vulkan (experimental, port/docs/vulkan-bauplan.md E7); a change restarts the game
+   *  after a question, "Cancel" keeps the one before (as the game's language). Without Vulkan here: OpenGL ES only. */
+  private void renderer() {
+    final String[] labels = {s(R.string.ingame_renderer_gles), s(R.string.ingame_renderer_vulkan)};
+    final int[] values = {0, 1};
+    final boolean supported = host != null && host.vulkanSupported();
+    final int[] current = {supported && host.vulkanChosen() ? 1 : 0};
+    final Button[][] buttons = new Button[1][];
+    buttons[0] = choices(R.string.ingame_renderer, labels, values, current[0], Integer.MAX_VALUE, labels.length, value -> {
+      if (value == current[0]) return;
+      Runnable keep = () -> select(buttons[0], labels, current[0]);
+      AlertDialog dialog = new AlertDialog.Builder(getContext())
+          .setTitle(R.string.ingame_language_restart_title)
+          .setMessage(R.string.ingame_renderer_restart_text)
+          .setNegativeButton(R.string.ingame_cancel, (d, w) -> keep.run())
+          .setPositiveButton(R.string.ingame_restart, (d, w) -> {
+            current[0] = value; close(); host.rendererChanged(value == 1);
+          }).create();
+      dialog.setOnCancelListener(d -> keep.run());
+      dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+      dialog.show();
+    });
+    if (!supported && buttons[0].length > 1) buttons[0][1].setEnabled(false);
+    indentedHelp(s(supported ? R.string.ingame_renderer_help : R.string.ingame_renderer_unavailable));
   }
   private void controls() {
     // the touch controls under a heading of their own, a third of the row each (wish of the project owner, 05.11.2026)

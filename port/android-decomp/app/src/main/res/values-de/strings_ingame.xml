@@ -324,4 +324,13 @@
     <string name="ingame_benchmark_unreachable">Die Stelle des Benchmarks war nicht erreichbar. Du bist wieder dort, wo du warst.</string>
     <string name="ingame_benchmark_discs">Die Stelle des Benchmarks passt nicht zu diesen Spiel-Discs. Nichts wurde geändert.</string>
     <string name="ingame_benchmark_low">Mit %1$d FPS war auf diesem Gerät keine Stufe ganz stabil; dieser Wert ist die zuletzt getestete Stufe.</string>
+    <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
+    <string name="ingame_renderer">Renderer</string>
+    <string name="ingame_renderer_gles">OpenGL ES</string>
+    <string name="ingame_renderer_vulkan">Vulkan (experimentell)</string>
+    <string name="ingame_renderer_help">Vulkan kann auf manchen Geräten schneller sein, vor allem mit Mali-Grafik. Startet es nicht, wechselt das Spiel von selbst zurück zu OpenGL ES. Eine Änderung startet das Spiel neu.</string>
+    <string name="ingame_renderer_restart_text">Der neue Renderer gilt nach einem Neustart des Spiels. Fortschritt seit dem letzten Speichern geht verloren.</string>
+    <string name="ingame_renderer_unavailable">Vulkan braucht Android 10 und eine Grafik mit Vulkan 1.1; dieses Gerät zeichnet mit OpenGL ES.</string>
+    <string name="ingame_vulkan_failed">Vulkan konnte auf diesem Gerät nicht starten. Das Spiel zeichnet mit OpenGL ES.</string>
+    <string name="ingame_vulkan_crashed">Das Spiel wurde beim Start mit Vulkan beendet. Es startet jetzt mit OpenGL ES; Vulkan lässt sich im Menü (Anzeige) wieder wählen.</string>
 </resources>

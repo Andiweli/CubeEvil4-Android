@@ -2290,6 +2290,24 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   Bildschirmfoto).
   Test-APK `E:\Development\Android\builds\vulkan\CubeEvil4-0.99.2-vulkan3.apk` (22,9 MB; E6, E4, E5; ersetzt die
   ungetesteten `-vulkan1` und `-vulkan2`).
+- **E7 Menüschalter und Absturz-Wächter (08.11.2026, am PC):**
+  - **Menü:** Unter Display → GRAPHICS steht ganz oben „Renderer: OpenGL ES / Vulkan (experimental)“ mit
+    Hilfetext. Eine Änderung fragt wie der Sprachwechsel nach dem Neustart; „Cancel“ behält die alte Wahl.
+  - **Neustart:** Die App startet dann direkt wieder ins Spiel, nicht in den Startbildschirm
+    (`LauncherRestartActivity.BACK_TO_GAME`). Der Renderer und seine Fläche werden beim Start gewählt.
+  - **Ohne Vulkan** (unter Android 10 oder ohne Vulkan 1.1) ist der Vulkan-Knopf aus; der Hilfetext sagt warum.
+  - **Gespeicherte Wahl:** Einstellung `renderer` („gles“, Standard, oder „vulkan“) in `core_graphics`.
+  - **Absturz-Wächter:**
+    - Vor dem Start mit Vulkan setzt die App `vulkanStarting` (sofort auf die Platte).
+    - Hat Vulkan 120 Bilder gezeichnet, wird der Merker gelöscht.
+    - Steht er beim nächsten Start noch, startet die App mit OpenGL ES, stellt die Wahl zurück und meldet es
+      („The game ended while it started with Vulkan …“).
+  - **Rückfall im Lauf** („Vulkan could not start …“): Die Wahl geht ebenfalls auf OpenGL ES zurück.
+  - **Test-Schalter:** `RE4_GX_API=vulkan` versucht Vulkan immer (ohne Wächter), `RE4_GX_API=gles` erzwingt GLES
+    (Vergleichsläufe).
+  - **Texte:** 8 neue in allen 11 Sprachen (`strings_ingame.xml`); die Meldungen aus E6 kommen jetzt von dort.
+  - **Sperrliste** schlechter Treiber: noch leer; sie wächst mit den Berichten.
+  **Geprüft (PC):** `tools/check_translations.py` alle 11 Sprachen in Ordnung. **Nicht geprüft:** Gerät.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 
