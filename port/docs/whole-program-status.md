@@ -2288,6 +2288,8 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   - `gx_gl_check` 0 Fehler mit allen fünf Vulkan-Prüfungen, Prüfschicht mit Synchronisation.
   **Nicht geprüft:** Gerät; die Minikarte auf dem Bildschirm (die Swapchain gibt es am PC nicht, nur das
   Bildschirmfoto).
+  Test-APK `E:\Development\Android\builds\vulkan\CubeEvil4-0.99.2-vulkan3.apk` (22,9 MB; E6, E4, E5; ersetzt die
+  ungetesteten `-vulkan1` und `-vulkan2`).
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 
