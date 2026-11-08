@@ -154,8 +154,9 @@ v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1
      (Schattentexturen) zeichnet das Spiel fast nur in Zwischensequenzen: Suchlauf über die Debugstarts von 90 Räumen
      (vorübergehende Log-Zeile nur in der PC-Kopie), Schattentexturen nur in r11b, r206, r215, r227, r228, r22b, r300 und
      r316, jedes Bild davon in einem Ereignis. Deshalb gilt „Schatten & Licht aus“ für die Schatten **auch in
-     Zwischensequenzen** (kleine technische Entscheidung dieser Sitzung; das Bild ändert sich dort kaum, r206: Luis'
-     Gesicht ohne sichtbaren Unterschied); die Effekte der Ereignisse bleiben.
+     Zwischensequenzen** (Entscheidung des Projektinhabers, 08.11.2026, auf die Frage der Sitzung, Wortlaut: „So
+     lassen.“; das Bild ändert sich dort kaum, r206: Luis' Gesicht ohne sichtbaren Unterschied); die Effekte der
+     Ereignisse bleiben.
    - **Low-Poly-Ganados: nicht umgesetzt.** In der Hütten-Szene (r11c, `r11cs10.evd`) sind die Ganados **dasselbe
      Modell wie im Spiel**: `em/em10/em1000.bin` (34 Gelenke, 770 Ecken, 32 352 Bytes) ist bis auf die letzten 4
      Füllbytes gleich dem Eintrag 0x1B8 von `em10.drs`. Es gibt keine einfacheren Ganado-Modelle auf der Disc; die übrigen
@@ -173,6 +174,34 @@ v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1
      grün (core und classic), Java beider Varianten und das native `externalNativeBuildCoreDebug` übersetzt.
    - **Nicht geprüft:** Gerät (Retroid): GPU-Zeit und Bild mit Adreno; Wasser-Spritzer beim Waten (Raum mit Wasser im
      Kampf), Verdugo-Kampf und Explosionen mit „Keine“.
+
+4. **Ada als Spielfigur: vornübergebeugt, „Oberkörper nackt“ (Nutzer-Bildschirmfoto über den Projektinhaber,
+   08.11.2026, ohne Fehlerbericht; `E:\Development\Android\reports\0993-ada-pose-20261108\screenshot-ada-castle.jpg`).**
+   Ada (Cheat „Player character“) im Schloss, Halle mit Schreibmaschine und Kandelaber, TMP mit 100 Schuss, Leben etwa
+   70 % (Ring grün), 60 FPS an („61 FPS (Layar)“, Indonesisch), ferne Kamera; sie steht stark nach vorn gebeugt, Arme
+   hängend, Kopf unten, an der Brust spitze rote Zacken des Kleids. **Nicht behoben, Ursache nicht sicher gefunden.**
+   - **„Oberkörper nackt“ ist kein Fehler:** Adas Kleid ist rückenfrei mit gekreuzten schwarzen Riemen (ihr eigenes
+     Modell, am PC mit normaler Haltung in r214, r20e, r209 genauso).
+   - **Ausgeschlossen am PC (i686, Debug-Discs, Ada über `RE4_CHEATS=64`, TMP über `RE4_TEST_WEAPON`):** Stehen ohne
+     Eingabe (4 000 Bilder r20e, Routine bleibt 0/0), Gehen mit TMP samt den 60-FPS-Zwischenbildern (`RE4_GX_INTERP`,
+     r214: alle Zeichnungen zugeordnet, Bild sauber), **alle 47 eigenen Bewegungen** ihres Archivs (0x1B–0x63, keine
+     gebeugte Haltung), die von Leon geliehenen 0x26, 0x46, 0x55, 0x57 (Verzweiflung) und 0x5B (Ducken: hockt tief,
+     „Invalid parts 110“). **Ashleys Tod** (Spieler-Routine 6, „Verzweiflung“ mit Leons Bewegung 0x57/0x58, die Ada fehlt):
+     die Anzeige verschwindet und nach etwa einer Sekunde kommt „Mission Failed“ – auf dem Nutzerbild ist die Anzeige
+     da, also nicht diese Lage. Ducken an niedrigen Stellen (Bereich Typ 0xE „stoop“) gibt es in den Schlossräumen nicht
+     (nur r107). In vier Schlossräumen mit Gegnern (r204, r20a, r212, r216, je 3 000 Bilder) griff niemand Ada an.
+   - **Wahrscheinlich:** eine Lage, in der Ada eine Bewegung spielt, die für Leons Körper gemacht ist (z. B. ein Griff
+     eines Gegners von hinten aus dessen Datei, wie in Patch 0195 für Ada beschrieben: „Leons Bewegungen auf ihrem
+     kleineren Skelett“); die Zacken am Kleid passen zu einem fremden Skelett. Ohne Fehlerbericht ist die Lage nicht
+     sicher zu finden; eine Ersatzbewegung für eine unbekannte Lage wäre geraten. Bitte an den Nutzer: Fehlerbericht
+     direkt danach (App-Menü → Verwaltung → Bericht senden) oder ein kurzes Video. Solche Fehler sammelt Issue #140;
+     der neue Warnhinweis (Punkt 1) weist auf sie hin.
+   - **Neue Testhilfen (`state_trace.cpp`):** `RE4_TEST_ASHLEY_DIES="free+N"` (Ashleys Leben einmal 0: die Verzweiflung
+     vor „Mission Failed“), `RE4_TEST_PL_MOTION="free+N:IDX[-LAST/EVERY][,SEQ][,own]"` (eine Bewegung aus Leons Archiv
+     bzw. mit `,own` aus dem eigenen auf der Spielfigur, gehalten in Routine 6/1; mit `-LAST/EVERY` alle Bewegungen
+     (Eintrag „FCV“) nacheinander). Skripte im Scratchpad dieser Sitzung (`motsweep.sh`, `motsweep2.sh`: Bilderbogen je
+     Bewegung). `RE4_OPT=2 whole_build.sh i686` grün.
+   - **Nicht geprüft:** Gerät; die Lage des Nutzers selbst (unbekannt).
 
 ## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs, Knöpfe „Spieldaten“, Filter „Nachschärfen“ (07./08.11.2026, Branch `work`, Patches 0216–0218)
 
