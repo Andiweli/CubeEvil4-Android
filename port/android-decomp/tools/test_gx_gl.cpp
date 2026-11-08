@@ -898,6 +898,43 @@ void TestVkHandOverCopies() {
   Check(Near(XfbPixel(b, 400 * 2, 400 * 2), 0, 0, 0), "Vulkan hand over: black beside it");
   b.Release();
 }
+
+// The overlay (GxRenderer::SetOverlay: the app's minimap under Vulkan) over the presented picture: its square at
+// (x, y) from the bottom left as GL's viewport, its upper half red (y up in its clip space), the picture around it
+void TestVkOverlay() {
+  re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+  std::string error;
+  Require(r.Init(1, &error), error.c_str());
+  Builder b;
+  Baseline(b);
+  DisplayCopy(b, true, kBlue);
+  DisplayCopy(b, false, kBlue);
+  r.Run(b.Chunk());
+  re4gx::GxOverlay o;
+  auto put = [&](float x, float y) { o.verts.insert(o.verts.end(), {x, y, 1.0f, 0.0f, 0.0f, 1.0f}); };
+  put(-1, 0), put(1, 0), put(1, 1), put(-1, 0), put(1, 1), put(-1, 1);  // the upper half
+  o.parts = {{false, 0, 6}};
+  o.x = 10;
+  o.y = 20;
+  o.size = 50;
+  r.SetOverlay(o);
+  std::vector<std::uint8_t> rgba;
+  const int W = 200, H = 100;
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &rgba), "Vulkan overlay: the picture read back");
+  auto at = [&](int x, int y) {  // from the top
+    const std::size_t i = (static_cast<std::size_t>(y) * W + static_cast<std::size_t>(x)) * 4;
+    return std::vector<std::uint8_t>{rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]};
+  };
+  // the square: columns 10..59, rows 30..79 from the top; its upper half rows 30..54
+  Check(Near(at(35, 40), 255, 0, 0), "Vulkan overlay: the upper half of its square red");
+  Check(Near(at(35, 70), 0, 0, 255), "Vulkan overlay: its lower half the picture (y up in the square)");
+  Check(Near(at(5, 40), 0, 0, 255) && Near(at(65, 40), 0, 0, 255), "Vulkan overlay: the picture beside it");
+  Check(Near(at(35, 25), 0, 0, 255), "Vulkan overlay: the picture above it (x, y from the bottom left)");
+  r.SetOverlay(re4gx::GxOverlay());
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &rgba), "Vulkan overlay: read again");
+  Check(Near(at(35, 40), 0, 0, 255), "Vulkan overlay: gone when the app sets none");
+  r.Release();
+}
 #endif
 
 // Merged draw calls (SetMerge, RE4_GX_MERGE, 30.10.2026): 24 squares, each moved by its own position
@@ -3560,6 +3597,7 @@ int main() {
   if (VulkanStarts()) {
     TestVkRescale();
     TestVkHandOverCopies();
+    TestVkOverlay();
   }
 #endif
   TestMerge();

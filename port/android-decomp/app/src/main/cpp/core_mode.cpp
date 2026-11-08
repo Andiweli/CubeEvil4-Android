@@ -1381,10 +1381,12 @@ bool minimapProgram() {
 
 // The map in the picture: the menu's picture format and the XFB's lines (re4mm::PictureRects / Place, where the
 // game's own gauge sits; owner's report 05.11.2026)
-void minimapDraw(int format, unsigned xh, bool wide) {
+// The minimap of this picture: its vertices and its place (false: none now); minimapDraw draws it with GLES, the
+// Vulkan renderer over its picture (GxRenderer::SetOverlay)
+bool minimapBuild(int format, unsigned xh, bool wide, re4gx::GxOverlay *out) {
   if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
       (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
-    return;
+    return false;
   const Re4CoreModel *player = nullptr;
   for (const Re4CoreModel &mdl : frame.models)
     if (mdl.manager == 0 && mdl.id == 0 && (mdl.beFlag & 6) == 6) {
@@ -1393,7 +1395,7 @@ void minimapDraw(int format, unsigned xh, bool wide) {
     }
   re4mm::Pose pose;
   if (!player || !re4mm::PoseFromMatrix(player->matrix, &pose))
-    return;
+    return false;
   // the outline: again when the room changed, else once a second (the room's pieces may change)
   const auto now = std::chrono::steady_clock::now();
   if (frame.room != minimap.askedRoom || now - minimap.asked > std::chrono::seconds(1)) {
@@ -1411,12 +1413,7 @@ void minimapDraw(int format, unsigned xh, bool wide) {
     }
   }
   if (minimap.room != frame.room || minimap.edges.empty())
-    return;
-  if (!minimap.program && !minimapProgram()) {
-    minimap.failed = true;
-    LOG("minimap: no shader; left out");
-    return;
-  }
+    return false;
   // around the player as far as the room's size asks (re4mm::RoomRadius: 10 to 24 m)
   re4mm::Project(minimap.edges.data(), static_cast<int>(minimap.edges.size() / 5), pose, minimap.radius, minimap.lines);
   std::vector<float> &v = minimap.verts;
@@ -1457,6 +1454,37 @@ void minimapDraw(int format, unsigned xh, bool wide) {
   re4mm::PictureRects(format, width, height, static_cast<int>(xh), &hud, &pic, wide);
   const re4mm::Rect at = re4mm::Place(hud, re4mm::Shown(format, hud, pic));
   const int size = at.w;
+  out->verts = v;
+  out->parts = {{false, 0, discVerts}, {true, triVerts, lineVerts}, {false, discVerts, triVerts - discVerts}};
+  out->x = at.x;
+  out->y = at.y;
+  out->size = size;
+  out->lineWidth = std::max(1.0f, static_cast<float>(size) / 160.0f);
+  // once, and again when the place changes (another picture format, the screen turned or resized)
+  const long long key = (static_cast<long long>(format + 1) << 48) ^ (static_cast<long long>(at.x) << 32) ^
+                        (static_cast<long long>(at.y) << 16) ^ size;
+  if (!minimap.logged || key != minimap.placeLogged) {
+    minimap.logged = true;
+    minimap.placeLogged = key;
+    LOG("minimap: drawn (%d x %d at %d %d, picture format %d)", size, size, at.x, at.y, format);
+  }
+  return true;
+}
+
+// The minimap with GLES (after the picture, at its bottom left)
+void minimapDraw(int format, unsigned xh, bool wide) {
+  re4gx::GxOverlay o;
+  if (!minimapBuild(format, xh, wide, &o))
+    return;
+  if (!minimap.program && !minimapProgram()) {
+    minimap.failed = true;
+    LOG("minimap: no shader; left out");
+    return;
+  }
+  const std::vector<float> &v = o.verts;
+  const int discVerts = o.parts[0].count, triVerts = o.parts[1].first, lineVerts = o.parts[1].count;
+  const int size = o.size;
+  const re4mm::Rect at{o.x, o.y, o.size, o.size};
   glViewport(at.x, at.y, size, size);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1476,14 +1504,6 @@ void minimapDraw(int format, unsigned xh, bool wide) {
   glUseProgram(0);
   glDisable(GL_BLEND);
   glViewport(0, 0, width, height);
-  // once, and again when the place changes (another picture format, the screen turned or resized)
-  const long long key = (static_cast<long long>(format + 1) << 48) ^ (static_cast<long long>(at.x) << 32) ^
-                        (static_cast<long long>(at.y) << 16) ^ size;
-  if (!minimap.logged || key != minimap.placeLogged) {
-    minimap.logged = true;
-    minimap.placeLogged = key;
-    LOG("minimap: drawn (%d x %d at %d %d, picture format %d)", size, size, at.x, at.y, format);
-  }
 }
 
 // Runs the chunks the core has finished and shows the latest display copy.
@@ -2334,6 +2354,14 @@ bool drawGx() {
   // as 10:7; in an exact 4:3 box the 3D is right and the flat draws (HUD, menus, text) are drawn
   // 15/14 wider by the renderer, so they keep the shape they had on the television
   gx->SetWiden(format == 3 ? 15.0f / 14.0f : 1.0f);
+  // the minimap: the Vulkan renderer draws it over the picture in Present (GLES: minimapDraw after it)
+  const int mapFormat = format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format;
+  if (gx->Api() == re4gx::GxApi::kVulkan) {
+    re4gx::GxOverlay map;
+    if (!minimapBuild(mapFormat, xh, xfbWide, &map))
+      map = re4gx::GxOverlay();  // (none this picture)
+    gx->SetOverlay(map);
+  }
   if (format == 5) {
     // "Native": the shown rows over the box (whole screen, or the 16:9 box for a menu, the scope, a movie)
     const unsigned top = xh * static_cast<unsigned>(native.top) / 448,
@@ -2380,16 +2408,9 @@ bool drawGx() {
     notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, xh ? float(top) / float(xh) : 0.f,
                 xh ? float(rows) / float(xh) : 1.f);
   }
-  // the map: "4:3 (GC)" also when RE4_GX_ASPECT asks for 4:3 (as above)
-  if (gx->Api() == re4gx::GxApi::kVulkan) {
-    static bool told = false;
-    if (!told) {
-      told = true;
-      LOG("minimap: not drawn with Vulkan yet");
-    }
-  } else {
-    minimapDraw(format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format, xh, xfbWide);
-  }
+  // the map: "4:3 (GC)" also when RE4_GX_ASPECT asks for 4:3 (as above); the Vulkan renderer drew it in Present
+  if (gx->Api() != re4gx::GxApi::kVulkan)
+    minimapDraw(mapFormat, xh, xfbWide);
   return true;
 }
 

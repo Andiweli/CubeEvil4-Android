@@ -2262,6 +2262,32 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   **Geprüft (WSL, lavapipe, Prüfschicht mit Synchronisation):** `RE4_GX_FLARES=1`, alle 10 Folgen GL gegen Vulkan:
   0 Meldungen, kein Bild über der Grenze. Die Reflexe ändern unter beiden APIs dieselben Bilder gleich stark
   (psx3: 36 Bilder bis 19 800 Pixel, p11d: 46). GL bytegleich, NDK beide ABIs. **Nicht geprüft:** Gerät.
+- **E5c Autofokus unter Vulkan (08.11.2026, am PC):** Die Shader des Autofokus wurden unverändert nach
+  `gx_fixed_shaders.h` verschoben (`kDofQuadVs`, `kDofHead`, `kDofDistance`, die Rümpfe `kDofFocusFs`, `kDofBlurFs`,
+  `kDofHalfFs`, `kDofMixFs`; GL setzt sie wie vorher zusammen). `Autofocus` macht wie in GL:
+  - den Fokus aus der Tiefe messen (3 × 1, dem Bild davor folgend);
+  - dann die Unschärfe in halber Auflösung, eingemischt nach der eigenen Entfernung jedes Pixels (Standard,
+    `halfDof`), oder in voller Auflösung zurück ins EFB (nur Farbe).
+  Ohne MSAA liest das Mischen das Tiefenbild, das der EFB-Durchgang als Anhang hält; es läuft deshalb in einem
+  Durchgang nur mit der EFB-Farbe (`efbColorPass`). Neue Hilfen: `BindFixedNamed` (Texturen nach Namen),
+  `MakeFixed` mit Überblenden nach Alpha. `gx_chunk_render`: `RE4_GX_DOF_FULL=1` (volle Auflösung).
+- **E5d Minikarte unter Vulkan (08.11.2026, am PC):**
+  - `GxRenderer::SetOverlay` (`GxOverlay`): Ecken, Teile (Dreiecke, Linien) und das Quadrat.
+  - `core_mode.cpp`: `minimapDraw` ist aufgeteilt in `minimapBuild` (Ecken und Platz) und das Zeichnen mit GL; der
+    GLES-Weg ist sonst unverändert.
+  - Unter Vulkan gibt die App die Karte vor jedem `Present` an den Renderer (leer ohne Karte). Er zeichnet sie im
+    Durchgang des Bildschirms über das Bild (gedreht wie das Bild) und auch ins Bildschirmfoto (`ReadPresented`),
+    wie GL.
+  - Fehler beim Bau gefunden: Das Bildschirmfoto band zuerst die Pipeline des Bildschirms (leer).
+  - `gx_gl_check`: `TestVkOverlay` (Platz, oben/unten, verschwindet ohne Karte).
+  **Geprüft (WSL, lavapipe):**
+  - Autofokus GL gegen Vulkan in allen 10 Folgen: normal, „Stark“ mit Reflexen, volle Auflösung, 4× MSAA, 4× MSAA
+    mit voller Auflösung. Je 0 Meldungen, kein Bild über der Grenze.
+  - Der Autofokus wirkt unter Vulkan in denselben Folgen (fog, laser, lf, s204). Der Abstand zu GL wurde damit
+    kleiner (s204 höchstens 5 statt 36 Stufen).
+  - `gx_gl_check` 0 Fehler mit allen fünf Vulkan-Prüfungen, Prüfschicht mit Synchronisation.
+  **Nicht geprüft:** Gerät; die Minikarte auf dem Bildschirm (die Swapchain gibt es am PC nicht, nur das
+  Bildschirmfoto).
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

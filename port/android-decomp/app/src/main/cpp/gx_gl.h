@@ -191,6 +191,20 @@ enum class GxApi { kGl, kVulkan };
 
 struct GxCore;
 
+// Something the app draws over the presented picture (the minimap; GLES draws it itself, the Vulkan renderer in
+// its Present): vertices x y r g b a in a square's clip space (y up), drawn as `parts` in their order (triangles or
+// lines), the square at x, y (screen pixels from the bottom left, as GL's viewport), size pixels wide and high.
+struct GxOverlay {
+  struct Part {
+    bool lines;
+    int first, count;
+  };
+  std::vector<float> verts;
+  std::vector<Part> parts;
+  int x = 0, y = 0, size = 0;
+  float lineWidth = 1.0f;
+};
+
 class GxRenderer {
 public:
   explicit GxRenderer(GxApi api = GxApi::kGl);
@@ -333,6 +347,8 @@ public:
   // The screen of a Vulkan renderer: the Android window (ANativeWindow*, the SurfaceView's; null when it went) and
   // its size in pixels (Present's rectangles count in it). GL draws into the current context's surface: ignored.
   void SetWindow(void *window, int width, int height);
+  // Drawn over the picture at the next Present, once (the Vulkan renderer; GL ignores it, the app draws it itself).
+  void SetOverlay(const GxOverlay &overlay);
   // "OpenGL ES 3.2 ..., Adreno (TM) 650" or "Vulkan 1.1.128 ..., driver ...": for the log and the error report.
   std::string ApiInfo() const;
   // EFB colour texture (tests): GameCube coordinates times the scale.

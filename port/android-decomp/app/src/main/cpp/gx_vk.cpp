@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -174,6 +175,23 @@ std::shared_ptr<SharedDevice> TheDevice() {
   return d;
 }
 
+// the overlay over the screen's picture (the minimap, GxOverlay): its square (clip space, y down) and the display's
+// turn, the vertices in the square's clip space with y up
+const char kOverlayVs[] = "#version 450\n"
+                          "layout(push_constant) uniform P { vec4 rect; vec4 rot; };\n"
+                          "layout(location = 0) in vec2 aPos;\n"
+                          "layout(location = 1) in vec4 aCol;\n"
+                          "layout(location = 0) out vec4 vCol;\n"
+                          "void main() {\n"
+                          "  vCol = aCol;\n"
+                          "  vec2 p = mix(rect.xy, rect.zw, vec2(aPos.x, -aPos.y) * 0.5 + 0.5);\n"
+                          "  gl_Position = vec4(rot.x * p.x + rot.y * p.y, rot.z * p.x + rot.w * p.y, 0.0, 1.0);\n"
+                          "}\n";
+const char kOverlayFs[] = "#version 450\n"
+                          "layout(location = 0) in vec4 vCol;\n"
+                          "layout(location = 0) out vec4 o;\n"
+                          "void main() { o = vCol; }\n";
+
 // MSAA: the multisampled EFB depth's sample 0 into the resolved depth image (ResolveDepth; what GL's
 // glBlitFramebuffer of the depth gives)
 const char kDepthResolveVs[] = "#version 450\n"
@@ -209,6 +227,17 @@ struct VkRenderer final : GxCore {
   Image flareVis[2];
   Fixed flareVisFx, flareFx;
   int flareVisCur = 0;
+  // the gameplay autofocus (Autofocus): the focus (this picture's and the one before), the blur at the full or at
+  // half the resolution, their pipelines; the EFB's colour alone (the mix without MSAA)
+  Image focusImg[2], blurImg, halfImg;
+  // the overlay over the screen's picture (SetOverlay: the app's minimap), its pipelines (triangles, lines)
+  GxOverlay overlay;
+  VkPipeline overlayPipe[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE}, overlayShotPipe[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+  VkPipelineLayout overlayLayout = VK_NULL_HANDLE;
+  bool overlayFailed = false;
+  Fixed focusFx, blurFx, halfFx, mixFx, dofBackFx;
+  VkRenderPass efbColorPass = VK_NULL_HANDLE;
+  VkFramebuffer efbColorFb = VK_NULL_HANDLE;
   Fixed fxaaFx, sharpFx, psxFx;
   bool psxPrevValid = false;
   int psxGridW = 0, psxGridH = 0;
@@ -1011,7 +1040,7 @@ struct VkRenderer final : GxCore {
   // textures in set 0; plain state with the colour mask `mask`, depth always (written when `depthWrite`)
   bool MakeFixed(Fixed &f, const std::string &vsEs, const std::string &fsEs, VkRenderPass renderPass,
                  VkColorComponentFlags mask, bool depthWrite, std::string *error, bool vkGlsl = false,
-                 const VkFixedLayout *given = nullptr, bool additive = false,
+                 const VkFixedLayout *given = nullptr, int blend = 0,
                  VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP) {
     VkFixedLayout fl;
     std::string vs = vsEs, fs = fsEs;
@@ -1072,10 +1101,15 @@ struct VkRenderer final : GxCore {
     ds.depthCompareOp = VK_COMPARE_OP_ALWAYS;
     VkPipelineColorBlendAttachmentState cba{};
     cba.colorWriteMask = mask;
-    if (additive) {  // added to what is there (the lens flares)
+    if (blend == 1) {  // added to what is there (the lens flares)
       cba.blendEnable = VK_TRUE;
       cba.srcColorBlendFactor = cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
       cba.srcAlphaBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_ADD;
+    } else if (blend == 2) {  // over what is there by the source's alpha (the autofocus's mix)
+      cba.blendEnable = VK_TRUE;
+      cba.srcColorBlendFactor = cba.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+      cba.dstColorBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
       cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_ADD;
     }
     f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false);
@@ -1184,6 +1218,24 @@ struct VkRenderer final : GxCore {
   template <class T> static void Put(std::vector<std::uint8_t> &pc, const Fixed &f, const char *name, const T &v) {
     if (const VkFixedLayout::Constant *c = f.constants.Find(name))
       std::memcpy(pc.data() + c->offset, &v, std::min<std::size_t>(sizeof(T), c->size));
+  }
+  // a fixed pass's textures by their names (VulkanFixedProgram numbers them as both stages declare them)
+  struct NamedTexture {
+    const char *name;
+    VkImageView view;
+    VkSampler sampler;
+  };
+  void BindFixedNamed(const Fixed &f, std::initializer_list<NamedTexture> textures, const std::vector<std::uint8_t> &pc) {
+    VkImageView views[8]{};
+    VkSampler samp[8]{};
+    const std::uint32_t n = static_cast<std::uint32_t>(std::min<std::size_t>(8, f.constants.samplers.size()));
+    for (std::uint32_t i = 0; i < n; i++)
+      for (const NamedTexture &t : textures)
+        if (f.constants.samplers[i] == t.name) {
+          views[i] = t.view;
+          samp[i] = t.sampler;
+        }
+    BindFixed(f, views, samp, n, pc);
   }
   // an array of `n` elements of `elem` bytes each, at the array's stride (VkFixedLayout)
   static void PutArray(std::vector<std::uint8_t> &pc, const Fixed &f, const char *name, const void *data,
@@ -1294,7 +1346,7 @@ struct VkRenderer final : GxCore {
     const VkColorComponentFlags rgb = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
     if (!MakeFixed(flareVisFx, fixed::kFlareQuadVs, fixed::kFlareVisFs, copyPass, rgb | VK_COLOR_COMPONENT_A_BIT,
                    false, &error) ||
-        !MakeFixed(flareFx, fixed::kFlareVs, fixed::kFlareFs, efbPass, rgb, false, &error, false, nullptr, true,
+        !MakeFixed(flareFx, fixed::kFlareVs, fixed::kFlareFs, efbPass, rgb, false, &error, false, nullptr, 1,
                    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)) {
       GXLOG("lens flares (Vulkan): shader failed: %s", error.c_str());
       return false;
@@ -1389,7 +1441,205 @@ struct VkRenderer final : GxCore {
     BindFixed(flareFx, &vis, &nearestClamp, 1, pf);
     vkCmdDraw(cb, 36 * kFlareSlots, 1, 0, 0);
   }
-  void Autofocus(std::uint32_t) override {}         // E5
+  // ---- the gameplay autofocus (E5, as GlRenderer::Autofocus; the comment there says what it does) ----
+  bool MakeAutofocus() {
+    std::string error;
+    const VkColorComponentFlags rgb = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+    const VkColorComponentFlags all = rgb | VK_COLOR_COMPONENT_A_BIT;
+    const std::string head = std::string(fixed::kDofHead) + fixed::kDofDistance;
+    // the mix reads the depth image: without MSAA not in the EFB pass, whose attachment it is
+    if (samples <= 1 && !efbColorPass)
+      efbColorPass = MakePass(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_LOAD,
+                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    const VkRenderPass mixPass = samples > 1 ? efbPass : efbColorPass;
+    if (!MakeFixed(focusFx, fixed::kDofQuadVs, head + fixed::kDofFocusFs, copyPass, all, false, &error) ||
+        !MakeFixed(blurFx, fixed::kDofQuadVs, head + fixed::kDofBlurFs, copyPass, all, false, &error) ||
+        !MakeFixed(halfFx, fixed::kDofQuadVs, head + fixed::kDofHalfFs, copyPass, all, false, &error) ||
+        !MakeFixed(mixFx, fixed::kDofQuadVs, head + fixed::kDofMixFs, mixPass, rgb, false, &error, false, nullptr, 2) ||
+        !MakeFixed(dofBackFx, fixed::kQuadVs, fixed::kCopyFs, efbPass, rgb, false, &error)) {
+      GXLOG("autofocus shader (Vulkan): %s", error.c_str());
+      return false;
+    }
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    const VkClearColorValue zero{{0.0f, 0.0f, 0.0f, 0.0f}};
+    const VkImageSubresourceRange whole{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    for (Image &f : focusImg) {
+      if (!MakeImage(f, 3, 1, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                     VK_IMAGE_ASPECT_COLOR_BIT))
+        return false;
+      Transition(cb, f, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      vkCmdClearColorImage(cb, f.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &zero, 1, &whole);
+      Transition(cb, f, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+    return true;
+  }
+  // a pass of the autofocus into `target` (a region of it: the viewport x, y, w, h)
+  void DofPass(const Fixed &f, Image &target, int x, int y, int w, int h, std::initializer_list<NamedTexture> textures,
+               const std::vector<std::uint8_t> &pc) {
+    VkCommandBuffer cb = F().draw;
+    BeginTargetPass(copyPass, target);
+    target.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    const VkViewport vp{float(x), float(y), float(w), float(h), 0.0f, 1.0f};
+    const VkRect2D sc{{x, y}, {static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(h)}};
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
+    BindFixedNamed(f, textures, pc);
+    vkCmdDraw(cb, 4, 1, 0, 0);
+    EndPass();
+  }
+  // the region, the size and the depth mapping into a pass's constants
+  static void DofConstants(std::vector<std::uint8_t> &pc, const Fixed &f, const float region[4], const float size[2],
+                           const float zmap[4]) {
+    pc.assign(f.constants.bytes, 0);
+    Put(pc, f, "region", *reinterpret_cast<const float(*)[4]>(region));
+    Put(pc, f, "size", *reinterpret_cast<const float(*)[2]>(size));
+    Put(pc, f, "zmap", *reinterpret_cast<const float(*)[4]>(zmap));
+  }
+  void Autofocus(std::uint32_t player) override {
+    if (autofocusFailed || !havePerspective)
+      return;
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
+    if (!dofBackFx.pipeline && !MakeAutofocus()) {
+      autofocusFailed = true;
+      GXLOG("gameplay autofocus could not be set up; left out");
+      return;
+    }
+    // the picture: the XF viewport, in EFB pixels
+    const float halfW = AsFloat(xfReg[0x1A]), halfH = -AsFloat(xfReg[0x1B]);
+    const float cx = AsFloat(xfReg[0x1D]) - 342.0f, cy = AsFloat(xfReg[0x1E]) - 342.0f;
+    int x0 = static_cast<int>(std::lround(cx - halfW)), y0 = static_cast<int>(std::lround(cy - halfH));
+    int x1 = static_cast<int>(std::lround(cx + halfW)), y1 = static_cast<int>(std::lround(cy + halfH));
+    x0 = std::max(0, x0);
+    y0 = std::max(0, y0);
+    x1 = std::min(kEfbWidth, x1);
+    y1 = std::min(kEfbHeight, y1);
+    if (!(halfW > 0.0f && halfH > 0.0f) || x1 - x0 < 16 || y1 - y0 < 16) {
+      x0 = y0 = 0;
+      x1 = kEfbWidth;
+      y1 = kEfbHeight;
+    }
+    const float rx = static_cast<float>(Lo(x0)), ry = static_cast<float>(Lo(y0));
+    const float rw = static_cast<float>(Lo(x1) - Lo(x0)), rh = static_cast<float>(Lo(y1) - Lo(y0));
+    float zRange = AsFloat(xfReg[0x1C]);
+    if (!(std::fabs(zRange) > 1.0f))
+      zRange = 16777215.0f;
+    const float zFar = AsFloat(xfReg[0x1F]);
+    const float region[4] = {rx, ry, rw, rh}, size[2] = {static_cast<float>(fw), static_cast<float>(fh)};
+    const float zmap[4] = {perspA, perspB, zRange, zFar};
+    // the picture's depth and colour (MSAA: resolved)
+    ResolveDepth();
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    Transition(cb, efbDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    Transition(cb, efbColor, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    // the focus (as GL: it follows the measurements from the chunk before, else it starts anew)
+    const bool restart = focusChunk + 1 != stats.chunks + (interpPass ? 1u : 0u);
+    if (!interpPass)
+      focusChunk = stats.chunks;
+    const int next = focusCur ^ 1;
+    std::vector<std::uint8_t> pc;
+    DofConstants(pc, focusFx, region, size, zmap);
+    const float playerDepth = static_cast<float>(player), again = restart ? 1.0f : 0.0f;
+    Put(pc, focusFx, "player", playerDepth);
+    Put(pc, focusFx, "restart", again);
+    DofPass(focusFx, focusImg[next], 0, 0, 3, 1,
+            {{"depths", efbDepth.view, nearestClamp}, {"history", focusImg[focusCur].view, nearestClamp}}, pc);
+    focusCur = next;
+    const float radius = dofStrong ? std::min(6.0f, std::max(1.5f, rh / 480.0f * 2.5f))
+                                   : std::min(4.0f, std::max(1.0f, rh / 480.0f * 1.5f));
+    const float strength = dofStrong ? 0.8f : 0.6f;
+    const VkViewport efbVp{0.0f, 0.0f, float(efbColor.width), float(efbColor.height), 0.0f, 1.0f};
+    const VkViewport regionVp{rx, ry, rw, rh, 0.0f, 1.0f};
+    const VkRect2D regionSc{{Lo(x0), Lo(y0)}, {static_cast<std::uint32_t>(rw), static_cast<std::uint32_t>(rh)}};
+    if (options.halfDof) {
+      // the blur at half the resolution, then mixed in at the full one by each pixel's own distance
+      if (!DofImage(halfImg, fw / 2, fh / 2))
+        return;
+      const int hx0 = Lo(x0) / 2, hy0 = Lo(y0) / 2;
+      const int hx1 = (Lo(x1) + 1) / 2, hy1 = (Lo(y1) + 1) / 2;
+      DofConstants(pc, halfFx, region, size, zmap);
+      Put(pc, halfFx, "radius", radius);
+      DofPass(halfFx, halfImg, hx0, hy0, hx1 - hx0, hy1 - hy0,
+              {{"frame", efbColor.view, linearClamp},
+               {"depths", efbDepth.view, nearestClamp},
+               {"focus", focusImg[focusCur].view, nearestClamp}},
+              pc);
+      if (samples > 1) {
+        BeginEfbPass();  // (the multisampled EFB: the resolved depth is another image)
+      } else {
+        Transition(cb, efbColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        if (!efbColorFb)
+          efbColorFb = MakeFb(efbColorPass, {efbColor.view}, efbColor.width, efbColor.height);
+        auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
+        rbi.renderPass = efbColorPass;
+        rbi.framebuffer = efbColorFb;
+        rbi.renderArea = {{0, 0}, {efbColor.width, efbColor.height}};
+        vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
+        pass = kOtherPass;
+      }
+      vkCmdSetViewport(cb, 0, 1, &regionVp);
+      vkCmdSetScissor(cb, 0, 1, &regionSc);
+      DofConstants(pc, mixFx, region, size, zmap);
+      Put(pc, mixFx, "strength", strength);
+      BindFixedNamed(mixFx,
+                     {{"blurred", halfImg.view, linearClamp},
+                      {"depths", efbDepth.view, nearestClamp},
+                      {"focus", focusImg[focusCur].view, nearestClamp}},
+                     pc);
+      vkCmdDraw(cb, 4, 1, 0, 0);
+      if (samples > 1)
+        vkCmdSetViewport(cb, 0, 1, &efbVp);  // (the EFB pass goes on with the full viewport)
+      else
+        EndPass();
+      scissorValid = false;
+      stats.autofocus++;
+      return;
+    }
+    // the blurred picture at the full resolution, then back into the EFB: colour only, alpha and depth stay
+    if (!DofImage(blurImg, fw, fh))
+      return;
+    DofConstants(pc, blurFx, region, size, zmap);
+    Put(pc, blurFx, "radius", radius);
+    Put(pc, blurFx, "strength", strength);
+    DofPass(blurFx, blurImg, Lo(x0), Lo(y0), static_cast<int>(rw), static_cast<int>(rh),
+            {{"frame", efbColor.view, linearClamp},
+             {"depths", efbDepth.view, nearestClamp},
+             {"focus", focusImg[focusCur].view, nearestClamp}},
+            pc);
+    BeginEfbPass();
+    vkCmdSetViewport(cb, 0, 1, &regionVp);
+    vkCmdSetScissor(cb, 0, 1, &regionSc);
+    pc.assign(dofBackFx.constants.bytes, 0);
+    const std::int32_t mode = 0, half = 0;
+    const float gain = 1.0f, limit[2] = {-1e9f, 1e9f}, taps[3] = {0.0f, -1.0f, 0.0f}, step = 0.0f;
+    Put(pc, dofBackFx, "mode", mode);
+    Put(pc, dofBackFx, "rect", region);
+    Put(pc, dofBackFx, "size", size);
+    Put(pc, dofBackFx, "halfScale", half);
+    Put(pc, dofBackFx, "gain", gain);
+    Put(pc, dofBackFx, "limitY", limit);
+    Put(pc, dofBackFx, "taps", taps);  // no TV filter
+    Put(pc, dofBackFx, "lineStep", step);
+    const VkImageView view = blurImg.view;
+    BindFixed(dofBackFx, &view, &nearestClamp, 1, pc);
+    vkCmdDraw(cb, 4, 1, 0, 0);
+    vkCmdSetViewport(cb, 0, 1, &efbVp);
+    scissorValid = false;
+    stats.autofocus++;
+  }
+  bool DofImage(Image &img, int w, int h) {
+    if (img.image && img.width == static_cast<unsigned>(w) && img.height == static_cast<unsigned>(h))
+      return true;
+    if (img.image)
+      Trash(img);
+    return MakeImage(img, static_cast<unsigned>(std::max(1, w)), static_cast<unsigned>(std::max(1, h)), 1,
+                     VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                     VK_IMAGE_ASPECT_COLOR_BIT);
+  }
   void ClearAfterCopyPlain(std::uint32_t control, int x, int y, int w, int h) override {
     ClearAfterCopy(control, x, y, w, h);
   }
@@ -2050,6 +2300,123 @@ struct VkRenderer final : GxCore {
     const VkSampler s = linearClamp;
     BindFixed(present, &view, &s, 1, pc);
     vkCmdDraw(cb, 4, 1, 0, 0);
+    // the overlay as on the screen (GL's screenshot has the minimap too)
+    const VkViewport whole{0.0f, 0.0f, float(target.width), float(target.height), 0.0f, 1.0f};
+    const VkRect2D all{{0, 0}, {target.width, target.height}};
+    vkCmdSetViewport(cb, 0, 1, &whole);
+    vkCmdSetScissor(cb, 0, 1, &all);
+    const float identity[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+    DrawOverlay(cb, identity, screenPass, overlayShotPipe, static_cast<int>(target.width),
+                static_cast<int>(target.height));
+  }
+  // ---- the overlay (GxOverlay, the minimap): drawn in the screen's pass after the picture ----
+  void SetOverlay(const GxOverlay &o) override { overlay = o; }
+  // the overlay's pipelines (triangles, lines) for a pass: the swapchain's or the screenshot's
+  bool MakeOverlay(VkRenderPass rp, VkPipeline out[2]) {
+    std::string log;
+    VkShaderModule vs = Module(kOverlayVs, true, &log), fs = vs ? Module(kOverlayFs, false, &log) : VK_NULL_HANDLE;
+    if (!vs || !fs) {
+      GXLOG("Vulkan overlay: %s", log.c_str());
+      if (vs)
+        vkDestroyShaderModule(dev, vs, nullptr);
+      return false;
+    }
+    if (!overlayLayout) {
+      VkPushConstantRange range{VK_SHADER_STAGE_VERTEX_BIT, 0, 32};
+      auto pl = Make<VkPipelineLayoutCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
+      pl.pushConstantRangeCount = 1;
+      pl.pPushConstantRanges = &range;
+      vkCreatePipelineLayout(dev, &pl, nullptr, &overlayLayout);
+    }
+    std::vector<VkPipelineShaderStageCreateInfo> stages(2);
+    for (auto &st : stages)
+      st = Make<VkPipelineShaderStageCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stages[0].module = vs;
+    stages[0].pName = "main";
+    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stages[1].module = fs;
+    stages[1].pName = "main";
+    VkVertexInputBindingDescription bind{0, 6 * sizeof(float), VK_VERTEX_INPUT_RATE_VERTEX};
+    VkVertexInputAttributeDescription attrs[2] = {{0, 0, VK_FORMAT_R32G32_SFLOAT, 0},
+                                                  {1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, 2 * sizeof(float)}};
+    auto vin = Make<VkPipelineVertexInputStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
+    vin.vertexBindingDescriptionCount = 1;
+    vin.pVertexBindingDescriptions = &bind;
+    vin.vertexAttributeDescriptionCount = 2;
+    vin.pVertexAttributeDescriptions = attrs;
+    auto rs = Make<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
+    rs.polygonMode = VK_POLYGON_MODE_FILL;
+    rs.cullMode = VK_CULL_MODE_NONE;
+    rs.lineWidth = 1.0f;
+    auto ds = Make<VkPipelineDepthStencilStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
+    VkPipelineColorBlendAttachmentState cba{};
+    cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                         VK_COLOR_COMPONENT_A_BIT;
+    cba.blendEnable = VK_TRUE;  // as GL's glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    cba.srcColorBlendFactor = cba.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    cba.dstColorBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_ADD;
+    for (int lines = 0; lines < 2; lines++) {
+      auto ia = Make<VkPipelineInputAssemblyStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
+      ia.topology = lines ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      out[lines] = MakeGraphics(stages, vin, ia, rs, ds, cba, overlayLayout, rp, lines != 0);
+    }
+    vkDestroyShaderModule(dev, vs, nullptr);
+    vkDestroyShaderModule(dev, fs, nullptr);
+    return out[0] && out[1];
+  }
+  // the pipelines of the swapchain's pass (with it: its format may change), or all of them with the layout
+  void FreeOverlay(bool all = false) {
+    for (VkPipeline &pp : overlayPipe) {
+      if (pp)
+        vkDestroyPipeline(dev, pp, nullptr);
+      pp = VK_NULL_HANDLE;
+    }
+    if (!all)
+      return;
+    for (VkPipeline &pp : overlayShotPipe) {
+      if (pp)
+        vkDestroyPipeline(dev, pp, nullptr);
+      pp = VK_NULL_HANDLE;
+    }
+    if (overlayLayout)
+      vkDestroyPipelineLayout(dev, overlayLayout, nullptr);
+    overlayLayout = VK_NULL_HANDLE;
+  }
+  // the overlay into a screen pass (begun; the picture is drawn) of W x H pixels: rot is the display's turn
+  void DrawOverlay(VkCommandBuffer cb, const float rot[4], VkRenderPass rp, VkPipeline pipes[2], int W, int H) {
+    const GxOverlay &o = overlay;
+    if (o.verts.empty() || o.parts.empty() || o.size <= 0 || W <= 0 || H <= 0 || overlayFailed)
+      return;
+    if (!pipes[0] && !MakeOverlay(rp, pipes)) {
+      overlayFailed = true;
+      return;
+    }
+    Frame &f = F();
+    std::size_t b = 0;
+    VkDeviceSize at = 0;
+    const VkDeviceSize bytes = o.verts.size() * sizeof(float);
+    if (!Alloc(f.vertex, bytes, 16, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &b, &at))
+      return;
+    std::memcpy(f.vertex[b].map + at, o.verts.data(), bytes);
+    const VkBuffer buf = f.vertex[b].buffer;
+    vkCmdBindVertexBuffers(cb, 0, 1, &buf, &at);
+    boundVb = VK_NULL_HANDLE;
+    // the square in clip space with y down (GL's viewport counts from the bottom)
+    const float fw = float(W), fh = float(H);
+    const float pc[8] = {2.0f * o.x / fw - 1.0f, 2.0f * (fh - o.y - o.size) / fh - 1.0f,
+                         2.0f * (o.x + o.size) / fw - 1.0f, 2.0f * (fh - o.y) / fh - 1.0f, rot[0], rot[1], rot[2], rot[3]};
+    for (const GxOverlay::Part &part : o.parts) {
+      vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipes[part.lines ? 1 : 0]);
+      vkCmdPushConstants(cb, overlayLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), pc);
+      if (part.lines && vk.enabled.wideLines)
+        vkCmdSetLineWidth(cb, std::max(1.0f, std::min(o.lineWidth, vk.properties.limits.lineWidthRange[1])));
+      vkCmdDraw(cb, static_cast<std::uint32_t>(part.count), 1, static_cast<std::uint32_t>(part.first), 0);
+    }
+    boundPipeline = VK_NULL_HANDLE;
+    constantsValid = false;
+    boundLineWidth = -1.0f;
   }
   // ---- the screen: the Android window's swapchain (E6) ----
   void SetWindow(void *w, int width, int height) override {
@@ -2190,6 +2557,7 @@ struct VkRenderer final : GxCore {
       if (swapPass)
         vkDestroyRenderPass(dev, swapPass, nullptr);
       FreeFixed(swapPresent);
+      FreeOverlay();
       swapFormat = format.format;
       swapPass = MakePass(swapFormat, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -2289,6 +2657,7 @@ struct VkRenderer final : GxCore {
       const VkImageView view = xfb->view;
       BindFixed(swapPresent, &view, &linearClamp, 1, bytes);
       vkCmdDraw(cb, 4, 1, 0, 0);
+      DrawOverlay(cb, pc + 4, swapPass, overlayPipe, screenW, screenH);
     }
     EndPass();
     const VkSemaphore done = renderSem[index];
@@ -2614,7 +2983,9 @@ struct VkRenderer final : GxCore {
     halves = h;
     for (Image *img : {&efbColor, &efbDepth, &efbMsColor, &efbMsDepth})
       Trash(*img);
-    for (VkFramebuffer *fbp : {&efbFb, &depthResolveFb})
+    for (Image *img : {&blurImg, &halfImg})
+      Trash(*img);
+    for (VkFramebuffer *fbp : {&efbFb, &depthResolveFb, &efbColorFb})
       if (*fbp) {
         const VkDevice d = dev;
         const VkFramebuffer fb = *fbp;
@@ -2695,6 +3066,7 @@ struct VkRenderer final : GxCore {
       vkDestroyRenderPass(dev, swapPass, nullptr);
     swapPass = VK_NULL_HANDLE;
     FreeFixed(swapPresent);
+    FreeOverlay(true);
     for (VkSemaphore &s : acquireSem) {
       if (s)
         vkDestroySemaphore(dev, s, nullptr);
@@ -2741,10 +3113,15 @@ struct VkRenderer final : GxCore {
     FreeFixed(depthResolve);
     for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg})
       Destroy(*img);
-    for (Fixed *f : {&fxaaFx, &sharpFx, &psxFx, &flareVisFx, &flareFx})
+    for (Fixed *f : {&fxaaFx, &sharpFx, &psxFx, &flareVisFx, &flareFx, &focusFx, &blurFx, &halfFx, &mixFx, &dofBackFx})
       FreeFixed(*f);
     for (Image &v : flareVis)
       Destroy(v);
+    for (Image *img : {&focusImg[0], &focusImg[1], &blurImg, &halfImg})
+      Destroy(*img);
+    if (efbColorFb)
+      vkDestroyFramebuffer(dev, efbColorFb, nullptr);
+    efbColorFb = VK_NULL_HANDLE;
     flareVisCur = 0;
     fxaaShown = sharpShown = psxShown = psxPrevValid = false;
     for (auto &p : pipelines)
@@ -2783,10 +3160,10 @@ struct VkRenderer final : GxCore {
     for (VkDescriptorSetLayout l : {uboLayout, texLayout})
       if (l)
         vkDestroyDescriptorSetLayout(dev, l, nullptr);
-    for (VkRenderPass p : {efbPass, copyPass, screenPass, depthResolvePass})
+    for (VkRenderPass p : {efbPass, copyPass, screenPass, depthResolvePass, efbColorPass})
       if (p)
         vkDestroyRenderPass(dev, p, nullptr);
-    efbPass = copyPass = screenPass = depthResolvePass = VK_NULL_HANDLE;
+    efbPass = copyPass = screenPass = depthResolvePass = efbColorPass = VK_NULL_HANDLE;
     const unsigned errors = vk.validationErrors.load(), warnings = vk.validationWarnings.load();
     if (vk.validation)
       GXLOG("Vulkan validation: %u errors, %u warnings", errors, warnings);

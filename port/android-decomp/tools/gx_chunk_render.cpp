@@ -198,6 +198,9 @@ int main(int argc, char **argv) {
       options.centroid = !(centroid && *centroid == '0');
       const char *full = std::getenv("RE4_GX_FULL_RESOLVE");
       options.fullResolve = full && *full == '1';
+      // RE4_GX_DOF_FULL=1: the depth of field's blur at the full resolution (GxOptions::halfDof off)
+      const char *dofFull = std::getenv("RE4_GX_DOF_FULL");
+      options.halfDof = !(dofFull && *dofFull == '1');
       renderer->SetOptions(options);
       // RE4_GX_PSX=1: the PSone demake as the app's switch sets it (GxRenderer::SetPsx)
       const char *psx = std::getenv("RE4_GX_PSX");

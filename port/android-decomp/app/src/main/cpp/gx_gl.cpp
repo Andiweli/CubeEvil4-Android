@@ -2362,149 +2362,15 @@ struct GlRenderer final : GxCore {
   }
 
   bool MakeAutofocus(int fw, int fh) {
-    static const char kQuadVs[] = "#version 300 es\n"
-                                  "out vec2 vUv;\n"
-                                  "void main() {\n"
-                                  "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
-                                  "  vUv = p;\n"
-                                  "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
-                                  "}\n";
-    // region: the picture in EFB texels (x, y, w, h); size: the EFB texture;
-    // zmap: projection A, B, viewport zRange, zFar
-    static const char kDistance[] =
-        "uniform highp sampler2D depths;\nuniform vec4 region;\nuniform vec2 size;\nuniform vec4 zmap;\n"
-        "float distanceAt(vec2 t) {\n"
-        "  float q = (texture(depths, t / size).r * 16777215.0 - zmap.w) / zmap.z + zmap.x;\n"
-        "  return q < 0.0 ? zmap.y / q : 1.0e9;\n"
-        "}\n";
-    // The measurement: the median of nine depths at the centre (the first port's), or of 35 around
-    // it when fewer than five lie behind the player; 65535 (far: no blur) when none does. The
-    // focus in use (texel 0) follows the median of the last three measurements by a quarter of the
-    // way each picture: one picture measured wrong (a twig or the gun at the centre for a moment,
-    // a GPU's depth of an edge; the Retroid with MSAA, 19.10.2026: thin branches went soft for
-    // one picture) changes nothing, a new distance is taken over in about a quarter of a second.
-    // Texels 1 and 2: the last two measurements. restart: no picture before (all three anew).
-    const std::string focusFs =
-        std::string("#version 300 es\nprecision highp float;\nprecision highp int;\n") + kDistance +
-        "uniform float player;\nuniform highp sampler2D history;\nuniform float restart;\nout vec4 o;\n"
-        "float measure() {\n"
-        "  float z[35];\n"
-        "  for (int i = 0; i < 35; ++i) z[i] = 0.0;\n"
-        "  int n = 0;\n"
-        "  vec2 c = region.xy + 0.5 * region.zw;\n"
-        "  for (int y = -1; y <= 1; ++y)\n"
-        "    for (int x = -1; x <= 1; ++x) {\n"
-        "      float d = distanceAt(c + vec2(float(x), float(y)) * 0.006 * region.zw);\n"
-        "      if (d > player) z[n++] = d;\n"
-        "    }\n"
-        "  if (n < 5) {\n"
-        "    n = 0;\n"
-        "    for (int y = -2; y <= 2; ++y)\n"
-        "      for (int x = -3; x <= 3; ++x) {\n"
-        "        float d = distanceAt(c + vec2(float(x) * 0.05, float(y) * 0.06) * region.zw);\n"
-        "        if (d > player) z[n++] = d;\n"
-        "      }\n"
-        "  }\n"
-        "  if (n == 0) return 65535.0;\n"
-        "  for (int i = 0; i < 34; ++i)\n"
-        "    for (int j = i + 1; j < 35; ++j)\n"
-        "      if (j < n && z[j] < z[i]) { float t = z[i]; z[i] = z[j]; z[j] = t; }\n"
-        "  return clamp(round(z[n / 2]), 0.0, 65535.0);\n"
-        "}\n"
-        "float stored(int i) {\n"
-        "  vec4 t = texelFetch(history, ivec2(i, 0), 0);\n"
-        "  return round(t.r * 255.0) * 256.0 + round(t.g * 255.0);\n"
-        "}\n"
-        "vec4 focus(float f) {\n"
-        "  uint d = uint(clamp(round(f), 0.0, 65535.0));\n"
-        "  return vec4(float(d >> 8u) / 255.0, float(d & 255u) / 255.0, 1.0 - smoothstep(3000.0, 6000.0, f), 1.0);\n"
-        "}\n"
-        "void main() {\n"
-        "  int i = int(gl_FragCoord.x);\n"
-        "  if (i == 2 && restart < 0.5) { o = texelFetch(history, ivec2(1, 0), 0); return; }\n"
-        "  float m = measure();\n"
-        "  if (i != 0 || restart > 0.5) { o = focus(m); return; }\n"
-        "  float b = stored(1), c = stored(2);\n"
-        "  float target = max(min(m, b), min(max(m, b), c));\n"
-        "  float before = stored(0);\n"
-        "  o = focus(abs(target - before) < 4.0 ? target : before + (target - before) * 0.25);\n"
-        "}\n";
-    const std::string blurFs =
-        std::string("#version 300 es\nprecision highp float;\nprecision highp int;\n") + kDistance +
-        "uniform sampler2D frame;\nuniform sampler2D focus;\nuniform float radius;\nuniform float strength;\nout vec4 o;\n"
-        "void main() {\n"
-        "  vec2 t = gl_FragCoord.xy;\n"
-        "  vec4 original = texelFetch(frame, ivec2(t), 0);\n"
-        "  vec4 f = texelFetch(focus, ivec2(0), 0);\n"
-        "  float focal = round(f.r * 255.0) * 256.0 + round(f.g * 255.0);\n"
-        "  float start = focal + max(800.0, focal * 0.25), end = focal + max(2500.0, focal);\n"
-        "  float amount = strength * f.b * smoothstep(start, end, distanceAt(t));\n"
-        "  if (amount <= 0.0) { o = original; return; }\n"
-        "  vec3 sum = original.rgb * 2.0;\n"
-        "  float weight = 2.0;\n"
-        "  const vec2 taps[8] = vec2[8](vec2(-1, 0), vec2(1, 0), vec2(0, -1), vec2(0, 1), vec2(-0.707, -0.707),\n"
-        "                               vec2(0.707, 0.707), vec2(-0.707, 0.707), vec2(0.707, -0.707));\n"
-        "  vec2 lo = region.xy + 0.5, hi = region.xy + region.zw - 0.5;\n"
-        "  for (int i = 0; i < 8; ++i) {\n"
-        "    vec2 p = clamp(t + taps[i] * radius, lo, hi);\n"
-        "    if (distanceAt(p) >= start) { sum += texture(frame, p / size).rgb; weight += 1.0; }\n"
-        "  }\n"
-        "  o = vec4(mix(original.rgb, sum / weight, amount), original.a);\n"
-        "}\n";
-    // GPU step e: the blur above at half the resolution, without the mix. Its centre is the four
-    // EFB texels under the texel (together weighted as the one above), the taps as above, and only
-    // what lies behind the focus counts, the centre too: the sharp foreground does not bleed into
-    // the background through the coarser texels. Alpha: something behind the focus was there
-    // (1, the colour as it is) or not (0, black), so the mix can leave the latter out.
-    const std::string halfFs =
-        std::string("#version 300 es\nprecision highp float;\nprecision highp int;\n") + kDistance +
-        "uniform sampler2D frame;\nuniform sampler2D focus;\nuniform float radius;\nout vec4 o;\n"
-        "void main() {\n"
-        "  vec2 t = gl_FragCoord.xy * 2.0;\n"
-        "  vec4 f = texelFetch(focus, ivec2(0), 0);\n"
-        "  if (f.b <= 0.0) { o = vec4(0.0); return; }\n"
-        "  float focal = round(f.r * 255.0) * 256.0 + round(f.g * 255.0);\n"
-        "  float start = focal + max(800.0, focal * 0.25);\n"
-        "  vec2 lo = region.xy + 0.5, hi = region.xy + region.zw - 0.5;\n"
-        "  vec3 sum = vec3(0.0);\n"
-        "  float weight = 0.0;\n"
-        "  for (int i = 0; i < 4; ++i) {\n"
-        "    vec2 p = clamp(t + vec2(float(i & 1) - 0.5, float(i >> 1) - 0.5), lo, hi);\n"
-        "    if (distanceAt(p) >= start) { sum += texture(frame, p / size).rgb * 0.5; weight += 0.5; }\n"
-        "  }\n"
-        "  const vec2 taps[8] = vec2[8](vec2(-1, 0), vec2(1, 0), vec2(0, -1), vec2(0, 1), vec2(-0.707, -0.707),\n"
-        "                               vec2(0.707, 0.707), vec2(-0.707, 0.707), vec2(0.707, -0.707));\n"
-        "  for (int i = 0; i < 8; ++i) {\n"
-        "    vec2 p = clamp(t + taps[i] * radius, lo, hi);\n"
-        "    if (distanceAt(p) >= start) { sum += texture(frame, p / size).rgb; weight += 1.0; }\n"
-        "  }\n"
-        "  o = weight > 0.0 ? vec4(sum / weight, 1.0) : vec4(0.0);\n"
-        "}\n";
-    // ... and the mix at the full resolution: each pixel's strength from its own distance, the
-    // blur from halfTex (linear, inside the region; its colour divided by its alpha leaves the
-    // texels without a background out), blended over the picture by the strength, less where
-    // the texels around are mostly foreground
-    const std::string mixFs =
-        std::string("#version 300 es\nprecision highp float;\nprecision highp int;\n") + kDistance +
-        "uniform sampler2D blurred;\nuniform sampler2D focus;\nuniform float strength;\nout vec4 o;\n"
-        "void main() {\n"
-        "  vec2 t = gl_FragCoord.xy;\n"
-        "  vec4 f = texelFetch(focus, ivec2(0), 0);\n"
-        "  if (f.b <= 0.0) discard;\n"
-        "  float focal = round(f.r * 255.0) * 256.0 + round(f.g * 255.0);\n"
-        "  float start = focal + max(800.0, focal * 0.25), end = focal + max(2500.0, focal);\n"
-        "  float amount = strength * f.b * smoothstep(start, end, distanceAt(t));\n"
-        "  if (amount <= 0.0) discard;\n"
-        "  vec2 lo = region.xy + 1.0, hi = region.xy + region.zw - 1.0;\n"
-        "  vec4 b = texture(blurred, clamp(t, lo, hi) / size);\n"
-        "  if (b.a <= 0.0) discard;\n"
-        "  o = vec4(b.rgb / b.a, amount * min(1.0, b.a * 4.0));\n"
-        "}\n";
+    const std::string focusFs = std::string(fixed::kDofHead) + fixed::kDofDistance + fixed::kDofFocusFs;
+    const std::string blurFs = std::string(fixed::kDofHead) + fixed::kDofDistance + fixed::kDofBlurFs;
+    const std::string halfFs = std::string(fixed::kDofHead) + fixed::kDofDistance + fixed::kDofHalfFs;
+    const std::string mixFs = std::string(fixed::kDofHead) + fixed::kDofDistance + fixed::kDofMixFs;
     std::string log;
-    focusProgram = Link(kQuadVs, focusFs, &log);
-    blurProgram = focusProgram ? Link(kQuadVs, blurFs, &log) : 0;
-    halfProgram = blurProgram ? Link(kQuadVs, halfFs, &log) : 0;
-    mixProgram = halfProgram ? Link(kQuadVs, mixFs, &log) : 0;
+    focusProgram = Link(fixed::kDofQuadVs, focusFs, &log);
+    blurProgram = focusProgram ? Link(fixed::kDofQuadVs, blurFs, &log) : 0;
+    halfProgram = blurProgram ? Link(fixed::kDofQuadVs, halfFs, &log) : 0;
+    mixProgram = halfProgram ? Link(fixed::kDofQuadVs, mixFs, &log) : 0;
     if (!mixProgram) {
       GXLOG("autofocus shader: %s", log.c_str());
       return false;

@@ -702,6 +702,7 @@ struct GxCore {
   virtual void ApplyTestEnvironment() = 0;
   // the screen to present to (Vulkan: an ANativeWindow; GL draws into the current context's) and its size in pixels
   virtual void SetWindow(void *, int, int) {}
+  virtual void SetOverlay(const GxOverlay &) {}
   // the API, the GPU and its driver, for the log and the error report
   virtual std::string ApiInfo() const = 0;
 };
