@@ -755,6 +755,151 @@ void TestHandOverCopies() {
   b.Release();
 }
 
+#ifdef RE4_GX_VULKAN
+// The Vulkan renderer (port/docs/vulkan-bauplan.md E4): the rescale and the copies handed over, read through
+// ReadXfb (rows from the top, pixels of the renderer's scale). They run where a Vulkan device starts (lavapipe:
+// port/tools/vk_tools_linux.sh, ~/vk-tools/env.sh); elsewhere they are left out.
+std::vector<std::uint8_t> XfbPixel(re4gx::GxRenderer &r, int x, int y, unsigned *width = nullptr,
+                                   unsigned *height = nullptr) {
+  std::vector<std::uint8_t> rgba;
+  unsigned w = 0, h = 0;
+  const bool read = r.ReadXfb(&rgba, &w, &h);
+  if (width)
+    *width = w;
+  if (height)
+    *height = h;
+  if (!read || x < 0 || y < 0 || static_cast<unsigned>(x) >= w || static_cast<unsigned>(y) >= h)
+    return {0, 0, 0, 0};
+  const std::size_t at = (static_cast<std::size_t>(y) * w + static_cast<std::size_t>(x)) * 4;
+  return {rgba[at], rgba[at + 1], rgba[at + 2], rgba[at + 3]};
+}
+
+bool VulkanStarts() {
+  re4gx::GxRenderer probe(re4gx::GxApi::kVulkan);
+  std::string error = "not in this build";
+  if (probe.Api() != re4gx::GxApi::kVulkan || !probe.Init(1, &error)) {
+    std::fprintf(stderr, "Vulkan checks left out: %s\n", error.c_str());
+    return false;
+  }
+  probe.Release();
+  return true;
+}
+
+void TestVkRescale() {
+  re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+  std::string error;
+  Require(r.Init(2, &error), error.c_str());
+  auto textured = [](Builder &b, bool load) {
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+    b.Bp(0x88, 31 | 31 << 10 | 6u << 20);
+    b.Bp(0x30, 31);
+    b.Bp(0x31, 31);
+    if (load)
+      b.Texture(0, 0x200000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x200000, 32, 32, 6, {});
+    std::vector<std::uint8_t> v;
+    VT(v, 300, 300, 0, kWhite, 0, 0);
+    VT(v, 340, 300, 0, kWhite, 1, 0);
+    VT(v, 340, 340, 0, kWhite, 1, 1);
+    VT(v, 300, 340, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+  };
+  {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 32, 32, 0, kRed);
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 31 | 31u << 10);
+    b.Bp(0x4D, 32);
+    b.Bp(0x4B, 0x200000 >> 5);
+    b.Bp(0x52, 6u << 4 | 2u << 15); // RGBA8 to a texture
+    b.Bp(0x4A, 639 | 527u << 10);
+    textured(b, true);
+    r.Run(b.Chunk());
+  }
+  Check(Near(XfbPixel(r, 640, 640), 255, 0, 0), "Vulkan rescale: the copy drawn at scale 2");
+  // whole levels and the menu's in-between ones (in halves: 2 1x, 3 1.5x, 5 2.5x, 6 3x)
+  for (int halves : {2, 6, 3, 5}) {
+    r.RescaleHalves(halves);
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    textured(b, false);
+    r.Run(b.Chunk());
+    unsigned w = 0, h = 0;
+    const auto corner = XfbPixel(r, 640 * halves / 2 - 4, 528 * halves / 2 - 4, &w, &h);
+    const std::string at = "Vulkan rescale to " + std::to_string(halves) + " halves";
+    Check(r.Halves() == halves, (at + ": the renderer's level").c_str());
+    Check(w == static_cast<unsigned>((640 * halves + 1) / 2) && h == static_cast<unsigned>((528 * halves + 1) / 2) &&
+              Near(corner, 0, 0, 255),
+          (at + ": the display copy has the new size").c_str());
+    Check(Near(XfbPixel(r, 320 * halves / 2, 320 * halves / 2), 255, 0, 0),
+          (at + ": the copy still bound, scaled along").c_str());
+    Check(Near(XfbPixel(r, 100 * halves / 2, 400 * halves / 2), 0, 0, 255), (at + ": the clear colour elsewhere").c_str());
+  }
+  Check(r.Stats().rescales == 4, "Vulkan rescale: four rescales counted");
+  r.Release();
+}
+
+// New picture options make a new renderer (core_mode.cpp): on the device both share, the copies go over at the new
+// renderer's scale (as TestHandOverCopies for GL)
+void TestVkHandOverCopies() {
+  std::string error;
+  re4gx::GxRenderer a(re4gx::GxApi::kVulkan), b(re4gx::GxApi::kVulkan);
+  Require(a.Init(1, &error), error.c_str());
+  {
+    Builder c;
+    Baseline(c);
+    DisplayCopy(c, true, kBlack);
+    Quad(c, 0, 0, 640, 528, 0, kRed);
+    c.Bp(0x49, 0);
+    c.Bp(0x4A, 255 | 255u << 10);
+    c.Bp(0x4D, 16);
+    c.Bp(0x4B, 0x500000 >> 5);
+    c.Bp(0x52, 6u << 4 | 1u << 9); // RGBA8 to a texture, 256 x 256
+    DisplayCopy(c, false, kBlack);
+    a.Run(c.Chunk());
+  }
+  Require(b.Init(2, &error), error.c_str());
+  a.HandOverCopies(b);
+  a.Release();
+  Check(b.Stats().handedCopies == 1, "Vulkan hand over: the copy goes to the new renderer");
+  Builder d;
+  Baseline(d);
+  DisplayCopy(d, true, kBlack);
+  d.Bp(0x00, 1u | 1u << 4);
+  d.Xf(0x103F, {1});
+  d.Xf(0x1040, {5u << 7});
+  d.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  d.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  d.Bp(0x88, 255 | 255 << 10 | 6u << 20);
+  d.Bp(0x30, 255);
+  d.Bp(0x31, 255);
+  d.Texture(0, 0x500000ull | 3ull << 32, RE4_GX_TEX_COPY, 0x500000, 256, 256, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 0, 0, kWhite, 0, 0);
+  VT(v, 256, 0, 0, kWhite, 1, 0);
+  VT(v, 256, 256, 0, kWhite, 1, 1);
+  VT(v, 0, 256, 0, kWhite, 0, 1);
+  d.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  d.Bp(0x49, 0);
+  d.Bp(0x4A, 639 | 527u << 10);
+  DisplayCopy(d, false, kBlack);
+  b.Run(d.Chunk());
+  Check(b.Stats().missingTextures == 0, "Vulkan hand over: the copy is not missing in the new renderer");
+  Check(Near(XfbPixel(b, 100 * 2, 100 * 2), 255, 0, 0), "Vulkan hand over: the copy drawn at the new scale (red)");
+  Check(Near(XfbPixel(b, 400 * 2, 400 * 2), 0, 0, 0), "Vulkan hand over: black beside it");
+  b.Release();
+}
+#endif
+
 // Merged draw calls (SetMerge, RE4_GX_MERGE, 30.10.2026): 24 squares, each moved by its own position
 // matrix (every second one in PNMTX1, another uMtx) and coloured by its own material colour, with a
 // blend mode set and back and owner tags between them as the game sends them; after square 11 a
@@ -3411,6 +3556,12 @@ int main() {
   TestAutoLevel();
   TestBenchSteps();
   TestHandOverCopies();
+#ifdef RE4_GX_VULKAN
+  if (VulkanStarts()) {
+    TestVkRescale();
+    TestVkHandOverCopies();
+  }
+#endif
   TestMerge();
   TestVertexRing();
   // twice: as the app runs it, and with the copy targets, the blur and the focus painted magenta

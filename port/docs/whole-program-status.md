@@ -2210,6 +2210,37 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   `E:\Development\Android\builds\vulkan\CubeEvil4-0.99.2-vulkan1.apk` (22,8 MB, `versionCode` 104, beide ABIs,
   Debug-Schlüssel dieses PCs wie Android Studio). **Nicht geprüft:** alles am Gerät (Swapchain, Drehung,
   Pausieren, Rückfall, Bild gegen GLES); die Swapchain gibt es am PC nicht.
+- **E4 MSAA, Auflösungswechsel, Übergabe der Kopien (08.11.2026, am PC):** `gx_vk.cpp`:
+  - **Gemeinsames Gerät** (`SharedDevice`): Instanz, Gerät, Bildspeicher (`ImageHeap`) und Pipeline-Cache gehören allen
+    Renderern eines Laufs und gehen mit dem letzten. Neue Grafikoptionen machen einen neuen Renderer, während der alte
+    noch lebt (`core_mode.cpp`); er startet so ohne neues Gerät.
+  - **`HandOverCopies`:** Die EFB-Kopien des alten Renderers gehen auf den neuen über, bei anderer Stufe skaliert
+    (`vkCmdBlitImage`, linear wie GLs `glBlitFramebuffer`).
+  - **`RescaleHalves`** („Dynamic“, Stufenwechsel im Lauf): EFB neu und gelöscht, XFB und Kopien skaliert übernommen,
+    die Kopien der Zwischenbilder verworfen. Wie in GL.
+  - **MSAA:**
+    - Das EFB wird in mehrfach abgetastete Bilder gezeichnet. Die Farbe wird am Ende jedes EFB-Durchgangs aufgelöst
+      (Resolve-Anhang, auf Kachel-GPUs in den Kacheln).
+    - Die Tiefe wird nur aufgelöst, wenn sie gelesen wird (Tiefenkopie, Tiefenkarte für GXPeekZ): ein Shader nimmt
+      Probe 0 (`ResolveDepth`).
+    - Die Probenzahl ist die gewünschte, soweit das Gerät sie zeichnen und lesen kann; 4 kann jedes.
+  - **Fehler aus E3 behoben:** Das Bild der Tiefenkarte war ohne „sampled“ angelegt (Prüfschicht: 164 Meldungen, sobald
+    eine Folge GXPeekZ nutzt).
+  - `gx_gl_check`: Vulkan-Prüfungen `TestVkRescale` (Stufen 2/6/3/5 halbe) und `TestVkHandOverCopies`, wo ein
+    Vulkan-Gerät startet (sonst ausgelassen).
+
+  **Geprüft (WSL, lavapipe, Prüfschicht):**
+  - `gx_gl_check` 0 Fehler, mit den Vulkan-Prüfungen.
+  - Wechsel mitten in der Folge (`RE4_GX_RESCALE` 6:h4, 6:h2 von 2×, 6:h3, 6:h3 mit 4× MSAA), je 8 Folgen GL gegen
+    Vulkan: 0 Meldungen, kein Bild über 1 % Pixel mit mehr als 16 Stufen.
+  - 4× MSAA alle 10 Folgen: 0 Meldungen, kein Bild über der Grenze. Die Abweichungen sind kleiner als ohne MSAA
+    (r101 höchstens 2 statt 174 Stufen: die Kantenregel verschwindet).
+  - Tiefenkarten (`RE4_GX_PEEK_DUMP`) GL gegen Vulkan, 1 und 4 Proben: 162 Karten mit je 84 480 Zellen, höchstens 4
+    Randzellen je Folge um mehr als 256 (von 2²⁴) verschieden.
+  - GL weiter bytegleich (4 371 Bilder); NDK-Übersetzung beider ABIs.
+
+  **Nicht geprüft:** Gerät; der Kopie-Übergang nur im Test (`gx_chunk_render` hat keinen neuen Renderer mitten in der
+  Folge).
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

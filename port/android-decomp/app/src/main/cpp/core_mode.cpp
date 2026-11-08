@@ -1795,9 +1795,10 @@ bool drawGx() {
       startWarm(cache, programList ? programList : "", gx->Samples() > 1 && options.centroid ? 1u : 0u);
     int maxSamples = 1;
     float maxAnisotropy = 1.0f;
-    if (vulkan)
-      maxAnisotropy = gx->Anisotropy();  // (E4: MSAA and the device's limits under Vulkan)
-    else
+    if (vulkan) {
+      maxSamples = 4;  // every Vulkan device draws and samples 4 (the renderer takes fewer where it must)
+      maxAnisotropy = gx->Anisotropy();
+    } else
       re4gx::GxRenderer::Limits(&maxSamples, &maxAnisotropy);
     LOG("GX renderer: %s", gx->ApiInfo().c_str());
     {

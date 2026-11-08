@@ -149,19 +149,65 @@ const char kClearFs[] = "#version 450\n"
                        "layout(location = 0) out vec4 o;\n"
                        "void main() { o = vec4(texture(src, vec2(vUv.x, rows.x + vUv.y * rows.y)).rgb, 1.0); }\n";
 
+// The device the renderers of a run share (vulkan-bauplan.md E4): new picture options make a new renderer
+// (core_mode.cpp) while the one before still exists; on the same device it takes that one's EFB copies
+// (HandOverCopies), with the same image memory and pipeline cache. The device goes with the last renderer.
+struct SharedDevice {
+  Context vk;
+  ImageHeap heap;
+  VkPipelineCache pipelineCache = VK_NULL_HANDLE;
+  ~SharedDevice() {
+    if (pipelineCache && vk.device)
+      vkDestroyPipelineCache(vk.device, pipelineCache, nullptr);
+    heap.Destroy();
+    vk.Destroy();
+  }
+};
+
+std::shared_ptr<SharedDevice> TheDevice() {
+  static std::weak_ptr<SharedDevice> held;
+  std::shared_ptr<SharedDevice> d = held.lock();
+  if (!d) {
+    d = std::make_shared<SharedDevice>();
+    held = d;
+  }
+  return d;
+}
+
+// MSAA: the multisampled EFB depth's sample 0 into the resolved depth image (ResolveDepth; what GL's
+// glBlitFramebuffer of the depth gives)
+const char kDepthResolveVs[] = "#version 450\n"
+                               "void main() {\n"
+                               "  vec2 p = vec2(float(gl_VertexIndex & 1), float(gl_VertexIndex >> 1));\n"
+                               "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+                               "}\n";
+const char kDepthResolveFs[] = "#version 450\n"
+                               "layout(set = 0, binding = 0) uniform sampler2DMS src;\n"
+                               "void main() { gl_FragDepth = texelFetch(src, ivec2(gl_FragCoord.xy), 0).r; }\n";
+
 } // namespace
 
 struct VkRenderer final : GxCore {
-  VkRenderer() : GxCore(GxApi::kVulkan) {}
+  VkRenderer() : GxCore(GxApi::kVulkan), shared(TheDevice()), vk(shared->vk), heap(shared->heap) {}
   ~VkRenderer() override { Release(); }
 
-  Context vk;
-  ImageHeap heap;
+  std::shared_ptr<SharedDevice> shared;
+  Context &vk;
+  ImageHeap &heap;
   VkDevice dev = VK_NULL_HANDLE;
   VkFormat depthFormat = VK_FORMAT_UNDEFINED;
   VkRenderPass efbPass = VK_NULL_HANDLE, copyPass = VK_NULL_HANDLE, screenPass = VK_NULL_HANDLE;
   Image efbColor, efbDepth;
   VkFramebuffer efbFb = VK_NULL_HANDLE;
+  // MSAA (E4): the EFB drawn into multisampled images; their colour resolved into efbColor at each EFB pass's end
+  // (a resolve attachment, on the tiles of a tiled GPU), their depth into efbDepth when something reads it
+  // (ResolveDepth: a copy of the depth, the depth map)
+  Image efbMsColor, efbMsDepth;
+  VkRenderPass depthResolvePass = VK_NULL_HANDLE;
+  VkFramebuffer depthResolveFb = VK_NULL_HANDLE;
+  Fixed depthResolve;
+  bool depthResolved = true;
+  unsigned depthResolveCount = 0;  // (the log at the end)
   VkDescriptorSetLayout uboLayout = VK_NULL_HANDLE, texLayout = VK_NULL_HANDLE;
   VkPipelineLayout gxLayout = VK_NULL_HANDLE;
   VkDescriptorPool uboPool = VK_NULL_HANDLE;
@@ -333,14 +379,14 @@ struct VkRenderer final : GxCore {
     return static_cast<unsigned>(images.size());
   }
   bool MakeImage(Image &img, unsigned w, unsigned h, unsigned levels, VkFormat format, VkImageUsageFlags usage,
-                 VkImageAspectFlags aspect) {
+                 VkImageAspectFlags aspect, VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT) {
     auto ici = Make<VkImageCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
     ici.imageType = VK_IMAGE_TYPE_2D;
     ici.format = format;
     ici.extent = {std::max(1u, w), std::max(1u, h), 1};
     ici.mipLevels = levels;
     ici.arrayLayers = 1;
-    ici.samples = VK_SAMPLE_COUNT_1_BIT;
+    ici.samples = sampleCount;
     ici.tiling = VK_IMAGE_TILING_OPTIMAL;
     ici.usage = usage;
     ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -576,9 +622,22 @@ struct VkRenderer final : GxCore {
     sub.colorAttachmentCount = 1;
     sub.pColorAttachments = &cref;
     sub.pDepthStencilAttachment = depth != VK_FORMAT_UNDEFINED ? &dref : nullptr;
-    // before: what read or wrote the attachments earlier (the copies that sampled them); after: the reads
-    // that follow (a texture, a copy, a transfer)
     VkSubpassDependency dep[2]{};
+    PassDependencies(dep);
+    auto rci = Make<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
+    rci.attachmentCount = depth != VK_FORMAT_UNDEFINED ? 2 : 1;
+    rci.pAttachments = a;
+    rci.subpassCount = 1;
+    rci.pSubpasses = &sub;
+    rci.dependencyCount = 2;
+    rci.pDependencies = dep;
+    VkRenderPass p = VK_NULL_HANDLE;
+    Check(vkCreateRenderPass(dev, &rci, nullptr, &p), "vkCreateRenderPass");
+    return p;
+  }
+  // a pass's dependencies. Before: what read or wrote the attachments earlier (the copies that sampled them);
+  // after: the reads that follow (a texture, a copy, a transfer)
+  static void PassDependencies(VkSubpassDependency dep[2]) {
     dep[0].srcSubpass = VK_SUBPASS_EXTERNAL;
     dep[0].dstSubpass = 0;
     dep[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
@@ -595,16 +654,99 @@ struct VkRenderer final : GxCore {
     dep[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
     dep[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dep[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
+  }
+  // the EFB pass with MSAA: the multisampled colour and depth loaded and kept, the colour resolved into the EFB's
+  // colour image (attachment 2) at the pass's end
+  VkRenderPass MakeMsaaPass(VkFormat color, VkFormat depth, VkSampleCountFlagBits n) {
+    VkAttachmentDescription a[3]{};
+    for (VkAttachmentDescription &d : a) {
+      d.samples = n;
+      d.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+      d.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      d.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      d.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      d.initialLayout = d.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      d.format = color;
+    }
+    a[1].format = depth;
+    a[1].initialLayout = a[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    a[2].samples = VK_SAMPLE_COUNT_1_BIT;
+    a[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // written whole by the resolve
+    VkAttachmentReference cref{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkAttachmentReference dref{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+    VkAttachmentReference rref{2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription sub{};
+    sub.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    sub.colorAttachmentCount = 1;
+    sub.pColorAttachments = &cref;
+    sub.pResolveAttachments = &rref;
+    sub.pDepthStencilAttachment = &dref;
+    VkSubpassDependency dep[2]{};
+    PassDependencies(dep);
     auto rci = Make<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
-    rci.attachmentCount = depth != VK_FORMAT_UNDEFINED ? 2 : 1;
+    rci.attachmentCount = 3;
     rci.pAttachments = a;
     rci.subpassCount = 1;
     rci.pSubpasses = &sub;
     rci.dependencyCount = 2;
     rci.pDependencies = dep;
     VkRenderPass p = VK_NULL_HANDLE;
-    Check(vkCreateRenderPass(dev, &rci, nullptr, &p), "vkCreateRenderPass");
+    Check(vkCreateRenderPass(dev, &rci, nullptr, &p), "vkCreateRenderPass (MSAA)");
     return p;
+  }
+  // the depth resolve's pass: the resolved depth image alone, written whole
+  VkRenderPass MakeDepthPass(VkFormat depth) {
+    VkAttachmentDescription a{};
+    a.format = depth;
+    a.samples = VK_SAMPLE_COUNT_1_BIT;
+    a.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    a.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    a.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    a.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    a.initialLayout = a.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    VkAttachmentReference dref{0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription sub{};
+    sub.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    sub.pDepthStencilAttachment = &dref;
+    VkSubpassDependency dep[2]{};
+    PassDependencies(dep);
+    auto rci = Make<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
+    rci.attachmentCount = 1;
+    rci.pAttachments = &a;
+    rci.subpassCount = 1;
+    rci.pSubpasses = &sub;
+    rci.dependencyCount = 2;
+    rci.pDependencies = dep;
+    VkRenderPass p = VK_NULL_HANDLE;
+    Check(vkCreateRenderPass(dev, &rci, nullptr, &p), "vkCreateRenderPass (depth resolve)");
+    return p;
+  }
+  // MSAA: the depth resolved into efbDepth before something reads it (sample 0 of each pixel)
+  void ResolveDepth() {
+    if (samples <= 1 || depthResolved || !depthResolvePass || !depthResolve.pipeline)
+      return;
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    Transition(cb, efbMsDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
+    rbi.renderPass = depthResolvePass;
+    rbi.framebuffer = depthResolveFb;
+    rbi.renderArea = {{0, 0}, {efbDepth.width, efbDepth.height}};
+    vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
+    pass = kOtherPass;
+    const VkViewport vp{0.0f, 0.0f, float(efbDepth.width), float(efbDepth.height), 0.0f, 1.0f};
+    const VkRect2D sc{{0, 0}, {efbDepth.width, efbDepth.height}};
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
+    scissorValid = false;
+    const VkImageView view = efbMsDepth.view;
+    BindFixed(depthResolve, &view, &nearestClamp, 1, {});
+    vkCmdDraw(cb, 4, 1, 0, 0);
+    EndPass();
+    depthResolved = true;
+    depthResolveCount++;
   }
   VkFramebuffer MakeFb(VkRenderPass p, std::initializer_list<VkImageView> views, unsigned w, unsigned h) {
     std::vector<VkImageView> v(views);
@@ -625,8 +767,14 @@ struct VkRenderer final : GxCore {
       return;
     EndPass();
     VkCommandBuffer cb = F().draw;
-    Transition(cb, efbColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    Transition(cb, efbColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);  // (with MSAA: the resolve's target)
+    if (samples > 1) {
+      Transition(cb, efbMsColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+      Transition(cb, efbMsDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+      depthResolved = false;
+    } else {
+      Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    }
     auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
     rbi.renderPass = efbPass;
     rbi.framebuffer = efbFb;
@@ -822,9 +970,10 @@ struct VkRenderer final : GxCore {
     if (glDepth)
       vp.pNext = &clip;
     auto ms = Make<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    ms.rasterizationSamples =
+        renderPass == efbPass && samples > 1 ? static_cast<VkSampleCountFlagBits>(samples) : VK_SAMPLE_COUNT_1_BIT;
     auto cb = Make<VkPipelineColorBlendStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
-    cb.attachmentCount = 1;
+    cb.attachmentCount = renderPass == depthResolvePass ? 0 : 1;
     cb.pAttachments = &cba;
     VkDynamicState dyn[3] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_LINE_WIDTH};
     auto dy = Make<VkPipelineDynamicStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
@@ -1452,6 +1601,8 @@ struct VkRenderer final : GxCore {
     Image *dst = ImageOf(p.target);
     if (!dst)
       return;
+    if (p.depth)
+      ResolveDepth();
     Begin();
     EndPass();
     VkCommandBuffer cb = F().draw;
@@ -1503,7 +1654,8 @@ struct VkRenderer final : GxCore {
       return false;
     }
     if (!MakeImage(peekImage, kDepthWidth, kDepthHeight, 1, VK_FORMAT_R8G8B8A8_UNORM,
-                   VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_ASPECT_COLOR_BIT))
+                   VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                   VK_IMAGE_ASPECT_COLOR_BIT))  // (sampled: the copy pass leaves it as a texture)
       return false;
     for (PeekSlot &s : peekSlot)
       if (!MakeBuffer(VkDeviceSize(kDepthWidth) * kDepthHeight * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT, &s.buffer))
@@ -1525,6 +1677,7 @@ struct VkRenderer final : GxCore {
     PeekSlot *slot = !peekSlot[0].serial ? &peekSlot[0] : !peekSlot[1].serial ? &peekSlot[1] : nullptr;
     if (!slot)
       return;  // the GPU is two maps behind: the core keeps the last one (it ages out there)
+    ResolveDepth();
     Begin();
     EndPass();
     VkCommandBuffer cb = F().draw;
@@ -1929,10 +2082,14 @@ struct VkRenderer final : GxCore {
     o.surface = true;  // the window's swapchain (Present)
 #endif
     o.log = VkLogLine;
-    if (!vk.Create(o, error))
-      return false;
+    if (!vk.device) {
+      // the run's first renderer (or one after a failed start): the device; the next ones take it as it is
+      vk.Destroy();
+      if (!vk.Create(o, error))
+        return false;
+      heap.Init(&vk);
+    }
     dev = vk.device;
-    heap.Init(&vk);
     GXLOG("GPU (Vulkan): %s; %s; depth %s", vk.Describe().c_str(), CompilerName(),
           vk.depthClipControl ? "in GL's clip range (VK_EXT_depth_clip_control)" : "mapped to 0..1");
     const VkFormat depths[] = {VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D32_SFLOAT};
@@ -1944,12 +2101,27 @@ struct VkRenderer final : GxCore {
     anisotropy = std::max(1.0f, std::min(options.anisotropy, vk.enabled.samplerAnisotropy
                                                                  ? vk.properties.limits.maxSamplerAnisotropy
                                                                  : 1.0f));
-    samples = 1;  // E4: MSAA
+    // MSAA: the samples asked for where the device draws and samples them (colour, depth; 4 always can), else
+    // fewer
+    samples = 1;
+    {
+      const VkPhysicalDeviceLimits &l = vk.properties.limits;
+      const VkSampleCountFlags can =
+          l.framebufferColorSampleCounts & l.framebufferDepthSampleCounts & l.sampledImageDepthSampleCounts;
+      for (int n = std::min(8, std::max(1, options.samples)); n > 1; n /= 2)
+        if (can & static_cast<VkSampleCountFlags>(n)) {
+          samples = n;
+          break;
+        }
+    }
     if (const char *merge = std::getenv("RE4_GX_MERGE"))
       mergeOn = *merge == '1';
     // render passes: the EFB (what it held loaded), a copy's target (drawn over whole), the screen (cleared)
-    efbPass = MakePass(VK_FORMAT_R8G8B8A8_UNORM, depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD,
-                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    efbPass = samples > 1 ? MakeMsaaPass(VK_FORMAT_R8G8B8A8_UNORM, depthFormat, static_cast<VkSampleCountFlagBits>(samples))
+                          : MakePass(VK_FORMAT_R8G8B8A8_UNORM, depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    if (samples > 1)
+      depthResolvePass = MakeDepthPass(depthFormat);
     copyPass = MakePass(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     screenPass = MakePass(VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -1990,8 +2162,11 @@ struct VkRenderer final : GxCore {
       pci.poolSizeCount = 1;
       pci.pPoolSizes = &size;
       vkCreateDescriptorPool(dev, &pci, nullptr, &uboPool);
-      auto cci = Make<VkPipelineCacheCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
-      vkCreatePipelineCache(dev, &cci, nullptr, &pipelineCache);
+      if (!shared->pipelineCache) {
+        auto cci = Make<VkPipelineCacheCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
+        vkCreatePipelineCache(dev, &cci, nullptr, &shared->pipelineCache);
+      }
+      pipelineCache = shared->pipelineCache;
     }
     for (Frame &f : frames) {
       auto cpi = Make<VkCommandPoolCreateInfo>(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
@@ -2022,12 +2197,31 @@ struct VkRenderer final : GxCore {
       presentFs.replace(at, flip.size(), "rows.x + vUv.y * rows.y");
     const VkColorComponentFlags all = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                                       VK_COLOR_COMPONENT_A_BIT;
+    if (samples > 1) {
+      VkFixedLayout l;
+      l.samplers = {"src"};
+      if (!depthResolvePass ||
+          !MakeFixed(depthResolve, kDepthResolveVs, kDepthResolveFs, depthResolvePass, 0, true, error, true, &l))
+        return false;
+    }
     if (!MakeFixed(copy, fixed::kQuadVs, fixed::kCopyFs, copyPass, all, false, error) ||
         !MakeFixed(present, fixed::kQuadVs, presentFs, screenPass, all, false, error) ||
         !MakeFixed(palette, fixed::kQuadVs, fixed::kPaletteFs, copyPass, all, false, error))
       return false;
     ready = true;
-    // the EFB: colour and depth at the scale, cleared to black and the far depth
+    if (!MakeEfb(error))
+      return false;
+    // the white stand-in texture
+    const std::uint8_t white[4] = {255, 255, 255, 255};
+    whiteTex = BeginTexture(1, 1, 1);
+    TextureLevel(whiteTex, 0, 1, 1, white);
+    EndTexture(whiteTex, 1);
+    for (auto &b : bound)
+      b.id = whiteTex;
+    return true;
+  }
+  // the EFB: colour and depth at the scale, cleared to black and the far depth
+  bool MakeEfb(std::string *error) {
     const unsigned w = static_cast<unsigned>(Lo(kEfbWidth)), hh = static_cast<unsigned>(Lo(kEfbHeight));
     if (!MakeImage(efbColor, w, hh, 1, VK_FORMAT_R8G8B8A8_UNORM,
                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
@@ -2040,33 +2234,131 @@ struct VkRenderer final : GxCore {
       *error = "the EFB's images";
       return false;
     }
-    efbFb = MakeFb(efbPass, {efbColor.view, efbDepth.attach ? efbDepth.attach : efbDepth.view}, w, hh);
+    if (samples > 1) {
+      const auto n = static_cast<VkSampleCountFlagBits>(samples);
+      if (!MakeImage(efbMsColor, w, hh, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT, n) ||
+          !MakeImage(efbMsDepth, w, hh, 1, depthFormat,
+                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                         VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                     efbDepth.aspect, n)) {
+        *error = "the EFB's multisampled images";
+        return false;
+      }
+      efbFb = MakeFb(efbPass, {efbMsColor.view, efbMsDepth.attach ? efbMsDepth.attach : efbMsDepth.view, efbColor.view},
+                     w, hh);
+      depthResolveFb = MakeFb(depthResolvePass, {efbDepth.attach ? efbDepth.attach : efbDepth.view}, w, hh);
+    } else {
+      efbFb = MakeFb(efbPass, {efbColor.view, efbDepth.attach ? efbDepth.attach : efbDepth.view}, w, hh);
+    }
     Begin();
     VkCommandBuffer cb = F().draw;
-    Transition(cb, efbColor, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    Transition(cb, efbDepth, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     const VkClearColorValue clearColor{{0.0f, 0.0f, 0.0f, 0.0f}};
     const VkClearDepthStencilValue clearDepth{1.0f, 0};
     const VkImageSubresourceRange cr{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}, dr{efbDepth.aspect, 0, 1, 0, 1};
-    vkCmdClearColorImage(cb, efbColor.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &cr);
-    vkCmdClearDepthStencilImage(cb, efbDepth.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearDepth, 1, &dr);
-    // the white stand-in texture
-    const std::uint8_t white[4] = {255, 255, 255, 255};
-    whiteTex = BeginTexture(1, 1, 1);
-    TextureLevel(whiteTex, 0, 1, 1, white);
-    EndTexture(whiteTex, 1);
-    for (auto &b : bound)
-      b.id = whiteTex;
+    for (Image *c : {&efbColor, &efbMsColor})
+      if (c->image) {
+        Transition(cb, *c, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        vkCmdClearColorImage(cb, c->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &cr);
+      }
+    for (Image *d : {&efbDepth, &efbMsDepth})
+      if (d->image) {
+        Transition(cb, *d, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        vkCmdClearDepthStencilImage(cb, d->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearDepth, 1, &dr);
+      }
+    depthResolved = true;
     return true;
   }
-  void RescaleHalves(int) override {
-    static bool told = false;
-    if (!told) {
-      told = true;
-      GXLOG("Vulkan: a change of the EFB scale while running is not made yet (E4); the scale stays");
+  // `img` (a copy's or the XFB's, `cw` x `ch` in EFB pixels) as an image of this renderer's scale with the old
+  // picture drawn over it scaled (GL: glBlitFramebuffer, linear); recorded in this frame, the old image to its trash
+  bool Rescaled(Image &img, unsigned cw, unsigned ch) {
+    Image made;
+    const unsigned w = static_cast<unsigned>(Hi(static_cast<int>(cw))), h = static_cast<unsigned>(Hi(static_cast<int>(ch)));
+    if (!img.image || !MakeImage(made, w, h, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                                     VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                                 VK_IMAGE_ASPECT_COLOR_BIT)) {
+      Destroy(made);
+      return false;
     }
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    Transition(cb, img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    Transition(cb, made, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VkImageBlit b{};
+    b.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    b.dstSubresource = b.srcSubresource;
+    b.srcOffsets[1] = {static_cast<std::int32_t>(img.width), static_cast<std::int32_t>(img.height), 1};
+    b.dstOffsets[1] = {static_cast<std::int32_t>(w), static_cast<std::int32_t>(h), 1};
+    vkCmdBlitImage(cb, img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, made.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                   1, &b, VK_FILTER_LINEAR);
+    Transition(cb, made, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    Trash(img);
+    img = made;
+    return true;
   }
-  void HandOverCopies(GxCore &) override {}  // E4
+  // a step of "Dynamic" or a new scale while the game runs (GL's RescaleHalves): the EFB anew at the new size and
+  // cleared, the XFB and the EFB copies scaled over (an effect that reads the picture before, a copy the game made
+  // once at a room's start), the in-between pictures' own copies gone
+  void RescaleHalves(int h) override {
+    h = std::max(2, h);
+    if (!ready || h == halves)
+      return;
+    stats.rescales++;
+    Begin();
+    EndPass();
+    halves = h;
+    for (Image *img : {&efbColor, &efbDepth, &efbMsColor, &efbMsDepth})
+      Trash(*img);
+    for (VkFramebuffer *fbp : {&efbFb, &depthResolveFb})
+      if (*fbp) {
+        const VkDevice d = dev;
+        const VkFramebuffer fb = *fbp;
+        F().trash.push_back([d, fb]() { vkDestroyFramebuffer(d, fb, nullptr); });
+        *fbp = VK_NULL_HANDLE;
+      }
+    std::string error;
+    if (!MakeEfb(&error))
+      GXLOG("Vulkan: the EFB at %d/2: %s", h, error.c_str());
+    if (Image *x = ImageOf(xfbId))
+      Rescaled(*x, xfbWidth, xfbHeight);
+    for (auto &c : copies)
+      if (Image *img = ImageOf(c.second.id))
+        Rescaled(*img, c.second.width, c.second.height);
+    // (the copies read through a palette have the copy's size in EFB pixels, at every scale)
+    for (auto &c : interpCopies)
+      DeleteTexture(c.second.id);
+    interpCopies.clear();
+    stateValid = false;
+    ResetBound();
+  }
+  // new picture options made a new renderer (core_mode.cpp): this one's EFB copies go over to it on the shared
+  // device, at its scale (GL: HandOverCopies); a copy the game made once (a room's start) is read on
+  void HandOverCopies(GxCore &to) override {
+    if (to.api != GxApi::kVulkan)
+      return;
+    VkRenderer &n = static_cast<VkRenderer &>(to);
+    if (&n == this || copies.empty() || !n.ready || n.dev != dev)
+      return;
+    unsigned moved = 0;
+    for (auto &c : copies) {
+      Copy copy = c.second;
+      if (!ImageOf(copy.id) || n.copies.count(c.first))
+        continue;
+      std::unique_ptr<Image> img = std::move(images[copy.id - 1]);
+      freeIds.push_back(copy.id);
+      if (halves != n.halves)
+        n.Rescaled(*img, copy.width, copy.height);
+      copy.id = n.NewId(std::move(img));
+      copy.serial = ++n.copySerial;
+      n.copies[c.first] = copy;
+      c.second.id = 0;  // the new renderer's now: this one's Release leaves it
+      moved++;
+    }
+    copies.clear();
+    n.stats.handedCopies += moved;
+  }
   bool TiledMsaa() const override { return false; }
   std::string ApiInfo() const override { return dev ? vk.Describe() : "Vulkan (not started)"; }
   bool BaseVertex() const override { return true; }
@@ -2081,10 +2373,8 @@ struct VkRenderer final : GxCore {
     flaresOn = flares && *flares == '1';
   }
   void Release() override {
-    if (!dev) {
-      vk.Destroy();
-      return;
-    }
+    if (!dev)
+      return;  // (the shared device goes with the last renderer)
     if (recording)
       Submit(true, false);
     vkDeviceWaitIdle(dev);
@@ -2133,8 +2423,15 @@ struct VkRenderer final : GxCore {
     interpCopies.clear();
     Destroy(efbColor);
     Destroy(efbDepth);
+    Destroy(efbMsColor);
+    Destroy(efbMsDepth);
     if (efbFb)
       vkDestroyFramebuffer(dev, efbFb, nullptr);
+    efbFb = VK_NULL_HANDLE;
+    if (depthResolveFb)
+      vkDestroyFramebuffer(dev, depthResolveFb, nullptr);
+    depthResolveFb = VK_NULL_HANDLE;
+    FreeFixed(depthResolve);
     for (auto &p : pipelines)
       if (p.second)
         vkDestroyPipeline(dev, p.second, nullptr);
@@ -2163,8 +2460,7 @@ struct VkRenderer final : GxCore {
     peekReady = false;
     for (Fixed &f : clearFixed)
       FreeFixed(f);
-    if (pipelineCache)
-      vkDestroyPipelineCache(dev, pipelineCache, nullptr);
+    pipelineCache = VK_NULL_HANDLE;  // (the shared device's)
     if (uboPool)
       vkDestroyDescriptorPool(dev, uboPool, nullptr);
     if (gxLayout)
@@ -2172,16 +2468,17 @@ struct VkRenderer final : GxCore {
     for (VkDescriptorSetLayout l : {uboLayout, texLayout})
       if (l)
         vkDestroyDescriptorSetLayout(dev, l, nullptr);
-    for (VkRenderPass p : {efbPass, copyPass, screenPass})
+    for (VkRenderPass p : {efbPass, copyPass, screenPass, depthResolvePass})
       if (p)
         vkDestroyRenderPass(dev, p, nullptr);
+    efbPass = copyPass = screenPass = depthResolvePass = VK_NULL_HANDLE;
     const unsigned errors = vk.validationErrors.load(), warnings = vk.validationWarnings.load();
     if (vk.validation)
       GXLOG("Vulkan validation: %u errors, %u warnings", errors, warnings);
-    heap.Destroy();
+    if (samples > 1)
+      GXLOG("Vulkan MSAA: %d samples, the depth resolved %u times", samples, depthResolveCount);
     dev = VK_NULL_HANDLE;
     ready = false;
-    vk.Destroy();
   }
 };
 
