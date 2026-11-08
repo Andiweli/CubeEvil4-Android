@@ -2357,6 +2357,23 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   und ohne Bild über der Grenze, `gx_gl_check` 0 Fehler, NDK beide ABIs.
   **Nicht geprüft:** Gerät; lavapipe hat keinen echten Pipeline-Cache (32 Bytes), der Nutzen dort zeigt sich erst
   auf Adreno und Mali.
+- **E9 Abschluss am PC (08.11.2026):**
+  - **Test-APK** `E:\Development\Androiduildsulkan\CubeEvil4-0.99.2-vulkan5.apk`:
+    - versionCode 105, 22,9 MB, beide ABIs, Debug-Schlüssel wie die installierte App;
+    - per `-Pre4.versionName=0.99.2-vulkan5 -Pre4.versionCode=105`.
+  - **Kontroll-APK** `CubeEvil4-0.99.2-vulkan0.apk` (Wunsch des Projektinhabers):
+    - nur GLES, Stand E2 (`fa2a74fe`), versionCode 105, 21,3 MB;
+    - Vulkan samt glslang kostet damit ≈ 1,6 MB APK.
+  - **Update-Prüfung:** „0.99.2-vulkanN“ gilt als dieselbe Version wie die neueste GitHub-Version „0.99.2-rc“
+    (`AppUpdateTest`). Kommt 0.99.3-rc auf GitHub, zeigen diese APKs den Update-Hinweis.
+  - **Geprüft (PC):** Java-Tests 59/59 (1 übersprungen: Menü-Bildschirmfotos), App-Bau beider ABIs.
+  - **Offen bis „fertig“:**
+    - Gerätetest (Anleitung im Notizordner der Hauptsitzung: Geschwindigkeit ohne Drehen mit zwei Vulkan-Läufen und
+      einem GLES-Lauf, Drehen und Pause, Rückfall, Menü);
+    - der Nutzen auf Mali-Geräten (Berichte der Tester);
+    - die Freigabe des Projektinhabers für `master`.
+  - **Bekannte Restunterschiede zu GLES:** Rauschen der Treiber, die Kantenregel und 1-Pixel-Linien ohne MSAA (die
+    Linienregel von Vulkan).
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 
