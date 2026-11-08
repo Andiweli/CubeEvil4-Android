@@ -1818,6 +1818,44 @@ void TestAutoLevel() {
     Check(r.a.Ups() == 1, "auto level: up again once it hardly waits");
   }
   {
+    // up to the benchmark's level (0.99.5, the project owner's Retroid report 08.11.2026: 60 FPS, down to 1x after a
+    // hitch, never up again): with every in-between picture shown and the game at 30, a GPU a third behind (the fence of
+    // the newest in-between picture still open at every third look) goes up to the benchmark's 1.5x, not above it
+    auto play = [](AutoRun &r, double seconds, unsigned behindEvery) {
+      const double end = r.t + seconds;
+      while (r.t < end) {
+        r.t += 1.0 / 30.0;
+        r.checks++;
+        r.sum += behindEvery && r.checks % behindEvery == 0 ? 1u : 0u;
+        std::string why;
+        r.a.Chunk(r.t, r.sum, r.checks, true, &why, r.dropped, r.waited);
+        if (!why.empty())
+          r.lines.push_back(why);
+      }
+    };
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x
+    r.Play(6.5, 20.0, 1);
+    r.Play(6.5, 20.0, 1);
+    Check(r.a.Level() == 2, "auto level, benchmark 1.5x: down to 1x after a long hitch");
+    play(r, 30.0, 3);
+    Check(r.a.Level() == 3 && r.a.Ups() == 1, "auto level, benchmark 1.5x: up to 1.5x with the GPU a third behind");
+    play(r, 120.0, 3);
+    Check(r.a.Level() == 3 && r.a.Ups() == 1, "auto level, benchmark 1.5x: not above it unless the GPU keeps up");
+    play(r, 30.0, 0);
+    Check(r.a.Level() == 4 && r.a.Ups() == 2, "auto level, benchmark 1.5x: 2x once the GPU keeps up");
+    AutoRun half;
+    half.a.Start(4, 0.0, 2, true, 3);
+    half.Play(13.0, 20.0, 1);
+    play(half, 60.0, 2);
+    Check(half.a.Level() == 2 && half.a.Ups() == 0, "auto level, benchmark 1.5x: not up with the GPU half behind");
+    AutoRun none;
+    none.a.Start(4, 0.0, 2, true);  // no benchmark: as before
+    none.Play(13.0, 20.0, 1);
+    play(none, 60.0, 3);
+    Check(none.a.Level() == 2 && none.a.Ups() == 0, "auto level, no benchmark: not up with the GPU a third behind");
+  }
+  {
     // in halves (the app): from 2x (4) half a level at a time, never below 1x (2), named "1.5x"
     AutoRun r;
     r.a.Start(4, 0.0, 2, true);
@@ -2513,6 +2551,59 @@ void TestInterpolationOwners() {
     Check(glGetError() == GL_NO_ERROR, "owners: no GL error");
     r.Release();
   }
+}
+
+// A weather particle that wraps around the camera (esp15.cpp, id 0x15; the project owner's fog in r227, GX series
+// 08.11.2026: a sprite 7 m to the side): A +3500, B -3500, the same object and life. Halfway (0) it stood where it is
+// in neither picture, a brighter fog bank in each such in-between picture; now it stands where it is in B. A second
+// one drifts 1000 to the left (from -6000 to -7000) and still goes halfway (-6500).
+void WrapScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  auto particle = [&](std::uint32_t object, float x) {
+    b.Owner(object, 0x81234560u, 0x15, 0x00150ed7u);
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  };
+  particle(0x80100000u, second ? -3500.0f : 3500.0f);
+  particle(0x80100150u, second ? -7000.0f : -6000.0f);
+  b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationWrap() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  WrapScene(ba, 1, false, &a);
+  WrapScene(bb, 2, true, &b);
+  r.Run(a);
+  Check(r.Interpolate(a, b, 0.5f), "wrap: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  const auto asInB = TexPixel(xfb, px(-3500.0f), 264), halfway = TexPixel(xfb, px(0.0f), 264),
+             asInA = TexPixel(xfb, px(3500.0f), 264), drift = TexPixel(xfb, px(-6500.0f), 264);
+  const bool right = Near(asInB, 0, 255, 0) && Near(halfway, 0, 0, 0) && Near(asInA, 0, 0, 0) && Near(drift, 0, 255, 0);
+  Check(right, "wrap: a particle that wrapped around stands where it is in B, a drifting one halfway");
+  Check(r.Stats().interpOwnedJumps == 1 && r.Stats().interpOwned == 1, "wrap: one jumped, one found by its object");
+  if (!right)
+    Print("asInB", asInB), Print("halfway", halfway), Print("asInA", asInA), Print("drift", drift);
+  Check(glGetError() == GL_NO_ERROR, "wrap: no GL error");
+  r.Release();
 }
 
 // A room part of 24 vertices (not a particle) whose texture matrix index changes from A (identity) to B
@@ -3656,6 +3747,7 @@ int main() {
   TestInterpolationEffects();
   TestInterpolationForget();
   TestInterpolationOwners();
+  TestInterpolationWrap();
   TestInterpolationRoomPart();
   TestInterpolationSparkle();
   TestInterpolationOneFrame();

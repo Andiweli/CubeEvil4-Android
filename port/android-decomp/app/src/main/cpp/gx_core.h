@@ -402,6 +402,9 @@ struct GxCore {
                            std::uint32_t vertexCount, bool flat = false);
   // q moved by the camera's move c (a point in view space before -> after).
   static void CameraApply(const float (&c)[3][4], const float *q, float *out);
+  // A particle found by its object moved from `before` to `t` (view space) farther than it can in one game picture:
+  // it jumped (wrapped around the camera, started its path again), BlendDraw draws it as a new one.
+  bool Jumped(const float *before, const float *t) const;
   // A 3D draw without a counterpart in the picture before (a new flame of a fire, a slot used anew, a
   // part of the ground that drew otherwise) while the camera's move is known (NoteCamera): its rows as if it
   // stood still in the world, between where that move puts it in the picture before and where it is now.

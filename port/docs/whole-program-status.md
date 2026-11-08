@@ -3,6 +3,119 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.5-rc: fünf Rückmeldungen des Projektinhabers mit Vulkan (08.11.2026, Branch `work`, Patch 0221)
+
+Version 0.99.5-rc (versionCode 107), Releasetext `port/android-decomp/docs/releases/v0.99.5-rc.md` („Changes since
+v0.99.4.“, APK `CubeEvil4-0.99.5-rc.apk`). Patch 0221 (nächste freie Nummer 0222). Material des Projektinhabers:
+`E:\Development\Android\reports\0995-owner-20261108\` (vier Fehlerberichte aus **einem** Lauf ab 15:41:36, Retroid
+Pocket Flip 2, Adreno 650, 0.99.4-rc, Renderer Vulkan, 60 FPS, Dynamisch, FXAA, Nachschärfen leicht, 16:9, EU-Discs
+Deutsch, Cheats Gesundheit/Munition/One-Hit/QTE, Randomizer mit Seed 766675; 36 GX-Aufnahmen r227, zwei Fotos).
+Räume: r227 ab 15:42:18 (geladen mit dem Schnellspeicher der App), r228, r22a, r300, Benchmark in r11b, r300.
+`logs/last-crash/crash.txt` (1736 Bytes) ist ein alter Absturz vom 01.11.2026 (0.96.7-beta, Java-Seite im
+Android-Looper), nicht aus diesem Lauf.
+
+1. **Nebel flackert bei 60 FPS (beide Renderer).** Die 36 Aufnahmen (r227 oben, Nebel, Leon steht) am PC mit
+   Zwischenbildern nachgezeichnet (`gx_chunk_render`, GL und Vulkan, 1,5×, FXAA, Schärfen, Reflexe): GL und Vulkan
+   zeichnen die Zwischenbilder gleich (mittlere Abweichung 0,2 Stufen), die echten Bilder wie das Gerät. In Serie 02
+   war Zwischenbild 05 in einer Nebelbank um 9–10 Stufen (≈ 25 %) heller als beide Nachbarn, Bild 11 um 7.
+   - **Ursache:** Wetterteilchen der Art 0x15 (`esp15.cpp`: Regen, Schnee, Staub, Nebel) springen in einer Kiste um
+     die Kamera auf die andere Seite, sobald sie zu weit treiben (das 1,2-Fache der halben Kistengröße, hier über
+     7 m). Über ihr Objekt (Patch 0137) erkannt, setzte das Zwischenbild ein solches Teilchen auf halbe Strecke,
+     wo in keinem echten Bild Nebel war. Eingegrenzt mit einer Diagnose-Kopie (Zeichnung für Zeichnung ungemischt):
+     genau eine Zeichnung (Teilchen 0x15, Lage −1291 → +5855 in Sichtrichtung x).
+   - **Behoben (`gx_core.cpp`, `GxCore::Jumped`):** Ein über sein Objekt gefundenes Teilchen, das sich – nach
+     Abzug der Kamerabewegung – weiter bewegt hat als ein Viertel seines Abstands plus 400 Einheiten (die Toleranz
+     von `MatchDraw` ohne Kamera), gilt als gesprungen und wird wie ein neues gezeichnet (`BlendByCamera`: wo es im
+     nächsten Bild ist, mit der Kamera mitbewegt). Gilt auch für Pfad-Sprites, die ihren Weg neu beginnen
+     (`esp06.cpp`). Neue Zahl im Protokoll („%u particles jumped“) und in `gx_chunk_render` („gesprungen“).
+   - **Geprüft am PC:** Serie 02 Bild 05 9,4 → 0,3, Bild 11 7,0 → 1,1, Serie 01 Bild 02 2,3 → 0,8 (Abweichung vom
+     Mittel der Nachbarn, 32-px-Zellen); die übrigen bleiben, wo sich die echten Bilder selbst stark ändern (Kamera).
+     Test `TestInterpolationWrap` (`test_gx_gl.cpp`): ein umspringendes Teilchen steht im Zwischenbild wo in B, ein
+     treibendes auf halber Strecke; ohne die Änderung schlägt er fehl. `gx_gl_check` 0 Fehler (GL und Vulkan).
+   - **Nicht geprüft:** Gerät. Große Fackelflammen bleiben als Known issue (nicht untersucht, kein Material).
+
+2. **Dynamisch schaltet unter Vulkan nicht mehr hoch (nur Vulkan).** Protokoll: 2× → 1,5× (15:42:29), 1,5× → 1×
+   (15:49:59), danach nie mehr hoch; die Zeile „60 FPS: … the GPU N Runs behind“ stand unter Vulkan fast immer auf
+   1,0, auch bei 1×. Unter GLES (Bericht 0984b vom 05.11.: 1,0 bei 2×, 0,5 bei 1,5×) misst sie die Last.
+   - **Ursache (`gx_vk.cpp`):** Ein Vulkan-Bild ging als **ein** Paket an die GPU, das am Farbausgang auf das
+     Bild der Swapchain wartete (`acquireSem`): die GPU begann die EFB-Arbeit des Bildes erst, wenn der Bildschirm
+     ein Bild zurückgab, und `RunEnd` zählte jedes noch wartende Bild als „GPU hinterher“. Hochschalten verlangt
+     unter 0,1 (`gx_auto_level.h`), Herunterschalten ab 0,5 – unter Vulkan war Letzteres immer erfüllt.
+   - **Behoben:** `SubmitWork` schickt die Arbeit des Bildes (Uploads, EFB-Durchgänge, Kopien) sofort mit eigenem
+     Zaun (`workFence`) ab; die Befehle für den Bildschirm kommen in den dritten Befehlspuffer des Rahmens und gehen
+     danach mit dem Warten auf die Swapchain (`Submit`). `RunEnd` zählt bei solchen Rahmen nur noch deren Arbeit, wie
+     GLs Zaun nach einem Bildstück. Nebenbei beginnt die GPU jedes Bild früher.
+   - **Auch die Regel war bei 60 FPS zu streng (beide Renderer):** In keinem Gerätebericht steht je ein Hochschalten.
+     Mit 60 FPS wird der Zaun des neuesten Zwischenbilds schon eine halbe Spielbild-Zeit nach dem Absenden angesehen;
+     „unter 0,1“ verlangt dann eine GPU mit höchstens einem Drittel Last (GLES 0984b: 0,5 bei 1,5×, stabil). Jetzt
+     (`gx_auto_level.h`, `Start(…, proven)`, `core_mode.cpp`): bis zur Stufe des Benchmarks für diese Bildrate
+     (`dynamicCap30/60`, hier 1,5×; an der schwersten Stelle gemessen) genügt fürs Hochschalten „GPU nicht deutlich
+     hinterher“ (unter 0,5, die Marke fürs Herunterschalten), dazu wie bisher Spiel im Takt, < 5 % ausgelassene
+     Zwischenbilder, Render-Thread wartet < 5 ms, 10 s am Stück, Wartezeit nach einem Herunterschalten. Darüber (die
+     halbe Stufe über dem Benchmark) und ohne Benchmark wie bisher. Hin und Her verhindert weiter die wachsende
+     Wartezeit (10 s, verdoppelt bei Rückfall binnen 15 s, bis 5 min).
+   - **Geprüft am PC:** Vulkan (lavapipe) mit Prüfschicht samt Synchronisations-Prüfung (`RE4_VK_VALIDATION=2`):
+     `gx_gl_check` 0 Fehler, 0 Meldungen; die 36 Aufnahmen bytegleich wie vor der Änderung, 0 Meldungen. Der Weg ohne
+     Bildschirm (PC) teilt das Bild genauso. `TestAutoLevel` neu: Benchmark 1,5×, nach einem langen Hänger auf 1×,
+     GPU ein Drittel hinterher → wieder 1,5×, nicht 2×; erst mit „keeping up“ 2×; halb hinterher bleibt 1×; ohne
+     Benchmark bleibt 1×. Ohne die neue Regel schlagen die neuen Prüfungen fehl.
+   - **Nicht geprüft:** Gerät (Swapchain, Anzeige, ob „Dynamisch“ dort wieder hochschaltet).
+   - **Nebenbefund:** Der Schritt 1,5× → 1× um 15:49:59 kam beim ersten Vulkan-Besuch von r228 (124 neue Pipelines in
+     633 ms, 11 % Zwischenbilder ausgelassen), siehe Punkt 3.
+
+3. **Ruckeln unter Vulkan (nur Vulkan): Ursache benannt, nicht behoben.** Die Shader sind da (SPIR-V-Speicher 962
+   bis 977, je 5 s fast immer „0 shaders compiled“; einzelne neue 3–7 ms). Was ruckelt, sind die **Pipelines** (Shader
+   samt fester Zeichen-Einstellungen wie Mischen, Tiefe, Culling, Eckenformat), die Vulkan anders als GLES vorab
+   braucht: unter GLES baut ein eigener Thread beim Start alle ~10 600 Programme der App-Liste, für Vulkan gibt es nur
+   die Listen der Räume, die **dieses Gerät** schon mit Vulkan gesehen hat (11 Räume). Jede neue Pipeline kostet auf
+   dem Adreno 650 20–54 ms; aus dem Treiber-Cache 0,3–0,7 ms. Belege: r227 (Liste vorhanden, 188 vorab) noch 13
+   neue in 294 ms, einzeln bis 54 ms; r300 beim ersten Besuch mit Vulkan in 40 s 246 neue in 3,6 s, angezeigt
+   38–47 Bilder/s. Nicht schuld: 60 FPS, FXAA/Schärfen (feste Pipelines, einmal beim Start), Auflösungswechsel von
+   „Dynamisch“ (danach keine Welle neuer Pipelines), ein neuer Renderer (214 Pipelines in 38 ms aus dem Cache).
+   - **Nächster Schritt (Vorschlag, eigene Aufgabe):** eine Pipeline-Liste in der App (wie `gx-programs.keys`, aus
+     PC-Rundgängen mit Vulkan und aus Fehlerberichten gesammelt) und ein eigener Thread, der sie beim Start in den
+     Treiber-Cache baut; dazu die Raumlisten (`room-NNN.vkpipes`) in den Fehlerbericht.
+
+4. **Aufzug fehlt auf dem Weg zu Salazar, aber „Benutzen“ (beide Renderer, Port-Fehler): Patch 0221.** r227, die
+   Gondel (Objekt 0xA2, `r227_initGondola`, 6850 Einheiten zwischen unterer Station Bereich 5, Höhe 28 625, und
+   oberer Bereich 6, Höhe 35 500). Der Projektinhaber lud um 15:42:18 einen **Schnellspeicher** der App aus dem Titel
+   (kein Kartenladen im Protokoll), gemacht bei (800 2625 −11125), weit unter der Gondel. Der Raumcode stellt die
+   Gondel beim Laden (`SYS_LOAD_GAME`) oben ab, wie bei der Ankunft aus r228: richtig für die Spielstände des Spiels,
+   denn die Schreibmaschine (Bereich 1, Typ SAVE) steht ganz oben (Höhe 39 500). Die EU-`st2_3.rel` hat dieselbe
+   Prüfung (`retail_code.py dis`, 63 von 71 Wörtern gleich, gleiche Bedingung). Der Schnellspeicher geht aber überall.
+   - **Patch 0221:** beim Laden oben nur, wenn der Spieler über der Mitte des Gondelwegs steht.
+   - **Geprüft am PC (i686 -O2, EU-Discs, Debug-Start r227, `RE4_CHEATS=9`, Platz per `RE4_TEST_PLACE`,
+     `RE4_TEST_INSTANT`):** ohne Patch nach dem Schnellladen unten Gondel auf 35 350 (oben), mit Patch auf 28 500
+     (unten); Gegenprobe Schnellspeicher an der Schreibmaschine: Gondel oben wie vorher. Nicht geprüft: Gerät.
+
+5. **Schwebende Gegenstände beim Händler vor Salazar (beide Renderer).** r227 oben, Kisten neben Händler und
+   Schreibmaschine: vier Gegenstände (Bereiche 0x88, 0x89, 0x8E, 0x90; Erste-Hilfe-Spray, TMP-, Magnum-,
+   Gewehrmunition). Am PC mit GLES nachgezeichnet, also kein Vulkan-, Tiefen- oder Breitbild-Fehler.
+   - **Spieldaten:** Die EU-Daten legen die Gegenstände 49–57 Einheiten (≈ 5 cm) über die Kiste (Kollisionshöhe
+     40 498, Gegenstände 40 547/40 556; alle Modelle haben ihren Nullpunkt unten, `getBoundingBox`). Ein dort auf die
+     Kollisionshöhe gesetztes Modell liegt sichtbar genau auf: die Original-Schachteln schweben also auch im Original,
+     flach und weiter hinten fällt es kaum auf. Die weiße Schachtel auf dem Foto ist so ein Original (Gewehrmunition).
+   - **Randomizer:** Der Projektinhaber spielte mit „Random items“ (Seed 766675): in r227 wurden Spray und
+     TMP-Munition zu roten Kräutern, die Magnum-Munition zu einer Brandgranate (die „Dose“ des Fotos). Hohe Modelle
+     zeigen die 5 cm deutlich.
+   - **Behoben für den Randomizer (`runtime/cheats.cpp dealRoom`):** ein ausgetauschter Gegenstand wird auf die Fläche
+     darunter gelegt, wie das Spiel die Beute von Gegnern ablegt (`EatMgr.getFloor`), aber nur, wenn sie höchstens
+     100 Einheiten tiefer liegt (sonst ein Boden unter Möbeln ohne Kollision: Höhe wie im Datensatz). Protokollzeile
+     „(%d put down onto the surface below)“. Am PC: Kraut und Granate liegen auf der Kiste; in r227 6 von 8
+     ausgetauschten abgelegt. Ohne Randomizer unverändert (Original). **Offen (Entscheidung des Projektinhabers):**
+     auch die Original-Gegenstände auf ihre Fläche legen (weicht von den Original-Daten ab).
+
+- **Geprüft am PC insgesamt:** `RE4_OPT=2 whole_build.sh i686` grün (alle Kern- und Laufzeittests, darunter
+  `instant-game`, `potato`, `cheatextras`); `gx_gl_check` (GL und Vulkan, mit Prüfschicht) 0 Fehler. Gradle mit eigenem
+  Gradle-Ordner (`GRADLE_USER_HOME=%TEMP%\gh0994`, der gemeinsame ist seit 08.11. beschädigt):
+  `externalNativeBuildCoreDebug` (arm64-v8a, armeabi-v7a) und `externalNativeBuildClassicDebug` gebaut,
+  `testCoreDebugUnitTest`/`testClassicDebugUnitTest` je 65 Tests, 0 Fehler, 1 übersprungen (Menübilder). Ohne die
+  Kern-Bibliotheken (kein APK gebaut).
+- **Werkzeuge (WSL `~/p0995`, Baum `~/re4-0995/RE4`):** `fog.sh` (die Aufnahmen des Geräts durch `gx_chunk_render`),
+  `ipbis.sh` + Diagnose-Kopie von `gx_core.cpp` (Zwischenbild-Zeichnungen einzeln ungemischt/weg,
+  `RE4_GX_DBG_IP`, nur im Scratchpad), `run.sh`/`draw.sh` (Debug-Start mit GX-Serien, gezeichnet), `sync.sh`.
+- **Nicht geprüft:** alles auf dem Gerät.
+
 ## Version 0.99.4-rc: drei Nutzerberichte ohne Kontext, r100 nach dem Sofortwechsel der Spielfigur (08.11.2026, Branch `work`, Patch 0220)
 
 Version 0.99.4-rc (versionCode 106), Releasetext `port/android-decomp/docs/releases/v0.99.4-rc.md` („Changes since
@@ -13783,6 +13896,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0218 `sce_at.cpp` | Cheat „Random items“: `sceAtSetItem` ruft `re4_item_random` (`runtime/cheats.cpp`), das beim ersten Aufruf eines Raums seine frei liegenden Gegenstände des Topfs (Munition, Granaten, Heilmittel, Peseten, Schätze) aus Seed, Raum und Datensatz neu verteilt, nur gegen Gegenstände mit Modell im Raum, nur in der Story. Wunsch des Projektinhabers 07.11.2026, Issue #161 |
 | 0219 `shadow.cpp`, `foot_shadow.cpp` | Potato-Modus „Schatten & Licht“ aus: `ShadowTrans` kehrt nach dem Löschen der Schattenverwalter und der Flags `STA_SHADOW_EQCOL`/`STA_USE_SHADOW_LIGHT` zurück (keine Schattentexturen, kein zweites Zeichnen der Empfänger, keine projizierten Lichtbilder auf Figuren), `DrawFootShadow` zeichnet nichts; `re4_potato_no_shadows` (`runtime/potato.cpp`), nicht in Ereignissen. Wunsch eines Nutzers über den Projektinhaber, 08.11.2026 |
 | 0220 `r100.cpp` | Port-Fehler (Sofortwechsel der Spielfigur, `cheats.cpp switchNow`: Raum neu durch eine Tür in sich selbst, und damit auch der Rücksetzpunkt für „Retry“): `R100Init` liest die Startszene s40 (2,2 MB ARAM) nur noch, wenn `r100_StartEvent` läuft und sie freigibt (Raum-Flag 13 frei), und s03/s20 wieder, wenn Bereich 6 schon passiert ist (Flag 0; s03 bis zur Haus-Szene, Flag 3). Vorher fehlten die Haus-Szene („ARAM over: evd/r100s03.evd“) und nach einem Wechsel hinter Bereich 6 auch die Szene nach dem Ganado; EU-/US-`st1_0.rel` lesen genauso vor. In jedem Zustand, den das Spiel selbst erreicht, unverändert. Bericht eines Nutzers 07.11.2026 (Xiaomi, EU-Discs, 0.99.2) |
+| 0221 `r227.cpp` | Port-Fehler (Schnellspeicher der App überall im Raum): `r227_initGondola` stellt die Gondel (Objekt 0xA2, 6850 zwischen den Stationen) beim Laden (`SYS_LOAD_GAME`) nur noch oben ab, wenn der Spieler über der Mitte ihres Wegs steht (Starthöhe + 3425); aus r228 kommend wie bisher immer oben. Die Schreibmaschine des Raums (Bereich 1, Typ SAVE, Höhe 39 500) liegt über der oberen Station: Spielstände des Spiels selbst laden unverändert. Vorher nach dem Schnellladen unterhalb der Gondel: Gondel oben, unten trotzdem „Benutzen“. EU-`st2_3.rel` prüft genauso. Rückmeldung des Projektinhabers 08.11.2026 (Retroid, EU-Discs, 0.99.4) |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

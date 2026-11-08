@@ -1719,6 +1719,7 @@ bool drawGx() {
       scale = scaleText ? static_cast<int>(std::lround(std::atof(scaleText) * 2.0)) : 0;
     }
     autoLevelOn = scale < 2 || scale > 8;
+    int proven = 0;  // the benchmark's level (AutoLevel: up to it a step up needs the GPU only not clearly behind)
     if (scale < 2 || scale > 8) {
       // automatic: one level below the one whose 336 picture rows come closest to the screen's
       // rows (wish of the project owner, 19.10.2026: the Retroid's 1080 rows take 2, not 3;
@@ -1731,6 +1732,7 @@ bool drawGx() {
       const int cap = optSmooth.load() ? optCap60.load() : optCap30.load();
       if (cap >= 2 && cap <= 8) {
         scale = std::min(8, cap + 1);
+        proven = cap;
         LOG("dynamic resolution: up to %sx, half a level above the benchmark's %sx for %d pictures a second",
             ScaleName(scale).c_str(), ScaleName(cap).c_str(), optSmooth.load() ? 60 : 30);
       }
@@ -1857,7 +1859,7 @@ bool drawGx() {
     if (autoLevelOn) {
       // in half steps down to 1x (wish of the project owner, 27.10.2026: 2x straight to 1x lost too much)
       autoLevel.Start(scale, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(),
-                      2, true);
+                      2, true, proven);
       LOG("dynamic resolution: from level %sx (the screen's), half a level lower while the GPU falls behind",
           ScaleName(scale).c_str());
     }
@@ -2280,12 +2282,12 @@ bool drawGx() {
         // (60fps-plan.md S0) without a counterpart, by kind; found by their object, slots used anew;
         // texture matrices blended / left out at their edge, TEV and light colours blended
         LOG("60 FPS draws without a counterpart: particles %u of %u, figures %u of %u, room %u of %u, 2D %u of %u "
-            "(%u moved with the camera); by their object %u (%u new in an old slot); texture matrices %u (%u over the "
-            "edge), TEV colours %u, light colours %u",
+            "(%u moved with the camera); by their object %u (%u new in an old slot, %u particles jumped); texture "
+            "matrices %u (%u over the edge), TEV colours %u, light colours %u",
             s.interpKindUnmatched[0], s.interpKind[0], s.interpKindUnmatched[1], s.interpKind[1],
             s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpCameraMoved,
-            s.interpOwned, s.interpOwnedNew, s.interpTexBlends, s.interpTexWraps, s.interpTevBlends,
-            s.interpLightBlends);
+            s.interpOwned, s.interpOwnedNew, s.interpOwnedJumps, s.interpTexBlends, s.interpTexWraps,
+            s.interpTevBlends, s.interpLightBlends);
         if (behind > 2.5 && !levelBench.active) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");

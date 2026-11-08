@@ -221,6 +221,18 @@ const GxCore::DrawRec *GxCore::MatchDraw(const std::vector<std::uint32_t> &candi
   return &rec[static_cast<std::size_t>(best)];
 }
 
+bool GxCore::Jumped(const float *before, const float *t) const {
+  // where the particle was, moved by the camera's move (when known), against where it is now; the tolerance of
+  // MatchDraw without the camera's move (a quarter of the distance and 400), so that fast sparks still count as
+  // moving, and the wraps of the weather particles (1.2 times the box's half size, thousands of units) do not
+  float p[3] = {before[0], before[1], before[2]};
+  if (camValid)
+    CameraApply(cam, before, p);
+  const float reach = std::sqrt(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]);
+  const float dx = p[0] - t[0], dy = p[1] - t[1], dz = p[2] - t[2];
+  return std::sqrt(dx * dx + dy * dy + dz * dz) > 0.25f * reach + 400.0f;
+}
+
 void GxCore::CameraApply(const float (&c)[3][4], const float *q, float *out) {
   for (int r = 0; r < 3; r++)
     out[r] = c[r][0] * q[0] + c[r][1] * q[1] + c[r][2] * q[2] + c[r][3];
@@ -1698,6 +1710,15 @@ std::uint32_t GxCore::BlendDraw(const Re4GxDraw &d, const ShaderKey &k, const Re
         stats.interpOwnedNew++;
         stats.interpKindUnmatched[kind]++;
         return flat ? 0 : BlendByCamera(first, rows);
+      }
+      // a particle that jumped: the weather particles of esp15.cpp (rain, snow, fog) wrap around in a box around the
+      // camera, the path sprites of esp06.cpp start their path again. Halfway it stood where it is in neither picture:
+      // drawn as a new one (the project owner's GX series 08.11.2026, r227 in fog: a sprite 7 m to the side, a
+      // brighter fog bank in one in-between picture now and then, 60 FPS only)
+      if (kind == 0 && c.rows == 3 && c.posRow == first && Jumped(c.t, t)) {
+        stats.interpOwnedJumps++;
+        stats.interpKindUnmatched[kind]++;
+        return BlendByCamera(first, rows);
       }
       a = &c;
       owned = sameShape;

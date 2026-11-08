@@ -132,6 +132,9 @@ struct GxStats {
   unsigned interpCameraMoved = 0;
   // one-frame effects the game makes anew each picture (the laser sight), matched to the one of their id before
   unsigned interpOneFrame = 0;
+  // particles found by their object that jumped (GxCore::Jumped: weather particles wrapping around the camera),
+  // drawn as new ones
+  unsigned interpOwnedJumps = 0;
   // (interpOwnedRecount: draws of objects that drew another number of quads than in the picture before:
   // matched the old way, not by "n-th draw")
 };

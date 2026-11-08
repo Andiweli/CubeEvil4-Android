@@ -87,8 +87,13 @@ struct Block {
 struct Frame {
   VkCommandPool cmdPool = VK_NULL_HANDLE;
   VkCommandBuffer upload = VK_NULL_HANDLE, draw = VK_NULL_HANDLE;
+  VkCommandBuffer screen = VK_NULL_HANDLE;  // the third buffer: the screen's commands of a split frame (SubmitWork)
   VkFence fence = VK_NULL_HANDLE;
   bool pending = false;  // submitted, its fence not waited for yet
+  // the frame's work sent ahead of its screen's commands (SubmitWork): its own fence; `split`: from then on `draw`
+  // records the screen's commands (the buffers swapped), `upload` is closed
+  VkFence workFence = VK_NULL_HANDLE;
+  bool workPending = false, split = false;
   std::uint64_t serial = 0;  // of the recording it holds (VkRenderer::serial)
   bool uploads = false;  // the upload command buffer has commands
   std::vector<Block> uniform, vertex, staging;
@@ -736,6 +741,11 @@ struct VkRenderer final : GxCore {
       f.pending = false;
       done = std::max(done, f.serial);
     }
+    if (f.workPending) {
+      WaitFence(f.workFence);  // (signalled with the frame's fence above, which comes after it)
+      f.workPending = false;
+    }
+    f.split = false;
     for (auto &t : f.trash)
       t();
     f.trash.clear();
@@ -784,7 +794,8 @@ struct VkRenderer final : GxCore {
       return;
     Frame &f = F();
     EndPass();
-    vkEndCommandBuffer(f.upload);
+    if (!f.split)
+      vkEndCommandBuffer(f.upload);  // (a split frame's went with its work: SubmitWork; `uploads` is false since)
     vkEndCommandBuffer(f.draw);
     VkCommandBuffer cbs[2] = {f.upload, f.draw};
     auto si = Make<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
@@ -810,6 +821,7 @@ struct VkRenderer final : GxCore {
     if (wait && f.pending) {
       WaitFence(f.fence);
       f.pending = false;
+      f.workPending = false;  // (its work came before)
       done = std::max(done, f.serial);
       for (auto &t : f.trash)
         t();
@@ -819,6 +831,40 @@ struct VkRenderer final : GxCore {
       cur = (cur + 1) % kFrames;
     else
       continuing = true;
+  }
+  // The frame's work so far (its uploads, the EFB's passes and copies: the chunk or the in-between picture) to the GPU
+  // at once, with a fence of its own (workFence); the screen's commands then go into the frame's third command buffer,
+  // and Submit sends them, waiting for the swapchain's image. Until 0.99.4 one batch held both and waited for that image
+  // at the colour output: the GPU began a frame's EFB passes only when the display gave an image back, and RunEnd
+  // counted that wait as the GPU behind (1.0 all the time with 60 FPS, also at 1x: "Dynamic" went down but never up
+  // again; the project owner's Retroid report 08.11.2026; GL's fence after a chunk never waited for the screen)
+  void SubmitWork() {
+    Frame &f = F();
+    if (!recording || f.split)
+      return;
+    EndPass();
+    vkEndCommandBuffer(f.upload);
+    vkEndCommandBuffer(f.draw);
+    VkCommandBuffer cbs[2] = {f.upload, f.draw};
+    auto si = Make<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
+    si.commandBufferCount = f.uploads ? 2 : 1;
+    si.pCommandBuffers = f.uploads ? cbs : cbs + 1;
+    vkResetFences(dev, 1, &f.workFence);
+    const auto t0 = std::chrono::steady_clock::now();
+    const VkResult r = vkQueueSubmit(vk.queue, 1, &si, f.workFence);
+    timing.submitMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    Check(r, "vkQueueSubmit (the frame's work)");
+    f.workPending = r == VK_SUCCESS;
+    // the screen's commands into the third buffer (begun after the pool's reset in Begin, as the other two)
+    std::swap(f.draw, f.screen);
+    auto bi = Make<VkCommandBufferBeginInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
+    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(f.draw, &bi);
+    f.uploads = false;
+    f.split = true;
+    pass = kNoPass;
+    ResetBound();  // (a new command buffer binds nothing)
+    streamMoved = true;
   }
 
   // ---- render passes ----
@@ -1657,11 +1703,15 @@ struct VkRenderer final : GxCore {
     pxValid = false;
   }
   void RunEnd() override {
-    // how far the GPU is behind: frames submitted and not finished
+    // how far the GPU is behind: frames submitted and not finished; of a split frame its work (SubmitWork), as GL's
+    // fence after a chunk: its screen's commands wait for the display's image, not for the GPU
     unsigned behind = 0;
-    for (Frame &f : frames)
-      if (f.pending && vkGetFenceStatus(dev, f.fence) == VK_NOT_READY)
+    for (Frame &f : frames) {
+      const bool late = f.workPending ? vkGetFenceStatus(dev, f.workFence) == VK_NOT_READY
+                                      : f.pending && vkGetFenceStatus(dev, f.fence) == VK_NOT_READY;
+      if (late)
         behind++;
+    }
     stats.behindSum += behind;
     stats.behindChecks++;
     stats.behindCount[std::min(behind, 8u)]++;
@@ -2978,10 +3028,15 @@ struct VkRenderer final : GxCore {
     LookAtSuboptimal();
     LookAtTurn();
     if (!window || ((!swapchain || swapStale) && !MakeSwapchain())) {
-      Submit(false, true);  // no screen: the frame to the GPU all the same
+      // no screen: the frame to the GPU all the same (split as with a screen: the PC's checks run this)
+      Begin();
+      SubmitWork();
+      Submit(false, true);
       return true;
     }
     Begin();
+    // the frame's work goes first, without waiting for the swapchain's image (SubmitWork)
+    SubmitWork();
     const int slot = cur;
     std::uint32_t index = 0;
     const auto acquired = std::chrono::steady_clock::now();
@@ -3235,13 +3290,15 @@ struct VkRenderer final : GxCore {
       auto cai = Make<VkCommandBufferAllocateInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
       cai.commandPool = f.cmdPool;
       cai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-      cai.commandBufferCount = 2;
-      VkCommandBuffer cbs[2];
+      cai.commandBufferCount = 3;
+      VkCommandBuffer cbs[3];
       vkAllocateCommandBuffers(dev, &cai, cbs);
       f.upload = cbs[0];
       f.draw = cbs[1];
+      f.screen = cbs[2];
       auto fci = Make<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
       vkCreateFence(dev, &fci, nullptr, &f.fence);
+      vkCreateFence(dev, &fci, nullptr, &f.workFence);
     }
     for (VkSemaphore &s : acquireSem) {
       auto sem = Make<VkSemaphoreCreateInfo>(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
@@ -3586,6 +3643,8 @@ struct VkRenderer final : GxCore {
         vkDestroyDescriptorPool(dev, p, nullptr);
       if (f.fence)
         vkDestroyFence(dev, f.fence, nullptr);
+      if (f.workFence)
+        vkDestroyFence(dev, f.workFence, nullptr);
       if (f.cmdPool)
         vkDestroyCommandPool(dev, f.cmdPool, nullptr);
       f = Frame();

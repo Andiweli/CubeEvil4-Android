@@ -8,7 +8,8 @@
 // shader: the Retroid's report 23.10.2026 15:06 went down at the start of r10c and 4 s after a step
 // up), not a GPU too slow. A game that is slow on its own (the processor, loading) leaves the GPU
 // idle and the level as it is. Up again one level after 5 windows in a row (10 s) at 29.5
-// pictures a second or more with the GPU keeping up (under 0.1 behind), at the earliest 10 s after
+// pictures a second or more with the GPU keeping up (under 0.1 behind; up to the benchmark's level, since 0.99.5,
+// under 0.5: not clearly behind), at the earliest 10 s after
 // the last step down; down again within 15 s of a step up doubles that wait (at most 5 minutes), and
 // a step up that holds for 60 s brings it back to 10 s. Until 0.98.4 the wait was 30 s and never came
 // back down: after one bounce at a heavy spot the next step up took a minute or more, also after
@@ -58,12 +59,14 @@ public:
   static constexpr double kGap = 1.0;          // seconds without a chunk that count as a break
 
   // A renderer started at `top` (the screen's level, its highest) at `t` seconds; never below `bottom`;
-  // `halves`: the levels are halves (only how the log line writes them).
-  void Start(int top, double t, int bottom = 1, bool halves = false) {
+  // `halves`: the levels are halves (only how the log line writes them). `proven`: the highest level the app's
+  // benchmark measured as holding on this device (0: none); up to it a step up only needs the GPU not clearly behind.
+  void Start(int top, double t, int bottom = 1, bool halves = false, int proven = 0) {
     *this = AutoLevel();
     bottom_ = std::max(1, bottom);
     top_ = level_ = std::max(bottom_, top);
     halves_ = halves;
+    proven_ = proven;
     since_ = t;
     started_ = true;
   }
@@ -144,7 +147,13 @@ public:
         *why = line;
       return level_;
     }
-    if (rate >= kFast && behind < kBehindUp && wait < kWaitUp && droppedShare < kDroppedUp && level_ < top_) {
+    // up to the benchmark's level (`proven_`, measured at one of the heaviest places): the GPU only not clearly behind
+    // (under kBehindDown, the step down's mark). With 60 FPS the fence of the newest in-between picture is looked at
+    // half a game picture after it was sent, so "keeping up" (under kBehindUp) needs a GPU at a third of its time or
+    // less; a step down to 1x after a hitch (new pipelines, a heavy fog bank) never came back up to the benchmark's
+    // 1.5x (the project owner's Retroid report 08.11.2026; no report showed a step up at 60 FPS). Above it, as before
+    const double behindUp = level_ < proven_ ? kBehindDown : kBehindUp;
+    if (rate >= kFast && behind < behindUp && wait < kWaitUp && droppedShare < kDroppedUp && level_ < top_) {
       if (++good_ >= kGoodWindows && t >= holdUntil_) {
         good_ = 0;
         upAt_ = t;
@@ -194,7 +203,7 @@ public:
 
 private:
   bool started_ = false, windowOpen_ = false;
-  int top_ = 1, level_ = 1, bottom_ = 1;
+  int top_ = 1, level_ = 1, bottom_ = 1, proven_ = 0;
   bool halves_ = false;
   double since_ = 0.0;
   unsigned chunks_ = 0;
