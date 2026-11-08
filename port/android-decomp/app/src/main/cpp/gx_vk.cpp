@@ -1108,7 +1108,10 @@ struct VkRenderer final : GxCore {
     Check(vkCreateShaderModule(dev, &sci, nullptr, &m), "vkCreateShaderModule");
     return m;
   }
-  Program *ProgramFor(const ShaderKey &k) {
+  // (from the key with the fields its shaders do not use set to 0, CanonicalShaderKey, 0.99.5: the same shader no
+  // longer becomes several programs and pipelines by what earlier draws left in the registers)
+  Program *ProgramFor(const ShaderKey &drawn) {
+    const ShaderKey k = CanonicalShaderKey(drawn);
     auto it = programs.find(k);
     if (it != programs.end()) {
       it->second.lastUse = stats.chunks;
@@ -1137,7 +1140,7 @@ struct VkRenderer final : GxCore {
     if (!p.mergedTried) {
       p.mergedTried = true;
       std::string log;
-      p.merged = Module(VulkanGlsl(GxMergedVertexShader(key), true, vk.depthClipControl), true, &log);
+      p.merged = Module(VulkanGlsl(GxMergedVertexShader(p.key), true, vk.depthClipControl), true, &log);
       if (!p.merged)
         GXLOG("Vulkan merged vertex shader failed: %s", log.c_str());
     }
@@ -1593,8 +1596,10 @@ struct VkRenderer final : GxCore {
         skipped++;
         continue;
       }
-      // this device's MSAA setting, and the PSone demake's bit for the 3D draws as MakeKey sets it
+      // this device's MSAA setting, and the PSone demake's bit for the 3D draws as MakeKey sets it; the key cleaned as
+      // ProgramFor cleans it (lists of earlier versions hold the keys as drawn)
       r.key.centroid = a.centroid | (a.psx && !(r.key.orthographic & 1) ? 2u : 0u);
+      r.key = CanonicalShaderKey(r.key);
       if (modules.size() >= 256)
         dropModules();  // (the list runs room by room: a program's pipelines lie close together)
       auto found = modules.find(r.key);
@@ -3827,7 +3832,8 @@ struct VkRenderer final : GxCore {
       AheadKey &a = ahead[aheadNext++];
       // another MSAA setting, the PSone demake's keys (bit 1) while it is off, or made already (until 0.99.5 the whole
       // field against bit 0: with the PSone demake on its keys were never made ahead; found by the Vulkan session)
-      if ((a.key.centroid & 1) != centroid || ((a.key.centroid & 2) && !psxOn) || programs.count(a.key))
+      if ((a.key.centroid & 1) != centroid || ((a.key.centroid & 2) && !psxOn) ||
+          programs.count(CanonicalShaderKey(a.key)))
         continue;
       if (ProgramFor(a.key)) {
         stats.programsAhead++;

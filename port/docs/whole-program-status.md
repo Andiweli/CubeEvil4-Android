@@ -176,8 +176,41 @@ Android-Looper), nicht aus diesem Lauf.
      den 12 Aufnahmen des Projektinhabers: 201 von 246 (45 zusammengefasste ohne Merge), 1,8 s auf lavapipe,
      0 Meldungen; zweiter Lauf übersprungen. Ganze Liste mit denselben Aufnahmen: ohne Merge 3 979 von 4 999 gebaut (1 020 zusammengefasste weggelassen), mit Merge alle 4 999, 0 Fehler, 0 Meldungen der Prüfschicht, 19 bzw. 24 s auf lavapipe; zweiter Start übersprungen (lavapipe hat keinen echten Pipeline-Cache: ob die Zeichnungen danach aus dem Cache kommen, zeigt nur das Gerät). Java: `ShaderCacheTest.roomPipesGoIntoOneListForTheReport`,
      Beschreibung mit Marke; App-Tests je 66, 0 Fehler; App-C++ beider ABIs gebaut. `whole_build.sh i686` grün (alle Kern- und Laufzeittests, `RE4_OPT=2`).
-   - **Nicht geprüft:** Gerät (Dauer auf dem Adreno, Speicher, ob die Zeichnungen danach aus dem Cache kommen).
-     Geschätzt auf dem Retroid: 4 999 Pipelines (mit Merge; ohne 3 979) × 20–54 ms ≈ 2–4½ Minuten im Hintergrund beim ersten Vulkan-Start, dazu SPIR-V noch fehlender Programme (3 371 verschiedene Schlüssel; auf lavapipe ~1 000 neu übersetzt) ≈ ½ Minute; der Treiber-Cache danach geschätzt 30–40 MB (beim Projektinhaber 10,3 MB für seine bisherigen Pipelines).
+   - **Gerätetest des Projektinhabers mit 27d44405 (Retroid, Vulkan, 08.11.2026, Berichte
+     `reports/0995-vkahead-20261108/report-195332`, `-195449`, `-195521`, Wortlaut über die Hauptsitzung):**
+     „4999 of 4999 made (2848 anew, 68280 ms; 2151 from the driver's cache), 0 left out, 0 failed, 696 shaders compiled
+     … 72.0 s“, dabei 60 Bilder/s und beim Zeichnen 0 neue Pipelines; Neustart: „was made on this driver before“,
+     Treiber-Cache 30 890 KB. Der neue Raum r320 baute aber noch rund 42 Pipelines beim Zeichnen (beim Betreten 19 neue,
+     einzeln 29 ms, danach Spitzen 62–122 ms; vorher 124–246 je neuem Raum).
+   - **Warum der Rundgang sie nicht hatte: der Schlüssel war verrauscht.** Die `vk-pipes.bin` der drei Berichte
+     (die Raumlisten des Geräts seit 0.99.3, 1 837 Pipelines) gegen die Liste: 831 fehlten, 679 davon mit unbekanntem
+     Programm. Diese Programme unterschieden sich von solchen der Liste fast nur in `konst` (Auswahl der Konstantfarbe je
+     TEV-Stufe) und `swap` (Tauschtabellen): `MakeKey` nimmt sie, wie die Register sie halten, und `GxFragmentShader`
+     schreibt die Auswahl jeder Stufe in den Shader, auch wenn keine Eingabe der Stufe KONST nimmt. Je nachdem, was vorher
+     gezeichnet wurde, entstand derselbe Shader unter vielen Schlüsseln (und als eigene Pipeline); kein Rundgang trifft
+     alle. **Behoben (`CanonicalShaderKey`, `gx_gl_shader.cpp`):** KONST-Auswahl nur bei Stufen mit KONST-Eingang (Farbe
+     14, Alpha 6), nur die ausgewählten Tauschtabellen, ohne Nebel kein Projektionsbit. **Nur der Vulkan-Renderer**
+     baut Programme und Pipelines aus diesem Schlüssel (`ProgramFor`, `MergedModule`, `AheadThread`), GLES behält seine
+     Schlüssel (sonst baute jedes Gerät nach dem Update alle GL-Programme neu; eine Entscheidung für später).
+     `gx_vkpipe_list.py` bereinigt genauso (`canonical`). Wirkung: Liste 4 999 → 2 575 Pipelines aus demselben
+     Rundgang; Gerät 1 837 → 1 012 verschiedene Pipelines, davon nicht im Rundgang 831 → 247; r320 32 → 3, r300 64 → 1,
+     r100 107 → 5. Der Rest: vor allem r120 (177; 3D-Programme mit 5–9 Stufen, Figuren mit aufwendigem Material:
+     Titel, Extras oder andere Spielfiguren/Kostüme früherer Läufe, die der Rundgang mit Leon nicht zeigt), r227 24,
+     r21a 13, r226 13.
+   - **Neue Liste (Gerätelisten übernommen):** 2 822 Pipelines (589 für zusammengefasste Zeichnungen), 1,44 MB (gepackt
+     ≈ 53 KB): der bereinigte Rundgang plus die 247 der drei Berichte (`gx_vkpipe_list.py add gx-vkpipes.keys
+     BERICHT…`, neu: nimmt Berichte als .zip oder ausgepackte Ordner und zeigt je Raum, was dazukommt).
+   - **Geprüft am PC:** bereinigter Schlüssel bildneutral: die 36 Aufnahmen des Projektinhabers unter Vulkan (mit
+     Zwischenbildern, 1,5×, FXAA, Schärfen, Reflexen) mit und ohne Bereinigung, 69 Bilder bytegleich; Python bereinigt
+     wie C++ (die Raumliste des Renderers, 30 von 30, bleibt durch `normal()` gleich); neuer Test `TestCanonicalKey`;
+     die echten r227-Szenen brauchen 30 Pipelines, alle in der Liste. Ganze neue Liste: 2 822 von 2 822 gebaut,
+     0 Fehler, 0 Meldungen der Prüfschicht (lavapipe 11,7 s). `gx_gl_check` mit Prüfschicht 0 Fehler.
+   - **Erwartet auf dem Retroid:** 2 822 Pipelines (ohne Merge 2 233) × ≈ 24 ms (gemessen: 68 s für 2 848) ≈ gut
+     1 Minute beim ersten Start (die bereinigten Shader sind neu, also auch beim Projektinhaber noch einmal);
+     Treiber-Cache danach größer (die alten Einträge bleiben, Obergrenze 192 MB).
+   - **Nächste Schritte (Vorschlag):** Rundgänge mit den anderen Spielfiguren und Kostümen, durch Titel- und
+     Extra-Menüs und mit den Ereignissen der Räume (Bereiche per `RE4_TEST_PLACE=area=N`); Spielerberichte mit
+     `gx_vkpipe_list.py add` übernehmen.
 
 - **Geprüft am PC insgesamt:** `RE4_OPT=2 whole_build.sh i686` grün (alle Kern- und Laufzeittests, darunter
   `instant-game`, `potato`, `cheatextras`); `gx_gl_check` (GL und Vulkan, mit Prüfschicht) 0 Fehler. Gradle mit eigenem

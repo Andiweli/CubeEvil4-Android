@@ -43,6 +43,12 @@ struct ShaderKey {
 
 std::string GxVertexShader(const ShaderKey &key);
 std::string GxFragmentShader(const ShaderKey &key);
+// The key with the fields its shaders do not use set to 0 (0.99.5): a stage's KONST selection (colour, alpha) when none
+// of its inputs takes KONST, the swap tables no stage selects, the fog's projection without fog. MakeKey takes them as
+// the registers hold them, and what earlier draws left there made the same shader under many keys (the project
+// owner's Retroid 08.11.2026: 1837 Vulkan pipelines, 1012 different ones). The Vulkan renderer builds its programs and
+// pipelines from this key (and port/tools/gx_vkpipe_list.py cleans the app's list alike); GL keeps the key as made.
+ShaderKey CanonicalShaderKey(const ShaderKey &key);
 // The vertex shader of a merged draw call (RE4_GX_MERGE, gx_gl.cpp): draws that differ only in
 // the XFM part, the material colours and uMtx in one call. Each of kMergeSlots slots holds a
 // draw's (MergeBlock, binding kMergeBinding); a vertex finds its slot by gl_VertexID (the slots'

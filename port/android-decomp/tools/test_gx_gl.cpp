@@ -3585,6 +3585,35 @@ std::vector<std::string> CacheFiles(const std::string &dir, const char *ending) 
 // The shader programs made ahead (decision of the project owner, 23.10.2026): the render thread's
 // Prewarm only loads binaries; WarmProgramCache, on a thread with a context of its own, links what
 // the cache's keys and the app's list (a key list file) still lack and removes old files.
+// CanonicalShaderKey (0.99.5): what the shaders do not use set to 0, what they use kept
+void TestCanonicalKey() {
+  re4gx::ShaderKey a{};
+  a.numStages = 2;
+  a.colorEnv[0] = 0x0008FA;  // inputs a 0, b 8, c 15, d 10: none KONST (14)
+  a.alphaEnv[0] = (1u << 13) | (2u << 10) | (3u << 7) | (4u << 4) | 0u;  // inputs 1..4 (KONST is 6), swap tables 0, 0
+  a.colorEnv[1] = 14u << 12;  // input a: KONST colour
+  a.alphaEnv[1] = (6u << 4) | 1u | (2u << 2);  // input d: KONST alpha, swap tables 1 and 2
+  a.konst[0] = 0x1D0D;
+  a.konst[1] = 0x1C0C;
+  a.swap[0] = 0x11, a.swap[1] = 0x22, a.swap[2] = 0x33, a.swap[3] = 0x44;
+  a.fog = 1;  // projection without fog
+  const re4gx::ShaderKey c = re4gx::CanonicalShaderKey(a);
+  Check(c.konst[0] == 0 && c.konst[1] == 0x1C0C, "canonical key: KONST kept only where an input takes it");
+  Check(c.swap[0] == 0x11 && c.swap[1] == 0x22 && c.swap[2] == 0x33 && c.swap[3] == 0,
+        "canonical key: the swap tables the stages select kept, the others 0");
+  Check(c.fog == 0, "canonical key: no fog, no projection bit");
+  re4gx::ShaderKey b = a;
+  b.konst[0] = 0x0606;  // another unused selection: the same canonical key
+  b.swap[3] = 0x55;
+  const re4gx::ShaderKey cb = re4gx::CanonicalShaderKey(b);
+  Check(std::memcmp(&c, &cb, sizeof(c)) == 0, "canonical key: keys that differ in unused fields alike");
+  b.konst[1] = 0x1C0D;  // the KONST colour stage 1 takes: a different shader
+  const re4gx::ShaderKey cd = re4gx::CanonicalShaderKey(b);
+  Check(std::memcmp(&c, &cd, sizeof(c)) != 0, "canonical key: a used selection still tells keys apart");
+  a.fog = 0xE;
+  Check(re4gx::CanonicalShaderKey(a).fog == 0xE, "canonical key: fog kept");
+}
+
 #ifdef RE4_GX_VULKAN
 // The app's pipeline list made ahead (0.99.5, gx_vk.cpp AheadThread): a Vulkan renderer draws the random TEV setups in
 // room 0x227 and leaves its room list (room-227.vkpipes); that list as the app's list (RE4VKL01, as
@@ -3842,6 +3871,7 @@ int main() {
     Check(wrong == 0, "GPU check: the movie colours as the GameCube computes them");
   }
   TestTevMath();
+  TestCanonicalKey();
   TestPrewarm();
   TestRescale();
   TestAutoLevel();

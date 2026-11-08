@@ -437,6 +437,32 @@ const char *AlphaFunc(unsigned f, const char *ref) {
 
 } // namespace
 
+ShaderKey CanonicalShaderKey(const ShaderKey &key) {
+  ShaderKey k = key;
+  unsigned swaps = 0;
+  for (unsigned s = 0; s < 16; s++) {
+    if (s >= k.numStages) {
+      k.konst[s] = 0;  // (MakeKey leaves them 0; a list's key may not)
+      continue;
+    }
+    const std::uint32_t cc = k.colorEnv[s], ac = k.alphaEnv[s];
+    // the stage's inputs a, b, c, d (GxFragmentShader: kColorIn 14 and kAlphaIn 6 are KONST)
+    bool colour = false, alpha = false;
+    for (int b : {12, 8, 4, 0})
+      colour = colour || ((cc >> b) & 15) == 14;
+    for (int b : {13, 10, 7, 4})
+      alpha = alpha || ((ac >> b) & 7) == 6;
+    k.konst[s] = (colour ? k.konst[s] & 0xFFu : 0u) | (alpha ? k.konst[s] & 0xFF00u : 0u);
+    swaps |= 1u << (ac & 3) | 1u << ((ac >> 2) & 3);  // its raster and texture swap tables
+  }
+  for (unsigned t = 0; t < 4; t++)
+    if (!(swaps & (1u << t)))
+      k.swap[t] = 0;
+  if (((k.fog >> 1) & 7) == 0)
+    k.fog = 0;  // no fog: its projection bit unused
+  return k;
+}
+
 std::string GxFragmentShader(const ShaderKey &k) {
   std::string out = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
   out += kPixelBlock;
