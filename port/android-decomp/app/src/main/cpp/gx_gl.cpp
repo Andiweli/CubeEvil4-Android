@@ -98,9 +98,8 @@ void *GlExtension(const char *name) {
   return f;
 }
 
-// the menu's "Sharpen" (GxRenderer::SetSharpen): how far a texel moves away from its neighbours' mean ("Light",
-// "Strong"; RE4_GX_SHARPEN_AMOUNT=A,B for the PC's comparisons)
-constexpr float kSharpLight = 0.6f, kSharpStrong = 1.2f;
+using fixed::kSharpLight;  // (gx_fixed_shaders.h)
+using fixed::kSharpStrong;
 // GL_EXT_texture_filter_anisotropic (not in the GLES 3.0 headers)
 constexpr GLenum kMaxAnisotropy = 0x84FE, kMaxAnisotropyLimit = 0x84FF;
 
@@ -1672,39 +1671,8 @@ struct GlRenderer final : GxCore {
   // --- FXAA ------------------------------------------------------------------------------------
 
   bool MakeFxaa() {
-    static const char kVs[] = "#version 300 es\n"
-                              "out vec2 vUv;\n"
-                              "void main() {\n"
-                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
-                              "  vUv = p;\n"
-                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
-                              "}\n";
-    // Edge smoothing along the luma gradient: the direction of the edge from the four corners'
-    // luma, two taps along it (each between samples) and a wider pair; the wider mix is dropped when
-    // it leaves the range of the neighbourhood's luma (a thin line stays a line).
-    static const char kFs[] =
-        "#version 300 es\nprecision highp float;\n"
-        "uniform sampler2D src;\nuniform vec2 texel;\nin vec2 vUv;\nout vec4 o;\n"
-        "const vec3 kLuma = vec3(0.299, 0.587, 0.114);\n"
-        "void main() {\n"
-        "  vec3 nw = texture(src, vUv + vec2(-1.0, -1.0) * texel).rgb;\n"
-        "  vec3 ne = texture(src, vUv + vec2(1.0, -1.0) * texel).rgb;\n"
-        "  vec3 sw = texture(src, vUv + vec2(-1.0, 1.0) * texel).rgb;\n"
-        "  vec3 se = texture(src, vUv + vec2(1.0, 1.0) * texel).rgb;\n"
-        "  vec3 m = texture(src, vUv).rgb;\n"
-        "  float lnw = dot(nw, kLuma), lne = dot(ne, kLuma), lsw = dot(sw, kLuma), lse = dot(se, kLuma), lm = dot(m, kLuma);\n"
-        "  float lmin = min(lm, min(min(lnw, lne), min(lsw, lse)));\n"
-        "  float lmax = max(lm, max(max(lnw, lne), max(lsw, lse)));\n"
-        "  vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), (lnw + lsw) - (lne + lse));\n"
-        "  float reduce = max((lnw + lne + lsw + lse) * 0.25 * 0.125, 1.0 / 128.0);\n"
-        "  dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + reduce), vec2(-8.0), vec2(8.0)) * texel;\n"
-        "  vec3 a = 0.5 * (texture(src, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture(src, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);\n"
-        "  vec3 b = a * 0.5 + 0.25 * (texture(src, vUv + dir * -0.5).rgb + texture(src, vUv + dir * 0.5).rgb);\n"
-        "  float lb = dot(b, kLuma);\n"
-        "  o = vec4((lb < lmin || lb > lmax) ? a : b, 1.0);\n"
-        "}\n";
     std::string log;
-    fxaaProgram = Link(kVs, kFs, &log);
+    fxaaProgram = Link(fixed::kFxaaVs, fixed::kFxaaFs, &log);
     if (!fxaaProgram) {
       GXLOG("FXAA: shader failed: %s", log.c_str());
       return false;
@@ -1760,43 +1728,8 @@ struct GlRenderer final : GxCore {
   // --- Sharpen ---------------------------------------------------------------------------------
 
   bool MakeSharpen() {
-    static const char kVs[] = "#version 300 es\n"
-                              "void main() {\n"
-                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
-                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
-                              "}\n";
-    // Contrast-adaptive sharpening of the finished picture (written for the port, 08.11.2026, after the idea of
-    // AMD's CAS/RCAS, no code of theirs): a texel and its four neighbours, five reads. The texel moves away from
-    // the neighbours' mean by `amount`: not where the neighbourhood's contrast is within a few steps of 8-bit
-    // colour (fog, gradients, the noise of dark areas stay as they are), half as much at hard edges (outlines,
-    // text: they are sharp already), less for a lone texel (sparkle), and never beyond the neighbourhood's own
-    // darkest and brightest colour (no bright or dark seams at edges, letters and the HUD). lim: the last column,
-    // the first and the last row shown (GxRenderer::SetShownRows): the rows outside are copied as they are (the
-    // screenshot shows them; the screen shows at most the one next to the edge, through its bilinear filter), the
-    // reads of the rows inside stay inside (the game's black bars do not darken or lighten the edge rows).
-    static const char kFs[] =
-        "#version 300 es\nprecision mediump float;\n"
-        "uniform mediump sampler2D src;\nuniform float amount;\nuniform ivec3 lim;\nout vec4 o;\n"
-        "const vec3 kLuma = vec3(0.299, 0.587, 0.114);\n"
-        "void main() {\n"
-        "  ivec2 p = ivec2(gl_FragCoord.xy);\n"
-        "  vec3 c = texelFetch(src, p, 0).rgb;\n"
-        "  if (p.y < lim.y || p.y > lim.z) { o = vec4(c, 1.0); return; }\n"
-        "  vec3 n = texelFetch(src, ivec2(p.x, max(p.y - 1, lim.y)), 0).rgb;\n"
-        "  vec3 s = texelFetch(src, ivec2(p.x, min(p.y + 1, lim.z)), 0).rgb;\n"
-        "  vec3 w = texelFetch(src, ivec2(max(p.x - 1, 0), p.y), 0).rgb;\n"
-        "  vec3 e = texelFetch(src, ivec2(min(p.x + 1, lim.x), p.y), 0).rgb;\n"
-        "  vec3 lo = min(c, min(min(n, s), min(w, e)));\n"
-        "  vec3 hi = max(c, max(max(n, s), max(w, e)));\n"
-        "  vec3 mean = 0.25 * (n + s + w + e);\n"
-        "  float range = dot(hi - lo, kLuma);\n"
-        "  float k = amount * smoothstep(0.012, 0.05, range) * (1.0 - 0.5 * smoothstep(0.3, 0.8, range));\n"
-        "  float lone = abs(dot(c - mean, kLuma)) / max(range, 0.004);\n"
-        "  k *= 1.0 - 0.5 * lone * lone;\n"
-        "  o = vec4(clamp(c + k * (c - mean), lo, hi), 1.0);\n"
-        "}\n";
     std::string log;
-    sharpProgram = Link(kVs, kFs, &log);
+    sharpProgram = Link(fixed::kSharpenVs, fixed::kSharpenFs, &log);
     if (!sharpProgram) {
       GXLOG("sharpen: shader failed: %s", log.c_str());
       return false;
@@ -1886,47 +1819,8 @@ struct GlRenderer final : GxCore {
   // --- PSone demake ----------------------------------------------------------------------------
 
   bool MakePsx() {
-    static const char kVs[] = "#version 300 es\n"
-                              "out vec2 vUv;\n"
-                              "void main() {\n"
-                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
-                              "  vUv = p;\n"
-                              "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
-                              "}\n";
-    // One colour per cell of the grid: the mean of 4 x 4 points across it (one point alone made fine textures on
-    // the ground flicker as the camera moved, user report 03.11.2026; four still let fine planks flicker at the
-    // higher picture levels, the owner's report the same day), 8 bits to 5 per channel after the PlayStation's
-    // ordered dither (a 4 x 4 table of -4..3 added to the 8-bit value, by the cell's place). A cell keeps the
-    // level it had in the picture before while its new value stays within kHold of a level of that one (the
-    // owner's dumps of 04.11.2026, castle carpets and walls: cells near the edge of two levels changed level
-    // from picture to picture as the textures below shimmered, with the camera still or moving slowly; a
-    // value that leaves that band, as when the camera turns or the light changes, takes its own level)
-    static const char kFs[] =
-        "#version 300 es\nprecision highp float;\n"
-        "uniform sampler2D src;\nuniform sampler2D prev;\nuniform float usePrev;\nuniform vec2 grid;\n"
-        "in vec2 vUv;\nout vec4 o;\n"
-        "const float kHold = 1.0;\n"
-        "const float kDither[16] = float[16](-4.0, 0.0, -3.0, 1.0, 2.0, -2.0, 3.0, -1.0,\n"
-        "                                    -3.0, 1.0, -4.0, 0.0, 3.0, -1.0, 2.0, -2.0);\n"
-        "void main() {\n"
-        "  vec2 cell = min(floor(vUv * grid), grid - 1.0);\n"
-        "  vec3 c = vec3(0.0);\n"
-        "  for (int y = 0; y < 4; y++)\n"
-        "    for (int x = 0; x < 4; x++)\n"
-        "      c += texture(src, (cell + (vec2(x, y) + 0.5) * 0.25) / grid).rgb;\n"
-        "  c *= 255.0 / 16.0;\n"
-        "  ivec2 d = ivec2(mod(cell, 4.0));\n"
-        "  vec3 v = clamp(c + kDither[d.y * 4 + d.x], 0.0, 255.0) / 8.0;\n"
-        "  c = floor(v);\n"
-        "  if (usePrev > 0.5) {\n"
-        "    vec3 p = floor(texture(prev, (cell + 0.5) / grid).rgb * 31.0 + 0.5);\n"
-        "    if (all(greaterThanEqual(v, p - kHold)) && all(lessThan(v, p + 1.0 + kHold)))\n"
-        "      c = p;\n"
-        "  }\n"
-        "  o = vec4(c * (255.0 / 31.0) / 255.0, 1.0);\n"
-        "}\n";
     std::string log;
-    psxProgram = Link(kVs, kFs, &log);
+    psxProgram = Link(fixed::kPsxVs, fixed::kPsxFs, &log);
     if (!psxProgram) {
       GXLOG("PSone demake: shader failed: %s", log.c_str());
       return false;

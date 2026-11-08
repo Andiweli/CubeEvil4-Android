@@ -2242,6 +2242,13 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   **Nicht geprüft:** Gerät; der Kopie-Übergang nur im Test (`gx_chunk_render` hat keinen neuen Renderer mitten in der
   Folge). Test-APK `E:\Development\Android\builds\vulkan\CubeEvil4-0.99.2-vulkan2.apk` (E6 und E4, ersetzt das
   ungetestete `-vulkan1`).
+- **E5a Bildfilter unter Vulkan (08.11.2026, am PC):** FXAA, Nachschärfen und der PSone-Filter als Durchgänge der
+  gemeinsamen Shader (aus `GlRenderer` unverändert nach `gx_fixed_shaders.h` verschoben: `kFxaaVs/Fs`,
+  `kSharpenVs/Fs`, `kPsxVs/Fs`, `kSharpLight/Strong`), je in ein Bild der Größe der Anzeige-Kopie, das statt des XFB
+  gezeigt wird (`ShownImage`: `Present`, Bildschirmfoto, `ReadXfb`); der TV-Filter lag schon im Kopier-Shader.
+  **Geprüft (WSL, lavapipe):** Arten „fx“ (FXAA, Schärfen stark, TV), „psx“ und „native“ (Schärfen leicht) in allen
+  10 Folgen: 0 Meldungen, kein Bild über 1 % Pixel mit mehr als 16 Stufen; GL bytegleich (4 371 Bilder); NDK beide
+  ABIs. **Nicht geprüft:** Gerät.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

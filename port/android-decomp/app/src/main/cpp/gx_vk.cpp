@@ -203,6 +203,11 @@ struct VkRenderer final : GxCore {
   // (a resolve attachment, on the tiles of a tiled GPU), their depth into efbDepth when something reads it
   // (ResolveDepth: a copy of the depth, the depth map)
   Image efbMsColor, efbMsDepth;
+  // the display copy's filters (DisplayEffects): their pictures and pipelines
+  Image fxaaImg, sharpImg, psxImg, psxPrevImg;
+  Fixed fxaaFx, sharpFx, psxFx;
+  bool psxPrevValid = false;
+  int psxGridW = 0, psxGridH = 0;
   VkRenderPass depthResolvePass = VK_NULL_HANDLE;
   VkFramebuffer depthResolveFb = VK_NULL_HANDLE;
   Fixed depthResolve;
@@ -1632,7 +1637,155 @@ struct VkRenderer final : GxCore {
     vkCmdDraw(cb, 4, 1, 0, 0);
     EndPass();
   }
-  void DisplayEffects(int, int, int, int, int) override {}  // E5: FXAA, Sharpen, PSone
+  // ---- the display copy's filters (E5, as GlRenderer's): FXAA, Sharpen, the PSone demake; each a pass of the
+  // shared shaders (gx_fixed_shaders.h) into an image of the copy's size, shown instead of the XFB ----
+  void DisplayEffects(int pw, int ph, int y, int h, int w) override {
+    FilterFxaa(pw, ph);
+    FilterSharpen(pw, ph, y, h);
+    FilterPsx(pw, ph, w, h);
+  }
+  // the picture shown: the last filter's, else the XFB
+  Image *ShownImage() {
+    if (psxShown && psxImg.image)
+      return &psxImg;
+    if (sharpShown && sharpImg.image)
+      return &sharpImg;
+    if (fxaaShown && fxaaImg.image)
+      return &fxaaImg;
+    return ImageOf(xfbId);
+  }
+  bool FilterImage(Image &img, int w, int h) {
+    if (img.image && img.width == static_cast<unsigned>(w) && img.height == static_cast<unsigned>(h))
+      return true;
+    if (img.image)
+      Trash(img);
+    return MakeImage(img, static_cast<unsigned>(w), static_cast<unsigned>(h), 1, VK_FORMAT_R8G8B8A8_UNORM,
+                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                     VK_IMAGE_ASPECT_COLOR_BIT);
+  }
+  bool FilterProgram(Fixed &f, const char *vs, const char *fs, const char *what) {
+    if (f.pipeline)
+      return true;
+    std::string error;
+    const VkColorComponentFlags all = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                                      VK_COLOR_COMPONENT_A_BIT;
+    if (MakeFixed(f, vs, fs, copyPass, all, false, &error))
+      return true;
+    GXLOG("%s (Vulkan): shader failed: %s", what, error.c_str());
+    FreeFixed(f);
+    return false;
+  }
+  // one pass of a filter: `srcs` read (linear, clamped), `dst` drawn whole
+  void FilterPass(const Fixed &f, Image &dst, Image *const *srcs, std::uint32_t n, const std::vector<std::uint8_t> &pc) {
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    VkImageView views[2]{};
+    VkSampler samp[2] = {linearClamp, linearClamp};
+    for (std::uint32_t i = 0; i < n && i < 2; i++) {
+      Transition(cb, *srcs[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      views[i] = srcs[i]->view;
+    }
+    BeginTargetPass(copyPass, dst);
+    dst.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // the pass's final layout
+    const VkViewport vp{0.0f, 0.0f, float(dst.width), float(dst.height), 0.0f, 1.0f};
+    const VkRect2D sc{{0, 0}, {dst.width, dst.height}};
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
+    BindFixed(f, views, samp, n, pc);
+    vkCmdDraw(cb, 4, 1, 0, 0);
+    EndPass();
+  }
+  // FXAA: the display copy just made (w x h texels) smoothed (GlRenderer::Fxaa)
+  void FilterFxaa(int w, int h) {
+    fxaaShown = false;
+    Image *x = ImageOf(xfbId);
+    if (!fxaaOn || !x || w < 16 || h < 16)
+      return;
+    if (!FilterProgram(fxaaFx, fixed::kFxaaVs, fixed::kFxaaFs, "FXAA")) {
+      fxaaOn = false;  // no shader on this driver: off for good (the menu's switch stays)
+      return;
+    }
+    if (!FilterImage(fxaaImg, w, h))
+      return;
+    std::vector<std::uint8_t> pc(fxaaFx.constants.bytes, 0);
+    const float texel[2] = {1.0f / static_cast<float>(w), 1.0f / static_cast<float>(h)};
+    Put(pc, fxaaFx, "texel", texel);
+    Image *src[1] = {x};
+    FilterPass(fxaaFx, fxaaImg, src, 1, pc);
+    fxaaShown = true;
+    stats.fxaaPasses++;
+  }
+  // Sharpen: the display copy (after FXAA; w x h texels of the EFB rows y..y+rows), not a movie's
+  // (GlRenderer::Sharpen)
+  void FilterSharpen(int w, int h, int y, int rows) {
+    sharpShown = false;
+    Image *x = ImageOf(xfbId);
+    if (sharpLevel <= 0 || chunkMovie || !x || w < 16 || h < 16 || rows < 1)
+      return;
+    if (!FilterProgram(sharpFx, fixed::kSharpenVs, fixed::kSharpenFs, "sharpen")) {
+      sharpLevel = 0;
+      return;
+    }
+    if (!FilterImage(sharpImg, w, h))
+      return;
+    // the rows shown, in texels of this copy (row 0 its top)
+    const int shownT = shownTop.load(std::memory_order_relaxed), shownB = shownBottom.load(std::memory_order_relaxed);
+    const int first = std::max(0, std::min(h - 1, (shownT - y) * h / rows));
+    const int last = std::max(first, std::min(h - 1, (shownB - y) * h / rows - 1));
+    static float amounts[2] = {-1.0f, -1.0f};
+    if (amounts[0] < 0.0f) {
+      amounts[0] = fixed::kSharpLight;
+      amounts[1] = fixed::kSharpStrong;
+      if (const char *test = std::getenv("RE4_GX_SHARPEN_AMOUNT"))
+        std::sscanf(test, "%f,%f", &amounts[0], &amounts[1]);
+    }
+    std::vector<std::uint8_t> pc(sharpFx.constants.bytes, 0);
+    const float amount = amounts[sharpLevel >= 2 ? 1 : 0];
+    const std::int32_t lim[3] = {w - 1, first, last};
+    Put(pc, sharpFx, "amount", amount);
+    Put(pc, sharpFx, "lim", lim);
+    Image *src[1] = {fxaaShown && fxaaImg.image ? &fxaaImg : x};
+    FilterPass(sharpFx, sharpImg, src, 1, pc);
+    sharpShown = true;
+    stats.sharpenPasses++;
+  }
+  // the PSone demake: the picture shown so far (w x h texels; gw x gh of the game's pixels) on a grid of half the
+  // game's pixels, a cell held at its level of the picture before (GlRenderer::Psx)
+  void FilterPsx(int w, int h, int gw, int gh) {
+    const bool wasShown = psxShown;
+    psxShown = false;
+    Image *x = ImageOf(xfbId);
+    if (!psxOn || !x || w < 16 || h < 16 || gw < 4 || gh < 4) {
+      psxPrevValid = false;
+      return;
+    }
+    if (!FilterProgram(psxFx, fixed::kPsxVs, fixed::kPsxFs, "PSone demake")) {
+      psxOn = false;
+      return;
+    }
+    if (!psxImg.image || !psxPrevImg.image || psxImg.width != static_cast<unsigned>(w) ||
+        psxImg.height != static_cast<unsigned>(h)) {
+      if (!FilterImage(psxImg, w, h) || !FilterImage(psxPrevImg, w, h))
+        return;
+      psxPrevValid = false;
+    }
+    Image *from = ShownImage();  // the XFB, or a filter's picture of it
+    // the picture before becomes psxPrevImg, the new one goes to the other image
+    std::swap(psxImg, psxPrevImg);
+    const bool usePrev = psxPrevValid && wasShown && psxGridW == gw / 2 && psxGridH == gh / 2;
+    psxGridW = gw / 2;
+    psxGridH = gh / 2;
+    std::vector<std::uint8_t> pc(psxFx.constants.bytes, 0);
+    const float grid[2] = {static_cast<float>(gw / 2), static_cast<float>(gh / 2)};
+    const float use = usePrev ? 1.0f : 0.0f;
+    Put(pc, psxFx, "grid", grid);
+    Put(pc, psxFx, "usePrev", use);
+    Image *src[2] = {from, &psxPrevImg};
+    FilterPass(psxFx, psxImg, src, 2, pc);
+    psxShown = true;
+    psxPrevValid = true;
+  }
   // ---- the depth map for GXPeekZ (as GlRenderer::SnapshotDepth / DeliverDepth) ----
   void DeliverDepth() {
     Poll();
@@ -1728,7 +1881,7 @@ struct VkRenderer final : GxCore {
     target.layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     if (viBlack)
       return;  // VISetBlack: black, whatever the XFB holds
-    Image *xfb = ImageOf(xfbId);
+    Image *xfb = ShownImage();
     if (!xfb)
       return;
     const VkViewport vp{float(x), float(y), float(w), float(h), 0.0f, 1.0f};
@@ -1958,7 +2111,7 @@ struct VkRenderer final : GxCore {
     pass = kOtherPass;
     boundPipeline = VK_NULL_HANDLE;
     scissorValid = false;
-    Image *xfb = ImageOf(xfbId);
+    Image *xfb = ShownImage();
     if (!viBlack && xfb && xfb->view && screenW > 0 && screenH > 0) {
       const VkViewport vp{0.0f, 0.0f, float(swapExtent.width), float(swapExtent.height), 0.0f, 1.0f};
       const VkRect2D sc{{0, 0}, swapExtent};
@@ -2033,7 +2186,7 @@ struct VkRenderer final : GxCore {
     return true;
   }
   bool ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height) override {
-    Image *img = ImageOf(xfbId);
+    Image *img = ShownImage();
     if (!haveXfb || !img)
       return false;
     if (!ReadImage(*img, rgba))
@@ -2323,6 +2476,10 @@ struct VkRenderer final : GxCore {
       GXLOG("Vulkan: the EFB at %d/2: %s", h, error.c_str());
     if (Image *x = ImageOf(xfbId))
       Rescaled(*x, xfbWidth, xfbHeight);
+    // the filters' pictures are of the old size: the next display copy makes them anew
+    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg})
+      Trash(*img);
+    fxaaShown = sharpShown = psxShown = psxPrevValid = false;
     for (auto &c : copies)
       if (Image *img = ImageOf(c.second.id))
         Rescaled(*img, c.second.width, c.second.height);
@@ -2432,6 +2589,11 @@ struct VkRenderer final : GxCore {
       vkDestroyFramebuffer(dev, depthResolveFb, nullptr);
     depthResolveFb = VK_NULL_HANDLE;
     FreeFixed(depthResolve);
+    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg})
+      Destroy(*img);
+    for (Fixed *f : {&fxaaFx, &sharpFx, &psxFx})
+      FreeFixed(*f);
+    fxaaShown = sharpShown = psxShown = psxPrevValid = false;
     for (auto &p : pipelines)
       if (p.second)
         vkDestroyPipeline(dev, p.second, nullptr);
