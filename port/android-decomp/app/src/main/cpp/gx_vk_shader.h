@@ -26,20 +26,24 @@ constexpr int kVkSetTextures = 1;  // the eight combined image samplers
 // stays in GL's clip range (-w..w; VK_EXT_depth_clip_control), else it is mapped to Vulkan's (0..w).
 std::string VulkanGlsl(const std::string &glslEs, bool vertex, bool glDepth = false);
 
-// A fixed shader of the renderer (gx_fixed_shaders.h, the effects) for Vulkan: its plain uniforms go into one push
-// constant block (std430, in their order; `constants` gets each one's name, offset and size, `bytes` the block's
-// size), its textures to set 0 in their order (`samplers`), the value between the stages (vUv) and the output at
-// location 0, gl_VertexID as gl_VertexIndex.
+// A fixed shader pair of the renderer (gx_fixed_shaders.h, the effects) for Vulkan, both stages together: the plain
+// uniforms of both in one block, push constants (std430) or, with an array or more than 128 bytes, a uniform block
+// (std140) at set 0 after the textures (`ubo`); `constants` gets each one's name, offset, size and, for an array, its
+// length and stride, `bytes` the block's size. The textures of both stages go to set 0 in their order (`samplers`,
+// seen by both stages); the values between the stages get locations in the vertex shader's order, the fragment
+// shader's output location 0; gl_VertexID becomes gl_VertexIndex.
 struct VkFixedLayout {
   struct Constant {
     std::string name;
-    std::uint32_t offset, size;
+    std::uint32_t offset, size;           // size: one element's
+    std::uint32_t count = 1, stride = 0;  // an array: its length and the step from one element to the next
   };
   std::vector<Constant> constants;
   std::vector<std::string> samplers;
   std::uint32_t bytes = 0;
+  bool ubo = false;
   const Constant *Find(const char *name) const;
 };
-std::string VulkanFixedGlsl(const std::string &glslEs, bool vertex, VkFixedLayout *layout);
+VkFixedLayout VulkanFixedProgram(const std::string &vsEs, const std::string &fsEs, std::string *vs, std::string *fs);
 
 } // namespace re4gx

@@ -2,6 +2,7 @@
 #include "gx_vk_shader.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace re4gx {
@@ -127,6 +128,62 @@ std::string VulkanGlsl(const std::string &es, bool vertex, bool glDepth) {
   return out;
 }
 
+namespace {
+
+struct UniformLine {
+  std::string type, name;
+  std::uint32_t count = 1;
+};
+
+// `uniform [highp|mediump|lowp] TYPE NAME;` or `... NAME[N];`
+bool ParseUniform(const std::string &line, UniformLine *u) {
+  if (!Starts(line, "uniform ") || line.empty() || line.back() != ';')
+    return false;
+  std::string r = line.substr(8);
+  for (const char *p : {"highp ", "mediump ", "lowp "})
+    if (Starts(r, p))
+      r = r.substr(std::strlen(p));
+  const std::size_t sp = r.find(' ');
+  if (sp == std::string::npos)
+    return false;
+  u->type = r.substr(0, sp);
+  std::string n = r.substr(sp + 1, r.size() - sp - 2);
+  u->count = 1;
+  const std::size_t br = n.find('[');
+  if (br != std::string::npos) {
+    u->count = static_cast<std::uint32_t>(std::strtoul(n.c_str() + br + 1, nullptr, 10));
+    n = n.substr(0, br);
+  }
+  u->name = n;
+  return true;
+}
+
+// std430's size and alignment of a scalar or vector (std140 differs for arrays only, below)
+void TypeSize(const std::string &t, std::uint32_t *size, std::uint32_t *align) {
+  const char last = t.empty() ? ' ' : t.back();
+  const bool vec = t.find("vec") != std::string::npos;
+  const int n = vec && last >= '2' && last <= '4' ? last - '0' : 1;
+  *size = 4u * static_cast<std::uint32_t>(n);
+  *align = n == 3 ? 16u : *size;
+}
+
+// `[flat |centroid |smooth ]in|out TYPE NAME;`: the name and whether it is an output; false for other lines
+bool ParseVarying(const std::string &line, std::string *name, bool *out) {
+  std::string q = line;
+  for (const char *p : {"flat ", "centroid ", "smooth "})
+    if (Starts(q, p))
+      q = q.substr(std::strlen(p));
+  const bool isOut = Starts(q, "out "), isIn = Starts(q, "in ");
+  if ((!isOut && !isIn) || q.empty() || q.back() != ';')
+    return false;
+  const std::size_t sp = q.rfind(' ');
+  *name = q.substr(sp + 1, q.size() - sp - 2);
+  *out = isOut;
+  return true;
+}
+
+} // namespace
+
 const VkFixedLayout::Constant *VkFixedLayout::Find(const char *name) const {
   for (const Constant &c : constants)
     if (c.name == name)
@@ -134,61 +191,118 @@ const VkFixedLayout::Constant *VkFixedLayout::Find(const char *name) const {
   return nullptr;
 }
 
-std::string VulkanFixedGlsl(const std::string &es, bool vertex, VkFixedLayout *layout) {
+VkFixedLayout VulkanFixedProgram(const std::string &vsEs, const std::string &fsEs, std::string *vs, std::string *fs) {
   VkFixedLayout l;
-  std::string decls, rest;
-  std::size_t at = 0;
-  while (at < es.size()) {
-    std::size_t end = es.find('\n', at);
-    if (end == std::string::npos)
-      end = es.size();
-    std::string line = es.substr(at, end - at);
-    at = end + 1;
-    if (line == "#version 300 es" || Starts(line, "precision "))
-      continue;
-    if (Starts(line, "uniform ")) {
-      std::string d = line.substr(8);
-      if (Starts(d, "highp ") || Starts(d, "mediump ") || Starts(d, "lowp "))
-        d = d.substr(d.find(' ') + 1);
-      const std::size_t sp = d.find(' ');
-      const std::string type = d.substr(0, sp), name = d.substr(sp + 1, d.size() - sp - 2);
-      if (type == "sampler2D") {
-        char b[128];
-        std::snprintf(b, sizeof(b), "layout(set = 0, binding = %zu) uniform sampler2D %s;\n", l.samplers.size(),
-                      name.c_str());
-        decls += b;
-        l.samplers.push_back(name);
+  std::vector<UniformLine> plain;
+  auto lines = [](const std::string &s) {
+    std::vector<std::string> v;
+    std::size_t at = 0;
+    while (at < s.size()) {
+      std::size_t end = s.find('\n', at);
+      if (end == std::string::npos)
+        end = s.size();
+      v.push_back(s.substr(at, end - at));
+      at = end + 1;
+    }
+    return v;
+  };
+  const std::vector<std::string> vl = lines(vsEs), fl = lines(fsEs);
+  for (const std::vector<std::string> *src : {&vl, &fl})
+    for (const std::string &line : *src) {
+      UniformLine u;
+      if (!ParseUniform(line, &u))
+        continue;
+      if (Starts(u.type, "sampler")) {
+        bool known = false;
+        for (const std::string &s : l.samplers)
+          known = known || s == u.name;
+        if (!known)
+          l.samplers.push_back(u.name);
         continue;
       }
-      // std430: scalars 4, vec2 8, vec3 and vec4 16 aligned
+      bool known = false;
+      for (const UniformLine &p : plain)
+        known = known || p.name == u.name;
+      if (!known)
+        plain.push_back(u);
+    }
+  // push constants (std430) while they fit 128 bytes and hold no array, else a uniform block (std140)
+  auto layOut = [&](bool std140) {
+    l.constants.clear();
+    std::uint32_t bytes = 0;
+    for (const UniformLine &u : plain) {
       std::uint32_t size = 4, align = 4;
-      if (type == "vec2" || type == "ivec2" || type == "uvec2")
-        size = align = 8;
-      else if (type == "vec3" || type == "ivec3" || type == "uvec3")
-        size = 12, align = 16;
-      else if (type == "vec4" || type == "ivec4" || type == "uvec4")
-        size = align = 16;
-      const std::uint32_t offset = (l.bytes + align - 1) / align * align;
-      l.constants.push_back({name, offset, size});
-      l.bytes = offset + size;
-      rest += "  " + type + " " + name + ";\n";
-      continue;
+      TypeSize(u.type, &size, &align);
+      std::uint32_t stride = (size + align - 1) / align * align;
+      if (std140 && u.count > 1) {
+        align = 16;  // an array's elements on 16 bytes
+        stride = (size + 15) / 16 * 16;
+      }
+      const std::uint32_t offset = (bytes + align - 1) / align * align;
+      l.constants.push_back({u.name, offset, size, u.count, stride});
+      bytes = offset + (u.count > 1 ? stride * u.count : size);
     }
-    if (line == "out vec2 vUv;" || line == "in vec2 vUv;" || (!vertex && Starts(line, "out vec4 "))) {
-      decls += "layout(location = 0) " + line + "\n";
-      continue;
-    }
-    decls += line + "\n";
+    l.bytes = (bytes + 15) / 16 * 16;
+  };
+  bool arrays = false;
+  for (const UniformLine &u : plain)
+    arrays = arrays || u.count > 1;
+  layOut(false);
+  l.ubo = arrays || l.bytes > 128;
+  if (l.ubo)
+    layOut(true);
+  std::string block;
+  if (!plain.empty()) {
+    char head[96];
+    if (l.ubo)
+      std::snprintf(head, sizeof(head), "layout(std140, set = 0, binding = %zu) uniform U {\n", l.samplers.size());
+    else
+      std::snprintf(head, sizeof(head), "layout(push_constant) uniform P {\n");
+    block = head;
+    for (const UniformLine &u : plain)
+      block += "  " + u.type + " " + u.name + (u.count > 1 ? "[" + std::to_string(u.count) + "]" : "") + ";\n";
+    block += "};\n";
   }
-  std::string out = "#version 450\n";
-  if (!l.constants.empty())
-    out += "layout(push_constant) uniform P {\n" + rest + "};\n";
-  out += decls;
-  ReplaceAll(out, "gl_VertexID", "gl_VertexIndex");
-  l.bytes = (l.bytes + 15) / 16 * 16;
-  if (layout)
-    *layout = l;
-  return out;
+  std::vector<std::string> varyings;  // the vertex shader's outputs, in order
+  auto emit = [&](const std::vector<std::string> &src, bool vertex) {
+    std::string out = "#version 450\n" + block;
+    for (const std::string &line : src) {
+      if (Starts(line, "#version ") || Starts(line, "precision "))
+        continue;
+      UniformLine u;
+      if (ParseUniform(line, &u)) {
+        if (Starts(u.type, "sampler")) {
+          std::size_t b = 0;
+          while (b < l.samplers.size() && l.samplers[b] != u.name)
+            b++;
+          char decl[160];
+          std::snprintf(decl, sizeof(decl), "layout(set = 0, binding = %zu) uniform %s %s;\n", b, u.type.c_str(),
+                        u.name.c_str());
+          out += decl;
+        }
+        continue;  // (a plain one is in the block)
+      }
+      std::string name;
+      bool isOut = false;
+      if (ParseVarying(line, &name, &isOut)) {
+        std::size_t loc = 0;
+        if (vertex || !isOut) {
+          while (loc < varyings.size() && varyings[loc] != name)
+            loc++;
+          if (loc == varyings.size())
+            varyings.push_back(name);
+        }
+        out += "layout(location = " + std::to_string(loc) + ") " + line + "\n";
+        continue;
+      }
+      out += line + "\n";
+    }
+    ReplaceAll(out, "gl_VertexID", "gl_VertexIndex");
+    return out;
+  };
+  *vs = emit(vl, true);
+  *fs = emit(fl, false);
+  return l;
 }
 
 } // namespace re4gx

@@ -205,6 +205,10 @@ struct VkRenderer final : GxCore {
   Image efbMsColor, efbMsDepth;
   // the display copy's filters (DisplayEffects): their pictures and pipelines
   Image fxaaImg, sharpImg, psxImg, psxPrevImg;
+  // the lens flares (FlarePass): the slots' visibility, this picture's and the one before
+  Image flareVis[2];
+  Fixed flareVisFx, flareFx;
+  int flareVisCur = 0;
   Fixed fxaaFx, sharpFx, psxFx;
   bool psxPrevValid = false;
   int psxGridW = 0, psxGridH = 0;
@@ -656,7 +660,8 @@ struct VkRenderer final : GxCore {
     dep[1].srcSubpass = 0;
     dep[1].dstSubpass = VK_SUBPASS_EXTERNAL;
     dep[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    dep[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+    dep[1].dstStageMask =
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
     dep[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dep[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
   }
@@ -1006,13 +1011,15 @@ struct VkRenderer final : GxCore {
   // textures in set 0; plain state with the colour mask `mask`, depth always (written when `depthWrite`)
   bool MakeFixed(Fixed &f, const std::string &vsEs, const std::string &fsEs, VkRenderPass renderPass,
                  VkColorComponentFlags mask, bool depthWrite, std::string *error, bool vkGlsl = false,
-                 const VkFixedLayout *given = nullptr) {
-    VkFixedLayout vl, fl;
-    const std::string vs = vkGlsl ? vsEs : VulkanFixedGlsl(vsEs, true, &vl);
-    const std::string fs = vkGlsl ? fsEs : VulkanFixedGlsl(fsEs, false, &fl);
-    if (vkGlsl && given) {
+                 const VkFixedLayout *given = nullptr, bool additive = false,
+                 VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP) {
+    VkFixedLayout fl;
+    std::string vs = vsEs, fs = fsEs;
+    if (!vkGlsl) {
+      fl = VulkanFixedProgram(vsEs, fsEs, &vs, &fs);
+    } else if (given) {
       fl = *given;
-    } else if (vkGlsl) {
+    } else {
       fl.constants = {{"color", 0, 16}, {"z", 16, 4}};
       fl.bytes = 32;
     }
@@ -1025,10 +1032,13 @@ struct VkRenderer final : GxCore {
         vkDestroyShaderModule(dev, v, nullptr);
       return false;
     }
-    std::vector<VkDescriptorSetLayoutBinding> b(fl.samplers.size());
-    for (std::size_t i = 0; i < b.size(); i++)
-      b[i] = {static_cast<std::uint32_t>(i), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
-              nullptr};
+    // the textures (both stages may read them), then the uniform block (VulkanFixedProgram)
+    const VkShaderStageFlags both = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> b(fl.samplers.size() + (fl.ubo ? 1 : 0));
+    for (std::size_t i = 0; i < fl.samplers.size(); i++)
+      b[i] = {static_cast<std::uint32_t>(i), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, both, nullptr};
+    if (fl.ubo)
+      b.back() = {static_cast<std::uint32_t>(fl.samplers.size()), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, both, nullptr};
     auto dl = Make<VkDescriptorSetLayoutCreateInfo>(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
     dl.bindingCount = static_cast<std::uint32_t>(b.size());
     dl.pBindings = b.data();
@@ -1037,7 +1047,7 @@ struct VkRenderer final : GxCore {
     auto pl = Make<VkPipelineLayoutCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
     pl.setLayoutCount = 1;
     pl.pSetLayouts = &f.setLayout;
-    pl.pushConstantRangeCount = fl.bytes ? 1 : 0;
+    pl.pushConstantRangeCount = fl.bytes && !fl.ubo ? 1 : 0;
     pl.pPushConstantRanges = &range;
     vkCreatePipelineLayout(dev, &pl, nullptr, &f.layout);
     std::vector<VkPipelineShaderStageCreateInfo> stages(2);
@@ -1051,7 +1061,7 @@ struct VkRenderer final : GxCore {
     stages[1].pName = "main";
     auto vin = Make<VkPipelineVertexInputStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
     auto ia = Make<VkPipelineInputAssemblyStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
-    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+    ia.topology = topology;
     auto rs = Make<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
     rs.polygonMode = VK_POLYGON_MODE_FILL;
     rs.cullMode = VK_CULL_MODE_NONE;
@@ -1062,6 +1072,12 @@ struct VkRenderer final : GxCore {
     ds.depthCompareOp = VK_COMPARE_OP_ALWAYS;
     VkPipelineColorBlendAttachmentState cba{};
     cba.colorWriteMask = mask;
+    if (additive) {  // added to what is there (the lens flares)
+      cba.blendEnable = VK_TRUE;
+      cba.srcColorBlendFactor = cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.srcAlphaBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_ADD;
+    }
     f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false);
     vkDestroyShaderModule(dev, v, nullptr);
     vkDestroyShaderModule(dev, m, nullptr);
@@ -1085,11 +1101,13 @@ struct VkRenderer final : GxCore {
       if (f.pool < f.pools.size() && f.poolSets >= kTexSetsPerPool)
         f.pool++;
       if (f.pool >= f.pools.size()) {
-        VkDescriptorPoolSize size{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kTexSetsPerPool * 8};
+        // (the fixed passes' uniform blocks too, VulkanFixedProgram)
+        const VkDescriptorPoolSize size[2] = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kTexSetsPerPool * 8},
+                                              {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kTexSetsPerPool / 4}};
         auto pci = Make<VkDescriptorPoolCreateInfo>(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
         pci.maxSets = kTexSetsPerPool;
-        pci.poolSizeCount = 1;
-        pci.pPoolSizes = &size;
+        pci.poolSizeCount = 2;
+        pci.pPoolSizes = size;
         VkDescriptorPool p = VK_NULL_HANDLE;
         if (!Check(vkCreateDescriptorPool(dev, &pci, nullptr, &p), "vkCreateDescriptorPool"))
           return VK_NULL_HANDLE;
@@ -1167,18 +1185,48 @@ struct VkRenderer final : GxCore {
     if (const VkFixedLayout::Constant *c = f.constants.Find(name))
       std::memcpy(pc.data() + c->offset, &v, std::min<std::size_t>(sizeof(T), c->size));
   }
+  // an array of `n` elements of `elem` bytes each, at the array's stride (VkFixedLayout)
+  static void PutArray(std::vector<std::uint8_t> &pc, const Fixed &f, const char *name, const void *data,
+                       std::size_t elem, std::size_t n) {
+    if (const VkFixedLayout::Constant *c = f.constants.Find(name))
+      for (std::size_t i = 0; i < n && i < c->count; i++)
+        std::memcpy(pc.data() + c->offset + i * c->stride, static_cast<const std::uint8_t *>(data) + i * elem,
+                    std::min<std::size_t>(elem, c->size));
+  }
   void BindFixed(const Fixed &f, const VkImageView *views, const VkSampler *samp, std::uint32_t n,
                  const std::vector<std::uint8_t> &pc) {
     VkCommandBuffer cb = F().draw;
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, f.pipeline);
     boundPipeline = VK_NULL_HANDLE;
-    if (n) {
+    if (n || f.constants.ubo) {
       const VkDescriptorSet set = TexSet(f.setLayout);
-      WriteImages(set, views, samp, n);
+      if (n)
+        WriteImages(set, views, samp, n);
+      if (f.constants.ubo) {
+        // the constants as a uniform block in the frame's uniform stream (a new buffer there: the GX blocks follow)
+        Frame &fr = F();
+        const VkDeviceSize align = std::max<VkDeviceSize>(16, vk.properties.limits.minUniformBufferOffsetAlignment);
+        std::size_t b = 0;
+        VkDeviceSize at = 0;
+        const std::size_t before = fr.uniform.size();
+        if (!Alloc(fr.uniform, f.constants.bytes, align, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, &b, &at, true))
+          return;
+        if (fr.uniform.size() != before)
+          streamMoved = true;
+        std::memcpy(fr.uniform[b].map + at, pc.data(), std::min<std::size_t>(pc.size(), f.constants.bytes));
+        VkDescriptorBufferInfo info{fr.uniform[b].buffer, at, f.constants.bytes};
+        auto w = Make<VkWriteDescriptorSet>(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET);
+        w.dstSet = set;
+        w.dstBinding = static_cast<std::uint32_t>(f.constants.samplers.size());
+        w.descriptorCount = 1;
+        w.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        w.pBufferInfo = &info;
+        vkUpdateDescriptorSets(dev, 1, &w, 0, nullptr);
+      }
       vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, f.layout, 0, 1, &set, 0, nullptr);
       boundTex = boundUbo = VK_NULL_HANDLE;
     }
-    if (!pc.empty())
+    if (!pc.empty() && !f.constants.ubo)
       vkCmdPushConstants(cb, f.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                          static_cast<std::uint32_t>(pc.size()), pc.data());
     constantsValid = false;
@@ -1238,7 +1286,109 @@ struct VkRenderer final : GxCore {
     stats.behindCount[std::min(behind, 8u)]++;
   }
   void RunLeave() override {}
-  void FlarePass() override { flareDone = true; }  // E5
+  // ---- the lens flares (E5, as GlRenderer::FlarePass): after the scene's last 3D draw the visibility pass (each
+  // slot's followed visibility and colour from the picture's depth and colour, into a 32 x 2 image), then the
+  // flares added into the EFB's colour ----
+  bool MakeFlares() {
+    std::string error;
+    const VkColorComponentFlags rgb = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+    if (!MakeFixed(flareVisFx, fixed::kFlareQuadVs, fixed::kFlareVisFs, copyPass, rgb | VK_COLOR_COMPONENT_A_BIT,
+                   false, &error) ||
+        !MakeFixed(flareFx, fixed::kFlareVs, fixed::kFlareFs, efbPass, rgb, false, &error, false, nullptr, true,
+                   VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)) {
+      GXLOG("lens flares (Vulkan): shader failed: %s", error.c_str());
+      return false;
+    }
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    const VkClearColorValue zero{{0.0f, 0.0f, 0.0f, 0.0f}};
+    const VkImageSubresourceRange all{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    for (Image &v : flareVis) {
+      if (!MakeImage(v, kFlareSlots, 2, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                     VK_IMAGE_ASPECT_COLOR_BIT))
+        return false;
+      Transition(cb, v, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+      vkCmdClearColorImage(cb, v.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &zero, 1, &all);
+      Transition(cb, v, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+    return true;
+  }
+  void FlarePass() override {
+    flareDone = true;
+    FlareTrack();
+    flareCands.clear();
+    bool any = false;
+    for (const FlareSlot &sl : flareSlot)
+      any = any || sl.lost >= 0;
+    if (!any || flareFailed)
+      return;
+    if (!flareFx.pipeline && !MakeFlares()) {
+      flareFailed = true;
+      return;
+    }
+    static const char *flareLogEnv = std::getenv("RE4_GX_FLARE_LOG");
+    const bool log2 = flareLogEnv && *flareLogEnv == '2';
+    const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
+    const float sc = Sf(1);
+    float slots[kFlareSlots][4];
+    for (int i = 0; i < kFlareSlots; i++) {
+      const FlareSlot &sl = flareSlot[i];
+      slots[i][0] = sl.x * sc;
+      slots[i][1] = sl.y * sc;
+      slots[i][2] = sl.z;
+      // state (0 free, 1 seen, 2 new, 3 lost, 4 seen but not yet in 4 pictures) + 8 x the radius in EFB texels
+      slots[i][3] = (sl.lost < 0 ? 0.0f : sl.lost > 0 ? 3.0f : sl.fresh ? 2.0f : sl.age < 4 ? 4.0f : 1.0f) +
+                    (sl.lost < 0 ? 0.0f : 8.0f * std::floor(sl.r * sc));
+    }
+    // the picture's depth and colour (MSAA: resolved), as the autofocus reads them
+    ResolveDepth();
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    Transition(cb, efbDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    Transition(cb, efbColor, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    const int next = flareVisCur ^ 1;
+    Transition(cb, flareVis[flareVisCur], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    BeginTargetPass(copyPass, flareVis[next]);
+    flareVis[next].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    const VkViewport vvp{0.0f, 0.0f, float(kFlareSlots), 2.0f, 0.0f, 1.0f};
+    const VkRect2D vsc{{0, 0}, {static_cast<std::uint32_t>(kFlareSlots), 2}};
+    vkCmdSetViewport(cb, 0, 1, &vvp);
+    vkCmdSetScissor(cb, 0, 1, &vsc);
+    std::vector<std::uint8_t> pc(flareVisFx.constants.bytes, 0);
+    PutArray(pc, flareVisFx, "slot", slots, sizeof(slots[0]), kFlareSlots);
+    const float visSize[4] = {static_cast<float>(fw), static_cast<float>(fh), std::max(1.0f, 1.5f * sc),
+                              log2 ? 1.0f : 0.0f};
+    Put(pc, flareVisFx, "size", visSize);
+    const VkImageView views[3] = {efbDepth.view, efbColor.view, flareVis[flareVisCur].view};
+    const VkSampler samp[3] = {nearestClamp, nearestClamp, nearestClamp};
+    BindFixed(flareVisFx, views, samp, 3, pc);
+    vkCmdDraw(cb, 4, 1, 0, 0);
+    EndPass();
+    flareVisCur = next;
+    // the flares: their radius in EFB texels in slot.z; strength: at most about a third of white
+    float ghosts[kFlareSlots], crowds[kFlareSlots];
+    for (int i = 0; i < kFlareSlots; i++) {
+      slots[i][2] = flareSlot[i].r * sc;
+      ghosts[i] = flareSlot[i].ghost;
+      crowds[i] = flareSlot[i].crowd;
+    }
+    BeginEfbPass();
+    const VkRect2D whole{{0, 0}, {efbColor.width, efbColor.height}};
+    vkCmdSetScissor(cb, 0, 1, &whole);
+    scissorValid = false;
+    std::vector<std::uint8_t> pf(flareFx.constants.bytes, 0);
+    PutArray(pf, flareFx, "slot", slots, sizeof(slots[0]), kFlareSlots);
+    PutArray(pf, flareFx, "ghost", ghosts, sizeof(float), kFlareSlots);
+    PutArray(pf, flareFx, "crowd", crowds, sizeof(float), kFlareSlots);
+    const float flareSize[4] = {static_cast<float>(fw), static_cast<float>(fh), 0.0f, 0.5f};
+    Put(pf, flareFx, "size", flareSize);
+    const VkImageView vis = flareVis[flareVisCur].view;
+    BindFixed(flareFx, &vis, &nearestClamp, 1, pf);
+    vkCmdDraw(cb, 36 * kFlareSlots, 1, 0, 0);
+  }
   void Autofocus(std::uint32_t) override {}         // E5
   void ClearAfterCopyPlain(std::uint32_t control, int x, int y, int w, int h) override {
     ClearAfterCopy(control, x, y, w, h);
@@ -2591,8 +2741,11 @@ struct VkRenderer final : GxCore {
     FreeFixed(depthResolve);
     for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg})
       Destroy(*img);
-    for (Fixed *f : {&fxaaFx, &sharpFx, &psxFx})
+    for (Fixed *f : {&fxaaFx, &sharpFx, &psxFx, &flareVisFx, &flareFx})
       FreeFixed(*f);
+    for (Image &v : flareVis)
+      Destroy(v);
+    flareVisCur = 0;
     fxaaShown = sharpShown = psxShown = psxPrevValid = false;
     for (auto &p : pipelines)
       if (p.second)

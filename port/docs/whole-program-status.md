@@ -2249,6 +2249,19 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   **Geprüft (WSL, lavapipe):** Arten „fx“ (FXAA, Schärfen stark, TV), „psx“ und „native“ (Schärfen leicht) in allen
   10 Folgen: 0 Meldungen, kein Bild über 1 % Pixel mit mehr als 16 Stufen; GL bytegleich (4 371 Bilder); NDK beide
   ABIs. **Nicht geprüft:** Gerät.
+- **E5b Linsenreflexe unter Vulkan (08.11.2026, am PC):** `VulkanFixedProgram` (ersetzt `VulkanFixedGlsl`) übersetzt
+  beide Stufen eines festen Shaders zusammen:
+  - Felder und mehr als 128 Bytes Konstanten gehen in einen Uniform-Block (std140) aus dem Uniform-Strom des Bildes;
+    sonst bleiben es Push-Konstanten.
+  - Texturen sind in beiden Stufen lesbar.
+  - Jeder Wert zwischen den Stufen bekommt seinen Platz (`flat` auch).
+  - Die bisherigen Filter geben damit bytegleich dieselben Bilder (810 von 810).
+  Die Shader der Reflexe wurden unverändert nach `gx_fixed_shaders.h` verschoben. `FlarePass` macht dann, wie in GL,
+  den Sichtbarkeits-Durchgang (32 × 2, aus Tiefe und Farbe des Bildes; bei MSAA aufgelöst) und die Reflexe, die zur
+  EFB-Farbe addiert werden.
+  **Geprüft (WSL, lavapipe, Prüfschicht mit Synchronisation):** `RE4_GX_FLARES=1`, alle 10 Folgen GL gegen Vulkan:
+  0 Meldungen, kein Bild über der Grenze. Die Reflexe ändern unter beiden APIs dieselben Bilder gleich stark
+  (psx3: 36 Bilder bis 19 800 Pixel, p11d: 46). GL bytegleich, NDK beide ABIs. **Nicht geprüft:** Gerät.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 
