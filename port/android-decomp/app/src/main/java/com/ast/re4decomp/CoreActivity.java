@@ -11,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
@@ -1912,6 +1913,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   @Override
   public void onWindowFocusChanged(boolean focus) {
     super.onWindowFocusChanged(focus);
+    Log.i(TAG, "window focus: " + (focus ? "on" : "off"));
     if (!focus) releaseAll();
     else main.post(this::updateMouseCapture);
     // a car's panel (climate, notifications) closed again: its bars hidden again where the car allows it
@@ -2349,10 +2351,19 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The picture's view: 60 pictures a second on a faster screen, the fingers beside the touch controls. */
   @SuppressLint("ClickableViewAccessibility")
   private void surfaceCallbacks(SurfaceView view) {
+    final String kind = view instanceof VulkanSurface ? "Vulkan" : "OpenGL ES";
+    // (each in the log: Home and a turn of the device show in a test's log, report of 08.11.2026)
     view.getHolder().addCallback(new SurfaceHolder.Callback() {
-      @Override public void surfaceCreated(SurfaceHolder holder) { surfaceSixtyHz(holder.getSurface()); }
-      @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {}
-      @Override public void surfaceDestroyed(SurfaceHolder holder) {}
+      @Override public void surfaceCreated(SurfaceHolder holder) {
+        Log.i(TAG, "picture surface (" + kind + "): made");
+        surfaceSixtyHz(holder.getSurface());
+      }
+      @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
+        Log.i(TAG, "picture surface (" + kind + "): " + w + "x" + h + ", format " + format);
+      }
+      @Override public void surfaceDestroyed(SurfaceHolder holder) {
+        Log.i(TAG, "picture surface (" + kind + "): gone");
+      }
     });
     // the surface takes the fingers beside the touch controls: Android gives the further fingers
     // of a touch only to views that took one, so a thumb beside the buttons would block them
@@ -2474,9 +2485,41 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         + Build.MODEL + ", " + Build.HARDWARE + "\n";
   }
 
+  // The display's turn (0, 90, 180, 270): "sensorLandscape" turns the game by 180 degrees with the device, which is no
+  // configuration change (landscape stays landscape) and changes no surface size; only the display's rotation tells
+  private int displayTurn = -1;
+  private final DisplayManager.DisplayListener displayTurns = new DisplayManager.DisplayListener() {
+    @Override public void onDisplayAdded(int id) {}
+    @Override public void onDisplayRemoved(int id) {}
+    @Override public void onDisplayChanged(int id) { logDisplayTurn(); }
+  };
+
+  private void logDisplayTurn() {
+    final int turn = getWindowManager().getDefaultDisplay().getRotation() * 90;
+    if (turn == displayTurn) return;
+    Log.i(TAG, (displayTurn < 0 ? "display rotation: " : "display rotation changed to ") + turn);
+    displayTurn = turn;
+  }
+
+  @Override
+  protected void onStart() {
+    super.onStart();
+    Log.i(TAG, "activity started");
+  }
+
+  @Override
+  protected void onStop() {
+    Log.i(TAG, "activity stopped");
+    super.onStop();
+  }
+
   @Override
   protected void onResume() {
     super.onResume();
+    Log.i(TAG, "activity resumed");
+    DisplayManager displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (displays != null) displays.registerDisplayListener(displayTurns, main);
+    logDisplayTurn();
     hideSystemUi();
     picture.onResume();
     resumed = true;
@@ -2497,6 +2540,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @Override
   protected void onPause() {
+    Log.i(TAG, "activity paused");
+    DisplayManager displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (displays != null) displays.unregisterDisplayListener(displayTurns);
     resumed = false;
     // the game stands while the app is not in front (home screen, a file picker of the menu)
     if (menuSupported) CoreBridge.pause(true, 0);

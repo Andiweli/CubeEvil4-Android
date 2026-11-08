@@ -856,8 +856,11 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
     foreach ($line in $log) {
         if ($line -match '^\S+\s+\S+\s+(\d+)\s+\d+\s+[VDIWEF]\s+(re4|RE4\w*)\s*:') { $pids[$Matches[1]] = 1 }
     }
+    # (and the system's lines that name the app: its start, Home, being brought back; report of 08.11.2026)
+    $packageText = [regex]::Escape($package)
     $keep = @($log | Where-Object {
         $_ -match ' (re4|RE4\w*|DEBUG|AndroidRuntime|libc|crash_dump\w*|scudo)\s*:' -or
+        $_ -match $packageText -or
         ($_ -match '^\S+\s+\S+\s+(\d+)\s' -and $pids.ContainsKey($Matches[1])) })
     $keep | Set-Content -LiteralPath (Join-Path $OutDir 'logcat.txt') -Encoding UTF8
     # the system's own crash report (kept for days, also when the log has moved on)

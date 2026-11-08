@@ -45,6 +45,23 @@ Gerätetests am Retroid).
   - **Geprüft (PC):** Das Skript liest PowerShell ohne Fehler ein. Die Erkennung lief gegen ein nachgestelltes
     ADB: mit Zeile Neustart, ohne neue Zeile Absturz, eine zweite Zeile wieder Neustart. **Nicht geprüft:** Gerät
     (der Menü-Lauf kommt noch einmal).
+  - **Benchmark unter Vulkan (Retroid, 08.11.2026):** dieselben Stufen wie unter OpenGL ES, ×3 für 30 FPS und ×2
+    für 60 FPS (Wortlaut des Projektinhabers: „Ein Benchmark auf Vulkan liefert nun bei 30 FPS wie zuvor x3
+    Resolution und bei 60 FPS x2 Resolution. Also idente Dynamic Werte wie mit OpenGLES“). Auf dem Adreno 650 ist
+    Vulkan damit gleich schnell; dort begrenzt der Grafikchip, nicht der Treiber.
+  - **Home und Drehen fehlten im Protokoll des Laufs „drehen“** (der Projektinhaber hat beides gemacht).
+    - **Ursache:** Die App schrieb ihren Lebenszyklus nicht ins Protokoll. Eine 180°-Drehung ist mit
+      `sensorLandscape` kein Konfigurationswechsel (Querformat bleibt Querformat, die Größe bleibt).
+    - Unter Vulkan zeigt sie sich nur an der Drehung der Fläche, und Android muss dafür kein „suboptimal“ melden.
+    - **Jetzt in `CoreActivity` (beide Renderer):**
+      - „activity started/resumed/paused/stopped“ und „window focus: on/off“;
+      - „picture surface (Vulkan|OpenGL ES): made / B×H / gone“;
+      - „display rotation: N“ beim Fortsetzen und „display rotation changed to N“ (`DisplayManager.DisplayListener`,
+        solange die App vorne ist).
+    - **Der Vulkan-Renderer** prüft die Drehung der Fläche zusätzlich einmal je Sekunde (60 Bilder) und baut bei
+      einer Änderung die Swapchain neu („Vulkan screen: the display turned …“).
+    - **`test-core-app.ps1`** behält auch die Systemzeilen, die die App beim Namen nennen (Start, Home, Zurückholen);
+      die Zeilen der App selbst (Tags `RE4…`) gingen nie verloren.
 
 Version 0.99.3-rc (versionCode 105), Releasetext `port/android-decomp/docs/releases/v0.99.3-rc.md` („Changes since
 v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag. Patch 0219

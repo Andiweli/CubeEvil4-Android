@@ -448,6 +448,7 @@ struct VkRenderer final : GxCore {
   // a row without a change, no more looks (an answer the swapchain cannot change)
   bool swapCheck = false;
   unsigned swapSeenTurn = 0, suboptimalLooks = 0, suboptimalSkipped = 0;
+  unsigned presentsSinceLook = 0;  // the surface's turn looked at once a second as well (LookAtTurn)
   VkExtent2D swapSeenExtent{};
   static constexpr unsigned kSuboptimalLooks = 8;
   unsigned swapMade = 0;          // swapchains made (the timing line)
@@ -2924,11 +2925,27 @@ struct VkRenderer final : GxCore {
       GXLOG("Vulkan screen: \"suboptimal\" %u times without a change of the display; the swapchain stays",
             kSuboptimalLooks);
   }
+  // once a second: did the display turn (a turn by 180 degrees changes no size, and Android need not answer it with
+  // "suboptimal"; the device report of 08.11.2026 showed none)? Then the swapchain anew, turned as the display
+  void LookAtTurn() {
+    if (!surfaceKhr || !swapchain || ++presentsSinceLook < 60)
+      return;
+    presentsSinceLook = 0;
+    VkSurfaceCapabilitiesKHR caps{};
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk.physical, surfaceKhr, &caps) != VK_SUCCESS)
+      return;
+    if (static_cast<unsigned>(caps.currentTransform) != swapSeenTurn) {
+      GXLOG("Vulkan screen: the display turned (its turn %u, before %u)", static_cast<unsigned>(caps.currentTransform),
+            swapSeenTurn);
+      swapStale = true;
+    }
+  }
   bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) override {
     if (!haveXfb)
       return false;
     stats.presents++;
     LookAtSuboptimal();
+    LookAtTurn();
     if (!window || ((!swapchain || swapStale) && !MakeSwapchain())) {
       Submit(false, true);  // no screen: the frame to the GPU all the same
       return true;
