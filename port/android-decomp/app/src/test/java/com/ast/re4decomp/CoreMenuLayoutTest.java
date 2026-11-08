@@ -36,6 +36,8 @@ public class CoreMenuLayoutTest {
     @Implementation public static String[] cardList() { return new String[0]; }
     static int sharpen = -1;  // the last level the menu sent (setSharpen)
     @Implementation public static void setSharpen(int level) { sharpen = level; }
+    static int potato = -1;   // the last Potato mode bits the menu sent (setPotato)
+    @Implementation public static void setPotato(int mask) { potato = mask; }
   }
 
   private static Object field(Object owner, String name) throws Exception {
@@ -683,6 +685,31 @@ public class CoreMenuLayoutTest {
       // merged draw calls: a toggle of its own below 60 FPS (30.10.2026)
       Button merge = findButton(body, controller.get().getString(R.string.ingame_merge_draws));
       assertNotNull(merge); assertTrue(merge.hasOnClickListeners());
+      // Potato mode, 0.99.3: "Particle effects" in three steps (normal, less, none: bits 2..3) and "Shadows & light"
+      // (bit 4 when off) in a second row under weather and special effects, all as before by default
+      Button weather = findButton(body, controller.get().getString(R.string.ingame_potato_weather));
+      Button particles = findButton(body, controller.get().getString(R.string.ingame_potato_particles));
+      Button shadows = findButton(body, controller.get().getString(R.string.ingame_potato_shadows));
+      assertNotNull(particles); assertNotNull(shadows);
+      assertNotSame(weather.getParent(), particles.getParent()); assertSame(particles.getParent(), shadows.getParent());
+      String normal = controller.get().getString(R.string.ingame_particles_normal);
+      assertTrue(particles.getText().toString().endsWith(normal)); assertTrue(particles.isSelected());
+      assertTrue(shadows.isSelected());
+      particles.performClick();
+      assertEquals(4, Bridge.potato); assertFalse(particles.isSelected());
+      assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_less)));
+      particles.performClick();
+      assertEquals(8, Bridge.potato);
+      assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_none)));
+      shadows.performClick();
+      assertEquals(8 | 16, Bridge.potato); assertFalse(shadows.isSelected());
+      weather.performClick();
+      assertEquals(1 | 8 | 16, Bridge.potato);
+      particles.performClick();
+      assertEquals(1 | 16, Bridge.potato); assertTrue(particles.isSelected());
+      assertTrue(particles.getText().toString().endsWith(normal));
+      shadows.performClick(); weather.performClick();
+      assertEquals(0, Bridge.potato);
       // the FPS display moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of the project owner, 04.11.2026)
       assertNull(findButton(body, controller.get().getString(R.string.ingame_fps_display)));
       show.invoke(menu, 1, false);

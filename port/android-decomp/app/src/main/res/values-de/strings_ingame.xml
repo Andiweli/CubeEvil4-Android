@@ -42,7 +42,12 @@
     <string name="ingame_potato">Potato-Modus</string>
     <string name="ingame_potato_weather">Wettereffekte</string>
     <string name="ingame_potato_special">Spezialeffekte</string>
-    <string name="ingame_potato_help">Wettereffekte: Nebelschwaden, Regen, Wasserspritzer. Spezialeffekte: Dampf, Hitzeflimmern, Wasser. Aus spart Grafikleistung auf schwächeren Geräten; Mündungsfeuer, Blut, Explosionen, Feuer, Treffer und Hinweise bleiben, ebenso alle Effekte in Zwischensequenzen.</string>
+    <string name="ingame_potato_particles">Partikeleffekte</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Weniger</string>
+    <string name="ingame_particles_none">Keine</string>
+    <string name="ingame_potato_shadows">Schatten &amp; Licht</string>
+    <string name="ingame_potato_help">Wettereffekte: Nebelschwaden, Regen, Wasserspritzer. Spezialeffekte: Dampf, Hitzeflimmern, Wasser. Partikeleffekte: Blut, Staub, Rauch, Spritzer, Funken und Feuer; „Weniger“ zeichnet die Hälfte davon, „Keine“ lässt alles weg außer Feuer und Explosionen, die als Warnung zur Hälfte bleiben. Schatten &amp; Licht: Aus lässt Schatten (auch in Zwischensequenzen), Lichtschein und Lichtstrahlen weg; die Beleuchtung der Räume bleibt. Jede Einstellung spart Grafikleistung auf schwächeren Geräten; die Stelle eines Treffers, Hinweise, der Laser und alle Effekte in Zwischensequenzen bleiben.</string>
     <string name="ingame_resolution_line">Auflösung: %1$d × %2$d Pixel (Stufe %3$s) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Höhere Stufen brauchen mehr Leistung.</string>
     <string name="ingame_resolution_line_auto">Auflösung: %1$d × %2$d Pixel (Stufe %3$s, Dynamisch) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Dynamisch geht eine Stufe tiefer, solange der Grafikchip nicht mitkommt.</string>
 

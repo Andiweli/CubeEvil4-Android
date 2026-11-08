@@ -44,7 +44,12 @@
     <string name="ingame_potato">Mode Potato</string>
     <string name="ingame_potato_weather">Effets météo</string>
     <string name="ingame_potato_special">Effets spéciaux</string>
-    <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Désactivés, ils allègent le travail graphique sur les appareils modestes ; les flashs de tir, le sang, les explosions, le feu, les impacts et les indications restent, ainsi que tous les effets des cinématiques.</string>
+    <string name="ingame_potato_particles">Effets de particules</string>
+    <string name="ingame_particles_normal">Normaux</string>
+    <string name="ingame_particles_less">Réduits</string>
+    <string name="ingame_particles_none">Aucun</string>
+    <string name="ingame_potato_shadows">Ombres et lumière</string>
+    <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Effets de particules : sang, poussière, fumée, éclaboussures, étincelles et feu ; Réduits en dessine la moitié, Aucun les retire tous sauf le feu et les explosions, qui restent à moitié comme avertissement. Ombres et lumière : désactivé retire les ombres (aussi dans les cinématiques), les halos et les rayons de lumière ; les pièces gardent leur éclairage. Chaque réglage allège le travail graphique sur les appareils modestes ; le point d\'impact, les indications, le laser et tous les effets des cinématiques restent.</string>
     <string name="ingame_resolution_line">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s) · écran %4$d × %5$d · s’applique à la fermeture du menu. Les niveaux plus élevés demandent plus de puissance.</string>
     <string name="ingame_resolution_line_auto">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s, Dynamique) · écran %4$d × %5$d · s’applique à la fermeture du menu. Dynamique descend d’un niveau tant que le GPU ne suit pas.</string>
 

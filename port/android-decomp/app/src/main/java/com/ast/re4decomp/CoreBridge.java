@@ -120,9 +120,16 @@ public final class CoreBridge {
   public static native void setAim(boolean invert, float speed, boolean autoAim, boolean alwaysRun);
   /** The game's own options changed "reverse" since the last call (patch 0188): -1, else 0 / 1 for "Invert vertical". */
   public static native int aimFromGame();
-  /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */
+  /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
+   *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
+   *  off; the core's runtime/potato.cpp). */
   static int potatoMask(android.content.SharedPreferences g) {
-    return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);
+    return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2)
+        | (particleEffects(g) << 2) | (g.getBoolean("shadowsLight", true) ? 0 : 16);
+  }
+  /** The Potato mode's "Particle effects" (0.99.3): 0 normal (the default), 1 less, 2 none. */
+  static int particleEffects(android.content.SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt("particleEffects", 0)));
   }
   /**
    * The AUDIO page's volumes, "musicVolume" / "effectsVolume" in the graphics settings (100 by default); 0 while

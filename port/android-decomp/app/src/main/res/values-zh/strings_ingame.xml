@@ -43,7 +43,12 @@
     <string name="ingame_potato">土豆模式</string>
     <string name="ingame_potato_weather">天气效果</string>
     <string name="ingame_potato_special">特殊效果</string>
-    <string name="ingame_potato_help">天气效果：雾气、雨、水花。特殊效果：蒸汽、热浪扭曲、水面。关闭可减轻性能较弱设备的图形负担；枪口火光、血迹、爆炸、火焰、命中效果和提示保留，过场动画中的所有效果也保留。</string>
+    <string name="ingame_potato_particles">粒子效果</string>
+    <string name="ingame_particles_normal">正常</string>
+    <string name="ingame_particles_less">较少</string>
+    <string name="ingame_particles_none">无</string>
+    <string name="ingame_potato_shadows">阴影与光效</string>
+    <string name="ingame_potato_help">天气效果：雾气、雨、水花。特殊效果：蒸汽、热浪扭曲、水面。粒子效果：血、灰尘、烟雾、水花、火星和火焰；“较少”只绘制一半，“无”除火焰和爆炸外全部去掉，火焰和爆炸作为警示保留一半。阴影与光效：关闭后去掉阴影（过场动画中也一样）、光晕和光束；房间的照明保持不变。每项设置都能减轻性能较弱设备的图形负担；命中位置、提示、激光和过场动画中的所有效果保留。</string>
     <string name="ingame_resolution_line">分辨率：%1$d × %2$d 像素（等级 %3$s）· 屏幕 %4$d × %5$d · 关闭菜单后生效。等级越高，对性能要求越高。</string>
     <string name="ingame_resolution_line_auto">分辨率：%1$d × %2$d 像素（等级 %3$s，动态）· 屏幕 %4$d × %5$d · 关闭菜单后生效。动态模式会在 GPU 跟不上时降低一级。</string>
 

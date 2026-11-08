@@ -270,7 +270,10 @@ void re4_core_set_letterbox(int off);
 void re4_core_set_fast_cores(int on);
 /* The app menu's Potato mode (cores since 30.10.2026, runtime/potato.cpp): bit 0 leaves the weather
  * effects out (fog banks, rain, water spray), bit 1 the special effects (steam, heat shimmer,
- * water); 0 (the default) draws everything. Effects in events and cut scenes always stay.
+ * water); since 0.99.3 bits 2..3 the particle effects (1 less, 2 none: blood, dust, smoke, splashes,
+ * the flash at the gun; fire and explosions stay at half) and bit 4 shadows and light effects (lens
+ * glows, light shafts, light blooms; the shadows also in cut scenes); 0 (the default) draws everything.
+ * Effects in events and cut scenes always stay.
  * Takes effect at the next picture. Any thread. */
 void re4_core_set_potato(int mask);
 /* The app menu's aim settings for touch and controllers (cores since 30.10.2026, runtime/aim_options.cpp):

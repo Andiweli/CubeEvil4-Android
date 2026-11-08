@@ -51,7 +51,12 @@
     <string name="ingame_potato">Potato mode</string>
     <string name="ingame_potato_weather">Weather effects</string>
     <string name="ingame_potato_special">Special effects</string>
-    <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, heat shimmer, water. Off saves graphics work on weaker devices; muzzle flashes, blood, explosions, fire, hits and hints stay, and so does every effect in cut scenes.</string>
+    <string name="ingame_potato_particles">Particle effects</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Less</string>
+    <string name="ingame_particles_none">None</string>
+    <string name="ingame_potato_shadows">Shadows &amp; light</string>
+    <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, heat shimmer, water. Particle effects: blood, dust, smoke, splashes, sparks and fire; Less draws half of them, None leaves out all but fire and explosions, which stay at half as a warning. Shadows &amp; light: off leaves out shadows (also in cut scenes), lens glows and light shafts; the rooms keep their lighting. Each saves graphics work on weaker devices; the spot where a shot hits, hints, the laser and every effect in cut scenes stay.</string>
     <string name="ingame_resolution_line">Resolution: %1$d × %2$d pixels (level %3$s) · screen %4$d × %5$d · applies when the menu closes. Higher levels need more power.</string>
     <string name="ingame_resolution_line_auto">Resolution: %1$d × %2$d pixels (level %3$s, Dynamic) · screen %4$d × %5$d · applies when the menu closes. Dynamic goes a level lower while the GPU cannot keep up.</string>
 

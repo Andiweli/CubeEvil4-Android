@@ -1251,6 +1251,23 @@ final class CoreMenu extends Dialog {
     toggle(potato, R.string.ingame_potato_special, graphics.getBoolean("specialEffects", true), on -> {
       graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
     });
+    // two more on a user's wish (08.11.2026, through the project owner): the particles of fights, weapons and
+    // fires in three steps (each press moves it on: normal, less, none, as the sharpening), and shadows with the
+    // light effects
+    final int[] particleLabels = {R.string.ingame_particles_normal, R.string.ingame_particles_less,
+        R.string.ingame_particles_none};
+    MenuLayout.Buttons morePotato = buttonsRow(body);
+    Button particles = cellAction(morePotato, "", v -> {
+      int next = (CoreBridge.particleEffects(graphics) + 1) % 3;
+      graphics.edit().putInt("particleEffects", next).apply();
+      valueLabel((Button) v, R.string.ingame_potato_particles, particleLabels[next], next == 0);
+      CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+    });
+    valueLabel(particles, R.string.ingame_potato_particles, particleLabels[CoreBridge.particleEffects(graphics)],
+        CoreBridge.particleEffects(graphics) == 0);
+    toggle(morePotato, R.string.ingame_potato_shadows, graphics.getBoolean("shadowsLight", true), on -> {
+      graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+    });
     help(R.string.ingame_potato_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
     // without a row label in two columns, frame skip | 60 FPS over merged draws | vertex ring, the explanations

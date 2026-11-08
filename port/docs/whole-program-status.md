@@ -3,11 +3,11 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.3-rc: Warnung vor einer anderen Spielfigur (08.11.2026, Branch `work`)
+## Version 0.99.3-rc: Warnung vor einer anderen Spielfigur, Potato-Modus mit Partikeleffekten und Schatten & Licht (08.11.2026, Branch `work`, Patch 0219)
 
 Version 0.99.3-rc (versionCode 105), Releasetext `port/android-decomp/docs/releases/v0.99.3-rc.md` („Changes since
-v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag. Noch kein
-Patch in diesem Abschnitt (nächste freie Nummer 0219).
+v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag. Patch 0219
+(nächste freie Nummer 0220).
 
 1. **Warnung vor Ada, HUNK, Krauser und Wesker (Wunsch des Projektinhabers, 08.11.2026).** Wortlaut: „Im CHEAT Menu
    soll bitte beim Auswählen einer anderen Spielfigur als Leon ein rötliches Popup erscheinen, das der User bestätigen
@@ -42,6 +42,79 @@ Patch in diesem Abschnitt (nächste freie Nummer 0219).
      alle 11 Sprachen brechen sauber um, Arabisch von rechts. App-Tests 59 grün (core und classic, einer übersprungen:
      die Bilder ohne `RE4_MENU_SHOTS`), `compileClassicDebugJavaWithJavac` und `compileCoreDebugJavaWithJavac` ok.
      **Nicht geprüft:** Gerät (Controller, Touch, Tastatur und Maus am echten Dialog).
+
+2. **Potato-Modus: Partikeleffekte und Schatten & Licht, Low-Poly-Ganados geprüft (Wunsch eines Nutzers über den
+   Projektinhaber, 08.11.2026).** Wortlaut des Nutzers (Englisch): „VFX – A Setting to disable (or heavily tone down)
+   effects like muzzle flashes, water splashes, blood splashes, and fire effects … Shadows/Lighting – disables shadows
+   and tones down lighting effects. Low-Poly Ganados – Uses the low-poly models of ganados seen in that one cabin
+   cutscene instead of the usual models. (I don't know if this one would work)“.
+   - **App-Menü → Leistung → Potato-Modus**, zweite Zeile unter Wetter-/Spezialeffekten: **„Partikeleffekte · Normal /
+     Weniger / Keine“** (jeder Druck schaltet weiter wie „Nachschärfen“; Einstellung `particleEffects` 0/1/2, ab Werk
+     Normal) und **„Schatten & Licht · An/Aus“** (`shadowsLight`, ab Werk an). `CoreBridge.potatoMask`: Bits 2..3 die
+     Stufe, Bit 4 Schatten & Licht aus (`re4_core_set_potato`, auch über den 32-bit-Kernprozess, Nachricht 34
+     unverändert). Fußtext `ingame_potato_help` neu für alle vier Schalter, neue Texte `ingame_potato_particles`,
+     `ingame_particles_normal/less/none`, `ingame_potato_shadows`, 11 Sprachen (`check_translations.py` ok, 310 Texte).
+   - **Kern (`runtime/potato.cpp`, Patch 0149 unverändert):** Die Partikelstufe zählt nur Figuren, deren Trans-Funktion
+     nichts anderes tut als zeichnen (`drawsOnly`: esp 0x00–0x03, 0x05–0x0B, 0x0D, 0x10, 0x12, 0x17, 0x1A, 0x1B, 0x40–0x42,
+     0x48, 0x49, 0x4B, 0x4F). „Weniger“ lässt jede zweite weg (nach ihrem Platz im Effekt-Speicher: eine Figur ist ihr
+     ganzes Leben lang sichtbar oder nicht, kein Flackern): Blut (Spritzer 0x1A, Lachen 0x10), Staub, Rauch, Spritzer,
+     Trümmer, Mündungsfeuer und -rauch an Leons Waffe (Besitzer `EFF_WEP*` an einem Modell), frei fliegende leuchtende
+     Teilchen (additiv, Zielfaktor ONE: Feuer, Funken, Explosionen). „Keine“ lässt die erste Art ganz weg und zeichnet
+     von den leuchtenden Teilchen weiter jede zweite: **Feuer und Explosionen bleiben als Gefahr sichtbar**. Immer
+     bleiben: alles von `EFF_CORE` (die Trefferstelle: Blutstoß beim Treffer, Staub einer Kugel in der Wand, auch Minen
+     und Granaten), Raumcode-Effekte (`EFF_ROOM`), Leuchtendes an einem Modell außer Leons Waffe (Dynamit-Zündschnur,
+     Fackeln), der Laser (0x19), alles, was keine reine Figur ist (Lichter, Bildfilter, Beben, Töne, Seile, Tuch), die
+     eigenen Figuren der Raumtabelle (dafür gibt es die Wetter-/Spezialschalter) und alles in Ereignissen.
+     **Schatten & Licht aus:** Patch **0219** (`shadow.cpp`, `foot_shadow.cpp`): `ShadowTrans` kehrt nach dem Löschen der
+     Schattenverwalter und der beiden Flags zurück (keine Schattentexturen samt EFB-Kopien, kein zweites Zeichnen der
+     Empfänger, keine projizierten Lichtbilder auf Figuren), keine Fußschatten; dazu in `re4_esp_skip` Lichtschein
+     (esp 0x0E), Lichtstrahlen (0x14) und Lichtblüte (0x45, der Filter00-Schein). Die Lichter der Räume selbst bleiben,
+     nichts wird dunkler. In Ereignissen und Zwischensequenzen bleiben alle Effektfiguren, nur die Schatten fallen auch
+     dort weg (siehe Messungen).
+   - **Spielablauf unverändert:** Nur `Esp0b_Trans` (Zittern) nimmt beim Zeichnen Zufallszahlen des Spiels
+     (`fRand1_1`, `Core_flg` 0x8000; alle anderen Trans-Funktionen geprüft: nur in `move` oder mit eigenem Seed); eine
+     weggelassene 0x0B nimmt ihre zwei Zahlen trotzdem. Geprüft: Dorfkampf r101 mit „weniger“, „keine“ und „Schatten &
+     Licht aus“, alle 178 „em:“-Zeilen (Erscheinen, Treffer, Tod der Gegner) Bild für Bild gleich wie ohne.
+   - **Messungen am PC** (i686 -O2, Debug-Discs; Grafik = App-Renderer `gx_chunk_render` auf llvmpipe, Maßstab 2,
+     Mittel über die warmen Bilder 3–6 von je vier Bildserien; Spiel-Thread = Prozessorzeit des ganzen Laufs, 3 Läufe):
+     | Szene | Einstellung | Zeichnungen | Dreiecke | EFB-Kopien | Grafikzeit (llvmpipe) |
+     |---|---|---|---|---|---|
+     | Dorfkampf r101 (Leon zielt automatisch und schießt, 16 Bilder) | normal | 648 | 69 201 | 8,2 | 50,7 ms |
+     | | Partikel weniger | 592 (−9 %) | 69 090 | 8,2 | 48,1 ms (−5 %) |
+     | | Partikel keine | 534 (−18 %) | 68 972 | 8,2 | 45,7 ms (−10 %) |
+     | | Partikel keine, Bilder mit viel Blut (1939–1942) | 829 → 636 (−23 %) | | | 58,7 → 50,6 ms (−14 %) |
+     | | Schatten & Licht aus | 604 (−7 %) | 69 113 | 8,2 | 51,0 ms (gleich) |
+     | 13 Raum-Debugstarts im Spiel (r102 … r31b, 4 Bilder je Raum) | Schatten & Licht aus | −24 bis −55 je Bild (−4 bis −22 %) | | gleich | gleich (±3 ms Streuung) |
+     | Zwischensequenz r228 | Schatten & Licht aus | 498 → 440 | 111 425 → 94 750 | 18,8 → 14,8 | 82,6 → 72,6 ms (−12 %) |
+     | Zwischensequenz r206 | Schatten & Licht aus | 244 → 162 | 37 955 → 25 670 | 16 → 10 | 42,7 → 34,1 ms (−20 %) |
+     | Zwischensequenz r215 | Schatten & Licht aus | 287 → 191 | 65 299 → 38 656 | 4 → 1 | 28,9 → 21,6 ms (−25 %) |
+     | Zwischensequenz r11b | Schatten & Licht aus | 583 → 504 | 83 221 → 57 569 | 16 → 10 | 53,8 → 41,8 ms (−22 %) |
+
+     Spiel-Thread (Prozessorzeit des ganzen Dorfkampf-Laufs, 3200 Bilder samt Laden, Mittel aus 3 Läufen): normal
+     12,37 s, Partikel weniger 12,22 s (−1 %), keine 11,93 s (−3,6 %), Schatten & Licht aus 12,16 s (−1,7 %), keine und
+     Schatten aus 11,57 s (−6,5 %); auf die Kampfbilder allein bezogen etwa doppelt so viel. **Echte Schattenbilder**
+     (Schattentexturen) zeichnet das Spiel fast nur in Zwischensequenzen: Suchlauf über die Debugstarts von 90 Räumen
+     (vorübergehende Log-Zeile nur in der PC-Kopie), Schattentexturen nur in r11b, r206, r215, r227, r228, r22b, r300 und
+     r316, jedes Bild davon in einem Ereignis. Deshalb gilt „Schatten & Licht aus“ für die Schatten **auch in
+     Zwischensequenzen** (kleine technische Entscheidung dieser Sitzung; das Bild ändert sich dort kaum, r206: Luis'
+     Gesicht ohne sichtbaren Unterschied); die Effekte der Ereignisse bleiben.
+   - **Low-Poly-Ganados: nicht umgesetzt.** In der Hütten-Szene (r11c, `r11cs10.evd`) sind die Ganados **dasselbe
+     Modell wie im Spiel**: `em/em10/em1000.bin` (34 Gelenke, 770 Ecken, 32 352 Bytes) ist bis auf die letzten 4
+     Füllbytes gleich dem Eintrag 0x1B8 von `em10.drs`. Es gibt keine einfacheren Ganado-Modelle auf der Disc; die übrigen
+     Szenenmodelle (`evm1000` 1787 Ecken, `evm1600` 1059, `evm1100` 907) sind nicht kleiner und nur für die Szene gemacht.
+     Der Eindruck „Low Poly“ kommt wohl von Entfernung und Licht der Szene.
+   - **Werkzeuge (Scratchpad dieser Sitzung, WSL `~/p0993`):** `ab.sh` (Lauf mit `RE4_POTATO` und GX-Serien, gezeichnet),
+     `abcmp.py` (Vergleich), `tour.sh` (Raum-Debugstarts mit/ohne), `census.py` (`RE4_ESP_CENSUS` nach Besitzergruppen),
+     `evdmodels.py`/`cmpem.py` (Modelle der Ereignisdateien).
+   - **Tests:** Kern-Test `potato` (`game_probe.cpp re4probe_potato`) um 19 Fälle erweitert (je zwei Figuren nebeneinander:
+     „weniger“ nimmt genau eine, „keine“ beide bzw. bei Leuchtendem eine; Trefferstelle, Raumcode, Zündschnur am Modell,
+     Laser, Bildfilter, Ereignis-Effekte bleiben; Mündungsfeuer an der Waffe fällt; die zwei Zufallszahlen der 0x0B;
+     Lichtschein/-strahl/-blüte; keine Schatten, auch im Ereignis, dessen Lichtschein aber bleibt).
+     `RE4_OPT=2 whole_build.sh i686`: alle Prüfungen grün. `CoreMenuLayoutTest`: die zwei neuen Knöpfe in der zweiten
+     Potato-Zeile, ab Werk wie bisher, gesendete Bits 4, 8, 8|16, 1|8|16, 1|16, 0; Seitenmaß aller Sprachen; App-Tests 59
+     grün (core und classic), Java beider Varianten und das native `externalNativeBuildCoreDebug` übersetzt.
+   - **Nicht geprüft:** Gerät (Retroid): GPU-Zeit und Bild mit Adreno; Wasser-Spritzer beim Waten (Raum mit Wasser im
+     Kampf), Verdugo-Kampf und Explosionen mit „Keine“.
 
 ## Version 0.99.2-rc: Tor nach den zwei El Gigantes, Touch-Layout beim Export, Ashleys Rock-Reaktion, Stick-Messung, Stick-Einstellungen, Controller-Vibration, Gegenstands-Randomizer, Lebensanzeige bei „4:3“ in Menüs, Knöpfe „Spieldaten“, Filter „Nachschärfen“ (07./08.11.2026, Branch `work`, Patches 0216–0218)
 
@@ -13199,6 +13272,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0216 `r224.cpp` | Lava-Halle der zwei El Gigantes: mit EU-, JP- und KR-Discs Bereich 10 (Meldung 1 „Damn! It's locked …“ vor dem Ausgangstor) aus beim Betreten, an, wenn das Tor hinter den Riesen zufällt (`door_close`), aus, wenn es nach dem Kampf aufgeht (`door_open`), wie deren Code (`st2_3.rel`); Debug- und US-Daten haben den Bereich nicht. Port-Patch für Verkaufsdaten, Nutzerbericht 07.11.2026 |
 | 0217 `pl_npc.cpp`, `r208.cpp` | Ashleys Rock-Reaktion („pervert“) wie die Verkaufsfassungen (US/EU/JP `main.dol`, `st2_0.rel`): in Leons Routinen 0/0..6 (stehen, gehen, laufen, drehen, zielen) muss die Kamera (`pG->Camera`) mindestens π/7 (25,7°) nach oben schauen, sonst zählt die Lage allein; 240 Bilder Sperre nach `r208_CarryOnShoulder` (`re4_ashley_pants_wait`). Abweichung vom Debug-Code, Entscheidung des Projektinhabers 07.11.2026 |
 | 0218 `sce_at.cpp` | Cheat „Random items“: `sceAtSetItem` ruft `re4_item_random` (`runtime/cheats.cpp`), das beim ersten Aufruf eines Raums seine frei liegenden Gegenstände des Topfs (Munition, Granaten, Heilmittel, Peseten, Schätze) aus Seed, Raum und Datensatz neu verteilt, nur gegen Gegenstände mit Modell im Raum, nur in der Story. Wunsch des Projektinhabers 07.11.2026, Issue #161 |
+| 0219 `shadow.cpp`, `foot_shadow.cpp` | Potato-Modus „Schatten & Licht“ aus: `ShadowTrans` kehrt nach dem Löschen der Schattenverwalter und der Flags `STA_SHADOW_EQCOL`/`STA_USE_SHADOW_LIGHT` zurück (keine Schattentexturen, kein zweites Zeichnen der Empfänger, keine projizierten Lichtbilder auf Figuren), `DrawFootShadow` zeichnet nichts; `re4_potato_no_shadows` (`runtime/potato.cpp`), nicht in Ereignissen. Wunsch eines Nutzers über den Projektinhaber, 08.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

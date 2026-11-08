@@ -561,6 +561,15 @@ std::string ScaleName(int halves) {
   std::snprintf(s, sizeof(s), halves % 2 ? "%d.5" : "%d", halves / 2);
   return s;
 }
+// the Potato mode bits (not 0) as the GPU bench's log writes them: ", weather effects off, particle effects less"
+std::string PotatoName(int bits) {
+  std::string s;
+  if (bits & 1) s += ", weather effects off";
+  if (bits & 2) s += ", special effects off";
+  if ((bits >> 2) & 3) s += ((bits >> 2) & 3) == 1 ? ", particle effects less" : ", particle effects none";
+  if (bits & 16) s += ", shadows and light effects off";
+  return s;
+}
 unsigned gxChunks = 0;
 // timing of the GX view since the last log line
 std::chrono::steady_clock::time_point gxSince;
@@ -690,7 +699,8 @@ int renderPlaced = 0;  // the render thread set up
 std::atomic<int> optFastCores{0};
 int fastSent = -1;    // what the core was told last (-1: nothing yet)
 // The menu's Potato mode (CoreBridge.setPotato, decision of the project owner, 30.10.2026): bit 0 the weather
-// effects off, bit 1 the special effects off (the core's runtime/potato.cpp); 0 the default.
+// effects off, bit 1 the special effects off, since 0.99.3 bits 2..3 the particle effects (1 less, 2 none) and bit 4
+// shadows and light effects off (the core's runtime/potato.cpp); 0 the default.
 std::atomic<int> optPotato{0};
 int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU bench sets its own)
 // The menu's "Invert vertical" and "Aim speed" for touch and controllers (CoreBridge.setAim, wish of the
@@ -998,8 +1008,7 @@ void benchTick(std::chrono::steady_clock::time_point now) {
       step.dof ? "on" : "off",
       step.dof ? (gx->HalfDof() ? " (blur at half resolution)" : " (blur at full resolution)") : "",
       gx->Invalidates() ? "yes" : "no",
-      step.potato < 0 ? "" : step.potato == 0 ? ", Potato mode off" : step.potato == 1 ? ", weather effects off"
-                           : step.potato == 2 ? ", special effects off" : ", weather and special effects off",
+      step.potato < 0 ? "" : step.potato == 0 ? ", Potato mode off" : PotatoName(step.potato).c_str(),
       gpu, present, pictures, secs > 0 ? (s.presents - bench.at.presents) / secs : 0.0,
       bench.runCount ? bench.runMs / bench.runCount : 0.0, clock, busy, work, behind,
       chunks ? static_cast<double>(s.draws - bench.at.draws) / chunks : 0.0);
