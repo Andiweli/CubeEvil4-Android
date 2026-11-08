@@ -15,6 +15,20 @@ Gerätetests am Retroid).
 - **Potato-Modus** (Partikel, Schatten & Licht, Punkt 2) wirkt unter Vulkan genauso: Er arbeitet im Spielkern
   (`runtime/potato.cpp`, Patch 0219), bevor gezeichnet wird; der Renderer bekommt nur weniger Zeichnungen.
 - **Releasetext:** drei New-Zeilen und ein Known issue (erstes Auftreten einer Szene kann ruckeln, ab Android 10).
+- **Geprüft nach dem Zusammenführen (PC, WSL):**
+  - **GLES gegen `work` 9cbf5659:** Basis aus dessen Quellen gebaut. 4 300 Bilder bytegleich, auch die Arbeitszähler.
+    Die 71 Bilder der Art „flares“ sind nur verschieden, weil das Prüfprogramm von `work` die Schalter
+    `RE4_GX_FLARES`/`RE4_GX_DOF_STRONG` noch nicht kennt (seine „flares“-Bilder sind die normalen). Gegen die frühere
+    Basis mit demselben GL-Code sind auch sie bytegleich; `work` änderte keine `gx_*`-Datei.
+  - **Vulkan:** Arten normal, 4× MSAA, Filter, PSone, Reflexe/Autofokus und Native in allen 10 Folgen: 0 Meldungen,
+    kein Bild über der Grenze. `gx_gl_check` 0 Fehler mit den fünf Vulkan-Prüfungen.
+  - **Kern:** `RE4_OPT=2 whole_build.sh i686` grün, darunter der Test `potato`. `runtime-test vsync` schlug nur
+    unter voller Last fehl (drei Bauten gleichzeitig) und ist ohne Last zweimal in Ordnung.
+  - **App:** Java-Tests 59/59 (1 übersprungen), `check_translations.py` 318 Texte in 11 Sprachen in Ordnung,
+    Gradle-Bau beider ABIs (0.99.3-rc, versionCode 105).
+  - **Potato unter Vulkan:** Mit den aufgezeichneten Folgen nicht prüfbar, weil der Potato-Modus vor GX im Kern
+    wirkt. Geprüft ist er im Kern (Test `potato`), der Renderer bekommt nur weniger Zeichnungen.
+  - **Nicht geprüft:** Gerät (Läufe 2–4 macht der Projektinhaber mit diesem Bau).
 
 Version 0.99.3-rc (versionCode 105), Releasetext `port/android-decomp/docs/releases/v0.99.3-rc.md` („Changes since
 v0.99.2.“, APK `CubeEvil4-0.99.3-rc.apk`). Der versionName ist wie seit 0.99.1 der spätere GitHub-Tag. Patch 0219
