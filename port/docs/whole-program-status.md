@@ -46,8 +46,7 @@ neu). Patch 0220 (nächste freie Nummer 0221). Berichte unter `E:\Development\An
      Zeichnen (14 ms je Bild, einzeln bis 1752 ms). Im Lauf davor war er voll (9246 Programme). Dazwischen beendete
      Xiaomi die App beim Wegwischen („SwipeUpClean“, `exit.txt`), 4 s später der Neustart; die App löscht
      `cache/gx-programs` selbst nicht. **Vermutung:** das System räumte dabei den Cache-Ordner der App
-     (`getCacheDir`). Abhilfe wäre ein Ordner, den Android nicht räumt (`getNoBackupFilesDir`); nicht gebaut,
-     Entscheidung offen.
+     (`getCacheDir`). Abhilfe: Punkt 4.
    - **App:** die Warnung des Startbildschirms nach dem Import (`RoomFileCheck.warning`) nennt jetzt auch veränderte
      Abzüge („damaged or modified (a fan translation or a mod, for example) … made for the original discs“) statt
      nur „damaged“; `RoomFileCheckTest` prüft den Text. Der Fehlerbericht listete die Dateien schon.
@@ -67,6 +66,46 @@ neu). Patch 0220 (nächste freie Nummer 0221). Berichte unter `E:\Development\An
 3. **Bericht `0994-check-20261108-005243`:** dateigleich mit `0992-43-hud-cut-20261108-005243` (`diff -rq`, dort
    nur das Bildschirmfoto zusätzlich): die Lebensanzeige bei „4:3“ in Menüs, behoben in 0.99.2 (Abschnitt 0.99.2
    Punkt 8). Nichts Neues.
+4. **Shader-Speicher in einen Ordner, den Android nicht leert (Entscheidung des Projektinhabers, 08.11.2026,
+   Wortlaut über die Hauptsitzung: „Ja bitte deine Empfehlung zum Shader-Speicher.“).**
+   - **Ort:** `getNoBackupFilesDir()/shader-cache` statt `getCacheDir()/gx-programs` (neue Klasse
+     `ShaderCache.java`; `CoreActivity` gibt ihn dem Kern wie bisher als `RE4_GX_PROGRAM_CACHE`). Der Ordner hält
+     alles beider Renderer: GLES-Programme (`<stem>.bin`/`.key`), die Programmlisten je Raum (`room-NNN.keys`, beide
+     Renderer), Vulkan: SPIR-V-Speicher `vk-spirv.bin` (höchstens 160 MB), Pipeline-Cache des Treibers
+     `vk-pipelines.bin`, Pipeline-Listen je Raum `room-NNN.vkpipes`. Android und Aufräum-Apps leeren ihn nicht, und
+     er geht nicht in die Cloud-Sicherung (die Binärdateien gehören zu diesem Gerät). Die App-Liste
+     `gx-programs.keys` (Kopie aus den Assets) bleibt im Cache-Ordner; sie entsteht bei jedem Start neu.
+   - **Übernahme:** beim Start vor dem Kern einmal der alte Ordner herüber (als Ganzes umbenannt, beide liegen auf
+     derselben Partition; ist der neue schon da, Datei für Datei, die neuen gewinnen, `.tmp` nicht), dann der alte
+     weg. Logzeile „shader cache: moved from the cache folder (N files, X MB)“.
+   - **Grenzen und Aufräumen unverändert.** Nach einem Treiber-Update lädt nichts Veraltetes: GLES-Dateinamen
+     enthalten den Hash von `GL_RENDERER|GL_VERSION` (neuer Treiber → neue Namen; `WarmProgramCache` löscht die alten
+     als „old files removed“; geschrieben wird über eine Zwischendatei; `glProgramBinary` mit Prüfung des
+     Link-Status). **Vulkan neu:** `PipelineCacheFits` (`gx_vk.cpp`) übernimmt `vk-pipelines.bin` nur, wenn sein
+     Kopf (Länge, Version 1, Hersteller, Gerät, `pipelineCacheUUID` des Treibers) zu diesem Gerät passt; sonst
+     Logzeile „… left out: another driver (an update)“ / „another GPU“ / „no header of version 1“, und die nächste
+     Sicherung ersetzt die Datei. SPIR-V hängt nicht am Treiber.
+   - **Fehlerbericht:** neue Datei `shader-cache.txt` (Ort, was der Start getan hat, Größe je Art: GLES-Programme,
+     Raumlisten, SPIR-V, Pipeline-Cache, Pipeline-Listen, alter Ordner noch da?); `device.txt`/`device-now.txt`
+     nennen den Ort.
+   - **Management → „Shader cache“ / „Clear shader cache“** mit Hilfetext und Rückfrage (11 Sprachen,
+     `check_translations.py` ok, 322 Texte): „Restart“ merkt das Leeren vor (`ShaderCache.requestClear`) und
+     startet das Spiel neu wie beim Renderer-Wechsel (`restartIntoGame`); geleert wird beim nächsten Start, bevor
+     der Kern den Ordner öffnet (der laufende Renderer hat seine Dateien offen). Fortschritt seit dem letzten
+     Speichern geht verloren (steht im Text).
+   - **Berührte Vulkan-Dateien:** nur `port/android-decomp/app/src/main/cpp/gx_vk.cpp` (`PipelineCacheFits`, Aufruf
+     in `SetProgramCache`). Sonst: `ShaderCache.java` (neu), `CoreActivity.java`, `CoreMenu.java`, `CoreLog.java`,
+     `strings_ingame.xml` (11), Tests `ShaderCacheTest.java` (neu), `CoreMenuLayoutTest.java`
+     (`managementClearsTheShaderCacheAfterAsking`).
+   - **Geprüft am PC:** `gx_vk.cpp` übersetzt (WSL, `port/build/app-host-gl` mit `RE4_BUILD_VK_CHECK=ON`,
+     `-Werror`); `gx_chunk_render` mit `RE4_GX_API=vulkan` (lavapipe) dreimal auf denselben Ordner: Lauf 2 nimmt den
+     Pipeline-Cache von Lauf 1, Lauf 3 mit verfälschter UUID meldet „left out: another driver (an update)“, Bilder
+     bytegleich. `ShaderCache` mit `javac` und einem Prüfprogramm (Umbenennen, Zusammenführen, Leeren,
+     Beschreibung): alles ok. `gradlew testCoreDebugUnitTest testClassicDebugUnitTest` mit eigenem Gradle-Ordner
+     (`GRADLE_USER_HOME=%TEMP%\gh0994`; der gemeinsame Gradle-Speicher des PCs ist seit 08.11. 12:16 beschädigt,
+     `caches\8.11.1\transforms` ohne `metadata.bin`): je 65 Tests, 0 Fehler, 1 übersprungen (die Menübilder),
+     darunter `ShaderCacheTest`, `managementClearsTheShaderCacheAfterAsking` und `RoomFileCheckTest` (Punkt 1).
+   - **Nicht geprüft:** auf einem Gerät (Übernahme eines gefüllten Ordners, Knopf, Neustart, Bericht).
 - **Nicht geprüft:** Patch 0220 auf einem Gerät; die veränderten Discs selbst (nicht vorhanden).
 
 ## Version 0.99.3-rc: Warnung vor einer anderen Spielfigur, Potato-Modus mit Partikeleffekten und Schatten & Licht, Vulkan als Option (08.11.2026, Branch `work`, Patch 0219)

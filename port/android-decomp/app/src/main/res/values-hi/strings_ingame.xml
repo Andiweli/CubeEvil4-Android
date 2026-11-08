@@ -340,4 +340,8 @@
     <string name="ingame_renderer_unavailable">Vulkan के लिए Android 10 और Vulkan 1.1 वाला ग्राफ़िक्स चाहिए; यह डिवाइस OpenGL ES से बनाता है।</string>
     <string name="ingame_vulkan_failed">इस डिवाइस पर Vulkan शुरू नहीं हो सका। गेम OpenGL ES से बनाता है।</string>
     <string name="ingame_vulkan_crashed">Vulkan के साथ शुरू होते समय गेम बंद हो गया। अब यह OpenGL ES के साथ शुरू होता है; मेनू (डिस्प्ले) में Vulkan फिर से चुना जा सकता है।</string>
+    <string name="ingame_shader_cache">शेडर कैश</string>
+    <string name="ingame_shader_cache_help">गेम बनाए गए शेडर रखता है, ताकि कोई दृश्य दोबारा न अटके। इसे तभी साफ़ करें जब किसी अपडेट के बाद ग्राफ़िक्स में गड़बड़ी दिखे: तब गेम उन्हें फिर से बनाता है, और शुरुआती दृश्य अटक सकते हैं।</string>
+    <string name="ingame_shader_clear">शेडर कैश साफ़ करें</string>
+    <string name="ingame_shader_clear_text">गेम फिर से शुरू होगा और बनाए गए शेडर हटा देगा। खेलते समय वह उन्हें फिर से बनाता है, इसलिए शुरुआती दृश्य अटक सकते हैं। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
 </resources>

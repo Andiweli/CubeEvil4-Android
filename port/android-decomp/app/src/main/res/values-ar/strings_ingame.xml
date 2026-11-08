@@ -353,4 +353,8 @@
     <string name="ingame_renderer_unavailable">يحتاج Vulkan إلى Android 10 ورسوميات تدعم Vulkan 1.1؛ هذا الجهاز يرسم باستخدام OpenGL ES.</string>
     <string name="ingame_vulkan_failed">تعذّر تشغيل Vulkan على هذا الجهاز. تستخدم اللعبة OpenGL ES للرسم.</string>
     <string name="ingame_vulkan_crashed">انتهت اللعبة أثناء بدئها باستخدام Vulkan. ستبدأ الآن باستخدام OpenGL ES؛ يمكن اختيار Vulkan مرة أخرى من القائمة (العرض).</string>
+    <string name="ingame_shader_cache">ذاكرة المظللات المؤقتة</string>
+    <string name="ingame_shader_cache_help">تحتفظ اللعبة بالمظللات التي أنشأتها، حتى لا يتقطع المشهد مرة ثانية. لا تُفرغها إلا إذا ظهرت أخطاء رسومية بعد تحديث: عندها تنشئها اللعبة من جديد، وقد تتقطع المشاهد الأولى.</string>
+    <string name="ingame_shader_clear">إفراغ ذاكرة المظللات المؤقتة</string>
+    <string name="ingame_shader_clear_text">سيُعاد تشغيل اللعبة وستُحذف المظللات التي أُنشئت. تنشئها اللعبة من جديد أثناء اللعب، لذا قد تتقطع المشاهد الأولى. سيُفقد التقدم منذ آخر حفظ.</string>
 </resources>

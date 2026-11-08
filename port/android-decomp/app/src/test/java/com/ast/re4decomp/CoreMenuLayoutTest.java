@@ -789,4 +789,36 @@ public class CoreMenuLayoutTest {
       assertEquals("Start screen ends the game for the start screen", 1, calls[0]);
     }
   }
+
+  /** Management: "Clear shader cache" (0.99.4) asks first (the game restarts for it); Cancel keeps the shaders,
+   *  Restart hands it to the host (CoreActivity: cleared at the restart, ShaderCache). */
+  @Test public void managementClearsTheShaderCacheAfterAsking() throws Exception {
+    final int[] calls = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("clearShaderCache")) calls[0]++;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+              : method.getReturnType() == float.class ? (Object) 1f : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 6, false);  // MANAGEMENT
+      Button clear = findButton((View) field(menu, "root"), activity.getString(R.string.ingame_shader_clear));
+      assertNotNull("Management has Clear shader cache", clear);
+      clear.performClick();
+      android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertNotNull("it asks first", ask);
+      ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
+      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      assertEquals("Cancel keeps the shaders", 0, calls[0]);
+      clear.performClick();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertEquals(activity.getString(R.string.ingame_restart), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
+      ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      assertEquals("Restart clears the shader cache", 1, calls[0]);
+    }
+  }
 }

@@ -122,6 +122,8 @@ final class CoreMenu extends Dialog {
     boolean vulkanChosen();
     /** The menu's new choice: kept, and the app restarts into the game with it (the menu asked first). */
     void rendererChanged(boolean vulkan);
+    /** Management, "Clear shader cache" (the menu asked first): emptied at the restart into the game (ShaderCache). */
+    void clearShaderCache();
     /** Asks GitHub for the newest release (AppUpdate.check), once per run; `listener` hears it. */
     void checkUpdate(AppUpdate.Listener listener);
     /** The update button: downloads the newest APK and hands it to Android's installer (AppUpdate.install). */
@@ -469,6 +471,16 @@ final class CoreMenu extends Dialog {
         .setMessage(R.string.ingame_import_discs_text)
         .setNegativeButton(R.string.ingame_cancel, null)
         .setPositiveButton(R.string.ingame_start_screen, (d, w) -> host.importDiscs()).create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    dialog.show();
+  }
+  /** "Clear shader cache": the game restarts for it (progress not saved is lost), so the menu asks first. */
+  private void askClearShaders() {
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_shader_clear)
+        .setMessage(R.string.ingame_shader_clear_text)
+        .setNegativeButton(R.string.ingame_cancel, null)
+        .setPositiveButton(R.string.ingame_restart, (d, w) -> { close(); host.clearShaderCache(); }).create();
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
     dialog.show();
   }
@@ -1354,6 +1366,10 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons reports = buttonsRow(body);
     cellAction(reports, s(R.string.ingame_report_send), v -> host.shareReport());
     cellAction(reports, s(R.string.ingame_report_save), v -> host.saveReport());
+    // since 0.99.4 the shaders are kept where Android's "Clear cache" does not reach them (decision of the project
+    // owner, 08.11.2026): emptied by hand here
+    heading(R.string.ingame_shader_cache); help(R.string.ingame_shader_cache_help);
+    cellAction(buttonsRow(body), s(R.string.ingame_shader_clear), v -> askClearShaders());
     heading(R.string.ingame_source);
     cellAction(buttonsRow(body), getContext().getString(R.string.ingame_source_line, SOURCE_URL), v -> openSource());
   }

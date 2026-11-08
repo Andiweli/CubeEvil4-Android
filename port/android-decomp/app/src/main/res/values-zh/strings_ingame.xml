@@ -339,4 +339,8 @@
     <string name="ingame_renderer_unavailable">Vulkan 需要 Android 10 和支持 Vulkan 1.1 的显卡；此设备使用 OpenGL ES 绘制。</string>
     <string name="ingame_vulkan_failed">Vulkan 无法在此设备上启动。游戏使用 OpenGL ES 绘制。</string>
     <string name="ingame_vulkan_crashed">游戏在使用 Vulkan 启动时结束。现在将使用 OpenGL ES 启动；可在菜单（显示）中重新选择 Vulkan。</string>
+    <string name="ingame_shader_cache">着色器缓存</string>
+    <string name="ingame_shader_cache_help">游戏会保留已构建的着色器，这样同一场景不会再次卡顿。只有在更新后出现图形错误时才需要清除：游戏会重新构建着色器，最初的几个场景可能会卡顿。</string>
+    <string name="ingame_shader_clear">清除着色器缓存</string>
+    <string name="ingame_shader_clear_text">游戏将重新启动并删除已构建的着色器。游戏过程中会重新构建，因此最初的几个场景可能会卡顿。上次存档之后的进度将会丢失。</string>
 </resources>

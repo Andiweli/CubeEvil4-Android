@@ -275,6 +275,37 @@ std::vector<char> ReadFileBytes(const std::string &path, std::size_t limit) {
   std::fclose(f);
   return data;
 }
+// Whether the driver's pipeline cache of the last run is this device's and this driver's: its header
+// (VkPipelineCacheHeaderVersionOne: length, version 1, vendor, device, the driver's pipelineCacheUUID) against the
+// device's properties. The driver must refuse another one itself, but since 0.99.4 the file outlives Android and driver
+// updates (it is no longer in the cache folder Android empties, CoreActivity / ShaderCache.java), and drivers have
+// crashed on foreign data before: a file that does not fit is left out (and replaced at the next save). `why`: the
+// reason for the log.
+bool PipelineCacheFits(const std::vector<char> &data, const VkPhysicalDeviceProperties &p, const char **why) {
+  struct Head {
+    std::uint32_t length, version, vendor, device;
+    std::uint8_t uuid[VK_UUID_SIZE];
+  } h{};
+  if (data.size() < sizeof(h)) {
+    *why = "too short for its header";
+    return false;
+  }
+  std::memcpy(&h, data.data(), sizeof(h));
+  if (h.length < sizeof(h) || h.length > data.size() || h.version != VK_PIPELINE_CACHE_HEADER_VERSION_ONE) {
+    *why = "no header of version 1";
+    return false;
+  }
+  if (h.vendor != p.vendorID || h.device != p.deviceID) {
+    *why = "another GPU";
+    return false;
+  }
+  if (std::memcmp(h.uuid, p.pipelineCacheUUID, VK_UUID_SIZE) != 0) {
+    *why = "another driver (an update)";
+    return false;
+  }
+  return true;
+}
+
 // bytes to a file through a temporary one (never half written)
 bool WriteFileBytes(const std::string &path, const std::vector<char> &data) {
   const std::string temp = path + ".tmp";
@@ -3408,7 +3439,13 @@ struct VkRenderer final : GxCore {
     pipelinesSavedAt = std::chrono::steady_clock::now();
     if (!shared->diskMerged && pipelineCache) {
       shared->diskMerged = true;
-      const std::vector<char> data = ReadFileBytes(pipelineFile, 64u << 20);
+      std::vector<char> data = ReadFileBytes(pipelineFile, 64u << 20);
+      const char *why = nullptr;
+      if (!data.empty() && !PipelineCacheFits(data, vk.properties, &why)) {
+        GXLOG("Vulkan caches: the driver's pipeline cache of the last run (%zu KB) left out: %s", data.size() / 1024,
+              why);
+        data.clear();
+      }
       if (!data.empty()) {
         auto cci = Make<VkPipelineCacheCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
         cci.initialDataSize = data.size();

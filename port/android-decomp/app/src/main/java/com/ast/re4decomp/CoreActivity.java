@@ -267,8 +267,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     CoreLog.start(this, settings);
     shownLanguage = language();
     Log.i(TAG, "app menu: " + shownLanguage);
-    // linked shader programs kept between runs (no compile stutter the second time)
-    String programs = "RE4_GX_PROGRAM_CACHE=" + new File(getCacheDir(), "gx-programs").getAbsolutePath();
+    // the shaders the renderers built, kept between runs (no compile stutter the second time); since 0.99.4 where
+    // Android and cleaner apps do not empty them, the old cache folder moved over once (ShaderCache)
+    Log.i(TAG, "shader cache: " + ShaderCache.prepare(this));
+    String programs = "RE4_GX_PROGRAM_CACHE=" + ShaderCache.dir(this).getAbsolutePath();
     // the app's list of shader programs (port/tools/gx_program_list.py): made ahead from the first start
     String programList = programList();
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
@@ -976,6 +978,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return "vulkan".equals(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getString(RENDERER, "gles"));
     }
 
+    @Override public void clearShaderCache() {
+      // emptied at the next start, before the core opens the folder (the renderer has its files open now)
+      ShaderCache.requestClear(CoreActivity.this);
+      restartIntoGame("shader cache cleared");
+    }
+
     @Override public void rendererChanged(boolean on) {
       getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putString(RENDERER, on ? "vulkan" : "gles")
           .putBoolean(VULKAN_STARTING, false).commit();
@@ -1390,11 +1398,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     String controllers = controllerList();
     String discs = discCheckText();
     String renderer = rendererText();
+    String shaders = ShaderCache.describe(this);
     if (map == null || map.isEmpty())
       return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs},
-          {"renderer.txt", renderer}};
+          {"renderer.txt", renderer}, {"shader-cache.txt", shaders}};
     return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers},
-        {"disc-check.txt", discs}, {"renderer.txt", renderer}};
+        {"disc-check.txt", discs}, {"renderer.txt", renderer}, {"shader-cache.txt", shaders}};
   }
 
   /** The report's disc-check.txt: each imported disc against the original's files, and a file the game could not read. */

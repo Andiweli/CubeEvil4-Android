@@ -342,4 +342,8 @@
     <string name="ingame_renderer_unavailable">Vulkan richiede Android 10 e una GPU con Vulkan 1.1; questo dispositivo disegna con OpenGL ES.</string>
     <string name="ingame_vulkan_failed">Vulkan non è riuscito ad avviarsi su questo dispositivo. Il gioco disegna con OpenGL ES.</string>
     <string name="ingame_vulkan_crashed">Il gioco si è chiuso all\'avvio con Vulkan. Ora si avvia con OpenGL ES; Vulkan si può scegliere di nuovo nel menu (Schermo).</string>
+    <string name="ingame_shader_cache">Cache degli shader</string>
+    <string name="ingame_shader_cache_help">Il gioco conserva gli shader che ha creato, così una scena non scatta una seconda volta. Svuotala solo se dopo un aggiornamento compaiono errori grafici: il gioco li ricrea e le prime scene possono scattare.</string>
+    <string name="ingame_shader_clear">Svuota cache degli shader</string>
+    <string name="ingame_shader_clear_text">Il gioco si riavvia ed elimina gli shader creati. Li ricrea mentre giochi, quindi le prime scene possono scattare. I progressi dall\'ultimo salvataggio vanno persi.</string>
 </resources>
