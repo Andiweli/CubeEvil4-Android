@@ -218,6 +218,16 @@ dieselbe Schnittstelle.
 
 ## Fragen an den Projektinhaber (mit Empfehlung)
 
+**Entschieden (08.11.2026, über die Hauptsitzung): alle vier Empfehlungen angenommen** – Wortlaut des
+Projektinhabers: „Ja ich akzeptiere alle deine Empfehlungen“. Damit gilt:
+1. Vulkan erst ab Android 10 mit Vulkan 1.1, darunter nur OpenGL ES (der Vulkan-Knopf im Menü ausgegraut, E7).
+2. glslang aus dem NDK ja, mit den Lizenztexten in der App; VMA nein, ein eigener kleiner Speicherverwalter
+   (`vk_memory`, E3).
+3. Die APK darf etwa 2–3 MB größer werden (gemessen: +1,3 MB für glslang in E0; mit dem Vulkan-Renderer siehe
+   „APK-Größe“). Wird es deutlich mehr, melde ich mich.
+4. Die ersten Test-APKs dürfen unter Vulkan einzelne Extras noch ohne Wirkung haben; fertig ist es erst mit allen
+   (seit E5 sind alle da).
+
 1. **Mindestversion:** Vulkan erst ab Android 10 mit Vulkan 1.1 anbieten, darunter nur OpenGL ES?
    *Empfehlung: ja.* (Alternative: ab Android 7 / Vulkan 1.0 – mehr Geräte, aber alte Treiber mit vielen Fehlern.)
 2. **Fremdbibliothek glslang** (nötig, BSD u. a., aus dem NDK, Lizenztexte in die App) – einverstanden?
@@ -228,7 +238,7 @@ dieselbe Schnittstelle.
    Extras (z. B. Linsenreflexe, PSone, Tiefenschärfe), die dann unter Vulkan ausgegraut sind; fertig wird es erst
    mit allen. *Empfehlung: ja, so testen wir früher am Gerät.*
 
-Bis zur Antwort baue ich weiter an dem, was davon nicht abhängt (E0 Werkzeuge am PC, E1 Aufteilung, E2 Dialekt).
+(Bis zur Antwort lief der Bau an dem weiter, was davon nicht abhängt.)
 
 ## Gerätetests (für den Projektinhaber)
 
@@ -250,4 +260,5 @@ Bis zur Antwort baue ich weiter an dem, was davon nicht abhängt (E0 Werkzeuge a
 | E5 | **fertig am PC (08.11.2026):** FXAA, Nachschärfen, PSone-Filter, TV-Filter, Linsenreflexe, Autofokus (halbe und volle Auflösung, mit MSAA) und Minikarte unter Vulkan wie GL (lavapipe, kein Bild über der Grenze, 0 Meldungen). Offen: 1-Pixel-Linien (andere Linienregel), Gerät |
 | E6 | **gebaut (08.11.2026, vor E4/E5 gezogen):** `VulkanSurface` (eigener Zeichen-Thread), Swapchain, `Present`, Rückfall auf GLES an Ort und Stelle mit Meldung, `renderer.txt` im Fehlerbericht; Vulkan nur per Test-Schalter `RE4_GX_API=vulkan` (ab Android 10, Vulkan 1.1), Rückfall erzwingbar mit `RE4_VK_FAIL=1`. Test-APK `0.99.2-vulkan1` (22,8 MB). Am PC: GL bytegleich, Vulkan-Folgen ohne Meldung. Gerät: noch nicht geprüft |
 | E7 | **gebaut (08.11.2026):** Menüschalter „Renderer“ (Display → GRAPHICS, Neustart-Frage, Neustart direkt ins Spiel), 8 Texte in 11 Sprachen, Wahl gespeichert, Absturz-Wächter (`vulkanStarting`), Rückfall stellt die Wahl zurück, Test-Schalter `RE4_GX_API=vulkan`/`gles`. Sperrliste noch leer. Gerät: nicht geprüft |
-| E8–E9 | offen |
+| E8 | **gebaut (08.11.2026):** SPIR-V-Speicher (`vk-spirv.bin`, bis 160 MB), Pipeline-Cache des Treibers auf der Platte, Pipelines je Raum vorab (`room-XXX.vkpipes`, `Prewarm`), Messzeile „Vulkan per picture“; dazu die Korrektur des ersten Gerätetests (Swapchain jedes Bild neu: jetzt pre-rotation, „suboptimal“ nur angesehen). Am PC: zweiter Lauf ohne Übersetzen, Bilder identisch. Gerät: nicht geprüft |
+| E9 | offen: Abschluss, Test-APK, Testanleitung, Zusammenfassung |

@@ -1811,7 +1811,8 @@ bool drawGx() {
     // the app's list of programs (its asset gx-programs.keys, CoreActivity)
     const char *programList = getenv("RE4_GX_PROGRAM_LIST");
     if (cached && programList && *programList) gx->SetProgramList(programList);
-    if (cached)
+    // (GL's programs on a thread of its own; the Vulkan renderer keeps its SPIR-V and pipelines itself)
+    if (cached && !vulkan)
       startWarm(cache, programList ? programList : "", gx->Samples() > 1 && options.centroid ? 1u : 0u);
     int maxSamples = 1;
     float maxAnisotropy = 1.0f;
@@ -2247,6 +2248,10 @@ bool drawGx() {
             split[GxStats::kSplitState], split[GxStats::kSplitVertices], split[GxStats::kSplitProgram],
             split[GxStats::kSplitTexture], split[GxStats::kSplitBp], split[GxStats::kSplitXf],
             split[GxStats::kSplitRest]);
+        // Vulkan: its waits, submits and presents per picture, the shaders and pipelines it made (vulkan-bauplan E8)
+        const std::string vkLine = gx->TimingLine();
+        if (!vkLine.empty())
+          LOG("%s", vkLine.c_str());
         // merged draw calls (RE4_GX_MERGE=1, an experiment for low-end phones)
         if (gx->Merging())
           LOG("GX merged draw calls per chunk: %.0f GL draw calls for %.0f draws, %.0f of them in %.0f merged calls",

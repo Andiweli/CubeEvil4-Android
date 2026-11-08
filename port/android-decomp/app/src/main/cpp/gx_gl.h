@@ -351,6 +351,8 @@ public:
   void SetOverlay(const GxOverlay &overlay);
   // "OpenGL ES 3.2 ..., Adreno (TM) 650" or "Vulkan 1.1.128 ..., driver ...": for the log and the error report.
   std::string ApiInfo() const;
+  // The Vulkan renderer's line for the log since the last call (waits, submits, shaders and pipelines made); "" for GL.
+  std::string TimingLine();
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
   int Scale() const;   // whole multiples (1.5x: 1)

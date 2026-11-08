@@ -52,7 +52,7 @@
   X(vkCreateImageView) X(vkDestroyImageView) X(vkCreateSampler) X(vkDestroySampler)                                 \
   X(vkCreateRenderPass) X(vkDestroyRenderPass) X(vkCreateFramebuffer) X(vkDestroyFramebuffer)                       \
   X(vkCreateShaderModule) X(vkDestroyShaderModule) X(vkCreatePipelineCache) X(vkDestroyPipelineCache)               \
-  X(vkGetPipelineCacheData) X(vkCreateGraphicsPipelines) X(vkDestroyPipeline)                                      \
+  X(vkGetPipelineCacheData) X(vkMergePipelineCaches) X(vkCreateGraphicsPipelines) X(vkDestroyPipeline)                                      \
   X(vkCreatePipelineLayout) X(vkDestroyPipelineLayout) X(vkCreateDescriptorSetLayout)                              \
   X(vkDestroyDescriptorSetLayout) X(vkCreateDescriptorPool) X(vkDestroyDescriptorPool) X(vkResetDescriptorPool)     \
   X(vkAllocateDescriptorSets) X(vkFreeDescriptorSets) X(vkUpdateDescriptorSets)                                                            \

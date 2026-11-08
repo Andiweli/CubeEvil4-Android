@@ -1,6 +1,8 @@
 // GLSL to SPIR-V with glslang (vk_shader.h).
 #include "vk_shader.h"
 
+#include <algorithm>
+
 #include <glslang/Include/ResourceLimits.h>
 #include <glslang/Public/ShaderLang.h>
 #include <SPIRV/GlslangToSpv.h>
@@ -48,6 +50,30 @@ TBuiltInResource Resources() {
   return r;
 }
 
+// The debug instructions out of a SPIR-V module (OpSource*, OpName, OpMemberName, OpString, OpLine, OpNoLine,
+// OpModuleProcessed): the spec makes them optional, the program stays the same; the GX shaders' names of their
+// blocks' members were most of their size
+void StripDebug(std::vector<std::uint32_t> *words) {
+  std::vector<std::uint32_t> &w = *words;
+  if (w.size() < 5)
+    return;
+  std::size_t out = 5, at = 5;  // (the header)
+  while (at < w.size()) {
+    const std::uint32_t count = w[at] >> 16, op = w[at] & 0xFFFF;
+    if (count == 0 || at + count > w.size())
+      return;  // not well formed: left as it is
+    const bool debug = (op >= 2 && op <= 8) || op == 317 || op == 330;
+    if (!debug) {
+      if (out != at)
+        std::copy(w.begin() + static_cast<std::ptrdiff_t>(at), w.begin() + static_cast<std::ptrdiff_t>(at + count),
+                  w.begin() + static_cast<std::ptrdiff_t>(out));
+      out += count;
+    }
+    at += count;
+  }
+  w.resize(out);
+}
+
 } // namespace
 
 bool CompileGlsl(ShaderStage stage, const std::string &source, std::vector<std::uint32_t> *spirv, std::string *log) {
@@ -84,6 +110,7 @@ bool CompileGlsl(ShaderStage stage, const std::string &source, std::vector<std::
   glslang::GlslangToSpv(*program.getIntermediate(language), *spirv, &logger, &options);
   if (log)
     *log = logger.getAllMessages();
+  StripDebug(spirv);
   return !spirv->empty();
 }
 

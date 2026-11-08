@@ -83,6 +83,9 @@ android {
         // a branch's test APK names itself with -Pre4.versionName (the Vulkan branch: "0.99.2-vulkan1"; AppUpdate
         // takes a different suffix word for the same version)
         if (project.hasProperty('re4.versionName')) versionName project.property('re4.versionName')
+        // ... and its versionCode with -Pre4.versionCode (at least the installed release's, 105 for 0.99.3-rc, so
+        // it installs over it by hand too)
+        if (project.hasProperty('re4.versionCode')) versionCode Integer.parseInt(project.property('re4.versionCode').toString())
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since

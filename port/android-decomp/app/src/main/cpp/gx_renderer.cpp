@@ -68,6 +68,7 @@ GLuint GxRenderer::EfbColor() const { return impl_->EfbColor(); }
 void GxRenderer::SetWindow(void *window, int width, int height) { impl_->SetWindow(window, width, height); }
 void GxRenderer::SetOverlay(const GxOverlay &overlay) { impl_->SetOverlay(overlay); }
 std::string GxRenderer::ApiInfo() const { return impl_->ApiInfo(); }
+std::string GxRenderer::TimingLine() { return impl_->TimingLine(); }
 bool GxRenderer::ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height) {
   return impl_->ReadXfb(rgba, width, height);
 }

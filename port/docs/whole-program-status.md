@@ -2095,6 +2095,12 @@ US-Kern-Tonbank (Lautstärke, Typ). Die Händlerstimme (Ereignis-Streams 0xB4–
 
 ## Vulkan als zweiter Renderpfad: Bau (seit 07.11.2026, lokal, Branch `vulkan`)
 
+**Entscheidungen des Projektinhabers (08.11.2026, Wortlaut „Ja ich akzeptiere alle deine Empfehlungen“):** Vulkan
+erst ab Android 10 mit Vulkan 1.1 (darunter nur OpenGL ES); glslang aus dem NDK mit Lizenztexten, kein VMA (eigener
+Speicherverwalter `vk_memory`); die APK darf etwa 2–3 MB größer werden; die ersten Test-APKs dürfen Extras unter
+Vulkan noch auslassen, fertig erst mit allen. Außerdem (08.11.2026): alle Etappen bis zum Ende durchbauen, danach
+am Gerät testen; Test-APKs mit dem Debug-Schlüssel und `versionCode` ≥ 105 (auf dem Retroid ist 0.99.3-rc mit 105).
+
 Auftrag des Projektinhabers (07.11.2026, über die Hauptsitzung): einen zweiten Renderpfad über Vulkan planen und
 bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan` (von `master` 0.99.2-rc,
 `a6b3945f`). Die Entscheidung vom 29.10.2026 („Vulkan bis auf Weiteres ausgeschlossen“) ist damit aufgehoben.
@@ -2308,6 +2314,49 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   - **Texte:** 8 neue in allen 11 Sprachen (`strings_ingame.xml`); die Meldungen aus E6 kommen jetzt von dort.
   - **Sperrliste** schlechter Treiber: noch leer; sie wächst mit den Berichten.
   **Geprüft (PC):** `tools/check_translations.py` alle 11 Sprachen in Ordnung. **Nicht geprüft:** Gerät.
+- **Erster Gerätetest (Retroid, Adreno 650, Android 13; 08.11.2026, APKs vulkan1/vulkan2):** Rückfall auf GLES
+  richtig (Meldung, danach stabil 60/s). Unter Vulkan aber 30–45 statt meist 60 Bilder/s.
+  - **Ursache:** Die Zeile „Vulkan screen:“ kam 1010-mal in 22 s, die Swapchain wurde also jedes Bild neu gebaut.
+  - **Warum:** Das Display des Retroid ist hochkant gebaut und um 90° gedreht („the display's turn 2“). Die
+    Swapchain war ungedreht angelegt, damit der Compositor dreht. Android antwortet dann auf jedes Bild mit
+    „suboptimal“, und jede Antwort baute die Swapchain neu, jedes Mal mit `vkDeviceWaitIdle`.
+  - **Behoben in `gx_vk.cpp`:**
+    - Die App dreht das Bild jetzt selbst wie das Display („pre-rotation“, Standard; `RE4_VK_PRETRANSFORM=0` lässt
+      wieder den Compositor drehen).
+    - Auf „suboptimal“ wird die Oberfläche nur angesehen; neu gebaut wird nur, wenn sich ihre Drehung oder Größe
+      änderte. Nach 8 Antworten ohne Änderung kommt nur noch alle 120 Bilder ein Blick.
+    - Die Zeile „Vulkan screen:“ erscheint nur, wenn sich etwas ändert; die Swapchains werden gezählt.
+  - **Aussetzer an den Szenenwechseln der Polizeifahrt** (auch unter GLES, Lauf 2: bis 560 ms, die Programme 40 →
+    289): Vermutlich laden die GL-Programme ihr Binärformat erst beim ersten Zeichnen; nicht von der Aufteilung E1
+    (GL bleibt bytegleich, auch die Arbeitszähler). Getrennt in der 0.99.x-Linie zu prüfen.
+- **Messzeile unter Vulkan (08.11.2026):** Alle 300 Bildstücke schreibt die App nach „GX render thread split“ eine
+  Zeile „Vulkan per picture:“ (`GxRenderer::TimingLine`). Sie enthält:
+  - je gezeigtem Bild die Wartezeit auf das Swapchain-Bild (acquire), auf die GPU (Fences), Abschicken und
+    Anzeigen;
+  - die neu übersetzten Shader mit Dauer und die aus dem SPIR-V-Speicher;
+  - die neu gebauten Pipelines mit Dauer und der längsten;
+  - die gebauten Swapchains und den Bildspeicher.
+  CPU-Zeit und Laufzeit je Bildstück stehen wie bei GLES in „GX render thread:“, die Bildrate in „GX: … shown“.
+- **E8 Speicher auf der Platte und Vorab-Bau (08.11.2026, am PC):** im Ordner `RE4_GX_PROGRAM_CACHE` der App
+  (`gx-programs`, wie GL):
+  - **`vk-spirv.bin`:** das SPIR-V jedes Shaders, den das Gerät übersetzt hat. Schlüssel ist der Hash von Compiler,
+    Stufe und Text. Im Speicher liegt nur das Verzeichnis, höchstens 160 MB (ein GX-Shader ≈ 15 KB). Ein beim
+    Beenden abgeschnittener Eintrag wird abgeschnitten.
+  - **`vk-pipelines.bin`:** der Pipeline-Cache des Treibers. Er wird beim Start dazugemischt (ein fremder Treiber
+    ignoriert ihn) und gespeichert alle 64 neuen Pipelines, frühestens alle 20 s, und am Ende.
+  - **`room-XXX.vkpipes`:** die Pipelines je Raum, neben GLs `room-XXX.keys`. `Prewarm` baut beim Betreten eines
+    Raums erst seine Programme, dann seine Pipelines, ein paar Millisekunden je Bild wie GL.
+  - **Unter Vulkan** startet die App den GL-Thread nicht, der GL-Programme vorab linkt.
+  - **SPIR-V** ohne Debug-Befehle (`StripDebug`; spart nur 7 %).
+  - **`gx_chunk_render`:** `RE4_GX_ROOM`, `RE4_GX_PREWARM=1`, die Messzeile am Ende.
+  **Geprüft (WSL, lavapipe):** s204 dreimal mit demselben Speicher:
+  - Lauf 1 übersetzt 61 Shader, Läufe 2 und 3 übersetzen keinen und bauen je Renderer bis 39 Programme und 42
+    Pipelines vorab.
+  - 8,2 s gegen 4,8 s Laufzeit; Bilder in allen Läufen identisch; 0 Meldungen.
+  Gesamtprüfung nach E8: GL bytegleich (4 371 Bilder), Vulkan normal und 4× MSAA in allen 10 Folgen ohne Meldung
+  und ohne Bild über der Grenze, `gx_gl_check` 0 Fehler, NDK beide ABIs.
+  **Nicht geprüft:** Gerät; lavapipe hat keinen echten Pipeline-Cache (32 Bytes), der Nutzen dort zeigt sich erst
+  auf Adreno und Mali.
 
 ## Vulkan zusätzlich zu GLES: Studie (31.10.2026, lokal, Branch `vulkan`)
 

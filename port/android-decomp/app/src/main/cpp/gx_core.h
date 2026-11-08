@@ -705,6 +705,7 @@ struct GxCore {
   virtual void SetOverlay(const GxOverlay &) {}
   // the API, the GPU and its driver, for the log and the error report
   virtual std::string ApiInfo() const = 0;
+  virtual std::string TimingLine() { return std::string(); }
 };
 
 // A renderer's inside for `api` (GlRenderer in gx_gl.cpp ...); null when this build has none for it.

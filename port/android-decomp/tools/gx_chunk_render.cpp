@@ -244,6 +244,9 @@ int main(int argc, char **argv) {
       if (const char *cache = std::getenv("RE4_GX_PROGRAM_CACHE"))
         if (*cache && !renderer->SetProgramCache(cache))
           std::fprintf(stderr, "program cache: the driver keeps no binaries\n");
+      // RE4_GX_ROOM=0xNNN: the room, as core_mode sets it (the rooms' program and pipeline lists, Prewarm)
+      if (const char *room = std::getenv("RE4_GX_ROOM"))
+        renderer->SetRoom(static_cast<unsigned>(std::strtoul(room, nullptr, 0)));
       // RE4_GX_PEEK_AT=x,y (GameCube pixels, as the game's GXPeekZ): the depth map the core would answer from
       // (GxRenderer::SetDepthSink), the 7 x 7 cells around (x, y) of each map the renderer hands over, 24-bit
       // depths in hex (the light through Leon's head, r102, 06.11.2026)
@@ -347,8 +350,10 @@ int main(int argc, char **argv) {
       std::printf("%s: Run %.2f ms (mit glFinish)\n", Stem(path).c_str(),
                   std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - runStart).count());
     }
-    // the merged draw calls' programs this chunk wanted, made as the app makes them between two chunks
-    if (renderer->Merging())
+    // the merged draw calls' programs this chunk wanted, made as the app makes them between two chunks;
+    // RE4_GX_PREWARM=1: the room's programs and pipelines ahead as well (RE4_GX_ROOM, RE4_GX_PROGRAM_CACHE)
+    static const bool prewarm = std::getenv("RE4_GX_PREWARM") && *std::getenv("RE4_GX_PREWARM") == '1';
+    if (renderer->Merging() || prewarm)
       renderer->Prewarm(1e9);
     if (held)
       std::printf("%s: Bild war angehalten (nicht auf dem Bildschirm)%s\n", Stem(path).c_str(),
@@ -471,6 +476,12 @@ int main(int argc, char **argv) {
     if (s.gpuTimed)
       std::printf("GPU-Zeit (Timer-Abfrage): %.1f ms je Bildstück aus %u Messungen\n",
                   s.gpuMicros / 1000.0 / s.gpuTimed, s.gpuTimed);
+  }
+  // the Vulkan renderer's waits, shaders and pipelines (TimingLine; "" for GL)
+  if (renderer) {
+    const std::string timing = renderer->TimingLine();
+    if (!timing.empty())
+      std::fprintf(stderr, "%s\n", timing.c_str());
   }
   if (renderer)
     renderer->Release();

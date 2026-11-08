@@ -23,11 +23,17 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <chrono>
 #include <initializer_list>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
+
+#include <unistd.h>
 
 #ifdef __ANDROID__
 #include <android/native_window.h>
@@ -97,6 +103,7 @@ struct Program {
   VkShaderModule vs = VK_NULL_HANDLE, fs = VK_NULL_HANDLE, merged = VK_NULL_HANDLE;
   bool ok = false, mergedTried = false;
   std::uint32_t lastUse = 0;
+  ShaderKey key{};  // (its pipelines go into the room's list by it)
 };
 
 // what a GX pipeline is made of (memset to 0 first: compared and hashed as bytes)
@@ -150,6 +157,138 @@ const char kClearFs[] = "#version 450\n"
                        "layout(location = 0) out vec4 o;\n"
                        "void main() { o = vec4(texture(src, vec2(vUv.x, rows.x + vUv.y * rows.y)).rgb, 1.0); }\n";
 
+// The SPIR-V of every shader the device compiled (E8): <RE4_GX_PROGRAM_CACHE>/vk-spirv.bin, records of the shader
+// text's hash (FNV-1a over the compiler, the stage and the text), the word count and the words, appended as they
+// come; the index (hash to place) in memory, the words read when wanted. At most kMaxBytes on disk (a GX shader is
+// about 15 KB; a whole game's worth of them would be some hundred MB): beyond that, compiled as before. A record cut
+// off at the end (the app ended while writing) is cut away. Shared by the renderers of the process.
+struct SpirvStore {
+  static constexpr long kMaxBytes = 160L << 20;
+  std::mutex lock;
+  std::unordered_map<std::uint64_t, std::pair<long, std::uint32_t>> index;
+  FILE *file = nullptr;
+  std::string path;
+  long end = 0;
+  bool full = false;
+  void Open(const std::string &p) {
+    std::lock_guard<std::mutex> g(lock);
+    if (p == path)
+      return;
+    if (file)
+      std::fclose(file);
+    index.clear();
+    path = p;
+    full = false;
+    end = 0;
+    file = std::fopen(p.c_str(), "r+b");
+    char magic[8] = {};
+    if (!file || std::fread(magic, 8, 1, file) != 1 || std::memcmp(magic, "RE4SPV01", 8) != 0) {
+      if (file)
+        std::fclose(file);
+      file = std::fopen(p.c_str(), "w+b");
+      if (!file)
+        return;
+      std::fwrite("RE4SPV01", 8, 1, file);
+      std::fflush(file);
+      end = 8;
+      return;
+    }
+    end = 8;
+    for (;;) {
+      std::uint32_t head[3];
+      if (std::fread(head, sizeof(head), 1, file) != 1)
+        break;
+      const long words = end + 12;
+      if (head[2] == 0 || head[2] > (1u << 20) || std::fseek(file, static_cast<long>(head[2]) * 4, SEEK_CUR) != 0 ||
+          std::ftell(file) != words + static_cast<long>(head[2]) * 4)
+        break;
+      // (fseek past the end succeeds: a record cut off shows in the length)
+      long size = 0;
+      {
+        const long at = std::ftell(file);
+        std::fseek(file, 0, SEEK_END);
+        size = std::ftell(file);
+        std::fseek(file, at, SEEK_SET);
+      }
+      if (words + static_cast<long>(head[2]) * 4 > size)
+        break;
+      index[head[0] | static_cast<std::uint64_t>(head[1]) << 32] = {words, head[2]};
+      end = words + static_cast<long>(head[2]) * 4;
+    }
+    std::fflush(file);
+    if (ftruncate(fileno(file), end) != 0) {
+    }  // (the end of a cut-off record goes)
+  }
+  bool Find(std::uint64_t h, std::vector<std::uint32_t> *out) {
+    std::lock_guard<std::mutex> g(lock);
+    auto it = index.find(h);
+    if (it == index.end() || !file)
+      return false;
+    out->resize(it->second.second);
+    return std::fseek(file, it->second.first, SEEK_SET) == 0 &&
+           std::fread(out->data(), 4, out->size(), file) == out->size();
+  }
+  void Put(std::uint64_t h, const std::vector<std::uint32_t> &w) {
+    std::lock_guard<std::mutex> g(lock);
+    if (!file || full || w.empty() || index.count(h))
+      return;
+    const long bytes = 12 + static_cast<long>(w.size()) * 4;
+    if (end + bytes > kMaxBytes) {
+      full = true;
+      return;
+    }
+    const std::uint32_t head[3] = {static_cast<std::uint32_t>(h), static_cast<std::uint32_t>(h >> 32),
+                                   static_cast<std::uint32_t>(w.size())};
+    if (std::fseek(file, end, SEEK_SET) != 0 || std::fwrite(head, sizeof(head), 1, file) != 1 ||
+        std::fwrite(w.data(), 4, w.size(), file) != w.size()) {
+      full = true;  // (a full storage: no more)
+      return;
+    }
+    std::fflush(file);
+    index[h] = {end + 12, static_cast<std::uint32_t>(w.size())};
+    end += bytes;
+  }
+  std::size_t Count() {
+    std::lock_guard<std::mutex> g(lock);
+    return index.size();
+  }
+};
+SpirvStore &Spirv() {
+  static SpirvStore store;
+  return store;
+}
+
+// a file whole into memory (at most `limit` bytes; empty when it is not there)
+std::vector<char> ReadFileBytes(const std::string &path, std::size_t limit) {
+  std::vector<char> data;
+  FILE *f = std::fopen(path.c_str(), "rb");
+  if (!f)
+    return data;
+  std::fseek(f, 0, SEEK_END);
+  const long size = std::ftell(f);
+  std::fseek(f, 0, SEEK_SET);
+  if (size > 0 && static_cast<std::size_t>(size) <= limit) {
+    data.resize(static_cast<std::size_t>(size));
+    if (std::fread(data.data(), 1, data.size(), f) != data.size())
+      data.clear();
+  }
+  std::fclose(f);
+  return data;
+}
+// bytes to a file through a temporary one (never half written)
+bool WriteFileBytes(const std::string &path, const std::vector<char> &data) {
+  const std::string temp = path + ".tmp";
+  FILE *f = std::fopen(temp.c_str(), "wb");
+  if (!f)
+    return false;
+  const bool ok = std::fwrite(data.data(), 1, data.size(), f) == data.size();
+  if (std::fclose(f) != 0 || !ok) {
+    std::remove(temp.c_str());
+    return false;
+  }
+  return std::rename(temp.c_str(), path.c_str()) == 0;
+}
+
 // The device the renderers of a run share (vulkan-bauplan.md E4): new picture options make a new renderer
 // (core_mode.cpp) while the one before still exists; on the same device it takes that one's EFB copies
 // (HandOverCopies), with the same image memory and pipeline cache. The device goes with the last renderer.
@@ -157,6 +296,7 @@ struct SharedDevice {
   Context vk;
   ImageHeap heap;
   VkPipelineCache pipelineCache = VK_NULL_HANDLE;
+  bool diskMerged = false;  // the pipeline cache of the last run merged in (SetProgramCache)
   ~SharedDevice() {
     if (pipelineCache && vk.device)
       vkDestroyPipelineCache(vk.device, pipelineCache, nullptr);
@@ -303,6 +443,15 @@ struct VkRenderer final : GxCore {
   VkRenderPass swapPass = VK_NULL_HANDLE;
   Fixed swapPresent;
   bool swapStale = false;
+  // "suboptimal" from acquire or present: the surface is looked at the next picture (swapCheck); made anew only when
+  // its turn or size changed (swapSeenTurn, swapSeenExtent: as at the last making); after kSuboptimalLooks looks in
+  // a row without a change, no more looks (an answer the swapchain cannot change)
+  bool swapCheck = false;
+  unsigned swapSeenTurn = 0, suboptimalLooks = 0, suboptimalSkipped = 0;
+  VkExtent2D swapSeenExtent{};
+  static constexpr unsigned kSuboptimalLooks = 8;
+  unsigned swapMade = 0;          // swapchains made (the timing line)
+  std::string swapLogged;         // the screen's line as last logged
   // every recording a number; done: the highest whose fence was seen signalled
   std::uint64_t serial = 0, done = 0;
   // the depth map for GXPeekZ (SnapshotDepth): its image, the pass, two read-back places
@@ -551,7 +700,7 @@ struct VkRenderer final : GxCore {
       return;
     Frame &f = F();
     if (f.pending) {
-      vkWaitForFences(dev, 1, &f.fence, VK_TRUE, UINT64_MAX);
+      WaitFence(f.fence);
       f.pending = false;
       done = std::max(done, f.serial);
     }
@@ -620,12 +769,14 @@ struct VkRenderer final : GxCore {
       si.pSignalSemaphores = &signalSem;
     }
     vkResetFences(dev, 1, &f.fence);
+    const auto t0 = std::chrono::steady_clock::now();
     const VkResult r = vkQueueSubmit(vk.queue, 1, &si, f.fence);
+    timing.submitMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     Check(r, "vkQueueSubmit");
     f.pending = r == VK_SUCCESS;
     recording = false;
     if (wait && f.pending) {
-      vkWaitForFences(dev, 1, &f.fence, VK_TRUE, UINT64_MAX);
+      WaitFence(f.fence);
       f.pending = false;
       done = std::max(done, f.serial);
       for (auto &t : f.trash)
@@ -849,8 +1000,19 @@ struct VkRenderer final : GxCore {
   // ---- shaders and pipelines ----
   VkShaderModule Module(const std::string &glsl, bool vertex, std::string *log) {
     std::vector<std::uint32_t> spirv;
-    if (!CompileGlsl(vertex ? ShaderStage::kVertex : ShaderStage::kFragment, glsl, &spirv, log))
-      return VK_NULL_HANDLE;
+    // the SPIR-V a run before compiled (E8), else compiled now and kept
+    static const std::uint64_t compiler = Fnv(CompilerName(), std::strlen(CompilerName()));
+    const std::uint64_t h = Fnv(glsl.data(), glsl.size(), compiler ^ (vertex ? 0x5653ull : 0x4653ull));
+    if (Spirv().Find(h, &spirv)) {
+      timing.spirvFound++;
+    } else {
+      const auto t0 = std::chrono::steady_clock::now();
+      if (!CompileGlsl(vertex ? ShaderStage::kVertex : ShaderStage::kFragment, glsl, &spirv, log))
+        return VK_NULL_HANDLE;
+      timing.compiled++;
+      timing.compileMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+      Spirv().Put(h, spirv);
+    }
     auto sci = Make<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
     sci.codeSize = spirv.size() * 4;
     sci.pCode = spirv.data();
@@ -866,6 +1028,7 @@ struct VkRenderer final : GxCore {
     }
     Program &p = programs[k];
     p.lastUse = stats.chunks;
+    p.key = k;
     std::string log;
     const std::string vs = VulkanGlsl(GxVertexShader(k), true, vk.depthClipControl), fs = VulkanGlsl(GxFragmentShader(k), false);
     p.vs = Module(vs, true, &log);
@@ -918,6 +1081,15 @@ struct VkRenderer final : GxCore {
     auto it = pipelines.find(k);
     if (it != pipelines.end())
       return it->second;
+    return MakePipeline(k);
+  }
+  // a GX pipeline from its key (a draw's, or a room's list ahead of its first draw: Prewarm)
+  VkPipeline MakePipeline(const PipeKey &k) {
+    const auto t0 = std::chrono::steady_clock::now();
+    const Program *p = k.program;
+    const bool merged = k.merged != 0;
+    const unsigned primitive = k.topology;
+    const std::uint32_t layout = k.layout, stride = k.stride;
     // vertex attributes as GL's SetAttributes (gx_gl.cpp)
     VkVertexInputAttributeDescription attrs[15];
     std::uint32_t n = 0, off = 0;
@@ -991,7 +1163,132 @@ struct VkRenderer final : GxCore {
     cba.alphaBlendOp = k.eqAlpha == DrawState::kReverseSubtract ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
     const VkPipeline made = MakeGraphics(stages, vin, ia, rs, ds, cba, gxLayout, efbPass, true, vk.depthClipControl);
     pipelines[k] = made;
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    timing.pipelines++;
+    timing.pipelineMs += ms;
+    timing.pipelineMax = std::max(timing.pipelineMax, ms);
+    if (made)
+      NotePipe(p->key, k);
+    // the driver's cache to disk now and then (the app may end without Release)
+    if (++pipelinesSinceSave >= 64 &&
+        std::chrono::steady_clock::now() - pipelinesSavedAt > std::chrono::seconds(20))
+      SavePipelines(false);
     return made;
+  }
+  // ---- E8: the caches on disk, the room's pipelines ahead ----
+  // a room's pipelines: the program's key and the pipeline's state (the key without its program)
+  struct PipeRecord {
+    ShaderKey key;
+    PipeKey k;
+  };
+  static constexpr std::size_t kPipeStateBytes = 16;  // PipeKey's bytes from `merged` on
+  std::string pipelineFile;
+  unsigned pipelinesSinceSave = 0;
+  std::chrono::steady_clock::time_point pipelinesSavedAt{};
+  unsigned pipesRoom = ~0u;
+  std::vector<PipeRecord> pipesAhead, roomPipes;
+  std::size_t pipesNext = 0;
+  std::unordered_set<std::string> roomPipeSeen;
+  bool roomPipesDirty = false, aheadLogged = false;
+  unsigned aheadPipes = 0, aheadPrograms = 0;
+  double aheadSpentMs = 0.0;
+  std::string RoomPipesFile(unsigned r) const {
+    char name[40];
+    std::snprintf(name, sizeof(name), "/room-%03x.vkpipes", r);
+    return programCache + name;
+  }
+  static std::string PipeBytes(const ShaderKey &key, const PipeKey &k) {
+    std::string b(reinterpret_cast<const char *>(&key), sizeof(key));
+    b.append(reinterpret_cast<const char *>(&k.layout), 4);
+    b.append(reinterpret_cast<const char *>(&k.stride), 4);
+    b.append(reinterpret_cast<const char *>(&k.merged), kPipeStateBytes);
+    return b;
+  }
+  void NotePipe(const ShaderKey &key, const PipeKey &k) {
+    if (programCache.empty() || room == ~0u)
+      return;
+    if (room != pipesRoom)
+      SwitchPipesRoom();
+    if (!roomPipeSeen.insert(PipeBytes(key, k)).second)
+      return;
+    PipeRecord r{key, k};
+    r.k.program = nullptr;
+    roomPipes.push_back(r);
+    roomPipesDirty = true;
+  }
+  void SaveRoomPipes() {
+    roomPipesDirty = false;
+    if (programCache.empty() || pipesRoom == ~0u || roomPipes.empty())
+      return;
+    std::vector<char> data;
+    const std::uint32_t head[2] = {static_cast<std::uint32_t>(sizeof(ShaderKey)),
+                                   static_cast<std::uint32_t>(roomPipes.size())};
+    static const char kMagic[] = "RE4VKP01";
+    data.insert(data.end(), kMagic, kMagic + 8);
+    data.insert(data.end(), reinterpret_cast<const char *>(head), reinterpret_cast<const char *>(head) + sizeof(head));
+    for (const PipeRecord &r : roomPipes) {
+      const std::string b = PipeBytes(r.key, r.k);
+      data.insert(data.end(), b.begin(), b.end());
+    }
+    WriteFileBytes(RoomPipesFile(pipesRoom), data);
+  }
+  // another room: the one before's list saved, the new one's read (its pipelines ahead, and kept when it grows)
+  void SwitchPipesRoom() {
+    if (roomPipesDirty)
+      SaveRoomPipes();
+    pipesRoom = room;
+    roomPipes.clear();
+    roomPipeSeen.clear();
+    pipesAhead.clear();
+    pipesNext = 0;
+    aheadLogged = false;
+    aheadPipes = aheadPrograms = 0;
+    aheadSpentMs = 0.0;
+    if (programCache.empty() || room == ~0u)
+      return;
+    const std::vector<char> data = ReadFileBytes(RoomPipesFile(room), 16u << 20);
+    const std::size_t recordBytes = sizeof(ShaderKey) + 8 + kPipeStateBytes;
+    if (data.size() < 16 || std::memcmp(data.data(), "RE4VKP01", 8) != 0)
+      return;
+    std::uint32_t head[2];
+    std::memcpy(head, data.data() + 8, sizeof(head));
+    if (head[0] != sizeof(ShaderKey) || data.size() < 16 + static_cast<std::size_t>(head[1]) * recordBytes)
+      return;
+    for (std::uint32_t i = 0; i < head[1]; i++) {
+      const char *at = data.data() + 16 + static_cast<std::size_t>(i) * recordBytes;
+      PipeRecord r;
+      std::memset(&r.k, 0, sizeof(r.k));
+      std::memcpy(&r.key, at, sizeof(ShaderKey));
+      std::memcpy(&r.k.layout, at + sizeof(ShaderKey), 4);
+      std::memcpy(&r.k.stride, at + sizeof(ShaderKey) + 4, 4);
+      std::memcpy(&r.k.merged, at + sizeof(ShaderKey) + 8, kPipeStateBytes);
+      if (roomPipeSeen.insert(PipeBytes(r.key, r.k)).second) {
+        roomPipes.push_back(r);
+        pipesAhead.push_back(r);
+      }
+    }
+  }
+  // the driver's pipeline cache to disk (now: at once, at the end; else on a thread of its own)
+  void SavePipelines(bool now) {
+    pipelinesSinceSave = 0;
+    pipelinesSavedAt = std::chrono::steady_clock::now();
+    if (pipelineFile.empty() || !pipelineCache || !dev)
+      return;
+    std::size_t size = 0;
+    if (vkGetPipelineCacheData(dev, pipelineCache, &size, nullptr) != VK_SUCCESS || !size || size > (64u << 20))
+      return;
+    std::vector<char> data(size);
+    if (vkGetPipelineCacheData(dev, pipelineCache, &size, data.data()) != VK_SUCCESS)
+      return;
+    data.resize(size);
+    if (roomPipesDirty)
+      SaveRoomPipes();
+    if (now) {
+      WriteFileBytes(pipelineFile, data);
+      return;
+    }
+    const std::string file = pipelineFile;
+    std::thread([file, data] { WriteFileBytes(file, data); }).detach();
   }
   VkPipeline MakeGraphics(const std::vector<VkPipelineShaderStageCreateInfo> &stages,
                           const VkPipelineVertexInputStateCreateInfo &vin,
@@ -2498,11 +2795,15 @@ struct VkRenderer final : GxCore {
           format = f;
           break;
         }
-    // pre-rotation (RE4_VK_PRETRANSFORM=1, to be checked on phones): the picture drawn turned as the display is;
-    // else the compositor turns it (a phone held across)
+    // pre-rotation (the default since the Retroid's report of 08.11.2026): the picture drawn turned as the display is,
+    // so Android neither turns it nor answers "suboptimal"; RE4_VK_PRETRANSFORM=0: the compositor turns it
     const char *pre = std::getenv("RE4_VK_PRETRANSFORM");
-    const bool preRotate = pre && *pre == '1';
+    const bool preRotate = !(pre && *pre == '0');
     const VkSurfaceTransformFlagBitsKHR current = caps.currentTransform;
+    swapSeenTurn = static_cast<unsigned>(current);
+    swapSeenExtent = caps.currentExtent;
+    swapCheck = false;
+    swapMade++;
     const bool turned = current & (VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR | VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR);
     swapTransform = preRotate || !(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
                         ? current
@@ -2585,19 +2886,49 @@ struct VkRenderer final : GxCore {
       vkCreateSemaphore(dev, &sem, nullptr, &s);
       renderSem.push_back(s);
     }
-    GXLOG("Vulkan screen: %ux%u, %u images, format %d, the display's turn %u (%s), app screen %dx%d", extent.width,
-          extent.height, n, static_cast<int>(swapFormat), static_cast<unsigned>(current),
-          swapTransform == VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR ? "turned by the compositor" : "pre-rotated",
-          screenW, screenH);
+    // (logged when it differs from the last: a turn, a new size; not for each making)
+    char line[256];
+    std::snprintf(line, sizeof(line),
+                  "Vulkan screen: %ux%u, %u images, format %d, the display's turn %u (%s), app screen %dx%d",
+                  extent.width, extent.height, n, static_cast<int>(swapFormat), static_cast<unsigned>(current),
+                  swapTransform == VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR ? "turned by the compositor" : "pre-rotated",
+                  screenW, screenH);
+    if (swapLogged != line) {
+      swapLogged = line;
+      GXLOG("%s (swapchain %u)", line, swapMade);
+    }
     return true;
 #else
     return false;
 #endif
   }
+  // "suboptimal" before: the surface's turn or size changed (then anew), or not (then left; after a few such looks in
+  // a row, no more)
+  void LookAtSuboptimal() {
+    if (!swapCheck || !surfaceKhr)
+      return;
+    swapCheck = false;
+    // (given up: a look every 120 pictures all the same, for a turn of the display)
+    if (suboptimalLooks >= kSuboptimalLooks && ++suboptimalSkipped % 120 != 0)
+      return;
+    VkSurfaceCapabilitiesKHR caps{};
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk.physical, surfaceKhr, &caps) != VK_SUCCESS)
+      return;
+    if (static_cast<unsigned>(caps.currentTransform) != swapSeenTurn ||
+        caps.currentExtent.width != swapSeenExtent.width || caps.currentExtent.height != swapSeenExtent.height) {
+      swapStale = true;
+      suboptimalLooks = 0;
+      return;
+    }
+    if (++suboptimalLooks == kSuboptimalLooks)
+      GXLOG("Vulkan screen: \"suboptimal\" %u times without a change of the display; the swapchain stays",
+            kSuboptimalLooks);
+  }
   bool Present(int x, int y, int w, int h, unsigned top, unsigned rows) override {
     if (!haveXfb)
       return false;
     stats.presents++;
+    LookAtSuboptimal();
     if (!window || ((!swapchain || swapStale) && !MakeSwapchain())) {
       Submit(false, true);  // no screen: the frame to the GPU all the same
       return true;
@@ -2605,7 +2936,10 @@ struct VkRenderer final : GxCore {
     Begin();
     const int slot = cur;
     std::uint32_t index = 0;
+    const auto acquired = std::chrono::steady_clock::now();
     VkResult r = vkAcquireNextImageKHR(dev, swapchain, 1000000000ull, acquireSem[slot], VK_NULL_HANDLE, &index);
+    timing.acquireMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - acquired).count();
+    timing.presents++;
     if (r == VK_ERROR_OUT_OF_DATE_KHR || (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR)) {
       swapStale = true;
       if (r != VK_ERROR_OUT_OF_DATE_KHR)
@@ -2614,7 +2948,7 @@ struct VkRenderer final : GxCore {
       return true;
     }
     if (r == VK_SUBOPTIMAL_KHR)
-      swapStale = true;
+      swapCheck = true;
     EndPass();
     VkCommandBuffer cb = F().draw;
     auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
@@ -2668,9 +3002,15 @@ struct VkRenderer final : GxCore {
     pi.swapchainCount = 1;
     pi.pSwapchains = &swapchain;
     pi.pImageIndices = &index;
+    const auto presented = std::chrono::steady_clock::now();
     r = vkQueuePresentKHR(vk.queue, &pi);
-    if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR)
+    timing.presentMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - presented).count();
+    if (r == VK_ERROR_OUT_OF_DATE_KHR)
       swapStale = true;
+    else if (r == VK_SUBOPTIMAL_KHR)
+      swapCheck = true;
+    else if (r == VK_SUCCESS)
+      suboptimalLooks = 0;  // (the streak ended)
     else if (r != VK_SUCCESS)
       Check(r, "vkQueuePresentKHR");
     return true;
@@ -3040,8 +3380,112 @@ struct VkRenderer final : GxCore {
   bool TiledMsaa() const override { return false; }
   std::string ApiInfo() const override { return dev ? vk.Describe() : "Vulkan (not started)"; }
   bool BaseVertex() const override { return true; }
-  bool SetProgramCache(const std::string &) override { return false; }  // E8
-  bool Prewarm(double) override { return false; }
+  // the caches on disk (E8): the SPIR-V store, the driver's pipeline cache of the last run, the rooms' lists
+  bool SetProgramCache(const std::string &folder) override {
+    programCache.clear();
+    if (folder.empty() || !dev)
+      return false;
+    programCache = folder;
+    Spirv().Open(folder + "/vk-spirv.bin");
+    pipelineFile = folder + "/vk-pipelines.bin";
+    pipelinesSavedAt = std::chrono::steady_clock::now();
+    if (!shared->diskMerged && pipelineCache) {
+      shared->diskMerged = true;
+      const std::vector<char> data = ReadFileBytes(pipelineFile, 64u << 20);
+      if (!data.empty()) {
+        auto cci = Make<VkPipelineCacheCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
+        cci.initialDataSize = data.size();
+        cci.pInitialData = data.data();
+        VkPipelineCache last = VK_NULL_HANDLE;
+        // (the driver takes it only when it is its own: another device or driver gives an empty cache)
+        if (vkCreatePipelineCache(dev, &cci, nullptr, &last) == VK_SUCCESS) {
+          vkMergePipelineCaches(dev, pipelineCache, 1, &last);
+          vkDestroyPipelineCache(dev, last, nullptr);
+        }
+      }
+      GXLOG("Vulkan caches: %zu shaders' SPIR-V, the driver's pipeline cache %zu KB from the last run",
+            Spirv().Count(), data.size() / 1024);
+    }
+    return true;
+  }
+  // the room's programs and then its pipelines, made before their first draw a few milliseconds at a time (as GL's
+  // Prewarm; the programs' SPIR-V comes from the store when a run before compiled it)
+  bool Prewarm(double budgetMs) override {
+    mergeWanted.clear();  // (merged draws make their programs at their first draw under Vulkan)
+    if (programCache.empty() || !ready || room == ~0u)
+      return false;
+    const auto start = std::chrono::steady_clock::now();
+    double ms = 0.0;
+    bool made = false;
+    auto spent = [&] {
+      ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+      return made && ms >= budgetMs;
+    };
+    if (room != pipesRoom)
+      SwitchPipesRoom();
+    if (!aheadRead)
+      ReadAhead();
+    const std::uint32_t centroid = options.centroid && samples > 1 ? 1 : 0;
+    while (aheadNext < ahead.size() && !spent()) {
+      AheadKey &a = ahead[aheadNext++];
+      if (a.key.centroid != centroid || programs.count(a.key))
+        continue;
+      if (ProgramFor(a.key)) {
+        stats.programsAhead++;
+        aheadPrograms++;
+      }
+      made = true;
+    }
+    while (aheadNext >= ahead.size() && pipesNext < pipesAhead.size() && !spent()) {
+      PipeRecord &r = pipesAhead[pipesNext++];
+      if (r.k.merged || r.key.centroid != centroid)
+        continue;
+      Program *p = ProgramFor(r.key);
+      if (!p)
+        continue;
+      PipeKey k = r.k;
+      k.program = p;
+      if (pipelines.count(k))
+        continue;
+      MakePipeline(k);
+      aheadPipes++;
+      made = true;
+    }
+    aheadSpentMs += ms;
+    const bool more = aheadNext < ahead.size() || pipesNext < pipesAhead.size();
+    if (!more && !aheadLogged && (aheadPrograms || aheadPipes)) {
+      aheadLogged = true;
+      GXLOG("Vulkan ahead of their first draw in r%03x: %u programs, %u pipelines, %.0f ms in all", room,
+            aheadPrograms, aheadPipes, aheadSpentMs);
+    }
+    return more;
+  }
+  // ---- the timing line (TimingLine, the log every 300 chunks) ----
+  struct Timing {
+    double acquireMs = 0, fenceMs = 0, submitMs = 0, presentMs = 0, compileMs = 0, pipelineMs = 0, pipelineMax = 0;
+    unsigned presents = 0, compiled = 0, spirvFound = 0, pipelines = 0, swapchains = 0;
+  } timing;
+  std::string TimingLine() override {
+    Timing &t = timing;
+    const double n = std::max(1u, t.presents);
+    char line[512];
+    std::snprintf(line, sizeof(line),
+                  "Vulkan per picture: acquire %.2f ms, waits for the GPU %.2f ms, submit %.2f ms, present %.2f ms "
+                  "(%u pictures); %u shaders compiled (%.0f ms), %u from the SPIR-V store (%zu kept); %u pipelines "
+                  "made (%.0f ms, the longest %.1f ms); %u swapchains made; images %.0f of %.0f MB",
+                  t.acquireMs / n, t.fenceMs / n, t.submitMs / n, t.presentMs / n, t.presents, t.compiled,
+                  t.compileMs, t.spirvFound, Spirv().Count(), t.pipelines, t.pipelineMs, t.pipelineMax,
+                  swapMade - t.swapchains, heap.Used() / 1048576.0, heap.Reserved() / 1048576.0);
+    const unsigned made = swapMade;
+    t = Timing();
+    t.swapchains = made;
+    return line;
+  }
+  void WaitFence(VkFence fence) {
+    const auto t0 = std::chrono::steady_clock::now();
+    vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX);
+    timing.fenceMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+  }
   void ApplyTestEnvironment() override {
     const char *tv = getenv("RE4_GX_TV_FILTER");
     tvFilter = tv && *tv == '1';
@@ -3074,6 +3518,9 @@ struct VkRenderer final : GxCore {
     }
     if (roomDirty)
       SaveRoom();
+    if (roomPipesDirty)
+      SaveRoomPipes();
+    SavePipelines(true);
     for (Frame &f : frames) {
       for (auto &t : f.trash)
         t();
