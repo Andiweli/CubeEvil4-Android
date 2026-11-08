@@ -2358,7 +2358,7 @@ bauen, zusätzlich zu GLES (GLES bleibt Standard und Rückfall), Branch `vulkan`
   **Nicht geprüft:** Gerät; lavapipe hat keinen echten Pipeline-Cache (32 Bytes), der Nutzen dort zeigt sich erst
   auf Adreno und Mali.
 - **E9 Abschluss am PC (08.11.2026):**
-  - **Test-APK** `E:\Development\Androiduildsulkan\CubeEvil4-0.99.2-vulkan5.apk`:
+  - **Test-APK** `E:\Development\Android\builds\vulkan\CubeEvil4-0.99.2-vulkan5.apk`:
     - versionCode 105, 22,9 MB, beide ABIs, Debug-Schlüssel wie die installierte App;
     - per `-Pre4.versionName=0.99.2-vulkan5 -Pre4.versionCode=105`.
   - **Kontroll-APK** `CubeEvil4-0.99.2-vulkan0.apk` (Wunsch des Projektinhabers):
