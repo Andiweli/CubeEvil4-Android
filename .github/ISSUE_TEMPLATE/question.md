@@ -1,8 +1,10 @@
 ---
 name: Question
 about: Something in the source, the docs or the tools is unclear
-title: "question: <one line>"
+title: 'question: <one line>'
 labels: question
+assignees: ''
+
 ---
 
 **What you looked at**
