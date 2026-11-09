@@ -8,8 +8,8 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Version 0.99.6-rc (versionCode 108), Releasetext `port/android-decomp/docs/releases/v0.99.6-rc.md` („Changes since
 v0.99.5.“, Known issues aus 0.99.5 übernommen, APK `CubeEvil4-0.99.6-rc.apk`). Zwei Sitzungen arbeiten parallel auf
 `work`: Sitzung A (Abstürze und Nutzerberichte, Material `E:\Development\Android\reports\0996-20261109\`) und
-Sitzung B (Menü, Lichthöfe, Update-Knopf, Vulkan- und OUYA-Optionen). Patch 0222 (Sitzung A), nächste freie
-Patch-Nummer 0223. Punktnummern = Liste des Projektinhabers.
+Sitzung B (Menü, Lichthöfe, Update-Knopf, Vulkan- und OUYA-Optionen). Patch 0222 (Sitzung A), 0223 (Sitzung B), nächste freie
+Patch-Nummer 0224. Punktnummern = Liste des Projektinhabers.
 
 ### Sitzung A, Etappe 1: Abstürze (Punkte 3, 4, 10, 11)
 
@@ -129,6 +129,46 @@ Patch-Nummer 0223. Punktnummern = Liste des Projektinhabers.
   `RE4_GX_MERGE=1` weiter), damit baut der Vorab-Faden auch keine gebündelten Pipelines. Menü fragt
   `Host.vulkanRunning()` (die Fläche dieses Laufs ist eine `VulkanSurface`, also auch nach dem Rückfall auf GLES
   richtig). **Geprüft:** neuer Test `vulkanGreysMergeAndVertexRingOut`, Menütests grün, Übersetzungsprüfung ohne Befund.
+- **Lichthöfe in drei Stufen (Wunsch 1):** Der Knopf unter Anzeige → Effekte schaltet bei jedem Druck weiter: Aus,
+  „Lens Flares“ (nur die farbigen Ringe und Sechsecke vom Licht durch die Bildmitte, die „Geister“), „Lichthöfe + Lens
+  Flares“ (dazu Schein und feiner Stern an jedem Licht, genau wie der Schalter „An“ bisher). Einstellung `flareMode`
+  0/1/2 (`CoreBridge.flareMode`; das alte `flares` an wird zu 2, aus zu 0), `CoreBridge.setFlares(int)`,
+  `core_mode.cpp` `optFlares` 0..2 → `GxRenderer::SetFlares` + neu `SetFlareHalos` (`GxCore::flareHalos`); der
+  Reflex-Shader (`gx_fixed_shaders.h kFlareVs`) lässt bei `size.z` = 1 das erste Viereck je Platz (Schein und Stern)
+  weg, GLES und Vulkan gleich; Testschalter `RE4_GX_FLARE_HALOS=0`. Neue Texte `ingame_flares_lens`,
+  `ingame_flares_both`, `ingame_flares_help` (Hilfezeile unter den Effekten), 11 Sprachen.
+  **Geprüft am PC:** GX-Serie `flares3` des Projektinhabers (324 Bilder) in GLES und Vulkan je Aus / Lens Flares /
+  beides: „Lens Flares“ verändert 81 (GLES) bzw. 82 (Vulkan) Bilder, beides 156; beides ist **bytegleich** mit dem
+  Stand vorher (0 von 324 Bildern anders). `gx_gl_check` GLES 0 Fehler, Vulkan mit Prüfschicht 0 Fehler. Test
+  `lensFlaresMoveThroughThreeStepsAndKeepTheOldSwitch`.
+- **Händleraugen (Wunsch 2): noch offen.** Am PC aufgenommen: Debug-Discs r104 (der Händler des Prototyps ist dort ein
+  Ganado im Umhang, Typ 6, Ereignis s20 und Laden) und EU-Discs r10E (der Händler „Trader“ id 0x18 von nahem und
+  beim Zielen). In keiner Aufnahme zeichnet das Spiel am Kopf des Händlers eine additive Lichtquelle; die einzigen
+  Quellen dort sind die blaue Laterne (r104) und der Laserpunkt. Rückfrage an die Hauptsitzung (Raum, Disc-Art,
+  Foto). Werkzeug dafür neu: `gx_chunk_render` mit `RE4_GX_SERIES=1` zeichnet Kern-Aufnahmen, die wenige Bilder
+  auseinander liegen (`RE4_GX_DUMP_AT` mit aufeinanderfolgenden Bildnummern), als eine Folge (Lichthöfe blenden ein).
+  Händler in den EU-Daten: `emleon00.esl` 0x4C r102 (Platz -12210 -8720 38420, erst per Skript) und 0xB0 r10E (lebt ab
+  Raumbeginn bei -58169 -13516 36234; `RE4_TEST_PLACE=free+30:-58169,-13510,33900,0` stellt Leon vor ihn).
+- **Sichtweite (Wunsch 13A, Patch 0223):** aus dem OUYA-Zweig (Patch 0900, `runtime/view_distance.cpp`) übernommen
+  und erweitert. Leistung → Potato-Modus, dritte Zeile: „Sichtweite · Normal / Mittel / Kurz“ (100 / 75 / 50 % des
+  Nebels des Raums; Kurz = die Einstellung der OUYA), jeder Druck schaltet weiter, gelb bei Normal und Mittel, aus bei
+  Kurz. Der Kern gibt der GPU Nebelbeginn und -ende mal dem Anteil (das Ende nicht unter 6 m) und setzt die
+  Sichtgrenze auf dieses Ende: Dahinter wird nichts gezeichnet. Räume ohne Nebel (meist innen) bleiben gleich. Neu
+  gegenüber der OUYA: Die Wahl wirkt **sofort** (`hokanMove`, das jedes Bild läuft, setzt den Nebel neu, wenn
+  `re4_view_distance_changed` es meldet), nicht erst ab der nächsten Tür. Weg: `CoreBridge.setViewDistance(percent)`
+  → `core_mode.cpp optViewDistance` → `re4_core_set_view_distance` (Kern im App-Prozess per `dlsym`, im Kernprozess
+  Nachricht `kSetViewDistance` = 41, `coreproc.cpp`). Gilt für GLES und Vulkan gleich (der Kern zeichnet weniger).
+  Einstellung `viewDistance` 0/1/2, Texte `ingame_potato_view`, `ingame_view_normal/medium/short`, `ingame_view_help`
+  (eigene Hilfezeile), 11 Sprachen. Testschalter `RE4_VIEW_DISTANCE=f` (ab Start) und `RE4_VIEW_DISTANCE_TEST=N:P`
+  (nach N Bildern P Prozent, wie aus dem Menü). **Geprüft am PC (i686, Debug- und EU-Discs):** Dorf r101: Nebelende
+  175 m → 87,5 m (Kurz) bzw. 131 m (Mittel), Wechsel mitten im Spiel wirkt im selben Bild (Protokoll „view: fog type 2,
+  … 175030 -> … 87515“ direkt nach dem Umschalten); Intro r100 (Brücke): 250 → 240 Zeichenaufträge, 93 538 → 77 402
+  Eckpunkte. Kern für Android (`whole_build_android.sh --abi all`) ohne Fehler, Stubs wie erwartet. Test
+  `viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort`. Auf dem Gerät: offen.
+- **Potato-Schalter kamen nicht an (Nebenbefund, behoben):** `CoreBridge.setPotato` im Kern (`core_mode.cpp`) behielt
+  nur die Bits 0 und 1 (`mask & 3`, Stand vom 30.10.2026). „Partikeleffekte“ und „Schatten & Licht“ aus 0.99.3 (Bits
+  2..4) erreichten das Spiel also nie; nur der Benchmark setzte sie direkt. Jetzt `mask & 31`, das Protokoll nennt
+  alle Schalter (`PotatoName`).
 
 ### Vulkan-Absturz-Wächter löste nach normalem Beenden aus (Sitzung „vulkan“, 09.11.2026)
 
@@ -14178,6 +14218,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0220 `r100.cpp` | Port-Fehler (Sofortwechsel der Spielfigur, `cheats.cpp switchNow`: Raum neu durch eine Tür in sich selbst, und damit auch der Rücksetzpunkt für „Retry“): `R100Init` liest die Startszene s40 (2,2 MB ARAM) nur noch, wenn `r100_StartEvent` läuft und sie freigibt (Raum-Flag 13 frei), und s03/s20 wieder, wenn Bereich 6 schon passiert ist (Flag 0; s03 bis zur Haus-Szene, Flag 3). Vorher fehlten die Haus-Szene („ARAM over: evd/r100s03.evd“) und nach einem Wechsel hinter Bereich 6 auch die Szene nach dem Ganado; EU-/US-`st1_0.rel` lesen genauso vor. In jedem Zustand, den das Spiel selbst erreicht, unverändert. Bericht eines Nutzers 07.11.2026 (Xiaomi, EU-Discs, 0.99.2) |
 | 0221 `r227.cpp` | Port-Fehler (Schnellspeicher der App überall im Raum): `r227_initGondola` stellt die Gondel (Objekt 0xA2, 6850 zwischen den Stationen) beim Laden (`SYS_LOAD_GAME`) nur noch oben ab, wenn der Spieler über der Mitte ihres Wegs steht (Starthöhe + 3425); aus r228 kommend wie bisher immer oben. Die Schreibmaschine des Raums (Bereich 1, Typ SAVE, Höhe 39 500) liegt über der oberen Station: Spielstände des Spiels selbst laden unverändert. Vorher nach dem Schnellladen unterhalb der Gondel: Gondel oben, unten trotzdem „Benutzen“. EU-`st2_3.rel` prüft genauso. Rückmeldung des Projektinhabers 08.11.2026 (Retroid, EU-Discs, 0.99.4) |
 | 0222 `game.cpp` | Port-Fehler (Patch 0195): `GameContinue` setzt nach `GameSave.load` die Ersatzfigur der Story (Ada, HUNK, Krauser, Wesker; `re4_story_char_continue`) wieder ein, bevor `PlSetCostume` und `ContinueWepData` den Spielertyp lesen. Der Continue-Punkt hält absichtlich Leon (`re4_story_char_save`); vorher las `ContinueWepData` eine seit dem Speichern gewechselte Waffe nach Leons Tabelle nach `WEP_DATA_ADDR` in Krausers Spielerarchiv mit seinem Modul `pl0a`, und `OSLink` stürzte ab. Nutzerbericht 09.11.2026 (Xiaomi peridot, 0.99.5: Absturz bei Tod oder Retry mit anderen Figuren) |
+| 0223 `light.cpp` | Port-Funktion (Wunsch des Projektinhabers 09.11.2026, aus dem OUYA-Zweig, dort Patch 0900): Sichtweite im App-Menü (Potato-Modus). `cLightMgr::setFog` und `hokanMove` geben GX den Nebel aus `re4_view_distance` (`runtime/view_distance.cpp`: Beginn und Ende mal 1 / 0,75 / 0,5, das Ende nicht unter 6 m, Räume ohne Nebel unverändert) und setzen die Sichtgrenze auf dieses Ende; `LightEnv.Fog` bleibt. `hokanMove` setzt den Nebel neu, wenn das Menü umgeschaltet hat (`re4_view_distance_changed`): wirkt sofort. Bei „Normal“ genau wie das Spiel. |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
