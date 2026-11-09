@@ -88,10 +88,7 @@
     <string name="ingame_aim_help">Инвертировать по вертикали и Скорость прицеливания: для прицеливания ножом и оружием касанием или контроллером, не гироскопом. Инвертирование по вертикали меняет собственную настройку игры.</string>
     <string name="ingame_update">Обновить</string>
     <string name="ingame_up_to_date">Актуально</string>
-    <string name="ingame_update_loading">Загрузка %1$d %%</string>
-    <string name="ingame_update_install">Установка…</string>
-    <string name="ingame_update_failed">Не удалось обновить: %1$s</string>
-    <string name="ingame_update_allow">Разрешите CubeEvil4 устанавливать приложения и снова нажмите «Обновить».</string>
+    <string name="ingame_update_page">Новый выпуск откроется на GitHub: скачайте там APK и установите его.</string>
 
     <string name="ingame_card">Карта памяти (слот A)</string>
     <string name="ingame_card_help">Экспорт и импорт игровых данных: сохранения в формате .gci (для Dolphin или GameCube) и ваша собственная сенсорная раскладка в CubeEvil4-touch-layout.json. Импорт восстанавливает и то, и другое.</string>

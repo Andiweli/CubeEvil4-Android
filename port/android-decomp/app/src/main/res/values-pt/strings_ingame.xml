@@ -89,10 +89,7 @@
     <string name="ingame_aim_help">Inverter vertical e Velocidade da mira: para mirar com a faca e as armas por toque ou com um controle, não com o giroscópio. Inverter vertical muda a opção do próprio jogo.</string>
     <string name="ingame_update">Atualizar</string>
     <string name="ingame_up_to_date">Atualizado</string>
-    <string name="ingame_update_loading">Baixando %1$d %%</string>
-    <string name="ingame_update_install">Instalando…</string>
-    <string name="ingame_update_failed">Falha na atualização: %1$s</string>
-    <string name="ingame_update_allow">Permita que o CubeEvil4 instale apps e toque em Atualizar novamente.</string>
+    <string name="ingame_update_page">A versão mais recente abre no GitHub: baixe o APK lá e instale-o.</string>
 
     <string name="ingame_card">Cartão de memória (slot A)</string>
     <string name="ingame_card_help">Exportar e importar os dados do jogo: os jogos salvos como .gci (para Dolphin ou GameCube) e seu próprio layout de toque como CubeEvil4-touch-layout.json. A importação restaura os dois.</string>

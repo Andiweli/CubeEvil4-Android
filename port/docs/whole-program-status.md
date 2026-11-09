@@ -10,6 +10,18 @@ v0.99.5.“, Known issues aus 0.99.5 übernommen, APK `CubeEvil4-0.99.6-rc.apk`)
 `work`: Sitzung A (Abstürze und Nutzerberichte, Material `E:\Development\Android\reports\0996-20261109\`) und
 Sitzung B (Menü, Lichthöfe, Update-Knopf, Vulkan- und OUYA-Optionen). Nächste freie Patch-Nummer 0222.
 
+### Sitzung B: Menü und Funktionen (09.11.2026)
+
+- **Update-Knopf (Wunsch 7):** Der Knopf „Update“ im App-Menü lädt nichts mehr herunter und installiert nichts mehr
+  (das ließ Play Protect warnen). Er öffnet die Seite des neuesten Releases auf GitHub im Browser des Systems
+  (`AppUpdate.open`, Adresse `html_url` aus GitHubs Antwort, sonst `…/releases/latest`), dazu ein Hinweis „download
+  the APK there and install it“ (`ingame_update_page`, 11 Sprachen; die vier Texte des Herunterladens sind weg). Die
+  Prüfung „Update“/„Up to date“ bleibt wie bisher. Die Berechtigung `REQUEST_INSTALL_PACKAGES` ist aus dem Manifest
+  entfernt (sie war nur dafür da). **Geprüft:** Menütests (`testCoreDebugUnitTest`) grün, Übersetzungsprüfung ohne
+  Befund. Ob der Browser auf dem Gerät aufgeht: nur am Gerät.
+- **„Partikeleffekte“ (Wunsch 14):** Der Knopf leuchtet (gelb) bei „Normal“ und „Weniger“, aus nur bei „Keine“. Nur die
+  Darstellung; Test `CoreMenuLayoutTest` angepasst, grün.
+
 ## Version 0.99.5-rc: fünf Rückmeldungen des Projektinhabers mit Vulkan, Vulkan-Pipelines vorab (08.11.2026, Branch `work`, Patch 0221)
 
 Version 0.99.5-rc (versionCode 107), Releasetext `port/android-decomp/docs/releases/v0.99.5-rc.md` („Changes since

@@ -696,10 +696,11 @@ public class CoreMenuLayoutTest {
       assertTrue(particles.getText().toString().endsWith(normal)); assertTrue(particles.isSelected());
       assertTrue(shadows.isSelected());
       particles.performClick();
-      assertEquals(4, Bridge.potato); assertFalse(particles.isSelected());
+      // lit at "Less" too, off only at "None" (wish of the project owner, 09.11.2026)
+      assertEquals(4, Bridge.potato); assertTrue(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_less)));
       particles.performClick();
-      assertEquals(8, Bridge.potato);
+      assertEquals(8, Bridge.potato); assertFalse(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_none)));
       shadows.performClick();
       assertEquals(8 | 16, Bridge.potato); assertFalse(shadows.isSelected());

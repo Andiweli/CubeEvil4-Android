@@ -89,10 +89,7 @@
     <string name="ingame_aim_help">反转垂直方向和瞄准速度：用于通过触控或手柄以小刀和武器瞄准，不用于陀螺仪瞄准。反转垂直方向会同时更改游戏自身的选项。</string>
     <string name="ingame_update">更新</string>
     <string name="ingame_up_to_date">已是最新</string>
-    <string name="ingame_update_loading">下载中 %1$d %%</string>
-    <string name="ingame_update_install">正在安装…</string>
-    <string name="ingame_update_failed">更新失败：%1$s</string>
-    <string name="ingame_update_allow">请允许 CubeEvil4 安装应用，然后再次点按“更新”。</string>
+    <string name="ingame_update_page">最新版本将在 GitHub 上打开：请在那里下载 APK 并安装。</string>
 
     <string name="ingame_card">记忆卡（插槽 A）</string>
     <string name="ingame_card_help">导出和导入游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），你自己的触控布局为 CubeEvil4-touch-layout.json。导入时两者都会恢复。</string>

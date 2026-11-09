@@ -88,10 +88,7 @@
     <string name="ingame_aim_help">Invertir vertical y Velocidad de apuntado: para apuntar con el cuchillo y las armas por toque o con un mando, no con el giroscopio. Invertir vertical cambia la opción propia del juego.</string>
     <string name="ingame_update">Actualizar</string>
     <string name="ingame_up_to_date">Actualizado</string>
-    <string name="ingame_update_loading">Descargando %1$d %%</string>
-    <string name="ingame_update_install">Instalando…</string>
-    <string name="ingame_update_failed">Error al actualizar: %1$s</string>
-    <string name="ingame_update_allow">Permite que CubeEvil4 instale aplicaciones y vuelve a pulsar Actualizar.</string>
+    <string name="ingame_update_page">La versión más reciente se abre en GitHub: descarga allí el APK e instálalo.</string>
 
     <string name="ingame_card">Tarjeta de memoria (ranura A)</string>
     <string name="ingame_card_help">Exportar e importar los datos del juego: las partidas guardadas como .gci (para Dolphin o GameCube) y tu propia disposición táctil como CubeEvil4-touch-layout.json. La importación recupera ambas cosas.</string>

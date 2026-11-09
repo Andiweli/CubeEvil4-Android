@@ -1,21 +1,15 @@
 package com.ast.re4decomp;
 
 import android.app.Activity;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.pm.PackageInstaller;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.util.Log;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import org.json.JSONArray;
@@ -24,32 +18,29 @@ import org.json.JSONObject;
 /**
  * The in-game menu's update button (wish of the project owner, 30.10.2026): the newest release on GitHub
  * (SOURCE's releases, its tag the version, its one .apk) against the installed version. The same: "Up to
- * date", green and off; the installed one older: "Update", red, which downloads the APK into Android's
- * package installer, and Android asks before it installs (the game closes then). Asked once per run, in
- * the background; without the internet the button stays hidden.
+ * date", green and off; the installed one older: "Update", red, which opens that release's page in the
+ * system's browser (since 0.99.6; until then the app downloaded and installed the APK itself, which made Play
+ * Protect warn). Asked once per run, in the background; without the internet the button stays hidden.
  */
 final class AppUpdate {
   static final String TAG = "RE4Update";
   static final String LATEST = "https://api.github.com/repos/Andiweli/CubeEvil4-Android/releases/latest";
-  private static final String ACTION = "com.ast.re4decomp.UPDATE_INSTALLED";
+  /** The releases' page when GitHub's answer had none. */
+  static final String RELEASES = "https://github.com/Andiweli/CubeEvil4-Android/releases/latest";
   /** The check's answer: not known (yet, or no internet), the same version (or newer), an older one. */
   static final int UNKNOWN = 0, CURRENT = 1, OLDER = 2;
 
   interface Listener {
     /** The check answered (main thread). */
     void checked(int state);
-    /** The download's progress in percent, -1 when it stopped with `problem` (main thread). */
-    void progress(int percent, String problem);
   }
 
   private static int state = UNKNOWN;
-  private static String latest, apkUrl;
-  private static long apkSize;
-  private static boolean asked, loading;
+  private static String releasePage;
+  private static boolean asked;
   private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
   static int state() { return state; }
-  static boolean loading() { return loading; }
 
   /** The installed version as the releases name it ("0.95.2-beta", the core build's "-core" left out). */
   static String installed(Context c) {
@@ -121,13 +112,12 @@ final class AppUpdate {
         JSONObject release = new JSONObject(get(LATEST));
         String tag = release.getString("tag_name");
         JSONArray assets = release.getJSONArray("assets");
-        String url = null; long size = 0;
-        for (int i = 0; i < assets.length(); i++) {
-          JSONObject a = assets.getJSONObject(i);
-          if (a.getString("name").endsWith(".apk")) { url = a.getString("browser_download_url"); size = a.optLong("size"); break; }
-        }
-        if (mine != null) answer = compare(mine, tag) < 0 && url != null ? OLDER : CURRENT;
-        latest = tag; apkUrl = url; apkSize = size;
+        // an update only with its APK there (a release still without it is not one yet)
+        boolean apk = false;
+        for (int i = 0; i < assets.length() && !apk; i++) apk = assets.getJSONObject(i).getString("name").endsWith(".apk");
+        if (mine != null) answer = compare(mine, tag) < 0 && apk ? OLDER : CURRENT;
+        String page = release.optString("html_url", "");
+        releasePage = page.startsWith("https://github.com/") ? page : RELEASES;
         Log.i(TAG, "GitHub's latest release " + tag + ", installed " + mine
             + (answer == OLDER ? ": an update" : ": up to date"));
       } catch (Exception e) {
@@ -152,86 +142,18 @@ final class AppUpdate {
   }
 
   /**
-   * The button: Android's permission to install first (its settings page when missing, the player comes
-   * back and presses again), then the APK into a session of the package installer, which asks.
+   * The button (since 0.99.6, wish of the project owner, 09.11.2026: the download inside the app made Play Protect
+   * warn): the newest release's page on GitHub in the system's browser; the player downloads and installs the APK
+   * there.
    */
-  static void install(Activity activity, Listener listener) {
-    if (loading || apkUrl == null) return;
-    if (Build.VERSION.SDK_INT >= 26 && !activity.getPackageManager().canRequestPackageInstalls()) {
-      listener.progress(-1, activity.getString(R.string.ingame_update_allow));
-      try {
-        activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-            Uri.parse("package:" + activity.getPackageName())));
-      } catch (Exception e) { Log.w(TAG, "no settings page for installing apps: " + e); }
-      return;
+  static void open(Activity activity) {
+    String page = releasePage != null ? releasePage : RELEASES;
+    try {
+      activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(page)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+      android.widget.Toast.makeText(activity, R.string.ingame_update_page, android.widget.Toast.LENGTH_LONG).show();
+      Log.i(TAG, "opened " + page);
+    } catch (ActivityNotFoundException e) {
+      android.widget.Toast.makeText(activity, R.string.ingame_no_browser, android.widget.Toast.LENGTH_SHORT).show();
     }
-    loading = true;
-    final Context app = activity.getApplicationContext();
-    final String url = apkUrl, version = latest;
-    final long size = apkSize;
-    listener.progress(0, null);
-    new Thread(() -> {
-      PackageInstaller installer = app.getPackageManager().getPackageInstaller();
-      int session = -1;
-      try {
-        PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(
-            PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-        params.setAppPackageName(app.getPackageName());
-        if (size > 0) params.setSize(size);
-        session = installer.createSession(params);
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setConnectTimeout(10000); c.setReadTimeout(20000);
-        try (PackageInstaller.Session s = installer.openSession(session)) {
-          long total = size > 0 ? size : c.getContentLength(), done = 0;
-          try (InputStream in = c.getInputStream();
-               OutputStream out = s.openWrite("CubeEvil4-" + version + ".apk", 0, size > 0 ? size : -1)) {
-            int shown = 0;
-            byte[] buffer = new byte[65536];
-            for (int n; (n = in.read(buffer)) > 0; ) {
-              out.write(buffer, 0, n); done += n;
-              int percent = total > 0 ? (int) Math.min(99, done * 100 / total) : 0;
-              if (percent != shown) { shown = percent; MAIN.post(() -> listener.progress(percent, null)); }
-            }
-            s.fsync(out);
-          }
-          listenForResult(app, listener);
-          Intent answer = new Intent(ACTION).setPackage(app.getPackageName());
-          int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
-          s.commit(PendingIntent.getBroadcast(app, session, answer, flags).getIntentSender());
-          Log.i(TAG, "downloaded " + version + " (" + done + " bytes), Android installs it");
-          MAIN.post(() -> listener.progress(100, null));
-        } finally { c.disconnect(); }
-      } catch (Exception e) {
-        Log.w(TAG, "update failed: " + e);
-        if (session >= 0) try { installer.abandonSession(session); } catch (Exception ignored) {}
-        final String why = String.valueOf(e.getMessage());
-        MAIN.post(() -> { loading = false; listener.progress(-1, app.getString(R.string.ingame_update_failed, why)); });
-      }
-    }, "update-download").start();
-  }
-
-  /** The installer's answer: its question to the player (an activity of its own), or why it stopped. */
-  private static void listenForResult(Context app, Listener listener) {
-    BroadcastReceiver receiver = new BroadcastReceiver() {
-      @Override public void onReceive(Context context, Intent intent) {
-        int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
-        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-          Intent ask = intent.getParcelableExtra(Intent.EXTRA_INTENT);
-          if (ask != null) context.startActivity(ask.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-          return;
-        }
-        context.unregisterReceiver(this);
-        loading = false;
-        if (status != PackageInstaller.STATUS_SUCCESS) {
-          String why = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
-          Log.w(TAG, "the installer stopped: " + status + " " + why);
-          listener.progress(-1, context.getString(R.string.ingame_update_failed, String.valueOf(why)));
-        }
-      }
-    };
-    // before the commit (the answer can come at once); onReceive runs on the main thread
-    IntentFilter filter = new IntentFilter(ACTION);
-    if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
-    else app.registerReceiver(receiver, filter);
   }
 }

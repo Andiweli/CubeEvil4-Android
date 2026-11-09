@@ -92,10 +92,7 @@
     <string name="ingame_aim_help">عكس الاتجاه الرأسي وسرعة التصويب: للتصويب بالسكين والأسلحة باللمس أو بوحدة التحكم، لا بالجيروسكوب. عكس الاتجاه الرأسي يغيّر خيار اللعبة نفسها.</string>
     <string name="ingame_update">تحديث</string>
     <string name="ingame_up_to_date">محدَّث</string>
-    <string name="ingame_update_loading">جارٍ التنزيل %1$d %%</string>
-    <string name="ingame_update_install">جارٍ التثبيت…</string>
-    <string name="ingame_update_failed">فشل التحديث: %1$s</string>
-    <string name="ingame_update_allow">اسمح لـ CubeEvil4 بتثبيت التطبيقات، ثم اضغط تحديث مرة أخرى.</string>
+    <string name="ingame_update_page">يُفتح أحدث إصدار على GitHub: نزّل ملف APK من هناك وثبّته.</string>
 
     <string name="ingame_card">بطاقة الذاكرة (الفتحة A)</string>
     <string name="ingame_card_help">تصدير بيانات اللعبة واستيرادها: ملفات الحفظ بصيغة &#x200E;.gci (لـ Dolphin أو GameCube) وتخطيط اللمس الخاص بك في الملف &#x200E;CubeEvil4-touch-layout.json. يعيد الاستيراد كليهما.</string>

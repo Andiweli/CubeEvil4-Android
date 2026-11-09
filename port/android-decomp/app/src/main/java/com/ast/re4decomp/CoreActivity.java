@@ -902,7 +902,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       AppUpdate.check(CoreActivity.this, listener);
     }
 
-    @Override public void startUpdate(AppUpdate.Listener listener) { AppUpdate.install(CoreActivity.this, listener); }
+    @Override public void openUpdate() { AppUpdate.open(CoreActivity.this); }
 
     @Override public void aimInvertChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, on).apply();

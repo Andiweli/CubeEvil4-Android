@@ -89,10 +89,7 @@
     <string name="ingame_aim_help">Balik vertikal dan Kecepatan bidik: untuk membidik pisau dan senjata dengan sentuhan atau controller, bukan dengan giroskop. Balik vertikal mengatur opsi bawaan game.</string>
     <string name="ingame_update">Perbarui</string>
     <string name="ingame_up_to_date">Sudah terbaru</string>
-    <string name="ingame_update_loading">Mengunduh %1$d %%</string>
-    <string name="ingame_update_install">Memasang…</string>
-    <string name="ingame_update_failed">Pembaruan gagal: %1$s</string>
-    <string name="ingame_update_allow">Izinkan CubeEvil4 memasang aplikasi, lalu tekan Perbarui lagi.</string>
+    <string name="ingame_update_page">Rilis terbaru terbuka di GitHub: unduh APK di sana lalu pasang.</string>
 
     <string name="ingame_card">Kartu memori (slot A)</string>
     <string name="ingame_card_help">Ekspor dan impor data game: data simpanan sebagai .gci (untuk Dolphin atau GameCube) dan tata letak sentuh milik Anda sebagai CubeEvil4-touch-layout.json. Impor memulihkan keduanya.</string>

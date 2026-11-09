@@ -126,8 +126,8 @@ final class CoreMenu extends Dialog {
     void clearShaderCache();
     /** Asks GitHub for the newest release (AppUpdate.check), once per run; `listener` hears it. */
     void checkUpdate(AppUpdate.Listener listener);
-    /** The update button: downloads the newest APK and hands it to Android's installer (AppUpdate.install). */
-    void startUpdate(AppUpdate.Listener listener);
+    /** The update button: the newest release's page on GitHub in the browser (AppUpdate.open, since 0.99.6). */
+    void openUpdate();
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -201,7 +201,7 @@ final class CoreMenu extends Dialog {
     resume = button(s(R.string.ingame_back), v -> close());
     // the update button left of "Back to the game" (wish of the project owner, 30.10.2026; AppUpdate): hidden
     // until GitHub answered
-    update = button(s(R.string.ingame_update), v -> { if (host != null) host.startUpdate(updates); });
+    update = button(s(R.string.ingame_update), v -> { if (host != null) host.openUpdate(); });
     update.setVisibility(View.GONE);
     LinearLayout actions = row();
     LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -222,20 +222,8 @@ final class CoreMenu extends Dialog {
     if (host != null) host.checkUpdate(updates);
   }
 
-  /** The update button's look: green "Up to date" (off), red "Update", the download's progress on it. */
-  private final AppUpdate.Listener updates = new AppUpdate.Listener() {
-    @Override public void checked(int state) { showUpdate(state); }
-    @Override public void progress(int percent, String problem) {
-      if (percent < 0) {
-        if (problem != null) android.widget.Toast.makeText(getContext(), problem, android.widget.Toast.LENGTH_LONG).show();
-        showUpdate(AppUpdate.OLDER);
-        return;
-      }
-      update.setEnabled(false);
-      update.setText(percent >= 100 ? s(R.string.ingame_update_install)
-          : getContext().getString(R.string.ingame_update_loading, percent));
-    }
-  };
+  /** The update button's look: green "Up to date" (off), red "Update" (opens the release's page). */
+  private final AppUpdate.Listener updates = this::showUpdate;
 
   void showUpdate(int state) {
     if (state == AppUpdate.UNKNOWN) { update.setVisibility(View.GONE); return; }
@@ -1304,11 +1292,12 @@ final class CoreMenu extends Dialog {
     Button particles = cellAction(morePotato, "", v -> {
       int next = (CoreBridge.particleEffects(graphics) + 1) % 3;
       graphics.edit().putInt("particleEffects", next).apply();
-      valueLabel((Button) v, R.string.ingame_potato_particles, particleLabels[next], next == 0);
+      valueLabel((Button) v, R.string.ingame_potato_particles, particleLabels[next], next != 2);
       CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
     });
+    // lit while there are particles, "Less" too; off only at "None" (wish of the project owner, 09.11.2026)
     valueLabel(particles, R.string.ingame_potato_particles, particleLabels[CoreBridge.particleEffects(graphics)],
-        CoreBridge.particleEffects(graphics) == 0);
+        CoreBridge.particleEffects(graphics) != 2);
     toggle(morePotato, R.string.ingame_potato_shadows, graphics.getBoolean("shadowsLight", true), on -> {
       graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
     });

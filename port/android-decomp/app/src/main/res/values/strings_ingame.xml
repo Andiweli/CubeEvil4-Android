@@ -98,10 +98,7 @@
     <string name="ingame_aim_help">Invert vertical and Aim speed: for aiming the knife and the weapons by touch or with a controller, not with the gyro. Invert vertical sets the game\'s own option.</string>
     <string name="ingame_update">Update</string>
     <string name="ingame_up_to_date">Up to date</string>
-    <string name="ingame_update_loading">Downloading %1$d %%</string>
-    <string name="ingame_update_install">Installing…</string>
-    <string name="ingame_update_failed">Update failed: %1$s</string>
-    <string name="ingame_update_allow">Allow CubeEvil4 to install apps, then press Update again.</string>
+    <string name="ingame_update_page">The newest release opens on GitHub: download the APK there and install it.</string>
 
     <!-- Memory card -->
     <string name="ingame_card">Memory card (slot A)</string>

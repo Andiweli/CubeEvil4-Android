@@ -12,9 +12,9 @@
     <uses-feature android:name="android.hardware.type.automotive" android:required="false" />
     <!-- the core mode passes the game's rumble to the device's vibrator -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- the in-game menu's update button (AppUpdate): GitHub's newest release, its APK to Android's installer -->
+    <!-- the in-game menu's update button (AppUpdate): asks GitHub for the newest release and opens its page in the
+         browser (since 0.99.6 no download or install in the app, so no permission to install apps) -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- largeHeap: on 64 bit the core takes MEM1 from ART's large object space
          (core_mode.cpp holdMem1InLargeObjectSpace), for a moment with up to
          about 250 MB of arrays that count as Java memory -->
