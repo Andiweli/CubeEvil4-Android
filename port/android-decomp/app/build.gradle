@@ -167,5 +167,8 @@ dependencies {
     // (beta.7's stick actions for the analog C stick, docs/retrotouch-1.0.0-beta.7.patch, with
     // RetroTouchColors.withBorderColor and button shapes, RetroTouchButtonShape) with a border of 2.5 dp and
     // controls placed so that they stay on the screen with it (RetroTouchView.placeControl); the app's calls stay.
+    // Now 1.0.0-beta.10 (09.11.2026, the AAR as the project owner built it): the ICONS button style next to
+    // LABELS, icons, ROUNDED_RECT and CAPSULE shapes, pressed and latched colours (TouchStyle). The icons'
+    // licence (Lucide, ISC): libs/retrotouch-THIRD_PARTY_NOTICES.md, RetroTouch's own notice file.
     implementation files('libs/retrotouch.aar')
 }
