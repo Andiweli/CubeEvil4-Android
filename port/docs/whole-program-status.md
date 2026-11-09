@@ -213,7 +213,7 @@ freie Patch-Nummer 0225. Punktnummern = Liste des Projektinhabers.
   … 175030 -> … 87515“ direkt nach dem Umschalten); Intro r100 (Brücke): 250 → 240 Zeichenaufträge, 93 538 → 77 402
   Eckpunkte. Kern für Android (`whole_build_android.sh --abi all`) ohne Fehler, Stubs wie erwartet. Test
   `viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort`. Auf dem Gerät: offen.
-- **Farbmodus (Wunsch 13B): gemessen, nicht gebaut (Entscheidung offen).** Vorgabe über die Hauptsitzung: erst den
+- **Farbmodus (Wunsch 13B): gemessen, nicht gebaut; Entscheidung des Projektinhabers 09.11.2026: weglassen („Ja, weglassen“). `RE4_GX_TEV_TEST` bleibt als reiner Testschalter (im Spiel ohne Wirkung).** Vorgabe über die Hauptsitzung: erst den
   Nutzen der OUYA-Rechnung messen (vereinfachte Farbberechnung ohne 8-Bit-Stufen, OUYA-Zweig `ShaderKey::fastTev`);
   den sichtbaren 16-Bit-Look nicht bauen. Versuchsschalter nur für Messungen in `gx_gl_shader.cpp`:
   `RE4_GX_TEV_TEST=1` die Farbstufen vereinfacht (kein Runden, kein Umbruch auf 8 Bit, keine Klammer ungeklammerter
