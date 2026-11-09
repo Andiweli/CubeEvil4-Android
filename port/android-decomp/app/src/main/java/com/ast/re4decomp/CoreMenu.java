@@ -128,6 +128,8 @@ final class CoreMenu extends Dialog {
     void checkUpdate(AppUpdate.Listener listener);
     /** The update button: the newest release's page on GitHub in the browser (AppUpdate.open, since 0.99.6). */
     void openUpdate();
+    /** This run draws with Vulkan (the renderer the game started with, not only the menu's choice). */
+    boolean vulkanRunning();
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -1326,18 +1328,27 @@ final class CoreMenu extends Dialog {
     });
     // merged draw calls (an experiment for phones with a slow graphics driver; wish of the project
     // owner, 30.10.2026: below 60 FPS); the renderer leaves it out while 60 FPS is on
-    toggle(more, R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
+    // with Vulkan both greyed out and shown off (question of the project owner, 09.11.2026): Vulkan always streams
+    // the vertices through mapped buffers (gx_vk.cpp, the vertex ring has no effect there) and its draw calls are
+    // cheap, merging only adds pipelines to build (core_mode.cpp leaves it out); the choice stays for OpenGL ES
+    final boolean vulkanRun = host != null && host.vulkanRunning();
+    Button merge = toggle(more, R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
       graphics.edit().putBoolean("mergeDraws", on).apply(); CoreBridge.setMerge(on);
     });
     // the vertex ring at the bottom (wish of the project owner, 01.11.2026: off by default, for Mali)
-    toggle(more, R.string.ingame_vertex_ring, graphics.getBoolean("vertexRing", false), on -> {
+    Button ring = toggle(more, R.string.ingame_vertex_ring, graphics.getBoolean("vertexRing", false), on -> {
       graphics.edit().putBoolean("vertexRing", on).apply(); CoreBridge.setVertexRing(on);
     });
+    if (vulkanRun) {
+      toggleLabel(merge, R.string.ingame_merge_draws, false); merge.setEnabled(false);
+      toggleLabel(ring, R.string.ingame_vertex_ring, false); ring.setEnabled(false);
+    }
     help(R.string.ingame_frame_skip_help);
     help(R.string.ingame_smooth_help);
     help(R.string.ingame_skip_or_smooth);
     help(R.string.ingame_merge_help);
     help(R.string.ingame_vertex_ring_help);
+    if (vulkanRun) help(R.string.ingame_vulkan_perf_help);
   }
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);

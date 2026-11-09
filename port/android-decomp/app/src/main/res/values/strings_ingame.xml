@@ -227,6 +227,7 @@
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow graphics driver (e.g. Mali GPUs) and may cost a little on others. No effect while 60 FPS is on.</string>
     <string name="ingame_vertex_ring_help">Sends each picture\'s vertex data to the graphics chip through one buffer that stays mapped, instead of a new buffer every picture. Can save time on Mali GPUs and uses a little more graphics memory. Takes effect at once.</string>
+    <string name="ingame_vulkan_perf_help">With Vulkan, Merge draw calls and Vertex ring buffer are greyed out and not used: Vulkan always sends the vertex data through a buffer that stays mapped, and its draw calls are cheap, so merging would only add pipelines to build. Your choice comes back with OpenGL ES.</string>
     <string name="ingame_game_language">Game language</string>
     <string name="ingame_language_device">Device language</string>
     <string name="ingame_language_help">The language of the game\'s texts and subtitles. Device language: the device\'s language if the game has it, English otherwise. A change restarts the game.</string>

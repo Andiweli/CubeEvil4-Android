@@ -822,4 +822,40 @@ public class CoreMenuLayoutTest {
       assertEquals("Restart clears the shader cache", 1, calls[0]);
     }
   }
+
+  /** With Vulkan (09.11.2026): "Merge draw calls" and "Vertex ring buffer" greyed out and shown off, a line says why;
+   *  the stored choice stays for OpenGL ES. */
+  @Test public void vulkanGreysMergeAndVertexRingOut() throws Exception {
+    for (boolean vulkan : new boolean[] {false, true}) {
+      CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+          new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+            if (method.getName().equals("vulkanRunning")) return vulkan;
+            return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+                : method.getReturnType() == float.class ? (Object) 1f : null;
+          });
+      try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+        Activity activity = controller.get();
+        activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).edit().clear()
+            .putBoolean("mergeDraws", true).putBoolean("vertexRing", true).apply();
+        CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+        Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+        show.invoke(menu, 4, false);  // PERFORMANCE
+        View root = (View) field(menu, "root");
+        Button merge = findButton(root, activity.getString(R.string.ingame_merge_draws));
+        Button ring = findButton(root, activity.getString(R.string.ingame_vertex_ring));
+        assertNotNull(merge); assertNotNull(ring);
+        assertEquals(!vulkan, merge.isEnabled()); assertEquals(!vulkan, ring.isEnabled());
+        assertEquals(!vulkan, merge.isSelected()); assertEquals(!vulkan, ring.isSelected());
+        assertEquals(vulkan, hasText(root, activity.getString(R.string.ingame_vulkan_perf_help)));
+        assertTrue(activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).getBoolean("mergeDraws", false));
+      }
+    }
+  }
+
+  private static boolean hasText(View view, String text) {
+    if (view instanceof TextView && !(view instanceof Button) && ((TextView) view).getText().toString().equals(text)) return true;
+    if (view instanceof ViewGroup)
+      for (int i = 0; i < ((ViewGroup) view).getChildCount(); i++) if (hasText(((ViewGroup) view).getChildAt(i), text)) return true;
+    return false;
+  }
 }

@@ -216,6 +216,7 @@
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
     <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote graphique lent (p. ex. GPU Mali) et coûter un peu sur les autres. Sans effet tant que les 60 FPS sont activés.</string>
     <string name="ingame_vertex_ring_help">Envoie les sommets de chaque image à la puce graphique par un tampon qui reste mappé, au lieu d\'un nouveau tampon par image. Peut faire gagner du temps sur les GPU Mali et utilise un peu plus de mémoire graphique. Prend effet immédiatement.</string>
+    <string name="ingame_vulkan_perf_help">Avec Vulkan, Regrouper les appels de dessin et Tampon circulaire de sommets sont grisés et inutilisés\u00A0: Vulkan envoie toujours les sommets par un tampon qui reste mappé, et ses appels de dessin coûtent peu, regrouper ne ferait qu\'ajouter des pipelines à créer. Votre choix revient avec OpenGL ES.</string>
     <string name="ingame_game_language">Langue du jeu</string>
     <string name="ingame_language_device">Langue de l\'appareil</string>
     <string name="ingame_language_help">La langue des textes et des sous-titres du jeu. Langue de l\'appareil : celle de l\'appareil si le jeu la propose, sinon l\'anglais. Un changement redémarre le jeu.</string>

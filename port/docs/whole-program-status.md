@@ -118,6 +118,17 @@ Patch-Nummer 0223. Punktnummern = Liste des Projektinhabers.
   Befund. Ob der Browser auf dem Gerät aufgeht: nur am Gerät.
 - **„Partikeleffekte“ (Wunsch 14):** Der Knopf leuchtet (gelb) bei „Normal“ und „Weniger“, aus nur bei „Keine“. Nur die
   Darstellung; Test `CoreMenuLayoutTest` angepasst, grün.
+- **Bündeln und Vertex-Ring unter Vulkan (Frage 8):** Der Vertex-Ringpuffer wirkt unter Vulkan nicht: `gx_vk.cpp` liest
+  `GxOptions::vertexRing` gar nicht und schreibt Ecken und Indizes immer in Puffer, die je Bild im Flug dauerhaft
+  eingeblendet sind (`f.vertex[ib].map`, `vulkan-bauplan.md`: „in Vulkan der normale Weg (immer an)“). Das Bündeln
+  läuft unter Vulkan (eigene gebündelte Pipelines, Bilder gleich wie ohne), ein Nutzen ist aber nirgends gemessen:
+  Vulkan-Zeichenaufrufe sind billig (der Schalter war für langsame GL-Treiber gedacht), und es verlangt eigene
+  Pipelines (589 der 2822 in `gx-vkpipes.keys`), die beim ersten Mal ruckeln oder vorab gebaut werden müssen. Darum:
+  mit Vulkan beide Knöpfe ausgegraut und als „Aus“ gezeigt, darunter `ingame_vulkan_perf_help` (11 Sprachen); die
+  gespeicherte Wahl bleibt für OpenGL ES. `core_mode.cpp` bündelt unter Vulkan nicht mehr (der Testschalter
+  `RE4_GX_MERGE=1` weiter), damit baut der Vorab-Faden auch keine gebündelten Pipelines. Menü fragt
+  `Host.vulkanRunning()` (die Fläche dieses Laufs ist eine `VulkanSurface`, also auch nach dem Rückfall auf GLES
+  richtig). **Geprüft:** neuer Test `vulkanGreysMergeAndVertexRingOut`, Menütests grün, Übersetzungsprüfung ohne Befund.
 
 ### Vulkan-Absturz-Wächter löste nach normalem Beenden aus (Sitzung „vulkan“, 09.11.2026)
 

@@ -1943,7 +1943,9 @@ bool drawGx() {
   gx->SetFlares(optFlares.load() != 0 || flaresEnv);
   gx->SetDofStrong(optDof.load() == 2);
   static const bool mergeEnv = getenv("RE4_GX_MERGE") && *getenv("RE4_GX_MERGE") == '1';
-  gx->SetMerge(optMerge.load() != 0 || mergeEnv);
+  // not with Vulkan (question of the project owner, 09.11.2026): its draw calls are cheap, merging only adds pipelines
+  // to build (the menu greys the switch out); the test switch RE4_GX_MERGE=1 still merges there
+  gx->SetMerge((optMerge.load() != 0 && gx->Api() != re4gx::GxApi::kVulkan) || mergeEnv);
   if (!smoothOn && smoothPrev) {
     api.gxRelease(smoothPrev);
     smoothPrev = nullptr;

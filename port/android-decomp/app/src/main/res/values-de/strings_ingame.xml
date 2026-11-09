@@ -212,6 +212,7 @@
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
     <string name="ingame_merge_help">Fasst mehrere Objekte zu einem Aufruf an den Grafiktreiber zusammen. Kann Handys mit langsamem Grafiktreiber helfen (z. B. Mali-GPUs) und auf anderen etwas kosten. Wirkt nicht, solange 60 FPS an ist.</string>
     <string name="ingame_vertex_ring_help">Schickt die Eckpunktdaten jedes Bildes über einen dauerhaft eingeblendeten Puffer an den Grafikchip statt über einen neuen Puffer pro Bild. Kann auf Mali-GPUs Zeit sparen und braucht etwas mehr Grafikspeicher. Wirkt sofort.</string>
+    <string name="ingame_vulkan_perf_help">Mit Vulkan sind Zeichenaufrufe bündeln und Vertex-Ringpuffer ausgegraut und ohne Wirkung: Vulkan schickt die Eckdaten immer durch einen dauerhaft eingeblendeten Puffer, und seine Zeichenaufrufe sind günstig, Bündeln brächte nur zusätzliche Pipelines. Mit OpenGL ES gilt deine Wahl wieder.</string>
     <string name="ingame_game_language">Spielsprache</string>
     <string name="ingame_language_device">Gerätesprache</string>
     <string name="ingame_language_help">Die Sprache der Texte und Untertitel im Spiel. Gerätesprache: die Sprache des Geräts, wenn das Spiel sie hat, sonst Englisch. Eine Änderung startet das Spiel neu.</string>

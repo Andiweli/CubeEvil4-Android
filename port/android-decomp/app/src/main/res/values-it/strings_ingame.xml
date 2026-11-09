@@ -214,6 +214,7 @@
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
     <string name="ingame_merge_help">Unisce più oggetti in una sola chiamata al driver grafico. Può aiutare i telefoni con un driver grafico lento (ad es. GPU Mali) e costare un po’ sugli altri. Nessun effetto finché i 60 FPS sono attivi.</string>
     <string name="ingame_vertex_ring_help">Invia i vertici di ogni immagine al chip grafico tramite un buffer che resta mappato, invece di un nuovo buffer per ogni immagine. Può far risparmiare tempo sulle GPU Mali e usa un po\' più di memoria grafica. Ha effetto subito.</string>
+    <string name="ingame_vulkan_perf_help">Con Vulkan, Unisci le chiamate di disegno e Buffer circolare dei vertici sono in grigio e non vengono usati: Vulkan invia sempre i vertici tramite un buffer che resta mappato e le sue chiamate di disegno costano poco, quindi unire aggiungerebbe solo pipeline da creare. La tua scelta torna con OpenGL ES.</string>
     <string name="ingame_game_language">Lingua del gioco</string>
     <string name="ingame_language_device">Lingua del dispositivo</string>
     <string name="ingame_language_help">La lingua dei testi e dei sottotitoli del gioco. Lingua del dispositivo: quella del dispositivo se il gioco la offre, altrimenti l\'inglese. Una modifica riavvia il gioco.</string>

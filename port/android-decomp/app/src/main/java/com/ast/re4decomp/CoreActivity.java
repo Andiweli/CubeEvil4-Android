@@ -985,6 +985,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public boolean vulkanSupported() { return CoreActivity.this.vulkanSupported(); }
 
+    @Override public boolean vulkanRunning() { return surface instanceof VulkanSurface; }
+
     @Override public boolean vulkanChosen() {
       return "vulkan".equals(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getString(RENDERER, "gles"));
     }

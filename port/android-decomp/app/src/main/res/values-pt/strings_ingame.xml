@@ -215,6 +215,7 @@
     <string name="ingame_skip_or_smooth">Salto de quadros e 60 FPS se excluem: ativar um desativa o outro.</string>
     <string name="ingame_merge_help">Agrupa vários objetos em uma só chamada ao driver gráfico. Pode ajudar celulares com driver gráfico lento (ex.: GPUs Mali) e custar um pouco em outros. Sem efeito enquanto os 60 FPS estiverem ativados.</string>
     <string name="ingame_vertex_ring_help">Envia os vértices de cada imagem ao chip gráfico por um buffer que permanece mapeado, em vez de um buffer novo por imagem. Pode poupar tempo em GPUs Mali e usa um pouco mais de memória gráfica. Tem efeito imediato.</string>
+    <string name="ingame_vulkan_perf_help">Com Vulkan, Agrupar chamadas de desenho e Buffer circular de vértices ficam em cinza e não são usados: o Vulkan sempre envia os vértices por um buffer que fica mapeado, e suas chamadas de desenho são baratas, então agrupar só acrescentaria pipelines a criar. Sua escolha volta com OpenGL ES.</string>
     <string name="ingame_game_language">Idioma do jogo</string>
     <string name="ingame_language_device">Idioma do aparelho</string>
     <string name="ingame_language_help">O idioma dos textos e legendas do jogo. Idioma do aparelho: o do aparelho, se o jogo tiver, senão inglês. Uma mudança reinicia o jogo.</string>

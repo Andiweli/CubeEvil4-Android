@@ -210,6 +210,7 @@
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver grafis lambat (mis. GPU Mali) dan mungkin sedikit memperlambat ponsel lain. Tidak berpengaruh selama 60 FPS aktif.</string>
     <string name="ingame_vertex_ring_help">Mengirim data verteks setiap gambar ke chip grafis melalui satu buffer yang tetap terpetakan, bukan buffer baru setiap gambar. Dapat menghemat waktu pada GPU Mali dan memakai sedikit lebih banyak memori grafis. Langsung berlaku.</string>
+    <string name="ingame_vulkan_perf_help">Dengan Vulkan, Gabungkan panggilan gambar dan Ring buffer verteks berwarna abu-abu dan tidak dipakai: Vulkan selalu mengirim data verteks lewat buffer yang tetap dipetakan, dan panggilan gambarnya murah, jadi penggabungan hanya menambah pipeline yang harus dibuat. Pilihan Anda berlaku lagi dengan OpenGL ES.</string>
     <string name="ingame_game_language">Bahasa game</string>
     <string name="ingame_language_device">Bahasa perangkat</string>
     <string name="ingame_language_help">Bahasa teks dan subtitel game. Bahasa perangkat: bahasa perangkat jika tersedia di game, jika tidak bahasa Inggris. Perubahan akan memulai ulang game.</string>
