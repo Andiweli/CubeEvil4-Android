@@ -178,14 +178,25 @@ freie Patch-Nummer 0225. Punktnummern = Liste des Projektinhabers.
   beides: „Lens Flares“ verändert 81 (GLES) bzw. 82 (Vulkan) Bilder, beides 156; beides ist **bytegleich** mit dem
   Stand vorher (0 von 324 Bildern anders). `gx_gl_check` GLES 0 Fehler, Vulkan mit Prüfschicht 0 Fehler. Test
   `lensFlaresMoveThroughThreeStepsAndKeepTheOldSwitch`.
-- **Händleraugen (Wunsch 2): noch offen.** Am PC aufgenommen: Debug-Discs r104 (der Händler des Prototyps ist dort ein
-  Ganado im Umhang, Typ 6, Ereignis s20 und Laden) und EU-Discs r10E (der Händler „Trader“ id 0x18 von nahem und
-  beim Zielen). In keiner Aufnahme zeichnet das Spiel am Kopf des Händlers eine additive Lichtquelle; die einzigen
-  Quellen dort sind die blaue Laterne (r104) und der Laserpunkt. Rückfrage an die Hauptsitzung (Raum, Disc-Art,
-  Foto). Werkzeug dafür neu: `gx_chunk_render` mit `RE4_GX_SERIES=1` zeichnet Kern-Aufnahmen, die wenige Bilder
-  auseinander liegen (`RE4_GX_DUMP_AT` mit aufeinanderfolgenden Bildnummern), als eine Folge (Lichthöfe blenden ein).
-  Händler in den EU-Daten: `emleon00.esl` 0x4C r102 (Platz -12210 -8720 38420, erst per Skript) und 0xB0 r10E (lebt ab
-  Raumbeginn bei -58169 -13516 36234; `RE4_TEST_PLACE=free+30:-58169,-13510,33900,0` stellt Leon vor ihn).
+- **Händleraugen (Wunsch 2), behoben: keine Lichthöfe an Figuren.** Stelle laut Projektinhaber: vor der Hütte (r11c,
+  Kampf mit Leon, Ashley und Luis), Foto `E:\Development\Android\reports\0996-20261109\merchant-glowing-eyes-cabin.webp`
+  (Nacht, Regen, Fackel links, blaues Feuer rechts, weiß-blauer Stern an der Stirn des Händlers; Retroid, 60 FPS, 4×).
+  Am PC nachgestellt (EU-Discs, r11c, Händler = Ganado 0x13 Typ 6 bei 62402 0 -58554, `RE4_TEST_PLACE=free+30:
+  62402,0,-60300,0`, beim Zielen `RE4_PAD_FREE_SCRIPT=R@200-1200/1`): seine Augen sind zwei additive Effekt-Sprites
+  (Blend 0x22d, je etwa 4×5 Pixel, `owner … life 000004a5`) und zählten als Lichtquellen. Fackel, blaues Feuer und
+  die Augen sind alle Effekt-Sprites derselben Nummer; unterscheiden lässt sich nur, woran ein Effekt hängt.
+  **Regel (Wunsch des Projektinhabers, 09.11.2026: „Lichthöfe nur an Leuchten im Raum und Leuchtpunkten, nicht aber
+  an bewegenden Figuren“):** `runtime/gx_owner.cpp` setzt im Besitzer-Etikett (Patch 0137, Wort 2) das Bit
+  `RE4_GX_OWNER_FIGURE` (0x100), wenn das Objekt eine Figur ist oder ein Effekt an einer hängt (`cEsp::m_pMod` oder
+  `parent` in einem Werk von `EmMgr` mit Kennung unter 0x40: Leon, Ashley, Luis, Ganados samt Händler, Tiere,
+  Bosse, Fahrzeuge; ab 0x40 Requisiten wie Tür, Fass, Fackel 0x47, die ihre Lichter behalten; dazu `pPL`, `pSUB`).
+  `GxCore::FlareNote` nimmt solche Zeichnungen nicht als Quelle (GLES und Vulkan, gemeinsamer Code); Testschalter
+  `RE4_GX_FLARE_FIGURES=1` wie vorher. Das Lichthof-Protokoll nennt jetzt auch das Besitzer-Etikett jeder Quelle.
+  Ältere Aufnahmen (ohne das Bit) zeichnen wie bisher. Folge: auch eine Fackel in der Hand eines Gegners hat keinen
+  Lichthof mehr (sie bewegt sich mit der Figur). **Geprüft am PC (neuer Kern, dieselben Aufnahmen mit und ohne
+  Regel):** Dorf r101, Händlerladen r10E, Burg r204, Hütte r11c (je 24 Bilder) und zwei Stellungen vor der Hütte
+  (je 40 Bilder): **0 Bilder anders** (echte Leuchten unverändert); Zielen auf den Händler: 25 von 40 Bildern anders
+  (je 370–1160 Pixel, sein Lichthof weg). Lichtquellen in r11c 82 → 34 (Leon, Ashley, Händler).
 - **Sichtweite (Wunsch 13A, Patch 0223):** aus dem OUYA-Zweig (Patch 0900, `runtime/view_distance.cpp`) übernommen
   und erweitert. Leistung → Potato-Modus, dritte Zeile: „Sichtweite · Normal / Mittel / Kurz“ (100 / 75 / 50 % des
   Nebels des Raums; Kurz = die Einstellung der OUYA), jeder Druck schaltet weiter, gelb bei Normal und Mittel, aus bei

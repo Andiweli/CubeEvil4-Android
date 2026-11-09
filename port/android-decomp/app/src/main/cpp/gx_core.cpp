@@ -179,6 +179,8 @@ std::uint64_t GxCore::OwnerKey(const std::uint32_t *p) {
 void GxCore::SetOwner(const std::uint32_t *p) {
   ownerBase = OwnerKey(p);
   ownerLife = p[3];
+  for (int i = 0; i < 4; i++)
+    ownerWords[i] = p[i];
   ownerDraws = 0;
 }
 
@@ -918,6 +920,13 @@ void GxCore::FlareNote(const Re4GxDraw &d, const Re4GxChunk &chunk, std::uint32_
     return;
   if (d.vertexCount == 0 || d.vertexCount > 512 || d.stride < 12)
     return;
+  // nothing on a figure (wish of the project owner, 09.11.2026: halos only at the room's lights and glowing points,
+  // never on a figure that moves): a draw of a figure or of a particle attached to one (the merchant's glowing eyes
+  // in r11c, an enemy's torch); the core marks them in the owner tag (runtime/gx_owner.cpp)
+  // (tests: RE4_GX_FLARE_FIGURES=1 takes them as before 0.99.6)
+  static const bool figures = std::getenv("RE4_GX_FLARE_FIGURES") && *std::getenv("RE4_GX_FLARE_FIGURES") == '1';
+  if (!figures && ownerWords[2] != 0xFF && (ownerWords[2] & RE4_GX_OWNER_FIGURE))
+    return;
   // lines and points are no light (the laser sight's beam is a GX line, its dot elsewhere)
   if ((d.primitive & 0xFF) == RE4_GX_LINES || (d.primitive & 0xFF) == RE4_GX_POINTS)
     return;
@@ -936,6 +945,8 @@ void GxCore::FlareNote(const Re4GxDraw &d, const Re4GxChunk &chunk, std::uint32_
   f.layout = d.layout;
   f.blend = c;
   f.tevc = bp[0xC0];
+  for (int i = 0; i < 4; i++)
+    f.owner[i] = ownerWords[i];
   float zSum = 0.0f;
   unsigned counted = 0;
   const unsigned step = d.vertexCount > 64 ? d.vertexCount / 64 : 1;
@@ -1116,8 +1127,9 @@ void GxCore::FlareTrack() {
           merged.size(), used);
     for (const FlareCand &m : merged)
       GXLOG("lens flares:   source (%.0f %.0f)-(%.0f %.0f) depth %.5f, %d draws, %d with normals, up to %u vertices, "
-            "z %06x blend %06x tev %06x layout %08x", m.x0, m.y0, m.x1, m.y1, m.z, m.draws, m.normals, m.verts,
-            m.zmode & 0xFFFFFF, m.blend & 0xFFFFFF, m.tevc & 0xFFFFFF, m.layout);
+            "z %06x blend %06x tev %06x layout %08x, owner %08x %08x table %u life %08x", m.x0, m.y0, m.x1, m.y1, m.z,
+            m.draws, m.normals, m.verts, m.zmode & 0xFFFFFF, m.blend & 0xFFFFFF, m.tevc & 0xFFFFFF, m.layout, m.owner[0],
+            m.owner[1], m.owner[2], m.owner[3]);
   }
   flarePictures++;
 }
@@ -1371,6 +1383,9 @@ void GxCore::Run(const Re4GxChunk &chunk) {
   m.RunState();
   m.ownerBase = 0;
   m.ownerLife = ~0u;
+  m.ownerWords[0] = m.ownerWords[1] = 0;
+  m.ownerWords[2] = 0xFF;
+  m.ownerWords[3] = ~0u;
   m.Split(GxStats::kSplitState);
   // lens flares: after the scene's last 3D draw (FlareScan); its light sources noted on the way (FlareNote)
   // none on a menu screen of the game (RE4_GX_CHUNK_STILL: the option screen, the retry / load menu, sub screens,

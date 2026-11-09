@@ -327,6 +327,7 @@ struct GxCore {
   // word, how many of its draws came; the draw's own key (object and n-th draw) while it is drawn
   std::uint64_t ownerBase = 0, curOwner = 0;
   std::uint32_t ownerLife = ~0u, ownerDraws = 0, curLife = ~0u;
+  std::uint32_t ownerWords[4] = {0, 0, 0xFF, ~0u};  // the owner tag as sent (the lens flares' log and test)
   std::unordered_map<std::uint64_t, std::uint32_t> recByOwner;
   // draws per object (ownerBase): of the chunk noted (recOwnerDraws, filled while recording) and of the
   // next one (nextOwnerDraws, counted ahead by Interpolate). An object that draws more or fewer quads
@@ -541,6 +542,7 @@ struct GxCore {
     unsigned tev = 0;         // (the log) the TEV stages of the last draw
     std::uint32_t zmode = 0, blend = 0, tevc = 0;  // (the log) BP 0x40, 0x41, the TEV colour of the last draw
     std::uint32_t layout = 0;
+    std::uint32_t owner[4] = {0, 0, 0xFF, ~0u};  // (the log) the owner tag of the last draw
   };
   std::vector<FlareCand> flareCands;
   struct FlareSlot {
