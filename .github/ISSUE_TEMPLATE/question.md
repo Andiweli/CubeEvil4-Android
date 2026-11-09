@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 **Question**
-<!-- enter your question here -->
+Enter your question here
 
 **Additional information**
-<!-- what else do you want to say -->
+What else do you want to say?
