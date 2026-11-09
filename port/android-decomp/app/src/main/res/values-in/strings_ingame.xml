@@ -28,6 +28,9 @@
     <string name="ingame_perf_section">Performa</string>
     <string name="ingame_minimap">Peta mini</string>
     <string name="ingame_flares">Pantulan lensa (lens flare)</string>
+    <string name="ingame_flares_lens">Lens flare</string>
+    <string name="ingame_flares_both">Halo + lens flare</string>
+    <string name="ingame_flares_help">Lens flare: cincin berwarna samar melintasi gambar dari cahaya paling terang, seperti pada lensa kamera. Halo + lens flare: ditambah cahaya lembut dengan bintang halus pada lilin, obor, dan lampu.</string>
     <string name="ingame_dof">Kedalaman bidang (depth of field)</string>
     <string name="ingame_fps_display">Tampilan FPS</string>
     <string name="ingame_fps_bottom_left">Kiri bawah</string>
@@ -48,7 +51,12 @@
     <string name="ingame_particles_less">Sedikit</string>
     <string name="ingame_particles_none">Tidak ada</string>
     <string name="ingame_potato_shadows">Bayangan &amp; cahaya</string>
+    <string name="ingame_potato_view">Jarak pandang</string>
+    <string name="ingame_view_normal">Normal</string>
+    <string name="ingame_view_medium">Sedang</string>
+    <string name="ingame_view_short">Pendek</string>
     <string name="ingame_potato_help">Efek cuaca: kabut tebal, hujan, percikan air. Efek khusus: uap, getaran udara panas, air. Efek partikel: darah, debu, asap, percikan, bunga api, dan api; Sedikit menggambar separuhnya, Tidak ada menghapus semuanya kecuali api dan ledakan, yang tetap separuh sebagai peringatan. Bayangan &amp; cahaya: nonaktif menghapus bayangan (juga dalam adegan cerita), pendar cahaya, dan berkas cahaya; pencahayaan ruangan tetap sama. Setiap pengaturan mengurangi beban grafis di perangkat yang lebih lemah; titik kena tembak, petunjuk, laser, dan semua efek dalam adegan cerita tetap ada.</string>
+    <string name="ingame_view_help">Jarak pandang: Sedang dan Pendek mendekatkan kabut jauh, dan yang ada di baliknya tidak digambar. Ini menghemat kerja di luar ruangan (Pendek sekitar separuh pemandangan jauh). Ruangan tanpa kabut jauh tetap seperti semula.</string>
     <string name="ingame_resolution_line">Resolusi: %1$d × %2$d piksel (tingkat %3$s) · layar %4$d × %5$d · berlaku saat menu ditutup. Tingkat yang lebih tinggi butuh daya lebih besar.</string>
     <string name="ingame_resolution_line_auto">Resolusi: %1$d × %2$d piksel (tingkat %3$s, Dinamis) · layar %4$d × %5$d · berlaku saat menu ditutup. Dinamis turun satu tingkat selama GPU tidak sanggup mengikuti.</string>
 

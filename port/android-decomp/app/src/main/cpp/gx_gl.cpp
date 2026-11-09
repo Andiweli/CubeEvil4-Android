@@ -2055,7 +2055,7 @@ struct GlRenderer final : GxCore {
     glUniform4fv(flareSlotLoc, kFlareSlots, &slots[0][0]);
     glUniform1fv(flareGhostLoc, kFlareSlots, ghosts);
     glUniform1fv(flareCrowdLoc, kFlareSlots, crowds);
-    glUniform4f(flareSizeLoc, static_cast<float>(fw), static_cast<float>(fh), 0.0f, 0.5f);
+    glUniform4f(flareSizeLoc, static_cast<float>(fw), static_cast<float>(fh), flareHalos ? 0.0f : 1.0f, 0.5f);
     glDrawArrays(GL_TRIANGLES, 0, 36 * kFlareSlots);
     glDisable(GL_BLEND);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -2841,6 +2841,8 @@ void GlRenderer::ApplyTestEnvironment() {
   psxOn = psx && *psx == '1';
   const char *flares = getenv("RE4_GX_FLARES");  // the lens flares from the start (gx_chunk_render, tests)
   flaresOn = flares && *flares == '1';
+  const char *halos = getenv("RE4_GX_FLARE_HALOS");  // 0: the lens flares without the halos (gx_chunk_render, tests)
+  flareHalos = !(halos && *halos == '0');
   if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
     const long n = std::strtol(limit, nullptr, 10);
     if (n >= 4) {

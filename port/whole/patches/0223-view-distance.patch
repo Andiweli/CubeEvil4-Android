@@ -1,0 +1,67 @@
+# Port patch, a wish of the project owner (09.11.2026, from the OUYA branch's patch 0900; port/docs/whole-program-status.md,
+# version 0.99.6, session B): the app menu's "View distance" (PERFORMANCE, Potato mode: Normal, Medium, Short).
+# cLightMgr::setFog and hokanMove give GX the fog runtime/view_distance.cpp returns for the room's LightEnv.Fog (start and
+# end times the menu's factor, the end not below 6 m; rooms without fog, type 0, unchanged) and set View's far plane from
+# that end, as the game does from the room's: what lies beyond the nearer fog is not drawn (scenery, figures, effects).
+# LightEnv.Fog itself is not changed (the interpolation between two cuts reads it every frame). A new choice in the menu
+# takes effect at once: hokanMove, which the light manager runs every frame, sets the fog again when the factor changed
+# and no interpolation runs (one that runs sets it itself). At "Normal" (factor 1): exactly as the game.
+--- a/src/game/light.cpp
++++ b/src/game/light.cpp
+@@ -17,6 +17,9 @@
+ #include "pendulum.h"
+ #include "trans.h"
+ 
++extern "C" void re4_view_distance(int type, float* start, float* end); /* port: runtime/view_distance.cpp (patch 0223) */
++extern "C" int re4_view_distance_changed(void);                       /* port: runtime/view_distance.cpp (patch 0223) */
++
+ // game/trans.cpp texture LOD / TEV scale settings
+ // trans.cpp; uninitialised there, so not in trans.h (a header extern reorders trans.cpp's .bss / .sbss)
+ extern u8 min_lod;
+@@ -417,6 +420,10 @@ int cLightMgr::move()
+ // far plane (fog Type 0 = ZFAR, else fog end scaled by far_play_ratio).
+ void cLightMgr::hokanMove()
+ {
++    /* port (patch 0223): a new view distance from the app menu takes effect in this frame */
++    if (m_Hokan == 0 && re4_view_distance_changed()) {
++        setFog();
++    }
+     if (m_Hokan != 0) {
+         FOG* fog = &LightEnv.Fog;
+ 
+@@ -427,11 +434,15 @@ void cLightMgr::hokanMove()
+         fog->Color.g = (u8) (((f32) fog->Color.g * m_Hokan + (f32) fogNew.Color.g) / (m_Hokan + 1));
+         fog->Color.b = (u8) (((f32) fog->Color.b * m_Hokan + (f32) fogNew.Color.b) / (m_Hokan + 1));
+         fog->Color.a = (u8) (((f32) fog->Color.a * m_Hokan + (f32) fogNew.Color.a) / (m_Hokan + 1));
+-        GXSetFog(fog->Type, fog->Start, fog->End, ZNEAR, ZFAR, fog->Color);
++        /* port (patch 0223): the app menu's view distance, the fog the GPU gets and the far plane */
++        f32 fogStart = fog->Start;
++        f32 fogEnd = fog->End;
++        re4_view_distance(fog->Type, &fogStart, &fogEnd);
++        GXSetFog(fog->Type, fogStart, fogEnd, ZNEAR, ZFAR, fog->Color);
+         if (fog->Type == 0) {
+             View.setFarPlane(ZFAR);
+         } else {
+-            View.setFarPlane(fog->End * (1.0f - LightEnv.far_play_ratio) + 1.0f);
++            View.setFarPlane(fogEnd * (1.0f - LightEnv.far_play_ratio) + 1.0f);
+         }
+     }
+ }
+@@ -856,11 +867,15 @@ void cLightMgr::setFog()
+         black.r = black.g = black.b = black.a = c;
+         GXSetFog(0, 0.0f, 0.0f, ZNEAR, ZFAR, black);
+     } else {
+-        GXSetFog(fog->Type, fog->Start, fog->End, ZNEAR, ZFAR, fog->Color);
++        /* port (patch 0223): the app menu's view distance, the fog the GPU gets and the far plane */
++        f32 fogStart = fog->Start;
++        f32 fogEnd = fog->End;
++        re4_view_distance(fog->Type, &fogStart, &fogEnd);
++        GXSetFog(fog->Type, fogStart, fogEnd, ZNEAR, ZFAR, fog->Color);
+         if (fog->Type == 0) {
+             View.setFarPlane(ZFAR);
+         } else {
+-            View.setFarPlane(fog->End * (1.0f - LightEnv.far_play_ratio) + 1.0f);
++            View.setFarPlane(fogEnd * (1.0f - LightEnv.far_play_ratio) + 1.0f);
+         }
+     }
+ }

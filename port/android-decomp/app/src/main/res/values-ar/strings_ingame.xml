@@ -31,6 +31,9 @@
     <string name="ingame_perf_section">الأداء</string>
     <string name="ingame_minimap">خريطة مصغرة</string>
     <string name="ingame_flares">وهج العدسة</string>
+    <string name="ingame_flares_lens">وهج العدسة</string>
+    <string name="ingame_flares_both">هالات + وهج العدسة</string>
+    <string name="ingame_flares_help">وهج العدسة: حلقات ملونة خافتة تعبر الصورة من أسطع الأضواء، كما تصنعها عدسة الكاميرا. هالات + وهج العدسة: وأيضًا توهج ناعم مع نجمة دقيقة عند الشموع والمشاعل والمصابيح.</string>
     <string name="ingame_dof">عمق الميدان</string>
     <string name="ingame_fps_display">عرض FPS</string>
     <string name="ingame_fps_bottom_left">أسفل اليسار</string>
@@ -51,7 +54,12 @@
     <string name="ingame_particles_less">أقل</string>
     <string name="ingame_particles_none">لا شيء</string>
     <string name="ingame_potato_shadows">الظلال والضوء</string>
+    <string name="ingame_potato_view">مدى الرؤية</string>
+    <string name="ingame_view_normal">عادية</string>
+    <string name="ingame_view_medium">متوسطة</string>
+    <string name="ingame_view_short">قصيرة</string>
     <string name="ingame_potato_help">تأثيرات الطقس: سحب الضباب والمطر ورذاذ الماء. التأثيرات الخاصة: البخار وتموج الحرارة والماء. تأثيرات الجسيمات: الدم والغبار والدخان والرذاذ والشرر والنار؛ «أقل» يرسم نصفها، و«لا شيء» يزيلها كلها ما عدا النار والانفجارات التي تبقى بالنصف تحذيرًا. الظلال والضوء: الإيقاف يزيل الظلال (وفي المشاهد السينمائية أيضًا) وتوهج الأضواء وأشعة الضوء؛ وتبقى إضاءة الغرف كما هي. كل إعداد يخفف عبء الرسوميات على الأجهزة الأضعف؛ يبقى موضع الإصابة والتلميحات والليزر وكل التأثيرات في المشاهد السينمائية.</string>
+    <string name="ingame_view_help">مدى الرؤية: «متوسطة» و«قصيرة» تقرّبان ضباب المسافة، ولا يُرسم ما وراءه. هذا يوفّر العمل في الأماكن المفتوحة («قصيرة» نحو نصف المشهد البعيد). الغرف التي بلا ضباب مسافة تبقى كما هي.</string>
     <string name="ingame_resolution_line">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$s) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. المستويات الأعلى تتطلب أداءً أعلى.</string>
     <string name="ingame_resolution_line_auto">الدقة: %1$d&#x200E; × &#x200E;%2$d بكسل (المستوى %3$s، ديناميكي) · الشاشة %4$d&#x200E; × &#x200E;%5$d · تُطبَّق عند إغلاق القائمة. يخفض الوضع الديناميكي المستوى درجة ما دام معالج الرسوميات لا يواكب.</string>
 

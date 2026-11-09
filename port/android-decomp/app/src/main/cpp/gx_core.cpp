@@ -1232,6 +1232,7 @@ void GxCore::SetFxaa(bool on) { this->fxaaOn = on; }
 void GxCore::SetSharpen(int level) { this->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 void GxCore::SetPsx(bool on) { this->psxOn = on; }
 void GxCore::SetFlares(bool on) { this->flaresOn = on; }
+void GxCore::SetFlareHalos(bool on) { this->flareHalos = on; }
 void GxCore::SetDofStrong(bool on) { this->dofStrong = on; }
 void GxCore::SetTvFilter(bool on) { this->tvFilter = on; }
 void GxCore::SetWiden(float factor) {

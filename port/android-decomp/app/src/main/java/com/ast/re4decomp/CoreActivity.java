@@ -407,7 +407,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setPsx(g.getBoolean("psx", false));
-      CoreBridge.setFlares(g.getBoolean("flares", false));
+      CoreBridge.setFlares(CoreBridge.flareMode(g));
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
       CoreBridge.setMinimap(g.getBoolean("minimap", false));
       CoreBridge.setLaserColour(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getInt(LASER_COLOUR, 0));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));

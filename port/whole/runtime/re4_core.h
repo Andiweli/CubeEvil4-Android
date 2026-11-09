@@ -319,6 +319,10 @@ int re4_core_room_outline(float* out, int maxEdges, unsigned* info);
 /* The laser sight's colour (cores since 04.11.2026, patch 0198, runtime/laser_colour.cpp): 0 the game's red,
  * 1 blue, 2 green, 3 yellow; the beam and the dot. Any thread. */
 void re4_core_set_laser_colour(int colour);
+/* The app menu's "View distance" (cores since 09.11.2026, patch 0223, runtime/view_distance.cpp): the distance fog and
+ * the far plane of the view at `percent` of the room's (20..100; the menu: 100 Normal, 75 Medium, 50 Short); what lies
+ * beyond is not drawn. Rooms without fog keep their view. Takes effect at the next game frame. Any thread. */
+void re4_core_set_view_distance(int percent);
 /* The picture format "Native" (cores since 07.11.2026, patch 0214, runtime/picture.cpp): the aspect of the game's 3D
  * while the player plays, x 10000 (the app: 4/3 x the screen's aspect / (16/9), for a screen wider than 16:9);
  * 0 (or up to 13334) the game's 4:3. The pictures drawn so carry RE4_GX_CHUNK_WIDE. Any thread. */

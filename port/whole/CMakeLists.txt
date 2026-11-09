@@ -285,7 +285,7 @@ add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge
     runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp runtime/cheats.cpp
     runtime/gx_owner.cpp runtime/potato.cpp runtime/aim_options.cpp
     runtime/sound_volume.cpp runtime/minimap.cpp runtime/laser_colour.cpp runtime/benchmark.cpp
-    runtime/glow_check.cpp)
+    runtime/glow_check.cpp runtime/view_distance.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")

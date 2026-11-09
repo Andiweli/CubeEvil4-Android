@@ -27,6 +27,9 @@
     <string name="ingame_perf_section">Prestazioni</string>
     <string name="ingame_minimap">Minimappa</string>
     <string name="ingame_flares">Riflessi lente</string>
+    <string name="ingame_flares_lens">Riflessi lente</string>
+    <string name="ingame_flares_both">Aloni + riflessi</string>
+    <string name="ingame_flares_help">Riflessi lente: tenui anelli colorati che attraversano l\'immagine dalle luci più forti, come in un obiettivo fotografico. Aloni + riflessi: in più un bagliore morbido con una sottile stella su candele, torce e lampade.</string>
     <string name="ingame_dof">Profondità di campo</string>
     <string name="ingame_fps_display">Mostra gli FPS</string>
     <string name="ingame_fps_bottom_left">In basso a sinistra</string>
@@ -47,7 +50,12 @@
     <string name="ingame_particles_less">Ridotti</string>
     <string name="ingame_particles_none">Nessuno</string>
     <string name="ingame_potato_shadows">Ombre e luce</string>
+    <string name="ingame_potato_view">Distanza visiva</string>
+    <string name="ingame_view_normal">Normale</string>
+    <string name="ingame_view_medium">Media</string>
+    <string name="ingame_view_short">Corta</string>
     <string name="ingame_potato_help">Effetti meteo: banchi di nebbia, pioggia, schizzi d\'acqua. Effetti speciali: vapore, distorsione da calore, acqua. Effetti particellari: sangue, polvere, fumo, schizzi, scintille e fuoco; Ridotti ne disegna la metà, Nessuno li toglie tutti tranne fuoco ed esplosioni, che restano a metà come avviso. Ombre e luce: disattivato toglie ombre (anche nei filmati), aloni e raggi di luce; le stanze mantengono la loro illuminazione. Ogni impostazione riduce il lavoro grafico sui dispositivi meno potenti; il punto colpito, le indicazioni, il laser e tutti gli effetti dei filmati restano.</string>
+    <string name="ingame_view_help">Distanza visiva: Media e Corta avvicinano la nebbia in lontananza, e ciò che sta oltre non viene disegnato. Così si risparmia lavoro all\'aperto (Corta circa metà del paesaggio lontano). Le stanze senza nebbia in lontananza restano come sono.</string>
     <string name="ingame_resolution_line">Risoluzione: %1$d × %2$d pixel (livello %3$s) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
     <string name="ingame_resolution_line_auto">Risoluzione: %1$d × %2$d pixel (livello %3$s, Dinamica) · schermo %4$d × %5$d · si applica alla chiusura del menu. Dinamica scende di un livello finché la GPU non tiene il passo.</string>
 

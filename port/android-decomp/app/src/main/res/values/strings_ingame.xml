@@ -36,6 +36,9 @@
     <string name="ingame_perf_section">Performance</string>
     <string name="ingame_minimap">Minimap</string>
     <string name="ingame_flares">Lens flares</string>
+    <string name="ingame_flares_lens">Lens flares</string>
+    <string name="ingame_flares_both">Halos + lens flares</string>
+    <string name="ingame_flares_help">Lens flares: faint coloured rings across the picture from the brightest lights, as a camera lens makes them. Halos + lens flares: also a soft glow with a fine star at candles, torches and lamps.</string>
     <string name="ingame_dof">Depth of field</string>
     <string name="ingame_fps_display">FPS display</string>
     <string name="ingame_fps_bottom_left">Bottom left</string>
@@ -56,7 +59,12 @@
     <string name="ingame_particles_less">Less</string>
     <string name="ingame_particles_none">None</string>
     <string name="ingame_potato_shadows">Shadows &amp; light</string>
+    <string name="ingame_potato_view">View distance</string>
+    <string name="ingame_view_normal">Normal</string>
+    <string name="ingame_view_medium">Medium</string>
+    <string name="ingame_view_short">Short</string>
     <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, heat shimmer, water. Particle effects: blood, dust, smoke, splashes, sparks and fire; Less draws half of them, None leaves out all but fire and explosions, which stay at half as a warning. Shadows &amp; light: off leaves out shadows (also in cut scenes), lens glows and light shafts; the rooms keep their lighting. Each saves graphics work on weaker devices; the spot where a shot hits, hints, the laser and every effect in cut scenes stay.</string>
+    <string name="ingame_view_help">View distance: Medium and Short bring the distance fog nearer, and what lies beyond it is not drawn. That saves work outdoors (Short about half of the far scenery). Rooms without distance fog stay as they are.</string>
     <string name="ingame_resolution_line">Resolution: %1$d × %2$d pixels (level %3$s) · screen %4$d × %5$d · applies when the menu closes. Higher levels need more power.</string>
     <string name="ingame_resolution_line_auto">Resolution: %1$d × %2$d pixels (level %3$s, Dynamic) · screen %4$d × %5$d · applies when the menu closes. Dynamic goes a level lower while the GPU cannot keep up.</string>
 

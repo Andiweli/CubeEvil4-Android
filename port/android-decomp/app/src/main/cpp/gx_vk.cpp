@@ -2104,7 +2104,7 @@ struct VkRenderer final : GxCore {
     PutArray(pf, flareFx, "slot", slots, sizeof(slots[0]), kFlareSlots);
     PutArray(pf, flareFx, "ghost", ghosts, sizeof(float), kFlareSlots);
     PutArray(pf, flareFx, "crowd", crowds, sizeof(float), kFlareSlots);
-    const float flareSize[4] = {static_cast<float>(fw), static_cast<float>(fh), 0.0f, 0.5f};
+    const float flareSize[4] = {static_cast<float>(fw), static_cast<float>(fh), flareHalos ? 0.0f : 1.0f, 0.5f};
     Put(pf, flareFx, "size", flareSize);
     const VkImageView vis = flareVis[flareVisCur].view;
     BindFixed(flareFx, &vis, &nearestClamp, 1, pf);
@@ -3899,6 +3899,8 @@ struct VkRenderer final : GxCore {
     psxOn = psx && *psx == '1';
     const char *flares = getenv("RE4_GX_FLARES");
     flaresOn = flares && *flares == '1';
+    const char *halos = getenv("RE4_GX_FLARE_HALOS");
+    flareHalos = !(halos && *halos == '0');
   }
   void Release() override {
     StopAhead();  // (before anything it uses goes)

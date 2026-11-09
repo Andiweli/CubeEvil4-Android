@@ -48,6 +48,7 @@ void GxRenderer::SetSharpen(int level) { impl_->SetSharpen(level); }
 void GxRenderer::SetTvFilter(bool on) { impl_->SetTvFilter(on); }
 void GxRenderer::SetPsx(bool on) { impl_->SetPsx(on); }
 void GxRenderer::SetFlares(bool on) { impl_->SetFlares(on); }
+void GxRenderer::SetFlareHalos(bool on) { impl_->SetFlareHalos(on); }
 void GxRenderer::SetDofStrong(bool on) { impl_->SetDofStrong(on); }
 void GxRenderer::SetShownRows(int top, int bottom) { impl_->SetShownRows(top, bottom); }
 void GxRenderer::SetWiden(float factor) { impl_->SetWiden(factor); }

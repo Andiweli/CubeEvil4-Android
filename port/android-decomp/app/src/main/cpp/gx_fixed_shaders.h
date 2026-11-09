@@ -314,7 +314,7 @@ constexpr char kFlareVisFs[] =
 
 // per slot six quads (36 vertices): 0 the glow and starburst at the light, 1..5 its ghosts on the line from the
 // light through the picture's centre; nothing for a dark slot. slot.z: the radius in EFB texels, ghost[i]: the
-// slot's share of the ghosts.
+// slot's share of the ghosts; size.z 1: the ghosts only, no glow and star at the light ("Lens flares", 0.99.6).
 constexpr char kFlareVs[] =
     "#version 300 es\nprecision highp float;\n"
     "uniform sampler2D vis;\nuniform vec4 slot[32];\nuniform float ghost[32];\nuniform float crowd[32];\n"
@@ -338,6 +338,7 @@ constexpr char kFlareVs[] =
     "  if (k == 0) {\n"
     "    centre = s.xy;\n"
     "    rad = min(s.z, 10.0 * size.x / 640.0) * 6.0;\n"
+    "    a *= size.z > 0.5 ? 0.0 : 1.0;\n"
     "    vCol = vec4(v.rgb, a * crowd[i] * 0.9);\n"
     "    vKind = 0;\n"
     "  } else {\n"

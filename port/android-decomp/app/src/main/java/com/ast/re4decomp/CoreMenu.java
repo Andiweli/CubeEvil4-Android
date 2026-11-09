@@ -704,10 +704,18 @@ final class CoreMenu extends Dialog {
       CoreBridge.setDof(next);
     });
     valueLabel(dof, R.string.ingame_dof, dofLabels[dofLevel(graphics)], dofLevel(graphics) != 0);
-    // a faint glow at torches, candles and fires (wish of the project owner, 04.11.2026; off by default)
-    toggle(buttonsRow(effects), R.string.ingame_flares, graphics.getBoolean("flares", false), on -> {
-      graphics.edit().putBoolean("flares", on).apply(); CoreBridge.setFlares(on);
+    // a faint glow at torches, candles and fires (wish of the project owner, 04.11.2026; off by default); since 0.99.6
+    // each press moves it on (wish of the project owner, 09.11.2026): off, lens flares (the coloured rings only), halos +
+    // lens flares (the glow and star at the lights too, as the switch's "on" before)
+    final int[] flareLabels = {R.string.ingame_off, R.string.ingame_flares_lens, R.string.ingame_flares_both};
+    Button flares = cellAction(buttonsRow(effects), "", v -> {
+      int next = (CoreBridge.flareMode(graphics) + 1) % 3;
+      graphics.edit().putInt(CoreBridge.FLARE_MODE, next).putBoolean("flares", next != 0).apply();
+      valueLabel((Button) v, R.string.ingame_flares, flareLabels[next], next != 0);
+      CoreBridge.setFlares(next);
     });
+    valueLabel(flares, R.string.ingame_flares, flareLabels[CoreBridge.flareMode(graphics)], CoreBridge.flareMode(graphics) != 0);
+    indentedHelp(s(R.string.ingame_flares_help));
     // the picture filters one under the other, one general line under both (wish of the project owner, 02.11.2026)
     LinearLayout filters = labelledOptions(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
@@ -1303,7 +1311,21 @@ final class CoreMenu extends Dialog {
     toggle(morePotato, R.string.ingame_potato_shadows, graphics.getBoolean("shadowsLight", true), on -> {
       graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
     });
+    // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance" in three steps, each
+    // press moves it on (Normal, Medium, Short; off only at Short), the distance fog nearer and nothing drawn beyond it
+    // (patch 0223, in the core: OpenGL ES and Vulkan alike)
+    final int[] viewLabels = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short};
+    MenuLayout.Buttons lastPotato = buttonsRow(body);
+    Button view = cellAction(lastPotato, "", v -> {
+      int next = (CoreBridge.viewDistance(graphics) + 1) % 3;
+      graphics.edit().putInt(CoreBridge.VIEW_DISTANCE, next).apply();
+      valueLabel((Button) v, R.string.ingame_potato_view, viewLabels[next], next != 2);
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[next]);
+    });
+    valueLabel(view, R.string.ingame_potato_view, viewLabels[CoreBridge.viewDistance(graphics)],
+        CoreBridge.viewDistance(graphics) != 2);
     help(R.string.ingame_potato_help);
+    help(R.string.ingame_view_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
     // without a row label in two columns, frame skip | 60 FPS over merged draws | vertex ring, the explanations
     // over the whole width

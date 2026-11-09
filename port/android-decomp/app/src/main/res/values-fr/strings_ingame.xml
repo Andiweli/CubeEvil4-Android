@@ -29,6 +29,9 @@
     <string name="ingame_perf_section">Performances</string>
     <string name="ingame_minimap">Mini-carte</string>
     <string name="ingame_flares">Halos lumineux</string>
+    <string name="ingame_flares_lens">Reflets d\'objectif</string>
+    <string name="ingame_flares_both">Halos + reflets</string>
+    <string name="ingame_flares_help">Reflets d\'objectif\u00A0: de légers anneaux colorés qui traversent l\'image depuis les lumières les plus vives, comme avec un objectif d\'appareil photo. Halos + reflets\u00A0: en plus, une lueur douce avec une fine étoile autour des bougies, torches et lampes.</string>
     <string name="ingame_dof">Profondeur de champ</string>
     <string name="ingame_fps_display">Afficher les FPS</string>
     <string name="ingame_fps_bottom_left">En bas à gauche</string>
@@ -49,7 +52,12 @@
     <string name="ingame_particles_less">Réduits</string>
     <string name="ingame_particles_none">Aucun</string>
     <string name="ingame_potato_shadows">Ombres et lumière</string>
+    <string name="ingame_potato_view">Distance de vue</string>
+    <string name="ingame_view_normal">Normale</string>
+    <string name="ingame_view_medium">Moyenne</string>
+    <string name="ingame_view_short">Courte</string>
     <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Effets de particules : sang, poussière, fumée, éclaboussures, étincelles et feu ; Réduits en dessine la moitié, Aucun les retire tous sauf le feu et les explosions, qui restent à moitié comme avertissement. Ombres et lumière : désactivé retire les ombres (aussi dans les cinématiques), les halos et les rayons de lumière ; les pièces gardent leur éclairage. Chaque réglage allège le travail graphique sur les appareils modestes ; le point d\'impact, les indications, le laser et tous les effets des cinématiques restent.</string>
+    <string name="ingame_view_help">Distance de vue\u00A0: Moyenne et Courte rapprochent le brouillard lointain, et ce qui se trouve derrière n\'est pas dessiné. Cela allège le travail en extérieur (Courte, environ la moitié du décor lointain). Les pièces sans brouillard lointain restent inchangées.</string>
     <string name="ingame_resolution_line">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s) · écran %4$d × %5$d · s’applique à la fermeture du menu. Les niveaux plus élevés demandent plus de puissance.</string>
     <string name="ingame_resolution_line_auto">Résolution\u00A0: %1$d × %2$d pixels (niveau %3$s, Dynamique) · écran %4$d × %5$d · s’applique à la fermeture du menu. Dynamique descend d’un niveau tant que le GPU ne suit pas.</string>
 

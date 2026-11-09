@@ -27,6 +27,9 @@
     <string name="ingame_perf_section">Leistung</string>
     <string name="ingame_minimap">Minikarte</string>
     <string name="ingame_flares">Lichthöfe (Lens Flares)</string>
+    <string name="ingame_flares_lens">Lens Flares</string>
+    <string name="ingame_flares_both">Lichthöfe + Lens Flares</string>
+    <string name="ingame_flares_help">Lens Flares: schwache farbige Ringe quer durchs Bild, die von den hellsten Lichtern ausgehen, wie bei einem Kameraobjektiv. Lichthöfe + Lens Flares: zusätzlich ein weicher Schein mit feinem Stern an Kerzen, Fackeln und Lampen.</string>
     <string name="ingame_dof">Tiefenschärfe</string>
     <string name="ingame_fps_display">FPS-Anzeige</string>
     <string name="ingame_fps_bottom_left">Unten links</string>
@@ -47,7 +50,12 @@
     <string name="ingame_particles_less">Weniger</string>
     <string name="ingame_particles_none">Keine</string>
     <string name="ingame_potato_shadows">Schatten &amp; Licht</string>
+    <string name="ingame_potato_view">Sichtweite</string>
+    <string name="ingame_view_normal">Normal</string>
+    <string name="ingame_view_medium">Mittel</string>
+    <string name="ingame_view_short">Kurz</string>
     <string name="ingame_potato_help">Wettereffekte: Nebelschwaden, Regen, Wasserspritzer. Spezialeffekte: Dampf, Hitzeflimmern, Wasser. Partikeleffekte: Blut, Staub, Rauch, Spritzer, Funken und Feuer; „Weniger“ zeichnet die Hälfte davon, „Keine“ lässt alles weg außer Feuer und Explosionen, die als Warnung zur Hälfte bleiben. Schatten &amp; Licht: Aus lässt Schatten (auch in Zwischensequenzen), Lichtschein und Lichtstrahlen weg; die Beleuchtung der Räume bleibt. Jede Einstellung spart Grafikleistung auf schwächeren Geräten; die Stelle eines Treffers, Hinweise, der Laser und alle Effekte in Zwischensequenzen bleiben.</string>
+    <string name="ingame_view_help">Sichtweite: Mittel und Kurz holen den Distanznebel näher heran, und was dahinter liegt, wird nicht gezeichnet. Das spart im Freien Arbeit (Kurz etwa die Hälfte der fernen Umgebung). Räume ohne Distanznebel bleiben, wie sie sind.</string>
     <string name="ingame_resolution_line">Auflösung: %1$d × %2$d Pixel (Stufe %3$s) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Höhere Stufen brauchen mehr Leistung.</string>
     <string name="ingame_resolution_line_auto">Auflösung: %1$d × %2$d Pixel (Stufe %3$s, Dynamisch) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Dynamisch geht eine Stufe tiefer, solange der Grafikchip nicht mitkommt.</string>
 

@@ -528,6 +528,9 @@ struct GxCore {
   // (their matrices are the blended ones).
   static constexpr int kFlareSlots = 32;
   bool flaresOn = false, flareFailed = false;
+  // the glow and star at each light ("Halos + lens flares", as before 0.99.6); off: only the ghosts ("Lens flares",
+  // wish of the project owner, 09.11.2026): the flare shader's size.z = 1 leaves the slot's first quad out
+  bool flareHalos = true;
   std::uint32_t flareAfter = 0;  // the op offset after the scene's last 3D draw (0: none in this chunk)
   bool flareDone = false;
   struct FlareCand {
@@ -675,6 +678,7 @@ struct GxCore {
   void SetTvFilter(bool on);
   void SetPsx(bool on);
   void SetFlares(bool on);
+  void SetFlareHalos(bool on);
   void SetDofStrong(bool on);
   void SetShownRows(int top, int bottom);
   void SetWiden(float factor);

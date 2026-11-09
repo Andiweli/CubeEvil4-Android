@@ -27,6 +27,9 @@
     <string name="ingame_perf_section">Rendimiento</string>
     <string name="ingame_minimap">Minimapa</string>
     <string name="ingame_flares">Destellos de lente</string>
+    <string name="ingame_flares_lens">Destellos de lente</string>
+    <string name="ingame_flares_both">Halos + destellos</string>
+    <string name="ingame_flares_help">Destellos de lente: tenues anillos de colores que cruzan la imagen desde las luces más brillantes, como los de un objetivo de cámara. Halos + destellos: además, un brillo suave con una estrella fina en velas, antorchas y lámparas.</string>
     <string name="ingame_dof">Profundidad de campo</string>
     <string name="ingame_fps_display">Mostrar FPS</string>
     <string name="ingame_fps_bottom_left">Abajo a la izquierda</string>
@@ -47,7 +50,12 @@
     <string name="ingame_particles_less">Menos</string>
     <string name="ingame_particles_none">Ninguno</string>
     <string name="ingame_potato_shadows">Sombras y luz</string>
+    <string name="ingame_potato_view">Distancia de visión</string>
+    <string name="ingame_view_normal">Normal</string>
+    <string name="ingame_view_medium">Media</string>
+    <string name="ingame_view_short">Corta</string>
     <string name="ingame_potato_help">Efectos climáticos: bancos de niebla, lluvia, salpicaduras de agua. Efectos especiales: vapor, calima, agua. Efectos de partículas: sangre, polvo, humo, salpicaduras, chispas y fuego; Menos dibuja la mitad, Ninguno los quita todos salvo el fuego y las explosiones, que quedan a la mitad como aviso. Sombras y luz: desactivado quita las sombras (también en las escenas), los destellos y los rayos de luz; las salas conservan su iluminación. Cada ajuste ahorra trabajo gráfico en dispositivos menos potentes; el punto del impacto, las pistas, el láser y todos los efectos de las escenas se mantienen.</string>
+    <string name="ingame_view_help">Distancia de visión: Media y Corta acercan la niebla lejana, y lo que queda detrás no se dibuja. Ahorra trabajo al aire libre (Corta, cerca de la mitad del paisaje lejano). Las salas sin niebla lejana quedan igual.</string>
     <string name="ingame_resolution_line">Resolución: %1$d × %2$d píxeles (nivel %3$s) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Los niveles más altos requieren más potencia.</string>
     <string name="ingame_resolution_line_auto">Resolución: %1$d × %2$d píxeles (nivel %3$s, Dinámica) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Dinámica baja un nivel mientras la GPU no da abasto.</string>
 

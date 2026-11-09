@@ -136,6 +136,20 @@ public final class CoreBridge {
     return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2)
         | (particleEffects(g) << 2) | (g.getBoolean("shadowsLight", true) ? 0 : 16);
   }
+  /** The lens flares' step (0.99.6, wish of the project owner, 09.11.2026): 0 off (the default), 1 lens flares, 2 halos +
+   *  lens flares; until 0.99.5 the switch "flares", whose "on" was the halos and the lens flares together. */
+  static final String FLARE_MODE = "flareMode";
+  static int flareMode(android.content.SharedPreferences g) {
+    if (g.contains(FLARE_MODE)) return Math.max(0, Math.min(2, g.getInt(FLARE_MODE, 0)));
+    return g.getBoolean("flares", false) ? 2 : 0;
+  }
+  /** The Potato mode's "View distance" (0.99.6, wish of the project owner, 09.11.2026, from the OUYA branch): 0 Normal
+   *  (the default, the game's), 1 Medium, 2 Short (the OUYA's setting); in percent of the room's view VIEW_PERCENT. */
+  static final String VIEW_DISTANCE = "viewDistance";
+  static final int[] VIEW_PERCENT = {100, 75, 50};
+  static int viewDistance(android.content.SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt(VIEW_DISTANCE, 0)));
+  }
   /** The Potato mode's "Particle effects" (0.99.3): 0 normal (the default), 1 less, 2 none. */
   static int particleEffects(android.content.SharedPreferences g) {
     return Math.max(0, Math.min(2, g.getInt("particleEffects", 0)));
@@ -199,8 +213,11 @@ public final class CoreBridge {
   /** Original TV filter: the game's vertical copy filter on the picture. */
   public static native void setTvFilter(boolean on);
   public static native void setPsx(boolean on);
-  /** Lens flares at the game's lights (the menu, off by default; GxRenderer::SetFlares). */
-  public static native void setFlares(boolean on);
+  /** Lens flares at the game's lights (the menu, off by default; GxRenderer::SetFlares): 0 off, 1 lens flares (the
+   *  ghosts only), 2 halos + lens flares (the glow and star at each light too; 0.99.6). */
+  public static native void setFlares(int mode);
+  /** The Potato mode's "View distance" (0.99.6, patch 0223): percent of the room's distance fog and far plane. */
+  public static native void setViewDistance(int percent);
   /** The minimap: the current room's outline at the bottom left, turning with the player (off by default). */
   public static native void setMinimap(boolean on);
   /** The laser sight's colour (CONTROLS, LASER SIGHT): 0 the game's red, 1 blue, 2 green, 3 yellow. */

@@ -14,6 +14,9 @@
 // leaves the picture before on screen. Any other chunk must start over
 // (RE4_GX_CHUNK_RESET) and gets a fresh renderer.
 //
+// RE4_GX_SERIES=1: dumps of the core up to 4 frames apart (RE4_GX_DUMP_AT="7141,7142,..."), each starting over, run
+// on the same renderer as one series (the lens flares, which fade in over pictures).
+//
 // RE4_GX_INVALIDATE_POISON=1: what the renderer lets the GPU forget (copy targets, the blur and
 // the focus of the autofocus; GPU step b) is painted magenta instead: the pictures must not
 // change (whole_r100_check.sh compares them).
@@ -170,7 +173,13 @@ int main(int argc, char **argv) {
       loaded.chunk.opWords = static_cast<uint32_t>(loaded.ops.size());
     }
     Re4GxChunk chunk = loaded.chunk;
-    const bool follows = renderer && chunk.sequence == lastSequence + 1 && loaded.frame == lastFrame + 1;
+    // RE4_GX_SERIES=1 (09.11.2026): the core's dumps a few frames apart (RE4_GX_DUMP_AT with consecutive frame numbers:
+    // each one starts over with RE4_GX_CHUNK_RESET) run on the same renderer, as the app's chunks do after a dump; what
+    // follows from picture to picture (the lens flares fading in, their slots) is seen then
+    static const bool series = std::getenv("RE4_GX_SERIES") && *std::getenv("RE4_GX_SERIES") == '1';
+    const bool follows = renderer && ((chunk.sequence == lastSequence + 1 && loaded.frame == lastFrame + 1) ||
+                                      (series && (chunk.flags & RE4_GX_CHUNK_RESET) && loaded.frame > lastFrame &&
+                                       loaded.frame - lastFrame <= 4));
     if (!follows) {
       if (!(chunk.flags & RE4_GX_CHUNK_RESET)) {
         std::printf("%s: Folgebild ohne das Bild davor (Bildstück %u), übersprungen\n", Stem(path).c_str(),
