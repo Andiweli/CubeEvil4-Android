@@ -85,6 +85,40 @@ Android 16, nur 90 Hz), 0.99.6-rc, GLES, EU-Discs.
 - **Behoben** mit 0.99.7 (`gci.cpp`, Patch 0225), kein weiterer Code; Releasetext ergänzt.
 - **Nicht geprüft:** Gerät (Galaxy A24).
 
+### 3. Halbautomatisches Gewehr: Zielfernrohr mit dem Stick um 20 Bilder/s (Vulkan, Mali-G52)
+
+Nutzerbericht über den Projektinhaber (09.11.2026): „When using the semi-automatic rifle, if I aim and move the
+joystick, the frame rate drops to around 20 fps. This does not happen when I use the touchscreen.“ Bericht
+`E:\Development\Android\reports\0997-gewehr-zielen-20261109-175836`: Xiaomi 21061119DG (mt6768, Mali-G52 MC2,
+Vulkan-Treiber r26p0), Android 11, 0.99.6-rc, **Vulkan**, fest 1,5×, FXAA, Schärfen 1, Bildauslassen an, r301.
+
+- **Aus dem Bericht:** außerhalb des Zielfernrohrs 43–59 Bilder/s, mit Zielfernrohr insgesamt 33/12/36 Bilder/s
+  (auf die Zeit im Zielfernrohr umgerechnet etwa 12–15). Vulkan wartet je Bild bis 66 ms beim Anzeigen
+  (`present`), auf die GPU 0,05 ms, keine Shader oder Pipelines gebaut: die GPU ist ausgelastet. Der Zeichen-Thread
+  braucht 10–14 ms je Bildstück. Stick-Ereignisse nur 2–8 je Sekunde (kein Ereignis-Sturm). Dasselbe Gerätemuster
+  wie der Bericht des moto g15 (0.99.6, Sitzung A, Punkt 5: „Zielfernrohr mit seinen Kopien“).
+- **Ursache (`gx_vk.cpp`):** das Zielfernrohr macht seinen unscharfen Rand selbst: es kopiert eine 128×112-Ecke
+  des EFB und zeichnet sie zurück, 24-mal je Bild (am PC: 27 EFB-Kopien je Bild im Zielfernrohr, 8 ohne;
+  `gx_chunk_inspect.py copies`). Jede Kopie beendet den Render-Durchgang des EFB; der nächste begann auf dem ganzen
+  EFB, eine kachelnde GPU lädt dann Farbe und Tiefe des ganzen Bildes und schreibt sie am Ende zurück: bei 1,5×
+  rund 8 MB je Kopie, 24-mal mehr je Bild. Das hängt nicht am Stick: am PC zeichnet das Spiel mit stillem und
+  bewegtem Stick dasselbe (233–440 Aufträge, immer 27 Kopien). Warum Touch-Zielen ruhiger wirkte, zeigt der
+  Bericht nicht (Frage an den Nutzer).
+- **Behoben (Vulkan):** `GxCore::DrawArea` (`gx_core.cpp`) rechnet für kleine 2D-Aufträge (orthografisch, höchstens
+  64 Ecken, nicht verbreitert, kein Zwischenbild) die Fläche auf dem EFB aus (wie `FlareNote`, mit 2 Pixel Rand,
+  innerhalb der Schere); `UseEfbArea` gibt sie dem Renderer. Vulkan beginnt den EFB-Durchgang mit dieser
+  `renderArea` (auf 32 Pixel gerundet), ein Auftrag außerhalb beginnt ihn neu auf beiden Flächen; die Schere bleibt
+  in der Fläche. Laden und Speichern betreffen dann nur die Ecke (Vulkan lässt den Rest des Bildes unberührt).
+  Nicht mit MSAA (die Auflösung am Ende des Durchgangs), GLES unverändert. Schalter `RE4_GX_VK_PART=0` (immer das
+  ganze EFB) und `=log` (die ersten 64 Flächen im Protokoll). Die Zeile „Vulkan per picture“ nennt jetzt die
+  EFB-Durchgänge je Bild und wie viele davon auf einem Teil liefen.
+- **Geprüft am PC** (EU-Discs, `gx_chunk_render` mit Vulkan auf lavapipe, `RE4_VK_VALIDATION=2` mit
+  Synchronisationsprüfung): r301 mit Gewehr 10 im Zielfernrohr (still und mit Stick), Inventar, r200, Titel und
+  Menüs, bei 1× und 1,5×: 43 von 43 Bildern gleich mit und ohne Teilflächen, 0 Fehler, 0 Warnungen. Die
+  Unschärfe-Durchgänge laufen auf 224×192 von 960×792 (1,5×). Mit MSAA bleibt es beim ganzen EFB.
+- **Nicht geprüft:** Gerät; ob es auf dem Mali-G52 reicht (dort die Zeile „Vulkan per picture“: `present` und
+  „EFB passes … on a part“). GLES auf demselben Gerät (jede Kopie bricht dort ebenso den Durchgang).
+
 ## Version 0.99.6-rc: Nutzerberichte nach 0.99.5 und Wünsche des Projektinhabers (09.11.2026, Branch `work`)
 
 Version 0.99.6-rc (versionCode 108), Releasetext `port/android-decomp/docs/releases/v0.99.6-rc.md` („Changes since

@@ -1039,10 +1039,52 @@ struct VkRenderer final : GxCore {
     Check(vkCreateFramebuffer(dev, &fci, nullptr, &fb), "vkCreateFramebuffer");
     return fb;
   }
-  void BeginEfbPass() {
+  void BeginEfbPass() { BeginEfbArea(0, 0, static_cast<int>(efbColor.width), static_cast<int>(efbColor.height)); }
+  // The EFB pass on a part of the EFB (0.99.7): its render area. A tiling GPU loads the area's colour and depth at the
+  // pass's beginning and stores them at its end, the rest of the EFB stays as it is. The rifle scope's blur draws 24
+  // times a picture into a 128x112 corner, each time after a copy of it that ended the pass: with the whole EFB as the
+  // area a Mali-G52 MC2 loaded and stored it 24 times more a picture (12-15 pictures a second in the scope, report of
+  // 09.11.2026), now the corner. A draw outside the area begins the pass again on both. Not with MSAA (the resolve);
+  // RE4_GX_VK_PART=0: always the whole EFB (the comparison)
+  VkRect2D efbArea{};
+  void BeginEfbArea(int x0, int y0, int x1, int y1) {
     Begin();
-    if (pass == kEfbPass)
-      return;
+    static const bool partsOff = std::getenv("RE4_GX_VK_PART") && *std::getenv("RE4_GX_VK_PART") == '0';
+    const int w = static_cast<int>(efbColor.width), h = static_cast<int>(efbColor.height);
+    // (in steps of 32 pixels: the GPUs' tiles are 16 or 32 wide)
+    x0 = std::max(0, x0 & ~31);
+    y0 = std::max(0, y0 & ~31);
+    x1 = std::min(w, (x1 + 31) & ~31);
+    y1 = std::min(h, (y1 + 31) & ~31);
+    if (samples > 1 || partsOff || x1 <= x0 || y1 <= y0) {
+      x0 = y0 = 0;
+      x1 = w;
+      y1 = h;
+    }
+    if (pass == kEfbPass) {
+      const int ax0 = efbArea.offset.x, ay0 = efbArea.offset.y, ax1 = ax0 + static_cast<int>(efbArea.extent.width),
+                ay1 = ay0 + static_cast<int>(efbArea.extent.height);
+      if (x0 >= ax0 && y0 >= ay0 && x1 <= ax1 && y1 <= ay1)
+        return;
+      x0 = std::min(x0, ax0);
+      y0 = std::min(y0, ay0);
+      x1 = std::max(x1, ax1);
+      y1 = std::max(y1, ay1);
+      timing.efbWidened++;
+    }
+    efbArea = {{x0, y0}, {static_cast<std::uint32_t>(x1 - x0), static_cast<std::uint32_t>(y1 - y0)}};
+    timing.efbPasses++;
+    if (x1 - x0 < w || y1 - y0 < h) {
+      timing.efbParts++;
+      timing.efbPartShare += static_cast<double>(x1 - x0) * (y1 - y0) / (static_cast<double>(w) * h);
+      // RE4_GX_VK_PART=log: the first 64 parts in the log (the PC check)
+      static const bool logParts = std::getenv("RE4_GX_VK_PART") && !std::strcmp(std::getenv("RE4_GX_VK_PART"), "log");
+      static unsigned logged;
+      if (logParts && logged < 64) {
+        logged++;
+        GXLOG("Vulkan: EFB pass on %d,%d..%d,%d of %dx%d (draw %u)", x0, y0, x1, y1, w, h, stats.draws);
+      }
+    }
     EndPass();
     VkCommandBuffer cb = F().draw;
     Transition(cb, efbColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);  // (with MSAA: the resolve's target)
@@ -1056,7 +1098,7 @@ struct VkRenderer final : GxCore {
     auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
     rbi.renderPass = efbPass;
     rbi.framebuffer = efbFb;
-    rbi.renderArea = {{0, 0}, {efbColor.width, efbColor.height}};
+    rbi.renderArea = efbArea;
     vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
     const VkViewport vp{0.0f, 0.0f, float(efbColor.width), float(efbColor.height), 0.0f, 1.0f};
     vkCmdSetViewport(cb, 0, 1, &vp);
@@ -2390,6 +2432,7 @@ struct VkRenderer final : GxCore {
     return p;
   }
   void UseEfb() override { BeginEfbPass(); }
+  void UseEfbArea(int x0, int y0, int x1, int y1) override { BeginEfbArea(x0, y0, x1, y1); }
   void ApplyDrawState(const DrawState &s) override { state = s; }
   void UploadUniform(int binding, const void *data, std::size_t, std::size_t, std::size_t blockBytes,
                      std::size_t copyBytes) override {
@@ -2428,7 +2471,8 @@ struct VkRenderer final : GxCore {
     const Program *p = static_cast<const Program *>(program);
     const ShaderKey &k = key;
     const unsigned primitive = d.primitive & 0xFF;
-    BeginEfbPass();
+    if (pass != kEfbPass)
+      BeginEfbPass();  // (the core's UseEfb / UseEfbArea began it: its area stays)
     VkCommandBuffer cb = F().draw;
     const VkPipeline pipeline = PipelineFor(p, merge != nullptr, primitive, d.layout, d.stride);
     if (!pipeline)
@@ -2441,9 +2485,15 @@ struct VkRenderer final : GxCore {
       boundUbo = boundTex = VK_NULL_HANDLE;
       constantsValid = false;
     }
-    const VkRect2D sc{{state.scissor[0], state.scissor[1]},
-                      {static_cast<std::uint32_t>(std::max(0, state.scissor[2])),
-                       static_cast<std::uint32_t>(std::max(0, state.scissor[3]))}};
+    // the scissor within the pass's area (Vulkan: nothing may be drawn outside it)
+    const int ax0 = efbArea.offset.x, ay0 = efbArea.offset.y, ax1 = ax0 + static_cast<int>(efbArea.extent.width),
+              ay1 = ay0 + static_cast<int>(efbArea.extent.height);
+    const int cx0 = std::max(ax0, state.scissor[0]), cy0 = std::max(ay0, state.scissor[1]);
+    const int cx1 = std::min(ax1, state.scissor[0] + std::max(0, state.scissor[2])),
+              cy1 = std::min(ay1, state.scissor[1] + std::max(0, state.scissor[3]));
+    const VkRect2D sc{{cx0, cy0},
+                      {static_cast<std::uint32_t>(std::max(0, cx1 - cx0)),
+                       static_cast<std::uint32_t>(std::max(0, cy1 - cy0))}};
     if (!scissorValid || std::memcmp(&sc, &boundScissor, sizeof(sc)) != 0) {
       vkCmdSetScissor(cb, 0, 1, &sc);
       boundScissor = sc;
@@ -2592,7 +2642,7 @@ struct VkRenderer final : GxCore {
   void ClearRect(const GxClearRect &r) override {
     if (!(r.color || r.alpha || r.depth))
       return;
-    BeginEfbPass();
+    BeginEfbArea(r.rect[0], r.rect[1], r.rect[0] + r.rect[2], r.rect[1] + r.rect[3]);
     VkCommandBuffer cb = F().draw;
     VkRect2D rect{{std::max(0, r.rect[0]), std::max(0, r.rect[1])}, {0, 0}};
     const int x1 = std::min<int>(static_cast<int>(efbColor.width), r.rect[0] + r.rect[2]),
@@ -3869,19 +3919,24 @@ struct VkRenderer final : GxCore {
   struct Timing {
     double acquireMs = 0, fenceMs = 0, submitMs = 0, presentMs = 0, compileMs = 0, pipelineMs = 0, pipelineMax = 0;
     unsigned presents = 0, compiled = 0, spirvFound = 0, pipelines = 0, pipelinesAnew = 0, swapchains = 0;
+    unsigned efbPasses = 0, efbParts = 0, efbWidened = 0;  // BeginEfbArea
+    double efbPartShare = 0;
   } timing;
   std::string TimingLine() override {
     Timing &t = timing;
     const double n = std::max(1u, t.presents);
-    char line[640];
+    char line[800];
     std::snprintf(line, sizeof(line),
                   "Vulkan per picture: acquire %.2f ms, waits for the GPU %.2f ms, submit %.2f ms, present %.2f ms "
                   "(%u pictures); %u shaders compiled (%.0f ms), %u from the SPIR-V store (%zu kept); %u pipelines "
                   "made (%.0f ms, the longest %.1f ms; %u of them anew, not from the driver's cache); %u swapchains "
-                  "made; images %.0f of %.0f MB; %u of the app's list made ahead so far",
+                  "made; images %.0f of %.0f MB; %u of the app's list made ahead so far; EFB passes %.1f, of them "
+                  "%.1f on a part (%.0f %% of the EFB on average, %u widened)",
                   t.acquireMs / n, t.fenceMs / n, t.submitMs / n, t.presentMs / n, t.presents, t.compiled,
                   t.compileMs, t.spirvFound, Spirv().Count(), t.pipelines, t.pipelineMs, t.pipelineMax, t.pipelinesAnew,
-                  swapMade - t.swapchains, heap.Used() / 1048576.0, heap.Reserved() / 1048576.0, aheadMade.load());
+                  swapMade - t.swapchains, heap.Used() / 1048576.0, heap.Reserved() / 1048576.0, aheadMade.load(),
+                  t.efbPasses / n, t.efbParts / n, t.efbParts ? 100.0 * t.efbPartShare / t.efbParts : 0.0,
+                  t.efbWidened);
     const unsigned made = swapMade;
     t = Timing();
     t.swapchains = made;

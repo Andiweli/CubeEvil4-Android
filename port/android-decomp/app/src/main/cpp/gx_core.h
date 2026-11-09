@@ -593,6 +593,15 @@ struct GxCore {
   virtual bool KeyProgram() = 0;
   virtual const void *DrawProgram(bool merged) = 0;
   virtual void UseEfb() = 0;
+  // the same for a draw that stays inside x0,y0..x1,y1 (the renderer's EFB pixels, DrawArea): a renderer that can
+  // load and store only that part of the EFB around it does (Vulkan's render area), the others take the whole EFB
+  virtual void UseEfbArea(int x0, int y0, int x1, int y1) {
+    (void) x0, (void) y0, (void) x1, (void) y1;
+    UseEfb();
+  }
+  // where a small 2D draw (orthographic, at most 64 vertices) lands on the EFB, in the renderer's pixels with a margin,
+  // within the scissor; false: unknown or not small (3D, many vertices, widened, an in-between picture's blend)
+  bool DrawArea(const Re4GxDraw &d, const Re4GxChunk &chunk, int area[4]) const;
   virtual void ApplyDrawState(const DrawState &s) = 0;
   virtual void UploadUniform(int binding, const void *data, std::size_t offset, std::size_t bytes,
                              std::size_t blockBytes, std::size_t copyBytes = 0) = 0;

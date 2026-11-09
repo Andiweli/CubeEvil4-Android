@@ -988,6 +988,68 @@ void GxCore::FlareNote(const Re4GxDraw &d, const Re4GxChunk &chunk, std::uint32_
   flareCands.push_back(f);
 }
 
+// A small 2D draw's place on the EFB. The rifle scope's blur (0.99.7, report of a Xiaomi with a Mali-G52 MC2: 12-15
+// pictures a second in the scope with Vulkan) copies a 128x112 corner of the EFB and draws it back 24 times a picture:
+// every copy ends the EFB's render pass, and on a tiling GPU the next pass loads the whole EFB (colour and depth) and
+// stores it again at its end. With the draw's place known, Vulkan begins that pass on the corner alone.
+bool GxCore::DrawArea(const Re4GxDraw &d, const Re4GxChunk &chunk, int area[4]) const {
+  const unsigned primitive = d.primitive & 0xFF;
+  if (!(xfReg[0x26] & 1) || primitive == RE4_GX_LINES || primitive == RE4_GX_POINTS || d.vertexCount == 0 ||
+      d.vertexCount > 64 || d.stride < 12 || WidenFor(key) != 1.0f)
+    return false;
+  unsigned mtxAt = 12;
+  if (d.layout & RE4_GX_V_NORMAL)
+    mtxAt += (d.layout & RE4_GX_V_BINORMAL_TANGENT) ? 36 : 12;
+  mtxAt += ((d.layout & RE4_GX_V_COLOR0) ? 4 : 0) + ((d.layout & RE4_GX_V_COLOR1) ? 4 : 0);
+  for (int t = 0; t < 8; t++)
+    mtxAt += (d.layout & (RE4_GX_V_TEX0 << t)) ? 8 : 0;
+  // (the registers themselves: Draw asks before FillXfRegs brings xf.viewport and xf.proj up to date)
+  const float vp0[4] = {AsFloat(xfReg[0x1A]), AsFloat(xfReg[0x1B]), 0.0f, AsFloat(xfReg[0x1D])};
+  const float vp1[1] = {AsFloat(xfReg[0x1E])};
+  const float pr0[4] = {AsFloat(xfReg[0x20]), AsFloat(xfReg[0x21]), AsFloat(xfReg[0x22]), AsFloat(xfReg[0x23])};
+  float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f;
+  for (std::uint32_t v = 0; v < d.vertexCount; v++) {
+    const std::uint8_t *at = chunk.vertices + d.vertexOffset + static_cast<std::size_t>(v) * d.stride;
+    float pos[3];
+    std::memcpy(pos, at, 12);
+    unsigned row = d.matrices[0] & 63;
+    if ((d.layout & RE4_GX_V_MATRIX) && mtxAt < d.stride)
+      row = at[mtxAt] & 63;
+    if (row > 61)
+      return false;
+    float e[2];
+    for (int r = 0; r < 2; r++)
+      e[r] = xf.posTex[row + r][0] * pos[0] + xf.posTex[row + r][1] * pos[1] + xf.posTex[row + r][2] * pos[2] +
+             xf.posTex[row + r][3];
+    // orthographic: x' = p0 x + p1, y' = p2 y + p3; the viewport as FlareNote's
+    const float sx = (vp0[3] - 342.0f) + vp0[0] * (pr0[0] * e[0] + pr0[1]);
+    const float sy = (vp1[0] - 342.0f) + vp0[1] * (pr0[2] * e[1] + pr0[3]);
+    if (!std::isfinite(sx) || !std::isfinite(sy))
+      return false;
+    x0 = std::min(x0, sx);
+    x1 = std::max(x1, sx);
+    y0 = std::min(y0, sy);
+    y1 = std::max(y1, sy);
+  }
+  // GX pixels with 2 to spare, within the scissor (ApplyState's), then the renderer's pixels (rounded outwards)
+  const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+  const int sx0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
+  const int sy0 = std::max(0, static_cast<int>(bp[0x20] & 0x7FF) - yoff);
+  const int sx1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
+  const int sy1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
+  const int gx0 = std::max(sx0, static_cast<int>(std::floor(std::max(x0, -1e6f))) - 2);
+  const int gy0 = std::max(sy0, static_cast<int>(std::floor(std::max(y0, -1e6f))) - 2);
+  const int gx1 = std::min(sx1, static_cast<int>(std::ceil(std::min(x1, 1e6f))) + 2);
+  const int gy1 = std::min(sy1, static_cast<int>(std::ceil(std::min(y1, 1e6f))) + 2);
+  if (gx1 <= gx0 || gy1 <= gy0)
+    return false;  // (nothing on the EFB: as before)
+  area[0] = Lo(gx0);
+  area[1] = Lo(gy0);
+  area[2] = Hi(gx1);
+  area[3] = Hi(gy1);
+  return true;
+}
+
 void GxCore::FlareTrack() {
   std::vector<FlareCand> merged;
   for (const FlareCand &f : flareCands) {
@@ -1451,7 +1513,11 @@ void GxCore::Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *
     return;
   const ShaderKey &k = key;
   const unsigned primitive = d.primitive & 0xFF;
-  UseEfb();
+  int area[4];
+  if (!merge && !interpPass && DrawArea(d, chunk, area))
+    UseEfbArea(area[0], area[1], area[2], area[3]);
+  else
+    UseEfb();
   ApplyState(primitive);
   const float pointSize = static_cast<float>((bp[0x22] >> 8) & 0xFF) / 6.0f * Sf(1);
   if (xf.proj[1][3] != pointSize) {
