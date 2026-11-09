@@ -82,6 +82,33 @@ bool live(const void* p)
     return inMem1(p) || re4_valid_port_ptr(p);
 }
 
+// A whole structure of the game readable from `p`: on a 4-byte boundary, its first and its last
+// byte in MEM1 or in a game library (one near the end of MEM1 or of a library's segment would be
+// read past it)
+template <class T>
+bool readable(const T* p)
+{
+    const char* c = (const char*) p;
+    return word(p) && live(c) && live(c + sizeof(T) - 1);
+}
+
+#if __SIZEOF_POINTER__ == 8
+// a pointer of a fixed-form structure (re4_ptr32.h: 32 bits wide on LP64)
+template <class T>
+bool readable(const Re4Ptr32<T>& p)
+{
+    return readable((const T*) p.get());
+}
+#endif
+
+// the same within MEM1
+template <class T>
+bool mem1Block(const T* p)
+{
+    const char* c = (const char*) p;
+    return word(p) && inMem1(c) && inMem1(c + sizeof(T) - 1);
+}
+
 // The SMD work of each scroll object, per ObjMgr slot. A slot a later object
 // reuses is told apart by its block and its model data.
 struct ScrollNote {
@@ -182,7 +209,7 @@ void captureModel(Re4CoreSnapshot* s, cModel* m, u8 manager, u32 slot)
     out.firstMatrix = s->nParts;
     u32 n = m->nParts;
     cParts* p = m->pList;
-    for (u32 i = 0; i < n && inMem1(p) && word(p); i++) {
+    for (u32 i = 0; i < n && mem1Block(p); i++) {
         if (s->nParts >= RE4_CORE_MAX_PARTS) {
             break;
         }
@@ -197,7 +224,7 @@ void captureModel(Re4CoreSnapshot* s, cModel* m, u8 manager, u32 slot)
     out.firstInfo = s->nInfos;
     cModelInfo* info = m->pModelInfo;
     // a guard against a broken (cyclic) list: no model has nearly 255 infos
-    for (u32 guard = 0; inMem1(info) && word(info) && guard < 4096; guard++, info = info->pList) {
+    for (u32 guard = 0; mem1Block(info) && guard < 4096; guard++, info = info->pList) {
         if (s->nInfos >= RE4_CORE_MAX_INFOS || out.nInfos == 0xFF) {
             s->droppedInfos++;
             continue;
@@ -217,14 +244,14 @@ void captureModel(Re4CoreSnapshot* s, cModel* m, u8 manager, u32 slot)
         mi.rigidPart = -1;
         if (m->be_flag & 0x4000) {
             mi.rigidPart = -2;
-        } else if (live(d) && word(d) && d->weight_palette_num <= 1 && d->weight_ext_num <= 0xFF && !(info->be_flag & 2) &&
-                   d->nParts == 1 && live(d->pHead) && word(d->pHead)) {
+        } else if (readable(d) && d->weight_palette_num <= 1 && d->weight_ext_num <= 0xFF && !(info->be_flag & 2) &&
+                   d->nParts == 1 && readable(d->pHead)) {
             mi.rigidPart = d->pHead->partsNo;
         }
         re4_formats_locate(info->model_addr, &mi.bin);
         re4_formats_locate(info->tpl_addr, &mi.tpl);
         // a running shape: the positions as trans.cpp makes them before skinning
-        if (shapesWanted() && (info->be_flag & 2) && live(d) && word(d) && inMem1(d->vtxOrig) && d->nVtx != 0) {
+        if (shapesWanted() && (info->be_flag & 2) && readable(d) && inMem1(d->vtxOrig) && d->nVtx != 0) {
             bool shaped = false;
             for (int k = 0; k < 5; k++) {
                 shaped = shaped || inMem1(info->shape[k].data);
@@ -254,7 +281,9 @@ void captureManager(Re4CoreSnapshot* s, Mgr& mgr, u8 manager)
     u8* arr = (u8*) mgr.pArray;
     u32 n = mgr.nArray;
     u32 stride = mgr.size;
-    if (!live(arr) || stride == 0 || n > 4096) {
+    // the whole array: while a room is torn down its manager can describe one that runs past
+    // the memory it lies in
+    if (!live(arr) || stride == 0 || n > 4096 || (n != 0 && !live(arr + n * stride - 1))) {
         return;
     }
     for (u32 i = 0; i < n; i++) {

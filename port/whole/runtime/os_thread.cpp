@@ -755,24 +755,22 @@ int re4_valid_port_ptr(const void* p)
             if (!info->dlpi_name || !strstr(info->dlpi_name, "libre4_")) {
                 return 0;
             }
-            uintptr_t lo = UINTPTR_MAX, hi = 0;
+            // each readable segment on its own: the linker reserves the whole range of a library
+            // and leaves the gaps between its segments PROT_NONE ("---p"); a pointer into such a
+            // gap passed when the check took the library from its lowest to its highest segment
+            // (SIGSEGV SEGV_ACCERR in the state bridge, reports of 08.11.2026)
             for (int i = 0; i < info->dlpi_phnum; i++) {
                 const ElfW(Phdr)& ph = info->dlpi_phdr[i];
-                if (ph.p_type == PT_LOAD) {
-                    uintptr_t b = info->dlpi_addr + ph.p_vaddr;
-                    if (b < lo) {
-                        lo = b;
-                    }
-                    if (b + ph.p_memsz > hi) {
-                        hi = b + ph.p_memsz;
-                    }
+                if (ph.p_type != PT_LOAD || !(ph.p_flags & PF_R)) {
+                    continue;
                 }
-            }
-            if (s->address >= lo && s->address < hi) {
-                s->begin = lo;
-                s->end = hi;
-                s->found = true;
-                return 1;
+                uintptr_t b = info->dlpi_addr + ph.p_vaddr;
+                if (s->address >= b && s->address < b + ph.p_memsz) {
+                    s->begin = b;
+                    s->end = b + ph.p_memsz;
+                    s->found = true;
+                    return 1;
+                }
             }
             return 0;
         },

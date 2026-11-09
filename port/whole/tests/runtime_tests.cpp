@@ -31,6 +31,7 @@
 #include "yz2_fixtures.h"
 
 #include <dlfcn.h>
+#include <link.h>
 #include <unistd.h>
 #include <math.h>
 #include <stdio.h>
@@ -669,9 +670,59 @@ void onRetrace(unsigned count)
 int gValidPtrOnThread = -1;
 unsigned long gHeapEnd;
 
+// /proc/self/maps: the mapping holding `a` ([*lo, *hi), its protection in prot[5]); false when none
+bool findMapping(unsigned long a, unsigned long* lo, unsigned long* hi, char* prot)
+{
+    FILE* f = fopen("/proc/self/maps", "r");
+    if (!f) {
+        return false;
+    }
+    char line[512];
+    bool found = false;
+    while (!found && fgets(line, sizeof(line), f)) {
+        unsigned long b = 0, e = 0;
+        char pr[8] = {};
+        if (sscanf(line, "%lx-%lx %4s", &b, &e, pr) == 3 && a >= b && a < e) {
+            *lo = b;
+            *hi = e;
+            memcpy(prot, pr, 5);
+            found = true;
+        }
+    }
+    fclose(f);
+    return found;
+}
+
+// re4_valid_port_ptr on this OS thread's stack: the stack counts, its guard pages (PROT_NONE, the
+// same mapping) do not (reports of 08.11.2026: a model pointer into a guard page passed the state
+// bridge's check, SIGSEGV SEGV_ACCERR). Bits: 1 the stack refused, 2 the low guard taken, 4 the
+// high guard taken; 8 no guard found next to the stack (nothing to check)
+int gStackGuardCheck = -1;
+
+int stackGuardCheck()
+{
+    volatile int local = 0;
+    unsigned long a = (unsigned long) &local, lo = 0, hi = 0, glo = 0, ghi = 0;
+    char prot[5] = {}, gprot[5] = {};
+    int bits = re4_valid_port_ptr((const void*) &local) ? 0 : 1;
+    int guards = 0;
+    if (findMapping(a, &lo, &hi, prot)) {
+        if (findMapping(lo - 1, &glo, &ghi, gprot) && gprot[0] == '-') {
+            guards++;
+            bits |= re4_valid_port_ptr((const void*) (lo - 1)) ? 2 : 0;
+        }
+        if (findMapping(hi, &glo, &ghi, gprot) && gprot[0] == '-') {
+            guards++;
+            bits |= re4_valid_port_ptr((const void*) hi) ? 4 : 0;
+        }
+    }
+    return bits | (guards == 0 ? 8 : 0);
+}
+
 int taskTestMain()
 {
     gValidPtrOnThread = re4probe_valid_ptr(1);
+    gStackGuardCheck = stackGuardCheck();
     OSInit();
     SystemMemInit();
     gHeapEnd = (unsigned long) Heap[0].end;
@@ -720,6 +771,11 @@ static void testTasks()
     CHECK(re4probe_valid_ptr(0) == 0);
     if (gValidPtrOnThread != 0) {
         re4_log("  VALID_PTR failures: 0x%x", gValidPtrOnThread);
+    }
+    // ... and not on its guard pages
+    CHECK(gStackGuardCheck == 0);
+    if (gStackGuardCheck != 0) {
+        re4_log("  stack guard check: 0x%x", gStackGuardCheck);
     }
     CHECK(retraces == 3 && gRetraceCalls == 3 && gLastRetrace == VIGetRetraceCount());
     // hang search: every OS thread with the place it waits; task A sleeps in
@@ -2374,6 +2430,67 @@ static void testLogFile()
     report("logfile", ok);
 }
 
+// --- re4_valid_port_ptr in the game's libraries ------------------------------------
+
+struct LibGapSearch {
+    int segments, segmentsRefused, gaps, gapsTaken;
+};
+
+// Every readable segment of a libre4_ library counts, the gaps between them (PROT_NONE, the
+// linker keeps the library's whole range) do not (reports of 08.11.2026, SEGV_ACCERR)
+static void testLibraryGaps()
+{
+    bool ok = true;
+    LibGapSearch search = {};
+    dl_iterate_phdr(
+        [](struct dl_phdr_info* info, size_t, void* data) -> int {
+            LibGapSearch* s = (LibGapSearch*) data;
+            if (!info->dlpi_name || !strstr(info->dlpi_name, "libre4_")) {
+                return 0;
+            }
+            std::vector<std::pair<unsigned long, unsigned long>> segs;
+            for (int i = 0; i < info->dlpi_phnum; i++) {
+                const ElfW(Phdr)& ph = info->dlpi_phdr[i];
+                if (ph.p_type == PT_LOAD && (ph.p_flags & PF_R) && ph.p_memsz) {
+                    unsigned long b = (unsigned long) (info->dlpi_addr + ph.p_vaddr);
+                    segs.push_back({b, b + (unsigned long) ph.p_memsz});
+                }
+            }
+            std::sort(segs.begin(), segs.end());
+            unsigned long page = (unsigned long) sysconf(_SC_PAGESIZE);
+            for (size_t i = 0; i < segs.size(); i++) {
+                s->segments++;
+                if (!re4_valid_port_ptr((const void*) segs[i].first) ||
+                    !re4_valid_port_ptr((const void*) (segs[i].second - 1))) {
+                    s->segmentsRefused++;
+                }
+                if (i + 1 == segs.size()) {
+                    continue;
+                }
+                unsigned long gap = (segs[i].second + page - 1) / page * page;
+                if (gap >= segs[i + 1].first / page * page) {
+                    continue;
+                }
+                unsigned long lo = 0, hi = 0;
+                char prot[5] = {};
+                if (findMapping(gap, &lo, &hi, prot) && prot[0] == 'r') {
+                    continue;  // mapped readable after all (not a gap)
+                }
+                s->gaps++;
+                if (re4_valid_port_ptr((const void*) gap)) {
+                    s->gapsTaken++;
+                }
+            }
+            return 0;
+        },
+        &search);
+    CHECK(search.segments > 0 && search.segmentsRefused == 0);
+    CHECK(search.gapsTaken == 0);
+    re4_log("  %d readable segments of the game's libraries (%d refused), %d gaps between them (%d taken)",
+            search.segments, search.segmentsRefused, search.gaps, search.gapsTaken);
+    report("library gaps", ok);
+}
+
 int re4_runtime_tests()
 {
     gFailures = 0;
@@ -2388,6 +2505,7 @@ int re4_runtime_tests()
     testMath();
     testTrace();
     testTasks();
+    testLibraryGaps();
     testLight();
     testPartner();
     testRoute();

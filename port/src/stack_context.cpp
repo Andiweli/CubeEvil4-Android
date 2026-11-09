@@ -181,9 +181,12 @@ bool StackContext::contains(const void* address) const {
     return false;
 #else
     if (impl_->mapping == MAP_FAILED) return false;
-    const auto* begin = static_cast<const char*>(impl_->mapping);
+    // the usable stack only: the guard pages at both ends are PROT_NONE, and a pointer into them
+    // passed re4_valid_port_ptr (SIGSEGV SEGV_ACCERR in the state bridge, reports of 08.11.2026:
+    // the end credits on a Mobicel P11 Plus, a loading screen on a Samsung A70)
+    const auto* begin = static_cast<const char*>(impl_->stackBottom);
     const auto* at = static_cast<const char*>(address);
-    return at >= begin && at < begin + impl_->mappingBytes;
+    return at >= begin && at < begin + impl_->stackBytes;
 #endif
 }
 void StackContext::resume() {

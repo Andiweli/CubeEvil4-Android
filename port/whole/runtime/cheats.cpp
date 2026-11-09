@@ -1158,6 +1158,20 @@ void re4_story_char_room(void)
     re4_story_ganado = standIn() && gSetType == pG->pl_type;
 }
 
+// Patch 0222 (game.cpp GameContinue, right after GameSave.load): the continue point of a stand-in holds Leon
+// (re4_story_char_save), but the stand-in's player is still in memory: its type again, so that PlSetCostume and
+// ContinueWepData take its tables and its weapon buffer. Leon's weapon place (WEP_DATA_ADDR) lies inside Krauser's
+// player archive with his player module; a weapon changed since the save was read there, and OSLink crashed on the
+// overwritten module list (user report 09.11.2026, "crashing every time they die or retry"). The room start
+// (re4_story_char_room) changes the character as before when the cheat menu asks for another one.
+void re4_story_char_continue(void)
+{
+    if (gSwitched >= 2 && gSwitched <= 5 && pG->pl_type == 0 && storyGame()) {
+        pG->pl_type = (u8) gSwitched;
+        re4_log("cheat: continue with %s (the continue point holds Leon)", kCharName[gSwitched]);
+    }
+}
+
 // 1 while Ada, HUNK, Krauser or Wesker plays the story for Leon (the instant save allows them, 04.11.2026)
 int re4_story_char_stand_in(void)
 {

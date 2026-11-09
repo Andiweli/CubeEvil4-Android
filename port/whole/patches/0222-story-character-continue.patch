@@ -1,0 +1,31 @@
+# Port patch (user report 09.11.2026, Xiaomi peridot, 0.99.5-rc: "using other characters in the campaign, it's
+# crashing every time they die or retry"; port/docs/whole-program-status.md, version 0.99.6, item 10). A stand-in
+# of the story (the cheat menu's Ada, HUNK, Krauser or Wesker, patch 0195) saves as Leon (re4_story_char_save:
+# pl_type 0 and Leon's costume), so that a save loads without the cheat too. GameContinue (death, Retry, the
+# instant slot) reloads that continue point while the stand-in's player is still in memory, and ContinueWepData
+# then loaded a weapon changed since the save by Leon's table to Leon's place (WEP_DATA_ADDR 0x80904000), inside
+# Krauser's larger player archive (em/pl0a.drs 0x807ec000..0x80923cc0) with his linked player module pl0a:
+# OSLink walked the overwritten module list (SIGSEGV). Now the stand-in is put back right after the load, before
+# PlSetCostume and ContinueWepData (re4_story_char_continue); the room start (re4_story_char_room) changes the
+# character as before when the cheat menu asks for another one.
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -746,6 +746,9 @@
+ // Continue after death: reloads the save keeping play time and the continue counters (+1 for mode
+ // 0), re-applies costume/weapon data, restores the saved position/angle and jumps to the door demo
+ // (Rno0 = 4) of the saved room.
++/* PORT (patch 0222): the story's stand-in again after loading its continue point (saved as Leon) */
++extern "C" void re4_story_char_continue(void);
++
+ void GameContinue(int option_flag)
+ {
+     u32 time = pG->play_time;
+@@ -754,6 +757,8 @@
+     u16 g_continue_cnt = pG->g_continue_cnt;
+
+     GameSave.load(pSaveData);
++    /* PORT (patch 0222): before PlSetCostume and ContinueWepData read the player's type */
++    re4_story_char_continue();
+     if (pG->SaveKind == -1) {
+         SysFlagOn(pG, SYS_CONTINUE);
+     } else {

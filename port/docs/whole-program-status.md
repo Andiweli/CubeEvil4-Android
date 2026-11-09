@@ -8,7 +8,72 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Version 0.99.6-rc (versionCode 108), Releasetext `port/android-decomp/docs/releases/v0.99.6-rc.md` („Changes since
 v0.99.5.“, Known issues aus 0.99.5 übernommen, APK `CubeEvil4-0.99.6-rc.apk`). Zwei Sitzungen arbeiten parallel auf
 `work`: Sitzung A (Abstürze und Nutzerberichte, Material `E:\Development\Android\reports\0996-20261109\`) und
-Sitzung B (Menü, Lichthöfe, Update-Knopf, Vulkan- und OUYA-Optionen). Nächste freie Patch-Nummer 0222.
+Sitzung B (Menü, Lichthöfe, Update-Knopf, Vulkan- und OUYA-Optionen). Patch 0222 (Sitzung A), nächste freie
+Patch-Nummer 0223. Punktnummern = Liste des Projektinhabers.
+
+### Sitzung A, Etappe 1: Abstürze (Punkte 3, 4, 10, 11)
+
+3. **Absturz im Abspann (Mobicel P11 Plus, 1,9 GB, ARM32, eigener Kernprozess, 0.99.4-rc, GLES).** `crash.txt`:
+   signal 11 im Kernprozess an `libre4_main.so+0x212470`, Adresse 0x8380859c, kurz nach `movie/ending.sfd` (r333,
+   `MemCreateHeap 11` für den Film). Mit einem armv7-Bau genau von `0.99.4-rc` (WSL `~/re4-0996a`, `IdSys` 0x2a493c
+   wie im Bericht) aufgelöst: `captureModel` (`runtime/core_bridge.cpp:220`, `ldrb r0, [r4, #0x18]`:
+   `d->weight_palette_num` der Modelldaten einer Modell-Info), direkt nachdem `re4_valid_port_ptr(d)` „gültig“
+   sagte. Zusammen mit Punkt 4 dieselbe Stelle, siehe dort.
+4. **Absturz am Ladebildschirm nach dem Bauernhof (Samsung A70, ARM64, 0.99.5-rc, Vulkan).** Nur der
+   System-Absturzbericht (`logs/last-crash/crash-system.txt`, 20:38:08; die Protokolle im Bericht sind von späteren
+   Läufen): SIGSEGV **SEGV_ACCERR** an 0xc4c010f8, `libre4_main.so+0x2d9548` (Build-ID f09653c3 = 0.99.5-rc aus
+   `~/re4-build`) = dieselbe Zeile 220, `x25` = 0xc4c010e0 = `d`.
+   - **Ursache (beide Renderer, beide ABIs, Port-Fehler):** `re4_valid_port_ptr` (`os_thread.cpp`, die Prüfung der
+     Zustandsbrücke und von `VALID_PTR`) nahm zwei Arten Speicher als lesbar, die es nicht sind: (a) die Schutzseiten
+     (PROT_NONE) an beiden Enden jedes Stapels der Spiel-Threads (`StackContext::contains` zählte die ganze
+     Abbildung), (b) die Lücken zwischen den Segmenten einer `libre4_`-Bibliothek (die Prüfung nahm die Bibliothek von
+     ihrem niedrigsten bis zu ihrem höchsten Segment; Android reserviert den ganzen Bereich und lässt die Lücken
+     „---p“, mit 16-KB-Ausrichtung je zwei in `libre4_main.so`, im Adressplan des Mobicel bei a8b7f000 und a8b8c000).
+     Während ein Raum abgebaut oder ein Film über den Raumspeicher geladen wird, zeigt eine alte Modell-Info auf
+     beliebige Adressen; trifft sie eine solche Seite, liest die Brücke dort und stürzt ab (ACCERR = Seite da, aber
+     nicht lesbar). Welche der beiden Arten die zwei Adressen trafen, ist ohne Speicherplan des Absturzzeitpunkts
+     nicht zu sagen (Vermutung: Schutzseite eines Stapels, beide liegen in Bereichen, die beim Kernstart frei waren).
+   - **Behoben:** `StackContext::contains` (`port/src/stack_context.cpp`) nur noch der nutzbare Stapel;
+     `re4_valid_port_ptr` merkt sich jedes lesbare Segment (`PT_LOAD` mit `PF_R`) einzeln. Die Brücke
+     (`core_bridge.cpp`) prüft dazu bei Teilen, Modell-Infos, Modelldaten und `pHead` Anfang **und** Ende der
+     Struktur (`readable`, `mem1Block`) und bei jedem Manager das Ende seines Feldes (`arr + n * stride - 1`).
+   - **Geprüft am PC:** `RE4_OPT=2 whole_build.sh i686` grün, Kern- und Laufzeittests 0 Fehler. Neuer Test in
+     `runtime_tests.cpp`: `tasks` prüft auf einem OS-Thread den eigenen Stapel (gültig) und die beiden Schutzseiten
+     daneben (aus `/proc/self/maps`, ungültig); ohne die Änderung schlägt er fehl („stack guard check: 0x6“, beide
+     Seiten genommen). `library gaps` prüft jedes lesbare Segment der Spielbibliotheken (16 auf dem PC, alle gültig)
+     und die Lücken dazwischen; auf dem PC (i686, 4-KB-Ausrichtung) gibt es keine, auf Android greift er.
+     `whole_build_android.sh --abi all` (armeabi-v7a und arm64-v8a) fehlerfrei (auf LP64 eine Überladung von
+     `readable` für `Re4Ptr32`, `d->pHead`).
+   - **Nicht geprüft:** Gerät; beide Abstürze hängen vom Zufall ab (wohin eine alte Modell-Info zeigt).
+   - Bitte an die Nutzer (falls es wieder passiert): "If the game still closes at the same place with 0.99.6,
+     please send the report right away from the app menu (Management -> Send report) after restarting the app."
+10. **Absturz mit anderen Figuren bei Tod oder „Retry“ (Xiaomi peridot, ARM64, 0.99.5-rc, GLES).** `crash.txt`:
+    SIGSEGV in `OSLink` (`os_link.cpp:163`, die Schleife über die Modul-Liste) aus `ReadWepData` ← `ContinueWepData`
+    ← `gameDiedemo` (Continue nach dem Tod); Cheat „the story's player Krauser“, Leons Gewehr im Krauser-Puffer
+    0x82200000, dann Waffe gewechselt; beim Continue `em/wep19.drs` nach **0x80904000**, mitten in Krausers
+    Spielerarchiv `em/pl0a.drs` (0x807ec000..0x80922ac0).
+    - **Ursache (Port-Fehler aus Patch 0195, seit 0.98.0, beide Renderer):** Eine Ersatzfigur speichert als Leon
+      (`re4_story_char_save`: `pl_type` 0, Leons Kostüm), damit ein Spielstand auch ohne Cheat lädt. `GameContinue`
+      lädt diesen Continue-Punkt, während die Ersatzfigur noch im Speicher ist; `ContinueWepData` las eine seit dem
+      Speichern gewechselte Waffe dann nach Leons Tabelle an Leons Platz (`WEP_DATA_ADDR`), der in Krausers größerem
+      Archiv mit seinem gelinkten Spielermodul `pl0a` liegt, und `OSLink` lief über die überschriebene Modul-Liste.
+      Nicht von 0220/0221 verursacht. Ohne Waffenwechsel seit dem Raumeintritt (dem Continue-Punkt) passiert nichts.
+    - **Behoben (Patch 0222, `game.cpp` `GameContinue`):** direkt nach `GameSave.load` setzt
+      `re4_story_char_continue` (`cheats.cpp`) die Ersatzfigur wieder ein (`gSwitched`, nur Story), vor
+      `PlSetCostume` und `ContinueWepData`; der Raumstart (`re4_story_char_room`) wechselt wie bisher, wenn das
+      Cheat-Menü inzwischen eine andere Figur will. Gilt auch für das Laden aus dem Sofort-Speicherplatz (läuft über
+      `GameContinue`). Protokoll: „cheat: continue with Krauser (the continue point holds Leon)“.
+    - **Geprüft am PC (debug, r204, `RE4_CHEATS=136`, `RE4_TEST_WEAPON=free+200:3`, `RE4_TEST_CONTINUE=free+600`,
+      WSL `~/p0996a/run.sh`):** ohne Patch nachgestellt (wep02 nach 0x80904000 über pl0a, SIGSEGV, exit 139); mit
+      Patch Krauser debug und EU, Ada (72), HUNK (104), Wesker (168) und Leon ohne Cheat (8) je ohne Absturz bis
+      Bild 1700 nach dem Retry. **Nicht geprüft:** Gerät, Tod statt Retry (gleicher Weg `GameContinue`).
+11. **Bericht ohne Kontext (Samsung A24, Mali-G57 MC2, 3,6 GB, ARM64, 0.99.5-rc, Vulkan, EU-Discs unverändert).**
+    Kein Absturz in den drei Läufen; laufender Lauf r226, Spiel im Takt (33 ms je Bildstück), 0 Shader-Fehler,
+    Vulkan ohne neue Pipelines nach dem Start, Auflösung 1,5×. Einziger Befund: ein früherer Lauf endete am
+    08.11. um 17:07:04 mit „low memory“ (Android hat die App wegen Speichermangels beendet, kein Fehler des Spiels).
+    `etc/moji8.tpl` fehlt auf EU-Discs (Patch 0118, normal). Bitte an den User: "Thanks for the report. We found no
+    error in it. If the game closed by itself: that was Android ending it for lack of memory (17:07); closing other
+    apps can help. If something else went wrong, please tell us what you saw."
 
 ### Sitzung B: Menü und Funktionen (09.11.2026)
 
@@ -14023,6 +14088,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0219 `shadow.cpp`, `foot_shadow.cpp` | Potato-Modus „Schatten & Licht“ aus: `ShadowTrans` kehrt nach dem Löschen der Schattenverwalter und der Flags `STA_SHADOW_EQCOL`/`STA_USE_SHADOW_LIGHT` zurück (keine Schattentexturen, kein zweites Zeichnen der Empfänger, keine projizierten Lichtbilder auf Figuren), `DrawFootShadow` zeichnet nichts; `re4_potato_no_shadows` (`runtime/potato.cpp`), nicht in Ereignissen. Wunsch eines Nutzers über den Projektinhaber, 08.11.2026 |
 | 0220 `r100.cpp` | Port-Fehler (Sofortwechsel der Spielfigur, `cheats.cpp switchNow`: Raum neu durch eine Tür in sich selbst, und damit auch der Rücksetzpunkt für „Retry“): `R100Init` liest die Startszene s40 (2,2 MB ARAM) nur noch, wenn `r100_StartEvent` läuft und sie freigibt (Raum-Flag 13 frei), und s03/s20 wieder, wenn Bereich 6 schon passiert ist (Flag 0; s03 bis zur Haus-Szene, Flag 3). Vorher fehlten die Haus-Szene („ARAM over: evd/r100s03.evd“) und nach einem Wechsel hinter Bereich 6 auch die Szene nach dem Ganado; EU-/US-`st1_0.rel` lesen genauso vor. In jedem Zustand, den das Spiel selbst erreicht, unverändert. Bericht eines Nutzers 07.11.2026 (Xiaomi, EU-Discs, 0.99.2) |
 | 0221 `r227.cpp` | Port-Fehler (Schnellspeicher der App überall im Raum): `r227_initGondola` stellt die Gondel (Objekt 0xA2, 6850 zwischen den Stationen) beim Laden (`SYS_LOAD_GAME`) nur noch oben ab, wenn der Spieler über der Mitte ihres Wegs steht (Starthöhe + 3425); aus r228 kommend wie bisher immer oben. Die Schreibmaschine des Raums (Bereich 1, Typ SAVE, Höhe 39 500) liegt über der oberen Station: Spielstände des Spiels selbst laden unverändert. Vorher nach dem Schnellladen unterhalb der Gondel: Gondel oben, unten trotzdem „Benutzen“. EU-`st2_3.rel` prüft genauso. Rückmeldung des Projektinhabers 08.11.2026 (Retroid, EU-Discs, 0.99.4) |
+| 0222 `game.cpp` | Port-Fehler (Patch 0195): `GameContinue` setzt nach `GameSave.load` die Ersatzfigur der Story (Ada, HUNK, Krauser, Wesker; `re4_story_char_continue`) wieder ein, bevor `PlSetCostume` und `ContinueWepData` den Spielertyp lesen. Der Continue-Punkt hält absichtlich Leon (`re4_story_char_save`); vorher las `ContinueWepData` eine seit dem Speichern gewechselte Waffe nach Leons Tabelle nach `WEP_DATA_ADDR` in Krausers Spielerarchiv mit seinem Modul `pl0a`, und `OSLink` stürzte ab. Nutzerbericht 09.11.2026 (Xiaomi peridot, 0.99.5: Absturz bei Tod oder Retry mit anderen Figuren) |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
