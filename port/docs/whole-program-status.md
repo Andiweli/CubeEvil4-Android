@@ -119,6 +119,52 @@ Patch-Nummer 0223. Punktnummern = Liste des Projektinhabers.
 - **„Partikeleffekte“ (Wunsch 14):** Der Knopf leuchtet (gelb) bei „Normal“ und „Weniger“, aus nur bei „Keine“. Nur die
   Darstellung; Test `CoreMenuLayoutTest` angepasst, grün.
 
+### Vulkan-Absturz-Wächter löste nach normalem Beenden aus (Sitzung „vulkan“, 09.11.2026)
+
+Meldung (Wortlaut des Projektinhabers): „Und ein User mit Android 17 hat auf Vulkan gespielt und nach dem Beenden bei
+einem Neustart plötzlich diese Meldung erhalten wie im Screenshot.“ Bild:
+`E:\Development\Android\reports\0996-20261109\vulkan-crashguard-android17.webp` (die Meldung „The game ended while it
+started with Vulkan …“, vermutlich 0.99.5-rc). Einen Fehlerbericht gibt es nicht.
+
+- **Befund (`CoreActivity`, E7):**
+  - Gesetzt wurde die Marke bei jedem `onCreate` mit Vulkan aus dem Menü, auch für eine neue Activity im selben
+    Prozess.
+  - Gelöscht wurde sie nur nach 120 gezeichneten Bildern (Prüfung alle 2 s, höchstens 5 min), beim Renderer-Wechsel
+    im Menü und beim Rückfall an Ort und Stelle.
+  - **Nicht** gelöscht beim Beenden über das Menü (`quit`, `System.exit` nach 300 ms), beim Wegwischen, wenn Android
+    die App im Hintergrund beendet, beim Neustart für „Clear shader cache“ oder den Startbildschirm, und wenn ein
+    Start keine 120 Bilder in 5 Minuten schaffte (etwa weil er im Hintergrund blieb).
+  - Endete der Prozess, solange die Marke stand, kam beim nächsten Start die Absturzmeldung, ohne dass etwas
+    abgestürzt war. Fälle dafür: das Ende innerhalb von 2 s nach einem `onCreate` (eine von Android neu angelegte
+    Activity; ein Neustart des Prozesses durch das System gleich nach dem Beenden), ein Start, der im Hintergrund
+    blieb, und eine Marke von 0.99.3–0.99.5, die nach einem solchen Ende stehen blieb.
+  - Welcher Fall den Nutzer traf, ist ohne Protokoll nicht zu sagen. Drehen, Bildformatwechsel und Home legen keine
+    neue Activity an (`configChanges`) und setzen die Marke nicht neu. Der Pipeline-Vorab-Bau berührt sie nicht.
+- **Behoben (neue Klasse `VulkanGuard`):**
+  - Die Marke wird nur beim ersten Vulkan-Start eines Prozesses gesetzt, mit Prozessnummer und Uhrzeit.
+  - Gelöscht wird sie nach 120 Bildern wie bisher, außerdem beim Beenden über das Menü, beim Neustart der App, beim
+    Öffnen des Startbildschirms und in `onStop` (Hintergrund).
+  - Steht sie beim nächsten Start noch, fragt die App ab Android 11 das System, wie **dieser** Prozess endete
+    (`ApplicationExitInfo` mit seiner Nummer, der Eintrag nach der Marke).
+  - Nur Absturz, nativer Absturz (Grafiktreiber), „reagiert nicht“ (ANR) und fehlgeschlagener Start führen zu OpenGL
+    ES mit der Meldung. Selbst beendet, vom Nutzer beendet, Speichermangel, Signal und Ähnliches nicht.
+  - Kennt das System kein Ende des markierten Prozesses, zählt das einmal nicht und beim zweiten Mal in Folge doch
+    (`vulkanStartingUnsure`).
+  - Android 10 nennt keinen Grund: dort zählt die Marke allein wie bisher, mit den neuen Löschstellen.
+  - Eine alte Marke ohne Prozessnummer (0.99.3–0.99.5) zählt nicht als Absturz.
+- **Protokoll (`RE4Input`):**
+  - „the game's last process ended: pid …, native crash/exit self/…, at …“ (bei jedem Start, ab Android 11);
+  - „renderer: the crash guard's mark set (pid …)“;
+  - „… mark cleared (the player ended the game / the app went to the background / Vulkan drew N pictures …)“;
+  - „… mark of the last start (pid …, set …) was still there: …“ mit dem Urteil.
+- **Geprüft:** neuer Unit-Test `VulkanGuardTest` (7 Fälle: keine Marke, Absturz/nativer Absturz/ANR/Startfehler →
+  OpenGL ES; selbst beendet/Nutzer/Speicher/Signal/anderes → Vulkan bleibt; Android 10 → Marke zählt; kein Eintrag
+  einmal/zweimal; alte Marke ohne Prozess; Systemzeit knapp vor der Marke). Gradle (`GRADLE_USER_HOME=%TEMP%\gh0994`):
+  `testCoreDebugUnitTest` und `testClassicDebugUnitTest` je 73 Tests, 0 Fehler, 1 übersprungen (Menübilder);
+  `VulkanGuardTest` 7 von 7. Nur Java geändert (kein Kern- oder nativer Neubau nötig); kein APK gebaut.
+  **Nicht geprüft:** Gerät (Android 17, echter Vulkan-Absturz beim Start: erzwingbar ist nur der Rückfall
+  `RE4_VK_FAIL=1`, kein Absturz).
+
 ## Version 0.99.5-rc: fünf Rückmeldungen des Projektinhabers mit Vulkan, Vulkan-Pipelines vorab (08.11.2026, Branch `work`, Patch 0221)
 
 Version 0.99.5-rc (versionCode 107), Releasetext `port/android-decomp/docs/releases/v0.99.5-rc.md` („Changes since

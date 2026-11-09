@@ -178,7 +178,9 @@ dieselbe Schnittstelle.
   Selbstprüfung (Filmfarben) fehl → GLES, Zeile im Protokoll, Meldung an den Spieler („Vulkan could not start on
   this device, the game uses OpenGL ES.“). Absturz-Wächter: vor dem Start von Vulkan ein Merker in den
   Einstellungen, nach den ersten Sekunden ohne Absturz gelöscht; steht er beim nächsten Start noch, startet GLES
-  und die App sagt es. Sperrliste bekannter schlechter Treiber, wächst mit den Berichten.
+  und die App sagt es. Seit 0.99.6 (`VulkanGuard`): einmal je Prozess gesetzt, auch beim Beenden und im
+  Hintergrund gelöscht, und ab Android 11 zählt nur ein echter Absturz, ANR oder Startfehler dieses Prozesses
+  (`ApplicationExitInfo`). Sperrliste bekannter schlechter Treiber, wächst mit den Berichten.
 
 ### Mindest-Android/Vulkan-Version (Entscheidung, siehe unten)
 - Die App läuft ab Android 7 (`minSdk 24` des Kernmodus). `libvulkan.so` nur per `dlopen` laden, nie fest
