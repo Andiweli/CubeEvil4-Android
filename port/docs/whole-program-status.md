@@ -8,8 +8,8 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Version 0.99.6-rc (versionCode 108), Releasetext `port/android-decomp/docs/releases/v0.99.6-rc.md` („Changes since
 v0.99.5.“, Known issues aus 0.99.5 übernommen, APK `CubeEvil4-0.99.6-rc.apk`). Zwei Sitzungen arbeiten parallel auf
 `work`: Sitzung A (Abstürze und Nutzerberichte, Material `E:\Development\Android\reports\0996-20261109\`) und
-Sitzung B (Menü, Lichthöfe, Update-Knopf, Vulkan- und OUYA-Optionen). Patch 0222 (Sitzung A), 0223 (Sitzung B), nächste freie
-Patch-Nummer 0224. Punktnummern = Liste des Projektinhabers.
+Sitzung B (Menü, Lichthöfe, Update-Knopf, Vulkan- und OUYA-Optionen). Patches 0222, 0224 (Sitzung A), 0223 (Sitzung B), nächste
+freie Patch-Nummer 0225. Punktnummern = Liste des Projektinhabers.
 
 ### Sitzung A, Etappe 1: Abstürze (Punkte 3, 4, 10, 11)
 
@@ -106,6 +106,28 @@ Patch-Nummer 0224. Punktnummern = Liste des Projektinhabers.
      ohne Taste, zurück bei Rno0 3 → 2 Drücke in 4 Bildern; ohne die Änderung schlägt `qteauto` fehl (0x80). Beide
      QTE-Proben setzen Rno0 3 und stellen ihn zurück. `whole_build.sh i686` Kern- und Laufzeittests 0 Fehler.
      **Nicht geprüft:** Gerät.
+
+### Sitzung A, Etappe 3: grüne Monitore (Punkt 12)
+
+12. **Monitore im Operationsraum zeigen nur Grün statt des Röntgenbilds (beide Renderer, alle Discs).** Raum
+    **r330**, Ereignis **r330s00** (Leon und Ashley werden von den Plagas befreit; der Kopf von `r330.cpp` nennt
+    es noch „mine cart ride start“). Am PC nachgestellt (debug und EU, `RE4_TEST_PLACE='free+60:area=3'`, A,
+    GX-Aufnahmen alle 50 Bilder, `gx_chunk_render` GL und Vulkan): in den Nahaufnahmen (Schnitte 6/8/11/15/23)
+    nur grüne Streifen, wie auf dem Bild des Nutzers.
+    - **Ursache (Port, undefiniertes Verhalten im Originalcode):** In diesen Schnitten zeichnet das Spiel die
+      Röntgenmodelle (evm9700/9800/9900) mit eigenen Kameras in zwei Render-Texturen (`EvtTexRenderCamTrans`,
+      `TexRender.cpp CamRenderPrev`), die die Monitore (Objekte 0x22/0x23) zeigen. Die Kopien liefen, die
+      Texturen blieben aber schwarz: die Positionsmatrix vor den Röntgen-Zeichnungen war NaN. Die Kamerabewegungen
+      `event/r330/s00/cam/etc_s00_0NN.fcv` haben nur zwei Gelenke, Position (0, 2500, 500) und Bildwinkel
+      (10°), **kein Ziel**; `CameraMotion::move` (`cam_motion.cpp`) lässt sein lokales `at` dann uninitialisiert.
+      Auf dem GameCube stand dort offenbar Brauchbares, im Port (0, −2,4e33, 0) → Up-Vektor NaN.
+    - **Behoben (Patch 0224, `cam_motion.cpp`):** `pos`, `at`, `fov` starten mit (0, 0, 0). Die Kamera schaut aus
+      2500 Einheiten Höhe auf den Ursprung der Modelle: Brustkorb mit Parasit von vorn, im selben Ausschnitt wie
+      das Original-Bild des Nutzers. Kein „bug of the prototype“ (der Code ist derselbe wie in der Verkaufsversion).
+    - **Geprüft am PC:** EU und debug, GL und Vulkan (lavapipe): Röntgenbild in allen Monitor-Nahaufnahmen
+      (Vergleichsbilder `reports/0996-20261109/monitor-fixed-pc-gles.png`, `-vulkan.png`); `whole_build.sh i686`
+      Kern- und Laufzeittests 0 Fehler. Eine Diagnose-Zeile (nur lokal, nicht im Repo) zeigte vorher
+      `at 0 -2.4e33 0, up nan`, danach `at 0 0 0, up 0 0.196 -0.981`. **Nicht geprüft:** Gerät.
 
 ### Sitzung B: Menü und Funktionen (09.11.2026)
 
@@ -14219,6 +14241,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0221 `r227.cpp` | Port-Fehler (Schnellspeicher der App überall im Raum): `r227_initGondola` stellt die Gondel (Objekt 0xA2, 6850 zwischen den Stationen) beim Laden (`SYS_LOAD_GAME`) nur noch oben ab, wenn der Spieler über der Mitte ihres Wegs steht (Starthöhe + 3425); aus r228 kommend wie bisher immer oben. Die Schreibmaschine des Raums (Bereich 1, Typ SAVE, Höhe 39 500) liegt über der oberen Station: Spielstände des Spiels selbst laden unverändert. Vorher nach dem Schnellladen unterhalb der Gondel: Gondel oben, unten trotzdem „Benutzen“. EU-`st2_3.rel` prüft genauso. Rückmeldung des Projektinhabers 08.11.2026 (Retroid, EU-Discs, 0.99.4) |
 | 0222 `game.cpp` | Port-Fehler (Patch 0195): `GameContinue` setzt nach `GameSave.load` die Ersatzfigur der Story (Ada, HUNK, Krauser, Wesker; `re4_story_char_continue`) wieder ein, bevor `PlSetCostume` und `ContinueWepData` den Spielertyp lesen. Der Continue-Punkt hält absichtlich Leon (`re4_story_char_save`); vorher las `ContinueWepData` eine seit dem Speichern gewechselte Waffe nach Leons Tabelle nach `WEP_DATA_ADDR` in Krausers Spielerarchiv mit seinem Modul `pl0a`, und `OSLink` stürzte ab. Nutzerbericht 09.11.2026 (Xiaomi peridot, 0.99.5: Absturz bei Tod oder Retry mit anderen Figuren) |
 | 0223 `light.cpp` | Port-Funktion (Wunsch des Projektinhabers 09.11.2026, aus dem OUYA-Zweig, dort Patch 0900): Sichtweite im App-Menü (Potato-Modus). `cLightMgr::setFog` und `hokanMove` geben GX den Nebel aus `re4_view_distance` (`runtime/view_distance.cpp`: Beginn und Ende mal 1 / 0,75 / 0,5, das Ende nicht unter 6 m, Räume ohne Nebel unverändert) und setzen die Sichtgrenze auf dieses Ende; `LightEnv.Fog` bleibt. `hokanMove` setzt den Nebel neu, wenn das Menü umgeschaltet hat (`re4_view_distance_changed`): wirkt sofort. Bei „Normal“ genau wie das Spiel. |
+| 0224 `cam_motion.cpp` | Port (undefiniertes Verhalten im Originalcode): `CameraMotion::move` beginnt `pos`, `at`, `fov` mit (0, 0, 0). Die Röntgen-Kameras von r330s00 (`etc_s00_0NN.fcv`) haben kein Ziel-Gelenk; das uninitialisierte `at` machte im Port die Kamera NaN, die Monitore des Operationsraums blieben grün. Nutzerbericht 09.11.2026 (zwei Bilder) |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
