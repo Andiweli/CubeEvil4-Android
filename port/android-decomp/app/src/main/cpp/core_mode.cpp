@@ -2144,6 +2144,9 @@ bool drawGx() {
     if (api.setViewDistance && viewDistance != viewDistanceSent) {
       api.setViewDistance(viewDistance);
       viewDistanceSent = viewDistance;
+      // (the reports: what the core was told; the core logs each fog it shortens, "view: fog type ...")
+      LOG("view distance to the core: %s (%d %% of each room's distance fog and far plane)",
+          viewDistance >= 100 ? "Normal" : viewDistance >= 75 ? "Medium" : "Short", viewDistance);
     }
     const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)

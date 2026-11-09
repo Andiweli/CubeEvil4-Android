@@ -213,6 +213,33 @@ freie Patch-Nummer 0225. Punktnummern = Liste des Projektinhabers.
   … 175030 -> … 87515“ direkt nach dem Umschalten); Intro r100 (Brücke): 250 → 240 Zeichenaufträge, 93 538 → 77 402
   Eckpunkte. Kern für Android (`whole_build_android.sh --abi all`) ohne Fehler, Stubs wie erwartet. Test
   `viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort`. Auf dem Gerät: offen.
+- **Sichtweite am Retroid ohne Bildgewinn (Rückmeldung des Projektinhabers, 09.11.2026: „Mit der kürzeren Sichtweite
+  mit 60 FPS und x4 Resolution konnte ich keinen Framegewinn auf meinem Retroid feststellen“):** geprüft.
+  - **Die Einstellung kommt an:** `re4_core_set_view_distance` ist in `libre4_main.so` beider ABIs exportiert
+    (`nm -D`, Version-Script `global: *`), `core_mode.cpp` schickt sie im Bildtakt (auch an den Kernprozess), der
+    Kern schreibt jede gekürzte Nebelweite ins Protokoll („view: fog type …, A .. B -> C .. D“). Neu: die App
+    schreibt beim Senden „view distance to the core: Short (50 % …)“, damit ein Bericht es zeigt.
+  - **Was „Kurz“ wegnimmt** (neuer Kern, gleiche Stelle mit 100 % und 50 %, je 18 Bilder einer Folge; Zeit
+    `gx_chunk_render` mit `RE4_GX_TIME`, das schnellste von drei Durchgängen; llvmpipe/lavapipe am PC, die
+    Vulkan-Zeit dort ist fast nur Prozessorarbeit):
+
+    | Szene | Zeichenaufrufe | Eckpunkte | GLES 1× | GLES 4× | Vulkan 1× / 4× |
+    |---|---|---|---|---|---|
+    | Dorf r101 (Blick über den Platz, 2 Richtungen) | 826 → 445 | 194k → 101k | −28 / −31 % | −9 / −14 % | −49 % |
+    | Farm r103 | 855 → 561 | 227k → 172k | −7 % | −4 % | −16 / −20 % |
+    | Insel r300 (Nebelende 371 m → 186 m) | 381 → 378 | 69k → 68k | ±0 | ±0 | ±0 |
+    | Burg r200 außen (Nebelende 542 m → 271 m) | 497 → 497 | gleich | ±0 | ±0 | ±0 |
+
+    Mit fester Obergrenze 90 m (Messschalter, wieder entfernt): Insel 381 → 373, Burg 497 → 419 Zeichenaufrufe,
+    beide dann stark vernebelt: keine stärkere Stufe.
+  - **Befund:** Die ferne Geometrie wird wirklich weggelassen (nicht nur vernebelt), aber nur, wo hinter dem neuen
+    Nebelende etwas steht (Dorf, Farm). Bei 4× bestimmt die Bildfläche die Zeit (Pixel, Effekte, Kopien); dort
+    bringt es unter GLES 4–14 %. Am Retroid lief das Spiel laut Foto ohnehin mit 30 Spielbildern und 60
+    Bildschirmbildern: mehr geht nicht, ein Gewinn zeigt sich dort höchstens als geringere Last (die Dynamische
+    Auflösung kann eine Stufe höher gehen). Nutzen vor allem auf schwachen Handys bei 1×, wo Prozessor und
+    Zeichenaufrufe bremsen (Vulkan am PC: −49 % Prozessorzeit im Dorf).
+  - **Hilfetext ehrlich** (`ingame_view_help`, 11 Sprachen): hilft bei langsamen Handys mit niedriger Auflösung,
+    im Dorf etwa die Hälfte der Objekte, bei hoher Auflösung wenig; Burg und Insel bleiben gleich.
 - **Farbmodus (Wunsch 13B): gemessen, nicht gebaut; Entscheidung des Projektinhabers 09.11.2026: weglassen („Ja, weglassen“). `RE4_GX_TEV_TEST` bleibt als reiner Testschalter (im Spiel ohne Wirkung).** Vorgabe über die Hauptsitzung: erst den
   Nutzen der OUYA-Rechnung messen (vereinfachte Farbberechnung ohne 8-Bit-Stufen, OUYA-Zweig `ShaderKey::fastTev`);
   den sichtbaren 16-Bit-Look nicht bauen. Versuchsschalter nur für Messungen in `gx_gl_shader.cpp`:
