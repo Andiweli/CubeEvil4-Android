@@ -129,6 +129,21 @@ freie Patch-Nummer 0225. Punktnummern = Liste des Projektinhabers.
       Kern- und Laufzeittests 0 Fehler. Eine Diagnose-Zeile (nur lokal, nicht im Repo) zeigte vorher
       `at 0 -2.4e33 0, up nan`, danach `at 0 0 0, up 0 0.196 -0.981`. **Nicht geprüft:** Gerät.
 
+### Sitzung A, Etappe 4: Adas Haltung (Punkt 6), nicht behoben
+
+6. **Ada vornübergeklappt vor einer Schlosstür (Bildschirmfoto, kein Bericht; Spezialkostüm, Kampfanzug pl0c).**
+   Die Vermutung „Tür-Öffnen-Bewegung“ trifft am PC nicht zu: an Ada (r204, `RE4_CHEATS=328`, Spezialkostüm)
+   `RE4_TEST_PL_MOTION` mit ihrer eigenen 0x1E (Tür aufdrücken, `emdoor.cpp plemDoorOpen`), Leons 0x1E sowie
+   ihren 0x1C/0x1D (Tür eintreten) – Haltung normal. Adas Kostüme pl0b und pl0c haben dieselben 125 Einträge
+   (`archive_dump.py`, Größen gleich): das Kostüm ändert an den Bewegungen nichts. Leons Bewegungen, die Ada fehlt
+   (aus `re4_arc_stand_in`: 0x23, 0x24, 0x26, 0x46, 0x47, 0x55–0x58, 0x5A–0x5C, 0x68, 0x69, 0x6C, 0x6E,
+   0x7D–0x83): jetzt auch 0x23, 0x5A, 0x5C, 0x68, 0x69, 0x81, 0x82, 0x83 an Ada abgespielt (0x26/0x46/0x55/0x57/0x5B
+   schon in 0.99.3; die übrigen sind keine Bewegungen, die das Werkzeug abspielt) – keine klappt sie so zusammen.
+   **Nicht gefunden, nicht geändert.** Skripte: WSL `~/p0996a`, `adamot.sh` im Scratchpad der Sitzung. Bitte an den
+   User: "Thanks for the picture. We could not make Ada bend like that on the PC yet. If it happens again, please
+   send a report right away from the app menu (Management -> Send report) without closing the game, and tell us what
+   Ada did just before (opened a door, used a key, climbed, was hit ...)."
+
 ### Sitzung B: Menü und Funktionen (09.11.2026)
 
 - **Update-Knopf (Wunsch 7):** Der Knopf „Update“ im App-Menü lädt nichts mehr herunter und installiert nichts mehr
