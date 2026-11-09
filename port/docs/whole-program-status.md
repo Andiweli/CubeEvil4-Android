@@ -75,6 +75,38 @@ Patch-Nummer 0223. Punktnummern = Liste des Projektinhabers.
     error in it. If the game closed by itself: that was Android ending it for lack of memory (17:07); closing other
     apps can help. If something else went wrong, please tell us what you saw."
 
+### Sitzung A, Etappe 2: Ruckeln und Ja/Nein-Abfrage (Punkte 5, 9)
+
+5. **Ruckeln seit 0.97 (moto g15, Mali-G52 MC2, MT6768, 3,6 GB, ARM64, 0.99.5-rc, Vulkan; Fehlerprotokoll aus).**
+   Nur die eingebauten Zeilen (r11f, Professional, Rifle/El Gigante laut Nutzer). Befund: fest **1,5×**
+   eingestellt (`scaleHalves=3`), der Benchmark des Geräts fand **1×** (`dynamicCap30=2`, `dynamicCap60=2`). Das
+   Spiel braucht 38–48 ms je Bildstück statt 33, davon 10–25 ms Warten auf den Zeichen-Thread; Vulkan wartet je Bild
+   12–27 ms beim Anzeigen (GPU ausgelastet), 22–48 Bilder/s. Die schnellen Kerne laufen bei 0,9–1,6 GHz statt 2,0
+   (Drosselung durch Wärme). **Keine** Shader- oder Pipeline-Bauten im Lauf („0 pipelines made“, 0 Shader), also
+   kein Ruckeln durch erstes Zeichnen. **Vermutung:** GPU an der Grenze bei 1,5× (die Stellen sind die schwersten:
+   viele Ganados, Zielfernrohr mit seinen Kopien, El Gigante), dazu die Drosselung; betrifft beide Renderer. Nicht
+   behoben, am PC nicht nachzustellen. Bitte an den User: "Thanks for the report. Your phone's graphics chip
+   (Mali-G52 MC2) managed 1x in the app's benchmark, but the resolution is set to 1.5x: in the heaviest places
+   (many Ganados, the rifle scope, El Gigante) it cannot keep up, and the phone also slows its processor down when
+   it gets warm. Please try Graphics -> Resolution: Dynamic (or 1x). If it still stutters, turn on Management ->
+   Error log -> Record the error log, play to the place and send a report right away."
+9. **Ja/Nein-Abfrage springt hin und her (Xiaomi lisa, ARM64, 0.99.5-rc, Vulkan, EU-Discs mit portugiesischer
+   Fan-Übersetzung, nur Touch).** Video: im Pausemenü „RETOMAR ou CARREGAR“ öffnet und schließt sich die Frage
+   „Retry from the nearest continue point?“ ständig (Frage, Erklärtext, Frage ohne Pfeil …). Protokoll: um 21:47:55
+   wird Leon gepackt (Leben 60 → 1 in vier Bildern), A wird gehämmert, im nächsten Bild START (0x1000), Menü offen;
+   danach 27 s lang **A jedes zweite Bild** (`pad: frame … buttons 0x0100` alle 2 Bilder bis zum Retry 21:48:22).
+   - **Ursache (Port-Fehler der Automatik-QTEs, `qte_touch.cpp`, seit 0.96.0 (29.10.2026), beide Renderer, nicht die
+     Übersetzung):** Der Cheat „Automatic QTEs“ war an. Er antwortet, solange `ActBtn` aktiv ist und kein
+     Untermenü offen ist; das Pausemenü (Rno0 6) hält das Spiel an, die Befreiungs-Abfrage blieb aktiv, und die
+     Automatik hämmerte A im Menü weiter.
+   - **Behoben:** `qteHook` antwortet (Tippen und Automatik) nur, solange das Spiel läuft (`pG->Rno0 == 3`,
+     `gameMainLoop`, dort läuft auch `ActBtn.move`); im Menü verworfen, was noch ansteht. Danach wird eine noch
+     gezeigte Abfrage wie bisher beantwortet.
+   - **Geprüft am PC:** `re4probe_qte_auto` (`game_probe.cpp`) neu am Anfang: Hämmer-Abfrage bei Rno0 6 → 4 Bilder
+     ohne Taste, zurück bei Rno0 3 → 2 Drücke in 4 Bildern; ohne die Änderung schlägt `qteauto` fehl (0x80). Beide
+     QTE-Proben setzen Rno0 3 und stellen ihn zurück. `whole_build.sh i686` Kern- und Laufzeittests 0 Fehler.
+     **Nicht geprüft:** Gerät.
+
 ### Sitzung B: Menü und Funktionen (09.11.2026)
 
 - **Update-Knopf (Wunsch 7):** Der Knopf „Update“ im App-Menü lädt nichts mehr herunter und installiert nichts mehr

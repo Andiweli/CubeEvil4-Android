@@ -1654,6 +1654,8 @@ extern "C" int re4probe_qte_touch(void)
     const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0;
     const int keepActive = ActBtn.isActive();
     const u8 keepShown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    const u8 keepRno0 = pG->Rno0;
+    pG->Rno0 = 3;  // the game plays (gameMainLoop): qte_touch.cpp answers prompts only then
     PADStatus pads[4];
     int bad = 0;
     auto frame = [&]() -> u16 {
@@ -1726,6 +1728,7 @@ extern "C" int re4probe_qte_touch(void)
 
     Cckpt.m_ActBttn.setDispFlag(keepShown);
     ActBtn.setActive(keepActive);
+    pG->Rno0 = keepRno0;
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
     }
@@ -1742,6 +1745,8 @@ extern "C" int re4probe_qte_auto(void)
     const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0;
     const int keepActive = ActBtn.isActive();
     const u8 keepShown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    const u8 keepRno0 = pG->Rno0;
+    pG->Rno0 = 3;  // the game plays (gameMainLoop): qte_touch.cpp answers prompts only then
     PADStatus pads[4];
     int bad = 0;
     auto frame = [&]() -> u16 {
@@ -1757,6 +1762,25 @@ extern "C" int re4probe_qte_auto(void)
     StaFlagOff(pG, STA_SUB_SCRN);
     ActBtn.setActive(1);
     re4_qte_auto(1);
+    settle();
+
+    // a mash (A) while the option screen (START, Rno0 6) is open: nothing (user report 08.11.2026, the Retry
+    // question opened and closed by itself); back in the game the mash goes on (first here: the test reads the
+    // dodge's log line from the log's last 24 lines)
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_RAPID);
+    pG->Rno0 = 6;
+    bad |= (frame() | frame() | frame() | frame()) != 0 ? 0x80 : 0;
+    pG->Rno0 = 3;
+    {
+        u16 last = 0;
+        int resumed = 0;
+        for (int f = 0; f < 4; f++) {
+            const u16 b = frame();
+            resumed += b == 0x0100 && last != 0x0100;
+            last = b;
+        }
+        bad |= resumed != 2 ? 0x100 : 0;
+    }
     settle();
 
     // the dodge: L+R two frames, two not, then again while the prompt stays
@@ -1800,6 +1824,7 @@ extern "C" int re4probe_qte_auto(void)
 
     Cckpt.m_ActBttn.setDispFlag(keepShown);
     ActBtn.setActive(keepActive);
+    pG->Rno0 = keepRno0;
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
     }

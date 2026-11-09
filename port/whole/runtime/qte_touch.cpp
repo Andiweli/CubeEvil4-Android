@@ -98,6 +98,19 @@ void qteHook(unsigned)
 {
     const u32 seq = __atomic_load_n(&gSeq, __ATOMIC_ACQUIRE);
     const u8 shown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    // Only while the game plays (Rno0 3, game.cpp gameMainLoop; events included). START during a prompt opens
+    // the option screen (Rno0 6) over the stopped game with the prompt still up: the automatic mash went on
+    // pressing A there, every second frame, and the Retry question opened and closed by itself (user report
+    // 08.11.2026 by video, Xiaomi lisa: grabbed, START, "Sim/Nao" jumped for 27 s). Taps and the mash left
+    // over are dropped; once the game plays again a prompt still shown is answered as before.
+    if (!pG || pG->Rno0 != 3) {
+        gSeen = seq;
+        gQueued = 0;
+        gLeft = 0;
+        gPressedLast = false;
+        gAutoGap = 0;
+        return;
+    }
     if (seq != gSeen) {
         const u32 taps = seq - gSeen;
         gSeen = seq;
