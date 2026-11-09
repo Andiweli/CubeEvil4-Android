@@ -551,11 +551,40 @@ public final class CoreInputTests {
       CoreInput bad = new CoreInput();
       bad.setStickShape(80, 20);
       check(bad.deadZone() == CoreInput.DEAD_ZONE_MAX && bad.range() == 100);
-      // the touch controls' sticks are not shaped
+      // the touch controls' sticks are not shaped by these settings (their own curve, touchWalk)
       CoreInput touch = new CoreInput();
       touch.setStickShape(30, 50);
       touch.touchStick(false, 0.2f, 0f);
-      check(touch.pad()[1] == Math.round(0.2f * 101f));
+      check(touch.pad()[1] == Math.round(CoreInput.touchWalk(0.2f, 0f)[0] * 101f));
+    }
+    // the touch move stick walks after a short push (touchWalk, the project owner, 10.11.2026): at rest within 8 %,
+    // past it just out of PADClamp's dead zone, walking (past 30 after PADClamp) from 22 % of the way, the full
+    // stick (72) from 80 %, the ring 101 as before; the direction kept
+    {
+      CoreInput t = new CoreInput();
+      t.touchStick(false, 0.07f, 0f);
+      check(t.pad()[1] == 0 && t.pad()[2] == 0);
+      t.touchStick(false, 0.09f, 0f);
+      check(mainStick(t.pad())[0] >= 0 && mainStick(t.pad())[0] <= 3);
+      t.touchStick(false, 0.15f, 0f);
+      check(mainStick(t.pad())[0] < 30);
+      t.touchStick(false, 0f, -0.22f);  // up: walking
+      check(mainStick(t.pad())[1] > 30 && t.pad()[1] == 0);
+      t.touchStick(false, 0.5f, 0f);
+      check(mainStick(t.pad())[0] > 50 && mainStick(t.pad())[0] < 72);
+      t.touchStick(false, 0.8f, 0f);
+      check(mainStick(t.pad())[0] == 72);
+      t.touchStick(false, 0f, -1f);
+      check(t.pad()[2] == 101);
+      t.touchStick(false, (float) -Math.sqrt(0.045), (float) Math.sqrt(0.045));  // 30 % down left: both ways alike
+      check(t.pad()[1] == t.pad()[2] && t.pad()[1] < 0);  // the pad: up positive
+      // with R held (aiming) the old, plain way: 0.2 of the way is 20 of 101
+      t.touchButton(CoreInput.GC_R, true);
+      t.touchStick(false, 0.2f, 0f);
+      check(t.pad()[1] == Math.round(0.2f * 101f));
+      t.touchButton(CoreInput.GC_R, false);
+      // a controller's stick stays as it is
+      check(stick(0.2f, 0f)[1] == Math.round(0.2f * 101f));
     }
     System.out.println("Core controller: layout, swap, alternate controls, free keys, sticks and triggers through "
         + "PADClamp, devices, button mapping, keyboard, stick dead zone and range: " + checks + " checks PASS");
