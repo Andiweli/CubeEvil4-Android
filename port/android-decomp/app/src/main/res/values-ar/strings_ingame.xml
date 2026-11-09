@@ -80,6 +80,8 @@
     <string name="ingame_far_camera">كاميرا بعيدة</string>
     <string name="ingame_auto_aim_help">‏التصويب التلقائي: عند رفع السلاح يقفز التصويب إلى أقرب عدو أمامك ويتبعه لحظة (مساعدة التصويب المدمجة في اللعبة).</string>
     <string name="ingame_always_run_help">‏الركض دائمًا: يركض ليون كلما تحركت؛ اضغط باستمرار على زر الركض (مثل B) للمشي بدلًا من ذلك.</string>
+    <string name="ingame_modern_move">الحركة الحديثة</string>
+    <string name="ingame_modern_move_help">‏الحركة الحديثة: يستدير ليون نحو الاتجاه الذي تدفع إليه العصا (كما تراه الكاميرا) ويمشي إليه؛ وسحب العصا للخلف ما زال يعني الرجوع للخلف. يبقى التصويب والسلالم والقارب والمشاهد السينمائية كما في الأصل.</string>
     <string name="ingame_far_camera_help">تُبقي كاميرا الكتف أبعد قليلًا خلف ليون أثناء المشي والوقوف. عند التصويب وفي الأماكن الضيقة تقترب كما من قبل، وتتحرك بسلاسة بينهما.</string>
     <string name="ingame_touch_aim">التصويب باللمس</string>
     <string name="ingame_aim_move_stick">عصا الحركة</string>

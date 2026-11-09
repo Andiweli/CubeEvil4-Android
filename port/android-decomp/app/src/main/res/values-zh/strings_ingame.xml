@@ -77,6 +77,8 @@
     <string name="ingame_far_camera">远距离镜头</string>
     <string name="ingame_auto_aim_help">自动瞄准：举起武器时，准星会跳到你前方最近的敌人身上并短暂跟随（游戏自带的瞄准辅助）。</string>
     <string name="ingame_always_run_help">始终奔跑：只要移动，里昂就会奔跑；按住奔跑键（例如 B）即可改为行走。</string>
+    <string name="ingame_modern_move">现代移动</string>
+    <string name="ingame_modern_move_help">现代移动：里昂会转向你推动摇杆的方向（以镜头为准）并朝那里走；向后拉摇杆仍是后退。瞄准、梯子、小船和过场动画保持原版操作。</string>
     <string name="ingame_far_camera_help">行走和站立时让肩后镜头离 Leon 稍远一些。瞄准时和狭窄处会像以前一样靠近；两者之间平滑过渡。</string>
     <string name="ingame_touch_aim">触控瞄准</string>
     <string name="ingame_aim_move_stick">移动摇杆</string>

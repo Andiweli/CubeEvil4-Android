@@ -1,0 +1,55 @@
+# Port patch, "stepless turning" (decision of the project owner, 10.11.2026, with "Modern movement"; always on):
+# Leon's turns while walking, stepping back and running (pl_R1_Walk, pl_R1_Back, pl_R1_Run) are scaled by the
+# main stick's sideways push (re4_turn_scale, runtime/modern_move.cpp): the game makes left and right keys of the
+# stick (game/pad.cpp, 30..150 degrees past 30 of 72) and turned at its full SPEED_WALK_TURN / SPEED_RUN_TURN for
+# any push. Now full from 56 of 72 on, slower below, 35 % at the least; the D-pad (stick at rest) and a full push
+# turn as the game does. Turning on the spot (pl_R1_Turn, a motion of its own) and the quick turn stay as they are.
+# Not a bug of the prototype, all discs.
+--- a/src/game/player.cpp
++++ b/src/game/player.cpp
+@@ -403,6 +403,7 @@
+ }
+ 
+ extern "C" int re4_run_held(int held); /* port: runtime/aim_options.cpp (patch 0156) */
++extern "C" f32 re4_turn_scale(void); /* port: runtime/modern_move.cpp (patch 0227) */
+ 
+ // Idle: footwork motion (m_MotTbl[0] / the damaged pair 0x5F), neck motions 0x3F/0x40.
+ void pl_R1_Footwork(cPlayer* pEm)
+@@ -488,10 +489,10 @@
+             pEm->setRno(0, 0, 0, 0);
+         } else {
+             if (Key.on & 4) {
+-                pEm->ang.y -= cPlayer::SPEED_WALK_TURN;
++                pEm->ang.y -= cPlayer::SPEED_WALK_TURN * re4_turn_scale(); /* port: patch 0227 */
+             }
+             if (Key.on & 8) {
+-                pEm->ang.y += cPlayer::SPEED_WALK_TURN;
++                pEm->ang.y += cPlayer::SPEED_WALK_TURN * re4_turn_scale(); /* port: patch 0227 */
+             }
+             pEm->ang.y = LIMIT_ANGLE(pEm->ang.y);
+             pEm->checkCtrl();
+@@ -514,10 +515,10 @@
+             pEm->setRno(0, 0, 0, 0);
+         } else {
+             if (Key.on & 4) {
+-                pEm->ang.y -= cPlayer::SPEED_WALK_TURN;
++                pEm->ang.y -= cPlayer::SPEED_WALK_TURN * re4_turn_scale(); /* port: patch 0227 */
+             }
+             if (Key.on & 8) {
+-                pEm->ang.y += cPlayer::SPEED_WALK_TURN;
++                pEm->ang.y += cPlayer::SPEED_WALK_TURN * re4_turn_scale(); /* port: patch 0227 */
+             }
+             pEm->ang.y = LIMIT_ANGLE(pEm->ang.y);
+             pEm->checkCtrl();
+@@ -606,9 +607,9 @@
+         } else {
+             u64 key = Key.on;
+             if (key & 4) {
+-                pEm->ang.y -= cPlayer::SPEED_RUN_TURN * pl_speed2_xxx;
++                pEm->ang.y -= cPlayer::SPEED_RUN_TURN * pl_speed2_xxx * re4_turn_scale(); /* port: patch 0227 */
+             } else if (key & 8) {
+-                pEm->ang.y += cPlayer::SPEED_RUN_TURN * pl_speed2_xxx;
++                pEm->ang.y += cPlayer::SPEED_RUN_TURN * pl_speed2_xxx * re4_turn_scale(); /* port: patch 0227 */
+             }
+             pEm->ang.y = LIMIT_ANGLE(pEm->ang.y);
+             if (joyKamae()) {

@@ -199,6 +199,9 @@ public final class CoreBridge {
   public static native void setMerge(boolean on);
   /** "Far camera": the shoulder camera further back while walking and standing (patch 0171). */
   public static native void setFarCamera(boolean on);
+  /** "Modern movement" (Controls, off by default): Leon walks where the stick points, seen from the camera
+   *  (runtime/modern_move.cpp), for the controller and the touch stick alike; sent with the aim settings. */
+  public static native void setModernMove(boolean on);
   /** "Field of view" (PLAYER VIEW): the shoulder camera's vertical field of view changed by `degrees`
    *  (-15 .. +15; 0 as the game; patch 0205), sent with the aim settings. */
   public static native void setFov(int degrees);

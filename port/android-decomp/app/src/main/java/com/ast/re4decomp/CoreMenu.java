@@ -819,6 +819,12 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons third = buttonsRow(body);
     toggle(third, R.string.ingame_auto_aim, input.getBoolean(CoreActivity.AUTO_AIM, false), on -> host.autoAimChanged(on));
     toggle(third, R.string.ingame_always_run, input.getBoolean(CoreActivity.ALWAYS_RUN, false), on -> host.alwaysRunChanged(on));
+    // "Modern movement" (decision of the project owner, 10.11.2026: one switch for the controller and touch, off
+    // by default): Leon walks where the stick points, seen from the camera (runtime/modern_move.cpp)
+    MenuLayout.Buttons fourth = buttonsRow(body);
+    toggle(fourth, R.string.ingame_modern_move, input.getBoolean(CoreActivity.MODERN_MOVE, false), on -> {
+      input.edit().putBoolean(CoreActivity.MODERN_MOVE, on).apply(); CoreBridge.setModernMove(on);
+    });
     // aiming the knife and the guns by touch or a controller (wish of the project owner, 30.10.2026): the game's
     // own "reverse" option and the stick's speed while aiming, right under the latches
     switchWithSlider(R.string.ingame_aim_invert_v, input.getBoolean(CoreActivity.AIM_INVERT_V, false),
@@ -826,7 +832,8 @@ final class CoreMenu extends Dialog {
         CoreActivity.AIM_SPEED_MAX, CoreActivity.AIM_SPEED_STEP,
         CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
-    help(R.string.ingame_always_run_help); help(R.string.ingame_aim_help); help(R.string.ingame_knife_swipe_help);
+    help(R.string.ingame_always_run_help); help(R.string.ingame_modern_move_help); help(R.string.ingame_aim_help);
+    help(R.string.ingame_knife_swipe_help);
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held; since 05.11.2026 a section
     // of its own, a third of the row each
     heading(R.string.ingame_touch_aim);

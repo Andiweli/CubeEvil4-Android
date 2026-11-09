@@ -77,6 +77,8 @@
     <string name="ingame_far_camera">Kamera jauh</string>
     <string name="ingame_auto_aim_help">Bidik otomatis: saat Anda mengangkat senjata, bidikan melompat ke musuh terdekat di depan Anda dan mengikutinya sesaat (penguncian bawaan game).</string>
     <string name="ingame_always_run_help">Selalu lari: Leon berlari setiap kali Anda bergerak; tahan tombol lari (mis. B) untuk berjalan.</string>
+    <string name="ingame_modern_move">Gerakan modern</string>
+    <string name="ingame_modern_move_help">Gerakan modern: Leon berbalik ke arah stik didorong (dilihat dari kamera) dan berjalan ke sana; menarik stik ke belakang tetap mundur. Membidik, tangga, perahu, dan cutscene tetap seperti aslinya.</string>
     <string name="ingame_far_camera_help">Menjaga kamera bahu sedikit lebih jauh di belakang Leon saat berjalan dan diam. Saat membidik dan di tempat sempit kamera mendekat seperti sebelumnya; perpindahannya halus.</string>
     <string name="ingame_touch_aim">Bidik Sentuh</string>
     <string name="ingame_aim_move_stick">Stik Gerak</string>

@@ -76,6 +76,8 @@
     <string name="ingame_far_camera">Kamera weiter weg</string>
     <string name="ingame_auto_aim_help">Auto-Zielen: Beim Anlegen der Waffe springt das Ziel auf den nächsten Gegner vor dir und folgt ihm einen Moment (die eingebaute Zielhilfe des Spiels).</string>
     <string name="ingame_always_run_help">Immer laufen: Leon läuft, sobald du dich bewegst; halte die Lauftaste (z. B. B), um stattdessen zu gehen.</string>
+    <string name="ingame_modern_move">Moderne Steuerung</string>
+    <string name="ingame_modern_move_help">Moderne Steuerung: Leon dreht sich dorthin, wohin du den Stick drückst (von der Kamera aus gesehen), und läuft dorthin; Stick nach hinten geht weiter rückwärts. Zielen, Leitern, Boot und Zwischensequenzen bleiben wie im Original.</string>
     <string name="ingame_far_camera_help">Hält die Schulterkamera beim Laufen und Stehen etwas weiter hinter Leon. Beim Zielen und an engen Stellen kommt sie wie bisher nah heran; dazwischen gleitet sie weich.</string>
     <string name="ingame_touch_aim">Touch-Zielen</string>
     <string name="ingame_aim_move_stick">Bewegungsstick</string>

@@ -17,6 +17,8 @@
 //  - "Always run" (wish of the project owner, 30.10.2026): Leon runs without the run key and walks while
 //    it is held (patch 0156: the four run checks of player.cpp ask re4_run_held). Only there: the key
 //    keeps its other uses (cancel, quick turn, menus).
+//  - "Modern movement" (decision of the project owner, 10.11.2026; bit 4): Leon walks where the stick points,
+//    seen from the camera (runtime/modern_move.cpp).
 #include "types.h"
 #include "global.h"
 #include "main.h"
@@ -26,6 +28,7 @@
 
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
+extern "C" void re4_modern_move_set(int on);                  // runtime/modern_move.cpp
 
 namespace {
 
@@ -94,7 +97,7 @@ void hook(unsigned)
 }
 
 // For tests on the PC: RE4_TEST_AIM=bits at the start, as the app's re4_core_set_aim (bit 1 auto aim, bit 2
-// always run, bits 8.. the speed; 0 there: 100 %), applied at the first game frame
+// always run, bit 4 modern movement, bits 8.. the speed; 0 there: 100 %), applied at the first game frame
 struct StartSetting {
     StartSetting()
     {
@@ -107,6 +110,7 @@ struct StartSetting {
             gLock = (bits >> 1) & 1;
             gRun = (bits & 4) != 0;
             gFar = (bits & 8) != 0;
+            re4_modern_move_set((bits & 16) != 0);
             gHooked = true;
             gPending = true;
             re4_add_frame_hook(hook);
@@ -119,7 +123,8 @@ struct StartSetting {
 extern "C" {
 
 // The app (core_api.cpp re4_core_set_aim): bit 0 "Invert vertical", bit 1 "Auto aim", bit 2 "Always run",
-// bit 3 "Far camera", bits 8..19 the aim speed in percent, bits 24..29 "Field of view" (degrees + 32; 0.98.4).
+// bit 3 "Far camera", bit 4 "Modern movement" (0.99.7), bits 8..19 the aim speed in percent, bits 24..29 "Field of
+// view" (degrees + 32; 0.98.4).
 // Any thread.
 void re4_aim_set(int bits)
 {
@@ -135,6 +140,7 @@ void re4_aim_set(int bits)
     const bool locked = gLock.exchange(lock) != lock;
     const bool ran = gRun.exchange(run) != run;
     const bool farther = gFar.exchange(far) != far;
+    re4_modern_move_set((bits & 16) != 0);  // (logs a change itself)
     const int fov = fovOf(bits);
     const bool wider = gFov.exchange(fov) != fov;
     if (inverted || faster || locked || ran || farther || wider) {

@@ -134,6 +134,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
   // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
+  /** "Modern movement" (Controls, off by default; decision of the project owner, 10.11.2026). */
+  static final String MODERN_MOVE = "modernMove";
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
   // camera's vertical field of view, -FOV_RANGE .. FOV_RANGE, 0 as the game (CoreBridge.setFov, patch 0205)
@@ -413,6 +415,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setLaserColour(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getInt(LASER_COLOUR, 0));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
       CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));
+      CoreBridge.setModernMove(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(MODERN_MOVE, false));
       CoreBridge.setFov(fovOffset(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE)));
       CoreBridge.setVertexRing(g.getBoolean("vertexRing", false));
       // "Dynamic" up to the benchmark's levels on this device, when it ran

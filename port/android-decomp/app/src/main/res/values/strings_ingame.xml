@@ -86,6 +86,8 @@
     <string name="ingame_far_camera">Far camera</string>
     <string name="ingame_auto_aim_help">Auto aim: when you raise your weapon, the aim jumps to the nearest enemy in front of you and follows it for a moment (the game\'s own lock-on).</string>
     <string name="ingame_always_run_help">Always run: Leon runs whenever you move; hold the run button (e.g. B) to walk instead.</string>
+    <string name="ingame_modern_move">Modern movement</string>
+    <string name="ingame_modern_move_help">Modern movement: Leon turns to where you push the stick (seen from the camera) and walks there; pulling the stick back still steps backwards. Aiming, ladders, the boat and cutscenes stay as in the original.</string>
     <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon while walking and standing. Aiming and tight spots bring it close as before; it moves smoothly in between.</string>
     <string name="ingame_touch_aim">Touch Aiming</string>
     <string name="ingame_aim_move_stick">Move Stick</string>
