@@ -213,6 +213,35 @@ freie Patch-Nummer 0225. Punktnummern = Liste des Projektinhabers.
   … 175030 -> … 87515“ direkt nach dem Umschalten); Intro r100 (Brücke): 250 → 240 Zeichenaufträge, 93 538 → 77 402
   Eckpunkte. Kern für Android (`whole_build_android.sh --abi all`) ohne Fehler, Stubs wie erwartet. Test
   `viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort`. Auf dem Gerät: offen.
+- **Farbmodus (Wunsch 13B): gemessen, nicht gebaut (Entscheidung offen).** Vorgabe über die Hauptsitzung: erst den
+  Nutzen der OUYA-Rechnung messen (vereinfachte Farbberechnung ohne 8-Bit-Stufen, OUYA-Zweig `ShaderKey::fastTev`);
+  den sichtbaren 16-Bit-Look nicht bauen. Versuchsschalter nur für Messungen in `gx_gl_shader.cpp`:
+  `RE4_GX_TEV_TEST=1` die Farbstufen vereinfacht (kein Runden, kein Umbruch auf 8 Bit, keine Klammer ungeklammerter
+  Stufen, Mischfaktor ohne c + (c >> 7)), `=2` gar keine Farbstufen (erste Textur × Eckfarbe: die obere Schranke jeder
+  Vereinfachung). Ohne Schalter ist der Shader unverändert (60 Bilder flares3 bytegleich, `gx_gl_check` GLES und Vulkan
+  0 Fehler). Messung `gx_chunk_render` GLES (llvmpipe), 2×, je Bild das schnellste von drei Durchgängen, die ersten
+  acht Bilder (Programme werden gebaut) ausgelassen, Summe über 16 Bilder (Werkzeug `~/p0996b/tevmeasure.sh`):
+
+  | Szene | genau | vereinfacht | ohne Farbstufen |
+  |---|---|---|---|
+  | Dorf r101 (Wald am Dorf) | 1003 ms | 1055 ms (−5,1 %) | 859 ms (+14,4 %) |
+  | Insel r300 (Nebel, Klippe) | 1097 ms | 1017 ms (+7,3 %) | 746 ms (+32,0 %) |
+  | Hütte am See r11c (Nacht, Regen, Feuer) | 955 ms | 893 ms (+6,5 %) | 641 ms (+32,9 %) |
+  | Burg r204 | 790 ms | 743 ms (+6,0 %) | 555 ms (+29,7 %) |
+  | Burg, GX-Serie flares3 08 des Projektinhabers (4 Bilder) | 217 ms | 225 ms (−3,5 %) | 164 ms (+24,6 %) |
+  | Burgdach r227 mit Nebel (Serie des Projektinhabers 0995) | 906 ms | 848 ms (+6,4 %) | 562 ms (+38,0 %) |
+
+  Die Schwankung zwischen Durchgängen liegt bei etwa ±5 % (zwei Szenen wurden „vereinfacht“ langsamer). Bildfehler der
+  schnellen Fassung: im Mittel 1–2 von 255 Stufen, bis 23 000 Pixel über 8 Stufen (der OUYA-Zweig mit Gleitkomma: unter
+  1 Stufe). **Einschätzung:** Auf der OUYA (Tegra 3, nur GLES 2) brachte die Rechnung viel, weil dort ganze Zahlen mit
+  `floor`/`mod` nachgebildet wurden; GLES 3 und Vulkan rechnen die 8-Bit-Stufen mit echten Ganzzahl-Befehlen, die auf
+  Adreno und Mali kaum mehr kosten als Gleitkomma. Gewinn daher höchstens um 5 % der Grafikzeit und nur, wenn die
+  Pixelarbeit begrenzt (hohe Auflösung); bei 1× auf schwachen Geräten bremsen eher Zeichenaufrufe, Kopien und der
+  Spielkern. Aufwand für eine saubere Fassung (Gleitkomma wie OUYA, Schlüssel-Bit in `ShaderKey::centroid` Bit 2, damit
+  die Schlüsselgröße bleibt): GLES etwa ein Tag (Generator, Selbsttests, Menü, 11 Sprachen); Vulkan nutzt denselben
+  GLSL, aber jede Einstellung braucht eigene Pipelines (die Vorab-Liste `gx-vkpipes.keys` müsste die Variante
+  mitführen, sonst ruckelt das erste Auftreten), etwa ein halber Tag dazu. **Empfehlung: nicht als Potato-Schalter
+  bauen**; die Sichtweite und die Auflösung (Dynamisch/Benchmark) sparen ein Vielfaches.
 - **Potato-Schalter kamen nicht an (Nebenbefund, behoben):** `CoreBridge.setPotato` im Kern (`core_mode.cpp`) behielt
   nur die Bits 0 und 1 (`mask & 3`, Stand vom 30.10.2026). „Partikeleffekte“ und „Schatten & Licht“ aus 0.99.3 (Bits
   2..4) erreichten das Spiel also nie; nur der Benchmark setzte sie direkt. Jetzt `mask & 31`, das Protokoll nennt
