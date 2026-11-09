@@ -60,7 +60,30 @@ Vorgeschichte: Abschnitt „Bericht ‚Gegner bewegt sich nicht im Gefängnis‘
   Räume (r102, r103/r301, r204/r402, r304/r403) und die 109 verlorenen: dafür die Original-`.gci` neu importieren.
 - **Nebenbefund, nicht behoben:** die Eingangsszene im Spezialkostüm `evd/s201s00.evd` (Debug- und EU-Discs)
   wandelt nicht vollständig um („ev0104.tpl: TPL version … conversion stopped“, „event (incomplete)“); die Szene
-  lief am PC trotzdem durch, ohne Wirkung auf den Garrador. Bild nicht geprüft.
+  lief am PC trotzdem durch, ohne Wirkung auf den Garrador. Bild nicht geprüft. Dasselbe in `evd/s200s00.evd`
+  (Ankunft am Schlosstor im Spezialkostüm).
+
+### 2. Grauer Bildschirm mit der Touch-Steuerung darüber (r200), Ursache wie 1.
+
+Nutzerbericht über den Projektinhaber (09.11.2026, „User sieht nur einen grauen Screen mit dem Touch Overlay“;
+Bericht `E:\Development\Android\reports\0997-grauer-screen-20261109-142423`): Samsung Galaxy A24 (Mali-G57 MC2,
+Android 16, nur 90 Hz), 0.99.6-rc, GLES, EU-Discs.
+
+- **Aus dem Bericht:** derselbe Nutzer wie in 1. In dieser Sitzung importierte er mit 0.99.6 seine 17 `.gci`
+  und die Systemdatei, lud Datei 6 (`bh4_data05`, r200 am Schlosstor, Spezialkostüm, Profi). Titel und
+  Ladebildschirm zeichnen normal (rund 160 Zeichenaufträge je Bild), in r200 nur noch 3 je Bild: das Spiel zeichnet
+  den Raum gar nicht, die Anzeige (90 Hz, „shown 89.4/s“), die Oberfläche und der Renderer sind in Ordnung.
+- **Ursache:** der Import von 0.99.6 (Abschnitt 1): der Datensatz von r200 findet keinen Raum mehr, r200 gilt als
+  nie betreten (Merker 0, `R200Init` stellt Ankunftsszene und Lastwagen wieder auf), der Spielstand steht aber
+  hinter dem Tor. In diesem Zustand, den das Spiel selbst nie speichert, zeichnet es nichts.
+- **Belegt am PC** (i686, EU-Discs, frische Karte mit Systemdatei, Bilder über `RE4_GX_DUMP` und
+  `gx_chunk_render`): `bh4_data05` mit Raum-Datensätzen ohne Raum (wie nach dem Import von 0.99.6) zeigt in r200
+  von der ersten bis zur 1600. Aufnahme nach dem Laden nur 4 Zeichenaufträge, ein dunkelgraues Bild.
+  Gegenprobe Standardkostüm (`bh4_data14`, r200, `r200s00.evd` wandelt vollständig um): ebenso grau, das
+  Kostüm und `s200s00.evd` sind es also nicht. Die mit 0.99.6 importierte Karte mit dem Kern von 0.99.7:
+  Zeile von Patch 0225 („121 rooms found turned“), r200 mit Leon und Ashley am Tor, rund 360 Zeichenaufträge.
+- **Behoben** mit 0.99.7 (`gci.cpp`, Patch 0225), kein weiterer Code; Releasetext ergänzt.
+- **Nicht geprüft:** Gerät (Galaxy A24).
 
 ## Version 0.99.6-rc: Nutzerberichte nach 0.99.5 und Wünsche des Projektinhabers (09.11.2026, Branch `work`)
 
