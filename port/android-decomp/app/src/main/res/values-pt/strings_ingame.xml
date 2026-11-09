@@ -65,6 +65,10 @@
     <string name="ingame_touch_auto">Auto</string>
     <string name="ingame_touch_force">Forçar</string>
     <string name="ingame_touch_suppress">Ocultar</string>
+    <string name="ingame_button_style">Estilo dos botões</string>
+    <string name="ingame_button_icons">Ícones</string>
+    <string name="ingame_button_labels">Texto</string>
+    <string name="ingame_button_style_help">Ícones ou texto nos botões de toque; o editor (a engrenagem no canto superior direito) tem a mesma opção.</string>
     <string name="ingame_comfort">Controles de conforto</string>
     <string name="ingame_gyro">Mirar com giroscópio</string>
     <string name="ingame_gyro_none">Mirar com giroscópio (sem giroscópio)</string>

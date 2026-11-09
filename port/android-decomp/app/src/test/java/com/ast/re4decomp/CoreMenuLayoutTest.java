@@ -311,6 +311,15 @@ public class CoreMenuLayoutTest {
       Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
       assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
       assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
+      // "Button style" (RetroTouch 1.0.0-beta.10, 09.11.2026): Icons and Labels under the touch choices and their help,
+      // Icons chosen without a host (a new player's style, TouchStyle.DEFAULT_BUTTON_STYLE)
+      Button icons = findButton(body, activity.getString(R.string.ingame_button_icons));
+      Button labels = findButton(body, activity.getString(R.string.ingame_button_labels));
+      assertNotNull(icons); assertNotNull(labels);
+      assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
+      assertEquals("icons and labels side by side", icons.getParent(), labels.getParent());
+      assertTrue(icons.isSelected()); assertFalse(labels.isSelected());
+      assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
       assertTrue("player view after touch aiming", view > aiming);

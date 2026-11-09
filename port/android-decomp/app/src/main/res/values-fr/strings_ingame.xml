@@ -66,6 +66,10 @@
     <string name="ingame_touch_auto">Auto</string>
     <string name="ingame_touch_force">Forcer</string>
     <string name="ingame_touch_suppress">Masquer</string>
+    <string name="ingame_button_style">Style des boutons</string>
+    <string name="ingame_button_icons">Icônes</string>
+    <string name="ingame_button_labels">Texte</string>
+    <string name="ingame_button_style_help">Icônes ou texte sur les boutons tactiles. L\'éditeur (la roue dentée en haut à droite) a le même choix.</string>
     <string name="ingame_comfort">Commandes de confort</string>
     <string name="ingame_gyro">Visée gyroscopique</string>
     <string name="ingame_gyro_none">Visée gyroscopique (pas de gyroscope)</string>

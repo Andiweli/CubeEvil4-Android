@@ -64,6 +64,10 @@
     <string name="ingame_touch_auto">ऑटो</string>
     <string name="ingame_touch_force">हमेशा</string>
     <string name="ingame_touch_suppress">छिपाएँ</string>
+    <string name="ingame_button_style">बटन शैली</string>
+    <string name="ingame_button_icons">आइकन</string>
+    <string name="ingame_button_labels">अक्षर</string>
+    <string name="ingame_button_style_help">टच बटनों पर आइकन या अक्षर; एडिटर (ऊपर दाईं ओर गियर) में भी यही विकल्प है।</string>
     <string name="ingame_comfort">आसान नियंत्रण</string>
     <string name="ingame_gyro">जाइरो से निशाना लगाएँ</string>
     <string name="ingame_gyro_none">जाइरो से निशाना लगाएँ (जाइरोस्कोप नहीं है)</string>
