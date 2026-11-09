@@ -1,0 +1,81 @@
+# Port patch (user report 09.11.2026 with 17 .gci of the European discs: "the Garrador bug happens with the Special 2
+# costume"; port/docs/whole-program-status.md, version 0.99.7). Up to 0.99.6 the app's .gci import
+# (runtime/gci.cpp) turned the id of every room save record (ROOM_SAVE_DATA RoomNo) as a u16, while cRoomData::init
+# writes it byte by byte ([0] stage, [1] room) on every host. An imported save therefore held its ids as room,
+# stage: cRoomData::load found 109 of its 121 records in no room (their doors, items and events as if never
+# visited) and four pairs swapped theirs: r102 <-> r201 (r102's flags 0xC0000000 made the Garrador "dead" and the
+# prison key "taken" in r201: he hung on his chains for good, patch 0169), r103 <-> r301, r204 <-> r402,
+# r304 <-> r403. The costume only came with it because a cleared game, imported, gives the special costumes.
+# runtime/gci.cpp keeps the id's two bytes now; this patch mends the saves already on the card: when a save's ids
+# find more rooms turned than as they are, load (and clear, the new game from a cleared save) turn them back
+# first. A save the game wrote itself finds all its rooms as they are and is not touched. Not a bug of the
+# prototype.
+--- a/src/game/roomdata.cpp
++++ b/src/game/roomdata.cpp
+@@ -136,6 +136,50 @@
+     memcpy(h, m_pRoomSaveHead, m_SaveNum * sizeof(ROOM_SAVE_DATA) + sizeof(RoomSaveHdr));
+ }
+ 
++extern "C" void re4_log(const char* fmt, ...); /* port: runtime/log.cpp */
++
++/* port (patch 0225): a save that CubeEvil4 up to 0.99.6 imported from a .gci holds every record id the other way
++   round (room, stage: runtime/gci.cpp turned the two bytes as a u16, but init writes them byte by byte). Matched
++   as they are, 109 of the 121 records found no room and four pairs swapped theirs (r102 with r201, r103 with r301,
++   r204 with r402, r304 with r403: the Garrador in r201 never came free). A record's id turned round is a room of
++   this build only for those pairs and the rooms whose stage and number are the same, so a save whose ids find
++   more rooms turned than as they are is such a save: its ids are turned back once, before the records are
++   matched. A save the game wrote itself always finds all its rooms as they are and is not touched. */
++static void re4_roomSaveIdsFix(void* p, const u8* have, u32 haveNum)
++{
++    RoomSaveHdr* h = (RoomSaveHdr*) p;
++    u8* rec = (u8*) p + sizeof(RoomSaveHdr);
++    u32 num = h->num;
++    u32 asIs = 0;
++    u32 turned = 0;
++    u32 i;
++    u32 j;
++
++    if (num > 0x100) {
++        return;
++    }
++    for (j = 0; j < num; j++) {
++        const u8* r = rec + j * sizeof(ROOM_SAVE_DATA);
++        for (i = 0; i < haveNum; i++) {
++            const u8* d = have + i * sizeof(ROOM_SAVE_DATA);
++            asIs += r[0] == d[0] && r[1] == d[1];
++            turned += r[0] == d[1] && r[1] == d[0];
++        }
++    }
++    if (turned <= asIs) {
++        return;
++    }
++    for (j = 0; j < num; j++) {
++        u8* r = rec + j * sizeof(ROOM_SAVE_DATA);
++        u8 t = r[0];
++
++        r[0] = r[1];
++        r[1] = t;
++    }
++    re4_log("rooms: the save's %u room records had their ids the other way round (%u rooms found turned, %u as "
++            "they were; a .gci imported by 0.99.6 or older): turned back (patch 0225)", num, turned, asIs);
++}
++
+ // Restores the room records from a save game image, matched by id (records of rooms the build no
+ // longer has are dropped).
+ void cRoomData::load(void* p)
+@@ -146,6 +190,7 @@
+     u32 j;
+     int i;
+ 
++    re4_roomSaveIdsFix(p, m_pRoomSaveData, m_SaveNum); /* port (patch 0225) */
+     for (j = 0; j < h->num; j++, rec++) {
+         for (i = 0; i < m_SaveNum; i++) {
+             dst = (ROOM_SAVE_DATA*) (i * sizeof(ROOM_SAVE_DATA) + (u32) m_pRoomSaveData);
+@@ -167,6 +212,7 @@
+     int i;
+     u16 id;
+ 
++    re4_roomSaveIdsFix(p, m_pRoomSaveData, m_SaveNum); /* port (patch 0225) */
+     for (j = 0; j < h->num; j++, rec++) {
+         // The loop with the call in its body is only rotated (entry test + bottom test) when written
+         // as an explicitly guarded do/while; a `for` keeps the initial jump to the test.

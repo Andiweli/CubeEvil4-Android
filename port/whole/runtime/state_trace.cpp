@@ -215,6 +215,10 @@
 //   RE4_TEST_LETTERBOX_OFF=1  the app's picture format "4:3" without the game's bars
 //                          (re4_core_set_letterbox(1), patch 0105) from the start, as the
 //                          app sets it (the 3D cut at rows 56/392 on the Retroid, 29.10.2026)
+//   RE4_TRACE_EM="ID:N"   every N frames each live enemy of id ID (hex): routine, flag, be_flag, life,
+//                          place; once all are gone their list entry's death bit (EmSetDie) and the
+//                          room's first save flag word (the r201 Garrador on his chains, 09.11.2026);
+//                          RE4_TRACE_AT also names the room's save flags and which exec areas have code
 //   RE4_TRACE_AT=1, RE4_TRACE_POS=N, RE4_TEST_PLACE2="N:x,y,z,a",
 //   RE4_TEST_AT_OFF="N,..", RE4_TEST_SMD_TRANS="ID=0|1,..", RE4_FLOOR_MAP,
 //   RE4_FLOOR_FILL         a room's trigger areas, doors and collision walls,
@@ -1195,6 +1199,37 @@ void enemyLog(unsigned n, GLOBAL_WK* g)
         s.headLost = headLost;
         s.lost = !finite(e->pos);
     }
+    // RE4_TRACE_EM="ID:N": every N frames each live enemy of id ID (hex) with its routine, flag and place
+    // (the Garrador in r201 that did not come free, 09.11.2026)
+    static const char* traceEm = getenv("RE4_TRACE_EM");
+    static unsigned traceEmId, traceEmEvery;
+    static bool traceEmOk = traceEm && sscanf(traceEm, "%x:%u", &traceEmId, &traceEmEvery) == 2 && traceEmEvery > 0;
+    if (traceEmOk && n % traceEmEvery == 0) {
+        // after the last one is gone, once: its death bit in the enemy list (EmSetDie) and the room's first save flag
+        static int traceEmEntry = -1;
+        bool any = false;
+        for (u32 i = 0; i < count; i++) {
+            const cEm* e = (const cEm*) ((const u8*) arr + i * stride);
+            any = any || ((e->be_flag & 1) && e->id == traceEmId);
+        }
+        if (!any && traceEmEntry >= 0 && g->em_list_no >= 0 && g->em_list_no < 12) {
+            re4_log("em: 0x%02x gone at frame %u: list %d entry %d death bit %u, room save flags of r%03x 0x%08x",
+                    traceEmId, n, (int) g->em_list_no, traceEmEntry,
+                    (unsigned) ((g->Em_flg[g->em_list_no][traceEmEntry >> 5] >> (31 - (traceEmEntry & 31))) & 1),
+                    (unsigned) g->room_id, RoomData.getRoomSavePtr(g->room_id) ? (unsigned) RsfFlags(g->room_id)[0] : 0u);
+            traceEmEntry = -1;
+        }
+        for (u32 i = 0; i < count; i++) {
+            const cEm* e = (const cEm*) ((const u8*) arr + i * stride);
+            if ((e->be_flag & 1) && e->id == traceEmId) {
+                traceEmEntry = e->emset_no;
+                re4_log("em: s%u 0x%02x/%u frame %u r %u/%u/%u/%u f 0x%08x be 0x%08x hp %d at (%.0f %.0f %.0f)",
+                        (unsigned) i, (unsigned) e->id, (unsigned) e->type, n, (unsigned) e->r_no_0,
+                        (unsigned) e->r_no_1, (unsigned) e->r_no_2, (unsigned) e->r_no_3, (unsigned) e->flag,
+                        (unsigned) e->be_flag, (int) e->hp, (double) e->pos.x, (double) e->pos.y, (double) e->pos.z);
+            }
+        }
+    }
 }
 
 // The cursor of a sub screen (inventory, merchant, map) moves on the repeat bits of the pad, the
@@ -1253,15 +1288,20 @@ void playerLog(unsigned n, GLOBAL_WK* g)
         // RE4_TRACE_AT=1: the room's trigger areas (AEV records and those the room code made)
         static const char* traceAt = getenv("RE4_TRACE_AT");
         if (traceAt && *traceAt == '1') {
+            if (RoomData.getRoomSavePtr(g->room_id)) {
+                re4_log("at: room save flags of r%03x 0x%08x, JumpPoint %u, previous room r%03x", (unsigned) g->room_id,
+                        (unsigned) RsfFlags(g->room_id)[0], (unsigned) g->JumpPoint, (unsigned) g->room_id_prev);
+            }
             SCE_AT_DATA* w = sceAtSetOtStart();
             while ((w = sceAtGetOtAddr(w)) != 0) {
                 const AREA_XZ4& a = w->area.xz4;
                 re4_log("at: no %u id %u be 0x%02x trg 0x%02x target 0x%02x area %u floor %.0f height %.0f "
-                        "points (%.0f %.0f) (%.0f %.0f) (%.0f %.0f) (%.0f %.0f)",
+                        "points (%.0f %.0f) (%.0f %.0f) (%.0f %.0f) (%.0f %.0f)%s",
                         (unsigned) w->no, (unsigned) w->id, (unsigned) w->be_flg, (unsigned) w->trg_type,
                         (unsigned) w->target_type, (unsigned) w->area.type, (double) a.floor, (double) a.height,
                         (double) a.p[0].x, (double) a.p[0].z, (double) a.p[1].x, (double) a.p[1].z, (double) a.p[2].x,
-                        (double) a.p[2].z, (double) a.p[3].x, (double) a.p[3].z);
+                        (double) a.p[2].z, (double) a.p[3].x, (double) a.p[3].z,
+                        w->id == SCEAT_ID_EXEC ? (w->pFunc ? ", room code" : ", no room code") : "");
                 if (w->id == SCEAT_ID_DOOR) {
                     re4_log("at: no %u door to r%x%02x at (%.0f %.0f %.0f), key %u flag %u", (unsigned) w->no,
                             (unsigned) w->door.next_stage_no, (unsigned) w->door.next_room_no,

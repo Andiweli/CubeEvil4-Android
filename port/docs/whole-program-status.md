@@ -3,6 +3,65 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.7-rc: Fehler und Wünsche nach 0.99.6 (09.11.2026, Branch `work0997`)
+
+Version 0.99.7-rc (versionCode 109), Releasetext `port/android-decomp/docs/releases/v0.99.7-rc.md` („Changes since
+v0.99.6.“, Known issues aus 0.99.6 übernommen, APK `CubeEvil4-0.99.7-rc.apk`). Arbeitsbranch `work0997` (Basis
+d57121de = 0.99.6-rc), Patches ab 0225, nächste freie Nummer 0227.
+
+### 1. Garrador im Gefängnis bewegt sich nicht („Special 2“-Kostüm?), Patches 0225 und 0226
+
+Nutzerbericht über den Projektinhaber (09.11.2026, EU-Discs): „the Garrador bug happens with the Special 2 costume,
+because I played through it again and it doesn't happen with the default costume“; 17 Spielstände und die
+Systemdatei (`E:\Development\Android\reports\0997-garrador-saves-EUR\EUR\Card A\`, `08-G4BP-bh4_data00..16.gci`).
+Vorgeschichte: Abschnitt „Bericht ‚Gegner bewegt sich nicht im Gefängnis‘“ (31.10.) und der Schlüssel-Bericht
+(Patch 0169, 01.11.).
+
+- **Die Spielstände:** echte GameCube-/Dolphin-Spielstände der Verkaufsfassung (April bis Juni 2026 gespeichert,
+  Kennungen der Räume in richtiger Folge), nicht aus der App. Vor r201 liegen drei in r200 (Kapitel 6):
+  Datei 01 (Normal, Standardkostüm), **Datei 06 (Profi, `game_costume` 1, `pl_costume` 3: Leon `pl10`, Ashley als
+  Begleiterin `pl15`)**, Datei 15 (Profi, Standardkostüm). Das Spezialkostüm gibt es nur mit einem durchgespielten
+  Spiel, der Nutzer hat es also importiert; sein Durchlauf „mit dem Standardkostüm“ war ein neues Spiel in der App.
+- **Ursache (Port-Fehler, nicht das Kostüm):** der `.gci`-Import (`runtime/gci.cpp`) drehte die Kennung jedes
+  Raum-Datensatzes (`ROOM_SAVE_DATA.RoomNo`, Teil einer Union) als u16 um. `cRoomData::init` schreibt sie aber
+  byteweise (`[0]` Stufe, `[1]` Raum) auf jedem Rechner, `load` vergleicht sie nur als Ganzes: im Port ist sie die
+  zwei Bytes des GameCube. Nach dem Import standen alle Kennungen als Raum, Stufe: von 121 Datensätzen fanden 109
+  keinen Raum (Türen, Gegenstände, Ereignisse wie nie besucht), vier Paare tauschten ihre: **r102 ↔ r201**,
+  r103 ↔ r301, r204 ↔ r402, r304 ↔ r403. r102 hat in Datei 06 die Merker 0xC0000000 und Gegenstandsmerker
+  0x68000000: in r201 heißt das „Garrador tot“ (Merker 0) und „Kampfbereich offen“ (1), und Gegenstandsmerker 1
+  ist der Gefängnisschlüssel im Bild. `R201Init` hängt dann `r201_appearClawMan` (Bereich 0x10) nicht ein, die
+  Gegnerliste setzt den Garrador trotzdem (sein Todes-Bit fehlt): er hängt für immer an den Ketten. Dasselbe erklärt
+  den Schlüssel-Bericht (Patch 0169) und vermutlich den Bericht vom 31.10. Der Export hatte denselben Fehler
+  (Dateien für Dolphin mit vertauschten Kennungen).
+- **Belegt am PC** (i686, EU-Discs, Datei 06 bzw. 15 mit Testwerkzeug nach r201 an den Debug-Startpunkt gesetzt,
+  CRCs neu; Leon läuft über `RE4_TEST_PLACE`/`PLACE2` und Tastenfolge durch Bereich 8 (Eingangsszene), 0xF
+  (Kamerafahrt), die Gittertür s13 und Bereich 0x10): mit 0.99.6 bei Spezial- **und** Standardkostüm Merker von r201
+  nach dem Laden 0xC0000000, Bereich 0x10 „no room code“, der Garrador bleibt in Routine 1/94 mit `flag` 0x30.
+  Debug-Start ohne Spielstand: Merker 0, Bereich 0x10 löst aus, Garrador frei (`flag` 0x31), greift an.
+- **Behoben:** `gci.cpp` lässt die zwei Bytes der Kennung (`turnRoomRecord`), Test `card_probe` angepasst (er
+  schrieb das falsche Verhalten fest). **Patch 0225** (`roomdata.cpp`): findet ein Spielstand mehr Räume mit
+  umgedrehten Kennungen als mit den eigenen, dreht `load` (und `clear`, neues Spiel aus einem durchgespielten
+  Stand) sie vorher zurück, eine Zeile im Protokoll. Spielstände der App selbst finden alle Räume und bleiben
+  unberührt. **Patch 0226** (`r201.cpp`, Sicherheitsnetz): Merker 0 gesetzt, aber das Todes-Bit des Garrador
+  (Liste 2, Eintrag 0x56, `EmSetDie`) nicht: Merker 0 zurück, eine Zeile im Protokoll (nicht bei Sprungpunkt 2).
+  Für Spielstände, die nach dem Laden eines alten Imports in der App neu gespeichert wurden (r201 hält r102s Merker
+  dann fest). Neue Testhilfe `RE4_TRACE_EM="ID:N"`, `RE4_TRACE_AT` nennt die Raum-Merker und ob ein Bereich Code hat.
+  `lp64_int_casts.json`: Zeile der Umwandlung in r201 nach 0226 verschoben (788 → 844).
+- **Geprüft am PC (i686, EU-Discs):** Import → Export aller 18 Dateien byte-gleich mit den Originalen (nach dem
+  64-Byte-Kopf). Datei 06 und 15 neu importiert: Merker 0, Garrador frei, greift an (auf Profi stirbt Leon). Alte
+  Karte (mit 0.99.6 importiert): Zeile von 0225 („121 rooms found turned, 12 as they were“), Garrador frei. Mit
+  0.99.6 importiert, geladen und in r201 neu gespeichert: Zeile von 0226, Merker 0x40000000, Garrador frei.
+  Gegenprobe: Garrador getötet (`RE4_TEST_EM_KILL`, setzt das Todes-Bit wie das Spiel), gespeichert, neu geladen:
+  Merker 0xE0000000, kein Garrador, keine Zeile von 0226; im Code enden alle Todeswege der Ganado-Klasse
+  (`Die_Cramp`, `Die_Lost`, `Die_Bomb`, `setLost`) in `EmSetDie`. Laufzeit- und Kerntests 0 Fehler,
+  Android-Kern beide ABIs gebaut.
+- **Nicht geprüft:** Gerät; ein exportierter Spielstand in Dolphin (nur über die byte-gleichen Rundläufe).
+  Spielstände, die nach einem alten Import in der App neu gespeichert wurden, behalten die übrigen vertauschten
+  Räume (r102, r103/r301, r204/r402, r304/r403) und die 109 verlorenen: dafür die Original-`.gci` neu importieren.
+- **Nebenbefund, nicht behoben:** die Eingangsszene im Spezialkostüm `evd/s201s00.evd` (Debug- und EU-Discs)
+  wandelt nicht vollständig um („ev0104.tpl: TPL version … conversion stopped“, „event (incomplete)“); die Szene
+  lief am PC trotzdem durch, ohne Wirkung auf den Garrador. Bild nicht geprüft.
+
 ## Version 0.99.6-rc: Nutzerberichte nach 0.99.5 und Wünsche des Projektinhabers (09.11.2026, Branch `work`)
 
 Version 0.99.6-rc (versionCode 108), Releasetext `port/android-decomp/docs/releases/v0.99.6-rc.md` („Changes since
@@ -3542,6 +3601,7 @@ selbst zum Garrador gespielt: kein Problem.** Kein Fehler. EU-Unterschiede in r2
 Garrador): `r201_execClawManUpCut` mit `SceEventStart(1)` + `EffectEventDelete()` statt `SceEventStart(0)`; `R201Init`
 zeigt den benutzten Hebel als offen (`cEmSwitch::setOpened`); der Debug-Sprung `JumpPoint == 2` fehlt; Liste: Armbrust-
 Ganados 58/59 Wachradius 15 000 statt 10 000.
+**Nachtrag 09.11.2026 (0.99.7):** Ursache vermutlich ein mit bis zu 0.99.6 importierter `.gci`-Spielstand: der Import vertauschte die Raum-Datensätze r102 und r201 (Abschnitt 0.99.7, Patches 0225/0226).
 
 ## Version 0.96.5-beta (31.10.2026, lokal, Branch `claude/blissful-tesla-xa7h6c`)
 
@@ -14324,6 +14384,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0222 `game.cpp` | Port-Fehler (Patch 0195): `GameContinue` setzt nach `GameSave.load` die Ersatzfigur der Story (Ada, HUNK, Krauser, Wesker; `re4_story_char_continue`) wieder ein, bevor `PlSetCostume` und `ContinueWepData` den Spielertyp lesen. Der Continue-Punkt hält absichtlich Leon (`re4_story_char_save`); vorher las `ContinueWepData` eine seit dem Speichern gewechselte Waffe nach Leons Tabelle nach `WEP_DATA_ADDR` in Krausers Spielerarchiv mit seinem Modul `pl0a`, und `OSLink` stürzte ab. Nutzerbericht 09.11.2026 (Xiaomi peridot, 0.99.5: Absturz bei Tod oder Retry mit anderen Figuren) |
 | 0223 `light.cpp` | Port-Funktion (Wunsch des Projektinhabers 09.11.2026, aus dem OUYA-Zweig, dort Patch 0900): Sichtweite im App-Menü (Potato-Modus). `cLightMgr::setFog` und `hokanMove` geben GX den Nebel aus `re4_view_distance` (`runtime/view_distance.cpp`: Beginn und Ende mal 1 / 0,75 / 0,5, das Ende nicht unter 6 m, Räume ohne Nebel unverändert) und setzen die Sichtgrenze auf dieses Ende; `LightEnv.Fog` bleibt. `hokanMove` setzt den Nebel neu, wenn das Menü umgeschaltet hat (`re4_view_distance_changed`): wirkt sofort. Bei „Normal“ genau wie das Spiel. |
 | 0224 `cam_motion.cpp` | Port (undefiniertes Verhalten im Originalcode): `CameraMotion::move` beginnt `pos`, `at`, `fov` mit (0, 0, 0). Die Röntgen-Kameras von r330s00 (`etc_s00_0NN.fcv`) haben kein Ziel-Gelenk; das uninitialisierte `at` machte im Port die Kamera NaN, die Monitore des Operationsraums blieben grün. Nutzerbericht 09.11.2026 (zwei Bilder) |
+| 0225 `roomdata.cpp` | Port-Fehler (`.gci`-Import bis 0.99.6, `runtime/gci.cpp` drehte `RoomNo` als u16): `cRoomData::load`/`clear` drehen die Kennungen der Raum-Datensätze eines Spielstands zurück, wenn mit umgedrehten Kennungen mehr Räume passen als mit den eigenen (Spielstände der App bleiben unberührt). Vorher verloren importierte Spielstände 109 von 121 Räumen, r102/r201, r103/r301, r204/r402, r304/r403 tauschten ihre Merker (Garrador in r201 angekettet, Schlüssel fehlt). Nutzerbericht 09.11.2026 (17 `.gci`, EU) |
+| 0226 `r201.cpp` | Sicherheitsnetz neben 0225: Merker 0 von r201 („Garrador tot“) ohne sein Todes-Bit in der Gegnerliste (Eintrag 0x56) wird zurückgesetzt, der Garrador kommt frei (nicht bei Sprungpunkt 2). Für Spielstände, die nach einem alten Import in der App neu gespeichert wurden. Nutzerbericht 09.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

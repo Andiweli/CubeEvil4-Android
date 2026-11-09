@@ -136,6 +136,24 @@ template <size_t N> void turnRuns(u8* base, const Re4SaveRun (&runs)[N])
     }
 }
 
+// One room record (ROOM_SAVE_DATA) without its id: RoomNo is the u16 of a union, but cRoomData::init
+// writes it byte by byte ([0] stage, [1] room) on every host and cRoomData::load / clear only compare
+// it whole, so in the port it is the GameCube's two bytes and stays as it is. Turned as a u16 (up to
+// 0.99.6) an imported save had every id as room, stage: 109 of the 121 records found no room and four
+// pairs swapped theirs (r102 with r201 and so on: the Garrador in r201 hung on his chains for good, the
+// prison key counted as taken, 09.11.2026); an exported one did the same to the GameCube's game.
+void turnRoomRecord(u8* rec)
+{
+    for (const Re4SaveRun& r : kSaveRoom) {
+        if (r.offset == 0 && r.size == 2 && r.count == 1) {
+            continue;  // RoomNo
+        }
+        for (unsigned k = 0; k < r.count; k++) {
+            turn(rec + r.offset + k * r.size, r.size);
+        }
+    }
+}
+
 template <size_t N> unsigned unknownBytes(const u8* base, const Re4SaveRun (&runs)[N])
 {
     unsigned n = 0;
@@ -242,7 +260,7 @@ int re4_gci_convert(const char* name, unsigned char* data, unsigned bytes, int t
     turnRuns(data + kSaveItemAt, kSaveItem);
     turnRuns(data + kSaveRoomAt, kSaveRoomHeader);
     for (u32 i = 0; i < rooms; i++) {
-        turnRuns(data + kSaveRoomAt + kSaveRoomHeaderSize + i * kSaveRoomSize, kSaveRoom);
+        turnRoomRecord(data + kSaveRoomAt + kSaveRoomHeaderSize + i * kSaveRoomSize);
     }
     turnRuns(data + kSaveSscrnAt, kSaveSscrn);
     turnRuns(data + kSaveMerchantAt, kSaveMerchant);
