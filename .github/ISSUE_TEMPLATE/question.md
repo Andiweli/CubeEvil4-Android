@@ -10,5 +10,5 @@ assignees: ''
 **Question**
 <!-- enter your question here -->
 
-**What you already found**
-<!-- so the answer can start where you stopped -->
+**Additional information**
+<!-- what else do you want to say -->
