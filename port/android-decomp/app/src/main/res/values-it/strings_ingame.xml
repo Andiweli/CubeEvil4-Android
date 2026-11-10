@@ -80,8 +80,6 @@
     <string name="ingame_far_camera">Telecamera lontana</string>
     <string name="ingame_auto_aim_help">Mira automatica: quando alzi l’arma, il mirino salta sul nemico più vicino davanti a te e lo segue per un momento (l’aiuto alla mira del gioco).</string>
     <string name="ingame_always_run_help">Corri sempre: Leon corre ogni volta che ti muovi; tieni premuto il tasto corsa (es. B) per camminare.</string>
-    <string name="ingame_modern_move">Movimento moderno</string>
-    <string name="ingame_modern_move_help">Movimento moderno: Leon si gira dove spingi lo stick (visto dalla telecamera) e cammina in quella direzione; tirando lo stick indietro arretra ancora. Mira, scale, barca e filmati restano come nell\'originale.</string>
     <string name="ingame_far_camera_help">Tiene la telecamera sulla spalla un po\' più lontana dietro Leon mentre cammina e sta fermo. Mirando e nei punti stretti si avvicina come prima; nel mezzo si muove in modo fluido.</string>
     <string name="ingame_touch_aim">Mira touch</string>
     <string name="ingame_aim_move_stick">Stick di movimento</string>

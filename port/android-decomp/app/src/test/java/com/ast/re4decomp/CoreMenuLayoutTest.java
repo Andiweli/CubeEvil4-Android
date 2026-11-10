@@ -293,12 +293,7 @@ public class CoreMenuLayoutTest {
       // "Far camera" since 05.11.2026 in PLAYER VIEW, beside the field of view's slider
       Button farCamera = findButton(body, activity.getString(R.string.ingame_far_camera));
       assertNotNull(farCamera);
-      // "Modern movement" (10.11.2026) in a row of its own right under them, then "Invert vertical"
-      Button modernMove = findButton(body, activity.getString(R.string.ingame_modern_move));
-      assertNotNull(modernMove);
-      assertEquals("modern movement under auto aim", rowIndex(autoAim, body) + 1, rowIndex(modernMove, body));
-      assertFalse("modern movement off by default", modernMove.isSelected());
-      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(modernMove, body) + 1),
+      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 1),
           activity.getString(R.string.ingame_aim_invert_v));
       Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
@@ -338,12 +333,12 @@ public class CoreMenuLayoutTest {
       assertTrue("the motion heading", motion >= 0);
       assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
       assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
-      // then the comfort controls: under the latches "Auto aim" with "Always run", "Modern movement" (10.11.2026),
-      // then "Invert vertical" with "Aim speed", then touch aiming
+      // then the comfort controls: under the latches "Auto aim" with "Always run", then "Invert vertical" with
+      // "Aim speed", then touch aiming
       assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
       assertEquals("auto aim right under the latches", rowIndex(latch, body) + 1, rowIndex(autoAim, body));
       assertEquals("always run beside auto aim", rowIndex(autoAim, body), rowIndex(alwaysRun, body));
-      assertEquals("the aim row right under modern movement", rowIndex(modernMove, body) + 1, rowIndex(aimInvert, body));
+      assertEquals("the aim row right under them", rowIndex(autoAim, body) + 1, rowIndex(aimInvert, body));
       // the button mapping at the bottom, under a heading of its own
       assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));
       // since 0.99.2 first the sticks' dead zone and range (sliders 0..30 and 50..100 in steps of 5) and the choice

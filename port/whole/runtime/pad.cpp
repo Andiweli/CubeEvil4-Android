@@ -12,8 +12,7 @@
 //     BUTTONS@FROM-TO/EVERY    the same every EVERY frames from FROM to TO
 //     BUTTONS: A B X Y Z L R START UP DOWN LEFT RIGHT, joined with '+';
 //              STICKUP STICKDOWN STICKLEFT STICKRIGHT push the main stick
-//              fully (BUTTONS@FROM-TO/1 holds it the whole time),
-//              STICKSOFTUPLEFT STICKSOFTUPRIGHT a soft push (38 and 38)
+//              fully (BUTTONS@FROM-TO/1 holds it the whole time)
 //   RE4_PAD_UNTIL_ROOM=1       the script ends when the game loads its first
 //                              room (state_trace.cpp)
 //   RE4_PAD_ROOM_SCRIPT="START@1500 STICKUP@1700-2400/1"
@@ -102,8 +101,6 @@ bool stickName(const char* name, size_t len, Press& p)
         s8 x, y;
     } kSticks[] = {
         { "STICKUP", 0, 100 }, { "STICKDOWN", 0, -100 }, { "STICKLEFT", -100, 0 }, { "STICKRIGHT", 100, 0 },
-        // a soft push up and to a side (the game's "up" and a side, patch 0227's slower turn)
-        { "STICKSOFTUPLEFT", -38, 38 }, { "STICKSOFTUPRIGHT", 38, 38 },
     };
     for (const auto& n : kSticks) {
         if (strlen(n.name) == len && strncmp(n.name, name, len) == 0) {
@@ -278,15 +275,6 @@ void re4_add_frame_hook(void (*hook)(unsigned))
     re4_log("pad: no room for another frame hook");
 }
 
-// The main stick of channel 0 before the game reads it (runtime/modern_move.cpp, "Modern movement"): the filter
-// may change it, with the frame's buttons to see.
-static void (*g_stickFilter)(s8* x, s8* y, u16 buttons);
-
-void re4_set_stick_filter(void (*filter)(s8* x, s8* y, u16 buttons))
-{
-    g_stickFilter = filter;
-}
-
 // Buttons a frame hook adds to channel 0 for the frame it runs in (re4_pad_add:
 // the knife swipe, runtime/knife_swipe.cpp), on top of the controller or script.
 static u16 g_add;
@@ -427,10 +415,6 @@ u32 PADRead(PADStatus* status)
             status[0].analogA = (status[0].button & 0x0100) ? 0xFF : 0;
             status[0].analogB = (status[0].button & 0x0200) ? 0xFF : 0;
         }
-    }
-    // the stick as the game should see it (runtime/modern_move.cpp: "Modern movement"), scripted or from the device
-    if (g_stickFilter) {
-        g_stickFilter(&status[0].stickX, &status[0].stickY, status[0].button);
     }
     if (g_add) {
         status[0].button |= g_add;

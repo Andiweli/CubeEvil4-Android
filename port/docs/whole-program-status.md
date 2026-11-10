@@ -7,7 +7,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 Version 0.99.7-rc (versionCode 109), Releasetext `port/android-decomp/docs/releases/v0.99.7-rc.md` („Changes since
 v0.99.6.“, Known issues aus 0.99.6 übernommen, APK `CubeEvil4-0.99.7-rc.apk`). Arbeitsbranch `work0997` (Basis
-d57121de = 0.99.6-rc), Patches ab 0225, nächste freie Nummer 0228.
+d57121de = 0.99.6-rc), Patches ab 0225, nächste freie Nummer 0227.
 
 ### 1. Garrador im Gefängnis bewegt sich nicht („Special 2“-Kostüm?), Patches 0225 und 0226
 
@@ -119,60 +119,29 @@ Vulkan-Treiber r26p0), Android 11, 0.99.6-rc, **Vulkan**, fest 1,5×, FXAA, Sch�
 - **Nicht geprüft:** Gerät; ob es auf dem Mali-G52 reicht (dort die Zeile „Vulkan per picture“: `present` und
   „EFB passes … on a part“). GLES auf demselben Gerät (jede Kopie bricht dort ebenso den Durchgang).
 
-### 4. Leon läuft in jede Richtung: „Modern movement“ (B) und stufenloses Drehen (A), Patch 0227
+### 4. „Modern movement“ und stufenloses Drehen: gebaut und wieder ausgebaut (Steuerung wie 0.99.6)
 
-Frage des Projektinhabers (10.11.2026): „können wir leon … in jede richtung laufen lassen? es dürfte ja aktuell nur
-ein 8-wege-joystick sein“. Untersuchung, dann Entscheidung des Projektinhabers (10.11.2026): **B + A**; Stick nach
-hinten: **rückwärts gehen wie im Original**; **ein** Schalter für Controller und Touch.
-
-- **Wie es war (Originalspiel):** `game/pad.cpp` macht aus dem Hauptstick vier Tasten (oben bis 70°, unten ab 110°,
-  links/rechts zwischen 30° und 150°, ab 30 von 72): acht Richtungen. Gehen, Rückwärts und Rennen
-  (`player.cpp`) gehen geradeaus in der Geschwindigkeit der Animation und drehen mit fester `SPEED_WALK_TURN`
-  (2,4° je Bild), egal wie weit der Stick gedrückt ist. Nur das Zielen liest den Stick stufenlos. App und Touch
-  geben den Stick stufenlos weiter.
-- **A, stufenloses Drehen (Patch 0227, immer an):** die Drehungen in `pl_R1_Walk`, `pl_R1_Back`, `pl_R1_Run`
-  mal `re4_turn_scale()` (`runtime/modern_move.cpp`): wie weit der Stick in seiner Richtung gedrückt ist (am
-  Achteck von `PADClamp` gemessen: 72 an den Achsen, 40/40 schräg), voll ab 85 %, darunter langsamer, mindestens
-  35 %. Ganz gedrückt (auch schräg) und mit dem Steuerkreuz wie das Spiel. **Immer an statt Schalter:** bei vollem
-  Druck und mit dem Steuerkreuz ändert sich nichts, nur halb gedrückt dreht Leon langsamer; ein Schalter mehr im
-  Menü brächte nichts. Drehen auf der Stelle (eigene Animation) und Schnellwende bleiben.
-- **B, „Modern movement“ (App-Menü, Steuerung, aus):** ein Stick-Filter in `PADRead` (`runtime/pad.cpp`
-  `re4_set_stick_filter`, vor dem Lesen des Spiels), kein Patch am Spielcode:
-  - nur beim freien Laufen: Hauptschleife (`Rno0` 3), kein Untermenü, kein Ereignis, Routine 0/0..4 (Stehen,
-    Gehen, Rückwärts, Rennen, Drehen). Zielen, Messer, Leiter, Boot, Jetski, Schieben, Springen, Szenen,
-    Quick-Time-Events und Menüs lesen den Stick wie das Spiel; ebenso Bilder mit R, L, X, Y, Z oder START;
-  - Stick nach hinten (ab 110°): unverändert, Leon geht rückwärts wie im Original;
-  - Bezug ist die Blickrichtung der Kamera, wenn der Stick aus der Ruhe kommt, solange er gedrückt bleibt (die
-    Schulterkamera schwenkt hinter Leon her: sonst liefe er im Kreis); in Ruhe oder nach hinten neu;
-  - Leon dreht zum Ziel (höchstens 0,21 rad je Bild, etwa 360°/s), das Spiel bekommt den Stick gerade nach
-    vorn mit derselben Stärke (geht oder rennt wie gehabt); mehr als 100° daneben dreht er erst auf der Stelle.
-  - App: `CoreBridge.setModernMove`, Bit 4 der Ziel-Bits (`re4_aim_set`), Einstellung `modernMove`, Texte
-    `ingame_modern_move(_help)` in 11 Sprachen. Test am PC: `RE4_TEST_AIM` Bit 4 oder `RE4_MODERN_MOVE=1`,
-    `RE4_TRACE_MOVE=1` (Zeilen „move:“), neue Skript-Sticks `STICKSOFTUPLEFT`/`STICKSOFTUPRIGHT`.
-- **Geprüft am PC:** `port/tools/whole_move_check.sh` (i686, Debugstarts), EU-Discs alle 10 Fälle ok: Drehen voll
-  100 %, sanft 58 %; r105 Stick rechts (Bild: Leon dreht nach rechts im Bild), rückwärts (Routine 0/2, Blick
-  bleibt), Zielen mit R und Stick (Ort und Blick Bild für Bild gleich mit und ohne Schalter, Filter greift nie);
-  r301 rennen, r200 Burgtor, r20d mit Ashley als Spielerin, r119 El Gigante (Stick durch die Auftrittsszene
-  gehalten: 65-mal „kept … event 1“, Riese da, danach Laufen im Kampf), r105 Tür zu r107 (zweimal links, A: Raum
-  r107). Debug-Discs ebenso 10 von 10. `--self-test`, `--check-modules`, `--runtime-test`, `--core-test` 0 Fehler;
-  Android-Kern beide ABIs ohne Fehler; App (Java, native) gebaut.
-- **Nicht geprüft:** Gerät (Retroid mit Controller und Touch); Leiter, Boot, Lore, Quick-Time-Events nur über die
-  Routinen-Sperre (dort greift der Filter nicht), nicht eigens gespielt; wie sich das schnelle Drehen ohne
-  Drehanimation anfühlt.
+Frage des Projektinhabers (10.11.2026): Leon „in jede Richtung laufen lassen“ statt der acht Richtungen des Spiels
+(`game/pad.cpp` macht aus dem Stick vier Tasten; Gehen, Rückwärts und Rennen drehen mit fester
+`SPEED_WALK_TURN`, egal wie weit der Stick gedrückt ist). Gebaut in 473f0dc3: B „Modern movement“ (Stick-Filter in
+`PADRead`, Leon dreht zur Stickrichtung von der Kamera aus, 0,21 rad je Bild, Schalter im App-Menü) und A
+stufenloses Drehen (Patch 0227, `re4_turn_scale`). Am PC 10 von 10 Fällen mit beiden Disc-Arten
+(`whole_move_check.sh`). **Gerätetest des Projektinhabers (10.11.2026):** „Die ‚Moderne Steuerung‘ lässt Leon fast
+eine 90 Grad Snap-Drehung machen, das ist nicht spielbar“; Entscheidung: „Einfach die Steuerung wieder wie zuvor
+ohne den Button ‚Moderne Steuerung‘“. **Ausgebaut** (Revert von 473f0dc3): Filter, `runtime/modern_move.cpp`,
+Patch 0227 (die Nummer ist wieder frei), App-Schalter, Texte in 11 Sprachen, Prüfskript. Die Einstellung
+`modernMove` einer Testinstallation löscht die App beim Start. Für einen neuen Anlauf: das Drehen ohne
+Drehanimation wirkte wie ein Schnappen; eine Drehgeschwindigkeit wie die des Spiels und eine Drehanimation wären
+der Ausgangspunkt.
 
 ### 5. Touch-Symbole übernommen (Branch `feature/touch-icons`, Spitze e2146ea4)
 
-Freigabe des Projektinhabers (10.11.2026, „Ja, übernehmen“), als Merge in `work0997`: RetroTouch 1.0.0-beta.10,
-`TouchStyle.java` (Tastenstil Symbole als Vorgabe, Beschriftung wie bisher; Editor und App-Menü → Steuerung →
-„Button style“, 11 Sprachen), `TouchStyleTest`, README-Satz, und der Touch-Stick läuft nach kurzem Druck
-(`CoreInput.touchWalk`: ab 22 % des Wegs auf der Schwelle des Spiels, voll bei 80 %; mit L oder R gehalten wie
-bisher). Merge ohne Konflikte (CoreMenu, CoreActivity, die 11 `strings_ingame.xml` neben „Modern movement“).
-Zusammenspiel mit „Modern movement“: `touchWalk` ändert nur die Länge, nicht die Richtung, und erreicht die
-Schwelle des Spiels bei 47 von 101, genau dort, wo der Stick-Filter (`kPushed` 47) übernimmt. Geprüft:
-`testCoreDebugUnitTest` (81 Tests; `CoreMenuLayoutTest` kennt jetzt die Zeile „Modern movement“ unter „Auto
-aim“, die mit 473f0dc3 dazukam und den Test brach), `check_translations.py` (334 Texte), `CoreInputTests` (1826
-Prüfungen), `assembleCoreRelease`. Der Kern ist vom Merge unberührt (`whole_move_check.sh` nicht betroffen).
-Nicht geprüft: Gerät.
+Freigabe des Projektinhabers (10.11.2026, „Ja, übernehmen“), als Merge in `work0997` (ba094c77): RetroTouch
+1.0.0-beta.10, `TouchStyle.java` (Tastenstil Symbole als Vorgabe, Beschriftung wie bisher; Editor und App-Menü →
+Steuerung → „Button style“, 11 Sprachen), `TouchStyleTest`, README-Satz, und der Touch-Stick läuft nach kurzem
+Druck (`CoreInput.touchWalk`: ab 22 % des Wegs auf der Schwelle des Spiels, voll bei 80 %; mit L oder R gehalten
+wie bisher). Merge ohne Konflikte. Geprüft: `testCoreDebugUnitTest`, `check_translations.py`, `CoreInputTests`
+(1826 Prüfungen), `assembleCoreRelease`. Nicht geprüft: Gerät.
 
 ## Version 0.99.6-rc: Nutzerberichte nach 0.99.5 und Wünsche des Projektinhabers (09.11.2026, Branch `work`)
 
@@ -14498,7 +14467,6 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0224 `cam_motion.cpp` | Port (undefiniertes Verhalten im Originalcode): `CameraMotion::move` beginnt `pos`, `at`, `fov` mit (0, 0, 0). Die Röntgen-Kameras von r330s00 (`etc_s00_0NN.fcv`) haben kein Ziel-Gelenk; das uninitialisierte `at` machte im Port die Kamera NaN, die Monitore des Operationsraums blieben grün. Nutzerbericht 09.11.2026 (zwei Bilder) |
 | 0225 `roomdata.cpp` | Port-Fehler (`.gci`-Import bis 0.99.6, `runtime/gci.cpp` drehte `RoomNo` als u16): `cRoomData::load`/`clear` drehen die Kennungen der Raum-Datensätze eines Spielstands zurück, wenn mit umgedrehten Kennungen mehr Räume passen als mit den eigenen (Spielstände der App bleiben unberührt). Vorher verloren importierte Spielstände 109 von 121 Räumen, r102/r201, r103/r301, r204/r402, r304/r403 tauschten ihre Merker (Garrador in r201 angekettet, Schlüssel fehlt). Nutzerbericht 09.11.2026 (17 `.gci`, EU) |
 | 0226 `r201.cpp` | Sicherheitsnetz neben 0225: Merker 0 von r201 („Garrador tot“) ohne sein Todes-Bit in der Gegnerliste (Eintrag 0x56) wird zurückgesetzt, der Garrador kommt frei (nicht bei Sprungpunkt 2). Für Spielstände, die nach einem alten Import in der App neu gespeichert wurden. Nutzerbericht 09.11.2026 |
-| 0227 `player.cpp` | Stufenloses Drehen (Entscheidung des Projektinhabers 10.11.2026, immer an): die Drehungen beim Gehen, Rückwärtsgehen und Rennen mal `re4_turn_scale()` (`runtime/modern_move.cpp`, wie weit der Stick gedrückt ist; voll gedrückt und Steuerkreuz wie das Spiel). Port-Funktion, kein Fehler des Prototyps |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
@@ -14628,7 +14596,6 @@ die sie treffen, müssen einzeln behandelt werden (bisher keine aufgetreten).
 | `memcard.cpp` (M10) | die Karte in Schacht A: Memory Card 251 (2 MB, 8-KB-Blöcke) als Datei mit den Befehlen der echten Karte (Lesen 0x52, Seite schreiben 0xF2, Block löschen 0xF1, alles löschen 0xF4, Status, Hersteller); Status „entsperrt“ (kein DSP-Handshake); jede Änderung sofort in die Datei, 1 s danach `fsync`; SRAM (`__OSLockSram*`, Flash-ID aus dem Kartenkopf abgeleitet); `RE4_MEMCARD` (siehe „M10“); Log der Dateien auf der Karte und der Schritte des Kartenbildschirms (Patch 0058) |
 | `host_file.cpp` (M10) | Dateizugriffe für Code mit den Schaltern des Spiels (Kartendatei): Öffnen samt Ordnern, Lesen/Schreiben an einer Stelle, `fsync`, Schließen; dort wirken die Umbenennungen der C-Bibliothek (64-bit-Dateistellen, Android-Fortify) |
 | `card_files.cpp` (M11) | Dateien auf dem Kartenabbild für das Menü der App: Liste, Lesen, Schreiben/Ersetzen wie die Bibliothek (zwei Kopien von Verzeichnis und FAT, Blöcke wie `__CARDAllocBlock`) |
-| `modern_move.cpp` (10.11.2026) | „Modern movement“ (App-Menü, aus): Stick-Filter in `PADRead` (`re4_set_stick_filter`), nur beim freien Laufen: Leon dreht zur Stickrichtung von der Kamera aus und geht vorwärts, Stick nach hinten wie das Spiel; dazu `re4_turn_scale` für Patch 0227. Als Spielcode übersetzt (`re4_gamehooks_obj`), kein Patch |
 | `gyro.cpp` (19.10.2026) | Gyro-Zielen (Wunsch des Projektinhabers, wie im ersten Android-Port): `re4_core_gyro` (Drehraten der App, rad/s) und ein Bild-Haken in `PADRead`, der nur beim Zielen mit einer Schusswaffe (Hauptschleife, kein Untermenü/Ereignis, Routine `pl_R1_Weapon`, nicht das Messer) Körperdrehung `pPL->ang.y` und Neigung `m3r` samt Mitte des Wackelns (`cPlWep::pitch`) dreht, mit Zielfernrohr `CameraScope::angle_x`; 35 % der Gerätedrehung, Zoom wie der Stick. Als Spielcode übersetzt (`re4_gamehooks_obj`), kein Patch |
 | `gci.cpp` (M11) | `.gci` für Dolphin/GameCube: Spielstände und Systemdatei Feld für Feld in GameCube-Reihenfolge und zurück (`save_layout.inc` aus den Headern, `port/tools/save_layout.py`), CRCs neu |
 | `alarm.cpp` (M10) | `OSAlarm` (Zeitüberwachung der CARD-Befehle: 100 ms je Seite, 2 s je Block), fällig an den Interrupt-Punkten |

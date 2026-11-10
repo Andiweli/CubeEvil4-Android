@@ -733,7 +733,6 @@ std::atomic<int> optFarCamera{0};  // the menu's "Far camera" (CoreBridge.setFar
 // the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
 // degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
 std::atomic<int> optFov{0};
-std::atomic<int> optModernMove{0};  // the menu's "Modern movement" (CoreBridge.setModernMove), bit 4 of the aim bits
 // "Dynamic" up to the benchmark's levels (CoreBridge.setDynamicCaps, the app keeps them per device): with 30 FPS,
 // with 60 FPS; in halves, 0: none measured (the screen's level as before)
 std::atomic<int> optCap30{0}, optCap60{0};
@@ -2150,7 +2149,6 @@ bool drawGx() {
           viewDistance >= 100 ? "Normal" : viewDistance >= 75 ? "Medium" : "Short", viewDistance);
     }
     const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
-                    | (optModernMove.load() ? 16 : 0)                 // bit 4 "Modern movement" (runtime/modern_move.cpp)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
@@ -3064,13 +3062,6 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_aimFromGame(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFarCamera(JNIEnv *, jclass, jboolean on) {
   const int want = on == JNI_TRUE ? 1 : 0;
   if (optFarCamera.exchange(want) != want) LOG("far camera: %s", want ? "on" : "off");
-}
-
-// "Modern movement" (the menu, Controls; decision of the project owner, 10.11.2026): Leon walks where the stick
-// points, seen from the camera (runtime/modern_move.cpp), sent with the aim settings (bit 4).
-extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setModernMove(JNIEnv *, jclass, jboolean on) {
-  const int want = on == JNI_TRUE ? 1 : 0;
-  if (optModernMove.exchange(want) != want) LOG("modern movement: %s", want ? "on" : "off");
 }
 
 // The menu's AUDIO page (drawGx tells the core): music and sound effects volume in percent.
