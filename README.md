@@ -9,7 +9,6 @@
 ![Controller or touch](https://img.shields.io/badge/Input-Controller%20%7C%20Touch-9A1B1C)
 
 [![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
-[![Support via PayPal](https://img.shields.io/badge/Support%20via-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/andiweli)
 
 **[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
@@ -328,18 +327,6 @@ purpose. Constants use the PS2 build's enums. `docs/naming.md` has the details.
 
 See `CONTRIBUTING.md` for the build, the three checks a change has to pass and the rules. The main rule
 is that the output bytes never change.
-
-## Support
-
-If you enjoy this project and would like to support my work, you can make a small contribution via PayPal.
-
-Your support helps me spend more time maintaining existing projects, fixing bugs, improving compatibility, and working on new features.
-
-[![Support via PayPal](https://img.shields.io/badge/Support%20via-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/andiweli)
-
-[![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
-
-Thank you for your support!
 
 ## Legal
 
