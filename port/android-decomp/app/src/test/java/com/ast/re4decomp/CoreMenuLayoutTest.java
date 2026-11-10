@@ -293,7 +293,12 @@ public class CoreMenuLayoutTest {
       // "Far camera" since 05.11.2026 in PLAYER VIEW, beside the field of view's slider
       Button farCamera = findButton(body, activity.getString(R.string.ingame_far_camera));
       assertNotNull(farCamera);
-      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(autoAim, body) + 1),
+      // "Modern movement" (10.11.2026) in a row of its own right under them, then "Invert vertical"
+      Button modernMove = findButton(body, activity.getString(R.string.ingame_modern_move));
+      assertNotNull(modernMove);
+      assertEquals("modern movement under auto aim", rowIndex(autoAim, body) + 1, rowIndex(modernMove, body));
+      assertFalse("modern movement off by default", modernMove.isSelected());
+      Button aimInvert = findButton((ViewGroup) body.getChildAt(rowIndex(modernMove, body) + 1),
           activity.getString(R.string.ingame_aim_invert_v));
       Button touchAim = findButton(body, activity.getString(R.string.ingame_aim_move_stick));
       Button gyro = findButton(body, activity.getString(R.string.ingame_gyro_none).split(" ")[0]);
@@ -311,6 +316,15 @@ public class CoreMenuLayoutTest {
       Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
       assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
       assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
+      // "Button style" (RetroTouch 1.0.0-beta.10, 09.11.2026): Icons and Labels under the touch choices and their help,
+      // Icons chosen without a host (a new player's style, TouchStyle.DEFAULT_BUTTON_STYLE)
+      Button icons = findButton(body, activity.getString(R.string.ingame_button_icons));
+      Button labels = findButton(body, activity.getString(R.string.ingame_button_labels));
+      assertNotNull(icons); assertNotNull(labels);
+      assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
+      assertEquals("icons and labels side by side", icons.getParent(), labels.getParent());
+      assertTrue(icons.isSelected()); assertFalse(labels.isSelected());
+      assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
       assertTrue("player view after touch aiming", view > aiming);
@@ -324,12 +338,12 @@ public class CoreMenuLayoutTest {
       assertTrue("the motion heading", motion >= 0);
       assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
       assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
-      // then the comfort controls: under the latches "Auto aim" with "Always run", then "Invert vertical" with
-      // "Aim speed", then touch aiming
+      // then the comfort controls: under the latches "Auto aim" with "Always run", "Modern movement" (10.11.2026),
+      // then "Invert vertical" with "Aim speed", then touch aiming
       assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
       assertEquals("auto aim right under the latches", rowIndex(latch, body) + 1, rowIndex(autoAim, body));
       assertEquals("always run beside auto aim", rowIndex(autoAim, body), rowIndex(alwaysRun, body));
-      assertEquals("the aim row right under them", rowIndex(autoAim, body) + 1, rowIndex(aimInvert, body));
+      assertEquals("the aim row right under modern movement", rowIndex(modernMove, body) + 1, rowIndex(aimInvert, body));
       // the button mapping at the bottom, under a heading of its own
       assertTrue("the controller heading after the comfort controls", devices > rowIndex(touchAim, body));
       // since 0.99.2 first the sticks' dead zone and range (sliders 0..30 and 50..100 in steps of 5) and the choice

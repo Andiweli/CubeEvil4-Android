@@ -65,6 +65,10 @@
     <string name="ingame_touch_auto">Otomatis</string>
     <string name="ingame_touch_force">Selalu</string>
     <string name="ingame_touch_suppress">Sembunyikan</string>
+    <string name="ingame_button_style">Gaya tombol</string>
+    <string name="ingame_button_icons">Ikon</string>
+    <string name="ingame_button_labels">Teks</string>
+    <string name="ingame_button_style_help">Ikon atau teks pada tombol sentuh; editor (roda gigi di kanan atas) punya pilihan yang sama.</string>
     <string name="ingame_comfort">Kontrol Nyaman</string>
     <string name="ingame_gyro">Bidik Giroskop</string>
     <string name="ingame_gyro_none">Bidik Giroskop (tanpa giroskop)</string>

@@ -64,6 +64,10 @@
     <string name="ingame_touch_auto">Auto</string>
     <string name="ingame_touch_force">Forzar</string>
     <string name="ingame_touch_suppress">Ocultar</string>
+    <string name="ingame_button_style">Estilo de botones</string>
+    <string name="ingame_button_icons">Iconos</string>
+    <string name="ingame_button_labels">Texto</string>
+    <string name="ingame_button_style_help">Iconos o texto en los botones táctiles; el editor (el engranaje arriba a la derecha) tiene el mismo interruptor.</string>
     <string name="ingame_comfort">Controles de comodidad</string>
     <string name="ingame_gyro">Apuntar con giroscopio</string>
     <string name="ingame_gyro_none">Apuntar con giroscopio (sin giroscopio)</string>

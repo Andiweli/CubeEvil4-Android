@@ -447,6 +447,31 @@ public final class CoreInput {
         | (hatX < -0.5f ? GC_LEFT : 0) | (hatX > 0.5f ? GC_RIGHT : 0);
   }
 
+  /**
+   * The touch controls' move stick walks after a short push (the project owner, 10.11.2026: "Leon only walks when
+   * the stick is almost at the ring"). As it was, its way (RetroTouch: 0 .. 1 of the ring's radius) went straight
+   * to the pad (times MAIN_RAW, 101): the SDK's PADClamp takes 15 off (0 below 15 % of the way) and the game walks
+   * and turns only past 30 after it (game/pad.cpp STICK_ON, the JOY_S* bits), at 45 % of the way; with the
+   * knob under the thumb that felt like the ring. Now the way past TOUCH_DEAD starts just past PADClamp's dead zone
+   * and reaches the walking threshold at TOUCH_WALK (a quarter of the way), then rises on to the full stick at the
+   * ring (PADClamp's top, 72, at 80 % instead of 86 %). Not while L or R is held: the move stick aims then (pl_wep:
+   * the turn follows the stick's value) and keeps its old, finer way. The C stick and the controllers stay as they are.
+   */
+  static final float TOUCH_DEAD = 0.08f, TOUCH_WALK = 0.22f;
+  /** The pad's values (of MAIN_RAW) where PADClamp starts (15) and where the game walks (30 past it, with 2 to spare). */
+  static final float CLAMP_START = 15f / MAIN_RAW, WALK_START = 47f / MAIN_RAW;
+
+  /** The touch move stick's way `x`, `y` (-1..1 each, up to 1 long) on the curve above: {x, y}. */
+  public static float[] touchWalk(float x, float y) {
+    float m = (float) Math.sqrt((double) x * x + (double) y * y);
+    if (m <= TOUCH_DEAD) return new float[] {0f, 0f};
+    float out = m <= TOUCH_WALK
+        ? CLAMP_START + (m - TOUCH_DEAD) / (TOUCH_WALK - TOUCH_DEAD) * (WALK_START - CLAMP_START)
+        : WALK_START + (Math.min(m, 1f) - TOUCH_WALK) / (1f - TOUCH_WALK) * (1f - WALK_START);
+    float k = out / m;
+    return new float[] {x * k, y * k};
+  }
+
   /** The touch controls' device (CoreTouch): no Android device has this id. */
   static final int TOUCH = Integer.MIN_VALUE;
 
@@ -561,6 +586,9 @@ public final class CoreInput {
         && (touchDevice != null && (touchDevice.l2Key || touchDevice.r2Key)
             || Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
     if (!touchAiming) swipeX = swipeY = 0;  // a swipe left over from the aim before turns nothing
+    // L or R held (a weapon or the knife ready): the touch move stick keeps its plain way (touchWalk)
+    boolean weaponReady = touchDevice != null && (touchDevice.l2Key || touchDevice.r2Key)
+        || Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED;
     this.touchAiming = touchAiming;
     int buttons = padB ? GC_B : 0;
     float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
@@ -592,6 +620,11 @@ public final class CoreInput {
       if (!touch && d.keyboard) continue;
       buttons |= (touch ? d.buttons : d.buttons & ~GC_B) | d.hats;
       float mainX = d.lx, mainY = d.ly, cX = d.rx, cY = d.ry;
+      if (touch && !weaponReady) {
+        float[] walk = touchWalk(mainX, mainY);
+        mainX = walk[0];
+        mainY = walk[1];
+      }
       if (aiming && !touch) {
         mainX = d.rx;
         mainY = d.ry;

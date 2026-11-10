@@ -160,6 +160,20 @@ hinten: **rückwärts gehen wie im Original**; **ein** Schalter für Controller 
   Routinen-Sperre (dort greift der Filter nicht), nicht eigens gespielt; wie sich das schnelle Drehen ohne
   Drehanimation anfühlt.
 
+### 5. Touch-Symbole übernommen (Branch `feature/touch-icons`, Spitze e2146ea4)
+
+Freigabe des Projektinhabers (10.11.2026, „Ja, übernehmen“), als Merge in `work0997`: RetroTouch 1.0.0-beta.10,
+`TouchStyle.java` (Tastenstil Symbole als Vorgabe, Beschriftung wie bisher; Editor und App-Menü → Steuerung →
+„Button style“, 11 Sprachen), `TouchStyleTest`, README-Satz, und der Touch-Stick läuft nach kurzem Druck
+(`CoreInput.touchWalk`: ab 22 % des Wegs auf der Schwelle des Spiels, voll bei 80 %; mit L oder R gehalten wie
+bisher). Merge ohne Konflikte (CoreMenu, CoreActivity, die 11 `strings_ingame.xml` neben „Modern movement“).
+Zusammenspiel mit „Modern movement“: `touchWalk` ändert nur die Länge, nicht die Richtung, und erreicht die
+Schwelle des Spiels bei 47 von 101, genau dort, wo der Stick-Filter (`kPushed` 47) übernimmt. Geprüft:
+`testCoreDebugUnitTest` (81 Tests; `CoreMenuLayoutTest` kennt jetzt die Zeile „Modern movement“ unter „Auto
+aim“, die mit 473f0dc3 dazukam und den Test brach), `check_translations.py` (334 Texte), `CoreInputTests` (1826
+Prüfungen), `assembleCoreRelease`. Der Kern ist vom Merge unberührt (`whole_move_check.sh` nicht betroffen).
+Nicht geprüft: Gerät.
+
 ## Version 0.99.6-rc: Nutzerberichte nach 0.99.5 und Wünsche des Projektinhabers (09.11.2026, Branch `work`)
 
 Version 0.99.6-rc (versionCode 108), Releasetext `port/android-decomp/docs/releases/v0.99.6-rc.md` („Changes since

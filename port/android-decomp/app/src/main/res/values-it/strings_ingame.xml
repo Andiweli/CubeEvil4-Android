@@ -64,6 +64,10 @@
     <string name="ingame_touch_auto">Auto</string>
     <string name="ingame_touch_force">Forza</string>
     <string name="ingame_touch_suppress">Nascondi</string>
+    <string name="ingame_button_style">Stile pulsanti</string>
+    <string name="ingame_button_icons">Icone</string>
+    <string name="ingame_button_labels">Testo</string>
+    <string name="ingame_button_style_help">Icone o testo sui pulsanti touch; l\'editor (l\'ingranaggio in alto a destra) ha la stessa scelta.</string>
     <string name="ingame_comfort">Comandi comfort</string>
     <string name="ingame_gyro">Mira con il giroscopio</string>
     <string name="ingame_gyro_none">Mira con il giroscopio (nessun giroscopio)</string>

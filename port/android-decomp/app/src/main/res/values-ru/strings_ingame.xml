@@ -64,6 +64,10 @@
     <string name="ingame_touch_auto">Авто</string>
     <string name="ingame_touch_force">Всегда</string>
     <string name="ingame_touch_suppress">Скрывать</string>
+    <string name="ingame_button_style">Стиль кнопок</string>
+    <string name="ingame_button_icons">Значки</string>
+    <string name="ingame_button_labels">Текст</string>
+    <string name="ingame_button_style_help">Значки или текст на сенсорных кнопках; в редакторе (шестерёнка справа вверху) есть тот же переключатель.</string>
     <string name="ingame_comfort">Удобное управление</string>
     <string name="ingame_gyro">Прицеливание гироскопом</string>
     <string name="ingame_gyro_none">Прицеливание гироскопом (нет гироскопа)</string>

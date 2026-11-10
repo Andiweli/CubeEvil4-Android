@@ -68,6 +68,10 @@
     <string name="ingame_touch_auto">تلقائي</string>
     <string name="ingame_touch_force">دائمًا</string>
     <string name="ingame_touch_suppress">إخفاء</string>
+    <string name="ingame_button_style">نمط الأزرار</string>
+    <string name="ingame_button_icons">أيقونات</string>
+    <string name="ingame_button_labels">نص</string>
+    <string name="ingame_button_style_help">أيقونات أو نص على أزرار اللمس؛ في المحرر (الترس أعلى اليمين) الخيار نفسه.</string>
     <string name="ingame_comfort">تحكم مريح</string>
     <string name="ingame_gyro">التصويب بالجيروسكوب</string>
     <string name="ingame_gyro_none">التصويب بالجيروسكوب (لا يوجد جيروسكوب)</string>
