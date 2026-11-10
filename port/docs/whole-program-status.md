@@ -34,6 +34,61 @@ funktioniert aber nur für die Waffe, nicht für das Messer. Bitte auch für das
   L losgelassen schaut die Fläche wieder. Alle Laufzeittests 0 Fehler, CoreTouchTests 299 Prüfungen.
 - **Nicht geprüft:** auf einem Gerät.
 
+### 2./3. Zielfernrohr und Raketenwerfer mit Vulkan auf Mali: Bildeinbrüche (zwei Nutzerberichte)
+
+„The sniper rifle is still underperforming, to the point of zooming in with the scope and dropping FPS with Vulkan.“
+und „Framedrop when using Rocket launcher and Rifle“. Berichte (als Daten gelesen; wer welchen schickte, ist
+unbekannt):
+
+- **`E:\Development\Android\reports\0999-cubeevil4-report-20261110-212201`:** realme RMX3710 (Helio G85, 2× A75 +
+  6× A55), Mali-G52 MC2 r49p1, Vulkan, 0.99.8-rc, fest 1× bzw. Dynamisch 1,5×→1×, Bildauslassen aus. **`weapon 0x0d`
+  ist der Raketenwerfer** (Tabelle `wep_info`, item.cpp: 0x35/0x17/0x6D), r331/r332, danach r316 mit 0x08 (Riot Gun)
+  und 0x0A (halbautomatisches Gewehr). Also wohl der Nutzer „Rocket launcher and Rifle“. GX core 33–45 ms je
+  Spielbild; „frame:“ Zeichnen 17–32 ms Prozessorzeit (render 17–30), also **zugleich am Prozessor begrenzt**
+  (großer Außenraum, 120 000–155 000 Ecken, Ecken-Umrechnung 28–33 ms auf 4 Threads); `present` 12–35 ms, die GPU
+  0,6–1,0 Bildstücke hinterher; EFB-Durchgänge 10–16 je Bild, davon 8–12 auf einem Teil (das Zielfernrohr nur zeitweise).
+- **`…-085930`:** Samsung SM-A245M (Galaxy A24, Helio G99), Mali-G57 MC2 r54p1, Vulkan, 0.99.8-rc, 1,5×. In r100;
+  im Zielfernrohr 24–30 EFB-Durchgänge je Bild (27 auf einem Teil, 12 % der Fläche), `present` 23–27 ms gegen 4–6 ms
+  ohne Zielfernrohr, GX core 35 ms je Bild mit 16 ms Warten auf den Renderer, „frame:“ Zeichnen nur 12–13 ms: **klar an
+  der GPU begrenzt**, wohl der Nutzer „sniper rifle … scope“.
+- **Was im Zielfernrohr teuer ist:** nicht Filter08 (wie in 0.99.7/0.99.8 angenommen), sondern **Filter0a**
+  (`src/game/filter0a.cpp`, „used for the scope and binocular vignette“): eine Kopie des ganzen Bildes in halber Größe,
+  in die Ecke gezeichnet, dann `nFeedLp` 2 × 8 Mal die Ecke kopieren (½) und versetzt mit 50 % zurückzeichnen, am Ende
+  die Ecke über das ganze Bild mit Maske. Gewehr, halbautomatisches Gewehr und **Raketenwerfer haben dasselbe**
+  (am PC: r301 EU, Waffe 9 bzw. 13, je 27 Kopien und 15 EFB-Durchgänge je Bild, `~/p0999/runs/rifle|rocket`). Jede
+  Kopie liest die vorige: nicht bündelbar; je Schritt zwei abhängige Render-Durchgänge (EFB-Ecke, Kopie).
+- **Ursache der Kosten je Durchgang (Port-Fehler):** jeder Render-Durchgang endete mit der Abhängigkeit „alles danach,
+  **auch die Vertex-Shader**, wartet auf die Farb-/Tiefenausgabe“ (`PassDependencies` dep[1], dstStage
+  VERTEX_SHADER | FRAGMENT_SHADER | TRANSFER). Auf einer kachelnden GPU (Mali, auch Adreno) darf dann das Vertex- und
+  Kachel-Werk des nächsten Durchgangs erst beginnen, wenn der vorige fertig ist: jede Grenze leert die GPU (Mali:
+  getrennte Aufträge für Vertex/Kachel und Fragmente, mit Abhängigkeit über den Kerneltreiber). Bei 30 abhängigen
+  Durchgängen je Bild passt das zu den gemessenen 0,7–0,9 ms je Schritt. Kein Vertex-Shader liest ein gerendertes Bild
+  außer den **Lens Flares** (`kFlareVs` liest die Sichtbarkeit `flareVis`); GX-Texturen sind nur im Fragment-Shader
+  gebunden (`texLayout`).
+- **Behebung (`gx_vk.cpp`, kein Patch unter `src/`):** dep[1] wartet nur noch mit Fragment-Shadern und Kopien
+  (`VertexWait()`); die Lens Flares bekommen nach ihrem Sichtbarkeits-Durchgang eine eigene Sperre (Farbausgabe →
+  Vertex-Shader). Bildgleich per Definition (nur die Synchronisation), geprüft mit der Synchronisationsprüfung der
+  Validierung. Testschalter `RE4_GX_VK_VERTEX_WAIT=1`: wie 0.99.8 (auf dem Gerät per `test-core-app.ps1 -CoreSettings`).
+- **Neue Zähler** in „Vulkan per picture“ (für Mali-Berichte): „EFB copy passes N“ (Kopier-Durchgänge je Bild),
+  „GPU work X ms a picture (n of m submissions measured)“ (Zeitstempel am Anfang und Ende der Arbeit eines Bildes,
+  ohne die Bildschirm-Befehle; `vk.timestampBits` der Queue, sonst „not measured (no timestamps)“) und „passes overlap
+  (0.99.9)“ bzw. „wait for the vertex stage (as 0.99.8)“.
+- **Nicht gebaut (und warum):** ein eigenes kleines Bild für die Ecke und das EFB im Layout GENERAL ändern die Zahl
+  der abhängigen Durchgänge nicht (je Schritt bleiben zwei: die Kopie braucht echtes bilineares Lesen einer halb
+  großen Textur, sonst nicht bitgleich), sparen nur Bandbreite, die bei 224×192 Bildpunkten klein ist (rund 0,7 MB
+  je Schritt bei 1,5×). Ein Shader für die ganze Unschärfe wäre nicht GameCube-genau. Erst Mali-Berichte mit 0.99.9
+  abwarten („GPU work“ im Zielfernrohr gegen außerhalb).
+- **Geprüft am PC** (WSL `~/re4-0999`, `gx_chunk_render` Vulkan/lavapipe, `RE4_VK_VALIDATION=2` mit
+  Synchronisationsprüfung, alter Ablauf gegen neuen, `~/p0999/ab.sh`): Gewehr- und Raketenwerfer-Zielfernrohr
+  (8+8), Raketenschuss (12), Lens Flares an (Geräte-Serien 00/01 aus `0998-flare-gxdumps`, 12+12; ohne Flares
+  unterscheiden sich 9 von 12, sie werden also gezeichnet), Menüs (12), Graustufen (16), Söldner (9), Tiefenschärfe
+  r104 (4), Ada (12), r101-Serie (16) bei 1,5×; dazu 1× (Raketenwerfer, Flares, Menüs), 2× mit 4×MSAA, 2,5× mit „Save
+  bandwidth“: **alle Bilder gleich, 0 Validierungsfehler**. `gx_vk.cpp` mit dem NDK r28c für ARM32 und ARM64
+  (`-Wall -Wextra -Werror`) übersetzt. Am PC (lavapipe rechnet seriell) zeigt die Zeit keinen Unterschied.
+- **Hinweis für den Mali-G52-Nutzer:** sein Gerät ist im Außenraum zusätzlich am Prozessor begrenzt (Zeichnen bis
+  32 ms je Bild); dort hilft „Frame skip: Aggressive“ (er hatte aus).
+- **Nicht geprüft:** auf einem Gerät (Mali, Retroid).
+
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since

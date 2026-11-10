@@ -109,7 +109,22 @@ struct Frame {
   std::uint32_t poolSets = 0;
   std::unordered_map<std::uint64_t, VkDescriptorSet> texSets;
   std::vector<std::function<void()>> trash;  // destroyed once the GPU is through with the frame
+  // the GPU time of the frame's work (0.99.9): timestamps at the beginning of `draw` and at the end of the work
+  // (SubmitWork, else Submit), read once its fence was waited for (VkRenderer::ReadGpuTime)
+  VkQueryPool gpuTime = VK_NULL_HANDLE;
+  bool gpuTimeOpen = false, gpuTimeEnded = false;
 };
+
+// The end of a render pass: what waits for its attachments (PassDependencies). Until 0.99.8 the vertex shaders
+// of everything after it too; on a tiling GPU (Mali) the next pass's vertex shading and tiling then cannot begin
+// before the last pass's fragments are done, every pass boundary empties the GPU (the rifle and rocket launcher
+// scope's blur: 15 to 30 dependent passes a picture, 0.7 to 0.9 ms each on a Mali-G52 / G57, reports of
+// 10.11.2026). Only the lens flares read a pass's result in a vertex shader (kFlareVs: the visibility); they wait
+// with a barrier of their own (DrawFlares). RE4_GX_VK_VERTEX_WAIT=1: as before (the PC comparison).
+bool VertexWait() {
+  static const bool on = std::getenv("RE4_GX_VK_VERTEX_WAIT") && *std::getenv("RE4_GX_VK_VERTEX_WAIT") == '1';
+  return on;
+}
 
 struct Program {
   VkShaderModule vs = VK_NULL_HANDLE, fs = VK_NULL_HANDLE, merged = VK_NULL_HANDLE;
@@ -755,6 +770,7 @@ struct VkRenderer final : GxCore {
       WaitFence(f.workFence);  // (signalled with the frame's fence above, which comes after it)
       f.workPending = false;
     }
+    ReadGpuTime(f);
     f.split = false;
     for (auto &t : f.trash)
       t();
@@ -784,6 +800,11 @@ struct VkRenderer final : GxCore {
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(f.upload, &bi);
     vkBeginCommandBuffer(f.draw, &bi);
+    if (f.gpuTime) {
+      vkCmdResetQueryPool(f.draw, f.gpuTime, 0, 2);
+      vkCmdWriteTimestamp(f.draw, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, f.gpuTime, 0);
+      f.gpuTimeOpen = true;
+    }
     f.uploads = false;
     recording = true;
     pass = kNoPass;
@@ -796,6 +817,31 @@ struct VkRenderer final : GxCore {
       vkCmdEndRenderPass(F().draw);
     pass = kNoPass;
   }
+  // the frame's work done (the timestamp after it, in `draw` before it ends: SubmitWork, Submit)
+  void EndGpuTime(Frame &f) {
+    if (!f.gpuTimeOpen)
+      return;
+    vkCmdWriteTimestamp(f.draw, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, f.gpuTime, 1);
+    f.gpuTimeOpen = false;
+    f.gpuTimeEnded = true;
+    timing.gpuSubmits++;
+  }
+  // once the frame's fence was waited for: its work's GPU time into the timing line
+  void ReadGpuTime(Frame &f) {
+    if (!f.gpuTimeEnded || f.pending || f.workPending)
+      return;
+    f.gpuTimeEnded = false;
+    std::uint64_t t[2] = {0, 0};
+    if (vkGetQueryPoolResults(dev, f.gpuTime, 0, 2, sizeof(t), t, sizeof(t[0]), VK_QUERY_RESULT_64_BIT) != VK_SUCCESS)
+      return;
+    const std::uint64_t mask = vk.timestampBits >= 64 ? ~0ull : (1ull << vk.timestampBits) - 1;
+    const std::uint64_t ticks = (t[1] - t[0]) & mask;
+    const double ms = static_cast<double>(ticks) * vk.properties.limits.timestampPeriod / 1e6;
+    if (ms >= 0.0 && ms < 1000.0) {
+      timing.gpuMs += ms;
+      timing.gpuMeasured++;
+    }
+  }
   // The frame to the GPU. wait: until it is done; next: the next frame is another one (else this frame goes on
   // with its blocks as they are: a submit in the middle of a chunk)
   // (waitSem: the swapchain's image acquired, before the colour output; signalSem: the picture done, for the present)
@@ -806,6 +852,7 @@ struct VkRenderer final : GxCore {
     EndPass();
     if (!f.split)
       vkEndCommandBuffer(f.upload);  // (a split frame's went with its work: SubmitWork; `uploads` is false since)
+    EndGpuTime(f);
     vkEndCommandBuffer(f.draw);
     VkCommandBuffer cbs[2] = {f.upload, f.draw};
     auto si = Make<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
@@ -833,6 +880,7 @@ struct VkRenderer final : GxCore {
       f.pending = false;
       f.workPending = false;  // (its work came before)
       done = std::max(done, f.serial);
+      ReadGpuTime(f);
       for (auto &t : f.trash)
         t();
       f.trash.clear();
@@ -854,6 +902,7 @@ struct VkRenderer final : GxCore {
       return;
     EndPass();
     vkEndCommandBuffer(f.upload);
+    EndGpuTime(f);
     vkEndCommandBuffer(f.draw);
     VkCommandBuffer cbs[2] = {f.upload, f.draw};
     auto si = Make<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
@@ -931,8 +980,9 @@ struct VkRenderer final : GxCore {
     dep[1].srcSubpass = 0;
     dep[1].dstSubpass = VK_SUBPASS_EXTERNAL;
     dep[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    dep[1].dstStageMask =
-        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+    // (no vertex shader: VertexWait)
+    dep[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT |
+                          (VertexWait() ? VK_PIPELINE_STAGE_VERTEX_SHADER_BIT : 0);
     dep[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dep[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
   }
@@ -2247,6 +2297,14 @@ struct VkRenderer final : GxCore {
     BindFixed(flareVisFx, views, samp, 3, pc);
     vkCmdDraw(cb, 4, 1, 0, 0);
     EndPass();
+    // the flares' vertex shader reads the visibility (the pass's end lets only fragment shaders wait: VertexWait)
+    {
+      auto mb = Make<VkMemoryBarrier>(VK_STRUCTURE_TYPE_MEMORY_BARRIER);
+      mb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 1,
+                           &mb, 0, nullptr, 0, nullptr);
+    }
     flareVisCur = next;
     // the flares: their radius in EFB texels in slot.z; strength: at most about a third of white
     float ghosts[kFlareSlots], crowds[kFlareSlots];
@@ -2851,6 +2909,7 @@ struct VkRenderer final : GxCore {
     VkCommandBuffer cb = F().draw;
     Image &src = p.depth ? efbDepth : efbColor;
     Transition(cb, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    timing.copies++;
     BeginTargetPass(copyPass, *dst);
     dst->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // the pass's final layout
     const VkViewport vp{0.0f, 0.0f, float(Hi(p.tw)), float(Hi(p.th)), 0.0f, 1.0f};
@@ -3760,6 +3819,13 @@ struct VkRenderer final : GxCore {
       auto fci = Make<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
       vkCreateFence(dev, &fci, nullptr, &f.fence);
       vkCreateFence(dev, &fci, nullptr, &f.workFence);
+      if (vk.timestampBits && vk.properties.limits.timestampPeriod > 0.0f) {
+        auto qci = Make<VkQueryPoolCreateInfo>(VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO);
+        qci.queryType = VK_QUERY_TYPE_TIMESTAMP;
+        qci.queryCount = 2;
+        if (vkCreateQueryPool(dev, &qci, nullptr, &f.gpuTime) != VK_SUCCESS)
+          f.gpuTime = VK_NULL_HANDLE;
+      }
     }
     for (VkSemaphore &s : acquireSem) {
       auto sem = Make<VkSemaphoreCreateInfo>(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
@@ -4045,24 +4111,37 @@ struct VkRenderer final : GxCore {
     // "Save bandwidth": clears kept (DeferClear), of them begun with the next pass (no load, no pass of their own)
     unsigned clearsKept = 0, clearsFolded = 0;
     double efbPartShare = 0;
+    // 0.99.9: EFB copies (CopyPass), the GPU time of the frames' work (timestamps, ReadGpuTime)
+    unsigned copies = 0, gpuMeasured = 0, gpuSubmits = 0;  // (submissions with timestamps, of them read)
+    double gpuMs = 0;
   } timing;
   std::string TimingLine() override {
     Timing &t = timing;
     const double n = std::max(1u, t.presents);
-    char line[1000];
+    // the GPU's time for a picture's work (its EFB passes and copies, not the screen's commands), from timestamps
+    char gpuText[80];
+    if (!vk.timestampBits)
+      std::snprintf(gpuText, sizeof(gpuText), "not measured (no timestamps)");
+    else
+      // (a frame's time is read when the frame comes round again: the few still out count as the read ones' mean)
+      std::snprintf(gpuText, sizeof(gpuText), "%.2f ms a picture (%u of %u submissions measured)",
+                    t.gpuMeasured ? t.gpuMs / t.gpuMeasured * std::max(t.gpuSubmits, t.gpuMeasured) / n : 0.0,
+                    t.gpuMeasured, t.gpuSubmits);
+    char line[1200];
     std::snprintf(line, sizeof(line),
                   "Vulkan per picture: acquire %.2f ms, waits for the GPU %.2f ms, submit %.2f ms, present %.2f ms "
                   "(%u pictures); %u shaders compiled (%.0f ms), %u from the SPIR-V store (%zu kept); %u pipelines "
                   "made (%.0f ms, the longest %.1f ms; %u of them anew, not from the driver's cache); %u swapchains "
                   "made; images %.0f of %.0f MB; %u of the app's list made ahead so far; EFB passes %.1f, of them "
                   "%.1f on a part (%.0f %% of the EFB on average, %u widened); save bandwidth %s: %.1f clears "
-                  "folded into the next pass (of %.1f)",
+                  "folded into the next pass (of %.1f); EFB copy passes %.1f; GPU work %s; passes %s",
                   t.acquireMs / n, t.fenceMs / n, t.submitMs / n, t.presentMs / n, t.presents, t.compiled,
                   t.compileMs, t.spirvFound, Spirv().Count(), t.pipelines, t.pipelineMs, t.pipelineMax, t.pipelinesAnew,
                   swapMade - t.swapchains, heap.Used() / 1048576.0, heap.Reserved() / 1048576.0, aheadMade.load(),
                   t.efbPasses / n, t.efbParts / n, t.efbParts ? 100.0 * t.efbPartShare / t.efbParts : 0.0,
                   t.efbWidened, !bwSave ? "off" : samples > 1 ? "on (not with MSAA)" : "on", t.clearsFolded / n,
-                  t.clearsKept / n);
+                  t.clearsKept / n, t.copies / n, gpuText,
+                  VertexWait() ? "wait for the vertex stage (as 0.99.8)" : "overlap (0.99.9)");
     const unsigned made = swapMade;
     t = Timing();
     t.swapchains = made;
@@ -4128,6 +4207,8 @@ struct VkRenderer final : GxCore {
         vkDestroyFence(dev, f.fence, nullptr);
       if (f.workFence)
         vkDestroyFence(dev, f.workFence, nullptr);
+      if (f.gpuTime)
+        vkDestroyQueryPool(dev, f.gpuTime, nullptr);
       if (f.cmdPool)
         vkDestroyCommandPool(dev, f.cmdPool, nullptr);
       f = Frame();
