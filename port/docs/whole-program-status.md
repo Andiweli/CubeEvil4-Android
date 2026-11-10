@@ -7,7 +7,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since
 v0.99.7.“, Known issues aus 0.99.7 übernommen). Branch `0998` (Basis 7a028327 = 0.99.7-rc), nächste freie
-Patchnummer 0227.
+Patchnummer 0228 (0227: der eigene Frame-Skip des Spiels, Abschnitt 4).
 
 ### 1. „Ghosting“ mit der Tiefenschärfe (Nutzerbericht, Xiaomi 25102PCBEG, Adreno 840)
 
@@ -82,6 +82,66 @@ also wie zuvor. Auch nach `reshape` (L/R-Breite neu für den Bildschirm) gesetzt
 gültig (Form und Seitenverhältnis gehören nicht ins Layout). Test `TouchStyleTest.addedButtonsShapedAsTheDefaultOnes`
 (ein mit ADD angelegtes L `button_1` zeichnet RetroTouch in RE 1,95, START 2,1, A 1; in GC 1:1, das Standard-L
 behält 1,95). Auf dem Gerät nicht getestet.
+
+### 4. „Aggressive frame skip (saves CPU)“ (Wunsch des Projektinhabers, Patch 0227) und die „frame:“-Zeile
+
+Machbarkeitsstudie (10.11.2026, Notiz `work-0998-frameskip-study.md` im Notizordner der Sitzungen), danach Freigabe
+des Projektinhabers („Ja bitte einbauen und gleich reparieren“). Der Frame-Skip des Renderers (`core_mode.cpp`,
+`GxRenderer::Skip`) lässt nur ein Bild weg, das das Spiel schon gebaut hat: Er spart GPU-Zeit, keine Prozessorzeit.
+Am PC (x86_64, EU-Discs) ist der Großteil eines Spielbilds Zeichnen: r103 4,05 ms, davon `Render` 2,68 und `objTrans`
+0,63, Logik ~0,5 (13 %); r105 2,13 ms, Logik ~0,15.
+
+- **Wie (Patch 0227, `runtime/cpu_skip.cpp`):** Das Bild hinkt der Logik ein Spielbild hinterher (`Trans` füllt die
+  Ordnungstabellen, das `Render` des nächsten Bilds zeichnet sie). Vor `Trans` entscheidet `re4_cpu_skip_decide`, ob
+  das Bild wegfällt; dann meldet `Trans` keine Objekte und Gegner an (Sichtprüfung, Lichter, verformte Eckpunkte),
+  und im nächsten Spielbild entfallen `Render_before`, `Render` (`Render_skip`: nur Nebel und Flags wie `Render`),
+  Kinobalken, `DrawOTag`, Debug-Log und -Texte (Puffer geleert), `Render_done` (`Render_done_skip`: Zeitscheiben des
+  Szenario-C-Tasks bleiben) und `Render_swap` (der VI zeigt das Bild davor). Weiter laufen: Logik, IdSys, die Anmeldung
+  der Effekte und Filter (Regen und Schnee bewegen sich in `Filter06Trans`), Blenden (`FadeControl`: nur das Viereck
+  wird nicht gezeichnet), Ton, DVD. Texturanimationen und -verschiebungen holen den ausgelassenen Schritt im nächsten
+  Bild nach (`re4_tex_steps` in `commonScreenMatSub`). Nur beim Spielen (`Rno0` 3, zwei Halbbilder pro Bild, kein
+  `SYS_TRANS_STOP`, kein festgehaltenes Bild, kein Unterbildschirm).
+- **Die Uhr:** Ein Bild fällt weg, wenn das Spielbild davor länger als seine zwei Halbbilder plus 2 ms gedauert hat,
+  höchstens eins in Folge (mindestens 15 Bilder/s); ein Spielbild über 250 ms (Laden, App angehalten) zählt nicht;
+  wer vorn liegt, bekommt kein Guthaben. **Abweichung von der Studie:** Ein über mehrere Bilder mitgetragener Rückstand
+  wie im Shaolin-Port passt nicht zu RE4: Jedes Spielbild wartet auf den Bildschirmtakt (`vsync_cnt` beginnt jedes
+  Bild bei 0), ein ausgelassenes Bild ist nicht kürzer als zwei Halbbilder, das Spiel kann nie aufholen. Mit
+  mitgetragenem Rückstand blieb nach einer Ladepause jedes zweite Bild weg, auch am schnellen PC (erste Fassung).
+- **Menü:** Leistung → Experimentell, eigene Zeile „Aggressive frame skip“ mit Hilfezeile (`ingame_cpu_skip`,
+  `ingame_cpu_skip_help`, 11 Sprachen), aus nach dem Einbau. Darf **zusammen** mit dem Frame-Skip des Renderers an sein
+  (der spart GPU-Zeit, dieser Prozessorzeit); 60 FPS schließt beide aus (wer 60 FPS einschaltet, schaltet beide aus,
+  und umgekehrt; gespeichert mit beidem an: 60 FPS bleibt). Weg: `CoreBridge.setCpuSkip` → `core_mode.cpp optCpuSkip`
+  (an den Kern geht „aus“, solange 60 FPS läuft) → `re4_core_set_cpu_skip` (im App-Prozess per `dlsym`, im
+  Kernprozess Nachricht `kSetCpuSkip` = 42, `coreproc.cpp`). Einstellung `cpuSkip`.
+- **Testschalter (PC):** `RE4_CPU_SKIP=1` (ab Start an), `RE4_CPU_SKIP_MAX=2|3` (Bilder in Folge, nur zum Ausprobieren),
+  `RE4_CPU_SKIP_TEST=1` (jedes erlaubte Bild weg, ohne Uhr), `RE4_CPU_SKIP_SLOW_DRAW=MS` (jedes gezeichnete Bild MS
+  Millisekunden teurer: der PC als Handy mit langsamem Prozessor).
+- **„frame:“-Zeile repariert:** `sectionLog` (`state_trace.cpp`, Patch 0108) verlangte genau die zwei Marken
+  TaskScheduler und SndWatcher; beim Spielen gibt es ~16 (EmMgr.move, objTrans …), die Zeile kam auf keinem Gerät.
+  Jetzt mit allen Marken und der Renderzeit: „frame: 600 frames in r103: logic 0.5 ms, drawing 3.3 ms (render 2.7,
+  models 0.7), rest …, frame end …, waiting … (averages; the longest frame …); N pictures left out (Aggressive frame
+  skip on/off)“. Dazu „frame skip (CPU): N pictures left out so far …“ beim ersten und jedem 500. Bild.
+  Laufzeittest `sections` um einen Fall mit Spielmarken erweitert.
+- **Geprüft am PC (x86_64-O2, 10.11.2026):**
+  - *Gleicher Spielzustand:* je Raum zwei Läufe (ohne und mit `RE4_CPU_SKIP_TEST=1`, jedes zweite Bild weg), Leon läuft,
+    zielt, schießt wie im Raum-Rundgang (5000 Bilder), Zustandsaufzeichnung (`RE4_TRACE`) Bild für Bild verglichen
+    (ohne die GX-Zählung): EU r100, r101, r103, r104, r200, r206, r222, r224, r226, r301, r305, Debug r100, r104 —
+    **gleich** (Spieler, Gegner, Kamera, Ereignisse, Zufallszähler, Schall), darunter Ereignisse am Raumanfang,
+    Tode mit Neuladen des Raums (r104 QTE, r200, r222, r301 zweimal), Hitzeflimmern (r101, r222, r224), Tiefenschärfe
+    (r104). Einzige Abweichung: r104 Bild 3592, Zahl der belegten Effektplätze 153 statt 163 — der Schweif-Effekt 0x0A
+    (`Esp0a_Trans`) legt beim **Zeichnen** bis zu 50 Hilfsteile für ein Bild an; ohne Zeichnen keine. Danach wieder
+    gleich, keine Wirkung aufs Spiel.
+  - *Bilder:* 16er-Serien in r103, r104 (ohne/mit): jedes mit Bildsprung gezeichnete Bild gleicht dem Bild desselben
+    Spielbilds ohne, bis auf die Debug-Zeitbalken am Rand (die messen die Rechenzeit). r222 (Lava) zeichnet das
+    Hitzeflimmern schon ohne Bildsprung von Lauf zu Lauf anders (zwei Läufe ohne: 1 von 16 Bildern gleich), dort
+    kein Vergleich möglich.
+  - *Uhr:* r103 im echten Takt: ohne Bremse 57 Bilder weg beim Raumanfang (Ladehänger), danach 0; mit
+    `RE4_CPU_SKIP_SLOW_DRAW=40`: ohne Bildsprung ~22 Spielbilder/s (Zeitlupe), mit ~30 (normal), 600 von 1200 Bildern
+    weg, nie zwei in Folge.
+  - Laufzeittests 0 Fehler; Android-Kern beider ABIs; App-Tests (Gradle), Übersetzungsprüfung.
+- **Nicht geprüft:** Zielfernrohr (kein Gewehr im Debug-Start), Spiegelungen eigens, ein Raumwechsel durch eine Tür
+  (nur Neuladen nach dem Tod und Start aus der Raumauswahl), Filme (dort ist der Bildsprung aus), ein echtes Handy mit
+  langsamem Prozessor.
 
 ## Version 0.99.7-rc: Fehler und Wünsche nach 0.99.6 (09.11.2026, Branch `work0997`)
 

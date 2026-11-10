@@ -89,6 +89,7 @@ int re4ipc_cheat_action(int what);
 int re4ipc_room_outline(float* out, int maxEdges, unsigned* info);
 void re4ipc_set_laser_colour(int colour);
 void re4ipc_set_view_distance(int percent);
+void re4ipc_set_cpu_skip(int on);
 void re4ipc_set_view_aspect(int aspect_e4);
 void re4ipc_set_hud_layout(int rows, int stretch_e4, int flags);
 void re4ipc_gyro(float yaw, float pitch);

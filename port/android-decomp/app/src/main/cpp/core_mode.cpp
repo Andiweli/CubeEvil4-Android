@@ -110,6 +110,7 @@ struct CoreApi {
   int (*roomOutline)(float *, int, unsigned *){};  // optional (cores since 04.11.2026): the minimap's room outline
   void (*setLaserColour)(int){};  // optional (cores since 04.11.2026, patch 0198): the laser sight's colour
   void (*setViewDistance)(int){};  // optional (cores since 09.11.2026, patch 0223): the view distance in percent
+  void (*setCpuSkip)(int){};       // optional (cores since 10.11.2026, patch 0227): "Aggressive frame skip"
   void (*setViewAspect)(int){};   // optional (cores since 07.11.2026, patch 0214): "Native", the 3D's aspect x 10000
   void (*setHudLayout)(int, int, int){};  // optional (cores since 07.11.2026, patch 0215): the life gauge's corner
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
@@ -458,6 +459,7 @@ void loadCore(JNIEnv *env) {
   api.roomOutline = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_outline"));
   api.setLaserColour = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_laser_colour"));
   api.setViewDistance = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_view_distance"));
+  api.setCpuSkip = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cpu_skip"));
   api.setViewAspect = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_view_aspect"));
   api.setHudLayout = reinterpret_cast<void (*)(int, int, int)>(dlsym(api.main, "re4_core_set_hud_layout"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
@@ -726,6 +728,11 @@ int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU b
 // the room's distance fog and far plane, 100 Normal, 75 Medium, 50 Short
 std::atomic<int> optViewDistance{100};
 int viewDistanceSent = -1;  // what the core was told last (-1: nothing yet)
+// The menu's "Aggressive frame skip" (CoreBridge.setCpuSkip, wish of the project owner, 10.11.2026; patch 0227): the
+// game leaves a picture out itself while its frames run late (saves the processor's time, the renderer's Frame
+// skip only the GPU's); the core is told "off" while 60 FPS is on
+std::atomic<int> optCpuSkip{0};
+int cpuSkipSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's "Invert vertical" and "Aim speed" for touch and controllers (CoreBridge.setAim, wish of the
 // project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
 std::atomic<int> optAim{100 << 8};
@@ -2148,6 +2155,14 @@ bool drawGx() {
       LOG("view distance to the core: %s (%d %% of each room's distance fog and far plane)",
           viewDistance >= 100 ? "Normal" : viewDistance >= 75 ? "Medium" : "Short", viewDistance);
     }
+    // (60 FPS and the game's frame skip exclude each other: the in-between pictures need every picture)
+    const int cpuSkip = optCpuSkip.load() != 0 && !smoothOn ? 1 : 0;
+    if (api.setCpuSkip && cpuSkip != cpuSkipSent) {
+      api.setCpuSkip(cpuSkip);
+      cpuSkipSent = cpuSkip;
+      LOG("aggressive frame skip to the core: %s", cpuSkip ? "on (the game leaves a picture out while it is behind)"
+                                                           : optCpuSkip.load() ? "off (60 FPS is on)" : "off");
+    }
     const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
@@ -2620,6 +2635,7 @@ void useCoreProcess(const std::string &why) {
   api.roomOutline = re4ipc_room_outline;
   api.setLaserColour = re4ipc_set_laser_colour;
   api.setViewDistance = re4ipc_set_view_distance;
+  api.setCpuSkip = re4ipc_set_cpu_skip;
   api.setViewAspect = re4ipc_set_view_aspect;
   api.setHudLayout = re4ipc_set_hud_layout;
   api.touch = re4ipc_touch;
@@ -2902,6 +2918,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_surfaceCreat
   fastSent = -1;
   potatoSent = -1;
   viewDistanceSent = -1;
+  cpuSkipSent = -1;
   aimSent = -1;
   soundSent = -1;
   // a new GL context: the renderer's objects are gone; the core starts over
@@ -3099,6 +3116,12 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_cheatAction(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFrameSkip.exchange(want) != want) LOG("frame skip: %s", want ? "on (chunks are left out while the renderer is behind)" : "off");
+}
+
+// Aggressive frame skip (the menu, patch 0227): the game leaves a picture out while it is behind (drawGx tells the core).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setCpuSkip(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optCpuSkip.exchange(want) != want) LOG("aggressive frame skip: %s", want ? "on" : "off");
 }
 
 // Original TV filter (the menu): the game's vertical copy filter on the picture (GxRenderer::SetTvFilter).

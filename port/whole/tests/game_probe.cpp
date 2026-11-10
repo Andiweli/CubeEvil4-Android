@@ -1280,6 +1280,20 @@ extern "C" int re4probe_frame_sections(void)
     for (unsigned i = 0; i < 600; i++) {
         re4_trace_sections(1000 + i);
     }
+    // play's marks (0.99.8: the line never came with them): EmMgr.move inside the scheduler, objTrans in Trans
+    proc_tick[5] = 2 * ms;
+    proc_tick[6] = 3 * ms;
+    proc_tick[7] = 6 * ms;
+    proc_tick[8] = 8 * ms;
+    proc_name[5] = "EmMgr.move";
+    proc_name[6] = "TaskScheduler";
+    proc_name[7] = "objTrans";
+    proc_name[8] = "SndWatcher";
+    proc_tick_idx_bak = 4;
+    pG->room_id = 0x106;
+    for (unsigned i = 0; i < 600; i++) {
+        re4_trace_sections(2000 + i);
+    }
     memcpy(proc_tick, keepTick, sizeof keepTick);
     memcpy(proc_name, keepName, sizeof keepName);
     proc_tick_idx_bak = keepIdx;

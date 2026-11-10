@@ -2032,8 +2032,11 @@ static void testFrameSections()
     static char tail[16 * 160];
     re4_log_tail(tail, sizeof tail);
     // (the tail keeps 120 characters of a line)
-    const bool ok = strstr(tail, "frame: 600 frames in r105: logic 2.0 ms, drawing 5.0 ms, rest 3.0 ms, frame end "
-                                 "1.0 ms, waiting 21.3 ms") != 0;
+    // (since 0.99.8 with the render time in the drawing, and play's own marks: r106)
+    const bool ok = strstr(tail, "frame: 600 frames in r105: logic 2.0 ms, drawing 6.0 ms (render 1.0, models 5.0), "
+                                 "rest 3.0 ms, frame end 1.0 ms") != 0 &&
+                    strstr(tail, "frame: 600 frames in r106: logic 2.0 ms, drawing 6.0 ms (render 1.0, models 5.0), "
+                                 "rest 3.0 ms, frame end 1.0 ms") != 0;
     if (!ok) {
         re4_log("  sections: the line is not in the log");
     }

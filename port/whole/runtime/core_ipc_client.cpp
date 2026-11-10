@@ -990,6 +990,11 @@ void re4ipc_set_view_distance(int percent)
     post(kSetViewDistance, percent, 0, 0);
 }
 
+void re4ipc_set_cpu_skip(int on)
+{
+    post(kSetCpuSkip, on, 0, 0);
+}
+
 void re4ipc_set_view_aspect(int aspect_e4)
 {
     post(kSetViewAspect, aspect_e4, 0, 0);

@@ -212,6 +212,7 @@
     <string name="ingame_instant_load_warning">Nicht gespeicherter Fortschritt geht verloren. Instant-Spielstand laden?</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Frame-Skip</string>
+    <string name="ingame_cpu_skip">Aggressiver Frame-Skip</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Original GameCube-TV-Filter</string>
     <string name="ingame_fxaa_help">Glättet Kanten in einem letzten Schritt. Geht mit und ohne MSAA; das Bild wird etwas weicher.</string>
@@ -221,6 +222,7 @@
     <string name="ingame_sharpen">Nachschärfen</string>
     <string name="ingame_sharpen_help">Nachschärfen holt die Details der Texturen zurück, die beim Vergrößern auf den Bildschirm weich werden (vor allem in den breiten Bildformaten). Filme bleiben, wie sie sind.</string>
     <string name="ingame_frame_skip_help">Überspringt bei ruckelnder Grafik ein Bild, damit das Spiel nicht in Zeitlupe läuft. Es werden weniger Bilder gezeigt, nichts wird langsamer.</string>
+    <string name="ingame_cpu_skip_help">Spart Prozessorzeit auf Handys mit langsamem Prozessor: Gerät das Spiel in Verzug, lässt es höchstens jedes zweite Bild weg und behält seine normale Geschwindigkeit. Geht zusammen mit Frame-Skip; mit 60 FPS schließt es sich aus.</string>
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
     <string name="ingame_merge_help">Fasst mehrere Objekte zu einem Aufruf an den Grafiktreiber zusammen. Kann Handys mit langsamem Grafiktreiber helfen (z. B. Mali-GPUs) und auf anderen etwas kosten. Wirkt nicht, solange 60 FPS an ist.</string>
     <string name="ingame_vertex_ring_help">Schickt die Eckpunktdaten jedes Bildes über einen dauerhaft eingeblendeten Puffer an den Grafikchip statt über einen neuen Puffer pro Bild. Kann auf Mali-GPUs Zeit sparen und braucht etwas mehr Grafikspeicher. Wirkt sofort.</string>

@@ -211,6 +211,7 @@
     <string name="ingame_instant_load_warning">未保存的进度将丢失。是否读取即时存档？</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">跳帧</string>
+    <string name="ingame_cpu_skip">激进跳帧</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">原版 GameCube 电视滤镜</string>
     <string name="ingame_fxaa_help">在最后一步平滑锯齿边缘。可与 MSAA 同时使用或单独使用；画面会略微变柔和。</string>
@@ -220,6 +221,7 @@
     <string name="ingame_sharpen">锐化</string>
     <string name="ingame_sharpen_help">锐化可找回画面放大到屏幕时变得模糊的纹理细节（尤其是宽屏画面格式）。影片保持不变。</string>
     <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
+    <string name="ingame_cpu_skip_help">在处理器较慢的手机上节省处理器时间：游戏落后时最多每两帧跳过一帧，并保持正常速度。可与跳帧同时开启；与 60 帧互斥。</string>
     <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
     <string name="ingame_merge_help">将多个物体合并为一次图形驱动调用。可能对图形驱动较慢的手机（如 Mali GPU）有帮助，在其他设备上可能略有开销。开启 60 帧时不起作用。</string>
     <string name="ingame_vertex_ring_help">通过一个持续映射的缓冲区把每帧的顶点数据发送给图形芯片，而不是每帧新建一个缓冲区。在 Mali GPU 上可能节省时间，并会多占用一点显存。立即生效。</string>

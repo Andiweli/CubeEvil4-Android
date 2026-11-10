@@ -323,6 +323,10 @@ void re4_core_set_laser_colour(int colour);
  * the far plane of the view at `percent` of the room's (20..100; the menu: 100 Normal, 75 Medium, 50 Short); what lies
  * beyond is not drawn. Rooms without fog keep their view. Takes effect at the next game frame. Any thread. */
 void re4_core_set_view_distance(int percent);
+/* The app menu's "Aggressive frame skip" (saves CPU; cores since 10.11.2026, patch 0227, runtime/cpu_skip.cpp): while
+ * the game's frames run late (longer than two fields) it leaves a picture out itself (at most one in a row), the logic runs on.
+ * The app sends 0 while 60 FPS is on. Takes effect at the next game frame. Any thread. */
+void re4_core_set_cpu_skip(int on);
 /* The picture format "Native" (cores since 07.11.2026, patch 0214, runtime/picture.cpp): the aspect of the game's 3D
  * while the player plays, x 10000 (the app: 4/3 x the screen's aspect / (16/9), for a screen wider than 16:9);
  * 0 (or up to 13334) the game's 4:3. The pictures drawn so carry RE4_GX_CHUNK_WIDE. Any thread. */

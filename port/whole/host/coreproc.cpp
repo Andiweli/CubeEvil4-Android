@@ -118,6 +118,7 @@ struct Core {
     int (*roomOutline)(float*, int, unsigned*);
     void (*setLaserColour)(int);
     void (*setViewDistance)(int);
+    void (*setCpuSkip)(int);
     void (*setViewAspect)(int);
     void (*setHudLayout)(int, int, int);
     void (*touch)(float, float);
@@ -790,6 +791,7 @@ bool loadCore(std::string& problem)
     bind(core.roomOutline, "re4_core_room_outline", false);
     bind(core.setLaserColour, "re4_core_set_laser_colour", false);
     bind(core.setViewDistance, "re4_core_set_view_distance", false);
+    bind(core.setCpuSkip, "re4_core_set_cpu_skip", false);
     bind(core.setViewAspect, "re4_core_set_view_aspect", false);
     bind(core.setHudLayout, "re4_core_set_hud_layout", false);
     bind(core.touch, "re4_core_touch");
@@ -931,6 +933,9 @@ void serve()
             break;
         case kSetViewDistance:
             if (core.setViewDistance) core.setViewDistance(h.a);
+            break;
+        case kSetCpuSkip:
+            if (core.setCpuSkip) core.setCpuSkip(h.a);
             break;
         case kSetViewAspect:
             if (core.setViewAspect) core.setViewAspect(h.a);

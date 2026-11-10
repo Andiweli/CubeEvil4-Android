@@ -229,6 +229,12 @@ public final class CoreBridge {
    * drawn and the second drawn at once, so the game keeps its pace on a slow graphics chip.
    */
   public static native void setFrameSkip(boolean on);
+  /**
+   * Aggressive frame skip (saves CPU; patch 0227): while the game's frames run late (longer than two fields) it leaves a picture out
+   * itself (at most one in a row), so the processor's time for it is saved too; the logic keeps its pace. Not with
+   * 60 FPS (the core is told "off" then).
+   */
+  public static native void setCpuSkip(boolean on);
   /** FXAA: an edge smoothing pass over every finished picture. */
   public static native void setFxaa(boolean on);
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */

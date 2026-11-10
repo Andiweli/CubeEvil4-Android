@@ -80,6 +80,7 @@ enum MsgType : uint32_t {
     kSetViewAspect = 39,   // a = the 3D's aspect x 10000, 0 the game's (no reply; re4_core_set_view_aspect, "Native")
     kSetHudLayout = 40,    // a = rows, b = stretch x 10000, c = flags (no reply; re4_core_set_hud_layout)
     kSetViewDistance = 41, // a = percent of the room's view (no reply; re4_core_set_view_distance, patch 0223)
+    kSetCpuSkip = 42,      // a = on: the game's own frame skip (no reply; re4_core_set_cpu_skip, patch 0227)
 };
 
 struct MsgHeader {

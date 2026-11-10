@@ -1339,10 +1339,13 @@ final class CoreMenu extends Dialog {
     // without a row label in two columns, frame skip | 60 FPS over merged draws | vertex ring, the explanations
     // over the whole width
     heading(R.string.ingame_experimental);
-    MenuLayout.Buttons output = buttonsRow(body), more = buttonsRow(body);
+    // (the aggressive frame skip in a row of its own under them, 10.11.2026)
+    MenuLayout.Buttons output = buttonsRow(body), cpuRow = buttonsRow(body), more = buttonsRow(body);
     // Frame skip leaves pictures out, 60 FPS adds pictures between: one or the other (wish of the
     // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off
-    final Button[] skipAndSmooth = new Button[2];
+    // "Aggressive frame skip" (wish of the project owner, 10.11.2026; patch 0227): the game itself leaves a picture
+    // out and saves the processor's time; it may be on with Frame skip (that one saves the GPU's), not with 60 FPS
+    final Button[] skipAndSmooth = new Button[3];
     skipAndSmooth[0] = toggle(output, R.string.ingame_frame_skip, graphics.getBoolean("frameskip", false), on -> {
       graphics.edit().putBoolean("frameskip", on).apply(); CoreBridge.setFrameSkip(on);
       if (on && skipAndSmooth[1].isSelected()) {
@@ -1355,6 +1358,17 @@ final class CoreMenu extends Dialog {
       if (on && skipAndSmooth[0].isSelected()) {
         toggleLabel(skipAndSmooth[0], R.string.ingame_frame_skip, false);
         graphics.edit().putBoolean("frameskip", false).apply(); CoreBridge.setFrameSkip(false);
+      }
+      if (on && skipAndSmooth[2].isSelected()) {
+        toggleLabel(skipAndSmooth[2], R.string.ingame_cpu_skip, false);
+        graphics.edit().putBoolean("cpuSkip", false).apply(); CoreBridge.setCpuSkip(false);
+      }
+    });
+    skipAndSmooth[2] = toggle(cpuRow, R.string.ingame_cpu_skip, graphics.getBoolean("cpuSkip", false), on -> {
+      graphics.edit().putBoolean("cpuSkip", on).apply(); CoreBridge.setCpuSkip(on);
+      if (on && skipAndSmooth[1].isSelected()) {
+        toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
+        graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
       }
     });
     // merged draw calls (an experiment for phones with a slow graphics driver; wish of the project
@@ -1375,6 +1389,7 @@ final class CoreMenu extends Dialog {
       toggleLabel(ring, R.string.ingame_vertex_ring, false); ring.setEnabled(false);
     }
     help(R.string.ingame_frame_skip_help);
+    help(R.string.ingame_cpu_skip_help);
     help(R.string.ingame_smooth_help);
     help(R.string.ingame_skip_or_smooth);
     help(R.string.ingame_merge_help);

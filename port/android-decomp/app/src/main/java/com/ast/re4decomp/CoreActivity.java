@@ -403,8 +403,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       // one or the other (CoreMenu): saved with both on before 26.10.2026, 60 FPS stays
       if (g.getBoolean("smooth60", false) && g.getBoolean("frameskip", false))
         g.edit().putBoolean("frameskip", false).apply();
+      if (g.getBoolean("smooth60", false) && g.getBoolean("cpuSkip", false))
+        g.edit().putBoolean("cpuSkip", false).apply();
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
       CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
+      CoreBridge.setCpuSkip(g.getBoolean("cpuSkip", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
