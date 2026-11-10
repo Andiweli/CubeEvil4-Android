@@ -2291,6 +2291,32 @@ void GxCore::EfbCopy(std::uint32_t control) {
       GXLOG("TV filter: the line above %.3f, the line %.3f, the line below %.3f", above, at, below);
     }
   }
+  // The game's depth of field (filter01.cpp, Filter01CopyEFB) copies the picture at half size with a
+  // copy filter of only the lines above and below ({32, 0, 0, 0, 0, 0, 32}) and draws that copy back
+  // over the scene, shifted by 0.6 to 6.6 pixels at 50 %. On the GameCube the copy is soft (2x2 of its
+  // pixels, the lines around). Until 0.99.7 the app left the filter out of texture copies and took the
+  // 2x2 box from its own texels, a fraction of a pixel at a higher scale: the copy stayed sharp and
+  // showed as a second, shifted picture over the background ("ghosting", Xiaomi report of 0.99.7 at 4x,
+  // 10.11.2026). A copy whose filter leaves the line itself out takes the filter (a GameCube line
+  // apart) and the GameCube's box at the scale. Other texture copies keep their line (no filter, or the
+  // render mode's deflicker filter) and stay as they were.
+  if (!toXfb && !depth) {
+    float above = 0.0f, at = 1.0f, below = 0.0f;
+    CopyFilterTaps(&above, &at, &below);
+    if (at == 0.0f && above + below > 0.0f) {
+      p.taps[0] = above;
+      p.taps[1] = at;
+      p.taps[2] = below;
+      p.step = Sf(1);
+      p.box = half ? Sf(1) : 0.0f;
+      static bool logged = false;
+      if (!logged) {
+        logged = true;
+        GXLOG("blur copy (the game's depth of field): the line above %.3f, below %.3f, a box of %.1f texels",
+              above, below, p.box);
+      }
+    }
+  }
   // The game reads some copies (water, heat haze: EFB rows 56..447 at half size) through a texture
   // object that is shorter than the copy, so on the GameCube a lookup below the drawn picture
   // clamps to the last drawn row. The copy here is read whole: rows the letterbox never drew

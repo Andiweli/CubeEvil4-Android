@@ -2750,6 +2750,7 @@ struct VkRenderer final : GxCore {
     Put(pc, copy, "limitY", p.limit);
     Put(pc, copy, "taps", p.taps);
     Put(pc, copy, "lineStep", p.step);
+    Put(pc, copy, "box", p.box);
     const VkImageView view = src.view;
     const VkSampler s = p.depth ? nearestClamp : linearClamp;
     BindFixed(copy, &view, &s, 1, pc);

@@ -360,6 +360,7 @@ struct GlRenderer final : GxCore {
   GLuint copyProgram = 0, presentProgram = 0, paletteProgram = 0;
   GLint presentRows = -1;
   GLint copyMode = -1, copyRect = -1, copySize = -1, copyHalf = -1, copyGain = -1, copyLimit = -1;
+  GLint copyBox = -1;  // a half copy's box (the game's depth of field, kCopyFs)
   GLint copyTaps = -1, copyStep = -1;  // the TV filter (SetTvFilter): taps of the lines above/at/below, a line
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint quadVao = 0;
@@ -2476,6 +2477,7 @@ struct GlRenderer final : GxCore {
     copyLimit = glGetUniformLocation(copyProgram, "limitY");
     copyTaps = glGetUniformLocation(copyProgram, "taps");
     copyStep = glGetUniformLocation(copyProgram, "lineStep");
+    copyBox = glGetUniformLocation(copyProgram, "box");
     glUniform3f(copyTaps, 0.0f, -1.0f, 0.0f);  // no TV filter until a display copy asks for it
     glUniform2f(copyLimit, -1e9f, 1e9f);
     paletteProgram = Link(kQuadVs, kPaletteFs, &log);
@@ -2591,6 +2593,7 @@ struct GlRenderer final : GxCore {
     glUniform1f(copyGain, p.gain);
     glUniform3f(copyTaps, p.taps[0], p.taps[1], p.taps[2]);
     glUniform1f(copyStep, p.step);
+    glUniform1f(copyBox, p.box);
     glUniform2f(copyLimit, p.limit[0], p.limit[1]);
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

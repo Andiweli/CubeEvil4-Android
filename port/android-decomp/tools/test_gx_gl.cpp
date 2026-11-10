@@ -1223,6 +1223,64 @@ void TestTvFilter(re4gx::GxRenderer &r) {
   Check(red(xfb, 199) < 10, "TV filter: off again, the line is sharp");
 }
 
+// The game's depth of field (filter01.cpp) copies the picture at half size with the copy filter 32 0 0 0 0 0 32
+// (only the lines above and below) and draws the copy back over the scene. On the GameCube that copy is soft;
+// until 0.99.7 it stayed sharp at a higher scale (its 2x2 box was the app's own texels, the filter left out) and
+// showed as a second, shifted picture ("ghosting", 0.99.8). A red stripe (columns 200..209) on blue, copied that
+// way and drawn back with linear filtering: at scale 1 and 4 the column left of the stripe gets some of its red
+// (at 4 within reach of the GameCube's two pixels, not only the app's last texel), columns further out stay blue.
+void TestBlurCopy() {
+  for (int scale : {1, 4}) {
+    re4gx::GxRenderer r;
+    std::string error;
+    Require(r.Init(scale, &error), error.c_str());
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    Quad(b, 200, 0, 210, 448, 0, kRed);
+    b.Bp(0x53, 32u);          // copy filter: the line above (tap 0)
+    b.Bp(0x54, 32u << 12);    // and the line below (tap 6), nothing on the line itself
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 511 | 447u << 10);
+    b.Bp(0x4D, 32);
+    b.Bp(0x4B, 0x400000 >> 5);
+    b.Bp(0x52, 6u << 4 | 2u << 15 | 1u << 9);  // RGBA8 to a texture, half size: 256 x 224
+    b.Bp(0x53, 0);
+    b.Bp(0x54, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+    b.Bp(0x80, 1u << 4 | 1u << 5);  // clamp, linear (GXInitTexObjLOD 1, 1 of the game)
+    b.Bp(0x84, 0);
+    b.Bp(0x88, 255 | 223 << 10 | 6u << 20);
+    b.Bp(0x30, 255);
+    b.Bp(0x31, 223);
+    b.Texture(0, 0x400000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x400000, 256, 224, 6, {});
+    std::vector<std::uint8_t> v;
+    VT(v, 0, 0, 0, kWhite, 0, 0);
+    VT(v, 512, 0, 0, kWhite, 1, 0);
+    VT(v, 512, 448, 0, kWhite, 1, 1);
+    VT(v, 0, 448, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    r.Run(b.Chunk());
+    // the device pixel two texels (at scale 4: half a GameCube pixel) left of the stripe, one inside it, one far out
+    const int y = 200 * scale, edge = 200 * scale;
+    const int beside = EfbPixel(r, edge - (scale > 1 ? 2 : 1), y)[0], inside = EfbPixel(r, 205 * scale, y)[0];
+    const int far = EfbPixel(r, 190 * scale, y)[0];
+    std::fprintf(stderr, "  blur copy at scale %d: red beside the stripe %d, inside %d, far out %d\n", scale, beside,
+                 inside, far);
+    const std::string at = " (scale " + std::to_string(scale) + ")";
+    Check(beside > 40 && beside < 200, ("blur copy: the stripe's edge soft as on the GameCube" + at).c_str());
+    Check(inside > 150, ("blur copy: inside the stripe red" + at).c_str());
+    Check(far < 10, ("blur copy: columns further out stay blue" + at).c_str());
+    Check(glGetError() == GL_NO_ERROR, ("blur copy: no GL error" + at).c_str());
+    r.Release();
+  }
+}
+
 // Sharpen (the app menu's filter, 08.11.2026): a grey band (160) on grey (100), softened by the TV filter (its rows
 // above and below get in-between greys). Strong: the in-between rows move away from the middle (the edge gets
 // steeper), every texel stays within the two greys (no seams), flat parts stay as they are, one pass per display
@@ -3874,6 +3932,7 @@ int main() {
   TestCanonicalKey();
   TestPrewarm();
   TestRescale();
+  TestBlurCopy();
   TestAutoLevel();
   TestBenchSteps();
   TestHandOverCopies();

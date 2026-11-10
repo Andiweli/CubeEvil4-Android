@@ -14,21 +14,35 @@ constexpr char kQuadVs[] = "#version 300 es\n"
                               "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
                               "}\n";
 // EFB to a copy: the source rectangle (EFB texels), optionally the 2x2 box
-// filter, then the conversion of the copy format
+// filter, then the conversion of the copy format. `box` (0.99.8): above 0.5 the
+// half copy's box reaches that many EFB texels from its centre (one GameCube
+// pixel at the scale: the 2x2 box of the GameCube's own pixels, 16 linear taps),
+// and the line above / below of the copy filter (taps) is such a box as well
+// (the game's depth of field, GxCore::EfbCopy). 0 or 0.5: the 2x2 texels.
 constexpr char kCopyFs[] =
     "#version 300 es\nprecision highp float;\nprecision highp int;\n"
     "uniform sampler2D src;\nuniform int mode;\nuniform vec4 rect;\nuniform vec2 size;\nuniform int halfScale;\n"
-    "uniform float gain;\nuniform vec2 limitY;\nuniform vec3 taps;\nuniform float lineStep;\n"
+    "uniform float gain;\nuniform vec2 limitY;\nuniform vec3 taps;\nuniform float lineStep;\nuniform float box;\n"
     "in vec2 vUv;\nout vec4 o;\n"
     "vec4 fetch(vec2 p) { return texture(src, p / size); }\n"
+    "vec4 row(vec2 p, float y, float d) {\n"
+    "  return fetch(p + vec2(-3.0 * d, y)) + fetch(p + vec2(-d, y)) + fetch(p + vec2(d, y)) + fetch(p + vec2(3.0 * d, "
+    "y));\n"
+    "}\n"
+    "vec4 boxed(vec2 p) {\n"
+    "  if (halfScale == 0) return fetch(p);\n"
+    "  if (box <= 0.5) return 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
+    "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5)));\n"
+    "  float d = 0.25 * box;\n"
+    "  return (row(p, -3.0 * d, d) + row(p, -d, d) + row(p, d, d) + row(p, 3.0 * d, d)) / 16.0;\n"
+    "}\n"
     "void main() {\n"
     "  vec2 p = rect.xy + vUv * rect.zw;\n"
     "  p.y = clamp(p.y, limitY.x + 1.0, limitY.y - 1.0);\n"
-    "  vec4 c = halfScale != 0 ? 0.25 * (fetch(p + vec2(-0.5, -0.5)) + fetch(p + vec2(0.5, -0.5)) + fetch(p + "
-    "vec2(-0.5, 0.5)) + fetch(p + vec2(0.5, 0.5))) : fetch(p);\n"
+    "  vec4 c = boxed(p);\n"
     "  if (taps.y >= 0.0) {\n"
     "    float ya = max(p.y - lineStep, limitY.x + 1.0), yb = min(p.y + lineStep, limitY.y - 1.0);\n"
-    "    c.rgb = min(taps.x * fetch(vec2(p.x, ya)).rgb + taps.y * c.rgb + taps.z * fetch(vec2(p.x, yb)).rgb, "
+    "    c.rgb = min(taps.x * boxed(vec2(p.x, ya)).rgb + taps.y * c.rgb + taps.z * boxed(vec2(p.x, yb)).rgb, "
     "vec3(1.0));\n"
     "  } else if (mode < 12) c.rgb = min(c.rgb * gain, vec3(1.0));\n"
     "  float y = clamp(0.257 * c.r + 0.504 * c.g + 0.098 * c.b + 16.0 / 255.0, 0.0, 1.0);\n"

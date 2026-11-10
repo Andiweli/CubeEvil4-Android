@@ -112,6 +112,7 @@ struct CopyParams {
   float gain = 1.0f;
   float taps[3] = {0.0f, -1.0f, 0.0f};
   float step = 0.0f;
+  float box = 0.0f;  // a half copy's box: EFB texels from its centre (0: the 2x2 texels; kCopyFs)
   bool limited = false;
   float limit[2] = {-1e9f, 1e9f};
 };

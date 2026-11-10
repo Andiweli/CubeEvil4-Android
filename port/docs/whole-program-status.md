@@ -3,6 +3,52 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
+
+Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since
+v0.99.7.“, Known issues aus 0.99.7 übernommen). Branch `0998` (Basis 7a028327 = 0.99.7-rc), nächste freie
+Patchnummer 0227.
+
+### 1. „Ghosting“ mit der Tiefenschärfe (Nutzerbericht, Xiaomi 25102PCBEG, Adreno 840)
+
+Bericht über den Projektinhaber (10.11.2026, `E:\Development\Android\reports\0998-dof-ghosting\`): drei Berichte
+„Depth-of-field-Strong/-Light/-Off“ (ein Lauf, 0.99.7-rc, GLES, 4× = 2560×1344, Anisotropie 16, Nachschärfen stark,
+Lens Flares, 60 FPS mit Zwischenbildern an) und drei Bildschirmfotos (Pistole mit Laser in der Schlucht, r104).
+
+- **Was die Berichte zeigen:** in r104 läuft die Tiefenschärfe **des Spiels** (`dof: from frame 1014: light cut,
+  behind the focus, level 3`), nicht der Autofokus der App (in allen GX-Zeilen „0 autofocus passes“: legt das Spiel
+  einen Fokus an, bleibt der Autofokus aus). Der Kern hört nur an/aus: „Light“ und „Strong“ zeichnen hier dasselbe,
+  „Off“ lässt den Durchgang weg (Patch 0065). 30 Spielbilder/s sind normal (das Spiel rechnet 30, die App zeigt mit
+  Zwischenbildern 60); mit der Tiefenschärfe hat das nichts zu tun.
+- **Ursache (Port-Fehler, nicht die Zwischenbilder):** `Filter01Render` kopiert das Bild in halber Größe mit dem
+  Kopierfilter {32, 0, 0, 0, 0, 0, 32} (nur die Zeilen darüber und darunter) und legt die Kopie um 0,6–6,6
+  Bildpunkte schräg verschoben mit 50 % über alles hinter dem Fokus (Stufe 3: 2,6 Bildpunkte). Auf dem GameCube ist
+  die Kopie weich (2×2 Bildpunkte, dazu die Nachbarzeilen, beim Zurückzeichnen linear gefiltert): man sieht einen
+  weichen Schleier. Die App nahm für die 2×2-Box ihre eigenen Texel und ließ den Kopierfilter bei Textur-Kopien weg:
+  bei 4× ist die Kopie gestochen scharf und erscheint als **zweites, um ~10 Gerätebildpunkte verschobenes Bild**.
+  Mit Zwischenbildern genauso (die Zwischenbilder kopieren selbst, `interpCopies`, richtig).
+- **Behebung (`gx_core.cpp` EfbCopy, `gx_fixed_shaders.h` kCopyFs, `gx_gl.cpp`, `gx_vk.cpp`):** eine Textur-Kopie,
+  deren Kopierfilter die eigene Zeile auslässt (Anteil der Mitte 0, nur die Tiefenschärfe des Spiels), nimmt den
+  Filter (Zeilen darüber/darunter eine GameCube-Zeile entfernt, `step` = Sf(1)) und bei halber Größe die Box des
+  GameCube in der Auflösung (`CopyParams::box` = Sf(1): 16 lineare Abgriffe über 2×2 GameCube-Bildpunkte). Alle
+  anderen Kopien (Kopierfilter aus oder der Entflimmer-Filter des Bildmodus 8 8 10 12 10 8 8) bleiben bitgleich.
+  Log einmal: „blur copy (the game's depth of field): the line above 0.500, below 0.500, a box of N texels“.
+  GLES und Vulkan. Kein Patch unter `src/`.
+- **Nebenwirkung (GameCube-treu):** wo das Spiel einen Tiefenschärfe-Durchgang ohne Verschiebung zeichnet (Stufe 0,
+  z. B. nach einem Ereignis in r301 mit „event far, level 0, type 1, focus z 100“ bis zum nächsten Wechsel), ist der
+  Hintergrund jetzt weich wie auf dem GameCube; vorher war die scharfe Kopie dort unsichtbar. Nur mit
+  Tiefenschärfe Light/Strong.
+- **PC-Prüfung (WSL, `~/p0998`, Baum `~/re4-0998` und `~/re4-0998base` = 7a028327, `gx_chunk_render` llvmpipe /
+  lavapipe):** EU-Discs, Debug-Start r104 (`RE4_GX_DUMP_AT=800,1000`, Serie 2; Zwischensequenz mit „light cut“).
+  Vorher bei 4×: Hand und Spritze doppelt (Skala „5“ doppelt, scharfe Kante versetzt), bei 1× weicher Saum; nachher
+  bei 4× wie bei 1×, auch im Zwischenbild (`RE4_GX_INTERP=1`, „-zw“). Alter gegen neuen Stand bei 4× über gespeicherte
+  Bilder älterer Läufe: Menüs 12/12, grey1 12/12, mm1 9/9, Nebel (p0984 fog) 12/12, r101 12/12, r100-eu 12/12,
+  Laser 12/12 bitgleich; scope1 (r301) 5/12 gleich, die übrigen 7 mit dem Ereignis-Durchgang oben. Vulkan gegen GLES
+  (neu) höchstens 4 von 255 wie vorher. `gx_gl_check` neue Prüfung `TestBlurCopy` (roter Streifen, so kopiert und
+  zurückgezeichnet: Rot neben dem Streifen bei 1× 80, bei 4× 90; der alte Stand gibt bei 4× 0 und fällt durch):
+  0 Fehler; strenge Shaderprüfung 1118 Shader, 0 abgelehnt.
+- **Nicht geprüft:** auf einem Gerät (Adreno 840 des Nutzers, Retroid).
+
 ## Version 0.99.7-rc: Fehler und Wünsche nach 0.99.6 (09.11.2026, Branch `work0997`)
 
 Version 0.99.7-rc (versionCode 109), Releasetext `port/android-decomp/docs/releases/v0.99.7-rc.md` („Changes since
