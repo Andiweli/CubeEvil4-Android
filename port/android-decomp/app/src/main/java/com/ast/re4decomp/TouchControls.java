@@ -149,8 +149,23 @@ final class TouchControls implements CoreTouch.Host {
       else view.registerAction(action, CoreTouch.LABELS[i], colours, TouchStyle.icon(action));
       view.setButtonShape(action, icons ? TouchStyle.iconShape(action) : RetroTouchButtonShape.AUTO);
     }
+    applyAspects(icons);
     // ICONS: every button without colours of its own (all of them then), the D-pad and the sticks
     view.setDefaultColors(icons ? TouchStyle.COLOURS : null);
+  }
+
+  /**
+   * The width over height of every button of an action in the ICONS style (RetroTouch 1.0.0-beta.10 with
+   * setButtonAspect, the project owner's AAR of 10.11.2026): the buttons of the default layout keep their own
+   * (layout), the others of L, R, START and MENU (added with ADD in the editor, or given the action with
+   * ACTION) get the same; without it RetroTouch drew them 1:1, an L as a small rounded square. Taken back for
+   * LABELS (0: RetroTouch's 1:1), so the GC style draws as before.
+   */
+  private void applyAspects(boolean icons) {
+    for (String action : CoreTouch.ACTIONS) {
+      float aspect = icons ? TouchStyle.aspect(action, shoulder) : 1f;
+      view.setButtonAspect(action, aspect == 1f ? 0f : aspect);
+    }
   }
 
   /** The button style shown is ICONS (the app menu's "Button style"). */
@@ -168,6 +183,7 @@ final class TouchControls implements CoreTouch.Host {
   private void reshape() {
     reshape = false;
     quietly(() -> view.setGameplayLayout(layout(shoulder)));
+    applyAspects(icons());
     touch.reset();
     Log.i(CoreActivity.TAG, "touch controls: L and R " + shoulder + " times as wide as high in the icon style");
   }

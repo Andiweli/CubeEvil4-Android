@@ -69,7 +69,19 @@ Farbe, Form und Seitenverhältnis bei jedem Laden über die Kennung des Knopfs a
 angelegter Knopf (`button_N`) hat dort keinen, bekommt 1,0 und wird mit der Form der Aktion ein abgerundetes
 Quadrat; ein mit ACTION umbelegter Knopf behält das Verhältnis seines alten Platzes. In beta.10 gibt es kein
 Seitenverhältnis pro Aktion: **dafür braucht es eine RetroTouch-Änderung** (z. B. `setButtonAspect(action,
-aspect)`, genommen, wenn der Knopf im Standardlayout fehlt oder dort eine andere Aktion hat). Nicht geändert.
+aspect)`, genommen, wenn der Knopf im Standardlayout fehlt oder dort eine andere Aktion hat).
+
+**Behoben mit der neuen AAR des Projektinhabers (10.11.2026, gleicher Name 1.0.0-beta.10, neuer Inhalt):**
+`app/libs/retrotouch.aar` ersetzt (SHA1 e08c71a4…; geändert nur `RetroTouchView`, `RetroTouchControl` und
+`RetroTouchView$PointerState`, neu `setButtonAspect(actionId, aspect)`/`getButtonAspect`; 0 oder weniger nimmt den
+Wert zurück). Regel der Anleitung (Abschnitt 8): ein Knopf des Standardlayouts mit eigenem Seitenverhältnis und
+derselben Aktion behält es, alle anderen Knöpfe der Aktion nehmen den Wert pro Aktion, sonst 1:1.
+`TouchControls.applyAspects`: im Stil RE L und R mit `shoulder` (1,95, auf 4:3 schmaler, `TouchStyle.shoulderAspect`),
+START und MENU 2,1 (`TouchStyle.aspect`); im Stil GC für alle Aktionen zurückgenommen (wie die Formen), GC zeichnet
+also wie zuvor. Auch nach `reshape` (L/R-Breite neu für den Bildschirm) gesetzt. Gespeicherte Layouts unverändert
+gültig (Form und Seitenverhältnis gehören nicht ins Layout). Test `TouchStyleTest.addedButtonsShapedAsTheDefaultOnes`
+(ein mit ADD angelegtes L `button_1` zeichnet RetroTouch in RE 1,95, START 2,1, A 1; in GC 1:1, das Standard-L
+behält 1,95). Auf dem Gerät nicht getestet.
 
 ## Version 0.99.7-rc: Fehler und Wünsche nach 0.99.6 (09.11.2026, Branch `work0997`)
 

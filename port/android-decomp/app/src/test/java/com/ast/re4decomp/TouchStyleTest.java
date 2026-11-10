@@ -103,6 +103,41 @@ public class TouchStyleTest {
     }
   }
 
+  /** RetroTouch's aspect of a control as it draws it (RetroTouchView.aspectFor, 1.0.0-beta.10). */
+  private static float drawnAspect(RetroTouchView view, RetroTouchControl control) throws Exception {
+    java.lang.reflect.Method m = RetroTouchView.class.getDeclaredMethod("aspectFor", RetroTouchControl.class);
+    m.setAccessible(true);
+    return (Float) m.invoke(view, control);
+  }
+
+  private static RetroTouchControl defaultButton(RetroTouchView view, String action) {
+    for (RetroTouchControl k : view.getCurrentLayout().getControls()) if (action.equals(k.getActionId())) return k;
+    throw new AssertionError("no button " + action);
+  }
+
+  /** An L added with ADD in the editor (RetroTouch names it button_N, 1:1 of its own) is as wide as the default L in RE. */
+  @Test public void addedButtonsShapedAsTheDefaultOnes() throws Exception {
+    TouchControls t = controls();
+    RetroTouchView view = (RetroTouchView) t.view();
+    t.setIcons(true);
+    RetroTouchControl added = RetroTouchControl.button("button_1", CoreTouch.L, "L", 0.3f, 0.3f, 0.12f);
+    RetroTouchControl start = RetroTouchControl.button("button_2", CoreTouch.START, "START", 0.5f, 0.3f, 0.085f);
+    RetroTouchControl a = RetroTouchControl.button("button_3", CoreTouch.A, "A", 0.6f, 0.3f, 0.12f);
+    assertEquals(TouchStyle.SHOULDER_ASPECT, drawnAspect(view, added), 0f);
+    assertEquals(drawnAspect(view, defaultButton(view, CoreTouch.L)), drawnAspect(view, added), 0f);
+    assertEquals(TouchStyle.CAPSULE_ASPECT, drawnAspect(view, start), 0f);
+    assertEquals(1f, drawnAspect(view, a), 0f);
+    assertEquals(RetroTouchButtonShape.ROUNDED_RECT, view.getButtonShape(CoreTouch.L));
+    // GC (LABELS): as before, an added L 1:1 and RetroTouch's shape by the label; the default L keeps its own
+    t.setIcons(false);
+    assertEquals(1f, drawnAspect(view, added), 0f);
+    assertEquals(1f, drawnAspect(view, start), 0f);
+    for (String id : CoreTouch.ACTIONS) assertEquals(id, 1f, view.getButtonAspect(id), 0f);
+    assertEquals(TouchStyle.SHOULDER_ASPECT, drawnAspect(view, defaultButton(view, CoreTouch.L)), 0f);
+    t.setIcons(true);
+    assertEquals(TouchStyle.SHOULDER_ASPECT, drawnAspect(view, added), 0f);
+  }
+
   @Test public void shouldersNarrowerOnlyWhereTheGearNeedsTheRoom() {
     assertEquals(1.95f, TouchStyle.shoulderAspect(1920, 1080, 2f), 0f);    // 16:9
     assertEquals(1.95f, TouchStyle.shoulderAspect(2400, 1080, 2.75f), 0f); // 20:9
