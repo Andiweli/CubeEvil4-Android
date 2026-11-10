@@ -279,6 +279,28 @@ public final class CoreTouchTests {
     in.pad();
     t.look(-0.01f, 0);
     check(in.takeAimSwipe() == null);
+    // the knife (L held, 0.99.9: the core turns the knife stance by the swipe too): the same two ways as with R
+    t.reset();
+    t.beginEvent();
+    t.fingerDown(2, true);
+    t.action(CoreTouch.L, true);
+    in.setTouchAim(CoreInput.AIM_C_STICK);
+    t.stick(CoreTouch.C_STICK, -1, 0);
+    p = in.pad();
+    check(p[1] < 0 && p[3] == 0 && (p[0] & CoreInput.GC_L) != 0);  // the C stick control aims the knife left
+    t.stick(CoreTouch.C_STICK, 0, 0);
+    in.setTouchAim(CoreInput.AIM_LOOK);
+    in.pad();
+    t.look(-0.1f, 0.05f);
+    p = in.pad();
+    turn = in.takeAimSwipe();
+    check(turn != null && Math.abs(turn[0] - 0.1f * CoreInput.SWIPE_RADIANS) < 1e-5f
+        && Math.abs(turn[1] + 0.05f * CoreInput.SWIPE_RADIANS) < 1e-5f && p[1] == 0 && p[3] == 0);
+    t.action(CoreTouch.L, false);
+    in.pad();
+    t.look(-0.1f, 0);
+    check(in.takeAimSwipe() == null);  // L let go: the zone looks again
+    t.reset();
     in.setTouchAim(9);
     check(in.touchAim() == CoreInput.AIM_MOVE_STICK);
     t.reset();

@@ -1256,6 +1256,7 @@ int re4probe_cheat_extras(void);
 int re4probe_potato(void);
 int re4probe_handcannon(void);
 int re4probe_gyro_boat(void);
+int re4probe_aim_knife(void);
 int re4probe_snd_bank(void);
 int re4probe_frame_sections(void);
 int re4probe_path_entry(void);
@@ -2156,6 +2157,20 @@ static void testGyroBoat()
     report("gyroboat", bad == 0 && logged);
 }
 
+// Swipe aiming in the knife stance (runtime/gyro.cpp, 0.99.9; game_probe.cpp re4probe_aim_knife): holding and
+// slashing turn, putting it away, the gyro and a sub screen do not; the log line
+static void testAimKnife()
+{
+    const int bad = re4probe_aim_knife();
+    static char tail[48 * 160];
+    re4_log_tail(tail, sizeof tail);
+    const bool logged = strstr(tail, "touch: the knife's aim turned by a swipe") != nullptr;
+    if (bad || !logged) {
+        re4_log("  aimknife: failed checks 0x%x%s", bad, logged ? "" : ", no log line");
+    }
+    report("aimknife", bad == 0 && logged);
+}
+
 // The processor lines of the performance log (re4_cpu_info.h): the layout of a phone with two kinds
 // of cores and of one with three, and a thread's processor time per picture (it computes here)
 static void testCpuInfo()
@@ -2531,6 +2546,7 @@ int re4_runtime_tests()
     testPotato();
     testHandcannon();
     testGyroBoat();
+    testAimKnife();
     testSndBank();
     testFrameSections();
     testPathEntry();

@@ -3,6 +3,37 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
+
+Version 0.99.9-rc (versionCode 111), Releasetext `port/android-decomp/docs/releases/v0.99.9-rc.md` („Changes since
+v0.99.8.“, Known issues aus 0.99.8 übernommen). Basis e1abc53d = 0.99.8-rc. Nächste freie Patchnummer 0228.
+
+### 1. Messer zielen mit Touchfläche oder C-Stick (Wunsch des Projektinhabers)
+
+„Wir haben derzeit eingebaut, dass Zielen alternativ mit Touchfläche oder C-Stick gemacht werden kann, es
+funktioniert aber nur für die Waffe, nicht für das Messer. Bitte auch für das Messer verfügbar machen.“
+
+- **Ursache:** Die App gibt beim Touch-Zielen mit gehaltenem L schon alles weiter (der Touch-C-Stick wird zum
+  Steuerstick, die Touchfläche schickt Winkel). Der Kern drehte die Wisch-Winkel aber nur in der Waffenhaltung
+  (`runtime/gyro.cpp` turnAim: Routine 0/6, ausdrücklich nicht 0x10 = Messer). Der C-Stick-Weg lief über den
+  Steuerstick und damit schon über `PlWepLockCtrl` (auch beim Messer).
+- **Behebung (`runtime/gyro.cpp`):** turnAim dreht beim Wischen (und mit der Maus, derselbe Weg
+  `re4_core_aim_turn`) auch die Messerhaltung: Routine 0/0xB, halten oder zustechen (r_no_2 1, 2), wie die Pistole
+  (Körper `ang.y`, `m3r` mit der Mitte des Wackelns `cPlWep::pitch`). Beim Wegstecken (r_no_2 3) nicht. **Das
+  Gyroskop lässt das Messer wie bisher in Ruhe** (Parameter `knifeToo` nur vom Wischen). Log „touch: the knife's aim
+  turned by a swipe (N frames so far)“. Kein Patch unter `src/`.
+- **Testschalter (PC):** `RE4_TEST_SWIPE="yaw,pitch,von,bis"` (ein Wischen je Spielbild, PADRead-Zählung),
+  `RE4_TRACE_AIM=1` (eine Zeile „aim: frame N pl r0/r1/r2/r3 ang .. waist .. m3r ..“ je Bild in Messer- oder
+  Waffenhaltung).
+- **Geprüft am PC (i686 -O2, Debug-Discs, Debug-Start r301, L bzw. R ab Bild 830 gehalten, `~/p0999/runs/kn_*`):**
+  ohne Eingabe dreht nichts; Stick links/hoch und Steuerkreuz links/hoch drehen wie bisher (Spiel-eigener Weg,
+  unverändert); Wischen 0,02/0,01 rad je Bild von 900 bis 1000: Leon dreht genau 2,02 rad, `m3r` bis 1; Gyroskop
+  (`RE4_TEST_GYRO=1.0,0.5`) beim Messer: nichts, Spur gleich der ohne Eingabe; Pistole mit Wischen wie vorher.
+  Laufzeittest neu `aimknife` (`re4probe_aim_knife`: halten, zustechen, wegstecken, Gyroskop, Untermenü, Anschlag);
+  `CoreTouchTests` neu: L gehalten mit „C stick“ (Touch-C-Stick = Steuerstick) und „Touch Area“ (Wisch-Winkel),
+  L losgelassen schaut die Fläche wieder. Alle Laufzeittests 0 Fehler, CoreTouchTests 299 Prüfungen.
+- **Nicht geprüft:** auf einem Gerät.
+
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since
