@@ -401,13 +401,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
       CoreBridge.setDof(CoreMenu.dofLevel(g));
       // one or the other (CoreMenu): saved with both on before 26.10.2026, 60 FPS stays
-      if (g.getBoolean("smooth60", false) && g.getBoolean("frameskip", false))
-        g.edit().putBoolean("frameskip", false).apply();
-      if (g.getBoolean("smooth60", false) && g.getBoolean("cpuSkip", false))
-        g.edit().putBoolean("cpuSkip", false).apply();
+      // Frame skip one setting since 0.99.8 (CoreMenu.frameSkipMode: the two switches of before taken over, both on:
+      // Aggressive); with 60 FPS off (saved with both on before 26.10.2026: 60 FPS stays)
+      int skip = CoreMenu.frameSkipMode(g);
+      if (g.getBoolean("smooth60", false)) skip = 0;
+      if (!g.contains(CoreMenu.FRAME_SKIP) || g.getInt(CoreMenu.FRAME_SKIP, 0) != skip) CoreMenu.storeFrameSkipMode(g, skip);
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
-      CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
-      CoreBridge.setCpuSkip(g.getBoolean("cpuSkip", false));
+      CoreBridge.setFrameSkip(skip == 1);
+      CoreBridge.setCpuSkip(skip == 2);
       CoreBridge.setVkBandwidth(g.getBoolean("vkBandwidth", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));

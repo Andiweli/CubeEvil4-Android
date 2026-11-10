@@ -177,6 +177,42 @@ GLES 39,9 ms, kein Vorsprung von GLES).
   fällt keines (Rechtecke der Texturkopien kleiner als der nächste Durchgang): dort bleibt es wie bisher.
   gx_gl_check 0 Fehler; App-Tests, App-Bau, Übersetzungsprüfung. **Nicht geprüft:** auf einem Gerät (Mali, Adreno).
 
+### 6. Frame-Skip als ein Knopf: Aus > Normal > Aggressiv (Wunsch des Projektinhabers)
+
+„Derzeit lassen sich beide Frameskip Optionen gleichzeitig aktivieren … Frameskip Aus > Frameskip Normal > Frameskip
+Aggresiv > Frameskip Aus, daneben den 60 FPS Button und darunter die beiden bisherigen.“ Leistung → Experimentell:
+Zeile 1 „Frame skip: Off/Normal/Aggressive“ (jeder Druck schaltet weiter, `valueLabel`) | „60 FPS“; Zeile 2 „Merged
+draws“ | „Vertex ring“ (wie vor 0.99.8); Zeile 3 „Save bandwidth (Vulkan)“. Normal = Frame-Skip des Renderers
+(`CoreBridge.setFrameSkip`), Aggressiv = der des Spiels (`CoreBridge.setCpuSkip`, Patch 0227); nur einer an. 60 FPS
+schließt ihn aus (wie bisher, in beide Richtungen). Einstellung `frameSkipMode` 0/1/2 (`CoreMenu.frameSkipMode`,
+`storeFrameSkipMode`); die alten Schalter `frameskip`/`cpuSkip` werden übernommen (beide an: Aggressiv) und entfernt;
+beim Start mit 60 FPS: Aus. Texte `ingame_skip_normal`, `ingame_skip_aggressive`, Hilfen `ingame_skip_normal_help`,
+`ingame_skip_aggressive_help` (11 Sprachen); `ingame_cpu_skip`, `ingame_cpu_skip_help`, `ingame_frame_skip_help` fort.
+Test `FrameSkipModeTest` (4 Fälle). Auf dem Gerät nicht getestet.
+
+### 7. Lens Flares: Sterne wandern beim Drehen mit und flackern (GX-Aufnahmen des Projektinhabers)
+
+`E:\Development\Android\reports\0998-flare-gxdumps\dumps\gx-dumps\` (Retroid, Dorf bei Nacht und Regen, zwei Serien zu
+12 Bildern). Am PC nachgespielt (gx_chunk_render, Lens Flares an/aus): Serie 00, Bilder 10/11, die Kamera dreht schnell,
+die Lampe springt 33–43 GameCube-Pixel pro Bild. `GxCore::FlareTrack` ordnete eine Quelle ihrem Platz nur innerhalb von
+max(24, 2r) Pixeln zu: die Lampe galt als verloren, ihr Stern blieb an der alten Stelle (neben Leons Kopf, wo kein Licht
+mehr ist) und verblasste dort über etwa zehn Bilder (`kFlareVisFs`: 0,86 pro Bild), am Licht blendete ein neuer langsam
+ein. **Fix:** Zuordnung innerhalb von max(64, 3r) Pixeln (der Stern folgt der Lampe, Platz 1 im Protokoll 164 → 181 →
+214 → 256), ein verlorener Platz ist in etwa drei Bildern aus (0,45 pro Bild). Gemeinsamer Code: GLES und Vulkan.
+**Geprüft am PC:** Serie 00 Bilder 10/11 ohne liegengebliebenen Stern, alle übrigen 10 Bilder und Serie 01 (12) gleich
+wie vorher; GL gegen Vulkan wie ohne Lens Flares (höchstens 17 von 255, die Szene); gx_gl_check 0 Fehler. Auf dem Gerät
+nicht getestet.
+
+### 8. Kamera im Schrank beim Schieben, Ashley und Kamera in Leon an Türen (Nutzerbericht ohne Bild)
+
+„The camera get into the almirah while sliding it. Also ashley and camera get into Leon when enter into any door.“
+Untersucht im Code, nicht nachgestellt (kein Raum, keine Einstellungen): Die Schulterkamera (`CameraQuasiFPS::hitCheck`,
+`cameraHitCheck` in cam_ctrl.cpp) prüft Figuren, Objekte (auch die schiebbaren Regale, cEmRack) und Wände, kommt aber nie
+näher als ihr Nahpunkt: dort kann sie im Original in Dinge geraten. Was der Port daran ändert: „Far camera“ (Patch
+0171, aus ab Werk; die Prüfung läuft auf dem fernen Punkt), „Field of view“ (Patch 0205, 0 ab Werk), das breite Bild
+(„Native“, Patch 0214) zeigen mehr vom Nahen; die Nahebene bleibt; die 60-FPS-Zwischenbilder rechnen über einen
+Kameraschnitt nicht. Rückfragen an den Nutzer (Raum, Einstellungen, Bild/Bericht) über die Hauptsitzung.
+
 ## Version 0.99.7-rc: Fehler und Wünsche nach 0.99.6 (09.11.2026, Branch `work0997`)
 
 Version 0.99.7-rc (versionCode 109), Releasetext `port/android-decomp/docs/releases/v0.99.7-rc.md` („Changes since

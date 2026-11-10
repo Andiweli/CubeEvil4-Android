@@ -227,7 +227,8 @@
     <string name="ingame_instant_load_warning">Unsaved progress will be lost. Load the instant save?</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Frame skip</string>
-    <string name="ingame_cpu_skip">Aggressive frame skip</string>
+    <string name="ingame_skip_normal">Normal</string>
+    <string name="ingame_skip_aggressive">Aggressive</string>
     <string name="ingame_vk_bandwidth">Save bandwidth (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Original GameCube TV filter</string>
@@ -237,8 +238,8 @@
     <string name="ingame_filter_help">Filters change the look of the whole picture and can be combined.</string>
     <string name="ingame_sharpen">Sharpen</string>
     <string name="ingame_sharpen_help">Sharpen brings back the detail of textures that gets soft when the picture is enlarged to the screen (mostly in the wide picture formats). Movies stay as they are.</string>
-    <string name="ingame_frame_skip_help">While the graphics lag, skips a picture so the game keeps its normal speed. Fewer pictures are shown, nothing is slowed down.</string>
-    <string name="ingame_cpu_skip_help">Saves processor time on phones with a slow processor: while the game falls behind, it leaves out at most every second picture and keeps its normal speed. Can be on together with Frame skip; it and 60 FPS exclude each other.</string>
+    <string name="ingame_skip_normal_help">Frame skip Normal: while the graphics chip lags, a finished picture is left out so the game keeps its normal speed.</string>
+    <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out at most every second picture while it falls behind; this also saves processor time and is much faster on phones with a slow processor.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan only: after the picture is cleared, the graphics chip no longer loads it again, which saves memory bandwidth on Mali and Adreno chips. The picture stays the same.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow graphics driver (e.g. Mali GPUs) and may cost a little on others. No effect while 60 FPS is on.</string>

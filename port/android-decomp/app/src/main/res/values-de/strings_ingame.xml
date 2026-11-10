@@ -212,7 +212,8 @@
     <string name="ingame_instant_load_warning">Nicht gespeicherter Fortschritt geht verloren. Instant-Spielstand laden?</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Frame-Skip</string>
-    <string name="ingame_cpu_skip">Aggressiver Frame-Skip</string>
+    <string name="ingame_skip_normal">Normal</string>
+    <string name="ingame_skip_aggressive">Aggressiv</string>
     <string name="ingame_vk_bandwidth">Bandbreite sparen (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Original GameCube-TV-Filter</string>
@@ -222,8 +223,8 @@
     <string name="ingame_filter_help">Filter verändern das Aussehen des ganzen Bildes und lassen sich kombinieren.</string>
     <string name="ingame_sharpen">Nachschärfen</string>
     <string name="ingame_sharpen_help">Nachschärfen holt die Details der Texturen zurück, die beim Vergrößern auf den Bildschirm weich werden (vor allem in den breiten Bildformaten). Filme bleiben, wie sie sind.</string>
-    <string name="ingame_frame_skip_help">Überspringt bei ruckelnder Grafik ein Bild, damit das Spiel nicht in Zeitlupe läuft. Es werden weniger Bilder gezeigt, nichts wird langsamer.</string>
-    <string name="ingame_cpu_skip_help">Spart Prozessorzeit auf Handys mit langsamem Prozessor: Gerät das Spiel in Verzug, lässt es höchstens jedes zweite Bild weg und behält seine normale Geschwindigkeit. Geht zusammen mit Frame-Skip; mit 60 FPS schließt es sich aus.</string>
+    <string name="ingame_skip_normal_help">Frame-Skip Normal: Hinkt der Grafikchip hinterher, wird ein fertiges Bild weggelassen, damit das Spiel seine normale Geschwindigkeit behält.</string>
+    <string name="ingame_skip_aggressive_help">Frame-Skip Aggressiv: Das Spiel lässt selbst höchstens jedes zweite Bild weg, sobald es in Verzug gerät. Das spart auch Prozessorzeit und ist auf Handys mit langsamem Prozessor deutlich schneller.</string>
     <string name="ingame_vk_bandwidth_help">Nur Vulkan: Nach dem Löschen lädt der Grafikchip das Bild nicht noch einmal, das spart Speicherbandbreite auf Mali- und Adreno-Chips. Das Bild bleibt gleich.</string>
     <string name="ingame_skip_or_smooth">Frame-Skip und 60 FPS schließen sich aus: Wer das eine einschaltet, schaltet das andere aus.</string>
     <string name="ingame_merge_help">Fasst mehrere Objekte zu einem Aufruf an den Grafiktreiber zusammen. Kann Handys mit langsamem Grafiktreiber helfen (z. B. Mali-GPUs) und auf anderen etwas kosten. Wirkt nicht, solange 60 FPS an ist.</string>

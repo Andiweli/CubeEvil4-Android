@@ -1114,8 +1114,12 @@ void GxCore::FlareTrack() {
       }
       if (s.lost == 0)
         continue;  // taken by another source of this picture
+      // (0.99.8: within 64 GameCube pixels, three radii for a big fire; with 24 a light jumped out of its slot
+      // while the camera turned fast, its star stayed behind where the light had been and faded for some ten
+      // pictures while a new one faded in at the light: stars wandering and flickering along, project owner's
+      // dumps of 10.11.2026)
       const float d = std::hypot(s.x - cx, s.y - cy);
-      if (d < std::max(24.0f, 2.0f * s.r) && d < bestD) {
+      if (d < std::max(64.0f, 3.0f * s.r) && d < bestD) {
         best = i;
         bestD = d;
       }

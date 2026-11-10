@@ -320,6 +320,9 @@ constexpr char kFlareVisFs[] =
     "  float lum = L(col);\n"
     "  float target = seen * smoothstep(0.65, 0.9, lum) * smoothstep(0.15, 0.35, contrast) * smoothstep(0.3, 0.5, core);\n"
     "  float a = old.a + (target - old.a) * (target > old.a ? 0.1 : 0.14);\n"
+    // a lost light (its source not drawn in this picture) gone in about three pictures: its star stayed where the
+    // light had been and faded there for some ten pictures (0.99.8, stars wandering along while the camera turned)
+    "  if (st > 2.5 && st < 3.5) a = old.a * 0.45;\n"
     "  if (a < 0.004 && target < 0.004) a = 0.0;\n"
     "  vec3 tint = st < 1.5 && lum > 0.05 ? mix(col / max(max(col.r, col.g), col.b), vec3(1.0), 0.45) : old.rgb;\n"
     "  o = vec4(old.a > 0.003 && dot(old.rgb, vec3(1.0)) > 0.01 ? mix(old.rgb, tint, 0.12) : tint, a);\n"

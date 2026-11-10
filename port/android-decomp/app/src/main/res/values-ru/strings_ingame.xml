@@ -216,7 +216,8 @@
     <string name="ingame_instant_load_warning">Несохранённый прогресс будет потерян. Загрузить мгновенное сохранение?</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Пропуск кадров</string>
-    <string name="ingame_cpu_skip">Агрессивный пропуск кадров</string>
+    <string name="ingame_skip_normal">Обычный</string>
+    <string name="ingame_skip_aggressive">Агрессивный</string>
     <string name="ingame_vk_bandwidth">Меньше трафика (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Оригинальный ТВ-фильтр GameCube</string>
@@ -226,8 +227,8 @@
     <string name="ingame_filter_help">Фильтры меняют вид всего изображения, их можно сочетать.</string>
     <string name="ingame_sharpen">Резкость</string>
     <string name="ingame_sharpen_help">Резкость возвращает текстурам детали, которые размываются при увеличении картинки до размера экрана (особенно в широких форматах изображения). Видеоролики остаются без изменений.</string>
-    <string name="ingame_frame_skip_help">Если графика не успевает, пропускает кадр, чтобы игра шла с обычной скоростью. Показывается меньше кадров, ничего не замедляется.</string>
-    <string name="ingame_cpu_skip_help">Экономит время процессора на телефонах с медленным процессором: если игра отстаёт, она пропускает не больше одного кадра из двух и сохраняет обычную скорость. Работает вместе с пропуском кадров; исключает 60 FPS.</string>
+    <string name="ingame_skip_normal_help">Пропуск кадров «Обычный»: если графический чип не успевает, готовый кадр пропускается, чтобы игра шла с обычной скоростью.</string>
+    <string name="ingame_skip_aggressive_help">Пропуск кадров «Агрессивный»: игра сама пропускает не больше одного кадра из двух, когда отстаёт; это экономит и время процессора и намного быстрее на телефонах с медленным процессором.</string>
     <string name="ingame_vk_bandwidth_help">Только Vulkan: после очистки кадра графический чип больше не загружает его заново, что экономит пропускную способность памяти на чипах Mali и Adreno. Изображение не меняется.</string>
     <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
     <string name="ingame_merge_help">Объединяет несколько объектов в один вызов графического драйвера. Может помочь телефонам с медленным графическим драйвером (например, GPU Mali) и немного замедлить другие. Не действует, пока включены 60 FPS.</string>

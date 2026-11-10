@@ -214,7 +214,8 @@
     <string name="ingame_instant_load_warning">I progressi non salvati andranno persi. Caricare il salvataggio istantaneo?</string>
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Salto fotogrammi</string>
-    <string name="ingame_cpu_skip">Salto fotogrammi aggressivo</string>
+    <string name="ingame_skip_normal">Normale</string>
+    <string name="ingame_skip_aggressive">Aggressivo</string>
     <string name="ingame_vk_bandwidth">Risparmia banda (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtro TV GameCube originale</string>
@@ -224,8 +225,8 @@
     <string name="ingame_filter_help">I filtri cambiano l\'aspetto di tutta l\'immagine e si possono combinare.</string>
     <string name="ingame_sharpen">Nitidezza</string>
     <string name="ingame_sharpen_help">Nitidezza restituisce alle texture il dettaglio che l’ingrandimento dell’immagine sullo schermo ammorbidisce (soprattutto nei formati d’immagine larghi). I filmati restano invariati.</string>
-    <string name="ingame_frame_skip_help">Se la grafica è in ritardo, salta un’immagine per mantenere la velocità normale del gioco. Si vedono meno immagini, nulla rallenta.</string>
-    <string name="ingame_cpu_skip_help">Risparmia tempo del processore sui telefoni con un processore lento: se il gioco resta indietro, salta al massimo un’immagine su due e mantiene la velocità normale. Funziona insieme al salto fotogrammi; si esclude con i 60 FPS.</string>
+    <string name="ingame_skip_normal_help">Salto fotogrammi Normale: se il chip grafico resta indietro, un’immagine già pronta viene saltata per mantenere la velocità normale del gioco.</string>
+    <string name="ingame_skip_aggressive_help">Salto fotogrammi Aggressivo: il gioco stesso salta al massimo un’immagine su due quando resta indietro; risparmia anche tempo del processore ed è molto più veloce sui telefoni con un processore lento.</string>
     <string name="ingame_vk_bandwidth_help">Solo Vulkan: dopo la cancellazione dell’immagine il chip grafico non la ricarica più, risparmiando banda di memoria sui chip Mali e Adreno. L’immagine resta uguale.</string>
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
     <string name="ingame_merge_help">Unisce più oggetti in una sola chiamata al driver grafico. Può aiutare i telefoni con un driver grafico lento (ad es. GPU Mali) e costare un po’ sugli altri. Nessun effetto finché i 60 FPS sono attivi.</string>

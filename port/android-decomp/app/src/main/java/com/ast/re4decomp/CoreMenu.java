@@ -527,6 +527,21 @@ final class CoreMenu extends Dialog {
     b.setSelected(on);
     b.setText(getContext().getString(R.string.ingame_toggle_value, s(name), s(value)));
   }
+  /**
+   * Frame skip (0.99.8, one button; wish of the project owner, 10.11.2026): 0 off, 1 Normal (the renderer leaves out a
+   * picture while it is behind, CoreBridge.setFrameSkip), 2 Aggressive (the game itself, CoreBridge.setCpuSkip).
+   * Before it two switches, "frameskip" and "cpuSkip"; both on: Aggressive.
+   */
+  static final String FRAME_SKIP = "frameSkipMode";
+  static int frameSkipMode(SharedPreferences g) {
+    if (g.contains(FRAME_SKIP)) return Math.max(0, Math.min(2, g.getInt(FRAME_SKIP, 0)));
+    if (g.getBoolean("cpuSkip", false)) return 2;
+    return g.getBoolean("frameskip", false) ? 1 : 0;
+  }
+  /** Frame skip stored as `mode` (frameSkipMode), the two switches of before gone. */
+  static void storeFrameSkipMode(SharedPreferences g, int mode) {
+    g.edit().putInt(FRAME_SKIP, Math.max(0, Math.min(2, mode))).remove("frameskip").remove("cpuSkip").apply();
+  }
   /** The depth of field's level (0 off, 1 light, 2 strong); until 0.98.3 the switch "dof" (on: light). */
   static final String DOF_LEVEL = "dofLevel";
   /** The benchmark's levels on this device (halves): "Dynamic" goes up to them with 30 / 60 FPS. */
@@ -1336,45 +1351,35 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_potato_help);
     help(R.string.ingame_view_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
-    // without a row label in two columns, frame skip | 60 FPS over merged draws | vertex ring, the explanations
-    // over the whole width
+    // without a row label in two columns, the explanations over the whole width. Since 10.11.2026 (wish of the
+    // project owner): Frame skip | 60 FPS, under them merged draws | vertex ring as before, then "Save bandwidth"
     heading(R.string.ingame_experimental);
-    // (the aggressive frame skip in a row of its own under them, 10.11.2026)
-    MenuLayout.Buttons output = buttonsRow(body), cpuRow = buttonsRow(body), more = buttonsRow(body);
+    MenuLayout.Buttons output = buttonsRow(body), more = buttonsRow(body), vkRow = buttonsRow(body);
     // Frame skip leaves pictures out, 60 FPS adds pictures between: one or the other (wish of the
-    // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off
-    // "Aggressive frame skip" (wish of the project owner, 10.11.2026; patch 0227): the game itself leaves a picture
-    // out and saves the processor's time; it may be on with Frame skip (that one saves the GPU's), not with 60 FPS
-    final Button[] skipAndSmooth = new Button[3];
-    skipAndSmooth[0] = toggle(output, R.string.ingame_frame_skip, graphics.getBoolean("frameskip", false), on -> {
-      graphics.edit().putBoolean("frameskip", on).apply(); CoreBridge.setFrameSkip(on);
-      if (on && skipAndSmooth[1].isSelected()) {
+    // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off.
+    // Frame skip one button (wish of the project owner, 10.11.2026: the two frame skips were on at once): each press
+    // moves it on, Off > Normal (the renderer's) > Aggressive (the game's own, patch 0227) > Off
+    final int[] skipLabels = {R.string.ingame_off, R.string.ingame_skip_normal, R.string.ingame_skip_aggressive};
+    final Button[] skipAndSmooth = new Button[2];
+    skipAndSmooth[0] = cellAction(output, "", v -> {
+      int next = (frameSkipMode(graphics) + 1) % 3;
+      storeFrameSkipMode(graphics, next);
+      CoreBridge.setFrameSkip(next == 1); CoreBridge.setCpuSkip(next == 2);
+      valueLabel((Button) v, R.string.ingame_frame_skip, skipLabels[next], next != 0);
+      if (next != 0 && skipAndSmooth[1].isSelected()) {
         toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
         graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
       }
     });
+    final int skipNow = frameSkipMode(graphics);
+    valueLabel(skipAndSmooth[0], R.string.ingame_frame_skip, skipLabels[skipNow], skipNow != 0);
     skipAndSmooth[1] = toggle(output, R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
       graphics.edit().putBoolean("smooth60", on).apply(); CoreBridge.setSmooth(on);
-      if (on && skipAndSmooth[0].isSelected()) {
-        toggleLabel(skipAndSmooth[0], R.string.ingame_frame_skip, false);
-        graphics.edit().putBoolean("frameskip", false).apply(); CoreBridge.setFrameSkip(false);
+      if (on && frameSkipMode(graphics) != 0) {
+        storeFrameSkipMode(graphics, 0);
+        CoreBridge.setFrameSkip(false); CoreBridge.setCpuSkip(false);
+        valueLabel(skipAndSmooth[0], R.string.ingame_frame_skip, R.string.ingame_off, false);
       }
-      if (on && skipAndSmooth[2].isSelected()) {
-        toggleLabel(skipAndSmooth[2], R.string.ingame_cpu_skip, false);
-        graphics.edit().putBoolean("cpuSkip", false).apply(); CoreBridge.setCpuSkip(false);
-      }
-    });
-    skipAndSmooth[2] = toggle(cpuRow, R.string.ingame_cpu_skip, graphics.getBoolean("cpuSkip", false), on -> {
-      graphics.edit().putBoolean("cpuSkip", on).apply(); CoreBridge.setCpuSkip(on);
-      if (on && skipAndSmooth[1].isSelected()) {
-        toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
-        graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
-      }
-    });
-    // "Save bandwidth (Vulkan)" (wish of the project owner, 10.11.2026): beside it; Vulkan only (with OpenGL ES greyed
-    // out and shown off, the choice kept), off by default until a Mali or Adreno report shows it helps
-    Button bandwidth = toggle(cpuRow, R.string.ingame_vk_bandwidth, graphics.getBoolean("vkBandwidth", false), on -> {
-      graphics.edit().putBoolean("vkBandwidth", on).apply(); CoreBridge.setVkBandwidth(on);
     });
     // merged draw calls (an experiment for phones with a slow graphics driver; wish of the project
     // owner, 30.10.2026: below 60 FPS); the renderer leaves it out while 60 FPS is on
@@ -1389,14 +1394,19 @@ final class CoreMenu extends Dialog {
     Button ring = toggle(more, R.string.ingame_vertex_ring, graphics.getBoolean("vertexRing", false), on -> {
       graphics.edit().putBoolean("vertexRing", on).apply(); CoreBridge.setVertexRing(on);
     });
+    // "Save bandwidth (Vulkan)" (wish of the project owner, 10.11.2026): under them; Vulkan only (with OpenGL ES greyed
+    // out and shown off, the choice kept), off by default until a Mali or Adreno report shows it helps
+    Button bandwidth = toggle(vkRow, R.string.ingame_vk_bandwidth, graphics.getBoolean("vkBandwidth", false), on -> {
+      graphics.edit().putBoolean("vkBandwidth", on).apply(); CoreBridge.setVkBandwidth(on);
+    });
     if (vulkanRun) {
       toggleLabel(merge, R.string.ingame_merge_draws, false); merge.setEnabled(false);
       toggleLabel(ring, R.string.ingame_vertex_ring, false); ring.setEnabled(false);
     } else {
       toggleLabel(bandwidth, R.string.ingame_vk_bandwidth, false); bandwidth.setEnabled(false);
     }
-    help(R.string.ingame_frame_skip_help);
-    help(R.string.ingame_cpu_skip_help);
+    help(R.string.ingame_skip_normal_help);
+    help(R.string.ingame_skip_aggressive_help);
     help(R.string.ingame_vk_bandwidth_help);
     help(R.string.ingame_smooth_help);
     help(R.string.ingame_skip_or_smooth);
