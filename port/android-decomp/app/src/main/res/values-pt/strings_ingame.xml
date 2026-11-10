@@ -216,6 +216,7 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Salto de quadros</string>
     <string name="ingame_cpu_skip">Salto de quadros agressivo</string>
+    <string name="ingame_vk_bandwidth">Poupar banda (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtro de TV original do GameCube</string>
     <string name="ingame_fxaa_help">Suaviza bordas serrilhadas em uma etapa final. Funciona com ou sem MSAA; a imagem fica um pouco mais suave.</string>
@@ -226,6 +227,7 @@
     <string name="ingame_sharpen_help">Nitidez devolve às texturas o detalhe que fica suave quando a imagem é ampliada para a tela (principalmente nos formatos de imagem largos). Os vídeos ficam como estão.</string>
     <string name="ingame_frame_skip_help">Se os gráficos atrasam, pula um quadro para o jogo manter a velocidade normal. Menos quadros são exibidos, nada fica mais lento.</string>
     <string name="ingame_cpu_skip_help">Economiza tempo do processador em celulares com processador lento: se o jogo atrasa, pula no máximo um quadro a cada dois e mantém a velocidade normal. Funciona junto com o salto de quadros; exclui os 60 FPS.</string>
+    <string name="ingame_vk_bandwidth_help">Só Vulkan: depois de limpar a imagem, o chip gráfico não a carrega de novo, o que economiza largura de banda de memória em chips Mali e Adreno. A imagem continua igual.</string>
     <string name="ingame_skip_or_smooth">Salto de quadros e 60 FPS se excluem: ativar um desativa o outro.</string>
     <string name="ingame_merge_help">Agrupa vários objetos em uma só chamada ao driver gráfico. Pode ajudar celulares com driver gráfico lento (ex.: GPUs Mali) e custar um pouco em outros. Sem efeito enquanto os 60 FPS estiverem ativados.</string>
     <string name="ingame_vertex_ring_help">Envia os vértices de cada imagem ao chip gráfico por um buffer que permanece mapeado, em vez de um buffer novo por imagem. Pode poupar tempo em GPUs Mali e usa um pouco mais de memória gráfica. Tem efeito imediato.</string>

@@ -215,6 +215,7 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Salto fotogrammi</string>
     <string name="ingame_cpu_skip">Salto fotogrammi aggressivo</string>
+    <string name="ingame_vk_bandwidth">Risparmia banda (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtro TV GameCube originale</string>
     <string name="ingame_fxaa_help">Attenua i bordi seghettati in un passaggio finale. Funziona con o senza MSAA; l’immagine diventa un po’ più morbida.</string>
@@ -225,6 +226,7 @@
     <string name="ingame_sharpen_help">Nitidezza restituisce alle texture il dettaglio che l’ingrandimento dell’immagine sullo schermo ammorbidisce (soprattutto nei formati d’immagine larghi). I filmati restano invariati.</string>
     <string name="ingame_frame_skip_help">Se la grafica è in ritardo, salta un’immagine per mantenere la velocità normale del gioco. Si vedono meno immagini, nulla rallenta.</string>
     <string name="ingame_cpu_skip_help">Risparmia tempo del processore sui telefoni con un processore lento: se il gioco resta indietro, salta al massimo un’immagine su due e mantiene la velocità normale. Funziona insieme al salto fotogrammi; si esclude con i 60 FPS.</string>
+    <string name="ingame_vk_bandwidth_help">Solo Vulkan: dopo la cancellazione dell’immagine il chip grafico non la ricarica più, risparmiando banda di memoria sui chip Mali e Adreno. L’immagine resta uguale.</string>
     <string name="ingame_skip_or_smooth">Salto fotogrammi e 60 FPS si escludono: attivandone uno si disattiva l’altro.</string>
     <string name="ingame_merge_help">Unisce più oggetti in una sola chiamata al driver grafico. Può aiutare i telefoni con un driver grafico lento (ad es. GPU Mali) e costare un po’ sugli altri. Nessun effetto finché i 60 FPS sono attivi.</string>
     <string name="ingame_vertex_ring_help">Invia i vertici di ogni immagine al chip grafico tramite un buffer che resta mappato, invece di un nuovo buffer per ogni immagine. Può far risparmiare tempo sulle GPU Mali e usa un po\' più di memoria grafica. Ha effetto subito.</string>

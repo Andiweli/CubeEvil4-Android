@@ -213,6 +213,7 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">फ़्रेम स्किप</string>
     <string name="ingame_cpu_skip">आक्रामक फ़्रेम स्किप</string>
+    <string name="ingame_vk_bandwidth">बैंडविड्थ बचाएँ (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">मूल GameCube टीवी फ़िल्टर</string>
     <string name="ingame_fxaa_help">आख़िरी चरण में दाँतेदार किनारों को चिकना करता है। MSAA के साथ या बिना काम करता है; तस्वीर थोड़ी नरम हो जाती है।</string>
@@ -223,6 +224,7 @@
     <string name="ingame_sharpen_help">शार्पन उन टेक्सचर के डिटेल वापस लाता है जो तस्वीर को स्क्रीन तक बड़ा करने पर धुंधले हो जाते हैं (खासकर चौड़े पिक्चर फ़ॉर्मैट में)। वीडियो जैसे हैं वैसे ही रहते हैं।</string>
     <string name="ingame_frame_skip_help">ग्राफ़िक्स पिछड़ने पर एक फ़्रेम छोड़ देता है ताकि गेम सामान्य गति से चले। कम फ़्रेम दिखते हैं, कुछ धीमा नहीं होता।</string>
     <string name="ingame_cpu_skip_help">धीमे प्रोसेसर वाले फ़ोन पर प्रोसेसर का समय बचाता है: गेम पिछड़ने पर यह दो में से अधिकतम एक फ़्रेम छोड़ता है और सामान्य गति बनाए रखता है। फ़्रेम स्किप के साथ चल सकता है; 60 FPS के साथ नहीं।</string>
+    <string name="ingame_vk_bandwidth_help">केवल Vulkan: चित्र साफ़ होने के बाद ग्राफ़िक्स चिप उसे दोबारा लोड नहीं करती, जिससे Mali और Adreno चिप पर मेमोरी बैंडविड्थ बचती है। चित्र वैसा ही रहता है।</string>
     <string name="ingame_skip_or_smooth">फ़्रेम स्किप और 60 FPS साथ नहीं चलते: एक को चालू करने पर दूसरा बंद हो जाता है।</string>
     <string name="ingame_merge_help">कई वस्तुओं को ग्राफ़िक्स ड्राइवर की एक ही कॉल में मिलाता है। धीमे ग्राफ़िक्स ड्राइवर वाले फ़ोन (जैसे Mali GPU) पर मदद कर सकता है और दूसरों पर थोड़ा धीमा कर सकता है। 60 FPS चालू होने पर इसका कोई असर नहीं होता।</string>
     <string name="ingame_vertex_ring_help">हर चित्र के वर्टेक्स डेटा को हर बार नए बफ़र के बजाय एक स्थायी रूप से मैप किए गए बफ़र से ग्राफ़िक्स चिप तक भेजता है। Mali GPU पर समय बचा सकता है और थोड़ी अधिक ग्राफ़िक्स मेमोरी लेता है। तुरंत लागू होता है।</string>

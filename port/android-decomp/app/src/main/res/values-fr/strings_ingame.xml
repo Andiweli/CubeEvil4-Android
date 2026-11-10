@@ -217,6 +217,7 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Saut d’images</string>
     <string name="ingame_cpu_skip">Saut d’images agressif</string>
+    <string name="ingame_vk_bandwidth">Économie de bande (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtre TV GameCube d\'origine</string>
     <string name="ingame_fxaa_help">Lisse les bords crénelés lors d’une dernière passe. Fonctionne avec ou sans MSAA ; l’image devient un peu plus douce.</string>
@@ -227,6 +228,7 @@
     <string name="ingame_sharpen_help">Netteté redonne aux textures le détail que l’agrandissement de l’image à l’écran adoucit (surtout dans les formats d’image larges). Les vidéos restent telles quelles.</string>
     <string name="ingame_frame_skip_help">Si le rendu est à la traîne, saute une image pour que le jeu garde sa vitesse normale. Moins d’images s’affichent, rien n’est ralenti.</string>
     <string name="ingame_cpu_skip_help">Économise du temps processeur sur les téléphones au processeur lent : si le jeu prend du retard, il saute au plus une image sur deux et garde sa vitesse normale. Fonctionne avec le saut d’images ; exclut les 60 FPS.</string>
+    <string name="ingame_vk_bandwidth_help">Vulkan uniquement : après l’effacement de l’image, la puce graphique ne la recharge plus, ce qui économise de la bande passante mémoire sur les puces Mali et Adreno. L’image reste identique.</string>
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
     <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote graphique lent (p. ex. GPU Mali) et coûter un peu sur les autres. Sans effet tant que les 60 FPS sont activés.</string>
     <string name="ingame_vertex_ring_help">Envoie les sommets de chaque image à la puce graphique par un tampon qui reste mappé, au lieu d\'un nouveau tampon par image. Peut faire gagner du temps sur les GPU Mali et utilise un peu plus de mémoire graphique. Prend effet immédiatement.</string>

@@ -1371,6 +1371,11 @@ final class CoreMenu extends Dialog {
         graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
       }
     });
+    // "Save bandwidth (Vulkan)" (wish of the project owner, 10.11.2026): beside it; Vulkan only (with OpenGL ES greyed
+    // out and shown off, the choice kept), off by default until a Mali or Adreno report shows it helps
+    Button bandwidth = toggle(cpuRow, R.string.ingame_vk_bandwidth, graphics.getBoolean("vkBandwidth", false), on -> {
+      graphics.edit().putBoolean("vkBandwidth", on).apply(); CoreBridge.setVkBandwidth(on);
+    });
     // merged draw calls (an experiment for phones with a slow graphics driver; wish of the project
     // owner, 30.10.2026: below 60 FPS); the renderer leaves it out while 60 FPS is on
     // with Vulkan both greyed out and shown off (question of the project owner, 09.11.2026): Vulkan always streams
@@ -1387,9 +1392,12 @@ final class CoreMenu extends Dialog {
     if (vulkanRun) {
       toggleLabel(merge, R.string.ingame_merge_draws, false); merge.setEnabled(false);
       toggleLabel(ring, R.string.ingame_vertex_ring, false); ring.setEnabled(false);
+    } else {
+      toggleLabel(bandwidth, R.string.ingame_vk_bandwidth, false); bandwidth.setEnabled(false);
     }
     help(R.string.ingame_frame_skip_help);
     help(R.string.ingame_cpu_skip_help);
+    help(R.string.ingame_vk_bandwidth_help);
     help(R.string.ingame_smooth_help);
     help(R.string.ingame_skip_or_smooth);
     help(R.string.ingame_merge_help);

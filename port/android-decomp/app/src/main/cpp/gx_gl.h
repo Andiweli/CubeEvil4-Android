@@ -278,6 +278,8 @@ public:
   // GameCube blurs its picture for the TV. Off: the picture stays sharp (the taps' sum only, the
   // brightness option). Takes effect with the next display copy.
   void SetTvFilter(bool on);
+  // "Save bandwidth (Vulkan)": fewer loads and stores of the EFB on a tiling GPU (gx_vk.cpp); GL: nothing
+  void SetBandwidthSave(bool on);
   // PSone demake (wish of the project owner, 02.11.2026): the 3D draws as a PlayStation drew them, corners on a
   // 320-wide grid (the polygons wobble), textures without perspective correction and without filtering; then a
   // last pass over every display copy (after FXAA): one colour per cell of a 320 x 224 grid in 15-bit colour

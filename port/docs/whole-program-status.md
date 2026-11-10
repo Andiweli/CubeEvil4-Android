@@ -143,6 +143,40 @@ Am PC (x86_64, EU-Discs) ist der Großteil eines Spielbilds Zeichnen: r103 4,05 
   (nur Neuladen nach dem Tod und Start aus der Raumauswahl), Filme (dort ist der Bildsprung aus), ein echtes Handy mit
   langsamem Prozessor.
 
+### 5. „Save bandwidth (Vulkan)“: weniger Laden und Speichern des EFB auf Kachel-GPUs (Wunsch des Projektinhabers)
+
+Auftrag (10.11.2026, „Ja bitte prüfe 1 und 2 und baue dann einen Toggle unter Performance / Experimental ein“), nach
+den Mali-G52-Berichten zum Zielfernrohr (`E:\Development\Android\reports\0998-scope-followup\`; dort ist „shown“
+die Zahl der Durchläufe der Zeichenschleife, nicht der Spielbilder: im Zielfernrohr Vulkan 35,1 ms pro Spielbild,
+GLES 39,9 ms, kein Vorsprung von GLES).
+
+- **Hebel 1 (Kopien bündeln):** geprüft. Kopien direkt hintereinander teilen sich schon ein Ende des EFB-Durchgangs
+  (`CopyPass`: der zweite findet keinen offenen Durchgang, das Layout ist schon gewechselt). Die 24 Kopien der
+  Zielfernrohr-Unschärfe (Filter08) lesen jede das Ergebnis der vorigen: nicht bündelbar. Was blieb: das Löschen nach
+  einer Kopie begann jedes Mal einen eigenen Durchgang über das ganze EFB (laden, löschen, speichern), den der nächste
+  wieder lud — jetzt in den nächsten Durchgang gefaltet (unten).
+- **Hebel 2 (nicht speichern/laden, was nicht gebraucht wird):** `GxCore::DeferClear` → `gx_vk.cpp`: das Löschen nach
+  einer Kopie (vor allem das der Bildausgabe) wird gemerkt; der nächste EFB-Durchgang beginnt genau auf dessen
+  Rechteck mit Ladeoperation CLEAR (Varianten von `efbPass`, `EfbVariant`; kompatibel, da nur Lade-Ops anders). Will
+  der Durchgang mehr als das Rechteck: wie bisher (laden, löschen im Durchgang). Was das EFB vorher liest (Kopie,
+  Lens Flares, Autofokus, Tiefe für GXPeekZ, neue Auflösung), löscht zuerst (`FlushClear`). Nicht mit MSAA.
+  **Verworfen:** die Tiefe des letzten Durchgangs vor der Bildausgabe nicht speichern (`STORE_OP_DONT_CARE`): nach der
+  letzten Texturkopie zeichnet das Spiel auch außerhalb des Ausgabe-Rechtecks (r101, r104, r222: ein solcher Durchgang
+  endete im ersten Versuch zu früh), und lavapipe am PC speichert trotzdem, der Bildvergleich kann es nicht beweisen.
+- **Menü:** Leistung → Experimentell, neben „Aggressive frame skip“: „Save bandwidth (Vulkan)“ (`ingame_vk_bandwidth`,
+  `ingame_vk_bandwidth_help`, 11 Sprachen), Einstellung `vkBandwidth`, **aus** nach dem Einbau (am Gerät unbewiesen); mit
+  OpenGL ES ausgegraut. Weg: `CoreBridge.setVkBandwidth` → `core_mode.cpp optVkBandwidth` → `GxRenderer::SetBandwidthSave`
+  → `GxCore::bwSave`. Zähler in „Vulkan per picture“: „save bandwidth on|off: N clears folded into the next pass (of M)“
+  (pro Bild; die Zahl der EFB-Durchgänge sinkt mit „on“ um eins pro Bild). Testschalter `RE4_GX_BANDWIDTH=1|log`
+  (gx_chunk_render; `log`: warum ein Löschen nicht gefaltet wird).
+- **Geprüft am PC (gx_chunk_render Vulkan/lavapipe, `RE4_VK_VALIDATION=2` mit Synchronisationsprüfung, an gegen aus,
+  `~/p0998/bwcmp.sh`):** Tiefenschärfe r104 (4), Zielfernrohr (15), Menüs (12), Graustufen (16), Söldner (9), Tod/Neu
+  laden (10, 15, 5), Ada (12), Bildserien zu 16 in r101 (Feuer, Hitzeflimmern), r103, r104, r222 (Lava, Hitzeflimmern),
+  bei 1×, 1,5×, 2,5×: **alle Bilder gleich, 0 Validierungsfehler**. In den Serien 15 von 16 Löschungen gefaltet (dem
+  letzten Bild fehlt der Nachfolger), EFB-Durchgänge r101 48 → 32, r103 105 → 89, r222 304 → 288. Im Zielfernrohr
+  fällt keines (Rechtecke der Texturkopien kleiner als der nächste Durchgang): dort bleibt es wie bisher.
+  gx_gl_check 0 Fehler; App-Tests, App-Bau, Übersetzungsprüfung. **Nicht geprüft:** auf einem Gerät (Mali, Adreno).
+
 ## Version 0.99.7-rc: Fehler und Wünsche nach 0.99.6 (09.11.2026, Branch `work0997`)
 
 Version 0.99.7-rc (versionCode 109), Releasetext `port/android-decomp/docs/releases/v0.99.7-rc.md` („Changes since

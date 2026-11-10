@@ -46,6 +46,7 @@ void GxRenderer::SetDepthSink(DepthSink sink) { impl_->SetDepthSink(std::move(si
 void GxRenderer::SetFxaa(bool on) { impl_->SetFxaa(on); }
 void GxRenderer::SetSharpen(int level) { impl_->SetSharpen(level); }
 void GxRenderer::SetTvFilter(bool on) { impl_->SetTvFilter(on); }
+void GxRenderer::SetBandwidthSave(bool on) { impl_->SetBandwidthSave(on); }
 void GxRenderer::SetPsx(bool on) { impl_->SetPsx(on); }
 void GxRenderer::SetFlares(bool on) { impl_->SetFlares(on); }
 void GxRenderer::SetFlareHalos(bool on) { impl_->SetFlareHalos(on); }

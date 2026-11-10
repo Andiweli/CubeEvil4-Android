@@ -878,8 +878,9 @@ struct VkRenderer final : GxCore {
   }
 
   // ---- render passes ----
+  // (depthLoad: the depth's load, else `load`; the variants of the EFB pass for "Save bandwidth": EfbVariant)
   VkRenderPass MakePass(VkFormat color, VkFormat depth, VkAttachmentLoadOp load, VkImageLayout before,
-                        VkImageLayout after) {
+                        VkImageLayout after, VkAttachmentLoadOp depthLoad = VK_ATTACHMENT_LOAD_OP_MAX_ENUM) {
     VkAttachmentDescription a[2]{};
     a[0].format = color;
     a[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -892,6 +893,8 @@ struct VkRenderer final : GxCore {
     a[1] = a[0];
     a[1].format = depth;
     a[1].initialLayout = a[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    if (depthLoad != VK_ATTACHMENT_LOAD_OP_MAX_ENUM)
+      a[1].loadOp = depthLoad;
     VkAttachmentReference cref{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
     VkAttachmentReference dref{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
     VkSubpassDescription sub{};
@@ -1047,6 +1050,74 @@ struct VkRenderer final : GxCore {
   // 09.11.2026), now the corner. A draw outside the area begins the pass again on both. Not with MSAA (the resolve);
   // RE4_GX_VK_PART=0: always the whole EFB (the comparison)
   VkRect2D efbArea{};
+  // "Save bandwidth (Vulkan)" (GxCore::bwSave, the menu, 0.99.8) for a tiling GPU (Mali, Adreno): the clear after a
+  // copy (most: the display copy's) no longer begins a pass of its own that loads the whole EFB (colour and depth),
+  // clears and stores it for the next pass to load it again. DeferClear keeps it, and the next pass begins on the
+  // clear's rect with the load op CLEAR (nothing loaded there, nothing stored before). A pass that needs more than
+  // the rect begins as before (loaded, the clear in it); what reads the EFB first (a copy, the flares, the
+  // autofocus, the depth for GXPeekZ, a new scale) has it done first (FlushClear).
+  // Checked and left out (10.11.2026): copies right after each other already share one end of the EFB pass
+  // (CopyPass: the second finds no pass open), and the rifle scope's 24 copies each read the one before; the
+  // depth of a picture's last pass left unstored (store op DONT_CARE up to the display copy's clear) is not safe:
+  // draws outside the copy's rect follow the last copy for a texture (r101, r104, r222), and the PC's Vulkan
+  // (lavapipe) stores it all the same, so its pictures cannot show a mistake.
+  struct PendingClear {
+    bool on = false, color = false, depth = false;
+    float rgba[4] = {0, 0, 0, 0};
+    float z = 1.0f;
+    int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+  } pend;
+  VkRenderPass efbVariants[4] = {};  // bit 0 colour cleared at the load, 1 depth cleared
+  VkRenderPass EfbVariant(unsigned bits) {
+    if (!bits)
+      return efbPass;
+    VkRenderPass &v = efbVariants[bits & 3];
+    if (!v)
+      v = MakePass(VK_FORMAT_R8G8B8A8_UNORM, depthFormat,
+                   (bits & 1) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                   (bits & 2) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD);
+    return v ? v : efbPass;
+  }
+  bool DeferClear(const GxClearRect &r) override {
+    if (!bwSave || samples > 1 || pass == kEfbPass || r.color != r.alpha || !ready)
+      return false;
+    const int w = static_cast<int>(efbColor.width), h = static_cast<int>(efbColor.height);
+    const int x0 = std::max(0, r.rect[0]), y0 = std::max(0, r.rect[1]);
+    const int x1 = std::min(w, r.rect[0] + r.rect[2]), y1 = std::min(h, r.rect[1] + r.rect[3]);
+    if (x1 <= x0 || y1 <= y0)
+      return false;
+    if (pend.on && (pend.x0 != x0 || pend.y0 != y0 || pend.x1 != x1 || pend.y1 != y1))
+      FlushClear();  // (another rect: the one kept first is done first)
+    if (!pend.on) {
+      pend = PendingClear();
+      pend.x0 = x0;
+      pend.y0 = y0;
+      pend.x1 = x1;
+      pend.y1 = y1;
+    }
+    pend.on = true;
+    if (r.color) {
+      pend.color = true;
+      std::memcpy(pend.rgba, r.rgba, sizeof(pend.rgba));
+    }
+    if (r.depth) {
+      pend.depth = true;
+      pend.z = r.z;
+    }
+    timing.clearsKept++;
+    return true;
+  }
+  // RE4_GX_BANDWIDTH=log: why a clear is not folded (the PC check)
+  static bool BwLog() {
+    static const bool on = std::getenv("RE4_GX_BANDWIDTH") && !std::strcmp(std::getenv("RE4_GX_BANDWIDTH"), "log");
+    return on;
+  }
+  // the kept clear done now, on its rect (for what reads the EFB other than a pass's draws)
+  void FlushClear() {
+    if (pend.on)
+      BeginEfbArea(pend.x0, pend.y0, pend.x1, pend.y1);
+  }
   void BeginEfbArea(int x0, int y0, int x1, int y1) {
     Begin();
     static const bool partsOff = std::getenv("RE4_GX_VK_PART") && *std::getenv("RE4_GX_VK_PART") == '0';
@@ -1061,6 +1132,39 @@ struct VkRenderer final : GxCore {
       x1 = w;
       y1 = h;
     }
+    if (pend.on) {
+      // a kept clear (DeferClear): no pass is open
+      const PendingClear c = pend;
+      pend.on = false;
+      if (x0 >= c.x0 && y0 >= c.y0 && x1 <= c.x1 && y1 <= c.y1) {
+        // the pass on the clear's rect, cleared at its load
+        BeginEfbRaw(c.x0, c.y0, c.x1, c.y1, (c.color ? 1u : 0u) | (c.depth ? 2u : 0u), &c);
+        timing.clearsFolded++;
+        return;
+      }
+      // more than the rect: loaded, the clear in the pass (as before)
+      if (BwLog())
+        GXLOG("save bandwidth: the clear on %d,%d..%d,%d not folded: the pass wants %d,%d..%d,%d (op %u)", c.x0, c.y0,
+              c.x1, c.y1, x0, y0, x1, y1, curOpAt);
+      BeginEfbRaw(std::min(x0, c.x0), std::min(y0, c.y0), std::max(x1, c.x1), std::max(y1, c.y1), 0, nullptr);
+      VkClearAttachment a[2]{};
+      std::uint32_t n = 0;
+      if (c.color) {
+        a[n].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        a[n].colorAttachment = 0;
+        a[n].clearValue.color = {{c.rgba[0], c.rgba[1], c.rgba[2], c.rgba[3]}};
+        n++;
+      }
+      if (c.depth) {
+        a[n].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        a[n].clearValue.depthStencil = {c.z, 0};
+        n++;
+      }
+      const VkClearRect cr{{{c.x0, c.y0}, {static_cast<std::uint32_t>(c.x1 - c.x0), static_cast<std::uint32_t>(c.y1 - c.y0)}},
+                           0, 1};
+      vkCmdClearAttachments(F().draw, n, a, 1, &cr);
+      return;
+    }
     if (pass == kEfbPass) {
       const int ax0 = efbArea.offset.x, ay0 = efbArea.offset.y, ax1 = ax0 + static_cast<int>(efbArea.extent.width),
                 ay1 = ay0 + static_cast<int>(efbArea.extent.height);
@@ -1072,6 +1176,11 @@ struct VkRenderer final : GxCore {
       y1 = std::max(y1, ay1);
       timing.efbWidened++;
     }
+    BeginEfbRaw(x0, y0, x1, y1, 0, nullptr);
+  }
+  // A new EFB pass on x0..x1, y0..y1 (the pass open ends). bits: EfbVariant's (clear: the kept clear's values)
+  void BeginEfbRaw(int x0, int y0, int x1, int y1, unsigned bits, const PendingClear *clear) {
+    const int w = static_cast<int>(efbColor.width), h = static_cast<int>(efbColor.height);
     efbArea = {{x0, y0}, {static_cast<std::uint32_t>(x1 - x0), static_cast<std::uint32_t>(y1 - y0)}};
     timing.efbPasses++;
     if (x1 - x0 < w || y1 - y0 < h) {
@@ -1096,9 +1205,16 @@ struct VkRenderer final : GxCore {
       Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     }
     auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
-    rbi.renderPass = efbPass;
+    rbi.renderPass = samples > 1 ? efbPass : EfbVariant(bits);
     rbi.framebuffer = efbFb;
     rbi.renderArea = efbArea;
+    VkClearValue cv[2]{};
+    if (clear && (bits & 3)) {
+      cv[0].color = {{clear->rgba[0], clear->rgba[1], clear->rgba[2], clear->rgba[3]}};
+      cv[1].depthStencil = {clear->z, 0};
+      rbi.clearValueCount = 2;
+      rbi.pClearValues = cv;
+    }
     vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
     const VkViewport vp{0.0f, 0.0f, float(efbColor.width), float(efbColor.height), 0.0f, 1.0f};
     vkCmdSetViewport(cb, 0, 1, &vp);
@@ -2079,6 +2195,7 @@ struct VkRenderer final : GxCore {
     return true;
   }
   void FlarePass() override {
+    FlushClear();
     flareDone = true;
     FlareTrack();
     flareCands.clear();
@@ -2210,6 +2327,7 @@ struct VkRenderer final : GxCore {
     Put(pc, f, "zmap", *reinterpret_cast<const float(*)[4]>(zmap));
   }
   void Autofocus(std::uint32_t player) override {
+    FlushClear();
     if (autofocusFailed || !havePerspective)
       return;
     const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
@@ -2725,6 +2843,7 @@ struct VkRenderer final : GxCore {
     Image *dst = ImageOf(p.target);
     if (!dst)
       return;
+    FlushClear();
     if (p.depth)
       ResolveDepth();
     Begin();
@@ -2936,6 +3055,7 @@ struct VkRenderer final : GxCore {
     return true;
   }
   void SnapshotDepth() override {
+    FlushClear();
     peekWanted = false;
     if (!depthSink || peekFailed)
       return;
@@ -3760,6 +3880,7 @@ struct VkRenderer final : GxCore {
   // cleared, the XFB and the EFB copies scaled over (an effect that reads the picture before, a copy the game made
   // once at a room's start), the in-between pictures' own copies gone
   void RescaleHalves(int h) override {
+    FlushClear();  // (on the EFB of the old size, as before)
     h = std::max(2, h);
     if (!ready || h == halves)
       return;
@@ -3921,23 +4042,27 @@ struct VkRenderer final : GxCore {
     double acquireMs = 0, fenceMs = 0, submitMs = 0, presentMs = 0, compileMs = 0, pipelineMs = 0, pipelineMax = 0;
     unsigned presents = 0, compiled = 0, spirvFound = 0, pipelines = 0, pipelinesAnew = 0, swapchains = 0;
     unsigned efbPasses = 0, efbParts = 0, efbWidened = 0;  // BeginEfbArea
+    // "Save bandwidth": clears kept (DeferClear), of them begun with the next pass (no load, no pass of their own)
+    unsigned clearsKept = 0, clearsFolded = 0;
     double efbPartShare = 0;
   } timing;
   std::string TimingLine() override {
     Timing &t = timing;
     const double n = std::max(1u, t.presents);
-    char line[800];
+    char line[1000];
     std::snprintf(line, sizeof(line),
                   "Vulkan per picture: acquire %.2f ms, waits for the GPU %.2f ms, submit %.2f ms, present %.2f ms "
                   "(%u pictures); %u shaders compiled (%.0f ms), %u from the SPIR-V store (%zu kept); %u pipelines "
                   "made (%.0f ms, the longest %.1f ms; %u of them anew, not from the driver's cache); %u swapchains "
                   "made; images %.0f of %.0f MB; %u of the app's list made ahead so far; EFB passes %.1f, of them "
-                  "%.1f on a part (%.0f %% of the EFB on average, %u widened)",
+                  "%.1f on a part (%.0f %% of the EFB on average, %u widened); save bandwidth %s: %.1f clears "
+                  "folded into the next pass (of %.1f)",
                   t.acquireMs / n, t.fenceMs / n, t.submitMs / n, t.presentMs / n, t.presents, t.compiled,
                   t.compileMs, t.spirvFound, Spirv().Count(), t.pipelines, t.pipelineMs, t.pipelineMax, t.pipelinesAnew,
                   swapMade - t.swapchains, heap.Used() / 1048576.0, heap.Reserved() / 1048576.0, aheadMade.load(),
                   t.efbPasses / n, t.efbParts / n, t.efbParts ? 100.0 * t.efbPartShare / t.efbParts : 0.0,
-                  t.efbWidened);
+                  t.efbWidened, !bwSave ? "off" : samples > 1 ? "on (not with MSAA)" : "on", t.clearsFolded / n,
+                  t.clearsKept / n);
     const unsigned made = swapMade;
     t = Timing();
     t.swapchains = made;
@@ -3957,6 +4082,9 @@ struct VkRenderer final : GxCore {
     flaresOn = flares && *flares == '1';
     const char *halos = getenv("RE4_GX_FLARE_HALOS");
     flareHalos = !(halos && *halos == '0');
+    // "Save bandwidth (Vulkan)" (the PC check: the pictures with it and without)
+    const char *bw = getenv("RE4_GX_BANDWIDTH");
+    bwSave = bw && (*bw == '1' || !std::strcmp(bw, "log"));
   }
   void Release() override {
     StopAhead();  // (before anything it uses goes)
@@ -4078,6 +4206,11 @@ struct VkRenderer final : GxCore {
     for (VkRenderPass p : {efbPass, copyPass, screenPass, depthResolvePass, efbColorPass})
       if (p)
         vkDestroyRenderPass(dev, p, nullptr);
+    for (VkRenderPass &p : efbVariants) {
+      if (p)
+        vkDestroyRenderPass(dev, p, nullptr);
+      p = VK_NULL_HANDLE;
+    }
     efbPass = copyPass = screenPass = depthResolvePass = efbColorPass = VK_NULL_HANDLE;
     const unsigned errors = vk.validationErrors.load(), warnings = vk.validationWarnings.load();
     if (vk.validation)

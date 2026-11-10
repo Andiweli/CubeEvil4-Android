@@ -228,6 +228,7 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Frame skip</string>
     <string name="ingame_cpu_skip">Aggressive frame skip</string>
+    <string name="ingame_vk_bandwidth">Save bandwidth (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Original GameCube TV filter</string>
     <string name="ingame_fxaa_help">Smooths jagged edges in a last step. Works with or without MSAA; the picture gets slightly softer.</string>
@@ -238,6 +239,7 @@
     <string name="ingame_sharpen_help">Sharpen brings back the detail of textures that gets soft when the picture is enlarged to the screen (mostly in the wide picture formats). Movies stay as they are.</string>
     <string name="ingame_frame_skip_help">While the graphics lag, skips a picture so the game keeps its normal speed. Fewer pictures are shown, nothing is slowed down.</string>
     <string name="ingame_cpu_skip_help">Saves processor time on phones with a slow processor: while the game falls behind, it leaves out at most every second picture and keeps its normal speed. Can be on together with Frame skip; it and 60 FPS exclude each other.</string>
+    <string name="ingame_vk_bandwidth_help">Vulkan only: after the picture is cleared, the graphics chip no longer loads it again, which saves memory bandwidth on Mali and Adreno chips. The picture stays the same.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow graphics driver (e.g. Mali GPUs) and may cost a little on others. No effect while 60 FPS is on.</string>
     <string name="ingame_vertex_ring_help">Sends each picture\'s vertex data to the graphics chip through one buffer that stays mapped, instead of a new buffer every picture. Can save time on Mali GPUs and uses a little more graphics memory. Takes effect at once.</string>

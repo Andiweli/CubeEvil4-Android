@@ -732,6 +732,8 @@ int viewDistanceSent = -1;  // what the core was told last (-1: nothing yet)
 // game leaves a picture out itself while its frames run late (saves the processor's time, the renderer's Frame
 // skip only the GPU's); the core is told "off" while 60 FPS is on
 std::atomic<int> optCpuSkip{0};
+// The menu's "Save bandwidth (Vulkan)" (CoreBridge.setVkBandwidth, 0.99.8): GxRenderer::SetBandwidthSave
+std::atomic<int> optVkBandwidth{0};
 int cpuSkipSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's "Invert vertical" and "Aim speed" for touch and controllers (CoreBridge.setAim, wish of the
 // project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
@@ -1950,6 +1952,7 @@ bool drawGx() {
   gx->SetSharpen(sharpenEnv > 0 ? sharpenEnv : optSharpen.load());
   static const bool tvEnv = getenv("RE4_GX_TV_FILTER") && *getenv("RE4_GX_TV_FILTER") == '1';
   gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
+  gx->SetBandwidthSave(optVkBandwidth.load() != 0);
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
   static const bool flaresEnv = getenv("RE4_GX_FLARES") && *getenv("RE4_GX_FLARES") == '1';
@@ -3122,6 +3125,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setCpuSkip(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optCpuSkip.exchange(want) != want) LOG("aggressive frame skip: %s", want ? "on" : "off");
+}
+
+// Save bandwidth (the menu, Vulkan): the clear after a copy folded into the next pass (GxRenderer::SetBandwidthSave).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setVkBandwidth(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optVkBandwidth.exchange(want) != want)
+    LOG("save bandwidth (Vulkan): %s", want ? "on (the clear after a copy goes with the next pass)" : "off");
 }
 
 // Original TV filter (the menu): the game's vertical copy filter on the picture (GxRenderer::SetTvFilter).

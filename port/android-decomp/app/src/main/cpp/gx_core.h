@@ -185,6 +185,9 @@ struct GxCore {
   // shown instead of it while psxShown
   bool psxOn = false, psxShown = false;
   std::uint32_t curOpAt = 0;  // the op Run executes (FlareNote)
+  // "Save bandwidth (Vulkan)" (GxRenderer::SetBandwidthSave, 0.99.8): the EFB passes of a tiling GPU load and store
+  // less (gx_vk.cpp: a clear after a copy folded into the next pass, which then loads nothing there)
+  bool bwSave = false;
   // the depth map for the game's GXPeekZ (BP 0x5B marker), see GxRenderer::SetDepthSink
   DepthSink depthSink;
   bool peekWanted = false, peekFailed = false;
@@ -650,6 +653,8 @@ struct GxCore {
   virtual void DisplayEffects(int pixelWidth, int pixelHeight, int y, int h, int w) = 0;
   virtual void SnapshotDepth() = 0;
   void ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h);
+  // the clear after a copy kept for the EFB's next pass (true: the API took it, ClearAfterCopy does no more); GL never
+  virtual bool DeferClear(const GxClearRect &) { return false; }
   virtual void PlainEfb() = 0;
   // the in-between pass's GPU side: before it (the store of its blended vertices), after it; whether the key's
   // program exists, whether its merged draw calls' program does (made by Prewarm when not: a run draws one by one)
@@ -688,6 +693,7 @@ struct GxCore {
   void SetFxaa(bool on);
   void SetSharpen(int level);
   void SetTvFilter(bool on);
+  void SetBandwidthSave(bool on);
   void SetPsx(bool on);
   void SetFlares(bool on);
   void SetFlareHalos(bool on);

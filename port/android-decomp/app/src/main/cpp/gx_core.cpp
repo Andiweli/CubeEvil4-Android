@@ -1309,6 +1309,7 @@ void GxCore::SetFlares(bool on) { this->flaresOn = on; }
 void GxCore::SetFlareHalos(bool on) { this->flareHalos = on; }
 void GxCore::SetDofStrong(bool on) { this->dofStrong = on; }
 void GxCore::SetTvFilter(bool on) { this->tvFilter = on; }
+void GxCore::SetBandwidthSave(bool on) { this->bwSave = on; }
 void GxCore::SetWiden(float factor) {
   this->widen2d.store(factor > 0.5f && factor < 2.0f ? factor : 1.0f, std::memory_order_relaxed);
 }
@@ -2639,8 +2640,6 @@ void GxCore::ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) {
   r.color = (c >> 3) & 1;
   r.alpha = (c >> 4) & 1;
   r.depth = (bp[0x40] >> 4) & 1;
-  if (r.color || r.alpha || r.depth)
-    UseEfb();  // MSAA on the tiles: the EFB back first, the clear is only the copy's region
   r.rect[0] = Lo(x);
   r.rect[1] = Lo(y);
   r.rect[2] = Lo(x + w) - Lo(x);
@@ -2650,6 +2649,12 @@ void GxCore::ClearAfterCopy(std::uint32_t control, int x, int y, int w, int h) {
   r.rgba[2] = static_cast<float>(bp[0x50] & 255) / 255.0f;
   r.rgba[1] = static_cast<float>((bp[0x50] >> 8) & 255) / 255.0f;
   r.z = static_cast<float>(bp[0x51] & 0xFFFFFF) / 16777215.0f;
+  if (!(r.color || r.alpha || r.depth))
+    return;
+  // "Save bandwidth (Vulkan)": the clear goes with the EFB's next pass (its load), not a pass of its own
+  if (DeferClear(r))
+    return;
+  UseEfb();  // MSAA on the tiles: the EFB back first, the clear is only the copy's region
   ClearRect(r);
 }
 

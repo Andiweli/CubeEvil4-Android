@@ -226,6 +226,7 @@
     <string name="ingame_toggle_value">&#x200F;%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">‏تخطي الإطارات</string>
     <string name="ingame_cpu_skip">‏تخطي الإطارات القوي</string>
+    <string name="ingame_vk_bandwidth">‏توفير عرض النطاق (Vulkan)</string>
     <string name="ingame_fxaa">‏FXAA</string>
     <string name="ingame_tv_filter">مرشّح تلفاز GameCube الأصلي</string>
     <string name="ingame_fxaa_help">‏يُنعّم الحواف المسنّنة في خطوة أخيرة. يعمل مع MSAA أو بدونه؛ تصبح الصورة أنعم قليلًا.</string>
@@ -236,6 +237,7 @@
     <string name="ingame_sharpen_help">تعيد زيادة الحدة تفاصيل الخامات التي تصبح ناعمة عند تكبير الصورة إلى الشاشة (خاصة في تنسيقات الصورة العريضة). تبقى مقاطع الفيديو كما هي.</string>
     <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
     <string name="ingame_cpu_skip_help">‏يوفر وقت المعالج في الهواتف ذات المعالج البطيء: عندما تتأخر اللعبة تتخطى إطارًا واحدًا من كل إطارين على الأكثر وتحافظ على سرعتها العادية. يعمل مع تخطي الإطارات، ولا يعمل مع 60 إطارًا في الثانية.</string>
+    <string name="ingame_vk_bandwidth_help">‏مع Vulkan فقط: بعد مسح الصورة لا تعيد شريحة الرسوميات تحميلها، مما يوفر عرض نطاق الذاكرة في شرائح Mali وAdreno. تبقى الصورة كما هي.</string>
     <string name="ingame_skip_or_smooth">‏تخطي الإطارات و60 إطارًا في الثانية لا يعملان معًا: تشغيل أحدهما يوقف الآخر.</string>
     <string name="ingame_merge_help">‏يدمج عدة أجسام في استدعاء واحد لبرنامج تشغيل الرسوميات. قد يفيد الهواتف ذات برنامج تشغيل رسوميات بطيء (مثل وحدات Mali) وقد يكلّف قليلًا على غيرها. لا يعمل ما دامت 60 إطارًا في الثانية مفعّلة.</string>
     <string name="ingame_vertex_ring_help">يرسل بيانات رؤوس كل صورة إلى شريحة الرسوميات عبر مخزن واحد يبقى معيّنًا بدلًا من مخزن جديد لكل صورة. قد يوفّر الوقت على معالجات Mali الرسومية ويستخدم ذاكرة رسوميات أكثر قليلًا. يسري فورًا.</string>

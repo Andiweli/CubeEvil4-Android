@@ -235,6 +235,11 @@ public final class CoreBridge {
    * 60 FPS (the core is told "off" then).
    */
   public static native void setCpuSkip(boolean on);
+  /**
+   * Save bandwidth (Vulkan; 0.99.8): the clear after an EFB copy goes with the next pass, which then loads nothing
+   * there (less memory traffic on a tiling GPU such as Mali or Adreno); the pictures stay the same. OpenGL ES: nothing.
+   */
+  public static native void setVkBandwidth(boolean on);
   /** FXAA: an edge smoothing pass over every finished picture. */
   public static native void setFxaa(boolean on);
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */

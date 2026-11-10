@@ -215,6 +215,7 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Salto de fotogramas</string>
     <string name="ingame_cpu_skip">Salto de fotogramas agresivo</string>
+    <string name="ingame_vk_bandwidth">Ahorrar banda (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtro de TV original de GameCube</string>
     <string name="ingame_fxaa_help">Suaviza los bordes dentados en un último paso. Funciona con o sin MSAA; la imagen queda algo más suave.</string>
@@ -225,6 +226,7 @@
     <string name="ingame_sharpen_help">Nitidez recupera el detalle de las texturas que se suaviza al ampliar la imagen a la pantalla (sobre todo en los formatos de imagen panorámicos). Los vídeos no cambian.</string>
     <string name="ingame_frame_skip_help">Si los gráficos van lentos, omite una imagen para que el juego mantenga su velocidad. Se muestran menos imágenes, nada se ralentiza.</string>
     <string name="ingame_cpu_skip_help">Ahorra tiempo de procesador en móviles con un procesador lento: si el juego se retrasa, omite como mucho una de cada dos imágenes y mantiene su velocidad normal. Funciona junto con el salto de fotogramas; se excluye con los 60 FPS.</string>
+    <string name="ingame_vk_bandwidth_help">Solo Vulkan: tras borrar la imagen, el chip gráfico ya no la vuelve a cargar, lo que ahorra ancho de banda de memoria en chips Mali y Adreno. La imagen no cambia.</string>
     <string name="ingame_skip_or_smooth">El salto de fotogramas y los 60 FPS se excluyen: al activar uno se desactiva el otro.</string>
     <string name="ingame_merge_help">Agrupa varios objetos en una sola llamada al controlador gráfico. Puede ayudar en móviles con un controlador gráfico lento (p. ej., GPU Mali) y costar un poco en otros. Sin efecto mientras los 60 FPS estén activados.</string>
     <string name="ingame_vertex_ring_help">Envía los vértices de cada imagen al chip gráfico mediante un búfer que permanece mapeado, en lugar de un búfer nuevo por imagen. Puede ahorrar tiempo en GPU Mali y usa algo más de memoria gráfica. Se aplica al instante.</string>

@@ -211,6 +211,7 @@
     <string name="ingame_toggle_value">%1$s   ·   %2$s</string>
     <string name="ingame_frame_skip">Lewati frame</string>
     <string name="ingame_cpu_skip">Lewati frame agresif</string>
+    <string name="ingame_vk_bandwidth">Hemat bandwidth (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filter TV GameCube asli</string>
     <string name="ingame_fxaa_help">Menghaluskan tepi bergerigi pada langkah terakhir. Bekerja dengan atau tanpa MSAA; gambar menjadi sedikit lebih lembut.</string>
@@ -221,6 +222,7 @@
     <string name="ingame_sharpen_help">Penajaman mengembalikan detail tekstur yang menjadi lembut saat gambar diperbesar ke layar (terutama pada format gambar lebar). Video tetap seperti aslinya.</string>
     <string name="ingame_frame_skip_help">Saat grafis tertinggal, satu gambar dilewati agar game tetap berjalan dengan kecepatan normal. Lebih sedikit gambar yang ditampilkan, tidak ada yang diperlambat.</string>
     <string name="ingame_cpu_skip_help">Menghemat waktu prosesor di ponsel dengan prosesor lambat: saat game tertinggal, paling banyak satu dari dua gambar dilewati dan game tetap berjalan dengan kecepatan normal. Bisa aktif bersama Lewati frame; tidak bersamaan dengan 60 FPS.</string>
+    <string name="ingame_vk_bandwidth_help">Hanya Vulkan: setelah gambar dibersihkan, chip grafis tidak memuatnya lagi, sehingga menghemat bandwidth memori pada chip Mali dan Adreno. Gambar tetap sama.</string>
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver grafis lambat (mis. GPU Mali) dan mungkin sedikit memperlambat ponsel lain. Tidak berpengaruh selama 60 FPS aktif.</string>
     <string name="ingame_vertex_ring_help">Mengirim data verteks setiap gambar ke chip grafis melalui satu buffer yang tetap terpetakan, bukan buffer baru setiap gambar. Dapat menghemat waktu pada GPU Mali dan memakai sedikit lebih banyak memori grafis. Langsung berlaku.</string>
