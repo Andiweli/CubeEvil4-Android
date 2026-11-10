@@ -75,9 +75,9 @@
     <string name="ingame_touch_force">Force</string>
     <string name="ingame_touch_suppress">Suppress</string>
     <string name="ingame_button_style">Button style</string>
-    <string name="ingame_button_icons">Icons</string>
-    <string name="ingame_button_labels">Labels</string>
-    <string name="ingame_button_style_help">Icons or labels on the touch buttons; the editor (the gear at the top right) has the same switch.</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE: a symbol for what each button does (the default); GC: the letters in the GameCube\'s colours, as before. The editor (the gear at the top right) has the same switch.</string>
     <string name="ingame_comfort">Comfort Controls</string>
     <string name="ingame_gyro">Gyro-Aiming</string>
     <string name="ingame_gyro_none">Gyro-Aiming (no gyroscope)</string>

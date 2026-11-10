@@ -140,7 +140,10 @@ Freigabe des Projektinhabers (10.11.2026, „Ja, übernehmen“), als Merge in `
 1.0.0-beta.10, `TouchStyle.java` (Tastenstil Symbole als Vorgabe, Beschriftung wie bisher; Editor und App-Menü →
 Steuerung → „Button style“, 11 Sprachen), `TouchStyleTest`, README-Satz, und der Touch-Stick läuft nach kurzem
 Druck (`CoreInput.touchWalk`: ab 22 % des Wegs auf der Schwelle des Spiels, voll bei 80 %; mit L oder R gehalten
-wie bisher). Merge ohne Konflikte. Geprüft: `testCoreDebugUnitTest`, `check_translations.py`, `CoreInputTests`
+wie bisher). Merge ohne Konflikte. **Namen (Wunsch des Projektinhabers, 10.11.2026):** „RE“ für Symbole
+(Vorgabe beim Touch, `TouchStyle.DEFAULT_BUTTON_STYLE` ICONS) und „GC“ für die bisherige Beschriftung, im Editor
+(`setStyleToggleLabels`) und im App-Menü, in allen 11 Sprachen unübersetzt (Arabisch mit Rechts-links-Zeichen);
+Hilfetext angepasst. Geprüft: `testCoreDebugUnitTest`, `check_translations.py`, `CoreInputTests`
 (1826 Prüfungen), `assembleCoreRelease`. Nicht geprüft: Gerät.
 
 ## Version 0.99.6-rc: Nutzerberichte nach 0.99.5 und Wünsche des Projektinhabers (09.11.2026, Branch `work`)

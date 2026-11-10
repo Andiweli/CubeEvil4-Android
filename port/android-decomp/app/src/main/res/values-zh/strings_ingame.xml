@@ -66,9 +66,9 @@
     <string name="ingame_touch_force">始终显示</string>
     <string name="ingame_touch_suppress">隐藏</string>
     <string name="ingame_button_style">按钮样式</string>
-    <string name="ingame_button_icons">图标</string>
-    <string name="ingame_button_labels">文字</string>
-    <string name="ingame_button_style_help">触屏按钮显示图标或文字；编辑器（右上角的齿轮）里也有同样的开关。</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE：按钮显示其功能的图标（默认）；GC：GameCube 配色的字母，与以前相同。编辑器（右上角的齿轮）里也有同样的开关。</string>
     <string name="ingame_comfort">便捷操作</string>
     <string name="ingame_gyro">陀螺仪瞄准</string>
     <string name="ingame_gyro_none">陀螺仪瞄准（无陀螺仪）</string>

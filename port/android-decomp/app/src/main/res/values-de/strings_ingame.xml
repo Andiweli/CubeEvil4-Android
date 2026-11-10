@@ -65,9 +65,9 @@
     <string name="ingame_touch_force">Erzwingen</string>
     <string name="ingame_touch_suppress">Unterdrücken</string>
     <string name="ingame_button_style">Tastenstil</string>
-    <string name="ingame_button_icons">Symbole</string>
-    <string name="ingame_button_labels">Text</string>
-    <string name="ingame_button_style_help">Symbole oder Text auf den Touch-Tasten; der Editor (Zahnrad oben rechts) hat denselben Schalter.</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE: ein Symbol für das, was die Taste tut (Standard); GC: die Buchstaben in den Farben des GameCube, wie bisher. Der Editor (Zahnrad oben rechts) hat denselben Schalter.</string>
     <string name="ingame_comfort">Komfortsteuerung</string>
     <string name="ingame_gyro">Gyro-Zielen</string>
     <string name="ingame_gyro_none">Gyro-Zielen (kein Gyroskop)</string>

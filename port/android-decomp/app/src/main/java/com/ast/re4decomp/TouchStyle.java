@@ -7,7 +7,8 @@ import com.ast.retrotouch.RetroTouchIcon;
 
 /**
  * The look of the touch controls in RetroTouch's two button styles (RetroTouch 1.0.0-beta.10, wish of
- * the project owner, 09.11.2026), all in one place: the style a new player gets, the icons, the shapes
+ * the project owner, 09.11.2026; named "RE" for ICONS and "GC" for LABELS in the editor and the app menu,
+ * his wish of 10.11.2026), all in one place: the style a new player gets, the icons, the shapes
  * and the colours of the ICONS style. The LABELS style is the look of 0.99.6 and earlier, unchanged:
  * the GameCube's colours (CoreTouch.COLOURS) and RetroTouch's shapes chosen from the labels.
  *

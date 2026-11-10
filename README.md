@@ -150,7 +150,7 @@ With the retail discs (European, US, Japanese) there is no debug menu; the app m
   (a change restarts the game); graphics (resolution Dynamic or 1×–4× in half steps,
   anti-aliasing, texture filter, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, FPS
   display, 60 FPS (experimental), Force Performance: Default or Use performance cores, Potato mode: weather and
-  special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress, button style Icons or Labels; comfort
+  special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress, button style RE or GC; comfort
   controls: Alternate Controls, gyro aiming with its sensitivity and inversion, knife by swipe,
   Latch L and R, Latch B, Auto aim, Always run; Controller Configuration), cheats (infinite health, infinite ammo,
   one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export
@@ -189,8 +189,8 @@ controller is connected). In the inventory you can tap items, files and the map,
 right to change the tab. When a quick-time prompt flashes up (L+R, A+B, mash A …), a tap on it (or
 anywhere on the picture) presses its buttons; tap again and again to mash. The editor (gear) can
 add an **R3** button (graphics capture for error reports, as on a controller).
-Button style (app menu → Controls → Button style, or the style button in the editor): **Icons**
-(the default: a symbol for what each button does, in dark brown and gold) or **Labels** (the letters
+Button style (app menu → Controls → Button style, or the style button in the editor): **RE**
+(the default: a symbol for what each button does, in dark brown and gold) or **GC** (the letters
 in the GameCube's colours, as before); the switch takes effect at once and keeps your layout.
 
 **Comfort controls** (app menu → Controls)
