@@ -49,6 +49,28 @@ Lens Flares, 60 FPS mit Zwischenbildern an) und drei Bildschirmfotos (Pistole mi
   0 Fehler; strenge Shaderprüfung 1118 Shader, 0 abgelehnt.
 - **Nicht geprüft:** auf einem Gerät (Adreno 840 des Nutzers, Retroid).
 
+### 2. „Bug using Ada Wong with fully upgrade Tmp“ (Nutzerbericht, Xiaomi 2311DRK48G, 0.99.7, ARM64)
+
+Bericht `E:\Development\Android\reports\0998-ada-tmp-20261110-085522` (ohne Beschreibung, ohne Bild): Cheats
+automatische QTEs, Zufallsgegenstände, Ada als Spielfigur ab r20a (vorher Leon); in r20a die TMP aus dem Koffer
+ausgerüstet (`Wep39 ADA-MACHINEGUN`, weapon 0x0b), gezielt, ein kurzer Schuss, R+B, START-Menü, Bericht. Kein
+Absturz, keine auffällige Zeile im Log.
+
+- **PC (EU-Discs, Debug-Start r20a, `RE4_TEST_CHEAT_SET=free+5:64`, `RE4_TEST_WEAPON=free+80:0x0b,T,lv=0x5025` =
+  Feuerkraft 5, Magazin 250, Nachladen 2; T 0 ohne und 1 mit Schaft; R halten, A 150 Bilder, B), i686 und
+  x86_64 (`~/p0998/dbg64.sh`):** Ada zielt (Laser), schießt Dauerfeuer (250 → 199), Waffe in der Hand, Mündungsfeuer,
+  Hülsen; in allen vier Läufen gleich. **Nicht nachgestellt.** Fragen an den Nutzer über die Hauptsitzung.
+
+### 3. Hinzugefügter L-Knopf im Stil RE ist quadratisch (Touch, RetroTouch 1.0.0-beta.10)
+
+Die Form gibt die App pro Aktion (`setButtonShape`, ROUNDED_RECT für L/R, CAPSULE für START/MENU), das
+Seitenverhältnis aber nur pro Knopf des Standardlayouts: RetroTouch (`RetroTouchView.applyPresentation`) holt
+Farbe, Form und Seitenverhältnis bei jedem Laden über die Kennung des Knopfs aus dem Standardlayout. Ein mit ADD
+angelegter Knopf (`button_N`) hat dort keinen, bekommt 1,0 und wird mit der Form der Aktion ein abgerundetes
+Quadrat; ein mit ACTION umbelegter Knopf behält das Verhältnis seines alten Platzes. In beta.10 gibt es kein
+Seitenverhältnis pro Aktion: **dafür braucht es eine RetroTouch-Änderung** (z. B. `setButtonAspect(action,
+aspect)`, genommen, wenn der Knopf im Standardlayout fehlt oder dort eine andere Aktion hat). Nicht geändert.
+
 ## Version 0.99.7-rc: Fehler und Wünsche nach 0.99.6 (09.11.2026, Branch `work0997`)
 
 Version 0.99.7-rc (versionCode 109), Releasetext `port/android-decomp/docs/releases/v0.99.7-rc.md` („Changes since
