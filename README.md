@@ -89,31 +89,6 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | Gyroscope | – | for gyro aiming (optional) |
 | Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`), the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
 
-## Status
-
-Beta: the whole game can be played from start to finish.  
-Tested on the following devices:
-- Retroid Pocket Flip 2 (Android 13)
-- POCO X7 Pro (Android 16)
-- Samsung Galaxy S10 (SCV40, Android 10): played from the village to the end credits
-
-Played through on a 64-bit phone: title, movies, every chapter up to the jet ski ride and the end
-credits; saving at the typewriter and loading on 32- and 64-bit devices. With the European discs,
-the first chapters were played in German on the Retroid, boss fights included. On the PC, a tour
-starts each of the game's 126 rooms without a crash, with the debug discs and with the European
-discs, and a comparison run plays the 32- and 64-bit core
-with the same input through the first parts and finds every frame and every compared picture
-identical. An effect can stutter briefly the first time it appears while its shader is built; the
-app prepares the 9006 shaders it knows ahead (village, lake, castle, much of the island), the
-rest follows from testers' reports. Progress, test results and every patch are
-recorded in `port/docs/whole-program-status.md` (German).
-
-> [!IMPORTANT]
-> With the debug discs, the game's debug menu is still switched on for the test runs: holding
-SELECT opens it (rooms are chosen there). Use the debug menu with care: it is
-the developers' internal tool from 2004, and some of its options can hang or crash the game or
-leave the game (and a save made afterwards) in an odd state. Such problems come from the debug build itself, not from the port.
-With the retail discs (European, US, Japanese) there is no debug menu; the app menu has cheats instead (Cheats).
 
 ## How to use?
 
