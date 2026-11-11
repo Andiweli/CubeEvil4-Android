@@ -72,7 +72,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   inventory; comfort controls: gyro aiming, knife by swipe, latching L, R and B; with a controller,
   X, Y, L1, R1, L3 and R3 can take other functions (Controller Configuration).
   SELECT opens the app menu (graphics, sound, controls, performance, cheats, memory card, error report).
-- Android 6.0 or later, OpenGL ES 3.0.
+- Android 7.0 or later, OpenGL ES 3.0.
 
 ## Requirements
 
@@ -92,7 +92,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 
 **You need**
 
-- An Android device with Android 6.0 or later, OpenGL ES 3.0 and a 32- or 64-bit ARM processor
+- An Android device with Android 7.0 or later, OpenGL ES 3.0 and a 32- or 64-bit ARM processor
   (details and recommendations: [Requirements](#requirements)).
 - A game controller (built in, USB or Bluetooth) or the touch screen: the touch controls appear
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
