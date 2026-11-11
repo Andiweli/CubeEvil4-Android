@@ -231,6 +231,77 @@ void stripBow(const char* why)
     }
 }
 
+// ---- Wesker's silencer in the story (0.99.10, the project owner 11.11.2026: "Ja, einbauen") ------------------------
+// His Mercenaries handgun is item 0x23 with the silencer 0x3F put on it (item.cpp set_char 5: the part's bullet = the
+// handgun's slot, lv 1); together they are 0x24, weapon 2 type 1, which his own file has (wep43 with both models,
+// ownWeapon). The story has no silencer (no merchant, no place). While Wesker plays the story each room start gives it
+// when it is missing and puts it on the handgun 0x23 (none in the case: none given). It also fits Leon's Punisher
+// 0x21 and Blacktail 0x27 (item.cpp combination_info: 0x22, 0x28, Leon's files; his debug item set 3 has the silencer
+// with them): put there by the player in the case it stays. Anyone else plays (Ashley's part apart): it leaves the
+// case, the pistol it was on is that pistol again (cItemMgr::erase re-arms with the new id); saves on the memory card
+// never keep it (re4_story_char_card_items, patch 0228).
+const u16 kSilencer = 0x3F, kWeskerGun = 0x23;
+
+// The weapon the room start reads (ReadWepData with pG->weapon_no / weapon_type) as the armed slot is now, when
+// `gun` is the armed one (a part put on or taken off).
+void heldAgain(cItem* gun)
+{
+    if (!gun || ItemMgr.weapon() != gun) {
+        return;
+    }
+    ItemMgr.arm(gun);
+    const u16 id = ItemMgr.weaponId();
+    pG->weapon_no = (u8) WeaponId2WeaponNo(id);
+    pG->weapon_type = (u8) WeaponId2WeaponType(id);
+}
+
+// Wesker plays the story (each room start): the silencer when it is missing, on the handgun 0x23. 1 given, 2 there
+// already, 0 no handgun 0x23 in the case, -1 no room.
+int giveSilencer()
+{
+    if (ItemMgr.search(kSilencer)) {
+        return 2;
+    }
+    cItem* gun = ItemMgr.search(kWeskerGun);
+    if (!gun) {
+        re4_log("cheat: Wesker's silencer: no handgun 0x23 in the case (r%03x)", (unsigned) pG->room_id);
+        return 0;
+    }
+    cItem* s = 0;
+    if (!ItemMgr.get(kSilencer, 0) || !(s = ItemMgr.newbie()) || s->id != kSilencer) {
+        re4_log("cheat: Wesker's silencer: no free slot in the inventory (r%03x)", (unsigned) pG->room_id);
+        return -1;
+    }
+    ItemMgr.partsCombine(gun, s);
+    heldAgain(gun);
+    re4_log("cheat: Wesker's silencer on his handgun (0x%02x%s, r%03x)", (unsigned) ItemMgr.weaponId(gun),
+            ItemMgr.weapon() == gun ? ", in his hands" : "", (unsigned) pG->room_id);
+    return 1;
+}
+
+// The silencer out of the case (anyone but Wesker plays); `why` for the log.
+void stripSilencer(const char* why)
+{
+    int count = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+        if (!(p->flags & 1) || p->id != kSilencer) {
+            continue;
+        }
+        cItem* gun = p->lv == 1 ? ItemMgr.at(p->bullet) : 0;
+        const u16 was = gun ? ItemMgr.weaponId(gun) : 0;
+        ItemMgr.dumpAll(p);
+        heldAgain(gun);
+        count++;
+        re4_log("cheat: Wesker's silencer out of the case%s: %s", gun ? "" : " (it was on no pistol)", why);
+        if (gun) {
+            re4_log("cheat: the pistol 0x%02x is 0x%02x again%s", (unsigned) was, (unsigned) ItemMgr.weaponId(gun),
+                    ItemMgr.weapon() == gun ? " (in the hands)" : "");
+        }
+    }
+    (void) count;
+}
+
 bool extrasUnlocked()
 {
     return ExtFlagChk(pSys, EXT_HARD_MODE) && ExtFlagChk(pSys, EXT_GET_OMAKE_ADA_GAME) &&
@@ -1239,17 +1310,24 @@ void re4_story_char_room(void)
     }
     re4_story_ganado = standIn() && gSetType == pG->pl_type;
     // Krauser's bow (0.99.10): his own weapon while he plays the story, with the arrows up to 40 at each room
-    // start; nobody else has a file for it; Ashley's part keeps Leon's case as it is
+    // start; nobody else has a file for it. Wesker's silencer (0.99.10) the same way. Ashley's part keeps Leon's case
+    // as it is
+    char why[48];
+    snprintf(why, sizeof(why), "%s plays from r%03x on", kCharName[pG->pl_type & 7], (unsigned) pG->room_id);
     if (pG->pl_type == 4 && standIn()) {
         giveBow();
     } else if (pG->pl_type != 1) {
-        char why[48];
-        snprintf(why, sizeof(why), "%s plays from r%03x on", kCharName[pG->pl_type & 7], (unsigned) pG->room_id);
         stripBow(why);
+    }
+    if (pG->pl_type == 5 && standIn()) {
+        giveSilencer();
+    } else if (pG->pl_type != 1) {
+        stripSilencer(why);
     }
 }
 
-// Patch 0228 (card.cpp cCard::makeSaveData): the save file's image without Krauser's bow and arrows, as it is Leon's
+// Patch 0228 (card.cpp cCard::makeSaveData): the save file's image without Krauser's bow and arrows (and Wesker's
+// silencer, 0.99.10), as it is Leon's
 // save (re4_story_char_save): `items` its item block (cItemMgr::save's _ITEM_SAVE_DATA, host order), `game` its
 // copy of the save block that starts at pG->save_data_start_addr (the weapon a load reads: empty hands instead of the
 // bow). Only the file's image: the game plays on with the case as it is, and the continue point (made just before
@@ -1289,6 +1367,43 @@ void re4_story_char_card_items(u8* game, u8* items)
     if (bows || arrows || held) {
         re4_log("cheat: the save on the memory card without Krauser's bow (%d) and %d arrows%s (Leon's save)", bows,
                 arrows, held ? ", empty hands instead of the bow" : "");
+    }
+    // Wesker's silencer (0.99.10): out of the file too; a pistol in the hands that had it is that pistol again (the
+    // save's weapon id and the weapon the load reads, with the parts still on it)
+    int silencers = 0;
+    bool onHeld = false;
+    for (int i = 0; i < 0x180; i++) {
+        ItemSaveWork& w = sd->item_list[i];
+        if (w.id == 0xFFFF || (w.id & 0x7FFF) != kSilencer) {
+            continue;
+        }
+        if (w.num == 1 && sd->arm_no != 0xFFFF && w.bullet == sd->arm_no) {
+            onHeld = true;
+        }
+        memset(&w, 0, sizeof(w));
+        w.id = 0xFFFF;
+        silencers++;
+    }
+    u16 held2 = 0;
+    if (onHeld && sd->arm_no < 0x180 && sd->item_list[sd->arm_no].id != 0xFFFF) {
+        u16 id = sd->item_list[sd->arm_no].id & 0x7FFF;
+        for (int j = 0; j < 0x180; j++) {
+            const ItemSaveWork& q = sd->item_list[j];
+            if (q.id != 0xFFFF && itemType(q.id & 0x7FFF) == 9 && q.num == 1 && q.bullet == sd->arm_no) {
+                itemCombine(id, q.id & 0x7FFF, &id);
+            }
+        }
+        sd->wep_id = id;
+        *weaponNo = (u8) WeaponId2WeaponNo(id);
+        *weaponType = (u8) WeaponId2WeaponType(id);
+        held2 = id;
+    }
+    if (silencers) {
+        char hands[48] = "";
+        if (held2) {
+            snprintf(hands, sizeof(hands), ", the pistol in the hands 0x%02x", (unsigned) held2);
+        }
+        re4_log("cheat: the save on the memory card without Wesker's silencer (%d)%s (Leon's save)", silencers, hands);
     }
 }
 

@@ -35,7 +35,7 @@ public class ImmersiveTest {
         dialog.getWindow().getAttributes().flags & WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
   }
 
-  private static void idle() { Shadows.shadowOf(android.os.Looper.getMainLooper()).idle(); }
+  private static void idle() { TestLooper.idle(); }
 
   @Test public void aQuestionKeepsTheFullScreen() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).setup()) {

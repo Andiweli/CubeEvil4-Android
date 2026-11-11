@@ -212,7 +212,8 @@ Mercenaries-Ausrüstung) mit der Geschichte und `ownWeapon` (welche Waffen eigen
   0x3F**: kein Händler, kein Fundort. Ihn wie den Bogen zu geben wäre größer als beim Bogen: er ist ein Teil, das an
   Leons Pistolen passt (`combination_info` 0x23/0x21/0x27 + 0x3F → 0x24/0x22/0x28), d. h. Leons Spielstände bekämen
   neue Waffen-Abarten, deren Modelle für Leon ungeprüft sind; Weskers eigene Pistole `wep43` hat beide Modelle.
-  Vorschlag: nur auf Wunsch, dann mit derselben Regel wie beim Bogen (nur Wesker, nie im Spielstand).
+  Vorschlag: nur auf Wunsch, dann mit derselben Regel wie beim Bogen (nur Wesker, nie im Spielstand). Gewünscht und
+  gebaut: Abschnitt 7.5.
 - **Bewegungen:** seit 0.98.1 (Patch 0197 und `loadStandInSet`, PC-Prüfung 04./05.11.2026): Ada Tritte und Griffe,
   HUNK Genickbruch, Krauser Doppeltritt und Armangriff (X ohne Ashley), Wesker Handstoß und Fersentritt (Antwort des
   Ganados) aus den Mercenaries-Dateien der Figuren. Damals nicht ausgelöst: Krausers Kniestoß. In dieser Runde nicht
@@ -282,6 +283,45 @@ anderen 3 wie gehabt und am Ende der grüne Benchmark Button … Die Texte darun
   das Aufleuchten endet.
 - **Nicht geprüft:** alles auf einem Gerät (die neuen Zahlen auf dem Retroid, die Popups mit den neuen Texten, die
   Wache bei offenen Popups, die Profilzeile); der Prüfmodus (B2) läuft nur in der App, am PC nur seine Bausteine.
+
+**7.5 Weskers Schalldämpfer** (Antwort des Projektinhabers auf die Frage aus 7.2: „Ja, einbauen“).
+- **Gebaut (`runtime/cheats.cpp`):** `giveSilencer` beim Raumstart, solange Wesker die Geschichte spielt: der
+  Schalldämpfer 0x3F, falls er fehlt, auf die Pistole 0x23 (`cItemMgr::partsCombine`, wie der Koffer; zusammen 0x24,
+  Waffe 2 Typ 1, Weskers `wep43` hat beide Modelle); hält er die Pistole, liest der Raumstart sie mit Schalldämpfer
+  (`heldAgain`: `pG->weapon_no`/`weapon_type` aus der neuen Kennung). Ohne Pistole 0x23 im Koffer: keiner. Setzt der
+  Spieler ihn im Koffer auf die Punisher (0x22) oder Blacktail (0x28), bleibt er dort (Leons Dateien, Modelle
+  vorhanden). `stripSilencer` für alle anderen (Ashleys Abschnitt ausgenommen): der Schalldämpfer verlässt den Koffer,
+  die Pistole ist wieder sie selbst (`cItemMgr::erase` rüstet neu aus; in der Hand mit Typ 0). **Entscheidung für
+  Leon:** entfernen statt nur abnehmen, wie beim Bogen (der Schalldämpfer gehört Wesker, Leons Spielstände sollen für
+  GameCube und Dolphin normal bleiben). Patch 0228 (`re4_story_char_card_items`): Spielstand ohne Schalldämpfer, eine
+  Pistole in der Hand mit Schalldämpfer wird im Spielstand zur Pistole ohne (Waffenkennung und Typ des Spielblocks,
+  andere angesetzte Teile bleiben). Nebenwirkung: Leons Debug-Ausrüstung 3 (nur Debug-Discs) verliert ihren
+  Schalldämpfer beim nächsten Raumstart. Hilfetext der Figurenwahl: ein Satz zu Wesker (11 Sprachen). Prüfhilfe
+  `RE4_TEST_PART="free+N:WAFFE:TEIL"` (`state_trace.cpp`: Teil ansetzen wie „Kombinieren“, fehlende Waffe/Teil neu).
+- **Geprüft am PC (i686 -O2, `~/p09910/silencertests.sh`, Log `~/p09910/silencertests.log`, Bilder
+  `~/p09910/pics/sil`):** Debug r100 Wesker: „silencer on his handgun (0x24, in his hands)“, Schreibmaschine: Datei
+  ohne Schalldämpfer, „the pistol in the hands 0x23“, CRC in Ordnung; als Leon geladen: kein Schalldämpfer; mit
+  Wesker geladen: wieder dran. EU r101 Wesker → Leon mit der Pistole in der Hand: „out of the case“, „the pistol 0x24
+  is 0x23 again (in the hands)“, Leon zielt mit der Pistole ohne Schalldämpfer (Bild). Leon allein: keine Zeile. US
+  r101, EU r200, r305: Wesker zielt und schießt mit Schalldämpfer (Bild: Schalldämpfer am Lauf). EU r101 Wesker mit
+  Schalldämpfer an Punisher und Blacktail: beide im Bild mit Schalldämpfer, Schüsse. Spielstand mit der Pistole mit
+  Schalldämpfer in der Hand, als Leon geladen: Waffe 0x02, Leon zielt und schießt. Leon mit Schalldämpfer an der
+  Pistole (wie Debug-Ausrüstung 3): Modell vorhanden; der nächste Raumstart nimmt ihn ab. Keine Abstürze. Kern i686
+  -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät; Händler (Verkaufen/Tunen der Pistole mit Schalldämpfer); JP-Discs.
+- **Robolectric-Hänger (Nachtrag):** in den nächsten vollen Läufen hing `CoreMenuLayoutTest` an weiteren Stellen
+  (`warning`: `idle()` nach dem Anzeigen der Warnung; `managementOffersOtherDiscsAndAsksFirst`: `idle()` nach der
+  Rückfrage). 20 Stapelproben: `Choreographer.doFrame` → `AnimationHandler` → `AnimatorSet.doAnimationFrame` (wie die
+  Zustands-Animation eines Knopfs), und mit jedem Bild stellt Robolectric die Uhr weiter, sodass `idle()` nie endet.
+  Neue Hilfe `TestLooper` (Testquellen): `idle()` mit höchstens 3000 Aufgaben; ist der Looper dann noch beschäftigt,
+  werden die laufenden Animationen mit Dauer und Kind-Animationen auf stderr genannt (Testbericht) und angehalten.
+  Benutzt in `CoreMenuLayoutTest` (auch vor jedem Test), `ImmersiveTest`, `CoreMenuShotTest`. **Der erste Bericht nennt
+  sie:** das `AnimatorSet` der Zustands-Animation eines Material-Knopfs (`translationZ` 0 → 0 in 100 ms, `elevation`
+  0 → 2), Ziel schon `null` (der Knopf eines geschlossenen Dialogs), „running true“. Eine Animation des Android-
+  Rahmens, keine der App; in Robolectric kommt sie nicht ans Ende, weil die Uhr zwischen den Tests neu beginnt und der
+  Startpunkt der Animation dann in der Zukunft liegt. Auf Geräten endet sie nach 100 ms (auf dem Retroid mit
+  142a52b8 kein Hängen oder Flackern der Menüs). Mit `TestLooper` läuft die Klasse durch (15 Tests, im Bericht die
+  Zeile oben).
 
 ## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
 
@@ -15192,7 +15232,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0225 `roomdata.cpp` | Port-Fehler (`.gci`-Import bis 0.99.6, `runtime/gci.cpp` drehte `RoomNo` als u16): `cRoomData::load`/`clear` drehen die Kennungen der Raum-Datensätze eines Spielstands zurück, wenn mit umgedrehten Kennungen mehr Räume passen als mit den eigenen (Spielstände der App bleiben unberührt). Vorher verloren importierte Spielstände 109 von 121 Räumen, r102/r201, r103/r301, r204/r402, r304/r403 tauschten ihre Merker (Garrador in r201 angekettet, Schlüssel fehlt). Nutzerbericht 09.11.2026 (17 `.gci`, EU) |
 | 0226 `r201.cpp` | Sicherheitsnetz neben 0225: Merker 0 von r201 („Garrador tot“) ohne sein Todes-Bit in der Gegnerliste (Eintrag 0x56) wird zurückgesetzt, der Garrador kommt frei (nicht bei Sprungpunkt 2). Für Spielstände, die nach einem alten Import in der App neu gespeichert wurden. Nutzerbericht 09.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
-| 0228 `card.cpp` | Krausers Bogen in der Geschichte (0.99.10, Nutzerwunsch über den Projektinhaber, Cheat-Knopf 10, `runtime/cheats.cpp` `giveBow`): `cCard::makeSaveData` lässt im Bild der Spielstand-Datei Bogen (0x52) und Pfeile (0x72) weg und macht aus dem Bogen in der Hand leere Hände (belegter Platz, `weapon_no`/`weapon_type` des Spielblocks), denn ein Spielstand ist immer Leons und Leon hat keine Datei für Waffe 0x1C (`re4_story_char_card_items`). Das laufende Spiel und der Fortsetzungspunkt behalten den Bogen. Port-Funktion |
+| 0228 `card.cpp` | Krausers Bogen in der Geschichte (0.99.10, Nutzerwunsch über den Projektinhaber, seit dem Retroid-Test bei jedem Raumstart statt Cheat-Knopf 10, `runtime/cheats.cpp` `giveBow`) und Weskers Schalldämpfer (0x3F, `giveSilencer`): `cCard::makeSaveData` lässt im Bild der Spielstand-Datei Bogen (0x52), Pfeile (0x72) und Schalldämpfer weg, macht aus der Pistole mit Schalldämpfer in der Hand die Pistole ohne und aus dem Bogen in der Hand leere Hände (belegter Platz, `weapon_no`/`weapon_type` des Spielblocks), denn ein Spielstand ist immer Leons und Leon hat keine Datei für Waffe 0x1C (`re4_story_char_card_items`). Das laufende Spiel und der Fortsetzungspunkt behalten den Bogen. Port-Funktion |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

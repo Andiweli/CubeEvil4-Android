@@ -201,6 +201,11 @@
 //   RE4_TEST_ARM="free+N:ID"  N frames after the player is free, the case's item ID (hex) is armed and its weapon
 //                          file read and made, as the case's "Equip" does (weaponRelease, weaponLoad, weaponInit):
 //                          Krauser's bow 0x52, which he has in the story from the room start on (0.99.10)
+//   RE4_TEST_PART="free+N:WEAPON:PART"  N frames after the player is free, the part PART (hex; from the case, or a
+//                          new one) put on the case's weapon WEAPON (hex; a new one when the case has none) as the
+//                          case's "Combine" does
+//                          (cItemMgr::partsCombine): Wesker's silencer 0x3F on the Punisher 0x21 or Blacktail 0x27;
+//                          RE4_TEST_ARM after it arms the weapon with the part (0.99.10)
 //   RE4_TEST_ASHLEY_DIES="free+N"  N frames after the player is free, Ashley's life becomes 0 once: the
 //                          player's dejection (routine 6) before the game over (0.99.3, Ada's pose)
 //   RE4_TEST_PL_MOTION="free+N:IDX[-LAST/EVERY][,SEQ][,own]"  N frames after the player is free, Leon's
@@ -725,6 +730,8 @@ unsigned g_plMotion, g_plMotionLast, g_plMotionEvery, g_plMotionSeq;
 bool g_plMotionOwn;
 long g_armAfter = -1;        // RE4_TEST_ARM
 int g_armItem;
+long g_partAfter = -1;       // RE4_TEST_PART
+int g_partWeapon, g_partItem;
 long g_wepTypeAfter = -1;    // RE4_TEST_WEPTYPE
 long g_benchAt[4] = {-1, -1, -1, -1};  // RE4_TEST_BENCH
 int g_benchCmd[4];
@@ -2194,6 +2201,25 @@ void frame(unsigned n)
         pPL->weaponInit();
         re4_log("run: weapon %d made again with type %d at frame %u (RE4_TEST_WEPTYPE)", (int) g->weapon_no, g_wepType, n);
     }
+    // RE4_TEST_PART (0.99.10): a part put on a weapon of the case, as the case's "Combine" does (the part from the
+    // case, or new when it has none)
+    if (g_partAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_partAfter && g->Rno0 == 3 && live(pPL)) {
+        g_partAfter = -1;
+        cItem* gun = ItemMgr.search((ITEM_ID) g_partWeapon);
+        if (!gun && ItemMgr.get((ITEM_ID) g_partWeapon, 0)) {
+            gun = ItemMgr.newbie();  // a weapon the case lacks: new
+        }
+        cItem* part = ItemMgr.search((ITEM_ID) g_partItem);
+        if (gun && !part && ItemMgr.get((ITEM_ID) g_partItem, 0)) {
+            part = ItemMgr.newbie();
+        }
+        if (gun && part && ItemMgr.partsCombine(gun, part)) {
+            re4_log("run: part 0x%02x on 0x%02x: 0x%02x at frame %u (RE4_TEST_PART)", g_partItem, g_partWeapon,
+                    (unsigned) ItemMgr.weaponId(gun), n);
+        } else {
+            re4_log("run: part 0x%02x not put on 0x%02x at frame %u (RE4_TEST_PART)", g_partItem, g_partWeapon, n);
+        }
+    }
     // RE4_TEST_ARM (0.99.10): an item of the case armed, its weapon file read and made, as the case's "Equip"
     if (g_armAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_armAfter && g->Rno0 == 3 && live(pPL)) {
         g_armAfter = -1;
@@ -2818,6 +2844,14 @@ void configure()
             g_benchAt[i] = strtol(at + (g_benchTitle[i] ? 6 : 5), &end, 10);
             g_benchCmd[i] = end && *end == ':' ? (int) strtol(end + 1, &end, 10) : 0;
             at = end && *end == ',' ? end + 1 : 0;
+        }
+    }
+    if (const char* part = getenv("RE4_TEST_PART")) {
+        if (strncmp(part, "free+", 5) == 0) {
+            char* end = 0;
+            g_partAfter = strtol(part + 5, &end, 10);
+            g_partWeapon = end && *end == ':' ? (int) strtoul(end + 1, &end, 16) : 0;
+            g_partItem = end && *end == ':' ? (int) strtoul(end + 1, 0, 16) : 0;
         }
     }
     if (const char* arm = getenv("RE4_TEST_ARM")) {

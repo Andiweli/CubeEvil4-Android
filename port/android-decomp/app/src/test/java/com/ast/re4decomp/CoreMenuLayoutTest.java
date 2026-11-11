@@ -40,6 +40,13 @@ public class CoreMenuLayoutTest {
     @Implementation public static void setPotato(int mask) { potato = mask; }
   }
 
+  /** An endless animation in this SDK 28 sandbox's main thread kept Robolectric's idle() busy for good (full runs hung
+   *  three times, 11.11.2026; TestLooper): one left from before is named on stderr and stopped before each test, and
+   *  the tests wait for the looper with TestLooper.idle (bounded). */
+  @org.junit.Before public void noAnimationLeftRunning() {
+    TestLooper.stopAnimations("left running before " + getClass().getSimpleName());
+  }
+
   private static Object field(Object owner, String name) throws Exception {
     Field f = owner.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(owner);
   }
@@ -551,8 +558,7 @@ public class CoreMenuLayoutTest {
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());
       // the flash ends after CHEAT_FLASH_MS: the main looper's tasks one by one, at most 2000 (idleMainLooper ran for
-      // ever twice in a full run, 11.11.2026: an endless animation left in this SDK 28 sandbox by another test class
-      // brought a new frame each time Robolectric's clock moved on, so the looper never became idle)
+      // ever in a full run, 11.11.2026, see TestLooper)
       org.robolectric.shadows.ShadowLooper looper = org.robolectric.shadows.ShadowLooper.shadowMainLooper();
       for (int n = 0; killer7.isSelected() && n < 2000; n++) looper.runOneTask();
       assertFalse(killer7.isSelected());
@@ -611,7 +617,7 @@ public class CoreMenuLayoutTest {
     android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
     assertNotNull("a warning for " + name, ask);
     assertTrue("the warning for " + name + " is shown", ask.isShowing());
-    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // laid out
+    TestLooper.idle();  // laid out
     View decor = ask.getWindow().getDecorView();
     TextView title = findText(decor, name);
     TextView text = findText(decor, activity.getString(R.string.ingame_cheat_character_warning));
@@ -648,14 +654,14 @@ public class CoreMenuLayoutTest {
   }
   private static void ok(android.app.AlertDialog ask) {
     understood(ask).performClick();
-    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
+    TestLooper.idle();  // the dialog posts its answer
     assertFalse(ask.isShowing());
   }
   private static void press(android.app.Dialog dialog, int key) {
-    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // laid out: the keys reach its buttons
+    TestLooper.idle();  // laid out: the keys reach its buttons
     dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, key));
     dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, key));
-    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+    TestLooper.idle();
   }
 
   @Test public void navigationHasBoldTitleAndNormalSmallerSummary() throws Exception {
@@ -793,13 +799,13 @@ public class CoreMenuLayoutTest {
       assertNotNull("it asks first", ask);
       assertEquals(0, calls[0]);
       ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
-      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
+      TestLooper.idle();  // the dialog posts its answer
       assertEquals("Cancel keeps the game", 0, calls[0]);
       discs.performClick();
       ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
       assertEquals(activity.getString(R.string.ingame_start_screen), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
       ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
-      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      TestLooper.idle();
       assertEquals("Start screen ends the game for the start screen", 1, calls[0]);
     }
   }
@@ -825,13 +831,13 @@ public class CoreMenuLayoutTest {
       android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
       assertNotNull("it asks first", ask);
       ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
-      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      TestLooper.idle();
       assertEquals("Cancel keeps the shaders", 0, calls[0]);
       clear.performClick();
       ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
       assertEquals(activity.getString(R.string.ingame_restart), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
       ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
-      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      TestLooper.idle();
       assertEquals("Restart clears the shader cache", 1, calls[0]);
     }
   }

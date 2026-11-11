@@ -1,5 +1,7 @@
 # Port patch, a user's wish through the project owner (11.11.2026, version 0.99.10; port/docs/whole-program-status.md):
-# the cheat menu's "Krauser's bow" while Krauser plays the story (runtime/cheats.cpp giveBow). His bow (item 0x52,
+# Krauser's bow while Krauser plays the story (runtime/cheats.cpp giveBow at each room start; a cheat button at first)
+# and Wesker's silencer while he does (item 0x3F on the handgun, giveSilencer; its save handling in the same function,
+# the pistol in the hands without it). His bow (item 0x52,
 # weapon 0x1C) and arrows (item 0x72) have no file for Leon (read.cpp wep_data_leon 0x1C is empty), and a save is
 # always Leon's (patch 0195, re4_story_char_save), for the GameCube and Dolphin as well. cCard::makeSaveData: the
 # save file's image leaves the bow and the arrows out of its item block, and a bow in the hands becomes empty hands

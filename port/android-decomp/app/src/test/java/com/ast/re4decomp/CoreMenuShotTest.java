@@ -78,7 +78,7 @@ public class CoreMenuShotTest {
         show.invoke(menu, 5, false);
         View hunk = withText(body, "HUNK");
         hunk.performClick();
-        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // shown: its look is set
+        TestLooper.idle();  // shown: its look is set
         android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
         View decor = ask.getWindow().getDecorView();
         decor.setLayoutDirection(config.getLayoutDirection());

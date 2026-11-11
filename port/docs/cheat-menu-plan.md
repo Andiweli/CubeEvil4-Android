@@ -226,6 +226,19 @@ Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-ch
   Abschnitt ausgenommen). Spielstände auf der Speicherkarte (Patch 0228, `cCard::makeSaveData`) enthalten sie nie;
   das laufende Spiel und der Fortsetzungspunkt behalten sie.
 
+### Weskers Schalldämpfer (0.99.10, Antwort des Projektinhabers „Ja, einbauen“, 11.11.2026)
+
+- Wie der Bogen: spielt Wesker die Geschichte, legt jeder Raumstart den Schalldämpfer (Gegenstand 0x3F, ein Teil wie
+  Schaft und Zielfernrohr) in den Koffer, falls er fehlt, und setzt ihn auf die Pistole 0x23 (zusammen 0x24, Waffe 2
+  Typ 1, Weskers eigene Datei `wep43` hat beide Modelle). Ohne Pistole 0x23 im Koffer gibt es keinen.
+- Er passt auch auf Punisher (0x21 → 0x22) und Blacktail (0x27 → 0x28) mit Leons Dateien (Leons Debug-Ausrüstung 3 hat
+  ihn mit beiden); setzt der Spieler ihn dort im Koffer an, bleibt er dort.
+- Spielt jemand anderes (außer Ashleys Abschnitt): er verlässt beim Raumstart den Koffer, die Pistole, an der er war,
+  ist wieder sie selbst (in der Hand ebenso, ohne Neuladen eines anderen Modells); Spielstände auf der Speicherkarte
+  (Patch 0228) enthalten ihn nie, eine Pistole in der Hand mit Schalldämpfer wird im Spielstand zur Pistole ohne.
+- Nebenwirkung: Leons Debug-Ausrüstung 3 (nur Debug-Discs, Debug-Menü) verliert ihren Schalldämpfer beim nächsten
+  Raumstart und in Spielständen.
+
 ### Grenzen (bewusst so)
 
 - Zwischensequenzen, Funksprüche und Leons Stimme bleiben Leon; die Figur erscheint im Spiel selbst.
