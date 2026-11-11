@@ -66,6 +66,38 @@ RE-Touch-Knöpfe, Bildformat „Nativ“).
 - **Nicht geprüft:** auf einem Gerät; die Fernglas-Schnitte in r10b und r214 (gleiche Bedingung, nicht eigens
   angespielt).
 
+### 5. Texte ragen bei „4:3“ links über ihre Kästen (Nutzerbericht über den Projektinhaber, „wieder“)
+
+„Ein User meldet auch wieder die überlappenden Texte links in den Feldern wenn man 4:3 oder 4:3 GC benutzt.“
+Bilder `E:\Development\Android\reports\09910-text-overlap-43\` (Koffer → Akten → „Village Files“, Händler BUY
+„Attache Case XL“; Anzeige „1280×896 (2×)“, Version unbekannt). „Wieder“: Der Bericht zu 0.99.2 Punkt 8
+(`reports/0992-43-hud-cut-20261108-005243/screenshot-files-menu.jpg`, `aspect=3`) zeigt dieselbe Überlappung; damals
+wurde nur die halb verdeckte Lebensanzeige behoben (8a5959a6).
+
+- **Ursache:** Seit 0.95 (3ad0aadf, „4:3 (exakt)“, 29.10.2026) zeichnet die App bei „4:3“ (Format 3) alle flachen
+  Zeichnungen über den ganzen Bildschirm 15/14 breiter um die Bildmitte (`GxRenderer::SetWiden`, `WidenFor`: nur
+  orthografisch), damit sie die Form vom Fernseher behalten. Die Kästen, Rahmen und Anzeigen des ID-Systems
+  (`id_sys.cpp`: `CameraCurrentProjection`, vor der Kamera mit ihrer Perspektive gezeichnet) blieben aber schmal wie
+  die 3D-Welt. Die Texte des Nachrichtensystems (flach) wanderten dadurch nach außen, links über den Kastenrand
+  (bei x = 0,1 der Breite rund 3 % der Breite). „4:3 (GC)“, „16:9“, „Gestreckt“ und „Nativ“ verbreitern nicht: am
+  PC dort keine Überlappung (die Angabe „4:3 GC“ des Nutzers ließ sich nicht bestätigen; beide Bilder passen zu „4:3“).
+- **Behebung (App, `core_mode.cpp` drawGx):** „4:3“ verbreitert nichts mehr (`SetWiden(1)`); Fingertipps in den
+  Untermenüs gehen nach dem Kasten selbst (`notePicture`), die HUD-Fläche der Minikarte ist der Kasten
+  (`minimap_view.h`, Lage und Größe der Karte unverändert). Damit ist „4:3“ genau das Bild von „4:3 (GC)“, über
+  die volle Höhe gezogen: 3D-Welt, Kästen und Texte in derselben Form (etwa 7 % schmaler als auf dem Fernseher),
+  nichts reicht mehr über die Seiten hinaus. Wer die Fernseh-Form will, nimmt „4:3 (GC)“. Die Verbreiterung bleibt im
+  Renderer (Test `TestWiden`), `gx_chunk_render` gibt sie mit `RE4_GX_WIDEN_43=1` für Vergleiche wieder.
+- **Geprüft am PC (i686 -O2 Kern, Debug-Discs, r101 ohne „Nativ“, GX-Bilder mit dem GL-Renderer der App auf
+  2000 × 900, `~/p09910/runs/case|screens`):** Koffer mit „Handgun“ im Namensfeld: 0.99.9 bei „4:3“ Text auf dem
+  linken Kastenrand, 0.99.10 im Kasten wie bei 16:9 und „4:3 (GC)“. „4:3“ gegen „4:3 (GC)“ (Bildfläche auf den
+  Kasten gezogen): 48,2 dB statt 32,0/35,5 dB vorher (nur noch Umrechnung). Funkspruch mit Untertitel, Spiel mit
+  Lebensanzeige, Karte mit Legende, Fernglas mit „ZOOM“: bei „4:3“ angeordnet wie bei „4:3 (GC)“. 16:9, „4:3 (GC)“,
+  „Gestreckt“, „Nativ“: Bilder Byte für Byte gleich 0.99.9; `RE4_GX_WIDEN_43=1` gibt „4:3“ Byte für Byte wie 0.99.9.
+  `gx_gl_check` 0 Fehler, `minimap_place_check` 0 Probleme (nur die HUD-Fläche bei „4:3“ geändert, Karte gleich),
+  `core_mode.cpp` mit NDK r28c für armeabi-v7a und arm64 mit `-Wall -Werror` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät; Akten-Liste und Händler selbst nicht angespielt (gleiche Ursache, am Koffer
+  und an der Karte geprüft); Fingertipps in Untermenüs bei „4:3“.
+
 ### 2./3. Benchmark beim ersten Start und Leistungsprofile (Wünsche des Projektinhabers): nur geplant
 
 Plan mit Szene, Dauer, Profiltabelle, Ablauf und drei offenen Fragen: `port/docs/leistungsprofil-plan.md`

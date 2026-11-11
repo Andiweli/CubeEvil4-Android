@@ -242,7 +242,10 @@ int main(int argc, char **argv) {
           const bool crop = screenFormat == 0 || screenFormat == 2;
           renderer->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
         }
-        renderer->SetWiden(screenFormat == 3 ? 15.0f / 14.0f : 1.0f);
+        // "4:3" draws everything in the picture's shape since 0.99.10 (core_mode.cpp drawGx); RE4_GX_WIDEN_43=1
+        // gives the flat draws the 15/14 of 0.95..0.99.9 again (the comparison)
+        const char *oldWiden = std::getenv("RE4_GX_WIDEN_43");
+        renderer->SetWiden(screenFormat == 3 && oldWiden && *oldWiden == '1' ? 15.0f / 14.0f : 1.0f);
       }
       renderer->SetRecording(interp);
       std::string error;

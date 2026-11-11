@@ -2439,9 +2439,14 @@ bool drawGx() {
   else
     gx->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
   // the game computes its 3D for 4:3 (camera.cpp) into 512 x 448 pixels that a television showed
-  // as 10:7; in an exact 4:3 box the 3D is right and the flat draws (HUD, menus, text) are drawn
-  // 15/14 wider by the renderer, so they keep the shape they had on the television
-  gx->SetWiden(format == 3 ? 15.0f / 14.0f : 1.0f);
+  // as 10:7; in the exact 4:3 box of "4:3" the 3D is right. From 0.95 to 0.99.9 the flat draws were
+  // drawn 15/14 wider there (GxRenderer::SetWiden) to keep the television's shape; but the boxes,
+  // frames and gauges of the game's id system are drawn in front of the camera with its projection
+  // and stayed narrower, so the texts in them reached over their left edges (user reports 08.11. and
+  // 11.11.2026: the files' list, the merchant's descriptions). Since 0.99.10 every draw keeps the
+  // picture's own shape in that box: the texts sit in their boxes, nothing reaches past the box's
+  // sides; "4:3 (GC)" shows the television's shape
+  gx->SetWiden(1.0f);
   // the minimap: the Vulkan renderer draws it over the picture in Present (GLES: minimapDraw after it)
   const int mapFormat = format < 0 && aspect && std::string(aspect) == "4:3" ? 1 : format;
   if (gx->Api() == re4gx::GxApi::kVulkan) {
@@ -2459,17 +2464,16 @@ bool drawGx() {
                 xh ? float(rows) / float(xh) : 1.f);
   } else if (format == 3) {
     // 4:3 without the bars: the picture's lines fill the height of an exact 4:3 box (wish of the
-    // project owner, 29.10.2026: no bars, nothing cut off, the user interface in its shape; before,
-    // a 10:7 box in the lines' own shape); a 4:3 screen is full
+    // project owner, 29.10.2026: no bars, nothing cut off; before, a 10:7 box in the lines' own
+    // shape); a 4:3 screen is full. Everything in the picture's shape (0.99.10, see SetWiden above)
     int boxW = width, boxH = static_cast<int>(width * 3.0 / 4.0 + 0.5);
     if (boxH > height) {
       boxH = height;
       boxW = static_cast<int>(height * 4.0 / 3.0 + 0.5);
     }
     gx->Present((width - boxW) / 2, (height - boxH) / 2, boxW, boxH);
-    // taps go by the flat layer (the sub screens): its 512 pixels span the box 15/14 times
-    const int layerW = static_cast<int>(boxW * 15.0 / 14.0 + 0.5);
-    notePicture((width - layerW) / 2, (height - boxH) / 2, layerW, boxH, 0.f, 1.f);
+    // taps go by the flat layer (the sub screens): its 512 pixels span the box (since 0.99.10)
+    notePicture((width - boxW) / 2, (height - boxH) / 2, boxW, boxH, 0.f, 1.f);
   } else if (format == 1 || (format < 0 && aspect && std::string(aspect) == "4:3")) {
     // the whole picture: 640 wide in a 4:3 frame of 480 lines (the XFB holds xh of them)
     int boxW = width, boxH = width * 3 / 4;
