@@ -32,7 +32,7 @@ Bildes gegen die Wartezeit auf den Grafikchip).
   schaffen als 30 FPS), und schwache Grafikchips (z. B. Mali-G52/G57) beginnen bei 2,5× statt 4×. Beides spart
   bis zu einer Minute.
 - Benchmark 2 (Prüfung des Vorschlags): etwa **1 Minute**: 20 Sekunden mit den bisherigen Einstellungen, 20 Sekunden
-  mit dem Vorschlag, jeweils nach einer Eingewöhnung (mindestens 4 s, bis die dynamische Auflösung 5 s auf einer Stufe
+  mit dem Vorschlag (die Leistungskerne in beiden Fenstern wie im Vorschlag, damit sich nur eines ändert), jeweils nach einer Eingewöhnung (mindestens 4 s, bis die dynamische Auflösung 5 s auf einer Stufe
   stand, höchstens 16 s; seit dem Retroid-Test 11.11.2026). Hält der Vorschlag weder seine Bildrate noch läuft er so
   ruhig wie vorher, nimmt die App einen Effekt eine Stufe zurück und misst noch einmal 20 Sekunden (höchstens zweimal,
   dann bis etwa 2 Minuten).

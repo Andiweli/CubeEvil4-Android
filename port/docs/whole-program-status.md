@@ -252,7 +252,16 @@ anderen 3 wie gehabt und am Ende der grüne Benchmark Button … Die Texte darun
   besteht „so ruhig wie vorher“, MSAA 4× und 2× nicht.
 - **c) Leistungskerne:** alle Profile setzen sie jetzt (`v[CORES] = 1`). „Standard“ ließ auf dem Retroid den
   Zeichen-Thread auf mittleren Kernen (Dynamisch pendelte bei 2,5× statt 3–3,5×); auf Handys mit nur einer Kernart
-  ändert der Schalter nichts. Nachteil höchstens etwas mehr Wärme.
+  ändert der Schalter nichts. Nachteil höchstens etwas mehr Wärme. **Nachtrag des Inhabers** („Vielleicht sollte der
+  Benchmark mit Leistungskernen gemessen werden?“) und Beobachtung der Hauptsitzung im selben Log (B1 lief mit „Force
+  Performance: default“, B2 verglich „vorher“ mit Kernen gegen „Hoch“ ohne): B1 misst mit Leistungskernen
+  (`applyClean`, schon in bed2b9d4); **B2 jetzt in beiden Fenstern mit der Kern-Einstellung des Vorschlags**
+  (`BenchmarkFlow.check`: `setFastCores` nach den Einstellungen von vorher, Logzeile „the performance cores on in both
+  windows“), damit nur eines wechselt; Popup 3 nennt die Leistungskerne unter „Dazu an“, wenn sie vorher aus waren.
+  Was der Schalter tut (`gx_decode.cpp` `hintChunk`): Spiel-Thread weg von den langsamsten Kernen (nicht auf einen
+  einzigen Kern), Vertex-Threads bei nur zwei schnellen Kernen auf die langsamen, Androids Leistungshinweis für 33,3 ms
+  je Bild. Gegenargument: mehr Wärme und Akku; ein Handy, das bei Hitze stark drosselt, kann in langen Sitzungen
+  langsamer werden, das gleicht „Dynamisch“ nur auf der Grafikseite aus. Auf einem Gerät nicht geprüft.
 - **d) Benchmark-Stelle mit verdrehten Raum-Kennungen:** die eingebaute Stelle (`port/whole/data/benchmark-place.
   ce4benchmark`, Sofortspeicher des Inhabers vom 06.11.2026) stammt aus einem Spiel, dessen `.gci` mit 0.99.6 oder
   älter importiert war: alle 121 Raum-Datensätze standen als Raum, Stufe; Patch 0225 drehte sie bei jedem Start zurück.

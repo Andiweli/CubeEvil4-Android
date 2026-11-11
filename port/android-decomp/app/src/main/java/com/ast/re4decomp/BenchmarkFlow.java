@@ -28,7 +28,8 @@ import java.util.Locale;
  * filters: no profile changes them), the profile's settings at their base, the performance cores and the picture
  * format "Native" (the levels that hold 30 and 60 FPS, the processor sign; core_mode.cpp LevelBench mode 0), then popup
  * 2 (the device, the levels, the profile PerfProfile suggests; "Ignore" keeps only the levels for "Dynamic", "Apply"
- * checks it), benchmark 2 (mode 1: 20 s with the settings before, 20 s with the suggestion, each after Dynamic settled;
+ * checks it), benchmark 2 (mode 1: 20 s with the settings before, 20 s with the suggestion, each after Dynamic settled,
+ * the performance cores as the suggestion has them in both;
  * an effect taken back up to twice while it neither holds its rate nor runs as smoothly as before), popup 3 (before and
  * after; "Ignore" the settings before, "Accept" the profile; a suggestion less smooth than before says so and has
  * "Ignore" focused). On the very first start popup 1 comes first, once the title's menu waits (CoreActivity); a cancel
@@ -255,10 +256,14 @@ final class BenchmarkFlow {
     measureBefore = measureAfter = null;
     host.mute(true);
     host.applyOptions();  // the settings before (the preferences)
+    // the performance cores in both windows as the suggestion has them: one thing changed at a time (the Retroid's
+    // check 11.11.2026 compared "before" with the cores against the suggestion without them)
+    boolean cores = proposal[PerfProfile.CORES] == 1;
+    CoreBridge.setFastCores(cores);
     host.progress(s(R.string.ingame_benchmark_starting));
     CoreBridge.startBenchmark(1, 0, 0);
     Log.i(TAG, "benchmark 2: started (before: " + describe(before) + "; with " + name(recommended) + ": "
-        + describe(proposal) + ")");
+        + describe(proposal) + "; the performance cores " + (cores ? "on" : "off") + " in both windows)");
     main.removeCallbacks(poll);
     main.postDelayed(poll, 500);
   }
@@ -452,7 +457,8 @@ final class BenchmarkFlow {
     return toggle(R.string.ingame_antialiasing, aa) + ", " + toggle(R.string.ingame_texture_filter, tf);
   }
 
-  /** What the suggestion switches on that was off before (60 FPS, MSAA, FXAA, a stronger texture filter). */
+  /** What the suggestion switches on that was off before (60 FPS, MSAA, FXAA, a stronger texture filter, the
+   *  performance cores: measured in both windows, so popup 3 names them). */
   private List<String> newlyOn(int[] was, int[] now) {
     List<String> out = new ArrayList<>();
     if (now[PerfProfile.SMOOTH] != 0 && was[PerfProfile.SMOOTH] == 0) out.add(s(R.string.ingame_smooth60));
@@ -461,6 +467,7 @@ final class BenchmarkFlow {
     if (now[PerfProfile.FXAA] != 0 && was[PerfProfile.FXAA] == 0) out.add(s(R.string.ingame_fxaa));
     if (now[PerfProfile.ANISO] > was[PerfProfile.ANISO])
       out.add(toggle(R.string.ingame_texture_filter, now[PerfProfile.ANISO] + "×"));
+    if (now[PerfProfile.CORES] == 1 && was[PerfProfile.CORES] != 1) out.add(s(R.string.ingame_perf_cores));
     return out;
   }
 
