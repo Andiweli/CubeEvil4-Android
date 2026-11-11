@@ -462,11 +462,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The core did not start: why, with the error report to send. */
   private void showStartProblem() {
     if (destroyed) return;
-    new AlertDialog.Builder(this)
+    Immersive.show(new AlertDialog.Builder(this)
         .setMessage(getString(R.string.ingame_core_not_started, startProblem))
         .setPositiveButton(R.string.ingame_send_report, (d, w) -> shareReport())
         .setNegativeButton(R.string.ingame_quit, (d, w) -> quit())
-        .setCancelable(false).show();
+        .setCancelable(false).create());
   }
 
   /**
@@ -482,11 +482,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     Log.e(TAG, "core process: " + ended);
     audio.stop();
     stopVibrator();
-    new AlertDialog.Builder(this)
+    Immersive.show(new AlertDialog.Builder(this)
         .setMessage(getString(R.string.ingame_core_stopped, ended))
         .setPositiveButton(R.string.ingame_send_report, (d, w) -> shareReport())
         .setNegativeButton(R.string.ingame_quit, (d, w) -> quit())
-        .setCancelable(false).show();
+        .setCancelable(false).create());
   }
 
   /**
@@ -527,14 +527,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         : cause == RoomFileCheck.Cause.READ ? R.string.ingame_disc_read : R.string.ingame_disc_unknown;
     // the disc to import again: "Start screen" (it opens without starting the game) in place of "Quit"
     boolean reimport = cause != RoomFileCheck.Cause.READ;
-    new AlertDialog.Builder(this)
+    Immersive.show(new AlertDialog.Builder(this)
         .setTitle(R.string.ingame_disc_title)
         .setMessage(getString(text, path, disc))
         .setPositiveButton(R.string.ingame_send_report, (dlg, w) -> shareReport())
         .setNegativeButton(reimport ? R.string.ingame_start_screen : R.string.ingame_quit,
             (dlg, w) -> { if (reimport) openStartScreen("disc " + disc + " to import again"); else quit(); })
         .setNeutralButton(R.string.ingame_continue, null)
-        .setCancelable(false).show();
+        .setCancelable(false).create());
   }
 
   /** The menu's picture options to the renderer (applied at the next picture while the game runs). */
@@ -710,9 +710,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void askExit() {
-    new AlertDialog.Builder(this).setMessage(R.string.ingame_end_question)
+    Immersive.show(new AlertDialog.Builder(this).setMessage(R.string.ingame_end_question)
         .setPositiveButton(R.string.ingame_end, (d, w) -> quit())
-        .setNegativeButton(R.string.ingame_continue, null).show();
+        .setNegativeButton(R.string.ingame_continue, null).create());
   }
 
   private void quit() {
@@ -825,7 +825,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       surface.requestFocus();
       main.post(this::updateMouseCapture);
     });
-    menu.show();
+    Immersive.show(menu);
   }
 
   private final CoreMenu.Host menuHost = new CoreMenu.Host() {
@@ -1154,7 +1154,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void message(String text) {
-    new AlertDialog.Builder(this).setMessage(text).setPositiveButton(android.R.string.ok, null).show();
+    Immersive.show(new AlertDialog.Builder(this).setMessage(text).setPositiveButton(android.R.string.ok, null).create());
   }
 
   @Override
@@ -1308,7 +1308,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int r = CoreBridge.cardImport(gci, false);
     Log.i(TAG, "import " + name + ": " + r + " " + CoreBridge.cardNote());
     if (r == CoreBridge.CARD_EXISTS) {
-      new AlertDialog.Builder(this)
+      Immersive.show(new AlertDialog.Builder(this)
           .setMessage(getString(R.string.ingame_import_exists, name))
           .setPositiveButton(R.string.ingame_replace, (d, w) -> {
             int again = CoreBridge.cardImport(gci, true);
@@ -1317,7 +1317,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
             importNext(report);
           })
           .setNegativeButton(R.string.ingame_skip, (d, w) -> importNext(report))
-          .setCancelable(false).show();
+          .setCancelable(false).create());
       return;
     }
     report.append(importText(r, name)).append('\n');
@@ -1343,7 +1343,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences prefs = touchPrefs();
     String saved = TouchLayoutFile.saved(prefs);
     if (TouchLayoutFile.ownSaved(prefs, TouchControls.defaultLayout()) && !TouchLayoutFile.same(saved, parsed.layout)) {
-      new AlertDialog.Builder(this)
+      Immersive.show(new AlertDialog.Builder(this)
           .setMessage(R.string.ingame_touch_import_exists)
           .setPositiveButton(R.string.ingame_replace, (d, w) -> {
             applyTouch(parsed, report);
@@ -1354,7 +1354,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
             report.append(getString(R.string.ingame_touch_skipped)).append('\n');
             importNext(report);
           })
-          .setCancelable(false).show();
+          .setCancelable(false).create());
       return;
     }
     applyTouch(parsed, report);
@@ -1949,8 +1949,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     main.removeCallbacks(benchPoll);
     benchView.setVisibility(View.GONE);
     Log.i(TAG, "benchmark: " + (text != null ? text : getString(message)));
-    new android.app.AlertDialog.Builder(this).setTitle(R.string.ingame_benchmark)
-        .setMessage(text != null ? text : getString(message)).setPositiveButton(android.R.string.ok, null).show();
+    Immersive.show(new android.app.AlertDialog.Builder(this).setTitle(R.string.ingame_benchmark)
+        .setMessage(text != null ? text : getString(message)).setPositiveButton(android.R.string.ok, null).create());
   }
 
   /** Nothing held while the game is not in front (no stuck keys after a dialog or the home screen). */

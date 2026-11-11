@@ -3,6 +3,40 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.10-rc: Wünsche des Projektinhabers vom 11.11.2026 (Branch `09910`)
+
+Version 0.99.10-rc (versionCode 112), Releasetext `port/android-decomp/docs/releases/v0.99.10-rc.md` („Changes since
+v0.99.9.“, Known issues aus 0.99.9 übernommen). Basis bbbbff7c = master = 0.99.9-rc mit der README des Inhabers.
+Nächste freie Patchnummer 0228. `AppUpdate.compare` vergleicht Zahl für Zahl: 0.99.10 gilt als neuer als 0.99.9
+(neue Prüfung in `AppUpdateTest`).
+
+### 1. Navigationsleiste im App-Menü (Wunsch des Projektinhabers, Screenshot eines Samsung im Querformat)
+
+„Öffnet man das Ingame-Menü, erscheint die Android-Navigationsleiste … Schließt man das Menü, ist sie wieder weg.“
+Screenshot `E:\Development\Android\reports\09910-navbar\navbar-in-ingame-menu.webp` (portugiesisches Menü,
+Statusleiste oben und Navigationsleiste rechts sichtbar, „Voltar ao jogo“ am rechten Rand angeschnitten).
+
+- **Ursache:** Das App-Menü (`CoreMenu`, ein `Dialog`) und alle Rückfragen und Meldungen (`AlertDialog`) sind eigene
+  Fenster. Android zeigt die Systemleisten für das Fenster mit dem Fokus, solange dieses nicht selbst um Vollbild
+  bittet; nur das Spielfenster tat das (`CoreActivity.hideSystemUi`). Die Unterseiten des Menüs sind dasselbe Fenster.
+- **Behebung:** neue Klasse `Immersive` (`show(dialog)` statt `dialog.show()`): das Fenster bittet vor dem Zeigen um
+  ausgeblendete Leisten (`SYSTEM_UI_FLAG_FULLSCREEN | HIDE_NAVIGATION | IMMERSIVE_STICKY`, ab Android 11 zusätzlich
+  `WindowInsetsController.hide` mit `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`), ist beim Erscheinen kurz nicht fokussierbar
+  (damit die Leisten nicht aufblitzen) und danach wieder fokussierbar für Tasten und Controller; bekommt es den Fokus
+  zurück (eine Rückfrage darüber geschlossen, Benachrichtigungen weggewischt, Dateiauswahl zurück), bittet es erneut.
+  Nur die Leisten, nicht das Layout: Größe und Platz der Fenster bleiben (im Auto bleiben die Leisten, die das Auto
+  behält, frei; `CarDisplay`). Umgestellt: das App-Menü, seine 8 Rückfragen (Discs importieren, Shader-Cache,
+  Benchmark, Spielsprache, Renderer, Figur-Warnung, Extra-Spiele, Sofortspeicher) und die 8 Meldungen von
+  `CoreActivity` (Kern startet nicht, Kern beendet, Disc-Problem, Beenden?, Hinweis, zwei Import-Rückfragen,
+  Benchmark-Ergebnis).
+  Nicht betroffen: Toasts (bekommen keinen Fokus); fremde Fenster (Android-Dateiauswahl, Teilen-Menü) und der
+  Touch-Editor von RetroTouch (eigene Bibliothek) liegen außerhalb der App-Fenster.
+- **Geprüft (PC, Robolectric):** `ImmersiveTest` (Android 9 und 13): eine Rückfrage, das App-Menü und drei seiner
+  Rückfragen zeigen sich mit ausgeblendeten Leisten und sind danach fokussierbar; nach Fokus-Rückkehr wieder
+  ausgeblendet; eine Quelltext-Prüfung, dass `CoreMenu` und `CoreActivity` kein Fenster mehr ohne `Immersive.show`
+  zeigen. Alle Unit-Tests beider Varianten grün.
+- **Nicht geprüft:** auf einem Gerät (Samsung/Retroid).
+
 ## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
 
 Version 0.99.9-rc (versionCode 111), Releasetext `port/android-decomp/docs/releases/v0.99.9-rc.md` („Changes since

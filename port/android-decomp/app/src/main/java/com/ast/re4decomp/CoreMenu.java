@@ -468,7 +468,7 @@ final class CoreMenu extends Dialog {
         .setNegativeButton(R.string.ingame_cancel, null)
         .setPositiveButton(R.string.ingame_start_screen, (d, w) -> host.importDiscs()).create();
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
-    dialog.show();
+    Immersive.show(dialog);
   }
   /** "Clear shader cache": the game restarts for it (progress not saved is lost), so the menu asks first. */
   private void askClearShaders() {
@@ -478,7 +478,7 @@ final class CoreMenu extends Dialog {
         .setNegativeButton(R.string.ingame_cancel, null)
         .setPositiveButton(R.string.ingame_restart, (d, w) -> { close(); host.clearShaderCache(); }).create();
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
-    dialog.show();
+    Immersive.show(dialog);
   }
   /** "Start the benchmark?" with what it does; the menu closes for it. */
   private void askBenchmark() {
@@ -488,7 +488,7 @@ final class CoreMenu extends Dialog {
         .setNegativeButton(R.string.ingame_cancel, null)
         .setPositiveButton(R.string.ingame_benchmark_start, (d, w) -> { close(); host.startBenchmark(); }).create();
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
-    dialog.show();
+    Immersive.show(dialog);
   }
   /** The chosen resolution in halves (0: Dynamic; 2: 1×, 3: 1.5× … 8: 4×); until 27.10.2026 "scale" in whole levels. */
   static int scaleHalves(SharedPreferences g) {
@@ -692,7 +692,7 @@ final class CoreMenu extends Dialog {
           }).create();
       dialog.setOnCancelListener(d -> keep.run());
       dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
-      dialog.show();
+      Immersive.show(dialog);
     });
     help(R.string.ingame_language_help);
   }
@@ -845,7 +845,7 @@ final class CoreMenu extends Dialog {
           }).create();
       dialog.setOnCancelListener(d -> keep.run());
       dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
-      dialog.show();
+      Immersive.show(dialog);
     });
     if (!supported && buttons[0].length > 1) buttons[0][1].setEnabled(false);
     indentedHelp(s(supported ? R.string.ingame_renderer_help : R.string.ingame_renderer_unavailable));
@@ -1651,7 +1651,7 @@ final class CoreMenu extends Dialog {
       return true;
     });
     dialog.setOnShowListener(d -> understood.requestFocus());
-    dialog.show();
+    Immersive.show(dialog);
   }
   /** "Special costumes · On/Off" over a smaller "(Leon/Ashley only)", as tall as one line's button (the
    *  owner, 03.11.2026: the second row as high as the first). */
@@ -1724,7 +1724,7 @@ final class CoreMenu extends Dialog {
         .setPositiveButton(R.string.ingame_restart, (d, w) -> { host.restartGame(); close(); }).create();
     dialog.setOnCancelListener(d -> later.run());
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
-    dialog.show();
+    Immersive.show(dialog);
   }
 
   private void refreshInstant() { instant(0); }
@@ -1737,7 +1737,7 @@ final class CoreMenu extends Dialog {
         .setNegativeButton(android.R.string.cancel, null)
         .setPositiveButton(operation == 1 ? R.string.ingame_replace : R.string.ingame_instant_load, (d, w) -> instant(operation)).create();
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
-    dialog.show();
+    Immersive.show(dialog);
   }
   private void instant(int operation) {
     if (working) return;
