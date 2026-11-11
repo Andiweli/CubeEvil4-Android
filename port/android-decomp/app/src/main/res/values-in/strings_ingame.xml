@@ -278,12 +278,8 @@
     <string name="ingame_cheat_character">Karakter pemain</string>
     <string name="ingame_cheat_costume">Kostum spesial</string>
     <string name="ingame_cheat_costume_note">(hanya Leon/Ashley)</string>
-    <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon dalam cerita: ruangan dimuat ulang di tempatmu berdiri (saat adegan film, mulai ruangan berikutnya). Koper, nyawa, dan uang Leon tetap; senjata yang tidak punya model milik karakter itu tampil seperti milik Leon. Bagian Ashley tetap milik Ashley, adegan film dan panggilan radio tetap menampilkan Leon. Simpananmu selalu menyimpan Leon, jadi dimuat dengan karakter yang dipilih di sini. Karakter selain Leon tidak dibuat untuk permainan utama, jadi memilih salah satunya menampilkan peringatan dulu: \"Saya mengerti\" mengganti, Kembali mempertahankan karaktermu saat ini. Kostum spesial: Leon dan Ashley (dan Ada sebagai pengganti) memakai kostum spesial mereka, juga langsung.</string>
+    <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon dalam cerita: ruangan dimuat ulang di tempatmu berdiri (saat adegan film, mulai ruangan berikutnya). Koper, nyawa, dan uang Leon tetap; senjata yang tidak punya model milik karakter itu tampil seperti milik Leon. Krauser membawa busurnya: setiap awal ruangan mengembalikannya dan mengisi anak panahnya hingga 40; dengan karakter lain busur keluar dari koper, dan simpanan tidak pernah menyimpannya. Bagian Ashley tetap milik Ashley, adegan film dan panggilan radio tetap menampilkan Leon. Simpananmu selalu menyimpan Leon, jadi dimuat dengan karakter yang dipilih di sini. Karakter selain Leon tidak dibuat untuk permainan utama, jadi memilih salah satunya menampilkan peringatan dulu: \"Saya mengerti\" mengganti, Kembali mempertahankan karaktermu saat ini. Kostum spesial: Leon dan Ashley (dan Ada sebagai pengganti) memakai kostum spesial mereka, juga langsung.</string>
     <string name="ingame_cheat_character_warning">Perhatian: karakter ini tidak dibuat untuk permainan utama. Bug bisa dan akan terjadi, dan tidak bisa dihindari!</string>
-    <string name="ingame_cheat_bow">Busur Krauser</string>
-    <string name="ingame_cheat_bow_refilled">%1$s sudah dimiliki: anak panah diisi ulang.</string>
-    <string name="ingame_cheat_bow_krauser">Hanya saat Krauser memainkan cerita.</string>
-    <string name="ingame_cheat_bow_help">Busur Krauser: menambahkan busurnya dan mengisi anak panahnya hingga 40; tekan lagi untuk lebih banyak, atau nyalakan Amunisi tak terbatas. Hanya dengan Krauser: dengan Leon atau karakter lain, busur dan anak panah keluar dari koper, dan simpanan di kartu memori tidak pernah menyimpannya (tekan lagi setelah memuat).</string>
     <string name="ingame_understood">Saya mengerti</string>
     <string name="ingame_later">Nanti</string>
     <string name="ingame_controller_config">Pemetaan Tombol</string>
@@ -381,7 +377,8 @@
     <string name="ingame_bench_same">Sama %1$d FPS</string>
     <string name="ingame_bench_extra">Juga aktif: %1$s.</string>
     <string name="ingame_bench_stepped">%1$s terlalu berat di sini; sekarang %2$s.</string>
-    <string name="ingame_bench_not_held">Meski begitu, laju frame tidak bertahan di semua tempat di sini.</string>
+    <string name="ingame_bench_not_held">Laju frame tidak bertahan di semua tempat di sini, tetapi setidaknya semulus pengaturanmu.</string>
+    <string name="ingame_bench_worse">Di sini kurang mulus dibanding pengaturanmu: \"Abaikan\" mempertahankan milikmu.</string>
     <string name="ingame_bench_before_note">\"Sebelum\" adalah pengaturan yang akan kamu pakai jika tidak. Kamu bisa mengganti profil kapan saja di halaman awal menu.</string>
     <string name="ingame_bench_accept">Terima</string>
     <string name="ingame_bench_check">Pemeriksaan · %1$s · kini %2$d FPS · B / Kembali: batal</string>

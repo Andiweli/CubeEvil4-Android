@@ -296,12 +296,8 @@
     <string name="ingame_cheat_character">Player character</string>
     <string name="ingame_cheat_costume">Special costumes</string>
     <string name="ingame_cheat_costume_note">(Leon/Ashley only)</string>
-    <string name="ingame_cheat_character_help">The character takes Leon\'s place in the story at once: the room loads again where you stand (during a cutscene, from the next room on). Leon\'s case, life and money stay; weapons the character has no model of its own for show Leon\'s. Ashley\'s part stays Ashley\'s, cutscenes and radio calls still show Leon. Your saves always keep Leon, so they load as whoever is chosen here. Characters other than Leon are not made for the main game, so choosing one shows a warning first: \"I understand\" switches, Back keeps your current character. Special costumes: Leon and Ashley (and Ada as a stand-in) wear their special outfits, also at once.</string>
+    <string name="ingame_cheat_character_help">The character takes Leon\'s place in the story at once: the room loads again where you stand (during a cutscene, from the next room on). Leon\'s case, life and money stay; weapons the character has no model of its own for show Leon\'s. Krauser brings his bow: each room start gives it back and fills his arrows up to 40; with anyone else it leaves the case, and saves never keep it. Ashley\'s part stays Ashley\'s, cutscenes and radio calls still show Leon. Your saves always keep Leon, so they load as whoever is chosen here. Characters other than Leon are not made for the main game, so choosing one shows a warning first: \"I understand\" switches, Back keeps your current character. Special costumes: Leon and Ashley (and Ada as a stand-in) wear their special outfits, also at once.</string>
     <string name="ingame_cheat_character_warning">Warning: This character is not meant for the main game. Bugs can and will occur, and they cannot be avoided!</string>
-    <string name="ingame_cheat_bow">Krauser\'s bow</string>
-    <string name="ingame_cheat_bow_refilled">%1$s already owned: arrows refilled.</string>
-    <string name="ingame_cheat_bow_krauser">Only while Krauser plays the story.</string>
-    <string name="ingame_cheat_bow_help">Krauser\'s bow: adds his bow and fills his arrows up to 40; press again for more, or switch on Infinite ammo. Only with Krauser: with Leon or another character the bow and the arrows leave the case, and saves on the memory card never keep them (press again after loading).</string>
     <string name="ingame_understood">I understand</string>
     <string name="ingame_later">Later</string>
     <string name="ingame_controller_config">Button Mapping</string>
@@ -399,7 +395,8 @@
     <string name="ingame_bench_same">The same %1$d FPS</string>
     <string name="ingame_bench_extra">Also on: %1$s.</string>
     <string name="ingame_bench_stepped">%1$s took too much here; now %2$s.</string>
-    <string name="ingame_bench_not_held">Even so it did not hold its frame rate everywhere here.</string>
+    <string name="ingame_bench_not_held">It did not hold its frame rate everywhere here, but ran at least as smoothly as your settings.</string>
+    <string name="ingame_bench_worse">Here it ran less smoothly than your settings: \"Ignore\" keeps yours.</string>
     <string name="ingame_bench_before_note">\"Before\" are the settings you would play with otherwise. You can change the profile any time on the menu\'s start page.</string>
     <string name="ingame_bench_accept">Accept</string>
     <string name="ingame_bench_check">Check · %1$s · now %2$d FPS · B / Back: cancel</string>

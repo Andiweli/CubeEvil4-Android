@@ -100,6 +100,9 @@ wurde nur die halb verdeckte Lebensanzeige behoben (8a5959a6).
 
 ### 6. Krausers Bogen in der Geschichte (Nutzerwunsch über den Projektinhaber, Patch 0228)
 
+**Seit dem Retroid-Test kein Knopf mehr** (Abschnitt 7.1): Krauser hat den Bogen von jedem Raumstart an. Der folgende
+Stand beschreibt die erste Fassung (cbf7a646).
+
 „please add kross bow for Krauser in storymode“ (mit dem Figuren-Cheat). Plan und Grenzen: `port/docs/cheat-menu-plan.md`
 Abschnitt „Krausers Bogen“.
 
@@ -175,6 +178,101 @@ MSAA, FXAA und Texturfilter nach Spielraum vorgeschlagen, Benchmark 2 prüft und
   zweiten vollen Lauf grün, Ursache nicht gefunden (zu beobachten).
 - **Nicht geprüft:** der ganze Ablauf auf einem Gerät (Popups, die zwei Benchmarks, die gemessenen Zahlen, Dauer);
   der Prüfmodus läuft nur in der App (kein PC-Lauf mit Renderer).
+
+### 7. Nach dem Retroid-Test von 142a52b8 (vier Punkte des Projektinhabers, 11.11.2026)
+
+Der Inhaber spielte 142a52b8 auf dem Retroid (Adreno 650, Vulkan, EU-Discs, Deutsch).
+
+**7.1 Krausers Bogen ohne Knopf.** „Der Cheat ‚Krausers Bogen' soll kein Cheat sein, sondern Krauser soll (wenn man ihn
+als Cheat nutzt) den Bogen von Haus aus bereits haben.“
+- **Gebaut (`runtime/cheats.cpp`):** `re4_story_char_room` ruft bei jedem Raumstart `giveBow()`, solange Krauser die
+  Geschichte spielt (`pl_type` 4 und `standIn()`): der Bogen, falls er fehlt, die Pfeile auf 40 (vorhandene Felder
+  erst auf 20). Aufgefüllt wird also bei jedem Raumstart (Tür, Neustart des Raums, Laden); „Infinite ammo“ verbraucht
+  keine. Die Sicherheitsregeln bleiben: jemand anderes als Krauser (außer Ashleys Abschnitt) → Bogen und Pfeile aus
+  dem Koffer, leere Hände statt Waffe 0x1C; Patch 0228 hält sie aus jedem Spielstand. Knopf 10 entfernt
+  (`core_api.cpp` wieder 1..9, `CoreMenu` ohne Zeile/Antwort, vier Texte in 11 Sprachen gelöscht); der Hilfetext der
+  Figurenwahl hat einen Satz zum Bogen (11 Sprachen).
+- **Geprüft am PC (i686 -O2, `~/p09910/bowtests3.sh`, Log `~/p09910/bowtests3.log`):** Debug r100 Krauser: „bow added,
+  arrows 0 -> 40“ beim Raumstart, ausgerüstet, an der Schreibmaschine gespeichert: Datei ohne Bogen, CRC in Ordnung;
+  diese Datei als Leon: kein Bogen; mit Krauser gewählt: Bogen beim Raumstart wieder da. EU r101: Krauser mit Bogen in
+  der Hand → Leon: „out of the case, empty hands“, Leon spielt weiter; Leon allein: keine Bogen-Zeile. US r101:
+  geschossen (40 → 32), dann Spezialkostüm (der Raum startet neu): „kept, arrows 32 -> 40“. EU r200, r305, r213: Bogen
+  vom Start an, gezielt, geschossen. Speichern mit Bogen in der Hand, Laden als Leon: leere Hände, Pistole
+  ausrüstbar. Knopf 10 antwortet nicht mehr. Keine Abstürze, kein „signal“.
+
+**7.2 Die anderen Mercenaries-Figuren (nur Bericht, nichts gebaut).** Abgleich `item.cpp` `set_char` (ihre
+Mercenaries-Ausrüstung) mit der Geschichte und `ownWeapon` (welche Waffen eigene Dateien haben):
+- **Ada** (Punisher 0x21, TMP 0x30, halbautomatisches Gewehr 0x2F mit Zielfernrohr 0x45, drei Blendgranaten): alles
+  Waffen der Geschichte (Händler bzw. Fundorte); Ada zieht Punisher, Gewehr und TMP aus eigenen Dateien. Es fehlt
+  nichts Eigenes.
+- **HUNK** (TMP 0x3E, drei Handgranaten): 0x3E ist die TMP mit derselben Waffennummer wie Leons TMP 0x30; HUNK zeigt
+  seine eigene TMP, sobald Leon eine TMP ohne Schaft hat (mit Schaft Leons, seit 0.98.1). Nichts Eigenes fehlt.
+- **Wesker** (Pistole 0x23 mit Schalldämpfer 0x3F, Killer7 0x2A, halbautomatisches Gewehr, Granaten): Pistole und
+  Gewehr gibt es in der Geschichte, den Killer7 gibt der Cheat-Knopf „Killer7“. **Es fehlt nur der Schalldämpfer
+  0x3F**: kein Händler, kein Fundort. Ihn wie den Bogen zu geben wäre größer als beim Bogen: er ist ein Teil, das an
+  Leons Pistolen passt (`combination_info` 0x23/0x21/0x27 + 0x3F → 0x24/0x22/0x28), d. h. Leons Spielstände bekämen
+  neue Waffen-Abarten, deren Modelle für Leon ungeprüft sind; Weskers eigene Pistole `wep43` hat beide Modelle.
+  Vorschlag: nur auf Wunsch, dann mit derselben Regel wie beim Bogen (nur Wesker, nie im Spielstand).
+- **Bewegungen:** seit 0.98.1 (Patch 0197 und `loadStandInSet`, PC-Prüfung 04./05.11.2026): Ada Tritte und Griffe,
+  HUNK Genickbruch, Krauser Doppeltritt und Armangriff (X ohne Ashley), Wesker Handstoß und Fersentritt (Antwort des
+  Ganados) aus den Mercenaries-Dateien der Figuren. Damals nicht ausgelöst: Krausers Kniestoß. In dieser Runde nicht
+  erneut geprüft.
+
+**7.3 Profilzeile in einer Reihe.** „Alle in einer Reihe – Benutzerdefiniert soll neu heißen ‚Benutzer', dann die
+anderen 3 wie gehabt und am Ende der grüne Benchmark Button … Die Texte darunter dann über die ganze Breite.“
+- **Gebaut (`CoreMenu.profileRow`):** ein `MenuLayout.Buttons` mit fünf Spalten (Benutzer, Niedrig, Mittel, Hoch,
+  Benchmark), Namen bis zwei Zeilen; die Messzeile und der Hilfetext darunter über die ganze Breite. Kurze Namen für
+  `ingame_profile_custom`: de „Benutzer“, es „Usuario“, fr „Perso“, it „Utente“, pt „Usuário“ (en „Custom“, ru „Свой“,
+  ar, zh, hi, in waren schon kurz). Zu schmal oder zu große Schrift: die Reihe bricht um (wie alle Knopfreihen).
+- **Geprüft (Robolectric):** neuer Test `profileRowHoldsFiveButtonsAndTheTextsSpanTheWidth` (11 Sprachen, Schrift 1,0 /
+  1,15 / 1,3 auf 960 dp: fünf Knöpfe in einer Reihe, Benchmark am Ende, nichts abgeschnitten, Messzeile und Hilfe so
+  breit wie der Inhalt); `allPagesFitAcrossLanguagesWidthsAndFontScales` (Breiten 320–960 dp, Schrift bis 2,0) ohne
+  Befund; Menübilder (`CoreMenuShotTest`).
+
+**7.4 Benchmark.**
+- **a) Falsche Hänger-Meldungen** („hang: no game frame for 8 s“ bei Popup 2 und 3): die Popups halten das Spiel an,
+  die Wache in `CoreActivity.checkHang` wusste es nicht. Jetzt setzt `benchHost.hold` ein Merkmal `benchHeld`, die
+  Wache zählt dann wie beim offenen Menü nicht.
+- **b) Vorschläge zu teuer** (B1 4× / 3×, Vorschlag Hoch mit MSAA 4× und 16×; B2 vorher 30,1/50,7, 9 schwach, 3,2×;
+  MSAA 4× 27,1/38,8; MSAA 2× 29,4/32,2; FXAA 30,1/51,7, 6 schwach, 3×: alle „hält nicht“, angeboten wurde trotzdem):
+  (i) **B1 misst mit den Geschmacks-Einstellungen des Nutzers** (Tiefenschärfe, Lichthöfe, Schärfen, Filter: kein
+  Profil ändert sie) und mit den Leistungskernen, die Profil-Einstellungen auf Grundstand (`benchHost.applyClean`).
+  **MSAA nur bei Überschuss über die Bildschirmstufe** (`PerfProfile.screenLevel`: Zeilen eines 16:9-Bildes ×2/336,
+  wie „Dynamisch“ im Kern; `Device.rows` aus der Spielfläche): Hoch 4× ab einer ganzen Stufe Überschuss, 2× ab einer
+  halben, sonst FXAA; Mittel 2× ab einer ganzen Stufe. Für den Retroid (3× bei 60 FPS, Bildschirm 3×) heißt das FXAA
+  und 16× statt MSAA 4×. (ii) **Prüffenster:** ein neuer Renderer im Prüfmodus beginnt bei der gemessenen Stufe statt
+  eine halbe darüber (`core_mode.cpp` `benchChecking`, `AutoLevel::Start(..., from)`); die App wartet mindestens 4 s
+  und dann, bis die Stufe 5 s stand, höchstens 16 s (`BenchmarkFlow.settle`, Logzeile „settled after N s at …“).
+  (iii) **„Mindestens so ruhig wie vorher“** (`PerfProfile.keepsUp`: höchstens ein Bild/s weniger bei Spiel- und
+  gezeigten Bildern, höchstens eine schwache Sekunde von 20 mehr, Auflösung höchstens eine halbe Stufe unter vorher
+  bzw. dem Spielraum) gilt auch als bestanden; Popup 3 sagt dann „hielt nicht überall seine Bildrate, lief aber
+  mindestens so flüssig wie deine Einstellungen“. Läuft der letzte Stand weniger ruhig, steht in Gold „Hier lief es
+  weniger flüssig als deine Einstellungen: ‚Ignorieren' behält deine.“ und „Ignorieren“ hat den Fokus (neuer Text
+  `ingame_bench_worse`, `ingame_bench_not_held` umformuliert, je 11 Sprachen). Mit den Zahlen des Inhabers: FXAA
+  besteht „so ruhig wie vorher“, MSAA 4× und 2× nicht.
+- **c) Leistungskerne:** alle Profile setzen sie jetzt (`v[CORES] = 1`). „Standard“ ließ auf dem Retroid den
+  Zeichen-Thread auf mittleren Kernen (Dynamisch pendelte bei 2,5× statt 3–3,5×); auf Handys mit nur einer Kernart
+  ändert der Schalter nichts. Nachteil höchstens etwas mehr Wärme.
+- **d) Benchmark-Stelle mit verdrehten Raum-Kennungen:** die eingebaute Stelle (`port/whole/data/benchmark-place.
+  ce4benchmark`, Sofortspeicher des Inhabers vom 06.11.2026) stammt aus einem Spiel, dessen `.gci` mit 0.99.6 oder
+  älter importiert war: alle 121 Raum-Datensätze standen als Raum, Stufe; Patch 0225 drehte sie bei jedem Start zurück.
+  Die Datei ist jetzt einmal richtig gedreht (Skript im Notizordner `fix_bench_place.py`: die zwei Bytes je Datensatz,
+  die Gesamt-CRC des Spielstands über die GameCube-Bytes, die zwei Prüfsummen der Datei). **Geprüft am PC:** EU- und
+  Debug-Discs, `RE4_TEST_BENCH` aus r101: zur Stelle (125434 −700 149213, wie 0.99.9) ohne die Zeile von Patch 0225,
+  zurück nach r101; 0.99.9 zum Vergleich mit der Zeile. Ein erster Versuch ohne die neue Gesamt-CRC wurde vom Kern
+  abgelehnt („the place's save could not be read“), das zeigt, dass die Prüfung greift.
+- **e)** Bildformatwechsel im Spiel ohne Fehler (Bericht des Inhabers), nichts zu tun.
+- **Geprüft (PC):** `PerfProfileTest` (neu: Bildschirmstufe, Überschuss-Regel mit 720/1080/1220 Zeilen, Retroid mit
+  den Zahlen des Inhabers FXAA + 16×, alle Profile mit Leistungskernen, `keepsUp` mit den vier Fenstern des Inhabers),
+  `gx_gl_check` 0 Fehler (neu: `AutoLevel` startet unter der Spitze und steigt bis zu ihr, Grenzen), `core_mode.cpp`
+  mit NDK r28c für beide ABIs `-Wall -Werror`, Kern i686 -O2 alle Prüfungen grün, Übersetzungsprüfung ohne Befund.
+- **Robolectric-Hänger gefunden:** `cheatsPageSwitchesSendTheirBits` hing im vollen Lauf ein zweites Mal (Stapel:
+  `idleMainLooper` → `Choreographer.doFrame` → `AnimationHandler`, CPU voll): eine endlose Animation, die eine andere
+  Testklasse in derselben SDK-28-Umgebung zurückließ, bringt bei jedem Weiterstellen der Robolectric-Uhr ein neues
+  Bild, die Warteschlange wird nie leer. Der Test geht jetzt Aufgabe für Aufgabe (`runOneTask`, höchstens 2000) bis
+  das Aufleuchten endet.
+- **Nicht geprüft:** alles auf einem Gerät (die neuen Zahlen auf dem Retroid, die Popups mit den neuen Texten, die
+  Wache bei offenen Popups, die Profilzeile); der Prüfmodus (B2) läuft nur in der App, am PC nur seine Bausteine.
 
 ## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
 

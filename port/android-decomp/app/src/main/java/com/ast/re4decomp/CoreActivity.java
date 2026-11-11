@@ -667,12 +667,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * for 8 s while it is neither paused nor in the background, the error log
    * gets where its thread is (a loop or a wait that never ends).
    */
+  private boolean benchHeld;  // a benchmark popup holds the game (benchHost.hold)
   private void checkHang() {
     if (!menuSupported) return;
     long now = SystemClock.uptimeMillis();
     long frames = CoreBridge.gameFrames();
     if (frames < 0) return;
-    if (frames != lastFrames || !resumed || menu != null || touchEditing) {
+    if (frames != lastFrames || !resumed || menu != null || touchEditing || benchHeld) {
       if (frames != lastFrames) hangReported = false;  // the game moves (again)
       lastFrames = frames;
       framesSince = now;
@@ -1933,8 +1934,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       ram = mi.totalMem / (1024 * 1024);
     }
     int[] info = CoreBridge.graphicsInfo();
+    // the screen's rows of a 16:9 picture (PerfProfile.screenLevel: MSAA only beyond them); the game's surface, else
+    // the display
+    int w = surface != null ? surface.getWidth() : 0, h = surface != null ? surface.getHeight() : 0;
+    if (w <= 0 || h <= 0) {
+      android.util.DisplayMetrics m = getResources().getDisplayMetrics();
+      w = m.widthPixels; h = m.heightPixels;
+    }
+    int rows = Math.min(Math.min(w, h), Math.max(w, h) * 9 / 16);
     perfDevice = new PerfProfile.Device(gpu, cpu[0], cpu[1], cpu[2], (int) ram, menuHost.displayHz(),
-        info != null && info.length > 0 ? info[0] : 1, info != null && info.length > 1 ? info[1] : 1);
+        info != null && info.length > 0 ? info[0] : 1, info != null && info.length > 1 ? info[1] : 1, rows);
     return perfDevice;
   }
 
@@ -1966,21 +1975,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public SharedPreferences graphics() { return getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE); }
     @Override public void applyOptions() { CoreActivity.this.applyOptions(); }
     @Override public void applyClean() {
-      // benchmark 1: no picture extras, the picture format "Native", no frame skip, Potato off (plan: the levels the
-      // device holds with the game's own look); the benchmark sets the level and 60 FPS itself
+      // benchmark 1: the player's look settings as they play (depth of field, lens flares, sharpening, the filters:
+      // no profile changes them; the project owner's Retroid test 11.11.2026: measured without them, the levels were
+      // too high for his game), the profile's settings at their base (no anti-aliasing or texture filter, no frame
+      // skip, Potato off, the performance cores as every profile has them), the picture format "Native"; the
+      // benchmark sets the level and 60 FPS itself
       SharedPreferences g = graphics();
+      CoreActivity.this.applyOptions();
       CoreBridge.setGraphics(CoreMenu.scaleHalves(g), 1, 1, 5);
       CoreBridge.setFxaa(false);
-      CoreBridge.setDof(0);
-      CoreBridge.setFlares(0);
-      CoreBridge.setTvFilter(false);
-      CoreBridge.setPsx(false);
-      CoreBridge.setSharpen(0);
-      CoreBridge.setCrt(0);
-      CoreBridge.setColour(0, CoreMenu.colourLevel(g));
       CoreBridge.setFrameSkip(false);
       CoreBridge.setCpuSkip(false);
-      CoreBridge.setFastCores(false);
+      CoreBridge.setFastCores(true);
       CoreBridge.setPotato(0);
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[0]);
     }
@@ -2004,6 +2010,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // the speaker silent while it runs (the game's sound goes on inside: an honest measurement)
     @Override public void mute(boolean on) { audio.setMuted(on); }
     @Override public void hold(boolean on) {
+      // a benchmark popup holds the game like the menu: no hang report while it is open (the Retroid test,
+      // 11.11.2026: "hang: no game frame for 8 s" at popups 2 and 3)
+      benchHeld = on;
       if (on) {
         releaseAll();
         CoreBridge.pause(true, 800);

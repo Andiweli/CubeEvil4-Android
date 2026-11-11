@@ -70,10 +70,13 @@ public:
   // A renderer started at `top` (the screen's level, its highest) at `t` seconds; never below `bottom`;
   // `halves`: the levels are halves (only how the log line writes them). `proven`: the highest level the app's
   // benchmark measured as holding on this device (0: none); up to it a step up only needs the GPU not clearly behind.
-  void Start(int top, double t, int bottom = 1, bool halves = false, int proven = 0) {
+  // `from`: the level to start at below the top (0: the top; the benchmark's check starts at `proven`, 0.99.10)
+  void Start(int top, double t, int bottom = 1, bool halves = false, int proven = 0, int from = 0) {
     *this = AutoLevel();
     bottom_ = std::max(1, bottom);
     top_ = level_ = std::max(bottom_, top);
+    if (from > 0)
+      level_ = std::max(bottom_, std::min(top_, from));
     halves_ = halves;
     proven_ = proven;
     since_ = t;

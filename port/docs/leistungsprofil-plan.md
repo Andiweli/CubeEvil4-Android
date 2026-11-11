@@ -32,16 +32,20 @@ Bildes gegen die Wartezeit auf den Grafikchip).
   schaffen als 30 FPS), und schwache Grafikchips (z. B. Mali-G52/G57) beginnen bei 2,5× statt 4×. Beides spart
   bis zu einer Minute.
 - Benchmark 2 (Prüfung des Vorschlags): etwa **1 Minute**: 20 Sekunden mit den bisherigen Einstellungen, 20 Sekunden
-  mit dem Vorschlag, jeweils mit kurzer Eingewöhnung. Hält der Vorschlag nicht, nimmt die App einen Effekt eine
-  Stufe zurück und misst noch einmal 20 Sekunden (höchstens zweimal, dann bis etwa 1:40).
+  mit dem Vorschlag, jeweils nach einer Eingewöhnung (mindestens 4 s, bis die dynamische Auflösung 5 s auf einer Stufe
+  stand, höchstens 16 s; seit dem Retroid-Test 11.11.2026). Hält der Vorschlag weder seine Bildrate noch läuft er so
+  ruhig wie vorher, nimmt die App einen Effekt eine Stufe zurück und misst noch einmal 20 Sekunden (höchstens zweimal,
+  dann bis etwa 2 Minuten).
 
 **Was ist „Bildformat nativ“?** Unser Menüpunkt Anzeige → Bildformat → **„Nativ“**: Das Bild füllt den ganzen
 Bildschirm im Seitenverhältnis des Geräts. Auf einem typischen 20:9-Handy zeigt es etwa ein Viertel mehr Bild als
 16:9 und ist damit das anspruchsvollste Format. Gemessen wird deshalb in „Nativ“; das Ergebnis passt dann auch für
 alle anderen Formate. Nach der Messung gilt wieder das Bildformat des Nutzers (bei neuen Nutzern 16:9).
-Während der Messung sind außerdem aus: Kantenglättung (MSAA), FXAA, Texturfilter, Tiefenschärfe, Lichthöfe,
-TV-Filter, PSX, Nachschärfen, CRT, Farbe. Frame-Skip ist aus, Leistungskerne auf „Standard“, der
-Potato-Modus steht auf „alles an“ (normales Spiel).
+Während der Messung sind die Einstellungen der Profile auf ihrem Grundstand: Kantenglättung (MSAA), FXAA und
+Texturfilter aus, Frame-Skip aus, Leistungskerne an (wie in jedem Profil), der Potato-Modus auf „alles an“ (normales
+Spiel). **Seit dem Retroid-Test (11.11.2026)** bleiben die Geschmacks-Einstellungen des Nutzers dabei so, wie er
+spielt: Tiefenschärfe, Lichthöfe, TV-Filter, PSX, Nachschärfen, CRT, Farbe. Kein Profil ändert sie, also gehören sie
+in die Messung (vorher waren sie aus, und die gemessenen Stufen lagen für das Spiel des Inhabers zu hoch).
 
 **Wie hängen Benchmark und Profile zusammen?** Der Benchmark liefert drei Dinge: die Stufe für 30 FPS, die Stufe
 für 60 FPS und wer bremst (Prozessor oder Grafikchip). Daraus und aus den Gerätedaten (Grafikchip, Kerne,
@@ -73,7 +77,7 @@ Bei einem Display mit 90 Hz bleibt 60 FPS aus (läuft dort nicht gleichmäßig, 
 | 60 FPS | aus | an, wenn 60 FPS ≥ 2× gemessen und das Display passt | an, wenn 60 FPS ≥ 1,5× gemessen und das Display passt |
 | Frame-Skip | Aggressiv, wenn der Prozessor bremst, sonst Normal | Normal (aus, wenn 60 FPS an) | Normal (aus, wenn 60 FPS an) |
 | Kantenglättung (MSAA), FXAA, Texturfilter | aus | nach Spielraum, eine Stufe sparsamer als Hoch | nach Spielraum (Tabelle unten) |
-| Leistungskerne nutzen | an | an, wenn der Prozessor bremst | Standard |
+| Leistungskerne nutzen | an | an | an (seit dem Retroid-Test: „Standard“ ließ den Zeichen-Thread auf mittleren Kernen) |
 | Wetter- und Spezialeffekte | aus | an | an |
 | Partikeleffekte | Weniger | Normal | Normal |
 | Schatten & Licht | aus | an | an |
@@ -81,26 +85,34 @@ Bei einem Display mit 90 Hz bleibt 60 FPS aus (läuft dort nicht gleichmäßig, 
 
 **Effekte nach Spielraum** (Wunsch des Projektinhabers: starke Geräte bekommen auch Effekte vorgeschlagen, nicht nur
 schwache weniger). Spielraum ist die Stufe, die bei der Bildrate des Profils (30 oder 60 FPS) im Benchmark 1 noch
-ruhig lief, also mit allen Effekten aus und im anspruchsvollsten Bildformat. Je höher, desto mehr Kraft ist für
-Effekte übrig:
+ruhig lief, im anspruchsvollsten Bildformat. **Seit dem Retroid-Test (11.11.2026)** zählt für MSAA der Überschuss über
+die Stufe des Bildschirms (Zeilen eines 16:9-Bildes geteilt durch 336, in halben Stufen: Retroid mit 1080 Zeilen 3×,
+ein Handy mit 1220 Zeilen 3,5×, eines mit 720 Zeilen 2×). Bis zur Stufe des Bildschirms ist mehr Auflösung die
+bessere Kantenglättung; erst was darüber hinaus übrig ist, geht in MSAA. Auf dem Retroid (60 FPS bei 3×, Bildschirm 3×)
+nahm MSAA 4× der dynamischen Auflösung eine ganze Stufe und drückte die Bildrate auf 39.
 
-| Spielraum bei der Bildrate des Profils | Hoch | Mittel |
+| | Hoch | Mittel |
 |---|---|---|
-| ab 3× | MSAA 4×, Texturfilter 16× | MSAA 2×, Texturfilter 8× |
-| 2× bis 2,5× | MSAA 2×, Texturfilter 16× | FXAA an, Texturfilter 4× |
-| 1,5× | FXAA an, Texturfilter 8× | Texturfilter 4× |
-| 1× | nichts (alles aus) | nichts |
+| MSAA | 4× ab einer ganzen Stufe Überschuss, 2× ab einer halben, sonst aus | 2× ab einer ganzen Stufe Überschuss, sonst aus |
+| FXAA | an, wenn kein MSAA und Spielraum ab 1,5× | an, wenn kein MSAA und Spielraum ab 2× |
+| Texturfilter | 16× ab 2×, 8× bei 1,5× | 8× ab 3×, 4× ab 1,5× |
+| Spielraum 1× | nichts (alles aus) | nichts |
 
 MSAA glättet die Kanten am saubersten, kostet aber am meisten; FXAA ist der günstige Ersatz, wenn MSAA zu teuer wäre
 (beides zusammen schlägt die App nicht vor, das Bild würde nur weicher). Der Texturfilter macht schräge Böden und
 Wände schärfer und kostet wenig. Kann ein Grafikchip eine Stufe nicht (manche Mali-Chips melden keinen Texturfilter),
 nimmt die App die höchste, die er kann.
 
-**Benchmark 2 prüft die Effekte:** Der Vorschlag gilt nur, wenn mit ihm die Bildrate des Profils ruhig hält (dieselbe
+**Benchmark 2 prüft die Effekte:** Der Vorschlag gilt, wenn mit ihm die Bildrate des Profils ruhig hält (dieselbe
 Regel wie bei der Stufensuche: im Schnitt 29 bzw. 57 Bilder je Sekunde, höchstens eine schwache Sekunde) **und** die
 dynamische Auflösung dabei nicht mehr als eine halbe Stufe unter den Spielraum fällt (sonst würden die Effekte nur
-Schärfe gegen Glätte tauschen). Hält er nicht, nimmt die App die teuerste Stufe zurück (MSAA 4× → 2× → FXAA → aus,
-dann Texturfilter 16× → 8× → 4×) und misst erneut. Popup ③ nennt, was geblieben ist und was zurückgenommen wurde.
+Schärfe gegen Glätte tauschen). **Seit dem Retroid-Test** gilt er auch, wenn er mindestens so ruhig läuft wie die
+Einstellungen vorher (höchstens ein Bild je Sekunde weniger, höchstens eine schwache Sekunde von 20 mehr, die
+Auflösung höchstens eine halbe Stufe tiefer als vorher); Popup ③ sagt dann, dass die volle Bildrate nicht überall
+hielt. Sonst nimmt die App die teuerste Stufe zurück (MSAA 4× → 2× → FXAA → aus, dann Texturfilter 16× → 8× → 4×) und
+misst erneut. Läuft auch der letzte Stand weniger ruhig als vorher, sagt Popup ③ das deutlich und „Ignorieren“ hat den
+Fokus. Jede Messung beginnt nach einem neuen Renderer bei der gemessenen Stufe (nicht eine halbe darüber) und erst,
+wenn die dynamische Auflösung sich eingependelt hat. Popup ③ nennt, was geblieben ist und was zurückgenommen wurde.
 Bei starken Geräten ist der Gewinn oft nicht mehr FPS, sondern ein schöneres Bild bei gleicher Bildrate; Popup ③
 sagt dann beides (siehe `mock-popups-stark.png`).
 
@@ -121,9 +133,11 @@ starkes Gerät)
 Die Popups bekommen das Aussehen des Ingame-Menüs (dunkelgrün, goldene Auswahl), Texte in den 11 Menüsprachen.
 
 **Die Profilzeile** (siehe `mock-home.png`): Abschnitt „LEISTUNGSPROFIL“ zwischen Speicherslot und „Einstellungen &
-Verwaltung“, vier Knöpfe nebeneinander: Benutzerdefiniert / Niedrig / Mittel / Hoch. Der aktive Knopf ist golden,
-das empfohlene Profil trägt „★ empfohlen“. Darunter eine Zeile mit dem letzten Messergebnis und rechts ein Knopf
-„Benchmark“.
+Verwaltung“. Seit dem Retroid-Test (Wunsch des Projektinhabers, 11.11.2026) fünf Knöpfe in einer Reihe: Benutzer /
+Niedrig / Mittel / Hoch / der grüne „Benchmark“ (kurze Namen für „Benutzerdefiniert“ in allen Sprachen, Englisch
+„Custom“). Der aktive Knopf ist golden, das empfohlene Profil trägt „★ empfohlen“. Darunter über die ganze Breite die
+Zeile mit dem letzten Messergebnis und der Hilfetext. Auf einem schmalen Fenster oder mit großer Schrift bricht die
+Reihe um, abgeschnitten wird nichts.
 - Klick auf Niedrig, Mittel oder Hoch: Ist gerade „Benutzerdefiniert“ aktiv, merkt sich die App dessen Werte; dann
   stellt sie das Profil ein (wirkt sofort bzw. beim Schließen des Menüs, wie heute).
 - Klick auf „Benutzerdefiniert“: die gemerkten Werte kommen zurück.

@@ -1953,6 +1953,22 @@ void TestAutoLevel() {
     Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level: a step up that held 60 s: the wait back to 10 s");
   }
   {
+    // the benchmark's check (0.99.10): a renderer that starts below its top, at the benchmark's level, and still
+    // goes up to the top where the GPU keeps up
+    AutoRun r;
+    r.a.Start(7, 0.0, 2, true, 6, 6);
+    Check(r.a.Level() == 6 && r.a.Top() == 7, "auto level: starts at the level asked for, below the top");
+    while (r.a.Ups() == 0 && r.t < 60.0)
+      r.Play(0.5, 30.0, 0);
+    Check(r.a.Level() == 7, "auto level: from the start below the top up to the top");
+    AutoRun low;
+    low.a.Start(4, 0.0, 2, true, 3, 1);
+    Check(low.a.Level() == 2, "auto level: a start below the bottom takes the bottom");
+    AutoRun high;
+    high.a.Start(4, 0.0, 2, true, 3, 9);
+    Check(high.a.Level() == 4, "auto level: a start above the top takes the top");
+  }
+  {
     AutoRun r;
     r.a.Start(3, 0.0);
     r.Play(6.5, 20.0, 1);

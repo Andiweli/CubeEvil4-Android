@@ -21,28 +21,40 @@ public class PerfProfileTest {
   private static PerfProfile.Device dev(String gpu, int cores, int fast, int mhz, int ramMb, double hz) {
     return new PerfProfile.Device(gpu, cores, fast, mhz, ramMb, hz, 4, 16);
   }
+  /** With the screen's rows of a 16:9 picture (min(height, width * 9 / 16)). */
+  private static PerfProfile.Device dev(String gpu, int cores, int fast, int mhz, int ramMb, double hz, int rows) {
+    return new PerfProfile.Device(gpu, cores, fast, mhz, ramMb, hz, 4, 16, rows);
+  }
   private static PerfProfile.Bench bench(int c30, int c60) { return new PerfProfile.Bench(c30, c60, false, true); }
   private static final PerfProfile.Bench NONE = new PerfProfile.Bench(0, 0, false, false);
 
   @Test public void theReportsDevicesGetTheirProfiles() {
-    // POCO X7 Pro (Mali-G720 MC7, 3.5x / 2.5x, 120 Hz): High, 60 FPS, MSAA 2x and 16x (60 FPS held at 2.5x)
-    PerfProfile.Device poco = dev("Vulkan 1.3, Mali-G720 MC7", 8, 4, 3250, 11312, 120);
+    // POCO X7 Pro (Mali-G720 MC7, 3.5x / 2.5x, 120 Hz, 2712 x 1220): High, 60 FPS; 2.5x is below its screen's 3.5x:
+    // FXAA, no MSAA, and 16x
+    PerfProfile.Device poco = dev("Vulkan 1.3, Mali-G720 MC7", 8, 4, 3250, 11312, 120, 1220);
     assertEquals(PerfProfile.HIGH, PerfProfile.recommend(poco, bench(7, 5)));
     int[] high = PerfProfile.values(PerfProfile.HIGH, poco, bench(7, 5));
     assertEquals(1, high[PerfProfile.SMOOTH]);
-    assertEquals(2, high[PerfProfile.SAMPLES]);
+    assertEquals(1, high[PerfProfile.SAMPLES]);
+    assertEquals(1, high[PerfProfile.FXAA]);
     assertEquals(16, high[PerfProfile.ANISO]);
     assertEquals(0, high[PerfProfile.SKIP]);
-    // Retroid Pocket Flip 2 (Adreno 650, 2.5x / 1.5x): High, 60 FPS, FXAA and 8x
-    PerfProfile.Device retroid = dev("OpenGL ES 3.2, Adreno (TM) 650", 8, 1, 2841, 7700, 60);
+    // Retroid Pocket Flip 2 (Adreno 650, 2.5x / 1.5x, 1080 rows): High, 60 FPS, FXAA and 8x
+    PerfProfile.Device retroid = dev("OpenGL ES 3.2, Adreno (TM) 650", 8, 1, 2841, 7700, 60, 1080);
     assertEquals(PerfProfile.HIGH, PerfProfile.recommend(retroid, bench(5, 3)));
     int[] r = PerfProfile.values(PerfProfile.HIGH, retroid, bench(5, 3));
     assertEquals(1, r[PerfProfile.SMOOTH]);
     assertEquals(1, r[PerfProfile.SAMPLES]);
     assertEquals(1, r[PerfProfile.FXAA]);
     assertEquals(8, r[PerfProfile.ANISO]);
-    // Infinix X6882 (Mali-G57 MC2, 2x / 1x): Medium, 30 FPS with frame skip, FXAA and 4x
-    PerfProfile.Device infinix = dev("Mali-G57 MC2", 8, 2, 2200, 5673, 60);
+    // the project owner's Retroid 11.11.2026 (Vulkan, 4x / 3x): 3x is its screen's level, so no MSAA (4x MSAA there
+    // took Dynamic to 2x and the shown FPS to 39): FXAA and 16x
+    int[] owner = PerfProfile.values(PerfProfile.HIGH, retroid, bench(8, 6));
+    assertEquals(1, owner[PerfProfile.SAMPLES]);
+    assertEquals(1, owner[PerfProfile.FXAA]);
+    assertEquals(16, owner[PerfProfile.ANISO]);
+    // Infinix X6882 (Mali-G57 MC2, 2x / 1x, 720 rows): Medium, 30 FPS with frame skip, FXAA and 4x
+    PerfProfile.Device infinix = dev("Mali-G57 MC2", 8, 2, 2200, 5673, 60, 720);
     assertEquals(PerfProfile.MEDIUM, PerfProfile.recommend(infinix, bench(4, 2)));
     int[] m = PerfProfile.values(PerfProfile.MEDIUM, infinix, bench(4, 2));
     assertEquals(0, m[PerfProfile.SMOOTH]);
@@ -70,14 +82,53 @@ public class PerfProfileTest {
   }
 
   @Test public void aNinetyHertzScreenKeepsThirty() {
-    // Galaxy A24 class with a strong chip on 90 Hz: High without 60 FPS, effects by the 30 FPS level (3x: MSAA 4x)
-    PerfProfile.Device d = dev("Adreno (TM) 735", 8, 1, 2900, 7700, 90);
+    // Galaxy A24 class with a strong chip on 90 Hz: High without 60 FPS, effects by the 30 FPS level (3x)
+    PerfProfile.Device d = dev("Adreno (TM) 735", 8, 1, 2900, 7700, 90, 720);
     assertEquals(PerfProfile.HIGH, PerfProfile.recommend(d, bench(6, 4)));
     int[] v = PerfProfile.values(PerfProfile.HIGH, d, bench(6, 4));
     assertEquals(0, v[PerfProfile.SMOOTH]);
     assertEquals(1, v[PerfProfile.SKIP]);
-    assertEquals(4, v[PerfProfile.SAMPLES]);
+    assertEquals("3x on a 720-row screen (2x): MSAA 4x", 4, v[PerfProfile.SAMPLES]);
     assertEquals(6, PerfProfile.headroom(v, d, bench(6, 4)));
+    // the same on 1080 rows (3x): no surplus, FXAA instead
+    int[] fhd = PerfProfile.values(PerfProfile.HIGH, dev("Adreno (TM) 735", 8, 1, 2900, 7700, 90, 1080), bench(6, 4));
+    assertEquals(1, fhd[PerfProfile.SAMPLES]);
+    assertEquals(1, fhd[PerfProfile.FXAA]);
+    // half a level of surplus: MSAA 2x
+    int[] half = PerfProfile.values(PerfProfile.HIGH, dev("Adreno (TM) 735", 8, 1, 2900, 7700, 90, 1080), bench(7, 4));
+    assertEquals(2, half[PerfProfile.SAMPLES]);
+    assertEquals(0, half[PerfProfile.FXAA]);
+  }
+
+  @Test public void theScreensLevel() {
+    assertEquals(6, PerfProfile.screenLevel(dev("x", 8, 1, 2000, 4000, 60, 1080)));
+    assertEquals(7, PerfProfile.screenLevel(dev("x", 8, 1, 2000, 4000, 60, 1220)));
+    assertEquals(4, PerfProfile.screenLevel(dev("x", 8, 1, 2000, 4000, 60, 720)));
+    assertEquals(8, PerfProfile.screenLevel(dev("x", 8, 1, 2000, 4000, 60, 1600)));
+    assertEquals("unknown", 6, PerfProfile.screenLevel(dev("x", 8, 1, 2000, 4000, 60)));
+  }
+
+  @Test public void everyProfileUsesThePerformanceCores() {
+    PerfProfile.Device d = dev("Adreno (TM) 650", 8, 1, 2841, 7700, 60, 1080);
+    for (int p = PerfProfile.LOW; p <= PerfProfile.HIGH; p++)
+      assertEquals(1, PerfProfile.values(p, d, bench(8, 6))[PerfProfile.CORES]);
+  }
+
+  @Test public void aSuggestionKeepsUpWithTheSettingsBefore() {
+    // the project owner's Retroid check 11.11.2026, 20 s windows: {seconds, game pictures, shown, weak, levels}
+    int[] before = {20, 602, 1014, 9, 129};  // 30.1 / 50.7, 9 weak, 6.47 halves
+    int[] fxaa = {20, 602, 1034, 6, 120};    // 30.1 / 51.7, 6 weak, 6.00
+    int[] msaa4 = {20, 542, 776, 13, 88};    // 27.1 / 38.8, 13 weak, 4.40
+    int[] msaa2 = {20, 588, 644, 20, 98};    // 29.4 / 32.2, 20 weak, 4.90
+    assertFalse(PerfProfile.holds(fxaa, true, 6));
+    assertTrue("FXAA as smooth as before", PerfProfile.keepsUp(fxaa, before, 6));
+    assertFalse(PerfProfile.keepsUp(msaa4, before, 6));
+    assertFalse(PerfProfile.keepsUp(msaa2, before, 6));
+    assertFalse("one picture a second less than before at most",
+        PerfProfile.keepsUp(new int[] {20, 602, 990, 9, 129}, before, 6));
+    assertFalse("Dynamic more than half a level lower",
+        PerfProfile.keepsUp(new int[] {20, 602, 1014, 9, 98}, before, 6));
+    assertFalse("too short", PerfProfile.keepsUp(new int[] {5, 150, 250, 0, 30}, before, 6));
   }
 
   @Test public void withoutABenchmarkTheChipDecides() {

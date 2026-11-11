@@ -801,6 +801,7 @@ LevelBench levelBench;
 constexpr double kBenchLimit = 360.0;  // seconds for the whole benchmark at most (the way there and back included)
 // The benchmark sets the level and the 60 FPS itself (mode 0 measuring); the check (mode 1) leaves them to Dynamic
 bool benchForcing() { return levelBench.active && levelBench.mode.load() == 0; }
+bool benchChecking() { return levelBench.active && levelBench.mode.load() == 1; }
 int aimSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
 // percent (the core's runtime/sound_volume.cpp).
@@ -1818,6 +1819,14 @@ bool drawGx() {
             ScaleName(scale).c_str(), ScaleName(cap).c_str(), optSmooth.load() ? 60 : 30);
       }
     }
+    const int dynTop = scale;  // Dynamic's highest level
+    // the benchmark's check (mode 1, 0.99.10): a new renderer starts at the benchmark's level, not half a level
+    // above it (the project owner's Retroid check 11.11.2026 started each window at 3.5x and counted the way down)
+    if (autoLevelOn && proven && benchChecking()) {
+      scale = proven;
+      LOG("benchmark: the check's new renderer at the benchmark's level %s (Dynamic up to %s)", ScaleName(scale).c_str(),
+          ScaleName(dynTop).c_str());
+    }
     // once per run: does this GPU compute the movie colours like the GameCube (gx_selfcheck.cpp;
     // the Galaxy A36 showed them green and brown)? Before any renderer, on a renderer of its own;
     // on wrong pixels it picks a way of writing the TEV's lerp that this GPU computes right.
@@ -1939,8 +1948,8 @@ bool drawGx() {
     }
     if (autoLevelOn) {
       // in half steps down to 1x (wish of the project owner, 27.10.2026: 2x straight to 1x lost too much)
-      autoLevel.Start(scale, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(),
-                      2, true, proven);
+      autoLevel.Start(dynTop, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(),
+                      2, true, proven, scale);
       LOG("dynamic resolution: from level %sx (the screen's), half a level lower while the GPU falls behind",
           ScaleName(scale).c_str());
     }

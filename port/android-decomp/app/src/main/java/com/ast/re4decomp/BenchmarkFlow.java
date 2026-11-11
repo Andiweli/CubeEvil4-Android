@@ -24,12 +24,15 @@ import java.util.Locale;
 
 /**
  * The benchmark with its suggestion (0.99.10, wishes of the project owner, 11.11.2026; port/docs/leistungsprofil-plan.md):
- * benchmark 1 at the lake's dock with the picture's extras off and the picture format "Native" (the levels that hold 30
- * and 60 FPS, the processor sign; core_mode.cpp LevelBench mode 0), then popup 2 (the device, the levels, the profile
- * PerfProfile suggests; "Ignore" keeps only the levels for "Dynamic", "Apply" checks it), benchmark 2 (mode 1: 20 s
- * with the settings before, 20 s with the suggestion, an effect taken back up to twice while it does not hold), popup
- * 3 (before and after; "Ignore" the settings before, "Accept" the profile). On the very first start popup 1 comes
- * first, once the title's menu waits (CoreActivity); a cancel offers it again at the next start.
+ * benchmark 1 at the lake's dock with the player's own look settings (depth of field, lens flares, sharpening, the
+ * filters: no profile changes them), the profile's settings at their base, the performance cores and the picture
+ * format "Native" (the levels that hold 30 and 60 FPS, the processor sign; core_mode.cpp LevelBench mode 0), then popup
+ * 2 (the device, the levels, the profile PerfProfile suggests; "Ignore" keeps only the levels for "Dynamic", "Apply"
+ * checks it), benchmark 2 (mode 1: 20 s with the settings before, 20 s with the suggestion, each after Dynamic settled;
+ * an effect taken back up to twice while it neither holds its rate nor runs as smoothly as before), popup 3 (before and
+ * after; "Ignore" the settings before, "Accept" the profile; a suggestion less smooth than before says so and has
+ * "Ignore" focused). On the very first start popup 1 comes first, once the title's menu waits (CoreActivity); a cancel
+ * offers it again at the next start.
  */
 final class BenchmarkFlow {
   interface Host {
@@ -37,7 +40,8 @@ final class BenchmarkFlow {
     SharedPreferences graphics();
     /** The options of the preferences to the core (picture, filters, 60 FPS, frame skip, cores, Potato, levels). */
     void applyOptions();
-    /** Benchmark 1's options: no picture extras, "Native", no frame skip, Potato off; not stored. */
+    /** Benchmark 1's options: the player's look settings, the profile's settings at their base (no anti-aliasing, no
+     *  texture filter, no frame skip, Potato off, the performance cores), "Native"; not stored. */
     void applyClean();
     /** A profile's values to the core over the preferences' others; not stored. */
     void applyValues(int[] values);
@@ -54,7 +58,10 @@ final class BenchmarkFlow {
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41, INK = 0xfff0eee5,
       MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, GO = 0xff2d5233, GO_EDGE = 0xff4f8a57, BOX = 0xff202720;
   private static final int WARMUP_FIRST = 15, WARMUP = 5;  // seconds (programs made on the first start)
-  private static final int SETTLE_MS = 4000, WINDOW_MS = 20000, STEPS_BACK = 2;
+  // benchmark 2: a window starts SETTLE_MS after the settings changed at the earliest, once Dynamic's level stood
+  // STABLE_MS (a new renderer starts at the benchmark's level and goes down half a level per 4 s where the GPU falls
+  // behind; the Retroid's check 11.11.2026 counted it from 3.5x down), SETTLE_MAX_MS at the latest
+  private static final int SETTLE_MS = 4000, STABLE_MS = 5000, SETTLE_MAX_MS = 16000, WINDOW_MS = 20000, STEPS_BACK = 2;
 
   private final Host host;
   private final Handler main = new Handler(Looper.getMainLooper());
@@ -68,7 +75,8 @@ final class BenchmarkFlow {
   private int[] before, proposal, firstProposal;
   // benchmark 2
   private int stage;  // 0 going, 1 settle before, 2 window before, 3 settle after, 4 window after, 5 back
-  private long until;
+  private long until, settleFrom, levelSince;
+  private int lastLevel;
   private int[] measureBefore, measureAfter;
   private int stepsBack;
   private String stepNote;
@@ -261,35 +269,42 @@ final class BenchmarkFlow {
       case 1: host.progress(s(R.string.ingame_benchmark_going)); break;
       case 2: {
         int fps = Math.round(st[5] / 10f);
+        if (st[2] != lastLevel) {
+          lastLevel = st[2];
+          levelSince = now;
+        }
         if (stage == 0) {
           CoreBridge.benchmarkMeasure();
-          stage = 1;
-          until = now + SETTLE_MS;
-        } else if (now >= until) {
-          if (stage == 1 || stage == 3) {
+          settle(now, 1);
+        } else if (stage == 1 || stage == 3) {
+          if (now - settleFrom >= SETTLE_MS && (now - levelSince >= STABLE_MS || now - settleFrom >= SETTLE_MAX_MS)) {
             CoreBridge.benchmarkMeasure();  // the settling seconds do not count
+            Log.i(TAG, "benchmark 2: settled after " + (now - settleFrom) / 1000 + " s at "
+                + PerfProfile.level(lastLevel) + (now - levelSince < STABLE_MS ? " (still moving)" : ""));
             stage++;
             until = now + WINDOW_MS;
-          } else if (stage == 2) {
+          }
+        } else if (now >= until) {
+          if (stage == 2) {
             measureBefore = CoreBridge.benchmarkMeasure();
             Log.i(TAG, "benchmark 2: before " + window(measureBefore));
             host.applyValues(proposal);
-            stage = 3;
-            until = now + SETTLE_MS;
+            settle(now, 3);
           } else if (stage == 4) {
             measureAfter = CoreBridge.benchmarkMeasure();
             int room = PerfProfile.headroom(proposal, device, new PerfProfile.Bench(cap30, cap60, cpuSign, true));
             boolean holds = PerfProfile.holds(measureAfter, proposal[PerfProfile.SMOOTH] != 0, room);
+            boolean keeps = PerfProfile.keepsUp(measureAfter, measureBefore, room);
             Log.i(TAG, "benchmark 2: with " + name(recommended) + " " + describe(proposal) + ": " + window(measureAfter)
-                + (holds ? ", holds" : ", does not hold (headroom " + room + " halves)"));
-            int[] less = holds || stepsBack >= STEPS_BACK ? null : PerfProfile.stepBack(proposal);
+                + (holds ? ", holds" : keeps ? ", as smooth as before (not its full rate)"
+                : ", does not hold, less smooth than before (headroom " + room + " halves)"));
+            int[] less = holds || keeps || stepsBack >= STEPS_BACK ? null : PerfProfile.stepBack(proposal);
             if (less != null) {
               stepNote = s(R.string.ingame_bench_stepped, effects(firstProposal), effects(less));
               proposal = less;
               stepsBack++;
               host.applyValues(proposal);
-              stage = 3;
-              until = now + SETTLE_MS;
+              settle(now, 3);
             } else {
               CoreBridge.finishBenchmark();
               stage = 5;
@@ -320,6 +335,13 @@ final class BenchmarkFlow {
     main.postDelayed(poll, 250);
   }
 
+  /** A settling of benchmark 2 from `now` (stage 1 or 3). */
+  private void settle(long now, int next) {
+    stage = next;
+    settleFrom = now;
+    levelSince = now;
+  }
+
   // ---- popup 3 ------------------------------------------------------------------------------------------------
 
   private void showResult() {
@@ -344,8 +366,15 @@ final class BenchmarkFlow {
     if (!extra.isEmpty()) paragraph(box, s(R.string.ingame_bench_extra, join(extra)), INK);
     if (stepNote != null) paragraph(box, stepNote, MUTED);
     int room = PerfProfile.headroom(proposal, device, new PerfProfile.Bench(cap30, cap60, cpuSign, true));
-    if (!PerfProfile.holds(measureAfter, proposal[PerfProfile.SMOOTH] != 0, room))
-      paragraph(box, s(R.string.ingame_bench_not_held), MUTED);
+    boolean holds = PerfProfile.holds(measureAfter, proposal[PerfProfile.SMOOTH] != 0, room);
+    // as smooth as before, not its full rate: said; less smooth than before: said, and "Ignore" has the focus (the
+    // Retroid's check 11.11.2026 offered a last step that did not hold as if it were fine)
+    boolean better = holds || PerfProfile.keepsUp(measureAfter, measureBefore, room);
+    if (!holds && better) paragraph(box, s(R.string.ingame_bench_not_held), MUTED);
+    if (!better) {
+      TextView worse = paragraph(box, s(R.string.ingame_bench_worse), GOLD);
+      worse.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    }
     paragraph(box, s(R.string.ingame_bench_before_note), MUTED);
     final AlertDialog[] dlg = new AlertDialog[1];
     Runnable ignore = () -> {
@@ -364,7 +393,7 @@ final class BenchmarkFlow {
       Log.i(TAG, "popup 3: accepted: " + name(recommended) + " " + describe(proposal));
     });
     buttons(box, no, yes);
-    dlg[0] = dialog(box, yes, ignore);
+    dlg[0] = dialog(box, better ? yes : no, ignore);
   }
 
   // ---- texts --------------------------------------------------------------------------------------------------

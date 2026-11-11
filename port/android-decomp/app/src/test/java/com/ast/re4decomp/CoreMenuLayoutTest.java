@@ -550,7 +550,11 @@ public class CoreMenuLayoutTest {
       Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());
-      org.robolectric.shadows.ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS);
+      // the flash ends after CHEAT_FLASH_MS: the main looper's tasks one by one, at most 2000 (idleMainLooper ran for
+      // ever twice in a full run, 11.11.2026: an endless animation left in this SDK 28 sandbox by another test class
+      // brought a new frame each time Robolectric's clock moved on, so the looper never became idle)
+      org.robolectric.shadows.ShadowLooper looper = org.robolectric.shadows.ShadowLooper.shadowMainLooper();
+      for (int n = 0; killer7.isSelected() && n < 2000; n++) looper.runOneTask();
       assertFalse(killer7.isSelected());
       // the story's player character below the buttons (03.11.2026): its player type << 5, the switches kept
       // three a row without a row label (03.11.2026)
@@ -919,6 +923,49 @@ public class CoreMenuLayoutTest {
       assertEquals(0, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
       assertTrue(hasText(root, activity.getString(R.string.ingame_view_help)));
     }
+  }
+
+  /** The performance profiles in one row with the benchmark at its end, the lines under it over the whole width (the
+   *  project owner after the Retroid test, 11.11.2026), in each language at the three font sizes on a handheld's width;
+   *  on a narrow window the row may break, never clip (allPagesFitAcrossLanguagesWidthsAndFontScales). */
+  @Test public void profileRowHoldsFiveButtonsAndTheTextsSpanTheWidth() throws Exception {
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> method.getReturnType() == boolean.class
+            ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : method.getReturnType() == float.class ? (Object) 1f
+            : method.getReturnType() == double.class ? (Object) 60.0 : null);
+    Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+    for (String language : new String[] {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"})
+      for (float scale : new float[] {1f, 1.15f, 1.3f}) {
+        try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+          Activity activity = controller.get();
+          Configuration config = new Configuration(activity.getResources().getConfiguration());
+          config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
+          activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+          CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+          show.invoke(menu, 0, false);
+          View root = (View) field(menu, "root");
+          root.setLayoutDirection(config.getLayoutDirection());
+          float density = activity.getResources().getDisplayMetrics().density;
+          measure(root, Math.round(960 * density), Math.round(300 * density));
+          String where = language + "/" + scale;
+          Button custom = findButton(root, activity.getString(R.string.ingame_profile_custom));
+          assertNotNull(where, custom);
+          MenuLayout.Buttons row = (MenuLayout.Buttons) custom.getParent();
+          assertEquals(where + ": four profiles and the benchmark", 5, row.getChildCount());
+          assertEquals(where, activity.getString(R.string.ingame_benchmark), ((Button) row.getChildAt(4)).getText().toString());
+          for (int i = 1; i < 5; i++) assertEquals(where + ": one row", row.getChildAt(0).getTop(), row.getChildAt(i).getTop());
+          checkBounds(row, where);
+          // the line under it and the help: as wide as the body
+          ViewGroup body = (ViewGroup) row.getParent();
+          int index = body.indexOfChild(row);
+          for (int i = index + 1; i <= index + 2; i++) {
+            View line = body.getChildAt(i);
+            assertTrue(where + ": a text under the row", line instanceof TextView && !(line instanceof Button));
+            assertEquals(where + ": over the whole width", body.getWidth() - body.getPaddingLeft() - body.getPaddingRight(),
+                line.getWidth());
+          }
+        }
+      }
   }
 
   private static boolean hasText(View view, String text) {

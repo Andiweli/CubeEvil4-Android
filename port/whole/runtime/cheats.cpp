@@ -145,8 +145,6 @@ const char* actionName(int what)
         return "+1000000 pesetas";
     case 4:
         return "extra games";
-    case 10:
-        return "Krauser's bow and arrows";
     }
     return "?";
 }
@@ -155,7 +153,7 @@ const char* actionName(int what)
 // His bow is item 0x52 (weapon 0x1C, his own file: ownWeapon; read.cpp wep_data_klauser 0x1C), its arrows are item
 // 0x72 (20 a slot, item.cpp itemInfo; cItemMgr::trigger takes one a shot, nothing with "Infinite ammo"); his
 // Mercenaries start with the bow and 30 arrows (item.cpp set_char 4). The story has no arrows to find and the
-// merchant sells none: the button fills them up. Leon and the other stand-ins have no file for weapon 0x1C
+// merchant sells none: each room start fills them up (re4_story_char_room). Leon and the other stand-ins have no file for weapon 0x1C
 // (wep_data_leon 0x1C is empty): the bow and the arrows leave the case at the room start when anyone but Krauser
 // plays (re4_story_char_room), and saves on the memory card never hold them (re4_story_char_card_items: a save is
 // Leon's, for the GameCube and Dolphin as well).
@@ -164,8 +162,8 @@ const u8 kBowWeapon = 0x1C;   // the bow's weapon number (item.cpp wep_info)
 const int kArrowSlot = 20;    // item.cpp itemInfo 0x72: maxNum
 const int kArrowsGiven = 40;  // two full slots
 
-// The button: the bow when it is missing and the arrows up to 40 (the slots there filled up first). 1 the bow
-// added, 2 it was there (arrows refilled), -1 no room for the bow.
+// Krauser plays the story (each room start): the bow when it is missing and the arrows up to 40 (the slots there
+// filled up first). 1 the bow added, 2 it was there, -1 no room for the bow.
 int giveBow()
 {
     int result = 1;
@@ -173,7 +171,7 @@ int giveBow()
     if (bow) {
         result = 2;
     } else if (!ItemMgr.get(kBow, 0) || !(bow = ItemMgr.search(kBow))) {
-        re4_log("cheat: %s: no free slot in the inventory", actionName(10));
+        re4_log("cheat: Krauser's bow: no free slot in the inventory (r%03x)", (unsigned) pG->room_id);
         return -1;
     }
     int had = 0, have = 0;
@@ -189,12 +187,15 @@ int giveBow()
     }
     while (have < kArrowsGiven) {
         if (!ItemMgr.get(kArrows, kArrowSlot)) {
-            re4_log("cheat: %s: no free slot for more arrows", actionName(10));
+            re4_log("cheat: Krauser's bow: no free slot for more arrows (r%03x)", (unsigned) pG->room_id);
             break;
         }
         have += kArrowSlot;
     }
-    re4_log("cheat: %s %s, arrows %d -> %d", actionName(10), result == 2 ? "kept" : "added", had, have);
+    if (result == 1 || have != had) {
+        re4_log("cheat: Krauser's bow %s, arrows %d -> %d (r%03x)", result == 2 ? "kept" : "added", had, have,
+                (unsigned) pG->room_id);
+    }
     return result;
 }
 
@@ -1140,14 +1141,6 @@ int re4CheatPerform(int what)
         addMoney(1000000);
         re4_log("cheat: %s: %u pesetas", actionName(what), (unsigned) pG->peseta);
         break;
-    case 10:
-        // Krauser's bow: only while he plays the story (-6: the app says so)
-        if (pG->pl_type != 4 || !standIn()) {
-            re4_log("cheat: %s only while Krauser plays the story (player %s)", actionName(what),
-                    kCharName[pG->pl_type & 7]);
-            return -6;
-        }
-        return giveBow();
     default:
         return 0;
     }
@@ -1245,8 +1238,11 @@ void re4_story_char_room(void)
         }
     }
     re4_story_ganado = standIn() && gSetType == pG->pl_type;
-    // Krauser's bow (0.99.10): nobody else has a file for it; Ashley's part keeps Leon's case as it is
-    if (pG->pl_type != 4 && pG->pl_type != 1) {
+    // Krauser's bow (0.99.10): his own weapon while he plays the story, with the arrows up to 40 at each room
+    // start; nobody else has a file for it; Ashley's part keeps Leon's case as it is
+    if (pG->pl_type == 4 && standIn()) {
+        giveBow();
+    } else if (pG->pl_type != 1) {
         char why[48];
         snprintf(why, sizeof(why), "%s plays from r%03x on", kCharName[pG->pl_type & 7], (unsigned) pG->room_id);
         stripBow(why);

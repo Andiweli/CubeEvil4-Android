@@ -216,10 +216,11 @@ Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-ch
 
 ### Krausers Bogen (0.99.10, Nutzerwunsch über den Projektinhaber, 11.11.2026)
 
-- Knopf „Krauser's bow“ unter den Figuren (Cheat-Knopf 10, `runtime/cheats.cpp` `giveBow`), nur mit Krauser
-  wählbar: Bogen (Gegenstand 0x52, Waffe 0x1C, Krausers eigene Datei) und Pfeile (0x72, 20 je Feld) bis 40; erneut
-  drücken füllt nach, „Infinite ammo“ verbraucht keine. Mit einer anderen Figur antwortet der Kern −6 („Only while
-  Krauser plays the story“).
+- Kein Knopf (Entscheidung des Projektinhabers nach dem Test auf dem Retroid, 11.11.2026: „Krauser soll den Bogen von
+  Haus aus bereits haben“): spielt Krauser die Geschichte, legt jeder Raumstart (`re4_story_char_room`,
+  `runtime/cheats.cpp` `giveBow`) den Bogen (Gegenstand 0x52, Waffe 0x1C, Krausers eigene Datei) in den Koffer, falls
+  er fehlt, und füllt die Pfeile (0x72, 20 je Feld) bis 40 auf; „Infinite ammo“ verbraucht keine. Der erste Stand
+  (Cheat-Knopf 10 mit vier Texten) ist wieder entfernt.
 - Leon und die anderen Stellvertreter haben keine Datei für Waffe 0x1C (`wep_data_leon` 0x1C leer): beim Raumstart
   (`re4_story_char_room`) verlassen Bogen und Pfeile den Koffer, sobald nicht Krauser spielt (Ashleys
   Abschnitt ausgenommen). Spielstände auf der Speicherkarte (Patch 0228, `cCard::makeSaveData`) enthalten sie nie;

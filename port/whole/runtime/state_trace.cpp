@@ -91,7 +91,7 @@
 //                          "x0 z0 x1 z1 y" per edge) for tools/minimap_check.cpp
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
 //                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games,
-//                          5..9 weapons, 10 Krauser's bow)
+//                          5..9 weapons)
 //                          one a frame, as the app's menu presses them while the
 //                          game runs (runtime/cheats.cpp; the switches: RE4_CHEATS)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is
@@ -200,7 +200,7 @@
 //                          not read for (HUNK's TMP file with the stock's type, patch 0206)
 //   RE4_TEST_ARM="free+N:ID"  N frames after the player is free, the case's item ID (hex) is armed and its weapon
 //                          file read and made, as the case's "Equip" does (weaponRelease, weaponLoad, weaponInit):
-//                          Krauser's bow 0x52 from the cheat button 10 (0.99.10)
+//                          Krauser's bow 0x52, which he has in the story from the room start on (0.99.10)
 //   RE4_TEST_ASHLEY_DIES="free+N"  N frames after the player is free, Ashley's life becomes 0 once: the
 //                          player's dejection (routine 6) before the game over (0.99.3, Ada's pose)
 //   RE4_TEST_PL_MOTION="free+N:IDX[-LAST/EVERY][,SEQ][,own]"  N frames after the player is free, Leon's

@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  * The performance profiles of the app menu's start page and the benchmark's recommendation (0.99.10, wishes of the
  * project owner, 11.11.2026; port/docs/leistungsprofil-plan.md). Custom, Low, Medium, High: Low, Medium and High are
  * computed for this device from the benchmark's levels (the 30 and 60 FPS levels, the processor sign) and the
- * device's data (graphics chip, processor, memory, the display's rate). A profile sets the settings of KEYS; the
+ * device's data (graphics chip, processor, memory, the display's rate and rows). A profile sets the settings of KEYS; the
  * others (picture format, look filters, renderer, the untried experiments) stay the player's.
  *
  * Custom is kept: choosing a profile while Custom is active keeps its values (CUSTOM_PREFIX), choosing Custom brings
@@ -45,9 +45,14 @@ final class PerfProfile {
     final int cores, fastCores, maxMhz, ramMb;
     final double hz;           // the display (FramePacing), 0 unknown
     final int samplesMax, anisoMax;
+    final int rows;            // the screen's rows of a 16:9 picture (min(height, width * 9 / 16)), 0 unknown
     Device(String gpu, int cores, int fastCores, int maxMhz, int ramMb, double hz, int samplesMax, int anisoMax) {
+      this(gpu, cores, fastCores, maxMhz, ramMb, hz, samplesMax, anisoMax, 0);
+    }
+    Device(String gpu, int cores, int fastCores, int maxMhz, int ramMb, double hz, int samplesMax, int anisoMax,
+           int rows) {
       this.gpu = gpu == null ? "" : gpu; this.cores = cores; this.fastCores = fastCores; this.maxMhz = maxMhz;
-      this.ramMb = ramMb; this.hz = hz; this.samplesMax = samplesMax; this.anisoMax = anisoMax;
+      this.ramMb = ramMb; this.hz = hz; this.samplesMax = samplesMax; this.anisoMax = anisoMax; this.rows = rows;
     }
   }
 
@@ -90,6 +95,13 @@ final class PerfProfile {
 
   static boolean lowMemory(Device d) { return d.ramMb > 0 && d.ramMb < 2800; }
 
+  /** The level (halves) whose 336 picture rows a 1x frame has come closest to the screen's rows (core_mode.cpp's
+   *  "Dynamic" counts the same way): the Retroid's 1080 rows 6 (3x), a 1220-row phone 7, a 720-row one 4; 6 unknown. */
+  static int screenLevel(Device d) {
+    if (d.rows <= 0) return 6;
+    return Math.max(2, Math.min(8, (int) Math.round(d.rows * 2 / 336.0)));
+  }
+
   /** Without a benchmark: the levels guessed from the chip (the reports' figures). */
   static Bench guess(Device d, Bench b) {
     if (b.measured) return b;
@@ -120,37 +132,39 @@ final class PerfProfile {
     boolean smooth = profile == HIGH ? b.cap60 >= 3 && !uneven : profile == MEDIUM && b.cap60 >= 4 && !uneven;
     v[SMOOTH] = smooth ? 1 : 0;
     int room = smooth ? b.cap60 : b.cap30;  // the headroom: the level held at the profile's rate
-    int[] fx = effects(profile, room);
+    int[] fx = effects(profile, room, screenLevel(d));
     v[SAMPLES] = clampSamples(fx[0], d.samplesMax);
     v[FXAA] = fx[1];
     v[ANISO] = clampAniso(fx[2], d.anisoMax);
+    // the performance cores in every profile (the project owner's Retroid test, 11.11.2026: "Standard" left the
+    // render thread on the middle cores, Dynamic settled at 2.5x instead of 3x..3.5x); a phone with only one kind
+    // of core is not changed by it
+    v[CORES] = 1;
     if (profile == LOW) {
       v[SKIP] = cpu ? 2 : 1;
-      v[CORES] = 1;
       v[WEATHER] = 0; v[SPECIAL] = 0; v[PARTICLES] = 1; v[SHADOWS] = 0;
       v[VIEW] = cpu ? 2 : 1;
     } else {
       v[SKIP] = smooth ? 0 : 1;
-      v[CORES] = profile == MEDIUM && cpu ? 1 : 0;
       v[WEATHER] = 1; v[SPECIAL] = 1; v[PARTICLES] = 0; v[SHADOWS] = 1;
       v[VIEW] = 0;
     }
     return v;
   }
 
-  /** {MSAA samples, FXAA, anisotropy} by the headroom (halves; plan "Effekte nach Spielraum"). */
-  static int[] effects(int profile, int room) {
+  /** {MSAA samples, FXAA, anisotropy} by the headroom `room` and the screen's level `screen` (halves; plan "Effekte
+   *  nach Spielraum"). MSAA only where the chip holds more than the screen's level (the surplus room - screen): up to
+   *  the screen's level the resolution itself is the better use (the project owner's Retroid, 11.11.2026: 3x held
+   *  with 60 FPS on 1080 rows, 4x MSAA took Dynamic to 2x and the FPS to 39); FXAA where there is no MSAA. */
+  static int[] effects(int profile, int room, int screen) {
+    int surplus = room - screen;
     if (profile == HIGH) {
-      if (room >= 6) return new int[] {4, 0, 16};
-      if (room >= 4) return new int[] {2, 0, 16};
-      if (room >= 3) return new int[] {1, 1, 8};
-      return new int[] {1, 0, 1};
+      int msaa = surplus >= 2 ? 4 : surplus >= 1 ? 2 : 1;
+      return new int[] {msaa, msaa == 1 && room >= 3 ? 1 : 0, room >= 4 ? 16 : room >= 3 ? 8 : 1};
     }
     if (profile == MEDIUM) {
-      if (room >= 6) return new int[] {2, 0, 8};
-      if (room >= 4) return new int[] {1, 1, 4};
-      if (room >= 3) return new int[] {1, 0, 4};
-      return new int[] {1, 0, 1};
+      int msaa = surplus >= 2 ? 2 : 1;
+      return new int[] {msaa, msaa == 1 && room >= 4 ? 1 : 0, room >= 6 ? 8 : room >= 3 ? 4 : 1};
     }
     return new int[] {1, 0, 1};
   }
@@ -197,6 +211,22 @@ final class PerfProfile {
     if (sixty && m[2] / s < 57.0) return false;
     if (m[3] > Math.max(1, m[0] / 20)) return false;
     return headroom < 2 || m[4] / s >= headroom - 1;
+  }
+
+  /** Does the suggestion's window `after` run at least as smoothly as the settings before (`before`), the same place,
+   *  the same check? At most one picture a second fewer (game and shown), at most one weak second more in twenty,
+   *  and Dynamic not more than half a level lower than before (or than the headroom, the lower of the two). The
+   *  Retroid's check 11.11.2026: before 50.7 shown a second, 9 weak, 3.2x; FXAA 51.7, 6 weak, 3x: as smooth. */
+  static boolean keepsUp(int[] after, int[] before, int headroom) {
+    if (after == null || before == null || after.length < 5 || before.length < 5 || after[0] < 10 || before[0] < 10)
+      return false;
+    double a = after[0], b = before[0];
+    if (after[1] / a < before[1] / b - 1.0) return false;
+    if (after[2] / a < before[2] / b - 1.0) return false;
+    if (after[3] / a > before[3] / b + 1.0 / 20) return false;
+    double level = before[4] / b;
+    if (headroom >= 2) level = Math.min(level, headroom);
+    return after[4] / a >= level - 1.0;
   }
 
   // ---- the preferences -----------------------------------------------------------------------------------------
