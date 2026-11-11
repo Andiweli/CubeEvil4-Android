@@ -37,6 +37,35 @@ Statusleiste oben und Navigationsleiste rechts sichtbar, „Voltar ao jogo“ am
   zeigen. Alle Unit-Tests beider Varianten grün.
 - **Nicht geprüft:** auf einem Gerät (Samsung/Retroid).
 
+### 4. Fernglas auf breiten Bildschirmen (Wunsch des Projektinhabers, Screenshot eines 20:9-Handys)
+
+„Auf Bildschirmen die sehr breit sind, wird das Fernglas links und rechts abgeschnitten und man sieht das Spiel …
+Das sollte bei breiten Screens schwarz überdeckt werden.“ Screenshot
+`E:\Development\Android\reports\09910-binocular-wide\binocular-sides-uncovered.webp` (r101, Blick aufs Dorf,
+RE-Touch-Knöpfe, Bildformat „Nativ“).
+
+- **Ursache:** Bei „Nativ“ zeichnet der Kern die 3D-Welt breiter (Patch 0214, `runtime/picture.cpp`). Die schwarze
+  Maske des Fernglases ist wie die des Zielfernrohrs ein Teil des ID-Systems und behält ihre 16:9-Form in der Mitte;
+  daneben blieb die breitere 3D-Welt sichtbar. Für das Zielfernrohr gab es schon die Ausnahme (`STA_SCOPE_CAMERA`:
+  4:3-Projektion, die App zeigt das Bild in der 16:9-Box mit schwarzen Rändern), für das Fernglas nicht.
+- **Andere Masken:** Im Spiel gibt es genau zwei `IDApplication`-Masken über das ganze Bild, `IdScope` und
+  `IdBinocular` (`include/cam_extra.h`); `STA_LOOK_THROUGH` setzen nur diese beiden. Das Zielfernrohr (Gewehr,
+  halbautomatisches Gewehr, Raketenwerfer, alle Figuren) war schon richtig. Das Fernglas kommt an drei Stellen:
+  `CameraControl::HoldBinocular` (r101, Blick aufs Dorf, und nach dem Koffer wieder, `sscrn.cpp`) und die
+  Ereignis-Schnitte durch das Fernglas in r10b (Bootsfahrt, der Boss zeigt sich) und r214 (Katapulte), die
+  `STA_BINOCULAR` selbst setzen.
+- **Behebung (`runtime/picture.cpp`, kein Patch unter `src/`):** „wide“ auch dann aus, wenn `STA_BINOCULAR` gesetzt
+  ist. Die App zeigt das Fernglas dann in der 16:9-Box mit schwarzen Rändern, wie das Zielfernrohr. Logzeile
+  „picture: Native in the 16:9 box (r101, binoculars)“.
+- **Geprüft am PC (i686 -O2, Debug-Discs, Debug-Start r101, 20:9 = `RE4_VIEW_ASPECT=1.6667`, Leon an den
+  Aussichtspunkt gesetzt und A gedrückt, Bilder mit dem GL-Renderer der App auf 2000 × 900 im Format „Nativ“,
+  `~/p09910/runs/before|after|after2`):** 0.99.9 (Binärdatei aus `~/re4-0999`) zeigt das Fernglas wie im Screenshot
+  mit der Spielwelt links und rechts; mit der Behebung schwarze Ränder, das Fernglas selbst gleich groß; Zwischensequenz
+  davor unverändert breit; nach dem Absetzen (B) wieder „Native wide“. `whole_build.sh` i686 -O2: alle Prüfungen
+  grün (runtime-test, core-test mit „native aspect“).
+- **Nicht geprüft:** auf einem Gerät; die Fernglas-Schnitte in r10b und r214 (gleiche Bedingung, nicht eigens
+  angespielt).
+
 ### 2./3. Benchmark beim ersten Start und Leistungsprofile (Wünsche des Projektinhabers): nur geplant
 
 Plan mit Szene, Dauer, Profiltabelle, Ablauf und drei offenen Fragen: `port/docs/leistungsprofil-plan.md`
