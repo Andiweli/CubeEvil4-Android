@@ -37,6 +37,13 @@ Statusleiste oben und Navigationsleiste rechts sichtbar, „Voltar ao jogo“ am
   zeigen. Alle Unit-Tests beider Varianten grün.
 - **Nicht geprüft:** auf einem Gerät (Samsung/Retroid).
 
+### 2./3. Benchmark beim ersten Start und Leistungsprofile (Wünsche des Projektinhabers): nur geplant
+
+Plan mit Szene, Dauer, Profiltabelle, Ablauf und drei offenen Fragen: `port/docs/leistungsprofil-plan.md`
+(Mock-ups im Notizordner der Sitzungen, `09910-plan\mock-home.png`, `mock-popups.png`). Gebaut wird erst nach den
+Antworten des Projektinhabers. Grundlage: der vorhandene Benchmark (Steg am See r11b, `runtime/benchmark.cpp`,
+`gx_bench_steps.h`, `CoreActivity.benchmark*`) und die gemessenen Stufen aus den Berichten (`dynamicCap30/60`).
+
 ## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
 
 Version 0.99.9-rc (versionCode 111), Releasetext `port/android-decomp/docs/releases/v0.99.9-rc.md` („Changes since
