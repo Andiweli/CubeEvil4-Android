@@ -193,6 +193,7 @@
     <string name="ingame_effects_volume">音效</string>
     <string name="ingame_volume_help">音乐指背景音乐；音效指游戏中的其他所有声音（枪声、人声、脚步）。过场影片的声音保持不变。下面两个按钮可完全关闭音乐或音效；重新打开后按上方设定的音量播放。</string>
     <string name="ingame_smooth_help">生成额外的中间帧。游戏逻辑仍以每秒 30 帧运行。</string>
+    <string name="ingame_smooth60_uneven">此屏幕刷新率为 %1$d Hz：60 FPS 无法在其上均匀显示，可能卡顿。在这里 30 FPS（关闭 60 FPS）更流畅。</string>
     <string name="ingame_instant_save">保存</string>
     <string name="ingame_instant_load">读取</string>
     <string name="ingame_instant_checking">正在检查存档槽…</string>
@@ -222,6 +223,13 @@
     <string name="ingame_filter_help">滤镜会改变整个画面的外观，可以同时开启。</string>
     <string name="ingame_sharpen">锐化</string>
     <string name="ingame_sharpen_help">锐化可找回画面放大到屏幕时变得模糊的纹理细节（尤其是宽屏画面格式）。影片保持不变。</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT：画面如同旧式显像管电视，带扫描线、弧面屏幕和柔和的光晕。触屏按键和小地图保持清晰。</string>
+    <string name="ingame_colour">色调</string>
+    <string name="ingame_colour_warm">暖色胶片</string>
+    <string name="ingame_colour_horror">生存恐怖</string>
+    <string name="ingame_colour_strength">强度</string>
+    <string name="ingame_colour_help">暖色胶片突出棕色和金色；生存恐怖让颜色变淡、对比更强。强度决定效果的多少。</string>
     <string name="ingame_skip_normal_help">跳帧“普通”：图形芯片跟不上时，跳过一帧已完成的画面，使游戏保持正常速度。</string>
     <string name="ingame_skip_aggressive_help">跳帧“激进”：游戏落后时自身最多每两帧跳过一帧；也能节省处理器时间，在处理器较慢的手机上快得多。</string>
     <string name="ingame_vk_bandwidth_help">仅限 Vulkan：画面清除后，图形芯片不再重新加载它，可在 Mali 和 Adreno 芯片上节省显存带宽。画面保持不变。</string>

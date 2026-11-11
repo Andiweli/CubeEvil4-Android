@@ -194,6 +194,7 @@
     <string name="ingame_effects_volume">साउंड इफ़ेक्ट</string>
     <string name="ingame_volume_help">संगीत पृष्ठभूमि संगीत है; साउंड इफ़ेक्ट गेम की बाकी सभी आवाज़ें हैं (गोलियाँ, आवाज़ें, कदम)। फ़िल्मों की आवाज़ वैसी ही रहती है। दोनों बटन संगीत या साउंड इफ़ेक्ट को पूरी तरह बंद कर देते हैं; फिर से चालू करने पर वे ऊपर तय की गई आवाज़ पर बजते हैं।</string>
     <string name="ingame_smooth_help">अतिरिक्त बीच के फ़्रेम। गेम लॉजिक 30 फ़्रेम/सेकंड पर रहता है।</string>
+    <string name="ingame_smooth60_uneven">यह स्क्रीन %1$d Hz पर चलती है: इस पर 60 FPS एक समान नहीं दिख सकता और अटक सकता है। यहाँ 30 FPS (60 FPS बंद) ज़्यादा सहज चलता है।</string>
     <string name="ingame_instant_save">सेव करें</string>
     <string name="ingame_instant_load">लोड करें</string>
     <string name="ingame_instant_checking">सेव स्लॉट जाँचा जा रहा है…</string>
@@ -223,6 +224,13 @@
     <string name="ingame_filter_help">फ़िल्टर पूरी तस्वीर का रूप बदलते हैं और साथ में चालू किए जा सकते हैं।</string>
     <string name="ingame_sharpen">शार्पन</string>
     <string name="ingame_sharpen_help">शार्पन उन टेक्सचर के डिटेल वापस लाता है जो तस्वीर को स्क्रीन तक बड़ा करने पर धुंधले हो जाते हैं (खासकर चौड़े पिक्चर फ़ॉर्मैट में)। वीडियो जैसे हैं वैसे ही रहते हैं।</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: तस्वीर पुराने ट्यूब टीवी जैसी, लाइनों, घुमावदार स्क्रीन और हल्की चमक के साथ। टच कंट्रोल और मिनीमैप साफ़ रहते हैं।</string>
+    <string name="ingame_colour">रंग</string>
+    <string name="ingame_colour_warm">गर्म फ़िल्म</string>
+    <string name="ingame_colour_horror">सर्वाइवल हॉरर</string>
+    <string name="ingame_colour_strength">तीव्रता</string>
+    <string name="ingame_colour_help">गर्म फ़िल्म भूरे और सुनहरे रंगों को उभारती है; सर्वाइवल हॉरर रंगों को फीका और कंट्रास्ट को तेज़ करता है। तीव्रता बताती है कितना।</string>
     <string name="ingame_skip_normal_help">फ़्रेम स्किप सामान्य: ग्राफ़िक्स चिप पिछड़ने पर एक तैयार फ़्रेम छोड़ दिया जाता है ताकि गेम सामान्य गति से चले।</string>
     <string name="ingame_skip_aggressive_help">फ़्रेम स्किप आक्रामक: पिछड़ने पर गेम खुद दो में से अधिकतम एक फ़्रेम छोड़ता है; इससे प्रोसेसर का समय भी बचता है और धीमे प्रोसेसर वाले फ़ोन पर यह काफ़ी तेज़ है।</string>
     <string name="ingame_vk_bandwidth_help">केवल Vulkan: चित्र साफ़ होने के बाद ग्राफ़िक्स चिप उसे दोबारा लोड नहीं करती, जिससे Mali और Adreno चिप पर मेमोरी बैंडविड्थ बचती है। चित्र वैसा ही रहता है।</string>

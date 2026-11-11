@@ -89,7 +89,7 @@ public class CoreMenuLayoutTest {
         new Class<?>[] {CoreMenu.Host.class},
         // gameLanguages: the home page with the European discs' "Game language" too
         (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE
-            : method.getReturnType() == float.class ? (Object) 1f : null);
+            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
     for (String language : languages) for (float scale : new float[] {1f, 1.5f, 2f}) {
@@ -162,7 +162,7 @@ public class CoreMenuLayoutTest {
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("graphicsChanged")) changed[0]++;
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -391,7 +391,7 @@ public class CoreMenuLayoutTest {
             case "controllerConnected": return controller[0];
             case "keyboardConnected": return keyboard[0];
             default: return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
           }
         });
     try (var controllerActivity = Robolectric.buildActivity(Activity.class).create()) {
@@ -498,7 +498,7 @@ public class CoreMenuLayoutTest {
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -755,7 +755,7 @@ public class CoreMenuLayoutTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> method.getName().equals("debugMenu") ? debug[0]
             : method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
-            : method.getReturnType() == float.class ? (Object) 1f : null);
+            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null);
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
@@ -775,7 +775,7 @@ public class CoreMenuLayoutTest {
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("importDiscs")) calls[0]++;
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -808,7 +808,7 @@ public class CoreMenuLayoutTest {
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("clearShaderCache")) calls[0]++;
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -840,7 +840,7 @@ public class CoreMenuLayoutTest {
           new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
             if (method.getName().equals("vulkanRunning")) return vulkan;
             return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
-                : method.getReturnType() == float.class ? (Object) 1f : null;
+                : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
           });
       try (var controller = Robolectric.buildActivity(Activity.class).create()) {
         Activity activity = controller.get();

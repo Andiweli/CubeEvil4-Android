@@ -41,6 +41,7 @@ public:
   VkDevice device = VK_NULL_HANDLE;
   VkQueue queue = VK_NULL_HANDLE;
   std::uint32_t family = 0;
+  std::uint32_t timestampBits = 0;  // of the queue family's timestamps (0: none; the GPU time per picture, 0.99.9)
   std::uint32_t apiVersion = 0;  // of the device, capped by the instance's
   VkPhysicalDeviceProperties properties{};
   VkPhysicalDeviceFeatures enabled{};  // the features turned on (what the renderer may use)

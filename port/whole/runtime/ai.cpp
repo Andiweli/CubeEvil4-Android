@@ -12,9 +12,9 @@
 // also absorbs the bursts of the retrace delivery and the drift between the
 // game's clock and the device's: the reader keeps about 60 ms in the ring by
 // playing a little faster or slower, and skips ahead after a pause of the app.
-// A steady difference it learns (at most 0.75 %): a display locked within
-// 0.5 % of 59.94 Hz (vi.cpp) runs the game up to 0.5 % slower or faster, and
-// the device's sound clock adds its own. Before 01.11.2026 the reader only
+// A steady difference it learns (at most 1.15 %, 0.75 % until 0.99.9): a
+// display locked within 1 % of 59.94 Hz (vi.cpp; 0.5 % until 0.99.9) runs the
+// game up to 1 % slower or faster, and the device's sound clock adds its own. Before 01.11.2026 the reader only
 // followed the fill (at most 0.37 % with the ring empty): at 59.7 Hz the ring
 // ran dry about twice a second, each time a crackle (user reports).
 //
@@ -47,8 +47,8 @@ const u32 kBlockFrames = 160;   // 5 ms at 32 kHz
 const u32 kRing = 1 << 14;      // frames (512 ms), a power of two
 const u32 kTarget = 1920;       // frames the reader keeps (60 ms)
 const u32 kSkip = 8000;         // more than this (250 ms): skip to the target
-const float kMaxLearn = 492;    // the learned rate difference, 1/65536 steps (0.75 %)
-const int kMaxAdjust = 655;     // the whole rate difference (1 %, 17 cents: only when far off)
+const float kMaxLearn = 754;    // the learned rate difference, 1/65536 steps (1.15 %)
+const int kMaxAdjust = 983;     // the whole rate difference (1.5 %, 26 cents: only when far off)
 
 AIDCallback gCallback;
 bool gInit;                     // AIInit done (AIReset clears it, as in ai.c)

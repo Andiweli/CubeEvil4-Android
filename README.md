@@ -62,18 +62,16 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   anisotropic filtering and depth of field.
 - Sound: the original SDK sound libraries with an emulated DSP; movies through the original CRI
   middleware with picture and ADX sound.
-- Releases: the debug build (`G4BE08`), the European retail release (`G4BP08`) with its five languages,
-  chosen in the app menu (default: your phone's language), the US retail release (`G4BE08`, English) and
-  the Japanese retail release (`G4BJ08`, in Japanese; the Korean fan translation in Korean). All use the
-  same memory card.
+- Releases: the European retail release (`G4BP08`) with its five languages, chosen in the app menu
+  (default: your phone's language), the US retail release (`G4BE08`, English) and the Japanese retail
+  release (`G4BJ08`, in Japanese; the Korean fan translation in Korean). All use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube); imports also
   take a whole Dolphin card (`.raw`, `.gcp`), a ZIP file and European saves.
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
   aiming with the right stick); touch controls when no controller is connected, with touch in the
   inventory; comfort controls: gyro aiming, knife by swipe, latching L, R and B; with a controller,
   X, Y, L1, R1, L3 and R3 can take other functions (Controller Configuration).
-  SELECT opens the app menu (graphics, sound, controls, performance, cheats, memory card, error report); with the
-  debug build, holding SELECT opens the game's own debug menu.
+  SELECT opens the app menu (graphics, sound, controls, performance, cheats, memory card, error report).
 - Android 6.0 or later, OpenGL ES 3.0.
 
 ## Requirements
@@ -87,7 +85,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | Free storage | about 3 GB, to import both discs | – |
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
-| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`), the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
+| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
 
 
 ## How to use?
@@ -99,10 +97,10 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 - A game controller (built in, USB or Bluetooth) or the touch screen: the touch controls appear
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
   Controls: Auto, Force or Suppress).
-- Your own disc images (ISO, GCM or RVZ) of **both** discs of the GameCube debug build from
-  November 25, 2004 (`G4BE08`), of the European retail release (`G4BP08`), of the US retail release
-  (`G4BE08`) or of the Japanese retail release (`G4BJ08`, also the Korean fan translation), and enough
-  free storage to import them. Both discs must be of the same release.
+- Your own disc images (ISO, GCM or RVZ) of **both** discs of the European retail release
+  (`G4BP08`), of the US retail release (`G4BE08`) or of the Japanese retail release (`G4BJ08`, also
+  the Korean fan translation), and enough free storage to import them. Both discs must be of the
+  same release.
 
 **First start**
 
@@ -128,8 +126,6 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export
   and import saves as `.gci` for Dolphin and the GameCube) and the error log (send or save a
   report; R3 = graphics capture). B returns to the game.
-- **Hold SELECT for a second** (debug discs only): the game's own debug menu (use with care, see
-  Status: some of its options can break the game in ways the port has nothing to do with).
 
 **Buttons**
 
@@ -144,7 +140,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | L2 | L | knife | ready weapon (aim) |
 | R1 | Z | map | inventory (weapons and recovery) |
 | L1 | – | | ready the knife |
-| SELECT | – | app menu (hold: debug menu, debug discs only) | as before |
+| SELECT | – | app menu | as before |
 | R3 | – | graphics capture for error reports (only when "R3 = Graphics capture" is on) | as before |
 
 **Controller Configuration** (app menu → Controls, with a controller connected): X, Y, L1, R1, L3
@@ -189,8 +185,8 @@ No disc images or game files ever go into the repository.
    `port/android-decomp/app/src/core/jniLibs/` (not in git).
 2. Open `port/android-decomp` in Android Studio, choose the build variant **coreRelease** and
    build a signed APK (Build → Generate Signed App Bundle or APK).
-3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO, GCM or RVZ of the debug
-   build, the US or the European retail release).
+3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO, GCM or RVZ of the
+   European, US or Japanese retail release).
 
 `port/scripts/test-core-app.ps1` builds, installs and tests the app on a device in one go;
 `port/tools/whole_build.sh` and `port/tools/whole_r100_check.sh` check the core on Linux.

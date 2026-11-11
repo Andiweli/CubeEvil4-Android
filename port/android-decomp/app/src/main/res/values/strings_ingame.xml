@@ -209,6 +209,7 @@
     <string name="ingame_effects_volume">Sound effects</string>
     <string name="ingame_volume_help">Music is the background music; sound effects are everything else in the game (shots, voices, steps). The movies keep their sound as it is. The two buttons switch the music or the sound effects off entirely; switched on again, they play at the volume above.</string>
     <string name="ingame_smooth_help">Extra in-between pictures. The game logic stays at 30 frames/s.</string>
+    <string name="ingame_smooth60_uneven">This screen runs at %1$d Hz: 60 FPS cannot be shown evenly on it and may stutter. 30 FPS (60 FPS off) runs smoother here.</string>
     <string name="ingame_instant_save">Save</string>
     <string name="ingame_instant_load">Load</string>
     <string name="ingame_instant_checking">Checking save slot …</string>
@@ -238,6 +239,13 @@
     <string name="ingame_filter_help">Filters change the look of the whole picture and can be combined.</string>
     <string name="ingame_sharpen">Sharpen</string>
     <string name="ingame_sharpen_help">Sharpen brings back the detail of textures that gets soft when the picture is enlarged to the screen (mostly in the wide picture formats). Movies stay as they are.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: the picture as an old tube TV showed it, with lines, a curved screen and a soft glow. The touch controls and the minimap stay sharp.</string>
+    <string name="ingame_colour">Colour</string>
+    <string name="ingame_colour_warm">Warm film</string>
+    <string name="ingame_colour_horror">Survival horror</string>
+    <string name="ingame_colour_strength">Strength</string>
+    <string name="ingame_colour_help">Warm film brings out the browns and golds; Survival horror pales the colours and hardens the contrast. Strength sets how much.</string>
     <string name="ingame_skip_normal_help">Frame skip Normal: while the graphics chip lags, a finished picture is left out so the game keeps its normal speed.</string>
     <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out at most every second picture while it falls behind; this also saves processor time and is much faster on phones with a slow processor.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan only: after the picture is cleared, the graphics chip no longer loads it again, which saves memory bandwidth on Mali and Adreno chips. The picture stays the same.</string>

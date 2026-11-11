@@ -1532,6 +1532,83 @@ extern "C" int re4probe_gyro_boat(void)
     return bad;
 }
 
+// Swipe aiming in the knife stance (runtime/gyro.cpp, 0.99.9): a fake Leon holding the knife (routine 0/0xB/1)
+// turns by a swipe as the gun does (the body's yaw, m3r with the sway's centre cPlWep::pitch), slashing (0/0xB/2)
+// too; not while he puts it away (0/0xB/3), not by the gyro, not in a sub screen. Bits: each failed case.
+extern "C" int re4probe_aim_knife(void)
+{
+    cPlayer* keepPl = pPL;
+    const u8 keepStep = pG->Rno0;
+    const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0, keepEvent = StaFlagChk(pG, STA_EVENT) != 0;
+    const f32 keepM3r = m3r;
+
+    cPlayer* pl = (cPlayer*) (unsigned long) 0x82E40000ul;
+    memset((void*) pl, 0, sizeof(cPlayer));
+    cPlWep* wep = (cPlWep*) (unsigned long) 0x82E30000ul;
+    memset((void*) wep, 0, sizeof(cPlWep));
+    pl->Wep = wep;
+    pl->r_no_0 = 0;
+    pl->r_no_1 = 0xB;
+    pl->r_no_2 = 1;
+    pl->r_no_3 = 1;
+    pPL = pl;
+    pG->Rno0 = 3;
+    StaFlagOff(pG, STA_SUB_SCRN);
+    StaFlagOff(pG, STA_EVENT);
+    m3r = 0.0f;
+
+    PADStatus pads[4];
+    int bad = 0;
+    auto near = [](float a, float b) { return a - b < 1e-4f && b - a < 1e-4f; };
+    const float kPi = 3.14159265f;
+
+    // holding the knife: two swipes added up, turned at the next frame
+    re4_core_aim_turn(0.05f, 0.05f);
+    re4_core_aim_turn(0.05f, 0.05f);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, 0.1f) ? 1 : 0;
+    bad |= !near((f32) m3r, 0.1f / (kPi / 4.0f)) ? 2 : 0;
+    bad |= !near(wep->pitch, 0.1f / (kPi / 4.0f) * (kPi / 2.0f)) ? 4 : 0;
+    // slashing: turns too
+    pl->r_no_2 = 2;
+    re4_core_aim_turn(-0.2f, 0.0f);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, -0.1f) ? 8 : 0;
+    // putting it away: nothing
+    pl->r_no_2 = 3;
+    re4_core_aim_turn(0.3f, 0.3f);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, -0.1f) || !near((f32) m3r, 0.1f / (kPi / 4.0f)) ? 0x10 : 0;
+    // the gyro leaves the knife alone
+    pl->r_no_2 = 1;
+    re4_core_gyro(3.0f, 3.0f);
+    PADRead(pads);
+    re4_core_gyro(0.0f, 0.0f);
+    bad |= !near(pl->ang.y, -0.1f) ? 0x20 : 0;
+    // a sub screen: the swipe is gone
+    StaFlagOn(pG, STA_SUB_SCRN);
+    re4_core_aim_turn(0.3f, 0.0f);
+    PADRead(pads);
+    StaFlagOff(pG, STA_SUB_SCRN);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, -0.1f) ? 0x40 : 0;
+    // pitch at its limit (m3r -1 .. 1)
+    re4_core_aim_turn(0.0f, 5.0f);
+    PADRead(pads);
+    bad |= !near((f32) m3r, 1.0f) ? 0x80 : 0;
+
+    m3r = keepM3r;
+    pPL = keepPl;
+    pG->Rno0 = keepStep;
+    if (keepSub) {
+        StaFlagOn(pG, STA_SUB_SCRN);
+    }
+    if (keepEvent) {
+        StaFlagOn(pG, STA_EVENT);
+    }
+    return bad;
+}
+
 extern "C" void re4_core_slash(float tilt);
 extern "C" void re4_core_slash(float tilt);
 

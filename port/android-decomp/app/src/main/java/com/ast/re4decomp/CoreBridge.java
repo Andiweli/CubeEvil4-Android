@@ -245,6 +245,13 @@ public final class CoreBridge {
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
   public static native void setSharpen(int level);
   /**
+   * CRT (0.99.9; 0 off, 1 light, 2 strong): the picture as a tube TV showed it (lines, a curved glass, a glow); only
+   * what the game draws, not the touch controls nor the app's overlays.
+   */
+  public static native void setCrt(int level);
+  /** Colour (0.99.9): mode 0 off, 1 warm film, 2 survival horror; level 1 light, 2 strong. */
+  public static native void setColour(int mode, int level);
+  /**
    * Gyro aiming (GyroAim): the device's turn rates in rad/s about the screen's axes (yaw, pitch);
    * the core turns the aim by them while Leon aims a gun. 0, 0: still.
    */

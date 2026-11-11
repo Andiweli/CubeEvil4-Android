@@ -48,6 +48,8 @@ void GxRenderer::SetSharpen(int level) { impl_->SetSharpen(level); }
 void GxRenderer::SetTvFilter(bool on) { impl_->SetTvFilter(on); }
 void GxRenderer::SetBandwidthSave(bool on) { impl_->SetBandwidthSave(on); }
 void GxRenderer::SetPsx(bool on) { impl_->SetPsx(on); }
+void GxRenderer::SetCrt(int level) { impl_->SetCrt(level); }
+void GxRenderer::SetColour(int mode, int level) { impl_->SetColour(mode, level); }
 void GxRenderer::SetFlares(bool on) { impl_->SetFlares(on); }
 void GxRenderer::SetFlareHalos(bool on) { impl_->SetFlareHalos(on); }
 void GxRenderer::SetDofStrong(bool on) { impl_->SetDofStrong(on); }

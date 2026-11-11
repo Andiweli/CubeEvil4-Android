@@ -3,6 +3,237 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
+
+Version 0.99.9-rc (versionCode 111), Releasetext `port/android-decomp/docs/releases/v0.99.9-rc.md` („Changes since
+v0.99.8.“, Known issues aus 0.99.8 übernommen). Basis e1abc53d = 0.99.8-rc. Nächste freie Patchnummer 0228.
+
+### 1. Messer zielen mit Touchfläche oder C-Stick (Wunsch des Projektinhabers)
+
+„Wir haben derzeit eingebaut, dass Zielen alternativ mit Touchfläche oder C-Stick gemacht werden kann, es
+funktioniert aber nur für die Waffe, nicht für das Messer. Bitte auch für das Messer verfügbar machen.“
+
+- **Ursache:** Die App gibt beim Touch-Zielen mit gehaltenem L schon alles weiter (der Touch-C-Stick wird zum
+  Steuerstick, die Touchfläche schickt Winkel). Der Kern drehte die Wisch-Winkel aber nur in der Waffenhaltung
+  (`runtime/gyro.cpp` turnAim: Routine 0/6, ausdrücklich nicht 0x10 = Messer). Der C-Stick-Weg lief über den
+  Steuerstick und damit schon über `PlWepLockCtrl` (auch beim Messer).
+- **Behebung (`runtime/gyro.cpp`):** turnAim dreht beim Wischen (und mit der Maus, derselbe Weg
+  `re4_core_aim_turn`) auch die Messerhaltung: Routine 0/0xB, halten oder zustechen (r_no_2 1, 2), wie die Pistole
+  (Körper `ang.y`, `m3r` mit der Mitte des Wackelns `cPlWep::pitch`). Beim Wegstecken (r_no_2 3) nicht. **Das
+  Gyroskop lässt das Messer wie bisher in Ruhe** (Parameter `knifeToo` nur vom Wischen). Log „touch: the knife's aim
+  turned by a swipe (N frames so far)“. Kein Patch unter `src/`.
+- **Testschalter (PC):** `RE4_TEST_SWIPE="yaw,pitch,von,bis"` (ein Wischen je Spielbild, PADRead-Zählung),
+  `RE4_TRACE_AIM=1` (eine Zeile „aim: frame N pl r0/r1/r2/r3 ang .. waist .. m3r ..“ je Bild in Messer- oder
+  Waffenhaltung).
+- **Geprüft am PC (i686 -O2, Debug-Discs, Debug-Start r301, L bzw. R ab Bild 830 gehalten, `~/p0999/runs/kn_*`):**
+  ohne Eingabe dreht nichts; Stick links/hoch und Steuerkreuz links/hoch drehen wie bisher (Spiel-eigener Weg,
+  unverändert); Wischen 0,02/0,01 rad je Bild von 900 bis 1000: Leon dreht genau 2,02 rad, `m3r` bis 1; Gyroskop
+  (`RE4_TEST_GYRO=1.0,0.5`) beim Messer: nichts, Spur gleich der ohne Eingabe; Pistole mit Wischen wie vorher.
+  Laufzeittest neu `aimknife` (`re4probe_aim_knife`: halten, zustechen, wegstecken, Gyroskop, Untermenü, Anschlag);
+  `CoreTouchTests` neu: L gehalten mit „C stick“ (Touch-C-Stick = Steuerstick) und „Touch Area“ (Wisch-Winkel),
+  L losgelassen schaut die Fläche wieder. Alle Laufzeittests 0 Fehler, CoreTouchTests 299 Prüfungen.
+- **Nicht geprüft:** auf einem Gerät.
+
+### 2./3. Zielfernrohr und Raketenwerfer mit Vulkan auf Mali: Bildeinbrüche (zwei Nutzerberichte)
+
+„The sniper rifle is still underperforming, to the point of zooming in with the scope and dropping FPS with Vulkan.“
+und „Framedrop when using Rocket launcher and Rifle“. Berichte (als Daten gelesen; wer welchen schickte, ist
+unbekannt):
+
+- **`E:\Development\Android\reports\0999-cubeevil4-report-20261110-212201`:** realme RMX3710 (Helio G85, 2× A75 +
+  6× A55), Mali-G52 MC2 r49p1, Vulkan, 0.99.8-rc, fest 1× bzw. Dynamisch 1,5×→1×, Bildauslassen aus. **`weapon 0x0d`
+  ist der Raketenwerfer** (Tabelle `wep_info`, item.cpp: 0x35/0x17/0x6D), r331/r332, danach r316 mit 0x08 (Riot Gun)
+  und 0x0A (halbautomatisches Gewehr). Also wohl der Nutzer „Rocket launcher and Rifle“. GX core 33–45 ms je
+  Spielbild; „frame:“ Zeichnen 17–32 ms Prozessorzeit (render 17–30), also **zugleich am Prozessor begrenzt**
+  (großer Außenraum, 120 000–155 000 Ecken, Ecken-Umrechnung 28–33 ms auf 4 Threads); `present` 12–35 ms, die GPU
+  0,6–1,0 Bildstücke hinterher; EFB-Durchgänge 10–16 je Bild, davon 8–12 auf einem Teil (das Zielfernrohr nur zeitweise).
+- **`…-085930`:** Samsung SM-A245M (Galaxy A24, Helio G99), Mali-G57 MC2 r54p1, Vulkan, 0.99.8-rc, 1,5×. In r100;
+  im Zielfernrohr 24–30 EFB-Durchgänge je Bild (27 auf einem Teil, 12 % der Fläche), `present` 23–27 ms gegen 4–6 ms
+  ohne Zielfernrohr, GX core 35 ms je Bild mit 16 ms Warten auf den Renderer, „frame:“ Zeichnen nur 12–13 ms: **klar an
+  der GPU begrenzt**, wohl der Nutzer „sniper rifle … scope“.
+- **Was im Zielfernrohr teuer ist:** nicht Filter08 (wie in 0.99.7/0.99.8 angenommen), sondern **Filter0a**
+  (`src/game/filter0a.cpp`, „used for the scope and binocular vignette“): eine Kopie des ganzen Bildes in halber Größe,
+  in die Ecke gezeichnet, dann `nFeedLp` 2 × 8 Mal die Ecke kopieren (½) und versetzt mit 50 % zurückzeichnen, am Ende
+  die Ecke über das ganze Bild mit Maske. Gewehr, halbautomatisches Gewehr und **Raketenwerfer haben dasselbe**
+  (am PC: r301 EU, Waffe 9 bzw. 13, je 27 Kopien und 15 EFB-Durchgänge je Bild, `~/p0999/runs/rifle|rocket`). Jede
+  Kopie liest die vorige: nicht bündelbar; je Schritt zwei abhängige Render-Durchgänge (EFB-Ecke, Kopie).
+- **Ursache der Kosten je Durchgang (Port-Fehler):** jeder Render-Durchgang endete mit der Abhängigkeit „alles danach,
+  **auch die Vertex-Shader**, wartet auf die Farb-/Tiefenausgabe“ (`PassDependencies` dep[1], dstStage
+  VERTEX_SHADER | FRAGMENT_SHADER | TRANSFER). Auf einer kachelnden GPU (Mali, auch Adreno) darf dann das Vertex- und
+  Kachel-Werk des nächsten Durchgangs erst beginnen, wenn der vorige fertig ist: jede Grenze leert die GPU (Mali:
+  getrennte Aufträge für Vertex/Kachel und Fragmente, mit Abhängigkeit über den Kerneltreiber). Bei 30 abhängigen
+  Durchgängen je Bild passt das zu den gemessenen 0,7–0,9 ms je Schritt. Kein Vertex-Shader liest ein gerendertes Bild
+  außer den **Lens Flares** (`kFlareVs` liest die Sichtbarkeit `flareVis`); GX-Texturen sind nur im Fragment-Shader
+  gebunden (`texLayout`).
+- **Behebung (`gx_vk.cpp`, kein Patch unter `src/`):** dep[1] wartet nur noch mit Fragment-Shadern und Kopien
+  (`VertexWait()`); die Lens Flares bekommen nach ihrem Sichtbarkeits-Durchgang eine eigene Sperre (Farbausgabe →
+  Vertex-Shader). Bildgleich per Definition (nur die Synchronisation), geprüft mit der Synchronisationsprüfung der
+  Validierung. Testschalter `RE4_GX_VK_VERTEX_WAIT=1`: wie 0.99.8 (auf dem Gerät per `test-core-app.ps1 -CoreSettings`).
+- **Neue Zähler** in „Vulkan per picture“ (für Mali-Berichte): „EFB copy passes N“ (Kopier-Durchgänge je Bild),
+  „GPU work X ms a picture (n of m submissions measured)“ (Zeitstempel am Anfang und Ende der Arbeit eines Bildes,
+  ohne die Bildschirm-Befehle; `vk.timestampBits` der Queue, sonst „not measured (no timestamps)“) und „passes overlap
+  (0.99.9)“ bzw. „wait for the vertex stage (as 0.99.8)“.
+- **Nicht gebaut (und warum):** ein eigenes kleines Bild für die Ecke und das EFB im Layout GENERAL ändern die Zahl
+  der abhängigen Durchgänge nicht (je Schritt bleiben zwei: die Kopie braucht echtes bilineares Lesen einer halb
+  großen Textur, sonst nicht bitgleich), sparen nur Bandbreite, die bei 224×192 Bildpunkten klein ist (rund 0,7 MB
+  je Schritt bei 1,5×). Ein Shader für die ganze Unschärfe wäre nicht GameCube-genau. Erst Mali-Berichte mit 0.99.9
+  abwarten („GPU work“ im Zielfernrohr gegen außerhalb).
+- **Geprüft am PC** (WSL `~/re4-0999`, `gx_chunk_render` Vulkan/lavapipe, `RE4_VK_VALIDATION=2` mit
+  Synchronisationsprüfung, alter Ablauf gegen neuen, `~/p0999/ab.sh`): Gewehr- und Raketenwerfer-Zielfernrohr
+  (8+8), Raketenschuss (12), Lens Flares an (Geräte-Serien 00/01 aus `0998-flare-gxdumps`, 12+12; ohne Flares
+  unterscheiden sich 9 von 12, sie werden also gezeichnet), Menüs (12), Graustufen (16), Söldner (9), Tiefenschärfe
+  r104 (4), Ada (12), r101-Serie (16) bei 1,5×; dazu 1× (Raketenwerfer, Flares, Menüs), 2× mit 4×MSAA, 2,5× mit „Save
+  bandwidth“: **alle Bilder gleich, 0 Validierungsfehler**. `gx_vk.cpp` mit dem NDK r28c für ARM32 und ARM64
+  (`-Wall -Wextra -Werror`) übersetzt. Am PC (lavapipe rechnet seriell) zeigt die Zeit keinen Unterschied.
+- **Hinweis für den Mali-G52-Nutzer:** sein Gerät ist im Außenraum zusätzlich am Prozessor begrenzt (Zeichnen bis
+  32 ms je Bild); dort hilft „Frame skip: Aggressive“ (er hatte aus).
+- **Nicht geprüft:** auf einem Gerät (Mali, Retroid).
+
+### 4. Tastenbelegung: Zielen + A und Zielen + B schießen beide, Nachladen geht nicht (Nutzerbericht, ohne Bericht)
+
+- **Ursache (App, `ActionMap.buttons`):** Eine Kombination (Feuern = Zielen-Taste + zweite Taste) gab mit ihrer
+  zweiten Taste zusätzlich deren Einzelaktion ab. Mit der Vorgabe fällt das nicht auf (A ist Aktion = A, B ist
+  Rennen = B). Wer aber Aktion und Rennen tauscht (A rennt, B handelt), bekam bei R2 + A „R + A (Feuern) + B
+  (Rennen)“ und bei R2 + B „R + B (Nachladen) + A (Aktion)“: beide Male A und B zusammen, das Spiel schießt.
+  Gleiches, wenn Feuern und Nachladen getauscht oder auf dieselben zwei Tasten gelegt werden (die Zuweisung
+  tauschte Kombinationen nicht). Der alte Test hielt das sogar fest (`press(s, R2, A) == R|A|B`).
+- **Behebung:** Solange die erste Taste einer Kombination gehalten wird, gibt ihre zweite Taste nur die
+  Kombination. Eine Kombination, deren zwei Tasten eine andere schon hat, tauscht mit ihr (wie die Einzelaktionen;
+  die Meldung „Reload is now on …“ kommt von selbst). Ein eingerastetes L oder R („Latch L and R“) zählt als
+  gehaltene erste Taste von Feuern, Nachladen und Messerhieb (vorher gaben dort nur die Einzelaktionen A und B).
+  Die Vorgabe, die alternative Steuerung und die Spielmenüs bleiben, wie sie waren.
+- **Geprüft (Host-Tests):** ActionMapTests 60, CoreInputTests 1833, CoreTouchTests 299 Prüfungen ok (neu: Aktion
+  und Rennen getauscht, Feuern und Nachladen getauscht, eingerastetes Zielen). **Nicht geprüft:** auf einem Gerät.
+
+### 5. Krausers Armklinge (Nutzerwunsch, nur untersucht, nichts gebaut)
+
+- `src/pl0a/pl_klauser.cpp` `cPlKlauser::checkXbutton`: die GameCube-Taste **X** (`Joy[0].trg & 0x400`, das rohe
+  Pad, nicht die Tastenbelegung des Spiels), wenn der Arm nicht schon verwandelt ist und `krEffWait == 0` (das rote
+  Leuchten zeigt sich). Abgefragt beim Gehen/Stehen (actionSelect), beim Zielen (pl_R1_Weapon) und mit dem Messer.
+  Danach (pl_R1_KlauserAttack): links/rechts dreht, **A** schlägt, B oder X bricht ab. Nach einem Schlag wartet
+  `krEffWait = 0x546` (1350 Spielbilder, etwa 45 s), nach einem Abbruch nichts.
+- In der App liegt X schon überall: Touch-Taste X, Controller X, in der Tastenbelegung die Aktion „Ashley: Wait /
+  Follow“. Nichts zu bauen; höchstens die Beschriftung ergänzen (11 Sprachen). Nicht am PC ausprobiert.
+
+### 6. HD-Texturpakete (Recherche, nichts gebaut)
+
+- Dolphin benennt Ersatztexturen `tex1_BxH[_m]_<XXH64 der Stufe 0>[_<XXH64 des genutzten Palettenbereichs>]_<Format>`
+  (Dolphin `TextureInfo::CalculateTextureName`: Seed 0, Stufe 0 auf ganze Kacheln, Palette nur von kleinstem bis
+  größtem benutzten Index; `$` als Platzhalter). `GxCore::Upload` hat genau diese Rohdaten (Format, Größe, Kacheln
+  big-endian, TMEM-Palette); XXH64 bringt die eingebaute zstd mit.
+- Debug-Disc gegen EU-Verkaufsdisc (Skript über alle TPL-Bilder beider Discs, ohne Filme/Ton): 9524 von 9656
+  Texturen (98,6 %, 96 % der Bytes, 165 MB Stufe 0) sind gleich; Pakete für die Verkaufsversion träfen also fast
+  alles. US-Verkaufsdisc nicht verglichen.
+- Bekannte Pakete: „Resident Evil 4 HD Project“ (Albert Marin, Cris Morales; vor allem PC-UHD, eine Dolphin-Fassung
+  kursiert, Lizenz und Größe unklar), ein Wii-Paket (RB4E08/RB4P08, EmuTalk, alt). Keins wird geladen oder
+  mitgeliefert.
+- Für Handys nötig: Umwandeln beim Import (PNG/DDS nach ETC2 oder ASTC, BC-Formate können die meisten Handy-GPUs
+  nicht), Speichergrenze, Nachladen ohne Ruckeln, eigener Ordner zum Entfernen.
+- **Zurückgestellt** (Entscheidung des Projektinhabers, 11.11.2026): das HD Project hat etwa 8 GB, für die meisten
+  günstigen Handys der Nutzer zu groß. Die Erkenntnisse oben bleiben für später.
+
+### 7. CRT-Filter und Farbe (Wunsch des Projektinhabers, 11.11.2026)
+
+- **Wahl des Projektinhabers** nach Vorschaubildern (Notizordner `crt-colour-mockups-0999`): CRT nur „Light“ und
+  „Strong“ (kein „Flat“), Farbe „Warm film“ und „Survival horror“ (kein Sepia), je zwei Stärken per Tastendruck.
+- **Menü (Grafik):** unter „Filter“ die Taste „CRT · Off / Light / Strong“; darunter die Zeile „Colour“ mit „Off /
+  Warm film / Survival horror“ und daneben „Strength · Light / Strong“. Einstellungen `crtLevel` (0–2),
+  `colourMode` (0–2), `colourLevel` (1–2); Texte `ingame_crt`, `ingame_crt_help`, `ingame_colour`,
+  `ingame_colour_warm`, `ingame_colour_horror`, `ingame_colour_strength`, `ingame_colour_help` in 11 Sprachen.
+  Weg: `CoreBridge.setCrt` / `setColour` → `core_mode.cpp` (`optCrt`, `optColour`; Log „CRT: …“, „colour: …“) →
+  `GxRenderer::SetCrt` / `SetColour` je Bild.
+- **Farbe** (`fixed::kColourFs`): ein Durchgang über jede Bildkopie nach dem Retro-Filter (Xfb() und Present zeigen
+  ihn; Filme auch). Warm film: warme Töne +30 % Sättigung, kalte −15 %, warmer Weißabgleich in Mitten und Lichtern,
+  sanfte S-Kurve; Survival horror: 40 % Sättigung, tiefere Schwärzen, härtere S-Kurve, kalter Grünstich in den
+  Mitten. Light = halb, Strong = voll; Schwarz bleibt schwarz.
+- **CRT** (`kCrtLineFs`, `kCrtGlowFs`, `kCrtFs`, Stufen `kCrtPresets`): nach jeder Bildkopie zwei kleine Durchgänge
+  (die Spielzeilen, eine Zeile je Spielzeile, höchstens 1280 breit, mit seitlich verlaufener Farbe; ihr Leuchten auf
+  einem Viertel je Richtung), dann ersetzt der CRT-Shader den letzten Schritt auf den Bildschirm: gewölbtes Glas mit
+  runden Ecken und dunkleren Rändern, jede Spielzeile ein Strahl mit dunklen Lücken (unter drei Bildschirmpixeln je
+  Zeile blenden die Lücken aus, sonst Streifenmuster), das Leuchten, bei Strong eine Lochmaske. Gilt im Kasten des
+  Bildformats (4:3, 16:9, Native). Touch-Tasten, App-Menü, Minikarte und FPS-Anzeige bleiben außerhalb. GLES:
+  `GlRenderer::Colour`, `Crt`, `CrtPresent`; Vulkan: `FilterColour`, `FilterCrt`, eigene Pipelines für Bildschirmfoto
+  und Swapchain (`crtShotFx`, `crtSwapFx`, mit der Drehung des Displays). Fehlt ein Shader auf einem Treiber, bleibt
+  der Filter aus (einmal im Log).
+- **PC-Werkzeug:** `RE4_GX_CRT=1|2`, `RE4_GX_COLOUR=M,L`, `RE4_GX_PRESENT_REPEAT=N` (Zeit des Bildschirmschritts);
+  dieselben Schalter auch im App-Kern (`RE4_GX_CRT`, `RE4_GX_COLOUR`).
+- **Geprüft am PC** (`gx_chunk_render`, sechs Szenen: Waldweg r100, Höhle, Dorf bei Regen, Burgsaal mit Feuer, Haus,
+  Burg außen; Stufe 2×, Bildschirm 2400×1080):
+  - **Aus = wie vorher:** neues gegen altes Werkzeug (HEAD 792e561a), GLES und Vulkan, Formate 16:9, 4:3 und Native,
+    ohne Filter und mit FXAA + Nachschärfen Stark + Retro + TV-Filter: **alle Bilder Byte für Byte gleich** (144).
+  - **Vulkan-Validierung mit Synchronisationsprüfung:** CRT Light/Strong, Warm film und Survival horror je Light und
+    Strong, Warm film + CRT, in 16:9 und 4:3: **0 Fehler**.
+  - **Aussehen:** wie die Vorschaubilder (Vergleich nebeneinander, auch 1:1-Ausschnitt); GLES gegen Vulkan
+    praktisch gleich (mittlere Abweichung unter 0,02 %, höchstens 7 von 255).
+  - **Zeit** (nur Vergleich, Software-Grafik am PC; der Bildschirmschritt mit Rücklesen, Mittel aus 20): GLES
+    llvmpipe 3,6–5,6 ms → 16,4–17,6 ms, Vulkan lavapipe 5,5–5,8 ms → 9,7–11,6 ms; Light und Strong fast gleich.
+    Auf dem Gerät zeigt der Fehlerbericht die Zeit („present“, bei Vulkan „GPU work“).
+  - Renderer-Test `TestCrtColour` (`test_gx_gl.cpp`); NDK r28c ARM32/ARM64 `-Wall -Wextra -Werror` ohne Meldung;
+    `check_translations.py` ok.
+- **Nicht geprüft:** auf einem Gerät (Wirkung, Kosten auf Mali/Adreno, Drehung des Displays bei Vulkan).
+
+### 8. Bildtakt („Frame Pacing“, Nutzervorschlag, 11.11.2026): Untersuchung und Messzeile
+
+- **Heute:** CoreActivity fragt Bildschirme über 60 Hz nach ihrem 60-Hz-Modus (`preferredDisplayModeId`) und ab
+  Android 11 `Surface.setFrameRate(60, COMPATIBILITY_DEFAULT)`; ein eigener Taktgeber-Thread (Choreographer) misst
+  den Bildschirm (FramePacing: Median aus 32 Takten) und lässt bei 120/144 Hz jedes zweite Mal zeichnen, sonst
+  zeichnet GLES (GLSurfaceView, durchgehend, Swap-Intervall 1) bzw. Vulkan (FIFO, 3 Swapchain-Bilder) bei jedem Takt
+  das neueste Bild. Der Kern koppelt seine Retraces an den Bildschirm (`runtime/vi.cpp`, M9), aber nur, wenn eine
+  ganze Zahl von Takten innerhalb von 0,5 % ein NTSC-Halbbild ergibt (60 Hz, 120 Hz); sonst läuft er mit eigener
+  Uhr (59,94 Hz). Kein Swappy, kein `eglPresentationTimeANDROID`, kein `VK_GOOGLE_display_timing`.
+- **Ursachen ungleicher Abstände:**
+  - 90-Hz-Bildschirme: der Kern läuft ungekoppelt; 30 Spielbilder je Sekunde (33,37 ms) gegen drei Takte (bei
+    gemessenen 89,4 Hz 33,56 ms): etwa alle 1,7 s ein Bild nur zwei Takte lang (bei genau 90,0 Hz alle 11 s).
+    Mit 60 FPS (Zwischenbilder) wechseln sich 1 und 2 Takte ständig ab (das Zwischenbild hat t = 0,5, gezeigt wird
+    es nach einem Drittel).
+  - 60-Hz-Bildschirme, die etwas schneller laufen (gemessen 60,5 Hz, Bericht 0994-check 18:08, Xiaomi): außerhalb
+    der 0,5 % ungekoppelt, etwa alle 1,8 s ein Bild drei Takte lang.
+  - Der 60-Hz-Modus wird nicht überall genommen: realme RMX3710 (Bericht 0999-…-212201, Modi 90/60/45) und ein
+    720×1600-Gerät (0991-lava-door) bleiben trotz Anfrage bei 90 Hz; das Galaxy A24 hat nur 90 Hz.
+  - 144 Hz ohne 60/120-Modus: 72 Bilder je Sekunde, 30 Spielbilder = 4,8 Takte (2/3-Wechsel). In den Berichten nicht
+    gesehen.
+  - Unabhängig davon: Shader beim ersten Mal (Vulkan), CPU- oder GPU-Grenze (Mali-G52/G57), Frame skip.
+- **Berichte:** 42 + 8 + 3 + 2 + 2 Läufe auf reinen 60-Hz-Bildschirmen, die meisten 90/120-Hz-Handys nehmen den
+  60-Hz-Modus; 90 Hz geblieben in 9 (A24) + 4 Läufen, 60,5 Hz in 4 Läufen.
+- **Neu (Messung, ändert nichts am Bild):** `picture_cadence.h` (PictureCadence), aufgerufen in `core_mode.cpp`
+  bei jedem neuen Bild (`NotePicture`, auf den Takt des Bildschirms gerundet; die Takte aus `CoreBridge.vsync`).
+  Alle 10 s eine Logzeile „picture pacing: N new pictures in 10 s, interval median X ms, Y % more than 2 ms off it,
+  longest Z ms; in vsyncs of the display (H Hz) 1: … 2: … 3: … 4: … 5+: …“. Test `TestPictureCadence`
+  (`test_gx_gl.cpp`): 30 Bilder auf 60 Hz 301× 2 Takte, 0 %; eigene Uhr auf 89,4 Hz 295× 3 und 6× 2 Takte; 60 FPS auf
+  90 Hz 301× 1 und 300× 2 Takte, 50 % daneben. `gx_gl_check` 0 Fehler, NDK ARM32/ARM64 `-Werror` ohne Meldung.
+  **Nicht geprüft:** auf einem Gerät.
+- **Vorschläge** (Entscheidung des Projektinhabers offen): Kern auch an 90 Hz koppeln (zwei Halbbilder = drei
+  Takte) und bei 90 Hz nur neue Bilder zeigen; die Kopplungsgrenze von 0,5 % auf etwa 1 % (60,5-Hz-Bildschirme);
+  `setFrameRate` mit `FIXED_SOURCE` und ab Android 12 `CHANGE_FRAME_RATE_ALWAYS`; 60 FPS auf 90 Hz: Zwischenbild-
+  Anteil nach der Anzeigezeit oder ein Hinweis; Swappy/Present-Zeitpunkte erst danach.
+- **Gebaut (Freigabe des Projektinhabers „Ja, bauen“, 11.11.2026; 1–4, ohne Swappy):**
+  1. `runtime/vi.cpp re4_vi_locked_field`: nach der ganzen Zahl von Takten je Halbbild auch zwei Halbbilder = eine
+     ungerade Zahl von Takten (90 Hz: drei; das Halbbild 1,5 Takte, `re4_vi_lock_phase` rastet dann auf das Raster
+     eines halben Takts, jeder zweite Retrace kurz nach einem Takt). 30 Spielbilder je Sekunde kommen damit alle drei
+     Takte. Das Spiel läuft bei genau 90 Hz 0,1 % schneller, bei gemessenen 89,4 Hz 0,57 % langsamer; der Ton folgt
+     (unten). Filme und Titel mit 60 Bildern bleiben auf 90 Hz ungleich (1 und 2 Takte im Wechsel, wie vorher).
+  2. Grenze 1 % statt 0,5 % (60,5 Hz koppelt; 61 Hz nicht). Ton (`runtime/ai.cpp`): der gelernte Unterschied bis
+     1,15 % (vorher 0,75 %), der ganze Ausgleich bis 1,5 % (vorher 1 %); Test `core-test ax` mit dem Spiel 1,1 %
+     schneller und langsamer als der Ton des Geräts: kein zu kurzes Lesen nach 20 s.
+  3. `CoreActivity.surfaceSixtyHz`: `setFrameRate(60, FIXED_SOURCE)`, ab Android 12 mit `CHANGE_FRAME_RATE_ALWAYS`
+     (Log „surface frame rate: 60, fixed source, always switch“); wer trotzdem schneller bleibt, wird gemessen wie
+     vorher.
+  4. Menü Leistung → Experimentell: mit 60 FPS an und einem Bildschirm, auf dem 60 nicht gleichmäßig geht, 30 aber
+     schon (`FramePacing.sixtyUneven`: 90 Hz, 89,4 Hz; nicht 60, 60,5, 120, 144, 75), die Zeile
+     `ingame_smooth60_uneven` (11 Sprachen) unter den Tasten. `CoreMenu.Host.displayHz()`.
+  - **Nicht gebaut: „bei 90 Hz nur neue Bilder zeigen“.** GLSurfaceView tauscht nach jedem Zeichnen das Bild,
+    ein ausgelassenes Zeichnen zeigte dort einen leeren oder alten Puffer; die Gleichmäßigkeit kommt aus der
+    Kopplung (jedes neue Bild trifft dieselbe Stelle im Takt), das erneute Zeigen des alten Bildes kostet nur etwas
+    GPU. Ein sicherer Weg bräuchte eine neue Kern-Schnittstelle (Bild wartet ja/nein) bis in den Kernprozess.
+  - **PC-Simulation** (`RE4_VI_SIM_HZ=f` in `vi.cpp`: simulierter Bildschirm, jedes vom Spiel beendete Bild beim
+    ersten Takt mindestens 1 ms später notiert, die Zeile „picture pacing“; i686 -O2, Echtzeit, Debug-Discs, r100,
+    47 s): Phasen mit 30 Bildern je Sekunde: 60 Hz 0 % (300× 2 Takte), 60,5 Hz neu 0 % (303× 2) gegen alt 3 % (6× 3
+    Takte je 10 s), 89,4 Hz neu 0 % (299× 3) gegen alt 2 % (6× 2 Takte je 10 s), 90 Hz 0 % (301× 3), 120 Hz 0 %
+    (301× 4). Phasen mit 60 Bildern: 60/60,5/120 Hz 0 %, 90/89,4 Hz 50 % (1 und 2 Takte im Wechsel, wie vorher).
+    Gelegentliche Lücken von ~300 ms (das Spiel stand) kommen auch mit dem alten Stand vor (PC). Selbsttests
+    (`runtime-test vsync` mit 90/89,4/60,5/61/144/75 Hz und dem Raster bei 90 Hz, `core-test ax`) grün;
+    `FramePacingTests` 3449, App-Unit-Tests (Gradle) grün. **Nicht geprüft:** auf einem Gerät.
+
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since

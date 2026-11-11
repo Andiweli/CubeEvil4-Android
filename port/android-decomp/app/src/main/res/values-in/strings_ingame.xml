@@ -192,6 +192,7 @@
     <string name="ingame_effects_volume">Efek suara</string>
     <string name="ingame_volume_help">Musik adalah musik latar; efek suara adalah semua suara lain di dalam game (tembakan, suara karakter, langkah kaki). Suara film tetap seperti aslinya. Kedua tombol mematikan musik atau efek suara sepenuhnya; saat diaktifkan lagi, keduanya berbunyi dengan volume yang diatur di atas.</string>
     <string name="ingame_smooth_help">Gambar sisipan tambahan. Logika game tetap 30 frame/detik.</string>
+    <string name="ingame_smooth60_uneven">Layar ini berjalan pada %1$d Hz: 60 FPS tidak bisa ditampilkan merata dan bisa tersendat. 30 FPS (60 FPS mati) lebih mulus di sini.</string>
     <string name="ingame_instant_save">Simpan</string>
     <string name="ingame_instant_load">Muat</string>
     <string name="ingame_instant_checking">Memeriksa slot simpanan …</string>
@@ -221,6 +222,13 @@
     <string name="ingame_filter_help">Filter mengubah tampilan seluruh gambar dan dapat digabungkan.</string>
     <string name="ingame_sharpen">Penajaman</string>
     <string name="ingame_sharpen_help">Penajaman mengembalikan detail tekstur yang menjadi lembut saat gambar diperbesar ke layar (terutama pada format gambar lebar). Video tetap seperti aslinya.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: gambar seperti di TV tabung lama, dengan garis, layar cembung, dan cahaya lembut. Kontrol sentuh dan peta mini tetap tajam.</string>
+    <string name="ingame_colour">Warna</string>
+    <string name="ingame_colour_warm">Film hangat</string>
+    <string name="ingame_colour_horror">Survival horror</string>
+    <string name="ingame_colour_strength">Kekuatan</string>
+    <string name="ingame_colour_help">Film hangat menonjolkan warna cokelat dan emas; Survival horror memudarkan warna dan mempertajam kontras. Kekuatan mengatur seberapa banyak.</string>
     <string name="ingame_skip_normal_help">Lewati frame Normal: saat chip grafis tertinggal, satu gambar yang sudah jadi dilewati agar game tetap berjalan dengan kecepatan normal.</string>
     <string name="ingame_skip_aggressive_help">Lewati frame Agresif: game sendiri melewati paling banyak satu dari dua gambar saat tertinggal; ini juga menghemat waktu prosesor dan jauh lebih cepat di ponsel dengan prosesor lambat.</string>
     <string name="ingame_vk_bandwidth_help">Hanya Vulkan: setelah gambar dibersihkan, chip grafis tidak memuatnya lagi, sehingga menghemat bandwidth memori pada chip Mali dan Adreno. Gambar tetap sama.</string>

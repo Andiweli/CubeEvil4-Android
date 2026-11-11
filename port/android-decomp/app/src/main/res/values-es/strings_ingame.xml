@@ -196,6 +196,7 @@
     <string name="ingame_effects_volume">Efectos de sonido</string>
     <string name="ingame_volume_help">La música es la música de fondo; los efectos de sonido son todo lo demás del juego (disparos, voces, pasos). Las películas conservan su sonido. Los dos botones apagan del todo la música o los efectos de sonido; al encenderlos de nuevo suenan con el volumen de arriba.</string>
     <string name="ingame_smooth_help">Imágenes intermedias adicionales. La lógica del juego sigue a 30 imágenes/s.</string>
+    <string name="ingame_smooth60_uneven">Esta pantalla funciona a %1$d Hz: 60 FPS no se pueden mostrar de forma uniforme y pueden dar tirones. 30 FPS (60 FPS desactivado) van más fluidos aquí.</string>
     <string name="ingame_instant_save">Guardar</string>
     <string name="ingame_instant_load">Cargar</string>
     <string name="ingame_instant_checking">Comprobando ranura …</string>
@@ -225,6 +226,13 @@
     <string name="ingame_filter_help">Los filtros cambian el aspecto de toda la imagen y se pueden combinar.</string>
     <string name="ingame_sharpen">Nitidez</string>
     <string name="ingame_sharpen_help">Nitidez recupera el detalle de las texturas que se suaviza al ampliar la imagen a la pantalla (sobre todo en los formatos de imagen panorámicos). Los vídeos no cambian.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: la imagen como en un televisor de tubo antiguo, con líneas, pantalla curva y un brillo suave. Los controles táctiles y el minimapa siguen nítidos.</string>
+    <string name="ingame_colour">Color</string>
+    <string name="ingame_colour_warm">Película cálida</string>
+    <string name="ingame_colour_horror">Survival horror</string>
+    <string name="ingame_colour_strength">Intensidad</string>
+    <string name="ingame_colour_help">Película cálida realza los marrones y dorados; Survival horror apaga los colores y endurece el contraste. Intensidad indica cuánto.</string>
     <string name="ingame_skip_normal_help">Salto de fotogramas Normal: si el chip gráfico se retrasa, se omite una imagen ya hecha para que el juego mantenga su velocidad normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; también ahorra tiempo de procesador y es mucho más rápido en móviles con un procesador lento.</string>
     <string name="ingame_vk_bandwidth_help">Solo Vulkan: tras borrar la imagen, el chip gráfico ya no la vuelve a cargar, lo que ahorra ancho de banda de memoria en chips Mali y Adreno. La imagen no cambia.</string>

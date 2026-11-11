@@ -216,6 +216,13 @@ int main(int argc, char **argv) {
       renderer->SetPsx(psx && *psx == '1');
       const char *sharpen = std::getenv("RE4_GX_SHARPEN");
       renderer->SetSharpen(sharpen ? std::atoi(sharpen) : 0);
+      // RE4_GX_CRT=1|2, RE4_GX_COLOUR=MODE,LEVEL: the menu's CRT and colour (SetCrt, SetColour; 0.99.9)
+      const char *crt = std::getenv("RE4_GX_CRT");
+      renderer->SetCrt(crt ? std::atoi(crt) : 0);
+      int colourMode = 0, colourLevel = 1;
+      if (const char *colour = std::getenv("RE4_GX_COLOUR"))
+        std::sscanf(colour, "%d,%d", &colourMode, &colourLevel);
+      renderer->SetColour(colourMode, colourLevel);
       const char *fxaa = std::getenv("RE4_GX_FXAA");
       renderer->SetFxaa(fxaa && *fxaa == '1');
       const char *tv = std::getenv("RE4_GX_TV_FILTER");
@@ -460,14 +467,26 @@ int main(int argc, char **argv) {
       renderer->Xfb(&xw, &xh);
       re4mm::Rect hud, pic;
       re4mm::PictureRects(screenFormat, screenW, screenH, static_cast<int>(xh), &hud, &pic, renderer->XfbWide());
-      if (screenFormat == 5) {
-        const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
-        renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * static_cast<unsigned>(v.top) / 448,
-                                xh * static_cast<unsigned>(v.rows) / 448, &rgba);
-      } else if (screenFormat == 0 || screenFormat == 2) {
-        renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * 56 / 448, xh * 336 / 448, &rgba);
-      } else {
-        renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, 0, 0, &rgba);
+      auto present = [&]() {
+        if (screenFormat == 5) {
+          const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
+          renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * static_cast<unsigned>(v.top) / 448,
+                                  xh * static_cast<unsigned>(v.rows) / 448, &rgba);
+        } else if (screenFormat == 0 || screenFormat == 2) {
+          renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * 56 / 448, xh * 336 / 448, &rgba);
+        } else {
+          renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, 0, 0, &rgba);
+        }
+      };
+      present();
+      // RE4_GX_PRESENT_REPEAT=N (the CRT's cost, 0.99.9): the screen drawn and read back N times more, the mean time
+      if (const char *repeat = std::getenv("RE4_GX_PRESENT_REPEAT")) {
+        const int n = std::max(1, std::atoi(repeat));
+        const auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < n; i++)
+          present();
+        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() / n;
+        std::printf("%s: screen %.2f ms (with the read-back, mean of %d)\n", Stem(path).c_str(), ms, n);
       }
       const std::string file = out + "/" + Stem(path) + "-screen.ppm";
       if (FILE *p = std::fopen(file.c_str(), "wb")) {

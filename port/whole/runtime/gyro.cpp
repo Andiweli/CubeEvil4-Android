@@ -8,7 +8,11 @@
 //  - the game runs its main loop (gameMainLoop), no sub screen, no event;
 //  - the player's routine is the weapon's (r_no_0 0, r_no_1 6: pl_R1_Weapon),
 //    not the knife (PlGetWeaponNo 0x10: the knife routine, L held, or the
-//    knife as the equipped weapon);
+//    knife as the equipped weapon); or the knife stance (wish of the project
+//    owner, 10.11.2026, 0.99.9: "Touch Aiming" for the knife too): routine
+//    0/0xB (PlKnifeMove), holding it or slashing (r_no_2 1, 2), where its
+//    PlWepLockCtrl reads the stick as the guns' does, turned as the gun is
+//    below (the body's yaw, m3r with the sway's centre);
 //  - with the scope (STA_SCOPE_CAMERA, CamCtrl.r0 0x10: rifles, the rocket and
 //    mine launchers) the body's yaw and the scope's pitch (CameraScope
 //    angle_x, negative is up, kept within its limits), less at a higher zoom
@@ -36,7 +40,7 @@
 // project owner, 29.10.2026: as in mobile shooters, the aim follows the finger and stops when it
 // stops, no stick that keeps turning): the app hands each finger movement over as angles, summed up
 // to the next game frame and turned there all at once, on the same ways as the gyro (the scope's
-// zoom too), with no gain.
+// zoom too), with no gain; the knife stance too (0.99.9; the gyro leaves the knife alone, as before).
 #include "types.h"
 #include "global.h"
 #include "em.h"
@@ -75,6 +79,7 @@ unsigned gTurned;  // frames the gyro turned the aim (the log)
 volatile u32 gSwipeLock;
 float gSwipeYaw, gSwipePitch;
 unsigned gSwiped;  // frames a swipe turned the aim (the log)
+unsigned gSwipedKnife;  // ... the knife's (the log)
 
 u32 nowMs()
 {
@@ -109,8 +114,8 @@ void unlockSwipe()
 }
 
 // Turns the aim by yaw (positive left) and pitch (positive up), in radians, where the player aims;
-// false: not aiming (nothing turned).
-bool turnAim(float yaw, float pitch)
+// false: not aiming (nothing turned). knifeToo: the knife stance as well (the swipe and the mouse, not the gyro)
+bool turnAim(float yaw, float pitch, bool knifeToo)
 {
     cPlayer* pl = pPL;
     if (!pG || !pl || pG->Rno0 != 3 || StaFlagChk(pG, STA_SUB_SCRN) || StaFlagChk(pG, STA_EVENT)) {
@@ -135,10 +140,15 @@ bool turnAim(float yaw, float pitch)
         pl->m_Blend = blend;
         return true;
     }
-    if (!pl->Wep || pl->r_no_0 != 0 || pl->r_no_1 != 6 || PlGetWeaponNo() == 0x10) {
+    if (!pl->Wep || pl->r_no_0 != 0) {
         return false;
     }
-    if (StaFlagChk(pG, STA_SCOPE_CAMERA) && CamCtrl.r0 == 0x10 && CamCtrl.m_pProc) {
+    // the knife stance (0.99.9): its routine reads the stick as the guns do (PlWepLockCtrl: m3r, the body's yaw)
+    const bool knife = knifeToo && pl->r_no_1 == 0xB && (pl->r_no_2 == 1 || pl->r_no_2 == 2);
+    if (!knife && (pl->r_no_1 != 6 || PlGetWeaponNo() == 0x10)) {
+        return false;
+    }
+    if (!knife && StaFlagChk(pG, STA_SCOPE_CAMERA) && CamCtrl.r0 == 0x10 && CamCtrl.m_pProc) {
         CameraScope* scope = (CameraScope*) CamCtrl.m_pProc;
         f32 zoom = 0.0f, angle = 0.0f;
         scope->getParam(&zoom, &angle);
@@ -148,7 +158,7 @@ bool turnAim(float yaw, float pitch)
         if (x < scope->angle_min) x = scope->angle_min;
         if (x > scope->angle_max) x = scope->angle_max;
         scope->angle_x = x;
-    } else if (pl->r_no_2 == 1 || pl->r_no_2 == 2) {
+    } else if (knife || pl->r_no_2 == 1 || pl->r_no_2 == 2) {
         // the app's auto aim (a user's report, 01.11.2026: the laser above the head): for the 10 frames the
         // gun follows its target (cPlWep::m_LockTime) a hand's small unrest (below kLockKeep a frame) neither
         // turns the aim nor ends the lock; a real turn does both
@@ -170,11 +180,32 @@ bool turnAim(float yaw, float pitch)
 // For tests on the PC: RE4_TEST_GYRO="yaw,pitch", the device's turn rates (rad/s) as the app would send them,
 // all the time (a hand's unrest while aiming: the auto aim, patch 0174)
 bool gTest;
+// RE4_TEST_SWIPE="yaw,pitch,from,to" (0.99.9): a swipe of yaw, pitch radians at each game frame from .. to (the
+// PADRead count), as the app's re4_core_aim_turn; RE4_TRACE_AIM=1: one "aim:" line a frame while the player holds
+// the knife or a gun (his routine, the body's yaw, the waist's turn, m3r)
+float gTestSwipe[2];
+unsigned gTestSwipeFrom = 1, gTestSwipeTo;
+bool gTraceAim;
+unsigned gAimLines;
 
-void gyroHook(unsigned)
+void gyroHook(unsigned frame)
 {
     if (gTest) {
         __atomic_store_n(&gWhen, nowMs(), __ATOMIC_RELAXED);
+    }
+    if (frame >= gTestSwipeFrom && frame <= gTestSwipeTo) {
+        lockSwipe();
+        gSwipeYaw += gTestSwipe[0];
+        gSwipePitch += gTestSwipe[1];
+        unlockSwipe();
+    }
+    if (gTraceAim && pPL && pG && pG->Rno0 == 3 && pPL->r_no_0 == 0 && (pPL->r_no_1 == 0xB || pPL->r_no_1 == 6) &&
+        gAimLines < 4000) {
+        gAimLines++;
+        // (the state the frame before left, before this frame's swipe)
+        re4_log("aim: frame %u pl %u/%u/%u/%u ang %.4f waist %.4f m3r %.4f", frame, (unsigned) pPL->r_no_0,
+                (unsigned) pPL->r_no_1, (unsigned) pPL->r_no_2, (unsigned) pPL->r_no_3, (double) pPL->ang.y,
+                (double) pPL->m_Fwork0, (double) (f32) m3r);
     }
     // the swipe since the last frame: taken whether it turns or not (a swipe while not aiming is gone)
     lockSwipe();
@@ -183,8 +214,10 @@ void gyroHook(unsigned)
     unlockSwipe();
     if (swipeYaw != 0.0f || swipePitch != 0.0f) {
         const bool harpoon = pPL && pPL->r_no_1 == 0xF;
-        if (turnAim(swipeYaw, swipePitch) && gSwiped++ % 900 == 0) {
-            re4_log("touch: the %s turned by a swipe (%u frames so far)", harpoon ? "harpoon's sight" : "aim", gSwiped);
+        const bool knife = pPL && pPL->r_no_0 == 0 && pPL->r_no_1 == 0xB;
+        if (turnAim(swipeYaw, swipePitch, true) && (knife ? gSwipedKnife++ : gSwiped++) % 900 == 0) {
+            re4_log("touch: the %s turned by a swipe (%u frames so far)",
+                    harpoon ? "harpoon's sight" : knife ? "knife's aim" : "aim", knife ? gSwipedKnife : gSwiped);
         }
     }
     const float yaw = value(__atomic_load_n(&gYawBits, __ATOMIC_RELAXED));
@@ -196,7 +229,7 @@ void gyroHook(unsigned)
         return;
     }
     const bool harpoon = pPL && pPL->r_no_1 == 0xF;
-    if (turnAim(yaw * kGain * kFrame, pitch * kGain * kFrame) && gTurned++ % 900 == 0) {
+    if (turnAim(yaw * kGain * kFrame, pitch * kGain * kFrame, false) && gTurned++ % 900 == 0) {
         re4_log(harpoon ? "gyro: the harpoon's sight moved by the gyroscope (%u frames so far)"
                         : "gyro: the aim turned by the gyroscope (%u frames so far)",
                 gTurned);
@@ -215,6 +248,22 @@ struct TestGyro {
             gHooked = true;
             re4_add_frame_hook(gyroHook);
             re4_log("gyro: test turn rates %.3f, %.3f rad/s (RE4_TEST_GYRO)", (double) yaw, (double) pitch);
+        }
+        const char* sw = getenv("RE4_TEST_SWIPE");
+        if (sw && sscanf(sw, "%f,%f,%u,%u", &gTestSwipe[0], &gTestSwipe[1], &gTestSwipeFrom, &gTestSwipeTo) == 4) {
+            gHooked = true;
+            re4_add_frame_hook(gyroHook);
+            re4_log("touch: test swipe %.3f, %.3f radians a frame, frames %u .. %u (RE4_TEST_SWIPE)",
+                    (double) gTestSwipe[0], (double) gTestSwipe[1], gTestSwipeFrom, gTestSwipeTo);
+        } else {
+            gTestSwipeFrom = 1;
+            gTestSwipeTo = 0;
+        }
+        const char* tr = getenv("RE4_TRACE_AIM");
+        if (tr && *tr && *tr != '0') {
+            gTraceAim = true;
+            gHooked = true;
+            re4_add_frame_hook(gyroHook);
         }
     }
 } gTestGyro;

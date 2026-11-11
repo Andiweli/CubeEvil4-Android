@@ -74,6 +74,16 @@ final class FramePacing {
     return true;
   }
 
+  /**
+   * 0.99.9 (frame pacing): whether 60 pictures a second cannot be shown evenly on a display of `hz` while 30 can (90
+   * Hz: 60 alternates one and two vsyncs, 30 is three each): the menu then suggests 30 (60 FPS off). Unknown: false.
+   */
+  static boolean sixtyUneven(double hz) {
+    if (!(hz > 0)) return false;
+    final double sixty = hz / 59.94, thirty = hz / 29.97;
+    return Math.abs(sixty - Math.round(sixty)) > 0.03 && Math.abs(thirty - Math.round(thirty)) <= 0.03;
+  }
+
   /** Draw at every n-th vsync (1: at each). */
   int every() { return every; }
 

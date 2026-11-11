@@ -551,5 +551,139 @@ constexpr char kDofMixFs[] =
     "  o = vec4(b.rgb / b.a, amount * min(1.0, b.a * 4.0));\n"
     "}\n";
 
+// ---- Colour and CRT (wishes of the project owner, 11.11.2026; the mock-ups of 0.99.9 in numpy, the same maths) ----
+
+// Colour: the display copy as shown so far graded (mode 1 "Warm film": browns and golds stronger, cold colours a
+// little weaker, a warm white balance in the middle and the highlights, a gentle S-curve; mode 2 "Survival horror":
+// 40 % of the saturation, deeper blacks, a harder S-curve, a cold green-grey in the middle tones), mixed with the
+// picture by `strength` (0.5 "Light", 1 "Strong"). Black stays black.
+constexpr char kColourFs[] =
+    "#version 300 es\nprecision highp float;\n"
+    "uniform sampler2D src;\n"
+    "uniform int mode;\n"
+    "uniform float strength;\n"
+    "in vec2 vUv;\nout vec4 o;\n"
+    "float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }\n"
+    "vec3 scurve(vec3 c, float a) { return c + a * (c * c * (3.0 - 2.0 * c) - c); }\n"
+    "void main() {\n"
+    "  vec4 t = texture(src, vUv);\n"
+    "  vec3 c = t.rgb, g;\n"
+    "  float l = lum(c);\n"
+    "  if (mode == 1) {\n"
+    "    float warm = clamp((c.r - c.b) * 3.0, 0.0, 1.0);\n"
+    "    g = vec3(l) + (c - vec3(l)) * (1.0 + 0.30 * warm - 0.15 * (1.0 - warm));\n"
+    "    g *= vec3(1.0) + vec3(0.06, 0.0, -0.14) * clamp(l * 1.6, 0.0, 1.0);\n"
+    "    g = clamp(scurve(clamp(g, 0.0, 1.0), 0.25), 0.0, 1.0);\n"
+    "  } else {\n"
+    "    g = vec3(l) + (c - vec3(l)) * 0.40;\n"
+    "    g = scurve(clamp((g - 0.03) / 0.97, 0.0, 1.0), 0.45);\n"
+    "    float lg = lum(g);\n"
+    "    g = clamp(g + lg * (1.0 - lg) * 4.0 * vec3(-0.02, 0.015, 0.005), 0.0, 1.0);\n"
+    "  }\n"
+    "  o = vec4(mix(c, g, strength), t.a);\n"
+    "}\n";
+
+// CRT, first pass: the picture's game lines (one row each; at most 1280 wide), the colour of a composite signal
+// bled sideways (the chroma through five taps `bleed` apart, a Gaussian of that width; the luma stays sharp)
+constexpr char kCrtLineFs[] =
+    "#version 300 es\nprecision highp float;\n"
+    "uniform sampler2D src;\n"
+    "uniform float bleed;\n"
+    "in vec2 vUv;\nout vec4 o;\n"
+    "void main() {\n"
+    "  const vec3 Y = vec3(0.299, 0.587, 0.114);\n"
+    "  vec3 c = texture(src, vUv).rgb;\n"
+    "  vec2 d = vec2(bleed, 0.0);\n"
+    "  vec3 s = 0.4 * c + 0.24 * (texture(src, vUv - d).rgb + texture(src, vUv + d).rgb) +\n"
+    "           0.06 * (texture(src, vUv - 2.0 * d).rgb + texture(src, vUv + 2.0 * d).rgb);\n"
+    "  o = vec4(clamp(vec3(dot(c, Y)) + s - vec3(dot(s, Y)), 0.0, 1.0), 1.0);\n"
+    "}\n";
+
+// CRT, second pass: the glow of the bright parts, a quarter of the lines each way (3 x 3 linear taps a glow texel
+// apart: about eight game pixels each way), the light above 0.35 (of 0.65 at most, as its square root)
+constexpr char kCrtGlowFs[] =
+    "#version 300 es\nprecision highp float;\n"
+    "uniform sampler2D src;\n"
+    "uniform vec2 glowStep;\n"
+    "in vec2 vUv;\nout vec4 o;\n"
+    "vec3 at(vec2 d) { return max(pow(texture(src, vUv + d * glowStep).rgb, vec3(2.2)) - 0.35, 0.0); }\n"
+    "void main() {\n"
+    "  vec3 g = 4.0 * at(vec2(0.0)) + 2.0 * (at(vec2(-1.0, 0.0)) + at(vec2(1.0, 0.0)) + at(vec2(0.0, -1.0)) +\n"
+    "           at(vec2(0.0, 1.0))) + at(vec2(-1.0)) + at(vec2(1.0)) + at(vec2(-1.0, 1.0)) + at(vec2(1.0, -1.0));\n"
+    "  o = vec4(sqrt(clamp(g / (16.0 * 0.65), 0.0, 1.0)), 1.0);\n"
+    "}\n";
+
+// CRT, the screen (instead of kPresentFs): the box's picture through a curved glass (shape.xy) with rounded
+// corners (shape.z, in box heights) and darker edges (shape.w); each game line a beam (beam.xy: its width, wider
+// where bright; beam.z: the brightness the gaps take), the glow on top (beam.w); the phosphors' mask in screen
+// pixels (mask.x: 0 none, 1 stripes, 2 the shifted dots of a shadow mask; mask.y its strength). Below three screen
+// pixels a line the lines fade out (a fine screen would show stripes). rows: the copy's rows shown (as kPresentFs),
+// lines: its game lines, box: the box in screen pixels. Row 0 of the picture is at the top: "1.0 - vUv.y" is
+// GL's turn (the Vulkan renderer takes vUv.y).
+constexpr char kCrtFs[] =
+    "#version 300 es\nprecision highp float;\n"
+    "uniform sampler2D crtLine;\n"
+    "uniform sampler2D crtGlow;\n"
+    "uniform vec2 rows;\n"
+    "uniform float lines;\n"
+    "uniform vec2 box;\n"
+    "uniform vec4 shape;\n"
+    "uniform vec4 beam;\n"
+    "uniform vec2 mask;\n"
+    "in vec2 vUv;\nout vec4 o;\n"
+    "vec3 lineAt(float x, float l) { return pow(texture(crtLine, vec2(x, clamp((l + 0.5) / lines, 0.0, 1.0))).rgb, vec3(2.2)); }\n"
+    "vec3 beamOf(vec3 c, float d) {\n"
+    "  float s = mix(beam.x, beam.y, sqrt(clamp(max(c.r, max(c.g, c.b)), 0.0, 1.0)));\n"
+    "  return c * exp(-0.5 * (d / s) * (d / s));\n"
+    "}\n"
+    "void main() {\n"
+    "  vec2 uv = vec2(vUv.x, 1.0 - vUv.y);\n"
+    "  vec2 p = uv * 2.0 - 1.0;\n"
+    "  vec2 w = (vec2(p.x * (1.0 + p.y * p.y * shape.x), p.y * (1.0 + p.x * p.x * shape.y)) + 1.0) * 0.5;\n"
+    "  if (w.x < 0.0 || w.x > 1.0 || w.y < 0.0 || w.y > 1.0) { o = vec4(0.0, 0.0, 0.0, 1.0); return; }\n"
+    "  vec2 a = vec2(box.x / box.y, 1.0);\n"
+    "  vec2 e = max(abs(w - 0.5) * a - (a * 0.5 - shape.z), 0.0);\n"
+    "  float corner = clamp(0.5 - (length(e) - shape.z) * box.y / 1.5, 0.0, 1.0);\n"
+    "  float v = rows.x + w.y * rows.y;\n"
+    "  float ly = v * lines - 0.5;\n"
+    "  float l0 = floor(ly), f = ly - l0;\n"
+    "  vec3 c0 = lineAt(w.x, l0), c1 = lineAt(w.x, l0 + 1.0);\n"
+    "  vec3 scan = (beamOf(c0, f) + beamOf(c1, 1.0 - f)) * beam.z;\n"
+    "  vec3 col = mix(mix(c0, c1, f), scan, clamp((box.y / (lines * rows.y) - 1.5) / 1.5, 0.0, 1.0));\n"
+    "  vec3 g = texture(crtGlow, vec2(w.x, v)).rgb;\n"
+    "  col += g * g * (0.65 * beam.w);\n"
+    "  if (mask.x > 0.5) {\n"
+    "    vec2 px = floor(uv * box);\n"
+    "    float ch = mask.x > 1.5 ? mod(px.x + mod(floor(px.y * 0.5), 2.0) * 2.0, 3.0) : mod(px.x, 3.0);\n"
+    "    vec3 m = vec3(1.0 - mask.y);\n"
+    "    if (ch < 0.5) m.r = 1.0 + 0.6 * mask.y; else if (ch < 1.5) m.g = 1.0 + 0.6 * mask.y; else m.b = 1.0 + 0.6 * mask.y;\n"
+    "    col *= m;\n"
+    "  }\n"
+    "  col *= pow(clamp(16.0 * w.x * (1.0 - w.x) * w.y * (1.0 - w.y), 0.0, 1.0), shape.w);\n"
+    "  o = vec4(pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2)) * corner, 1.0);\n"
+    "}\n";
+
+// the Vulkan screen's CRT (as kSwapVs): the box in clip space (y down) turned as the display
+constexpr char kCrtSwapVs[] = "#version 300 es\n"
+                              "uniform vec4 rect;\n"
+                              "uniform vec4 rot;\n"
+                              "out vec2 vUv;\n"
+                              "void main() {\n"
+                              "  vec2 p = vec2(float(gl_VertexID & 1), float(gl_VertexID >> 1));\n"
+                              "  vUv = p;\n"
+                              "  vec2 q = mix(rect.xy, rect.zw, p);\n"
+                              "  gl_Position = vec4(rot.x * q.x + rot.y * q.y, rot.z * q.x + rot.w * q.y, 0.0, 1.0);\n"
+                              "}\n";
+
+// the CRT's two levels (the menu's "Light" and "Strong"; the mock-ups' values): the glass's curve (x, y), the
+// corners' radius (box heights), the edges' darkening, a beam's width (dark, bright; lines), the brightness for
+// the gaps, the glow, the mask (0 none, 2 shadow mask) and its strength, the colour bleed (game pixels)
+struct CrtPreset {
+  float warpX, warpY, corner, vignette, sigmaDark, sigmaBright, boost, glow, maskKind, maskStrength, bleed;
+};
+constexpr CrtPreset kCrtPresets[2] = {
+    {1.0f / 48.0f, 1.0f / 36.0f, 0.025f, 0.22f, 0.34f, 0.55f, 1.18f, 0.18f, 0.0f, 0.0f, 1.2f},
+    {1.0f / 24.0f, 1.0f / 18.0f, 0.055f, 0.38f, 0.24f, 0.42f, 1.42f, 0.30f, 2.0f, 0.30f, 2.4f}};
+
 } // namespace fixed
 } // namespace re4gx

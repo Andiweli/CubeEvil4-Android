@@ -16,6 +16,7 @@
 //     matrices and material colours in few calls, the picture unchanged
 #include "gx_bench_steps.h"
 #include "gx_auto_level.h"
+#include "picture_cadence.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
@@ -1343,6 +1344,72 @@ void TestSharpen(re4gx::GxRenderer &r) {
   r.SetTvFilter(false);
 }
 
+// Colour and CRT (0.99.9): grey around an orange band and a black square. Colour "Warm film, Strong": one pass per
+// display copy, the orange warmer (red up, blue down), black stays black; "Survival horror, Strong": the orange
+// paler; off again the plain copy. CRT "Strong": the XFB stays as it is, the CRT's pictures once per display copy;
+// the screen (three screen pixels a game line) has dark gaps between the lines in the grey, its corner is black
+// (rounded); off again the plain screen, byte for byte.
+void TestCrtColour(re4gx::GxRenderer &r) {
+  const std::uint8_t kGrey[4] = {128, 128, 128, 255}, kOrange[4] = {200, 120, 40, 255}, kBlack[4] = {0, 0, 0, 255};
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kGrey);
+    Quad(b, 100, 200, 300, 260, 0, kOrange);
+    Quad(b, 400, 300, 500, 350, 0, kBlack);
+    DisplayCopy(b, false, kGrey);
+    r.Run(b.Chunk());
+    return r.Xfb(nullptr, nullptr);
+  };
+  const int f = r.Scale();
+  const GLuint plain = scene();
+  const std::vector<std::uint8_t> orange = TexPixel(plain, 200 * f, 230 * f);
+  const int W = 1792, H = 1344;  // 448 lines: three screen pixels each
+  std::vector<std::uint8_t> plainScreen, screen;
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &plainScreen), "CRT: the plain screen read back");
+  // colour
+  unsigned before = r.Stats().colourPasses;
+  r.SetColour(1, 2);
+  GLuint xfb = scene();
+  const std::vector<std::uint8_t> warm = TexPixel(xfb, 200 * f, 230 * f), warmGrey = TexPixel(xfb, 50 * f, 50 * f);
+  std::fprintf(stderr, "  colour: orange %d,%d,%d -> warm film %d,%d,%d; grey -> %d,%d,%d\n", orange[0], orange[1],
+               orange[2], warm[0], warm[1], warm[2], warmGrey[0], warmGrey[1], warmGrey[2]);
+  Check(r.Stats().colourPasses == before + 2 && xfb != plain, "colour: one pass per display copy, shown");
+  Check(warm[0] > orange[0] && warm[2] < orange[2], "colour: warm film makes the orange warmer");
+  Check(warmGrey[0] > warmGrey[2], "colour: warm film warms the grey");
+  Check(Near(TexPixel(xfb, 450 * f, 320 * f), 0, 0, 0, 1), "colour: black stays black");
+  r.SetColour(2, 2);
+  xfb = scene();
+  const std::vector<std::uint8_t> pale = TexPixel(xfb, 200 * f, 230 * f);
+  std::fprintf(stderr, "  colour: survival horror %d,%d,%d\n", pale[0], pale[1], pale[2]);
+  Check(pale[0] - pale[2] < (orange[0] - orange[2]) / 2, "colour: survival horror makes the orange paler");
+  Check(Near(TexPixel(xfb, 450 * f, 320 * f), 0, 0, 0, 1), "colour: black stays black (survival horror)");
+  r.SetColour(0, 1);
+  xfb = scene();
+  Check(xfb == plain, "colour: off again, the plain display copy");
+  // CRT
+  before = r.Stats().crtPasses;
+  r.SetCrt(2);
+  xfb = scene();
+  Check(r.Stats().crtPasses == before + 2 && xfb == plain, "CRT: its pictures once per display copy, the XFB as it is");
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &screen), "CRT: the screen read back");
+  // the grey at game x 128, around game line 112: the brightest and darkest of the screen rows of three lines
+  int lo = 255, hi = 0;
+  for (int y = 112 * 3 - 4; y < 112 * 3 + 5; y++) {
+    const int v = screen[(static_cast<std::size_t>(y) * W + W / 5) * 4 + 1];
+    lo = std::min(lo, v);
+    hi = std::max(hi, v);
+  }
+  std::fprintf(stderr, "  CRT: the grey between %d and %d across three lines; the corner %d\n", lo, hi, screen[1]);
+  Check(hi - lo > 30, "CRT: dark gaps between the game lines");
+  Check(screen[0] == 0 && screen[1] == 0 && screen[2] == 0, "CRT: the corner black (rounded, curved)");
+  Check(screen != plainScreen, "CRT: the screen differs");
+  r.SetCrt(0);
+  scene();
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &screen), "CRT: the screen read back again");
+  Check(screen == plainScreen, "CRT: off again, the plain screen");
+}
+
 // PSone demake: a square of an in-between colour from x 101 on. Off: x 100 is the blue around it, x 101 and 102
 // the square. On: one colour per cell of two game pixels, the mean of its game pixels: x 100 and 101 share the
 // cell of x 100 (half blue, half the square), x 102 and 103 the square's; each channel one of the 32 levels of
@@ -1583,6 +1650,44 @@ void TestRescale() {
   Check(r.Stats().rescales == 4, "rescale: counted");
   Check(glGetError() == GL_NO_ERROR, "rescale: no GL error");
   r.Release();
+}
+
+// The pictures' cadence (picture_cadence.h): 30 pictures a second on 60 Hz, all 2 vsyncs, 0 % off; on 89.4 Hz with
+// the game's own clock (59.94 / 2 a second) mostly 3 vsyncs and now and then 2 (the picture early by a vsync);
+// 60 FPS on 90 Hz: 1 and 2 vsyncs by turns, half of them off; a pause starts over.
+void TestPictureCadence() {
+  auto run = [](double hz, double fps, int seconds, std::string *line) {
+    re4gx::PictureCadence c;
+    const long long period = static_cast<long long>(1e9 / hz);
+    const long long at = 1000000000LL;
+    bool got = false;
+    for (int i = 0; i <= static_cast<int>(fps * seconds) && !got; i++) {
+      const long long t = at + static_cast<long long>(i * 1e9 / fps) + 300000;  // drawn just after a vsync
+      // the vsync the picture waits for: the next one at or after its time
+      const long long v = at + ((t - at + period - 1) / period) * period;
+      got = c.Note(re4gx::PictureCadence::Snap(v, at, period), period, hz, line);
+    }
+    return got;
+  };
+  std::string line;
+  Check(run(60.0, 30.0, 11, &line), "cadence: a line after 10 s");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("0 % more than 2 ms") != std::string::npos && line.find("2: 301,") != std::string::npos,
+        "cadence: 30 pictures on 60 Hz, all 2 vsyncs");
+  Check(run(89.4, 59.94 / 2, 11, &line), "cadence: 89.4 Hz");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("2: 0,") == std::string::npos && line.find("3: ") != std::string::npos,
+        "cadence: the game's own clock on 89.4 Hz shows pictures of 2 vsyncs among the 3");
+  Check(run(90.0, 60.0, 11, &line), "cadence: 60 FPS on 90 Hz");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("1: 0,") == std::string::npos && line.find("2: 0,") == std::string::npos,
+        "cadence: 60 FPS on 90 Hz, 1 and 2 vsyncs by turns");
+  re4gx::PictureCadence c;
+  std::string none;
+  c.Note(1000000000LL, 16666667, 60.0, &none);
+  c.Note(1033333333LL, 16666667, 60.0, &none);
+  c.Note(5000000000LL, 16666667, 60.0, &none);  // a pause
+  Check(c.intervals.empty(), "cadence: a pause starts over");
 }
 
 // The rule of Auto (gx_auto_level.h) with made-up measurements: `seconds` of chunks at `rate` a
@@ -2476,6 +2581,7 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestFxaa(r);
   TestTvFilter(r);
   TestSharpen(r);
+  TestCrtColour(r);
   TestPsx(r);
   TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
@@ -3972,6 +4078,8 @@ int main() {
     TestDepthMap(renderer, false);
     TestFxaa(renderer);
     TestSharpen(renderer);
+    TestCrtColour(renderer);
+    TestPictureCadence();
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);

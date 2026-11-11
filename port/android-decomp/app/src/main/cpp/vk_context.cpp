@@ -251,6 +251,7 @@ bool Context::Create(const ContextOptions &options, std::string *error) {
     }
   if (family == ~0u)
     return fail(std::string("no graphics queue on ") + properties.deviceName);
+  timestampBits = families[family].timestampValidBits;
 
   // features: only what the renderer uses, where the device has it
   VkPhysicalDeviceFeatures have{};

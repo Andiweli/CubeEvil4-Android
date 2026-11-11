@@ -194,6 +194,7 @@
     <string name="ingame_effects_volume">Soundeffekte</string>
     <string name="ingame_volume_help">Musik ist die Hintergrundmusik; Soundeffekte sind alle anderen Töne im Spiel (Schüsse, Stimmen, Schritte). Die Filme behalten ihren Ton. Die beiden Schalter schalten Musik oder Soundeffekte ganz aus; wieder an, spielen sie mit der Lautstärke darüber.</string>
     <string name="ingame_smooth_help">Zusätzliche Zwischenbilder. Die Spiellogik bleibt bei 30 Bildern/s.</string>
+    <string name="ingame_smooth60_uneven">Dieser Bildschirm läuft mit %1$d Hz: 60 FPS lassen sich darauf nicht gleichmäßig zeigen und können ruckeln. 30 FPS (60 FPS aus) laufen hier ruhiger.</string>
     <string name="ingame_instant_save">Speichern</string>
     <string name="ingame_instant_load">Laden</string>
     <string name="ingame_instant_checking">Speicherslot wird geprüft …</string>
@@ -223,6 +224,13 @@
     <string name="ingame_filter_help">Filter verändern das Aussehen des ganzen Bildes und lassen sich kombinieren.</string>
     <string name="ingame_sharpen">Nachschärfen</string>
     <string name="ingame_sharpen_help">Nachschärfen holt die Details der Texturen zurück, die beim Vergrößern auf den Bildschirm weich werden (vor allem in den breiten Bildformaten). Filme bleiben, wie sie sind.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: das Bild wie auf einem alten Röhrenfernseher, mit Zeilen, gewölbtem Glas und weichem Leuchten. Touch-Tasten und Minikarte bleiben scharf.</string>
+    <string name="ingame_colour">Farbe</string>
+    <string name="ingame_colour_warm">Warmer Film</string>
+    <string name="ingame_colour_horror">Survival-Horror</string>
+    <string name="ingame_colour_strength">Stärke</string>
+    <string name="ingame_colour_help">Warmer Film hebt Braun- und Goldtöne hervor; Survival-Horror macht die Farben blass und den Kontrast härter. Stärke legt fest, wie viel.</string>
     <string name="ingame_skip_normal_help">Frame-Skip Normal: Hinkt der Grafikchip hinterher, wird ein fertiges Bild weggelassen, damit das Spiel seine normale Geschwindigkeit behält.</string>
     <string name="ingame_skip_aggressive_help">Frame-Skip Aggressiv: Das Spiel lässt selbst höchstens jedes zweite Bild weg, sobald es in Verzug gerät. Das spart auch Prozessorzeit und ist auf Handys mit langsamem Prozessor deutlich schneller.</string>
     <string name="ingame_vk_bandwidth_help">Nur Vulkan: Nach dem Löschen lädt der Grafikchip das Bild nicht noch einmal, das spart Speicherbandbreite auf Mali- und Adreno-Chips. Das Bild bleibt gleich.</string>
