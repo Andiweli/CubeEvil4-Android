@@ -15,15 +15,19 @@
 **[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
 
-**CubeEvil4** is an unofficial, native Android port of the GameCube debug build of Resident Evil 4
-(`G4BE08`, the "Nov 25 2004" prototype on two discs). It does not recreate the game: the app runs
-the original game code, compiled from the complete decompilation in this repository for ARM.
-Since v0.92.0 it also plays the **European retail release** (`G4BP08`, two discs) in English,
-German, French, Spanish and Italian; the code stays the debug build's, with small patches where the
-retail data needs them. Since v0.95.2 it also plays the **Japanese retail release** (`G4BJ08`,
-"biohazard4") and the Korean fan translation built on it, and since v0.96.2 the **US retail release** (`G4BE08` as
-well, two discs) in English. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
-and it contains no game data: you need your own images of both discs of one release.
+**CubeEvil4** is a non-commercial hobby project: an unofficial fan port that lets you play your own
+copy of the GameCube version of Resident Evil 4 natively on Android. It does not recreate the game;
+the app runs the game's original code, compiled for ARM. It plays the **European** (`G4BP08`, English,
+German, French, Spanish, Italian), **US** (`G4BE08`, English) and **Japanese** (`G4BJ08`) retail
+releases. It is not affiliated with, endorsed by or sponsored by Capcom, Nintendo or CRI Middleware,
+and it contains no game data: you need your own images of both discs of your own copy.
+
+> [!TIP]
+> **Play the Resident Evil 4 remake.** Capcom's *Resident Evil 4* (2023) rebuilds the original for
+> today's consoles and PCs and shows what made the 2005 game so special far better than any port of
+> the GameCube version can. If you enjoy CubeEvil4, please consider buying the remake and supporting
+> the people who made Resident Evil:
+> [residentevil.com/re4](https://www.residentevil.com/re4/)
 
 > [!WARNING]
 > **Built on a prototype.** CubeEvil4 runs the code of the debug build from November 2004, not the code of a
@@ -41,18 +45,28 @@ and it contains no game data: you need your own images of both discs of one rele
 <p align="center"><img src="port/android-decomp/app/src/main/res/drawable-nodpi/icon_cubeevil4.png" width="160" alt="CubeEvil4 icon"></p>
 -->
 
+
+## About this project
+
+CubeEvil4 is a fan interpretation made out of love for Resident Evil 4. It is developed in spare
+time, without any commercial intent: the app is free, nothing in it is sold, and no feature is
+locked behind a payment.
+
+We deeply respect and appreciate the work of Capcom and Nintendo, who have shaped video games since
+the 1990s and created Resident Evil and the GameCube. Resident Evil 4 changed what an action game
+could be, and this port wants nothing more than to underline the lasting value of that game and to
+keep the GameCube version playable for people who own it. All credit for the game, its story,
+characters, art, music and design belongs to Capcom and to the original development team.
+
+If you do not own the game, please buy it: the remake (see above) or one of the official re-releases.
+
+
 ## Reviews
 
 - [Gamesworld Channel](https://www.youtube.com/watch?v=PvpjyH123YI) (Youtube)  
 - [EightiesJapan's Channel](https://www.youtube.com/shorts/afU4VWHp1uQ) (Youtube)  
 - [Android Gamer's Channel](https://www.youtube.com/watch?v=m-XGtGydIVg) (Youtube)  
 
-
-## Currently in development
-
-- **Last issued bugs from testers**
-- **AAOS compatibility** for Android Automotive equipped cars
-- **INSTAND SAVE** to be more moderate and not so strict
 
 ## What the app does
 
@@ -330,9 +344,24 @@ is that the output bytes never change.
 
 ## Legal
 
-CubeEvil4 is an unofficial fan project, not affiliated with or endorsed by Capcom, Nintendo or CRI
-Middleware. Resident Evil is a trademark of Capcom; it is named here only to say which game the
-port runs. The reconstructed game and SDK source is the property of Capcom, Nintendo and CRI
-Middleware and is published for research and preservation only. No game data is included or
-distributed; you need your own discs. The build scripts, tools, configuration and documentation
-written for this project are released under CC0, see `LICENSE`.
+- **Unofficial fan project.** CubeEvil4 is a non-commercial fan project. It is not affiliated with,
+  endorsed by, sponsored by or approved by Capcom Co., Ltd., Nintendo Co., Ltd. or CRI Middleware Co.,
+  Ltd.
+- **Trademarks.** Resident Evil, Biohazard and all related names, characters and logos are trademarks
+  or registered trademarks of Capcom Co., Ltd. GameCube and Nintendo are trademarks of Nintendo.
+  CRI, ADX and Sofdec are trademarks of CRI Middleware. Android is a trademark of Google LLC. All
+  other trademarks belong to their owners. They are named here only to say which game and platform
+  the port is about.
+- **Copyright.** Resident Evil 4 © CAPCOM CO., LTD. 2005. The game, its code, data, story, characters,
+  art, music and sound are the property of Capcom. The GameCube SDK is the property of Nintendo; the
+  CRI middleware is the property of CRI Middleware. The reconstructed game and SDK source in this
+  repository remains their property and is published for research, interoperability and
+  preservation only.
+- **No game data.** No game data, disc images, BIOS or other copyrighted assets are included or
+  distributed. You need your own legally obtained copy of the game.
+- **No warranty.** The app is provided "as is", without any warranty. Use it at your own risk.
+- **Our own work.** The build scripts, tools, Android app shell, configuration and documentation
+  written for this project are released under CC0, see `LICENSE`. This does not extend to any
+  Capcom, Nintendo or CRI material.
+- **Rights holders.** If you represent Capcom, Nintendo or CRI Middleware and have concerns about this
+  project, please open an issue or contact the maintainer; we will respond promptly.
