@@ -684,6 +684,8 @@ std::atomic<int> optSharpen{0};  // the menu's sharpening (CoreBridge.setSharpen
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares: 0 off, 1 lens flares, 2 halos + lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
+std::atomic<int> optCrt{0};       // the menu's CRT (CoreBridge.setCrt: 0 off, 1 light, 2 strong; or RE4_GX_CRT)
+std::atomic<int> optColour{0};    // the menu's colour (CoreBridge.setColour: mode * 4 + level; or RE4_GX_COLOUR=M,L)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
@@ -1955,6 +1957,19 @@ bool drawGx() {
   gx->SetBandwidthSave(optVkBandwidth.load() != 0);
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
+  static const int crtEnv = getenv("RE4_GX_CRT") ? atoi(getenv("RE4_GX_CRT")) : 0;
+  gx->SetCrt(crtEnv > 0 ? crtEnv : optCrt.load());
+  static int colourEnvMode = -1, colourEnvLevel = 1;
+  if (colourEnvMode < 0) {
+    colourEnvMode = 0;
+    if (const char *e = getenv("RE4_GX_COLOUR"))
+      std::sscanf(e, "%d,%d", &colourEnvMode, &colourEnvLevel);
+  }
+  const int colour = optColour.load();
+  if (colourEnvMode > 0)
+    gx->SetColour(colourEnvMode, colourEnvLevel);
+  else
+    gx->SetColour(colour / 4, colour % 4);
   static const bool flaresEnv = getenv("RE4_GX_FLARES") && *getenv("RE4_GX_FLARES") == '1';
   gx->SetFlares(optFlares.load() != 0 || flaresEnv);
   gx->SetFlareHalos(optFlares.load() != 1);
@@ -3199,6 +3214,21 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFlares(JN
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFxaa(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFxaa.exchange(want) != want) LOG("FXAA: %s", want ? "on" : "off");
+}
+
+// CRT (the menu, 0.99.9): the picture as a tube TV showed it (GxRenderer::SetCrt); 0 off, 1 light, 2 strong.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setCrt(JNIEnv *, jclass, jint level) {
+  const int want = level < 0 ? 0 : level > 2 ? 2 : level;
+  if (optCrt.exchange(want) != want)
+    LOG("CRT: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
+}
+
+// Colour (the menu, 0.99.9; GxRenderer::SetColour): mode 0 off, 1 warm film, 2 survival horror; level 1 light,
+// 2 strong.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setColour(JNIEnv *, jclass, jint mode, jint level) {
+  const int m = mode < 0 || mode > 2 ? 0 : mode, l = level >= 2 ? 2 : 1;
+  if (optColour.exchange(m * 4 + l) != m * 4 + l)
+    LOG("colour: %s, %s", m == 1 ? "warm film" : m == 2 ? "survival horror" : "off", l == 2 ? "strong" : "light");
 }
 
 // Sharpen (the menu, 0.99.2): a contrast-adaptive sharpening of every picture after FXAA, movies left out

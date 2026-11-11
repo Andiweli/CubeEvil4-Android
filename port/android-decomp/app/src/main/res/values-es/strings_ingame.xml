@@ -225,6 +225,13 @@
     <string name="ingame_filter_help">Los filtros cambian el aspecto de toda la imagen y se pueden combinar.</string>
     <string name="ingame_sharpen">Nitidez</string>
     <string name="ingame_sharpen_help">Nitidez recupera el detalle de las texturas que se suaviza al ampliar la imagen a la pantalla (sobre todo en los formatos de imagen panorámicos). Los vídeos no cambian.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: la imagen como en un televisor de tubo antiguo, con líneas, pantalla curva y un brillo suave. Los controles táctiles y el minimapa siguen nítidos.</string>
+    <string name="ingame_colour">Color</string>
+    <string name="ingame_colour_warm">Película cálida</string>
+    <string name="ingame_colour_horror">Survival horror</string>
+    <string name="ingame_colour_strength">Intensidad</string>
+    <string name="ingame_colour_help">Película cálida realza los marrones y dorados; Survival horror apaga los colores y endurece el contraste. Intensidad indica cuánto.</string>
     <string name="ingame_skip_normal_help">Salto de fotogramas Normal: si el chip gráfico se retrasa, se omite una imagen ya hecha para que el juego mantenga su velocidad normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; también ahorra tiempo de procesador y es mucho más rápido en móviles con un procesador lento.</string>
     <string name="ingame_vk_bandwidth_help">Solo Vulkan: tras borrar la imagen, el chip gráfico ya no la vuelve a cargar, lo que ahorra ancho de banda de memoria en chips Mali y Adreno. La imagen no cambia.</string>

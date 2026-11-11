@@ -41,6 +41,8 @@ struct GxStats {
   unsigned skippedChunks = 0;    // chunks run without drawing (Frame skip): state and textures only
   unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
   unsigned sharpenPasses = 0;    // display copies sharpened (SetSharpen)
+  unsigned colourPasses = 0;     // display copies graded (SetColour)
+  unsigned crtPasses = 0;        // display copies made into the CRT's lines and glow (SetCrt)
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
   unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
@@ -285,6 +287,18 @@ public:
   // last pass over every display copy (after FXAA): one colour per cell of a 320 x 224 grid in 15-bit colour
   // with the PlayStation's 4 x 4 dither. Takes effect with the next draws (new programs, made once).
   void SetPsx(bool on);
+  // CRT (wish of the project owner, 11.11.2026; 0 off, 1 light, 2 strong): the picture as a tube TV showed it. After
+  // each display copy (after the colour) two small passes, its game lines with the colour of a composite signal bled
+  // sideways (one row a line, at most 1280 wide) and the glow of its bright parts (a quarter each way); Present then
+  // draws the box from them: a curved glass with rounded corners and darker edges, each game line a beam with dark
+  // gaps between (fading out below three screen pixels a line), the glow, with "Strong" a shadow mask. Only what
+  // the game draws: the touch controls, the app's menu and its overlays (minimap, FPS) stay as they are. Takes
+  // effect with the next display copy.
+  void SetCrt(int level);
+  // Colour (wish of the project owner, 11.11.2026): mode 0 off, 1 "Warm film" (browns and golds stronger), 2
+  // "Survival horror" (pale colours, harder contrast); level 1 light (half), 2 strong. One pass over every display
+  // copy after the PSone demake's, into a texture of its own that Xfb() and Present show. Movies too.
+  void SetColour(int mode, int level);
   // Lens flares (wish of the project owner, 04.11.2026; off by default): a small, faint glow and streak around
   // what the game draws as light (additive 3D effects: flames, candles, lamp glows), drawn after the scene's
   // last 3D draw (under the HUD), only where the source is not hidden in the EFB depth, faded in and out over

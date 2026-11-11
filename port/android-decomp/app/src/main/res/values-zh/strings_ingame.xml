@@ -222,6 +222,13 @@
     <string name="ingame_filter_help">滤镜会改变整个画面的外观，可以同时开启。</string>
     <string name="ingame_sharpen">锐化</string>
     <string name="ingame_sharpen_help">锐化可找回画面放大到屏幕时变得模糊的纹理细节（尤其是宽屏画面格式）。影片保持不变。</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT：画面如同旧式显像管电视，带扫描线、弧面屏幕和柔和的光晕。触屏按键和小地图保持清晰。</string>
+    <string name="ingame_colour">色调</string>
+    <string name="ingame_colour_warm">暖色胶片</string>
+    <string name="ingame_colour_horror">生存恐怖</string>
+    <string name="ingame_colour_strength">强度</string>
+    <string name="ingame_colour_help">暖色胶片突出棕色和金色；生存恐怖让颜色变淡、对比更强。强度决定效果的多少。</string>
     <string name="ingame_skip_normal_help">跳帧“普通”：图形芯片跟不上时，跳过一帧已完成的画面，使游戏保持正常速度。</string>
     <string name="ingame_skip_aggressive_help">跳帧“激进”：游戏落后时自身最多每两帧跳过一帧；也能节省处理器时间，在处理器较慢的手机上快得多。</string>
     <string name="ingame_vk_bandwidth_help">仅限 Vulkan：画面清除后，图形芯片不再重新加载它，可在 Mali 和 Adreno 芯片上节省显存带宽。画面保持不变。</string>

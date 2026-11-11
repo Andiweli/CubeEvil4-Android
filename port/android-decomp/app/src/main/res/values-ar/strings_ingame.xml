@@ -236,6 +236,13 @@
     <string name="ingame_filter_help">تغيّر المرشّحات مظهر الصورة كلها ويمكن الجمع بينها.</string>
     <string name="ingame_sharpen">زيادة الحدة</string>
     <string name="ingame_sharpen_help">تعيد زيادة الحدة تفاصيل الخامات التي تصبح ناعمة عند تكبير الصورة إلى الشاشة (خاصة في تنسيقات الصورة العريضة). تبقى مقاطع الفيديو كما هي.</string>
+    <string name="ingame_crt">شاشة CRT</string>
+    <string name="ingame_crt_help">شاشة CRT: الصورة كما في تلفاز أنبوبي قديم، مع خطوط وشاشة منحنية وتوهج خفيف. تبقى أزرار اللمس والخريطة المصغرة واضحة.</string>
+    <string name="ingame_colour">الألوان</string>
+    <string name="ingame_colour_warm">فيلم دافئ</string>
+    <string name="ingame_colour_horror">رعب البقاء</string>
+    <string name="ingame_colour_strength">الشدة</string>
+    <string name="ingame_colour_help">يُبرز الفيلم الدافئ الألوان البنية والذهبية؛ ويجعل رعب البقاء الألوان باهتة والتباين أقوى. تحدد الشدة المقدار.</string>
     <string name="ingame_skip_normal_help">‏تخطي الإطارات عادي: عندما تتأخر شريحة الرسوميات يُتخطى إطار جاهز حتى تحافظ اللعبة على سرعتها العادية.</string>
     <string name="ingame_skip_aggressive_help">‏تخطي الإطارات قوي: تتخطى اللعبة بنفسها إطارًا واحدًا من كل إطارين على الأكثر عندما تتأخر، وهذا يوفر وقت المعالج أيضًا وهو أسرع بكثير في الهواتف ذات المعالج البطيء.</string>
     <string name="ingame_vk_bandwidth_help">‏مع Vulkan فقط: بعد مسح الصورة لا تعيد شريحة الرسوميات تحميلها، مما يوفر عرض نطاق الذاكرة في شرائح Mali وAdreno. تبقى الصورة كما هي.</string>

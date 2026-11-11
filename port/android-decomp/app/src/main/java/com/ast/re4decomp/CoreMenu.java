@@ -555,6 +555,22 @@ final class CoreMenu extends Dialog {
   static int sharpenLevel(SharedPreferences g) {
     return Math.max(0, Math.min(2, g.getInt(SHARPEN_LEVEL, 0)));
   }
+  /** The filter "CRT" (0.99.9, wish of the project owner, 11.11.2026): 0 off (the default), 1 light, 2 strong. */
+  static final String CRT_LEVEL = "crtLevel";
+  static int crtLevel(SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt(CRT_LEVEL, 0)));
+  }
+  /**
+   * The row "Colour" (0.99.9, wish of the project owner, 11.11.2026): 0 off (the default), 1 warm film, 2 survival
+   * horror; its strength 1 light (the default), 2 strong.
+   */
+  static final String COLOUR_MODE = "colourMode", COLOUR_LEVEL = "colourLevel";
+  static int colourMode(SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt(COLOUR_MODE, 0)));
+  }
+  static int colourLevel(SharedPreferences g) {
+    return g.getInt(COLOUR_LEVEL, 1) >= 2 ? 2 : 1;
+  }
   private void toggleLabel(Button b, int label, boolean on) {
     b.setSelected(on);
     b.setText(getContext().getString(R.string.ingame_toggle_value, s(label), s(on ? R.string.ingame_on : R.string.ingame_off)));
@@ -755,7 +771,39 @@ final class CoreMenu extends Dialog {
       CoreBridge.setSharpen(next);
     });
     valueLabel(sharpen, R.string.ingame_sharpen, sharpenLabels[sharpenLevel(graphics)], sharpenLevel(graphics) != 0);
-    indentedHelp(s(R.string.ingame_filter_help) + " " + s(R.string.ingame_sharpen_help));
+    // the picture as a tube TV showed it (wish of the project owner, 11.11.2026): off, light, strong
+    Button crt = cellAction(buttonsRow(filters), "", v -> {
+      int next = (crtLevel(graphics) + 1) % 3;
+      graphics.edit().putInt(CRT_LEVEL, next).apply();
+      valueLabel((Button) v, R.string.ingame_crt, sharpenLabels[next], next != 0);
+      CoreBridge.setCrt(next);
+    });
+    valueLabel(crt, R.string.ingame_crt, sharpenLabels[crtLevel(graphics)], crtLevel(graphics) != 0);
+    indentedHelp(s(R.string.ingame_filter_help) + " " + s(R.string.ingame_sharpen_help) + " "
+        + s(R.string.ingame_crt_help));
+    // the colour (wish of the project owner, 11.11.2026): its look (off, warm film, survival horror) and beside it
+    // its strength (light, strong); each press moves on
+    MenuLayout.Buttons colourRow = buttonsRow(labelledOptions(R.string.ingame_colour));
+    final int[] colourLabels = {R.string.ingame_off, R.string.ingame_colour_warm, R.string.ingame_colour_horror};
+    final Button[] strength = new Button[1];
+    Button look = cellAction(colourRow, "", v -> {
+      int next = (colourMode(graphics) + 1) % 3;
+      graphics.edit().putInt(COLOUR_MODE, next).apply();
+      v.setSelected(next != 0);
+      ((Button) v).setText(s(colourLabels[next]));
+      strength[0].setSelected(next != 0);
+      CoreBridge.setColour(next, colourLevel(graphics));
+    });
+    look.setSelected(colourMode(graphics) != 0);
+    look.setText(s(colourLabels[colourMode(graphics)]));
+    strength[0] = cellAction(colourRow, "", v -> {
+      int next = colourLevel(graphics) == 2 ? 1 : 2;
+      graphics.edit().putInt(COLOUR_LEVEL, next).apply();
+      valueLabel((Button) v, R.string.ingame_colour_strength, sharpenLabels[next], colourMode(graphics) != 0);
+      CoreBridge.setColour(colourMode(graphics), next);
+    });
+    valueLabel(strength[0], R.string.ingame_colour_strength, sharpenLabels[colourLevel(graphics)], colourMode(graphics) != 0);
+    indentedHelp(s(R.string.ingame_colour_help));
     heading(R.string.ingame_optional_features);
     // the current room's outline at the bottom left, turning with the player (wish of the project owner, 04.11.2026)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {

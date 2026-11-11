@@ -333,6 +333,14 @@ struct GlRenderer final : GxCore {
   GLuint psxPrevTex = 0;
   bool psxPrevValid = false;
   GLint psxUsePrevLoc = -1;
+  // Colour and the CRT (0.99.9): their programs, pictures and uniforms; one framebuffer for their passes
+  GLuint filterFbo = 0, colourProgram = 0, colourTex = 0;
+  int colourTexW = 0, colourTexH = 0;
+  GLint colourModeLoc = -1, colourStrengthLoc = -1;
+  GLuint crtLineProgram = 0, crtGlowProgram = 0, crtProgram = 0, crtLineTex = 0, crtGlowTex = 0;
+  int crtLineW = 0, crtLineH = 0, crtGlowW = 0, crtGlowH = 0;
+  GLint crtBleedLoc = -1, crtStepLoc = -1, crtRowsLoc = -1, crtLinesLoc = -1, crtBoxLoc = -1, crtShapeLoc = -1,
+        crtBeamLoc = -1, crtMaskLoc = -1;
   int psxGridW = 0, psxGridH = 0;
   GLuint peekProgram = 0, peekFbo = 0, peekTex = 0, peekPbo[2] = {0, 0};
   GLsync peekFence[2] = {nullptr, nullptr};
@@ -1811,7 +1819,8 @@ struct GlRenderer final : GxCore {
   }
 
   GLuint ShownXfb() const {
-    return psxShown && psxTex ? psxTex
+    return colourShown && colourTex ? colourTex
+           : psxShown && psxTex ? psxTex
            : sharpShown && sharpTex ? sharpTex
            : fxaaShown && fxaaTex ? fxaaTex
                                   : xfbTex;
@@ -1892,6 +1901,150 @@ struct GlRenderer final : GxCore {
     current = nullptr;
     psxShown = true;
     psxPrevValid = true;
+  }
+
+  // --- Colour and the CRT (wishes of the project owner, 11.11.2026) ------------------------------------------
+
+  // a pass's picture (RGBA8, linear, clamped), made anew at another size
+  static void PassTexture(GLuint *tex, int *tw, int *th, int w, int h) {
+    if (*tex && *tw == w && *th == h)
+      return;
+    if (*tex)
+      glDeleteTextures(1, tex);
+    glGenTextures(1, tex);
+    glBindTexture(GL_TEXTURE_2D, *tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    *tw = w;
+    *th = h;
+  }
+  // one pass of `program` (its uniforms set before): `from` read, `to` (w x h) drawn whole
+  void FilterDraw(GLuint program, GLuint to, int w, int h, GLuint from) {
+    Touched();
+    SaveAndPlainState();
+    if (!filterFbo)
+      glGenFramebuffers(1, &filterFbo);
+    BindFbo(filterFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to, 0);
+    ForgetColor();  // all of it is drawn over
+    glViewport(0, 0, w, h);
+    glUseProgram(program);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, from);
+    glBindSampler(0, 0);
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    BindFbo(DrawFbo());
+    current = nullptr;
+  }
+  // the display copy as shown so far (w x h texels) graded into colourTex
+  void Colour(int w, int h) {
+    colourShown = false;
+    if (colourMode <= 0 || colourFailed || !xfbTex || w < 16 || h < 16)
+      return;
+    if (!colourProgram) {
+      std::string log;
+      colourProgram = Link(fixed::kQuadVs, fixed::kColourFs, &log);
+      if (!colourProgram) {
+        GXLOG("colour: shader failed: %s", log.c_str());
+        colourFailed = true;  // off for good on this driver (the menu's choice stays)
+        return;
+      }
+      glUseProgram(colourProgram);
+      glUniform1i(glGetUniformLocation(colourProgram, "src"), 0);
+      colourModeLoc = glGetUniformLocation(colourProgram, "mode");
+      colourStrengthLoc = glGetUniformLocation(colourProgram, "strength");
+    }
+    PassTexture(&colourTex, &colourTexW, &colourTexH, w, h);
+    const GLuint from = ShownXfb();
+    glUseProgram(colourProgram);
+    glUniform1i(colourModeLoc, colourMode);
+    glUniform1f(colourStrengthLoc, colourStrength);
+    FilterDraw(colourProgram, colourTex, w, h, from);
+    colourShown = true;
+    stats.colourPasses++;
+  }
+  // the CRT's pictures of the display copy as shown (pw x ph texels; gw x gh game pixels): its game lines with the
+  // colour bleed, their glow (Present draws the screen from them)
+  void Crt(int pw, int ph, int gw, int gh) {
+    crtReady = false;
+    if (crtLevel <= 0 || crtFailed || !xfbTex || pw < 16 || ph < 16 || gw < 16 || gh < 16)
+      return;
+    if (!crtProgram) {
+      std::string log;
+      crtLineProgram = Link(fixed::kQuadVs, fixed::kCrtLineFs, &log);
+      crtGlowProgram = crtLineProgram ? Link(fixed::kQuadVs, fixed::kCrtGlowFs, &log) : 0;
+      crtProgram = crtGlowProgram ? Link(fixed::kQuadVs, fixed::kCrtFs, &log) : 0;
+      if (!crtProgram) {
+        GXLOG("CRT: shader failed: %s", log.c_str());
+        CrtRelease();
+        crtFailed = true;  // off for good on this driver (the menu's choice stays)
+        return;
+      }
+      glUseProgram(crtLineProgram);
+      glUniform1i(glGetUniformLocation(crtLineProgram, "src"), 0);
+      crtBleedLoc = glGetUniformLocation(crtLineProgram, "bleed");
+      glUseProgram(crtGlowProgram);
+      glUniform1i(glGetUniformLocation(crtGlowProgram, "src"), 0);
+      crtStepLoc = glGetUniformLocation(crtGlowProgram, "glowStep");
+      glUseProgram(crtProgram);
+      glUniform1i(glGetUniformLocation(crtProgram, "crtLine"), 0);
+      glUniform1i(glGetUniformLocation(crtProgram, "crtGlow"), 1);
+      crtRowsLoc = glGetUniformLocation(crtProgram, "rows");
+      crtLinesLoc = glGetUniformLocation(crtProgram, "lines");
+      crtBoxLoc = glGetUniformLocation(crtProgram, "box");
+      crtShapeLoc = glGetUniformLocation(crtProgram, "shape");
+      crtBeamLoc = glGetUniformLocation(crtProgram, "beam");
+      crtMaskLoc = glGetUniformLocation(crtProgram, "mask");
+    }
+    const fixed::CrtPreset &p = fixed::kCrtPresets[crtLevel >= 2 ? 1 : 0];
+    const int lw = std::min(pw, 1280), ww = std::max(1, gw / 4), wh = std::max(1, gh / 4);
+    PassTexture(&crtLineTex, &crtLineW, &crtLineH, lw, gh);
+    PassTexture(&crtGlowTex, &crtGlowW, &crtGlowH, ww, wh);
+    const GLuint from = ShownXfb();
+    glUseProgram(crtLineProgram);
+    glUniform1f(crtBleedLoc, p.bleed / static_cast<float>(gw));
+    FilterDraw(crtLineProgram, crtLineTex, lw, gh, from);
+    glUseProgram(crtGlowProgram);
+    glUniform2f(crtStepLoc, 1.0f / static_cast<float>(ww), 1.0f / static_cast<float>(wh));
+    FilterDraw(crtGlowProgram, crtGlowTex, ww, wh, crtLineTex);
+    crtLines = gh;
+    crtReady = true;
+    stats.crtPasses++;
+  }
+  // Present's CRT: the box (w x h screen pixels; the viewport set) from the CRT's pictures, rows r0 + r1 of the copy
+  void CrtPresent(int w, int h, float r0, float r1) {
+    const fixed::CrtPreset &p = fixed::kCrtPresets[crtLevel >= 2 ? 1 : 0];
+    glUseProgram(crtProgram);
+    glUniform2f(crtRowsLoc, r0, r1);
+    glUniform1f(crtLinesLoc, static_cast<float>(crtLines));
+    glUniform2f(crtBoxLoc, static_cast<float>(w), static_cast<float>(h));
+    glUniform4f(crtShapeLoc, p.warpX, p.warpY, p.corner, p.vignette);
+    glUniform4f(crtBeamLoc, p.sigmaDark, p.sigmaBright, p.boost, p.glow);
+    glUniform2f(crtMaskLoc, p.maskKind, p.maskStrength);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, crtGlowTex);
+    glBindSampler(1, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, crtLineTex);
+    glBindSampler(0, 0);
+  }
+  void CrtRelease() {
+    for (GLuint *t : {&colourTex, &crtLineTex, &crtGlowTex})
+      if (*t)
+        glDeleteTextures(1, t);
+    for (GLuint *prog : {&colourProgram, &crtLineProgram, &crtGlowProgram, &crtProgram})
+      if (*prog)
+        glDeleteProgram(*prog);
+    if (filterFbo)
+      glDeleteFramebuffers(1, &filterFbo);
+    filterFbo = colourTex = crtLineTex = crtGlowTex = 0;
+    colourProgram = crtLineProgram = crtGlowProgram = crtProgram = 0;
+    colourTexW = colourTexH = crtLineW = crtLineH = crtGlowW = crtGlowH = 0;
+    colourShown = crtReady = false;
   }
 
   void PsxRelease() {
@@ -2602,11 +2755,13 @@ struct GlRenderer final : GxCore {
     current = nullptr;
     BindFbo(DrawFbo());
   }
-  // after a display copy: FXAA, Sharpen, the PSone demake (each when on)
+  // after a display copy: FXAA, Sharpen, the PSone demake, the colour, the CRT's pictures (each when on)
   void DisplayEffects(int pw, int ph, int y, int h, int w) override {
     Fxaa(pw, ph);
     Sharpen(pw, ph, y, h);
     Psx(pw, ph, w, h);
+    Colour(pw, ph);
+    Crt(pw, ph, w, h);
   }
   // the EFB bound with the plain state
   void PlainEfb() override {
@@ -3194,15 +3349,21 @@ bool GlRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
     return true;
   }
   glViewport(x, y, w, h);
-  glUseProgram(m.presentProgram);
   const float lines = static_cast<float>(m.xfbHeight ? m.xfbHeight : 1);
-  if (rows == 0 || top + rows > m.xfbHeight)
-    glUniform2f(m.presentRows, 0.0f, 1.0f);
-  else
-    glUniform2f(m.presentRows, static_cast<float>(top) / lines, static_cast<float>(rows) / lines);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, m.ShownXfb());
-  glBindSampler(0, 0);
+  float r0 = 0.0f, r1 = 1.0f;
+  if (rows != 0 && top + rows <= m.xfbHeight) {
+    r0 = static_cast<float>(top) / lines;
+    r1 = static_cast<float>(rows) / lines;
+  }
+  if (m.crtLevel > 0 && m.crtReady && m.crtProgram) {
+    m.CrtPresent(w, h, r0, r1);  // the CRT (0.99.9)
+  } else {
+    glUseProgram(m.presentProgram);
+    glUniform2f(m.presentRows, r0, r1);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m.ShownXfb());
+    glBindSampler(0, 0);
+  }
   glBindVertexArray(m.quadVao);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
   glBindVertexArray(0);
@@ -3429,6 +3590,7 @@ void GlRenderer::Release() {
   m.FxaaRelease();
   m.SharpenRelease();
   m.PsxRelease();
+  m.CrtRelease();
   m.FlareRelease();
   if (m.timerOn) {
     glDeleteQueries(GlRenderer::TimerPool::kQueries, m.chunkTimer.query);

@@ -424,6 +424,10 @@ struct VkRenderer final : GxCore {
   Image efbMsColor, efbMsDepth;
   // the display copy's filters (DisplayEffects): their pictures and pipelines
   Image fxaaImg, sharpImg, psxImg, psxPrevImg;
+  // Colour and the CRT (0.99.9): the graded picture, the CRT's lines and glow; their pipelines (the CRT's screen: one
+  // for the screenshot's pass, one for the swapchain's)
+  Image colourImg, crtLineImg, crtGlowImg;
+  Fixed colourFx, crtLineFx, crtGlowFx, crtShotFx, crtSwapFx;
   // the lens flares (FlarePass): the slots' visibility, this picture's and the one before
   Image flareVis[2];
   Fixed flareVisFx, flareFx;
@@ -2941,9 +2945,13 @@ struct VkRenderer final : GxCore {
     FilterFxaa(pw, ph);
     FilterSharpen(pw, ph, y, h);
     FilterPsx(pw, ph, w, h);
+    FilterColour(pw, ph);
+    FilterCrt(pw, ph, w, h);
   }
   // the picture shown: the last filter's, else the XFB
   Image *ShownImage() {
+    if (colourShown && colourImg.image)
+      return &colourImg;
     if (psxShown && psxImg.image)
       return &psxImg;
     if (sharpShown && sharpImg.image)
@@ -3084,6 +3092,95 @@ struct VkRenderer final : GxCore {
     psxShown = true;
     psxPrevValid = true;
   }
+  // Colour (0.99.9): the picture shown so far (w x h texels) graded (GlRenderer::Colour)
+  void FilterColour(int w, int h) {
+    colourShown = false;
+    if (colourMode <= 0 || colourFailed || !ImageOf(xfbId) || w < 16 || h < 16)
+      return;
+    if (!FilterProgram(colourFx, fixed::kQuadVs, fixed::kColourFs, "colour")) {
+      colourFailed = true;
+      return;
+    }
+    if (!FilterImage(colourImg, w, h))
+      return;
+    std::vector<std::uint8_t> pc(colourFx.constants.bytes, 0);
+    const std::int32_t mode = colourMode;
+    Put(pc, colourFx, "mode", mode);
+    Put(pc, colourFx, "strength", colourStrength);
+    Image *src[1] = {ShownImage()};
+    FilterPass(colourFx, colourImg, src, 1, pc);
+    colourShown = true;
+    stats.colourPasses++;
+  }
+  // the CRT's pictures (0.99.9): the game lines with the colour bleed, their glow (GlRenderer::Crt)
+  void FilterCrt(int pw, int ph, int gw, int gh) {
+    crtReady = false;
+    if (crtLevel <= 0 || crtFailed || !ImageOf(xfbId) || pw < 16 || ph < 16 || gw < 16 || gh < 16)
+      return;
+    if (!FilterProgram(crtLineFx, fixed::kQuadVs, fixed::kCrtLineFs, "CRT lines") ||
+        !FilterProgram(crtGlowFx, fixed::kQuadVs, fixed::kCrtGlowFs, "CRT glow")) {
+      crtFailed = true;
+      return;
+    }
+    const fixed::CrtPreset &p = fixed::kCrtPresets[crtLevel >= 2 ? 1 : 0];
+    const int lw = std::min(pw, 1280), ww = std::max(1, gw / 4), wh = std::max(1, gh / 4);
+    if (!FilterImage(crtLineImg, lw, gh) || !FilterImage(crtGlowImg, ww, wh))
+      return;
+    std::vector<std::uint8_t> pl(crtLineFx.constants.bytes, 0);
+    Put(pl, crtLineFx, "bleed", p.bleed / static_cast<float>(gw));
+    Image *from[1] = {ShownImage()};
+    FilterPass(crtLineFx, crtLineImg, from, 1, pl);
+    std::vector<std::uint8_t> pg(crtGlowFx.constants.bytes, 0);
+    const float step[2] = {1.0f / static_cast<float>(ww), 1.0f / static_cast<float>(wh)};
+    Put(pg, crtGlowFx, "glowStep", step);
+    Image *lines[1] = {&crtLineImg};
+    FilterPass(crtGlowFx, crtGlowImg, lines, 1, pg);
+    crtLines = gh;
+    crtReady = true;
+    stats.crtPasses++;
+  }
+  // the CRT's screen shader as Vulkan takes it (row 0 at the top: no turn)
+  static std::string CrtFsVk() {
+    std::string fs = fixed::kCrtFs;
+    const std::string flip = "1.0 - vUv.y";
+    const std::size_t at = fs.find(flip);
+    if (at != std::string::npos)
+      fs.replace(at, flip.size(), "vUv.y");
+    return fs;
+  }
+  // whether the CRT draws the screen now; its pipeline for `rp` (the screenshot's pass or the swapchain's) made once
+  bool CrtWanted(Fixed &f, const char *vs, VkRenderPass rp) {
+    if (crtLevel <= 0 || !crtReady || crtFailed || !crtLineImg.image || !crtGlowImg.image || !rp)
+      return false;
+    if (f.pipeline)
+      return true;
+    std::string error;
+    const VkColorComponentFlags all = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                                      VK_COLOR_COMPONENT_A_BIT;
+    if (MakeFixed(f, vs, CrtFsVk(), rp, all, false, &error))
+      return true;
+    GXLOG("CRT (Vulkan): shader failed: %s", error.c_str());
+    FreeFixed(f);
+    crtFailed = true;
+    return false;
+  }
+  // the CRT's constants for a box of w x h screen pixels showing rows r0 + r1 of the copy
+  void CrtConstants(const Fixed &f, std::vector<std::uint8_t> &pc, int w, int h, float r0, float r1) {
+    const fixed::CrtPreset &p = fixed::kCrtPresets[crtLevel >= 2 ? 1 : 0];
+    const float rowsv[2] = {r0, r1}, box[2] = {static_cast<float>(w), static_cast<float>(h)};
+    const float shape[4] = {p.warpX, p.warpY, p.corner, p.vignette};
+    const float beam[4] = {p.sigmaDark, p.sigmaBright, p.boost, p.glow};
+    const float mask[2] = {p.maskKind, p.maskStrength};
+    Put(pc, f, "rows", rowsv);
+    Put(pc, f, "lines", static_cast<float>(crtLines));
+    Put(pc, f, "box", box);
+    Put(pc, f, "shape", shape);
+    Put(pc, f, "beam", beam);
+    Put(pc, f, "mask", mask);
+  }
+  void BindCrt(const Fixed &f, const std::vector<std::uint8_t> &pc) {
+    BindFixedNamed(f, {{"crtLine", crtLineImg.view, linearClamp}, {"crtGlow", crtGlowImg.view, linearClamp}}, pc);
+  }
   // ---- the depth map for GXPeekZ (as GlRenderer::SnapshotDepth / DeliverDepth) ----
   void DeliverDepth() {
     Poll();
@@ -3187,17 +3284,23 @@ struct VkRenderer final : GxCore {
     const VkRect2D sc{{std::max(0, x), std::max(0, y)}, {target.width, target.height}};
     vkCmdSetViewport(cb, 0, 1, &vp);
     vkCmdSetScissor(cb, 0, 1, &sc);
-    std::vector<std::uint8_t> pc(present.constants.bytes, 0);
     const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
     float r[2] = {0.0f, 1.0f};
     if (rows && top + rows <= xfbHeight) {
       r[0] = static_cast<float>(top) / lines;
       r[1] = static_cast<float>(rows) / lines;
     }
-    Put(pc, present, "rows", r);
-    const VkImageView view = xfb->view;
-    const VkSampler s = linearClamp;
-    BindFixed(present, &view, &s, 1, pc);
+    if (CrtWanted(crtShotFx, fixed::kQuadVs, screenPass)) {
+      std::vector<std::uint8_t> pc(crtShotFx.constants.bytes, 0);
+      CrtConstants(crtShotFx, pc, w, h, r[0], r[1]);
+      BindCrt(crtShotFx, pc);
+    } else {
+      std::vector<std::uint8_t> pc(present.constants.bytes, 0);
+      Put(pc, present, "rows", r);
+      const VkImageView view = xfb->view;
+      const VkSampler s = linearClamp;
+      BindFixed(present, &view, &s, 1, pc);
+    }
     vkCmdDraw(cb, 4, 1, 0, 0);
     // the overlay as on the screen (GL's screenshot has the minimap too)
     const VkViewport whole{0.0f, 0.0f, float(target.width), float(target.height), 0.0f, 1.0f};
@@ -3460,6 +3563,7 @@ struct VkRenderer final : GxCore {
       if (swapPass)
         vkDestroyRenderPass(dev, swapPass, nullptr);
       FreeFixed(swapPresent);
+      FreeFixed(crtSwapFx);
       FreeOverlay();
       swapFormat = format.format;
       swapPass = MakePass(swapFormat, VK_FORMAT_UNDEFINED, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -3609,10 +3713,18 @@ struct VkRenderer final : GxCore {
         pc[8] = static_cast<float>(top) / lines;
         pc[9] = static_cast<float>(rows) / lines;
       }
-      std::vector<std::uint8_t> bytes(48);
-      std::memcpy(bytes.data(), pc, 48);
-      const VkImageView view = xfb->view;
-      BindFixed(swapPresent, &view, &linearClamp, 1, bytes);
+      if (CrtWanted(crtSwapFx, fixed::kCrtSwapVs, swapPass)) {
+        std::vector<std::uint8_t> bytes(crtSwapFx.constants.bytes, 0);
+        Put(bytes, crtSwapFx, "rect", *reinterpret_cast<const float(*)[4]>(pc));
+        Put(bytes, crtSwapFx, "rot", *reinterpret_cast<const float(*)[4]>(pc + 4));
+        CrtConstants(crtSwapFx, bytes, w, h, pc[8], pc[9]);
+        BindCrt(crtSwapFx, bytes);
+      } else {
+        std::vector<std::uint8_t> bytes(48);
+        std::memcpy(bytes.data(), pc, 48);
+        const VkImageView view = xfb->view;
+        BindFixed(swapPresent, &view, &linearClamp, 1, bytes);
+      }
       vkCmdDraw(cb, 4, 1, 0, 0);
       DrawOverlay(cb, pc + 4, swapPass, overlayPipe, screenW, screenH);
     }
@@ -3971,9 +4083,9 @@ struct VkRenderer final : GxCore {
     if (Image *x = ImageOf(xfbId))
       Rescaled(*x, xfbWidth, xfbHeight);
     // the filters' pictures are of the old size: the next display copy makes them anew
-    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg})
+    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg, &colourImg, &crtLineImg, &crtGlowImg})
       Trash(*img);
-    fxaaShown = sharpShown = psxShown = psxPrevValid = false;
+    fxaaShown = sharpShown = psxShown = psxPrevValid = colourShown = crtReady = false;
     for (auto &c : copies)
       if (Image *img = ImageOf(c.second.id))
         Rescaled(*img, c.second.width, c.second.height);
@@ -4235,8 +4347,11 @@ struct VkRenderer final : GxCore {
       vkDestroyFramebuffer(dev, depthResolveFb, nullptr);
     depthResolveFb = VK_NULL_HANDLE;
     FreeFixed(depthResolve);
-    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg})
+    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg, &colourImg, &crtLineImg, &crtGlowImg})
       Destroy(*img);
+    for (Fixed *f : {&colourFx, &crtLineFx, &crtGlowFx, &crtShotFx, &crtSwapFx})
+      FreeFixed(*f);
+    colourShown = crtReady = false;
     for (Fixed *f : {&fxaaFx, &sharpFx, &psxFx, &flareVisFx, &flareFx, &focusFx, &blurFx, &halfFx, &mixFx, &dofBackFx})
       FreeFixed(*f);
     for (Image &v : flareVis)

@@ -132,6 +132,46 @@ unbekannt):
 - **Zurückgestellt** (Entscheidung des Projektinhabers, 11.11.2026): das HD Project hat etwa 8 GB, für die meisten
   günstigen Handys der Nutzer zu groß. Die Erkenntnisse oben bleiben für später.
 
+### 7. CRT-Filter und Farbe (Wunsch des Projektinhabers, 11.11.2026)
+
+- **Wahl des Projektinhabers** nach Vorschaubildern (Notizordner `crt-colour-mockups-0999`): CRT nur „Light“ und
+  „Strong“ (kein „Flat“), Farbe „Warm film“ und „Survival horror“ (kein Sepia), je zwei Stärken per Tastendruck.
+- **Menü (Grafik):** unter „Filter“ die Taste „CRT · Off / Light / Strong“; darunter die Zeile „Colour“ mit „Off /
+  Warm film / Survival horror“ und daneben „Strength · Light / Strong“. Einstellungen `crtLevel` (0–2),
+  `colourMode` (0–2), `colourLevel` (1–2); Texte `ingame_crt`, `ingame_crt_help`, `ingame_colour`,
+  `ingame_colour_warm`, `ingame_colour_horror`, `ingame_colour_strength`, `ingame_colour_help` in 11 Sprachen.
+  Weg: `CoreBridge.setCrt` / `setColour` → `core_mode.cpp` (`optCrt`, `optColour`; Log „CRT: …“, „colour: …“) →
+  `GxRenderer::SetCrt` / `SetColour` je Bild.
+- **Farbe** (`fixed::kColourFs`): ein Durchgang über jede Bildkopie nach dem Retro-Filter (Xfb() und Present zeigen
+  ihn; Filme auch). Warm film: warme Töne +30 % Sättigung, kalte −15 %, warmer Weißabgleich in Mitten und Lichtern,
+  sanfte S-Kurve; Survival horror: 40 % Sättigung, tiefere Schwärzen, härtere S-Kurve, kalter Grünstich in den
+  Mitten. Light = halb, Strong = voll; Schwarz bleibt schwarz.
+- **CRT** (`kCrtLineFs`, `kCrtGlowFs`, `kCrtFs`, Stufen `kCrtPresets`): nach jeder Bildkopie zwei kleine Durchgänge
+  (die Spielzeilen, eine Zeile je Spielzeile, höchstens 1280 breit, mit seitlich verlaufener Farbe; ihr Leuchten auf
+  einem Viertel je Richtung), dann ersetzt der CRT-Shader den letzten Schritt auf den Bildschirm: gewölbtes Glas mit
+  runden Ecken und dunkleren Rändern, jede Spielzeile ein Strahl mit dunklen Lücken (unter drei Bildschirmpixeln je
+  Zeile blenden die Lücken aus, sonst Streifenmuster), das Leuchten, bei Strong eine Lochmaske. Gilt im Kasten des
+  Bildformats (4:3, 16:9, Native). Touch-Tasten, App-Menü, Minikarte und FPS-Anzeige bleiben außerhalb. GLES:
+  `GlRenderer::Colour`, `Crt`, `CrtPresent`; Vulkan: `FilterColour`, `FilterCrt`, eigene Pipelines für Bildschirmfoto
+  und Swapchain (`crtShotFx`, `crtSwapFx`, mit der Drehung des Displays). Fehlt ein Shader auf einem Treiber, bleibt
+  der Filter aus (einmal im Log).
+- **PC-Werkzeug:** `RE4_GX_CRT=1|2`, `RE4_GX_COLOUR=M,L`, `RE4_GX_PRESENT_REPEAT=N` (Zeit des Bildschirmschritts);
+  dieselben Schalter auch im App-Kern (`RE4_GX_CRT`, `RE4_GX_COLOUR`).
+- **Geprüft am PC** (`gx_chunk_render`, sechs Szenen: Waldweg r100, Höhle, Dorf bei Regen, Burgsaal mit Feuer, Haus,
+  Burg außen; Stufe 2×, Bildschirm 2400×1080):
+  - **Aus = wie vorher:** neues gegen altes Werkzeug (HEAD 792e561a), GLES und Vulkan, Formate 16:9, 4:3 und Native,
+    ohne Filter und mit FXAA + Nachschärfen Stark + Retro + TV-Filter: **alle Bilder Byte für Byte gleich** (144).
+  - **Vulkan-Validierung mit Synchronisationsprüfung:** CRT Light/Strong, Warm film und Survival horror je Light und
+    Strong, Warm film + CRT, in 16:9 und 4:3: **0 Fehler**.
+  - **Aussehen:** wie die Vorschaubilder (Vergleich nebeneinander, auch 1:1-Ausschnitt); GLES gegen Vulkan
+    praktisch gleich (mittlere Abweichung unter 0,02 %, höchstens 7 von 255).
+  - **Zeit** (nur Vergleich, Software-Grafik am PC; der Bildschirmschritt mit Rücklesen, Mittel aus 20): GLES
+    llvmpipe 3,6–5,6 ms → 16,4–17,6 ms, Vulkan lavapipe 5,5–5,8 ms → 9,7–11,6 ms; Light und Strong fast gleich.
+    Auf dem Gerät zeigt der Fehlerbericht die Zeit („present“, bei Vulkan „GPU work“).
+  - Renderer-Test `TestCrtColour` (`test_gx_gl.cpp`); NDK r28c ARM32/ARM64 `-Wall -Wextra -Werror` ohne Meldung;
+    `check_translations.py` ok.
+- **Nicht geprüft:** auf einem Gerät (Wirkung, Kosten auf Mali/Adreno, Drehung des Displays bei Vulkan).
+
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since

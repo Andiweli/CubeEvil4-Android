@@ -184,6 +184,16 @@ struct GxCore {
   // over the display copy (a 320-wide grid, 15-bit colour with the PlayStation's 4 x 4 dither) into psxTex,
   // shown instead of it while psxShown
   bool psxOn = false, psxShown = false;
+  // Colour (GxRenderer::SetColour, 0.99.9): 0 off, 1 warm film, 2 survival horror, mixed in by colourStrength
+  // (0.5 light, 1 strong); the display copy as shown so far (after the PSone pass) graded into a picture of its
+  // own, shown while colourShown
+  int colourMode = 0;
+  float colourStrength = 0.5f;
+  bool colourShown = false, colourFailed = false;
+  // CRT (GxRenderer::SetCrt, 0.99.9): 0 off, 1 light, 2 strong; after each display copy its game lines (crtLines,
+  // with the colour bleed) and their glow in pictures of their own (crtReady), from which Present draws the screen
+  int crtLevel = 0, crtLines = 0;
+  bool crtReady = false, crtFailed = false;
   std::uint32_t curOpAt = 0;  // the op Run executes (FlareNote)
   // "Save bandwidth (Vulkan)" (GxRenderer::SetBandwidthSave, 0.99.8): the EFB passes of a tiling GPU load and store
   // less (gx_vk.cpp: a clear after a copy folded into the next pass, which then loads nothing there)
@@ -695,6 +705,8 @@ struct GxCore {
   void SetTvFilter(bool on);
   void SetBandwidthSave(bool on);
   void SetPsx(bool on);
+  void SetCrt(int level);
+  void SetColour(int mode, int level);
   void SetFlares(bool on);
   void SetFlareHalos(bool on);
   void SetDofStrong(bool on);

@@ -227,6 +227,13 @@
     <string name="ingame_filter_help">Les filtres changent l\'aspect de toute l\'image et peuvent être combinés.</string>
     <string name="ingame_sharpen">Netteté</string>
     <string name="ingame_sharpen_help">Netteté redonne aux textures le détail que l’agrandissement de l’image à l’écran adoucit (surtout dans les formats d’image larges). Les vidéos restent telles quelles.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT : l\'image comme sur un vieux téléviseur à tube, avec des lignes, un écran bombé et une lueur douce. Les commandes tactiles et la mini-carte restent nettes.</string>
+    <string name="ingame_colour">Couleur</string>
+    <string name="ingame_colour_warm">Film chaud</string>
+    <string name="ingame_colour_horror">Survival horror</string>
+    <string name="ingame_colour_strength">Intensité</string>
+    <string name="ingame_colour_help">Film chaud fait ressortir les bruns et les dorés ; Survival horror pâlit les couleurs et durcit le contraste. Intensité règle la force.</string>
     <string name="ingame_skip_normal_help">Saut d’images Normal : si la puce graphique prend du retard, une image déjà prête est sautée pour que le jeu garde sa vitesse normale.</string>
     <string name="ingame_skip_aggressive_help">Saut d’images Agressif : le jeu saute lui-même au plus une image sur deux quand il prend du retard ; cela économise aussi du temps processeur et va bien plus vite sur les téléphones au processeur lent.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan uniquement : après l’effacement de l’image, la puce graphique ne la recharge plus, ce qui économise de la bande passante mémoire sur les puces Mali et Adreno. L’image reste identique.</string>

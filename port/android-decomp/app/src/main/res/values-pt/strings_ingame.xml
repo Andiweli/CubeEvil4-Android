@@ -226,6 +226,13 @@
     <string name="ingame_filter_help">Os filtros mudam o aspeto de toda a imagem e podem ser combinados.</string>
     <string name="ingame_sharpen">Nitidez</string>
     <string name="ingame_sharpen_help">Nitidez devolve às texturas o detalhe que fica suave quando a imagem é ampliada para a tela (principalmente nos formatos de imagem largos). Os vídeos ficam como estão.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: a imagem como numa televisão antiga de tubo, com linhas, ecrã curvo e um brilho suave. Os controlos táteis e o minimapa ficam nítidos.</string>
+    <string name="ingame_colour">Cor</string>
+    <string name="ingame_colour_warm">Filme quente</string>
+    <string name="ingame_colour_horror">Survival horror</string>
+    <string name="ingame_colour_strength">Intensidade</string>
+    <string name="ingame_colour_help">Filme quente realça os castanhos e dourados; Survival horror empalidece as cores e endurece o contraste. Intensidade define quanto.</string>
     <string name="ingame_skip_normal_help">Salto de quadros Normal: se o chip gráfico atrasa, um quadro já pronto é pulado para o jogo manter a velocidade normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de quadros Agressivo: o próprio jogo pula no máximo um quadro a cada dois quando atrasa; também economiza tempo do processador e é bem mais rápido em celulares com processador lento.</string>
     <string name="ingame_vk_bandwidth_help">Só Vulkan: depois de limpar a imagem, o chip gráfico não a carrega de novo, o que economiza largura de banda de memória em chips Mali e Adreno. A imagem continua igual.</string>

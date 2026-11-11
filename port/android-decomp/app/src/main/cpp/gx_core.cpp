@@ -1309,6 +1309,11 @@ void GxCore::SetDepthSink(DepthSink sink) { this->depthSink = std::move(sink); }
 void GxCore::SetFxaa(bool on) { this->fxaaOn = on; }
 void GxCore::SetSharpen(int level) { this->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 void GxCore::SetPsx(bool on) { this->psxOn = on; }
+void GxCore::SetCrt(int level) { this->crtLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
+void GxCore::SetColour(int mode, int level) {
+  this->colourMode = mode < 0 || mode > 2 ? 0 : mode;
+  this->colourStrength = level >= 2 ? 1.0f : 0.5f;
+}
 void GxCore::SetFlares(bool on) { this->flaresOn = on; }
 void GxCore::SetFlareHalos(bool on) { this->flareHalos = on; }
 void GxCore::SetDofStrong(bool on) { this->dofStrong = on; }

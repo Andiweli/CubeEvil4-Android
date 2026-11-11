@@ -225,6 +225,13 @@
     <string name="ingame_filter_help">I filtri cambiano l\'aspetto di tutta l\'immagine e si possono combinare.</string>
     <string name="ingame_sharpen">Nitidezza</string>
     <string name="ingame_sharpen_help">Nitidezza restituisce alle texture il dettaglio che l’ingrandimento dell’immagine sullo schermo ammorbidisce (soprattutto nei formati d’immagine larghi). I filmati restano invariati.</string>
+    <string name="ingame_crt">CRT</string>
+    <string name="ingame_crt_help">CRT: l\'immagine come su un vecchio televisore a tubo, con linee, schermo curvo e un leggero bagliore. I comandi touch e la minimappa restano nitidi.</string>
+    <string name="ingame_colour">Colore</string>
+    <string name="ingame_colour_warm">Pellicola calda</string>
+    <string name="ingame_colour_horror">Survival horror</string>
+    <string name="ingame_colour_strength">Intensità</string>
+    <string name="ingame_colour_help">Pellicola calda esalta i marroni e gli ori; Survival horror sbiadisce i colori e indurisce il contrasto. Intensità regola quanto.</string>
     <string name="ingame_skip_normal_help">Salto fotogrammi Normale: se il chip grafico resta indietro, un’immagine già pronta viene saltata per mantenere la velocità normale del gioco.</string>
     <string name="ingame_skip_aggressive_help">Salto fotogrammi Aggressivo: il gioco stesso salta al massimo un’immagine su due quando resta indietro; risparmia anche tempo del processore ed è molto più veloce sui telefoni con un processore lento.</string>
     <string name="ingame_vk_bandwidth_help">Solo Vulkan: dopo la cancellazione dell’immagine il chip grafico non la ricarica più, risparmiando banda di memoria sui chip Mali e Adreno. L’immagine resta uguale.</string>
