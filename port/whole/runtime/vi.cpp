@@ -17,7 +17,23 @@
 // stutter in movies (a picture held three vsyncs). The game then runs 0.1 %
 // faster; the app's sound output takes up such a difference. Without vsyncs
 // for 250 ms (app paused, Linux) or RE4_VI_VSYNC=0: the NTSC field again.
+//
+// 0.99.9 (frame pacing, user suggestion 11.11.2026): within 1 % (was 0.5 %: a
+// "60 Hz" screen measured at 60.5 Hz ran on the own clock and showed a picture
+// three vsyncs long about every 1.8 s), and a screen on which two fields make a
+// whole number of vsyncs (90 Hz: three) locks as well: a field of one and a
+// half vsyncs, the retraces on the grid of half a vsync (every second one just
+// after a vsync), so the game's 30 pictures a second come every three vsyncs
+// (before: on the own clock, a picture only two vsyncs long about every 1.7 s
+// on the Galaxy A24's 89.4 Hz). 60 pictures a second (movies, the title) stay
+// uneven on 90 Hz: one and two vsyncs by turns, as before.
+//
+// RE4_VI_SIM_HZ=f (PC checks): a display of f Hz simulated (its vsyncs as the
+// app reports them), and each picture the game ends (VIFlush) noted at the
+// vsync it would be shown at (the first one at least 1 ms later): the app's
+// "picture pacing" line (picture_cadence.h) every 10 s in the log.
 #include "re4_runtime.h"
+#include "../../android-decomp/app/src/main/cpp/picture_cadence.h"
 
 #include <atomic>
 #include <stdlib.h>
@@ -34,6 +50,9 @@ const long long kFieldNs = 1000000000LL * 1001 / 60000;
 std::atomic<long long> gVsyncAt{0};
 std::atomic<long long> gVsyncPeriod{0};
 bool gVsyncOff;
+// RE4_VI_SIM_HZ: the simulated display's period and first vsync (0: none), the pictures' cadence
+long long gSimPeriod, gSimT0;
+re4gx::PictureCadence gSimCadence;
 const long long kVsyncStale = 250000000LL;  // ns without a vsync: the own clock
 const long long kVsyncLead = 1000000LL;     // the retrace this long after the vsync
 
@@ -64,33 +83,66 @@ void start()
         const char* vsync = getenv("RE4_VI_VSYNC");
         gVsyncOff = vsync && *vsync == '0';
         gNextRetrace = nowNs() + kFieldNs;
+        const char* sim = getenv("RE4_VI_SIM_HZ");
+        if (sim && atof(sim) >= 20.0 && atof(sim) <= 250.0) {
+            gSimPeriod = (long long) (1e9 / atof(sim) + 0.5);
+            gSimT0 = nowNs();
+        }
     }
+}
+
+// the display's latest vsync and period at `now`: the app's, or the simulated display's (RE4_VI_SIM_HZ)
+void displayNow(long long now, long long* at, long long* period)
+{
+    if (gSimPeriod > 0) {
+        *period = gSimPeriod;
+        *at = now < gSimT0 ? gSimT0 : gSimT0 + (now - gSimT0) / gSimPeriod * gSimPeriod;
+        return;
+    }
+    *at = gVsyncAt.load();
+    *period = gVsyncPeriod.load();
 }
 
 }  // namespace
 
 // The field for the display with vsyncs `period` apart, the last at `at`
-// (0: none): a whole number of vsyncs within 0.5 % of the NTSC field, else 0.
+// (0: none), else 0: a whole number of vsyncs within 1 % of the NTSC field (60,
+// 120 Hz), else two fields a whole, odd number of vsyncs within 1 % (90 Hz:
+// three; the field is then one and a half vsyncs).
 extern "C" long long re4_vi_locked_field(long long now, long long at, long long period)
 {
     if (at <= 0 || period <= 0 || now - at > kVsyncStale) {
         return 0;
     }
     long long n = (kFieldNs + period / 2) / period;
-    if (n < 1 || n > 4) {
-        return 0;
+    if (n >= 1 && n <= 4) {
+        long long field = n * period;
+        long long off = field > kFieldNs ? field - kFieldNs : kFieldNs - field;
+        if (off * 100 <= kFieldNs) {
+            return field;
+        }
     }
-    long long field = n * period;
-    long long off = field > kFieldNs ? field - kFieldNs : kFieldNs - field;
-    return off * 200 <= kFieldNs ? field : 0;
+    long long m = (2 * kFieldNs + period / 2) / period;
+    if (m >= 1 && m <= 7 && m % 2 == 1) {
+        long long two = m * period;
+        long long off = two > 2 * kFieldNs ? two - 2 * kFieldNs : 2 * kFieldNs - two;
+        if (off * 100 <= 2 * kFieldNs) {
+            return two / 2;
+        }
+    }
+    return 0;
 }
 
 // The next retrace `next` (on the own grid of `field`) moved a little toward
-// kVsyncLead after the vsync grid (`at`, `period`): at most 1/50 of a field per
-// retrace, an eighth of the distance, so it follows the display smoothly.
+// kVsyncLead after the vsync grid (`at`, `period`; a field of a half number of
+// vsyncs: the grid of half a vsync): at most 1/50 of a field per retrace, an
+// eighth of the distance, so it follows the display smoothly.
 extern "C" long long re4_vi_lock_phase(long long next, long long field, long long at, long long period)
 {
     long long target = at + kVsyncLead;
+    if (field % period != 0) {
+        period /= 2;
+    }
     long long e = (next - target) % period;
     if (e < 0) {
         e += period;
@@ -138,7 +190,9 @@ long long fieldNs(long long now)
     if (gVsyncOff) {
         return kFieldNs;
     }
-    long long f = re4_vi_locked_field(now, gVsyncAt.load(), gVsyncPeriod.load());
+    long long at = 0, period = 0;
+    displayNow(now, &at, &period);
+    long long f = re4_vi_locked_field(now, at, period);
     return f ? f : kFieldNs;
 }
 
@@ -148,7 +202,9 @@ long long nextRetrace(long long now)
     long long field = fieldNs(now);
     long long next = now + field - (now - gNextRetrace) % field;
     if (field != kFieldNs) {
-        next = re4_vi_lock_phase(next, field, gVsyncAt.load(), gVsyncPeriod.load());
+        long long at = 0, period = 0;
+        displayNow(now, &at, &period);
+        next = re4_vi_lock_phase(next, field, at, period);
     }
     return next;
 }
@@ -321,6 +377,15 @@ void VIFlush(void)
 {
     re4_gx_vi_black(gBlackNext);
     re4_gx_vi_flush();
+    if (gSimPeriod > 0) {
+        // the simulated display (RE4_VI_SIM_HZ): this picture at the first vsync at least 1 ms later
+        long long now = nowNs() + 1000000;
+        long long shown = gSimT0 + (now - gSimT0 + gSimPeriod - 1) / gSimPeriod * gSimPeriod;
+        std::string line;
+        if (gSimCadence.Note(shown, gSimPeriod, 1e9 / (double) gSimPeriod, &line)) {
+            re4_log("%s (simulated, the field %.3f ms)", line.c_str(), fieldNs(nowNs()) / 1e6);
+        }
+    }
 }
 
 u32 VIGetTvFormat(void)

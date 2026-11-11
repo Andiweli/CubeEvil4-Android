@@ -198,6 +198,7 @@
     <string name="ingame_effects_volume">Звуковые эффекты</string>
     <string name="ingame_volume_help">Музыка — это фоновая музыка; звуковые эффекты — все остальные звуки игры (выстрелы, голоса, шаги). Звук роликов не меняется. Две кнопки полностью выключают музыку или звуковые эффекты; после включения они звучат с громкостью, заданной выше.</string>
     <string name="ingame_smooth_help">Дополнительные промежуточные кадры. Логика игры остаётся на 30 кадрах/с.</string>
+    <string name="ingame_smooth60_uneven">Этот экран работает на %1$d Гц: 60 FPS на нём не показываются равномерно и могут подтормаживать. 30 FPS (60 FPS выкл.) здесь идут плавнее.</string>
     <string name="ingame_instant_save">Сохранить</string>
     <string name="ingame_instant_load">Загрузить</string>
     <string name="ingame_instant_checking">Проверка слота …</string>

@@ -209,6 +209,7 @@
     <string name="ingame_effects_volume">Sound effects</string>
     <string name="ingame_volume_help">Music is the background music; sound effects are everything else in the game (shots, voices, steps). The movies keep their sound as it is. The two buttons switch the music or the sound effects off entirely; switched on again, they play at the volume above.</string>
     <string name="ingame_smooth_help">Extra in-between pictures. The game logic stays at 30 frames/s.</string>
+    <string name="ingame_smooth60_uneven">This screen runs at %1$d Hz: 60 FPS cannot be shown evenly on it and may stutter. 30 FPS (60 FPS off) runs smoother here.</string>
     <string name="ingame_instant_save">Save</string>
     <string name="ingame_instant_load">Load</string>
     <string name="ingame_instant_checking">Checking save slot …</string>

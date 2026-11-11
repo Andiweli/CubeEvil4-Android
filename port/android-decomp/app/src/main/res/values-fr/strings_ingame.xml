@@ -198,6 +198,7 @@
     <string name="ingame_effects_volume">Effets sonores</string>
     <string name="ingame_volume_help">La musique est la musique de fond ; les effets sonores sont tout le reste du jeu (tirs, voix, pas). Les films gardent leur son. Les deux boutons coupent entièrement la musique ou les effets sonores ; réactivés, ils reprennent au volume réglé au-dessus.</string>
     <string name="ingame_smooth_help">Images intermédiaires supplémentaires. La logique du jeu reste à 30 images/s.</string>
+    <string name="ingame_smooth60_uneven">Cet écran tourne à %1$d Hz : 60 FPS ne peuvent pas y être affichés de façon régulière et peuvent saccader. 30 FPS (60 FPS désactivé) sont plus fluides ici.</string>
     <string name="ingame_instant_save">Sauvegarder</string>
     <string name="ingame_instant_load">Charger</string>
     <string name="ingame_instant_checking">Vérification de la sauvegarde …</string>

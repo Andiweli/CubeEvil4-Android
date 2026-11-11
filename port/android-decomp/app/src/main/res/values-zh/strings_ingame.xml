@@ -193,6 +193,7 @@
     <string name="ingame_effects_volume">音效</string>
     <string name="ingame_volume_help">音乐指背景音乐；音效指游戏中的其他所有声音（枪声、人声、脚步）。过场影片的声音保持不变。下面两个按钮可完全关闭音乐或音效；重新打开后按上方设定的音量播放。</string>
     <string name="ingame_smooth_help">生成额外的中间帧。游戏逻辑仍以每秒 30 帧运行。</string>
+    <string name="ingame_smooth60_uneven">此屏幕刷新率为 %1$d Hz：60 FPS 无法在其上均匀显示，可能卡顿。在这里 30 FPS（关闭 60 FPS）更流畅。</string>
     <string name="ingame_instant_save">保存</string>
     <string name="ingame_instant_load">读取</string>
     <string name="ingame_instant_checking">正在检查存档槽…</string>

@@ -192,6 +192,7 @@
     <string name="ingame_effects_volume">Efek suara</string>
     <string name="ingame_volume_help">Musik adalah musik latar; efek suara adalah semua suara lain di dalam game (tembakan, suara karakter, langkah kaki). Suara film tetap seperti aslinya. Kedua tombol mematikan musik atau efek suara sepenuhnya; saat diaktifkan lagi, keduanya berbunyi dengan volume yang diatur di atas.</string>
     <string name="ingame_smooth_help">Gambar sisipan tambahan. Logika game tetap 30 frame/detik.</string>
+    <string name="ingame_smooth60_uneven">Layar ini berjalan pada %1$d Hz: 60 FPS tidak bisa ditampilkan merata dan bisa tersendat. 30 FPS (60 FPS mati) lebih mulus di sini.</string>
     <string name="ingame_instant_save">Simpan</string>
     <string name="ingame_instant_load">Muat</string>
     <string name="ingame_instant_checking">Memeriksa slot simpanan …</string>

@@ -196,6 +196,7 @@
     <string name="ingame_effects_volume">Effetti sonori</string>
     <string name="ingame_volume_help">La musica è la musica di sottofondo; gli effetti sonori sono tutto il resto del gioco (spari, voci, passi). I filmati mantengono il loro audio. I due pulsanti spengono del tutto la musica o gli effetti sonori; riattivati, suonano al volume impostato sopra.</string>
     <string name="ingame_smooth_help">Fotogrammi intermedi aggiuntivi. La logica resta a 30 fotogrammi/s.</string>
+    <string name="ingame_smooth60_uneven">Questo schermo funziona a %1$d Hz: 60 FPS non possono essere mostrati in modo uniforme e possono scattare. 30 FPS (60 FPS disattivato) sono più fluidi qui.</string>
     <string name="ingame_instant_save">Salva</string>
     <string name="ingame_instant_load">Carica</string>
     <string name="ingame_instant_checking">Controllo dello slot …</string>

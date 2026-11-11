@@ -1654,7 +1654,13 @@ static void testVsync()
     CHECK(re4_vi_locked_field(now, now - 1000000, kP60) == kP60);           // 60 Hz
     CHECK(re4_vi_locked_field(now, now - 1000000, ntsc) == ntsc);           // 59.94 Hz
     CHECK(re4_vi_locked_field(now, now - 1000000, kP60 / 2) == kP60 / 2 * 2);  // 120 Hz: two vsyncs
-    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 90) == 0);   // 90 Hz: own clock
+    // 90 Hz: two fields three vsyncs, a field of one and a half (0.99.9); the measured 89.4 Hz too
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 90) == 1000000000LL / 90 * 3 / 2);
+    CHECK(re4_vi_locked_field(now, now - 1000000, 11185682) == 11185682LL * 3 / 2);
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL * 10 / 605) == 1000000000LL * 10 / 605);  // 60.5 Hz
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL * 10 / 610) == 0);  // 61 Hz: 1.8 % off
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 144) == 0);  // 144 Hz: own clock
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 75) == 0);   // 75 Hz
     CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 50) == 0);   // 50 Hz
     CHECK(re4_vi_locked_field(now, now - 300000000, kP60) == 0);              // stale
     CHECK(re4_vi_locked_field(now, 0, kP60) == 0);
@@ -1669,6 +1675,26 @@ static void testVsync()
     CHECK(phase > 900000 && phase < 1100000);
     if (!ok) {
         re4_log("  vsync: phase %lld ns after 120 fields", phase);
+    }
+    // 90 Hz: the retraces walk onto the grid of half a vsync, 1 ms after it, every second one 1 ms after a vsync
+    {
+        const long long p90 = 1000000000LL / 90, f90 = p90 * 3 / 2;
+        long long r = 4000000;
+        int onVsync = 0;
+        for (int i = 0; i < 240; i++) {
+            long long moved = re4_vi_lock_phase(r, f90, 0, p90);
+            CHECK(moved - r <= f90 / 50 && r - moved <= f90 / 50);
+            if (i >= 200 && moved % p90 > 800000 && moved % p90 < 1200000) {
+                onVsync++;
+            }
+            r = moved + f90;
+        }
+        long long half = (r - f90) % (p90 / 2);
+        CHECK(half > 800000 && half < 1200000);
+        CHECK(onVsync >= 19 && onVsync <= 21);
+        if (!ok) {
+            re4_log("  vsync 90 Hz: phase %lld ns on the half grid, %d of 40 just after a vsync", half, onVsync);
+        }
     }
     // the real clock
     re4_os_run(vsyncTestMain);

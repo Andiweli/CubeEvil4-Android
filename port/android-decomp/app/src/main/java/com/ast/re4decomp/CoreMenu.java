@@ -134,6 +134,8 @@ final class CoreMenu extends Dialog {
     void openUpdate();
     /** This run draws with Vulkan (the renderer the game started with, not only the menu's choice). */
     boolean vulkanRunning();
+    /** The display's rate as measured (FramePacing), else as Android says; 0 unknown. */
+    double displayHz();
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -1409,6 +1411,13 @@ final class CoreMenu extends Dialog {
     // moves it on, Off > Normal (the renderer's) > Aggressive (the game's own, patch 0227) > Off
     final int[] skipLabels = {R.string.ingame_off, R.string.ingame_skip_normal, R.string.ingame_skip_aggressive};
     final Button[] skipAndSmooth = new Button[2];
+    // 0.99.9 (frame pacing): with 60 FPS on a screen that 60 does not divide evenly (90 Hz) a line suggests 30
+    final double screenHz = host != null ? host.displayHz() : 0;
+    final TextView unevenHint = text(getContext().getString(R.string.ingame_smooth60_uneven,
+        (int) Math.round(screenHz)), 15, false);
+    unevenHint.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    final Runnable showHint = () -> unevenHint.setVisibility(
+        FramePacing.sixtyUneven(screenHz) && graphics.getBoolean("smooth60", false) ? View.VISIBLE : View.GONE);
     skipAndSmooth[0] = cellAction(output, "", v -> {
       int next = (frameSkipMode(graphics) + 1) % 3;
       storeFrameSkipMode(graphics, next);
@@ -1417,6 +1426,7 @@ final class CoreMenu extends Dialog {
       if (next != 0 && skipAndSmooth[1].isSelected()) {
         toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
         graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
+        showHint.run();
       }
     });
     final int skipNow = frameSkipMode(graphics);
@@ -1428,6 +1438,7 @@ final class CoreMenu extends Dialog {
         CoreBridge.setFrameSkip(false); CoreBridge.setCpuSkip(false);
         valueLabel(skipAndSmooth[0], R.string.ingame_frame_skip, R.string.ingame_off, false);
       }
+      showHint.run();
     });
     // merged draw calls (an experiment for phones with a slow graphics driver; wish of the project
     // owner, 30.10.2026: below 60 FPS); the renderer leaves it out while 60 FPS is on
@@ -1453,6 +1464,8 @@ final class CoreMenu extends Dialog {
     } else {
       toggleLabel(bandwidth, R.string.ingame_vk_bandwidth, false); bandwidth.setEnabled(false);
     }
+    body.addView(unevenHint);
+    showHint.run();
     help(R.string.ingame_skip_normal_help);
     help(R.string.ingame_skip_aggressive_help);
     help(R.string.ingame_vk_bandwidth_help);

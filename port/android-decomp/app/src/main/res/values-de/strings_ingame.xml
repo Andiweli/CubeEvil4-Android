@@ -194,6 +194,7 @@
     <string name="ingame_effects_volume">Soundeffekte</string>
     <string name="ingame_volume_help">Musik ist die Hintergrundmusik; Soundeffekte sind alle anderen Töne im Spiel (Schüsse, Stimmen, Schritte). Die Filme behalten ihren Ton. Die beiden Schalter schalten Musik oder Soundeffekte ganz aus; wieder an, spielen sie mit der Lautstärke darüber.</string>
     <string name="ingame_smooth_help">Zusätzliche Zwischenbilder. Die Spiellogik bleibt bei 30 Bildern/s.</string>
+    <string name="ingame_smooth60_uneven">Dieser Bildschirm läuft mit %1$d Hz: 60 FPS lassen sich darauf nicht gleichmäßig zeigen und können ruckeln. 30 FPS (60 FPS aus) laufen hier ruhiger.</string>
     <string name="ingame_instant_save">Speichern</string>
     <string name="ingame_instant_load">Laden</string>
     <string name="ingame_instant_checking">Speicherslot wird geprüft …</string>

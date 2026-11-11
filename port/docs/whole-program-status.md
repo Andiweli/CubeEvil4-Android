@@ -206,6 +206,33 @@ unbekannt):
   Takte) und bei 90 Hz nur neue Bilder zeigen; die Kopplungsgrenze von 0,5 % auf etwa 1 % (60,5-Hz-Bildschirme);
   `setFrameRate` mit `FIXED_SOURCE` und ab Android 12 `CHANGE_FRAME_RATE_ALWAYS`; 60 FPS auf 90 Hz: Zwischenbild-
   Anteil nach der Anzeigezeit oder ein Hinweis; Swappy/Present-Zeitpunkte erst danach.
+- **Gebaut (Freigabe des Projektinhabers „Ja, bauen“, 11.11.2026; 1–4, ohne Swappy):**
+  1. `runtime/vi.cpp re4_vi_locked_field`: nach der ganzen Zahl von Takten je Halbbild auch zwei Halbbilder = eine
+     ungerade Zahl von Takten (90 Hz: drei; das Halbbild 1,5 Takte, `re4_vi_lock_phase` rastet dann auf das Raster
+     eines halben Takts, jeder zweite Retrace kurz nach einem Takt). 30 Spielbilder je Sekunde kommen damit alle drei
+     Takte. Das Spiel läuft bei genau 90 Hz 0,1 % schneller, bei gemessenen 89,4 Hz 0,57 % langsamer; der Ton folgt
+     (unten). Filme und Titel mit 60 Bildern bleiben auf 90 Hz ungleich (1 und 2 Takte im Wechsel, wie vorher).
+  2. Grenze 1 % statt 0,5 % (60,5 Hz koppelt; 61 Hz nicht). Ton (`runtime/ai.cpp`): der gelernte Unterschied bis
+     1,15 % (vorher 0,75 %), der ganze Ausgleich bis 1,5 % (vorher 1 %); Test `core-test ax` mit dem Spiel 1,1 %
+     schneller und langsamer als der Ton des Geräts: kein zu kurzes Lesen nach 20 s.
+  3. `CoreActivity.surfaceSixtyHz`: `setFrameRate(60, FIXED_SOURCE)`, ab Android 12 mit `CHANGE_FRAME_RATE_ALWAYS`
+     (Log „surface frame rate: 60, fixed source, always switch“); wer trotzdem schneller bleibt, wird gemessen wie
+     vorher.
+  4. Menü Leistung → Experimentell: mit 60 FPS an und einem Bildschirm, auf dem 60 nicht gleichmäßig geht, 30 aber
+     schon (`FramePacing.sixtyUneven`: 90 Hz, 89,4 Hz; nicht 60, 60,5, 120, 144, 75), die Zeile
+     `ingame_smooth60_uneven` (11 Sprachen) unter den Tasten. `CoreMenu.Host.displayHz()`.
+  - **Nicht gebaut: „bei 90 Hz nur neue Bilder zeigen“.** GLSurfaceView tauscht nach jedem Zeichnen das Bild,
+    ein ausgelassenes Zeichnen zeigte dort einen leeren oder alten Puffer; die Gleichmäßigkeit kommt aus der
+    Kopplung (jedes neue Bild trifft dieselbe Stelle im Takt), das erneute Zeigen des alten Bildes kostet nur etwas
+    GPU. Ein sicherer Weg bräuchte eine neue Kern-Schnittstelle (Bild wartet ja/nein) bis in den Kernprozess.
+  - **PC-Simulation** (`RE4_VI_SIM_HZ=f` in `vi.cpp`: simulierter Bildschirm, jedes vom Spiel beendete Bild beim
+    ersten Takt mindestens 1 ms später notiert, die Zeile „picture pacing“; i686 -O2, Echtzeit, Debug-Discs, r100,
+    47 s): Phasen mit 30 Bildern je Sekunde: 60 Hz 0 % (300× 2 Takte), 60,5 Hz neu 0 % (303× 2) gegen alt 3 % (6× 3
+    Takte je 10 s), 89,4 Hz neu 0 % (299× 3) gegen alt 2 % (6× 2 Takte je 10 s), 90 Hz 0 % (301× 3), 120 Hz 0 %
+    (301× 4). Phasen mit 60 Bildern: 60/60,5/120 Hz 0 %, 90/89,4 Hz 50 % (1 und 2 Takte im Wechsel, wie vorher).
+    Gelegentliche Lücken von ~300 ms (das Spiel stand) kommen auch mit dem alten Stand vor (PC). Selbsttests
+    (`runtime-test vsync` mit 90/89,4/60,5/61/144/75 Hz und dem Raster bei 90 Hz, `core-test ax`) grün;
+    `FramePacingTests` 3449, App-Unit-Tests (Gradle) grün. **Nicht geprüft:** auf einem Gerät.
 
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 

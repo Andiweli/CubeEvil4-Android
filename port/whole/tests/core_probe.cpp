@@ -703,6 +703,26 @@ extern "C" int re4probe_ax_test(void)
         }
         AX_CHECK(shortReads == 0);
     }
+    // 0.99.9: a display locked within 1 % (vi.cpp: 60.5 Hz, the game 0.93 % faster; 89.4 Hz, 0.57 % slower) and the
+    // device's sound clock 0.1 % off on top: no read comes short after 20 s either way
+    static const unsigned kRates[2] = {1011u, 989u};  // the game's frames per 1000 of the device's
+    for (unsigned rate : kRates) {
+        unsigned acc = 0, shortReads = 0;
+        for (int i = 0; i < 7500; i++) {
+            acc += 256 * rate;
+            while (acc >= 160 * 1000) {
+                acc -= 160 * 1000;
+                re4_ai_block();
+            }
+            if (re4_audio_read(dev, 256) < 256 && i >= 2500) {
+                shortReads++;
+            }
+        }
+        AX_CHECK(shortReads == 0);
+        if (shortReads) {
+            re4_log("  audio: the game at %u/1000 of the device's rate: %u short reads", rate, shortReads);
+        }
+    }
     AXRegisterAuxACallback(0, 0);
     AXSetVoiceState(p, 0);
     AXFreeVoice(p);

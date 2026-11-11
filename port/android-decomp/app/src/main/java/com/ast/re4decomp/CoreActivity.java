@@ -1000,6 +1000,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public boolean vulkanSupported() { return CoreActivity.this.vulkanSupported(); }
 
     @Override public boolean vulkanRunning() { return surface instanceof VulkanSurface; }
+    @Override public double displayHz() {
+      double hz = pacing.hz();
+      if (!(hz > 0)) {
+        Display display = getWindowManager().getDefaultDisplay();
+        hz = display != null ? display.getRefreshRate() : 0;
+      }
+      return hz;
+    }
 
     @Override public boolean vulkanChosen() {
       return "vulkan".equals(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getString(RENDERER, "gles"));
@@ -2368,11 +2376,21 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         : Build.VERSION.SDK_INT >= 30 ? ": no 60 Hz mode, asked for 60 pictures a second" : ": no 60 Hz mode"));
   }
 
-  /** The surface's frame rate (Android 11 and later) when the screen was asked for 60 Hz. */
+  /**
+   * The surface's frame rate (Android 11 and later) when the screen was asked for 60 Hz. Since 0.99.9 (frame pacing:
+   * a realme and a 720p phone stayed at 90 Hz although they have a 60 Hz mode) as a fixed source of 60 pictures a
+   * second (FIXED_SOURCE: a video's way, which the system matches more firmly than a game's default), and from Android
+   * 12 with "always switch" (CHANGE_FRAME_RATE_ALWAYS: also when the switch is not seamless, once at the start). A
+   * device that still stays faster is measured as before (FramePacing), the core locks to it where it can (vi.cpp).
+   */
   private void surfaceSixtyHz(Surface s) {
     if (!askSixty || Build.VERSION.SDK_INT < 30) return;
     try {
-      s.setFrameRate(60f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+      if (Build.VERSION.SDK_INT >= 31)
+        s.setFrameRate(60f, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE, Surface.CHANGE_FRAME_RATE_ALWAYS);
+      else
+        s.setFrameRate(60f, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+      Log.i(TAG, "surface frame rate: 60, fixed source" + (Build.VERSION.SDK_INT >= 31 ? ", always switch" : ""));
     } catch (RuntimeException e) {
       Log.w(TAG, "surface frame rate: " + e);
     }
