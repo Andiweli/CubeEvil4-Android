@@ -323,6 +323,16 @@ anderen 3 wie gehabt und am Ende der grüne Benchmark Button … Die Texte darun
   142a52b8 kein Hängen oder Flackern der Menüs). Mit `TestLooper` läuft die Klasse durch (15 Tests, im Bericht die
   Zeile oben).
 
+### Prüfung: Funktionen aus DevJuniors Mod-Fork (11.11.2026, nur Plan)
+
+Auftrag des Projektinhabers („Ja, prüfen lassen“). Plan mit Tabelle und Nachrichtenentwurf:
+`port/docs/devjunior-mods-plan.md`. Sein Branch `mods/free-movement` (83 Commits auf 0.99.6) liegt lokal als
+`refs/scratch/devjunior` (nicht gepusht). Gelesen, nicht gebaut: das Bauen und Starten seines Stands wurde in dieser
+Sitzung nicht erlaubt (fremder Code). Probe: seine Kern-Patches 0900, 0902, 0904, 0905 passen auf unseren Stand, 0901
+nicht; App-Seite Text-Konflikte nur in `CoreInput.java`, `CMakeLists.txt`, Status-Datei. Empfehlung zuerst: Logos
+überspringen (aus), Schnell-Nachladen im Stand, Leons Kleidung; Skin-Werkzeuge und Mod-Ordner nicht. Gebaut wird erst
+nach der Wahl des Projektinhabers.
+
 ## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
 
 Version 0.99.9-rc (versionCode 111), Releasetext `port/android-decomp/docs/releases/v0.99.9-rc.md` („Changes since
