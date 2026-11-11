@@ -28,7 +28,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RES = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "app/src/main/res"
 NAME = "strings_ingame.xml"
-JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java", "AppUpdate.java")]
+JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java", "AppUpdate.java",
+                                                                  "BenchmarkFlow.java", "PerfProfile.java")]
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]")
 LOCALES = "xml/locales_config.xml"
 # folders whose code Android writes differently in locales_config (Indonesian: values-in, the old code all

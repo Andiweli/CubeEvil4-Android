@@ -773,8 +773,17 @@ std::atomic<int> optCap30{0}, optCap60{0};
 // project owner's device test 06.11.2026), a new renderer (new picture options) starts at it, and the pictures are
 // counted here, not in the renderer's statistics, which start over with a new renderer. It is fed on every refresh,
 // with or without a chunk, so its clock goes on when the game stalls; at most kBenchLimit seconds in all.
+// Since 0.99.10 (the first start's benchmark and the performance profiles, port/docs/leistungsprofil-plan.md) two
+// kinds: mode 0 the level search above (the app gives the 30 pass's first level and a warm-up), mode 1 the check of a
+// profile: at the place with the app's own options, "Dynamic" and the 60 FPS pacer as when playing, the app reads the
+// seconds in windows (CoreBridge.benchmarkMeasure) while it changes the options, and ends it (ask 3).
 struct LevelBench {
-  std::atomic<int> ask{0};    // 1 start, 2 cancel (CoreBridge)
+  std::atomic<int> ask{0};    // 1 start, 2 cancel, 3 end the check (mode 1) (CoreBridge)
+  std::atomic<int> mode{0}, top{8}, cpuSign{0};
+  std::atomic<double> warmup{0.0};
+  // mode 1: the seconds since the app's last read: count, game pictures, pictures shown, weak seconds (game below 27,
+  // with 60 FPS shown below 54), the level (halves) summed
+  std::atomic<int> mSeconds{0}, mChunks{0}, mShown{0}, mWeak{0}, mLevels{0};
   // 0 idle, 1 going to the place, 2 measuring, 3 going back, 4 done (results), 5 cancelled, 6 going back
   // after a cancel or a stop; -1 refused (neither free play nor the title's menu), -2 failed (the game could not be
   // kept, or the time limit), -3 no place reached, -4 the place's save does not fit these discs
@@ -790,6 +799,8 @@ struct LevelBench {
 };
 LevelBench levelBench;
 constexpr double kBenchLimit = 360.0;  // seconds for the whole benchmark at most (the way there and back included)
+// The benchmark sets the level and the 60 FPS itself (mode 0 measuring); the check (mode 1) leaves them to Dynamic
+bool benchForcing() { return levelBench.active && levelBench.mode.load() == 0; }
 int aimSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
 // percent (the core's runtime/sound_volume.cpp).
@@ -1572,12 +1583,14 @@ void levelBenchResults(std::chrono::steady_clock::time_point now) {
   b.res30 = s.Result(0);
   b.res60 = s.Result(1);
   b.held = (s.Held(0) ? 1 : 0) | (s.Held(1) ? 2 : 0);
+  b.cpuSign = s.CpuSign() ? 1 : 0;
   api.cheatAction(22);
   b.phase = 3;
   b.since = now;
-  LOG("benchmark: result %s with 30 pictures a second (%s), %s with 60 (%s)", re4gx::BenchSteps::Name(s.Result(0)).c_str(),
+  LOG("benchmark: result %s with 30 pictures a second (%s), %s with 60 (%s)%s", re4gx::BenchSteps::Name(s.Result(0)).c_str(),
       s.Held(0) ? "stable" : "not stable even there", re4gx::BenchSteps::Name(s.Result(1)).c_str(),
-      s.Held(1) ? "stable" : "not stable even there");
+      s.Held(1) ? "stable" : "not stable even there",
+      s.CpuSign() ? "; lower levels hardly helped: the processor holds it back" : "");
 }
 
 // The benchmark's next step, at every refresh (`chunk`: a real chunk of the game ran in it).
@@ -1587,7 +1600,7 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
   auto finish = [&](int phase) {
     b.phase = phase;
     b.active = false;
-    optSmooth = b.keepSmooth;
+    if (b.mode.load() == 0) optSmooth = b.keepSmooth;  // the check (mode 1): the app's 60 FPS as it set it
     // the renderer anew with the menu's level, only when the benchmark changed it: a refused start (the title's logos,
     // an event) made a new renderer for nothing, which lost the title's EFB copies ("3 missing", the project owner's
     // log 06.11.2026)
@@ -1616,15 +1629,29 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     b.keepSmooth = optSmooth.load();
     b.phase = 1;
     b.since = b.start = now;
+    b.cpuSign = 0;
+    b.mSeconds = b.mChunks = b.mShown = b.mWeak = b.mLevels = 0;
     api.cheatAction(20);
-    LOG("benchmark: started (the lake's dock; a 30 and a 60 FPS pass, each from 4x down half a level every %.0f s)",
-        re4gx::BenchSteps::kHold);
+    if (b.mode.load() == 1)
+      LOG("benchmark: the check started (the lake's dock with the app's options; the app reads the seconds)");
+    else
+      LOG("benchmark: started (the lake's dock; %.0f s warm-up, a 30 FPS pass from %s and a 60 FPS pass from its result, "
+          "down half a level every %.0f s)", b.warmup.load(), re4gx::BenchSteps::Name(b.top.load()).c_str(),
+          re4gx::BenchSteps::kHold);
     return;
   }
   if (!b.active) return;
   if (chunk) b.chunks++;
   if (ask == 2 && b.phase.load() != 6 && b.phase.load() != 3) {
     goBack("cancelled");
+    return;
+  }
+  if (ask == 3 && b.mode.load() == 1 && b.phase.load() == 2) {
+    // the check's end: back, its figures are the app's
+    api.cheatAction(22);
+    b.phase = 3;
+    b.since = now;
+    LOG("benchmark: the check ended by the app, back");
     return;
   }
   const double inPhase = std::chrono::duration<double>(now - b.since).count();
@@ -1643,18 +1670,27 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
       finish(state == -1 || state == -4 ? state : -2);
       return;
     }
-    if ((state & 15) == 2) {
+    if ((state & 15) == 2 && b.mode.load() == 1) {
+      // the check: nothing set here, the seconds counted from now on
+      b.phase = 2;
+      b.secondAt = now;
+      b.chunksAt = b.chunks;
+      b.shownAt = picturesMade.load();
+      b.droppedAt = gxBetweenDropped;
+      LOG("benchmark: at the place; the check counts the seconds");
+    } else if ((state & 15) == 2) {
       b.run = 0;
       b.touched = true;
       optSmooth = 0;
-      b.steps.Start(std::chrono::duration<double>(now - b.start).count());
+      b.steps.Start(std::chrono::duration<double>(now - b.start).count(), b.top.load(), b.warmup.load());
       levelBenchSet(b.steps.Level());
       b.phase = 2;
       b.secondAt = now;
       b.chunksAt = b.chunks;
       b.shownAt = picturesMade.load();
       b.droppedAt = gxBetweenDropped;
-      LOG("benchmark: at the place; the 30 FPS pass from %s", re4gx::BenchSteps::Name(b.steps.Level()).c_str());
+      LOG("benchmark: at the place; the 30 FPS pass from %s after %.0f s warm-up",
+          re4gx::BenchSteps::Name(b.steps.Level()).c_str(), b.warmup.load());
     } else if (inPhase > 60.0) {
       b.failed = true;
       goBack("the place was not ready in 60 s");
@@ -1676,6 +1712,18 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     b.shownAt = picturesMade.load();
     b.droppedAt = gxBetweenDropped;
     b.secondAt = now;
+    if (b.mode.load() == 1) {
+      // the check: the second counted for the app's window (the level the renderer draws at, Dynamic's)
+      const bool sixty = optSmooth.load() != 0;
+      b.mSeconds++;
+      b.mChunks += c;
+      b.mShown += sh;
+      if (c < re4gx::BenchSteps::kWeakChunks || (sixty && sh < re4gx::BenchSteps::kWeakShown)) b.mWeak++;
+      b.mLevels += infoScale.load();
+      b.level = infoScale.load();
+      b.rate10 = (sixty ? sh : c) * 10;
+      return;
+    }
     std::string line;
     const re4gx::BenchSteps::Step step =
         b.steps.Second(std::chrono::duration<double>(now - b.start).count(), c, sh, dropped, &line);
@@ -1778,7 +1826,7 @@ bool drawGx() {
       gpuChecked = true;
       LOG("%s", re4gx::MovieColourCheck(nullptr).c_str());
     }
-    if (levelBench.active && levelBench.phase.load() == 2) {
+    if (benchForcing() && levelBench.phase.load() == 2) {
       scale = levelBench.level.load();
       autoLevelOn = false;
       LOG("benchmark: the new renderer at the benchmark's level %s", re4gx::BenchSteps::Name(scale).c_str());
@@ -2011,7 +2059,7 @@ bool drawGx() {
     if (roomStart || (breakPaused && !paused)) {
       const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
       autoLevel.Restart(t);
-      if (!levelBench.active) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+      if (!benchForcing()) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
     }
     breakRoom = static_cast<int>(frame.room);
     breakPaused = paused;
@@ -2129,7 +2177,7 @@ bool drawGx() {
     bool paced = !stream60;
     // (not while the benchmark measures: its 5 s pause ate half of a level's window, the project owner's log
     // 06.11.2026; there every in-between picture the renderer manages counts, the left-out ones too)
-    if (smoothOn && !deferred && smoothPrev && !stream60 && !levelBench.active) {
+    if (smoothOn && !deferred && smoothPrev && !stream60 && !benchForcing()) {
       std::string why;
       paced = smoothPacer.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), behind, &why);
       if (!why.empty())
@@ -2236,7 +2284,7 @@ bool drawGx() {
     if (ms > 250.0) {
       const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
       autoLevel.Restart(t);
-      if (!levelBench.active) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+      if (!benchForcing()) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
     }
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;
@@ -2257,13 +2305,13 @@ bool drawGx() {
     // Dynamic: another level from the next chunk on (not while an R3 series or the hit pictures are
     // recorded, the app's menu is open or the GPU measurement runs; never while the benchmark runs: it would set
     // its own level over the benchmark's)
-    if (autoLevelOn && !between && !levelBench.active) {
+    if (autoLevelOn && !between && !benchForcing()) {
       const auto &st = gx->Stats();
       std::string why, status;
       const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
                                         st.behindChecks,
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring &&
-                                            !levelBench.active,
+                                            !benchForcing(),
                                         &why, gxBetweenDropped,  // (counts only while 60 FPS is on; never falls back)
                                         gxRunWaitMs,
                                         // 60 FPS making in-between pictures now: a step up by them, not the fences
@@ -2360,7 +2408,7 @@ bool drawGx() {
             s.interpKindUnmatched[2], s.interpKind[2], s.interpKindUnmatched[3], s.interpKind[3], s.interpCameraMoved,
             s.interpOwned, s.interpOwnedNew, s.interpOwnedJumps, s.interpTexBlends, s.interpTexWraps,
             s.interpTevBlends, s.interpLightBlends);
-        if (behind > 2.5 && !levelBench.active) {
+        if (behind > 2.5 && !benchForcing()) {
           smoothTooSlow = true;
           LOG("60 FPS: the GPU does not keep up, in-between pictures off until the renderer starts anew");
         }
@@ -3200,8 +3248,15 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLaserColo
 }
 
 // The benchmark (the menu, Display -> GRAPHICS; LevelBench): start and cancel; the state as {phase, run (0: the 30,
-// 1: the 60 FPS pass), level in halves, result with 30, result with 60, pictures a second * 10, held bits}.
-extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_startBenchmark(JNIEnv *, jclass) {
+// 1: the 60 FPS pass), level in halves, result with 30, result with 60, pictures a second * 10, held bits, the
+// processor sign (0.99.10), mode}. Since 0.99.10 `mode` 0 the level search from `top` (halves) after `warmup`
+// seconds, 1 the check of a profile (benchmarkMeasure, finishBenchmark).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_startBenchmark(JNIEnv *, jclass, jint mode, jint top,
+                                                                                  jint warmup) {
+  if (levelBench.active) return;
+  levelBench.mode = mode == 1 ? 1 : 0;
+  levelBench.top = top >= 2 && top <= 8 ? top : 8;
+  levelBench.warmup = warmup > 0 && warmup <= 60 ? static_cast<double>(warmup) : 0.0;
   levelBench.ask = 1;
 }
 
@@ -3209,12 +3264,28 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_cancelBenchm
   levelBench.ask = 2;
 }
 
+// The check's end (mode 1): back to where the game was.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_finishBenchmark(JNIEnv *, jclass) {
+  levelBench.ask = 3;
+}
+
 extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_benchmarkState(JNIEnv *env, jclass) {
   const LevelBench &b = levelBench;
-  const jint v[7] = {b.phase.load(), b.run.load(), b.level.load(), b.res30.load(), b.res60.load(), b.rate10.load(),
-                     b.held.load()};
-  jintArray out = env->NewIntArray(7);
-  if (out) env->SetIntArrayRegion(out, 0, 7, v);
+  const jint v[9] = {b.phase.load(), b.run.load(), b.level.load(), b.res30.load(), b.res60.load(), b.rate10.load(),
+                     b.held.load(), b.cpuSign.load(), b.mode.load()};
+  jintArray out = env->NewIntArray(9);
+  if (out) env->SetIntArrayRegion(out, 0, 9, v);
+  return out;
+}
+
+// The check's seconds since the last call (and from now on anew): {seconds, game pictures, pictures shown, weak
+// seconds, the levels in halves summed}.
+extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_benchmarkMeasure(JNIEnv *env, jclass) {
+  LevelBench &b = levelBench;
+  const jint v[5] = {b.mSeconds.exchange(0), b.mChunks.exchange(0), b.mShown.exchange(0), b.mWeak.exchange(0),
+                     b.mLevels.exchange(0)};
+  jintArray out = env->NewIntArray(5);
+  if (out) env->SetIntArrayRegion(out, 0, 5, v);
   return out;
 }
 

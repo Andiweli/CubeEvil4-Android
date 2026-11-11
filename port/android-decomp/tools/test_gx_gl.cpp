@@ -1776,7 +1776,8 @@ void TestBenchSteps() {
       "middle (30 up to 2x, 60 up to 1.5x)", [](int level, bool) { return level <= 4 ? 30 : 24; },
       [](int level, bool sixty) { return sixty ? (level <= 3 ? 60 : 47) : (level <= 4 ? 30 : 24); });
   Check(mid.Finished() && mid.Result(0) == 4 && mid.Result(1) == 3 && mid.Held(0) && mid.Held(1),
-        "benchmark: steps 4x 3.5x 3x 2.5x 2x for 30, the 60 pass again from 4x down to 1.5x");
+        "benchmark: steps 4x 3.5x 3x 2.5x 2x for 30, the 60 pass from 2x (the 30 result, 0.99.10) down to 1.5x");
+  Check(!mid.CpuSign(), "benchmark: the middle device's graphics chip holds it back, not the processor");
   // a slow one: not even 1x
   re4gx::BenchSteps slow = RunBench("slow (not even 1x)", [](int, bool) { return 22; }, [](int, bool) { return 22; });
   Check(slow.Finished() && slow.Result(0) == 2 && slow.Result(1) == 2 && !slow.Held(0) && !slow.Held(1),
@@ -1794,7 +1795,35 @@ void TestBenchSteps() {
   re4gx::BenchSteps dip2 = RunBench("two bad seconds at 4x",
                                     [&calls2](int, bool) { ++calls2; return calls2 == 3 || calls2 == 6 ? 25 : 30; },
                                     [](int, bool sixty) { return sixty ? 60 : 30; });
-  Check(dip2.Result(0) == 7 && dip2.Result(1) == 8, "benchmark: two bad seconds at 4x: 3.5x for 30, 4x for 60");
+  Check(dip2.Result(0) == 7 && dip2.Result(1) == 7,
+        "benchmark: two bad seconds at 4x: 3.5x for 30, the 60 pass from 3.5x (0.99.10) holds it");
+  // 0.99.10: a processor that holds the game back: about the same game pictures at every level, not even 1x
+  re4gx::BenchSteps cpu = RunBench("processor-bound (22-24 at every level)",
+                                   [](int level, bool) { return level <= 3 ? 24 : 22; }, [](int, bool) { return 22; });
+  Check(cpu.Result(0) == 2 && !cpu.Held(0) && cpu.CpuSign(), "benchmark: no level helps: the processor sign");
+  Check(!slow.CpuSign() || slow.Result(0) == 2, "benchmark: the slow device's sign is only set at 1x");
+  // a graphics chip that gets much faster lower down, still not 30 at 1x: no processor sign
+  re4gx::BenchSteps gpu = RunBench("graphics-bound (12 at 4x, 27 at 1x)",
+                                   [](int level, bool) { return 33 - 3 * level; }, [](int, bool) { return 20; });
+  Check(gpu.Result(0) == 2 && !gpu.Held(0) && !gpu.CpuSign(), "benchmark: lower levels help: no processor sign");
+  // 0.99.10: the 30 pass from 2.5x (a weak graphics chip) after 15 s that do not count
+  {
+    re4gx::BenchSteps w;
+    w.Start(0.0, 5, 15.0);
+    double t = 0.0;
+    int firstJudged = -1;
+    for (int i = 0; i < 400 && !w.Finished(); i++) {
+      t += 1.0;
+      const int level = w.Level();
+      std::string line;
+      // the first 15 s at 2.5x as if the programs were made (8 a second), then 30 at 2x and below
+      const int c = t <= 15.0 ? 8 : level <= 4 ? 30 : 24;
+      const re4gx::BenchSteps::Step step = w.Second(t, c, w.Pass() ? (level <= 3 ? 60 : 40) : c, 0, &line);
+      if (step != re4gx::BenchSteps::kNone && firstJudged < 0) firstJudged = static_cast<int>(t);
+    }
+    Check(w.Finished() && w.Result(0) == 4 && w.Result(1) == 3 && firstJudged == 25,
+          "benchmark: from 2.5x after a 15 s warm-up (the first level judged at 25 s), 2x and 1.5x");
+  }
   // fairly steady (the project owner's Retroid at 2x): 29-30 with a hitch now and then holds
   int calls3 = 0;
   re4gx::BenchSteps steady = RunBench(

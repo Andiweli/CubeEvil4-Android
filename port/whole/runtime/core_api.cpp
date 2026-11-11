@@ -723,7 +723,7 @@ extern "C" int re4_bench_command(int what);  // runtime/benchmark.cpp
 int re4_core_cheat_action(int what)
 {
     // 20..23: the app's benchmark (runtime/benchmark.cpp), queued for the game's next frame or a state, any thread
-    if (what >= 20 && what <= 23) return re4_bench_command(what);
+    if (what >= 20 && what <= 24) return re4_bench_command(what);  // 24: the title's menu waits (0.99.10)
     if (what < 1 || what > 10) return 0;  // 10: Krauser's bow (0.99.10)
     pthread_mutex_lock(&gPauseLock);
     if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {

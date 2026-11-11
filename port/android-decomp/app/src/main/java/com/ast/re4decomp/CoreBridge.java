@@ -202,12 +202,19 @@ public final class CoreBridge {
   /** "Field of view" (PLAYER VIEW): the shoulder camera's vertical field of view changed by `degrees`
    *  (-15 .. +15; 0 as the game; patch 0205), sent with the aim settings. */
   public static native void setFov(int degrees);
-  /** The benchmark (Display -> GRAPHICS): the game goes to two places and the renderer measures its levels. */
-  public static native void startBenchmark();
+  /** The benchmark: the game goes to the lake's dock. `mode` 0: the renderer searches the levels for 30 and 60 FPS,
+   *  the 30 pass from `top` (halves) after `warmup` seconds; 1 (0.99.10): the check of a profile with the app's
+   *  options (benchmarkMeasure, finishBenchmark). */
+  public static native void startBenchmark(int mode, int top, int warmup);
   public static native void cancelBenchmark();
+  /** The check (mode 1) ends: back to where the game was. */
+  public static native void finishBenchmark();
   /** {phase (0 idle, 1 going, 2 measuring, 3 back, 4 done, 5 cancelled, 6 back after a cancel, -1 refused, -2
-   *  failed), run (place * 2 + 60 FPS), level in halves, result with 30, result with 60, pictures a second x 10}. */
+   *  failed), run (0: the 30, 1: the 60 FPS pass), level in halves, result with 30, result with 60, pictures a second
+   *  x 10, held bits, the processor sign, mode}. */
   public static native int[] benchmarkState();
+  /** The check's seconds since the last call: {seconds, game pictures, pictures shown, weak seconds, levels summed}. */
+  public static native int[] benchmarkMeasure();
   /** "Dynamic" up to these levels (halves; 0: none), with 30 and with 60 FPS: the benchmark's result. */
   public static native void setDynamicCaps(int cap30, int cap60);
   /** Original TV filter: the game's vertical copy filter on the picture. */

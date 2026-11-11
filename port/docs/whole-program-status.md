@@ -133,12 +133,48 @@ Abschnitt „Krausers Bogen“.
 - **Nicht geprüft:** auf einem Gerät; Händler (Verkaufen des Bogens), Instant-Spielstand mit Bogen (beim Laden als Leon
   greift der Raumstart), Kämpfe gegen Bosse mit dem Bogen; JP-Discs.
 
-### 2./3. Benchmark beim ersten Start und Leistungsprofile (Wünsche des Projektinhabers): nur geplant
+### 2./3. Benchmark beim ersten Start und Leistungsprofile (Wünsche des Projektinhabers)
 
-Plan mit Szene, Dauer, Profiltabelle, Ablauf und drei offenen Fragen: `port/docs/leistungsprofil-plan.md`
-(Mock-ups im Notizordner der Sitzungen, `09910-plan\mock-home.png`, `mock-popups.png`). Gebaut wird erst nach den
-Antworten des Projektinhabers. Grundlage: der vorhandene Benchmark (Steg am See r11b, `runtime/benchmark.cpp`,
-`gx_bench_steps.h`, `CoreActivity.benchmark*`) und die gemessenen Stufen aus den Berichten (`dynamicCap30/60`).
+Plan: `port/docs/leistungsprofil-plan.md` (Mock-ups im Notizordner der Sitzungen, `09910-plan\`). Antworten des
+Projektinhabers (11.11.2026, „Ja, beide so“): Update-Nutzer werden nicht gezwungen, das Menü fragt einmal; der erste
+Benchmark ist mit B/Zurück abbrechbar und kommt beim nächsten Start wieder. Ergänzung: starke Geräte bekommen auch
+MSAA, FXAA und Texturfilter nach Spielraum vorgeschlagen, Benchmark 2 prüft und nimmt zurück.
+
+- **Kern der App (`core_mode.cpp`, `gx_bench_steps.h`):** Stufensuche (Modus 0) mit Startstufe der App (schwache
+  Grafikchips 2,5×), Aufwärmzeit (erster Start 15 s, sonst 5 s), die 60-FPS-Suche ab dem Ergebnis der 30er, und dem
+  Prozessor-Zeichen (`CpuSign`: 1× hält nicht und die tieferen Stufen bringen unter 10 % mehr). Neuer Prüfmodus 1:
+  am Steg mit den Optionen der App, „Dynamisch“ und der 60-FPS-Taktgeber wie beim Spielen (`benchForcing()` statt
+  `levelBench.active`), die Sekunden zählt der Kern, die App liest sie in Fenstern (`benchmarkMeasure`: Sekunden,
+  Spielbilder, gezeigte Bilder, schwache Sekunden, Stufen) und beendet ihn (`finishBenchmark`). JNI
+  `startBenchmark(mode, top, warmup)`, `benchmarkState` mit 9 Werten.
+- **Spielkern:** Befehl 24 (`runtime/benchmark.cpp`, `core_api.cpp`): 1, solange das Titelmenü wartet. Prüfhilfe
+  `RE4_TEST_BENCH` schreibt die Antwort ins Protokoll.
+- **App (`PerfProfile.java`, `BenchmarkFlow.java`, `CoreActivity`, `CoreMenu`):** Profile Benutzerdefiniert / Niedrig /
+  Mittel / Hoch je Gerät aus Benchmark-Stufen und Gerätedaten (Grafikchip aus `rendererInfo`, Kerne und Takt aus
+  cpufreq, Arbeitsspeicher, Display-Hz), Effekte nach Spielraum, Empfehlung, Zurücknehmen (MSAA 4×→2×→FXAA→aus, dann
+  Texturfilter 16×→8×→4×), Halte-Regel des Prüffensters (29 bzw. 57 Bilder/s, höchstens eine schwache Sekunde von 20,
+  „Dynamisch“ nicht mehr als eine halbe Stufe unter dem Spielraum). Benutzerdefiniert gemerkt (`perfCustom.*`), die
+  gesetzten Werte (`perfApplied.*`): eine Handänderung macht beim nächsten Zeigen der Startseite „Benutzerdefiniert“
+  daraus (`sync`). Ablauf: Popup 1 beim ersten Start, sobald das Titelmenü wartet (Befehl 24, Neuinstallation =
+  keine der Einstellungs-Schlüssel vorhanden, `benchFirst`), Benchmark 1 mit „Nativ“ und ohne Bild-Extras (nicht
+  gespeichert), Popup 2 (Gerät, Stufen, bremst, Vorschlag; „Ignorieren“ = nur die Stufen und „Dynamisch“), Benchmark 2
+  (je 4 s Eingewöhnung, 20 s vorher, 20 s mit dem Vorschlag, höchstens zweimal zurücknehmen), Popup 3 (Vorher/Nachher,
+  Gewinn, neue Effekte, Zurückgenommenes; „Ignorieren“ / „Akzeptieren“). Popups im Aussehen des Menüs, Vollbild
+  (`Immersive`), das Spiel steht solange. Startseite: Abschnitt „LEISTUNGSPROFIL“ (vier Knöpfe, ★ empfohlen, letzte
+  Messung, Benchmark-Knopf); Update-Nutzer: einmal „Jetzt messen / Später“. 36 Texte in 11 Sprachen, die alten
+  `ingame_benchmark_text`/`_done` entfernt; `check_translations.py` kennt `BenchmarkFlow.java`/`PerfProfile.java`.
+- **Geprüft (PC):** `PerfProfileTest` (die Geräte der Berichte: POCO X7 Pro Hoch mit 60 FPS, MSAA 2×, 16×; Retroid
+  Hoch mit FXAA und 8×; Infinix Mittel mit FXAA und 4×; moto g15, Galaxy A13, unter 3 GB, Prozessor-Zeichen Niedrig;
+  90 Hz ohne 60 FPS; ohne Benchmark nach Chip; Grenzen des Geräts; Zurücknehmen; Halte-Regel; Benutzerdefiniert
+  gemerkt, Handänderung, Bildformat ändert nichts; Chip-Name), `gx_gl_check` (`TestBenchSteps`: 60er ab dem 30er
+  Ergebnis, Prozessor-Zeichen ja/nein, Start bei 2,5× nach 15 s Aufwärmen), Kern i686 -O2 alle Prüfungen grün,
+  Befehl 24: 0 bei den Logos (Bild 100), 1 im Titelmenü (Bild 394, US-Discs), 0 beim freien Spielen (r100),
+  `core_mode.cpp` mit NDK r28c für beide ABIs `-Wall -Werror`, App-Tests beider Varianten je 100, Übersetzungsprüfung,
+  Bilder der Startseite (`CoreMenuShotTest`, en/de/ru/ar). Ein erster voller Testlauf hing 20 min in
+  `CoreMenuLayoutTest.cheatsPageSwitchesSendTheirBits` (Robolectrics Warteschlange, `idleMainLooper`); einzeln und im
+  zweiten vollen Lauf grün, Ursache nicht gefunden (zu beobachten).
+- **Nicht geprüft:** der ganze Ablauf auf einem Gerät (Popups, die zwei Benchmarks, die gemessenen Zahlen, Dauer);
+  der Prüfmodus läuft nur in der App (kein PC-Lauf mit Renderer).
 
 ## Version 0.99.9-rc: Messer zielen, Zielfernrohr und Raketenwerfer mit Vulkan auf Mali (10.11.2026, Branch `work`)
 

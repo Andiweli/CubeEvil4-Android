@@ -1,7 +1,9 @@
 // The benchmark's steps (app menu Display -> GRAPHICS -> Benchmark; core_mode.cpp LevelBench leads it on the
-// render thread): two passes, 30 then 60 pictures a second. Each pass starts at 4x, whatever the menu's
-// resolution, holds every level 10 seconds and goes down half a level (4 -> 3.5 -> 3 -> 2.5 -> 2 -> 1.5 -> 1) until a
-// level holds; that level is the pass's result. When even 1x does not hold, the result is 1x, marked as not held.
+// render thread): two passes, 30 then 60 pictures a second. The 30 pass starts at 4x, whatever the menu's
+// resolution (since 0.99.10 at a lower level the app gives for a weak graphics chip, after a warm-up of some seconds
+// that does not count), holds every level 10 seconds and goes down half a level (4 -> 3.5 -> 3 -> 2.5 -> 2 -> 1.5 -> 1)
+// until a level holds; that level is the pass's result; the 60 pass starts at the 30 pass's result (0.99.10: 60 never
+// holds where 30 does not). When even 1x does not hold, the result is 1x, marked as not held.
 // A pass ends after kPassLimit seconds at the latest (the result then the level it stood at, not held), so the
 // benchmark never runs on (the project owner's device test 06.11.2026: once only a moment at 1x, once without an
 // end at 3.5x: "Dynamic" set its own level over the benchmark's on every chunk).
@@ -36,9 +38,12 @@ public:
 
   enum Step { kNone, kLevel, kPassDone, kDone };
 
-  void Start(double t) {
+  // `top`: the 30 pass's first level (halves; 0.99.10: a weak graphics chip starts at 2.5x); `warmup`: seconds at it
+  // before anything counts (0.99.10: on the very first start the scene's shader programs are made then)
+  void Start(double t, int top = kTop, double warmup = 0.0) {
     *this = BenchSteps();
-    StartPass(0, t);
+    top_ = top >= kBottom && top <= kTop ? top : kTop;
+    StartPass(0, t + (warmup > 0.0 ? warmup : 0.0), top_);
   }
 
   int Pass() const { return pass_; }           // 0: 30 pictures a second, 1: 60
@@ -47,6 +52,9 @@ public:
   bool Held(int pass) const { return held_[pass]; }
   bool Finished() const { return finished_; }
   int Rate10() const { return rate10_; }       // the last second's pictures a second * 10 (game or shown)
+  // 0.99.10: the 30 pass did not hold even 1x and the lower levels hardly helped (under 10 % more game pictures at 1x
+  // than at its first level): the processor holds the game back, not the graphics chip
+  bool CpuSign() const { return cpuSign_; }
 
   // One second's figures at `t`: game pictures, pictures shown, in-between pictures left out. kLevel: set
   // Level() now; kPassDone: the 60 pass starts (set Level() and 60 FPS); kDone: both results are there.
@@ -77,6 +85,13 @@ public:
                   samples_ ? minShown_ : 0, weak_, dropped_,
                   holds ? "stable" : overTime ? "not stable, the pass's time is up" : "not stable");
     if (log) *log = line;
+    if (pass_ == 0) {
+      if (firstLevel_ < 0) {
+        firstLevel_ = level_;
+        firstAvg_ = avgChunks;
+      }
+      lastAvg_ = avgChunks;
+    }
     if (!holds && level_ > kBottom && !overTime) {
       level_--;
       NewLevel(t);
@@ -85,7 +100,9 @@ public:
     result_[pass_] = level_;
     held_[pass_] = holds;
     if (pass_ == 0) {
-      StartPass(1, t);
+      cpuSign_ = !holds && level_ == kBottom && firstLevel_ > kBottom && lastAvg_ < firstAvg_ * 1.10;
+      // the 60 pass from the 30 pass's level (0.99.10): 60 pictures a second never hold where 30 do not
+      StartPass(1, t, result_[0]);
       return kPassDone;
     }
     finished_ = true;
@@ -99,10 +116,10 @@ public:
   }
 
 private:
-  void StartPass(int pass, double t) {
+  void StartPass(int pass, double t, int level) {
     pass_ = pass;
     passAt_ = t;
-    level_ = kTop;
+    level_ = level;
     NewLevel(t);
   }
   void NewLevel(double t) {
@@ -120,6 +137,10 @@ private:
   bool held_[2] = {false, false};
   bool finished_ = false;
   int rate10_ = 0;
+  int top_ = kTop;
+  int firstLevel_ = -1;                  // the 30 pass's first level judged, and its game pictures a second
+  double firstAvg_ = 0.0, lastAvg_ = 0.0;
+  bool cpuSign_ = false;
 };
 
 }  // namespace re4gx

@@ -278,6 +278,10 @@ int re4_bench_command(int what)
     if (what == 23) {
         return gState.load();
     }
+    if (what == 24) {
+        // 0.99.10: 1 while the title's main menu waits (the app offers the first start's benchmark then)
+        return re4_instant_game_at_title() ? 1 : 0;
+    }
     if (what == 20) {
         gState = kIdle;
         gLogoWait = 0;

@@ -397,8 +397,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
+    benchFlow = new BenchmarkFlow(benchHost);
     if (startProblem.isEmpty()) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+      perfFirstRun(g);
       CoreBridge.setDof(CoreMenu.dofLevel(g));
       // one or the other (CoreMenu): saved with both on before 26.10.2026, 60 FPS stays
       // Frame skip one setting since 0.99.8 (CoreMenu.frameSkipMode: the two switches of before taken over, both on:
@@ -568,6 +570,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     checkHang();
     checkCoreProcess();
     checkDiscProblem();
+    checkFirstBenchmark();
     int room = CoreBridge.wantedRoom();
     if (room >= 0 && room != preparedRoom && !roomBusy) prepareRoom(room);
     main.postDelayed(this::tick, 500);
@@ -966,7 +969,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public boolean gameLanguages() { return retailEu; }
     @Override public boolean debugMenu() { return !retail; }
-    @Override public void startBenchmark() { benchmarkStart(); }
+    @Override public void startBenchmark() { benchFlow.start(false); }
+    @Override public PerfProfile.Device perfDevice() { return CoreActivity.this.perfDevice(); }
+    @Override public void profileChosen(int profile) {
+      SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+      PerfProfile.Device d = perfDevice();
+      PerfProfile.choose(g, profile, profile == PerfProfile.CUSTOM ? null
+          : PerfProfile.values(profile, d, PerfProfile.Bench.of(g)));
+      Log.i(TAG, "performance profile " + profile + ": " + BenchmarkFlow.describe(PerfProfile.current(g)));
+      applyOptions();
+    }
 
     @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
 
@@ -1636,10 +1648,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
     // the benchmark: the keys belong to it; B, Back or Esc cancel it
-    if (benchRunning) {
+    if (benchFlow != null && benchFlow.running()) {
       if (first && (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)) {
-        CoreBridge.cancelBenchmark();
-        benchView.setText(R.string.ingame_benchmark_back);
+        benchFlow.cancel();
       }
       return true;
     }
@@ -1888,69 +1899,132 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     touchControls.update();
   }
 
-  // ---- the benchmark (Display -> GRAPHICS -> Benchmark; the measurement is in core_mode.cpp) -----------------
+  // ---- the benchmark and the performance profiles (0.99.10, BenchmarkFlow, PerfProfile; the measurement is in
+  // core_mode.cpp) ---------------------------------------------------------------------------------------------------
   private TextView benchView;
-  private boolean benchRunning;
-  private final Runnable benchPoll = this::benchmarkPoll;
+  private BenchmarkFlow benchFlow;
+  private PerfProfile.Device perfDevice;
 
-  private void benchmarkStart() {
-    benchRunning = true;
-    audio.setMuted(true);  // the speaker silent while it runs (the game's sound goes on inside: an honest measurement)
-    benchView.setText(R.string.ingame_benchmark_starting);
-    benchView.setVisibility(View.VISIBLE);
-    CoreBridge.startBenchmark();
-    main.removeCallbacks(benchPoll);
-    main.postDelayed(benchPoll, 500);
+  /** Before the first renderer: a fresh install gets the first start's benchmark, an update the menu's question once;
+   *  either starts with Custom as the active profile (the settings as they are). */
+  private void perfFirstRun(SharedPreferences g) {
+    if (g.contains(PerfProfile.FIRST)) return;
+    String[] mine = {"scaleHalves", "scale", "aspect", "samples", "anisotropy", "smooth60", "fxaa", "fastCores",
+        "weatherEffects", "specialEffects", "particleEffects", "shadowsLight", CoreMenu.FRAME_SKIP, "frameskip",
+        CoreMenu.DYN_CAP_30, CoreMenu.DOF_LEVEL, "dof", "minimap", "fps"};
+    boolean fresh = true;
+    for (String k : mine) if (g.contains(k)) { fresh = false; break; }
+    g.edit().putInt(PerfProfile.FIRST, fresh ? PerfProfile.FIRST_PENDING : PerfProfile.FIRST_ASK)
+        .putInt(PerfProfile.ACTIVE, PerfProfile.CUSTOM).apply();
+    Log.i(TAG, "performance profiles: " + (fresh ? "a new installation, the benchmark comes once the title's menu waits"
+        : "an update, the menu asks once"));
   }
 
-  private void benchmarkPoll() {
-    int[] st = CoreBridge.benchmarkState();
-    if (st == null || st.length < 6) { benchmarkEnd(R.string.ingame_benchmark_failed, null); return; }
-    int phase = st[0], run = st[1];
-    switch (phase) {
-      case 1: benchView.setText(R.string.ingame_benchmark_going); break;
-      case 2:
-        benchView.setText(getString(R.string.ingame_benchmark_running, (run & 1) != 0 ? 60 : 30,
-            CoreMenu.scaleNumber(st[2], Locale.getDefault()) + "×", Math.round(st[5] / 10f)));
-        break;
-      case 3: case 6: benchView.setText(R.string.ingame_benchmark_back); break;
-      case 4: {
-        // the resolution becomes "Dynamic" with the measured levels as its limits (wish of the project owner,
-        // 06.11.2026); the other graphics options stay as they are
-        SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
-        g.edit().putInt(CoreMenu.DYN_CAP_30, st[3]).putInt(CoreMenu.DYN_CAP_60, st[4]).putInt("scaleHalves", 0).apply();
-        CoreBridge.setDynamicCaps(st[3], st[4]);
-        applyGraphics();
-        // a pass where even 1x did not hold its rate: said as well (its result is 1x)
-        int held = st.length > 6 ? st[6] : 3;
-        // measured, and what Dynamic uses: half a level more, 4x at most (core_mode.cpp)
-        String text = getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(Math.min(8, st[3] + 1), Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(Math.min(8, st[4] + 1), Locale.getDefault()) + "×");
-        if ((held & 1) == 0) text += " " + getString(R.string.ingame_benchmark_low, 30);
-        if ((held & 2) == 0) text += " " + getString(R.string.ingame_benchmark_low, 60);
-        benchmarkEnd(0, text);
-        return;
-      }
-      case 5: benchmarkEnd(R.string.ingame_benchmark_cancelled, null); return;
-      case -1: benchmarkEnd(R.string.ingame_benchmark_refused, null); return;
-      case -3: benchmarkEnd(R.string.ingame_benchmark_unreachable, null); return;
-      case -4: benchmarkEnd(R.string.ingame_benchmark_discs, null); return;
-      case 0: break;
-      default: benchmarkEnd(R.string.ingame_benchmark_failed, null); return;
+  /** What the app knows of this device (the renderer's text once it is there). */
+  private PerfProfile.Device perfDevice() {
+    String gpu = CoreBridge.rendererInfo();
+    if (perfDevice != null && (gpu == null || gpu.isEmpty() || gpu.equals(perfDevice.gpu))) return perfDevice;
+    int[] cpu = PerfProfile.cpu();
+    long ram = 0;
+    android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+    if (am != null) {
+      android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+      am.getMemoryInfo(mi);
+      ram = mi.totalMem / (1024 * 1024);
     }
-    main.postDelayed(benchPoll, 250);
+    int[] info = CoreBridge.graphicsInfo();
+    perfDevice = new PerfProfile.Device(gpu, cpu[0], cpu[1], cpu[2], (int) ram, menuHost.displayHz(),
+        info != null && info.length > 0 ? info[0] : 1, info != null && info.length > 1 ? info[1] : 1);
+    return perfDevice;
   }
 
-  private void benchmarkEnd(int message, String text) {
-    benchRunning = false;
-    audio.setMuted(false);
-    main.removeCallbacks(benchPoll);
-    benchView.setVisibility(View.GONE);
-    Log.i(TAG, "benchmark: " + (text != null ? text : getString(message)));
-    Immersive.show(new android.app.AlertDialog.Builder(this).setTitle(R.string.ingame_benchmark)
-        .setMessage(text != null ? text : getString(message)).setPositiveButton(android.R.string.ok, null).create());
+  /** The menu's options from the preferences to the core (a profile chosen, a benchmark's end). */
+  private void applyOptions() {
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    int skip = CoreMenu.frameSkipMode(g);
+    if (g.getBoolean("smooth60", false)) skip = 0;
+    applyGraphics();
+    CoreBridge.setDof(CoreMenu.dofLevel(g));
+    CoreBridge.setSmooth(g.getBoolean("smooth60", false));
+    CoreBridge.setFrameSkip(skip == 1);
+    CoreBridge.setCpuSkip(skip == 2);
+    CoreBridge.setFxaa(g.getBoolean("fxaa", false));
+    CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
+    CoreBridge.setCrt(CoreMenu.crtLevel(g));
+    CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
+    CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
+    CoreBridge.setPsx(g.getBoolean("psx", false));
+    CoreBridge.setFlares(CoreBridge.flareMode(g));
+    CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
+    CoreBridge.setDynamicCaps(g.getInt(CoreMenu.DYN_CAP_30, 0), g.getInt(CoreMenu.DYN_CAP_60, 0));
+    CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
+    CoreBridge.setPotato(CoreBridge.potatoMask(g));
+  }
+
+  private final BenchmarkFlow.Host benchHost = new BenchmarkFlow.Host() {
+    @Override public Activity activity() { return CoreActivity.this; }
+    @Override public SharedPreferences graphics() { return getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE); }
+    @Override public void applyOptions() { CoreActivity.this.applyOptions(); }
+    @Override public void applyClean() {
+      // benchmark 1: no picture extras, the picture format "Native", no frame skip, Potato off (plan: the levels the
+      // device holds with the game's own look); the benchmark sets the level and 60 FPS itself
+      SharedPreferences g = graphics();
+      CoreBridge.setGraphics(CoreMenu.scaleHalves(g), 1, 1, 5);
+      CoreBridge.setFxaa(false);
+      CoreBridge.setDof(0);
+      CoreBridge.setFlares(0);
+      CoreBridge.setTvFilter(false);
+      CoreBridge.setPsx(false);
+      CoreBridge.setSharpen(0);
+      CoreBridge.setCrt(0);
+      CoreBridge.setColour(0, CoreMenu.colourLevel(g));
+      CoreBridge.setFrameSkip(false);
+      CoreBridge.setCpuSkip(false);
+      CoreBridge.setFastCores(false);
+      CoreBridge.setPotato(0);
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[0]);
+    }
+    @Override public void applyValues(int[] v) {
+      SharedPreferences g = graphics();
+      CoreActivity.this.applyOptions();
+      CoreBridge.setGraphics(v[PerfProfile.SCALE], v[PerfProfile.SAMPLES], v[PerfProfile.ANISO], g.getInt("aspect", 0));
+      CoreBridge.setFxaa(v[PerfProfile.FXAA] != 0);
+      CoreBridge.setSmooth(v[PerfProfile.SMOOTH] != 0);
+      CoreBridge.setFrameSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 1);
+      CoreBridge.setCpuSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 2);
+      CoreBridge.setFastCores(v[PerfProfile.CORES] == 1);
+      CoreBridge.setPotato((v[PerfProfile.WEATHER] != 0 ? 0 : 1) | (v[PerfProfile.SPECIAL] != 0 ? 0 : 2)
+          | (v[PerfProfile.PARTICLES] << 2) | (v[PerfProfile.SHADOWS] != 0 ? 0 : 16));
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[Math.max(0, Math.min(2, v[PerfProfile.VIEW]))]);
+    }
+    @Override public void progress(String text) {
+      benchView.setText(text != null ? text : "");
+      benchView.setVisibility(text != null ? View.VISIBLE : View.GONE);
+    }
+    // the speaker silent while it runs (the game's sound goes on inside: an honest measurement)
+    @Override public void mute(boolean on) { audio.setMuted(on); }
+    @Override public void hold(boolean on) {
+      if (on) {
+        releaseAll();
+        CoreBridge.pause(true, 800);
+        audio.stop();
+        stopVibrator();
+      } else if (resumed && menu == null && !touchEditing) {
+        CoreBridge.pause(false, 0);
+        audio.start();
+        surface.requestFocus();
+      }
+    }
+    @Override public PerfProfile.Device device() { return perfDevice(); }
+  };
+
+  /** Twice a second (tick): the very first start's benchmark once the title's menu waits (core: cheat 24). */
+  private void checkFirstBenchmark() {
+    if (benchFlow == null || !benchFlow.firstDue() || menu != null || touchEditing || !resumed || !menuSupported) return;
+    if (CoreBridge.cheatAction(24) == 1) {
+      Log.i(TAG, "performance profiles: the title's menu waits, the first start's benchmark is offered");
+      benchFlow.offerFirst();
+    }
   }
 
   /** Nothing held while the game is not in front (no stuck keys after a dialog or the home screen). */

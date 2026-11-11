@@ -1,7 +1,8 @@
 # Plan: Benchmark beim ersten Start und Leistungsprofile (0.99.10, Aufgaben 2 und 3)
 
-Stand 11.11.2026, Branch `09910`. Noch nicht gebaut: erst nach den Antworten des Projektinhabers auf die Fragen
-am Ende. Ergänzt um den Wunsch des Projektinhabers (11.11.2026): „Der Subthread könnte bei leistungsfähigen Geräten
+Stand 11.11.2026, Branch `09910`. **Gebaut am 11.11.2026** nach den Antworten des Projektinhabers („Ja, beide so“:
+Update-Nutzer werden einmal gefragt, der erste Benchmark ist abbrechbar); was gebaut und geprüft ist, steht in
+`port/docs/whole-program-status.md`, Version 0.99.10, Abschnitt 2./3. Ergänzt um den Wunsch des Projektinhabers (11.11.2026): „Der Subthread könnte bei leistungsfähigen Geräten
 vorschlagen, bestimmte Effekte wie MSAA, FXAA, Anisotropic auch einzuschalten“ (Abschnitt „Effekte nach Spielraum“). Mock-ups: `mock-home.png` (Startseite mit der Profilzeile) und `mock-popups.png` (die drei Popups) im
 Notizordner der Sitzungen (`side-session-notes\…\09910-plan\`).
 

@@ -2175,8 +2175,8 @@ void frame(unsigned n)
     for (int i = 0; i < 4; i++) {
         const long base = g_benchBoot[i] ? 0 : g_benchTitle[i] ? g_titleAt : g_freeAt;
         if (g_benchAt[i] >= 0 && base >= 0 && (long) n == base + g_benchAt[i]) {
-            re4_log("run: benchmark command %d at frame %u (RE4_TEST_BENCH)", g_benchCmd[i], n);
-            re4_bench_command(g_benchCmd[i]);
+            const int answer = re4_bench_command(g_benchCmd[i]);
+            re4_log("run: benchmark command %d at frame %u (RE4_TEST_BENCH): %d", g_benchCmd[i], n, answer);
             if (g_benchFirst < 0) {
                 g_benchFirst = n;
             }

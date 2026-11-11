@@ -136,6 +136,10 @@ final class CoreMenu extends Dialog {
     boolean vulkanRunning();
     /** The display's rate as measured (FramePacing), else as Android says; 0 unknown. */
     double displayHz();
+    /** What the app knows of this device for the performance profiles (0.99.10, PerfProfile). */
+    PerfProfile.Device perfDevice();
+    /** A performance profile chosen on the start page (PerfProfile.CUSTOM .. HIGH): stored and applied. */
+    void profileChosen(int profile);
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -186,6 +190,7 @@ final class CoreMenu extends Dialog {
   private boolean working, slotPresent;
   private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus, bowStatus;
   private Button bowButton;  // "Krauser's bow" (0.99.10): enabled while Krauser is the chosen character
+  private boolean updateAsked;  // the question after an update (PerfProfile.FIRST_ASK) shown in this menu
   private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
   private Button exportAll, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
@@ -449,16 +454,7 @@ final class CoreMenu extends Dialog {
     // the benchmark under "Dynamic" in a quiet green (wish of the project owner, 05./06.11.2026): the game goes to the
     // lake's dock (the project owner's save there, 06.11.2026) and measures which level holds 30 and 60 FPS with the
     // other options as they are; then the resolution becomes Dynamic, up to those levels
-    Button bench = button(s(R.string.ingame_benchmark), v -> askBenchmark());
-    StateListDrawable quiet = new StateListDrawable();
-    quiet.addState(new int[] {android.R.attr.state_focused}, focused(BENCH_GREEN));
-    quiet.addState(new int[] {android.R.attr.state_pressed}, shape(BENCH_GREEN, UPDATE_GREEN_EDGE, 6));
-    quiet.addState(new int[0], shape(BENCH_GREEN, BENCH_GREEN_EDGE, 6));
-    bench.setBackground(quiet);
-    bench.setTextColor(BENCH_TEXT);
-    bench.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
-    bench.setEnabled(host != null);
-    keys.addUnderFirst(bench);
+    keys.addUnderFirst(benchButton());
     body.addView(outer);
   }
   /** "Import other discs": the game ends for it (progress not saved is lost), so the menu asks first. */
@@ -481,11 +477,12 @@ final class CoreMenu extends Dialog {
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
     Immersive.show(dialog);
   }
-  /** "Start the benchmark?" with what it does; the menu closes for it. */
+  /** "Start the benchmark?" with what it does; the menu closes for it (since 0.99.10 the benchmark with its suggestion,
+   *  BenchmarkFlow). */
   private void askBenchmark() {
     AlertDialog dialog = new AlertDialog.Builder(getContext())
         .setTitle(R.string.ingame_benchmark)
-        .setMessage(R.string.ingame_benchmark_text)
+        .setMessage(R.string.ingame_bench_text)
         .setNegativeButton(R.string.ingame_cancel, null)
         .setPositiveButton(R.string.ingame_benchmark_start, (d, w) -> { close(); host.startBenchmark(); }).create();
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
@@ -657,6 +654,7 @@ final class CoreMenu extends Dialog {
     slotStatus = text(s(R.string.ingame_instant_checking), 15, false);
     slotStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(6));
     slotStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); body.addView(slotStatus);
+    profileRow();
     heading(R.string.ingame_settings);
     MenuLayout.Buttons first = buttonsRow(body), second = buttonsRow(body), third = buttonsRow(body);
     navigation[DISPLAY] = nav(first, R.string.ingame_display, R.string.ingame_display_summary, DISPLAY);
@@ -667,6 +665,91 @@ final class CoreMenu extends Dialog {
     navigation[MANAGEMENT] = nav(third, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
     if (host != null && host.gameLanguages()) gameLanguage();
     main.post(() -> { if (isShowing() && page == HOME && !working) refreshInstant(); });
+    // an update to 0.99.10: the menu asks once whether to measure now (decision of the project owner, 11.11.2026)
+    if (host != null && !updateAsked && graphics.getInt(PerfProfile.FIRST, PerfProfile.FIRST_NONE) == PerfProfile.FIRST_ASK) {
+      updateAsked = true;
+      main.post(this::askMeasureAfterUpdate);
+    }
+  }
+
+  /** "Performance profile" between the instant save and the settings (wish of the project owner, 11.11.2026;
+   *  port/docs/leistungsprofil-plan.md, PerfProfile): Custom, Low, Medium, High side by side, the active one lit, the
+   *  benchmark's suggestion marked; under them the last measurement and the benchmark's button. A hand change of a
+   *  profile's setting makes Custom active (PerfProfile.sync, each time the start page is shown). */
+  private void profileRow() {
+    heading(R.string.ingame_profile);
+    final int active = PerfProfile.sync(graphics);
+    PerfProfile.Device d = host != null ? host.perfDevice() : null;
+    if (d == null) d = new PerfProfile.Device("", 0, 0, 0, 0, 0, 1, 1);
+    final PerfProfile.Bench b = PerfProfile.Bench.of(graphics);
+    final int recommended = PerfProfile.recommend(d, b);
+    final String[] names = {s(R.string.ingame_profile_custom), s(R.string.ingame_profile_low),
+        s(R.string.ingame_profile_medium), s(R.string.ingame_profile_high)};
+    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), 4, 2);
+    body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    final Button[] buttons = new Button[names.length];
+    for (int i = 0; i < names.length; i++) {
+      final int profile = i;
+      Button btn = cellAction(row, names[i], v -> {
+        if (host == null) return;
+        host.profileChosen(profile);
+        select(buttons, names, profile);
+      });
+      if (i == recommended && i != PerfProfile.CUSTOM) {
+        // the suggestion: a smaller second line under the name, as the costume switch's note
+        SpannableStringBuilder t = new SpannableStringBuilder(names[i]);
+        int from = t.length(); t.append('\n').append(s(R.string.ingame_profile_recommended));
+        t.setSpan(new RelativeSizeSpan(.75f), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        t.setSpan(new StyleSpan(Typeface.NORMAL), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        btn.setText(t);
+        btn.setPadding(dp(8), dp(2), dp(8), dp(2));
+      }
+      btn.setSelected(i == active);
+      btn.setContentDescription(names[i] + ", " + s(i == active ? R.string.ingame_on : R.string.ingame_off));
+      buttons[i] = btn;
+    }
+    // the last measurement and the benchmark's button beside it
+    LinearLayout line = row();
+    line.setPaddingRelative(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(4));
+    TextView measured = text(b.measured ? getContext().getString(R.string.ingame_profile_measured,
+        PerfProfile.level(b.cap30), PerfProfile.level(b.cap60), s(BenchmarkFlow.limitText(d, b)))
+        : s(R.string.ingame_profile_not_measured), 15, false);
+    line.addView(measured, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+    Button bench = benchButton();
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    lp.setMarginStart(dp(12));
+    line.addView(bench, lp);
+    body.addView(line, new LinearLayout.LayoutParams(-1, -2));
+    help(R.string.ingame_profile_help);
+  }
+
+  /** The benchmark's button in a quiet green (wish of the project owner, 06.11.2026). */
+  private Button benchButton() {
+    Button bench = button(s(R.string.ingame_benchmark), v -> askBenchmark());
+    StateListDrawable quiet = new StateListDrawable();
+    quiet.addState(new int[] {android.R.attr.state_focused}, focused(BENCH_GREEN));
+    quiet.addState(new int[] {android.R.attr.state_pressed}, shape(BENCH_GREEN, UPDATE_GREEN_EDGE, 6));
+    quiet.addState(new int[0], shape(BENCH_GREEN, BENCH_GREEN_EDGE, 6));
+    bench.setBackground(quiet);
+    bench.setTextColor(BENCH_TEXT);
+    bench.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
+    bench.setEnabled(host != null);
+    return bench;
+  }
+
+  /** After an update to 0.99.10, once: measure now (the menu closes, the benchmark starts) or later. */
+  private void askMeasureAfterUpdate() {
+    if (!isShowing() || working) return;
+    Runnable done = () -> graphics.edit().putInt(PerfProfile.FIRST, PerfProfile.FIRST_NONE).apply();
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_bench_update)
+        .setMessage(R.string.ingame_bench_update_text)
+        .setNegativeButton(R.string.ingame_later, (d, w) -> done.run())
+        .setPositiveButton(R.string.ingame_bench_now, (d, w) -> { done.run(); close(); host.startBenchmark(); }).create();
+    dialog.setOnCancelListener(d -> done.run());
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).requestFocus());
+    Immersive.show(dialog);
   }
   /** "Game language" with the European discs: the languages each in its own language, three a row; a
    *  new language restarts the game after a question, "Cancel" keeps the one before (decisions of the
