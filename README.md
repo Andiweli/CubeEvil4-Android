@@ -9,38 +9,54 @@
 ![Controller or touch](https://img.shields.io/badge/Input-Controller%20%7C%20Touch-9A1B1C)
 
 [![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
-[![Support via PayPal](https://img.shields.io/badge/Support%20via-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/andiweli)
 
 **[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
 > [!IMPORTANT]
 > Due to the new update feature within the app—which establishes an internet connection to GitHub to check for a newer version—Android may display a Google Play Protect warning. This warning is completely harmless.
 
-**CubeEvil4** is an unofficial, native Android port of the GameCube debug build of Resident Evil 4
-(`G4BE08`, the "Nov 25 2004" prototype on two discs). It does not recreate the game: the app runs
-the original game code, compiled from the complete decompilation in this repository for ARM.
-Since v0.92.0 it also plays the **European retail release** (`G4BP08`, two discs) in English,
-German, French, Spanish and Italian; the code stays the debug build's, with small patches where the
-retail data needs them. Since v0.95.2 it also plays the **Japanese retail release** (`G4BJ08`,
-"biohazard4") and the Korean fan translation built on it, and since v0.96.2 the **US retail release** (`G4BE08` as
-well, two discs) in English. It is not affiliated with or endorsed by Capcom, Nintendo or CRI Middleware,
-and it contains no game data: you need your own images of both discs of one release.
+**CubeEvil4** is a non-commercial hobby project: an unofficial fan port that lets you play your own
+copy of the GameCube version of Resident Evil 4 natively on Android. It does not recreate the game;
+the app runs the game's original code, compiled for ARM. It plays the **European** (`G4BP08`, English,
+German, French, Spanish, Italian), **US** (`G4BE08`, English) and **Japanese** (`G4BJ08`) retail
+releases, and the Korean fan translation built on the Japanese one. It is not affiliated with,
+endorsed by or sponsored by Capcom, Nintendo or CRI Middleware, and it contains no game data: you
+need your own images of both discs of your own copy.
+
+> [!TIP]
+> **Play the Resident Evil 4 remake.** Capcom's *Resident Evil 4* (2023) rebuilds the original for
+> today's consoles and PCs and shows what made the 2005 game so special far better than any port of
+> the GameCube version can. If you enjoy CubeEvil4, please consider buying the remake and supporting
+> the people who made Resident Evil:
+> [residentevil.com/re4](https://www.residentevil.com/re4/)
 
 > [!WARNING]
-> **Built on a prototype.** CubeEvil4 runs the code of the debug build from November 2004, not the code of a
-> retail release. Even with retail discs, some things can work or feel differently from the game you know:
+> **Built on a prototype.** CubeEvil4 runs the game code of a prototype from November 2004, together with
+> the data of your retail discs, not the code of a retail release. Some things can work or feel differently
+> from the game you know:
 > - **Bugs of the prototype** that the final game fixed: many are patched already, others may still show up.
 >   Please report them.
-> - **Balance:** with retail discs the merchant's prices, Leon's aiming stance and the camera follow those
->   releases (with European and Japanese discs the weapon damage too); other details, such as ammo drops, the
->   mine thrower's fuse or the fire rate of the semi-automatic weapons, stay as in the prototype.
-> - **With the debug build's discs** the game uses the prototype's own data, unfinished in places (e.g.
->   Ashley can walk through the armor statues, which have no collision there), and holding SELECT opens the
->   developers' debug menu.
+> - **Balance:** the merchant's prices, Leon's aiming stance and the camera follow the retail releases (with
+>   European and Japanese discs the weapon damage too); other details, such as ammo drops, the mine thrower's
+>   fuse or the fire rate of the semi-automatic weapons, stay as in the prototype.
 
 <!--
 <p align="center"><img src="port/android-decomp/app/src/main/res/drawable-nodpi/icon_cubeevil4.png" width="160" alt="CubeEvil4 icon"></p>
 -->
+
+## About this project
+
+CubeEvil4 is a fan interpretation made out of love for Resident Evil 4. It is developed in spare
+time, without any commercial intent: the app is free, nothing in it is sold, and no feature is
+locked behind a payment.
+
+We deeply respect and appreciate the work of Capcom and Nintendo, who have shaped video games since
+the 1990s and created Resident Evil and the GameCube. Resident Evil 4 changed what an action game
+could be, and this port wants nothing more than to underline the lasting value of that game and to
+keep the GameCube version playable for people who own it. All credit for the game, its story,
+characters, art, music and design belongs to Capcom and to the original development team.
+
+If you do not own the game, please buy it: the remake (see above) or one of the official re-releases.
 
 ## Reviews
 
@@ -65,18 +81,16 @@ and it contains no game data: you need your own images of both discs of one rele
   anisotropic filtering and depth of field.
 - Sound: the original SDK sound libraries with an emulated DSP; movies through the original CRI
   middleware with picture and ADX sound.
-- Releases: the debug build (`G4BE08`), the European retail release (`G4BP08`) with its five languages,
-  chosen in the app menu (default: your phone's language), the US retail release (`G4BE08`, English) and
-  the Japanese retail release (`G4BJ08`, in Japanese; the Korean fan translation in Korean). All use the
-  same memory card.
+- Releases: the European retail release (`G4BP08`) with its five languages, chosen in the app menu
+  (default: your phone's language), the US retail release (`G4BE08`, English) and the Japanese retail
+  release (`G4BJ08`, in Japanese; the Korean fan translation in Korean). All use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube); imports also
   take a whole Dolphin card (`.raw`, `.gcp`), a ZIP file and European saves.
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
   aiming with the right stick); touch controls when no controller is connected, with touch in the
   inventory; comfort controls: gyro aiming, knife by swipe, latching L, R and B; with a controller,
   X, Y, L1, R1, L3 and R3 can take other functions (Controller Configuration).
-  SELECT opens the app menu (graphics, sound, controls, performance, cheats, memory card, error report); with the
-  debug build, holding SELECT opens the game's own debug menu.
+  SELECT opens the app menu (graphics, sound, controls, performance, cheats, memory card, error report).
 - Android 6.0 or later, OpenGL ES 3.0.
 
 ## Requirements
@@ -90,7 +104,7 @@ and it contains no game data: you need your own images of both discs of one rele
 | Free storage | about 3 GB, to import both discs | – |
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
-| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the GameCube debug build from November 25, 2004 (`G4BE08`), the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
+| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
 
 ## Status
 
@@ -103,20 +117,14 @@ Tested on the following devices:
 Played through on a 64-bit phone: title, movies, every chapter up to the jet ski ride and the end
 credits; saving at the typewriter and loading on 32- and 64-bit devices. With the European discs,
 the first chapters were played in German on the Retroid, boss fights included. On the PC, a tour
-starts each of the game's 126 rooms without a crash, with the debug discs and with the European
-discs, and a comparison run plays the 32- and 64-bit core
+starts each of the game's 126 rooms without a crash, and a comparison run plays the 32- and 64-bit core
 with the same input through the first parts and finds every frame and every compared picture
 identical. An effect can stutter briefly the first time it appears while its shader is built; the
 app prepares the 9006 shaders it knows ahead (village, lake, castle, much of the island), the
 rest follows from testers' reports. Progress, test results and every patch are
 recorded in `port/docs/whole-program-status.md` (German).
 
-> [!IMPORTANT]
-> With the debug discs, the game's debug menu is still switched on for the test runs: holding
-SELECT opens it (rooms are chosen there). Use the debug menu with care: it is
-the developers' internal tool from 2004, and some of its options can hang or crash the game or
-leave the game (and a save made afterwards) in an odd state. Such problems come from the debug build itself, not from the port.
-With the retail discs (European, US, Japanese) there is no debug menu; the app menu has cheats instead (Cheats).
+The app menu has cheats (Cheats), see [How to use](#how-to-use).
 
 ## How to use?
 
@@ -127,10 +135,10 @@ With the retail discs (European, US, Japanese) there is no debug menu; the app m
 - A game controller (built in, USB or Bluetooth) or the touch screen: the touch controls appear
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
   Controls: Auto, Force or Suppress).
-- Your own disc images (ISO, GCM or RVZ) of **both** discs of the GameCube debug build from
-  November 25, 2004 (`G4BE08`), of the European retail release (`G4BP08`), of the US retail release
-  (`G4BE08`) or of the Japanese retail release (`G4BJ08`, also the Korean fan translation), and enough
-  free storage to import them. Both discs must be of the same release.
+- Your own disc images (ISO, GCM or RVZ) of **both** discs of the European retail release
+  (`G4BP08`), of the US retail release (`G4BE08`) or of the Japanese retail release (`G4BJ08`, also
+  the Korean fan translation), and enough free storage to import them. Both discs must be of the
+  same release.
 
 **First start**
 
@@ -156,8 +164,6 @@ With the retail discs (European, US, Japanese) there is no debug menu; the app m
   one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export
   and import saves as `.gci` for Dolphin and the GameCube) and the error log (send or save a
   report; R3 = graphics capture). B returns to the game.
-- **Hold SELECT for a second** (debug discs only): the game's own debug menu (use with care, see
-  Status: some of its options can break the game in ways the port has nothing to do with).
 
 **Buttons**
 
@@ -172,7 +178,7 @@ With the retail discs (European, US, Japanese) there is no debug menu; the app m
 | L2 | L | knife | ready weapon (aim) |
 | R1 | Z | map | inventory (weapons and recovery) |
 | L1 | – | | ready the knife |
-| SELECT | – | app menu (hold: debug menu, debug discs only) | as before |
+| SELECT | – | app menu | as before |
 | R3 | – | graphics capture for error reports (only when "R3 = Graphics capture" is on) | as before |
 
 **Controller Configuration** (app menu → Controls, with a controller connected): X, Y, L1, R1, L3
@@ -217,8 +223,8 @@ No disc images or game files ever go into the repository.
    `port/android-decomp/app/src/core/jniLibs/` (not in git).
 2. Open `port/android-decomp` in Android Studio, choose the build variant **coreRelease** and
    build a signed APK (Build → Generate Signed App Bundle or APK).
-3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO, GCM or RVZ of the debug
-   build, the US or the European retail release).
+3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO, GCM or RVZ of the
+   European, US or Japanese retail release).
 
 `port/scripts/test-core-app.ps1` builds, installs and tests the app on a device in one go;
 `port/tools/whole_build.sh` and `port/tools/whole_r100_check.sh` check the core on Linux.
@@ -329,23 +335,32 @@ purpose. Constants use the PS2 build's enums. `docs/naming.md` has the details.
 See `CONTRIBUTING.md` for the build, the three checks a change has to pass and the rules. The main rule
 is that the output bytes never change.
 
-## Support
+## Community
 
-If you enjoy this project and would like to support my work, you can make a small contribution via PayPal.
-
-Your support helps me spend more time maintaining existing projects, fixing bugs, improving compatibility, and working on new features.
-
-[![Support via PayPal](https://img.shields.io/badge/Support%20via-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/andiweli)
+Questions, bug reports and screenshots are welcome in The Lair on Discord, or as an issue here.
 
 [![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
 
-Thank you for your support!
-
 ## Legal
 
-CubeEvil4 is an unofficial fan project, not affiliated with or endorsed by Capcom, Nintendo or CRI
-Middleware. Resident Evil is a trademark of Capcom; it is named here only to say which game the
-port runs. The reconstructed game and SDK source is the property of Capcom, Nintendo and CRI
-Middleware and is published for research and preservation only. No game data is included or
-distributed; you need your own discs. The build scripts, tools, configuration and documentation
-written for this project are released under CC0, see `LICENSE`.
+- **Unofficial fan project.** CubeEvil4 is a non-commercial fan project. It is not affiliated with,
+  endorsed by, sponsored by or approved by Capcom Co., Ltd., Nintendo Co., Ltd. or CRI Middleware Co.,
+  Ltd.
+- **Trademarks.** Resident Evil, Biohazard and all related names, characters and logos are trademarks
+  or registered trademarks of Capcom Co., Ltd. GameCube and Nintendo are trademarks of Nintendo.
+  CRI, ADX and Sofdec are trademarks of CRI Middleware. Android is a trademark of Google LLC. All
+  other trademarks belong to their owners. They are named here only to say which game and platform
+  the port is about.
+- **Copyright.** Resident Evil 4 © CAPCOM CO., LTD. 2005. The game, its code, data, story, characters,
+  art, music and sound are the property of Capcom. The GameCube SDK is the property of Nintendo; the
+  CRI middleware is the property of CRI Middleware. The reconstructed game and SDK source in this
+  repository remains their property and is published for research, interoperability and
+  preservation only.
+- **No game data.** No game data, disc images, BIOS or other copyrighted assets are included or
+  distributed. You need your own legally obtained copy of the game.
+- **No warranty.** The app is provided "as is", without any warranty. Use it at your own risk.
+- **Our own work.** The build scripts, tools, Android app shell, configuration and documentation
+  written for this project are released under CC0, see `LICENSE`. This does not extend to any
+  Capcom, Nintendo or CRI material.
+- **Rights holders.** If you represent Capcom, Nintendo or CRI Middleware and have concerns about this
+  project, please open an issue or contact the maintainer; we will respond promptly.
