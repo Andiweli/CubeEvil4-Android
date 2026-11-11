@@ -172,6 +172,41 @@ unbekannt):
     `check_translations.py` ok.
 - **Nicht geprüft:** auf einem Gerät (Wirkung, Kosten auf Mali/Adreno, Drehung des Displays bei Vulkan).
 
+### 8. Bildtakt („Frame Pacing“, Nutzervorschlag, 11.11.2026): Untersuchung und Messzeile
+
+- **Heute:** CoreActivity fragt Bildschirme über 60 Hz nach ihrem 60-Hz-Modus (`preferredDisplayModeId`) und ab
+  Android 11 `Surface.setFrameRate(60, COMPATIBILITY_DEFAULT)`; ein eigener Taktgeber-Thread (Choreographer) misst
+  den Bildschirm (FramePacing: Median aus 32 Takten) und lässt bei 120/144 Hz jedes zweite Mal zeichnen, sonst
+  zeichnet GLES (GLSurfaceView, durchgehend, Swap-Intervall 1) bzw. Vulkan (FIFO, 3 Swapchain-Bilder) bei jedem Takt
+  das neueste Bild. Der Kern koppelt seine Retraces an den Bildschirm (`runtime/vi.cpp`, M9), aber nur, wenn eine
+  ganze Zahl von Takten innerhalb von 0,5 % ein NTSC-Halbbild ergibt (60 Hz, 120 Hz); sonst läuft er mit eigener
+  Uhr (59,94 Hz). Kein Swappy, kein `eglPresentationTimeANDROID`, kein `VK_GOOGLE_display_timing`.
+- **Ursachen ungleicher Abstände:**
+  - 90-Hz-Bildschirme: der Kern läuft ungekoppelt; 30 Spielbilder je Sekunde (33,37 ms) gegen drei Takte (bei
+    gemessenen 89,4 Hz 33,56 ms): etwa alle 1,7 s ein Bild nur zwei Takte lang (bei genau 90,0 Hz alle 11 s).
+    Mit 60 FPS (Zwischenbilder) wechseln sich 1 und 2 Takte ständig ab (das Zwischenbild hat t = 0,5, gezeigt wird
+    es nach einem Drittel).
+  - 60-Hz-Bildschirme, die etwas schneller laufen (gemessen 60,5 Hz, Bericht 0994-check 18:08, Xiaomi): außerhalb
+    der 0,5 % ungekoppelt, etwa alle 1,8 s ein Bild drei Takte lang.
+  - Der 60-Hz-Modus wird nicht überall genommen: realme RMX3710 (Bericht 0999-…-212201, Modi 90/60/45) und ein
+    720×1600-Gerät (0991-lava-door) bleiben trotz Anfrage bei 90 Hz; das Galaxy A24 hat nur 90 Hz.
+  - 144 Hz ohne 60/120-Modus: 72 Bilder je Sekunde, 30 Spielbilder = 4,8 Takte (2/3-Wechsel). In den Berichten nicht
+    gesehen.
+  - Unabhängig davon: Shader beim ersten Mal (Vulkan), CPU- oder GPU-Grenze (Mali-G52/G57), Frame skip.
+- **Berichte:** 42 + 8 + 3 + 2 + 2 Läufe auf reinen 60-Hz-Bildschirmen, die meisten 90/120-Hz-Handys nehmen den
+  60-Hz-Modus; 90 Hz geblieben in 9 (A24) + 4 Läufen, 60,5 Hz in 4 Läufen.
+- **Neu (Messung, ändert nichts am Bild):** `picture_cadence.h` (PictureCadence), aufgerufen in `core_mode.cpp`
+  bei jedem neuen Bild (`NotePicture`, auf den Takt des Bildschirms gerundet; die Takte aus `CoreBridge.vsync`).
+  Alle 10 s eine Logzeile „picture pacing: N new pictures in 10 s, interval median X ms, Y % more than 2 ms off it,
+  longest Z ms; in vsyncs of the display (H Hz) 1: … 2: … 3: … 4: … 5+: …“. Test `TestPictureCadence`
+  (`test_gx_gl.cpp`): 30 Bilder auf 60 Hz 301× 2 Takte, 0 %; eigene Uhr auf 89,4 Hz 295× 3 und 6× 2 Takte; 60 FPS auf
+  90 Hz 301× 1 und 300× 2 Takte, 50 % daneben. `gx_gl_check` 0 Fehler, NDK ARM32/ARM64 `-Werror` ohne Meldung.
+  **Nicht geprüft:** auf einem Gerät.
+- **Vorschläge** (Entscheidung des Projektinhabers offen): Kern auch an 90 Hz koppeln (zwei Halbbilder = drei
+  Takte) und bei 90 Hz nur neue Bilder zeigen; die Kopplungsgrenze von 0,5 % auf etwa 1 % (60,5-Hz-Bildschirme);
+  `setFrameRate` mit `FIXED_SOURCE` und ab Android 12 `CHANGE_FRAME_RATE_ALWAYS`; 60 FPS auf 90 Hz: Zwischenbild-
+  Anteil nach der Anzeigezeit oder ein Hinweis; Swappy/Present-Zeitpunkte erst danach.
+
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since

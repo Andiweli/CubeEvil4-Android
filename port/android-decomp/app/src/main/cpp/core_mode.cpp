@@ -20,6 +20,7 @@
 #include "gx_gl.h"
 #include "gx_selfcheck.h"
 #include "minimap_view.h"
+#include "picture_cadence.h"
 #include "re4_card_files.h"
 #include "re4_core_client.h"
 #include "re4_cpu_info.h"
@@ -693,6 +694,21 @@ std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setM
 std::atomic<int> optVertexRing{0};  // the menu's vertex ring (CoreBridge.setVertexRing; or RE4_GX_VERTEX_RING=1)
 // pictures put on the screen so far, each once: the game's and the in-between ones (the FPS display)
 std::atomic<long long> picturesMade{0};
+// the pictures' cadence on the screen (0.99.9; picture_cadence.h): the display's vsyncs (CoreBridge.vsync: the
+// latest, the period smoothed, a late callback not counted) and the render thread's record of the new pictures
+std::atomic<long long> displayVsyncAt{0}, displayVsyncPeriod{0};
+re4gx::PictureCadence pictureCadence;
+// a new picture drawn at this refresh: noted at its vsync, every 10 s a line for the log
+void NotePicture() {
+  const long long now = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            std::chrono::steady_clock::now().time_since_epoch())
+                            .count();
+  const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
+  std::string line;
+  if (pictureCadence.Note(re4gx::PictureCadence::Snap(now, at, period), period, period > 0 ? 1e9 / period : 0.0,
+                          &line))
+    LOG("%s", line.c_str());
+}
 // 60 FPS (experimental): the chunk run last, kept for the in-between picture after it (its
 // vertices), and the next one, whose in-between picture is on the screen and which runs at the
 // next refresh; off for this renderer when the GPU does not keep up
@@ -2126,11 +2142,13 @@ bool drawGx() {
         smoothPrev = nullptr;
         smoothNext = chunk;
         picturesMade++;
+        NotePicture();
       }
     }
     if (!between) {
       gx->Run(*chunk);
       picturesMade++;
+      NotePicture();
       if (smoothPrev) {
         api.gxRelease(smoothPrev);
         smoothPrev = nullptr;
@@ -2873,6 +2891,15 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_audioSur
 // System.nanoTime = CLOCK_MONOTONIC): the core's retraces follow the display.
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_vsync(JNIEnv *, jclass, jlong ns) {
   if (api.vsync) api.vsync(static_cast<int64_t>(ns));
+  // the display's vsyncs for the pictures' cadence (NotePicture)
+  const long long last = displayVsyncAt.exchange(ns), p = displayVsyncPeriod.load();
+  if (last > 0 && ns > last) {
+    const long long d = ns - last;
+    if (p <= 0 || d < p / 2)
+      displayVsyncPeriod.store(d);  // (the first, or much shorter than thought: start over)
+    else if (d < p * 3 / 2)
+      displayVsyncPeriod.store(p + (d - p) / 16);
+  }
 }
 
 // The room the game is in (for the Java room loader), -1 outside a room.

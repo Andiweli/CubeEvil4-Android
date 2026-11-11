@@ -16,6 +16,7 @@
 //     matrices and material colours in few calls, the picture unchanged
 #include "gx_bench_steps.h"
 #include "gx_auto_level.h"
+#include "picture_cadence.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
@@ -1649,6 +1650,44 @@ void TestRescale() {
   Check(r.Stats().rescales == 4, "rescale: counted");
   Check(glGetError() == GL_NO_ERROR, "rescale: no GL error");
   r.Release();
+}
+
+// The pictures' cadence (picture_cadence.h): 30 pictures a second on 60 Hz, all 2 vsyncs, 0 % off; on 89.4 Hz with
+// the game's own clock (59.94 / 2 a second) mostly 3 vsyncs and now and then 2 (the picture early by a vsync);
+// 60 FPS on 90 Hz: 1 and 2 vsyncs by turns, half of them off; a pause starts over.
+void TestPictureCadence() {
+  auto run = [](double hz, double fps, int seconds, std::string *line) {
+    re4gx::PictureCadence c;
+    const long long period = static_cast<long long>(1e9 / hz);
+    const long long at = 1000000000LL;
+    bool got = false;
+    for (int i = 0; i <= static_cast<int>(fps * seconds) && !got; i++) {
+      const long long t = at + static_cast<long long>(i * 1e9 / fps) + 300000;  // drawn just after a vsync
+      // the vsync the picture waits for: the next one at or after its time
+      const long long v = at + ((t - at + period - 1) / period) * period;
+      got = c.Note(re4gx::PictureCadence::Snap(v, at, period), period, hz, line);
+    }
+    return got;
+  };
+  std::string line;
+  Check(run(60.0, 30.0, 11, &line), "cadence: a line after 10 s");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("0 % more than 2 ms") != std::string::npos && line.find("2: 301,") != std::string::npos,
+        "cadence: 30 pictures on 60 Hz, all 2 vsyncs");
+  Check(run(89.4, 59.94 / 2, 11, &line), "cadence: 89.4 Hz");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("2: 0,") == std::string::npos && line.find("3: ") != std::string::npos,
+        "cadence: the game's own clock on 89.4 Hz shows pictures of 2 vsyncs among the 3");
+  Check(run(90.0, 60.0, 11, &line), "cadence: 60 FPS on 90 Hz");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("1: 0,") == std::string::npos && line.find("2: 0,") == std::string::npos,
+        "cadence: 60 FPS on 90 Hz, 1 and 2 vsyncs by turns");
+  re4gx::PictureCadence c;
+  std::string none;
+  c.Note(1000000000LL, 16666667, 60.0, &none);
+  c.Note(1033333333LL, 16666667, 60.0, &none);
+  c.Note(5000000000LL, 16666667, 60.0, &none);  // a pause
+  Check(c.intervals.empty(), "cadence: a pause starts over");
 }
 
 // The rule of Auto (gx_auto_level.h) with made-up measurements: `seconds` of chunks at `rate` a
@@ -4040,6 +4079,7 @@ int main() {
     TestFxaa(renderer);
     TestSharpen(renderer);
     TestCrtColour(renderer);
+    TestPictureCadence();
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);
