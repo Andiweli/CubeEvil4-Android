@@ -128,8 +128,9 @@ unbekannt):
   kursiert, Lizenz und Größe unklar), ein Wii-Paket (RB4E08/RB4P08, EmuTalk, alt). Keins wird geladen oder
   mitgeliefert.
 - Für Handys nötig: Umwandeln beim Import (PNG/DDS nach ETC2 oder ASTC, BC-Formate können die meisten Handy-GPUs
-  nicht), Speichergrenze, Nachladen ohne Ruckeln, eigener Ordner zum Entfernen. Empfehlung und Aufwand im Bericht
-  an die Hauptsitzung; Entscheidung des Projektinhabers offen.
+  nicht), Speichergrenze, Nachladen ohne Ruckeln, eigener Ordner zum Entfernen.
+- **Zurückgestellt** (Entscheidung des Projektinhabers, 11.11.2026): das HD Project hat etwa 8 GB, für die meisten
+  günstigen Handys der Nutzer zu groß. Die Erkenntnisse oben bleiben für später.
 
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
