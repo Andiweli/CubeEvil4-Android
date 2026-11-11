@@ -239,6 +239,11 @@ Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-ch
 - Nebenwirkung: Leons Debug-Ausrüstung 3 (nur Debug-Discs, Debug-Menü) verliert ihren Schalldämpfer beim nächsten
   Raumstart und in Spielständen.
 
+- **Nur wo Platz ist** (Bericht des Projektinhabers 11.11.2026: Gegenstände außerhalb des Koffers unsichtbar): Bogen,
+  Pfeile und Schalldämpfer gehen wie ein gefundener Gegenstand in den Koffer (`PutInCase`), nie auf die Ablage daneben,
+  die das Spiel nur beim Aufheben zeigt. Ohne Platz kommen sie beim nächsten Raumstart wieder; was frühere Stände auf
+  der Ablage liegen ließen, sortiert der Raumstart neu ein.
+
 ### Grenzen (bewusst so)
 
 - Zwischensequenzen, Funksprüche und Leons Stimme bleiben Leon; die Figur erscheint im Spiel selbst.

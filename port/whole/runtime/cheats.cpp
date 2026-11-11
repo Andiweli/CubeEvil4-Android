@@ -73,7 +73,10 @@
 #include "em.h"
 #include "pl_sub.h"
 #include "pl_npc.h"
+#include "puzzle.h"
 #include <dolphin/dvd.h>
+
+#include <algorithm>
 
 #include <atomic>
 #include <stdint.h>
@@ -163,35 +166,77 @@ const u8 kBowWeapon = 0x1C;   // the bow's weapon number (item.cpp wep_info)
 const int kArrowSlot = 20;    // item.cpp itemInfo 0x72: maxNum
 const int kArrowsGiven = 40;  // two full slots
 
-// Krauser plays the story (each room start): the bow when it is missing and the arrows up to 40 (the slots there
-// filled up first). 1 the bow added, 2 it was there, -1 no room for the bow.
-int giveBow()
+// The app's own items (Krauser's bow and arrows, Wesker's silencer) go into the case as the game puts a found item in
+// (puzzle.cpp PutInCase: the slots of its kind filled up first, then a free place in the case, turned if need be),
+// never onto the spare board beside it: the case shows that board only while a found item that does not fit is
+// placed, so what lay there could neither be seen nor taken (the project owner's report 11.11.2026, Krauser with a
+// full case: "item 0x52 ... moved to (2 6) turn 1 on the spare board"; ItemMgr.get gave a slot without a place and
+// patch 0100 found one only there). Without room in the case the item does not come now; the next room start tries
+// again. True when it went in.
+void heldAgain(cItem* gun);
+
+bool putIn(u16 id, u16 num)
 {
-    int result = 1;
-    cItem* bow = ItemMgr.search(kBow);
-    if (bow) {
-        result = 2;
-    } else if (!ItemMgr.get(kBow, 0) || !(bow = ItemMgr.search(kBow))) {
-        re4_log("cheat: Krauser's bow: no free slot in the inventory (r%03x)", (unsigned) pG->room_id);
-        return -1;
-    }
-    int had = 0, have = 0;
+    return PutInCase(id, num, (s8) SubScreenWk.board_size) == 1;
+}
+
+// Slots of `id` that lie on the spare board or have no place yet (cItem::board 0: put there by the 0.99.10 builds
+// before this fix; pzlPlayer::save keeps 1 for the case), not in the hands: out, so that putIn places them anew.
+// Returns what they held (pieces or rounds).
+int offTheSpareBoard(u16 id)
+{
+    int n = 0;
     cItem* p = ItemMgr.m_pItem;
     for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
-        if ((p->flags & 1) && p->type == bow->type && p->id == kArrows) {
-            had += p->num;
-            if (p->num < kArrowSlot) {
-                p->num = kArrowSlot;
-            }
-            have += p->num;
+        if (!(p->flags & 1) || p->id != id || p->board != 0 || p == ItemMgr.weapon()) {
+            continue;
         }
+        cItem* gun = itemType(id) == 9 && p->lv == 1 ? ItemMgr.at(p->bullet) : 0;
+        n += itemType(id) == 2 ? p->num : 1;
+        ItemMgr.dumpAll(p);
+        heldAgain(gun);
     }
+    if (n) {
+        re4_log("cheat: item 0x%02x off the spare board (%d), into the case where there is room (r%03x)", id, n,
+                (unsigned) pG->room_id);
+    }
+    return n;
+}
+
+// Krauser plays the story (each room start): the bow when it is missing and the arrows up to 40, each into the case
+// where there is room (putIn). 1 the bow added, 2 it was there, -1 no room for the bow (nothing given now).
+int giveBow()
+{
+    offTheSpareBoard(kBow);
+    offTheSpareBoard(kArrows);
+    int result = 2;
+    if (!ItemMgr.search(kBow)) {
+        if (!putIn(kBow, 1) || !ItemMgr.search(kBow)) {
+            re4_log("cheat: Krauser's bow: no room in the case, not now; again at the next room start (r%03x)",
+                    (unsigned) pG->room_id);
+            return -1;
+        }
+        result = 1;
+    }
+    auto arrows = []() {
+        int n = 0;
+        cItem* p = ItemMgr.m_pItem;
+        for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+            if ((p->flags & 1) && p->id == kArrows) {
+                n += p->num;
+            }
+        }
+        return n;
+    };
+    const int had = arrows();
+    int have = had;
     while (have < kArrowsGiven) {
-        if (!ItemMgr.get(kArrows, kArrowSlot)) {
-            re4_log("cheat: Krauser's bow: no free slot for more arrows (r%03x)", (unsigned) pG->room_id);
+        const int more = std::min(kArrowSlot, kArrowsGiven - have);
+        if (!putIn(kArrows, (u16) more)) {
+            re4_log("cheat: Krauser's bow: no room in the case for more arrows (r%03x)", (unsigned) pG->room_id);
             break;
         }
-        have += kArrowSlot;
+        have = arrows();
     }
     if (result == 1 || have != had) {
         re4_log("cheat: Krauser's bow %s, arrows %d -> %d (r%03x)", result == 2 ? "kept" : "added", had, have,
@@ -260,6 +305,7 @@ void heldAgain(cItem* gun)
 // already, 0 no handgun 0x23 in the case, -1 no room.
 int giveSilencer()
 {
+    offTheSpareBoard(kSilencer);
     if (ItemMgr.search(kSilencer)) {
         return 2;
     }
@@ -269,8 +315,9 @@ int giveSilencer()
         return 0;
     }
     cItem* s = 0;
-    if (!ItemMgr.get(kSilencer, 0) || !(s = ItemMgr.newbie()) || s->id != kSilencer) {
-        re4_log("cheat: Wesker's silencer: no free slot in the inventory (r%03x)", (unsigned) pG->room_id);
+    if (!putIn(kSilencer, 1) || !(s = ItemMgr.search(kSilencer))) {
+        re4_log("cheat: Wesker's silencer: no room in the case, not now; again at the next room start (r%03x)",
+                (unsigned) pG->room_id);
         return -1;
     }
     ItemMgr.partsCombine(gun, s);

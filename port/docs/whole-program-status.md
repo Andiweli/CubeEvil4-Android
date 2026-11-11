@@ -359,6 +359,30 @@ ist – ein Ghosting.“ Dateien `E:\Development\Android\reports\09910-crt-flick
   **Geprüft am PC:** EU- und US-Discs, Wesker gewählt, `RE4_TEST_BENCH` aus r101: an der Stelle keine Figurenzeile,
   zurück in r101 „the story's player is Wesker“.
 - `last-crash`: der alte Fehlalarm „hang“ aus 142a52b8 (in bed2b9d4 behoben), kein Absturz.
+- **Gegenstände außerhalb des Koffers unsichtbar (behoben).** „Wenn man mit einem der Mercenaries im Hauptspiel spielt,
+  [sind] Waffen oder Objekte außerhalb des Koffers, … werden aber nicht angezeigt.“ Log 19:18 (Krauser): „case: item
+  0x52 had no place at (0 0) turn 0 on the spare board; moved to (2 6) turn 1 on the spare board“. **Ursache:**
+  `giveBow`/`giveSilencer` legten Bogen, Pfeile und Schalldämpfer mit `ItemMgr.get` an (ohne Platz, `board` 0); beim
+  nächsten Öffnen suchte Patch 0100 einen Platz, bei vollem Koffer auf der Ablage daneben. Die zeigt das Spiel aber nur
+  beim Aufheben eines Gegenstands, der nicht passt (`tempSpaceDisp(1)` in `PzzlThinking`); beim normalen Öffnen ist sie
+  unsichtbar und nicht erreichbar, und `isTerminable` lässt den Koffer dann nur mit einer Rückfrage schließen. Leon und
+  die Figuren sind gleich betroffen; nur unsere Zugaben (und sehr alte Debug-Spielstände, Patch 0100) kamen dorthin.
+  **Jetzt:** die Zugaben gehen wie ein gefundener Gegenstand in den Koffer (`putIn` → `PutInCase` des Spiels: erst die
+  Felder der eigenen Art auffüllen, dann ein freier Platz im Koffer, auch gedreht); ohne Platz kommt nichts, beim
+  nächsten Raumstart wird es wieder versucht. Zugaben, die frühere 0.99.10-Stände schon ohne Platz bzw. auf der Ablage
+  hinterlassen haben (`board` 0, nicht in der Hand), nimmt der Raumstart heraus und sortiert sie neu ein
+  (`offTheSpareBoard`). Hilfetext der Figurenwahl: ein Satz dazu (11 Sprachen). Neue Prüfhilfen: `RE4_TEST_FILL_CASE`
+  (Koffer mit bis zu vier Gegenstandsarten auffüllen, bis nichts mehr passt), `RE4_TEST_ITEM_LOSE` mit bis zu acht
+  Einträgen. Am GameCube-Pad öffnet Y den Koffer (`Key` 0x100000).
+  **Geprüft am PC (i686 -O2, EU-Discs, r101, `~/p09910/casetests.sh`, Bilder `~/p09910/pics/case*`):** Krauser, Koffer
+  mit Gewehren und Sprays gefüllt, Raumneustart: „no room in the case, not now“; drei Gewehre heraus, Sofortspeicher
+  laden: Bogen im Koffer (Bild: unten im Raster), Pfeile mangels Platz noch nicht. Wesker ebenso: erst „no room“, nach
+  zwei Sprays und einem Gewehr heraus der Schalldämpfer an der Pistole, im Koffer sichtbar mit „E“. Altfall: Bogen ohne
+  Platz wie früher (`RE4_TEST_PART` legt ihn per `ItemMgr.get` an), nach Öffnen des Koffers „moved … on the spare
+  board“ und im Bild unsichtbar (der Fehler des Inhabers nachgestellt); mit dem Fix beim nächsten Raumstart „item 0x52
+  off the spare board (1), into the case“ und sichtbar im Koffer.
+- **Nicht geprüft:** auf dem Gerät; ein voller Koffer, in dem der Bogen nie Platz findet (bleibt dann weg, bis Platz
+  ist; so gewollt).
 
 ### Prüfung: Funktionen aus DevJuniors Mod-Fork (11.11.2026, nur Plan)
 

@@ -164,9 +164,12 @@
 //                          the case as its "use" line does (put into the case first if missing;
 //                          cItemMgr::use, only where the room allows it: with RE4_TEST_PLACE
 //                          area=N): r101's key 0x3B at the iron door, patch 0127
-//   RE4_TEST_ITEM_LOSE="free+N:ID"  N frames after the player is free, item ID leaves the
+//   RE4_TEST_ITEM_LOSE="free+N:ID[,free+M:ID]..."  N frames after the player is free, item ID leaves the
 //                          case (cItemMgr::erase): a save whose room marks an item as taken
 //                          that the case lacks (the r201 prison key, patch 0169, 01.11.2026)
+//   RE4_TEST_FILL_CASE="free+N:ID[,ID...]"  N frames after the player is free, item ID (0x.., up to four kinds) put into the case as a found
+//                          item goes in (PutInCase) again and again until there is no room: a full case (the
+//                          app's own items into the case only where there is room, 0.99.10)
 //   RE4_TEST_STA="F[,F...]"  while the first room loads, the status flags F (Status_flg, numbers as
 //                          in global.h) are set before its init runs: STA_SUB_ASHLEY (Ashley with Leon,
 //                          02.11.2026)
@@ -284,6 +287,8 @@
 #include "mes.h"
 #include "game.h"
 #include "item.h"
+#include "puzzle.h"
+#include "sscrn.h"
 #include "joy.h"
 #include "pl_wep.h"
 #include "obj.h"
@@ -717,7 +722,9 @@ int g_testGameMode = -1;     // RE4_TEST_GAME_MODE
 int g_testMerc = 0;          // RE4_TEST_MERC
 long g_itemUseAfter = -1;    // RE4_TEST_ITEM_USE
 int g_itemUseId;
-long g_itemLoseAfter = -1;   // RE4_TEST_ITEM_LOSE
+long g_itemLoseAfter[8] = {-1, -1, -1, -1, -1, -1, -1, -1};  // RE4_TEST_ITEM_LOSE (up to eight)
+long g_fillAfter = -1;       // RE4_TEST_FILL_CASE
+int g_fillId[4] = {-1, -1, -1, -1};
 unsigned g_rsfRoom;          // RE4_TEST_RSF
 int g_sta[8], g_staCount;    // RE4_TEST_STA
 bool g_staDone;
@@ -752,7 +759,7 @@ unsigned g_killEvery;         // and the frames between them
 bool g_killHead;              // RE4_TEST_EM_KILL "head": a handgun shot in the head instead of the kill
 int g_rsf[8], g_rsfCount;
 bool g_rsfDone;
-int g_itemLoseId;
+int g_itemLoseId[8];
 long g_cheatAfter = -1;      // RE4_TEST_CHEATS
 int g_cheatActions[8], g_cheatCount;
 long g_streamAfter = -1;     // RE4_TEST_STREAM
@@ -2339,13 +2346,28 @@ void frame(unsigned n)
         re4_log("run: the player's head comes off at frame %u (RE4_TEST_HEAD_LOST), player type %u", n,
                 (unsigned) pG->pl_type);
     }
-    if (g_itemLoseAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_itemLoseAfter) {
-        g_itemLoseAfter = -1;
-        cItem* p = ItemMgr.search((u16) g_itemLoseId);
+    if (g_fillAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_fillAfter) {
+        g_fillAfter = -1;
+        for (int k = 0; k < 4 && g_fillId[k] >= 0; k++) {
+            int put = 0;
+            while (put < 80 && PutInCase((ITEM_ID) g_fillId[k], 0, (s8) SubScreenWk.board_size) == 1) {
+                put++;
+            }
+            re4_log("run: item 0x%02x put into the case %d times, then no room (RE4_TEST_FILL_CASE) at frame %u",
+                    g_fillId[k], put, n);
+        }
+    }
+    for (int k = 0; k < 8; k++) {
+        if (g_itemLoseAfter[k] < 0 || g_freeAt < 0 || (long) n < g_freeAt + g_itemLoseAfter[k]) {
+            continue;
+        }
+        g_itemLoseAfter[k] = -1;
+        const int id = g_itemLoseId[k];
+        cItem* p = ItemMgr.search((u16) id);
         if (p != 0) {
             ItemMgr.erase(p);
         }
-        re4_log("run: item 0x%02x %s the case (RE4_TEST_ITEM_LOSE) at frame %u", g_itemLoseId,
+        re4_log("run: item 0x%02x %s the case (RE4_TEST_ITEM_LOSE) at frame %u", id,
                 p == 0 ? "was not in" : "taken out of", n);
     }
     if (g_weaponAfter >= 0 && g_freeAt >= 0 && g_weaponAt < 0 && (long) n >= g_freeAt + g_weaponAfter &&
@@ -2978,14 +3000,30 @@ void configure()
             }
         }
     }
-    const char* itemLose = getenv("RE4_TEST_ITEM_LOSE");
-    if (itemLose && strncmp(itemLose, "free+", 5) == 0) {
-        char* end = 0;
-        g_itemLoseAfter = strtol(itemLose + 5, &end, 10);
-        g_itemLoseId = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
-        if (g_itemLoseId < 0) {
-            g_itemLoseAfter = -1;
+    if (const char* fill = getenv("RE4_TEST_FILL_CASE")) {
+        if (strncmp(fill, "free+", 5) == 0) {
+            char* end = 0;
+            g_fillAfter = strtol(fill + 5, &end, 10);
+            // ":ID[,ID...]": up to four kinds, each until there is no room
+            for (int k = 0; k < 4 && end && (*end == ':' || *end == ','); k++) {
+                g_fillId[k] = (int) strtol(end + 1, &end, 0);
+            }
+            if (g_fillId[0] < 0) {
+                g_fillAfter = -1;
+            }
         }
+    }
+    const char* itemLose = getenv("RE4_TEST_ITEM_LOSE");
+    // "free+N:ID[,free+M:ID]..." (up to eight; 0.99.10: room made in a full case)
+    for (int k = 0; k < 8 && itemLose && strncmp(itemLose, "free+", 5) == 0; k++) {
+        char* end = 0;
+        g_itemLoseAfter[k] = strtol(itemLose + 5, &end, 10);
+        g_itemLoseId[k] = end && *end == ':' ? (int) strtol(end + 1, &end, 0) : -1;
+        if (g_itemLoseId[k] < 0) {
+            g_itemLoseAfter[k] = -1;
+            break;
+        }
+        itemLose = end && *end == ',' ? end + 1 : 0;
     }
     const char* merc = getenv("RE4_TEST_MERC");
     g_testMerc = merc && *merc && *merc != '0';
