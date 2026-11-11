@@ -1102,7 +1102,11 @@ void SaveShot(re4gx::GxRenderer &renderer, const char *path) {
     return;
   std::vector<unsigned char> rgba(static_cast<size_t>(w) * h * 4);
   if (renderer.Api() == re4gx::GxApi::kVulkan) {
-    // Vulkan: the same picture read back (rows from the top: turned to GL's order, bottom up, for the BMP)
+    // Vulkan: the same picture read back (rows from the top: turned to GL's order, bottom up, for the BMP), without
+    // the minimap: its square counts in screen pixels (291 at 43, 43 on 1920 x 1080) and covered most of the XFB's
+    // 512 x 448 (the project owner's dumps 11.11.2026; GL draws it after Present, so its shots never had it). The
+    // next picture's present sets it again (drawGx: SetOverlay before every Present)
+    renderer.SetOverlay(re4gx::GxOverlay());
     std::vector<std::uint8_t> top;
     if (!renderer.ReadPresented(static_cast<int>(w), static_cast<int>(h), 0, 0, static_cast<int>(w),
                                 static_cast<int>(h), 0, 0, &top) || top.size() != rgba.size())

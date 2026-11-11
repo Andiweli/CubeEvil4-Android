@@ -82,6 +82,7 @@
 #include <string.h>
 
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" int re4_bench_freeze(void);  // runtime/benchmark.cpp: 1 while the benchmark goes to or is at its place
 extern "C" void re4_formats_part_loaded(const char* name, int nest, int index, const void* part, unsigned addr);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" void re4_qte_auto(int on);                          // runtime/qte_touch.cpp
@@ -524,6 +525,10 @@ int wantedBits()
 // (a new game after the ending asks for it)
 int wantedCostume()
 {
+    // the benchmark's place (0.99.10): its own save's costume, the same for everyone (see wantedChar)
+    if (re4_bench_freeze()) {
+        return -1;
+    }
     if (wantedBits() & kCostume) {
         return 1;
     }
@@ -539,6 +544,13 @@ bool costumeChange()
 
 int wantedChar()
 {
+    // the benchmark's place (0.99.10, the project owner's Retroid log 11.11.2026: "the story's player is Wesker from
+    // r11b on"): always Leon there, as its save has him, so that every device measures the same scene (another
+    // character has other files, his weapon module, Krauser's bow ...). The way back loads the player's own game,
+    // whose room start takes the cheat's character again
+    if (re4_bench_freeze()) {
+        return 0;
+    }
     int wanted = wantedBits();
     int type = (wanted & kChar) >> kCharShift;
     return type >= 2 && type <= 5 ? type : 0;

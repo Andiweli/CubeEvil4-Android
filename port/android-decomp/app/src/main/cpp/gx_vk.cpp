@@ -4082,10 +4082,12 @@ struct VkRenderer final : GxCore {
       GXLOG("Vulkan: the EFB at %d/2: %s", h, error.c_str());
     if (Image *x = ImageOf(xfbId))
       Rescaled(*x, xfbWidth, xfbHeight);
-    // the filters' pictures are of the old size: the next display copy makes them anew
-    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg, &colourImg, &crtLineImg, &crtGlowImg})
-      Trash(*img);
-    fxaaShown = sharpShown = psxShown = psxPrevValid = colourShown = crtReady = false;
+    // the filters' pictures stay shown until the next display copy makes them anew at the new size (FilterImage):
+    // dropped here, the screen showed the plain XFB for the refreshes in between, without the CRT's curved glass
+    // and its black border, the colour filter or the PSone look (the project owner's Retroid 11.11.2026, "CRT:
+    // strong": a short white flash all round at each step of "Dynamic", 3x <-> 3.5x every few seconds). GL kept
+    // the CRT's pictures already. Only the PSone filter's hold starts anew (its picture before is of the old size)
+    psxPrevValid = false;
     for (auto &c : copies)
       if (Image *img = ImageOf(c.second.id))
         Rescaled(*img, c.second.width, c.second.height);

@@ -3284,18 +3284,9 @@ void GlRenderer::RescaleHalves(int halves) {
   };
   if (m.xfbTex)
     m.xfbTex = rescaled(m.xfbTex, m.xfbWidth, m.xfbHeight, true);
-  if (m.fxaaTex) { // the smoothed copy is of the old size: the next display copy makes it anew
-    glDeleteTextures(1, &m.fxaaTex);
-    m.fxaaTex = 0;
-    m.fxaaTexW = m.fxaaTexH = 0;
-    m.fxaaShown = false;
-  }
-  if (m.sharpTex) { // the same for the sharpened copy
-    glDeleteTextures(1, &m.sharpTex);
-    m.sharpTex = 0;
-    m.sharpTexW = m.sharpTexH = 0;
-    m.sharpShown = false;
-  }
+  // the smoothed and the sharpened copies (and the CRT's, the colour filter's) stay shown until the next display copy
+  // makes them anew at the new size (FilterFxaa / FilterSharpen compare their size): dropped here, the refreshes in
+  // between showed the picture without them (0.99.10, as the Vulkan renderer, whose CRT flashed white all round)
   for (auto &c : m.copies) {
     if (!c.second.id)
       continue;

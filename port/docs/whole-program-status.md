@@ -323,6 +323,43 @@ anderen 3 wie gehabt und am Ende der grüne Benchmark Button … Die Texte darun
   142a52b8 kein Hängen oder Flackern der Menüs). Mit `TestLooper` läuft die Klasse durch (15 Tests, im Bericht die
   Zeile oben).
 
+### 8. Retroid-Berichte zu 0.99.10 (Schalldämpfer-Stand bbf433df): CRT-Blitzen, Minimap in Dumps, See (11.11.2026)
+
+Bericht des Projektinhabers (Adreno 650, Vulkan, EU-Discs): „Bei Verwendung des CRT Filters flackert es spontan
+rundherum kurz weiß auf … bei den gx-Dumps die Minimap riesengroß … wenn das Wasser am See im Hintergrund von Leon
+ist – ein Ghosting.“ Dateien `E:\Development\Android\reports\09910-crt-flicker-minimap-lake\`.
+
+- **CRT-Blitzen (behoben):** Im Log wechselte „Dynamisch“ alle 4–10 s zwischen 3× und 3,5×. Bei jedem Wechsel
+  verwarf der Vulkan-Renderer (`gx_vk.cpp` `RescaleHalves`) die Bilder aller Filter (FXAA, Nachschärfen, PSX, Farbe,
+  CRT) und setzte ihr „gezeigt“ zurück; bis zur nächsten Anzeige-Kopie des Spiels zeigten die Bildschirm-Auffrischungen
+  (60 Hz) das flache Bild ohne CRT-Glas, ohne dessen schwarzen, gewölbten Rand und ohne Maske: ein kurzes helles
+  Aufblitzen rundherum. GL behielt die CRT-Bilder schon, verwarf aber FXAA und Nachschärfen (ein Bild ohne sie). Jetzt
+  bleiben in beiden Renderern alle Filterbilder stehen, bis die nächste Anzeige-Kopie sie in der neuen Größe macht
+  (`FilterImage` / `FilterFxaa` vergleichen die Größe); nur die Halte-Stufe des PSX-Filters beginnt neu.
+  **Geprüft am PC:** `gx_chunk_render` (neu: mit `RE4_GX_RESCALE` und `RE4_GX_SCREEN` zusätzlich das Bild direkt nach dem
+  Stufenwechsel, `<Name>-rescaled-screen.ppm`), Dumps 00 des Inhabers (r100, CRT stark), Stufe 3× → 3,5× vor Bild 3,
+  Bildformat Nativ 960 × 540: vorher Vulkan (lavapipe, neuer Bau `port/build/app-host-vk` mit `RE4_BUILD_VK_CHECK=ON`)
+  ohne CRT direkt nach dem Wechsel (der Blitz), GL mit; nachher beide mit CRT. Mit PSX, Farbe, FXAA und Nachschärfen:
+  das Bild nach dem Wechsel gleich dem davor. Alle anderen Bilder Byte für Byte gleich. `gx_gl_check` 0 Fehler,
+  `core_mode.cpp`, `gx_vk.cpp`, `gx_gl.cpp` mit NDK r28c für beide ABIs `-Wall -Werror`.
+- **Minimap in den Dump-Bildern (behoben):** Die Bilder einer R3-Serie (`gx-geraet-NN-KK.bmp`, `SaveShot`) zeichnet
+  Vulkan mit `ReadPresented` in der Größe des XFB (512 × 448) samt Überlagerung; die Minimap zählt aber in
+  Bildschirm-Pixeln (291 bei 43, 43 auf 1920 × 1080) und deckte das halbe Bild zu. GL zeichnet sie nach `Present`,
+  dort war sie nie im Dump. Jetzt leert `SaveShot` die Überlagerung vor dem Auslesen (die nächste Bildschirm-Ausgabe
+  setzt sie wieder). Nur Diagnosebilder betroffen. Nicht am Gerät geprüft.
+- **Ghosting am See (nicht gefunden):** Die Dumps 01/02 (r11b, 142a52b8) sind echte Spielbilder: während einer
+  R3-Serie macht die App keine Zwischenbilder. Am PC nachgezeichnet (GL) sehen sie aus wie die Bilder des Geräts
+  (Vulkan); auch mit eingerechneten 60-FPS-Zwischenbildern (`RE4_GX_INTERP=1`) kein Doppelbild hinter Leon. Die
+  „doppelte“ Pistole in 02-03 zeigt auch der PC: wahrscheinlich Schlitten und Rahmen der Waffe von hinten. Ohne die
+  verdeckende Minimap braucht es neue Dumps mit einer Angabe, wo der Geist zu sehen ist, und den Vergleich 60 FPS an/aus.
+- **Benchmark mit gewählter Figur (behoben):** Der Benchmark lädt seinen eingebauten Spielstand (Leon); der Raumstart
+  der Figurenwahl machte daraus Wesker (Log: „the story's player is Wesker from r11b on“). Jetzt geben `wantedChar` und
+  `wantedCostume` (`runtime/cheats.cpp`) an der Benchmark-Stelle (`re4_bench_freeze`: auf dem Weg dorthin und dort)
+  keine Figur und kein Kostüm vor; der Rückweg lädt das eigene Spiel, dessen Raumstart die Figur wieder nimmt.
+  **Geprüft am PC:** EU- und US-Discs, Wesker gewählt, `RE4_TEST_BENCH` aus r101: an der Stelle keine Figurenzeile,
+  zurück in r101 „the story's player is Wesker“.
+- `last-crash`: der alte Fehlalarm „hang“ aus 142a52b8 (in bed2b9d4 behoben), kein Absturz.
+
 ### Prüfung: Funktionen aus DevJuniors Mod-Fork (11.11.2026, nur Plan)
 
 Auftrag des Projektinhabers („Ja, prüfen lassen“). Plan mit Tabelle und Nachrichtenentwurf:

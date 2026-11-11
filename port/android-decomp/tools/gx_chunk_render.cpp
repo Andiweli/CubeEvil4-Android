@@ -359,6 +359,37 @@ int main(int argc, char **argv) {
         std::printf("%s: EFB-Stufe %d/2 (Rescale), %.2f ms\n", Stem(path).c_str(), shownHalves, ms);
       else
         std::printf("%s: EFB-Stufe %d/2 (Rescale)\n", Stem(path).c_str(), shownHalves);
+      // with RE4_GX_SCREEN: the screen right after the step, before the next picture's display copy, as the app's
+      // refreshes in between show it (OUTPUT_DIR/<name>-rescaled-screen.ppm; 0.99.10: the Vulkan renderer showed the
+      // plain XFB there, without the CRT's glass and its black border, the colour or the PSone filter)
+      unsigned rxw = 0, rxh = 0;
+      if (screenW > 0 && renderer->Xfb(&rxw, &rxh) && rxh) {
+        re4mm::Rect rhud, rpic;
+        re4mm::PictureRects(screenFormat, screenW, screenH, static_cast<int>(rxh), &rhud, &rpic, renderer->XfbWide());
+        std::vector<std::uint8_t> shot;
+        bool read = false;
+        if (screenFormat == 5) {
+          const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
+          read = renderer->ReadPresented(screenW, screenH, rpic.x, rpic.y, rpic.w, rpic.h,
+                                         rxh * static_cast<unsigned>(v.top) / 448, rxh * static_cast<unsigned>(v.rows) / 448,
+                                         &shot);
+        } else if (screenFormat == 0 || screenFormat == 2) {
+          read = renderer->ReadPresented(screenW, screenH, rpic.x, rpic.y, rpic.w, rpic.h, rxh * 56 / 448, rxh * 336 / 448,
+                                         &shot);
+        } else {
+          read = renderer->ReadPresented(screenW, screenH, rpic.x, rpic.y, rpic.w, rpic.h, 0, 0, &shot);
+        }
+        const std::string file = out + "/" + Stem(path) + "-rescaled-screen.ppm";
+        if (read && shot.size() >= static_cast<std::size_t>(screenW) * screenH * 4) {
+          if (FILE *p = std::fopen(file.c_str(), "wb")) {
+            std::fprintf(p, "P6\n%d %d\n255\n", screenW, screenH);
+            for (int y = 0; y < screenH; y++)
+              for (int x = 0; x < screenW; x++)
+                std::fwrite(&shot[(static_cast<std::size_t>(y) * screenW + x) * 4], 1, 3, p);
+            std::fclose(p);
+          }
+        }
+      }
     }
     const re4gx::GxStats before = renderer->Stats();
     if (timed)
