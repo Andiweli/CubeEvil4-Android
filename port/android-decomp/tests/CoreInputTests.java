@@ -436,6 +436,40 @@ public final class CoreInputTests {
       k.key(1, L1, false);
       check(k.pad()[0] == 0);
       k.setLatch(false, false);
+      // 0.99.9: action and run swapped, R latched (aim): A fires, B reloads (not A and B together)
+      k.setControllerMap(com.ast.re4decomp.ActionMap.defaults(com.ast.re4decomp.ActionMap.KIND_CONTROLLER)
+          .assign(com.ast.re4decomp.ActionMap.ACTION, new int[] {B}));
+      k.key(1, R2, true);
+      k.key(1, A, true);
+      check(k.pad()[0] == (CoreInput.GC_R | CoreInput.GC_A));
+      k.key(1, A, false);
+      k.key(1, B, true);
+      check(k.pad()[0] == (CoreInput.GC_R | CoreInput.GC_B));
+      k.key(1, B, false);
+      k.key(1, R2, false);
+      k.pad();
+      k.setLatch(true, false);
+      k.key(1, R2, true);
+      k.pad();
+      k.key(1, R2, false);
+      check(k.pad()[6] == 255);  // latched
+      k.key(1, A, true);
+      int[] lq = k.pad();
+      check(lq[6] == 255 && (lq[0] & (CoreInput.GC_A | CoreInput.GC_B)) == CoreInput.GC_A);
+      k.key(1, A, false);
+      k.key(1, B, true);
+      lq = k.pad();
+      check(lq[6] == 255 && (lq[0] & (CoreInput.GC_A | CoreInput.GC_B)) == CoreInput.GC_B);
+      k.key(1, B, false);
+      k.key(1, R2, true);
+      k.pad();
+      k.key(1, R2, false);
+      check(k.pad()[6] == 0);  // let go again
+      k.key(1, A, true);
+      check(k.pad()[0] == CoreInput.GC_B);  // not aiming: A runs
+      k.key(1, A, false);
+      k.setLatch(false, false);
+      k.setControllerMap(own);
       // the alternate controls keep their layout
       k.setAlternate(true);
       check(k.gcButton(R1) == CoreInput.GC_Y && k.gcButton(L1) == CoreInput.GC_L);

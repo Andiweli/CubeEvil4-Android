@@ -89,6 +89,22 @@ unbekannt):
   32 ms je Bild); dort hilft „Frame skip: Aggressive“ (er hatte aus).
 - **Nicht geprüft:** auf einem Gerät (Mali, Retroid).
 
+### 4. Tastenbelegung: Zielen + A und Zielen + B schießen beide, Nachladen geht nicht (Nutzerbericht, ohne Bericht)
+
+- **Ursache (App, `ActionMap.buttons`):** Eine Kombination (Feuern = Zielen-Taste + zweite Taste) gab mit ihrer
+  zweiten Taste zusätzlich deren Einzelaktion ab. Mit der Vorgabe fällt das nicht auf (A ist Aktion = A, B ist
+  Rennen = B). Wer aber Aktion und Rennen tauscht (A rennt, B handelt), bekam bei R2 + A „R + A (Feuern) + B
+  (Rennen)“ und bei R2 + B „R + B (Nachladen) + A (Aktion)“: beide Male A und B zusammen, das Spiel schießt.
+  Gleiches, wenn Feuern und Nachladen getauscht oder auf dieselben zwei Tasten gelegt werden (die Zuweisung
+  tauschte Kombinationen nicht). Der alte Test hielt das sogar fest (`press(s, R2, A) == R|A|B`).
+- **Behebung:** Solange die erste Taste einer Kombination gehalten wird, gibt ihre zweite Taste nur die
+  Kombination. Eine Kombination, deren zwei Tasten eine andere schon hat, tauscht mit ihr (wie die Einzelaktionen;
+  die Meldung „Reload is now on …“ kommt von selbst). Ein eingerastetes L oder R („Latch L and R“) zählt als
+  gehaltene erste Taste von Feuern, Nachladen und Messerhieb (vorher gaben dort nur die Einzelaktionen A und B).
+  Die Vorgabe, die alternative Steuerung und die Spielmenüs bleiben, wie sie waren.
+- **Geprüft (Host-Tests):** ActionMapTests 60, CoreInputTests 1833, CoreTouchTests 299 Prüfungen ok (neu: Aktion
+  und Rennen getauscht, Feuern und Nachladen getauscht, eingerastetes Zielen). **Nicht geprüft:** auf einem Gerät.
+
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since

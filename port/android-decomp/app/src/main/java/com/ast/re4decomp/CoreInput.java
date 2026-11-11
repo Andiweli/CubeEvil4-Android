@@ -545,14 +545,10 @@ public final class CoreInput {
         d.trigL = d.lt >= (d.trigL ? LATCH_RELEASE : LATCH_PRESS);
         d.trigR = d.rt >= (d.trigR ? LATCH_RELEASE : LATCH_PRESS);
         final Device dev = d;
-        int bits = m.buttons(code -> dev.held.contains(code) || code == KEYCODE_BUTTON_L2 && (dev.trigL || dev.l2Key)
-            || code == KEYCODE_BUTTON_R2 && (dev.trigR || dev.r2Key));
-        for (int code : d.held) bits |= d.keyboard ? ActionMap.fixedKeyboardButton(code) : dpad(code);
-        if (!d.keyboard) bits |= d.hats;
-        d.mapped = bits;
+        int bits = m.buttons(mappedHeld(d));
+        d.mapped = bits;  // (again below, after the latching)
         if ((bits & GC_L) != 0) padL = 1f;
         if ((bits & GC_R) != 0) padR = 1f;
-        padB |= (bits & GC_B) != 0;
         continue;
       }
       if (d.keyboard) continue;
@@ -570,6 +566,17 @@ public final class CoreInput {
       pressedR = downR;
       padL = latchedL ? 1f : 0f;
       padR = latchedR ? 1f : 0f;
+    }
+    // the mapping's buttons: a latched L or R holds its combinations (fire, reload, slash: their second key alone);
+    // B through its latching below
+    for (Map.Entry<Integer, Device> e : devices.entrySet()) {
+      Device d = e.getValue();
+      if (e.getKey() == TOUCH || d.mapped < 0) continue;
+      int bits = mapping(d.keyboard).buttons(mappedHeld(d), latchLR && latchedR, latchLR && latchedL);
+      for (int code : d.held) bits |= d.keyboard ? ActionMap.fixedKeyboardButton(code) : dpad(code);
+      if (!d.keyboard) bits |= d.hats;
+      d.mapped = bits;
+      padB |= (bits & GC_B) != 0;
     }
     if (latchB) {
       if (padB && !pressedB) latchedB = !latchedB;
@@ -678,6 +685,12 @@ public final class CoreInput {
     lastButtons = buttons;
     return new int[] {buttons, raw(lx, MAIN_RAW), raw(-ly, MAIN_RAW), raw(rx, C_RAW),
         raw(-ry, C_RAW), Math.round(lt * 255f), Math.round(rt * 255f)};
+  }
+
+  /** The keys a mapped device holds: its keys, the triggers past half way as L2 and R2. */
+  private static ActionMap.Held mappedHeld(Device d) {
+    return code -> d.held.contains(code) || code == KEYCODE_BUTTON_L2 && (d.trigL || d.l2Key)
+        || code == KEYCODE_BUTTON_R2 && (d.trigR || d.r2Key);
   }
 
   private static int raw(float v, float range) {

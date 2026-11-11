@@ -13,7 +13,11 @@ import java.util.Arrays;
  * A single action presses its GameCube button while its key is held. A combination (fire, reload,
  * slash) presses the button of the action it holds first (aim: R, knife: L) while its first key is
  * held, and its own (A, B) while the second is held too; the second key alone does only what it does
- * as a single action, if anything. The quick turn (back and run) and the quick-time events (A+B, L+R)
+ * as a single action, if anything. While a combination's first key is held, its second key does only the
+ * combination, not its single action as well (0.99.9, user report 10.11.2026: action and run swapped,
+ * R2 + A and R2 + B both gave aim with A and B together, the game fired with both and never reloaded);
+ * a latched L or R (the menu's "Latch L and R") counts as the first key held of the combinations that
+ * hold aim or the knife. The quick turn (back and run) and the quick-time events (A+B, L+R)
  * follow from the keys of their actions. Moving (keyboard only; the controller's left stick) tilts the
  * control stick fully.
  */
@@ -155,8 +159,9 @@ public final class ActionMap {
   /**
    * `action` on `newKeys` (one key for a single action, two different ones for a combination); null when
    * they do not fit, a key is a fixed keyboard key (or the controller's D-pad) or the action is not on this kind's page. A single
-   * action's key that another single action had goes to that one's old key (they swap); combinations
-   * may share keys with the others (aim's key is fire's first).
+   * action's key that another single action had goes to that one's old key (they swap); so do the keys of a
+   * combination that another combination had (0.99.9: fire and reload on the same two keys fired and never
+   * reloaded); combinations may share single keys with the others (aim's key is fire's first).
    */
   public ActionMap assign(int action, int[] newKeys) {
     if (!available(kind, action) || newKeys == null) return null;
@@ -166,13 +171,13 @@ public final class ActionMap {
       if (k <= 0 || (kind == KIND_KEYBOARD ? fixedKeyboardButton(k) != 0 : CoreInput.dpad(k) != 0)) return null;
     }
     ActionMap m = copy();
-    if (need == 1) {
-      int[] old = m.keys[action];
-      for (int a = 0; a < ACTIONS; a++) {
-        if (a != action && !combination(a) && m.keys[a].length == 1 && m.keys[a][0] == newKeys[0]) {
-          m.keys[a] = old.clone();
-        }
-      }
+    int[] old = m.keys[action];
+    for (int a = 0; a < ACTIONS; a++) {
+      if (a == action || combination(a) != (need == 2) || m.keys[a].length != need) continue;
+      boolean same = need == 1 ? m.keys[a][0] == newKeys[0]
+          : m.keys[a][0] == newKeys[0] && m.keys[a][1] == newKeys[1]
+              || m.keys[a][0] == newKeys[1] && m.keys[a][1] == newKeys[0];
+      if (same) m.keys[a] = old.clone();
     }
     m.keys[action] = newKeys.clone();
     return m;
@@ -194,17 +199,35 @@ public final class ActionMap {
   public interface Held { boolean held(int keyCode); }
 
   /** The GameCube buttons the held keys press. */
-  public int buttons(Held h) {
+  public int buttons(Held h) { return buttons(h, false, false); }
+
+  /**
+   * The GameCube buttons the held keys press, with R (aim) or L (the knife) latched: the combinations that hold
+   * it then act on their second key alone. The second key of a combination that acts (its first key held, or
+   * its hold latched) gives only the combination's button, not its single action's as well (see above).
+   */
+  public int buttons(Held h, boolean aimLatched, boolean knifeLatched) {
     int out = 0;
+    int[] taken = new int[ACTIONS];
+    int nTaken = 0;
     for (int a = 0; a < ACTIONS; a++) {
       int[] k = keys[a];
-      if (k.length == 0 || !h.held(k[0])) continue;
-      if (HOLD[a] < 0) {
+      if (HOLD[a] < 0 || k.length != 2) continue;
+      boolean first = h.held(k[0]);
+      boolean latched = HOLD[a] == AIM ? aimLatched : HOLD[a] == KNIFE && knifeLatched;
+      if (!first && !latched) continue;
+      if (first) out |= OUT[HOLD[a]];
+      if (h.held(k[1])) {
         out |= OUT[a];
-      } else {
-        out |= OUT[HOLD[a]];
-        if (h.held(k[1])) out |= OUT[a];
+        taken[nTaken++] = k[1];
       }
+    }
+    for (int a = 0; a < ACTIONS; a++) {
+      int[] k = keys[a];
+      if (HOLD[a] >= 0 || k.length != 1 || !h.held(k[0])) continue;
+      boolean quiet = false;
+      for (int i = 0; i < nTaken; i++) quiet |= taken[i] == k[0];
+      if (!quiet) out |= OUT[a];
     }
     return out;
   }

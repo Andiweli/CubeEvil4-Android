@@ -59,7 +59,25 @@ public final class ActionMapTests {
     check(s.keys(ActionMap.ACTION)[0] == L1 && s.keys(ActionMap.RUN)[0] == A);
     check(press(s, A) == CoreInput.GC_B && press(s, L1) == CoreInput.GC_A);
     // combinations keep their keys (fire is still R2 + A)
-    check(press(s, R2, A) == (CoreInput.GC_R | CoreInput.GC_A | CoreInput.GC_B));
+    check(press(s, R2, A) == (CoreInput.GC_R | CoreInput.GC_A));
+    // 0.99.9 (user report 10.11.2026): action and run swapped; aim + A fires, aim + B reloads, not both A and B
+    ActionMap ab = c.assign(ActionMap.ACTION, new int[] {B});
+    check(ab.keys(ActionMap.RUN)[0] == A && press(ab, A) == CoreInput.GC_B && press(ab, B) == CoreInput.GC_A);
+    check(press(ab, R2, A) == (CoreInput.GC_R | CoreInput.GC_A));
+    check(press(ab, R2, B) == (CoreInput.GC_R | CoreInput.GC_B));
+    check(press(ab, L2, A) == (CoreInput.GC_L | CoreInput.GC_A));  // slash, no run with it
+    check(press(ab, L2, B) == (CoreInput.GC_L | CoreInput.GC_A));  // B's action (A) with the knife, as before
+    // fire and reload swapped (fire on R2 + B, reload goes to fire's old R2 + A)
+    ActionMap fr = c.assign(ActionMap.FIRE, new int[] {R2, B});
+    check(fr.keys(ActionMap.RELOAD)[0] == R2 && fr.keys(ActionMap.RELOAD)[1] == A);
+    check(press(fr, R2, B) == (CoreInput.GC_R | CoreInput.GC_A) && press(fr, R2, A) == (CoreInput.GC_R | CoreInput.GC_B));
+    check(press(fr, A) == CoreInput.GC_A && press(fr, B) == CoreInput.GC_B);  // alone: action and run
+    check(c.assign(ActionMap.FIRE, new int[] {B, R2}).keys(ActionMap.RELOAD)[1] == A);  // the other order too
+    // a latched aim: fire's and reload's second key alone (the right one with the swapped action and run)
+    check(ab.buttons(code -> code == A, true, false) == CoreInput.GC_A);
+    check(ab.buttons(code -> code == B, true, false) == CoreInput.GC_B);
+    check(ab.buttons(code -> code == A, false, true) == CoreInput.GC_A);  // the knife latched: A slashes
+    check(c.buttons(code -> code == A, true, false) == CoreInput.GC_A && c.buttons(code -> code == B, true, false) == CoreInput.GC_B);
     // the app's menu moves like any single action
     ActionMap menu = c.assign(ActionMap.APP_MENU, new int[] {CoreInput.KEYCODE_BUTTON_THUMBR});
     check(menu.singleOn(CoreInput.KEYCODE_BUTTON_THUMBR) == ActionMap.APP_MENU
