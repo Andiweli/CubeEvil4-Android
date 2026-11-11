@@ -145,8 +145,89 @@ const char* actionName(int what)
         return "+1000000 pesetas";
     case 4:
         return "extra games";
+    case 10:
+        return "Krauser's bow and arrows";
     }
     return "?";
+}
+
+// ---- Krauser's bow in the story (0.99.10, a user's wish through the project owner, 11.11.2026) -------------------
+// His bow is item 0x52 (weapon 0x1C, his own file: ownWeapon; read.cpp wep_data_klauser 0x1C), its arrows are item
+// 0x72 (20 a slot, item.cpp itemInfo; cItemMgr::trigger takes one a shot, nothing with "Infinite ammo"); his
+// Mercenaries start with the bow and 30 arrows (item.cpp set_char 4). The story has no arrows to find and the
+// merchant sells none: the button fills them up. Leon and the other stand-ins have no file for weapon 0x1C
+// (wep_data_leon 0x1C is empty): the bow and the arrows leave the case at the room start when anyone but Krauser
+// plays (re4_story_char_room), and saves on the memory card never hold them (re4_story_char_card_items: a save is
+// Leon's, for the GameCube and Dolphin as well).
+const u16 kBow = 0x52, kArrows = 0x72;
+const u8 kBowWeapon = 0x1C;   // the bow's weapon number (item.cpp wep_info)
+const int kArrowSlot = 20;    // item.cpp itemInfo 0x72: maxNum
+const int kArrowsGiven = 40;  // two full slots
+
+// The button: the bow when it is missing and the arrows up to 40 (the slots there filled up first). 1 the bow
+// added, 2 it was there (arrows refilled), -1 no room for the bow.
+int giveBow()
+{
+    int result = 1;
+    cItem* bow = ItemMgr.search(kBow);
+    if (bow) {
+        result = 2;
+    } else if (!ItemMgr.get(kBow, 0) || !(bow = ItemMgr.search(kBow))) {
+        re4_log("cheat: %s: no free slot in the inventory", actionName(10));
+        return -1;
+    }
+    int had = 0, have = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+        if ((p->flags & 1) && p->type == bow->type && p->id == kArrows) {
+            had += p->num;
+            if (p->num < kArrowSlot) {
+                p->num = kArrowSlot;
+            }
+            have += p->num;
+        }
+    }
+    while (have < kArrowsGiven) {
+        if (!ItemMgr.get(kArrows, kArrowSlot)) {
+            re4_log("cheat: %s: no free slot for more arrows", actionName(10));
+            break;
+        }
+        have += kArrowSlot;
+    }
+    re4_log("cheat: %s %s, arrows %d -> %d", actionName(10), result == 2 ? "kept" : "added", had, have);
+    return result;
+}
+
+// The bow and the arrows out of the case (anyone but Krauser plays); `why` for the log.
+void stripBow(const char* why)
+{
+    int bows = 0, arrows = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+        if (!(p->flags & 1) || (p->id != kBow && p->id != kArrows)) {
+            continue;
+        }
+        if (p->id == kBow) {
+            bows++;
+        } else {
+            arrows += p->num;
+        }
+        if (p == ItemMgr.weapon()) {
+            ItemMgr.arm(0);
+        }
+        ItemMgr.dumpAll(p);
+    }
+    // the weapon the room start reads (ReadWepData with pG->weapon_no): empty hands (wep_info 0x800: weapon 0)
+    // instead of the bow (the PC check 11.11.2026: Leon read weapon 0x1C, an empty entry, and crashed)
+    const bool held = pG->weapon_no == kBowWeapon;
+    if (held) {
+        pG->weapon_no = 0;
+        pG->weapon_type = 0;
+    }
+    if (bows || arrows || held) {
+        re4_log("cheat: Krauser's bow (%d) and %d arrows out of the case%s: %s", bows, arrows,
+                held ? ", empty hands instead of the bow" : "", why);
+    }
 }
 
 bool extrasUnlocked()
@@ -1059,6 +1140,14 @@ int re4CheatPerform(int what)
         addMoney(1000000);
         re4_log("cheat: %s: %u pesetas", actionName(what), (unsigned) pG->peseta);
         break;
+    case 10:
+        // Krauser's bow: only while he plays the story (-6: the app says so)
+        if (pG->pl_type != 4 || !standIn()) {
+            re4_log("cheat: %s only while Krauser plays the story (player %s)", actionName(what),
+                    kCharName[pG->pl_type & 7]);
+            return -6;
+        }
+        return giveBow();
     default:
         return 0;
     }
@@ -1156,6 +1245,55 @@ void re4_story_char_room(void)
         }
     }
     re4_story_ganado = standIn() && gSetType == pG->pl_type;
+    // Krauser's bow (0.99.10): nobody else has a file for it; Ashley's part keeps Leon's case as it is
+    if (pG->pl_type != 4 && pG->pl_type != 1) {
+        char why[48];
+        snprintf(why, sizeof(why), "%s plays from r%03x on", kCharName[pG->pl_type & 7], (unsigned) pG->room_id);
+        stripBow(why);
+    }
+}
+
+// Patch 0228 (card.cpp cCard::makeSaveData): the save file's image without Krauser's bow and arrows, as it is Leon's
+// save (re4_story_char_save): `items` its item block (cItemMgr::save's _ITEM_SAVE_DATA, host order), `game` its
+// copy of the save block that starts at pG->save_data_start_addr (the weapon a load reads: empty hands instead of the
+// bow). Only the file's image: the game plays on with the case as it is, and the continue point (made just before
+// from the game) keeps the bow too. Only in the story (Krauser's Mercenaries do not save).
+void re4_story_char_card_items(u8* game, u8* items)
+{
+    if (!pG || !storyGame()) {
+        return;
+    }
+    const u8* start = (const u8*) pG->save_data_start_addr;
+    u8* weaponNo = game + ((const u8*) &pG->weapon_no - start);
+    u8* weaponType = game + ((const u8*) &pG->weapon_type - start);
+    const bool held = *weaponNo == kBowWeapon;
+    if (held) {
+        *weaponNo = 0;
+        *weaponType = 0;
+    }
+    _ITEM_SAVE_DATA* sd = (_ITEM_SAVE_DATA*) items;
+    int bows = 0, arrows = 0;
+    for (int i = 0; i < 0x180; i++) {
+        const u16 id = sd->item_list[i].id;
+        if (id == 0xFFFF || ((id & 0x7FFF) != kBow && (id & 0x7FFF) != kArrows)) {
+            continue;
+        }
+        if ((id & 0x7FFF) == kBow) {
+            bows++;
+        } else {
+            arrows += sd->item_list[i].num;
+        }
+        memset(&sd->item_list[i], 0, sizeof(sd->item_list[i]));
+        sd->item_list[i].id = 0xFFFF;
+        if (sd->arm_no == i) {
+            sd->arm_no = 0xFFFF;
+            sd->wep_id = bareHand();
+        }
+    }
+    if (bows || arrows || held) {
+        re4_log("cheat: the save on the memory card without Krauser's bow (%d) and %d arrows%s (Leon's save)", bows,
+                arrows, held ? ", empty hands instead of the bow" : "");
+    }
 }
 
 // Patch 0222 (game.cpp GameContinue, right after GameSave.load): the continue point of a stand-in holds Leon

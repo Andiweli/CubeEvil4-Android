@@ -214,6 +214,17 @@ Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-ch
   Entwickler-Hälfte von MEM1 (0x82000000, frei): Zwischensequenzen und Funkbildschirm zeigen **Leon** (ihre Bewegungen und
   Teile sind seine), Funkgerät, Raketenwerfer, Minen, Pfeife und fehlende Bewegungen kommen von dort.
 
+### Krausers Bogen (0.99.10, Nutzerwunsch über den Projektinhaber, 11.11.2026)
+
+- Knopf „Krauser's bow“ unter den Figuren (Cheat-Knopf 10, `runtime/cheats.cpp` `giveBow`), nur mit Krauser
+  wählbar: Bogen (Gegenstand 0x52, Waffe 0x1C, Krausers eigene Datei) und Pfeile (0x72, 20 je Feld) bis 40; erneut
+  drücken füllt nach, „Infinite ammo“ verbraucht keine. Mit einer anderen Figur antwortet der Kern −6 („Only while
+  Krauser plays the story“).
+- Leon und die anderen Stellvertreter haben keine Datei für Waffe 0x1C (`wep_data_leon` 0x1C leer): beim Raumstart
+  (`re4_story_char_room`) verlassen Bogen und Pfeile den Koffer, sobald nicht Krauser spielt (Ashleys
+  Abschnitt ausgenommen). Spielstände auf der Speicherkarte (Patch 0228, `cCard::makeSaveData`) enthalten sie nie;
+  das laufende Spiel und der Fortsetzungspunkt behalten sie.
+
 ### Grenzen (bewusst so)
 
 - Zwischensequenzen, Funksprüche und Leons Stimme bleiben Leon; die Figur erscheint im Spiel selbst.

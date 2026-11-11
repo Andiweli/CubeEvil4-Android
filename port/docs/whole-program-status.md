@@ -7,7 +7,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 Version 0.99.10-rc (versionCode 112), Releasetext `port/android-decomp/docs/releases/v0.99.10-rc.md` („Changes since
 v0.99.9.“, Known issues aus 0.99.9 übernommen). Basis bbbbff7c = master = 0.99.9-rc mit der README des Inhabers.
-Nächste freie Patchnummer 0228. `AppUpdate.compare` vergleicht Zahl für Zahl: 0.99.10 gilt als neuer als 0.99.9
+Nächste freie Patchnummer 0229 (0228: Krausers Bogen, Abschnitt 6). `AppUpdate.compare` vergleicht Zahl für Zahl: 0.99.10 gilt als neuer als 0.99.9
 (neue Prüfung in `AppUpdateTest`).
 
 ### 1. Navigationsleiste im App-Menü (Wunsch des Projektinhabers, Screenshot eines Samsung im Querformat)
@@ -97,6 +97,41 @@ wurde nur die halb verdeckte Lebensanzeige behoben (8a5959a6).
   `core_mode.cpp` mit NDK r28c für armeabi-v7a und arm64 mit `-Wall -Werror` ohne Befund.
 - **Nicht geprüft:** auf einem Gerät; Akten-Liste und Händler selbst nicht angespielt (gleiche Ursache, am Koffer
   und an der Karte geprüft); Fingertipps in Untermenüs bei „4:3“.
+
+### 6. Krausers Bogen in der Geschichte (Nutzerwunsch über den Projektinhaber, Patch 0228)
+
+„please add kross bow for Krauser in storymode“ (mit dem Figuren-Cheat). Plan und Grenzen: `port/docs/cheat-menu-plan.md`
+Abschnitt „Krausers Bogen“.
+
+- **Grundlage:** Bogen = Gegenstand 0x52 (Waffe 0x1C, Krausers eigene Datei `wep_data_klauser` 0x1C, `ownWeapon`),
+  Pfeile = Gegenstand 0x72 (20 je Feld; `cItemMgr::trigger` nimmt einen je Schuss, „Infinite ammo“ keinen); Krausers
+  Mercenaries beginnen mit Bogen und 30 Pfeilen (`item.cpp` `set_char` 4). In der Geschichte gibt es keine Pfeile zu
+  finden, der Händler verkauft keine. Leons Tabelle hat für Waffe 0x1C keinen Eintrag (`wep_data_leon` 0x1C leer).
+- **Gebaut (`runtime/cheats.cpp`):** Cheat-Knopf 10 `giveBow`: nur während Krauser die Geschichte spielt (sonst −6),
+  der Bogen, wenn er fehlt, und die Pfeile auf 40 (vorhandene Felder erst auf 20). Beim Raumstart (`re4_story_char_room`)
+  verlassen Bogen und Pfeile den Koffer, sobald jemand anderes als Krauser spielt (Ashleys Abschnitt ausgenommen); war
+  der Bogen in der Hand, werden es leere Hände (`pG->weapon_no` 0: sonst las der Raumstart Waffe 0x1C für Leon, leerer
+  Eintrag, Absturz im ersten PC-Lauf). **Patch 0228** (`card.cpp` `cCard::makeSaveData` → `re4_story_char_card_items`):
+  die Spielstand-Datei (immer Leons, Patch 0195) ohne Bogen und Pfeile, ein Bogen in der Hand wird leere Hände (Platz
+  und `weapon_no`/`weapon_type` des Spielblocks); nur das Bild der Datei, das Spiel und der Fortsetzungspunkt behalten
+  den Bogen. (Ein erster Entwurf hängte sich zusätzlich in `cCard::loadMain` ein; das war der Ladeweg, wieder heraus.)
+  `core_api.cpp`: Knopf 10 zugelassen. Prüfhilfe `RE4_TEST_ARM="free+N:ID"` (`state_trace.cpp`: Gegenstand
+  ausrüsten wie „Equip“ im Koffer).
+- **App:** Knopf „Krauser's bow“ unter den Figuren (ein Drittel, unter „Krauser“), nur mit Krauser gewählt bedienbar,
+  eigene Antwortzeile darunter („Done“, „already owned: arrows refilled“, „Only while Krauser plays the story“),
+  Hilfetext; 4 Texte in 11 Sprachen. `CoreMenuShotTest`: die Bildwiederholrate `displayHz` (double) im Ersatz-Host (die
+  Bilder brachen seit 0.99.9 ab).
+- **Geprüft am PC (i686 -O2, `~/p09910/bowtests.sh`, Logs `~/p09910/bowtests2.log`):** EU r101 (Krauser per Debug-Start):
+  Bogen, 40 Pfeile, ausgerüstet, gezielt, geschossen: Pfeil-Symbol im Ring, 40 → 38 → 37 → 34 → 31; US r101 ebenso
+  (40 → 37); EU r200, r213, r305 ohne Absturz (r305: Krausers Pfeile mit roten Federn stecken in der Wand, 37 → 32); im
+  Protokoll keine Umleitung auf Leons Requisiten 0x70.. (`re4_story_char_leon_weapon` ist für 0x1C falsch). Wechsel
+  Krauser → Leon (Cheat) mit Bogen in der Hand: „out of the case, empty hands instead of the bow“, Leon spielt weiter.
+  Knopf mit Leon: abgelehnt. Speichern an der Schreibmaschine (Debug r100, frische Karte): Datei ohne Bogen, CRC in
+  Ordnung (`memcard_list.py`), Krauser hat danach den Bogen weiter; Laden als Leon: kein Bogen; Laden mit Krauser: kein
+  Bogen, der Knopf gibt ihn neu; Speichern mit Bogen in der Hand, Laden als Leon: leere Hände, Pistole ausrüstbar.
+  `whole_build.sh` i686 -O2 alle Prüfungen grün; App-Tests je 92; `check_translations.py` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät; Händler (Verkaufen des Bogens), Instant-Spielstand mit Bogen (beim Laden als Leon
+  greift der Raumstart), Kämpfe gegen Bosse mit dem Bogen; JP-Discs.
 
 ### 2./3. Benchmark beim ersten Start und Leistungsprofile (Wünsche des Projektinhabers): nur geplant
 
@@ -15014,6 +15049,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0225 `roomdata.cpp` | Port-Fehler (`.gci`-Import bis 0.99.6, `runtime/gci.cpp` drehte `RoomNo` als u16): `cRoomData::load`/`clear` drehen die Kennungen der Raum-Datensätze eines Spielstands zurück, wenn mit umgedrehten Kennungen mehr Räume passen als mit den eigenen (Spielstände der App bleiben unberührt). Vorher verloren importierte Spielstände 109 von 121 Räumen, r102/r201, r103/r301, r204/r402, r304/r403 tauschten ihre Merker (Garrador in r201 angekettet, Schlüssel fehlt). Nutzerbericht 09.11.2026 (17 `.gci`, EU) |
 | 0226 `r201.cpp` | Sicherheitsnetz neben 0225: Merker 0 von r201 („Garrador tot“) ohne sein Todes-Bit in der Gegnerliste (Eintrag 0x56) wird zurückgesetzt, der Garrador kommt frei (nicht bei Sprungpunkt 2). Für Spielstände, die nach einem alten Import in der App neu gespeichert wurden. Nutzerbericht 09.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
+| 0228 `card.cpp` | Krausers Bogen in der Geschichte (0.99.10, Nutzerwunsch über den Projektinhaber, Cheat-Knopf 10, `runtime/cheats.cpp` `giveBow`): `cCard::makeSaveData` lässt im Bild der Spielstand-Datei Bogen (0x52) und Pfeile (0x72) weg und macht aus dem Bogen in der Hand leere Hände (belegter Platz, `weapon_no`/`weapon_type` des Spielblocks), denn ein Spielstand ist immer Leons und Leon hat keine Datei für Waffe 0x1C (`re4_story_char_card_items`). Das laufende Spiel und der Fortsetzungspunkt behalten den Bogen. Port-Funktion |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

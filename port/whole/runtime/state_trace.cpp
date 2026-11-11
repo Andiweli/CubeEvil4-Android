@@ -90,7 +90,8 @@
 //                          facing (his model matrix's z axis) into FILE ("pose x y z fx fz room", then
 //                          "x0 z0 x1 z1 y" per edge) for tools/minimap_check.cpp
 //   RE4_TEST_CHEATS="free+N:A[,A...]"  N frames after the player is free, the
-//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games)
+//                          cheat menu's buttons A (1 Killer7, 2 case L, 3 money, 4 extra games,
+//                          5..9 weapons, 10 Krauser's bow)
 //                          one a frame, as the app's menu presses them while the
 //                          game runs (runtime/cheats.cpp; the switches: RE4_CHEATS)
 //   RE4_PAD_FREE_SCRIPT    pad.cpp: a test script started once the player is
@@ -197,6 +198,9 @@
 //                          weapon object is made again from the weapon file already read (weaponRelease,
 //                          weaponInit, as PlChangeData does after a costume change): a type the file was
 //                          not read for (HUNK's TMP file with the stock's type, patch 0206)
+//   RE4_TEST_ARM="free+N:ID"  N frames after the player is free, the case's item ID (hex) is armed and its weapon
+//                          file read and made, as the case's "Equip" does (weaponRelease, weaponLoad, weaponInit):
+//                          Krauser's bow 0x52 from the cheat button 10 (0.99.10)
 //   RE4_TEST_ASHLEY_DIES="free+N"  N frames after the player is free, Ashley's life becomes 0 once: the
 //                          player's dejection (routine 6) before the game over (0.99.3, Ada's pose)
 //   RE4_TEST_PL_MOTION="free+N:IDX[-LAST/EVERY][,SEQ][,own]"  N frames after the player is free, Leon's
@@ -719,6 +723,8 @@ long g_ashleyDiesAfter = -1; // RE4_TEST_ASHLEY_DIES
 long g_plMotionAfter = -1;   // RE4_TEST_PL_MOTION
 unsigned g_plMotion, g_plMotionLast, g_plMotionEvery, g_plMotionSeq;
 bool g_plMotionOwn;
+long g_armAfter = -1;        // RE4_TEST_ARM
+int g_armItem;
 long g_wepTypeAfter = -1;    // RE4_TEST_WEPTYPE
 long g_benchAt[4] = {-1, -1, -1, -1};  // RE4_TEST_BENCH
 int g_benchCmd[4];
@@ -2188,6 +2194,21 @@ void frame(unsigned n)
         pPL->weaponInit();
         re4_log("run: weapon %d made again with type %d at frame %u (RE4_TEST_WEPTYPE)", (int) g->weapon_no, g_wepType, n);
     }
+    // RE4_TEST_ARM (0.99.10): an item of the case armed, its weapon file read and made, as the case's "Equip"
+    if (g_armAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_armAfter && g->Rno0 == 3 && live(pPL)) {
+        g_armAfter = -1;
+        cItem* it = ItemMgr.search((ITEM_ID) g_armItem);
+        if (it && ItemMgr.arm(it)) {
+            pPL->weaponRelease();
+            // as the case asks for it (ss_pzzl.cpp: weaponChangeRequest with the weapon's number and type)
+            pPL->weaponLoad(WeaponId2WeaponNo(ItemMgr.weaponId()), WeaponId2WeaponType(ItemMgr.weaponId()));
+            pPL->weaponInit();
+            re4_log("run: item 0x%02x armed, weapon 0x%02x made at frame %u (RE4_TEST_ARM)", g_armItem,
+                    (unsigned) g->weapon_no, n);
+        } else {
+            re4_log("run: item 0x%02x not in the case or not armable at frame %u (RE4_TEST_ARM)", g_armItem, n);
+        }
+    }
     // RE4_TEST_PL_MOTION: an archive motion IDX (and sequence SEQ) on the player as the player routines start
     // them (MotionSetCore ..., 3, 1, 0), held in routine 6/1 (pl_R0_Dijection only moves the motion on): what a
     // stand-in looks like with a motion of Leon's it lacks (cheats.cpp re4_arc_stand_in; 0.99.3, Ada's pose).
@@ -2797,6 +2818,13 @@ void configure()
             g_benchAt[i] = strtol(at + (g_benchTitle[i] ? 6 : 5), &end, 10);
             g_benchCmd[i] = end && *end == ':' ? (int) strtol(end + 1, &end, 10) : 0;
             at = end && *end == ',' ? end + 1 : 0;
+        }
+    }
+    if (const char* arm = getenv("RE4_TEST_ARM")) {
+        if (strncmp(arm, "free+", 5) == 0) {
+            char* end = 0;
+            g_armAfter = strtol(arm + 5, &end, 10);
+            g_armItem = end && *end == ':' ? (int) strtoul(end + 1, 0, 16) : 0;
         }
     }
     if (const char* wt = getenv("RE4_TEST_WEPTYPE")) {

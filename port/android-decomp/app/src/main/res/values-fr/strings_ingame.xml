@@ -287,6 +287,10 @@
     <string name="ingame_cheat_costume_note">(Leon/Ashley seulement)</string>
     <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon dans l\'histoire : la pièce se recharge là où tu te trouves (pendant une cinématique, à partir de la pièce suivante). La mallette, la vie et l\'argent de Leon restent ; les armes sans modèle propre au personnage montrent celles de Leon. La partie d\'Ashley reste à Ashley, les cinématiques et les appels radio montrent toujours Leon. Tes sauvegardes gardent toujours Leon : elles se chargent avec le personnage choisi ici. Les personnages autres que Leon ne sont pas prévus pour le jeu principal, donc en choisir un affiche d\'abord un avertissement\u00A0: «\u00A0J\'ai compris\u00A0» change de personnage, Retour garde ton personnage actuel. Costumes spéciaux : Leon et Ashley (et Ada en remplaçante) portent leurs costumes spéciaux, aussitôt aussi.</string>
     <string name="ingame_cheat_character_warning">Attention\u00A0: ce personnage n\'est pas prévu pour le jeu principal. Des bugs peuvent survenir et surviendront, ils sont inévitables\u00A0!</string>
+    <string name="ingame_cheat_bow">Arc de Krauser</string>
+    <string name="ingame_cheat_bow_refilled">%1$s déjà possédé : flèches remplies.</string>
+    <string name="ingame_cheat_bow_krauser">Seulement quand Krauser joue l\'histoire.</string>
+    <string name="ingame_cheat_bow_help">Arc de Krauser : ajoute son arc et remplit ses flèches jusqu\'à 40 ; appuie de nouveau pour en avoir plus, ou active Munitions infinies. Seulement avec Krauser : avec Leon ou un autre personnage, l\'arc et les flèches quittent la mallette, et les sauvegardes sur la carte mémoire ne les gardent jamais (appuie de nouveau après le chargement).</string>
     <string name="ingame_understood">J\'ai compris</string>
     <string name="ingame_later">Plus tard</string>
     <string name="ingame_controller_config">Configuration des touches</string>

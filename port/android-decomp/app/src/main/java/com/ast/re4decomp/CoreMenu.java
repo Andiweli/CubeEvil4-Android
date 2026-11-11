@@ -184,7 +184,8 @@ final class CoreMenu extends Dialog {
   private final Runnable captureTimeout = this::cancelCapture;
   private int page, requestSerial;
   private boolean working, slotPresent;
-  private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus;
+  private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus, bowStatus;
+  private Button bowButton;  // "Krauser's bow" (0.99.10): enabled while Krauser is the chosen character
   private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
   private Button exportAll, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
@@ -582,6 +583,7 @@ final class CoreMenu extends Dialog {
     if (working) return;
     scrollY[page] = scroll.getScrollY(); page = next; ++requestSerial;
     body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null; cheatStatus = null;
+    bowStatus = null; bowButton = null;
     bindingButtons = null; controllerButton = null; mapStatus = null;
     if (next != CONTROLLER) { captureAction = -1; main.removeCallbacks(captureTimeout); }
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
@@ -1590,6 +1592,7 @@ final class CoreMenu extends Dialog {
         Runnable choose = () -> {
           select(buttons, labels, index);
           cheatBits = (cheatBits & ~CHARACTER_BITS) | (values[index] << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);
+          if (bowButton != null) bowButton.setEnabled(values[index] == 4);
         };
         // a character other than Leon warns first, also from one of them to another (wish of the project owner,
         // 08.11.2026); the character already chosen and Leon switch at once as before
@@ -1601,7 +1604,25 @@ final class CoreMenu extends Dialog {
       buttons[i] = b;
     }
     costumeSwitch(row);
+    // Krauser's bow and arrows (0.99.10, a user's wish through the project owner, 11.11.2026; runtime/cheats.cpp
+    // giveBow): a third of the row under the characters, only with Krauser chosen; its answer right under it
+    MenuLayout.Buttons bowRow = cheatRow(3);
+    bowButton = cellAction(bowRow, s(R.string.ingame_cheat_bow), v -> {
+      v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
+      cheatAction(10, R.string.ingame_cheat_bow);
+    });
+    bowButton.setEnabled(selected == 4);
+    // two empty places beside it: a row of one would be as wide as the menu (MenuLayout.Buttons: as many columns as
+    // buttons); so it is a third, right under "Krauser"
+    for (int i = 0; i < 2; i++) {
+      View place = new View(getContext()); place.setVisibility(View.INVISIBLE); place.setFocusable(false);
+      bowRow.addButton(place);
+    }
+    bowStatus = text("", 15, false); bowStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
+    bowStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); bowStatus.setVisibility(View.GONE);
+    body.addView(bowStatus);
     help(R.string.ingame_cheat_character_help);
+    help(R.string.ingame_cheat_bow_help);
   }
   /** Before Ada, HUNK, Krauser or Wesker take Leon's place (wish of the project owner, 08.11.2026): a reddish
    *  warning that they are not made for the main game, the menu's other questions' dialog in red: the chosen
@@ -1687,7 +1708,9 @@ final class CoreMenu extends Dialog {
       catch (RuntimeException | UnsatisfiedLinkError e) { result = -2; }
       final int done = result;
       main.post(() -> {
-        if (!isShowing() || serial != requestSerial || page != CHEATS || cheatStatus == null) return;
+        // Krauser's bow answers under its own button (0.99.10), the others above the character section
+        final TextView status = what == 10 && bowStatus != null ? bowStatus : cheatStatus;
+        if (!isShowing() || serial != requestSerial || page != CHEATS || status == null) return;
         if (what == 4 && (done == 1 || done == 2 || done == 3)) {
           // kept by the app as well: a system file read without it (no save since) gets it back
           cheatBits |= 16; host.cheatsChanged(cheatBits);
@@ -1700,13 +1723,15 @@ final class CoreMenu extends Dialog {
         }
         String text;
         if (done == 1) text = getContext().getString(R.string.ingame_cheat_done, s(label));
+        else if (done == 2 && what == 10) text = getContext().getString(R.string.ingame_cheat_bow_refilled, s(label));
         else if (done == 2 && (what == 1 || what >= 5)) text = getContext().getString(R.string.ingame_cheat_raised, s(label));
         else if (done == 2) text = getContext().getString(R.string.ingame_cheat_already, s(label));
         else if (done == 0) text = s(R.string.ingame_cheat_not_now);
         else if (done == -1) text = s(R.string.ingame_cheat_no_room);
+        else if (done == -6) text = s(R.string.ingame_cheat_bow_krauser);
         else if (done == 3) text = s(R.string.ingame_cheat_queued);
         else text = s(R.string.ingame_cheat_unsupported);
-        cheatStatus.setText(text); cheatStatus.setVisibility(View.VISIBLE);
+        status.setText(text); status.setVisibility(View.VISIBLE);
       });
     }, "Cheat").start();
   }

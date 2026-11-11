@@ -280,6 +280,10 @@
     <string name="ingame_cheat_costume_note">(hanya Leon/Ashley)</string>
     <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon dalam cerita: ruangan dimuat ulang di tempatmu berdiri (saat adegan film, mulai ruangan berikutnya). Koper, nyawa, dan uang Leon tetap; senjata yang tidak punya model milik karakter itu tampil seperti milik Leon. Bagian Ashley tetap milik Ashley, adegan film dan panggilan radio tetap menampilkan Leon. Simpananmu selalu menyimpan Leon, jadi dimuat dengan karakter yang dipilih di sini. Karakter selain Leon tidak dibuat untuk permainan utama, jadi memilih salah satunya menampilkan peringatan dulu: \"Saya mengerti\" mengganti, Kembali mempertahankan karaktermu saat ini. Kostum spesial: Leon dan Ashley (dan Ada sebagai pengganti) memakai kostum spesial mereka, juga langsung.</string>
     <string name="ingame_cheat_character_warning">Perhatian: karakter ini tidak dibuat untuk permainan utama. Bug bisa dan akan terjadi, dan tidak bisa dihindari!</string>
+    <string name="ingame_cheat_bow">Busur Krauser</string>
+    <string name="ingame_cheat_bow_refilled">%1$s sudah dimiliki: anak panah diisi ulang.</string>
+    <string name="ingame_cheat_bow_krauser">Hanya saat Krauser memainkan cerita.</string>
+    <string name="ingame_cheat_bow_help">Busur Krauser: menambahkan busurnya dan mengisi anak panahnya hingga 40; tekan lagi untuk lebih banyak, atau nyalakan Amunisi tak terbatas. Hanya dengan Krauser: dengan Leon atau karakter lain, busur dan anak panah keluar dari koper, dan simpanan di kartu memori tidak pernah menyimpannya (tekan lagi setelah memuat).</string>
     <string name="ingame_understood">Saya mengerti</string>
     <string name="ingame_later">Nanti</string>
     <string name="ingame_controller_config">Pemetaan Tombol</string>

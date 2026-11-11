@@ -36,7 +36,8 @@ public class CoreMenuShotTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class},
         (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE
-            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == int.class ? (Object) 0 : null);
+            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == int.class ? (Object) 0
+            : method.getReturnType() == double.class ? (Object) 60.0 : null);
     new File(folder).mkdirs();
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     String[] names = {"home", "display", "audio", "controls", "performance", "cheats", "management"};

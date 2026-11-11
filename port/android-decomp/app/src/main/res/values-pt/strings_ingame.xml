@@ -286,6 +286,10 @@
     <string name="ingame_cheat_costume_note">(só Leon/Ashley)</string>
     <string name="ingame_cheat_character_help">O personagem toma na hora o lugar de Leon na história: a sala carrega de novo onde você está (durante uma cena, a partir da sala seguinte). A maleta, a vida e o dinheiro de Leon continuam; as armas sem modelo próprio do personagem mostram as de Leon. A parte de Ashley continua sendo de Ashley, as cenas e as chamadas de rádio continuam mostrando Leon. Seus jogos salvos guardam sempre Leon, por isso carregam com o personagem escolhido aqui. Os personagens além de Leon não foram feitos para o jogo principal, por isso escolher um deles mostra antes um aviso: \"Entendi\" troca, Voltar mantém seu personagem atual. Trajes especiais: Leon e Ashley (e Ada como substituta) usam seus trajes especiais, também na hora.</string>
     <string name="ingame_cheat_character_warning">Atenção: este personagem não foi feito para o jogo principal. Erros podem acontecer e vão acontecer, e são inevitáveis!</string>
+    <string name="ingame_cheat_bow">Arco do Krauser</string>
+    <string name="ingame_cheat_bow_refilled">%1$s já existe: flechas reabastecidas.</string>
+    <string name="ingame_cheat_bow_krauser">Só enquanto Krauser joga a história.</string>
+    <string name="ingame_cheat_bow_help">Arco do Krauser: adiciona o arco dele e enche as flechas até 40; pressione de novo para mais, ou ative Munição infinita. Só com Krauser: com Leon ou outro personagem, o arco e as flechas saem da maleta, e os saves no cartão de memória nunca os guardam (pressione de novo depois de carregar).</string>
     <string name="ingame_understood">Entendi</string>
     <string name="ingame_later">Mais tarde</string>
     <string name="ingame_controller_config">Mapeamento de botões</string>
