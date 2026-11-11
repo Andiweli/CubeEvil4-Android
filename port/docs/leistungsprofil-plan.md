@@ -1,7 +1,8 @@
 # Plan: Benchmark beim ersten Start und Leistungsprofile (0.99.10, Aufgaben 2 und 3)
 
 Stand 11.11.2026, Branch `09910`. Noch nicht gebaut: erst nach den Antworten des Projektinhabers auf die Fragen
-am Ende. Mock-ups: `mock-home.png` (Startseite mit der Profilzeile) und `mock-popups.png` (die drei Popups) im
+am Ende. Ergänzt um den Wunsch des Projektinhabers (11.11.2026): „Der Subthread könnte bei leistungsfähigen Geräten
+vorschlagen, bestimmte Effekte wie MSAA, FXAA, Anisotropic auch einzuschalten“ (Abschnitt „Effekte nach Spielraum“). Mock-ups: `mock-home.png` (Startseite mit der Profilzeile) und `mock-popups.png` (die drei Popups) im
 Notizordner der Sitzungen (`side-session-notes\…\09910-plan\`).
 
 ## Was es schon gibt
@@ -30,7 +31,8 @@ Bildes gegen die Wartezeit auf den Grafikchip).
   schaffen als 30 FPS), und schwache Grafikchips (z. B. Mali-G52/G57) beginnen bei 2,5× statt 4×. Beides spart
   bis zu einer Minute.
 - Benchmark 2 (Prüfung des Vorschlags): etwa **1 Minute**: 20 Sekunden mit den bisherigen Einstellungen, 20 Sekunden
-  mit dem Vorschlag, jeweils mit kurzer Eingewöhnung.
+  mit dem Vorschlag, jeweils mit kurzer Eingewöhnung. Hält der Vorschlag nicht, nimmt die App einen Effekt eine
+  Stufe zurück und misst noch einmal 20 Sekunden (höchstens zweimal, dann bis etwa 1:40).
 
 **Was ist „Bildformat nativ“?** Unser Menüpunkt Anzeige → Bildformat → **„Nativ“**: Das Bild füllt den ganzen
 Bildschirm im Seitenverhältnis des Geräts. Auf einem typischen 20:9-Handy zeigt es etwa ein Viertel mehr Bild als
@@ -69,25 +71,50 @@ Bei einem Display mit 90 Hz bleibt 60 FPS aus (läuft dort nicht gleichmäßig, 
 | Auflösung | Dynamisch (bis zur gemessenen Stufe) | Dynamisch | Dynamisch |
 | 60 FPS | aus | an, wenn 60 FPS ≥ 2× gemessen und das Display passt | an, wenn 60 FPS ≥ 1,5× gemessen und das Display passt |
 | Frame-Skip | Aggressiv, wenn der Prozessor bremst, sonst Normal | Normal (aus, wenn 60 FPS an) | Normal (aus, wenn 60 FPS an) |
-| Kantenglättung (MSAA) | aus | aus | 2×; 4× ab 2,5× bei 60 FPS |
-| Texturfilter | aus | 4× | 16× |
+| Kantenglättung (MSAA), FXAA, Texturfilter | aus | nach Spielraum, eine Stufe sparsamer als Hoch | nach Spielraum (Tabelle unten) |
 | Leistungskerne nutzen | an | an, wenn der Prozessor bremst | Standard |
 | Wetter- und Spezialeffekte | aus | an | an |
 | Partikeleffekte | Weniger | Normal | Normal |
 | Schatten & Licht | aus | an | an |
 | Sichtweite | Mittel (Kurz, wenn der Prozessor bremst) | Normal | Normal |
 
-Profile ändern **nicht**: Renderer (Vulkan/OpenGL, braucht einen Neustart), Bildformat, FXAA, Tiefenschärfe, Lichthöfe
+**Effekte nach Spielraum** (Wunsch des Projektinhabers: starke Geräte bekommen auch Effekte vorgeschlagen, nicht nur
+schwache weniger). Spielraum ist die Stufe, die bei der Bildrate des Profils (30 oder 60 FPS) im Benchmark 1 noch
+ruhig lief, also mit allen Effekten aus und im anspruchsvollsten Bildformat. Je höher, desto mehr Kraft ist für
+Effekte übrig:
+
+| Spielraum bei der Bildrate des Profils | Hoch | Mittel |
+|---|---|---|
+| ab 3× | MSAA 4×, Texturfilter 16× | MSAA 2×, Texturfilter 8× |
+| 2× bis 2,5× | MSAA 2×, Texturfilter 16× | FXAA an, Texturfilter 4× |
+| 1,5× | FXAA an, Texturfilter 8× | Texturfilter 4× |
+| 1× | nichts (alles aus) | nichts |
+
+MSAA glättet die Kanten am saubersten, kostet aber am meisten; FXAA ist der günstige Ersatz, wenn MSAA zu teuer wäre
+(beides zusammen schlägt die App nicht vor, das Bild würde nur weicher). Der Texturfilter macht schräge Böden und
+Wände schärfer und kostet wenig. Kann ein Grafikchip eine Stufe nicht (manche Mali-Chips melden keinen Texturfilter),
+nimmt die App die höchste, die er kann.
+
+**Benchmark 2 prüft die Effekte:** Der Vorschlag gilt nur, wenn mit ihm die Bildrate des Profils ruhig hält (dieselbe
+Regel wie bei der Stufensuche: im Schnitt 29 bzw. 57 Bilder je Sekunde, höchstens eine schwache Sekunde) **und** die
+dynamische Auflösung dabei nicht mehr als eine halbe Stufe unter den Spielraum fällt (sonst würden die Effekte nur
+Schärfe gegen Glätte tauschen). Hält er nicht, nimmt die App die teuerste Stufe zurück (MSAA 4× → 2× → FXAA → aus,
+dann Texturfilter 16× → 8× → 4×) und misst erneut. Popup ③ nennt, was geblieben ist und was zurückgenommen wurde.
+Bei starken Geräten ist der Gewinn oft nicht mehr FPS, sondern ein schöneres Bild bei gleicher Bildrate; Popup ③
+sagt dann beides (siehe `mock-popups-stark.png`).
+
+Profile ändern **nicht**: Renderer (Vulkan/OpenGL, braucht einen Neustart), Bildformat, Tiefenschärfe, Lichthöfe
 (Lens Flares), die Filter (TV, PSX, Nachschärfen, CRT, Farbe), Minikarte, FPS-Anzeige und die drei unbewiesenen Versuche
 (Zeichenaufrufe bündeln, Vertex-Ringpuffer, Bandbreite sparen). Das ist Geschmack oder noch nicht erprobt.
 
-**Was passiert beim allerersten Start?** (siehe `mock-popups.png`)
+**Was passiert beim allerersten Start?** (siehe `mock-popups.png` für ein mittleres, `mock-popups-stark.png` für ein
+starkes Gerät)
 1. Spiel startet, Logos, Titelmenü erscheint zum ersten Mal → Popup ① „Willkommen“ mit einem Knopf „Messung starten“.
 2. Benchmark 1 läuft (oben eine Zeile mit Fortschritt). Danach zurück ins Titelmenü.
 3. Popup ②: Gerätedaten, Messwerte, wer bremst, das empfohlene Profil mit den wichtigsten Änderungen.
    „Ignorieren“: nur die gemessenen Stufen für „Dynamisch“ speichern (so wie der Benchmark heute). „Annehmen“: das
    empfohlene Profil einstellen und Benchmark 2 starten.
-4. Popup ③: Vorher/Nachher in FPS und wie oft das Bild ruhig lief. „Ignorieren“: zurück zu den Einstellungen von
+4. Popup ③: Vorher/Nachher in FPS und wie oft das Bild ruhig lief, dazu die Effekte, die neu an sind. „Ignorieren“: zurück zu den Einstellungen von
    vorher (die gemessenen Stufen bleiben). „Akzeptieren“: das Profil bleibt aktiv.
 5. Jetzt kann man spielen.
 Die Popups bekommen das Aussehen des Ingame-Menüs (dunkelgrün, goldene Auswahl), Texte in den 11 Menüsprachen.
@@ -114,18 +141,19 @@ wie heute aus dem Titelmenü oder beim freien Spielen; danach ist man wieder dor
 
 - PC: Tests für die Einstufung und die Profile (die Geräte aus der Tabelle als Testfälle), für das Merken von
   „Benutzerdefiniert“ und das Zurückspringen; die Menü-Bilder in allen 11 Sprachen; die Übersetzungsprüfung; der
-  Benchmark-Ablauf (neue Startstufen, Aufwärmrunde, Vorher/Nachher) im Host-Test `TestBenchSteps`.
+  Benchmark-Ablauf (neue Startstufen, Aufwärmrunde, Vorher/Nachher, Zurücknehmen der Effekte) im Host-Test
+  `TestBenchSteps`; die Effekte nach Spielraum für die Geräte aus den Berichten.
 - Gerät: nur durch dich bzw. die Tester (Retroid; ideal ein schwächeres Handy). Ohne Gerätetest gilt es als nicht
   geprüft.
 
 ## Offene Fragen an den Projektinhaber
 
+(Die frühere Frage „Sollen die Profile auch Kantenglättung und Texturfilter einstellen?“ ist mit der Ergänzung des
+Projektinhabers geklärt: ja, dazu FXAA, nach Spielraum.)
+
 1. **Update-Nutzer:** Soll der Benchmark für Nutzer, die schon spielen, beim ersten Start nach dem Update auch
    einmal erzwungen werden? Empfehlung: **nein**, stattdessen fragt das Ingame-Menü beim ersten Öffnen einmal „Jetzt
    messen / Später“; ihre Einstellungen bleiben als „Benutzerdefiniert“.
-2. **Umfang der Profile:** Sollen die Profile neben der Performance-Seite und der Auflösung auch **Kantenglättung
-   (MSAA) und Texturfilter** einstellen (Anzeige-Seite)? Empfehlung: **ja**, das sind neben der Auflösung die
-   größten Hebel für den Grafikchip; Bildformat und Filter bleiben beim Nutzer.
-3. **Abbrechen beim ersten Start:** Darf man den ersten Benchmark mit B/Zurück abbrechen? Empfehlung: **ja**, dann
+2. **Abbrechen beim ersten Start:** Darf man den ersten Benchmark mit B/Zurück abbrechen? Empfehlung: **ja**, dann
    spielt man mit den Standardwerten, und die Messung wird beim nächsten Start wieder angeboten, bis sie einmal
    durchgelaufen ist.
