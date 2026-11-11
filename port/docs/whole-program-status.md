@@ -105,6 +105,32 @@ unbekannt):
 - **Geprüft (Host-Tests):** ActionMapTests 60, CoreInputTests 1833, CoreTouchTests 299 Prüfungen ok (neu: Aktion
   und Rennen getauscht, Feuern und Nachladen getauscht, eingerastetes Zielen). **Nicht geprüft:** auf einem Gerät.
 
+### 5. Krausers Armklinge (Nutzerwunsch, nur untersucht, nichts gebaut)
+
+- `src/pl0a/pl_klauser.cpp` `cPlKlauser::checkXbutton`: die GameCube-Taste **X** (`Joy[0].trg & 0x400`, das rohe
+  Pad, nicht die Tastenbelegung des Spiels), wenn der Arm nicht schon verwandelt ist und `krEffWait == 0` (das rote
+  Leuchten zeigt sich). Abgefragt beim Gehen/Stehen (actionSelect), beim Zielen (pl_R1_Weapon) und mit dem Messer.
+  Danach (pl_R1_KlauserAttack): links/rechts dreht, **A** schlägt, B oder X bricht ab. Nach einem Schlag wartet
+  `krEffWait = 0x546` (1350 Spielbilder, etwa 45 s), nach einem Abbruch nichts.
+- In der App liegt X schon überall: Touch-Taste X, Controller X, in der Tastenbelegung die Aktion „Ashley: Wait /
+  Follow“. Nichts zu bauen; höchstens die Beschriftung ergänzen (11 Sprachen). Nicht am PC ausprobiert.
+
+### 6. HD-Texturpakete (Recherche, nichts gebaut)
+
+- Dolphin benennt Ersatztexturen `tex1_BxH[_m]_<XXH64 der Stufe 0>[_<XXH64 des genutzten Palettenbereichs>]_<Format>`
+  (Dolphin `TextureInfo::CalculateTextureName`: Seed 0, Stufe 0 auf ganze Kacheln, Palette nur von kleinstem bis
+  größtem benutzten Index; `$` als Platzhalter). `GxCore::Upload` hat genau diese Rohdaten (Format, Größe, Kacheln
+  big-endian, TMEM-Palette); XXH64 bringt die eingebaute zstd mit.
+- Debug-Disc gegen EU-Verkaufsdisc (Skript über alle TPL-Bilder beider Discs, ohne Filme/Ton): 9524 von 9656
+  Texturen (98,6 %, 96 % der Bytes, 165 MB Stufe 0) sind gleich; Pakete für die Verkaufsversion träfen also fast
+  alles. US-Verkaufsdisc nicht verglichen.
+- Bekannte Pakete: „Resident Evil 4 HD Project“ (Albert Marin, Cris Morales; vor allem PC-UHD, eine Dolphin-Fassung
+  kursiert, Lizenz und Größe unklar), ein Wii-Paket (RB4E08/RB4P08, EmuTalk, alt). Keins wird geladen oder
+  mitgeliefert.
+- Für Handys nötig: Umwandeln beim Import (PNG/DDS nach ETC2 oder ASTC, BC-Formate können die meisten Handy-GPUs
+  nicht), Speichergrenze, Nachladen ohne Ruckeln, eigener Ordner zum Entfernen. Empfehlung und Aufwand im Bericht
+  an die Hauptsitzung; Entscheidung des Projektinhabers offen.
+
 ## Version 0.99.8-rc: Fehler nach 0.99.7 (10.11.2026, Branch `0998`)
 
 Version 0.99.8-rc (versionCode 110), Releasetext `port/android-decomp/docs/releases/v0.99.8-rc.md` („Changes since
