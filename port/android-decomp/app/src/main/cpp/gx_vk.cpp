@@ -2815,6 +2815,43 @@ struct VkRenderer final : GxCore {
     region.imageExtent = {w, h, 1};
     vkCmdCopyBufferToImage(f.upload, f.staging[b].buffer, img->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
   }
+  // an HD replacement (GxCore::UploadHd): its ETC2 / EAC levels as they are; 0 without the device's ETC2 (the
+  // game's texture stays)
+  unsigned BeginCompressed(unsigned encoding, unsigned w, unsigned h, unsigned levels) override {
+    static const VkFormat formats[4] = {VK_FORMAT_UNDEFINED, VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK,
+                                        VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK, VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK};
+    if (!vk.enabled.textureCompressionETC2 || encoding < 1 || encoding > 3)
+      return 0;
+    Begin();
+    auto img = std::make_unique<Image>();
+    if (!MakeImage(*img, w, h, std::max(1u, levels), formats[encoding],
+                   VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_ASPECT_COLOR_BIT)) {
+      Destroy(*img);
+      return 0;
+    }
+    vkDestroyImageView(dev, img->view, nullptr);
+    img->view = VK_NULL_HANDLE;
+    Transition(F().upload, *img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    F().uploads = true;
+    return NewId(std::move(img));
+  }
+  void CompressedLevel(unsigned id, unsigned level, unsigned w, unsigned h, const std::uint8_t *data,
+                       std::size_t bytes) override {
+    Image *img = ImageOf(id);
+    if (!img || level >= img->levels)
+      return;
+    Frame &f = F();
+    std::size_t b = 0;
+    VkDeviceSize at = 0;
+    if (!Alloc(f.staging, bytes, 16, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &b, &at))
+      return;
+    std::memcpy(f.staging[b].map + at, data, bytes);
+    VkBufferImageCopy region{};
+    region.bufferOffset = at;
+    region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1};
+    region.imageExtent = {w, h, 1};
+    vkCmdCopyBufferToImage(f.upload, f.staging[b].buffer, img->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+  }
   void EndTexture(unsigned id, unsigned levels) override {
     Image *img = ImageOf(id);
     if (!img)

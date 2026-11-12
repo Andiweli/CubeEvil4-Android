@@ -258,6 +258,7 @@ bool Context::Create(const ContextOptions &options, std::string *error) {
   vkGetPhysicalDeviceFeatures(physical, &have);
   enabled = VkPhysicalDeviceFeatures{};
   enabled.samplerAnisotropy = have.samplerAnisotropy;  // the menu's anisotropic filtering
+  enabled.textureCompressionETC2 = have.textureCompressionETC2;  // HD textures of the player's pack (tex_pack.h)
   enabled.wideLines = have.wideLines;                  // GX lines wider than a pixel
   enabled.largePoints = have.largePoints;              // GX points
   enabled.fragmentStoresAndAtomics = VK_FALSE;

@@ -2,6 +2,7 @@
 // uniform block contents, in-between pictures (60 FPS), merged draw calls, the lens flares' logic.
 #include "gx_core.h"
 
+#include "etc2.h"
 #include "gx_texture.h"
 #include "tex_pack.h"
 
@@ -2712,17 +2713,46 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     return false;
   }
   const unsigned levels = e->levels - first;
-  const unsigned id = BeginCompressed(e->encoding, w, h, levels);
-  if (!id)
-    return false;
-  std::size_t at = 0;
-  unsigned lw = w, lh = h;
-  for (unsigned l = 0; l < levels; l++) {
-    const std::size_t b = c4tex::LevelBytes(e->encoding, lw, lh);
-    CompressedLevel(id, l, lw, lh, hdData.data() + at, b);
-    at += b;
-    lw = std::max(1u, lw / 2);
-    lh = std::max(1u, lh / 2);
+  std::size_t gpuBytes = need;
+  unsigned id = BeginCompressed(e->encoding, w, h, levels);
+  if (id) {
+    std::size_t at = 0;
+    unsigned lw = w, lh = h;
+    for (unsigned l = 0; l < levels; l++) {
+      const std::size_t b = c4tex::LevelBytes(e->encoding, lw, lh);
+      CompressedLevel(id, l, lw, lh, hdData.data() + at, b);
+      at += b;
+      lw = std::max(1u, lw / 2);
+      lh = std::max(1u, lh / 2);
+    }
+  } else {
+    // the API cannot take ETC2 here (a Vulkan device without it, lavapipe in the tests): the levels decoded to RGBA8,
+    // four to eight times the memory
+    static bool logged = false;
+    if (!logged) {
+      logged = true;
+      GXLOG("texture pack: no ETC2 textures in this API on this device, the replacements are decoded (RGBA8)");
+    }
+    gpuBytes = 0;
+    for (unsigned l = 0, lw = w, lh = h; l < levels; l++, lw = std::max(1u, lw / 2), lh = std::max(1u, lh / 2))
+      gpuBytes += static_cast<std::size_t>(lw) * lh * 4;
+    if (hdBytes + gpuBytes > texPackBudget) {
+      stats.hdOverBudget++;
+      return false;
+    }
+    id = BeginTexture(w, h, levels);
+    if (!id)
+      return false;
+    std::size_t at = 0;
+    unsigned lw = w, lh = h;
+    for (unsigned l = 0; l < levels; l++) {
+      decoded.resize(static_cast<std::size_t>(lw) * lh * 4);
+      etc2::DecodeLevel(static_cast<etc2::Kind>(e->encoding), hdData.data() + at, lw, lh, decoded.data());
+      TextureLevel(id, l, lw, lh, decoded.data());
+      at += c4tex::LevelBytes(e->encoding, lw, lh);
+      lw = std::max(1u, lw / 2);
+      lh = std::max(1u, lh / 2);
+    }
   }
   EndTexture(id, levels);
   tex.id = id;
@@ -2733,7 +2763,7 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
   const float sx = static_cast<float>(w) / static_cast<float>(t.width ? t.width : 1);
   const float sy = static_cast<float>(h) / static_cast<float>(t.height ? t.height : 1);
   tex.lodShift = std::max(0.0f, std::log2(std::max(sx, sy)));
-  tex.hdBytes = static_cast<std::uint32_t>(need);
+  tex.hdBytes = static_cast<std::uint32_t>(gpuBytes);
   stats.hdTextures++;
   return true;
 }
