@@ -84,18 +84,18 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | **A** | Snapdragon 8 Elite Gen 5 | Adreno 840 | as above, currently widespread |
 | **A** | Snapdragon 8 Elite (Gen 1) | Adreno 830 | as above |
 | **A** | MediaTek Dimensity 9500 / 9600 Pro | Mali-G1 Ultra | as above, driver testing required |
-| **B** | Snapdragon 8 Gen 3 | Adreno 750 | Original RE4 at 60 fps and high resolution, Remake with compromises |
+| **B** | Snapdragon 8 Gen 3 | Adreno 750 | CubeEvil4 at 60 fps and high resolution |
 | **B** | Snapdragon 8 Gen 2 | Adreno 740 | as above |
 | **B** | Dimensity 9300 / 9400 | Immortalis-G720 / G925 | as above |
-| **C** | Snapdragon 8 Gen 1 / 8+ Gen 1 | Adreno 730 | Original RE4 runs smoothly, 60 fps usually possible |
+| **C** | Snapdragon 8 Gen 1 / 8+ Gen 1 | Adreno 730 | CubeEvil4 runs smoothly, 60 fps usually possible |
 | **C** | Snapdragon 8s Gen 3 | Adreno 735 | as above |
-| **C** | Snapdragon 888 / 870 / 865 | Adreno 660 / 650 | Original RE4 at 30–60 fps with moderate resolution |
-| **D** | Snapdragon 7 series, 695 / 778G | Adreno 619–642 | Original RE4 at 30 fps, reduced resolution |
+| **C** | Snapdragon 888 / 870 / 865 | Adreno 660 / 650 | CubeEvil4 at 30–60 fps with moderate resolution |
+| **D** | Snapdragon 7 series, 695 / 778G | Adreno 619–642 | CubeEvil4 at 30 fps, reduced resolution |
 | **D** | Dimensity 900 / 920, Exynos 1280 / 1380 | Mali-G68 MC4 | similar, depends on driver |
 | **D** | Dimensity 8xxx (older) | Mali-G610 | similar, often better than G68 |
-| **E** | Dimensity 700 / 720 / 810 / 800U | Mali-G57 MC2–MC3 | Original RE4 only, with heavily reduced resolution (approx. 480–720p) and graphics, 30 fps not guaranteed |
+| **E** | Dimensity 700 / 720 / 810 / 800U | Mali-G57 MC2–MC3 | with heavily reduced resolution (approx. 480–720p) and graphics, 30 fps not guaranteed |
 | **E** | Helio G99 / G96 | Mali-G57 MC2 | as above |
-| **E** | Helio G80 / G85 / G88, Exynos 850, Unisoc T606 / T610 / T618 | Mali-G52 MC1–MC2 | borderline, even Original RE4 often stutters |
+| **E** | Helio G80 / G85 / G88, Exynos 850, Unisoc T606 / T610 / T618 | Mali-G52 MC1–MC2 | borderline, often stutters |
 | **E** | Snapdragon 4 series, Helio G35 and similar | Adreno 610 and below / Mali-G52 MC1 | not recommended |
 
 ### Here are the recommended minimum requirements for CubeEvil4...
