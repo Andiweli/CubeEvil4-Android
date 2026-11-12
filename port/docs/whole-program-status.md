@@ -7,7 +7,40 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 Version 0.99.11-rc (versionCode 113), Releasetext `port/android-decomp/docs/releases/v0.99.11-rc.md` („Changes since
 v0.99.10.“, Known issues aus 0.99.10 übernommen). Basis 3b44101f = master = 0.99.10-rc mit der README des Inhabers.
-Nächste freie Patchnummer 0230 (0229: Weskers Pistole im Koffer, Abschnitt 4a).
+Nächste freie Patchnummer 0231 (0229: Weskers Pistole im Koffer, Abschnitt 4a; 0230: Adas Nachladen, Abschnitt 1).
+
+### 1. Ada mit voll aufgerüsteter TMP vornübergebeugt (Nutzerberichte, Patch 0230)
+
+„When playing story mode if I use TMP in fully upgrade, Ada have some bug. If I use another weapon, everything is fine.“
+Bild `E:\Development\Android\reports\09911-ada-tmp\user-ada-tmp-bent-pose.webp` (Schloss, Ada tief vornübergebeugt,
+TMP hängt nach unten, 100 Schuss); derselbe Fehler wie 0.99.8 Punkt 2 („nicht nachgestellt“) und wohl auch 0.99.6
+Etappe 4 (Ada vornübergeklappt vor einer Schlosstür).
+
+- **Ursache:** Mit Ada als Figur der Geschichte liest das Spiel für Punisher, halbautomatisches Gewehr und TMP Adas
+  eigene Dateien (`wep38`, `wep40`, `wep39`; `ownWeapon`). Es sind ihre Mercenaries-Dateien, und dort wird nie
+  aufgerüstet: nur die Nachlade-Bewegung der Nachlade-Stufe 0 ist für sie gemacht. Für die Stufen 1 und 2 (der Händler:
+  „Reload Speed“) enthalten sie Platzhalter oder unveränderte Kopien von Leons Bewegungen (`wep39` 0x23/0x24 Byte für
+  Byte gleich `wep11`), gemacht für sein Skelett. Der Nachlade-Zustand wählt die Bewegung nach `weapon_lv_reload`
+  (`wep/pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp`). Auf Adas Skelett knicken sie sie beim Nachladen nach vorn;
+  bei der TMP auf Stufe 2 (voll aufgerüstet) bleibt die Haltung danach dauerhaft so, auch beim Zielen und im Stand
+  (Abstand linke Hand zur Waffe 258/530 statt 162/432). Darum „nur die voll aufgerüstete TMP“ und „im Log nichts“.
+  Warum 0.99.8 es nicht nachstellte: der Lauf lud nie nach (Magazin 250, 51 Schuss), und „Typ 1“ war nicht die TMP mit
+  Schaft, sondern die schallgedämpfte TMP des Prototyps (0x31, im Spiel nicht erreichbar); mit Schaft ist Typ 2 (0x32).
+- **Behebung: Patch 0230** (`pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp`: die Bewegungs-Auswahl über
+  `re4_story_char_reload_level`, `runtime/cheats.cpp`): spielt Ada die Geschichte mit einer ihrer eigenen Waffen, nimmt
+  sie bei jeder Stufe ihre Bewegung der Stufe 0. Die Zeiten der Stufe bleiben (Magazin voll bei Bild 19/33/40 der
+  Waffe, `PlReloadEndTbl`), die Aufrüstung bringt also weiter etwas. Leon, die anderen Figuren und Adas Mercenaries
+  unverändert. Ein Port-Merkmal, kein Fehler des Prototyps.
+- **Geprüft am PC (i686 -O2, EU-Discs r305 Schloss, Ada per Debug-Start, `RE4_TEST_WEAPON` mit Stufen, Koffer voll
+  Munition, leer schießen bzw. B, `~/p09911/adatmp.sh`, `adawep.sh`, `adafix.sh`, Bilder `~/p09911/pics/`):**
+  vorher TMP Stufe 2: Ada beim und nach dem Nachladen vornübergebeugt (wie im Bild des Nutzers), Stufe 0 normal, Leon
+  Stufe 2 normal; Punisher Stufe 2 beim Nachladen vornübergebeugt mit erhobenen Armen, danach normal; Gewehr Stufe 2 beim
+  Nachladen aus dem Bild. Nachher: TMP Stufe 0/1/2 ohne und mit Schaft (Typ 2), Punisher und Gewehr Stufe 2 mit Adas
+  eigener Bewegung, danach normale Haltung (Werte wie Stufe 0); Leon Stufe 2 unverändert (seine Bewegung 0x24); TMP Stufe
+  2 auch mit den Debug-Discs. Wesker (Pistole, Killer7, Gewehr Stufe 2) war schon in Ordnung, HUNK hat Leons Skelett.
+  `whole_build.sh` i686 -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät; US- und JP-Discs (dieselben Dateien wie EU erwartet); HUNKs TMP auf Stufe 1/2
+  nicht eigens angespielt.
 
 ### 2. Controller-Fokus im Ingame-Menü kaum sichtbar (Nutzerbericht, Xiaomi 21061119DG „eos“, Android 11, Mali-G52)
 

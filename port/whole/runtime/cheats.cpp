@@ -1534,6 +1534,20 @@ int re4_story_char_leon_weapon(int no)
     return standIn() && !ownWeapon(pG->pl_type, no, no == pG->weapon_no ? pG->weapon_type : 0);
 }
 
+// Patch 0230 (wep/pl_machine.cpp, pl_handgun.cpp, pl_rifle.cpp: the reload motion by weapon_lv_reload): the level whose
+// motion the player plays. Ada's own weapon files (Punisher, semi-automatic rifle, TMP; ownWeapon) are her Mercenaries
+// files, whose weapons are never tuned: only the reload motion of level 0 is hers; at levels 1 and 2 they hold Leon's
+// motions or placeholders made for his skeleton. On hers they bend her forward, with the TMP at level 2 for good (a
+// user's report, 0.99.11: "Ada with the fully upgraded TMP"). So the story's Ada plays her level 0 motion at every
+// level; the level's own timing (when the magazine is full, when she may leave the reload) stays.
+extern "C" int re4_story_char_reload_level(int lv)
+{
+    if (lv > 0 && standIn() && pG->pl_type == 2 && ownWeapon(2, pG->weapon_no, pG->weapon_type)) {
+        return 0;
+    }
+    return lv;
+}
+
 // Patch 0196 (pl02.cpp cPlAda::setRightHand): Ada's own grip hand for the weapon she holds when it is one
 // of Leon's (his grip hand is made for his skeleton: on hers it stood beside the weapon), 0 otherwise or
 // when its file could not be read
