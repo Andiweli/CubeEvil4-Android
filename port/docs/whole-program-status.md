@@ -345,6 +345,10 @@ Test-APK/Retroid bleiben auf `textures` und kommen später nach `09912`).
   `whole_build_android.sh --abi all` 0 Fehler (Stubs wie erwartet), App-Tests beider Varianten je 120 grün
   (1 übersprungen: Bilder), `gradlew externalNativeBuildCoreDebug` übersetzt, `check_translations.py` ohne Befund
   (415 Texte).
+- **Nachtrag (Wunsch des Projektinhabers „Ja, plus Stufe 256“):** `origin/textures` (1aa4c685: nie kleiner als das
+  Originalbild, Packer 1.1 mit Stufe 256, „Half“ nie unter das Original) in `09912` zusammengeführt (7ded5d52, ohne
+  Konflikte); Releasetext mit den Stufen 256/512/1024 und „no image gets smaller than the game's own“. Geprüft wie
+  oben mit dem neuen Stand (Zahlen im Abschnitt „Branch `textures`“).
 - **Nicht geprüft:** auf einem Gerät (Import, Anzeige, Vulkan-ETC2, Speicher auf schwachen Geräten).
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
