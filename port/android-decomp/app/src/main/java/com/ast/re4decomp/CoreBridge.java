@@ -275,6 +275,8 @@ public final class CoreBridge {
    * them. Cores before 12.11.2026 ignore it.
    */
   public static native void zoom(int notches);
+  /** The cheat "Random enemies" (CoreMenu, 0.99.12): its seed (20 bits), 0 off; from the next room on. */
+  public static native void setEnemyRandom(int seed);
   /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores

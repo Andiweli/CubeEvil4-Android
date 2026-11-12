@@ -360,6 +360,9 @@ void re4_core_aim_turn(float yaw, float pitch);
  * down, an eighth of the zoom each, handed to the game as a short push of the C stick while the scope or the
  * binoculars are up; dropped anywhere else. Any thread. */
 void re4_core_zoom(int notches);
+/* The cheat "Random enemies" (cores since 12.11.2026, 0.99.12; runtime/enemy_random.cpp, patch 0231): its seed
+ * (20 bits), 0 off; from the next room on. Any thread. */
+void re4_core_set_enemy_random(int seed);
 /* A swipe across the picture (cores since 22.10.2026): dir 1 the next tab of
  * the sub screen (a swipe to the left), -1 the one before, nothing beyond the
  * first and the last; ignored outside the normal inventory. Any thread. */

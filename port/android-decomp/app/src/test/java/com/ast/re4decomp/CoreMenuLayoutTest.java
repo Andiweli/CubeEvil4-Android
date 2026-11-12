@@ -501,9 +501,11 @@ public class CoreMenuLayoutTest {
 
   @Test public void cheatsPageSwitchesSendTheirBits() throws Exception {
     final int[] sent = {-1};
+    final int[] enemySeed = {-1};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
+          if (method.getName().equals("enemyRandomChanged")) enemySeed[0] = (Integer) args[0];
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
               : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
@@ -554,6 +556,21 @@ public class CoreMenuLayoutTest {
       random.performClick();
       assertEquals(4 | CoreMenu.RANDOM_ITEMS_BIT, sent[0] & ~CoreMenu.SEED_BITS);
       random.performClick(); assertEquals(4, sent[0]);
+      // "Random enemies" next to it (0.99.12): a seed of its own (kept in core_game enemySeed), the switches untouched
+      assertEquals(2, items.getChildCount());
+      Button enemies = (Button) items.getChildAt(1);
+      assertTrue(enemies.getText().toString().contains(activity.getString(R.string.ingame_cheat_random_enemies)));
+      android.content.SharedPreferences game = activity.getSharedPreferences(CoreActivity.GAME_PREFS, 0);
+      assertFalse(enemies.isSelected());
+      enemies.performClick();
+      int seed = game.getInt(CoreActivity.ENEMY_SEED, 0);
+      assertTrue("a seed of 1..2^20-1", seed > 0 && seed < (1 << 20));
+      assertEquals(seed, enemySeed[0]);
+      assertEquals("the cheat switches unchanged", 4, sent[0]);
+      enemies.performClick();
+      assertEquals(0, game.getInt(CoreActivity.ENEMY_SEED, -1));
+      assertEquals(0, enemySeed[0]);
+      assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_random_enemies_help)));
       Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());

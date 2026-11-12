@@ -116,6 +116,9 @@ final class CoreMenu extends Dialog {
     /** The cheat switches: bit 1 infinite health, 2 infinite ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
      *  extra games kept unlocked (CoreActivity.CHEATS holds them). */
     void cheatsChanged(int bits);
+    /** The cheat "Random enemies" (0.99.12): a new seed each time it goes on, 0 off (CoreActivity.ENEMY_SEED holds
+     *  it). */
+    void enemyRandomChanged(int seed);
     /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games, 5..9 weapons), off the main thread:
      *  CoreBridge.cheatAction's answer. */
     int cheatAction(int what);
@@ -1682,11 +1685,20 @@ final class CoreMenu extends Dialog {
       cheatBits = withRandomItems(cheatBits, on, new java.util.Random().nextInt(1 << 20));
       host.cheatsChanged(cheatBits);
     });
+    // "Random enemies" next to it (decision of the project owner, 12.11.2026; port/docs/gegner-randomizer-plan.md
+    // stage 1): a seed of its own, a new one each time it goes on
+    final SharedPreferences game = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE);
+    toggle(items, R.string.ingame_cheat_random_enemies, game.getInt(CoreActivity.ENEMY_SEED, 0) != 0, on -> {
+      int seed = on ? 1 + new java.util.Random().nextInt((1 << 20) - 1) : 0;
+      game.edit().putInt(CoreActivity.ENEMY_SEED, seed).apply();
+      host.enemyRandomChanged(seed);
+    });
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
     help(R.string.ingame_cheats_help);
     help(R.string.ingame_cheat_random_items_help);
+    help(R.string.ingame_cheat_random_enemies_help);
     playerCharacter();
   }
   /** The story's player character below the cheat buttons (wish of the project owner, 03.11.2026;
