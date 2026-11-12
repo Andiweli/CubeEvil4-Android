@@ -74,7 +74,7 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   höchstens 0,16 Stufen von libjpeg-turbo entfernt; CMYK abgelehnt. `etc2_gl_check`: BC7 gegen Mesa (llvmpipe,
   `GL_EXT_texture_compression_bptc`) alle 36.864 Zufallsblöcke gleich. `texpack_tests` 910, `run_e2e.py` 32 Punkte
   (BC7, JPG, `.jpeg`, PNG vor JPG, BC6H abgelehnt). Das Paket des Inhabers (ohne BC7/JPG) ergibt mit 1.2 dieselben
-  Dateien wie mit 1.1 (siehe unten).
+  Dateien wie mit 1.1: 256, 512 und 1024 je gleich groß, nur 2 Bytes im Info-Text anders (Version 1.1 → 1.2, Datum).
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät.
 
