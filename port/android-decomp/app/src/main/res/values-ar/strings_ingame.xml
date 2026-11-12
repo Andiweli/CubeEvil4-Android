@@ -204,7 +204,7 @@
     <string name="ingame_management_summary">‏بطاقة الذاكرة والأقراص والتقارير والمصدر</string>
     <string name="ingame_audio">الصوت</string>
     <string name="ingame_audio_summary">‏الموسيقى والمؤثرات الصوتية</string>
-    <string name="ingame_cheats_summary">الصحة والذخيرة والمال والألعاب الإضافية والأنسجة عالية الدقة</string>
+    <string name="ingame_cheats_summary">عام، الأسلحة، المال والأنسجة</string>
     <string name="ingame_experimental">تجريبي</string>
     <string name="ingame_volume">مستوى الصوت</string>
     <string name="ingame_music_volume">الموسيقى</string>

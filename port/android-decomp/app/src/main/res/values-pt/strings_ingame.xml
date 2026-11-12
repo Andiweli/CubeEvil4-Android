@@ -194,7 +194,7 @@
     <string name="ingame_management_summary">Cartão, discos, relatórios e código-fonte</string>
     <string name="ingame_audio">Áudio</string>
     <string name="ingame_audio_summary">Música e efeitos sonoros</string>
-    <string name="ingame_cheats_summary">Saúde, munição, dinheiro, jogos extras e texturas HD</string>
+    <string name="ingame_cheats_summary">Geral, armas, dinheiro e texturas</string>
     <string name="ingame_experimental">Experimental</string>
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Música</string>

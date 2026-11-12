@@ -43,6 +43,13 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   An/Aus, Schärfe Voll/Halb, Löschen, Zeile mit Paket und „gerade ersetzt“), 26 neue Texte in 11 Sprachen
   (`check_translations.py` ohne Befund), README-Abschnitt und Legal-Punkt. `TexturePacksTest` 4/4,
   `CoreMenuLayoutTest` 15/15.
+- **Startseite (Wunsch des Projektinhabers, 12.11.2026):** „Cheats & Mods“ und „Management“ wieder nebeneinander; der
+  längere Untertext mit den HD-Texturen hatte die Reihe auf dem Retroid umbrechen lassen (`MenuLayout.Buttons` richtet
+  sich nach dem breitesten Knopf). Untertext jetzt „Allgemein, Waffen, Geld und Texturen“ / „General, weapons, money
+  & textures“, in allen 11 Sprachen (Hindi mit „व“ statt „और“). `CoreMenuRowsTest` (echte Schriftbreiten): in allen
+  Sprachen und Schriftgrößen 100–150 % ist „Cheats & Mods“ nicht breiter als „Management“, die Reihe bricht also dort
+  um, wo sie es vorher tat; bei 320–1280 dp beide auf einer Linie, nichts abgeschnitten. Gegenprobe: mit dem alten
+  langen Untertext schlägt der Test an.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät.
 

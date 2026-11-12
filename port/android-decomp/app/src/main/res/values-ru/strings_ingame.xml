@@ -195,7 +195,7 @@
     <string name="ingame_management_summary">Карта памяти, диски, отчёты и исходники</string>
     <string name="ingame_audio">Звук</string>
     <string name="ingame_audio_summary">Музыка и звуковые эффекты</string>
-    <string name="ingame_cheats_summary">Здоровье, патроны, деньги, доп. игры и HD-текстуры</string>
+    <string name="ingame_cheats_summary">Общее, оружие, деньги и текстуры</string>
     <string name="ingame_experimental">Экспериментальное</string>
     <string name="ingame_volume">Громкость</string>
     <string name="ingame_music_volume">Музыка</string>

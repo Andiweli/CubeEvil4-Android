@@ -191,7 +191,7 @@
     <string name="ingame_management_summary">मेमोरी कार्ड, डिस्क, रिपोर्ट और सोर्स</string>
     <string name="ingame_audio">ऑडियो</string>
     <string name="ingame_audio_summary">संगीत और साउंड इफ़ेक्ट</string>
-    <string name="ingame_cheats_summary">स्वास्थ्य, गोला-बारूद, पैसा, अतिरिक्त गेम और HD टेक्सचर</string>
+    <string name="ingame_cheats_summary">सामान्य, हथियार, पैसा व टेक्सचर</string>
     <string name="ingame_experimental">प्रायोगिक</string>
     <string name="ingame_volume">आवाज़</string>
     <string name="ingame_music_volume">संगीत</string>

@@ -193,7 +193,7 @@
     <string name="ingame_management_summary">Scheda, dischi, rapporti e sorgenti</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musica ed effetti sonori</string>
-    <string name="ingame_cheats_summary">Salute, munizioni, soldi, giochi extra e texture HD</string>
+    <string name="ingame_cheats_summary">Generale, armi, soldi e texture</string>
     <string name="ingame_experimental">Sperimentale</string>
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Musica</string>

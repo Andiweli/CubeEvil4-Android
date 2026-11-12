@@ -190,7 +190,7 @@
     <string name="ingame_management_summary">记忆卡、光盘、报告与源代码</string>
     <string name="ingame_audio">音频</string>
     <string name="ingame_audio_summary">音乐与音效</string>
-    <string name="ingame_cheats_summary">生命、弹药、金钱、额外游戏与高清纹理</string>
+    <string name="ingame_cheats_summary">通用、武器、金钱与纹理</string>
     <string name="ingame_experimental">实验性</string>
     <string name="ingame_volume">音量</string>
     <string name="ingame_music_volume">音乐</string>

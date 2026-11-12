@@ -206,7 +206,7 @@
     <string name="ingame_management_summary">Memory card, discs, reports &amp; source</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Music &amp; sound effects</string>
-    <string name="ingame_cheats_summary">Health, ammo, money, extra games &amp; HD textures</string>
+    <string name="ingame_cheats_summary">General, weapons, money &amp; textures</string>
     <string name="ingame_experimental">Experimental</string>
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Music</string>

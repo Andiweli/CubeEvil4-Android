@@ -53,17 +53,17 @@ public class CoreMenuLayoutTest {
     TestLooper.stopAnimations("left running before " + getClass().getSimpleName());
   }
 
-  private static Object field(Object owner, String name) throws Exception {
+  static Object field(Object owner, String name) throws Exception {
     Field f = owner.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(owner);
   }
 
-  private static void measure(View root, int width, int height) {
+  static void measure(View root, int width, int height) {
     root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
         View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
     root.layout(0, 0, width, height);
   }
 
-  private static void checkBounds(View view, String scenario) {
+  static void checkBounds(View view, String scenario) {
     if (view.getVisibility() != View.VISIBLE) return;
     if (view instanceof TextView && ((TextView) view).getText().length() > 0) {
       TextView text = (TextView) view;
