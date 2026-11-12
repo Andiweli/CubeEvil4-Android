@@ -37,7 +37,7 @@ namespace fs = std::filesystem;
 namespace {
 
 const char *kToolName = "CubeEvil4 Texture Packer";
-const char *kToolVersion = "1.0";
+const char *kToolVersion = "1.1";
 
 // ---------------- console ----------------
 
@@ -461,23 +461,45 @@ double Psnr(const img::Image &a, const img::Image &b, bool alpha) {
   return mse <= 1e-9 ? 99.0 : 10.0 * std::log10(255.0 * 255.0 / mse);
 }
 
+// The size an image is brought to: its longer side at most maxSide, but never below the game's own texture (the size
+// in the Dolphin name) in either direction (decision of the project owner, 12.11.2026: a size level makes nothing
+// blurrier than the original); an HD image already smaller than the original keeps its size. Also the longer side
+// to ask the DDS reader for (its last mip level at least that big).
+struct Target {
+  unsigned w = 0, h = 0, load = 0;
+};
+
+Target TargetFor(const Source &src, unsigned maxSide) {
+  Target t;
+  unsigned fw = 0, fh = 0;
+  if (!img::Probe(src.path, 0, fw, fh) || !fw || !fh) {
+    t.load = std::max(maxSide, std::max(src.name.key.w, src.name.key.h));
+    return t;
+  }
+  double scale = std::max(fw, fh) > maxSide ? static_cast<double>(maxSide) / std::max(fw, fh) : 1.0;
+  scale = std::max(scale, std::max(static_cast<double>(src.name.key.w) / fw, static_cast<double>(src.name.key.h) / fh));
+  scale = std::min(scale, 1.0);
+  t.w = std::max(1u, static_cast<unsigned>(std::lround(fw * scale)));
+  t.h = std::max(1u, static_cast<unsigned>(std::lround(fh * scale)));
+  t.load = std::max(t.w, t.h);
+  return t;
+}
+
 Result Convert(const Source &src, unsigned maxSide, int effort) {
   Result r;
   img::Loaded loaded;
-  if (!img::Load(src.path, maxSide, src.name.arb, loaded, r.error)) return r;
+  const Target target = TargetFor(src, maxSide);
+  if (!img::Load(src.path, target.load, src.name.arb, loaded, r.error)) return r;
   r.format = loaded.format;
   r.srcW = loaded.fileWidth;
   r.srcH = loaded.fileHeight;
   img::Image top = std::move(loaded.levels[0]);
   unsigned w = top.w, h = top.h;
-  if (std::max(w, h) > maxSide) {
-    if (w >= h) {
-      h = std::max(1u, static_cast<unsigned>(std::lround(static_cast<double>(h) * maxSide / w)));
-      w = maxSide;
-    } else {
-      w = std::max(1u, static_cast<unsigned>(std::lround(static_cast<double>(w) * maxSide / h)));
-      h = maxSide;
-    }
+  // never larger than the level read (no enlarging)
+  const unsigned tw = target.w ? std::min(target.w, w) : w, th = target.h ? std::min(target.h, h) : h;
+  if (tw != w || th != h) {
+    w = tw;
+    h = th;
     top = img::Downscale(top, w, h);
   }
   etc2::Kind kind = etc2::kRgb;
@@ -546,11 +568,12 @@ Result Convert(const Source &src, unsigned maxSide, int effort) {
 
 // memory one conversion needs at most, from the decoded level's size
 std::uint64_t MemoryFor(const Source &s, unsigned maxSide) {
+  const Target t = TargetFor(s, maxSide);
   unsigned w = 0, h = 0;
-  if (!img::Probe(s.path, maxSide, w, h)) return 64ull << 20;
+  if (!img::Probe(s.path, t.load, w, h)) return 64ull << 20;
   const std::uint64_t px = static_cast<std::uint64_t>(w) * h;
-  const std::uint64_t outW = std::min<std::uint64_t>(w, maxSide);
-  return px * 4 * 2 + outW * h * 28 + 4ull * maxSide * maxSide * 3 + (8ull << 20);
+  const std::uint64_t out = std::max<std::uint64_t>(t.load, 1);
+  return px * 4 * 2 + std::min<std::uint64_t>(w, out) * h * 28 + 4ull * out * out * 3 + (8ull << 20);
 }
 
 struct Options {
@@ -566,7 +589,7 @@ void Usage() {
   Print("%s %s\n\n", kToolName, kToolVersion);
   Print("Converts a texture pack in the Dolphin format into one file for CubeEvil4.\n");
   Print("Start it without anything to be asked step by step, or:\n\n");
-  Print("  texpack -in <pack folder> -size 512|1024 [-out <folder or file.c4tex>]\n");
+  Print("  texpack -in <pack folder> -size 256|512|1024 [-out <folder or file.c4tex>]\n");
   Print("          [-variant \"<group>=<variant>\"] ... [-threads N] [-effort 0|1|2]\n");
   Print("  texpack -check <file.c4tex> [-png <folder>] [-limit N] [-key <texture hash>]\n\n");
   Print("The pack folder is only read, never changed. An existing output file is replaced.\n");
@@ -659,13 +682,15 @@ int Pack(Options &o) {
   }
   // the size
   if (o.size == 0) {
-    Print("\nSize on the phone (the longer side of the biggest images):\n");
-    Print("  1 = 512   (recommended, about 0.7 GB for a full pack, for every device)\n");
-    Print("  2 = 1024  (about 2.3 GB for a full pack, for strong devices)\n");
-    o.size = AskNumber("Choose", 1, 2, 1) == 2 ? 1024 : 512;
+    Print("\nSize on the phone (the longer side of the images; never smaller than the game's own):\n");
+    Print("  1 = 256   (saves memory and space on weak phones; big textures are not sharper than the game's)\n");
+    Print("  2 = 512   (recommended, for every device)\n");
+    Print("  3 = 1024  (for strong devices with enough space)\n");
+    static const unsigned sizes[3] = {256, 512, 1024};
+    o.size = sizes[AskNumber("Choose", 1, 3, 2) - 1];
   }
-  if (o.size != 512 && o.size != 1024) {
-    Print("The size must be 512 or 1024.\n");
+  if (o.size != 256 && o.size != 512 && o.size != 1024) {
+    Print("The size must be 256, 512 or 1024.\n");
     return 2;
   }
   // the output
