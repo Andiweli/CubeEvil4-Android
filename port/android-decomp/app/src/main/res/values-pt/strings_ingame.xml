@@ -32,7 +32,11 @@
     <string name="ingame_flares_both">Halos + reflexos</string>
     <string name="ingame_flares_help">Reflexos de lente: anéis coloridos suaves que atravessam a imagem a partir das luzes mais fortes, como numa lente de câmera. Halos + reflexos: também um brilho suave com uma estrela fina em velas, tochas e lâmpadas.</string>
     <string name="ingame_dof">Profundidade de campo</string>
-    <string name="ingame_fps_display">Mostrar FPS</string>
+    <string name="ingame_info_hud">HUD de informações</string>
+    <string name="ingame_hud_fps">FPS jogo/tela</string>
+    <string name="ingame_hud_hz">Hz da tela</string>
+    <string name="ingame_hud_time">H:M:S desde o início</string>
+    <string name="ingame_hud_help">H:M:S é o tempo de jogo do próprio jogo: cada salvamento o guarda (máquina de escrever e salvamento instantâneo), como no GameCube. O tempo neste menu ou com o app em segundo plano não conta.</string>
     <string name="ingame_fps_bottom_left">Canto inferior esquerdo</string>
     <string name="ingame_fps_bottom_centre">Inferior ao centro</string>
     <string name="ingame_fps_top_left">Canto superior esquerdo</string>

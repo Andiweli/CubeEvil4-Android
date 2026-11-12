@@ -7,7 +7,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 Version 0.99.11-rc (versionCode 113), Releasetext `port/android-decomp/docs/releases/v0.99.11-rc.md` („Changes since
 v0.99.10.“, Known issues aus 0.99.10 übernommen). Basis 3b44101f = master = 0.99.10-rc mit der README des Inhabers.
-Nächste freie Patchnummer 0229.
+Nächste freie Patchnummer 0230 (0229: Weskers Pistole im Koffer, Abschnitt 4a).
 
 ### 2. Controller-Fokus im Ingame-Menü kaum sichtbar (Nutzerbericht, Xiaomi 21061119DG „eos“, Android 11, Mali-G52)
 
@@ -41,6 +41,67 @@ Tippen weißer Rahmen).
   je 109 grün (1 übersprungen: Bilder).
 - **Nicht geprüft:** auf einem Gerät (Retroid, ein Xiaomi mit Dunkelmodus); Androids Dateiauswahl und der Touch-Editor
   von RetroTouch (fremde Fenster) sind nicht betroffen.
+
+### 3. Aus der FPS-Anzeige wird das „Information HUD“ (Wunsch des Projektinhabers)
+
+„Der bisherige Knopf für die FPS-Anzeige schaltet künftig das Information HUD ein. Darunter erscheinen Checkboxen: FPS
+Spiel/Display, Display Hz, H:M:S ab Spielstart … Die Zeit wird gespeichert, wenn man speichert … Prüfe, ob du dafür die
+eigene Spielzeit des Spiels nutzen kannst.“
+
+- **Spielzeit:** Das Spiel führt seine Spielzeit selbst (`pG->play_time` in Sekunden plus der laufende Abschnitt seit
+  `InitGameTime`/`SetGameTime`, `main_sub.cpp` `GetGameTime`); jeder Spielstand enthält sie (Schreibmaschine wie
+  Instant-Spielstand, `GameSave.save`), die Spielstands-Anzeigen des Spiels und unser Instant-Platz zeigen sie. Die App
+  liest genau diese Zeit, damit bleibt jeder Spielstand für GameCube und Dolphin unverändert. Zeit im App-Menü und mit
+  der App im Hintergrund zählt schon seit dem Instant-Spielstand nicht (`re4_instant_game_pause`: das App-Menü und
+  `onPause` halten das Spiel an und falten die Zeit vorher zusammen).
+- **Kern:** Befehl 25 über den vorhandenen Kanal `cheatAction` (`core_api.cpp` → `instant_game.cpp`
+  `re4_instant_play_seconds`, geht auch über die Prozessgrenze des Kern-Prozesses): die Sekunden, −1 außerhalb eines
+  Spiels (Logos, Titel); während das App-Menü hält, die beim Anhalten gefaltete Zeit. Liest nur zwei Wörter von `pG`,
+  ändert nichts. Prüfhilfe: `RE4_TEST_BENCH="…:25"` schreibt die Antwort ins Protokoll.
+- **App:** neue Klasse `InfoHud` (Teile, Reihenfolge, Zeitformat `HH:MM:SS`, zweistellig, ab 100 Stunden dreistellig,
+  `--:--:--` außerhalb eines Spiels). `CoreActivity.showHud`: die Zeile aus den gewählten Teilen (FPS des Spiels bzw.
+  mit 60 FPS auch des Bildes, Display-Hz, Auflösung, Spielzeit), jede Sekunde neu; keine Box gewählt = nichts zu sehen.
+  Menü (Anzeige → Optionale Features): der Knopf heißt „Information HUD · <Platz>“ und schaltet wie bisher durch Aus,
+  unten links, unten mittig, oben links, oben mittig (Schlüssel `fpsPlace` wie bisher); solange er an ist, darunter vier
+  Checkboxen (`hudFps`, `hudHz`, `hudResolution`, `hudTime`, alle an bis zum Abwählen) und ein Satz zur Spielzeit.
+  **Abweichung vom Auftrag:** die Auflösung („1920×1008 (3×)“) zeigte die FPS-Anzeige schon; sie ist als vierte
+  Checkbox „Auflösung“ geblieben statt wegzufallen. Wer die FPS-Anzeige an hatte, sieht dasselbe wie bisher plus die
+  Spielzeit. Fünf neue Texte in 11 Sprachen (`ingame_info_hud`, `ingame_hud_fps`, `ingame_hud_hz`, `ingame_hud_time`,
+  `ingame_hud_help`), `ingame_fps_display` entfällt. Die Checkboxen haben den goldenen Fokus (Aufgabe 2).
+- **Geprüft am PC (i686 -O2, `~/p09911/hudtests.sh`, `hudtests2.sh`):** in Echtzeit (30 Bilder/s) Debug-Discs r100:
+  bei den Logos −1, dann 82 → 92 nach 300 Bildern (10 s); Schreibmaschine (Debug r100): 7 s im Spiel, gespeichert;
+  diese Karte geladen: im Titel −1, nach dem Laden 8, dann 10 (die Zeit geht vom Spielstand weiter); Instant-Spielstand
+  (EU r101, Echtzeit): 36 s gespeichert, 20 s weiter (55), geladen: 41 (36 plus die Ladezeit, die das Spiel mitzählt).
+  **Dabei gefunden:** ohne das App-Menü (die Prüfhilfe `RE4_TEST_INSTANT`) speicherte der Instant-Spielstand die Zeit vom
+  letzten Falten, nach dem Laden stand 6 statt 36. In der App faltet das Anhalten durchs Menü die Zeit vorher, dort war
+  es richtig; jetzt faltet `re4_instant_game_capture` selbst (`SetGameTime` wie die Schreibmaschine, nicht während das
+  Menü hält). `core-test instant-game` prüft das Falten, das Anhalten durchs Menü (7 s Menüzeit zählen nicht) und −1 im
+  Titel. App: `InfoHudTest` (Zeitformat, Zeile, Menü: Knopf, vier Boxen, nur sichtbar wenn an, Speichern der
+  Boxen, Plätze), `CoreMenuLayoutTest` angepasst, `FocusLookTest` (auch die Checkboxen), `check_translations.py` ohne
+  Befund, App-Tests beider Varianten je 112 grün; Bild `CoreMenuShotTest` `<Sprache>-display-hud.png` (de, en, ar).
+  `whole_build.sh` i686 -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät (die Zeile über dem Spiel, die Häkchen der Checkboxen: Robolectric zeichnet nur
+  ihre Farbe), Mercenaries und die Extra-Spiele (dort zeigt das HUD die Zeit, die das Spiel dafür führt).
+
+### 4a. Weskers Pistole im Koffer immer mit Schalldämpfer (Nutzerbericht über den Projektinhaber, Patch 0229)
+
+„In the inventory screen, the silencer will always be visually attached to the handgun when Wesker has it equipped.
+Even if you don't have the silencer at all, or if you manually unequip or discard it.“ (Schon in 0.98.1 als offener
+Punkt „Weskers Schalldämpfer im Koffer“ notiert, Abschnitt 0.98.1 Punkt 7.)
+
+- **Ursache:** Den Wesker neben dem Koffer baut `ss_model.cpp` `weskerModelInit`; für die Pistole (Waffe 2) rief der
+  Prototyp `wep43Init(2)` auf, und `wep43Init` nimmt bei jedem Wert außer 0 das Modell 6 (mit Schalldämpfer). Wesker hat
+  in den Mercenaries nur die Pistole mit Schalldämpfer (0x24), der Fall „ohne“ kam dort nie vor. Leons `wep02Init` wählt
+  dasselbe nach dem Waffentyp (0: Modell 5, 1: Modell 6). Im Spiel selbst (Waffe in der Hand) stimmte das Modell schon.
+- **Behebung: Patch 0229** (`src/Sscrn/ss_model.cpp`): `wep43Init(type)`, also Typ 0 (0x23) ohne, Typ 1 (0x24) mit
+  Schalldämpfer. Ein Port-Merkmal (die Figurenwahl), kein Fehler des Prototyps.
+- **Geprüft am PC (i686 -O2, EU-Discs, r101, Wesker per Debug-Start, `~/p09911/silcase.sh`, `silcase2.sh`, Bilder
+  `~/p09911/pics/`):** Schalldämpfer herausgenommen (`RE4_TEST_ITEM_LOSE` 0x3F), Pistole 0x23 ausgerüstet, Koffer offen:
+  vorher Wesker mit Schalldämpfer (der Fehler nachgestellt), nachher ohne; Pistole 0x24 mit Schalldämpfer: Bild Byte für
+  Byte gleich vorher. Im Spiel gezielt mit 0x23: ohne Schalldämpfer (wie schon vorher). Punisher und Blacktail (mit
+  Schalldämpfer, `RE4_TEST_PART`): Wesker steht im Koffer ohne Waffe da, wie für alle Waffen Leons, für die die Figur
+  keine eigene Datei hat (Patch 0195, so gewollt). `whole_build.sh` i686 -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät; Debug- und US-Discs (derselbe Code).
 
 ## Version 0.99.10-rc: Wünsche des Projektinhabers vom 11.11.2026 (Branch `09910`)
 

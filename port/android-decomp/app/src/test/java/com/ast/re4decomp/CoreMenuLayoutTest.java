@@ -730,11 +730,12 @@ public class CoreMenuLayoutTest {
       assertTrue(particles.getText().toString().endsWith(normal));
       shadows.performClick(); weather.performClick();
       assertEquals(0, Bridge.potato);
-      // the FPS display moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of the project owner, 04.11.2026)
-      assertNull(findButton(body, controller.get().getString(R.string.ingame_fps_display)));
+      // the FPS display (since 0.99.11 the Information HUD) moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of
+      // the project owner, 04.11.2026)
+      assertNull(findButton(body, controller.get().getString(R.string.ingame_info_hud)));
       show.invoke(menu, 1, false);
       body = (ViewGroup) field(menu, "body");
-      Button fps = findButton(body, controller.get().getString(R.string.ingame_fps_display));
+      Button fps = findButton(body, controller.get().getString(R.string.ingame_info_hud));
       Button minimap = findButton(body, controller.get().getString(R.string.ingame_minimap));
       assertNotNull(fps); assertNotNull(minimap);
       assertTrue(fps.hasOnClickListeners()); assertTrue(minimap.hasOnClickListeners());

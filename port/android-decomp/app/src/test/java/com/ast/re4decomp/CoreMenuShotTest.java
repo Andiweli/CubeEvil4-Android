@@ -88,6 +88,13 @@ public class CoreMenuShotTest {
         int at = row.indexOfChild(selected);
         focus((Button) row.getChildAt(at + 1 < row.getChildCount() ? at + 1 : at - 1));
         picture(body, 900, new File(folder, language + "-focus-display.png"));
+        // the Information HUD on (0.99.11, InfoHud): its button with the check boxes under it, the time's box cleared
+        android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS,
+            android.content.Context.MODE_PRIVATE);
+        g.edit().putInt(CoreActivity.FPS_PLACE, 1).putBoolean(InfoHud.TIME, false).apply();
+        show.invoke(menu, 1, false);
+        picture(body, 900, new File(folder, language + "-display-hud.png"));
+        g.edit().remove(CoreActivity.FPS_PLACE).remove(InfoHud.TIME).apply();
         // the warning before another player character (08.11.2026), about as wide as Android's alert in landscape
         // on a handheld (65 % of the Retroid Pocket Flip 2's 768 dp)
         show.invoke(menu, 5, false);

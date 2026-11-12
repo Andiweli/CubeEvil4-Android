@@ -233,10 +233,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private long rumbleSeen, rumbleUntil;
   private volatile int preparedRoom = -1;
   private boolean roomBusy;
-  // the FPS display (menu switch): the game's frames per second and the screen's rate, bottom left
-  // ("30 FPS (Game) · 60 Hz": the game makes 30 pictures a second, as on the GameCube; a phone's
-  // own counter shows the screen's rate, which is not the game's)
+  // the Information HUD (menu switch, InfoHud; until 0.99.10 the FPS display): the game's frames per second and the
+  // screen's rate ("30 FPS (Game) · 60 Hz": the game makes 30 pictures a second, as on the GameCube; a phone's
+  // own counter shows the screen's rate, which is not the game's), the resolution, the game's play time
   private TextView fpsView;
+  private String hudFps = "";  // the last second's FPS part (InfoHud), "-- FPS (Game)" until counted
   // where it is (the menu's button, wish of the project owner, 05.11.2026: it covered the minimap): 0 off, 1 bottom
   // left, 2 bottom centre, 3 top left, 4 top centre; before 05.11.2026 the switch "fps" alone (on: bottom left)
   static final String FPS_PLACE = "fpsPlace";
@@ -586,10 +587,21 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   private void showFps(int place) {
     fpsPlace = place;
-    fpsView.setVisibility(place != 0 && menuSupported ? View.VISIBLE : View.GONE);
-    fpsView.setText(getString(R.string.ingame_fps_none) + screenHz() + resolution());
+    hudFps = getString(R.string.ingame_fps_none);
+    showHud();
     fpsFrames = -1;
     placeFps();
+  }
+
+  /** The Information HUD's line with its parts as the menu's boxes say (InfoHud); hidden when off or none is chosen. */
+  private void showHud() {
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    boolean time = InfoHud.shows(g, InfoHud.TIME);
+    String text = InfoHud.line(InfoHud.shows(g, InfoHud.FPS), hudFps, InfoHud.shows(g, InfoHud.HZ), screenHz(),
+        InfoHud.shows(g, InfoHud.RESOLUTION), resolution(),
+        time, time ? InfoHud.time(CoreBridge.cheatAction(InfoHud.PLAY_TIME_COMMAND)) : "");
+    fpsView.setText(text);
+    fpsView.setVisibility(fpsPlace != 0 && menuSupported && !text.isEmpty() ? View.VISIBLE : View.GONE);
   }
 
   /** The FPS display at its place, kept clear of rounded corners, a cutout and bars that stay (CornerInset). */
@@ -613,7 +625,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /**
-   * " · 1280×672 (2×)": the resolution the renderer draws at now, the level "Dynamic" chose too
+   * "1280×672 (2×)": the resolution the renderer draws at now, the level "Dynamic" chose too
    * (wish of the project owner, 23.10.2026), the picture's rows as the menu counts them (336, 4:3
    * 448); "" before the renderer started.
    */
@@ -622,18 +634,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
     int rows = CoreMenu.pictureRows(aspect, surface.getWidth(), surface.getHeight());
-    return String.format(Locale.ROOT, " · %d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
+    return String.format(Locale.ROOT, "%d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
         CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }
 
-  /** " · 60 Hz": the screen's rate as measured (FramePacing), else as Android says; "" unknown. */
+  /** "60 Hz": the screen's rate as measured (FramePacing), else as Android says; "" unknown. */
   private String screenHz() {
     double hz = pacing.hz();
     if (!(hz > 0)) {
       Display display = getWindowManager().getDefaultDisplay();
       hz = display != null ? display.getRefreshRate() : 0;
     }
-    return hz > 0 ? String.format(Locale.ROOT, " · %d Hz", Math.round(hz)) : "";
+    return hz > 0 ? String.format(Locale.ROOT, "%d Hz", Math.round(hz)) : "";
   }
 
   /**
@@ -642,7 +654,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * itself stays at 30; device test of the project owner, 22.10.2026).
    */
   private void updateFps() {
-    if (fpsView.getVisibility() != View.VISIBLE) return;
+    if (fpsPlace == 0 || !menuSupported) return;
     long now = SystemClock.uptimeMillis(), frames = CoreBridge.gameFrames(), pictures = CoreBridge.pictures();
     if (frames < 0 || !resumed || menu != null || touchEditing) {
       fpsFrames = -1;  // the game stands: count anew afterwards
@@ -656,8 +668,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       double seconds = (now - fpsSince) / 1000.0;
       long game = Math.round((frames - fpsFrames) / seconds), shown = Math.round((pictures - fpsPictures) / seconds);
       boolean smooth = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean("smooth60", false);
-      fpsView.setText((smooth ? String.format(Locale.ROOT, getString(R.string.ingame_fps_smooth), game, shown)
-          : String.format(Locale.ROOT, getString(R.string.ingame_fps), game)) + screenHz() + resolution());
+      hudFps = smooth ? String.format(Locale.ROOT, getString(R.string.ingame_fps_smooth), game, shown)
+          : String.format(Locale.ROOT, getString(R.string.ingame_fps), game);
+      showHud();  // with the screen's rate, the resolution and the play time of now
       fpsFrames = frames;
       fpsPictures = pictures;
       fpsSince = now;

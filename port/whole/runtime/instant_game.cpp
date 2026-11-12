@@ -330,6 +330,20 @@ extern "C" void re4_instant_game_pause(int on)
     }
 }
 
+// 0.99.11, the app's Information HUD (command 25, core_api.cpp): the game's own play time in seconds, the one its saves
+// keep and its own screens show (pG->play_time and the running part since InitGameTime / SetGameTime, main_sub.cpp
+// GetGameTime); while the app's menu holds the game the time folded at the pause. -1 outside a game (logos, title).
+// Read from the app's thread: two words of pG, nothing of the game changed.
+extern "C" int re4_instant_play_seconds(void)
+{
+    if (!live(pG) || StaFlagChk(pG, STA_TITLE))
+        return -1;
+    if (gClockPaused)
+        return (int) pG->play_time;
+    u32 h, m, s;
+    return (int) GetGameTime(&h, &m, &s);
+}
+
 extern "C" int re4_instant_game_capture(unsigned char* out)
 {
     if (!re4_instant_game_ready())
@@ -341,6 +355,11 @@ extern "C" int re4_instant_game_capture(unsigned char* out)
     const Vec pos = pG->pl_pos;
     const f32 angle = pG->pl_ang_y;
     const s32 kind = pG->SaveKind;
+    // the play time up to now into pG->play_time first, as the typewriter's save does (card.cpp SetGameTime before
+    // GameSave.save; 0.99.11, the Information HUD): the app's menu folded it when it held the game (gClockPaused, the
+    // menu's time must not count); any other way here (RE4_TEST_INSTANT) the running part would be lost
+    if (!gClockPaused)
+        SetGameTime();
     ++pG->save_cnt;
     const bool captured = GameSave.save(&gHead, 1);
     --pG->save_cnt;

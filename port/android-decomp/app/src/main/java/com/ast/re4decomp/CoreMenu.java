@@ -29,6 +29,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.CheckBox;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import java.text.DateFormat;
@@ -522,7 +523,7 @@ final class CoreMenu extends Dialog {
     });
     return b;
   }
-  private void fpsLabel(Button b, int place, boolean on) { valueLabel(b, R.string.ingame_fps_display, place, on); }
+  private void fpsLabel(Button b, int place, boolean on) { valueLabel(b, R.string.ingame_info_hud, place, on); }
   /** "Name · value" on a button that moves through its values with each press, lit while not off. */
   private void valueLabel(Button b, int name, int value, boolean on) {
     b.setSelected(on);
@@ -892,19 +893,56 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
       graphics.edit().putBoolean("minimap", on).apply(); CoreBridge.setMinimap(on);
     });
-    // the FPS display (here since 04.11.2026, before on PERFORMANCE under EXPERIMENTAL); each press moves it on
-    // (wish of the project owner, 05.11.2026: it covered the minimap): off, bottom left, bottom centre, top left,
-    // top centre, off again
+    // the Information HUD (0.99.11, wish of the project owner, 12.11.2026; before the FPS display, here since
+    // 04.11.2026): each press moves it on (wish of the project owner, 05.11.2026: it covered the minimap): off, bottom
+    // left, bottom centre, top left, top centre, off again; while it is on, check boxes under it choose what it shows
+    // (InfoHud), with a sentence on the play time
     final int[] fpsLabels = {R.string.ingame_off, R.string.ingame_fps_bottom_left, R.string.ingame_fps_bottom_centre,
         R.string.ingame_fps_top_left, R.string.ingame_fps_top_centre};
-    Button fps = cellAction(buttonsRow(labelledOptions(0)), "", v -> {
+    LinearLayout hud = labelledOptions(0);
+    MenuLayout.Buttons hudRow = buttonsRow(hud);
+    MenuLayout.Buttons parts = new MenuLayout.Buttons(getContext(), 2);
+    TextView hudHelp = text(s(R.string.ingame_hud_help), 15, false);
+    hudHelp.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    Button fps = cellAction(hudRow, "", v -> {
       int next = (CoreActivity.fpsPlace(graphics) + 1) % CoreActivity.FPS_PLACES;
       graphics.edit().putInt(CoreActivity.FPS_PLACE, next).putBoolean("fps", next != 0).apply();
       fpsLabel((Button) v, fpsLabels[next], next != 0);
+      parts.setVisibility(next != 0 ? View.VISIBLE : View.GONE);
+      hudHelp.setVisibility(next != 0 ? View.VISIBLE : View.GONE);
       host.fpsChanged(next);
     });
+    hud.addView(parts, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    hudBox(parts, R.string.ingame_hud_fps, InfoHud.FPS);
+    hudBox(parts, R.string.ingame_hud_hz, InfoHud.HZ);
+    hudBox(parts, R.string.ingame_resolution, InfoHud.RESOLUTION);
+    hudBox(parts, R.string.ingame_hud_time, InfoHud.TIME);
+    hud.addView(hudHelp);
     int fpsNow = CoreActivity.fpsPlace(graphics);
     fpsLabel(fps, fpsLabels[fpsNow], fpsNow != 0);
+    parts.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
+    hudHelp.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
+  }
+  /** One of the Information HUD's check boxes (InfoHud): on until cleared, the HUD takes it at once. */
+  private CheckBox hudBox(MenuLayout.Buttons parent, int label, String part) {
+    CheckBox box = new CheckBox(getContext());
+    box.setText(s(label)); box.setTextSize(15); box.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
+    box.setButtonTintList(new ColorStateList(new int[][] {new int[] {android.R.attr.state_checked}, new int[0]},
+        new int[] {GOLD, MUTED}));
+    StateListDrawable look = new StateListDrawable();
+    look.addState(new int[] {android.R.attr.state_focused}, focused());
+    look.addState(new int[] {android.R.attr.state_pressed}, shape(ACTIVE, GOLD, 6));
+    look.addState(new int[0], shape(SURFACE, BORDER, 6));
+    box.setBackground(look);
+    box.setPaddingRelative(dp(8), dp(8), dp(12), dp(8)); box.setMinHeight(dp(48)); box.setMinimumHeight(dp(48));
+    box.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+    box.setChecked(InfoHud.shows(graphics, part));
+    box.setOnCheckedChangeListener((v, on) -> {
+      graphics.edit().putBoolean(part, on).apply();
+      if (host != null) host.fpsChanged(CoreActivity.fpsPlace(graphics));
+    });
+    parent.addButton(box);
+    return box;
   }
   /** "Renderer": OpenGL ES or Vulkan (experimental, port/docs/vulkan-bauplan.md E7); a change restarts the game
    *  after a question, "Cancel" keeps the one before (as the game's language). Without Vulkan here: OpenGL ES only. */

@@ -32,7 +32,11 @@
     <string name="ingame_flares_both">光环 + 镜头光晕</string>
     <string name="ingame_flares_help">镜头光晕：最亮的光源在画面上投出淡淡的彩色光环，就像相机镜头那样。光环 + 镜头光晕：另外在蜡烛、火把和灯上加一圈柔和的光晕和细小的星芒。</string>
     <string name="ingame_dof">景深</string>
-    <string name="ingame_fps_display">FPS 显示</string>
+    <string name="ingame_info_hud">信息 HUD</string>
+    <string name="ingame_hud_fps">FPS 游戏/显示</string>
+    <string name="ingame_hud_hz">屏幕 Hz</string>
+    <string name="ingame_hud_time">自游戏开始的 时:分:秒</string>
+    <string name="ingame_hud_help">时:分:秒是游戏自身的游戏时间：每个存档都会保存它（打字机和即时存档），与 GameCube 上一样。在此菜单中或应用在后台时的时间不计入。</string>
     <string name="ingame_fps_bottom_left">左下</string>
     <string name="ingame_fps_bottom_centre">下方居中</string>
     <string name="ingame_fps_top_left">左上</string>

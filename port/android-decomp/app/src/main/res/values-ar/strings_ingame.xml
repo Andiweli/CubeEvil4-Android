@@ -35,7 +35,11 @@
     <string name="ingame_flares_both">هالات + وهج العدسة</string>
     <string name="ingame_flares_help">وهج العدسة: حلقات ملونة خافتة تعبر الصورة من أسطع الأضواء، كما تصنعها عدسة الكاميرا. هالات + وهج العدسة: وأيضًا توهج ناعم مع نجمة دقيقة عند الشموع والمشاعل والمصابيح.</string>
     <string name="ingame_dof">عمق الميدان</string>
-    <string name="ingame_fps_display">عرض FPS</string>
+    <string name="ingame_info_hud">&#x200F;HUD المعلومات</string>
+    <string name="ingame_hud_fps">&#x200F;FPS اللعبة/الشاشة</string>
+    <string name="ingame_hud_hz">هرتز الشاشة</string>
+    <string name="ingame_hud_time">س:د:ث منذ بدء اللعبة</string>
+    <string name="ingame_hud_help">س:د:ث هو وقت اللعب الخاص باللعبة: يحتفظ به كل حفظ (الآلة الكاتبة والحفظ الفوري)، كما على GameCube. الوقت في هذه القائمة أو والتطبيق في الخلفية لا يُحتسب.</string>
     <string name="ingame_fps_bottom_left">أسفل اليسار</string>
     <string name="ingame_fps_bottom_centre">أسفل الوسط</string>
     <string name="ingame_fps_top_left">أعلى اليسار</string>

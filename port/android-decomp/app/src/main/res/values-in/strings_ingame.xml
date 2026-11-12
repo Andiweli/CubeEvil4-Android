@@ -32,7 +32,11 @@
     <string name="ingame_flares_both">Halo + lens flare</string>
     <string name="ingame_flares_help">Lens flare: cincin berwarna samar melintasi gambar dari cahaya paling terang, seperti pada lensa kamera. Halo + lens flare: ditambah cahaya lembut dengan bintang halus pada lilin, obor, dan lampu.</string>
     <string name="ingame_dof">Kedalaman bidang (depth of field)</string>
-    <string name="ingame_fps_display">Tampilan FPS</string>
+    <string name="ingame_info_hud">HUD informasi</string>
+    <string name="ingame_hud_fps">FPS game/layar</string>
+    <string name="ingame_hud_hz">Hz layar</string>
+    <string name="ingame_hud_time">J:M:D sejak awal permainan</string>
+    <string name="ingame_hud_help">J:M:D adalah waktu bermain milik game itu sendiri: setiap simpanan menyimpannya (mesin tik dan simpan cepat), seperti di GameCube. Waktu di menu ini atau saat aplikasi di latar belakang tidak dihitung.</string>
     <string name="ingame_fps_bottom_left">Kiri bawah</string>
     <string name="ingame_fps_bottom_centre">Tengah bawah</string>
     <string name="ingame_fps_top_left">Kiri atas</string>
