@@ -31,16 +31,44 @@ Etappe 4 (Ada vornübergeklappt vor einer Schlosstür).
   sie bei jeder Stufe ihre Bewegung der Stufe 0. Die Zeiten der Stufe bleiben (Magazin voll bei Bild 19/33/40 der
   Waffe, `PlReloadEndTbl`), die Aufrüstung bringt also weiter etwas. Leon, die anderen Figuren und Adas Mercenaries
   unverändert. Ein Port-Merkmal, kein Fehler des Prototyps.
-- **Geprüft am PC (i686 -O2, EU-Discs r305 Schloss, Ada per Debug-Start, `RE4_TEST_WEAPON` mit Stufen, Koffer voll
-  Munition, leer schießen bzw. B, `~/p09911/adatmp.sh`, `adawep.sh`, `adafix.sh`, Bilder `~/p09911/pics/`):**
+- **Geprüft am PC (i686 -O2, EU-Discs r305 Insel, Ada per Debug-Start, `RE4_TEST_WEAPON` mit Stufen, Koffer voll
+  Munition, leer schießen bzw. B, `~/p09911/adatmp.sh`, `adawep.sh`, `adafix.sh`, `adafix2.sh`, Bilder
+  `~/p09911/pics/`):**
   vorher TMP Stufe 2: Ada beim und nach dem Nachladen vornübergebeugt (wie im Bild des Nutzers), Stufe 0 normal, Leon
   Stufe 2 normal; Punisher Stufe 2 beim Nachladen vornübergebeugt mit erhobenen Armen, danach normal; Gewehr Stufe 2 beim
   Nachladen aus dem Bild. Nachher: TMP Stufe 0/1/2 ohne und mit Schaft (Typ 2), Punisher und Gewehr Stufe 2 mit Adas
   eigener Bewegung, danach normale Haltung (Werte wie Stufe 0); Leon Stufe 2 unverändert (seine Bewegung 0x24); TMP Stufe
-  2 auch mit den Debug-Discs. Wesker (Pistole, Killer7, Gewehr Stufe 2) war schon in Ordnung, HUNK hat Leons Skelett.
+  2 auch mit den Debug-Discs; Schlossräume r204 und r20a (EU) mit Patch: TMP Stufe 2 ohne und mit Schaft, Haltung danach
+  normal. Wesker (Pistole, Killer7, Gewehr Stufe 2) war schon in Ordnung, HUNK hat Leons Skelett.
   `whole_build.sh` i686 -O2 alle Prüfungen grün.
 - **Nicht geprüft:** auf einem Gerät; US- und JP-Discs (dieselben Dateien wie EU erwartet); HUNKs TMP auf Stufe 1/2
   nicht eigens angespielt.
+
+### 5. Hat Ada in der Geschichte ihre Bewegungen aus den Mercenaries? (Prüfung, Wunsch des Projektinhabers)
+
+„Kannst du auch prüfen ob Ada in der Hauptstory auch ihre Bewegungen aus den Mercenaries hat.“ Geprüft am PC (i686 -O2,
+Ada per Debug-Start, EU-Discs, das Schloss auch mit Debug-Discs; `~/p09911/adamoves.sh`, `adamelee.sh`, `adamelee2.sh`;
+Bilder `~/p09911/pics/mv-*`, `ml-*`; die Logzeilen „cheat: Ada plays …“ sagen, woher eine Bewegung kommt):
+
+- **Ihre eigenen (aus ihren Mercenaries-Dateien):** der Drehtritt „FAN KICK“ am betäubten Gegner im Dorf (r103,
+  Ganado 0x12), im Schloss (r204, 0x14, EU und Debug) und auf der Insel (r305, 0x1e): Eintrag 0x29D aus `em50`, der
+  Gegner fliegt zurück (Dorf 1200 → 800); ihre Griff-Bewegungen, als ein Ganado sie packte (0x28F, 0x290, 0x297), und
+  die Antworten der Gegner (0x2B7/0x2B8), alle aus `em50` (Mechanismus seit 0.98.3, `loadStandInSet`). Laufen, Gehen,
+  Stehen: ihr eigenes Spielerarchiv. Granatenwurf (Handgranate, Blendgranate): ihre eigene Datei.
+  Zielen, Schießen, Nachladen mit Punisher, Gewehr und TMP: ihre eigenen Dateien; **das Nachladen auf Stufe 1/2 war die
+  Lücke** (ihre Mercenaries-Waffen werden nie aufgerüstet), behoben mit Patch 0230 (Abschnitt 1, der TMP-Fehler).
+- **Von Leon:** die Bewegungen, die ihrem Spielerarchiv fehlen (0x23, 0x24, 0x26, 0x46, 0x47, 0x55–0x58, 0x5A–0x5C,
+  0x68, 0x69, 0x6C, 0x6E, 0x70–0x79, 0x7C; seit 0.98.0 aus Leons Archiv, Liste wie 0.99.6 Etappe 4), und alle Waffen
+  Leons, für die sie keine eigene Datei hat (Schrotflinten, Red9, Blacktail, Magnums, Chicago Typewriter,
+  Raketenwerfer …) mit ihrer eigenen Griffhand (Patch 0196). Bilder: Gehen und Zielen mit Schrotflinte, Red9 und
+  Chicago Typewriter sehen normal aus.
+- **Fehlt:** ein Messer. Im Prototyp gibt es die Messer-Taste nur für Leon und Krauser (`pl_sub.cpp` `joyLKamae`:
+  `pl_type` 0 und 4), und Adas Mercenaries-Ausrüstung hat keins (`item.cpp` `set_char(2)`); als ausgerüstete Waffe
+  (0x00) tut es bei ihr nichts. Das ist so im Originalcode; Ada ein Messer zu geben wäre ein eigener Umbau (Messer-
+  Haltung und -Bewegungen für ihr Skelett), nicht gebaut, Bericht an den Inhaber.
+- **Nebenbei:** „Invalid Seq. Frame“ beim Testschalter mit den Gegner-Routinen 0x10/0x14 kommt bei Leon genauso (eine
+  Folge des erzwungenen Zustands, nicht Adas). Der Debug-Start in r50b stürzt in `titleExit` ab: den Raum gibt es nicht
+  (Stufe 3 endet bei r331), kein Fehler des Spiels.
 
 ### 2. Controller-Fokus im Ingame-Menü kaum sichtbar (Nutzerbericht, Xiaomi 21061119DG „eos“, Android 11, Mali-G52)
 
@@ -137,6 +165,10 @@ Punkt „Weskers Schalldämpfer im Koffer“ notiert, Abschnitt 0.98.1 Punkt 7.)
 - **Nicht geprüft:** auf einem Gerät; Debug- und US-Discs (derselbe Code).
 
 ### 4b. Leons Schalldämpfer im Prototyp (nur geprüft, nichts geändert)
+
+**Entscheidung des Projektinhabers (12.11.2026):** „Wenn der Schalldämpfer nicht regulär zu erhalten ist sondern nur über
+den Debug Modus, dann lassen wir ihn weg bei Leon.“ Kein Cheat-Knopf, Leon bekommt keinen Schalldämpfer; er bleibt
+Weskers (Verhalten wie 0.99.10, Abschnitt 7.5 dort). Die Prüfung darunter bleibt als Nachweis.
 
 Nutzer: „the silencer should also work by default on Leon (… I think there was footage showcasing it as well as the slow
 motion thing from that version)“. Gelesen im Code (`src/`), Kernaussagen selbst nachgeprüft:
