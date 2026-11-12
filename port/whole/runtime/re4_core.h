@@ -205,7 +205,9 @@ void re4_core_pad(const Re4CorePad* pad);
  * last frame (the title and its menus, loading, a sub screen: inventory, map,
  * files, merchant, options, radio, typewriter); there the app's button mapping
  * gives way to the device's default (29.10.2026). Bit 5: a button prompt ("A
- * Open", the quick-time events; noted only). */
+ * Open", the quick-time events; noted only). Bit 6: the scope or the
+ * binoculars are up, where the C stick zooms (cores since 12.11.2026,
+ * runtime/wheel_zoom.cpp; the app keeps the mouse off the C stick there). */
 unsigned re4_core_rumble(void);
 /* A vsync of the device's display at `ns` (CLOCK_MONOTONIC, e.g. the
  * Choreographer's frame time), any thread, every vsync while the game is
@@ -354,6 +356,10 @@ void re4_core_touch(float u, float v);
  * aims, as angles in radians (yaw positive left, pitch positive up), added up to the next game frame and
  * turned there as the gyro turns the aim (the scope's zoom too). Any thread. */
 void re4_core_aim_turn(float yaw, float pitch);
+/* The mouse wheel (cores since 12.11.2026, 0.99.12; runtime/wheel_zoom.cpp): `notches` up (positive, zooms in) or
+ * down, an eighth of the zoom each, handed to the game as a short push of the C stick while the scope or the
+ * binoculars are up; dropped anywhere else. Any thread. */
+void re4_core_zoom(int notches);
 /* A swipe across the picture (cores since 22.10.2026): dir 1 the next tab of
  * the sub screen (a swipe to the left), -1 the one before, nothing beyond the
  * first and the last; ignored outside the normal inventory. Any thread. */

@@ -1036,6 +1036,11 @@ void re4ipc_aim_turn(float yaw, float pitch)
     post(kAimTurn, a, b, 0);
 }
 
+void re4ipc_zoom(int notches)
+{
+    post(kZoom, notches, 0, 0);
+}
+
 void re4ipc_touch(float u, float v)
 {
     int32_t a, b;

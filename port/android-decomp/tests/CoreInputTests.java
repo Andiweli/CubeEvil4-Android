@@ -507,6 +507,29 @@ public final class CoreInputTests {
       check(kb.pad()[3] > 80);
       kb.mouseLook(0, 0);
       check(kb.pad()[3] == 0);
+      // 0.99.12: in the scope or the binoculars (the core's bit 6) the mouse keeps off the C stick (it zoomed them);
+      // the C stick it held goes at once, a controller's stays
+      kb.mouseLook(0, 1f);
+      check(kb.pad()[4] < -80);
+      kb.setZoomView(true);
+      check(kb.zoomView() && kb.pad()[3] == 0 && kb.pad()[4] == 0);
+      kb.mouseLook(1f, -1f);
+      check(kb.pad()[3] == 0 && kb.pad()[4] == 0);
+      kb.motion(9, 0, 0, 0, -1f, 0, 0, 0, 0);
+      check(kb.pad()[4] > 80);
+      kb.motion(9, 0, 0, 0, 0, 0, 0, 0, 0);
+      kb.setZoomView(false);
+      kb.mouseLook(0, -1f);
+      check(!kb.zoomView() && kb.pad()[4] > 80);
+      kb.mouseLook(0, 0);
+      // the wheel: whole notches, a fine wheel's parts add up, the other way drops the part left
+      check(kb.wheel(1f) == 1 && kb.wheel(-1f) == -1 && kb.wheel(3f) == 3 && kb.wheel(0) == 0);
+      check(kb.wheel(Float.NaN) == 0 && kb.wheel(Float.POSITIVE_INFINITY) == 0);
+      int tenths = 0;
+      for (int i = 0; i < 10; i++) tenths += kb.wheel(0.1f);
+      check(tenths == 1);
+      check(kb.wheel(0.5f) == 0 && kb.wheel(-0.5f) == 0 && kb.wheel(-0.5f) == -1);
+      check(kb.wheel(0.75f) == 0 && kb.wheel(0.75f) == 1 && kb.wheel(0.5f) == 1);
       kb.keyboardKey(5, keyShift, true);
       check(kb.pad()[0] == CoreInput.GC_B);
       kb.keyboardKey(5, keyShift, false);

@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 113
+        versionCode 114
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -83,7 +83,7 @@ android {
         // reports after 0.99.10: the menu's controller focus, the Information HUD, Ada's TMP). Since 0.99.1 the name
         // is exactly the release's tag on GitHub (AppUpdate compares the two): a suffix until 1.0 ("-rc"), none from 1.0
         // on (the project owner, 07.11.2026)
-        versionName '0.99.11-rc'
+        versionName '0.99.12-rc'
         // a branch's test APK names itself with -Pre4.versionName (the Vulkan branch: "0.99.2-vulkan1"; AppUpdate
         // takes a different suffix word for the same version)
         if (project.hasProperty('re4.versionName')) versionName project.property('re4.versionName')

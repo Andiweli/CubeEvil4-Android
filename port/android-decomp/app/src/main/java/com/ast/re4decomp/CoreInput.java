@@ -391,8 +391,39 @@ public final class CoreInput {
   public void mouseLook(float x, float y) {
     Device d = device(KEYBOARD);
     d.keyboard = true;
-    d.rx = clamp(x, -1, 1);
-    d.ry = clamp(y, -1, 1);
+    d.rx = zoomView ? 0 : clamp(x, -1, 1);
+    d.ry = zoomView ? 0 : clamp(y, -1, 1);
+  }
+
+  // ---- the mouse wheel and the scope (0.99.12, wish of the project owner, 12.11.2026) ----
+  private boolean zoomView;  // setZoomView
+  private float wheelRest;   // a fine wheel's part of a notch
+
+  /**
+   * The scope or the binoculars are up (the core's rumble word, bit 6): their C stick zooms, so the mouse's
+   * movement keeps off it (mouseLook; moving it up and down zoomed them, the wheel zooms now). The aim still turns
+   * by it (CoreBridge.aimTurn); the controllers' and the touch controls' C stick stay as they are.
+   */
+  public void setZoomView(boolean on) {
+    zoomView = on;
+    Device d = on ? devices.get(KEYBOARD) : null;
+    if (d != null) d.rx = d.ry = 0;
+  }
+
+  public boolean zoomView() { return zoomView; }
+
+  /**
+   * A turn of the mouse wheel (Android's AXIS_VSCROLL, up positive): the whole notches it completes, for the core
+   * (CoreBridge.zoom). A fine wheel's parts of a notch add up; turned the other way, the part left goes.
+   */
+  public int wheel(float v) {
+    if (Float.isNaN(v) || Float.isInfinite(v) || v == 0) return 0;
+    if (wheelRest * v < 0) wheelRest = 0;
+    wheelRest += v;
+    // towards 0, ten tenths a whole notch too (0.1 added ten times is 0.99999994)
+    int notches = (int) (wheelRest + (wheelRest > 0 ? 1e-3f : -1e-3f));
+    wheelRest -= notches;
+    return notches;
   }
 
   /** A key as its label: with "swap A/B and X/Y" the controller's A sends B's code and so on. */

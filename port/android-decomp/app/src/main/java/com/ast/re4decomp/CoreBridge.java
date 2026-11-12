@@ -270,6 +270,12 @@ public final class CoreBridge {
    */
   public static native void aimTurn(float yaw, float pitch);
   /**
+   * The mouse wheel (CoreActivity, 0.99.12): whole notches, up positive. While the scope or the binoculars are up
+   * the core zooms by them (an eighth of the zoom a notch, up zooms in, as the C stick does); elsewhere it drops
+   * them. Cores before 12.11.2026 ignore it.
+   */
+  public static native void zoom(int notches);
+  /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores
    * before 22.10.2026 ignore it.

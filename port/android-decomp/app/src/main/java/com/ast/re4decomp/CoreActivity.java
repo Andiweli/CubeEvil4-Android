@@ -1783,6 +1783,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @Override
   public boolean onGenericMotionEvent(MotionEvent e) {
+    // the mouse wheel while the game has the mouse but has not captured it (Android 7, before the first click)
+    if (e.getActionMasked() == MotionEvent.ACTION_SCROLL && e.isFromSource(InputDevice.SOURCE_CLASS_POINTER)
+        && mouseWanted()) {
+      wheel(e);
+      return true;
+    }
     if (e.getAction() == MotionEvent.ACTION_MOVE && controller(e)) {
       InputDevice d = e.getDevice();
       noteDevice(d);
@@ -2162,6 +2168,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
     }
     int action = e.getActionMasked();
+    if (action == MotionEvent.ACTION_SCROLL) wheel(e);
     if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
       // relative counts, the batched ones too
       float dx = e.getX(), dy = e.getY();
@@ -2171,7 +2178,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       if (dx != 0 || dy != 0) {
         // while aiming the core turns the aim by it (and ignores it otherwise); the camera's C stick as long
-        // as the mouse moves
+        // as the mouse moves, but not in the scope or the binoculars, where the C stick zooms (the wheel's job
+        // since 0.99.12: moving the mouse up and down zoomed there)
         float k = MOUSE_AIM_RADIANS * mouseSensitivity;
         CoreBridge.aimTurn(-dx * k, -dy * k);
         input.mouseLook(dx * MOUSE_LOOK * mouseSensitivity, dy * MOUSE_LOOK * mouseSensitivity);
@@ -2180,6 +2188,33 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
     }
     send();
+  }
+
+  // ---- the mouse wheel (0.99.12, wish of the project owner, 12.11.2026) ----
+  private int wheelLines, zoomViewLines;
+
+  /**
+   * A turn of the mouse wheel (captured or not): whole notches to the core (CoreInput.wheel), which zooms the
+   * scope and the binoculars by them (up zooms in) and drops them anywhere else.
+   */
+  private void wheel(MotionEvent e) {
+    int notches = input.wheel(e.getAxisValue(MotionEvent.AXIS_VSCROLL));
+    if (notches == 0) return;
+    CoreBridge.zoom(notches);
+    if (wheelLines++ < 20) {
+      Log.i(TAG, "mouse wheel: " + notches + " notch(es) " + (notches > 0 ? "up" : "down")
+          + (input.zoomView() ? " (the scope or the binoculars: zoom)" : " (no scope, no binoculars: nothing)"));
+    }
+  }
+
+  /** The scope or the binoculars came up or went (rumbleTick): the mouse keeps off the C stick while they are up. */
+  private void setZoomView(boolean on) {
+    if (on == input.zoomView()) return;
+    input.setZoomView(on);
+    if (zoomViewLines++ < 40) {
+      Log.i(TAG, "mouse: the scope or the binoculars " + (on ? "up (the wheel zooms, the mouse's movement does not)" : "down"));
+    }
+    if (on) send();
   }
 
   @SuppressWarnings("deprecation")
@@ -2280,6 +2315,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         input.setMenu(gameMenu);
         send();
       }
+      // the scope or the binoculars (bit 6, cores since 12.11.2026): the mouse's movement keeps off the C stick
+      setZoomView((r & 0x40) != 0);
       int frames = r >>> 8;
       if (frames != rumbleFrames) {
         rumbleFrames = frames;

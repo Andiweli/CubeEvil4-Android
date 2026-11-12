@@ -3,6 +3,64 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.12-rc: Zoom mit dem Mausrad (12.11.2026, Branch `09912`)
+
+Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
+v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
+Nächste freie Patchnummer weiter 0231 (0.99.12 braucht keinen Patch unter `src/`).
+
+### 1. Zoom mit dem Mausrad in Zielfernrohr und Fernglas (Wunsch des Projektinhabers)
+
+„Wenn jemand mit Tastatur und Maus spielt, soll mit dem Mausrad gezoomt werden können, wenn man ein Fernglas oder
+Zielfernrohr nutzt.“
+
+- **Wie das Spiel zoomt (`src/game/cam_extra.cpp`):** `CameraScope::move` (Gewehr, halbautomatisches Gewehr,
+  Raketenwerfer, alle Figuren; nur solange Zielen gehalten wird, `Key.on & 0x10`) und `CameraBinocular::move` (r101,
+  auch wieder nach dem Koffer) addieren je Spielbild `substickY * 0,001` auf ihren Zoom (0 … 1), C-Stick hoch zoomt
+  hinein; das Sichtfeld geht linear von 45° bis 9° (Zielfernrohr, mit dem aufgerüsteten Zielfernrohr bis 3°) bzw. 3°
+  (Fernglas). Sonst liest nur noch die Debug-Kamera den C-Stick so. Die Fernglas-Schnitte in r10b und r214 zeigen nur
+  den Rahmen des Fernglases über einer Ereigniskamera und zoomen nicht (dort ändert das Rad nichts, wie der C-Stick).
+- **Kern (`runtime/wheel_zoom.cpp`, neu, mit den Spiel-Flags in libre4_main; `re4_core_zoom`):** die App gibt jede
+  Rastung des Rads weiter (oben +1). Eine Rastung ist ein **Achtel des Zooms** (acht Rastungen von ganz weit bis ganz
+  nah): 125 Einheiten C-Stick, als kurzer Stoß gerade nach oben oder unten in `PADRead` an das Spiel gegeben
+  (`re4_pad_substick` in `runtime/pad.cpp`: 50, 50, 25 nach dem `PADClamp` des SDK, drei Spielbilder; das Spiel nullt
+  10 und weniger), so zoomt das Spiel mit seinem eigenen Code (Sichtfeld, Zoom-Leiste, die Unschärfe beim Zoomen) und
+  jede Rastung gleich weit. Rastungen stauen sich bis zum ganzen Zoom (8); eine Rastung in die andere Richtung wirft
+  die noch wartenden weg; am Ende des Zooms wird der Rest verworfen. Nur solange Zielfernrohr (`STA_SCOPE_CAMERA`,
+  `CamCtrl.r0` 0x10) oder Fernglas (`STA_BINOCULAR`, `r0` 0xC) im Spiel offen sind; sonst wird eine Rastung
+  verworfen und ändert nichts (kein C-Stick, keine Kamera). Weg zur App wie beim Wischen: `CoreBridge.zoom`,
+  `core_mode.cpp`, im eigenen Kern-Prozess Nachricht `kZoom` 43 (`core_ipc_client.cpp`, `host/coreproc.cpp`;
+  ältere Kerne: nichts). Prüfhilfe `RE4_TEST_WHEEL="N@F …"` (Bild F) bzw. `"N@vF"` (F Bilder nach dem Öffnen),
+  Protokollzeilen „wheel: the scope zoomed to 0.250 …“, „wheel: … dropped: neither the scope nor the binoculars up“.
+- **Dabei gefunden und behoben (Maus bewegen zoomte):** die Maus bewegte außer dem Ziel (`aimTurn`) immer auch den
+  C-Stick (`mouseLook`, die Kamera). Im Zielfernrohr und im Fernglas ist der C-Stick aber der Zoom: Maus hoch und runter
+  zoomte mit, im Fernglas tat sie sonst nichts. Jetzt meldet der Kern „Zielfernrohr oder Fernglas offen“ im Wort
+  `re4_core_rumble` als **Bit 6** (`pad.cpp` über `re4_pad_zoom_probe`, wie das Menü-Bit 4; Protokoll „pad: the scope
+  or the binoculars up …“), die App fragt es wie das Menü-Bit alle 16 ms ab (`CoreActivity.rumbleTick` →
+  `CoreInput.setZoomView`), und solange es gesetzt ist, gibt die Maus keinen C-Stick (`CoreInput.mouseLook`); das Ziel
+  im Zielfernrohr dreht sie weiter. Controller, Touch und Gyro unverändert (ihr C-Stick zoomt wie bisher).
+- **App:** `CoreActivity.capturedMouse` nimmt `ACTION_SCROLL` (eingefangene Maus), `onGenericMotionEvent` dasselbe,
+  solange das Spiel die Maus hat, sie aber nicht eingefangen ist (Android 7, vor dem ersten Klick).
+  `CoreInput.wheel`: ganze Rastungen aus `AXIS_VSCROLL`; Teile feiner Räder zählen zusammen, die andere Richtung wirft
+  den Rest weg. Protokoll „mouse wheel: 1 notch(es) up …“ (höchstens 20 Zeilen). Die Tastenbelegung ändert sich nicht.
+  Menü (Tastenbelegung → Tastatur & Maus): der Hilfetext unter „Mausempfindlichkeit“ nennt jetzt das Rad („Das Mausrad
+  zoomt mit Zielfernrohr und Fernglas (nach oben: näher heran).“), in allen 11 Sprachen (`ingame_mouse_help`).
+- **Geprüft am PC (i686 -O2, `~/p09912/scope.sh`, `bino.sh`, `series.sh`, Protokoll `~/p09912/series.log`, Bilder
+  `~/p09912/pics/`):** mit Debug-, EU- und US-Discs je Fernglas (r101, Leon an den Aussichtspunkt gesetzt, A) und
+  Zielfernrohr von Gewehr (9), halbautomatischem Gewehr (10) und Raketenwerfer (13) in r103: Rastungen 1, 1, 3, −2, 8, 2,
+  −8, −1 ergeben Zoom 0,125 / 0,250 / 0,625 / 0,375 / 1,000 / (am Ende verworfen) / 0,000 / (am Anfang verworfen),
+  Sichtfeld 40,5° … 9° bzw. 39,8° … 3°; zwei Rastungen vor dem Zielfernrohr (Leon geht) verworfen, der Zoom blieb 0.
+  Bilder: Zielfernrohr und Fernglas bei 0, 1, 2, 5 Rastungen und ganz nah. `CoreInputTests` (1843 Prüfungen, neu: kein
+  C-Stick der Maus bei offenem Zielfernrohr, der eines Controllers bleibt, Rastungen feiner Räder), `ActionMapTests`,
+  `CoreTouchTests`, `check_translations.py` ohne Befund, App-Tests beider Varianten (`testCoreDebugUnitTest`,
+  `testClassicDebugUnitTest`, JDK von Android Studio) je 112 grün (1 übersprungen: Bilder). `whole_build.sh` i686 -O2
+  alle Prüfungen grün; `whole_build_android.sh --abi all` (armeabi-v7a und arm64-v8a, 0 Fehler, Stubs wie erwartet)
+  und `gradlew externalNativeBuildCoreDebug` (`core_mode.cpp`, beide ABIs) ohne neue Warnung übersetzt.
+- **Nicht geprüft:** auf einem Gerät mit echter Maus (ob Android das Rad bei eingefangener Maus wirklich als
+  `ACTION_SCROLL` liefert, ist nur nach der Android-Quelle angenommen; das Protokoll zeigt es mit „mouse wheel:“), die
+  Abschaltung des Maus-C-Sticks im Spiel selbst (die App-Seite ist nur in `CoreInputTests` geprüft), JP-Discs, das
+  aufgerüstete Zielfernrohr des halbautomatischen Gewehrs (Typ 1, gleicher Code), die Minenwerfer mit Zielfernrohr.
+
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 
 Version 0.99.11-rc (versionCode 113), Releasetext `port/android-decomp/docs/releases/v0.99.11-rc.md` („Changes since
