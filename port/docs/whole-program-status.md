@@ -103,6 +103,31 @@ Punkt „Weskers Schalldämpfer im Koffer“ notiert, Abschnitt 0.98.1 Punkt 7.)
   keine eigene Datei hat (Patch 0195, so gewollt). `whole_build.sh` i686 -O2 alle Prüfungen grün.
 - **Nicht geprüft:** auf einem Gerät; Debug- und US-Discs (derselbe Code).
 
+### 4b. Leons Schalldämpfer im Prototyp (nur geprüft, nichts geändert)
+
+Nutzer: „the silencer should also work by default on Leon (… I think there was footage showcasing it as well as the slow
+motion thing from that version)“. Gelesen im Code (`src/`), Kernaussagen selbst nachgeprüft:
+
+- **Gegenstand und Koffer:** 0x3F ist ein Waffenteil (Typ 9, `item.cpp` `itemInfo`), Pistole/Punisher/Blacktail mit
+  Schalldämpfer sind 0x24/0x22/0x28 (Waffe 2/1/4, Typ 1, Werte wie ohne). Ansetzen (`partsCombine`) und Abnehmen im
+  Koffer (`ss_pzzl.cpp` Befehl 6/3) sind fertig.
+- **Woher Leon ihn hat:** nur aus der Debug-Ausrüstung 3 (`item.cpp` `set_debug(3)`, im Debug-Werkzeug CASE MAKE der
+  Debug-Discs, lose im Koffer). Kein Händler (`merchant.cpp` ohne 0x3F), kein Spielstart, kein Fundort im Code (Fundorte
+  stehen in den Raumdaten der Disc, dort nicht geprüft). Wesker der Mercenaries hat ihn fest an 0x23.
+- **Wirkung:** nur an der Pistole 0x24 echt (`wep/objRuger.cpp`): eigenes Modell, ein leiser Schuss-Ton (0x18 statt der
+  drei lauten) und **kein `STA_PL_FIRE`**, über das Ganados Schüsse in 25 m hören (`em10.cpp` und weitere `em*`): mit
+  Schalldämpfer werden sie nicht durch den Schuss aufmerksam. Punisher 0x22 und Blacktail 0x28: nur Modell und
+  Mündungsfeuer, laut wie ohne. Schaden gleich (`em_dm_val.cpp` nach Waffennummer). Koffer-Modelle für Leon bei allen
+  drei vorhanden (`ss_model.cpp` Typ 1 → Modell 6); im Spiel auf EU-Discs mit Leon in 0.99.10 gezielt und geschossen.
+- **Zeitlupe:** ein eigenes Merkmal `STA_SLOW` (`game.cpp` `gameMainLoop`: Leon und seine Waffe mit 0,6, Gegner,
+  Objekte und Effekte nur jedes dritte Bild; `filter08.cpp` Zoom-Unschärfe um den Zielpunkt). Kein Code schaltet es ein,
+  nur das Debug-Werkzeug FLAG EDIT; eine angefangene „aus der Deckung zielen“-Bewegung in `wep17.cpp` fragt es ab
+  (Bewegungen fehlen). Mit dem Schalldämpfer hat es nichts zu tun.
+- **Empfehlung an den Inhaber (Entscheidung offen):** Wenn gewünscht, einen Cheat-Knopf „Schalldämpfer“ (wie
+  „Killer7“), der ihn jeder Figur gibt; Leon behält ihn dann und Spielstände behalten ihn (das Verkaufsspiel kennt 0x3F
+  und 0x24 von Wesker); vorher am PC mit EU-/US-Discs Koffer, Hand, Ton und einen Spielstand in Dolphin prüfen. Die
+  Zeitlupe nicht einbauen (unfertig, nur Debug).
+
 ## Version 0.99.10-rc: Wünsche des Projektinhabers vom 11.11.2026 (Branch `09910`)
 
 Version 0.99.10-rc (versionCode 112), Releasetext `port/android-decomp/docs/releases/v0.99.10-rc.md` („Changes since
