@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“ (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Plan Gegner-Randomizer (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -187,6 +187,16 @@ Vulkan, 60,1 Hz, 0.99.11-rc): Vorschlag „Mittel“, damit kleine Ruckler.
   `check_translations.py` ohne Befund, `whole_build.sh` i686 -O2 alle Prüfungen grün.
 - **Nicht geprüft:** auf einem Gerät mit Maus; der Wechsel des Schalters im Spiel selbst (Optionen des Spiels) gilt für
   die Maus wie für das Wischen erst, wenn die App ihn übernimmt (beim Öffnen des App-Menüs, `keepGameAimInvert`).
+
+### 5. Gegner-Randomizer: nur geprüft, Plan (Wunsch des Projektinhabers, nichts gebaut)
+
+„Prüfe ob auch ein ‚Randomizer' wie bei den Objekten auch für Gegner möglich wäre … Mit einer Menge +/- 10%. Für die
+Story oder Filmszenen wichtige Gegner müssen bleiben.“ Plan und Begründung: `port/docs/gegner-randomizer-plan.md`.
+Kurz: die Gegnerliste gilt je Kapitelabschnitt (256 Plätze), steht im Spielstand und merkt Tote nach Platznummer;
+Raumskripte sprechen Plätze und Arten direkt an (90 von 122 Raumskripten), höchstens 4 Gegnerarten je Raum, kein
+Merkmal „Boss“. Vorschlag Stufe 1: nur beim Raumbeginn erschaffene gewöhnliche Ganados, Stellen anderer Einträge
+desselben Raums, je Raum −1/0/+1 Gegner außerhalb der Räume, die Gegner zählen, Schutzliste aus den Skripten, die
+gespeicherte Liste unverändert. Andere Gegnerarten (a) und zufällige neue Positionen nicht. Entscheidung offen.
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 
