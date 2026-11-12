@@ -103,7 +103,7 @@
     <string name="ingame_aim_speed">Vitesse de visée</string>
     <string name="ingame_motion">Commandes de mouvement</string>
     <string name="ingame_controller_section">Manette, clavier et souris</string>
-    <string name="ingame_aim_help">Inverser la verticale et Vitesse de visée\u00A0: pour viser avec le couteau et les armes au toucher ou à la manette, pas au gyroscope. Inverser la verticale change l’option du jeu lui-même.</string>
+    <string name="ingame_aim_help">Inverser la verticale et Vitesse de visée\u00A0: pour viser avec le couteau et les armes au toucher ou à la manette, pas au gyroscope. Inverser la verticale vaut aussi pour la souris (visée et jumelles)\u00A0; sa vitesse est la sensibilité de la souris. Inverser la verticale change l’option du jeu lui-même.</string>
     <string name="ingame_update">Mettre à jour</string>
     <string name="ingame_up_to_date">À jour</string>
     <string name="ingame_update_page">La dernière version s\'ouvre sur GitHub\u00A0: téléchargez-y l\'APK et installez-le.</string>

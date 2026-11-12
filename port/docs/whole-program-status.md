@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“ (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -99,9 +99,8 @@ Pfeiltasten wie bisher, auch die Fernglas-Zwischensequenzen, falls das Spiel dor
   `whole_build_android.sh --abi all` 0 Fehler, `check_translations.py` ohne Befund.
 - **Nicht geprüft:** auf einem Gerät mit Maus; das Fernglas nach dem Koffer (dort mit `m_flag` 1, derselbe Stick-Weg);
   WASD und Maus gleichzeitig (die Summe ist dann nur angenähert, der `PADClamp` begrenzt sie).
-- **Für den Projektinhaber offen:** „Invert vertical“ der App gilt heute für Touch und Controller (und das Gyro hat
-  eigene Schalter), nicht für die Maus, auch beim Zielen nicht; das Fernglas verhält sich wie das Zielen mit der Maus.
-  Soll die Maus „Invert vertical“ folgen, wäre das ein eigener kleiner Schritt für Zielen und Fernglas zusammen.
+- **„Invert vertical“ und die Maus:** zunächst folgte die Maus dem Schalter nirgends; entschieden und gebaut in
+  Abschnitt 4.
 
 
 ### 3. Benchmark zu optimistisch auf einem Helio-G85-Handy, ungleicher Bildtakt (Nutzerbericht über den Projektinhaber)
@@ -164,6 +163,30 @@ Vulkan, 60,1 Hz, 0.99.11-rc): Vorschlag „Mittel“, damit kleine Ruckler.
   der Retroid: dass das Halten dort nie greift oder nicht stört); ob die Prozessorzeit auf anderen Handys am Steg so
   eindeutig trennt (außer dem Bericht nur Retroid-Werte vom Steg). Wer schon einen Benchmark hat, behält seinen
   Vorschlag (ohne Messwert gilt die alte Regel); ein neuer Benchmark zeigt den neuen.
+
+### 4. „Vertikal umkehren“ auch für die Maus (Entscheidung des Projektinhabers)
+
+„Vertikal umkehren soll auch für die Maus gelten.“ (Antwort auf die offene Frage aus Abschnitt 2.)
+
+- **Vorher:** der Schalter „Invert vertical“ (Menü Steuerung, Zielen; er stellt die Option „Umkehren“ des Spiels,
+  `CFG_AIM_REVERSE`, Patch 0188) galt für das Zielen per Touch und Controller; die Maus drehte das Ziel immer gleich
+  (`turnAim` liest die Option nicht, das Fernglas hob sie seit Abschnitt 2 eigens auf).
+- **Jetzt (App):** `CoreInput.mouseAim` (statisch): die Mausbewegung als Drehung des Ziels, mit dem Schalter hoch und
+  runter vertauscht; `CoreActivity.capturedMouse` schickt sie mit `aimInvert` (dem Wert des Schalters, wie beim
+  Wischen der Touch-Zielfläche). Damit gilt die Umkehr für normales Zielen, das Zielfernrohr und das Fernglas gleich,
+  denn der Kern gibt in allen dreien die Richtung der App unverändert weiter. Die Kamera mit der Maus (ohne Zielen)
+  bleibt, wie sie ist: der Schalter gilt dem Zielen. **Waagerecht umkehren** gibt es nur beim Gyro (eigene Schalter),
+  nicht für Touch und Controller: für die Maus also nichts. Hilfetext `ingame_aim_help` (11 Sprachen) um einen Satz
+  ergänzt: „Vertikal umkehren gilt auch für die Maus (Zielen und Fernglas); ihr Tempo ist die Mausempfindlichkeit.“
+- **Geprüft am PC:** `CoreInputTests` (1846 Prüfungen, neu `mouseAim`: Maus nach unten zielt nach unten, mit dem
+  Schalter nach oben, Empfindlichkeit), `ActionMapTests`, `CoreTouchTests`; im Kern (i686 -O2, Debug-Discs r103/r101,
+  `RE4_TEST_SWIPE` wie eine Maus, `RE4_TEST_AIM` 0/1 für die Option des Spiels, `RE4_TRACE_LOOK` jetzt auch für das
+  Zielfernrohr): Gewehr-Zielfernrohr +0,1 rad nach oben mit und ohne „Umkehren“ gleich (+0,1026), TMP-Zielen m3r
+  −0,007 → 0,119 mit und ohne gleich, Fernglas mit „Umkehren“ und −0,1 rad: 0,0995 nach unten. Die Richtung bestimmt
+  also allein die App, die die Maus jetzt mit dem Schalter umdreht. App-Tests beider Varianten je 113 grün,
+  `check_translations.py` ohne Befund, `whole_build.sh` i686 -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät mit Maus; der Wechsel des Schalters im Spiel selbst (Optionen des Spiels) gilt für
+  die Maus wie für das Wischen erst, wenn die App ihn übernimmt (beim Öffnen des App-Menüs, `keepGameAimInvert`).
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 

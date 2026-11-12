@@ -522,6 +522,14 @@ public final class CoreInputTests {
       kb.mouseLook(0, -1f);
       check(!kb.zoomView() && kb.pad()[4] > 80);
       kb.mouseLook(0, 0);
+      // the mouse's aim (0.99.12, "Invert vertical" for the mouse too): right turns right (yaw negative), the mouse
+      // moved down (dy positive) aims down; with the switch it aims up; the sensitivity scales both
+      float[] aim = CoreInput.mouseAim(10f, 20f, 0.0025f, false);
+      check(Math.abs(aim[0] + 0.025f) < 1e-6f && Math.abs(aim[1] + 0.05f) < 1e-6f);
+      float[] inverted = CoreInput.mouseAim(10f, 20f, 0.0025f, true);
+      check(Math.abs(inverted[0] - aim[0]) < 1e-6f && Math.abs(inverted[1] - 0.05f) < 1e-6f);
+      float[] fast = CoreInput.mouseAim(10f, -20f, 0.0025f * 3f, true);
+      check(Math.abs(fast[0] + 0.075f) < 1e-6f && Math.abs(fast[1] + 0.15f) < 1e-6f);
       // the wheel: whole notches, a fine wheel's parts add up, the other way drops the part left
       check(kb.wheel(1f) == 1 && kb.wheel(-1f) == -1 && kb.wheel(3f) == 3 && kb.wheel(0) == 0);
       check(kb.wheel(Float.NaN) == 0 && kb.wheel(Float.POSITIVE_INFINITY) == 0);

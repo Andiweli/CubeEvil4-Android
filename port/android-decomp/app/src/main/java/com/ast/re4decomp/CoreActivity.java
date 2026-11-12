@@ -2181,8 +2181,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         // otherwise (runtime/gyro.cpp, wheel_zoom.cpp); the camera's C stick as long
         // as the mouse moves, but not in the scope or the binoculars, where the C stick zooms (the wheel's job
         // since 0.99.12: moving the mouse up and down zoomed there)
-        float k = MOUSE_AIM_RADIANS * mouseSensitivity;
-        CoreBridge.aimTurn(-dx * k, -dy * k);
+        // ("Invert vertical" for the mouse too, 0.99.12: aiming, the scope, the binoculars)
+        float[] turn = CoreInput.mouseAim(dx, dy, MOUSE_AIM_RADIANS * mouseSensitivity, aimInvert);
+        CoreBridge.aimTurn(turn[0], turn[1]);
         input.mouseLook(dx * MOUSE_LOOK * mouseSensitivity, dy * MOUSE_LOOK * mouseSensitivity);
         main.removeCallbacks(mouseRest);
         main.postDelayed(mouseRest, 60);

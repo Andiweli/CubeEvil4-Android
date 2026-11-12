@@ -26,8 +26,9 @@
 // 1 - 0.9 * zoom), within the room's limits (SetBinocularRange); so the angles become main stick units for that frame
 // (re4_pad_stick_add, on top of the move keys), and the game turns by its own code: slower at a higher zoom like the
 // mouse in the scope, stopped at the limits. One frame turns at most as far as the stick at its end (3.6 degrees);
-// more is dropped, the parts of a unit are kept. Up and down as the mouse aims: the game's "reverse" (the menu's
-// "Invert vertical", which the mouse does not follow when it aims either) is undone. Only the binoculars the player
+// more is dropped, the parts of a unit are kept. Up and down as the mouse aims: the game's "reverse" is undone here,
+// because the app turns the mouse round itself with "Invert vertical" (CoreInput.mouseAim, decision of the project
+// owner 12.11.2026), for aiming, the scope and the binoculars alike. Only the binoculars the player
 // holds (r101, again after the attache case); the event cuts through the binoculars (r10b, r214) have the event's
 // camera, which nothing turns.
 #include "types.h"
@@ -66,7 +67,7 @@ const int kStickMax = 72;        // the main stick's end after PADClamp (src/lib
 const int kStickXY = 40;
 float gLookRestX, gLookRestY;    // the parts of a unit left
 unsigned gLooked;                // frames the mouse turned them (the log)
-bool gTraceLook;                 // RE4_TRACE_LOOK=1: the binoculars' direction every 10 frames
+bool gTraceLook;                 // RE4_TRACE_LOOK=1: the scope's or the binoculars' direction every 10 frames
 
 // the app's thread adds, the game's takes: substickY units still to push (positive in)
 volatile int gQueue;
@@ -135,11 +136,12 @@ long gViewAt = -1;  // the frame the scope or the binoculars first came up (the 
 void zoomHook(unsigned frame)
 {
     const int v = view();
-    if (gTraceLook && v == 2 && frame % 10 == 0) {
-        // the direction the binoculars look in (yaw about the up axis, positive left of +z; pitch positive up)
+    if (gTraceLook && v != 0 && frame % 10 == 0) {
+        // the direction the scope or the binoculars look in (yaw about the up axis, positive left of +z; pitch up)
         const CAMERA_POINT& p = CamCtrl.m_pProc->param;
         const float dx = p.Target.x - p.Campos.x, dy = p.Target.y - p.Campos.y, dz = p.Target.z - p.Campos.z;
-        re4_log("look: frame %u binoculars yaw %.4f pitch %.4f fovy %.1f", frame, (double) atan2f(dx, dz),
+        re4_log("look: frame %u %s yaw %.4f pitch %.4f fovy %.1f", frame, v == 1 ? "scope" : "binoculars",
+                (double) atan2f(dx, dz),
                 (double) atan2f(dy, sqrtf(dx * dx + dz * dz)), (double) p.Fovy);
     }
     if (v != 0 && gViewAt < 0) {
@@ -246,7 +248,8 @@ extern "C" int re4_binocular_look(float yaw, float pitch)
         gLookRestX = gLookRestY = 0.0f;
         return 0;
     }
-    // stickX positive turns right (yaw negative); stickY as the mouse aims, the game's "reverse" undone
+    // stickX positive turns right (yaw negative); stickY as the mouse aims, the game's "reverse" undone (the app's
+    // "Invert vertical" is in the pitch already, CoreInput.mouseAim)
     const float up = pSys && CfgFlagChk(pSys, CFG_AIM_REVERSE) ? -kPitchUp : kPitchUp;
     float fx = gLookRestX - yaw / kStickUnit;
     float fy = gLookRestY + up * pitch / kStickUnit;

@@ -413,6 +413,16 @@ public final class CoreInput {
   public boolean zoomView() { return zoomView; }
 
   /**
+   * The captured mouse's movement as the aim's turn (CoreBridge.aimTurn: yaw positive left, pitch positive up), `k`
+   * radians a count (sensitivity included). "Invert vertical" (the menu's switch of aiming, the game's own option)
+   * turns up and down round for the mouse as well (decision of the project owner, 12.11.2026: "Vertikal umkehren soll
+   * auch für die Maus gelten"): aiming, the scope and the binoculars alike; the camera (mouseLook) stays as it is.
+   */
+  public static float[] mouseAim(float dx, float dy, float k, boolean invertVertical) {
+    return new float[] {-dx * k, (invertVertical ? dy : -dy) * k};
+  }
+
+  /**
    * A turn of the mouse wheel (Android's AXIS_VSCROLL, up positive): the whole notches it completes, for the core
    * (CoreBridge.zoom). A fine wheel's parts of a notch add up; turned the other way, the part left goes.
    */

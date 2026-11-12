@@ -102,7 +102,7 @@
     <string name="ingame_aim_speed">Kecepatan bidik</string>
     <string name="ingame_motion">Kontrol Gerak</string>
     <string name="ingame_controller_section">Controller, Keyboard dan Mouse</string>
-    <string name="ingame_aim_help">Balik vertikal dan Kecepatan bidik: untuk membidik pisau dan senjata dengan sentuhan atau controller, bukan dengan giroskop. Balik vertikal mengatur opsi bawaan game.</string>
+    <string name="ingame_aim_help">Balik vertikal dan Kecepatan bidik: untuk membidik pisau dan senjata dengan sentuhan atau controller, bukan dengan giroskop. Balik vertikal juga berlaku untuk mouse (membidik dan teropong); kecepatannya adalah sensitivitas mouse. Balik vertikal mengatur opsi bawaan game.</string>
     <string name="ingame_update">Perbarui</string>
     <string name="ingame_up_to_date">Sudah terbaru</string>
     <string name="ingame_update_page">Rilis terbaru terbuka di GitHub: unduh APK di sana lalu pasang.</string>
