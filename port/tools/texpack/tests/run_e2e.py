@@ -2,7 +2,9 @@
 data): game-ID folder, an Extra folder with variants, a copy "(1)", desktop.ini, DDS with mip levels, an _arb DDS,
 PNGs with and without alpha and a large one to shrink. Checks the result with -check, that the pack folder is unchanged,
 that an output inside the pack folder is refused, that the same input gives the same file, and that cut or damaged
-pack files are found.  python -I run_e2e.py TEXPACK_EXE WORK_DIR"""
+pack files are found. Also BC7 DDS, JPG and JPEG files (from make_bc7_jpeg_fixtures.py), the order DDS before PNG
+before JPG for the same texture, and a BC6H file refused with a clear reason.
+python -I run_e2e.py TEXPACK_EXE WORK_DIR FIXTURE_DIR"""
 import hashlib
 import os
 import shutil
@@ -11,7 +13,7 @@ import subprocess
 import sys
 import zlib
 
-EXE, WORK = sys.argv[1], sys.argv[2]
+EXE, WORK, FIXTURES = sys.argv[1], sys.argv[2], sys.argv[3]
 failures = 0
 
 
@@ -83,6 +85,14 @@ H5, H6, H7 = "5555666677778888", "9999aaaabbbbcccc", "ddddeeeeffff0000"
 png(os.path.join(game, "tex1_640x360_%s_14.png" % H5), 1280, 720, lambda x, y: (x % 256, y % 256, 60), alpha=False)
 png(os.path.join(game, "tex1_128x128_%s_14.png" % H6), 1024, 256, lambda x, y: (x % 256, 90, y % 256), alpha=False)
 png(os.path.join(game, "tex1_256x256_%s_14.png" % H7), 128, 128, lambda x, y: (200, x * 2, y * 2), alpha=False)
+# BC7 (random blocks of every mode, 128x128), a JPG (200x120, progressive 4:2:0), a .jpeg (37x23), and one texture as
+# PNG and JPG (the PNG is used)
+H8, H9, H10, H11 = "8888000011112222", "9999000011112222", "aaaa000011112222", "bbbb000011112222"
+shutil.copy(os.path.join(FIXTURES, "bc7_mode6.dds"), os.path.join(game, "tex1_32x32_%s_14.dds" % H8))
+shutil.copy(os.path.join(FIXTURES, "jpg_rgb_200x120_s2_prog.jpg"), os.path.join(game, "tex1_50x30_%s_14.jpg" % H9))
+shutil.copy(os.path.join(FIXTURES, "jpg_rgb_37x23_s0_base.jpg"), os.path.join(game, "tex1_37x23_%s_14.jpeg" % H10))
+png(os.path.join(game, "tex1_16x16_%s_14.png" % H11), 64, 64, lambda x, y: (255, 0, 0), alpha=False)
+shutil.copy(os.path.join(FIXTURES, "jpg_rgb_200x120_s1_base.jpg"), os.path.join(game, "tex1_16x16_%s_14.jpg" % H11))
 extra = os.path.join(pack, "Extra", "Case")
 os.makedirs(os.path.join(extra, "Original"))
 os.makedirs(os.path.join(extra, "Gold"))
@@ -95,15 +105,16 @@ rc, text = run("-in", pack, "-size", "512", "-out", out, "-variant", "Case=Gold"
 print(text)
 target = os.path.join(out, "CubeEvil4-textures-512.c4tex")
 check(rc == 0 and os.path.exists(target), "conversion with a variant")
-check("7 images converted" in text and "files skipped" in text, "seven images, the copy and the text file skipped")
+check("11 images converted" in text and "files skipped" in text, "eleven images, the copy and the text file skipped")
 check(os.path.exists(os.path.join(out, "CubeEvil4-textures-512.txt")), "report next to the pack file")
 report = open(os.path.join(out, "CubeEvil4-textures-512.txt"), encoding="utf-8").read()
 check("(1).dds" in report and "readme.txt" in report and "desktop.ini" not in report, "report lists the skipped files")
+check(("tex1_16x16_%s_14.jpg: the same texture again (its PNG is used)" % H11) in report, "PNG before JPG of the same texture")
 check("Case: Gold" in report, "report names the choice")
 rc, text = run("-check", target, "-png", os.path.join(WORK, "png"), "-limit", "10")
 print(text)
-check(rc == 0 and "The pack is fine." in text and "Entries: 7 " in text, "-check: fine, 7 entries")
-check("Exported 7 image(s)" in text, "-check exports PNGs")
+check(rc == 0 and "The pack is fine." in text and "Entries: 11 " in text, "-check: fine, 11 entries")
+check("Exported 10 image(s)" in text, "-check exports PNGs (at most 10)")
 check(snapshot(pack) == before, "the pack folder is unchanged")
 
 # the gold variant replaced the main folder's case: its PNG is all gold
@@ -133,6 +144,9 @@ def sizes(path):
 
 
 s512 = sizes(target)
+check(s512.get(int(H8, 16)) == (128, 128), "BC7 DDS converted (128x128)")
+check(s512.get(int(H9, 16)) == (200, 120) and s512.get(int(H10, 16)) == (37, 23), "JPG and JPEG converted")
+check(s512.get(int(H11, 16)) == (64, 64), "the PNG of a texture that is also a JPG")
 check(s512[int(H5, 16)] == (640, 360), "512: the 640x360 picture keeps 640x360 (not 512x288)")
 check(s512[int(H6, 16)] == (512, 128), "512: another shape keeps the game's 128 rows (512x128)")
 check(s512[int(H7, 16)] == (128, 128), "512: a pack image smaller than the game's keeps its size")
@@ -156,6 +170,19 @@ check(rc == 2 and "inside the texture pack folder" in text and snapshot(pack) ==
 # a choice that does not exist
 rc, text = run("-in", pack, "-size", "512", "-out", out, "-variant", "Case=Silver")
 check(rc == 2, "unknown choice refused")
+# BC6H (an HDR format) is refused with its reason, the rest of the pack converts
+bad = os.path.join(WORK, "Bad Pack")
+os.makedirs(bad)
+with open(os.path.join(bad, "tex1_32x32_cccc000011112222_14.dds"), "wb") as f:
+    hdr = bytearray(128)
+    hdr[0:4] = b"DDS "
+    struct.pack_into("<IIIIIII", hdr, 4, 124, 0x1007, 32, 32, 128, 0, 1)
+    struct.pack_into("<II4s", hdr, 76, 32, 4, b"DX10")
+    f.write(bytes(hdr) + struct.pack("<IIIII", 95, 3, 0, 1, 0) + bytes(64 * 16))
+png(os.path.join(bad, "tex1_16x16_dddd000011112222_14.png"), 32, 32, lambda x, y: (1, 2, 3), alpha=False)
+rc, text = run("-in", bad, "-size", "512", "-out", os.path.join(WORK, "outbad"))
+report = open(os.path.join(WORK, "outbad", "CubeEvil4-textures-512.txt"), encoding="utf-8").read() if rc in (0, 3) else ""
+check(rc == 3 and "1 images converted" in text and "BC6H is not supported" in report, "BC6H refused with its reason")
 # cut and damaged files
 cut = os.path.join(WORK, "cut.c4tex")
 open(cut, "wb").write(info[: len(info) - 100])

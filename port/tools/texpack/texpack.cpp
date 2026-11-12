@@ -1,4 +1,4 @@
-// CubeEvil4 Texture Packer: turns a Dolphin texture pack folder (tex1_<W>x<H>[_m]_<hash>[_<tlut>]_<fmt>.dds/.png)
+// CubeEvil4 Texture Packer: turns a Dolphin texture pack folder (tex1_<W>x<H>[_m]_<hash>[_<tlut>]_<fmt>.dds/.png/.jpg)
 // into one CubeEvil4 texture pack file (.c4tex): shrunk to 512 or 1024, new mip levels, ETC2 for phones.
 // Plan: port/docs/textur-lader-plan.md; file layout: c4tex.h, port/docs/textur-paket-format.md.
 // It only reads the pack folder and never writes into it. Our own code (CC0).
@@ -37,7 +37,7 @@ namespace fs = std::filesystem;
 namespace {
 
 const char *kToolName = "CubeEvil4 Texture Packer";
-const char *kToolVersion = "1.1";
+const char *kToolVersion = "1.2";
 
 // ---------------- console ----------------
 
@@ -197,8 +197,10 @@ struct Key {
 struct Name {
   Key key;
   bool mip = false, arb = false, mipFile = false;
-  bool dds = false;
+  int kind = 0;  // 0 DDS, 1 PNG, 2 JPG: the same texture in several files, the lowest is used
 };
+
+const char *KindName(int kind) { return kind == 0 ? "DDS" : kind == 1 ? "PNG" : "JPG"; }
 
 bool ParseHex16(const std::string &s, std::size_t at, std::uint64_t &v) {
   if (at + 16 > s.size()) return false;
@@ -221,14 +223,18 @@ bool ParseNumber(const std::string &s, std::size_t &at, unsigned &v) {
   return at > start;
 }
 
-// tex1_<W>x<H>[_m]_<16 hex>[_<16 hex>|_$]_<fmt>[_mip<N>][_arb].(dds|png), any case
+// tex1_<W>x<H>[_m]_<16 hex>[_<16 hex>|_$]_<fmt>[_mip<N>][_arb].(dds|png|jpg|jpeg), any case
 bool ParseName(const std::string &fileName, Name &n) {
   std::string s = Lower(fileName);
-  if (s.size() > 4 && s.compare(s.size() - 4, 4, ".dds") == 0)
-    n.dds = true;
-  else if (!(s.size() > 4 && s.compare(s.size() - 4, 4, ".png") == 0))
-    return false;
-  s.resize(s.size() - 4);
+  const auto ends = [&](const char *ext) {
+    const std::size_t e = std::strlen(ext);
+    return s.size() > e && s.compare(s.size() - e, e, ext) == 0;
+  };
+  if (ends(".dds")) n.kind = 0;
+  else if (ends(".png")) n.kind = 1;
+  else if (ends(".jpg") || ends(".jpeg")) n.kind = 2;
+  else return false;
+  s.resize(s.rfind('.'));
   if (s.compare(0, 5, "tex1_") != 0) return false;
   std::size_t at = 5;
   if (!ParseNumber(s, at, n.key.w) || at >= s.size() || s[at++] != 'x' || !ParseNumber(s, at, n.key.h)) return false;
@@ -300,7 +306,7 @@ struct Scan {
 
 bool IsTextureFile(const fs::path &p) {
   const std::string e = Lower(fio::Utf8(p.extension()));
-  return e == ".dds" || e == ".png";
+  return e == ".dds" || e == ".png" || e == ".jpg" || e == ".jpeg";
 }
 
 void ScanFolder(const fs::path &dir, const std::set<fs::path> &exclude, Scan &out, const fs::path &root) {
@@ -317,7 +323,7 @@ void ScanFolder(const fs::path &dir, const std::set<fs::path> &exclude, Scan &ou
     const std::string rel = fio::Utf8(fs::relative(p, root, e2));
     if (!IsTextureFile(p)) {
       const std::string fn = Lower(fio::Utf8(p.filename()));
-      if (fn != "desktop.ini" && fn != "thumbs.db") out.skipped.push_back({rel, "not a DDS or PNG file"});
+      if (fn != "desktop.ini" && fn != "thumbs.db") out.skipped.push_back({rel, "not a DDS, PNG or JPG file"});
       continue;
     }
     Source s;
@@ -611,15 +617,16 @@ int Pack(Options &o) {
   Layout layout = FindLayout(root);
   Scan scan;
   for (const fs::path &m : layout.main) ScanFolder(m, layout.optional, scan, root);
-  // duplicates: a DDS before a PNG, else the first in name order
+  // duplicates: a DDS before a PNG before a JPG, else the first in name order
   std::map<Key, const Source *> byKey;
   std::vector<Skipped> duplicates;
   for (const Source &s : scan.files) {
     auto it = byKey.find(s.name.key);
     if (it == byKey.end()) {
       byKey[s.name.key] = &s;
-    } else if (s.name.dds && !it->second->name.dds) {
-      duplicates.push_back({fio::Utf8(fs::relative(fio::Path(it->second->path), root, ec)), "the same texture again (a DDS of it is used)"});
+    } else if (s.name.kind < it->second->name.kind) {
+      duplicates.push_back({fio::Utf8(fs::relative(fio::Path(it->second->path), root, ec)),
+                            std::string("the same texture again (its ") + KindName(s.name.kind) + " is used)"});
       it->second = &s;
     } else {
       duplicates.push_back({fio::Utf8(fs::relative(fio::Path(s.path), root, ec)), "the same texture again"});

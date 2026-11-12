@@ -1,5 +1,5 @@
 // Tests of the texture tool's parts: CRC, ETC2/EAC encoder and decoder, BC and DDS reader, inflate and PNG reader,
-// filters. texpack_tests [fixture folder from make_png_fixtures.py]
+// filters. texpack_tests [PNG fixture folder (make_png_fixtures.py) [BC7/JPG fixture folder (make_bc7_jpeg_fixtures.py)]]
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -316,6 +316,73 @@ void TestPngFixtures(const std::string &dir) {
   CHECK(n > 0);
 }
 
+// make_bc7_jpeg_fixtures.py (Pillow's decoding as the reference): BC7 exactly, JPG within the rounding of two
+// decoders (IDCT, the chroma's upsampling); the CMYK file refused with a clear message
+void TestBc7JpegFixtures(const std::string &dir) {
+  std::error_code ec;
+  int bc7 = 0, jpg = 0;
+  double worstMean = 0;
+  std::string worstName;
+  for (const auto &e : std::filesystem::directory_iterator(fio::Path(dir), ec)) {
+    const std::string p = fio::Utf8(e.path());
+    const std::string ext = fio::Utf8(e.path().extension());
+    if (ext != ".dds" && ext != ".jpg") continue;
+    std::vector<std::uint8_t> file, want;
+    if (!fio::ReadFile(p, file)) continue;
+    img::Loaded l;
+    std::string err;
+    if (p.find("cmyk_refuse") != std::string::npos) {
+      CHECK(!img::LoadJpeg(file.data(), file.size(), l, err) && err.find("CMYK") != std::string::npos);
+      continue;
+    }
+    if (!fio::ReadFile(p.substr(0, p.size() - 4) + ".rgba", want)) continue;
+    const bool ok = ext == ".dds" ? img::LoadDds(file.data(), file.size(), 0, false, l, err)
+                                  : img::LoadJpeg(file.data(), file.size(), l, err);
+    gChecks++;
+    if (!ok || l.levels[0].px.size() != want.size()) {
+      std::printf("FAIL %s: %s\n", p.c_str(), ok ? "size differs" : err.c_str());
+      gFailures++;
+      continue;
+    }
+    const std::vector<std::uint8_t> &got = l.levels[0].px;
+    if (ext == ".dds") {
+      bc7++;
+      std::size_t differ = 0, first = 0;
+      for (std::size_t i = 0; i < got.size(); i++)
+        if (got[i] != want[i] && !differ++) first = i;
+      if (differ) {
+        const std::size_t px = first / 4;
+        std::printf("FAIL %s: %zu values differ, first at pixel %zu,%zu (ours %d,%d,%d,%d, Pillow's %d,%d,%d,%d)\n", p.c_str(),
+                    differ, px % l.levels[0].w, px / l.levels[0].w, got[px * 4], got[px * 4 + 1], got[px * 4 + 2],
+                    got[px * 4 + 3], want[px * 4], want[px * 4 + 1], want[px * 4 + 2], want[px * 4 + 3]);
+        gFailures++;
+      }
+      continue;
+    }
+    jpg++;
+    double sum = 0;
+    int maxd = 0;
+    for (std::size_t i = 0; i < got.size(); i++) {
+      const int d = std::abs(got[i] - want[i]);
+      sum += d;
+      maxd = std::max(maxd, d);
+    }
+    const double mean = sum / got.size();
+    if (mean > worstMean) {
+      worstMean = mean;
+      worstName = fio::Utf8(e.path().filename());
+    }
+    // the same picture: on average within a step, single values within the upsampling's rounding at sharp edges
+    if (mean > 1.0 || maxd > 48) {
+      std::printf("FAIL %s: mean difference %.2f, largest %d\n", p.c_str(), mean, maxd);
+      gFailures++;
+    }
+  }
+  std::printf("  BC7 fixtures: %d files exact; JPG fixtures: %d files, largest mean difference %.2f (%s)\n", bc7, jpg,
+              worstMean, worstName.c_str());
+  CHECK(bc7 >= 10 && jpg >= 40);
+}
+
 void TestFilters() {
   const img::Image flat = Make(64, 48, 13, 0);
   const img::Image small = img::Downscale(flat, 16, 12);
@@ -391,6 +458,7 @@ int main(int argc, char **argv) {
   TestDdsLevels();
   TestPngRoundTrip();
   if (argc > 1) TestPngFixtures(argv[1]);
+  if (argc > 2) TestBc7JpegFixtures(argv[2]);
   TestFilters();
   TestEntryValid();
   std::printf("%d checks, %d failed\n", gChecks, gFailures);
