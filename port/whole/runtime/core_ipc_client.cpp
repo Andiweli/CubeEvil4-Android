@@ -1042,6 +1042,11 @@ void re4ipc_zoom(int notches)
     post(kZoom, notches, 0, 0);
 }
 
+void re4ipc_set_enemy_random(int seed)
+{
+    post(kSetEnemyRandom, seed, 0, 0);
+}
+
 void re4ipc_touch(float u, float v)
 {
     int32_t a, b;

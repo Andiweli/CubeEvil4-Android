@@ -1,6 +1,12 @@
 # Gegner-Randomizer: Prüfung und Plan (0.99.12, 12.11.2026)
 
-**Stand: nur geprüft, nichts gebaut.** Der Projektinhaber entscheidet, ob und in welcher Stufe gebaut wird.
+**Stand: Stufe 1 gebaut (0.99.12, Entscheidung des Projektinhabers 12.11.2026: „Ok den Randomizer Schalter wie von
+dir vorgeschlagen ‚Stufe 1' und als Button neben dem Item Randomizer“).** Cheat „Random enemies“ / „Zufällige Gegner“
+neben „Random items“, eigener Seed (`core_game` `enemySeed`), Patch 0231 (`em_set.cpp`), `runtime/enemy_random.cpp`,
+Schutzliste `port/tools/enemy_random_table.py` → `runtime/enemy_random_rooms.inc`; Einzelheiten und Prüfung in
+`whole-program-status.md` (0.99.12, Abschnitt 7). Abweichungen vom Plan: Räume ohne eigenes Skript bleiben ebenfalls
+unangetastet; der weggelassene Gegner wird unter denen gewählt, die gerade erscheinen; eine Kopie darf auch an die
+Stelle eines Gegners, der gerade nicht da ist (tot oder später im Kapitel).
 
 Auftrag (Wortlaut des Projektinhabers): „Prüfe ob auch ein ‚Randomizer' wie bei den Objekten auch für Gegner möglich
 wäre: bei Aktivierung sollen in jedem Raum die Gegner zufällig gespawnt werden. Mit einer Menge +/- 10%. Für die Story

@@ -150,6 +150,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    *  extra games kept unlocked, the story's player character << 5 (2 Ada, 3 HUNK, 4 Krauser, 5 Wesker), 256 the
    *  special costume; off). */
   static final String CHEATS = "cheats";
+  /** The cheat "Random enemies" (0.99.12): its seed, 0 off (CoreBridge.setEnemyRandom). */
+  static final String ENEMY_SEED = "enemySeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
   /** SELECT held this long: the game's debug menu. */
   private static final long SELECT_HOLD_MS = 1000;
@@ -441,6 +443,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         if (cheats != 0) Log.i(TAG, "cheats: " + cheats);
         CoreBridge.setCheats(cheats);
       }
+      int enemySeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(ENEMY_SEED, 0);
+      if (enemySeed != 0) Log.i(TAG, "cheats: random enemies with seed " + enemySeed);
+      CoreBridge.setEnemyRandom(enemySeed);
     }
     setContentView(root);
     // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
@@ -1018,6 +1023,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
           + ((bits & CoreMenu.RANDOM_ITEMS_BIT) != 0 ? ", random items with seed "
               + ((bits & CoreMenu.SEED_BITS) >>> CoreMenu.SEED_SHIFT) : "") + ")");
       CoreBridge.setCheats(bits);
+    }
+
+    @Override public void enemyRandomChanged(int seed) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(ENEMY_SEED, seed).apply();
+      Log.i(TAG, "cheats: random enemies " + (seed != 0 ? "on with seed " + seed : "off"));
+      CoreBridge.setEnemyRandom(seed);
     }
 
     @Override public void restartGame() {

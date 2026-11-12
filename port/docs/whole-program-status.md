@@ -24,7 +24,7 @@ kommt, entscheidet der Inhaber später.
   `gNeedReset` alle neu.
 - **Nichts gebaut, nichts getestet.**
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Plan Gegner-Randomizer, Benchmark nach dem Update neu (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Benchmark nach dem Update neu, Zufällige Gegner (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -217,7 +217,7 @@ Kurz: die Gegnerliste gilt je Kapitelabschnitt (256 Plätze), steht im Spielstan
 Raumskripte sprechen Plätze und Arten direkt an (90 von 122 Raumskripten), höchstens 4 Gegnerarten je Raum, kein
 Merkmal „Boss“. Vorschlag Stufe 1: nur beim Raumbeginn erschaffene gewöhnliche Ganados, Stellen anderer Einträge
 desselben Raums, je Raum −1/0/+1 Gegner außerhalb der Räume, die Gegner zählen, Schutzliste aus den Skripten, die
-gespeicherte Liste unverändert. Andere Gegnerarten (a) und zufällige neue Positionen nicht. Entscheidung offen.
+gespeicherte Liste unverändert. Andere Gegnerarten (a) und zufällige neue Positionen nicht. Gebaut: Abschnitt 7.
 
 ### 6. Benchmark nach dem Update einmal neu (Entscheidung des Projektinhabers)
 
@@ -241,6 +241,52 @@ gespeicherte Liste unverändert. Andere Gegnerarten (a) und zufällige neue Posi
   von 0.99.12 (auch mit −1) nicht; Popup 1 mit Titel und Grund, B/Zurück lässt ihn fällig, beim ersten Start der
   Willkommenstext ohne Grund. App-Tests beider Varianten je 115 grün, `check_translations.py` ohne Befund (387 Texte).
 - **Nicht geprüft:** auf einem Gerät (der ganze Ablauf nach einem echten Update von 0.99.11).
+
+### 7. Cheat „Zufällige Gegner“, Stufe 1 (Entscheidung des Projektinhabers, Patch 0231)
+
+„Ok den Randomizer Schalter wie von dir vorgeschlagen ‚Stufe 1' und als Button neben dem Item Randomizer.“
+
+- **Menü (Cheats → Spiel):** Knopf „Random enemies“ / „Zufällige Gegner“ neben „Random items“ (dieselbe Reihe), eigener
+  Seed (20 Bit, bei jedem Einschalten neu, `core_game` `enemySeed`, 0 aus), Hilfetext darunter; Texte
+  `ingame_cheat_random_enemies(_help)` in 11 Sprachen. Weg zum Kern: `CoreMenu.Host.enemyRandomChanged` →
+  `CoreBridge.setEnemyRandom` → `core_mode.cpp` → `re4_core_set_enemy_random` (im Kernprozess Nachricht
+  `kSetEnemyRandom` 44); beim Start schickt die App den gespeicherten Seed. Wirkt ab dem nächsten Raum.
+- **Kern (`runtime/enemy_random.cpp`, Patch 0231 in `em_set.cpp EmSetFromList`):** beim Raumbeginn ein Plan
+  (`re4_enemy_random_room`): die **gewöhnlichen Ganados** des Raums (ids 0x10–0x20 ohne Händler 0x18, `set` 0 „Normal“,
+  keine Kettensäge-, Händler-, Garrador- oder Gatling-Form) tauschen ihre Stellen untereinander und mit Stellen von
+  Ganado-Einträgen des Raums, die gerade nicht benutzt werden (spätere Wellen, andere Abschnitte); Art, Modell,
+  Verhalten, Leben, Wachradius bleiben. Je Raum −1, 0 oder +1: weggelassen wird einer, der gerade erscheint, und nur,
+  wenn ein anderer seiner Art im Raum ist (Ereignisse brauchen den Code der Art); eine Kopie kommt an eine Stelle,
+  die keiner nahm, sonst an die eines gerade abwesenden, nur von einer Art, die gerade lebt; ihr Tod steht an einem
+  leeren Eintrag der Liste (id 0). `EmSetWork` bekommt eine Kopie des Eintrags, **die Liste selbst wird nie
+  geschrieben** (ein weggelassener bleibt in der Liste ungesetzt und erscheint ohne Cheat wieder). Alles aus Seed,
+  Liste, Raum: gleicher Seed, gleiches Bild. Protokoll je Raum „enemies: random enemies in r111 (list 1, seed 4242): 8
+  ordinary Ganados, 8 spots: 6 placed elsewhere …“ bzw. „… leave r101 as it is (…)“.
+- **Unangetastet:** Adas Spiel, Mercenaries, Ashleys Teil, Stufe 4; Räume, deren Skript Gegner zählt oder fegt, einen
+  Boss hat oder Einträge über Variablen anspricht, und Räume ohne eigenes Skript (**63 von 108** Story-Skripten, darunter
+  r101, r104, r11c, r11d, r208, r224, r327 und alle Bossräume); in den übrigen 45 Räumen die Einträge, die das Skript
+  mit Nummer nennt, und die, auf deren Tod ein Bereich des Raums wartet (`waiting_type` 1: Türen, Gegenstände). Die
+  Schutzliste erzeugt `port/tools/enemy_random_table.py` aus `src/st1..st3/rXYZ.cpp` (`runtime/enemy_random_rooms.inc`,
+  `--check` meldet, wenn sie nicht mehr zu den Skripten passt).
+- **Geprüft am PC (i686 -O2, Raum-Rundgang `whole_r100_check.sh --rooms all`, je 126 Räume, Leon läuft, rennt,
+  schießt, drückt A; `RE4_ENEMY_RANDOM` = Seed, `RE4_ENEMY_RANDOM_CHECK=1` vergleicht die Liste vor und nach dem
+  Erschaffen; Skripte `~/p09912/tourseries.sh`, Vergleich `em_compare.py` im Notizordner):**
+  - Debug-Discs Seed 4242: **ALLES OK**; geändert wird in 10 Räumen beim Betreten (r103, r111, r113, r11a, r20c, r225,
+    r303, r304, r31d, r330; die übrigen offenen Räume haben beim Betreten keine gewöhnlichen Ganados), z. B. r113 8 von 8
+    an anderen Stellen, r330 Eintrag 0xa4 weggelassen. Listen-Prüfung in allen Räumen „the list's entries unchanged“.
+  - Derselbe Seed zweimal: alle 126 Räume mit genau denselben Gegnern an denselben Stellen. Ohne Cheat gegen mit:
+    120 Räume gleich (alle geschützten), nur die 6 mit veränderten Gegnern verschieden. Seed 777: andere Stellen, 6
+    Räume mit einem weggelassenen. EU- und US-Discs Seed 4242: dieselben Änderungen wie Debug, Listen unverändert, US
+    ALLES OK; EU 125 von 126 (r333 stürzt im Prüfprotokoll `state_trace.cpp playerLog` ab, **auch ohne Cheat und mit
+    dem Stand 0.99.11**: Altbefund, eigener Punkt).
+  - Türen und Ereignisse: im Rundgang starb Leon in r11a vor der Tür (die Gegner standen anders), mit Unsichtbarkeit
+    (`RE4_CHEATS=513`) werden alle 9 veränderten Räume mit und ohne Cheat gleich beurteilt, r11a → r11b in beiden.
+  - `CoreMenuLayoutTest` (Knopf neben „Random items“, eigener Seed gespeichert, Schalter unverändert, Hilfetext), App-Tests
+    beider Varianten je 115 grün, `check_translations.py` ohne Befund (389 Texte), `whole_build.sh` i686 -O2 alle
+    Prüfungen grün, `whole_build_android.sh --abi all` 0 Fehler.
+- **Nicht geprüft:** auf einem Gerät; ein echtes Durchspielen mit dem Cheat (der Rundgang startet jeden Raum frisch per
+  Debug-Start, Spielstände aus dem Spiel heraus nicht); „+1“ kam im Rundgang nicht vor (beim frischen Betreten ist keine
+  Stelle frei; nach Toten oder bei späteren Besuchen schon).
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 
@@ -15736,6 +15782,9 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0226 `r201.cpp` | Sicherheitsnetz neben 0225: Merker 0 von r201 („Garrador tot“) ohne sein Todes-Bit in der Gegnerliste (Eintrag 0x56) wird zurückgesetzt, der Garrador kommt frei (nicht bei Sprungpunkt 2). Für Spielstände, die nach einem alten Import in der App neu gespeichert wurden. Nutzerbericht 09.11.2026 |
 | 0174 `pl_wep.cpp` | Auto-Zielen: Startwinkel von der Waffenhand zum Zielpunkt im Maß von `PlWepAutoTrack` statt von den Füßen (Laser über dem Gegner); dazu `gyro.cpp`: Handzittern beendet die Zielhilfe nicht. Bericht des Projektinhabers 01.11.2026. Port-Patch |
 | 0228 `card.cpp` | Krausers Bogen in der Geschichte (0.99.10, Nutzerwunsch über den Projektinhaber, seit dem Retroid-Test bei jedem Raumstart statt Cheat-Knopf 10, `runtime/cheats.cpp` `giveBow`) und Weskers Schalldämpfer (0x3F, `giveSilencer`): `cCard::makeSaveData` lässt im Bild der Spielstand-Datei Bogen (0x52), Pfeile (0x72) und Schalldämpfer weg, macht aus der Pistole mit Schalldämpfer in der Hand die Pistole ohne und aus dem Bogen in der Hand leere Hände (belegter Platz, `weapon_no`/`weapon_type` des Spielblocks), denn ein Spielstand ist immer Leons und Leon hat keine Datei für Waffe 0x1C (`re4_story_char_card_items`). Das laufende Spiel und der Fortsetzungspunkt behalten den Bogen. Port-Funktion |
+| 0229 `ss_model.cpp` | Weskers Pistole im Koffer: `wep43Init(type)` statt immer mit Schalldämpfer (0.99.11, Abschnitt 4a) |
+| 0230 `pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp` | Adas Nachladen mit ihren eigenen Waffen auf jeder Stufe mit ihrer Bewegung der Stufe 0 (0.99.11, Abschnitt 1) |
+| 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

@@ -124,6 +124,7 @@ struct Core {
     void (*touch)(float, float);
     void (*aimTurn)(float, float);
     void (*zoom)(int);  // optional (cores since 12.11.2026): the mouse wheel
+    void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
     void (*swipe)(int);
     void (*slash)(float);
     void (*gyro)(float, float);
@@ -798,6 +799,7 @@ bool loadCore(std::string& problem)
     bind(core.touch, "re4_core_touch");
     bind(core.aimTurn, "re4_core_aim_turn");
     bind(core.zoom, "re4_core_zoom", false);
+    bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
     bind(core.gyro, "re4_core_gyro");
@@ -970,6 +972,9 @@ void serve()
         }
         case kZoom:
             if (core.zoom) core.zoom(h.a);
+            break;
+        case kSetEnemyRandom:
+            if (core.setEnemyRandom) core.setEnemyRandom(h.a);
             break;
         case kTouch: {
             float u, v;

@@ -293,6 +293,8 @@
     <string name="ingame_cheat_qte">Automatic QTEs</string>
     <string name="ingame_cheat_random_items">Random items</string>
     <string name="ingame_cheat_random_items_help">Random items: the items lying in the story\'s rooms (ammo, herbs and other recovery items, grenades, pesetas, treasures) are dealt anew in every room you enter from then on, and a room always gives the same items until you switch this off and on again. Keys, weapons, files and other story items stay as they are, so the game can always be finished. Items you already picked up stay picked up; enemies, barrels and boxes keep their own drops. Not in Assignment Ada and The Mercenaries.</string>
+    <string name="ingame_cheat_random_enemies">Random enemies</string>
+    <string name="ingame_cheat_random_enemies_help">Random enemies: in the story\'s rooms the ordinary Ganados stand at other places where an enemy stood, and a room may get one enemy fewer or one more; a room always looks the same until you switch this off and on again. Bosses, the merchant, Ashley, Luis, special enemies, waves and rooms whose events count enemies stay as they are, so the game can always be finished. Saves stay the game\'s own. From the next room on; not in Assignment Ada, The Mercenaries and Ashley\'s part.</string>
     <string name="ingame_cheat_extras">Unlock extra games</string>
     <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
