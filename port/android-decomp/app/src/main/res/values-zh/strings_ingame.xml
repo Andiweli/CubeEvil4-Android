@@ -366,6 +366,7 @@
     <string name="ingame_profile_help">配置会为本设备设定分辨率、60 FPS、跳帧、抗锯齿、FXAA、纹理过滤、性能核心和土豆模式。手动更改其中任一项即变为“自定义”；在你尝试配置时，“自定义”会一直保留。</string>
     <string name="ingame_limit_gpu">图形芯片</string>
     <string name="ingame_limit_cpu">处理器</string>
+    <string name="ingame_limit_both">图形芯片，处理器接近极限</string>
     <string name="ingame_limit_none">无明显瓶颈</string>
     <string name="ingame_bench_welcome">欢迎使用 CubeEvil4</string>
     <string name="ingame_bench_text">应用会测量本设备的能力并推荐最佳设置。为此游戏会前往湖边码头（雨、水、雾），镜头围绕角色旋转。大约需要 2–3 分钟，期间静音。之后你会回到原来的位置。B / 返回可取消。</string>

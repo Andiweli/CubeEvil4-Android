@@ -32,7 +32,7 @@
 namespace re4ipc {
 
 const uint32_t kMagic = 0x43344552;  // "RE4C"
-const uint32_t kVersion = 4;
+const uint32_t kVersion = 5;  // 5: GxInfo::coreCpuUs (0.99.12)
 // the socket in the core process: file 3, inherited
 const int kSocketFd = 3;
 
@@ -111,6 +111,7 @@ struct GxInfo {
     uint32_t opWords, vertexBytes, indexCount, blobBytes;
     uint32_t xfbAddress, xfbWidth, xfbHeight;
     uint32_t draws, vertexCount, textureBytes;
+    uint32_t coreCpuUs;  // Re4GxChunk::coreCpuUs (0.99.12)
 };
 
 struct alignas(64) GxSlot {

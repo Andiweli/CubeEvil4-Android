@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -96,13 +96,74 @@ Pfeiltasten wie bisher, auch die Fernglas-Zwischensequenzen, falls das Spiel dor
   (`RE4_TEST_AIM=1`) weiter nach oben. Debug-, EU- und US-Discs: links und hoch zugleich je 0,0995 / 0,0593, Bilder vorher
   und nachher (`~/p09912/pics/look-eu`, `look-us`). Gegenprobe Zielfernrohr (Gewehr, r103): die Maus dreht Leon wie
   vorher (+0,100). Rad-Test (Abschnitt 1) unverändert. `whole_build.sh` i686 -O2 alle Prüfungen grün,
-  `whole_build_android.sh --abi all` 0 Fehler, `gradlew externalNativeBuildCoreDebug` übersetzt, `check_translations.py`
-  ohne Befund, App-Tests beider Varianten je 112 grün (1 übersprungen: Bilder).
+  `whole_build_android.sh --abi all` 0 Fehler, `check_translations.py` ohne Befund.
 - **Nicht geprüft:** auf einem Gerät mit Maus; das Fernglas nach dem Koffer (dort mit `m_flag` 1, derselbe Stick-Weg);
   WASD und Maus gleichzeitig (die Summe ist dann nur angenähert, der `PADClamp` begrenzt sie).
 - **Für den Projektinhaber offen:** „Invert vertical“ der App gilt heute für Touch und Controller (und das Gyro hat
   eigene Schalter), nicht für die Maus, auch beim Zielen nicht; das Fernglas verhält sich wie das Zielen mit der Maus.
   Soll die Maus „Invert vertical“ folgen, wäre das ein eigener kleiner Schritt für Zielen und Fernglas zusammen.
+
+
+### 3. Benchmark zu optimistisch auf einem Helio-G85-Handy, ungleicher Bildtakt (Nutzerbericht über den Projektinhaber)
+
+Bericht `E:\Development\Android\reports\09912-benchmark-too-good\cubeevil4-report-20261112-090052\` (Xiaomi
+25078RA3EL „dew“, Android 16, mt6768 Helio G85: 2 große A75 bis 2,0 GHz und 6 kleine bis 1,7 GHz, Mali-G52 MC2, 3,6 GB,
+Vulkan, 60,1 Hz, 0.99.11-rc): Vorschlag „Mittel“, damit kleine Ruckler.
+
+- **Aus dem Protokoll:** Benchmark 1 am Steg: 30 FPS 2,5× 17,0, 2× 24,6, 1,5× 30,1 „stable“; 60 FPS nicht einmal bei 1×;
+  Vorschlag Mittel (Dynamisch bis 1,5×, Frame-Skip Normal, Effekte, Schatten & Licht an), `benchCpu=false`. Benchmark 2
+  vorher/nachher je 30,1, 0 schwache Sekunden: angenommen. **Der Spiel-Thread** (Zeile „GX core“: Prozessorzeit je
+  Bild) brauchte am Steg **25,4–25,5 ms von 33,4 (76 %)**, im Dorf danach 18–24 ms (r100–r10e, r118); die großen
+  Kerne liefen meist mit 850–1000 MHz („cores now: 6 998/998“: das Handy erlaubte nur noch 1 GHz). Der Steg war für
+  den Prozessor also nicht leichter als das Dorf (die Annahme des Plans); der Benchmark sah es nur nicht, weil er
+  allein Bilder je Sekunde zählte. Vergleich Retroid am Steg: 8–9,5 ms (27 %). Andere Berichte ohne Steg-Messung
+  im Spiel: moto g15 14–23 ms, realme RMX3710 18 ms, Redmi 10 18 ms, Galaxy A24 10–11 ms, Mobicel (PowerVR) 34 ms.
+  **Bildtakt** („picture pacing“) schon am Steg bei 1,5×: 1 Takt 63-mal, 2 Takte 131-mal, 3 Takte 91-mal, 54 % neben
+  dem Median; Retroid an derselben Stelle 1: 13, 2: 275, 3: 13 (7–10 %). Die Bilder wurden mal kurz vor, mal kurz nach
+  einem Takt fertig (Spiel-Thread am Limit plus GPU), der Bildschirm zeigte sie 1 und 3 Takte im Wechsel: das
+  gespürte Ruckeln bei vollen 30 Bildern je Sekunde.
+- **(a) Prozessor messen (Kern + App):** `Re4GxChunk::coreCpuUs` neu (`runtime/re4_gx_frame.h`): `gx_decode.cpp`
+  `chunkBoundary` trägt die Prozessorzeit des Kern-Threads seit dem letzten Bildpaket ein (`re4cpu::ThreadNs`); im
+  eigenen Kernprozess über `GxInfo::coreCpuUs` (`re4_core_ipc.h` `kVersion` 5, `core_ipc.cpp fillInfo`,
+  `core_ipc_client.cpp`). `core_mode.cpp`: der Benchmark summiert sie je Sekunde (`LevelBench::cpuUs`), `BenchSteps`
+  (`gx_bench_steps.h`) mittelt je Stufe und nimmt beim Ende des 30er-Durchgangs die Stufe des Ergebnisses:
+  `CpuLoad()` in % von 33,37 ms; Logzeile je Stufe „…; the game's thread 25.4 ms of processor time a picture (76 %)“,
+  Ergebnis „… the game's thread needs 76 % of a picture's time“; `benchmarkState` hat 10 Werte. App: `BenchmarkFlow`
+  speichert `benchCpuLoad`, `PerfProfile`: **ab 75 % bremst der Prozessor** (`cpuWeak`, wie das alte Zeichen: Niedrig,
+  Frame-Skip Aggressiv, Sichtweite Kurz), **60–75 % nahe an der Grenze** (`cpuTight`): Empfehlung eine Stufe tiefer,
+  als der Grafikchip erlaubt; Popup 2 „Bremst: der Grafikchip, der Prozessor nahe an seiner Grenze“ (neuer Text
+  `ingame_limit_both`, 11 Sprachen).
+- **(b) Grenzfall:** über (a): das Handy hielt 30 FPS genau bei 1,5× (Schwelle für Mittel), sein Spiel-Thread lag bei
+  76 % → Niedrig; wäre es kühler (z. B. 70 %), gäbe „nahe an der Grenze“ ebenfalls Niedrig (Mittel − 1). Effekte bleiben
+  in Mittel und Hoch an: Schatten & Licht und Partikel sparen dem Spiel-Thread nur wenige Prozent (Potato-Messung
+  0.99.3: zusammen −6,5 %), sie entlasten den Grafikchip. Ein Grenzfall nur beim Grafikchip (Prozessor ruhig) bleibt
+  wie bisher: „Dynamisch“ fängt Schwankungen des Grafikchips auf, Benchmark 2 prüft den Vorschlag.
+- **(c) Frame-Skip:** bremst der Prozessor oder ist er nahe an der Grenze, setzt jedes Profil **Aggressiv** (Patch
+  0227, das Spiel lässt ein Bild aus, wenn es hinterherhängt), nicht Normal (hilft nur einem Grafikchip); kein 60 FPS
+  ab 60 % (jedes Bild müsste rechtzeitig kommen); Mittel/Hoch mit Sichtweite Mittel.
+- **(d) Bildtakt, gebaut (eindeutig im Protokoll und in der Simulation):** `picture_cadence.h` `PictureHold`,
+  `core_mode.cpp drawGx`: bei 30 Spielbildern je Sekunde ohne 60 FPS auf einem Bildschirm mit 54–66 Hz wartet ein
+  neues Spielbild, das schon einen Takt nach dem letzten fertig ist, einen Takt (`skipNext`, nie zweimal); nicht bei 60
+  Spielbildern je Sekunde (Titel, Filme: `chunkRate.Sixty`), nicht, wenn der Zeichen-Thread selbst einen Takt verpasst
+  hat (dann ist der Abstand schon 2). Nach einem späten Bild bleibt so der 2er-Takt, eine Sechzigstelsekunde später
+  (im Mittel +0,5 Takte Verzögerung), statt sofort aufzuholen. Logzeile „picture pacing: N new pictures held back one
+  vsync so far …“ beim ersten und je 600.
+- **Geprüft am PC:** `gx_gl_check` (WSL, `port/build/app-host-gl`) 0 Fehler, neu: `TestBenchSteps` mit den Zahlen des
+  Berichts (17 / 25 / 30 Bilder je Sekunde, 25,4 ms → 30 FPS bei 1,5×, 76 %, das alte Zeichen sah nichts; 9 ms →
+  27 %; ohne Angabe −1); `TestPictureHold`: Bildfertigstellung 1,6–2,4 Takte nach Bildbeginn (wie im Bericht) gibt
+  ohne Halten 1: 82, 2: 137, 3: 82, 54 % daneben (Bericht: 63/131/91, 54 %), mit Halten 2: 301, 0 % daneben, alle 330
+  Bilder gezeigt, 162 einen Takt gehalten; ruhiges Gerät (1,2–1,5): nichts gehalten; 120 Hz und unbekannter Takt:
+  nie. `PerfProfileTest.theProcessorAtThePlaceDecides` (das Handy: ohne Last Mittel wie bisher, 76 % Niedrig mit
+  Aggressiv und Sichtweite Kurz, „Mittel“ von Hand dann Aggressiv, Sichtweite Mittel, kein 60 FPS; 70 % Niedrig;
+  ein Hoch-Gerät mit 65 % Mittel; 50 % Mittel mit Normal; Retroid 27 % Hoch mit 60 FPS; die Einstellung gespeichert).
+  App-Tests beider Varianten je 113 grün (1 übersprungen: Bilder), `check_translations.py` ohne Befund (385 Texte),
+  `whole_build.sh` i686 -O2 alle Prüfungen grün (auch `re4_core_remote_test`: Bildpakete über den Kernprozess mit
+  `kVersion` 5), `whole_build_android.sh --abi all` 0 Fehler, `gradlew externalNativeBuildCoreDebug` übersetzt.
+  Plan `port/docs/leistungsprofil-plan.md` nachgetragen (Gerätezeile, Regel, Tabelle).
+- **Nicht geprüft:** auf einem Gerät (das Handy des Nutzers: neuer Benchmark, Vorschlag Niedrig, Bildtakt im Dorf;
+  der Retroid: dass das Halten dort nie greift oder nicht stört); ob die Prozessorzeit auf anderen Handys am Steg so
+  eindeutig trennt (außer dem Bericht nur Retroid-Werte vom Steg). Wer schon einen Benchmark hat, behält seinen
+  Vorschlag (ohne Messwert gilt die alte Regel); ein neuer Benchmark zeigt den neuen.
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 

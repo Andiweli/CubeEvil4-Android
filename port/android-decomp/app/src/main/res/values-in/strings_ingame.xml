@@ -364,6 +364,7 @@
     <string name="ingame_profile_help">Profil mengatur resolusi, 60 FPS, lewati frame, anti-aliasing, FXAA, filter tekstur, inti performa, dan mode kentang untuk perangkat ini. Jika salah satunya kamu ubah manual, profil menjadi Kustom; Kustom tetap tersimpan selama kamu mencoba profil.</string>
     <string name="ingame_limit_gpu">chip grafis</string>
     <string name="ingame_limit_cpu">prosesor</string>
+    <string name="ingame_limit_both">chip grafis, prosesor mendekati batasnya</string>
     <string name="ingame_limit_none">tidak ada yang mencolok</string>
     <string name="ingame_bench_welcome">Selamat datang di CubeEvil4</string>
     <string name="ingame_bench_text">Aplikasi mengukur kemampuan perangkat ini dan menyarankan pengaturan terbaik. Untuk itu permainan pergi ke dermaga danau (hujan, air, kabut) dan kamera berputar mengelilingi karakter. Butuh sekitar 2–3 menit; suara mati. Setelahnya kamu kembali ke tempat semula. B / Kembali membatalkan.</string>

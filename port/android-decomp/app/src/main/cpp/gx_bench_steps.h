@@ -55,10 +55,17 @@ public:
   // 0.99.10: the 30 pass did not hold even 1x and the lower levels hardly helped (under 10 % more game pictures at 1x
   // than at its first level): the processor holds the game back, not the graphics chip
   bool CpuSign() const { return cpuSign_; }
+  // 0.99.12 (a user's report: a Helio G85 phone rated Medium, small frame drops in the village): the core thread's
+  // processor time a game picture at the 30 pass's result, in percent of a picture's 33.37 ms (-1: not known, a core
+  // without Re4GxChunk::coreCpuUs). The level search sees the graphics chip; this shows how much of the frame the
+  // game's own thread needs (the Retroid at the dock about 27 %, that phone 76 %). PerfProfile decides by it.
+  int CpuLoad() const { return cpuLoad_; }
+  static constexpr double kFrameMs = 1000.0 / (60000.0 / 1001.0) * 2.0;  // a game picture at 30 a second (NTSC)
 
-  // One second's figures at `t`: game pictures, pictures shown, in-between pictures left out. kLevel: set
-  // Level() now; kPassDone: the 60 pass starts (set Level() and 60 FPS); kDone: both results are there.
-  Step Second(double t, int chunks, int shown, unsigned dropped, std::string *log) {
+  // One second's figures at `t`: game pictures, pictures shown, in-between pictures left out, the core thread's
+  // processor time a game picture in ms (`cpuMs`, negative: not known). kLevel: set Level() now; kPassDone: the 60
+  // pass starts (set Level() and 60 FPS); kDone: both results are there.
+  Step Second(double t, int chunks, int shown, unsigned dropped, std::string *log, double cpuMs = -1.0) {
     if (finished_) return kDone;
     const bool sixty = pass_ == 1;
     rate10_ = (sixty ? shown : chunks) * 10;
@@ -70,6 +77,10 @@ public:
       minShown_ = std::min(minShown_, shown);
       dropped_ += dropped;
       if (chunks < kWeakChunks || (sixty && shown < kWeakShown)) weak_++;
+      if (cpuMs >= 0.0) {
+        cpuSum_ += cpuMs;
+        cpuSamples_++;
+      }
     }
     const bool overTime = t - passAt_ >= kPassLimit;
     if (t - levelAt_ < kHold && !overTime) return kNone;
@@ -77,13 +88,18 @@ public:
     const double avgShown = samples_ ? static_cast<double>(sumShown_) / samples_ : 0.0;
     const bool holds = samples_ >= kMinSamples && avgChunks >= kAvgChunks && weak_ <= kWeakSeconds &&
                        (!sixty || (avgShown >= kAvgShown && dropped_ * 100 <= static_cast<unsigned>(sumChunks_) * kDroppedPercent));
-    char line[360];
+    const double cpu = cpuSamples_ ? cpuSum_ / cpuSamples_ : -1.0;
+    char cpuText[96] = "";
+    if (cpu >= 0.0)
+      std::snprintf(cpuText, sizeof(cpuText), "; the game's thread %.1f ms of processor time a picture (%.0f %%)", cpu,
+                    cpu * 100.0 / kFrameMs);
+    char line[460];
     std::snprintf(line, sizeof(line),
                   "benchmark: %d FPS pass, level %s for %.1f s: game %.1f pictures a second on average (at least %d), "
-                  "shown %.1f (at least %d), %d weak seconds, %u in-between left out: %s",
+                  "shown %.1f (at least %d), %d weak seconds, %u in-between left out: %s%s",
                   sixty ? 60 : 30, Name(level_).c_str(), t - levelAt_, avgChunks, samples_ ? minChunks_ : 0, avgShown,
                   samples_ ? minShown_ : 0, weak_, dropped_,
-                  holds ? "stable" : overTime ? "not stable, the pass's time is up" : "not stable");
+                  holds ? "stable" : overTime ? "not stable, the pass's time is up" : "not stable", cpuText);
     if (log) *log = line;
     if (pass_ == 0) {
       if (firstLevel_ < 0) {
@@ -101,6 +117,7 @@ public:
     held_[pass_] = holds;
     if (pass_ == 0) {
       cpuSign_ = !holds && level_ == kBottom && firstLevel_ > kBottom && lastAvg_ < firstAvg_ * 1.10;
+      cpuLoad_ = cpu >= 0.0 ? static_cast<int>(cpu * 100.0 / kFrameMs + 0.5) : -1;
       // the 60 pass from the 30 pass's level (0.99.10): 60 pictures a second never hold where 30 do not
       StartPass(1, t, result_[0]);
       return kPassDone;
@@ -127,6 +144,8 @@ private:
     samples_ = sumChunks_ = sumShown_ = weak_ = 0;
     minChunks_ = minShown_ = 1000;
     dropped_ = 0;
+    cpuSum_ = 0.0;
+    cpuSamples_ = 0;
   }
 
   int pass_ = 0, level_ = kTop;
@@ -141,6 +160,9 @@ private:
   int firstLevel_ = -1;                  // the 30 pass's first level judged, and its game pictures a second
   double firstAvg_ = 0.0, lastAvg_ = 0.0;
   bool cpuSign_ = false;
+  double cpuSum_ = 0.0;                  // the level's processor time a picture (ms), summed over its counted seconds
+  int cpuSamples_ = 0;
+  int cpuLoad_ = -1;
 };
 
 }  // namespace re4gx

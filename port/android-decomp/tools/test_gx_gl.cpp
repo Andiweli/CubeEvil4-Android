@@ -1655,6 +1655,80 @@ void TestRescale() {
 // The pictures' cadence (picture_cadence.h): 30 pictures a second on 60 Hz, all 2 vsyncs, 0 % off; on 89.4 Hz with
 // the game's own clock (59.94 / 2 a second) mostly 3 vsyncs and now and then 2 (the picture early by a vsync);
 // 60 FPS on 90 Hz: 1 and 2 vsyncs by turns, half of them off; a pause starts over.
+// 0.99.12: the steady rhythm (picture_cadence.h PictureHold). The report's phone at 30 game pictures a second on
+// 60.1 Hz: each picture done 1.6 .. 2.4 vsyncs after its frame began (the game's thread at 76 %, the GPU after it),
+// so its first vsync is 2 or 3 after the frame's start and the screen shows 1, 2 and 3 vsyncs a picture. The render
+// thread draws at every vsync: without the hold the newest picture at once; with it a picture one vsync after the
+// last waits one more (and is never held twice). Returns the line of PictureCadence and the pictures held.
+static std::string HoldRun(bool hold, double from, double to, unsigned *held, unsigned *shownOut, double *lagOut) {
+  const long long period = 16638935;  // 60.1 Hz
+  const long long start = 1000000000LL;
+  re4gx::PictureCadence cadence;
+  re4gx::PictureHold steady;
+  unsigned seed = 12345, shown = 0;
+  double lag = 0.0;  // vsyncs a picture waited after it was ready, summed
+  std::vector<long long> ready;
+  for (int k = 0; k < 330; k++) {
+    seed = seed * 1103515245u + 12345u;
+    const double r = from + (to - from) * ((seed >> 8) & 0xFFFF) / 65535.0;
+    ready.push_back(start + 2LL * k * period + static_cast<long long>(r * period));
+  }
+  std::size_t next = 0;
+  bool pending = false;  // a picture held back, drawn at the next vsync
+  std::string line, last;
+  for (long long v = start; v < start + 680LL * period && next < ready.size(); v += period) {
+    bool draw = false;
+    if (pending) {
+      draw = true;
+      pending = false;
+    } else if (ready[next] <= v) {
+      if (hold && steady.Wait(v, period))
+        pending = true;
+      else
+        draw = true;
+    }
+    if (draw) {
+      lag += static_cast<double>(v - ready[next]) / period;
+      next++;
+      shown++;
+      steady.Shown(v);
+      if (cadence.Note(v, period, 60.1, &line)) last = line;
+    }
+  }
+  *held = steady.held;
+  *shownOut = shown;
+  *lagOut = shown ? lag / shown : 0.0;
+  return last;
+}
+
+void TestPictureHold() {
+  unsigned held = 0, shown = 0;
+  double lag = 0.0;
+  // the report's spread (1.6 .. 2.4 vsyncs from the frame's start to done): without the hold 1, 2 and 3 in turn
+  const std::string before = HoldRun(false, 1.6, 2.4, &held, &shown, &lag);
+  std::fprintf(stderr, "  hold off: %s (%u shown, waited %.2f vsyncs on average)\n", before.c_str(), shown, lag);
+  Check(before.find("1: 0,") == std::string::npos && before.find("3: 0,") == std::string::npos,
+        "picture hold: without it the late and early pictures show 1 and 3 vsyncs (the report's pattern)");
+  const unsigned shownBefore = shown;
+  const std::string after = HoldRun(true, 1.6, 2.4, &held, &shown, &lag);
+  std::fprintf(stderr, "  hold on:  %s (%u shown, %u held one vsync, waited %.2f vsyncs on average)\n", after.c_str(),
+               shown, held, lag);
+  Check(after.find("1: 0,") != std::string::npos, "picture hold: no picture shows for one vsync only");
+  Check(shown == shownBefore, "picture hold: every game picture is shown (30 a second as before)");
+  Check(held > 0 && lag < 1.0, "picture hold: some pictures wait one vsync, on average less than a vsync");
+  // 2 vsyncs plus a little (a steady device, the Retroid): nothing to hold, the line as before
+  const std::string even = HoldRun(true, 1.2, 1.5, &held, &shown, &lag);
+  std::fprintf(stderr, "  steady:   %s (%u held)\n", even.c_str(), held);
+  Check(held == 0 && even.find("0 % more than 2 ms") != std::string::npos, "picture hold: a steady device: nothing held");
+  // not on a 120 Hz screen (the render thread draws every second vsync there) nor without a known period
+  re4gx::PictureHold h;
+  h.Shown(1000000000LL);
+  Check(!h.Wait(1000000000LL + 8333333LL, 8333333LL), "picture hold: not at 120 Hz");
+  Check(!h.Wait(1000000000LL + 16666667LL, 0), "picture hold: not without the screen's period");
+  Check(!h.Wait(1000000000LL + 2 * 16666667LL, 16666667LL), "picture hold: two vsyncs after the last: drawn");
+  Check(h.Wait(1000000000LL + 16666667LL, 16666667LL), "picture hold: one vsync after the last: waits");
+}
+
 void TestPictureCadence() {
   auto run = [](double hz, double fps, int seconds, std::string *line) {
     re4gx::PictureCadence c;
@@ -1831,6 +1905,32 @@ void TestBenchSteps() {
       [](int level, bool sixty) { return sixty ? (level > 4 ? 48 : 58) : (level > 4 ? 24 : 30); });
   Check(steady.Result(0) == 4 && steady.Result(1) == 4 && steady.Held(0) && steady.Held(1),
         "benchmark: 29-30 a second at 2x holds 2x for 30 and 60");
+  // 0.99.12: the game's thread at the place (report 09912-benchmark-too-good, a Helio G85 phone): 30 pictures a second
+  // from 1.5x down (17 at 2.5x, 24.6 at 2x), 25.4 ms of processor time a picture: 76 % at the 30 pass's result; the
+  // Retroid 9 ms (27 %); a core without the figure: not known
+  auto cpuRun = [](const char *name, double cpuMs) {
+    re4gx::BenchSteps b;
+    b.Start(0.0, 5);
+    std::fprintf(stderr, "benchmark simulation: %s\n", name);
+    double t = 0.0;
+    for (int i = 0; i < 400 && !b.Finished(); i++) {
+      t += 1.0;
+      const int level = b.Level();
+      const bool sixty = b.Pass() == 1;
+      const int c = level >= 5 ? 17 : level == 4 ? 25 : 30;
+      std::string line;
+      const re4gx::BenchSteps::Step step = b.Second(t, c, sixty ? 36 : c, 0, &line, cpuMs);
+      if (step != re4gx::BenchSteps::kNone) std::fprintf(stderr, "  %5.1f s  %s\n", t, line.c_str());
+    }
+    return b;
+  };
+  re4gx::BenchSteps g85 = cpuRun("Helio G85 (25.4 ms a picture for the game's thread)", 25.4);
+  Check(g85.Result(0) == 3 && g85.Held(0) && g85.CpuLoad() == 76 && !g85.CpuSign(),
+        "benchmark: the Helio G85 holds 30 at 1.5x, its game's thread at 76 % (the old sign saw nothing)");
+  re4gx::BenchSteps calm = cpuRun("the same levels, 9 ms a picture (Retroid)", 9.0);
+  Check(calm.CpuLoad() == 27, "benchmark: 9 ms a picture is 27 %");
+  re4gx::BenchSteps unknown = cpuRun("an older core (no processor time)", -1.0);
+  Check(unknown.CpuLoad() == -1 && unknown.Result(0) == 3, "benchmark: without the figure the load is not known");
   // the 60 FPS pause does not carry over into the benchmark's next level (SmoothPacer::Restart)
   re4gx::SmoothPacer pacer;
   bool off = false;
@@ -4125,6 +4225,7 @@ int main() {
     TestSharpen(renderer);
     TestCrtColour(renderer);
     TestPictureCadence();
+    TestPictureHold();
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);

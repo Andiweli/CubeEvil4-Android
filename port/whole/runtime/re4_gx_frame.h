@@ -195,6 +195,10 @@ typedef struct Re4GxChunk {
     uint32_t draws;        /* statistics */
     uint32_t vertexCount;
     uint32_t textureBytes; /* texture data sent in this chunk */
+    /* 0.99.12: the processor time the core's thread took for this chunk (the game's frame and the decoding, since
+     * the chunk before) in microseconds, 0 not known; the app's benchmark sees by it whether the processor holds the
+     * game back (port/docs/leistungsprofil-plan.md). Not in the GX dumps. */
+    uint32_t coreCpuUs;
 } Re4GxChunk;
 
 /* The oldest finished chunk, or NULL; attaches the renderer. */

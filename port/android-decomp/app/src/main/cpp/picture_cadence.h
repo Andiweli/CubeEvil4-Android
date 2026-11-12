@@ -78,4 +78,30 @@ struct PictureCadence {
   }
 };
 
+// A steady rhythm at 30 game pictures a second on a screen near 60 Hz (0.99.12; a user's Helio G85 phone: the game's
+// thread used 76 % of a picture's time, its pictures came done a little earlier or later around a vsync, and the
+// screen showed them 1 and 3 vsyncs in turn, 46 % at 2; felt as small frame drops). A new game picture ready one
+// vsync after the last one waits for the next vsync: after a late picture the rhythm keeps two vsyncs a picture, a
+// sixtieth of a second later, instead of making up at once. Shown(): the vsync each new picture was drawn for (Snap);
+// Wait(): should the picture ready at the vsync `vsync` wait one? Only on a screen of 54..66 Hz and when this vsync is
+// exactly the one after the last new picture (a render thread that is late itself never waits). The caller holds it
+// only once (core_mode.cpp drawGx: skipNext) and not at 60 game pictures a second or with 60 FPS. Independent of
+// Android (tools/test_gx_gl.cpp TestPictureHold).
+struct PictureHold {
+  long long last = 0;  // the vsync of the last new picture
+  unsigned held = 0;   // pictures held back one vsync so far (the log)
+
+  void Shown(long long vsync) { last = vsync; }
+
+  bool Wait(long long vsync, long long period) {
+    if (period < 15150000LL || period > 18520000LL || last <= 0 || vsync <= last)
+      return false;
+    const long long n = (vsync - last + period / 2) / period;
+    if (n != 1)
+      return false;
+    held++;
+    return true;
+  }
+};
+
 } // namespace re4gx

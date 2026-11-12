@@ -380,6 +380,7 @@
     <string name="ingame_profile_help">يضبط الملف الدقة و60 FPS وتخطي الإطارات وتنعيم الحواف وFXAA وتصفية الخامات وأنوية الأداء ووضع Potato لهذا الجهاز. إذا غيّرت أحدها يدويًا يصبح مخصصًا؛ ويبقى المخصص محفوظًا بينما تجرّب ملفًا.</string>
     <string name="ingame_limit_gpu">شريحة الرسوميات</string>
     <string name="ingame_limit_cpu">المعالج</string>
+    <string name="ingame_limit_both">شريحة الرسوميات، والمعالج قريب من حده</string>
     <string name="ingame_limit_none">لا شيء لافت</string>
     <string name="ingame_bench_welcome">مرحبًا بك في CubeEvil4</string>
     <string name="ingame_bench_text">يقيس التطبيق قدرات هذا الجهاز ويقترح أفضل الإعدادات. ولذلك تنتقل اللعبة إلى رصيف البحيرة (مطر، ماء، ضباب) وتدور الكاميرا حول الشخصية. يستغرق ذلك نحو 2–3 دقائق؛ والصوت مطفأ. بعدها تعود إلى حيث كنت. B / رجوع يلغي.</string>

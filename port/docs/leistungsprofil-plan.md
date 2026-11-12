@@ -64,9 +64,20 @@ Gerätedaten.
 | Infinix X6882 (Mali-G57), Redmi 10 (Mali-G52); vermutlich auch Galaxy A24 | 2–2,5× / 1× | Mittel |
 | moto g15 (Mali-G52) | 1× / 1× | Niedrig |
 | Galaxy A13 (nur kleine Prozessorkerne) | Prozessor bremst | Niedrig, Frame-Skip Aggressiv |
+| Xiaomi „dew“ (Helio G85, 2 schnelle Kerne, Mali-G52; Bericht 09912) | 1,5× / 1× (nicht gehalten), Spiel-Thread 76 % | Niedrig, Frame-Skip Aggressiv (bis 0.99.11: Mittel) |
 | unter 3 GB Arbeitsspeicher | – | Niedrig |
 
 Regel: **Hoch**, wenn 60 FPS mindestens 1,5× hält; **Mittel**, wenn 30 FPS mindestens 1,5× hält; sonst **Niedrig**.
+
+**Seit 0.99.12: der Prozessor gemessen.** Benchmark 1 misst am Steg zusätzlich, wie viel Prozessorzeit der
+Spiel-Thread je Bild braucht (bei der Stufe, die 30 FPS hält; Anteil an 33,4 ms). Grund: ein Xiaomi mit Helio G85
+(zwei schnelle Kerne, gedrosselt auf 1 GHz) hielt 30 FPS genau bei 1,5× und bekam „Mittel“, im Dorf ruckelte es
+leicht; sein Spiel-Thread brauchte am Steg 25,4 ms (76 %), der Retroid 9 ms (27 %). Ab **75 %** bremst der Prozessor
+(wie das alte Prozessor-Zeichen: Niedrig, Frame-Skip Aggressiv, Sichtweite Kurz); ab **60 %** ist er nahe an seiner
+Grenze: die Empfehlung eine Stufe tiefer, als der Grafikchip erlaubt (Hoch → Mittel, Mittel → Niedrig), in jedem
+Profil Frame-Skip Aggressiv und kein 60 FPS, Mittel und Hoch mit Sichtweite Mittel. Effekte bleiben, wie sie sind:
+Schatten und Partikel sparen dem Spiel-Thread nur wenige Prozent (Messung 0.99.3), sie entlasten vor allem den
+Grafikchip. Popup 2 nennt dann „der Grafikchip, der Prozessor nahe an seiner Grenze“.
 Bei einem Display mit 90 Hz bleibt 60 FPS aus (läuft dort nicht gleichmäßig, siehe 0.99.9), 120 Hz ist in Ordnung.
 
 **Welche Einstellungen setzt jedes Profil?**
@@ -74,14 +85,14 @@ Bei einem Display mit 90 Hz bleibt 60 FPS aus (läuft dort nicht gleichmäßig, 
 | Einstellung | Niedrig | Mittel | Hoch |
 |---|---|---|---|
 | Auflösung | Dynamisch (bis zur gemessenen Stufe) | Dynamisch | Dynamisch |
-| 60 FPS | aus | an, wenn 60 FPS ≥ 2× gemessen und das Display passt | an, wenn 60 FPS ≥ 1,5× gemessen und das Display passt |
-| Frame-Skip | Aggressiv, wenn der Prozessor bremst, sonst Normal | Normal (aus, wenn 60 FPS an) | Normal (aus, wenn 60 FPS an) |
+| 60 FPS | aus | an, wenn 60 FPS ≥ 2× gemessen, das Display passt und der Spiel-Thread unter 60 % liegt | an, wenn 60 FPS ≥ 1,5× gemessen, das Display passt und der Spiel-Thread unter 60 % liegt |
+| Frame-Skip | Aggressiv, wenn der Prozessor bremst oder nahe an seiner Grenze ist, sonst Normal | ebenso (aus, wenn 60 FPS an) | ebenso (aus, wenn 60 FPS an) |
 | Kantenglättung (MSAA), FXAA, Texturfilter | aus | nach Spielraum, eine Stufe sparsamer als Hoch | nach Spielraum (Tabelle unten) |
 | Leistungskerne nutzen | an | an | an (seit dem Retroid-Test: „Standard“ ließ den Zeichen-Thread auf mittleren Kernen) |
 | Wetter- und Spezialeffekte | aus | an | an |
 | Partikeleffekte | Weniger | Normal | Normal |
 | Schatten & Licht | aus | an | an |
-| Sichtweite | Mittel (Kurz, wenn der Prozessor bremst) | Normal | Normal |
+| Sichtweite | Mittel (Kurz, wenn der Prozessor bremst) | Normal (Mittel, wenn der Prozessor bremst oder nahe an seiner Grenze ist) | ebenso |
 
 **Effekte nach Spielraum** (Wunsch des Projektinhabers: starke Geräte bekommen auch Effekte vorgeschlagen, nicht nur
 schwache weniger). Spielraum ist die Stufe, die bei der Bildrate des Profils (30 oder 60 FPS) im Benchmark 1 noch

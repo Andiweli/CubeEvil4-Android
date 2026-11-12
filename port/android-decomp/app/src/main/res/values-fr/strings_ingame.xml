@@ -371,6 +371,7 @@
     <string name="ingame_profile_help">Un profil règle la résolution, les 60 FPS, le saut d’images, l’anticrénelage, le FXAA, le filtrage des textures, les cœurs performants et le mode Potato pour cet appareil. Modifier l\'un d\'eux à la main passe en Perso ; Perso reste enregistré pendant que tu essaies un profil.</string>
     <string name="ingame_limit_gpu">la puce graphique</string>
     <string name="ingame_limit_cpu">le processeur</string>
+    <string name="ingame_limit_both">la puce graphique, le processeur proche de sa limite</string>
     <string name="ingame_limit_none">rien de notable</string>
     <string name="ingame_bench_welcome">Bienvenue dans CubeEvil4</string>
     <string name="ingame_bench_text">L\'app mesure ce que cet appareil peut faire et propose les meilleurs réglages. Le jeu se rend pour cela au ponton du lac (pluie, eau, brouillard) et la caméra tourne autour du personnage. Cela prend environ 2 à 3 minutes ; le son est coupé. Ensuite, tu reviens là où tu étais. B / Retour annule.</string>

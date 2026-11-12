@@ -859,6 +859,7 @@ const Re4GxChunk* re4ipc_gx_acquire(void)
         v.draws = i.draws;
         v.vertexCount = i.vertexCount;
         v.textureBytes = i.textureBytes;
+        v.coreCpuUs = i.coreCpuUs;
         if (c->check) {
             const uint64_t h = hashChunk(i, v.ops, v.vertices, v.indices, v.blob);
             gChunksChecked++;

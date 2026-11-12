@@ -700,15 +700,18 @@ std::atomic<long long> picturesMade{0};
 // latest, the period smoothed, a late callback not counted) and the render thread's record of the new pictures
 std::atomic<long long> displayVsyncAt{0}, displayVsyncPeriod{0};
 re4gx::PictureCadence pictureCadence;
+// 0.99.12: a steady rhythm at 30 pictures a second (picture_cadence.h PictureHold)
+re4gx::PictureHold pictureHold;
 // a new picture drawn at this refresh: noted at its vsync, every 10 s a line for the log
 void NotePicture() {
   const long long now = std::chrono::duration_cast<std::chrono::nanoseconds>(
                             std::chrono::steady_clock::now().time_since_epoch())
                             .count();
   const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
+  const long long vsync = re4gx::PictureCadence::Snap(now, at, period);
+  pictureHold.Shown(vsync);
   std::string line;
-  if (pictureCadence.Note(re4gx::PictureCadence::Snap(now, at, period), period, period > 0 ? 1e9 / period : 0.0,
-                          &line))
+  if (pictureCadence.Note(vsync, period, period > 0 ? 1e9 / period : 0.0, &line))
     LOG("%s", line.c_str());
 }
 // 60 FPS (experimental): the chunk run last, kept for the in-between picture after it (its
@@ -782,6 +785,8 @@ std::atomic<int> optCap30{0}, optCap60{0};
 struct LevelBench {
   std::atomic<int> ask{0};    // 1 start, 2 cancel, 3 end the check (mode 1) (CoreBridge)
   std::atomic<int> mode{0}, top{8}, cpuSign{0};
+  // 0.99.12: the core thread's processor time a game picture at the 30 pass's result, % of 33.37 ms (-1 not known)
+  std::atomic<int> cpuLoad{-1};
   std::atomic<double> warmup{0.0};
   // mode 1: the seconds since the app's last read: count, game pictures, pictures shown, weak seconds (game below 27,
   // with 60 FPS shown below 54), the level (halves) summed
@@ -798,6 +803,8 @@ struct LevelBench {
   std::chrono::steady_clock::time_point since, start, secondAt;
   unsigned long long chunks = 0, chunksAt = 0, shownAt = 0;
   unsigned droppedAt = 0, polls = 0;
+  // the core thread's processor time of the chunks (Re4GxChunk::coreCpuUs, cores since 0.99.12), and their count
+  unsigned long long cpuUs = 0, cpuUsAt = 0, cpuChunks = 0, cpuChunksAt = 0;
 };
 LevelBench levelBench;
 constexpr double kBenchLimit = 360.0;  // seconds for the whole benchmark at most (the way there and back included)
@@ -1591,17 +1598,22 @@ void levelBenchResults(std::chrono::steady_clock::time_point now) {
   b.res60 = s.Result(1);
   b.held = (s.Held(0) ? 1 : 0) | (s.Held(1) ? 2 : 0);
   b.cpuSign = s.CpuSign() ? 1 : 0;
+  b.cpuLoad = s.CpuLoad();
   api.cheatAction(22);
   b.phase = 3;
   b.since = now;
-  LOG("benchmark: result %s with 30 pictures a second (%s), %s with 60 (%s)%s", re4gx::BenchSteps::Name(s.Result(0)).c_str(),
+  char load[96] = "";
+  if (s.CpuLoad() >= 0)
+    std::snprintf(load, sizeof(load), "; the game's thread needs %d %% of a picture's time", s.CpuLoad());
+  LOG("benchmark: result %s with 30 pictures a second (%s), %s with 60 (%s)%s%s", re4gx::BenchSteps::Name(s.Result(0)).c_str(),
       s.Held(0) ? "stable" : "not stable even there", re4gx::BenchSteps::Name(s.Result(1)).c_str(),
       s.Held(1) ? "stable" : "not stable even there",
-      s.CpuSign() ? "; lower levels hardly helped: the processor holds it back" : "");
+      s.CpuSign() ? "; lower levels hardly helped: the processor holds it back" : "", load);
 }
 
-// The benchmark's next step, at every refresh (`chunk`: a real chunk of the game ran in it).
-void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
+// The benchmark's next step, at every refresh (`chunk`: a real chunk of the game ran in it; `cpuUs`: the core thread's
+// processor time for it, 0 not known).
+void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk, unsigned cpuUs = 0) {
   LevelBench &b = levelBench;
   const int ask = b.ask.exchange(0);
   auto finish = [&](int phase) {
@@ -1629,6 +1641,8 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     b.level = 0;
     b.res30 = b.res60 = b.rate10 = b.held = 0;
     b.chunks = 0;
+    b.cpuUs = b.cpuUsAt = b.cpuChunks = b.cpuChunksAt = 0;
+    b.cpuLoad = -1;
     b.polls = 0;
     b.failed = false;
     b.touched = false;
@@ -1648,7 +1662,13 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     return;
   }
   if (!b.active) return;
-  if (chunk) b.chunks++;
+  if (chunk) {
+    b.chunks++;
+    if (cpuUs) {
+      b.cpuUs += cpuUs;
+      b.cpuChunks++;
+    }
+  }
   if (ask == 2 && b.phase.load() != 6 && b.phase.load() != 3) {
     goBack("cancelled");
     return;
@@ -1682,6 +1702,8 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
       b.phase = 2;
       b.secondAt = now;
       b.chunksAt = b.chunks;
+      b.cpuUsAt = b.cpuUs;
+      b.cpuChunksAt = b.cpuChunks;
       b.shownAt = picturesMade.load();
       b.droppedAt = gxBetweenDropped;
       LOG("benchmark: at the place; the check counts the seconds");
@@ -1694,6 +1716,8 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
       b.phase = 2;
       b.secondAt = now;
       b.chunksAt = b.chunks;
+      b.cpuUsAt = b.cpuUs;
+      b.cpuChunksAt = b.cpuChunks;
       b.shownAt = picturesMade.load();
       b.droppedAt = gxBetweenDropped;
       LOG("benchmark: at the place; the 30 FPS pass from %s after %.0f s warm-up",
@@ -1715,6 +1739,12 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     const int c = static_cast<int>(std::lround((b.chunks - b.chunksAt) / sec));
     const int sh = static_cast<int>(std::lround((picturesMade.load() - b.shownAt) / sec));
     const unsigned dropped = gxBetweenDropped - b.droppedAt;
+    // the core thread's processor time a game picture in this second (ms; negative: an older core, not known)
+    const unsigned long long cpuChunks = b.cpuChunks - b.cpuChunksAt;
+    const double cpuMs = cpuChunks ? static_cast<double>(b.cpuUs - b.cpuUsAt) / 1000.0 / static_cast<double>(cpuChunks)
+                                   : -1.0;
+    b.cpuUsAt = b.cpuUs;
+    b.cpuChunksAt = b.cpuChunks;
     b.chunksAt = b.chunks;
     b.shownAt = picturesMade.load();
     b.droppedAt = gxBetweenDropped;
@@ -1733,7 +1763,7 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk) {
     }
     std::string line;
     const re4gx::BenchSteps::Step step =
-        b.steps.Second(std::chrono::duration<double>(now - b.start).count(), c, sh, dropped, &line);
+        b.steps.Second(std::chrono::duration<double>(now - b.start).count(), c, sh, dropped, &line, cpuMs);
     b.rate10 = b.steps.Rate10();
     if (step != re4gx::BenchSteps::kNone) {
       LOG("%s", line.c_str());
@@ -2081,9 +2111,27 @@ bool drawGx() {
   }
   const Re4GxChunk *deferred = smoothNext;
   smoothNext = nullptr;
+  const bool fresh = !deferred && !skipNext;  // (a chunk taken ahead or held already is never held again)
   const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
   if (chunk == skipNext)
     skipNext = nullptr;
+  // A steady rhythm (0.99.12, a user's Helio G85 phone at 30 FPS on 60 Hz: 46 % of the new pictures two vsyncs apart,
+  // the others 1 and 3 in turn, felt as small frame drops): a new game picture that is ready one vsync after the last
+  // one (that one came late) waits for the next vsync, so every picture shows for two. Only at 30 game pictures a
+  // second without 60 FPS on a screen near 60 Hz, and only while the render thread keeps up (this refresh is the vsync
+  // right after the last new picture); never twice for a chunk (skipNext draws it at the next refresh).
+  if (chunk && fresh && !smoothOn) {
+    const long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+    const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
+    const double nowSec = std::chrono::duration<double>(now.time_since_epoch()).count();
+    if (!chunkRate.Sixty(nowSec) && pictureHold.Wait(re4gx::PictureCadence::Snap(nowNs, at, period), period)) {
+      skipNext = chunk;
+      chunk = nullptr;
+      if (pictureHold.held == 1 || pictureHold.held % 600 == 0)
+        LOG("picture pacing: %u new pictures held back one vsync so far (a steady two-vsync rhythm at 30 a second)",
+            pictureHold.held);
+    }
+  }
   // Behind: the core has finished the next chunk already. Then the in-between picture (60 FPS) is
   // left out first: it is a picture more for the screen, and drawing it while behind made the game
   // wait for the renderer (Retroid 26.10.2026: 17-19, with the stalls of the blended vertices 3-5
@@ -2172,6 +2220,8 @@ bool drawGx() {
         }
       }
     }
+    // the core thread's processor time for this chunk (the benchmark; the chunk may go back to the core below)
+    const unsigned chunkCpuUs = chunk->coreCpuUs;
     // the in-between picture first when the switch is on and nothing records this chunk's picture;
     // Run(chunk) then at the next refresh
     bool between = false;
@@ -2314,7 +2364,7 @@ bool drawGx() {
       bench.runMs += ms;
       bench.runCount++;
     }
-    levelBenchTick(now, !between);
+    levelBenchTick(now, !between, between ? 0u : chunkCpuUs);
     // the FPS display's level: the one the renderer really draws at (the benchmark's or Dynamic's steps, a new renderer)
     infoScale = gx->Halves();
     // Dynamic: another level from the next chunk on (not while an R3 series or the hit pictures are
@@ -3287,10 +3337,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_finishBenchm
 
 extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_benchmarkState(JNIEnv *env, jclass) {
   const LevelBench &b = levelBench;
-  const jint v[9] = {b.phase.load(), b.run.load(), b.level.load(), b.res30.load(), b.res60.load(), b.rate10.load(),
-                     b.held.load(), b.cpuSign.load(), b.mode.load()};
-  jintArray out = env->NewIntArray(9);
-  if (out) env->SetIntArrayRegion(out, 0, 9, v);
+  const jint v[10] = {b.phase.load(), b.run.load(), b.level.load(), b.res30.load(), b.res60.load(), b.rate10.load(),
+                      b.held.load(), b.cpuSign.load(), b.mode.load(), b.cpuLoad.load()};
+  jintArray out = env->NewIntArray(10);
+  if (out) env->SetIntArrayRegion(out, 0, 10, v);
   return out;
 }
 

@@ -299,6 +299,7 @@ void fillInfo(GxInfo& info, const Re4GxChunk& c)
     info.draws = c.draws;
     info.vertexCount = c.vertexCount;
     info.textureBytes = c.textureBytes;
+    info.coreCpuUs = c.coreCpuUs;
 }
 
 uint32_t nowMs()

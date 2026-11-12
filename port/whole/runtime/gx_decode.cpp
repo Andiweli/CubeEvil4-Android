@@ -598,6 +598,7 @@ long long gIdleAt;                    // re4_idle_ns() at the last log line
 double gFifoBytes, gFifoVertices;     // since the last log line (FIFO: written by the CPU)
 double gListBytes;                    // display list bytes read since the last log line
 re4cpu::ThreadUse gCoreUse;           // processor time of the core thread per chunk, its kind of core
+long long gChunkCpuAt;                // the core thread's processor time at the last chunk's end (coreCpuUs)
 
 // A display copy ends the chunk: queue it, start the next one if a renderer
 // still takes chunks. Waits while every slot is queued or being read.
@@ -606,6 +607,10 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
     re4gx::finishJobs();  // the chunk's vertices complete before it is queued
     hintChunk();
     const long long start = nowMs();
+    // the core thread's processor time for this chunk (Re4GxChunk::coreCpuUs, the app's benchmark)
+    const long long cpuNow = re4cpu::ThreadNs();
+    const long long cpuUs = gChunkCpuAt && cpuNow > gChunkCpuAt ? (cpuNow - gChunkCpuAt) / 1000 : 0;
+    gChunkCpuAt = cpuNow;
     if (gBoundaryAt && gWanted.load()) {
         gFrameMs += start - gBoundaryAt;
         gCoreUse.Picture();
@@ -674,6 +679,7 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         v.xfbAddress = xfb;
         v.xfbWidth = width;
         v.xfbHeight = height;
+        v.coreCpuUs = (u32) (cpuUs < 0xFFFFFFFFLL ? cpuUs : 0xFFFFFFFFLL);
         // a copy without VIFlush since the last one: decided now
         publishPendingLocked();
         gSlotState[gCurrent] = kPending;

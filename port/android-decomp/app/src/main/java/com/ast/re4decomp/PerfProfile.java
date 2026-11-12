@@ -24,8 +24,17 @@ final class PerfProfile {
   /** GRAPHICS_PREFS: the active profile. */
   static final String ACTIVE = "perfProfile";
   static final String CUSTOM_PREFIX = "perfCustom.", APPLIED_PREFIX = "perfApplied.";
-  /** The last benchmark (System.currentTimeMillis, 0 none) and its processor sign. */
-  static final String BENCH_DATE = "benchDate", BENCH_CPU = "benchCpu";
+  /** The last benchmark (System.currentTimeMillis, 0 none), its processor sign and the game's thread's load there. */
+  static final String BENCH_DATE = "benchDate", BENCH_CPU = "benchCpu", BENCH_CPU_LOAD = "benchCpuLoad";
+  /**
+   * The game's thread at the benchmark's place, in percent of a picture's time at 30 a second (0.99.12; a user's
+   * Xiaomi with a Helio G85, two fast cores held at 1 GHz: 76 %, rated Medium by its graphics chip, small frame drops
+   * in the village; the Retroid 27 %): from CPU_BUSY the processor holds the game back (Low with Aggressive frame
+   * skip, as the processor sign), from CPU_TIGHT it is near its end (the profile one lower than the graphics chip
+   * would allow, Aggressive frame skip, no 60 FPS). What the effects save of it is small (Potato measurements 0.99.3:
+   * shadows and particles a few per cent of the game's thread); the game's own frame skip keeps its pace.
+   */
+  static final int CPU_BUSY = 75, CPU_TIGHT = 60;
   /** 1 the first start's benchmark is to come, 2 the menu asks once (an update), 0 nothing (FIRST_*). */
   static final String FIRST = "benchFirst";
   static final int FIRST_NONE = 0, FIRST_PENDING = 1, FIRST_ASK = 2;
@@ -56,17 +65,24 @@ final class PerfProfile {
     }
   }
 
-  /** The benchmark's levels in halves (0: none measured) and its processor sign. */
+  /** The benchmark's levels in halves (0: none measured), its processor sign and the game's thread's load (-1: not
+   *  known, a benchmark before 0.99.12 or a core without it). */
   static final class Bench {
     final int cap30, cap60;
     final boolean cpuSign, measured;
+    final int cpuLoad;
     Bench(int cap30, int cap60, boolean cpuSign, boolean measured) {
+      this(cap30, cap60, cpuSign, measured, -1);
+    }
+    Bench(int cap30, int cap60, boolean cpuSign, boolean measured, int cpuLoad) {
       this.cap30 = cap30; this.cap60 = cap60; this.cpuSign = cpuSign; this.measured = measured;
+      this.cpuLoad = cpuLoad;
     }
     static Bench of(SharedPreferences g) {
       int c30 = g.getInt(CoreMenu.DYN_CAP_30, 0), c60 = g.getInt(CoreMenu.DYN_CAP_60, 0);
       boolean measured = c30 >= 2 && c30 <= 8;
-      return new Bench(measured ? c30 : 0, c60 >= 2 && c60 <= 8 ? c60 : 0, g.getBoolean(BENCH_CPU, false), measured);
+      return new Bench(measured ? c30 : 0, c60 >= 2 && c60 <= 8 ? c60 : 0, g.getBoolean(BENCH_CPU, false), measured,
+          measured ? g.getInt(BENCH_CPU_LOAD, -1) : -1);
     }
   }
 
@@ -87,10 +103,16 @@ final class PerfProfile {
   /** The 30 pass's first level for this chip: 2.5x for the weak ones (saves up to 30 s), else 4x. */
   static int benchTop(Device d) { return weakGpu(d) ? 5 : 8; }
 
-  /** Only small cores (Galaxy A13: eight at 2.0 GHz) or the benchmark's sign: the processor holds the game back. */
+  /** Only small cores (Galaxy A13: eight at 2.0 GHz), the benchmark's sign or the game's thread busy at the place
+   *  (CPU_BUSY): the processor holds the game back. */
   static boolean cpuWeak(Device d, Bench b) {
-    if (b.cpuSign) return true;
+    if (b.cpuSign || b.cpuLoad >= CPU_BUSY) return true;
     return d.maxMhz > 0 && d.maxMhz <= 2100 && d.fastCores >= d.cores;
+  }
+
+  /** The processor near its end at the place (CPU_TIGHT .. CPU_BUSY): one profile lower, Aggressive frame skip. */
+  static boolean cpuTight(Device d, Bench b) {
+    return !cpuWeak(d, b) && b.cpuLoad >= CPU_TIGHT;
   }
 
   static boolean lowMemory(Device d) { return d.ramMb > 0 && d.ramMb < 2800; }
@@ -110,26 +132,38 @@ final class PerfProfile {
     return new Bench(4, 2, false, false);
   }
 
-  // ---- the profiles --------------------------------------------------------------------------------------------
-
-  /** The profile the benchmark suggests: High when 60 FPS held at 1.5x at least, Medium when 30 did, else Low; Low
-   *  too with little memory or a weak processor. */
-  static int recommend(Device d, Bench measured) {
-    Bench b = guess(d, measured);
-    if (lowMemory(d) || cpuWeak(d, b)) return LOW;
+  /** The profile the graphics chip's levels allow: High when 60 FPS held at 1.5x at least, Medium when 30 did. */
+  private static int byLevels(Bench b) {
     if (b.cap60 >= 3) return HIGH;
     if (b.cap30 >= 3) return MEDIUM;
     return LOW;
+  }
+
+  // ---- the profiles --------------------------------------------------------------------------------------------
+
+  /** The profile the benchmark suggests: High when 60 FPS held at 1.5x at least, Medium when 30 did, else Low; Low
+   *  too with little memory or a weak processor; one lower when the processor is near its end (cpuTight, 0.99.12:
+   *  the user's Helio G85 held 30 FPS at exactly 1.5x, Medium's threshold, with the game's thread at 76 %). */
+  static int recommend(Device d, Bench measured) {
+    Bench b = guess(d, measured);
+    if (lowMemory(d) || cpuWeak(d, b)) return LOW;
+    int p = byLevels(b);
+    if (cpuTight(d, b) && p > LOW) p--;
+    return p;
   }
 
   /** The values of LOW, MEDIUM or HIGH for this device (KEYS order). */
   static int[] values(int profile, Device d, Bench measured) {
     Bench b = guess(d, measured);
     boolean cpu = cpuWeak(d, b);
+    boolean tight = cpuTight(d, b);
     boolean uneven = FramePacing.sixtyUneven(d.hz);
     int[] v = new int[KEYS.length];
     v[SCALE] = 0;  // Dynamic, up to the benchmark's levels
-    boolean smooth = profile == HIGH ? b.cap60 >= 3 && !uneven : profile == MEDIUM && b.cap60 >= 4 && !uneven;
+    // (0.99.12: no 60 FPS where the game's thread is busy at the place: it needs every picture in time)
+    boolean busy = b.cpuLoad >= CPU_TIGHT;
+    boolean smooth = !busy
+        && (profile == HIGH ? b.cap60 >= 3 && !uneven : profile == MEDIUM && b.cap60 >= 4 && !uneven);
     v[SMOOTH] = smooth ? 1 : 0;
     int room = smooth ? b.cap60 : b.cap30;  // the headroom: the level held at the profile's rate
     int[] fx = effects(profile, room, screenLevel(d));
@@ -140,14 +174,16 @@ final class PerfProfile {
     // render thread on the middle cores, Dynamic settled at 2.5x instead of 3x..3.5x); a phone with only one kind
     // of core is not changed by it
     v[CORES] = 1;
+    // the processor busy or near its end: the game's own frame skip (Aggressive, patch 0227) keeps the game's pace
+    // where a picture takes too long; Normal only helps a graphics chip that is behind (0.99.12)
     if (profile == LOW) {
-      v[SKIP] = cpu ? 2 : 1;
+      v[SKIP] = cpu || tight ? 2 : 1;
       v[WEATHER] = 0; v[SPECIAL] = 0; v[PARTICLES] = 1; v[SHADOWS] = 0;
       v[VIEW] = cpu ? 2 : 1;
     } else {
-      v[SKIP] = smooth ? 0 : 1;
+      v[SKIP] = smooth ? 0 : cpu || tight ? 2 : 1;
       v[WEATHER] = 1; v[SPECIAL] = 1; v[PARTICLES] = 0; v[SHADOWS] = 1;
-      v[VIEW] = 0;
+      v[VIEW] = cpu || tight ? 1 : 0;
     }
     return v;
   }
