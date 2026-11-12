@@ -2708,7 +2708,12 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     stats.hdMisses++;
     return false;
   }
-  const unsigned first = std::min<unsigned>(texPackLevel, e->levels - 1u);
+  // "Sharpness: Half" takes the next smaller level, but never one smaller than the game's own texture (decision of the
+  // project owner, 12.11.2026): then the level that is still at least its size
+  unsigned first = std::min<unsigned>(texPackLevel, e->levels - 1u);
+  while (first > 0 && (std::max(1u, static_cast<unsigned>(e->width) >> first) < t.width ||
+                       std::max(1u, static_cast<unsigned>(e->height) >> first) < t.height))
+    first--;
   unsigned w = 0, h = 0;
   const std::size_t need = LevelsBytes(*e, first, &w, &h);
   if (hdBytes + need > texPackBudget) {
@@ -2774,6 +2779,9 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
   const float sy = static_cast<float>(h) / static_cast<float>(t.height ? t.height : 1);
   tex.lodShift = std::max(0.0f, std::log2(std::max(sx, sy)));
   tex.hdBytes = static_cast<std::uint32_t>(gpuBytes);
+  if (logKeys)
+    GXLOG("texture pack: the game's %ux%u shown as %ux%u (the pack's level %u of %ux%u)", t.width, t.height, w, h, first,
+          static_cast<unsigned>(e->width), static_cast<unsigned>(e->height));
   stats.hdTextures++;
   return true;
 }

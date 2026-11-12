@@ -77,6 +77,12 @@ png(os.path.join(game, "tex1_16x16_%s_3.png" % H3), 2048, 1024, lambda x, y: ((x
 dds_bc1(os.path.join(game, "tex1_32x32_m_%s_0_arb.dds" % H4), 128, 128, 8, lambda l: (255 * (l & 1), 0, 255 * (1 - (l & 1))))
 open(os.path.join(game, "desktop.ini"), "w").write("[.ShellClassInfo]\n")
 open(os.path.join(game, "readme.txt"), "w").write("test\n")
+# never below the game's own size: a full-screen 640x360 picture (HD 1280x720), a 128x128 texture whose HD image has
+# another shape (1024x256), a 256x256 texture whose pack image is smaller (128x128)
+H5, H6, H7 = "5555666677778888", "9999aaaabbbbcccc", "ddddeeeeffff0000"
+png(os.path.join(game, "tex1_640x360_%s_14.png" % H5), 1280, 720, lambda x, y: (x % 256, y % 256, 60), alpha=False)
+png(os.path.join(game, "tex1_128x128_%s_14.png" % H6), 1024, 256, lambda x, y: (x % 256, 90, y % 256), alpha=False)
+png(os.path.join(game, "tex1_256x256_%s_14.png" % H7), 128, 128, lambda x, y: (200, x * 2, y * 2), alpha=False)
 extra = os.path.join(pack, "Extra", "Case")
 os.makedirs(os.path.join(extra, "Original"))
 os.makedirs(os.path.join(extra, "Gold"))
@@ -89,15 +95,15 @@ rc, text = run("-in", pack, "-size", "512", "-out", out, "-variant", "Case=Gold"
 print(text)
 target = os.path.join(out, "CubeEvil4-textures-512.c4tex")
 check(rc == 0 and os.path.exists(target), "conversion with a variant")
-check("4 images converted" in text and "files skipped" in text, "four images, the copy and the text file skipped")
+check("7 images converted" in text and "files skipped" in text, "seven images, the copy and the text file skipped")
 check(os.path.exists(os.path.join(out, "CubeEvil4-textures-512.txt")), "report next to the pack file")
 report = open(os.path.join(out, "CubeEvil4-textures-512.txt"), encoding="utf-8").read()
 check("(1).dds" in report and "readme.txt" in report and "desktop.ini" not in report, "report lists the skipped files")
 check("Case: Gold" in report, "report names the choice")
 rc, text = run("-check", target, "-png", os.path.join(WORK, "png"), "-limit", "10")
 print(text)
-check(rc == 0 and "The pack is fine." in text and "Entries: 4 " in text, "-check: fine, 4 entries")
-check("Exported 4 image(s)" in text, "-check exports PNGs")
+check(rc == 0 and "The pack is fine." in text and "Entries: 7 " in text, "-check: fine, 7 entries")
+check("Exported 7 image(s)" in text, "-check exports PNGs")
 check(snapshot(pack) == before, "the pack folder is unchanged")
 
 # the gold variant replaced the main folder's case: its PNG is all gold
@@ -117,6 +123,25 @@ e1 = by_hash[int(H1, 16)]
 check(e1[6] == 1 and (e1[8], e1[9]) == (256, 256) and (e1[5] & 1), "the gold case: 256x256, _m kept")
 e4 = by_hash[int(H4, 16)]
 check(e4[7] == 8 and (e4[5] & 8), "_arb: its own 8 levels kept")
+
+
+def sizes(path):
+    d = open(path, "rb").read()
+    n, = struct.unpack_from("<I", d, 16)
+    at, = struct.unpack_from("<Q", d, 24)
+    return {e[0]: (e[8], e[9]) for e in (struct.unpack_from("<QQHHBBBBHHIQII", d, at + 48 * i) for i in range(n))}
+
+
+s512 = sizes(target)
+check(s512[int(H5, 16)] == (640, 360), "512: the 640x360 picture keeps 640x360 (not 512x288)")
+check(s512[int(H6, 16)] == (512, 128), "512: another shape keeps the game's 128 rows (512x128)")
+check(s512[int(H7, 16)] == (128, 128), "512: a pack image smaller than the game's keeps its size")
+# size 256: the saving level, never below the game's size either
+rc, text = run("-in", pack, "-size", "256", "-out", os.path.join(WORK, "out256"))
+s256 = sizes(os.path.join(WORK, "out256", "CubeEvil4-textures-256.c4tex")) if rc == 0 else {}
+check(rc == 0 and s256.get(int(H3, 16)) == (256, 128), "256: 2048x1024 becomes 256x128")
+check(s256.get(int(H5, 16)) == (640, 360) and s256.get(int(H6, 16)) == (512, 128), "256: never below the game's size")
+check(s256.get(int(H1, 16)) == (256, 256) and s256.get(int(H2, 16)) == (128, 128), "256: small images stay as they are")
 
 # the same input gives the same file
 out2 = os.path.join(WORK, "out2")

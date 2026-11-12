@@ -209,9 +209,10 @@ offers none and links to none.** Use only packs you obtained yourself and may us
 
 1. Convert the pack on a Windows PC with the **CubeEvil4 Texture Packer** (`CubeEvil4-TexturePacker.exe`,
    a file of its own on the release page; source in `port/tools/texpack`). Start it, drag the pack's folder
-   into its window and choose the size: 512 (recommended, about 0.7 GB for a full pack) or 1024 (about
-   2.3 GB, for strong devices). It makes one file, `CubeEvil4-textures-512.c4tex`, and never changes the
-   pack's folder.
+   into its window and choose the size: 256 (about 0.27 GB for a full pack, saves memory on weak phones),
+   512 (recommended, about 0.72 GB) or 1024 (about 2.3 GB, for strong devices). No image becomes smaller than
+   the game's own texture. It makes one file, `CubeEvil4-textures-512.c4tex`, and never changes the pack's
+   folder.
 2. Copy the `.c4tex` file to your device and import it in the app menu (Cheats & Mods → Import texture
    pack). The app keeps it in a folder of its own; it never touches your discs, saves or memory cards.
    Afterwards you can delete the copy you made.
