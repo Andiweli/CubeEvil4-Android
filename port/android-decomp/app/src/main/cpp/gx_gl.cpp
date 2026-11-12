@@ -1253,13 +1253,16 @@ struct GlRenderer final : GxCore {
   // --- textures ----------------------------------------------------------------
 
   // point: the PSone demake's 3D textures, every texel a hard square (the PlayStation filtered nothing)
-  GLuint Sampler(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point = false) {
+  // lodShift: an HD replacement's (Bound::lodShift), in sixteenths in the key
+  GLuint Sampler(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point = false, float lodShift = 0.0f) {
+    const std::uint64_t shift16 = static_cast<std::uint64_t>(std::lround(std::min(15.0f, lodShift) * 16.0f)) & 0xFF;
     const std::uint64_t key = (static_cast<std::uint64_t>(mode1 & 0xFFFF) << 32) | (mode0 & 0x1FF) |
-                              (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49);
+                              (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49) |
+                              shift16 << 50;
     auto it = samplers.find(key);
     if (it != samplers.end())
       return it->second;
-    const GxSamplerDesc d = SamplerFor(mode0, mode1, levels, point);
+    const GxSamplerDesc d = SamplerFor(mode0, mode1, levels, point, static_cast<float>(shift16) / 16.0f);
     GLuint s = 0;
     glGenSamplers(1, &s);
     static const GLenum wrap[3] = {GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT};
@@ -1596,7 +1599,7 @@ struct GlRenderer final : GxCore {
         stats.textureBinds++;
       }
       const std::uint32_t mode0 = bp[(m < 4 ? 0x80 : 0xA0) + (m & 3)], mode1 = bp[(m < 4 ? 0x84 : 0xA4) + (m & 3)];
-      const GLuint sampler = Sampler(mode0, mode1, bound[m].levels, (k.centroid & 2) != 0);
+      const GLuint sampler = Sampler(mode0, mode1, bound[m].levels, (k.centroid & 2) != 0, bound[m].lodShift);
       if (unitSampler[m] != sampler) {
         glBindSampler(static_cast<GLuint>(m), sampler);
         unitSampler[m] = sampler;
@@ -2819,6 +2822,25 @@ struct GlRenderer final : GxCore {
   }
   void EndTexture(unsigned, unsigned levels) override {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, static_cast<GLint>(levels - 1));
+  }
+  // an HD replacement (GxCore::UploadHd): ETC2 / EAC levels as they are (OpenGL ES 3 always has them)
+  GLenum compressedFormat = 0;
+  unsigned BeginCompressed(unsigned encoding, unsigned, unsigned, unsigned) override {
+    static const GLenum formats[4] = {0, GL_COMPRESSED_RGB8_ETC2, GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2,
+                                      GL_COMPRESSED_RGBA8_ETC2_EAC};
+    if (encoding < 1 || encoding > 3)
+      return 0;
+    Touched(); // binds the new texture
+    compressedFormat = formats[encoding];
+    GLuint id = 0;
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    return id;
+  }
+  void CompressedLevel(unsigned, unsigned level, unsigned w, unsigned h, const std::uint8_t *data,
+                       std::size_t bytes) override {
+    glCompressedTexImage2D(GL_TEXTURE_2D, static_cast<GLint>(level), compressedFormat, static_cast<GLsizei>(w),
+                           static_cast<GLsizei>(h), 0, static_cast<GLsizei>(bytes), data);
   }
   // the clear after a copy (GxCore::ClearAfterCopy)
   void ClearRect(const GxClearRect &r) override {

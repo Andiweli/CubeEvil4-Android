@@ -49,6 +49,7 @@
 #include "gx_gl.h"
 #include "minimap_view.h"
 #include "re4_gx_frame_io.h"
+#include "tex_pack.h"
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -233,6 +234,24 @@ int main(int argc, char **argv) {
       renderer->SetFlares(flares && *flares == '1');
       const char *dofStrong = std::getenv("RE4_GX_DOF_STRONG");
       renderer->SetDofStrong(dofStrong && *dofStrong == '1');
+      // RE4_TEX_PACK=<file.c4tex>: the player's HD texture pack (GxRenderer::SetTexturePack); RE4_TEX_PACK_HALF=1 the
+      // menu's "Sharpness: Half", RE4_TEX_PACK_MB the replacements' budget (default 512)
+      if (const char *packPath = std::getenv("RE4_TEX_PACK")) {
+        static std::shared_ptr<re4gx::TexPack> pack;
+        if (!pack) {
+          pack = std::make_shared<re4gx::TexPack>();
+          std::string error;
+          if (pack->Open(packPath, &error))
+            std::fprintf(stderr, "texture pack %s: %zu images, %s, size %u\n", packPath, pack->Count(),
+                         pack->Info("name").c_str(), pack->MaxSide());
+          else
+            std::fprintf(stderr, "texture pack %s: %s\n", packPath, error.c_str());
+        }
+        const char *half = std::getenv("RE4_TEX_PACK_HALF");
+        const char *mb = std::getenv("RE4_TEX_PACK_MB");
+        renderer->SetTexturePack(pack, half && *half == '1' ? 1u : 0u,
+                                 static_cast<std::size_t>(mb ? std::atoi(mb) : 512) << 20);
+      }
       // the rows the format shows and its widening, as drawGx sets them before each picture
       if (screenW > 0) {
         if (screenFormat == 5) {
@@ -420,6 +439,11 @@ int main(int argc, char **argv) {
                                                       "x zurückgemalt").c_str() : "",
                 s.missingTextures > before.missingTextures ? ", fehlende Texturen" : "",
                 s.shaderErrors > before.shaderErrors ? ", FEHLER: Shader" : "");
+    if (s.hdLookups > before.hdLookups)
+      std::printf("  HD: %u of %u textures replaced, %u without a replacement, %u over the budget, %u not readable; "
+                  "replacements on the GPU %.1f MB\n",
+                  s.hdTextures - before.hdTextures, s.hdLookups - before.hdLookups, s.hdMisses - before.hdMisses,
+                  s.hdOverBudget - before.hdOverBudget, s.hdReadErrors - before.hdReadErrors, s.hdBytesNow / 1048576.0);
     if (std::getenv("RE4_GX_WORK"))
       std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB, %u gleiche ausgelassen), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
                   "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild), "

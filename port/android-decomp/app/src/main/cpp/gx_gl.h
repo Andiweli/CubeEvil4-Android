@@ -50,6 +50,10 @@ struct GxStats {
   unsigned resets = 0;
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
   unsigned missingTextures = 0;  // bound keys the renderer did not have
+  // the player's HD texture pack (SetTexturePack): uploads looked up, replaced, without a replacement, left out
+  // for the budget, not readable from the file; the replacements' bytes on the GPU now
+  unsigned hdLookups = 0, hdTextures = 0, hdMisses = 0, hdOverBudget = 0, hdReadErrors = 0;
+  std::size_t hdBytesNow = 0;
   unsigned shaderErrors = 0;
   unsigned programsLive = 0;     // programs kept now (at most 3000, RE4_GX_MAX_PROGRAMS)
   unsigned programsDeleted = 0;  // programs deleted that went longest unused (EvictPrograms)
@@ -196,6 +200,7 @@ struct GxOptions {
 enum class GxApi { kGl, kVulkan };
 
 struct GxCore;
+class TexPack;
 
 // Something the app draws over the presented picture (the minimap; GLES draws it itself, the Vulkan renderer in
 // its Present): vertices x y r g b a in a square's clip space (y up), drawn as `parts` in their order (triangles or
@@ -309,6 +314,12 @@ public:
   void SetFlareHalos(bool on);
   // the menu's depth of field "Strong" (0.98.4): the gameplay autofocus blurs more and wider than "Light"
   void SetDofStrong(bool on);
+  // HD textures (port/docs/textur-lader-plan.md): the player's texture pack (null: none), the first of each
+  // replacement's levels to load (0 "Sharpness: Full", 1 "Half"), the replacements' budget on the GPU. Another pack
+  // or level drops every texture: TakeTexturesDropped then says once that the game core must send them again.
+  // Never in the PSone demake (its look wants the game's own textures).
+  void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
+  bool TakeTexturesDropped();
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:

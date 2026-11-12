@@ -65,10 +65,16 @@ bool ReadKeyList(const std::string &path, std::vector<ShaderKey> *keys);
 bool WriteKeyList(const std::string &path, const std::vector<ShaderKey> &keys);
 
 // A texture as the renderer keeps it: decoded RGBA8 with its levels (id: the API's handle; GL: the texture name).
+// An HD replacement of the player's texture pack (tex_pack.h) instead: ETC2 texels, `lodShift` levels finer than the
+// game's texture (log2 of the sizes), `hdBytes` of the pack's budget.
 struct Texture {
   unsigned id = 0;
   unsigned width = 0, height = 0, levels = 1;
+  float lodShift = 0.0f;
+  std::uint32_t hdBytes = 0;
 };
+
+class TexPack;
 
 // An EFB copy to a texture: the texels as the matching texture format reads
 // them (8-bit copies as I8: value in all four channels; two-channel copies as
@@ -221,6 +227,18 @@ struct GxCore {
   // GxRenderer::SetWiden: how much wider the flat draws of the whole screen are drawn (1: as sent)
   std::atomic<float> widen2d{1.0f};
   std::unordered_map<std::uint64_t, Texture> textures;
+  // the player's HD texture pack (GxRenderer::SetTexturePack, port/docs/textur-lader-plan.md): Upload finds a game
+  // texture's replacement by Dolphin's key and loads its ETC2 levels from texPackLevel on (1: "Sharpness: Half"),
+  // while the replacements take at most texPackBudget bytes (hdBytes now); never in the PSone demake.
+  // texturesDropped: the pack changed, every texture went, the game core must send them again (TakeTexturesDropped)
+  std::shared_ptr<const TexPack> texPack;
+  unsigned texPackLevel = 0;
+  std::size_t texPackBudget = 0, hdBytes = 0;
+  bool texPackActive = false, texturesDropped = false;
+  std::vector<std::uint8_t> hdData;  // a replacement's texels on their way to the GPU
+  void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
+  // the replacement of the texture Upload is at (into tex); false: none, keep the game's
+  bool UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex);
   std::unordered_map<std::uint32_t, Copy> copies;  // by destination address
   std::unordered_map<std::uint64_t, Texture> paletted; // copies read through a palette
   bool dofStrong = false;
@@ -294,6 +312,7 @@ struct GxCore {
   struct Bound {
     GLuint id = 0;
     unsigned width = 1, height = 1, levels = 1;
+    float lodShift = 0.0f;  // an HD replacement's (Texture::lodShift): its sampler's levels move by it
   } bound[8];
   XfBlock xf = {};
   // the XF parts as last sent (UploadXf): a part the game wrote again with the same values is not
@@ -682,8 +701,17 @@ struct GxCore {
   virtual unsigned BeginTexture(unsigned width, unsigned height, unsigned levels) = 0;
   virtual void TextureLevel(unsigned id, unsigned level, unsigned width, unsigned height, const std::uint8_t *rgba) = 0;
   virtual void EndTexture(unsigned id, unsigned levels) = 0;
+  // an HD replacement's texture (UploadHd): `levels` levels in a compressed format (c4tex::Encoding), each level's
+  // blocks, then EndTexture; 0 when the API or the device cannot (the game's texture stays)
+  virtual unsigned BeginCompressed(unsigned /*encoding*/, unsigned /*width*/, unsigned /*height*/, unsigned /*levels*/) {
+    return 0;
+  }
+  virtual void CompressedLevel(unsigned /*id*/, unsigned /*level*/, unsigned /*width*/, unsigned /*height*/,
+                               const std::uint8_t * /*data*/, std::size_t /*bytes*/) {}
   virtual void ClearRect(const GxClearRect &r) = 0;
-  GxSamplerDesc SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point) const;
+  // lodShift: an HD replacement's (Bound::lodShift)
+  GxSamplerDesc SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point,
+                           float lodShift = 0.0f) const;
   std::vector<std::uint8_t> decoded;  // Upload's texels of a level
   // ---- end of the part moved from GlRenderer ----
 

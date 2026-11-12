@@ -3,6 +3,7 @@
 #include "gx_core.h"
 
 #include "gx_texture.h"
+#include "tex_pack.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1308,7 +1309,25 @@ void GxCore::SetOptions(const GxOptions &options) { this->options = options; }
 void GxCore::SetDepthSink(DepthSink sink) { this->depthSink = std::move(sink); }
 void GxCore::SetFxaa(bool on) { this->fxaaOn = on; }
 void GxCore::SetSharpen(int level) { this->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
-void GxCore::SetPsx(bool on) { this->psxOn = on; }
+void GxCore::SetPsx(bool on) {
+  if (on == psxOn) return;
+  this->psxOn = on;
+  // the PSone demake keeps the game's own textures: the replacements go or come back
+  if (texPack) SetTexturePack(texPack, texPackLevel, texPackBudget);
+}
+void GxCore::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes) {
+  texPackBudget = budgetBytes;
+  const bool active = pack && pack->IsOpen() && pack->Count() > 0 && !psxOn;
+  if (pack == texPack && firstLevel == texPackLevel && active == texPackActive) return;
+  const bool matters = active || texPackActive;
+  texPack = std::move(pack);
+  texPackLevel = firstLevel;
+  texPackActive = active;
+  if (matters) {
+    DropTextures();
+    texturesDropped = true;
+  }
+}
 void GxCore::SetCrt(int level) { this->crtLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 void GxCore::SetColour(int mode, int level) {
   this->colourMode = mode < 0 || mode > 2 ? 0 : mode;
@@ -2156,6 +2175,7 @@ void GxCore::BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   b.width = t.width ? t.width : 1;
   b.height = t.height ? t.height : 1;
   b.levels = 1;
+  b.lodShift = 0.0f;
   if (t.flags & RE4_GX_TEX_COPY) {
     boundKey[map] = 1ull << 63 | t.address;
     // the in-between pass reads its own copies, and the real ones of the picture before
@@ -2197,12 +2217,15 @@ void GxCore::BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   }
   b.id = it->second.id;
   b.levels = it->second.levels;
+  b.lodShift = it->second.lodShift;
 }
 
 void GxCore::Forget(std::uint64_t key) {
   Touched(); // a deleted texture is unbound
   auto it = textures.find(key);
   if (it != textures.end()) {
+    hdBytes -= it->second.hdBytes;
+    stats.hdBytesNow = hdBytes;
     DeleteTexture(it->second.id);
     textures.erase(it);
   }
@@ -2213,6 +2236,8 @@ void GxCore::DropTextures() {
   for (auto &t : textures)
     DeleteTexture(t.second.id);
   textures.clear();
+  hdBytes = 0;
+  stats.hdBytesNow = 0;
   for (auto &t : paletted)
     DeleteTexture(t.second.id);
   paletted.clear();
@@ -2574,6 +2599,18 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   if (t.dataBytes == 0 || t.dataOffset + t.dataBytes > chunk.blobBytes)
     return;
   Texture tex;
+  // the player's HD texture pack: the replacement instead, if it has one
+  if (texPackActive && UploadHd(t, chunk.blob + t.dataOffset, t.dataBytes, tex)) {
+    auto old = textures.find(key);
+    if (old != textures.end()) {
+      hdBytes -= old->second.hdBytes;
+      DeleteTexture(old->second.id);
+    }
+    hdBytes += tex.hdBytes;
+    stats.hdBytesNow = hdBytes;
+    textures[key] = tex;
+    return;
+  }
   tex.width = t.width;
   tex.height = t.height;
   tex.levels = t.levels ? t.levels : 1;
@@ -2604,13 +2641,105 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   tex.levels = std::max(1u, levels);
   EndTexture(tex.id, tex.levels);
   auto old = textures.find(key);
-  if (old != textures.end())
+  if (old != textures.end()) {
+    hdBytes -= old->second.hdBytes;
+    stats.hdBytesNow = hdBytes;
     DeleteTexture(old->second.id);
+  }
   textures[key] = tex;
   stats.textures++;
 }
 
-GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point) const {
+bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex) {
+  stats.hdLookups++;
+  const std::size_t level0 = GxTextureLevelBytes(t.format, t.width, t.height);
+  if (level0 == 0 || level0 > bytes)
+    return false;
+  const std::uint8_t *palette = nullptr;
+  std::size_t paletteBytes = 0;
+  if (GxIsPaletted(t.format)) {
+    const unsigned offset = (t.tlut & 0x3FF) << 9;
+    palette = tlut.data() + offset;
+    paletteBytes = kTlutBytes - offset;
+  }
+  // Dolphin names a texture the game binds with mip levels with "_m"
+  const TexKey k = DolphinKey(t.format, t.width, t.height, t.levels > 1, data, level0, palette, paletteBytes);
+  const c4tex::Entry *e = texPack->Find(k);
+  // RE4_TEX_PACK_LOG=1: every texture's Dolphin name, whether the pack has it; RE4_TEX_PACK_ONLY=<hex>: only this
+  // replacement (tests: which one changes a picture)
+  static const bool logKeys = std::getenv("RE4_TEX_PACK_LOG") && *std::getenv("RE4_TEX_PACK_LOG") == '1';
+  static const char *only = std::getenv("RE4_TEX_PACK_ONLY");
+  if (logKeys)
+    GXLOG("texture pack: tex1_%ux%u%s_%016llx%s%s_%u (%u levels, tlut %03x) %s%s", t.width, t.height, k.mip ? "_m" : "",
+          static_cast<unsigned long long>(k.tex), k.hasTlut ? "_" : "",
+          k.hasTlut ? ([&] {
+            static char b[20];
+            std::snprintf(b, sizeof(b), "%016llx", static_cast<unsigned long long>(k.tlut));
+            return b;
+          }())
+                    : "",
+          t.format, t.levels, t.tlut, e ? "replaced, kind " : "not in the pack", e ? std::to_string(e->encoding).c_str() : "");
+  if (e && only && std::strtoull(only, nullptr, 16) != k.tex)
+    e = nullptr;
+  // RE4_TEX_PACK_DUMP=<folder>: the game's own first level of each replaced texture as RGBA8 (<hash>_<w>x<h>.rgba)
+  static const char *dumpDir = std::getenv("RE4_TEX_PACK_DUMP");
+  if (e && dumpDir) {
+    std::vector<std::uint8_t> rgba;
+    GxDecodeTexture(data, level0, t.format, t.width, t.height, palette,
+                    palette ? std::min<unsigned>(GxPaletteEntries(t.format), static_cast<unsigned>(paletteBytes / 2)) : 0,
+                    (t.tlut >> 10) & 3, rgba);
+    char name[512];
+    std::snprintf(name, sizeof(name), "%s/%016llx_%ux%u.rgba", dumpDir, static_cast<unsigned long long>(k.tex), t.width,
+                  t.height);
+    if (FILE *f = std::fopen(name, "wb")) {
+      std::fwrite(rgba.data(), 1, rgba.size(), f);
+      std::fclose(f);
+    }
+  }
+  if (!e) {
+    stats.hdMisses++;
+    return false;
+  }
+  const unsigned first = std::min<unsigned>(texPackLevel, e->levels - 1u);
+  unsigned w = 0, h = 0;
+  const std::size_t need = LevelsBytes(*e, first, &w, &h);
+  if (hdBytes + need > texPackBudget) {
+    stats.hdOverBudget++;
+    return false;
+  }
+  if (!texPack->Read(*e, first, hdData)) {
+    stats.hdReadErrors++;
+    return false;
+  }
+  const unsigned levels = e->levels - first;
+  const unsigned id = BeginCompressed(e->encoding, w, h, levels);
+  if (!id)
+    return false;
+  std::size_t at = 0;
+  unsigned lw = w, lh = h;
+  for (unsigned l = 0; l < levels; l++) {
+    const std::size_t b = c4tex::LevelBytes(e->encoding, lw, lh);
+    CompressedLevel(id, l, lw, lh, hdData.data() + at, b);
+    at += b;
+    lw = std::max(1u, lw / 2);
+    lh = std::max(1u, lh / 2);
+  }
+  EndTexture(id, levels);
+  tex.id = id;
+  tex.width = t.width;
+  tex.height = t.height;
+  tex.levels = levels;
+  // how many levels finer than the game's texture (the sampler's levels move by it)
+  const float sx = static_cast<float>(w) / static_cast<float>(t.width ? t.width : 1);
+  const float sy = static_cast<float>(h) / static_cast<float>(t.height ? t.height : 1);
+  tex.lodShift = std::max(0.0f, std::log2(std::max(sx, sy)));
+  tex.hdBytes = static_cast<std::uint32_t>(need);
+  stats.hdTextures++;
+  return true;
+}
+
+GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point,
+                                 float lodShift) const {
   GxSamplerDesc s;
   static const std::uint8_t wrap[4] = {0, 1, 2, 1};  // clamp, repeat, mirror, (repeat)
   s.wrapS = wrap[mode0 & 3];
@@ -2638,6 +2767,25 @@ GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsig
   s.anisotropy = anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6 && !point
                      ? anisotropy
                      : 1.0f;
+  if (lodShift > 0.0f && levels > 1 && !point) {
+    // an HD replacement, lodShift levels finer than the game's texture, with a full chain of its own: the game's
+    // level limits move by it (a minimum above 0 is the game's wish for a blur), and a texture the game shows
+    // without mipmaps goes through the replacement's levels down to the game's size (sharp up close, no
+    // shimmering far away, never blurrier than the original)
+    const bool gameMips = mip[minFilter] != 0;
+    s.minLinear = minLinear[minFilter];
+    if (gameMips) {
+      s.mip = mip[minFilter];
+      s.maxLod += lodShift;
+      if (s.minLod > 0.0f)
+        s.minLod += lodShift;
+    } else {
+      s.mip = s.minLinear ? 2 : 1;
+      s.minLod = 0.0f;
+      s.maxLod = lodShift;
+    }
+    s.anisotropy = anisotropy > 1.0f && ((mode0 >> 4) & 1) && s.minLinear ? anisotropy : 1.0f;
+  }
   return s;
 }
 

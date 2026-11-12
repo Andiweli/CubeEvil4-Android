@@ -59,6 +59,10 @@ set_source_files_properties(grab_rules.cpp melee_rules.cpp PROPERTIES COMPILE_OP
 set_source_files_properties(hit_geometry.cpp leon_preview.cpp enemy_encounter.cpp collision_query.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 set_target_properties(re4_platform PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(re4_platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# HD texture packs of the player (port/docs/textur-lader-plan.md): the .c4tex reader; its layout c4tex.h is the PC
+# tool's (port/tools/texpack)
+target_sources(re4_platform PRIVATE tex_pack.cpp)
+target_include_directories(re4_platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../tools/texpack)
 # RVZ disc images at the import (disc_rvz.cpp): the zstd decompressor (third_party/zstd, BSD,
 # zstd 1.5.6 single-file decoder) and the reader
 add_library(re4_rvz STATIC disc_rvz.cpp third_party/zstd/zstddeclib.c)
