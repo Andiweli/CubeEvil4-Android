@@ -444,6 +444,10 @@ int main(int argc, char **argv) {
                   "replacements on the GPU %.1f MB\n",
                   s.hdTextures - before.hdTextures, s.hdLookups - before.hdLookups, s.hdMisses - before.hdMisses,
                   s.hdOverBudget - before.hdOverBudget, s.hdReadErrors - before.hdReadErrors, s.hdBytesNow / 1048576.0);
+    if (s.hdLookups > before.hdLookups)
+      std::printf("  HD time: key and lookup %.1f ms, reading %.1f ms, GPU upload %.1f ms\n",
+                  (s.hdKeyUs - before.hdKeyUs) / 1000.0, (s.hdReadUs - before.hdReadUs) / 1000.0,
+                  (s.hdUploadUs - before.hdUploadUs) / 1000.0);
     if (std::getenv("RE4_GX_WORK"))
       std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB, %u gleiche ausgelassen), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
                   "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild), "

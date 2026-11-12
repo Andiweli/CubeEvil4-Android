@@ -54,6 +54,8 @@ struct GxStats {
   // for the budget, not readable from the file; the replacements' bytes on the GPU now
   unsigned hdLookups = 0, hdTextures = 0, hdMisses = 0, hdOverBudget = 0, hdReadErrors = 0;
   std::size_t hdBytesNow = 0;
+  // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)
+  std::uint64_t hdKeyUs = 0, hdReadUs = 0, hdUploadUs = 0;
   unsigned shaderErrors = 0;
   unsigned programsLive = 0;     // programs kept now (at most 3000, RE4_GX_MAX_PROGRAMS)
   unsigned programsDeleted = 0;  // programs deleted that went longest unused (EvictPrograms)

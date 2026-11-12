@@ -2092,6 +2092,18 @@ bool drawGx() {
     texPackReplaced.store(st.hdTextures);
     texPackLooked.store(st.hdLookups);
     texPackBytes.store(st.hdBytesNow);
+    // the error report and the device tests: what the HD textures cost so far, at most every 5 seconds
+    static unsigned loggedLookups = 0;
+    static std::chrono::steady_clock::time_point loggedAt;
+    const auto at = std::chrono::steady_clock::now();
+    if (st.hdLookups != loggedLookups && at - loggedAt > std::chrono::seconds(5)) {
+      loggedLookups = st.hdLookups;
+      loggedAt = at;
+      LOG("HD textures so far: %u of %u replaced, %u over the budget, %u not readable, %.1f MB on the GPU; key %.0f ms, "
+          "reading %.0f ms, GPU upload %.0f ms",
+          st.hdTextures, st.hdLookups, st.hdOverBudget, st.hdReadErrors, st.hdBytesNow / 1048576.0, st.hdKeyUs / 1000.0,
+          st.hdReadUs / 1000.0, st.hdUploadUs / 1000.0);
+    }
   }
   static const int crtEnv = getenv("RE4_GX_CRT") ? atoi(getenv("RE4_GX_CRT")) : 0;
   gx->SetCrt(crtEnv > 0 ? crtEnv : optCrt.load());

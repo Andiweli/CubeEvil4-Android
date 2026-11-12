@@ -2653,6 +2653,11 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
 
 bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex) {
   stats.hdLookups++;
+  using Clock = std::chrono::steady_clock;
+  const auto us = [](Clock::time_point a, Clock::time_point b) {
+    return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(b - a).count());
+  };
+  const Clock::time_point t0 = Clock::now();
   const std::size_t level0 = GxTextureLevelBytes(t.format, t.width, t.height);
   if (level0 == 0 || level0 > bytes)
     return false;
@@ -2682,6 +2687,8 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
           t.format, t.levels, t.tlut, e ? "replaced, kind " : "not in the pack", e ? std::to_string(e->encoding).c_str() : "");
   if (e && only && std::strtoull(only, nullptr, 16) != k.tex)
     e = nullptr;
+  const Clock::time_point t1 = Clock::now();
+  stats.hdKeyUs += us(t0, t1);
   // RE4_TEX_PACK_DUMP=<folder>: the game's own first level of each replaced texture as RGBA8 (<hash>_<w>x<h>.rgba)
   static const char *dumpDir = std::getenv("RE4_TEX_PACK_DUMP");
   if (e && dumpDir) {
@@ -2712,6 +2719,8 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     stats.hdReadErrors++;
     return false;
   }
+  const Clock::time_point t2 = Clock::now();
+  stats.hdReadUs += us(t1, t2);
   const unsigned levels = e->levels - first;
   std::size_t gpuBytes = need;
   unsigned id = BeginCompressed(e->encoding, w, h, levels);
@@ -2755,6 +2764,7 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     }
   }
   EndTexture(id, levels);
+  stats.hdUploadUs += us(t2, Clock::now());
   tex.id = id;
   tex.width = t.width;
   tex.height = t.height;
