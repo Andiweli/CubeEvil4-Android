@@ -3,6 +3,27 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Branch `textures`: Lader für eigene HD-Texturpakete, Plan (12.11.2026)
+
+Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,
+im Menüpunkt „Cheats“, der künftig „Cheats & Mods“ heißt, dazu ein PC-Programm, das das Paket umwandelt und
+verkleinert. Eigener Meilenstein auf dem Branch `textures` (Basis 5f326f36 = 0.99.12-Stand); in welche Version er
+kommt, entscheidet der Inhaber später.
+
+- **Plan:** `port/docs/textur-lader-plan.md` (PC-Programm „CubeEvil4 Texture Packer“ mit Stufen 512/1024, ETC2,
+  Mipmaps und einer Paketdatei `.c4tex` mit Inhaltsverzeichnis nach Dolphin-Kennung; Import über die Dateiauswahl in
+  den eigenen Ordner `textures/` mit Platzprüfung; Kennung in `GxCore::Upload`, Nachladen bei schwarzem Bild sofort,
+  im Spiel im Hintergrund, Gedächtnis je Raum; Grenze für den Grafikspeicher; GLES und Vulkan; Schritte T1–T8).
+  Drei Fragen an den Inhaber offen (Weitergabe des PC-Programms, Stufen, Warten oder kurz unscharf).
+- **Grundlagen:** Mod-Prüfung `E:\Development\Android\reports\mod-extensions\bericht.md`: Dolphins Kennung (XXH64 über
+  die erste Bildstufe in ganzen Kacheln, bei Farbtabellen-Bildern dazu über den benutzten Teil der Farbtabelle) trifft
+  98,6–99,4 % des Pakets auf Debug-, US-, EU- und JP-Discs. Im Code: Der Kern schickt jedes Bild einmal mit seinen
+  Rohdaten (`gx_decode.cpp` `bindMap`, eigene Kennung `hashBytes`), die App lädt es in `GxCore::Upload`
+  (`gx_core.cpp`); Bildschirmkopien gehen dort nie durch. `px.mapSize` hält die logische Größe für die
+  Texturkoordinaten. Der Kern vergisst Bilder nach 600 Bildern ohne Gebrauch (`kForgetAfter`) und schickt nach
+  `gNeedReset` alle neu.
+- **Nichts gebaut, nichts getestet.**
+
 ## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Plan Gegner-Randomizer, Benchmark nach dem Update neu (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
