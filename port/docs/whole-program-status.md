@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Plan Gegner-Randomizer (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Plan Gegner-Randomizer, Benchmark nach dem Update neu (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -197,6 +197,29 @@ Raumskripte sprechen Plätze und Arten direkt an (90 von 122 Raumskripten), höc
 Merkmal „Boss“. Vorschlag Stufe 1: nur beim Raumbeginn erschaffene gewöhnliche Ganados, Stellen anderer Einträge
 desselben Raums, je Raum −1/0/+1 Gegner außerhalb der Räume, die Gegner zählen, Schutzliste aus den Skripten, die
 gespeicherte Liste unverändert. Andere Gegnerarten (a) und zufällige neue Positionen nicht. Entscheidung offen.
+
+### 6. Benchmark nach dem Update einmal neu (Entscheidung des Projektinhabers)
+
+„Ja nach einem Update einer älteren Version soll der Benchmark neu gemacht werden.“ (Frage aus Abschnitt 3.)
+
+- **Wann:** ein fertiger Benchmark ohne Prozessor-Anteil (`benchDate` gesetzt, `benchCpuLoad` fehlt, also 0.99.10 und
+  0.99.11) und kein anderer Benchmark ausstehend (`benchFirst` 0): `CoreActivity.perfFirstRun` setzt beim Start
+  `benchFirst` = 1 (wie beim allerersten Start) und `benchRedo` = 12 (`PerfProfile.redoDue`/`scheduleRedo`), so
+  kommt es einmal je Gerät. Danach derselbe Ablauf wie beim ersten Start: sobald das Titelmenü wartet, Popup 1,
+  Benchmark 1, Popup 2 mit Ignorieren/Übernehmen, beim Übernehmen Benchmark 2 und Popup 3; B/Zurück verschiebt auf
+  den nächsten Start, bis er einmal durchlief (`benchFirst` geht erst mit dem Ergebnis auf 0, dabei wird
+  `benchCpuLoad` gespeichert). Wer nie gemessen hat, bekommt wie bisher nur die Frage im Menü.
+- **Popup 1** (`BenchmarkFlow.offerFirst`, `PerfProfile.redo`): Titel „Neu messen“ statt „Willkommen“, darunter in Gold
+  „Neu: Der Benchmark misst jetzt auch den Prozessor, damit der Vorschlag besser zu diesem Gerät passt. Deine
+  Einstellungen bleiben, wie sie sind, solange du den neuen Vorschlag nicht annimmst.“ (`ingame_bench_redo`,
+  `ingame_bench_redo_text`, 11 Sprachen), dann der bekannte Text. Aufwärmen 5 s statt 15 s (die Grafikprogramme sind
+  schon gebaut). **„Ignorieren“** lässt bei der Wiederholung auch die Auflösung des Spielers stehen (beim ersten Start
+  stellt es wie bisher auf „Dynamisch“); nur die gemessenen Stufen für „Dynamisch“ werden neu.
+- **Geprüft (PC, Robolectric):** `BenchmarkRedoTest`: neue Installation, kein Benchmark, alter Benchmark (fällig,
+  einmal geplant, Auflösung unberührt, nicht doppelt), nach dem Lauf nie wieder, auch ohne Anteil nicht, ein Benchmark
+  von 0.99.12 (auch mit −1) nicht; Popup 1 mit Titel und Grund, B/Zurück lässt ihn fällig, beim ersten Start der
+  Willkommenstext ohne Grund. App-Tests beider Varianten je 115 grün, `check_translations.py` ohne Befund (387 Texte).
+- **Nicht geprüft:** auf einem Gerät (der ganze Ablauf nach einem echten Update von 0.99.11).
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 

@@ -77,7 +77,10 @@ leicht; sein Spiel-Thread brauchte am Steg 25,4 ms (76 %), der Retroid 9 ms (27 
 Grenze: die Empfehlung eine Stufe tiefer, als der Grafikchip erlaubt (Hoch → Mittel, Mittel → Niedrig), in jedem
 Profil Frame-Skip Aggressiv und kein 60 FPS, Mittel und Hoch mit Sichtweite Mittel. Effekte bleiben, wie sie sind:
 Schatten und Partikel sparen dem Spiel-Thread nur wenige Prozent (Messung 0.99.3), sie entlasten vor allem den
-Grafikchip. Popup 2 nennt dann „der Grafikchip, der Prozessor nahe an seiner Grenze“.
+Grafikchip. Popup 2 nennt dann „der Grafikchip, der Prozessor nahe an seiner Grenze“. Wer einen Benchmark aus 0.99.10
+oder 0.99.11 hat (ohne Prozessor-Anteil), bekommt ihn nach dem Update einmal neu, wie beim ersten Start, mit dem Grund
+in Popup 1; seine Einstellungen bleiben, solange er den neuen Vorschlag nicht übernimmt (Entscheidung des
+Projektinhabers, 12.11.2026).
 Bei einem Display mit 90 Hz bleibt 60 FPS aus (läuft dort nicht gleichmäßig, siehe 0.99.9), 120 Hz ist in Ordnung.
 
 **Welche Einstellungen setzt jedes Profil?**

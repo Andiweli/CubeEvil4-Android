@@ -369,6 +369,8 @@
     <string name="ingame_limit_both">图形芯片，处理器接近极限</string>
     <string name="ingame_limit_none">无明显瓶颈</string>
     <string name="ingame_bench_welcome">欢迎使用 CubeEvil4</string>
+    <string name="ingame_bench_redo">重新测量</string>
+    <string name="ingame_bench_redo_text">新功能：基准测试现在也会测量处理器，使推荐更适合本设备。在你接受新的推荐之前，你的设置保持不变。</string>
     <string name="ingame_bench_text">应用会测量本设备的能力并推荐最佳设置。为此游戏会前往湖边码头（雨、水、雾），镜头围绕角色旋转。大约需要 2–3 分钟，期间静音。之后你会回到原来的位置。B / 返回可取消。</string>
     <string name="ingame_bench_first_note">下次启动时会再次提供。</string>
     <string name="ingame_bench_start">开始测量</string>

@@ -383,6 +383,8 @@
     <string name="ingame_limit_both">شريحة الرسوميات، والمعالج قريب من حده</string>
     <string name="ingame_limit_none">لا شيء لافت</string>
     <string name="ingame_bench_welcome">مرحبًا بك في CubeEvil4</string>
+    <string name="ingame_bench_redo">القياس من جديد</string>
+    <string name="ingame_bench_redo_text">جديد: يقيس اختبار الأداء الآن المعالج أيضًا، ليناسب الاقتراح هذا الجهاز أكثر. تبقى إعداداتك كما هي ما لم تقبل الاقتراح الجديد.</string>
     <string name="ingame_bench_text">يقيس التطبيق قدرات هذا الجهاز ويقترح أفضل الإعدادات. ولذلك تنتقل اللعبة إلى رصيف البحيرة (مطر، ماء، ضباب) وتدور الكاميرا حول الشخصية. يستغرق ذلك نحو 2–3 دقائق؛ والصوت مطفأ. بعدها تعود إلى حيث كنت. B / رجوع يلغي.</string>
     <string name="ingame_bench_first_note">سيُعرض ذلك مجددًا عند التشغيل التالي.</string>
     <string name="ingame_bench_start">ابدأ القياس</string>

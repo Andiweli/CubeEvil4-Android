@@ -68,6 +68,7 @@ final class BenchmarkFlow {
   private final Handler main = new Handler(Looper.getMainLooper());
   private int state = IDLE;
   private boolean first, offeredThisRun;
+  private boolean redo;  // this first start's benchmark is the redo of a benchmark of before 0.99.12 (PerfProfile.redo)
   // benchmark 1's outcome
   private int cap30, cap60;
   private boolean cpuSign;
@@ -104,9 +105,12 @@ final class BenchmarkFlow {
   void offerFirst() {
     offeredThisRun = true;
     state = FIRST;
+    redo = PerfProfile.redo(host.graphics());
     host.hold(true);
     LinearLayout box = box();
-    title(box, s(R.string.ingame_bench_welcome));
+    title(box, s(redo ? R.string.ingame_bench_redo : R.string.ingame_bench_welcome));
+    // the redo after an update (0.99.12): why, and that the settings stay
+    if (redo) paragraph(box, s(R.string.ingame_bench_redo_text), GOLD);
     paragraph(box, s(R.string.ingame_bench_text), INK);
     final AlertDialog[] d = new AlertDialog[1];
     Button go = button(s(R.string.ingame_bench_start), true, v -> { d[0].dismiss(); host.hold(false); start(true); });
@@ -115,7 +119,7 @@ final class BenchmarkFlow {
       // B / Back: later (at the next start)
       state = IDLE;
       host.hold(false);
-      Log.i(TAG, "benchmark: the first start's offer put off (B / Back)");
+      Log.i(TAG, "benchmark: the " + (redo ? "redo's" : "first start's") + " offer put off (B / Back)");
       message(s(R.string.ingame_bench_first_note));
     });
   }
@@ -126,6 +130,7 @@ final class BenchmarkFlow {
   void start(boolean firstStart) {
     if (running()) return;
     first = firstStart;
+    if (!firstStart) redo = false;
     device = host.device();
     before = PerfProfile.current(host.graphics());
     state = PASS1;
@@ -133,8 +138,10 @@ final class BenchmarkFlow {
     host.applyClean();
     int top = PerfProfile.benchTop(device);
     host.progress(s(R.string.ingame_benchmark_starting));
-    CoreBridge.startBenchmark(0, top, first ? WARMUP_FIRST : WARMUP);
-    Log.i(TAG, "benchmark 1: started (" + (first ? "the first start, " : "") + "the 30 FPS pass from " + top
+    // (the redo after an update: the programs are made already, the short warm-up)
+    CoreBridge.startBenchmark(0, top, first && !redo ? WARMUP_FIRST : WARMUP);
+    Log.i(TAG, "benchmark 1: started (" + (redo ? "the redo after an update, " : first ? "the first start, " : "")
+        + "the 30 FPS pass from " + top
         + " halves; " + PerfProfile.gpuName(device.gpu) + ", " + device.cores + " cores, " + device.ramMb + " MB, "
         + Math.round(device.hz) + " Hz)");
     main.removeCallbacks(poll);
@@ -240,12 +247,14 @@ final class BenchmarkFlow {
     paragraph(box, s(R.string.ingame_bench_apply_note), MUTED);
     final AlertDialog[] dlg = new AlertDialog[1];
     Runnable ignore = () -> {
-      // only the levels for "Dynamic" (stored already), the resolution Dynamic as the benchmark of before did
-      host.graphics().edit().putInt("scaleHalves", 0).apply();
+      // only the levels for "Dynamic" (stored already), the resolution Dynamic as the benchmark of before did; the
+      // redo after an update leaves the player's resolution as it is (0.99.12: the settings stay unless accepted)
+      if (!redo) host.graphics().edit().putInt("scaleHalves", 0).apply();
       host.applyOptions();
       host.hold(false);
       state = IDLE;
-      Log.i(TAG, "popup 2: ignored (only the levels for Dynamic)");
+      Log.i(TAG, "popup 2: ignored (" + (redo ? "the redo: the settings as they were" : "only the levels for Dynamic")
+          + ")");
     };
     Button no = button(s(R.string.ingame_bench_ignore), false, v -> { dlg[0].dismiss(); ignore.run(); });
     Button yes = button(s(R.string.ingame_bench_apply), true, v -> { dlg[0].dismiss(); host.hold(false); check(); });

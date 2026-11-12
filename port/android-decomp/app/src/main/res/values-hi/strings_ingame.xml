@@ -370,6 +370,8 @@
     <string name="ingame_limit_both">ग्राफ़िक्स चिप, प्रोसेसर अपनी सीमा के पास</string>
     <string name="ingame_limit_none">कुछ खास नहीं</string>
     <string name="ingame_bench_welcome">CubeEvil4 में आपका स्वागत है</string>
+    <string name="ingame_bench_redo">फिर से मापें</string>
+    <string name="ingame_bench_redo_text">नया: बेंचमार्क अब प्रोसेसर को भी मापता है, ताकि सुझाव इस डिवाइस के लिए बेहतर हो। जब तक आप नया सुझाव स्वीकार नहीं करते, आपकी सेटिंग जैसी हैं वैसी रहती हैं।</string>
     <string name="ingame_bench_text">ऐप मापता है कि यह डिवाइस क्या कर सकता है और सबसे अच्छी सेटिंग सुझाता है। इसके लिए गेम झील के घाट पर जाता है (बारिश, पानी, कोहरा) और कैमरा किरदार के चारों ओर घूमता है। इसमें लगभग 2–3 मिनट लगते हैं; आवाज़ बंद रहती है। फिर आप वहीं लौट आते हैं जहाँ थे। B / Back रद्द करता है।</string>
     <string name="ingame_bench_first_note">यह अगली बार शुरू करने पर फिर दिखाया जाएगा।</string>
     <string name="ingame_bench_start">मापना शुरू करें</string>

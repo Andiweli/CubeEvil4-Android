@@ -1930,7 +1930,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** Before the first renderer: a fresh install gets the first start's benchmark, an update the menu's question once;
    *  either starts with Custom as the active profile (the settings as they are). */
   private void perfFirstRun(SharedPreferences g) {
-    if (g.contains(PerfProfile.FIRST)) return;
+    if (g.contains(PerfProfile.FIRST)) {
+      // 0.99.12: a benchmark of before (no processor share) is made again once, as on the first start
+      if (PerfProfile.scheduleRedo(g)) {
+        Log.i(TAG, "performance profiles: a benchmark of before 0.99.12 (no processor share): measured again once the "
+            + "title's menu waits");
+      }
+      return;
+    }
     String[] mine = {"scaleHalves", "scale", "aspect", "samples", "anisotropy", "smooth60", "fxaa", "fastCores",
         "weatherEffects", "specialEffects", "particleEffects", "shadowsLight", CoreMenu.FRAME_SKIP, "frameskip",
         CoreMenu.DYN_CAP_30, CoreMenu.DOF_LEVEL, "dof", "minimap", "fps"};

@@ -370,6 +370,8 @@
     <string name="ingame_limit_both">der Grafikchip, der Prozessor nahe an seiner Grenze</string>
     <string name="ingame_limit_none">nichts Auffälliges</string>
     <string name="ingame_bench_welcome">Willkommen bei CubeEvil4</string>
+    <string name="ingame_bench_redo">Neu messen</string>
+    <string name="ingame_bench_redo_text">Neu: Der Benchmark misst jetzt auch den Prozessor, damit der Vorschlag besser zu diesem Gerät passt. Deine Einstellungen bleiben, wie sie sind, solange du den neuen Vorschlag nicht annimmst.</string>
     <string name="ingame_bench_text">Die App misst, was dieses Gerät schafft, und schlägt die besten Einstellungen vor. Das Spiel springt dafür an den Steg am See (Regen, Wasser, Nebel), die Kamera dreht sich um die Spielfigur. Das dauert etwa 2–3 Minuten, der Ton ist aus. Danach bist du wieder dort, wo du warst. B / Zurück bricht ab.</string>
     <string name="ingame_bench_first_note">Die Messung wird beim nächsten Start wieder angeboten.</string>
     <string name="ingame_bench_start">Messung starten</string>

@@ -35,6 +35,15 @@ final class PerfProfile {
    * shadows and particles a few per cent of the game's thread); the game's own frame skip keeps its pace.
    */
   static final int CPU_BUSY = 75, CPU_TIGHT = 60;
+  /**
+   * A benchmark of before 0.99.12 (no processor share, BENCH_CPU_LOAD missing) is made again once, as on the first
+   * start (decision of the project owner, 12.11.2026: "Ja nach einem Update einer älteren Version soll der Benchmark
+   * neu gemacht werden"): popup 1 with the reason, benchmark 1, popup 2, on Accept benchmark 2 and popup 3; B / Back
+   * puts it off to the next start until it ran. BENCH_REDO holds the version the redo was due for (REDO_CPU), so it
+   * comes once a device; the settings stay the player's unless the new suggestion is accepted.
+   */
+  static final String BENCH_REDO = "benchRedo";
+  static final int REDO_CPU = 12;
   /** 1 the first start's benchmark is to come, 2 the menu asks once (an update), 0 nothing (FIRST_*). */
   static final String FIRST = "benchFirst";
   static final int FIRST_NONE = 0, FIRST_PENDING = 1, FIRST_ASK = 2;
@@ -116,6 +125,24 @@ final class PerfProfile {
   }
 
   static boolean lowMemory(Device d) { return d.ramMb > 0 && d.ramMb < 2800; }
+
+  /** A finished benchmark without the processor share (before 0.99.12), not redone yet, nothing else pending. */
+  static boolean redoDue(SharedPreferences g) {
+    return g.getInt(BENCH_REDO, 0) < REDO_CPU && g.getLong(BENCH_DATE, 0) > 0 && !g.contains(BENCH_CPU_LOAD)
+        && g.getInt(FIRST, FIRST_NONE) == FIRST_NONE;
+  }
+
+  /** When redoDue: the first start's benchmark once more (FIRST_PENDING), marked for this version; true when so. */
+  static boolean scheduleRedo(SharedPreferences g) {
+    if (!redoDue(g)) return false;
+    g.edit().putInt(FIRST, FIRST_PENDING).putInt(BENCH_REDO, REDO_CPU).apply();
+    return true;
+  }
+
+  /** The pending first start's benchmark is the redo (a result of before exists), not a new installation's. */
+  static boolean redo(SharedPreferences g) {
+    return g.getInt(BENCH_REDO, 0) >= REDO_CPU && g.getLong(BENCH_DATE, 0) > 0;
+  }
 
   /** The level (halves) whose 336 picture rows a 1x frame has come closest to the screen's rows (core_mode.cpp's
    *  "Dynamic" counts the same way): the Retroid's 1080 rows 6 (3x), a 1220-row phone 7, a 720-row one 4; 6 unknown. */

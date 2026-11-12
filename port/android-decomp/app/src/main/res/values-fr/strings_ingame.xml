@@ -374,6 +374,8 @@
     <string name="ingame_limit_both">la puce graphique, le processeur proche de sa limite</string>
     <string name="ingame_limit_none">rien de notable</string>
     <string name="ingame_bench_welcome">Bienvenue dans CubeEvil4</string>
+    <string name="ingame_bench_redo">Mesurer à nouveau</string>
+    <string name="ingame_bench_redo_text">Nouveau\u00A0: le benchmark mesure maintenant aussi le processeur, pour une proposition mieux adaptée à cet appareil. Tes réglages restent tels quels tant que tu n\'acceptes pas la nouvelle proposition.</string>
     <string name="ingame_bench_text">L\'app mesure ce que cet appareil peut faire et propose les meilleurs réglages. Le jeu se rend pour cela au ponton du lac (pluie, eau, brouillard) et la caméra tourne autour du personnage. Cela prend environ 2 à 3 minutes ; le son est coupé. Ensuite, tu reviens là où tu étais. B / Retour annule.</string>
     <string name="ingame_bench_first_note">Ce sera proposé à nouveau au prochain démarrage.</string>
     <string name="ingame_bench_start">Lancer la mesure</string>
