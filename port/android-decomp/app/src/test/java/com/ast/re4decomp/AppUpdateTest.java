@@ -46,6 +46,7 @@ public class AppUpdateTest {
     older("0.99.0-rc", "1.0");
     older("0.99.9-rc", "1.0");
     older("0.99.9-rc", "0.99.10-rc");  // 0.99.10 (11.11.2026): ten after nine, not "1" after "9"
+    older("0.99.10-rc", "0.99.11-rc");
     older("1.0", "1.0.1");
     older("1.0", "1.1");
     older("1.9", "1.10");

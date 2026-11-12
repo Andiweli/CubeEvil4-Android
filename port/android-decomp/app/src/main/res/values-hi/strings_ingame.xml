@@ -31,7 +31,11 @@
     <string name="ingame_flares_both">हेलो + लेंस फ़्लेयर</string>
     <string name="ingame_flares_help">लेंस फ़्लेयर: सबसे चमकीली रोशनियों से पूरी तस्वीर में हल्के रंगीन छल्ले, जैसे कैमरे के लेंस में बनते हैं। हेलो + लेंस फ़्लेयर: साथ में मोमबत्तियों, मशालों और लैंपों पर हल्की चमक और बारीक तारा।</string>
     <string name="ingame_dof">डेप्थ ऑफ़ फ़ील्ड</string>
-    <string name="ingame_fps_display">FPS दिखाएँ</string>
+    <string name="ingame_info_hud">जानकारी HUD</string>
+    <string name="ingame_hud_fps">FPS गेम/डिस्प्ले</string>
+    <string name="ingame_hud_hz">डिस्प्ले Hz</string>
+    <string name="ingame_hud_time">घं:मि:से गेम शुरू होने से</string>
+    <string name="ingame_hud_help">घं:मि:से गेम का अपना खेल-समय है: हर सेव इसे रखता है (टाइपराइटर और तुरंत सेव), जैसे GameCube पर। इस मेनू में या ऐप के बैकग्राउंड में रहने का समय नहीं गिना जाता।</string>
     <string name="ingame_fps_bottom_left">नीचे बाएँ</string>
     <string name="ingame_fps_bottom_centre">नीचे बीच में</string>
     <string name="ingame_fps_top_left">ऊपर बाएँ</string>

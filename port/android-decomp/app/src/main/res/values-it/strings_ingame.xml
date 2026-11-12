@@ -31,7 +31,11 @@
     <string name="ingame_flares_both">Aloni + riflessi</string>
     <string name="ingame_flares_help">Riflessi lente: tenui anelli colorati che attraversano l\'immagine dalle luci più forti, come in un obiettivo fotografico. Aloni + riflessi: in più un bagliore morbido con una sottile stella su candele, torce e lampade.</string>
     <string name="ingame_dof">Profondità di campo</string>
-    <string name="ingame_fps_display">Mostra gli FPS</string>
+    <string name="ingame_info_hud">HUD informazioni</string>
+    <string name="ingame_hud_fps">FPS gioco/schermo</string>
+    <string name="ingame_hud_hz">Hz dello schermo</string>
+    <string name="ingame_hud_time">H:M:S dall\'inizio</string>
+    <string name="ingame_hud_help">H:M:S è il tempo di gioco del gioco stesso: ogni salvataggio lo conserva (macchina da scrivere e salvataggio istantaneo), come sul GameCube. Il tempo in questo menu o con l\'app in background non conta.</string>
     <string name="ingame_fps_bottom_left">In basso a sinistra</string>
     <string name="ingame_fps_bottom_centre">In basso al centro</string>
     <string name="ingame_fps_top_left">In alto a sinistra</string>

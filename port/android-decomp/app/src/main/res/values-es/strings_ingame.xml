@@ -31,7 +31,11 @@
     <string name="ingame_flares_both">Halos + destellos</string>
     <string name="ingame_flares_help">Destellos de lente: tenues anillos de colores que cruzan la imagen desde las luces más brillantes, como los de un objetivo de cámara. Halos + destellos: además, un brillo suave con una estrella fina en velas, antorchas y lámparas.</string>
     <string name="ingame_dof">Profundidad de campo</string>
-    <string name="ingame_fps_display">Mostrar FPS</string>
+    <string name="ingame_info_hud">HUD de información</string>
+    <string name="ingame_hud_fps">FPS juego/pantalla</string>
+    <string name="ingame_hud_hz">Hz de pantalla</string>
+    <string name="ingame_hud_time">H:M:S desde el inicio</string>
+    <string name="ingame_hud_help">H:M:S es el tiempo de juego del propio juego: cada partida guardada lo conserva (máquina de escribir y guardado instantáneo), como en GameCube. El tiempo en este menú o con la app en segundo plano no cuenta.</string>
     <string name="ingame_fps_bottom_left">Abajo a la izquierda</string>
     <string name="ingame_fps_bottom_centre">Abajo en el centro</string>
     <string name="ingame_fps_top_left">Arriba a la izquierda</string>

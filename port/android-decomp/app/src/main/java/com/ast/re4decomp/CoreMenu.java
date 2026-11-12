@@ -29,6 +29,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.CheckBox;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import java.text.DateFormat;
@@ -243,11 +244,11 @@ final class CoreMenu extends Dialog {
     boolean older = state == AppUpdate.OLDER;
     int fill = older ? UPDATE_RED : UPDATE_GREEN, stroke = older ? UPDATE_RED_EDGE : UPDATE_GREEN_EDGE;
     StateListDrawable look = new StateListDrawable();
-    look.addState(new int[] {android.R.attr.state_focused}, focused(fill));
+    look.addState(new int[] {android.R.attr.state_focused}, focused());
     look.addState(new int[] {android.R.attr.state_pressed}, shape(fill, INK, 6));
     look.addState(new int[0], shape(fill, stroke, 6));
     update.setBackground(look);
-    update.setTextColor(INK);
+    update.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
     update.setText(s(older ? R.string.ingame_update : R.string.ingame_up_to_date));
     update.setEnabled(older);
     update.setFocusable(older);
@@ -268,13 +269,15 @@ final class CoreMenu extends Dialog {
     GradientDrawable d = new GradientDrawable(); d.setColor(fill); d.setCornerRadius(dp(radius));
     d.setStroke(dp(1), stroke); return d;
   }
-  private GradientDrawable focused(int fill) {
-    GradientDrawable d = shape(fill, INK, 6); d.setStroke(dp(2), INK); return d;
-  }
+  /** The controller's focus, the same golden look on every button and every phone (FocusLook, 0.99.11; before a
+   *  white frame, which Android's dark mode for apps turned almost black on a Xiaomi). */
+  private GradientDrawable focused() { return FocusLook.focused(getContext()); }
+  /** A slider: the golden box of the focus around it while it has the focus (FocusLook). */
+  private static void focusBox(SeekBar bar) { FocusLook.over(bar); }
   private void style(Button b) {
     StateListDrawable state = new StateListDrawable();
-    state.addState(new int[] {android.R.attr.state_focused, android.R.attr.state_selected}, focused(ACTIVE));
-    state.addState(new int[] {android.R.attr.state_focused}, focused(SURFACE));
+    // focused and selected: the focus's look with the selected one's golden text (the colours below)
+    state.addState(new int[] {android.R.attr.state_focused}, focused());
     state.addState(new int[] {android.R.attr.state_pressed}, shape(ACTIVE, GOLD, 6));
     state.addState(new int[] {android.R.attr.state_selected}, shape(ACTIVE, GOLD, 6));
     state.addState(new int[0], shape(SURFACE, BORDER, 6));
@@ -520,7 +523,7 @@ final class CoreMenu extends Dialog {
     });
     return b;
   }
-  private void fpsLabel(Button b, int place, boolean on) { valueLabel(b, R.string.ingame_fps_display, place, on); }
+  private void fpsLabel(Button b, int place, boolean on) { valueLabel(b, R.string.ingame_info_hud, place, on); }
   /** "Name · value" on a button that moves through its values with each press, lit while not off. */
   private void valueLabel(Button b, int name, int value, boolean on) {
     b.setSelected(on);
@@ -722,11 +725,11 @@ final class CoreMenu extends Dialog {
   private Button benchButton() {
     Button bench = button(s(R.string.ingame_benchmark), v -> askBenchmark());
     StateListDrawable quiet = new StateListDrawable();
-    quiet.addState(new int[] {android.R.attr.state_focused}, focused(BENCH_GREEN));
+    quiet.addState(new int[] {android.R.attr.state_focused}, focused());
     quiet.addState(new int[] {android.R.attr.state_pressed}, shape(BENCH_GREEN, UPDATE_GREEN_EDGE, 6));
     quiet.addState(new int[0], shape(BENCH_GREEN, BENCH_GREEN_EDGE, 6));
     bench.setBackground(quiet);
-    bench.setTextColor(BENCH_TEXT);
+    bench.setTextColor(FocusLook.text(ColorStateList.valueOf(BENCH_TEXT)));
     bench.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
     bench.setEnabled(host != null);
     return bench;
@@ -890,19 +893,56 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
       graphics.edit().putBoolean("minimap", on).apply(); CoreBridge.setMinimap(on);
     });
-    // the FPS display (here since 04.11.2026, before on PERFORMANCE under EXPERIMENTAL); each press moves it on
-    // (wish of the project owner, 05.11.2026: it covered the minimap): off, bottom left, bottom centre, top left,
-    // top centre, off again
+    // the Information HUD (0.99.11, wish of the project owner, 12.11.2026; before the FPS display, here since
+    // 04.11.2026): each press moves it on (wish of the project owner, 05.11.2026: it covered the minimap): off, bottom
+    // left, bottom centre, top left, top centre, off again; while it is on, check boxes under it choose what it shows
+    // (InfoHud), with a sentence on the play time
     final int[] fpsLabels = {R.string.ingame_off, R.string.ingame_fps_bottom_left, R.string.ingame_fps_bottom_centre,
         R.string.ingame_fps_top_left, R.string.ingame_fps_top_centre};
-    Button fps = cellAction(buttonsRow(labelledOptions(0)), "", v -> {
+    LinearLayout hud = labelledOptions(0);
+    MenuLayout.Buttons hudRow = buttonsRow(hud);
+    MenuLayout.Buttons parts = new MenuLayout.Buttons(getContext(), 2);
+    TextView hudHelp = text(s(R.string.ingame_hud_help), 15, false);
+    hudHelp.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    Button fps = cellAction(hudRow, "", v -> {
       int next = (CoreActivity.fpsPlace(graphics) + 1) % CoreActivity.FPS_PLACES;
       graphics.edit().putInt(CoreActivity.FPS_PLACE, next).putBoolean("fps", next != 0).apply();
       fpsLabel((Button) v, fpsLabels[next], next != 0);
+      parts.setVisibility(next != 0 ? View.VISIBLE : View.GONE);
+      hudHelp.setVisibility(next != 0 ? View.VISIBLE : View.GONE);
       host.fpsChanged(next);
     });
+    hud.addView(parts, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+    hudBox(parts, R.string.ingame_hud_fps, InfoHud.FPS);
+    hudBox(parts, R.string.ingame_hud_hz, InfoHud.HZ);
+    hudBox(parts, R.string.ingame_resolution, InfoHud.RESOLUTION);
+    hudBox(parts, R.string.ingame_hud_time, InfoHud.TIME);
+    hud.addView(hudHelp);
     int fpsNow = CoreActivity.fpsPlace(graphics);
     fpsLabel(fps, fpsLabels[fpsNow], fpsNow != 0);
+    parts.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
+    hudHelp.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
+  }
+  /** One of the Information HUD's check boxes (InfoHud): on until cleared, the HUD takes it at once. */
+  private CheckBox hudBox(MenuLayout.Buttons parent, int label, String part) {
+    CheckBox box = new CheckBox(getContext());
+    box.setText(s(label)); box.setTextSize(15); box.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
+    box.setButtonTintList(new ColorStateList(new int[][] {new int[] {android.R.attr.state_checked}, new int[0]},
+        new int[] {GOLD, MUTED}));
+    StateListDrawable look = new StateListDrawable();
+    look.addState(new int[] {android.R.attr.state_focused}, focused());
+    look.addState(new int[] {android.R.attr.state_pressed}, shape(ACTIVE, GOLD, 6));
+    look.addState(new int[0], shape(SURFACE, BORDER, 6));
+    box.setBackground(look);
+    box.setPaddingRelative(dp(8), dp(8), dp(12), dp(8)); box.setMinHeight(dp(48)); box.setMinimumHeight(dp(48));
+    box.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+    box.setChecked(InfoHud.shows(graphics, part));
+    box.setOnCheckedChangeListener((v, on) -> {
+      graphics.edit().putBoolean(part, on).apply();
+      if (host != null) host.fpsChanged(CoreActivity.fpsPlace(graphics));
+    });
+    parent.addButton(box);
+    return box;
   }
   /** "Renderer": OpenGL ES or Vulkan (experimental, port/docs/vulkan-bauplan.md E7); a change restarts the game
    *  after a question, "Cancel" keeps the one before (as the game's language). Without Vulkan here: OpenGL ES only. */
@@ -1074,7 +1114,7 @@ final class CoreMenu extends Dialog {
     line.addView(box);
     bar.setMax(Math.round((max - min) / step)); bar.setProgress(Math.round((stored - min) / step));
     bar.setContentDescription(s(title));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(format.of(stored));
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1215,7 +1255,7 @@ final class CoreMenu extends Dialog {
     bar.setMax(Math.round((CoreActivity.MOUSE_MAX - min) / step));
     bar.setProgress(Math.round((now - min) / step));
     bar.setContentDescription(s(R.string.ingame_mouse_sensitivity));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(times(now));
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1387,7 +1427,7 @@ final class CoreMenu extends Dialog {
     bar.setMax((max - min) / 5);
     bar.setProgress(Math.round((Math.max(min, Math.min(max, now)) - min) / 5f));
     bar.setContentDescription(s(label));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(now + " %");
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1415,7 +1455,7 @@ final class CoreMenu extends Dialog {
     bar.setMax(20);
     bar.setProgress(Math.round(now / 5f));
     bar.setContentDescription(s(label));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(now + " %");
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1706,10 +1746,10 @@ final class CoreMenu extends Dialog {
     final AlertDialog[] shown = new AlertDialog[1];
     Button understood = button(s(R.string.ingame_understood), v -> { shown[0].dismiss(); choose.run(); });
     StateListDrawable look = new StateListDrawable();
-    look.addState(new int[] {android.R.attr.state_focused}, focused(UPDATE_RED));
+    look.addState(new int[] {android.R.attr.state_focused}, focused());
     look.addState(new int[] {android.R.attr.state_pressed}, shape(UPDATE_RED, INK, 6));
     look.addState(new int[0], shape(UPDATE_RED, UPDATE_RED_EDGE, 6));
-    understood.setBackground(look); understood.setTextColor(INK);
+    understood.setBackground(look); understood.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
     understood.setPadding(dp(24), dp(8), dp(24), dp(8));
     LinearLayout.LayoutParams centred = new LinearLayout.LayoutParams(-2, -2);
     centred.gravity = Gravity.CENTER_HORIZONTAL;

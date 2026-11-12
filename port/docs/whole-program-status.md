@@ -3,6 +3,196 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
+
+Version 0.99.11-rc (versionCode 113), Releasetext `port/android-decomp/docs/releases/v0.99.11-rc.md` („Changes since
+v0.99.10.“, Known issues aus 0.99.10 übernommen). Basis 3b44101f = master = 0.99.10-rc mit der README des Inhabers.
+Nächste freie Patchnummer 0231 (0229: Weskers Pistole im Koffer, Abschnitt 4a; 0230: Adas Nachladen, Abschnitt 1).
+
+### 1. Ada mit voll aufgerüsteter TMP vornübergebeugt (Nutzerberichte, Patch 0230)
+
+„When playing story mode if I use TMP in fully upgrade, Ada have some bug. If I use another weapon, everything is fine.“
+Bild `E:\Development\Android\reports\09911-ada-tmp\user-ada-tmp-bent-pose.webp` (Schloss, Ada tief vornübergebeugt,
+TMP hängt nach unten, 100 Schuss); derselbe Fehler wie 0.99.8 Punkt 2 („nicht nachgestellt“) und wohl auch 0.99.6
+Etappe 4 (Ada vornübergeklappt vor einer Schlosstür).
+
+- **Ursache:** Mit Ada als Figur der Geschichte liest das Spiel für Punisher, halbautomatisches Gewehr und TMP Adas
+  eigene Dateien (`wep38`, `wep40`, `wep39`; `ownWeapon`). Es sind ihre Mercenaries-Dateien, und dort wird nie
+  aufgerüstet: nur die Nachlade-Bewegung der Nachlade-Stufe 0 ist für sie gemacht. Für die Stufen 1 und 2 (der Händler:
+  „Reload Speed“) enthalten sie Platzhalter oder unveränderte Kopien von Leons Bewegungen (`wep39` 0x23/0x24 Byte für
+  Byte gleich `wep11`), gemacht für sein Skelett. Der Nachlade-Zustand wählt die Bewegung nach `weapon_lv_reload`
+  (`wep/pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp`). Auf Adas Skelett knicken sie sie beim Nachladen nach vorn;
+  bei der TMP auf Stufe 2 (voll aufgerüstet) bleibt die Haltung danach dauerhaft so, auch beim Zielen und im Stand
+  (Abstand linke Hand zur Waffe 258/530 statt 162/432). Darum „nur die voll aufgerüstete TMP“ und „im Log nichts“.
+  Warum 0.99.8 es nicht nachstellte: der Lauf lud nie nach (Magazin 250, 51 Schuss), und „Typ 1“ war nicht die TMP mit
+  Schaft, sondern die schallgedämpfte TMP des Prototyps (0x31, im Spiel nicht erreichbar); mit Schaft ist Typ 2 (0x32).
+- **Behebung: Patch 0230** (`pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp`: die Bewegungs-Auswahl über
+  `re4_story_char_reload_level`, `runtime/cheats.cpp`): spielt Ada die Geschichte mit einer ihrer eigenen Waffen, nimmt
+  sie bei jeder Stufe ihre Bewegung der Stufe 0. Die Zeiten der Stufe bleiben (Magazin voll bei Bild 19/33/40 der
+  Waffe, `PlReloadEndTbl`), die Aufrüstung bringt also weiter etwas. Leon, die anderen Figuren und Adas Mercenaries
+  unverändert. Ein Port-Merkmal, kein Fehler des Prototyps.
+- **Geprüft am PC (i686 -O2, EU-Discs r305 Insel, Ada per Debug-Start, `RE4_TEST_WEAPON` mit Stufen, Koffer voll
+  Munition, leer schießen bzw. B, `~/p09911/adatmp.sh`, `adawep.sh`, `adafix.sh`, `adafix2.sh`, Bilder
+  `~/p09911/pics/`):**
+  vorher TMP Stufe 2: Ada beim und nach dem Nachladen vornübergebeugt (wie im Bild des Nutzers), Stufe 0 normal, Leon
+  Stufe 2 normal; Punisher Stufe 2 beim Nachladen vornübergebeugt mit erhobenen Armen, danach normal; Gewehr Stufe 2 beim
+  Nachladen aus dem Bild. Nachher: TMP Stufe 0/1/2 ohne und mit Schaft (Typ 2), Punisher und Gewehr Stufe 2 mit Adas
+  eigener Bewegung, danach normale Haltung (Werte wie Stufe 0); Leon Stufe 2 unverändert (seine Bewegung 0x24); TMP Stufe
+  2 auch mit den Debug-Discs; Schlossräume r204 und r20a (EU) mit Patch: TMP Stufe 2 ohne und mit Schaft, Haltung danach
+  normal. Wesker (Pistole, Killer7, Gewehr Stufe 2) war schon in Ordnung, HUNK hat Leons Skelett.
+  `whole_build.sh` i686 -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät; US- und JP-Discs (dieselben Dateien wie EU erwartet); HUNKs TMP auf Stufe 1/2
+  nicht eigens angespielt.
+
+### 5. Hat Ada in der Geschichte ihre Bewegungen aus den Mercenaries? (Prüfung, Wunsch des Projektinhabers)
+
+„Kannst du auch prüfen ob Ada in der Hauptstory auch ihre Bewegungen aus den Mercenaries hat.“ Geprüft am PC (i686 -O2,
+Ada per Debug-Start, EU-Discs, das Schloss auch mit Debug-Discs; `~/p09911/adamoves.sh`, `adamelee.sh`, `adamelee2.sh`;
+Bilder `~/p09911/pics/mv-*`, `ml-*`; die Logzeilen „cheat: Ada plays …“ sagen, woher eine Bewegung kommt):
+
+- **Ihre eigenen (aus ihren Mercenaries-Dateien):** der Drehtritt „FAN KICK“ am betäubten Gegner im Dorf (r103,
+  Ganado 0x12), im Schloss (r204, 0x14, EU und Debug) und auf der Insel (r305, 0x1e): Eintrag 0x29D aus `em50`, der
+  Gegner fliegt zurück (Dorf 1200 → 800); ihre Griff-Bewegungen, als ein Ganado sie packte (0x28F, 0x290, 0x297), und
+  die Antworten der Gegner (0x2B7/0x2B8), alle aus `em50` (Mechanismus seit 0.98.3, `loadStandInSet`). Laufen, Gehen,
+  Stehen: ihr eigenes Spielerarchiv. Granatenwurf (Handgranate, Blendgranate): ihre eigene Datei.
+  Zielen, Schießen, Nachladen mit Punisher, Gewehr und TMP: ihre eigenen Dateien; **das Nachladen auf Stufe 1/2 war die
+  Lücke** (ihre Mercenaries-Waffen werden nie aufgerüstet), behoben mit Patch 0230 (Abschnitt 1, der TMP-Fehler).
+- **Von Leon:** die Bewegungen, die ihrem Spielerarchiv fehlen (0x23, 0x24, 0x26, 0x46, 0x47, 0x55–0x58, 0x5A–0x5C,
+  0x68, 0x69, 0x6C, 0x6E, 0x70–0x79, 0x7C; seit 0.98.0 aus Leons Archiv, Liste wie 0.99.6 Etappe 4), und alle Waffen
+  Leons, für die sie keine eigene Datei hat (Schrotflinten, Red9, Blacktail, Magnums, Chicago Typewriter,
+  Raketenwerfer …) mit ihrer eigenen Griffhand (Patch 0196). Bilder: Gehen und Zielen mit Schrotflinte, Red9 und
+  Chicago Typewriter sehen normal aus.
+- **Fehlt:** ein Messer. Im Prototyp gibt es die Messer-Taste nur für Leon und Krauser (`pl_sub.cpp` `joyLKamae`:
+  `pl_type` 0 und 4), und Adas Mercenaries-Ausrüstung hat keins (`item.cpp` `set_char(2)`); als ausgerüstete Waffe
+  (0x00) tut es bei ihr nichts. Das ist so im Originalcode; Ada ein Messer zu geben wäre ein eigener Umbau (Messer-
+  Haltung und -Bewegungen für ihr Skelett), nicht gebaut, Bericht an den Inhaber.
+- **Nebenbei:** „Invalid Seq. Frame“ beim Testschalter mit den Gegner-Routinen 0x10/0x14 kommt bei Leon genauso (eine
+  Folge des erzwungenen Zustands, nicht Adas). Der Debug-Start in r50b stürzt in `titleExit` ab: den Raum gibt es nicht
+  (Stufe 3 endet bei r331), kein Fehler des Spiels.
+
+### 2. Controller-Fokus im Ingame-Menü kaum sichtbar (Nutzerbericht, Xiaomi 21061119DG „eos“, Android 11, Mali-G52)
+
+„Beim Navigieren mit dem Controller nur ein dezenter roter Rahmen“; auf dem Retroid golden. Bilder und Bericht
+`E:\Development\Android\reports\09911-menu-focus\` (Nutzer: „Rendimiento“ mit Fokus; Inhaber: Fokus golden, nach dem
+Tippen weißer Rahmen).
+
+- **Ursache:** Der Fokus war ein weißer 2-dp-Rahmen (`CoreMenu.focused`, `BenchmarkFlow.button`); golden ist bei uns
+  „ausgewählt“/„gedrückt“ (dunkle Olivfüllung, 1 dp Gold). Auf dem Xiaomi rechnet Androids **Dunkelmodus für Apps**
+  („force dark“, MIUI schaltet ihn für Apps selbst ein, obwohl unser Thema schon dunkel ist) helle Hintergrundfarben um:
+  eine Farbe heller als L 55 (Lab-Helligkeit) wird L 110 − L. Der weiße Rahmen (L 94) wird so L 16, fast die Farbe der
+  Knöpfe. Im Bild des Nutzers hat der Rahmen genau diese Farbe (35 36 30; die Rechnung gibt 41 40 33, beide Bilder
+  stehen auf 90 %), Text und dunkle Flächen bleiben (Text wird nie abgedunkelt). Warum das Bild des Inhabers beim
+  Navigieren golden statt weiß zeigt, ließ sich aus dem Code nicht klären (golden ist dort „gedrückt“ oder „ausgewählt“
+  ohne Fokus); mit der Behebung ist der Fokus ohnehin golden.
+- **Behebung (App, neue Klasse `FocusLook`):** (1) kein „force dark“ mehr: Thema `AppTheme` (`res/values-v29/styles.xml`,
+  `forceDarkAllowed` false) und `View.setForceDarkAllowed(false)` auf dem obersten View jedes Dialogs
+  (`Immersive.show` → `FocusLook.beforeShow`) und des Spielfensters (`CoreActivity.onCreate`). (2) Ein Fokus-Aussehen
+  für alle Knöpfe: **goldene Füllung (0x7d661c, L 44) mit 2 dp Rand im Menü-Gold**, Text in Weiß (4,8 : 1); die Füllung
+  liegt unter L 55 und bliebe auch auf einem Handy gleich, das das Nein überginge. „Ausgewählt“ bleibt dunkles Oliv mit
+  goldenem Text, sodass in einer Auswahlreihe Fokus und Auswahl auseinanderzuhalten sind. Gilt für alle Menüseiten
+  (`style`), „Update“, Benchmark, Profil-Knöpfe, die Figur-Warnung, die Benchmark-Popups (`BenchmarkFlow.button`), die
+  Schieberegler (goldener Kasten, `FocusLook.over`) und die Knöpfe von Androids eigenen Rückfragen und Meldungen
+  (`FocusLook.afterShow` in `Immersive.show`: Fokus golden, sonst unverändert).
+- **Geprüft (PC, Robolectric):** neuer `FocusLookTest` (Android 13): die Formel von Androids force dark macht aus dem
+  alten Rahmen die Farbe im Bild des Nutzers, die neue Füllung bleibt, Abstände zu Knopf/Auswahl, Kontrast; alle 8
+  Menüseiten: jeder fokussierbare Knopf und Schieberegler hat den goldenen Fokus und weißen Text; drei Rückfragen und
+  die Figur-Warnung; Menü- und Dialogfenster ohne force dark; Thema mit `forceDarkAllowed` false; Quelltext-Prüfung,
+  dass jeder Fokus-Zustand in `CoreMenu`, `BenchmarkFlow`, `CoreActivity` über `FocusLook` geht. `CoreMenuShotTest`
+  macht jetzt zusätzlich Bilder mit Fokus (`<Sprache>-focus-home|benchmark|display.png`). App-Tests beider Varianten
+  je 109 grün (1 übersprungen: Bilder).
+- **Nicht geprüft:** auf einem Gerät (Retroid, ein Xiaomi mit Dunkelmodus); Androids Dateiauswahl und der Touch-Editor
+  von RetroTouch (fremde Fenster) sind nicht betroffen.
+
+### 3. Aus der FPS-Anzeige wird das „Information HUD“ (Wunsch des Projektinhabers)
+
+„Der bisherige Knopf für die FPS-Anzeige schaltet künftig das Information HUD ein. Darunter erscheinen Checkboxen: FPS
+Spiel/Display, Display Hz, H:M:S ab Spielstart … Die Zeit wird gespeichert, wenn man speichert … Prüfe, ob du dafür die
+eigene Spielzeit des Spiels nutzen kannst.“
+
+- **Spielzeit:** Das Spiel führt seine Spielzeit selbst (`pG->play_time` in Sekunden plus der laufende Abschnitt seit
+  `InitGameTime`/`SetGameTime`, `main_sub.cpp` `GetGameTime`); jeder Spielstand enthält sie (Schreibmaschine wie
+  Instant-Spielstand, `GameSave.save`), die Spielstands-Anzeigen des Spiels und unser Instant-Platz zeigen sie. Die App
+  liest genau diese Zeit, damit bleibt jeder Spielstand für GameCube und Dolphin unverändert. Zeit im App-Menü und mit
+  der App im Hintergrund zählt schon seit dem Instant-Spielstand nicht (`re4_instant_game_pause`: das App-Menü und
+  `onPause` halten das Spiel an und falten die Zeit vorher zusammen).
+- **Kern:** Befehl 25 über den vorhandenen Kanal `cheatAction` (`core_api.cpp` → `instant_game.cpp`
+  `re4_instant_play_seconds`, geht auch über die Prozessgrenze des Kern-Prozesses): die Sekunden, −1 außerhalb eines
+  Spiels (Logos, Titel); während das App-Menü hält, die beim Anhalten gefaltete Zeit. Liest nur zwei Wörter von `pG`,
+  ändert nichts. Prüfhilfe: `RE4_TEST_BENCH="…:25"` schreibt die Antwort ins Protokoll.
+- **App:** neue Klasse `InfoHud` (Teile, Reihenfolge, Zeitformat `HH:MM:SS`, zweistellig, ab 100 Stunden dreistellig,
+  `--:--:--` außerhalb eines Spiels). `CoreActivity.showHud`: die Zeile aus den gewählten Teilen (FPS des Spiels bzw.
+  mit 60 FPS auch des Bildes, Display-Hz, Auflösung, Spielzeit), jede Sekunde neu; keine Box gewählt = nichts zu sehen.
+  Menü (Anzeige → Optionale Features): der Knopf heißt „Information HUD · <Platz>“ und schaltet wie bisher durch Aus,
+  unten links, unten mittig, oben links, oben mittig (Schlüssel `fpsPlace` wie bisher); solange er an ist, darunter vier
+  Checkboxen (`hudFps`, `hudHz`, `hudResolution`, `hudTime`, alle an bis zum Abwählen) und ein Satz zur Spielzeit.
+  **Abweichung vom Auftrag:** die Auflösung („1920×1008 (3×)“) zeigte die FPS-Anzeige schon; sie ist als vierte
+  Checkbox „Auflösung“ geblieben statt wegzufallen (Entscheidung des Projektinhabers, 12.11.2026: „Ja, bleiben“). Wer die FPS-Anzeige an hatte, sieht dasselbe wie bisher plus die
+  Spielzeit. Fünf neue Texte in 11 Sprachen (`ingame_info_hud`, `ingame_hud_fps`, `ingame_hud_hz`, `ingame_hud_time`,
+  `ingame_hud_help`), `ingame_fps_display` entfällt. Die Checkboxen haben den goldenen Fokus (Aufgabe 2).
+- **Geprüft am PC (i686 -O2, `~/p09911/hudtests.sh`, `hudtests2.sh`):** in Echtzeit (30 Bilder/s) Debug-Discs r100:
+  bei den Logos −1, dann 82 → 92 nach 300 Bildern (10 s); Schreibmaschine (Debug r100): 7 s im Spiel, gespeichert;
+  diese Karte geladen: im Titel −1, nach dem Laden 8, dann 10 (die Zeit geht vom Spielstand weiter); Instant-Spielstand
+  (EU r101, Echtzeit): 36 s gespeichert, 20 s weiter (55), geladen: 41 (36 plus die Ladezeit, die das Spiel mitzählt).
+  **Dabei gefunden:** ohne das App-Menü (die Prüfhilfe `RE4_TEST_INSTANT`) speicherte der Instant-Spielstand die Zeit vom
+  letzten Falten, nach dem Laden stand 6 statt 36. In der App faltet das Anhalten durchs Menü die Zeit vorher, dort war
+  es richtig; jetzt faltet `re4_instant_game_capture` selbst (`SetGameTime` wie die Schreibmaschine, nicht während das
+  Menü hält). `core-test instant-game` prüft das Falten, das Anhalten durchs Menü (7 s Menüzeit zählen nicht) und −1 im
+  Titel. App: `InfoHudTest` (Zeitformat, Zeile, Menü: Knopf, vier Boxen, nur sichtbar wenn an, Speichern der
+  Boxen, Plätze), `CoreMenuLayoutTest` angepasst, `FocusLookTest` (auch die Checkboxen), `check_translations.py` ohne
+  Befund, App-Tests beider Varianten je 112 grün; Bild `CoreMenuShotTest` `<Sprache>-display-hud.png` (de, en, ar).
+  `whole_build.sh` i686 -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät (die Zeile über dem Spiel, die Häkchen der Checkboxen: Robolectric zeichnet nur
+  ihre Farbe), Mercenaries und die Extra-Spiele (dort zeigt das HUD die Zeit, die das Spiel dafür führt).
+
+### 4a. Weskers Pistole im Koffer immer mit Schalldämpfer (Nutzerbericht über den Projektinhaber, Patch 0229)
+
+„In the inventory screen, the silencer will always be visually attached to the handgun when Wesker has it equipped.
+Even if you don't have the silencer at all, or if you manually unequip or discard it.“ (Schon in 0.98.1 als offener
+Punkt „Weskers Schalldämpfer im Koffer“ notiert, Abschnitt 0.98.1 Punkt 7.)
+
+- **Ursache:** Den Wesker neben dem Koffer baut `ss_model.cpp` `weskerModelInit`; für die Pistole (Waffe 2) rief der
+  Prototyp `wep43Init(2)` auf, und `wep43Init` nimmt bei jedem Wert außer 0 das Modell 6 (mit Schalldämpfer). Wesker hat
+  in den Mercenaries nur die Pistole mit Schalldämpfer (0x24), der Fall „ohne“ kam dort nie vor. Leons `wep02Init` wählt
+  dasselbe nach dem Waffentyp (0: Modell 5, 1: Modell 6). Im Spiel selbst (Waffe in der Hand) stimmte das Modell schon.
+- **Behebung: Patch 0229** (`src/Sscrn/ss_model.cpp`): `wep43Init(type)`, also Typ 0 (0x23) ohne, Typ 1 (0x24) mit
+  Schalldämpfer. Ein Port-Merkmal (die Figurenwahl), kein Fehler des Prototyps.
+- **Geprüft am PC (i686 -O2, EU-Discs, r101, Wesker per Debug-Start, `~/p09911/silcase.sh`, `silcase2.sh`, Bilder
+  `~/p09911/pics/`):** Schalldämpfer herausgenommen (`RE4_TEST_ITEM_LOSE` 0x3F), Pistole 0x23 ausgerüstet, Koffer offen:
+  vorher Wesker mit Schalldämpfer (der Fehler nachgestellt), nachher ohne; Pistole 0x24 mit Schalldämpfer: Bild Byte für
+  Byte gleich vorher. Im Spiel gezielt mit 0x23: ohne Schalldämpfer (wie schon vorher). Punisher und Blacktail (mit
+  Schalldämpfer, `RE4_TEST_PART`): Wesker steht im Koffer ohne Waffe da, wie für alle Waffen Leons, für die die Figur
+  keine eigene Datei hat (Patch 0195, so gewollt). `whole_build.sh` i686 -O2 alle Prüfungen grün.
+- **Nicht geprüft:** auf einem Gerät; Debug- und US-Discs (derselbe Code).
+
+### 4b. Leons Schalldämpfer im Prototyp (nur geprüft, nichts geändert)
+
+**Entscheidung des Projektinhabers (12.11.2026):** „Wenn der Schalldämpfer nicht regulär zu erhalten ist sondern nur über
+den Debug Modus, dann lassen wir ihn weg bei Leon.“ Kein Cheat-Knopf, Leon bekommt keinen Schalldämpfer; er bleibt
+Weskers (Verhalten wie 0.99.10, Abschnitt 7.5 dort). Die Prüfung darunter bleibt als Nachweis.
+
+Nutzer: „the silencer should also work by default on Leon (… I think there was footage showcasing it as well as the slow
+motion thing from that version)“. Gelesen im Code (`src/`), Kernaussagen selbst nachgeprüft:
+
+- **Gegenstand und Koffer:** 0x3F ist ein Waffenteil (Typ 9, `item.cpp` `itemInfo`), Pistole/Punisher/Blacktail mit
+  Schalldämpfer sind 0x24/0x22/0x28 (Waffe 2/1/4, Typ 1, Werte wie ohne). Ansetzen (`partsCombine`) und Abnehmen im
+  Koffer (`ss_pzzl.cpp` Befehl 6/3) sind fertig.
+- **Woher Leon ihn hat:** nur aus der Debug-Ausrüstung 3 (`item.cpp` `set_debug(3)`, im Debug-Werkzeug CASE MAKE der
+  Debug-Discs, lose im Koffer). Kein Händler (`merchant.cpp` ohne 0x3F), kein Spielstart, kein Fundort im Code (Fundorte
+  stehen in den Raumdaten der Disc, dort nicht geprüft). Wesker der Mercenaries hat ihn fest an 0x23.
+- **Wirkung:** nur an der Pistole 0x24 echt (`wep/objRuger.cpp`): eigenes Modell, ein leiser Schuss-Ton (0x18 statt der
+  drei lauten) und **kein `STA_PL_FIRE`**, über das Ganados Schüsse in 25 m hören (`em10.cpp` und weitere `em*`): mit
+  Schalldämpfer werden sie nicht durch den Schuss aufmerksam. Punisher 0x22 und Blacktail 0x28: nur Modell und
+  Mündungsfeuer, laut wie ohne. Schaden gleich (`em_dm_val.cpp` nach Waffennummer). Koffer-Modelle für Leon bei allen
+  drei vorhanden (`ss_model.cpp` Typ 1 → Modell 6); im Spiel auf EU-Discs mit Leon in 0.99.10 gezielt und geschossen.
+- **Zeitlupe:** ein eigenes Merkmal `STA_SLOW` (`game.cpp` `gameMainLoop`: Leon und seine Waffe mit 0,6, Gegner,
+  Objekte und Effekte nur jedes dritte Bild; `filter08.cpp` Zoom-Unschärfe um den Zielpunkt). Kein Code schaltet es ein,
+  nur das Debug-Werkzeug FLAG EDIT; eine angefangene „aus der Deckung zielen“-Bewegung in `wep17.cpp` fragt es ab
+  (Bewegungen fehlen). Mit dem Schalldämpfer hat es nichts zu tun.
+- **Empfehlung an den Inhaber (Entscheidung offen):** Wenn gewünscht, einen Cheat-Knopf „Schalldämpfer“ (wie
+  „Killer7“), der ihn jeder Figur gibt; Leon behält ihn dann und Spielstände behalten ihn (das Verkaufsspiel kennt 0x3F
+  und 0x24 von Wesker); vorher am PC mit EU-/US-Discs Koffer, Hand, Ton und einen Spielstand in Dolphin prüfen. Die
+  Zeitlupe nicht einbauen (unfertig, nur Debug).
+
 ## Version 0.99.10-rc: Wünsche des Projektinhabers vom 11.11.2026 (Branch `09910`)
 
 Version 0.99.10-rc (versionCode 112), Releasetext `port/android-decomp/docs/releases/v0.99.10-rc.md` („Changes since
@@ -385,6 +575,9 @@ ist – ein Ghosting.“ Dateien `E:\Development\Android\reports\09910-crt-flick
   ist; so gewollt).
 
 ### Prüfung: Funktionen aus DevJuniors Mod-Fork (11.11.2026, nur Plan)
+
+**Entscheidung des Projektinhabers (11.11.2026):** keine Funktion aus DevJuniors Fork wird übernommen („nicht nützlich
+für unseren Port“); `refs/scratch/devjunior` gelöscht. Der Rest dieses Abschnitts beschreibt die Prüfung davor.
 
 Auftrag des Projektinhabers („Ja, prüfen lassen“). Plan mit Tabelle und Nachrichtenentwurf:
 `port/docs/devjunior-mods-plan.md`. Sein Branch `mods/free-movement` (83 Commits auf 0.99.6) liegt lokal als

@@ -747,6 +747,7 @@ bool g_benchTitle[4];        // RE4_TEST_BENCH "title+N": counted from the title
 bool g_benchBoot[4];         // RE4_TEST_BENCH "boot+N": frame N
 long g_titleAt = -1;         // the first frame the title's main menu waited
 extern "C" int re4_bench_command(int what);
+extern "C" int re4_instant_play_seconds(void);  // runtime/instant_game.cpp (0.99.11)
 extern "C" int re4_instant_game_at_title(void);
 int g_wepType;
 int g_lifeA, g_lifeAMax, g_lifeL = -1, g_lifeLMax = -1, g_lifeStep;
@@ -2189,7 +2190,8 @@ void frame(unsigned n)
     for (int i = 0; i < 4; i++) {
         const long base = g_benchBoot[i] ? 0 : g_benchTitle[i] ? g_titleAt : g_freeAt;
         if (g_benchAt[i] >= 0 && base >= 0 && (long) n == base + g_benchAt[i]) {
-            const int answer = re4_bench_command(g_benchCmd[i]);
+            // 25: the play time (0.99.11, the app's Information HUD), the others the benchmark's
+            const int answer = g_benchCmd[i] == 25 ? re4_instant_play_seconds() : re4_bench_command(g_benchCmd[i]);
             re4_log("run: benchmark command %d at frame %u (RE4_TEST_BENCH): %d", g_benchCmd[i], n, answer);
             if (g_benchFirst < 0) {
                 g_benchFirst = n;

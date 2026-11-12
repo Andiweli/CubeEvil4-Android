@@ -31,7 +31,11 @@
     <string name="ingame_flares_both">Ореолы + блики</string>
     <string name="ingame_flares_help">Блики объектива: слабые цветные кольца через всё изображение от самых ярких источников света, как в объективе камеры. Ореолы + блики: дополнительно мягкое свечение с тонкой звездой у свечей, факелов и ламп.</string>
     <string name="ingame_dof">Глубина резкости</string>
-    <string name="ingame_fps_display">Показ FPS</string>
+    <string name="ingame_info_hud">Информационный HUD</string>
+    <string name="ingame_hud_fps">FPS игры/экрана</string>
+    <string name="ingame_hud_hz">Гц экрана</string>
+    <string name="ingame_hud_time">Ч:М:С с начала игры</string>
+    <string name="ingame_hud_help">Ч:М:С — собственное время игры: его хранит каждое сохранение (пишущая машинка и мгновенное сохранение), как на GameCube. Время в этом меню или с приложением в фоне не считается.</string>
     <string name="ingame_fps_bottom_left">Внизу слева</string>
     <string name="ingame_fps_bottom_centre">Внизу по центру</string>
     <string name="ingame_fps_top_left">Вверху слева</string>

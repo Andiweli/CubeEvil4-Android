@@ -31,7 +31,11 @@
     <string name="ingame_flares_both">Lichthöfe + Lens Flares</string>
     <string name="ingame_flares_help">Lens Flares: schwache farbige Ringe quer durchs Bild, die von den hellsten Lichtern ausgehen, wie bei einem Kameraobjektiv. Lichthöfe + Lens Flares: zusätzlich ein weicher Schein mit feinem Stern an Kerzen, Fackeln und Lampen.</string>
     <string name="ingame_dof">Tiefenschärfe</string>
-    <string name="ingame_fps_display">FPS-Anzeige</string>
+    <string name="ingame_info_hud">Information HUD</string>
+    <string name="ingame_hud_fps">FPS Spiel/Display</string>
+    <string name="ingame_hud_hz">Display-Hz</string>
+    <string name="ingame_hud_time">H:M:S ab Spielstart</string>
+    <string name="ingame_hud_help">H:M:S ist die Spielzeit des Spiels selbst: Jeder Spielstand behält sie (Schreibmaschine und Instant-Spielstand), wie auf dem GameCube. Zeit in diesem Menü oder mit der App im Hintergrund zählt nicht.</string>
     <string name="ingame_fps_bottom_left">Unten links</string>
     <string name="ingame_fps_bottom_centre">Unten mittig</string>
     <string name="ingame_fps_top_left">Oben links</string>

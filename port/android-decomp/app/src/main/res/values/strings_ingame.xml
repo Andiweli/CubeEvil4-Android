@@ -40,7 +40,11 @@
     <string name="ingame_flares_both">Halos + lens flares</string>
     <string name="ingame_flares_help">Lens flares: faint coloured rings across the picture from the brightest lights, as a camera lens makes them. Halos + lens flares: also a soft glow with a fine star at candles, torches and lamps.</string>
     <string name="ingame_dof">Depth of field</string>
-    <string name="ingame_fps_display">FPS display</string>
+    <string name="ingame_info_hud">Information HUD</string>
+    <string name="ingame_hud_fps">FPS game / display</string>
+    <string name="ingame_hud_hz">Display Hz</string>
+    <string name="ingame_hud_time">H:M:S since game start</string>
+    <string name="ingame_hud_help">H:M:S is the game\'s own play time: every save keeps it (typewriter and instant save), as on the GameCube. Time in this menu or with the app in the background does not count.</string>
     <string name="ingame_fps_bottom_left">Bottom left</string>
     <string name="ingame_fps_bottom_centre">Bottom centre</string>
     <string name="ingame_fps_top_left">Top left</string>

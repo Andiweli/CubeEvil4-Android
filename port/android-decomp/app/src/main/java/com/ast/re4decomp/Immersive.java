@@ -43,14 +43,17 @@ final class Immersive {
     }
   }
 
-  /** Shows `dialog` in the game's full screen (instead of dialog.show()); returns it. */
+  /** Shows `dialog` in the game's full screen (instead of dialog.show()) and with the app's focus look (FocusLook:
+   *  no force dark, Android's own buttons of an alert golden while focused); returns it. */
   static <T extends Dialog> T show(T dialog) {
     final Window window = dialog.getWindow();
-    if (window == null) { dialog.show(); return dialog; }
+    if (window == null) { dialog.show(); FocusLook.afterShow(dialog); return dialog; }
+    FocusLook.beforeShow(dialog);
     window.setFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
     apply(window);
     window.getDecorView().getViewTreeObserver().addOnWindowFocusChangeListener(focus -> { if (focus) apply(window); });
     dialog.show();
+    FocusLook.afterShow(dialog);
     apply(window);
     window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
     return dialog;
