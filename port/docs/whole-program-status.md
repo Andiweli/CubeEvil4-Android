@@ -23,7 +23,7 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   abgeschnittene/beschädigte Dateien), `etc2_gl_check` gegen Mesa (llvmpipe): alle 24.576 Blöcke aller Modi gleich.
   Echtes Paket (5.927 Dateien, 11,8 GB): **512 → 701 MB in 4 min 47 s, 1024 → 2,34 GB in 16 min 22 s** (16 Threads),
   5.916 Bilder, 11 übersprungen (4 Kopien „(1)“/„- Copy“, 7 Doppel), Qualität im Mittel 38,0 / 38,4 dB PSNR;
-  `-check` beider Dateien ohne Befund. Ergebnisse in `E:\Development\Androiduilds	extures\`.
+  `-check` beider Dateien ohne Befund. Ergebnisse in `E:\Development\Android\builds\textures\`.
 - **T2/T3 Laden (GLES)**: `tex_pack.cpp` (Leser mit Prüfungen, XXH64, Dolphins Kennung inkl. Farbtabellen-Teil),
   `GxCore::UploadHd` (Nachschlagen, ETC2 hochladen, Grenze `texPackBudget`, PSone-Modus behält die Originale),
   Sampler verschieben ihre Stufengrenzen um `lodShift` (Spiel ohne Mipmaps: Ersatz bis zur Originalgröße).
