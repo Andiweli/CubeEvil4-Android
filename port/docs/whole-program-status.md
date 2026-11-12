@@ -126,7 +126,7 @@ eigene Spielzeit des Spiels nutzen kannst.“
   unten links, unten mittig, oben links, oben mittig (Schlüssel `fpsPlace` wie bisher); solange er an ist, darunter vier
   Checkboxen (`hudFps`, `hudHz`, `hudResolution`, `hudTime`, alle an bis zum Abwählen) und ein Satz zur Spielzeit.
   **Abweichung vom Auftrag:** die Auflösung („1920×1008 (3×)“) zeigte die FPS-Anzeige schon; sie ist als vierte
-  Checkbox „Auflösung“ geblieben statt wegzufallen. Wer die FPS-Anzeige an hatte, sieht dasselbe wie bisher plus die
+  Checkbox „Auflösung“ geblieben statt wegzufallen (Entscheidung des Projektinhabers, 12.11.2026: „Ja, bleiben“). Wer die FPS-Anzeige an hatte, sieht dasselbe wie bisher plus die
   Spielzeit. Fünf neue Texte in 11 Sprachen (`ingame_info_hud`, `ingame_hud_fps`, `ingame_hud_hz`, `ingame_hud_time`,
   `ingame_hud_help`), `ingame_fps_display` entfällt. Die Checkboxen haben den goldenen Fokus (Aufgabe 2).
 - **Geprüft am PC (i686 -O2, `~/p09911/hudtests.sh`, `hudtests2.sh`):** in Echtzeit (30 Bilder/s) Debug-Discs r100:
