@@ -21,7 +21,7 @@
     <application android:largeHeap="true" android:name=".Re4Application" android:label="@string/app_label" android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
         android:banner="@drawable/tv_banner"
-        android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false"
+        android:theme="@style/AppTheme" android:allowBackup="false"
         android:isGame="true" android:appCategory="game" android:supportsRtl="true"
         android:localeConfig="@xml/locales_config"
         android:enableOnBackInvokedCallback="true">

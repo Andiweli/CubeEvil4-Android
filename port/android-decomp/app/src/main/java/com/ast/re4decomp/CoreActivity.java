@@ -260,6 +260,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   public void onCreate(Bundle state) {
     super.onCreate(state);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    // no force dark over the game, its touch controls and displays (FocusLook, 0.99.11)
+    FocusLook.noForceDark(getWindow());
     hideSystemUi();
     ImportManager imports = ((Re4Application) getApplication()).imports;
     // test switches of the core (port/scripts/test-core-app.ps1 passes them)

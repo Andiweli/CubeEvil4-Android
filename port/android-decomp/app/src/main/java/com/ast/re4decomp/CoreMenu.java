@@ -243,11 +243,11 @@ final class CoreMenu extends Dialog {
     boolean older = state == AppUpdate.OLDER;
     int fill = older ? UPDATE_RED : UPDATE_GREEN, stroke = older ? UPDATE_RED_EDGE : UPDATE_GREEN_EDGE;
     StateListDrawable look = new StateListDrawable();
-    look.addState(new int[] {android.R.attr.state_focused}, focused(fill));
+    look.addState(new int[] {android.R.attr.state_focused}, focused());
     look.addState(new int[] {android.R.attr.state_pressed}, shape(fill, INK, 6));
     look.addState(new int[0], shape(fill, stroke, 6));
     update.setBackground(look);
-    update.setTextColor(INK);
+    update.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
     update.setText(s(older ? R.string.ingame_update : R.string.ingame_up_to_date));
     update.setEnabled(older);
     update.setFocusable(older);
@@ -268,13 +268,15 @@ final class CoreMenu extends Dialog {
     GradientDrawable d = new GradientDrawable(); d.setColor(fill); d.setCornerRadius(dp(radius));
     d.setStroke(dp(1), stroke); return d;
   }
-  private GradientDrawable focused(int fill) {
-    GradientDrawable d = shape(fill, INK, 6); d.setStroke(dp(2), INK); return d;
-  }
+  /** The controller's focus, the same golden look on every button and every phone (FocusLook, 0.99.11; before a
+   *  white frame, which Android's dark mode for apps turned almost black on a Xiaomi). */
+  private GradientDrawable focused() { return FocusLook.focused(getContext()); }
+  /** A slider: the golden box of the focus around it while it has the focus (FocusLook). */
+  private static void focusBox(SeekBar bar) { FocusLook.over(bar); }
   private void style(Button b) {
     StateListDrawable state = new StateListDrawable();
-    state.addState(new int[] {android.R.attr.state_focused, android.R.attr.state_selected}, focused(ACTIVE));
-    state.addState(new int[] {android.R.attr.state_focused}, focused(SURFACE));
+    // focused and selected: the focus's look with the selected one's golden text (the colours below)
+    state.addState(new int[] {android.R.attr.state_focused}, focused());
     state.addState(new int[] {android.R.attr.state_pressed}, shape(ACTIVE, GOLD, 6));
     state.addState(new int[] {android.R.attr.state_selected}, shape(ACTIVE, GOLD, 6));
     state.addState(new int[0], shape(SURFACE, BORDER, 6));
@@ -722,11 +724,11 @@ final class CoreMenu extends Dialog {
   private Button benchButton() {
     Button bench = button(s(R.string.ingame_benchmark), v -> askBenchmark());
     StateListDrawable quiet = new StateListDrawable();
-    quiet.addState(new int[] {android.R.attr.state_focused}, focused(BENCH_GREEN));
+    quiet.addState(new int[] {android.R.attr.state_focused}, focused());
     quiet.addState(new int[] {android.R.attr.state_pressed}, shape(BENCH_GREEN, UPDATE_GREEN_EDGE, 6));
     quiet.addState(new int[0], shape(BENCH_GREEN, BENCH_GREEN_EDGE, 6));
     bench.setBackground(quiet);
-    bench.setTextColor(BENCH_TEXT);
+    bench.setTextColor(FocusLook.text(ColorStateList.valueOf(BENCH_TEXT)));
     bench.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
     bench.setEnabled(host != null);
     return bench;
@@ -1074,7 +1076,7 @@ final class CoreMenu extends Dialog {
     line.addView(box);
     bar.setMax(Math.round((max - min) / step)); bar.setProgress(Math.round((stored - min) / step));
     bar.setContentDescription(s(title));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(format.of(stored));
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1215,7 +1217,7 @@ final class CoreMenu extends Dialog {
     bar.setMax(Math.round((CoreActivity.MOUSE_MAX - min) / step));
     bar.setProgress(Math.round((now - min) / step));
     bar.setContentDescription(s(R.string.ingame_mouse_sensitivity));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(times(now));
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1387,7 +1389,7 @@ final class CoreMenu extends Dialog {
     bar.setMax((max - min) / 5);
     bar.setProgress(Math.round((Math.max(min, Math.min(max, now)) - min) / 5f));
     bar.setContentDescription(s(label));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(now + " %");
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1415,7 +1417,7 @@ final class CoreMenu extends Dialog {
     bar.setMax(20);
     bar.setProgress(Math.round(now / 5f));
     bar.setContentDescription(s(label));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD));
+    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
     value.setText(now + " %");
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
@@ -1706,10 +1708,10 @@ final class CoreMenu extends Dialog {
     final AlertDialog[] shown = new AlertDialog[1];
     Button understood = button(s(R.string.ingame_understood), v -> { shown[0].dismiss(); choose.run(); });
     StateListDrawable look = new StateListDrawable();
-    look.addState(new int[] {android.R.attr.state_focused}, focused(UPDATE_RED));
+    look.addState(new int[] {android.R.attr.state_focused}, focused());
     look.addState(new int[] {android.R.attr.state_pressed}, shape(UPDATE_RED, INK, 6));
     look.addState(new int[0], shape(UPDATE_RED, UPDATE_RED_EDGE, 6));
-    understood.setBackground(look); understood.setTextColor(INK);
+    understood.setBackground(look); understood.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
     understood.setPadding(dp(24), dp(8), dp(24), dp(8));
     LinearLayout.LayoutParams centred = new LinearLayout.LayoutParams(-2, -2);
     centred.gravity = Gravity.CENTER_HORIZONTAL;

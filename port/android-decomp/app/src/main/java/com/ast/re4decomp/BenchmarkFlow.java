@@ -550,12 +550,11 @@ final class BenchmarkFlow {
     b.setAllCaps(false);
     b.setTextSize(16);
     b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-    b.setTextColor(INK);
+    b.setTextColor(FocusLook.text(android.content.res.ColorStateList.valueOf(INK)));
     int fill = go ? GO : SURFACE, edge = go ? GO_EDGE : BORDER;
     StateListDrawable look = new StateListDrawable();
-    GradientDrawable focus = shape(fill, INK, 6);
-    focus.setStroke(dp(2), INK);
-    look.addState(new int[] {android.R.attr.state_focused}, focus);
+    // the controller's focus golden as in the app menu (FocusLook, 0.99.11)
+    look.addState(new int[] {android.R.attr.state_focused}, FocusLook.focused(host.activity()));
     look.addState(new int[] {android.R.attr.state_pressed}, shape(fill, INK, 6));
     look.addState(new int[0], shape(fill, edge, 6));
     b.setBackground(look);
