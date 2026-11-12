@@ -1,7 +1,7 @@
 # Textur-Lader für eigene HD-Texturpakete: Plan (12.11.2026, Branch `textures`)
 
-**Stand: nur Plan, nichts gebaut.** Der Projektinhaber beantwortet die Fragen am Ende, danach wird gebaut. In welche
-Version der Lader kommt, entscheidet er später.
+**Stand: Plan vom Projektinhaber freigegeben (12.11.2026, Entscheidungen in Abschnitt 9).** In welche Version der
+Lader kommt, entscheidet er später.
 
 Grundlage ist die Prüfung der Mods vom 12.11.2026 (`E:\Development\Android\reports\mod-extensions\bericht.md`, Skripte
 und Zahlen in `...\mod-extensions\probe\`).
@@ -45,7 +45,7 @@ Begriffe, kurz erklärt:
 
 ### Bedienung
 
-**Vorschlag (Frage 1):** eine `.exe` für Windows, ohne Installation, ohne Python. Doppelklick öffnet ein Fenster, das
+**Entschieden:** eine `.exe` für Windows, ohne Installation, ohne Python. Doppelklick öffnet ein Fenster, das
 alles nacheinander fragt. Die Texte sind englisch (wie alle Texte für Tester):
 
 ```
@@ -101,7 +101,7 @@ Es **verändert nie den Paket-Ordner** und schreibt nichts hinein. Es prüft vor
 |---|---|---|
 | **512** | etwa 0,8 GB | jedes Gerät; immer noch 2- bis 4-mal schärfer als das Original |
 | **1024** | etwa 2,7 GB | starke Geräte mit genug Speicherplatz |
-| 2048 | etwa 6,8 GB | **nicht anbieten** (Vorschlag, Frage 2): kaum ein Handy hat dafür Platz und Grafikspeicher |
+| 2048 | etwa 6,8 GB | **nicht angeboten** (Entscheidung 12.11.2026): kaum ein Handy hat dafür Platz und Grafikspeicher |
 
 Die genauen Größen stehen nach dem ersten Lauf mit deinem Paket fest.
 
@@ -119,12 +119,14 @@ Die genauen Größen stehen nach dem ersten Lauf mit deinem Paket fest.
 
 ### Technik (für die Akten)
 
-- Ein kleines C++-Programm in `port/tools/texpack/`, übersetzt für Windows (`.exe`, ohne Zusatzdateien) und Linux.
-- Fremde Bausteine mit freien Lizenzen, im Repository mit ihren Lizenztexten: ein Leser für BC-Bilder (bcdec,
-  MIT), ein PNG-Leser und ein Verkleinerer (stb_image, stb_image_resize2, gemeinfrei/MIT) und ein ETC2-Umwandler
-  (etcpak, BSD). Alles andere ist unser eigener Code (CC0).
+- Ein kleines C++-Programm in `port/tools/texpack/`, übersetzt mit Visual Studio für Windows: eine `.exe` ohne
+  Zusatzdateien und ohne Installation (Entscheidung des Projektinhabers, 12.11.2026: nur eine PC-Fassung, keine
+  Linux-Fassung). Für die Prüfungen in WSL lässt sich derselbe Code auch unter Linux übersetzen.
+- **Alles eigener Code** (CC0), ohne fremde Bausteine: DDS- und BC-Leser, PNG-Leser, Verkleinern, Mipmaps,
+  ETC2-Umwandler, Paketdatei. So braucht es keine fremden Lizenztexte und keine Downloads (meine Entscheidung,
+  12.11.2026; im ersten Entwurf standen bcdec, stb_image und etcpak).
 - Das Programm enthält keine Bilder und keine Daten des Spiels.
-- Die Form der Paketdatei (Kopf, Inhaltsverzeichnis, Prüfsumme) beschreibe ich in `port/docs/textur-paket-format.md`.
+- Die Form der Paketdatei (Kopf, Inhaltsverzeichnis, Prüfsumme) steht in `port/docs/textur-paket-format.md`.
 
 ## 2. Import in der App
 
@@ -201,12 +203,12 @@ da ist.
 - Die Verkleinerungsstufen werden so begrenzt, dass ein Ersatzbild nie unschärfer wird als das Original und
   absichtliche Unschärfe des Spiels bleibt.
 
-### Nachladen ohne Ruckeln (Frage 3)
+### Nachladen ohne Ruckeln (entschieden 12.11.2026)
 
 Ein Ersatzbild muss erst aus der Paketdatei gelesen werden. Je nach Stufe sind das je Raum etwa 20–30 MB (512) bzw.
 70–100 MB (1024), geschätzt. Auf einem schnellen Handy ist das ein Bruchteil einer Sekunde.
 
-**Vorschlag:**
+**So wird es gebaut:**
 
 - **Solange das Bild schwarz ist oder stillsteht** (Ladebildschirm, Türen, Raumanfang, Koffer und Karte): Die App
   lädt das Ersatzbild sofort und wartet darauf. Das sieht niemand.
@@ -328,17 +330,13 @@ zusammengeht.
   you obtained yourself, as in Dolphin.“
 - Der Hilfetext in der App sagt dasselbe kurz (siehe 2).
 
-## 9. Fragen an dich
+## 9. Entscheidungen des Projektinhabers (12.11.2026)
 
-1. **Wie soll das PC-Programm zu dir und den Testern kommen?**
-   Empfehlung: als `.exe` für Windows (Doppelklick, fragt alles im Fenster), als eigene Datei bei jedem Release auf
-   GitHub, dazu eine Linux-Fassung. Es enthält keine Bilder, nur das Umwandeln. Alternative: vorerst nur für dich zum
-   Testen, veröffentlicht wird später.
-2. **Welche Stufen soll das PC-Programm anbieten?**
-   Empfehlung: 512 (Vorgabe, etwa 0,8 GB) und 1024 (etwa 2,7 GB). 2048 gar nicht. In der App dazu „Sharpness: Half“
-   für schwache Geräte. Alternative: 2048 zusätzlich als Wahl für sehr starke Geräte und Fernseher.
-3. **Lieber kurz warten oder kurz unscharf?**
-   Empfehlung: die Mischung aus Abschnitt 3: Bei schwarzem oder stehendem Bild wartet die App, mitten im Spiel lädt sie
-   im Hintergrund nach (ein Bild ist einen Augenblick unscharf, nie ein Ruckler), und ab dem zweiten Besuch eines Raums
-   lädt sie vorab. Alternative: immer warten (nie unscharf, dafür manchmal ein kleiner Ruckler, wenn mitten im Spiel
-   etwas Neues auftaucht).
+Auf die drei Fragen des Plans: „Es reicht eine PC Version. Zu den restlichen Empfehlungen ‚OK‘.“
+
+1. **PC-Programm:** eine `.exe` für Windows (Doppelklick, fragt alles im Fenster), als eigene Datei beim Release auf
+   GitHub. Keine Linux-Fassung.
+2. **Stufen:** 512 (Vorgabe, etwa 0,8 GB) und 1024 (etwa 2,7 GB), kein 2048. In der App „Sharpness: Half“ für
+   schwache Geräte.
+3. **Nachladen:** bei schwarzem oder stehendem Bild warten, mitten im Spiel im Hintergrund nachladen (kurz unscharf,
+   nie ein Ruckler), ab dem zweiten Besuch eines Raums vorab laden.
