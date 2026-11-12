@@ -38,6 +38,12 @@ public class CoreMenuLayoutTest {
     @Implementation public static void setSharpen(int level) { sharpen = level; }
     static int potato = -1;   // the last Potato mode bits the menu sent (setPotato)
     @Implementation public static void setPotato(int mask) { potato = mask; }
+    static String texturePack = null;  // the last pack the menu or TexturePacks sent (setTexturePack)
+    @Implementation public static String setTexturePack(String path, boolean half, int budgetMb) {
+      texturePack = path;
+      return "";
+    }
+    @Implementation public static long[] texturePackUse() { return new long[] {87, 133, 12_000_000}; }
   }
 
   /** An endless animation in this SDK 28 sandbox's main thread kept Robolectric's idle() busy for good (full runs hung

@@ -191,7 +191,7 @@
     <string name="ingame_management_summary">मेमोरी कार्ड, डिस्क, रिपोर्ट और सोर्स</string>
     <string name="ingame_audio">ऑडियो</string>
     <string name="ingame_audio_summary">संगीत और साउंड इफ़ेक्ट</string>
-    <string name="ingame_cheats_summary">स्वास्थ्य, गोला-बारूद, पैसा और अतिरिक्त गेम</string>
+    <string name="ingame_cheats_summary">स्वास्थ्य, गोला-बारूद, पैसा, अतिरिक्त गेम और HD टेक्सचर</string>
     <string name="ingame_experimental">प्रायोगिक</string>
     <string name="ingame_volume">आवाज़</string>
     <string name="ingame_music_volume">संगीत</string>
@@ -255,7 +255,7 @@
     <string name="ingame_disc_device">गेम %1$s (डिस्क %2$d) पर रुक गया: इस डिवाइस पर इस फ़ाइल की कॉपी खराब है (इम्पोर्ट के बाद बदल गई)। स्टार्ट स्क्रीन पर डिस्क %2$d फिर से इम्पोर्ट करें। आपके सेव बने रहेंगे।</string>
     <string name="ingame_disc_read">गेम %1$s (डिस्क %2$d) पर रुक गया: फ़ाइल सही है, लेकिन उसे पढ़ना विफल रहा। कृपया त्रुटि रिपोर्ट भेजें, फिर गेम दोबारा शुरू करें।</string>
     <string name="ingame_disc_unknown">गेम %1$s (डिस्क %2$d) पर रुक गया: इस डिवाइस पर फ़ाइल खराब है या मौजूद नहीं है। स्टार्ट स्क्रीन पर डिस्क %2$d फिर से इम्पोर्ट करें। आपके सेव बने रहेंगे।</string>
-    <string name="ingame_cheats">चीट्स</string>
+    <string name="ingame_cheats">चीट्स और मॉड्स</string>
     <string name="ingame_cheat_health">अनंत हेल्थ</string>
     <string name="ingame_cheat_ammo">अनंत गोला-बारूद</string>
     <string name="ingame_cheat_onehit">एक वार में खत्म</string>
@@ -411,4 +411,31 @@
     <string name="ingame_shader_cache_help">गेम बनाए गए शेडर रखता है, ताकि कोई दृश्य दोबारा न अटके। इसे तभी साफ़ करें जब किसी अपडेट के बाद ग्राफ़िक्स में गड़बड़ी दिखे: तब गेम उन्हें फिर से बनाता है, और शुरुआती दृश्य अटक सकते हैं।</string>
     <string name="ingame_shader_clear">शेडर कैश साफ़ करें</string>
     <string name="ingame_shader_clear_text">गेम फिर से शुरू होगा और बनाए गए शेडर हटा देगा। खेलते समय वह उन्हें फिर से बनाता है, इसलिए शुरुआती दृश्य अटक सकते हैं। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">मॉड्स</string>
+    <string name="ingame_hd_textures">HD टेक्सचर</string>
+    <string name="ingame_hd_import">टेक्सचर पैक इम्पोर्ट करें</string>
+    <string name="ingame_hd_cancel">इम्पोर्ट रद्द करें</string>
+    <string name="ingame_hd_sharpness">शार्पनेस</string>
+    <string name="ingame_hd_full">पूरी</string>
+    <string name="ingame_hd_half">आधी</string>
+    <string name="ingame_hd_delete">टेक्सचर पैक हटाएँ</string>
+    <string name="ingame_hd_delete_yes">हटाएँ</string>
+    <string name="ingame_hd_none">HD टेक्सचर: कोई टेक्सचर पैक इम्पोर्ट नहीं हुआ।</string>
+    <string name="ingame_hd_info">HD टेक्सचर: %1$s · %2$s इमेज · %3$s · बनाया गया %4$s</string>
+    <string name="ingame_hd_in_use">अभी उपयोग में: %2$s में से %1$s टेक्सचर बदले गए (%3$s)।</string>
+    <string name="ingame_hd_importing">टेक्सचर पैक इम्पोर्ट हो रहा है: %2$s में से %1$s…</string>
+    <string name="ingame_hd_imported">टेक्सचर पैक इम्पोर्ट हुआ: %1$s इमेज।</string>
+    <string name="ingame_hd_replace">टेक्सचर पैक बदलें?</string>
+    <string name="ingame_hd_replace_text">पूरी तरह कॉपी होते ही नया पैक “%1$s” की जगह ले लेगा।</string>
+    <string name="ingame_hd_delete_text">सिर्फ़ टेक्सचर पैक हटाया जाता है। आपकी डिस्क, सेव और मेमोरी कार्ड जैसे हैं वैसे ही रहते हैं।</string>
+    <string name="ingame_hd_deleted">टेक्सचर पैक हटा दिया गया।</string>
+    <string name="ingame_hd_not_pack">यह फ़ाइल CubeEvil4 टेक्सचर पैक (.c4tex) नहीं है। पहले PC पर CubeEvil4 Texture Packer से पैक बदलें।</string>
+    <string name="ingame_hd_other_version">यह पैक CubeEvil4 Texture Packer के किसी दूसरे संस्करण से बना है। मौजूदा संस्करण से इसे फिर से बदलें।</string>
+    <string name="ingame_hd_no_space">पर्याप्त खाली जगह नहीं: पैक को %1$s चाहिए, खाली है %2$s।</string>
+    <string name="ingame_hd_incomplete">फ़ाइल अधूरी है (क्या डिवाइस पर कॉपी बीच में रुक गई?)। इसे फिर से कॉपी करें।</string>
+    <string name="ingame_hd_damaged">फ़ाइल खराब है। इसे डिवाइस पर फिर से कॉपी करें या फिर से बदलें।</string>
+    <string name="ingame_hd_cancelled">इम्पोर्ट रद्द हुआ। पिछला टेक्सचर पैक बना रहता है।</string>
+    <string name="ingame_hd_read_failed">फ़ाइल पढ़ी नहीं जा सकी: %1$s</string>
+    <string name="ingame_hd_help">HD टेक्सचर गेम की इमेज को Dolphin फ़ॉर्मेट वाले टेक्सचर पैक की ज़्यादा साफ़ इमेज से बदलते हैं। CubeEvil4 में कोई टेक्सचर नहीं है और न ही किसी का लिंक: सिर्फ़ वही पैक इस्तेमाल करें जो आपने खुद हासिल किए हैं और जिन्हें इस्तेमाल करने का आपको अधिकार है। PC पर CubeEvil4 Texture Packer से पैक बदलें, .c4tex फ़ाइल अपने डिवाइस पर कॉपी करें और यहाँ इम्पोर्ट करें; उसके बाद आप वह कॉपी हटा सकते हैं। पैक अपने अलग फ़ोल्डर में रहता है और आपकी डिस्क, सेव या मेमोरी कार्ड को कभी नहीं बदलता; आप इसे कभी भी बंद कर सकते हैं या हटा सकते हैं। शार्पनेस आधी कमज़ोर डिवाइस पर कम ग्राफ़िक्स मेमोरी लेती है। रेट्रो पिक्सेल फ़िल्टर गेम के अपने टेक्सचर रखता है।</string>
 </resources>

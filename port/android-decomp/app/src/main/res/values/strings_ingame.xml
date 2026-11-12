@@ -206,7 +206,7 @@
     <string name="ingame_management_summary">Memory card, discs, reports &amp; source</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Music &amp; sound effects</string>
-    <string name="ingame_cheats_summary">Health, ammo, money &amp; extra games</string>
+    <string name="ingame_cheats_summary">Health, ammo, money, extra games &amp; HD textures</string>
     <string name="ingame_experimental">Experimental</string>
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Music</string>
@@ -270,7 +270,7 @@
     <string name="ingame_disc_device">The game stopped at %1$s (Disc %2$d): the copy of this file on this device is damaged (it changed after the import). Import Disc %2$d again on the start screen. Your saves stay.</string>
     <string name="ingame_disc_read">The game stopped at %1$s (Disc %2$d): the file is intact, but reading it failed. Please send the error report, then start the game again.</string>
     <string name="ingame_disc_unknown">The game stopped at %1$s (Disc %2$d): the file on this device is damaged or missing. Import Disc %2$d again on the start screen. Your saves stay.</string>
-    <string name="ingame_cheats">Cheats</string>
+    <string name="ingame_cheats">Cheats &amp; Mods</string>
     <string name="ingame_cheat_health">Infinite health</string>
     <string name="ingame_cheat_ammo">Infinite ammo</string>
     <string name="ingame_cheat_onehit">One-hit kill</string>
@@ -426,4 +426,31 @@
     <string name="ingame_shader_cache_help">The game keeps the shaders it built, so a scene does not stutter a second time. Clear them only if graphics errors appear after an update: the game then builds them anew, and the first scenes can stutter.</string>
     <string name="ingame_shader_clear">Clear shader cache</string>
     <string name="ingame_shader_clear_text">The game restarts and deletes the built shaders. It builds them anew as you play, so the first scenes can stutter. Progress since your last save is lost.</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">Mods</string>
+    <string name="ingame_hd_textures">HD textures</string>
+    <string name="ingame_hd_import">Import texture pack</string>
+    <string name="ingame_hd_cancel">Cancel import</string>
+    <string name="ingame_hd_sharpness">Sharpness</string>
+    <string name="ingame_hd_full">Full</string>
+    <string name="ingame_hd_half">Half</string>
+    <string name="ingame_hd_delete">Delete texture pack</string>
+    <string name="ingame_hd_delete_yes">Delete</string>
+    <string name="ingame_hd_none">HD textures: no texture pack imported.</string>
+    <string name="ingame_hd_info">HD textures: %1$s · %2$s images · %3$s · made %4$s</string>
+    <string name="ingame_hd_in_use">In use now: %1$s of %2$s textures replaced (%3$s).</string>
+    <string name="ingame_hd_importing">Importing the texture pack: %1$s of %2$s …</string>
+    <string name="ingame_hd_imported">Texture pack imported: %1$s images.</string>
+    <string name="ingame_hd_replace">Replace the texture pack?</string>
+    <string name="ingame_hd_replace_text">The new pack replaces “%1$s” once it is copied completely.</string>
+    <string name="ingame_hd_delete_text">Only the texture pack is deleted. Your discs, saves and memory cards stay as they are.</string>
+    <string name="ingame_hd_deleted">Texture pack deleted.</string>
+    <string name="ingame_hd_not_pack">This file is not a CubeEvil4 texture pack (.c4tex). Convert the pack on a PC with the CubeEvil4 Texture Packer first.</string>
+    <string name="ingame_hd_other_version">This pack was made by another version of the CubeEvil4 Texture Packer. Convert it again with the current one.</string>
+    <string name="ingame_hd_no_space">Not enough free space: the pack needs %1$s, %2$s are free.</string>
+    <string name="ingame_hd_incomplete">The file is incomplete (was the copy to the device cut short?). Copy it again.</string>
+    <string name="ingame_hd_damaged">The file is damaged. Copy it to the device again or convert it again.</string>
+    <string name="ingame_hd_cancelled">Import cancelled. The texture pack before it stays.</string>
+    <string name="ingame_hd_read_failed">The file could not be read: %1$s</string>
+    <string name="ingame_hd_help">HD textures replace the game\'s images with sharper ones from a texture pack in the Dolphin format. CubeEvil4 includes no textures and links to none: use only packs you obtained yourself and may use. Convert the pack on a PC with the CubeEvil4 Texture Packer, copy the .c4tex file to your device and import it here; afterwards you can delete that copy. The pack is kept in a folder of its own and never changes your discs, saves or memory cards; switch it off or delete it at any time. Sharpness Half needs less graphics memory on weaker devices. The Retro pixel filter keeps the game\'s own textures.</string>
 </resources>

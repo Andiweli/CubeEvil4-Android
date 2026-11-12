@@ -71,7 +71,10 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   aiming with the right stick); touch controls when no controller is connected, with touch in the
   inventory; comfort controls: gyro aiming, knife by swipe, latching L, R and B; with a controller,
   X, Y, L1, R1, L3 and R3 can take other functions (Controller Configuration).
-  SELECT opens the app menu (graphics, sound, controls, performance, cheats, memory card, error report).
+  SELECT opens the app menu (graphics, sound, controls, performance, cheats & mods, memory card, error
+  report).
+- Optional HD textures: the app can load a texture pack in the Dolphin format that you obtained yourself,
+  after converting it on a PC (see "HD texture packs" below). CubeEvil4 includes no textures.
 - Android 7.0 or later, OpenGL ES 3.0.
 
 ## Requirements
@@ -197,6 +200,23 @@ in the GameCube's colours, as before); the switch takes effect at once and keeps
   latched: Leon keeps running).
 
 The controller (or the device) vibrates where the game uses the rumble, if it can.
+
+**HD texture packs (optional)** (app menu → Cheats & Mods → Mods)
+
+CubeEvil4 can replace the game's textures with sharper ones from a texture pack in the Dolphin format
+(`tex1_<width>x<height>_<hash>_<format>.dds/.png`), as Dolphin does. **CubeEvil4 includes no textures,
+offers none and links to none.** Use only packs you obtained yourself and may use.
+
+1. Convert the pack on a Windows PC with the **CubeEvil4 Texture Packer** (`CubeEvil4-TexturePacker.exe`,
+   a file of its own on the release page; source in `port/tools/texpack`). Start it, drag the pack's folder
+   into its window and choose the size: 512 (recommended, about 0.7 GB for a full pack) or 1024 (about
+   2.3 GB, for strong devices). It makes one file, `CubeEvil4-textures-512.c4tex`, and never changes the
+   pack's folder.
+2. Copy the `.c4tex` file to your device and import it in the app menu (Cheats & Mods → Import texture
+   pack). The app keeps it in a folder of its own; it never touches your discs, saves or memory cards.
+   Afterwards you can delete the copy you made.
+3. Switch the HD textures on or off at any time, choose "Sharpness: Half" on weaker devices, or delete the
+   pack. Textures the pack does not have, and pictures the game makes itself, stay as they are.
 
 ## Building the app
 
@@ -338,6 +358,9 @@ is that the output bytes never change.
   preservation only.
 - **No game data.** No game data, disc images, BIOS or other copyrighted assets are included or
   distributed. You need your own legally obtained copy of the game.
+- **No texture packs.** CubeEvil4 includes no replacement textures and links to none. Its texture loader
+  and the CubeEvil4 Texture Packer only read packs you converted yourself from material you obtained
+  yourself, as in Dolphin. Texture packs are the work of their authors; they are not part of this project.
 - **No warranty.** The app is provided "as is", without any warranty. Use it at your own risk.
 - **Our own work.** The build scripts, tools, Android app shell, configuration and documentation
   written for this project are released under CC0, see `LICENSE`. This does not extend to any

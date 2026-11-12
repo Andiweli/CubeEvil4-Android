@@ -189,7 +189,7 @@
     <string name="ingame_management_summary">Kartu memori, disk, laporan &amp; sumber</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musik &amp; efek suara</string>
-    <string name="ingame_cheats_summary">Nyawa, amunisi, uang &amp; game tambahan</string>
+    <string name="ingame_cheats_summary">Nyawa, amunisi, uang, game tambahan &amp; tekstur HD</string>
     <string name="ingame_experimental">Eksperimental</string>
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Musik</string>
@@ -252,7 +252,7 @@
     <string name="ingame_disc_device">Game berhenti di %1$s (Disk %2$d): salinan file ini di perangkat ini rusak (berubah setelah diimpor). Impor lagi Disk %2$d di layar awal. Data simpanan Anda tetap aman.</string>
     <string name="ingame_disc_read">Game berhenti di %1$s (Disk %2$d): file-nya utuh, tetapi gagal dibaca. Silakan kirim laporan kesalahan, lalu mulai game lagi.</string>
     <string name="ingame_disc_unknown">Game berhenti di %1$s (Disk %2$d): file di perangkat ini rusak atau hilang. Impor lagi Disk %2$d di layar awal. Data simpanan Anda tetap aman.</string>
-    <string name="ingame_cheats">Cheat</string>
+    <string name="ingame_cheats">Cheat &amp; Mod</string>
     <string name="ingame_cheat_health">Nyawa tak terbatas</string>
     <string name="ingame_cheat_ammo">Amunisi tak terbatas</string>
     <string name="ingame_cheat_onehit">Sekali pukul mati</string>
@@ -408,4 +408,31 @@
     <string name="ingame_shader_cache_help">Game menyimpan shader yang sudah dibuat agar sebuah adegan tidak tersendat untuk kedua kalinya. Kosongkan hanya jika muncul kesalahan grafis setelah pembaruan: game lalu membuatnya lagi, dan adegan pertama bisa tersendat.</string>
     <string name="ingame_shader_clear">Kosongkan cache shader</string>
     <string name="ingame_shader_clear_text">Game dimulai ulang dan menghapus shader yang sudah dibuat. Game membuatnya lagi saat Anda bermain, jadi adegan pertama bisa tersendat. Progres sejak penyimpanan terakhir akan hilang.</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">Mod</string>
+    <string name="ingame_hd_textures">Tekstur HD</string>
+    <string name="ingame_hd_import">Impor paket tekstur</string>
+    <string name="ingame_hd_cancel">Batalkan impor</string>
+    <string name="ingame_hd_sharpness">Ketajaman</string>
+    <string name="ingame_hd_full">Penuh</string>
+    <string name="ingame_hd_half">Setengah</string>
+    <string name="ingame_hd_delete">Hapus paket tekstur</string>
+    <string name="ingame_hd_delete_yes">Hapus</string>
+    <string name="ingame_hd_none">Tekstur HD: belum ada paket tekstur yang diimpor.</string>
+    <string name="ingame_hd_info">Tekstur HD: %1$s · %2$s gambar · %3$s · dibuat %4$s</string>
+    <string name="ingame_hd_in_use">Sedang dipakai: %1$s dari %2$s tekstur diganti (%3$s).</string>
+    <string name="ingame_hd_importing">Mengimpor paket tekstur: %1$s dari %2$s…</string>
+    <string name="ingame_hd_imported">Paket tekstur diimpor: %1$s gambar.</string>
+    <string name="ingame_hd_replace">Ganti paket tekstur?</string>
+    <string name="ingame_hd_replace_text">Paket baru menggantikan “%1$s” setelah tersalin sepenuhnya.</string>
+    <string name="ingame_hd_delete_text">Hanya paket tekstur yang dihapus. Disk, simpanan, dan kartu memorimu tetap seperti semula.</string>
+    <string name="ingame_hd_deleted">Paket tekstur dihapus.</string>
+    <string name="ingame_hd_not_pack">File ini bukan paket tekstur CubeEvil4 (.c4tex). Konversikan dulu paketnya di PC dengan CubeEvil4 Texture Packer.</string>
+    <string name="ingame_hd_other_version">Paket ini dibuat oleh versi lain CubeEvil4 Texture Packer. Konversikan lagi dengan versi sekarang.</string>
+    <string name="ingame_hd_no_space">Ruang kosong tidak cukup: paket butuh %1$s, yang kosong %2$s.</string>
+    <string name="ingame_hd_incomplete">File tidak lengkap (penyalinan ke perangkat terputus?). Salin lagi.</string>
+    <string name="ingame_hd_damaged">File rusak. Salin lagi ke perangkat atau konversikan lagi.</string>
+    <string name="ingame_hd_cancelled">Impor dibatalkan. Paket tekstur sebelumnya tetap ada.</string>
+    <string name="ingame_hd_read_failed">File tidak bisa dibaca: %1$s</string>
+    <string name="ingame_hd_help">Tekstur HD mengganti gambar game dengan gambar yang lebih tajam dari paket tekstur berformat Dolphin. CubeEvil4 tidak menyertakan tekstur apa pun dan tidak memberi tautan ke mana pun: pakai hanya paket yang kamu dapatkan sendiri dan boleh kamu pakai. Konversikan paketnya di PC dengan CubeEvil4 Texture Packer, salin file .c4tex ke perangkatmu, lalu impor di sini; setelah itu salinan tersebut boleh dihapus. Paket disimpan di folder tersendiri dan tidak pernah mengubah disk, simpanan, atau kartu memorimu; kamu bisa mematikan atau menghapusnya kapan saja. Ketajaman Setengah memakai lebih sedikit memori grafis di perangkat yang lebih lemah. Filter piksel retro tetap memakai tekstur asli game.</string>
 </resources>

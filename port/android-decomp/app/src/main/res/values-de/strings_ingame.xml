@@ -191,7 +191,7 @@
     <string name="ingame_management_summary">Speicherkarte, Discs, Berichte &amp; Quelle</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musik &amp; Soundeffekte</string>
-    <string name="ingame_cheats_summary">Gesundheit, Munition, Geld &amp; Extraspiele</string>
+    <string name="ingame_cheats_summary">Gesundheit, Munition, Geld, Extraspiele &amp; HD-Texturen</string>
     <string name="ingame_experimental">Experimentell</string>
     <string name="ingame_volume">Lautstärke</string>
     <string name="ingame_music_volume">Musik</string>
@@ -255,7 +255,7 @@
     <string name="ingame_disc_device">Das Spiel hält bei %1$s (Disc %2$d) an: Die Kopie dieser Datei auf diesem Gerät ist beschädigt (sie hat sich nach dem Import verändert). Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
     <string name="ingame_disc_read">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei ist in Ordnung, aber das Lesen ist fehlgeschlagen. Bitte schicke den Fehlerbericht und starte das Spiel dann neu.</string>
     <string name="ingame_disc_unknown">Das Spiel hält bei %1$s (Disc %2$d) an: Die Datei auf diesem Gerät ist beschädigt oder fehlt. Importiere Disc %2$d auf dem Startbildschirm neu. Deine Spielstände bleiben erhalten.</string>
-    <string name="ingame_cheats">Cheats</string>
+    <string name="ingame_cheats">Cheats &amp; Mods</string>
     <string name="ingame_cheat_health">Unendlich Gesundheit</string>
     <string name="ingame_cheat_ammo">Unendlich Munition</string>
     <string name="ingame_cheat_onehit">One-Hit-Kill</string>
@@ -411,4 +411,31 @@
     <string name="ingame_shader_cache_help">Das Spiel behält die gebauten Shader, damit eine Szene kein zweites Mal ruckelt. Leeren ist nur nötig, wenn nach einem Update Grafikfehler auftreten: Das Spiel baut sie dann neu, und die ersten Szenen können ruckeln.</string>
     <string name="ingame_shader_clear">Shader-Speicher leeren</string>
     <string name="ingame_shader_clear_text">Das Spiel startet neu und löscht die gebauten Shader. Es baut sie beim Spielen neu, die ersten Szenen können darum ruckeln. Fortschritt seit dem letzten Speichern geht verloren.</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">Mods</string>
+    <string name="ingame_hd_textures">HD-Texturen</string>
+    <string name="ingame_hd_import">Texturpaket importieren</string>
+    <string name="ingame_hd_cancel">Import abbrechen</string>
+    <string name="ingame_hd_sharpness">Schärfe</string>
+    <string name="ingame_hd_full">Voll</string>
+    <string name="ingame_hd_half">Halb</string>
+    <string name="ingame_hd_delete">Texturpaket löschen</string>
+    <string name="ingame_hd_delete_yes">Löschen</string>
+    <string name="ingame_hd_none">HD-Texturen: kein Texturpaket importiert.</string>
+    <string name="ingame_hd_info">HD-Texturen: %1$s · %2$s Bilder · %3$s · erstellt %4$s</string>
+    <string name="ingame_hd_in_use">Gerade in Gebrauch: %1$s von %2$s Texturen ersetzt (%3$s).</string>
+    <string name="ingame_hd_importing">Texturpaket wird importiert: %1$s von %2$s …</string>
+    <string name="ingame_hd_imported">Texturpaket importiert: %1$s Bilder.</string>
+    <string name="ingame_hd_replace">Texturpaket ersetzen?</string>
+    <string name="ingame_hd_replace_text">Das neue Paket ersetzt „%1$s“, sobald es vollständig kopiert ist.</string>
+    <string name="ingame_hd_delete_text">Gelöscht wird nur das Texturpaket. Deine Discs, Spielstände und Speicherkarten bleiben, wie sie sind.</string>
+    <string name="ingame_hd_deleted">Texturpaket gelöscht.</string>
+    <string name="ingame_hd_not_pack">Diese Datei ist kein CubeEvil4-Texturpaket (.c4tex). Wandle das Paket zuerst am PC mit dem CubeEvil4 Texture Packer um.</string>
+    <string name="ingame_hd_other_version">Dieses Paket stammt von einer anderen Version des CubeEvil4 Texture Packer. Wandle es mit der aktuellen neu um.</string>
+    <string name="ingame_hd_no_space">Nicht genug freier Speicher: Das Paket braucht %1$s, frei sind %2$s.</string>
+    <string name="ingame_hd_incomplete">Die Datei ist unvollständig (wurde das Kopieren aufs Gerät abgebrochen?). Kopiere sie noch einmal.</string>
+    <string name="ingame_hd_damaged">Die Datei ist beschädigt. Kopiere sie noch einmal aufs Gerät oder wandle sie neu um.</string>
+    <string name="ingame_hd_cancelled">Import abgebrochen. Das bisherige Texturpaket bleibt.</string>
+    <string name="ingame_hd_read_failed">Die Datei ließ sich nicht lesen: %1$s</string>
+    <string name="ingame_hd_help">HD-Texturen ersetzen die Bilder des Spiels durch schärfere aus einem Texturpaket im Dolphin-Format. CubeEvil4 enthält keine Texturen und verlinkt auf keine: Nutze nur Pakete, die du selbst beschafft hast und nutzen darfst. Wandle das Paket am PC mit dem CubeEvil4 Texture Packer um, kopiere die .c4tex-Datei auf dein Gerät und importiere sie hier; danach kannst du diese Kopie löschen. Das Paket liegt in einem eigenen Ordner und verändert nie deine Discs, Spielstände oder Speicherkarten; du kannst es jederzeit ausschalten oder löschen. Schärfe „Halb“ braucht auf schwächeren Geräten weniger Grafikspeicher. Der Retro-Pixel-Filter behält die Texturen des Spiels.</string>
 </resources>

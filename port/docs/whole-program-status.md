@@ -3,26 +3,48 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Branch `textures`: Lader für eigene HD-Texturpakete, Plan (12.11.2026)
+## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
 Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,
-im Menüpunkt „Cheats“, der künftig „Cheats & Mods“ heißt, dazu ein PC-Programm, das das Paket umwandelt und
-verkleinert. Eigener Meilenstein auf dem Branch `textures` (Basis 5f326f36 = 0.99.12-Stand); in welche Version er
-kommt, entscheidet der Inhaber später.
+im Menüpunkt „Cheats“, der jetzt „Cheats & Mods“ heißt, dazu ein PC-Programm, das das Paket umwandelt und verkleinert.
+Eigener Meilenstein auf dem Branch `textures` (Basis 5f326f36, 0.99.12 per Merge nachgezogen bis 97e4fe8b); in welche
+Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `port/docs/textur-lader-plan.md`
+(Inhaber: nur eine Windows-`.exe`, Stufen 512/1024, bei schwarzem Bild warten, sonst im Hintergrund nachladen).
 
-- **Plan:** `port/docs/textur-lader-plan.md` (PC-Programm „CubeEvil4 Texture Packer“ mit Stufen 512/1024, ETC2,
-  Mipmaps und einer Paketdatei `.c4tex` mit Inhaltsverzeichnis nach Dolphin-Kennung; Import über die Dateiauswahl in
-  den eigenen Ordner `textures/` mit Platzprüfung; Kennung in `GxCore::Upload`, Nachladen bei schwarzem Bild sofort,
-  im Spiel im Hintergrund, Gedächtnis je Raum; Grenze für den Grafikspeicher; GLES und Vulkan; Schritte T1–T8).
-  Drei Fragen an den Inhaber offen (Weitergabe des PC-Programms, Stufen, Warten oder kurz unscharf).
-- **Grundlagen:** Mod-Prüfung `E:\Development\Android\reports\mod-extensions\bericht.md`: Dolphins Kennung (XXH64 über
-  die erste Bildstufe in ganzen Kacheln, bei Farbtabellen-Bildern dazu über den benutzten Teil der Farbtabelle) trifft
-  98,6–99,4 % des Pakets auf Debug-, US-, EU- und JP-Discs. Im Code: Der Kern schickt jedes Bild einmal mit seinen
-  Rohdaten (`gx_decode.cpp` `bindMap`, eigene Kennung `hashBytes`), die App lädt es in `GxCore::Upload`
-  (`gx_core.cpp`); Bildschirmkopien gehen dort nie durch. `px.mapSize` hält die logische Größe für die
-  Texturkoordinaten. Der Kern vergisst Bilder nach 600 Bildern ohne Gebrauch (`kForgetAfter`) und schickt nach
-  `gNeedReset` alle neu.
-- **Nichts gebaut, nichts getestet.**
+- **T1 PC-Programm** (`port/tools/texpack/`, eigener Code, CC0): `CubeEvil4-TexturePacker.exe` (Visual Studio,
+  `build.ps1`, eine Datei ohne DLLs). DDS (BC1–BC5, unkomprimiert, liest nur die Mip-Stufe ab der Zielgröße) und PNG
+  (eigenes Inflate, alle Farbarten, Adam7), Mitchell-Verkleinerung mit Alpha-Gewichtung, Mipmaps (Abdeckung bei
+  „ganz oder gar nicht durchsichtig“ erhalten, `_arb` behält seine Stufen), ETC2/EAC-Umwandler (Einzel-, Differenz-,
+  Planar-Modus; T/H nur im Leser), Paketdatei `.c4tex` (`c4tex.h`, `port/docs/textur-paket-format.md`). Varianten des
+  Ordners `Extra` (HD Project: 5 Koffer, 3 Tastensätze) per Frage oder `-variant`. Ein Bild kann mit und ohne `_m` da
+  sein (216 Paare im HD Project, teils verschieden): beide werden behalten, die App nimmt das passende.
+  Geprüft: `texpack_tests` (816 Prüfungen, 270 PNG-Testbilder aus `make_png_fixtures.py`), `run_e2e.py` (21 Punkte:
+  Varianten, Doppel, Paket-Ordner unverändert, Ausgabe im Paket-Ordner verweigert, gleiche Eingabe gleiche Datei,
+  abgeschnittene/beschädigte Dateien), `etc2_gl_check` gegen Mesa (llvmpipe): alle 24.576 Blöcke aller Modi gleich.
+  Echtes Paket (5.927 Dateien, 11,8 GB): **512 → 701 MB in 4 min 47 s, 1024 → 2,34 GB in 16 min 22 s** (16 Threads),
+  5.916 Bilder, 11 übersprungen (4 Kopien „(1)“/„- Copy“, 7 Doppel), Qualität im Mittel 38,0 / 38,4 dB PSNR;
+  `-check` beider Dateien ohne Befund. Ergebnisse in `E:\Development\Androiduilds	extures\`.
+- **T2/T3 Laden (GLES)**: `tex_pack.cpp` (Leser mit Prüfungen, XXH64, Dolphins Kennung inkl. Farbtabellen-Teil),
+  `GxCore::UploadHd` (Nachschlagen, ETC2 hochladen, Grenze `texPackBudget`, PSone-Modus behält die Originale),
+  Sampler verschieben ihre Stufengrenzen um `lodShift` (Spiel ohne Mipmaps: Ersatz bis zur Originalgröße).
+  `gx_chunk_render`: `RE4_TEX_PACK`, `_HALF`, `_MB`, `_LOG`, `_ONLY`, `_DUMP`. Geprüft am PC mit Debug-Dumps
+  (09912-Läufe): r100 41 von 88 Texturen ersetzt (5,6 MB), r101 21/37 (1,8 MB), r103 87/133 (11,6 MB);
+  Vorher/Nachher-Bilder in `builds\textures\pics\`. `gx_gl_check` 0 Fehler.
+  Befund r100 (Fahrt im Polizeiwagen): ein Baum-Schatten (IA4, `26d114511eeb3710`) liegt über dem Wageninneren; im
+  Original grob und kaum sichtbar, das Paket hat ihn scharf neu gemalt (gleiche Form, gleicher Mittelwert): so im
+  Paket, kein Fehler des Laders.
+- **T5 Vulkan**: ETC2-Bilder (`textureCompressionETC2` eingeschaltet, wo vorhanden), sonst ausgepackt als RGBA8
+  (lavapipe am PC: so geprüft, gleiches Bild wie GLES, 0 Validierungsfehler; 85,9 statt 11,6 MB). Der echte
+  ETC2-Weg unter Vulkan ist nur auf dem Gerät prüfbar.
+- **T6 App**: `TexturePacks.java` (Import über die Dateiauswahl in `<Datenordner>/textures/pack.c4tex`, Platzprüfung,
+  Kopie als `.part`, Prüfsummen, erst dann Tausch; Löschen nur dort; Grenze 256/512/768 MB nach Arbeitsspeicher,
+  192 MB bei 32 bit), `CoreBridge.setTexturePack`/`texturePackUse` (`core_mode.cpp`: Paket je Bild an den Renderer,
+  bei Wechsel `gxDetach`, damit der Kern alle Bilder neu schickt), Menü „Cheats & Mods“ → „Mods“ (Import/Abbrechen,
+  An/Aus, Schärfe Voll/Halb, Löschen, Zeile mit Paket und „gerade ersetzt“), 26 neue Texte in 11 Sprachen
+  (`check_translations.py` ohne Befund), README-Abschnitt und Legal-Punkt. `TexturePacksTest` 4/4,
+  `CoreMenuLayoutTest` 15/15.
+- **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
+  T7 (Test-APK, Retroid), Messungen auf dem Gerät.
 
 ## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Benchmark nach dem Update neu, Zufällige Gegner (12.11.2026, Branch `09912`)
 

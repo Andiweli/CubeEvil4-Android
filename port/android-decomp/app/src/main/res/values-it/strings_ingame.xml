@@ -193,7 +193,7 @@
     <string name="ingame_management_summary">Scheda, dischi, rapporti e sorgenti</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musica ed effetti sonori</string>
-    <string name="ingame_cheats_summary">Salute, munizioni, soldi e giochi extra</string>
+    <string name="ingame_cheats_summary">Salute, munizioni, soldi, giochi extra e texture HD</string>
     <string name="ingame_experimental">Sperimentale</string>
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Musica</string>
@@ -257,7 +257,7 @@
     <string name="ingame_disc_device">Il gioco si è fermato a %1$s (disco %2$d): la copia di questo file su questo dispositivo è danneggiata (è cambiata dopo l’importazione). Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
     <string name="ingame_disc_read">Il gioco si è fermato a %1$s (disco %2$d): il file è integro, ma la lettura non è riuscita. Invia il rapporto errori, poi riavvia il gioco.</string>
     <string name="ingame_disc_unknown">Il gioco si è fermato a %1$s (disco %2$d): il file su questo dispositivo è danneggiato o manca. Importa di nuovo il disco %2$d dalla schermata iniziale. I tuoi salvataggi restano.</string>
-    <string name="ingame_cheats">Trucchi</string>
+    <string name="ingame_cheats">Trucchi e mod</string>
     <string name="ingame_cheat_health">Salute infinita</string>
     <string name="ingame_cheat_ammo">Munizioni infinite</string>
     <string name="ingame_cheat_onehit">Uccisione con un colpo</string>
@@ -413,4 +413,31 @@
     <string name="ingame_shader_cache_help">Il gioco conserva gli shader che ha creato, così una scena non scatta una seconda volta. Svuotala solo se dopo un aggiornamento compaiono errori grafici: il gioco li ricrea e le prime scene possono scattare.</string>
     <string name="ingame_shader_clear">Svuota cache degli shader</string>
     <string name="ingame_shader_clear_text">Il gioco si riavvia ed elimina gli shader creati. Li ricrea mentre giochi, quindi le prime scene possono scattare. I progressi dall\'ultimo salvataggio vanno persi.</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">Mod</string>
+    <string name="ingame_hd_textures">Texture HD</string>
+    <string name="ingame_hd_import">Importa pacchetto texture</string>
+    <string name="ingame_hd_cancel">Annulla importazione</string>
+    <string name="ingame_hd_sharpness">Nitidezza</string>
+    <string name="ingame_hd_full">Piena</string>
+    <string name="ingame_hd_half">Metà</string>
+    <string name="ingame_hd_delete">Elimina pacchetto texture</string>
+    <string name="ingame_hd_delete_yes">Elimina</string>
+    <string name="ingame_hd_none">Texture HD: nessun pacchetto texture importato.</string>
+    <string name="ingame_hd_info">Texture HD: %1$s · %2$s immagini · %3$s · creato il %4$s</string>
+    <string name="ingame_hd_in_use">In uso ora: %1$s texture su %2$s sostituite (%3$s).</string>
+    <string name="ingame_hd_importing">Importazione del pacchetto texture: %1$s di %2$s…</string>
+    <string name="ingame_hd_imported">Pacchetto texture importato: %1$s immagini.</string>
+    <string name="ingame_hd_replace">Sostituire il pacchetto texture?</string>
+    <string name="ingame_hd_replace_text">Il nuovo pacchetto sostituisce «%1$s» non appena è copiato del tutto.</string>
+    <string name="ingame_hd_delete_text">Viene eliminato solo il pacchetto texture. Dischi, salvataggi e memory card restano come sono.</string>
+    <string name="ingame_hd_deleted">Pacchetto texture eliminato.</string>
+    <string name="ingame_hd_not_pack">Questo file non è un pacchetto texture di CubeEvil4 (.c4tex). Prima converti il pacchetto su un PC con CubeEvil4 Texture Packer.</string>
+    <string name="ingame_hd_other_version">Questo pacchetto è stato creato da un’altra versione di CubeEvil4 Texture Packer. Convertilo di nuovo con quella attuale.</string>
+    <string name="ingame_hd_no_space">Spazio libero insufficiente: il pacchetto richiede %1$s, ne sono liberi %2$s.</string>
+    <string name="ingame_hd_incomplete">Il file è incompleto (la copia sul dispositivo si è interrotta?). Copialo di nuovo.</string>
+    <string name="ingame_hd_damaged">Il file è danneggiato. Copialo di nuovo sul dispositivo o convertilo di nuovo.</string>
+    <string name="ingame_hd_cancelled">Importazione annullata. Resta il pacchetto texture precedente.</string>
+    <string name="ingame_hd_read_failed">Impossibile leggere il file: %1$s</string>
+    <string name="ingame_hd_help">Le texture HD sostituiscono le immagini del gioco con altre più nitide da un pacchetto texture in formato Dolphin. CubeEvil4 non include texture né link a esse: usa solo pacchetti che ti sei procurato da solo e che puoi usare. Converti il pacchetto su un PC con CubeEvil4 Texture Packer, copia il file .c4tex sul dispositivo e importalo qui; poi puoi eliminare quella copia. Il pacchetto resta in una cartella a parte e non modifica mai dischi, salvataggi o memory card; puoi disattivarlo o eliminarlo in qualsiasi momento. La nitidezza Metà richiede meno memoria grafica sui dispositivi più deboli. Il filtro pixel retrò mantiene le texture originali del gioco.</string>
 </resources>

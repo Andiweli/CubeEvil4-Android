@@ -660,8 +660,8 @@ int Pack(Options &o) {
   // the size
   if (o.size == 0) {
     Print("\nSize on the phone (the longer side of the biggest images):\n");
-    Print("  1 = 512   (recommended, about 0.8 GB for a full pack, for every device)\n");
-    Print("  2 = 1024  (about 2.7 GB for a full pack, for strong devices)\n");
+    Print("  1 = 512   (recommended, about 0.7 GB for a full pack, for every device)\n");
+    Print("  2 = 1024  (about 2.3 GB for a full pack, for strong devices)\n");
     o.size = AskNumber("Choose", 1, 2, 1) == 2 ? 1024 : 512;
   }
   if (o.size != 512 && o.size != 1024) {

@@ -48,6 +48,13 @@ final class CoreMenu extends Dialog {
     void importFiles();
     /** "Import other discs" (the menu asked first): the game ends and the start screen opens without starting it. */
     void importDiscs();
+    /** "Import texture pack" (Cheats & Mods, TexturePacks): the file picker, then the copy into the app's textures
+     *  folder on a thread of its own; `listener` hears its progress and its end on the main thread. */
+    void importTexturePack(TexturePacks.Listener listener);
+    /** The menu shown again while an import runs: `listener` hears the rest of it. */
+    void textureListener(TexturePacks.Listener listener);
+    /** Stops a running import (its copy is deleted, the pack before stays). */
+    void cancelTexturePackImport();
     void shareReport();
     void saveReport();
     void logChanged(boolean on);
@@ -193,6 +200,9 @@ final class CoreMenu extends Dialog {
   private int page, requestSerial;
   private boolean working, slotPresent;
   private TextView graphicsLine, cardLine, slotDetails, slotDate, slotStatus, cheatStatus;
+  // Cheats & Mods, HD textures (mods()): the pack's line, the import button (Cancel while it runs)
+  private TextView hdStatus;
+  private Button hdImport;
   private boolean updateAsked;  // the question after an update (PerfProfile.FIRST_ASK) shown in this menu
   private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
   private Button exportAll, saveSlot, loadSlot;
@@ -585,6 +595,7 @@ final class CoreMenu extends Dialog {
     if (working) return;
     scrollY[page] = scroll.getScrollY(); page = next; ++requestSerial;
     body.removeAllViews(); graphicsLine = null; cardLine = null; exportAll = null; cheatStatus = null;
+    hdStatus = null; hdImport = null;
     bindingButtons = null; controllerButton = null; mapStatus = null;
     if (next != CONTROLLER) { captureAction = -1; main.removeCallbacks(captureTimeout); }
     back.setVisibility(page == HOME ? View.GONE : View.VISIBLE);
@@ -1700,6 +1711,130 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_cheat_random_items_help);
     help(R.string.ingame_cheat_random_enemies_help);
     playerCharacter();
+    mods();
+  }
+
+  /** "Mods" under the cheats (wish of the project owner, 12.11.2026, the page is "Cheats & Mods" since;
+   *  port/docs/textur-lader-plan.md): the player's HD texture pack, converted on a PC (CubeEvil4 Texture Packer) and
+   *  imported into the app's textures folder (TexturePacks). A line with the pack (or the import's progress), then
+   *  Import (Cancel while it runs) and the switch, Sharpness and Delete; the help says that CubeEvil4 brings no
+   *  textures. */
+  private void mods() {
+    heading(R.string.ingame_mods);
+    final TexturePacks.Info info = TexturePacks.info(getContext());
+    hdStatus = text(hdLine(info), 15, false);
+    hdStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(6));
+    hdStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    body.addView(hdStatus);
+    MenuLayout.Buttons first = cheatRow(2), second = cheatRow(2);
+    hdImport = cellAction(first, s(TexturePacks.importing ? R.string.ingame_hd_cancel : R.string.ingame_hd_import), v -> {
+      if (host == null) return;
+      if (TexturePacks.importing) host.cancelTexturePackImport();
+      else if (info != null) askReplacePack(info);
+      else host.importTexturePack(textureListener);
+    });
+    Button onOff = toggle(first, R.string.ingame_hd_textures, info != null && graphics.getBoolean(TexturePacks.ON, true), on -> {
+      graphics.edit().putBoolean(TexturePacks.ON, on).apply();
+      if (host != null) host.graphicsChanged();
+      main.postDelayed(this::refreshHd, 500);
+    });
+    final boolean half = graphics.getBoolean(TexturePacks.HALF, false);
+    Button sharpness = cellAction(second, "", v -> {
+      boolean next = !graphics.getBoolean(TexturePacks.HALF, false);
+      graphics.edit().putBoolean(TexturePacks.HALF, next).apply();
+      valueLabel((Button) v, R.string.ingame_hd_sharpness, next ? R.string.ingame_hd_half : R.string.ingame_hd_full, next);
+      if (host != null) host.graphicsChanged();
+      main.postDelayed(this::refreshHd, 500);
+    });
+    valueLabel(sharpness, R.string.ingame_hd_sharpness, half ? R.string.ingame_hd_half : R.string.ingame_hd_full, half);
+    Button delete = cellAction(second, s(R.string.ingame_hd_delete), v -> askDeletePack());
+    onOff.setEnabled(info != null);
+    sharpness.setEnabled(info != null);
+    delete.setEnabled(info != null && !TexturePacks.importing);
+    if (TexturePacks.importing && host != null) host.textureListener(textureListener);
+    help(R.string.ingame_hd_help);
+  }
+
+  /** The HD textures' line: the import's progress, the pack (and what the renderer replaced so far), or none. */
+  private String hdLine(TexturePacks.Info info) {
+    if (TexturePacks.importing)
+      return getContext().getString(R.string.ingame_hd_importing, size(TexturePacks.importDone), size(TexturePacks.importTotal));
+    if (info == null) return s(R.string.ingame_hd_none);
+    String line = getContext().getString(R.string.ingame_hd_info, info.name,
+        java.text.NumberFormat.getIntegerInstance().format(info.images), size(info.bytes), info.created);
+    long[] use = graphics.getBoolean(TexturePacks.ON, true) ? CoreBridge.texturePackUse() : null;
+    if (use != null && use.length >= 3 && use[1] > 0)
+      line += "\n" + getContext().getString(R.string.ingame_hd_in_use, java.text.NumberFormat.getIntegerInstance().format(use[0]),
+          java.text.NumberFormat.getIntegerInstance().format(use[1]), size(use[2]));
+    return line;
+  }
+  private String size(long bytes) { return android.text.format.Formatter.formatShortFileSize(getContext(), bytes); }
+  private void refreshHd() {
+    if (hdStatus != null && isShowing() && page == CHEATS) hdStatus.setText(hdLine(TexturePacks.info(getContext())));
+  }
+
+  // the import's progress and end (CoreActivity.importTextures, main thread)
+  private final TexturePacks.Listener textureListener = new TexturePacks.Listener() {
+    @Override public void progress(long done, long total) {
+      if (hdStatus != null && isShowing() && page == CHEATS)
+        hdStatus.setText(getContext().getString(R.string.ingame_hd_importing, size(done), size(total)));
+      if (hdImport != null) hdImport.setText(s(R.string.ingame_hd_cancel));
+    }
+    @Override public void done(TexturePacks.Info info, TexturePacks.PackException failure) {
+      if (!isShowing() || page != CHEATS) return;
+      showPage(CHEATS, false);
+      if (hdStatus == null) return;
+      if (failure == null && info != null)
+        hdStatus.setText(getContext().getString(R.string.ingame_hd_imported,
+            java.text.NumberFormat.getIntegerInstance().format(info.images)) + "\n" + hdLine(info));
+      else if (failure != null)
+        hdStatus.setText(packProblem(failure));
+    }
+  };
+
+  private String packProblem(TexturePacks.PackException e) {
+    switch (e.reason) {
+      case TexturePacks.NOT_PACK: return s(R.string.ingame_hd_not_pack);
+      case TexturePacks.OTHER_VERSION: return s(R.string.ingame_hd_other_version);
+      case TexturePacks.NO_SPACE: return getContext().getString(R.string.ingame_hd_no_space, size(e.need), size(e.free));
+      case TexturePacks.INCOMPLETE: return s(R.string.ingame_hd_incomplete);
+      case TexturePacks.DAMAGED: return s(R.string.ingame_hd_damaged);
+      case TexturePacks.CANCELLED: return s(R.string.ingame_hd_cancelled);
+      default: return getContext().getString(R.string.ingame_hd_read_failed, String.valueOf(e.getMessage()));
+    }
+  }
+
+  /** A pack is there: the new one replaces it once it is copied completely (the menu asks first). */
+  private void askReplacePack(TexturePacks.Info info) {
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_hd_replace)
+        .setMessage(getContext().getString(R.string.ingame_hd_replace_text, info.name))
+        .setNegativeButton(R.string.ingame_cancel, null)
+        .setPositiveButton(R.string.ingame_hd_import, (d, w) -> { if (host != null) host.importTexturePack(textureListener); })
+        .create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    Immersive.show(dialog);
+  }
+
+  /** "Delete texture pack" (the menu asks first): only the textures folder; discs, saves and cards stay. */
+  private void askDeletePack() {
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_hd_delete)
+        .setMessage(R.string.ingame_hd_delete_text)
+        .setNegativeButton(R.string.ingame_cancel, null)
+        .setPositiveButton(R.string.ingame_hd_delete_yes, (d, w) -> {
+          final Context app = getContext().getApplicationContext();
+          new Thread(() -> {
+            TexturePacks.delete(app);
+            main.post(() -> {
+              if (!isShowing() || page != CHEATS) return;
+              showPage(CHEATS, false);
+              if (hdStatus != null) hdStatus.setText(s(R.string.ingame_hd_deleted));
+            });
+          }, "texture-delete").start();
+        }).create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    Immersive.show(dialog);
   }
   /** The story's player character below the cheat buttons (wish of the project owner, 03.11.2026;
    *  port/docs/cheat-menu-plan.md): one of the characters that play the story cleanly takes Leon's place

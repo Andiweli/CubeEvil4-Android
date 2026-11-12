@@ -152,7 +152,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String CHEATS = "cheats";
   /** The cheat "Random enemies" (0.99.12): its seed, 0 off (CoreBridge.setEnemyRandom). */
   static final String ENEMY_SEED = "enemySeed";
-  private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
+  private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5;
+  // "Import texture pack" (Cheats & Mods, TexturePacks): who hears the import, its cancel switch
+  private TexturePacks.Listener textureListener;
+  private final java.util.concurrent.atomic.AtomicBoolean textureCancel = new java.util.concurrent.atomic.AtomicBoolean();
   /** SELECT held this long: the game's debug menu. */
   private static final long SELECT_HOLD_MS = 1000;
 
@@ -423,6 +426,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setPsx(g.getBoolean("psx", false));
+      TexturePacks.apply(this, g);
       CoreBridge.setFlares(CoreBridge.flareMode(g));
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
       CoreBridge.setMinimap(g.getBoolean("minimap", false));
@@ -552,6 +556,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
     CoreBridge.setGraphics(CoreMenu.scaleHalves(g), g.getInt("samples", 1), g.getInt("anisotropy", 1),
         g.getInt("aspect", 0));
+    TexturePacks.apply(this, g);
   }
 
   private void hideSystemUi() {
@@ -860,6 +865,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
 
     @Override public void importDiscs() { openStartScreen("menu: import other discs"); }
+
+    @Override public void importTexturePack(TexturePacks.Listener listener) {
+      textureListener = listener;
+      startForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),
+          REQUEST_TEXTURES);
+    }
+
+    @Override public void textureListener(TexturePacks.Listener listener) { textureListener = listener; }
+
+    @Override public void cancelTexturePackImport() { textureCancel.set(true); }
 
     @Override public void importFiles() {
       Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
@@ -1203,6 +1218,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     try {
       if (request == REQUEST_EXPORT_ALL && data.getData() != null) {
         exportAllInto(data.getData());
+      } else if (request == REQUEST_TEXTURES && data.getData() != null) {
+        importTextures(data.getData());
       } else if (request == REQUEST_IMPORT) {
         pendingImports.clear();
         pendingTouch = null;
@@ -1223,6 +1240,43 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.w(TAG, "menu: " + e);
       message(getString(R.string.ingame_failed, e.getMessage()));
     }
+  }
+
+  /** The chosen texture pack into the textures folder (TexturePacks.importFrom) on a thread of its own; the menu hears
+   *  its progress and its end; the pack is in use right after. */
+  private void importTextures(Uri uri) {
+    if (TexturePacks.importing) return;
+    TexturePacks.importing = true;
+    TexturePacks.importDone = 0;
+    TexturePacks.importTotal = 0;
+    textureCancel.set(false);
+    final android.content.Context app = getApplicationContext();
+    Thread t = new Thread(() -> {
+      TexturePacks.Info info = null;
+      TexturePacks.PackException failure = null;
+      try {
+        info = TexturePacks.importFrom(app, uri, textureCancel, new TexturePacks.Listener() {
+          @Override public void progress(long done, long total) {
+            main.post(() -> { if (textureListener != null) textureListener.progress(done, total); });
+          }
+          @Override public void done(TexturePacks.Info i, TexturePacks.PackException f) {}
+        });
+      } catch (TexturePacks.PackException e) {
+        failure = e;
+      } catch (java.io.IOException e) {
+        failure = new TexturePacks.PackException(TexturePacks.READ_FAILED, String.valueOf(e.getMessage()));
+      }
+      final TexturePacks.Info result = info;
+      final TexturePacks.PackException problem = failure;
+      main.post(() -> {
+        TexturePacks.importing = false;
+        if (result != null) getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putBoolean(TexturePacks.ON, true).apply();
+        TexturePacks.apply(this, getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE));
+        Log.i(TAG, "texture pack import: " + (problem == null ? "done" : problem.getMessage()));
+        if (textureListener != null) textureListener.done(result, problem);
+      });
+    }, "texture-import");
+    t.start();
   }
 
   /** Every file of the card as .gci into the chosen folder. */

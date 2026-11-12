@@ -204,7 +204,7 @@
     <string name="ingame_management_summary">‏بطاقة الذاكرة والأقراص والتقارير والمصدر</string>
     <string name="ingame_audio">الصوت</string>
     <string name="ingame_audio_summary">‏الموسيقى والمؤثرات الصوتية</string>
-    <string name="ingame_cheats_summary">‏الصحة والذخيرة والمال والألعاب الإضافية</string>
+    <string name="ingame_cheats_summary">الصحة والذخيرة والمال والألعاب الإضافية والأنسجة عالية الدقة</string>
     <string name="ingame_experimental">تجريبي</string>
     <string name="ingame_volume">مستوى الصوت</string>
     <string name="ingame_music_volume">الموسيقى</string>
@@ -268,7 +268,7 @@
     <string name="ingame_disc_device">توقفت اللعبة عند %1$s (القرص %2$d): نسخة هذا الملف على هذا الجهاز تالفة (تغيّرت بعد الاستيراد). استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
     <string name="ingame_disc_read">توقفت اللعبة عند %1$s (القرص %2$d): الملف سليم، لكن قراءته فشلت. أرسل تقرير الأخطاء من فضلك، ثم شغّل اللعبة من جديد.</string>
     <string name="ingame_disc_unknown">توقفت اللعبة عند %1$s (القرص %2$d): الملف على هذا الجهاز تالف أو مفقود. استورد القرص %2$d مرة أخرى من شاشة البدء. تبقى ملفات الحفظ كما هي.</string>
-    <string name="ingame_cheats">الغش</string>
+    <string name="ingame_cheats">الغش والتعديلات</string>
     <string name="ingame_cheat_health">صحة لا نهائية</string>
     <string name="ingame_cheat_ammo">ذخيرة لا نهائية</string>
     <string name="ingame_cheat_onehit">القتل بضربة واحدة</string>
@@ -424,4 +424,31 @@
     <string name="ingame_shader_cache_help">تحتفظ اللعبة بالمظللات التي أنشأتها، حتى لا يتقطع المشهد مرة ثانية. لا تُفرغها إلا إذا ظهرت أخطاء رسومية بعد تحديث: عندها تنشئها اللعبة من جديد، وقد تتقطع المشاهد الأولى.</string>
     <string name="ingame_shader_clear">إفراغ ذاكرة المظللات المؤقتة</string>
     <string name="ingame_shader_clear_text">سيُعاد تشغيل اللعبة وستُحذف المظللات التي أُنشئت. تنشئها اللعبة من جديد أثناء اللعب، لذا قد تتقطع المشاهد الأولى. سيُفقد التقدم منذ آخر حفظ.</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">التعديلات</string>
+    <string name="ingame_hd_textures">الأنسجة عالية الدقة</string>
+    <string name="ingame_hd_import">استيراد حزمة الأنسجة</string>
+    <string name="ingame_hd_cancel">إلغاء الاستيراد</string>
+    <string name="ingame_hd_sharpness">الحدة</string>
+    <string name="ingame_hd_full">كاملة</string>
+    <string name="ingame_hd_half">نصف</string>
+    <string name="ingame_hd_delete">حذف حزمة الأنسجة</string>
+    <string name="ingame_hd_delete_yes">حذف</string>
+    <string name="ingame_hd_none">الأنسجة عالية الدقة: لم تُستورد أي حزمة أنسجة.</string>
+    <string name="ingame_hd_info">الأنسجة عالية الدقة: %1$s · %2$s صورة · %3$s · أُنشئت %4$s</string>
+    <string name="ingame_hd_in_use">قيد الاستخدام الآن: استُبدل %1$s من %2$s نسيجًا (%3$s).</string>
+    <string name="ingame_hd_importing">جارٍ استيراد حزمة الأنسجة: %1$s من %2$s…</string>
+    <string name="ingame_hd_imported">استُوردت حزمة الأنسجة: %1$s صورة.</string>
+    <string name="ingame_hd_replace">استبدال حزمة الأنسجة؟</string>
+    <string name="ingame_hd_replace_text">تحلّ الحزمة الجديدة محل «%1$s» بعد نسخها بالكامل.</string>
+    <string name="ingame_hd_delete_text">تُحذف حزمة الأنسجة فقط. تبقى أقراصك وحفظاتك وبطاقات الذاكرة كما هي.</string>
+    <string name="ingame_hd_deleted">حُذفت حزمة الأنسجة.</string>
+    <string name="ingame_hd_not_pack">هذا الملف ليس حزمة أنسجة لـ CubeEvil4 (&#x200E;.c4tex). حوّل الحزمة أولًا على حاسوب باستخدام CubeEvil4 Texture Packer.</string>
+    <string name="ingame_hd_other_version">صُنعت هذه الحزمة بإصدار آخر من CubeEvil4 Texture Packer. حوّلها من جديد بالإصدار الحالي.</string>
+    <string name="ingame_hd_no_space">لا توجد مساحة فارغة كافية: تحتاج الحزمة إلى %1$s والمتاح %2$s.</string>
+    <string name="ingame_hd_incomplete">الملف غير مكتمل (هل انقطع النسخ إلى الجهاز؟). انسخه مرة أخرى.</string>
+    <string name="ingame_hd_damaged">الملف تالف. انسخه إلى الجهاز مرة أخرى أو حوّله من جديد.</string>
+    <string name="ingame_hd_cancelled">أُلغي الاستيراد. تبقى حزمة الأنسجة السابقة.</string>
+    <string name="ingame_hd_read_failed">تعذّرت قراءة الملف: %1$s</string>
+    <string name="ingame_hd_help">تستبدل الأنسجة عالية الدقة صور اللعبة بصور أوضح من حزمة أنسجة بصيغة Dolphin. لا يتضمن CubeEvil4 أي أنسجة ولا روابط إليها: استخدم فقط حزمًا حصلت عليها بنفسك ويحق لك استخدامها. حوّل الحزمة على حاسوب باستخدام CubeEvil4 Texture Packer، وانسخ ملف &#x200E;.c4tex إلى جهازك واستورده هنا؛ يمكنك بعد ذلك حذف تلك النسخة. تُحفظ الحزمة في مجلد خاص بها ولا تغيّر أبدًا أقراصك أو حفظاتك أو بطاقات الذاكرة؛ يمكنك إيقافها أو حذفها في أي وقت. تحتاج الحدة «نصف» إلى ذاكرة رسومات أقل في الأجهزة الأضعف. يحتفظ مرشّح البكسل الكلاسيكي بأنسجة اللعبة الأصلية.</string>
 </resources>

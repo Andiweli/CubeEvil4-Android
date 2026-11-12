@@ -220,6 +220,11 @@ public final class CoreBridge {
   /** Original TV filter: the game's vertical copy filter on the picture. */
   public static native void setTvFilter(boolean on);
   public static native void setPsx(boolean on);
+  /** HD textures (Cheats & Mods, TexturePacks): the player's pack file ("" off), "Sharpness: Half", the replacements'
+   *  budget in MB. "" when the pack is open (or off), else why it cannot be used. */
+  public static native String setTexturePack(String path, boolean half, int budgetMb);
+  /** What the renderer did with the HD textures: {replaced, looked up, bytes of the replacements on the GPU now}. */
+  public static native long[] texturePackUse();
   /** Lens flares at the game's lights (the menu, off by default; GxRenderer::SetFlares): 0 off, 1 lens flares (the
    *  ghosts only), 2 halos + lens flares (the glow and star at each light too; 0.99.6). */
   public static native void setFlares(int mode);

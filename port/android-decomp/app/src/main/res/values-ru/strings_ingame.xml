@@ -195,7 +195,7 @@
     <string name="ingame_management_summary">Карта памяти, диски, отчёты и исходники</string>
     <string name="ingame_audio">Звук</string>
     <string name="ingame_audio_summary">Музыка и звуковые эффекты</string>
-    <string name="ingame_cheats_summary">Здоровье, патроны, деньги и доп. игры</string>
+    <string name="ingame_cheats_summary">Здоровье, патроны, деньги, доп. игры и HD-текстуры</string>
     <string name="ingame_experimental">Экспериментальное</string>
     <string name="ingame_volume">Громкость</string>
     <string name="ingame_music_volume">Музыка</string>
@@ -259,7 +259,7 @@
     <string name="ingame_disc_device">Игра остановилась на %1$s (диск %2$d): копия этого файла на устройстве повреждена (она изменилась после импорта). Импортируйте диск %2$d заново на стартовом экране. Ваши сохранения останутся.</string>
     <string name="ingame_disc_read">Игра остановилась на %1$s (диск %2$d): файл в порядке, но прочитать его не удалось. Отправьте отчёт об ошибке и запустите игру снова.</string>
     <string name="ingame_disc_unknown">Игра остановилась на %1$s (диск %2$d): файл на этом устройстве повреждён или отсутствует. Импортируйте диск %2$d заново на стартовом экране. Ваши сохранения останутся.</string>
-    <string name="ingame_cheats">Читы</string>
+    <string name="ingame_cheats">Читы и моды</string>
     <string name="ingame_cheat_health">Бесконечное здоровье</string>
     <string name="ingame_cheat_ammo">Бесконечные патроны</string>
     <string name="ingame_cheat_onehit">Убийство с одного удара</string>
@@ -415,4 +415,31 @@
     <string name="ingame_shader_cache_help">Игра сохраняет созданные шейдеры, чтобы сцена не подтормаживала второй раз. Очищайте его, только если после обновления появились графические ошибки: игра создаст шейдеры заново, и первые сцены могут подтормаживать.</string>
     <string name="ingame_shader_clear">Очистить кэш шейдеров</string>
     <string name="ingame_shader_clear_text">Игра перезапустится и удалит созданные шейдеры. Она создаст их заново во время игры, поэтому первые сцены могут подтормаживать. Прогресс с последнего сохранения будет потерян.</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">Моды</string>
+    <string name="ingame_hd_textures">HD-текстуры</string>
+    <string name="ingame_hd_import">Импорт пакета текстур</string>
+    <string name="ingame_hd_cancel">Отменить импорт</string>
+    <string name="ingame_hd_sharpness">Чёткость</string>
+    <string name="ingame_hd_full">Полная</string>
+    <string name="ingame_hd_half">Половинная</string>
+    <string name="ingame_hd_delete">Удалить пакет текстур</string>
+    <string name="ingame_hd_delete_yes">Удалить</string>
+    <string name="ingame_hd_none">HD-текстуры: пакет текстур не импортирован.</string>
+    <string name="ingame_hd_info">HD-текстуры: %1$s · изображений: %2$s · %3$s · создан %4$s</string>
+    <string name="ingame_hd_in_use">Сейчас используется: заменено %1$s из %2$s текстур (%3$s).</string>
+    <string name="ingame_hd_importing">Импорт пакета текстур: %1$s из %2$s…</string>
+    <string name="ingame_hd_imported">Пакет текстур импортирован, изображений: %1$s.</string>
+    <string name="ingame_hd_replace">Заменить пакет текстур?</string>
+    <string name="ingame_hd_replace_text">Новый пакет заменит «%1$s», как только будет полностью скопирован.</string>
+    <string name="ingame_hd_delete_text">Удаляется только пакет текстур. Диски, сохранения и карты памяти остаются как есть.</string>
+    <string name="ingame_hd_deleted">Пакет текстур удалён.</string>
+    <string name="ingame_hd_not_pack">Этот файл — не пакет текстур CubeEvil4 (.c4tex). Сначала преобразуйте пакет на ПК с помощью CubeEvil4 Texture Packer.</string>
+    <string name="ingame_hd_other_version">Этот пакет создан другой версией CubeEvil4 Texture Packer. Преобразуйте его заново текущей версией.</string>
+    <string name="ingame_hd_no_space">Недостаточно свободного места: пакету нужно %1$s, свободно %2$s.</string>
+    <string name="ingame_hd_incomplete">Файл неполный (копирование на устройство прервалось?). Скопируйте его ещё раз.</string>
+    <string name="ingame_hd_damaged">Файл повреждён. Скопируйте его на устройство ещё раз или преобразуйте заново.</string>
+    <string name="ingame_hd_cancelled">Импорт отменён. Прежний пакет текстур остаётся.</string>
+    <string name="ingame_hd_read_failed">Не удалось прочитать файл: %1$s</string>
+    <string name="ingame_hd_help">HD-текстуры заменяют изображения игры более чёткими из пакета текстур в формате Dolphin. CubeEvil4 не содержит текстур и не даёт ссылок на них: используйте только пакеты, которые вы получили сами и имеете право использовать. Преобразуйте пакет на ПК с помощью CubeEvil4 Texture Packer, скопируйте файл .c4tex на устройство и импортируйте его здесь; после этого копию можно удалить. Пакет хранится в отдельной папке и никогда не меняет ваши диски, сохранения и карты памяти; его можно в любой момент выключить или удалить. Половинная чёткость требует меньше графической памяти на слабых устройствах. Ретро-пиксельный фильтр сохраняет собственные текстуры игры.</string>
 </resources>

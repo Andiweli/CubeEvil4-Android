@@ -26,6 +26,7 @@
 #include "re4_cpu_info.h"
 #include "re4_gx_frame.h"
 #include "re4_gx_frame_io.h"
+#include "tex_pack.h"
 
 #include <EGL/egl.h>
 #include <android/log.h>
@@ -692,6 +693,14 @@ std::atomic<int> optFlares{0};    // the menu's lens flares: 0 off, 1 lens flare
 std::atomic<int> optCrt{0};       // the menu's CRT (CoreBridge.setCrt: 0 off, 1 light, 2 strong; or RE4_GX_CRT)
 std::atomic<int> optColour{0};    // the menu's colour (CoreBridge.setColour: mode * 4 + level; or RE4_GX_COLOUR=M,L)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
+// HD textures of the player's pack (CoreBridge.setTexturePack, port/docs/textur-lader-plan.md): the open pack (null:
+// off), its first level (1: "Sharpness: Half"), the replacements' budget; what the renderer did with it (texturePackUse)
+std::mutex texPackLock;
+std::shared_ptr<re4gx::TexPack> texPack;
+unsigned texPackLevel = 0;
+std::size_t texPackBudget = 256u << 20;
+std::atomic<unsigned> texPackReplaced{0}, texPackLooked{0};
+std::atomic<std::uint64_t> texPackBytes{0};
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
@@ -2068,6 +2077,22 @@ bool drawGx() {
   gx->SetBandwidthSave(optVkBandwidth.load() != 0);
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
+  {
+    std::lock_guard<std::mutex> lock(texPackLock);
+    gx->SetTexturePack(texPack, texPackLevel, texPackBudget);
+  }
+  if (gx->TakeTexturesDropped()) {
+    // another pack, level or the PSone demake: the textures went, the game core sends them all again
+    smoothDrop();
+    api.gxDetach();
+    LOG("HD textures: the game's textures are sent again");
+  }
+  {
+    const re4gx::GxStats &st = gx->Stats();
+    texPackReplaced.store(st.hdTextures);
+    texPackLooked.store(st.hdLookups);
+    texPackBytes.store(st.hdBytesNow);
+  }
   static const int crtEnv = getenv("RE4_GX_CRT") ? atoi(getenv("RE4_GX_CRT")) : 0;
   gx->SetCrt(crtEnv > 0 ? crtEnv : optCrt.load());
   static int colourEnvMode = -1, colourEnvLevel = 1;
@@ -3301,6 +3326,59 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setVkBandwid
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTvFilter(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optTvFilter.exchange(want) != want) LOG("original TV filter: %s", want ? "on" : "off");
+}
+
+// HD textures (the menu, Cheats & Mods; port/docs/textur-lader-plan.md): the player's pack file (.c4tex; "" off), its
+// first level (Sharpness Half), the replacements' budget in MB. "" when it is open (or off), else why not.
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_setTexturePack(JNIEnv *env, jclass, jstring path,
+                                                                                      jboolean half, jint budgetMb) {
+  std::string file;
+  if (path) {
+    const char *chars = env->GetStringUTFChars(path, nullptr);
+    if (chars) {
+      file = chars;
+      env->ReleaseStringUTFChars(path, chars);
+    }
+  }
+  std::string error;
+  std::shared_ptr<re4gx::TexPack> pack;
+  {
+    std::lock_guard<std::mutex> lock(texPackLock);
+    pack = texPack;
+  }
+  if (file.empty()) {
+    pack.reset();
+  } else if (!pack || pack->Path() != file) {
+    // opened here (the header, the index's checksum, every entry: a few hundred KB), handed to the renderer at its next
+    // picture; the old one stays open until the renderer let go of it
+    auto opened = std::make_shared<re4gx::TexPack>();
+    if (opened->Open(file, &error)) {
+      LOG("HD textures: %s, %zu images (%zu dropped), size %u, %s", opened->Info("name").c_str(), opened->Count(),
+          opened->Dropped(), opened->MaxSide(), file.c_str());
+      pack = std::move(opened);
+    } else {
+      LOG("HD textures: %s cannot be used: %s", file.c_str(), error.c_str());
+      pack.reset();
+    }
+  }
+  {
+    std::lock_guard<std::mutex> lock(texPackLock);
+    if (pack != texPack || texPackLevel != (half ? 1u : 0u))
+      LOG("HD textures: %s%s, budget %d MB", pack ? "on" : "off", pack && half ? ", sharpness half" : "", budgetMb);
+    texPack = std::move(pack);
+    texPackLevel = half ? 1u : 0u;
+    texPackBudget = static_cast<std::size_t>(std::max(16, std::min(4096, static_cast<int>(budgetMb)))) << 20;
+  }
+  return env->NewStringUTF(error.c_str());
+}
+
+// what the renderer did with the HD textures so far: replaced, looked up, the replacements' bytes on the GPU now
+extern "C" JNIEXPORT jlongArray JNICALL Java_com_ast_re4decomp_CoreBridge_texturePackUse(JNIEnv *env, jclass) {
+  const jlong v[3] = {static_cast<jlong>(texPackReplaced.load()), static_cast<jlong>(texPackLooked.load()),
+                      static_cast<jlong>(texPackBytes.load())};
+  jlongArray out = env->NewLongArray(3);
+  if (out) env->SetLongArrayRegion(out, 0, 3, v);
+  return out;
 }
 
 // PSone demake (the menu): the 3D as the PlayStation drew it and a 320-wide, 15-bit picture (GxRenderer::SetPsx).

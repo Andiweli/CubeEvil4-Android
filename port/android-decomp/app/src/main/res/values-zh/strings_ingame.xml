@@ -190,7 +190,7 @@
     <string name="ingame_management_summary">记忆卡、光盘、报告与源代码</string>
     <string name="ingame_audio">音频</string>
     <string name="ingame_audio_summary">音乐与音效</string>
-    <string name="ingame_cheats_summary">生命、弹药、金钱与额外游戏</string>
+    <string name="ingame_cheats_summary">生命、弹药、金钱、额外游戏与高清纹理</string>
     <string name="ingame_experimental">实验性</string>
     <string name="ingame_volume">音量</string>
     <string name="ingame_music_volume">音乐</string>
@@ -254,7 +254,7 @@
     <string name="ingame_disc_device">游戏停在 %1$s（光盘 %2$d）：此文件在本设备上的副本已损坏（导入后发生了变化）。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
     <string name="ingame_disc_read">游戏停在 %1$s（光盘 %2$d）：文件完好，但读取失败。请发送错误报告，然后重新启动游戏。</string>
     <string name="ingame_disc_unknown">游戏停在 %1$s（光盘 %2$d）：本设备上的文件已损坏或缺失。请在开始界面重新导入光盘 %2$d。您的存档会保留。</string>
-    <string name="ingame_cheats">作弊</string>
+    <string name="ingame_cheats">作弊与模组</string>
     <string name="ingame_cheat_health">无限生命</string>
     <string name="ingame_cheat_ammo">无限弹药</string>
     <string name="ingame_cheat_onehit">一击必杀</string>
@@ -410,4 +410,31 @@
     <string name="ingame_shader_cache_help">游戏会保留已构建的着色器，这样同一场景不会再次卡顿。只有在更新后出现图形错误时才需要清除：游戏会重新构建着色器，最初的几个场景可能会卡顿。</string>
     <string name="ingame_shader_clear">清除着色器缓存</string>
     <string name="ingame_shader_clear_text">游戏将重新启动并删除已构建的着色器。游戏过程中会重新构建，因此最初的几个场景可能会卡顿。上次存档之后的进度将会丢失。</string>
+    <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
+    <string name="ingame_mods">模组</string>
+    <string name="ingame_hd_textures">高清纹理</string>
+    <string name="ingame_hd_import">导入纹理包</string>
+    <string name="ingame_hd_cancel">取消导入</string>
+    <string name="ingame_hd_sharpness">清晰度</string>
+    <string name="ingame_hd_full">完整</string>
+    <string name="ingame_hd_half">一半</string>
+    <string name="ingame_hd_delete">删除纹理包</string>
+    <string name="ingame_hd_delete_yes">删除</string>
+    <string name="ingame_hd_none">高清纹理：尚未导入纹理包。</string>
+    <string name="ingame_hd_info">高清纹理：%1$s · %2$s 张图片 · %3$s · 创建于 %4$s</string>
+    <string name="ingame_hd_in_use">当前使用：已替换 %2$s 个纹理中的 %1$s 个（%3$s）。</string>
+    <string name="ingame_hd_importing">正在导入纹理包：%1$s / %2$s…</string>
+    <string name="ingame_hd_imported">纹理包已导入：%1$s 张图片。</string>
+    <string name="ingame_hd_replace">替换纹理包？</string>
+    <string name="ingame_hd_replace_text">新纹理包完整复制后将替换“%1$s”。</string>
+    <string name="ingame_hd_delete_text">只会删除纹理包。你的光盘、存档和记忆卡保持不变。</string>
+    <string name="ingame_hd_deleted">纹理包已删除。</string>
+    <string name="ingame_hd_not_pack">此文件不是 CubeEvil4 纹理包（.c4tex）。请先在电脑上用 CubeEvil4 Texture Packer 转换纹理包。</string>
+    <string name="ingame_hd_other_version">此纹理包由其他版本的 CubeEvil4 Texture Packer 生成。请用当前版本重新转换。</string>
+    <string name="ingame_hd_no_space">可用空间不足：纹理包需要 %1$s，当前可用 %2$s。</string>
+    <string name="ingame_hd_incomplete">文件不完整（复制到设备时被中断？）。请重新复制。</string>
+    <string name="ingame_hd_damaged">文件已损坏。请重新复制到设备或重新转换。</string>
+    <string name="ingame_hd_cancelled">已取消导入。原有纹理包保持不变。</string>
+    <string name="ingame_hd_read_failed">无法读取文件：%1$s</string>
+    <string name="ingame_hd_help">高清纹理会用 Dolphin 格式纹理包中更清晰的图片替换游戏中的图片。CubeEvil4 不包含任何纹理，也不提供任何链接：请只使用你自己获得且有权使用的纹理包。在电脑上用 CubeEvil4 Texture Packer 转换纹理包，把 .c4tex 文件复制到设备上并在此导入；之后可以删除那份副本。纹理包存放在单独的文件夹中，绝不会改动你的光盘、存档或记忆卡；可随时关闭或删除。清晰度“一半”在性能较弱的设备上占用更少的显存。复古像素滤镜保留游戏自己的纹理。</string>
 </resources>
