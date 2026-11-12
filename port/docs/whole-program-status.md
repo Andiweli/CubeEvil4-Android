@@ -3,6 +3,12 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
+
+Version 0.99.11-rc (versionCode 113), Releasetext `port/android-decomp/docs/releases/v0.99.11-rc.md` („Changes since
+v0.99.10.“, Known issues aus 0.99.10 übernommen). Basis 3b44101f = master = 0.99.10-rc mit der README des Inhabers.
+Nächste freie Patchnummer 0229.
+
 ## Version 0.99.10-rc: Wünsche des Projektinhabers vom 11.11.2026 (Branch `09910`)
 
 Version 0.99.10-rc (versionCode 112), Releasetext `port/android-decomp/docs/releases/v0.99.10-rc.md` („Changes since
@@ -385,6 +391,9 @@ ist – ein Ghosting.“ Dateien `E:\Development\Android\reports\09910-crt-flick
   ist; so gewollt).
 
 ### Prüfung: Funktionen aus DevJuniors Mod-Fork (11.11.2026, nur Plan)
+
+**Entscheidung des Projektinhabers (11.11.2026):** keine Funktion aus DevJuniors Fork wird übernommen („nicht nützlich
+für unseren Port“); `refs/scratch/devjunior` gelöscht. Der Rest dieses Abschnitts beschreibt die Prüfung davor.
 
 Auftrag des Projektinhabers („Ja, prüfen lassen“). Plan mit Tabelle und Nachrichtenentwurf:
 `port/docs/devjunior-mods-plan.md`. Sein Branch `mods/free-movement` (83 Commits auf 0.99.6) liegt lokal als

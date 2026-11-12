@@ -1,5 +1,8 @@
 # Plan: Funktionen aus DevJuniors Mod-Fork für CubeEvil4 (Prüfung, 11.11.2026)
 
+**Entscheidung des Projektinhabers (11.11.2026):** keine dieser Funktionen wird übernommen („nicht nützlich für unseren
+Port“). Der Plan bleibt nur als Nachweis der Prüfung; die lokale Referenz `refs/scratch/devjunior` ist gelöscht.
+
 Auftrag des Projektinhabers („Ja, prüfen lassen“): welche Funktionen aus DevJuniors Fork
 `necroxmar01-prog/CubeEvil4-Android-remaked-mods`, Branch `mods/free-movement`, in CubeEvil4 kommen könnten und wie.
 **Nur Prüfung und Plan, nichts gebaut.** Welche Funktionen in welche Version kommen, entscheidet der Projektinhaber;
