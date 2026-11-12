@@ -61,6 +61,7 @@ extern cPlayer* pPL;
 
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));
+extern "C" int re4_binocular_look(float yaw, float pitch);  // runtime/wheel_zoom.cpp
 
 namespace {
 
@@ -212,7 +213,8 @@ void gyroHook(unsigned frame)
     const float swipeYaw = gSwipeYaw, swipePitch = gSwipePitch;
     gSwipeYaw = gSwipePitch = 0.0f;
     unlockSwipe();
-    if (swipeYaw != 0.0f || swipePitch != 0.0f) {
+    // in the binoculars the swipe (the mouse) looks around (0.99.12, runtime/wheel_zoom.cpp)
+    if ((swipeYaw != 0.0f || swipePitch != 0.0f) && !re4_binocular_look(swipeYaw, swipePitch)) {
         const bool harpoon = pPL && pPL->r_no_1 == 0xF;
         const bool knife = pPL && pPL->r_no_0 == 0 && pPL->r_no_1 == 0xB;
         if (turnAim(swipeYaw, swipePitch, true) && (knife ? gSwipedKnife++ : gSwiped++) % 900 == 0) {

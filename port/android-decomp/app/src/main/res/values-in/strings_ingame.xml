@@ -326,7 +326,7 @@
     <string name="ingame_map_hold">Tahan tombol pertama …</string>
     <string name="ingame_map_press">Tekan sebuah tombol …</string>
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
-    <string name="ingame_mouse_help">Mouse (Android 8 ke atas) dikuasai game selama game berjalan: menggerakkannya memutar kamera, saat membidik menggerakkan bidikan. Rodanya mengatur zoom teropong senapan dan teropong (ke atas: mendekat). Menu aplikasi (F1) melepaskan penunjuk.</string>
+    <string name="ingame_mouse_help">Mouse (Android 8 ke atas) dikuasai game selama game berjalan: menggerakkannya memutar kamera, saat membidik menggerakkan bidikan, dan di teropong menggerakkan pandangan. Rodanya mengatur zoom teropong senapan dan teropong (ke atas: mendekat). Menu aplikasi (F1) melepaskan penunjuk.</string>
     <string name="ingame_mouse_sensitivity">Sensitivitas Mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Perangkat</string>

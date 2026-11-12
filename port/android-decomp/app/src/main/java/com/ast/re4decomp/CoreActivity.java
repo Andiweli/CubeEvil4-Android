@@ -2177,7 +2177,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         dy += e.getHistoricalY(h);
       }
       if (dx != 0 || dy != 0) {
-        // while aiming the core turns the aim by it (and ignores it otherwise); the camera's C stick as long
+        // while aiming the core turns the aim by it, in the binoculars their view (0.99.12), and ignores it
+        // otherwise (runtime/gyro.cpp, wheel_zoom.cpp); the camera's C stick as long
         // as the mouse moves, but not in the scope or the binoculars, where the C stick zooms (the wheel's job
         // since 0.99.12: moving the mouse up and down zoomed there)
         float k = MOUSE_AIM_RADIANS * mouseSensitivity;

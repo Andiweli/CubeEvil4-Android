@@ -3,7 +3,7 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -60,6 +60,49 @@ Zielfernrohr nutzt.“
   `ACTION_SCROLL` liefert, ist nur nach der Android-Quelle angenommen; das Protokoll zeigt es mit „mouse wheel:“), die
   Abschaltung des Maus-C-Sticks im Spiel selbst (die App-Seite ist nur in `CoreInputTests` geprüft), JP-Discs, das
   aufgerüstete Zielfernrohr des halbautomatischen Gewehrs (Typ 1, gleicher Code), die Minenwerfer mit Zielfernrohr.
+
+### 2. Die Maus bewegt den Blick im Fernglas (Entscheidung des Projektinhabers)
+
+Auf die Frage aus Abschnitt 1 („Soll die Maus im Fernglas auch den Blick bewegen?“) der Projektinhaber: „Ja, Maus
+bewegt Blick“; dazu: gleiche Regeln wie beim Zielen mit der Maus, das Rad zoomt weiter, Bewegen zoomt nicht, WASD und
+Pfeiltasten wie bisher, auch die Fernglas-Zwischensequenzen, falls das Spiel dort Umsehen erlaubt.
+
+- **Wie das Fernglas sich dreht (`CameraBinocular::move`):** mit dem Hauptstick (und dem Steuerkreuz),
+  `gain * stickX * −0,05°` um die Hochachse und `gain * stickY * 0,05°` hoch/runter je Spielbild (`gain` = 1 − 0,9 ×
+  Zoom; mit der Spiel-Option „Umkehren“ hoch/runter vertauscht), innerhalb der Grenzen des Raums (r101:
+  `SetBinocularRange` −0,060 … 0,265 hoch/runter, −0,253 … 0,149 seitlich). Die Maus kam bisher dort gar nicht an (die
+  Ziel-Drehung `turnAim` kennt nur Waffen, Messer und Harpune).
+- **Kern (`runtime/wheel_zoom.cpp` `re4_binocular_look`, `runtime/gyro.cpp`, `runtime/pad.cpp`):** die Mausbewegung
+  kommt wie beim Zielen als Winkel (`CoreBridge.aimTurn`, mit der Mausempfindlichkeit); `gyroHook` gibt die Summe eines
+  Spielbilds zuerst dem Fernglas. Ist es offen (`STA_BINOCULAR`, `CamCtrl.r0` 0xC), werden die Winkel zu Einheiten des
+  Hauptsticks für genau dieses Bild (`re4_pad_stick_add`, nach dem `PADClamp` gerechnet, zu WASD bzw. einem
+  Controller-Stick addiert), und das Spiel dreht mit seinem eigenen Code: gezoomt langsamer wie die Maus im
+  Zielfernrohr, an den Grenzen Schluss. Höchstens so weit wie der Stick am Anschlag je Bild (72 Einheiten = 3,6°, im
+  Achteck des `PADClamp`); mehr verfällt, Bruchteile einer Einheit werden mitgenommen. Hoch/runter wie beim Zielen mit
+  der Maus: die Spiel-Option „Umkehren“ (= „Invert vertical“ der App) wird ausgeglichen, denn auch beim Zielen folgt
+  die Maus ihr nicht (`turnAim` liest sie nicht). Gyro und Touch-Ziel wie bisher (das Gyro geht nicht über diesen Weg;
+  ein Wisch der Touch-Zielfläche käme nur mit gehaltenem L/R an, im Fernglas dreht er dann mit). Prüfhilfe
+  `RE4_TRACE_LOOK=1`: „look: frame … binoculars yaw … pitch …“ alle 10 Bilder.
+- **Fernglas-Zwischensequenzen:** r10b (Bootsfahrt, der Boss zeigt sich, Schnitte 1/3/7) und r214 (Katapulte, Schnitte
+  1–4) legen nur den Rahmen `IdBinocular` über die Kamera der Zwischensequenz; nichts im Spiel liest dort Stick oder
+  C-Stick, Umsehen und Zoomen gibt es dort auch mit dem Controller nicht. Darum nichts eingebaut.
+- **App:** keine neue Logik (die Maus schickt ihre Bewegung schon immer an den Kern, ihr C-Stick ist im Fernglas seit
+  Abschnitt 1 aus); Hilfetext `ingame_mouse_help` in 11 Sprachen: „… beim Zielen bewegt sie das Ziel, im Fernglas den
+  Blick.“
+- **Geprüft am PC (i686 -O2, Debug-Start r101 wie Abschnitt 1, Maus als `RE4_TEST_SWIPE`, `~/p09912/look.sh`):**
+  0,01 rad je Bild nach links für 10 Bilder: Blick 0,0995 rad nach links (die fehlenden 0,0005 sind der mitgenommene
+  Bruchteil); nach oben: 0,0995 hoch; voll gezoomt: 0,010 (ein Zehntel); sehr schnell (0,2 rad je Bild): 3,6° je Bild,
+  Stopp an der linken Grenze (+0,149); nach rechts und unten an den Grenzen (−0,253, −0,060); mit „Umkehren“
+  (`RE4_TEST_AIM=1`) weiter nach oben. Debug-, EU- und US-Discs: links und hoch zugleich je 0,0995 / 0,0593, Bilder vorher
+  und nachher (`~/p09912/pics/look-eu`, `look-us`). Gegenprobe Zielfernrohr (Gewehr, r103): die Maus dreht Leon wie
+  vorher (+0,100). Rad-Test (Abschnitt 1) unverändert. `whole_build.sh` i686 -O2 alle Prüfungen grün,
+  `whole_build_android.sh --abi all` 0 Fehler, `gradlew externalNativeBuildCoreDebug` übersetzt, `check_translations.py`
+  ohne Befund, App-Tests beider Varianten je 112 grün (1 übersprungen: Bilder).
+- **Nicht geprüft:** auf einem Gerät mit Maus; das Fernglas nach dem Koffer (dort mit `m_flag` 1, derselbe Stick-Weg);
+  WASD und Maus gleichzeitig (die Summe ist dann nur angenähert, der `PADClamp` begrenzt sie).
+- **Für den Projektinhaber offen:** „Invert vertical“ der App gilt heute für Touch und Controller (und das Gyro hat
+  eigene Schalter), nicht für die Maus, auch beim Zielen nicht; das Fernglas verhält sich wie das Zielen mit der Maus.
+  Soll die Maus „Invert vertical“ folgen, wäre das ein eigener kleiner Schritt für Zielen und Fernglas zusammen.
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 

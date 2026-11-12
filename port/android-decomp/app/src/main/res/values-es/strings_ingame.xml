@@ -331,7 +331,7 @@
     <string name="ingame_map_hold">Mantén la primera tecla …</string>
     <string name="ingame_map_press">Pulsa una tecla …</string>
     <string name="ingame_map_keyboard">Teclado y ratón</string>
-    <string name="ingame_mouse_help">El ratón (Android 8 o superior) pertenece al juego mientras se juega: al moverlo gira la cámara, al apuntar mueve la mira. Su rueda hace zoom con la mira telescópica y los prismáticos (hacia arriba: acercar). El menú de la app (F1) libera el puntero.</string>
+    <string name="ingame_mouse_help">El ratón (Android 8 o superior) pertenece al juego mientras se juega: al moverlo gira la cámara, al apuntar mueve la mira y con los prismáticos la vista. Su rueda hace zoom con la mira telescópica y los prismáticos (hacia arriba: acercar). El menú de la app (F1) libera el puntero.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidad del ratón</string>
     <string name="ingame_map_controller">Mando</string>
     <string name="ingame_map_device">Dispositivo</string>

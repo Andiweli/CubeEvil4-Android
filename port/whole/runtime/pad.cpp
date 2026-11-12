@@ -316,6 +316,32 @@ void re4_pad_substick(int y)
     g_subSet = true;
 }
 
+// The main stick a frame hook adds on channel 0 for the frame it runs in (re4_pad_stick_add: the mouse in the
+// binoculars, runtime/wheel_zoom.cpp): x, y as the game sees them after PADClamp (15 off, at most 72, an octagon),
+// on top of the controller's or the move keys' stick; alone it reaches the game exactly.
+static bool g_stickSet;
+static int g_stickX, g_stickY;
+
+void re4_pad_stick_add(int x, int y)
+{
+    g_stickX = x;
+    g_stickY = y;
+    g_stickSet = true;
+}
+
+// a raw stick value as PADClamp's dead zone leaves it (one axis), and back
+static int stickAfterClamp(int raw)
+{
+    return raw > 15 ? raw - 15 : raw < -15 ? raw + 15 : 0;
+}
+
+static s8 stickRaw(int v)
+{
+    if (v > 72) v = 72;
+    if (v < -72) v = -72;
+    return (s8) (v > 0 ? v + 15 : v < 0 ? v - 15 : 0);
+}
+
 // Live controller (the app): written by its input thread, read by PADRead.
 static std::mutex g_liveLock;
 static Re4CorePad g_live;
@@ -452,6 +478,11 @@ u32 PADRead(PADStatus* status)
         status[0].substickX = 0;
         status[0].substickY = g_subY;
         g_subSet = false;
+    }
+    if (g_stickSet) {
+        status[0].stickX = stickRaw(stickAfterClamp(status[0].stickX) + g_stickX);
+        status[0].stickY = stickRaw(stickAfterClamp(status[0].stickY) + g_stickY);
+        g_stickSet = false;
     }
     if (g_add) {
         status[0].button |= g_add;
