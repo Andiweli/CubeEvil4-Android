@@ -10,8 +10,10 @@
 #include <cstdio>
 #include <cstring>
 #include <random>
+#include <string>
 #include <vector>
 
+#include "bc7.h"
 #include "etc2.h"
 
 #ifndef GL_COMPRESSED_RGB8_ETC2
@@ -177,6 +179,47 @@ int main() {
     std::vector<std::uint8_t> enc;
     etc2::EncodeLevel(kinds[k], rgba.data(), kW, kH, 1, enc);
     failures += Compare(program, kinds[k], formats[k], enc, (std::string(names[k]) + " encoder").c_str());
+  }
+  // BC7 against the driver's BPTC decoder (GL_EXT_texture_compression_bptc), random blocks of every mode
+  const char *ext = reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
+  if (ext && std::strstr(ext, "GL_EXT_texture_compression_bptc")) {
+    for (int mode = 0; mode <= 8; mode++) {
+      std::vector<std::uint8_t> data((kW / 4) * (kH / 4) * 16);
+      for (std::size_t i = 0; i < data.size(); i++) data[i] = static_cast<std::uint8_t>(rng());
+      for (std::size_t b = 0; b < data.size(); b += 16) {
+        const int m = mode < 8 ? mode : static_cast<int>(rng() % 8);
+        data[b] = static_cast<std::uint8_t>((data[b] << (m + 1)) | (1 << m));
+      }
+      GLuint tex;
+      glGenTextures(1, &tex);
+      glBindTexture(GL_TEXTURE_2D, tex);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+      glCompressedTexImage2D(GL_TEXTURE_2D, 0, 0x8E8C /* GL_COMPRESSED_RGBA_BPTC_UNORM_EXT */, kW, kH, 0,
+                             static_cast<GLsizei>(data.size()), data.data());
+      glUseProgram(program);
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+      std::vector<std::uint8_t> gl(kW * kH * 4);
+      glReadPixels(0, 0, kW, kH, GL_RGBA, GL_UNSIGNED_BYTE, gl.data());
+      glDeleteTextures(1, &tex);
+      int bad = 0;
+      for (unsigned by = 0; by < kH / 4; by++)
+        for (unsigned bx = 0; bx < kW / 4; bx++) {
+          std::uint8_t px[64];
+          img::DecodeBc7Block(data.data() + (by * (kW / 4) + bx) * 16, px);
+          bool differs = false;
+          for (unsigned y = 0; y < 4; y++)
+            for (unsigned x = 0; x < 4; x++)
+              if (std::memcmp(px + (y * 4 + x) * 4, gl.data() + ((by * 4 + y) * kW + bx * 4 + x) * 4, 4)) differs = true;
+          bad += differs;
+        }
+      std::printf("BC7 %s %5d of %d blocks differ\n", mode < 8 ? ("mode " + std::to_string(mode)).c_str() : "mixed ", bad,
+                  (kW / 4) * (kH / 4));
+      failures += bad ? 1 : 0;
+    }
+  } else {
+    std::printf("BC7: the driver has no GL_EXT_texture_compression_bptc, not compared\n");
   }
   std::printf(failures ? "DIFFERENCES FOUND\n" : "decoder and GL agree\n");
   return failures ? 1 : 0;

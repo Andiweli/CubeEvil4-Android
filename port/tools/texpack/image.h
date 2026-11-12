@@ -1,4 +1,5 @@
-// Images for the texture tool: DDS (BC1-BC5, uncompressed) and PNG readers, a PNG writer, resizing and mip levels.
+// Images for the texture tool: DDS (BC1-BC5, BC7, uncompressed), PNG and JPEG readers, a PNG writer, resizing and mip
+// levels.
 // Our own code (CC0), no libraries.
 #pragma once
 
@@ -39,6 +40,9 @@ bool Probe(const std::string &path, unsigned maxSide, unsigned &w, unsigned &h);
 // The same from memory (tests)
 bool LoadDds(const std::uint8_t *data, std::size_t n, unsigned maxSide, bool allLevels, Loaded &out, std::string &error);
 bool LoadPng(const std::uint8_t *data, std::size_t n, Loaded &out, std::string &error);
+// JPEG (jpeg.cpp): baseline and progressive, 8 bits, grey or YCbCr/RGB; its size without decoding
+bool LoadJpeg(const std::uint8_t *data, std::size_t n, Loaded &out, std::string &error);
+bool JpegSize(const std::uint8_t *data, std::size_t n, unsigned &w, unsigned &h);
 
 // zlib stream (2-byte header, deflate, Adler-32) to `out`, which has the expected size
 bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> &out, std::string &error);

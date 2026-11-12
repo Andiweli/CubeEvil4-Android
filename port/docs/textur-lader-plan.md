@@ -80,7 +80,10 @@ Für Tests und für dich geht dasselbe mit einem einzigen PowerShell-Befehl, ohn
 2. **Varianten:** Hat das Paket einen Ordner `Extra` mit Gruppen von Varianten (beim HD Project: 5 Kofferfarben und
    Tastensymbole für GameCube, Xbox, Xbox One), fragt es je Gruppe nach einer Wahl. Ohne Wahl bleibt, was im
    Hauptordner liegt (Original-Koffer, GameCube-Tasten).
-3. **Liest** DDS (BC1, BC3 und die anderen üblichen Arten), PNG und unkomprimierte Bilder.
+3. **Liest** DDS (BC1–BC5, BC7 und unkomprimiert; nicht BC6H, ein Format für HDR-Bilder), PNG und JPG (Baseline und
+   Progressive, Grau und Farbe; nicht CMYK, mit klarer Meldung). Gibt es ein Bild mehrfach, gilt DDS vor PNG vor JPG
+   (Entscheidung des Projektinhabers, 12.11.2026: „Ja, nachrüsten“; viele neuere Dolphin-Pakete speichern BC7, manche
+   JPG).
 4. **Verkleinert** jedes Bild, dessen längere Seite über der gewählten Stufe liegt, auf diese Stufe. Das
    Seitenverhältnis bleibt.
 5. **Mipmaps:** erzeugt für jedes Bild alle Verkleinerungsstufen neu. Ausnahme: die 16 Bilder mit eigenen,
@@ -127,7 +130,7 @@ es so groß, wie es ist. Ebenso nimmt „Sharpness: Half“ in der App nie eine 
 - Ein kleines C++-Programm in `port/tools/texpack/`, übersetzt mit Visual Studio für Windows: eine `.exe` ohne
   Zusatzdateien und ohne Installation (Entscheidung des Projektinhabers, 12.11.2026: nur eine PC-Fassung, keine
   Linux-Fassung). Für die Prüfungen in WSL lässt sich derselbe Code auch unter Linux übersetzen.
-- **Alles eigener Code** (CC0), ohne fremde Bausteine: DDS- und BC-Leser, PNG-Leser, Verkleinern, Mipmaps,
+- **Alles eigener Code** (CC0), ohne fremde Bausteine: DDS- und BC-Leser (mit BC7), PNG- und JPG-Leser, Verkleinern, Mipmaps,
   ETC2-Umwandler, Paketdatei. So braucht es keine fremden Lizenztexte und keine Downloads (meine Entscheidung,
   12.11.2026; im ersten Entwurf standen bcdec, stb_image und etcpak).
 - Das Programm enthält keine Bilder und keine Daten des Spiels.

@@ -204,8 +204,10 @@ The controller (or the device) vibrates where the game uses the rumble, if it ca
 **HD texture packs (optional)** (app menu → Cheats & Mods → Mods)
 
 CubeEvil4 can replace the game's textures with sharper ones from a texture pack in the Dolphin format
-(`tex1_<width>x<height>_<hash>_<format>.dds/.png`), as Dolphin does. **CubeEvil4 includes no textures,
-offers none and links to none.** Use only packs you obtained yourself and may use.
+(`tex1_<width>x<height>_<hash>_<format>.dds/.png/.jpg`), as Dolphin does. **CubeEvil4 includes no textures,
+offers none and links to none.** Use only packs you obtained yourself and may use. The packer reads DDS (BC1, BC2,
+BC3, BC4, BC5, BC7 and uncompressed; not BC6H), PNG and JPG (baseline and progressive; not CMYK). When a pack has the
+same texture as several files, it takes the DDS, then the PNG, then the JPG.
 
 1. Convert the pack on a Windows PC with the **CubeEvil4 Texture Packer** (`CubeEvil4-TexturePacker.exe`,
    a file of its own on the release page; source in `port/tools/texpack`). Start it, drag the pack's folder

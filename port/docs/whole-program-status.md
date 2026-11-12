@@ -63,6 +63,18 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   Paketbild, Stufe 256), `texpack_tests` 816; App mit „Half“ an Debug-Dumps (r100/r101/r103): kein Ersatzbild kleiner
   als das Original, in r103 74 von 87 auf der halben Stufe, 13 bleiben voll; `gx_gl_check` 0 Fehler; App-Tests beider
   Varianten je 120 grün (1 übersprungen: Bilder).
+- **BC7 und JPG im Packer (1.2; Projektinhaber, 12.11.2026: „Ja, nachrüsten“):** `bc7.cpp` (alle 8 Modi,
+  Partitions- und Ankertabellen) für DDS mit DX10-Kopf (DXGI 97–99), BC6H (94–96) mit Begründung abgelehnt (HDR, nicht
+  „billig“: eigene Gleitkomma-Modi, in Texturpaketen nicht üblich). `jpeg.cpp`: Baseline, erweitert sequentiell und
+  Progressive (auch Verfeinerungsdurchgänge), 8 bit, Grau/YCbCr/RGB (Adobe-Transform), beliebige Unterabtastung,
+  Restart-Marker; CMYK, 12 bit, arithmetisch, verlustfrei mit klarer Meldung. Namen und Ordner nehmen `.jpg`/`.jpeg`,
+  bei Doppeln gilt DDS vor PNG vor JPG. Geprüft: `make_bc7_jpeg_fixtures.py` (Pillow 12 als Bezug): 10 BC7-Dateien
+  (je Modus 1.024 Zufallsblöcke, gemischt, angeschnittene Blöcke, Mip-Stufen) exakt gleich; 82 JPG-Dateien (Grau,
+  4:4:4/4:2:2/4:2:0, Baseline/Progressive/optimiert, Qualität 30–85, Restart-Marker, Größen 1×1 bis 200×120) im Mittel
+  höchstens 0,16 Stufen von libjpeg-turbo entfernt; CMYK abgelehnt. `etc2_gl_check`: BC7 gegen Mesa (llvmpipe,
+  `GL_EXT_texture_compression_bptc`) alle 36.864 Zufallsblöcke gleich. `texpack_tests` 910, `run_e2e.py` 32 Punkte
+  (BC7, JPG, `.jpeg`, PNG vor JPG, BC6H abgelehnt). Das Paket des Inhabers (ohne BC7/JPG) ergibt mit 1.2 dieselben
+  Dateien wie mit 1.1: 256, 512 und 1024 je gleich groß, nur 2 Bytes im Info-Text anders (Version 1.1 → 1.2, Datum).
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät.
 

@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "bc7.h"
 #include "c4tex.h"
 #include "fileio.h"
 
@@ -24,7 +25,7 @@ inline int Clamp255(int v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
 
 // ---------------- DDS ----------------
 
-enum class Dds { kBc1, kBc2, kBc3, kBc4, kBc5, kRaw, kUnknown };
+enum class Dds { kBc1, kBc2, kBc3, kBc4, kBc5, kBc7, kRaw, kUnknown };
 
 struct RawFormat {
   unsigned bits = 0;
@@ -165,6 +166,7 @@ void DecodeDdsLevel(Dds f, const RawFormat &raw, const std::uint8_t *d, unsigned
           }
           break;
         }
+        case Dds::kBc7: DecodeBc7Block(b, px); break;
         default: {  // BC5: two channels
           std::uint8_t r[16], g[16];
           ValueBlock(b, r);
@@ -231,6 +233,10 @@ bool ParseDds(const std::uint8_t *d, std::size_t n, DdsInfo &info, std::string &
         case 76: case 77: case 78: info.format = Dds::kBc3; break;
         case 79: case 80: case 81: info.format = Dds::kBc4; break;
         case 82: case 83: case 84: info.format = Dds::kBc5; break;
+        case 97: case 98: case 99: info.format = Dds::kBc7; break;
+        case 94: case 95: case 96:
+          error = "DDS format BC6H is not supported (a format for HDR pictures; texture packs use BC1, BC3 or BC7)";
+          return false;
         case 27: case 28: case 29:  // R8G8B8A8
           info.format = Dds::kRaw;
           info.raw.bits = 32;
@@ -269,7 +275,7 @@ bool ParseDds(const std::uint8_t *d, std::size_t n, DdsInfo &info, std::string &
     error = "DDS pixel format not recognised";
     return false;
   }
-  static const char *names[] = {"BC1", "BC2", "BC3", "BC4", "BC5", "RGBA"};
+  static const char *names[] = {"BC1", "BC2", "BC3", "BC4", "BC5", "BC7", "RGBA"};
   info.name = names[static_cast<int>(info.format)];
   // as many levels as the file really holds
   info.levels = std::min(info.levels, c4tex::FullChain(info.w, info.h));
@@ -819,10 +825,12 @@ bool Load(const std::string &path, unsigned maxSide, bool allLevels, Loaded &out
     }
   } else {
     std::vector<std::uint8_t> all;
-    if (fio::ReadRange(f, 0, static_cast<std::size_t>(size), all))
-      ok = LoadPng(all.data(), all.size(), out, error);
-    else
+    if (!fio::ReadRange(f, 0, static_cast<std::size_t>(size), all))
       error = "cannot read the file";
+    else if (all.size() >= 3 && all[0] == 0xFF && all[1] == 0xD8 && all[2] == 0xFF)
+      ok = LoadJpeg(all.data(), all.size(), out, error);
+    else
+      ok = LoadPng(all.data(), all.size(), out, error);
   }
   std::fclose(f);
   return ok;
@@ -845,6 +853,15 @@ bool Probe(const std::string &path, unsigned maxSide, unsigned &w, unsigned &h) 
     std::size_t at;
     FirstLevel(info, maxSide, first, w, h, at);
     return true;
+  }
+  if (head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF) {
+    // the frame header can come after big APP segments: read the start of the file
+    FILE *g = fio::Open(path, "rb");
+    if (!g) return false;
+    std::vector<std::uint8_t> start;
+    const bool got = fio::ReadRange(g, 0, static_cast<std::size_t>(std::min<std::uint64_t>(size, 1u << 20)), start);
+    std::fclose(g);
+    return got && JpegSize(start.data(), start.size(), w, h);
   }
   if (head[1] == 'P' && head[2] == 'N' && head[3] == 'G') {
     w = Be32(head.data() + 16);
