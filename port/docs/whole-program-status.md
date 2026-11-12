@@ -361,6 +361,12 @@ Test-APK/Retroid bleiben auf `textures` und kommen später nach `09912`).
   Originalbild, Packer 1.1 mit Stufe 256, „Half“ nie unter das Original) in `09912` zusammengeführt (7ded5d52, ohne
   Konflikte); Releasetext mit den Stufen 256/512/1024 und „no image gets smaller than the game's own“. Geprüft wie
   oben mit dem neuen Stand (Zahlen im Abschnitt „Branch `textures`“).
+- **Nachtrag 2 (Wunsch des Projektinhabers „Ja, nachrüsten“):** `origin/textures` (be38fd0f: Texture Packer 1.2 liest
+  BC7-DDS und JPG, eigener Code `bc7.cpp`, `jpeg.cpp`) in `09912` zusammengeführt (a6eb6589, ohne Konflikte); nur das
+  PC-Programm, README und Doku ändern sich, App und Kern nicht (keine neue APK nötig). Releasetext: der Packer liest
+  DDS mit BC7, PNG und JPG; mit dem Release kommt die 1.2. Geprüft: `texpack_tests` 910 Prüfungen ohne Fehler (BC7
+  10 Dateien bitgleich, JPG 82 Dateien, größte mittlere Abweichung 0,16 gegen Pillow), `run_e2e.py` ohne Fehler
+  (Testbilder am PC frisch erzeugt), dazu die üblichen Prüfungen wie oben.
 - **Nicht geprüft:** auf einem Gerät (Import, Anzeige, Vulkan-ETC2, Speicher auf schwachen Geräten).
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
