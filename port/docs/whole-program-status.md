@@ -50,6 +50,19 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   Sprachen und Schriftgrößen 100–150 % ist „Cheats & Mods“ nicht breiter als „Management“, die Reihe bricht also dort
   um, wo sie es vorher tat; bei 320–1280 dp beide auf einer Linie, nichts abgeschnitten. Gegenprobe: mit dem alten
   langen Untertext schlägt der Test an.
+- **Nie unter die Originalgröße, Stufe 256 (Projektinhaber, 12.11.2026: „Ja, plus Stufe 256“):** Der Packer (1.1)
+  verkleinerte jedes Bild auf die Stufe, auch unter das Originalbild des Spiels: im 512er-Paket 134 Einträge kleiner
+  als das Original (107 Originale über 512, davon 84 Vollbilder 640×360 → 512×288; dazu Bilder mit anderem
+  Seitenverhältnis), mit „Schärfe: Halb“ 955. Jetzt: `TargetFor` hält jede Richtung mindestens auf der Größe im
+  Dolphin-Namen (ein schon kleineres Paketbild bleibt, wie es ist; 1 Eintrag), „Half“ (`GxCore::UploadHd`) nimmt die
+  nächste Stufe nur, solange sie mindestens so groß ist. Neue Sparstufe 256 (Abfrage 1 = 256, 2 = 512 Vorgabe,
+  3 = 1024). Paket neu umgewandelt: **256 → 271 MB (2 min 13 s; 41 % der Bilder nicht schärfer als das Original, 866
+  über 256 gehalten), 512 → 716 MB (6 min 18 s; 133 Einträge größer als vorher, z. B. 640×360 statt 512×288),
+  1024 → 2,34 GB (16 min 31 s; nur 1 Eintrag größer als in 1.0, sonst gleich)**; `-check` ohne Befund. Die alten 1.0-Dateien bleiben lesbar, sind aber bei den großen
+  Bildern unschärfer: ersetzen. Geprüft: `run_e2e.py` 27 Punkte (640×360 bleibt, anderes Seitenverhältnis, kleineres
+  Paketbild, Stufe 256), `texpack_tests` 816; App mit „Half“ an Debug-Dumps (r100/r101/r103): kein Ersatzbild kleiner
+  als das Original, in r103 74 von 87 auf der halben Stufe, 13 bleiben voll; `gx_gl_check` 0 Fehler; App-Tests beider
+  Varianten je 120 grün (1 übersprungen: Bilder).
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät.
 

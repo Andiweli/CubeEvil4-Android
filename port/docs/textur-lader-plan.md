@@ -53,10 +53,11 @@ CubeEvil4 Texture Packer 1.0
 Drag your texture pack folder into this window and press Enter:
 > E:\...\Resident Evil 4 HD Project
 Found 5,927 images (11.8 GB) in 1 pack folder and 2 groups of variants.
-Size on the phone:
-  1 = 512   (recommended, about 0.8 GB, for every device)
-  2 = 1024  (about 2.7 GB, for strong devices)
-> 1
+Size on the phone (the longer side of the images; never smaller than the game's own):
+  1 = 256   (saves memory and space on weak phones; big textures are not sharper than the game's)
+  2 = 512   (recommended, for every device)
+  3 = 1024  (for strong devices with enough space)
+Choose [2]: 2
 Attaché case: 1 Original, 2 Black, 3 Classic, 4 Gold, 5 Leather
 > 1
 Button icons: 1 GameCube, 2 Xbox, 3 Xbox One - Series
@@ -97,13 +98,17 @@ Es **verändert nie den Paket-Ordner** und schreibt nichts hinein. Es prüft vor
 
 ### Stufen
 
-| Stufe (längste Seite) | Größe auf dem Handy (Schätzung) | Für wen |
+| Stufe (längste Seite) | Größe auf dem Handy (HD Project, gemessen) | Für wen |
 |---|---|---|
-| **512** | etwa 0,8 GB | jedes Gerät; immer noch 2- bis 4-mal schärfer als das Original |
-| **1024** | etwa 2,7 GB | starke Geräte mit genug Speicherplatz |
-| 2048 | etwa 6,8 GB | **nicht angeboten** (Entscheidung 12.11.2026): kaum ein Handy hat dafür Platz und Grafikspeicher |
+| **256** | 0,27 GB | Sparstufe für schwache Handys (Entscheidung 12.11.2026); große Bilder sind nicht schärfer als das Original |
+| **512** | 0,72 GB | jedes Gerät; die meisten Bilder 2- bis 4-mal schärfer als das Original |
+| **1024** | 2,34 GB | starke Geräte mit genug Speicherplatz |
+| 2048 | etwa 6,8 GB (Schätzung) | **nicht angeboten** (Entscheidung 12.11.2026): kaum ein Handy hat dafür Platz und Grafikspeicher |
 
-Die genauen Größen stehen nach dem ersten Lauf mit deinem Paket fest.
+**Nie kleiner als das Original** (Entscheidung des Projektinhabers, 12.11.2026): Eine Stufe verkleinert kein Bild unter
+die Größe des Originalbilds im Spiel (die Größe im Dolphin-Namen), in keiner Richtung. Ein Vollbild mit 640 × 360
+bleibt also auch bei 512 und 256 mindestens 640 × 360. Ist schon das Bild im Paket kleiner als das Original, bleibt
+es so groß, wie es ist. Ebenso nimmt „Sharpness: Half“ in der App nie eine Stufe, die kleiner als das Original ist.
 
 ### Format: ETC2 (meine Entscheidung, kleine technische Frage)
 
@@ -337,6 +342,7 @@ Auf die drei Fragen des Plans: „Es reicht eine PC Version. Zu den restlichen E
 1. **PC-Programm:** eine `.exe` für Windows (Doppelklick, fragt alles im Fenster), als eigene Datei beim Release auf
    GitHub. Keine Linux-Fassung.
 2. **Stufen:** 512 (Vorgabe, etwa 0,8 GB) und 1024 (etwa 2,7 GB), kein 2048. In der App „Sharpness: Half“ für
-   schwache Geräte.
+   schwache Geräte. Nachtrag (12.11.2026, „Ja, plus Stufe 256“): eine Stufe verkleinert nie unter die Originalgröße,
+   „Half“ auch nicht; dazu die Sparstufe 256.
 3. **Nachladen:** bei schwarzem oder stehendem Bild warten, mitten im Spiel im Hintergrund nachladen (kurz unscharf,
    nie ein Ruckler), ab dem zweiten Besuch eines Raums vorab laden.
