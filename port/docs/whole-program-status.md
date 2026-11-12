@@ -53,7 +53,7 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät.
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Benchmark nach dem Update neu, Zufällige Gegner (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Benchmark nach dem Update neu, Zufällige Gegner, HD-Texturen (12.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -316,6 +316,23 @@ gespeicherte Liste unverändert. Andere Gegnerarten (a) und zufällige neue Posi
 - **Nicht geprüft:** auf einem Gerät; ein echtes Durchspielen mit dem Cheat (der Rundgang startet jeden Raum frisch per
   Debug-Start, Spielstände aus dem Spiel heraus nicht); „+1“ kam im Rundgang nicht vor (beim frischen Betreten ist keine
   Stelle frei; nach Toten oder bei späteren Besuchen schon).
+
+### 8. HD-Textur-Lader übernommen (Wunsch des Projektinhabers)
+
+„Danach kannst du den HD-Textur-Import auch übernehmen in 0.99.12.“ `09912` auf `origin/textures` (132a02a4, enthält
+97e4fe8b) vorgespult, ohne Zusammenführen; Inhalt und Prüfungen siehe den Abschnitt „Branch `textures`“ oben und
+`port/docs/textur-lader-plan.md` (T1–T3, T5, T6 und die Startseite fertig; **T4** Nachladen im Hintergrund und **T7**
+Test-APK/Retroid bleiben auf `textures` und kommen später nach `09912`).
+
+- **Releasetext:** Punkt „HD textures“ unter New, „Cheats“ heißt „Cheats & Mods“ unter Changed, Known issue: beim ersten
+  Zeigen eines Raums mit HD-Texturen kann es kurz ruckeln (die App lädt sie bisher beim ersten Gebrauch sofort, T4
+  fehlt); unter Update der Hinweis, dass `CubeEvil4-TexturePacker.exe` als eigene Datei mit dem Release kommt
+  (Entscheidung des Projektinhabers, Plan Abschnitt 9). Keine Texturen und keine Links (Plan Abschnitt 8).
+- **Geprüft am PC mit dem vereinten Stand:** `whole_build.sh` i686 -O2 alle Prüfungen grün, `gx_gl_check` 0 Fehler,
+  `whole_build_android.sh --abi all` 0 Fehler (Stubs wie erwartet), App-Tests beider Varianten je 120 grün
+  (1 übersprungen: Bilder), `gradlew externalNativeBuildCoreDebug` übersetzt, `check_translations.py` ohne Befund
+  (415 Texte).
+- **Nicht geprüft:** auf einem Gerät (Import, Anzeige, Vulkan-ETC2, Speicher auf schwachen Geräten).
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 
