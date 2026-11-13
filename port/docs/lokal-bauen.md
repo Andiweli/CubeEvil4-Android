@@ -40,6 +40,13 @@ In Android Studio wie gewohnt bauen (Variante „core“) und auf den Retroid in
 verbundenen Retroid). Laufen gerade Gerätetests eines Chats über ADB, erst danach installieren
 (`port/docs/adb-coordination.md`).
 
+### Texture Packer (eigene App, Branch `textures`)
+
+In Android Studio oben in der Auswahl der Run-Konfiguration „packer“ statt „app“ wählen, dann wie gewohnt
+bauen und installieren. Sie braucht den Spielkern aus Schritt 2 nicht. Ohne Android Studio (PowerShell im Ordner
+`port\android-decomp`): `.\gradlew.bat :packer:assembleDebug`, die APK liegt dann in
+`port\android-decomp\packer\build\outputs\apk\debug\packer-debug.apk`.
+
 ## Wechsel auf `beta-updates` (einmal)
 
 Wer noch auf `claude/adoring-pasteur-h5s2fw`, `beta-optimisations`, `gui-optimisations`,

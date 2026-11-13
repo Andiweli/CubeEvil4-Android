@@ -1,6 +1,11 @@
 # CubeEvil4 Texture Packer für Android: Plan (13.11.2026, Branch `textures`)
 
-**Stand: nur Plan, nichts gebaut.** Wunsch des Projektinhabers (12.11.2026): „Wir brauchen den Texture Converter auch
+**Stand 13.11.2026: gebaut, am PC geprüft, auf dem Gerät noch nicht getestet.** Antworten des Projektinhabers
+(13.11.2026, je die Empfehlung): 1. „Direkt lesen“ (ZIP nicht auspacken, nur die fertige `.c4tex` in Download),
+2. „Nur ZIP und Ordner“, 3. „Ja, mit Knopf“ („In CubeEvil4 importieren“ plus die kleine Ergänzung in CubeEvil4, im
+Branch `textures`). Was gebaut ist und wie es geprüft wurde: Abschnitt „Umsetzung“ am Ende.
+
+Wunsch des Projektinhabers (12.11.2026): „Wir brauchen den Texture Converter auch
 für Android als einfache App. Erklärung, Button zum Laden des ZIPs oder Ordners, dann wird nach /Download auf dem
 Speicher oder Speicherkarte entpackt. Vorher soll geprüft werden ob genug Speicher verfügbar ist.“
 
@@ -117,3 +122,36 @@ sich.
 3. **Direkt an CubeEvil4 übergeben?** Empfehlung: ja. Am Ende gibt es zusätzlich einen Knopf „In CubeEvil4
    importieren“. Er öffnet CubeEvil4 und startet dort den Import, ohne dass man die Datei selbst suchen muss. Die Datei
    bleibt trotzdem in Download. Dafür braucht CubeEvil4 eine kleine Ergänzung (im Branch `textures`; in welche Version sie kommt, entscheidest du).
+
+## Umsetzung (13.11.2026)
+
+- **PC-Programm 1.3** (`port/tools/texpack/`): Bedienung und Umwandeln getrennt. `packer.h/.cpp` ist der Kern
+  (Namen, Paket ordnen, Varianten, Schätzung, Umwandeln in ein „Ziel“), `texpack.cpp` nur noch das Fenster mit den
+  Fragen. Neu `zip.h/.cpp` (ZIP lesen: Inhaltsverzeichnis, ZIP64, „gespeichert“ und Deflate, Prüfsumme; andere
+  Packverfahren und verschlüsselte Einträge mit Namen abgelehnt). Das PC-Programm nimmt dadurch auch eine ZIP
+  (`-in Paket.zip` oder hineinziehen). Ein gemeinsamer oberster Ordner in der ZIP wird wie der Paketordner behandelt.
+- **Gleiche Dateien wie vorher:** Paket des Inhabers (Ordner) mit 1.3 gegen 1.2: 256 und 512 gleich groß, genau 1 Byte
+  anders (die Versionsnummer im Info-Text, „1.2“ → „1.3“). Das Paket als eine ZIP (11,9 GB, ZIP64, „gespeichert“)
+  ergibt Byte für Byte dieselbe Datei wie der Ordner (256 und 512). `run_e2e.py`: dieselbe Datei aus Ordner, ZIP
+  „gespeichert“, ZIP „Deflate“ und ZIP ohne obersten Ordner. `texpack_tests` 910 Prüfungen ohne Fehler.
+- **App** (`port/android-decomp/packer/`, `com.ast.cubeevil4.texturepacker`, Version 1.3 wie das PC-Programm, ab
+  Android 7, Debug-APK 1,2 MB mit 32 und 64 bit): `packer_jni.cpp` (ZIP über die Dateinummer, die Android gibt;
+  Ordner: Java öffnet jede Datei über die Dateiauswahl; Bildköpfe werden einmal gelesen und gemerkt; Schreiben mit
+  `write`/`pwrite`, freier Platz mit `fstatvfs`), `MainActivity` (ein Bildschirm), `ConvertService`
+  (Vordergrunddienst „Datensynchronisierung“, Benachrichtigung mit Fortschritt und „Abbrechen“, CPU wach), `Output`
+  (Android 10 und neuer: Download des gewählten Speichers über MediaStore als „noch nicht fertig“, erst am Ende
+  sichtbar, bei Abbruch oder Fehler gelöscht; dazu der Bericht als `.txt` daneben; Android 7–9: der Speichern-Dialog
+  von Android für beide Speicher, so braucht die App keine Speicher-Berechtigung), `Estimates` (Platz: Schätzung plus
+  100 MB; Zeit: PC-Zeit nach Bildgröße und Ausgabegröße, geteilt durch die Kerne des Geräts, kleine Kerne zählen
+  0,4; Retroid bei 512 etwa 20 Minuten), Texte in 11 Sprachen (`tools/check_translations.py packer`), eigenes
+  Symbol (`packer/tools/make_icon.py`: das CubeEvil4-Zeichen rot auf dunkel). Keine Internet-Berechtigung.
+- **„In CubeEvil4 importieren“:** gibt die fertige Datei mit Leserecht an CubeEvil4 (`com.ast.cubeevil4.action.
+  IMPORT_TEXTURE_PACK`). In CubeEvil4 neu: `TextureImportActivity` (fragt zuerst, importiert wie der Menüpunkt mit
+  Fortschritt, schaltet die HD-Texturen ein; nur `content://`-Adressen; nur im Kernmodus), 3 neue Texte und der
+  Hilfetext „am PC oder mit seiner Android-App“ in 11 Sprachen. Ist CubeEvil4 nicht installiert oder älter, sagt die
+  Packer-App, wo man die Datei von Hand importiert.
+- **Geprüft:** Packer-App gebaut (beide Prozessor-Arten, Lint ohne Fehler), 7 Tests (Platzprüfung, kleinste passende
+  Stufe, Kerne zählen, Zeitschätzung, Zusammenfassung lesen); CubeEvil4: `TextureImportActivityTest` (Absicht kommt an,
+  nur `content://`, fragt zuerst, kopiert nur in den Texturordner, schaltet ein, gibt das Paket an den Renderer).
+  **Nicht geprüft:** die App auf einem Gerät (kein Gerätetest durch die Sitzung; der Inhaber installiert selbst), also
+  auch nicht: echte Dauer, Speicherkarte, Android 7–9, Übergabe an CubeEvil4 auf dem Gerät.

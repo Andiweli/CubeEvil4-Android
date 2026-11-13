@@ -75,13 +75,19 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   `GL_EXT_texture_compression_bptc`) alle 36.864 Zufallsblöcke gleich. `texpack_tests` 910, `run_e2e.py` 32 Punkte
   (BC7, JPG, `.jpeg`, PNG vor JPG, BC6H abgelehnt). Das Paket des Inhabers (ohne BC7/JPG) ergibt mit 1.2 dieselben
   Dateien wie mit 1.1: 256, 512 und 1024 je gleich groß, nur 2 Bytes im Info-Text anders (Version 1.1 → 1.2, Datum).
-- **Texture Packer für Android (Wunsch des Projektinhabers, 12.11.2026): nur Plan,** `port/docs/textur-packer-android-plan.md`
-  (zweites Modul `packer` in `port/android-decomp/`, `com.ast.cubeevil4.texturepacker`, ab Android 7, etwa 1,5–2 MB;
-  ZIP direkt lesen (ZIP64, Deflate) oder Ordner über die Dateiauswahl; Platzprüfung aus den Bildköpfen; Ergebnis als
-  `.c4tex` in Download des gewählten Speichers; Vordergrunddienst; gleicher C++-Kern wie am PC). Drei Fragen offen
-  (Auspacken, nur ZIP/Ordner, Übergabe an CubeEvil4).
+- **Texture Packer für Android (Wunsch des Projektinhabers, 12.11.2026; Antworten 13.11.2026: ZIP direkt lesen, nur
+  ZIP und Ordner, Knopf „In CubeEvil4 importieren“): gebaut, Gerätetest offen.** Plan und Umsetzung:
+  `port/docs/textur-packer-android-plan.md`. PC-Programm 1.3: Bedienung und Umwandeln getrennt (`packer.h/.cpp`,
+  `texpack.cpp` nur Fenster), ZIP-Leser `zip.h/.cpp` (ZIP64, gespeichert/Deflate); das PC-Programm nimmt jetzt auch
+  ZIPs. Paket des Inhabers mit 1.3: 256/512 bis auf die Versionsnummer (1 Byte) gleich wie 1.2; als 11,9-GB-ZIP Byte
+  für Byte dieselbe Datei wie der Ordner. App `port/android-decomp/packer/` (`com.ast.cubeevil4.texturepacker`,
+  Debug-APK 1,2 MB): ZIP oder Ordner über die Dateiauswahl, Varianten, Stufe mit Größe und Dauer auf dem Gerät,
+  Speicher mit freiem Platz, Umwandeln als Vordergrunddienst in Download (unfertig unsichtbar, bei Abbruch gelöscht),
+  Bericht, „In CubeEvil4 importieren“. CubeEvil4: `TextureImportActivity` (fragt, importiert, schaltet ein), 3 Texte
+  und Hilfetext in 11 Sprachen. Geprüft: Packer 7 Tests, Lint ohne Fehler, beide `check_translations` ohne Befund,
+  `TextureImportActivityTest` 3/3, App-Tests beider Varianten je 123 ohne Fehler; nicht auf einem Gerät.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
-  T7 (Test-APK, Retroid), Messungen auf dem Gerät.
+  T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 
 ## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Benchmark nach dem Update neu, Zufällige Gegner, HD-Texturen (12.11.2026, Branch `09912`)
 
