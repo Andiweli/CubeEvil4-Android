@@ -50,6 +50,31 @@ itself, and it stays stuck there“; Latch L/R, Alternative Steuerung, Totzone/R
 - **Nicht geprüft:** auf einem Gerät mit einem kabelgebundenen Xbox-Pad (keins hier); welche Achsen das Motorola
   wirklich meldet (der Bericht hatte keine `controllers.txt`).
 
+### 3. Meldung „nach dem Update auf 0.99.12 nur noch 45 statt 60 FPS“ (13.11.2026)
+
+Bericht `E:\Development\Android\reports\09913-45fps\` (nubia NX709S, Adreno 730, Android 13; GLES, 60 FPS an, Frame
+skip aus, Profil Custom; 10:03–11:19, dazu `previous/` = 0.99.11, 2 Minuten). Auswertung mit `09913-fps_timeline.py`
+(Notizordner): Bilder je Minute, Zwischenbilder je Sekunde, ausgelassene, GPU-Zeit, Räume, Zeit in Spielmenüs.
+
+- **Keine Verschlechterung durch 0.99.12 gefunden.** Die 30-FPS-Abschnitte (ganze 10-s-Fenster mit ~303 Bildern) sind
+  genau die Zeiten in den Menüs des Spiels: Koffer, Karte, Händler, Akten (`run: sub screen open … closed`, zusammen
+  **2015 s von etwa 72 Minuten**) und einmal 88 s ein Bild ohne 3D-Abgleich in r11f (10:49:52–10:51:20, kein
+  Untermenü, vermutlich das START-Menü; `re4_picture_still`). Dort macht die App seit 0.91 absichtlich keine
+  Zwischenbilder (68ecb617, c5a4ca5a: Textlisten verschmieren, Aufblitzen). Minuten mit weniger als 5 s im Menü: im
+  Mittel **56 FPS**, die meisten 58–60; Zwischensequenzen haben ihre Zwischenbilder (r11fs02 ~30/s).
+- **Einstellung des Spielers um 10:28:** fest Stufe 3 statt Dynamisch (ab 2x) und Anisotropie 16 statt 2: GPU je
+  Bild ~8 → 9–10 ms, etwas mehr ausgelassene Zwischenbilder, in r10f 54–55 FPS statt ~60; danach in r200 wieder 60.
+  Keine Hitze-Drosselung erkennbar (nach einer Stunde 60 FPS).
+- **0.99.12-Teile geprüft:** der 30-FPS-Rhythmushalter (`PictureHold`, ab423bdf) wirkt nur ohne 60 FPS; der
+  Texturlader nur mit Paket (keins); die Benchmark-Wiederholung lief nicht (kein früherer Benchmark, `benchDate`
+  fehlt; `benchFirst` 2 = die Frage nach dem Update steht noch aus).
+- **Altbefund:** der Bildschirm bleibt bei 120 Hz, obwohl die App 60 Hz wünscht (auch 0.99.11 und 0.99.7). Die App
+  zeigt dann jedes Bild für 2 Bildwechsel, oft aber abwechselnd 1 und 3 (z. B. „1: 200, 2: 180, 3: 200“): gleiche
+  Anzahl, ungleichmäßiger. In 0.99.11 gab es nur zwei saubere Fenster („1: 51, 2: 503, 3: 49“), zu wenig zum
+  Vergleich. Möglicher Schritt (nicht gebaut, Inhaber fragen): ein Rhythmushalter wie `PictureHold` auch für 60 Bilder
+  auf 120 Hz.
+- Nichts am Programm geändert; Rat an den Spieler siehe Bericht an den Inhaber.
+
 ## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
 Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,
