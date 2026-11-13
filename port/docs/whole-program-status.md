@@ -210,6 +210,39 @@ Abschnitt 9; Patch 0231 erweitert: die Schleife am Ende fragt bis −1).
   neuen Stellen irgendwo hängen bleiben (die Prüfung schließt Wände, Absätze und Kisten aus, nicht jede Eigenheit eines
   Raums).
 
+### 7. Filmfarben unter Vulkan (Meldung eines Spielers, 13.11.2026)
+
+Bericht `E:\Development\Android\reports\09913-video-colours\` (0.99.12-rc, Xiaomi 25102PCBEG, Adreno 840, Android 17,
+Vulkan-Treiber 0.842.44, Renderer Vulkan): in `demo0.sfd` und anderen Filmen werden helle Haut und helles Metall
+leuchtend grün mit gelben Rändern.
+
+- **Ursache:** dieselbe wie beim Galaxy A36 (0.43.0, Abschnitt „Filmfarben Galaxy A36“ unten): die vierte Film-Stufe
+  `lerp(CPREV, APREV, K3)` mit `a << 8`, die der Treiber nur mit 16 Bit rechnet; Rot und Blau über 127 werden 0, Grün
+  bleibt (die gelben Ränder: Blau ist dort schon über 127, Rot noch nicht). Die GPU-Selbstprüfung lief bisher nur unter
+  GLES (`core_mode.cpp`: nicht bei Vulkan); unter Vulkan blieb immer die Schreibweise mit `a << 8`. Im Protokoll des
+  Berichts fehlt darum jede „GPU check“-Zeile.
+- **Behoben:** `gx_selfcheck.cpp` prüft mit beiden Renderern (`MovieColourCheck(wrong, GxApi)`): Vulkan liest das
+  Ergebnis über eine Bildschirmkopie (`ReadXfb`), GL weiter direkt aus dem EFB. `core_mode.cpp` startet die
+  Vulkan-Prüfung einmal je Lauf direkt nach dem Start des Vulkan-Renderers, auf dessen Gerät (kein zweites Gerät, das
+  wieder abgebaut wird) und bevor der Renderer einen GX-Shader erzeugt; die gewählte Schreibweise gilt für alle Shader
+  danach. Protokollzeile `GPU check (movie colours, Vulkan): …`. Eine zweite Prüfung im selben Lauf (anderer Renderer)
+  beginnt mit der schon gewählten Schreibweise und nennt sie (`; in use: …`). `gx_vk.cpp`: die Marke der vorab gebauten
+  Pipelines (`vk-ahead.done`) enthält die Schreibweise, wenn sie nicht die bisherige ist (betroffene Geräte bauen die
+  Liste einmal neu, alle anderen behalten ihre Marke). SPIR-V-Speicher und GL-Programmspeicher hängen schon am
+  Shadertext, sie brauchen nichts.
+- **Geprüft (PC, WSL, lavapipe/llvmpipe):** `gx_gl_check` 0 Fehler, neu `TestVkTevMath`: unter Vulkan mit der
+  bisherigen Schreibweise 32 von 32 richtig; die 16-Bit-Schreibweise (wie A36 und, nach den Bildern, das Adreno 840)
+  ergibt unter Vulkan genau die sechs Pixel des A36-Berichts (Rot und Blau 0, also grün), die Prüfung wählt dann „ohne
+  Verschiebung“ (0 falsch); jede der drei echten Schreibweisen gibt die Filmfarben richtig; zufällige TEV-Einstellungen
+  (2 × 60 Vierecke) in GL und Vulkan **Byte für Byte gleich** in allen vier Schreibweisen (auch die 16-Bit-Schreibweise
+  gleich falsch). NDK-Bau `externalNativeBuildCoreDebug` ohne Fehler.
+- **Nicht geprüft:** auf dem Adreno 840 selbst (der nächste Bericht muss `GPU check (movie colours, Vulkan): 6 of 32
+  pixels wrong; … in use: the lerp without the shift by 8 (the movies right)` oder ähnlich zeigen und die Filme
+  richtig); das Neubauen der Pipeline-Liste mit geänderter Schreibweise (nur im Code nachgesehen); die Dauer der
+  Prüfung auf einem Telefon (ein paar Shader und Pipelines, einmal je Lauf).
+- **Übergangstipp für den Spieler:** App-Menü (SELECT) → Display → Renderer → OpenGL ES (das Spiel startet neu); dort
+  läuft die Prüfung schon seit 0.43.
+
 ## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
 Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,

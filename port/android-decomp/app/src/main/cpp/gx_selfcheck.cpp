@@ -179,26 +179,58 @@ void DefaultState() {
 
 } // namespace
 
-int MovieColourPixels(std::string *detail, std::string *error) {
+int MovieColourPixels(std::string *detail, std::string *error, GxApi api) {
+  const bool vulkan = api == GxApi::kVulkan;
+  std::string dummy;
+  if (!error)
+    error = &dummy;
   int bad = 0;
   {
-    GxRenderer r;
+    GxRenderer r(api);
+    if (r.Api() != api) {
+      *error = "no Vulkan renderer in this build";
+      return -1;
+    }
     if (!r.Init(1, error)) {
-      DefaultState();
+      if (!vulkan)
+        DefaultState();
       return -1;
     }
     Builder b;
     Build(b);
+    // Vulkan: the EFB is no GL texture; read through a display copy of it (no clear, no filter, gamma 1)
+    std::vector<std::uint8_t> xfb;
+    unsigned w = 0, h = 0;
+    if (vulkan) {
+      const std::uint8_t black[4] = {0, 0, 0, 255};
+      DisplayCopy(b, false, black);
+    }
     r.Run(b.Chunk());
     GLuint fbo = 0;
-    glGenFramebuffers(1, &fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r.EfbColor(), 0);
+    if (vulkan) {
+      if (!r.ReadXfb(&xfb, &w, &h) || w < 64 || h < static_cast<unsigned>(kTop[3] + 64) ||
+          xfb.size() < static_cast<std::size_t>(w) * h * 4) {
+        *error = "the display copy could not be read back";
+        r.Release();
+        return -1;
+      }
+    } else {
+      glGenFramebuffers(1, &fbo);
+      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, r.EfbColor(), 0);
+    }
+    // (GL's EFB and Vulkan's read-back both have GameCube row y at row y)
+    const auto pixel = [&](int x, int y, std::uint8_t got[4]) {
+      if (vulkan)
+        std::copy_n(&xfb[(static_cast<std::size_t>(y) * w + static_cast<std::size_t>(x)) * 4], 4, got);
+      else
+        glReadPixels(x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, got);
+    };
     int shown = 0;
     for (int stages = 1; stages <= 4; stages++)
       for (int i = 0; i < 8; i++) {
         std::uint8_t got[4] = {};
-        glReadPixels(i * 8 + 4, kTop[stages - 1] + 4, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, got);
+        pixel(i * 8 + 4, kTop[stages - 1] + 4, got);
         int want[4];
         Expected(kColours[i], stages, want);
         if (got[0] == want[0] && got[1] == want[1] && got[2] == want[2] && got[3] == want[3])
@@ -214,35 +246,41 @@ int MovieColourPixels(std::string *detail, std::string *error) {
           *detail += line;
         }
       }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDeleteFramebuffers(1, &fbo);
+    if (!vulkan) {
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glDeleteFramebuffers(1, &fbo);
+    }
     r.Release();
   }
-  DefaultState();
+  if (!vulkan)
+    DefaultState();
   return bad;
 }
 
-std::string MovieColourCheck(int *wrong) {
-  // the lerp as the hardware computes it first; on a wrong pixel the other ways of writing it, the
-  // first one this GPU computes right stays (SetTevMath), else the one with the fewest wrong pixels
+std::string MovieColourCheck(int *wrong, GxApi api) {
+  // the lerp as the hardware computes it first (or the way a check before chose); on a wrong pixel the other
+  // ways of writing it, the first one this GPU computes right stays (SetTevMath), else the one with the fewest
+  // wrong pixels
   const int first = GetTevMath();
+  const std::string name = api == GxApi::kVulkan ? "GPU check (movie colours, Vulkan)" : "GPU check (movie colours)";
   std::string detail, error;
-  const int bad = MovieColourPixels(&detail, &error);
+  const int bad = MovieColourPixels(&detail, &error, api);
   if (wrong)
     *wrong = bad;
   if (bad < 0)
-    return "GPU check (movie colours): no renderer (" + error + ")";
+    return name + ": no renderer (" + error + ")";
   if (!bad)
-    return "GPU check (movie colours): ok, 32 of 32 pixels as the GameCube computes them";
-  char head[96];
-  std::snprintf(head, sizeof(head), "GPU check (movie colours): %d of 32 pixels wrong", bad);
-  std::string line = head + detail;
+    return name + ": ok, 32 of 32 pixels as the GameCube computes them" +
+           (first == kTevMathShift ? "" : std::string("; in use: ") + TevMathName(first));
+  char head[64];
+  std::snprintf(head, sizeof(head), ": %d of 32 pixels wrong", bad);
+  std::string line = name + head + detail;
   int best = first, bestBad = bad;
   for (int mode : {kTevMathNoShift, kTevMathFloat}) {
     if (mode == first)
       continue;
     SetTevMath(mode);
-    const int n = MovieColourPixels(nullptr, &error);
+    const int n = MovieColourPixels(nullptr, &error, api);
     char part[128];
     std::snprintf(part, sizeof(part), "; with %s: %d wrong", TevMathName(mode), n);
     line += part;

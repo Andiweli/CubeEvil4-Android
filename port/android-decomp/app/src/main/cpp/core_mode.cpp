@@ -2062,9 +2062,10 @@ bool drawGx() {
     // once per run: does this GPU compute the movie colours like the GameCube (gx_selfcheck.cpp;
     // the Galaxy A36 showed them green and brown)? Before any renderer, on a renderer of its own;
     // on wrong pixels it picks a way of writing the TEV's lerp that this GPU computes right.
-    static bool gpuChecked = false;
-    if (!gpuChecked && !(gxVulkan() && !vulkanFailed)) {
-      gpuChecked = true;
+    // Vulkan's check runs below, after its renderer started (the same device).
+    static bool gpuCheckedGl = false;
+    if (!gpuCheckedGl && !(gxVulkan() && !vulkanFailed)) {
+      gpuCheckedGl = true;
       LOG("%s", re4gx::MovieColourCheck(nullptr).c_str());
     }
     if (benchForcing() && levelBench.phase.load() == 2) {
@@ -2127,6 +2128,15 @@ bool drawGx() {
       if (previous) previous->Release();
       gxMode = 0;
       return false;
+    }
+    // the movie colours under Vulkan, once per run (gx_selfcheck.cpp): its driver compiles the shaders on a way of
+    // its own (an Adreno 840 showed the movies green under Vulkan only, report 13.11.2026). On a renderer of its own
+    // on the device the new one holds (not made and dropped again), before the new one made any GX shader: the way
+    // of writing the lerp it picks holds for every shader after it (and the pipelines made ahead, gx_vk.cpp).
+    static bool gpuCheckedVk = false;
+    if (vulkan && !gpuCheckedVk) {
+      gpuCheckedVk = true;
+      LOG("%s", re4gx::MovieColourCheck(nullptr, re4gx::GxApi::kVulkan).c_str());
     }
     if (previous) {
       previous->HandOverCopies(*gx);

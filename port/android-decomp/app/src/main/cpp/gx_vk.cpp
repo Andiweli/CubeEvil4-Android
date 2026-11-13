@@ -1648,6 +1648,7 @@ struct VkRenderer final : GxCore {
     a.centroid = options.centroid && samples > 1 ? 1 : 0;
     a.merge = mergeOn;
     a.psx = psxOn;
+    a.tevMath = GetTevMath();
     aheadStop = false;
     aheadThread = std::thread([this, a] { AheadThread(a); });
   }
@@ -1656,6 +1657,7 @@ struct VkRenderer final : GxCore {
     std::string list, markFile, cacheFile;
     std::uint32_t centroid = 0;
     bool merge = false, psx = false;
+    int tevMath = kTevMathShift;  // the way of writing the lerp (gx_selfcheck.cpp picked it for this driver)
   };
   void StopAhead() {
     if (!aheadThread.joinable())
@@ -1723,14 +1725,17 @@ struct VkRenderer final : GxCore {
             head[0], head[1]);
       return;
     }
-    // the mark: the list, the driver, what changes the pipelines (samples, centroid, merged draws, PSone demake)
+    // the mark: the list, the driver, what changes the pipelines (samples, centroid, merged draws, PSone demake, the
+    // lerp's way of writing when the movie check chose another one: 0.99.13, the marks before it stay valid)
     char markText[160];
     std::snprintf(markText, sizeof(markText), "%016llx %016llx%016llx %d %u %d %d",
                   static_cast<unsigned long long>(Fnv(data.data(), data.size())),
                   static_cast<unsigned long long>(Fnv(vk.properties.pipelineCacheUUID, VK_UUID_SIZE)),
                   static_cast<unsigned long long>(vk.properties.vendorID) << 32 | vk.properties.deviceID, samples,
                   a.centroid, a.merge ? 1 : 0, a.psx ? 1 : 0);
-    const std::string mark = markText;
+    std::string mark = markText;
+    if (a.tevMath != kTevMathShift)
+      mark += " lerp " + std::to_string(a.tevMath);
     const std::vector<char> was = ReadFileBytes(a.markFile, 1024);
     if (std::string(was.begin(), was.end()) == mark) {
       GXLOG("Vulkan pipelines ahead: the app's list (%u pipelines) was made on this driver before", head[1]);

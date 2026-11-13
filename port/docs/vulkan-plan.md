@@ -254,7 +254,7 @@ oder auf Geräten Fehler zeigt.
 | 60 FPS (`Interpolate`, `BlendDraw`) | Bildstück ein zweites Mal mit gemischten Matrizen, eigene Kopien | Logik geteilt (T1), Ecken-Ring, eigene Kopie-Bilder | 2–3 Tage |
 | Frame skip (`Skip`) | Zustand ohne Zeichnen | Logik geteilt | 0,5 Tage |
 | Gebündelte Zeichenbefehle (`SetMerge`) | Ableger-Shader, Bündel-Block | eher einfacher (Basis-Ecke immer da) | 1 Tag |
-| GPU-Selbstprüfung Filmfarben (`gx_selfcheck.cpp`, `TevMath`) | rechnet TEV-Stufen auf dem Chip nach | eigene Fassung, weil anderer Treiberweg | 1 Tag |
+| GPU-Selbstprüfung Filmfarben (`gx_selfcheck.cpp`, `TevMath`) | rechnet TEV-Stufen auf dem Chip nach | eigene Fassung, weil anderer Treiberweg (seit 0.99.13 gebaut: dieselbe Prüfung, gelesen über die Bildschirmkopie, `MovieColourCheck(…, GxApi::kVulkan)`) | 1 Tag |
 | Messungen (`GxStats`, GPU-Zeit, „wie weit hinten“, `RE4_GX_COPY_TIME`, GPU-Messlauf) | GL-Zeitabfrage (auf Mali aus) | Vulkan-Zeitstempel, auch auf Mali | 1–2 Tage |
 | Bildschirmfoto, R3-Aufnahme, `gxDump`/`-GxReplay` | `glReadPixels`, `glFinish` | Bild in Puffer kopieren | 1 Tag |
 

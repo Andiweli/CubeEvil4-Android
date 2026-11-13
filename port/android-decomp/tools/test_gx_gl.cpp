@@ -3980,8 +3980,11 @@ std::vector<std::uint8_t> Efb(re4gx::GxRenderer &r) {
 // 60 quads, each with a random TEV setup of one to four stages on registers, konstant and
 // rasterized colours (no textures): inputs above 127, every bias, scale, subtraction, clamping
 // and compare mode; every other row with linear fog.
-std::vector<std::uint8_t> TevMathScene(std::uint32_t seed, unsigned *shaderErrors) {
-  re4gx::GxRenderer r;
+// (api Vulkan: read through a display copy of the whole EFB, rows as GL's EFB)
+std::vector<std::uint8_t> TevMathScene(std::uint32_t seed, unsigned *shaderErrors,
+                                       re4gx::GxApi api = re4gx::GxApi::kGl) {
+  re4gx::GxRenderer r(api);
+  Require(r.Api() == api, "TEV math scene: the renderer asked for");
   std::string error;
   Require(r.Init(1, &error), error.c_str());
   std::mt19937 rng(seed);
@@ -4040,12 +4043,29 @@ std::vector<std::uint8_t> TevMathScene(std::uint32_t seed, unsigned *shaderError
     const float x = static_cast<float>((q % 10) * 64), y = static_cast<float>((q / 10) * 64);
     Quad(b, x, y, x + 60, y + 60, -0.1f - 0.013f * static_cast<float>(q), c);
   }
-  r.Run(b.Chunk());
-  std::vector<std::uint8_t> p = Efb(r);
+  std::vector<std::uint8_t> p;
+  if (api == re4gx::GxApi::kGl) {
+    r.Run(b.Chunk());
+    p = Efb(r);
+  } else {
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&p, &w, &h) && w == 640 && h == 528, "TEV math scene: the display copy read back");
+  }
   *shaderErrors += r.Stats().shaderErrors;
   r.Release();
   return p;
 }
+
+// the Galaxy A36's wrong movie pixels (report 22.10.2026 19:30), as the check writes them
+const char *const kA36Pixels[6] = {
+    "4 stages, Y 128 U 128 V 128: 0 131 0 0, want 131 131 132 0",
+    "4 stages, Y 200 U 128 V 128: 0 215 0 0, want 215 215 216 0",
+    "4 stages, Y 235 U 128 V 128: 0 255 0 0, want 255 255 255 0",
+    "4 stages, Y 180 U 90 V 200: 0 148 116 0, want 255 148 116 0",
+    "4 stages, Y 100 U 200 V 60: 0 125 0 0, want 0 125 244 0",
+    "4 stages, Y 235 U 240 V 240: 0 121 0 0, want 255 121 255 0"};
 
 // The ways of writing the TEV's lerp (gx_gl_shader.h SetTevMath). The Galaxy A36 (Adreno 710)
 // computed a << 8 in 16 bits: written so on purpose, the movie check gives exactly that phone's six
@@ -4056,15 +4076,8 @@ void TestTevMath() {
   re4gx::SetTevMath(re4gx::kTevMathBroken16);
   const int bad = re4gx::MovieColourPixels(&detail, &error);
   Check(bad == 6, "TEV math: a << 8 in 16 bits gives six wrong movie pixels, as on the Galaxy A36");
-  static const char *a36[6] = {
-      "4 stages, Y 128 U 128 V 128: 0 131 0 0, want 131 131 132 0",
-      "4 stages, Y 200 U 128 V 128: 0 215 0 0, want 215 215 216 0",
-      "4 stages, Y 235 U 128 V 128: 0 255 0 0, want 255 255 255 0",
-      "4 stages, Y 180 U 90 V 200: 0 148 116 0, want 255 148 116 0",
-      "4 stages, Y 100 U 200 V 60: 0 125 0 0, want 0 125 244 0",
-      "4 stages, Y 235 U 240 V 240: 0 121 0 0, want 255 121 255 0"};
   bool same = true;
-  for (const char *w : a36)
+  for (const char *w : kA36Pixels)
     same = same && detail.find(w) != std::string::npos;
   Check(same, "TEV math: the same values as the Galaxy A36's report");
   if (!same)
@@ -4167,6 +4180,67 @@ void TestCanonicalKey() {
 // room 0x227 and leaves its room list (room-227.vkpipes); that list as the app's list (RE4VKL01, as
 // port/tools/gx_vkpipe_list.py writes it) goes through the thread of a second renderer on an empty cache folder while it
 // draws: every pipeline made, the list marked; a third renderer on that folder leaves it out (the mark), one with merged
+// The movie check under Vulkan (an Adreno 840, Xiaomi, report 13.11.2026: the movies green under Vulkan only, as on
+// the Galaxy A36 under GLES; the check ran only under GLES). Through Vulkan's read-back: right with the hardware's
+// way; the A36's 16-bit way gives the same six pixels and the check then picks the lerp without the shift; GL and
+// Vulkan draw the random TEV setups byte for byte the same in each of the three real ways (and both see the 16-bit
+// way).
+void TestVkTevMath() {
+  re4gx::SetTevMath(re4gx::kTevMathShift);
+  int wrong = -1;
+  std::string line = re4gx::MovieColourCheck(&wrong, re4gx::GxApi::kVulkan);
+  std::fprintf(stderr, "%s\n", line.c_str());
+  Check(wrong == 0 && re4gx::GetTevMath() == re4gx::kTevMathShift &&
+            line == "GPU check (movie colours, Vulkan): ok, 32 of 32 pixels as the GameCube computes them",
+        "Vulkan TEV math: the movie colours as the GameCube computes them");
+  std::string detail, error;
+  re4gx::SetTevMath(re4gx::kTevMathBroken16);
+  const int bad = re4gx::MovieColourPixels(&detail, &error, re4gx::GxApi::kVulkan);
+  bool same = bad == 6;
+  for (const char *w : kA36Pixels)
+    same = same && detail.find(w) != std::string::npos;
+  Check(same, "Vulkan TEV math: a << 8 in 16 bits gives the Galaxy A36's six pixels");
+  if (!same)
+    std::fprintf(stderr, "  emulated (%d, %s): %s\n", bad, error.c_str(), detail.c_str());
+  line = re4gx::MovieColourCheck(&wrong, re4gx::GxApi::kVulkan);
+  std::fprintf(stderr, "  emulated A36 under Vulkan: %s\n", line.c_str());
+  Check(wrong == 0 && re4gx::GetTevMath() == re4gx::kTevMathNoShift &&
+            line.find("GPU check (movie colours, Vulkan): 6 of 32 pixels wrong") == 0 &&
+            line.find("in use: the lerp without the shift by 8 (the movies right)") != std::string::npos,
+        "Vulkan TEV math: the check picks the lerp without the shift");
+  // a second check with the way the first one chose (GL after Vulkan, or the other way round)
+  line = re4gx::MovieColourCheck(&wrong, re4gx::GxApi::kVulkan);
+  Check(wrong == 0 && re4gx::GetTevMath() == re4gx::kTevMathNoShift &&
+            line.find(": ok, 32 of 32 pixels as the GameCube computes them; in use: the lerp without the shift") !=
+                std::string::npos,
+        "Vulkan TEV math: a second check keeps the way chosen");
+  for (int mode : {re4gx::kTevMathShift, re4gx::kTevMathNoShift, re4gx::kTevMathFloat}) {
+    re4gx::SetTevMath(mode);
+    Check(re4gx::MovieColourPixels(nullptr, &error, re4gx::GxApi::kVulkan) == 0,
+          "Vulkan TEV math: the movie colours right in each way");
+  }
+  for (std::uint32_t seed : {1u, 2u}) {
+    unsigned errors = 0;
+    for (int mode = re4gx::kTevMathShift; mode <= re4gx::kTevMathBroken16; mode++) {
+      re4gx::SetTevMath(mode);
+      const std::vector<std::uint8_t> gl = TevMathScene(seed, &errors);
+      const std::vector<std::uint8_t> vk = TevMathScene(seed, &errors, re4gx::GxApi::kVulkan);
+      int differ = 0, lit = 0;
+      for (std::size_t i = 0; i < gl.size() && i < vk.size(); i += 4) {
+        differ += std::memcmp(&gl[i], &vk[i], 4) ? 1 : 0;
+        lit += vk[i] | vk[i + 1] | vk[i + 2] ? 1 : 0;
+      }
+      if (differ || seed == 1)
+        std::fprintf(stderr, "  TEV math scene %u, %s: GL and Vulkan %d pixels differ (%d lit)\n", seed,
+                     re4gx::TevMathName(mode), differ, lit);
+      Check(gl.size() == vk.size() && differ == 0 && lit > 60 * 60 * 20,
+            "Vulkan TEV math: random TEV setups, GL and Vulkan the same picture");
+    }
+    Check(errors == 0, "Vulkan TEV math: every shader compiles in each way");
+  }
+  re4gx::SetTevMath(re4gx::kTevMathShift);
+}
+
 // draws on goes through it again (the mark names the setting).
 void TestVkAhead() {
   char a[] = "/tmp/re4-vkahead-a-XXXXXX", b[] = "/tmp/re4-vkahead-b-XXXXXX";
@@ -4440,6 +4514,7 @@ int main() {
     TestVkHandOverCopies();
     TestVkOverlay();
     TestVkAhead();
+    TestVkTevMath();
     {
       // bloom with Vulkan at 2x: the same as GL (TestBloom)
       re4gx::GxRenderer vr(re4gx::GxApi::kVulkan);
