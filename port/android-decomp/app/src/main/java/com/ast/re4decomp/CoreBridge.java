@@ -53,6 +53,11 @@ public final class CoreBridge {
    * the game's video retraces follow the display (no drift against 60 Hz).
    */
   public static native void vsync(long frameTimeNanos);
+  /**
+   * The beat's grid (FramePacing.every): the picture drawn at every n-th vsync; on a screen that stays faster than
+   * 60 Hz each picture then asks for its own vsync (0.99.13, core_mode.cpp present::beforeSwap).
+   */
+  public static native void setPictureEvery(int n);
   /** The room the game is in (stage << 8 | room), -1 outside a room. */
   public static native int wantedRoom();
   /** The decoded room archive for a room (RoomRepository), or the error. */

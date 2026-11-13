@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -101,6 +102,157 @@ struct PictureHold {
       return false;
     held++;
     return true;
+  }
+};
+
+// A steady rhythm of 60 pictures a second on a screen that stays faster than 60 Hz (0.99.13; a user's nubia NX709S
+// at 120 Hz, 60 FPS on: the app draws at every second vsync, but each picture reached the screen at the first vsync
+// after the GPU was done with it, 2 or 3 vsyncs after the drawing began; in turn that gave 1 and 3 vsyncs a picture,
+// "1: 200, 2: 180, 3: 200", felt as unevenness although 60 came a second). The app asks Android to show each picture
+// at a vsync of its own (eglPresentationTimeANDROID): `latency` vsyncs after the vsync its drawing began at, the
+// drawings kept on their grid of `every` vsyncs (FramePacing: 2 at 120 Hz). A picture done in time then waits for its
+// vsync instead of coming one early, so every picture shows for `every` vsyncs. The latency starts at every + 1 (3 at
+// 120 Hz: 8 ms more than a picture done within 2 vsyncs needed) and follows what the screen did (Outcome: when the GPU
+// was done and when the picture was shown, EGL_ANDROID_get_frame_timestamps): one more while more than 1 in 20
+// pictures came late, one less after 5 s without a late one and with a vsync to spare, between every and every + 2.
+// It steps aside for 30 s (no times asked for, the screen as before) when it cannot help: more than 1 in 4 pictures
+// late even at every + 2, or the render thread behind the game 3 times within 2 s (Behind): it never holds a picture
+// back while the device does not keep up. Only for screens whose `every` vsyncs are a 60th of a second (120, 180,
+// 240 Hz; 60 pictures on 90 Hz cannot be even: 1 and 2 vsyncs by turns); never else (Target 0: no time asked for).
+// Independent of Android (tools/test_gx_gl.cpp TestPresentPacer).
+struct PresentPacer {
+  static constexpr int kWindow = 60;          // pictures judged at a time
+  static constexpr long long kMarginNs = 2000000LL;  // the GPU done this long before its vsync at least (the latch)
+  static constexpr long long kAsideNs = 30000000000LL;  // stepped aside this long
+  int latency = 0;   // vsyncs from the drawing's vsync to the one asked for (0: not active)
+  int every = 0;     // the drawings' grid in vsyncs
+  long long period = 0;
+  long long lastBase = 0, lastTarget = 0;
+  int frames = 0, late = 0, quietWindows = 0;
+  long long minSpare = -1;  // the least time between the GPU done and its vsync in the window (-1: none known)
+  long long asideUntil = 0, behindFrom = 0;
+  int behindCount = 0;
+  unsigned asked = 0, ups = 0, downs = 0, lateAll = 0, judged = 0, asides = 0;
+
+  bool Aside() const { return asideUntil > 0; }
+
+  // No times asked for during the next 30 s from `vsync` on.
+  void StepAside(long long vsync) {
+    asideUntil = vsync + kAsideNs;
+    asides++;
+    lastBase = lastTarget = 0;
+    frames = late = quietWindows = behindCount = 0;
+    behindFrom = 0;
+    minSpare = -1;
+  }
+
+  // The render thread was behind the game at the drawing of `vsync` (core_mode.cpp: the next chunk was there already).
+  void Behind(long long vsync) {
+    if (!latency || Aside() || vsync <= 0)
+      return;
+    if (behindFrom == 0 || vsync - behindFrom > 2000000000LL) {
+      behindFrom = vsync;
+      behindCount = 0;
+    }
+    if (++behindCount >= 3)
+      StepAside(vsync);
+  }
+
+  // `every` vsyncs of `period` ns a 60th of a second (59.94 .. 60.5 pictures a second)?
+  static bool Fits(long long period, int every) {
+    if (period <= 0 || every < 2)
+      return false;
+    const long long frame = period * every;
+    return frame >= 16529000LL && frame <= 16695000LL;
+  }
+
+  void Reset() {
+    latency = every = 0;
+    period = lastBase = lastTarget = 0;
+    frames = late = quietWindows = behindCount = 0;
+    minSpare = -1;
+    asideUntil = behindFrom = 0;
+  }
+
+  // The time to ask for (ns, the clock of the vsyncs) for the picture drawn now: `vsync` the latest vsync when its
+  // drawing began; 0: none (the screen does not fit, or a gap: the grid starts anew at the next picture).
+  long long Target(long long vsync, long long periodNs, int everyNow) {
+    if (!Fits(periodNs, everyNow) || vsync <= 0) {
+      if (latency)
+        Reset();
+      return 0;
+    }
+    if (everyNow != every || std::llabs(periodNs - period) > period / 50) {
+      // another screen rate: anew
+      const int keep = everyNow == every ? latency : 0;
+      Reset();
+      every = everyNow;
+      latency = keep ? keep : everyNow + 1;
+    }
+    period = periodNs;
+    if (Aside()) {
+      if (vsync < asideUntil)
+        return 0;
+      asideUntil = 0;  // again, from the start
+      latency = every + 1;
+    }
+    const long long step = period * every;
+    long long base = vsync;
+    if (lastBase > 0 && vsync > lastBase - period / 2 && vsync - lastBase < 4 * step) {
+      // on the grid of the drawings (a drawing that began a vsync late belongs to its own vsync of the grid)
+      const long long k = std::max(1LL, (vsync - lastBase + period / 2) / step);
+      base = lastBase + k * step;
+    }
+    long long target = base + latency * period;
+    if (lastTarget > 0 && target < lastTarget + period)
+      target = lastTarget + period;
+    lastBase = base;
+    lastTarget = target;
+    asked++;
+    // asked for half a vsync before: the screen takes it at the first vsync from then on, the target
+    return target - period / 2;
+  }
+
+  // A picture's result: the vsync it was asked for (`target`: Target's value + period / 2), when the GPU was done
+  // (`done`, 0: not known) and when the screen showed it (`shown`, 0: not known).
+  void Outcome(long long target, long long done, long long shown) {
+    if (!latency || Aside() || target <= 0 || (done <= 0 && shown <= 0))
+      return;
+    judged++;
+    const bool wasLate = shown > 0 ? shown > target + period / 2 : done > target - kMarginNs;
+    if (wasLate) {
+      late++;
+      lateAll++;
+    }
+    if (done > 0) {
+      const long long spare = target - kMarginNs - done;
+      minSpare = minSpare < 0 ? std::max(0LL, spare) : std::min(minSpare, std::max(0LL, spare));
+    }
+    if (++frames < kWindow)
+      return;
+    if (late * 4 > frames && latency >= every + 2) {
+      StepAside(target);  // even the most it waits does not help: the screen as before
+      return;
+    }
+    if (late * 20 > frames) {
+      if (latency < every + 2) {
+        latency++;
+        ups++;
+      }
+      quietWindows = 0;
+    } else if (late == 0 && minSpare > period) {
+      if (++quietWindows >= 5) {
+        if (latency > every) {
+          latency--;
+          downs++;
+        }
+        quietWindows = 0;
+      }
+    } else {
+      quietWindows = 0;
+    }
+    frames = late = 0;
+    minSpare = -1;
   }
 };
 

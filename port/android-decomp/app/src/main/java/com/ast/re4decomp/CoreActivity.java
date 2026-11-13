@@ -2589,6 +2589,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int every = pacing.every();
     renderMode = every > 1 ? GLSurfaceView.RENDERMODE_WHEN_DIRTY : GLSurfaceView.RENDERMODE_CONTINUOUSLY;
     picture.setRenderMode(renderMode);
+    // 0.99.13: the pictures keep this grid on the screen too (each asks for its own vsync)
+    CoreBridge.setPictureEvery(every);
     Log.i(TAG, String.format(Locale.ROOT, "display at %.1f Hz: the picture drawn %s", pacing.hz(),
         every > 1 ? "at every " + every + " vsyncs (the screen stayed faster than 60 Hz)" : "at each vsync"));
   }

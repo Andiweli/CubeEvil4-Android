@@ -1729,6 +1729,160 @@ void TestPictureHold() {
   Check(h.Wait(1000000000LL + 16666667LL, 16666667LL), "picture hold: one vsync after the last: waits");
 }
 
+// 0.99.13: the steady rhythm of 60 pictures a second on a screen that stays at 120 Hz (picture_cadence.h
+// PresentPacer). The report's phone (nubia NX709S): the app draws at every second vsync; a picture is done (GPU)
+// `from` .. `to` vsyncs after its drawing began, and the screen shows it at the first vsync 2 ms after that and not
+// before the time asked for; a picture due at the same vsync as a later one is dropped. Some drawings begin a vsync
+// late (the render thread woke late). Returns PictureCadence's line of the pictures as shown, the pictures shown and
+// dropped, the average vsyncs from the drawing's vsync to the screen, the pacer's latency at the end, its steps and
+// the times it stepped aside.
+struct PresentRun {
+  std::string line;
+  unsigned shown = 0, dropped = 0;
+  double delay = 0.0;
+  int latency = 0;
+  unsigned ups = 0, downs = 0, asides = 0, asked = 0;
+  int twoShare = 0;  // % of the intervals of 2 vsyncs
+};
+
+static PresentRun PresentSim(bool pace, double from, double to, int pictures, unsigned seed = 4711) {
+  const long long period = 8302889;  // 120.44 Hz, the report's
+  const long long start = 2000000000LL;
+  re4gx::PresentPacer pacer;
+  struct Shot {
+    long long began, target, done, at;
+  };
+  std::vector<Shot> shots;
+  for (int k = 0; k < pictures; k++) {
+    seed = seed * 1103515245u + 12345u;
+    const double r = from + (to - from) * ((seed >> 8) & 0xFFFF) / 65535.0;
+    const long long grid = start + 2LL * k * period;
+    // now and then the drawing begins a vsync late: the latest vsync it sees is the one after its own
+    const long long began = (seed >> 24) % 23 == 0 ? grid + period : grid;
+    const long long done = grid + static_cast<long long>(r * period);
+    long long asked = pace ? pacer.Target(began, period, 2) : 0;
+    long long earliest = done + 2000000LL;
+    if (asked > 0)
+      earliest = std::max(earliest, asked);
+    const long long at = start + ((earliest - start + period - 1) / period) * period;
+    shots.push_back({began, asked > 0 ? asked + period / 2 : 0, done, at});
+    // what the screen reports some swaps later: here at once
+    if (pace)
+      pacer.Outcome(shots.back().target, done, at);
+  }
+  PresentRun out;
+  // the screen: at each vsync the newest picture due; an older one due at the same vsync or later is dropped
+  std::vector<long long> shownAt;
+  long long lastAt = 0;
+  double delay = 0.0;
+  for (std::size_t i = 0; i < shots.size(); i++) {
+    const Shot &s = shots[i];
+    const bool replacedByNext = i + 1 < shots.size() && shots[i + 1].at <= s.at;
+    if (replacedByNext || s.at <= lastAt) {
+      out.dropped++;
+      continue;
+    }
+    shownAt.push_back(s.at);
+    lastAt = s.at;
+    delay += static_cast<double>(s.at - (start + 2LL * static_cast<long long>(i) * period)) / period;
+  }
+  re4gx::PictureCadence cadence;
+  unsigned two = 0, intervals = 0;
+  for (std::size_t i = 0; i < shownAt.size(); i++) {
+    std::string line;
+    if (cadence.Note(shownAt[i], period, 120.44, &line))
+      out.line = line;
+    if (i > 0) {
+      intervals++;
+      two += (shownAt[i] - shownAt[i - 1] + period / 2) / period == 2 ? 1 : 0;
+    }
+  }
+  out.shown = static_cast<unsigned>(shownAt.size());
+  out.delay = out.shown ? delay / out.shown : 0.0;
+  out.latency = pacer.latency;
+  out.ups = pacer.ups;
+  out.downs = pacer.downs;
+  out.asides = pacer.asides;
+  out.asked = pacer.asked;
+  out.twoShare = intervals ? static_cast<int>(100 * two / intervals) : 0;
+  return out;
+}
+
+void TestPresentPacer() {
+  // the report's phone: done 1.3 .. 2.3 vsyncs after the drawing began (render thread 8-9 ms, the GPU after it)
+  const PresentRun before = PresentSim(false, 1.3, 2.3, 1300);
+  std::fprintf(stderr, "  present times off: %s (%u shown, %u dropped, %d %% at 2 vsyncs, %.2f vsyncs to the screen)\n",
+               before.line.c_str(), before.shown, before.dropped, before.twoShare, before.delay);
+  Check(before.line.find("1: 0,") == std::string::npos && before.line.find("3: 0,") == std::string::npos &&
+            before.twoShare < 70,
+        "present pacer: without it the pictures show 1 and 3 vsyncs in turn (the report's pattern)");
+  const PresentRun after = PresentSim(true, 1.3, 2.3, 1300);
+  std::fprintf(stderr, "  present times on:  %s (%u shown, %u dropped, %d %% at 2 vsyncs, %.2f vsyncs to the screen, "
+               "latency %d)\n", after.line.c_str(), after.shown, after.dropped, after.twoShare, after.delay,
+               after.latency);
+  Check(after.twoShare >= 97, "present pacer: at least 97 % of the pictures show for 2 vsyncs");
+  Check(after.dropped == 0 && after.shown == 1300, "present pacer: every picture is shown (60 a second as before)");
+  Check(after.latency == 3 && after.delay < 3.1, "present pacer: 3 vsyncs from the drawing to the screen (8 ms more)");
+  // a slower GPU (done 2.5 .. 3.4 vsyncs after): the latency rises to 4, then the rhythm holds again
+  const PresentRun slow = PresentSim(true, 2.5, 3.4, 1300);
+  std::fprintf(stderr, "  slower GPU:        %s (%d %% at 2 vsyncs, latency %d, %u up)\n", slow.line.c_str(),
+               slow.twoShare, slow.latency, slow.ups);
+  Check(slow.latency == 4 && slow.ups == 1 && slow.twoShare >= 90 && slow.dropped == 0,
+        "present pacer: a slower GPU: one vsync more, the rhythm holds");
+  // a fast GPU (done within 1.2 vsyncs): after 5 s without a late picture back to 2 vsyncs
+  const PresentRun fast = PresentSim(true, 0.6, 1.2, 1300);
+  std::fprintf(stderr, "  fast GPU:          %s (%d %% at 2 vsyncs, latency %d, %u down)\n", fast.line.c_str(),
+               fast.twoShare, fast.latency, fast.downs);
+  Check(fast.latency == 2 && fast.downs == 1 && fast.twoShare >= 99, "present pacer: a fast GPU: back to 2 vsyncs");
+  // a device that cannot keep up (done 3.6 .. 5 vsyncs after): even 4 vsyncs do not help, the times step aside and the
+  // pictures come as without them (no latency added, no more lost), for 30 s, then the pacer tries again
+  const PresentRun behind = PresentSim(true, 3.6, 5.0, 1300);
+  const PresentRun behindOff = PresentSim(false, 3.6, 5.0, 1300);
+  std::fprintf(stderr, "  too slow:          %s (%d %% at 2 vsyncs, %u stepped aside, %u asked of 1300, %.2f vsyncs to "
+               "the screen, without: %.2f)\n", behind.line.c_str(), behind.twoShare, behind.asides, behind.asked,
+               behind.delay, behindOff.delay);
+  Check(behind.asides == 1 && behind.asked < 200 && behind.shown + behind.dropped == 1300 &&
+            behind.dropped <= behindOff.dropped + 2,
+        "present pacer: a device that does not keep up: the times step aside, no more pictures lost than without");
+  Check(behind.delay < behindOff.delay + 0.2, "present pacer: stepped aside, no latency added");
+  const PresentRun longer = PresentSim(true, 3.6, 5.0, 1800 + 600);
+  Check(longer.asides == 2, "present pacer: after 30 s it tries again (and steps aside again)");
+  // the render thread behind the game three times within 2 s: aside at once
+  {
+    re4gx::PresentPacer b;
+    const long long per = 8333333LL;
+    long long v = 1000000000LL;
+    Check(b.Target(v, per, 2) > 0, "present pacer: asks at 120 Hz");
+    b.Behind(v);
+    b.Behind(v + 20 * per);
+    Check(!b.Aside(), "present pacer: twice behind: still asking");
+    b.Behind(v + 40 * per);
+    Check(b.Aside() && b.Target(v + 42 * per, per, 2) == 0, "present pacer: three times behind within 2 s: aside");
+    Check(b.Target(v + 42 * per + 30000000000LL, per, 2) > 0 && b.latency == 3,
+          "present pacer: 30 s later: asking again, from 3 vsyncs");
+    re4gx::PresentPacer c;
+    c.Target(v, per, 2);
+    c.Behind(v);
+    c.Behind(v + 300 * per);
+    c.Behind(v + 600 * per);
+    Check(!c.Aside(), "present pacer: behind now and then (2.5 s apart): still asking");
+  }
+  // only where every n-th vsync is a 60th of a second
+  re4gx::PresentPacer p;
+  Check(p.Target(1000000000LL, 16666667LL, 1) == 0, "present pacer: not at 60 Hz");
+  Check(p.Target(1000000000LL, 11111111LL, 1) == 0, "present pacer: not at 90 Hz");
+  Check(p.Target(1000000000LL, 6944444LL, 2) == 0, "present pacer: not at 144 Hz (2 vsyncs are 13.9 ms)");
+  Check(p.Target(1000000000LL, 8333333LL, 2) == 1000000000LL + 3 * 8333333LL - 8333333LL / 2,
+        "present pacer: 120 Hz: asked for 3 vsyncs after, half a vsync before it");
+  Check(p.Target(1000000000LL, 4166667LL, 4) > 0, "present pacer: 240 Hz, every 4th vsync");
+  Check(p.Target(1000000000LL, 0, 2) == 0 && p.latency == 0, "present pacer: no period known: off");
+  // the grid: a drawing that began a vsync late keeps its place
+  re4gx::PresentPacer g;
+  const long long t0 = g.Target(1000000000LL, 8333333LL, 2);
+  const long long t1 = g.Target(1000000000LL + 3 * 8333333LL, 8333333LL, 2);
+  Check(t1 - t0 == 2 * 8333333LL, "present pacer: a drawing a vsync late stays on the grid");
+}
+
 void TestPictureCadence() {
   auto run = [](double hz, double fps, int seconds, std::string *line) {
     re4gx::PictureCadence c;
@@ -4226,6 +4380,8 @@ int main() {
     TestCrtColour(renderer);
     TestPictureCadence();
     TestPictureHold();
+    if (!poison)
+      TestPresentPacer();
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);

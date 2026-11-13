@@ -75,6 +75,48 @@ skip aus, Profil Custom; 10:03–11:19, dazu `previous/` = 0.99.11, 2 Minuten). 
   auf 120 Hz.
 - Nichts am Programm geändert; Rat an den Spieler siehe Bericht an den Inhaber.
 
+### 4. Gleichmäßiger Takt bei 60 FPS auf Bildschirmen, die bei 120 Hz bleiben (Projektinhaber, 13.11.2026: „Ja, bauen“)
+
+Folge aus Abschnitt 3: auf dem nubia (120 Hz, 60 FPS an) kam ein Bild je 2 Bildwechsel an die Reihe, erreichte den
+Schirm aber beim ersten Bildwechsel nach dem Ende der GPU-Arbeit, 2 oder 3 nach Beginn, im Wechsel also 1 und 3
+Bildwechsel lang. Ein Zurückhalten wie `PictureHold` (30 FPS auf 60 Hz) hilft hier nicht: dort entscheidet die App,
+zu welchem Bildwechsel sie ein Bild zeichnet; bei 120 Hz entscheidet das Ende der GPU-Arbeit.
+
+- **`PresentPacer` (`picture_cadence.h`):** jedes Bild bittet Android um seinen Bildwechsel
+  (`eglPresentationTimeANDROID`, Teil der Android-Grafikschicht): `latency` Bildwechsel nach dem Bildwechsel, an dem
+  sein Zeichnen begann, auf dem Raster der App (`every`, `FramePacing`: 2 bei 120 Hz; ein Zeichnen, das einen
+  Bildwechsel zu spät begann, behält seinen Platz). Ein rechtzeitig fertiges Bild wartet dann auf seinen Platz, statt
+  einen früher zu kommen. Start mit `every + 1` (3 bei 120 Hz: 8 ms mehr für Bilder, die in 2 fertig gewesen wären);
+  danach nach dem, was der Schirm tat (`EGL_ANDROID_get_frame_timestamps`: GPU fertig, gezeigt): eins mehr, wenn mehr
+  als jedes 20. von 60 Bildern zu spät kam, eins weniger nach 5 s ohne verspätetes Bild mit einem Bildwechsel Reserve;
+  zwischen `every` und `every + 2`. **Tritt 30 s beiseite** (keine Zeitwünsche, alles wie vorher), wenn es nicht hilft:
+  mehr als jedes 4. Bild zu spät auch bei `every + 2`, oder der Zeichenfaden dreimal in 2 s hinter dem Spiel
+  (Zwischenbild ausgelassen, `gxBetweenDropped`); danach neuer Versuch ab `every + 1`. So hält es nie ein Bild zurück,
+  während das Gerät nicht nachkommt. Nur mit 60 FPS an (das 30-FPS-Menü bleibt, wie es war), nur wo `every`
+  Bildwechsel eine Sechzigstelsekunde sind (120, 180, 240 Hz; 60 Bilder auf 90 Hz können nicht gleichmäßig sein:
+  1 und 2 Bildwechsel im Wechsel, dort schlägt das Menü schon 30 vor), nur OpenGL ES (Vulkan zeigt selbst an), nur wenn
+  Android die Funktion meldet; 60-Hz-Schirme (Retroid) unverändert, auch ohne Zeitstempel. Prüfschalter
+  `RE4_GX_PRESENT_TIME=0` (aus).
+- **App:** `CoreActivity.pace` gibt das Raster weiter (`CoreBridge.setPictureEvery`); `core_mode.cpp`
+  `present::beforeSwap` nach jedem GX-Bild vor dem Tausch von GLSurfaceView.
+- **Protokoll:** die Zeile **„picture pacing“** endet jetzt, sobald der Halter einmal lief, mit „; present times: N
+  pictures asked for their vsync, 3 after their drawing's“ bzw. „; present times set aside (the device behind) …“ bzw.
+  „none asked“. Einmal „screen pacing: present times there/not there, frame timestamps …“, beim ersten Bild „each
+  picture asked for its vsync, 3 after its drawing's …“, beim Beiseitetreten „present times set aside for 30 s …“, und
+  alle 10 s **„screen pacing (as shown): …“** mit den Abständen, wie der Schirm sie wirklich zeigte (Zeitstempel von
+  Android), dazu Verzögerung, gefragte, beurteilte, verspätete Bilder, Schritte hoch und runter. „picture pacing“ misst
+  weiter am Zeichenfaden (bei 120 Hz nicht, was der Schirm zeigt).
+- **Geprüft am PC:** `gx_gl_check` 0 Fehler, neu `TestPresentPacer` (120,44 Hz wie beim Spieler, jedes 23. Zeichnen
+  einen Bildwechsel zu spät): Bilder 1,3–2,3 Bildwechsel nach Beginn fertig: **ohne Halter „1: 159, 2: 285, 3: 159“
+  (47 % genau 2), mit Halter „2: 603“ (100 %)**, kein Bild verloren, Verzögerung 2,53 → 3,00 Bildwechsel (im Mittel
+  3,9 ms mehr); langsamere GPU (2,5–3,4): ein Schritt auf 4, 98 % genau 2; schnelle GPU (0,6–1,2): nach 5 s zurück auf
+  2, 99 %; zu langsames Gerät (3,6–5,0): nach 120 Bildern beiseite, Verzögerung wie ohne (5,04), nicht mehr verlorene
+  Bilder, nach 30 s neuer Versuch; dreimal hinten in 2 s: beiseite, seltener: nicht; 60, 90 und 144 Hz unberührt;
+  240 Hz mit jedem 4. `gradlew :app:externalNativeBuildCoreDebug` (NDK, `core_mode.cpp`) ohne Fehler und Warnung.
+  `core_mode.cpp` selbst läuft am PC nicht (keine Android-EGL-Erweiterungen in Mesa).
+- **Nicht geprüft:** auf einem Gerät (keins mit 120 Hz hier); ob das nubia die Zeitwünsche befolgt, zeigt die neue
+  Zeile „screen pacing (as shown)“ im nächsten Bericht.
+
 ## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
 Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,
