@@ -11,6 +11,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import zipfile
 import zlib
 
 EXE, WORK, FIXTURES = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -156,6 +157,23 @@ s256 = sizes(os.path.join(WORK, "out256", "CubeEvil4-textures-256.c4tex")) if rc
 check(rc == 0 and s256.get(int(H3, 16)) == (256, 128), "256: 2048x1024 becomes 256x128")
 check(s256.get(int(H5, 16)) == (640, 360) and s256.get(int(H6, 16)) == (512, 128), "256: never below the game's size")
 check(s256.get(int(H1, 16)) == (256, 256) and s256.get(int(H2, 16)) == (128, 128), "256: small images stay as they are")
+
+# the same pack as a ZIP (stored, deflated, without a top folder) gives the same file as the folder
+for label, method, top in (("stored", zipfile.ZIP_STORED, True), ("deflated", zipfile.ZIP_DEFLATED, True),
+                           ("no top folder", zipfile.ZIP_DEFLATED, False)):
+    zdir = os.path.join(WORK, "zip-" + label.replace(" ", "-"))
+    os.makedirs(zdir)
+    zpath = os.path.join(zdir, "Test Pack.zip")
+    with zipfile.ZipFile(zpath, "w", compression=method) as z:
+        for dp, _d, fs in os.walk(pack):
+            for fn in sorted(fs):
+                full = os.path.join(dp, fn)
+                rel = os.path.relpath(full, pack).replace(os.sep, "/")
+                z.write(full, ("Test Pack/" + rel) if top else rel)
+    rc, text = run(zpath, "-size", "512", "-out", os.path.join(zdir, "out"), "-variant", "Case=Gold", "-threads", "2")
+    zout = os.path.join(zdir, "out", "CubeEvil4-textures-512.c4tex")
+    check(rc == 0 and os.path.exists(zout) and open(zout, "rb").read() == info, "ZIP (%s): the same file as the folder" % label)
+check(snapshot(pack) == before, "the pack folder is unchanged after the ZIPs")
 
 # the same input gives the same file
 out2 = os.path.join(WORK, "out2")

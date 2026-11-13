@@ -430,12 +430,15 @@
     <string name="ingame_hd_replace_text">Das neue Paket ersetzt „%1$s“, sobald es vollständig kopiert ist.</string>
     <string name="ingame_hd_delete_text">Gelöscht wird nur das Texturpaket. Deine Discs, Spielstände und Speicherkarten bleiben, wie sie sind.</string>
     <string name="ingame_hd_deleted">Texturpaket gelöscht.</string>
-    <string name="ingame_hd_not_pack">Diese Datei ist kein CubeEvil4-Texturpaket (.c4tex). Wandle das Paket zuerst am PC mit dem CubeEvil4 Texture Packer um.</string>
+    <string name="ingame_hd_not_pack">Diese Datei ist kein CubeEvil4-Texturpaket (.c4tex). Wandle das Paket zuerst mit dem CubeEvil4 Texture Packer um (am PC oder mit seiner Android-App).</string>
     <string name="ingame_hd_other_version">Dieses Paket stammt von einer anderen Version des CubeEvil4 Texture Packer. Wandle es mit der aktuellen neu um.</string>
     <string name="ingame_hd_no_space">Nicht genug freier Speicher: Das Paket braucht %1$s, frei sind %2$s.</string>
     <string name="ingame_hd_incomplete">Die Datei ist unvollständig (wurde das Kopieren aufs Gerät abgebrochen?). Kopiere sie noch einmal.</string>
     <string name="ingame_hd_damaged">Die Datei ist beschädigt. Kopiere sie noch einmal aufs Gerät oder wandle sie neu um.</string>
     <string name="ingame_hd_cancelled">Import abgebrochen. Das bisherige Texturpaket bleibt.</string>
     <string name="ingame_hd_read_failed">Die Datei ließ sich nicht lesen: %1$s</string>
-    <string name="ingame_hd_help">HD-Texturen ersetzen die Bilder des Spiels durch schärfere aus einem Texturpaket im Dolphin-Format. CubeEvil4 enthält keine Texturen und verlinkt auf keine: Nutze nur Pakete, die du selbst beschafft hast und nutzen darfst. Wandle das Paket am PC mit dem CubeEvil4 Texture Packer um, kopiere die .c4tex-Datei auf dein Gerät und importiere sie hier; danach kannst du diese Kopie löschen. Das Paket liegt in einem eigenen Ordner und verändert nie deine Discs, Spielstände oder Speicherkarten; du kannst es jederzeit ausschalten oder löschen. Schärfe „Halb“ braucht auf schwächeren Geräten weniger Grafikspeicher. Der Retro-Pixel-Filter behält die Texturen des Spiels.</string>
+    <string name="ingame_hd_help">HD-Texturen ersetzen die Bilder des Spiels durch schärfere aus einem Texturpaket im Dolphin-Format. CubeEvil4 enthält keine Texturen und verlinkt auf keine: Nutze nur Pakete, die du selbst beschafft hast und nutzen darfst. Wandle das Paket mit dem CubeEvil4 Texture Packer um (am PC oder mit seiner Android-App) und importiere die .c4tex-Datei hier; danach kannst du diese Datei löschen. Das Paket liegt in einem eigenen Ordner und verändert nie deine Discs, Spielstände oder Speicherkarten; du kannst es jederzeit ausschalten oder löschen. Schärfe „Halb“ braucht auf schwächeren Geräten weniger Grafikspeicher. Der Retro-Pixel-Filter behält die Texturen des Spiels.</string>
+    <string name="ingame_hd_import_from">Texturpaket „%1$s“ (%2$s) importieren?</string>
+    <string name="ingame_hd_import_busy">Es wird schon ein Texturpaket importiert. Versuch es noch einmal, wenn es fertig ist.</string>
+    <string name="ingame_hd_import_on">HD-Texturen sind an. Ausschalten oder das Paket löschen kannst du im App-Menü (SELECT) unter Cheats &amp; Mods.</string>
 </resources>

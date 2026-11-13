@@ -427,12 +427,15 @@
     <string name="ingame_hd_replace_text">Paket baru menggantikan “%1$s” setelah tersalin sepenuhnya.</string>
     <string name="ingame_hd_delete_text">Hanya paket tekstur yang dihapus. Disk, simpanan, dan kartu memorimu tetap seperti semula.</string>
     <string name="ingame_hd_deleted">Paket tekstur dihapus.</string>
-    <string name="ingame_hd_not_pack">File ini bukan paket tekstur CubeEvil4 (.c4tex). Konversikan dulu paketnya di PC dengan CubeEvil4 Texture Packer.</string>
+    <string name="ingame_hd_not_pack">File ini bukan paket tekstur CubeEvil4 (.c4tex). Konversikan dulu paketnya dengan CubeEvil4 Texture Packer (di PC atau dengan aplikasi Android-nya).</string>
     <string name="ingame_hd_other_version">Paket ini dibuat oleh versi lain CubeEvil4 Texture Packer. Konversikan lagi dengan versi sekarang.</string>
     <string name="ingame_hd_no_space">Ruang kosong tidak cukup: paket butuh %1$s, yang kosong %2$s.</string>
     <string name="ingame_hd_incomplete">File tidak lengkap (penyalinan ke perangkat terputus?). Salin lagi.</string>
     <string name="ingame_hd_damaged">File rusak. Salin lagi ke perangkat atau konversikan lagi.</string>
     <string name="ingame_hd_cancelled">Impor dibatalkan. Paket tekstur sebelumnya tetap ada.</string>
     <string name="ingame_hd_read_failed">File tidak bisa dibaca: %1$s</string>
-    <string name="ingame_hd_help">Tekstur HD mengganti gambar game dengan gambar yang lebih tajam dari paket tekstur berformat Dolphin. CubeEvil4 tidak menyertakan tekstur apa pun dan tidak memberi tautan ke mana pun: pakai hanya paket yang kamu dapatkan sendiri dan boleh kamu pakai. Konversikan paketnya di PC dengan CubeEvil4 Texture Packer, salin file .c4tex ke perangkatmu, lalu impor di sini; setelah itu salinan tersebut boleh dihapus. Paket disimpan di folder tersendiri dan tidak pernah mengubah disk, simpanan, atau kartu memorimu; kamu bisa mematikan atau menghapusnya kapan saja. Ketajaman Setengah memakai lebih sedikit memori grafis di perangkat yang lebih lemah. Filter piksel retro tetap memakai tekstur asli game.</string>
+    <string name="ingame_hd_help">Tekstur HD mengganti gambar game dengan gambar yang lebih tajam dari paket tekstur berformat Dolphin. CubeEvil4 tidak menyertakan tekstur apa pun dan tidak memberi tautan ke mana pun: pakai hanya paket yang kamu dapatkan sendiri dan boleh kamu pakai. Konversikan paketnya dengan CubeEvil4 Texture Packer (di PC atau dengan aplikasi Android-nya), lalu impor file .c4tex di sini; setelah itu file tersebut boleh dihapus. Paket disimpan di folder tersendiri dan tidak pernah mengubah disk, simpanan, atau kartu memorimu; kamu bisa mematikan atau menghapusnya kapan saja. Ketajaman Setengah memakai lebih sedikit memori grafis di perangkat yang lebih lemah. Filter piksel retro tetap memakai tekstur asli game.</string>
+    <string name="ingame_hd_import_from">Impor paket tekstur “%1$s” (%2$s)?</string>
+    <string name="ingame_hd_import_busy">Paket tekstur sedang diimpor. Coba lagi setelah selesai.</string>
+    <string name="ingame_hd_import_on">Tekstur HD menyala. Kamu bisa mematikannya atau menghapus paketnya di menu aplikasi (SELECT), bagian Cheat &amp; Mod.</string>
 </resources>

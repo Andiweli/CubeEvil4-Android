@@ -445,12 +445,15 @@
     <string name="ingame_hd_replace_text">The new pack replaces “%1$s” once it is copied completely.</string>
     <string name="ingame_hd_delete_text">Only the texture pack is deleted. Your discs, saves and memory cards stay as they are.</string>
     <string name="ingame_hd_deleted">Texture pack deleted.</string>
-    <string name="ingame_hd_not_pack">This file is not a CubeEvil4 texture pack (.c4tex). Convert the pack on a PC with the CubeEvil4 Texture Packer first.</string>
+    <string name="ingame_hd_not_pack">This file is not a CubeEvil4 texture pack (.c4tex). Convert the pack with the CubeEvil4 Texture Packer first (on a PC or with its Android app).</string>
     <string name="ingame_hd_other_version">This pack was made by another version of the CubeEvil4 Texture Packer. Convert it again with the current one.</string>
     <string name="ingame_hd_no_space">Not enough free space: the pack needs %1$s, %2$s are free.</string>
     <string name="ingame_hd_incomplete">The file is incomplete (was the copy to the device cut short?). Copy it again.</string>
     <string name="ingame_hd_damaged">The file is damaged. Copy it to the device again or convert it again.</string>
     <string name="ingame_hd_cancelled">Import cancelled. The texture pack before it stays.</string>
     <string name="ingame_hd_read_failed">The file could not be read: %1$s</string>
-    <string name="ingame_hd_help">HD textures replace the game\'s images with sharper ones from a texture pack in the Dolphin format. CubeEvil4 includes no textures and links to none: use only packs you obtained yourself and may use. Convert the pack on a PC with the CubeEvil4 Texture Packer, copy the .c4tex file to your device and import it here; afterwards you can delete that copy. The pack is kept in a folder of its own and never changes your discs, saves or memory cards; switch it off or delete it at any time. Sharpness Half needs less graphics memory on weaker devices. The Retro pixel filter keeps the game\'s own textures.</string>
+    <string name="ingame_hd_help">HD textures replace the game\'s images with sharper ones from a texture pack in the Dolphin format. CubeEvil4 includes no textures and links to none: use only packs you obtained yourself and may use. Convert the pack with the CubeEvil4 Texture Packer (on a PC or with its Android app) and import the .c4tex file here; afterwards you can delete that file. The pack is kept in a folder of its own and never changes your discs, saves or memory cards; switch it off or delete it at any time. Sharpness Half needs less graphics memory on weaker devices. The Retro pixel filter keeps the game\'s own textures.</string>
+    <string name="ingame_hd_import_from">Import the texture pack “%1$s” (%2$s)?</string>
+    <string name="ingame_hd_import_busy">A texture pack is being imported already. Try again when it is done.</string>
+    <string name="ingame_hd_import_on">HD textures are on. You can switch them off or delete the pack in the app menu (SELECT) under Cheats &amp; Mods.</string>
 </resources>

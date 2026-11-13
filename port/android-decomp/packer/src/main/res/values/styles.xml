@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android's dark Material, as CubeEvil4; the screen keeps clear of the system bars itself (fitsSystemWindows) -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#E0453F</item>
+        <item name="android:colorPrimary">#1B1416</item>
+        <item name="android:colorPrimaryDark">#1B1416</item>
+        <item name="android:windowBackground">@color/background</item>
+    </style>
+</resources>

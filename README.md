@@ -74,7 +74,8 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   SELECT opens the app menu (graphics, sound, controls, performance, cheats & mods, memory card, error
   report).
 - Optional HD textures: the app can load a texture pack in the Dolphin format that you obtained yourself,
-  after converting it on a PC (see "HD texture packs" below). CubeEvil4 includes no textures.
+  after converting it on a PC or with the Android packer app (see "HD texture packs" below). CubeEvil4
+  includes no textures.
 - Android 7.0 or later, OpenGL ES 3.0.
 
 ## Requirements
@@ -209,15 +210,22 @@ offers none and links to none.** Use only packs you obtained yourself and may us
 BC3, BC4, BC5, BC7 and uncompressed; not BC6H), PNG and JPG (baseline and progressive; not CMYK). When a pack has the
 same texture as several files, it takes the DDS, then the PNG, then the JPG.
 
-1. Convert the pack on a Windows PC with the **CubeEvil4 Texture Packer** (`CubeEvil4-TexturePacker.exe`,
-   a file of its own on the release page; source in `port/tools/texpack`). Start it, drag the pack's folder
-   into its window and choose the size: 256 (about 0.27 GB for a full pack, saves memory on weak phones),
-   512 (recommended, about 0.72 GB) or 1024 (about 2.3 GB, for strong devices). No image becomes smaller than
-   the game's own texture. It makes one file, `CubeEvil4-textures-512.c4tex`, and never changes the pack's
-   folder.
-2. Copy the `.c4tex` file to your device and import it in the app menu (Cheats & Mods → Import texture
-   pack). The app keeps it in a folder of its own; it never touches your discs, saves or memory cards.
-   Afterwards you can delete the copy you made.
+1. Convert the pack with the **CubeEvil4 Texture Packer**, on a Windows PC or on the device itself:
+   - **Windows:** `CubeEvil4-TexturePacker.exe` (a file of its own on the release page; source in
+     `port/tools/texpack`). Start it, drag the pack's folder or its ZIP file into its window and choose the
+     size: 256 (about 0.27 GB for a full pack, saves memory on weak phones), 512 (recommended, about 0.72 GB)
+     or 1024 (about 2.3 GB, for strong devices).
+   - **Android:** the app **CubeEvil4 Texture Packer** (an APK of its own on the release page, Android 7 and
+     later; source in `port/android-decomp/packer`). Choose the pack's ZIP file or folder, the size and the
+     storage; it shows the file's size and about how long it takes on this device (a phone needs far longer
+     than a PC: keep it on the charger). The ZIP is read as it is, nothing is unpacked; the finished file goes
+     into the Download folder, then "Import into CubeEvil4" hands it over.
+
+   No image becomes smaller than the game's own texture. Both make the same file,
+   `CubeEvil4-textures-512.c4tex`, and never change the pack.
+2. Import the `.c4tex` file in the app menu (Cheats & Mods → Import texture pack), or with the Android
+   packer's button. The app keeps it in a folder of its own; it never touches your discs, saves or memory
+   cards. Afterwards you can delete the file in Download or the copy you made.
 3. Switch the HD textures on or off at any time, choose "Sharpness: Half" on weaker devices, or delete the
    pack. Textures the pack does not have, and pictures the game makes itself, stay as they are.
 

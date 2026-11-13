@@ -1795,15 +1795,20 @@ final class CoreMenu extends Dialog {
     }
   };
 
-  private String packProblem(TexturePacks.PackException e) {
+  private String packProblem(TexturePacks.PackException e) { return packProblem(getContext(), e); }
+
+  /** Why an import did not work, for the player (also TextureImportActivity). */
+  static String packProblem(Context c, TexturePacks.PackException e) {
     switch (e.reason) {
-      case TexturePacks.NOT_PACK: return s(R.string.ingame_hd_not_pack);
-      case TexturePacks.OTHER_VERSION: return s(R.string.ingame_hd_other_version);
-      case TexturePacks.NO_SPACE: return getContext().getString(R.string.ingame_hd_no_space, size(e.need), size(e.free));
-      case TexturePacks.INCOMPLETE: return s(R.string.ingame_hd_incomplete);
-      case TexturePacks.DAMAGED: return s(R.string.ingame_hd_damaged);
-      case TexturePacks.CANCELLED: return s(R.string.ingame_hd_cancelled);
-      default: return getContext().getString(R.string.ingame_hd_read_failed, String.valueOf(e.getMessage()));
+      case TexturePacks.NOT_PACK: return c.getString(R.string.ingame_hd_not_pack);
+      case TexturePacks.OTHER_VERSION: return c.getString(R.string.ingame_hd_other_version);
+      case TexturePacks.NO_SPACE:
+        return c.getString(R.string.ingame_hd_no_space, android.text.format.Formatter.formatShortFileSize(c, e.need),
+            android.text.format.Formatter.formatShortFileSize(c, e.free));
+      case TexturePacks.INCOMPLETE: return c.getString(R.string.ingame_hd_incomplete);
+      case TexturePacks.DAMAGED: return c.getString(R.string.ingame_hd_damaged);
+      case TexturePacks.CANCELLED: return c.getString(R.string.ingame_hd_cancelled);
+      default: return c.getString(R.string.ingame_hd_read_failed, String.valueOf(e.getMessage()));
     }
   }
 

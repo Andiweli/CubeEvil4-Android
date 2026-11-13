@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="launcher_background">#1B1416</color>
+    <!-- the screen's ground (MainActivity.BACKGROUND) -->
+    <color name="background">#121212</color>
+</resources>

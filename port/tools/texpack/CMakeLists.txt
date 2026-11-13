@@ -19,7 +19,7 @@ endif()
 
 find_package(Threads REQUIRED)
 
-add_library(texpack_core STATIC etc2.cpp image.cpp bc7.cpp jpeg.cpp)
+add_library(texpack_core STATIC etc2.cpp image.cpp bc7.cpp jpeg.cpp zip.cpp packer.cpp)
 target_include_directories(texpack_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(texpack texpack.cpp)
