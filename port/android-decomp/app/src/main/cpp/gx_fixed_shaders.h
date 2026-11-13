@@ -614,45 +614,87 @@ constexpr char kCrtGlowFs[] =
     "}\n";
 
 // Bloom (0.99.13, the project owner: "Ja, einbauen"; GxCore::BloomPass): the bright parts of the scene, after its
-// last 3D draw and before the HUD, glow softly over their surroundings. Three passes into a picture of its own of
-// one texel per 4 x 4 game pixels (`size.z` EFB texels each way: the same look and cost at every resolution), then
-// added into the EFB's colour.
-// First: each bloom texel the mean over its size.z x size.z EFB texels (size.w x size.w taps spread over them, one a
-// game pixel, from `region`, the scene's part of the EFB in its texels) of what lies above the threshold (pick.x, by
-// the brightest of the three channels, from 0 at it to the colour itself at white as the square of the way there:
-// pick.y = 1 / (1 - threshold); a flame near white glows fully, bright fog or sky a little above the threshold hardly),
-// each tap on its own (a candle's small flame keeps its share), so a dark room stays dark and only real highlights
-// glow. Where the lens flares draw a halo at a light (halo: x, y,
-// radius in EFB texels, w 1 while it is there) the light gives no bloom: the two never glow at the same place.
-// GL's and Vulkan's texels and fragments run the same way in each (row 0 = the EFB's row 0).
-constexpr char kBloomPickFs[] =
+// last 3D draw and before the HUD, glow softly over their surroundings. Passes into pictures of their own of one texel
+// per 4 x 4 game pixels (`size.z` EFB texels each way: the same look and cost at every resolution), then laid over
+// the EFB's colour.
+// 0.99.14 (the project owner: "Am Titelbild am hellen Himmel ist er merklich sichtbar. Aber im Spiel fällt es kaum
+// auf"): the game's light sources are small and the nights dark (at a fixed 0.72 only 0.03-0.6 % of a night room's
+// pixels passed, 13-53 % of the title's), and the mean over 4 x 4 pixels and the blur spread a candle or a torch thin.
+// Now, first, the scene's key once a picture (kBloomKeyFs, a 1 x 1 picture): its mean brightness over a 16 x 12 grid
+// sets the threshold (pick: x + y * the key, clamped to z..w: a little lower in the dark, higher in bright scenes),
+// and the share of the grid above it (each tap's weight, below) a budget: more than keep.y of the scene at full weight
+// (the title's sky, a bright fade) scales the bloom down to keep.y / that share, not below keep.z. Out: r the
+// threshold, g the scale.
+constexpr char kBloomKeyFs[] =
     "#version 300 es\nprecision highp float;\nprecision highp int;\n"
     "uniform sampler2D src;\n"
     "uniform vec4 region;\n"
-    "uniform vec4 size;\n"
     "uniform vec4 pick;\n"
+    "uniform vec4 keep;\n"
+    "out vec4 o;\n"
+    "float lum(ivec2 q) { vec3 t = texelFetch(src, q, 0).rgb; return max(t.r, max(t.g, t.b)); }\n"
+    "void main() {\n"
+    "  ivec2 lo = ivec2(region.xy), hi = ivec2(region.xy + region.zw) - 1;\n"
+    "  vec2 cell = region.zw / vec2(16.0, 12.0);\n"
+    "  float key = 0.0;\n"
+    "  for (int j = 0; j < 12; j++)\n"
+    "    for (int i = 0; i < 16; i++)\n"
+    "      key += lum(clamp(ivec2(region.xy + (vec2(float(i), float(j)) + 0.5) * cell), lo, hi));\n"
+    "  key /= 192.0;\n"
+    "  float th = clamp(pick.x + pick.y * key, pick.z, pick.w);\n"
+    "  float cover = 0.0;\n"
+    "  for (int j = 0; j < 12; j++)\n"
+    "    for (int i = 0; i < 16; i++) {\n"
+    "      float w = clamp((lum(clamp(ivec2(region.xy + (vec2(float(i), float(j)) + 0.5) * cell), lo, hi)) - th) /\n"
+    "                      (1.0 - th), 0.0, 1.0);\n"
+    "      cover += pow(w, keep.w);\n"
+    "    }\n"
+    "  cover /= 192.0;\n"
+    "  float scale = cover > keep.y ? max(keep.z, keep.y / cover) : 1.0;\n"
+    "  o = vec4(th, scale, key, 1.0);\n"
+    "}\n";
+
+// Then each bloom texel from its size.z x size.z EFB texels (size.w x size.w taps spread over them, one a game pixel,
+// from `region`, the scene's part of the EFB in its texels): what lies above the key's threshold (by the brightest of
+// the three channels, from 0 at it to the colour itself at white as the way there to the power keep.w (0.99.13: the
+// square; since 0.99.14 the fourth: a flame near white glows fully, a lit plank, hair or fog a little above it hardly),
+// each tap on its own; the texel takes keep.x of its brightest tap and the rest of their mean (0.99.14: a candle of one
+// or two game pixels keeps more than a sixteenth of its light; a large bright area is the same either way), times the
+// key's scale. Where the lens flares draw
+// a halo at a light (halo: x, y, radius in EFB texels, w 1 while it is there) the light gives no bloom: the two never
+// glow at the same place. GL's and Vulkan's texels and fragments run the same way in each (row 0 = the EFB's row 0).
+constexpr char kBloomPickFs[] =
+    "#version 300 es\nprecision highp float;\nprecision highp int;\n"
+    "uniform sampler2D src;\n"
+    "uniform sampler2D key;\n"
+    "uniform vec4 region;\n"
+    "uniform vec4 size;\n"
+    "uniform vec4 keep;\n"
     "uniform vec4 halo[8];\n"
     "out vec4 o;\n"
     "void main() {\n"
+    "  vec4 k = texelFetch(key, ivec2(0), 0);\n"
+    "  float th = k.r, inv = 1.0 / max(1.0 - th, 0.02);\n"
     "  vec2 p = region.xy + floor(gl_FragCoord.xy) * size.z;\n"
     "  ivec2 lo = ivec2(region.xy), hi = ivec2(region.xy + region.zw) - 1;\n"
     "  int n = int(size.w);\n"
     "  float d = size.z / size.w;\n"
-    "  vec3 c = vec3(0.0);\n"
+    "  vec3 c = vec3(0.0), m = vec3(0.0);\n"
     "  for (int j = 0; j < 4; j++) {\n"
     "    if (j >= n) break;\n"
     "    for (int i = 0; i < 4; i++) {\n"
     "      if (i >= n) break;\n"
     "      ivec2 q = clamp(ivec2(p + (vec2(float(i), float(j)) + 0.5) * d), lo, hi);\n"
     "      vec3 t = texelFetch(src, q, 0).rgb;\n"
-    "      float w = clamp((max(t.r, max(t.g, t.b)) - pick.x) * pick.y, 0.0, 1.0);\n"
-    "      c += t * (w * w);\n"
+    "      float w = pow(clamp((max(t.r, max(t.g, t.b)) - th) * inv, 0.0, 1.0), keep.w);\n"
+    "      c += t * w;\n"
+    "      m = max(m, t * w);\n"
     "    }\n"
     "  }\n"
-    "  vec3 g = c / float(n * n);\n"
+    "  vec3 g = mix(c / float(n * n), m, keep.x) * k.g;\n"
     "  vec2 at = p + 0.5 * size.z;\n"
-    "  for (int k = 0; k < 8; k++) {\n"
-    "    if (halo[k].w > 0.5) g *= smoothstep(0.55, 1.0, length(at - halo[k].xy) / max(halo[k].z, 1.0));\n"
+    "  for (int h = 0; h < 8; h++) {\n"
+    "    if (halo[h].w > 0.5) g *= smoothstep(0.55, 1.0, length(at - halo[h].xy) / max(halo[h].z, 1.0));\n"
     "  }\n"
     "  o = vec4(g, 1.0);\n"
     "}\n";
@@ -672,18 +714,23 @@ constexpr char kBloomBlurFs[] =
     "  o = vec4(c, 1.0);\n"
     "}\n";
 
-// Bloom, third: the blurred glow added into the EFB (blended one + one, the colour only) over the scene's part
-// (`region`, its texels; the scissor keeps the rest, the letterbox bars stay black); size.xy the bloom picture's
-// texels, size.z the EFB texels a bloom texel spans, size.w the strength.
+// Bloom, third: the glow laid over the EFB (the colour only) over the scene's part (`region`, its texels; the scissor
+// keeps the rest, the letterbox bars stay black); since 0.99.14 as a screen (one + one minus the glow: what is
+// already bright gains little, a flame keeps its drawing instead of turning into a white blot; until then added one +
+// one): the wide glow (`bloom`, after all blurs) times
+// size.w and, since 0.99.14, the narrow one (`core`, after the first blur: near a small light it is still bright)
+// times core.x; size.xy the bloom picture's texels, size.z the EFB texels a bloom texel spans.
 constexpr char kBloomAddFs[] =
     "#version 300 es\nprecision highp float;\n"
     "uniform sampler2D bloom;\n"
+    "uniform sampler2D core;\n"
     "uniform vec4 region;\n"
     "uniform vec4 size;\n"
+    "uniform vec4 glow;\n"
     "out vec4 o;\n"
     "void main() {\n"
-    "  vec2 t = (gl_FragCoord.xy - region.xy) / size.z;\n"
-    "  o = vec4(texture(bloom, t / size.xy).rgb * size.w, 0.0);\n"
+    "  vec2 t = (gl_FragCoord.xy - region.xy) / size.z / size.xy;\n"
+    "  o = vec4(texture(bloom, t).rgb * size.w + texture(core, t).rgb * glow.x, 0.0);\n"
     "}\n";
 
 // CRT, the screen (instead of kPresentFs): the box's picture through a curved glass (shape.xy) with rounded

@@ -2226,15 +2226,18 @@ struct GlRenderer final : GxCore {
 
   // --- bloom (0.99.13; GxCore::BloomPass, gx_fixed_shaders.h kBloom*) ------------------------------------------
 
-  GLuint bloomPick = 0, bloomBlur = 0, bloomAdd = 0;
-  GLint bloomPickRegion = -1, bloomPickSize = -1, bloomPickPick = -1, bloomPickHalo = -1, bloomBlurDir = -1,
-        bloomAddRegion = -1, bloomAddSize = -1;
-  GLuint bloomTex[2] = {0, 0};
-  int bloomW[2] = {0, 0}, bloomH[2] = {0, 0};
+  GLuint bloomKey = 0, bloomPick = 0, bloomBlur = 0, bloomAdd = 0;
+  GLint bloomKeyRegion = -1, bloomKeyPick = -1, bloomKeyKeep = -1, bloomPickRegion = -1, bloomPickSize = -1,
+        bloomPickKeep = -1, bloomPickHalo = -1, bloomBlurDir = -1, bloomAddRegion = -1, bloomAddSize = -1,
+        bloomAddGlow = -1;
+  // [0] the pick and the wide glow, [1] the blurs' half way, [2] the narrow glow (0.99.14); the key (1 x 1)
+  GLuint bloomTex[3] = {0, 0, 0}, bloomKeyTex = 0;
+  int bloomW[3] = {0, 0, 0}, bloomH[3] = {0, 0, 0}, bloomKeyW = 0, bloomKeyH = 0;
 
   bool MakeBloom() {
     std::string log;
-    bloomPick = Link(fixed::kQuadVs, fixed::kBloomPickFs, &log);
+    bloomKey = Link(fixed::kQuadVs, fixed::kBloomKeyFs, &log);
+    bloomPick = bloomKey ? Link(fixed::kQuadVs, fixed::kBloomPickFs, &log) : 0;
     bloomBlur = bloomPick ? Link(fixed::kQuadVs, fixed::kBloomBlurFs, &log) : 0;
     bloomAdd = bloomBlur ? Link(fixed::kQuadVs, fixed::kBloomAddFs, &log) : 0;
     if (!bloomAdd) {
@@ -2242,24 +2245,33 @@ struct GlRenderer final : GxCore {
       BloomRelease();
       return false;
     }
+    glUseProgram(bloomKey);
+    glUniform1i(glGetUniformLocation(bloomKey, "src"), 0);
+    bloomKeyRegion = glGetUniformLocation(bloomKey, "region");
+    bloomKeyPick = glGetUniformLocation(bloomKey, "pick");
+    bloomKeyKeep = glGetUniformLocation(bloomKey, "keep");
     glUseProgram(bloomPick);
     glUniform1i(glGetUniformLocation(bloomPick, "src"), 0);
+    glUniform1i(glGetUniformLocation(bloomPick, "key"), 1);
     bloomPickRegion = glGetUniformLocation(bloomPick, "region");
     bloomPickSize = glGetUniformLocation(bloomPick, "size");
-    bloomPickPick = glGetUniformLocation(bloomPick, "pick");
+    bloomPickKeep = glGetUniformLocation(bloomPick, "keep");
     bloomPickHalo = glGetUniformLocation(bloomPick, "halo");
     glUseProgram(bloomBlur);
     glUniform1i(glGetUniformLocation(bloomBlur, "src"), 0);
     bloomBlurDir = glGetUniformLocation(bloomBlur, "dir");
     glUseProgram(bloomAdd);
     glUniform1i(glGetUniformLocation(bloomAdd, "bloom"), 0);
+    glUniform1i(glGetUniformLocation(bloomAdd, "core"), 1);
     bloomAddRegion = glGetUniformLocation(bloomAdd, "region");
     bloomAddSize = glGetUniformLocation(bloomAdd, "size");
+    bloomAddGlow = glGetUniformLocation(bloomAdd, "glow");
     return true;
   }
 
-  // After the scene's last 3D draw (Run): its bright parts into bloomTex[0] (one texel per 2 x `halves` EFB texels each
-  // way: 2 x 2 game pixels), blurred there, added into the EFB's colour over the scene's part.
+  // After the scene's last 3D draw (Run): the scene's key (bloomKeyTex), its bright parts into bloomTex[0] (one texel
+  // per 2 x `halves` EFB texels each way: 4 x 4 game pixels), blurred (the narrow glow after the first pair in
+  // bloomTex[2], the wide one in bloomTex[0]), both added into the EFB's colour over the scene's part.
   void BloomPass() override {
     int region[4];
     if (bloomFailed || !BloomRegion(region))
@@ -2281,25 +2293,37 @@ struct GlRenderer final : GxCore {
     const auto timedFrom = std::chrono::steady_clock::now();
     // the scene's colour (MSAA in own buffers: resolved), as the lens flares read it
     Resolve(region[0], region[1], region[2], region[3], false);
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 3; i++)
       PassTexture(&bloomTex[i], &bloomW[i], &bloomH[i], bw, bh);
+    PassTexture(&bloomKeyTex, &bloomKeyW, &bloomKeyH, 1, 1);
+    // the scene's key: the threshold and the budget's scale (kBloomKeyFs)
+    glUseProgram(bloomKey);
+    glUniform4f(bloomKeyRegion, float(region[0]), float(region[1]), float(region[2]), float(region[3]));
+    glUniform4f(bloomKeyPick, look.base, look.slope, look.lo, look.hi);
+    glUniform4f(bloomKeyKeep, look.keepMax, look.cap, look.least, look.power);
+    FilterDraw(bloomKey, bloomKeyTex, 1, 1, efbColor);
     float halos[8][4];
     BloomHalos(halos);
     glUseProgram(bloomPick);
     glUniform4f(bloomPickRegion, float(region[0]), float(region[1]), float(region[2]), float(region[3]));
     glUniform4f(bloomPickSize, float(bw), float(bh), float(f), float(taps));
-    glUniform4f(bloomPickPick, look.threshold, 1.0f / (1.0f - look.threshold), 0.0f, 0.0f);
+    glUniform4f(bloomPickKeep, look.keepMax, look.cap, look.least, look.power);
     glUniform4fv(bloomPickHalo, 8, &halos[0][0]);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, bloomKeyTex);
+    glBindSampler(1, 0);
     FilterDraw(bloomPick, bloomTex[0], bw, bh, efbColor);
+    // the first pair into bloomTex[2] (the narrow glow, kept), the others from there into bloomTex[0] (the wide one)
     for (int b = 0; b < look.blurs; b++) {
       const float spread = BloomLook::Spread(b);
       glUseProgram(bloomBlur);
       glUniform4f(bloomBlurDir, spread / float(bw), 0.0f, float(bw), float(bh));
-      FilterDraw(bloomBlur, bloomTex[1], bw, bh, bloomTex[0]);
+      FilterDraw(bloomBlur, bloomTex[1], bw, bh, b == 0 ? bloomTex[0] : b == 1 ? bloomTex[2] : bloomTex[0]);
       glUseProgram(bloomBlur);
       glUniform4f(bloomBlurDir, 0.0f, spread / float(bh), float(bw), float(bh));
-      FilterDraw(bloomBlur, bloomTex[0], bw, bh, bloomTex[1]);
+      FilterDraw(bloomBlur, b == 0 ? bloomTex[2] : bloomTex[0], bw, bh, bloomTex[1]);
     }
+    const GLuint wide = look.blurs >= 2 ? bloomTex[0] : bloomTex[2];
     // added into the EFB (its colour; MSAA: the multisampled one, as the lens flares)
     SaveAndPlainState();
     glDepthMask(GL_FALSE);
@@ -2310,12 +2334,16 @@ struct GlRenderer final : GxCore {
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
-    glBlendFunc(GL_ONE, GL_ONE);
     glUseProgram(bloomAdd);
     glUniform4f(bloomAddRegion, float(region[0]), float(region[1]), float(region[2]), float(region[3]));
     glUniform4f(bloomAddSize, float(bw), float(bh), float(f), look.strength);
+    glUniform4f(bloomAddGlow, look.core, 0.0f, 0.0f, 0.0f);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR);  // a screen (kBloomAddFs)
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, bloomTex[2]);
+    glBindSampler(1, 0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, bloomTex[0]);
+    glBindTexture(GL_TEXTURE_2D, wide);
     glBindSampler(0, 0);
     glBindVertexArray(quadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -2335,16 +2363,20 @@ struct GlRenderer final : GxCore {
   }
 
   void BloomRelease() {
-    for (GLuint *prog : {&bloomPick, &bloomBlur, &bloomAdd})
+    for (GLuint *prog : {&bloomKey, &bloomPick, &bloomBlur, &bloomAdd})
       if (*prog)
         glDeleteProgram(*prog);
-    bloomPick = bloomBlur = bloomAdd = 0;
-    for (int i = 0; i < 2; i++) {
+    bloomKey = bloomPick = bloomBlur = bloomAdd = 0;
+    for (int i = 0; i < 3; i++) {
       if (bloomTex[i])
         glDeleteTextures(1, &bloomTex[i]);
       bloomTex[i] = 0;
       bloomW[i] = bloomH[i] = 0;
     }
+    if (bloomKeyTex)
+      glDeleteTextures(1, &bloomKeyTex);
+    bloomKeyTex = 0;
+    bloomKeyW = bloomKeyH = 0;
   }
 
   void FlareRelease() {

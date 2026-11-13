@@ -2915,6 +2915,58 @@ void TestBloom(re4gx::GxRenderer &r, const char *tag) {
   scene(false, false);
   std::snprintf(what, sizeof(what), "bloom (%s): off again, the room as drawn", tag);
   Check(at(250, 220) == offBeside, what);
+  // 0.99.14 (the project owner: in the game hardly to be seen): a scene of `room` with white quads (x0, y0, x1, y1)
+  auto lit = [&](std::uint8_t grey, std::initializer_list<std::array<int, 4>> lights) {
+    const std::uint8_t room[4] = {grey, grey, grey, 255};
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    QuadAt(b, 0, 0, 640, 528, 20000.0f, room);
+    for (const auto &q : lights)
+      QuadAt(b, q[0], q[1], q[2], q[3], 1000.0f, kWhite);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  };
+  // a candle: 2 x 2 game pixels of white in a dark room (until 0.99.13 a quarter of its block reached the bloom, spread
+  // over the blur: about +2 at 3 pixels)
+  for (int level = 1; level <= 2; level++) {
+    r.SetBloom(level);
+    lit(30, {{300, 300, 302, 302}});
+    const int near = at(305, 301)[1], far = at(320, 301)[1], away = at(100, 100)[1];
+    std::fprintf(stderr, "  bloom (%s) level %d, a candle of 2 x 2 pixels in a dark room: 3 pixels away %d, 18 away %d, "
+                 "far away %d (the room 30)\n", tag, level, near, far, away);
+    std::snprintf(what, sizeof(what), "bloom (%s) level %d: a candle of 2 x 2 pixels glows around it, the room stays",
+                  tag, level);
+    Check(near >= 30 + 4 && away <= 31, what);  // (0.99.13: about +2 at 3 pixels; now light +5, strong +6)
+  }
+  // a bright room (grey 180, 0.71): the key raises the threshold over it, only the lamp glows (a fixed 0.62 made
+  // all of it glow)
+  for (int level = 1; level <= 2; level++) {
+    r.SetBloom(level);
+    lit(180, {{200, 200, 240, 240}});
+    const int away = at(100, 450)[1], beside = at(250, 220)[1];
+    std::fprintf(stderr, "  bloom (%s) level %d, a bright room (180): far away %d, beside the lamp %d\n", tag, level,
+                 away, beside);
+    std::snprintf(what, sizeof(what), "bloom (%s) level %d: a bright room does not glow, the lamp does", tag, level);
+    Check(away <= 181 && beside > 182, what);
+  }
+  // the budget: half of the scene white (a sky, a bright fade): the glow beside it at most about that of the lamp
+  for (int level = 1; level <= 2; level++) {
+    r.SetBloom(level);
+    lit(40, {{200, 200, 240, 240}});
+    const int lamp = at(250, 220)[1] - 40;
+    lit(40, {{0, 0, 640, 264}});
+    const int sky = at(320, 274)[1] - 40;
+    std::fprintf(stderr, "  bloom (%s) level %d: 10 pixels beside a lamp +%d, beside half a scene of sky +%d\n", tag,
+                 level, lamp, sky);
+    std::snprintf(what, sizeof(what), "bloom (%s) level %d: a sky over half the scene glows no more than a lamp", tag,
+                  level);
+    Check(sky > 0 && sky <= lamp + 4, what);
+  }
+  r.SetBloom(0);
 }
 
 void TestAutofocus(re4gx::GxRenderer &r, bool multisampled = false) {
@@ -3131,6 +3183,10 @@ void TestUniformStream(re4gx::GxRenderer &r, const char *tag) {
   };
   unsigned switches = 0, splits = 0;
   bool right = true;
+  // a chunk of the size first, not counted: the stream learns it (StreamChunkBegin keeps room for the largest chunk
+  // seen); the first one ever may be split, depending on where the tests before left the stream (0.99.14: more bloom
+  // scenes before it moved that place, and the first counted chunk split once)
+  right = chunk(2400, true).first;
   // a draw moves the square with its position matrix: one part of the XF block (XFM, 1 KB) goes to
   // the stream per draw (until 22.10.2026 the whole block, 3.3 KB; then 700 and 1400 draws)
   for (int i = 0; i < 10; i++) {

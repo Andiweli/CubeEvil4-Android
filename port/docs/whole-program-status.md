@@ -113,6 +113,55 @@ GPU-Zeit je Bild aus der Vulkan-Zeile („GPU work … ms a picture“).
   freien Spiel auf dem Gerät, das Neu-Messen nach dem Update); GL mit Zeitmessern auf einem Gerät (nur Vulkan im
   Bericht); Mali mit OpenGL ES (ohne GPU-Zeit: die alten Regeln mit den neuen Wartezeiten und dem Gedächtnis).
 
+### 2. Bloom im Spiel kaum zu sehen (Projektinhaber, 13.11.2026, über die Hauptsitzung)
+
+„Prüfe auch nochmal den Bloom Effekt. Am Titelbild am hellen Himmel ist er merklich sichtbar. Aber im Spiel fällt es
+kaum auf, ich habe an mehreren Punkten geprüft. Aber da ist der Himmel auch kaum hell, da es immer dunkel ist oder
+regnet.“ Ziel (Hauptsitzung): echte Lichtquellen sichtbar (Fackeln, Lampen, Kerzen, Feuer, Laternen, erleuchtete
+Fenster, Mündungsfeuer, heller Himmel), dunkle Räume dunkel ohne milchigen Schleier, das Titelbild nicht zu stark,
+GLES und Vulkan gleich, Kosten etwa gleich.
+
+- **Ursache (gemessen an Bildern des PC-Kerns, `09914-bloom_stats.py`):** feste Schwelle 0,72 (Stark 0,62) auf den
+  hellsten Farbkanal; in Nachträumen liegen nur 0,03–0,6 % der Pixel darüber (r113, r11a, r11c, r20a, Grundhelligkeit
+  0,13–0,19), am Titelbild 13–53 %. Dazu verteilte der Mittelwert über 4 × 4 Spielpixel und der Weichzeichner eine
+  kleine Flamme so dünn, dass kaum etwas übrig blieb (eine Kerze aus 2 × 2 Pixeln: etwa +2 Helligkeitsstufen daneben).
+- **Neu (`gx_fixed_shaders.h`, `gx_core.cpp` `BloomLookOf`, `BloomPass` in `gx_gl.cpp` und `gx_vk.cpp`):**
+  - **Grundhelligkeit je Bild** (`kBloomKeyFs`, ein Durchgang in ein 1 × 1-Bild): Mittel über ein Raster von 16 × 12
+    Punkten der Szene. Daraus die Schwelle (Leicht 0,62 + 0,4 × Grundhelligkeit, zwischen 0,70 und 0,88; Stark 0,58 +
+    0,4 ×, zwischen 0,66 und 0,86: Nachträume 0,70 / 0,66, Steg 0,77 / 0,73, Titel 0,76–0,79 / 0,72–0,75, Tag 0,83 /
+    0,79) und ein **Budget**: liegt mehr als 1,2 % (Stark 1,8 %) des Bildes voll über der Schwelle (Himmel, helle
+    Überblendung, großes Mündungsfeuer), wird der Schein entsprechend schwächer, höchstens auf 40 %.
+  - **Gewichtung hoch 4** statt Quadrat: fast weiße Lichter zählen voll, beleuchtete Flächen knapp über der Schwelle
+    (nasse Planken, Haare, Mauer im Mondlicht) kaum. Ein Zwischenstand mit Quadrat und „hellster Punkt zählt mehr“ ließ
+    die Planken am Steg und Leons Kragen leuchten (Bilder `builds\bloom2\tune\`).
+  - **Kleine Lichter:** ein Bloom-Texel nimmt ein Viertel seines hellsten Punkts und drei Viertel des Mittels.
+  - **Enger Kern:** neben dem breiten Schein (alle Weichzeichner) ein enger (nach dem ersten Paar, drittes Bild),
+    Leicht 0,7 + 1,0, Stark 0,9 + 1,2.
+  - **Als „Screen“ aufgelegt** (Vulkan: Mischart 3 in `MakeFixed`, GL `GL_ONE, GL_ONE_MINUS_SRC_COLOR`) statt addiert:
+    eine Flamme behält ihre Zeichnung statt eines weißen Flecks, Helles gewinnt wenig.
+  - Halos + Lens Flares: unverändert ausgespart. Prüfschalter `RE4_GX_BLOOM_LOOK` (Werte für `gx_chunk_render`).
+- **Geprüft am PC** (WSL `~/re4-09914`, Aufnahmen `~/p09914/dumps`: Dorf bei Nacht r111/r113/r11a, Wald r11c,
+  Burg r203/r209/r20a, Tag r105, der Steg r11b über die Benchmark-Stelle, Mündungsfeuer r111/r20a, EU-Titel mit
+  Speicherkarte; Skripte `09914-dumps14*.sh`, `09914-bloom_pics.sh`, `09914-bloom_tune.sh` im Notizordner):
+  - Vorher/Nachher (oben 0.99.13, unten 0.99.14, je Aus | Leicht | Stark) in `E:\Development\Android\builds\bloom2\`:
+    Steg-Fackel deutlich heller umstrahlt, Planken unverändert; Dorf-Fackel r111 sichtbar, Leons Haare und Kragen nicht;
+    Mündungsfeuer breiter Schein; Wald ohne Licht (r11c) 0 bzw. 83 geänderte Pixel (dunkel bleibt dunkel); Burg ohne
+    Lichtquelle (r203/r209) kaum Änderung; Titel etwas ruhiger als 0.99.13 (Budget und Gewichtung).
+  - GLES gegen Vulkan: in allen 23 Bildern höchstens 94 Pixel über 2 % auseinander, ohne Bloom schon bis 92: der
+    Bloom bringt keine neuen Unterschiede.
+  - `gx_gl_check` GL und Vulkan (lavapipe): `TestBloom` erweitert (Lampe 10 Pixel daneben Leicht +42, Stark +57,
+    0.99.13 +26/+45; Kerze 2 × 2 Pixel 3 Pixel daneben +5/+6, 0.99.13 etwa +2; heller Raum 180 bleibt 180, nur die Lampe
+    leuchtet; halber Bildschirm Himmel +19/+30, nicht mehr als die Lampe); `TestUniformStream` beginnt jetzt mit einem
+    ungezählten Chunk (er hing davon ab, wo die Tests davor den Uniform-Puffer verlassen hatten; mehr Bloom-Szenen davor
+    ließen den ersten gezählten Chunk einmal teilen).
+  - Zeit am PC (llvmpipe, Software, mit glFinish), dieselben Bilder: vorher 5,0–5,6 ms, jetzt 6,2–7,6 ms je Bild;
+    auf dem Handy nicht vergleichbar (llvmpipe rechnet den 1 × 1-Durchgang mit 384 Abtastungen in einem Faden; dazu ein
+    drittes 128 × 112-Bild und zwei statt einer Abtastung im Auflegen).
+  - NDK-Bau `externalNativeBuildCoreDebug` ohne Fehler.
+- **Nicht geprüft:** auf dem Retroid (Aussehen in Bewegung, Kosten, ob der Schein zwischen Bildern flackert, wenn die
+  Grundhelligkeit springt: sie wird je Bild neu gemessen, nicht geglättet); Kerzen in einer echten Szene (in den
+  Aufnahmen keine nahe Kerze); Laternen und erleuchtete Fenster bei Nacht (nur im Code und an Testquadraten).
+
 ## Version 0.99.13-rc (veröffentlicht 13.11.2026, Branch `09913`, Basis 55ccbeb6; 13.11.2026 origin/09912 971fd1d6 = Release 0.99.12-rc hineingemischt)
 
 Version 0.99.13-rc (versionCode 115), Releasetext `port/android-decomp/docs/releases/v0.99.13-rc.md` („Changes since

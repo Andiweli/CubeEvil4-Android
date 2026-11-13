@@ -1339,9 +1339,29 @@ void GxCore::SetFlareHalos(bool on) { this->flareHalos = on; }
 void GxCore::SetBloom(int level) { this->bloomLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 const GxCore::BloomLook &GxCore::BloomLookOf(int level) {
   // light: the brightest parts only, a soft glow (two blurs, about 13 game pixels); strong: a little more of the
-  // bright parts, wider (three blurs, about 19) and stronger
-  static const BloomLook kLight{0.72f, 0.55f, 2}, kStrong{0.62f, 0.85f, 3};
-  return level >= 2 ? kStrong : kLight;
+  // bright parts, wider (three blurs, about 19) and stronger. Until 0.99.13 a fixed threshold (light 0.72, strong
+  // 0.62), the weight's square and the wide glow alone, added: in the game hardly to be seen (the project owner,
+  // 13.11.2026). 0.99.14: the threshold from the scene's key (night rooms, key 0.13-0.2: light 0.70, strong 0.66; the
+  // dock 0.37: 0.77 / 0.73; the title 0.35-0.43: 0.76-0.79 / 0.72-0.75; day 0.53: 0.83 / 0.79), the weight to the
+  // fourth power (lights near white count, a lit plank or hair at 0.85 hardly: with the square and the brightest tap
+  // kept the dock's wet planks and Leon's collar glowed), a quarter of the brightest tap kept, a narrow core, the
+  // budget for bright pictures (the title's sky about as before, a muzzle flash at least as before), laid over as a
+  // screen (kBloomAddFs). Chosen on the PC with the renders of r111, r113, r11a, r11c, r105, r203, r209, r20a, the
+  // dock (r11b), muzzle flashes and the EU title (port/docs/whole-program-status.md, 0.99.14).
+  static BloomLook light{0.62f, 0.4f, 0.70f, 0.88f, 0.7f, 1.0f, 2, 0.25f, 0.012f, 0.4f, 4.0f};
+  static BloomLook strong{0.58f, 0.4f, 0.66f, 0.86f, 0.9f, 1.2f, 3, 0.25f, 0.018f, 0.4f, 4.0f};
+  // (the PC's choice of the values: RE4_GX_BLOOM_LOOK="base,slope,lo,hi,strength,core,keepMax,cap,least,power" for the
+  // level RE4_GX_BLOOM draws, gx_chunk_render)
+  static bool read = false;
+  if (!read) {
+    read = true;
+    if (const char *e = std::getenv("RE4_GX_BLOOM_LOOK")) {
+      BloomLook &l = level >= 2 ? strong : light;
+      std::sscanf(e, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", &l.base, &l.slope, &l.lo, &l.hi, &l.strength, &l.core, &l.keepMax,
+                  &l.cap, &l.least, &l.power);
+    }
+  }
+  return level >= 2 ? strong : light;
 }
 bool GxCore::BloomRegion(int out[4]) const {
   // the scissor (registers in EFB pixels + 342, minus the offset, BP 0x59; as ApplyState)

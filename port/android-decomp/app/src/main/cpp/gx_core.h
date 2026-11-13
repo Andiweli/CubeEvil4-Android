@@ -610,8 +610,14 @@ struct GxCore {
   bool bloomFailed = false, bloomDone = false;
   std::uint32_t bloomAfter = 0;  // the op offset after the scene's last 3D draw (0: no bloom in this chunk)
   struct BloomLook {
-    float threshold, strength;
-    int blurs;      // blur pairs (horizontal + vertical), the n-th spread 1 + n / 2 texels a tap
+    // the threshold from the scene's key (0.99.14, kBloomKeyFs): base + slope * key, within lo .. hi
+    float base, slope, lo, hi;
+    float strength;  // the wide glow (after all blurs)
+    float core;      // the narrow glow (after the first blur pair; 0.99.14)
+    int blurs;       // blur pairs (horizontal + vertical), the n-th spread 1 + n / 2 texels a tap
+    float keepMax;   // a bloom texel's share of its brightest tap (the rest their mean; 0.99.14)
+    float cap, least;  // the budget: the scene's share at full weight above which the bloom scales down, at most to least
+    float power;       // a tap's weight: its way from the threshold to white, to this power (0.99.13: 2)
     static float Spread(int n) { return 1.0f + 0.5f * static_cast<float>(n); }
   };
   static const BloomLook &BloomLookOf(int level);
