@@ -48,6 +48,17 @@
         <activity android:name=".LauncherRestartActivity" android:exported="false" android:process=":restart"
             android:taskAffinity="${applicationId}.restart" android:excludeFromRecents="true" android:noHistory="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <!-- a texture pack handed over by the CubeEvil4 Texture Packer app (its "Import into CubeEvil4",
+             port/docs/textur-packer-android-plan.md): asks, then imports it into the textures folder -->
+        <activity android:name=".TextureImportActivity" android:exported="true" android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|locale|layoutDirection">
+            <intent-filter>
+                <action android:name="com.ast.cubeevil4.action.IMPORT_TEXTURE_PACK" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
         <!-- the core mode's error report for the app it is sent with (CoreLog, M11) -->
         <provider android:name=".ReportProvider" android:authorities="${applicationId}.report"
             android:exported="false" android:grantUriPermissions="true" />

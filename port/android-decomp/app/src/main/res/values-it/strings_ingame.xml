@@ -432,12 +432,15 @@
     <string name="ingame_hd_replace_text">Il nuovo pacchetto sostituisce «%1$s» non appena è copiato del tutto.</string>
     <string name="ingame_hd_delete_text">Viene eliminato solo il pacchetto texture. Dischi, salvataggi e memory card restano come sono.</string>
     <string name="ingame_hd_deleted">Pacchetto texture eliminato.</string>
-    <string name="ingame_hd_not_pack">Questo file non è un pacchetto texture di CubeEvil4 (.c4tex). Prima converti il pacchetto su un PC con CubeEvil4 Texture Packer.</string>
+    <string name="ingame_hd_not_pack">Questo file non è un pacchetto texture di CubeEvil4 (.c4tex). Prima converti il pacchetto con CubeEvil4 Texture Packer (su un PC o con la sua app Android).</string>
     <string name="ingame_hd_other_version">Questo pacchetto è stato creato da un’altra versione di CubeEvil4 Texture Packer. Convertilo di nuovo con quella attuale.</string>
     <string name="ingame_hd_no_space">Spazio libero insufficiente: il pacchetto richiede %1$s, ne sono liberi %2$s.</string>
     <string name="ingame_hd_incomplete">Il file è incompleto (la copia sul dispositivo si è interrotta?). Copialo di nuovo.</string>
     <string name="ingame_hd_damaged">Il file è danneggiato. Copialo di nuovo sul dispositivo o convertilo di nuovo.</string>
     <string name="ingame_hd_cancelled">Importazione annullata. Resta il pacchetto texture precedente.</string>
     <string name="ingame_hd_read_failed">Impossibile leggere il file: %1$s</string>
-    <string name="ingame_hd_help">Le texture HD sostituiscono le immagini del gioco con altre più nitide da un pacchetto texture in formato Dolphin. CubeEvil4 non include texture né link a esse: usa solo pacchetti che ti sei procurato da solo e che puoi usare. Converti il pacchetto su un PC con CubeEvil4 Texture Packer, copia il file .c4tex sul dispositivo e importalo qui; poi puoi eliminare quella copia. Il pacchetto resta in una cartella a parte e non modifica mai dischi, salvataggi o memory card; puoi disattivarlo o eliminarlo in qualsiasi momento. La nitidezza Metà richiede meno memoria grafica sui dispositivi più deboli. Il filtro pixel retrò mantiene le texture originali del gioco.</string>
+    <string name="ingame_hd_help">Le texture HD sostituiscono le immagini del gioco con altre più nitide da un pacchetto texture in formato Dolphin. CubeEvil4 non include texture né link a esse: usa solo pacchetti che ti sei procurato da solo e che puoi usare. Converti il pacchetto con CubeEvil4 Texture Packer (su un PC o con la sua app Android) e importa qui il file .c4tex; poi puoi eliminare quel file. Il pacchetto resta in una cartella a parte e non modifica mai dischi, salvataggi o memory card; puoi disattivarlo o eliminarlo in qualsiasi momento. La nitidezza Metà richiede meno memoria grafica sui dispositivi più deboli. Il filtro pixel retrò mantiene le texture originali del gioco.</string>
+    <string name="ingame_hd_import_from">Importare il pacchetto texture «%1$s» (%2$s)?</string>
+    <string name="ingame_hd_import_busy">È già in corso l’importazione di un pacchetto texture. Riprova quando è terminata.</string>
+    <string name="ingame_hd_import_on">Le texture HD sono attive. Puoi disattivarle o eliminare il pacchetto nel menu dell’app (SELECT), in Trucchi e mod.</string>
 </resources>

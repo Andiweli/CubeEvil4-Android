@@ -443,12 +443,15 @@
     <string name="ingame_hd_replace_text">تحلّ الحزمة الجديدة محل «%1$s» بعد نسخها بالكامل.</string>
     <string name="ingame_hd_delete_text">تُحذف حزمة الأنسجة فقط. تبقى أقراصك وحفظاتك وبطاقات الذاكرة كما هي.</string>
     <string name="ingame_hd_deleted">حُذفت حزمة الأنسجة.</string>
-    <string name="ingame_hd_not_pack">هذا الملف ليس حزمة أنسجة لـ CubeEvil4 (&#x200E;.c4tex). حوّل الحزمة أولًا على حاسوب باستخدام CubeEvil4 Texture Packer.</string>
+    <string name="ingame_hd_not_pack">هذا الملف ليس حزمة أنسجة لـ CubeEvil4 (&#x200E;.c4tex). حوّل الحزمة أولًا باستخدام CubeEvil4 Texture Packer (على حاسوب أو بتطبيقه لنظام Android).</string>
     <string name="ingame_hd_other_version">صُنعت هذه الحزمة بإصدار آخر من CubeEvil4 Texture Packer. حوّلها من جديد بالإصدار الحالي.</string>
     <string name="ingame_hd_no_space">لا توجد مساحة فارغة كافية: تحتاج الحزمة إلى %1$s والمتاح %2$s.</string>
     <string name="ingame_hd_incomplete">الملف غير مكتمل (هل انقطع النسخ إلى الجهاز؟). انسخه مرة أخرى.</string>
     <string name="ingame_hd_damaged">الملف تالف. انسخه إلى الجهاز مرة أخرى أو حوّله من جديد.</string>
     <string name="ingame_hd_cancelled">أُلغي الاستيراد. تبقى حزمة الأنسجة السابقة.</string>
     <string name="ingame_hd_read_failed">تعذّرت قراءة الملف: %1$s</string>
-    <string name="ingame_hd_help">تستبدل الأنسجة عالية الدقة صور اللعبة بصور أوضح من حزمة أنسجة بصيغة Dolphin. لا يتضمن CubeEvil4 أي أنسجة ولا روابط إليها: استخدم فقط حزمًا حصلت عليها بنفسك ويحق لك استخدامها. حوّل الحزمة على حاسوب باستخدام CubeEvil4 Texture Packer، وانسخ ملف &#x200E;.c4tex إلى جهازك واستورده هنا؛ يمكنك بعد ذلك حذف تلك النسخة. تُحفظ الحزمة في مجلد خاص بها ولا تغيّر أبدًا أقراصك أو حفظاتك أو بطاقات الذاكرة؛ يمكنك إيقافها أو حذفها في أي وقت. تحتاج الحدة «نصف» إلى ذاكرة رسومات أقل في الأجهزة الأضعف. يحتفظ مرشّح البكسل الكلاسيكي بأنسجة اللعبة الأصلية.</string>
+    <string name="ingame_hd_help">تستبدل الأنسجة عالية الدقة صور اللعبة بصور أوضح من حزمة أنسجة بصيغة Dolphin. لا يتضمن CubeEvil4 أي أنسجة ولا روابط إليها: استخدم فقط حزمًا حصلت عليها بنفسك ويحق لك استخدامها. حوّل الحزمة باستخدام CubeEvil4 Texture Packer (على حاسوب أو بتطبيقه لنظام Android)، ثم استورد ملف &#x200E;.c4tex هنا؛ يمكنك بعد ذلك حذف ذلك الملف. تُحفظ الحزمة في مجلد خاص بها ولا تغيّر أبدًا أقراصك أو حفظاتك أو بطاقات الذاكرة؛ يمكنك إيقافها أو حذفها في أي وقت. تحتاج الحدة «نصف» إلى ذاكرة رسومات أقل في الأجهزة الأضعف. يحتفظ مرشّح البكسل الكلاسيكي بأنسجة اللعبة الأصلية.</string>
+    <string name="ingame_hd_import_from">استيراد حزمة الأنسجة «%1$s» (%2$s)؟</string>
+    <string name="ingame_hd_import_busy">يجري استيراد حزمة أنسجة بالفعل. حاول مجددًا عند انتهائه.</string>
+    <string name="ingame_hd_import_on">الأنسجة عالية الدقة مفعّلة. يمكنك إيقافها أو حذف الحزمة من قائمة التطبيق (SELECT) ضمن الغش والتعديلات.</string>
 </resources>

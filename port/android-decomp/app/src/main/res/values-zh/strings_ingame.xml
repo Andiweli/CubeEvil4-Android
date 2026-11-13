@@ -429,12 +429,15 @@
     <string name="ingame_hd_replace_text">新纹理包完整复制后将替换“%1$s”。</string>
     <string name="ingame_hd_delete_text">只会删除纹理包。你的光盘、存档和记忆卡保持不变。</string>
     <string name="ingame_hd_deleted">纹理包已删除。</string>
-    <string name="ingame_hd_not_pack">此文件不是 CubeEvil4 纹理包（.c4tex）。请先在电脑上用 CubeEvil4 Texture Packer 转换纹理包。</string>
+    <string name="ingame_hd_not_pack">此文件不是 CubeEvil4 纹理包（.c4tex）。请先用 CubeEvil4 Texture Packer（电脑版或 Android 应用）转换纹理包。</string>
     <string name="ingame_hd_other_version">此纹理包由其他版本的 CubeEvil4 Texture Packer 生成。请用当前版本重新转换。</string>
     <string name="ingame_hd_no_space">可用空间不足：纹理包需要 %1$s，当前可用 %2$s。</string>
     <string name="ingame_hd_incomplete">文件不完整（复制到设备时被中断？）。请重新复制。</string>
     <string name="ingame_hd_damaged">文件已损坏。请重新复制到设备或重新转换。</string>
     <string name="ingame_hd_cancelled">已取消导入。原有纹理包保持不变。</string>
     <string name="ingame_hd_read_failed">无法读取文件：%1$s</string>
-    <string name="ingame_hd_help">高清纹理会用 Dolphin 格式纹理包中更清晰的图片替换游戏中的图片。CubeEvil4 不包含任何纹理，也不提供任何链接：请只使用你自己获得且有权使用的纹理包。在电脑上用 CubeEvil4 Texture Packer 转换纹理包，把 .c4tex 文件复制到设备上并在此导入；之后可以删除那份副本。纹理包存放在单独的文件夹中，绝不会改动你的光盘、存档或记忆卡；可随时关闭或删除。清晰度“一半”在性能较弱的设备上占用更少的显存。复古像素滤镜保留游戏自己的纹理。</string>
+    <string name="ingame_hd_help">高清纹理会用 Dolphin 格式纹理包中更清晰的图片替换游戏中的图片。CubeEvil4 不包含任何纹理，也不提供任何链接：请只使用你自己获得且有权使用的纹理包。用 CubeEvil4 Texture Packer（电脑版或 Android 应用）转换纹理包，并在此导入 .c4tex 文件；之后可以删除该文件。纹理包存放在单独的文件夹中，绝不会改动你的光盘、存档或记忆卡；可随时关闭或删除。清晰度“一半”在性能较弱的设备上占用更少的显存。复古像素滤镜保留游戏自己的纹理。</string>
+    <string name="ingame_hd_import_from">导入纹理包“%1$s”（%2$s）？</string>
+    <string name="ingame_hd_import_busy">已有纹理包正在导入。请在完成后再试。</string>
+    <string name="ingame_hd_import_on">高清纹理已开启。可在应用菜单（SELECT）的“作弊与模组”中关闭或删除纹理包。</string>
 </resources>
