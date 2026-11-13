@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Texture Packer's texts (English; the screen follows the phone's language, English as the
+     fall-back, as CubeEvil4's in-game menu). tools/check_translations.py packer checks the other
+     languages against this file. -->
+<resources>
+    <string name="packer_intro">This app turns an HD texture pack in the Dolphin format (a ZIP file or a folder) into one .c4tex file for CubeEvil4. The ZIP is read as it is, nothing is unpacked; only the finished file is saved in the Download folder. Then import it in CubeEvil4 (app menu, Cheats &amp; Mods). Converting takes a while and makes the device warm: keep it on the charger. It goes on with the screen off.</string>
+    <string name="packer_legal">CubeEvil4 and this app include no textures and link to none. Use only packs you obtained yourself and may use.</string>
+    <string name="packer_choose_zip">Choose ZIP file</string>
+    <string name="packer_choose_folder">Choose folder</string>
+    <string name="packer_reading">Reading the pack …</string>
+    <string name="packer_reading_folder">Reading the folder: %1$s files …</string>
+    <string name="packer_found">%1$s: %2$s images, %3$s</string>
+    <string name="packer_left_out">Left out (not images of the pack, or the same image twice): %1$s files</string>
+    <string name="packer_no_images">No Dolphin texture images found (tex1_… files as .dds, .png or .jpg).</string>
+    <string name="packer_zip_failed">The ZIP file cannot be read: %1$s</string>
+    <string name="packer_cloud">The file cannot be read directly. If it is in a cloud storage, copy it onto the device first.</string>
+    <string name="packer_open_failed">The pack cannot be opened: %1$s</string>
+    <string name="packer_choices">Choices of the pack</string>
+    <string name="packer_as_main">As in the main folder</string>
+    <string name="packer_same_as_main">%1$s (the same as the main folder)</string>
+    <string name="packer_add">add these images</string>
+    <string name="packer_size">Texture size</string>
+    <string name="packer_size_256">256: smallest, saves memory and space</string>
+    <string name="packer_size_512">512: recommended for every device</string>
+    <string name="packer_size_1024">1024: sharpest, for strong devices with enough space</string>
+    <string name="packer_estimate">up to %1$s · about %2$s</string>
+    <string name="packer_estimating">estimating …</string>
+    <string name="packer_minutes">%1$d min</string>
+    <string name="packer_hours">%1$d h %2$d min</string>
+    <string name="packer_where">Save in the Download folder of</string>
+    <string name="packer_volume">%1$s (%2$s free)</string>
+    <string name="packer_save_dialog">Android asks where to save the file.</string>
+    <string name="packer_start">Start</string>
+    <string name="packer_cancel">Cancel</string>
+    <string name="packer_no_space">Not enough free space: about %1$s needed, %2$s free.</string>
+    <string name="packer_smaller_fits">Size %1$s fits.</string>
+    <string name="packer_converting">Converting: %1$s of %2$s images · %3$s written</string>
+    <string name="packer_time_left">About %1$s left</string>
+    <string name="packer_done">Saved in Download: %1$s (%2$s), in %3$s.</string>
+    <string name="packer_done_hint">Import it in CubeEvil4: app menu (SELECT), Cheats &amp; Mods, Import texture pack. The file in Download can be deleted afterwards.</string>
+    <string name="packer_import">Import into CubeEvil4</string>
+    <string name="packer_report">Show report</string>
+    <string name="packer_no_cubeevil4">CubeEvil4 is not installed, or too old for this button. Import the file in CubeEvil4 under Cheats &amp; Mods.</string>
+    <string name="packer_cancelled">Cancelled. No file was left behind.</string>
+    <string name="packer_failed">Converting failed: %1$s. No file was left behind.</string>
+    <string name="packer_disk_full">the storage is full</string>
+    <string name="packer_channel">Conversion</string>
+    <string name="packer_note_title">Converting the texture pack</string>
+    <string name="packer_note_progress">%1$s of %2$s images</string>
+    <string name="packer_note_done">Texture pack saved</string>
+    <string name="packer_note_failed">Converting failed</string>
+</resources>

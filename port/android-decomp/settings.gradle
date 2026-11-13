@@ -5,3 +5,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = 'RE4-Android-Decomp'
 include ':app'
+// the CubeEvil4 Texture Packer for Android (port/docs/textur-packer-android-plan.md): an app of its own
+include ':packer'

@@ -15,6 +15,8 @@ the English file, and res/xml/locales_config.xml (Android's language per app) li
 exactly the languages with a file.
 
     tools/check_translations.py [RES_DIR]
+    tools/check_translations.py packer    (the Texture Packer app: packer/src/main/res/values*/strings_packer.xml,
+                                           the names packer_* its Java code uses)
 
 Exit code 1 on any error; prints one line per language.
 """
@@ -26,10 +28,19 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RES = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "app/src/main/res"
-NAME = "strings_ingame.xml"
-JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java", "AppUpdate.java",
-                                                                  "BenchmarkFlow.java", "PerfProfile.java")]
+PACKER = len(sys.argv) > 1 and sys.argv[1] == "packer"
+if PACKER:
+    RES = ROOT / "packer/src/main/res"
+    NAME = "strings_packer.xml"
+    JAVA = sorted((ROOT / "packer/src/main/java/com/ast/cubeevil4/texturepacker").glob("*.java"))
+    PREFIX = "packer_"
+else:
+    RES = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "app/src/main/res"
+    NAME = "strings_ingame.xml"
+    JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java",
+                                                                      "AppUpdate.java", "BenchmarkFlow.java",
+                                                                      "PerfProfile.java", "TextureImportActivity.java")]
+    PREFIX = "ingame_"
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]")
 LOCALES = "xml/locales_config.xml"
 # folders whose code Android writes differently in locales_config (Indonesian: values-in, the old code all
@@ -111,7 +122,7 @@ def main():
     # the names the app uses
     used = set()
     for java in JAVA:
-        used |= set(re.findall(r"R\.(?:string|plurals)\.(ingame_\w+)", java.read_text(encoding="utf-8")))
+        used |= set(re.findall(r"R\.(?:string|plurals)\.(" + PREFIX + r"\w+)", java.read_text(encoding="utf-8")))
     for name in sorted(used - set(en_strings) - set(en_plurals)):
         errors.append(f"values/{NAME}: {name} is used by the app but missing")
     unused = sorted((set(en_strings) | set(en_plurals)) - used)
