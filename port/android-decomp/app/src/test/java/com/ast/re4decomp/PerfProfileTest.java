@@ -28,6 +28,21 @@ public class PerfProfileTest {
   private static PerfProfile.Bench bench(int c30, int c60) { return new PerfProfile.Bench(c30, c60, false, true); }
   private static final PerfProfile.Bench NONE = new PerfProfile.Bench(0, 0, false, false);
 
+  @Test public void bloomOnlyOnStrongDevices() {
+    // 0.99.13: "Light" for High where the chip holds more than the screen's level (as MSAA), never for Medium or
+    // Low, never with the processor near its end; off by default (an older saved profile reads 0 there)
+    PerfProfile.Device retroid = dev("OpenGL ES 3.2, Adreno (TM) 650", 8, 1, 2841, 7700, 60, 1080);
+    assertEquals(1, PerfProfile.values(PerfProfile.HIGH, retroid, bench(8, 8))[PerfProfile.BLOOM]);
+    assertEquals(0, PerfProfile.values(PerfProfile.MEDIUM, retroid, bench(8, 8))[PerfProfile.BLOOM]);
+    assertEquals(0, PerfProfile.values(PerfProfile.LOW, retroid, bench(8, 8))[PerfProfile.BLOOM]);
+    // the project owner's Retroid (4x / 3x): 3x is its screen's level, nothing to spare
+    assertEquals(0, PerfProfile.values(PerfProfile.HIGH, retroid, bench(8, 6))[PerfProfile.BLOOM]);
+    assertEquals(0, PerfProfile.bloomFor(PerfProfile.HIGH, 8, 6, true));
+    assertEquals(1, PerfProfile.bloomFor(PerfProfile.HIGH, 7, 6, false));
+    assertEquals(0, PerfProfile.bloomFor(PerfProfile.HIGH, 6, 6, false));
+    assertEquals(CoreMenu.BLOOM_LEVEL, PerfProfile.KEYS[PerfProfile.BLOOM]);
+  }
+
   @Test public void theReportsDevicesGetTheirProfiles() {
     // POCO X7 Pro (Mali-G720 MC7, 3.5x / 2.5x, 120 Hz, 2712 x 1220): High, 60 FPS; 2.5x is below its screen's 3.5x:
     // FXAA, no MSAA, and 16x

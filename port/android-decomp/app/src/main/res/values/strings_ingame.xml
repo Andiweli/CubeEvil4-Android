@@ -39,6 +39,8 @@
     <string name="ingame_flares_lens">Lens flares</string>
     <string name="ingame_flares_both">Halos + lens flares</string>
     <string name="ingame_flares_help">Lens flares: faint coloured rings across the picture from the brightest lights, as a camera lens makes them. Halos + lens flares: also a soft glow with a fine star at candles, torches and lamps.</string>
+    <string name="ingame_bloom">Bloom</string>
+    <string name="ingame_bloom_help">Bloom: the brightest parts of the scene (lamps, fire, sunlight) glow softly over their surroundings; dark rooms stay dark, the HUD and menus stay sharp. Off while a Potato mode setting is on.</string>
     <string name="ingame_dof">Depth of field</string>
     <string name="ingame_info_hud">Information HUD</string>
     <string name="ingame_hud_fps">FPS game / display</string>

@@ -423,6 +423,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
       CoreBridge.setCrt(CoreMenu.crtLevel(g));
+      CoreBridge.setBloom(CoreBridge.bloomSent(g));
       CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setPsx(g.getBoolean("psx", false));
@@ -2095,6 +2096,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     CoreBridge.setFxaa(g.getBoolean("fxaa", false));
     CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
     CoreBridge.setCrt(CoreMenu.crtLevel(g));
+    CoreBridge.setBloom(CoreBridge.bloomSent(g));
     CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
     CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
     CoreBridge.setPsx(g.getBoolean("psx", false));

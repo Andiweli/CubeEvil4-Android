@@ -31,6 +31,8 @@
     <string name="ingame_flares_lens">Reflexos de lente</string>
     <string name="ingame_flares_both">Halos + reflexos</string>
     <string name="ingame_flares_help">Reflexos de lente: anéis coloridos suaves que atravessam a imagem a partir das luzes mais fortes, como numa lente de câmera. Halos + reflexos: também um brilho suave com uma estrela fina em velas, tochas e lâmpadas.</string>
+    <string name="ingame_bloom">Bloom</string>
+    <string name="ingame_bloom_help">Bloom: as partes mais claras da cena (lâmpadas, fogo, luz do sol) brilham suavemente ao redor; salas escuras continuam escuras, o HUD e os menus continuam nítidos. Desligado enquanto um ajuste do Modo Potato estiver ativo.</string>
     <string name="ingame_dof">Profundidade de campo</string>
     <string name="ingame_info_hud">HUD de informações</string>
     <string name="ingame_hud_fps">FPS jogo/tela</string>

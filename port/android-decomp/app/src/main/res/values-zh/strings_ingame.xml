@@ -31,6 +31,8 @@
     <string name="ingame_flares_lens">镜头光晕</string>
     <string name="ingame_flares_both">光环 + 镜头光晕</string>
     <string name="ingame_flares_help">镜头光晕：最亮的光源在画面上投出淡淡的彩色光环，就像相机镜头那样。光环 + 镜头光晕：另外在蜡烛、火把和灯上加一圈柔和的光晕和细小的星芒。</string>
+    <string name="ingame_bloom">泛光</string>
+    <string name="ingame_bloom_help">泛光：场景中最亮的部分（灯、火、阳光）向周围柔和地发光；暗的房间依然昏暗，HUD 和菜单保持清晰。只要土豆模式中有任何一项设置开启，泛光就保持关闭。</string>
     <string name="ingame_dof">景深</string>
     <string name="ingame_info_hud">信息 HUD</string>
     <string name="ingame_hud_fps">FPS 游戏/显示</string>

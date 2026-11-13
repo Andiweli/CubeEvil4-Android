@@ -50,10 +50,12 @@ final class PerfProfile {
 
   /** The settings a profile sets, in this order (booleans as 0/1). */
   static final String[] KEYS = {"scaleHalves", "samples", "fxaa", "anisotropy", "smooth60", CoreMenu.FRAME_SKIP,
-      "fastCores", "weatherEffects", "specialEffects", "particleEffects", "shadowsLight", CoreBridge.VIEW_DISTANCE};
+      "fastCores", "weatherEffects", "specialEffects", "particleEffects", "shadowsLight", CoreBridge.VIEW_DISTANCE,
+      CoreMenu.BLOOM_LEVEL};
   static final int SCALE = 0, SAMPLES = 1, FXAA = 2, ANISO = 3, SMOOTH = 4, SKIP = 5, CORES = 6, WEATHER = 7,
-      SPECIAL = 8, PARTICLES = 9, SHADOWS = 10, VIEW = 11;
-  private static final boolean[] BOOL = {false, false, true, false, true, false, false, true, true, false, true, false};
+      SPECIAL = 8, PARTICLES = 9, SHADOWS = 10, VIEW = 11, BLOOM = 12;
+  private static final boolean[] BOOL = {false, false, true, false, true, false, false, true, true, false, true, false,
+      false};
 
   private PerfProfile() {}
 
@@ -212,6 +214,8 @@ final class PerfProfile {
       v[WEATHER] = 1; v[SPECIAL] = 1; v[PARTICLES] = 0; v[SHADOWS] = 1;
       v[VIEW] = cpu || tight ? 1 : 0;
     }
+    // bloom (0.99.13): "Light" only on strong devices, High with headroom beyond the screen's level (as MSAA)
+    v[BLOOM] = bloomFor(profile, room, screenLevel(d), cpu || tight);
     return v;
   }
 
@@ -230,6 +234,12 @@ final class PerfProfile {
       return new int[] {msaa, msaa == 1 && room >= 4 ? 1 : 0, room >= 6 ? 8 : room >= 3 ? 4 : 1};
     }
     return new int[] {1, 0, 1};
+  }
+
+  /** The bloom of a profile (0.99.13, the project owner: "Ja, einbauen"; off by default): 1 "Light" for High where
+   *  the chip holds more than the screen's level (`room` above `screen`) and the processor is not near its end; else 0. */
+  static int bloomFor(int profile, int room, int screen, boolean cpuBusy) {
+    return profile == HIGH && !cpuBusy && room - screen >= 1 ? 1 : 0;
   }
 
   static int clampSamples(int want, int max) {
@@ -309,6 +319,7 @@ final class PerfProfile {
     v[PARTICLES] = CoreBridge.particleEffects(g);
     v[SHADOWS] = g.getBoolean("shadowsLight", true) ? 1 : 0;
     v[VIEW] = CoreBridge.viewDistance(g);
+    v[BLOOM] = CoreMenu.bloomLevel(g);
     return v;
   }
 

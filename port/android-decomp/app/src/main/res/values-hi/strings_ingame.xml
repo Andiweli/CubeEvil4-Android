@@ -30,6 +30,8 @@
     <string name="ingame_flares_lens">लेंस फ़्लेयर</string>
     <string name="ingame_flares_both">हेलो + लेंस फ़्लेयर</string>
     <string name="ingame_flares_help">लेंस फ़्लेयर: सबसे चमकीली रोशनियों से पूरी तस्वीर में हल्के रंगीन छल्ले, जैसे कैमरे के लेंस में बनते हैं। हेलो + लेंस फ़्लेयर: साथ में मोमबत्तियों, मशालों और लैंपों पर हल्की चमक और बारीक तारा।</string>
+    <string name="ingame_bloom">ब्लूम</string>
+    <string name="ingame_bloom_help">ब्लूम: दृश्य के सबसे चमकीले हिस्से (लैंप, आग, धूप) अपने आसपास हल्की चमक फैलाते हैं; अँधेरे कमरे अँधेरे रहते हैं, HUD और मेन्यू साफ़ रहते हैं। जब तक पोटैटो मोड की कोई सेटिंग चालू है, यह बंद रहता है।</string>
     <string name="ingame_dof">डेप्थ ऑफ़ फ़ील्ड</string>
     <string name="ingame_info_hud">जानकारी HUD</string>
     <string name="ingame_hud_fps">FPS गेम/डिस्प्ले</string>

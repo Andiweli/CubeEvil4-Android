@@ -926,6 +926,41 @@ public class CoreMenuLayoutTest {
     }
   }
 
+  /** Bloom, 0.99.13: under Display's effects, off by default, Off -> Light -> Strong -> Off, its own line of help;
+   *  the renderer gets none while a Potato mode setting is on (CoreBridge.bloomSent). */
+  @Test public void bloomMovesThroughThreeStepsAndStaysOffWithPotato() throws Exception {
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
+      g.edit().clear().apply();
+      assertEquals(0, CoreMenu.bloomLevel(g));
+      CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 1, false);  // DISPLAY
+      View root = (View) field(menu, "root");
+      Button bloom = findButton(root, activity.getString(R.string.ingame_bloom));
+      assertNotNull(bloom);
+      assertFalse(bloom.isSelected());
+      assertTrue(bloom.getText().toString().endsWith(activity.getString(R.string.ingame_off)));
+      try {
+        bloom.performClick();
+      } catch (UnsatisfiedLinkError e) {
+        // (no native library in the host tests: CoreBridge.setBloom is the last thing the press does)
+      }
+      assertEquals(1, CoreMenu.bloomLevel(g));
+      assertTrue(bloom.isSelected());
+      assertTrue(bloom.getText().toString().endsWith(activity.getString(R.string.ingame_dof_light)));
+      assertTrue(hasText(root, activity.getString(R.string.ingame_bloom_help)));
+      assertEquals(1, CoreBridge.bloomSent(g));
+      g.edit().putBoolean("weatherEffects", false).apply();
+      assertEquals("off while a Potato mode setting is on", 0, CoreBridge.bloomSent(g));
+      g.edit().putBoolean("weatherEffects", true).putInt(CoreBridge.VIEW_DISTANCE, 1).apply();
+      assertEquals("off with a shorter view distance", 0, CoreBridge.bloomSent(g));
+      g.edit().putInt(CoreBridge.VIEW_DISTANCE, 0).putInt(CoreMenu.BLOOM_LEVEL, 2).apply();
+      assertEquals(2, CoreBridge.bloomSent(g));
+    }
+  }
+
   /** Potato mode, 0.99.6: "View distance" in a third row, Normal (the default, lit), Medium (lit), Short (off), with its
    *  own line of help. */
   @Test public void viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort() throws Exception {

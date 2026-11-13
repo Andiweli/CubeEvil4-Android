@@ -2550,6 +2550,89 @@ void AutofocusScene(Builder &b, bool nearCentre, bool mark) {
   DisplayCopy(b, false, kBlack);
 }
 
+// Bloom (0.99.13; GxCore::BloomPass): a dark grey room (3D, 20 m away), a white lamp (40 x 40 game pixels, 1 m),
+// a mid-grey object below the threshold, then the HUD (2D after the scene: a white square). Off: nothing changes.
+// Light: the lamp's surroundings brighten, the room away from it, the grey object and the HUD's surroundings stay;
+// strong brightens more and farther. With the letterbox (the scene's scissor rows 56..391) the bar above stays black;
+// a menu screen of the game (RE4_GX_CHUNK_STILL) gets none. Read through ReadXfb (rows from the top, the renderer's
+// pixels): the same check for GL and Vulkan.
+std::vector<std::uint8_t> ReadPixel(re4gx::GxRenderer &r, int x, int y) {
+  std::vector<std::uint8_t> rgba;
+  unsigned w = 0, h = 0;
+  if (!r.ReadXfb(&rgba, &w, &h) || x < 0 || y < 0 || static_cast<unsigned>(x) >= w || static_cast<unsigned>(y) >= h)
+    return {0, 0, 0, 0};
+  const std::size_t at = (static_cast<std::size_t>(y) * w + static_cast<std::size_t>(x)) * 4;
+  return {rgba[at], rgba[at + 1], rgba[at + 2], rgba[at + 3]};
+}
+
+void TestBloom(re4gx::GxRenderer &r, const char *tag) {
+  const std::uint8_t kRoom[4] = {40, 40, 40, 255}, kMid[4] = {120, 120, 120, 255};
+  auto scene = [&](bool letterbox, bool still) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    if (letterbox) {
+      b.Bp(0x20, (342 + 56) | 342u << 12);
+      b.Bp(0x21, (342 + 391) | (342u + 639) << 12);
+    }
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    QuadAt(b, 0, 0, 640, 528, 20000.0f, kRoom);
+    QuadAt(b, 200, letterbox ? 60 : 200, 240, letterbox ? 100 : 240, 1000.0f, kWhite);
+    QuadAt(b, 400, 300, 440, 340, 1000.0f, kMid);
+    // the HUD: orthographic after the scene
+    b.XfF(0x1020, {1.0f / 320.0f, -1.0f, -2.0f / 528.0f, 1.0f, -1.0f, -1.0f});
+    b.Xf(0x1026, {1});
+    b.Bp(0x40, 0);  // no depth test for the HUD
+    Quad(b, 500, 100, 540, 140, 0, kWhite);
+    if (still)
+      b.flags |= RE4_GX_CHUNK_STILL;
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  };
+  const int s = r.Scale();
+  auto at = [&](int x, int y) { return ReadPixel(r, x * s, y * s); };
+  char what[160];
+  r.SetBloom(0);
+  scene(false, false);
+  const auto offBeside = at(250, 220), offFar = at(100, 450), offMid = at(420, 320), offHud = at(550, 120);
+  std::snprintf(what, sizeof(what), "bloom (%s): off, the room as drawn", tag);
+  Check(Near(offBeside, 40, 40, 40) && Near(offFar, 40, 40, 40) && Near(offMid, 120, 120, 120) &&
+            Near(offHud, 40, 40, 40),
+        what);
+  const unsigned before = r.Stats().bloomPasses;
+  r.SetBloom(1);
+  scene(false, false);
+  const auto light = at(250, 220), lightFar2 = at(262, 220);
+  std::fprintf(stderr, "  bloom (%s) light: beside the lamp %d (off %d), 22 pixels away %d; far %d, the grey %d, beside the "
+               "HUD %d\n", tag, light[1], offBeside[1], lightFar2[1], at(100, 450)[1], at(420, 320)[1], at(550, 120)[1]);
+  std::snprintf(what, sizeof(what), "bloom (%s): light, one pass, the lamp's surroundings brighter", tag);
+  Check(r.Stats().bloomPasses == before + 1 && light[1] >= offBeside[1] + 10, what);
+  std::snprintf(what, sizeof(what), "bloom (%s): light, the room away from the lamp, the grey object and the HUD's "
+                "surroundings stay", tag);
+  Check(Near(at(100, 450), 40, 40, 40) && Near(at(420, 320), 120, 120, 120) && Near(at(550, 120), 40, 40, 40) &&
+            Near(at(520, 120), 255, 255, 255),
+        what);
+  r.SetBloom(2);
+  scene(false, false);
+  const auto strong = at(250, 220), strongFar2 = at(262, 220);
+  std::fprintf(stderr, "  bloom (%s) strong: beside the lamp %d, 22 pixels away %d\n", tag, strong[1], strongFar2[1]);
+  std::snprintf(what, sizeof(what), "bloom (%s): strong, brighter and farther than light", tag);
+  Check(strong[1] > light[1] && strongFar2[1] > lightFar2[1] && Near(at(550, 120), 40, 40, 40), what);
+  scene(true, false);
+  std::snprintf(what, sizeof(what), "bloom (%s): the letterbox bar above the lamp stays black", tag);
+  Check(Near(at(220, 50), 0, 0, 0, 1) && at(250, 80)[1] > 45, what);
+  const unsigned beforeStill = r.Stats().bloomPasses;
+  scene(false, true);
+  std::snprintf(what, sizeof(what), "bloom (%s): none on a menu screen of the game", tag);
+  Check(r.Stats().bloomPasses == beforeStill && Near(at(250, 220), 40, 40, 40), what);
+  r.SetBloom(0);
+  scene(false, false);
+  std::snprintf(what, sizeof(what), "bloom (%s): off again, the room as drawn", tag);
+  Check(at(250, 220) == offBeside, what);
+}
+
 void TestAutofocus(re4gx::GxRenderer &r, bool multisampled = false) {
   char tag[64];
   std::snprintf(tag, sizeof(tag), "autofocus%s%s", multisampled ? " (multisampled)" : "",
@@ -2881,6 +2964,8 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestTvFilter(r);
   TestSharpen(r);
   TestCrtColour(r);
+  TestBloom(r, r.TiledMsaa() ? (lose ? "GL MSAA on the tiles, everything lost" : "GL MSAA on the tiles")
+                             : "GL MSAA");
   TestPsx(r);
   TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
@@ -4338,6 +4423,14 @@ int main() {
   TestPrewarm();
   TestRescale();
   TestBlurCopy();
+  {
+    // bloom with GL at 2x (the loop below runs it at 1x): a bloom texel stays 4 x 4 game pixels
+    re4gx::GxRenderer gr;
+    std::string error;
+    Require(gr.Init(2, &error), error.c_str());
+    TestBloom(gr, "GL 2x");
+    gr.Release();
+  }
   TestAutoLevel();
   TestBenchSteps();
   TestHandOverCopies();
@@ -4347,6 +4440,14 @@ int main() {
     TestVkHandOverCopies();
     TestVkOverlay();
     TestVkAhead();
+    {
+      // bloom with Vulkan at 2x: the same as GL (TestBloom)
+      re4gx::GxRenderer vr(re4gx::GxApi::kVulkan);
+      std::string error;
+      Require(vr.Init(2, &error), error.c_str());
+      TestBloom(vr, "Vulkan 2x");
+      vr.Release();
+    }
   }
 #endif
   TestMerge();
@@ -4378,6 +4479,7 @@ int main() {
     TestFxaa(renderer);
     TestSharpen(renderer);
     TestCrtColour(renderer);
+    TestBloom(renderer, poison ? "GL, forgotten contents magenta" : "GL");
     TestPictureCadence();
     TestPictureHold();
     if (!poison)

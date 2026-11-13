@@ -117,6 +117,54 @@ zu welchem Bildwechsel sie ein Bild zeichnet; bei 120 Hz entscheidet das Ende de
 - **Nicht geprüft:** auf einem Gerät (keins mit 120 Hz hier); ob das nubia die Zeitwünsche befolgt, zeigt die neue
   Zeile „screen pacing (as shown)“ im nächsten Bericht.
 
+### 5. Bloom (Projektinhaber, 13.11.2026: „Ja, einbauen“)
+
+Vorschlag an den Inhaber: Aus (Vorgabe) / Leicht / Stark, nur auf die Spielwelt, nicht auf HUD, Texte, Menüs; GLES
+und Vulkan gleich; aus mit Potato-Einstellungen; der Benchmark schaltet ihn nur auf starken Geräten ein.
+
+- **Wo:** `GxCore::Run` nach dem letzten 3D-Bild der Hauptansicht (dieselbe Stelle wie die Lens Flares,
+  `FlareScan`: HUD, Texte, Blenden und Menüs kommen danach) und **vor** den Lens Flares (die nicht noch einmal
+  leuchten). Nicht auf Menübildern des Spiels (`RE4_GX_CHUNK_STILL`), nicht in Filmen und 2D-Bildern (kein 3D-Bild);
+  die Zwischenbilder von 60 FPS laufen denselben Weg (`Interpolate` → `Run`). CRT, Farbe, PSone und FXAA an der
+  Display-Kopie nehmen ihn mit.
+- **Wie (`gx_fixed_shaders.h` `kBloomPickFs`/`kBloomBlurFs`/`kBloomAddFs`, `BloomPass` in `gx_gl.cpp` und
+  `gx_vk.cpp`):** ein eigenes Bild mit einem Texel je 4 × 4 Spielpixel (128 × 112 für die volle Szene, bei jeder
+  Auflösung gleich: gleicher Look, gleiche Kosten); je Texel 4 × 4 Abtastungen (eine je Spielpixel), jede einzeln
+  über der Schwelle genommen (hellster Farbkanal, weicher Übergang als Quadrat: eine Flamme nahe Weiß voll, heller Nebel
+  knapp über der Schwelle kaum; eine kleine Kerzenflamme behält ihren Anteil), dann 2 (Leicht) bzw. 3 (Stark)
+  Weichzeichner-Paare (9-Tap-Gauß, Abstand 1 / 1,5 / 2 Texel), zuletzt addiert (eins + eins, nur Farbe, EFB-Alpha
+  bleibt) über den Szenenteil: die Schere des letzten 3D-Bilds innerhalb des XF-Viewports (`BloomRegion`), so bleiben
+  die Kinobalken schwarz. Leicht: Schwelle 0,72, Stärke 0,55; Stark: 0,62 / 0,85 (`BloomLookOf`). Mit „Halos + Lens
+  Flares“ geben die Lichter, an denen ein Halo leuchtet (bis zu 8, die größten), keinen Bloom (`BloomHalos`, Maske im
+  ersten Durchgang): nie doppelter Schein. MSAA: GL löst die Farbe auf und addiert in den Mehrfach-Puffer (wie die
+  Flares), Vulkan liest das aufgelöste `efbColor` und addiert im EFB-Durchgang. Dynamische Auflösung: die Bilder
+  werden bei anderer Größe neu angelegt (`PassTexture`/`FilterImage`), sie leben nur innerhalb eines Bilds.
+- **App:** Display → Effekte, Knopf „Bloom: Aus / Leicht / Stark“ (Vorgabe Aus, `graphics` `bloomLevel`), eigene
+  Hilfezeile; Texte `ingame_bloom(_help)` in 11 Sprachen (`check_translations.py` 420 Texte ohne Befund).
+  `CoreBridge.setBloom` → `core_mode.cpp` `optBloom` → `GxRenderer::SetBloom` (Prüfschalter `RE4_GX_BLOOM=1/2`);
+  `CoreBridge.bloomSent`: aus, solange eine Potato-Einstellung an ist (Wetter, Spezialeffekte, Partikel, Schatten,
+  kürzere Sichtweite). Leistungsprofil: neuer Schlüssel `bloomLevel` am Ende (ältere gespeicherte Profile lesen 0),
+  „Hoch“ setzt Leicht nur, wo der Chip mehr als die Stufe des Bildschirms schafft (wie MSAA) und der Prozessor nicht
+  am Limit ist (`PerfProfile.bloomFor`); Mittel und Niedrig nie.
+- **Geprüft am PC:** `gx_gl_check` 0 Fehler, neu `TestBloom` (GL 1x, GL 1x mit „vergessenen“ Inhalten magenta, GL
+  2x, GL mit 4x MSAA in eigenen Puffern in allen `TestOptions`-Spielarten, Vulkan 2x mit lavapipe): Lampe weiß auf
+  dunklem Raum, Leicht: 10 Pixel daneben 40 → 66, Stark → 85 (22 Pixel: 44 / 57), GL, MSAA und Vulkan gleich; Raum
+  fern, mittelgraues Ding unter der Schwelle und die Umgebung des HUD-Quadrats unverändert; Kinobalken bleibt
+  schwarz; Menübild ohne Bloom; aus wieder wie vorher. Raum-Bilder aus dem PC-Kern (Debug-Start der Debug-Discs,
+  GX-Dumps, `gx_chunk_render` 2x, GLES und Vulkan): r111/r113/r11a (Dorf bei Nacht), r11c (Wald bei Nacht: **0
+  Pixel geändert**), r201/r203/r209/r20a (Burg mit Feuerschalen und Kerzen), r105/r10a/r103 (Tag), r100 (Titel);
+  Streifen „aus | leicht | stark“ in `E:\Development\Android\builds\bloom\`. Nach dem ersten Durchgang die Schwelle
+  weicher (als Quadrat): heller Nebel am Tag (r105) wurde mit „Stark“ milchig, danach etwa ein Drittel weniger
+  geänderte Pixel, die Feuer gleich. GLES gegen Vulkan: mit Bloom so nah wie ohne (in 47 von 48 Bildern dieselben
+  0–28 abweichenden Pixel, in einem 2 mehr). Zeit am PC (llvmpipe, Software): etwa 5–7 ms je Bild mit glFinish, auf
+  dem Handy nicht vergleichbar (ein 128 × 112-Bild und ein Additions-Durchgang über die Szene).
+  App-Tests: `CoreMenuLayoutTest` (Knopf, drei Stufen, Hilfezeile, Potato aus), `PerfProfileTest` (nur Hoch mit
+  Spielraum); je 132 grün; `gradlew :app:externalNativeBuildCoreDebug` ohne Fehler.
+- **Nicht geprüft:** auf einem Gerät (Aussehen, Kosten); mit Lens Flares und Halos zugleich (die Maske braucht
+  mehrere Bilder in Folge, im PC-Test nur einzelne Dumps); MSAA auf den Kacheln eines Mobil-Chips (llvmpipe kann es
+  nicht); in den Zwischenbildern von 60 FPS (derselbe Weg, aber nicht eigens geprüft); während eines Auflösungs-
+  wechsels von „Dynamisch“.
+
 ## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
 Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,

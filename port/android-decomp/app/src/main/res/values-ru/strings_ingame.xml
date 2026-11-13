@@ -30,6 +30,8 @@
     <string name="ingame_flares_lens">Блики объектива</string>
     <string name="ingame_flares_both">Ореолы + блики</string>
     <string name="ingame_flares_help">Блики объектива: слабые цветные кольца через всё изображение от самых ярких источников света, как в объективе камеры. Ореолы + блики: дополнительно мягкое свечение с тонкой звездой у свечей, факелов и ламп.</string>
+    <string name="ingame_bloom">Bloom</string>
+    <string name="ingame_bloom_help">Bloom: самые яркие места сцены (лампы, огонь, солнечный свет) мягко светятся вокруг себя; тёмные комнаты остаются тёмными, интерфейс и меню остаются чёткими. Выключен, пока включена настройка режима Potato.</string>
     <string name="ingame_dof">Глубина резкости</string>
     <string name="ingame_info_hud">Информационный HUD</string>
     <string name="ingame_hud_fps">FPS игры/экрана</string>

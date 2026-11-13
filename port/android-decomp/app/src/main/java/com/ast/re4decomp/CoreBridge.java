@@ -266,6 +266,12 @@ public final class CoreBridge {
    * what the game draws, not the touch controls nor the app's overlays.
    */
   public static native void setCrt(int level);
+  /** Bloom (0.99.13; core_mode.cpp, GxRenderer::SetBloom): 0 off, 1 light, 2 strong. */
+  public static native void setBloom(int level);
+  /** The bloom the renderer gets: the menu's, off while a Potato mode switch is on (0.99.13). */
+  static int bloomSent(android.content.SharedPreferences g) {
+    return potatoMask(g) == 0 && viewDistance(g) == 0 ? CoreMenu.bloomLevel(g) : 0;
+  }
   /** Colour (0.99.9): mode 0 off, 1 warm film, 2 survival horror; level 1 light, 2 strong. */
   public static native void setColour(int mode, int level);
   /**

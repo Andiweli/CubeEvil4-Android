@@ -691,6 +691,7 @@ std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridg
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares: 0 off, 1 lens flares, 2 halos + lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
 std::atomic<int> optCrt{0};       // the menu's CRT (CoreBridge.setCrt: 0 off, 1 light, 2 strong; or RE4_GX_CRT)
+std::atomic<int> optBloom{0};     // the menu's bloom (CoreBridge.setBloom, 0.99.13: 0 off, 1 light, 2 strong; or RE4_GX_BLOOM)
 std::atomic<int> optColour{0};    // the menu's colour (CoreBridge.setColour: mode * 4 + level; or RE4_GX_COLOUR=M,L)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
 // HD textures of the player's pack (CoreBridge.setTexturePack, port/docs/textur-lader-plan.md): the open pack (null:
@@ -2291,6 +2292,8 @@ bool drawGx() {
   }
   static const int crtEnv = getenv("RE4_GX_CRT") ? atoi(getenv("RE4_GX_CRT")) : 0;
   gx->SetCrt(crtEnv > 0 ? crtEnv : optCrt.load());
+  static const int bloomEnv = getenv("RE4_GX_BLOOM") ? atoi(getenv("RE4_GX_BLOOM")) : 0;
+  gx->SetBloom(bloomEnv > 0 ? bloomEnv : optBloom.load());
   static int colourEnvMode = -1, colourEnvLevel = 1;
   if (colourEnvMode < 0) {
     colourEnvMode = 0;
@@ -3678,6 +3681,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setCrt(JNIEn
   const int want = level < 0 ? 0 : level > 2 ? 2 : level;
   if (optCrt.exchange(want) != want)
     LOG("CRT: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
+}
+
+// Bloom (the menu, 0.99.13; GxRenderer::SetBloom): 0 off, 1 light, 2 strong (the app sends 0 while a Potato mode
+// switch is on: CoreBridge.bloomSent).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setBloom(JNIEnv *, jclass, jint level) {
+  const int want = level < 0 ? 0 : level > 2 ? 2 : level;
+  if (optBloom.exchange(want) != want)
+    LOG("bloom: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
 }
 
 // Colour (the menu, 0.99.9; GxRenderer::SetColour): mode 0 off, 1 warm film, 2 survival horror; level 1 light,

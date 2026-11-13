@@ -598,6 +598,30 @@ struct GxCore {
   // The picture's sources onto the tracked slots: near ones merged, each to the slot it was in (nearest within
   // its size), new ones into free slots; a slot not seen fades out where it was and is free after 16 pictures.
   void FlareTrack();
+  // --- bloom (GxRenderer::SetBloom, 0.99.13) -------------------------------------------------------------------
+  // After the scene's last 3D draw of the main view (the lens flares' FlareScan: the HUD, texts, fades and menus come
+  // after it) and before the lens flares, the scene's bright parts glow softly (BloomPass; gx_fixed_shaders.h
+  // kBloomPickFs/kBloomBlurFs/kBloomAddFs): only what lies above a threshold, so dark rooms stay dark; not where
+  // "Halos + lens flares" draw their halo at a light (the two would glow twice); not on the game's menu screens
+  // (RE4_GX_CHUNK_STILL), nor in movies and 2D pictures (no 3D draw); in the in-between pictures of 60 FPS as in the
+  // game's own (their Run takes the same way). The CRT, colour, PSone and FXAA passes at the display copy take it with
+  // the picture.
+  int bloomLevel = 0;  // 0 off, 1 light, 2 strong
+  bool bloomFailed = false, bloomDone = false;
+  std::uint32_t bloomAfter = 0;  // the op offset after the scene's last 3D draw (0: no bloom in this chunk)
+  struct BloomLook {
+    float threshold, strength;
+    int blurs;      // blur pairs (horizontal + vertical), the n-th spread 1 + n / 2 texels a tap
+    static float Spread(int n) { return 1.0f + 0.5f * static_cast<float>(n); }
+  };
+  static const BloomLook &BloomLookOf(int level);
+  // The scene's part of the EFB in the renderer's texels (x, y, w, h): the scissor of the draws now (the main view's,
+  // right after its last 3D draw: the letterbox bars outside) within the XF viewport; false when it is too small.
+  bool BloomRegion(int out[4]) const;
+  // The lights where the lens flares draw a halo (with "Halos + lens flares"): up to 8, x, y, radius in the
+  // renderer's texels, w 1 (unused: 0).
+  void BloomHalos(float out[8][4]) const;
+  virtual void BloomPass() = 0;
   // One op of the chunk at `at` (Run); the next op's place (the end when the op is cut off).
   std::uint32_t Op(const Re4GxChunk &chunk, std::uint32_t at);
   // the GPU side of the ops (Op): the API renderer's
@@ -737,6 +761,7 @@ struct GxCore {
   void SetColour(int mode, int level);
   void SetFlares(bool on);
   void SetFlareHalos(bool on);
+  void SetBloom(int level);
   void SetDofStrong(bool on);
   void SetShownRows(int top, int bottom);
   void SetWiden(float factor);

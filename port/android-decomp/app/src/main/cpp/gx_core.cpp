@@ -1336,6 +1336,58 @@ void GxCore::SetColour(int mode, int level) {
 }
 void GxCore::SetFlares(bool on) { this->flaresOn = on; }
 void GxCore::SetFlareHalos(bool on) { this->flareHalos = on; }
+void GxCore::SetBloom(int level) { this->bloomLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
+const GxCore::BloomLook &GxCore::BloomLookOf(int level) {
+  // light: the brightest parts only, a soft glow (two blurs, about 13 game pixels); strong: a little more of the
+  // bright parts, wider (three blurs, about 19) and stronger
+  static const BloomLook kLight{0.72f, 0.55f, 2}, kStrong{0.62f, 0.85f, 3};
+  return level >= 2 ? kStrong : kLight;
+}
+bool GxCore::BloomRegion(int out[4]) const {
+  // the scissor (registers in EFB pixels + 342, minus the offset, BP 0x59; as ApplyState)
+  const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+  int x0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
+  int y0 = std::max(0, static_cast<int>(bp[0x20] & 0x7FF) - yoff);
+  int x1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
+  int y1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
+  // within the XF viewport (its centre at 342 + the EFB's), as the autofocus reads it
+  const float halfW = AsFloat(xfReg[0x1A]), halfH = -AsFloat(xfReg[0x1B]);
+  if (halfW > 0.0f && halfH > 0.0f) {
+    const float cx = AsFloat(xfReg[0x1D]) - 342.0f, cy = AsFloat(xfReg[0x1E]) - 342.0f;
+    x0 = std::max(x0, static_cast<int>(std::lround(cx - halfW)));
+    y0 = std::max(y0, static_cast<int>(std::lround(cy - halfH)));
+    x1 = std::min(x1, static_cast<int>(std::lround(cx + halfW)));
+    y1 = std::min(y1, static_cast<int>(std::lround(cy + halfH)));
+  }
+  if (x1 - x0 < 32 || y1 - y0 < 32)
+    return false;
+  out[0] = Lo(x0);
+  out[1] = Lo(y0);
+  out[2] = Lo(x1) - Lo(x0);
+  out[3] = Lo(y1) - Lo(y0);
+  return true;
+}
+void GxCore::BloomHalos(float out[8][4]) const {
+  std::memset(out, 0, sizeof(float) * 8 * 4);
+  if (!flaresOn || !flareHalos)
+    return;
+  // the lights that flare now (seen in 4 pictures in a row: FlareTrack), the largest first; the halo reaches about
+  // three times the light's radius (the flare shader's glow)
+  int n = 0;
+  int order[kFlareSlots];
+  for (int i = 0; i < kFlareSlots; i++)
+    if (flareSlot[i].lost == 0 && flareSlot[i].age >= 4)
+      order[n++] = i;
+  std::sort(order, order + n, [&](int a, int b) { return flareSlot[a].r > flareSlot[b].r; });
+  const float sc = Sf(1);
+  for (int k = 0; k < n && k < 8; k++) {
+    const FlareSlot &s = flareSlot[order[k]];
+    out[k][0] = s.x * sc;
+    out[k][1] = s.y * sc;
+    out[k][2] = std::max(3.0f * s.r, 6.0f) * sc;
+    out[k][3] = 1.0f;
+  }
+}
 void GxCore::SetDofStrong(bool on) { this->dofStrong = on; }
 void GxCore::SetTvFilter(bool on) { this->tvFilter = on; }
 void GxCore::SetBandwidthSave(bool on) { this->bwSave = on; }
@@ -1485,6 +1537,11 @@ void GxCore::Run(const Re4GxChunk &chunk) {
   m.flareAfter = m.flaresOn && !m.skipDraws && !(chunk.flags & RE4_GX_CHUNK_STILL) ? m.FlareScan(chunk) : 0;
   m.flareDone = false;
   m.flareCands.clear();
+  // bloom (0.99.13): at the same place, before the lens flares (they are not bloomed again)
+  m.bloomAfter = m.bloomLevel > 0 && !m.bloomFailed && !m.skipDraws && !(chunk.flags & RE4_GX_CHUNK_STILL)
+                     ? (m.flaresOn ? m.flareAfter : m.FlareScan(chunk))
+                     : 0;
+  m.bloomDone = false;
   std::uint32_t at = 0;
   while (at < chunk.opWords) {
     m.curOpAt = at;
@@ -1495,6 +1552,10 @@ void GxCore::Run(const Re4GxChunk &chunk) {
       at = m.DrawMerged(chunk, at);
     else
       at = m.Op(chunk, at);
+    if (m.bloomAfter && !m.bloomDone && at >= m.bloomAfter) {
+      m.bloomDone = true;
+      m.BloomPass();
+    }
     if (m.flareAfter && !m.flareDone && at >= m.flareAfter)
       m.FlarePass();
   }

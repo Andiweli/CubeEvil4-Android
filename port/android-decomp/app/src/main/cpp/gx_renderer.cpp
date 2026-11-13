@@ -52,6 +52,7 @@ void GxRenderer::SetCrt(int level) { impl_->SetCrt(level); }
 void GxRenderer::SetColour(int mode, int level) { impl_->SetColour(mode, level); }
 void GxRenderer::SetFlares(bool on) { impl_->SetFlares(on); }
 void GxRenderer::SetFlareHalos(bool on) { impl_->SetFlareHalos(on); }
+void GxRenderer::SetBloom(int level) { impl_->SetBloom(level); }
 void GxRenderer::SetDofStrong(bool on) { impl_->SetDofStrong(on); }
 void GxRenderer::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes) {
   impl_->SetTexturePack(std::move(pack), firstLevel, budgetBytes);

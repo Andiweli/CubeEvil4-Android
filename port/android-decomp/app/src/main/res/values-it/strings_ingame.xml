@@ -30,6 +30,8 @@
     <string name="ingame_flares_lens">Riflessi lente</string>
     <string name="ingame_flares_both">Aloni + riflessi</string>
     <string name="ingame_flares_help">Riflessi lente: tenui anelli colorati che attraversano l\'immagine dalle luci più forti, come in un obiettivo fotografico. Aloni + riflessi: in più un bagliore morbido con una sottile stella su candele, torce e lampade.</string>
+    <string name="ingame_bloom">Bloom</string>
+    <string name="ingame_bloom_help">Bloom: le parti più luminose della scena (lampade, fuoco, luce del sole) si diffondono morbidamente intorno; le stanze buie restano buie, l\'HUD e i menu restano nitidi. Disattivato finché è attiva un\'impostazione della Modalità Potato.</string>
     <string name="ingame_dof">Profondità di campo</string>
     <string name="ingame_info_hud">HUD informazioni</string>
     <string name="ingame_hud_fps">FPS gioco/schermo</string>

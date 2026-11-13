@@ -43,6 +43,7 @@ struct GxStats {
   unsigned sharpenPasses = 0;    // display copies sharpened (SetSharpen)
   unsigned colourPasses = 0;     // display copies graded (SetColour)
   unsigned crtPasses = 0;        // display copies made into the CRT's lines and glow (SetCrt)
+  unsigned bloomPasses = 0;      // pictures whose scene's bright parts glow (SetBloom)
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
   unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
@@ -314,6 +315,11 @@ public:
   // With the lens flares on: the soft glow and fine star at each light too (true, the default: the menu's "Halos +
   // lens flares"), or only the coloured ghosts towards the picture's centre (false: "Lens flares"; 0.99.6).
   void SetFlareHalos(bool on);
+  // Bloom (0.99.13, the project owner: "Ja, einbauen"; 0 off, the default, 1 light, 2 strong): after the scene's
+  // last 3D draw and before the HUD, its bright parts (above a threshold) glow softly over their surroundings (a
+  // picture of one texel per 4 x 4 game pixels, blurred, added into the EFB); not where "Halos + lens flares" draw
+  // their halo, not on the game's menu screens. Takes effect with the next chunk.
+  void SetBloom(int level);
   // the menu's depth of field "Strong" (0.98.4): the gameplay autofocus blurs more and wider than "Light"
   void SetDofStrong(bool on);
   // HD textures (port/docs/textur-lader-plan.md): the player's texture pack (null: none), the first of each

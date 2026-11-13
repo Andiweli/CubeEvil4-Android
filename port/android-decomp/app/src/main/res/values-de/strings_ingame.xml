@@ -30,6 +30,8 @@
     <string name="ingame_flares_lens">Lens Flares</string>
     <string name="ingame_flares_both">Lichthöfe + Lens Flares</string>
     <string name="ingame_flares_help">Lens Flares: schwache farbige Ringe quer durchs Bild, die von den hellsten Lichtern ausgehen, wie bei einem Kameraobjektiv. Lichthöfe + Lens Flares: zusätzlich ein weicher Schein mit feinem Stern an Kerzen, Fackeln und Lampen.</string>
+    <string name="ingame_bloom">Bloom</string>
+    <string name="ingame_bloom_help">Bloom: Die hellsten Stellen der Szene (Lampen, Feuer, Sonnenlicht) leuchten weich in ihre Umgebung; dunkle Räume bleiben dunkel, Anzeigen und Menüs bleiben scharf. Aus, solange eine Einstellung des Potato-Modus an ist.</string>
     <string name="ingame_dof">Tiefenschärfe</string>
     <string name="ingame_info_hud">Information HUD</string>
     <string name="ingame_hud_fps">FPS Spiel/Display</string>

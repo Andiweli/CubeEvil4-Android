@@ -2220,6 +2220,129 @@ struct GlRenderer final : GxCore {
     current = nullptr;
   }
 
+  // --- bloom (0.99.13; GxCore::BloomPass, gx_fixed_shaders.h kBloom*) ------------------------------------------
+
+  GLuint bloomPick = 0, bloomBlur = 0, bloomAdd = 0;
+  GLint bloomPickRegion = -1, bloomPickSize = -1, bloomPickPick = -1, bloomPickHalo = -1, bloomBlurDir = -1,
+        bloomAddRegion = -1, bloomAddSize = -1;
+  GLuint bloomTex[2] = {0, 0};
+  int bloomW[2] = {0, 0}, bloomH[2] = {0, 0};
+
+  bool MakeBloom() {
+    std::string log;
+    bloomPick = Link(fixed::kQuadVs, fixed::kBloomPickFs, &log);
+    bloomBlur = bloomPick ? Link(fixed::kQuadVs, fixed::kBloomBlurFs, &log) : 0;
+    bloomAdd = bloomBlur ? Link(fixed::kQuadVs, fixed::kBloomAddFs, &log) : 0;
+    if (!bloomAdd) {
+      GXLOG("bloom: shader failed: %s", log.c_str());
+      BloomRelease();
+      return false;
+    }
+    glUseProgram(bloomPick);
+    glUniform1i(glGetUniformLocation(bloomPick, "src"), 0);
+    bloomPickRegion = glGetUniformLocation(bloomPick, "region");
+    bloomPickSize = glGetUniformLocation(bloomPick, "size");
+    bloomPickPick = glGetUniformLocation(bloomPick, "pick");
+    bloomPickHalo = glGetUniformLocation(bloomPick, "halo");
+    glUseProgram(bloomBlur);
+    glUniform1i(glGetUniformLocation(bloomBlur, "src"), 0);
+    bloomBlurDir = glGetUniformLocation(bloomBlur, "dir");
+    glUseProgram(bloomAdd);
+    glUniform1i(glGetUniformLocation(bloomAdd, "bloom"), 0);
+    bloomAddRegion = glGetUniformLocation(bloomAdd, "region");
+    bloomAddSize = glGetUniformLocation(bloomAdd, "size");
+    return true;
+  }
+
+  // After the scene's last 3D draw (Run): its bright parts into bloomTex[0] (one texel per 2 x `halves` EFB texels each
+  // way: 2 x 2 game pixels), blurred there, added into the EFB's colour over the scene's part.
+  void BloomPass() override {
+    int region[4];
+    if (bloomFailed || !BloomRegion(region))
+      return;
+    Touched();
+    if (!bloomAdd && !MakeBloom()) {
+      bloomFailed = true;  // off for good on this driver (the menu's choice stays)
+      BindFbo(DrawFbo());
+      return;
+    }
+    const BloomLook &look = BloomLookOf(bloomLevel);
+    const int f = 2 * std::max(1, halves);  // a texel per 4 x 4 game pixels (halves: texels per 2 game pixels)
+    const int taps = std::min(f, 4);
+    const int bw = (region[2] + f - 1) / f, bh = (region[3] + f - 1) / f;
+    // (the PC check, RE4_GX_BLOOM_TIME=1: the passes' time with glFinish before and after, into the log)
+    static const bool timed = std::getenv("RE4_GX_BLOOM_TIME") && *std::getenv("RE4_GX_BLOOM_TIME") == '1';
+    if (timed)
+      glFinish();
+    const auto timedFrom = std::chrono::steady_clock::now();
+    // the scene's colour (MSAA in own buffers: resolved), as the lens flares read it
+    Resolve(region[0], region[1], region[2], region[3], false);
+    for (int i = 0; i < 2; i++)
+      PassTexture(&bloomTex[i], &bloomW[i], &bloomH[i], bw, bh);
+    float halos[8][4];
+    BloomHalos(halos);
+    glUseProgram(bloomPick);
+    glUniform4f(bloomPickRegion, float(region[0]), float(region[1]), float(region[2]), float(region[3]));
+    glUniform4f(bloomPickSize, float(bw), float(bh), float(f), float(taps));
+    glUniform4f(bloomPickPick, look.threshold, 1.0f / (1.0f - look.threshold), 0.0f, 0.0f);
+    glUniform4fv(bloomPickHalo, 8, &halos[0][0]);
+    FilterDraw(bloomPick, bloomTex[0], bw, bh, efbColor);
+    for (int b = 0; b < look.blurs; b++) {
+      const float spread = BloomLook::Spread(b);
+      glUseProgram(bloomBlur);
+      glUniform4f(bloomBlurDir, spread / float(bw), 0.0f, float(bw), float(bh));
+      FilterDraw(bloomBlur, bloomTex[1], bw, bh, bloomTex[0]);
+      glUseProgram(bloomBlur);
+      glUniform4f(bloomBlurDir, 0.0f, spread / float(bh), float(bw), float(bh));
+      FilterDraw(bloomBlur, bloomTex[0], bw, bh, bloomTex[1]);
+    }
+    // added into the EFB (its colour; MSAA: the multisampled one, as the lens flares)
+    SaveAndPlainState();
+    glDepthMask(GL_FALSE);
+    BindFbo(DrawFbo());
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(region[0], region[1], region[2], region[3]);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE);
+    glUseProgram(bloomAdd);
+    glUniform4f(bloomAddRegion, float(region[0]), float(region[1]), float(region[2]), float(region[3]));
+    glUniform4f(bloomAddSize, float(bw), float(bh), float(f), look.strength);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, bloomTex[0]);
+    glBindSampler(0, 0);
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisable(GL_BLEND);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+    current = nullptr;
+    Touched();
+    stats.bloomPasses++;
+    if (timed) {
+      glFinish();
+      GXLOG("bloom: %.2f ms (with glFinish), the scene %d x %d texels, the bloom's picture %d x %d, level %d",
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - timedFrom).count(), region[2],
+            region[3], bw, bh, bloomLevel);
+    }
+  }
+
+  void BloomRelease() {
+    for (GLuint *prog : {&bloomPick, &bloomBlur, &bloomAdd})
+      if (*prog)
+        glDeleteProgram(*prog);
+    bloomPick = bloomBlur = bloomAdd = 0;
+    for (int i = 0; i < 2; i++) {
+      if (bloomTex[i])
+        glDeleteTextures(1, &bloomTex[i]);
+      bloomTex[i] = 0;
+      bloomW[i] = bloomH[i] = 0;
+    }
+  }
+
   void FlareRelease() {
     if (flareVisFbo[0])
       glDeleteFramebuffers(2, flareVisFbo);
@@ -3023,6 +3146,9 @@ void GlRenderer::ApplyTestEnvironment() {
   flaresOn = flares && *flares == '1';
   const char *halos = getenv("RE4_GX_FLARE_HALOS");  // 0: the lens flares without the halos (gx_chunk_render, tests)
   flareHalos = !(halos && *halos == '0');
+  const char *bloom = getenv("RE4_GX_BLOOM");  // 1 light, 2 strong: the bloom from the start (gx_chunk_render, tests)
+  if (bloom && (*bloom == '1' || *bloom == '2'))
+    bloomLevel = *bloom - '0';
   if (const char *limit = getenv("RE4_GX_MAX_PROGRAMS")) {
     const long n = std::strtol(limit, nullptr, 10);
     if (n >= 4) {
@@ -3605,6 +3731,7 @@ void GlRenderer::Release() {
   m.PsxRelease();
   m.CrtRelease();
   m.FlareRelease();
+  m.BloomRelease();
   if (m.timerOn) {
     glDeleteQueries(GlRenderer::TimerPool::kQueries, m.chunkTimer.query);
     glDeleteQueries(GlRenderer::TimerPool::kQueries, m.presentTimer.query);

@@ -30,6 +30,8 @@
     <string name="ingame_flares_lens">Destellos de lente</string>
     <string name="ingame_flares_both">Halos + destellos</string>
     <string name="ingame_flares_help">Destellos de lente: tenues anillos de colores que cruzan la imagen desde las luces más brillantes, como los de un objetivo de cámara. Halos + destellos: además, un brillo suave con una estrella fina en velas, antorchas y lámparas.</string>
+    <string name="ingame_bloom">Bloom</string>
+    <string name="ingame_bloom_help">Bloom: las partes más brillantes de la escena (lámparas, fuego, luz del sol) brillan suavemente sobre su entorno; las salas oscuras siguen oscuras, el HUD y los menús siguen nítidos. Desactivado mientras haya un ajuste del Modo Potato activo.</string>
     <string name="ingame_dof">Profundidad de campo</string>
     <string name="ingame_info_hud">HUD de información</string>
     <string name="ingame_hud_fps">FPS juego/pantalla</string>

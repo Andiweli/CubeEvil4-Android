@@ -571,6 +571,12 @@ final class CoreMenu extends Dialog {
     return Math.max(0, Math.min(2, g.getInt(SHARPEN_LEVEL, 0)));
   }
   /** The filter "CRT" (0.99.9, wish of the project owner, 11.11.2026): 0 off (the default), 1 light, 2 strong. */
+  /** Bloom (0.99.13): 0 off (the default), 1 light, 2 strong (CoreBridge.setBloom; off while a Potato mode switch
+   *  is on: CoreBridge.bloomSent). */
+  static final String BLOOM_LEVEL = "bloomLevel";
+  static int bloomLevel(SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt(BLOOM_LEVEL, 0)));
+  }
   static final String CRT_LEVEL = "crtLevel";
   static int crtLevel(SharedPreferences g) {
     return Math.max(0, Math.min(2, g.getInt(CRT_LEVEL, 0)));
@@ -848,7 +854,17 @@ final class CoreMenu extends Dialog {
       CoreBridge.setFlares(next);
     });
     valueLabel(flares, R.string.ingame_flares, flareLabels[CoreBridge.flareMode(graphics)], CoreBridge.flareMode(graphics) != 0);
+    // bloom (0.99.13, the project owner: "Ja, einbauen"): the scene's bright parts glow softly; off, light, strong
+    final int[] bloomLabels = {R.string.ingame_off, R.string.ingame_dof_light, R.string.ingame_dof_strong};
+    Button bloom = cellAction(buttonsRow(effects), "", v -> {
+      int next = (bloomLevel(graphics) + 1) % 3;
+      graphics.edit().putInt(BLOOM_LEVEL, next).apply();
+      valueLabel((Button) v, R.string.ingame_bloom, bloomLabels[next], next != 0);
+      CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+    });
+    valueLabel(bloom, R.string.ingame_bloom, bloomLabels[bloomLevel(graphics)], bloomLevel(graphics) != 0);
     indentedHelp(s(R.string.ingame_flares_help));
+    indentedHelp(s(R.string.ingame_bloom_help));
     // the picture filters one under the other, one general line under both (wish of the project owner, 02.11.2026)
     LinearLayout filters = labelledOptions(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
@@ -1498,10 +1514,10 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_potato);
     MenuLayout.Buttons potato = buttonsRow(body);
     toggle(potato, R.string.ingame_potato_weather, graphics.getBoolean("weatherEffects", true), on -> {
-      graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+      graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     toggle(potato, R.string.ingame_potato_special, graphics.getBoolean("specialEffects", true), on -> {
-      graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+      graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     // two more on a user's wish (08.11.2026, through the project owner): the particles of fights, weapons and
     // fires in three steps (each press moves it on: normal, less, none, as the sharpening), and shadows with the
@@ -1513,13 +1529,13 @@ final class CoreMenu extends Dialog {
       int next = (CoreBridge.particleEffects(graphics) + 1) % 3;
       graphics.edit().putInt("particleEffects", next).apply();
       valueLabel((Button) v, R.string.ingame_potato_particles, particleLabels[next], next != 2);
-      CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+      CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     // lit while there are particles, "Less" too; off only at "None" (wish of the project owner, 09.11.2026)
     valueLabel(particles, R.string.ingame_potato_particles, particleLabels[CoreBridge.particleEffects(graphics)],
         CoreBridge.particleEffects(graphics) != 2);
     toggle(morePotato, R.string.ingame_potato_shadows, graphics.getBoolean("shadowsLight", true), on -> {
-      graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics));
+      graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance" in three steps, each
     // press moves it on (Normal, Medium, Short; off only at Short), the distance fog nearer and nothing drawn beyond it
@@ -1531,6 +1547,7 @@ final class CoreMenu extends Dialog {
       graphics.edit().putInt(CoreBridge.VIEW_DISTANCE, next).apply();
       valueLabel((Button) v, R.string.ingame_potato_view, viewLabels[next], next != 2);
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[next]);
+      CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     valueLabel(view, R.string.ingame_potato_view, viewLabels[CoreBridge.viewDistance(graphics)],
         CoreBridge.viewDistance(graphics) != 2);

@@ -431,6 +431,9 @@ struct VkRenderer final : GxCore {
   // the lens flares (FlarePass): the slots' visibility, this picture's and the one before
   Image flareVis[2];
   Fixed flareVisFx, flareFx;
+  // bloom (0.99.13, as GlRenderer::BloomPass): its bright parts, the blur, the add; the bloom's two pictures
+  Fixed bloomPickFx, bloomBlurFx, bloomAddFx;
+  Image bloomImg[2];
   int flareVisCur = 0;
   // the gameplay autofocus (Autofocus): the focus (this picture's and the one before), the blur at the full or at
   // half the resolution, their pipelines; the EFB's colour alone (the mix without MSAA)
@@ -2333,6 +2336,80 @@ struct VkRenderer final : GxCore {
     const VkImageView vis = flareVis[flareVisCur].view;
     BindFixed(flareFx, &vis, &nearestClamp, 1, pf);
     vkCmdDraw(cb, 36 * kFlareSlots, 1, 0, 0);
+  }
+  // ---- bloom (0.99.13, as GlRenderer::BloomPass): after the scene's last 3D draw its bright parts into
+  // bloomImg[0] (one texel per 2 x `halves` EFB texels each way), blurred there, added into the EFB's colour ----
+  bool MakeBloom() {
+    std::string error;
+    const VkColorComponentFlags rgb = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+    if (!FilterProgram(bloomPickFx, fixed::kQuadVs, fixed::kBloomPickFs, "bloom") ||
+        !FilterProgram(bloomBlurFx, fixed::kQuadVs, fixed::kBloomBlurFs, "bloom") ||
+        !MakeFixed(bloomAddFx, fixed::kQuadVs, fixed::kBloomAddFs, efbPass, rgb, false, &error, false, nullptr, 1)) {
+      if (!error.empty())
+        GXLOG("bloom (Vulkan): shader failed: %s", error.c_str());
+      for (Fixed *f : {&bloomPickFx, &bloomBlurFx, &bloomAddFx})
+        FreeFixed(*f);
+      return false;
+    }
+    return true;
+  }
+  void BloomPass() override {
+    FlushClear();
+    int region[4];
+    if (bloomFailed || !BloomRegion(region))
+      return;
+    if (!bloomAddFx.pipeline && !MakeBloom()) {
+      bloomFailed = true;  // off for good on this driver (the menu's choice stays)
+      return;
+    }
+    const BloomLook &look = BloomLookOf(bloomLevel);
+    const int f = 2 * std::max(1, halves);  // a texel per 4 x 4 game pixels (halves: texels per 2 game pixels)
+    const int taps = std::min(f, 4);
+    const int bw = (region[2] + f - 1) / f, bh = (region[3] + f - 1) / f;
+    if (!FilterImage(bloomImg[0], bw, bh) || !FilterImage(bloomImg[1], bw, bh)) {
+      bloomFailed = true;
+      return;
+    }
+    float halos[8][4];
+    BloomHalos(halos);
+    const float rf[4] = {float(region[0]), float(region[1]), float(region[2]), float(region[3])};
+    {
+      std::vector<std::uint8_t> pc(bloomPickFx.constants.bytes, 0);
+      Put(pc, bloomPickFx, "region", rf);
+      const float size[4] = {float(bw), float(bh), float(f), float(taps)};
+      Put(pc, bloomPickFx, "size", size);
+      const float pick[4] = {look.threshold, 1.0f / (1.0f - look.threshold), 0.0f, 0.0f};
+      Put(pc, bloomPickFx, "pick", pick);
+      PutArray(pc, bloomPickFx, "halo", halos, sizeof(halos[0]), 8);
+      Image *from[1] = {&efbColor};
+      FilterPass(bloomPickFx, bloomImg[0], from, 1, pc);
+    }
+    for (int b = 0; b < look.blurs; b++) {
+      const float spread = BloomLook::Spread(b);
+      std::vector<std::uint8_t> pc(bloomBlurFx.constants.bytes, 0);
+      const float h[4] = {spread / float(bw), 0.0f, float(bw), float(bh)};
+      Put(pc, bloomBlurFx, "dir", h);
+      Image *a[1] = {&bloomImg[0]};
+      FilterPass(bloomBlurFx, bloomImg[1], a, 1, pc);
+      const float v[4] = {0.0f, spread / float(bh), float(bw), float(bh)};
+      Put(pc, bloomBlurFx, "dir", v);
+      Image *c[1] = {&bloomImg[1]};
+      FilterPass(bloomBlurFx, bloomImg[0], c, 1, pc);
+    }
+    // added into the EFB's colour over the scene's part (the EFB pass goes on with the full viewport)
+    VkCommandBuffer cb = F().draw;
+    BeginEfbPass();
+    const VkRect2D sc{{region[0], region[1]}, {static_cast<std::uint32_t>(region[2]), static_cast<std::uint32_t>(region[3])}};
+    vkCmdSetScissor(cb, 0, 1, &sc);
+    scissorValid = false;
+    std::vector<std::uint8_t> pa(bloomAddFx.constants.bytes, 0);
+    Put(pa, bloomAddFx, "region", rf);
+    const float size[4] = {float(bw), float(bh), float(f), look.strength};
+    Put(pa, bloomAddFx, "size", size);
+    const VkImageView view = bloomImg[0].view;
+    BindFixed(bloomAddFx, &view, &linearClamp, 1, pa);
+    vkCmdDraw(cb, 4, 1, 0, 0);
+    stats.bloomPasses++;
   }
   // ---- the gameplay autofocus (E5, as GlRenderer::Autofocus; the comment there says what it does) ----
   bool MakeAutofocus() {
@@ -4315,6 +4392,9 @@ struct VkRenderer final : GxCore {
     flaresOn = flares && *flares == '1';
     const char *halos = getenv("RE4_GX_FLARE_HALOS");
     flareHalos = !(halos && *halos == '0');
+    const char *bloom = getenv("RE4_GX_BLOOM");
+    if (bloom && (*bloom == '1' || *bloom == '2'))
+      bloomLevel = *bloom - '0';
     // "Save bandwidth (Vulkan)" (the PC check: the pictures with it and without)
     const char *bw = getenv("RE4_GX_BANDWIDTH");
     bwSave = bw && (*bw == '1' || !std::strcmp(bw, "log"));
@@ -4396,6 +4476,10 @@ struct VkRenderer final : GxCore {
     colourShown = crtReady = false;
     for (Fixed *f : {&fxaaFx, &sharpFx, &psxFx, &flareVisFx, &flareFx, &focusFx, &blurFx, &halfFx, &mixFx, &dofBackFx})
       FreeFixed(*f);
+    for (Fixed *f : {&bloomPickFx, &bloomBlurFx, &bloomAddFx})
+      FreeFixed(*f);
+    for (Image &b : bloomImg)
+      Destroy(b);
     for (Image &v : flareVis)
       Destroy(v);
     for (Image *img : {&focusImg[0], &focusImg[1], &blurImg, &halfImg})

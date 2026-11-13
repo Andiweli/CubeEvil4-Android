@@ -613,6 +613,79 @@ constexpr char kCrtGlowFs[] =
     "  o = vec4(sqrt(clamp(g / (16.0 * 0.65), 0.0, 1.0)), 1.0);\n"
     "}\n";
 
+// Bloom (0.99.13, the project owner: "Ja, einbauen"; GxCore::BloomPass): the bright parts of the scene, after its
+// last 3D draw and before the HUD, glow softly over their surroundings. Three passes into a picture of its own of
+// one texel per 4 x 4 game pixels (`size.z` EFB texels each way: the same look and cost at every resolution), then
+// added into the EFB's colour.
+// First: each bloom texel the mean over its size.z x size.z EFB texels (size.w x size.w taps spread over them, one a
+// game pixel, from `region`, the scene's part of the EFB in its texels) of what lies above the threshold (pick.x, by
+// the brightest of the three channels, from 0 at it to the colour itself at white as the square of the way there:
+// pick.y = 1 / (1 - threshold); a flame near white glows fully, bright fog or sky a little above the threshold hardly),
+// each tap on its own (a candle's small flame keeps its share), so a dark room stays dark and only real highlights
+// glow. Where the lens flares draw a halo at a light (halo: x, y,
+// radius in EFB texels, w 1 while it is there) the light gives no bloom: the two never glow at the same place.
+// GL's and Vulkan's texels and fragments run the same way in each (row 0 = the EFB's row 0).
+constexpr char kBloomPickFs[] =
+    "#version 300 es\nprecision highp float;\nprecision highp int;\n"
+    "uniform sampler2D src;\n"
+    "uniform vec4 region;\n"
+    "uniform vec4 size;\n"
+    "uniform vec4 pick;\n"
+    "uniform vec4 halo[8];\n"
+    "out vec4 o;\n"
+    "void main() {\n"
+    "  vec2 p = region.xy + floor(gl_FragCoord.xy) * size.z;\n"
+    "  ivec2 lo = ivec2(region.xy), hi = ivec2(region.xy + region.zw) - 1;\n"
+    "  int n = int(size.w);\n"
+    "  float d = size.z / size.w;\n"
+    "  vec3 c = vec3(0.0);\n"
+    "  for (int j = 0; j < 4; j++) {\n"
+    "    if (j >= n) break;\n"
+    "    for (int i = 0; i < 4; i++) {\n"
+    "      if (i >= n) break;\n"
+    "      ivec2 q = clamp(ivec2(p + (vec2(float(i), float(j)) + 0.5) * d), lo, hi);\n"
+    "      vec3 t = texelFetch(src, q, 0).rgb;\n"
+    "      float w = clamp((max(t.r, max(t.g, t.b)) - pick.x) * pick.y, 0.0, 1.0);\n"
+    "      c += t * (w * w);\n"
+    "    }\n"
+    "  }\n"
+    "  vec3 g = c / float(n * n);\n"
+    "  vec2 at = p + 0.5 * size.z;\n"
+    "  for (int k = 0; k < 8; k++) {\n"
+    "    if (halo[k].w > 0.5) g *= smoothstep(0.55, 1.0, length(at - halo[k].xy) / max(halo[k].z, 1.0));\n"
+    "  }\n"
+    "  o = vec4(g, 1.0);\n"
+    "}\n";
+
+// Bloom, second: a soft blur along `dir.xy` (a texel of the bloom picture in its coordinates, times the spread), 9
+// texels of a Gaussian in 5 linear taps; `dir.zw` the picture's size.
+constexpr char kBloomBlurFs[] =
+    "#version 300 es\nprecision highp float;\n"
+    "uniform sampler2D src;\n"
+    "uniform vec4 dir;\n"
+    "out vec4 o;\n"
+    "void main() {\n"
+    "  vec2 uv = gl_FragCoord.xy / dir.zw;\n"
+    "  vec3 c = texture(src, uv).rgb * 0.2270270270;\n"
+    "  c += (texture(src, uv + dir.xy * 1.3846153846).rgb + texture(src, uv - dir.xy * 1.3846153846).rgb) * 0.3162162162;\n"
+    "  c += (texture(src, uv + dir.xy * 3.2307692308).rgb + texture(src, uv - dir.xy * 3.2307692308).rgb) * 0.0702702703;\n"
+    "  o = vec4(c, 1.0);\n"
+    "}\n";
+
+// Bloom, third: the blurred glow added into the EFB (blended one + one, the colour only) over the scene's part
+// (`region`, its texels; the scissor keeps the rest, the letterbox bars stay black); size.xy the bloom picture's
+// texels, size.z the EFB texels a bloom texel spans, size.w the strength.
+constexpr char kBloomAddFs[] =
+    "#version 300 es\nprecision highp float;\n"
+    "uniform sampler2D bloom;\n"
+    "uniform vec4 region;\n"
+    "uniform vec4 size;\n"
+    "out vec4 o;\n"
+    "void main() {\n"
+    "  vec2 t = (gl_FragCoord.xy - region.xy) / size.z;\n"
+    "  o = vec4(texture(bloom, t / size.xy).rgb * size.w, 0.0);\n"
+    "}\n";
+
 // CRT, the screen (instead of kPresentFs): the box's picture through a curved glass (shape.xy) with rounded
 // corners (shape.z, in box heights) and darker edges (shape.w); each game line a beam (beam.xy: its width, wider
 // where bright; beam.z: the brightness the gaps take), the glow on top (beam.w); the phosphors' mask in screen
