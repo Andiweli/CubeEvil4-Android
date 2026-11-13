@@ -89,7 +89,7 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 
-## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Benchmark nach dem Update neu, Zufällige Gegner, HD-Texturen (12.11.2026, Branch `09912`)
+## Version 0.99.12-rc: Zoom mit dem Mausrad, die Maus im Fernglas, Benchmark mit Prozessor, gleichmäßiger Bildtakt, Maus mit „Vertikal umkehren“, Benchmark nach dem Update neu, Zufällige Gegner, HD-Texturen, Texture Packer für Android (12.–13.11.2026, Branch `09912`)
 
 Version 0.99.12-rc (versionCode 114), Releasetext `port/android-decomp/docs/releases/v0.99.12-rc.md` („Changes since
 v0.99.11.“, Known issues aus 0.99.11 übernommen). Basis 45ac5a8e = master = 0.99.11-rc mit der README des Inhabers.
@@ -379,6 +379,33 @@ Test-APK/Retroid bleiben auf `textures` und kommen später nach `09912`).
   10 Dateien bitgleich, JPG 82 Dateien, größte mittlere Abweichung 0,16 gegen Pillow), `run_e2e.py` ohne Fehler
   (Testbilder am PC frisch erzeugt), dazu die üblichen Prüfungen wie oben.
 - **Nicht geprüft:** auf einem Gerät (Import, Anzeige, Vulkan-ETC2, Speicher auf schwachen Geräten).
+
+### 9. Texture Packer für Android übernommen (Wunsch des Projektinhabers)
+
+„Der Android Textur Lader soll noch zu 0.99.12.“ `09912` auf `origin/textures` (25000c54) vorgespult, ohne
+Zusammenführen (textures enthielt 55ccbeb6 über 365699e4). Neu:
+- PC-Programm 1.3: Kern `packer.h/.cpp` vom Konsolenteil getrennt, liest auch eine ZIP-Datei (`zip.cpp`).
+- Modul `port/android-decomp/packer`: eigene App `com.ast.cubeevil4.texturepacker` 1.3 mit demselben Kern über JNI,
+  46 Texte in 11 Sprachen (`check_translations.py packer`).
+- CubeEvil4: `TextureImportActivity` für den Knopf „Import into CubeEvil4“ des Packers, 3 Texte und Hilfetext in
+  11 Sprachen.
+- Inhalt und Prüfungen des Textur-Laders: Abschnitt „Branch `textures`“ oben und `port/docs/textur-packer-android-plan.md`.
+
+Releasetext: Packer für Android unter New, die HD-Texturen-Zeile nennt ZIP oder Ordner und PC oder Android-App. Unter
+Update stehen beide Packer-Dateien 1.3 (`CubeEvil4-TexturePacker.exe`, `CubeEvil4-TexturePacker-1.3.apk`). Version
+unverändert 0.99.12-rc / 114; ob die APK als neue Version erscheint, entscheidet der Inhaber.
+
+- **Geprüft am PC mit dem Stand 25000c54:**
+  - PC-Packer 1.3 in WSL gebaut: `texpack_tests` 910 Prüfungen ohne Fehler, `run_e2e.py` 36 Punkte ohne Fehler.
+  - `whole_build.sh` i686 -O2 0 Fehler; `whole_build_android.sh --abi all` 0 Fehler (Stubs wie erwartet).
+  - `gx_gl_check` 0 Fehler.
+  - App-Tests: core 123 und classic 123 grün.
+  - Packer: 7 Tests grün, `lintDebug` ohne Fehler (14 Warnungen), `:packer:assembleDebug` gebaut.
+  - `check_translations.py` ohne Befund: 418 Texte in der App, 46 im Packer.
+  - `:app:assembleCoreDebug` (wie Android Studio „Run coreDebug“) mit den frisch gebauten Kern-Bibliotheken gebaut:
+    240 Bibliotheken (je 120 für 32 und 64 bit), `TextureImportActivity` enthalten.
+- **Nicht geprüft:** auf einem Gerät (beide APKs, der Knopf „Import into CubeEvil4“, Android 7–9 mit dem Speicherdialog,
+  SD-Karte, die Zeitschätzung des Packers).
 
 ## Version 0.99.11-rc: Menü-Fokus, Information HUD, Ada mit der TMP (12.11.2026, Branch `09911`)
 
