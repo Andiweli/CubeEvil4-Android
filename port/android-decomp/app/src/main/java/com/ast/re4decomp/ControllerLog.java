@@ -49,8 +49,8 @@ final class ControllerLog {
       case 13:  // AXIS_RY
       case 17:  // AXIS_LTRIGGER
       case 18:  // AXIS_RTRIGGER
-      case 22:  // AXIS_BRAKE
-      case 23:  // AXIS_GAS
+      case 22:  // AXIS_GAS
+      case 23:  // AXIS_BRAKE
       case 15:  // AXIS_HAT_X
       case 16:  // AXIS_HAT_Y
         return true;

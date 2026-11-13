@@ -1396,8 +1396,11 @@ final class CoreMenu extends Dialog {
   @Override public boolean onGenericMotionEvent(MotionEvent e) {
     if (captureAction >= 0 && mapKind == ActionMap.KIND_CONTROLLER && e.getAction() == MotionEvent.ACTION_MOVE
         && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
-      boolean l = Math.max(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE)) > 0.6f;
-      boolean r = Math.max(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS)) > 0.6f;
+      // the controller's trigger axes (ControllerAxes: Z/RZ on a wired Xbox pad Android has no key layout for)
+      CoreActivity.EventAxes axes = new CoreActivity.EventAxes().set(e, e.getDevice(), e.getSource());
+      ControllerAxes layout = ControllerAxes.of(axes);
+      boolean l = layout.triggerNow(axes, false) > 0.6f;
+      boolean r = layout.triggerNow(axes, true) > 0.6f;
       boolean newL = l && !captureL, newR = r && !captureR;
       captureL = l;
       captureR = r;

@@ -1712,7 +1712,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     StringBuilder out = new StringBuilder(), other = new StringBuilder();
     for (int id : InputDevice.getDeviceIds()) {
       InputDevice d = InputDevice.getDevice(id);
-      if (gameDevice(d)) out.append(describeDevice(d)).append('\n');
+      if (gameDevice(d)) out.append(describeDevice(d)).append(layoutLine(d)).append('\n');
       else if (keyboardDevice(d) || mouseDevice(d)) {
         other.append(describeDevice(d)).append(keyboardDevice(d) ? " (keyboard)" : "").append(mouseDevice(d) ? " (mouse)" : "")
             .append('\n');
@@ -1840,10 +1840,51 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private static float axis(MotionEvent e, InputDevice d, int a, boolean trigger) {
     InputDevice.MotionRange range = d == null ? null : d.getMotionRange(a, e.getSource());
     if (range == null || range.getRange() <= 0) return 0;
-    float v = e.getAxisValue(a);
-    if (Float.isNaN(v) || Float.isInfinite(v)) return 0;
-    return trigger ? (v - range.getMin()) / range.getRange()
-        : 2 * (v - range.getMin()) / range.getRange() - 1;
+    return ControllerAxes.normalise(e.getAxisValue(a), range.getMin(), range.getMax(), trigger);
+  }
+
+  /** A device's axes for the source `source` and, while `e` is set, their values in it (ControllerAxes). */
+  static final class EventAxes implements ControllerAxes.Axes {
+    private MotionEvent e;
+    private InputDevice d;
+    private int source;
+
+    EventAxes set(MotionEvent e, InputDevice d, int source) {
+      this.e = e;
+      this.d = d;
+      this.source = source;
+      return this;
+    }
+
+    private InputDevice.MotionRange range(int a) { return d == null ? null : d.getMotionRange(a, source); }
+    @Override public boolean has(int a) { InputDevice.MotionRange r = range(a); return r != null && r.getRange() > 0; }
+    @Override public float min(int a) { InputDevice.MotionRange r = range(a); return r == null ? 0 : r.getMin(); }
+    @Override public float max(int a) { InputDevice.MotionRange r = range(a); return r == null ? 0 : r.getMax(); }
+    @Override public float flat(int a) { InputDevice.MotionRange r = range(a); return r == null ? 0 : r.getFlat(); }
+    @Override public float value(int a) { return e == null ? 0 : e.getAxisValue(a); }
+  }
+
+  private final EventAxes eventAxes = new EventAxes();
+  /** Each controller's right stick and triggers (ControllerAxes), made at its first stick event. */
+  private final android.util.SparseArray<ControllerAxes> padLayouts = new android.util.SparseArray<>();
+  private final float[] padRight = new float[4];
+
+  /** The controller's layout, named in the log when it is made (0.99.13: which axes are its stick and triggers). */
+  private ControllerAxes padLayout(InputDevice d, EventAxes a) {
+    if (d == null) return ControllerAxes.of(null);
+    ControllerAxes layout = padLayouts.get(d.getId());
+    if (layout == null) {
+      layout = ControllerAxes.of(a);
+      padLayouts.put(d.getId(), layout);
+      Log.i(TAG, "controller " + d.getId() + " \"" + d.getName() + "\": " + layout.describe());
+    }
+    return layout;
+  }
+
+  /** For controllers.txt: the layout a controller gets (or got) for its stick events. */
+  private static String layoutLine(InputDevice d) {
+    if ((d.getSources() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK) return "";
+    return " layout: " + ControllerAxes.of(new EventAxes().set(null, d, InputDevice.SOURCE_JOYSTICK)).describe();
   }
 
   @Override
@@ -1858,14 +1899,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       InputDevice d = e.getDevice();
       noteDevice(d);
       padUsed(d);
-      // the right stick: Z/RZ on most Android controllers, RX/RY on others
-      boolean zr = d != null && d.getMotionRange(MotionEvent.AXIS_Z, e.getSource()) != null
-          && d.getMotionRange(MotionEvent.AXIS_RZ, e.getSource()) != null;
+      // the right stick and the triggers: Z/RZ and LTRIGGER/RTRIGGER on the controllers Android knows, RX/RY and
+      // Z/RZ on those it leaves in the driver's order (a wired Xbox pad without its key layout file; ControllerAxes)
+      eventAxes.set(e, d, e.getSource());
+      padLayout(d, eventAxes).read(eventAxes, padRight);
+      eventAxes.set(null, null, 0);
       float lx = axis(e, d, MotionEvent.AXIS_X, false), ly = axis(e, d, MotionEvent.AXIS_Y, false);
-      float rx = axis(e, d, zr ? MotionEvent.AXIS_Z : MotionEvent.AXIS_RX, false);
-      float ry = axis(e, d, zr ? MotionEvent.AXIS_RZ : MotionEvent.AXIS_RY, false);
-      float l = Math.max(axis(e, d, MotionEvent.AXIS_LTRIGGER, true), axis(e, d, MotionEvent.AXIS_BRAKE, true));
-      float r = Math.max(axis(e, d, MotionEvent.AXIS_RTRIGGER, true), axis(e, d, MotionEvent.AXIS_GAS, true));
+      float rx = padRight[0], ry = padRight[1], l = padRight[2], r = padRight[3];
       float hx = axis(e, d, MotionEvent.AXIS_HAT_X, false), hy = axis(e, d, MotionEvent.AXIS_HAT_Y, false);
       noteUnreadAxes(e, d);
       inputDelay.stick(e.getEventTime(), e.getHistorySize() > 0 ? e.getHistoricalEventTime(0) : e.getEventTime(),
@@ -1969,6 +2009,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (id == lastPad) chooseRumble("controller changed");
     input.remove(id);
     seenDevices.remove(id);
+    padLayouts.remove(id);
     controllerLog.forget(id);
     noteConnected(id);
     send();
@@ -1980,6 +2021,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       lastPad = -1;
       chooseRumble("controller removed");
     }
+    padLayouts.remove(id);
     controllerLog.forget(id);
     input.remove(id);
     send();

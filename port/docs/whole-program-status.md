@@ -5,13 +5,50 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
 ## Version 0.99.13-rc (in Arbeit, Branch `09913`, Basis 55ccbeb6 = 0.99.12-rc)
 
+Version 0.99.13-rc (versionCode 115), Releasetext `port/android-decomp/docs/releases/v0.99.13-rc.md` („Changes since
+v0.99.12.“, Known issues aus 0.99.12 übernommen). Nächste freie Patchnummer weiter 0232.
+
 ### 1. Meldung „Zufällige Gegner klappt nicht, immer dieselben“ (13.11.2026)
 
 Analyse ohne Bericht des Spielers, Einzelheiten in `port/docs/gegner-randomizer-plan.md` Abschnitt 8: kein Fehler im
 Weg vom Knopf zum Kern gefunden (gelesen, nicht auf einem Gerät geprüft); die Stufe 1 tauscht in fast allen offenen
 Räumen nur Ganados derselben Art untereinander auf denselben Stellen (Seed 4242: echte neue Stellen nur in r20c und
-r304), im frühen Dorf r100–r103 ändert sich nichts außer höchstens einem fehlenden Ganado in r103. Vorschläge A–E dem
-Inhaber vorgelegt, Entscheidung offen; noch nichts am Verhalten geändert.
+r304), im frühen Dorf r100–r103 ändert sich nichts außer höchstens einem fehlenden Ganado in r103. **Entscheidung des
+Projektinhabers (13.11.2026): „Das mit dem nicht funktionierenden Randomizer lassen wir, der User dürfte diesen falsch
+verstanden haben.“** Der Cheat bleibt, wie er ist; die Vorschläge A–E (Plan, Abschnitt 8) sind nicht gebaut.
+
+### 2. Kabelgebundener Xbox-Controller: LT/RT drehen die Kamera und bleiben hängen (Meldung eines Spielers)
+
+Bericht `E:\Development\Android\reports\09913-xbox-wired-triggers\report.md` (0.99.11-rc, Motorola Edge 70 Fusion,
+originaler Xbox-One-Controller per USB und OTG-Adapter, EU-Discs): „Pressing LT or RT moves the camera to one side by
+itself, and it stays stuck there“; Latch L/R, Alternative Steuerung, Totzone/Reichweite und Umbelegen helfen nicht.
+
+- **Ursache:** Die App nahm Z/RZ als rechten Stick, sobald ein Controller beide meldet (`CoreActivity`
+  `onGenericMotionEvent`, seit K2). Das ist die Reihenfolge der Controller, die Android kennt (Key-Layout-Dateien
+  `Vendor_xxxx_Product_yyyy.kl`: Stick Z/RZ, Trigger LTRIGGER/RTRIGGER bzw. BRAKE/GAS; alle Controller der bisherigen
+  Berichte: Retroid, Xbox und DualShock 4 per Bluetooth, GamePad Plus). Ein Controller ohne passende Datei behält die
+  Reihenfolge des Linux-Treibers (Generic.kl): xpad (kabelgebundene Xbox-Pads, X-input-Pads) gibt den rechten Stick
+  auf RX/RY und die Trigger auf Z/RZ, ohne Trigger-Achse. Z/RZ sind für Android mittige Achsen (−1…1), ein
+  losgelassener Trigger steht bei −1: als Stick gelesen, drückt er die Kamera ganz zur Seite, solange er ruht (erst
+  nach der ersten Bewegung des Triggers, vorher meldet Android 0). Der echte rechte Stick (RX/RY) wurde nicht gelesen.
+- **Behoben (`ControllerAxes.java`, neu):** je Gerät beim ersten Stick-Ereignis entschieden. Mit Trigger-Achse bleibt
+  alles wie bisher. Ohne Trigger-Achse, aber mit Z, RZ, RX und RY: Stick RX/RY, Trigger Z (L) und RZ (R) vom
+  Minimum (losgelassen) bis zum Maximum, außer die Flat-Werte des Kernels sagen das Gegenteil (Z/RZ mit Flat, RX/RY
+  ohne: dann Stick Z/RZ wie bisher; xpad gibt seinen Sticks ein Flat und den Triggern keins). Ein Trigger auf einer
+  mittigen Achse zählt erst, wenn er einmal nahe dem Minimum gesehen wurde (vor seinem ersten Ereignis meldet Android
+  die Mitte, das wäre ein halb gedrückter Trigger; ein Pad, das dort doch einen Stick hat, drückt in Ruhe nie L oder R).
+  Die Tastenbelegung im Menü (`CoreMenu`, Trigger fangen) nutzt dieselben Achsen. Protokoll: einmal je Gerät
+  „controller N "…": right stick RX/RY, triggers Z/RZ (the driver's order …)“ bzw. „right stick Z/RZ, triggers
+  LTRIGGER or BRAKE, RTRIGGER or GAS“; `controllers.txt` im Bericht nennt die Zuordnung je Controller („layout: …“).
+  Kommentar in `ControllerLog.readAxis` berichtigt (22 ist GAS, 23 BRAKE). Der alte ARM64-Modus (`ControllerActivity`,
+  `GameScreenDialog`) ist unverändert.
+- **Geprüft am PC:** `ControllerAxesTest` (7 Tests, Ereignisse wie vom Gerät: das kabelgebundene Xbox-Pad mit den
+  Achsen und Flats von xpad – Gehen vor dem ersten Trigger, LT drücken und loslassen, danach andere Tasten, rechter
+  Stick, RT; ein schneller Druck; die Tastenbelegung; Retroid, Xbox per Bluetooth, DualShock 4, GamePad Plus mit ihren
+  Achsen aus den Berichten unverändert; RX/RY allein, Z/RZ allein, Flats umgekehrt; ein Stick, der für einen Trigger
+  gehalten wird, drückt in Ruhe nichts). Gegenprobe: mit der alten Regel schlagen 5 der 7 Tests an.
+- **Nicht geprüft:** auf einem Gerät mit einem kabelgebundenen Xbox-Pad (keins hier); welche Achsen das Motorola
+  wirklich meldet (der Bericht hatte keine `controllers.txt`).
 
 ## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
