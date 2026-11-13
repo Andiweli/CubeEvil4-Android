@@ -3,6 +3,16 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 0.99.13-rc (in Arbeit, Branch `09913`, Basis 55ccbeb6 = 0.99.12-rc)
+
+### 1. Meldung „Zufällige Gegner klappt nicht, immer dieselben“ (13.11.2026)
+
+Analyse ohne Bericht des Spielers, Einzelheiten in `port/docs/gegner-randomizer-plan.md` Abschnitt 8: kein Fehler im
+Weg vom Knopf zum Kern gefunden (gelesen, nicht auf einem Gerät geprüft); die Stufe 1 tauscht in fast allen offenen
+Räumen nur Ganados derselben Art untereinander auf denselben Stellen (Seed 4242: echte neue Stellen nur in r20c und
+r304), im frühen Dorf r100–r103 ändert sich nichts außer höchstens einem fehlenden Ganado in r103. Vorschläge A–E dem
+Inhaber vorgelegt, Entscheidung offen; noch nichts am Verhalten geändert.
+
 ## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
 Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,
