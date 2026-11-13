@@ -75,6 +75,11 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   `GL_EXT_texture_compression_bptc`) alle 36.864 Zufallsblöcke gleich. `texpack_tests` 910, `run_e2e.py` 32 Punkte
   (BC7, JPG, `.jpeg`, PNG vor JPG, BC6H abgelehnt). Das Paket des Inhabers (ohne BC7/JPG) ergibt mit 1.2 dieselben
   Dateien wie mit 1.1: 256, 512 und 1024 je gleich groß, nur 2 Bytes im Info-Text anders (Version 1.1 → 1.2, Datum).
+- **Texture Packer für Android (Wunsch des Projektinhabers, 12.11.2026): nur Plan,** `port/docs/textur-packer-android-plan.md`
+  (zweites Modul `packer` in `port/android-decomp/`, `com.ast.cubeevil4.texturepacker`, ab Android 7, etwa 1,5–2 MB;
+  ZIP direkt lesen (ZIP64, Deflate) oder Ordner über die Dateiauswahl; Platzprüfung aus den Bildköpfen; Ergebnis als
+  `.c4tex` in Download des gewählten Speichers; Vordergrunddienst; gleicher C++-Kern wie am PC). Drei Fragen offen
+  (Auspacken, nur ZIP/Ordner, Übergabe an CubeEvil4).
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät.
 
