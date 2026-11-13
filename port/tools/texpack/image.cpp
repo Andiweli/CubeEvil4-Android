@@ -397,12 +397,12 @@ const std::uint8_t kDistExtra[30] = {0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6
 
 }  // namespace
 
-bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> &out, std::string &error) {
-  if (n < 2 || (data[0] & 15) != 8 || ((data[0] << 8) | data[1]) % 31 != 0 || (data[1] & 0x20)) {
-    error = "bad zlib header";
-    return false;
-  }
-  BitReader br{data + 2, n - 2};
+namespace {
+
+// a deflate stream; partial: out holds only the stream's first bytes, it ends when out is full
+bool InflateStream(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> &out, std::string &error,
+                   bool partial) {
+  BitReader br{data, n};
   std::size_t at = 0;
   const std::size_t limit = out.size();
   static Huffman fixedLit, fixedDist;
@@ -432,6 +432,10 @@ bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> 
         return false;
       }
       if (at + len > limit) {
+        if (partial) {
+          while (at < limit) out[at++] = static_cast<std::uint8_t>(br.Get(8));
+          return true;
+        }
         error = "more data than expected";
         return false;
       }
@@ -495,6 +499,7 @@ bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> 
         }
         if (sym < 256) {
           if (at >= limit) {
+            if (partial) return true;
             error = "more data than expected";
             return false;
           }
@@ -514,6 +519,10 @@ bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> 
             return false;
           }
           const std::size_t d = kDistBase[ds] + br.Get(kDistExtra[ds]);
+          if (d <= at && at + len > limit && partial) {
+            for (; at < limit; at++) out[at] = out[at - d];
+            return true;
+          }
           if (d > at || at + len > limit) {
             error = d > at ? "distance too far" : "more data than expected";
             return false;
@@ -535,6 +544,20 @@ bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> 
     return false;
   }
   return true;
+}
+
+}  // namespace
+
+bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> &out, std::string &error) {
+  if (n < 2 || (data[0] & 15) != 8 || ((data[0] << 8) | data[1]) % 31 != 0 || (data[1] & 0x20)) {
+    error = "bad zlib header";
+    return false;
+  }
+  return InflateStream(data + 2, n - 2, out, error, false);
+}
+
+bool InflateRaw(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> &out, std::string &error, bool partial) {
+  return InflateStream(data, n, out, error, partial);
 }
 
 namespace {
@@ -836,39 +859,57 @@ bool Load(const std::string &path, unsigned maxSide, bool allLevels, Loaded &out
   return ok;
 }
 
+bool ProbeData(const std::uint8_t *head, std::size_t headBytes, std::uint64_t fileBytes, unsigned maxSide, unsigned &w,
+               unsigned &h, int *bitsPerTexel) {
+  if (headBytes < 24) return false;
+  if (!std::memcmp(head, "DDS ", 4)) {
+    std::vector<std::uint8_t> h148(head, head + std::min<std::size_t>(headBytes, 148));
+    h148.resize(148, 0);
+    DdsInfo info;
+    std::string error;
+    if (!ParseDds(h148.data(), static_cast<std::size_t>(std::min<std::uint64_t>(fileBytes, 1ull << 31)), info, error))
+      return false;
+    unsigned first;
+    std::size_t at;
+    FirstLevel(info, maxSide, first, w, h, at);
+    if (bitsPerTexel) {
+      // what ETC2 needs at most: 4 bits without soft alpha (BC1's is cut-out), 8 with
+      const bool soft = info.format == Dds::kBc2 || info.format == Dds::kBc3 || info.format == Dds::kBc7 ||
+                        (info.format == Dds::kRaw && info.raw.mask[3]);
+      *bitsPerTexel = soft ? 8 : 4;
+    }
+    return true;
+  }
+  if (head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF) {
+    if (bitsPerTexel) *bitsPerTexel = 4;
+    return JpegSize(head, headBytes, w, h);
+  }
+  if (head[1] == 'P' && head[2] == 'N' && head[3] == 'G') {
+    w = Be32(head + 16);
+    h = Be32(head + 20);
+    if (bitsPerTexel) *bitsPerTexel = (head[25] == 4 || head[25] == 6 || head[25] == 3) ? 8 : 4;
+    return w && h && w <= 16384 && h <= 16384;
+  }
+  return false;
+}
+
 bool Probe(const std::string &path, unsigned maxSide, unsigned &w, unsigned &h) {
   FILE *f = fio::Open(path, "rb");
   if (!f) return false;
   const std::uint64_t size = fio::Size(f);
   std::vector<std::uint8_t> head;
-  const bool read = fio::ReadRange(f, 0, static_cast<std::size_t>(std::min<std::uint64_t>(size, 148)), head);
+  bool read = fio::ReadRange(f, 0, static_cast<std::size_t>(std::min<std::uint64_t>(size, 148)), head);
+  // a JPEG's frame header can come after big APP segments: the start of the file
+  if (read && head.size() >= 3 && head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF)
+    read = fio::ReadRange(f, 0, static_cast<std::size_t>(std::min<std::uint64_t>(size, 1u << 20)), head);
   std::fclose(f);
-  if (!read || head.size() < 24) return false;
-  if (!std::memcmp(head.data(), "DDS ", 4)) {
-    head.resize(148, 0);
-    DdsInfo info;
-    std::string error;
-    if (!ParseDds(head.data(), static_cast<std::size_t>(size), info, error)) return false;
-    unsigned first;
-    std::size_t at;
-    FirstLevel(info, maxSide, first, w, h, at);
-    return true;
-  }
-  if (head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF) {
-    // the frame header can come after big APP segments: read the start of the file
-    FILE *g = fio::Open(path, "rb");
-    if (!g) return false;
-    std::vector<std::uint8_t> start;
-    const bool got = fio::ReadRange(g, 0, static_cast<std::size_t>(std::min<std::uint64_t>(size, 1u << 20)), start);
-    std::fclose(g);
-    return got && JpegSize(start.data(), start.size(), w, h);
-  }
-  if (head[1] == 'P' && head[2] == 'N' && head[3] == 'G') {
-    w = Be32(head.data() + 16);
-    h = Be32(head.data() + 20);
-    return w && h && w <= 16384 && h <= 16384;
-  }
-  return false;
+  return read && ProbeData(head.data(), head.size(), size, maxSide, w, h, nullptr);
+}
+
+bool LoadData(const std::uint8_t *data, std::size_t n, unsigned maxSide, bool allLevels, Loaded &out, std::string &error) {
+  if (n >= 4 && !std::memcmp(data, "DDS ", 4)) return LoadDds(data, n, maxSide, allLevels, out, error);
+  if (n >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF) return LoadJpeg(data, n, out, error);
+  return LoadPng(data, n, out, error);
 }
 
 // ---------------- PNG writer ----------------

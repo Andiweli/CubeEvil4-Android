@@ -46,6 +46,14 @@ bool JpegSize(const std::uint8_t *data, std::size_t n, unsigned &w, unsigned &h)
 
 // zlib stream (2-byte header, deflate, Adler-32) to `out`, which has the expected size
 bool Inflate(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> &out, std::string &error);
+// a raw deflate stream (ZIP); partial: out holds only the first out.size() bytes of it
+bool InflateRaw(const std::uint8_t *data, std::size_t n, std::vector<std::uint8_t> &out, std::string &error, bool partial);
+
+// From memory: the size of the level Load would decode (head: the file's first bytes, 1 MB for a JPEG's frame header;
+// fileBytes: its whole size) and the bits a texel ETC2 needs at most (4, or 8 with soft alpha); a whole file decoded
+bool ProbeData(const std::uint8_t *head, std::size_t headBytes, std::uint64_t fileBytes, unsigned maxSide, unsigned &w,
+               unsigned &h, int *bitsPerTexel);
+bool LoadData(const std::uint8_t *data, std::size_t n, unsigned maxSide, bool allLevels, Loaded &out, std::string &error);
 
 // PNG (RGBA8, stored deflate blocks)
 std::vector<std::uint8_t> EncodePng(const Image &image);
