@@ -165,6 +165,51 @@ und Vulkan gleich; aus mit Potato-Einstellungen; der Benchmark schaltet ihn nur 
   nicht); in den Zwischenbildern von 60 FPS (derselbe Weg, aber nicht eigens geprüft); während eines Auflösungs-
   wechsels von „Dynamisch“.
 
+### 6. Zufällige Gegner, Stufe 1.5 (Projektinhaber, 13.11.2026, nach seinem Test in r100)
+
+Bericht des Inhabers `E:\Development\Android\reports\09913-randomizer-owner\` („sie sind alle ident zum original“):
+Schalter angekommen („cheats: random enemies with seed 294150“), r100 absichtlich geschützt. Gewählt: ehrlicher
+Hilfetext, Zählräume, neue Stellen mit Prüfung, echte ±10 % (Einzelheiten `port/docs/gegner-randomizer-plan.md`
+Abschnitt 9; Patch 0231 erweitert: die Schleife am Ende fragt bis −1).
+
+- **Kern (`runtime/enemy_random.cpp`):** dritte Raumart „nur zählend“ (`enemy_random_rooms.inc` Spalte 2 = 2; 11 Räume
+  r106 r107 r117 r206 r207 r20b r20d r210 r21a r30b r30c): Stellen ja, Zahl nie. Jeder gewöhnliche Ganado nach dem Tausch
+  1,5–4 m weiter an eine geprüfte Stelle (`nearSpot`: `SatMgr.getFloor`, `SatMgr.hitCheck`; Boden ±25 cm, kein
+  Absatz über 50 cm, keine Wand in 40 cm und 1 m Höhe, 1,7 m frei, nicht näher als 6 m an Leon, 1 m Abstand zu allen
+  Einträgen des Raums und gewählten Stellen; acht Versuche). Zahl: ab 10 Ganados beim Raumbeginn −1…+1, ab 20 −2…+2;
+  weggelassen nie der letzte einer Art; Kopien eines Ganados, der gerade kommt, neben einem anderen, Tod an einem
+  leeren Eintrag, nur solange die Gegner-Plätze des Raums für das noch Kommende reichen (+4). Protokoll je Raum
+  „enemies: random enemies in r111 (list 1, seed 4242): 8 Ganados at the start, 8 ordinary, 8 spots: 8 at a new place
+  nearby, 0 on another's spot; the number stays (under 10)“ bzw. „12 -> 13: a copy of 0xa4 beside 0xa5 (death at
+  0x9c)“.
+- **App:** Hilfetext `ingame_cheat_random_enemies_help` in 11 Sprachen neu: welche Räume sich ändern (viele, ein paar
+  Meter neben dem eigenen Platz), die Zahl erst ab 10, in Zählräumen nur die Stellen, das Dorf am Anfang von Kapitel 1
+  und Räume mit Ereignissen, die bestimmte Gegner brauchen, bleiben (`check_translations.py` 420 Texte ohne Befund).
+- **Geprüft am PC** (Kern i686 -O2, `whole_build.sh` alle Prüfungen grün; Rundgang aller 126 Räume,
+  `whole_r100_check.sh --rooms all`; Skripte `09913-tours.sh`, `09913-tour_sum.sh`, `09913-em_map.py`, `09913-seeds.sh` im Notizordner):
+  - Debug-Discs ohne Cheat, Seed 4242 (mit Listen-Prüfung), 4242 noch einmal, Seed 777: je **ALLES OK**; US-Discs
+    4242: ALLES OK; EU-Discs 4242: 125 von 126 (r333 stürzt im Prüfprotokoll ab: der bekannte Altbefund, auch ohne Cheat
+    und mit 0.99.11; r333 hat keinen gewöhnlichen Ganado).
+  - Seed 4242: **13 Räume** angepackt (r103, r106, r107, r111, r113, r11a, r20c, r20d, r225, r303, r304, r31d, r330;
+    vorher 10, davon 2 ohne Änderung), **12 sehen anders aus als ohne Cheat** (r20c bringt seine Ganados erst später),
+    z. B. r111 alle 8 an neuen Stellen, r225 9 neue Stellen und 2 getauscht; die 3 Zählräume mit Ganados beim
+    Raumbeginn (r106, r107, r20d) ändern Stellen, nie die Zahl. Seed 777: 12 Räume anders, in r225 ein Ganado mehr
+    (12 → 13). Gleicher Seed zweimal: alle 126 Räume gleich. Listen-Prüfung: nie geschrieben. Keine gescheiterte Kopie,
+    kein „Em set failed“. EU gegen Debug: dieselben Räume (r107 dort mit 10 statt 11 Ganados, in r111 7 statt 8 neue
+    Stellen: die Listen der Discs weichen leicht ab); US gleich Debug.
+  - Die Zahl gezielt (r225 mit 12, r11a mit 11 Ganados, Seeds 1–8, `09913-seeds.sh`): alle 16 Läufe ALLES OK; 5×
+    ein Ganado mehr (Kopie kam), 2× einer weniger, 2× fand die Kopie keinen sicheren Platz (die Zahl blieb), sonst
+    unverändert; Liste nie geschrieben, keine gescheiterte Kopie.
+  - `whole_build_android.sh --abi all` 0 Fehler (Stubs wie erwartet).
+  - Draufsichten (grau Original, rot mit Cheat, Pfeil je Gegner) und Spielbilder in
+    `E:\Development\Android\builds\enemy-random\`: r111 und r225 (dazu r107, r113, r20d, r31d und zum Vergleich r111 mit
+    Stufe 1 aus 0.99.12: dort führten alle Pfeile nur zwischen den alten Plätzen). Die Spielbilder aus Leons Startblick
+    zeigen in r111 und r225 keinen Ganado (sie stehen weiter weg).
+  - App-Tests je 132 grün.
+- **Nicht geprüft:** auf einem Gerät; ein echtes Durchspielen (der Rundgang startet jeden Raum frisch); ob Ganados an
+  neuen Stellen irgendwo hängen bleiben (die Prüfung schließt Wände, Absätze und Kisten aus, nicht jede Eigenheit eines
+  Raums).
+
 ## Branch `textures`: Lader für eigene HD-Texturpakete (12.11.2026)
 
 Wunsch des Projektinhabers (12.11.2026): ein Lader für vom Spieler selbst beschaffte HD-Texturpakete im Dolphin-Format,
@@ -16070,7 +16115,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0228 `card.cpp` | Krausers Bogen in der Geschichte (0.99.10, Nutzerwunsch über den Projektinhaber, seit dem Retroid-Test bei jedem Raumstart statt Cheat-Knopf 10, `runtime/cheats.cpp` `giveBow`) und Weskers Schalldämpfer (0x3F, `giveSilencer`): `cCard::makeSaveData` lässt im Bild der Spielstand-Datei Bogen (0x52), Pfeile (0x72) und Schalldämpfer weg, macht aus der Pistole mit Schalldämpfer in der Hand die Pistole ohne und aus dem Bogen in der Hand leere Hände (belegter Platz, `weapon_no`/`weapon_type` des Spielblocks), denn ein Spielstand ist immer Leons und Leon hat keine Datei für Waffe 0x1C (`re4_story_char_card_items`). Das laufende Spiel und der Fortsetzungspunkt behalten den Bogen. Port-Funktion |
 | 0229 `ss_model.cpp` | Weskers Pistole im Koffer: `wep43Init(type)` statt immer mit Schalldämpfer (0.99.11, Abschnitt 4a) |
 | 0230 `pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp` | Adas Nachladen mit ihren eigenen Waffen auf jeder Stufe mit ihrer Bewegung der Stufe 0 (0.99.11, Abschnitt 1) |
-| 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. Port-Merkmal |
+| 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. 0.99.13 (Stufe 1.5): am Ende fragt eine Schleife bis -1 (bis zu zwei Kopien). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

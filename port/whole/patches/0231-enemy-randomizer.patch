@@ -2,11 +2,11 @@
 # und als Button neben dem Item Randomizer"; port/docs/gegner-randomizer-plan.md): the cheat "Random enemies" of the
 # app's cheat menu. EmSetFromList creates the room's entries of the chapter's enemy list when a room starts; with the
 # cheat on, runtime/enemy_random.cpp plans the room first (re4_enemy_random_room), then gives each entry that passed
-# the game's checks either as it is, left out, or as a copy with the spot of another entry of the room (only ordinary
-# Ganados, never entries the room's script or areas name, never in rooms whose script counts or sweeps enemies or has
-# a boss), and at the end at most one more enemy: a copy of an ordinary Ganado whose kind is in the room, its death
-# kept at an empty entry of the list. The list itself (saved with the game) is never written. With the cheat off
-# nothing changes.
+# the game's checks either as it is, left out, or as a copy with another place (only ordinary Ganados, never entries
+# the room's script or areas name, never in rooms with a boss or whose script names enemies), and at the end more
+# enemies (0.99.13 "stage 1.5": up to two, the loop asks until -1): each a copy of an ordinary Ganado whose kind is in
+# the room, its death kept at an empty entry of the list. The list itself (saved with the game) is never written.
+# With the cheat off nothing changes.
 --- a/src/game/em_set.cpp
 +++ b/src/game/em_set.cpp
 @@ -13,6 +13,12 @@
@@ -60,13 +60,13 @@
          em->l_sub = 1.0e16f;
          em->move();
      }
-+    /* port (patch 0231): one more enemy, a copy at a spot nobody took; its death is kept at an empty entry of the
-+       list (id 0, never used by the game) */
++    /* port (patch 0231): more enemies (up to two), each a copy beside a Ganado of the room; its death is kept at an
++       empty entry of the list (id 0, never used by the game) */
 +    {
 +        EM_LIST extra;
-+        int no = re4_enemy_random_extra(&extra);
++        int no;
 +
-+        if (no >= 0) {
++        while ((no = re4_enemy_random_extra(&extra)) >= 0) {
 +            cEm* em = 0;
 +
 +            if (!EmSetDieCk((u32) no) && checkListId(no)) {
