@@ -192,12 +192,78 @@ struct Session {
 
 std::string gLastError;
 
+// A Java string as UTF-8 (proper UTF-8, also for characters outside the BMP; GetStringUTFChars gives modified UTF-8)
 std::string Str(JNIEnv *env, jstring s) {
   if (!s) return std::string();
-  const char *c = env->GetStringUTFChars(s, nullptr);
-  std::string out = c ? c : "";
-  if (c) env->ReleaseStringUTFChars(s, c);
+  const jsize n = env->GetStringLength(s);
+  std::vector<jchar> u(static_cast<std::size_t>(n));
+  if (n) env->GetStringRegion(s, 0, n, u.data());
+  std::string out;
+  out.reserve(u.size());
+  for (std::size_t i = 0; i < u.size(); i++) {
+    unsigned cp = u[i];
+    if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < u.size() && u[i + 1] >= 0xDC00 && u[i + 1] <= 0xDFFF) {
+      cp = 0x10000 + ((cp - 0xD800) << 10) + (u[i + 1] - 0xDC00);
+      i++;
+    } else if (cp >= 0xD800 && cp <= 0xDFFF) {
+      cp = 0xFFFD;
+    }
+    if (cp < 0x80) {
+      out += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+      out += static_cast<char>(0xC0 | (cp >> 6));
+      out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+      out += static_cast<char>(0xE0 | (cp >> 12));
+      out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+      out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else {
+      out += static_cast<char>(0xF0 | (cp >> 18));
+      out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+      out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+      out += static_cast<char>(0x80 | (cp & 0x3F));
+    }
+  }
   return out;
+}
+
+// A Java string from UTF-8 text. Not NewStringUTF: names from a ZIP need not be valid UTF-8 (old archives keep them in
+// the PC's code page) or can hold 4-byte characters, which NewStringUTF does not take (CheckJNI ends the app); a
+// broken sequence becomes U+FFFD.
+jstring JStr(JNIEnv *env, const std::string &s) {
+  std::vector<jchar> out;
+  out.reserve(s.size());
+  const auto *p = reinterpret_cast<const unsigned char *>(s.data());
+  const std::size_t n = s.size();
+  for (std::size_t i = 0; i < n;) {
+    const unsigned c = p[i];
+    unsigned cp = 0xFFFD, len = 1;
+    if (c < 0x80) {
+      cp = c;
+    } else if (c >= 0xC2 && c <= 0xF4) {
+      const unsigned need = c < 0xE0 ? 1 : c < 0xF0 ? 2 : 3;
+      bool ok = true;
+      unsigned v = c & (0x3F >> need);
+      for (unsigned k = 1; ok && k <= need; k++) {
+        if (i + k >= n || (p[i + k] & 0xC0) != 0x80) ok = false;
+        else v = (v << 6) | (p[i + k] & 0x3F);
+      }
+      const unsigned min = need == 1 ? 0x80 : need == 2 ? 0x800 : 0x10000;
+      if (ok && v >= min && v <= 0x10FFFF && !(v >= 0xD800 && v <= 0xDFFF)) {
+        cp = v;
+        len = need + 1;
+      }
+    }
+    if (cp >= 0x10000) {
+      cp -= 0x10000;
+      out.push_back(static_cast<jchar>(0xD800 + (cp >> 10)));
+      out.push_back(static_cast<jchar>(0xDC00 + (cp & 0x3FF)));
+    } else {
+      out.push_back(static_cast<jchar>(cp));
+    }
+    i += len;
+  }
+  return env->NewString(out.data(), static_cast<jsize>(out.size()));
 }
 
 Session *S(jlong h) { return reinterpret_cast<Session *>(h); }
@@ -260,7 +326,7 @@ JNI() jlong JNICALL FN(openFolder)(JNIEnv *env, jclass, jstring name, jobjectArr
   return reinterpret_cast<jlong>(s);
 }
 
-JNI() jstring JNICALL FN(lastError)(JNIEnv *env, jclass) { return env->NewStringUTF(gLastError.c_str()); }
+JNI() jstring JNICALL FN(lastError)(JNIEnv *env, jclass) { return JStr(env, gLastError); }
 
 // what the pack holds, one line each: "name\t<name>", "images\t<n>", "bytes\t<n>", "skipped\t<n>", and per group
 // "group\t<name>\t<1 add-on>" followed by its "variant\t<name>\t<1 the same as the main folder>"
@@ -272,7 +338,7 @@ JNI() jstring JNICALL FN(summary)(JNIEnv *env, jclass, jlong h) {
     out += "group\t" + g.name + "\t" + (g.addOn ? "1" : "0") + "\n";
     for (const pack::Variant &v : g.variants) out += "variant\t" + v.name + "\t" + (v.sameAsMain ? "1" : "0") + "\n";
   }
-  return env->NewStringUTF(out.c_str());
+  return JStr(env, out);
 }
 
 // the pack file's size at most for 256, 512 and 1024 with these choices (variant per group, -1 as in the main folder)
@@ -313,11 +379,11 @@ JNI() jstring JNICALL FN(convert)(JNIEnv *env, jclass, jlong h, jint size, jintA
   s->report = result.report;
   LOG("convert %u: %s, %zu images, %llu bytes, %.0f s", settings.size, result.ok ? "done" : result.error.c_str(),
       result.entries, static_cast<unsigned long long>(result.fileBytes), result.seconds);
-  return env->NewStringUTF(result.ok ? "" : result.error.c_str());
+  return JStr(env, result.ok ? std::string() : result.error);
 }
 
 JNI() void JNICALL FN(cancel)(JNIEnv *, jclass, jlong h) { S(h)->cancel = true; }
 
-JNI() jstring JNICALL FN(report)(JNIEnv *env, jclass, jlong h) { return env->NewStringUTF(S(h)->report.c_str()); }
+JNI() jstring JNICALL FN(report)(JNIEnv *env, jclass, jlong h) { return JStr(env, S(h)->report); }
 
 JNI() void JNICALL FN(close)(JNIEnv *, jclass, jlong h) { delete S(h); }
