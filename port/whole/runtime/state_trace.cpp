@@ -196,7 +196,8 @@
 //                          the player is first free: C 20 the place, 22 back; its state ("run: benchmark state")
 //                          every 60 frames from the first command on; "title+N" N frames after the title's main
 //                          menu first waits (a start from the title, 06.11.2026); "boot+N" at frame N (the
-//                          title's logos)
+//                          title's logos); "done+N" N frames after the benchmark's state first reads "done" (4),
+//                          the benchmark's second part asked right after the first (0.99.14)
 //   RE4_TEST_WEPTYPE="free+N:T"  N frames after the player is free, the weapon type becomes T and the
 //                          weapon object is made again from the weapon file already read (weaponRelease,
 //                          weaponInit, as PlChangeData does after a costume change): a type the file was
@@ -745,6 +746,8 @@ int g_benchCmd[4];
 long g_benchFirst = -1;
 bool g_benchTitle[4];        // RE4_TEST_BENCH "title+N": counted from the title's main menu
 bool g_benchBoot[4];         // RE4_TEST_BENCH "boot+N": frame N
+bool g_benchDone[4];         // RE4_TEST_BENCH "done+N": counted from the benchmark's first "done"
+long g_benchDoneAt = -1;     // that frame
 long g_titleAt = -1;         // the first frame the title's main menu waited
 extern "C" int re4_bench_command(int what);
 extern "C" int re4_instant_play_seconds(void);  // runtime/instant_game.cpp (0.99.11)
@@ -2187,8 +2190,12 @@ void frame(unsigned n)
         g_titleAt = (long) n;
         re4_log("run: the title's main menu waits at frame %u", n);
     }
+    if (g_benchDoneAt < 0 && g_benchFirst >= 0 && re4_bench_command(23) == 4) {
+        g_benchDoneAt = (long) n;
+        re4_log("run: the benchmark done at frame %u", n);
+    }
     for (int i = 0; i < 4; i++) {
-        const long base = g_benchBoot[i] ? 0 : g_benchTitle[i] ? g_titleAt : g_freeAt;
+        const long base = g_benchBoot[i] ? 0 : g_benchTitle[i] ? g_titleAt : g_benchDone[i] ? g_benchDoneAt : g_freeAt;
         if (g_benchAt[i] >= 0 && base >= 0 && (long) n == base + g_benchAt[i]) {
             // 25: the play time (0.99.11, the app's Information HUD), the others the benchmark's
             const int answer = g_benchCmd[i] == 25 ? re4_instant_play_seconds() : re4_bench_command(g_benchCmd[i]);
@@ -2860,11 +2867,13 @@ void configure()
     if (const char* bench = getenv("RE4_TEST_BENCH")) {
         const char* at = bench;
         for (int i = 0; i < 4 && at &&
-                        (strncmp(at, "free+", 5) == 0 || strncmp(at, "title+", 6) == 0 || strncmp(at, "boot+", 5) == 0);
+                        (strncmp(at, "free+", 5) == 0 || strncmp(at, "title+", 6) == 0 || strncmp(at, "boot+", 5) == 0 ||
+                         strncmp(at, "done+", 5) == 0);
              i++) {
             char* end = 0;
             g_benchTitle[i] = at[0] == 't';
             g_benchBoot[i] = at[0] == 'b';
+            g_benchDone[i] = at[0] == 'd';
             g_benchAt[i] = strtol(at + (g_benchTitle[i] ? 6 : 5), &end, 10);
             g_benchCmd[i] = end && *end == ':' ? (int) strtol(end + 1, &end, 10) : 0;
             at = end && *end == ',' ? end + 1 : 0;

@@ -847,6 +847,9 @@ struct VkRenderer final : GxCore {
     if (ms >= 0.0 && ms < 1000.0) {
       timing.gpuMs += ms;
       timing.gpuMeasured++;
+      // (0.99.14: also for "Dynamic", gx_auto_level.h: a picture's GPU time, as GL's timer queries)
+      stats.gpuMicros += static_cast<unsigned long long>(ms * 1000.0);
+      stats.gpuTimed++;
     }
   }
   // The frame to the GPU. wait: until it is done; next: the next frame is another one (else this frame goes on
@@ -1302,6 +1305,15 @@ struct VkRenderer final : GxCore {
 
   // ---- shaders and pipelines ----
   VkShaderModule Module(const std::string &glsl, bool vertex, std::string *log) {
+    // (made on the render thread: loading for "Dynamic", GxStats::loadUs)
+    struct Loading {
+      std::uint64_t &us;
+      const std::chrono::steady_clock::time_point at = std::chrono::steady_clock::now();
+      ~Loading() {
+        us += static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - at).count());
+      }
+    } loading{stats.loadUs};
     std::vector<std::uint32_t> spirv;
     // the SPIR-V a run before compiled (E8), else compiled now and kept
     static const std::uint64_t compiler = Fnv(CompilerName(), std::strlen(CompilerName()));
@@ -1398,6 +1410,7 @@ struct VkRenderer final : GxCore {
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     timing.pipelines++;
     timing.pipelineMs += ms;
+    stats.loadUs += static_cast<std::uint64_t>(ms * 1000.0);
     timing.pipelineMax = std::max(timing.pipelineMax, ms);
     // made anew, not from the driver's cache (at least 2 ms): what the app's list missed or had not made yet
     if (ms >= 2.0)

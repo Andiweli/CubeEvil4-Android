@@ -1001,12 +1001,14 @@ struct LevelBench {
   unsigned droppedAt = 0, polls = 0;
   // the core thread's processor time of the chunks (Re4GxChunk::coreCpuUs, cores since 0.99.12), and their count
   unsigned long long cpuUs = 0, cpuUsAt = 0, cpuChunks = 0, cpuChunksAt = 0;
+  // the GPU's time of the pictures (GxStats::gpuMicros / gpuTimed) at the last second's start (0.99.14: the reserve)
+  unsigned long long gpuUsAt = 0;
+  unsigned gpuPicturesAt = 0;
 };
 LevelBench levelBench;
 constexpr double kBenchLimit = 360.0;  // seconds for the whole benchmark at most (the way there and back included)
 // The benchmark sets the level and the 60 FPS itself (mode 0 measuring); the check (mode 1) leaves them to Dynamic
 bool benchForcing() { return levelBench.active && levelBench.mode.load() == 0; }
-bool benchChecking() { return levelBench.active && levelBench.mode.load() == 1; }
 int aimSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's AUDIO page (CoreBridge.setSoundVolume, wish of the project owner, 30.10.2026): music | effects << 8 in
 // percent (the core's runtime/sound_volume.cpp).
@@ -1838,6 +1840,8 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk, unsig
     b.res30 = b.res60 = b.rate10 = b.held = 0;
     b.chunks = 0;
     b.cpuUs = b.cpuUsAt = b.cpuChunks = b.cpuChunksAt = 0;
+    b.gpuUsAt = 0;
+    b.gpuPicturesAt = 0;
     b.cpuLoad = -1;
     b.polls = 0;
     b.failed = false;
@@ -1941,6 +1945,17 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk, unsig
                                    : -1.0;
     b.cpuUsAt = b.cpuUs;
     b.cpuChunksAt = b.cpuChunks;
+    // the GPU's time a picture in this second (ms; negative: not measured, or a new renderer's counters began anew)
+    double gpuMs = -1.0;
+    if (gx) {
+      const re4gx::GxStats &gs = gx->Stats();
+      if (gs.gpuTimed >= b.gpuPicturesAt + 10 && gs.gpuMicros >= b.gpuUsAt)
+        gpuMs = static_cast<double>(gs.gpuMicros - b.gpuUsAt) / 1000.0 / (gs.gpuTimed - b.gpuPicturesAt);
+      // (a timer busier than the clock: not trusted, as Dynamic)
+      if (gpuMs >= 0.0 && gpuMs * (gs.gpuTimed - b.gpuPicturesAt) > sec * 1000.0 * 1.25) gpuMs = -1.0;
+      b.gpuUsAt = gs.gpuMicros;
+      b.gpuPicturesAt = gs.gpuTimed;
+    }
     b.chunksAt = b.chunks;
     b.shownAt = picturesMade.load();
     b.droppedAt = gxBetweenDropped;
@@ -1959,7 +1974,7 @@ void levelBenchTick(std::chrono::steady_clock::time_point now, bool chunk, unsig
     }
     std::string line;
     const re4gx::BenchSteps::Step step =
-        b.steps.Second(std::chrono::duration<double>(now - b.start).count(), c, sh, dropped, &line, cpuMs);
+        b.steps.Second(std::chrono::duration<double>(now - b.start).count(), c, sh, dropped, &line, cpuMs, gpuMs);
     b.rate10 = b.steps.Rate10();
     if (step != re4gx::BenchSteps::kNone) {
       LOG("%s", line.c_str());
@@ -2040,25 +2055,20 @@ bool drawGx() {
       // CoreMenu.autoScale is the same)
       const int rows = std::min(height, width * 9 / 16);
       scale = 2 * std::max(1, std::min(3, (rows + 168) / 336) - 1);
-      // measured by the benchmark on this device: its level for 30 or 60 pictures a second and half a level more
-      // (wish of the project owner, 06.11.2026: the rainy dock is one of the heaviest places of the game; Dynamic
-      // starts there and goes down half a level where the GPU falls behind, up again where it keeps up), 4x at most
+      // measured by the benchmark on this device: its level for 30 or 60 pictures a second (the rainy dock is one of
+      // the heaviest places of the game; since 0.99.14 a level holds there only with a reserve, gx_bench_steps.h).
+      // Until 0.99.13 half a level more (wish of the project owner, 06.11.2026): his Retroid measured 3x with 60 FPS
+      // and went to 3.5x again and again, back down within seconds (report 09914-benchmark-dynres). Decision of the
+      // project owner, 13.11.2026: up to the measured level, nothing above it
       const int cap = optSmooth.load() ? optCap60.load() : optCap30.load();
       if (cap >= 2 && cap <= 8) {
-        scale = std::min(8, cap + 1);
+        scale = cap;
         proven = cap;
-        LOG("dynamic resolution: up to %sx, half a level above the benchmark's %sx for %d pictures a second",
-            ScaleName(scale).c_str(), ScaleName(cap).c_str(), optSmooth.load() ? 60 : 30);
+        LOG("dynamic resolution: up to %sx, the benchmark's level for %d pictures a second (nothing above it)",
+            ScaleName(scale).c_str(), optSmooth.load() ? 60 : 30);
       }
     }
-    const int dynTop = scale;  // Dynamic's highest level
-    // the benchmark's check (mode 1, 0.99.10): a new renderer starts at the benchmark's level, not half a level
-    // above it (the project owner's Retroid check 11.11.2026 started each window at 3.5x and counted the way down)
-    if (autoLevelOn && proven && benchChecking()) {
-      scale = proven;
-      LOG("benchmark: the check's new renderer at the benchmark's level %s (Dynamic up to %s)", ScaleName(scale).c_str(),
-          ScaleName(dynTop).c_str());
-    }
+    const int dynTop = scale;  // Dynamic's highest level (the benchmark's check, mode 1, starts there too)
     // once per run: does this GPU compute the movie colours like the GameCube (gx_selfcheck.cpp;
     // the Galaxy A36 showed them green and brown)? Before any renderer, on a renderer of its own;
     // on wrong pixels it picks a way of writing the TEV's lerp that this GPU computes right.
@@ -2072,6 +2082,18 @@ bool drawGx() {
       scale = levelBench.level.load();
       autoLevelOn = false;
       LOG("benchmark: the new renderer at the benchmark's level %s", re4gx::BenchSteps::Name(scale).c_str());
+    }
+    // (0.99.14) Dynamic: not at a level that did not hold in this room in the last minutes (a renderer made anew after
+    // the app menu or a benchmark began at the top again, also where the top had just failed)
+    if (autoLevelOn) {
+      const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+      const int safe = autoLevel.StartLevel(dynTop, scale, t, static_cast<int>(frame.room), 2);
+      if (safe != scale) {
+        LOG("dynamic resolution: %sx did not hold in r%03x in the last %.0f min: the new renderer starts at %sx",
+            ScaleName(scale).c_str(), static_cast<unsigned>(frame.room), re4gx::AutoLevel::kRoomForget / 60.0,
+            ScaleName(safe).c_str());
+        scale = safe;
+      }
     }
     replayGx(scale);
     const bool vulkan = gxVulkan() && !vulkanFailed;
@@ -2192,8 +2214,10 @@ bool drawGx() {
       // in half steps down to 1x (wish of the project owner, 27.10.2026: 2x straight to 1x lost too much)
       autoLevel.Start(dynTop, std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(),
                       2, true, proven, scale);
-      LOG("dynamic resolution: from level %sx (the screen's), half a level lower while the GPU falls behind",
-          ScaleName(scale).c_str());
+      LOG("dynamic resolution: from level %sx (the top %sx, %s), half a level lower where the GPU falls behind, up "
+          "again only with room for the next level; a level that did not hold in a room is not tried there for %.0f min",
+          ScaleName(scale).c_str(), ScaleName(dynTop).c_str(), proven ? "the benchmark's" : "the screen's",
+          re4gx::AutoLevel::kRoomForget / 60.0);
     }
   }
   // one chunk per displayed frame: every picture the game makes is shown (a
@@ -2341,6 +2365,9 @@ bool drawGx() {
       const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
       autoLevel.Restart(t);
       if (!benchForcing()) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+      // (0.99.14) where Dynamic stands at each room's start: the level, its steps, the rooms remembered
+      if (roomStart && autoLevelOn && !benchForcing())
+        LOG("%s; now r%03x", autoLevel.Summary(t).c_str(), static_cast<unsigned>(frame.room));
     }
     breakRoom = static_cast<int>(frame.room);
     breakPaused = paused;
@@ -2456,8 +2483,10 @@ bool drawGx() {
         }
       }
     }
-    // the core thread's processor time for this chunk (the benchmark; the chunk may go back to the core below)
+    // the core thread's processor time for this chunk (the benchmark; the chunk may go back to the core below), and
+    // whether it is a menu picture of the game (Dynamic does not judge those)
     const unsigned chunkCpuUs = chunk->coreCpuUs;
+    const bool chunkStill = (chunk->flags & RE4_GX_CHUNK_STILL) != 0;
     // the in-between picture first when the switch is on and nothing records this chunk's picture;
     // Run(chunk) then at the next refresh
     bool between = false;
@@ -2609,16 +2638,29 @@ bool drawGx() {
     if (autoLevelOn && !between && !benchForcing()) {
       const auto &st = gx->Stats();
       std::string why, status;
-      const int level = autoLevel.Chunk(std::chrono::duration<double>(now.time_since_epoch()).count(), st.behindSum,
-                                        st.behindChecks,
+      re4gx::AutoLevel::Sample sample;
+      sample.t = std::chrono::duration<double>(now.time_since_epoch()).count();
+      sample.behindSum = st.behindSum;
+      sample.behindChecks = st.behindChecks;
+      sample.dropped = gxBetweenDropped;  // (counts only while 60 FPS is on; never falls back)
+      sample.waitMs = gxRunWaitMs;
+      sample.gpuUs = st.gpuMicros;  // (0.99.14) the GPU's time a picture: Vulkan's timestamps, GL's timer queries
+      sample.gpuPictures = st.gpuTimed;
+      sample.loadUs = st.loadUs;    // HD textures, shaders and pipelines made on this thread
+      sample.pauses = smoothPacer.Offs();
+      // (60 FPS given up for this renderer, smoothTooSlow: judged as 30 a second, as it then runs)
+      sample.sixty = optSmooth.load() != 0 && !smoothTooSlow;
+      // 60 FPS making in-between pictures now: a step up by them, not the fences
+      sample.smooth = sample.sixty && !smoothPacer.Off();
+      // a game menu (no in-between pictures by design), the game's own 60 a second (movies, the title)
+      sample.calm = chunkStill || stream60 || gameMenuNow();
+      sample.room = static_cast<int>(frame.room);
+      const int level = autoLevel.Chunk(sample,
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring &&
                                             !benchForcing(),
-                                        &why, gxBetweenDropped,  // (counts only while 60 FPS is on; never falls back)
-                                        gxRunWaitMs,
-                                        // 60 FPS making in-between pictures now: a step up by them, not the fences
-                                        optSmooth.load() != 0 && !smoothTooSlow && !smoothPacer.Off(), &status);
+                                        &why, &status);
       if (!status.empty())
-        LOG("%s", status.c_str());  // why it stays below the top (every 10 s at most)
+        LOG("%s", status.c_str());  // why it stays below the top, or pictures late not by the GPU (every 10 s at most)
       if (level != gx->Halves()) {
         LOG("%s", why.c_str());
         // no in-between picture across the change (a chunk taken ahead, skipNext, is not run yet:

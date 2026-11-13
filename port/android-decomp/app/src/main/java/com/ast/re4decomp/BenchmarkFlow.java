@@ -178,7 +178,7 @@ final class BenchmarkFlow {
         SharedPreferences g = host.graphics();
         g.edit().putInt(CoreMenu.DYN_CAP_30, cap30).putInt(CoreMenu.DYN_CAP_60, cap60)
             .putLong(PerfProfile.BENCH_DATE, System.currentTimeMillis()).putBoolean(PerfProfile.BENCH_CPU, cpuSign)
-            .putInt(PerfProfile.BENCH_CPU_LOAD, cpuLoad)
+            .putInt(PerfProfile.BENCH_CPU_LOAD, cpuLoad).putBoolean(PerfProfile.BENCH_RESERVE, true)
             .putInt(PerfProfile.FIRST, PerfProfile.FIRST_NONE).apply();
         CoreBridge.setDynamicCaps(cap30, cap60);
         host.mute(false);

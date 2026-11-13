@@ -2085,6 +2085,45 @@ void TestBenchSteps() {
   Check(calm.CpuLoad() == 27, "benchmark: 9 ms a picture is 27 %");
   re4gx::BenchSteps unknown = cpuRun("an older core (no processor time)", -1.0);
   Check(unknown.CpuLoad() == -1 && unknown.Result(0) == 3, "benchmark: without the figure the load is not known");
+  // 0.99.14, the GPU's reserve (the project owner's Retroid at the dock, report 09914-benchmark-dynres): 30 at 4x with
+  // the GPU at 15-22 ms of 33.4; with 60: 4x 38 shown, 3.5x 49, 3x 59.6 shown with one in-between picture left out and
+  // the GPU at 15.3 ms of 16.7 (92 %), 2.5x 59.9 at 12.4 ms (74 %)
+  auto dock = [](const char *name, bool gpuKnown) {
+    re4gx::BenchSteps b;
+    b.Start(0.0, 8, 5.0);
+    std::fprintf(stderr, "benchmark simulation: %s\n", name);
+    double t = 0.0;
+    for (int i = 0; i < 400 && !b.Finished(); i++) {
+      t += 1.0;
+      const int level = b.Level();
+      const bool sixty = b.Pass() == 1;
+      const int shown = !sixty ? 30 : level >= 8 ? 38 : level == 7 ? 49 : level == 6 ? (i % 10 ? 60 : 58) : 60;
+      const double gpu = !gpuKnown ? -1.0 : !sixty ? 18.0 : level >= 8 ? 26.0 : level == 7 ? 21.0 : level == 6 ? 15.3
+                                                                                                                 : 12.4;
+      std::string line;
+      const re4gx::BenchSteps::Step step = b.Second(t, 30, shown, 0, &line, 8.8, gpu);
+      if (step != re4gx::BenchSteps::kNone) std::fprintf(stderr, "  %5.1f s  %s\n", t, line.c_str());
+    }
+    return b;
+  };
+  re4gx::BenchSteps retroid = dock("the Retroid at the dock, the GPU's time measured", true);
+  Check(retroid.Result(0) == 8 && retroid.Result(1) == 5 && retroid.Held(1),
+        "benchmark: the Retroid at the dock: 4x for 30, 2.5x for 60 (3x smooth, but the GPU at 92 %: no reserve)");
+  Check(retroid.GpuMs(1) > 12.0 && retroid.GpuMs(1) < 12.8, "benchmark: the 60 pass's GPU time at its result kept");
+  re4gx::BenchSteps blind = dock("the same without the GPU's time (Mali GL)", false);
+  Check(blind.Result(1) == 6 && blind.GpuMs(1) < 0.0, "benchmark: without the GPU's time as before: 3x for 60");
+  // the 30 pass needs the reserve too: the GPU at 30 ms of 33.4 (90 %) at 4x, 22 ms at 3.5x
+  {
+    re4gx::BenchSteps b;
+    b.Start(0.0);
+    double t = 0.0;
+    for (int i = 0; i < 400 && !b.Finished(); i++) {
+      t += 1.0;
+      std::string line;
+      b.Second(t, 30, b.Pass() ? 60 : 30, 0, &line, -1.0, b.Level() >= 8 ? 30.0 : b.Pass() ? 11.0 : 22.0);
+    }
+    Check(b.Result(0) == 7 && b.Result(1) == 7, "benchmark: 30 at 4x with the GPU at 90 %: 3.5x");
+  }
   // the 60 FPS pause does not carry over into the benchmark's next level (SmoothPacer::Restart)
   re4gx::SmoothPacer pacer;
   bool off = false;
@@ -2117,18 +2156,20 @@ void TestAutoLevel() {
     r.Play(6.5, 20.0, 1);
     Check(r.a.Level() == 1 && r.a.Downs() == 1, "auto level: two slow windows in a row, the GPU behind: one level down");
     Check(!r.lines.empty() && r.lines.back().find("level 2 -> 1") != std::string::npos, "auto level: logged");
+    const double downAt = r.t;
     r.Play(10.0, 20.0, 1);
     Check(r.a.Level() == 1, "auto level: never below 1");
-    r.Play(9.0, 30.0, 0);  // four windows keeping up
-    Check(r.a.Level() == 1, "auto level: not up before 10 s keeping up");
-    r.Play(3.0, 30.0, 0);
-    Check(r.a.Level() == 2 && r.a.Ups() == 1, "auto level: up again after 10 s keeping up (the wait of 10 s over)");
-    // straight down again: the next wait doubles (20 s)
+    while (r.a.Ups() == 0 && r.t < downAt + 100.0)
+      r.Play(0.1, 30.0, 0);
+    // (0.99.14: 16 s steady and 20 s after the step down; until then 10 s and 10 s)
+    Check(r.a.Level() == 2 && r.a.Ups() == 1 && r.t - downAt >= 19.9,
+          "auto level: up again 16 s keeping up, not before 20 s after the step down");
+    // straight down again: the next wait doubles (40 s)
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again soon: the next wait 20 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 40.0, "auto level: down again soon: the next wait 40 s");
   }
   {
-    // not before 10 s after a step down, even with every window keeping up
+    // not before 20 s after a step down, even with every window keeping up
     AutoRun r;
     r.a.Start(2, 0.0);
     r.Play(4.1, 20.0, 1);
@@ -2136,7 +2177,7 @@ void TestAutoLevel() {
     const double downAt = r.t;
     while (r.a.Ups() == 0 && r.t < 100.0)
       r.Play(0.1, 30.0, 0);
-    Check(r.a.Ups() == 1 && r.t - downAt >= 9.9 && r.t - downAt < 11.0, "auto level: up 10 s after the step down");
+    Check(r.a.Ups() == 1 && r.t - downAt >= 19.9 && r.t - downAt < 21.0, "auto level: up 20 s after the step down");
   }
   {
     // heavy, light, heavy (the project owner, 06.11.2026: 30 s too long when the way goes on into a lighter area): a
@@ -2148,18 +2189,21 @@ void TestAutoLevel() {
     Check(!downs.empty() && downs.front() < 5.0, "auto level, heavy spot: half a level down within 5 s");
     const double light = r.t;
     const size_t upsBefore = ups.size(), downsBefore = downs.size();
-    r.PlayGpu(120.0, 24.0, &downs, &ups);
+    r.PlayGpu(180.0, 24.0, &downs, &ups);
     Check(r.a.Level() == 4 && downs.size() == downsBefore, "auto level, light stretch: 2x again, no step down there");
-    Check(r.a.Level() == 4 && (ups.size() == upsBefore || ups.back() - light <= 25.0),
-          "auto level, light stretch: back at 2x at most 25 s into it (until 0.98.4: 59 s)");
-    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level, light stretch: the wait back to 10 s once 2x held 60 s");
-    // the next heavy spot starts with the short wait again: down, up after 10 s, down again (a bounce), then 20 s
+    std::fprintf(stderr, "  auto level, light stretch: back at 2x %.1f s into it\n",
+                 ups.size() > upsBefore ? ups.back() - light : 0.0);
+    Check(r.a.Level() == 4 && (ups.size() == upsBefore || ups.back() - light <= 35.0),
+          "auto level, light stretch: back at 2x at most 35 s into it (until 0.98.4: 59 s; a try at the heavy spot "
+          "bounced, so the wait there was 40 s)");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level, light stretch: the wait back to 20 s once 2x held 120 s");
+    // the next heavy spot starts with the short wait again: down, up after 20 s, down again (a bounce), then 40 s
     downs.clear();
     ups.clear();
     r.PlayGpu(40.0, 40.0, &downs, &ups);
-    Check(downs.size() >= 1 && ups.size() >= 1 && ups.front() - downs.front() < 12.0,
-          "auto level, the next heavy spot: the first try up after about 10 s");
-    // heavy for 10 minutes: the bounces grow apart (10, 20, 40, 80, 160, 300 s), at most 7 steps down in all
+    Check(downs.size() >= 1 && ups.size() >= 1 && ups.front() - downs.front() < 22.0,
+          "auto level, the next heavy spot: the first try up after about 20 s");
+    // heavy for 10 minutes (no room known here, so no memory): the bounces grow apart (20, 40, 80, 160, 300 s)
     r.PlayGpu(600.0, 40.0, &downs, &ups);
     r.PlayGpu(5.0, 40.0, &downs, &ups);  // a try up in the last seconds is back down after two slow windows
     std::fprintf(stderr, "auto level, heavy for 10 minutes: %zu steps down, %zu up, level %s, wait %.0f s\n",
@@ -2167,7 +2211,7 @@ void TestAutoLevel() {
     Check(downs.size() <= 7 && r.a.Level() == 3, "auto level, heavy for 10 minutes: few bounces, ends at 1.5x");
     Check(r.a.Hold() >= 160.0, "auto level, heavy for 10 minutes: the wait grown to minutes");
     for (size_t i = 2; i < ups.size(); i++)
-      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, heavy for 10 minutes: each try up later than the last");
+      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, heavy for 10 minutes: each try later than the last");
   }
   {
     // breaks (06.11.2026): the app menu (no chunks for 20 s), then a room's loading and its programs (3 s slow with
@@ -2195,20 +2239,19 @@ void TestAutoLevel() {
       r.Play(0.5, 30.0, 0);
     Check(r.a.Ups() == 1, "auto level: up");
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again within 15 s of the step up: the next wait 20 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 40.0, "auto level: down again within 60 s of the step up: the next wait 40 s");
     const double downAt = r.t;
     while (r.a.Ups() == 1 && r.t < 400.0)
       r.Play(0.5, 30.0, 0);
-    Check(r.t - downAt >= 15.0, "auto level: the longer wait holds");  // the step down came during the slow part
-    r.Play(59.0, 30.0, 0);
-    Check(r.a.Hold() == 20.0, "auto level: the longer wait kept while the step up holds less than 60 s");
+    Check(r.t - downAt >= 35.0, "auto level: the longer wait holds");  // the step down came during the slow part
+    r.Play(119.0, 30.0, 0);
+    Check(r.a.Hold() == 40.0, "auto level: the longer wait kept while the step up holds less than 120 s");
     r.Play(41.0, 30.0, 0);
-    Check(r.a.Level() == 2, "auto level: never above the screen's level");
-    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level: a step up that held 60 s: the wait back to 10 s");
+    Check(r.a.Level() == 2, "auto level: never above the top");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level: a step up that held 120 s: the wait back to 20 s");
   }
   {
-    // the benchmark's check (0.99.10): a renderer that starts below its top, at the benchmark's level, and still
-    // goes up to the top where the GPU keeps up
+    // a renderer that starts below its top (Start's `from`) still goes up to the top where the GPU keeps up
     AutoRun r;
     r.a.Start(7, 0.0, 2, true, 6, 6);
     Check(r.a.Level() == 6 && r.a.Top() == 7, "auto level: starts at the level asked for, below the top");
@@ -2296,7 +2339,7 @@ void TestAutoLevel() {
       }
     };
     AutoRun r;
-    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x
+    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x (as until 0.99.13: the top above it)
     r.Play(6.5, 20.0, 1);
     r.Play(6.5, 20.0, 1);
     Check(r.a.Level() == 2, "auto level, benchmark 1.5x: down to 1x after a long hitch");
@@ -2320,7 +2363,7 @@ void TestAutoLevel() {
   {
     // 60 FPS (0.99.5, the project owner's reports 08.11.2026, GLES and Vulkan): a heavy moment at 2x took it to 1.5x;
     // then he stood still facing a wall, 60 shown a second, no in-between picture left out, the fences 0.7 behind, and
-    // it never went back up. Now: up again 10-20 s later; a level too heavy goes back within 5 s, and each next try
+    // it never went back up. Now: up again 20 s later; a level too heavy goes back within 5 s, and each next try
     // waits longer (no pendulum); below the top a status line every 10 s says why it stays.
     // `behindOf10`: of every 10 looks that many find the GPU behind; `droppedEvery`: one in-between picture of so many
     // chunks left out (0: none)
@@ -2343,16 +2386,17 @@ void TestAutoLevel() {
     };
     AutoRun r;
     std::vector<std::string> status;
-    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x (the owner's Retroid)
+    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x (the owner's Retroid until 0.99.13)
     play60(r, 6.5, 10, 4, &status);  // heavy: a quarter left out, the GPU behind
     Check(r.a.Level() == 3, "auto level, 60 FPS: a heavy moment takes 2x to 1.5x");
     const double downAt = r.t;
     while (r.a.Ups() == 0 && r.t < downAt + 120.0)
       play60(r, 0.5, 7, 0, &status);  // standing still: none left out, the fences 0.7 behind (as the owner's GLES log)
-    Check(r.a.Level() == 4 && r.t - downAt >= 9.9 && r.t - downAt <= 20.5,
-          "auto level, 60 FPS: steady at 1.5x (none left out, fences 0.7 behind): back at 2x within 10-20 s");
+    // (the step down came at 4 s, the heavy part went on to 6.5 s: 20 s after the step down is 17.5 s after it)
+    Check(r.a.Level() == 4 && r.t - downAt >= 17.4 && r.t - downAt <= 22.5,
+          "auto level, 60 FPS: steady at 1.5x (none left out, fences 0.7 behind): back at 2x 20 s after the step down");
     std::fprintf(stderr, "  auto level, 60 FPS: back at 2x %.1f s after the step down\n", r.t - downAt);
-    Check(!r.lines.empty() && r.lines.back().find("every in-between picture shown") != std::string::npos,
+    Check(!r.lines.empty() && r.lines.back().find("s steady, room for it") != std::string::npos,
           "auto level, 60 FPS: the step up logged");
     bool told = false;
     for (const std::string &l : status)
@@ -2373,7 +2417,8 @@ void TestAutoLevel() {
     for (const std::string &l : lostStatus)
       told = told || l.find("in-between pictures left out") != std::string::npos;
     Check(told, "auto level, 60 FPS: the status names the in-between pictures left out");
-    // too heavy at 2x, fine at 1.5x for 5 minutes: tries 2x again and again, each try later than the last
+    // too heavy at 2x, fine at 1.5x for 5 minutes (no room known, no GPU time: the waits alone): tries 2x again and
+    // again, each try later than the last
     AutoRun swing;
     swing.a.Start(4, 0.0, 2, true, 3);
     std::vector<double> ups;
@@ -2388,7 +2433,7 @@ void TestAutoLevel() {
     }
     std::fprintf(stderr, "  auto level, 60 FPS, 2x too heavy for 5 minutes: %u steps down, %zu up, the wait %.0f s\n",
                  swing.a.Downs(), ups.size(), swing.a.Hold());
-    Check(swing.a.Downs() <= 6 && swing.a.Downs() >= 2, "auto level, 60 FPS: 2x too heavy: few tries in 5 minutes");
+    Check(swing.a.Downs() <= 5 && swing.a.Downs() >= 2, "auto level, 60 FPS: 2x too heavy: few tries in 5 minutes");
     Check(!ups.empty() && ups.front() <= 25.0, "auto level, 60 FPS: the first try within 25 s");
     for (size_t i = 2; i < ups.size(); i++)
       Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, 60 FPS: each try later than the last");
@@ -2405,6 +2450,245 @@ void TestAutoLevel() {
     Check(r.a.Level() == 2, "auto level in halves: 1.5x -> 1x");
     r.Play(10.0, 20.0, 1);
     Check(r.a.Level() == 2, "auto level in halves: never below 1x");
+  }
+}
+
+// 0.99.14 (the project owner's Retroid report 09914-benchmark-dynres): "Dynamic" with the GPU's time a picture, the
+// rooms remembered, menus, movies and loading. A simulated device at 60 FPS: each game picture (30 a second) and its
+// in-between picture take the GPU `ms3x` (its time at 3x) times the level's pixels over 3x's, each picture with up to
+// `jitter` more or less; when the two do not fit into a game picture's 33.4 ms, the in-between picture is left out
+// (the game keeps its pace), and the 60 FPS pacer (SmoothPacer, as core_mode.cpp) pauses them when that comes again
+// and again. The fences stand at 1.0 with 60 FPS whatever the GPU does (the owner's log). Figures of the report: at the
+// dock 2.5x 12.4 ms, 3x 15.3, 3.5x 21; in r333 3x 15.7-17.0, 2.5x 15.4-17.7 at its heaviest; r101 3x 11-15.
+struct GpuRun {
+  re4gx::AutoLevel a;
+  re4gx::SmoothPacer pacer;
+  re4gx::AutoLevel::Sample s;
+  std::mt19937 rng{1234};
+  std::vector<std::string> lines, status;
+  std::vector<double> downs, ups;
+  double jitter = 0.10;
+  bool gpuKnown = true;
+  double gpuFactor = 1.0;  // a timer that reads this many times the GPU's time (a broken one)
+  GpuRun() {
+    s.sixty = true;
+    s.smooth = true;
+  }
+  // `ms3x`: the GPU's time a picture at 3x; `room`; `calm`: menu or movie pictures; `loadMs`: loading on the render
+  // thread a second, and with it `lateShare` of the in-between pictures left out (the render thread busy, not the
+  // GPU); `rate`: game pictures a second (below 30: the processor)
+  void Play(double seconds, double ms3x, int room, bool calm = false, double loadMs = 0.0, double lateShare = 0.0,
+            double rate = 30.0) {
+    std::uniform_real_distribution<double> u(-1.0, 1.0), p(0.0, 1.0);
+    const double end = s.t + seconds;
+    while (s.t < end) {
+      s.t += 1.0 / rate;
+      s.room = room;
+      s.calm = calm;
+      const double pixels = static_cast<double>(a.Level()) * a.Level() / 36.0;
+      const double g1 = ms3x * pixels * (1.0 + jitter * u(rng)), g2 = ms3x * pixels * (1.0 + jitter * u(rng));
+      // (while the pacer pauses them only the game picture is drawn)
+      const bool gpuLate = pacer.Off() ? g1 > 1000.0 / rate : g1 + g2 > 1000.0 / rate;
+      const bool threadLate = lateShare > 0.0 && p(rng) < lateShare;
+      const bool behind = !calm && (gpuLate || threadLate);
+      // (core_mode.cpp: a chunk behind counts as left out, the pacer then says whether to make one: false when behind
+      // or paused)
+      if (behind)
+        s.dropped++;
+      const bool between = !calm && pacer.Chunk(s.t, behind, nullptr);
+      s.smooth = !pacer.Off();
+      s.pauses = pacer.Offs();
+      if (gpuKnown) {
+        s.gpuUs += static_cast<unsigned long long>(g1 * 1000.0 * gpuFactor);
+        s.gpuPictures++;
+        if (between) {
+          s.gpuUs += static_cast<unsigned long long>(g2 * 1000.0 * gpuFactor);
+          s.gpuPictures++;
+        }
+      }
+      s.behindSum += 1;
+      s.behindChecks++;
+      s.loadUs += static_cast<unsigned long long>(loadMs * 1000.0 / rate);
+      const int was = a.Level();
+      std::string why, line;
+      a.Chunk(s, true, &why, &line);
+      if (!why.empty())
+        lines.push_back(why);
+      if (!line.empty())
+        status.push_back(line);
+      if (a.Level() < was)
+        downs.push_back(s.t);
+      if (a.Level() > was)
+        ups.push_back(s.t);
+    }
+  }
+  // the lines so far (a failing check's context)
+  void Dump(const char *why) const {
+    std::fprintf(stderr, "  -- %s: level %s, %zu lines, %zu status lines\n", why, a.Name(a.Level()).c_str(),
+                 lines.size(), status.size());
+    for (const std::string &l : lines)
+      std::fprintf(stderr, "     %s\n", l.c_str());
+    for (const std::string &l : status)
+      std::fprintf(stderr, "     %s\n", l.c_str());
+  }
+  bool Told(const char *what) const {
+    for (const std::string &l : status)
+      if (l.find(what) != std::string::npos)
+        return true;
+    return false;
+  }
+  void Room(double t) { a.Restart(t); }  // core_mode.cpp at a room's start
+};
+
+void TestAutoLevelGpu() {
+  {
+    // the owner's case as 0.99.13 had it, now with the top at the benchmark's 3x: r333 at its heaviest (3x 16.5 ms a
+    // picture): down to 2.5x within seconds; 12 minutes more at the heaviest: no room for 3x (2.5x takes 11.5 ms, 3x
+    // would take about 16.5), never tried
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    if (r.a.Level() != 5)
+      r.Dump("r333");
+    Check(r.a.Level() == 5 && r.downs.size() == 1, "auto level GPU: r333 too heavy for 3x: 2.5x within 10 s");
+    Check(!r.lines.empty() && r.lines.back().find("not tried again in r333") != std::string::npos &&
+              r.lines.back().find("% of 16.7") != std::string::npos,
+          "auto level GPU: the step down names the GPU's share and the room remembered");
+    if (!r.lines.empty())
+      std::fprintf(stderr, "  %s\n", r.lines.back().c_str());
+    r.Play(720.0, 16.5, 0x333);
+    Check(r.a.Level() == 5 && r.downs.size() == 1 && r.ups.empty(),
+          "auto level GPU: 12 minutes in r333 at 2.5x, no try at 3x (no up and down)");
+    Check(r.Told("no room for 3x"), "auto level GPU: the status says why: no room for 3x");
+    // a lighter room: up to 3x once the wait is over (20 s after the step down long past: the quiet 4 s and 16 s)
+    r.Room(r.s.t);
+    const double entered = r.s.t;
+    r.Play(60.0, 11.0, 0x101);
+    Check(r.a.Level() == 6 && r.ups.size() == 1 && r.ups[0] - entered <= 21.0,
+          "auto level GPU: a lighter room (3x 11 ms): 3x within 21 s");
+    r.Play(300.0, 11.0, 0x101);
+    Check(r.a.Level() == 6 && r.downs.size() == 1, "auto level GPU: 5 minutes at 3x in the lighter room, no step down");
+    // back in r333 within 10 minutes of its failure would still be remembered; 13 minutes later it is tried again
+    r.Room(r.s.t);
+    r.Play(30.0, 16.5, 0x333);
+    Check(r.a.Level() == 5 && r.downs.size() == 2, "auto level GPU: back in r333 at its heaviest: 2.5x again");
+    std::fprintf(stderr, "  %s\n", r.a.Summary(r.s.t).c_str());
+    Check(r.a.Summary(r.s.t).find("r333 below 3x") != std::string::npos, "auto level GPU: the summary names r333");
+  }
+  {
+    // a level just at its limit (the dock at 3x: 15.3 ms, 92 %): it stays there, no step down, no step up
+    GpuRun r;
+    r.jitter = 0.05;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(600.0, 15.3, 0x11b);
+    std::fprintf(stderr, "  auto level GPU, 3x at 92 %% for 10 minutes: %zu down, %zu up\n", r.downs.size(), r.ups.size());
+    Check(r.downs.size() <= 1 && r.ups.empty(), "auto level GPU: 3x at 92 % for 10 minutes: at most one step, no pendulum");
+  }
+  {
+    // the pendulum of 0.99.13 (top half a level above the benchmark): top 3.5x over a 3x that holds; 3.5x is tried at
+    // most once in the room, and with the GPU's time not at all once 3x shows no room
+    GpuRun r;
+    r.a.Start(7, 0.0, 2, true, 6);
+    r.Play(600.0, 12.5, 0x101);  // 3x 12.5 ms: 3.5x about 17 ms, more than 16.7
+    std::fprintf(stderr, "  auto level GPU, top 3.5x over a 3x at 12.5 ms, 10 minutes: %zu down, %zu up, level %s\n",
+                 r.downs.size(), r.ups.size(), r.a.Name(r.a.Level()).c_str());
+    Check(r.a.Level() == 6 && r.downs.size() == 1 && r.ups.empty(),
+          "auto level GPU: 3.5x down once to 3x, then never tried again (until 0.99.13: again every 10-40 s)");
+  }
+  {
+    // movies and menus say nothing: below the top, 60 s of a movie (the game's own 60 a second) or a game menu with
+    // the GPU idle: no step up (0.99.13: the ending movie took 2x to 3.5x); then play: up
+    GpuRun movie;
+    movie.a.Start(6, 0.0, 2, true, 6, 4);
+    movie.Play(60.0, 3.0, 0x333, true, 0.0, 0.0, 60.0);
+    Check(movie.a.Level() == 4 && movie.ups.empty(), "auto level GPU: a movie at 2x for 60 s: no step up");
+    Check(movie.Told("a game menu or a movie"), "auto level GPU: the status says the movie is not judged");
+    GpuRun menu;
+    menu.a.Start(6, 0.0, 2, true, 6, 4);
+    menu.Play(60.0, 3.0, 0x333, true);
+    Check(menu.a.Level() == 4 && menu.ups.empty(), "auto level GPU: a game menu for 60 s: no step up");
+    menu.Play(60.0, 8.0, 0x333);
+    Check(menu.a.Level() == 6, "auto level GPU: play after the menu, room to spare: up to 3x");
+  }
+  {
+    // loading (HD textures read on the render thread, shaders made): a fifth of the in-between pictures late while
+    // 60 ms a second are spent loading, the GPU at 60 %: no step down; the same with the GPU's time not measured
+    // (Mali GL): the loading alone keeps it from counting
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(60.0, 10.0, 0x330, false, 60.0, 0.2);
+    Check(r.a.Level() == 6 && r.downs.empty(), "auto level GPU: loading with a fifth late: no step down");
+    GpuRun blind;
+    blind.gpuKnown = false;
+    blind.a.Start(6, 0.0, 2, true, 6);
+    blind.Play(60.0, 10.0, 0x330, false, 60.0, 0.2);
+    Check(blind.a.Level() == 6 && blind.downs.empty(),
+          "auto level GPU: loading, the GPU's time not measured: no step down either");
+    // the same late pictures without the loading figure and without the GPU's time: as until 0.99.13, down
+    GpuRun old;
+    old.gpuKnown = false;
+    old.a.Start(6, 0.0, 2, true, 6);
+    old.Play(60.0, 10.0, 0x330, false, 0.0, 0.2);
+    Check(old.a.Level() < 6, "auto level GPU: late pictures, nothing measured: down (as before)");
+  }
+  {
+    // the processor: the game at 25 pictures a second, the GPU at half its time: no step down, a line says why
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(60.0, 8.0, 0x210, false, 0.0, 0.3, 25.0);
+    Check(r.a.Level() == 6 && r.downs.empty(), "auto level GPU: the processor slow, the GPU idle: no step down");
+    Check(r.Told("not the resolution's doing"), "auto level GPU: the line says the late pictures are not the GPU's");
+  }
+  {
+    // a timer that cannot be trusted (it reads 30 times the GPU's time, as GL's once did with MSAA): not used; the
+    // level goes up as without it
+    GpuRun r;
+    r.gpuFactor = 30.0;
+    r.a.Start(6, 0.0, 2, true, 6, 4);
+    r.Play(60.0, 8.0, 0x101);
+    Check(r.a.Level() == 6, "auto level GPU: an implausible timer is left out, up as without it");
+  }
+  {
+    // the memory over a new renderer: the same top keeps it, another top starts it anew
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    Check(r.a.Level() == 5, "auto level GPU: down in r333");
+    r.a.Start(6, r.s.t, 2, true, 6, 5);
+    Check(r.a.Blocked(6, r.s.t, 0x333) > 0.0 && r.a.Blocked(6, r.s.t, 0x101) == 0.0 && r.a.Blocked(5, r.s.t, 0x333) == 0.0,
+          "auto level GPU: a new renderer with the same top remembers 3x in r333 (not 2.5x, not other rooms)");
+    // where a new renderer starts (core_mode.cpp): in r333 below 3x, elsewhere at the top
+    Check(r.a.StartLevel(6, 6, r.s.t, 0x333, 2) == 5 && r.a.StartLevel(6, 6, r.s.t, 0x101, 2) == 6 &&
+              r.a.StartLevel(6, 6, r.s.t + 601.0, 0x333, 2) == 6 && r.a.StartLevel(7, 7, r.s.t, 0x333, 2) == 7,
+          "auto level GPU: a new renderer in r333 starts at 2.5x, in other rooms, 10 minutes later or with another top "
+          "at the top");
+    r.a.Start(5, r.s.t, 2, true, 5);
+    r.a.Start(6, r.s.t, 2, true, 6);
+    Check(r.a.Blocked(6, r.s.t, 0x333) == 0.0, "auto level GPU: another top in between starts the memory anew");
+  }
+  {
+    // the memory itself: a heavy moment in r333 takes 3x to 2.5x; then r333 light again (3x would take 10 ms: room
+    // enough), but 3x is not tried there for 10 minutes; in another room at once (after the wait); after 10 minutes in
+    // r333 too
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    Check(r.a.Level() == 5, "auto level GPU, memory: a heavy moment in r333: 2.5x");
+    const double downAt = r.downs.empty() ? 0.0 : r.downs.back();
+    r.Play(500.0, 10.0, 0x333);
+    Check(r.a.Level() == 5 && r.ups.empty(), "auto level GPU, memory: r333 light again, 3x not tried there (8 minutes)");
+    Check(r.Told("did not hold in r333"), "auto level GPU, memory: the status says 3x did not hold in r333");
+    r.Play(120.0, 10.0, 0x333);
+    Check(r.a.Level() == 6 && r.ups.size() == 1 && r.ups[0] - downAt >= 599.0 && r.ups[0] - downAt <= 620.0,
+          "auto level GPU, memory: r333 tried at 3x again 10 minutes after it did not hold");
+    GpuRun other;
+    other.a.Start(6, 0.0, 2, true, 6);
+    other.Play(10.0, 16.5, 0x333);
+    other.Room(other.s.t);
+    const double entered = other.s.t;
+    other.Play(40.0, 10.0, 0x334);
+    Check(other.a.Level() == 6 && !other.ups.empty() && other.ups[0] - entered <= 21.0,
+          "auto level GPU, memory: in another room 3x again after the wait (20 s, the quiet 4 s and 16 s steady)");
   }
 }
 
@@ -4482,6 +4766,16 @@ void TestPrewarm() {
 }
 
 int main() {
+  // the rules alone, without a GPU (RE4_CHECK_RULES=1: Dynamic and the benchmark's steps, quick to run)
+  if (const char *rules = std::getenv("RE4_CHECK_RULES")) {
+    if (*rules == '1') {
+      TestAutoLevel();
+      TestAutoLevelGpu();
+      TestBenchSteps();
+      std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
+      return gFailures ? 1 : 0;
+    }
+  }
   Context();
   glGenFramebuffers(1, &gReadFbo);
   TestDecoder();
@@ -4506,6 +4800,7 @@ int main() {
     gr.Release();
   }
   TestAutoLevel();
+  TestAutoLevelGpu();
   TestBenchSteps();
   TestHandOverCopies();
 #ifdef RE4_GX_VULKAN

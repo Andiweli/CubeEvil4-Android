@@ -57,6 +57,10 @@ struct GxStats {
   std::size_t hdBytesNow = 0;
   // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)
   std::uint64_t hdKeyUs = 0, hdReadUs = 0, hdUploadUs = 0;
+  // 0.99.14: the render thread's loading (microseconds, summed): HD textures (UploadHd), shader programs (GL) and
+  // shaders and pipelines (Vulkan) made on it. "Dynamic" (gx_auto_level.h) does not judge a window with much of it:
+  // pictures late while it loads are not the resolution's doing
+  std::uint64_t loadUs = 0;
   unsigned shaderErrors = 0;
   unsigned programsLive = 0;     // programs kept now (at most 3000, RE4_GX_MAX_PROGRAMS)
   unsigned programsDeleted = 0;  // programs deleted that went longest unused (EvictPrograms)
@@ -115,7 +119,8 @@ struct GxStats {
   enum { kSplitDraw, kSplitUniform, kSplitBind, kSplitState, kSplitProgram, kSplitTexture, kSplitBp, kSplitXf,
          kSplitVertices, kSplitRest, kSplitKinds };
   unsigned long long splitNs[kSplitKinds] = {};
-  // GPU time of the chunks (EXT_disjoint_timer_query; 0 when the driver has none)
+  // GPU time of the chunks (EXT_disjoint_timer_query; 0 when the driver has none); since 0.99.14 Vulkan's too (the
+  // timestamps of each frame's work, a picture's, ReadGpuTime), for "Dynamic" (gx_auto_level.h)
   unsigned long long gpuMicros = 0;
   unsigned gpuTimed = 0;
   // the pictures put on the screen (Present, once per display refresh) and their GPU time

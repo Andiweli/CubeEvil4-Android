@@ -3,7 +3,117 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.13-rc (in Arbeit, Branch `09913`, Basis 55ccbeb6; 13.11.2026 origin/09912 971fd1d6 = Release 0.99.12-rc hineingemischt)
+## Version 0.99.14-rc (in Arbeit, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc)
+
+Version 0.99.14-rc (versionCode 116), Releasetext `port/android-decomp/docs/releases/v0.99.14-rc.md` („Changes since
+v0.99.13.“, Known issues aus 0.99.13 übernommen). Nächste freie Patchnummer weiter 0232.
+
+### 1. „Der Benchmark und/oder die dynamische Auflösung klappt nicht“ (Projektinhaber, 13.11.2026)
+
+Bericht `E:\Development\Android\reports\09914-benchmark-dynres\` (Retroid Pocket Flip 2, Adreno 650, 0.99.13-rc,
+Vulkan, 60 FPS, HD-Texturen, Profil Hoch; 14:07–14:32): „Mein Retroid hat maximal x3 gemessen mit HD Texturen. Im
+Spiel wurde dann aber mehrmals auf x3,5 hochgeschalten. Flüssiger wäre es wohl mit maximal x2,5 gelaufen … Falls noch
+eingebaut ist, dass auf Basis des gemessenen Maximalwerts noch einmal +0,5 dazugeschalten wird, nimm das weg.“
+Auswertung mit `09914-timeline.py`, `09914-gputime.py` (Notizordner): Stufenwechsel, Räume, Menüs, Filme, Laden,
+GPU-Zeit je Bild aus der Vulkan-Zeile („GPU work … ms a picture“).
+
+- **Ursachen:**
+  - **+0,5:** `core_mode.cpp` setzte die Obergrenze von „Dynamisch“ eine halbe Stufe über das Benchmark-Ergebnis
+    (Wunsch 06.11.2026). Im Protokoll 34 Stufenwechsel in 25 Minuten (15 hoch, 19 runter); 3,5× hielt im Spiel 4 s
+    bis 2,5 min, dann ging es wieder runter.
+  - **Hochschalten ohne Reserve:** mit 60 FPS reichte „10 s jedes Zwischenbild gezeigt“; das zeigt auch eine Stufe,
+    die gerade an ihrer Grenze läuft. GPU je Bild bei 3×: am Steg 14,4–16,3 ms von 16,7 (86–98 %), in r333 15,7–17,0;
+    3,5× braucht etwa 36 % mehr (am Steg 19–24 ms). Die Schritte runter kamen mit 13–73 % fehlenden Zwischenbildern;
+    der nächste Versuch meist 10–20 s später (die Wartezeit wuchs nur bei einem Rückfall innerhalb von 15 s).
+  - **Benchmark ohne Reserve:** 3× „hielt“ am Steg mit 0–9 fehlenden Zwischenbildern in 10 s bei 86–98 % GPU; die
+    drei Läufe des Berichts ergaben 3×, 2,5×, 3× (an der Grenze). 2,5× brauchte 12–12,8 ms (72–77 %). In r333 hielt
+    selbst 2,5× zeitweise nicht (15,4–17,7 ms).
+  - **Falsch gezählte Fenster:** der Abspann-Film (60 Spielbilder je Sekunde, keine Zwischenbilder) zählte als
+    „ruhig“ (2× → 3,5× in 30 s während des Films), ebenso Spielmenüs (30 FPS ohne Zwischenbilder, so gewollt);
+    Laden auf dem Zeichenfaden (HD-Texturen: 20–320 ms je 5 s beim Raumwechsel, Shader/Pipelines) zählte als
+    „Grafikchip zu langsam“; mit 60 FPS entschieden die Zäune allein, und die stehen dort immer bei 0,7–1,0.
+  - **Pause der Zwischenbilder:** der 60-FPS-Taktgeber pausierte sie 5 s, das Fenster danach sah „ruhig“ aus; langsame
+    und pausierte Fenster wechselten sich ab, eine zu hohe Stufe blieb so 8–10 s.
+  - **Benchmark 2 (Prüfung des Vorschlags) startete nicht**, wenn Benchmark 1 aus dem freien Spiel kam (zweimal im
+    Bericht, „not now“): der Kern lehnte den Start 1–3 Bilder nach dem Raumstart ab (`re4_instant_game_ready` noch
+    falsch). Aus dem Titelmenü lief er.
+- **Behoben, „Dynamisch“ (`gx_auto_level.h`, neu geschrieben; `core_mode.cpp`):**
+  - Obergrenze = gemessene Stufe des Benchmarks (30 oder 60 FPS), nichts darüber (Entscheidung des Projektinhabers).
+    Das App-Menü zeigt dieselbe Grenze (`CoreMenu.dynamicTop`).
+  - Neue Messwerte je Fenster (`AutoLevel::Sample`): **GPU-Zeit je Bild** (`GxStats::gpuMicros/gpuTimed`, jetzt auch
+    unter Vulkan aus den Zeitstempeln, `gx_vk.cpp ReadGpuTime`; GL wie bisher, auf Mali nicht), **Ladezeit** des
+    Zeichenfadens (`GxStats::loadUs`: HD-Texturen in `GxCore::UploadHd`, GL-Programme in `ProgramFor`, Vulkan-Shader
+    und -Pipelines in `Module`/`MakePipeline`), Pausen des 60-FPS-Taktgebers, Menübild (`RE4_GX_CHUNK_STILL`,
+    `gameMenuNow`) oder Film (`ChunkRate::Sixty`), Raum. Ein Zeitmesser, der mehr GPU-Zeit meldet als die Uhr erlaubt
+    (über 125 %), gilt als nicht gemessen.
+  - **Nicht gewertet:** Fenster mit 10 % oder mehr Menü- oder Filmbildern, Fenster mit 30 ms oder mehr Laden.
+  - **Langsam:** unter 28,5 Spielbilder/s, über 10 % ohne Zwischenbild, eine Pause des Taktgebers begann oder deckt ein
+    Viertel des Fensters – und der Grafikchip am Limit: mit GPU-Zeit ab 85 % der Bildzeit (16,7 bzw. 33,4 ms), ohne
+    wie bisher Zäune oder Warten im Treiber. Späte Bilder mit freiem Grafikchip (Prozessor, Zeichenfaden) ändern die
+    Stufe nicht; eine Zeile sagt das (auch an der Obergrenze, höchstens alle 10 s). Zwei langsame Fenster: eine halbe
+    Stufe runter.
+  - **Hoch nur mit Platz:** 8 ruhige Fenster (16 s, bisher 10 s); mit GPU-Zeit muss die nächste Stufe geschätzt (GPU-Zeit
+    × Pixelverhältnis) unter 90 % bleiben; frühestens 20 s nach einem Schritt runter (bisher 10 s), ein Rückfall
+    innerhalb von 60 s (bisher 15 s) verdoppelt das, bis 5 min; nach 120 s Halten zurück auf 20 s.
+  - **Gedächtnis je Raum:** eine Stufe, die in einem Raum nicht hielt, wird dort 10 min nicht wieder versucht (auch
+    nicht von einem neuen Renderer: `StartLevel`, er beginnt dort darunter); andere Räume nach der Wartezeit.
+  - **Protokoll:** jeder Schritt mit Grund und Zahlen („level 3x -> 2.5x (two windows of 2 s too slow: … the GPU
+    16.4 ms a picture (98 % of 16.7) … 60 FPS paused 100 % of the window); 3x not tried again in r333 for 10 min; the
+    next step up in 20 s at the earliest“, „level 2.5x -> 3x (16 s steady, room for it: …)“); unter der Grenze alle
+    10 s „stays at … : no room for 3x: about 16.5 ms a picture there (11.5 here) …“ bzw. „did not hold in r333“,
+    „not judged: … a game menu or a movie“, „… loading …“; bei jedem Raumstart „dynamic resolution: 2.5x of 3x, 1 steps
+    down and 0 up so far; remembered: r333 below 3x (40 s ago); now r101“; beim Start „up to 3x, the benchmark's level
+    for 60 pictures a second (nothing above it)“.
+- **Benchmark (`gx_bench_steps.h`, `core_mode.cpp`):** eine Stufe hält nur noch mit **Reserve**: GPU-Zeit im Mittel
+  höchstens 85 % der Bildzeit, wo gemessen (sonst die alten Regeln). Logzeile je Stufe mit „the GPU 15.3 ms a picture
+  (92 % of 16.7 ms)“ bzw. „smooth, but without a reserve (the GPU over 85 %): not stable“. **Mit den Einstellungen des
+  Spielers messen?** Nein (Begründung im Nachtrag von `port/docs/leistungsprofil-plan.md`): Benchmark 1 misst mit den
+  Grundeinstellungen (HD-Texturen sind dabei an, wenn ein Paket an ist), die Profile geben Extras nach Spielraum,
+  Benchmark 2 prüft mit allen; die Reserve ist auch für FXAA und Texturfilter. Ein späterer teurer Schalter braucht
+  keinen neuen Benchmark: „Dynamisch“ geht eine Stufe tiefer und merkt sich den Raum.
+- **Kern (`runtime/benchmark.cpp`):** ein Start aus dem Spiel wartet bis zu 150 Bilder (5 s) auf freies Spiel
+  („benchmark: waiting for free play in r101“, „free play after N frames“), statt sofort „not now“; Zustand bleibt
+  dabei 0 (Gegner nicht angehalten), B/Zurück bricht ab. Ereignis, Menü, Bosskampf: weiter „not now“, 5 s später.
+  Prüfhilfe `RE4_TEST_BENCH` kennt „done+N“ (N Bilder nach dem ersten „done“).
+- **App:** einmal neu messen nach dem Update (`PerfProfile.BENCH_RESERVE` fehlt → `redoDue`, `REDO_RESERVE` 14; auch
+  wer für 0.99.12 schon neu gemessen hat), derselbe Ablauf wie 0.99.12; Popup 1 nennt den neuen Grund
+  (`ingame_bench_redo_text`, 11 Sprachen, zweiter Satz unverändert).
+- **60 FPS für den Renderer aufgegeben** (`smoothTooSlow`): „Dynamisch“ wertet dann wie 30 FPS (33,4 ms je Bild).
+- **Geprüft am PC** (WSL-Baum `~/re4-09914` = e72b2c80 + Arbeitsdateien; Skripte `09914-*` im Notizordner):
+  - `gx_gl_check`: GL 0 Fehler, Vulkan (lavapipe, gebaut mit clang wie bisher) 0 Fehler. Neu: Schnellprüfung nur der
+    Regeln (`RE4_CHECK_RULES=1`). `TestAutoLevel` mit den neuen Zeiten (hoch frühestens 20 s nach einem Schritt
+    runter und nach 16 s ruhig; Rückfall → 40 s; nach 120 s Halten wieder 20 s; schwer–leicht–schwer: zurück auf 2×
+    28,9 s in die leichte Strecke, vorher bis 25 s; 10 min zu schwer: 6 Schritte runter, Wartezeit bis 300 s).
+  - Neu `TestAutoLevelGpu` (simuliertes Gerät mit 60 FPS: GPU-Zeit je Stufe nach Pixeln, ±10 %, der echte
+    Taktgeber der Zwischenbilder): r333 mit 3× bei 16,5 ms → 2,5× in 4 s, dann 12 min kein Versuch auf 3× („no room
+    for 3x“); leichter Raum danach (3× 11 ms) → 3× nach höchstens 21 s, 5 min ohne Schritt; 3× bei 92 % 10 min: kein
+    Schritt; Obergrenze 3,5× über einem 3×, das hält (die Lage von 0.99.13): einmal runter, nie wieder hoch; Film und
+    Spielmenü 60 s unter der Grenze: kein Schritt hoch; Laden mit einem Fünftel späten Zwischenbildern: kein Schritt
+    runter, auch ohne GPU-Zeit (ohne Laden-Angabe und ohne GPU-Zeit: runter wie bisher); Prozessor (25 Bilder/s, GPU
+    halb frei): kein Schritt, die Zeile „not the resolution's doing“; ein Zeitmesser mit 30-facher Zeit: nicht
+    benutzt; Gedächtnis: r333 nach einem schweren Moment 8 min leicht → 3× nicht versucht, nach 10 min wieder; anderer
+    Raum nach der Wartezeit; neuer Renderer mit gleicher Grenze merkt es, `StartLevel` in r333 2,5×, sonst oben.
+  - `TestBenchSteps`: Retroid am Steg mit den Zahlen des Berichts → 4× (30) und **2,5× (60)**, 3× „smooth, but
+    without a reserve“; ohne GPU-Zeit wie bisher 3×; 30er mit 90 % bei 4× → 3,5×; alle alten Fälle unverändert.
+  - **Nachspielung des Berichts** (`09914-replay_extract.py`, `09914-replay_dynres.cpp`, Ergebnis `09914-replay.txt`):
+    Zeitleiste aus dem Protokoll (Räume, Menüs, Filme, Laden, GPU-Zeit je 5–10 s auf 3× umgerechnet), Gerät als
+    Modell (GPU-Zeit ∝ Stufe^1,6, ±20 %, Zwischenbild fehlt, wenn beide Bilder nicht in 33,4 ms passen oder ein Chunk
+    über 8 ms lädt; echter Taktgeber). Alte Regel: 25 runter, 19 hoch, 4,5 % ohne Zwischenbild (Protokoll: 19/15, das
+    Modell trifft die Größenordnung); neue Regel mit den Benchmark-Werten des Berichts (3×/2,5×/3×): 4 runter, 2 hoch,
+    1,0 %; neue Regel mit 2,5× (Benchmark mit Reserve): ein Schritt (r333 2,5× → 2×), 0,3 %.
+  - Kern i686 -O2 (`whole_build.sh i686`): alle Prüfungen grün. Benchmark-Start direkt nach der Rückkehr (Debug-Discs,
+    Debug-Start r101, `RE4_TEST_BENCH`, `09914-bench_runs.sh`): **alter Kern** (0.99.13) 2 Bilder nach dem Raumstart
+    „not now“ (wie auf dem Retroid); **neuer Kern** „waiting for free play in r101“, nach 13 Bildern frei, zum Steg und
+    zurück (auch „done+1“); Start mitten im Eröffnungsereignis von r101: nach 150 Bildern „not now“.
+    `whole_build_android.sh --abi all` 0 Fehler (Stubs wie erwartet).
+  - App: `gradlew :app:externalNativeBuildCoreDebug` ohne Fehler, keine neue Warnung; App-Tests beider Varianten je
+    133 grün (1 bzw. 2 übersprungen), `BenchmarkRedoTest` neu: Neu-Messen auch für Benchmarks von 0.99.12/13, nicht
+    zweimal, nicht mit Reserve-Marke, `dynamicTop`; `check_translations.py` 420 Texte ohne Befund.
+- **Nicht geprüft:** auf dem Retroid (der neue Benchmark, die Schritte im Spiel, der Start von Benchmark 2 aus dem
+  freien Spiel auf dem Gerät, das Neu-Messen nach dem Update); GL mit Zeitmessern auf einem Gerät (nur Vulkan im
+  Bericht); Mali mit OpenGL ES (ohne GPU-Zeit: die alten Regeln mit den neuen Wartezeiten und dem Gedächtnis).
+
+## Version 0.99.13-rc (veröffentlicht 13.11.2026, Branch `09913`, Basis 55ccbeb6; 13.11.2026 origin/09912 971fd1d6 = Release 0.99.12-rc hineingemischt)
 
 Version 0.99.13-rc (versionCode 115), Releasetext `port/android-decomp/docs/releases/v0.99.13-rc.md` („Changes since
 v0.99.12.“, Known issues aus 0.99.12 übernommen). Nächste freie Patchnummer weiter 0232.

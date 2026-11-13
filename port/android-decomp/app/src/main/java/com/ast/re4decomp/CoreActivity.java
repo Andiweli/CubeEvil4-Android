@@ -2039,10 +2039,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    *  either starts with Custom as the active profile (the settings as they are). */
   private void perfFirstRun(SharedPreferences g) {
     if (g.contains(PerfProfile.FIRST)) {
-      // 0.99.12: a benchmark of before (no processor share) is made again once, as on the first start
+      // 0.99.12: a benchmark of before (no processor share) is made again once, as on the first start; 0.99.14 the same
+      // for one without the GPU's reserve
       if (PerfProfile.scheduleRedo(g)) {
-        Log.i(TAG, "performance profiles: a benchmark of before 0.99.12 (no processor share): measured again once the "
-            + "title's menu waits");
+        Log.i(TAG, "performance profiles: a benchmark of before 0.99.14 (no reserve for the GPU): measured again once "
+            + "the title's menu waits");
       }
       return;
     }

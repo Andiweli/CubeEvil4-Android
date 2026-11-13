@@ -1448,6 +1448,8 @@ struct GlRenderer final : GxCore {
     const std::size_t cap = merged ? maxMerged : maxPrograms;
     if (map.size() >= cap)
       EvictPrograms(map, cap * 3 / 4);
+    // (made now, on the render thread: loading for "Dynamic", GxStats::loadUs)
+    const auto madeAt = std::chrono::steady_clock::now();
     Program p;
     std::string log;
     const std::string vs = merged ? GxMergedVertexShader(k) : GxVertexShader(k), fs = GxFragmentShader(k);
@@ -1501,6 +1503,8 @@ struct GlRenderer final : GxCore {
     auto &slot = map[k];
     slot = p;
     stats.programsLive = static_cast<unsigned>(programs.size() + mergedPrograms.size());
+    stats.loadUs += static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - madeAt).count());
     return slot.id ? &slot : nullptr;
   }
 

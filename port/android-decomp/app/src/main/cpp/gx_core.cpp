@@ -2750,6 +2750,7 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     e = nullptr;
   const Clock::time_point t1 = Clock::now();
   stats.hdKeyUs += us(t0, t1);
+  stats.loadUs += us(t0, t1);
   // RE4_TEX_PACK_DUMP=<folder>: the game's own first level of each replaced texture as RGBA8 (<hash>_<w>x<h>.rgba)
   static const char *dumpDir = std::getenv("RE4_TEX_PACK_DUMP");
   if (e && dumpDir) {
@@ -2787,6 +2788,7 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
   }
   const Clock::time_point t2 = Clock::now();
   stats.hdReadUs += us(t1, t2);
+  stats.loadUs += us(t1, t2);
   const unsigned levels = e->levels - first;
   std::size_t gpuBytes = need;
   unsigned id = BeginCompressed(e->encoding, w, h, levels);
@@ -2830,7 +2832,11 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     }
   }
   EndTexture(id, levels);
-  stats.hdUploadUs += us(t2, Clock::now());
+  {
+    const std::uint64_t up = us(t2, Clock::now());
+    stats.hdUploadUs += up;
+    stats.loadUs += up;
+  }
   tex.id = id;
   tex.width = t.width;
   tex.height = t.height;

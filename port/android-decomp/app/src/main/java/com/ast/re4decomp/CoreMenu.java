@@ -2141,13 +2141,19 @@ final class CoreMenu extends Dialog {
     return Math.min(448, (int) (336.0 * 16.0 / 9.0 / a + 0.5) & ~1);
   }
 
+  /** "Dynamic"'s highest level (halves), as core_mode.cpp takes it: the benchmark's level `cap` for 30 or 60 FPS
+   *  (since 0.99.14 nothing above it; until 0.99.13 half a level more), without one the screen's (`screen`, whole
+   *  levels, autoScale). */
+  static int dynamicTop(int cap, int screen) {
+    return cap >= 2 && cap <= 8 ? cap : 2 * screen;
+  }
+
   /** The resolution the chosen level gives. */
   private void showGraphics() {
     int chosen = scaleHalves(graphics), halves = chosen;
     if (halves < 2 || halves > 8) {
-      // Dynamic: half a level above the benchmark's level for 30 or 60 FPS (4x at most; core_mode.cpp), else the screen's
       int cap = graphics.getInt(graphics.getBoolean("smooth60", false) ? DYN_CAP_60 : DYN_CAP_30, 0);
-      halves = cap >= 2 && cap <= 8 ? Math.min(8, cap + 1) : 2 * autoScale(screenWidth, screenHeight);
+      halves = dynamicTop(cap, autoScale(screenWidth, screenHeight));
     }
     int rows = pictureRows(graphics.getInt("aspect", 0), screenWidth, screenHeight);
     // the numbers as digits 0..9 in every language (Locale.ROOT), the level with the language's separator

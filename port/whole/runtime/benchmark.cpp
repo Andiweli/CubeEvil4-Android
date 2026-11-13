@@ -60,6 +60,12 @@ f32 kEye = 2000.0f;                // the view's height over Leon's feet, lookin
 const f32 kLook = 1100.0f;         // what it looks at: Leon's chest
 const unsigned kRound = 600;       // game frames a round (20 s)
 const unsigned kSettle = 90;       // free frames at the place before it counts as ready
+// 0.99.14: frames a start from the game waits for free play before it is refused. The project owner's Retroid
+// (report 09914-benchmark-dynres): the benchmark's second part (the check, asked right after the first part brought
+// the game back) came 1-3 frames after the room had started again and was refused ("not now") every time the
+// benchmark began in free play; from the title it ran. Waiting 5 s lets the room settle; an event, a menu or a boss
+// fight still ends in "not now", only 5 s later.
+const unsigned kReadyWait = 150;
 const unsigned kBufferBytes = 0x12000;
 
 std::atomic<int> gState(kIdle);
@@ -68,6 +74,7 @@ unsigned char* gSave;              // the game as it was (an instant save in mem
 unsigned char* gPlace;             // the place's save, host order
 bool gFromTitle;
 unsigned gLogoWait;                // frames the start waited for the title's menu (0: not waiting)
+unsigned gReadyWait;               // frames the start waited for free play (0: not waiting; kReadyWait)
 bool gResetAsked;                  // the soft reset to the title was asked for
 bool gHooked;
 unsigned gArrived;                 // frames since the place's load was handed over
@@ -93,6 +100,9 @@ void release()
 
 void go()
 {
+    // (every way out of here ends a wait for free play, except the one that starts it)
+    const unsigned waited = gReadyWait;
+    gReadyWait = 0;
     if (!pG) {
         gState = kRefused;
         return;
@@ -109,9 +119,20 @@ void go()
     gFromTitle = re4_instant_game_at_title() != 0;
     if (!gFromTitle) {
         if (!re4_instant_game_ready()) {
+            // in the game but not free yet (a room just started, a door, the menu closing): wait a little first (the
+            // state stays idle meanwhile: the enemies are not held, the app waits for the place)
+            if (waited == 0 && pG->Rno0 == 3 && !StaFlagChk(pG, STA_TITLE)) {
+                gReadyWait = 1;
+                re4_log("benchmark: waiting for free play in r%03x (at most %u frames)", (unsigned) G_ROOM_ID,
+                        kReadyWait);
+                return;
+            }
             gState = kRefused;
             re4_log("benchmark: not now (neither free play at a place the instant save takes nor the title's menu)");
             return;
+        }
+        if (waited > 1) {
+            re4_log("benchmark: free play after %u frames", waited - 1);
         }
         gSave = (unsigned char*) malloc(kBufferBytes);
         if (!gSave || re4_instant_game_capture(gSave) != 0) {
@@ -185,7 +206,10 @@ void hook(unsigned)
             go();
         }
     } else if (ask == 22) {
-        if (gLogoWait) {
+        if (gReadyWait) {
+            gReadyWait = 0;  // cancelled while it waited for free play: nothing loaded yet
+            gState = kDone;
+        } else if (gLogoWait) {
             gLogoWait = 0;  // cancelled while the logos ran: nothing loaded yet
             gState = kDone;
         } else if (gState == kGoing || gState == kReady) {
@@ -193,6 +217,13 @@ void hook(unsigned)
         } else if (gState != kBack) {
             gState = kDone;
         }
+    }
+    if (gReadyWait) {
+        // waiting for free play (0.99.14): go() again each frame until it starts or the wait is over
+        if (re4_instant_game_ready() || re4_instant_game_at_title() || ++gReadyWait > kReadyWait) {
+            go();
+        }
+        return;
     }
     if (gLogoWait) {
         // waiting for the title's menu: START during the logos (not during the card check, step 1), at most 20 s
@@ -285,6 +316,7 @@ int re4_bench_command(int what)
     if (what == 20) {
         gState = kIdle;
         gLogoWait = 0;
+        gReadyWait = 0;
     }
     gAsk = what;
     return 3;  // queued

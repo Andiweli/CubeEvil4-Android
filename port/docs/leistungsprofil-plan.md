@@ -186,3 +186,22 @@ Projektinhabers geklärt: ja, dazu FXAA, nach Spielraum.)
 2. **Abbrechen beim ersten Start:** Darf man den ersten Benchmark mit B/Zurück abbrechen? Empfehlung: **ja**, dann
    spielt man mit den Standardwerten, und die Messung wird beim nächsten Start wieder angeboten, bis sie einmal
    durchgelaufen ist.
+
+## Nachtrag 0.99.14: Reserve im Benchmark, „Dynamisch“ bis zur gemessenen Stufe (13.11.2026)
+
+Bericht des Projektinhabers (Retroid, 0.99.13, Vulkan, 60 FPS, HD-Texturen; `reports\09914-benchmark-dynres`):
+gemessen 3×, gespielt mit 3,5× und ständigem Hin und Her. Einzelheiten: `whole-program-status.md`, Version 0.99.14.
+
+- **Reserve:** Eine Stufe hält im Benchmark nur noch, wenn der Grafikchip dabei höchstens **85 %** der Zeit eines
+  Bildes braucht (16,7 ms bei 60 FPS, 33,4 ms bei 30; gemessen mit den Zeitstempeln von Vulkan bzw. den Zeitmessern
+  von OpenGL ES, nicht auf Mali mit OpenGL ES: dort gilt die alte Regel). Der Retroid hielt 3× am Steg mit 86–98 %,
+  in schwereren Räumen (r333) nicht; 2,5× brauchte 72–77 %.
+- **Obergrenze:** „Dynamisch“ geht nur noch bis zur gemessenen Stufe, nicht mehr eine halbe darüber (Entscheidung des
+  Projektinhabers, 13.11.2026).
+- **Mit den Einstellungen des Spielers messen?** Nein: Benchmark 1 misst weiter mit den Grundeinstellungen (die
+  Profile entscheiden danach über MSAA, FXAA, Filter, Bloom nach Spielraum), Benchmark 2 prüft den Vorschlag mit
+  allen Extras. HD-Texturen sind dabei schon eingeschaltet, wenn ein Paket an ist. Die Reserve ist auch für FXAA und
+  den Texturfilter gedacht (ob sie überall reicht, zeigt Benchmark 2); MSAA kommt ohnehin nur bei Spielraum über der
+  Bildschirmstufe. Ändert der Spieler später selbst etwas
+  Teures, fängt „Dynamisch“ das auf (eine Stufe tiefer, im Raum gemerkt); ein neuer Benchmark ist dafür nicht nötig.
+- **Neu messen nach dem Update:** einmal, wie in 0.99.12 (`PerfProfile.BENCH_RESERVE` fehlt → `redoDue`).

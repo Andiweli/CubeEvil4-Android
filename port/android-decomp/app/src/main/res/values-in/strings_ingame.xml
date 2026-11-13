@@ -372,7 +372,7 @@
     <string name="ingame_limit_none">tidak ada yang mencolok</string>
     <string name="ingame_bench_welcome">Selamat datang di CubeEvil4</string>
     <string name="ingame_bench_redo">Ukur lagi</string>
-    <string name="ingame_bench_redo_text">Baru: benchmark kini juga mengukur prosesor, agar saran lebih cocok untuk perangkat ini. Pengaturanmu tetap seperti adanya selama kamu tidak menerima saran baru.</string>
+    <string name="ingame_bench_redo_text">Baru: benchmark kini menyisakan cadangan untuk tempat yang lebih berat, agar resolusi tetap stabil saat kamu bermain. Pengaturanmu tetap seperti adanya selama kamu tidak menerima saran baru.</string>
     <string name="ingame_bench_text">Aplikasi mengukur kemampuan perangkat ini dan menyarankan pengaturan terbaik. Untuk itu permainan pergi ke dermaga danau (hujan, air, kabut) dan kamera berputar mengelilingi karakter. Butuh sekitar 2–3 menit; suara mati. Setelahnya kamu kembali ke tempat semula. B / Kembali membatalkan.</string>
     <string name="ingame_bench_first_note">Akan ditawarkan lagi saat mulai berikutnya.</string>
     <string name="ingame_bench_start">Mulai mengukur</string>

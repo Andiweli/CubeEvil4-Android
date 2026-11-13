@@ -390,7 +390,7 @@
     <string name="ingame_limit_none">nothing noticeable</string>
     <string name="ingame_bench_welcome">Welcome to CubeEvil4</string>
     <string name="ingame_bench_redo">Measure again</string>
-    <string name="ingame_bench_redo_text">New: the benchmark now also measures the processor, so the suggestion fits this device better. Your settings stay as they are unless you accept the new suggestion.</string>
+    <string name="ingame_bench_redo_text">New: the benchmark now leaves a reserve for heavier places, so the resolution stays steady while you play. Your settings stay as they are unless you accept the new suggestion.</string>
     <string name="ingame_bench_text">The app measures what this device can do and suggests the best settings. The game goes to the lake\'s dock for it (rain, water, fog) and the view turns around the player. It takes about 2–3 minutes; the sound is off. Afterwards you are back where you were. B / Back cancels.</string>
     <string name="ingame_bench_first_note">It is offered again at the next start.</string>
     <string name="ingame_bench_start">Start measuring</string>

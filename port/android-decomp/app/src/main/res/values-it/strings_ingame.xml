@@ -377,7 +377,7 @@
     <string name="ingame_limit_none">niente di particolare</string>
     <string name="ingame_bench_welcome">Benvenuto in CubeEvil4</string>
     <string name="ingame_bench_redo">Misura di nuovo</string>
-    <string name="ingame_bench_redo_text">Novità: il benchmark ora misura anche il processore, così il suggerimento si adatta meglio a questo dispositivo. Le tue impostazioni restano come sono finché non accetti il nuovo suggerimento.</string>
+    <string name="ingame_bench_redo_text">Novità: il benchmark ora lascia una riserva per i punti più pesanti, così la risoluzione resta stabile mentre giochi. Le tue impostazioni restano come sono finché non accetti il nuovo suggerimento.</string>
     <string name="ingame_bench_text">L\'app misura cosa può fare questo dispositivo e suggerisce le impostazioni migliori. Il gioco va al pontile del lago (pioggia, acqua, nebbia) e la visuale ruota attorno al personaggio. Ci vogliono circa 2–3 minuti; l\'audio è spento. Poi torni dove eri. B / Indietro annulla.</string>
     <string name="ingame_bench_first_note">Verrà proposto di nuovo al prossimo avvio.</string>
     <string name="ingame_bench_start">Avvia la misura</string>
