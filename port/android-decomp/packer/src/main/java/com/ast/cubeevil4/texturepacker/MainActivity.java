@@ -63,6 +63,14 @@ public final class MainActivity extends Activity {
     long free;
   }
 
+  /**
+   * Text sizes in sp, a step above Android's defaults, and light text on a near-black ground (wish of the project owner,
+   * 13.11.2026: "minimal größerer Text, er ist schwer lesbar"): body text 17 sp instead of 15; #EDEDED on #121212 is
+   * about 16:1, the dimmed text of switched-off rows #8E8E8E about 5.6:1 (WCAG asks 4.5:1).
+   */
+  static final float TITLE_SP = 24, HEADING_SP = 19, BODY_SP = 17, BUTTON_SP = 17, REPORT_SP = 14;
+  static final int BACKGROUND = 0xFF121212, TEXT = 0xFFEDEDED, HEADING = 0xFFFFFFFF, DIMMED = 0xFF8E8E8E;
+
   private final List<Volume> volumes = new ArrayList<>();
   private double units;
   private Summary shownChoices;
@@ -70,7 +78,7 @@ public final class MainActivity extends Activity {
   private Button zip, folder, start, cancel, importButton, reportButton;
   private TextView status, progressText, doneText, spaceNote;
   private ProgressBar busy, bar;
-  private LinearLayout choicesBox, variants, progressBox, doneBox;
+  private LinearLayout choicesBox, variants, actions, progressBox, doneBox;
   private RadioGroup sizes, where;
   private final RadioButton[] sizeButtons = new RadioButton[Estimates.SIZES.length];
 
@@ -102,23 +110,57 @@ public final class MainActivity extends Activity {
     return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics()));
   }
 
+  /** Light text, dimmed while its row is switched off. */
+  static android.content.res.ColorStateList textColors(int color) {
+    return new android.content.res.ColorStateList(new int[][] {{-android.R.attr.state_enabled}, {}},
+        new int[] {DIMMED, color});
+  }
+
   private TextView text(ViewGroup parent, String s, float sp, boolean bold) {
     TextView t = new TextView(this);
     t.setText(s);
     t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+    t.setTextColor(textColors(bold ? HEADING : TEXT));
     if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
+    t.setLineSpacing(0, 1.1f);
     t.setPadding(0, dp(6), 0, dp(6));
     parent.addView(t);
     return t;
+  }
+
+  /** A radio button or check box with the larger text. */
+  private <T extends android.widget.CompoundButton> T choice(T c) {
+    c.setTextSize(TypedValue.COMPLEX_UNIT_SP, BODY_SP);
+    c.setTextColor(textColors(TEXT));
+    c.setPadding(c.getPaddingLeft(), dp(6), c.getPaddingRight(), dp(6));
+    return c;
   }
 
   private Button button(ViewGroup parent, int text, View.OnClickListener click) {
     Button b = new Button(this);
     b.setText(text);
     b.setAllCaps(false);
+    b.setTextSize(TypedValue.COMPLEX_UNIT_SP, BUTTON_SP);
     b.setOnClickListener(click);
     parent.addView(b);
     return b;
+  }
+
+  /**
+   * Two buttons side by side, each on one half of the width (wish of the project owner, 13.11.2026); a longer text
+   * wraps to a second line, both buttons then grow to the same height.
+   */
+  private Button[] pair(ViewGroup parent, int first, View.OnClickListener firstClick, int second,
+      View.OnClickListener secondClick) {
+    LinearLayout row = new LinearLayout(this);
+    row.setOrientation(LinearLayout.HORIZONTAL);
+    row.setBaselineAligned(false);
+    parent.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
+    Button a = button(row, first, firstClick), b = button(row, second, secondClick);
+    a.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+    b.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+    return new Button[] {a, b};
   }
 
   private LinearLayout column(ViewGroup parent) {
@@ -131,32 +173,31 @@ public final class MainActivity extends Activity {
   private void build() {
     ScrollView scroll = new ScrollView(this);
     scroll.setFitsSystemWindows(true);
+    scroll.setBackgroundColor(BACKGROUND);
     LinearLayout page = new LinearLayout(this);
     page.setOrientation(LinearLayout.VERTICAL);
     page.setPadding(dp(16), dp(12), dp(16), dp(24));
     scroll.addView(page);
-    LinearLayout limit = page;
-    text(limit, getString(R.string.app_name), 22, true);
-    text(limit, getString(R.string.packer_intro), 15, false);
-    text(limit, getString(R.string.packer_legal), 15, false);
+    text(page, getString(R.string.app_name), TITLE_SP, true);
+    text(page, getString(R.string.packer_intro), BODY_SP, false);
+    text(page, getString(R.string.packer_legal), BODY_SP, false);
 
-    LinearLayout pick = new LinearLayout(this);
-    pick.setOrientation(LinearLayout.HORIZONTAL);
-    limit.addView(pick);
-    zip = button(pick, R.string.packer_choose_zip, v -> choose(false));
-    folder = button(pick, R.string.packer_choose_folder, v -> choose(true));
+    Button[] pick = pair(page, R.string.packer_choose_zip, v -> choose(false), R.string.packer_choose_folder,
+        v -> choose(true));
+    zip = pick[0];
+    folder = pick[1];
     busy = new ProgressBar(this);
     busy.setIndeterminate(true);
-    limit.addView(busy, new LinearLayout.LayoutParams(dp(36), dp(36)));
-    status = text(limit, "", 15, false);
+    page.addView(busy, new LinearLayout.LayoutParams(dp(36), dp(36)));
+    status = text(page, "", BODY_SP, false);
 
-    choicesBox = column(limit);
+    choicesBox = column(page);
     variants = column(choicesBox);
-    text(choicesBox, getString(R.string.packer_size), 17, true);
+    text(choicesBox, getString(R.string.packer_size), HEADING_SP, true);
     sizes = new RadioGroup(this);
     choicesBox.addView(sizes);
     for (int i = 0; i < Estimates.SIZES.length; i++) {
-      RadioButton r = new RadioButton(this);
+      RadioButton r = choice(new RadioButton(this));
       r.setId(View.generateViewId());
       final int size = Estimates.SIZES[i];
       r.setOnClickListener(v -> {
@@ -166,22 +207,31 @@ public final class MainActivity extends Activity {
       sizes.addView(r);
       sizeButtons[i] = r;
     }
-    text(choicesBox, getString(R.string.packer_where), 17, true);
+    text(choicesBox, getString(R.string.packer_where), HEADING_SP, true);
     where = new RadioGroup(this);
     choicesBox.addView(where);
-    spaceNote = text(choicesBox, "", 15, false);
-    start = button(choicesBox, R.string.packer_start, v -> start());
+    spaceNote = text(choicesBox, "", BODY_SP, false);
 
-    progressBox = column(limit);
+    // Start and Cancel side by side; the progress below them
+    actions = new LinearLayout(this);
+    actions.setOrientation(LinearLayout.VERTICAL);
+    page.addView(actions);
+    Button[] run = pair(actions, R.string.packer_start, v -> start(), R.string.packer_cancel,
+        v -> ConvertService.cancel());
+    start = run[0];
+    cancel = run[1];
+
+    progressBox = column(page);
     bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
     progressBox.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(24)));
-    progressText = text(progressBox, "", 15, false);
-    cancel = button(progressBox, R.string.packer_cancel, v -> ConvertService.cancel());
+    progressText = text(progressBox, "", BODY_SP, false);
 
-    doneBox = column(limit);
-    doneText = text(doneBox, "", 15, false);
-    importButton = button(doneBox, R.string.packer_import, v -> importIntoCubeEvil4());
-    reportButton = button(doneBox, R.string.packer_report, v -> showReport());
+    doneBox = column(page);
+    doneText = text(doneBox, "", BODY_SP, false);
+    Button[] end = pair(doneBox, R.string.packer_report, v -> showReport(), R.string.packer_import,
+        v -> importIntoCubeEvil4());
+    reportButton = end[0];
+    importButton = end[1];
     setContentView(scroll);
   }
 
@@ -230,6 +280,8 @@ public final class MainActivity extends Activity {
       r.setEnabled(ready);
     }
     renderWhere(ready);
+    show(actions, ready || converting);
+    cancel.setEnabled(converting);
 
     show(progressBox, converting);
     if (converting) {
@@ -247,7 +299,7 @@ public final class MainActivity extends Activity {
       String line = getString(R.string.packer_done, Job.resultName, bytes(this, Job.resultBytes), duration(Job.seconds))
           + "\n" + getString(R.string.packer_done_hint);
       doneText.setText(line);
-      show(reportButton, Job.report != null);
+      reportButton.setEnabled(Job.report != null);
     }
   }
 
@@ -263,25 +315,34 @@ public final class MainActivity extends Activity {
   private void buildVariants(Summary s) {
     variants.removeAllViews();
     if (s.groups.isEmpty()) return;
-    text(variants, getString(R.string.packer_choices), 17, true);
+    text(variants, getString(R.string.packer_choices), HEADING_SP, true);
     for (int g = 0; g < s.groups.size(); g++) {
       final int group = g;
       Summary.Group sg = s.groups.get(g);
       if (sg.addOn) {
-        CheckBox add = new CheckBox(this);
+        CheckBox add = choice(new CheckBox(this));
         add.setText(sg.name + ": " + getString(R.string.packer_add));
         add.setChecked(Job.choices.length > g && Job.choices[g] == 0);
         add.setOnCheckedChangeListener((b, on) -> choose(group, on ? 0 : -1));
         variants.addView(add);
         continue;
       }
-      text(variants, sg.name, 15, false);
+      text(variants, sg.name, BODY_SP, false);
       List<String> names = new ArrayList<>();
       names.add(getString(R.string.packer_as_main));
       for (int v = 0; v < sg.variants.size(); v++)
         names.add(sg.sameAsMain.get(v) ? getString(R.string.packer_same_as_main, sg.variants.get(v)) : sg.variants.get(v));
       Spinner spinner = new Spinner(this);
-      spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
+      ArrayAdapter<String> list = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, names) {
+        @Override public View getView(int position, View convert, ViewGroup parent) {
+          return styled(super.getView(position, convert, parent));
+        }
+        @Override public View getDropDownView(int position, View convert, ViewGroup parent) {
+          return styled(super.getDropDownView(position, convert, parent));
+        }
+      };
+      list.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+      spinner.setAdapter(list);
       spinner.setSelection(Job.choices.length > g ? Job.choices[g] + 1 : 0, false);
       spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
         @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -291,6 +352,25 @@ public final class MainActivity extends Activity {
       });
       variants.addView(spinner);
     }
+  }
+
+  /** A list entry of a choice with the larger text (it may wrap: long variant names stay whole). */
+  private View styled(View v) {
+    if (v instanceof TextView) {
+      TextView t = (TextView) v;
+      t.setTextSize(TypedValue.COMPLEX_UNIT_SP, BODY_SP);
+      t.setTextColor(textColors(TEXT));
+      t.setSingleLine(false);
+      t.setEllipsize(null);
+      t.setMinHeight(dp(48));
+      t.setGravity(android.view.Gravity.CENTER_VERTICAL | android.view.Gravity.START);
+      ViewGroup.LayoutParams lp = t.getLayoutParams();
+      if (lp != null && lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+        lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        t.setLayoutParams(lp);
+      }
+    }
+    return v;
   }
 
   private void choose(int group, int variant) {
@@ -305,7 +385,18 @@ public final class MainActivity extends Activity {
   private void findVolumes() {
     volumes.clear();
     if (Build.VERSION.SDK_INT < 29) return;
-    findVolumes29();
+    try {
+      findVolumes29();
+    } catch (RuntimeException e) {
+      Log.w(TAG, "storages: " + e);
+    }
+  }
+
+  /** The storages to offer (the screen tests, PackerScreenTest). */
+  void useVolumes(List<Volume> list) {
+    volumes.clear();
+    volumes.addAll(list);
+    render();
   }
 
   @TargetApi(29)
@@ -344,7 +435,7 @@ public final class MainActivity extends Activity {
     if (where.getChildCount() != volumes.size()) {
       where.removeAllViews();
       for (int i = 0; i < volumes.size(); i++) {
-        RadioButton r = new RadioButton(this);
+        RadioButton r = choice(new RadioButton(this));
         r.setId(View.generateViewId());
         r.setOnClickListener(v -> render());
         where.addView(r);
@@ -578,7 +669,7 @@ public final class MainActivity extends Activity {
     TextView t = new TextView(this);
     t.setText(Job.report);
     t.setTypeface(Typeface.MONOSPACE);
-    t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+    t.setTextSize(TypedValue.COMPLEX_UNIT_SP, REPORT_SP);
     t.setTextIsSelectable(true);
     t.setPadding(dp(16), dp(8), dp(16), dp(8));
     ScrollView s = new ScrollView(this);

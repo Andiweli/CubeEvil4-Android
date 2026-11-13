@@ -22,8 +22,8 @@
     <string name="packer_size_1024">1024: am schärfsten, für starke Geräte mit genug Platz</string>
     <string name="packer_estimate">bis %1$s · etwa %2$s</string>
     <string name="packer_estimating">wird geschätzt …</string>
-    <string name="packer_minutes">%1$d Min.</string>
-    <string name="packer_hours">%1$d Std. %2$d Min.</string>
+    <string name="packer_minutes">%1$d min</string>
+    <string name="packer_hours">%1$d h %2$d min</string>
     <string name="packer_where">Speichern im Download-Ordner von</string>
     <string name="packer_volume">%1$s (%2$s frei)</string>
     <string name="packer_save_dialog">Android fragt, wo die Datei gespeichert werden soll.</string>

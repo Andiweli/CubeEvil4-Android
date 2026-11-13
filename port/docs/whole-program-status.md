@@ -86,6 +86,11 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   Bericht, „In CubeEvil4 importieren“. CubeEvil4: `TextureImportActivity` (fragt, importiert, schaltet ein), 3 Texte
   und Hilfetext in 11 Sprachen. Geprüft: Packer 7 Tests, Lint ohne Fehler, beide `check_translations` ohne Befund,
   `TextureImportActivityTest` 3/3, App-Tests beider Varianten je 123 ohne Fehler; nicht auf einem Gerät.
+  Nachtrag (Wunsch des Projektinhabers, 13.11.2026: größerer Text, Knöpfe je auf eine Bildschirmhälfte): Fließtext 17 statt
+  15 sp, Überschriften 19, Titel 24; helle Schrift #EDEDED auf #121212 (etwa 16:1), gesperrte Zeilen #8E8E8E (etwa 5,6:1);
+  Knopf-Paare ZIP/Ordner, Start/Abbruch, Bericht/Import nebeneinander, lange Texte zweizeilig. `PackerScreenTest`: 11
+  Sprachen bei 360 dp, Schrift 100 und 130 %, drei Zustände: nichts abgeschnitten, gekürzt oder außerhalb, Paare gleich
+  breit (Gegenprobe mit einzeiligen Knöpfen schlägt an). Bilder `builds\textures\pics\packer-*.png`.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 
