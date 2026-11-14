@@ -48,7 +48,63 @@ Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs
   Fenster ziehen) und seinem OK („Ja, nach dem Test“) über `09915` (507e72b1) nach `master`; im Releasetext von
   0.99.16.
 
-## Version 0.99.16-rc (in Arbeit, Branch `09916`, Basis 507e72b1)
+## Version 0.99.17-rc (in Arbeit, Branch `09917`, Basis 650b543e = Release 0.99.16-rc)
+
+Version 0.99.17-rc (versionCode 119), Releasetext `port/android-decomp/docs/releases/v0.99.17-rc.md` („Changes since
+v0.99.16.“, Known issues aus 0.99.16 übernommen, zwei neue). Nächste freie Patchnummer weiter 0233. Nur App.
+
+### 1. Kamera-Aussparung neu: Bild über die Aussparung, Touch über den ganzen Bildschirm (Projektinhaber, 15.11.2026)
+
+Ein Nutzer nach 0.99.16: „The app was working normally in version 0.99.15, but the black border has returned in the
+new update!“ Der Projektinhaber: mit 0.99.15 war der Rand bei ihm weg; andere Nutzer mit Kameraloch sahen trotzdem
+einen Balken, RetroTouch ließ sich nicht in den Bereich der Kamera schieben, auf seinem Telefon standen Touch-Ebene und
+Editor-Leiste etwa 110 px vom linken Rand weg. Plan der Hauptsitzung, vom Inhaber freigegeben („Ja, so bauen“); die
+Umrechnung nach dem Vorschlag dieser Sitzung („Ja dann baue im 0.99.17 Subthread bitte so um wie von dir
+vorgeschlagen“), RetroTouch unverändert. Die Meldung vom Moto G22 (Abschnitt 3 von 0.99.15) ist damit wieder
+bearbeitet.
+
+- **Fenster:** `Cutout.extend` wie in bbfe48e2 (ab Android 11 `ALWAYS`, auf 9 und 10 `SHORT_EDGES`). Das App-Menü
+  rechnet seine Größe ohne den Streifen (`CoreMenu.resizeWindow`), die FPS-Anzeige hält wie bisher über `CornerInset`
+  Abstand.
+- **Touch über das ganze Fenster:** die Touch-Ebene hat keine Ränder mehr (0.99.15 rückte sie um die Aussparung ein);
+  Knöpfe lassen sich an jeden Rand und in den Kamera-Streifen ziehen.
+- **Bezug der Layouts (`TouchFrame`):** RetroTouch speichert Mitte, Breite und Höhe als Anteile seiner Ansicht. Bis
+  0.99.16 war das das Fenster ohne Streifen (der sichere Bereich), jetzt das ganze Fenster. Der sichere Bereich wandert
+  beim Drehen um 180° mit der Kamera auf die andere Seite, eine einmalige Umrechnung wäre nur in einer Lage genau.
+  Darum:
+  - **Standard-Layout:** bei jeder Änderung (erstes Layout, Drehen) in den sicheren Bereich der Kamera-Seite gelegt
+    (`TouchControls.layout(shoulder, w, h, safe)`): Mitten verschoben, runde und geformte Knöpfe gleich groß (ihre
+    Größe ist im Querformat die der Höhe), die Umsehen-Fläche so breit wie vorher. Ohne eigenes Layout liegt alles wie
+    bisher, nie unter der Kamera.
+  - **Layout von vor 0.99.17:** einmal (Marke `layout_cubeevil4_frame`) samt Editor-Zustand (Zahnrad) als altes
+    aufbewahrt (`layout_cubeevil4_safe`, `…_safe_editor`) und für jede Kamera-Seite umgerechnet in RetroTouchs
+    Schlüssel geschrieben: in beiden Lagen genau. Ändert der Spieler im Editor etwas (RetroTouchs gespeichertes Layout
+    weicht vom zuletzt geschriebenen `…_wrote` ab), gilt sein Layout ab dann fürs ganze Fenster und das alte fällt
+    weg; Öffnen und Schließen ohne Änderung lässt es alt. Das Zahnrad ebenso für sich.
+  - **Standard im Editor gespeichert** (nichts verschoben oder RESET; RetroTouch speichert bei jedem Schließen): wird
+    wieder entfernt, der Standard folgt der Kamera.
+  - **Touch-Layout-Datei** (Export, Import, auch im ZIP): Layouts des ganzen Fensters tragen `"frame": "window"`;
+    Dateien ohne die Angabe (alle vor 0.99.17 und ein noch altes Layout) gelten als sicherer Bereich, werden in ihn
+    eingepasst und wie ein altes Layout behandelt. Die Schlüssel beginnen mit `layout_`: die Einstellungen im ZIP
+    lassen sie aus (`PlayerBackup.outside`).
+- **Editor-Leiste:** RetroTouch 1.0.0-beta.10 zeichnet sie und die Zeile „DRAG / Selected“ immer über die volle Breite
+  (keine Schnittstelle für Ränder, `RetroTouchView` ist final). Bleibt so (Entscheidung des Inhabers); sie lässt
+  sich nach oben oder unten ziehen. Die Idee `setSafeInsets` geht an den RetroTouch-Chat des Inhabers; `app/libs`
+  und `E:\Development\Android\RetroTouch` unverändert. Steht in den Known issues.
+- **Diagnose:** eine Zeile `camera cutout: …` im Fehlerprotokoll (und so im Bericht), bei jeder Änderung: Fenstergröße
+  und -lage, Bildschirmgröße, sichere Abstände und Kamera-Seite, angefragter und tatsächlicher Fenstermodus, und ob
+  das Fenster über die Aussparung reicht oder einen Streifen freilässt (dann hält das Telefon die App mit einer
+  eigenen Einstellung fern, z. B. Samsung „Kameraaussparung“; steht in den Known issues). Dazu Zeilen, wenn ein altes
+  Layout umgerechnet wird oder nach dem Editor in den neuen Bezug wechselt.
+- **Geprüft am PC:** App-Tests 168 je Variante grün (Core und Classic); neu `CutoutTest` (5: Modus ab Android 11 und auf 10, sichere Abstände
+  links und rechts, die Zeile fürs Protokoll) und `TouchFrameTest` (10: beide Kamera-Seiten, Drehen um 180°
+  hin und zurück, altes Layout vor und nach einem Speichern im Editor, Standard-Layout auf beiden Seiten und nach dem
+  Speichern ohne Änderung, Zahnrad, Dateien beider Bezüge).
+- **Nicht geprüft:** auf einem Gerät mit Kameraloch (Bild über die Kante, Knöpfe in den Streifen ziehen, Drehen um
+  180° mit altem und neuem Layout, Editor-Leiste, App-Menü, die Protokollzeile bei einem Telefon mit eigener
+  Einstellung).
+
+## Version 0.99.16-rc (veröffentlicht, Branch `09916`, Basis 507e72b1; Tag 0.99.16-rc = 650b543e)
 
 „sorry 0.99.15 ist ja schon released, wir sind schon bei 0.99.16“ (Projektinhaber, 14.11.2026): 0.99.15-rc ist bei
 den Testern (Stand f193f9e0); alles danach gehört zu 0.99.16, einer Version mit Fehlerbehebungen unter dem

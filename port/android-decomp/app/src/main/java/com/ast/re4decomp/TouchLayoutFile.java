@@ -47,13 +47,23 @@ final class TouchLayoutFile {
 
   private TouchLayoutFile() {}
 
-  /** What a file holds: RetroTouch's layout JSON and the editor's state (null when the file has none). */
+  /**
+   * What a file holds: RetroTouch's layout JSON and the editor's state (null when the file has none); `window`: its
+   * places are fractions of the whole window ("frame": "window", 0.99.17 and later), else of the window without the
+   * camera's strip (files of before 0.99.17, TouchFrame).
+   */
   static final class Parsed {
     final String layout, editor;
+    final boolean window;
 
     Parsed(String layout, String editor) {
+      this(layout, editor, false);
+    }
+
+    Parsed(String layout, String editor, boolean window) {
       this.layout = layout;
       this.editor = editor;
+      this.window = window;
     }
   }
 
@@ -84,20 +94,53 @@ final class TouchLayoutFile {
 
   /** The player has a layout of their own: one saved that RetroTouch can read and that differs from the defaults. */
   static boolean ownSaved(SharedPreferences prefs, RetroTouchLayout defaults) {
+    return ownSaved(prefs, defaults, defaults);
+  }
+
+  /**
+   * The same with the camera's cutout (TouchFrame, 0.99.17): a layout of before 0.99.17 kept for the safe area against
+   * the defaults (`safeDefaults`), else RetroTouch's against this window's defaults (`windowDefaults`, laid into the
+   * safe area of the camera's side).
+   */
+  static boolean ownSaved(SharedPreferences prefs, RetroTouchLayout safeDefaults, RetroTouchLayout windowDefaults) {
+    String kept = TouchFrame.legacyLayout(prefs);
+    if (kept != null) return readable(kept) && !same(kept, safeDefaults.toJson());
     String s = saved(prefs);
-    return s != null && readable(s) && !same(s, defaults.toJson());
+    return s != null && readable(s) && !same(s, windowDefaults.toJson());
+  }
+
+  /** The player's layout has the file's controls at the same places, in the file's frame. */
+  static boolean sameAsSaved(SharedPreferences prefs, Parsed file) {
+    String mine = file.window ? (TouchFrame.legacyLayout(prefs) == null ? saved(prefs) : null)
+        : TouchFrame.legacyLayout(prefs);
+    return mine != null && same(mine, file.layout);
   }
 
   /** The file for the export; null when the player has no layout of their own. */
   static byte[] export(SharedPreferences prefs, RetroTouchLayout defaults, int width, int height, String version) {
-    if (!ownSaved(prefs, defaults)) return null;
+    return export(prefs, defaults, defaults, width, height, new int[4], version);
+  }
+
+  /**
+   * The same with the camera's cutout (TouchFrame, 0.99.17): a layout of before 0.99.17 still kept goes out as it is,
+   * with the size of the window without the camera's strip and no "frame"; else RetroTouch's with "frame": "window".
+   */
+  static byte[] export(SharedPreferences prefs, RetroTouchLayout safeDefaults, RetroTouchLayout windowDefaults,
+      int width, int height, int[] safe, String version) {
+    if (!ownSaved(prefs, safeDefaults, windowDefaults)) return null;
+    final String kept = TouchFrame.legacyLayout(prefs);
     try {
       JSONObject root = new JSONObject();
       root.put(MARK, FORMAT);
       root.put("app", version == null ? "" : version);
-      root.put("screen", new JSONArray().put(width).put(height));
-      root.put("layout", new JSONObject(saved(prefs)));
-      String editor = prefs.getString(EDITOR_KEY, null);
+      if (kept == null) {
+        root.put("frame", "window");
+        root.put("screen", new JSONArray().put(width).put(height));
+      } else {
+        root.put("screen", new JSONArray().put(width - safe[0] - safe[2]).put(height - safe[1] - safe[3]));
+      }
+      root.put("layout", new JSONObject(kept != null ? kept : saved(prefs)));
+      String editor = kept != null ? TouchFrame.legacyEditor(prefs) : prefs.getString(EDITOR_KEY, null);
       if (editor != null) {
         try {
           root.put("editor", new JSONObject(editor));
@@ -122,7 +165,7 @@ final class TouchLayoutFile {
       RetroTouchLayout l = RetroTouchLayout.fromJson(layout);
       if (!TouchControls.LAYOUT_ID.equals(l.getGameId())) throw new IllegalArgumentException("a layout of another game");
       JSONObject editor = root.optJSONObject("editor");
-      return new Parsed(layout, editor == null ? null : editor.toString());
+      return new Parsed(layout, editor == null ? null : editor.toString(), "window".equals(root.optString("frame")));
     } catch (JSONException e) {
       throw new IllegalArgumentException("the file is damaged (" + e.getMessage() + ")");
     }
@@ -224,17 +267,35 @@ final class TouchLayoutFile {
    * and its editor state (or none); RetroTouch reads both when it next shows its layout. The controls moved.
    */
   static int apply(SharedPreferences prefs, Parsed file, int width, int height, float density) {
-    Fitted f = fit(file.layout, width, height, density);
+    return apply(prefs, file, width, height, new int[4], density);
+  }
+
+  /**
+   * The same with the camera's cutout (TouchFrame, 0.99.17): a file of the whole window as before; a file of before
+   * 0.99.17 (the window without the camera's strip) fitted into the safe area and kept as the old layout is, written for
+   * the camera's side now.
+   */
+  static int apply(SharedPreferences prefs, Parsed file, int width, int height, int[] safe, float density) {
+    final boolean window = file.window;
+    Fitted f = window ? fit(file.layout, width, height, density)
+        : fit(file.layout, width - safe[0] - safe[2], height - safe[1] - safe[3], density);
     String layout;
     try {
       layout = RetroTouchLayout.fromJson(f.layout).toJson();
     } catch (JSONException e) {
       throw new IllegalArgumentException("the file is damaged (" + e.getMessage() + ")");
     }
+    if (!window) {
+      TouchFrame.setLegacy(prefs, layout, file.editor);
+      if (file.editor == null) prefs.edit().remove(EDITOR_KEY).commit();
+      TouchFrame.legacyApply(prefs, width, height, safe);
+      return f.moved;
+    }
     SharedPreferences.Editor e = prefs.edit().putString(KEY, layout);
     if (file.editor != null) e.putString(EDITOR_KEY, file.editor);
     else e.remove(EDITOR_KEY);
     e.commit();
+    TouchFrame.clearLegacy(prefs);
     return f.moved;
   }
 }

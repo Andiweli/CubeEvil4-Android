@@ -259,6 +259,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final int FPS_PLACES = 5;
   private int fpsPlace;
   private WindowInsets fpsInsets;
+  // the camera cutout's last line in the error log (cutoutInsets)
+  private String cutoutLine = "";
   private long fpsFrames = -1, fpsPictures, fpsSince;
   // a game that stands without a pause (a hang): reported once per stand
   private long lastFrames = -1, framesSince;
@@ -279,6 +281,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // no force dark over the game, its touch controls and displays (FocusLook, 0.99.11)
     FocusLook.noForceDark(getWindow());
     hideSystemUi();
+    // the game's window over the camera's cutout too (0.99.17, as first in 0.99.15; a user's Moto G22: a black strip on
+    // the camera's side); the touch controls cover all of it, their layouts keep their spots (Cutout, TouchFrame)
+    Cutout.extend(getWindow());
     ImportManager imports = ((Re4Application) getApplication()).imports;
     // test switches of the core (port/scripts/test-core-app.ps1 passes them)
     settings = getIntent().getStringExtra("coreSettings");
@@ -430,6 +435,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
+    // the camera's cutout (Cutout, 0.99.17): the touch controls cover the whole window, their layouts follow the
+    // camera's side; the error log says what the window got. Again when the screen turns by 180 degrees.
+    root.setOnApplyWindowInsetsListener((v, insets) -> {
+      // the touch layouts for the camera's side (TouchFrame); the log after the layout: the window's size and place are
+      // known then
+      touchControls.setSafeInsets(Cutout.safe(insets));
+      v.post(() -> cutoutInsets(v, insets));
+      return v.onApplyWindowInsets(insets);
+    });
     benchFlow = new BenchmarkFlow(benchHost);
     if (startProblem.isEmpty()) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
@@ -640,6 +654,33 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         time, time ? InfoHud.time(CoreBridge.cheatAction(InfoHud.PLAY_TIME_COMMAND)) : "");
     fpsView.setText(text);
     fpsView.setVisibility(fpsPlace != 0 && menuSupported && !text.isEmpty() ? View.VISIBLE : View.GONE);
+  }
+
+  /**
+   * The window's insets changed (laid out, turned by 180 degrees, the bars): the cutout's line into the error log when
+   * it says something new (Cutout.describe).
+   */
+  private void cutoutInsets(View root, WindowInsets insets) {
+    final int[] safe = Cutout.safe(insets);
+    final int[] at = new int[2];
+    root.getLocationOnScreen(at);
+    int screenWidth = 0, screenHeight = 0;
+    if (Build.VERSION.SDK_INT >= 30) {
+      final android.graphics.Rect b = getWindowManager().getMaximumWindowMetrics().getBounds();
+      screenWidth = b.width();
+      screenHeight = b.height();
+    } else {
+      final android.graphics.Point p = new android.graphics.Point();
+      getWindowManager().getDefaultDisplay().getRealSize(p);
+      screenWidth = p.x;
+      screenHeight = p.y;
+    }
+    final String line = Cutout.describe(root.getWidth(), root.getHeight(), at[0], at[1], screenWidth, screenHeight,
+        safe, Cutout.mode(Build.VERSION.SDK_INT), getWindow().getAttributes().layoutInDisplayCutoutMode);
+    if (!line.equals(cutoutLine) && root.getWidth() > 0) {
+      cutoutLine = line;
+      Log.i(TAG, line);
+    }
   }
 
   /** The FPS display at its place, kept clear of rounded corners, a cutout and bars that stay (CornerInset). */
@@ -1366,7 +1407,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     Uri folder = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
     // the player's own touch layout as a file of its own (wish of the project owner, 07.11.2026); none: nothing
     int[] screen = touchScreen();
-    byte[] touchFile = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), screen[0], screen[1],
+    byte[] touchFile = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), touchWindowDefaults(),
+        screen[0], screen[1], touchSafe(),
         appVersion());
     int done = 0;
     StringBuilder problems = new StringBuilder();
@@ -1404,6 +1446,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** RetroTouch's preferences (TouchLayoutFile.PREFS: the saved layout). */
   private SharedPreferences touchPrefs() {
     return getSharedPreferences(TouchLayoutFile.PREFS, Context.MODE_PRIVATE);
+  }
+
+  /** The camera cutout's safe insets the touch layouts follow (TouchFrame; zeros without touch controls). */
+  private int[] touchSafe() {
+    return touchControls != null ? touchControls.safeInsets() : new int[4];
+  }
+
+  /** The default touch layout of this window, laid into the camera's safe area (TouchControls.windowDefaults). */
+  private com.ast.retrotouch.RetroTouchLayout touchWindowDefaults() {
+    return touchControls != null ? touchControls.windowDefaults() : TouchControls.defaultLayout();
   }
 
   /** The touch controls' size in pixels (the window, else the display): what RetroTouch's parts refer to. */
@@ -1538,8 +1590,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return;
     }
     SharedPreferences prefs = touchPrefs();
-    String saved = TouchLayoutFile.saved(prefs);
-    if (TouchLayoutFile.ownSaved(prefs, TouchControls.defaultLayout()) && !TouchLayoutFile.same(saved, parsed.layout)) {
+    if (TouchLayoutFile.ownSaved(prefs, TouchControls.defaultLayout(), touchWindowDefaults())
+        && !TouchLayoutFile.sameAsSaved(prefs, parsed)) {
       Immersive.show(new AlertDialog.Builder(this)
           .setMessage(R.string.ingame_touch_import_exists)
           .setPositiveButton(R.string.ingame_replace, (d, w) -> {
@@ -1711,7 +1763,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       c.card(name, gci);
     }
     int[] screen = touchScreen();
-    c.touch = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), screen[0], screen[1], appVersion());
+    c.touch = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), touchWindowDefaults(),
+        screen[0], screen[1], touchSafe(), appVersion());
     ImportManager imports = ((Re4Application) getApplication()).imports;
     if (imports.root != null) {
       byte[] instant = PlayerBackup.read(PlayerBackup.instantFile(imports.root), PlayerBackup.INSTANT_BYTES + 1);
@@ -1775,7 +1828,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void applyTouch(TouchLayoutFile.Parsed parsed, StringBuilder report) {
     int[] screen = touchScreen();
     try {
-      int moved = TouchLayoutFile.apply(touchPrefs(), parsed, screen[0], screen[1], getResources().getDisplayMetrics().density);
+      int moved = TouchLayoutFile.apply(touchPrefs(), parsed, screen[0], screen[1], touchSafe(),
+          getResources().getDisplayMetrics().density);
       if (touchControls != null) touchControls.reloadSaved();
       Log.i(TAG, "import: touch layout saved, " + moved + " controls moved onto the screen " + screen[0] + "x" + screen[1]);
       report.append(getString(R.string.ingame_touch_imported)).append('\n');
