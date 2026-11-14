@@ -27,7 +27,9 @@ Viertel der Pixel: was eine kleinere Aufloesung spart), auch kombiniert ("flat+n
 Dazu die Einstellungen der leichten OUYA-Fassung (die Bilder sind dann richtig, nur einfacher):
 fasttev (vereinfachte Farbberechnung, RE4_GX2_FAST_TEV=1), scaleX (EFB-Aufloesung X mal die der
 GameCube, RE4_GX2_SCALE, z. B. scale0.75), lightsN (hoechstens N Lichter je Eckpunkt,
-RE4_GX2_LIGHTS), tex16 (Texturen in 16 Bit), efb16 (das Bild in 16 Bit), kombinierbar
+RE4_GX2_LIGHTS), tex16 (Texturen in 16 Bit), efb16 (das Bild in 16 Bit), levellight (Licht der Umgebung
+einmal je Zeichenauftrag, Figuren je Eckpunkt; RE4_GX2_LEVEL_LIGHT=1), softcopies (Effekt-Kopien in halber
+Aufloesung; RE4_GX2_SOFT_COPIES=1), kombinierbar
 ("fasttev+scale0.75+lights2").
 -Only waehlt Bilder aus (Platzhalter).
 
@@ -174,6 +176,8 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
             elseif ($part -match '^lights([0-9])$') { $setting += "RE4_GX2_LIGHTS=$($Matches[1]) " }
             elseif ($part -eq 'tex16') { $setting += 'RE4_GX2_TEX16=1 ' }
             elseif ($part -eq 'efb16') { $setting += 'RE4_GX2_EFB16=1 ' }
+            elseif ($part -eq 'levellight') { $setting += 'RE4_GX2_LEVEL_LIGHT=1 ' }
+            elseif ($part -eq 'softcopies') { $setting += 'RE4_GX2_SOFT_COPIES=1 ' }
             else { $measure += $part }
         }
         if ($measure.Count) { $setting += "RE4_GX2_PROBE=$($measure -join ',') " }

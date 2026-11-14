@@ -289,6 +289,8 @@ struct GxRenderer::Impl {
   // GxOptions::maxLights: the lights of the lit channels of the current key (all the same), its
   // diffuse and attenuation functions
   std::uint32_t foldMask = 0, foldDiffuse = 0, foldAttn = 0;
+  int foldMax = 0;      // the lights per vertex of the current key (maxLights; 0 for the room: levelLight)
+  bool figure = false;  // the last owner tag (RE4_GX_OP_OWNER) named a figure
   std::uint32_t keyLayout = ~0u;
   ShaderKey key = {};
   Program *keyProgram = nullptr;
@@ -1140,7 +1142,9 @@ struct GxRenderer::Impl {
     // at most maxLights lights per vertex: where every lit channel with lights has the same ones
     // and there are more, the channels get the first slots; Uniforms puts the strongest there
     foldMask = 0;
-    if (options.maxLights > 0) {
+    // GxOptions::levelLight: no light per vertex for the room's geometry (the last owner tag was no figure)
+    foldMax = options.levelLight && !figure ? 0 : options.maxLights;
+    if (options.maxLights > 0 || (foldMax == 0 && options.levelLight)) {
       std::uint32_t common = 0, diffuse = 0, attn = 0;
       bool same = true;
       for (int i = 0; i < 4; i++) {
@@ -1159,13 +1163,16 @@ struct GxRenderer::Impl {
       // also with no more lights than that: the lights in the first slots (lights 2 and 5 the same
       // shader as 0 and 1; each set of lights built a shader of its own, on the OUYA 150 ms each)
       if (same && common) {
-        const unsigned count = std::min(Popcount8(common), static_cast<unsigned>(options.maxLights));
+        const unsigned count = std::min(Popcount8(common), static_cast<unsigned>(foldMax));
         const std::uint32_t slots = (1u << count) - 1;
         for (int i = 0; i < 4; i++) {
           std::uint32_t &c = k.chan[i];
           const std::uint32_t m = ((c >> 2) & 15) | (((c >> 11) & 15) << 4);
-          if ((c & 2) && m)
+          if ((c & 2) && m) {
             c = (c & ~(15u << 2 | 15u << 11)) | (slots & 15) << 2 | ((slots >> 4) & 15) << 11;
+            if (!count)
+              k.lightFoldAll |= 1u << i;
+          }
         }
         k.lightFold = 1;
         foldMask = common;
@@ -1389,7 +1396,7 @@ struct GxRenderer::Impl {
     // the strongest maxLights (in light order, so a draw keeps its slots while the order holds)
     int sel[8], n = 0;
     std::uint32_t chosen = 0;
-    for (int j = 0; j < options.maxLights; j++) {
+    for (int j = 0; j < foldMax; j++) {
       int best = -1;
       float bestValue = -1.0f;
       for (unsigned l = 0; l < 8; l++) {
@@ -1457,7 +1464,7 @@ struct GxRenderer::Impl {
           stats.uniformUploads++;
         }
       }
-    if (p.info.lights && key.lightFold)
+    if ((p.info.lights || key.lightFoldAll) && key.lightFold)
       FoldLights(p, d);
     else if (p.info.lights && lightNewest > seen)
       for (unsigned l = 0; l < 8; l++)
@@ -2174,6 +2181,8 @@ bool GxRenderer::Init(int scale, std::string *error) {
     m.options.tex16 = *tex16 == '1';
   if (const char *efb16 = std::getenv("RE4_GX2_EFB16"))
     m.options.efb16 = *efb16 == '1';
+  if (const char *level = std::getenv("RE4_GX2_LEVEL_LIGHT"))
+    m.options.levelLight = *level == '1';
   if (const char *soft = std::getenv("RE4_GX2_SOFT_COPIES"))
     m.options.softCopies = *soft == '1';
   if (const char *lights = std::getenv("RE4_GX2_LIGHTS"))
@@ -2327,6 +2336,10 @@ void GxRenderer::Run(const Re4GxChunk &chunk) {
     case RE4_GX_OP_COMPACT_FORMAT:
       if (n >= RE4_GX_COMPACT_ATTRS)
         m.CompactFormat(p);
+      break;
+    case RE4_GX_OP_OWNER:
+      // the object of the draws that follow (GxOptions::levelLight: a figure keeps its light per vertex)
+      m.figure = n >= 3 && (p[2] & RE4_GX_OWNER_FIGURE) != 0;
       break;
     default:
       break;

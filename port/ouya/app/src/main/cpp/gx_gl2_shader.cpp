@@ -273,7 +273,7 @@ void Light(std::string &out, const ShaderKey &k, const ShaderInfo &s, int chan, 
     const unsigned mask = LightMask(c);
     // the lights left out of this draw (ShaderKey::lightFold), as the renderer worked them out at
     // the model's origin
-    if (k.lightFold && mask)
+    if (k.lightFold && (mask || ((k.lightFoldAll >> (chan + (alpha ? 2 : 0))) & 1)))
       Add(out, "    lacc += uFold[%d].%s;\n", chan, sw);
     const unsigned diffuse = (c >> 7) & 3, attn = (c >> 9) & 3;
     for (unsigned i = 0; i < 8; i++) {

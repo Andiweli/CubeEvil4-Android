@@ -52,6 +52,9 @@ struct ShaderKey {
   // 1: the lit channels' light masks are the first n slots (GxOptions::maxLights: the strongest
   // lights of the draw, chosen by the renderer), the others come as uFold, a constant per draw
   std::uint32_t lightFold;
+  // GxOptions::levelLight: the lit channels (bit per chan[] entry) whose lights all come as uFold, none per vertex
+  // (the room's geometry, not a figure)
+  std::uint32_t lightFoldAll;
 };
 
 // Vertex inputs (attribute sources), in the order the generator gives them locations.

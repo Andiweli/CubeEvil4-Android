@@ -130,6 +130,10 @@ struct GxOptions {
   // of its blurs, glows and filters) get a quarter of their pixels once more, the box widened to match. Display
   // copies, depth copies and full-size copies (a menu's background, the heat haze) stay as they are.
   bool softCopies = false;
+  // the room's light once per draw (OUYA improvement 3, a measurement first; RE4_GX2_LEVEL_LIGHT=1): draws that are
+  // not a figure (the core's owner tag, RE4_GX_OWNER_FIGURE) get no light per vertex, every light as the constant
+  // at the draw's origin that maxLights gives the lights beyond its count; figures keep theirs. Flatter.
+  bool levelLight = false;
 };
 
 class GxRenderer {
