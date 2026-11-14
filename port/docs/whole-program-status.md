@@ -235,6 +235,13 @@ achten (Androids Thermalstatus).
   langsam“, ob das Gerät heiß war. **Später:** darauf reagieren (z. B. „Dynamisch“ früher eine Stufe herunter, Bloom
   aus), erst wenn Berichte es zeigen.
 - Englische Antwort an den Nutzer im Bericht an den Projektinhaber.
+- **Gebaut (Entscheidung des Projektinhabers, 14.11.2026: „Ja, einbauen“): `ThermalWatch`.** Nur Anzeige, nichts wird
+  geändert. Androids Thermalstatus (ab Android 10) beim Start und bei jeder Änderung ins Protokoll („thermal: status
+  moderate after 12:30“, über Androids Rückruf), die Reserve bis zur harten Drosselung (`getThermalHeadroom`, ab
+  Android 11, 10 s Vorschau) alle 10 s aus `CoreActivity.tick`; eine Zeile, wenn sie sich um 0,05 bewegt, ab 0,7 einmal
+  je Minute. Der Bericht bekommt `thermal.txt` (Status jetzt und höchster, letzte und höchste Reserve, alle
+  Statuswechsel, die letzten 90 Messungen = 15 min); er gilt auch, wenn logcat auf einem Gerät nichts aufzeichnet.
+  Test `ThermalWatchTest` (6, mit nachgebauter Quelle). Nicht auf einem Gerät geprüft.
 
 ## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 

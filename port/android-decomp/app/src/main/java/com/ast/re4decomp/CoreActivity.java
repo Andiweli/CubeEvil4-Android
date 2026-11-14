@@ -209,6 +209,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
   private final List<byte[]> pendingImports = new ArrayList<>();
+  // Android's thermal status and headroom for the error log and the report (0.99.15, ThermalWatch)
+  private ThermalWatch thermal;
   // the touch layout file the chosen files hold (TouchLayoutFile), after the .gci files
   private byte[] pendingTouch;
   // the parts of the app's own ZIP (PlayerBackup, 0.99.15) after the touch layout: the instant save, the settings file
@@ -286,6 +288,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (settings == null) settings = "";
     // the error log of this run (the one before is kept for the report)
     CoreLog.start(this, settings);
+    // how hot the device is: at the start, at each change, the headroom every 10 s (ThermalWatch; only told)
+    thermal = ThermalWatch.forDevice(this, SystemClock.elapsedRealtime());
+    thermal.start(SystemClock.elapsedRealtime());
     shownLanguage = language();
     Log.i(TAG, "app menu: " + shownLanguage);
     // the shaders the renderers built, kept between runs (no compile stutter the second time); since 0.99.4 where
@@ -603,6 +608,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (destroyed) return;
     touchControls.update();
     updateFps();
+    if (thermal != null) thermal.tick(SystemClock.elapsedRealtime());
     checkHang();
     checkCoreProcess();
     checkDiscProblem();
@@ -1837,11 +1843,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     String discs = discCheckText();
     String renderer = rendererText();
     String shaders = ShaderCache.describe(this);
+    String heat = thermal != null ? thermal.report(SystemClock.elapsedRealtime()) : "not watched\n";
     if (map == null || map.isEmpty())
       return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs},
-          {"renderer.txt", renderer}, {"shader-cache.txt", shaders}};
+          {"renderer.txt", renderer}, {"shader-cache.txt", shaders}, {"thermal.txt", heat}};
     return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers},
-        {"disc-check.txt", discs}, {"renderer.txt", renderer}, {"shader-cache.txt", shaders}};
+        {"disc-check.txt", discs}, {"renderer.txt", renderer}, {"shader-cache.txt", shaders}, {"thermal.txt", heat}};
   }
 
   /** The report's disc-check.txt: each imported disc against the original's files, and a file the game could not read. */
@@ -3254,6 +3261,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   @Override
   protected void onDestroy() {
     destroyed = true;
+    if (thermal != null) thermal.stop();
     if (isFinishing()) CoreLog.stop();
     main.removeCallbacksAndMessages(null);
     if (beatThread != null) beatThread.quitSafely();
