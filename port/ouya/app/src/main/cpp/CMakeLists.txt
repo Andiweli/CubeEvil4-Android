@@ -50,8 +50,9 @@ else()
     find_library(RE4_EGL_LIBRARY NAMES EGL libEGL.so.1 REQUIRED)
     find_library(RE4_GLES_LIBRARY NAMES GLESv2 libGLESv2.so.2 REQUIRED)
     # the main app's GLES 3 renderer, contexts, pictures (tools/gx_test_common.h)
+    # (master 0.99.x split it: gx_core.cpp, gx_renderer.cpp beside gx_gl.cpp)
     add_library(re4_gx_reference STATIC "${RE4_OUYA_TOOLS}/gx_test_common.cpp" "${RE4_MAIN_APP_CPP}/gx_gl.cpp"
-        "${RE4_MAIN_APP_CPP}/gx_gl_shader.cpp")
+        "${RE4_MAIN_APP_CPP}/gx_core.cpp" "${RE4_MAIN_APP_CPP}/gx_renderer.cpp" "${RE4_MAIN_APP_CPP}/gx_gl_shader.cpp")
     target_include_directories(re4_gx_reference PUBLIC "${RE4_OUYA_TOOLS}" "${RE4_MAIN_APP_CPP}" "${RE4_CORE_INCLUDE}"
         ${RE4_GLES_INCLUDE_DIR})
     target_link_libraries(re4_gx_reference PUBLIC re4_gx2 ${RE4_EGL_LIBRARY} ${RE4_GLES_LIBRARY} dl)

@@ -475,6 +475,9 @@ void MakeRenderer() {
   options.fastTev = gHaveFastTev;              // the TEV in fractions
   options.resolutionEighths = gHaveEighths;    // 6: 480 x 396
   options.maxLights = 2;                       // the two strongest lights per vertex
+  // effect copies at half the resolution once more (OUYA improvement 4, 14.11.2026; on the PC the pictures of
+  // r100 and r101 differ by at most 43.6 dB PSNR from the full ones, no difference to the eye)
+  options.softCopies = true;
   gRenderer.reset(new re4gx2::GxRenderer);
   gRenderer->SetOptions(options);  // RE4_GX2_* in the environment (settings.txt) still override them
   std::string error;
