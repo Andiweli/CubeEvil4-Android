@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">Menu Dalam Game CubeEvil4</string>
+    <string name="ingame_title">Menu Dalam Game CubeEvil4-Potato</string>
     <string name="ingame_back">Kembali ke game</string>
     <string name="ingame_graphics">Grafis</string>
     <string name="ingame_resolution">Resolusi</string>
@@ -60,11 +60,67 @@
     <string name="ingame_discs">Disk</string>
     <string name="ingame_discs_help">Untuk memainkan versi lain: game berakhir, lalu Anda mengimpor kedua disknya di layar awal. Data simpanan, kartu memori, dan pengaturan tetap ada.</string>
     <string name="ingame_import_discs">Impor disk lain</string>
+    <string name="ingame_instant">Simpan cepat</string>
+    <string name="ingame_slot">Slot simpanan</string>
+    <string name="ingame_slot_details">Bab %1$s  ·  %2$s  ·  Waktu bermain %3$s</string>
+    <string name="ingame_slot_date">Terakhir disimpan: %1$s</string>
+    <string name="ingame_instant_save">Simpan</string>
+    <string name="ingame_instant_load">Muat</string>
+    <string name="ingame_instant_checking">Memeriksa slot simpanan …</string>
+    <string name="ingame_instant_working">Mohon tunggu …</string>
+    <string name="ingame_instant_ready">Siap.</string>
+    <string name="ingame_instant_empty">Belum ada simpanan cepat.</string>
+    <string name="ingame_instant_unavailable">Tidak tersedia saat memuat, saat adegan cerita atau dalam kondisi game yang tidak aman. Tutup menu dan coba lagi saat bermain.</string>
+    <string name="ingame_instant_no_save">Tidak bisa menyimpan di sini (perahu, tangga, pertarungan bos, Mercenaries atau situasi serupa). Anda masih bisa memuat.</string>
+    <string name="ingame_instant_unsupported">Perbarui inti game untuk memakai simpan cepat.</string>
+    <string name="ingame_instant_damaged">Simpanan cepat rusak atau tidak cocok. Anda bisa menggantinya dengan simpanan baru.</string>
+    <string name="ingame_instant_failed">Simpanan cepat tidak dapat dibaca atau ditulis.</string>
+    <string name="ingame_instant_saved">Simpanan cepat tersimpan.</string>
+    <string name="ingame_instant_overwrite_title">Timpa simpanan cepat?</string>
+    <string name="ingame_instant_load_title">Muat simpanan cepat?</string>
+    <string name="ingame_instant_overwrite">Ganti simpanan cepat sebelumnya dengan kemajuan Anda saat ini?</string>
+    <string name="ingame_instant_load_warning">Kemajuan yang belum disimpan akan hilang. Muat simpanan cepat?</string>
+    <string name="ingame_replace">Ganti</string>
+    <string name="ingame_cheat_random_items">Item acak</string>
+    <string name="ingame_cheat_random_items_help">Item acak: item yang tergeletak di ruangan cerita (amunisi, herba dan item pemulihan lain, granat, peseta, harta) dibagikan ulang di setiap ruangan yang Anda masuki sejak saat itu, dan satu ruangan selalu memberi item yang sama sampai Anda mematikan lalu menyalakannya lagi. Kunci, senjata, dokumen, dan item cerita lain tetap seperti semula, jadi game selalu bisa diselesaikan. Item yang sudah diambil tetap terambil; musuh, tong, dan peti menyimpan jarahan mereka sendiri. Tidak di Assignment Ada dan The Mercenaries.</string>
+    <string name="ingame_cheat_extras">Buka game tambahan</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada dan The Mercenaries telah terbuka (juga Professional, seperti setelah menamatkan game). Menu judul menampilkannya setelah dimulai ulang. Kemajuan sejak penyimpanan terakhir akan hilang.</string>
+    <string name="ingame_cheat_extras_later">Terbuka: Assignment Ada dan The Mercenaries ada di menu judul setelah dimulai ulang.</string>
+    <string name="ingame_cheat_extras_already">Sudah terbuka: Assignment Ada dan The Mercenaries ada di menu judul.</string>
+    <string name="ingame_language_restart_title">Mulai ulang game?</string>
+    <string name="ingame_restart">Mulai ulang</string>
+    <string name="ingame_later">Nanti</string>
+    <string name="ingame_management">Pengelolaan</string>
+    <string name="ingame_card_busy">Kartu sedang dipakai (game sedang menyimpan atau memuat) atau game masih memuat – tutup menu dan buka lagi sebentar lagi.</string>
+    <string name="ingame_card_none">Tidak ada kartu memori.</string>
+    <string name="ingame_export">Ekspor Data Game (.gci)</string>
+    <string name="ingame_export_zip">Ekspor Data Game (.zip)</string>
+    <string name="ingame_import">Impor Data Game (.gci, .zip, .raw)</string>
+    <string name="ingame_wipe">Hapus Semua Data</string>
+    <string name="ingame_wipe_cancel">Batal</string>
+    <string name="ingame_wipe_yes">Hapus</string>
+    <plurals name="ingame_exported">
+        <item quantity="other">%1$d file diekspor.</item>
+    </plurals>
+    <string name="ingame_imported">Diimpor: %1$s</string>
+    <string name="ingame_import_no_space">Tidak ada ruang di kartu untuk %1$s</string>
+    <string name="ingame_import_busy">Game sedang memakai kartu: %1$s</string>
+    <string name="ingame_import_no_card">Tidak ada kartu memori: %1$s</string>
+    <string name="ingame_import_bad">Bukan file dari game ini, atau rusak: %1$s (%2$s)</string>
+    <string name="ingame_import_exists">%1$s sudah ada di kartu. Ganti?</string>
+    <string name="ingame_source">Sumber dan pembaruan</string>
+    <string name="ingame_source_line">Info lebih lanjut tentang port ini di %1$s</string>
     <string name="ouya_cheats">Cheat</string>
     <string name="ouya_view_distance">Jarak pandang</string>
     <string name="ouya_colours">Perhitungan warna</string>
     <string name="ouya_colours_simple">Disederhanakan</string>
     <string name="ouya_colours_exact">Tepat</string>
     <string name="ouya_graphics_help">Resolusi: gambar game sebagai bagian dari 640 × 528 titik GameCube; lebih rendah lebih cepat. Perhitungan warna yang disederhanakan mengurangi beban grafis; warna bisa sedikit sekali berbeda. Jarak pandang: seberapa jauh pandangan sampai kabut jarak jauh; yang ada di baliknya tidak digambar. Langsung berlaku.</string>
+    <string name="ouya_card_help">Ekspor data game: data simpanan sebagai .gci (untuk Dolphin atau GameCube), atau semuanya dalam satu .zip (data simpanan dan simpan cepat; CubeEvil4 di ponsel juga bisa membacanya). File masuk ke folder CubeEvil4-Potato di drive tempat data game; impor menampilkan file .gci dan .zip di sana dan di folder Download. Hapus Semua Data mengosongkan kartu memori.</string>
+    <string name="ouya_exported_to">Disimpan di %1$s</string>
+    <string name="ouya_import_none">Tidak ada file .gci atau .zip di %1$s atau folder Download.</string>
+    <string name="ouya_export_failed">Tidak dapat menulis %1$s</string>
+    <string name="ouya_wipe_text">Semua data simpanan di kartu memori dan simpan cepat akan dihapus, seolah kartu diformat. Disk dan pengaturan tetap ada. Ini tidak bisa dibatalkan: agar data simpanan tetap ada, ekspor dulu (.zip). Game dimulai ulang untuk ini.</string>
+    <string name="ouya_no_browser">Tidak ada peramban web di perangkat ini. Alamatnya: %1$s</string>
     <string name="ouya_gentle_qte_help">QTE Lebih Ringan: di Professional, event tombol (menghindar, duel pisau, menekan cepat) memberi waktu dan meminta jumlah tekanan sama seperti di Normal; kerusakan dan musuh tetap seperti Professional.</string>
 </resources>

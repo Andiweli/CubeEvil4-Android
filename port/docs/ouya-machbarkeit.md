@@ -691,3 +691,29 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
 - **Nicht übernommen (nur Haupt-App):** Vulkan, Bloom, HD-Texturen, 60 FPS / 120 Hz, dynamische Auflösung
   und Benchmark des GLES-3-Renderers, Touch, Maus, Sofortspeichern, ZIP-Export, Zufallsgegner; Totzone der
   Sticks (Java-Teil der Haupt-App) weiter möglich.
+
+**Nach dem ersten Test auf der OUYA (14.11.2026, Rückmeldung des Projektinhabers).**
+- *Frame Skip „Aggressiv“* lief auf der OUYA langsamer als „Normal“ (aber schneller als „Aus“). Das Log zeigt warum:
+  die Grenze ist der Grafikchip (50 bis 65 ms je gezeigtem Bild im Dorf), nicht der Prozessor des Spiels; der Frame
+  Skip des Spiels spart Prozessorzeit und lässt ganze Bilder weg, die Bilder ohne Zeichenbefehle halbieren den Rest
+  noch einmal. Voreinstellung bleibt „Normal“.
+- *Nebel (Patch 0901):* bei kürzerer Sichtweite verschwanden Häuser hinter der Sichtgrenze, der Nebel dort war aber
+  noch dünn (im Dorf bei 35 %: Sichtgrenze 24 m, Nebel dort etwa 40 %), man sah den Boden, wo sie standen. Jetzt endet
+  der Nebel, den der Grafikchip bekommt, an der Sichtgrenze (`re4_view_fog_dense`, nicht näher als 6 m: in den kurzen
+  Nebeln zwischen zwei Schnitten einer Zwischensequenz lag er sonst bei 2,4 m und vernebelte die Figuren im Auto von
+  r100). Am PC mit Debug-Disc geprüft (r100, r101 bei 100 % und 35 %, Bilder mit dem GLES-2-Renderer verglichen).
+- *Name:* die App heißt **CubeEvil4-Potato** (Entscheidung des Projektinhabers, 14.11.2026; Paket bleibt
+  `com.ast.cubeevil4.ouya`, damit Spielstände und Discs bleiben).
+- *Menü auf L3 (Wünsche des Projektinhabers):* oben **Instant-Spielstand** (Speichern / Laden wie in der Haupt-App,
+  `re4ipc_instant`); Farbberechnung mit zwei breiten Knöpfen; Potato-Modus mit vier Schaltern (Partikeleffekte als
+  Schalter: aus = „Keine“); bei den Cheats neben „Automatische QTEs“ auch „Zufällige Gegenstände“ und „Extra-Spiele
+  freischalten“ (mit Neustart des Spiels); **VERWALTUNG** statt DISCS: Spieldaten exportieren (.gci), exportieren (.zip,
+  Format der Haupt-App: Speicherkarte und Instant-Spielstand), importieren (.gci, .zip, auch die der Haupt-App), „Alle
+  Daten löschen“ (beim nächsten Start, vor dem Kern; `OuyaPlayerData`), dann „Andere Discs importieren“ über die ganze
+  Breite; ganz unten **QUELLE** mit dem Link zu GitHub. Android 4.1 hat keinen Dateidialog: der Export schreibt in den
+  Ordner `CubeEvil4-Potato` auf dem Laufwerk der Spieldaten, der Import listet die `.gci`- und `.zip`-Dateien dort und
+  in den Download-Ordnern.
+- *Voreinstellungen beim ersten Start:* Auflösung 75 %, Sichtweite 35 %, Farben vereinfacht, alle Potato-Effekte aus
+  (auch Partikel und Schatten & Licht), Frame Skip „Normal“, sanftere QTEs an.
+- Am PC gebaut (App debug, Übersetzungsprüfung aller 11 Sprachen ohne Befund); das Menü selbst ist auf der OUYA noch
+  nicht geprüft.

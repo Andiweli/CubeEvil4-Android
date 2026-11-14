@@ -23,7 +23,21 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_cheats_help', 'ingame_cheat_done', 'ingame_cheat_already', 'ingame_cheat_raised',
         'ingame_cheat_not_now', 'ingame_cheat_no_room', 'ingame_cheat_queued', 'ingame_cheat_unsupported',
         # the disc installer again (OuyaInstaller)
-        'ingame_discs', 'ingame_discs_help', 'ingame_import_discs']
+        'ingame_discs', 'ingame_discs_help', 'ingame_import_discs',
+        # wish of the project owner, 14.11.2026: the instant save, "Random items" and "Unlock extra games", the
+        # section MANAGEMENT (export, import, delete the player data) and SOURCE, as in the main app
+        'ingame_instant', 'ingame_slot', 'ingame_slot_details', 'ingame_slot_date', 'ingame_instant_save',
+        'ingame_instant_load', 'ingame_instant_checking', 'ingame_instant_working', 'ingame_instant_ready',
+        'ingame_instant_empty', 'ingame_instant_unavailable', 'ingame_instant_no_save', 'ingame_instant_unsupported',
+        'ingame_instant_damaged', 'ingame_instant_failed', 'ingame_instant_saved', 'ingame_instant_overwrite_title',
+        'ingame_instant_load_title', 'ingame_instant_overwrite', 'ingame_instant_load_warning', 'ingame_replace',
+        'ingame_cheat_random_items', 'ingame_cheat_random_items_help', 'ingame_cheat_extras',
+        'ingame_cheat_extras_text', 'ingame_cheat_extras_later', 'ingame_cheat_extras_already',
+        'ingame_language_restart_title', 'ingame_restart', 'ingame_later',
+        'ingame_management', 'ingame_card_busy', 'ingame_card_none', 'ingame_export', 'ingame_export_zip',
+        'ingame_import', 'ingame_wipe', 'ingame_wipe_cancel', 'ingame_wipe_yes', 'ingame_exported', 'ingame_imported',
+        'ingame_import_no_space', 'ingame_import_busy', 'ingame_import_no_card', 'ingame_import_bad',
+        'ingame_import_exists', 'ingame_source', 'ingame_source_line']
 Q = "\\'"  # an apostrophe in an Android string
 own = {
     'values': {
@@ -153,6 +167,11 @@ own = {
                               '立即生效。',
     },
 }
+# MANAGEMENT's own texts (menu_strings_management.json, 14.11.2026)
+import json
+management = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'menu_strings_management.json'),
+                            encoding='utf-8'))
+management.pop('_comment', None)
 for d in sorted(os.listdir(src)):
     f = os.path.join(src, d, 'strings_ingame.xml')
     if not d.startswith('values') or not os.path.isfile(f):
@@ -160,12 +179,19 @@ for d in sorted(os.listdir(src)):
     text = open(f, encoding='utf-8').read()
     lines = []
     for k in keys:
-        m = re.search(r'^\s*<string name="%s"[^>]*>.*?</string>' % k, text, re.M | re.S)
+        # a string or a plural (ingame_exported)
+        m = re.search(r'^\s*<(string|plurals) name="%s"[^>]*>.*?</\1>' % k, text, re.M | re.S)
         if m:
-            lines.append('    ' + m.group(0).strip())
+            line = m.group(0).strip()
+            if k == 'ingame_title':
+                # the OUYA app's name (decision of the project owner, 14.11.2026)
+                line = line.replace('CubeEvil4', 'CubeEvil4-Potato')
+            lines.append('    ' + line)
         elif d == 'values':
             sys.exit('missing ' + k)
     for k, v in own.get(d, {}).items():
+        lines.append('    <string name="%s">%s</string>' % (k, v))
+    for k, v in management.get(d, {}).items():
         lines.append('    <string name="%s">%s</string>' % (k, v))
     # "Gentler QTEs": the main app's help without its second sentence (a finger on the touch screen)
     m = re.search(r'<string name="ingame_gentle_qte_help">(.*?)</string>', text, re.S)

@@ -559,3 +559,107 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   if (gPlay)
     (*gPlay)->SetPlayState(gPlay, on ? SL_PLAYSTATE_PAUSED : SL_PLAYSTATE_PLAYING);
 }
+
+// --- the menu's instant save and memory card (wish of the project owner, 14.11.2026: as the main app's
+// core_mode.cpp, CoreBridge.instant / cardList / cardExport / cardImport) ----------------------------------------
+
+// Result, present, canSave, canLoad, room, chapter, playTime, Unix save time (seconds), saving refused here (1).
+extern "C" JNIEXPORT jlongArray JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeInstant(JNIEnv *env, jclass,
+                                                                                            jint operation) {
+  Re4InstantInfo info = {};
+  const int result = gRunning ? re4ipc_instant(operation, &info) : RE4_INSTANT_UNSUPPORTED;
+  if (operation != 0)
+    LOG("instant save %d: %d", static_cast<int>(operation), result);
+  const jlong fields[] = {result, info.present, info.canSave, info.canLoad, info.room, info.chapter,
+                          info.playTime, info.savedAt, info.reserved};
+  jlongArray out = env->NewLongArray(9);
+  if (out)
+    env->SetLongArrayRegion(out, 0, 9, fields);
+  return out;
+}
+
+namespace {
+std::mutex gCardLock;
+std::string gCardNote;
+}  // namespace
+
+// The card's files: "index \t name \t blocks \t save" a row; null when the game uses the card or there is none
+// (nativeCardNote: "busy" or "nocard")
+extern "C" JNIEXPORT jobjectArray JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeCardList(JNIEnv *env, jclass) {
+  std::lock_guard<std::mutex> lock(gCardLock);
+  static Re4CardFile files[127];
+  const int n = gRunning ? re4ipc_card_list(files, 127) : RE4_CARD_NOCARD;
+  if (n < 0) {
+    gCardNote = n == RE4_CARD_BUSY ? "busy" : "nocard";
+    return nullptr;
+  }
+  jobjectArray rows = env->NewObjectArray(n, env->FindClass("java/lang/String"), nullptr);
+  for (int i = 0; i < n; i++) {
+    char row[160];
+    snprintf(row, sizeof(row), "%d\t%s\t%u\t%d", files[i].index, files[i].name, files[i].blocks, files[i].save);
+    for (char *c = row; *c; c++)
+      if (static_cast<unsigned char>(*c) >= 0x80 || (*c < 0x20 && *c != '\t'))
+        *c = '?';
+    jstring s = env->NewStringUTF(row);
+    env->SetObjectArrayElement(rows, i, s);
+    env->DeleteLocalRef(s);
+  }
+  return rows;
+}
+
+// The .gci name Dolphin gives file `index` ("01-G4BE-..."), null on an error
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeCardFileName(JNIEnv *env, jclass,
+                                                                                              jint index) {
+  std::lock_guard<std::mutex> lock(gCardLock);
+  char name[80] = "";
+  if (!gRunning || re4ipc_card_file_name(index, name, sizeof(name)) != RE4_CARD_OK)
+    return nullptr;
+  return env->NewStringUTF(name);
+}
+
+// The .gci of file `index` (GameCube byte order), null on an error (nativeCardNote)
+extern "C" JNIEXPORT jbyteArray JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeCardExport(JNIEnv *env, jclass,
+                                                                                               jint index) {
+  std::lock_guard<std::mutex> lock(gCardLock);
+  if (!gRunning)
+    return nullptr;
+  std::vector<unsigned char> out(RE4_GCI_HEADER + 251 * RE4_CARD_BLOCK);
+  char note[256] = "";
+  const int bytes = re4ipc_card_export(index, out.data(), static_cast<unsigned>(out.size()), note, sizeof(note));
+  gCardNote = note;
+  if (bytes <= 0)
+    return nullptr;
+  jbyteArray result = env->NewByteArray(bytes);
+  env->SetByteArrayRegion(result, 0, bytes, reinterpret_cast<const jbyte *>(out.data()));
+  return result;
+}
+
+// A .gci onto the card: RE4_CARD_OK (0) or an error (re4_card_files.h; nativeCardNote)
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeCardImport(JNIEnv *env, jclass,
+                                                                                         jbyteArray gci,
+                                                                                         jboolean replace) {
+  std::lock_guard<std::mutex> lock(gCardLock);
+  if (!gRunning)
+    return RE4_CARD_NOCARD;
+  const jsize size = env->GetArrayLength(gci);
+  std::vector<unsigned char> in(static_cast<size_t>(size));
+  env->GetByteArrayRegion(gci, 0, size, reinterpret_cast<jbyte *>(in.data()));
+  char note[256] = "";
+  const int r = re4ipc_card_import(in.data(), static_cast<unsigned>(size), replace ? 1 : 0, note, sizeof(note));
+  gCardNote = note;
+  LOG("card import (%d bytes): %d %s", static_cast<int>(size), r, note);
+  return r;
+}
+
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeCardNote(JNIEnv *env, jclass) {
+  std::lock_guard<std::mutex> lock(gCardLock);
+  return env->NewStringUTF(gCardNote.c_str());
+}
+
+// "Unlock extra games": the game starts over in the core process (its title menu then shows them); language as
+// RE4_GAME_LANGUAGE (0: the disc's own)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeRestartGame(JNIEnv *, jclass,
+                                                                                          jint language) {
+  if (gRunning)
+    re4ipc_restart_game(language);
+}

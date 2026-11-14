@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Ingame Menu</string>
+    <string name="ingame_title">CubeEvil4-Potato Ingame Menu</string>
     <string name="ingame_back">Back to the game</string>
     <string name="ingame_graphics">Graphics</string>
     <string name="ingame_resolution">Resolution</string>
@@ -60,11 +60,68 @@
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">To play another version: the game ends, and you import both of its discs on the start screen. Saves, memory card and settings stay.</string>
     <string name="ingame_import_discs">Import other discs</string>
+    <string name="ingame_instant">Instant save</string>
+    <string name="ingame_slot">Save slot</string>
+    <string name="ingame_slot_details">Chapter %1$s  ·  %2$s  ·  Play time %3$s</string>
+    <string name="ingame_slot_date">Last saved: %1$s</string>
+    <string name="ingame_instant_save">Save</string>
+    <string name="ingame_instant_load">Load</string>
+    <string name="ingame_instant_checking">Checking save slot …</string>
+    <string name="ingame_instant_working">Please wait …</string>
+    <string name="ingame_instant_ready">Ready.</string>
+    <string name="ingame_instant_empty">No instant save yet.</string>
+    <string name="ingame_instant_unavailable">Unavailable during loading, events or an unsafe game state. Close the menu and try again during play.</string>
+    <string name="ingame_instant_no_save">Saving is not possible here (boat, ladder, boss fight, Mercenaries or a similar situation). You can still load.</string>
+    <string name="ingame_instant_unsupported">Update the game core to use instant saving.</string>
+    <string name="ingame_instant_damaged">The instant save is damaged or incompatible. You can replace it with a new save.</string>
+    <string name="ingame_instant_failed">Could not read or write the instant save.</string>
+    <string name="ingame_instant_saved">Instant save stored.</string>
+    <string name="ingame_instant_overwrite_title">Overwrite instant save?</string>
+    <string name="ingame_instant_load_title">Load instant save?</string>
+    <string name="ingame_instant_overwrite">Replace the previous instant save with your current progress?</string>
+    <string name="ingame_instant_load_warning">Unsaved progress will be lost. Load the instant save?</string>
+    <string name="ingame_replace">Replace</string>
+    <string name="ingame_cheat_random_items">Random items</string>
+    <string name="ingame_cheat_random_items_help">Random items: the items lying in the story\'s rooms (ammo, herbs and other recovery items, grenades, pesetas, treasures) are dealt anew in every room you enter from then on, and a room always gives the same items until you switch this off and on again. Keys, weapons, files and other story items stay as they are, so the game can always be finished. Items you already picked up stay picked up; enemies, barrels and boxes keep their own drops. Not in Assignment Ada and The Mercenaries.</string>
+    <string name="ingame_cheat_extras">Unlock extra games</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
+    <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
+    <string name="ingame_cheat_extras_already">Already unlocked: Assignment Ada and The Mercenaries are in the title menu.</string>
+    <string name="ingame_language_restart_title">Restart the game?</string>
+    <string name="ingame_restart">Restart</string>
+    <string name="ingame_later">Later</string>
+    <string name="ingame_management">Management</string>
+    <string name="ingame_card_busy">The card is in use (the game saves or loads) or the game is still loading – close the menu and open it again in a moment.</string>
+    <string name="ingame_card_none">No memory card.</string>
+    <string name="ingame_export">Export Player Data (.gci)</string>
+    <string name="ingame_export_zip">Export Player Data (.zip)</string>
+    <string name="ingame_import">Import Player Data (.gci, .zip, .raw)</string>
+    <string name="ingame_wipe">Delete All Data</string>
+    <string name="ingame_wipe_cancel">Cancel</string>
+    <string name="ingame_wipe_yes">Delete</string>
+    <plurals name="ingame_exported">
+        <item quantity="one">%1$d file exported.</item>
+        <item quantity="other">%1$d files exported.</item>
+    </plurals>
+    <string name="ingame_imported">Imported: %1$s</string>
+    <string name="ingame_import_no_space">No space on the card for %1$s</string>
+    <string name="ingame_import_busy">The game uses the card: %1$s</string>
+    <string name="ingame_import_no_card">No memory card: %1$s</string>
+    <string name="ingame_import_bad">Not a file of this game, or damaged: %1$s (%2$s)</string>
+    <string name="ingame_import_exists">%1$s is on the card already. Replace it?</string>
+    <string name="ingame_source">Source and updates</string>
+    <string name="ingame_source_line">More on this port at %1$s</string>
     <string name="ouya_cheats">Cheats</string>
     <string name="ouya_view_distance">View distance</string>
     <string name="ouya_colours">Colour calculation</string>
     <string name="ouya_colours_simple">Simplified</string>
     <string name="ouya_colours_exact">Exact</string>
     <string name="ouya_graphics_help">Resolution: the game\'s picture as a share of the GameCube\'s 640 × 528 points; lower is faster. The simplified colour calculation saves graphics work; colours may differ very slightly. View distance: how far you see before the distance fog; what lies behind it is not drawn. It takes effect at once.</string>
+    <string name="ouya_card_help">Export Player Data: your saves as .gci (for Dolphin or GameCube), or everything in one .zip (saves and instant save; CubeEvil4 on a phone reads it too). The files go to the folder CubeEvil4-Potato on the drive with the game data; the import lists the .gci and .zip files there and in the Download folder. Delete All Data empties the memory card.</string>
+    <string name="ouya_exported_to">Saved in %1$s</string>
+    <string name="ouya_import_none">No .gci or .zip files in %1$s or a Download folder.</string>
+    <string name="ouya_export_failed">Could not write %1$s</string>
+    <string name="ouya_wipe_text">All saves on the memory card and the instant save will be deleted, as if the card were formatted. The discs and the settings stay. This cannot be undone: to keep your saves, export them first (.zip). The game restarts for it.</string>
+    <string name="ouya_no_browser">No web browser on this device. The address: %1$s</string>
     <string name="ouya_gentle_qte_help">Gentler QTEs: in Professional the quick-time events (dodging, the knife fight, pressing a button fast) give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s.</string>
 </resources>

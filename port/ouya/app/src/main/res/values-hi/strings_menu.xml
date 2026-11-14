@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 इन-गेम मेन्यू</string>
+    <string name="ingame_title">CubeEvil4-Potato इन-गेम मेन्यू</string>
     <string name="ingame_back">गेम पर लौटें</string>
     <string name="ingame_graphics">ग्राफ़िक्स</string>
     <string name="ingame_resolution">रिज़ॉल्यूशन</string>
@@ -60,11 +60,68 @@
     <string name="ingame_discs">डिस्क</string>
     <string name="ingame_discs_help">कोई दूसरा संस्करण खेलने के लिए: गेम बंद होगा, और आप स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करेंगे। सेव, मेमोरी कार्ड और सेटिंग्स बनी रहेंगी।</string>
     <string name="ingame_import_discs">दूसरी डिस्क इम्पोर्ट करें</string>
+    <string name="ingame_instant">तुरंत सेव</string>
+    <string name="ingame_slot">सेव स्लॉट</string>
+    <string name="ingame_slot_details">अध्याय %1$s  ·  %2$s  ·  खेलने का समय %3$s</string>
+    <string name="ingame_slot_date">आखिरी सेव: %1$s</string>
+    <string name="ingame_instant_save">सेव करें</string>
+    <string name="ingame_instant_load">लोड करें</string>
+    <string name="ingame_instant_checking">सेव स्लॉट जाँचा जा रहा है…</string>
+    <string name="ingame_instant_working">कृपया प्रतीक्षा करें…</string>
+    <string name="ingame_instant_ready">तैयार।</string>
+    <string name="ingame_instant_empty">अभी कोई तुरंत सेव नहीं है।</string>
+    <string name="ingame_instant_unavailable">लोडिंग, घटनाओं या इस स्थिति में उपलब्ध नहीं है। मेन्यू बंद करें और खेलते समय फिर कोशिश करें।</string>
+    <string name="ingame_instant_no_save">यहाँ सेव करना संभव नहीं है (नाव, सीढ़ी, बॉस फाइट, मर्सिनरीज़ या ऐसी स्थिति)। लोड फिर भी किया जा सकता है।</string>
+    <string name="ingame_instant_unsupported">तुरंत सेव के लिए गेम कोर अपडेट करें।</string>
+    <string name="ingame_instant_damaged">तुरंत सेव खराब है या मेल नहीं खाता। आप इसे नए सेव से बदल सकते हैं।</string>
+    <string name="ingame_instant_failed">तुरंत सेव पढ़ा या लिखा नहीं जा सका।</string>
+    <string name="ingame_instant_saved">तुरंत सेव सहेजा गया।</string>
+    <string name="ingame_instant_overwrite_title">तुरंत सेव बदलें?</string>
+    <string name="ingame_instant_load_title">तुरंत सेव लोड करें?</string>
+    <string name="ingame_instant_overwrite">पिछले तुरंत सेव को मौजूदा प्रगति से बदलें?</string>
+    <string name="ingame_instant_load_warning">बिना सेव की प्रगति खो जाएगी। तुरंत सेव लोड करें?</string>
+    <string name="ingame_replace">बदलें</string>
+    <string name="ingame_cheat_random_items">रैंडम आइटम</string>
+    <string name="ingame_cheat_random_items_help">रैंडम आइटम: कहानी के कमरों में पड़े आइटम (गोला-बारूद, जड़ी-बूटियाँ और दूसरे इलाज के आइटम, ग्रेनेड, पेसेटा, खज़ाने) उसके बाद आप जिस भी कमरे में जाते हैं, वहाँ नए सिरे से बाँटे जाते हैं, और एक कमरा हमेशा वही आइटम देता है जब तक आप इसे बंद करके फिर से चालू न करें। चाबियाँ, हथियार, फ़ाइलें और कहानी के दूसरे आइटम वैसे ही रहते हैं, इसलिए गेम हमेशा पूरा किया जा सकता है। जो आप उठा चुके हैं वह उठाया हुआ ही रहता है; दुश्मन, बैरल और बक्से अपना सामान खुद रखते हैं। Assignment Ada और The Mercenaries में नहीं।</string>
+    <string name="ingame_cheat_extras">एक्स्ट्रा गेम अनलॉक करें</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada और The Mercenaries अनलॉक हो गए हैं (साथ में Professional भी, जैसे गेम पूरा करने के बाद)। गेम फिर से शुरू करने के बाद टाइटल मेनू उन्हें दिखाता है। आपके आख़िरी सेव के बाद की प्रगति खो जाएगी।</string>
+    <string name="ingame_cheat_extras_later">अनलॉक हो गए: गेम अगली बार फिर से शुरू होने के बाद Assignment Ada और The Mercenaries टाइटल मेनू में होंगे।</string>
+    <string name="ingame_cheat_extras_already">पहले से अनलॉक: Assignment Ada और The Mercenaries टाइटल मेनू में हैं।</string>
+    <string name="ingame_language_restart_title">गेम फिर से शुरू करें?</string>
+    <string name="ingame_restart">फिर से शुरू करें</string>
+    <string name="ingame_later">बाद में</string>
+    <string name="ingame_management">प्रबंधन</string>
+    <string name="ingame_card_busy">कार्ड अभी उपयोग में है (गेम सेव या लोड कर रहा है) या गेम अभी लोड हो रहा है – मेनू बंद करें और थोड़ी देर बाद फिर खोलें।</string>
+    <string name="ingame_card_none">कोई मेमोरी कार्ड नहीं।</string>
+    <string name="ingame_export">गेम डेटा एक्सपोर्ट करें (.gci)</string>
+    <string name="ingame_export_zip">गेम डेटा एक्सपोर्ट करें (.zip)</string>
+    <string name="ingame_import">गेम डेटा इम्पोर्ट करें (.gci, .zip, .raw)</string>
+    <string name="ingame_wipe">सारा डेटा हटाएँ</string>
+    <string name="ingame_wipe_cancel">रद्द करें</string>
+    <string name="ingame_wipe_yes">हटाएँ</string>
+    <plurals name="ingame_exported">
+        <item quantity="one">%1$d फ़ाइल एक्सपोर्ट हुई।</item>
+        <item quantity="other">%1$d फ़ाइलें एक्सपोर्ट हुईं।</item>
+    </plurals>
+    <string name="ingame_imported">इम्पोर्ट हुआ: %1$s</string>
+    <string name="ingame_import_no_space">कार्ड पर %1$s के लिए जगह नहीं है</string>
+    <string name="ingame_import_busy">गेम कार्ड का उपयोग कर रहा है: %1$s</string>
+    <string name="ingame_import_no_card">कोई मेमोरी कार्ड नहीं: %1$s</string>
+    <string name="ingame_import_bad">यह इस गेम की फ़ाइल नहीं है, या खराब है: %1$s (%2$s)</string>
+    <string name="ingame_import_exists">%1$s पहले से कार्ड पर है। बदलें?</string>
+    <string name="ingame_source">सोर्स कोड और अपडेट</string>
+    <string name="ingame_source_line">इस पोर्ट के बारे में और जानकारी: %1$s</string>
     <string name="ouya_cheats">चीट्स</string>
     <string name="ouya_view_distance">दृश्य दूरी</string>
     <string name="ouya_colours">रंग गणना</string>
     <string name="ouya_colours_simple">सरलीकृत</string>
     <string name="ouya_colours_exact">सटीक</string>
     <string name="ouya_graphics_help">रिज़ॉल्यूशन: GameCube के 640 × 528 बिंदुओं के हिस्से के रूप में गेम की तस्वीर; कम होने पर तेज़। सरलीकृत रंग गणना ग्राफ़िक्स का काम कम करती है; रंग बहुत थोड़े अलग हो सकते हैं। दृश्य दूरी: दूरी के कोहरे से पहले कितनी दूर तक दिखता है; उसके पीछे का हिस्सा नहीं बनाया जाता। यह तुरंत लागू होती है।</string>
+    <string name="ouya_card_help">गेम डेटा एक्सपोर्ट करें: सेव गेम .gci के रूप में (Dolphin या GameCube के लिए), या सब कुछ एक .zip में (सेव और तुरंत सेव; फ़ोन पर CubeEvil4 भी इसे पढ़ता है)। फ़ाइलें गेम डेटा वाली ड्राइव के CubeEvil4-Potato फ़ोल्डर में जाती हैं; इम्पोर्ट वहाँ और Download फ़ोल्डर की .gci और .zip फ़ाइलें दिखाता है। सारा डेटा हटाएँ मेमोरी कार्ड खाली कर देता है।</string>
+    <string name="ouya_exported_to">%1$s में सेव किया गया</string>
+    <string name="ouya_import_none">%1$s या किसी Download फ़ोल्डर में कोई .gci या .zip फ़ाइल नहीं।</string>
+    <string name="ouya_export_failed">%1$s नहीं लिखी जा सकी</string>
+    <string name="ouya_wipe_text">मेमोरी कार्ड के सभी सेव और तुरंत सेव हट जाएँगे, जैसे कार्ड फ़ॉर्मेट किया गया हो। डिस्क और सेटिंग बनी रहती हैं। इसे पलटा नहीं जा सकता: अपने सेव रखने हों तो पहले उन्हें एक्सपोर्ट करें (.zip)। इसके लिए गेम फिर से शुरू होता है।</string>
+    <string name="ouya_no_browser">इस डिवाइस पर कोई वेब ब्राउज़र नहीं है। पता: %1$s</string>
     <string name="ouya_gentle_qte_help">आसान QTE: Professional में बटन वाले इवेंट (बचना, चाकू की लड़ाई, तेज़ी से दबाना) उतना ही समय देते हैं और उतने ही दबाव माँगते हैं जितने Normal में; नुकसान और दुश्मन Professional जैसे ही रहते हैं।</string>
 </resources>

@@ -46,6 +46,12 @@ final class OuyaMenu extends Dialog {
         int cheatAction(int what);
         /** "Import other discs": the game ends, the app starts again with its disc installer. */
         void importDiscs();
+        /** The game's data folder (disc1, disc2, memcard, instant), null before the game runs. */
+        java.io.File gameData();
+        /** "Delete All Data": the app starts again, the card and the instant save go before the core opens them. */
+        void wipePlayerData();
+        /** The game starts over in its process (the extra games' title menu), the language stays. */
+        void restartGame();
     }
 
     /** The preferences and their defaults: the light OUYA version (port/docs/ouya-machbarkeit.md). */
@@ -56,8 +62,10 @@ final class OuyaMenu extends Dialog {
                 ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera", FRAME_SKIP = "frameSkip", CHEATS = "cheats",
                 // master 0.99.15 (merged 14.11.2026): the Potato mode's particles and shadows, frame skip in three steps
                 PARTICLES = "particles", SHADOWS = "shadowsLight", FRAME_SKIP_LEVEL = "frameSkipLevel",
-                GENTLE_QTE = "gentleQte";
-        static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 50;
+                GENTLE_QTE = "gentleQte", PARTICLES_ON = "particleEffects";
+        // the first start's settings (wish of the project owner, 14.11.2026): resolution 75 %, view distance 35 %,
+        // colours simplified, every Potato effect off, frame skip Normal
+        static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 35;
 
         static int eighths(SharedPreferences p) { return p.getInt(EIGHTHS, EIGHTHS_DEFAULT); }
         static boolean fastTev(SharedPreferences p) { return p.getBoolean(FAST_TEV, true); }
@@ -70,16 +78,24 @@ final class OuyaMenu extends Dialog {
         /** "Gentler QTEs (Professional)" (runtime/qte_touch.cpp, patch 0232): on by default, as in the main app
          *  (decision of the project owner, 14.11.2026). */
         static boolean gentleQte(SharedPreferences p) { return p.getBoolean(GENTLE_QTE, true); }
-        /** The Potato mode's particle effects: 0 Normal, 1 Less, 2 None. */
-        static int particles(SharedPreferences p) { return p.getInt(PARTICLES, 0); }
+        /** The Potato mode's particle effects, a switch since 14.11.2026 (wish of the project owner): on Normal (0),
+         *  off None (2; fire and explosions stay at half as a warning). */
+        static int particles(SharedPreferences p) { return p.getBoolean(PARTICLES_ON, false) ? 0 : 2; }
         /** The cheat switches (runtime/cheats.cpp): 1 health, 2 ammo, 4 one-hit kill, 8 QTEs, 512 invisibility. */
         static int cheats(SharedPreferences p) { return p.getInt(CHEATS, 0); }
+        /** "Random items" (runtime/cheats.cpp, the main app's CoreMenu.withRandomItems): bit 1024 and a seed in
+         *  bits 11..30, a new one each time it goes on. */
+        static final int RANDOM_ITEMS_BIT = 1024, SEED_SHIFT = 11, SEED_BITS = 0xFFFFF << SEED_SHIFT;
+        static int withRandomItems(int bits, boolean on, int seed) {
+            bits &= ~(RANDOM_ITEMS_BIT | SEED_BITS);
+            return on ? bits | RANDOM_ITEMS_BIT | ((seed << SEED_SHIFT) & SEED_BITS) : bits;
+        }
         static int view(SharedPreferences p) { return p.getInt(VIEW, VIEW_DEFAULT); }
         /** runtime/potato.cpp: bit 0 weather, bit 1 special effects left out (both by default on the OUYA),
          *  bits 2..3 the particle effects (0 normal, 1 less, 2 none), bit 4 shadows and light effects left out. */
         static int potato(SharedPreferences p) {
             return (p.getBoolean(WEATHER, false) ? 0 : 1) | (p.getBoolean(SPECIAL, false) ? 0 : 2)
-                    | (Math.max(0, Math.min(2, particles(p))) << 2) | (p.getBoolean(SHADOWS, true) ? 0 : 16);
+                    | (particles(p) << 2) | (p.getBoolean(SHADOWS, false) ? 0 : 16);
         }
         /** re4_core_set_aim: speed 100 % << 8, bit 1 auto aim, bit 2 always run, bit 3 far camera. */
         static int aim(SharedPreferences p) {
@@ -140,29 +156,31 @@ final class OuyaMenu extends Dialog {
     }
 
     private void build() {
+        instantSave();
         heading(R.string.ingame_graphics);
-        first = choices(s(R.string.ingame_resolution), new String[] {"62 %", "75 %", "100 %"}, new int[] {5, 6, 8},
-                Settings.eighths(prefs), Settings.EIGHTHS)[0];
+        Button resolution = choices(s(R.string.ingame_resolution), new String[] {"62 %", "75 %", "100 %"},
+                new int[] {5, 6, 8}, Settings.eighths(prefs), Settings.EIGHTHS)[0];
+        if (first == null)
+            first = resolution;
         // 35 %: fewer vertices for the core and the GPU (wish of the project owner, 07.11.2026: a steady
         // 30, whatever it takes)
         choices(s(R.string.ouya_view_distance), new String[] {"35 %", "50 %", "75 %", "100 %"},
                 new int[] {35, 50, 75, 100}, Settings.view(prefs), Settings.VIEW);
+        // the two as wide as the rows above together (wish of the project owner, 14.11.2026)
         final Button[] colours = choices(s(R.string.ouya_colours),
                 new String[] {s(R.string.ouya_colours_simple), s(R.string.ouya_colours_exact)}, new int[] {1, 0},
-                Settings.fastTev(prefs) ? 1 : 0, null);
+                Settings.fastTev(prefs) ? 1 : 0, null, false);
         colours[0].setOnClickListener(choose(colours, 0, Settings.FAST_TEV, true));
         colours[1].setOnClickListener(choose(colours, 1, Settings.FAST_TEV, false));
         help(R.string.ouya_graphics_help);
+        // four switches, the particle effects one of them (wish of the project owner, 14.11.2026)
         heading(R.string.ingame_potato);
         LinearLayout potato = buttonsRow();
         toggle(potato, R.string.ingame_potato_weather, Settings.WEATHER);
         toggle(potato, R.string.ingame_potato_special, Settings.SPECIAL);
         LinearLayout light = buttonsRow();
-        toggle(light, R.string.ingame_potato_shadows, Settings.SHADOWS, true);
-        light.addView(new View(getContext()), cell());
-        choices(s(R.string.ingame_potato_particles), new String[] {s(R.string.ingame_particles_normal),
-                s(R.string.ingame_particles_less), s(R.string.ingame_particles_none)}, new int[] {0, 1, 2},
-                Settings.particles(prefs), Settings.PARTICLES);
+        toggle(light, R.string.ingame_potato_shadows, Settings.SHADOWS);
+        toggle(light, R.string.ingame_potato_particles, Settings.PARTICLES_ON);
         help(R.string.ingame_potato_help);
         heading(R.string.ingame_perf_section);
         choices(s(R.string.ingame_frame_skip), new String[] {s(R.string.ingame_off), s(R.string.ingame_skip_normal),
@@ -182,18 +200,7 @@ final class OuyaMenu extends Dialog {
         help(R.string.ingame_far_camera_help);
         help(R.string.ouya_gentle_qte_help);
         cheats();
-        heading(R.string.ingame_discs);
-        LinearLayout discs = buttonsRow();
-        Button other = button(s(R.string.ingame_import_discs), new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dismiss();
-                host.importDiscs();
-            }
-        });
-        discs.addView(other, cell());
-        discs.addView(new View(getContext()), cell());
-        help(R.string.ingame_discs_help);
+        management();
     }
 
     // --- the cheats (the main app's CoreMenu.cheats, without the characters and the extra games) ---
@@ -219,16 +226,105 @@ final class OuyaMenu extends Dialog {
         cheatButton(launchers, 8, R.string.ingame_cheat_mine);
         cheatButton(launchers, 7, R.string.ingame_cheat_rocket);
         subheading(R.string.ingame_cheat_section_game);
+        // beside "Automatic QTEs": "Random items" and "Unlock extra games", as in the main app (wish of the project
+        // owner, 14.11.2026)
         LinearLayout game = buttonsRow();
         cheatSwitch(game, R.string.ingame_cheat_qte, 8);
-        game.addView(new View(getContext()), cell());
-        game.addView(new View(getContext()), cell());
+        final Button items = button("", null);
+        items.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean next = !items.isSelected();
+                toggleLabel(items, R.string.ingame_cheat_random_items, next);
+                prefs.edit().putInt(Settings.CHEATS, Settings.withRandomItems(Settings.cheats(prefs), next,
+                        new java.util.Random().nextInt(1 << 20))).apply();
+                host.settingsChanged();
+            }
+        });
+        toggleLabel(items, R.string.ingame_cheat_random_items, (Settings.cheats(prefs) & Settings.RANDOM_ITEMS_BIT) != 0);
+        game.addView(items, cell());
+        final Button extras = button(s(R.string.ingame_cheat_extras), null);
+        extras.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                flash(extras);
+                unlockExtras();
+            }
+        });
+        game.addView(extras, cell());
         cheatStatus = text("", 15, false);
         cheatStatus.setTextColor(GOLD);
         cheatStatus.setPadding(dp(GAP), dp(6), dp(GAP), dp(2));
         cheatStatus.setVisibility(View.GONE);
         body.addView(cheatStatus);
         help(R.string.ingame_cheats_help);
+        help(R.string.ingame_cheat_random_items_help);
+    }
+
+    private void flash(final Button b) {
+        b.setSelected(true);
+        main.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                b.setSelected(false);
+            }
+        }, 600);
+    }
+
+    private void cheatLine(String text) {
+        if (cheatStatus == null)
+            return;
+        cheatStatus.setText(text);
+        cheatStatus.setVisibility(View.VISIBLE);
+    }
+
+    /** "Unlock extra games" (re4_core_cheat_action 4): Assignment Ada and The Mercenaries; the title menu shows them
+     *  after a restart of the game, now or later (the main app's CoreMenu.askRestartForExtras). */
+    private void unlockExtras() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final int done = host.cheatAction(4);
+                main.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isShowing())
+                            return;
+                        if (done == 1 || done == 2 || done == 3) {
+                            // kept by the app as well: a system file read without it (no save since) gets it back
+                            prefs.edit().putInt(Settings.CHEATS, Settings.cheats(prefs) | 16).apply();
+                            host.settingsChanged();
+                            if (done == 2)
+                                cheatLine(s(R.string.ingame_cheat_extras_already));
+                            else
+                                askRestartForExtras();
+                        } else {
+                            showCheatResult(4, R.string.ingame_cheat_extras, done);
+                        }
+                    }
+                });
+            }
+        }, "cheat").start();
+    }
+
+    private void askRestartForExtras() {
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.ingame_language_restart_title)
+                .setMessage(R.string.ingame_cheat_extras_text)
+                .setNegativeButton(R.string.ingame_later, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface d, int which) {
+                        cheatLine(s(R.string.ingame_cheat_extras_later));
+                    }
+                })
+                .setPositiveButton(R.string.ingame_restart, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface d, int which) {
+                        dismiss();
+                        host.restartGame();
+                    }
+                }).create();
+        showDialog(dialog, true);
     }
 
     /** A section's second level: its name in the muted colour, without the line */
@@ -313,6 +409,508 @@ final class OuyaMenu extends Dialog {
         super.onStart();
         if (first != null)
             first.requestFocus();
+    }
+
+    // --- the instant save (wish of the project owner, 14.11.2026; the main app's CoreMenu.home) ------------
+
+    private Button saveSlot, loadSlot;
+    private TextView slotDetails, slotDate, slotStatus;
+    private boolean slotPresent, working;
+
+    private void instantSave() {
+        heading(R.string.ingame_instant);
+        LinearLayout slot = row();
+        slot.setBackgroundDrawable(shape(0xff202720, BORDER, 6));
+        LinearLayout metadata = column();
+        metadata.setPadding(dp(12), dp(6), dp(12), dp(6));
+        metadata.addView(text(s(R.string.ingame_slot), 18, true));
+        slotDetails = text("", 15, false);
+        slotDate = text("", 15, false);
+        metadata.addView(slotDetails);
+        metadata.addView(slotDate);
+        slot.addView(metadata, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        saveSlot = button(s(R.string.ingame_instant_save), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                confirmInstant(1);
+            }
+        });
+        loadSlot = button(s(R.string.ingame_instant_load), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                confirmInstant(2);
+            }
+        });
+        for (Button b : new Button[] {saveSlot, loadSlot}) {
+            b.setEnabled(false);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(170), ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(dp(GAP), dp(GAP), dp(GAP), dp(GAP));
+            slot.addView(b, lp);
+        }
+        LinearLayout.LayoutParams frame = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        frame.setMargins(dp(GAP), dp(GAP), dp(GAP), dp(GAP));
+        body.addView(slot, frame);
+        slotStatus = text(s(R.string.ingame_instant_checking), 15, false);
+        slotStatus.setPadding(dp(GAP), dp(4), dp(GAP), dp(4));
+        body.addView(slotStatus);
+        main.post(new Runnable() {
+            @Override
+            public void run() {
+                instant(0);
+            }
+        });
+    }
+
+    private void confirmInstant(final int operation) {
+        if (working)
+            return;
+        if (operation == 1 && !slotPresent) {
+            instant(1);
+            return;
+        }
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext())
+                .setTitle(operation == 1 ? R.string.ingame_instant_overwrite_title : R.string.ingame_instant_load_title)
+                .setMessage(operation == 1 ? R.string.ingame_instant_overwrite : R.string.ingame_instant_load_warning)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(operation == 1 ? R.string.ingame_replace : R.string.ingame_instant_load,
+                        new android.content.DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(android.content.DialogInterface d, int which) {
+                                instant(operation);
+                            }
+                        }).create();
+        showDialog(dialog, true);
+    }
+
+    /** 0 the slot's state, 1 save, 2 load (re4_core_instant), on a thread of its own */
+    private void instant(final int operation) {
+        if (working)
+            return;
+        working = true;
+        saveSlot.setEnabled(false);
+        loadSlot.setEnabled(false);
+        showSlotStatus(operation == 0 ? R.string.ingame_instant_checking : R.string.ingame_instant_working);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                long[] result;
+                try {
+                    result = OuyaActivity.nativeInstant(operation);
+                } catch (RuntimeException e) {
+                    result = null;
+                }
+                final long[] done = result;
+                main.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        working = false;
+                        if (!isShowing())
+                            return;
+                        if (done == null || done.length < 9) {
+                            showSlotStatus(R.string.ingame_instant_failed);
+                            return;
+                        }
+                        showInstant(done);
+                        if (operation == 2 && done[0] == 0)
+                            dismiss();
+                        else if (operation == 1 && done[0] == 0)
+                            showSlotStatus(R.string.ingame_instant_saved);
+                        if (!saveSlot.hasFocus() && !loadSlot.hasFocus() && getCurrentFocus() == null && first != null)
+                            first.requestFocus();
+                    }
+                });
+            }
+        }, "InstantSlot").start();
+    }
+
+    private void showInstant(long[] data) {
+        saveSlot.setEnabled(data[2] != 0);
+        loadSlot.setEnabled(data[3] != 0);
+        if (data[0] == -1) {
+            showSlotStatus(R.string.ingame_instant_unavailable);
+            return;
+        }
+        slotPresent = data[1] != 0;
+        if (slotPresent) {
+            String room = String.format(Locale.ROOT, "r%03x", data[4]);
+            String play = String.format(Locale.ROOT, "%02d:%02d:%02d", data[6] / 3600, data[6] / 60 % 60, data[6] % 60);
+            slotDetails.setText(getContext().getString(R.string.ingame_slot_details,
+                    String.format(Locale.ROOT, "%d–%d", data[5] / 100, data[5] % 100), room, play));
+            String when = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,
+                    java.text.DateFormat.SHORT).format(new java.util.Date(data[7] * 1000));
+            slotDate.setText(getContext().getString(R.string.ingame_slot_date, when));
+        } else {
+            slotDetails.setText(s(R.string.ingame_instant_empty));
+            slotDate.setText("");
+        }
+        int status = R.string.ingame_instant_ready;
+        if (data[0] == -5)
+            status = R.string.ingame_instant_unsupported;
+        else if (data[0] == -3)
+            status = R.string.ingame_instant_damaged;
+        else if (data[0] == -4)
+            status = R.string.ingame_instant_failed;
+        else if (data[2] == 0 && data[8] != 0)
+            status = R.string.ingame_instant_no_save;
+        else if (data[2] == 0 && data[3] == 0)
+            status = R.string.ingame_instant_unavailable;
+        showSlotStatus(status);
+    }
+
+    private void showSlotStatus(int message) {
+        slotStatus.setText(s(message));
+        slotStatus.setVisibility(message == R.string.ingame_instant_ready ? View.GONE : View.VISIBLE);
+    }
+
+    // --- MANAGEMENT and SOURCE (wish of the project owner, 14.11.2026; the main app's CoreMenu.management) -----
+    // Android 4.1 has no file dialog: the exports go to the folder CubeEvil4-Potato on the drive with the game data,
+    // the import lists the .gci and .zip files there and in the Download folders (OuyaPlayerData).
+
+    static final String SOURCE_URL = "https://github.com/Andiweli/CubeEvil4-Android";
+    private static final int WIPE_RED = 0xff4a2323, WIPE_RED_EDGE = 0xff7d3b3b, WIPE_TEXT = 0xffffd9d2;
+    // re4_card_files.h
+    private static final int CARD_OK = 0, CARD_NOCARD = -1, CARD_EXISTS = -2, CARD_NOSPACE = -3, CARD_BAD = -4,
+            CARD_BUSY = -5;
+    private TextView cardLine, sourceLine;
+
+    private void management() {
+        heading(R.string.ingame_management);
+        help(R.string.ouya_card_help);
+        cardLine = text("", 15, false);
+        cardLine.setTextColor(GOLD);
+        cardLine.setPadding(dp(GAP), dp(2), dp(GAP), dp(2));
+        cardLine.setVisibility(View.GONE);
+        body.addView(cardLine);
+        LinearLayout exports = buttonsRow();
+        exports.addView(button(s(R.string.ingame_export), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                export(false);
+            }
+        }), cell());
+        exports.addView(button(s(R.string.ingame_export_zip), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                export(true);
+            }
+        }), cell());
+        LinearLayout imports = buttonsRow();
+        imports.addView(button(s(R.string.ingame_import), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                chooseImport();
+            }
+        }), cell());
+        imports.addView(wipeButton(), cell());
+        // "Import other discs" across the whole width
+        LinearLayout discs = buttonsRow();
+        discs.addView(button(s(R.string.ingame_import_discs), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dismiss();
+                host.importDiscs();
+            }
+        }), cell());
+        help(R.string.ingame_discs_help);
+        heading(R.string.ingame_source);
+        LinearLayout source = buttonsRow();
+        source.addView(button(getContext().getString(R.string.ingame_source_line, SOURCE_URL),
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        openSource();
+                    }
+                }), cell());
+        sourceLine = text("", 15, false);
+        sourceLine.setPadding(dp(GAP), dp(2), dp(GAP), dp(2));
+        sourceLine.setVisibility(View.GONE);
+        body.addView(sourceLine);
+    }
+
+    private void cardMessage(final String text) {
+        main.post(new Runnable() {
+            @Override
+            public void run() {
+                if (cardLine == null)
+                    return;
+                cardLine.setText(text);
+                cardLine.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
+    /** "Delete All Data" in a quiet red, as the main app's */
+    private Button wipeButton() {
+        Button wipe = button(s(R.string.ingame_wipe), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                askWipe();
+            }
+        });
+        StateListDrawable quiet = new StateListDrawable();
+        quiet.addState(new int[] {android.R.attr.state_focused}, focused(WIPE_RED));
+        quiet.addState(new int[] {android.R.attr.state_pressed}, shape(WIPE_RED, GOLD, 6));
+        quiet.addState(new int[0], shape(WIPE_RED, WIPE_RED_EDGE, 6));
+        wipe.setBackgroundDrawable(quiet);
+        wipe.setTextColor(WIPE_TEXT);
+        return wipe;
+    }
+
+    private void askWipe() {
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.ingame_wipe)
+                .setMessage(R.string.ouya_wipe_text)
+                .setNegativeButton(R.string.ingame_wipe_cancel, null)
+                .setPositiveButton(R.string.ingame_wipe_yes, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface d, int which) {
+                        dismiss();
+                        host.wipePlayerData();
+                    }
+                }).create();
+        showDialog(dialog, true);
+    }
+
+    /** The card's files as .gci (Dolphin's names), or with the instant save in one .zip (the main app's format) */
+    private void export(final boolean zip) {
+        final java.io.File data = host.gameData();
+        if (data == null)
+            return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String[] rows = OuyaActivity.nativeCardList();
+                if (rows == null) {
+                    cardMessage(s("busy".equals(OuyaActivity.nativeCardNote()) ? R.string.ingame_card_busy
+                            : R.string.ingame_card_none));
+                    return;
+                }
+                java.util.List<String> names = new java.util.ArrayList<String>();
+                java.util.List<byte[]> files = new java.util.ArrayList<byte[]>();
+                for (String row : rows) {
+                    String[] f = row.split("\t");
+                    int index;
+                    try {
+                        index = Integer.parseInt(f[0]);
+                    } catch (NumberFormatException e) {
+                        continue;
+                    }
+                    byte[] gci = OuyaActivity.nativeCardExport(index);
+                    if (gci == null)
+                        continue;
+                    String name = OuyaActivity.nativeCardFileName(index);
+                    names.add(OuyaPlayerData.safeName(name != null ? name : (f.length > 1 ? f[1] : "file" + index)
+                            + (name != null && name.endsWith(".gci") ? "" : ".gci")));
+                    files.add(gci);
+                }
+                java.io.File folder = OuyaPlayerData.exportFolder(data);
+                java.io.File target = folder;
+                try {
+                    if (zip) {
+                        target = new java.io.File(folder, OuyaPlayerData.zipName(System.currentTimeMillis()));
+                        OuyaPlayerData.writeZip(target, names, files, OuyaPlayerData.instant(data),
+                                appVersion(), android.os.Build.MODEL);
+                    } else {
+                        for (int i = 0; i < files.size(); i++)
+                            OuyaPlayerData.write(new java.io.File(folder, names.get(i)), files.get(i));
+                    }
+                } catch (java.io.IOException e) {
+                    cardMessage(getContext().getString(R.string.ouya_export_failed, target.getPath()) + " ("
+                            + e.getMessage() + ")");
+                    return;
+                }
+                String count = getContext().getResources().getQuantityString(R.plurals.ingame_exported,
+                        zip ? 1 : files.size(), zip ? 1 : files.size());
+                cardMessage(count + " " + getContext().getString(R.string.ouya_exported_to, target.getPath()));
+            }
+        }, "Export").start();
+    }
+
+    private String appVersion() {
+        try {
+            return "CubeEvil4-Potato " + getContext().getPackageManager()
+                    .getPackageInfo(getContext().getPackageName(), 0).versionName;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return "CubeEvil4-Potato";
+        }
+    }
+
+    /** The .gci and .zip files of the export folder and the Download folders, newest first; one is imported */
+    private void chooseImport() {
+        final java.io.File data = host.gameData();
+        if (data == null)
+            return;
+        final java.util.List<java.io.File> found = OuyaPlayerData.candidates(data);
+        if (found.isEmpty()) {
+            cardMessage(getContext().getString(R.string.ouya_import_none, OuyaPlayerData.exportFolder(data).getPath()));
+            return;
+        }
+        String[] labels = new String[found.size()];
+        for (int i = 0; i < labels.length; i++)
+            labels[i] = found.get(i).getName() + "\n" + found.get(i).getParent();
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.ingame_import)
+                .setItems(labels, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface d, int which) {
+                        importFile(found.get(which), data);
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null).create();
+        showDialog(dialog, false);
+    }
+
+    private void importFile(final java.io.File file, final java.io.File data) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final java.util.List<String> names = new java.util.ArrayList<String>();
+                final java.util.List<byte[]> files = new java.util.ArrayList<byte[]>();
+                byte[] instant = null;
+                try {
+                    if (file.getName().toLowerCase(Locale.ROOT).endsWith(".zip")) {
+                        OuyaPlayerData.Zip z = OuyaPlayerData.readZip(file);
+                        names.addAll(z.names);
+                        files.addAll(z.files);
+                        instant = z.instant;
+                    } else {
+                        names.add(file.getName());
+                        files.add(OuyaPlayerData.read(file, 4 << 20));
+                    }
+                } catch (java.io.IOException e) {
+                    cardMessage(getContext().getString(R.string.ingame_import_bad, file.getName(), e.getMessage()));
+                    return;
+                }
+                StringBuilder report = new StringBuilder();
+                final java.util.List<Integer> exist = new java.util.ArrayList<Integer>();
+                for (int i = 0; i < files.size(); i++) {
+                    int r = OuyaActivity.nativeCardImport(files.get(i), false);
+                    if (r == CARD_EXISTS)
+                        exist.add(i);
+                    else
+                        line(report, importResult(r, names.get(i)));
+                }
+                if (instant != null) {
+                    try {
+                        OuyaPlayerData.writeInstant(data, instant);
+                        line(report, getContext().getString(R.string.ingame_imported, s(R.string.ingame_instant)));
+                    } catch (java.io.IOException e) {
+                        line(report, getContext().getString(R.string.ingame_import_bad, s(R.string.ingame_instant),
+                                e.getMessage()));
+                    }
+                }
+                if (report.length() > 0)
+                    cardMessage(report.toString());
+                if (!exist.isEmpty()) {
+                    final String before = report.toString();
+                    main.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            askReplace(names, files, exist, before);
+                        }
+                    });
+                } else if (report.length() == 0) {
+                    cardMessage(getContext().getString(R.string.ingame_import_bad, file.getName(), "-"));
+                }
+                if (instant != null)
+                    main.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (isShowing() && !working)
+                                instant(0);
+                        }
+                    });
+            }
+        }, "Import").start();
+    }
+
+    private static void line(StringBuilder report, String text) {
+        if (report.length() > 0)
+            report.append('\n');
+        report.append(text);
+    }
+
+    private String importResult(int r, String name) {
+        switch (r) {
+        case CARD_OK: return getContext().getString(R.string.ingame_imported, name);
+        case CARD_NOSPACE: return getContext().getString(R.string.ingame_import_no_space, name);
+        case CARD_BUSY: return getContext().getString(R.string.ingame_import_busy, name);
+        case CARD_NOCARD: return getContext().getString(R.string.ingame_import_no_card, name);
+        default: return getContext().getString(R.string.ingame_import_bad, name, OuyaActivity.nativeCardNote());
+        }
+    }
+
+    /** Files of that name are on the card already: replace them all, or keep the card's */
+    private void askReplace(final java.util.List<String> names, final java.util.List<byte[]> files,
+            final java.util.List<Integer> exist, final String before) {
+        StringBuilder which = new StringBuilder();
+        for (int i : exist) {
+            if (which.length() > 0)
+                which.append(", ");
+            which.append(names.get(i));
+        }
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext())
+                .setMessage(getContext().getString(R.string.ingame_import_exists, which.toString()))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.ingame_replace, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface d, int w) {
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                StringBuilder report = new StringBuilder(before);
+                                for (int i : exist)
+                                    line(report, importResult(OuyaActivity.nativeCardImport(files.get(i), true),
+                                            names.get(i)));
+                                cardMessage(report.toString());
+                            }
+                        }, "Import").start();
+                    }
+                }).create();
+        showDialog(dialog, true);
+    }
+
+    /** The source on GitHub; the OUYA may have no browser: then the address below the button */
+    private void openSource() {
+        try {
+            android.content.Intent view = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(SOURCE_URL));
+            view.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(view);
+        } catch (android.content.ActivityNotFoundException e) {
+            sourceLine.setText(getContext().getString(R.string.ouya_no_browser, SOURCE_URL));
+            sourceLine.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /** A dialog over the menu with the OUYA controller: O chooses, A cancels; the focus on "Cancel" first */
+    private void showDialog(final android.app.AlertDialog dialog, final boolean focusCancel) {
+        dialog.setOnKeyListener(new android.content.DialogInterface.OnKeyListener() {
+            @Override
+            public boolean onKey(android.content.DialogInterface d, int key, KeyEvent event) {
+                if (key == KeyEvent.KEYCODE_BUTTON_A)
+                    return dialog.getWindow().superDispatchKeyEvent(new KeyEvent(event.getDownTime(),
+                            event.getEventTime(), event.getAction(), KeyEvent.KEYCODE_DPAD_CENTER,
+                            event.getRepeatCount()));
+                if (key == KeyEvent.KEYCODE_BUTTON_B) {
+                    if (event.getAction() == KeyEvent.ACTION_UP)
+                        dialog.cancel();
+                    return true;
+                }
+                return false;
+            }
+        });
+        if (focusCancel)
+            dialog.setOnShowListener(new android.content.DialogInterface.OnShowListener() {
+                @Override
+                public void onShow(android.content.DialogInterface d) {
+                    Button cancel = dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE);
+                    if (cancel != null)
+                        cancel.requestFocus();
+                }
+            });
+        dialog.show();
     }
 
     // --- the main app's building blocks (CoreMenu), for Android 4.1 --------------------------------
@@ -427,6 +1025,12 @@ final class OuyaMenu extends Dialog {
 
     /** A row: its label (a column of 170 dp, as in the main app), then one button per choice. */
     private Button[] choices(String label, String[] labels, int[] values, int selected, final String key) {
+        return choices(label, labels, values, selected, key, true);
+    }
+
+    /** lineUp false: the buttons share the whole row, however few (the colour calculation's two). */
+    private Button[] choices(String label, String[] labels, int[] values, int selected, final String key,
+            boolean lineUp) {
         LinearLayout r = buttonsRow();
         TextView caption = text(label, 16, true);
         caption.setPadding(dp(GAP), 0, dp(8), 0);
@@ -448,7 +1052,7 @@ final class OuyaMenu extends Dialog {
             r.addView(buttons[i], cell());
         }
         // three columns of choices whatever their count (the rows line up)
-        for (int i = labels.length; i < 3; i++)
+        for (int i = labels.length; lineUp && i < 3; i++)
             r.addView(new View(getContext()), cell());
         return buttons;
     }

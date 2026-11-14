@@ -208,7 +208,7 @@ final class OuyaInstaller extends ScrollView {
     // button only when there are none), the storages side by side, the progress line
     private void show() {
         body.removeAllViews();
-        body.addView(text("CubeEvil4 for OUYA: install the game discs", 20, true));
+        body.addView(text("CubeEvil4-Potato: install the game discs", 20, true));
         separator();
         help("Disc images (ISO, GCM, RVZ) of Resident Evil 4 for the GameCube on the OUYA or a USB drive: disc 1, and "
                 + "disc 2 for the later chapters, both of one release (debug build, US, European, Japanese).");

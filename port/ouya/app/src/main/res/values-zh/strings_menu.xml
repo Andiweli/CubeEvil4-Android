@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 游戏内菜单</string>
+    <string name="ingame_title">CubeEvil4-Potato 游戏内菜单</string>
     <string name="ingame_back">返回游戏</string>
     <string name="ingame_graphics">图形</string>
     <string name="ingame_resolution">分辨率</string>
@@ -60,11 +60,67 @@
     <string name="ingame_discs">光盘</string>
     <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
     <string name="ingame_import_discs">导入其他光盘</string>
+    <string name="ingame_instant">即时存档</string>
+    <string name="ingame_slot">存档槽</string>
+    <string name="ingame_slot_details">章节 %1$s  ·  %2$s  ·  游戏时间 %3$s</string>
+    <string name="ingame_slot_date">上次保存：%1$s</string>
+    <string name="ingame_instant_save">保存</string>
+    <string name="ingame_instant_load">读取</string>
+    <string name="ingame_instant_checking">正在检查存档槽…</string>
+    <string name="ingame_instant_working">请稍候…</string>
+    <string name="ingame_instant_ready">就绪。</string>
+    <string name="ingame_instant_empty">尚无即时存档。</string>
+    <string name="ingame_instant_unavailable">载入、事件期间或当前状态下不可用。请关闭菜单，在游戏中重试。</string>
+    <string name="ingame_instant_no_save">此处无法保存（船、梯子、Boss战、佣兵模式等情形）。仍可读取。</string>
+    <string name="ingame_instant_unsupported">请更新游戏核心以使用即时存档。</string>
+    <string name="ingame_instant_damaged">即时存档已损坏或不兼容。你可以用新存档替换它。</string>
+    <string name="ingame_instant_failed">无法读取或写入即时存档。</string>
+    <string name="ingame_instant_saved">即时存档已保存。</string>
+    <string name="ingame_instant_overwrite_title">覆盖即时存档？</string>
+    <string name="ingame_instant_load_title">读取即时存档？</string>
+    <string name="ingame_instant_overwrite">用当前进度替换原有即时存档？</string>
+    <string name="ingame_instant_load_warning">未保存的进度将丢失。是否读取即时存档？</string>
+    <string name="ingame_replace">替换</string>
+    <string name="ingame_cheat_random_items">随机物品</string>
+    <string name="ingame_cheat_random_items_help">随机物品：剧情房间里放置的物品（弹药、草药和其他回复物品、手雷、比塞塔、宝物）会在此后你进入的每个房间里重新分配，同一个房间始终给出相同的物品，直到你关闭后再重新打开此开关。钥匙、武器、文件和其他剧情物品保持不变，因此游戏始终可以通关。已经拾取的物品保持已拾取；敌人、木桶和箱子保留各自的掉落。不适用于 Assignment Ada 和 The Mercenaries。</string>
+    <string name="ingame_cheat_extras">解锁额外游戏</string>
+    <string name="ingame_cheat_extras_text">Assignment Ada 和 The Mercenaries 已解锁（还有 Professional，与通关后相同）。重新启动后，标题菜单会显示它们。自上次存档以来的进度将会丢失。</string>
+    <string name="ingame_cheat_extras_later">已解锁：下次重新启动后，Assignment Ada 和 The Mercenaries 会出现在标题菜单中。</string>
+    <string name="ingame_cheat_extras_already">已经解锁：Assignment Ada 和 The Mercenaries 已在标题菜单中。</string>
+    <string name="ingame_language_restart_title">重新启动游戏？</string>
+    <string name="ingame_restart">重新启动</string>
+    <string name="ingame_later">稍后</string>
+    <string name="ingame_management">管理</string>
+    <string name="ingame_card_busy">记忆卡正在使用中（游戏正在保存或读取），或者游戏仍在加载——请关闭菜单，稍后再打开。</string>
+    <string name="ingame_card_none">没有记忆卡。</string>
+    <string name="ingame_export">导出游戏数据（.gci）</string>
+    <string name="ingame_export_zip">导出游戏数据（.zip）</string>
+    <string name="ingame_import">导入游戏数据（.gci、.zip、.raw）</string>
+    <string name="ingame_wipe">删除所有数据</string>
+    <string name="ingame_wipe_cancel">取消</string>
+    <string name="ingame_wipe_yes">删除</string>
+    <plurals name="ingame_exported">
+        <item quantity="other">已导出 %1$d 个文件。</item>
+    </plurals>
+    <string name="ingame_imported">已导入：%1$s</string>
+    <string name="ingame_import_no_space">记忆卡空间不足，无法导入 %1$s</string>
+    <string name="ingame_import_busy">游戏正在使用记忆卡：%1$s</string>
+    <string name="ingame_import_no_card">没有记忆卡：%1$s</string>
+    <string name="ingame_import_bad">不是本游戏的文件，或文件已损坏：%1$s（%2$s）</string>
+    <string name="ingame_import_exists">%1$s 已在记忆卡上。是否替换？</string>
+    <string name="ingame_source">源代码与更新</string>
+    <string name="ingame_source_line">关于此移植版的更多信息：%1$s</string>
     <string name="ouya_cheats">作弊</string>
     <string name="ouya_view_distance">视距</string>
     <string name="ouya_colours">颜色计算</string>
     <string name="ouya_colours_simple">简化</string>
     <string name="ouya_colours_exact">精确</string>
     <string name="ouya_graphics_help">分辨率：游戏画面占 GameCube 640 × 528 像素点的比例；越低越快。简化的颜色计算可减轻图形负担；颜色可能有极细微的差别。视距：在远处雾气之前能看多远；雾气后面的内容不会绘制。立即生效。</string>
+    <string name="ouya_card_help">导出游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），或将全部内容放进一个 .zip（存档和即时存档；手机上的 CubeEvil4 也能读取）。文件保存在游戏数据所在驱动器的 CubeEvil4-Potato 文件夹中；导入时会列出那里和 Download 文件夹中的 .gci 与 .zip 文件。“删除所有数据”会清空记忆卡。</string>
+    <string name="ouya_exported_to">已保存到 %1$s</string>
+    <string name="ouya_import_none">%1$s 或 Download 文件夹中没有 .gci 或 .zip 文件。</string>
+    <string name="ouya_export_failed">无法写入 %1$s</string>
+    <string name="ouya_wipe_text">记忆卡上的所有存档和即时存档都将被删除，如同格式化记忆卡。光盘和设置保留。此操作无法撤销：如需保留存档，请先导出（.zip）。游戏将为此重新启动。</string>
+    <string name="ouya_no_browser">此设备上没有网页浏览器。地址：%1$s</string>
     <string name="ouya_gentle_qte_help">更宽松的 QTE：在 Professional 难度下，按键事件（闪避、刀战、快速连按）给出与 Normal 相同的时间和所需按键次数；伤害和敌人仍保持 Professional。</string>
 </resources>

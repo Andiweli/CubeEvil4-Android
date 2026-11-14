@@ -59,6 +59,18 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
             int frameSkip, int cheats, boolean gentleQte);
     /** A cheat button of the menu (runtime/cheats.cpp); the answer as OuyaMenu.Host.cheatAction. */
     static native int nativeCheatAction(int what);
+    /** The instant save (re4_core_instant): 0 its state, 1 save, 2 load; result, present, canSave, canLoad, room,
+     *  chapter, play time, save time, saving refused here. */
+    static native long[] nativeInstant(int operation);
+    /** The memory card (the main app's CoreBridge.cardList ...): rows "index 	 name 	 blocks 	 save", null busy
+     *  or none (nativeCardNote) */
+    static native String[] nativeCardList();
+    static native String nativeCardFileName(int index);
+    static native byte[] nativeCardExport(int index);
+    static native int nativeCardImport(byte[] gci, boolean replace);
+    static native String nativeCardNote();
+    /** The game starts over in the core process (0: the language stays) */
+    static native void nativeRestartGame(int language);
 
     // GameCube buttons (PADStatus)
     static final int GC_LEFT = 0x0001, GC_RIGHT = 0x0002, GC_DOWN = 0x0004, GC_UP = 0x0008, GC_Z = 0x0010,
@@ -158,6 +170,11 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     @Override
     public void importDiscs() {
         getSharedPreferences(OuyaInstaller.PREFS, MODE_PRIVATE).edit().putBoolean(OuyaInstaller.AGAIN, true).commit();
+        restartApp();
+    }
+
+    /** The app ends and starts again in a moment (the core cannot start a second time in this process) */
+    private void restartApp() {
         android.app.AlarmManager alarms = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
         android.content.Intent start = new android.content.Intent(this, OuyaActivity.class);
         alarms.set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 800, android.app.PendingIntent.getActivity(
@@ -183,7 +200,16 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
                 : "it".equals(language) ? 6 : 2;
     }
 
+    private File gameData;  // the running game's data folder (the menu's MANAGEMENT)
+
     private void startGame(final File data) {
+        // "Delete All Data" of the menu: the card and the instant save go before the core opens them
+        SharedPreferences wipe = getSharedPreferences(OuyaPlayerData.PREFS, MODE_PRIVATE);
+        if (wipe.getBoolean(OuyaPlayerData.WIPE_AT_START, false)) {
+            android.util.Log.i("RE4OUYA", OuyaPlayerData.wipe(data));
+            wipe.edit().remove(OuyaPlayerData.WIPE_AT_START).commit();
+        }
+        gameData = data;
         final int language = gameLanguage(data);
         message.setText("Starting the game ...");
         settingsChanged();
@@ -247,6 +273,25 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     @Override
     public int cheatAction(int what) {
         return running ? nativeCheatAction(what) : -2;
+    }
+
+    @Override
+    public File gameData() {
+        return running ? gameData : null;
+    }
+
+    /** "Delete All Data": the wish is kept, the app starts anew (a new core process), the next start deletes */
+    @Override
+    public void wipePlayerData() {
+        getSharedPreferences(OuyaPlayerData.PREFS, MODE_PRIVATE).edit().putBoolean(OuyaPlayerData.WIPE_AT_START, true)
+                .commit();
+        restartApp();
+    }
+
+    @Override
+    public void restartGame() {
+        if (running)
+            nativeRestartGame(0);
     }
 
     private void openMenu() {
