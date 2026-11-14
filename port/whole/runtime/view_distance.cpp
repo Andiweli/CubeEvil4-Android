@@ -123,8 +123,12 @@ extern "C" void re4_view_fog_dense(int type, float* start, float* end, float far
         return;
     }
     const float e = *end;
-    const float farPlane = e * (1.0f - farRatio) + 1.0f;
-    if (e <= 0.0f || farPlane <= 0.0f || farPlane >= e) {
+    float farPlane = e * (1.0f - farRatio) + 1.0f;
+    // not nearer than kMinEnd (a room's own end below it stays): the short fogs between two cuts of an event
+    // (6 m and a far plane of 2.4 m in the car of r100) misted the figures a metre or two away
+    const float least = e < kMinEnd ? e : kMinEnd;
+    farPlane = farPlane < least ? least : farPlane;
+    if (e <= 0.0f || farPlane >= e) {
         return;
     }
     *start *= farPlane / e;

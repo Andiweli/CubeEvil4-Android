@@ -2,7 +2,7 @@
 # distance (patch 0223, runtime/view_distance.cpp) the game left out houses and figures beyond its far plane
 # (fog end * (1 - LightEnv.far_play_ratio) + 1) while the fog there was still thin: one saw the bare ground where they
 # stood. cLightMgr::setFog and hokanMove now give GX a fog that ends at that far plane (re4_view_fog_dense: start and end
-# scaled alike), only while the view distance is below 100 %; the far plane stays as patch 0223 sets it. At 100 %: as the
+# scaled alike; not nearer than 6 m, the least end of patch 0223), only while the view distance is below 100 %; the far plane stays as patch 0223 sets it. At 100 %: as the
 # game.
 --- a/src/game/light.cpp
 +++ b/src/game/light.cpp
