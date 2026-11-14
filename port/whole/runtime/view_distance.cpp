@@ -112,3 +112,30 @@ extern "C" void re4_view_distance(int type, float* start, float* end)
         }
     }
 }
+
+// The OUYA branch (patch 0901, wish of the project owner, 14.11.2026): the fog the GPU gets ends at the far plane
+// patch 0223 sets from the shortened fog (end * (1 - the room's far_play_ratio) + 1), start and end scaled alike, so
+// what the game leaves out beyond it lies in dense fog (before, one saw the bare ground where the houses stood). Only
+// while the view distance is below 100 %; the far plane itself stays.
+extern "C" void re4_view_fog_dense(int type, float* start, float* end, float farRatio)
+{
+    if (type == 0 || factor() >= 1.0f) {
+        return;
+    }
+    const float e = *end;
+    const float farPlane = e * (1.0f - farRatio) + 1.0f;
+    if (e <= 0.0f || farPlane <= 0.0f || farPlane >= e) {
+        return;
+    }
+    *start *= farPlane / e;
+    *end = farPlane;
+    static int logged;
+    static int lastMetres = -1;
+    const int metres = (int) (farPlane / 1000.0f);
+    if (logged < 50 && metres != lastMetres) {
+        lastMetres = metres;
+        logged++;
+        re4_log("view: the GPU's fog dense at the far plane: %.0f .. %.0f (far_play_ratio %.2f)", *start, *end,
+                farRatio);
+    }
+}

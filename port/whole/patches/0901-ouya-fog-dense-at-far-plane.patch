@@ -1,0 +1,42 @@
+# The OUYA branch's denser fog (wish of the project owner, 14.11.2026, port/docs/ouya-machbarkeit.md): with a shorter view
+# distance (patch 0223, runtime/view_distance.cpp) the game left out houses and figures beyond its far plane
+# (fog end * (1 - LightEnv.far_play_ratio) + 1) while the fog there was still thin: one saw the bare ground where they
+# stood. cLightMgr::setFog and hokanMove now give GX a fog that ends at that far plane (re4_view_fog_dense: start and end
+# scaled alike), only while the view distance is below 100 %; the far plane stays as patch 0223 sets it. At 100 %: as the
+# game.
+--- a/src/game/light.cpp
++++ b/src/game/light.cpp
+@@ -19,6 +19,7 @@
+ 
+ extern "C" void re4_view_distance(int type, float* start, float* end); /* port: runtime/view_distance.cpp (patch 0223) */
+ extern "C" int re4_view_distance_changed(void);                       /* port: runtime/view_distance.cpp (patch 0223) */
++extern "C" void re4_view_fog_dense(int type, float* start, float* end, float farRatio); /* port: runtime/view_distance.cpp (patch 0901) */
+ 
+ // game/trans.cpp texture LOD / TEV scale settings
+ // trans.cpp; uninitialised there, so not in trans.h (a header extern reorders trans.cpp's .bss / .sbss)
+@@ -438,7 +439,11 @@
+         f32 fogStart = fog->Start;
+         f32 fogEnd = fog->End;
+         re4_view_distance(fog->Type, &fogStart, &fogEnd);
+-        GXSetFog(fog->Type, fogStart, fogEnd, ZNEAR, ZFAR, fog->Color);
++        /* port (patch 0901, the OUYA branch): the GPU's fog dense at the far plane, the far plane as before */
++        f32 gpuStart = fogStart;
++        f32 gpuEnd = fogEnd;
++        re4_view_fog_dense(fog->Type, &gpuStart, &gpuEnd, LightEnv.far_play_ratio);
++        GXSetFog(fog->Type, gpuStart, gpuEnd, ZNEAR, ZFAR, fog->Color);
+         if (fog->Type == 0) {
+             View.setFarPlane(ZFAR);
+         } else {
+@@ -878,7 +883,11 @@
+         f32 fogStart = fog->Start;
+         f32 fogEnd = fog->End;
+         re4_view_distance(fog->Type, &fogStart, &fogEnd);
+-        GXSetFog(fog->Type, fogStart, fogEnd, ZNEAR, ZFAR, fog->Color);
++        /* port (patch 0901, the OUYA branch): the GPU's fog dense at the far plane, the far plane as before */
++        f32 gpuStart = fogStart;
++        f32 gpuEnd = fogEnd;
++        re4_view_fog_dense(fog->Type, &gpuStart, &gpuEnd, LightEnv.far_play_ratio);
++        GXSetFog(fog->Type, gpuStart, gpuEnd, ZNEAR, ZFAR, fog->Color);
+         if (fog->Type == 0) {
+             View.setFarPlane(ZFAR);
+         } else {
