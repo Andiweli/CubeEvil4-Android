@@ -44,10 +44,24 @@ Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs
   `tools/check_translations.py` entfernt); `PackerScreenTest` prüft, dass ein deutsches und ein arabisches Handy
   dieselben englischen Texte von links nach rechts zeigen. Die Konsolen-Version hatte nie andere Sprachen. Debug-APK
   `builds\converter-tool\CubeEvil4-TexturePacker-1.4.apk` (nicht auf einem Gerät geprüft).
-- **Offen:** Releasetext des nächsten Releases mit dem Packer (Vorlage in `textur-packer-windows.md`). Zusammenführen
-  nach `master` über die Hauptsitzung nach dem Maustest und OK des Inhabers.
+- **Zusammengeführt (14.11.2026):** nach dem Maustest des Projektinhabers („Ja, klappt“: das Paket mit der Maus ins
+  Fenster ziehen) und seinem OK („Ja, nach dem Test“) über `09915` (507e72b1) nach `master`; im Releasetext von
+  0.99.16.
 
-## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
+## Version 0.99.16-rc (in Arbeit, Branch `09916`, Basis 507e72b1)
+
+„sorry 0.99.15 ist ja schon released, wir sind schon bei 0.99.16“ (Projektinhaber, 14.11.2026): 0.99.15-rc ist bei
+den Testern (Stand f193f9e0); alles danach gehört zu 0.99.16, einer Version mit Fehlerbehebungen unter dem
+Feature-Freeze. Version 0.99.16-rc (versionCode 118), Releasetext `port/android-decomp/docs/releases/v0.99.16-rc.md`
+(„Changes since v0.99.15.“, Known issues aus 0.99.15 übernommen). Nächste freie Patchnummer weiter 0233.
+
+- **Bisher drin:** die Rücknahme der Kamera-Aussparung (c14ec500, Abschnitt 3 von 0.99.15), Texture Packer 1.4 für
+  Windows mit Fenster und die Android-Packer-App 1.4 nur Englisch (Branch `converter-tool`, oben), die README des
+  Projektinhabers (9f9f74fe).
+- `v0.99.15-rc.md` hat die Zeile zur Kamera-Aussparung wieder: 0.99.15 wurde mit dieser Änderung veröffentlicht.
+- **Auffällig:** der Tag `0.99.15-rc` auf GitHub zeigt auf 62f8e946, denselben Commit wie `0.99.14-rc`.
+
+## Version 0.99.15-rc (veröffentlicht 14.11.2026, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc; Stand f193f9e0)
 
 Version 0.99.15-rc (versionCode 117), Releasetext `port/android-decomp/docs/releases/v0.99.15-rc.md` („Changes since
 v0.99.14.“, Known issues aus 0.99.14 übernommen). Nächste freie Patchnummer 0233 (0232: „Sanftere QTEs“, Abschnitt 4). Aufgaben 1–3 nur App; ab Abschnitt 4
@@ -197,7 +211,8 @@ etwa 76 Pixeln (beim Telefon 1600 × 720 etwa 95), keine Status- und keine Navig
   notch-area dürfte probleme bereiten … ich denke es wäre besser die änderung dazu wieder auszubauen.“ Auf seinem
   Telefon (Kamera links im Querformat) reichte das Bild bis zum Rand, die Touch-Knöpfe und die Leiste des
   Touch-Editors blieben aber etwa 110 Pixel vom linken Rand weg (die Einrückung oben). `Cutout.java`, `CutoutTest` und
-  die Stellen in `CoreActivity` und `CoreMenu` sind entfernt, das Verhalten ist wieder das von 0.99.14 (auf der
+  die Stellen in `CoreActivity` und `CoreMenu` sind entfernt (in 0.99.16; 0.99.15 war schon veröffentlicht), das
+  Verhalten ist wieder das von 0.99.14 (auf der
   Kamera-Seite ein schwarzer Streifen, Touch-Knöpfe bis zu dessen Rand). Seine zweite Beobachtung, schwarze Ränder
   links und rechts in der Speicherliste beim Laden trotz „Nativ“, kommt nicht von der Aussparung: die Ränder sind
   gleich breit (ein 16:9-Kasten), und „Nativ“ zeigt Menüs, das Zielfernrohr und Filme mit Absicht im 16:9-Kasten,
