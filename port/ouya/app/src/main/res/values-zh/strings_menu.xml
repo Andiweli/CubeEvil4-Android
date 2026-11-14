@@ -13,7 +13,7 @@
     <string name="ingame_potato">土豆模式</string>
     <string name="ingame_potato_weather">天气效果</string>
     <string name="ingame_potato_special">特殊效果</string>
-    <string name="ingame_potato_help">天气效果：雾气、雨、水花。特殊效果：蒸汽、热浪扭曲、水面。关闭可减轻性能较弱设备的图形负担；枪口火光、血迹、爆炸、火焰、命中效果和提示保留，过场动画中的所有效果也保留。</string>
+    <string name="ingame_potato_help">天气效果：雾气、雨、水花。特殊效果：蒸汽、热浪扭曲、水面。粒子效果：血、灰尘、烟雾、水花、火星和火焰；“较少”只绘制一半，“无”除火焰和爆炸外全部去掉，火焰和爆炸作为警示保留一半。阴影与光效：关闭后去掉阴影（过场动画中也一样）、光晕和光束；房间的照明保持不变。每项设置都能减轻性能较弱设备的图形负担；命中位置、提示、激光和过场动画中的所有效果保留。</string>
     <string name="ingame_comfort">便捷操作</string>
     <string name="ingame_auto_aim">自动瞄准</string>
     <string name="ingame_always_run">始终奔跑</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">始终奔跑：只要移动，里昂就会奔跑；按住奔跑键（例如 B）即可改为行走。</string>
     <string name="ingame_far_camera_help">行走和站立时让肩后镜头离 Leon 稍远一些。瞄准时和狭窄处会像以前一样靠近；两者之间平滑过渡。</string>
     <string name="ingame_perf_section">性能</string>
+    <string name="ingame_potato_particles">粒子效果</string>
+    <string name="ingame_particles_normal">正常</string>
+    <string name="ingame_particles_less">较少</string>
+    <string name="ingame_particles_none">无</string>
+    <string name="ingame_potato_shadows">阴影与光效</string>
     <string name="ingame_frame_skip">跳帧</string>
-    <string name="ingame_frame_skip_help">画面卡顿时跳过一帧，使游戏保持正常速度。显示的帧数会减少，但游戏不会变慢。</string>
-    <string name="ingame_cheats">作弊</string>
+    <string name="ingame_skip_normal">普通</string>
+    <string name="ingame_skip_aggressive">激进</string>
+    <string name="ingame_skip_normal_help">跳帧“普通”：图形芯片跟不上时，跳过一帧已完成的画面，使游戏保持正常速度。</string>
+    <string name="ingame_skip_aggressive_help">跳帧“激进”：游戏落后时自身最多每两帧跳过一帧；也能节省处理器时间，在处理器较慢的手机上快得多。</string>
+    <string name="ingame_gentle_qte">更宽松的 QTE（Professional）</string>
     <string name="ingame_cheat_section_player">玩家与物品栏</string>
     <string name="ingame_cheat_section_weapons">武器</string>
     <string name="ingame_cheat_section_game">游戏</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">光盘</string>
     <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
     <string name="ingame_import_discs">导入其他光盘</string>
+    <string name="ouya_cheats">作弊</string>
     <string name="ouya_view_distance">视距</string>
     <string name="ouya_colours">颜色计算</string>
     <string name="ouya_colours_simple">简化</string>
     <string name="ouya_colours_exact">精确</string>
-    <string name="ouya_graphics_help">分辨率：游戏画面占 GameCube 640 × 528 像素点的比例；越低越快。简化的颜色计算可减轻图形负担；颜色可能有极细微的差别。视距：在远处雾气之前能看多远；雾气后面的内容不会绘制。从下一扇门或下一段过场动画起生效。</string>
+    <string name="ouya_graphics_help">分辨率：游戏画面占 GameCube 640 × 528 像素点的比例；越低越快。简化的颜色计算可减轻图形负担；颜色可能有极细微的差别。视距：在远处雾气之前能看多远；雾气后面的内容不会绘制。立即生效。</string>
+    <string name="ouya_gentle_qte_help">更宽松的 QTE：在 Professional 难度下，按键事件（闪避、刀战、快速连按）给出与 Normal 相同的时间和所需按键次数；伤害和敌人仍保持 Professional。</string>
 </resources>

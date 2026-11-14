@@ -13,7 +13,7 @@
     <string name="ingame_potato">पोटैटो मोड</string>
     <string name="ingame_potato_weather">मौसम प्रभाव</string>
     <string name="ingame_potato_special">विशेष प्रभाव</string>
-    <string name="ingame_potato_help">मौसम प्रभाव: कोहरे के बादल, बारिश, पानी के छींटे। विशेष प्रभाव: भाप, गर्मी की लहरें, पानी। बंद करने से कमज़ोर डिवाइस पर ग्राफ़िक्स का काम कम होता है; गोली की चमक, खून, विस्फोट, आग, हिट और संकेत बने रहते हैं, और कटसीन के सभी प्रभाव भी।</string>
+    <string name="ingame_potato_help">मौसम प्रभाव: कोहरे के बादल, बारिश, पानी के छींटे। विशेष प्रभाव: भाप, गर्मी की लहरें, पानी। कण प्रभाव: खून, धूल, धुआँ, छींटे, चिंगारियाँ और आग; “कम” इनमें से आधे दिखाता है, “कोई नहीं” आग और विस्फोटों को छोड़कर सब हटा देता है, जो चेतावनी के लिए आधे रहते हैं। छाया और रोशनी: बंद करने पर छायाएँ (कटसीन में भी), रोशनी की चमक और प्रकाश किरणें हट जाती हैं; कमरों की रोशनी वैसी ही रहती है। हर सेटिंग कमज़ोर डिवाइस पर ग्राफ़िक्स का काम कम करती है; गोली लगने की जगह, संकेत, लेज़र और कटसीन के सभी प्रभाव बने रहते हैं।</string>
     <string name="ingame_comfort">आसान नियंत्रण</string>
     <string name="ingame_auto_aim">ऑटो-निशाना</string>
     <string name="ingame_always_run">हमेशा दौड़ें</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">हमेशा दौड़ें: चलते ही लियोन दौड़ता है; चलने के लिए दौड़ने वाला बटन (जैसे B) दबाए रखें।</string>
     <string name="ingame_far_camera_help">चलते और खड़े रहते समय कंधे वाले कैमरे को लियोन के थोड़ा और पीछे रखता है। निशाना लगाते समय और तंग जगहों पर यह पहले की तरह पास आ जाता है; बीच में यह सहजता से चलता है।</string>
     <string name="ingame_perf_section">परफ़ॉर्मेंस</string>
+    <string name="ingame_potato_particles">कण प्रभाव</string>
+    <string name="ingame_particles_normal">सामान्य</string>
+    <string name="ingame_particles_less">कम</string>
+    <string name="ingame_particles_none">कोई नहीं</string>
+    <string name="ingame_potato_shadows">छाया और रोशनी</string>
     <string name="ingame_frame_skip">फ़्रेम स्किप</string>
-    <string name="ingame_frame_skip_help">ग्राफ़िक्स पिछड़ने पर एक फ़्रेम छोड़ देता है ताकि गेम सामान्य गति से चले। कम फ़्रेम दिखते हैं, कुछ धीमा नहीं होता।</string>
-    <string name="ingame_cheats">चीट्स</string>
+    <string name="ingame_skip_normal">सामान्य</string>
+    <string name="ingame_skip_aggressive">आक्रामक</string>
+    <string name="ingame_skip_normal_help">फ़्रेम स्किप सामान्य: ग्राफ़िक्स चिप पिछड़ने पर एक तैयार फ़्रेम छोड़ दिया जाता है ताकि गेम सामान्य गति से चले।</string>
+    <string name="ingame_skip_aggressive_help">फ़्रेम स्किप आक्रामक: पिछड़ने पर गेम खुद दो में से अधिकतम एक फ़्रेम छोड़ता है; इससे प्रोसेसर का समय भी बचता है और धीमे प्रोसेसर वाले फ़ोन पर यह काफ़ी तेज़ है।</string>
+    <string name="ingame_gentle_qte">आसान QTE (Professional)</string>
     <string name="ingame_cheat_section_player">खिलाड़ी और इन्वेंटरी</string>
     <string name="ingame_cheat_section_weapons">हथियार</string>
     <string name="ingame_cheat_section_game">गेम</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">डिस्क</string>
     <string name="ingame_discs_help">कोई दूसरा संस्करण खेलने के लिए: गेम बंद होगा, और आप स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करेंगे। सेव, मेमोरी कार्ड और सेटिंग्स बनी रहेंगी।</string>
     <string name="ingame_import_discs">दूसरी डिस्क इम्पोर्ट करें</string>
+    <string name="ouya_cheats">चीट्स</string>
     <string name="ouya_view_distance">दृश्य दूरी</string>
     <string name="ouya_colours">रंग गणना</string>
     <string name="ouya_colours_simple">सरलीकृत</string>
     <string name="ouya_colours_exact">सटीक</string>
-    <string name="ouya_graphics_help">रिज़ॉल्यूशन: GameCube के 640 × 528 बिंदुओं के हिस्से के रूप में गेम की तस्वीर; कम होने पर तेज़। सरलीकृत रंग गणना ग्राफ़िक्स का काम कम करती है; रंग बहुत थोड़े अलग हो सकते हैं। दृश्य दूरी: दूरी के कोहरे से पहले कितनी दूर तक दिखता है; उसके पीछे का हिस्सा नहीं बनाया जाता। यह अगले दरवाज़े या कटसीन से लागू होती है।</string>
+    <string name="ouya_graphics_help">रिज़ॉल्यूशन: GameCube के 640 × 528 बिंदुओं के हिस्से के रूप में गेम की तस्वीर; कम होने पर तेज़। सरलीकृत रंग गणना ग्राफ़िक्स का काम कम करती है; रंग बहुत थोड़े अलग हो सकते हैं। दृश्य दूरी: दूरी के कोहरे से पहले कितनी दूर तक दिखता है; उसके पीछे का हिस्सा नहीं बनाया जाता। यह तुरंत लागू होती है।</string>
+    <string name="ouya_gentle_qte_help">आसान QTE: Professional में बटन वाले इवेंट (बचना, चाकू की लड़ाई, तेज़ी से दबाना) उतना ही समय देते हैं और उतने ही दबाव माँगते हैं जितने Normal में; नुकसान और दुश्मन Professional जैसे ही रहते हैं।</string>
 </resources>

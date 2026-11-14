@@ -13,7 +13,7 @@
     <string name="ingame_potato">Potato mode</string>
     <string name="ingame_potato_weather">Weather effects</string>
     <string name="ingame_potato_special">Special effects</string>
-    <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, heat shimmer, water. Off saves graphics work on weaker devices; muzzle flashes, blood, explosions, fire, hits and hints stay, and so does every effect in cut scenes.</string>
+    <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, heat shimmer, water. Particle effects: blood, dust, smoke, splashes, sparks and fire; Less draws half of them, None leaves out all but fire and explosions, which stay at half as a warning. Shadows &amp; light: off leaves out shadows (also in cut scenes), lens glows and light shafts; the rooms keep their lighting. Each saves graphics work on weaker devices; the spot where a shot hits, hints, the laser and every effect in cut scenes stay.</string>
     <string name="ingame_comfort">Comfort Controls</string>
     <string name="ingame_auto_aim">Auto aim</string>
     <string name="ingame_always_run">Always run</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">Always run: Leon runs whenever you move; hold the run button (e.g. B) to walk instead.</string>
     <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon while walking and standing. Aiming and tight spots bring it close as before; it moves smoothly in between.</string>
     <string name="ingame_perf_section">Performance</string>
+    <string name="ingame_potato_particles">Particle effects</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Less</string>
+    <string name="ingame_particles_none">None</string>
+    <string name="ingame_potato_shadows">Shadows &amp; light</string>
     <string name="ingame_frame_skip">Frame skip</string>
-    <string name="ingame_frame_skip_help">While the graphics lag, skips a picture so the game keeps its normal speed. Fewer pictures are shown, nothing is slowed down.</string>
-    <string name="ingame_cheats">Cheats</string>
+    <string name="ingame_skip_normal">Normal</string>
+    <string name="ingame_skip_aggressive">Aggressive</string>
+    <string name="ingame_skip_normal_help">Frame skip Normal: while the graphics chip lags, a finished picture is left out so the game keeps its normal speed.</string>
+    <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out at most every second picture while it falls behind; this also saves processor time and is much faster on phones with a slow processor.</string>
+    <string name="ingame_gentle_qte">Gentler QTEs (Professional)</string>
     <string name="ingame_cheat_section_player">Player &amp; Inventory</string>
     <string name="ingame_cheat_section_weapons">Weapons</string>
     <string name="ingame_cheat_section_game">Game</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">To play another version: the game ends, and you import both of its discs on the start screen. Saves, memory card and settings stay.</string>
     <string name="ingame_import_discs">Import other discs</string>
+    <string name="ouya_cheats">Cheats</string>
     <string name="ouya_view_distance">View distance</string>
     <string name="ouya_colours">Colour calculation</string>
     <string name="ouya_colours_simple">Simplified</string>
     <string name="ouya_colours_exact">Exact</string>
-    <string name="ouya_graphics_help">Resolution: the game\'s picture as a share of the GameCube\'s 640 × 528 points; lower is faster. The simplified colour calculation saves graphics work; colours may differ very slightly. View distance: how far you see before the distance fog; what lies behind it is not drawn. It takes effect at the next door or cut scene.</string>
+    <string name="ouya_graphics_help">Resolution: the game\'s picture as a share of the GameCube\'s 640 × 528 points; lower is faster. The simplified colour calculation saves graphics work; colours may differ very slightly. View distance: how far you see before the distance fog; what lies behind it is not drawn. It takes effect at once.</string>
+    <string name="ouya_gentle_qte_help">Gentler QTEs: in Professional the quick-time events (dodging, the knife fight, pressing a button fast) give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s.</string>
 </resources>

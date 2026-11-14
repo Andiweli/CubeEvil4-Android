@@ -13,7 +13,7 @@
     <string name="ingame_potato">Modo Potato</string>
     <string name="ingame_potato_weather">Efeitos climáticos</string>
     <string name="ingame_potato_special">Efeitos especiais</string>
-    <string name="ingame_potato_help">Efeitos climáticos: bancos de neblina, chuva, respingos de água. Efeitos especiais: vapor, distorção de calor, água. Desligados, poupam trabalho gráfico em aparelhos mais fracos; clarões de tiro, sangue, explosões, fogo, impactos e dicas continuam, assim como todos os efeitos das cenas.</string>
+    <string name="ingame_potato_help">Efeitos climáticos: bancos de neblina, chuva, respingos de água. Efeitos especiais: vapor, distorção de calor, água. Efeitos de partículas: sangue, poeira, fumaça, respingos, faíscas e fogo; Menos desenha metade deles, Nenhum tira todos menos o fogo e as explosões, que ficam pela metade como aviso. Sombras e luz: desligado tira as sombras (também nas cenas), os brilhos e os raios de luz; as salas mantêm sua iluminação. Cada ajuste poupa trabalho gráfico em aparelhos mais fracos; o ponto do impacto, as dicas, o laser e todos os efeitos das cenas continuam.</string>
     <string name="ingame_comfort">Controles de conforto</string>
     <string name="ingame_auto_aim">Mira automática</string>
     <string name="ingame_always_run">Correr sempre</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">Correr sempre: Leon corre sempre que você se move; segure o botão de correr (ex.: B) para andar.</string>
     <string name="ingame_far_camera_help">Mantém a câmara de ombro um pouco mais atrás de Leon ao andar e parado. Ao apontar e em sítios apertados aproxima-se como antes; entre os dois move-se suavemente.</string>
     <string name="ingame_perf_section">Desempenho</string>
+    <string name="ingame_potato_particles">Efeitos de partículas</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Menos</string>
+    <string name="ingame_particles_none">Nenhum</string>
+    <string name="ingame_potato_shadows">Sombras e luz</string>
     <string name="ingame_frame_skip">Salto de quadros</string>
-    <string name="ingame_frame_skip_help">Se os gráficos atrasam, pula um quadro para o jogo manter a velocidade normal. Menos quadros são exibidos, nada fica mais lento.</string>
-    <string name="ingame_cheats">Trapaças</string>
+    <string name="ingame_skip_normal">Normal</string>
+    <string name="ingame_skip_aggressive">Agressivo</string>
+    <string name="ingame_skip_normal_help">Salto de quadros Normal: se o chip gráfico atrasa, um quadro já pronto é pulado para o jogo manter a velocidade normal.</string>
+    <string name="ingame_skip_aggressive_help">Salto de quadros Agressivo: o próprio jogo pula no máximo um quadro a cada dois quando atrasa; também economiza tempo do processador e é bem mais rápido em celulares com processador lento.</string>
+    <string name="ingame_gentle_qte">QTEs mais suaves (Professional)</string>
     <string name="ingame_cheat_section_player">Jogador e inventário</string>
     <string name="ingame_cheat_section_weapons">Armas</string>
     <string name="ingame_cheat_section_game">Jogo</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">Discos</string>
     <string name="ingame_discs_help">Para jogar outra versão: o jogo é encerrado e você importa os dois discos dela na tela inicial. Os jogos salvos, o cartão de memória e as configurações são mantidos.</string>
     <string name="ingame_import_discs">Importar outros discos</string>
+    <string name="ouya_cheats">Trapaças</string>
     <string name="ouya_view_distance">Distância de visão</string>
     <string name="ouya_colours">Cálculo de cores</string>
     <string name="ouya_colours_simple">Simplificado</string>
     <string name="ouya_colours_exact">Exato</string>
-    <string name="ouya_graphics_help">Resolução: a imagem do jogo como fração dos 640 × 528 pontos do GameCube; menos é mais rápido. O cálculo de cores simplificado poupa trabalho gráfico; as cores podem variar muito pouco. Distância de visão: até onde a vista alcança antes da neblina distante; o que fica além não é desenhado. Vale a partir da próxima porta ou cena.</string>
+    <string name="ouya_graphics_help">Resolução: a imagem do jogo como fração dos 640 × 528 pontos do GameCube; menos é mais rápido. O cálculo de cores simplificado poupa trabalho gráfico; as cores podem variar muito pouco. Distância de visão: até onde a vista alcança antes da neblina distante; o que fica além não é desenhado. Vale de imediato.</string>
+    <string name="ouya_gentle_qte_help">QTEs mais suaves: no Professional, os eventos de botão (desviar, a luta de faca, apertar rápido) dão tanto tempo e pedem tantos toques quanto no Normal; o dano e os inimigos continuam os do Professional.</string>
 </resources>

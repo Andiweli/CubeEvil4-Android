@@ -13,7 +13,7 @@
     <string name="ingame_potato">Mode kentang</string>
     <string name="ingame_potato_weather">Efek cuaca</string>
     <string name="ingame_potato_special">Efek khusus</string>
-    <string name="ingame_potato_help">Efek cuaca: kabut tebal, hujan, percikan air. Efek khusus: uap, getaran udara panas, air. Jika dinonaktifkan, beban grafis berkurang di perangkat yang lebih lemah; kilatan tembakan, darah, ledakan, api, efek kena tembak dan petunjuk tetap ada, begitu pula semua efek dalam adegan cerita.</string>
+    <string name="ingame_potato_help">Efek cuaca: kabut tebal, hujan, percikan air. Efek khusus: uap, getaran udara panas, air. Efek partikel: darah, debu, asap, percikan, bunga api, dan api; Sedikit menggambar separuhnya, Tidak ada menghapus semuanya kecuali api dan ledakan, yang tetap separuh sebagai peringatan. Bayangan &amp; cahaya: nonaktif menghapus bayangan (juga dalam adegan cerita), pendar cahaya, dan berkas cahaya; pencahayaan ruangan tetap sama. Setiap pengaturan mengurangi beban grafis di perangkat yang lebih lemah; titik kena tembak, petunjuk, laser, dan semua efek dalam adegan cerita tetap ada.</string>
     <string name="ingame_comfort">Kontrol Nyaman</string>
     <string name="ingame_auto_aim">Bidik otomatis</string>
     <string name="ingame_always_run">Selalu lari</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">Selalu lari: Leon berlari setiap kali Anda bergerak; tahan tombol lari (mis. B) untuk berjalan.</string>
     <string name="ingame_far_camera_help">Menjaga kamera bahu sedikit lebih jauh di belakang Leon saat berjalan dan diam. Saat membidik dan di tempat sempit kamera mendekat seperti sebelumnya; perpindahannya halus.</string>
     <string name="ingame_perf_section">Performa</string>
+    <string name="ingame_potato_particles">Efek partikel</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Sedikit</string>
+    <string name="ingame_particles_none">Tidak ada</string>
+    <string name="ingame_potato_shadows">Bayangan &amp; cahaya</string>
     <string name="ingame_frame_skip">Lewati frame</string>
-    <string name="ingame_frame_skip_help">Saat grafis tertinggal, satu gambar dilewati agar game tetap berjalan dengan kecepatan normal. Lebih sedikit gambar yang ditampilkan, tidak ada yang diperlambat.</string>
-    <string name="ingame_cheats">Cheat</string>
+    <string name="ingame_skip_normal">Normal</string>
+    <string name="ingame_skip_aggressive">Agresif</string>
+    <string name="ingame_skip_normal_help">Lewati frame Normal: saat chip grafis tertinggal, satu gambar yang sudah jadi dilewati agar game tetap berjalan dengan kecepatan normal.</string>
+    <string name="ingame_skip_aggressive_help">Lewati frame Agresif: game sendiri melewati paling banyak satu dari dua gambar saat tertinggal; ini juga menghemat waktu prosesor dan jauh lebih cepat di ponsel dengan prosesor lambat.</string>
+    <string name="ingame_gentle_qte">QTE Lebih Ringan (Professional)</string>
     <string name="ingame_cheat_section_player">Pemain &amp; Inventaris</string>
     <string name="ingame_cheat_section_weapons">Senjata</string>
     <string name="ingame_cheat_section_game">Permainan</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">Disk</string>
     <string name="ingame_discs_help">Untuk memainkan versi lain: game berakhir, lalu Anda mengimpor kedua disknya di layar awal. Data simpanan, kartu memori, dan pengaturan tetap ada.</string>
     <string name="ingame_import_discs">Impor disk lain</string>
+    <string name="ouya_cheats">Cheat</string>
     <string name="ouya_view_distance">Jarak pandang</string>
     <string name="ouya_colours">Perhitungan warna</string>
     <string name="ouya_colours_simple">Disederhanakan</string>
     <string name="ouya_colours_exact">Tepat</string>
-    <string name="ouya_graphics_help">Resolusi: gambar game sebagai bagian dari 640 × 528 titik GameCube; lebih rendah lebih cepat. Perhitungan warna yang disederhanakan mengurangi beban grafis; warna bisa sedikit sekali berbeda. Jarak pandang: seberapa jauh pandangan sampai kabut jarak jauh; yang ada di baliknya tidak digambar. Berlaku mulai pintu atau cutscene berikutnya.</string>
+    <string name="ouya_graphics_help">Resolusi: gambar game sebagai bagian dari 640 × 528 titik GameCube; lebih rendah lebih cepat. Perhitungan warna yang disederhanakan mengurangi beban grafis; warna bisa sedikit sekali berbeda. Jarak pandang: seberapa jauh pandangan sampai kabut jarak jauh; yang ada di baliknya tidak digambar. Langsung berlaku.</string>
+    <string name="ouya_gentle_qte_help">QTE Lebih Ringan: di Professional, event tombol (menghindar, duel pisau, menekan cepat) memberi waktu dan meminta jumlah tekanan sama seperti di Normal; kerusakan dan musuh tetap seperti Professional.</string>
 </resources>

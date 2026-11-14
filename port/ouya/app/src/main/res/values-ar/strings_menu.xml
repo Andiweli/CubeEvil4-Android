@@ -13,7 +13,7 @@
     <string name="ingame_potato">وضع Potato</string>
     <string name="ingame_potato_weather">تأثيرات الطقس</string>
     <string name="ingame_potato_special">التأثيرات الخاصة</string>
-    <string name="ingame_potato_help">تأثيرات الطقس: سحب الضباب والمطر ورذاذ الماء. التأثيرات الخاصة: البخار وتموج الحرارة والماء. إيقافها يخفف عبء الرسوميات على الأجهزة الأضعف؛ تبقى ومضات الإطلاق والدم والانفجارات والنار والإصابات والتلميحات، وكذلك كل التأثيرات في المشاهد السينمائية.</string>
+    <string name="ingame_potato_help">تأثيرات الطقس: سحب الضباب والمطر ورذاذ الماء. التأثيرات الخاصة: البخار وتموج الحرارة والماء. تأثيرات الجسيمات: الدم والغبار والدخان والرذاذ والشرر والنار؛ «أقل» يرسم نصفها، و«لا شيء» يزيلها كلها ما عدا النار والانفجارات التي تبقى بالنصف تحذيرًا. الظلال والضوء: الإيقاف يزيل الظلال (وفي المشاهد السينمائية أيضًا) وتوهج الأضواء وأشعة الضوء؛ وتبقى إضاءة الغرف كما هي. كل إعداد يخفف عبء الرسوميات على الأجهزة الأضعف؛ يبقى موضع الإصابة والتلميحات والليزر وكل التأثيرات في المشاهد السينمائية.</string>
     <string name="ingame_comfort">تحكم مريح</string>
     <string name="ingame_auto_aim">التصويب التلقائي</string>
     <string name="ingame_always_run">الركض دائمًا</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">‏الركض دائمًا: يركض ليون كلما تحركت؛ اضغط باستمرار على زر الركض (مثل B) للمشي بدلًا من ذلك.</string>
     <string name="ingame_far_camera_help">تُبقي كاميرا الكتف أبعد قليلًا خلف ليون أثناء المشي والوقوف. عند التصويب وفي الأماكن الضيقة تقترب كما من قبل، وتتحرك بسلاسة بينهما.</string>
     <string name="ingame_perf_section">الأداء</string>
+    <string name="ingame_potato_particles">تأثيرات الجسيمات</string>
+    <string name="ingame_particles_normal">عادي</string>
+    <string name="ingame_particles_less">أقل</string>
+    <string name="ingame_particles_none">لا شيء</string>
+    <string name="ingame_potato_shadows">الظلال والضوء</string>
     <string name="ingame_frame_skip">‏تخطي الإطارات</string>
-    <string name="ingame_frame_skip_help">‏عند تأخر الرسومات يتخطى إطارًا حتى تحافظ اللعبة على سرعتها العادية. تُعرض إطارات أقل ولا يتباطأ شيء.</string>
-    <string name="ingame_cheats">الغش</string>
+    <string name="ingame_skip_normal">‏عادي</string>
+    <string name="ingame_skip_aggressive">‏قوي</string>
+    <string name="ingame_skip_normal_help">‏تخطي الإطارات عادي: عندما تتأخر شريحة الرسوميات يُتخطى إطار جاهز حتى تحافظ اللعبة على سرعتها العادية.</string>
+    <string name="ingame_skip_aggressive_help">‏تخطي الإطارات قوي: تتخطى اللعبة بنفسها إطارًا واحدًا من كل إطارين على الأكثر عندما تتأخر، وهذا يوفر وقت المعالج أيضًا وهو أسرع بكثير في الهواتف ذات المعالج البطيء.</string>
+    <string name="ingame_gentle_qte">أحداث QTE أسهل (Professional)</string>
     <string name="ingame_cheat_section_player">اللاعب والمخزون</string>
     <string name="ingame_cheat_section_weapons">الأسلحة</string>
     <string name="ingame_cheat_section_game">اللعبة</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">الأقراص</string>
     <string name="ingame_discs_help">لتلعب نسخة أخرى: تنتهي اللعبة، ثم تستورد قرصيها كليهما من شاشة البدء. تبقى ملفات الحفظ وبطاقة الذاكرة والإعدادات كما هي.</string>
     <string name="ingame_import_discs">استيراد أقراص أخرى</string>
+    <string name="ouya_cheats">الغش</string>
     <string name="ouya_view_distance">مدى الرؤية</string>
     <string name="ouya_colours">حساب الألوان</string>
     <string name="ouya_colours_simple">مبسّط</string>
     <string name="ouya_colours_exact">دقيق</string>
-    <string name="ouya_graphics_help">الدقة: صورة اللعبة كنسبة من 640&#x200E; × &#x200E;528 نقطة في GameCube؛ الأقل أسرع. يخفف حساب الألوان المبسّط عبء الرسوميات؛ وقد تختلف الألوان اختلافًا طفيفًا جدًا. مدى الرؤية: إلى أي مدى تمتد الرؤية قبل ضباب المسافة؛ وما يقع خلفه لا يُرسم. يسري من الباب التالي أو المشهد السينمائي التالي.</string>
+    <string name="ouya_graphics_help">الدقة: صورة اللعبة كنسبة من 640&#x200E; × &#x200E;528 نقطة في GameCube؛ الأقل أسرع. يخفف حساب الألوان المبسّط عبء الرسوميات؛ وقد تختلف الألوان اختلافًا طفيفًا جدًا. مدى الرؤية: إلى أي مدى تمتد الرؤية قبل ضباب المسافة؛ وما يقع خلفه لا يُرسم. يسري فورًا.</string>
+    <string name="ouya_gentle_qte_help">أحداث QTE أسهل: في Professional تمنح أحداث الأزرار السريعة (المراوغة وقتال السكاكين والضغط السريع) الوقت نفسه وتطلب عدد الضغطات نفسه كما في Normal؛ ويبقى الضرر والأعداء كما في Professional.</string>
 </resources>

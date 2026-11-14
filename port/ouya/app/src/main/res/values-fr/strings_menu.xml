@@ -13,7 +13,7 @@
     <string name="ingame_potato">Mode Potato</string>
     <string name="ingame_potato_weather">Effets météo</string>
     <string name="ingame_potato_special">Effets spéciaux</string>
-    <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Désactivés, ils allègent le travail graphique sur les appareils modestes ; les flashs de tir, le sang, les explosions, le feu, les impacts et les indications restent, ainsi que tous les effets des cinématiques.</string>
+    <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Effets de particules : sang, poussière, fumée, éclaboussures, étincelles et feu ; Réduits en dessine la moitié, Aucun les retire tous sauf le feu et les explosions, qui restent à moitié comme avertissement. Ombres et lumière : désactivé retire les ombres (aussi dans les cinématiques), les halos et les rayons de lumière ; les pièces gardent leur éclairage. Chaque réglage allège le travail graphique sur les appareils modestes ; le point d\'impact, les indications, le laser et tous les effets des cinématiques restent.</string>
     <string name="ingame_comfort">Commandes de confort</string>
     <string name="ingame_auto_aim">Visée auto</string>
     <string name="ingame_always_run">Toujours courir</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">Toujours courir : Leon court dès que tu te déplaces ; maintiens le bouton de course (par ex. B) pour marcher.</string>
     <string name="ingame_far_camera_help">Garde la caméra d\'épaule un peu plus loin derrière Leon en marchant et à l\'arrêt. En visant et dans les endroits étroits, elle se rapproche comme avant ; entre les deux, elle glisse en douceur.</string>
     <string name="ingame_perf_section">Performances</string>
+    <string name="ingame_potato_particles">Effets de particules</string>
+    <string name="ingame_particles_normal">Normaux</string>
+    <string name="ingame_particles_less">Réduits</string>
+    <string name="ingame_particles_none">Aucun</string>
+    <string name="ingame_potato_shadows">Ombres et lumière</string>
     <string name="ingame_frame_skip">Saut d’images</string>
-    <string name="ingame_frame_skip_help">Si le rendu est à la traîne, saute une image pour que le jeu garde sa vitesse normale. Moins d’images s’affichent, rien n’est ralenti.</string>
-    <string name="ingame_cheats">Triches</string>
+    <string name="ingame_skip_normal">Normale</string>
+    <string name="ingame_skip_aggressive">Agressif</string>
+    <string name="ingame_skip_normal_help">Saut d’images Normal : si la puce graphique prend du retard, une image déjà prête est sautée pour que le jeu garde sa vitesse normale.</string>
+    <string name="ingame_skip_aggressive_help">Saut d’images Agressif : le jeu saute lui-même au plus une image sur deux quand il prend du retard ; cela économise aussi du temps processeur et va bien plus vite sur les téléphones au processeur lent.</string>
+    <string name="ingame_gentle_qte">QTE plus doux (Professional)</string>
     <string name="ingame_cheat_section_player">Joueur et inventaire</string>
     <string name="ingame_cheat_section_weapons">Armes</string>
     <string name="ingame_cheat_section_game">Jeu</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">Disques</string>
     <string name="ingame_discs_help">Pour jouer à une autre version\u00A0: la partie se termine et vous importez ses deux disques depuis l’écran de démarrage. Les sauvegardes, la carte mémoire et les réglages sont conservés.</string>
     <string name="ingame_import_discs">Importer d’autres disques</string>
+    <string name="ouya_cheats">Triches</string>
     <string name="ouya_view_distance">Distance de vue</string>
     <string name="ouya_colours">Calcul des couleurs</string>
     <string name="ouya_colours_simple">Simplifié</string>
     <string name="ouya_colours_exact">Exact</string>
-    <string name="ouya_graphics_help">Résolution : l’image du jeu en proportion des 640 × 528 points de la GameCube ; plus bas, c’est plus rapide. Le calcul simplifié des couleurs allège le travail graphique ; les couleurs peuvent différer très légèrement. Distance de vue : jusqu’où porte la vue avant le brouillard lointain ; ce qui se trouve au-delà n’est pas dessiné. Elle s’applique à partir de la prochaine porte ou cinématique.</string>
+    <string name="ouya_graphics_help">Résolution : l’image du jeu en proportion des 640 × 528 points de la GameCube ; plus bas, c’est plus rapide. Le calcul simplifié des couleurs allège le travail graphique ; les couleurs peuvent différer très légèrement. Distance de vue : jusqu’où porte la vue avant le brouillard lointain ; ce qui se trouve au-delà n’est pas dessiné. Elle s’applique aussitôt.</string>
+    <string name="ouya_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons (esquiver, le combat au couteau, appuyer vite) laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional.</string>
 </resources>

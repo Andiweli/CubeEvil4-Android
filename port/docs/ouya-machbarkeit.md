@@ -658,3 +658,36 @@ im Band beim Bildformat 4:3, Vibration im Controller, Export der Touch-Belegung,
 Speicherkarten-Tasten; Totzone und Reichweite der Sticks wären für den OUYA-Controller möglich.
 master belegt Bit 7 der Paket-Kennzeichen mit `RE4_GX_CHUNK_MOVIE`, `RE4_GX_CHUNK_DRAWLESS` liegt
 seitdem auf Bit 8.
+
+**Abgleich mit master 0.99.15 (14.11.2026, Wunsch des Projektinhabers).** 181 Commits zusammengeführt
+(0.99.3 bis 0.99.15). Über den Kern kommen in die OUYA-Fassung alle Spiel-Fixes seither (Patches 0219 bis
+0232, u. a. r100-Neustart, Gondel r227, Raum-IDs beim `.gci`-Import, Garrador r201, Krausers Bogen, Wesker und
+Ada mit eigenen Waffen-Bewegungen) und der Absturz-Fix der Zeigerprüfung (`os_thread.cpp`: jeder lesbare
+Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg für Android 4.1 übernommen).
+- **Sichtweite:** master hat sie aus diesem Zweig übernommen (Patch 0223, `re4_core_set_view_distance`) und
+  wirkt sofort statt erst an der nächsten Tür. Patch 0900 und die OUYA-eigene `view_distance.cpp` sind
+  weg, Nachricht `kSetViewDistance` bleibt 41. `kSetDrawless` liegt jetzt auf 90 (master nutzt 42 für
+  `kSetCpuSkip`, 43 bis 45 für Mausrad, Zufallsgegner, sanftere QTEs).
+- **Neu im Menü auf L3** (Voreinstellungen wie bisher, sonst wie in der Haupt-App):
+  - *Frame Skip Aus / Normal / Aggressiv* statt des Schalters: „Aggressiv“ ist master's Frame Skip des
+    Spiels selbst (Patch 0227, `runtime/cpu_skip.cpp`): Hinkt das Spiel hinterher, lässt es höchstens
+    jedes zweite Bild ganz aus (Trans und Render, also die Prozessorzeit, die auf der OUYA fehlt; die
+    Spiellogik läuft weiter). Dazu weiter die Bilder ohne Zeichenbefehle (`RE4_GX_CHUNK_DRAWLESS`); deren
+    Anteil richtet sich bei „Aggressiv“ nach dem gemessenen Abstand der Bilder statt nach 33 ms.
+  - *Potato-Modus:* „Partikeleffekte“ Normal / Weniger / Keine und „Schatten & Licht“ (Bits 2 bis 4 von
+    `runtime/potato.cpp`; Schatten kosteten am PC 12 bis 25 % der Grafikzeit, vor allem in Zwischensequenzen).
+  - *Sanftere QTEs (Professional)*, voreingestellt an wie in der Haupt-App (Patch 0232); der Hilfetext ohne
+    den Satz zum Touchscreen.
+  - Überschrift „Cheats“ eigen (die Haupt-App sagt „Cheats & Mods“); Hinweis bei der Sichtweite: wirkt sofort.
+- **Geprüft am PC (14.11.2026):** `whole_build.sh i686` mit und ohne Grafik-Thread (`RE4_GX_THREAD=0/1`):
+  alle Laufzeit-, Kern- und Fernprozess-Tests ohne Fehler. Spielkern für Android 4.1 gebaut (0 Fehler,
+  117 Bibliotheken), App gebaut (debug und release), Übersetzungsprüfung aller 11 Sprachen ohne Befund.
+  Frame Skip des Spiels mit dem OUYA-Grafik-Thread, Debug-Disc: r100 und r101 je 3500 Bilder ohne und mit
+  `RE4_CPU_SKIP_TEST=1` (jedes erlaubte Bild weg): Spielzustand Bild für Bild **gleich** (ohne die GX-Zählung);
+  im echten Takt mit `RE4_CPU_SKIP_SLOW_DRAW=40` (der PC als langsamer Prozessor) 298 und 299 von 600 Bildern
+  ausgelassen, kein Hänger.
+- **Nicht geprüft:** alles auf der OUYA (der Projektinhaber baut selbst); ob „Aggressiv“ und „Schatten &
+  Licht aus“ dort spürbar helfen, zeigt erst das Spielen (`ouya-log.ps1` holt die Zahlen).
+- **Nicht übernommen (nur Haupt-App):** Vulkan, Bloom, HD-Texturen, 60 FPS / 120 Hz, dynamische Auflösung
+  und Benchmark des GLES-3-Renderers, Touch, Maus, Sofortspeichern, ZIP-Export, Zufallsgegner; Totzone der
+  Sticks (Java-Teil der Haupt-App) weiter möglich.

@@ -13,7 +13,7 @@
     <string name="ingame_potato">Режим Potato</string>
     <string name="ingame_potato_weather">Погодные эффекты</string>
     <string name="ingame_potato_special">Спецэффекты</string>
-    <string name="ingame_potato_help">Погодные эффекты: клубы тумана, дождь, брызги воды. Спецэффекты: пар, марево, вода. Отключение снижает нагрузку на графику на слабых устройствах; вспышки выстрелов, кровь, взрывы, огонь, попадания и подсказки остаются, как и все эффекты в роликах.</string>
+    <string name="ingame_potato_help">Погодные эффекты: клубы тумана, дождь, брызги воды. Спецэффекты: пар, марево, вода. Эффекты частиц: кровь, пыль, дым, брызги, искры и огонь; «Меньше» рисует половину, «Нет» убирает всё, кроме огня и взрывов, которые остаются наполовину как предупреждение. Тени и свет: выключение убирает тени (и в роликах), блики и лучи света; освещение комнат остаётся. Каждая настройка снижает нагрузку на графику на слабых устройствах; место попадания, подсказки, лазер и все эффекты в роликах остаются.</string>
     <string name="ingame_comfort">Удобное управление</string>
     <string name="ingame_auto_aim">Автоприцел</string>
     <string name="ingame_always_run">Всегда бежать</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">Всегда бежать: Леон бежит, как только вы двигаетесь; удерживайте кнопку бега (например, B), чтобы идти шагом.</string>
     <string name="ingame_far_camera_help">Держит камеру из-за плеча чуть дальше позади Леона при ходьбе и на месте. При прицеливании и в тесных местах она приближается, как раньше; переходы плавные.</string>
     <string name="ingame_perf_section">Производительность</string>
+    <string name="ingame_potato_particles">Эффекты частиц</string>
+    <string name="ingame_particles_normal">Обычно</string>
+    <string name="ingame_particles_less">Меньше</string>
+    <string name="ingame_particles_none">Нет</string>
+    <string name="ingame_potato_shadows">Тени и свет</string>
     <string name="ingame_frame_skip">Пропуск кадров</string>
-    <string name="ingame_frame_skip_help">Если графика не успевает, пропускает кадр, чтобы игра шла с обычной скоростью. Показывается меньше кадров, ничего не замедляется.</string>
-    <string name="ingame_cheats">Читы</string>
+    <string name="ingame_skip_normal">Обычный</string>
+    <string name="ingame_skip_aggressive">Агрессивный</string>
+    <string name="ingame_skip_normal_help">Пропуск кадров «Обычный»: если графический чип не успевает, готовый кадр пропускается, чтобы игра шла с обычной скоростью.</string>
+    <string name="ingame_skip_aggressive_help">Пропуск кадров «Агрессивный»: игра сама пропускает не больше одного кадра из двух, когда отстаёт; это экономит и время процессора и намного быстрее на телефонах с медленным процессором.</string>
+    <string name="ingame_gentle_qte">Мягкие QTE (Professional)</string>
     <string name="ingame_cheat_section_player">Игрок и инвентарь</string>
     <string name="ingame_cheat_section_weapons">Оружие</string>
     <string name="ingame_cheat_section_game">Игра</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">Диски</string>
     <string name="ingame_discs_help">Чтобы играть в другую версию: игра завершится, и вы импортируете оба её диска на стартовом экране. Сохранения, карта памяти и настройки останутся.</string>
     <string name="ingame_import_discs">Импорт других дисков</string>
+    <string name="ouya_cheats">Читы</string>
     <string name="ouya_view_distance">Дальность обзора</string>
     <string name="ouya_colours">Расчёт цветов</string>
     <string name="ouya_colours_simple">Упрощённый</string>
     <string name="ouya_colours_exact">Точный</string>
-    <string name="ouya_graphics_help">Разрешение: изображение игры как доля от 640 × 528 точек GameCube; меньше — быстрее. Упрощённый расчёт цветов снижает нагрузку на графику; цвета могут совсем немного отличаться. Дальность обзора: как далеко видно до дальнего тумана; то, что за ним, не рисуется. Действует со следующей двери или ролика.</string>
+    <string name="ouya_graphics_help">Разрешение: изображение игры как доля от 640 × 528 точек GameCube; меньше — быстрее. Упрощённый расчёт цветов снижает нагрузку на графику; цвета могут совсем немного отличаться. Дальность обзора: как далеко видно до дальнего тумана; то, что за ним, не рисуется. Действует сразу.</string>
+    <string name="ouya_gentle_qte_help">Мягкие QTE: в Professional события с кнопками (уклонение, бой на ножах, быстрое нажатие) дают столько же времени и требуют столько же нажатий, как в Normal; урон и враги остаются как в Professional.</string>
 </resources>

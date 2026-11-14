@@ -85,6 +85,11 @@ re4gx2::GxStats gStatsBefore;           // the renderer's counters at the last l
 std::atomic<int> gWantEighths{6};
 std::atomic<bool> gWantFastTev{true};
 std::atomic<bool> gFrameSkip{true};  // older pictures left out while the renderer lags (off: each drawn)
+// Frame skip Aggressive (master 0.99.15, merged 14.11.2026): the game itself leaves out a picture while it
+// falls behind (runtime/cpu_skip.cpp, patch 0227): its Trans and Render, the processor's time the OUYA lacks
+std::atomic<bool> gCpuSkip{false};
+std::atomic<bool> gGentleQte{true};  // "Gentler QTEs (Professional)", runtime/qte_touch.cpp
+unsigned gChunksSecond = 0;  // GL thread: chunks taken since the last choice (fewer while the game leaves some out)
 int gViewPercent = 50, gPotato = 3, gAim = 100 << 8, gCheats = 0;  // under gLock
 bool gWaitReset = false;  // GL thread: a new renderer draws from the next chunk that starts over
 
@@ -230,9 +235,11 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
     setenv(s[0], s[1], 1);
   char value[32];
   snprintf(value, sizeof(value), "%.2f", gViewPercent / 100.0);
-  setenv("RE4_VIEW_DISTANCE", value, 1);  // the distance fog and the far plane (patch 0900)
+  setenv("RE4_VIEW_DISTANCE", value, 1);  // the distance fog and the far plane (patch 0223)
   snprintf(value, sizeof(value), "%d", gPotato);
-  setenv("RE4_POTATO", value, 1);  // bit 0 weather, bit 1 special effects left out
+  setenv("RE4_POTATO", value, 1);  // runtime/potato.cpp: weather, special effects, particles, shadows
+  setenv("RE4_CPU_SKIP", gCpuSkip ? "1" : "0", 1);  // frame skip Aggressive
+  setenv("RE4_GENTLE_QTE", gGentleQte ? "1" : "0", 1);
   snprintf(value, sizeof(value), "%d", gCheats);
   setenv("RE4_CHEATS", value, 1);  // the menu's cheat switches (runtime/cheats.cpp)
   if (gameLanguage >= 2 && gameLanguage <= 6) {
@@ -307,9 +314,14 @@ void StartOver() {
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeSettings(JNIEnv *, jclass, jint eighths,
                                                                                          jboolean fastTev,
                                                                                          jint viewPercent, jint potato,
-                                                                                         jint aim, jboolean frameSkip,
-                                                                                         jint cheats) {
-  gFrameSkip = frameSkip == JNI_TRUE;
+                                                                                         jint aim, jint frameSkip,
+                                                                                         jint cheats,
+                                                                                         jboolean gentleQte) {
+  // 0 off, 1 Normal (the renderer leaves out older pictures, the core pictures without draws), 2 Aggressive
+  // (also the game's own frame skip)
+  gFrameSkip = frameSkip >= 1;
+  const bool cpuSkip = frameSkip >= 2, cpuChanged = cpuSkip != gCpuSkip.exchange(cpuSkip);
+  const bool gentle = gentleQte == JNI_TRUE, gentleChanged = gentle != gGentleQte.exchange(gentle);
   gWantEighths = eighths < 4 ? 4 : eighths > 8 ? 8 : static_cast<int>(eighths);
   gWantFastTev = fastTev == JNI_TRUE;
   std::lock_guard<std::mutex> l(gLock);
@@ -317,7 +329,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
              cheated = cheats != gCheats;
   gCheats = cheats;
   gViewPercent = viewPercent < 20 ? 20 : viewPercent > 100 ? 100 : static_cast<int>(viewPercent);
-  gPotato = potato & 3;
+  gPotato = potato & 31;  // runtime/potato.cpp: bits 0..4
   gAim = aim;
   if (!gRunning)
     return;
@@ -329,8 +341,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     re4ipc_set_aim(gAim);
   if (cheated)
     re4ipc_set_cheats(gCheats);
+  if (cpuChanged)
+    re4ipc_set_cpu_skip(cpuSkip ? 1 : 0);
+  if (gentleChanged)
+    re4ipc_set_gentle_qte(gentle ? 1 : 0);
   LOG("settings: view %d %%, potato %d, aim 0x%x, frame skip %s, cheats 0x%x", gViewPercent, gPotato, gAim,
-      gFrameSkip ? "on" : "off", gCheats);
+      cpuSkip ? "aggressive" : gFrameSkip ? "normal" : "off", gCheats);
 }
 
 // A new EGL context: a renderer of its own (the chunks begin anew with a full state)
@@ -414,6 +430,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
         }
       }
       gChunks++;
+      gChunksSecond++;
     }
     const long long ran = NowMicros() - runStart;
     gRunMicros += ran;
@@ -447,7 +464,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     // the renderer's time for a shown chunk against the game's 33 ms a picture: one in so many with
     // its draws (1: all), changed only when two seconds in a row ask for the same
     const double showMs = gShowCount ? gShowMicros / 1000.0 / gShowCount : 0.0;
-    int want = showMs > 0.0 ? static_cast<int>(showMs / 33.3 + 0.7) : 1;
+    // with the game's own frame skip the chunks come less often (at most one in two left out): against the
+    // time between them, else one in so many of the pictures the game has left would be drawn
+    double period = 33.3;
+    if (gCpuSkip && gChunksSecond > 0) {
+      period = (now - gChoiceAt) / static_cast<double>(gChunksSecond);
+      period = period < 33.3 ? 33.3 : period > 66.7 ? 66.7 : period;
+    }
+    int want = showMs > 0.0 ? static_cast<int>(showMs / period + 0.7) : 1;
     want = want < 1 ? 1 : want > 4 ? 4 : want;
     static int asked = 1;
     if (want == asked)
@@ -455,6 +479,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     asked = want;
     gShowMicros = 0;
     gShowCount = 0;
+    gChunksSecond = 0;
     gChoiceAt = now;
   }
   {

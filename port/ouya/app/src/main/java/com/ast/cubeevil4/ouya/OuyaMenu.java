@@ -28,7 +28,8 @@ import java.util.Locale;
  * The OUYA app's menu (L3; wish of the project owner, 07.11.2026): one page in the look of the main
  * app's in-game menu (port/android-decomp/.../CoreMenu.java: its colours, buttons, headings), with what
  * the owner chose for the OUYA: GRAPHICS (resolution, view distance, colour calculation, the two Potato
- * switches), PERFORMANCE (frame skip; wish of the project owner, 07.11.2026: the main app's other
+ * switches; since master 0.99.15 also its particles and shadows), PERFORMANCE (frame skip Off / Normal /
+ * Aggressive; wish of the project owner, 07.11.2026: the main app's other
  * performance options do nothing on the OUYA or belong to its GLES 3 renderer), COMFORT CONTROLS
  * (auto aim, always run, far camera) and CHEATS (wish of the project owner, 07.11.2026: the main app's
  * switches and buttons for the player and the weapons, not its characters and extra games). The game
@@ -52,19 +53,33 @@ final class OuyaMenu extends Dialog {
         static final String PREFS = "settings";
         static final String EIGHTHS = "resolutionEighths", FAST_TEV = "fastTev", VIEW = "viewPercent",
                 WEATHER = "weatherEffects", SPECIAL = "specialEffects", AUTO_AIM = "autoAim",
-                ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera", FRAME_SKIP = "frameSkip", CHEATS = "cheats";
+                ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera", FRAME_SKIP = "frameSkip", CHEATS = "cheats",
+                // master 0.99.15 (merged 14.11.2026): the Potato mode's particles and shadows, frame skip in three steps
+                PARTICLES = "particles", SHADOWS = "shadowsLight", FRAME_SKIP_LEVEL = "frameSkipLevel",
+                GENTLE_QTE = "gentleQte";
         static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 50;
 
         static int eighths(SharedPreferences p) { return p.getInt(EIGHTHS, EIGHTHS_DEFAULT); }
         static boolean fastTev(SharedPreferences p) { return p.getBoolean(FAST_TEV, true); }
-        /** On: while the graphics lag, older pictures are left out (the main app's Frame skip). */
-        static boolean frameSkip(SharedPreferences p) { return p.getBoolean(FRAME_SKIP, true); }
+        /** The main app's Frame skip: 0 off, 1 Normal (while the graphics lag, older pictures are left out), 2
+         *  Aggressive (also the game itself leaves out a picture while it falls behind: runtime/cpu_skip.cpp, patch
+         *  0227; saves the processor's time). Before 14.11.2026 a switch (FRAME_SKIP): on is Normal. */
+        static int frameSkip(SharedPreferences p) {
+            return p.getInt(FRAME_SKIP_LEVEL, p.getBoolean(FRAME_SKIP, true) ? 1 : 0);
+        }
+        /** "Gentler QTEs (Professional)" (runtime/qte_touch.cpp, patch 0232): on by default, as in the main app
+         *  (decision of the project owner, 14.11.2026). */
+        static boolean gentleQte(SharedPreferences p) { return p.getBoolean(GENTLE_QTE, true); }
+        /** The Potato mode's particle effects: 0 Normal, 1 Less, 2 None. */
+        static int particles(SharedPreferences p) { return p.getInt(PARTICLES, 0); }
         /** The cheat switches (runtime/cheats.cpp): 1 health, 2 ammo, 4 one-hit kill, 8 QTEs, 512 invisibility. */
         static int cheats(SharedPreferences p) { return p.getInt(CHEATS, 0); }
         static int view(SharedPreferences p) { return p.getInt(VIEW, VIEW_DEFAULT); }
-        /** Bit 0 weather, bit 1 special effects left out (runtime/potato.cpp); both off on the OUYA. */
+        /** runtime/potato.cpp: bit 0 weather, bit 1 special effects left out (both by default on the OUYA),
+         *  bits 2..3 the particle effects (0 normal, 1 less, 2 none), bit 4 shadows and light effects left out. */
         static int potato(SharedPreferences p) {
-            return (p.getBoolean(WEATHER, false) ? 0 : 1) | (p.getBoolean(SPECIAL, false) ? 0 : 2);
+            return (p.getBoolean(WEATHER, false) ? 0 : 1) | (p.getBoolean(SPECIAL, false) ? 0 : 2)
+                    | (Math.max(0, Math.min(2, particles(p))) << 2) | (p.getBoolean(SHADOWS, true) ? 0 : 16);
         }
         /** re4_core_set_aim: speed 100 % << 8, bit 1 auto aim, bit 2 always run, bit 3 far camera. */
         static int aim(SharedPreferences p) {
@@ -142,22 +157,30 @@ final class OuyaMenu extends Dialog {
         LinearLayout potato = buttonsRow();
         toggle(potato, R.string.ingame_potato_weather, Settings.WEATHER);
         toggle(potato, R.string.ingame_potato_special, Settings.SPECIAL);
+        LinearLayout light = buttonsRow();
+        toggle(light, R.string.ingame_potato_shadows, Settings.SHADOWS, true);
+        light.addView(new View(getContext()), cell());
+        choices(s(R.string.ingame_potato_particles), new String[] {s(R.string.ingame_particles_normal),
+                s(R.string.ingame_particles_less), s(R.string.ingame_particles_none)}, new int[] {0, 1, 2},
+                Settings.particles(prefs), Settings.PARTICLES);
         help(R.string.ingame_potato_help);
         heading(R.string.ingame_perf_section);
-        LinearLayout performance = buttonsRow();
-        toggle(performance, R.string.ingame_frame_skip, Settings.FRAME_SKIP, true);
-        performance.addView(new View(getContext()), cell());
-        help(R.string.ingame_frame_skip_help);
+        choices(s(R.string.ingame_frame_skip), new String[] {s(R.string.ingame_off), s(R.string.ingame_skip_normal),
+                s(R.string.ingame_skip_aggressive)}, new int[] {0, 1, 2}, Settings.frameSkip(prefs),
+                Settings.FRAME_SKIP_LEVEL);
+        help(R.string.ingame_skip_normal_help);
+        help(R.string.ingame_skip_aggressive_help);
         heading(R.string.ingame_comfort);
         LinearLayout comfort = buttonsRow();
         toggle(comfort, R.string.ingame_auto_aim, Settings.AUTO_AIM);
         toggle(comfort, R.string.ingame_always_run, Settings.ALWAYS_RUN);
         LinearLayout camera = buttonsRow();
         toggle(camera, R.string.ingame_far_camera, Settings.FAR_CAMERA);
-        camera.addView(new View(getContext()), cell());  // half the row, as the switches above
+        toggle(camera, R.string.ingame_gentle_qte, Settings.GENTLE_QTE, true);
         help(R.string.ingame_auto_aim_help);
         help(R.string.ingame_always_run_help);
         help(R.string.ingame_far_camera_help);
+        help(R.string.ouya_gentle_qte_help);
         cheats();
         heading(R.string.ingame_discs);
         LinearLayout discs = buttonsRow();
@@ -176,7 +199,7 @@ final class OuyaMenu extends Dialog {
     // --- the cheats (the main app's CoreMenu.cheats, without the characters and the extra games) ---
 
     private void cheats() {
-        heading(R.string.ingame_cheats);
+        heading(R.string.ouya_cheats);
         subheading(R.string.ingame_cheat_section_player);
         LinearLayout player = buttonsRow();
         cheatSwitch(player, R.string.ingame_cheat_health, 1);

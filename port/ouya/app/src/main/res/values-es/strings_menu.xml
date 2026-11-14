@@ -13,7 +13,7 @@
     <string name="ingame_potato">Modo Potato</string>
     <string name="ingame_potato_weather">Efectos climáticos</string>
     <string name="ingame_potato_special">Efectos especiales</string>
-    <string name="ingame_potato_help">Efectos climáticos: bancos de niebla, lluvia, salpicaduras de agua. Efectos especiales: vapor, calima, agua. Desactivarlos ahorra trabajo gráfico en dispositivos menos potentes; los fogonazos, la sangre, las explosiones, el fuego, los impactos y las pistas se mantienen, igual que todos los efectos de las escenas.</string>
+    <string name="ingame_potato_help">Efectos climáticos: bancos de niebla, lluvia, salpicaduras de agua. Efectos especiales: vapor, calima, agua. Efectos de partículas: sangre, polvo, humo, salpicaduras, chispas y fuego; Menos dibuja la mitad, Ninguno los quita todos salvo el fuego y las explosiones, que quedan a la mitad como aviso. Sombras y luz: desactivado quita las sombras (también en las escenas), los destellos y los rayos de luz; las salas conservan su iluminación. Cada ajuste ahorra trabajo gráfico en dispositivos menos potentes; el punto del impacto, las pistas, el láser y todos los efectos de las escenas se mantienen.</string>
     <string name="ingame_comfort">Controles de comodidad</string>
     <string name="ingame_auto_aim">Apuntado automático</string>
     <string name="ingame_always_run">Correr siempre</string>
@@ -22,9 +22,17 @@
     <string name="ingame_always_run_help">Correr siempre: Leon corre siempre que te mueves; mantén el botón de correr (p. ej. B) para caminar.</string>
     <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon al caminar y al estar quieto. Al apuntar y en sitios estrechos se acerca como antes; entre ambos se mueve con suavidad.</string>
     <string name="ingame_perf_section">Rendimiento</string>
+    <string name="ingame_potato_particles">Efectos de partículas</string>
+    <string name="ingame_particles_normal">Normal</string>
+    <string name="ingame_particles_less">Menos</string>
+    <string name="ingame_particles_none">Ninguno</string>
+    <string name="ingame_potato_shadows">Sombras y luz</string>
     <string name="ingame_frame_skip">Salto de fotogramas</string>
-    <string name="ingame_frame_skip_help">Si los gráficos van lentos, omite una imagen para que el juego mantenga su velocidad. Se muestran menos imágenes, nada se ralentiza.</string>
-    <string name="ingame_cheats">Trucos</string>
+    <string name="ingame_skip_normal">Normal</string>
+    <string name="ingame_skip_aggressive">Agresivo</string>
+    <string name="ingame_skip_normal_help">Salto de fotogramas Normal: si el chip gráfico se retrasa, se omite una imagen ya hecha para que el juego mantenga su velocidad normal.</string>
+    <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; también ahorra tiempo de procesador y es mucho más rápido en móviles con un procesador lento.</string>
+    <string name="ingame_gentle_qte">QTE más suaves (Professional)</string>
     <string name="ingame_cheat_section_player">Jugador e inventario</string>
     <string name="ingame_cheat_section_weapons">Armas</string>
     <string name="ingame_cheat_section_game">Juego</string>
@@ -52,9 +60,11 @@
     <string name="ingame_discs">Discos</string>
     <string name="ingame_discs_help">Para jugar otra versión: la partida termina e importas sus dos discos en la pantalla de inicio. Las partidas guardadas, la tarjeta de memoria y los ajustes se conservan.</string>
     <string name="ingame_import_discs">Importar otros discos</string>
+    <string name="ouya_cheats">Trucos</string>
     <string name="ouya_view_distance">Distancia de visión</string>
     <string name="ouya_colours">Cálculo de colores</string>
     <string name="ouya_colours_simple">Simplificado</string>
     <string name="ouya_colours_exact">Exacto</string>
-    <string name="ouya_graphics_help">Resolución: la imagen del juego como parte de los 640 × 528 puntos de la GameCube; menos es más rápido. El cálculo de colores simplificado ahorra trabajo gráfico; los colores pueden variar muy ligeramente. Distancia de visión: hasta dónde llega la vista antes de la niebla lejana; lo que queda detrás no se dibuja. Se aplica a partir de la próxima puerta o escena.</string>
+    <string name="ouya_graphics_help">Resolución: la imagen del juego como parte de los 640 × 528 puntos de la GameCube; menos es más rápido. El cálculo de colores simplificado ahorra trabajo gráfico; los colores pueden variar muy ligeramente. Distancia de visión: hasta dónde llega la vista antes de la niebla lejana; lo que queda detrás no se dibuja. Se aplica al instante.</string>
+    <string name="ouya_gentle_qte_help">QTE más suaves: en Professional, los eventos de botones (esquivar, la pelea a cuchillo, pulsar rápido) dan tanto tiempo y piden tantas pulsaciones como en Normal; el daño y los enemigos siguen como en Professional.</string>
 </resources>
