@@ -76,7 +76,8 @@
 #include "puzzle.h"
 #include <dolphin/dvd.h>
 
-#include <algorithm>
+// (no <algorithm> after the game's headers: in the OUYA branch's libc++ of NDK r23c it breaks on them,
+// "__libcpp_allocate", 14.11.2026)
 
 #include <atomic>
 #include <stdint.h>
@@ -231,7 +232,7 @@ int giveBow()
     const int had = arrows();
     int have = had;
     while (have < kArrowsGiven) {
-        const int more = std::min(kArrowSlot, kArrowsGiven - have);
+        const int more = kArrowsGiven - have < kArrowSlot ? kArrowsGiven - have : kArrowSlot;
         if (!putIn(kArrows, (u16) more)) {
             re4_log("cheat: Krauser's bow: no room in the case for more arrows (r%03x)", (unsigned) pG->room_id);
             break;
