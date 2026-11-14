@@ -13,8 +13,8 @@ android {
         applicationId 'com.ast.cubeevil4.ouya'
         minSdk 16
         targetSdk 16
-        versionCode 1
-        versionName '0.1.0-ouya'
+        versionCode 2
+        versionName '0.99-Ouya'
         ndk { abiFilters 'armeabi-v7a' }
         externalNativeBuild { cmake { arguments '-DRE4_OUYA_APP=ON', '-DANDROID_STL=c++_shared' } }
     }

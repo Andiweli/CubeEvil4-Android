@@ -717,3 +717,6 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
   (auch Partikel und Schatten & Licht), Frame Skip „Normal“, sanftere QTEs an.
 - Am PC gebaut (App debug, Übersetzungsprüfung aller 11 Sprachen ohne Befund); das Menü selbst ist auf der OUYA noch
   nicht geprüft.
+- **Version 0.99-Ouya** (Entscheidung des Projektinhabers, 14.11.2026, nach seinem Test auf der OUYA: Menü, Instant-
+  Spielstand, Nebel und Icon „klappt wunderbar“): `versionName '0.99-Ouya'`, `versionCode 2`. Das eigene OUYA-Bild
+  (`drawable-xhdpi/ouya_icon.png`) bleibt nur lokal beim Projektinhaber (Capcom-Grafik; im Repository das alte).
