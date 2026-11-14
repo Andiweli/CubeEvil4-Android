@@ -720,3 +720,32 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
 - **Version 0.99-Ouya** (Entscheidung des Projektinhabers, 14.11.2026, nach seinem Test auf der OUYA: Menü, Instant-
   Spielstand, Nebel und Icon „klappt wunderbar“): `versionName '0.99-Ouya'`, `versionCode 2`. Das eigene OUYA-Bild
   (`drawable-xhdpi/ouya_icon.png`) bleibt nur lokal beim Projektinhaber (Capcom-Grafik; im Repository das alte).
+
+**Verbesserungen 1 bis 4 (14./15.11.2026, Wunsch des Projektinhabers über die Hauptsitzung; Liste
+`reports\ouya-verbesserungen-2026-11-14.md`).**
+1. *Keine Sperre mehr nach Tastendrücken:* bisher zeichnete die App nach START, Y, X, Z und A ohne Zielen 0,8 s lang
+   jedes Bild (im Dorf 50 bis 65 ms je Bild), auch nach Türen und Gegenständen ohne Untermenü. Jetzt hält der Spielkern
+   selbst alle Bilder voll, sobald das Spiel ein Untermenü anfordert (`STA_SSCRN_REQUEST`, gesetzt von `SubScreenOpen`
+   einige Bilder vor `STA_SUB_SCRN`; `core_bridge.cpp`, `gx_decode.cpp`). Die App zählt die Tasten nur noch; das Log zeigt
+   je 10 s „presses of START/Y/X/Z/A (no hold)“, die Zeit der Sperre nach fehlgeschlagenen Kopie-Prüfungen und im
+   Kern-Log „held with their draws for a sub screen“ und „GX: sub screen asked for / open / closed“. Am PC geprüft
+   (`RE4_GX_DRAWLESS=3`, nur jedes dritte Bild mit Zeichenbefehlen, Debug-Disc r100): Koffer (Y), Karte (Z) und
+   Optionen (START) sehen genauso aus wie mit vollem Zeichnen.
+2. *Shader im Voraus bauen:* die Liste der gebauten Shader-Schlüssel kommt in `<Spieldaten>/shaders-gles2.keys` (alle
+   10 s, wenn neue dazukamen); beim nächsten Start baut ein eigener Thread auf einem zweiten, geteilten GL-Kontext
+   (1×1-Pbuffer, niedrigere Priorität) alle vor, während Logos, Titel und Ladezeiten laufen, und die Bildschirmbilder
+   übergeben sie dem Renderer (`GxRenderer::BuildShared`, `Adopt`). Log: „shaders ahead: …“. Am PC
+   (`gx_gl2_render` mit `RE4_GX2_AHEAD`, 30 Bilder r100/r101): im zweiten Lauf 0 statt 636 Shader beim Zeichnen gebaut,
+   alle Bilder byte-gleich.
+3. *Einfacheres Licht für die Umgebung:* als Messvariante gebaut (`RE4_GX2_LEVEL_LIGHT=1`, in `ouya-gx-render.ps1`
+   `levellight`): Zeichenaufträge, die keine Figur sind (Besitzer-Markierung des Kerns mit `RE4_GX_OWNER_FIGURE`),
+   bekommen ihr Licht einmal je Auftrag an seinem Ursprung, Figuren behalten es je Eckpunkt. Neue Testbilder mit
+   Figuren-Markierung und den OUYA-Einstellungen (Sichtweite 35 %, Potato 27) in `~/re4-ouya/o2/frames-p099`.
+   **Noch nicht auf der OUYA gemessen** (die Messung braucht das Gerät); erst danach wird es ein Schalter.
+4. *Effekt-Kopien in halber Auflösung:* die Kopien mit dem 2×2-Filter von GX (Quellen der Unschärfen und Filter) nur
+   noch mit einem Viertel der Pixel, der Filter entsprechend breiter (`GxOptions::softCopies`, in der App an).
+   Display-, Tiefen- und Vollbild-Kopien bleiben. Am PC: 30 Bilder r100/r101, schlechtestes 43,6 dB PSNR gegen
+   bisher, mit bloßem Auge kein Unterschied. Die Ersparnis auf der OUYA ist noch nicht gemessen.
+- Die PC-Werkzeuge bauen wieder (master hat den Renderer der Haupt-App aufgeteilt: `gx_core.cpp`, `gx_renderer.cpp`,
+  `tex_pack.cpp`, `etc2.cpp`); `gx_gl2_check` ohne Befund, Laufzeit- und Kerntests mit Grafik-Thread ohne Fehler,
+  Spielkern für Android 4.1 und App gebaut.
