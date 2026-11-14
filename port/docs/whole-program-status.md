@@ -200,6 +200,42 @@ noch schaffbar. Können wir das entschärfen?“
   gespielt; der Patch ist an den Stellen geprüft, die Werte aus dem Code gelesen); auf einem Gerät (Touch-Tipps, der
   Schalter).
 
+### 5. Vier Optimierungsideen eines Nutzers (nur geprüft, nichts gebaut; Projektinhaber, 14.11.2026)
+
+Ideen: (1) Hintergrundarbeit verschieben, Rechnungen nicht wiederholen, weg vom Hauptfaden; (2) GPU-Mittel
+wiederverwenden, weniger Spitzen; (3) Fäden auf passende Kerne, Priorität für die wichtigen; (4) auf die Temperatur
+achten (Androids Thermalstatus).
+
+- **(1) Schon da:** Spiel, Zeichnen und Ton laufen in eigenen Fäden (der Kern auf manchen Geräten in einem eigenen Prozess), der
+  Bildtakt in einem eigenen Faden (0.98.5); der Hauptfaden macht im Spiel nur leichte Arbeit zweimal je Sekunde
+  (`CoreActivity.tick`: Touch-Anzeige, FPS-Zeile, Hänger-Prüfung). Shader bleiben zwischen den Starts
+  (`ShaderCache`), werden in Bildern ohne neuen Chunk zeitlich begrenzt vorbereitet (`Prewarm`, 4 ms, im Menü 10 ms),
+  Vulkan baut die Pipelines der App-Liste vorab in einem Faden niedriger Priorität (`gx_vk.cpp`, `setpriority` 10).
+  Frame-Skip Normal/Aggressiv und Potato-Modus entlasten schwache Prozessoren. **Offen und echter Gewinn:** HD-Texturen
+  werden beim ersten Zeigen eines Raums auf dem Zeichenfaden geladen (Ruckler, Known issue) – das Laden im Hintergrund
+  ist T4 auf Branch `textures`, schon geplant. **Urteil:** erledigt bis auf T4 (Später, ohnehin geplant).
+- **(2) Schon da:** Texturen bleiben im Cache (`GxCore`, nur beim Reset verworfen), Uniform- und Vertex-Puffer laufen
+  als Ringe (Vertex-Ring wählbar für Mali), Vulkan nutzt die Blöcke und Descriptor-Pools je Frame wieder und gibt Altes
+  erst frei, wenn die GPU fertig ist (`trash`), HD-Pakete haben ein Speicherbudget und „Schärfe: Halb“. Render-Ziele
+  werden nur bei einem Auflösungswechsel neu angelegt; „Dynamisch“ wechselt seit 0.99.14 viel seltener (im Bericht
+  des Projektinhabers 34 → wenige Schritte). **Urteil:** erledigt; die verbleibenden Spitzen sind wieder T4.
+- **(3) Schon da:** Leistungskerne (`re4_cpu_info.h` `KeepOffSlowCores`: Spiel- und Zeichenfaden von den langsamen
+  Kernen, bei drei Kernarten der schnellste allein für den Zeichenfaden, `FastestCoresNow` folgt dem erlaubten Takt),
+  Hilfsfäden auf langsame Kerne, wo nur zwei schnelle da sind (`PutOnSlowCores`), Androids Leistungshinweis
+  (`APerformanceHint`, Android 13+, für Spiel-, Zeichen- und Eckpunkt-Fäden), Eckpunkte auf mehreren Kernen
+  (`gx_decode.cpp`), Prioritäten (Bildtakt `URGENT_DISPLAY`, Ton `AUDIO`, Tonzulieferer im Kern −16). Der Benchmark
+  misst den Prozessoranteil des Spielfadens (0.99.12). **Urteil:** erledigt, nichts Wesentliches offen.
+- **(4) Teilweise:** der erlaubte Takt der Kerne wird gelesen (Drosselung; jede Benchmark-Stufe protokolliert ihn),
+  „Dynamisch“ geht herunter, wenn das Gerät nicht mehr mithält (auch wenn es heiß wird), und erst mit Reserve wieder
+  hoch; der Leistungshinweis lässt Android den Takt rechtzeitig anheben. Androids Thermalstatus
+  (`PowerManager.getCurrentThermalStatus`, ab Android 10; `getThermalHeadroom`, ab Android 11) wird **nicht** gelesen.
+  Im Bericht des Projektinhabers (Retroid, 13.11.2026, 25 min) blieb der erlaubte Takt immer am Maximum: dort keine
+  Hitze-Drosselung. **Vorschlag (klein, Ja):** den Thermalstatus und die Reserve alle paar Sekunden ins Fehlerprotokoll
+  und in den Bericht schreiben (etwa ein halber Tag, kaum Risiko); damit sieht man bei Meldungen „wird nach 20 Minuten
+  langsam“, ob das Gerät heiß war. **Später:** darauf reagieren (z. B. „Dynamisch“ früher eine Stufe herunter, Bloom
+  aus), erst wenn Berichte es zeigen.
+- Englische Antwort an den Nutzer im Bericht an den Projektinhaber.
+
 ## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 
 Version 0.99.14-rc (versionCode 116), Releasetext `port/android-decomp/docs/releases/v0.99.14-rc.md` („Changes since
