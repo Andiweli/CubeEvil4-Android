@@ -123,5 +123,7 @@
     <string name="ouya_export_failed">%1$s ließ sich nicht schreiben</string>
     <string name="ouya_wipe_text">Alle Spielstände auf der Speicherkarte und der Instant-Spielstand werden gelöscht, als würde die Karte formatiert. Die Discs und die Einstellungen bleiben. Das lässt sich nicht rückgängig machen: Wer seine Spielstände behalten will, exportiert sie vorher (.zip). Das Spiel startet dafür neu.</string>
     <string name="ouya_no_browser">Kein Webbrowser auf diesem Gerät. Die Adresse: %1$s</string>
+    <string name="ouya_light_detail">Detailliertes Licht</string>
+    <string name="ouya_light_help">Detailliertes Licht: aus beleuchtet die Umgebung einmal je Objekt statt an jedem Punkt (Figuren behalten ihres); auf der OUYA deutlich schneller, Boden und Bäume wirken etwas flacher. Wirkt sofort.</string>
     <string name="ouya_gentle_qte_help">Sanftere QTEs: In Professional lassen die Tastenaufforderungen (Ausweichen, Messerkampf, schnelles Drücken) so viel Zeit und brauchen so viele Drücke wie in Normal; Schaden und Gegner bleiben wie in Professional.</string>
 </resources>

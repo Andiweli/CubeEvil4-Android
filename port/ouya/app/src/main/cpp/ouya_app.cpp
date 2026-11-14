@@ -94,6 +94,8 @@ re4gx2::GxStats gStatsBefore;           // the renderer's counters at the last l
 // change, on the GL thread) and the core's (the environment before its start, then messages)
 std::atomic<int> gWantEighths{6};
 std::atomic<bool> gWantFastTev{true};
+std::atomic<bool> gWantSimpleLight{true};  // GxOptions::levelLight (the menu's "Detailed lighting" off)
+bool gHaveSimpleLight = true;              // GL thread: the renderer's
 std::atomic<bool> gFrameSkip{true};  // older pictures left out while the renderer lags (off: each drawn)
 // Frame skip Aggressive (master 0.99.15, merged 14.11.2026): the game itself leaves out a picture while it
 // falls behind (runtime/cpu_skip.cpp, patch 0227): its Trans and Render, the processor's time the OUYA lacks
@@ -473,6 +475,8 @@ void MakeRenderer() {
   gHaveFastTev = gWantFastTev.load();
   gHaveEighths = gWantEighths.load();
   options.fastTev = gHaveFastTev;              // the TEV in fractions
+  gHaveSimpleLight = gWantSimpleLight.load();
+  options.levelLight = gHaveSimpleLight;       // the room's light once per draw (improvement 3)
   options.resolutionEighths = gHaveEighths;    // 6: 480 x 396
   options.maxLights = 2;                       // the two strongest lights per vertex
   // effect copies at half the resolution once more (OUYA improvement 4, 14.11.2026; on the PC the pictures of
@@ -485,7 +489,8 @@ void MakeRenderer() {
     LOG("renderer: %s", error.c_str());
     gRenderer.reset();
   } else {
-    LOG("renderer: resolution %d/8, colour calculation %s", gHaveEighths, gHaveFastTev ? "simplified" : "exact");
+    LOG("renderer: resolution %d/8, colour calculation %s, room light %s", gHaveEighths,
+        gHaveFastTev ? "simplified" : "exact", gHaveSimpleLight ? "once per draw" : "per vertex");
   }
 }
 
@@ -506,7 +511,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
                                                                                          jint viewPercent, jint potato,
                                                                                          jint aim, jint frameSkip,
                                                                                          jint cheats,
-                                                                                         jboolean gentleQte) {
+                                                                                         jboolean gentleQte,
+                                                                                         jboolean simpleLight) {
+  gWantSimpleLight = simpleLight == JNI_TRUE;
   // 0 off, 1 Normal (the renderer leaves out older pictures, the core pictures without draws), 2 Aggressive
   // (also the game's own frame skip)
   gFrameSkip = frameSkip >= 1;
@@ -559,7 +566,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
 
 // One frame of the display (GLSurfaceView's render thread)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeFrame(JNIEnv *, jclass) {
-  if (gRenderer && (gWantEighths != gHaveEighths || gWantFastTev != gHaveFastTev)) {
+  if (gRenderer && (gWantEighths != gHaveEighths || gWantFastTev != gHaveFastTev ||
+                    gWantSimpleLight != gHaveSimpleLight)) {
     // the menu changed the resolution or the colour calculation: a new renderer, the state anew
     gRenderer.reset();
     MakeRenderer();

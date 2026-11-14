@@ -749,3 +749,10 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
 - Die PC-Werkzeuge bauen wieder (master hat den Renderer der Haupt-App aufgeteilt: `gx_core.cpp`, `gx_renderer.cpp`,
   `tex_pack.cpp`, `etc2.cpp`); `gx_gl2_check` ohne Befund, Laufzeit- und Kerntests mit Grafik-Thread ohne Fehler,
   Spielkern für Android 4.1 und App gebaut.
+- **Messung auf der OUYA (15.11.2026, `ouya-gx-render.ps1 -Interleave`, 30 neue Testbilder r100/r101 mit den
+  Einstellungen des Projektinhabers):** Median je Bild heute Dorf 83,4 ms, Wald 75,3 ms; mit dem einfachen Licht der
+  Umgebung 67,2 / 63,8 ms (etwa −19 % / −15 %); mit den halben Effekt-Kopien 81,5 / 74,1 ms (etwa −2 %); beides
+  65,3 / 62,1 ms. Am PC sehen Figuren gleich aus, Boden und Bäume stellenweise etwas flacher.
+- **Schalter „Detailliertes Licht“ im Potato-Modus** (Entscheidung des Projektinhabers, 15.11.2026: als neuer Schalter,
+  voreingestellt schneller): aus (Voreinstellung) = Licht der Umgebung einmal je Zeichenauftrag
+  (`GxOptions::levelLight`), an = je Eckpunkt wie bisher; wirkt sofort (neuer Renderer). Texte in 11 Sprachen.

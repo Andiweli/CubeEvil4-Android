@@ -124,5 +124,7 @@
     <string name="ouya_export_failed">Impossible d’écrire %1$s</string>
     <string name="ouya_wipe_text">Toutes les sauvegardes de la carte mémoire et la sauvegarde instantanée seront supprimées, comme si la carte était formatée. Les disques et les réglages restent. Action irréversible : pour garder vos sauvegardes, exportez-les d’abord (.zip). Le jeu redémarre pour cela.</string>
     <string name="ouya_no_browser">Aucun navigateur web sur cet appareil. L’adresse : %1$s</string>
+    <string name="ouya_light_detail">Éclairage détaillé</string>
+    <string name="ouya_light_help">Éclairage détaillé : désactivé, l’environnement est éclairé une fois par objet au lieu de chaque point (les personnages gardent le leur) ; nettement plus rapide sur l’OUYA, le sol et les arbres paraissent un peu plus plats. S’applique aussitôt.</string>
     <string name="ouya_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons (esquiver, le combat au couteau, appuyer vite) laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional.</string>
 </resources>

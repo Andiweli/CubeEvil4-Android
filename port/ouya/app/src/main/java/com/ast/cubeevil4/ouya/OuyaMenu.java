@@ -62,7 +62,10 @@ final class OuyaMenu extends Dialog {
                 ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera", FRAME_SKIP = "frameSkip", CHEATS = "cheats",
                 // master 0.99.15 (merged 14.11.2026): the Potato mode's particles and shadows, frame skip in three steps
                 PARTICLES = "particles", SHADOWS = "shadowsLight", FRAME_SKIP_LEVEL = "frameSkipLevel",
-                GENTLE_QTE = "gentleQte", PARTICLES_ON = "particleEffects";
+                GENTLE_QTE = "gentleQte", PARTICLES_ON = "particleEffects",
+                // "Detailed lighting" (OUYA improvement 3, 15.11.2026): off (the default) lights the room's geometry
+                // once per draw (gx_gl2 GxOptions::levelLight), about 19 % less GPU time in the village
+                DETAILED_LIGHT = "detailedLight";
         // the first start's settings (wish of the project owner, 14.11.2026): resolution 75 %, view distance 35 %,
         // colours simplified, every Potato effect off, frame skip Normal
         static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 35;
@@ -78,6 +81,8 @@ final class OuyaMenu extends Dialog {
         /** "Gentler QTEs (Professional)" (runtime/qte_touch.cpp, patch 0232): on by default, as in the main app
          *  (decision of the project owner, 14.11.2026). */
         static boolean gentleQte(SharedPreferences p) { return p.getBoolean(GENTLE_QTE, true); }
+        /** The room's light once per draw (the renderer's levelLight): when "Detailed lighting" is off. */
+        static boolean simpleLight(SharedPreferences p) { return !p.getBoolean(DETAILED_LIGHT, false); }
         /** The Potato mode's particle effects, a switch since 14.11.2026 (wish of the project owner): on Normal (0),
          *  off None (2; fire and explosions stay at half as a warning). */
         static int particles(SharedPreferences p) { return p.getBoolean(PARTICLES_ON, false) ? 0 : 2; }
@@ -181,7 +186,11 @@ final class OuyaMenu extends Dialog {
         LinearLayout light = buttonsRow();
         toggle(light, R.string.ingame_potato_shadows, Settings.SHADOWS);
         toggle(light, R.string.ingame_potato_particles, Settings.PARTICLES_ON);
+        LinearLayout detail = buttonsRow();
+        toggle(detail, R.string.ouya_light_detail, Settings.DETAILED_LIGHT);
+        detail.addView(new View(getContext()), cell());
         help(R.string.ingame_potato_help);
+        help(R.string.ouya_light_help);
         heading(R.string.ingame_perf_section);
         choices(s(R.string.ingame_frame_skip), new String[] {s(R.string.ingame_off), s(R.string.ingame_skip_normal),
                 s(R.string.ingame_skip_aggressive)}, new int[] {0, 1, 2}, Settings.frameSkip(prefs),

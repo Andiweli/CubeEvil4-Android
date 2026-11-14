@@ -124,5 +124,7 @@
     <string name="ouya_export_failed">Impossibile scrivere %1$s</string>
     <string name="ouya_wipe_text">Tutti i salvataggi della Memory Card e il salvataggio istantaneo verranno eliminati, come se la scheda venisse formattata. I dischi e le impostazioni restano. Non si può annullare: per tenere i salvataggi, esportali prima (.zip). Il gioco si riavvia per questo.</string>
     <string name="ouya_no_browser">Nessun browser web su questo dispositivo. L’indirizzo: %1$s</string>
+    <string name="ouya_light_detail">Illuminazione dettagliata</string>
+    <string name="ouya_light_help">Illuminazione dettagliata: disattivata, l’ambiente viene illuminato una volta per oggetto invece che in ogni punto (i personaggi mantengono la loro); molto più veloce sulla OUYA, terreno e alberi sembrano un po’ più piatti. Vale subito.</string>
     <string name="ouya_gentle_qte_help">QTE più facili: in Professional gli eventi a pulsante (schivare, il duello col coltello, premere rapidamente) danno lo stesso tempo e chiedono le stesse pressioni di Normal; danni e nemici restano quelli di Professional.</string>
 </resources>

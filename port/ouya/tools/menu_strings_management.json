@@ -1,12 +1,14 @@
 {
-  "_comment": "The OUYA menu's own texts of MANAGEMENT (wish of the project owner, 14.11.2026): Android 4.1 has no file dialog, the exports go to a folder, the import lists files; no RetroTouch. Read by menu_strings.py.",
+  "_comment": "The OUYA menu's own texts of MANAGEMENT (wish of the project owner, 14.11.2026): Android 4.1 has no file dialog, the exports go to a folder, the import lists files; no RetroTouch. Read by menu_strings.py. Also the Potato switch \"Detailed lighting\" (OUYA improvement 3, 15.11.2026).",
   "values": {
     "ouya_card_help": "Export Player Data: your saves as .gci (for Dolphin or GameCube), or everything in one .zip (saves and instant save; CubeEvil4 on a phone reads it too). The files go to the folder CubeEvil4-Potato on the drive with the game data; the import lists the .gci and .zip files there and in the Download folder. Delete All Data empties the memory card.",
     "ouya_exported_to": "Saved in %1$s",
     "ouya_import_none": "No .gci or .zip files in %1$s or a Download folder.",
     "ouya_export_failed": "Could not write %1$s",
     "ouya_wipe_text": "All saves on the memory card and the instant save will be deleted, as if the card were formatted. The discs and the settings stay. This cannot be undone: to keep your saves, export them first (.zip). The game restarts for it.",
-    "ouya_no_browser": "No web browser on this device. The address: %1$s"
+    "ouya_no_browser": "No web browser on this device. The address: %1$s",
+    "ouya_light_detail": "Detailed lighting",
+    "ouya_light_help": "Detailed lighting: off lights the surroundings once per object instead of at every point (figures keep theirs); clearly faster on the OUYA, the ground and the trees look a little flatter. It takes effect at once."
   },
   "values-de": {
     "ouya_card_help": "Spieldaten exportieren: die Spielstände als .gci (für Dolphin oder GameCube) oder alles in einer .zip (Spielstände und Instant-Spielstand; CubeEvil4 auf dem Handy liest sie auch). Die Dateien kommen in den Ordner CubeEvil4-Potato auf dem Laufwerk mit den Spieldaten; der Import zeigt die .gci- und .zip-Dateien dort und im Download-Ordner. „Alle Daten löschen“ leert die Speicherkarte.",
@@ -14,7 +16,9 @@
     "ouya_import_none": "Keine .gci- oder .zip-Dateien in %1$s oder einem Download-Ordner.",
     "ouya_export_failed": "%1$s ließ sich nicht schreiben",
     "ouya_wipe_text": "Alle Spielstände auf der Speicherkarte und der Instant-Spielstand werden gelöscht, als würde die Karte formatiert. Die Discs und die Einstellungen bleiben. Das lässt sich nicht rückgängig machen: Wer seine Spielstände behalten will, exportiert sie vorher (.zip). Das Spiel startet dafür neu.",
-    "ouya_no_browser": "Kein Webbrowser auf diesem Gerät. Die Adresse: %1$s"
+    "ouya_no_browser": "Kein Webbrowser auf diesem Gerät. Die Adresse: %1$s",
+    "ouya_light_detail": "Detailliertes Licht",
+    "ouya_light_help": "Detailliertes Licht: aus beleuchtet die Umgebung einmal je Objekt statt an jedem Punkt (Figuren behalten ihres); auf der OUYA deutlich schneller, Boden und Bäume wirken etwas flacher. Wirkt sofort."
   },
   "values-fr": {
     "ouya_card_help": "Exporter les données de jeu : les sauvegardes au format .gci (pour Dolphin ou GameCube), ou tout dans un .zip (sauvegardes et sauvegarde instantanée ; CubeEvil4 sur un téléphone le lit aussi). Les fichiers vont dans le dossier CubeEvil4-Potato sur le support des données du jeu ; l’importation liste les fichiers .gci et .zip qui s’y trouvent et dans le dossier Download. Supprimer toutes les données vide la carte mémoire.",
@@ -22,7 +26,9 @@
     "ouya_import_none": "Aucun fichier .gci ou .zip dans %1$s ni dans un dossier Download.",
     "ouya_export_failed": "Impossible d’écrire %1$s",
     "ouya_wipe_text": "Toutes les sauvegardes de la carte mémoire et la sauvegarde instantanée seront supprimées, comme si la carte était formatée. Les disques et les réglages restent. Action irréversible : pour garder vos sauvegardes, exportez-les d’abord (.zip). Le jeu redémarre pour cela.",
-    "ouya_no_browser": "Aucun navigateur web sur cet appareil. L’adresse : %1$s"
+    "ouya_no_browser": "Aucun navigateur web sur cet appareil. L’adresse : %1$s",
+    "ouya_light_detail": "Éclairage détaillé",
+    "ouya_light_help": "Éclairage détaillé : désactivé, l’environnement est éclairé une fois par objet au lieu de chaque point (les personnages gardent le leur) ; nettement plus rapide sur l’OUYA, le sol et les arbres paraissent un peu plus plats. S’applique aussitôt."
   },
   "values-es": {
     "ouya_card_help": "Exportar datos del juego: las partidas como .gci (para Dolphin o GameCube), o todo en un .zip (partidas y guardado instantáneo; CubeEvil4 en un móvil también lo lee). Los archivos van a la carpeta CubeEvil4-Potato de la unidad con los datos del juego; la importación muestra los archivos .gci y .zip de allí y de la carpeta Download. Borrar todos los datos vacía la tarjeta de memoria.",
@@ -30,7 +36,9 @@
     "ouya_import_none": "No hay archivos .gci ni .zip en %1$s ni en una carpeta Download.",
     "ouya_export_failed": "No se pudo escribir %1$s",
     "ouya_wipe_text": "Se borrarán todas las partidas de la tarjeta de memoria y el guardado instantáneo, como si se formateara la tarjeta. Los discos y los ajustes se mantienen. No se puede deshacer: para conservar tus partidas, expórtalas antes (.zip). El juego se reinicia para ello.",
-    "ouya_no_browser": "No hay navegador web en este dispositivo. La dirección: %1$s"
+    "ouya_no_browser": "No hay navegador web en este dispositivo. La dirección: %1$s",
+    "ouya_light_detail": "Iluminación detallada",
+    "ouya_light_help": "Iluminación detallada: desactivada, el entorno se ilumina una vez por objeto en lugar de en cada punto (los personajes mantienen la suya); bastante más rápido en la OUYA, el suelo y los árboles se ven algo más planos. Se aplica al instante."
   },
   "values-it": {
     "ouya_card_help": "Esporta dati di gioco: i salvataggi come .gci (per Dolphin o GameCube), oppure tutto in un .zip (salvataggi e salvataggio istantaneo; anche CubeEvil4 sul telefono lo legge). I file vanno nella cartella CubeEvil4-Potato dell’unità con i dati di gioco; l’importazione elenca i file .gci e .zip lì e nella cartella Download. Elimina tutti i dati svuota la Memory Card.",
@@ -38,7 +46,9 @@
     "ouya_import_none": "Nessun file .gci o .zip in %1$s o in una cartella Download.",
     "ouya_export_failed": "Impossibile scrivere %1$s",
     "ouya_wipe_text": "Tutti i salvataggi della Memory Card e il salvataggio istantaneo verranno eliminati, come se la scheda venisse formattata. I dischi e le impostazioni restano. Non si può annullare: per tenere i salvataggi, esportali prima (.zip). Il gioco si riavvia per questo.",
-    "ouya_no_browser": "Nessun browser web su questo dispositivo. L’indirizzo: %1$s"
+    "ouya_no_browser": "Nessun browser web su questo dispositivo. L’indirizzo: %1$s",
+    "ouya_light_detail": "Illuminazione dettagliata",
+    "ouya_light_help": "Illuminazione dettagliata: disattivata, l’ambiente viene illuminato una volta per oggetto invece che in ogni punto (i personaggi mantengono la loro); molto più veloce sulla OUYA, terreno e alberi sembrano un po’ più piatti. Vale subito."
   },
   "values-pt": {
     "ouya_card_help": "Exportar dados do jogo: os jogos salvos como .gci (para Dolphin ou GameCube), ou tudo em um .zip (jogos salvos e salvamento instantâneo; o CubeEvil4 no celular também o lê). Os arquivos vão para a pasta CubeEvil4-Potato na unidade com os dados do jogo; a importação lista os arquivos .gci e .zip ali e na pasta Download. Apagar todos os dados esvazia o cartão de memória.",
@@ -46,7 +56,9 @@
     "ouya_import_none": "Nenhum arquivo .gci ou .zip em %1$s ou numa pasta Download.",
     "ouya_export_failed": "Não foi possível gravar %1$s",
     "ouya_wipe_text": "Todos os jogos salvos do cartão de memória e o salvamento instantâneo serão apagados, como se o cartão fosse formatado. Os discos e as configurações ficam. Não dá para desfazer: para manter seus jogos salvos, exporte-os antes (.zip). O jogo reinicia para isso.",
-    "ouya_no_browser": "Nenhum navegador neste aparelho. O endereço: %1$s"
+    "ouya_no_browser": "Nenhum navegador neste aparelho. O endereço: %1$s",
+    "ouya_light_detail": "Iluminação detalhada",
+    "ouya_light_help": "Iluminação detalhada: desligada, o ambiente é iluminado uma vez por objeto em vez de em cada ponto (os personagens mantêm a sua); bem mais rápido no OUYA, o chão e as árvores ficam um pouco mais planos. Vale de imediato."
   },
   "values-ru": {
     "ouya_card_help": "Экспорт игровых данных: сохранения в формате .gci (для Dolphin или GameCube) или всё в одном .zip (сохранения и мгновенное сохранение; CubeEvil4 на телефоне тоже его читает). Файлы попадают в папку CubeEvil4-Potato на накопителе с данными игры; импорт показывает файлы .gci и .zip оттуда и из папки Download. «Удалить все данные» очищает карту памяти.",
@@ -54,7 +66,9 @@
     "ouya_import_none": "Нет файлов .gci или .zip в %1$s или в папке Download.",
     "ouya_export_failed": "Не удалось записать %1$s",
     "ouya_wipe_text": "Все сохранения на карте памяти и мгновенное сохранение будут удалены, как при форматировании карты. Диски и настройки останутся. Это нельзя отменить: чтобы сохранить свои сохранения, сначала экспортируйте их (.zip). Для этого игра перезапустится.",
-    "ouya_no_browser": "На этом устройстве нет веб-браузера. Адрес: %1$s"
+    "ouya_no_browser": "На этом устройстве нет веб-браузера. Адрес: %1$s",
+    "ouya_light_detail": "Детальное освещение",
+    "ouya_light_help": "Детальное освещение: если выключено, окружение освещается один раз на объект, а не в каждой точке (персонажи сохраняют своё); на OUYA заметно быстрее, земля и деревья выглядят немного более плоскими. Действует сразу."
   },
   "values-ar": {
     "ouya_card_help": "تصدير بيانات اللعبة: ملفات الحفظ بصيغة &#x200E;.gci (لـ Dolphin أو GameCube)، أو كل شيء في ملف &#x200E;.zip واحد (ملفات الحفظ والحفظ الفوري، ويقرؤه CubeEvil4 على الهاتف أيضًا). تُحفظ الملفات في المجلد &#x200E;CubeEvil4-Potato على وحدة التخزين التي عليها بيانات اللعبة، ويعرض الاستيراد ملفات &#x200E;.gci و&#x200E;.zip الموجودة هناك وفي مجلد Download. يفرغ «حذف كل البيانات» بطاقة الذاكرة.",
@@ -62,7 +76,9 @@
     "ouya_import_none": "لا توجد ملفات &#x200E;.gci أو &#x200E;.zip في %1$s أو في مجلد Download.",
     "ouya_export_failed": "تعذّرت كتابة %1$s",
     "ouya_wipe_text": "ستُحذف كل ملفات الحفظ على بطاقة الذاكرة والحفظ الفوري، كما لو هُيئت البطاقة. تبقى الأقراص والإعدادات. لا يمكن التراجع عن ذلك: للاحتفاظ بملفات الحفظ صدّرها أولًا (&#x200E;.zip). تُعاد تشغيل اللعبة لذلك.",
-    "ouya_no_browser": "لا يوجد متصفح ويب على هذا الجهاز. العنوان: %1$s"
+    "ouya_no_browser": "لا يوجد متصفح ويب على هذا الجهاز. العنوان: %1$s",
+    "ouya_light_detail": "إضاءة مفصلة",
+    "ouya_light_help": "إضاءة مفصلة: عند إيقافها تُضاء البيئة مرة واحدة لكل جسم بدل كل نقطة (تحتفظ الشخصيات بإضاءتها)؛ أسرع بوضوح على OUYA، وتبدو الأرض والأشجار أكثر تسطحًا قليلًا. يسري فورًا."
   },
   "values-hi": {
     "ouya_card_help": "गेम डेटा एक्सपोर्ट करें: सेव गेम .gci के रूप में (Dolphin या GameCube के लिए), या सब कुछ एक .zip में (सेव और तुरंत सेव; फ़ोन पर CubeEvil4 भी इसे पढ़ता है)। फ़ाइलें गेम डेटा वाली ड्राइव के CubeEvil4-Potato फ़ोल्डर में जाती हैं; इम्पोर्ट वहाँ और Download फ़ोल्डर की .gci और .zip फ़ाइलें दिखाता है। सारा डेटा हटाएँ मेमोरी कार्ड खाली कर देता है।",
@@ -70,7 +86,9 @@
     "ouya_import_none": "%1$s या किसी Download फ़ोल्डर में कोई .gci या .zip फ़ाइल नहीं।",
     "ouya_export_failed": "%1$s नहीं लिखी जा सकी",
     "ouya_wipe_text": "मेमोरी कार्ड के सभी सेव और तुरंत सेव हट जाएँगे, जैसे कार्ड फ़ॉर्मेट किया गया हो। डिस्क और सेटिंग बनी रहती हैं। इसे पलटा नहीं जा सकता: अपने सेव रखने हों तो पहले उन्हें एक्सपोर्ट करें (.zip)। इसके लिए गेम फिर से शुरू होता है।",
-    "ouya_no_browser": "इस डिवाइस पर कोई वेब ब्राउज़र नहीं है। पता: %1$s"
+    "ouya_no_browser": "इस डिवाइस पर कोई वेब ब्राउज़र नहीं है। पता: %1$s",
+    "ouya_light_detail": "विस्तृत रोशनी",
+    "ouya_light_help": "विस्तृत रोशनी: बंद होने पर आसपास का हिस्सा हर बिंदु के बजाय हर वस्तु पर एक बार रोशन होता है (किरदारों की रोशनी वैसी ही रहती है); OUYA पर साफ़ तौर पर तेज़, ज़मीन और पेड़ थोड़े सपाट दिखते हैं। यह तुरंत लागू होती है।"
   },
   "values-in": {
     "ouya_card_help": "Ekspor data game: data simpanan sebagai .gci (untuk Dolphin atau GameCube), atau semuanya dalam satu .zip (data simpanan dan simpan cepat; CubeEvil4 di ponsel juga bisa membacanya). File masuk ke folder CubeEvil4-Potato di drive tempat data game; impor menampilkan file .gci dan .zip di sana dan di folder Download. Hapus Semua Data mengosongkan kartu memori.",
@@ -78,7 +96,9 @@
     "ouya_import_none": "Tidak ada file .gci atau .zip di %1$s atau folder Download.",
     "ouya_export_failed": "Tidak dapat menulis %1$s",
     "ouya_wipe_text": "Semua data simpanan di kartu memori dan simpan cepat akan dihapus, seolah kartu diformat. Disk dan pengaturan tetap ada. Ini tidak bisa dibatalkan: agar data simpanan tetap ada, ekspor dulu (.zip). Game dimulai ulang untuk ini.",
-    "ouya_no_browser": "Tidak ada peramban web di perangkat ini. Alamatnya: %1$s"
+    "ouya_no_browser": "Tidak ada peramban web di perangkat ini. Alamatnya: %1$s",
+    "ouya_light_detail": "Pencahayaan detail",
+    "ouya_light_help": "Pencahayaan detail: jika mati, lingkungan diterangi sekali per objek, bukan di setiap titik (karakter tetap memakai pencahayaannya); jauh lebih cepat di OUYA, tanah dan pohon tampak sedikit lebih datar. Langsung berlaku."
   },
   "values-zh": {
     "ouya_card_help": "导出游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），或将全部内容放进一个 .zip（存档和即时存档；手机上的 CubeEvil4 也能读取）。文件保存在游戏数据所在驱动器的 CubeEvil4-Potato 文件夹中；导入时会列出那里和 Download 文件夹中的 .gci 与 .zip 文件。“删除所有数据”会清空记忆卡。",
@@ -86,6 +106,8 @@
     "ouya_import_none": "%1$s 或 Download 文件夹中没有 .gci 或 .zip 文件。",
     "ouya_export_failed": "无法写入 %1$s",
     "ouya_wipe_text": "记忆卡上的所有存档和即时存档都将被删除，如同格式化记忆卡。光盘和设置保留。此操作无法撤销：如需保留存档，请先导出（.zip）。游戏将为此重新启动。",
-    "ouya_no_browser": "此设备上没有网页浏览器。地址：%1$s"
+    "ouya_no_browser": "此设备上没有网页浏览器。地址：%1$s",
+    "ouya_light_detail": "精细光照",
+    "ouya_light_help": "精细光照：关闭后，环境按每个物体计算一次光照，而不是逐点计算（角色保持原样）；在 OUYA 上明显更快，地面和树木看起来略平。立即生效。"
   }
 }

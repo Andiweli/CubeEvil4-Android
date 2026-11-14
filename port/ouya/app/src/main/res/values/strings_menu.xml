@@ -123,5 +123,7 @@
     <string name="ouya_export_failed">Could not write %1$s</string>
     <string name="ouya_wipe_text">All saves on the memory card and the instant save will be deleted, as if the card were formatted. The discs and the settings stay. This cannot be undone: to keep your saves, export them first (.zip). The game restarts for it.</string>
     <string name="ouya_no_browser">No web browser on this device. The address: %1$s</string>
+    <string name="ouya_light_detail">Detailed lighting</string>
+    <string name="ouya_light_help">Detailed lighting: off lights the surroundings once per object instead of at every point (figures keep theirs); clearly faster on the OUYA, the ground and the trees look a little flatter. It takes effect at once.</string>
     <string name="ouya_gentle_qte_help">Gentler QTEs: in Professional the quick-time events (dodging, the knife fight, pressing a button fast) give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s.</string>
 </resources>

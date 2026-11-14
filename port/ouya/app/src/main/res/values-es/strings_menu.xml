@@ -124,5 +124,7 @@
     <string name="ouya_export_failed">No se pudo escribir %1$s</string>
     <string name="ouya_wipe_text">Se borrarán todas las partidas de la tarjeta de memoria y el guardado instantáneo, como si se formateara la tarjeta. Los discos y los ajustes se mantienen. No se puede deshacer: para conservar tus partidas, expórtalas antes (.zip). El juego se reinicia para ello.</string>
     <string name="ouya_no_browser">No hay navegador web en este dispositivo. La dirección: %1$s</string>
+    <string name="ouya_light_detail">Iluminación detallada</string>
+    <string name="ouya_light_help">Iluminación detallada: desactivada, el entorno se ilumina una vez por objeto en lugar de en cada punto (los personajes mantienen la suya); bastante más rápido en la OUYA, el suelo y los árboles se ven algo más planos. Se aplica al instante.</string>
     <string name="ouya_gentle_qte_help">QTE más suaves: en Professional, los eventos de botones (esquivar, la pelea a cuchillo, pulsar rápido) dan tanto tiempo y piden tantas pulsaciones como en Normal; el daño y los enemigos siguen como en Professional.</string>
 </resources>

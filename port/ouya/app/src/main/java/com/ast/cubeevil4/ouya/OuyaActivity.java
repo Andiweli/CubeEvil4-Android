@@ -56,7 +56,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     static native void nativePause(boolean on);
     /** The menu's settings (OuyaMenu.Settings): before the start for the core's start, then at once. */
     static native void nativeSettings(int resolutionEighths, boolean fastTev, int viewPercent, int potato, int aim,
-            int frameSkip, int cheats, boolean gentleQte);
+            int frameSkip, int cheats, boolean gentleQte, boolean simpleLight);
     /** A cheat button of the menu (runtime/cheats.cpp); the answer as OuyaMenu.Host.cheatAction. */
     static native int nativeCheatAction(int what);
     /** The instant save (re4_core_instant): 0 its state, 1 save, 2 load; result, present, canSave, canLoad, room,
@@ -267,7 +267,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
         nativeSettings(OuyaMenu.Settings.eighths(p), OuyaMenu.Settings.fastTev(p), OuyaMenu.Settings.view(p),
                 OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p), OuyaMenu.Settings.frameSkip(p),
-                OuyaMenu.Settings.cheats(p), OuyaMenu.Settings.gentleQte(p));
+                OuyaMenu.Settings.cheats(p), OuyaMenu.Settings.gentleQte(p), OuyaMenu.Settings.simpleLight(p));
     }
 
     @Override
