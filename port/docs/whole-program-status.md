@@ -11,7 +11,8 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - Keine neuen Funktionen und keine neuen Optionen bis 1.0. Braucht eine Fehlerbehebung eine neue Option, vorher den
   Projektinhaber fragen.
 - Neue Wünsche kommen auf die Liste für **1.1**, nicht in die laufende Version. Bisher: GitHub #247 (C-Stick mit
-  Tastatur und Maus), #248 (filmische Darstellung).
+  Tastatur und Maus), #248 (filmische Darstellung), das Bild über die Kamera-Aussparung (Moto G22, Abschnitt 3 von
+  0.99.15, dort ausgebaut).
 - Gerätestand des Projektinhabers (14.11.2026): HD-Texturen, Bloom, der 120-Hz-Rhythmushalter und die dynamische
   Auflösung laufen. Noch nicht richtig auf einem Gerät geprüft: Zufällige Gegner Stufe 1.5, der ZIP-Export und
   „Alle Daten löschen“.
@@ -162,6 +163,20 @@ etwa 76 Pixeln (beim Telefon 1600 × 720 etwa 95), keine Status- und keine Navig
   Abstände links und nach dem Drehen rechts, ohne Aussparung 0).
 - **Nicht geprüft:** auf einem Gerät mit Kameraloch (das Bild über die Kante, die Touch-Knöpfe, das Drehen um 180°,
   das App-Menü).
+- **Wieder ausgebaut (Entscheidung des Projektinhabers, 14.11.2026, über die Hauptsitzung):** „die änderung bezüglich der
+  notch-area dürfte probleme bereiten … ich denke es wäre besser die änderung dazu wieder auszubauen.“ Auf seinem
+  Telefon (Kamera links im Querformat) reichte das Bild bis zum Rand, die Touch-Knöpfe und die Leiste des
+  Touch-Editors blieben aber etwa 110 Pixel vom linken Rand weg (die Einrückung oben). `Cutout.java`, `CutoutTest` und
+  die Stellen in `CoreActivity` und `CoreMenu` sind entfernt, das Verhalten ist wieder das von 0.99.14 (auf der
+  Kamera-Seite ein schwarzer Streifen, Touch-Knöpfe bis zu dessen Rand). Seine zweite Beobachtung, schwarze Ränder
+  links und rechts in der Speicherliste beim Laden trotz „Nativ“, kommt nicht von der Aussparung: die Ränder sind
+  gleich breit (ein 16:9-Kasten), und „Nativ“ zeigt Menüs, das Zielfernrohr und Filme mit Absicht im 16:9-Kasten,
+  nur das 3D beim Spielen wird breiter (`core_mode.cpp`, `re4mm::Native`, seit 07.11.2026). Geprüft am PC: App-Tests
+  153 je Variante grün (156 ohne die drei `CutoutTest`).
+- **Wieder offen:** die Meldung vom Moto G22 (schwarzer Streifen auf der Kamera-Seite); sie kommt auf die Liste für
+  1.1. Ein neuer Versuch müsste das Bild über die Aussparung legen und die Touch-Knöpfe trotzdem bis an die Ränder
+  lassen (ohne Einrückung, Knöpfe unter dem Kameraloch verschiebt man im Editor) und auf einem Gerät mit Kameraloch
+  geprüft werden.
 
 ### 4. QTEs in Professional entschärfen (Projektinhaber, 14.11.2026)
 
