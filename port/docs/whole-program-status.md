@@ -3,6 +3,19 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
+
+„Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen
+Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
+
+- Keine neuen Funktionen und keine neuen Optionen bis 1.0. Braucht eine Fehlerbehebung eine neue Option, vorher den
+  Projektinhaber fragen.
+- Neue Wünsche kommen auf die Liste für **1.1**, nicht in die laufende Version. Bisher: GitHub #247 (C-Stick mit
+  Tastatur und Maus), #248 (filmische Darstellung).
+- Gerätestand des Projektinhabers (14.11.2026): HD-Texturen, Bloom, der 120-Hz-Rhythmushalter und die dynamische
+  Auflösung laufen. Noch nicht richtig auf einem Gerät geprüft: Zufällige Gegner Stufe 1.5, der ZIP-Export und
+  „Alle Daten löschen“.
+
 ## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
 
 Version 0.99.15-rc (versionCode 117), Releasetext `port/android-decomp/docs/releases/v0.99.15-rc.md` („Changes since
