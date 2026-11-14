@@ -67,10 +67,15 @@ Done: CubeEvil4-textures-512.c4tex on your desktop (812 MB).
 Copy this file to your phone, then in CubeEvil4: Menu, Cheats & Mods, Import texture pack.
 ```
 
-Für Tests und für dich geht dasselbe mit einem einzigen PowerShell-Befehl, ohne Fragen:
+**Seit 1.4 (14.11.2026)** gibt es dazu eine echte Windows-Version mit Fenster: `CubeEvil4-TexturePacker.exe` ist
+jetzt das Fenster, die Version oben (Fragen im Konsolenfenster und Befehlszeile) heißt
+`CubeEvil4-TexturePacker-Console.exe`. Beschreibung: `port/docs/textur-packer-windows.md`.
+
+Für Tests und für dich geht dasselbe mit einem einzigen PowerShell-Befehl, ohne Fragen (bis 1.3 hieß die Datei
+`CubeEvil4-TexturePacker.exe`):
 
 ```powershell
-& "E:\Development\Android\builds\textures\CubeEvil4-TexturePacker.exe" -in "E:\Development\Android\RE4-Mods\Resident Evil 4 HD Project" -size 512 -out "E:\Development\Android\builds\textures"
+& "E:\Development\Android\builds\textures\CubeEvil4-TexturePacker-Console.exe" -in "E:\Development\Android\RE4-Mods\Resident Evil 4 HD Project" -size 512 -out "E:\Development\Android\builds\textures"
 ```
 
 ### Was es tut

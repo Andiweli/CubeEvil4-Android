@@ -16,6 +16,37 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
   Auflösung laufen. Noch nicht richtig auf einem Gerät geprüft: Zufällige Gegner Stufe 1.5, der ZIP-Export und
   „Alle Daten löschen“.
 
+## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
+
+Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit
+Fenster“ (Fenster, Paket hineinziehen mit Hinweis, Optionen wie Konsole und Android, Speichern-Dialog, sichtbare
+Umwandlung, Erfolg/Fehler am Ende). Nur das PC-Programm; App und Android-Packer unverändert (Feature-Freeze).
+Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs/textur-packer-windows.md`.
+
+- **Zwei Dateien:** `CubeEvil4-TexturePacker.exe` ist jetzt das Fenster (Win32 mit GDI/GDI+, keine Laufzeit, 0,6 MB),
+  die bisherige Konsolen-Version heißt `CubeEvil4-TexturePacker-Console.exe`. Grund: eine Datei kann nicht beides
+  sauber (Konsolen-Programm: schwarzes Fenster blitzt beim Doppelklick; Fenster-Programm: die Befehlszeile wartet nicht).
+  Das Fenster mit Konsolen-Optionen verweist auf die Konsolen-Version (Rückgabewert 2).
+- **Code:** `port/tools/texpack/gui.cpp` (Fenster), `gui_text.h/.cpp` (90 Texte, nur Englisch: Projektinhaber
+  14.11.2026 „die windows app braucht nur englisch sein!“; die zuerst gebauten 11 Sprachen wieder entfernt), `pc.h`
+  (von Fenster und Konsole geteilt), `res/` (Symbol aus dem Android-Packer-Zeichen, Version, Manifest). Kern: Fortschritt mit Bildname und abgelehnten Bildern, Ergebnis mit Liste der abgelehnten Bilder,
+  `EstimateEach`; die `.c4tex` bleibt gleich. Version 1.4 (steht im Info-Text der Datei).
+- **Geprüft** (Windows-PC): `texpack_tests` 601 / mit Testbildern 966 ohne Fehler (auch GCC in WSL), `run_e2e.py` 36/36;
+  HD Project als ZIP mit Größe 256 im Fenster in 2 min 22 s, Byte für Byte gleich der Konsolen-Datei, gegen 1.3 nur 2
+  Bytes (Version, Datum); Abbrechen und Schließen löschen die halbe Datei; Speichern- und Öffnen-Dialoge; abgelehnte
+  Bilder mit Grund; hell und dunkel. Bilder (englisch):
+  `E:\Development\Android\builds\converter-tool\screenshots\`, `.exe` in `E:\Development\Android\builds\converter-tool\`.
+- **Nicht geprüft:** echtes Ziehen mit der Maus (die Sitzung darf die Maus nicht bewegen; geprüft mit demselben
+  Windows-Datenobjekt wie beim Ziehen), andere Skalierungen als 100 %, zweiter Monitor, Hoher Kontrast, Windows 10.
+- **Android-Packer-App 1.4** (Projektinhaber: „Ja, auf 1.4“): `versionName` 1.4, `versionCode` 2, gleicher Kern.
+  **Alle drei Werkzeuge nur Englisch** (Projektinhaber: „alle 3 tools sollen nur englisch sein“): die App hat nur noch
+  `res/values` (die 10 Sprachordner, `locales_config.xml`, `supportsRtl` und der Modus `packer` von
+  `tools/check_translations.py` entfernt); `PackerScreenTest` prüft, dass ein deutsches und ein arabisches Handy
+  dieselben englischen Texte von links nach rechts zeigen. Die Konsolen-Version hatte nie andere Sprachen. Debug-APK
+  `builds\converter-tool\CubeEvil4-TexturePacker-1.4.apk` (nicht auf einem Gerät geprüft).
+- **Offen:** Releasetext des nächsten Releases mit dem Packer (Vorlage in `textur-packer-windows.md`). Zusammenführen
+  nach `master` über die Hauptsitzung nach dem Maustest und OK des Inhabers.
+
 ## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
 
 Version 0.99.15-rc (versionCode 117), Releasetext `port/android-decomp/docs/releases/v0.99.15-rc.md` („Changes since

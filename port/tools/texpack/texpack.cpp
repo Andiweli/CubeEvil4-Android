@@ -24,6 +24,7 @@
 #include "fileio.h"
 #include "image.h"
 #include "packer.h"
+#include "pc.h"
 #include "zip.h"
 
 #ifdef _WIN32
@@ -139,18 +140,6 @@ std::string DesktopFolder() {
   return home ? home : ".";
 }
 
-std::uint64_t PhysicalMemory() {
-#ifdef _WIN32
-  MEMORYSTATUSEX m;
-  m.dwLength = sizeof(m);
-  if (GlobalMemoryStatusEx(&m)) return m.ullTotalPhys;
-  return 8ull << 30;
-#else
-  const long pages = sysconf(_SC_PHYS_PAGES), size = sysconf(_SC_PAGE_SIZE);
-  return pages > 0 && size > 0 ? static_cast<std::uint64_t>(pages) * static_cast<std::uint64_t>(size) : 8ull << 30;
-#endif
-}
-
 // ---------------- packing (the console front end of packer.h) ----------------
 
 struct Options {
@@ -163,7 +152,7 @@ struct Options {
 };
 
 void Usage() {
-  Print("%s %s\n\n", pack::kToolName, pack::kToolVersion);
+  Print("%s %s (command line)\n\n", pack::kToolName, pack::kToolVersion);
   Print("Converts a texture pack in the Dolphin format into one file for CubeEvil4.\n");
   Print("Start it without anything to be asked step by step, or:\n\n");
   Print("  texpack -in <pack folder or .zip> -size 256|512|1024 [-out <folder or file.c4tex>]\n");
@@ -171,26 +160,12 @@ void Usage() {
   Print("  texpack -check <file.c4tex> [-png <folder>] [-limit N] [-key <texture hash>]\n\n");
   Print("The pack is only read, never changed. An existing output file is replaced.\n");
   Print("CubeEvil4 includes no textures; use only packs you obtained yourself and may use.\n");
+#ifdef _WIN32
+  Print("The same with a window: CubeEvil4-TexturePacker.exe.\n");
+#endif
 }
 
-// the pack file on disk, written through stdio
-class FileSink : public pack::Sink {
- public:
-  FileSink(FILE *f, fs::path dir) : f_(f), dir_(std::move(dir)) {}
-  bool Write(const void *data, std::size_t n) override { return n == 0 || std::fwrite(data, 1, n, f_) == n; }
-  bool WriteAt(std::uint64_t offset, const void *data, std::size_t n) override {
-    return fio::Seek(f_, offset) && Write(data, n);
-  }
-  std::uint64_t Free() override {
-    std::error_code ec;
-    const fs::space_info sp = fs::space(dir_, ec);
-    return ec ? ~0ull : sp.available;
-  }
-
- private:
-  FILE *f_;
-  fs::path dir_;
-};
+using pc::FileSink;
 
 int Pack(Options &o) {
   std::error_code ec;
@@ -279,14 +254,9 @@ int Pack(Options &o) {
   settings.size = o.size;
   settings.effort = o.effort;
   settings.threads = o.threads > 0 ? static_cast<unsigned>(o.threads) : 0;
-  settings.memoryBudget = std::clamp<std::uint64_t>(PhysicalMemory() / 3, 1ull << 30, 6ull << 30);
+  settings.memoryBudget = pc::MemoryBudget();
   settings.limit = o.limit;
-  {
-    char date[32];
-    const std::time_t now = std::time(nullptr);
-    std::strftime(date, sizeof(date), "%Y-%m-%d", std::localtime(&now));
-    settings.date = date;
-  }
+  settings.date = pc::Today();
   settings.outName = fio::Utf8(out.filename());
   std::string choices;
   const std::vector<const pack::Source *> todo = pack::Todo(p, settings, choices);

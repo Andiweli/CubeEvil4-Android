@@ -129,6 +129,13 @@ std::vector<const Source *> Todo(const Pack &pack, const Settings &settings, std
 std::uint64_t Estimate(const std::vector<const Source *> &todo, unsigned size);
 // the same for several sizes, reading each image's header once
 std::vector<std::uint64_t> EstimateSizes(const std::vector<const Source *> &todo, const std::vector<unsigned> &sizes);
+// what EstimateSizes adds for the header and the info text
+constexpr std::uint64_t kEstimateBase = 4096;
+// each image's share of EstimateSizes (each[i][k]: todo[i] at sizes[k]); progress(images done) comes now and then on
+// the calling thread (the PC window shows it while it reads a pack)
+std::vector<std::vector<std::uint64_t>> EstimateEach(const std::vector<const Source *> &todo,
+                                                     const std::vector<unsigned> &sizes,
+                                                     const std::function<void(std::size_t)> &progress = nullptr);
 
 // where the pack file goes (a file on the PC, a file descriptor on Android)
 class Sink {
@@ -143,6 +150,8 @@ struct Progress {
   std::size_t done = 0, total = 0;
   std::uint64_t written = 0;
   double seconds = 0;
+  std::size_t failed = 0;  // images that could not be converted so far
+  std::string current;     // the image just done (its path in the pack)
 };
 
 struct Outcome {
@@ -153,7 +162,8 @@ struct Outcome {
   std::uint64_t fileBytes = 0, dataBytes = 0;
   double seconds = 0;
   unsigned threads = 0;
-  std::string report;  // the text for the .txt next to the pack file
+  std::string report;              // the text for the .txt next to the pack file
+  std::vector<Skipped> failures;   // the images that could not be converted, with the reason
 };
 
 // converts `todo` into `sink` (the whole file: header, info, images, index); cancel stops it (the caller deletes the
