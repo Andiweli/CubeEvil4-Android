@@ -112,8 +112,13 @@ Zeile für „New“: `- Texture Packer 1.4 for Windows: a real window – drag 
 save, watch the progress, see a summary at the end; the command line version is now CubeEvil4-TexturePacker-Console.exe.`
 
 Die Android-Packer-App geht mit auf 1.4 (Projektinhaber, 14.11.2026: „Ja, auf 1.4“): `versionName` 1.4,
-`versionCode` 2, weil sie denselben Kern übersetzt und „1.4“ in die Datei schreibt. An ihrer Bedienung und an ihrer
-`.c4tex` ändert sich nichts; mit dem Release kommt `CubeEvil4-TexturePacker-1.4.apk` statt der 1.3.
+`versionCode` 2, weil sie denselben Kern übersetzt und „1.4“ in die Datei schreibt. Ihre `.c4tex` bleibt gleich; mit
+dem Release kommt `CubeEvil4-TexturePacker-1.4.apk` statt der 1.3.
+
+**Alle drei Werkzeuge nur Englisch** (Projektinhaber, 14.11.2026: „alle 3 tools sollen nur englisch sein“): das Fenster,
+die Konsolen-Version (war schon nur Englisch) und die Android-Packer-App (bis 1.3 in der Handy-Sprache, 11 Sprachen;
+jetzt nur `res/values`, ohne Sprachliste und ohne Rechts-nach-links). Zeile für „Changed“:
+`- Texture Packer for Android 1.4: English only, as the Windows version.`
 
 ## Geprüft (14.11.2026, Windows-PC des Projektinhabers)
 

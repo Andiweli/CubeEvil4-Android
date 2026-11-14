@@ -99,9 +99,9 @@ sich.
 
 ### Weitere Punkte
 
-- **Sprache:** Die Texte der App sind Englisch. Die Erklärung und die Bedienung folgen der Handy-Sprache in denselben
-  11 Sprachen wie das Ingame-Menü von CubeEvil4 (etwa 30 kurze Texte; Prüfung wie bei CubeEvil4 mit
-  `check_translations.py`). Englisch ist der Rückfall.
+- **Sprache:** nur Englisch (Entscheidung des Projektinhabers, 14.11.2026: „alle 3 tools sollen nur englisch
+  sein“). Bis 1.3 folgten Erklärung und Bedienung der Handy-Sprache in den 11 Sprachen des Ingame-Menüs; seit 1.4
+  (Branch `converter-tool`) gibt es nur `res/values`, keine Sprachliste und kein Rechts-nach-links mehr.
 - **Rechtliches:** keine Texturen, keine Links, derselbe Satz wie im README. Der Bericht am Ende (welche Dateien
   übersprungen wurden) liegt wie am PC als `.txt` neben der Paketdatei.
 - **Speicher (RAM):** Die App nutzt wie am PC alle Kerne, begrenzt aber den Arbeitsspeicher nach dem Gerät (höchstens
@@ -143,7 +143,7 @@ sich.
   sichtbar, bei Abbruch oder Fehler gelöscht; dazu der Bericht als `.txt` daneben; Android 7–9: der Speichern-Dialog
   von Android für beide Speicher, so braucht die App keine Speicher-Berechtigung), `Estimates` (Platz: Schätzung plus
   100 MB; Zeit: PC-Zeit nach Bildgröße und Ausgabegröße, geteilt durch die Kerne des Geräts, kleine Kerne zählen
-  0,4; Retroid bei 512 etwa 20 Minuten), Texte in 11 Sprachen (`tools/check_translations.py packer`), eigenes
+  0,4; Retroid bei 512 etwa 20 Minuten), Texte (bis 1.3 in 11 Sprachen, seit 1.4 nur Englisch), eigenes
   Symbol (`packer/tools/make_icon.py`: das CubeEvil4-Zeichen rot auf dunkel). Keine Internet-Berechtigung.
 - **„In CubeEvil4 importieren“:** gibt die fertige Datei mit Leserecht an CubeEvil4 (`com.ast.cubeevil4.action.
   IMPORT_TEXTURE_PACK`). In CubeEvil4 neu: `TextureImportActivity` (fragt zuerst, importiert wie der Menüpunkt mit

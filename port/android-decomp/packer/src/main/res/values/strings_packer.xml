@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Texture Packer's texts (English; the screen follows the phone's language, English as the
-     fall-back, as CubeEvil4's in-game menu). tools/check_translations.py packer checks the other
-     languages against this file. -->
+<!-- The Texture Packer's texts, English only (decision of the project owner, 14.11.2026: "alle 3 tools
+     sollen nur englisch sein"; the app shows them on phones in every language). -->
 <resources>
     <string name="packer_intro">This app turns an HD texture pack in the Dolphin format (a ZIP file or a folder) into one .c4tex file for CubeEvil4. The ZIP is read as it is, nothing is unpacked; only the finished file is saved in the Download folder. Then import it in CubeEvil4 (app menu, Cheats &amp; Mods). Converting takes a while and makes the device warm: keep it on the charger. It goes on with the screen off.</string>
     <string name="packer_legal">CubeEvil4 and this app include no textures and link to none. Use only packs you obtained yourself and may use.</string>

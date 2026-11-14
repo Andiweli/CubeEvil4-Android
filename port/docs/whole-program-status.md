@@ -38,11 +38,14 @@ Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs
   `E:\Development\Android\builds\converter-tool\screenshots\`, `.exe` in `E:\Development\Android\builds\converter-tool\`.
 - **Nicht geprüft:** echtes Ziehen mit der Maus (die Sitzung darf die Maus nicht bewegen; geprüft mit demselben
   Windows-Datenobjekt wie beim Ziehen), andere Skalierungen als 100 %, zweiter Monitor, Hoher Kontrast, Windows 10.
-- **Offen:** Releasetext des nächsten Releases mit dem Packer (Vorlage in `textur-packer-windows.md`); die Android-App
-  geht mit auf 1.4 (Projektinhaber: „Ja, auf 1.4“; `versionName` 1.4, `versionCode` 2, gleicher Kern, sonst
-  unverändert; Debug-APK `builds\converter-tool\CubeEvil4-TexturePacker-1.4.apk`, 1,2 MB, gebaut mit dem neuen Kern
-  für 32 und 64 bit, Packer-Tests 8/8, lint ohne Fehler; nicht auf einem Gerät geprüft). Zusammenführen nach
-  `master` über die Hauptsitzung nach OK des Inhabers.
+- **Android-Packer-App 1.4** (Projektinhaber: „Ja, auf 1.4“): `versionName` 1.4, `versionCode` 2, gleicher Kern.
+  **Alle drei Werkzeuge nur Englisch** (Projektinhaber: „alle 3 tools sollen nur englisch sein“): die App hat nur noch
+  `res/values` (die 10 Sprachordner, `locales_config.xml`, `supportsRtl` und der Modus `packer` von
+  `tools/check_translations.py` entfernt); `PackerScreenTest` prüft, dass ein deutsches und ein arabisches Handy
+  dieselben englischen Texte von links nach rechts zeigen. Die Konsolen-Version hatte nie andere Sprachen. Debug-APK
+  `builds\converter-tool\CubeEvil4-TexturePacker-1.4.apk` (nicht auf einem Gerät geprüft).
+- **Offen:** Releasetext des nächsten Releases mit dem Packer (Vorlage in `textur-packer-windows.md`). Zusammenführen
+  nach `master` über die Hauptsitzung nach dem Maustest und OK des Inhabers.
 
 ## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
 
