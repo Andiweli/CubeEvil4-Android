@@ -84,7 +84,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 
 | Class | SoC | GPU | Suitability |
 |:-----:|-----|-----|-------------|
-| **A** | Snapdragon 8 Elite Gen 6 / Extreme Gen 6 | Adreno 845 (and Extreme variant) | Remake-level, high resolution, ray tracing experiments |
+| **A** | Snapdragon 8 Elite Gen 6 / Extreme Gen 6 | Adreno 845 (and Extreme variant) | Remake-level, high resolution |
 | **A** | Snapdragon 8 Elite Gen 5 | Adreno 840 | as above, currently widespread |
 | **A** | Snapdragon 8 Elite (Gen 1) | Adreno 830 | as above |
 | **A** | MediaTek Dimensity 9500 / 9600 Pro | Mali-G1 Ultra | as above, driver testing required |
