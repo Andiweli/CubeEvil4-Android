@@ -81,6 +81,45 @@ erscheinen mit zwei Button "Abbrechen" und "Löschen" … 2. ganz unten benenne 
   nach dem Einstellungs-Import, Import eines ZIPs von einem anderen Gerät); der Instant-Spielstand-Import mit dem echten
   Kern (nur die Dateiprüfung und das Schreiben in Java).
 
+### 2. Prüfung von 0.99.14 (Dynamisch, Benchmark, Bloom) und der App (Auftrag der Hauptsitzung, 14.11.2026)
+
+Eine unabhängige Durchsicht der Änderungen 8cb8d672 und 62f8e946 (Unteragent, nur gelesen) und die eigene der neuen
+Management-Teile.
+
+- **Behoben: Vulkan zählte jede Bildwiederholung als Bild** (`gx_vk.cpp`, Fehler aus 0.99.14). `ReadGpuTime` gab die
+  Zeit jedes Frames an `GxStats::gpuMicros/gpuTimed`; `Present` beginnt aber auch ohne neuen Chunk einen Frame (30 FPS
+  auf 60 Hz: jede zweite Wiederholung), dessen gemessene Arbeit fast 0 ms ist (die Zeitmarke endet in `SubmitWork`,
+  vor den Bildschirm-Befehlen). Bei 30 FPS las „Dynamisch“ so etwa die halbe GPU-Zeit je Bild: eine zu schwere Stufe
+  galt als „GPU nicht am Limit“ (`gx_auto_level.h` Zeile „pictures late, but the GPU not at its limit“), die Stufe
+  ging kaum herunter, und der Schritt nach oben schätzte doppelt zu günstig; die Prüfung des Benchmarks für 30 FPS
+  (`kGpuReserve`) griff unter Vulkan kaum; mit 60 FPS lasen Pausen des Taktgebers ebenso halb. OpenGL war nicht
+  betroffen (sein Zeitmesser misst nur die Runs). Jetzt merkt sich ein Frame, ob ein Run (Chunk oder Zwischenbild) in
+  ihm lief (`Frame::ran`, gesetzt in `RunBegin`, bei einem Submit mitten im Chunk weitergegeben); nur dann zählt seine
+  Zeit als Bild, sonst als `presentMicros/presentTimed` (wie GLs eigener Zeitmesser für die Wiederholungen). Die
+  Protokollzeile „GPU work … ms a picture“ zählt weiter alle Frames (vergleichbar mit älteren Berichten).
+- **Behoben: Gedächtnis der Räume über 60 ↔ 30 FPS** (`gx_auto_level.h`). Sind die Benchmark-Stufen für 30 und 60 FPS
+  gleich (ohne Benchmark immer: die Bildschirm-Stufe), startet beim Umschalten kein neuer Renderer, und eine Stufe, die
+  mit 60 FPS in einem Raum nicht hielt, blieb dort auch mit 30 FPS bis zu 10 Minuten gesperrt. Jetzt vergisst
+  `AutoLevel::Chunk` das Gedächtnis, wenn sich die Bildzeit ändert (`Sample::sixty`), und wertet das Fenster über den
+  Wechsel nicht (`Restart`).
+- **Gelesen und in Ordnung:** Bloom unter GL und Vulkan (Texturen, kein Lesen und Schreiben derselben Textur, der 1×1-
+  Durchgang liest im Bild, keine Textur der Größe 0, GL-Zustand nach dem Bloom wieder gesetzt, Vulkan legt und räumt
+  `bloomKeyImg`/`bloomImg[2]` gleich an und ab, Mischart 3 richtig); Mali ohne Zeitmesser (die Zäune entscheiden wie
+  bisher); `setDynamicCaps` (atomar); `StartLevel`/`Start`; das einmalige Neu-Messen nach dem Update
+  (`redoDue`/`scheduleRedo`, `BENCH_RESERVE`); `CoreMenu.dynamicTop`; das Warten des Benchmarks auf freies Spiel.
+- **Nicht geändert (klein):** `gReadyWait` in `port/whole/runtime/benchmark.cpp` wird vom JNI-Faden geschrieben und vom
+  Spielfaden gezählt, ohne `std::atomic` (wie das ältere `gLogoWait`; praktisch ohne Folgen, ein Umbau bräuchte einen
+  neuen Kern-Bau). Das erste Fenster nach einem Neustart zählt seinen Eröffnungs-Chunk mit (+0,5 Bilder/s, seit 0.99.13).
+- **Menütexte:** alle Seiten in 11 Sprachen (jetzt mit Indonesisch, das in `allPagesFitAcrossLanguagesWidthsAndFontScales`
+  fehlte), Breiten 320–960 dp, Schriftgrößen 1×/1,5×/2×: keine Überlappung. „4:3“ im Spiel: der Weg aus 0.99.10
+  (`SetWiden(1)`, Kästen und Texte in derselben Form) ist seitdem unverändert, nicht neu angespielt.
+- **Geprüft am PC:** `gx_gl_check` (WSL `~/re4-09914/port/build/app-host-vk`, lavapipe) GL und Vulkan 0 Fehler; neu
+  `TestVkGpuTimePictures` (12 Chunks mit je einer Wiederholung ohne Chunk: 12 Bilder gezählt, 14 Wiederholungen getrennt; mit dem alten `gx_vk.cpp` 26 „Bilder“ für 12
+  Chunks, der Test schlägt fehl) und der Fall 60 → 30 FPS in
+  `TestAutoLevelGpu` (mit dem alten `gx_auto_level.h` „1 failed“, neu 0); Regelprüfung `RE4_CHECK_RULES=1` 0 Fehler;
+  NDK-Bau `:app:externalNativeBuildCoreDebug` (armeabi-v7a, arm64-v8a) ohne Fehler, keine neue Warnung.
+- **Nicht geprüft:** auf einem Gerät (Vulkan mit 30 FPS und „Dynamisch“ in einem schweren Raum).
+
 ## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 
 Version 0.99.14-rc (versionCode 116), Releasetext `port/android-decomp/docs/releases/v0.99.14-rc.md` („Changes since

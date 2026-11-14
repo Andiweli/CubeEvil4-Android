@@ -936,6 +936,38 @@ void TestVkOverlay() {
   Check(Near(at(35, 40), 0, 0, 255), "Vulkan overlay: gone when the app sets none");
   r.Release();
 }
+
+// The GPU time a picture with Vulkan (0.99.15, the review of 0.99.14): only a frame with a Run counts as a picture (as
+// GL's chunk timer); a refresh without a new chunk (30 FPS: every second vsync) goes to the presents' time. Before,
+// every frame counted: at 30 FPS a picture read about half its time, and Dynamic hardly stepped down.
+void TestVkGpuTimePictures() {
+  re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+  std::string error;
+  Require(r.Init(1, &error), error.c_str());
+  const unsigned kPictures = 12;
+  for (unsigned i = 0; i < kPictures; i++) {
+    Builder b;
+    Baseline(b);
+    b.flags |= RE4_GX_CHUNK_XFB;
+    Quad(b, 0, 0, 640, 448, 0, kGreen);
+    DisplayCopy(b, true, kBlack);
+    r.Run(b.Chunk());
+    r.Present(0, 0, 64, 64);
+    r.Present(0, 0, 64, 64);  // the refresh without a new chunk
+  }
+  for (int i = 0; i < 4; i++)
+    r.Present(0, 0, 64, 64);  // the last pictures' times read (their frames begun again)
+  const re4gx::GxStats &s = r.Stats();
+  std::fprintf(stderr, "  Vulkan GPU time: %u pictures and %u refreshes timed of %u chunks\n", s.gpuTimed,
+               s.presentTimed, kPictures);
+  if (s.gpuTimed == 0 && s.presentTimed == 0) {
+    std::fprintf(stderr, "  Vulkan GPU time: no timestamps on this device, not measured\n");
+  } else {
+    Check(s.gpuTimed == kPictures, "Vulkan GPU time: one timed picture a chunk, the refreshes not");
+    Check(s.presentTimed >= kPictures, "Vulkan GPU time: the refreshes counted apart");
+  }
+  r.Release();
+}
 #endif
 
 // Merged draw calls (SetMerge, RE4_GX_MERGE, 30.10.2026): 24 squares, each moved by its own position
@@ -2665,6 +2697,20 @@ void TestAutoLevelGpu() {
     r.a.Start(5, r.s.t, 2, true, 5);
     r.a.Start(6, r.s.t, 2, true, 6);
     Check(r.a.Blocked(6, r.s.t, 0x333) == 0.0, "auto level GPU: another top in between starts the memory anew");
+  }
+  {
+    // 60 FPS switched off with the same top for 30 and 60 FPS (no new renderer): what did not hold at 16.7 ms says
+    // nothing at 33.4 ms, the memory goes (0.99.15, review of 0.99.14)
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    Check(r.a.Level() == 5 && r.a.Blocked(6, r.s.t, 0x333) > 0.0, "auto level GPU, 60 -> 30: 3x did not hold in r333");
+    r.s.sixty = r.s.smooth = false;
+    r.Play(0.1, 16.5, 0x333);
+    Check(r.a.Blocked(6, r.s.t, 0x333) == 0.0, "auto level GPU, 60 -> 30: the memory of 60 FPS goes");
+    r.s.sixty = r.s.smooth = true;
+    r.Play(0.1, 16.5, 0x333);
+    Check(r.a.Level() == 5, "auto level GPU, 30 -> 60: the level stays until a window says otherwise");
   }
   {
     // the memory itself: a heavy moment in r333 takes 3x to 2.5x; then r333 light again (3x would take 10 ms: room
@@ -4864,6 +4910,7 @@ int main() {
     TestVkRescale();
     TestVkHandOverCopies();
     TestVkOverlay();
+    TestVkGpuTimePictures();
     TestVkAhead();
     TestVkTevMath();
     {

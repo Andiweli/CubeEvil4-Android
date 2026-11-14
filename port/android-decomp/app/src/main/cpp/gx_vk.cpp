@@ -113,6 +113,9 @@ struct Frame {
   // (SubmitWork, else Submit), read once its fence was waited for (VkRenderer::ReadGpuTime)
   VkQueryPool gpuTime = VK_NULL_HANDLE;
   bool gpuTimeOpen = false, gpuTimeEnded = false;
+  // a Run (a chunk or an in-between picture) was recorded into it (0.99.15): only then its time is a picture's (as GL's
+  // chunk timer); a refresh without a new chunk (30 FPS: every second vsync) goes to the presents' time
+  bool ran = false;
 };
 
 // The end of a render pass: what waits for its attachments (PassDependencies). Until 0.99.8 the vertex shaders
@@ -779,6 +782,8 @@ struct VkRenderer final : GxCore {
       f.workPending = false;
     }
     ReadGpuTime(f);
+    // (a submit in the middle of a chunk: its rest is the same picture's work)
+    f.ran = continuing && f.ran;
     f.split = false;
     for (auto &t : f.trash)
       t();
@@ -848,9 +853,16 @@ struct VkRenderer final : GxCore {
     if (ms >= 0.0 && ms < 1000.0) {
       timing.gpuMs += ms;
       timing.gpuMeasured++;
-      // (0.99.14: also for "Dynamic", gx_auto_level.h: a picture's GPU time, as GL's timer queries)
-      stats.gpuMicros += static_cast<unsigned long long>(ms * 1000.0);
-      stats.gpuTimed++;
+      // (0.99.14: also for "Dynamic", gx_auto_level.h: a picture's GPU time, as GL's timer queries.) 0.99.15: only a
+      // frame with a Run; until then a refresh without a new chunk counted as a picture of almost no time, so at 30
+      // FPS a picture read about half its time and Dynamic hardly stepped down (review of 0.99.14)
+      if (f.ran) {
+        stats.gpuMicros += static_cast<unsigned long long>(ms * 1000.0);
+        stats.gpuTimed++;
+      } else {
+        stats.presentMicros += static_cast<unsigned long long>(ms * 1000.0);
+        stats.presentTimed++;
+      }
     }
   }
   // The frame to the GPU. wait: until it is done; next: the next frame is another one (else this frame goes on
@@ -2204,6 +2216,7 @@ struct VkRenderer final : GxCore {
     if (!interpPass && peekReady)
       DeliverDepth();  // the depth maps the GPU finished since the last chunk go to the core
     Begin();
+    F().ran = true;  // its GPU time is a picture's (ReadGpuTime)
   }
   void UploadChunk(const Re4GxChunk &chunk) override {
     Begin();

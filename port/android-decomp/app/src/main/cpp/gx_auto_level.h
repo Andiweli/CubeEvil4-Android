@@ -141,6 +141,15 @@ public:
       Restart(t);
     lastChunk_ = t;
     room_ = s.room;
+    // a picture's time changed (60 FPS switched on or off, or given up): what did not hold with the other time says
+    // nothing now, and a window across the change is not judged (0.99.15, review of 0.99.14: with the same top for 30
+    // and 60 FPS the renderer stays, and the rooms' memory stayed with it)
+    if (sixtyKnown_ && s.sixty != sixty_) {
+      fails_ = {};
+      Restart(t);
+    }
+    sixty_ = s.sixty;
+    sixtyKnown_ = true;
     if (t < quietUntil_) {
       windowOpen_ = false;
       chunks_ = 0;
@@ -472,6 +481,7 @@ private:
   double lastChunk_ = 0.0, quietUntil_ = 0.0;
   int room_ = -1;
   std::array<Fail, kFails> fails_{};
+  bool sixty_ = false, sixtyKnown_ = false;  // the last chunk's picture time (Sample::sixty)
 };
 
 // 60 FPS at an even pace (port/docs/60fps-plan.md S4, decision of the project owner, 28.10.2026): an
