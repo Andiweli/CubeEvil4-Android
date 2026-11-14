@@ -109,10 +109,15 @@
     <string name="ingame_update_page">L\'ultima versione si apre su GitHub: scarica lì l\'APK e installalo.</string>
 
     <string name="ingame_card">Memory Card (slot A)</string>
-    <string name="ingame_card_help">Esporta e importa i dati di gioco: i salvataggi come .gci (per Dolphin o GameCube) e il tuo layout touch personalizzato come CubeEvil4-touch-layout.json. L’importazione ripristina entrambi.</string>
+    <string name="ingame_card_help">Esporta dati di gioco: i salvataggi come .gci (per Dolphin o GameCube) con il tuo layout touch personalizzato come CubeEvil4-touch-layout.json, oppure tutto in un .zip (salvataggi, salvataggio istantaneo, RetroTouch e impostazioni dell’app). L’importazione ripristina tutto. Elimina tutti i dati svuota la Memory Card.</string>
     <string name="ingame_card_busy">La Memory Card è in uso (il gioco sta salvando o caricando) oppure il gioco sta ancora caricando: chiudi il menu e riaprilo tra un momento.</string>
     <string name="ingame_card_none">Nessuna Memory Card.</string>
     <string name="ingame_export">Esporta dati di gioco (.gci)</string>
+    <string name="ingame_export_zip">Esporta dati di gioco (.zip)</string>
+    <string name="ingame_wipe">Elimina tutti i dati</string>
+    <string name="ingame_wipe_text">Tutti i salvataggi della Memory Card e il salvataggio istantaneo verranno eliminati, come se la scheda fosse formattata. RetroTouch resta (il tuo layout touch e le sue impostazioni), così come i dischi, le texture HD e le impostazioni dell’app. Non si può annullare: per tenere i salvataggi, esportali prima (.zip). Il gioco si riavvia per farlo.</string>
+    <string name="ingame_wipe_cancel">Annulla</string>
+    <string name="ingame_wipe_yes">Elimina</string>
     <string name="ingame_import">Importa dati di gioco (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Dischi</string>
     <string name="ingame_discs_help">Per giocare un’altra versione: la partita termina e importi i suoi due dischi dalla schermata iniziale. Salvataggi, Memory Card e impostazioni restano.</string>
@@ -127,7 +132,7 @@
     <string name="ingame_report_send">Invia rapporto …</string>
     <string name="ingame_report_save">Salva rapporto …</string>
 
-    <string name="ingame_source">Codice sorgente</string>
+    <string name="ingame_source">Codice sorgente e aggiornamenti</string>
     <string name="ingame_source_line">Maggiori informazioni su questo port: %1$s</string>
     <string name="ingame_no_browser">Nessun browser su questo dispositivo</string>
 
@@ -172,6 +177,26 @@
     <string name="ingame_touch_imported">Layout touch importato: attivo da subito.</string>
     <string name="ingame_touch_skipped">Layout touch saltato: resta il tuo.</string>
     <string name="ingame_touch_import_bad">Layout touch non importato: %1$s</string>
+    <plurals name="ingame_backup_saved">
+        <item quantity="one">%1$d file della Memory Card salvato in %2$s.</item>
+        <item quantity="many">%1$d file della Memory Card salvati in %2$s.</item>
+        <item quantity="other">%1$d file della Memory Card salvati in %2$s.</item>
+    </plurals>
+    <string name="ingame_backup_with_instant">Con il salvataggio istantaneo.</string>
+    <string name="ingame_backup_with_touch">Con il tuo layout touch.</string>
+    <string name="ingame_backup_with_settings">Con le impostazioni dell’app e di RetroTouch.</string>
+    <string name="ingame_backup_instant_imported">Salvataggio istantaneo importato.</string>
+    <string name="ingame_backup_instant_exists">Hai già un salvataggio istantaneo. Sostituirlo con quello importato?</string>
+    <string name="ingame_backup_instant_skipped">Salvataggio istantaneo saltato: resta il tuo.</string>
+    <string name="ingame_backup_instant_bad">Salvataggio istantaneo non importato: %1$s</string>
+    <string name="ingame_backup_settings_exists">Sostituire le tue impostazioni con quelle importate (controlli, RetroTouch, gioco, grafica e audio)?</string>
+    <string name="ingame_backup_settings_imported">Impostazioni importate.</string>
+    <string name="ingame_backup_settings_skipped">Impostazioni saltate: restano le tue.</string>
+    <string name="ingame_backup_settings_same">Impostazioni: uguali alle tue.</string>
+    <string name="ingame_backup_settings_bad">Impostazioni non importate: %1$s</string>
+    <string name="ingame_backup_graphics_kept">Il backup è stato fatto su un altro dispositivo (%1$s): restano la risoluzione, il renderer e le altre impostazioni di prestazioni di questo dispositivo.</string>
+    <string name="ingame_backup_newer">Il file proviene da una versione più recente (%1$s): le impostazioni che questa versione non ha vengono tralasciate.</string>
+    <string name="ingame_backup_restart">Il gioco si riavvia per usare le impostazioni importate. I progressi non salvati vanno persi.</string>
     <string name="ingame_report_chooser">Invia il rapporto errori</string>
     <string name="ingame_report_failed">Impossibile creare il rapporto: %1$s</string>
     <string name="ingame_capture_saved">Cattura grafica salvata</string>
@@ -192,7 +217,7 @@
     <string name="ingame_display_summary">Risoluzione, formato ed effetti</string>
     <string name="ingame_controls_summary">Touch, giroscopio e comodità</string>
     <string name="ingame_performance_summary">Core prestanti, 60 FPS e indicatore</string>
-    <string name="ingame_management_summary">Scheda, dischi, rapporti e sorgenti</string>
+    <string name="ingame_management_summary">Scheda, dischi, rapporti, sorgenti e aggiornamenti</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musica ed effetti sonori</string>
     <string name="ingame_cheats_summary">Generale, armi, soldi e texture</string>

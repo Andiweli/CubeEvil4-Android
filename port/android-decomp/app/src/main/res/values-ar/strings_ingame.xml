@@ -113,10 +113,15 @@
     <string name="ingame_update_page">يُفتح أحدث إصدار على GitHub: نزّل ملف APK من هناك وثبّته.</string>
 
     <string name="ingame_card">بطاقة الذاكرة (الفتحة A)</string>
-    <string name="ingame_card_help">تصدير بيانات اللعبة واستيرادها: ملفات الحفظ بصيغة &#x200E;.gci (لـ Dolphin أو GameCube) وتخطيط اللمس الخاص بك في الملف &#x200E;CubeEvil4-touch-layout.json. يعيد الاستيراد كليهما.</string>
+    <string name="ingame_card_help">تصدير بيانات اللعبة: ملفات الحفظ بصيغة &#x200E;.gci (لـ Dolphin أو GameCube) مع تخطيط اللمس الخاص بك في الملف &#x200E;CubeEvil4-touch-layout.json، أو كل شيء في ملف &#x200E;.zip واحد (ملفات الحفظ والحفظ الفوري و RetroTouch وإعدادات التطبيق). يعيد الاستيراد كل ذلك. يؤدي «حذف كل البيانات» إلى إفراغ بطاقة الذاكرة.</string>
     <string name="ingame_card_busy">بطاقة الذاكرة قيد الاستخدام (اللعبة تحفظ أو تحمّل) أو أن اللعبة ما زالت تُحمَّل – أغلق القائمة وافتحها مجددًا بعد لحظات.</string>
     <string name="ingame_card_none">لا توجد بطاقة ذاكرة.</string>
     <string name="ingame_export">تصدير بيانات اللعبة (&#x200E;.gci)</string>
+    <string name="ingame_export_zip">تصدير بيانات اللعبة (&#x200E;.zip)</string>
+    <string name="ingame_wipe">حذف كل البيانات</string>
+    <string name="ingame_wipe_text">سيتم حذف كل ملفات الحفظ على بطاقة الذاكرة والحفظ الفوري، كأن البطاقة قد هُيِّئت. يبقى RetroTouch (تخطيط اللمس الخاص بك وإعداداته)، وكذلك الأقراص والأنسجة عالية الدقة وإعدادات التطبيق. لا يمكن التراجع عن ذلك: للاحتفاظ بملفات الحفظ، صدّرها أولًا (&#x200E;.zip). تُعاد تشغيل اللعبة لذلك.</string>
+    <string name="ingame_wipe_cancel">إلغاء</string>
+    <string name="ingame_wipe_yes">حذف</string>
     <string name="ingame_import">استيراد بيانات اللعبة (&#x200E;.gci، &#x200E;.zip، &#x200E;.raw)</string>
     <string name="ingame_discs">الأقراص</string>
     <string name="ingame_discs_help">لتلعب نسخة أخرى: تنتهي اللعبة، ثم تستورد قرصيها كليهما من شاشة البدء. تبقى ملفات الحفظ وبطاقة الذاكرة والإعدادات كما هي.</string>
@@ -131,7 +136,7 @@
     <string name="ingame_report_send">إرسال التقرير …</string>
     <string name="ingame_report_save">حفظ التقرير …</string>
 
-    <string name="ingame_source">الشيفرة المصدرية</string>
+    <string name="ingame_source">الشيفرة المصدرية والتحديثات</string>
     <string name="ingame_source_line">المزيد عن هذه النسخة المنقولة على %1$s</string>
     <string name="ingame_no_browser">لا يوجد متصفح على هذا الجهاز</string>
 
@@ -183,6 +188,29 @@
     <string name="ingame_touch_imported">تم استيراد تخطيط اللمس، وهو مُستخدم فورًا.</string>
     <string name="ingame_touch_skipped">تم تخطي تخطيط اللمس، ويبقى تخطيطك.</string>
     <string name="ingame_touch_import_bad">لم يتم استيراد تخطيط اللمس: %1$s</string>
+    <plurals name="ingame_backup_saved">
+        <item quantity="zero">عدد ملفات بطاقة الذاكرة المحفوظة في %2$s: %1$d.</item>
+        <item quantity="one">عدد ملفات بطاقة الذاكرة المحفوظة في %2$s: %1$d.</item>
+        <item quantity="two">عدد ملفات بطاقة الذاكرة المحفوظة في %2$s: %1$d.</item>
+        <item quantity="few">عدد ملفات بطاقة الذاكرة المحفوظة في %2$s: %1$d.</item>
+        <item quantity="many">عدد ملفات بطاقة الذاكرة المحفوظة في %2$s: %1$d.</item>
+        <item quantity="other">عدد ملفات بطاقة الذاكرة المحفوظة في %2$s: %1$d.</item>
+    </plurals>
+    <string name="ingame_backup_with_instant">مع الحفظ الفوري.</string>
+    <string name="ingame_backup_with_touch">مع تخطيط اللمس الخاص بك.</string>
+    <string name="ingame_backup_with_settings">مع إعدادات التطبيق و RetroTouch.</string>
+    <string name="ingame_backup_instant_imported">تم استيراد الحفظ الفوري.</string>
+    <string name="ingame_backup_instant_exists">لديك بالفعل حفظ فوري. هل تريد استبداله بالحفظ المستورد؟</string>
+    <string name="ingame_backup_instant_skipped">تم تخطي الحفظ الفوري، ويبقى حفظك.</string>
+    <string name="ingame_backup_instant_bad">لم يتم استيراد الحفظ الفوري: %1$s</string>
+    <string name="ingame_backup_settings_exists">هل تريد استبدال إعداداتك بالإعدادات المستوردة (التحكم و RetroTouch واللعبة والرسومات والصوت)؟</string>
+    <string name="ingame_backup_settings_imported">تم استيراد الإعدادات.</string>
+    <string name="ingame_backup_settings_skipped">تم تخطي الإعدادات، وتبقى إعداداتك.</string>
+    <string name="ingame_backup_settings_same">الإعدادات: مطابقة لإعداداتك.</string>
+    <string name="ingame_backup_settings_bad">لم يتم استيراد الإعدادات: %1$s</string>
+    <string name="ingame_backup_graphics_kept">أُنشئت النسخة الاحتياطية على جهاز آخر (%1$s): تبقى الدقة والعارض وإعدادات الأداء الأخرى لهذا الجهاز.</string>
+    <string name="ingame_backup_newer">الملف من إصدار أحدث (%1$s): تُترك الإعدادات التي لا يعرفها هذا الإصدار.</string>
+    <string name="ingame_backup_restart">تُعاد تشغيل اللعبة لاستخدام الإعدادات المستوردة. يضيع التقدم غير المحفوظ.</string>
     <string name="ingame_report_chooser">إرسال تقرير الأخطاء</string>
     <string name="ingame_report_failed">تعذّر إنشاء التقرير: %1$s</string>
     <string name="ingame_capture_saved">تم حفظ لقطة الرسومات</string>
@@ -203,7 +231,7 @@
     <string name="ingame_display_summary">‏الدقة وأبعاد الصورة والمؤثرات</string>
     <string name="ingame_controls_summary">‏اللمس والجيروسكوب وخيارات الراحة</string>
     <string name="ingame_performance_summary">‏أنوية الأداء و60 FPS وعرض الإطارات</string>
-    <string name="ingame_management_summary">‏بطاقة الذاكرة والأقراص والتقارير والمصدر</string>
+    <string name="ingame_management_summary">‏بطاقة الذاكرة والأقراص والتقارير والمصدر والتحديثات</string>
     <string name="ingame_audio">الصوت</string>
     <string name="ingame_audio_summary">‏الموسيقى والمؤثرات الصوتية</string>
     <string name="ingame_cheats_summary">عام، الأسلحة، المال والأنسجة</string>

@@ -152,7 +152,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String CHEATS = "cheats";
   /** The cheat "Random enemies" (0.99.12): its seed, 0 off (CoreBridge.setEnemyRandom). */
   static final String ENEMY_SEED = "enemySeed";
-  private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5;
+  private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
+      REQUEST_EXPORT_ZIP = 6;
   // "Import texture pack" (Cheats & Mods, TexturePacks): who hears the import, its cancel switch
   private TexturePacks.Listener textureListener;
   private final java.util.concurrent.atomic.AtomicBoolean textureCancel = new java.util.concurrent.atomic.AtomicBoolean();
@@ -207,6 +208,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final List<byte[]> pendingImports = new ArrayList<>();
   // the touch layout file the chosen files hold (TouchLayoutFile), after the .gci files
   private byte[] pendingTouch;
+  // the parts of the app's own ZIP (PlayerBackup, 0.99.15) after the touch layout: the instant save, the settings file
+  // with the ZIP's manifest (where it was made); whether the import put settings in place (then a restart is offered)
+  private byte[] pendingInstant, pendingSettings, pendingManifest;
+  private boolean importedSettings;
   // (read by the picture's beat on its own thread too)
   private volatile boolean resumed;
   // GPU step c: the picture drawn at each vsync or, on a faster screen, at every n-th
@@ -306,6 +311,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     // the app's own folder (on the shared storage, else internal), where test switches write (RE4_AUDIO_WAV)
     AppStorage.base(this);
+    // Management -> "Delete All Data" (0.99.15, PlayerWipe): the memory card and the instant save go before the core
+    // opens them; the core then makes a new, formatted card
+    String wiped = PlayerWipe.prepare(this, imports.root);
+    if (!wiped.isEmpty()) Log.i(TAG, wiped);
     applyGraphics();
     startProblem = imports.root == null ? "No data folder"
         : CoreBridge.start(imports.root.getAbsolutePath(), coreSettings);
@@ -865,6 +874,23 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       startForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_EXPORT_ALL);
     }
 
+    @Override public void exportZip() {
+      // the card must be readable (the game neither saves nor loads), else no file is made
+      if (CoreBridge.cardList() == null) {
+        message(getString("busy".equals(CoreBridge.cardNote()) ? R.string.ingame_card_busy : R.string.ingame_card_unreadable));
+        return;
+      }
+      Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+          .setType("application/zip").putExtra(Intent.EXTRA_TITLE, PlayerBackup.fileName(System.currentTimeMillis()));
+      startForResult(i, REQUEST_EXPORT_ZIP);
+    }
+
+    @Override public void wipePlayerData() {
+      PlayerWipe.request(CoreActivity.this);
+      Log.i(TAG, "menu: Delete All Data: the memory card and the instant save go at the restart, before the core");
+      restartIntoGame("all player data deleted");
+    }
+
     @Override public void importDiscs() { openStartScreen("menu: import other discs"); }
 
     @Override public void importTexturePack(TexturePacks.Listener listener) {
@@ -1219,11 +1245,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     try {
       if (request == REQUEST_EXPORT_ALL && data.getData() != null) {
         exportAllInto(data.getData());
+      } else if (request == REQUEST_EXPORT_ZIP && data.getData() != null) {
+        exportZipInto(data.getData());
       } else if (request == REQUEST_TEXTURES && data.getData() != null) {
         importTextures(data.getData());
       } else if (request == REQUEST_IMPORT) {
         pendingImports.clear();
-        pendingTouch = null;
+        pendingTouch = pendingInstant = pendingSettings = pendingManifest = null;
+        importedSettings = false;
         if (data.getClipData() != null) {
           for (int i = 0; i < data.getClipData().getItemCount(); i++) readImport(data.getClipData().getItemAt(i).getUri());
         } else if (data.getData() != null) {
@@ -1356,9 +1385,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       // a .gci, a whole Dolphin card (.raw, .gcp) or a ZIP of either: the .gci files of this game
       StringBuilder found = new StringBuilder();
       try {
-        List<byte[]> touch = new ArrayList<>();
-        pendingImports.addAll(SaveImport.files(CoreLog.readAll(in), found, touch));
-        if (!touch.isEmpty()) pendingTouch = touch.get(touch.size() - 1);
+        SaveImport.Found parts = SaveImport.read(CoreLog.readAll(in), found);
+        pendingImports.addAll(parts.gci);
+        if (!parts.touch.isEmpty()) pendingTouch = parts.touch.get(parts.touch.size() - 1);
+        // the app's own ZIP (PlayerBackup): its instant save and its settings with its manifest
+        if (parts.instant != null) pendingInstant = parts.instant;
+        if (parts.settings != null) {
+          pendingSettings = parts.settings;
+          pendingManifest = parts.manifest;
+        }
       } catch (IllegalArgumentException e) {
         throw new IOException(e.getMessage());
       }
@@ -1393,8 +1428,29 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         importTouch(report);
         return;
       }
-      if (report.length() > 0) message(report.toString().trim());
+      if (pendingInstant != null) {
+        importInstant(report);
+        return;
+      }
+      if (pendingSettings != null) {
+        importSettings(report);
+        return;
+      }
       if (menu != null) menu.refreshCard();
+      if (importedSettings) {
+        // the settings are in place: most take effect at the next start of the game (renderer, language, the
+        // controls the activity keeps), so it offers the restart (progress not saved is lost)
+        importedSettings = false;
+        Immersive.show(new AlertDialog.Builder(this)
+            .setMessage(report.toString().trim() + "\n\n" + getString(R.string.ingame_backup_restart))
+            .setPositiveButton(R.string.ingame_restart, (d, w) -> {
+              if (menu != null) menu.dismiss();
+              restartIntoGame("settings imported");
+            })
+            .setNegativeButton(R.string.ingame_later, null).create());
+        return;
+      }
+      if (report.length() > 0) message(report.toString().trim());
       return;
     }
     byte[] gci = pendingImports.remove(0);
@@ -1453,6 +1509,220 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     applyTouch(parsed, report);
     importNext(report);
+  }
+
+  /** The instant save of the app's ZIP (PlayerBackup): replaces the player's only when asked; the core reads the slot
+   *  file at each look at it (runtime/instant_store.cpp), so it is in use at once. */
+  private void importInstant(StringBuilder report) {
+    byte[] file = pendingInstant;
+    pendingInstant = null;
+    String problem = PlayerBackup.instantProblem(file);
+    ImportManager imports = ((Re4Application) getApplication()).imports;
+    if (problem == null && imports.root == null) problem = "no data folder";
+    if (problem != null) {
+      Log.i(TAG, "import: instant save: " + problem);
+      report.append(getString(R.string.ingame_backup_instant_bad, problem)).append('\n');
+      importNext(report);
+      return;
+    }
+    File slot = PlayerBackup.instantFile(imports.root);
+    byte[] now = null;
+    try {
+      now = PlayerBackup.read(slot, PlayerBackup.INSTANT_BYTES + 1);
+    } catch (IOException e) {
+      Log.i(TAG, "import: the instant save there cannot be read: " + e);
+    }
+    if (now != null && java.util.Arrays.equals(now, file)) {
+      Log.i(TAG, "import: instant save: the same as the one there");
+      report.append(getString(R.string.ingame_backup_instant_imported)).append('\n');
+      importNext(report);
+      return;
+    }
+    if (now != null && PlayerBackup.instantProblem(now) == null) {
+      Immersive.show(new AlertDialog.Builder(this)
+          .setMessage(R.string.ingame_backup_instant_exists)
+          .setPositiveButton(R.string.ingame_replace, (d, w) -> {
+            writeInstant(slot, file, report);
+            importNext(report);
+          })
+          .setNegativeButton(R.string.ingame_skip, (d, w) -> {
+            Log.i(TAG, "import: instant save skipped (the player's kept)");
+            report.append(getString(R.string.ingame_backup_instant_skipped)).append('\n');
+            importNext(report);
+          })
+          .setCancelable(false).create());
+      return;
+    }
+    writeInstant(slot, file, report);
+    importNext(report);
+  }
+
+  private void writeInstant(File slot, byte[] file, StringBuilder report) {
+    try {
+      PlayerBackup.writeAtomically(slot, file);
+      Log.i(TAG, "import: instant save written (" + file.length + " bytes)");
+      report.append(getString(R.string.ingame_backup_instant_imported)).append('\n');
+    } catch (IOException e) {
+      Log.w(TAG, "import: instant save: " + e);
+      report.append(getString(R.string.ingame_backup_instant_bad, e.getMessage())).append('\n');
+    }
+  }
+
+  /** The settings of the app's ZIP (PlayerBackup.plan): replace this app's only when asked; the graphics only from the
+   *  same kind of device; from a newer version only what this one has. */
+  private void importSettings(StringBuilder report) {
+    byte[] file = pendingSettings;
+    byte[] manifest = pendingManifest;
+    pendingSettings = pendingManifest = null;
+    PlayerBackup.Origin from = PlayerBackup.Origin.of(file);
+    if (from == null) from = PlayerBackup.Origin.of(manifest);
+    long code = appVersionCode();
+    boolean newer = from != null && from.code > code;
+    boolean sameDevice = from != null && deviceName().equals(from.device);
+    java.util.Map<String, java.util.Map<String, ?>> current = new java.util.LinkedHashMap<>();
+    for (String group : PlayerBackup.GROUPS) current.put(group, getSharedPreferences(group, MODE_PRIVATE).getAll());
+    final List<PlayerBackup.Plan> plans;
+    StringBuilder log = new StringBuilder();
+    try {
+      plans = PlayerBackup.plan(file, current, newer, sameDevice, log);
+    } catch (IllegalArgumentException e) {
+      Log.i(TAG, "import: settings: " + e.getMessage());
+      report.append(getString(R.string.ingame_backup_settings_bad, e.getMessage())).append('\n');
+      importNext(report);
+      return;
+    }
+    int changes = 0, skipped = 0;
+    for (PlayerBackup.Plan p : plans) {
+      changes += p.put.size() + p.remove.size();
+      skipped += p.skipped;
+      log.append(' ').append(p.group).append(": ").append(p.put.size()).append(" set, ").append(p.remove.size())
+          .append(" back to the default, ").append(p.skipped).append(" left out")
+          .append(p.keptPerformance > 0 ? ", " + p.keptPerformance + " performance settings of this device kept" : "")
+          .append(';');
+    }
+    Log.i(TAG, "import: settings of " + (from != null ? from.app + " (" + from.code + ") on " + from.device : "?")
+        + ":" + log);
+    final String notes = settingsNotes(from, newer, sameDevice, plans, skipped);
+    if (changes == 0) {
+      report.append(getString(R.string.ingame_backup_settings_same)).append('\n').append(notes);
+      importNext(report);
+      return;
+    }
+    Immersive.show(new AlertDialog.Builder(this)
+        .setMessage(R.string.ingame_backup_settings_exists)
+        .setPositiveButton(R.string.ingame_replace, (d, w) -> {
+          for (PlayerBackup.Plan p : plans) PlayerBackup.apply(getSharedPreferences(p.group, MODE_PRIVATE), p);
+          importedSettings = true;
+          Log.i(TAG, "import: settings replaced");
+          report.append(getString(R.string.ingame_backup_settings_imported)).append('\n').append(notes);
+          importNext(report);
+        })
+        .setNegativeButton(R.string.ingame_skip, (d, w) -> {
+          Log.i(TAG, "import: settings skipped (the player's kept)");
+          report.append(getString(R.string.ingame_backup_settings_skipped)).append('\n');
+          importNext(report);
+        })
+        .setCancelable(false).create());
+  }
+
+  /** The lines under "Settings imported": the performance settings kept (another device), a newer version's left
+   *  out. */
+  private String settingsNotes(PlayerBackup.Origin from, boolean newer, boolean sameDevice,
+                               List<PlayerBackup.Plan> plans, int skipped) {
+    StringBuilder t = new StringBuilder();
+    int kept = 0;
+    for (PlayerBackup.Plan p : plans) kept += p.keptPerformance;
+    if (!sameDevice && kept > 0) {
+      t.append(getString(R.string.ingame_backup_graphics_kept, from != null && !from.device.isEmpty() ? from.device : "?"))
+          .append('\n');
+    }
+    if (newer && skipped > 0) {
+      t.append(getString(R.string.ingame_backup_newer, from.app)).append('\n');
+    }
+    return t.toString();
+  }
+
+  /** Every file of the card as .gci, the touch layout, the instant save and the settings in one ZIP (PlayerBackup). */
+  private void exportZipInto(Uri uri) throws IOException {
+    String[] rows = CoreBridge.cardList();
+    if (rows == null) {
+      // the card became busy meanwhile: no half backup
+      try { DocumentsContract.deleteDocument(getContentResolver(), uri); } catch (Exception ignored) {}
+      message(getString(R.string.ingame_card_unreadable));
+      return;
+    }
+    PlayerBackup.Contents c = new PlayerBackup.Contents();
+    StringBuilder problems = new StringBuilder();
+    for (String row : rows) {
+      int index = Integer.parseInt(row.split("\t", 2)[0]);
+      String name = CoreBridge.cardFileName(index);
+      byte[] gci = CoreBridge.cardExport(index);
+      if (gci == null || name == null) {
+        problems.append('\n').append(CoreBridge.cardNote());
+        continue;
+      }
+      c.card(name, gci);
+    }
+    int[] screen = touchScreen();
+    c.touch = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), screen[0], screen[1], appVersion());
+    ImportManager imports = ((Re4Application) getApplication()).imports;
+    if (imports.root != null) {
+      byte[] instant = PlayerBackup.read(PlayerBackup.instantFile(imports.root), PlayerBackup.INSTANT_BYTES + 1);
+      String problem = instant == null ? null : PlayerBackup.instantProblem(instant);
+      if (problem == null) c.instant = instant;
+      else Log.i(TAG, "export: the instant save left out (" + problem + ")");
+    }
+    java.util.Map<String, java.util.Map<String, ?>> groups = new java.util.LinkedHashMap<>();
+    for (String group : PlayerBackup.GROUPS) groups.put(group, getSharedPreferences(group, MODE_PRIVATE).getAll());
+    String device = deviceName();
+    c.settings = PlayerBackup.settings(groups, appVersion(), appVersionCode(), device);
+    try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+      if (out == null) throw new IOException("no stream");
+      PlayerBackup.write(out, c, appVersion(), appVersionCode(), device, System.currentTimeMillis());
+    } catch (IOException | RuntimeException e) {
+      // no half ZIP left behind (the storage full, the provider gone)
+      try { DocumentsContract.deleteDocument(getContentResolver(), uri); } catch (Exception ignored) {}
+      throw e;
+    }
+    String file = displayName(uri);
+    Log.i(TAG, "export: ZIP " + file + ": " + c.cardFiles.size() + " card files, touch layout " + (c.touch != null)
+        + ", instant save " + (c.instant != null) + ", settings " + c.settings.length() + " characters");
+    StringBuilder text = new StringBuilder(String.format(java.util.Locale.ROOT,
+        getResources().getQuantityString(R.plurals.ingame_backup_saved, c.cardFiles.size()), c.cardFiles.size(), file));
+    if (c.instant != null) text.append('\n').append(getString(R.string.ingame_backup_with_instant));
+    if (c.touch != null) text.append('\n').append(getString(R.string.ingame_backup_with_touch));
+    text.append('\n').append(getString(R.string.ingame_backup_with_settings));
+    message(text.toString() + problems);
+  }
+
+  /** The name the chosen file has (the picker may have changed the suggested one). */
+  private String displayName(Uri uri) {
+    try (android.database.Cursor c = getContentResolver().query(uri,
+        new String[] {android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+      if (c != null && c.moveToFirst() && c.getString(0) != null) return c.getString(0);
+    } catch (RuntimeException e) {
+      Log.i(TAG, "export: the file's name: " + e);
+    }
+    String last = uri.getLastPathSegment();
+    return last != null ? last.substring(last.lastIndexOf('/') + 1) : "?";
+  }
+
+  /** The device as the ZIP names it ("Retroid Pocket Flip 2"; the graphics settings come back only on the same). */
+  static String deviceName() {
+    String maker = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.trim();
+    String model = Build.MODEL == null ? "" : Build.MODEL.trim();
+    return model.toLowerCase(java.util.Locale.ROOT).startsWith(maker.toLowerCase(java.util.Locale.ROOT))
+        ? model : (maker + " " + model).trim();
+  }
+
+  /** The app's versionCode (117 for 0.99.15-rc). */
+  private long appVersionCode() {
+    try {
+      android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+      return Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+    } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+      return 0;
+    }
   }
 
   private void applyTouch(TouchLayoutFile.Parsed parsed, StringBuilder report) {

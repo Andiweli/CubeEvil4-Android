@@ -3,7 +3,85 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
-## Version 0.99.14-rc (in Arbeit, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc)
+## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
+
+Version 0.99.15-rc (versionCode 117), Releasetext `port/android-decomp/docs/releases/v0.99.15-rc.md` („Changes since
+v0.99.14.“, Known issues aus 0.99.14 übernommen). Nächste freie Patchnummer weiter 0232. Nur App (Java, Texte), der
+Spielkern ist unverändert.
+
+### 1. Spieldaten als ZIP, „Alle Daten löschen“, „Quelle und Updates“ (Projektinhaber, 14.11.2026)
+
+„Im Ingame Menu unter "Management": 1. Unter "SPEICHERKARTE" mach neben "Spieldaten exportieren (.gci)" auch einen
+Button "Spieldaten exportieren (.zip)" der alle aktuellen Daten inklusive den Einstellungen von RetroTouch in ein ZIP
+speichert, das dann auch unter "Spieldaten importieren" wieder importiert werden kann. Als vierten Button baue einen
+dezent rötlichen Button "Alle Daten löschen" ein, bei Klick soll auch wie bei den Mercenaries-Cheats ein Popup
+erscheinen mit zwei Button "Abbrechen" und "Löschen" … 2. ganz unten benenne "QUELLE" um auf "QUELLE UND UPDATES".“
+
+- **Speicherkarte, vier Knöpfe im 2×2-Raster** (`CoreMenu.management`): „Spieldaten exportieren (.gci)“,
+  „Spieldaten exportieren (.zip)“, „Spieldaten importieren (.gci, .zip, .raw)“, „Alle Daten löschen“ (dezent rot wie
+  der grüne Benchmark-Knopf: `WIPE_RED` 0xff3a2321, Rand 0xff6e3c37, Schrift 0xffe2c7c2). Der .zip-Knopf geht auch ohne
+  Spielstände (Einstellungen, Touch-Layout), nicht während die Karte belegt ist. Hilfetext erklärt beide Exporte und
+  das Löschen.
+- **ZIP (`PlayerBackup`, Format 1):** `CubeEvil4-backup.json` (Kennung `cubeevil4_backup`, App-Version und
+  versionCode, Gerät `Build.MANUFACTURER`/`MODEL`, Zeit, Inhalt), `memory-card/<Dolphin-Name>.gci` je Datei der Karte
+  (wie der .gci-Export), `CubeEvil4-touch-layout.json` (RetroTouch-Layout wie bisher, `TouchLayoutFile`),
+  `instant/slot-0.ce4save` (der Instant-Spielstand, geprüft wie `instant_store.cpp readSlot`: Kennung, Format 1, Größe,
+  beide CRC) und `CubeEvil4-settings.json` (Kennung `cubeevil4_settings`, je Gruppe jeder Schlüssel mit Typ:
+  `core_input` Steuerung mit den Touch-Schaltern, `core_game` Sprache/Cheats/Zufallsgegner, `core_graphics` Grafik und
+  Lautstärke, `core_log` Fehlerprotokoll-Schalter, `retrotouch_layouts` ohne die Layouts = RetroTouchs Knopfstil
+  `button_style_cubeevil4`). Nicht drin: Discs, HD-Texturpaket, Shader-Speicher, Protokolle, Vulkan-Startwächter,
+  gelernte Tonpuffer (`core_audio`), die alte ARM64-App („game-options“). Dateiname-Vorschlag
+  `CubeEvil4-backup-JJJJMMTT-HHMMSS.zip` (Android-Dateiauswahl „Speichern unter“); ein halb geschriebenes ZIP wird
+  gelöscht.
+- **Import (`SaveImport.read`, `CoreActivity.importNext`):** wie bisher .gci, Dolphin-Karte (.raw/.gcp) und ZIPs davon;
+  dazu Manifest, Einstellungsdatei und Instant-Spielstand (auch einzeln gewählt). Reihenfolge: Spielstände (vorhandene
+  Datei: Ersetzen/Überspringen wie bisher), Touch-Layout (wie bisher), Instant-Spielstand (vorhandener anderer:
+  Ersetzen/Überspringen; geschrieben neben die Datei und umbenannt), Einstellungen (nur wenn sie sich unterscheiden:
+  Frage Ersetzen/Überspringen), Bericht; nach übernommenen Einstellungen „Neu starten“ / „Später“ (Renderer, Sprache und
+  die Werte, die die Activity hält, wirken erst nach dem Neustart).
+- **Einstellungen zurück (`PlayerBackup.plan/apply`):** Schlüssel für Schlüssel. Anderer Typ als in dieser App:
+  ausgelassen; aus einer neueren Version (versionCode größer) nur Schlüssel, die es hier schon gibt; ein Schlüssel
+  dieser App, den das ZIP nicht hat, geht auf den Standard zurück (der Stand des ZIPs wird hergestellt). Von einem
+  anderen Gerät bleiben die **Leistungs-Einstellungen** dieses Geräts (`PlayerBackup.performance`: die Profil-Werte
+  `PerfProfile.KEYS`, `scale`, `frameskip`, `cpuSkip`, `mergeDraws`, `vertexRing`, `vkBandwidth`, `renderer`,
+  `dynamicCap30/60`, `hdTextures`/`hdHalf`, alles mit `perf…`/`bench…`); Lautstärke, Bildstil, Anzeigen und Steuerung
+  kommen mit. Ein ZIP von 0.99.14 oder älter gibt es nicht (dort nur Ordner-Export); ein gepackter Export-Ordner von
+  0.99.14 importiert weiter. Eine 0.99.14 nimmt aus dem neuen ZIP Spielstände und Touch-Layout, der Rest gilt als
+  „other files left out“.
+- **„Alle Daten löschen“ (`CoreMenu.askWipe`, `PlayerWipe`):** Frage im roten Stil der Spielfiguren-Warnung
+  (`warnCharacter`): Titel, Text (was gelöscht wird, was bleibt: RetroTouch, Discs, HD-Texturen, App-Einstellungen;
+  nicht rückgängig; vorher als .zip exportieren; das Spiel startet neu), „Abbrechen“ (Fokus) und „Löschen“ (rot). B,
+  Zurück, START, SELECT brechen ab. „Löschen“: Wunsch merken (`player_wipe/wipeAtStart`), Neustart ins Spiel wie beim
+  Renderer-Wechsel (`restartIntoGame`, neuer Prozess; der Kernprozess endet mit). Beim nächsten Start **vor**
+  `CoreBridge.start` löscht `PlayerWipe.prepare` `game/memcard/card-a.bin` und `game/instant/slot-0.ce4save` (samt
+  `.tmp`/`.import`); geht Löschen nicht, wird die Datei geleert. Der Kern legt dann eine neue Karte an, formatiert und
+  leer wie beim allerersten Start (`memcard.cpp insert`). Gewählt statt Formatieren im laufenden Spiel: das Spiel hält
+  Kartenverzeichnis und Systemdaten im Speicher und hätte sie beim nächsten Speichern zurückgeschrieben.
+- **„Quelle“ → „Quelle und Updates“** (Englisch „Source and updates“), Zusammenfassung „Speicherkarte, Discs,
+  Berichte, Quelle & Updates“; 20 neue Texte, 1 Pluralform, alle 11 Sprachen (`check_translations.py` 440 Texte ohne
+  Befund). Die neue Frage sagt „Abbrechen“; die älteren Fragen der App sagen weiter „Abbruch“ (`ingame_cancel`).
+- **Geprüft am PC:**
+  - App-Tests beider Varianten je 146 grün (Core 0, Classic 2 übersprungen). Neu `PlayerBackupTest` (12): Einstellungen
+    mit allen Typen zurück, Vulkan-Wächter und RetroTouch-Layout nicht in der Datei, Standard für Fehlendes, anderes
+    Gerät behält Auflösung/Renderer/Profil/Dynamik-Grenze/Benchmark und übernimmt Lautstärke/CRT/Touch, neuere Version
+    und falsche Typen ausgelassen, Instant-Spielstand-Prüfung, **Rundlauf Export → Alle Daten löschen → Import** (alle
+    Teile wieder da, Einstellungen gleich), 0.99.14-Import des neuen ZIPs (nur die .gci), alter Export-Ordner als ZIP,
+    Einstellungen allein, Löschen ohne Dateien. `CoreMenuLayoutTest` neu: vier Knöpfe in dieser Reihenfolge, .zip ohne
+    Spielstände an, Frage mit Fokus auf „Abbrechen“, Abbrechen und B lassen alles, Löschen ruft den Host; die
+    Sprachprüfung aller Seiten jetzt auch mit Indonesisch („in“ fehlte dort).
+  - Mit dem Spielkern (i686 -O2 aus `~/p09914/kern`, Debug-Discs, Datenordner ohne `RE4_MEMCARD`, Skript
+    `09915-wipe_test.sh` im Notizordner, Ergebnis `builds\09915\wipe-test-core.txt`): A neue Karte, Systemdatei angelegt,
+    Datei 1 in r100 gespeichert; A2 das Spiel läuft auf dieser Karte, die Datei wird gelöscht, das Spiel speichert
+    danach noch: keine Kartendatei danach (es schrieb nur in die gelöschte); B nächster Start: „made (… formatted,
+    empty)“, „files: none; 251 of 251 blocks free“, die Startprüfung legt die Systemdatei neu an, Speichern geht,
+    keine „broken / not formatted“-Meldung.
+  - Bilder aller 11 Sprachen (Management, Frage, Fokus auf „Alle Daten löschen“) in
+    `E:\Development\Android\builds\09915\menu\`, die deutschen und englischen auch in `builds\09915\`.
+- **Nicht geprüft:** auf einem Gerät (Android-Dateiauswahl beim Speichern des ZIPs, der Neustart nach „Löschen“ und
+  nach dem Einstellungs-Import, Import eines ZIPs von einem anderen Gerät); der Instant-Spielstand-Import mit dem echten
+  Kern (nur die Dateiprüfung und das Schreiben in Java).
+
+## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 
 Version 0.99.14-rc (versionCode 116), Releasetext `port/android-decomp/docs/releases/v0.99.14-rc.md` („Changes since
 v0.99.13.“, Known issues aus 0.99.13 übernommen). Nächste freie Patchnummer weiter 0232.

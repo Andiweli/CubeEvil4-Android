@@ -109,10 +109,15 @@
     <string name="ingame_update_page">नई रिलीज़ GitHub पर खुलती है: वहाँ से APK डाउनलोड करें और इंस्टॉल करें।</string>
 
     <string name="ingame_card">मेमोरी कार्ड (स्लॉट A)</string>
-    <string name="ingame_card_help">गेम डेटा एक्सपोर्ट और इम्पोर्ट करें: सेव गेम .gci के रूप में (Dolphin या GameCube के लिए) और आपका अपना टच लेआउट CubeEvil4-touch-layout.json के रूप में। इम्पोर्ट दोनों को वापस ले आता है।</string>
+    <string name="ingame_card_help">गेम डेटा एक्सपोर्ट करें: सेव गेम .gci के रूप में (Dolphin या GameCube के लिए) आपके अपने टच लेआउट CubeEvil4-touch-layout.json के साथ, या सब कुछ एक .zip में (सेव, तुरंत सेव, RetroTouch और ऐप की सेटिंग)। इम्पोर्ट सब कुछ वापस ले आता है। “सारा डेटा हटाएँ” मेमोरी कार्ड खाली करता है।</string>
     <string name="ingame_card_busy">कार्ड अभी उपयोग में है (गेम सेव या लोड कर रहा है) या गेम अभी लोड हो रहा है – मेनू बंद करें और थोड़ी देर बाद फिर खोलें।</string>
     <string name="ingame_card_none">कोई मेमोरी कार्ड नहीं।</string>
     <string name="ingame_export">गेम डेटा एक्सपोर्ट करें (.gci)</string>
+    <string name="ingame_export_zip">गेम डेटा एक्सपोर्ट करें (.zip)</string>
+    <string name="ingame_wipe">सारा डेटा हटाएँ</string>
+    <string name="ingame_wipe_text">मेमोरी कार्ड के सभी सेव और तुरंत सेव हटा दिए जाएँगे, जैसे कार्ड फ़ॉर्मेट किया गया हो। RetroTouch बना रहता है (आपका टच लेआउट और उसकी सेटिंग), और डिस्क, HD टेक्सचर और ऐप की सेटिंग भी। इसे वापस नहीं किया जा सकता: अपने सेव रखने के लिए पहले उन्हें एक्सपोर्ट करें (.zip)। इसके लिए गेम फिर से शुरू होता है।</string>
+    <string name="ingame_wipe_cancel">रद्द करें</string>
+    <string name="ingame_wipe_yes">हटाएँ</string>
     <string name="ingame_import">गेम डेटा इम्पोर्ट करें (.gci, .zip, .raw)</string>
     <string name="ingame_discs">डिस्क</string>
     <string name="ingame_discs_help">कोई दूसरा संस्करण खेलने के लिए: गेम बंद होगा, और आप स्टार्ट स्क्रीन पर उसकी दोनों डिस्क इम्पोर्ट करेंगे। सेव, मेमोरी कार्ड और सेटिंग्स बनी रहेंगी।</string>
@@ -127,7 +132,7 @@
     <string name="ingame_report_send">रिपोर्ट भेजें …</string>
     <string name="ingame_report_save">रिपोर्ट सहेजें …</string>
 
-    <string name="ingame_source">सोर्स कोड</string>
+    <string name="ingame_source">सोर्स कोड और अपडेट</string>
     <string name="ingame_source_line">इस पोर्ट के बारे में और जानकारी: %1$s</string>
     <string name="ingame_no_browser">इस डिवाइस पर कोई ब्राउज़र नहीं है</string>
 
@@ -170,6 +175,25 @@
     <string name="ingame_touch_imported">टच लेआउट इम्पोर्ट हुआ: तुरंत लागू।</string>
     <string name="ingame_touch_skipped">टच लेआउट छोड़ा गया: आपका लेआउट बना रहता है।</string>
     <string name="ingame_touch_import_bad">टच लेआउट इम्पोर्ट नहीं हुआ: %1$s</string>
+    <plurals name="ingame_backup_saved">
+        <item quantity="one">मेमोरी कार्ड की %1$d फ़ाइल %2$s में सेव की गई।</item>
+        <item quantity="other">मेमोरी कार्ड की %1$d फ़ाइलें %2$s में सेव की गईं।</item>
+    </plurals>
+    <string name="ingame_backup_with_instant">तुरंत सेव के साथ।</string>
+    <string name="ingame_backup_with_touch">आपके टच लेआउट के साथ।</string>
+    <string name="ingame_backup_with_settings">ऐप और RetroTouch की सेटिंग के साथ।</string>
+    <string name="ingame_backup_instant_imported">तुरंत सेव इम्पोर्ट किया गया।</string>
+    <string name="ingame_backup_instant_exists">आपका तुरंत सेव पहले से है। क्या उसे इम्पोर्ट किए गए सेव से बदलें?</string>
+    <string name="ingame_backup_instant_skipped">तुरंत सेव छोड़ा गया: आपका सेव बना रहता है।</string>
+    <string name="ingame_backup_instant_bad">तुरंत सेव इम्पोर्ट नहीं हुआ: %1$s</string>
+    <string name="ingame_backup_settings_exists">क्या अपनी सेटिंग को इम्पोर्ट की गई सेटिंग से बदलें (कंट्रोल, RetroTouch, गेम, ग्राफ़िक्स और साउंड)?</string>
+    <string name="ingame_backup_settings_imported">सेटिंग इम्पोर्ट की गईं।</string>
+    <string name="ingame_backup_settings_skipped">सेटिंग छोड़ी गईं: आपकी सेटिंग बनी रहती हैं।</string>
+    <string name="ingame_backup_settings_same">सेटिंग: आपकी सेटिंग जैसी ही।</string>
+    <string name="ingame_backup_settings_bad">सेटिंग इम्पोर्ट नहीं हुईं: %1$s</string>
+    <string name="ingame_backup_graphics_kept">बैकअप किसी दूसरे डिवाइस पर बना था (%1$s): इस डिवाइस का रेज़ोल्यूशन, रेंडरर और बाकी परफ़ॉर्मेंस सेटिंग बनी रहती हैं।</string>
+    <string name="ingame_backup_newer">फ़ाइल किसी नए वर्ज़न से है (%1$s): जो सेटिंग इस वर्ज़न में नहीं हैं, वे छोड़ दी गईं।</string>
+    <string name="ingame_backup_restart">इम्पोर्ट की गई सेटिंग इस्तेमाल करने के लिए गेम फिर से शुरू होता है। बिना सेव की गई प्रगति खो जाती है।</string>
     <string name="ingame_report_chooser">त्रुटि रिपोर्ट भेजें</string>
     <string name="ingame_report_failed">रिपोर्ट नहीं बन सकी: %1$s</string>
     <string name="ingame_capture_saved">ग्राफ़िक्स कैप्चर सहेजा गया</string>
@@ -190,7 +214,7 @@
     <string name="ingame_display_summary">रिज़ॉल्यूशन, चित्र और प्रभाव</string>
     <string name="ingame_controls_summary">टच, जाइरो और सुविधाजनक नियंत्रण</string>
     <string name="ingame_performance_summary">तेज़ कोर, 60 FPS और जानकारी</string>
-    <string name="ingame_management_summary">मेमोरी कार्ड, डिस्क, रिपोर्ट और सोर्स</string>
+    <string name="ingame_management_summary">मेमोरी कार्ड, डिस्क, रिपोर्ट, सोर्स और अपडेट</string>
     <string name="ingame_audio">ऑडियो</string>
     <string name="ingame_audio_summary">संगीत और साउंड इफ़ेक्ट</string>
     <string name="ingame_cheats_summary">सामान्य, हथियार, पैसा व टेक्सचर</string>

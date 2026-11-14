@@ -97,7 +97,7 @@ public class CoreMenuLayoutTest {
   }
 
   @Test public void allPagesFitAcrossLanguagesWidthsAndFontScales() throws Exception {
-    String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi"};
+    String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class},
         // gameLanguages: the home page with the European discs' "Game language" too
@@ -863,6 +863,74 @@ public class CoreMenuLayoutTest {
       ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
       TestLooper.idle();
       assertEquals("Restart clears the shader cache", 1, calls[0]);
+    }
+  }
+
+  /** Management (0.99.15): the memory card's four buttons in this order (.gci export, .zip export, import, Delete All
+   *  Data); the .zip also with an empty card; "Delete All Data" asks in the red question with Cancel and Delete,
+   *  Cancel (and B) keep everything, Delete hands it to the host (CoreActivity: the restart without the card's data). */
+  @Test public void managementExportsZipAndDeletesAllDataAfterAsking() throws Exception {
+    final int[] wipes = {0}, zips = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("wipePlayerData")) wipes[0]++;
+          if (method.getName().equals("exportZip")) zips[0]++;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 6, false);  // MANAGEMENT
+      View root = (View) field(menu, "root");
+      Button gci = findButton(root, activity.getString(R.string.ingame_export));
+      Button zip = findButton(root, activity.getString(R.string.ingame_export_zip));
+      Button imports = findButton(root, activity.getString(R.string.ingame_import));
+      Button wipe = findButton(root, activity.getString(R.string.ingame_wipe));
+      assertNotNull(zip);
+      assertNotNull(wipe);
+      ViewGroup row = (ViewGroup) gci.getParent();
+      assertSame("one group of buttons", row, zip.getParent());
+      assertSame(row, wipe.getParent());
+      assertEquals(0, row.indexOfChild(gci));
+      assertEquals(1, row.indexOfChild(zip));
+      assertEquals(2, row.indexOfChild(imports));
+      assertEquals(3, row.indexOfChild(wipe));
+      assertFalse("no saves: no .gci", gci.isEnabled());
+      assertTrue("the .zip holds the settings anyway", zip.isEnabled());
+      zip.performClick();
+      assertEquals(1, zips[0]);
+      // the summary and the heading at the bottom (wish of the project owner, 14.11.2026)
+      assertNotNull(findText(root, activity.getString(R.string.ingame_source).toUpperCase(Locale.getDefault())));
+      wipe.performClick();
+      TestLooper.idle();
+      android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertNotNull("it asks first", ask);
+      View box = ask.getWindow().getDecorView();
+      assertNotNull("the text says what goes and what stays", findText(box, activity.getString(R.string.ingame_wipe_text)));
+      Button cancel = findButton(box, activity.getString(R.string.ingame_wipe_cancel));
+      Button delete = findButton(box, activity.getString(R.string.ingame_wipe_yes));
+      assertNotNull(cancel);
+      assertNotNull(delete);
+      assertTrue("the focus starts on Cancel", cancel.isFocused());
+      cancel.performClick();
+      TestLooper.idle();
+      assertFalse(ask.isShowing());
+      assertEquals("Cancel keeps everything", 0, wipes[0]);
+      wipe.performClick();
+      TestLooper.idle();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      ask.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_B));
+      TestLooper.idle();
+      assertFalse("B cancels", ask.isShowing());
+      assertEquals(0, wipes[0]);
+      wipe.performClick();
+      TestLooper.idle();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      findButton(ask.getWindow().getDecorView(), activity.getString(R.string.ingame_wipe_yes)).performClick();
+      TestLooper.idle();
+      assertEquals("Delete hands it to the host", 1, wipes[0]);
     }
   }
 

@@ -118,6 +118,17 @@ public class CoreMenuShotTest {
           picture.compress(Bitmap.CompressFormat.PNG, 100, out);
         }
         ask.dismiss();
+        // the question before "Delete All Data" (0.99.15), as wide as the warning above; the focus on Cancel
+        show.invoke(menu, 6, false);
+        firstButton(body, b -> b.getText().toString().equals(activity.getString(R.string.ingame_wipe))).performClick();
+        TestLooper.idle();
+        ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+        dialogPicture(ask, config, new File(folder, language + "-wipe-question.png"));
+        ask.dismiss();
+        // the memory card's buttons with the controller's focus on "Delete All Data"
+        show.invoke(menu, 6, false);
+        focus(firstButton(body, b -> b.getText().toString().equals(activity.getString(R.string.ingame_wipe))));
+        picture(body, 900, new File(folder, language + "-focus-wipe.png"));
       }
     }
   }
@@ -136,6 +147,21 @@ public class CoreMenuShotTest {
       }
     }
     return null;
+  }
+  /** A question of the menu as Android shows it, 500 px wide (the character warning's width). */
+  private static void dialogPicture(android.app.AlertDialog ask, Configuration config, File file) throws Exception {
+    View decor = ask.getWindow().getDecorView();
+    decor.setLayoutDirection(config.getLayoutDirection());
+    int width = 500;
+    decor.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+    decor.layout(0, 0, width, decor.getMeasuredHeight());
+    decor.getViewTreeObserver().dispatchOnPreDraw();
+    Bitmap picture = Bitmap.createBitmap(width, decor.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+    Canvas canvas = new Canvas(picture);
+    canvas.drawColor(0xff0b0d0c);
+    decor.draw(canvas);
+    try (FileOutputStream out = new FileOutputStream(file)) { picture.compress(Bitmap.CompressFormat.PNG, 100, out); }
   }
   private static void picture(View body, int width, File file) throws Exception {
     body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),

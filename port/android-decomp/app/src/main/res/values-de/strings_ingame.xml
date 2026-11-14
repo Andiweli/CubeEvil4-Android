@@ -109,10 +109,15 @@
     <string name="ingame_update_page">Das neueste Release öffnet sich auf GitHub: Lade dort die APK herunter und installiere sie.</string>
 
     <string name="ingame_card">Speicherkarte (Steckplatz A)</string>
-    <string name="ingame_card_help">Spieldaten exportieren und importieren: die Spielstände als .gci (für Dolphin oder GameCube) und ein eigenes Touch-Layout als CubeEvil4-touch-layout.json. Der Import holt beides zurück.</string>
+    <string name="ingame_card_help">Spieldaten exportieren: die Spielstände als .gci (für Dolphin oder GameCube) mit einem eigenen Touch-Layout als CubeEvil4-touch-layout.json, oder alles in einer .zip (Spielstände, Instant-Spielstand, RetroTouch und die Einstellungen der App). Der Import holt es zurück. „Alle Daten löschen“ leert die Speicherkarte.</string>
     <string name="ingame_card_busy">Die Karte wird gerade benutzt (das Spiel speichert oder lädt) oder das Spiel lädt noch – Menü schließen und gleich noch einmal öffnen.</string>
     <string name="ingame_card_none">Keine Speicherkarte.</string>
     <string name="ingame_export">Spieldaten exportieren (.gci)</string>
+    <string name="ingame_export_zip">Spieldaten exportieren (.zip)</string>
+    <string name="ingame_wipe">Alle Daten löschen</string>
+    <string name="ingame_wipe_text">Alle Spielstände auf der Speicherkarte und der Instant-Spielstand werden gelöscht, als wäre die Karte formatiert. RetroTouch bleibt (dein Touch-Layout und seine Einstellungen), ebenso die Discs, die HD-Texturen und die Einstellungen der App. Das lässt sich nicht rückgängig machen: Wenn du deine Spielstände behalten willst, exportiere sie vorher (.zip). Das Spiel startet dafür neu.</string>
+    <string name="ingame_wipe_cancel">Abbrechen</string>
+    <string name="ingame_wipe_yes">Löschen</string>
     <string name="ingame_import">Spieldaten importieren (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">Für eine andere Version: Das Spiel endet, und du importierst ihre beiden Discs auf dem Startbildschirm. Spielstände, Speicherkarte und Einstellungen bleiben erhalten.</string>
@@ -127,7 +132,7 @@
     <string name="ingame_report_send">Bericht senden …</string>
     <string name="ingame_report_save">Bericht speichern …</string>
 
-    <string name="ingame_source">Quelle</string>
+    <string name="ingame_source">Quelle und Updates</string>
     <string name="ingame_source_line">Mehr zu dieser Portierung unter %1$s</string>
     <string name="ingame_no_browser">Kein Browser auf diesem Gerät</string>
 
@@ -170,6 +175,25 @@
     <string name="ingame_touch_imported">Touch-Layout importiert: gilt ab sofort.</string>
     <string name="ingame_touch_skipped">Touch-Layout übersprungen: deins bleibt.</string>
     <string name="ingame_touch_import_bad">Touch-Layout nicht importiert: %1$s</string>
+    <plurals name="ingame_backup_saved">
+        <item quantity="one">%1$d Datei der Speicherkarte gespeichert in %2$s.</item>
+        <item quantity="other">%1$d Dateien der Speicherkarte gespeichert in %2$s.</item>
+    </plurals>
+    <string name="ingame_backup_with_instant">Mit dem Instant-Spielstand.</string>
+    <string name="ingame_backup_with_touch">Mit deinem Touch-Layout.</string>
+    <string name="ingame_backup_with_settings">Mit den Einstellungen der App und von RetroTouch.</string>
+    <string name="ingame_backup_instant_imported">Instant-Spielstand importiert.</string>
+    <string name="ingame_backup_instant_exists">Du hast schon einen Instant-Spielstand. Durch den importierten ersetzen?</string>
+    <string name="ingame_backup_instant_skipped">Instant-Spielstand übersprungen: deiner bleibt.</string>
+    <string name="ingame_backup_instant_bad">Instant-Spielstand nicht importiert: %1$s</string>
+    <string name="ingame_backup_settings_exists">Deine Einstellungen durch die importierten ersetzen (Steuerung, RetroTouch, Spiel, Grafik und Ton)?</string>
+    <string name="ingame_backup_settings_imported">Einstellungen importiert.</string>
+    <string name="ingame_backup_settings_skipped">Einstellungen übersprungen: deine bleiben.</string>
+    <string name="ingame_backup_settings_same">Einstellungen: dieselben wie deine.</string>
+    <string name="ingame_backup_settings_bad">Einstellungen nicht importiert: %1$s</string>
+    <string name="ingame_backup_graphics_kept">Die Sicherung stammt von einem anderen Gerät (%1$s): Auflösung, Renderer und die übrigen Leistungs-Einstellungen dieses Geräts bleiben.</string>
+    <string name="ingame_backup_newer">Die Datei stammt aus einer neueren Version (%1$s): Einstellungen, die diese Version nicht kennt, bleiben weg.</string>
+    <string name="ingame_backup_restart">Das Spiel startet neu, um die importierten Einstellungen zu nutzen. Nicht gespeicherter Fortschritt geht verloren.</string>
     <string name="ingame_report_chooser">Fehlerbericht senden</string>
     <string name="ingame_report_failed">Der Bericht konnte nicht erstellt werden: %1$s</string>
     <string name="ingame_capture_saved">Grafikaufnahme gespeichert</string>
@@ -190,7 +214,7 @@
     <string name="ingame_display_summary">Auflösung, Bildformat &amp; Effekte</string>
     <string name="ingame_controls_summary">Touch, Gyro &amp; Komfortsteuerung</string>
     <string name="ingame_performance_summary">Leistungskerne, 60 FPS &amp; Anzeige</string>
-    <string name="ingame_management_summary">Speicherkarte, Discs, Berichte &amp; Quelle</string>
+    <string name="ingame_management_summary">Speicherkarte, Discs, Berichte, Quelle &amp; Updates</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musik &amp; Soundeffekte</string>
     <string name="ingame_cheats_summary">Allgemein, Waffen, Geld und Texturen</string>

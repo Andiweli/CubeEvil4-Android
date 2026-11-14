@@ -110,10 +110,15 @@
     <string name="ingame_update_page">Rilis terbaru terbuka di GitHub: unduh APK di sana lalu pasang.</string>
 
     <string name="ingame_card">Kartu memori (slot A)</string>
-    <string name="ingame_card_help">Ekspor dan impor data game: data simpanan sebagai .gci (untuk Dolphin atau GameCube) dan tata letak sentuh milik Anda sebagai CubeEvil4-touch-layout.json. Impor memulihkan keduanya.</string>
+    <string name="ingame_card_help">Ekspor data game: data simpanan sebagai .gci (untuk Dolphin atau GameCube) dengan tata letak sentuh milik Anda sebagai CubeEvil4-touch-layout.json, atau semuanya dalam satu .zip (data simpanan, simpan cepat, RetroTouch, dan pengaturan aplikasi). Impor memulihkan semuanya. Hapus Semua Data mengosongkan kartu memori.</string>
     <string name="ingame_card_busy">Kartu sedang dipakai (game sedang menyimpan atau memuat) atau game masih memuat – tutup menu dan buka lagi sebentar lagi.</string>
     <string name="ingame_card_none">Tidak ada kartu memori.</string>
     <string name="ingame_export">Ekspor Data Game (.gci)</string>
+    <string name="ingame_export_zip">Ekspor Data Game (.zip)</string>
+    <string name="ingame_wipe">Hapus Semua Data</string>
+    <string name="ingame_wipe_text">Semua data simpanan di kartu memori dan simpan cepat akan dihapus, seolah kartu diformat. RetroTouch tetap ada (tata letak sentuh Anda dan pengaturannya), begitu juga disk, tekstur HD, dan pengaturan aplikasi. Ini tidak bisa dibatalkan: untuk menyimpan data simpanan Anda, ekspor dulu (.zip). Game dimulai ulang untuk ini.</string>
+    <string name="ingame_wipe_cancel">Batal</string>
+    <string name="ingame_wipe_yes">Hapus</string>
     <string name="ingame_import">Impor Data Game (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Disk</string>
     <string name="ingame_discs_help">Untuk memainkan versi lain: game berakhir, lalu Anda mengimpor kedua disknya di layar awal. Data simpanan, kartu memori, dan pengaturan tetap ada.</string>
@@ -128,7 +133,7 @@
     <string name="ingame_report_send">Kirim laporan …</string>
     <string name="ingame_report_save">Simpan laporan …</string>
 
-    <string name="ingame_source">Sumber</string>
+    <string name="ingame_source">Sumber dan pembaruan</string>
     <string name="ingame_source_line">Info lebih lanjut tentang port ini di %1$s</string>
     <string name="ingame_no_browser">Tidak ada browser di perangkat ini</string>
 
@@ -169,6 +174,24 @@
     <string name="ingame_touch_imported">Tata letak sentuh diimpor: langsung dipakai.</string>
     <string name="ingame_touch_skipped">Tata letak sentuh dilewati: milik Anda tetap.</string>
     <string name="ingame_touch_import_bad">Tata letak sentuh tidak diimpor: %1$s</string>
+    <plurals name="ingame_backup_saved">
+        <item quantity="other">%1$d file kartu memori disimpan di %2$s.</item>
+    </plurals>
+    <string name="ingame_backup_with_instant">Dengan simpan cepat.</string>
+    <string name="ingame_backup_with_touch">Dengan tata letak sentuh Anda.</string>
+    <string name="ingame_backup_with_settings">Dengan pengaturan aplikasi dan RetroTouch.</string>
+    <string name="ingame_backup_instant_imported">Simpan cepat diimpor.</string>
+    <string name="ingame_backup_instant_exists">Anda sudah punya simpan cepat. Ganti dengan yang diimpor?</string>
+    <string name="ingame_backup_instant_skipped">Simpan cepat dilewati: milik Anda tetap.</string>
+    <string name="ingame_backup_instant_bad">Simpan cepat tidak diimpor: %1$s</string>
+    <string name="ingame_backup_settings_exists">Ganti pengaturan Anda dengan yang diimpor (kontrol, RetroTouch, game, grafis, dan suara)?</string>
+    <string name="ingame_backup_settings_imported">Pengaturan diimpor.</string>
+    <string name="ingame_backup_settings_skipped">Pengaturan dilewati: milik Anda tetap.</string>
+    <string name="ingame_backup_settings_same">Pengaturan: sama dengan milik Anda.</string>
+    <string name="ingame_backup_settings_bad">Pengaturan tidak diimpor: %1$s</string>
+    <string name="ingame_backup_graphics_kept">Cadangan dibuat di perangkat lain (%1$s): resolusi, renderer, dan pengaturan performa lain perangkat ini tetap.</string>
+    <string name="ingame_backup_newer">File berasal dari versi yang lebih baru (%1$s): pengaturan yang tidak dimiliki versi ini dilewati.</string>
+    <string name="ingame_backup_restart">Game dimulai ulang untuk memakai pengaturan yang diimpor. Kemajuan yang belum disimpan akan hilang.</string>
     <string name="ingame_report_chooser">Kirim laporan kesalahan</string>
     <string name="ingame_report_failed">Laporan tidak dapat dibuat: %1$s</string>
     <string name="ingame_capture_saved">Tangkapan grafis disimpan</string>
@@ -188,7 +211,7 @@
     <string name="ingame_display_summary">Resolusi, gambar &amp; efek</string>
     <string name="ingame_controls_summary">Kontrol sentuh, giroskop &amp; nyaman</string>
     <string name="ingame_performance_summary">Inti performa, 60 FPS &amp; tampilan</string>
-    <string name="ingame_management_summary">Kartu memori, disk, laporan &amp; sumber</string>
+    <string name="ingame_management_summary">Kartu memori, disk, laporan, sumber &amp; pembaruan</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Musik &amp; efek suara</string>
     <string name="ingame_cheats_summary">Umum, senjata, uang dan tekstur</string>

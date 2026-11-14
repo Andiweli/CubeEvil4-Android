@@ -120,10 +120,15 @@
 
     <!-- Memory card -->
     <string name="ingame_card">Memory card (slot A)</string>
-    <string name="ingame_card_help">Export and Import Player Data: your saves as .gci (for Dolphin or GameCube) and a touch layout of your own as CubeEvil4-touch-layout.json. The import brings both back.</string>
+    <string name="ingame_card_help">Export Player Data: your saves as .gci (for Dolphin or GameCube) with a touch layout of your own as CubeEvil4-touch-layout.json, or everything in one .zip (saves, instant save, RetroTouch and the app\'s settings). The import brings it back. Delete All Data empties the memory card.</string>
     <string name="ingame_card_busy">The card is in use (the game saves or loads) or the game is still loading – close the menu and open it again in a moment.</string>
     <string name="ingame_card_none">No memory card.</string>
     <string name="ingame_export">Export Player Data (.gci)</string>
+    <string name="ingame_export_zip">Export Player Data (.zip)</string>
+    <string name="ingame_wipe">Delete All Data</string>
+    <string name="ingame_wipe_text">All saves on the memory card and the instant save will be deleted, as if the card were formatted. RetroTouch stays (your touch layout and its settings), and so do the discs, the HD textures and the app\'s settings. This cannot be undone: to keep your saves, export them first (.zip). The game restarts for it.</string>
+    <string name="ingame_wipe_cancel">Cancel</string>
+    <string name="ingame_wipe_yes">Delete</string>
     <string name="ingame_import">Import Player Data (.gci, .zip, .raw)</string>
     <string name="ingame_discs">Discs</string>
     <string name="ingame_discs_help">To play another version: the game ends, and you import both of its discs on the start screen. Saves, memory card and settings stay.</string>
@@ -140,7 +145,7 @@
     <string name="ingame_report_save">Save report …</string>
 
     <!-- Source -->
-    <string name="ingame_source">Source</string>
+    <string name="ingame_source">Source and updates</string>
     <string name="ingame_source_line">More on this port at %1$s</string>
     <string name="ingame_no_browser">No browser on this device</string>
 
@@ -185,6 +190,25 @@
     <string name="ingame_touch_imported">Touch layout imported: in use right away.</string>
     <string name="ingame_touch_skipped">Touch layout skipped: yours stays.</string>
     <string name="ingame_touch_import_bad">Touch layout not imported: %1$s</string>
+    <plurals name="ingame_backup_saved">
+        <item quantity="one">%1$d file of the memory card saved in %2$s.</item>
+        <item quantity="other">%1$d files of the memory card saved in %2$s.</item>
+    </plurals>
+    <string name="ingame_backup_with_instant">With the instant save.</string>
+    <string name="ingame_backup_with_touch">With your touch layout.</string>
+    <string name="ingame_backup_with_settings">With the settings of the app and of RetroTouch.</string>
+    <string name="ingame_backup_instant_imported">Instant save imported.</string>
+    <string name="ingame_backup_instant_exists">You have an instant save already. Replace it with the imported one?</string>
+    <string name="ingame_backup_instant_skipped">Instant save skipped: yours stays.</string>
+    <string name="ingame_backup_instant_bad">Instant save not imported: %1$s</string>
+    <string name="ingame_backup_settings_exists">Replace your settings with the imported ones (controls, RetroTouch, game, graphics and sound)?</string>
+    <string name="ingame_backup_settings_imported">Settings imported.</string>
+    <string name="ingame_backup_settings_skipped">Settings skipped: yours stay.</string>
+    <string name="ingame_backup_settings_same">Settings: the same as yours.</string>
+    <string name="ingame_backup_settings_bad">Settings not imported: %1$s</string>
+    <string name="ingame_backup_graphics_kept">The backup was made on another device (%1$s): the resolution, the renderer and the other performance settings of this device stay.</string>
+    <string name="ingame_backup_newer">The file comes from a newer version (%1$s): settings this version does not have are left out.</string>
+    <string name="ingame_backup_restart">The game restarts to use the imported settings. Progress not saved is lost.</string>
     <string name="ingame_report_chooser">Send the error report</string>
     <string name="ingame_report_failed">The report could not be made: %1$s</string>
     <string name="ingame_capture_saved">Graphics capture saved</string>
@@ -205,7 +229,7 @@
     <string name="ingame_display_summary">Resolution, picture &amp; effects</string>
     <string name="ingame_controls_summary">Touch, gyro &amp; comfort controls</string>
     <string name="ingame_performance_summary">Performance cores, 60 FPS &amp; display</string>
-    <string name="ingame_management_summary">Memory card, discs, reports &amp; source</string>
+    <string name="ingame_management_summary">Memory card, discs, reports, source &amp; updates</string>
     <string name="ingame_audio">Audio</string>
     <string name="ingame_audio_summary">Music &amp; sound effects</string>
     <string name="ingame_cheats_summary">General, weapons, money &amp; textures</string>

@@ -45,7 +45,13 @@ final class CoreMenu extends Dialog {
     /** Picture options changed (the preferences hold them). */
     void graphicsChanged();
     void exportAll();
+    /** "Export Player Data (.zip)" (0.99.15, PlayerBackup): the memory card's files, the touch layout, the instant save
+     *  and the settings in one ZIP the player names. */
+    void exportZip();
     void importFiles();
+    /** "Delete All Data" (the menu asked first, 0.99.15, PlayerWipe): the game restarts and the memory card and the
+     *  instant save are deleted before the core opens them. */
+    void wipePlayerData();
     /** "Import other discs" (the menu asked first): the game ends and the start screen opens without starting it. */
     void importDiscs();
     /** "Import texture pack" (Cheats & Mods, TexturePacks): the file picker, then the copy into the app's textures
@@ -182,6 +188,8 @@ final class CoreMenu extends Dialog {
   private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
   // the warning before another player character (08.11.2026): a dark red under the text, the "Update" button's edge
   private static final int WARN_RED = 0xff4e1f1c;
+  // "Delete All Data" in a quiet red (wish of the project owner, 14.11.2026: "dezent rötlich"), as the Benchmark's green
+  private static final int WIPE_RED = 0xff3a2321, WIPE_RED_EDGE = 0xff6e3c37, WIPE_TEXT = 0xffe2c7c2;
   // the Benchmark button: the green of "Up to date", quieter (wish of the project owner, 06.11.2026)
   private static final int BENCH_GREEN = 0xff223a27, BENCH_GREEN_EDGE = 0xff3b6343, BENCH_TEXT = 0xffc3d6c5;
   private final Handler main = new Handler(Looper.getMainLooper());
@@ -205,7 +213,7 @@ final class CoreMenu extends Dialog {
   private Button hdImport;
   private boolean updateAsked;  // the question after an update (PerfProfile.FIRST_ASK) shown in this menu
   private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
-  private Button exportAll, saveSlot, loadSlot;
+  private Button exportAll, exportZip, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
     if (r - l != oldR - oldL || b - t != oldB - oldT) resizeWindow();
   };
@@ -1631,9 +1639,13 @@ final class CoreMenu extends Dialog {
   private void management() {
     heading(R.string.ingame_card); help(R.string.ingame_card_help);
     cardLine = text("", 15, false); cardLine.setPadding(dp(MenuLayout.GAP), 0, dp(MenuLayout.GAP), 0); body.addView(cardLine);
+    // the .zip export beside the .gci one, then the import and "Delete All Data" (wish of the project owner,
+    // 14.11.2026, 0.99.15)
     MenuLayout.Buttons cardButtons = buttonsRow(body);
     exportAll = cellAction(cardButtons, s(R.string.ingame_export), v -> host.exportAll());
-    cellAction(cardButtons, s(R.string.ingame_import), v -> host.importFiles()); refreshCard();
+    exportZip = cellAction(cardButtons, s(R.string.ingame_export_zip), v -> host.exportZip());
+    cellAction(cardButtons, s(R.string.ingame_import), v -> host.importFiles());
+    cardButtons.addButton(wipeButton()); refreshCard();
     // another release over the imported discs (wish of the project owner, 06.11.2026)
     heading(R.string.ingame_discs); help(R.string.ingame_discs_help);
     cellAction(buttonsRow(body), s(R.string.ingame_import_discs), v -> askImportDiscs());
@@ -1648,8 +1660,82 @@ final class CoreMenu extends Dialog {
     // owner, 08.11.2026): emptied by hand here
     heading(R.string.ingame_shader_cache); help(R.string.ingame_shader_cache_help);
     cellAction(buttonsRow(body), s(R.string.ingame_shader_clear), v -> askClearShaders());
+    // "Source and updates" (wish of the project owner, 14.11.2026): the releases are on the same page
     heading(R.string.ingame_source);
     cellAction(buttonsRow(body), getContext().getString(R.string.ingame_source_line, SOURCE_URL), v -> openSource());
+  }
+
+  /** "Delete All Data" in a quiet red (the Benchmark button's way, in red). */
+  private Button wipeButton() {
+    Button wipe = button(s(R.string.ingame_wipe), v -> askWipe());
+    StateListDrawable quiet = new StateListDrawable();
+    quiet.addState(new int[] {android.R.attr.state_focused}, focused());
+    quiet.addState(new int[] {android.R.attr.state_pressed}, shape(WIPE_RED, UPDATE_RED_EDGE, 6));
+    quiet.addState(new int[0], shape(WIPE_RED, WIPE_RED_EDGE, 6));
+    wipe.setBackground(quiet);
+    wipe.setTextColor(FocusLook.text(ColorStateList.valueOf(WIPE_TEXT)));
+    wipe.setEnabled(host != null);
+    return wipe;
+  }
+
+  /**
+   * Before "Delete All Data" (wish of the project owner, 14.11.2026): the red question of the player characters
+   * (warnCharacter) with two buttons, "Cancel" and "Delete" in red; the text says what goes and what stays. The focus
+   * starts on "Cancel"; Back, B, Esc, START, SELECT or a touch beside it cancel, A or Enter press the focused button.
+   * "Delete" closes the menu, and the game restarts without the memory card's data (Host.wipePlayerData).
+   */
+  private void askWipe() {
+    LinearLayout box = column();
+    box.setPadding(dp(24), dp(20), dp(24), dp(18));
+    TextView title = text(s(R.string.ingame_wipe), 20, true);
+    title.setGravity(Gravity.CENTER); title.setTextAlignment(View.TEXT_ALIGNMENT_GRAVITY);
+    box.addView(title, new LinearLayout.LayoutParams(-1, -2));
+    TextView message = text(s(R.string.ingame_wipe_text), 16, false);
+    message.setTextColor(INK); message.setLineSpacing(0, 1.1f);
+    message.setGravity(Gravity.CENTER_HORIZONTAL); message.setTextAlignment(View.TEXT_ALIGNMENT_GRAVITY);
+    ScrollView scroller = new ScrollView(getContext());
+    scroller.addView(message, new ViewGroup.LayoutParams(-1, -2));
+    LinearLayout.LayoutParams between = new LinearLayout.LayoutParams(-1, -2, 1);
+    between.setMargins(0, dp(12), 0, dp(18));
+    box.addView(scroller, between);
+    final AlertDialog[] shown = new AlertDialog[1];
+    Button cancel = button(s(R.string.ingame_wipe_cancel), v -> shown[0].cancel());
+    Button delete = button(s(R.string.ingame_wipe_yes), v -> {
+      shown[0].dismiss(); close();
+      if (host != null) host.wipePlayerData();
+    });
+    StateListDrawable look = new StateListDrawable();
+    look.addState(new int[] {android.R.attr.state_focused}, focused());
+    look.addState(new int[] {android.R.attr.state_pressed}, shape(UPDATE_RED, INK, 6));
+    look.addState(new int[0], shape(UPDATE_RED, UPDATE_RED_EDGE, 6));
+    delete.setBackground(look); delete.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
+    for (Button b : new Button[] {cancel, delete}) b.setPadding(dp(24), dp(8), dp(24), dp(8));
+    LinearLayout buttons = row();
+    buttons.setGravity(Gravity.CENTER);
+    LinearLayout.LayoutParams half = new LinearLayout.LayoutParams(0, -2, 1);
+    half.setMarginEnd(dp(6));
+    buttons.addView(cancel, half);
+    half = new LinearLayout.LayoutParams(0, -2, 1);
+    half.setMarginStart(dp(6));
+    buttons.addView(delete, half);
+    box.addView(buttons, new LinearLayout.LayoutParams(-1, -2));
+    AlertDialog dialog = new AlertDialog.Builder(getContext()).setView(box).create();
+    shown[0] = dialog;
+    GradientDrawable frame = shape(WARN_RED, UPDATE_RED_EDGE, 10); frame.setStroke(dp(2), UPDATE_RED_EDGE);
+    dialog.getWindow().setBackgroundDrawable(frame);
+    dialog.setOnKeyListener((d, key, event) -> {
+      if (key == KeyEvent.KEYCODE_BUTTON_A) {
+        return dialog.getWindow().superDispatchKeyEvent(new KeyEvent(event.getDownTime(), event.getEventTime(),
+            event.getAction(), KeyEvent.KEYCODE_DPAD_CENTER, event.getRepeatCount()));
+      }
+      if (key != KeyEvent.KEYCODE_ESCAPE && !KeyEvent.isGamepadButton(key)) return false;
+      if ((key == KeyEvent.KEYCODE_ESCAPE || key == KeyEvent.KEYCODE_BUTTON_B || key == KeyEvent.KEYCODE_BUTTON_START
+          || key == KeyEvent.KEYCODE_BUTTON_SELECT) && event.getAction() == KeyEvent.ACTION_DOWN
+          && event.getRepeatCount() == 0) dialog.cancel();
+      return true;
+    });
+    dialog.setOnShowListener(d -> cancel.requestFocus());
+    Immersive.show(dialog);
   }
 
   /** "Cheats" at the top of Management (wish and decisions of the project owner, 27.10.2026;
@@ -2082,10 +2168,15 @@ final class CoreMenu extends Dialog {
   void refreshCard() {
     if (cardLine == null || exportAll == null) return;
     String[] rows = CoreBridge.cardList();
+    // the .zip also without saves (the touch layout, the instant save and the settings), not while the card is busy
     if (rows == null) {
       cardLine.setText(s("busy".equals(CoreBridge.cardNote()) ? R.string.ingame_card_busy : R.string.ingame_card_none));
       cardLine.setVisibility(View.VISIBLE); exportAll.setEnabled(false);
-    } else { cardLine.setVisibility(View.GONE); exportAll.setEnabled(rows.length > 0); }
+      if (exportZip != null) exportZip.setEnabled(false);
+    } else {
+      cardLine.setVisibility(View.GONE); exportAll.setEnabled(rows.length > 0);
+      if (exportZip != null) exportZip.setEnabled(true);
+    }
   }
   private String version() {
     try {

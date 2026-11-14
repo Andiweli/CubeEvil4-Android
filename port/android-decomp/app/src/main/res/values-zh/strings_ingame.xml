@@ -110,10 +110,15 @@
     <string name="ingame_update_page">最新版本将在 GitHub 上打开：请在那里下载 APK 并安装。</string>
 
     <string name="ingame_card">记忆卡（插槽 A）</string>
-    <string name="ingame_card_help">导出和导入游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），你自己的触控布局为 CubeEvil4-touch-layout.json。导入时两者都会恢复。</string>
+    <string name="ingame_card_help">导出游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），并附带你自己的触控布局 CubeEvil4-touch-layout.json；或者将全部内容放进一个 .zip（存档、即时存档、RetroTouch 和应用设置）。导入时会全部恢复。“删除所有数据”会清空记忆卡。</string>
     <string name="ingame_card_busy">记忆卡正在使用中（游戏正在保存或读取），或者游戏仍在加载——请关闭菜单，稍后再打开。</string>
     <string name="ingame_card_none">没有记忆卡。</string>
     <string name="ingame_export">导出游戏数据（.gci）</string>
+    <string name="ingame_export_zip">导出游戏数据（.zip）</string>
+    <string name="ingame_wipe">删除所有数据</string>
+    <string name="ingame_wipe_text">记忆卡上的所有存档和即时存档都将被删除，就像格式化了记忆卡一样。RetroTouch 会保留（你的触控布局及其设置），光盘、高清纹理和应用设置也会保留。此操作无法撤销：如果想保留存档，请先导出（.zip）。游戏会为此重新启动。</string>
+    <string name="ingame_wipe_cancel">取消</string>
+    <string name="ingame_wipe_yes">删除</string>
     <string name="ingame_import">导入游戏数据（.gci、.zip、.raw）</string>
     <string name="ingame_discs">光盘</string>
     <string name="ingame_discs_help">要游玩其他版本：游戏将结束，然后在开始界面导入该版本的两张光盘。存档、记忆卡和设置都会保留。</string>
@@ -128,7 +133,7 @@
     <string name="ingame_report_send">发送报告…</string>
     <string name="ingame_report_save">保存报告…</string>
 
-    <string name="ingame_source">源代码</string>
+    <string name="ingame_source">源代码与更新</string>
     <string name="ingame_source_line">关于此移植版的更多信息：%1$s</string>
     <string name="ingame_no_browser">此设备上没有浏览器</string>
 
@@ -169,6 +174,24 @@
     <string name="ingame_touch_imported">触控布局已导入，立即生效。</string>
     <string name="ingame_touch_skipped">已跳过触控布局：保留你的布局。</string>
     <string name="ingame_touch_import_bad">触控布局未导入：%1$s</string>
+    <plurals name="ingame_backup_saved">
+        <item quantity="other">已将记忆卡的 %1$d 个文件保存到 %2$s。</item>
+    </plurals>
+    <string name="ingame_backup_with_instant">包含即时存档。</string>
+    <string name="ingame_backup_with_touch">包含你的触控布局。</string>
+    <string name="ingame_backup_with_settings">包含应用和 RetroTouch 的设置。</string>
+    <string name="ingame_backup_instant_imported">即时存档已导入。</string>
+    <string name="ingame_backup_instant_exists">你已有一个即时存档。是否用导入的存档替换？</string>
+    <string name="ingame_backup_instant_skipped">已跳过即时存档：保留你的存档。</string>
+    <string name="ingame_backup_instant_bad">即时存档未导入：%1$s</string>
+    <string name="ingame_backup_settings_exists">是否用导入的设置替换你的设置（控制、RetroTouch、游戏、图形和声音）？</string>
+    <string name="ingame_backup_settings_imported">设置已导入。</string>
+    <string name="ingame_backup_settings_skipped">已跳过设置：保留你的设置。</string>
+    <string name="ingame_backup_settings_same">设置：与你的相同。</string>
+    <string name="ingame_backup_settings_bad">设置未导入：%1$s</string>
+    <string name="ingame_backup_graphics_kept">此备份来自另一台设备（%1$s）：保留本设备的分辨率、渲染器和其他性能设置。</string>
+    <string name="ingame_backup_newer">此文件来自更新的版本（%1$s）：本版本没有的设置将被略过。</string>
+    <string name="ingame_backup_restart">游戏将重新启动以使用导入的设置。未保存的进度将会丢失。</string>
     <string name="ingame_report_chooser">发送错误报告</string>
     <string name="ingame_report_failed">无法生成报告：%1$s</string>
     <string name="ingame_capture_saved">图形捕获已保存</string>
@@ -189,7 +212,7 @@
     <string name="ingame_display_summary">分辨率、画面比例与效果</string>
     <string name="ingame_controls_summary">触控、陀螺仪与便捷操作</string>
     <string name="ingame_performance_summary">性能核心、60 FPS 与帧率显示</string>
-    <string name="ingame_management_summary">记忆卡、光盘、报告与源代码</string>
+    <string name="ingame_management_summary">记忆卡、光盘、报告、源代码与更新</string>
     <string name="ingame_audio">音频</string>
     <string name="ingame_audio_summary">音乐与音效</string>
     <string name="ingame_cheats_summary">通用、武器、金钱与纹理</string>
