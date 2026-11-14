@@ -86,6 +86,8 @@
     <string name="ingame_far_camera">Дальняя камера</string>
     <string name="ingame_auto_aim_help">Автоприцел: когда вы поднимаете оружие, прицел перескакивает на ближайшего врага впереди и ненадолго следует за ним (встроенная помощь прицеливания игры).</string>
     <string name="ingame_always_run_help">Всегда бежать: Леон бежит, как только вы двигаетесь; удерживайте кнопку бега (например, B), чтобы идти шагом.</string>
+    <string name="ingame_gentle_qte">Мягкие QTE (Professional)</string>
+    <string name="ingame_gentle_qte_help">Мягкие QTE: в Professional события с кнопками (уклонение, бой на ножах, быстрое нажатие) дают столько же времени и требуют столько же нажатий, как в Normal; урон и враги остаются как в Professional. Палец на изображении нажимает кнопки подсказки сразу при касании экрана, на любой сложности.</string>
     <string name="ingame_far_camera_help">Держит камеру из-за плеча чуть дальше позади Леона при ходьбе и на месте. При прицеливании и в тесных местах она приближается, как раньше; переходы плавные.</string>
     <string name="ingame_touch_aim">Прицеливание касанием</string>
     <string name="ingame_aim_move_stick">Стик движения</string>

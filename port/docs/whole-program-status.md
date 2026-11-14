@@ -6,8 +6,8 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 ## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
 
 Version 0.99.15-rc (versionCode 117), Releasetext `port/android-decomp/docs/releases/v0.99.15-rc.md` („Changes since
-v0.99.14.“, Known issues aus 0.99.14 übernommen). Nächste freie Patchnummer weiter 0232. Nur App (Java, Texte), der
-Spielkern ist unverändert.
+v0.99.14.“, Known issues aus 0.99.14 übernommen). Nächste freie Patchnummer 0233 (0232: „Sanftere QTEs“, Abschnitt 4). Aufgaben 1–3 nur App; ab Abschnitt 4
+auch der Spielkern (Touch-Aufsetzen, Patch 0232).
 
 ### 1. Spieldaten als ZIP, „Alle Daten löschen“, „Quelle und Updates“ (Projektinhaber, 14.11.2026)
 
@@ -149,6 +149,56 @@ etwa 76 Pixeln (beim Telefon 1600 × 720 etwa 95), keine Status- und keine Navig
   Abstände links und nach dem Drehen rechts, ohne Aussparung 0).
 - **Nicht geprüft:** auf einem Gerät mit Kameraloch (das Bild über die Kante, die Touch-Knöpfe, das Drehen um 180°,
   das App-Menü).
+
+### 4. QTEs in Professional entschärfen (Projektinhaber, 14.11.2026)
+
+„Noch ein weiteres Feedback zu den QTEs im Pro Modus. Mit Touch Bedienung nicht zu schaffen und mit Controller gerade
+noch schaffbar. Können wir das entschärfen?“
+
+- **Was Professional ändert (Code-Studie, Unteragent und eigene Suche, Skript `09915-qte_scan.py` im Notizordner):**
+  Der Rang `pG->Game_level` (1..10) setzt die QTE-Werte; Normal rechnet ihn aus den Punkten (Start 5, vor Bossen
+  mindestens 5), Professional hält ihn fest auf 10 (`game.cpp GameAddPoint`). Die meisten Stellen kennen vier Gruppen
+  (0–3, 4–6, 7–9, 10). Unterschiede Normal (Rang 5) → Professional (Rang 10):
+
+  | QTE | Normal (Rang 5) | Professional | Stelle |
+  |---|---|---|---|
+  | Salazars Statue, Lauf-Tippen (Abstand ohne Abfall) | ≤ 5 Bilder | ≤ 3 | `r226.cpp` ButtonCount |
+  | Felsbrocken, Lauf-Tippen | ≤ 8 | ≤ 5 | `emrock.cpp` plemRockEscape |
+  | Schwimmen nach Del Lago | ≤ 8 | ≤ 4 | `pl0f.cpp` plboat_R2_Swim |
+  | Lore, Hochklettern (Drücke in 90 Bildern) | 10 | 15 | `objTrolley.cpp` plobjTrolleyEscape |
+  | Krauser Messer am Hals (Drücke vor der Aufforderung) | 10 | 15 | `em39` KnifeHit |
+  | Krauser Viererkombo (Bilder bis zur Aufforderung, das Fenster endet am Treffer) | 12/8/10/11 | 15/11/13/14 | `em39` Knife4Atk |
+  | Krauser Arm (Verzögerung) | 6 / 15 | 9 / 18 | `em39` T_ATK_INIT, T_LongAtk, T_JumpAtk |
+  | Krauser Tritt (Verzögerung / Taste) | 10 / A+B | 15 / zufällig | `em39` T_LowKickHit |
+  | Krauser Klippe (A-Drücke) | 11 | 16 | `em39` T_CliffAtk |
+  | El Gigante Parasit (Verzögerung / Zuwachs je Druck) | 45 / 8 | 55 / 4 | `em2b` Dm_Parasite, plem2b_AtkParasite |
+  | U-3 Vorstoß / Decke (Fenster) | 25 / 25 | 20 / 20 | `em32` LongAtk, em32Timer2SetW (C_Atk) |
+
+  Gleich in Normal und Professional: Würgegriffe (`PlGachaGet`, nur Rang ≤ 2 leichter), Verdugo, Mendez, Salazar,
+  normale Ganados und alle einfachen A-Aufforderungen, Kurbeln, Zwischensequenz-QTEs. Schaden (`LifeDownSet2`,
+  0,5 + 0,1 × Rang: Professional 1,5×) und der Sofort-Tod im Griff von hinten bleiben unangetastet (Wunsch: Schaden und
+  Gegner wie Professional).
+- **Gebaut: „Sanftere QTEs (Professional)“** unter Steuerung → Komfortsteuerung, **Standard an** (Vorschlag; die
+  Entscheidung liegt beim Projektinhaber), Texte in 11 Sprachen. Patch 0232 (74 Stellen in `r226`, `emrock`, `pl0f`,
+  `objTrolley`, `em39`, `em2b`, `em32`) lässt nur diese QTE-Abfragen `re4_qte_level()` lesen (`runtime/qte_touch.cpp`):
+  der Rang des Spiels, mit dem Schalter in Professional höchstens 5 (Normals Start). Leitung: `CoreBridge.setGentleQte`
+  → `re4_core_set_gentle_qte` (eigener Prozess: `kSetGentleQte` 45). Die erste entschärfte QTE schreibt eine Zeile ins
+  Protokoll („reads rank 10 as 5“). PC-Schalter `RE4_GENTLE_QTE=1`.
+- **Touch-Weg (für alle Schwierigkeitsgrade behoben):** ein Tipp zählte für die QTE erst beim Abheben des Fingers
+  (`watchTap` ACTION_UP; die Dauer des Tipps, etwa 80–150 ms, ging verloren), ein zweiter Finger gar nicht. Jetzt
+  drückt jeder Finger, der neben den Touch-Knöpfen aufsetzt, sofort (`CoreBridge.touchDown`, `re4_core_touch(-2, -2)`);
+  der Tipp beim Abheben geht nur noch an die Untermenüs (`u + 2`; eine ältere App: beides wie bisher). Zwei Daumen im
+  Wechsel tippen damit doppelt so schnell. Unverändert, weil passend: der Druck kommt im nächsten Spielbild (nicht
+  später), Mash-Tipps höchstens alle 2 Bilder (15 je Sekunde, Professional braucht an der Statue einen alle 3 Bilder),
+  ein Tipp gilt 400 ms (nur wichtig, wenn er vor der Aufforderung kam).
+- **Geprüft am PC:** Kern i686 -O2 (`whole_build.sh`, Baum `~/re4-09915`, Skript `09915-sync_wsl.sh`): 0 Fehler, 114 Module ohne offene Verweise; die Module `em2b`, `em32`, `em39`, `pl0f`, `st2_3` (r226) und der Hauptteil (`emrock`, `objTrolley`) rufen `re4_qte_level` auf (nm);
+  `runtime-test qtetouch` mit den neuen Fällen (Aufsetzen drückt L+R zwei Bilder, Abheben drückt nicht noch einmal, ein
+  alter Tipp drückt wie bisher) und neu `qtelevel` (Professional mit Schalter 5, ohne 10; Normal 9 und 2 und Easy 7
+  unverändert; die Protokollzeilen) ok; `whole_build_android.sh --abi all` (armeabi-v7a und arm64-v8a) 0 Fehler, Stubs
+  wie erwartet; App-Tests 149 grün je Variante (die Komfortsteuerung mit der neuen Zeile in allen Sprachen und Breiten), NDK-Bau ohne neue Warnung; `check_translations.py` 442 Texte ohne Befund.
+- **Nicht geprüft:** eine QTE in Professional im laufenden Spiel (am PC kein Spielstand an einer dieser Stellen
+  gespielt; der Patch ist an den Stellen geprüft, die Werte aus dem Code gelesen); auf einem Gerät (Touch-Tipps, der
+  Schalter).
 
 ## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 
@@ -16455,6 +16505,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0229 `ss_model.cpp` | Weskers Pistole im Koffer: `wep43Init(type)` statt immer mit Schalldämpfer (0.99.11, Abschnitt 4a) |
 | 0230 `pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp` | Adas Nachladen mit ihren eigenen Waffen auf jeder Stufe mit ihrer Bewegung der Stufe 0 (0.99.11, Abschnitt 1) |
 | 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. 0.99.13 (Stufe 1.5): am Ende fragt eine Schleife bis -1 (bis zu zwei Kopien). Port-Merkmal |
+| 0232 `r226.cpp`, `emrock.cpp`, `pl0f.cpp`, `objTrolley.cpp`, `em39.cpp`, `em2b.cpp`, `em32.cpp` | „Sanftere QTEs“ (0.99.15, Wunsch des Projektinhabers; Schalter der Komfortsteuerung, Standard an): die QTE-Abfragen des Schwierigkeitsrangs (74 Stellen: Statuen-Lauf, Felsbrocken, Schwimmen nach Del Lago, Lore, Krauser, El Gigantes Parasit, U-3) lesen `re4_qte_level()` (`runtime/qte_touch.cpp`): mit dem Schalter in Professional höchstens Rang 5 (Normals Start), sonst der Rang des Spiels; Schaden und Gegnerverhalten lesen weiter `pG->Game_level`. Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

@@ -1797,6 +1797,22 @@ extern "C" int re4probe_qte_touch(void)
         }
     }
     bad |= presses != 4 ? 0x80 : 0;
+    // 0.99.15: the app hands a finger over as it touches down (u -2): the press at once; the tap at its lift (u + 2)
+    // only goes to the sub screens, no second press
+    frame();
+    frame();
+    Cckpt.m_ActBttn.setDispFlag(DISP_L_R);
+    re4_core_touch(-2.0f, -2.0f);
+    bad |= frame() != 0x0060 ? 0x100 : 0;
+    bad |= frame() != 0x0060 ? 0x100 : 0;
+    bad |= frame() != 0 ? 0x100 : 0;
+    re4_core_touch(2.5f, 0.5f);
+    bad |= frame() != 0 ? 0x200 : 0;
+    // an older app's tap (u 0..1) still presses
+    re4_core_touch(0.5f, 0.5f);
+    bad |= frame() != 0x0060 ? 0x400 : 0;
+    frame();
+    frame();
     // the plain A prompt (a door): nothing
     Cckpt.m_ActBttn.setDispFlag(DISP_A_NORMAL);
     re4_qte_tap();
@@ -1823,6 +1839,37 @@ extern "C" int re4probe_qte_touch(void)
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
     }
+    return bad;
+}
+
+extern "C" int re4_qte_level(void);
+extern "C" void re4_core_set_gentle_qte(int on);
+
+// "Gentler QTEs" (0.99.15, runtime/qte_touch.cpp re4_qte_level, patch 0232): the rank the quick-time events read.
+// Bits: 1 Professional with the switch not 5, 2 Professional without it not 10, 4 Normal changed by it, 8 Normal's low
+// rank raised, 0x10 Easy changed.
+extern "C" int re4probe_qte_level(void)
+{
+    const u8 keepMode = pG->game_mode, keepLevel = pG->Game_level;
+    int bad = 0;
+    pG->game_mode = 6;
+    pG->Game_level = 10;
+    re4_core_set_gentle_qte(1);
+    bad |= re4_qte_level() != 5 ? 1 : 0;
+    re4_core_set_gentle_qte(0);
+    bad |= re4_qte_level() != 10 ? 2 : 0;
+    re4_core_set_gentle_qte(1);
+    pG->game_mode = 5;
+    pG->Game_level = 9;
+    bad |= re4_qte_level() != 9 ? 4 : 0;
+    pG->Game_level = 2;
+    bad |= re4_qte_level() != 2 ? 8 : 0;
+    pG->game_mode = 3;
+    pG->Game_level = 7;
+    bad |= re4_qte_level() != 7 ? 0x10 : 0;
+    re4_core_set_gentle_qte(0);
+    pG->game_mode = keepMode;
+    pG->Game_level = keepLevel;
     return bad;
 }
 

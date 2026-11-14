@@ -86,6 +86,8 @@
     <string name="ingame_far_camera">दूर कैमरा</string>
     <string name="ingame_auto_aim_help">ऑटो-निशाना: हथियार उठाते ही निशाना आपके सामने सबसे पास वाले दुश्मन पर चला जाता है और कुछ पल उसके साथ रहता है (गेम की अपनी निशाना-सहायता)।</string>
     <string name="ingame_always_run_help">हमेशा दौड़ें: चलते ही लियोन दौड़ता है; चलने के लिए दौड़ने वाला बटन (जैसे B) दबाए रखें।</string>
+    <string name="ingame_gentle_qte">आसान QTE (Professional)</string>
+    <string name="ingame_gentle_qte_help">आसान QTE: Professional में बटन वाले इवेंट (बचना, चाकू की लड़ाई, तेज़ी से दबाना) उतना ही समय देते हैं और उतने ही दबाव माँगते हैं जितने Normal में; नुकसान और दुश्मन Professional जैसे ही रहते हैं। तस्वीर पर उंगली स्क्रीन छूते ही संकेत के बटन दबा देती है, हर कठिनाई में।</string>
     <string name="ingame_far_camera_help">चलते और खड़े रहते समय कंधे वाले कैमरे को लियोन के थोड़ा और पीछे रखता है। निशाना लगाते समय और तंग जगहों पर यह पहले की तरह पास आ जाता है; बीच में यह सहजता से चलता है।</string>
     <string name="ingame_touch_aim">टच से निशाना</string>
     <string name="ingame_aim_move_stick">मूव स्टिक</string>

@@ -87,6 +87,8 @@
     <string name="ingame_far_camera">远距离镜头</string>
     <string name="ingame_auto_aim_help">自动瞄准：举起武器时，准星会跳到你前方最近的敌人身上并短暂跟随（游戏自带的瞄准辅助）。</string>
     <string name="ingame_always_run_help">始终奔跑：只要移动，里昂就会奔跑；按住奔跑键（例如 B）即可改为行走。</string>
+    <string name="ingame_gentle_qte">更宽松的 QTE（Professional）</string>
+    <string name="ingame_gentle_qte_help">更宽松的 QTE：在 Professional 难度下，按键事件（闪避、刀战、快速连按）给出与 Normal 相同的时间和所需按键次数；伤害和敌人仍保持 Professional。在任何难度下，手指一触到画面就会按下提示的按键。</string>
     <string name="ingame_far_camera_help">行走和站立时让肩后镜头离 Leon 稍远一些。瞄准时和狭窄处会像以前一样靠近；两者之间平滑过渡。</string>
     <string name="ingame_touch_aim">触控瞄准</string>
     <string name="ingame_aim_move_stick">移动摇杆</string>

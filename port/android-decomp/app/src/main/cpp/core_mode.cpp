@@ -119,6 +119,7 @@ struct CoreApi {
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
+  void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
   int (*instant)(int, Re4InstantInfo *){};
@@ -470,6 +471,7 @@ void loadCore(JNIEnv *env) {
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
+  api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
   api.instant = reinterpret_cast<int (*)(int, Re4InstantInfo *)>(dlsym(api.main, "re4_core_instant"));
@@ -3073,6 +3075,7 @@ void useCoreProcess(const std::string &why) {
   api.aimTurn = re4ipc_aim_turn;
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
+  api.setGentleQte = re4ipc_set_gentle_qte;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
   api.instant = re4ipc_instant;
@@ -3200,7 +3203,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_tap(JNIEnv *
   const float u = (x - static_cast<float>(picX.load())) / static_cast<float>(w);
   const float inBox = (y - static_cast<float>(picY.load())) / static_cast<float>(h);
   if (u < 0.f || u > 1.f || inBox < 0.f || inBox > 1.f) return;
-  api.touch(u, picTop.load() + inBox * picRows.load());
+  // (u + 2: the sub screens only; the quick-time prompts had the finger at its touch down, touchDown)
+  api.touch(u + 2.f, picTop.load() + inBox * picRows.load());
+}
+
+// A finger touching down beside the touch controls (CoreActivity.watchTap, 0.99.15): a quick-time prompt's press at
+// once, also a second finger and outside the picture's box (runtime/menu_touch.cpp re4_core_touch, u -2)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_touchDown(JNIEnv *, jclass) {
+  if (api.touch) api.touch(-2.f, -2.f);
 }
 
 // A swipe across the picture (CoreActivity.watchTap): 1 to the left (the next tab of a sub
@@ -3797,6 +3807,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_zoom(JNIEnv 
 }
 
 // The cheat "Random enemies" (CoreMenu): its seed, 0 off (cores since 12.11.2026, 0.99.12; older ones: nothing).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGentleQte(JNIEnv *, jclass, jboolean on) {
+  if (api.setGentleQte) api.setGentleQte(on ? 1 : 0);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setEnemyRandom(JNIEnv *, jclass, jint seed) {
   if (api.setEnemyRandom) api.setEnemyRandom(seed);
 }

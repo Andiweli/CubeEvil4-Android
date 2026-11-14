@@ -86,6 +86,8 @@
     <string name="ingame_far_camera">Telecamera lontana</string>
     <string name="ingame_auto_aim_help">Mira automatica: quando alzi l’arma, il mirino salta sul nemico più vicino davanti a te e lo segue per un momento (l’aiuto alla mira del gioco).</string>
     <string name="ingame_always_run_help">Corri sempre: Leon corre ogni volta che ti muovi; tieni premuto il tasto corsa (es. B) per camminare.</string>
+    <string name="ingame_gentle_qte">QTE più facili (Professional)</string>
+    <string name="ingame_gentle_qte_help">QTE più facili: in Professional gli eventi a pulsante (schivare, il duello col coltello, premere rapidamente) danno lo stesso tempo e chiedono le stesse pressioni di Normal; danni e nemici restano quelli di Professional. Un dito sull’immagine preme i pulsanti di una richiesta appena tocca lo schermo, a ogni difficoltà.</string>
     <string name="ingame_far_camera_help">Tiene la telecamera sulla spalla un po\' più lontana dietro Leon mentre cammina e sta fermo. Mirando e nei punti stretti si avvicina come prima; nel mezzo si muove in modo fluido.</string>
     <string name="ingame_touch_aim">Mira touch</string>
     <string name="ingame_aim_move_stick">Stick di movimento</string>

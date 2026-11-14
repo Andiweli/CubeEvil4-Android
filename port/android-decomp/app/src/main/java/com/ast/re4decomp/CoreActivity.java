@@ -134,6 +134,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
   // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
+  /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's; on by default. */
+  static final String GENTLE_QTE = "gentleQte";
+  static final boolean GENTLE_QTE_DEFAULT = true;
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
   // camera's vertical field of view, -FOV_RANGE .. FOV_RANGE, 0 as the game (CoreBridge.setFov, patch 0205)
@@ -460,6 +463,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setPotato(CoreBridge.potatoMask(g));
       CoreBridge.sendSoundVolume(g);
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+      CoreBridge.setGentleQte(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(GENTLE_QTE, GENTLE_QTE_DEFAULT));
       // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
       int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
       if (!settings.contains("RE4_CHEATS=")) {
@@ -1029,6 +1033,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(ALWAYS_RUN, on).apply();
       alwaysRun = on;
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void gentleQteChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(GENTLE_QTE, on).apply();
+      CoreBridge.setGentleQte(on);
+      Log.i(TAG, "gentler QTEs " + (on ? "on: Professional's quick-time events as Normal's" : "off"));
     }
 
     @Override public void stickShapeChanged(int deadZone, int range) {
@@ -2258,10 +2268,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         tapX = e.getX();
         tapY = e.getY();
         tapTime = e.getEventTime();
+        // a quick-time prompt's press as the finger touches down (0.99.15: until then at its lift, the tap's length
+        // late; the owner, Professional: "with touch not to be done")
+        if (!control && surface != null) CoreBridge.touchDown();
         break;
       }
       case MotionEvent.ACTION_POINTER_DOWN:
         tapFinger = -1;  // a second finger: no tap, no swipe
+        // ... but a press for a quick-time prompt (two thumbs in turn mash twice as fast)
+        if (surface != null && (touchControls == null || !touchControls.onControl(e.getX(i), e.getY(i)))) {
+          CoreBridge.touchDown();
+        }
         break;
       case MotionEvent.ACTION_MOVE: {
         int k = tapFinger >= 0 ? e.findPointerIndex(tapFinger) : -1;

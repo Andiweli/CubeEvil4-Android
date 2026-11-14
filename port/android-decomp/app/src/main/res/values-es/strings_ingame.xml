@@ -86,6 +86,8 @@
     <string name="ingame_far_camera">Cámara lejana</string>
     <string name="ingame_auto_aim_help">Apuntado automático: al levantar el arma, la mira salta al enemigo más cercano delante de ti y lo sigue un momento (la ayuda de puntería del propio juego).</string>
     <string name="ingame_always_run_help">Correr siempre: Leon corre siempre que te mueves; mantén el botón de correr (p. ej. B) para caminar.</string>
+    <string name="ingame_gentle_qte">QTE más suaves (Professional)</string>
+    <string name="ingame_gentle_qte_help">QTE más suaves: en Professional, los eventos de botones (esquivar, la pelea a cuchillo, pulsar rápido) dan tanto tiempo y piden tantas pulsaciones como en Normal; el daño y los enemigos siguen como en Professional. Un dedo en la imagen pulsa los botones de un aviso en cuanto toca la pantalla, en cualquier dificultad.</string>
     <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon al caminar y al estar quieto. Al apuntar y en sitios estrechos se acerca como antes; entre ambos se mueve con suavidad.</string>
     <string name="ingame_touch_aim">Apuntar táctil</string>
     <string name="ingame_aim_move_stick">Stick de movimiento</string>

@@ -25,6 +25,7 @@
 #include "act_btn.h"
 #include "cockpit.h"
 
+#include <stdlib.h>
 #include <time.h>
 
 extern GLOBAL_WK* pG;
@@ -224,6 +225,47 @@ extern "C" void re4_qte_auto(int on)
     if (__atomic_exchange_n(&gAuto, on ? 1 : 0, __ATOMIC_ACQ_REL) != (on ? 1 : 0)) {
         re4_log("qte: automatic %s", on ? "on (every quick-time prompt answered)" : "off");
     }
+}
+
+// "Gentler QTEs" (the app's comfort controls, 0.99.15; wish of the project owner, 14.11.2026: Professional's quick-time
+// events "with touch not to be done, with a controller just about"). The game's difficulty rank (pG->Game_level, 1..10)
+// sets the quick-time events' time windows and press counts; Normal computes it from the player's points (it starts at
+// 5 and moves with how the player does), Professional holds it at 10 (game.cpp GameAddPoint). Patch 0232 has the
+// quick-time events read re4_qte_level instead: with the switch on in Professional at most Normal's start, else the
+// game's own rank. Everything else (damage, the enemies, the items) keeps reading pG->Game_level.
+namespace {
+volatile int gGentle;
+const int kGentleLevel = 5;  // Normal's start (GamePointInit: 5500 points)
+volatile int gGentleLogged;  // the first quick-time event it eased since the switch went on (the error log)
+}
+
+extern "C" void re4_core_set_gentle_qte(int on)
+{
+    if (__atomic_exchange_n(&gGentle, on ? 1 : 0, __ATOMIC_ACQ_REL) != (on ? 1 : 0)) {
+        re4_log("qte: gentler quick-time events %s", on ? "on (Professional's as Normal's)" : "off");
+        __atomic_store_n(&gGentleLogged, 0, __ATOMIC_RELAXED);
+    }
+}
+
+extern "C" int re4_qte_level(void)
+{
+    // the PC checks: RE4_GENTLE_QTE=1 switches it on from the start (the app sends its setting)
+    static int fromEnv = -1;
+    if (fromEnv < 0) {
+        const char* v = getenv("RE4_GENTLE_QTE");
+        fromEnv = v && *v == '1';
+        if (fromEnv) {
+            re4_core_set_gentle_qte(1);
+        }
+    }
+    const int level = pG ? pG->Game_level : kGentleLevel;
+    if (__atomic_load_n(&gGentle, __ATOMIC_RELAXED) && pG && pG->game_mode == 6 && level > kGentleLevel) {
+        if (!__atomic_exchange_n(&gGentleLogged, 1, __ATOMIC_RELAXED)) {
+            re4_log("qte: a quick-time event of Professional reads rank %d as %d (gentler QTEs)", level, kGentleLevel);
+        }
+        return kGentleLevel;
+    }
+    return level;
 }
 
 // re4_core_touch (menu_touch.cpp) hands every tap on the picture over. Any thread.

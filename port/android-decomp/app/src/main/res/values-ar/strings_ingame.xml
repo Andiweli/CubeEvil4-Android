@@ -90,6 +90,8 @@
     <string name="ingame_far_camera">كاميرا بعيدة</string>
     <string name="ingame_auto_aim_help">‏التصويب التلقائي: عند رفع السلاح يقفز التصويب إلى أقرب عدو أمامك ويتبعه لحظة (مساعدة التصويب المدمجة في اللعبة).</string>
     <string name="ingame_always_run_help">‏الركض دائمًا: يركض ليون كلما تحركت؛ اضغط باستمرار على زر الركض (مثل B) للمشي بدلًا من ذلك.</string>
+    <string name="ingame_gentle_qte">أحداث QTE أسهل (Professional)</string>
+    <string name="ingame_gentle_qte_help">أحداث QTE أسهل: في Professional تمنح أحداث الأزرار السريعة (المراوغة وقتال السكاكين والضغط السريع) الوقت نفسه وتطلب عدد الضغطات نفسه كما في Normal؛ ويبقى الضرر والأعداء كما في Professional. الإصبع على الصورة يضغط أزرار التنبيه بمجرد لمس الشاشة، في كل مستويات الصعوبة.</string>
     <string name="ingame_far_camera_help">تُبقي كاميرا الكتف أبعد قليلًا خلف ليون أثناء المشي والوقوف. عند التصويب وفي الأماكن الضيقة تقترب كما من قبل، وتتحرك بسلاسة بينهما.</string>
     <string name="ingame_touch_aim">التصويب باللمس</string>
     <string name="ingame_aim_move_stick">عصا الحركة</string>

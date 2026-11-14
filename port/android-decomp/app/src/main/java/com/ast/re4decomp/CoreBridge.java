@@ -293,12 +293,18 @@ public final class CoreBridge {
   public static native void zoom(int notches);
   /** The cheat "Random enemies" (CoreMenu, 0.99.12): its seed (20 bits), 0 off; from the next room on. */
   public static native void setEnemyRandom(int seed);
+  /** "Gentler QTEs" (CoreMenu, comfort controls, 0.99.15): Professional's quick-time events as Normal's
+   *  (runtime/qte_touch.cpp re4_qte_level, patch 0232); cores before 0.99.15 leave it out. */
+  public static native void setGentleQte(boolean on);
   /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores
    * before 22.10.2026 ignore it.
    */
   public static native void tap(float x, float y);
+  /** A finger touching down beside the touch controls (0.99.15): a quick-time prompt's press at once (the tap at the
+   *  finger's lift then only goes to the sub screens). */
+  public static native void touchDown();
   /** A swipe across the picture: 1 to the left (the next tab of the game's sub screen), -1 to the right. */
   public static native void swipe(int dir);
   /**

@@ -88,6 +88,8 @@
     <string name="ingame_far_camera">Caméra éloignée</string>
     <string name="ingame_auto_aim_help">Visée auto : quand tu lèves ton arme, la visée saute sur l’ennemi le plus proche devant toi et le suit un instant (l’aide à la visée du jeu).</string>
     <string name="ingame_always_run_help">Toujours courir : Leon court dès que tu te déplaces ; maintiens le bouton de course (par ex. B) pour marcher.</string>
+    <string name="ingame_gentle_qte">QTE plus doux (Professional)</string>
+    <string name="ingame_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons (esquiver, le combat au couteau, appuyer vite) laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional. Un doigt sur l’image appuie sur les boutons d’une invite dès qu’il touche l’écran, dans toutes les difficultés.</string>
     <string name="ingame_far_camera_help">Garde la caméra d\'épaule un peu plus loin derrière Leon en marchant et à l\'arrêt. En visant et dans les endroits étroits, elle se rapproche comme avant ; entre les deux, elle glisse en douceur.</string>
     <string name="ingame_touch_aim">Visée tactile</string>
     <string name="ingame_aim_move_stick">Stick de déplacement</string>
