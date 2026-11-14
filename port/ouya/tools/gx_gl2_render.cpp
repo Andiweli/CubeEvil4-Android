@@ -140,9 +140,8 @@ void Ahead(re4gx2::GxRenderer &renderer) {
   unsigned adopted = 0;
   for (const auto &b : built)
     adopted += renderer.Adopt(b.first, b.second) ? 1 : 0;
-  std::printf("ahead: %zu keys from %s, %zu built on the second context in %.0f ms, %u taken over%s%s
-", keys.size(),
-              file, built.size(), std::chrono::duration<double, std::milli>(t1 - t0).count(), adopted,
+  std::printf("ahead: %zu keys from %s, %zu built on the second context in %.0f ms, %u taken over%s%s\n",
+              keys.size(), file, built.size(), std::chrono::duration<double, std::milli>(t1 - t0).count(), adopted,
               problem.empty() ? "" : ": ", problem.c_str());
 }
 
@@ -167,8 +166,7 @@ void AheadWrite() {
   if (FILE *f = std::fopen(file, "wb")) {
     std::fwrite(gAheadKeys.data(), sizeof(re4gx2::ShaderKey), gAheadKeys.size(), f);
     std::fclose(f);
-    std::printf("ahead: %zu keys written to %s
-", gAheadKeys.size(), file);
+    std::printf("ahead: %zu keys written to %s\n", gAheadKeys.size(), file);
   }
 }
 
