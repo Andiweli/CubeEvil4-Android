@@ -74,7 +74,8 @@ enum Re4GxOp {
     /* payload 4 words (patch 0137, port/docs/60fps-plan.md): the game object whose draws follow,
      * until the next OWNER. ExecOt (src/game/trans_ot.cpp) sends one before each entry of an
      * ordering table: [0] the entry's data (the object: a figure, a room part, a particle cEsp ...),
-     * [1] its function, [2] the table (0..22; 0xFF: after the table, no object), [3] for a particle
+     * [1] its function, [2] the table (0..22; 0xFF: after the table, no object; | RE4_GX_OWNER_FIGURE when the
+     * object is a figure of the character manager or a particle attached to one, 09.11.2026), [3] for a particle
      * its effect id << 16 | life frames (cEsp::m_Id, m_Life_time; a slot the game used anew has
      * another id or fewer frames), else 0xFFFFFFFF. The same object in two pictures is the same
      * thing, whatever its draws look like (a flame's next texture). A renderer that does not know
@@ -85,6 +86,10 @@ enum Re4GxOp {
      * RE4_GX_COMPACT=1, the OUYA branch; see Re4GxCompactAttrIndex). */
     RE4_GX_OP_COMPACT_FORMAT = 9
 };
+
+/* RE4_GX_OP_OWNER word 2: the object is a figure (Leon, Ashley, Luis, an enemy, the merchant: a work of
+ * EmMgr) or a particle attached to one (runtime/gx_owner.cpp); the lens flares take no light from it. */
+#define RE4_GX_OWNER_FIGURE 0x100u
 
 /* Primitive classes (Re4GxDraw.primitive bits 0-7). Quads, strips and fans
  * arrive as triangle lists with GX's winding kept (strips: every second
@@ -240,6 +245,10 @@ typedef struct Re4GxChunk {
     uint32_t draws;        /* statistics */
     uint32_t vertexCount;
     uint32_t textureBytes; /* texture data sent in this chunk */
+    /* 0.99.12: the processor time the core's thread took for this chunk (the game's frame and the decoding, since
+     * the chunk before) in microseconds, 0 not known; the app's benchmark sees by it whether the processor holds the
+     * game back (port/docs/leistungsprofil-plan.md). Not in the GX dumps. */
+    uint32_t coreCpuUs;
 } Re4GxChunk;
 
 /* The oldest finished chunk, or NULL; attaches the renderer. */

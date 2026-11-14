@@ -391,8 +391,49 @@ public final class CoreInput {
   public void mouseLook(float x, float y) {
     Device d = device(KEYBOARD);
     d.keyboard = true;
-    d.rx = clamp(x, -1, 1);
-    d.ry = clamp(y, -1, 1);
+    d.rx = zoomView ? 0 : clamp(x, -1, 1);
+    d.ry = zoomView ? 0 : clamp(y, -1, 1);
+  }
+
+  // ---- the mouse wheel and the scope (0.99.12, wish of the project owner, 12.11.2026) ----
+  private boolean zoomView;  // setZoomView
+  private float wheelRest;   // a fine wheel's part of a notch
+
+  /**
+   * The scope or the binoculars are up (the core's rumble word, bit 6): their C stick zooms, so the mouse's
+   * movement keeps off it (mouseLook; moving it up and down zoomed them, the wheel zooms now). The aim still turns
+   * by it (CoreBridge.aimTurn); the controllers' and the touch controls' C stick stay as they are.
+   */
+  public void setZoomView(boolean on) {
+    zoomView = on;
+    Device d = on ? devices.get(KEYBOARD) : null;
+    if (d != null) d.rx = d.ry = 0;
+  }
+
+  public boolean zoomView() { return zoomView; }
+
+  /**
+   * The captured mouse's movement as the aim's turn (CoreBridge.aimTurn: yaw positive left, pitch positive up), `k`
+   * radians a count (sensitivity included). "Invert vertical" (the menu's switch of aiming, the game's own option)
+   * turns up and down round for the mouse as well (decision of the project owner, 12.11.2026: "Vertikal umkehren soll
+   * auch für die Maus gelten"): aiming, the scope and the binoculars alike; the camera (mouseLook) stays as it is.
+   */
+  public static float[] mouseAim(float dx, float dy, float k, boolean invertVertical) {
+    return new float[] {-dx * k, (invertVertical ? dy : -dy) * k};
+  }
+
+  /**
+   * A turn of the mouse wheel (Android's AXIS_VSCROLL, up positive): the whole notches it completes, for the core
+   * (CoreBridge.zoom). A fine wheel's parts of a notch add up; turned the other way, the part left goes.
+   */
+  public int wheel(float v) {
+    if (Float.isNaN(v) || Float.isInfinite(v) || v == 0) return 0;
+    if (wheelRest * v < 0) wheelRest = 0;
+    wheelRest += v;
+    // towards 0, ten tenths a whole notch too (0.1 added ten times is 0.99999994)
+    int notches = (int) (wheelRest + (wheelRest > 0 ? 1e-3f : -1e-3f));
+    wheelRest -= notches;
+    return notches;
   }
 
   /** A key as its label: with "swap A/B and X/Y" the controller's A sends B's code and so on. */
@@ -445,6 +486,31 @@ public final class CoreInput {
     d.rt = clamp(rt, 0, 1);
     d.hats = (hatY < -0.5f ? GC_UP : 0) | (hatY > 0.5f ? GC_DOWN : 0)
         | (hatX < -0.5f ? GC_LEFT : 0) | (hatX > 0.5f ? GC_RIGHT : 0);
+  }
+
+  /**
+   * The touch controls' move stick walks after a short push (the project owner, 10.11.2026: "Leon only walks when
+   * the stick is almost at the ring"). As it was, its way (RetroTouch: 0 .. 1 of the ring's radius) went straight
+   * to the pad (times MAIN_RAW, 101): the SDK's PADClamp takes 15 off (0 below 15 % of the way) and the game walks
+   * and turns only past 30 after it (game/pad.cpp STICK_ON, the JOY_S* bits), at 45 % of the way; with the
+   * knob under the thumb that felt like the ring. Now the way past TOUCH_DEAD starts just past PADClamp's dead zone
+   * and reaches the walking threshold at TOUCH_WALK (a quarter of the way), then rises on to the full stick at the
+   * ring (PADClamp's top, 72, at 80 % instead of 86 %). Not while L or R is held: the move stick aims then (pl_wep:
+   * the turn follows the stick's value) and keeps its old, finer way. The C stick and the controllers stay as they are.
+   */
+  static final float TOUCH_DEAD = 0.08f, TOUCH_WALK = 0.22f;
+  /** The pad's values (of MAIN_RAW) where PADClamp starts (15) and where the game walks (30 past it, with 2 to spare). */
+  static final float CLAMP_START = 15f / MAIN_RAW, WALK_START = 47f / MAIN_RAW;
+
+  /** The touch move stick's way `x`, `y` (-1..1 each, up to 1 long) on the curve above: {x, y}. */
+  public static float[] touchWalk(float x, float y) {
+    float m = (float) Math.sqrt((double) x * x + (double) y * y);
+    if (m <= TOUCH_DEAD) return new float[] {0f, 0f};
+    float out = m <= TOUCH_WALK
+        ? CLAMP_START + (m - TOUCH_DEAD) / (TOUCH_WALK - TOUCH_DEAD) * (WALK_START - CLAMP_START)
+        : WALK_START + (Math.min(m, 1f) - TOUCH_WALK) / (1f - TOUCH_WALK) * (1f - WALK_START);
+    float k = out / m;
+    return new float[] {x * k, y * k};
   }
 
   /** The touch controls' device (CoreTouch): no Android device has this id. */
@@ -520,14 +586,10 @@ public final class CoreInput {
         d.trigL = d.lt >= (d.trigL ? LATCH_RELEASE : LATCH_PRESS);
         d.trigR = d.rt >= (d.trigR ? LATCH_RELEASE : LATCH_PRESS);
         final Device dev = d;
-        int bits = m.buttons(code -> dev.held.contains(code) || code == KEYCODE_BUTTON_L2 && (dev.trigL || dev.l2Key)
-            || code == KEYCODE_BUTTON_R2 && (dev.trigR || dev.r2Key));
-        for (int code : d.held) bits |= d.keyboard ? ActionMap.fixedKeyboardButton(code) : dpad(code);
-        if (!d.keyboard) bits |= d.hats;
-        d.mapped = bits;
+        int bits = m.buttons(mappedHeld(d));
+        d.mapped = bits;  // (again below, after the latching)
         if ((bits & GC_L) != 0) padL = 1f;
         if ((bits & GC_R) != 0) padR = 1f;
-        padB |= (bits & GC_B) != 0;
         continue;
       }
       if (d.keyboard) continue;
@@ -546,6 +608,17 @@ public final class CoreInput {
       padL = latchedL ? 1f : 0f;
       padR = latchedR ? 1f : 0f;
     }
+    // the mapping's buttons: a latched L or R holds its combinations (fire, reload, slash: their second key alone);
+    // B through its latching below
+    for (Map.Entry<Integer, Device> e : devices.entrySet()) {
+      Device d = e.getValue();
+      if (e.getKey() == TOUCH || d.mapped < 0) continue;
+      int bits = mapping(d.keyboard).buttons(mappedHeld(d), latchLR && latchedR, latchLR && latchedL);
+      for (int code : d.held) bits |= d.keyboard ? ActionMap.fixedKeyboardButton(code) : dpad(code);
+      if (!d.keyboard) bits |= d.hats;
+      d.mapped = bits;
+      padB |= (bits & GC_B) != 0;
+    }
     if (latchB) {
       if (padB && !pressedB) latchedB = !latchedB;
       pressedB = padB;
@@ -561,6 +634,9 @@ public final class CoreInput {
         && (touchDevice != null && (touchDevice.l2Key || touchDevice.r2Key)
             || Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED);
     if (!touchAiming) swipeX = swipeY = 0;  // a swipe left over from the aim before turns nothing
+    // L or R held (a weapon or the knife ready): the touch move stick keeps its plain way (touchWalk)
+    boolean weaponReady = touchDevice != null && (touchDevice.l2Key || touchDevice.r2Key)
+        || Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED;
     this.touchAiming = touchAiming;
     int buttons = padB ? GC_B : 0;
     float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
@@ -578,6 +654,12 @@ public final class CoreInput {
           mainY = st[1];
           cX = d.rx;  // the mouse (mouseLook)
           cY = d.ry;
+          // the C stick's keys (0.99.15): they win over the mouse, also in the scope and the binoculars (they zoom)
+          float[] c = mapping(true).cStick(dev.held::contains);
+          if (c[0] != 0 || c[1] != 0) {
+            cX = c[0];
+            cY = c[1];
+          }
         }
         if (mainX * mainX + mainY * mainY > lx * lx + ly * ly) {
           lx = mainX;
@@ -592,6 +674,11 @@ public final class CoreInput {
       if (!touch && d.keyboard) continue;
       buttons |= (touch ? d.buttons : d.buttons & ~GC_B) | d.hats;
       float mainX = d.lx, mainY = d.ly, cX = d.rx, cY = d.ry;
+      if (touch && !weaponReady) {
+        float[] walk = touchWalk(mainX, mainY);
+        mainX = walk[0];
+        mainY = walk[1];
+      }
       if (aiming && !touch) {
         mainX = d.rx;
         mainY = d.ry;
@@ -645,6 +732,12 @@ public final class CoreInput {
     lastButtons = buttons;
     return new int[] {buttons, raw(lx, MAIN_RAW), raw(-ly, MAIN_RAW), raw(rx, C_RAW),
         raw(-ry, C_RAW), Math.round(lt * 255f), Math.round(rt * 255f)};
+  }
+
+  /** The keys a mapped device holds: its keys, the triggers past half way as L2 and R2. */
+  private static ActionMap.Held mappedHeld(Device d) {
+    return code -> d.held.contains(code) || code == KEYCODE_BUTTON_L2 && (d.trigL || d.l2Key)
+        || code == KEYCODE_BUTTON_R2 && (d.trigR || d.r2Key);
   }
 
   private static int raw(float v, float range) {

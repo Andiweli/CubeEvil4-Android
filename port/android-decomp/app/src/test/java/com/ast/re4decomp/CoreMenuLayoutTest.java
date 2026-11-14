@@ -36,19 +36,34 @@ public class CoreMenuLayoutTest {
     @Implementation public static String[] cardList() { return new String[0]; }
     static int sharpen = -1;  // the last level the menu sent (setSharpen)
     @Implementation public static void setSharpen(int level) { sharpen = level; }
+    static int potato = -1;   // the last Potato mode bits the menu sent (setPotato)
+    @Implementation public static void setPotato(int mask) { potato = mask; }
+    static String texturePack = null;  // the last pack the menu or TexturePacks sent (setTexturePack)
+    @Implementation public static String setTexturePack(String path, boolean half, int budgetMb) {
+      texturePack = path;
+      return "";
+    }
+    @Implementation public static long[] texturePackUse() { return new long[] {87, 133, 12_000_000}; }
   }
 
-  private static Object field(Object owner, String name) throws Exception {
+  /** An endless animation in this SDK 28 sandbox's main thread kept Robolectric's idle() busy for good (full runs hung
+   *  three times, 11.11.2026; TestLooper): one left from before is named on stderr and stopped before each test, and
+   *  the tests wait for the looper with TestLooper.idle (bounded). */
+  @org.junit.Before public void noAnimationLeftRunning() {
+    TestLooper.stopAnimations("left running before " + getClass().getSimpleName());
+  }
+
+  static Object field(Object owner, String name) throws Exception {
     Field f = owner.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(owner);
   }
 
-  private static void measure(View root, int width, int height) {
+  static void measure(View root, int width, int height) {
     root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
         View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
     root.layout(0, 0, width, height);
   }
 
-  private static void checkBounds(View view, String scenario) {
+  static void checkBounds(View view, String scenario) {
     if (view.getVisibility() != View.VISIBLE) return;
     if (view instanceof TextView && ((TextView) view).getText().length() > 0) {
       TextView text = (TextView) view;
@@ -82,12 +97,12 @@ public class CoreMenuLayoutTest {
   }
 
   @Test public void allPagesFitAcrossLanguagesWidthsAndFontScales() throws Exception {
-    String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi"};
+    String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class},
         // gameLanguages: the home page with the European discs' "Game language" too
         (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE
-            : method.getReturnType() == float.class ? (Object) 1f : null);
+            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
     for (String language : languages) for (float scale : new float[] {1f, 1.5f, 2f}) {
@@ -160,7 +175,7 @@ public class CoreMenuLayoutTest {
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("graphicsChanged")) changed[0]++;
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -309,6 +324,15 @@ public class CoreMenuLayoutTest {
       Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
       assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
       assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
+      // "Button style" (RetroTouch 1.0.0-beta.10, 09.11.2026): Icons and Labels under the touch choices and their help,
+      // Icons chosen without a host (a new player's style, TouchStyle.DEFAULT_BUTTON_STYLE)
+      Button icons = findButton(body, activity.getString(R.string.ingame_button_icons));
+      Button labels = findButton(body, activity.getString(R.string.ingame_button_labels));
+      assertNotNull(icons); assertNotNull(labels);
+      assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
+      assertEquals("icons and labels side by side", icons.getParent(), labels.getParent());
+      assertTrue(icons.isSelected()); assertFalse(labels.isSelected());
+      assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
       assertTrue("player view after touch aiming", view > aiming);
@@ -380,7 +404,7 @@ public class CoreMenuLayoutTest {
             case "controllerConnected": return controller[0];
             case "keyboardConnected": return keyboard[0];
             default: return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
           }
         });
     try (var controllerActivity = Robolectric.buildActivity(Activity.class).create()) {
@@ -483,11 +507,13 @@ public class CoreMenuLayoutTest {
 
   @Test public void cheatsPageSwitchesSendTheirBits() throws Exception {
     final int[] sent = {-1};
+    final int[] enemySeed = {-1};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
+          if (method.getName().equals("enemyRandomChanged")) enemySeed[0] = (Integer) args[0];
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -536,31 +562,129 @@ public class CoreMenuLayoutTest {
       random.performClick();
       assertEquals(4 | CoreMenu.RANDOM_ITEMS_BIT, sent[0] & ~CoreMenu.SEED_BITS);
       random.performClick(); assertEquals(4, sent[0]);
+      // "Random enemies" next to it (0.99.12): a seed of its own (kept in core_game enemySeed), the switches untouched
+      assertEquals(2, items.getChildCount());
+      Button enemies = (Button) items.getChildAt(1);
+      assertTrue(enemies.getText().toString().contains(activity.getString(R.string.ingame_cheat_random_enemies)));
+      android.content.SharedPreferences game = activity.getSharedPreferences(CoreActivity.GAME_PREFS, 0);
+      assertFalse(enemies.isSelected());
+      enemies.performClick();
+      int seed = game.getInt(CoreActivity.ENEMY_SEED, 0);
+      assertTrue("a seed of 1..2^20-1", seed > 0 && seed < (1 << 20));
+      assertEquals(seed, enemySeed[0]);
+      assertEquals("the cheat switches unchanged", 4, sent[0]);
+      enemies.performClick();
+      assertEquals(0, game.getInt(CoreActivity.ENEMY_SEED, -1));
+      assertEquals(0, enemySeed[0]);
+      assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_random_enemies_help)));
       Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());
-      org.robolectric.shadows.ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS);
+      // the flash ends after CHEAT_FLASH_MS: the main looper's tasks one by one, at most 2000 (idleMainLooper ran for
+      // ever in a full run, 11.11.2026, see TestLooper)
+      org.robolectric.shadows.ShadowLooper looper = org.robolectric.shadows.ShadowLooper.shadowMainLooper();
+      for (int n = 0; killer7.isSelected() && n < 2000; n++) looper.runOneTask();
       assertFalse(killer7.isSelected());
       // the story's player character below the buttons (03.11.2026): its player type << 5, the switches kept
       // three a row without a row label (03.11.2026)
       assertNull(findText(body, "Play as"));
       Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
       assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
-      hunk.performClick(); assertEquals(4 | 3 << 5, sent[0]);
+      // another character than Leon warns first (08.11.2026): its name centred on top, the warning, one button
+      // "I understand" centred below; only that button switches, the choice stays until then
+      hunk.performClick();
+      android.app.AlertDialog ask = warning(activity, "HUNK");
+      assertEquals(4, sent[0]); assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
+      ok(ask); assertEquals(4 | 3 << 5, sent[0]);
       assertTrue(hunk.isSelected()); assertFalse(leon.isSelected());
-      wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
-      findButton(body, "Ada").performClick(); assertEquals(4 | 2 << 5, sent[0]);
+      // B (as Back, Esc, START, SELECT) closes it without the switch; X does nothing here, A is the button
+      int[] cancels = {android.view.KeyEvent.KEYCODE_BUTTON_B, android.view.KeyEvent.KEYCODE_BACK,
+          android.view.KeyEvent.KEYCODE_ESCAPE, android.view.KeyEvent.KEYCODE_BUTTON_START,
+          android.view.KeyEvent.KEYCODE_BUTTON_SELECT};
+      for (int key : cancels) {
+        wesker.performClick(); ask = warning(activity, "Wesker");
+        press(ask, android.view.KeyEvent.KEYCODE_BUTTON_X); assertTrue("X does not answer", ask.isShowing());
+        press(ask, key);
+        assertFalse(key + " closes the warning", ask.isShowing());
+        assertEquals(key + " keeps the character", 4 | 3 << 5, sent[0]);
+        assertTrue(hunk.isSelected()); assertFalse(wesker.isSelected());
+      }
+      wesker.performClick(); ask = warning(activity, "Wesker");
+      // a controller leaves the touch mode; the button has the focus then (the dialog gives it)
+      understood(ask).requestFocusFromTouch();
+      assertTrue(understood(ask).isFocused());
+      press(ask, android.view.KeyEvent.KEYCODE_BUTTON_A);
+      assertFalse("A is the button", ask.isShowing()); assertEquals(4 | 5 << 5, sent[0]); assertTrue(wesker.isSelected());
+      // also from one of them to another; the one already chosen and Leon at once
+      findButton(body, "Ada").performClick(); ok(warning(activity, "Ada")); assertEquals(4 | 2 << 5, sent[0]);
+      wesker.performClick(); ok(warning(activity, "Wesker")); assertEquals(4 | 5 << 5, sent[0]);
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
       wesker.performClick(); assertEquals(4 | 5 << 5, sent[0]);
       health.performClick(); assertEquals(5 | 5 << 5, sent[0]);
       leon.performClick(); assertEquals(5, sent[0]);
+      assertSame("Leon and the chosen one ask nothing", ask, org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog());
+      assertTrue(leon.isSelected()); assertFalse(wesker.isSelected());
       // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
       Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
       assertSame(leon.getParent(), costume.getParent());
       assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
       costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
-      hunk.performClick(); assertEquals(5 | 256 | 3 << 5, sent[0]);
+      hunk.performClick(); ok(warning(activity, "HUNK")); assertEquals(5 | 256 | 3 << 5, sent[0]);
       costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
     }
+  }
+
+  /** The warning before another player character (the owner, 08.11.2026): shown; the character's name centred on
+   *  top, the warning centred under it, the one button "I understand" centred under that. */
+  private static android.app.AlertDialog warning(Activity activity, String name) {
+    android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+    assertNotNull("a warning for " + name, ask);
+    assertTrue("the warning for " + name + " is shown", ask.isShowing());
+    TestLooper.idle();  // laid out
+    View decor = ask.getWindow().getDecorView();
+    TextView title = findText(decor, name);
+    TextView text = findText(decor, activity.getString(R.string.ingame_cheat_character_warning));
+    Button understood = understood(ask);
+    assertNotNull("the name on top", title); assertNotNull("the warning", text);
+    assertEquals(activity.getString(R.string.ingame_understood), understood.getText().toString());
+    assertEquals(android.view.Gravity.CENTER_HORIZONTAL, title.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK);
+    // the warning centred too (the owner, 08.11.2026), over the whole width
+    assertEquals(android.view.Gravity.CENTER_HORIZONTAL, text.getGravity() & android.view.Gravity.HORIZONTAL_GRAVITY_MASK);
+    assertEquals(View.TEXT_ALIGNMENT_GRAVITY, text.getTextAlignment());
+    assertEquals(((View) text.getParent()).getWidth(), text.getWidth());
+    int[] t = new int[2], m = new int[2], b = new int[2];
+    title.getLocationInWindow(t); text.getLocationInWindow(m); understood.getLocationInWindow(b);
+    assertTrue("the name over the warning", t[1] + title.getHeight() <= m[1]);
+    assertTrue("the button under the warning", m[1] + text.getHeight() <= b[1]);
+    View row = (View) understood.getParent();
+    assertEquals("the button centred", row.getWidth() / 2f, understood.getLeft() + understood.getWidth() / 2f, 1f);
+    assertEquals("the name centred", row.getWidth() / 2f, title.getLeft() + title.getWidth() / 2f, 1f);
+    return ask;
+  }
+  /** The warning's only button shown. */
+  private static Button understood(android.app.AlertDialog ask) {
+    java.util.List<Button> shown = new java.util.ArrayList<>();
+    java.util.ArrayDeque<View> todo = new java.util.ArrayDeque<>();
+    todo.add(ask.getWindow().getDecorView());
+    while (!todo.isEmpty()) {
+      View v = todo.poll();
+      if (!v.isShown()) continue;
+      if (v instanceof Button) shown.add((Button) v);
+      if (v instanceof ViewGroup) for (int i = 0; i < ((ViewGroup) v).getChildCount(); i++) todo.add(((ViewGroup) v).getChildAt(i));
+    }
+    assertEquals("one button", 1, shown.size());
+    return shown.get(0);
+  }
+  private static void ok(android.app.AlertDialog ask) {
+    understood(ask).performClick();
+    TestLooper.idle();  // the dialog posts its answer
+    assertFalse(ask.isShowing());
+  }
+  private static void press(android.app.Dialog dialog, int key) {
+    TestLooper.idle();  // laid out: the keys reach its buttons
+    dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, key));
+    dialog.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, key));
+    TestLooper.idle();
   }
 
   @Test public void navigationHasBoldTitleAndNormalSmallerSummary() throws Exception {
@@ -603,11 +727,38 @@ public class CoreMenuLayoutTest {
       // merged draw calls: a toggle of its own below 60 FPS (30.10.2026)
       Button merge = findButton(body, controller.get().getString(R.string.ingame_merge_draws));
       assertNotNull(merge); assertTrue(merge.hasOnClickListeners());
-      // the FPS display moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of the project owner, 04.11.2026)
-      assertNull(findButton(body, controller.get().getString(R.string.ingame_fps_display)));
+      // Potato mode, 0.99.3: "Particle effects" in three steps (normal, less, none: bits 2..3) and "Shadows & light"
+      // (bit 4 when off) in a second row under weather and special effects, all as before by default
+      Button weather = findButton(body, controller.get().getString(R.string.ingame_potato_weather));
+      Button particles = findButton(body, controller.get().getString(R.string.ingame_potato_particles));
+      Button shadows = findButton(body, controller.get().getString(R.string.ingame_potato_shadows));
+      assertNotNull(particles); assertNotNull(shadows);
+      assertNotSame(weather.getParent(), particles.getParent()); assertSame(particles.getParent(), shadows.getParent());
+      String normal = controller.get().getString(R.string.ingame_particles_normal);
+      assertTrue(particles.getText().toString().endsWith(normal)); assertTrue(particles.isSelected());
+      assertTrue(shadows.isSelected());
+      particles.performClick();
+      // lit at "Less" too, off only at "None" (wish of the project owner, 09.11.2026)
+      assertEquals(4, Bridge.potato); assertTrue(particles.isSelected());
+      assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_less)));
+      particles.performClick();
+      assertEquals(8, Bridge.potato); assertFalse(particles.isSelected());
+      assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_none)));
+      shadows.performClick();
+      assertEquals(8 | 16, Bridge.potato); assertFalse(shadows.isSelected());
+      weather.performClick();
+      assertEquals(1 | 8 | 16, Bridge.potato);
+      particles.performClick();
+      assertEquals(1 | 16, Bridge.potato); assertTrue(particles.isSelected());
+      assertTrue(particles.getText().toString().endsWith(normal));
+      shadows.performClick(); weather.performClick();
+      assertEquals(0, Bridge.potato);
+      // the FPS display (since 0.99.11 the Information HUD) moved to DISPLAY, OPTIONAL FEATURES, with the minimap (order of
+      // the project owner, 04.11.2026)
+      assertNull(findButton(body, controller.get().getString(R.string.ingame_info_hud)));
       show.invoke(menu, 1, false);
       body = (ViewGroup) field(menu, "body");
-      Button fps = findButton(body, controller.get().getString(R.string.ingame_fps_display));
+      Button fps = findButton(body, controller.get().getString(R.string.ingame_info_hud));
       Button minimap = findButton(body, controller.get().getString(R.string.ingame_minimap));
       assertNotNull(fps); assertNotNull(minimap);
       assertTrue(fps.hasOnClickListeners()); assertTrue(minimap.hasOnClickListeners());
@@ -638,7 +789,7 @@ public class CoreMenuLayoutTest {
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> method.getName().equals("debugMenu") ? debug[0]
             : method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
-            : method.getReturnType() == float.class ? (Object) 1f : null);
+            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null);
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
@@ -658,7 +809,7 @@ public class CoreMenuLayoutTest {
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("importDiscs")) calls[0]++;
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
-              : method.getReturnType() == float.class ? (Object) 1f : null;
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
         });
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -672,14 +823,288 @@ public class CoreMenuLayoutTest {
       assertNotNull("it asks first", ask);
       assertEquals(0, calls[0]);
       ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
-      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();  // the dialog posts its answer
+      TestLooper.idle();  // the dialog posts its answer
       assertEquals("Cancel keeps the game", 0, calls[0]);
       discs.performClick();
       ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
       assertEquals(activity.getString(R.string.ingame_start_screen), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
       ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
-      org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+      TestLooper.idle();
       assertEquals("Start screen ends the game for the start screen", 1, calls[0]);
     }
+  }
+
+  /** Management: "Clear shader cache" (0.99.4) asks first (the game restarts for it); Cancel keeps the shaders,
+   *  Restart hands it to the host (CoreActivity: cleared at the restart, ShaderCache). */
+  @Test public void managementClearsTheShaderCacheAfterAsking() throws Exception {
+    final int[] calls = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("clearShaderCache")) calls[0]++;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 6, false);  // MANAGEMENT
+      Button clear = findButton((View) field(menu, "root"), activity.getString(R.string.ingame_shader_clear));
+      assertNotNull("Management has Clear shader cache", clear);
+      clear.performClick();
+      android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertNotNull("it asks first", ask);
+      ask.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick();
+      TestLooper.idle();
+      assertEquals("Cancel keeps the shaders", 0, calls[0]);
+      clear.performClick();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertEquals(activity.getString(R.string.ingame_restart), ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).getText().toString());
+      ask.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+      TestLooper.idle();
+      assertEquals("Restart clears the shader cache", 1, calls[0]);
+    }
+  }
+
+  /** Management (0.99.15): the memory card's four buttons in this order (.gci export, .zip export, import, Delete All
+   *  Data); the .zip also with an empty card; "Delete All Data" asks in the red question with Cancel and Delete,
+   *  Cancel (and B) keep everything, Delete hands it to the host (CoreActivity: the restart without the card's data). */
+  @Test public void managementExportsZipAndDeletesAllDataAfterAsking() throws Exception {
+    final int[] wipes = {0}, zips = {0};
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+          if (method.getName().equals("wipePlayerData")) wipes[0]++;
+          if (method.getName().equals("exportZip")) zips[0]++;
+          return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+              : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
+        });
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 6, false);  // MANAGEMENT
+      View root = (View) field(menu, "root");
+      Button gci = findButton(root, activity.getString(R.string.ingame_export));
+      Button zip = findButton(root, activity.getString(R.string.ingame_export_zip));
+      Button imports = findButton(root, activity.getString(R.string.ingame_import));
+      Button wipe = findButton(root, activity.getString(R.string.ingame_wipe));
+      assertNotNull(zip);
+      assertNotNull(wipe);
+      ViewGroup row = (ViewGroup) gci.getParent();
+      assertSame("one group of buttons", row, zip.getParent());
+      assertSame(row, wipe.getParent());
+      assertEquals(0, row.indexOfChild(gci));
+      assertEquals(1, row.indexOfChild(zip));
+      assertEquals(2, row.indexOfChild(imports));
+      assertEquals(3, row.indexOfChild(wipe));
+      assertFalse("no saves: no .gci", gci.isEnabled());
+      assertTrue("the .zip holds the settings anyway", zip.isEnabled());
+      zip.performClick();
+      assertEquals(1, zips[0]);
+      // the summary and the heading at the bottom (wish of the project owner, 14.11.2026)
+      assertNotNull(findText(root, activity.getString(R.string.ingame_source).toUpperCase(Locale.getDefault())));
+      wipe.performClick();
+      TestLooper.idle();
+      android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      assertNotNull("it asks first", ask);
+      View box = ask.getWindow().getDecorView();
+      assertNotNull("the text says what goes and what stays", findText(box, activity.getString(R.string.ingame_wipe_text)));
+      Button cancel = findButton(box, activity.getString(R.string.ingame_wipe_cancel));
+      Button delete = findButton(box, activity.getString(R.string.ingame_wipe_yes));
+      assertNotNull(cancel);
+      assertNotNull(delete);
+      assertTrue("the focus starts on Cancel", cancel.isFocused());
+      cancel.performClick();
+      TestLooper.idle();
+      assertFalse(ask.isShowing());
+      assertEquals("Cancel keeps everything", 0, wipes[0]);
+      wipe.performClick();
+      TestLooper.idle();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      ask.dispatchKeyEvent(new android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BUTTON_B));
+      TestLooper.idle();
+      assertFalse("B cancels", ask.isShowing());
+      assertEquals(0, wipes[0]);
+      wipe.performClick();
+      TestLooper.idle();
+      ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+      findButton(ask.getWindow().getDecorView(), activity.getString(R.string.ingame_wipe_yes)).performClick();
+      TestLooper.idle();
+      assertEquals("Delete hands it to the host", 1, wipes[0]);
+    }
+  }
+
+  /** With Vulkan (09.11.2026): "Merge draw calls" and "Vertex ring buffer" greyed out and shown off, a line says why;
+   *  the stored choice stays for OpenGL ES. */
+  @Test public void vulkanGreysMergeAndVertexRingOut() throws Exception {
+    for (boolean vulkan : new boolean[] {false, true}) {
+      CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+          new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
+            if (method.getName().equals("vulkanRunning")) return vulkan;
+            return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? (Object) 0
+                : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
+          });
+      try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+        Activity activity = controller.get();
+        activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).edit().clear()
+            .putBoolean("mergeDraws", true).putBoolean("vertexRing", true).apply();
+        CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+        Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+        show.invoke(menu, 4, false);  // PERFORMANCE
+        View root = (View) field(menu, "root");
+        Button merge = findButton(root, activity.getString(R.string.ingame_merge_draws));
+        Button ring = findButton(root, activity.getString(R.string.ingame_vertex_ring));
+        assertNotNull(merge); assertNotNull(ring);
+        assertEquals(!vulkan, merge.isEnabled()); assertEquals(!vulkan, ring.isEnabled());
+        assertEquals(!vulkan, merge.isSelected()); assertEquals(!vulkan, ring.isSelected());
+        assertEquals(vulkan, hasText(root, activity.getString(R.string.ingame_vulkan_perf_help)));
+        assertTrue(activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).getBoolean("mergeDraws", false));
+      }
+    }
+  }
+
+  /** Lens flares in three steps (0.99.6): off, lens flares, halos + lens flares; the old switch "flares" on becomes the
+   *  third step (as it looked before), off the first; lit while not off. */
+  @Test public void lensFlaresMoveThroughThreeStepsAndKeepTheOldSwitch() throws Exception {
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
+      g.edit().clear().putBoolean("flares", true).apply();
+      assertEquals(2, CoreBridge.flareMode(g));
+      g.edit().clear().putBoolean("flares", false).apply();
+      assertEquals(0, CoreBridge.flareMode(g));
+      g.edit().clear().putBoolean("flares", true).apply();
+      CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 1, false);  // DISPLAY
+      View root = (View) field(menu, "root");
+      Button flares = findButton(root, activity.getString(R.string.ingame_flares));
+      assertNotNull(flares);
+      String both = activity.getString(R.string.ingame_flares_both), lens = activity.getString(R.string.ingame_flares_lens);
+      assertTrue(flares.getText().toString().endsWith(both)); assertTrue(flares.isSelected());
+      flares.performClick();
+      assertEquals(0, CoreBridge.flareMode(g)); assertFalse(flares.isSelected());
+      assertTrue(flares.getText().toString().endsWith(activity.getString(R.string.ingame_off)));
+      flares.performClick();
+      assertEquals(1, CoreBridge.flareMode(g)); assertTrue(flares.isSelected());
+      assertTrue(flares.getText().toString().endsWith(lens));
+      flares.performClick();
+      assertEquals(2, CoreBridge.flareMode(g)); assertTrue(flares.getText().toString().endsWith(both));
+      assertTrue(hasText(root, activity.getString(R.string.ingame_flares_help)));
+    }
+  }
+
+  /** Bloom, 0.99.13: under Display's effects, off by default, Off -> Light -> Strong -> Off, its own line of help;
+   *  the renderer gets none while a Potato mode setting is on (CoreBridge.bloomSent). */
+  @Test public void bloomMovesThroughThreeStepsAndStaysOffWithPotato() throws Exception {
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
+      g.edit().clear().apply();
+      assertEquals(0, CoreMenu.bloomLevel(g));
+      CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 1, false);  // DISPLAY
+      View root = (View) field(menu, "root");
+      Button bloom = findButton(root, activity.getString(R.string.ingame_bloom));
+      assertNotNull(bloom);
+      assertFalse(bloom.isSelected());
+      assertTrue(bloom.getText().toString().endsWith(activity.getString(R.string.ingame_off)));
+      try {
+        bloom.performClick();
+      } catch (UnsatisfiedLinkError e) {
+        // (no native library in the host tests: CoreBridge.setBloom is the last thing the press does)
+      }
+      assertEquals(1, CoreMenu.bloomLevel(g));
+      assertTrue(bloom.isSelected());
+      assertTrue(bloom.getText().toString().endsWith(activity.getString(R.string.ingame_dof_light)));
+      assertTrue(hasText(root, activity.getString(R.string.ingame_bloom_help)));
+      assertEquals(1, CoreBridge.bloomSent(g));
+      g.edit().putBoolean("weatherEffects", false).apply();
+      assertEquals("off while a Potato mode setting is on", 0, CoreBridge.bloomSent(g));
+      g.edit().putBoolean("weatherEffects", true).putInt(CoreBridge.VIEW_DISTANCE, 1).apply();
+      assertEquals("off with a shorter view distance", 0, CoreBridge.bloomSent(g));
+      g.edit().putInt(CoreBridge.VIEW_DISTANCE, 0).putInt(CoreMenu.BLOOM_LEVEL, 2).apply();
+      assertEquals(2, CoreBridge.bloomSent(g));
+    }
+  }
+
+  /** Potato mode, 0.99.6: "View distance" in a third row, Normal (the default, lit), Medium (lit), Short (off), with its
+   *  own line of help. */
+  @Test public void viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort() throws Exception {
+    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+      Activity activity = controller.get();
+      android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
+      g.edit().clear().apply();
+      CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+      show.invoke(menu, 4, false);  // PERFORMANCE
+      View root = (View) field(menu, "root");
+      Button view = findButton(root, activity.getString(R.string.ingame_potato_view));
+      Button particles = findButton(root, activity.getString(R.string.ingame_potato_particles));
+      assertNotNull(view); assertNotSame(particles.getParent(), view.getParent());
+      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_normal)));
+      assertTrue(view.isSelected());
+      view.performClick();
+      assertEquals(1, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
+      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_medium)));
+      view.performClick();
+      assertEquals(2, CoreBridge.viewDistance(g)); assertFalse(view.isSelected());
+      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_short)));
+      assertEquals(50, CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
+      view.performClick();
+      assertEquals(0, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
+      assertTrue(hasText(root, activity.getString(R.string.ingame_view_help)));
+    }
+  }
+
+  /** The performance profiles in one row with the benchmark at its end, the lines under it over the whole width (the
+   *  project owner after the Retroid test, 11.11.2026), in each language at the three font sizes on a handheld's width;
+   *  on a narrow window the row may break, never clip (allPagesFitAcrossLanguagesWidthsAndFontScales). */
+  @Test public void profileRowHoldsFiveButtonsAndTheTextsSpanTheWidth() throws Exception {
+    CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
+        new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> method.getReturnType() == boolean.class
+            ? Boolean.FALSE : method.getReturnType() == int.class ? 0 : method.getReturnType() == float.class ? (Object) 1f
+            : method.getReturnType() == double.class ? (Object) 60.0 : null);
+    Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+    for (String language : new String[] {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"})
+      for (float scale : new float[] {1f, 1.15f, 1.3f}) {
+        try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+          Activity activity = controller.get();
+          Configuration config = new Configuration(activity.getResources().getConfiguration());
+          config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
+          activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+          CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
+          show.invoke(menu, 0, false);
+          View root = (View) field(menu, "root");
+          root.setLayoutDirection(config.getLayoutDirection());
+          float density = activity.getResources().getDisplayMetrics().density;
+          measure(root, Math.round(960 * density), Math.round(300 * density));
+          String where = language + "/" + scale;
+          Button custom = findButton(root, activity.getString(R.string.ingame_profile_custom));
+          assertNotNull(where, custom);
+          MenuLayout.Buttons row = (MenuLayout.Buttons) custom.getParent();
+          assertEquals(where + ": four profiles and the benchmark", 5, row.getChildCount());
+          assertEquals(where, activity.getString(R.string.ingame_benchmark), ((Button) row.getChildAt(4)).getText().toString());
+          for (int i = 1; i < 5; i++) assertEquals(where + ": one row", row.getChildAt(0).getTop(), row.getChildAt(i).getTop());
+          checkBounds(row, where);
+          // the line under it and the help: as wide as the body
+          ViewGroup body = (ViewGroup) row.getParent();
+          int index = body.indexOfChild(row);
+          for (int i = index + 1; i <= index + 2; i++) {
+            View line = body.getChildAt(i);
+            assertTrue(where + ": a text under the row", line instanceof TextView && !(line instanceof Button));
+            assertEquals(where + ": over the whole width", body.getWidth() - body.getPaddingLeft() - body.getPaddingRight(),
+                line.getWidth());
+          }
+        }
+      }
+  }
+
+  private static boolean hasText(View view, String text) {
+    if (view instanceof TextView && !(view instanceof Button) && ((TextView) view).getText().toString().equals(text)) return true;
+    if (view instanceof ViewGroup)
+      for (int i = 0; i < ((ViewGroup) view).getChildCount(); i++) if (hasText(((ViewGroup) view).getChildAt(i), text)) return true;
+    return false;
   }
 }

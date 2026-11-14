@@ -76,14 +76,15 @@ void re4ipc_set_dof(int on);
 void re4ipc_set_letterbox(int off);
 void re4ipc_touch(float u, float v);
 void re4ipc_aim_turn(float yaw, float pitch);
+void re4ipc_zoom(int notches);
+void re4ipc_set_enemy_random(int seed);
+void re4ipc_set_gentle_qte(int on);
 void re4ipc_swipe(int dir);
 void re4ipc_slash(float tilt);
 void re4ipc_set_fast_cores(int on);
 void re4ipc_set_potato(int mask);
 void re4ipc_set_aim(int bits);
-// The distance fog and the view's far plane in percent of the room's (the OUYA branch; patch 0900)
-void re4ipc_set_view_distance(int percent);
-// Only one chunk in `every` with its draws, the others as state only (RE4_GX_CHUNK_DRAWLESS); 0: all
+// Only one chunk in `every` with its draws, the others as state only (RE4_GX_CHUNK_DRAWLESS; the OUYA branch); 0: all
 void re4ipc_set_drawless(int every);
 void re4ipc_set_sound_volume(int bits);
 void re4ipc_restart_game(int language);
@@ -92,6 +93,8 @@ void re4ipc_set_cheats(int bits);
 int re4ipc_cheat_action(int what);
 int re4ipc_room_outline(float* out, int maxEdges, unsigned* info);
 void re4ipc_set_laser_colour(int colour);
+void re4ipc_set_view_distance(int percent);
+void re4ipc_set_cpu_skip(int on);
 void re4ipc_set_view_aspect(int aspect_e4);
 void re4ipc_set_hud_layout(int rows, int stretch_e4, int flags);
 void re4ipc_gyro(float yaw, float pitch);

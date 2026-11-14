@@ -1,0 +1,485 @@
+# Port patch, decision of the project owner (14.11.2026: Professional's quick-time events "Mit Touch Bedienung nicht zu
+# schaffen und mit Controller gerade noch schaffbar. Koennen wir das entschaerfen?"): the switch "Gentler QTEs" of the
+# app's comfort controls (on by default). The game's difficulty rank pG->Game_level (Normal 1..10 from the player's
+# points, starting at 5; Professional fixed at 10) sets the quick-time events' time windows and press counts at these
+# sites only: Salazar's statue run (r226 ButtonCount), the boulder run (emrock plemRockEscape), swimming back to the
+# boat after Del Lago (pl0f plboat_R2_Swim), climbing back onto the minecart (objTrolley plobjTrolleyEscape), Krauser's
+# knife hold, four-swing combo, arm attacks, low kick and cliff (em39), El Gigante's parasite (em2b) and U-3's lunge,
+# ceiling and ground prompts (em32). They read re4_qte_level() (runtime/qte_touch.cpp) instead: the game's rank, with
+# the switch on in Professional at most Normal's start (5). Damage, the enemies' behaviour and everything else keep
+# reading pG->Game_level. With the switch off nothing changes.
+--- a/src/em2b/em2b.cpp
++++ b/src/em2b/em2b.cpp
+@@ -49,6 +49,7 @@
+ #include "em_mod.h"
+ #include "obj20.h"
+ #include "arc/em2b.h"
++extern "C" int re4_qte_level(void); /* port (patch 0232): "Gentler QTEs", runtime/qte_touch.cpp */
+ int GetWepDmVal(cEm* em, u32 wep_no, int near);   // em10.h (not included: it pulls emwep.h's global plemBackjump)
+ 
+ // The module's 0x34-byte COMMON block: uninitialised template statics of the original object,
+@@ -3241,20 +3242,20 @@ static void em2b_R1_Dm_Parasite(cEm2b* em)
+         }
+         w->TmpU32 = 0;
+         w->Timer = 45;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 30;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 40;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 50;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 55;
+         }
+         w->Button_mode = Rnd() & 1;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Button_mode = 0;
+         }
+         StaFlagOn(pG, STA_SUSPEND);
+@@ -3508,16 +3509,16 @@ static void plem2b_AtkParasite(cPlayer* pl)
+         em2bParasiteAtkCamMove((cEm2b*)pl->pEmCatch);
+         if (em2bParasiteBtnCk(w)) {
+             lvl = 8;
+-            if (pG->Game_level <= 1) {
++            if (re4_qte_level() <= 1) {
+                 lvl = 12;
+             }
+-            if (pG->Game_level <= 3) {
++            if (re4_qte_level() <= 3) {
+                 lvl = 10;
+             }
+-            if (pG->Game_level > 6) {
++            if (re4_qte_level() > 6) {
+                 lvl = 6;
+             }
+-            if (pG->Game_level > 9) {
++            if (re4_qte_level() > 9) {
+                 lvl = 4;
+             }
+             pl->m_Work0 += lvl;
+--- a/src/em32/em32.cpp
++++ b/src/em32/em32.cpp
+@@ -46,6 +46,7 @@
+ #include "em_mod.h"
+ #include "obj20.h"
+ #include "arc/em32.h"
++extern "C" int re4_qte_level(void); /* port (patch 0232): "Gentler QTEs", runtime/qte_touch.cpp */
+ asm(".comm common_em32,52,4");
+ 
+ int GetWepDmVal(cEm* em, u32 wep_no, int near);   // em10.h (not included: it pulls emwep.h's global plemBackjump)
+@@ -119,16 +120,16 @@ static void plemEscape(cPlayer* pl);
+ 
+ static inline void em32Timer2SetW(Em32Work* w, int a, int b, int c, int e)
+ {
+-    if (pG->Game_level <= 3) {
++    if (re4_qte_level() <= 3) {
+         w->timer2 = a;
+     }
+-    if (pG->Game_level <= 1) {
++    if (re4_qte_level() <= 1) {
+         w->timer2 = b;
+     }
+-    if (pG->Game_level > 6) {
++    if (re4_qte_level() > 6) {
+         w->timer2 = c;
+     }
+-    if (pG->Game_level > 9) {
++    if (re4_qte_level() > 9) {
+         w->timer2 = e;
+     }
+ }
+@@ -2005,19 +2006,19 @@ static void em32_R1_LongAtk(cEm32* em)
+         w->timer2 = 25;
+         w->timer3 = 15;
+         w->timer = 10;
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->timer2 = 27;
+             w->timer3 = 13;
+         }
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->timer3 = 10;
+             w->timer2 = 30;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->timer2 = 22;
+             w->timer3 = 18;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->timer2 = 20;
+             w->timer3 = 20;
+         }
+@@ -2822,7 +2823,7 @@ static void em32_R1_C_Atk(cEm32* em)
+         em->be_flag |= 2;
+         EstSet(em, -1, 0, 0, EFF_EM32, 0x12, 0, ESP_CORE_KIND_NONE, em, 0);
+         w->TmpU32 = Rnd() & 1;
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->TmpU32 = step;
+         }
+         em->r_no_2++;
+@@ -3304,7 +3305,7 @@ static void em32_R1_Ground(cEm32* em)
+         EM32_W_FRESH(w);   // COMPILER-DIFF #12
+         (w->timer2 = Rnd() % 90 + 90);
+         w->timer3 = 20;
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->timer3 = 25;
+         }
+         EstSet(em, -1, 0, 0, EFF_EM32, 0x1A, 0, ESP_CORE_KIND_NONE, em, 0);
+--- a/src/em39/em39.cpp
++++ b/src/em39/em39.cpp
+@@ -48,6 +48,7 @@
+ #include <dolphin/os.h>
+ #include "wep_mod.h"
+ #include "arc/em39.h"
++extern "C" int re4_qte_level(void); /* port (patch 0232): "Gentler QTEs", runtime/qte_touch.cpp */
+ // The module's 0x34-byte COMMON block (st_room.h): uninitialised template statics of the original
+ // object, merged into .bss by the REL link.
+ asm(".comm common_em39,52,4");
+@@ -3035,16 +3036,16 @@ static void em39_R1_KnifeHit(cEm39* em)
+             em39SetVoice(em, 0x24);
+         }
+         w->Timer = 10;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 5;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 7;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 13;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 15;
+         }
+         em->r_no_2++;
+@@ -3242,16 +3243,16 @@ static void em39_R1_Knife4Atk(cEm39* em)
+             MotionSetCore(w->pKnife, &w->pKnife->Motion, ARC(EM39_MOT_027), 0, 0, 5, 0);
+         }
+         w->Timer = 12;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 5;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 8;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 13;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 15;
+         }
+         EstSet(0, -1, 0, 0, EFF_EM39, 0x1D, 0, w->EffKindId, em, 0);
+@@ -3271,16 +3272,16 @@ static void em39_R1_Knife4Atk(cEm39* em)
+             MotionSetCore(w->pKnife, &w->pKnife->Motion, ARC(EM39_MOT_027), 0, 0, 5, 0);
+         }
+         w->Timer = 8;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 3;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 6;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 9;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 11;
+         }
+         EM39_K4_EFF_DELETE(em, w);
+@@ -3307,16 +3308,16 @@ static void em39_R1_Knife4Atk(cEm39* em)
+             MotionSetCore(w->pKnife, &w->pKnife->Motion, ARC(EM39_MOT_KNIFE4_ATK_028), 0, 0, 1, 0);
+         }
+         w->Timer = 10;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 5;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 8;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 11;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 13;
+         }
+         EM39_K4_EFF_DELETE(em, w);
+@@ -3328,7 +3329,7 @@ static void em39_R1_Knife4Atk(cEm39* em)
+         EM39_K4_WAIT(em, w);
+         if ((u8) (Rnd() % 10) > 4) {
+             em->r_no_2 = 0xA;
+-        } else if (pG->Game_level <= 1) {
++        } else if (re4_qte_level() <= 1) {
+             em->r_no_2 = 0xA;
+         } else {
+             em->r_no_2++;
+@@ -3345,16 +3346,16 @@ static void em39_R1_Knife4Atk(cEm39* em)
+             MotionSetCore(w->pKnife, &w->pKnife->Motion, ARC(EM39_MOT_KNIFE4_ATK_02A), 0, 0, 1, 0);
+         }
+         w->Timer = 11;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 6;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 9;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 12;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 14;
+         }
+         EM39_K4_EFF_DELETE(em, w);
+@@ -4690,20 +4691,20 @@ static void em39_R1_br_T_Atk(cEm39* em)
+     EstSet(em, -1, 0, 0, EFF_EM39, est, 0, w->EffKindId, em, 0);                             \
+     w->Arm_rno = 4;                                                                                   \
+     w->Timer2 = 6;                                                                                     \
+-    if (pG->Game_level <= 1) {                                                                          \
++    if (re4_qte_level() <= 1) {                                                                          \
+         w->Timer2 = 0;                                                                                 \
+     }                                                                                              \
+-    if (pG->Game_level <= 3) {                                                                          \
++    if (re4_qte_level() <= 3) {                                                                          \
+         w->Timer2 = 3;                                                                                 \
+     }                                                                                              \
+-    if (pG->Game_level > 6) {                                                                           \
++    if (re4_qte_level() > 6) {                                                                           \
+         w->Timer2 = 7;                                                                                 \
+     }                                                                                              \
+-    if (pG->Game_level > 9) {                                                                           \
++    if (re4_qte_level() > 9) {                                                                           \
+         w->Timer2 = 9;                                                                                 \
+     }                                                                                              \
+     w->TmpU32 = Rnd() & 1;                                                                            \
+-    if (pG->Game_level <= 3) {                                                                         \
++    if (re4_qte_level() <= 3) {                                                                         \
+         w->TmpU32 = 0;                                                                                \
+     }                                                                                              \
+     w->Act_ck = 0;                                                                                   \
+@@ -4848,20 +4849,20 @@ static void em39_R1_T_LongAtk(cEm39* em)
+         w->Timer2 = 15;
+         w->Atk_ck = 0;
+         w->Act_ck = 0;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer2 = 5;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer2 = 10;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer2 = 16;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer2 = 18;
+         }
+         w->TmpU32 = Rnd() & 1;
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->TmpU32 = 0;
+         }
+         em->r_no_2++;
+@@ -4921,20 +4922,20 @@ static void em39_R1_T_JumpAtk(cEm39* em)
+         w->Timer = 15;
+         w->Atk_ck = 0;
+         w->Act_ck = 0;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 5;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 10;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 16;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 18;
+         }
+         w->TmpU32 = Rnd() & 1;
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->TmpU32 = 0;
+         }
+         w->Timer3 = 1;
+@@ -5377,16 +5378,16 @@ static void em39_R1_T_LowKickHit(cEm39* em)
+         }
+         w->Arm_rno = 0xC;
+         w->Timer = 10;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->Timer = 5;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->Timer = 7;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->Timer = 12;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->Timer = 15;
+         }
+         if ((s16) pG->pl_life <= 1) {
+@@ -5394,7 +5395,7 @@ static void em39_R1_T_LowKickHit(cEm39* em)
+         }
+         w->TmpU32B = 0;
+         w->TmpU32 = Rnd() & 1;
+-        if (pG->Game_level <= 9) {
++        if (re4_qte_level() <= 9) {
+             w->TmpU32 = 0;
+         }
+         EM39_K4_EFF_DELETE(em, w);
+@@ -5589,16 +5590,16 @@ static void em39_R1_T_CliffAtk(cEm39* em)
+         SetPlDamage(em, plem39_CliffAtk);
+         w->Arm_rno = st;
+         w->TmpU32 = 10;
+-        if (pG->Game_level <= 1) {
++        if (re4_qte_level() <= 1) {
+             w->TmpU32 = 5;
+         }
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             w->TmpU32 = 8;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             w->TmpU32 = 12;
+         }
+-        if (pG->Game_level > 9) {
++        if (re4_qte_level() > 9) {
+             w->TmpU32 = 15;
+         }
+         if ((s16) pG->pl_life <= 1) {
+--- a/src/game/emrock.cpp
++++ b/src/game/emrock.cpp
+@@ -33,6 +33,7 @@
+ #include "est.h"
+ #include "em_sub.h"
+ #include "em2b.h"
++extern "C" int re4_qte_level(void); /* port (patch 0232): "Gentler QTEs", runtime/qte_touch.cpp */
+ 
+ // Head of a key-frame motion data block (motion.h MotionData).
+ struct RockMotData {
+@@ -1569,10 +1570,10 @@ void plemRockEscape(cPlayer* pEm)
+             pEm->m_Fwork0 = 1.0f;
+         }
+         lim = 8;
+-        if (pG->Game_level <= 2) {
++        if (re4_qte_level() <= 2) {
+             lim = 12;
+         }
+-        if (pG->Game_level > 7) {
++        if (re4_qte_level() > 7) {
+             lim = 5;
+         }
+         pEm->m_Work4++;
+--- a/src/game/objTrolley.cpp
++++ b/src/game/objTrolley.cpp
+@@ -19,6 +19,7 @@
+ #include "player.h"
+ #include "pl_sub.h"
+ #include "motion.h"
++extern "C" int re4_qte_level(void); /* port (patch 0232): "Gentler QTEs", runtime/qte_touch.cpp */
+ 
+ // The work area of the enemy thrown off the car: the trolley only uses the yaw at 0x9BC.
+ struct TrolleyEmWork {
+@@ -415,10 +416,10 @@ void plobjTrolleyEscape(cPlayer* pEm)
+         PlGachaInit();
+         ((cPlayer*) em)->m_Work0 = 90;
+         ((cPlayer*) em)->m_Work1 = 10;
+-        if (pG->Game_level <= 2) {
++        if (re4_qte_level() <= 2) {
+             ((cPlayer*) em)->m_Work1 = 5;
+         }
+-        if (pG->Game_level > 7) {
++        if (re4_qte_level() > 7) {
+             ((cPlayer*) em)->m_Work1 = 15;
+         }
+         em->r_no_2++;
+--- a/src/pl0f/pl0f.cpp
++++ b/src/pl0f/pl0f.cpp
+@@ -36,6 +36,7 @@
+ #include <dolphin/os.h>
+ #include "pl_mod.h"
+ #include "arc/pl0f.h"
++extern "C" int re4_qte_level(void); /* port (patch 0232): "Gentler QTEs", runtime/qte_touch.cpp */
+ 
+ // The module's 0x30-byte COMMON block: uninitialised template statics of the original object,
+ // appended to .bss by snmakerel.
+@@ -2589,10 +2590,10 @@ static void plboat_R2_Swim(cPlayer* pl)
+             EstSet(pl, -1, 0, 0, 0xF, 0x10, 0, 0x35, boat, 0);
+         }
+         lim = 8;
+-        if (pG->Game_level <= 3) {
++        if (re4_qte_level() <= 3) {
+             lim = 12;
+         }
+-        if (pG->Game_level > 6) {
++        if (re4_qte_level() > 6) {
+             lim = 4;
+         }
+         pl->m_Work4++;
+--- a/src/st2/r226.cpp
++++ b/src/st2/r226.cpp
+@@ -40,6 +40,7 @@ class cObjWep;
+ #include "motion.h"
+ #include "eprintf.h"
+ #include "db_log.h"
++extern "C" int re4_qte_level(void); /* port (patch 0232): "Gentler QTEs", runtime/qte_touch.cpp */
+ 
+ // Room 2-26 (D:/Bio4/Prog/r226.cpp): the giant statue (cObjRobo) chase - the passage switches, the
+ // statue's walk through the passage and over the bridge, the button-mash escape and the deaths.
+@@ -972,10 +973,10 @@ int ButtonCount(int* hitPoint, int* spdOld, int* spdNew, int* sub, int div, int
+     int ret = 0;
+     int limit = lim;
+ 
+-    if (pG->Game_level <= 2) {
++    if (re4_qte_level() <= 2) {
+         limit += 4;
+     }
+-    if (pG->Game_level > 7) {
++    if (re4_qte_level() > 7) {
+         limit = lim + r226_buttonAdj;
+     }
+     (*sub)++;

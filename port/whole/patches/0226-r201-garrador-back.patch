@@ -1,0 +1,44 @@
+# Port patch, a safety net next to patch 0225 (user report 09.11.2026, the Garrador in r201 that never comes free):
+# a save made in the app after loading a .gci that CubeEvil4 up to 0.99.6 imported has r102's flags in r201's
+# record for good (0xC0000000: flag 0 "the Garrador is dead", flag 1 "the battle area is open"). The enemy list
+# makes the Garrador again (his death bit is not set), chained in his pit, but R201Init sets up neither his
+# release (area 0x10) nor his camera. R201Init now clears flag 0 when the Garrador's death bit in the enemy list
+# (Em_flg, set by EmSetDie when he dies, before the room sets the flag) is not set; the debug jump point 2 sets the
+# flag on purpose and is left alone. Flag 1 mends itself (the door stays shut without KYF_R201_DOOR). One line in
+# the log. Not a bug of the prototype, all discs.
+--- a/src/st2/r201.cpp
++++ b/src/st2/r201.cpp
+@@ -136,6 +136,25 @@
+             "back in the picture (patch 0169)");
+ }
+ 
++/* port (patch 0226): the Garrador (claw-man, list entry 0x56) counted as dead (room save flag 0) while his death bit
++   in the enemy list is not set: the list makes him again, chained in his pit, but R201Init sets up neither his
++   release (area 0x10) nor his camera, and he hangs there for good. A save of CubeEvil4 up to 0.99.6 gets there when
++   it was made after loading a .gci imported by those versions (patch 0225: r201's record held r102's flags). A
++   Garrador that died set his death bit (EmSetDie) before the flag; with the debug jump point 2 the flag is set on
++   purpose. The flag goes back to 0, with one line in the log. */
++static void r201_clawManBack()
++{
++    if (pG->JumpPoint == 2 || RsfCheck(G_ROOM_ID, 0) == 0 || pG->em_list_no < 0 || pG->em_list_no >= 12) {
++        return;
++    }
++    if (pG->Em_flg[pG->em_list_no][0x56 >> 5] & (0x80000000 >> (0x56 & 31))) {
++        return;
++    }
++    RsfClear(G_ROOM_ID, 0);
++    re4_log("r201: the Garrador was marked as dead, but his death bit in enemy list %d is not set: he comes free "
++            "again (patch 0226)", (int) pG->em_list_no);
++}
++
+ // Room init: the altar, the claw-man's appearance until it is dead, the battle-area door locked
+ // until the dungeon key, and the entrance event r201s00. JumpPoint 2 skips ahead past the claw-man.
+ void R201Init()
+@@ -175,6 +194,7 @@
+     if (RsfCheck(G_ROOM_ID, 2) == 0) {
+         SceAtDataSet_exec(0xF, SCE_LEVEL10, 0, (TaskFunc) r201_execClawManUpCut, 0, 1);
+     }
++    r201_clawManBack(); /* port (patch 0226) */
+     if (RsfCheck(G_ROOM_ID, 0) == 0) {
+         cEmWrap em;
+ 

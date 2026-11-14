@@ -404,7 +404,9 @@ if ($aapt) {
 }
 if ($apkVersion) {
     Say "   APK-Version: $apkVersion (Stand im Repository: $wantVersion)"
-    if ($wantVersion -and -not $apkVersion.StartsWith($wantVersion)) {
+    # (a branch's test APK, -Pre4.versionName: the same numbers with its own suffix, "0.99.2-vulkan1")
+    $sameNumbers = $wantVersion -and (($apkVersion -replace '-.*$', '') -eq ($wantVersion -replace '-.*$', ''))
+    if ($wantVersion -and -not $apkVersion.StartsWith($wantVersion) -and -not $sameNumbers) {
         throw ("Die APK ist $apkVersion, der Stand im Repository ${wantVersion}: sie ist veraltet. Das Skript " +
             "ohne -SkipApk starten (es baut sie dann selbst) oder in Android Studio Build > Build App Bundle(s) / " +
             "APK(s) > Build APK(s) waehlen (Run in Android Studio erneuert diese Datei nicht).")
@@ -739,6 +741,24 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
             $summary | Select-Object -First 24 | ForEach-Object { Say "     $_" }
         } finally { $ErrorActionPreference = $old }
     }
+    # A planned restart of the app (the menu's renderer, 0.99.3: CoreActivity logs "the app restarts into the game"
+    # and LauncherRestartActivity opens it again in a new process) is no crash: the observation follows the new
+    # process (its pictures, the log of both). Each restart line counts once; a new process without one stays a crash.
+    $script:restartsSeen = 0
+    $seenPids = @()
+    function Test-PlannedRestart {
+        $old = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'  # (ADB's messages on stderr are no failure here)
+        try {
+            $lines = @(& $Adb -s $Serial logcat -d -v brief -b main -T $since 2>&1 | ForEach-Object { "$_" } |
+                Where-Object { $_ -match 'RE4Input.*the app restarts into the game' })
+        } finally { $ErrorActionPreference = $old }
+        if ($lines.Count -gt $script:restartsSeen) {
+            $script:restartsSeen = $lines.Count
+            return $true
+        }
+        return $false
+    }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $firstPid = ''
     # the core process (MEM1 taken in the app's process or -CoreProcess): "<package>:core"
@@ -790,6 +810,22 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
                 break
             }
         }
+        if ($gone -and $firstPid -and (Test-PlannedRestart)) {
+            # the app restarts on purpose: up to 30 s for its new process, then on with that one
+            $new = $alive
+            for ($w = 0; (-not $new -or $new -eq $firstPid) -and $w -lt 30; $w++) {
+                Start-Sleep -Seconds 1
+                $new = ((& $Adb -s $Serial shell pidof $package) -join '').Trim()
+            }
+            if ($new -and $new -ne $firstPid) {
+                Say ("   {0,3} s: geplanter Neustart der App (Renderer im Menue gewechselt): neue PID {1}, vorher {2}; Beobachtung geht weiter" -f $now, $new, $firstPid)
+                $seenPids += $firstPid
+                $firstPid = $new
+                $corePid = ''
+                continue
+            }
+            $alive = $new
+        }
         if ($gone) {
             $crashAt = $now
             Save-Shot $now
@@ -815,12 +851,16 @@ Invoke-RetroidAdbExclusive -ThrowOnUnavailable -LockTimeoutMs 60000 -Sequence {
     # every line of the app's processes (their IDs from the core's own lines) and the system's
     # crash lines
     $pids = @{}
-    foreach ($p in ($firstPid -split '\s+')) { if ($p) { $pids[$p] = 1 } }
+    # (the process before a planned restart as well: the log of both)
+    foreach ($p in ((@($seenPids) + @($firstPid)) -join ' ') -split '\s+') { if ($p) { $pids[$p] = 1 } }
     foreach ($line in $log) {
         if ($line -match '^\S+\s+\S+\s+(\d+)\s+\d+\s+[VDIWEF]\s+(re4|RE4\w*)\s*:') { $pids[$Matches[1]] = 1 }
     }
+    # (and the system's lines that name the app: its start, Home, being brought back; report of 08.11.2026)
+    $packageText = [regex]::Escape($package)
     $keep = @($log | Where-Object {
         $_ -match ' (re4|RE4\w*|DEBUG|AndroidRuntime|libc|crash_dump\w*|scudo)\s*:' -or
+        $_ -match $packageText -or
         ($_ -match '^\S+\s+\S+\s+(\d+)\s' -and $pids.ContainsKey($Matches[1])) })
     $keep | Set-Content -LiteralPath (Join-Path $OutDir 'logcat.txt') -Encoding UTF8
     # the system's own crash report (kept for days, also when the log has moved on)

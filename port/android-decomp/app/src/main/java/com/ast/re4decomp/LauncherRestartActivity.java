@@ -18,6 +18,8 @@ import java.io.File;
 public final class LauncherRestartActivity extends Activity {
   /** The game's process (android.os.Process.myPid() there). */
   static final String GAME_PID = "gamePid";
+  /** Back into the game instead of the start screen (the menu's renderer, port/docs/vulkan-bauplan.md E7). */
+  static final String BACK_TO_GAME = "backToGame";
   /** How long the game's process may take to go (in steps of 20 ms). */
   private static final int WAIT_STEPS = 100;
 
@@ -30,7 +32,8 @@ public final class LauncherRestartActivity extends Activity {
       File proc = new File("/proc/" + pid);
       for (int i = 0; i < WAIT_STEPS && proc.exists(); i++) SystemClock.sleep(20);
     }
-    startActivity(new Intent(this, MainActivity.class).putExtra(MainActivity.SHOW_LAUNCHER, true)
+    final boolean toGame = getIntent().getBooleanExtra(BACK_TO_GAME, false);
+    startActivity(new Intent(this, MainActivity.class).putExtra(MainActivity.SHOW_LAUNCHER, !toGame)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
     finish();
     overridePendingTransition(0, 0);

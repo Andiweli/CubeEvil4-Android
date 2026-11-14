@@ -436,6 +436,40 @@ public final class CoreInputTests {
       k.key(1, L1, false);
       check(k.pad()[0] == 0);
       k.setLatch(false, false);
+      // 0.99.9: action and run swapped, R latched (aim): A fires, B reloads (not A and B together)
+      k.setControllerMap(com.ast.re4decomp.ActionMap.defaults(com.ast.re4decomp.ActionMap.KIND_CONTROLLER)
+          .assign(com.ast.re4decomp.ActionMap.ACTION, new int[] {B}));
+      k.key(1, R2, true);
+      k.key(1, A, true);
+      check(k.pad()[0] == (CoreInput.GC_R | CoreInput.GC_A));
+      k.key(1, A, false);
+      k.key(1, B, true);
+      check(k.pad()[0] == (CoreInput.GC_R | CoreInput.GC_B));
+      k.key(1, B, false);
+      k.key(1, R2, false);
+      k.pad();
+      k.setLatch(true, false);
+      k.key(1, R2, true);
+      k.pad();
+      k.key(1, R2, false);
+      check(k.pad()[6] == 255);  // latched
+      k.key(1, A, true);
+      int[] lq = k.pad();
+      check(lq[6] == 255 && (lq[0] & (CoreInput.GC_A | CoreInput.GC_B)) == CoreInput.GC_A);
+      k.key(1, A, false);
+      k.key(1, B, true);
+      lq = k.pad();
+      check(lq[6] == 255 && (lq[0] & (CoreInput.GC_A | CoreInput.GC_B)) == CoreInput.GC_B);
+      k.key(1, B, false);
+      k.key(1, R2, true);
+      k.pad();
+      k.key(1, R2, false);
+      check(k.pad()[6] == 0);  // let go again
+      k.key(1, A, true);
+      check(k.pad()[0] == CoreInput.GC_B);  // not aiming: A runs
+      k.key(1, A, false);
+      k.setLatch(false, false);
+      k.setControllerMap(own);
       // the alternate controls keep their layout
       k.setAlternate(true);
       check(k.gcButton(R1) == CoreInput.GC_Y && k.gcButton(L1) == CoreInput.GC_L);
@@ -473,6 +507,51 @@ public final class CoreInputTests {
       check(kb.pad()[3] > 80);
       kb.mouseLook(0, 0);
       check(kb.pad()[3] == 0);
+      // 0.99.12: in the scope or the binoculars (the core's bit 6) the mouse keeps off the C stick (it zoomed them);
+      // the C stick it held goes at once, a controller's stays
+      kb.mouseLook(0, 1f);
+      check(kb.pad()[4] < -80);
+      kb.setZoomView(true);
+      check(kb.zoomView() && kb.pad()[3] == 0 && kb.pad()[4] == 0);
+      kb.mouseLook(1f, -1f);
+      check(kb.pad()[3] == 0 && kb.pad()[4] == 0);
+      kb.motion(9, 0, 0, 0, -1f, 0, 0, 0, 0);
+      check(kb.pad()[4] > 80);
+      kb.motion(9, 0, 0, 0, 0, 0, 0, 0, 0);
+      kb.setZoomView(false);
+      kb.mouseLook(0, -1f);
+      check(!kb.zoomView() && kb.pad()[4] > 80);
+      kb.mouseLook(0, 0);
+      // 0.99.15 (GitHub #247): the C stick's keys, I K J L by default: I up, J left; in the scope and the binoculars
+      // too (there they zoom: I in, K out), where the mouse keeps off the C stick
+      check(kb.keyboardKey(5, 37, true));
+      check(kb.pad()[4] > 80 && kb.pad()[3] == 0);
+      kb.keyboardKey(5, 37, false);
+      kb.keyboardKey(5, 38, true);
+      check(kb.pad()[3] < -80);
+      kb.keyboardKey(5, 38, false);
+      kb.setZoomView(true);
+      kb.keyboardKey(5, 39, true);
+      check(kb.pad()[4] < -80);
+      kb.keyboardKey(5, 39, false);
+      kb.setZoomView(false);
+      check(kb.pad()[3] == 0 && kb.pad()[4] == 0);
+      // the mouse's aim (0.99.12, "Invert vertical" for the mouse too): right turns right (yaw negative), the mouse
+      // moved down (dy positive) aims down; with the switch it aims up; the sensitivity scales both
+      float[] aim = CoreInput.mouseAim(10f, 20f, 0.0025f, false);
+      check(Math.abs(aim[0] + 0.025f) < 1e-6f && Math.abs(aim[1] + 0.05f) < 1e-6f);
+      float[] inverted = CoreInput.mouseAim(10f, 20f, 0.0025f, true);
+      check(Math.abs(inverted[0] - aim[0]) < 1e-6f && Math.abs(inverted[1] - 0.05f) < 1e-6f);
+      float[] fast = CoreInput.mouseAim(10f, -20f, 0.0025f * 3f, true);
+      check(Math.abs(fast[0] + 0.075f) < 1e-6f && Math.abs(fast[1] + 0.15f) < 1e-6f);
+      // the wheel: whole notches, a fine wheel's parts add up, the other way drops the part left
+      check(kb.wheel(1f) == 1 && kb.wheel(-1f) == -1 && kb.wheel(3f) == 3 && kb.wheel(0) == 0);
+      check(kb.wheel(Float.NaN) == 0 && kb.wheel(Float.POSITIVE_INFINITY) == 0);
+      int tenths = 0;
+      for (int i = 0; i < 10; i++) tenths += kb.wheel(0.1f);
+      check(tenths == 1);
+      check(kb.wheel(0.5f) == 0 && kb.wheel(-0.5f) == 0 && kb.wheel(-0.5f) == -1);
+      check(kb.wheel(0.75f) == 0 && kb.wheel(0.75f) == 1 && kb.wheel(0.5f) == 1);
       kb.keyboardKey(5, keyShift, true);
       check(kb.pad()[0] == CoreInput.GC_B);
       kb.keyboardKey(5, keyShift, false);
@@ -551,11 +630,40 @@ public final class CoreInputTests {
       CoreInput bad = new CoreInput();
       bad.setStickShape(80, 20);
       check(bad.deadZone() == CoreInput.DEAD_ZONE_MAX && bad.range() == 100);
-      // the touch controls' sticks are not shaped
+      // the touch controls' sticks are not shaped by these settings (their own curve, touchWalk)
       CoreInput touch = new CoreInput();
       touch.setStickShape(30, 50);
       touch.touchStick(false, 0.2f, 0f);
-      check(touch.pad()[1] == Math.round(0.2f * 101f));
+      check(touch.pad()[1] == Math.round(CoreInput.touchWalk(0.2f, 0f)[0] * 101f));
+    }
+    // the touch move stick walks after a short push (touchWalk, the project owner, 10.11.2026): at rest within 8 %,
+    // past it just out of PADClamp's dead zone, walking (past 30 after PADClamp) from 22 % of the way, the full
+    // stick (72) from 80 %, the ring 101 as before; the direction kept
+    {
+      CoreInput t = new CoreInput();
+      t.touchStick(false, 0.07f, 0f);
+      check(t.pad()[1] == 0 && t.pad()[2] == 0);
+      t.touchStick(false, 0.09f, 0f);
+      check(mainStick(t.pad())[0] >= 0 && mainStick(t.pad())[0] <= 3);
+      t.touchStick(false, 0.15f, 0f);
+      check(mainStick(t.pad())[0] < 30);
+      t.touchStick(false, 0f, -0.22f);  // up: walking
+      check(mainStick(t.pad())[1] > 30 && t.pad()[1] == 0);
+      t.touchStick(false, 0.5f, 0f);
+      check(mainStick(t.pad())[0] > 50 && mainStick(t.pad())[0] < 72);
+      t.touchStick(false, 0.8f, 0f);
+      check(mainStick(t.pad())[0] == 72);
+      t.touchStick(false, 0f, -1f);
+      check(t.pad()[2] == 101);
+      t.touchStick(false, (float) -Math.sqrt(0.045), (float) Math.sqrt(0.045));  // 30 % down left: both ways alike
+      check(t.pad()[1] == t.pad()[2] && t.pad()[1] < 0);  // the pad: up positive
+      // with R held (aiming) the old, plain way: 0.2 of the way is 20 of 101
+      t.touchButton(CoreInput.GC_R, true);
+      t.touchStick(false, 0.2f, 0f);
+      check(t.pad()[1] == Math.round(0.2f * 101f));
+      t.touchButton(CoreInput.GC_R, false);
+      // a controller's stick stays as it is
+      check(stick(0.2f, 0f)[1] == Math.round(0.2f * 101f));
     }
     System.out.println("Core controller: layout, swap, alternate controls, free keys, sticks and triggers through "
         + "PADClamp, devices, button mapping, keyboard, stick dead zone and range: " + checks + " checks PASS");

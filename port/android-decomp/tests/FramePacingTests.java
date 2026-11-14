@@ -151,6 +151,11 @@ public final class FramePacingTests {
     check(FramePacing.everyFor(119.88) == 2 && FramePacing.everyFor(120) == 2 && FramePacing.everyFor(144) == 2);
     check(FramePacing.everyFor(165) == 2 && FramePacing.everyFor(180) == 3 && FramePacing.everyFor(240) == 4);
     check(FramePacing.everyFor(0) == 1);
+    // 0.99.9: 60 FPS uneven while 30 is even: 90 Hz (and the A24's measured 89.4 Hz); not 60, 60.5, 120, 144, 75
+    check(FramePacing.sixtyUneven(90) && FramePacing.sixtyUneven(89.4));
+    check(!FramePacing.sixtyUneven(60) && !FramePacing.sixtyUneven(60.5) && !FramePacing.sixtyUneven(59.94));
+    check(!FramePacing.sixtyUneven(120) && !FramePacing.sixtyUneven(144) && !FramePacing.sixtyUneven(75));
+    check(!FramePacing.sixtyUneven(0));
 
     // the Retroid: 60 Hz, nothing changes
     long[] at = {1_000_000_000L};

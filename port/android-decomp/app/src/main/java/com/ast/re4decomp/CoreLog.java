@@ -221,6 +221,7 @@ final class CoreLog {
     }
     b.append("Switches: ").append(settings == null || settings.isEmpty() ? "-" : settings).append('\n');
     b.append("Data folder: ").append(AppStorage.describe(c)).append('\n');
+    b.append("Shader cache: ").append(ShaderCache.dir(c).getAbsolutePath()).append(" (sizes in shader-cache.txt)\n");
     // whether the error log records (the menu's switch) and whether logcat runs now
     synchronized (CoreLog.class) {
       b.append("Error log: ").append(enabled(c) ? "on (logcat " + (recorder != null ? "running" : "not running")

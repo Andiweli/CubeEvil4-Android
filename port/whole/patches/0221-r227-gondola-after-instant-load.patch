@@ -1,0 +1,25 @@
+# Port patch (the project owner's Retroid report 08.11.2026, EU discs, 0.99.4: "on the way to Salazar a lift was
+# not there, but where it normally leaves it said USE"; port/docs/whole-program-status.md, version 0.99.5, item 4).
+# r227_initGondola starts the gondola (object 0xA2, 6850 between its stations) at its top when the player comes from
+# r228 or the game was loaded (SYS_LOAD_GAME). The game's own saves are made at the room's typewriter (area 1, type
+# SAVE, floor 39500), above the gondola's top station (area 6, floor 35500): a load always put the player up there.
+# The app's instant save may be made anywhere in the room; loaded below the gondola (the owner's save at
+# 800 2625 -11125), the gondola stood at the top while its lower station (area 5, floor 28625) still offered the
+# ride, and the ride itself (r227_execGondola) brought it down into view. Now a load starts it at the top only when
+# the player stands above the middle of its way (its start height + 3425). Arriving from r228 and every load at the
+# typewriter: as before. The European st2_3.rel has the same check (retail_code.py dis, 08.11.2026).
+--- a/src/st2/r227.cpp
++++ b/src/st2/r227.cpp
+@@ -738,7 +738,11 @@
+     r227_work->gondola.initMove1_pos(obj, 0x8C, &d, 20.0f, 20.0f);
+     r227_work->gondola.setVibration(10, 10, 2.0f, 0.5f, 2.0f);
+     obj->be_flag |= 0x20;
+-    if (pG->room_id_prev == 0x228 || (SysFlagChk(pG, SYS_LOAD_GAME))) {
++    /* port (patch 0221): a load starts the gondola at the top only when the player stands above its lower station
++       (the game's own saves are at the typewriter up there); the app's instant save may be made anywhere in the
++       room, and below the gondola it stood at the top while its lower station offered the ride */
++    if (pG->room_id_prev == 0x228 ||
++        (SysFlagChk(pG, SYS_LOAD_GAME) && !(pPL && pPL->pos.y < obj->pos.y + 3425.0f))) {
+         r227_work->gondola.setReverse(1);
+     }
+ }

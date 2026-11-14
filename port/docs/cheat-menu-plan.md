@@ -214,6 +214,36 @@ Einzelspieler-Spiel. Umgesetzt mit Patch 0195 (`port/whole/patches/0195-story-ch
   Entwickler-Hälfte von MEM1 (0x82000000, frei): Zwischensequenzen und Funkbildschirm zeigen **Leon** (ihre Bewegungen und
   Teile sind seine), Funkgerät, Raketenwerfer, Minen, Pfeife und fehlende Bewegungen kommen von dort.
 
+### Krausers Bogen (0.99.10, Nutzerwunsch über den Projektinhaber, 11.11.2026)
+
+- Kein Knopf (Entscheidung des Projektinhabers nach dem Test auf dem Retroid, 11.11.2026: „Krauser soll den Bogen von
+  Haus aus bereits haben“): spielt Krauser die Geschichte, legt jeder Raumstart (`re4_story_char_room`,
+  `runtime/cheats.cpp` `giveBow`) den Bogen (Gegenstand 0x52, Waffe 0x1C, Krausers eigene Datei) in den Koffer, falls
+  er fehlt, und füllt die Pfeile (0x72, 20 je Feld) bis 40 auf; „Infinite ammo“ verbraucht keine. Der erste Stand
+  (Cheat-Knopf 10 mit vier Texten) ist wieder entfernt.
+- Leon und die anderen Stellvertreter haben keine Datei für Waffe 0x1C (`wep_data_leon` 0x1C leer): beim Raumstart
+  (`re4_story_char_room`) verlassen Bogen und Pfeile den Koffer, sobald nicht Krauser spielt (Ashleys
+  Abschnitt ausgenommen). Spielstände auf der Speicherkarte (Patch 0228, `cCard::makeSaveData`) enthalten sie nie;
+  das laufende Spiel und der Fortsetzungspunkt behalten sie.
+
+### Weskers Schalldämpfer (0.99.10, Antwort des Projektinhabers „Ja, einbauen“, 11.11.2026)
+
+- Wie der Bogen: spielt Wesker die Geschichte, legt jeder Raumstart den Schalldämpfer (Gegenstand 0x3F, ein Teil wie
+  Schaft und Zielfernrohr) in den Koffer, falls er fehlt, und setzt ihn auf die Pistole 0x23 (zusammen 0x24, Waffe 2
+  Typ 1, Weskers eigene Datei `wep43` hat beide Modelle). Ohne Pistole 0x23 im Koffer gibt es keinen.
+- Er passt auch auf Punisher (0x21 → 0x22) und Blacktail (0x27 → 0x28) mit Leons Dateien (Leons Debug-Ausrüstung 3 hat
+  ihn mit beiden); setzt der Spieler ihn dort im Koffer an, bleibt er dort.
+- Spielt jemand anderes (außer Ashleys Abschnitt): er verlässt beim Raumstart den Koffer, die Pistole, an der er war,
+  ist wieder sie selbst (in der Hand ebenso, ohne Neuladen eines anderen Modells); Spielstände auf der Speicherkarte
+  (Patch 0228) enthalten ihn nie, eine Pistole in der Hand mit Schalldämpfer wird im Spielstand zur Pistole ohne.
+- Nebenwirkung: Leons Debug-Ausrüstung 3 (nur Debug-Discs, Debug-Menü) verliert ihren Schalldämpfer beim nächsten
+  Raumstart und in Spielständen.
+
+- **Nur wo Platz ist** (Bericht des Projektinhabers 11.11.2026: Gegenstände außerhalb des Koffers unsichtbar): Bogen,
+  Pfeile und Schalldämpfer gehen wie ein gefundener Gegenstand in den Koffer (`PutInCase`), nie auf die Ablage daneben,
+  die das Spiel nur beim Aufheben zeigt. Ohne Platz kommen sie beim nächsten Raumstart wieder; was frühere Stände auf
+  der Ablage liegen ließen, sortiert der Raumstart neu ein.
+
 ### Grenzen (bewusst so)
 
 - Zwischensequenzen, Funksprüche und Leons Stimme bleiben Leon; die Figur erscheint im Spiel selbst.

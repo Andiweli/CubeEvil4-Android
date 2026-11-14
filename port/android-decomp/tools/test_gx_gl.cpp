@@ -16,6 +16,7 @@
 //     matrices and material colours in few calls, the picture unchanged
 #include "gx_bench_steps.h"
 #include "gx_auto_level.h"
+#include "picture_cadence.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
@@ -755,6 +756,220 @@ void TestHandOverCopies() {
   b.Release();
 }
 
+#ifdef RE4_GX_VULKAN
+// The Vulkan renderer (port/docs/vulkan-bauplan.md E4): the rescale and the copies handed over, read through
+// ReadXfb (rows from the top, pixels of the renderer's scale). They run where a Vulkan device starts (lavapipe:
+// port/tools/vk_tools_linux.sh, ~/vk-tools/env.sh); elsewhere they are left out.
+std::vector<std::uint8_t> XfbPixel(re4gx::GxRenderer &r, int x, int y, unsigned *width = nullptr,
+                                   unsigned *height = nullptr) {
+  std::vector<std::uint8_t> rgba;
+  unsigned w = 0, h = 0;
+  const bool read = r.ReadXfb(&rgba, &w, &h);
+  if (width)
+    *width = w;
+  if (height)
+    *height = h;
+  if (!read || x < 0 || y < 0 || static_cast<unsigned>(x) >= w || static_cast<unsigned>(y) >= h)
+    return {0, 0, 0, 0};
+  const std::size_t at = (static_cast<std::size_t>(y) * w + static_cast<std::size_t>(x)) * 4;
+  return {rgba[at], rgba[at + 1], rgba[at + 2], rgba[at + 3]};
+}
+
+bool VulkanStarts() {
+  re4gx::GxRenderer probe(re4gx::GxApi::kVulkan);
+  std::string error = "not in this build";
+  if (probe.Api() != re4gx::GxApi::kVulkan || !probe.Init(1, &error)) {
+    std::fprintf(stderr, "Vulkan checks left out: %s\n", error.c_str());
+    return false;
+  }
+  probe.Release();
+  return true;
+}
+
+void TestVkRescale() {
+  re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+  std::string error;
+  Require(r.Init(2, &error), error.c_str());
+  auto textured = [](Builder &b, bool load) {
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+    b.Bp(0x88, 31 | 31 << 10 | 6u << 20);
+    b.Bp(0x30, 31);
+    b.Bp(0x31, 31);
+    if (load)
+      b.Texture(0, 0x200000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x200000, 32, 32, 6, {});
+    std::vector<std::uint8_t> v;
+    VT(v, 300, 300, 0, kWhite, 0, 0);
+    VT(v, 340, 300, 0, kWhite, 1, 0);
+    VT(v, 340, 340, 0, kWhite, 1, 1);
+    VT(v, 300, 340, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    DisplayCopy(b, false, kBlack);
+  };
+  {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    Quad(b, 0, 0, 32, 32, 0, kRed);
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 31 | 31u << 10);
+    b.Bp(0x4D, 32);
+    b.Bp(0x4B, 0x200000 >> 5);
+    b.Bp(0x52, 6u << 4 | 2u << 15); // RGBA8 to a texture
+    b.Bp(0x4A, 639 | 527u << 10);
+    textured(b, true);
+    r.Run(b.Chunk());
+  }
+  Check(Near(XfbPixel(r, 640, 640), 255, 0, 0), "Vulkan rescale: the copy drawn at scale 2");
+  // whole levels and the menu's in-between ones (in halves: 2 1x, 3 1.5x, 5 2.5x, 6 3x)
+  for (int halves : {2, 6, 3, 5}) {
+    r.RescaleHalves(halves);
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    textured(b, false);
+    r.Run(b.Chunk());
+    unsigned w = 0, h = 0;
+    const auto corner = XfbPixel(r, 640 * halves / 2 - 4, 528 * halves / 2 - 4, &w, &h);
+    const std::string at = "Vulkan rescale to " + std::to_string(halves) + " halves";
+    Check(r.Halves() == halves, (at + ": the renderer's level").c_str());
+    Check(w == static_cast<unsigned>((640 * halves + 1) / 2) && h == static_cast<unsigned>((528 * halves + 1) / 2) &&
+              Near(corner, 0, 0, 255),
+          (at + ": the display copy has the new size").c_str());
+    Check(Near(XfbPixel(r, 320 * halves / 2, 320 * halves / 2), 255, 0, 0),
+          (at + ": the copy still bound, scaled along").c_str());
+    Check(Near(XfbPixel(r, 100 * halves / 2, 400 * halves / 2), 0, 0, 255), (at + ": the clear colour elsewhere").c_str());
+  }
+  Check(r.Stats().rescales == 4, "Vulkan rescale: four rescales counted");
+  r.Release();
+}
+
+// New picture options make a new renderer (core_mode.cpp): on the device both share, the copies go over at the new
+// renderer's scale (as TestHandOverCopies for GL)
+void TestVkHandOverCopies() {
+  std::string error;
+  re4gx::GxRenderer a(re4gx::GxApi::kVulkan), b(re4gx::GxApi::kVulkan);
+  Require(a.Init(1, &error), error.c_str());
+  {
+    Builder c;
+    Baseline(c);
+    DisplayCopy(c, true, kBlack);
+    Quad(c, 0, 0, 640, 528, 0, kRed);
+    c.Bp(0x49, 0);
+    c.Bp(0x4A, 255 | 255u << 10);
+    c.Bp(0x4D, 16);
+    c.Bp(0x4B, 0x500000 >> 5);
+    c.Bp(0x52, 6u << 4 | 1u << 9); // RGBA8 to a texture, 256 x 256
+    DisplayCopy(c, false, kBlack);
+    a.Run(c.Chunk());
+  }
+  Require(b.Init(2, &error), error.c_str());
+  a.HandOverCopies(b);
+  a.Release();
+  Check(b.Stats().handedCopies == 1, "Vulkan hand over: the copy goes to the new renderer");
+  Builder d;
+  Baseline(d);
+  DisplayCopy(d, true, kBlack);
+  d.Bp(0x00, 1u | 1u << 4);
+  d.Xf(0x103F, {1});
+  d.Xf(0x1040, {5u << 7});
+  d.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+  d.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+  d.Bp(0x88, 255 | 255 << 10 | 6u << 20);
+  d.Bp(0x30, 255);
+  d.Bp(0x31, 255);
+  d.Texture(0, 0x500000ull | 3ull << 32, RE4_GX_TEX_COPY, 0x500000, 256, 256, 6, {});
+  std::vector<std::uint8_t> v;
+  VT(v, 0, 0, 0, kWhite, 0, 0);
+  VT(v, 256, 0, 0, kWhite, 1, 0);
+  VT(v, 256, 256, 0, kWhite, 1, 1);
+  VT(v, 0, 256, 0, kWhite, 0, 1);
+  d.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+  d.Bp(0x49, 0);
+  d.Bp(0x4A, 639 | 527u << 10);
+  DisplayCopy(d, false, kBlack);
+  b.Run(d.Chunk());
+  Check(b.Stats().missingTextures == 0, "Vulkan hand over: the copy is not missing in the new renderer");
+  Check(Near(XfbPixel(b, 100 * 2, 100 * 2), 255, 0, 0), "Vulkan hand over: the copy drawn at the new scale (red)");
+  Check(Near(XfbPixel(b, 400 * 2, 400 * 2), 0, 0, 0), "Vulkan hand over: black beside it");
+  b.Release();
+}
+
+// The overlay (GxRenderer::SetOverlay: the app's minimap under Vulkan) over the presented picture: its square at
+// (x, y) from the bottom left as GL's viewport, its upper half red (y up in its clip space), the picture around it
+void TestVkOverlay() {
+  re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+  std::string error;
+  Require(r.Init(1, &error), error.c_str());
+  Builder b;
+  Baseline(b);
+  DisplayCopy(b, true, kBlue);
+  DisplayCopy(b, false, kBlue);
+  r.Run(b.Chunk());
+  re4gx::GxOverlay o;
+  auto put = [&](float x, float y) { o.verts.insert(o.verts.end(), {x, y, 1.0f, 0.0f, 0.0f, 1.0f}); };
+  put(-1, 0), put(1, 0), put(1, 1), put(-1, 0), put(1, 1), put(-1, 1);  // the upper half
+  o.parts = {{false, 0, 6}};
+  o.x = 10;
+  o.y = 20;
+  o.size = 50;
+  r.SetOverlay(o);
+  std::vector<std::uint8_t> rgba;
+  const int W = 200, H = 100;
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &rgba), "Vulkan overlay: the picture read back");
+  auto at = [&](int x, int y) {  // from the top
+    const std::size_t i = (static_cast<std::size_t>(y) * W + static_cast<std::size_t>(x)) * 4;
+    return std::vector<std::uint8_t>{rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]};
+  };
+  // the square: columns 10..59, rows 30..79 from the top; its upper half rows 30..54
+  Check(Near(at(35, 40), 255, 0, 0), "Vulkan overlay: the upper half of its square red");
+  Check(Near(at(35, 70), 0, 0, 255), "Vulkan overlay: its lower half the picture (y up in the square)");
+  Check(Near(at(5, 40), 0, 0, 255) && Near(at(65, 40), 0, 0, 255), "Vulkan overlay: the picture beside it");
+  Check(Near(at(35, 25), 0, 0, 255), "Vulkan overlay: the picture above it (x, y from the bottom left)");
+  r.SetOverlay(re4gx::GxOverlay());
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &rgba), "Vulkan overlay: read again");
+  Check(Near(at(35, 40), 0, 0, 255), "Vulkan overlay: gone when the app sets none");
+  r.Release();
+}
+
+// The GPU time a picture with Vulkan (0.99.15, the review of 0.99.14): only a frame with a Run counts as a picture (as
+// GL's chunk timer); a refresh without a new chunk (30 FPS: every second vsync) goes to the presents' time. Before,
+// every frame counted: at 30 FPS a picture read about half its time, and Dynamic hardly stepped down.
+void TestVkGpuTimePictures() {
+  re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+  std::string error;
+  Require(r.Init(1, &error), error.c_str());
+  const unsigned kPictures = 12;
+  for (unsigned i = 0; i < kPictures; i++) {
+    Builder b;
+    Baseline(b);
+    b.flags |= RE4_GX_CHUNK_XFB;
+    Quad(b, 0, 0, 640, 448, 0, kGreen);
+    DisplayCopy(b, true, kBlack);
+    r.Run(b.Chunk());
+    r.Present(0, 0, 64, 64);
+    r.Present(0, 0, 64, 64);  // the refresh without a new chunk
+  }
+  for (int i = 0; i < 4; i++)
+    r.Present(0, 0, 64, 64);  // the last pictures' times read (their frames begun again)
+  const re4gx::GxStats &s = r.Stats();
+  std::fprintf(stderr, "  Vulkan GPU time: %u pictures and %u refreshes timed of %u chunks\n", s.gpuTimed,
+               s.presentTimed, kPictures);
+  if (s.gpuTimed == 0 && s.presentTimed == 0) {
+    std::fprintf(stderr, "  Vulkan GPU time: no timestamps on this device, not measured\n");
+  } else {
+    Check(s.gpuTimed == kPictures, "Vulkan GPU time: one timed picture a chunk, the refreshes not");
+    Check(s.presentTimed >= kPictures, "Vulkan GPU time: the refreshes counted apart");
+  }
+  r.Release();
+}
+#endif
+
 // Merged draw calls (SetMerge, RE4_GX_MERGE, 30.10.2026): 24 squares, each moved by its own position
 // matrix (every second one in PNMTX1, another uMtx) and coloured by its own material colour, with a
 // blend mode set and back and owner tags between them as the game sends them; after square 11 a
@@ -1041,6 +1256,64 @@ void TestTvFilter(re4gx::GxRenderer &r) {
   Check(red(xfb, 199) < 10, "TV filter: off again, the line is sharp");
 }
 
+// The game's depth of field (filter01.cpp) copies the picture at half size with the copy filter 32 0 0 0 0 0 32
+// (only the lines above and below) and draws the copy back over the scene. On the GameCube that copy is soft;
+// until 0.99.7 it stayed sharp at a higher scale (its 2x2 box was the app's own texels, the filter left out) and
+// showed as a second, shifted picture ("ghosting", 0.99.8). A red stripe (columns 200..209) on blue, copied that
+// way and drawn back with linear filtering: at scale 1 and 4 the column left of the stripe gets some of its red
+// (at 4 within reach of the GameCube's two pixels, not only the app's last texel), columns further out stay blue.
+void TestBlurCopy() {
+  for (int scale : {1, 4}) {
+    re4gx::GxRenderer r;
+    std::string error;
+    Require(r.Init(scale, &error), error.c_str());
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlue);
+    Quad(b, 200, 0, 210, 448, 0, kRed);
+    b.Bp(0x53, 32u);          // copy filter: the line above (tap 0)
+    b.Bp(0x54, 32u << 12);    // and the line below (tap 6), nothing on the line itself
+    b.Bp(0x49, 0);
+    b.Bp(0x4A, 511 | 447u << 10);
+    b.Bp(0x4D, 32);
+    b.Bp(0x4B, 0x400000 >> 5);
+    b.Bp(0x52, 6u << 4 | 2u << 15 | 1u << 9);  // RGBA8 to a texture, half size: 256 x 224
+    b.Bp(0x53, 0);
+    b.Bp(0x54, 0);
+    b.Bp(0x4A, 639 | 527u << 10);
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+    b.Bp(0x80, 1u << 4 | 1u << 5);  // clamp, linear (GXInitTexObjLOD 1, 1 of the game)
+    b.Bp(0x84, 0);
+    b.Bp(0x88, 255 | 223 << 10 | 6u << 20);
+    b.Bp(0x30, 255);
+    b.Bp(0x31, 223);
+    b.Texture(0, 0x400000ull | 1ull << 32, RE4_GX_TEX_COPY, 0x400000, 256, 224, 6, {});
+    std::vector<std::uint8_t> v;
+    VT(v, 0, 0, 0, kWhite, 0, 0);
+    VT(v, 512, 0, 0, kWhite, 1, 0);
+    VT(v, 512, 448, 0, kWhite, 1, 1);
+    VT(v, 0, 448, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    r.Run(b.Chunk());
+    // the device pixel two texels (at scale 4: half a GameCube pixel) left of the stripe, one inside it, one far out
+    const int y = 200 * scale, edge = 200 * scale;
+    const int beside = EfbPixel(r, edge - (scale > 1 ? 2 : 1), y)[0], inside = EfbPixel(r, 205 * scale, y)[0];
+    const int far = EfbPixel(r, 190 * scale, y)[0];
+    std::fprintf(stderr, "  blur copy at scale %d: red beside the stripe %d, inside %d, far out %d\n", scale, beside,
+                 inside, far);
+    const std::string at = " (scale " + std::to_string(scale) + ")";
+    Check(beside > 40 && beside < 200, ("blur copy: the stripe's edge soft as on the GameCube" + at).c_str());
+    Check(inside > 150, ("blur copy: inside the stripe red" + at).c_str());
+    Check(far < 10, ("blur copy: columns further out stay blue" + at).c_str());
+    Check(glGetError() == GL_NO_ERROR, ("blur copy: no GL error" + at).c_str());
+    r.Release();
+  }
+}
+
 // Sharpen (the app menu's filter, 08.11.2026): a grey band (160) on grey (100), softened by the TV filter (its rows
 // above and below get in-between greys). Strong: the in-between rows move away from the middle (the edge gets
 // steeper), every texel stays within the two greys (no seams), flat parts stay as they are, one pass per display
@@ -1101,6 +1374,72 @@ void TestSharpen(re4gx::GxRenderer &r) {
   xfb = scene(0);
   Check(xfb == plain && steep(xfb, 196, 204, &inside) == offEdge, "sharpen: off again, the plain display copy");
   r.SetTvFilter(false);
+}
+
+// Colour and CRT (0.99.9): grey around an orange band and a black square. Colour "Warm film, Strong": one pass per
+// display copy, the orange warmer (red up, blue down), black stays black; "Survival horror, Strong": the orange
+// paler; off again the plain copy. CRT "Strong": the XFB stays as it is, the CRT's pictures once per display copy;
+// the screen (three screen pixels a game line) has dark gaps between the lines in the grey, its corner is black
+// (rounded); off again the plain screen, byte for byte.
+void TestCrtColour(re4gx::GxRenderer &r) {
+  const std::uint8_t kGrey[4] = {128, 128, 128, 255}, kOrange[4] = {200, 120, 40, 255}, kBlack[4] = {0, 0, 0, 255};
+  auto scene = [&]() {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kGrey);
+    Quad(b, 100, 200, 300, 260, 0, kOrange);
+    Quad(b, 400, 300, 500, 350, 0, kBlack);
+    DisplayCopy(b, false, kGrey);
+    r.Run(b.Chunk());
+    return r.Xfb(nullptr, nullptr);
+  };
+  const int f = r.Scale();
+  const GLuint plain = scene();
+  const std::vector<std::uint8_t> orange = TexPixel(plain, 200 * f, 230 * f);
+  const int W = 1792, H = 1344;  // 448 lines: three screen pixels each
+  std::vector<std::uint8_t> plainScreen, screen;
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &plainScreen), "CRT: the plain screen read back");
+  // colour
+  unsigned before = r.Stats().colourPasses;
+  r.SetColour(1, 2);
+  GLuint xfb = scene();
+  const std::vector<std::uint8_t> warm = TexPixel(xfb, 200 * f, 230 * f), warmGrey = TexPixel(xfb, 50 * f, 50 * f);
+  std::fprintf(stderr, "  colour: orange %d,%d,%d -> warm film %d,%d,%d; grey -> %d,%d,%d\n", orange[0], orange[1],
+               orange[2], warm[0], warm[1], warm[2], warmGrey[0], warmGrey[1], warmGrey[2]);
+  Check(r.Stats().colourPasses == before + 2 && xfb != plain, "colour: one pass per display copy, shown");
+  Check(warm[0] > orange[0] && warm[2] < orange[2], "colour: warm film makes the orange warmer");
+  Check(warmGrey[0] > warmGrey[2], "colour: warm film warms the grey");
+  Check(Near(TexPixel(xfb, 450 * f, 320 * f), 0, 0, 0, 1), "colour: black stays black");
+  r.SetColour(2, 2);
+  xfb = scene();
+  const std::vector<std::uint8_t> pale = TexPixel(xfb, 200 * f, 230 * f);
+  std::fprintf(stderr, "  colour: survival horror %d,%d,%d\n", pale[0], pale[1], pale[2]);
+  Check(pale[0] - pale[2] < (orange[0] - orange[2]) / 2, "colour: survival horror makes the orange paler");
+  Check(Near(TexPixel(xfb, 450 * f, 320 * f), 0, 0, 0, 1), "colour: black stays black (survival horror)");
+  r.SetColour(0, 1);
+  xfb = scene();
+  Check(xfb == plain, "colour: off again, the plain display copy");
+  // CRT
+  before = r.Stats().crtPasses;
+  r.SetCrt(2);
+  xfb = scene();
+  Check(r.Stats().crtPasses == before + 2 && xfb == plain, "CRT: its pictures once per display copy, the XFB as it is");
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &screen), "CRT: the screen read back");
+  // the grey at game x 128, around game line 112: the brightest and darkest of the screen rows of three lines
+  int lo = 255, hi = 0;
+  for (int y = 112 * 3 - 4; y < 112 * 3 + 5; y++) {
+    const int v = screen[(static_cast<std::size_t>(y) * W + W / 5) * 4 + 1];
+    lo = std::min(lo, v);
+    hi = std::max(hi, v);
+  }
+  std::fprintf(stderr, "  CRT: the grey between %d and %d across three lines; the corner %d\n", lo, hi, screen[1]);
+  Check(hi - lo > 30, "CRT: dark gaps between the game lines");
+  Check(screen[0] == 0 && screen[1] == 0 && screen[2] == 0, "CRT: the corner black (rounded, curved)");
+  Check(screen != plainScreen, "CRT: the screen differs");
+  r.SetCrt(0);
+  scene();
+  Require(r.ReadPresented(W, H, 0, 0, W, H, 0, 0, &screen), "CRT: the screen read back again");
+  Check(screen == plainScreen, "CRT: off again, the plain screen");
 }
 
 // PSone demake: a square of an in-between colour from x 101 on. Off: x 100 is the blue around it, x 101 and 102
@@ -1345,6 +1684,272 @@ void TestRescale() {
   r.Release();
 }
 
+// The pictures' cadence (picture_cadence.h): 30 pictures a second on 60 Hz, all 2 vsyncs, 0 % off; on 89.4 Hz with
+// the game's own clock (59.94 / 2 a second) mostly 3 vsyncs and now and then 2 (the picture early by a vsync);
+// 60 FPS on 90 Hz: 1 and 2 vsyncs by turns, half of them off; a pause starts over.
+// 0.99.12: the steady rhythm (picture_cadence.h PictureHold). The report's phone at 30 game pictures a second on
+// 60.1 Hz: each picture done 1.6 .. 2.4 vsyncs after its frame began (the game's thread at 76 %, the GPU after it),
+// so its first vsync is 2 or 3 after the frame's start and the screen shows 1, 2 and 3 vsyncs a picture. The render
+// thread draws at every vsync: without the hold the newest picture at once; with it a picture one vsync after the
+// last waits one more (and is never held twice). Returns the line of PictureCadence and the pictures held.
+static std::string HoldRun(bool hold, double from, double to, unsigned *held, unsigned *shownOut, double *lagOut) {
+  const long long period = 16638935;  // 60.1 Hz
+  const long long start = 1000000000LL;
+  re4gx::PictureCadence cadence;
+  re4gx::PictureHold steady;
+  unsigned seed = 12345, shown = 0;
+  double lag = 0.0;  // vsyncs a picture waited after it was ready, summed
+  std::vector<long long> ready;
+  for (int k = 0; k < 330; k++) {
+    seed = seed * 1103515245u + 12345u;
+    const double r = from + (to - from) * ((seed >> 8) & 0xFFFF) / 65535.0;
+    ready.push_back(start + 2LL * k * period + static_cast<long long>(r * period));
+  }
+  std::size_t next = 0;
+  bool pending = false;  // a picture held back, drawn at the next vsync
+  std::string line, last;
+  for (long long v = start; v < start + 680LL * period && next < ready.size(); v += period) {
+    bool draw = false;
+    if (pending) {
+      draw = true;
+      pending = false;
+    } else if (ready[next] <= v) {
+      if (hold && steady.Wait(v, period))
+        pending = true;
+      else
+        draw = true;
+    }
+    if (draw) {
+      lag += static_cast<double>(v - ready[next]) / period;
+      next++;
+      shown++;
+      steady.Shown(v);
+      if (cadence.Note(v, period, 60.1, &line)) last = line;
+    }
+  }
+  *held = steady.held;
+  *shownOut = shown;
+  *lagOut = shown ? lag / shown : 0.0;
+  return last;
+}
+
+void TestPictureHold() {
+  unsigned held = 0, shown = 0;
+  double lag = 0.0;
+  // the report's spread (1.6 .. 2.4 vsyncs from the frame's start to done): without the hold 1, 2 and 3 in turn
+  const std::string before = HoldRun(false, 1.6, 2.4, &held, &shown, &lag);
+  std::fprintf(stderr, "  hold off: %s (%u shown, waited %.2f vsyncs on average)\n", before.c_str(), shown, lag);
+  Check(before.find("1: 0,") == std::string::npos && before.find("3: 0,") == std::string::npos,
+        "picture hold: without it the late and early pictures show 1 and 3 vsyncs (the report's pattern)");
+  const unsigned shownBefore = shown;
+  const std::string after = HoldRun(true, 1.6, 2.4, &held, &shown, &lag);
+  std::fprintf(stderr, "  hold on:  %s (%u shown, %u held one vsync, waited %.2f vsyncs on average)\n", after.c_str(),
+               shown, held, lag);
+  Check(after.find("1: 0,") != std::string::npos, "picture hold: no picture shows for one vsync only");
+  Check(shown == shownBefore, "picture hold: every game picture is shown (30 a second as before)");
+  Check(held > 0 && lag < 1.0, "picture hold: some pictures wait one vsync, on average less than a vsync");
+  // 2 vsyncs plus a little (a steady device, the Retroid): nothing to hold, the line as before
+  const std::string even = HoldRun(true, 1.2, 1.5, &held, &shown, &lag);
+  std::fprintf(stderr, "  steady:   %s (%u held)\n", even.c_str(), held);
+  Check(held == 0 && even.find("0 % more than 2 ms") != std::string::npos, "picture hold: a steady device: nothing held");
+  // not on a 120 Hz screen (the render thread draws every second vsync there) nor without a known period
+  re4gx::PictureHold h;
+  h.Shown(1000000000LL);
+  Check(!h.Wait(1000000000LL + 8333333LL, 8333333LL), "picture hold: not at 120 Hz");
+  Check(!h.Wait(1000000000LL + 16666667LL, 0), "picture hold: not without the screen's period");
+  Check(!h.Wait(1000000000LL + 2 * 16666667LL, 16666667LL), "picture hold: two vsyncs after the last: drawn");
+  Check(h.Wait(1000000000LL + 16666667LL, 16666667LL), "picture hold: one vsync after the last: waits");
+}
+
+// 0.99.13: the steady rhythm of 60 pictures a second on a screen that stays at 120 Hz (picture_cadence.h
+// PresentPacer). The report's phone (nubia NX709S): the app draws at every second vsync; a picture is done (GPU)
+// `from` .. `to` vsyncs after its drawing began, and the screen shows it at the first vsync 2 ms after that and not
+// before the time asked for; a picture due at the same vsync as a later one is dropped. Some drawings begin a vsync
+// late (the render thread woke late). Returns PictureCadence's line of the pictures as shown, the pictures shown and
+// dropped, the average vsyncs from the drawing's vsync to the screen, the pacer's latency at the end, its steps and
+// the times it stepped aside.
+struct PresentRun {
+  std::string line;
+  unsigned shown = 0, dropped = 0;
+  double delay = 0.0;
+  int latency = 0;
+  unsigned ups = 0, downs = 0, asides = 0, asked = 0;
+  int twoShare = 0;  // % of the intervals of 2 vsyncs
+};
+
+static PresentRun PresentSim(bool pace, double from, double to, int pictures, unsigned seed = 4711) {
+  const long long period = 8302889;  // 120.44 Hz, the report's
+  const long long start = 2000000000LL;
+  re4gx::PresentPacer pacer;
+  struct Shot {
+    long long began, target, done, at;
+  };
+  std::vector<Shot> shots;
+  for (int k = 0; k < pictures; k++) {
+    seed = seed * 1103515245u + 12345u;
+    const double r = from + (to - from) * ((seed >> 8) & 0xFFFF) / 65535.0;
+    const long long grid = start + 2LL * k * period;
+    // now and then the drawing begins a vsync late: the latest vsync it sees is the one after its own
+    const long long began = (seed >> 24) % 23 == 0 ? grid + period : grid;
+    const long long done = grid + static_cast<long long>(r * period);
+    long long asked = pace ? pacer.Target(began, period, 2) : 0;
+    long long earliest = done + 2000000LL;
+    if (asked > 0)
+      earliest = std::max(earliest, asked);
+    const long long at = start + ((earliest - start + period - 1) / period) * period;
+    shots.push_back({began, asked > 0 ? asked + period / 2 : 0, done, at});
+    // what the screen reports some swaps later: here at once
+    if (pace)
+      pacer.Outcome(shots.back().target, done, at);
+  }
+  PresentRun out;
+  // the screen: at each vsync the newest picture due; an older one due at the same vsync or later is dropped
+  std::vector<long long> shownAt;
+  long long lastAt = 0;
+  double delay = 0.0;
+  for (std::size_t i = 0; i < shots.size(); i++) {
+    const Shot &s = shots[i];
+    const bool replacedByNext = i + 1 < shots.size() && shots[i + 1].at <= s.at;
+    if (replacedByNext || s.at <= lastAt) {
+      out.dropped++;
+      continue;
+    }
+    shownAt.push_back(s.at);
+    lastAt = s.at;
+    delay += static_cast<double>(s.at - (start + 2LL * static_cast<long long>(i) * period)) / period;
+  }
+  re4gx::PictureCadence cadence;
+  unsigned two = 0, intervals = 0;
+  for (std::size_t i = 0; i < shownAt.size(); i++) {
+    std::string line;
+    if (cadence.Note(shownAt[i], period, 120.44, &line))
+      out.line = line;
+    if (i > 0) {
+      intervals++;
+      two += (shownAt[i] - shownAt[i - 1] + period / 2) / period == 2 ? 1 : 0;
+    }
+  }
+  out.shown = static_cast<unsigned>(shownAt.size());
+  out.delay = out.shown ? delay / out.shown : 0.0;
+  out.latency = pacer.latency;
+  out.ups = pacer.ups;
+  out.downs = pacer.downs;
+  out.asides = pacer.asides;
+  out.asked = pacer.asked;
+  out.twoShare = intervals ? static_cast<int>(100 * two / intervals) : 0;
+  return out;
+}
+
+void TestPresentPacer() {
+  // the report's phone: done 1.3 .. 2.3 vsyncs after the drawing began (render thread 8-9 ms, the GPU after it)
+  const PresentRun before = PresentSim(false, 1.3, 2.3, 1300);
+  std::fprintf(stderr, "  present times off: %s (%u shown, %u dropped, %d %% at 2 vsyncs, %.2f vsyncs to the screen)\n",
+               before.line.c_str(), before.shown, before.dropped, before.twoShare, before.delay);
+  Check(before.line.find("1: 0,") == std::string::npos && before.line.find("3: 0,") == std::string::npos &&
+            before.twoShare < 70,
+        "present pacer: without it the pictures show 1 and 3 vsyncs in turn (the report's pattern)");
+  const PresentRun after = PresentSim(true, 1.3, 2.3, 1300);
+  std::fprintf(stderr, "  present times on:  %s (%u shown, %u dropped, %d %% at 2 vsyncs, %.2f vsyncs to the screen, "
+               "latency %d)\n", after.line.c_str(), after.shown, after.dropped, after.twoShare, after.delay,
+               after.latency);
+  Check(after.twoShare >= 97, "present pacer: at least 97 % of the pictures show for 2 vsyncs");
+  Check(after.dropped == 0 && after.shown == 1300, "present pacer: every picture is shown (60 a second as before)");
+  Check(after.latency == 3 && after.delay < 3.1, "present pacer: 3 vsyncs from the drawing to the screen (8 ms more)");
+  // a slower GPU (done 2.5 .. 3.4 vsyncs after): the latency rises to 4, then the rhythm holds again
+  const PresentRun slow = PresentSim(true, 2.5, 3.4, 1300);
+  std::fprintf(stderr, "  slower GPU:        %s (%d %% at 2 vsyncs, latency %d, %u up)\n", slow.line.c_str(),
+               slow.twoShare, slow.latency, slow.ups);
+  Check(slow.latency == 4 && slow.ups == 1 && slow.twoShare >= 90 && slow.dropped == 0,
+        "present pacer: a slower GPU: one vsync more, the rhythm holds");
+  // a fast GPU (done within 1.2 vsyncs): after 5 s without a late picture back to 2 vsyncs
+  const PresentRun fast = PresentSim(true, 0.6, 1.2, 1300);
+  std::fprintf(stderr, "  fast GPU:          %s (%d %% at 2 vsyncs, latency %d, %u down)\n", fast.line.c_str(),
+               fast.twoShare, fast.latency, fast.downs);
+  Check(fast.latency == 2 && fast.downs == 1 && fast.twoShare >= 99, "present pacer: a fast GPU: back to 2 vsyncs");
+  // a device that cannot keep up (done 3.6 .. 5 vsyncs after): even 4 vsyncs do not help, the times step aside and the
+  // pictures come as without them (no latency added, no more lost), for 30 s, then the pacer tries again
+  const PresentRun behind = PresentSim(true, 3.6, 5.0, 1300);
+  const PresentRun behindOff = PresentSim(false, 3.6, 5.0, 1300);
+  std::fprintf(stderr, "  too slow:          %s (%d %% at 2 vsyncs, %u stepped aside, %u asked of 1300, %.2f vsyncs to "
+               "the screen, without: %.2f)\n", behind.line.c_str(), behind.twoShare, behind.asides, behind.asked,
+               behind.delay, behindOff.delay);
+  Check(behind.asides == 1 && behind.asked < 200 && behind.shown + behind.dropped == 1300 &&
+            behind.dropped <= behindOff.dropped + 2,
+        "present pacer: a device that does not keep up: the times step aside, no more pictures lost than without");
+  Check(behind.delay < behindOff.delay + 0.2, "present pacer: stepped aside, no latency added");
+  const PresentRun longer = PresentSim(true, 3.6, 5.0, 1800 + 600);
+  Check(longer.asides == 2, "present pacer: after 30 s it tries again (and steps aside again)");
+  // the render thread behind the game three times within 2 s: aside at once
+  {
+    re4gx::PresentPacer b;
+    const long long per = 8333333LL;
+    long long v = 1000000000LL;
+    Check(b.Target(v, per, 2) > 0, "present pacer: asks at 120 Hz");
+    b.Behind(v);
+    b.Behind(v + 20 * per);
+    Check(!b.Aside(), "present pacer: twice behind: still asking");
+    b.Behind(v + 40 * per);
+    Check(b.Aside() && b.Target(v + 42 * per, per, 2) == 0, "present pacer: three times behind within 2 s: aside");
+    Check(b.Target(v + 42 * per + 30000000000LL, per, 2) > 0 && b.latency == 3,
+          "present pacer: 30 s later: asking again, from 3 vsyncs");
+    re4gx::PresentPacer c;
+    c.Target(v, per, 2);
+    c.Behind(v);
+    c.Behind(v + 300 * per);
+    c.Behind(v + 600 * per);
+    Check(!c.Aside(), "present pacer: behind now and then (2.5 s apart): still asking");
+  }
+  // only where every n-th vsync is a 60th of a second
+  re4gx::PresentPacer p;
+  Check(p.Target(1000000000LL, 16666667LL, 1) == 0, "present pacer: not at 60 Hz");
+  Check(p.Target(1000000000LL, 11111111LL, 1) == 0, "present pacer: not at 90 Hz");
+  Check(p.Target(1000000000LL, 6944444LL, 2) == 0, "present pacer: not at 144 Hz (2 vsyncs are 13.9 ms)");
+  Check(p.Target(1000000000LL, 8333333LL, 2) == 1000000000LL + 3 * 8333333LL - 8333333LL / 2,
+        "present pacer: 120 Hz: asked for 3 vsyncs after, half a vsync before it");
+  Check(p.Target(1000000000LL, 4166667LL, 4) > 0, "present pacer: 240 Hz, every 4th vsync");
+  Check(p.Target(1000000000LL, 0, 2) == 0 && p.latency == 0, "present pacer: no period known: off");
+  // the grid: a drawing that began a vsync late keeps its place
+  re4gx::PresentPacer g;
+  const long long t0 = g.Target(1000000000LL, 8333333LL, 2);
+  const long long t1 = g.Target(1000000000LL + 3 * 8333333LL, 8333333LL, 2);
+  Check(t1 - t0 == 2 * 8333333LL, "present pacer: a drawing a vsync late stays on the grid");
+}
+
+void TestPictureCadence() {
+  auto run = [](double hz, double fps, int seconds, std::string *line) {
+    re4gx::PictureCadence c;
+    const long long period = static_cast<long long>(1e9 / hz);
+    const long long at = 1000000000LL;
+    bool got = false;
+    for (int i = 0; i <= static_cast<int>(fps * seconds) && !got; i++) {
+      const long long t = at + static_cast<long long>(i * 1e9 / fps) + 300000;  // drawn just after a vsync
+      // the vsync the picture waits for: the next one at or after its time
+      const long long v = at + ((t - at + period - 1) / period) * period;
+      got = c.Note(re4gx::PictureCadence::Snap(v, at, period), period, hz, line);
+    }
+    return got;
+  };
+  std::string line;
+  Check(run(60.0, 30.0, 11, &line), "cadence: a line after 10 s");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("0 % more than 2 ms") != std::string::npos && line.find("2: 301,") != std::string::npos,
+        "cadence: 30 pictures on 60 Hz, all 2 vsyncs");
+  Check(run(89.4, 59.94 / 2, 11, &line), "cadence: 89.4 Hz");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("2: 0,") == std::string::npos && line.find("3: ") != std::string::npos,
+        "cadence: the game's own clock on 89.4 Hz shows pictures of 2 vsyncs among the 3");
+  Check(run(90.0, 60.0, 11, &line), "cadence: 60 FPS on 90 Hz");
+  std::fprintf(stderr, "  %s\n", line.c_str());
+  Check(line.find("1: 0,") == std::string::npos && line.find("2: 0,") == std::string::npos,
+        "cadence: 60 FPS on 90 Hz, 1 and 2 vsyncs by turns");
+  re4gx::PictureCadence c;
+  std::string none;
+  c.Note(1000000000LL, 16666667, 60.0, &none);
+  c.Note(1033333333LL, 16666667, 60.0, &none);
+  c.Note(5000000000LL, 16666667, 60.0, &none);  // a pause
+  Check(c.intervals.empty(), "cadence: a pause starts over");
+}
+
 // The rule of Auto (gx_auto_level.h) with made-up measurements: `seconds` of chunks at `rate` a
 // second, each fence check finding `behind` chunks unfinished.
 struct AutoRun {
@@ -1431,7 +2036,8 @@ void TestBenchSteps() {
       "middle (30 up to 2x, 60 up to 1.5x)", [](int level, bool) { return level <= 4 ? 30 : 24; },
       [](int level, bool sixty) { return sixty ? (level <= 3 ? 60 : 47) : (level <= 4 ? 30 : 24); });
   Check(mid.Finished() && mid.Result(0) == 4 && mid.Result(1) == 3 && mid.Held(0) && mid.Held(1),
-        "benchmark: steps 4x 3.5x 3x 2.5x 2x for 30, the 60 pass again from 4x down to 1.5x");
+        "benchmark: steps 4x 3.5x 3x 2.5x 2x for 30, the 60 pass from 2x (the 30 result, 0.99.10) down to 1.5x");
+  Check(!mid.CpuSign(), "benchmark: the middle device's graphics chip holds it back, not the processor");
   // a slow one: not even 1x
   re4gx::BenchSteps slow = RunBench("slow (not even 1x)", [](int, bool) { return 22; }, [](int, bool) { return 22; });
   Check(slow.Finished() && slow.Result(0) == 2 && slow.Result(1) == 2 && !slow.Held(0) && !slow.Held(1),
@@ -1449,7 +2055,35 @@ void TestBenchSteps() {
   re4gx::BenchSteps dip2 = RunBench("two bad seconds at 4x",
                                     [&calls2](int, bool) { ++calls2; return calls2 == 3 || calls2 == 6 ? 25 : 30; },
                                     [](int, bool sixty) { return sixty ? 60 : 30; });
-  Check(dip2.Result(0) == 7 && dip2.Result(1) == 8, "benchmark: two bad seconds at 4x: 3.5x for 30, 4x for 60");
+  Check(dip2.Result(0) == 7 && dip2.Result(1) == 7,
+        "benchmark: two bad seconds at 4x: 3.5x for 30, the 60 pass from 3.5x (0.99.10) holds it");
+  // 0.99.10: a processor that holds the game back: about the same game pictures at every level, not even 1x
+  re4gx::BenchSteps cpu = RunBench("processor-bound (22-24 at every level)",
+                                   [](int level, bool) { return level <= 3 ? 24 : 22; }, [](int, bool) { return 22; });
+  Check(cpu.Result(0) == 2 && !cpu.Held(0) && cpu.CpuSign(), "benchmark: no level helps: the processor sign");
+  Check(!slow.CpuSign() || slow.Result(0) == 2, "benchmark: the slow device's sign is only set at 1x");
+  // a graphics chip that gets much faster lower down, still not 30 at 1x: no processor sign
+  re4gx::BenchSteps gpu = RunBench("graphics-bound (12 at 4x, 27 at 1x)",
+                                   [](int level, bool) { return 33 - 3 * level; }, [](int, bool) { return 20; });
+  Check(gpu.Result(0) == 2 && !gpu.Held(0) && !gpu.CpuSign(), "benchmark: lower levels help: no processor sign");
+  // 0.99.10: the 30 pass from 2.5x (a weak graphics chip) after 15 s that do not count
+  {
+    re4gx::BenchSteps w;
+    w.Start(0.0, 5, 15.0);
+    double t = 0.0;
+    int firstJudged = -1;
+    for (int i = 0; i < 400 && !w.Finished(); i++) {
+      t += 1.0;
+      const int level = w.Level();
+      std::string line;
+      // the first 15 s at 2.5x as if the programs were made (8 a second), then 30 at 2x and below
+      const int c = t <= 15.0 ? 8 : level <= 4 ? 30 : 24;
+      const re4gx::BenchSteps::Step step = w.Second(t, c, w.Pass() ? (level <= 3 ? 60 : 40) : c, 0, &line);
+      if (step != re4gx::BenchSteps::kNone && firstJudged < 0) firstJudged = static_cast<int>(t);
+    }
+    Check(w.Finished() && w.Result(0) == 4 && w.Result(1) == 3 && firstJudged == 25,
+          "benchmark: from 2.5x after a 15 s warm-up (the first level judged at 25 s), 2x and 1.5x");
+  }
   // fairly steady (the project owner's Retroid at 2x): 29-30 with a hitch now and then holds
   int calls3 = 0;
   re4gx::BenchSteps steady = RunBench(
@@ -1457,6 +2091,71 @@ void TestBenchSteps() {
       [](int level, bool sixty) { return sixty ? (level > 4 ? 48 : 58) : (level > 4 ? 24 : 30); });
   Check(steady.Result(0) == 4 && steady.Result(1) == 4 && steady.Held(0) && steady.Held(1),
         "benchmark: 29-30 a second at 2x holds 2x for 30 and 60");
+  // 0.99.12: the game's thread at the place (report 09912-benchmark-too-good, a Helio G85 phone): 30 pictures a second
+  // from 1.5x down (17 at 2.5x, 24.6 at 2x), 25.4 ms of processor time a picture: 76 % at the 30 pass's result; the
+  // Retroid 9 ms (27 %); a core without the figure: not known
+  auto cpuRun = [](const char *name, double cpuMs) {
+    re4gx::BenchSteps b;
+    b.Start(0.0, 5);
+    std::fprintf(stderr, "benchmark simulation: %s\n", name);
+    double t = 0.0;
+    for (int i = 0; i < 400 && !b.Finished(); i++) {
+      t += 1.0;
+      const int level = b.Level();
+      const bool sixty = b.Pass() == 1;
+      const int c = level >= 5 ? 17 : level == 4 ? 25 : 30;
+      std::string line;
+      const re4gx::BenchSteps::Step step = b.Second(t, c, sixty ? 36 : c, 0, &line, cpuMs);
+      if (step != re4gx::BenchSteps::kNone) std::fprintf(stderr, "  %5.1f s  %s\n", t, line.c_str());
+    }
+    return b;
+  };
+  re4gx::BenchSteps g85 = cpuRun("Helio G85 (25.4 ms a picture for the game's thread)", 25.4);
+  Check(g85.Result(0) == 3 && g85.Held(0) && g85.CpuLoad() == 76 && !g85.CpuSign(),
+        "benchmark: the Helio G85 holds 30 at 1.5x, its game's thread at 76 % (the old sign saw nothing)");
+  re4gx::BenchSteps calm = cpuRun("the same levels, 9 ms a picture (Retroid)", 9.0);
+  Check(calm.CpuLoad() == 27, "benchmark: 9 ms a picture is 27 %");
+  re4gx::BenchSteps unknown = cpuRun("an older core (no processor time)", -1.0);
+  Check(unknown.CpuLoad() == -1 && unknown.Result(0) == 3, "benchmark: without the figure the load is not known");
+  // 0.99.14, the GPU's reserve (the project owner's Retroid at the dock, report 09914-benchmark-dynres): 30 at 4x with
+  // the GPU at 15-22 ms of 33.4; with 60: 4x 38 shown, 3.5x 49, 3x 59.6 shown with one in-between picture left out and
+  // the GPU at 15.3 ms of 16.7 (92 %), 2.5x 59.9 at 12.4 ms (74 %)
+  auto dock = [](const char *name, bool gpuKnown) {
+    re4gx::BenchSteps b;
+    b.Start(0.0, 8, 5.0);
+    std::fprintf(stderr, "benchmark simulation: %s\n", name);
+    double t = 0.0;
+    for (int i = 0; i < 400 && !b.Finished(); i++) {
+      t += 1.0;
+      const int level = b.Level();
+      const bool sixty = b.Pass() == 1;
+      const int shown = !sixty ? 30 : level >= 8 ? 38 : level == 7 ? 49 : level == 6 ? (i % 10 ? 60 : 58) : 60;
+      const double gpu = !gpuKnown ? -1.0 : !sixty ? 18.0 : level >= 8 ? 26.0 : level == 7 ? 21.0 : level == 6 ? 15.3
+                                                                                                                 : 12.4;
+      std::string line;
+      const re4gx::BenchSteps::Step step = b.Second(t, 30, shown, 0, &line, 8.8, gpu);
+      if (step != re4gx::BenchSteps::kNone) std::fprintf(stderr, "  %5.1f s  %s\n", t, line.c_str());
+    }
+    return b;
+  };
+  re4gx::BenchSteps retroid = dock("the Retroid at the dock, the GPU's time measured", true);
+  Check(retroid.Result(0) == 8 && retroid.Result(1) == 5 && retroid.Held(1),
+        "benchmark: the Retroid at the dock: 4x for 30, 2.5x for 60 (3x smooth, but the GPU at 92 %: no reserve)");
+  Check(retroid.GpuMs(1) > 12.0 && retroid.GpuMs(1) < 12.8, "benchmark: the 60 pass's GPU time at its result kept");
+  re4gx::BenchSteps blind = dock("the same without the GPU's time (Mali GL)", false);
+  Check(blind.Result(1) == 6 && blind.GpuMs(1) < 0.0, "benchmark: without the GPU's time as before: 3x for 60");
+  // the 30 pass needs the reserve too: the GPU at 30 ms of 33.4 (90 %) at 4x, 22 ms at 3.5x
+  {
+    re4gx::BenchSteps b;
+    b.Start(0.0);
+    double t = 0.0;
+    for (int i = 0; i < 400 && !b.Finished(); i++) {
+      t += 1.0;
+      std::string line;
+      b.Second(t, 30, b.Pass() ? 60 : 30, 0, &line, -1.0, b.Level() >= 8 ? 30.0 : b.Pass() ? 11.0 : 22.0);
+    }
+    Check(b.Result(0) == 7 && b.Result(1) == 7, "benchmark: 30 at 4x with the GPU at 90 %: 3.5x");
+  }
   // the 60 FPS pause does not carry over into the benchmark's next level (SmoothPacer::Restart)
   re4gx::SmoothPacer pacer;
   bool off = false;
@@ -1489,18 +2188,20 @@ void TestAutoLevel() {
     r.Play(6.5, 20.0, 1);
     Check(r.a.Level() == 1 && r.a.Downs() == 1, "auto level: two slow windows in a row, the GPU behind: one level down");
     Check(!r.lines.empty() && r.lines.back().find("level 2 -> 1") != std::string::npos, "auto level: logged");
+    const double downAt = r.t;
     r.Play(10.0, 20.0, 1);
     Check(r.a.Level() == 1, "auto level: never below 1");
-    r.Play(9.0, 30.0, 0);  // four windows keeping up
-    Check(r.a.Level() == 1, "auto level: not up before 10 s keeping up");
-    r.Play(3.0, 30.0, 0);
-    Check(r.a.Level() == 2 && r.a.Ups() == 1, "auto level: up again after 10 s keeping up (the wait of 10 s over)");
-    // straight down again: the next wait doubles (20 s)
+    while (r.a.Ups() == 0 && r.t < downAt + 100.0)
+      r.Play(0.1, 30.0, 0);
+    // (0.99.14: 16 s steady and 20 s after the step down; until then 10 s and 10 s)
+    Check(r.a.Level() == 2 && r.a.Ups() == 1 && r.t - downAt >= 19.9,
+          "auto level: up again 16 s keeping up, not before 20 s after the step down");
+    // straight down again: the next wait doubles (40 s)
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again soon: the next wait 20 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 40.0, "auto level: down again soon: the next wait 40 s");
   }
   {
-    // not before 10 s after a step down, even with every window keeping up
+    // not before 20 s after a step down, even with every window keeping up
     AutoRun r;
     r.a.Start(2, 0.0);
     r.Play(4.1, 20.0, 1);
@@ -1508,7 +2209,7 @@ void TestAutoLevel() {
     const double downAt = r.t;
     while (r.a.Ups() == 0 && r.t < 100.0)
       r.Play(0.1, 30.0, 0);
-    Check(r.a.Ups() == 1 && r.t - downAt >= 9.9 && r.t - downAt < 11.0, "auto level: up 10 s after the step down");
+    Check(r.a.Ups() == 1 && r.t - downAt >= 19.9 && r.t - downAt < 21.0, "auto level: up 20 s after the step down");
   }
   {
     // heavy, light, heavy (the project owner, 06.11.2026: 30 s too long when the way goes on into a lighter area): a
@@ -1520,18 +2221,21 @@ void TestAutoLevel() {
     Check(!downs.empty() && downs.front() < 5.0, "auto level, heavy spot: half a level down within 5 s");
     const double light = r.t;
     const size_t upsBefore = ups.size(), downsBefore = downs.size();
-    r.PlayGpu(120.0, 24.0, &downs, &ups);
+    r.PlayGpu(180.0, 24.0, &downs, &ups);
     Check(r.a.Level() == 4 && downs.size() == downsBefore, "auto level, light stretch: 2x again, no step down there");
-    Check(r.a.Level() == 4 && (ups.size() == upsBefore || ups.back() - light <= 25.0),
-          "auto level, light stretch: back at 2x at most 25 s into it (until 0.98.4: 59 s)");
-    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level, light stretch: the wait back to 10 s once 2x held 60 s");
-    // the next heavy spot starts with the short wait again: down, up after 10 s, down again (a bounce), then 20 s
+    std::fprintf(stderr, "  auto level, light stretch: back at 2x %.1f s into it\n",
+                 ups.size() > upsBefore ? ups.back() - light : 0.0);
+    Check(r.a.Level() == 4 && (ups.size() == upsBefore || ups.back() - light <= 35.0),
+          "auto level, light stretch: back at 2x at most 35 s into it (until 0.98.4: 59 s; a try at the heavy spot "
+          "bounced, so the wait there was 40 s)");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level, light stretch: the wait back to 20 s once 2x held 120 s");
+    // the next heavy spot starts with the short wait again: down, up after 20 s, down again (a bounce), then 40 s
     downs.clear();
     ups.clear();
     r.PlayGpu(40.0, 40.0, &downs, &ups);
-    Check(downs.size() >= 1 && ups.size() >= 1 && ups.front() - downs.front() < 12.0,
-          "auto level, the next heavy spot: the first try up after about 10 s");
-    // heavy for 10 minutes: the bounces grow apart (10, 20, 40, 80, 160, 300 s), at most 7 steps down in all
+    Check(downs.size() >= 1 && ups.size() >= 1 && ups.front() - downs.front() < 22.0,
+          "auto level, the next heavy spot: the first try up after about 20 s");
+    // heavy for 10 minutes (no room known here, so no memory): the bounces grow apart (20, 40, 80, 160, 300 s)
     r.PlayGpu(600.0, 40.0, &downs, &ups);
     r.PlayGpu(5.0, 40.0, &downs, &ups);  // a try up in the last seconds is back down after two slow windows
     std::fprintf(stderr, "auto level, heavy for 10 minutes: %zu steps down, %zu up, level %s, wait %.0f s\n",
@@ -1539,7 +2243,7 @@ void TestAutoLevel() {
     Check(downs.size() <= 7 && r.a.Level() == 3, "auto level, heavy for 10 minutes: few bounces, ends at 1.5x");
     Check(r.a.Hold() >= 160.0, "auto level, heavy for 10 minutes: the wait grown to minutes");
     for (size_t i = 2; i < ups.size(); i++)
-      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, heavy for 10 minutes: each try up later than the last");
+      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, heavy for 10 minutes: each try later than the last");
   }
   {
     // breaks (06.11.2026): the app menu (no chunks for 20 s), then a room's loading and its programs (3 s slow with
@@ -1567,16 +2271,31 @@ void TestAutoLevel() {
       r.Play(0.5, 30.0, 0);
     Check(r.a.Ups() == 1, "auto level: up");
     r.Play(6.5, 20.0, 2);
-    Check(r.a.Level() == 1 && r.a.Hold() == 20.0, "auto level: down again within 15 s of the step up: the next wait 20 s");
+    Check(r.a.Level() == 1 && r.a.Hold() == 40.0, "auto level: down again within 60 s of the step up: the next wait 40 s");
     const double downAt = r.t;
     while (r.a.Ups() == 1 && r.t < 400.0)
       r.Play(0.5, 30.0, 0);
-    Check(r.t - downAt >= 15.0, "auto level: the longer wait holds");  // the step down came during the slow part
-    r.Play(59.0, 30.0, 0);
-    Check(r.a.Hold() == 20.0, "auto level: the longer wait kept while the step up holds less than 60 s");
+    Check(r.t - downAt >= 35.0, "auto level: the longer wait holds");  // the step down came during the slow part
+    r.Play(119.0, 30.0, 0);
+    Check(r.a.Hold() == 40.0, "auto level: the longer wait kept while the step up holds less than 120 s");
     r.Play(41.0, 30.0, 0);
-    Check(r.a.Level() == 2, "auto level: never above the screen's level");
-    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level: a step up that held 60 s: the wait back to 10 s");
+    Check(r.a.Level() == 2, "auto level: never above the top");
+    Check(r.a.Hold() == re4gx::AutoLevel::kFirstHold, "auto level: a step up that held 120 s: the wait back to 20 s");
+  }
+  {
+    // a renderer that starts below its top (Start's `from`) still goes up to the top where the GPU keeps up
+    AutoRun r;
+    r.a.Start(7, 0.0, 2, true, 6, 6);
+    Check(r.a.Level() == 6 && r.a.Top() == 7, "auto level: starts at the level asked for, below the top");
+    while (r.a.Ups() == 0 && r.t < 60.0)
+      r.Play(0.5, 30.0, 0);
+    Check(r.a.Level() == 7, "auto level: from the start below the top up to the top");
+    AutoRun low;
+    low.a.Start(4, 0.0, 2, true, 3, 1);
+    Check(low.a.Level() == 2, "auto level: a start below the bottom takes the bottom");
+    AutoRun high;
+    high.a.Start(4, 0.0, 2, true, 3, 9);
+    Check(high.a.Level() == 4, "auto level: a start above the top takes the top");
   }
   {
     AutoRun r;
@@ -1636,6 +2355,123 @@ void TestAutoLevel() {
     Check(r.a.Ups() == 1, "auto level: up again once it hardly waits");
   }
   {
+    // up to the benchmark's level (0.99.5, the project owner's Retroid report 08.11.2026: 60 FPS, down to 1x after a
+    // hitch, never up again): with every in-between picture shown and the game at 30, a GPU a third behind (the fence of
+    // the newest in-between picture still open at every third look) goes up to the benchmark's 1.5x, not above it
+    auto play = [](AutoRun &r, double seconds, unsigned behindEvery) {
+      const double end = r.t + seconds;
+      while (r.t < end) {
+        r.t += 1.0 / 30.0;
+        r.checks++;
+        r.sum += behindEvery && r.checks % behindEvery == 0 ? 1u : 0u;
+        std::string why;
+        r.a.Chunk(r.t, r.sum, r.checks, true, &why, r.dropped, r.waited);
+        if (!why.empty())
+          r.lines.push_back(why);
+      }
+    };
+    AutoRun r;
+    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x (as until 0.99.13: the top above it)
+    r.Play(6.5, 20.0, 1);
+    r.Play(6.5, 20.0, 1);
+    Check(r.a.Level() == 2, "auto level, benchmark 1.5x: down to 1x after a long hitch");
+    play(r, 30.0, 3);
+    Check(r.a.Level() == 3 && r.a.Ups() == 1, "auto level, benchmark 1.5x: up to 1.5x with the GPU a third behind");
+    play(r, 120.0, 3);
+    Check(r.a.Level() == 3 && r.a.Ups() == 1, "auto level, benchmark 1.5x: not above it unless the GPU keeps up");
+    play(r, 30.0, 0);
+    Check(r.a.Level() == 4 && r.a.Ups() == 2, "auto level, benchmark 1.5x: 2x once the GPU keeps up");
+    AutoRun half;
+    half.a.Start(4, 0.0, 2, true, 3);
+    half.Play(13.0, 20.0, 1);
+    play(half, 60.0, 2);
+    Check(half.a.Level() == 2 && half.a.Ups() == 0, "auto level, benchmark 1.5x: not up with the GPU half behind");
+    AutoRun none;
+    none.a.Start(4, 0.0, 2, true);  // no benchmark: as before
+    none.Play(13.0, 20.0, 1);
+    play(none, 60.0, 3);
+    Check(none.a.Level() == 2 && none.a.Ups() == 0, "auto level, no benchmark: not up with the GPU a third behind");
+  }
+  {
+    // 60 FPS (0.99.5, the project owner's reports 08.11.2026, GLES and Vulkan): a heavy moment at 2x took it to 1.5x;
+    // then he stood still facing a wall, 60 shown a second, no in-between picture left out, the fences 0.7 behind, and
+    // it never went back up. Now: up again 20 s later; a level too heavy goes back within 5 s, and each next try
+    // waits longer (no pendulum); below the top a status line every 10 s says why it stays.
+    // `behindOf10`: of every 10 looks that many find the GPU behind; `droppedEvery`: one in-between picture of so many
+    // chunks left out (0: none)
+    auto play60 = [](AutoRun &r, double seconds, unsigned behindOf10, unsigned droppedEvery,
+                     std::vector<std::string> *status) {
+      const double end = r.t + seconds;
+      while (r.t < end) {
+        r.t += 1.0 / 30.0;
+        r.checks++;
+        r.sum += r.checks % 10 < behindOf10 ? 1u : 0u;
+        if (droppedEvery && r.checks % droppedEvery == 0)
+          r.dropped++;
+        std::string why, line;
+        r.a.Chunk(r.t, r.sum, r.checks, true, &why, r.dropped, r.waited, true, &line);
+        if (!why.empty())
+          r.lines.push_back(why);
+        if (!line.empty() && status)
+          status->push_back(line);
+      }
+    };
+    AutoRun r;
+    std::vector<std::string> status;
+    r.a.Start(4, 0.0, 2, true, 3);  // the benchmark's 1.5x, Dynamic up to 2x (the owner's Retroid until 0.99.13)
+    play60(r, 6.5, 10, 4, &status);  // heavy: a quarter left out, the GPU behind
+    Check(r.a.Level() == 3, "auto level, 60 FPS: a heavy moment takes 2x to 1.5x");
+    const double downAt = r.t;
+    while (r.a.Ups() == 0 && r.t < downAt + 120.0)
+      play60(r, 0.5, 7, 0, &status);  // standing still: none left out, the fences 0.7 behind (as the owner's GLES log)
+    // (the step down came at 4 s, the heavy part went on to 6.5 s: 20 s after the step down is 17.5 s after it)
+    Check(r.a.Level() == 4 && r.t - downAt >= 17.4 && r.t - downAt <= 22.5,
+          "auto level, 60 FPS: steady at 1.5x (none left out, fences 0.7 behind): back at 2x 20 s after the step down");
+    std::fprintf(stderr, "  auto level, 60 FPS: back at 2x %.1f s after the step down\n", r.t - downAt);
+    Check(!r.lines.empty() && r.lines.back().find("s steady, room for it") != std::string::npos,
+          "auto level, 60 FPS: the step up logged");
+    bool told = false;
+    for (const std::string &l : status)
+      told = told || l.find("dynamic resolution: stays at 1.5x below 2x: ") != std::string::npos;
+    Check(told, "auto level, 60 FPS: a status line says why it stays below the top");
+    const unsigned downs = r.a.Downs();
+    play60(r, 60.0, 9, 0, &status);  // steady at 2x: it stays
+    Check(r.a.Level() == 4 && r.a.Downs() == downs, "auto level, 60 FPS: steady at 2x, it stays");
+    // in-between pictures left out at 1.5x: no step up, the status says so
+    AutoRun lost;
+    std::vector<std::string> lostStatus;
+    lost.a.Start(4, 0.0, 2, true, 3);
+    play60(lost, 6.5, 10, 4, &lostStatus);
+    play60(lost, 60.0, 7, 20, &lostStatus);  // a twentieth left out (5 %): not steady
+    // (the window across the switch from heavy to light may take it half a level further down: no matter)
+    Check(lost.a.Level() <= 3 && lost.a.Ups() == 0, "auto level, 60 FPS: not up while in-between pictures are left out");
+    told = false;
+    for (const std::string &l : lostStatus)
+      told = told || l.find("in-between pictures left out") != std::string::npos;
+    Check(told, "auto level, 60 FPS: the status names the in-between pictures left out");
+    // too heavy at 2x, fine at 1.5x for 5 minutes (no room known, no GPU time: the waits alone): tries 2x again and
+    // again, each try later than the last
+    AutoRun swing;
+    swing.a.Start(4, 0.0, 2, true, 3);
+    std::vector<double> ups;
+    while (swing.t < 300.0) {
+      const unsigned before = swing.a.Ups();
+      if (swing.a.Level() == 4)
+        play60(swing, 0.5, 10, 4, nullptr);
+      else
+        play60(swing, 0.5, 7, 0, nullptr);
+      if (swing.a.Ups() != before)
+        ups.push_back(swing.t);
+    }
+    std::fprintf(stderr, "  auto level, 60 FPS, 2x too heavy for 5 minutes: %u steps down, %zu up, the wait %.0f s\n",
+                 swing.a.Downs(), ups.size(), swing.a.Hold());
+    Check(swing.a.Downs() <= 5 && swing.a.Downs() >= 2, "auto level, 60 FPS: 2x too heavy: few tries in 5 minutes");
+    Check(!ups.empty() && ups.front() <= 25.0, "auto level, 60 FPS: the first try within 25 s");
+    for (size_t i = 2; i < ups.size(); i++)
+      Check(ups[i] - ups[i - 1] > ups[i - 1] - ups[i - 2], "auto level, 60 FPS: each try later than the last");
+    Check(swing.a.Hold() >= 80.0, "auto level, 60 FPS: the wait grown after the bounces");
+  }
+  {
     // in halves (the app): from 2x (4) half a level at a time, never below 1x (2), named "1.5x"
     AutoRun r;
     r.a.Start(4, 0.0, 2, true);
@@ -1646,6 +2482,259 @@ void TestAutoLevel() {
     Check(r.a.Level() == 2, "auto level in halves: 1.5x -> 1x");
     r.Play(10.0, 20.0, 1);
     Check(r.a.Level() == 2, "auto level in halves: never below 1x");
+  }
+}
+
+// 0.99.14 (the project owner's Retroid report 09914-benchmark-dynres): "Dynamic" with the GPU's time a picture, the
+// rooms remembered, menus, movies and loading. A simulated device at 60 FPS: each game picture (30 a second) and its
+// in-between picture take the GPU `ms3x` (its time at 3x) times the level's pixels over 3x's, each picture with up to
+// `jitter` more or less; when the two do not fit into a game picture's 33.4 ms, the in-between picture is left out
+// (the game keeps its pace), and the 60 FPS pacer (SmoothPacer, as core_mode.cpp) pauses them when that comes again
+// and again. The fences stand at 1.0 with 60 FPS whatever the GPU does (the owner's log). Figures of the report: at the
+// dock 2.5x 12.4 ms, 3x 15.3, 3.5x 21; in r333 3x 15.7-17.0, 2.5x 15.4-17.7 at its heaviest; r101 3x 11-15.
+struct GpuRun {
+  re4gx::AutoLevel a;
+  re4gx::SmoothPacer pacer;
+  re4gx::AutoLevel::Sample s;
+  std::mt19937 rng{1234};
+  std::vector<std::string> lines, status;
+  std::vector<double> downs, ups;
+  double jitter = 0.10;
+  bool gpuKnown = true;
+  double gpuFactor = 1.0;  // a timer that reads this many times the GPU's time (a broken one)
+  GpuRun() {
+    s.sixty = true;
+    s.smooth = true;
+  }
+  // `ms3x`: the GPU's time a picture at 3x; `room`; `calm`: menu or movie pictures; `loadMs`: loading on the render
+  // thread a second, and with it `lateShare` of the in-between pictures left out (the render thread busy, not the
+  // GPU); `rate`: game pictures a second (below 30: the processor)
+  void Play(double seconds, double ms3x, int room, bool calm = false, double loadMs = 0.0, double lateShare = 0.0,
+            double rate = 30.0) {
+    std::uniform_real_distribution<double> u(-1.0, 1.0), p(0.0, 1.0);
+    const double end = s.t + seconds;
+    while (s.t < end) {
+      s.t += 1.0 / rate;
+      s.room = room;
+      s.calm = calm;
+      const double pixels = static_cast<double>(a.Level()) * a.Level() / 36.0;
+      const double g1 = ms3x * pixels * (1.0 + jitter * u(rng)), g2 = ms3x * pixels * (1.0 + jitter * u(rng));
+      // (while the pacer pauses them only the game picture is drawn)
+      const bool gpuLate = pacer.Off() ? g1 > 1000.0 / rate : g1 + g2 > 1000.0 / rate;
+      const bool threadLate = lateShare > 0.0 && p(rng) < lateShare;
+      const bool behind = !calm && (gpuLate || threadLate);
+      // (core_mode.cpp: a chunk behind counts as left out, the pacer then says whether to make one: false when behind
+      // or paused)
+      if (behind)
+        s.dropped++;
+      const bool between = !calm && pacer.Chunk(s.t, behind, nullptr);
+      s.smooth = !pacer.Off();
+      s.pauses = pacer.Offs();
+      if (gpuKnown) {
+        s.gpuUs += static_cast<unsigned long long>(g1 * 1000.0 * gpuFactor);
+        s.gpuPictures++;
+        if (between) {
+          s.gpuUs += static_cast<unsigned long long>(g2 * 1000.0 * gpuFactor);
+          s.gpuPictures++;
+        }
+      }
+      s.behindSum += 1;
+      s.behindChecks++;
+      s.loadUs += static_cast<unsigned long long>(loadMs * 1000.0 / rate);
+      const int was = a.Level();
+      std::string why, line;
+      a.Chunk(s, true, &why, &line);
+      if (!why.empty())
+        lines.push_back(why);
+      if (!line.empty())
+        status.push_back(line);
+      if (a.Level() < was)
+        downs.push_back(s.t);
+      if (a.Level() > was)
+        ups.push_back(s.t);
+    }
+  }
+  // the lines so far (a failing check's context)
+  void Dump(const char *why) const {
+    std::fprintf(stderr, "  -- %s: level %s, %zu lines, %zu status lines\n", why, a.Name(a.Level()).c_str(),
+                 lines.size(), status.size());
+    for (const std::string &l : lines)
+      std::fprintf(stderr, "     %s\n", l.c_str());
+    for (const std::string &l : status)
+      std::fprintf(stderr, "     %s\n", l.c_str());
+  }
+  bool Told(const char *what) const {
+    for (const std::string &l : status)
+      if (l.find(what) != std::string::npos)
+        return true;
+    return false;
+  }
+  void Room(double t) { a.Restart(t); }  // core_mode.cpp at a room's start
+};
+
+void TestAutoLevelGpu() {
+  {
+    // the owner's case as 0.99.13 had it, now with the top at the benchmark's 3x: r333 at its heaviest (3x 16.5 ms a
+    // picture): down to 2.5x within seconds; 12 minutes more at the heaviest: no room for 3x (2.5x takes 11.5 ms, 3x
+    // would take about 16.5), never tried
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    if (r.a.Level() != 5)
+      r.Dump("r333");
+    Check(r.a.Level() == 5 && r.downs.size() == 1, "auto level GPU: r333 too heavy for 3x: 2.5x within 10 s");
+    Check(!r.lines.empty() && r.lines.back().find("not tried again in r333") != std::string::npos &&
+              r.lines.back().find("% of 16.7") != std::string::npos,
+          "auto level GPU: the step down names the GPU's share and the room remembered");
+    if (!r.lines.empty())
+      std::fprintf(stderr, "  %s\n", r.lines.back().c_str());
+    r.Play(720.0, 16.5, 0x333);
+    Check(r.a.Level() == 5 && r.downs.size() == 1 && r.ups.empty(),
+          "auto level GPU: 12 minutes in r333 at 2.5x, no try at 3x (no up and down)");
+    Check(r.Told("no room for 3x"), "auto level GPU: the status says why: no room for 3x");
+    // a lighter room: up to 3x once the wait is over (20 s after the step down long past: the quiet 4 s and 16 s)
+    r.Room(r.s.t);
+    const double entered = r.s.t;
+    r.Play(60.0, 11.0, 0x101);
+    Check(r.a.Level() == 6 && r.ups.size() == 1 && r.ups[0] - entered <= 21.0,
+          "auto level GPU: a lighter room (3x 11 ms): 3x within 21 s");
+    r.Play(300.0, 11.0, 0x101);
+    Check(r.a.Level() == 6 && r.downs.size() == 1, "auto level GPU: 5 minutes at 3x in the lighter room, no step down");
+    // back in r333 within 10 minutes of its failure would still be remembered; 13 minutes later it is tried again
+    r.Room(r.s.t);
+    r.Play(30.0, 16.5, 0x333);
+    Check(r.a.Level() == 5 && r.downs.size() == 2, "auto level GPU: back in r333 at its heaviest: 2.5x again");
+    std::fprintf(stderr, "  %s\n", r.a.Summary(r.s.t).c_str());
+    Check(r.a.Summary(r.s.t).find("r333 below 3x") != std::string::npos, "auto level GPU: the summary names r333");
+  }
+  {
+    // a level just at its limit (the dock at 3x: 15.3 ms, 92 %): it stays there, no step down, no step up
+    GpuRun r;
+    r.jitter = 0.05;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(600.0, 15.3, 0x11b);
+    std::fprintf(stderr, "  auto level GPU, 3x at 92 %% for 10 minutes: %zu down, %zu up\n", r.downs.size(), r.ups.size());
+    Check(r.downs.size() <= 1 && r.ups.empty(), "auto level GPU: 3x at 92 % for 10 minutes: at most one step, no pendulum");
+  }
+  {
+    // the pendulum of 0.99.13 (top half a level above the benchmark): top 3.5x over a 3x that holds; 3.5x is tried at
+    // most once in the room, and with the GPU's time not at all once 3x shows no room
+    GpuRun r;
+    r.a.Start(7, 0.0, 2, true, 6);
+    r.Play(600.0, 12.5, 0x101);  // 3x 12.5 ms: 3.5x about 17 ms, more than 16.7
+    std::fprintf(stderr, "  auto level GPU, top 3.5x over a 3x at 12.5 ms, 10 minutes: %zu down, %zu up, level %s\n",
+                 r.downs.size(), r.ups.size(), r.a.Name(r.a.Level()).c_str());
+    Check(r.a.Level() == 6 && r.downs.size() == 1 && r.ups.empty(),
+          "auto level GPU: 3.5x down once to 3x, then never tried again (until 0.99.13: again every 10-40 s)");
+  }
+  {
+    // movies and menus say nothing: below the top, 60 s of a movie (the game's own 60 a second) or a game menu with
+    // the GPU idle: no step up (0.99.13: the ending movie took 2x to 3.5x); then play: up
+    GpuRun movie;
+    movie.a.Start(6, 0.0, 2, true, 6, 4);
+    movie.Play(60.0, 3.0, 0x333, true, 0.0, 0.0, 60.0);
+    Check(movie.a.Level() == 4 && movie.ups.empty(), "auto level GPU: a movie at 2x for 60 s: no step up");
+    Check(movie.Told("a game menu or a movie"), "auto level GPU: the status says the movie is not judged");
+    GpuRun menu;
+    menu.a.Start(6, 0.0, 2, true, 6, 4);
+    menu.Play(60.0, 3.0, 0x333, true);
+    Check(menu.a.Level() == 4 && menu.ups.empty(), "auto level GPU: a game menu for 60 s: no step up");
+    menu.Play(60.0, 8.0, 0x333);
+    Check(menu.a.Level() == 6, "auto level GPU: play after the menu, room to spare: up to 3x");
+  }
+  {
+    // loading (HD textures read on the render thread, shaders made): a fifth of the in-between pictures late while
+    // 60 ms a second are spent loading, the GPU at 60 %: no step down; the same with the GPU's time not measured
+    // (Mali GL): the loading alone keeps it from counting
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(60.0, 10.0, 0x330, false, 60.0, 0.2);
+    Check(r.a.Level() == 6 && r.downs.empty(), "auto level GPU: loading with a fifth late: no step down");
+    GpuRun blind;
+    blind.gpuKnown = false;
+    blind.a.Start(6, 0.0, 2, true, 6);
+    blind.Play(60.0, 10.0, 0x330, false, 60.0, 0.2);
+    Check(blind.a.Level() == 6 && blind.downs.empty(),
+          "auto level GPU: loading, the GPU's time not measured: no step down either");
+    // the same late pictures without the loading figure and without the GPU's time: as until 0.99.13, down
+    GpuRun old;
+    old.gpuKnown = false;
+    old.a.Start(6, 0.0, 2, true, 6);
+    old.Play(60.0, 10.0, 0x330, false, 0.0, 0.2);
+    Check(old.a.Level() < 6, "auto level GPU: late pictures, nothing measured: down (as before)");
+  }
+  {
+    // the processor: the game at 25 pictures a second, the GPU at half its time: no step down, a line says why
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(60.0, 8.0, 0x210, false, 0.0, 0.3, 25.0);
+    Check(r.a.Level() == 6 && r.downs.empty(), "auto level GPU: the processor slow, the GPU idle: no step down");
+    Check(r.Told("not the resolution's doing"), "auto level GPU: the line says the late pictures are not the GPU's");
+  }
+  {
+    // a timer that cannot be trusted (it reads 30 times the GPU's time, as GL's once did with MSAA): not used; the
+    // level goes up as without it
+    GpuRun r;
+    r.gpuFactor = 30.0;
+    r.a.Start(6, 0.0, 2, true, 6, 4);
+    r.Play(60.0, 8.0, 0x101);
+    Check(r.a.Level() == 6, "auto level GPU: an implausible timer is left out, up as without it");
+  }
+  {
+    // the memory over a new renderer: the same top keeps it, another top starts it anew
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    Check(r.a.Level() == 5, "auto level GPU: down in r333");
+    r.a.Start(6, r.s.t, 2, true, 6, 5);
+    Check(r.a.Blocked(6, r.s.t, 0x333) > 0.0 && r.a.Blocked(6, r.s.t, 0x101) == 0.0 && r.a.Blocked(5, r.s.t, 0x333) == 0.0,
+          "auto level GPU: a new renderer with the same top remembers 3x in r333 (not 2.5x, not other rooms)");
+    // where a new renderer starts (core_mode.cpp): in r333 below 3x, elsewhere at the top
+    Check(r.a.StartLevel(6, 6, r.s.t, 0x333, 2) == 5 && r.a.StartLevel(6, 6, r.s.t, 0x101, 2) == 6 &&
+              r.a.StartLevel(6, 6, r.s.t + 601.0, 0x333, 2) == 6 && r.a.StartLevel(7, 7, r.s.t, 0x333, 2) == 7,
+          "auto level GPU: a new renderer in r333 starts at 2.5x, in other rooms, 10 minutes later or with another top "
+          "at the top");
+    r.a.Start(5, r.s.t, 2, true, 5);
+    r.a.Start(6, r.s.t, 2, true, 6);
+    Check(r.a.Blocked(6, r.s.t, 0x333) == 0.0, "auto level GPU: another top in between starts the memory anew");
+  }
+  {
+    // 60 FPS switched off with the same top for 30 and 60 FPS (no new renderer): what did not hold at 16.7 ms says
+    // nothing at 33.4 ms, the memory goes (0.99.15, review of 0.99.14)
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    Check(r.a.Level() == 5 && r.a.Blocked(6, r.s.t, 0x333) > 0.0, "auto level GPU, 60 -> 30: 3x did not hold in r333");
+    r.s.sixty = r.s.smooth = false;
+    r.Play(0.1, 16.5, 0x333);
+    Check(r.a.Blocked(6, r.s.t, 0x333) == 0.0, "auto level GPU, 60 -> 30: the memory of 60 FPS goes");
+    r.s.sixty = r.s.smooth = true;
+    r.Play(0.1, 16.5, 0x333);
+    Check(r.a.Level() == 5, "auto level GPU, 30 -> 60: the level stays until a window says otherwise");
+  }
+  {
+    // the memory itself: a heavy moment in r333 takes 3x to 2.5x; then r333 light again (3x would take 10 ms: room
+    // enough), but 3x is not tried there for 10 minutes; in another room at once (after the wait); after 10 minutes in
+    // r333 too
+    GpuRun r;
+    r.a.Start(6, 0.0, 2, true, 6);
+    r.Play(10.0, 16.5, 0x333);
+    Check(r.a.Level() == 5, "auto level GPU, memory: a heavy moment in r333: 2.5x");
+    const double downAt = r.downs.empty() ? 0.0 : r.downs.back();
+    r.Play(500.0, 10.0, 0x333);
+    Check(r.a.Level() == 5 && r.ups.empty(), "auto level GPU, memory: r333 light again, 3x not tried there (8 minutes)");
+    Check(r.Told("did not hold in r333"), "auto level GPU, memory: the status says 3x did not hold in r333");
+    r.Play(120.0, 10.0, 0x333);
+    Check(r.a.Level() == 6 && r.ups.size() == 1 && r.ups[0] - downAt >= 599.0 && r.ups[0] - downAt <= 620.0,
+          "auto level GPU, memory: r333 tried at 3x again 10 minutes after it did not hold");
+    GpuRun other;
+    other.a.Start(6, 0.0, 2, true, 6);
+    other.Play(10.0, 16.5, 0x333);
+    other.Room(other.s.t);
+    const double entered = other.s.t;
+    other.Play(40.0, 10.0, 0x334);
+    Check(other.a.Level() == 6 && !other.ups.empty() && other.ups[0] - entered <= 21.0,
+          "auto level GPU, memory: in another room 3x again after the wait (20 s, the quiet 4 s and 16 s steady)");
   }
 }
 
@@ -1789,6 +2878,141 @@ void AutofocusScene(Builder &b, bool nearCentre, bool mark) {
   if (mark)
     b.Bp(0x5A, 1);
   DisplayCopy(b, false, kBlack);
+}
+
+// Bloom (0.99.13; GxCore::BloomPass): a dark grey room (3D, 20 m away), a white lamp (40 x 40 game pixels, 1 m),
+// a mid-grey object below the threshold, then the HUD (2D after the scene: a white square). Off: nothing changes.
+// Light: the lamp's surroundings brighten, the room away from it, the grey object and the HUD's surroundings stay;
+// strong brightens more and farther. With the letterbox (the scene's scissor rows 56..391) the bar above stays black;
+// a menu screen of the game (RE4_GX_CHUNK_STILL) gets none. Read through ReadXfb (rows from the top, the renderer's
+// pixels): the same check for GL and Vulkan.
+std::vector<std::uint8_t> ReadPixel(re4gx::GxRenderer &r, int x, int y) {
+  std::vector<std::uint8_t> rgba;
+  unsigned w = 0, h = 0;
+  if (!r.ReadXfb(&rgba, &w, &h) || x < 0 || y < 0 || static_cast<unsigned>(x) >= w || static_cast<unsigned>(y) >= h)
+    return {0, 0, 0, 0};
+  const std::size_t at = (static_cast<std::size_t>(y) * w + static_cast<std::size_t>(x)) * 4;
+  return {rgba[at], rgba[at + 1], rgba[at + 2], rgba[at + 3]};
+}
+
+void TestBloom(re4gx::GxRenderer &r, const char *tag) {
+  const std::uint8_t kRoom[4] = {40, 40, 40, 255}, kMid[4] = {120, 120, 120, 255};
+  auto scene = [&](bool letterbox, bool still) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    if (letterbox) {
+      b.Bp(0x20, (342 + 56) | 342u << 12);
+      b.Bp(0x21, (342 + 391) | (342u + 639) << 12);
+    }
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    QuadAt(b, 0, 0, 640, 528, 20000.0f, kRoom);
+    QuadAt(b, 200, letterbox ? 60 : 200, 240, letterbox ? 100 : 240, 1000.0f, kWhite);
+    QuadAt(b, 400, 300, 440, 340, 1000.0f, kMid);
+    // the HUD: orthographic after the scene
+    b.XfF(0x1020, {1.0f / 320.0f, -1.0f, -2.0f / 528.0f, 1.0f, -1.0f, -1.0f});
+    b.Xf(0x1026, {1});
+    b.Bp(0x40, 0);  // no depth test for the HUD
+    Quad(b, 500, 100, 540, 140, 0, kWhite);
+    if (still)
+      b.flags |= RE4_GX_CHUNK_STILL;
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  };
+  const int s = r.Scale();
+  auto at = [&](int x, int y) { return ReadPixel(r, x * s, y * s); };
+  char what[160];
+  r.SetBloom(0);
+  scene(false, false);
+  const auto offBeside = at(250, 220), offFar = at(100, 450), offMid = at(420, 320), offHud = at(550, 120);
+  std::snprintf(what, sizeof(what), "bloom (%s): off, the room as drawn", tag);
+  Check(Near(offBeside, 40, 40, 40) && Near(offFar, 40, 40, 40) && Near(offMid, 120, 120, 120) &&
+            Near(offHud, 40, 40, 40),
+        what);
+  const unsigned before = r.Stats().bloomPasses;
+  r.SetBloom(1);
+  scene(false, false);
+  const auto light = at(250, 220), lightFar2 = at(262, 220);
+  std::fprintf(stderr, "  bloom (%s) light: beside the lamp %d (off %d), 22 pixels away %d; far %d, the grey %d, beside the "
+               "HUD %d\n", tag, light[1], offBeside[1], lightFar2[1], at(100, 450)[1], at(420, 320)[1], at(550, 120)[1]);
+  std::snprintf(what, sizeof(what), "bloom (%s): light, one pass, the lamp's surroundings brighter", tag);
+  Check(r.Stats().bloomPasses == before + 1 && light[1] >= offBeside[1] + 10, what);
+  std::snprintf(what, sizeof(what), "bloom (%s): light, the room away from the lamp, the grey object and the HUD's "
+                "surroundings stay", tag);
+  Check(Near(at(100, 450), 40, 40, 40) && Near(at(420, 320), 120, 120, 120) && Near(at(550, 120), 40, 40, 40) &&
+            Near(at(520, 120), 255, 255, 255),
+        what);
+  r.SetBloom(2);
+  scene(false, false);
+  const auto strong = at(250, 220), strongFar2 = at(262, 220);
+  std::fprintf(stderr, "  bloom (%s) strong: beside the lamp %d, 22 pixels away %d\n", tag, strong[1], strongFar2[1]);
+  std::snprintf(what, sizeof(what), "bloom (%s): strong, brighter and farther than light", tag);
+  Check(strong[1] > light[1] && strongFar2[1] > lightFar2[1] && Near(at(550, 120), 40, 40, 40), what);
+  scene(true, false);
+  std::snprintf(what, sizeof(what), "bloom (%s): the letterbox bar above the lamp stays black", tag);
+  Check(Near(at(220, 50), 0, 0, 0, 1) && at(250, 80)[1] > 45, what);
+  const unsigned beforeStill = r.Stats().bloomPasses;
+  scene(false, true);
+  std::snprintf(what, sizeof(what), "bloom (%s): none on a menu screen of the game", tag);
+  Check(r.Stats().bloomPasses == beforeStill && Near(at(250, 220), 40, 40, 40), what);
+  r.SetBloom(0);
+  scene(false, false);
+  std::snprintf(what, sizeof(what), "bloom (%s): off again, the room as drawn", tag);
+  Check(at(250, 220) == offBeside, what);
+  // 0.99.14 (the project owner: in the game hardly to be seen): a scene of `room` with white quads (x0, y0, x1, y1)
+  auto lit = [&](std::uint8_t grey, std::initializer_list<std::array<int, 4>> lights) {
+    const std::uint8_t room[4] = {grey, grey, grey, 255};
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    QuadAt(b, 0, 0, 640, 528, 20000.0f, room);
+    for (const auto &q : lights)
+      QuadAt(b, q[0], q[1], q[2], q[3], 1000.0f, kWhite);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+  };
+  // a candle: 2 x 2 game pixels of white in a dark room (until 0.99.13 a quarter of its block reached the bloom, spread
+  // over the blur: about +2 at 3 pixels)
+  for (int level = 1; level <= 2; level++) {
+    r.SetBloom(level);
+    lit(30, {{300, 300, 302, 302}});
+    const int near = at(305, 301)[1], far = at(320, 301)[1], away = at(100, 100)[1];
+    std::fprintf(stderr, "  bloom (%s) level %d, a candle of 2 x 2 pixels in a dark room: 3 pixels away %d, 18 away %d, "
+                 "far away %d (the room 30)\n", tag, level, near, far, away);
+    std::snprintf(what, sizeof(what), "bloom (%s) level %d: a candle of 2 x 2 pixels glows around it, the room stays",
+                  tag, level);
+    Check(near >= 30 + 4 && away <= 31, what);  // (0.99.13: about +2 at 3 pixels; now light +5, strong +6)
+  }
+  // a bright room (grey 180, 0.71): the key raises the threshold over it, only the lamp glows (a fixed 0.62 made
+  // all of it glow)
+  for (int level = 1; level <= 2; level++) {
+    r.SetBloom(level);
+    lit(180, {{200, 200, 240, 240}});
+    const int away = at(100, 450)[1], beside = at(250, 220)[1];
+    std::fprintf(stderr, "  bloom (%s) level %d, a bright room (180): far away %d, beside the lamp %d\n", tag, level,
+                 away, beside);
+    std::snprintf(what, sizeof(what), "bloom (%s) level %d: a bright room does not glow, the lamp does", tag, level);
+    Check(away <= 181 && beside > 182, what);
+  }
+  // the budget: half of the scene white (a sky, a bright fade): the glow beside it at most about that of the lamp
+  for (int level = 1; level <= 2; level++) {
+    r.SetBloom(level);
+    lit(40, {{200, 200, 240, 240}});
+    const int lamp = at(250, 220)[1] - 40;
+    lit(40, {{0, 0, 640, 264}});
+    const int sky = at(320, 274)[1] - 40;
+    std::fprintf(stderr, "  bloom (%s) level %d: 10 pixels beside a lamp +%d, beside half a scene of sky +%d\n", tag,
+                 level, lamp, sky);
+    std::snprintf(what, sizeof(what), "bloom (%s) level %d: a sky over half the scene glows no more than a lamp", tag,
+                  level);
+    Check(sky > 0 && sky <= lamp + 4, what);
+  }
+  r.SetBloom(0);
 }
 
 void TestAutofocus(re4gx::GxRenderer &r, bool multisampled = false) {
@@ -2005,6 +3229,10 @@ void TestUniformStream(re4gx::GxRenderer &r, const char *tag) {
   };
   unsigned switches = 0, splits = 0;
   bool right = true;
+  // a chunk of the size first, not counted: the stream learns it (StreamChunkBegin keeps room for the largest chunk
+  // seen); the first one ever may be split, depending on where the tests before left the stream (0.99.14: more bloom
+  // scenes before it moved that place, and the first counted chunk split once)
+  right = chunk(2400, true).first;
   // a draw moves the square with its position matrix: one part of the XF block (XFM, 1 KB) goes to
   // the stream per draw (until 22.10.2026 the whole block, 3.3 KB; then 700 and 1400 draws)
   for (int i = 0; i < 10; i++) {
@@ -2121,6 +3349,9 @@ void TestOptions(bool poison, bool tiled, bool halfDof = true, int lose = 0) {
   TestFxaa(r);
   TestTvFilter(r);
   TestSharpen(r);
+  TestCrtColour(r);
+  TestBloom(r, r.TiledMsaa() ? (lose ? "GL MSAA on the tiles, everything lost" : "GL MSAA on the tiles")
+                             : "GL MSAA");
   TestPsx(r);
   TestFrameSkip(r);
   Check(r.HalfDof() == halfDof, "options: the depth of field's resolution as asked for");
@@ -2331,6 +3562,59 @@ void TestInterpolationOwners() {
     Check(glGetError() == GL_NO_ERROR, "owners: no GL error");
     r.Release();
   }
+}
+
+// A weather particle that wraps around the camera (esp15.cpp, id 0x15; the project owner's fog in r227, GX series
+// 08.11.2026: a sprite 7 m to the side): A +3500, B -3500, the same object and life. Halfway (0) it stood where it is
+// in neither picture, a brighter fog bank in each such in-between picture; now it stands where it is in B. A second
+// one drifts 1000 to the left (from -6000 to -7000) and still goes halfway (-6500).
+void WrapScene(Builder &b, std::uint32_t sequence, bool second, Re4GxChunk *out) {
+  Baseline(b);
+  b.flags = sequence == 1 ? RE4_GX_CHUNK_RESET | RE4_GX_CHUNK_XFB : RE4_GX_CHUNK_XFB;
+  DisplayCopy(b, true, kBlack);
+  const float n = 100.0f, f = 1000000.0f;
+  b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+  b.Xf(0x1026, {0});
+  auto particle = [&](std::uint32_t object, float x) {
+    b.Owner(object, 0x81234560u, 0x15, 0x00150ed7u);
+    b.XfF(0, {1, 0, 0, x, 0, 1, 0, 0, 0, 0, 1, -20000.0f});
+    std::vector<std::uint8_t> v;
+    V(v, -250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, -250.0f, 0.0f, kGreen);
+    V(v, 250.0f, 250.0f, 0.0f, kGreen);
+    V(v, -250.0f, 250.0f, 0.0f, kGreen);
+    b.Draw(RE4_GX_V_COLOR0, 16, v, 4, 0x80);
+  };
+  particle(0x80100000u, second ? -3500.0f : 3500.0f);
+  particle(0x80100150u, second ? -7000.0f : -6000.0f);
+  b.Owner(0, 0, 0xFF);
+  DisplayCopy(b, false, kBlack);
+  *out = b.Chunk();
+  out->sequence = sequence;
+}
+
+void TestInterpolationWrap() {
+  auto px = [](float x) { return static_cast<int>(std::lround(320.0f + x / 20000.0f * 320.0f)); };
+  std::string error;
+  re4gx::GxRenderer r;
+  Require(r.Init(1, &error), error.c_str());
+  r.SetRecording(true);
+  Builder ba, bb;
+  Re4GxChunk a, b;
+  WrapScene(ba, 1, false, &a);
+  WrapScene(bb, 2, true, &b);
+  r.Run(a);
+  Check(r.Interpolate(a, b, 0.5f), "wrap: the in-between picture is shown");
+  const GLuint xfb = r.Xfb(nullptr, nullptr);
+  const auto asInB = TexPixel(xfb, px(-3500.0f), 264), halfway = TexPixel(xfb, px(0.0f), 264),
+             asInA = TexPixel(xfb, px(3500.0f), 264), drift = TexPixel(xfb, px(-6500.0f), 264);
+  const bool right = Near(asInB, 0, 255, 0) && Near(halfway, 0, 0, 0) && Near(asInA, 0, 0, 0) && Near(drift, 0, 255, 0);
+  Check(right, "wrap: a particle that wrapped around stands where it is in B, a drifting one halfway");
+  Check(r.Stats().interpOwnedJumps == 1 && r.Stats().interpOwned == 1, "wrap: one jumped, one found by its object");
+  if (!right)
+    Print("asInB", asInB), Print("halfway", halfway), Print("asInA", asInA), Print("drift", drift);
+  Check(glGetError() == GL_NO_ERROR, "wrap: no GL error");
+  r.Release();
 }
 
 // A room part of 24 vertices (not a particle) whose texture matrix index changes from A (identity) to B
@@ -3082,8 +4366,11 @@ std::vector<std::uint8_t> Efb(re4gx::GxRenderer &r) {
 // 60 quads, each with a random TEV setup of one to four stages on registers, konstant and
 // rasterized colours (no textures): inputs above 127, every bias, scale, subtraction, clamping
 // and compare mode; every other row with linear fog.
-std::vector<std::uint8_t> TevMathScene(std::uint32_t seed, unsigned *shaderErrors) {
-  re4gx::GxRenderer r;
+// (api Vulkan: read through a display copy of the whole EFB, rows as GL's EFB)
+std::vector<std::uint8_t> TevMathScene(std::uint32_t seed, unsigned *shaderErrors,
+                                       re4gx::GxApi api = re4gx::GxApi::kGl) {
+  re4gx::GxRenderer r(api);
+  Require(r.Api() == api, "TEV math scene: the renderer asked for");
   std::string error;
   Require(r.Init(1, &error), error.c_str());
   std::mt19937 rng(seed);
@@ -3142,12 +4429,29 @@ std::vector<std::uint8_t> TevMathScene(std::uint32_t seed, unsigned *shaderError
     const float x = static_cast<float>((q % 10) * 64), y = static_cast<float>((q / 10) * 64);
     Quad(b, x, y, x + 60, y + 60, -0.1f - 0.013f * static_cast<float>(q), c);
   }
-  r.Run(b.Chunk());
-  std::vector<std::uint8_t> p = Efb(r);
+  std::vector<std::uint8_t> p;
+  if (api == re4gx::GxApi::kGl) {
+    r.Run(b.Chunk());
+    p = Efb(r);
+  } else {
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&p, &w, &h) && w == 640 && h == 528, "TEV math scene: the display copy read back");
+  }
   *shaderErrors += r.Stats().shaderErrors;
   r.Release();
   return p;
 }
+
+// the Galaxy A36's wrong movie pixels (report 22.10.2026 19:30), as the check writes them
+const char *const kA36Pixels[6] = {
+    "4 stages, Y 128 U 128 V 128: 0 131 0 0, want 131 131 132 0",
+    "4 stages, Y 200 U 128 V 128: 0 215 0 0, want 215 215 216 0",
+    "4 stages, Y 235 U 128 V 128: 0 255 0 0, want 255 255 255 0",
+    "4 stages, Y 180 U 90 V 200: 0 148 116 0, want 255 148 116 0",
+    "4 stages, Y 100 U 200 V 60: 0 125 0 0, want 0 125 244 0",
+    "4 stages, Y 235 U 240 V 240: 0 121 0 0, want 255 121 255 0"};
 
 // The ways of writing the TEV's lerp (gx_gl_shader.h SetTevMath). The Galaxy A36 (Adreno 710)
 // computed a << 8 in 16 bits: written so on purpose, the movie check gives exactly that phone's six
@@ -3158,15 +4462,8 @@ void TestTevMath() {
   re4gx::SetTevMath(re4gx::kTevMathBroken16);
   const int bad = re4gx::MovieColourPixels(&detail, &error);
   Check(bad == 6, "TEV math: a << 8 in 16 bits gives six wrong movie pixels, as on the Galaxy A36");
-  static const char *a36[6] = {
-      "4 stages, Y 128 U 128 V 128: 0 131 0 0, want 131 131 132 0",
-      "4 stages, Y 200 U 128 V 128: 0 215 0 0, want 215 215 216 0",
-      "4 stages, Y 235 U 128 V 128: 0 255 0 0, want 255 255 255 0",
-      "4 stages, Y 180 U 90 V 200: 0 148 116 0, want 255 148 116 0",
-      "4 stages, Y 100 U 200 V 60: 0 125 0 0, want 0 125 244 0",
-      "4 stages, Y 235 U 240 V 240: 0 121 0 0, want 255 121 255 0"};
   bool same = true;
-  for (const char *w : a36)
+  for (const char *w : kA36Pixels)
     same = same && detail.find(w) != std::string::npos;
   Check(same, "TEV math: the same values as the Galaxy A36's report");
   if (!same)
@@ -3235,6 +4532,182 @@ std::vector<std::string> CacheFiles(const std::string &dir, const char *ending) 
 // The shader programs made ahead (decision of the project owner, 23.10.2026): the render thread's
 // Prewarm only loads binaries; WarmProgramCache, on a thread with a context of its own, links what
 // the cache's keys and the app's list (a key list file) still lack and removes old files.
+// CanonicalShaderKey (0.99.5): what the shaders do not use set to 0, what they use kept
+void TestCanonicalKey() {
+  re4gx::ShaderKey a{};
+  a.numStages = 2;
+  a.colorEnv[0] = 0x0008FA;  // inputs a 0, b 8, c 15, d 10: none KONST (14)
+  a.alphaEnv[0] = (1u << 13) | (2u << 10) | (3u << 7) | (4u << 4) | 0u;  // inputs 1..4 (KONST is 6), swap tables 0, 0
+  a.colorEnv[1] = 14u << 12;  // input a: KONST colour
+  a.alphaEnv[1] = (6u << 4) | 1u | (2u << 2);  // input d: KONST alpha, swap tables 1 and 2
+  a.konst[0] = 0x1D0D;
+  a.konst[1] = 0x1C0C;
+  a.swap[0] = 0x11, a.swap[1] = 0x22, a.swap[2] = 0x33, a.swap[3] = 0x44;
+  a.fog = 1;  // projection without fog
+  const re4gx::ShaderKey c = re4gx::CanonicalShaderKey(a);
+  Check(c.konst[0] == 0 && c.konst[1] == 0x1C0C, "canonical key: KONST kept only where an input takes it");
+  Check(c.swap[0] == 0x11 && c.swap[1] == 0x22 && c.swap[2] == 0x33 && c.swap[3] == 0,
+        "canonical key: the swap tables the stages select kept, the others 0");
+  Check(c.fog == 0, "canonical key: no fog, no projection bit");
+  re4gx::ShaderKey b = a;
+  b.konst[0] = 0x0606;  // another unused selection: the same canonical key
+  b.swap[3] = 0x55;
+  const re4gx::ShaderKey cb = re4gx::CanonicalShaderKey(b);
+  Check(std::memcmp(&c, &cb, sizeof(c)) == 0, "canonical key: keys that differ in unused fields alike");
+  b.konst[1] = 0x1C0D;  // the KONST colour stage 1 takes: a different shader
+  const re4gx::ShaderKey cd = re4gx::CanonicalShaderKey(b);
+  Check(std::memcmp(&c, &cd, sizeof(c)) != 0, "canonical key: a used selection still tells keys apart");
+  a.fog = 0xE;
+  Check(re4gx::CanonicalShaderKey(a).fog == 0xE, "canonical key: fog kept");
+}
+
+#ifdef RE4_GX_VULKAN
+// The app's pipeline list made ahead (0.99.5, gx_vk.cpp AheadThread): a Vulkan renderer draws the random TEV setups in
+// room 0x227 and leaves its room list (room-227.vkpipes); that list as the app's list (RE4VKL01, as
+// port/tools/gx_vkpipe_list.py writes it) goes through the thread of a second renderer on an empty cache folder while it
+// draws: every pipeline made, the list marked; a third renderer on that folder leaves it out (the mark), one with merged
+// The movie check under Vulkan (an Adreno 840, Xiaomi, report 13.11.2026: the movies green under Vulkan only, as on
+// the Galaxy A36 under GLES; the check ran only under GLES). Through Vulkan's read-back: right with the hardware's
+// way; the A36's 16-bit way gives the same six pixels and the check then picks the lerp without the shift; GL and
+// Vulkan draw the random TEV setups byte for byte the same in each of the three real ways (and both see the 16-bit
+// way).
+void TestVkTevMath() {
+  re4gx::SetTevMath(re4gx::kTevMathShift);
+  int wrong = -1;
+  std::string line = re4gx::MovieColourCheck(&wrong, re4gx::GxApi::kVulkan);
+  std::fprintf(stderr, "%s\n", line.c_str());
+  Check(wrong == 0 && re4gx::GetTevMath() == re4gx::kTevMathShift &&
+            line == "GPU check (movie colours, Vulkan): ok, 32 of 32 pixels as the GameCube computes them",
+        "Vulkan TEV math: the movie colours as the GameCube computes them");
+  std::string detail, error;
+  re4gx::SetTevMath(re4gx::kTevMathBroken16);
+  const int bad = re4gx::MovieColourPixels(&detail, &error, re4gx::GxApi::kVulkan);
+  bool same = bad == 6;
+  for (const char *w : kA36Pixels)
+    same = same && detail.find(w) != std::string::npos;
+  Check(same, "Vulkan TEV math: a << 8 in 16 bits gives the Galaxy A36's six pixels");
+  if (!same)
+    std::fprintf(stderr, "  emulated (%d, %s): %s\n", bad, error.c_str(), detail.c_str());
+  line = re4gx::MovieColourCheck(&wrong, re4gx::GxApi::kVulkan);
+  std::fprintf(stderr, "  emulated A36 under Vulkan: %s\n", line.c_str());
+  Check(wrong == 0 && re4gx::GetTevMath() == re4gx::kTevMathNoShift &&
+            line.find("GPU check (movie colours, Vulkan): 6 of 32 pixels wrong") == 0 &&
+            line.find("in use: the lerp without the shift by 8 (the movies right)") != std::string::npos,
+        "Vulkan TEV math: the check picks the lerp without the shift");
+  // a second check with the way the first one chose (GL after Vulkan, or the other way round)
+  line = re4gx::MovieColourCheck(&wrong, re4gx::GxApi::kVulkan);
+  Check(wrong == 0 && re4gx::GetTevMath() == re4gx::kTevMathNoShift &&
+            line.find(": ok, 32 of 32 pixels as the GameCube computes them; in use: the lerp without the shift") !=
+                std::string::npos,
+        "Vulkan TEV math: a second check keeps the way chosen");
+  for (int mode : {re4gx::kTevMathShift, re4gx::kTevMathNoShift, re4gx::kTevMathFloat}) {
+    re4gx::SetTevMath(mode);
+    Check(re4gx::MovieColourPixels(nullptr, &error, re4gx::GxApi::kVulkan) == 0,
+          "Vulkan TEV math: the movie colours right in each way");
+  }
+  for (std::uint32_t seed : {1u, 2u}) {
+    unsigned errors = 0;
+    for (int mode = re4gx::kTevMathShift; mode <= re4gx::kTevMathBroken16; mode++) {
+      re4gx::SetTevMath(mode);
+      const std::vector<std::uint8_t> gl = TevMathScene(seed, &errors);
+      const std::vector<std::uint8_t> vk = TevMathScene(seed, &errors, re4gx::GxApi::kVulkan);
+      int differ = 0, lit = 0;
+      for (std::size_t i = 0; i < gl.size() && i < vk.size(); i += 4) {
+        differ += std::memcmp(&gl[i], &vk[i], 4) ? 1 : 0;
+        lit += vk[i] | vk[i + 1] | vk[i + 2] ? 1 : 0;
+      }
+      if (differ || seed == 1)
+        std::fprintf(stderr, "  TEV math scene %u, %s: GL and Vulkan %d pixels differ (%d lit)\n", seed,
+                     re4gx::TevMathName(mode), differ, lit);
+      Check(gl.size() == vk.size() && differ == 0 && lit > 60 * 60 * 20,
+            "Vulkan TEV math: random TEV setups, GL and Vulkan the same picture");
+    }
+    Check(errors == 0, "Vulkan TEV math: every shader compiles in each way");
+  }
+  re4gx::SetTevMath(re4gx::kTevMathShift);
+}
+
+// draws on goes through it again (the mark names the setting).
+void TestVkAhead() {
+  char a[] = "/tmp/re4-vkahead-a-XXXXXX", b[] = "/tmp/re4-vkahead-b-XXXXXX";
+  Require(mkdtemp(a) != nullptr && mkdtemp(b) != nullptr, "vk ahead: folders for the caches");
+  const std::string dirA = a, dirB = b, list = dirB + ".keys";
+  std::string error;
+  {
+    re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+    Require(r.Init(1, &error), error.c_str());
+    Check(r.SetProgramCache(dirA), "vk ahead: the cache folder");
+    r.SetRoom(0x227);
+    TestShaderVariety(r);
+    r.Release();
+  }
+  std::vector<char> room;
+  if (FILE *f = std::fopen((dirA + "/room-227.vkpipes").c_str(), "rb")) {
+    char buffer[65536];
+    for (std::size_t n; (n = std::fread(buffer, 1, sizeof(buffer), f)) > 0;)
+      room.insert(room.end(), buffer, buffer + n);
+    std::fclose(f);
+  }
+  std::uint32_t head[2] = {};
+  if (room.size() >= 16)
+    std::memcpy(head, room.data() + 8, sizeof(head));
+  const std::uint32_t count = head[1];
+  Check(room.size() >= 16 && std::memcmp(room.data(), "RE4VKP01", 8) == 0 && count >= 10 &&
+            room.size() == 16 + static_cast<std::size_t>(count) * (head[0] + 24),
+        "vk ahead: the room's pipeline list written");
+  {
+    FILE *f = std::fopen(list.c_str(), "wb");
+    Require(f != nullptr, "vk ahead: the app's list");
+    const std::uint32_t h[3] = {head[0], count, 1};
+    std::fwrite("RE4VKL01", 8, 1, f);
+    std::fwrite(h, sizeof(h), 1, f);
+    std::fwrite(room.data() + 16, 1, room.size() - 16, f);
+    const std::uint32_t r[2] = {0x227, count};
+    std::fwrite(r, sizeof(r), 1, f);
+    for (std::uint32_t i = 0; i < count; i++)
+      std::fwrite(&i, 4, 1, f);
+    std::fclose(f);
+  }
+  setenv("RE4_GX_VK_PIPE_LIST", list.c_str(), 1);
+  auto run = [&](bool merge, const char *what, bool psx = false) {
+    re4gx::GxRenderer r(re4gx::GxApi::kVulkan);
+    Require(r.Init(1, &error), error.c_str());
+    Check(r.SetProgramCache(dirB), "vk ahead: the second cache folder");
+    // (as core_mode: the menu's settings after SetProgramCache, before the first Run, where the thread starts)
+    r.SetMerge(merge);
+    r.SetPsx(psx);
+    r.SetRoom(0x227);
+    // drawing on meanwhile (the thread made its pipelines beside the render thread)
+    const auto start = std::chrono::steady_clock::now();
+    unsigned made = 0;
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
+      Builder bl;
+      Baseline(bl);
+      DisplayCopy(bl, true, kBlack);
+      Quad(bl, 0, 0, 32, 32, 0, kRed);
+      DisplayCopy(bl, false, kBlack);
+      r.Run(bl.Chunk());
+      made = r.Stats().pipelinesAhead;
+      if (made >= count || (std::string(what) == "again" && std::chrono::steady_clock::now() - start >
+                                                                 std::chrono::seconds(2)))
+        break;
+    }
+    r.Release();
+    std::fprintf(stderr, "  vk ahead (%s): %u of %u made ahead\n", what, made, count);
+    return made;
+  };
+  Check(run(false, "first") == count, "vk ahead: every pipeline of the list made ahead");
+  FILE *mark = std::fopen((dirB + "/vk-ahead.done").c_str(), "rb");
+  Check(mark != nullptr, "vk ahead: the list marked as made");
+  if (mark)
+    std::fclose(mark);
+  Check(run(false, "again") == 0, "vk ahead: a list made on this driver before is left out");
+  Check(run(true, "merged draws on") == count, "vk ahead: another setting (merged draws) goes through it again");
+  Check(run(true, "PSone demake on", true) == count, "vk ahead: the PSone demake's keys made too (another mark)");
+  unsetenv("RE4_GX_VK_PIPE_LIST");
+}
+#endif
+
 void TestPrewarm() {
   char folder[] = "/tmp/re4-prewarm-XXXXXX";
   Require(mkdtemp(folder) != nullptr, "prewarm: a folder for the program cache");
@@ -3395,6 +4868,16 @@ void TestPrewarm() {
 }
 
 int main() {
+  // the rules alone, without a GPU (RE4_CHECK_RULES=1: Dynamic and the benchmark's steps, quick to run)
+  if (const char *rules = std::getenv("RE4_CHECK_RULES")) {
+    if (*rules == '1') {
+      TestAutoLevel();
+      TestAutoLevelGpu();
+      TestBenchSteps();
+      std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
+      return gFailures ? 1 : 0;
+    }
+  }
   Context();
   glGenFramebuffers(1, &gReadFbo);
   TestDecoder();
@@ -3406,11 +4889,40 @@ int main() {
     Check(wrong == 0, "GPU check: the movie colours as the GameCube computes them");
   }
   TestTevMath();
+  TestCanonicalKey();
   TestPrewarm();
   TestRescale();
+  TestBlurCopy();
+  {
+    // bloom with GL at 2x (the loop below runs it at 1x): a bloom texel stays 4 x 4 game pixels
+    re4gx::GxRenderer gr;
+    std::string error;
+    Require(gr.Init(2, &error), error.c_str());
+    TestBloom(gr, "GL 2x");
+    gr.Release();
+  }
   TestAutoLevel();
+  TestAutoLevelGpu();
   TestBenchSteps();
   TestHandOverCopies();
+#ifdef RE4_GX_VULKAN
+  if (VulkanStarts()) {
+    TestVkRescale();
+    TestVkHandOverCopies();
+    TestVkOverlay();
+    TestVkGpuTimePictures();
+    TestVkAhead();
+    TestVkTevMath();
+    {
+      // bloom with Vulkan at 2x: the same as GL (TestBloom)
+      re4gx::GxRenderer vr(re4gx::GxApi::kVulkan);
+      std::string error;
+      Require(vr.Init(2, &error), error.c_str());
+      TestBloom(vr, "Vulkan 2x");
+      vr.Release();
+    }
+  }
+#endif
   TestMerge();
   TestVertexRing();
   // twice: as the app runs it, and with the copy targets, the blur and the focus painted magenta
@@ -3439,6 +4951,12 @@ int main() {
     TestDepthMap(renderer, false);
     TestFxaa(renderer);
     TestSharpen(renderer);
+    TestCrtColour(renderer);
+    TestBloom(renderer, poison ? "GL, forgotten contents magenta" : "GL");
+    TestPictureCadence();
+    TestPictureHold();
+    if (!poison)
+      TestPresentPacer();
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);
@@ -3467,6 +4985,7 @@ int main() {
   TestInterpolationEffects();
   TestInterpolationForget();
   TestInterpolationOwners();
+  TestInterpolationWrap();
   TestInterpolationRoomPart();
   TestInterpolationSparkle();
   TestInterpolationOneFrame();

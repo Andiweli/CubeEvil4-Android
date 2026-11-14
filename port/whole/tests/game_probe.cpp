@@ -13,6 +13,7 @@
 #include "global.h"
 #include "main_mem.h"
 #include "esp.h"
+#include "rnd.h"
 #include "path.h"
 #include "at_sub.h"
 #include "at_mod.h"
@@ -1279,6 +1280,20 @@ extern "C" int re4probe_frame_sections(void)
     for (unsigned i = 0; i < 600; i++) {
         re4_trace_sections(1000 + i);
     }
+    // play's marks (0.99.8: the line never came with them): EmMgr.move inside the scheduler, objTrans in Trans
+    proc_tick[5] = 2 * ms;
+    proc_tick[6] = 3 * ms;
+    proc_tick[7] = 6 * ms;
+    proc_tick[8] = 8 * ms;
+    proc_name[5] = "EmMgr.move";
+    proc_name[6] = "TaskScheduler";
+    proc_name[7] = "objTrans";
+    proc_name[8] = "SndWatcher";
+    proc_tick_idx_bak = 4;
+    pG->room_id = 0x106;
+    for (unsigned i = 0; i < 600; i++) {
+        re4_trace_sections(2000 + i);
+    }
     memcpy(proc_tick, keepTick, sizeof keepTick);
     memcpy(proc_name, keepName, sizeof keepName);
     proc_tick_idx_bak = keepIdx;
@@ -1517,6 +1532,83 @@ extern "C" int re4probe_gyro_boat(void)
     return bad;
 }
 
+// Swipe aiming in the knife stance (runtime/gyro.cpp, 0.99.9): a fake Leon holding the knife (routine 0/0xB/1)
+// turns by a swipe as the gun does (the body's yaw, m3r with the sway's centre cPlWep::pitch), slashing (0/0xB/2)
+// too; not while he puts it away (0/0xB/3), not by the gyro, not in a sub screen. Bits: each failed case.
+extern "C" int re4probe_aim_knife(void)
+{
+    cPlayer* keepPl = pPL;
+    const u8 keepStep = pG->Rno0;
+    const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0, keepEvent = StaFlagChk(pG, STA_EVENT) != 0;
+    const f32 keepM3r = m3r;
+
+    cPlayer* pl = (cPlayer*) (unsigned long) 0x82E40000ul;
+    memset((void*) pl, 0, sizeof(cPlayer));
+    cPlWep* wep = (cPlWep*) (unsigned long) 0x82E30000ul;
+    memset((void*) wep, 0, sizeof(cPlWep));
+    pl->Wep = wep;
+    pl->r_no_0 = 0;
+    pl->r_no_1 = 0xB;
+    pl->r_no_2 = 1;
+    pl->r_no_3 = 1;
+    pPL = pl;
+    pG->Rno0 = 3;
+    StaFlagOff(pG, STA_SUB_SCRN);
+    StaFlagOff(pG, STA_EVENT);
+    m3r = 0.0f;
+
+    PADStatus pads[4];
+    int bad = 0;
+    auto near = [](float a, float b) { return a - b < 1e-4f && b - a < 1e-4f; };
+    const float kPi = 3.14159265f;
+
+    // holding the knife: two swipes added up, turned at the next frame
+    re4_core_aim_turn(0.05f, 0.05f);
+    re4_core_aim_turn(0.05f, 0.05f);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, 0.1f) ? 1 : 0;
+    bad |= !near((f32) m3r, 0.1f / (kPi / 4.0f)) ? 2 : 0;
+    bad |= !near(wep->pitch, 0.1f / (kPi / 4.0f) * (kPi / 2.0f)) ? 4 : 0;
+    // slashing: turns too
+    pl->r_no_2 = 2;
+    re4_core_aim_turn(-0.2f, 0.0f);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, -0.1f) ? 8 : 0;
+    // putting it away: nothing
+    pl->r_no_2 = 3;
+    re4_core_aim_turn(0.3f, 0.3f);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, -0.1f) || !near((f32) m3r, 0.1f / (kPi / 4.0f)) ? 0x10 : 0;
+    // the gyro leaves the knife alone
+    pl->r_no_2 = 1;
+    re4_core_gyro(3.0f, 3.0f);
+    PADRead(pads);
+    re4_core_gyro(0.0f, 0.0f);
+    bad |= !near(pl->ang.y, -0.1f) ? 0x20 : 0;
+    // a sub screen: the swipe is gone
+    StaFlagOn(pG, STA_SUB_SCRN);
+    re4_core_aim_turn(0.3f, 0.0f);
+    PADRead(pads);
+    StaFlagOff(pG, STA_SUB_SCRN);
+    PADRead(pads);
+    bad |= !near(pl->ang.y, -0.1f) ? 0x40 : 0;
+    // pitch at its limit (m3r -1 .. 1)
+    re4_core_aim_turn(0.0f, 5.0f);
+    PADRead(pads);
+    bad |= !near((f32) m3r, 1.0f) ? 0x80 : 0;
+
+    m3r = keepM3r;
+    pPL = keepPl;
+    pG->Rno0 = keepStep;
+    if (keepSub) {
+        StaFlagOn(pG, STA_SUB_SCRN);
+    }
+    if (keepEvent) {
+        StaFlagOn(pG, STA_EVENT);
+    }
+    return bad;
+}
+
 extern "C" void re4_core_slash(float tilt);
 extern "C" void re4_core_slash(float tilt);
 
@@ -1653,6 +1745,8 @@ extern "C" int re4probe_qte_touch(void)
     const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0;
     const int keepActive = ActBtn.isActive();
     const u8 keepShown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    const u8 keepRno0 = pG->Rno0;
+    pG->Rno0 = 3;  // the game plays (gameMainLoop): qte_touch.cpp answers prompts only then
     PADStatus pads[4];
     int bad = 0;
     auto frame = [&]() -> u16 {
@@ -1703,6 +1797,22 @@ extern "C" int re4probe_qte_touch(void)
         }
     }
     bad |= presses != 4 ? 0x80 : 0;
+    // 0.99.15: the app hands a finger over as it touches down (u -2): the press at once; the tap at its lift (u + 2)
+    // only goes to the sub screens, no second press
+    frame();
+    frame();
+    Cckpt.m_ActBttn.setDispFlag(DISP_L_R);
+    re4_core_touch(-2.0f, -2.0f);
+    bad |= frame() != 0x0060 ? 0x100 : 0;
+    bad |= frame() != 0x0060 ? 0x100 : 0;
+    bad |= frame() != 0 ? 0x100 : 0;
+    re4_core_touch(2.5f, 0.5f);
+    bad |= frame() != 0 ? 0x200 : 0;
+    // an older app's tap (u 0..1) still presses
+    re4_core_touch(0.5f, 0.5f);
+    bad |= frame() != 0x0060 ? 0x400 : 0;
+    frame();
+    frame();
     // the plain A prompt (a door): nothing
     Cckpt.m_ActBttn.setDispFlag(DISP_A_NORMAL);
     re4_qte_tap();
@@ -1725,9 +1835,41 @@ extern "C" int re4probe_qte_touch(void)
 
     Cckpt.m_ActBttn.setDispFlag(keepShown);
     ActBtn.setActive(keepActive);
+    pG->Rno0 = keepRno0;
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
     }
+    return bad;
+}
+
+extern "C" int re4_qte_level(void);
+extern "C" void re4_core_set_gentle_qte(int on);
+
+// "Gentler QTEs" (0.99.15, runtime/qte_touch.cpp re4_qte_level, patch 0232): the rank the quick-time events read.
+// Bits: 1 Professional with the switch not 5, 2 Professional without it not 10, 4 Normal changed by it, 8 Normal's low
+// rank raised, 0x10 Easy changed.
+extern "C" int re4probe_qte_level(void)
+{
+    const u8 keepMode = pG->game_mode, keepLevel = pG->Game_level;
+    int bad = 0;
+    pG->game_mode = 6;
+    pG->Game_level = 10;
+    re4_core_set_gentle_qte(1);
+    bad |= re4_qte_level() != 5 ? 1 : 0;
+    re4_core_set_gentle_qte(0);
+    bad |= re4_qte_level() != 10 ? 2 : 0;
+    re4_core_set_gentle_qte(1);
+    pG->game_mode = 5;
+    pG->Game_level = 9;
+    bad |= re4_qte_level() != 9 ? 4 : 0;
+    pG->Game_level = 2;
+    bad |= re4_qte_level() != 2 ? 8 : 0;
+    pG->game_mode = 3;
+    pG->Game_level = 7;
+    bad |= re4_qte_level() != 7 ? 0x10 : 0;
+    re4_core_set_gentle_qte(0);
+    pG->game_mode = keepMode;
+    pG->Game_level = keepLevel;
     return bad;
 }
 
@@ -1741,6 +1883,8 @@ extern "C" int re4probe_qte_auto(void)
     const int keepSub = StaFlagChk(pG, STA_SUB_SCRN) != 0;
     const int keepActive = ActBtn.isActive();
     const u8 keepShown = *reinterpret_cast<const u8*>(&Cckpt.m_ActBttn);
+    const u8 keepRno0 = pG->Rno0;
+    pG->Rno0 = 3;  // the game plays (gameMainLoop): qte_touch.cpp answers prompts only then
     PADStatus pads[4];
     int bad = 0;
     auto frame = [&]() -> u16 {
@@ -1756,6 +1900,25 @@ extern "C" int re4probe_qte_auto(void)
     StaFlagOff(pG, STA_SUB_SCRN);
     ActBtn.setActive(1);
     re4_qte_auto(1);
+    settle();
+
+    // a mash (A) while the option screen (START, Rno0 6) is open: nothing (user report 08.11.2026, the Retry
+    // question opened and closed by itself); back in the game the mash goes on (first here: the test reads the
+    // dodge's log line from the log's last 24 lines)
+    Cckpt.m_ActBttn.setDispFlag(DISP_A_RAPID);
+    pG->Rno0 = 6;
+    bad |= (frame() | frame() | frame() | frame()) != 0 ? 0x80 : 0;
+    pG->Rno0 = 3;
+    {
+        u16 last = 0;
+        int resumed = 0;
+        for (int f = 0; f < 4; f++) {
+            const u16 b = frame();
+            resumed += b == 0x0100 && last != 0x0100;
+            last = b;
+        }
+        bad |= resumed != 2 ? 0x100 : 0;
+    }
     settle();
 
     // the dodge: L+R two frames, two not, then again while the prompt stays
@@ -1799,6 +1962,7 @@ extern "C" int re4probe_qte_auto(void)
 
     Cckpt.m_ActBttn.setDispFlag(keepShown);
     ActBtn.setActive(keepActive);
+    pG->Rno0 = keepRno0;
     if (keepSub) {
         StaFlagOn(pG, STA_SUB_SCRN);
     }
@@ -1906,11 +2070,13 @@ extern "C" int re4probe_handcannon(void)
 extern "C" int re4_esp_skip(cEsp* esp);
 extern "C" void re4_potato_set(int mask);
 extern "C" int re4_potato_mask(void);
+extern "C" int re4_potato_no_shadows(void);
 void EspCommonTrans(cEsp* esp);
 extern EspTransFunc EspTransTbl[0xFF];
 
-// The app menu's Potato mode (runtime/potato.cpp, patch 0149): which sprites the two switches leave out.
-// Bits: each failed check.
+// The app menu's Potato mode (runtime/potato.cpp, patch 0149): which sprites the two switches leave out; since
+// 0.99.3 the particle effects (less: every second, none: all but glowing ones, which stay at half) and shadows and
+// light effects (glows, shafts, blooms; re4_potato_no_shadows for patch 0219). Bits: each failed check.
 extern "C" int re4probe_potato(void)
 {
     static cEsp e;
@@ -1948,6 +2114,56 @@ extern "C" int re4probe_potato(void)
     bad |= re4_esp_skip(sprite(EFF_SST, 0x5001, 0, 0, 0.0f)) ? 0x400 : 0;          // event cut effects stay
     StaFlagOn(pG, STA_EVENT);
     bad |= re4_esp_skip(sprite(EFF_SST, 0x4001, 0, 0, 0.0f)) ? 0x800 : 0;          // all stay in events
+    StaFlagOff(pG, STA_EVENT);
+    // 0.99.3: two sprites side by side in a pool, so that "every second" takes exactly one of them
+    static cEsp pair[2];
+    static u32 model[4];  // only its address counts (re4_esp_skip reads m_pMod != 0)
+    auto fx = [](int i, u8 owner, u16 core, u8 id, u8 dst, bool onModel) {
+        cEsp& s = pair[i];
+        memset(&s, 0, sizeof(s));
+        s.m_Be_flg = 1;
+        s.info.owner = owner;
+        s.info.Core_flg = core;
+        s.m_Id = id;
+        s.m_Blend_type = dst == 1 ? 1 : 0;
+        s.m_Src_factor = 4;
+        s.m_Dst_factor = dst;
+        s.m_pMod = onModel ? (cModel*) model : 0;
+        return &s;
+    };
+    auto both = [&](u8 owner, u16 core, u8 id, u8 dst, bool onModel) {  // how many of the two are left out
+        return re4_esp_skip(fx(0, owner, core, id, dst, onModel)) + re4_esp_skip(fx(1, owner, core, id, dst, onModel));
+    };
+    re4_potato_set(4);  // particle effects less
+    bad |= both(EFF_EM10, 0, 0x1A, 5, false) != 1 ? 0x1000 : 0;                    // blood spray: half
+    bad |= both(EFF_EM10, 0, 0x00, 1, false) != 1 ? 0x2000 : 0;                    // free glowing particles: half
+    bad |= both(EFF_CORE, 0, 0x0B, 5, false) != 0 ? 0x4000 : 0;                    // the hit at its point stays
+    re4_potato_set(8);  // particle effects none
+    bad |= both(EFF_EM10, 0, 0x1A, 5, false) != 2 ? 0x8000 : 0;                    // blood spray: gone
+    bad |= both(EFF_EM10, 0, 0x10, 5, false) != 2 ? 0x10000 : 0;                   // blood pool (decal): gone
+    bad |= both(EFF_EM10, 0, 0x00, 1, false) != 1 ? 0x20000 : 0;                   // fire, explosions: half
+    bad |= both(EFF_EM10, 0, 0x00, 1, true) != 0 ? 0x40000 : 0;                    // a fuse / torch on a model stays
+    bad |= both(EFF_WEP02, 0, 0x00, 1, true) != 2 ? 0x80000 : 0;                   // flash at the player's gun: gone
+    bad |= both(EFF_WEP02, 0, 0x19, 1, false) != 0 ? 0x100000 : 0;                 // the laser stays
+    bad |= both(EFF_ROOM, 0, 0x00, 5, false) != 0 ? 0x200000 : 0;                  // the room code's smoke stays
+    bad |= both(EFF_EM10, 0, 0x46, 5, false) != 0 ? 0x400000 : 0;                  // the screen filter stays
+    bad |= both(EFF_EM10, 0x1000, 0x1A, 5, false) != 0 ? 0x800000 : 0;             // event effects stay
+    // a left out jitter (esp 0x0B, Core_flg 0x8000) takes the two random numbers its trans takes
+    RndInit(0x1234);
+    const bool jitterOut = re4_esp_skip(fx(0, EFF_EM10, 0x8000, 0x0B, 5, false)) != 0;
+    const u8 after = Rnd();
+    RndInit(0x1234);
+    fRand1_1();
+    fRand1_1();
+    bad |= !jitterOut || after != Rnd() ? 0x1000000 : 0;
+    bad |= re4_potato_no_shadows() ? 0x2000000 : 0;                                 // shadows stay
+    re4_potato_set(16);  // shadows and light effects off
+    bad |= both(EFF_EM10, 0, 0x1A, 5, false) != 0 ? 0x4000000 : 0;                 // particles as they are
+    bad |= both(EFF_SST, 0x4001, 0x0E, 1, false) != 2 ? 0x8000000 : 0;             // lens glow
+    bad |= (both(EFF_SST, 0x4001, 0x14, 1, false) != 2 || both(EFF_ROOM, 0, 0x45, 1, false) != 2) ? 0x10000000 : 0;
+    bad |= !re4_potato_no_shadows() ? 0x20000000 : 0;                               // no shadows
+    StaFlagOn(pG, STA_EVENT);  // events: no shadows either, their glows stay
+    bad |= (!re4_potato_no_shadows() || both(EFF_SST, 0x4001, 0x0E, 1, false) != 0) ? 0x40000000 : 0;
     memcpy(pG->Status_flg, keepSta, sizeof(keepSta));
     EspTransTbl[0] = keepTrans;
     re4_potato_set(keepMask < 0 ? 0 : keepMask);

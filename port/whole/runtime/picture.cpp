@@ -77,7 +77,8 @@ extern "C" int re4_picture_still(void)
 // message text (game/mes.cpp messageCamera) is drawn flat and gets the same narrowing (re4_view_flat_edge). Only
 // while the player plays (the main loop, Rno0 3, also in events): not in a menu screen of the game
 // (re4_picture_still: sub screens, the memory card screens, the option screen, the result tables), not through the
-// rifle's scope (its black mask is 4:3 wide), not in a movie. Those keep the game's 4:3 and the app shows them in a
+// rifle's scope nor the binoculars (their black masks are 4:3 wide; the binoculars since 0.99.10), not in a movie.
+// Those keep the game's 4:3 and the app shows them in a
 // 16:9 box in the middle, as "16:9". Every picture says which it was (RE4_GX_CHUNK_WIDE, re4_view_load), by the
 // projection matrix it loads: the game builds the camera's projection in its logic and draws with it in the next
 // frame, and a sub screen may draw without building one.
@@ -302,15 +303,20 @@ void stillHook(unsigned)
     re4_gx_movie(re4_movie_playing());  // the app's "Sharpen" leaves a movie's pictures as they are
     re4_letterbox_frame();
     hudExtent();
-    // "Native": the projection this frame builds (CameraMove) is the wide one while the player plays
+    // "Native": the projection this frame builds (CameraMove) is the wide one while the player plays; not through
+    // the rifle's scope nor the binoculars (0.99.10, wish of the project owner, 11.11.2026: on a 20:9 phone the
+    // binoculars' black mask, an id system part in its 16:9 shape like the scope's, left the wide 3D visible at both
+    // sides): STA_BINOCULAR is the player's binoculars (CameraControl::HoldBinocular, r101's look at the village)
+    // and the event cuts through them (r10b's boat trip, r214's catapults); the app shows those in the 16:9 box
     const bool wide = gViewAspectE4 && pG && pG->Rno0 == 3 && !still && !StaFlagChk(pG, STA_SCOPE_CAMERA) &&
-                      !re4_movie_playing();
+                      !StaFlagChk(pG, STA_BINOCULAR) && !re4_movie_playing();
     static int wideLast = -1;
     static unsigned wideChanges;
     if (gViewAspectE4 && (int) wide != wideLast && wideChanges < 40) {
         wideChanges++;
-        re4_log("picture: Native %s (r%03x%s%s%s)", wide ? "wide" : "in the 16:9 box", pG ? pG->room_id : 0,
-                pG && StaFlagChk(pG, STA_SCOPE_CAMERA) ? ", scope" : "", re4_movie_playing() ? ", movie" : "",
+        re4_log("picture: Native %s (r%03x%s%s%s%s)", wide ? "wide" : "in the 16:9 box", pG ? pG->room_id : 0,
+                pG && StaFlagChk(pG, STA_SCOPE_CAMERA) ? ", scope" : "",
+                pG && StaFlagChk(pG, STA_BINOCULAR) ? ", binoculars" : "", re4_movie_playing() ? ", movie" : "",
                 still ? ", menu screen" : "");
     }
     wideLast = wide;

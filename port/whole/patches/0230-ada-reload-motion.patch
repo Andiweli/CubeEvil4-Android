@@ -1,0 +1,73 @@
+# Port patch, a user's report through the project owner (12.11.2026, version 0.99.11; port/docs/whole-program-status.md):
+# "When playing story mode if I use TMP in fully upgrade, Ada have some bug." With the cheat menu's Ada as the story's
+# player (patch 0195) her own weapon files are read for the Punisher, the semi-automatic rifle and the TMP (wep38,
+# wep40, wep39, runtime/cheats.cpp ownWeapon). They are her Mercenaries files, whose weapons are never tuned: only the
+# reload motion of reload level 0 is made for her; at levels 1 and 2 the files hold Leon's motions or placeholders.
+# On her skeleton they bend her forward while she reloads (Punisher, rifle) and, with the TMP at level 2 (the merchant's
+# full reload tune-up), for good afterwards. The reload state picks its motion by weapon_lv_reload; for the story's
+# Ada with one of her own weapons it now takes level 0 (runtime/cheats.cpp re4_story_char_reload_level); the level's
+# timing (PlReloadEndTbl, the magazine) stays. Without a stand-in nothing changes. A port feature, not a fix of the
+# prototype.
+--- a/src/wep/pl_machine.cpp
++++ b/src/wep/pl_machine.cpp
+@@ -14,6 +14,8 @@
+ #include "snd.h"
+ #include "rnd.h"
+ #include "math_sub.h"
++/* PORT (patch 0230): the reload motion's level (runtime/cheats.cpp) */
++extern "C" int re4_story_char_reload_level(int lv);
+ 
+ 
+ 
+@@ -395,7 +397,8 @@
+         void* mot;
+         cObjWep* obj;
+ 
+-        switch (pG->weapon_lv_reload) {
++        /* PORT (patch 0230): the story's Ada with her own weapon plays her reload motion of level 0 */
++        switch (re4_story_char_reload_level(pG->weapon_lv_reload)) {
+         default:
+             mot = WEP_ARC_PTR(0x1E);
+             break;
+--- a/src/wep/pl_handgun.cpp
++++ b/src/wep/pl_handgun.cpp
+@@ -26,6 +26,8 @@
+ #include "snd.h"
+ #include "rnd.h"
+ #include "math_sub.h"
++/* PORT (patch 0230): the reload motion's level (runtime/cheats.cpp) */
++extern "C" int re4_story_char_reload_level(int lv);
+ 
+ static void wep02_r2_ready(cPlayer* pl);
+ static void wep02_r3_ready00(cPlayer* pl);
+@@ -463,7 +465,8 @@
+ 
+     switch (step) {
+     case 0:
+-        switch (pG->weapon_lv_reload) {
++        /* PORT (patch 0230): the story's Ada with her own weapon plays her reload motion of level 0 */
++        switch (re4_story_char_reload_level(pG->weapon_lv_reload)) {
+         default:
+             mot = WEP_ARC_PTR(0x2D);
+             break;
+--- a/src/wep/pl_rifle.cpp
++++ b/src/wep/pl_rifle.cpp
+@@ -13,6 +13,8 @@
+ #include "snd.h"
+ #include "pad.h"
+ #include "math_sub.h"
++/* PORT (patch 0230): the reload motion's level (runtime/cheats.cpp) */
++extern "C" int re4_story_char_reload_level(int lv);
+ 
+ 
+ // Store through a scalar reference: the following global load stays below it.
+@@ -400,7 +402,8 @@
+ 
+         m3r.reset(0.0f);
+         pl->endCamera();
+-        switch (pG->weapon_lv_reload) {
++        /* PORT (patch 0230): the story's Ada with her own weapon plays her reload motion of level 0 */
++        switch (re4_story_char_reload_level(pG->weapon_lv_reload)) {
+         default:
+             mot = WEP_ARC_PTR(0x17);
+             break;

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 7.x: the whole icon (packer/tools/make_icon.py) -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/packer_icon"
+    android:gravity="fill" />

@@ -22,6 +22,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 struct Re4GxChunk;
 
@@ -32,6 +33,7 @@ struct GxStats {
   unsigned programs = 0;         // shaders built
   unsigned programsLoaded = 0;   // of them taken from the program cache
   unsigned programsAhead = 0;    // of them made before their first draw (Prewarm)
+  unsigned pipelinesAhead = 0;   // Vulkan: pipelines of the app's list made on a thread of their own (AheadThread)
   unsigned textures = 0;         // textures decoded
   unsigned textureCopies = 0;    // EFB copies to a texture
   unsigned displayCopies = 0;    // EFB copies to the XFB
@@ -39,6 +41,9 @@ struct GxStats {
   unsigned skippedChunks = 0;    // chunks run without drawing (Frame skip): state and textures only
   unsigned fxaaPasses = 0;       // display copies smoothed by FXAA
   unsigned sharpenPasses = 0;    // display copies sharpened (SetSharpen)
+  unsigned colourPasses = 0;     // display copies graded (SetColour)
+  unsigned crtPasses = 0;        // display copies made into the CRT's lines and glow (SetCrt)
+  unsigned bloomPasses = 0;      // pictures whose scene's bright parts glow (SetBloom)
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
   unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
@@ -46,6 +51,16 @@ struct GxStats {
   unsigned resets = 0;
   unsigned rescales = 0;          // EFB scale changed while running (Rescale: Auto in the app menu)
   unsigned missingTextures = 0;  // bound keys the renderer did not have
+  // the player's HD texture pack (SetTexturePack): uploads looked up, replaced, without a replacement, left out
+  // for the budget, not readable from the file; the replacements' bytes on the GPU now
+  unsigned hdLookups = 0, hdTextures = 0, hdMisses = 0, hdOverBudget = 0, hdReadErrors = 0;
+  std::size_t hdBytesNow = 0;
+  // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)
+  std::uint64_t hdKeyUs = 0, hdReadUs = 0, hdUploadUs = 0;
+  // 0.99.14: the render thread's loading (microseconds, summed): HD textures (UploadHd), shader programs (GL) and
+  // shaders and pipelines (Vulkan) made on it. "Dynamic" (gx_auto_level.h) does not judge a window with much of it:
+  // pictures late while it loads are not the resolution's doing
+  std::uint64_t loadUs = 0;
   unsigned shaderErrors = 0;
   unsigned programsLive = 0;     // programs kept now (at most 3000, RE4_GX_MAX_PROGRAMS)
   unsigned programsDeleted = 0;  // programs deleted that went longest unused (EvictPrograms)
@@ -104,7 +119,8 @@ struct GxStats {
   enum { kSplitDraw, kSplitUniform, kSplitBind, kSplitState, kSplitProgram, kSplitTexture, kSplitBp, kSplitXf,
          kSplitVertices, kSplitRest, kSplitKinds };
   unsigned long long splitNs[kSplitKinds] = {};
-  // GPU time of the chunks (EXT_disjoint_timer_query; 0 when the driver has none)
+  // GPU time of the chunks (EXT_disjoint_timer_query; 0 when the driver has none); since 0.99.14 Vulkan's too (the
+  // timestamps of each frame's work, a picture's, ReadGpuTime), for "Dynamic" (gx_auto_level.h)
   unsigned long long gpuMicros = 0;
   unsigned gpuTimed = 0;
   // the pictures put on the screen (Present, once per display refresh) and their GPU time
@@ -131,6 +147,9 @@ struct GxStats {
   unsigned interpCameraMoved = 0;
   // one-frame effects the game makes anew each picture (the laser sight), matched to the one of their id before
   unsigned interpOneFrame = 0;
+  // particles found by their object that jumped (GxCore::Jumped: weather particles wrapping around the camera),
+  // drawn as new ones
+  unsigned interpOwnedJumps = 0;
   // (interpOwnedRecount: draws of objects that drew another number of quads than in the picture before:
   // matched the old way, not by "n-th draw")
 };
@@ -184,10 +203,32 @@ struct GxOptions {
   bool vertexRing = false;
 };
 
+// The graphics API a renderer draws with (port/docs/vulkan-bauplan.md): GLES 3 (the default and the fallback) or
+// Vulkan (experimental, later).
+enum class GxApi { kGl, kVulkan };
+
+struct GxCore;
+class TexPack;
+
+// Something the app draws over the presented picture (the minimap; GLES draws it itself, the Vulkan renderer in
+// its Present): vertices x y r g b a in a square's clip space (y up), drawn as `parts` in their order (triangles or
+// lines), the square at x, y (screen pixels from the bottom left, as GL's viewport), size pixels wide and high.
+struct GxOverlay {
+  struct Part {
+    bool lines;
+    int first, count;
+  };
+  std::vector<float> verts;
+  std::vector<Part> parts;
+  int x = 0, y = 0, size = 0;
+  float lineWidth = 1.0f;
+};
+
 class GxRenderer {
 public:
-  GxRenderer();
+  explicit GxRenderer(GxApi api = GxApi::kGl);
   ~GxRenderer();
+  GxApi Api() const { return api_; }
   GxRenderer(const GxRenderer &) = delete;
   GxRenderer &operator=(const GxRenderer &) = delete;
 
@@ -252,18 +293,46 @@ public:
   // GameCube blurs its picture for the TV. Off: the picture stays sharp (the taps' sum only, the
   // brightness option). Takes effect with the next display copy.
   void SetTvFilter(bool on);
+  // "Save bandwidth (Vulkan)": fewer loads and stores of the EFB on a tiling GPU (gx_vk.cpp); GL: nothing
+  void SetBandwidthSave(bool on);
   // PSone demake (wish of the project owner, 02.11.2026): the 3D draws as a PlayStation drew them, corners on a
   // 320-wide grid (the polygons wobble), textures without perspective correction and without filtering; then a
   // last pass over every display copy (after FXAA): one colour per cell of a 320 x 224 grid in 15-bit colour
   // with the PlayStation's 4 x 4 dither. Takes effect with the next draws (new programs, made once).
   void SetPsx(bool on);
+  // CRT (wish of the project owner, 11.11.2026; 0 off, 1 light, 2 strong): the picture as a tube TV showed it. After
+  // each display copy (after the colour) two small passes, its game lines with the colour of a composite signal bled
+  // sideways (one row a line, at most 1280 wide) and the glow of its bright parts (a quarter each way); Present then
+  // draws the box from them: a curved glass with rounded corners and darker edges, each game line a beam with dark
+  // gaps between (fading out below three screen pixels a line), the glow, with "Strong" a shadow mask. Only what
+  // the game draws: the touch controls, the app's menu and its overlays (minimap, FPS) stay as they are. Takes
+  // effect with the next display copy.
+  void SetCrt(int level);
+  // Colour (wish of the project owner, 11.11.2026): mode 0 off, 1 "Warm film" (browns and golds stronger), 2
+  // "Survival horror" (pale colours, harder contrast); level 1 light (half), 2 strong. One pass over every display
+  // copy after the PSone demake's, into a texture of its own that Xfb() and Present show. Movies too.
+  void SetColour(int mode, int level);
   // Lens flares (wish of the project owner, 04.11.2026; off by default): a small, faint glow and streak around
   // what the game draws as light (additive 3D effects: flames, candles, lamp glows), drawn after the scene's
   // last 3D draw (under the HUD), only where the source is not hidden in the EFB depth, faded in and out over
   // a few pictures. Takes effect with the next chunk.
   void SetFlares(bool on);
+  // With the lens flares on: the soft glow and fine star at each light too (true, the default: the menu's "Halos +
+  // lens flares"), or only the coloured ghosts towards the picture's centre (false: "Lens flares"; 0.99.6).
+  void SetFlareHalos(bool on);
+  // Bloom (0.99.13, the project owner: "Ja, einbauen"; 0 off, the default, 1 light, 2 strong): after the scene's
+  // last 3D draw and before the HUD, its bright parts (above a threshold) glow softly over their surroundings (a
+  // picture of one texel per 4 x 4 game pixels, blurred, added into the EFB); not where "Halos + lens flares" draw
+  // their halo, not on the game's menu screens. Takes effect with the next chunk.
+  void SetBloom(int level);
   // the menu's depth of field "Strong" (0.98.4): the gameplay autofocus blurs more and wider than "Light"
   void SetDofStrong(bool on);
+  // HD textures (port/docs/textur-lader-plan.md): the player's texture pack (null: none), the first of each
+  // replacement's levels to load (0 "Sharpness: Full", 1 "Half"), the replacements' budget on the GPU. Another pack
+  // or level drops every texture: TakeTexturesDropped then says once that the game core must send them again.
+  // Never in the PSone demake (its look wants the game's own textures).
+  void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
+  bool TakeTexturesDropped();
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the
   // shown part instead of reading the rows outside it (a distortion near the edge read the black bars:
@@ -272,7 +341,8 @@ public:
   // "4:3 (exact)" (the app menu, 29.10.2026): the game computes its 3D picture for 4:3 but its
   // 512 x 448 picture showed 10:7 on a television; shown in a 4:3 box the 3D is exact and the flat
   // draws of the whole screen (HUD, menus, text) would be narrower. They are drawn `factor` wider
-  // around the screen's centre (15/14 for that box; 1: as the game sends them). Any thread.
+  // around the screen's centre (15/14 for that box; 1: as the game sends them). Any thread. Since
+  // 0.99.10 the app passes 1 (the id system's boxes stayed narrower than the widened texts in them).
   void SetWiden(float factor);
   // Frame skip (the app menu, 26.10.2026). The renderer is behind when the core has finished two
   // chunks: `a` need not be drawn when `b` (the next one) is drawn at once. Skip runs `a` without its
@@ -314,6 +384,23 @@ public:
   // (x, y, w, h), upright; rows > 0: only XFB rows top .. top + rows - 1
   // (the letterbox cut off). False when there is none yet.
   bool Present(int x, int y, int w, int h, unsigned top = 0, unsigned rows = 0);
+  // The latest display copy as shown (after FXAA, Sharpen and the PSone pass): RGBA8, row 0 the picture's top row,
+  // *width x *height pixels at the EFB scale; false before the first display copy. For tests and screenshots, any
+  // API (port/docs/vulkan-bauplan.md, E1).
+  bool ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height);
+  // Present (x, y, w, h, top, rows as Present takes them: x, y from the bottom left) into a picture of screenW x
+  // screenH pixels, black around it, read back as RGBA8 with row 0 at the top (gx_chunk_render's RE4_GX_SCREEN).
+  bool ReadPresented(int screenW, int screenH, int x, int y, int w, int h, unsigned top, unsigned rows,
+                     std::vector<std::uint8_t> *rgba);
+  // The screen of a Vulkan renderer: the Android window (ANativeWindow*, the SurfaceView's; null when it went) and
+  // its size in pixels (Present's rectangles count in it). GL draws into the current context's surface: ignored.
+  void SetWindow(void *window, int width, int height);
+  // Drawn over the picture at the next Present, once (the Vulkan renderer; GL ignores it, the app draws it itself).
+  void SetOverlay(const GxOverlay &overlay);
+  // "OpenGL ES 3.2 ..., Adreno (TM) 650" or "Vulkan 1.1.128 ..., driver ...": for the log and the error report.
+  std::string ApiInfo() const;
+  // The Vulkan renderer's line for the log since the last call (waits, submits, shaders and pipelines made); "" for GL.
+  std::string TimingLine();
   // EFB colour texture (tests): GameCube coordinates times the scale.
   GLuint EfbColor() const;
   int Scale() const;   // whole multiples (1.5x: 1)
@@ -342,8 +429,8 @@ public:
   void Release();
 
 private:
-  struct Impl;
-  std::unique_ptr<Impl> impl_;
+  GxApi api_;
+  std::unique_ptr<GxCore> impl_;  // gx_core.h: the API's renderer
 };
 
 // Shader programs made ahead (decision of the project owner, 23.10.2026: a list in the app, so the

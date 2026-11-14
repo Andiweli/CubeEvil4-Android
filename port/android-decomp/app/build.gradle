@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 104
+        versionCode 117
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -76,10 +76,20 @@ android {
         // of the 60 FPS in-between pictures, made after 0.98.6 had been decided), then 0.99.0 (wish of the project owner,
         // 07.11.2026: the picture format "Native", the device's own aspect, on the widescreen of Noname267's fork;
         // released with the tag "0.99.0-rc"), then 0.99.1 (wish of the project owner, 07.11.2026: the life gauge and
-        // the minimap in the corners, the update check), then 0.99.2 (the reports after 0.99.1). Since 0.99.1 the name
+        // the minimap in the corners, the update check), then 0.99.2 (the reports after 0.99.1), then 0.99.3
+        // (the reports and wishes after 0.99.2), then 0.99.4 (the reports after 0.99.3), then 0.99.5 (the project owner's
+        // Vulkan reports after 0.99.4), then 0.99.6 (the users' reports and the owner's wishes after 0.99.5), up to 0.99.9, then 0.99.10 (the
+        // owner's wishes of 11.11.2026, first: no system bars over the app menu and its questions), then 0.99.11 (the
+        // reports after 0.99.10: the menu's controller focus, the Information HUD, Ada's TMP), up to 0.99.15. Since 0.99.1 the name
         // is exactly the release's tag on GitHub (AppUpdate compares the two): a suffix until 1.0 ("-rc"), none from 1.0
         // on (the project owner, 07.11.2026)
-        versionName '0.99.2-rc'
+        versionName '0.99.15-rc'
+        // a branch's test APK names itself with -Pre4.versionName (the Vulkan branch: "0.99.2-vulkan1"; AppUpdate
+        // takes a different suffix word for the same version)
+        if (project.hasProperty('re4.versionName')) versionName project.property('re4.versionName')
+        // ... and its versionCode with -Pre4.versionCode (at least the installed release's, so it installs over it
+        // by hand too)
+        if (project.hasProperty('re4.versionCode')) versionCode Integer.parseInt(project.property('re4.versionCode').toString())
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
     }
     // classic: the app's own game modules (arm64-v8a), as before; since
@@ -159,5 +169,8 @@ dependencies {
     // (beta.7's stick actions for the analog C stick, docs/retrotouch-1.0.0-beta.7.patch, with
     // RetroTouchColors.withBorderColor and button shapes, RetroTouchButtonShape) with a border of 2.5 dp and
     // controls placed so that they stay on the screen with it (RetroTouchView.placeControl); the app's calls stay.
+    // Now 1.0.0-beta.10 (09.11.2026, the AAR as the project owner built it): the ICONS button style next to
+    // LABELS, icons, ROUNDED_RECT and CAPSULE shapes, pressed and latched colours (TouchStyle). The icons'
+    // licence (Lucide, ISC): libs/retrotouch-THIRD_PARTY_NOTICES.md, RetroTouch's own notice file.
     implementation files('libs/retrotouch.aar')
 }

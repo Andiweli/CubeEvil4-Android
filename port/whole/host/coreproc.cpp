@@ -114,8 +114,7 @@ struct Core {
     void (*setFastCores)(int);
     void (*setPotato)(int);
     void (*setAim)(int);
-    void (*setViewDistance)(float);
-    void (*setDrawless)(int);
+    void (*setDrawless)(int);  // the OUYA branch (its frame skip of the renderer)
     void (*setSoundVolume)(int);
     void (*restartGame)(int);
     const char* (*discProblem)(void);
@@ -123,10 +122,15 @@ struct Core {
     int (*cheatAction)(int);
     int (*roomOutline)(float*, int, unsigned*);
     void (*setLaserColour)(int);
+    void (*setViewDistance)(int);
+    void (*setCpuSkip)(int);
     void (*setViewAspect)(int);
     void (*setHudLayout)(int, int, int);
     void (*touch)(float, float);
     void (*aimTurn)(float, float);
+    void (*zoom)(int);  // optional (cores since 12.11.2026): the mouse wheel
+    void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
+    void (*setGentleQte)(int);    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
     void (*swipe)(int);
     void (*slash)(float);
     void (*gyro)(float, float);
@@ -792,8 +796,7 @@ bool loadCore(std::string& problem)
     bind(core.setLetterbox, "re4_core_set_letterbox");
     bind(core.setFastCores, "re4_core_set_fast_cores");
     bind(core.setPotato, "re4_core_set_potato");
-    bind(core.setViewDistance, "re4_view_distance_set", false);  // the OUYA branch (patch 0900)
-    bind(core.setDrawless, "re4_gx_set_drawless", false);         // the OUYA branch
+    bind(core.setDrawless, "re4_gx_set_drawless", false);  // the OUYA branch
     bind(core.setAim, "re4_core_set_aim");
     bind(core.setSoundVolume, "re4_core_set_sound_volume");
     bind(core.restartGame, "re4_core_restart_game");
@@ -802,10 +805,15 @@ bool loadCore(std::string& problem)
     bind(core.cheatAction, "re4_core_cheat_action");
     bind(core.roomOutline, "re4_core_room_outline", false);
     bind(core.setLaserColour, "re4_core_set_laser_colour", false);
+    bind(core.setViewDistance, "re4_core_set_view_distance", false);
+    bind(core.setCpuSkip, "re4_core_set_cpu_skip", false);
     bind(core.setViewAspect, "re4_core_set_view_aspect", false);
     bind(core.setHudLayout, "re4_core_set_hud_layout", false);
     bind(core.touch, "re4_core_touch");
     bind(core.aimTurn, "re4_core_aim_turn");
+    bind(core.zoom, "re4_core_zoom", false);
+    bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
+    bind(core.setGentleQte, "re4_core_set_gentle_qte", false);
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
     bind(core.gyro, "re4_core_gyro");
@@ -923,11 +931,6 @@ void serve()
         case kSetAim:
             core.setAim(h.a);
             break;
-        case kSetViewDistance:
-            if (core.setViewDistance) {
-                core.setViewDistance(h.a / 100.0f);
-            }
-            break;
         case kSetDrawless:
             if (core.setDrawless) {
                 core.setDrawless(h.a);
@@ -950,6 +953,12 @@ void serve()
             break;
         case kSetLaserColour:
             if (core.setLaserColour) core.setLaserColour(h.a);
+            break;
+        case kSetViewDistance:
+            if (core.setViewDistance) core.setViewDistance(h.a);
+            break;
+        case kSetCpuSkip:
+            if (core.setCpuSkip) core.setCpuSkip(h.a);
             break;
         case kSetViewAspect:
             if (core.setViewAspect) core.setViewAspect(h.a);
@@ -980,6 +989,15 @@ void serve()
             core.aimTurn(yaw, pitch);
             break;
         }
+        case kZoom:
+            if (core.zoom) core.zoom(h.a);
+            break;
+        case kSetEnemyRandom:
+            if (core.setEnemyRandom) core.setEnemyRandom(h.a);
+            break;
+        case kSetGentleQte:
+            if (core.setGentleQte) core.setGentleQte(h.a);
+            break;
         case kTouch: {
             float u, v;
             memcpy(&u, &h.a, 4);

@@ -116,12 +116,18 @@ public final class RoomFileCheck {
     return s.toString();
   }
 
-  /** The line shown after an import, or null when every file matches. */
+  /**
+   * The line shown after an import, or null when every file matches. A changed image is damaged or modified
+   * on purpose: the same EU discs with 172 / 145 other files (a Spanish fan dub?) came in two reports
+   * (05.11. and 07.11.2026), a Japanese fan translation in another (02.11.2026).
+   */
   public String warning(int disc) {
     if (bad.isEmpty()) return null;
     return "Disc " + disc + " imported, but " + bad.size() + " of " + checked + (everyFile ? " files" : " room files")
-        + " differ from the original disc (first: " + bad.get(0) + "). The disc image is damaged: dump the disc"
-        + " again and import it again, or the game stands where it reads those files.";
+        + " differ from the original disc (first: " + bad.get(0) + "). The disc image is damaged or modified"
+        + " (a fan translation or a mod, for example). CubeEvil4 is made for the original discs: with changed"
+        + " files the game can stop or behave differently. Dump your own disc again and import it for the best"
+        + " result.";
   }
 
   /** Why the game could not read a file: the answer of {@link #diagnose}. */

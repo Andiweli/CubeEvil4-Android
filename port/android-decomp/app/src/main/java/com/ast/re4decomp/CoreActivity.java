@@ -7,9 +7,11 @@ import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
@@ -37,7 +39,9 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewConfiguration;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -130,6 +134,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the menu's "Auto aim" (the game's own lock-on) and "Always run" (the run key walks instead; wish of the
   // project owner, 30.10.2026; CoreBridge.setAim, runtime/aim_options.cpp; both off)
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
+  /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's; on by default. */
+  static final String GENTLE_QTE = "gentleQte";
+  static final boolean GENTLE_QTE_DEFAULT = true;
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
   // camera's vertical field of view, -FOV_RANGE .. FOV_RANGE, 0 as the game (CoreBridge.setFov, patch 0205)
@@ -146,7 +153,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    *  extra games kept unlocked, the story's player character << 5 (2 Ada, 3 HUNK, 4 Krauser, 5 Wesker), 256 the
    *  special costume; off). */
   static final String CHEATS = "cheats";
-  private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4;
+  /** The cheat "Random enemies" (0.99.12): its seed, 0 off (CoreBridge.setEnemyRandom). */
+  static final String ENEMY_SEED = "enemySeed";
+  private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
+      REQUEST_EXPORT_ZIP = 6;
+  // "Import texture pack" (Cheats & Mods, TexturePacks): who hears the import, its cancel switch
+  private TexturePacks.Listener textureListener;
+  private final java.util.concurrent.atomic.AtomicBoolean textureCancel = new java.util.concurrent.atomic.AtomicBoolean();
   /** SELECT held this long: the game's debug menu. */
   private static final long SELECT_HOLD_MS = 1000;
 
@@ -160,7 +173,26 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final InputDelay inputDelay = new InputDelay();
   // the main stick as the game reads it for walking, a line every 30 s of use (StickWatch; report of 07.11.2026)
   private final StickWatch stickWatch = new StickWatch();
-  private GLSurfaceView surface;
+  // the view the picture is drawn into: GameSurface.Gl (OpenGL ES) or VulkanSurface (Vulkan, vulkan-bauplan.md E6);
+  // picture is the same view's render calls (volatile: the beat's thread asks for pictures)
+  private SurfaceView surface;
+  private volatile GameSurface picture;
+  private int renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY;
+  // Vulkan from Android 10 (API 29) on and with Vulkan 1.1 (the plan's minimum; vulkan-bauplan.md)
+  static final int VULKAN_MIN_SDK = 29;
+  private static final int VULKAN_1_1 = (1 << 22) | (1 << 12);
+  private boolean vulkan;
+  // the menu's renderer (GRAPHICS_PREFS): "gles" (the default) or "vulkan"; the crash guard (VulkanGuard): its mark set
+  // at the first Vulkan start of a process, cleared once Vulkan has drawn for a few seconds (vulkanGuard), when the
+  // game ends normally or goes to the background; still set at the next start: OpenGL ES then if that process crashed
+  // (vulkan-bauplan.md E7; since 0.99.6 by how it ended)
+  static final String RENDERER = "renderer", VULKAN_STARTING = VulkanGuard.STARTING;
+  private static boolean vulkanMarked;  // this process set the mark (once: not again for a new activity)
+  private static final long VULKAN_GUARD_MS = 2000;
+  private static final long VULKAN_GUARD_PICTURES = 120;
+  private int vulkanGuardChecks;
+  // the renderer of this run for the report's renderer.txt (and why it is not Vulkan when Vulkan was asked for)
+  private String rendererLine = "OpenGL ES";
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
   private GyroAim gyroAim;
@@ -177,8 +209,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private CoreMenu menu;
   private boolean menuSupported, tools, selectDown, selectHeld;
   private final List<byte[]> pendingImports = new ArrayList<>();
+  // Android's thermal status and headroom for the error log and the report (0.99.15, ThermalWatch)
+  private ThermalWatch thermal;
   // the touch layout file the chosen files hold (TouchLayoutFile), after the .gci files
   private byte[] pendingTouch;
+  // the parts of the app's own ZIP (PlayerBackup, 0.99.15) after the touch layout: the instant save, the settings file
+  // with the ZIP's manifest (where it was made); whether the import put settings in place (then a restart is offered)
+  private byte[] pendingInstant, pendingSettings, pendingManifest;
+  private boolean importedSettings;
   // (read by the picture's beat on its own thread too)
   private volatile boolean resumed;
   // GPU step c: the picture drawn at each vsync or, on a faster screen, at every n-th
@@ -210,10 +248,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private long rumbleSeen, rumbleUntil;
   private volatile int preparedRoom = -1;
   private boolean roomBusy;
-  // the FPS display (menu switch): the game's frames per second and the screen's rate, bottom left
-  // ("30 FPS (Game) · 60 Hz": the game makes 30 pictures a second, as on the GameCube; a phone's
-  // own counter shows the screen's rate, which is not the game's)
+  // the Information HUD (menu switch, InfoHud; until 0.99.10 the FPS display): the game's frames per second and the
+  // screen's rate ("30 FPS (Game) · 60 Hz": the game makes 30 pictures a second, as on the GameCube; a phone's
+  // own counter shows the screen's rate, which is not the game's), the resolution, the game's play time
   private TextView fpsView;
+  private String hudFps = "";  // the last second's FPS part (InfoHud), "-- FPS (Game)" until counted
   // where it is (the menu's button, wish of the project owner, 05.11.2026: it covered the minimap): 0 off, 1 bottom
   // left, 2 bottom centre, 3 top left, 4 top centre; before 05.11.2026 the switch "fps" alone (on: bottom left)
   static final String FPS_PLACE = "fpsPlace";
@@ -237,21 +276,48 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   public void onCreate(Bundle state) {
     super.onCreate(state);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    // no force dark over the game, its touch controls and displays (FocusLook, 0.99.11)
+    FocusLook.noForceDark(getWindow());
     hideSystemUi();
+    // the game's window over the camera's cutout too (0.99.15, a user's Moto G22: a black strip on the camera's side);
+    // the touch controls keep clear of it below (Cutout)
+    Cutout.extend(getWindow());
     ImportManager imports = ((Re4Application) getApplication()).imports;
     // test switches of the core (port/scripts/test-core-app.ps1 passes them)
     settings = getIntent().getStringExtra("coreSettings");
     if (settings == null) settings = "";
     // the error log of this run (the one before is kept for the report)
     CoreLog.start(this, settings);
+    // how hot the device is: at the start, at each change, the headroom every 10 s (ThermalWatch; only told)
+    thermal = ThermalWatch.forDevice(this, SystemClock.elapsedRealtime());
+    thermal.start(SystemClock.elapsedRealtime());
+    // on to the renderer: Dynamic's step lines name the heat
+    thermal.setListener((status, headroom) -> {
+      try {
+        CoreBridge.setThermal(status, headroom);
+      } catch (UnsatisfiedLinkError e) {
+        thermal.setListener(null);
+      }
+    });
     shownLanguage = language();
     Log.i(TAG, "app menu: " + shownLanguage);
-    // linked shader programs kept between runs (no compile stutter the second time)
-    String programs = "RE4_GX_PROGRAM_CACHE=" + new File(getCacheDir(), "gx-programs").getAbsolutePath();
+    // the shaders the renderers built, kept between runs (no compile stutter the second time); since 0.99.4 where
+    // Android and cleaner apps do not empty them, the old cache folder moved over once (ShaderCache)
+    Log.i(TAG, "shader cache: " + ShaderCache.prepare(this));
+    String programs = "RE4_GX_PROGRAM_CACHE=" + ShaderCache.dir(this).getAbsolutePath();
     // the app's list of shader programs (port/tools/gx_program_list.py): made ahead from the first start
-    String programList = programList();
+    String programList = assetFile("gx-programs.keys");
     if (programList != null) programs += ";RE4_GX_PROGRAM_LIST=" + programList;
+    // Vulkan's pipelines of all rooms (port/tools/gx_vkpipe_list.py, 0.99.5): made ahead on a thread of the renderer
+    String pipeList = assetFile("gx-vkpipes.keys");
+    if (pipeList != null) programs += ";RE4_GX_VK_PIPE_LIST=" + pipeList;
     String coreSettings = settings.isEmpty() ? programs : settings + ";" + programs;
+    // how the game's last process ended (Android 11 on; the crash guard below, the reports)
+    VulkanGuard.Exit lastEnd = VulkanGuard.lastExit(this, 0);
+    if (lastEnd != null) Log.i(TAG, "the game's last process ended: " + lastEnd);
+    // the renderer: Vulkan (the test switch RE4_GX_API=vulkan) or OpenGL ES; the core hears it as RE4_GX_API
+    vulkan = chooseVulkan();
+    coreSettings = withRenderer(coreSettings, vulkan);
     // the game's language with the European discs (retail-eu-plan.md R7; a test script's setting wins)
     String release = imports.root == null ? null
         : com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1"));
@@ -264,6 +330,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     // the app's own folder (on the shared storage, else internal), where test switches write (RE4_AUDIO_WAV)
     AppStorage.base(this);
+    // Management -> "Delete All Data" (0.99.15, PlayerWipe): the memory card and the instant save go before the core
+    // opens them; the core then makes a new, formatted card
+    String wiped = PlayerWipe.prepare(this, imports.root);
+    if (!wiped.isEmpty()) Log.i(TAG, wiped);
     applyGraphics();
     startProblem = imports.root == null ? "No data folder"
         : CoreBridge.start(imports.root.getAbsolutePath(), coreSettings);
@@ -293,23 +363,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     FrameLayout root = new FrameLayout(this);
-    surface = new GLSurfaceView(this);
-    surface.setEGLContextClientVersion(3);
-    surface.setPreserveEGLContextOnPause(true);
-    surface.setRenderer(new GLSurfaceView.Renderer() {
-      @Override public void onSurfaceCreated(GL10 gl, EGLConfig config) { CoreBridge.surfaceCreated(); }
-      @Override public void onSurfaceChanged(GL10 gl, int w, int h) { CoreBridge.resize(w, h); }
-      @Override public void onDrawFrame(GL10 gl) { CoreBridge.draw(); }
-    });
+    if (vulkan) {
+      VulkanSurface v = new VulkanSurface(this, this::vulkanFailed);
+      surface = v;
+      picture = v;
+      main.postDelayed(vulkanGuard, VULKAN_GUARD_MS);
+    } else {
+      surface = glSurface();
+    }
     root.addView(surface);
-    surface.getHolder().addCallback(new SurfaceHolder.Callback() {
-      @Override public void surfaceCreated(SurfaceHolder holder) { surfaceSixtyHz(holder.getSurface()); }
-      @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {}
-      @Override public void surfaceDestroyed(SurfaceHolder holder) {}
-    });
-    // the surface takes the fingers beside the touch controls: Android gives the further fingers
-    // of a touch only to views that took one, so a thumb beside the buttons would block them
-    surface.setOnTouchListener((v, e) -> true);
+    surfaceCallbacks(surface);
     // the benchmark's line at the top while it runs (Display -> GRAPHICS -> Benchmark)
     benchView = new TextView(this);
     benchView.setTextSize(14);
@@ -348,6 +411,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     aimInvert = inputPrefs.getBoolean(AIM_INVERT_V, false);
     autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
     alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
+    // "modernMove": a switch of a 0.99.7 test build, taken out again (decision of the project owner, 10.11.2026)
+    if (inputPrefs.contains("modernMove")) inputPrefs.edit().remove("modernMove").apply();
     aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
     input.setStickShape(inputPrefs.getInt(STICK_DEAD_ZONE, 0), inputPrefs.getInt(STICK_RANGE, 100));
     stickWatch.setShape(input.deadZone(), input.range());
@@ -368,19 +433,37 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
+    // the touch controls clear of the camera's cutout, where they were before the game's window reached over it (a
+    // saved layout stays as it was); again when the screen turns by 180 degrees and the camera changes sides
+    root.setOnApplyWindowInsetsListener((v, insets) -> {
+      placeTouch(Cutout.safe(insets));
+      return v.onApplyWindowInsets(insets);
+    });
+    benchFlow = new BenchmarkFlow(benchHost);
     if (startProblem.isEmpty()) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+      perfFirstRun(g);
       CoreBridge.setDof(CoreMenu.dofLevel(g));
       // one or the other (CoreMenu): saved with both on before 26.10.2026, 60 FPS stays
-      if (g.getBoolean("smooth60", false) && g.getBoolean("frameskip", false))
-        g.edit().putBoolean("frameskip", false).apply();
+      // Frame skip one setting since 0.99.8 (CoreMenu.frameSkipMode: the two switches of before taken over, both on:
+      // Aggressive); with 60 FPS off (saved with both on before 26.10.2026: 60 FPS stays)
+      int skip = CoreMenu.frameSkipMode(g);
+      if (g.getBoolean("smooth60", false)) skip = 0;
+      if (!g.contains(CoreMenu.FRAME_SKIP) || g.getInt(CoreMenu.FRAME_SKIP, 0) != skip) CoreMenu.storeFrameSkipMode(g, skip);
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
-      CoreBridge.setFrameSkip(g.getBoolean("frameskip", false));
+      CoreBridge.setFrameSkip(skip == 1);
+      CoreBridge.setCpuSkip(skip == 2);
+      CoreBridge.setVkBandwidth(g.getBoolean("vkBandwidth", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
+      CoreBridge.setCrt(CoreMenu.crtLevel(g));
+      CoreBridge.setBloom(CoreBridge.bloomSent(g));
+      CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
       CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
       CoreBridge.setPsx(g.getBoolean("psx", false));
-      CoreBridge.setFlares(g.getBoolean("flares", false));
+      TexturePacks.apply(this, g);
+      CoreBridge.setFlares(CoreBridge.flareMode(g));
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
       CoreBridge.setMinimap(g.getBoolean("minimap", false));
       CoreBridge.setLaserColour(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getInt(LASER_COLOUR, 0));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
@@ -393,12 +476,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setPotato(CoreBridge.potatoMask(g));
       CoreBridge.sendSoundVolume(g);
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+      CoreBridge.setGentleQte(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(GENTLE_QTE, GENTLE_QTE_DEFAULT));
       // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
       int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
       if (!settings.contains("RE4_CHEATS=")) {
         if (cheats != 0) Log.i(TAG, "cheats: " + cheats);
         CoreBridge.setCheats(cheats);
       }
+      int enemySeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(ENEMY_SEED, 0);
+      if (enemySeed != 0) Log.i(TAG, "cheats: random enemies with seed " + enemySeed);
+      CoreBridge.setEnemyRandom(enemySeed);
     }
     setContentView(root);
     // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
@@ -425,11 +512,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The core did not start: why, with the error report to send. */
   private void showStartProblem() {
     if (destroyed) return;
-    new AlertDialog.Builder(this)
+    Immersive.show(new AlertDialog.Builder(this)
         .setMessage(getString(R.string.ingame_core_not_started, startProblem))
         .setPositiveButton(R.string.ingame_send_report, (d, w) -> shareReport())
         .setNegativeButton(R.string.ingame_quit, (d, w) -> quit())
-        .setCancelable(false).show();
+        .setCancelable(false).create());
   }
 
   /**
@@ -445,11 +532,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     Log.e(TAG, "core process: " + ended);
     audio.stop();
     stopVibrator();
-    new AlertDialog.Builder(this)
+    Immersive.show(new AlertDialog.Builder(this)
         .setMessage(getString(R.string.ingame_core_stopped, ended))
         .setPositiveButton(R.string.ingame_send_report, (d, w) -> shareReport())
         .setNegativeButton(R.string.ingame_quit, (d, w) -> quit())
-        .setCancelable(false).show();
+        .setCancelable(false).create());
   }
 
   /**
@@ -490,14 +577,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         : cause == RoomFileCheck.Cause.READ ? R.string.ingame_disc_read : R.string.ingame_disc_unknown;
     // the disc to import again: "Start screen" (it opens without starting the game) in place of "Quit"
     boolean reimport = cause != RoomFileCheck.Cause.READ;
-    new AlertDialog.Builder(this)
+    Immersive.show(new AlertDialog.Builder(this)
         .setTitle(R.string.ingame_disc_title)
         .setMessage(getString(text, path, disc))
         .setPositiveButton(R.string.ingame_send_report, (dlg, w) -> shareReport())
         .setNegativeButton(reimport ? R.string.ingame_start_screen : R.string.ingame_quit,
             (dlg, w) -> { if (reimport) openStartScreen("disc " + disc + " to import again"); else quit(); })
         .setNeutralButton(R.string.ingame_continue, null)
-        .setCancelable(false).show();
+        .setCancelable(false).create());
   }
 
   /** The menu's picture options to the renderer (applied at the next picture while the game runs). */
@@ -505,6 +592,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
     CoreBridge.setGraphics(CoreMenu.scaleHalves(g), g.getInt("samples", 1), g.getInt("anisotropy", 1),
         g.getInt("aspect", 0));
+    TexturePacks.apply(this, g);
   }
 
   private void hideSystemUi() {
@@ -528,9 +616,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (destroyed) return;
     touchControls.update();
     updateFps();
+    if (thermal != null) thermal.tick(SystemClock.elapsedRealtime());
     checkHang();
     checkCoreProcess();
     checkDiscProblem();
+    checkFirstBenchmark();
     int room = CoreBridge.wantedRoom();
     if (room >= 0 && room != preparedRoom && !roomBusy) prepareRoom(room);
     main.postDelayed(this::tick, 500);
@@ -544,10 +634,33 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   private void showFps(int place) {
     fpsPlace = place;
-    fpsView.setVisibility(place != 0 && menuSupported ? View.VISIBLE : View.GONE);
-    fpsView.setText(getString(R.string.ingame_fps_none) + screenHz() + resolution());
+    hudFps = getString(R.string.ingame_fps_none);
+    showHud();
     fpsFrames = -1;
     placeFps();
+  }
+
+  /** The Information HUD's line with its parts as the menu's boxes say (InfoHud); hidden when off or none is chosen. */
+  private void showHud() {
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    boolean time = InfoHud.shows(g, InfoHud.TIME);
+    String text = InfoHud.line(InfoHud.shows(g, InfoHud.FPS), hudFps, InfoHud.shows(g, InfoHud.HZ), screenHz(),
+        InfoHud.shows(g, InfoHud.RESOLUTION), resolution(),
+        time, time ? InfoHud.time(CoreBridge.cheatAction(InfoHud.PLAY_TIME_COMMAND)) : "");
+    fpsView.setText(text);
+    fpsView.setVisibility(fpsPlace != 0 && menuSupported && !text.isEmpty() ? View.VISIBLE : View.GONE);
+  }
+
+  /** The touch controls' area: the window less the camera cutout's safe insets (Cutout; {left, top, right, bottom}). */
+  private void placeTouch(int[] safe) {
+    final View v = touchControls != null ? touchControls.view() : null;
+    if (v == null) return;
+    final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) v.getLayoutParams();
+    if (lp.leftMargin == safe[0] && lp.topMargin == safe[1] && lp.rightMargin == safe[2] && lp.bottomMargin == safe[3]) return;
+    lp.setMargins(safe[0], safe[1], safe[2], safe[3]);
+    v.setLayoutParams(lp);
+    Log.i(TAG, "touch controls: clear of the camera's cutout (left " + safe[0] + ", top " + safe[1] + ", right " + safe[2]
+        + ", bottom " + safe[3] + " pixels)");
   }
 
   /** The FPS display at its place, kept clear of rounded corners, a cutout and bars that stay (CornerInset). */
@@ -571,7 +684,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /**
-   * " · 1280×672 (2×)": the resolution the renderer draws at now, the level "Dynamic" chose too
+   * "1280×672 (2×)": the resolution the renderer draws at now, the level "Dynamic" chose too
    * (wish of the project owner, 23.10.2026), the picture's rows as the menu counts them (336, 4:3
    * 448); "" before the renderer started.
    */
@@ -580,18 +693,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
     int rows = CoreMenu.pictureRows(aspect, surface.getWidth(), surface.getHeight());
-    return String.format(Locale.ROOT, " · %d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
+    return String.format(Locale.ROOT, "%d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
         CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }
 
-  /** " · 60 Hz": the screen's rate as measured (FramePacing), else as Android says; "" unknown. */
+  /** "60 Hz": the screen's rate as measured (FramePacing), else as Android says; "" unknown. */
   private String screenHz() {
     double hz = pacing.hz();
     if (!(hz > 0)) {
       Display display = getWindowManager().getDefaultDisplay();
       hz = display != null ? display.getRefreshRate() : 0;
     }
-    return hz > 0 ? String.format(Locale.ROOT, " · %d Hz", Math.round(hz)) : "";
+    return hz > 0 ? String.format(Locale.ROOT, "%d Hz", Math.round(hz)) : "";
   }
 
   /**
@@ -600,7 +713,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * itself stays at 30; device test of the project owner, 22.10.2026).
    */
   private void updateFps() {
-    if (fpsView.getVisibility() != View.VISIBLE) return;
+    if (fpsPlace == 0 || !menuSupported) return;
     long now = SystemClock.uptimeMillis(), frames = CoreBridge.gameFrames(), pictures = CoreBridge.pictures();
     if (frames < 0 || !resumed || menu != null || touchEditing) {
       fpsFrames = -1;  // the game stands: count anew afterwards
@@ -614,8 +727,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       double seconds = (now - fpsSince) / 1000.0;
       long game = Math.round((frames - fpsFrames) / seconds), shown = Math.round((pictures - fpsPictures) / seconds);
       boolean smooth = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean("smooth60", false);
-      fpsView.setText((smooth ? String.format(Locale.ROOT, getString(R.string.ingame_fps_smooth), game, shown)
-          : String.format(Locale.ROOT, getString(R.string.ingame_fps), game)) + screenHz() + resolution());
+      hudFps = smooth ? String.format(Locale.ROOT, getString(R.string.ingame_fps_smooth), game, shown)
+          : String.format(Locale.ROOT, getString(R.string.ingame_fps), game);
+      showHud();  // with the screen's rate, the resolution and the play time of now
       fpsFrames = frames;
       fpsPictures = pictures;
       fpsSince = now;
@@ -627,12 +741,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * for 8 s while it is neither paused nor in the background, the error log
    * gets where its thread is (a loop or a wait that never ends).
    */
+  private boolean benchHeld;  // a benchmark popup holds the game (benchHost.hold)
   private void checkHang() {
     if (!menuSupported) return;
     long now = SystemClock.uptimeMillis();
     long frames = CoreBridge.gameFrames();
     if (frames < 0) return;
-    if (frames != lastFrames || !resumed || menu != null || touchEditing) {
+    if (frames != lastFrames || !resumed || menu != null || touchEditing || benchHeld) {
       if (frames != lastFrames) hangReported = false;  // the game moves (again)
       lastFrames = frames;
       framesSince = now;
@@ -673,12 +788,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void askExit() {
-    new AlertDialog.Builder(this).setMessage(R.string.ingame_end_question)
+    Immersive.show(new AlertDialog.Builder(this).setMessage(R.string.ingame_end_question)
         .setPositiveButton(R.string.ingame_end, (d, w) -> quit())
-        .setNegativeButton(R.string.ingame_continue, null).show();
+        .setNegativeButton(R.string.ingame_continue, null).create());
   }
 
   private void quit() {
+    clearVulkanMark("the player ended the game");
     CoreLog.stop();
     finishAndRemoveTask();
     // the core cannot be restarted inside this process
@@ -692,8 +808,24 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * ends this one and opens the start screen in a new process without starting the game. Discs, saves, the memory
    * card and the settings stay.
    */
+  /**
+   * The menu's renderer (vulkan-bauplan.md E7): it takes a new process (the renderer and its surface are chosen at the
+   * start), so the game ends as with quit(), and LauncherRestartActivity ends this process and opens the game again.
+   */
+  private void restartIntoGame(String why) {
+    Log.i(TAG, "the app restarts into the game (" + why + ")");
+    clearVulkanMark("the app restarts");
+    CoreLog.stop();
+    startActivity(new Intent(this, LauncherRestartActivity.class)
+        .putExtra(LauncherRestartActivity.GAME_PID, Process.myPid())
+        .putExtra(LauncherRestartActivity.BACK_TO_GAME, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    finishAndRemoveTask();
+    new Handler(Looper.getMainLooper()).postDelayed(() -> System.exit(0), 3000);
+  }
+
   private void openStartScreen(String why) {
     Log.i(TAG, "the game ends, the start screen opens (" + why + ")");
+    clearVulkanMark("the game ends for the start screen");
     CoreLog.stop();
     startActivity(new Intent(this, LauncherRestartActivity.class)
         .putExtra(LauncherRestartActivity.GAME_PID, Process.myPid()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -771,7 +903,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       surface.requestFocus();
       main.post(this::updateMouseCapture);
     });
-    menu.show();
+    Immersive.show(menu);
   }
 
   private final CoreMenu.Host menuHost = new CoreMenu.Host() {
@@ -781,7 +913,34 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       startForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_EXPORT_ALL);
     }
 
+    @Override public void exportZip() {
+      // the card must be readable (the game neither saves nor loads), else no file is made
+      if (CoreBridge.cardList() == null) {
+        message(getString("busy".equals(CoreBridge.cardNote()) ? R.string.ingame_card_busy : R.string.ingame_card_unreadable));
+        return;
+      }
+      Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+          .setType("application/zip").putExtra(Intent.EXTRA_TITLE, PlayerBackup.fileName(System.currentTimeMillis()));
+      startForResult(i, REQUEST_EXPORT_ZIP);
+    }
+
+    @Override public void wipePlayerData() {
+      PlayerWipe.request(CoreActivity.this);
+      Log.i(TAG, "menu: Delete All Data: the memory card and the instant save go at the restart, before the core");
+      restartIntoGame("all player data deleted");
+    }
+
     @Override public void importDiscs() { openStartScreen("menu: import other discs"); }
+
+    @Override public void importTexturePack(TexturePacks.Listener listener) {
+      textureListener = listener;
+      startForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),
+          REQUEST_TEXTURES);
+    }
+
+    @Override public void textureListener(TexturePacks.Listener listener) { textureListener = listener; }
+
+    @Override public void cancelTexturePackImport() { textureCancel.set(true); }
 
     @Override public void importFiles() {
       Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
@@ -810,6 +969,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(TOUCH_MODE, mode).apply();
       touchControls.setMode(mode);
     }
+
+    @Override public boolean touchIcons() { return touchControls.icons(); }
+
+    @Override public void touchIconsChanged(boolean icons) { touchControls.setIcons(icons); }
 
     @Override public void gyroChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(GYRO_AIM, on).apply();
@@ -866,7 +1029,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       AppUpdate.check(CoreActivity.this, listener);
     }
 
-    @Override public void startUpdate(AppUpdate.Listener listener) { AppUpdate.install(CoreActivity.this, listener); }
+    @Override public void openUpdate() { AppUpdate.open(CoreActivity.this); }
 
     @Override public void aimInvertChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, on).apply();
@@ -884,6 +1047,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(ALWAYS_RUN, on).apply();
       alwaysRun = on;
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void gentleQteChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(GENTLE_QTE, on).apply();
+      CoreBridge.setGentleQte(on);
+      Log.i(TAG, "gentler QTEs " + (on ? "on: Professional's quick-time events as Normal's" : "off"));
     }
 
     @Override public void stickShapeChanged(int deadZone, int range) {
@@ -908,7 +1077,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public boolean gameLanguages() { return retailEu; }
     @Override public boolean debugMenu() { return !retail; }
-    @Override public void startBenchmark() { benchmarkStart(); }
+    @Override public void startBenchmark() { benchFlow.start(false); }
+    @Override public PerfProfile.Device perfDevice() { return CoreActivity.this.perfDevice(); }
+    @Override public void profileChosen(int profile) {
+      SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+      PerfProfile.Device d = perfDevice();
+      PerfProfile.choose(g, profile, profile == PerfProfile.CUSTOM ? null
+          : PerfProfile.values(profile, d, PerfProfile.Bench.of(g)));
+      Log.i(TAG, "performance profile " + profile + ": " + BenchmarkFlow.describe(PerfProfile.current(g)));
+      applyOptions();
+    }
 
     @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
 
@@ -934,9 +1112,43 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setCheats(bits);
     }
 
+    @Override public void enemyRandomChanged(int seed) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(ENEMY_SEED, seed).apply();
+      Log.i(TAG, "cheats: random enemies " + (seed != 0 ? "on with seed " + seed : "off"));
+      CoreBridge.setEnemyRandom(seed);
+    }
+
     @Override public void restartGame() {
       Log.i(TAG, "the game restarts (extra games), its language stays");
       CoreBridge.restartGame(0);
+    }
+
+    @Override public boolean vulkanSupported() { return CoreActivity.this.vulkanSupported(); }
+
+    @Override public boolean vulkanRunning() { return surface instanceof VulkanSurface; }
+    @Override public double displayHz() {
+      double hz = pacing.hz();
+      if (!(hz > 0)) {
+        Display display = getWindowManager().getDefaultDisplay();
+        hz = display != null ? display.getRefreshRate() : 0;
+      }
+      return hz;
+    }
+
+    @Override public boolean vulkanChosen() {
+      return "vulkan".equals(getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getString(RENDERER, "gles"));
+    }
+
+    @Override public void clearShaderCache() {
+      // emptied at the next start, before the core opens the folder (the renderer has its files open now)
+      ShaderCache.requestClear(CoreActivity.this);
+      restartIntoGame("shader cache cleared");
+    }
+
+    @Override public void rendererChanged(boolean on) {
+      getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putString(RENDERER, on ? "vulkan" : "gles")
+          .putBoolean(VULKAN_STARTING, false).commit();
+      restartIntoGame("renderer " + (on ? "Vulkan" : "OpenGL ES"));
     }
 
     @Override public int cheatAction(int what) {
@@ -1024,6 +1236,29 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.i(TAG, "touch R3 -> app " + (tools ? "graphics capture" : "nothing (tools off)"));
       if (down) capture();
     }
+
+    // the touch zoom buttons (0.99.15, GitHub #247): a notch of the wheel at once and every ZOOM_REPEAT_MS while held
+    @Override public void zoom(int direction, boolean down) {
+      main.removeCallbacks(touchZoom);
+      touchZoomDirection = down ? direction : 0;
+      if (!down) return;
+      if (touchZoomLines++ < 10) {
+        Log.i(TAG, "touch zoom " + (direction > 0 ? "in" : "out")
+            + (input.zoomView() ? " (the scope or the binoculars)" : " (no scope, no binoculars: nothing)"));
+      }
+      touchZoom.run();
+    }
+  };
+
+  /** While a touch zoom button is held: a notch, again after ZOOM_REPEAT_MS (an eighth of the zoom each). */
+  private static final long ZOOM_REPEAT_MS = 150;
+  private int touchZoomDirection, touchZoomLines;
+  private final Runnable touchZoom = new Runnable() {
+    @Override public void run() {
+      if (touchZoomDirection == 0 || destroyed) return;
+      CoreBridge.zoom(touchZoomDirection);
+      main.postDelayed(this, ZOOM_REPEAT_MS);
+    }
   };
 
   /**
@@ -1068,7 +1303,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void message(String text) {
-    new AlertDialog.Builder(this).setMessage(text).setPositiveButton(android.R.string.ok, null).show();
+    Immersive.show(new AlertDialog.Builder(this).setMessage(text).setPositiveButton(android.R.string.ok, null).create());
   }
 
   @Override
@@ -1078,9 +1313,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     try {
       if (request == REQUEST_EXPORT_ALL && data.getData() != null) {
         exportAllInto(data.getData());
+      } else if (request == REQUEST_EXPORT_ZIP && data.getData() != null) {
+        exportZipInto(data.getData());
+      } else if (request == REQUEST_TEXTURES && data.getData() != null) {
+        importTextures(data.getData());
       } else if (request == REQUEST_IMPORT) {
         pendingImports.clear();
-        pendingTouch = null;
+        pendingTouch = pendingInstant = pendingSettings = pendingManifest = null;
+        importedSettings = false;
         if (data.getClipData() != null) {
           for (int i = 0; i < data.getClipData().getItemCount(); i++) readImport(data.getClipData().getItemAt(i).getUri());
         } else if (data.getData() != null) {
@@ -1098,6 +1338,43 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.w(TAG, "menu: " + e);
       message(getString(R.string.ingame_failed, e.getMessage()));
     }
+  }
+
+  /** The chosen texture pack into the textures folder (TexturePacks.importFrom) on a thread of its own; the menu hears
+   *  its progress and its end; the pack is in use right after. */
+  private void importTextures(Uri uri) {
+    if (TexturePacks.importing) return;
+    TexturePacks.importing = true;
+    TexturePacks.importDone = 0;
+    TexturePacks.importTotal = 0;
+    textureCancel.set(false);
+    final android.content.Context app = getApplicationContext();
+    Thread t = new Thread(() -> {
+      TexturePacks.Info info = null;
+      TexturePacks.PackException failure = null;
+      try {
+        info = TexturePacks.importFrom(app, uri, textureCancel, new TexturePacks.Listener() {
+          @Override public void progress(long done, long total) {
+            main.post(() -> { if (textureListener != null) textureListener.progress(done, total); });
+          }
+          @Override public void done(TexturePacks.Info i, TexturePacks.PackException f) {}
+        });
+      } catch (TexturePacks.PackException e) {
+        failure = e;
+      } catch (java.io.IOException e) {
+        failure = new TexturePacks.PackException(TexturePacks.READ_FAILED, String.valueOf(e.getMessage()));
+      }
+      final TexturePacks.Info result = info;
+      final TexturePacks.PackException problem = failure;
+      main.post(() -> {
+        TexturePacks.importing = false;
+        if (result != null) getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putBoolean(TexturePacks.ON, true).apply();
+        TexturePacks.apply(this, getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE));
+        Log.i(TAG, "texture pack import: " + (problem == null ? "done" : problem.getMessage()));
+        if (textureListener != null) textureListener.done(result, problem);
+      });
+    }, "texture-import");
+    t.start();
   }
 
   /** Every file of the card as .gci into the chosen folder. */
@@ -1176,9 +1453,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       // a .gci, a whole Dolphin card (.raw, .gcp) or a ZIP of either: the .gci files of this game
       StringBuilder found = new StringBuilder();
       try {
-        List<byte[]> touch = new ArrayList<>();
-        pendingImports.addAll(SaveImport.files(CoreLog.readAll(in), found, touch));
-        if (!touch.isEmpty()) pendingTouch = touch.get(touch.size() - 1);
+        SaveImport.Found parts = SaveImport.read(CoreLog.readAll(in), found);
+        pendingImports.addAll(parts.gci);
+        if (!parts.touch.isEmpty()) pendingTouch = parts.touch.get(parts.touch.size() - 1);
+        // the app's own ZIP (PlayerBackup): its instant save and its settings with its manifest
+        if (parts.instant != null) pendingInstant = parts.instant;
+        if (parts.settings != null) {
+          pendingSettings = parts.settings;
+          pendingManifest = parts.manifest;
+        }
       } catch (IllegalArgumentException e) {
         throw new IOException(e.getMessage());
       }
@@ -1213,8 +1496,29 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         importTouch(report);
         return;
       }
-      if (report.length() > 0) message(report.toString().trim());
+      if (pendingInstant != null) {
+        importInstant(report);
+        return;
+      }
+      if (pendingSettings != null) {
+        importSettings(report);
+        return;
+      }
       if (menu != null) menu.refreshCard();
+      if (importedSettings) {
+        // the settings are in place: most take effect at the next start of the game (renderer, language, the
+        // controls the activity keeps), so it offers the restart (progress not saved is lost)
+        importedSettings = false;
+        Immersive.show(new AlertDialog.Builder(this)
+            .setMessage(report.toString().trim() + "\n\n" + getString(R.string.ingame_backup_restart))
+            .setPositiveButton(R.string.ingame_restart, (d, w) -> {
+              if (menu != null) menu.dismiss();
+              restartIntoGame("settings imported");
+            })
+            .setNegativeButton(R.string.ingame_later, null).create());
+        return;
+      }
+      if (report.length() > 0) message(report.toString().trim());
       return;
     }
     byte[] gci = pendingImports.remove(0);
@@ -1222,7 +1526,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int r = CoreBridge.cardImport(gci, false);
     Log.i(TAG, "import " + name + ": " + r + " " + CoreBridge.cardNote());
     if (r == CoreBridge.CARD_EXISTS) {
-      new AlertDialog.Builder(this)
+      Immersive.show(new AlertDialog.Builder(this)
           .setMessage(getString(R.string.ingame_import_exists, name))
           .setPositiveButton(R.string.ingame_replace, (d, w) -> {
             int again = CoreBridge.cardImport(gci, true);
@@ -1231,7 +1535,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
             importNext(report);
           })
           .setNegativeButton(R.string.ingame_skip, (d, w) -> importNext(report))
-          .setCancelable(false).show();
+          .setCancelable(false).create());
       return;
     }
     report.append(importText(r, name)).append('\n');
@@ -1257,7 +1561,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences prefs = touchPrefs();
     String saved = TouchLayoutFile.saved(prefs);
     if (TouchLayoutFile.ownSaved(prefs, TouchControls.defaultLayout()) && !TouchLayoutFile.same(saved, parsed.layout)) {
-      new AlertDialog.Builder(this)
+      Immersive.show(new AlertDialog.Builder(this)
           .setMessage(R.string.ingame_touch_import_exists)
           .setPositiveButton(R.string.ingame_replace, (d, w) -> {
             applyTouch(parsed, report);
@@ -1268,11 +1572,225 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
             report.append(getString(R.string.ingame_touch_skipped)).append('\n');
             importNext(report);
           })
-          .setCancelable(false).show();
+          .setCancelable(false).create());
       return;
     }
     applyTouch(parsed, report);
     importNext(report);
+  }
+
+  /** The instant save of the app's ZIP (PlayerBackup): replaces the player's only when asked; the core reads the slot
+   *  file at each look at it (runtime/instant_store.cpp), so it is in use at once. */
+  private void importInstant(StringBuilder report) {
+    byte[] file = pendingInstant;
+    pendingInstant = null;
+    String problem = PlayerBackup.instantProblem(file);
+    ImportManager imports = ((Re4Application) getApplication()).imports;
+    if (problem == null && imports.root == null) problem = "no data folder";
+    if (problem != null) {
+      Log.i(TAG, "import: instant save: " + problem);
+      report.append(getString(R.string.ingame_backup_instant_bad, problem)).append('\n');
+      importNext(report);
+      return;
+    }
+    File slot = PlayerBackup.instantFile(imports.root);
+    byte[] now = null;
+    try {
+      now = PlayerBackup.read(slot, PlayerBackup.INSTANT_BYTES + 1);
+    } catch (IOException e) {
+      Log.i(TAG, "import: the instant save there cannot be read: " + e);
+    }
+    if (now != null && java.util.Arrays.equals(now, file)) {
+      Log.i(TAG, "import: instant save: the same as the one there");
+      report.append(getString(R.string.ingame_backup_instant_imported)).append('\n');
+      importNext(report);
+      return;
+    }
+    if (now != null && PlayerBackup.instantProblem(now) == null) {
+      Immersive.show(new AlertDialog.Builder(this)
+          .setMessage(R.string.ingame_backup_instant_exists)
+          .setPositiveButton(R.string.ingame_replace, (d, w) -> {
+            writeInstant(slot, file, report);
+            importNext(report);
+          })
+          .setNegativeButton(R.string.ingame_skip, (d, w) -> {
+            Log.i(TAG, "import: instant save skipped (the player's kept)");
+            report.append(getString(R.string.ingame_backup_instant_skipped)).append('\n');
+            importNext(report);
+          })
+          .setCancelable(false).create());
+      return;
+    }
+    writeInstant(slot, file, report);
+    importNext(report);
+  }
+
+  private void writeInstant(File slot, byte[] file, StringBuilder report) {
+    try {
+      PlayerBackup.writeAtomically(slot, file);
+      Log.i(TAG, "import: instant save written (" + file.length + " bytes)");
+      report.append(getString(R.string.ingame_backup_instant_imported)).append('\n');
+    } catch (IOException e) {
+      Log.w(TAG, "import: instant save: " + e);
+      report.append(getString(R.string.ingame_backup_instant_bad, e.getMessage())).append('\n');
+    }
+  }
+
+  /** The settings of the app's ZIP (PlayerBackup.plan): replace this app's only when asked; the graphics only from the
+   *  same kind of device; from a newer version only what this one has. */
+  private void importSettings(StringBuilder report) {
+    byte[] file = pendingSettings;
+    byte[] manifest = pendingManifest;
+    pendingSettings = pendingManifest = null;
+    PlayerBackup.Origin from = PlayerBackup.Origin.of(file);
+    if (from == null) from = PlayerBackup.Origin.of(manifest);
+    long code = appVersionCode();
+    boolean newer = from != null && from.code > code;
+    boolean sameDevice = from != null && deviceName().equals(from.device);
+    java.util.Map<String, java.util.Map<String, ?>> current = new java.util.LinkedHashMap<>();
+    for (String group : PlayerBackup.GROUPS) current.put(group, getSharedPreferences(group, MODE_PRIVATE).getAll());
+    final List<PlayerBackup.Plan> plans;
+    StringBuilder log = new StringBuilder();
+    try {
+      plans = PlayerBackup.plan(file, current, newer, sameDevice, log);
+    } catch (IllegalArgumentException e) {
+      Log.i(TAG, "import: settings: " + e.getMessage());
+      report.append(getString(R.string.ingame_backup_settings_bad, e.getMessage())).append('\n');
+      importNext(report);
+      return;
+    }
+    int changes = 0, skipped = 0;
+    for (PlayerBackup.Plan p : plans) {
+      changes += p.put.size() + p.remove.size();
+      skipped += p.skipped;
+      log.append(' ').append(p.group).append(": ").append(p.put.size()).append(" set, ").append(p.remove.size())
+          .append(" back to the default, ").append(p.skipped).append(" left out")
+          .append(p.keptPerformance > 0 ? ", " + p.keptPerformance + " performance settings of this device kept" : "")
+          .append(';');
+    }
+    Log.i(TAG, "import: settings of " + (from != null ? from.app + " (" + from.code + ") on " + from.device : "?")
+        + ":" + log);
+    final String notes = settingsNotes(from, newer, sameDevice, plans, skipped);
+    if (changes == 0) {
+      report.append(getString(R.string.ingame_backup_settings_same)).append('\n').append(notes);
+      importNext(report);
+      return;
+    }
+    Immersive.show(new AlertDialog.Builder(this)
+        .setMessage(R.string.ingame_backup_settings_exists)
+        .setPositiveButton(R.string.ingame_replace, (d, w) -> {
+          for (PlayerBackup.Plan p : plans) PlayerBackup.apply(getSharedPreferences(p.group, MODE_PRIVATE), p);
+          importedSettings = true;
+          Log.i(TAG, "import: settings replaced");
+          report.append(getString(R.string.ingame_backup_settings_imported)).append('\n').append(notes);
+          importNext(report);
+        })
+        .setNegativeButton(R.string.ingame_skip, (d, w) -> {
+          Log.i(TAG, "import: settings skipped (the player's kept)");
+          report.append(getString(R.string.ingame_backup_settings_skipped)).append('\n');
+          importNext(report);
+        })
+        .setCancelable(false).create());
+  }
+
+  /** The lines under "Settings imported": the performance settings kept (another device), a newer version's left
+   *  out. */
+  private String settingsNotes(PlayerBackup.Origin from, boolean newer, boolean sameDevice,
+                               List<PlayerBackup.Plan> plans, int skipped) {
+    StringBuilder t = new StringBuilder();
+    int kept = 0;
+    for (PlayerBackup.Plan p : plans) kept += p.keptPerformance;
+    if (!sameDevice && kept > 0) {
+      t.append(getString(R.string.ingame_backup_graphics_kept, from != null && !from.device.isEmpty() ? from.device : "?"))
+          .append('\n');
+    }
+    if (newer && skipped > 0) {
+      t.append(getString(R.string.ingame_backup_newer, from.app)).append('\n');
+    }
+    return t.toString();
+  }
+
+  /** Every file of the card as .gci, the touch layout, the instant save and the settings in one ZIP (PlayerBackup). */
+  private void exportZipInto(Uri uri) throws IOException {
+    String[] rows = CoreBridge.cardList();
+    if (rows == null) {
+      // the card became busy meanwhile: no half backup
+      try { DocumentsContract.deleteDocument(getContentResolver(), uri); } catch (Exception ignored) {}
+      message(getString(R.string.ingame_card_unreadable));
+      return;
+    }
+    PlayerBackup.Contents c = new PlayerBackup.Contents();
+    StringBuilder problems = new StringBuilder();
+    for (String row : rows) {
+      int index = Integer.parseInt(row.split("\t", 2)[0]);
+      String name = CoreBridge.cardFileName(index);
+      byte[] gci = CoreBridge.cardExport(index);
+      if (gci == null || name == null) {
+        problems.append('\n').append(CoreBridge.cardNote());
+        continue;
+      }
+      c.card(name, gci);
+    }
+    int[] screen = touchScreen();
+    c.touch = TouchLayoutFile.export(touchPrefs(), TouchControls.defaultLayout(), screen[0], screen[1], appVersion());
+    ImportManager imports = ((Re4Application) getApplication()).imports;
+    if (imports.root != null) {
+      byte[] instant = PlayerBackup.read(PlayerBackup.instantFile(imports.root), PlayerBackup.INSTANT_BYTES + 1);
+      String problem = instant == null ? null : PlayerBackup.instantProblem(instant);
+      if (problem == null) c.instant = instant;
+      else Log.i(TAG, "export: the instant save left out (" + problem + ")");
+    }
+    java.util.Map<String, java.util.Map<String, ?>> groups = new java.util.LinkedHashMap<>();
+    for (String group : PlayerBackup.GROUPS) groups.put(group, getSharedPreferences(group, MODE_PRIVATE).getAll());
+    String device = deviceName();
+    c.settings = PlayerBackup.settings(groups, appVersion(), appVersionCode(), device);
+    try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+      if (out == null) throw new IOException("no stream");
+      PlayerBackup.write(out, c, appVersion(), appVersionCode(), device, System.currentTimeMillis());
+    } catch (IOException | RuntimeException e) {
+      // no half ZIP left behind (the storage full, the provider gone)
+      try { DocumentsContract.deleteDocument(getContentResolver(), uri); } catch (Exception ignored) {}
+      throw e;
+    }
+    String file = displayName(uri);
+    Log.i(TAG, "export: ZIP " + file + ": " + c.cardFiles.size() + " card files, touch layout " + (c.touch != null)
+        + ", instant save " + (c.instant != null) + ", settings " + c.settings.length() + " characters");
+    StringBuilder text = new StringBuilder(String.format(java.util.Locale.ROOT,
+        getResources().getQuantityString(R.plurals.ingame_backup_saved, c.cardFiles.size()), c.cardFiles.size(), file));
+    if (c.instant != null) text.append('\n').append(getString(R.string.ingame_backup_with_instant));
+    if (c.touch != null) text.append('\n').append(getString(R.string.ingame_backup_with_touch));
+    text.append('\n').append(getString(R.string.ingame_backup_with_settings));
+    message(text.toString() + problems);
+  }
+
+  /** The name the chosen file has (the picker may have changed the suggested one). */
+  private String displayName(Uri uri) {
+    try (android.database.Cursor c = getContentResolver().query(uri,
+        new String[] {android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+      if (c != null && c.moveToFirst() && c.getString(0) != null) return c.getString(0);
+    } catch (RuntimeException e) {
+      Log.i(TAG, "export: the file's name: " + e);
+    }
+    String last = uri.getLastPathSegment();
+    return last != null ? last.substring(last.lastIndexOf('/') + 1) : "?";
+  }
+
+  /** The device as the ZIP names it ("Retroid Pocket Flip 2"; the graphics settings come back only on the same). */
+  static String deviceName() {
+    String maker = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.trim();
+    String model = Build.MODEL == null ? "" : Build.MODEL.trim();
+    return model.toLowerCase(java.util.Locale.ROOT).startsWith(maker.toLowerCase(java.util.Locale.ROOT))
+        ? model : (maker + " " + model).trim();
+  }
+
+  /** The app's versionCode (117 for 0.99.15-rc). */
+  private long appVersionCode() {
+    try {
+      android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+      return Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+    } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+      return 0;
+    }
   }
 
   private void applyTouch(TouchLayoutFile.Parsed parsed, StringBuilder report) {
@@ -1298,17 +1816,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   /** The card's file list (without the saves themselves) for the report. */
   /**
-   * The asset gx-programs.keys (the shader programs of all devices' error reports, merged by
-   * port/tools/gx_program_list.py) as a file the core reads; null when the app has none.
+   * An asset as a file the core reads, in the cache folder (written again only when it changed); null when the app has
+   * none: gx-programs.keys (the shader programs of all devices' error reports, merged by port/tools/gx_program_list.py),
+   * gx-vkpipes.keys (Vulkan's pipelines of the PC's room tours and the reports, port/tools/gx_vkpipe_list.py).
    */
-  private String programList() {
+  private String assetFile(String name) {
     byte[] list;
-    try (InputStream in = getAssets().open("gx-programs.keys")) {
+    try (InputStream in = getAssets().open(name)) {
       list = CoreLog.readAll(in);
     } catch (IOException e) {
       return null;
     }
-    File file = new File(getCacheDir(), "gx-programs.keys");
+    File file = new File(getCacheDir(), name);
     try {
       boolean same = false;
       if (file.length() == list.length) {
@@ -1323,7 +1842,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       return file.getAbsolutePath();
     } catch (IOException e) {
-      Log.w(TAG, "program list: " + e);
+      Log.w(TAG, "asset " + name + ": " + e);
       return null;
     }
   }
@@ -1334,6 +1853,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.writeProgramKeys(new File(CoreLog.folder(this), "program-keys.bin").getAbsolutePath());
     } catch (UnsatisfiedLinkError e) {
       Log.w(TAG, "program keys: " + e);
+    }
+    // Vulkan's pipelines of the rooms this device drew (they go into the app's list, port/tools/gx_vkpipe_list.py)
+    File pipes = new File(CoreLog.folder(this), "vk-pipes.bin");
+    try {
+      if (!ShaderCache.writeRoomPipes(ShaderCache.dir(this), pipes)) pipes.delete();
+    } catch (IOException e) {
+      Log.w(TAG, "pipeline lists: " + e);
     }
     StringBuilder card = new StringBuilder();
     String[] rows = CoreBridge.cardList();
@@ -1346,10 +1872,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     String map = CoreBridge.addressMap();
     String controllers = controllerList();
     String discs = discCheckText();
+    String renderer = rendererText();
+    String shaders = ShaderCache.describe(this);
+    String heat = thermal != null ? thermal.report(SystemClock.elapsedRealtime()) : "not watched\n";
     if (map == null || map.isEmpty())
-      return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs}};
+      return new String[][] {{"memory-card.txt", card.toString()}, {"controllers.txt", controllers}, {"disc-check.txt", discs},
+          {"renderer.txt", renderer}, {"shader-cache.txt", shaders}, {"thermal.txt", heat}};
     return new String[][] {{"memory-card.txt", card.toString()}, {"address-map.txt", map}, {"controllers.txt", controllers},
-        {"disc-check.txt", discs}};
+        {"disc-check.txt", discs}, {"renderer.txt", renderer}, {"shader-cache.txt", shaders}, {"thermal.txt", heat}};
   }
 
   /** The report's disc-check.txt: each imported disc against the original's files, and a file the game could not read. */
@@ -1522,7 +2052,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     StringBuilder out = new StringBuilder(), other = new StringBuilder();
     for (int id : InputDevice.getDeviceIds()) {
       InputDevice d = InputDevice.getDevice(id);
-      if (gameDevice(d)) out.append(describeDevice(d)).append('\n');
+      if (gameDevice(d)) out.append(describeDevice(d)).append(layoutLine(d)).append('\n');
       else if (keyboardDevice(d) || mouseDevice(d)) {
         other.append(describeDevice(d)).append(keyboardDevice(d) ? " (keyboard)" : "").append(mouseDevice(d) ? " (mouse)" : "")
             .append('\n');
@@ -1539,10 +2069,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
     // the benchmark: the keys belong to it; B, Back or Esc cancel it
-    if (benchRunning) {
+    if (benchFlow != null && benchFlow.running()) {
       if (first && (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)) {
-        CoreBridge.cancelBenchmark();
-        benchView.setText(R.string.ingame_benchmark_back);
+        benchFlow.cancel();
       }
       return true;
     }
@@ -1651,26 +2180,72 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private static float axis(MotionEvent e, InputDevice d, int a, boolean trigger) {
     InputDevice.MotionRange range = d == null ? null : d.getMotionRange(a, e.getSource());
     if (range == null || range.getRange() <= 0) return 0;
-    float v = e.getAxisValue(a);
-    if (Float.isNaN(v) || Float.isInfinite(v)) return 0;
-    return trigger ? (v - range.getMin()) / range.getRange()
-        : 2 * (v - range.getMin()) / range.getRange() - 1;
+    return ControllerAxes.normalise(e.getAxisValue(a), range.getMin(), range.getMax(), trigger);
+  }
+
+  /** A device's axes for the source `source` and, while `e` is set, their values in it (ControllerAxes). */
+  static final class EventAxes implements ControllerAxes.Axes {
+    private MotionEvent e;
+    private InputDevice d;
+    private int source;
+
+    EventAxes set(MotionEvent e, InputDevice d, int source) {
+      this.e = e;
+      this.d = d;
+      this.source = source;
+      return this;
+    }
+
+    private InputDevice.MotionRange range(int a) { return d == null ? null : d.getMotionRange(a, source); }
+    @Override public boolean has(int a) { InputDevice.MotionRange r = range(a); return r != null && r.getRange() > 0; }
+    @Override public float min(int a) { InputDevice.MotionRange r = range(a); return r == null ? 0 : r.getMin(); }
+    @Override public float max(int a) { InputDevice.MotionRange r = range(a); return r == null ? 0 : r.getMax(); }
+    @Override public float flat(int a) { InputDevice.MotionRange r = range(a); return r == null ? 0 : r.getFlat(); }
+    @Override public float value(int a) { return e == null ? 0 : e.getAxisValue(a); }
+  }
+
+  private final EventAxes eventAxes = new EventAxes();
+  /** Each controller's right stick and triggers (ControllerAxes), made at its first stick event. */
+  private final android.util.SparseArray<ControllerAxes> padLayouts = new android.util.SparseArray<>();
+  private final float[] padRight = new float[4];
+
+  /** The controller's layout, named in the log when it is made (0.99.13: which axes are its stick and triggers). */
+  private ControllerAxes padLayout(InputDevice d, EventAxes a) {
+    if (d == null) return ControllerAxes.of(null);
+    ControllerAxes layout = padLayouts.get(d.getId());
+    if (layout == null) {
+      layout = ControllerAxes.of(a);
+      padLayouts.put(d.getId(), layout);
+      Log.i(TAG, "controller " + d.getId() + " \"" + d.getName() + "\": " + layout.describe());
+    }
+    return layout;
+  }
+
+  /** For controllers.txt: the layout a controller gets (or got) for its stick events. */
+  private static String layoutLine(InputDevice d) {
+    if ((d.getSources() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK) return "";
+    return " layout: " + ControllerAxes.of(new EventAxes().set(null, d, InputDevice.SOURCE_JOYSTICK)).describe();
   }
 
   @Override
   public boolean onGenericMotionEvent(MotionEvent e) {
+    // the mouse wheel while the game has the mouse but has not captured it (Android 7, before the first click)
+    if (e.getActionMasked() == MotionEvent.ACTION_SCROLL && e.isFromSource(InputDevice.SOURCE_CLASS_POINTER)
+        && mouseWanted()) {
+      wheel(e);
+      return true;
+    }
     if (e.getAction() == MotionEvent.ACTION_MOVE && controller(e)) {
       InputDevice d = e.getDevice();
       noteDevice(d);
       padUsed(d);
-      // the right stick: Z/RZ on most Android controllers, RX/RY on others
-      boolean zr = d != null && d.getMotionRange(MotionEvent.AXIS_Z, e.getSource()) != null
-          && d.getMotionRange(MotionEvent.AXIS_RZ, e.getSource()) != null;
+      // the right stick and the triggers: Z/RZ and LTRIGGER/RTRIGGER on the controllers Android knows, RX/RY and
+      // Z/RZ on those it leaves in the driver's order (a wired Xbox pad without its key layout file; ControllerAxes)
+      eventAxes.set(e, d, e.getSource());
+      padLayout(d, eventAxes).read(eventAxes, padRight);
+      eventAxes.set(null, null, 0);
       float lx = axis(e, d, MotionEvent.AXIS_X, false), ly = axis(e, d, MotionEvent.AXIS_Y, false);
-      float rx = axis(e, d, zr ? MotionEvent.AXIS_Z : MotionEvent.AXIS_RX, false);
-      float ry = axis(e, d, zr ? MotionEvent.AXIS_RZ : MotionEvent.AXIS_RY, false);
-      float l = Math.max(axis(e, d, MotionEvent.AXIS_LTRIGGER, true), axis(e, d, MotionEvent.AXIS_BRAKE, true));
-      float r = Math.max(axis(e, d, MotionEvent.AXIS_RTRIGGER, true), axis(e, d, MotionEvent.AXIS_GAS, true));
+      float rx = padRight[0], ry = padRight[1], l = padRight[2], r = padRight[3];
       float hx = axis(e, d, MotionEvent.AXIS_HAT_X, false), hy = axis(e, d, MotionEvent.AXIS_HAT_Y, false);
       noteUnreadAxes(e, d);
       inputDelay.stick(e.getEventTime(), e.getHistorySize() > 0 ? e.getHistoricalEventTime(0) : e.getEventTime(),
@@ -1731,10 +2306,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         tapX = e.getX();
         tapY = e.getY();
         tapTime = e.getEventTime();
+        // a quick-time prompt's press as the finger touches down (0.99.15: until then at its lift, the tap's length
+        // late; the owner, Professional: "with touch not to be done")
+        if (!control && surface != null) CoreBridge.touchDown();
         break;
       }
       case MotionEvent.ACTION_POINTER_DOWN:
         tapFinger = -1;  // a second finger: no tap, no swipe
+        // ... but a press for a quick-time prompt (two thumbs in turn mash twice as fast)
+        if (surface != null && (touchControls == null || !touchControls.onControl(e.getX(i), e.getY(i)))) {
+          CoreBridge.touchDown();
+        }
         break;
       case MotionEvent.ACTION_MOVE: {
         int k = tapFinger >= 0 ? e.findPointerIndex(tapFinger) : -1;
@@ -1774,6 +2356,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (id == lastPad) chooseRumble("controller changed");
     input.remove(id);
     seenDevices.remove(id);
+    padLayouts.remove(id);
     controllerLog.forget(id);
     noteConnected(id);
     send();
@@ -1785,75 +2368,156 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       lastPad = -1;
       chooseRumble("controller removed");
     }
+    padLayouts.remove(id);
     controllerLog.forget(id);
     input.remove(id);
     send();
     touchControls.update();
   }
 
-  // ---- the benchmark (Display -> GRAPHICS -> Benchmark; the measurement is in core_mode.cpp) -----------------
+  // ---- the benchmark and the performance profiles (0.99.10, BenchmarkFlow, PerfProfile; the measurement is in
+  // core_mode.cpp) ---------------------------------------------------------------------------------------------------
   private TextView benchView;
-  private boolean benchRunning;
-  private final Runnable benchPoll = this::benchmarkPoll;
+  private BenchmarkFlow benchFlow;
+  private PerfProfile.Device perfDevice;
 
-  private void benchmarkStart() {
-    benchRunning = true;
-    audio.setMuted(true);  // the speaker silent while it runs (the game's sound goes on inside: an honest measurement)
-    benchView.setText(R.string.ingame_benchmark_starting);
-    benchView.setVisibility(View.VISIBLE);
-    CoreBridge.startBenchmark();
-    main.removeCallbacks(benchPoll);
-    main.postDelayed(benchPoll, 500);
-  }
-
-  private void benchmarkPoll() {
-    int[] st = CoreBridge.benchmarkState();
-    if (st == null || st.length < 6) { benchmarkEnd(R.string.ingame_benchmark_failed, null); return; }
-    int phase = st[0], run = st[1];
-    switch (phase) {
-      case 1: benchView.setText(R.string.ingame_benchmark_going); break;
-      case 2:
-        benchView.setText(getString(R.string.ingame_benchmark_running, (run & 1) != 0 ? 60 : 30,
-            CoreMenu.scaleNumber(st[2], Locale.getDefault()) + "×", Math.round(st[5] / 10f)));
-        break;
-      case 3: case 6: benchView.setText(R.string.ingame_benchmark_back); break;
-      case 4: {
-        // the resolution becomes "Dynamic" with the measured levels as its limits (wish of the project owner,
-        // 06.11.2026); the other graphics options stay as they are
-        SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
-        g.edit().putInt(CoreMenu.DYN_CAP_30, st[3]).putInt(CoreMenu.DYN_CAP_60, st[4]).putInt("scaleHalves", 0).apply();
-        CoreBridge.setDynamicCaps(st[3], st[4]);
-        applyGraphics();
-        // a pass where even 1x did not hold its rate: said as well (its result is 1x)
-        int held = st.length > 6 ? st[6] : 3;
-        // measured, and what Dynamic uses: half a level more, 4x at most (core_mode.cpp)
-        String text = getString(R.string.ingame_benchmark_done, CoreMenu.scaleNumber(st[3], Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(st[4], Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(Math.min(8, st[3] + 1), Locale.getDefault()) + "×",
-            CoreMenu.scaleNumber(Math.min(8, st[4] + 1), Locale.getDefault()) + "×");
-        if ((held & 1) == 0) text += " " + getString(R.string.ingame_benchmark_low, 30);
-        if ((held & 2) == 0) text += " " + getString(R.string.ingame_benchmark_low, 60);
-        benchmarkEnd(0, text);
-        return;
+  /** Before the first renderer: a fresh install gets the first start's benchmark, an update the menu's question once;
+   *  either starts with Custom as the active profile (the settings as they are). */
+  private void perfFirstRun(SharedPreferences g) {
+    if (g.contains(PerfProfile.FIRST)) {
+      // 0.99.12: a benchmark of before (no processor share) is made again once, as on the first start; 0.99.14 the same
+      // for one without the GPU's reserve
+      if (PerfProfile.scheduleRedo(g)) {
+        Log.i(TAG, "performance profiles: a benchmark of before 0.99.14 (no reserve for the GPU): measured again once "
+            + "the title's menu waits");
       }
-      case 5: benchmarkEnd(R.string.ingame_benchmark_cancelled, null); return;
-      case -1: benchmarkEnd(R.string.ingame_benchmark_refused, null); return;
-      case -3: benchmarkEnd(R.string.ingame_benchmark_unreachable, null); return;
-      case -4: benchmarkEnd(R.string.ingame_benchmark_discs, null); return;
-      case 0: break;
-      default: benchmarkEnd(R.string.ingame_benchmark_failed, null); return;
+      return;
     }
-    main.postDelayed(benchPoll, 250);
+    String[] mine = {"scaleHalves", "scale", "aspect", "samples", "anisotropy", "smooth60", "fxaa", "fastCores",
+        "weatherEffects", "specialEffects", "particleEffects", "shadowsLight", CoreMenu.FRAME_SKIP, "frameskip",
+        CoreMenu.DYN_CAP_30, CoreMenu.DOF_LEVEL, "dof", "minimap", "fps"};
+    boolean fresh = true;
+    for (String k : mine) if (g.contains(k)) { fresh = false; break; }
+    g.edit().putInt(PerfProfile.FIRST, fresh ? PerfProfile.FIRST_PENDING : PerfProfile.FIRST_ASK)
+        .putInt(PerfProfile.ACTIVE, PerfProfile.CUSTOM).apply();
+    Log.i(TAG, "performance profiles: " + (fresh ? "a new installation, the benchmark comes once the title's menu waits"
+        : "an update, the menu asks once"));
   }
 
-  private void benchmarkEnd(int message, String text) {
-    benchRunning = false;
-    audio.setMuted(false);
-    main.removeCallbacks(benchPoll);
-    benchView.setVisibility(View.GONE);
-    Log.i(TAG, "benchmark: " + (text != null ? text : getString(message)));
-    new android.app.AlertDialog.Builder(this).setTitle(R.string.ingame_benchmark)
-        .setMessage(text != null ? text : getString(message)).setPositiveButton(android.R.string.ok, null).show();
+  /** What the app knows of this device (the renderer's text once it is there). */
+  private PerfProfile.Device perfDevice() {
+    String gpu = CoreBridge.rendererInfo();
+    if (perfDevice != null && (gpu == null || gpu.isEmpty() || gpu.equals(perfDevice.gpu))) return perfDevice;
+    int[] cpu = PerfProfile.cpu();
+    long ram = 0;
+    android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+    if (am != null) {
+      android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+      am.getMemoryInfo(mi);
+      ram = mi.totalMem / (1024 * 1024);
+    }
+    int[] info = CoreBridge.graphicsInfo();
+    // the screen's rows of a 16:9 picture (PerfProfile.screenLevel: MSAA only beyond them); the game's surface, else
+    // the display
+    int w = surface != null ? surface.getWidth() : 0, h = surface != null ? surface.getHeight() : 0;
+    if (w <= 0 || h <= 0) {
+      android.util.DisplayMetrics m = getResources().getDisplayMetrics();
+      w = m.widthPixels; h = m.heightPixels;
+    }
+    int rows = Math.min(Math.min(w, h), Math.max(w, h) * 9 / 16);
+    perfDevice = new PerfProfile.Device(gpu, cpu[0], cpu[1], cpu[2], (int) ram, menuHost.displayHz(),
+        info != null && info.length > 0 ? info[0] : 1, info != null && info.length > 1 ? info[1] : 1, rows);
+    return perfDevice;
+  }
+
+  /** The menu's options from the preferences to the core (a profile chosen, a benchmark's end). */
+  private void applyOptions() {
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    int skip = CoreMenu.frameSkipMode(g);
+    if (g.getBoolean("smooth60", false)) skip = 0;
+    applyGraphics();
+    CoreBridge.setDof(CoreMenu.dofLevel(g));
+    CoreBridge.setSmooth(g.getBoolean("smooth60", false));
+    CoreBridge.setFrameSkip(skip == 1);
+    CoreBridge.setCpuSkip(skip == 2);
+    CoreBridge.setFxaa(g.getBoolean("fxaa", false));
+    CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
+    CoreBridge.setCrt(CoreMenu.crtLevel(g));
+    CoreBridge.setBloom(CoreBridge.bloomSent(g));
+    CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
+    CoreBridge.setTvFilter(g.getBoolean("tvFilter", false));
+    CoreBridge.setPsx(g.getBoolean("psx", false));
+    CoreBridge.setFlares(CoreBridge.flareMode(g));
+    CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
+    CoreBridge.setDynamicCaps(g.getInt(CoreMenu.DYN_CAP_30, 0), g.getInt(CoreMenu.DYN_CAP_60, 0));
+    CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
+    CoreBridge.setPotato(CoreBridge.potatoMask(g));
+  }
+
+  private final BenchmarkFlow.Host benchHost = new BenchmarkFlow.Host() {
+    @Override public Activity activity() { return CoreActivity.this; }
+    @Override public SharedPreferences graphics() { return getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE); }
+    @Override public void applyOptions() { CoreActivity.this.applyOptions(); }
+    @Override public void applyClean() {
+      // benchmark 1: the player's look settings as they play (depth of field, lens flares, sharpening, the filters:
+      // no profile changes them; the project owner's Retroid test 11.11.2026: measured without them, the levels were
+      // too high for his game), the profile's settings at their base (no anti-aliasing or texture filter, no frame
+      // skip, Potato off, the performance cores as every profile has them), the picture format "Native"; the
+      // benchmark sets the level and 60 FPS itself
+      SharedPreferences g = graphics();
+      CoreActivity.this.applyOptions();
+      CoreBridge.setGraphics(CoreMenu.scaleHalves(g), 1, 1, 5);
+      CoreBridge.setFxaa(false);
+      CoreBridge.setFrameSkip(false);
+      CoreBridge.setCpuSkip(false);
+      CoreBridge.setFastCores(true);
+      CoreBridge.setPotato(0);
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[0]);
+    }
+    @Override public void applyValues(int[] v) {
+      SharedPreferences g = graphics();
+      CoreActivity.this.applyOptions();
+      CoreBridge.setGraphics(v[PerfProfile.SCALE], v[PerfProfile.SAMPLES], v[PerfProfile.ANISO], g.getInt("aspect", 0));
+      CoreBridge.setFxaa(v[PerfProfile.FXAA] != 0);
+      CoreBridge.setSmooth(v[PerfProfile.SMOOTH] != 0);
+      CoreBridge.setFrameSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 1);
+      CoreBridge.setCpuSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 2);
+      CoreBridge.setFastCores(v[PerfProfile.CORES] == 1);
+      CoreBridge.setPotato((v[PerfProfile.WEATHER] != 0 ? 0 : 1) | (v[PerfProfile.SPECIAL] != 0 ? 0 : 2)
+          | (v[PerfProfile.PARTICLES] << 2) | (v[PerfProfile.SHADOWS] != 0 ? 0 : 16));
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[Math.max(0, Math.min(2, v[PerfProfile.VIEW]))]);
+    }
+    @Override public void progress(String text) {
+      benchView.setText(text != null ? text : "");
+      benchView.setVisibility(text != null ? View.VISIBLE : View.GONE);
+    }
+    // the speaker silent while it runs (the game's sound goes on inside: an honest measurement)
+    @Override public void mute(boolean on) { audio.setMuted(on); }
+    @Override public void hold(boolean on) {
+      // a benchmark popup holds the game like the menu: no hang report while it is open (the Retroid test,
+      // 11.11.2026: "hang: no game frame for 8 s" at popups 2 and 3)
+      benchHeld = on;
+      if (on) {
+        releaseAll();
+        CoreBridge.pause(true, 800);
+        audio.stop();
+        stopVibrator();
+      } else if (resumed && menu == null && !touchEditing) {
+        CoreBridge.pause(false, 0);
+        audio.start();
+        surface.requestFocus();
+      }
+    }
+    @Override public PerfProfile.Device device() { return perfDevice(); }
+  };
+
+  /** Twice a second (tick): the very first start's benchmark once the title's menu waits (core: cheat 24). */
+  private void checkFirstBenchmark() {
+    if (benchFlow == null || !benchFlow.firstDue() || menu != null || touchEditing || !resumed || !menuSupported) return;
+    if (CoreBridge.cheatAction(24) == 1) {
+      Log.i(TAG, "performance profiles: the title's menu waits, the first start's benchmark is offered");
+      benchFlow.offerFirst();
+    }
   }
 
   /** Nothing held while the game is not in front (no stuck keys after a dialog or the home screen). */
@@ -1868,6 +2532,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   @Override
   public void onWindowFocusChanged(boolean focus) {
     super.onWindowFocusChanged(focus);
+    Log.i(TAG, "window focus: " + (focus ? "on" : "off"));
     if (!focus) releaseAll();
     else main.post(this::updateMouseCapture);
     // a car's panel (climate, notifications) closed again: its bars hidden again where the car allows it
@@ -1966,6 +2631,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
     }
     int action = e.getActionMasked();
+    if (action == MotionEvent.ACTION_SCROLL) wheel(e);
     if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
       // relative counts, the batched ones too
       float dx = e.getX(), dy = e.getY();
@@ -1974,16 +2640,46 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         dy += e.getHistoricalY(h);
       }
       if (dx != 0 || dy != 0) {
-        // while aiming the core turns the aim by it (and ignores it otherwise); the camera's C stick as long
-        // as the mouse moves
-        float k = MOUSE_AIM_RADIANS * mouseSensitivity;
-        CoreBridge.aimTurn(-dx * k, -dy * k);
+        // while aiming the core turns the aim by it, in the binoculars their view (0.99.12), and ignores it
+        // otherwise (runtime/gyro.cpp, wheel_zoom.cpp); the camera's C stick as long
+        // as the mouse moves, but not in the scope or the binoculars, where the C stick zooms (the wheel's job
+        // since 0.99.12: moving the mouse up and down zoomed there)
+        // ("Invert vertical" for the mouse too, 0.99.12: aiming, the scope, the binoculars)
+        float[] turn = CoreInput.mouseAim(dx, dy, MOUSE_AIM_RADIANS * mouseSensitivity, aimInvert);
+        CoreBridge.aimTurn(turn[0], turn[1]);
         input.mouseLook(dx * MOUSE_LOOK * mouseSensitivity, dy * MOUSE_LOOK * mouseSensitivity);
         main.removeCallbacks(mouseRest);
         main.postDelayed(mouseRest, 60);
       }
     }
     send();
+  }
+
+  // ---- the mouse wheel (0.99.12, wish of the project owner, 12.11.2026) ----
+  private int wheelLines, zoomViewLines;
+
+  /**
+   * A turn of the mouse wheel (captured or not): whole notches to the core (CoreInput.wheel), which zooms the
+   * scope and the binoculars by them (up zooms in) and drops them anywhere else.
+   */
+  private void wheel(MotionEvent e) {
+    int notches = input.wheel(e.getAxisValue(MotionEvent.AXIS_VSCROLL));
+    if (notches == 0) return;
+    CoreBridge.zoom(notches);
+    if (wheelLines++ < 20) {
+      Log.i(TAG, "mouse wheel: " + notches + " notch(es) " + (notches > 0 ? "up" : "down")
+          + (input.zoomView() ? " (the scope or the binoculars: zoom)" : " (no scope, no binoculars: nothing)"));
+    }
+  }
+
+  /** The scope or the binoculars came up or went (rumbleTick): the mouse keeps off the C stick while they are up. */
+  private void setZoomView(boolean on) {
+    if (on == input.zoomView()) return;
+    input.setZoomView(on);
+    if (zoomViewLines++ < 40) {
+      Log.i(TAG, "mouse: the scope or the binoculars " + (on ? "up (the wheel zooms, the mouse's movement does not)" : "down"));
+    }
+    if (on) send();
   }
 
   @SuppressWarnings("deprecation")
@@ -2084,6 +2780,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         input.setMenu(gameMenu);
         send();
       }
+      // the scope or the binoculars (bit 6, cores since 12.11.2026): the mouse's movement keeps off the C stick
+      setZoomView((r & 0x40) != 0);
       int frames = r >>> 8;
       if (frames != rumbleFrames) {
         rumbleFrames = frames;
@@ -2166,7 +2864,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (!resumed) return;
       CoreBridge.vsync(frameTimeNanos);
       if (pacing.vsync(frameTimeNanos) || (!paceLogged && pacing.hz() > 0)) pace();
-      if (pacing.due(frameTimeNanos)) surface.requestRender();
+      if (pacing.due(frameTimeNanos)) picture.requestRender();
       Choreographer.getInstance().postFrameCallback(this);
     }
   };
@@ -2238,7 +2936,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void pace() {
     paceLogged = true;
     int every = pacing.every();
-    surface.setRenderMode(every > 1 ? GLSurfaceView.RENDERMODE_WHEN_DIRTY : GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+    renderMode = every > 1 ? GLSurfaceView.RENDERMODE_WHEN_DIRTY : GLSurfaceView.RENDERMODE_CONTINUOUSLY;
+    picture.setRenderMode(renderMode);
+    // 0.99.13: the pictures keep this grid on the screen too (each asks for its own vsync)
+    CoreBridge.setPictureEvery(every);
     Log.i(TAG, String.format(Locale.ROOT, "display at %.1f Hz: the picture drawn %s", pacing.hz(),
         every > 1 ? "at every " + every + " vsyncs (the screen stayed faster than 60 Hz)" : "at each vsync"));
   }
@@ -2277,21 +2978,241 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         : Build.VERSION.SDK_INT >= 30 ? ": no 60 Hz mode, asked for 60 pictures a second" : ": no 60 Hz mode"));
   }
 
-  /** The surface's frame rate (Android 11 and later) when the screen was asked for 60 Hz. */
+  /**
+   * The surface's frame rate (Android 11 and later) when the screen was asked for 60 Hz. Since 0.99.9 (frame pacing:
+   * a realme and a 720p phone stayed at 90 Hz although they have a 60 Hz mode) as a fixed source of 60 pictures a
+   * second (FIXED_SOURCE: a video's way, which the system matches more firmly than a game's default), and from Android
+   * 12 with "always switch" (CHANGE_FRAME_RATE_ALWAYS: also when the switch is not seamless, once at the start). A
+   * device that still stays faster is measured as before (FramePacing), the core locks to it where it can (vi.cpp).
+   */
   private void surfaceSixtyHz(Surface s) {
     if (!askSixty || Build.VERSION.SDK_INT < 30) return;
     try {
-      s.setFrameRate(60f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+      if (Build.VERSION.SDK_INT >= 31)
+        s.setFrameRate(60f, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE, Surface.CHANGE_FRAME_RATE_ALWAYS);
+      else
+        s.setFrameRate(60f, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+      Log.i(TAG, "surface frame rate: 60, fixed source" + (Build.VERSION.SDK_INT >= 31 ? ", always switch" : ""));
     } catch (RuntimeException e) {
       Log.w(TAG, "surface frame rate: " + e);
     }
   }
 
+  /** The OpenGL ES view (GLSurfaceView, as always): its render thread draws with a GLES 3 context. */
+  private GameSurface.Gl glSurface() {
+    GameSurface.Gl gl = new GameSurface.Gl(this);
+    gl.setEGLContextClientVersion(3);
+    gl.setPreserveEGLContextOnPause(true);
+    gl.setRenderer(new GLSurfaceView.Renderer() {
+      @Override public void onSurfaceCreated(GL10 g, EGLConfig config) { CoreBridge.surfaceCreated(); }
+      @Override public void onSurfaceChanged(GL10 g, int w, int h) { CoreBridge.resize(w, h); }
+      @Override public void onDrawFrame(GL10 g) { CoreBridge.draw(); }
+    });
+    picture = gl;
+    return gl;
+  }
+
+  /** The picture's view: 60 pictures a second on a faster screen, the fingers beside the touch controls. */
+  @SuppressLint("ClickableViewAccessibility")
+  private void surfaceCallbacks(SurfaceView view) {
+    final String kind = view instanceof VulkanSurface ? "Vulkan" : "OpenGL ES";
+    // (each in the log: Home and a turn of the device show in a test's log, report of 08.11.2026)
+    view.getHolder().addCallback(new SurfaceHolder.Callback() {
+      @Override public void surfaceCreated(SurfaceHolder holder) {
+        Log.i(TAG, "picture surface (" + kind + "): made");
+        surfaceSixtyHz(holder.getSurface());
+      }
+      @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
+        Log.i(TAG, "picture surface (" + kind + "): " + w + "x" + h + ", format " + format);
+      }
+      @Override public void surfaceDestroyed(SurfaceHolder holder) {
+        Log.i(TAG, "picture surface (" + kind + "): gone");
+      }
+    });
+    // the surface takes the fingers beside the touch controls: Android gives the further fingers
+    // of a touch only to views that took one, so a thumb beside the buttons would block them
+    view.setOnTouchListener((v, e) -> true);
+  }
+
+  /** Vulkan can run here: Android 10 and later with Vulkan 1.1 (the plan's minimum; vulkan-bauplan.md). */
+  boolean vulkanSupported() {
+    return Build.VERSION.SDK_INT >= VULKAN_MIN_SDK
+        && getPackageManager().hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION, VULKAN_1_1);
+  }
+
+  /**
+   * Vulkan for this run (port/docs/vulkan-bauplan.md): the menu's choice (GRAPHICS -> Renderer) or the test switch
+   * RE4_GX_API=vulkan, where Vulkan can run; else OpenGL ES. The menu's choice has the crash guard: a start that
+   * ended while Vulkan started goes to OpenGL ES (the player hears it); the test switch always tries.
+   */
+  private boolean chooseVulkan() {
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    final boolean test = settings.contains("RE4_GX_API=vulkan");
+    final boolean chosen = "vulkan".equals(g.getString(RENDERER, "gles"));
+    if (settings.contains("RE4_GX_API=gles")) {
+      rendererLine = "OpenGL ES (test switch)";  // (a comparison run, whatever the menu chose)
+      return false;
+    }
+    if (!test && !chosen) return false;
+    if (!vulkanSupported()) {
+      rendererLine = Build.VERSION.SDK_INT < VULKAN_MIN_SDK
+          ? "OpenGL ES (Vulkan asked for: needs Android 10, this is API " + Build.VERSION.SDK_INT + ")"
+          : "OpenGL ES (Vulkan asked for: the device has no Vulkan 1.1)";
+      Log.w(TAG, "renderer: " + rendererLine);
+      return false;
+    }
+    if (!test && g.getBoolean(VULKAN_STARTING, false)) {
+      // the mark of the last start is still there: how did its process end (VulkanGuard)?
+      final int markPid = g.getInt(VulkanGuard.PID, 0);
+      final long markAt = g.getLong(VulkanGuard.AT, 0);
+      final int unsure = g.getInt(VulkanGuard.UNSURE, 0);
+      final VulkanGuard.Exit end = markPid != 0 ? VulkanGuard.lastExit(this, markPid) : null;
+      final VulkanGuard.Verdict v = VulkanGuard.judge(true, markPid, markAt, Build.VERSION.SDK_INT, end, unsure);
+      Log.i(TAG, "renderer: the crash guard's mark of the last start (pid " + markPid + ", set "
+          + VulkanGuard.time(markAt) + ") was still there: " + v.why);
+      if (v.fallBack) {
+        // that start crashed while Vulkan started (a driver's crash): OpenGL ES, the menu's choice back
+        g.edit().putString(RENDERER, "gles").putBoolean(VULKAN_STARTING, false).putInt(VulkanGuard.UNSURE, 0).commit();
+        rendererLine = "OpenGL ES (the last start with Vulkan ended while Vulkan started)";
+        Log.w(TAG, "renderer: " + rendererLine);
+        main.post(() -> message(getString(R.string.ingame_vulkan_crashed)));
+        return false;
+      }
+      g.edit().putBoolean(VULKAN_STARTING, false).putInt(VulkanGuard.UNSURE, v.unsure ? unsure + 1 : 0).commit();
+    }
+    if (!test && !vulkanMarked) {
+      // (commit: it must be on disk before Vulkan; once a process: a new activity of it is no new start)
+      vulkanMarked = true;
+      g.edit().putBoolean(VULKAN_STARTING, true).putInt(VulkanGuard.PID, Process.myPid())
+          .putLong(VulkanGuard.AT, System.currentTimeMillis()).commit();
+      Log.i(TAG, "renderer: the crash guard's mark set (pid " + Process.myPid() + ")");
+    }
+    rendererLine = test ? "Vulkan (test switch)" : "Vulkan";
+    Log.i(TAG, "renderer: " + rendererLine);
+    return true;
+  }
+
+  /** The crash guard is cleared once Vulkan has drawn for a few seconds (VULKAN_GUARD_PICTURES pictures). */
+  private final Runnable vulkanGuard = new Runnable() {
+    @Override public void run() {
+      if (destroyed || !(surface instanceof VulkanSurface)) return;
+      if (CoreBridge.pictures() >= VULKAN_GUARD_PICTURES && CoreBridge.rendererProblem().isEmpty()) {
+        clearVulkanMark("Vulkan drew " + CoreBridge.pictures() + " pictures");
+        return;
+      }
+      if (++vulkanGuardChecks < 150) main.postDelayed(this, VULKAN_GUARD_MS);
+    }
+  };
+
+  /** The crash guard's mark off (the log says why); nothing when it is not there. */
+  private void clearVulkanMark(String why) {
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    if (!g.getBoolean(VULKAN_STARTING, false)) return;
+    // (commit: the game may end right after)
+    g.edit().putBoolean(VULKAN_STARTING, false).putInt(VulkanGuard.UNSURE, 0).commit();
+    Log.i(TAG, "renderer: the crash guard's mark cleared (" + why + ")");
+  }
+
+  /** The core's settings with the renderer: RE4_GX_API=vulkan for Vulkan, none for OpenGL ES. */
+  static String withRenderer(String coreSettings, boolean vulkan) {
+    StringBuilder out = new StringBuilder();
+    for (String part : coreSettings.split(";")) {
+      if (part.isEmpty() || part.startsWith("RE4_GX_API=")) continue;
+      if (out.length() > 0) out.append(';');
+      out.append(part);
+    }
+    if (vulkan) out.append(out.length() > 0 ? ";" : "").append("RE4_GX_API=vulkan");
+    return out.toString();
+  }
+
+  /**
+   * The Vulkan renderer could not start (VulkanSurface): the picture goes over to OpenGL ES in place (a GLSurfaceView
+   * where the Vulkan surface was; the core sends the whole state again), the player hears it once.
+   */
+  private void vulkanFailed(String problem) {
+    if (destroyed || !(surface instanceof VulkanSurface)) return;
+    rendererLine = "OpenGL ES (Vulkan could not start: " + problem + ")";
+    Log.w(TAG, "renderer: " + rendererLine);
+    // the next start with OpenGL ES at once (the menu shows it); the guard is done
+    getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).edit().putString(RENDERER, "gles")
+        .putBoolean(VULKAN_STARTING, false).apply();
+    VulkanSurface old = (VulkanSurface) surface;
+    ViewGroup root = (ViewGroup) old.getParent();
+    final int at = root.indexOfChild(old);
+    final boolean focused = old.hasFocus();
+    old.stop();
+    GameSurface.Gl gl = glSurface();
+    surface = gl;
+    root.removeView(old);
+    root.addView(gl, at);
+    surfaceCallbacks(gl);
+    if (Build.VERSION.SDK_INT >= 26) {
+      gl.setFocusable(true);
+      gl.setFocusableInTouchMode(true);
+      gl.setOnCapturedPointerListener((v, e) -> {
+        capturedMouse(e);
+        return true;
+      });
+    }
+    if (Build.VERSION.SDK_INT >= 30) gl.requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_JOYSTICK);
+    gl.setRenderMode(renderMode);
+    if (!resumed) gl.onPause();
+    if (focused || menu == null) gl.requestFocus();
+    message(getString(R.string.ingame_vulkan_failed));
+  }
+
+  /** The report's renderer.txt: the renderer of this run, its device and driver. */
+  private String rendererText() {
+    String info;
+    try {
+      info = CoreBridge.rendererInfo();
+    } catch (UnsatisfiedLinkError e) {
+      info = "(" + e.getMessage() + ")";
+    }
+    return "Renderer: " + rendererLine + "\nDevice and driver: " + (info.isEmpty() ? "(no renderer yet)" : info)
+        + "\nAndroid: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + "), " + Build.MANUFACTURER + " "
+        + Build.MODEL + ", " + Build.HARDWARE + "\n";
+  }
+
+  // The display's turn (0, 90, 180, 270): "sensorLandscape" turns the game by 180 degrees with the device, which is no
+  // configuration change (landscape stays landscape) and changes no surface size; only the display's rotation tells
+  private int displayTurn = -1;
+  private final DisplayManager.DisplayListener displayTurns = new DisplayManager.DisplayListener() {
+    @Override public void onDisplayAdded(int id) {}
+    @Override public void onDisplayRemoved(int id) {}
+    @Override public void onDisplayChanged(int id) { logDisplayTurn(); }
+  };
+
+  private void logDisplayTurn() {
+    final int turn = getWindowManager().getDefaultDisplay().getRotation() * 90;
+    if (turn == displayTurn) return;
+    Log.i(TAG, (displayTurn < 0 ? "display rotation: " : "display rotation changed to ") + turn);
+    displayTurn = turn;
+  }
+
+  @Override
+  protected void onStart() {
+    super.onStart();
+    Log.i(TAG, "activity started");
+  }
+
+  @Override
+  protected void onStop() {
+    Log.i(TAG, "activity stopped");
+    // (an end in the background is no crash of Vulkan's start)
+    clearVulkanMark("the app went to the background");
+    super.onStop();
+  }
+
   @Override
   protected void onResume() {
     super.onResume();
+    Log.i(TAG, "activity resumed");
+    DisplayManager displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (displays != null) displays.registerDisplayListener(displayTurns, main);
+    logDisplayTurn();
     hideSystemUi();
-    surface.onResume();
+    picture.onResume();
     resumed = true;
     // the game runs again unless the menu or the touch editor is open (a file picker of the menu came back)
     if (menuSupported && menu == null && !touchEditing) CoreBridge.pause(false, 0);
@@ -2310,6 +3231,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @Override
   protected void onPause() {
+    Log.i(TAG, "activity paused");
+    DisplayManager displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    if (displays != null) displays.unregisterDisplayListener(displayTurns);
     resumed = false;
     // the game stands while the app is not in front (home screen, a file picker of the menu)
     if (menuSupported) CoreBridge.pause(true, 0);
@@ -2325,7 +3249,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     InputManager im = (InputManager) getSystemService(Context.INPUT_SERVICE);
     if (im != null) im.unregisterInputDeviceListener(this);
     releaseAll();
-    surface.onPause();
+    picture.onPause();
     super.onPause();
   }
 
@@ -2368,6 +3292,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   @Override
   protected void onDestroy() {
     destroyed = true;
+    if (thermal != null) thermal.stop();
     if (isFinishing()) CoreLog.stop();
     main.removeCallbacksAndMessages(null);
     if (beatThread != null) beatThread.quitSafely();

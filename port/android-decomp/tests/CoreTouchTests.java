@@ -27,6 +27,7 @@ public final class CoreTouchTests {
     @Override public void select(boolean down) { calls.add("select " + down); }
     @Override public void latched(String action, boolean on) { calls.add(action + " " + on); }
     @Override public void r3(boolean down) { calls.add("r3 " + down); }
+    @Override public void zoom(int direction, boolean down) { calls.add("zoom " + direction + " " + down); }
   }
 
   public static void main(String[] args) {
@@ -56,6 +57,15 @@ public final class CoreTouchTests {
         && host.calls.get(1).equals("r3 false"));
     check(CoreTouch.label(CoreTouch.R3).equals("R3")
         && CoreTouch.ACTIONS.length == CoreTouch.LABELS.length && CoreTouch.LABELS.length == CoreTouch.COLOURS.length);
+    // the zoom buttons (0.99.15): no GameCube button, the host zooms while held; + and - as labels
+    host.calls.clear();
+    t.action(CoreTouch.ZOOM_IN, true);
+    t.action(CoreTouch.ZOOM_IN, false);
+    t.action(CoreTouch.ZOOM_OUT, true);
+    check(in.pad()[0] == 0 && host.calls.size() == 3 && host.calls.get(0).equals("zoom 1 true")
+        && host.calls.get(1).equals("zoom 1 false") && host.calls.get(2).equals("zoom -1 true"));
+    check(CoreTouch.label(CoreTouch.ZOOM_IN).equals("+") && CoreTouch.label(CoreTouch.ZOOM_OUT).equals("−"));
+    t.action(CoreTouch.ZOOM_OUT, false);
     host.calls.clear();
 
     // L and R by default: held while the finger is on them (the trigger at its end stop), as real buttons
@@ -279,6 +289,28 @@ public final class CoreTouchTests {
     in.pad();
     t.look(-0.01f, 0);
     check(in.takeAimSwipe() == null);
+    // the knife (L held, 0.99.9: the core turns the knife stance by the swipe too): the same two ways as with R
+    t.reset();
+    t.beginEvent();
+    t.fingerDown(2, true);
+    t.action(CoreTouch.L, true);
+    in.setTouchAim(CoreInput.AIM_C_STICK);
+    t.stick(CoreTouch.C_STICK, -1, 0);
+    p = in.pad();
+    check(p[1] < 0 && p[3] == 0 && (p[0] & CoreInput.GC_L) != 0);  // the C stick control aims the knife left
+    t.stick(CoreTouch.C_STICK, 0, 0);
+    in.setTouchAim(CoreInput.AIM_LOOK);
+    in.pad();
+    t.look(-0.1f, 0.05f);
+    p = in.pad();
+    turn = in.takeAimSwipe();
+    check(turn != null && Math.abs(turn[0] - 0.1f * CoreInput.SWIPE_RADIANS) < 1e-5f
+        && Math.abs(turn[1] + 0.05f * CoreInput.SWIPE_RADIANS) < 1e-5f && p[1] == 0 && p[3] == 0);
+    t.action(CoreTouch.L, false);
+    in.pad();
+    t.look(-0.1f, 0);
+    check(in.takeAimSwipe() == null);  // L let go: the zone looks again
+    t.reset();
     in.setTouchAim(9);
     check(in.touchAim() == CoreInput.AIM_MOVE_STICK);
     t.reset();
@@ -330,7 +362,8 @@ public final class CoreTouchTests {
       // short labels: RetroTouch shrinks the text to the button, five letters stay readable
       check(!CoreTouch.LABELS[i].isEmpty() && CoreTouch.LABELS[i].length() <= 5);
       check(CoreTouch.label(a).equals(CoreTouch.LABELS[i]));
-      boolean noButton = a.equals(CoreTouch.MENU) || a.equals(CoreTouch.R3) || CoreTouch.isStick(a);  // app / C stick actions
+      boolean noButton = a.equals(CoreTouch.MENU) || a.equals(CoreTouch.R3) || CoreTouch.isStick(a)
+          || CoreTouch.isZoom(a);  // app / C stick / zoom actions
       check(noButton ? CoreTouch.gcButton(a) == 0 : CoreTouch.gcButton(a) != 0);
     }
     Set<String> ids = new HashSet<>(), used = new HashSet<>();
@@ -353,7 +386,10 @@ public final class CoreTouchTests {
     Set<String> placed = new HashSet<>(registered);
     placed.remove(CoreTouch.R3);
     placed.remove(CoreTouch.C_STICK);
-    check(used.equals(placed) && buttons + 1 <= 16 && sticks == 1 && looks == 1 && pads == 1);
+    placed.remove(CoreTouch.ZOOM_IN);
+    placed.remove(CoreTouch.ZOOM_OUT);
+    // (room for R3 and the two zoom buttons the editor adds, 0.99.15)
+    check(used.equals(placed) && buttons + 3 <= 16 && sticks == 1 && looks == 1 && pads == 1);
     // one move stick in the default layout, room for the C stick (RetroTouch: at most two sticks)
 
     // the touch areas: a button and the stick an ellipse of half the width and height times

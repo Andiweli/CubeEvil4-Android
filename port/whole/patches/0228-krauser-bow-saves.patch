@@ -1,0 +1,30 @@
+# Port patch, a user's wish through the project owner (11.11.2026, version 0.99.10; port/docs/whole-program-status.md):
+# Krauser's bow while Krauser plays the story (runtime/cheats.cpp giveBow at each room start; a cheat button at first)
+# and Wesker's silencer while he does (item 0x3F on the handgun, giveSilencer; its save handling in the same function,
+# the pistol in the hands without it). His bow (item 0x52,
+# weapon 0x1C) and arrows (item 0x72) have no file for Leon (read.cpp wep_data_leon 0x1C is empty), and a save is
+# always Leon's (patch 0195, re4_story_char_save), for the GameCube and Dolphin as well. cCard::makeSaveData: the
+# save file's image leaves the bow and the arrows out of its item block, and a bow in the hands becomes empty hands
+# (the item block's armed slot and the save block's weapon_no / weapon_type, which a load reads: Leon has no file
+# for weapon 0x1C; re4_story_char_card_items). Only the image: the game plays on with its case, and the continue
+# point that makeSaveData made just before from the game keeps the bow. A port feature, not a fix of the prototype.
+--- a/src/game/card.cpp
++++ b/src/game/card.cpp
+@@ -20,6 +20,8 @@
+ #include "dvd.h"
+ #include "file.h"
+ #include "fade.h"
++/* PORT (patch 0228): Krauser's bow and arrows stay out of save files (runtime/cheats.cpp) */
++extern "C" void re4_story_char_card_items(unsigned char* game, unsigned char* items);
+ #include "eprintf.h"
+ #include "tpl.h"
+ #include "path.h"
+@@ -782,6 +784,8 @@
+     GameSave.save(pSaveData, *(u32*) (buf + SAVE_HDR_MODE));
+     memcpy(buf + SAVE_GAME, SD->p8, SAVE_GAME_SIZE);
+     memcpy(buf + SAVE_DATA2, SD->pC, SAVE_DATA2_SIZE);
++    /* PORT (patch 0228): the file without Krauser's bow (its items, and empty hands for the weapon) */
++    re4_story_char_card_items(buf + SAVE_GAME, buf + SAVE_DATA2);
+     memcpy(buf + SAVE_ROOM, SD->p10, RoomData.getSaveDataSize());
+     memcpy(buf + SAVE_SSCRN, SD->p14, SscrnDataSize());
+     memcpy(buf + SAVE_MERCHANT, SD->p18, MerchantDataSize());

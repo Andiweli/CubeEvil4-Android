@@ -155,7 +155,7 @@ inline NativeView Native(int width, int height, bool wideChunk) {
 // The picture's box and the game's own HUD on the screen for the menu's picture format, as drawGx (core_mode.cpp)
 // presents the XFB (`xh` lines): 0 "16:9" and 2 "Stretched" show the lines 56..391 of 448 (the game's letterboxed
 // part) in the box; 1 "4:3 (GC)" all lines in a 4:3 frame of 480, the HUD in the lines 56..391 of it; 3 "4:3" all
-// 448 lines in an exact 4:3 box with the flat draws (the HUD) 15/14 wider than the box. The game draws its gauge
+// 448 lines in an exact 4:3 box (until 0.99.9 with the flat draws 15/14 wider than the box; since 0.99.10 as wide). The game draws its gauge
 // (life, ammo) in those lines in each format (it sits at line 384 in all of them), so the map, placed in the
 // HUD's rectangle, mirrors the gauge at the bottom right in every format. The boxes must stay those of drawGx.
 inline void PictureRects(int format, int width, int height, int xh, Rect *hud, Rect *pic, bool wideChunk = false) {
@@ -174,9 +174,8 @@ inline void PictureRects(int format, int width, int height, int xh, Rect *hud, R
       boxH = height;
       boxW = static_cast<int>(height * 4.0 / 3.0 + 0.5);
     }
-    const int layerW = static_cast<int>(boxW * 15.0 / 14.0 + 0.5);
     *pic = {(width - boxW) / 2, (height - boxH) / 2, boxW, boxH};
-    *hud = {(width - layerW) / 2, pic->y + boxH * 56 / 448, layerW, boxH * 336 / 448};
+    *hud = {pic->x, pic->y + boxH * 56 / 448, boxW, boxH * 336 / 448};
   } else if (format == 1) {
     int boxW = width, boxH = width * 3 / 4;
     if (boxH > height) {

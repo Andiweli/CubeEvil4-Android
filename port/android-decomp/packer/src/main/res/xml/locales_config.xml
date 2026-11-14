@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The screen's languages (values-<language>/strings_packer.xml) for Android's language per app, the same as
+     CubeEvil4's; tools/check_translations.py packer checks that this list and the folders match -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="ar" />
+    <locale android:name="de" />
+    <locale android:name="es" />
+    <locale android:name="fr" />
+    <locale android:name="hi" />
+    <locale android:name="id" />
+    <locale android:name="it" />
+    <locale android:name="pt-BR" />
+    <locale android:name="ru" />
+    <locale android:name="zh-Hans" />
+</locale-config>

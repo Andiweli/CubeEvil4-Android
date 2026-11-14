@@ -1,6 +1,8 @@
 package com.ast.re4decomp.disc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.StringReader;
 import org.junit.Test;
@@ -24,5 +26,19 @@ public class RoomFileCheckTest {
     assertEquals(5, c.checked);
     assertEquals(4, c.bad.size());
     assertEquals("(root) 1, Evd 2, snd 1", c.byFolder());
+    // the start screen's line: damaged or modified on purpose (a fan translation, report of 07.11.2026)
+    String w = c.warning(1);
+    assertTrue(w, w.startsWith("Disc 1 imported, but 4 of 5 files differ from the original disc (first: "));
+    assertTrue(w, w.contains("damaged or modified (a fan translation or a mod, for example)"));
+    assertTrue(w, w.contains("made for the original discs"));
+  }
+
+  @Test
+  public void noWarningWhenEveryFileMatches() throws Exception {
+    String manifest = "11\t1\tfiles/Evd/r100s00.evd\n";
+    String catalog = "# disc\tpath\tbytes\tsha256\n1\tfiles/Evd/r100s00.evd\t1\t11\n";
+    RoomFileCheck c = RoomFileCheck.verify(new StringReader(manifest), new StringReader(catalog), 1);
+    assertEquals(0, c.bad.size());
+    assertNull(c.warning(1));
   }
 }

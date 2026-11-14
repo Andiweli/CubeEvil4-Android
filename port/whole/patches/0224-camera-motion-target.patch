@@ -1,0 +1,29 @@
+# Port patch (user report 09.11.2026 with two pictures: in the operating room before the last boss, where Leon and
+# Ashley are freed of the Plagas, the monitors show only green instead of the X-ray of a chest with the parasite;
+# port/docs/whole-program-status.md, version 0.99.6, item 12). Room r330, event r330s00: its cuts 6/8/11/15/23
+# draw the X-ray models (evm9700/9800/9900) into two render targets with the cameras of
+# event/r330/s00/cam/etc_s00_0NN.fcv (r330.cpp EvtTexRenderCamTrans, TexRender.cpp CamRenderPrev), which the
+# monitors (scroll objects 0x22/0x23) show. Those camera motions hold two joints only: the position (joint 0,
+# 0 2500 500) and the field of view (joint 3, 10 degrees); no target (joint 1). CameraMotion::move leaves its local
+# `at` uninitialised then, and the target is whatever the stack holds: on the GameCube evidently a usable value, in
+# the port 0 / -2.4e33 / 0, so CameraSetOrientationRoll made the up vector NaN, the view matrix NaN, and the targets
+# stayed black. The original code relies on undefined behaviour, so this is no bug of the prototype as such (the
+# retail game has the same code): `at` (and `pos`, `fov`) start at 0 0 0 here. The camera then looks down from 2500
+# above onto the models' origin, a chest seen from the front as on the GameCube.
+--- a/src/game/cam_motion.cpp
++++ b/src/game/cam_motion.cpp
+@@ -61,9 +61,11 @@
+ {
+     HERMITE_SET prm;
+-    Vec pos;
+-    Vec at;
++    /* PORT (patch 0224): a motion without a target (or position, field of view) joint left them uninitialised:
++       the X-ray cameras of r330s00 (the monitors stayed green) */
++    Vec pos = {0.0f, 0.0f, 0.0f};
++    Vec at = {0.0f, 0.0f, 0.0f};
+     Vec roll = {0.0f, 0.0f, 0.0f};
+-    Vec fov;
++    Vec fov = {0.0f, 0.0f, 0.0f};
+     HERMITE_SET* pp = &prm;
+     MOTION_INFO* w = &m_info;
+     int i;

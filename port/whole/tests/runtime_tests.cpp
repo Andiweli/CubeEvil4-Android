@@ -31,6 +31,7 @@
 #include "yz2_fixtures.h"
 
 #include <dlfcn.h>
+#include <link.h>
 #include <unistd.h>
 #include <math.h>
 #include <stdio.h>
@@ -679,9 +680,59 @@ void onRetrace(unsigned count)
 int gValidPtrOnThread = -1;
 unsigned long gHeapEnd;
 
+// /proc/self/maps: the mapping holding `a` ([*lo, *hi), its protection in prot[5]); false when none
+bool findMapping(unsigned long a, unsigned long* lo, unsigned long* hi, char* prot)
+{
+    FILE* f = fopen("/proc/self/maps", "r");
+    if (!f) {
+        return false;
+    }
+    char line[512];
+    bool found = false;
+    while (!found && fgets(line, sizeof(line), f)) {
+        unsigned long b = 0, e = 0;
+        char pr[8] = {};
+        if (sscanf(line, "%lx-%lx %4s", &b, &e, pr) == 3 && a >= b && a < e) {
+            *lo = b;
+            *hi = e;
+            memcpy(prot, pr, 5);
+            found = true;
+        }
+    }
+    fclose(f);
+    return found;
+}
+
+// re4_valid_port_ptr on this OS thread's stack: the stack counts, its guard pages (PROT_NONE, the
+// same mapping) do not (reports of 08.11.2026: a model pointer into a guard page passed the state
+// bridge's check, SIGSEGV SEGV_ACCERR). Bits: 1 the stack refused, 2 the low guard taken, 4 the
+// high guard taken; 8 no guard found next to the stack (nothing to check)
+int gStackGuardCheck = -1;
+
+int stackGuardCheck()
+{
+    volatile int local = 0;
+    unsigned long a = (unsigned long) &local, lo = 0, hi = 0, glo = 0, ghi = 0;
+    char prot[5] = {}, gprot[5] = {};
+    int bits = re4_valid_port_ptr((const void*) &local) ? 0 : 1;
+    int guards = 0;
+    if (findMapping(a, &lo, &hi, prot)) {
+        if (findMapping(lo - 1, &glo, &ghi, gprot) && gprot[0] == '-') {
+            guards++;
+            bits |= re4_valid_port_ptr((const void*) (lo - 1)) ? 2 : 0;
+        }
+        if (findMapping(hi, &glo, &ghi, gprot) && gprot[0] == '-') {
+            guards++;
+            bits |= re4_valid_port_ptr((const void*) hi) ? 4 : 0;
+        }
+    }
+    return bits | (guards == 0 ? 8 : 0);
+}
+
 int taskTestMain()
 {
     gValidPtrOnThread = re4probe_valid_ptr(1);
+    gStackGuardCheck = stackGuardCheck();
     OSInit();
     SystemMemInit();
     gHeapEnd = (unsigned long) Heap[0].end;
@@ -730,6 +781,11 @@ static void testTasks()
     CHECK(re4probe_valid_ptr(0) == 0);
     if (gValidPtrOnThread != 0) {
         re4_log("  VALID_PTR failures: 0x%x", gValidPtrOnThread);
+    }
+    // ... and not on its guard pages
+    CHECK(gStackGuardCheck == 0);
+    if (gStackGuardCheck != 0) {
+        re4_log("  stack guard check: 0x%x", gStackGuardCheck);
     }
     CHECK(retraces == 3 && gRetraceCalls == 3 && gLastRetrace == VIGetRetraceCount());
     // hang search: every OS thread with the place it waits; task A sleeps in
@@ -1250,11 +1306,13 @@ int re4probe_letterbox(void);
 int re4probe_picture_still(void);
 int re4probe_knife_swipe(void);
 int re4probe_qte_touch(void);
+int re4probe_qte_level(void);
 int re4probe_qte_auto(void);
 int re4probe_cheat_extras(void);
 int re4probe_potato(void);
 int re4probe_handcannon(void);
 int re4probe_gyro_boat(void);
+int re4probe_aim_knife(void);
 int re4probe_snd_bank(void);
 int re4probe_frame_sections(void);
 int re4probe_path_entry(void);
@@ -1652,7 +1710,13 @@ static void testVsync()
     CHECK(re4_vi_locked_field(now, now - 1000000, kP60) == kP60);           // 60 Hz
     CHECK(re4_vi_locked_field(now, now - 1000000, ntsc) == ntsc);           // 59.94 Hz
     CHECK(re4_vi_locked_field(now, now - 1000000, kP60 / 2) == kP60 / 2 * 2);  // 120 Hz: two vsyncs
-    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 90) == 0);   // 90 Hz: own clock
+    // 90 Hz: two fields three vsyncs, a field of one and a half (0.99.9); the measured 89.4 Hz too
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 90) == 1000000000LL / 90 * 3 / 2);
+    CHECK(re4_vi_locked_field(now, now - 1000000, 11185682) == 11185682LL * 3 / 2);
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL * 10 / 605) == 1000000000LL * 10 / 605);  // 60.5 Hz
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL * 10 / 610) == 0);  // 61 Hz: 1.8 % off
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 144) == 0);  // 144 Hz: own clock
+    CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 75) == 0);   // 75 Hz
     CHECK(re4_vi_locked_field(now, now - 1000000, 1000000000LL / 50) == 0);   // 50 Hz
     CHECK(re4_vi_locked_field(now, now - 300000000, kP60) == 0);              // stale
     CHECK(re4_vi_locked_field(now, 0, kP60) == 0);
@@ -1667,6 +1731,26 @@ static void testVsync()
     CHECK(phase > 900000 && phase < 1100000);
     if (!ok) {
         re4_log("  vsync: phase %lld ns after 120 fields", phase);
+    }
+    // 90 Hz: the retraces walk onto the grid of half a vsync, 1 ms after it, every second one 1 ms after a vsync
+    {
+        const long long p90 = 1000000000LL / 90, f90 = p90 * 3 / 2;
+        long long r = 4000000;
+        int onVsync = 0;
+        for (int i = 0; i < 240; i++) {
+            long long moved = re4_vi_lock_phase(r, f90, 0, p90);
+            CHECK(moved - r <= f90 / 50 && r - moved <= f90 / 50);
+            if (i >= 200 && moved % p90 > 800000 && moved % p90 < 1200000) {
+                onVsync++;
+            }
+            r = moved + f90;
+        }
+        long long half = (r - f90) % (p90 / 2);
+        CHECK(half > 800000 && half < 1200000);
+        CHECK(onVsync >= 19 && onVsync <= 21);
+        if (!ok) {
+            re4_log("  vsync 90 Hz: phase %lld ns on the half grid, %d of 40 just after a vsync", half, onVsync);
+        }
     }
     // the real clock
     re4_os_run(vsyncTestMain);
@@ -2031,8 +2115,11 @@ static void testFrameSections()
     static char tail[16 * 160];
     re4_log_tail(tail, sizeof tail);
     // (the tail keeps 120 characters of a line)
-    const bool ok = strstr(tail, "frame: 600 frames in r105: logic 2.0 ms, drawing 5.0 ms, rest 3.0 ms, frame end "
-                                 "1.0 ms, waiting 21.3 ms") != 0;
+    // (since 0.99.8 with the render time in the drawing, and play's own marks: r106)
+    const bool ok = strstr(tail, "frame: 600 frames in r105: logic 2.0 ms, drawing 6.0 ms (render 1.0, models 5.0), "
+                                 "rest 3.0 ms, frame end 1.0 ms") != 0 &&
+                    strstr(tail, "frame: 600 frames in r106: logic 2.0 ms, drawing 6.0 ms (render 1.0, models 5.0), "
+                                 "rest 3.0 ms, frame end 1.0 ms") != 0;
     if (!ok) {
         re4_log("  sections: the line is not in the log");
     }
@@ -2078,6 +2165,21 @@ static void testKnifeSwipe()
         }
     }
     report("knifeswipe", ok);
+}
+
+// "Gentler QTEs" (0.99.15; game_probe.cpp re4probe_qte_level): Professional's rank for the quick-time events at most
+// Normal's start with the switch on, the game's own otherwise and in the other difficulties; the switch's log line
+static void testQteLevel()
+{
+    const int bad = re4probe_qte_level();
+    static char tail[48 * 160];
+    re4_log_tail(tail, sizeof tail);
+    const bool logged = strstr(tail, "qte: gentler quick-time events on (Professional's as Normal's)") != nullptr &&
+                        strstr(tail, "qte: a quick-time event of Professional reads rank 10 as 5 (gentler QTEs)") != nullptr;
+    if (bad || !logged) {
+        re4_log("  qtelevel: failed checks 0x%x%s", bad, logged ? "" : ", no log line");
+    }
+    report("qtelevel", bad == 0 && logged);
 }
 
 // Quick-time events by a tap (runtime/qte_touch.cpp; game_probe.cpp re4probe_qte_touch): the
@@ -2150,6 +2252,20 @@ static void testGyroBoat()
         re4_log("  gyroboat: failed checks 0x%x%s", bad, logged ? "" : ", no log line");
     }
     report("gyroboat", bad == 0 && logged);
+}
+
+// Swipe aiming in the knife stance (runtime/gyro.cpp, 0.99.9; game_probe.cpp re4probe_aim_knife): holding and
+// slashing turn, putting it away, the gyro and a sub screen do not; the log line
+static void testAimKnife()
+{
+    const int bad = re4probe_aim_knife();
+    static char tail[48 * 160];
+    re4_log_tail(tail, sizeof tail);
+    const bool logged = strstr(tail, "touch: the knife's aim turned by a swipe") != nullptr;
+    if (bad || !logged) {
+        re4_log("  aimknife: failed checks 0x%x%s", bad, logged ? "" : ", no log line");
+    }
+    report("aimknife", bad == 0 && logged);
 }
 
 // The processor lines of the performance log (re4_cpu_info.h): the layout of a phone with two kinds
@@ -2429,6 +2545,67 @@ static void testLogFile()
     report("logfile", ok);
 }
 
+// --- re4_valid_port_ptr in the game's libraries ------------------------------------
+
+struct LibGapSearch {
+    int segments, segmentsRefused, gaps, gapsTaken;
+};
+
+// Every readable segment of a libre4_ library counts, the gaps between them (PROT_NONE, the
+// linker keeps the library's whole range) do not (reports of 08.11.2026, SEGV_ACCERR)
+static void testLibraryGaps()
+{
+    bool ok = true;
+    LibGapSearch search = {};
+    dl_iterate_phdr(
+        [](struct dl_phdr_info* info, size_t, void* data) -> int {
+            LibGapSearch* s = (LibGapSearch*) data;
+            if (!info->dlpi_name || !strstr(info->dlpi_name, "libre4_")) {
+                return 0;
+            }
+            std::vector<std::pair<unsigned long, unsigned long>> segs;
+            for (int i = 0; i < info->dlpi_phnum; i++) {
+                const ElfW(Phdr)& ph = info->dlpi_phdr[i];
+                if (ph.p_type == PT_LOAD && (ph.p_flags & PF_R) && ph.p_memsz) {
+                    unsigned long b = (unsigned long) (info->dlpi_addr + ph.p_vaddr);
+                    segs.push_back({b, b + (unsigned long) ph.p_memsz});
+                }
+            }
+            std::sort(segs.begin(), segs.end());
+            unsigned long page = (unsigned long) sysconf(_SC_PAGESIZE);
+            for (size_t i = 0; i < segs.size(); i++) {
+                s->segments++;
+                if (!re4_valid_port_ptr((const void*) segs[i].first) ||
+                    !re4_valid_port_ptr((const void*) (segs[i].second - 1))) {
+                    s->segmentsRefused++;
+                }
+                if (i + 1 == segs.size()) {
+                    continue;
+                }
+                unsigned long gap = (segs[i].second + page - 1) / page * page;
+                if (gap >= segs[i + 1].first / page * page) {
+                    continue;
+                }
+                unsigned long lo = 0, hi = 0;
+                char prot[5] = {};
+                if (findMapping(gap, &lo, &hi, prot) && prot[0] == 'r') {
+                    continue;  // mapped readable after all (not a gap)
+                }
+                s->gaps++;
+                if (re4_valid_port_ptr((const void*) gap)) {
+                    s->gapsTaken++;
+                }
+            }
+            return 0;
+        },
+        &search);
+    CHECK(search.segments > 0 && search.segmentsRefused == 0);
+    CHECK(search.gapsTaken == 0);
+    re4_log("  %d readable segments of the game's libraries (%d refused), %d gaps between them (%d taken)",
+            search.segments, search.segmentsRefused, search.gaps, search.gapsTaken);
+    report("library gaps", ok);
+}
+
 int re4_runtime_tests()
 {
     gFailures = 0;
@@ -2443,6 +2620,7 @@ int re4_runtime_tests()
     testMath();
     testTrace();
     testTasks();
+    testLibraryGaps();
     testLight();
     testPartner();
     testRoute();
@@ -2460,11 +2638,13 @@ int re4_runtime_tests()
     testLetterbox();
     testKnifeSwipe();
     testQteTouch();
+    testQteLevel();
     testQteAuto();
     testCheatExtras();
     testPotato();
     testHandcannon();
     testGyroBoat();
+    testAimKnife();
     testSndBank();
     testFrameSections();
     testPathEntry();

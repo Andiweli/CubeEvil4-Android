@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the app's theme: Android's dark Material without an action bar; from Android 10 on without force dark
+         (values-v29, FocusLook: a phone's dark mode for apps darkened the menu's focus frame, 0.99.11) -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar" />
+</resources>

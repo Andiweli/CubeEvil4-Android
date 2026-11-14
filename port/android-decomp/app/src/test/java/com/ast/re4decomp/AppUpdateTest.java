@@ -30,6 +30,11 @@ public class AppUpdateTest {
     same("0.99.0-beta", "0.99.0-rc");
     same("0.99.0-rc", "0.99.0-rc");
     same("0.99.0-beta-core", "0.99.0-rc");
+    // a branch's test APK (the Vulkan branch, 08.11.2026): the same version as its release, the next one an update
+    same("0.99.2-vulkan0", "0.99.2-rc");
+    same("0.99.2-vulkan1", "0.99.2-rc");
+    same("0.99.2-vulkan1-core", "0.99.2-rc");
+    older("0.99.2-vulkan3", "0.99.3-rc");
   }
 
   @Test public void theNumbersDecide() {
@@ -40,6 +45,8 @@ public class AppUpdateTest {
     older("0.95.2-beta", "v0.95.10-beta");
     older("0.99.0-rc", "1.0");
     older("0.99.9-rc", "1.0");
+    older("0.99.9-rc", "0.99.10-rc");  // 0.99.10 (11.11.2026): ten after nine, not "1" after "9"
+    older("0.99.10-rc", "0.99.11-rc");
     older("1.0", "1.0.1");
     older("1.0", "1.1");
     older("1.9", "1.10");

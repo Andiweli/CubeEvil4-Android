@@ -59,7 +59,25 @@ public final class ActionMapTests {
     check(s.keys(ActionMap.ACTION)[0] == L1 && s.keys(ActionMap.RUN)[0] == A);
     check(press(s, A) == CoreInput.GC_B && press(s, L1) == CoreInput.GC_A);
     // combinations keep their keys (fire is still R2 + A)
-    check(press(s, R2, A) == (CoreInput.GC_R | CoreInput.GC_A | CoreInput.GC_B));
+    check(press(s, R2, A) == (CoreInput.GC_R | CoreInput.GC_A));
+    // 0.99.9 (user report 10.11.2026): action and run swapped; aim + A fires, aim + B reloads, not both A and B
+    ActionMap ab = c.assign(ActionMap.ACTION, new int[] {B});
+    check(ab.keys(ActionMap.RUN)[0] == A && press(ab, A) == CoreInput.GC_B && press(ab, B) == CoreInput.GC_A);
+    check(press(ab, R2, A) == (CoreInput.GC_R | CoreInput.GC_A));
+    check(press(ab, R2, B) == (CoreInput.GC_R | CoreInput.GC_B));
+    check(press(ab, L2, A) == (CoreInput.GC_L | CoreInput.GC_A));  // slash, no run with it
+    check(press(ab, L2, B) == (CoreInput.GC_L | CoreInput.GC_A));  // B's action (A) with the knife, as before
+    // fire and reload swapped (fire on R2 + B, reload goes to fire's old R2 + A)
+    ActionMap fr = c.assign(ActionMap.FIRE, new int[] {R2, B});
+    check(fr.keys(ActionMap.RELOAD)[0] == R2 && fr.keys(ActionMap.RELOAD)[1] == A);
+    check(press(fr, R2, B) == (CoreInput.GC_R | CoreInput.GC_A) && press(fr, R2, A) == (CoreInput.GC_R | CoreInput.GC_B));
+    check(press(fr, A) == CoreInput.GC_A && press(fr, B) == CoreInput.GC_B);  // alone: action and run
+    check(c.assign(ActionMap.FIRE, new int[] {B, R2}).keys(ActionMap.RELOAD)[1] == A);  // the other order too
+    // a latched aim: fire's and reload's second key alone (the right one with the swapped action and run)
+    check(ab.buttons(code -> code == A, true, false) == CoreInput.GC_A);
+    check(ab.buttons(code -> code == B, true, false) == CoreInput.GC_B);
+    check(ab.buttons(code -> code == A, false, true) == CoreInput.GC_A);  // the knife latched: A slashes
+    check(c.buttons(code -> code == A, true, false) == CoreInput.GC_A && c.buttons(code -> code == B, true, false) == CoreInput.GC_B);
     // the app's menu moves like any single action
     ActionMap menu = c.assign(ActionMap.APP_MENU, new int[] {CoreInput.KEYCODE_BUTTON_THUMBR});
     check(menu.singleOn(CoreInput.KEYCODE_BUTTON_THUMBR) == ActionMap.APP_MENU
@@ -101,10 +119,34 @@ public final class ActionMapTests {
         && ActionMap.fixedKeyboardButton(ActionMap.KEY_DEL) == CoreInput.GC_B);
     check(k.assign(ActionMap.ACTION, new int[] {ActionMap.KEY_ENTER}) == null);
     check(k.assign(ActionMap.FIRE, new int[] {ActionMap.MOUSE_RIGHT, CoreInput.KEYCODE_DPAD_UP}) == null);
-    // moving with I J K L: W goes to the old place of forward's new key (none had I)
+    // moving with I J K L: W goes to the old place of forward's new key (since 0.99.15 C up's: I and W swap)
     ActionMap kk = k.assign(ActionMap.MOVE_FORWARD, new int[] {37});
     check(kk.stick(code -> code == 37)[1] == -1 && kk.stick(code -> code == ActionMap.KEY_W)[1] == 0);
+    check(kk.cStick(code -> code == ActionMap.KEY_W)[1] == -1);
     check(ActionMap.decode(ActionMap.KIND_KEYBOARD, kk.encode()).equals(kk));
+
+    // the C stick on keys (0.99.15, GitHub #247): I K J L by default, keyboard only, no GameCube button
+    check(k.cStick(code -> code == ActionMap.KEY_I)[1] == -1 && k.cStick(code -> code == ActionMap.KEY_K)[1] == 1
+        && k.cStick(code -> code == ActionMap.KEY_J)[0] == -1 && k.cStick(code -> code == ActionMap.KEY_L)[0] == 1);
+    check(k.cStick(code -> false)[0] == 0 && k.cStick(code -> false)[1] == 0);
+    float[] cd = k.cStick(code -> code == ActionMap.KEY_I || code == ActionMap.KEY_L);
+    check(Math.abs(cd[0] - 0.7071f) < 1e-3f && Math.abs(cd[1] + 0.7071f) < 1e-3f);
+    check(press(k, ActionMap.KEY_I) == 0 && press(k, ActionMap.KEY_K) == 0);
+    check(ActionMap.available(ActionMap.KIND_KEYBOARD, ActionMap.C_UP)
+        && !ActionMap.available(ActionMap.KIND_CONTROLLER, ActionMap.C_UP));
+    check(ActionMap.PAGE.length == ActionMap.ACTIONS && ActionMap.PAGE[4] == ActionMap.C_UP);
+    // a mapping saved before 0.99.15 (no C stick in it): the C stick takes its default keys where they are free
+    String old = "0=51;1=47;2=29;3=32;4=33;5=59;6=65538;7=65538+65537;8=65538+46;9=31;10=31+65537;11=45;12=61;13=41;"
+        + "14=111;15=131";
+    ActionMap before = ActionMap.decode(ActionMap.KIND_KEYBOARD, old);
+    check(before.isDefault());
+    // ... and where the player put I on Ashley: C up stays without a key, the others get theirs
+    ActionMap busy = ActionMap.decode(ActionMap.KIND_KEYBOARD, old.replace("11=45", "11=37"));
+    check(busy.keys(ActionMap.C_UP).length == 0 && busy.keys(ActionMap.C_DOWN)[0] == ActionMap.KEY_K
+        && press(busy, ActionMap.KEY_I) == CoreInput.GC_X);
+    // a C direction the player left without a key stays so
+    ActionMap none = ActionMap.decode(ActionMap.KIND_KEYBOARD, k.encode() == null ? old + ";16=" : k.encode());
+    check(none.keys(ActionMap.C_UP).length == 0);
 
     System.out.println("ActionMapTests: " + checks + " checks passed");
   }

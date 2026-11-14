@@ -14,6 +14,9 @@
 // leaves the picture before on screen. Any other chunk must start over
 // (RE4_GX_CHUNK_RESET) and gets a fresh renderer.
 //
+// RE4_GX_SERIES=1: dumps of the core up to 4 frames apart (RE4_GX_DUMP_AT="7141,7142,..."), each starting over, run
+// on the same renderer as one series (the lens flares, which fade in over pictures).
+//
 // RE4_GX_INVALIDATE_POISON=1: what the renderer lets the GPU forget (copy targets, the blur and
 // the focus of the autofocus; GPU step b) is painted magenta instead: the pictures must not
 // change (whole_r100_check.sh compares them).
@@ -29,8 +32,9 @@
 // patch 0137) and the texture matrices / TEV colours blended (60fps-plan.md S0-S3).
 // RE4_GX_NO_OWNERS=1: the owner tags left out (the counter-check: the in-between pictures as before).
 //
-// RE4_GX_SHARPEN=1 (light) or 2 (strong), RE4_GX_FXAA=1, RE4_GX_TV_FILTER=1: the app menu's switches
-// (GxRenderer::SetSharpen, SetFxaa, SetTvFilter; RE4_GX_SHARPEN_AMOUNT=A,B the strengths of light and strong).
+// RE4_GX_SHARPEN=1 (light) or 2 (strong), RE4_GX_FXAA=1, RE4_GX_TV_FILTER=1, RE4_GX_FLARES=1, RE4_GX_DOF_STRONG=1:
+// the app menu's switches (GxRenderer::SetSharpen, SetFxaa, SetTvFilter, SetFlares, SetDofStrong;
+// RE4_GX_SHARPEN_AMOUNT=A,B the strengths of light and strong).
 // A movie's pictures (RE4_GX_CHUNK_MOVIE) say "Film" in their line; RE4_GX_SHARPEN_MOVIES=1 drops that flag (the
 // check whether sharpening would make the blocks of the movie's compression stand out).
 //
@@ -45,6 +49,7 @@
 #include "gx_gl.h"
 #include "minimap_view.h"
 #include "re4_gx_frame_io.h"
+#include "tex_pack.h"
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -91,14 +96,20 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "usage: gx_chunk_render OUTPUT_DIR gx-*.bin\n");
     return 2;
   }
-  if (!Context()) {
+  // RE4_GX_API=vulkan: the Vulkan renderer (port/docs/vulkan-bauplan.md), on the PC Mesa's lavapipe
+  // (. ~/vk-tools/env.sh; RE4_VK_VALIDATION=1 with the Khronos validation layer, 2 with its synchronization checks)
+  const char *apiText = std::getenv("RE4_GX_API");
+  const bool vulkan = apiText && std::string(apiText) == "vulkan";
+  const auto Finish = [vulkan]() {
+    if (!vulkan)
+      glFinish();
+  };
+  if (!vulkan && !Context()) {
     std::fprintf(stderr, "no EGL/GLES3 context (Mesa packages: port/tools/whole_setup_linux.sh)\n");
     return 1;
   }
   const std::string out = argv[1];
   int failures = 0;
-  GLuint fbo = 0;
-  glGenFramebuffers(1, &fbo);
   std::unique_ptr<re4gx::GxRenderer> renderer;
   uint32_t lastSequence = 0, lastFrame = 0;
   const char *interpText = std::getenv("RE4_GX_INTERP");
@@ -116,7 +127,6 @@ int main(int argc, char **argv) {
   const int halves = halvesText && std::atoi(halvesText) >= 2 && std::atoi(halvesText) <= 8 ? std::atoi(halvesText)
                                                                                            : 2 * scale;
   int shownHalves = halves;  // the running renderer's level (after RE4_GX_RESCALE)
-  const auto scaled = [&](unsigned v) { return (v * static_cast<unsigned>(shownHalves) + 1) / 2; };
   // RE4_GX_RESCALE=K:S: before the K-th file (from 0) the running renderer goes to scale S
   // (GxRenderer::Rescale, the app menu's Auto); the pictures from there have S times the pixels.
   // RE4_GX_RESCALE=K:hN: to N halves (GxRenderer::RescaleHalves, a step of "Dynamic": 3 is 1.5x)
@@ -137,13 +147,6 @@ int main(int argc, char **argv) {
   if (const char *screen = std::getenv("RE4_GX_SCREEN"))
     if (std::sscanf(screen, "%dx%d:%d", &screenW, &screenH, &screenFormat) != 3 || screenW < 16 || screenH < 16)
       screenW = screenH = 0;
-  GLuint screenFbo = 0, screenTex = 0;
-  if (screenW > 0) {
-    glGenTextures(1, &screenTex);
-    glBindTexture(GL_TEXTURE_2D, screenTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenW, screenH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glGenFramebuffers(1, &screenFbo);
-  }
   for (int i = 2; i < argc; i++) {
     const std::string path = argv[i];
     auto loadedHere = std::make_unique<re4gxio::Loaded>();
@@ -171,7 +174,13 @@ int main(int argc, char **argv) {
       loaded.chunk.opWords = static_cast<uint32_t>(loaded.ops.size());
     }
     Re4GxChunk chunk = loaded.chunk;
-    const bool follows = renderer && chunk.sequence == lastSequence + 1 && loaded.frame == lastFrame + 1;
+    // RE4_GX_SERIES=1 (09.11.2026): the core's dumps a few frames apart (RE4_GX_DUMP_AT with consecutive frame numbers:
+    // each one starts over with RE4_GX_CHUNK_RESET) run on the same renderer, as the app's chunks do after a dump; what
+    // follows from picture to picture (the lens flares fading in, their slots) is seen then
+    static const bool series = std::getenv("RE4_GX_SERIES") && *std::getenv("RE4_GX_SERIES") == '1';
+    const bool follows = renderer && ((chunk.sequence == lastSequence + 1 && loaded.frame == lastFrame + 1) ||
+                                      (series && (chunk.flags & RE4_GX_CHUNK_RESET) && loaded.frame > lastFrame &&
+                                       loaded.frame - lastFrame <= 4));
     if (!follows) {
       if (!(chunk.flags & RE4_GX_CHUNK_RESET)) {
         std::printf("%s: Folgebild ohne das Bild davor (Bildstück %u), übersprungen\n", Stem(path).c_str(),
@@ -181,7 +190,7 @@ int main(int argc, char **argv) {
       }
       if (renderer)
         renderer->Release();
-      renderer = std::make_unique<re4gx::GxRenderer>();
+      renderer = std::make_unique<re4gx::GxRenderer>(vulkan ? re4gx::GxApi::kVulkan : re4gx::GxApi::kGl);
       const char *poison = std::getenv("RE4_GX_INVALIDATE_POISON");
       re4gx::GxOptions options;
       options.poison = poison && *poison == '1';
@@ -199,16 +208,50 @@ int main(int argc, char **argv) {
       options.centroid = !(centroid && *centroid == '0');
       const char *full = std::getenv("RE4_GX_FULL_RESOLVE");
       options.fullResolve = full && *full == '1';
+      // RE4_GX_DOF_FULL=1: the depth of field's blur at the full resolution (GxOptions::halfDof off)
+      const char *dofFull = std::getenv("RE4_GX_DOF_FULL");
+      options.halfDof = !(dofFull && *dofFull == '1');
       renderer->SetOptions(options);
       // RE4_GX_PSX=1: the PSone demake as the app's switch sets it (GxRenderer::SetPsx)
       const char *psx = std::getenv("RE4_GX_PSX");
       renderer->SetPsx(psx && *psx == '1');
       const char *sharpen = std::getenv("RE4_GX_SHARPEN");
       renderer->SetSharpen(sharpen ? std::atoi(sharpen) : 0);
+      // RE4_GX_CRT=1|2, RE4_GX_COLOUR=MODE,LEVEL: the menu's CRT and colour (SetCrt, SetColour; 0.99.9)
+      const char *crt = std::getenv("RE4_GX_CRT");
+      renderer->SetCrt(crt ? std::atoi(crt) : 0);
+      int colourMode = 0, colourLevel = 1;
+      if (const char *colour = std::getenv("RE4_GX_COLOUR"))
+        std::sscanf(colour, "%d,%d", &colourMode, &colourLevel);
+      renderer->SetColour(colourMode, colourLevel);
       const char *fxaa = std::getenv("RE4_GX_FXAA");
       renderer->SetFxaa(fxaa && *fxaa == '1');
       const char *tv = std::getenv("RE4_GX_TV_FILTER");
       renderer->SetTvFilter(tv && *tv == '1');
+      // RE4_GX_FLARES=1, RE4_GX_DOF_STRONG=1: the menu's lens flares and depth of field "Strong" (SetFlares,
+      // SetDofStrong; the pictures of every switch for the comparisons of the Vulkan renderer, vulkan-bauplan.md)
+      const char *flares = std::getenv("RE4_GX_FLARES");
+      renderer->SetFlares(flares && *flares == '1');
+      const char *dofStrong = std::getenv("RE4_GX_DOF_STRONG");
+      renderer->SetDofStrong(dofStrong && *dofStrong == '1');
+      // RE4_TEX_PACK=<file.c4tex>: the player's HD texture pack (GxRenderer::SetTexturePack); RE4_TEX_PACK_HALF=1 the
+      // menu's "Sharpness: Half", RE4_TEX_PACK_MB the replacements' budget (default 512)
+      if (const char *packPath = std::getenv("RE4_TEX_PACK")) {
+        static std::shared_ptr<re4gx::TexPack> pack;
+        if (!pack) {
+          pack = std::make_shared<re4gx::TexPack>();
+          std::string error;
+          if (pack->Open(packPath, &error))
+            std::fprintf(stderr, "texture pack %s: %zu images, %s, size %u\n", packPath, pack->Count(),
+                         pack->Info("name").c_str(), pack->MaxSide());
+          else
+            std::fprintf(stderr, "texture pack %s: %s\n", packPath, error.c_str());
+        }
+        const char *half = std::getenv("RE4_TEX_PACK_HALF");
+        const char *mb = std::getenv("RE4_TEX_PACK_MB");
+        renderer->SetTexturePack(pack, half && *half == '1' ? 1u : 0u,
+                                 static_cast<std::size_t>(mb ? std::atoi(mb) : 512) << 20);
+      }
       // the rows the format shows and its widening, as drawGx sets them before each picture
       if (screenW > 0) {
         if (screenFormat == 5) {
@@ -218,7 +261,10 @@ int main(int argc, char **argv) {
           const bool crop = screenFormat == 0 || screenFormat == 2;
           renderer->SetShownRows(crop ? 56 : 0, crop ? 392 : 1 << 16);
         }
-        renderer->SetWiden(screenFormat == 3 ? 15.0f / 14.0f : 1.0f);
+        // "4:3" draws everything in the picture's shape since 0.99.10 (core_mode.cpp drawGx); RE4_GX_WIDEN_43=1
+        // gives the flat draws the 15/14 of 0.95..0.99.9 again (the comparison)
+        const char *oldWiden = std::getenv("RE4_GX_WIDEN_43");
+        renderer->SetWiden(screenFormat == 3 && oldWiden && *oldWiden == '1' ? 15.0f / 14.0f : 1.0f);
       }
       renderer->SetRecording(interp);
       std::string error;
@@ -236,6 +282,9 @@ int main(int argc, char **argv) {
       if (const char *cache = std::getenv("RE4_GX_PROGRAM_CACHE"))
         if (*cache && !renderer->SetProgramCache(cache))
           std::fprintf(stderr, "program cache: the driver keeps no binaries\n");
+      // RE4_GX_ROOM=0xNNN: the room, as core_mode sets it (the rooms' program and pipeline lists, Prewarm)
+      if (const char *room = std::getenv("RE4_GX_ROOM"))
+        renderer->SetRoom(static_cast<unsigned>(std::strtoul(room, nullptr, 0)));
       // RE4_GX_PEEK_AT=x,y (GameCube pixels, as the game's GXPeekZ): the depth map the core would answer from
       // (GxRenderer::SetDepthSink), the 7 x 7 cells around (x, y) of each map the renderer hands over, 24-bit
       // depths in hex (the light through Leon's head, r102, 06.11.2026)
@@ -290,27 +339,22 @@ int main(int argc, char **argv) {
                   now.interpMatched - was.interpMatched, now.interpVertexBlends - was.interpVertexBlends);
       std::printf("%s: ohne Gegenstück Teilchen %u/%u, Figuren %u/%u, Raum %u/%u, 2D %u/%u (%u mit der Kamera "
                   "bewegt); über das Objekt %u "
-                  "(%u neu belegt, %u Einbild-Effekte wiedererkannt); Texturmatrizen %u (%u über den Rand), "
-                  "TEV-Farben %u, Lichtfarben %u\n",
+                  "(%u neu belegt, %u gesprungen, %u Einbild-Effekte wiedererkannt); Texturmatrizen %u (%u über den "
+                  "Rand), TEV-Farben %u, Lichtfarben %u\n",
                   Stem(path).c_str(), now.interpKindUnmatched[0] - was.interpKindUnmatched[0],
                   now.interpKind[0] - was.interpKind[0], now.interpKindUnmatched[1] - was.interpKindUnmatched[1],
                   now.interpKind[1] - was.interpKind[1], now.interpKindUnmatched[2] - was.interpKindUnmatched[2],
                   now.interpKind[2] - was.interpKind[2], now.interpKindUnmatched[3] - was.interpKindUnmatched[3],
                   now.interpKind[3] - was.interpKind[3], now.interpCameraMoved - was.interpCameraMoved,
                   now.interpOwned - was.interpOwned,
-                  now.interpOwnedNew - was.interpOwnedNew, now.interpOneFrame - was.interpOneFrame,
+                  now.interpOwnedNew - was.interpOwnedNew, now.interpOwnedJumps - was.interpOwnedJumps,
+                  now.interpOneFrame - was.interpOneFrame,
                   now.interpTexBlends - was.interpTexBlends,
                   now.interpTexWraps - was.interpTexWraps, now.interpTevBlends - was.interpTevBlends,
                   now.interpLightBlends - was.interpLightBlends);
       unsigned iw = 0, ih = 0;
-      const GLuint between = renderer->Xfb(&iw, &ih);
-      if (shown && between && iw && ih) {
-        iw = scaled(iw);
-        ih = scaled(ih);
-        std::vector<unsigned char> rgba(static_cast<std::size_t>(iw) * ih * 4);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, between, 0);
-        glReadPixels(0, 0, static_cast<GLsizei>(iw), static_cast<GLsizei>(ih), GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+      std::vector<std::uint8_t> rgba;
+      if (shown && renderer->ReadXfb(&rgba, &iw, &ih) && iw && ih) {
         const std::string file = out + "/" + Stem(path) + "-zw.ppm";
         if (FILE *p = std::fopen(file.c_str(), "wb")) {
           std::fprintf(p, "P6\n%u %u\n255\n", iw, ih);
@@ -322,11 +366,11 @@ int main(int argc, char **argv) {
       }
     }
     if (i - 2 == rescaleAt && renderer) {
-      glFinish();
+      Finish();
       const auto t0 = std::chrono::steady_clock::now();
       renderer->RescaleHalves(rescaleTo);
       if (timed)
-        glFinish();
+        Finish();
       const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
       scale = renderer->Scale();
       shownHalves = renderer->Halves();
@@ -334,19 +378,52 @@ int main(int argc, char **argv) {
         std::printf("%s: EFB-Stufe %d/2 (Rescale), %.2f ms\n", Stem(path).c_str(), shownHalves, ms);
       else
         std::printf("%s: EFB-Stufe %d/2 (Rescale)\n", Stem(path).c_str(), shownHalves);
+      // with RE4_GX_SCREEN: the screen right after the step, before the next picture's display copy, as the app's
+      // refreshes in between show it (OUTPUT_DIR/<name>-rescaled-screen.ppm; 0.99.10: the Vulkan renderer showed the
+      // plain XFB there, without the CRT's glass and its black border, the colour or the PSone filter)
+      unsigned rxw = 0, rxh = 0;
+      if (screenW > 0 && renderer->Xfb(&rxw, &rxh) && rxh) {
+        re4mm::Rect rhud, rpic;
+        re4mm::PictureRects(screenFormat, screenW, screenH, static_cast<int>(rxh), &rhud, &rpic, renderer->XfbWide());
+        std::vector<std::uint8_t> shot;
+        bool read = false;
+        if (screenFormat == 5) {
+          const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
+          read = renderer->ReadPresented(screenW, screenH, rpic.x, rpic.y, rpic.w, rpic.h,
+                                         rxh * static_cast<unsigned>(v.top) / 448, rxh * static_cast<unsigned>(v.rows) / 448,
+                                         &shot);
+        } else if (screenFormat == 0 || screenFormat == 2) {
+          read = renderer->ReadPresented(screenW, screenH, rpic.x, rpic.y, rpic.w, rpic.h, rxh * 56 / 448, rxh * 336 / 448,
+                                         &shot);
+        } else {
+          read = renderer->ReadPresented(screenW, screenH, rpic.x, rpic.y, rpic.w, rpic.h, 0, 0, &shot);
+        }
+        const std::string file = out + "/" + Stem(path) + "-rescaled-screen.ppm";
+        if (read && shot.size() >= static_cast<std::size_t>(screenW) * screenH * 4) {
+          if (FILE *p = std::fopen(file.c_str(), "wb")) {
+            std::fprintf(p, "P6\n%d %d\n255\n", screenW, screenH);
+            for (int y = 0; y < screenH; y++)
+              for (int x = 0; x < screenW; x++)
+                std::fwrite(&shot[(static_cast<std::size_t>(y) * screenW + x) * 4], 1, 3, p);
+            std::fclose(p);
+          }
+        }
+      }
     }
     const re4gx::GxStats before = renderer->Stats();
     if (timed)
-      glFinish();
+      Finish();
     const auto runStart = std::chrono::steady_clock::now();
     renderer->Run(chunk);
     if (timed) {
-      glFinish();
+      Finish();
       std::printf("%s: Run %.2f ms (mit glFinish)\n", Stem(path).c_str(),
                   std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - runStart).count());
     }
-    // the merged draw calls' programs this chunk wanted, made as the app makes them between two chunks
-    if (renderer->Merging())
+    // the merged draw calls' programs this chunk wanted, made as the app makes them between two chunks;
+    // RE4_GX_PREWARM=1: the room's programs and pipelines ahead as well (RE4_GX_ROOM, RE4_GX_PROGRAM_CACHE)
+    static const bool prewarm = std::getenv("RE4_GX_PREWARM") && *std::getenv("RE4_GX_PREWARM") == '1';
+    if (renderer->Merging() || prewarm)
       renderer->Prewarm(1e9);
     if (held)
       std::printf("%s: Bild war angehalten (nicht auf dem Bildschirm)%s\n", Stem(path).c_str(),
@@ -362,6 +439,15 @@ int main(int argc, char **argv) {
                                                       "x zurückgemalt").c_str() : "",
                 s.missingTextures > before.missingTextures ? ", fehlende Texturen" : "",
                 s.shaderErrors > before.shaderErrors ? ", FEHLER: Shader" : "");
+    if (s.hdLookups > before.hdLookups)
+      std::printf("  HD: %u of %u textures replaced, %u without a replacement, %u over the budget, %u not readable; "
+                  "replacements on the GPU %.1f MB\n",
+                  s.hdTextures - before.hdTextures, s.hdLookups - before.hdLookups, s.hdMisses - before.hdMisses,
+                  s.hdOverBudget - before.hdOverBudget, s.hdReadErrors - before.hdReadErrors, s.hdBytesNow / 1048576.0);
+    if (s.hdLookups > before.hdLookups)
+      std::printf("  HD time: key and lookup %.1f ms, reading %.1f ms, GPU upload %.1f ms\n",
+                  (s.hdKeyUs - before.hdKeyUs) / 1000.0, (s.hdReadUs - before.hdReadUs) / 1000.0,
+                  (s.hdUploadUs - before.hdUploadUs) / 1000.0);
     if (std::getenv("RE4_GX_WORK"))
       std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB, %u gleiche ausgelassen), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
                   "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild), "
@@ -424,13 +510,9 @@ int main(int argc, char **argv) {
     }
     if (s.shaderErrors > before.shaderErrors)
       failures++;
-    if (xfb && w && h) {
-      w = scaled(w);  // the texture holds the scaled picture
-      h = scaled(h);
-      std::vector<unsigned char> rgba(static_cast<std::size_t>(w) * h * 4);
-      glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, xfb, 0);
-      glReadPixels(0, 0, static_cast<GLsizei>(w), static_cast<GLsizei>(h), GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    std::vector<std::uint8_t> rgba;
+    if (xfb && w && h && renderer->ReadXfb(&rgba, &w, &h)) {
+      // (the picture's pixels: the scaled size)
       // XFB row 0 is the picture's top row
       const std::string file = out + "/" + Stem(path) + ".ppm";
       if (FILE *p = std::fopen(file.c_str(), "wb")) {
@@ -445,30 +527,33 @@ int main(int argc, char **argv) {
     if (xfb && screenW > 0 && !held) {
       unsigned xw = 0, xh = 0;
       renderer->Xfb(&xw, &xh);
-      glBindFramebuffer(GL_FRAMEBUFFER, screenFbo);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenTex, 0);
-      glViewport(0, 0, screenW, screenH);
-      glDisable(GL_SCISSOR_TEST);
-      glClearColor(0, 0, 0, 1);
-      glClear(GL_COLOR_BUFFER_BIT);
       re4mm::Rect hud, pic;
       re4mm::PictureRects(screenFormat, screenW, screenH, static_cast<int>(xh), &hud, &pic, renderer->XfbWide());
-      if (screenFormat == 5) {
-        const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
-        renderer->Present(pic.x, pic.y, pic.w, pic.h, xh * static_cast<unsigned>(v.top) / 448,
-                          xh * static_cast<unsigned>(v.rows) / 448);
-      } else if (screenFormat == 0 || screenFormat == 2) {
-        renderer->Present(pic.x, pic.y, pic.w, pic.h, xh * 56 / 448, xh * 336 / 448);
-      } else {
-        renderer->Present(pic.x, pic.y, pic.w, pic.h);
+      auto present = [&]() {
+        if (screenFormat == 5) {
+          const re4mm::NativeView v = re4mm::Native(screenW, screenH, renderer->XfbWide());
+          renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * static_cast<unsigned>(v.top) / 448,
+                                  xh * static_cast<unsigned>(v.rows) / 448, &rgba);
+        } else if (screenFormat == 0 || screenFormat == 2) {
+          renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, xh * 56 / 448, xh * 336 / 448, &rgba);
+        } else {
+          renderer->ReadPresented(screenW, screenH, pic.x, pic.y, pic.w, pic.h, 0, 0, &rgba);
+        }
+      };
+      present();
+      // RE4_GX_PRESENT_REPEAT=N (the CRT's cost, 0.99.9): the screen drawn and read back N times more, the mean time
+      if (const char *repeat = std::getenv("RE4_GX_PRESENT_REPEAT")) {
+        const int n = std::max(1, std::atoi(repeat));
+        const auto t0 = std::chrono::steady_clock::now();
+        for (int i = 0; i < n; i++)
+          present();
+        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() / n;
+        std::printf("%s: screen %.2f ms (with the read-back, mean of %d)\n", Stem(path).c_str(), ms, n);
       }
-      std::vector<unsigned char> rgba(static_cast<std::size_t>(screenW) * screenH * 4);
-      glBindFramebuffer(GL_FRAMEBUFFER, screenFbo);
-      glReadPixels(0, 0, screenW, screenH, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
       const std::string file = out + "/" + Stem(path) + "-screen.ppm";
       if (FILE *p = std::fopen(file.c_str(), "wb")) {
         std::fprintf(p, "P6\n%d %d\n255\n", screenW, screenH);
-        for (int y = screenH - 1; y >= 0; y--)  // the screen's rows go bottom up
+        for (int y = 0; y < screenH; y++)  // ReadPresented: row 0 at the top
           for (int x = 0; x < screenW; x++)
             std::fwrite(&rgba[(static_cast<std::size_t>(y) * screenW + x) * 4], 1, 3, p);
         std::fclose(p);
@@ -477,11 +562,17 @@ int main(int argc, char **argv) {
     previous = std::move(loadedHere);
   }
   if (renderer && std::getenv("RE4_GX_WORK")) {
-    glFinish();
+    Finish();
     const re4gx::GxStats &s = renderer->Stats();
     if (s.gpuTimed)
       std::printf("GPU-Zeit (Timer-Abfrage): %.1f ms je Bildstück aus %u Messungen\n",
                   s.gpuMicros / 1000.0 / s.gpuTimed, s.gpuTimed);
+  }
+  // the Vulkan renderer's waits, shaders and pipelines (TimingLine; "" for GL)
+  if (renderer) {
+    const std::string timing = renderer->TimingLine();
+    if (!timing.empty())
+      std::fprintf(stderr, "%s\n", timing.c_str());
   }
   if (renderer)
     renderer->Release();

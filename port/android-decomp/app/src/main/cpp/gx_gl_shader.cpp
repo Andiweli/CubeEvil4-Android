@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 
 namespace re4gx {
 namespace {
@@ -364,6 +365,18 @@ std::atomic<int> gTevMath{kTevMathShift};
 // widened to 0..256, a scale above one moves inside the lerp, and a rounding
 // bias is added before the division by 256 (not with the halving scale).
 // Written as SetTevMath says; all of them give the same numbers.
+// (measurement only, 09.11.2026, port/docs/whole-program-status.md 0.99.6 B: "Farbmodus") RE4_GX_TEV_TEST=1: the TEV
+// simplified as the OUYA branch's fast TEV (no 8-bit steps: no rounding, no wrap to 8 bits, no clamp of an unclamped
+// stage, the lerp's factor without c + (c >> 7)); =2: no TEV at all, the first map times the vertex colour (the most
+// any simplification could save). Read once; the pictures are not the game's then.
+int TevTest() {
+  static const int mode = [] {
+    const char *v = std::getenv("RE4_GX_TEV_TEST");
+    return v && (*v == '1' || *v == '2') ? *v - '0' : 0;
+  }();
+  return mode;
+}
+
 std::string Regular(const char *comp, unsigned bias, unsigned op, unsigned scale) {
   static const char *biasStr[4] = {"", " + 128", " - 128", ""};
   static const char *left[4] = {"", " << 1", " << 2", ""};
@@ -377,6 +390,9 @@ std::string Regular(const char *comp, unsigned bias, unsigned op, unsigned scale
                     factor = "(tevin_c." + c + " + (tevin_c." + c + " >> 7))";
   const char *round = scale != 3 ? (op ? " + 127" : " + 128") : "";
   std::string rounded;
+  if (TevTest() == 1)
+    return "((" + d + (op ? " - " : " + ") + "((" + a + times[scale] + ") + ((" + diff + " * tevin_c." + c + times[scale] +
+           ") >> 8)))" + right[scale] + ")";
   switch (gTevMath.load()) {
   case kTevMathNoShift:
     rounded = "((" + a + times[scale] + ") + (((" + diff + " * " + factor + ")" + times[scale] + round + ") >> 8))";
@@ -422,8 +438,10 @@ const char *kAlphaCompare[8] = {
     "((tevin_a.a == tevin_b.a) ? tevin_c.a : 0)"};
 
 const char *AlphaFunc(unsigned f, const char *ref) {
-  static char buffer[2][64];
-  static int n;
+  // per thread (0.99.5): the shaders are generated on the render thread and on threads of their own at the same time
+  // (GL's WarmProgramCache, Vulkan's AheadThread); one buffer pair for all could hand a thread the other's text
+  static thread_local char buffer[2][64];
+  static thread_local int n;
   static const char *op[8] = {"false", "<", "==", "<=", ">", "!=", ">=", "true"};
   char *b = buffer[n++ & 1];
   if (f == 0 || f == 7)
@@ -434,6 +452,32 @@ const char *AlphaFunc(unsigned f, const char *ref) {
 }
 
 } // namespace
+
+ShaderKey CanonicalShaderKey(const ShaderKey &key) {
+  ShaderKey k = key;
+  unsigned swaps = 0;
+  for (unsigned s = 0; s < 16; s++) {
+    if (s >= k.numStages) {
+      k.konst[s] = 0;  // (MakeKey leaves them 0; a list's key may not)
+      continue;
+    }
+    const std::uint32_t cc = k.colorEnv[s], ac = k.alphaEnv[s];
+    // the stage's inputs a, b, c, d (GxFragmentShader: kColorIn 14 and kAlphaIn 6 are KONST)
+    bool colour = false, alpha = false;
+    for (int b : {12, 8, 4, 0})
+      colour = colour || ((cc >> b) & 15) == 14;
+    for (int b : {13, 10, 7, 4})
+      alpha = alpha || ((ac >> b) & 7) == 6;
+    k.konst[s] = (colour ? k.konst[s] & 0xFFu : 0u) | (alpha ? k.konst[s] & 0xFF00u : 0u);
+    swaps |= 1u << (ac & 3) | 1u << ((ac >> 2) & 3);  // its raster and texture swap tables
+  }
+  for (unsigned t = 0; t < 4; t++)
+    if (!(swaps & (1u << t)))
+      k.swap[t] = 0;
+  if (((k.fog >> 1) & 7) == 0)
+    k.fog = 0;  // no fog: its projection bit unused
+  return k;
+}
 
 std::string GxFragmentShader(const ShaderKey &k) {
   std::string out = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
@@ -454,9 +498,9 @@ std::string GxFragmentShader(const ShaderKey &k) {
     if (k.texMaps & (1u << m))
       Add(out,
           "ivec4 texmap%d(ivec2 c) {\n"
-          "  return ivec4(round(texture(s%d, vec2(c) / (128.0 * mapSize[%d].xy), mapSize[%d].z) * 255.0));\n"
+          "  return ivec4(%s(texture(s%d, vec2(c) / (128.0 * mapSize[%d].xy), mapSize[%d].z) * 255.0));\n"
           "}\n",
-          m, m, m, m);
+          m, TevTest() == 1 ? "" : "round", m, m, m);
   out += "void main() {\n";
   // PSone demake: the depth of the unsnapped surface at this pixel (GxVertexShader). Its plane is the one
   // vPsxPos lies on (every value of it is a mix of the three unsnapped corners); the ray through the pixel
@@ -478,13 +522,28 @@ std::string GxFragmentShader(const ShaderKey &k) {
            "      fragZ = clamp((vp[0].z * (proj[1].x * z + proj[1].y) / -z + vp[1].y) / 16777215.0, 0.0, 1.0);\n"
            "  }\n"
            "  gl_FragDepth = fragZ;\n";
+  if (TevTest() == 2) {
+    // (measurement only) the first map times the vertex colour, the fog and alpha test left out
+    int first = -1;
+    for (int m = 0; m < 8 && first < 0; m++)
+      if (k.texMaps & (1u << m))
+        first = m;
+    if (first >= 0 && k.numTexGens)
+      Add(out, "  oColor = clamp(vColor0, 0.0, 1.0) * texture(s%d, vTex0.xy);\n}\n", first);
+    else
+      out += "  oColor = clamp(vColor0, 0.0, 1.0);\n}\n";
+    return out;
+  }
+  const bool fast = TevTest() == 1;
   out += "  ivec4 prev = colors[0];\n  ivec4 c0 = colors[1];\n  ivec4 c1 = colors[2];\n  ivec4 c2 = colors[3];\n";
   out += "  ivec4 rastemp = ivec4(0);\n  ivec4 textemp = ivec4(0);\n  ivec4 konsttemp = ivec4(0);\n";
   out += "  ivec4 tevin_a, tevin_b, tevin_c, tevin_d;\n";
   out += "  ivec2 tevcoord = ivec2(0);\n  int alphabump = 0;\n";
   out += "  ivec3 comp16 = ivec3(1, 256, 0);\n  ivec3 comp24 = ivec3(1, 256, 65536);\n";
-  out += "  ivec4 ras0 = ivec4(round(clamp(vColor0, 0.0, 1.0) * 255.0));\n";
-  out += "  ivec4 ras1 = ivec4(round(clamp(vColor1, 0.0, 1.0) * 255.0));\n";
+  out += fast ? "  ivec4 ras0 = ivec4(clamp(vColor0, 0.0, 1.0) * 255.0);\n"
+              : "  ivec4 ras0 = ivec4(round(clamp(vColor0, 0.0, 1.0) * 255.0));\n";
+  out += fast ? "  ivec4 ras1 = ivec4(clamp(vColor1, 0.0, 1.0) * 255.0);\n"
+              : "  ivec4 ras1 = ivec4(round(clamp(vColor1, 0.0, 1.0) * 255.0));\n";
   for (unsigned i = 0; i < k.numTexGens; i++)
     Add(out,
         "  ivec2 fixuv%u = ivec2((vTex%u.z == 0.0 ? vTex%u.xy : vTex%u.xy / vTex%u.z) * coordSize[%u].xy * "
@@ -578,9 +637,10 @@ std::string GxFragmentShader(const ShaderKey &k) {
     }
     const unsigned kc = k.konst[n] & 0xFF, ka = (k.konst[n] >> 8) & 0xFF;
     Add(out, "    konsttemp = ivec4(%s, %s);\n", KonstColor(kc).c_str(), KonstAlpha(ka).c_str());
-    Add(out, "    tevin_a = ivec4(%s, %s) & 255;\n", kColorIn[(cc >> 12) & 15], kAlphaIn[(ac >> 13) & 7]);
-    Add(out, "    tevin_b = ivec4(%s, %s) & 255;\n", kColorIn[(cc >> 8) & 15], kAlphaIn[(ac >> 10) & 7]);
-    Add(out, "    tevin_c = ivec4(%s, %s) & 255;\n", kColorIn[(cc >> 4) & 15], kAlphaIn[(ac >> 7) & 7]);
+    const char *mask = fast ? "" : " & 255";
+    Add(out, "    tevin_a = ivec4(%s, %s)%s;\n", kColorIn[(cc >> 12) & 15], kAlphaIn[(ac >> 13) & 7], mask);
+    Add(out, "    tevin_b = ivec4(%s, %s)%s;\n", kColorIn[(cc >> 8) & 15], kAlphaIn[(ac >> 10) & 7], mask);
+    Add(out, "    tevin_c = ivec4(%s, %s)%s;\n", kColorIn[(cc >> 4) & 15], kAlphaIn[(ac >> 7) & 7], mask);
     Add(out, "    tevin_d = ivec4(%s, %s);\n", kColorIn[cc & 15], kAlphaIn[(ac >> 4) & 7]);
     // colour
     {
@@ -591,8 +651,11 @@ std::string GxFragmentShader(const ShaderKey &k) {
         v = std::string("(tevin_d.rgb + ") + kColorCompare[op | scale << 1] + ")";
       else
         v = Regular("rgb", b, op, scale);
-      Add(out, "    %s.rgb = clamp(%s, %s);\n", kDest[dest], v.c_str(),
-          clampOut ? "ivec3(0), ivec3(255)" : "ivec3(-1024), ivec3(1023)");
+      if (fast && !clampOut)
+        Add(out, "    %s.rgb = %s;\n", kDest[dest], v.c_str());
+      else
+        Add(out, "    %s.rgb = clamp(%s, %s);\n", kDest[dest], v.c_str(),
+            clampOut ? "ivec3(0), ivec3(255)" : "ivec3(-1024), ivec3(1023)");
     }
     // alpha
     {
@@ -603,7 +666,10 @@ std::string GxFragmentShader(const ShaderKey &k) {
         v = std::string("(tevin_d.a + ") + kAlphaCompare[op | scale << 1] + ")";
       else
         v = Regular("a", b, op, scale);
-      Add(out, "    %s.a = clamp(%s, %s);\n", kDest[dest], v.c_str(), clampOut ? "0, 255" : "-1024, 1023");
+      if (fast && !clampOut)
+        Add(out, "    %s.a = %s;\n", kDest[dest], v.c_str());
+      else
+        Add(out, "    %s.a = clamp(%s, %s);\n", kDest[dest], v.c_str(), clampOut ? "0, 255" : "-1024, 1023");
     }
     out += "  }\n";
   }
@@ -614,7 +680,7 @@ std::string GxFragmentShader(const ShaderKey &k) {
     if (ad)
       Add(out, "  prev.a = %s.a;\n", kDest[ad]);
   }
-  out += "  prev = prev & 255;\n";
+  out += fast ? "  prev = clamp(prev, 0, 255);\n" : "  prev = prev & 255;\n";
   // alpha test
   {
     const unsigned f0 = k.alphaTest & 7, f1 = (k.alphaTest >> 3) & 7, logic = (k.alphaTest >> 6) & 3;

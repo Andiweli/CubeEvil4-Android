@@ -58,6 +58,7 @@
 // stood still, the Ganado slid about). The character's entries are read from its Mercenaries file once
 // (loadStandInSet) and stand in for the story's. The X button commands Ashley (wait / follow) as with Leon.
 #include "types.h"
+#include "atari.h"
 #include "global.h"
 #include "item.h"
 #include "main.h"
@@ -72,7 +73,10 @@
 #include "em.h"
 #include "pl_sub.h"
 #include "pl_npc.h"
+#include "puzzle.h"
 #include <dolphin/dvd.h>
+
+#include <algorithm>
 
 #include <atomic>
 #include <stdint.h>
@@ -81,6 +85,7 @@
 #include <string.h>
 
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" int re4_bench_freeze(void);  // runtime/benchmark.cpp: 1 while the benchmark goes to or is at its place
 extern "C" void re4_formats_part_loaded(const char* name, int nest, int index, const void* part, unsigned addr);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" void re4_qte_auto(int on);                          // runtime/qte_touch.cpp
@@ -146,6 +151,203 @@ const char* actionName(int what)
         return "extra games";
     }
     return "?";
+}
+
+// ---- Krauser's bow in the story (0.99.10, a user's wish through the project owner, 11.11.2026) -------------------
+// His bow is item 0x52 (weapon 0x1C, his own file: ownWeapon; read.cpp wep_data_klauser 0x1C), its arrows are item
+// 0x72 (20 a slot, item.cpp itemInfo; cItemMgr::trigger takes one a shot, nothing with "Infinite ammo"); his
+// Mercenaries start with the bow and 30 arrows (item.cpp set_char 4). The story has no arrows to find and the
+// merchant sells none: each room start fills them up (re4_story_char_room). Leon and the other stand-ins have no file for weapon 0x1C
+// (wep_data_leon 0x1C is empty): the bow and the arrows leave the case at the room start when anyone but Krauser
+// plays (re4_story_char_room), and saves on the memory card never hold them (re4_story_char_card_items: a save is
+// Leon's, for the GameCube and Dolphin as well).
+const u16 kBow = 0x52, kArrows = 0x72;
+const u8 kBowWeapon = 0x1C;   // the bow's weapon number (item.cpp wep_info)
+const int kArrowSlot = 20;    // item.cpp itemInfo 0x72: maxNum
+const int kArrowsGiven = 40;  // two full slots
+
+// The app's own items (Krauser's bow and arrows, Wesker's silencer) go into the case as the game puts a found item in
+// (puzzle.cpp PutInCase: the slots of its kind filled up first, then a free place in the case, turned if need be),
+// never onto the spare board beside it: the case shows that board only while a found item that does not fit is
+// placed, so what lay there could neither be seen nor taken (the project owner's report 11.11.2026, Krauser with a
+// full case: "item 0x52 ... moved to (2 6) turn 1 on the spare board"; ItemMgr.get gave a slot without a place and
+// patch 0100 found one only there). Without room in the case the item does not come now; the next room start tries
+// again. True when it went in.
+void heldAgain(cItem* gun);
+
+bool putIn(u16 id, u16 num)
+{
+    return PutInCase(id, num, (s8) SubScreenWk.board_size) == 1;
+}
+
+// Slots of `id` that lie on the spare board or have no place yet (cItem::board 0: put there by the 0.99.10 builds
+// before this fix; pzlPlayer::save keeps 1 for the case), not in the hands: out, so that putIn places them anew.
+// Returns what they held (pieces or rounds).
+int offTheSpareBoard(u16 id)
+{
+    int n = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+        if (!(p->flags & 1) || p->id != id || p->board != 0 || p == ItemMgr.weapon()) {
+            continue;
+        }
+        cItem* gun = itemType(id) == 9 && p->lv == 1 ? ItemMgr.at(p->bullet) : 0;
+        n += itemType(id) == 2 ? p->num : 1;
+        ItemMgr.dumpAll(p);
+        heldAgain(gun);
+    }
+    if (n) {
+        re4_log("cheat: item 0x%02x off the spare board (%d), into the case where there is room (r%03x)", id, n,
+                (unsigned) pG->room_id);
+    }
+    return n;
+}
+
+// Krauser plays the story (each room start): the bow when it is missing and the arrows up to 40, each into the case
+// where there is room (putIn). 1 the bow added, 2 it was there, -1 no room for the bow (nothing given now).
+int giveBow()
+{
+    offTheSpareBoard(kBow);
+    offTheSpareBoard(kArrows);
+    int result = 2;
+    if (!ItemMgr.search(kBow)) {
+        if (!putIn(kBow, 1) || !ItemMgr.search(kBow)) {
+            re4_log("cheat: Krauser's bow: no room in the case, not now; again at the next room start (r%03x)",
+                    (unsigned) pG->room_id);
+            return -1;
+        }
+        result = 1;
+    }
+    auto arrows = []() {
+        int n = 0;
+        cItem* p = ItemMgr.m_pItem;
+        for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+            if ((p->flags & 1) && p->id == kArrows) {
+                n += p->num;
+            }
+        }
+        return n;
+    };
+    const int had = arrows();
+    int have = had;
+    while (have < kArrowsGiven) {
+        const int more = std::min(kArrowSlot, kArrowsGiven - have);
+        if (!putIn(kArrows, (u16) more)) {
+            re4_log("cheat: Krauser's bow: no room in the case for more arrows (r%03x)", (unsigned) pG->room_id);
+            break;
+        }
+        have = arrows();
+    }
+    if (result == 1 || have != had) {
+        re4_log("cheat: Krauser's bow %s, arrows %d -> %d (r%03x)", result == 2 ? "kept" : "added", had, have,
+                (unsigned) pG->room_id);
+    }
+    return result;
+}
+
+// The bow and the arrows out of the case (anyone but Krauser plays); `why` for the log.
+void stripBow(const char* why)
+{
+    int bows = 0, arrows = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+        if (!(p->flags & 1) || (p->id != kBow && p->id != kArrows)) {
+            continue;
+        }
+        if (p->id == kBow) {
+            bows++;
+        } else {
+            arrows += p->num;
+        }
+        if (p == ItemMgr.weapon()) {
+            ItemMgr.arm(0);
+        }
+        ItemMgr.dumpAll(p);
+    }
+    // the weapon the room start reads (ReadWepData with pG->weapon_no): empty hands (wep_info 0x800: weapon 0)
+    // instead of the bow (the PC check 11.11.2026: Leon read weapon 0x1C, an empty entry, and crashed)
+    const bool held = pG->weapon_no == kBowWeapon;
+    if (held) {
+        pG->weapon_no = 0;
+        pG->weapon_type = 0;
+    }
+    if (bows || arrows || held) {
+        re4_log("cheat: Krauser's bow (%d) and %d arrows out of the case%s: %s", bows, arrows,
+                held ? ", empty hands instead of the bow" : "", why);
+    }
+}
+
+// ---- Wesker's silencer in the story (0.99.10, the project owner 11.11.2026: "Ja, einbauen") ------------------------
+// His Mercenaries handgun is item 0x23 with the silencer 0x3F put on it (item.cpp set_char 5: the part's bullet = the
+// handgun's slot, lv 1); together they are 0x24, weapon 2 type 1, which his own file has (wep43 with both models,
+// ownWeapon). The story has no silencer (no merchant, no place). While Wesker plays the story each room start gives it
+// when it is missing and puts it on the handgun 0x23 (none in the case: none given). It also fits Leon's Punisher
+// 0x21 and Blacktail 0x27 (item.cpp combination_info: 0x22, 0x28, Leon's files; his debug item set 3 has the silencer
+// with them): put there by the player in the case it stays. Anyone else plays (Ashley's part apart): it leaves the
+// case, the pistol it was on is that pistol again (cItemMgr::erase re-arms with the new id); saves on the memory card
+// never keep it (re4_story_char_card_items, patch 0228).
+const u16 kSilencer = 0x3F, kWeskerGun = 0x23;
+
+// The weapon the room start reads (ReadWepData with pG->weapon_no / weapon_type) as the armed slot is now, when
+// `gun` is the armed one (a part put on or taken off).
+void heldAgain(cItem* gun)
+{
+    if (!gun || ItemMgr.weapon() != gun) {
+        return;
+    }
+    ItemMgr.arm(gun);
+    const u16 id = ItemMgr.weaponId();
+    pG->weapon_no = (u8) WeaponId2WeaponNo(id);
+    pG->weapon_type = (u8) WeaponId2WeaponType(id);
+}
+
+// Wesker plays the story (each room start): the silencer when it is missing, on the handgun 0x23. 1 given, 2 there
+// already, 0 no handgun 0x23 in the case, -1 no room.
+int giveSilencer()
+{
+    offTheSpareBoard(kSilencer);
+    if (ItemMgr.search(kSilencer)) {
+        return 2;
+    }
+    cItem* gun = ItemMgr.search(kWeskerGun);
+    if (!gun) {
+        re4_log("cheat: Wesker's silencer: no handgun 0x23 in the case (r%03x)", (unsigned) pG->room_id);
+        return 0;
+    }
+    cItem* s = 0;
+    if (!putIn(kSilencer, 1) || !(s = ItemMgr.search(kSilencer))) {
+        re4_log("cheat: Wesker's silencer: no room in the case, not now; again at the next room start (r%03x)",
+                (unsigned) pG->room_id);
+        return -1;
+    }
+    ItemMgr.partsCombine(gun, s);
+    heldAgain(gun);
+    re4_log("cheat: Wesker's silencer on his handgun (0x%02x%s, r%03x)", (unsigned) ItemMgr.weaponId(gun),
+            ItemMgr.weapon() == gun ? ", in his hands" : "", (unsigned) pG->room_id);
+    return 1;
+}
+
+// The silencer out of the case (anyone but Wesker plays); `why` for the log.
+void stripSilencer(const char* why)
+{
+    int count = 0;
+    cItem* p = ItemMgr.m_pItem;
+    for (int i = 0; i < ItemMgr.m_array_num; i++, p++) {
+        if (!(p->flags & 1) || p->id != kSilencer) {
+            continue;
+        }
+        cItem* gun = p->lv == 1 ? ItemMgr.at(p->bullet) : 0;
+        const u16 was = gun ? ItemMgr.weaponId(gun) : 0;
+        ItemMgr.dumpAll(p);
+        heldAgain(gun);
+        count++;
+        re4_log("cheat: Wesker's silencer out of the case%s: %s", gun ? "" : " (it was on no pistol)", why);
+        if (gun) {
+            re4_log("cheat: the pistol 0x%02x is 0x%02x again%s", (unsigned) was, (unsigned) ItemMgr.weaponId(gun),
+                    ItemMgr.weapon() == gun ? " (in the hands)" : "");
+        }
+    }
+    (void) count;
 }
 
 bool extrasUnlocked()
@@ -370,6 +572,10 @@ int wantedBits()
 // (a new game after the ending asks for it)
 int wantedCostume()
 {
+    // the benchmark's place (0.99.10): its own save's costume, the same for everyone (see wantedChar)
+    if (re4_bench_freeze()) {
+        return -1;
+    }
     if (wantedBits() & kCostume) {
         return 1;
     }
@@ -385,6 +591,13 @@ bool costumeChange()
 
 int wantedChar()
 {
+    // the benchmark's place (0.99.10, the project owner's Retroid log 11.11.2026: "the story's player is Wesker from
+    // r11b on"): always Leon there, as its save has him, so that every device measures the same scene (another
+    // character has other files, his weapon module, Krauser's bow ...). The way back loads the player's own game,
+    // whose room start takes the cheat's character again
+    if (re4_bench_freeze()) {
+        return 0;
+    }
     int wanted = wantedBits();
     int type = (wanted & kChar) >> kCharShift;
     return type >= 2 && type <= 5 ? type : 0;
@@ -759,6 +972,7 @@ bool ownWeapon(int type, int no, int wtype)
 // its item: the same room deals the same items after a reload, a death or a room change. The item's flags stay,
 // so what was taken stays taken and a save plays with the switch on or off alike.
 const u8 kMark = 0xA5;  // pad2[0] of a record the deal has seen
+const f32 kRestAbove = 100.0f;  // a dealt item at most this far above the floor below is put down onto it (dealRoom)
 const u8 kAmmoIds[] = {0x04, 0x18, 0x07, 0x20, 0x00};
 const u8 kGrenadeIds[] = {0x01, 0x02, 0x0E};
 const u8 kHealIds[] = {0x06, 0x19, 0x1C, 0x05, 0x08, 0x09, 0x0A, 0x12, 0x13, 0x14, 0x15, 0x16, 0xA8, 0x95, 0x97};
@@ -877,7 +1091,7 @@ void dealRoom(SCE_AT_DATA* work, int num)
     const int wanted = wantedBits();
     const bool on = (wanted & kItemRandom) && storyGame() && pG->pl_type != 1;
     const u32 seed = (u32) (wanted & kSeedMask) >> kSeedShift;
-    int pool = 0, changed = 0;
+    int pool = 0, changed = 0, down = 0;
     char list[600];
     int len = 0;
     list[0] = 0;
@@ -929,10 +1143,21 @@ void dealRoom(SCE_AT_DATA* work, int num)
         }
         it.item_id = (u16) id;
         it.item_num = count;
+        // the new model put down onto the surface below, as the game puts down the items enemies drop (sceAtSetItem:
+        // EatMgr.getFloor): the records hold the old item a little above it (r227, the crate by the merchant: 49..57
+        // units, the boxes' flat models hide it; a herb's pot or a grenade there stood in the air, the project owner's
+        // Retroid screenshot 08.11.2026). Only within kRestAbove: farther down is a floor under furniture without
+        // collision, where the item stays as the record has it
+        const f32 floor = EatMgr.getFloor(&it.item_pos, 0, 0.0f, 100000.0f, 0);
+        if (floor <= it.item_pos.y && it.item_pos.y - floor <= kRestAbove) {
+            down += it.item_pos.y > floor ? 1 : 0;
+            it.item_pos.y = floor;
+        }
     }
     if (on) {
-        re4_log("cheat: random items in r%03x (seed %u): %d of %d items of the pool changed, %d records%s",
-                (unsigned) pG->room_id, (unsigned) seed, changed, pool, num, list);
+        re4_log("cheat: random items in r%03x (seed %u): %d of %d items of the pool changed (%d put down onto the "
+                "surface below), %d records%s",
+                (unsigned) pG->room_id, (unsigned) seed, changed, pool, down, num, list);
     }
 }
 
@@ -1143,6 +1368,116 @@ void re4_story_char_room(void)
         }
     }
     re4_story_ganado = standIn() && gSetType == pG->pl_type;
+    // Krauser's bow (0.99.10): his own weapon while he plays the story, with the arrows up to 40 at each room
+    // start; nobody else has a file for it. Wesker's silencer (0.99.10) the same way. Ashley's part keeps Leon's case
+    // as it is
+    char why[48];
+    snprintf(why, sizeof(why), "%s plays from r%03x on", kCharName[pG->pl_type & 7], (unsigned) pG->room_id);
+    if (pG->pl_type == 4 && standIn()) {
+        giveBow();
+    } else if (pG->pl_type != 1) {
+        stripBow(why);
+    }
+    if (pG->pl_type == 5 && standIn()) {
+        giveSilencer();
+    } else if (pG->pl_type != 1) {
+        stripSilencer(why);
+    }
+}
+
+// Patch 0228 (card.cpp cCard::makeSaveData): the save file's image without Krauser's bow and arrows (and Wesker's
+// silencer, 0.99.10), as it is Leon's
+// save (re4_story_char_save): `items` its item block (cItemMgr::save's _ITEM_SAVE_DATA, host order), `game` its
+// copy of the save block that starts at pG->save_data_start_addr (the weapon a load reads: empty hands instead of the
+// bow). Only the file's image: the game plays on with the case as it is, and the continue point (made just before
+// from the game) keeps the bow too. Only in the story (Krauser's Mercenaries do not save).
+void re4_story_char_card_items(u8* game, u8* items)
+{
+    if (!pG || !storyGame()) {
+        return;
+    }
+    const u8* start = (const u8*) pG->save_data_start_addr;
+    u8* weaponNo = game + ((const u8*) &pG->weapon_no - start);
+    u8* weaponType = game + ((const u8*) &pG->weapon_type - start);
+    const bool held = *weaponNo == kBowWeapon;
+    if (held) {
+        *weaponNo = 0;
+        *weaponType = 0;
+    }
+    _ITEM_SAVE_DATA* sd = (_ITEM_SAVE_DATA*) items;
+    int bows = 0, arrows = 0;
+    for (int i = 0; i < 0x180; i++) {
+        const u16 id = sd->item_list[i].id;
+        if (id == 0xFFFF || ((id & 0x7FFF) != kBow && (id & 0x7FFF) != kArrows)) {
+            continue;
+        }
+        if ((id & 0x7FFF) == kBow) {
+            bows++;
+        } else {
+            arrows += sd->item_list[i].num;
+        }
+        memset(&sd->item_list[i], 0, sizeof(sd->item_list[i]));
+        sd->item_list[i].id = 0xFFFF;
+        if (sd->arm_no == i) {
+            sd->arm_no = 0xFFFF;
+            sd->wep_id = bareHand();
+        }
+    }
+    if (bows || arrows || held) {
+        re4_log("cheat: the save on the memory card without Krauser's bow (%d) and %d arrows%s (Leon's save)", bows,
+                arrows, held ? ", empty hands instead of the bow" : "");
+    }
+    // Wesker's silencer (0.99.10): out of the file too; a pistol in the hands that had it is that pistol again (the
+    // save's weapon id and the weapon the load reads, with the parts still on it)
+    int silencers = 0;
+    bool onHeld = false;
+    for (int i = 0; i < 0x180; i++) {
+        ItemSaveWork& w = sd->item_list[i];
+        if (w.id == 0xFFFF || (w.id & 0x7FFF) != kSilencer) {
+            continue;
+        }
+        if (w.num == 1 && sd->arm_no != 0xFFFF && w.bullet == sd->arm_no) {
+            onHeld = true;
+        }
+        memset(&w, 0, sizeof(w));
+        w.id = 0xFFFF;
+        silencers++;
+    }
+    u16 held2 = 0;
+    if (onHeld && sd->arm_no < 0x180 && sd->item_list[sd->arm_no].id != 0xFFFF) {
+        u16 id = sd->item_list[sd->arm_no].id & 0x7FFF;
+        for (int j = 0; j < 0x180; j++) {
+            const ItemSaveWork& q = sd->item_list[j];
+            if (q.id != 0xFFFF && itemType(q.id & 0x7FFF) == 9 && q.num == 1 && q.bullet == sd->arm_no) {
+                itemCombine(id, q.id & 0x7FFF, &id);
+            }
+        }
+        sd->wep_id = id;
+        *weaponNo = (u8) WeaponId2WeaponNo(id);
+        *weaponType = (u8) WeaponId2WeaponType(id);
+        held2 = id;
+    }
+    if (silencers) {
+        char hands[48] = "";
+        if (held2) {
+            snprintf(hands, sizeof(hands), ", the pistol in the hands 0x%02x", (unsigned) held2);
+        }
+        re4_log("cheat: the save on the memory card without Wesker's silencer (%d)%s (Leon's save)", silencers, hands);
+    }
+}
+
+// Patch 0222 (game.cpp GameContinue, right after GameSave.load): the continue point of a stand-in holds Leon
+// (re4_story_char_save), but the stand-in's player is still in memory: its type again, so that PlSetCostume and
+// ContinueWepData take its tables and its weapon buffer. Leon's weapon place (WEP_DATA_ADDR) lies inside Krauser's
+// player archive with his player module; a weapon changed since the save was read there, and OSLink crashed on the
+// overwritten module list (user report 09.11.2026, "crashing every time they die or retry"). The room start
+// (re4_story_char_room) changes the character as before when the cheat menu asks for another one.
+void re4_story_char_continue(void)
+{
+    if (gSwitched >= 2 && gSwitched <= 5 && pG->pl_type == 0 && storyGame()) {
+        pG->pl_type = (u8) gSwitched;
+        re4_log("cheat: continue with %s (the continue point holds Leon)", kCharName[gSwitched]);
+    }
 }
 
 // 1 while Ada, HUNK, Krauser or Wesker plays the story for Leon (the instant save allows them, 04.11.2026)
@@ -1197,6 +1532,20 @@ int re4_story_char_costume(void)
 int re4_story_char_leon_weapon(int no)
 {
     return standIn() && !ownWeapon(pG->pl_type, no, no == pG->weapon_no ? pG->weapon_type : 0);
+}
+
+// Patch 0230 (wep/pl_machine.cpp, pl_handgun.cpp, pl_rifle.cpp: the reload motion by weapon_lv_reload): the level whose
+// motion the player plays. Ada's own weapon files (Punisher, semi-automatic rifle, TMP; ownWeapon) are her Mercenaries
+// files, whose weapons are never tuned: only the reload motion of level 0 is hers; at levels 1 and 2 they hold Leon's
+// motions or placeholders made for his skeleton. On hers they bend her forward, with the TMP at level 2 for good (a
+// user's report, 0.99.11: "Ada with the fully upgraded TMP"). So the story's Ada plays her level 0 motion at every
+// level; the level's own timing (when the magazine is full, when she may leave the reload) stays.
+extern "C" int re4_story_char_reload_level(int lv)
+{
+    if (lv > 0 && standIn() && pG->pl_type == 2 && ownWeapon(2, pG->weapon_no, pG->weapon_type)) {
+        return 0;
+    }
+    return lv;
 }
 
 // Patch 0196 (pl02.cpp cPlAda::setRightHand): Ada's own grip hand for the weapon she holds when it is one

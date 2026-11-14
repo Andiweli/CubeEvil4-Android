@@ -770,8 +770,19 @@ extern "C" void re4_qte_tap(void);
 
 extern "C" void re4_core_touch(float u, float v)
 {
-    // the quick-time prompts take any tap on the picture (qte_touch.cpp)
-    re4_qte_tap();
+    // the quick-time prompts take any tap on the picture (qte_touch.cpp). Since 0.99.15 the app hands a finger over
+    // as it touches down (u -2: the prompt's press at once, any finger, also a second one; until then the press came
+    // with the finger's lift and lost the tap's length) and the tap at the lift with u + 2 (the sub screens only).
+    // An older app's tap (u 0..1) does both, as before.
+    if (u <= -1.5f) {
+        re4_qte_tap();
+        return;
+    }
+    if (u >= 1.5f) {
+        u -= 2.0f;
+    } else {
+        re4_qte_tap();
+    }
     if (!gAnnounced) {
         gAnnounced = true;
         re4_log("touch: taps on the picture reach the sub screens");

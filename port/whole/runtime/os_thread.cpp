@@ -342,18 +342,17 @@ int inGameLibrary(const void* p, LibrarySpans& cache)
             }
         }
         const uintptr_t bias = (uintptr_t) info.dli_fbase - (first & ~(uintptr_t) 0xFFF);
-        uintptr_t lo = UINTPTR_MAX, hi = 0;
-        for (int i = 0; i < eh->e_phnum; i++) {
-            if (phdr[i].p_type == PT_LOAD) {
-                const uintptr_t b = bias + phdr[i].p_vaddr;
-                lo = b < lo ? b : lo;
-                hi = b + phdr[i].p_memsz > hi ? b + phdr[i].p_memsz : hi;
+        // each readable segment on its own, as below
+        for (int i = 0; i < eh->e_phnum && !search.found; i++) {
+            if (phdr[i].p_type != PT_LOAD || !(phdr[i].p_flags & PF_R)) {
+                continue;
             }
-        }
-        if (a >= lo && a < hi) {
-            search.begin = lo;
-            search.end = hi;
-            search.found = true;
+            const uintptr_t b = bias + phdr[i].p_vaddr;
+            if (a >= b && a < b + phdr[i].p_memsz) {
+                search.begin = b;
+                search.end = b + phdr[i].p_memsz;
+                search.found = true;
+            }
         }
     }
 #else
@@ -363,24 +362,22 @@ int inGameLibrary(const void* p, LibrarySpans& cache)
             if (!info->dlpi_name || !strstr(info->dlpi_name, "libre4_")) {
                 return 0;
             }
-            uintptr_t lo = UINTPTR_MAX, hi = 0;
+            // each readable segment on its own: the linker reserves the whole range of a library
+            // and leaves the gaps between its segments PROT_NONE ("---p"); a pointer into such a
+            // gap passed when the check took the library from its lowest to its highest segment
+            // (SIGSEGV SEGV_ACCERR in the state bridge, reports of 08.11.2026)
             for (int i = 0; i < info->dlpi_phnum; i++) {
                 const ElfW(Phdr)& ph = info->dlpi_phdr[i];
-                if (ph.p_type == PT_LOAD) {
-                    uintptr_t b = info->dlpi_addr + ph.p_vaddr;
-                    if (b < lo) {
-                        lo = b;
-                    }
-                    if (b + ph.p_memsz > hi) {
-                        hi = b + ph.p_memsz;
-                    }
+                if (ph.p_type != PT_LOAD || !(ph.p_flags & PF_R)) {
+                    continue;
                 }
-            }
-            if (s->address >= lo && s->address < hi) {
-                s->begin = lo;
-                s->end = hi;
-                s->found = true;
-                return 1;
+                uintptr_t b = info->dlpi_addr + ph.p_vaddr;
+                if (s->address >= b && s->address < b + ph.p_memsz) {
+                    s->begin = b;
+                    s->end = b + ph.p_memsz;
+                    s->found = true;
+                    return 1;
+                }
             }
             return 0;
         },

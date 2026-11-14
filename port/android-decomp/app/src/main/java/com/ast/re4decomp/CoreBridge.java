@@ -53,6 +53,11 @@ public final class CoreBridge {
    * the game's video retraces follow the display (no drift against 60 Hz).
    */
   public static native void vsync(long frameTimeNanos);
+  /**
+   * The beat's grid (FramePacing.every): the picture drawn at every n-th vsync; on a screen that stays faster than
+   * 60 Hz each picture then asks for its own vsync (0.99.13, core_mode.cpp present::beforeSwap).
+   */
+  public static native void setPictureEvery(int n);
   /** The room the game is in (stage << 8 | room), -1 outside a room. */
   public static native int wantedRoom();
   /** The decoded room archive for a room (RoomRepository), or the error. */
@@ -76,6 +81,15 @@ public final class CoreBridge {
   /** Saves the graphics data of the next picture into `folder` (diagnosis; R3). */
   public static native void gxDump(String folder);
   public static native void surfaceCreated();
+  /**
+   * The Vulkan surface's window (VulkanSurface, on its render thread; null when it went): the Vulkan renderer
+   * presents to it (core started with RE4_GX_API=vulkan).
+   */
+  public static native void vkWindow(android.view.Surface surface);
+  /** Why the Vulkan renderer could not start; "" while it runs or with OpenGL ES. CoreActivity then goes to GLES. */
+  public static native String rendererProblem();
+  /** The renderer's API, device and driver ("" before the first picture); the report's renderer.txt. */
+  public static native String rendererInfo();
   public static native void resize(int width, int height);
   public static native void draw();
 
@@ -120,9 +134,30 @@ public final class CoreBridge {
   public static native void setAim(boolean invert, float speed, boolean autoAim, boolean alwaysRun);
   /** The game's own options changed "reverse" since the last call (patch 0188): -1, else 0 / 1 for "Invert vertical". */
   public static native int aimFromGame();
-  /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default). */
+  /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
+   *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
+   *  off; the core's runtime/potato.cpp). */
   static int potatoMask(android.content.SharedPreferences g) {
-    return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2);
+    return (g.getBoolean("weatherEffects", true) ? 0 : 1) | (g.getBoolean("specialEffects", true) ? 0 : 2)
+        | (particleEffects(g) << 2) | (g.getBoolean("shadowsLight", true) ? 0 : 16);
+  }
+  /** The lens flares' step (0.99.6, wish of the project owner, 09.11.2026): 0 off (the default), 1 lens flares, 2 halos +
+   *  lens flares; until 0.99.5 the switch "flares", whose "on" was the halos and the lens flares together. */
+  static final String FLARE_MODE = "flareMode";
+  static int flareMode(android.content.SharedPreferences g) {
+    if (g.contains(FLARE_MODE)) return Math.max(0, Math.min(2, g.getInt(FLARE_MODE, 0)));
+    return g.getBoolean("flares", false) ? 2 : 0;
+  }
+  /** The Potato mode's "View distance" (0.99.6, wish of the project owner, 09.11.2026, from the OUYA branch): 0 Normal
+   *  (the default, the game's), 1 Medium, 2 Short (the OUYA's setting); in percent of the room's view VIEW_PERCENT. */
+  static final String VIEW_DISTANCE = "viewDistance";
+  static final int[] VIEW_PERCENT = {100, 75, 50};
+  static int viewDistance(android.content.SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt(VIEW_DISTANCE, 0)));
+  }
+  /** The Potato mode's "Particle effects" (0.99.3): 0 normal (the default), 1 less, 2 none. */
+  static int particleEffects(android.content.SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt("particleEffects", 0)));
   }
   /**
    * The AUDIO page's volumes, "musicVolume" / "effectsVolume" in the graphics settings (100 by default); 0 while
@@ -172,19 +207,34 @@ public final class CoreBridge {
   /** "Field of view" (PLAYER VIEW): the shoulder camera's vertical field of view changed by `degrees`
    *  (-15 .. +15; 0 as the game; patch 0205), sent with the aim settings. */
   public static native void setFov(int degrees);
-  /** The benchmark (Display -> GRAPHICS): the game goes to two places and the renderer measures its levels. */
-  public static native void startBenchmark();
+  /** The benchmark: the game goes to the lake's dock. `mode` 0: the renderer searches the levels for 30 and 60 FPS,
+   *  the 30 pass from `top` (halves) after `warmup` seconds; 1 (0.99.10): the check of a profile with the app's
+   *  options (benchmarkMeasure, finishBenchmark). */
+  public static native void startBenchmark(int mode, int top, int warmup);
   public static native void cancelBenchmark();
+  /** The check (mode 1) ends: back to where the game was. */
+  public static native void finishBenchmark();
   /** {phase (0 idle, 1 going, 2 measuring, 3 back, 4 done, 5 cancelled, 6 back after a cancel, -1 refused, -2
-   *  failed), run (place * 2 + 60 FPS), level in halves, result with 30, result with 60, pictures a second x 10}. */
+   *  failed), run (0: the 30, 1: the 60 FPS pass), level in halves, result with 30, result with 60, pictures a second
+   *  x 10, held bits, the processor sign, mode}. */
   public static native int[] benchmarkState();
+  /** The check's seconds since the last call: {seconds, game pictures, pictures shown, weak seconds, levels summed}. */
+  public static native int[] benchmarkMeasure();
   /** "Dynamic" up to these levels (halves; 0: none), with 30 and with 60 FPS: the benchmark's result. */
   public static native void setDynamicCaps(int cap30, int cap60);
   /** Original TV filter: the game's vertical copy filter on the picture. */
   public static native void setTvFilter(boolean on);
   public static native void setPsx(boolean on);
-  /** Lens flares at the game's lights (the menu, off by default; GxRenderer::SetFlares). */
-  public static native void setFlares(boolean on);
+  /** HD textures (Cheats & Mods, TexturePacks): the player's pack file ("" off), "Sharpness: Half", the replacements'
+   *  budget in MB. "" when the pack is open (or off), else why it cannot be used. */
+  public static native String setTexturePack(String path, boolean half, int budgetMb);
+  /** What the renderer did with the HD textures: {replaced, looked up, bytes of the replacements on the GPU now}. */
+  public static native long[] texturePackUse();
+  /** Lens flares at the game's lights (the menu, off by default; GxRenderer::SetFlares): 0 off, 1 lens flares (the
+   *  ghosts only), 2 halos + lens flares (the glow and star at each light too; 0.99.6). */
+  public static native void setFlares(int mode);
+  /** The Potato mode's "View distance" (0.99.6, patch 0223): percent of the room's distance fog and far plane. */
+  public static native void setViewDistance(int percent);
   /** The minimap: the current room's outline at the bottom left, turning with the player (off by default). */
   public static native void setMinimap(boolean on);
   /** The laser sight's colour (CONTROLS, LASER SIGHT): 0 the game's red, 1 blue, 2 green, 3 yellow. */
@@ -196,10 +246,34 @@ public final class CoreBridge {
    * drawn and the second drawn at once, so the game keeps its pace on a slow graphics chip.
    */
   public static native void setFrameSkip(boolean on);
+  /**
+   * Aggressive frame skip (saves CPU; patch 0227): while the game's frames run late (longer than two fields) it leaves a picture out
+   * itself (at most one in a row), so the processor's time for it is saved too; the logic keeps its pace. Not with
+   * 60 FPS (the core is told "off" then).
+   */
+  public static native void setCpuSkip(boolean on);
+  /**
+   * Save bandwidth (Vulkan; 0.99.8): the clear after an EFB copy goes with the next pass, which then loads nothing
+   * there (less memory traffic on a tiling GPU such as Mali or Adreno); the pictures stay the same. OpenGL ES: nothing.
+   */
+  public static native void setVkBandwidth(boolean on);
   /** FXAA: an edge smoothing pass over every finished picture. */
   public static native void setFxaa(boolean on);
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
   public static native void setSharpen(int level);
+  /**
+   * CRT (0.99.9; 0 off, 1 light, 2 strong): the picture as a tube TV showed it (lines, a curved glass, a glow); only
+   * what the game draws, not the touch controls nor the app's overlays.
+   */
+  public static native void setCrt(int level);
+  /** Bloom (0.99.13; core_mode.cpp, GxRenderer::SetBloom): 0 off, 1 light, 2 strong. */
+  public static native void setBloom(int level);
+  /** The bloom the renderer gets: the menu's, off while a Potato mode switch is on (0.99.13). */
+  static int bloomSent(android.content.SharedPreferences g) {
+    return potatoMask(g) == 0 && viewDistance(g) == 0 ? CoreMenu.bloomLevel(g) : 0;
+  }
+  /** Colour (0.99.9): mode 0 off, 1 warm film, 2 survival horror; level 1 light, 2 strong. */
+  public static native void setColour(int mode, int level);
   /**
    * Gyro aiming (GyroAim): the device's turn rates in rad/s about the screen's axes (yaw, pitch);
    * the core turns the aim by them while Leon aims a gun. 0, 0: still.
@@ -212,11 +286,27 @@ public final class CoreBridge {
    */
   public static native void aimTurn(float yaw, float pitch);
   /**
+   * The mouse wheel (CoreActivity, 0.99.12): whole notches, up positive. While the scope or the binoculars are up
+   * the core zooms by them (an eighth of the zoom a notch, up zooms in, as the C stick does); elsewhere it drops
+   * them. Cores before 12.11.2026 ignore it.
+   */
+  public static native void zoom(int notches);
+  /** The cheat "Random enemies" (CoreMenu, 0.99.12): its seed (20 bits), 0 off; from the next room on. */
+  public static native void setEnemyRandom(int seed);
+  /** "Gentler QTEs" (CoreMenu, comfort controls, 0.99.15): Professional's quick-time events as Normal's
+   *  (runtime/qte_touch.cpp re4_qte_level, patch 0232); cores before 0.99.15 leave it out. */
+  public static native void setGentleQte(boolean on);
+  /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores
    * before 22.10.2026 ignore it.
    */
   public static native void tap(float x, float y);
+  /** A finger touching down beside the touch controls (0.99.15): a quick-time prompt's press at once (the tap at the
+   *  finger's lift then only goes to the sub screens). */
+  public static native void touchDown();
+  /** Android's thermal status (-1 unknown) and headroom (NaN unknown) for the lines of Dynamic (ThermalWatch, 0.99.15). */
+  public static native void setThermal(int status, float headroom);
   /** A swipe across the picture: 1 to the left (the next tab of the game's sub screen), -1 to the right. */
   public static native void swipe(int dir);
   /**

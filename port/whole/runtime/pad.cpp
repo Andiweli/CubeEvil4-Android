@@ -223,7 +223,18 @@ extern "C" void re4_pad_menu_probe(int (*probe)(void))
     g_menuProbe = probe;
 }
 
-// the frame that just ended into the rumble record (PADRead), bit 4 the menu (re4_core.h)
+// Whether the scope or the binoculars are up (the C stick zooms there): runtime/wheel_zoom.cpp (libre4_main)
+// hands its test over when the library loads, as the menu's above (0.99.12: the rumble word's bit 6, the app then
+// keeps the mouse off the C stick).
+static int (*g_zoomProbe)(void);
+
+extern "C" void re4_pad_zoom_probe(int (*probe)(void))
+{
+    g_zoomProbe = probe;
+}
+
+// the frame that just ended into the rumble record (PADRead), bit 4 the menu, bit 6 the scope or the
+// binoculars (re4_core.h)
 static void noteRumble()
 {
     static u32 offFrames = 30, starts;
@@ -240,7 +251,14 @@ static void noteRumble()
                                             : menu ? "button prompt shown" : "menu or prompt closed",
                 gFrame);
     }
-    g_rumble = ((gFrame + 1) << 8) | menu | (((before << 1) | on) & 0xF);
+    const u32 zoom = g_zoomProbe && g_zoomProbe() ? 0x40u : 0u;
+    static u32 zoomLines;
+    if (zoom != (before & 0x40u) && zoomLines < 60) {
+        zoomLines++;
+        re4_log("pad: the scope or the binoculars %s at frame %u", zoom ? "up (the app keeps the mouse off the C stick)"
+                                                                        : "down", gFrame);
+    }
+    g_rumble = ((gFrame + 1) << 8) | zoom | menu | (((before << 1) | on) & 0xF);
     if (on && offFrames >= 30 && starts < 16) {
         starts++;
         re4_log("pad: rumble from frame %u", gFrame);
@@ -282,6 +300,46 @@ static u16 g_add;
 void re4_pad_add(u16 buttons)
 {
     g_add |= buttons;
+}
+
+// The C stick a frame hook sets on channel 0 for the frame it runs in (re4_pad_substick: the mouse wheel's zoom,
+// runtime/wheel_zoom.cpp): straight up (y > 0) or down, y as the game sees it after the SDK's PADClamp (src/lib/
+// Padclamp.c: 15 off, at most 59 straight), in place of the controller's or the script's C stick.
+static bool g_subSet;
+static s8 g_subY;
+
+void re4_pad_substick(int y)
+{
+    if (y > 59) y = 59;
+    if (y < -59) y = -59;
+    g_subY = (s8) (y > 0 ? y + 15 : y < 0 ? y - 15 : 0);
+    g_subSet = true;
+}
+
+// The main stick a frame hook adds on channel 0 for the frame it runs in (re4_pad_stick_add: the mouse in the
+// binoculars, runtime/wheel_zoom.cpp): x, y as the game sees them after PADClamp (15 off, at most 72, an octagon),
+// on top of the controller's or the move keys' stick; alone it reaches the game exactly.
+static bool g_stickSet;
+static int g_stickX, g_stickY;
+
+void re4_pad_stick_add(int x, int y)
+{
+    g_stickX = x;
+    g_stickY = y;
+    g_stickSet = true;
+}
+
+// a raw stick value as PADClamp's dead zone leaves it (one axis), and back
+static int stickAfterClamp(int raw)
+{
+    return raw > 15 ? raw - 15 : raw < -15 ? raw + 15 : 0;
+}
+
+static s8 stickRaw(int v)
+{
+    if (v > 72) v = 72;
+    if (v < -72) v = -72;
+    return (s8) (v > 0 ? v + 15 : v < 0 ? v - 15 : 0);
 }
 
 // Live controller (the app): written by its input thread, read by PADRead.
@@ -415,6 +473,16 @@ u32 PADRead(PADStatus* status)
             status[0].analogA = (status[0].button & 0x0100) ? 0xFF : 0;
             status[0].analogB = (status[0].button & 0x0200) ? 0xFF : 0;
         }
+    }
+    if (g_subSet) {
+        status[0].substickX = 0;
+        status[0].substickY = g_subY;
+        g_subSet = false;
+    }
+    if (g_stickSet) {
+        status[0].stickX = stickRaw(stickAfterClamp(status[0].stickX) + g_stickX);
+        status[0].stickY = stickRaw(stickAfterClamp(status[0].stickY) + g_stickY);
+        g_stickSet = false;
     }
     if (g_add) {
         status[0].button |= g_add;

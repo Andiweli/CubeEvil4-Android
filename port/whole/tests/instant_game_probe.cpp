@@ -14,9 +14,12 @@
 #include "main.h"
 #include "title.h"
 #include "../runtime/re4_instant.h"
+#include <dolphin/os.h>
 #include <string.h>
 
 extern "C" void re4_log(const char*, ...);
+extern "C" void re4_instant_game_pause(int on);
+extern "C" int re4_instant_play_seconds(void);
 extern "C" int re4_mem1_init();
 
 extern "C" int re4probe_instant_game_test()
@@ -53,6 +56,10 @@ extern "C" int re4probe_instant_game_test()
     pG->peseta = 54321;
     pG->room_id = 0x100;
     pG->play_time = 1234;
+    // 0.99.11 (the Information HUD): 5 s since the last InitGameTime / SetGameTime, which the capture folds in as the
+    // typewriter's save does
+    const u32 now = (u32) OSTicksToSeconds(OSGetTime());
+    pG->game_start_time = now - 5;
     pG->save_cnt = 7;
     pG->SaveKind = -1;
     pG->pl_pos.x = 999;
@@ -94,8 +101,9 @@ extern "C" int re4probe_instant_game_test()
     GLOBAL_WK* saved = (GLOBAL_WK*) (out + 0x2034 - __builtin_offsetof(GLOBAL_WK, save_data_start_addr));
     CHECK_INSTANT(saved->pl_pos.x == -1340.5f && saved->pl_pos.y == 42 && saved->pl_pos.z == 717 &&
                   saved->pl_ang_y == .75f);
-    CHECK_INSTANT(saved->save_cnt == 8 && saved->play_time == 1234 && saved->peseta == 54321 &&
-                  saved->pl_life == 789);
+    CHECK_INSTANT(saved->save_cnt == 8 && saved->play_time >= 1239 && saved->play_time <= 1240 &&
+                  saved->peseta == 54321 && saved->pl_life == 789);
+    CHECK_INSTANT(pG->play_time == saved->play_time && pG->game_start_time >= now);
     CHECK_INSTANT(pG->save_cnt == 7 && pG->SaveKind == -1 && pG->pl_pos.x == 999 && pG->pl_ang_y == 2);
     for (int i = 0; i < 0x100; ++i)
         CHECK_INSTANT(((u8*) pSaveData)[i] == 0x5A);
@@ -107,6 +115,22 @@ extern "C" int re4probe_instant_game_test()
     CHECK_INSTANT(memcmp(out + 0xE7D0, &SubScreenWk.save, 4) == 0);
     CHECK_INSTANT(memcmp(out + 0xE7D4, merchantData, MerchantDataSize()) == 0);
     CHECK_INSTANT(memcmp(out + 0x11E40, pSys, sizeof(*pSys)) == 0);
+    re4_instant_game_saved();
+    CHECK_INSTANT(pG->save_cnt == 8);
+    // the app's menu holds the game (0.99.11): the time folded at the pause, the menu's own time (here 7 s) neither in
+    // the capture nor in the HUD's answer; after the menu the time runs on from the folded one
+    pG->game_start_time = (u32) OSTicksToSeconds(OSGetTime()) - 3;
+    CHECK_INSTANT(re4_instant_play_seconds() >= (int) pG->play_time + 3 && re4_instant_play_seconds() <= (int) pG->play_time + 4);
+    re4_instant_game_pause(1);
+    const u32 folded = pG->play_time;
+    CHECK_INSTANT(folded >= saved->play_time + 3);
+    pG->game_start_time -= 7;
+    CHECK_INSTANT(re4_instant_play_seconds() == (int) folded);
+    --pG->save_cnt;
+    CHECK_INSTANT(re4_instant_game_capture(out) == 0);
+    CHECK_INSTANT(saved->play_time == folded);
+    re4_instant_game_pause(0);
+    CHECK_INSTANT(re4_instant_play_seconds() >= (int) folded && re4_instant_play_seconds() <= (int) folded + 1);
     re4_instant_game_saved();
     CHECK_INSTANT(pG->save_cnt == 8);
     // Unsafe places refuse saving but not loading; the other game modes refuse both.
@@ -165,6 +189,7 @@ extern "C" int re4probe_instant_game_test()
     title->Rno0 = 5;
     title->Rno1 = 1;
     StaFlagOn(pG, STA_TITLE);
+    CHECK_INSTANT(re4_instant_play_seconds() == -1);  // the HUD's time outside a game
     pPL = 0;
     re4_instant_title_tick(title);
     CHECK_INSTANT(re4_instant_game_can_load());

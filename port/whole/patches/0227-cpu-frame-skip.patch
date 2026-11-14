@@ -1,0 +1,248 @@
+# Port patch, a wish of the project owner (10.11.2026, version 0.99.8; port/docs/whole-program-status.md): the app
+# menu's "Aggressive frame skip (saves CPU)". The renderer's Frame skip leaves out a picture the game has built
+# already and saves only the GPU's time; here the game itself leaves a picture out while its frames run late
+# (runtime/cpu_skip.cpp decides: the frame before took longer than its two fields, at most one in a row, a frame
+# over 250 ms does not count, no credit when ahead), so the processor's time for it is saved too (on the PC
+# 83-86 % of a frame's work in r103/r105 is drawing).
+# The picture is one frame behind the logic (Trans fills the ordering tables, the next frame's Render draws them),
+# so a picture left out is a pair:
+#   - main.cpp: re4_cpu_skip_decide before Trans (only while the player plays: Rno0 3, two fields a frame, no
+#     stopped transform, held picture or sub screen); at the next frame's start re4_cpu_skip_picture: then no
+#     Render_before, Render_skip for Render, no cinema bars, DrawOTag, debug log or debug texts (their buffer
+#     cleared), Render_done_skip for Render_done and no Render_swap (the VI keeps the picture before).
+#   - trans.cpp Trans: no objects and enemies (culling, lights, skinned vertices) for a picture left out; the effects,
+#     the effect generators, the ctrl manager, shadows, cloth, filters (rain and snow move in Filter06Trans) and
+#     render textures register as always (dropped with the ordering tables). commonScreenMatSub advances the
+#     texture animations and scrolls once more for each picture left out before (re4_tex_steps), so they keep
+#     their speed. Render_skip: the fog as in Render (it sets the view's far plane the culling uses) and the flags
+#     Render leaves.
+#   - main_sub.cpp Render_done_skip: no copy, no wait for the GPU; the scenario's C task gets its time slices.
+#   - fade.cpp FadeControl: the fades advance in every frame, their quad is not drawn into a picture left out.
+# The logic runs as in every frame: checked on the PC with the state trace (RE4_CPU_SKIP_TEST=1, every second
+# picture left out: the same trace frame by frame as without).
+--- a/src/game/main.cpp
++++ b/src/game/main.cpp
+@@ -112,6 +112,12 @@
+ static void systemScreenInit();
+ extern "C" void re4_wait_interrupt();  /* port: runtime/vi.cpp */
+ extern "C" int re4_letterbox_open(void);  /* port: runtime/picture.cpp (patch 0105) */
++/* port (patch 0227): the app menu's "Aggressive frame skip", runtime/cpu_skip.cpp */
++extern "C" int re4_cpu_skip_picture(void);
++extern "C" void re4_cpu_skip_decide(int allowed);
++void Render_skip();
++void Render_done_skip();
++void EprintfBufferClear();
+ 
+ // Program entry: systemStartInit, then on every soft reset restores the reset-keep block (pRK),
+ // starts the title task and runs the frame loop until systemResetCheck sees the next soft reset.
+@@ -163,13 +169,23 @@
+         }
+         TaskExec(0, Title_task, 0);
+         for (;;) {
++            /* PORT (patch 0227): a picture left out (the app menu's "Aggressive frame skip"): the last frame
++               registered no models (Trans), this one draws nothing of it and shows the picture before; the
++               game logic, the effects, fades and the scenario's time slice run as in every frame */
++            int skipPicture = re4_cpu_skip_picture();
+             StopwatchInit();
+             ProcessTickInit();
+-            Render_before();
++            if (!skipPicture) {
++                Render_before();
++            }
+             ClearOTagR(MainOt, 5);
+             PadRead();
+             DebugControl();
+-            Render();
++            if (!skipPicture) {
++                Render();
++            } else {
++                Render_skip();
++            }
+             ProcessTickGet(4, "RENDER SETUP");
+             SetPrimBuffPtr();
+             ClearOt();
+@@ -182,6 +198,10 @@
+             if (!SysFlagChk(pG, SYS_TRANS_STOP) || (StaFlagChk(pG, STA_SUB_SCRN))) {
+                 IdSys.trans();
+             }
++            /* PORT (patch 0227): whether the next picture is left out (the clock, runtime/cpu_skip.cpp): only
++               while the player plays (no movie, sub screen, held picture or stopped transform) */
++            re4_cpu_skip_decide(pG->Rno0 == 3 && GetSystemVcnt() == 2 && !SysFlagChk(pG, SYS_TRANS_STOP) &&
++                                !SysFlagChk(pG, SYS_SCREEN_STOP) && !StaFlagChk(pG, STA_SUB_SCRN));
+             if (!SysFlagChk(pG, SYS_TRANS_STOP)) {
+                 Trans();
+             }
+@@ -195,18 +215,27 @@
+             /* PORT (patch 0105): the app's picture format "4:3 without bars" leaves the
+                letterbox out while the player plays (Anbernic RG 477V report, 22.10.2026: a 4:3
+                screen); Render draws the whole height then */
+-            if (!DbgFlagChk(pG, DBG_CINESCO_OFF) && !re4_letterbox_open()) {
++            if (!DbgFlagChk(pG, DBG_CINESCO_OFF) && !re4_letterbox_open() && !skipPicture) {
+                 Draw_cinesco();
+             }
+             FadeControl(1);
+-            DrawOTag(&MainOt[4]);
+-            if (pG->debug_mode != 7) {
+-                pLog->disp();
++            /* PORT (patch 0227): a picture left out draws nothing (its debug texts are dropped) */
++            if (!skipPicture) {
++                DrawOTag(&MainOt[4]);
++                if (pG->debug_mode != 7) {
++                    pLog->disp();
++                }
++                EprintfFlush();
++            } else {
++                EprintfBufferClear();
+             }
+-            EprintfFlush();
+             ProcessTickGet(2, "PROCESS CPU");
+             iTaskScheduler();
+-            Render_done();
++            if (!skipPicture) {
++                Render_done();
++            } else {
++                Render_done_skip();
++            }
+             Block.checkCommand();
+             DC.check();
+             Block.checkCondition();
+@@ -214,7 +243,9 @@
+             /* port: the vsync interrupt that advances vsync_cnt is delivered
+                while the CPU waits (runtime/vi.cpp). */
+             while (vsync_cnt < GetSystemVcnt() - 1) { re4_wait_interrupt(); }
+-            Render_swap();
++            if (!skipPicture) {
++                Render_swap();
++            }
+             PPCSync();
+             while (vsync_cnt < GetSystemVcnt()) { re4_wait_interrupt(); }
+             vsync_cnt = 0;
+--- a/src/game/main_sub.cpp
++++ b/src/game/main_sub.cpp
+@@ -166,6 +166,20 @@
+     }
+ }
+ 
++/* PORT (patch 0227): Render_done for a picture left out (the app menu's "Aggressive frame skip"): no copy and
++   no wait for the GPU, but the scenario's C task gets its time slices as in Render_done */
++void Render_done_skip()
++{
++    if (SceSys.checkCTaskRange() != 0) {
++        SceSys.setDrawDone(1);
++        SceSleep(1);
++    }
++    if (SceSys.checkCTaskRange() != 0) {
++        SceSys.setDrawDone(1);
++        SceSleep(1);
++    }
++}
++
+ // Presents the current XFB (unless System_flg 0x400 holds the picture) and flips buffers.
+ void Render_swap()
+ {
+--- a/src/game/fade.cpp
++++ b/src/game/fade.cpp
+@@ -7,6 +7,8 @@
+ #include "main_mem.h"
+ #include "fade.h"
+ 
++extern "C" int re4_cpu_skip_now;  /* port (patch 0227): runtime/cpu_skip.cpp */
++
+ FADE_WORK Fade[4];
+ 
+ // Starts fade slot (no & 0x7FFFFFFF) from *start to *end over `time` frames at depth z; a negative
+@@ -100,7 +102,8 @@
+                 }
+             }
+         }
+-        if (f->flags & 3) {
++        /* PORT (patch 0227): not into a picture left out (runtime/cpu_skip.cpp) */
++        if ((f->flags & 3) && !re4_cpu_skip_now) {
+             fadeDraw(f);
+         }
+     }
+--- a/src/game/trans.cpp
++++ b/src/game/trans.cpp
+@@ -38,6 +38,11 @@
+ #include "trans_lit.h"
+ #include "shape.h"
+ 
++/* port (patch 0227): the app menu's "Aggressive frame skip", runtime/cpu_skip.cpp */
++extern "C" int re4_cpu_skip_models;
++extern "C" int re4_cpu_skip_tex_steps;
++int re4_tex_steps = 1;
++
+ #line 1 "D:/Bio4/Prog/trans.cpp"
+ 
+ 
+@@ -360,17 +365,23 @@
+             TransTexRenderMgr();
+         }
+     }
+-    func = objTrans;
+-    for (u = ObjMgr.getActiveWork(); u != 0;) {
+-        cUnit* cur = u;
+-        u = u->getNext();
+-        func((cModel*) cur);
+-    }
+-    func = emTrans;
+-    for (u = EmMgr.getActiveWork(); u != 0;) {
+-        cUnit* cur = u;
+-        u = u->getNext();
+-        func((cModel*) cur);
++    /* PORT (patch 0227): a picture left out registers no objects and enemies (their culling, lights and skinned
++       vertices); the next one advances the texture animations and scrolls by the frames left out too */
++    if (!re4_cpu_skip_models) {
++        re4_tex_steps = re4_cpu_skip_tex_steps;
++        func = objTrans;
++        for (u = ObjMgr.getActiveWork(); u != 0;) {
++            cUnit* cur = u;
++            u = u->getNext();
++            func((cModel*) cur);
++        }
++        func = emTrans;
++        for (u = EmMgr.getActiveWork(); u != 0;) {
++            cUnit* cur = u;
++            u = u->getNext();
++            func((cModel*) cur);
++        }
++        re4_tex_steps = 1;
+     }
+     ProcessTickGet(5, "objTrans");
+     DCStoreRangeNoSync(primStart, (u8*) pG->prim_base - primStart);
+@@ -684,6 +695,8 @@
+         u32 size;
+         u32 asize;
+ 
++        /* PORT (patch 0227): once more for each picture left out before (re4_tex_steps; 1 else) */
++        for (int step = 0; step < re4_tex_steps; step++) {
+         if (info->flagsDC & 2) {
+             t->frame++;
+             if (t->frame >= t->anim[1]) {
+@@ -705,6 +718,7 @@
+             UV_WRAP_LO(t->u);
+             UV_WRAP_LO(t->v);
+         }
++        }
+         if (PTR_INVALID(d)) {
+             pLog->err(0, 0, "commonScreenMatSub() : pHeader ptr err.");
+             return 0;
+@@ -977,6 +991,18 @@
+     SysFlagOff(pG, SYS_RENDER_END);
+ }
+ 
++/* PORT (patch 0227): Render for a picture left out (the app menu's "Aggressive frame skip"): none of the ordering
++   tables is drawn; the fog is set as in Render (it also sets the view's far plane the culling uses), and the flags
++   end as Render leaves them */
++void Render_skip()
++{
++    g_prev_tpl_addr = (void*) -1;
++    g_prev_add_tpl_addr = (void*) -1;
++    LightMgr.setFog();
++    StaFlagOff(pG, STA_SCISSOR);
++    SysFlagOff(pG, SYS_RENDER_END);
++}
++
+ static const GXColor col64 = {0x40, 0x40, 0x40, 0x40};
+ 
+ // OT callback for a model: z mode by z_mode (0 test+write, 1 test only, 2 off), the alpha-omit

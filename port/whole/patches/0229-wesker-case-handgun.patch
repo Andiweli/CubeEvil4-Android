@@ -1,0 +1,21 @@
+# Port patch, a user's report through the project owner (12.11.2026, version 0.99.11; port/docs/whole-program-status.md):
+# "in the inventory screen, the silencer will always be visually attached to the handgun when Wesker has it equipped.
+# Even if you don't have the silencer at all". The case screen's Wesker (ss_model.cpp weskerModelInit) took his
+# handgun's model with the silencer for every handgun (wep43Init(2): 2 is not 0, so model 6); Wesker of The
+# Mercenaries only ever has the handgun with the silencer (0x24, item.cpp set_char 5). The story's Wesker (the cheat
+# menu's player character, patch 0195, runtime/cheats.cpp giveSilencer) may hold the handgun without it (0x23: no
+# room in the case for the silencer, or a save of Leon's). Now the model by the weapon's type as Leon's wep02Init:
+# type 0 model 5 (without), type 1 model 6 (with). A port feature, not a fix of the prototype.
+--- a/src/Sscrn/ss_model.cpp
++++ b/src/Sscrn/ss_model.cpp
+@@ -899,7 +899,9 @@
+         wep37Init(0);
+         break;
+     case 0x02:
+-        wep43Init(2);
++        /* PORT (patch 0229): the handgun by its type as Leon's wep02Init: 0 without the silencer (model 5),
++           1 with it (0x24, model 6); Wesker of The Mercenaries only has 0x24, the story's Wesker may not */
++        wep43Init(type);
+         break;
+     case 0x06:
+         wep44Init(6);
