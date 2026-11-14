@@ -95,6 +95,7 @@
     <string name="ingame_aim_touch_area">Área de toque</string>
     <string name="ingame_aim_c_stick">Analógico C</string>
     <string name="ingame_touch_aim_help">Mira por toque: enquanto L ou R mantém uma arma pronta, a área de toque mira deslizando na metade direita (a mira segue seu dedo e para quando ele para) ou o analógico C de toque mira como um analógico (adicione-o com a engrenagem no canto superior direito). Analógico de movimento: como no GameCube.</string>
+    <string name="ingame_touch_zoom_help">Zoom na mira ou no binóculo por toque: arraste para cima ou para baixo na metade direita (mirando com o analógico de movimento ou o analógico C) ou no analógico C de toque, ou adicione os botões de zoom + e − com a engrenagem no canto superior direito (eles fazem zoom enquanto você segura).</string>
     <string name="ingame_gyro_sensitivity">Sensibilidade do giroscópio</string>
     <string name="ingame_gyro_invert_v">Inverter vertical</string>
     <string name="ingame_gyro_invert_h">Inverter horizontal</string>
@@ -352,6 +353,10 @@
     <string name="ingame_act_left">Esquerda</string>
     <string name="ingame_act_back">Para trás</string>
     <string name="ingame_act_forward">Para frente</string>
+    <string name="ingame_act_c_up">Analógico C cima (aproximar)</string>
+    <string name="ingame_act_c_down">Analógico C baixo (afastar)</string>
+    <string name="ingame_act_c_left">Analógico C esquerda</string>
+    <string name="ingame_act_c_right">Analógico C direita</string>
     <string name="ingame_map_swapped">%1$s agora está em %2$s.</string>
     <string name="ingame_map_fixed_key">Esta tecla é fixa (direcional, confirmar, voltar).</string>
     <string name="ingame_map_use_keyboard">Pressione uma tecla do teclado.</string>
@@ -364,6 +369,7 @@
     <string name="ingame_map_press">Pressione uma tecla …</string>
     <string name="ingame_map_keyboard">Teclado e mouse</string>
     <string name="ingame_mouse_help">O mouse (Android 8 ou mais recente) pertence ao jogo enquanto você joga: movê-lo gira a câmera, ao mirar ele move a mira e nos binóculos a visão. A rodinha dá zoom na luneta e nos binóculos (para cima: mais perto). O menu do app (F1) libera o ponteiro.</string>
+    <string name="ingame_keyboard_c_help">A faca: segure a tecla dela e mova o mouse para mirar, como com as armas. As teclas do analógico C (I, K, J, L, se você não as mudar) giram a câmera e dão zoom na mira e no binóculo (cima aproxima, baixo afasta), como a roda do mouse.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidade do mouse</string>
     <string name="ingame_map_controller">Controle</string>
     <string name="ingame_map_device">Dispositivo</string>

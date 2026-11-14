@@ -654,6 +654,12 @@ public final class CoreInput {
           mainY = st[1];
           cX = d.rx;  // the mouse (mouseLook)
           cY = d.ry;
+          // the C stick's keys (0.99.15): they win over the mouse, also in the scope and the binoculars (they zoom)
+          float[] c = mapping(true).cStick(dev.held::contains);
+          if (c[0] != 0 || c[1] != 0) {
+            cX = c[0];
+            cY = c[1];
+          }
         }
         if (mainX * mainX + mainY * mainY > lx * lx + ly * ly) {
           lx = mainX;

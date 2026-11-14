@@ -119,10 +119,34 @@ public final class ActionMapTests {
         && ActionMap.fixedKeyboardButton(ActionMap.KEY_DEL) == CoreInput.GC_B);
     check(k.assign(ActionMap.ACTION, new int[] {ActionMap.KEY_ENTER}) == null);
     check(k.assign(ActionMap.FIRE, new int[] {ActionMap.MOUSE_RIGHT, CoreInput.KEYCODE_DPAD_UP}) == null);
-    // moving with I J K L: W goes to the old place of forward's new key (none had I)
+    // moving with I J K L: W goes to the old place of forward's new key (since 0.99.15 C up's: I and W swap)
     ActionMap kk = k.assign(ActionMap.MOVE_FORWARD, new int[] {37});
     check(kk.stick(code -> code == 37)[1] == -1 && kk.stick(code -> code == ActionMap.KEY_W)[1] == 0);
+    check(kk.cStick(code -> code == ActionMap.KEY_W)[1] == -1);
     check(ActionMap.decode(ActionMap.KIND_KEYBOARD, kk.encode()).equals(kk));
+
+    // the C stick on keys (0.99.15, GitHub #247): I K J L by default, keyboard only, no GameCube button
+    check(k.cStick(code -> code == ActionMap.KEY_I)[1] == -1 && k.cStick(code -> code == ActionMap.KEY_K)[1] == 1
+        && k.cStick(code -> code == ActionMap.KEY_J)[0] == -1 && k.cStick(code -> code == ActionMap.KEY_L)[0] == 1);
+    check(k.cStick(code -> false)[0] == 0 && k.cStick(code -> false)[1] == 0);
+    float[] cd = k.cStick(code -> code == ActionMap.KEY_I || code == ActionMap.KEY_L);
+    check(Math.abs(cd[0] - 0.7071f) < 1e-3f && Math.abs(cd[1] + 0.7071f) < 1e-3f);
+    check(press(k, ActionMap.KEY_I) == 0 && press(k, ActionMap.KEY_K) == 0);
+    check(ActionMap.available(ActionMap.KIND_KEYBOARD, ActionMap.C_UP)
+        && !ActionMap.available(ActionMap.KIND_CONTROLLER, ActionMap.C_UP));
+    check(ActionMap.PAGE.length == ActionMap.ACTIONS && ActionMap.PAGE[4] == ActionMap.C_UP);
+    // a mapping saved before 0.99.15 (no C stick in it): the C stick takes its default keys where they are free
+    String old = "0=51;1=47;2=29;3=32;4=33;5=59;6=65538;7=65538+65537;8=65538+46;9=31;10=31+65537;11=45;12=61;13=41;"
+        + "14=111;15=131";
+    ActionMap before = ActionMap.decode(ActionMap.KIND_KEYBOARD, old);
+    check(before.isDefault());
+    // ... and where the player put I on Ashley: C up stays without a key, the others get theirs
+    ActionMap busy = ActionMap.decode(ActionMap.KIND_KEYBOARD, old.replace("11=45", "11=37"));
+    check(busy.keys(ActionMap.C_UP).length == 0 && busy.keys(ActionMap.C_DOWN)[0] == ActionMap.KEY_K
+        && press(busy, ActionMap.KEY_I) == CoreInput.GC_X);
+    // a C direction the player left without a key stays so
+    ActionMap none = ActionMap.decode(ActionMap.KIND_KEYBOARD, k.encode() == null ? old + ";16=" : k.encode());
+    check(none.keys(ActionMap.C_UP).length == 0);
 
     System.out.println("ActionMapTests: " + checks + " checks passed");
   }

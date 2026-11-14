@@ -1072,6 +1072,7 @@ final class CoreMenu extends Dialog {
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
         input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), 3, mode -> host.touchAimChanged(mode));
     help(R.string.ingame_touch_aim_help);
+    help(R.string.ingame_touch_zoom_help);  // (0.99.15, GitHub #247)
     // PLAYER VIEW above the laser sight (wish of the project owner, 05.11.2026): the far camera (a user's wish,
     // 01.11.2026; patch 0171) in the left half, the field of view (patch 0205) as a slider in the right half
     heading(R.string.ingame_player_view);
@@ -1177,7 +1178,8 @@ final class CoreMenu extends Dialog {
       R.string.ingame_act_left, R.string.ingame_act_right, R.string.ingame_act_action, R.string.ingame_act_run,
       R.string.ingame_act_aim, R.string.ingame_act_fire, R.string.ingame_act_reload, R.string.ingame_act_knife,
       R.string.ingame_act_slash, R.string.ingame_act_ashley, R.string.ingame_act_inventory, R.string.ingame_act_map,
-      R.string.ingame_act_options, R.string.ingame_act_menu};
+      R.string.ingame_act_options, R.string.ingame_act_menu, R.string.ingame_act_c_up, R.string.ingame_act_c_down,
+      R.string.ingame_act_c_left, R.string.ingame_act_c_right};
 
   /** An action's name; the app menu's says "held: debug menu" only with the debug build's discs (the retail discs
    *  have none, 06.11.2026). */
@@ -1256,7 +1258,8 @@ final class CoreMenu extends Dialog {
     ActionMap def = ActionMap.defaults(mapKind), m = host == null ? null : host.mapping(mapKind);
     if (m == null) m = def;
     bindingButtons = new Button[ActionMap.ACTIONS];
-    for (int a = 0; a < ActionMap.ACTIONS; a++) {
+    // (in the page's order: the C stick's keys after the moves, 0.99.15)
+    for (int a : ActionMap.PAGE) {
       if (!ActionMap.available(mapKind, a)) continue;
       final int action = a;
       LinearLayout line = new MenuLayout.Columns(getContext(), -300, 420, false);
@@ -1313,6 +1316,7 @@ final class CoreMenu extends Dialog {
     });
     body.addView(line);
     help(R.string.ingame_mouse_help);
+    help(R.string.ingame_keyboard_c_help);  // (0.99.15, GitHub #247: the knife by the mouse, the C stick's keys)
   }
 
   /** Waits for the key of `action` (a second press on its button: no change); after 8 s it gives up. */

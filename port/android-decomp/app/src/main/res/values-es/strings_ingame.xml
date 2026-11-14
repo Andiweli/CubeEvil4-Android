@@ -94,6 +94,7 @@
     <string name="ingame_aim_touch_area">Zona táctil</string>
     <string name="ingame_aim_c_stick">Stick C</string>
     <string name="ingame_touch_aim_help">Apuntar táctil: mientras L o R mantiene un arma lista, la zona táctil apunta deslizando en la mitad derecha (la mira sigue tu dedo y se detiene cuando se detiene) o el stick C táctil apunta como un stick (añádelo con el engranaje de arriba a la derecha). Stick de movimiento: como en GameCube.</string>
+    <string name="ingame_touch_zoom_help">Zoom en la mira o los prismáticos por táctil: arrastra hacia arriba o abajo en la mitad derecha (apuntando con el stick de movimiento o el stick C) o en el stick C táctil, o añade los botones de zoom + y − con el engranaje de arriba a la derecha (hacen zoom mientras los mantienes).</string>
     <string name="ingame_gyro_sensitivity">Sensibilidad del giroscopio</string>
     <string name="ingame_gyro_invert_v">Invertir vertical</string>
     <string name="ingame_gyro_invert_h">Invertir horizontal</string>
@@ -351,6 +352,10 @@
     <string name="ingame_act_left">Izquierda</string>
     <string name="ingame_act_back">Retroceder</string>
     <string name="ingame_act_forward">Avanzar</string>
+    <string name="ingame_act_c_up">Stick C arriba (acercar)</string>
+    <string name="ingame_act_c_down">Stick C abajo (alejar)</string>
+    <string name="ingame_act_c_left">Stick C izquierda</string>
+    <string name="ingame_act_c_right">Stick C derecha</string>
     <string name="ingame_map_swapped">%1$s está ahora en %2$s.</string>
     <string name="ingame_map_fixed_key">Esta tecla es fija (cruceta, confirmar, volver).</string>
     <string name="ingame_map_use_keyboard">Pulsa una tecla del teclado.</string>
@@ -363,6 +368,7 @@
     <string name="ingame_map_press">Pulsa una tecla …</string>
     <string name="ingame_map_keyboard">Teclado y ratón</string>
     <string name="ingame_mouse_help">El ratón (Android 8 o superior) pertenece al juego mientras se juega: al moverlo gira la cámara, al apuntar mueve la mira y con los prismáticos la vista. Su rueda hace zoom con la mira telescópica y los prismáticos (hacia arriba: acercar). El menú de la app (F1) libera el puntero.</string>
+    <string name="ingame_keyboard_c_help">El cuchillo: mantén su tecla y mueve el ratón para apuntar, como con las armas. Las teclas del stick C (I, K, J, L si no las cambias) giran la cámara y hacen zoom en la mira y los prismáticos (arriba acerca, abajo aleja), como la rueda del ratón.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidad del ratón</string>
     <string name="ingame_map_controller">Mando</string>
     <string name="ingame_map_device">Dispositivo</string>

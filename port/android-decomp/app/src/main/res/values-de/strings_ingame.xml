@@ -94,6 +94,7 @@
     <string name="ingame_aim_touch_area">Touchfläche</string>
     <string name="ingame_aim_c_stick">C-Stick</string>
     <string name="ingame_touch_aim_help">Touch-Zielen: Solange L oder R eine Waffe bereithält, zielt die Touchfläche durch Wischen auf der rechten Hälfte (das Ziel folgt deinem Finger und bleibt stehen, wenn er stehen bleibt) oder der Touch-C-Stick wie ein Stick (über das Zahnrad oben rechts hinzufügen). Bewegungsstick: wie am GameCube.</string>
+    <string name="ingame_touch_zoom_help">Zoomen im Zielfernrohr oder Fernglas per Touch: auf der rechten Hälfte nach oben oder unten ziehen (beim Zielen mit Bewegungsstick oder C-Stick) oder am Touch-C-Stick, oder mit dem Zahnrad oben rechts die Zoom-Knöpfe + und − hinzufügen (sie zoomen, solange du sie hältst).</string>
     <string name="ingame_gyro_sensitivity">Gyro-Empfindlichkeit</string>
     <string name="ingame_gyro_invert_v">Vertikal umkehren</string>
     <string name="ingame_gyro_invert_h">Horizontal umkehren</string>
@@ -348,6 +349,10 @@
     <string name="ingame_act_left">Links</string>
     <string name="ingame_act_back">Rückwärts</string>
     <string name="ingame_act_forward">Vorwärts</string>
+    <string name="ingame_act_c_up">C-Stick hoch (hineinzoomen)</string>
+    <string name="ingame_act_c_down">C-Stick runter (herauszoomen)</string>
+    <string name="ingame_act_c_left">C-Stick links</string>
+    <string name="ingame_act_c_right">C-Stick rechts</string>
     <string name="ingame_map_swapped">%1$s liegt jetzt auf %2$s.</string>
     <string name="ingame_map_fixed_key">Diese Taste ist fest (Steuerkreuz, Bestätigen, Zurück).</string>
     <string name="ingame_map_use_keyboard">Drücke eine Taste der Tastatur.</string>
@@ -360,6 +365,7 @@
     <string name="ingame_map_press">Taste drücken …</string>
     <string name="ingame_map_keyboard">Tastatur &amp; Maus</string>
     <string name="ingame_mouse_help">Die Maus (ab Android 8) gehört im laufenden Spiel dem Spiel: Bewegen dreht die Kamera, beim Zielen bewegt sie das Ziel, im Fernglas den Blick. Das Mausrad zoomt mit Zielfernrohr und Fernglas (nach oben: näher heran). Das App-Menü (F1) gibt den Mauszeiger frei.</string>
+    <string name="ingame_keyboard_c_help">Das Messer: seine Taste halten und mit der Maus zielen, wie bei den Waffen. Die Tasten des C-Sticks (I, K, J, L, solange du sie nicht änderst) drehen die Kamera und zoomen Zielfernrohr und Fernglas (hoch hinein, runter heraus), wie das Mausrad.</string>
     <string name="ingame_mouse_sensitivity">Maus-Empfindlichkeit</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Gerät</string>

@@ -22,20 +22,27 @@ import java.util.Arrays;
  * control stick fully.
  */
 public final class ActionMap {
-  // the actions, in the order of the page
+  // the actions (their numbers are kept in the preferences: new ones come at the end; the page's order is PAGE)
   public static final int MOVE_FORWARD = 0, MOVE_BACK = 1, MOVE_LEFT = 2, MOVE_RIGHT = 3, ACTION = 4, RUN = 5,
       AIM = 6, FIRE = 7, RELOAD = 8, KNIFE = 9, SLASH = 10, ASHLEY = 11, INVENTORY = 12, MAP = 13, OPTIONS = 14,
-      APP_MENU = 15, ACTIONS = 16;
+      APP_MENU = 15,
+      // the C stick on keys (0.99.15, GitHub #247: keyboard players could not zoom the scope by keys): keyboard only,
+      // each tilts it fully that way; up zooms the scope and the binoculars in, down out, as on the GameCube
+      C_UP = 16, C_DOWN = 17, C_LEFT = 18, C_RIGHT = 19, ACTIONS = 20;
+  /** The actions in the order of the page: the C stick after the moves. */
+  public static final int[] PAGE = {MOVE_FORWARD, MOVE_BACK, MOVE_LEFT, MOVE_RIGHT, C_UP, C_DOWN, C_LEFT, C_RIGHT,
+      ACTION, RUN, AIM, FIRE, RELOAD, KNIFE, SLASH, ASHLEY, INVENTORY, MAP, OPTIONS, APP_MENU};
   public static final int KIND_CONTROLLER = 0, KIND_KEYBOARD = 1;
 
   /** The GameCube button of each action (the moves: the stick; the app's menu: none). */
   static final int[] OUT = {0, 0, 0, 0, CoreInput.GC_A, CoreInput.GC_B, CoreInput.GC_R, CoreInput.GC_A,
       CoreInput.GC_B, CoreInput.GC_L, CoreInput.GC_A, CoreInput.GC_X, CoreInput.GC_Y, CoreInput.GC_Z,
-      CoreInput.GC_START, 0};
+      CoreInput.GC_START, 0, 0, 0, 0, 0};
   /** The action a combination holds with its first key; -1: a single key. */
-  static final int[] HOLD = {-1, -1, -1, -1, -1, -1, -1, AIM, AIM, -1, KNIFE, -1, -1, -1, -1, -1};
+  static final int[] HOLD = {-1, -1, -1, -1, -1, -1, -1, AIM, AIM, -1, KNIFE, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
   // android.view.KeyEvent key codes
+  static final int KEY_I = 37, KEY_J = 38, KEY_K = 39, KEY_L = 40;
   static final int KEY_A = 29, KEY_C = 31, KEY_D = 32, KEY_E = 33, KEY_F = 34, KEY_M = 41, KEY_Q = 45, KEY_R = 46,
       KEY_S = 47, KEY_W = 51, KEY_SHIFT_LEFT = 59, KEY_SPACE = 62, KEY_ENTER = 66, KEY_DEL = 67, KEY_TAB = 61,
       KEY_ESCAPE = 111, KEY_F1 = 131, KEY_NUMPAD_ENTER = 160;
@@ -75,10 +82,13 @@ public final class ActionMap {
     }
   }
 
-  /** Whether `action` is on the page of `kind` (the controller moves with its left stick). */
+  /** Whether `action` is on the page of `kind` (the controller moves with its left stick, its C stick is its right). */
   public static boolean available(int kind, int action) {
-    return action >= 0 && action < ACTIONS && (kind == KIND_KEYBOARD || action > MOVE_RIGHT);
+    return action >= 0 && action < ACTIONS && (kind == KIND_KEYBOARD || (action > MOVE_RIGHT && !cStick(action)));
   }
+
+  /** One of the C stick's directions. */
+  public static boolean cStick(int action) { return action >= C_UP && action <= C_RIGHT; }
 
   public static boolean combination(int action) { return HOLD[action] >= 0; }
 
@@ -131,6 +141,11 @@ public final class ActionMap {
       m.keys[MAP] = new int[] {KEY_M};
       m.keys[OPTIONS] = new int[] {KEY_ESCAPE};
       m.keys[APP_MENU] = new int[] {KEY_F1};
+      // the C stick (0.99.15): I K J L, a second WASD for the right hand; I zooms the scope in, K out
+      m.keys[C_UP] = new int[] {KEY_I};
+      m.keys[C_DOWN] = new int[] {KEY_K};
+      m.keys[C_LEFT] = new int[] {KEY_J};
+      m.keys[C_RIGHT] = new int[] {KEY_L};
     }
     return m;
   }
@@ -243,10 +258,21 @@ public final class ActionMap {
     return new float[] {x, y};
   }
 
+  /** The C stick of its keys (0.99.15): x right, y down, -1..1, 0 0 when none is held. */
+  public float[] cStick(Held h) {
+    float x = (held(h, C_RIGHT) ? 1 : 0) - (held(h, C_LEFT) ? 1 : 0);
+    float y = (held(h, C_DOWN) ? 1 : 0) - (held(h, C_UP) ? 1 : 0);
+    if (x != 0 && y != 0) {
+      x *= 0.70710677f;
+      y *= 0.70710677f;
+    }
+    return new float[] {x, y};
+  }
+
   private boolean held(Held h, int action) { return keys[action].length == 1 && h.held(keys[action][0]); }
 
   static final String[] NAMES = {"forward", "back", "left", "right", "action", "run", "aim", "fire", "reload",
-      "knife", "slash", "Ashley", "inventory", "map", "options", "app menu"};
+      "knife", "slash", "Ashley", "inventory", "map", "options", "app menu", "C up", "C down", "C left", "C right"};
 
   /** For the log: "action = A, run = B, …, fire = R2+A" with the keys' names. */
   public String describe(java.util.function.IntFunction<String> keyName) {
@@ -277,12 +303,14 @@ public final class ActionMap {
   public static ActionMap decode(int kind, String text) {
     if (text == null || text.isEmpty()) return defaults(kind);
     ActionMap m = new ActionMap(kind);
+    boolean[] seen = new boolean[ACTIONS];
     try {
       for (String part : text.split(";")) {
         int eq = part.indexOf('=');
         if (eq < 0) return defaults(kind);
         int a = Integer.parseInt(part.substring(0, eq).trim());
         if (!available(kind, a)) return defaults(kind);
+        seen[a] = true;  // (also when it is left without keys)
         String rest = part.substring(eq + 1).trim();
         if (rest.isEmpty()) continue;
         String[] codes = rest.split("\\+");
@@ -293,6 +321,15 @@ public final class ActionMap {
       }
     } catch (NumberFormatException e) {
       return defaults(kind);
+    }
+    // an action the text does not name (a mapping saved before the action came, 0.99.15: the C stick) takes its
+    // default keys, unless the player's mapping uses them for something else
+    ActionMap def = defaults(kind);
+    for (int a = 0; a < ACTIONS; a++) {
+      if (seen[a] || !available(kind, a)) continue;
+      boolean free = true;
+      for (int k : def.keys[a]) free &= !m.uses(k);
+      if (free) m.keys[a] = def.keys[a].clone();
     }
     return m;
   }

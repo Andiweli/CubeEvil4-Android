@@ -264,6 +264,36 @@ achten (Androids Thermalstatus).
   Hauptfaden (Androids Rückruf, `CoreActivity.tick`). Test `ThermalWatchTest` 7 (Rückruf, Zeitpunkte, einmalige
   Hinweise, `heatText`); NDK-Bau (beide ABIs) ohne neue Warnung, die neue Funktion in beiden Bibliotheken; App-Tests 156 je Variante grün.
 
+### 6. C-Stick, Zoom und Messer mit Touch und Tastatur/Maus (GitHub #247, über den Projektinhaber, 14.11.2026)
+
+„Ein User meldete das noch ein, evtl können wir das noch für 0.99.15 berücksichtigen“ (letzter Punkt vor dem
+Feature-Freeze). Die Behauptungen des Nutzers gegen den Stand 09915 geprüft:
+
+- „Touch hat keinen C-Stick“: falsch. Im Standard-Zielmodus ist die rechte Hälfte (Umsehen) der C-Stick, auch im
+  Zielfernrohr (`CoreInput.pad`: nur beim Modus „Touch-Fläche“ zielt sie); ein eigener Touch-C-Stick lässt sich mit dem
+  Zahnrad hinzufügen (`CoreTouch.C_STICK`, seit 26.10.2026). Der Zoom im Zielfernrohr ist der C-Stick hoch/runter
+  (`cam_extra.cpp`), per Touch also Ziehen nach oben oder unten auf der rechten Hälfte; im Modus „Touch-Fläche“ nur mit
+  dem zusätzlichen C-Stick. Das stand nirgends.
+- „Mit Tastatur und Maus zoomt das Zielfernrohr nicht“: das Mausrad zoomt seit 0.99.12 alle Zielfernrohre (Gewehre,
+  Raketen- und Minenwerfer, jede Figur) und das Fernglas (`runtime/wheel_zoom.cpp`). Tasten dafür gab es nicht.
+- „C-Stick-Richtungen nicht belegbar“: stimmte für die Tastatur.
+- „Das Messer nur mit C halten und WASD“: die Maus richtet das Messer aus, seit die Maus zielt (0.99.12; derselbe Weg
+  wie das Touch-Zielen mit dem Messer seit 0.99.9, `runtime/gyro.cpp turnAim` mit `knifeToo`); der Hilfetext sagte nur
+  „beim Zielen“.
+- **Gebaut:**
+  - **C-Stick auf Tasten** (`ActionMap` C_UP..C_RIGHT = 16..19, nur Tastatur, Standard I/K/J/L, auf der Seite gleich
+    nach den Bewegungstasten, `ActionMap.PAGE`): `CoreInput.pad` legt sie über die Maus, auch im Zielfernrohr und
+    Fernglas (dort zoomen sie: I hinein, K heraus). Eine vor 0.99.15 gespeicherte Belegung bekommt die neuen Tasten,
+    wo sie frei sind (`ActionMap.decode`); eine bewusst leere Richtung bleibt leer.
+  - **Zoom-Knöpfe für Touch** „+“ und „−“ (`CoreTouch.ZOOM_IN/ZOOM_OUT`), wie R3 nur über den Editor (Zahnrad)
+    hinzuzufügen, das Standard-Layout bleibt gleich; gehalten ein Mausrad-Rasten sofort und alle 150 ms
+    (`CoreBridge.zoom`, nur in Zielfernrohr und Fernglas wirksam).
+  - Hilfetexte: Zoomen per Touch (`ingame_touch_zoom_help`), Messer mit der Maus und die C-Stick-Tasten
+    (`ingame_keyboard_c_help`); 6 neue Texte in 11 Sprachen (`check_translations.py` 448 ohne Befund).
+- **Geprüft am PC:** `ActionMapTests` 70, `CoreTouchTests` 311, `CoreInputTests` 1851 Prüfungen (C-Tasten im Pad, auch im
+  Zielfernrohr; alte Belegung; Zoom-Knöpfe an den Host); App-Tests 156 je Variante grün (Core und Classic).
+- **Nicht geprüft:** auf einem Gerät (Tastatur, Zoom-Knöpfe im Editor, Ziehen im Zielfernrohr).
+
 ## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 
 Version 0.99.14-rc (versionCode 116), Releasetext `port/android-decomp/docs/releases/v0.99.14-rc.md` („Changes since

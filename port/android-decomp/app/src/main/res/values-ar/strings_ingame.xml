@@ -98,6 +98,7 @@
     <string name="ingame_aim_touch_area">منطقة اللمس</string>
     <string name="ingame_aim_c_stick">عصا C</string>
     <string name="ingame_touch_aim_help">التصويب باللمس: ما دام L أو R يُبقي السلاح جاهزًا، تصوّب منطقة اللمس بالسحب على النصف الأيمن (يتبع التصويب إصبعك ويتوقف عندما يتوقف) أو تصوّب عصا C اللمسية كعصا (أضفها من الترس أعلى اليمين). عصا الحركة: كما في GameCube.</string>
+    <string name="ingame_touch_zoom_help">التكبير في المنظار أو المنظار المزدوج باللمس: اسحب لأعلى أو لأسفل على النصف الأيمن (عند التصويب بعصا الحركة أو عصا C) أو على عصا C اللمسية، أو أضف زرَّي التكبير + و − من الترس أعلى اليمين (يكبّران ما دمت تضغط عليهما).</string>
     <string name="ingame_gyro_sensitivity">حساسية الجيروسكوب</string>
     <string name="ingame_gyro_invert_v">عكس الاتجاه الرأسي</string>
     <string name="ingame_gyro_invert_h">عكس الاتجاه الأفقي</string>
@@ -365,6 +366,10 @@
     <string name="ingame_act_left">يسار</string>
     <string name="ingame_act_back">إلى الخلف</string>
     <string name="ingame_act_forward">إلى الأمام</string>
+    <string name="ingame_act_c_up">عصا C لأعلى (تكبير)</string>
+    <string name="ingame_act_c_down">عصا C لأسفل (تصغير)</string>
+    <string name="ingame_act_c_left">عصا C لليسار</string>
+    <string name="ingame_act_c_right">عصا C لليمين</string>
     <string name="ingame_map_swapped">&#x200F;%1$s الآن على %2$s.</string>
     <string name="ingame_map_fixed_key">هذا الزر ثابت (لوحة الاتجاهات، التأكيد، الرجوع).</string>
     <string name="ingame_map_use_keyboard">اضغط مفتاحًا في لوحة المفاتيح.</string>
@@ -377,6 +382,7 @@
     <string name="ingame_map_press">اضغط زرًا …</string>
     <string name="ingame_map_keyboard">لوحة المفاتيح والفأرة</string>
     <string name="ingame_mouse_help">الفأرة (Android 8 وما بعده) تخص اللعبة أثناء اللعب: تحريكها يدير الكاميرا، وعند التصويب يحرّك التصويب، وفي المنظار المزدوج يحرّك الرؤية. عجلتها تقرّب وتبعّد في المنظار والمنظار المزدوج (للأعلى: تقريب). قائمة التطبيق (F1) تحرر المؤشر.</string>
+    <string name="ingame_keyboard_c_help">السكين: اضغط مطولًا على مفتاحه وحرّك الفأرة للتصويب، كما مع الأسلحة. مفاتيح عصا C (I وK وJ وL ما لم تغيّرها) تدير الكاميرا وتكبّر المنظار والمنظار المزدوج (لأعلى تكبير، لأسفل تصغير)، كما تفعل عجلة الفأرة.</string>
     <string name="ingame_mouse_sensitivity">حساسية الفأرة</string>
     <string name="ingame_map_controller">وحدة التحكم</string>
     <string name="ingame_map_device">الجهاز</string>

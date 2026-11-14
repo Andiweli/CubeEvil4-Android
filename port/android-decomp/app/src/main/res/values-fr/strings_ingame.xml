@@ -96,6 +96,7 @@
     <string name="ingame_aim_touch_area">Zone tactile</string>
     <string name="ingame_aim_c_stick">Stick C</string>
     <string name="ingame_touch_aim_help">Visée tactile : tant que L ou R tient une arme prête, la zone tactile vise en glissant sur la moitié droite (la visée suit votre doigt et s’arrête quand il s’arrête) ou le stick C tactile vise comme un stick (ajoutez-le avec l’engrenage en haut à droite). Stick de déplacement : comme sur GameCube.</string>
+    <string name="ingame_touch_zoom_help">Zoomer dans la lunette ou les jumelles au tactile\u00A0: glissez vers le haut ou le bas sur la moitié droite (en visant avec le stick de déplacement ou le stick C) ou sur le stick C tactile, ou ajoutez les boutons de zoom + et − avec l’engrenage en haut à droite (ils zooment tant qu’on les maintient).</string>
     <string name="ingame_gyro_sensitivity">Sensibilité du gyroscope</string>
     <string name="ingame_gyro_invert_v">Inverser la verticale</string>
     <string name="ingame_gyro_invert_h">Inverser l’horizontale</string>
@@ -353,6 +354,10 @@
     <string name="ingame_act_left">Gauche</string>
     <string name="ingame_act_back">Reculer</string>
     <string name="ingame_act_forward">Avancer</string>
+    <string name="ingame_act_c_up">Stick C haut (zoom avant)</string>
+    <string name="ingame_act_c_down">Stick C bas (zoom arrière)</string>
+    <string name="ingame_act_c_left">Stick C gauche</string>
+    <string name="ingame_act_c_right">Stick C droite</string>
     <string name="ingame_map_swapped">%1$s est maintenant sur %2$s.</string>
     <string name="ingame_map_fixed_key">Cette touche est fixe (croix, valider, retour).</string>
     <string name="ingame_map_use_keyboard">Appuyez sur une touche du clavier.</string>
@@ -365,6 +370,7 @@
     <string name="ingame_map_press">Appuyez sur une touche …</string>
     <string name="ingame_map_keyboard">Clavier et souris</string>
     <string name="ingame_mouse_help">La souris (Android 8 et plus) appartient au jeu pendant la partie : la déplacer tourne la caméra, en visant elle déplace la visée, aux jumelles le regard. Sa molette zoome avec la lunette et les jumelles (vers le haut : plus près). Le menu de l’app (F1) libère le pointeur.</string>
+    <string name="ingame_keyboard_c_help">Le couteau\u00A0: maintenez sa touche et bougez la souris pour viser, comme avec les armes. Les touches du stick C (I, K, J, L sauf si vous les changez) tournent la caméra et zooment la lunette et les jumelles (haut\u00A0: zoom avant, bas\u00A0: zoom arrière), comme la molette.</string>
     <string name="ingame_mouse_sensitivity">Sensibilité de la souris</string>
     <string name="ingame_map_controller">Manette</string>
     <string name="ingame_map_device">Appareil</string>

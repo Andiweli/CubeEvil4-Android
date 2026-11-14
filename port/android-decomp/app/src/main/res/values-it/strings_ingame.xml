@@ -94,6 +94,7 @@
     <string name="ingame_aim_touch_area">Area touch</string>
     <string name="ingame_aim_c_stick">Stick C</string>
     <string name="ingame_touch_aim_help">Mira touch: finché L o R tiene un’arma pronta, l’area touch mira scorrendo sulla metà destra (la mira segue il dito e si ferma quando si ferma) o lo stick C touch mira come uno stick (aggiungilo con l’ingranaggio in alto a destra). Stick di movimento: come su GameCube.</string>
+    <string name="ingame_touch_zoom_help">Zoom nel mirino o nel binocolo col touch: trascina su o giù sulla metà destra (mirando con lo stick di movimento o lo stick C) o sullo stick C touch, oppure aggiungi i pulsanti zoom + e − con l’ingranaggio in alto a destra (zoomano finché li tieni premuti).</string>
     <string name="ingame_gyro_sensitivity">Sensibilità del giroscopio</string>
     <string name="ingame_gyro_invert_v">Inverti verticale</string>
     <string name="ingame_gyro_invert_h">Inverti orizzontale</string>
@@ -351,6 +352,10 @@
     <string name="ingame_act_left">Sinistra</string>
     <string name="ingame_act_back">Indietro</string>
     <string name="ingame_act_forward">Avanti</string>
+    <string name="ingame_act_c_up">Stick C su (zoom avanti)</string>
+    <string name="ingame_act_c_down">Stick C giù (zoom indietro)</string>
+    <string name="ingame_act_c_left">Stick C sinistra</string>
+    <string name="ingame_act_c_right">Stick C destra</string>
     <string name="ingame_map_swapped">%1$s ora è su %2$s.</string>
     <string name="ingame_map_fixed_key">Questo tasto è fisso (croce, conferma, indietro).</string>
     <string name="ingame_map_use_keyboard">Premi un tasto della tastiera.</string>
@@ -363,6 +368,7 @@
     <string name="ingame_map_press">Premi un tasto …</string>
     <string name="ingame_map_keyboard">Tastiera e mouse</string>
     <string name="ingame_mouse_help">Il mouse (Android 8 e successivi) appartiene al gioco mentre giochi: muoverlo ruota la telecamera, mirando muove la mira, con il binocolo la visuale. La sua rotellina fa zoom con il mirino telescopico e il binocolo (in alto: più vicino). Il menu dell’app (F1) libera il puntatore.</string>
+    <string name="ingame_keyboard_c_help">Il coltello: tieni premuto il suo tasto e muovi il mouse per mirare, come con le armi. I tasti dello stick C (I, K, J, L se non li cambi) ruotano la telecamera e zoomano mirino e binocolo (su avvicina, giù allontana), come la rotellina.</string>
     <string name="ingame_mouse_sensitivity">Sensibilità del mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Dispositivo</string>

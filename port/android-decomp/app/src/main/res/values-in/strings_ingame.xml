@@ -95,6 +95,7 @@
     <string name="ingame_aim_touch_area">Area Sentuh</string>
     <string name="ingame_aim_c_stick">Stik C</string>
     <string name="ingame_touch_aim_help">Bidik Sentuh: selama L atau R menyiagakan senjata, area sentuh membidik dengan usapan di separuh kanan (bidikan mengikuti jari Anda dan berhenti saat jari berhenti), atau stik C sentuh membidik seperti stik (tambahkan lewat roda gigi di kanan atas). Stik Gerak: seperti di GameCube.</string>
+    <string name="ingame_touch_zoom_help">Zoom di teropong senjata atau teropong dengan sentuhan: geser ke atas atau bawah di separuh kanan (saat membidik dengan stik gerak atau stik C) atau pada stik C sentuh, atau tambahkan tombol zoom + dan − lewat roda gigi di kanan atas (zoom selama ditahan).</string>
     <string name="ingame_gyro_sensitivity">Sensitivitas giroskop</string>
     <string name="ingame_gyro_invert_v">Balik vertikal</string>
     <string name="ingame_gyro_invert_h">Balik horizontal</string>
@@ -344,6 +345,10 @@
     <string name="ingame_act_left">Gerak ke Kiri</string>
     <string name="ingame_act_back">Gerak Mundur</string>
     <string name="ingame_act_forward">Gerak Maju</string>
+    <string name="ingame_act_c_up">Stik C Atas (perbesar)</string>
+    <string name="ingame_act_c_down">Stik C Bawah (perkecil)</string>
+    <string name="ingame_act_c_left">Stik C Kiri</string>
+    <string name="ingame_act_c_right">Stik C Kanan</string>
     <string name="ingame_map_swapped">%1$s kini ada di %2$s.</string>
     <string name="ingame_map_fixed_key">Tombol ini tetap (D-pad, konfirmasi, kembali).</string>
     <string name="ingame_map_use_keyboard">Tekan tombol pada keyboard.</string>
@@ -356,6 +361,7 @@
     <string name="ingame_map_press">Tekan sebuah tombol …</string>
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
     <string name="ingame_mouse_help">Mouse (Android 8 ke atas) dikuasai game selama game berjalan: menggerakkannya memutar kamera, saat membidik menggerakkan bidikan, dan di teropong menggerakkan pandangan. Rodanya mengatur zoom teropong senapan dan teropong (ke atas: mendekat). Menu aplikasi (F1) melepaskan penunjuk.</string>
+    <string name="ingame_keyboard_c_help">Pisau: tahan tombolnya dan gerakkan mouse untuk membidik, seperti senjata. Tombol stik C (I, K, J, L kecuali Anda mengubahnya) memutar kamera dan melakukan zoom pada teropong senjata dan teropong (atas memperbesar, bawah memperkecil), seperti roda mouse.</string>
     <string name="ingame_mouse_sensitivity">Sensitivitas Mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Perangkat</string>

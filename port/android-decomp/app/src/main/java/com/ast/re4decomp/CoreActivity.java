@@ -1236,6 +1236,29 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.i(TAG, "touch R3 -> app " + (tools ? "graphics capture" : "nothing (tools off)"));
       if (down) capture();
     }
+
+    // the touch zoom buttons (0.99.15, GitHub #247): a notch of the wheel at once and every ZOOM_REPEAT_MS while held
+    @Override public void zoom(int direction, boolean down) {
+      main.removeCallbacks(touchZoom);
+      touchZoomDirection = down ? direction : 0;
+      if (!down) return;
+      if (touchZoomLines++ < 10) {
+        Log.i(TAG, "touch zoom " + (direction > 0 ? "in" : "out")
+            + (input.zoomView() ? " (the scope or the binoculars)" : " (no scope, no binoculars: nothing)"));
+      }
+      touchZoom.run();
+    }
+  };
+
+  /** While a touch zoom button is held: a notch, again after ZOOM_REPEAT_MS (an eighth of the zoom each). */
+  private static final long ZOOM_REPEAT_MS = 150;
+  private int touchZoomDirection, touchZoomLines;
+  private final Runnable touchZoom = new Runnable() {
+    @Override public void run() {
+      if (touchZoomDirection == 0 || destroyed) return;
+      CoreBridge.zoom(touchZoomDirection);
+      main.postDelayed(this, ZOOM_REPEAT_MS);
+    }
   };
 
   /**

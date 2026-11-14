@@ -104,6 +104,7 @@
     <string name="ingame_aim_touch_area">Touch Area</string>
     <string name="ingame_aim_c_stick">C Stick</string>
     <string name="ingame_touch_aim_help">Touch Aiming: while L or R holds a weapon ready, the touch area aims by swipes on the right half (the aim follows your finger and stops when it stops) or the touch C stick aims like a stick (add it with the gear at the top right). Move Stick: as on the GameCube.</string>
+    <string name="ingame_touch_zoom_help">Zoom in a scope or the binoculars by touch: drag up or down on the right half (with Move Stick or C Stick aiming) or on the touch C stick, or add the zoom buttons + and − with the gear at the top right (they zoom while held).</string>
     <string name="ingame_gyro_sensitivity">Gyro sensitivity</string>
     <string name="ingame_gyro_invert_v">Invert vertical</string>
     <string name="ingame_gyro_invert_h">Invert horizontal</string>
@@ -363,6 +364,10 @@
     <string name="ingame_act_left">Move Left</string>
     <string name="ingame_act_back">Move Back</string>
     <string name="ingame_act_forward">Move Forward</string>
+    <string name="ingame_act_c_up">C Stick Up (zoom in)</string>
+    <string name="ingame_act_c_down">C Stick Down (zoom out)</string>
+    <string name="ingame_act_c_left">C Stick Left</string>
+    <string name="ingame_act_c_right">C Stick Right</string>
     <string name="ingame_map_swapped">%1$s is now on %2$s.</string>
     <string name="ingame_map_fixed_key">This key is fixed (D-pad, confirm, back).</string>
     <string name="ingame_map_use_keyboard">Press a key of the keyboard.</string>
@@ -375,6 +380,7 @@
     <string name="ingame_map_press">Press a key …</string>
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
     <string name="ingame_mouse_help">The mouse (Android 8 and later) belongs to the game while it runs: moving it turns the camera, while aiming it moves the aim and in the binoculars the view. Its wheel zooms the scope and the binoculars (up zooms in). The app menu (F1) frees the pointer.</string>
+    <string name="ingame_keyboard_c_help">The knife: hold its key and move the mouse to aim it, as with the weapons. The C stick\'s keys (I, K, J, L unless you change them) turn the camera and zoom the scope and the binoculars (up zooms in, down out), as the mouse wheel does.</string>
     <string name="ingame_mouse_sensitivity">Mouse Sensitivity</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Device</string>

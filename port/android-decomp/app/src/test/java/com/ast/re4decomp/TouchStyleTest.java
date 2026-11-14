@@ -38,6 +38,7 @@ public class TouchStyleTest {
       @Override public void editing(boolean on) {}
       @Override public void send() {}
       @Override public void r3(boolean down) {}
+      @Override public void zoom(int direction, boolean down) {}
     });
   }
 

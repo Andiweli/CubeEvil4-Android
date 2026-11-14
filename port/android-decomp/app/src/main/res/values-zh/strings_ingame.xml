@@ -95,6 +95,7 @@
     <string name="ingame_aim_touch_area">触控区域</string>
     <string name="ingame_aim_c_stick">C 摇杆</string>
     <string name="ingame_touch_aim_help">触控瞄准：按住 L 或 R 举起武器时，在右半屏滑动触控区域即可瞄准（准星跟随手指，手指停下准星也停下），或像摇杆一样使用触控 C 摇杆瞄准（用右上角的齿轮添加）。移动摇杆：与 GameCube 相同。</string>
+    <string name="ingame_touch_zoom_help">触控缩放瞄准镜或望远镜：在右半屏上下拖动（使用移动摇杆或 C 摇杆瞄准时），或拖动触控 C 摇杆；也可以通过右上角的齿轮添加缩放按钮 + 和 −（按住即可缩放）。</string>
     <string name="ingame_gyro_sensitivity">陀螺仪灵敏度</string>
     <string name="ingame_gyro_invert_v">反转垂直方向</string>
     <string name="ingame_gyro_invert_h">反转水平方向</string>
@@ -346,6 +347,10 @@
     <string name="ingame_act_left">向左</string>
     <string name="ingame_act_back">后退</string>
     <string name="ingame_act_forward">前进</string>
+    <string name="ingame_act_c_up">C 摇杆上（放大）</string>
+    <string name="ingame_act_c_down">C 摇杆下（缩小）</string>
+    <string name="ingame_act_c_left">C 摇杆左</string>
+    <string name="ingame_act_c_right">C 摇杆右</string>
     <string name="ingame_map_swapped">%1$s 现在在 %2$s 上。</string>
     <string name="ingame_map_fixed_key">此按键固定（十字键、确认、返回）。</string>
     <string name="ingame_map_use_keyboard">请按键盘上的按键。</string>
@@ -358,6 +363,7 @@
     <string name="ingame_map_press">请按一个键 …</string>
     <string name="ingame_map_keyboard">键盘和鼠标</string>
     <string name="ingame_mouse_help">游戏运行时鼠标（Android 8 及以上）归游戏使用：移动鼠标转动镜头，瞄准时移动准星，使用望远镜时移动视野。滚轮可缩放瞄准镜和望远镜（向上为拉近）。应用菜单（F1）会释放鼠标指针。</string>
+    <string name="ingame_keyboard_c_help">刀：按住刀的按键并移动鼠标即可瞄准，与武器相同。C 摇杆的按键（默认 I、K、J、L）可转动视角，并像鼠标滚轮一样缩放瞄准镜和望远镜（上为放大，下为缩小）。</string>
     <string name="ingame_mouse_sensitivity">鼠标灵敏度</string>
     <string name="ingame_map_controller">手柄</string>
     <string name="ingame_map_device">设备</string>

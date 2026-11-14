@@ -522,6 +522,20 @@ public final class CoreInputTests {
       kb.mouseLook(0, -1f);
       check(!kb.zoomView() && kb.pad()[4] > 80);
       kb.mouseLook(0, 0);
+      // 0.99.15 (GitHub #247): the C stick's keys, I K J L by default: I up, J left; in the scope and the binoculars
+      // too (there they zoom: I in, K out), where the mouse keeps off the C stick
+      check(kb.keyboardKey(5, 37, true));
+      check(kb.pad()[4] > 80 && kb.pad()[3] == 0);
+      kb.keyboardKey(5, 37, false);
+      kb.keyboardKey(5, 38, true);
+      check(kb.pad()[3] < -80);
+      kb.keyboardKey(5, 38, false);
+      kb.setZoomView(true);
+      kb.keyboardKey(5, 39, true);
+      check(kb.pad()[4] < -80);
+      kb.keyboardKey(5, 39, false);
+      kb.setZoomView(false);
+      check(kb.pad()[3] == 0 && kb.pad()[4] == 0);
       // the mouse's aim (0.99.12, "Invert vertical" for the mouse too): right turns right (yaw negative), the mouse
       // moved down (dy positive) aims down; with the switch it aims up; the sensitivity scales both
       float[] aim = CoreInput.mouseAim(10f, 20f, 0.0025f, false);
