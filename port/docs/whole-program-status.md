@@ -178,8 +178,8 @@ noch schaffbar. Können wir das entschärfen?“
   normale Ganados und alle einfachen A-Aufforderungen, Kurbeln, Zwischensequenz-QTEs. Schaden (`LifeDownSet2`,
   0,5 + 0,1 × Rang: Professional 1,5×) und der Sofort-Tod im Griff von hinten bleiben unangetastet (Wunsch: Schaden und
   Gegner wie Professional).
-- **Gebaut: „Sanftere QTEs (Professional)“** unter Steuerung → Komfortsteuerung, **Standard an** (Vorschlag; die
-  Entscheidung liegt beim Projektinhaber), Texte in 11 Sprachen. Patch 0232 (74 Stellen in `r226`, `emrock`, `pl0f`,
+- **Gebaut: „Sanftere QTEs (Professional)“** unter Steuerung → Komfortsteuerung, **Standard an** (Entscheidung des
+  Projektinhabers, 14.11.2026: „Ja, an lassen“), Texte in 11 Sprachen. Patch 0232 (74 Stellen in `r226`, `emrock`, `pl0f`,
   `objTrolley`, `em39`, `em2b`, `em32`) lässt nur diese QTE-Abfragen `re4_qte_level()` lesen (`runtime/qte_touch.cpp`):
   der Rang des Spiels, mit dem Schalter in Professional höchstens 5 (Normals Start). Leitung: `CoreBridge.setGentleQte`
   → `re4_core_set_gentle_qte` (eigener Prozess: `kSetGentleQte` 45). Die erste entschärfte QTE schreibt eine Zeile ins
