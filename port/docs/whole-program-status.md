@@ -123,7 +123,7 @@ Management-Teile.
 ### 3. Moto G22: das Spiel füllt den Bildschirm nicht, „die Kameraleiste bleibt sichtbar“ (Nutzerbericht, 14.11.2026)
 
 „I can now play RE4 at 30 FPS on my Moto G22. However, it doesn't go into full screen, the camera bar remains
-visible.“ Bild `E:\Development\Androideports 9915-moto-g22-cutout\moto-g22-ingame.png` (1280 × 576, 20:9,
+visible.“ Bild `E:\Development\Android\reports\09915-moto-g22-cutout\moto-g22-ingame.png` (1280 × 576, 20:9,
 Bildformat „Gestreckt“ oder „Nativ“: Minikarte 23 Pixel vom linken Fensterrand): links ein schwarzer Streifen von
 etwa 76 Pixeln (beim Telefon 1600 × 720 etwa 95), keine Status- und keine Navigationsleiste.
 
