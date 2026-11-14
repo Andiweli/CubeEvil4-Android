@@ -228,92 +228,6 @@ bool StartSound() {
   return (*gPlay)->SetPlayState(gPlay, SL_PLAYSTATE_PLAYING) == SL_RESULT_SUCCESS;
 }
 
-}  // namespace
-
-// The game core in its process (once per app process; the core cannot be restarted): "" when it
-// runs, else why not. Any thread but the GL thread (it waits for the core process's start).
-extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeStart(JNIEnv *env, jclass,
-                                                                                          jstring dataDir,
-                                                                                          jstring libraryDir,
-                                                                                          jint gameLanguage) {
-  std::lock_guard<std::mutex> l(gLock);
-  if (gStarted)
-    return env->NewStringUTF(gProblem.c_str());
-  gStarted = true;
-  const std::string data = Text(env, dataDir);
-  {
-    std::lock_guard<std::mutex> l(ahead::gFileLock);
-    ahead::gFile = data + "/shaders-gles2.keys";
-  }
-  for (const auto &s : kCoreSettings)
-    setenv(s[0], s[1], 1);
-  char value[32];
-  snprintf(value, sizeof(value), "%.2f", gViewPercent / 100.0);
-  setenv("RE4_VIEW_DISTANCE", value, 1);  // the distance fog and the far plane (patch 0223)
-  snprintf(value, sizeof(value), "%d", gPotato);
-  setenv("RE4_POTATO", value, 1);  // runtime/potato.cpp: weather, special effects, particles, shadows
-  setenv("RE4_CPU_SKIP", gCpuSkip ? "1" : "0", 1);  // frame skip Aggressive
-  setenv("RE4_GENTLE_QTE", gGentleQte ? "1" : "0", 1);
-  snprintf(value, sizeof(value), "%d", gCheats);
-  setenv("RE4_CHEATS", value, 1);  // the menu's cheat switches (runtime/cheats.cpp)
-  if (gameLanguage >= 2 && gameLanguage <= 6) {
-    // the European discs: the game's language (the main app's RE4_GAME_LANGUAGE, retail-eu-plan.md R7)
-    snprintf(value, sizeof(value), "%d", static_cast<int>(gameLanguage));
-    setenv("RE4_GAME_LANGUAGE", value, 1);
-  }
-  setenv("RE4_LOG_FILE", (data + "/core.log").c_str(), 1);
-  ReadSettings(data);
-  // the core process: a program among the app's libraries (extracted at installation; the folder from
-  // Java, ApplicationInfo.nativeLibraryDir: Android 4.1's dladdr names a library without its folder)
-  re4ipc::Spawn spawn;
-  spawn.libraryDir = Text(env, libraryDir);
-  spawn.program = spawn.libraryDir + "/libre4_coreproc.so";
-  spawn.name = "com.ast.cubeevil4.ouya:core";
-  spawn.helloSeconds = 60;
-  re4ipc::configure(spawn);
-  LOG("core process %s, data %s", spawn.program.c_str(), data.c_str());
-  if (!re4ipc_reserve(data.c_str(), "") || !re4ipc_start()) {
-    const char *m = re4ipc_message();
-    gProblem = m && *m ? m : "the game core did not start";
-  } else if (re4ipc_state() == RE4_CORE_FAILED) {
-    gProblem = re4ipc_message();
-  }
-  if (!gProblem.empty()) {
-    LOG("core: %s", gProblem.c_str());
-    return env->NewStringUTF(gProblem.c_str());
-  }
-  gRunning = true;
-  re4ipc_set_aim(gAim);  // auto aim, always run, far camera (no environment for them)
-  std::thread(Fetch).detach();
-  if (!StartSound())
-    LOG("no sound (OpenSL ES)");
-  return env->NewStringUTF("");
-}
-
-namespace {
-
-int gHaveEighths = 0;
-bool gHaveFastTev = false;
-
-// The renderer with the menu's settings (GL thread)
-void MakeRenderer() {
-  re4gx2::GxOptions options;
-  gHaveFastTev = gWantFastTev.load();
-  gHaveEighths = gWantEighths.load();
-  options.fastTev = gHaveFastTev;              // the TEV in fractions
-  options.resolutionEighths = gHaveEighths;    // 6: 480 x 396
-  options.maxLights = 2;                       // the two strongest lights per vertex
-  gRenderer.reset(new re4gx2::GxRenderer);
-  gRenderer->SetOptions(options);  // RE4_GX2_* in the environment (settings.txt) still override them
-  std::string error;
-  if (!gRenderer->Init(1, &error)) {
-    LOG("renderer: %s", error.c_str());
-    gRenderer.reset();
-  } else {
-    LOG("renderer: resolution %d/8, colour calculation %s", gHaveEighths, gHaveFastTev ? "simplified" : "exact");
-  }
-}
-
 // --- shaders built ahead (OUYA improvement 2, wish of the project owner, 14.11.2026) -----------------------------
 // A Tegra 3 links a shader in 120-300 ms and keeps no program binaries: the first picture of an area needed 27-46
 // new ones, 2-4 s of stalling. The keys the renderer built go into <data>/shaders-gles2.keys (every 10 s when there
@@ -485,6 +399,93 @@ void Frame() {
   }
 }
 }  // namespace ahead
+
+}  // namespace
+
+// The game core in its process (once per app process; the core cannot be restarted): "" when it
+// runs, else why not. Any thread but the GL thread (it waits for the core process's start).
+extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeStart(JNIEnv *env, jclass,
+                                                                                          jstring dataDir,
+                                                                                          jstring libraryDir,
+                                                                                          jint gameLanguage) {
+  std::lock_guard<std::mutex> l(gLock);
+  if (gStarted)
+    return env->NewStringUTF(gProblem.c_str());
+  gStarted = true;
+  const std::string data = Text(env, dataDir);
+  {
+    std::lock_guard<std::mutex> l(ahead::gFileLock);
+    ahead::gFile = data + "/shaders-gles2.keys";
+  }
+  for (const auto &s : kCoreSettings)
+    setenv(s[0], s[1], 1);
+  char value[32];
+  snprintf(value, sizeof(value), "%.2f", gViewPercent / 100.0);
+  setenv("RE4_VIEW_DISTANCE", value, 1);  // the distance fog and the far plane (patch 0223)
+  snprintf(value, sizeof(value), "%d", gPotato);
+  setenv("RE4_POTATO", value, 1);  // runtime/potato.cpp: weather, special effects, particles, shadows
+  setenv("RE4_CPU_SKIP", gCpuSkip ? "1" : "0", 1);  // frame skip Aggressive
+  setenv("RE4_GENTLE_QTE", gGentleQte ? "1" : "0", 1);
+  snprintf(value, sizeof(value), "%d", gCheats);
+  setenv("RE4_CHEATS", value, 1);  // the menu's cheat switches (runtime/cheats.cpp)
+  if (gameLanguage >= 2 && gameLanguage <= 6) {
+    // the European discs: the game's language (the main app's RE4_GAME_LANGUAGE, retail-eu-plan.md R7)
+    snprintf(value, sizeof(value), "%d", static_cast<int>(gameLanguage));
+    setenv("RE4_GAME_LANGUAGE", value, 1);
+  }
+  setenv("RE4_LOG_FILE", (data + "/core.log").c_str(), 1);
+  ReadSettings(data);
+  // the core process: a program among the app's libraries (extracted at installation; the folder from
+  // Java, ApplicationInfo.nativeLibraryDir: Android 4.1's dladdr names a library without its folder)
+  re4ipc::Spawn spawn;
+  spawn.libraryDir = Text(env, libraryDir);
+  spawn.program = spawn.libraryDir + "/libre4_coreproc.so";
+  spawn.name = "com.ast.cubeevil4.ouya:core";
+  spawn.helloSeconds = 60;
+  re4ipc::configure(spawn);
+  LOG("core process %s, data %s", spawn.program.c_str(), data.c_str());
+  if (!re4ipc_reserve(data.c_str(), "") || !re4ipc_start()) {
+    const char *m = re4ipc_message();
+    gProblem = m && *m ? m : "the game core did not start";
+  } else if (re4ipc_state() == RE4_CORE_FAILED) {
+    gProblem = re4ipc_message();
+  }
+  if (!gProblem.empty()) {
+    LOG("core: %s", gProblem.c_str());
+    return env->NewStringUTF(gProblem.c_str());
+  }
+  gRunning = true;
+  re4ipc_set_aim(gAim);  // auto aim, always run, far camera (no environment for them)
+  std::thread(Fetch).detach();
+  if (!StartSound())
+    LOG("no sound (OpenSL ES)");
+  return env->NewStringUTF("");
+}
+
+namespace {
+
+int gHaveEighths = 0;
+bool gHaveFastTev = false;
+
+// The renderer with the menu's settings (GL thread)
+void MakeRenderer() {
+  re4gx2::GxOptions options;
+  gHaveFastTev = gWantFastTev.load();
+  gHaveEighths = gWantEighths.load();
+  options.fastTev = gHaveFastTev;              // the TEV in fractions
+  options.resolutionEighths = gHaveEighths;    // 6: 480 x 396
+  options.maxLights = 2;                       // the two strongest lights per vertex
+  gRenderer.reset(new re4gx2::GxRenderer);
+  gRenderer->SetOptions(options);  // RE4_GX2_* in the environment (settings.txt) still override them
+  std::string error;
+  if (!gRenderer->Init(1, &error)) {
+    LOG("renderer: %s", error.c_str());
+    gRenderer.reset();
+  } else {
+    LOG("renderer: resolution %d/8, colour calculation %s", gHaveEighths, gHaveFastTev ? "simplified" : "exact");
+  }
+}
+
 
 // The core sends everything again (a full state from the next chunk on); the renderer waits for it
 void StartOver() {
