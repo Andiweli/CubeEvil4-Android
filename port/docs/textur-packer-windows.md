@@ -104,15 +104,16 @@ Abschnitt „Update“, ersetzt den bisherigen Packer-Absatz:
 >   into its window, choose a size and where to save; it shows the progress and a summary. Copy the `.c4tex` file to
 >   the phone and import it under app menu → Cheats & Mods → Mods. `CubeEvil4-TexturePacker-Console.exe` does the same
 >   on the command line.
-> - Android: install `CubeEvil4-TexturePacker-1.3.apk` (Android 7 or later), choose the pack's ZIP file or folder and a
+> - Android: install `CubeEvil4-TexturePacker-1.4.apk` (Android 7 or later), choose the pack's ZIP file or folder and a
 >   size, then Start (a phone needs far longer than a PC: keep it on the charger). The file is saved in the Download
 >   folder; "Import into CubeEvil4" hands it straight to CubeEvil4.
 
 Zeile für „New“: `- Texture Packer 1.4 for Windows: a real window – drag the pack in, choose the size and where to
 save, watch the progress, see a summary at the end; the command line version is now CubeEvil4-TexturePacker-Console.exe.`
 
-Die Android-App bleibt 1.3 und wird nicht neu gebaut. Wird sie später neu gebaut, schreibt sie „1.4“ in die Datei
-(gemeinsamer Kern): dann ihre `versionName` auf 1.4 stellen.
+Die Android-Packer-App geht mit auf 1.4 (Projektinhaber, 14.11.2026: „Ja, auf 1.4“): `versionName` 1.4,
+`versionCode` 2, weil sie denselben Kern übersetzt und „1.4“ in die Datei schreibt. An ihrer Bedienung und an ihrer
+`.c4tex` ändert sich nichts; mit dem Release kommt `CubeEvil4-TexturePacker-1.4.apk` statt der 1.3.
 
 ## Geprüft (14.11.2026, Windows-PC des Projektinhabers)
 

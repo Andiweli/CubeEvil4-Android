@@ -39,7 +39,9 @@ Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs
 - **Nicht geprüft:** echtes Ziehen mit der Maus (die Sitzung darf die Maus nicht bewegen; geprüft mit demselben
   Windows-Datenobjekt wie beim Ziehen), andere Skalierungen als 100 %, zweiter Monitor, Hoher Kontrast, Windows 10.
 - **Offen:** Releasetext des nächsten Releases mit dem Packer (Vorlage in `textur-packer-windows.md`); die Android-App
-  bleibt 1.3 (wird sie neu gebaut, schreibt sie „1.4“ in die Datei: dann `versionName` 1.4). Zusammenführen nach
+  geht mit auf 1.4 (Projektinhaber: „Ja, auf 1.4“; `versionName` 1.4, `versionCode` 2, gleicher Kern, sonst
+  unverändert; Debug-APK `builds\converter-tool\CubeEvil4-TexturePacker-1.4.apk`, 1,2 MB, gebaut mit dem neuen Kern
+  für 32 und 64 bit, Packer-Tests 8/8, lint ohne Fehler; nicht auf einem Gerät geprüft). Zusammenführen nach
   `master` über die Hauptsitzung nach OK des Inhabers.
 
 ## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)

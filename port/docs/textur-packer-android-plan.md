@@ -134,8 +134,8 @@ sich.
   anders (die Versionsnummer im Info-Text, „1.2“ → „1.3“). Das Paket als eine ZIP (11,9 GB, ZIP64, „gespeichert“)
   ergibt Byte für Byte dieselbe Datei wie der Ordner (256 und 512). `run_e2e.py`: dieselbe Datei aus Ordner, ZIP
   „gespeichert“, ZIP „Deflate“ und ZIP ohne obersten Ordner. `texpack_tests` 910 Prüfungen ohne Fehler.
-- **App** (`port/android-decomp/packer/`, `com.ast.cubeevil4.texturepacker`, Version 1.3 wie das PC-Programm, ab
-  Android 7, Debug-APK 1,2 MB mit 32 und 64 bit): `packer_jni.cpp` (ZIP über die Dateinummer, die Android gibt;
+- **App** (`port/android-decomp/packer/`, `com.ast.cubeevil4.texturepacker`, Version 1.3 wie das PC-Programm, seit
+  14.11.2026 1.4 mit dem PC-Programm 1.4 (Branch `converter-tool`), ab Android 7, Debug-APK 1,2 MB mit 32 und 64 bit): `packer_jni.cpp` (ZIP über die Dateinummer, die Android gibt;
   Ordner: Java öffnet jede Datei über die Dateiauswahl; Bildköpfe werden einmal gelesen und gemerkt; Schreiben mit
   `write`/`pwrite`, freier Platz mit `fstatvfs`), `MainActivity` (ein Bildschirm), `ConvertService`
   (Vordergrunddienst „Datensynchronisierung“, Benachrichtigung mit Fortschritt und „Abbrechen“, CPU wach), `Output`
