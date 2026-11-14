@@ -72,7 +72,13 @@ long long gRunMicros = 0, gRunMax = 0;  // the renderer's time for the chunks of
 // show (from its time for a shown chunk), the core leaves the draws of the others out. Off for a while
 // after a key that may open a screen of the game (its picture behind is a copy the game keeps) and when
 // a later chunk read a copy a chunk without draws should have made (the check: CopiesReadLater).
-std::atomic<long long> gDrawlessHoldUntil{0};  // ms (NowMs): keys of the controller (nativePad)
+// Since 14.11.2026 (OUYA improvement 1, wish of the project owner) no hold after the keys any more: the core keeps
+// every chunk's draws from the game's request for a sub screen on (STA_SSCRN_REQUEST, core_bridge.cpp); before,
+// 0.8 s after START, Y, X, Z or A without aiming the GPU drew every picture (50-65 ms each in the village), also
+// after doors and items that open no screen. The keys are only counted (the log), the copy check's hold stays.
+std::atomic<unsigned> gScreenKeys{0};          // presses of those keys (the log)
+std::atomic<long long> gDrawlessHoldUntil{0};  // ms (NowMs): unused since then (0)
+long long gViolationHeldMs = 0;                // time held after failed copy checks (the log)
 long long gViolationHoldUntil = 0;             // GL thread
 int gDrawlessSent = 0, gDrawlessWant = 0;      // what the core was told, what the renderer's times ask
 long long gShowMicros = 0;                     // the time of the shown chunks since the last choice
@@ -403,7 +409,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
         std::uint32_t kept = 0;
         if (i + 1 < got.size() && gRenderer->CopiesReadLater(*got[i], *got[i + 1], &kept)) {
           gViolations++;
-          gViolationHoldUntil = NowMs() + 3000;
+          const long long until = NowMs() + 3000;
+          gViolationHeldMs += until - (gViolationHoldUntil > NowMs() ? gViolationHoldUntil : NowMs());
+          gViolationHoldUntil = until;
           // which copy (the first few targets): to tell what effect keeps it
           static std::uint32_t logged[8];
           static unsigned nLogged;
@@ -493,9 +501,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
   if (now - gLogAt >= 10000) {
     if (gLogAt) {
       LOG("10 s: %u display frames, %u game pictures (%u left out, %u without draws from the core: one in %d with "
-          "them now), the game waited %u times for the renderer; %u frames with none to show, %u copy checks failed",
+          "them now), the game waited %u times for the renderer; %u frames with none to show, %u copy checks failed "
+          "(held %lld ms), %u presses of START/Y/X/Z/A (no hold)",
           gFrames, gChunks, gSkipped, gDrawlessRun, gDrawlessSent ? gDrawlessSent : 1, gWaited, gDrawlessBehind,
-          gViolations);
+          gViolations, gViolationHeldMs, gScreenKeys.exchange(0));
+      gViolationHeldMs = 0;
       if (gRenderer) {
         // where the renderer's time went: the chunks (per display frame, the longest), shaders built,
         // textures decoded (a counter that went down: a new renderer)
@@ -539,13 +549,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     return;
   auto clampS = [](jint v) { return static_cast<int8_t>(v < -127 ? -127 : v > 127 ? 127 : v); };
   auto clampU = [](jint v) { return static_cast<uint8_t>(v < 0 ? 0 : v > 255 ? 255 : v); };
-  // START, Y, X, Z, and A without aiming (R): may open a screen of the game (inventory, map, the
-  // merchant, the typewriter): every chunk with its draws for a while (its picture behind is a copy)
+  // START, Y, X, Z, and A without aiming (R): may open a screen of the game (inventory, map, the merchant, the
+  // typewriter); counted only, the core holds the draws itself (gScreenKeys)
   static int last = 0;
   const int pressed = buttons & ~last;
   last = buttons;
   if ((pressed & (0x1000 | 0x0800 | 0x0400 | 0x0010)) || ((pressed & 0x0100) && !(buttons & 0x0020)))
-    gDrawlessHoldUntil = NowMs() + 800;
+    gScreenKeys++;
   Re4CorePad pad{static_cast<uint16_t>(buttons), clampS(stickX),   clampS(stickY), clampS(substickX),
                  clampS(substickY),              clampU(triggerL), clampU(triggerR)};
   re4ipc_pad(&pad);

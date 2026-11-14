@@ -261,10 +261,14 @@ const int kSlots = 10;
 // while a sub screen of the game is open (its picture behind is a copy the game reads for as long as
 // it stays: re4_gx_screen), never a chunk that starts over.
 std::atomic<int> gDrawlessEvery{0};
+}  // namespace
+extern "C" void re4_gx_set_drawless(int every);  // below
+namespace {
 std::atomic<int> gGameScreen{0};  // RE4_CORE_SCREEN_* of the game's last frame (core_bridge.cpp)
 int gSinceFull;                   // drawless chunks since the last full one
 bool gChunkDrawless;              // the chunk being recorded leaves its draws out
 u32 gDrawlessChunks, gDrawlessDraws;  // since the last "GX core" line
+u32 gDrawlessHeldScreen;              // chunks with their draws because of a sub screen or its request (same)
 // kPending: ended with a display copy, waits for the game to put it on screen
 // (VISetNextFrameBuffer before VIFlush) or not (SYS_SCREEN_STOP holds the old
 // picture while an event or a room is set up)
@@ -479,10 +483,20 @@ bool beginLocked()
     } else {
         forgetTextures();
     }
+    static bool envRead;
+    if (!envRead) {
+        // the PC's check: RE4_GX_DRAWLESS=N as if the app asked for one chunk in N with its draws
+        envRead = true;
+        if (const char* v = getenv("RE4_GX_DRAWLESS"))
+            re4_gx_set_drawless(atoi(v));
+    }
     const int every = gDrawlessEvery.load();
     gChunkDrawless = false;
-    if (every >= 2 && !(c->view.flags & RE4_GX_CHUNK_RESET) && !(gGameScreen.load() & 1 /* RE4_CORE_SCREEN_SUB */) &&
-        gSinceFull + 1 < every) {
+    // RE4_CORE_SCREEN_SUB (1) or the game's request for a sub screen (0x100, core_bridge.cpp)
+    const bool screen = (gGameScreen.load() & (1 | 0x100)) != 0;
+    if (every >= 2 && screen)
+        gDrawlessHeldScreen++;
+    if (every >= 2 && !(c->view.flags & RE4_GX_CHUNK_RESET) && !screen && gSinceFull + 1 < every) {
         gChunkDrawless = true;
         gSinceFull++;
         c->view.flags |= RE4_GX_CHUNK_DRAWLESS;
@@ -684,12 +698,12 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
             re4_log("GX core: 600 chunks, %.1f ms each, of it %.1f ms waiting for the renderer, %.1f ms idle, "
                     "%.0f KB FIFO, %.0f KB display lists, %.0f vertices; %s; vertices: %.0f batches in %.1f ms on "
                     "%d more threads (with the core thread's share), %.0f draws at once; %u chunks without draws "
-                    "(%u draws left out)",
+                    "(%u draws left out), %u held with their draws for a sub screen",
                     gFrameMs / 600.0, gWaitMs / 600.0, (idle - gIdleAt) / 1e6 / 600.0, gFifoBytes / 1024.0 / 600.0,
                     gListBytes / 1024.0 / 600.0, gFifoVertices / 600.0, use, gJobCount / 600.0,
                     gJobMicros.exchange(0) / 1000.0 / 600.0, gJobsOn ? gWorkers : 0, gJobInline / 600.0,
-                    gDrawlessChunks, gDrawlessDraws);
-            gDrawlessChunks = gDrawlessDraws = 0;
+                    gDrawlessChunks, gDrawlessDraws, gDrawlessHeldScreen);
+            gDrawlessChunks = gDrawlessDraws = gDrawlessHeldScreen = 0;
             gJobCount = gJobInline = 0;
             gIdleAt = idle;
             gTimedChunks = 0;
@@ -2768,7 +2782,15 @@ void re4_gx_set_drawless(int every)
 // sub screen is open
 void re4_gx_screen(int flags)
 {
-    gGameScreen.store(flags);
+    const int before = gGameScreen.exchange(flags);
+    // the log: when the game asks for a sub screen, opens and closes it (the app's chunks without draws stop
+    // from the request on); the first 200 changes
+    static int logged;
+    if (((before ^ flags) & (1 | 0x100)) && logged < 200) {
+        logged++;
+        re4_log("GX: sub screen %s (chunk %u)", (flags & 1) ? "open" : (flags & 0x100) ? "asked for" : "closed",
+                (unsigned) gSequence);
+    }
 }
 
 void re4_gx_mark(void)

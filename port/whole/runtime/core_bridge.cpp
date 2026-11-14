@@ -346,7 +346,10 @@ extern "C" void re4_bridge_capture(Re4CoreSnapshot* s)
     s->screen = (StaFlagChk(g, STA_SUB_SCRN) ? RE4_CORE_SCREEN_SUB : 0) |
                 (StaFlagChk(g, STA_EVENT) ? RE4_CORE_SCREEN_EVENT : 0) |
                 (DbgFlagChk(g, DBG_DBG_CAM) ? RE4_CORE_SCREEN_DEBUGCAM : 0);
-    re4_gx_screen(s->screen);  // the OUYA branch: no chunks without draws in a sub screen (gx_decode.cpp)
+    // the OUYA branch: no chunks without draws in a sub screen (gx_decode.cpp), from the game's request on
+    // (SubScreenOpen sets STA_SSCRN_REQUEST some frames before SubScreenExec sets STA_SUB_SCRN; 0x100 is the
+    // core's own bit, not in RE4_CORE_SCREEN_*)
+    re4_gx_screen(s->screen | (StaFlagChk(g, STA_SSCRN_REQUEST) ? 0x100 : 0));
     // a sub screen draws its own items with its own camera in pG->Camera
     // (sscrn.cpp keeps the world camera aside); the world behind it is the
     // controller's camera
