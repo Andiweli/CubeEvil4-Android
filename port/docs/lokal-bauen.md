@@ -47,6 +47,18 @@ bauen und installieren. Sie braucht den Spielkern aus Schritt 2 nicht. Ohne Andr
 `port\android-decomp`): `.\gradlew.bat :packer:assembleDebug`, die APK liegt dann in
 `port\android-decomp\packer\build\outputs\apk\debug\packer-debug.apk`.
 
+### Texture Packer für Windows (Fenster und Kommandozeile)
+
+Braucht weder WSL noch Android Studio, nur Visual Studio (C++) und CMake. PowerShell:
+
+```powershell
+cd E:\Development\Android\RE4-Fixed\port\tools\texpack
+powershell -ExecutionPolicy Bypass -File .\build.ps1 -Out "E:\Development\Android\builds\converter-tool"
+```
+
+Gut ist `… checks, 0 failed` und zweimal `Built …`. Danach liegen `CubeEvil4-TexturePacker.exe` (das Fenster) und
+`CubeEvil4-TexturePacker-Console.exe` (die Kommandozeile) im angegebenen Ordner (`port/docs/textur-packer-windows.md`).
+
 ## Wechsel auf `beta-updates` (einmal)
 
 Wer noch auf `claude/adoring-pasteur-h5s2fw`, `beta-optimisations`, `gui-optimisations`,

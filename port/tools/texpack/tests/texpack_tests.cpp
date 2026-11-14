@@ -1,18 +1,22 @@
 // Tests of the texture tool's parts: CRC, ETC2/EAC encoder and decoder, BC and DDS reader, inflate and PNG reader,
-// filters. texpack_tests [PNG fixture folder (make_png_fixtures.py) [BC7/JPG fixture folder (make_bc7_jpeg_fixtures.py)]]
+// filters, the window version's texts (11 languages) and what the core tells it (progress, refused images, estimates).
+// texpack_tests [PNG fixture folder (make_png_fixtures.py) [BC7/JPG fixture folder (make_bc7_jpeg_fixtures.py)]]
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "c4tex.h"
 #include "etc2.h"
 #include "fileio.h"
+#include "gui_text.h"
 #include "image.h"
+#include "packer.h"
 
 namespace {
 
@@ -445,6 +449,157 @@ void TestEntryValid() {
   CHECK(!c4tex::EntryValid(b, 100000, 256, 50000));
 }
 
+// the window version's texts: every language has every text, with the same placeholders as the English one
+std::set<int> Placeholders(const std::string &s) {
+  std::set<int> out;
+  for (std::size_t i = 0; i + 1 < s.size(); i++) {
+    if (s[i] != '%') continue;
+    if (s[i + 1] == '%') {
+      i++;
+      continue;
+    }
+    if (s[i + 1] >= '1' && s[i + 1] <= '9') out.insert(s[i + 1] - '0');
+  }
+  return out;
+}
+
+void TestGuiTexts() {
+  using namespace guitext;
+  int missing = 0, wrongPlaceholders = 0;
+  for (int id = 0; id < kIdCount; id++) {
+    const std::set<int> english = Placeholders(Text(kEn, static_cast<Id>(id)));
+    for (int l = 0; l < kLangCount; l++) {
+      const char *t = Text(static_cast<Lang>(l), static_cast<Id>(id));
+      if (!t || !*t) missing++;
+      else if (Placeholders(t) != english) {
+        std::printf("placeholders differ: text %d, language %s\n", id, Code(static_cast<Lang>(l)));
+        wrongPlaceholders++;
+      }
+    }
+  }
+  CHECK(missing == 0);
+  CHECK(wrongPlaceholders == 0);
+  // the sizes start with their number in every language (the cards show them so)
+  for (int l = 0; l < kLangCount; l++) {
+    CHECK(std::string(Text(static_cast<Lang>(l), kSize256)).rfind("256", 0) == 0);
+    CHECK(std::string(Text(static_cast<Lang>(l), kSize512)).rfind("512", 0) == 0);
+    CHECK(std::string(Text(static_cast<Lang>(l), kSize1024)).rfind("1024", 0) == 0);
+  }
+  // languages from Windows' names
+  CHECK(FromCode("de-AT") == kDe);
+  CHECK(FromCode("DE") == kDe);
+  CHECK(FromCode("in") == kId);
+  CHECK(FromCode("id-ID") == kId);
+  CHECK(FromCode("zh-Hans-CN") == kZh);
+  CHECK(FromCode("pt-BR") == kPt);
+  CHECK(FromCode("ar-SA") == kAr);
+  CHECK(FromCode("nl-NL") == kEn);
+  CHECK(FromCode("") == kEn);
+  CHECK(RightToLeft(kAr) && !RightToLeft(kDe));
+  // formatting
+  CHECK(Format("%2 of %1", {"a", "b"}) == "b of a");
+  CHECK(Format("%1%%", {"41"}) == "41%");
+  CHECK(Format("%3", {"a"}) == "");
+  CHECK(Count(kEn, 5916) == "5,916");
+  CHECK(Count(kDe, 1234567) == "1.234.567");
+  CHECK(Count(kEn, 999) == "999");
+  CHECK(Bytes(kEn, 716315264) == "716 MB");
+  CHECK(Bytes(kDe, 2336900368ull) == "2,34 GB");
+  CHECK(Bytes(kEn, 11929097886ull) == "11.9 GB");
+  CHECK(Bytes(kFr, 2000000000ull) == "2,00 Go");
+  CHECK(Duration(kEn, 262) == "4 min 22 s");
+  CHECK(Duration(kEn, 3700) == "1 h 1 min");
+  CHECK(Duration(kEn, 42) == "42 s");
+  CHECK(About(kEn, 250) == "4 min");
+  CHECK(About(kEn, 870) == "15 min");
+  CHECK(About(kEn, 31) == "30 s");
+  CHECK(About(kEn, 4000) == "1 h 5 min");
+  CHECK(About(kDe, 3) == "10 s");
+}
+
+// the pack file in memory
+class MemorySink : public pack::Sink {
+ public:
+  std::vector<std::uint8_t> data;
+  bool Write(const void *p, std::size_t n) override {
+    const auto *b = static_cast<const std::uint8_t *>(p);
+    data.insert(data.end(), b, b + n);
+    return true;
+  }
+  bool WriteAt(std::uint64_t offset, const void *p, std::size_t n) override {
+    if (offset + n > data.size()) data.resize(static_cast<std::size_t>(offset + n));
+    std::memcpy(data.data() + offset, p, n);
+    return true;
+  }
+};
+
+// what the window version shows: the progress with the image in work and the refused ones, the refused images with
+// their reason at the end, and the estimates per image that add up to the pack's
+void TestPackerExtras() {
+  namespace fs = std::filesystem;
+  const fs::path dir = fs::temp_directory_path() / ("texpack_tests_" + std::to_string(std::random_device()()));
+  fs::create_directories(dir / "G4BE08");
+  fs::create_directories(dir / "Extra" / "Case" / "Gold");
+  const img::Image a = Make(128, 128, 1, 1), b = Make(96, 64, 2, 4), v = Make(128, 128, 3, 3);
+  CHECK(img::SavePng(fio::Utf8(dir / "G4BE08" / "tex1_64x64_0123456789abcdef_14.png"), a));
+  CHECK(img::SavePng(fio::Utf8(dir / "G4BE08" / "tex1_48x32_fedcba9876543210_5.png"), b));
+  CHECK(img::SavePng(fio::Utf8(dir / "Extra" / "Case" / "Gold" / "tex1_64x64_0123456789abcdef_14.png"), v));
+  const std::string broken = "not really a PNG file";
+  CHECK(fio::WriteFile(fio::Utf8(dir / "G4BE08" / "tex1_32x32_1111111111111111_14.png"),
+                       std::vector<std::uint8_t>(broken.begin(), broken.end())));
+  CHECK(fio::WriteFile(fio::Utf8(dir / "G4BE08" / "readme.txt"), std::vector<std::uint8_t>{'h', 'i'}));
+
+  pack::Pack p;
+  pack::Prepare(pack::ListFolder(fio::Utf8(dir)), "test", p);
+  CHECK(p.byKey.size() == 3);
+  CHECK(p.skipped.size() == 1);
+  CHECK(p.groups.size() == 1);
+  pack::Settings s;
+  s.size = 512;
+  s.threads = 2;
+  s.date = "2026-11-14";
+  s.outName = "test.c4tex";
+  std::string choices;
+  std::vector<const pack::Source *> todo = pack::Todo(p, s, choices);
+  CHECK(todo.size() == 3);
+  // EstimateEach adds up to EstimateSizes; its progress ends with every image
+  std::size_t lastDone = 0;
+  const auto each = pack::EstimateEach(todo, {256, 512, 1024}, [&](std::size_t d) { lastDone = d; });
+  const auto total = pack::EstimateSizes(todo, {256, 512, 1024});
+  CHECK(lastDone == todo.size());
+  CHECK(each.size() == todo.size());
+  for (int k = 0; k < 3; k++) {
+    std::uint64_t sum = pack::kEstimateBase;
+    for (const auto &e : each) sum += e[static_cast<std::size_t>(k)];
+    CHECK(sum == total[static_cast<std::size_t>(k)]);
+  }
+  // the variant's image replaces the main one when chosen
+  std::string bad;
+  CHECK(pack::Choose(p, {"Case=Gold"}, bad));
+  todo = pack::Todo(p, s, choices);
+  CHECK(choices == "Case: Gold");
+  // converting: the progress names each image and counts the refused one
+  MemorySink sink;
+  std::vector<pack::Progress> seen;
+  const pack::Outcome r = pack::Convert(p, todo, choices, s, sink, [&](const pack::Progress &pr) { seen.push_back(pr); }, nullptr);
+  CHECK(r.ok);
+  CHECK(r.entries == 2);
+  CHECK(r.failed == 1);
+  CHECK(r.failures.size() == 1);
+  CHECK(!r.failures.empty() && r.failures[0].path == "G4BE08/tex1_32x32_1111111111111111_14.png");
+  CHECK(!r.failures.empty() && !r.failures[0].reason.empty());
+  CHECK(r.skipped == 1);
+  CHECK(seen.size() == todo.size());
+  CHECK(!seen.empty() && seen.back().done == seen.back().total && seen.back().failed == 1);
+  bool named = true;
+  for (std::size_t i = 0; i < seen.size(); i++) named = named && seen[i].done == i + 1 && seen[i].current == todo[i]->file.rel;
+  CHECK(named);
+  CHECK(sink.data.size() == r.fileBytes);
+  CHECK(r.report.find("Failed: G4BE08/tex1_32x32_1111111111111111_14.png") != std::string::npos);
+  std::error_code ec;
+  fs::remove_all(dir, ec);
+}
+
 }  // namespace
 
 int main(int argc, char **argv) {
@@ -461,6 +616,8 @@ int main(int argc, char **argv) {
   if (argc > 2) TestBc7JpegFixtures(argv[2]);
   TestFilters();
   TestEntryValid();
+  TestGuiTexts();
+  TestPackerExtras();
   std::printf("%d checks, %d failed\n", gChecks, gFailures);
   return gFailures ? 1 : 0;
 }

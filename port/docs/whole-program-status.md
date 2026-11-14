@@ -16,6 +16,32 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
   Auflösung laufen. Noch nicht richtig auf einem Gerät geprüft: Zufällige Gegner Stufe 1.5, der ZIP-Export und
   „Alle Daten löschen“.
 
+## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
+
+Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit
+Fenster“ (Fenster, Paket hineinziehen mit Hinweis, Optionen wie Konsole und Android, Speichern-Dialog, sichtbare
+Umwandlung, Erfolg/Fehler am Ende). Nur das PC-Programm; App und Android-Packer unverändert (Feature-Freeze).
+Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs/textur-packer-windows.md`.
+
+- **Zwei Dateien:** `CubeEvil4-TexturePacker.exe` ist jetzt das Fenster (Win32 mit GDI/GDI+, keine Laufzeit, 0,7 MB),
+  die bisherige Konsolen-Version heißt `CubeEvil4-TexturePacker-Console.exe`. Grund: eine Datei kann nicht beides
+  sauber (Konsolen-Programm: schwarzes Fenster blitzt beim Doppelklick; Fenster-Programm: die Befehlszeile wartet nicht).
+  Das Fenster mit Konsolen-Optionen verweist auf die Konsolen-Version (Rückgabewert 2).
+- **Code:** `port/tools/texpack/gui.cpp` (Fenster), `gui_text.h/.cpp` (90 Texte × 11 Sprachen, Android-Texte wörtlich
+  übernommen), `pc.h` (von Fenster und Konsole geteilt), `res/` (Symbol aus dem Android-Packer-Zeichen, Version,
+  Manifest). Kern: Fortschritt mit Bildname und abgelehnten Bildern, Ergebnis mit Liste der abgelehnten Bilder,
+  `EstimateEach`; die `.c4tex` bleibt gleich. Version 1.4 (steht im Info-Text der Datei).
+- **Geprüft** (Windows-PC): `texpack_tests` 636 / mit Testbildern 1.001 ohne Fehler (auch GCC in WSL), `run_e2e.py` 36/36;
+  HD Project als ZIP mit Größe 256 im Fenster in 2 min 22 s, Byte für Byte gleich der Konsolen-Datei, gegen 1.3 nur 2
+  Bytes (Version, Datum); Abbrechen und Schließen löschen die halbe Datei; Speichern- und Öffnen-Dialoge; abgelehnte
+  Bilder mit Grund; Deutsch, Englisch, Arabisch, Chinesisch, Hindi, hell und dunkel. Bilder:
+  `E:\Development\Android\builds\converter-tool\screenshots\`, `.exe` in `E:\Development\Android\builds\converter-tool\`.
+- **Nicht geprüft:** echtes Ziehen mit der Maus (die Sitzung darf die Maus nicht bewegen; geprüft mit demselben
+  Windows-Datenobjekt wie beim Ziehen), andere Skalierungen als 100 %, zweiter Monitor, Hoher Kontrast, Windows 10.
+- **Offen:** Releasetext des nächsten Releases mit dem Packer (Vorlage in `textur-packer-windows.md`); die Android-App
+  bleibt 1.3 (wird sie neu gebaut, schreibt sie „1.4“ in die Datei: dann `versionName` 1.4). Zusammenführen nach
+  `master` über die Hauptsitzung nach OK des Inhabers.
+
 ## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
 
 Version 0.99.15-rc (versionCode 117), Releasetext `port/android-decomp/docs/releases/v0.99.15-rc.md` („Changes since
