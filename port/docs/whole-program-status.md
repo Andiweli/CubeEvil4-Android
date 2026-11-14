@@ -11,8 +11,7 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - Keine neuen Funktionen und keine neuen Optionen bis 1.0. Braucht eine Fehlerbehebung eine neue Option, vorher den
   Projektinhaber fragen.
 - Neue Wünsche kommen auf die Liste für **1.1**, nicht in die laufende Version. Bisher: GitHub #247 (C-Stick mit
-  Tastatur und Maus), #248 (filmische Darstellung), das Bild über die Kamera-Aussparung (Moto G22, Abschnitt 3 von
-  0.99.15, dort ausgebaut).
+  Tastatur und Maus), #248 (filmische Darstellung).
 - Gerätestand des Projektinhabers (14.11.2026): HD-Texturen, Bloom, der 120-Hz-Rhythmushalter und die dynamische
   Auflösung laufen. Noch nicht richtig auf einem Gerät geprüft: Zufällige Gegner Stufe 1.5, der ZIP-Export und
   „Alle Daten löschen“.
@@ -173,10 +172,10 @@ etwa 76 Pixeln (beim Telefon 1600 × 720 etwa 95), keine Status- und keine Navig
   gleich breit (ein 16:9-Kasten), und „Nativ“ zeigt Menüs, das Zielfernrohr und Filme mit Absicht im 16:9-Kasten,
   nur das 3D beim Spielen wird breiter (`core_mode.cpp`, `re4mm::Native`, seit 07.11.2026). Geprüft am PC: App-Tests
   153 je Variante grün (156 ohne die drei `CutoutTest`).
-- **Wieder offen:** die Meldung vom Moto G22 (schwarzer Streifen auf der Kamera-Seite); sie kommt auf die Liste für
-  1.1. Ein neuer Versuch müsste das Bild über die Aussparung legen und die Touch-Knöpfe trotzdem bis an die Ränder
-  lassen (ohne Einrückung, Knöpfe unter dem Kameraloch verschiebt man im Editor) und auf einem Gerät mit Kameraloch
-  geprüft werden.
+- **Erledigt, ohne Änderung (Entscheidung des Projektinhabers, 14.11.2026):** „das moto problem kannst du streichen,
+  der user schaltet manuell am handy etwas um damit spiele die notch nutzen können.“ Der Nutzer schaltet in den
+  Einstellungen seines Telefons ein, dass Apps den Bereich der Kamera-Aussparung nutzen dürfen. Nicht auf der Liste
+  für 1.1.
 
 ### 4. QTEs in Professional entschärfen (Projektinhaber, 14.11.2026)
 
