@@ -305,6 +305,8 @@ public final class CoreBridge {
   /** A finger touching down beside the touch controls (0.99.15): a quick-time prompt's press at once (the tap at the
    *  finger's lift then only goes to the sub screens). */
   public static native void touchDown();
+  /** Android's thermal status (-1 unknown) and headroom (NaN unknown) for the lines of Dynamic (ThermalWatch, 0.99.15). */
+  public static native void setThermal(int status, float headroom);
   /** A swipe across the picture: 1 to the left (the next tab of the game's sub screen), -1 to the right. */
   public static native void swipe(int dir);
   /**

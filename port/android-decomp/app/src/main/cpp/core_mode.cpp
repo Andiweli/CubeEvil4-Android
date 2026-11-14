@@ -581,6 +581,25 @@ std::atomic<int> optInvalidate{-1}, optTiled{0}, optHalfDof{1};
 std::atomic<unsigned> optSerial{0};
 unsigned optApplied = ~0u;
 std::atomic<bool> corePaused{false};
+// Android's thermal status and headroom (ThermalWatch, 0.99.15; set by CoreBridge.setThermal from the app's main thread,
+// read by the render thread): Dynamic's lines name them, so a report shows whether a step down came with heat
+std::atomic<int> thermalStatus{-2};
+std::atomic<int> thermalHeadroom{-1};  // headroom x 100, -1 unknown
+
+// "; heat: moderate, headroom 0.71" for a line of Dynamic ("" while the app said nothing)
+std::string heatText() {
+  static const char *const names[] = {"none", "light", "moderate", "severe", "critical", "emergency", "shutdown"};
+  const int s = thermalStatus.load(), h = thermalHeadroom.load();
+  if (s < 0 && h < 0) return "";
+  char text[64];
+  std::snprintf(text, sizeof(text), "; heat: %s", s >= 0 && s <= 6 ? names[s] : "unknown");
+  std::string out = text;
+  if (h >= 0) {
+    std::snprintf(text, sizeof(text), ", headroom %d.%02d", h / 100, h % 100);
+    out += text;
+  }
+  return out;
+}
 // what the device can do and what the renderer uses (CoreBridge.graphicsInfo)
 std::atomic<int> infoMaxSamples{0}, infoMaxAnisotropy{0}, infoScale{0}, infoSamples{0}, infoAnisotropy{0};  // infoScale in halves
 
@@ -2661,10 +2680,11 @@ bool drawGx() {
                                         !corePaused.load() && !gxDumpSeriesLeft && !gxHitShotsLeft && !bench.measuring &&
                                             !benchForcing(),
                                         &why, &status);
+      // (each with the device's heat, ThermalWatch: whether a step down came with heat)
       if (!status.empty())
-        LOG("%s", status.c_str());  // why it stays below the top, or pictures late not by the GPU (every 10 s at most)
+        LOG("%s%s", status.c_str(), heatText().c_str());  // why it stays below the top, or late not by the GPU (10 s)
       if (level != gx->Halves()) {
-        LOG("%s", why.c_str());
+        LOG("%s%s", why.c_str(), heatText().c_str());
         // no in-between picture across the change (a chunk taken ahead, skipNext, is not run yet:
         // it stays and is drawn at the next refresh; the core sends only what changed)
         if (smoothPrev) {
@@ -3205,6 +3225,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_tap(JNIEnv *
   if (u < 0.f || u > 1.f || inBox < 0.f || inBox > 1.f) return;
   // (u + 2: the sub screens only; the quick-time prompts had the finger at its touch down, touchDown)
   api.touch(u + 2.f, picTop.load() + inBox * picRows.load());
+}
+
+// Android's thermal status (-1 unknown) and headroom (NaN unknown) from ThermalWatch (0.99.15): for Dynamic's lines
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setThermal(JNIEnv *, jclass, jint status,
+                                                                             jfloat headroom) {
+  thermalStatus.store(status);
+  thermalHeadroom.store(headroom == headroom && headroom >= 0.f ? static_cast<int>(headroom * 100.f + 0.5f) : -1);
 }
 
 // A finger touching down beside the touch controls (CoreActivity.watchTap, 0.99.15): a quick-time prompt's press at

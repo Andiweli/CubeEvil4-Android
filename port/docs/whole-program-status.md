@@ -242,6 +242,14 @@ achten (Androids Thermalstatus).
   je Minute. Der Bericht bekommt `thermal.txt` (Status jetzt und höchster, letzte und höchste Reserve, alle
   Statuswechsel, die letzten 90 Messungen = 15 min); er gilt auch, wenn logcat auf einem Gerät nichts aufzeichnet.
   Test `ThermalWatchTest` (6, mit nachgebauter Quelle). Nicht auf einem Gerät geprüft.
+- **Nachgelegt (Auftrag 7 der Hauptsitzung, gleicher Tag):** der Bericht nennt zum höchsten Status und zur höchsten
+  Reserve den Zeitpunkt („moderate (at +12:30)“, Zeit seit dem Spielstart); ohne Status (Android 9 und älter) und ohne
+  Reserve (Android 10, oder das Gerät liefert keine; nach drei leeren Messungen) je einmal „not available“. Jeder neue
+  Status und jede Messung geht über `CoreBridge.setThermal` an den Renderer (zwei Atomics, kein Aufwand im Spiel-,
+  Zeichen- oder Tonfaden); die Zeilen von „Dynamisch“ (Stufenwechsel und „bleibt unter der Obergrenze“) enden mit
+  „; heat: moderate, headroom 0.71“, so zeigt ein Bericht, ob ein Schritt nach unten mit Hitze kam. Alles läuft auf dem
+  Hauptfaden (Androids Rückruf, `CoreActivity.tick`). Test `ThermalWatchTest` 7 (Rückruf, Zeitpunkte, einmalige
+  Hinweise, `heatText`); NDK-Bau (beide ABIs) ohne neue Warnung, die neue Funktion in beiden Bibliotheken; App-Tests 156 je Variante grün.
 
 ## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 

@@ -46,7 +46,7 @@ public class ThermalWatchTest {
     assertEquals(1, lines("thermal: status moderate after 2:05"));
     w.statusChanged(1, 200_000);
     String r = w.report(300_000);
-    assertTrue(r, r.contains("Thermal status now: light, the highest since the start: moderate"));
+    assertTrue(r, r.contains("Thermal status now: light, the highest since the start: moderate (at +2:05)"));
     assertTrue(r, r.contains("+2:05  status moderate"));
     assertTrue(r, r.contains("Game running for 5:00"));
   }
@@ -76,7 +76,7 @@ public class ThermalWatchTest {
     w.tick(90_000);
     assertEquals("hot: again after a minute", 2, lines("thermal: headroom 0.80"));
     String r = w.report(95_000);
-    assertTrue(r, r.contains("last 0.80, highest 0.80"));
+    assertTrue(r, r.contains("last 0.80, highest 0.80 (at +0:30)"));
     assertTrue(r, r.contains("+0:20  headroom 0.36  status none"));
   }
 
@@ -86,10 +86,14 @@ public class ThermalWatchTest {
     f.headroom = Float.NaN;
     ThermalWatch w = new ThermalWatch(f, 0);
     w.start(0);
-    assertEquals(1, lines("thermal: status unknown at the start (Android 9 or older: not known)"));
+    assertEquals(1, lines("thermal: status not available (Android 9 or older)"));
     w.tick(0);
     w.tick(10_000);
-    assertEquals(0, lines("thermal: headroom"));
+    assertEquals("not yet: a call can come too soon", 0, lines("thermal: headroom"));
+    w.tick(20_000);
+    w.tick(30_000);
+    w.tick(40_000);
+    assertEquals("said once", 1, lines("thermal: headroom not available on this device"));
     String r = w.report(20_000);
     assertTrue(r, r.contains("(none: Android 10 or older, or the device has no headroom)"));
     assertTrue(r, r.contains("last unknown, highest unknown"));
@@ -107,6 +111,23 @@ public class ThermalWatchTest {
     int readings = r.split("  headroom ", -1).length - 1;
     assertEquals(ThermalWatch.KEEP, readings);
     assertFalse("the oldest are gone", r.contains("+0:00  headroom"));
+  }
+
+  /** CoreActivity hands every new status and reading on to the renderer, whose Dynamic lines then name the heat. */
+  @Test public void theListenerHearsStatusAndReadings() {
+    Fake f = new Fake();
+    ThermalWatch w = new ThermalWatch(f, 0);
+    final StringBuilder heard = new StringBuilder();
+    w.start(0);
+    w.setListener((status, headroom) -> heard.append(status).append('/').append(ThermalWatch.headroomText(headroom)).append(' '));
+    assertEquals("at once with what is known", "0/unknown ", heard.toString());
+    w.tick(0);
+    w.statusChanged(3, 5_000);
+    assertEquals("0/unknown 0/0.30 3/0.30 ", heard.toString());
+    assertEquals(1, lines("thermal: status severe after 0:05, headroom 0.30"));
+    assertEquals("; heat: severe, headroom 0.30", ThermalWatch.heatText(3, 0.3f));
+    assertEquals("; heat: none", ThermalWatch.heatText(0, Float.NaN));
+    assertEquals("", ThermalWatch.heatText(-1, Float.NaN));
   }
 
   @Test public void namesAndTimes() {

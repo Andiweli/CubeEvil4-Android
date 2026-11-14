@@ -28,6 +28,12 @@ final class ThermalWatch {
   static final long HOT_LOG_MS = 60_000;
   static final int FORECAST_S = 10;
 
+  /** Hears every new status and every reading (CoreActivity: on to the renderer, so that Dynamic's lines name the
+   *  heat: CoreBridge.setThermal). On the main thread. */
+  interface Listener {
+    void heat(int status, float headroom);
+  }
+
   /** Where the figures come from (Android's PowerManager; a fake one in the tests). */
   interface Source {
     /** The thermal status (PowerManager.THERMAL_STATUS_*), -1 unknown (before Android 10). */
@@ -44,6 +50,10 @@ final class ThermalWatch {
   private float headroom = Float.NaN, logged = Float.NaN, peak = Float.NaN;
   private long lastReading = Long.MIN_VALUE / 2, lastLogged = Long.MIN_VALUE / 2;
   private int peakStatus = -1;
+  private long peakStatusAt = -1, peakAt = -1;
+  private int missing;            // readings without a value so far, none with one
+  private boolean saidMissing;    // "not available" said once
+  private Listener heat;
   private Object listener;  // PowerManager.OnThermalStatusChangedListener (Android 10)
   private PowerManager power;
 
@@ -78,6 +88,12 @@ final class ThermalWatch {
     return w;
   }
 
+  /** Who hears the figures (null: nobody). */
+  synchronized void setListener(Listener l) {
+    heat = l;
+    if (l != null && status != Integer.MIN_VALUE) l.heat(status, headroom);
+  }
+
   /** The status now (a line), and Android's calls at each change from now on (Android 10 and later). */
   synchronized void start(long now) {
     statusChanged(source.status(), now);
@@ -107,13 +123,20 @@ final class ThermalWatch {
     if (s == status) return;
     final boolean first = status == Integer.MIN_VALUE;
     status = s;
-    if (s > peakStatus) peakStatus = s;
-    final String line = first ? "thermal: status " + statusName(s) + " at the start"
-        : "thermal: status " + statusName(s) + " after " + minutes(now - started);
-    if (s >= 0 || first) {
-      remember(changes, clock(now) + "  status " + statusName(s));
-      Log.i(TAG, line + (s < 0 ? " (Android 9 or older: not known)" : ""));
+    if (s > peakStatus) {
+      peakStatus = s;
+      peakStatusAt = now;
     }
+    if (s < 0) {
+      // said once: Android 9 and older have no thermal status
+      Log.i(TAG, "thermal: status not available (Android 9 or older); the app keeps playing as before");
+    } else {
+      remember(changes, clock(now) + "  status " + statusName(s));
+      Log.i(TAG, first ? "thermal: status " + statusName(s) + " at the start"
+          : "thermal: status " + statusName(s) + " after " + minutes(now - started)
+              + (Float.isNaN(headroom) ? "" : ", headroom " + headroomText(headroom)));
+    }
+    if (heat != null) heat.heat(status, headroom);
   }
 
   /** Twice a second from CoreActivity's tick: the headroom every EVERY_MS. */
@@ -121,9 +144,20 @@ final class ThermalWatch {
     if (now - lastReading < EVERY_MS) return;
     lastReading = now;
     final float h = source.headroom(FORECAST_S);
-    if (Float.isNaN(h)) return;
+    if (Float.isNaN(h)) {
+      // said once when the device never gives one (Android 10 and older, or no value from its sensors)
+      if (Float.isNaN(peak) && ++missing >= 3 && !saidMissing) {
+        saidMissing = true;
+        Log.i(TAG, "thermal: headroom not available on this device (Android 10 or older, or no value from its sensors)");
+      }
+      return;
+    }
     headroom = h;
-    if (Float.isNaN(peak) || h > peak) peak = h;
+    if (Float.isNaN(peak) || h > peak) {
+      peak = h;
+      peakAt = now;
+    }
+    if (heat != null) heat.heat(status, h);
     remember(readings, clock(now) + "  headroom " + headroomText(h) + "  status " + statusName(status));
     final boolean moved = Float.isNaN(logged) || Math.abs(h - logged) >= LOG_STEP;
     final boolean hotAgain = h >= HOT && now - lastLogged >= HOT_LOG_MS;
@@ -139,9 +173,13 @@ final class ThermalWatch {
   synchronized String report(long now) {
     StringBuilder t = new StringBuilder();
     t.append("Thermal status now: ").append(statusName(status < -1 ? source.status() : status))
-        .append(", the highest since the start: ").append(statusName(peakStatus)).append('\n');
+        .append(", the highest since the start: ").append(statusName(peakStatus))
+        .append(peakStatusAt >= 0 && peakStatus >= 0 ? " (at " + clock(peakStatusAt) + ")" : "").append('\n');
     t.append("Headroom (1.0: Android throttles hard; ").append(FORECAST_S).append(" s ahead): last ")
-        .append(headroomText(headroom)).append(", highest ").append(headroomText(peak)).append('\n');
+        .append(headroomText(headroom)).append(", highest ").append(headroomText(peak))
+        .append(peakAt >= 0 ? " (at " + clock(peakAt) + ")" : "").append('\n');
+    t.append("(times since the game started; the error log's lines \"thermal:\" and Dynamic's \"level ... ; heat:\" "
+        + "lines have the clock)\n");
     t.append("Game running for ").append(minutes(now - started)).append('\n');
     t.append("\nStatus changes:\n");
     if (changes.isEmpty()) t.append("  (none)\n");
@@ -165,6 +203,12 @@ final class ThermalWatch {
   static String minutes(long ms) {
     long s = Math.max(0, ms) / 1000;
     return String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60);
+  }
+
+  /** "; heat: moderate, headroom 0.71" for a line of Dynamic ("" when nothing is known). */
+  static String heatText(int status, float headroom) {
+    if (status < 0 && Float.isNaN(headroom)) return "";
+    return "; heat: " + statusName(status) + (Float.isNaN(headroom) ? "" : ", headroom " + headroomText(headroom));
   }
 
   static String headroomText(float h) {

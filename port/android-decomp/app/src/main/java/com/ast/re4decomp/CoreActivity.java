@@ -291,6 +291,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // how hot the device is: at the start, at each change, the headroom every 10 s (ThermalWatch; only told)
     thermal = ThermalWatch.forDevice(this, SystemClock.elapsedRealtime());
     thermal.start(SystemClock.elapsedRealtime());
+    // on to the renderer: Dynamic's step lines name the heat
+    thermal.setListener((status, headroom) -> {
+      try {
+        CoreBridge.setThermal(status, headroom);
+      } catch (UnsatisfiedLinkError e) {
+        thermal.setListener(null);
+      }
+    });
     shownLanguage = language();
     Log.i(TAG, "app menu: " + shownLanguage);
     // the shaders the renderers built, kept between runs (no compile stutter the second time); since 0.99.4 where
