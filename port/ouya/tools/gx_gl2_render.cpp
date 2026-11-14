@@ -11,6 +11,7 @@
 // RE4_GX2_REPEAT runs (default 5). A frame that directly follows the one before runs on the same
 // renderer, any other starts over, as in gx_chunk_render.
 #include "gx_gl2.h"
+#include "gx_gl2_shader.h"
 #include "re4_gx_frame.h"
 #include "re4_gx_frame_io.h"
 
@@ -26,9 +27,14 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
+
+EGLDisplay gDisplay = EGL_NO_DISPLAY;  // the context's, for a second one sharing with it (RE4_GX2_AHEAD)
+EGLConfig gConfig = nullptr;
+EGLContext gContext = EGL_NO_CONTEXT;
 
 bool Context() {
   EGLDisplay display = EGL_NO_DISPLAY;
@@ -60,6 +66,9 @@ bool Context() {
   }
   const EGLint contextAttributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
   EGLContext context = eglCreateContext(display, count ? config : nullptr, EGL_NO_CONTEXT, contextAttributes);
+  gDisplay = display;
+  gConfig = count ? config : nullptr;
+  gContext = context;
   return context != EGL_NO_CONTEXT && eglMakeCurrent(display, surface, surface, context);
 }
 
@@ -79,6 +88,88 @@ double CpuMs() {
   timespec t{};
   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t);
   return static_cast<double>(t.tv_sec) * 1000.0 + static_cast<double>(t.tv_nsec) / 1e6;
+}
+
+// RE4_GX2_AHEAD=FILE (the OUYA app's shaders built ahead, improvement 2): the keys of FILE built on a second
+// context sharing with this one, on a thread of its own, and given to a new renderer before it draws; at the end
+// the keys the renderers built are written to FILE when it was not there. A second run with the same frames then
+// builds no shader while drawing, and its pictures are the first run's.
+std::vector<re4gx2::ShaderKey> gAheadKeys;  // the keys the renderers built (written at the end)
+
+void Ahead(re4gx2::GxRenderer &renderer) {
+  const char *file = std::getenv("RE4_GX2_AHEAD");
+  if (!file || !*file)
+    return;
+  std::vector<re4gx2::ShaderKey> keys;
+  if (FILE *f = std::fopen(file, "rb")) {
+    re4gx2::ShaderKey k;
+    while (std::fread(&k, sizeof(k), 1, f) == 1)
+      if ((k.fastTev != 0) == renderer.Options().fastTev)
+        keys.push_back(k);
+    std::fclose(f);
+  }
+  if (keys.empty())
+    return;
+  const re4gx2::GxOptions options = renderer.Options();
+  const re4gx2::GxCaps caps = renderer.Caps();
+  std::vector<std::pair<re4gx2::ShaderKey, GLuint>> built;
+  auto t0 = std::chrono::steady_clock::now();
+  std::string problem;
+  std::thread worker([&] {
+    const EGLint contextAttributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+    const EGLint size[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
+    EGLContext context = eglCreateContext(gDisplay, gConfig, gContext, contextAttributes);
+    EGLSurface surface = gConfig ? eglCreatePbufferSurface(gDisplay, gConfig, size) : EGL_NO_SURFACE;
+    if (context == EGL_NO_CONTEXT || !eglMakeCurrent(gDisplay, surface, surface, context)) {
+      problem = "no shared context";
+      return;
+    }
+    for (const auto &k : keys) {
+      const GLuint id = re4gx2::GxRenderer::BuildShared(k, options, caps);
+      glFinish();
+      if (id)
+        built.push_back(std::make_pair(k, id));
+    }
+    eglMakeCurrent(gDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    if (surface != EGL_NO_SURFACE)
+      eglDestroySurface(gDisplay, surface);
+    eglDestroyContext(gDisplay, context);
+  });
+  worker.join();
+  auto t1 = std::chrono::steady_clock::now();
+  unsigned adopted = 0;
+  for (const auto &b : built)
+    adopted += renderer.Adopt(b.first, b.second) ? 1 : 0;
+  std::printf("ahead: %zu keys from %s, %zu built on the second context in %.0f ms, %u taken over%s%s
+", keys.size(),
+              file, built.size(), std::chrono::duration<double, std::milli>(t1 - t0).count(), adopted,
+              problem.empty() ? "" : ": ", problem.c_str());
+}
+
+void AheadKeep(const re4gx2::GxRenderer &renderer) {
+  for (const auto &k : renderer.BuiltKeys()) {
+    bool have = false;
+    for (const auto &h : gAheadKeys)
+      have = have || std::memcmp(&h, &k, sizeof(k)) == 0;
+    if (!have)
+      gAheadKeys.push_back(k);
+  }
+}
+
+void AheadWrite() {
+  const char *file = std::getenv("RE4_GX2_AHEAD");
+  if (!file || !*file || gAheadKeys.empty())
+    return;
+  if (FILE *f = std::fopen(file, "rb")) {
+    std::fclose(f);
+    return;  // there: this was the second run
+  }
+  if (FILE *f = std::fopen(file, "wb")) {
+    std::fwrite(gAheadKeys.data(), sizeof(re4gx2::ShaderKey), gAheadKeys.size(), f);
+    std::fclose(f);
+    std::printf("ahead: %zu keys written to %s
+", gAheadKeys.size(), file);
+  }
 }
 
 double Median(std::vector<double> v) {
@@ -157,14 +248,17 @@ int main(int argc, char **argv) {
         std::printf("%s: follows a frame that is not there, left out\n", Stem(path).c_str());
         continue;
       }
-      if (renderer)
+      if (renderer) {
+        AheadKeep(*renderer);
         renderer->Release();
+      }
       renderer = std::make_unique<re4gx2::GxRenderer>();
       std::string error;
       if (!renderer->Init(1, &error)) {
         std::printf("%s: renderer: %s\n", Stem(path).c_str(), error.c_str());
         return 1;
       }
+      Ahead(*renderer);
       if (!fbo)
         glGenFramebuffers(1, &fbo);
       chunk.flags &= ~static_cast<std::uint32_t>(RE4_GX_CHUNK_HOLD);
@@ -173,7 +267,11 @@ int main(int argc, char **argv) {
     lastFrame = loaded.frame;
     const re4gx2::GxStats before = renderer->Stats();
     auto t0 = std::chrono::steady_clock::now();
-    renderer->Run(chunk);
+    // a chunk the core left without draws (RE4_GX_DRAWLESS): as the OUYA app runs it
+    if (chunk.flags & RE4_GX_CHUNK_DRAWLESS)
+      renderer->Skip(chunk);
+    else
+      renderer->Run(chunk);
     auto t1 = std::chrono::steady_clock::now();
     glFinish();
     auto t2 = std::chrono::steady_clock::now();
@@ -276,8 +374,10 @@ int main(int argc, char **argv) {
                 c.depthBits, c.depthNonlinear ? " (nonlinear)" : "",
                 c.depthTexture ? "on the GPU" : c.readDepth ? "read back" : "lost", (640 * e + 4) / 8,
                 (528 * e + 4) / 8, e / 8.0);
+    AheadKeep(*renderer);
     renderer->Release();
   }
+  AheadWrite();
   std::printf(failures ? "gx_gl2_render: %d FAILED\n" : "gx_gl2_render: done\n", failures);
   return failures ? 1 : 0;
 }

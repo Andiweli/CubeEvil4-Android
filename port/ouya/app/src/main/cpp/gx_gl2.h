@@ -28,16 +28,21 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 struct Re4GxChunk;
 
 namespace re4gx2 {
 
+struct ShaderKey;  // gx_gl2_shader.h
+
 struct GxStats {
   unsigned chunks = 0, draws = 0, triangles = 0;
   unsigned programs = 0;         // shaders built
+  unsigned programsAdopted = 0;  // shaders built ahead on another thread and taken (Adopt)
   unsigned textures = 0;         // textures decoded
   unsigned textureCopies = 0;    // EFB copies to a texture
+  unsigned softCopies = 0;       // of them at half the resolution once more (GxOptions::softCopies)
   unsigned displayCopies = 0;    // EFB copies to the XFB
   unsigned heldCopies = 0;       // of them not shown: the VI kept the picture before (RE4_GX_CHUNK_HOLD)
   unsigned resets = 0;
@@ -120,6 +125,11 @@ struct GxOptions {
   // alpha in 4 bits would band); the EFB (RE4_GX2_EFB16=1) as RGB565 with the GPU's dithering
   // (no destination alpha: it reads as 1)
   bool tex16 = false, efb16 = false;
+  // effect copies at half the EFB's resolution (OUYA improvement 4, wish of the project owner, 14.11.2026;
+  // RE4_GX2_SOFT_COPIES=1): the texture copies the game makes with GX's 2x2 box filter (half its size: the sources
+  // of its blurs, glows and filters) get a quarter of their pixels once more, the box widened to match. Display
+  // copies, depth copies and full-size copies (a menu's background, the heat haze) stay as they are.
+  bool softCopies = false;
 };
 
 class GxRenderer {
@@ -172,8 +182,21 @@ public:
   // the EFB's resolution in eighths (8: 640x528)
   int ResolutionEighths() const;
   const GxStats &Stats() const;
+  const GxOptions &Options() const;
   // Frees the GL objects (context current).
   void Release();
+
+  // Shaders built ahead (OUYA improvement 2, wish of the project owner, 14.11.2026): a Tegra 3 links a shader in
+  // 120-300 ms and keeps no program binaries, so the first picture of an area stalled 2-4 s. The app keeps the
+  // keys a renderer built (BuiltKeys, in that order) in a file and, at the next start, builds them on a second
+  // context shared with the renderer's, on a thread of its own (BuildShared), and gives them over (Adopt).
+  std::vector<ShaderKey> BuiltKeys() const;
+  // The program of `key` on the calling thread's current context (any thread; GL calls only), with the options and
+  // the device's limits given (Options, Caps of the renderer); 0 when it does not build.
+  static GLuint BuildShared(const ShaderKey &key, const GxOptions &options, const GxCaps &caps);
+  // A program BuildShared made (the renderer's thread, its context current): kept for `key`; false when the
+  // renderer has that key already (the program is deleted then).
+  bool Adopt(const ShaderKey &key, GLuint program);
 
 private:
   struct Impl;

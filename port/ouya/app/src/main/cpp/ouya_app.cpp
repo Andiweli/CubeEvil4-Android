@@ -15,10 +15,12 @@
 // since the last frame of the display the older ones run as state only (GxRenderer::Skip), the newest
 // is drawn.
 #include "gx_gl2.h"
+#include "gx_gl2_shader.h"
 #include "re4_core.h"
 #include "re4_core_client.h"
 #include "re4_gx_frame.h"
 
+#include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
@@ -28,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -35,6 +38,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -237,6 +241,10 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
     return env->NewStringUTF(gProblem.c_str());
   gStarted = true;
   const std::string data = Text(env, dataDir);
+  {
+    std::lock_guard<std::mutex> l(ahead::gFileLock);
+    ahead::gFile = data + "/shaders-gles2.keys";
+  }
   for (const auto &s : kCoreSettings)
     setenv(s[0], s[1], 1);
   char value[32];
@@ -306,6 +314,178 @@ void MakeRenderer() {
   }
 }
 
+// --- shaders built ahead (OUYA improvement 2, wish of the project owner, 14.11.2026) -----------------------------
+// A Tegra 3 links a shader in 120-300 ms and keeps no program binaries: the first picture of an area needed 27-46
+// new ones, 2-4 s of stalling. The keys the renderer built go into <data>/shaders-gles2.keys (every 10 s when there
+// are new ones); at the next start a thread of its own builds them on a second context that shares its objects with
+// the renderer's (a 1x1 pbuffer, a lower priority), during the logos, the title and the loads, and the display
+// frames hand them to the renderer (GxRenderer::Adopt). A key the renderer needed before stays its own build.
+namespace ahead {
+const char kMagic[8] = {'R', 'E', '4', 'S', 'K', 'E', 'Y', '1'};
+const size_t kMaxKeys = 3000;
+std::mutex gFileLock;
+std::string gFile;                       // set by nativeStart (the game's data folder)
+std::vector<re4gx2::ShaderKey> gFileKeys; // GL thread: the file's keys (read once), then what was written
+bool gFileRead = false;
+std::mutex gDoneLock;
+std::vector<std::pair<re4gx2::ShaderKey, GLuint>> gDone;  // built, not yet adopted; the context's generation:
+int gDoneGeneration = 0;
+std::atomic<int> gGeneration{0};        // a new GL context (nativeSurfaceCreated): older builds are lost
+std::atomic<bool> gRunning{false};      // a thread builds
+const re4gx2::GxRenderer *gFor = nullptr;  // GL thread: the renderer the last thread built for
+unsigned gAdopted = 0, gTaken = 0;      // since the last log line: adopted, built twice (dropped)
+
+std::string Bytes(const re4gx2::ShaderKey &k) { return std::string(reinterpret_cast<const char *>(&k), sizeof(k)); }
+
+void Read() {
+  gFileRead = true;
+  std::string path;
+  {
+    std::lock_guard<std::mutex> l(gFileLock);
+    path = gFile;
+  }
+  FILE *f = path.empty() ? nullptr : fopen(path.c_str(), "rb");
+  if (!f)
+    return;
+  char magic[8];
+  uint32_t size = 0, count = 0;
+  if (fread(magic, 1, 8, f) == 8 && !memcmp(magic, kMagic, 8) && fread(&size, 4, 1, f) == 1 &&
+      fread(&count, 4, 1, f) == 1 && size == sizeof(re4gx2::ShaderKey) && count <= kMaxKeys) {
+    gFileKeys.resize(count);
+    if (fread(gFileKeys.data(), sizeof(re4gx2::ShaderKey), count, f) != count)
+      gFileKeys.clear();
+  }
+  fclose(f);
+}
+
+// GL thread, every 10 s: the renderer's new keys behind the file's
+void Save() {
+  if (!gRenderer || !gFileRead)
+    return;
+  std::string path;
+  {
+    std::lock_guard<std::mutex> l(gFileLock);
+    path = gFile;
+  }
+  if (path.empty())
+    return;
+  std::set<std::string> have;
+  for (const auto &k : gFileKeys)
+    have.insert(Bytes(k));
+  size_t before = gFileKeys.size();
+  for (const auto &k : gRenderer->BuiltKeys())
+    if (gFileKeys.size() < kMaxKeys && have.insert(Bytes(k)).second)
+      gFileKeys.push_back(k);
+  if (gFileKeys.size() == before)
+    return;
+  const std::string part = path + ".part";
+  FILE *f = fopen(part.c_str(), "wb");
+  if (!f)
+    return;
+  const uint32_t size = sizeof(re4gx2::ShaderKey), count = static_cast<uint32_t>(gFileKeys.size());
+  bool ok = fwrite(kMagic, 1, 8, f) == 8 && fwrite(&size, 4, 1, f) == 1 && fwrite(&count, 4, 1, f) == 1 &&
+            fwrite(gFileKeys.data(), sizeof(re4gx2::ShaderKey), count, f) == count;
+  ok = fclose(f) == 0 && ok;
+  if (ok && rename(part.c_str(), path.c_str()) == 0)
+    LOG("shaders ahead: %u keys in %s (%zu new)", count, path.c_str(), gFileKeys.size() - before);
+}
+
+void Worker(EGLDisplay display, EGLConfig config, EGLContext share, std::vector<re4gx2::ShaderKey> keys,
+            re4gx2::GxOptions options, re4gx2::GxCaps caps, int generation) {
+  setpriority(PRIO_PROCESS, gettid(), 10);  // behind the game's threads and the GL thread
+  const EGLint contextAttributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+  const EGLint pbufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
+  EGLContext context = eglCreateContext(display, config, share, contextAttributes);
+  EGLSurface surface = context != EGL_NO_CONTEXT ? eglCreatePbufferSurface(display, config, pbufferAttributes)
+                                                 : EGL_NO_SURFACE;
+  if (context == EGL_NO_CONTEXT || surface == EGL_NO_SURFACE ||
+      !eglMakeCurrent(display, surface, surface, context)) {
+    LOG("shaders ahead: no shared context (EGL error 0x%x)", eglGetError());
+  } else {
+    const long long start = NowMs();
+    size_t built = 0, failed = 0, i = 0;
+    for (; i < keys.size() && gGeneration.load() == generation; i++) {
+      const GLuint id = re4gx2::GxRenderer::BuildShared(keys[i], options, caps);
+      glFinish();  // complete before the renderer's context uses it
+      if (!id) {
+        failed++;
+        continue;
+      }
+      built++;
+      std::lock_guard<std::mutex> l(gDoneLock);
+      if (gDoneGeneration != generation) {
+        gDone.clear();
+        gDoneGeneration = generation;
+      }
+      gDone.push_back(std::make_pair(keys[i], id));
+    }
+    LOG("shaders ahead: %zu of %zu built in %lld ms on the second context (%zu failed%s)", built, keys.size(),
+        NowMs() - start, failed, i < keys.size() ? ", stopped: a new GL context" : "");
+    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  }
+  if (surface != EGL_NO_SURFACE)
+    eglDestroySurface(display, surface);
+  if (context != EGL_NO_CONTEXT)
+    eglDestroyContext(display, context);
+  gRunning = false;
+}
+
+// GL thread, every display frame: a thread for a new renderer (once per renderer, when the file has keys of its
+// colour calculation), the shaders it built handed over
+void Frame() {
+  if (!gRenderer)
+    return;
+  if (!gFileRead) {
+    {
+      std::lock_guard<std::mutex> l(gFileLock);
+      if (gFile.empty())
+        return;  // the game's data folder comes with nativeStart
+    }
+    Read();
+  }
+  if (gFor != gRenderer.get() && !gRunning.load()) {
+    gFor = gRenderer.get();
+    const re4gx2::GxOptions options = gRenderer->Options();
+    std::vector<re4gx2::ShaderKey> keys;
+    for (const auto &k : gFileKeys)
+      if ((k.fastTev != 0) == options.fastTev)
+        keys.push_back(k);
+    EGLDisplay display = eglGetCurrentDisplay();
+    EGLContext share = eglGetCurrentContext();
+    EGLint id = 0, count = 0, surfaces = 0;
+    EGLConfig config = nullptr;
+    eglQueryContext(display, share, EGL_CONFIG_ID, &id);
+    const EGLint byId[] = {EGL_CONFIG_ID, id, EGL_NONE};
+    if (eglChooseConfig(display, byId, &config, 1, &count) && count == 1)
+      eglGetConfigAttrib(display, config, EGL_SURFACE_TYPE, &surfaces);
+    if (!(surfaces & EGL_PBUFFER_BIT)) {
+      // the window's config has no pbuffers: one that has (sharing between configs works on the Tegra 3)
+      const EGLint wanted[] = {EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+                               EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_NONE};
+      if (!eglChooseConfig(display, wanted, &config, 1, &count) || count < 1)
+        config = nullptr;
+    }
+    if (!keys.empty() && display != EGL_NO_DISPLAY && share != EGL_NO_CONTEXT && config) {
+      LOG("shaders ahead: %zu keys from the last starts to build", keys.size());
+      gRunning = true;
+      std::thread(Worker, display, config, share, keys, options, gRenderer->Caps(), gGeneration.load()).detach();
+    }
+  }
+  std::vector<std::pair<re4gx2::ShaderKey, GLuint>> done;
+  {
+    std::lock_guard<std::mutex> l(gDoneLock);
+    if (gDoneGeneration == gGeneration.load())
+      done.swap(gDone);
+  }
+  for (const auto &d : done) {
+    if (gRenderer->Adopt(d.first, d.second))
+      gAdopted++;
+    else
+      gTaken++;
+  }
+}
+}  // namespace ahead
+
 // The core sends everything again (a full state from the next chunk on); the renderer waits for it
 void StartOver() {
   std::lock_guard<std::mutex> l(gQueueLock);
@@ -362,6 +542,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     (void) gRenderer.release();
     StartOver();
   }
+  ahead::gGeneration++;  // shaders built ahead for the old context are lost with it
+  ahead::gFor = nullptr;
   MakeRenderer();
 }
 
@@ -379,6 +561,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     MakeRenderer();
     StartOver();
   }
+  ahead::Frame();
   if (gRenderer && gRunning) {
     // the chunks taken since the last frame; none yet: wait a little (the game makes about 30 a second)
     std::deque<const Re4GxChunk *> got;
@@ -515,6 +698,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
             "decoded, %u draws",
             gFrames ? gRunMicros / 1000.0 / gFrames : 0.0, gRunMax / 1000.0, since(st.programs, gStatsBefore.programs),
             since(st.textures, gStatsBefore.textures), since(st.draws, gStatsBefore.draws));
+        // shaders built ahead (improvement 2): taken from the second context, built twice (dropped)
+        if (ahead::gAdopted || ahead::gTaken)
+          LOG("shaders ahead: %u taken over, %u the renderer had built itself already", ahead::gAdopted, ahead::gTaken);
+        ahead::gAdopted = ahead::gTaken = 0;
+        ahead::Save();
         LOG("textures: %.0f ms decoding, %.0f ms into the GPU; %u of skipped pictures kept as they came "
             "(%u of them drawn later)",
             since(st.decodeMicros, gStatsBefore.decodeMicros) / 1000.0,

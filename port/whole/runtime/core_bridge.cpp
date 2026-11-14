@@ -321,6 +321,18 @@ extern "C" void re4_bridge_shapes(int on)
     gShapes = on ? 1 : 0;
 }
 
+// The PC's check of the OUYA's chunks without draws (re4_host has no state bridge; gx_decode.cpp registers it
+// with RE4_GX_DRAWLESS): the game's sub screen and its request, once a game frame, as re4_bridge_capture says it
+extern "C" void re4_bridge_screen_hook(unsigned)
+{
+    GLOBAL_WK* g = pG;
+    if (!live(g)) {
+        return;
+    }
+    re4_gx_screen((StaFlagChk(g, STA_SUB_SCRN) ? RE4_CORE_SCREEN_SUB : 0) |
+                  (StaFlagChk(g, STA_SSCRN_REQUEST) ? 0x100 : 0));
+}
+
 extern "C" void re4_bridge_capture(Re4CoreSnapshot* s)
 {
     s->apiVersion = RE4_CORE_API_VERSION;

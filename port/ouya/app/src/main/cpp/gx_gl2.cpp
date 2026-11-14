@@ -196,6 +196,7 @@ struct Texture {
 struct Copy {
   GLuint id = 0;
   unsigned width = 0, height = 0;
+  int glWidth = 0, glHeight = 0;  // its texture's pixels (GxOptions::softCopies: half of S(width), S(height))
   unsigned serial = 0;
   unsigned kind = 0; // 0 colour, 1 one channel (value in .r), 2 two channels (.a high, .r low)
 };
@@ -268,6 +269,7 @@ struct GxRenderer::Impl {
   GLint paletteSize = -1, paletteKind = -1, paletteFormat = -1;
   GLuint whiteTex = 0;
   std::unordered_map<ShaderKey, Program, KeyHash, KeyEqual> programs;
+  std::vector<ShaderKey> built;  // the keys of the programs, in the order they came (BuiltKeys)
   std::unordered_map<std::uint64_t, Texture> textures;
   // Textures a skipped chunk brought (Skip): their texels as they came, decoded when a drawn chunk
   // binds them (a movie brings two new ones a picture; decoding those of the pictures left out cost
@@ -758,8 +760,7 @@ struct GxRenderer::Impl {
     out.height = copy.height;
     glGenTextures(1, &out.id);
     glBindTexture(GL_TEXTURE_2D, out.id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, S(static_cast<int>(copy.width)), S(static_cast<int>(copy.height)), 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, copy.glWidth, copy.glHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     PlainParams(GL_NEAREST);
     texParams[out.id] = TexParams{GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST, false};
     GLuint fbo = 0;
@@ -767,7 +768,7 @@ struct GxRenderer::Impl {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, out.id, 0);
     PlainState();
-    glViewport(0, 0, S(static_cast<int>(copy.width)), S(static_cast<int>(copy.height)));
+    glViewport(0, 0, copy.glWidth, copy.glHeight);
     glUseProgram(paletteProgram);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, copy.id);
@@ -1231,34 +1232,11 @@ struct GxRenderer::Impl {
       return it->second.id ? &it->second : nullptr;
     LogKeyDifference(k);
     Program p;
-    ShaderKey vk = k;
-    if (options.probeSimpleVs) {
-      // the position only: no lighting channels, no texture coordinates
-      vk.numChans = vk.numTexGens = vk.dualTex = 0;
-      std::memset(vk.chan, 0, sizeof(vk.chan));
-    }
-    p.info = GxShaderInfo(vk);
-    std::string log;
-    std::string vs = GxVertexShader(vk, p.info);
-    const std::string fs = options.probeFlat
-                               ? "precision mediump float;\nvarying vec4 vColor0;\nvoid main() { gl_FragColor = vColor0; }\n"
-                               : GxFragmentShader(k, p.info);
-    const char *names[kAttrSources];
-    for (int a = 0; a < p.info.attribCount; a++)
-      names[a] = GxAttributeName(p.info.attribs[a]);
-    if (p.info.attribCount > caps.maxAttribs) {
-      log = "more vertex attributes than the device has";
-    } else {
-      p.id = Link(vs, fs, names, p.info.attribCount, &log);
-      // too many instructions for the device (Tegra 3: "C6002: Instruction limit of 256
-      // exceeded"): once more without what rarely matters
-      if (!p.id && log.compare(0, 14, "vertex shader:") == 0 && log.find("C6002") != std::string::npos) {
-        vs = GxVertexShader(vk, p.info, true);
-        p.id = Link(vs, fs, names, p.info.attribCount, &log);
-        if (p.id)
-          stats.leanShaders++;
-      }
-    }
+    std::string log, vs, fs;
+    bool lean = false;
+    p.id = Build(k, options, caps, &p.info, &log, &vs, &fs, &lean);
+    if (lean)
+      stats.leanShaders++;
     static const bool logShaders = [] {
       const char *v = std::getenv("RE4_GX2_LOG_SHADERS");
       return v && *v == '1';
@@ -1276,10 +1254,48 @@ struct GxRenderer::Impl {
       stats.programs++;
       Locations(p);
       current = nullptr;
+      built.push_back(k);
     }
     auto &slot = programs[k];
     slot = p;
     return slot.id ? &slot : nullptr;
+  }
+
+  // The program of `k` (any thread with a current context: ProgramFor, GxRenderer::BuildShared); *info its
+  // attributes and uniforms, *lean: built without the q = 0 case of the texture coordinates
+  static GLuint Build(const ShaderKey &k, const GxOptions &options, const GxCaps &caps, ShaderInfo *info,
+                      std::string *log, std::string *vsOut, std::string *fsOut, bool *lean) {
+    ShaderKey vk = k;
+    if (options.probeSimpleVs) {
+      // the position only: no lighting channels, no texture coordinates
+      vk.numChans = vk.numTexGens = vk.dualTex = 0;
+      std::memset(vk.chan, 0, sizeof(vk.chan));
+    }
+    *info = GxShaderInfo(vk);
+    *lean = false;
+    std::string vs = GxVertexShader(vk, *info);
+    const std::string fs = options.probeFlat
+                               ? "precision mediump float;\nvarying vec4 vColor0;\nvoid main() { gl_FragColor = vColor0; }\n"
+                               : GxFragmentShader(k, *info);
+    const char *names[kAttrSources];
+    for (int a = 0; a < info->attribCount; a++)
+      names[a] = GxAttributeName(info->attribs[a]);
+    GLuint id = 0;
+    if (info->attribCount > caps.maxAttribs) {
+      *log = "more vertex attributes than the device has";
+    } else {
+      id = Link(vs, fs, names, info->attribCount, log);
+      // too many instructions for the device (Tegra 3: "C6002: Instruction limit of 256
+      // exceeded"): once more without what rarely matters
+      if (!id && log->compare(0, 14, "vertex shader:") == 0 && log->find("C6002") != std::string::npos) {
+        vs = GxVertexShader(vk, *info, true);
+        id = Link(vs, fs, names, info->attribCount, log);
+        *lean = id != 0;
+      }
+    }
+    *vsOut = vs;
+    *fsOut = fs;
+    return id;
   }
 
   static GLint Location(GLuint id, const char *name, int index = -1) {
@@ -1781,6 +1797,15 @@ struct GxRenderer::Impl {
     if (!toXfb)
       CopyMode(control, depth, &mode, &kind);
     const int ow = half ? std::max(1, w / 2) : w, oh = half ? std::max(1, h / 2) : h;
+    // GxOptions::softCopies: a box-filtered colour copy (a blur's source) at half the resolution once more
+    const bool soft = options.softCopies && half && !depth;
+    static const bool logCopies = [] {
+      const char *v = std::getenv("RE4_GX2_LOG_COPIES");
+      return v && *v == '1';
+    }();
+    if (logCopies)
+      GXLOG("copy to %s %06x: %dx%d at %d,%d%s%s, mode %d", toXfb ? "XFB" : "texture", dest, w, h, x, y,
+            half ? ", half" : "", depth ? ", depth" : "", mode);
     if ((toXfb && holdXfb) || options.probeNoCopy) {
       // the VI stays on the picture before (RE4_GX_CHUNK_HOLD): only the clear of the EFB
       if (toXfb && holdXfb)
@@ -1807,17 +1832,23 @@ struct GxRenderer::Impl {
       stats.displayCopies++;
     } else {
       Copy &c = copies[dest];
-      if (!c.id || c.width != static_cast<unsigned>(ow) || c.height != static_cast<unsigned>(oh)) {
+      const int gw = soft ? std::max(1, S(ow) / 2) : S(ow), gh = soft ? std::max(1, S(oh) / 2) : S(oh);
+      if (!c.id || c.width != static_cast<unsigned>(ow) || c.height != static_cast<unsigned>(oh) || c.glWidth != gw ||
+          c.glHeight != gh) {
         if (c.id)
           DeleteTexture(c.id);
         glGenTextures(1, &c.id);
         glBindTexture(GL_TEXTURE_2D, c.id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, S(ow), S(oh), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, gw, gh, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         PlainParams(GL_LINEAR);
         texParams[c.id] = TexParams{GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR, false};
         c.width = static_cast<unsigned>(ow);
         c.height = static_cast<unsigned>(oh);
+        c.glWidth = gw;
+        c.glHeight = gh;
       }
+      if (soft)
+        stats.softCopies++;
       c.serial = ++copySerial;
       c.kind = kind;
       target = c.id;
@@ -1856,7 +1887,10 @@ struct GxRenderer::Impl {
       return;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, TargetFbo(target));
-    glViewport(0, 0, S(tw), S(th));
+    if (soft)
+      glViewport(0, 0, std::max(1, S(tw) / 2), std::max(1, S(th) / 2));
+    else
+      glViewport(0, 0, S(tw), S(th));
     glUseProgram(program->id);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depth ? efbDepthTex : efbColor);
@@ -1864,8 +1898,10 @@ struct GxRenderer::Impl {
     const float fw = static_cast<float>(S(kEfbWidth)), fh = static_cast<float>(S(kEfbHeight));
     glUniform4f(program->rect, static_cast<float>(x) / kEfbWidth, static_cast<float>(y) / kEfbHeight,
                 static_cast<float>(w) / kEfbWidth, static_cast<float>(h) / kEfbHeight);
+    // the box's four reads half a texel off the centre (2x2 EFB pixels); a soft copy's pixel covers 4x4: the reads
+    // a texel off, each a linear read of 2x2
     if (program->texel >= 0)
-      glUniform2f(program->texel, 0.5f / fw, 0.5f / fh);
+      glUniform2f(program->texel, (soft ? 1.0f : 0.5f) / fw, (soft ? 1.0f : 0.5f) / fh);
     if (program->gain >= 0)
       glUniform1f(program->gain, gain);
     DrawQuad();
@@ -2138,6 +2174,8 @@ bool GxRenderer::Init(int scale, std::string *error) {
     m.options.tex16 = *tex16 == '1';
   if (const char *efb16 = std::getenv("RE4_GX2_EFB16"))
     m.options.efb16 = *efb16 == '1';
+  if (const char *soft = std::getenv("RE4_GX2_SOFT_COPIES"))
+    m.options.softCopies = *soft == '1';
   if (const char *lights = std::getenv("RE4_GX2_LIGHTS"))
     m.options.maxLights = std::min(7, std::max(0, std::atoi(lights)));
   const char *tegra3 = std::getenv("RE4_GX2_TEGRA3");
@@ -2480,6 +2518,41 @@ int GxRenderer::Scale() const { return impl_->eighths / 8; }
 int GxRenderer::ResolutionEighths() const { return impl_->eighths; }
 
 const GxStats &GxRenderer::Stats() const { return impl_->stats; }
+
+const GxOptions &GxRenderer::Options() const { return impl_->options; }
+
+std::vector<ShaderKey> GxRenderer::BuiltKeys() const { return impl_->built; }
+
+GLuint GxRenderer::BuildShared(const ShaderKey &key, const GxOptions &options, const GxCaps &caps) {
+  ShaderInfo info{};
+  std::string log, vs, fs;
+  bool lean = false;
+  return Impl::Build(key, options, caps, &info, &log, &vs, &fs, &lean);
+}
+
+bool GxRenderer::Adopt(const ShaderKey &key, GLuint program) {
+  Impl &m = *impl_;
+  if (!program)
+    return false;
+  if (m.programs.count(key)) {
+    glDeleteProgram(program);
+    return false;
+  }
+  Program p;
+  ShaderKey vk = key;
+  if (m.options.probeSimpleVs) {
+    vk.numChans = vk.numTexGens = vk.dualTex = 0;
+    std::memset(vk.chan, 0, sizeof(vk.chan));
+  }
+  p.info = GxShaderInfo(vk);
+  p.id = program;
+  m.stats.programsAdopted++;
+  m.Locations(p);
+  m.current = nullptr;
+  m.programs[key] = p;
+  m.built.push_back(key);
+  return true;
+}
 
 void GxRenderer::Release() {
   Impl &m = *impl_;

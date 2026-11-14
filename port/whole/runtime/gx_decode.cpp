@@ -263,6 +263,8 @@ const int kSlots = 10;
 std::atomic<int> gDrawlessEvery{0};
 }  // namespace
 extern "C" void re4_gx_set_drawless(int every);  // below
+extern "C" void re4_bridge_screen_hook(unsigned);  // runtime/core_bridge.cpp
+extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 namespace {
 std::atomic<int> gGameScreen{0};  // RE4_CORE_SCREEN_* of the game's last frame (core_bridge.cpp)
 int gSinceFull;                   // drawless chunks since the last full one
@@ -487,8 +489,10 @@ bool beginLocked()
     if (!envRead) {
         // the PC's check: RE4_GX_DRAWLESS=N as if the app asked for one chunk in N with its draws
         envRead = true;
-        if (const char* v = getenv("RE4_GX_DRAWLESS"))
+        if (const char* v = getenv("RE4_GX_DRAWLESS")) {
             re4_gx_set_drawless(atoi(v));
+            re4_add_frame_hook(re4_bridge_screen_hook);  // the screen flags without the app's state bridge
+        }
     }
     const int every = gDrawlessEvery.load();
     gChunkDrawless = false;
