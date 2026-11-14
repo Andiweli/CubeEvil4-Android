@@ -1,5 +1,5 @@
 // Tests of the texture tool's parts: CRC, ETC2/EAC encoder and decoder, BC and DDS reader, inflate and PNG reader,
-// filters, the window version's texts (11 languages) and what the core tells it (progress, refused images, estimates).
+// filters, the window version's texts and what the core tells it (progress, refused images, estimates).
 // texpack_tests [PNG fixture folder (make_png_fixtures.py) [BC7/JPG fixture folder (make_bc7_jpeg_fixtures.py)]]
 #include <algorithm>
 #include <cmath>
@@ -449,7 +449,8 @@ void TestEntryValid() {
   CHECK(!c4tex::EntryValid(b, 100000, 256, 50000));
 }
 
-// the window version's texts: every language has every text, with the same placeholders as the English one
+// the window version's texts (English only): a row for every text in its place, no empty one, the placeholders
+// numbered from %1 without gaps; numbers, sizes and times as the window writes them
 std::set<int> Placeholders(const std::string &s) {
   std::set<int> out;
   for (std::size_t i = 0; i + 1 < s.size(); i++) {
@@ -465,56 +466,43 @@ std::set<int> Placeholders(const std::string &s) {
 
 void TestGuiTexts() {
   using namespace guitext;
-  int missing = 0, wrongPlaceholders = 0;
+  int misplaced = 0, empty = 0, gaps = 0;
   for (int id = 0; id < kIdCount; id++) {
-    const std::set<int> english = Placeholders(Text(kEn, static_cast<Id>(id)));
-    for (int l = 0; l < kLangCount; l++) {
-      const char *t = Text(static_cast<Lang>(l), static_cast<Id>(id));
-      if (!t || !*t) missing++;
-      else if (Placeholders(t) != english) {
-        std::printf("placeholders differ: text %d, language %s\n", id, Code(static_cast<Lang>(l)));
-        wrongPlaceholders++;
-      }
-    }
+    if (RowId(id) != id) misplaced++;
+    const std::string t = Text(static_cast<Id>(id));
+    if (t.empty()) empty++;
+    const std::set<int> p = Placeholders(t);
+    if (!p.empty() && (*p.begin() != 1 || *p.rbegin() != static_cast<int>(p.size()))) gaps++;
   }
-  CHECK(missing == 0);
-  CHECK(wrongPlaceholders == 0);
-  // the sizes start with their number in every language (the cards show them so)
-  for (int l = 0; l < kLangCount; l++) {
-    CHECK(std::string(Text(static_cast<Lang>(l), kSize256)).rfind("256", 0) == 0);
-    CHECK(std::string(Text(static_cast<Lang>(l), kSize512)).rfind("512", 0) == 0);
-    CHECK(std::string(Text(static_cast<Lang>(l), kSize1024)).rfind("1024", 0) == 0);
-  }
-  // languages from Windows' names
-  CHECK(FromCode("de-AT") == kDe);
-  CHECK(FromCode("DE") == kDe);
-  CHECK(FromCode("in") == kId);
-  CHECK(FromCode("id-ID") == kId);
-  CHECK(FromCode("zh-Hans-CN") == kZh);
-  CHECK(FromCode("pt-BR") == kPt);
-  CHECK(FromCode("ar-SA") == kAr);
-  CHECK(FromCode("nl-NL") == kEn);
-  CHECK(FromCode("") == kEn);
-  CHECK(RightToLeft(kAr) && !RightToLeft(kDe));
+  CHECK(misplaced == 0);
+  CHECK(empty == 0);
+  CHECK(gaps == 0);
+  CHECK(std::string(Text(kSize256)).rfind("256", 0) == 0);
+  CHECK(std::string(Text(kSize512)).rfind("512", 0) == 0);
+  CHECK(std::string(Text(kSize1024)).rfind("1024", 0) == 0);
   // formatting
   CHECK(Format("%2 of %1", {"a", "b"}) == "b of a");
   CHECK(Format("%1%%", {"41"}) == "41%");
   CHECK(Format("%3", {"a"}) == "");
-  CHECK(Count(kEn, 5916) == "5,916");
-  CHECK(Count(kDe, 1234567) == "1.234.567");
-  CHECK(Count(kEn, 999) == "999");
-  CHECK(Bytes(kEn, 716315264) == "716 MB");
-  CHECK(Bytes(kDe, 2336900368ull) == "2,34 GB");
-  CHECK(Bytes(kEn, 11929097886ull) == "11.9 GB");
-  CHECK(Bytes(kFr, 2000000000ull) == "2,00 Go");
-  CHECK(Duration(kEn, 262) == "4 min 22 s");
-  CHECK(Duration(kEn, 3700) == "1 h 1 min");
-  CHECK(Duration(kEn, 42) == "42 s");
-  CHECK(About(kEn, 250) == "4 min");
-  CHECK(About(kEn, 870) == "15 min");
-  CHECK(About(kEn, 31) == "30 s");
-  CHECK(About(kEn, 4000) == "1 h 5 min");
-  CHECK(About(kDe, 3) == "10 s");
+  CHECK(Format(Text(kLeftOut), {"1"}) == "Left out (not images of the pack, or the same image twice): 1 file");
+  CHECK(Format(Text(kLeftOut), {"11"}) == "Left out (not images of the pack, or the same image twice): 11 files");
+  CHECK(Format(Text(kRefusedDone), {"1"}).rfind("Refused: 1 image. ", 0) == 0);
+  CHECK(Format(Text(kRefusedDone), {"2,001"}).rfind("Refused: 2,001 images. ", 0) == 0);
+  CHECK(Format(Text(kOfImages), {"1", "1"}) == "1 of 1 image");
+  CHECK(Count(5916) == "5,916");
+  CHECK(Count(1234567) == "1,234,567");
+  CHECK(Count(999) == "999");
+  CHECK(Bytes(716315264) == "716 MB");
+  CHECK(Bytes(2336900368ull) == "2.34 GB");
+  CHECK(Bytes(11929097886ull) == "11.9 GB");
+  CHECK(Duration(262) == "4 min 22 s");
+  CHECK(Duration(3700) == "1 h 1 min");
+  CHECK(Duration(42) == "42 s");
+  CHECK(About(250) == "4 min");
+  CHECK(About(870) == "15 min");
+  CHECK(About(31) == "30 s");
+  CHECK(About(4000) == "1 h 5 min");
+  CHECK(About(3) == "10 s");
 }
 
 // the pack file in memory

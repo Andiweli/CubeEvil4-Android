@@ -7,8 +7,8 @@
 //   3. the conversion (after Windows' Save dialog and the space check): steps, progress bar, counts, the image in work,
 //      elapsed and remaining time, Cancel (deletes the unfinished file);
 //   4. the end: done or failed, a summary (images, the file's size, refused images and why), Open folder, Show report.
-// Reading the pack and converting run on threads of their own; the window stays responsive. It follows the Windows
-// display language (gui_text.cpp, 11 languages, English as the fall-back), light and dark mode and the screen's DPI.
+// Reading the pack and converting run on threads of their own; the window stays responsive. Texts in English only
+// (gui_text.cpp; decision of the project owner, 14.11.2026). It follows light and dark mode and the screen's DPI.
 // Plan: port/docs/textur-packer-windows.md. Our own code (CC0).
 #ifndef UNICODE
 #define UNICODE
@@ -142,8 +142,6 @@ struct ConvOutcome {
 struct App {
   HINSTANCE inst = nullptr;
   HWND hwnd = nullptr, content = nullptr;
-  gt::Lang lang = gt::kEn;
-  bool rtl = false;
   int forceTheme = -1;  // -1 as Windows, 0 light, 1 dark
   bool dark = false, highContrast = false;
   UINT dpi = 96;
@@ -209,13 +207,13 @@ std::string U8(const std::wstring &w) {
   return s;
 }
 
-std::string T8(gt::Id id) { return gt::Text(g.lang, id); }
-std::wstring T(gt::Id id) { return W(gt::Text(g.lang, id)); }
-std::wstring TF(gt::Id id, std::initializer_list<std::string> args) { return W(gt::Format(gt::Text(g.lang, id), args)); }
-std::string Count(std::uint64_t v) { return gt::Count(g.lang, v); }
-std::string Size(std::uint64_t b) { return gt::Bytes(g.lang, b); }
+std::string T8(gt::Id id) { return gt::Text(id); }
+std::wstring T(gt::Id id) { return W(gt::Text(id)); }
+std::wstring TF(gt::Id id, std::initializer_list<std::string> args) { return W(gt::Format(gt::Text(id), args)); }
+std::string Count(std::uint64_t v) { return gt::Count(v); }
+std::string Size(std::uint64_t b) { return gt::Bytes(b); }
 
-// Windows' text for an error code (in the Windows language)
+// Windows' text for an error code
 std::string SystemError(DWORD code) {
   wchar_t *buf = nullptr;
   const DWORD n = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -257,10 +255,8 @@ bool FontExists(const wchar_t *name) {
 }
 
 void ChooseFaces() {
-  // Segoe UI Variable (Windows 11) for the languages in Latin and Cyrillic letters; Segoe UI, whose font links bring
-  // Arabic, Devanagari and Chinese letters, for the others
-  const bool latin = g.lang != gt::kAr && g.lang != gt::kHi && g.lang != gt::kZh;
-  g.uiFace = latin && FontExists(L"Segoe UI Variable Text") ? L"Segoe UI Variable Text" : L"Segoe UI";
+  // Segoe UI Variable (Windows 11), else Segoe UI
+  g.uiFace = FontExists(L"Segoe UI Variable Text") ? L"Segoe UI Variable Text" : L"Segoe UI";
   g.iconFace = FontExists(L"Segoe Fluent Icons") ? L"Segoe Fluent Icons" : L"Segoe MDL2 Assets";
 }
 
@@ -403,18 +399,13 @@ void ApplyThemeToWindows() {
 UINT TextFlags(int align, bool wrap, bool path) {
   UINT f = DT_NOPREFIX;
   f |= wrap ? DT_WORDBREAK : DT_SINGLELINE | DT_VCENTER | (path ? DT_PATH_ELLIPSIS : DT_END_ELLIPSIS);
-  if (g.rtl) {
-    f |= DT_RTLREADING;
-    if (align == 0) align = 2;
-    else if (align == 2) align = 0;
-  }
   return f | (align == 1 ? DT_CENTER : align == 2 ? DT_RIGHT : DT_LEFT);
 }
 
 int TextHeight(int font, const std::wstring &t, int width) {
   SelectObject(g.measure, g.font[font]);
   RECT r{0, 0, std::max(1, width), 0};
-  DrawTextW(g.measure, t.c_str(), -1, &r, DT_CALCRECT | DT_NOPREFIX | DT_WORDBREAK | (g.rtl ? DT_RTLREADING : 0));
+  DrawTextW(g.measure, t.c_str(), -1, &r, DT_CALCRECT | DT_NOPREFIX | DT_WORDBREAK);
   return r.bottom;
 }
 
@@ -622,8 +613,7 @@ void Paint(HDC target, const RECT &area, const std::vector<Op> &ops, COLORREF bg
           const int fill = static_cast<int>(std::lround((r.right - r.left) * std::clamp(o.value, 0.0f, 1.0f)));
           if (fill > 0) {
             RECT f = r;
-            if (g.rtl) f.left = f.right - std::max<LONG>(fill, r.bottom - r.top);
-            else f.right = f.left + std::max<LONG>(fill, r.bottom - r.top);
+            f.right = f.left + std::max<LONG>(fill, r.bottom - r.top);
             FillRound(gr, f, (r.bottom - r.top) / 2.0f, o.c2);
           }
           break;
@@ -632,8 +622,7 @@ void Paint(HDC target, const RECT &area, const std::vector<Op> &ops, COLORREF bg
           FillRound(gr, r, (r.bottom - r.top) / 2.0f, o.c);
           const int wbar = r.right - r.left, seg = wbar / 3;
           const float t = std::fmod(g.anim * 0.6f, 1.0f);
-          int x0 = r.left - seg + static_cast<int>((wbar + seg) * t);
-          if (g.rtl) x0 = r.right - (x0 - r.left) - seg;
+          const int x0 = r.left - seg + static_cast<int>((wbar + seg) * t);
           RECT s{std::max<LONG>(r.left, x0), r.top, std::min<LONG>(r.right, x0 + seg), r.bottom};
           if (s.right > s.left) FillRound(gr, s, (r.bottom - r.top) / 2.0f, o.c2);
           break;
@@ -645,7 +634,7 @@ void Paint(HDC target, const RECT &area, const std::vector<Op> &ops, COLORREF bg
           pen.SetStartCap(Gdiplus::LineCapRound);
           pen.SetEndCap(Gdiplus::LineCapRound);
           const float start = std::fmod(g.anim * 360.0f, 360.0f);
-          gr.DrawArc(&pen, RF(r, o.value / 2), g.rtl ? -start : start, 100);
+          gr.DrawArc(&pen, RF(r, o.value / 2), start, 100);
           break;
         }
         default: break;
@@ -672,13 +661,12 @@ void DrawButton(const DRAWITEMSTRUCT *d) {
   const int w = rc.right - rc.left, h = rc.bottom - rc.top;
   const bool pressed = (d->itemState & ODS_SELECTED) != 0, disabled = (d->itemState & ODS_DISABLED) != 0,
              focus = (d->itemState & ODS_FOCUS) && !(d->itemState & ODS_NOFOCUSRECT), hover = b->hover && !disabled;
-  auto M = [w](RECT r) { return g.rtl ? RECT{w - r.right, r.top, w - r.left, r.bottom} : r; };
   const Colors &c = g.c;
   std::vector<Op> ops;
   auto text = [&](RECT r, const std::wstring &t, int font, COLORREF col, int align, bool wrap) {
     Op o;
     o.kind = Op::kText;
-    o.r = M(r);
+    o.r = r;
     o.text = t;
     o.font = font;
     o.c = col;
@@ -689,7 +677,7 @@ void DrawButton(const DRAWITEMSTRUCT *d) {
   auto shape = [&](Op::Kind kind, RECT r, COLORREF col, float radius, float width = 0) {
     Op o;
     o.kind = kind;
-    o.r = M(r);
+    o.r = r;
     o.c = col;
     o.radius = radius;
     o.value = width;
@@ -749,7 +737,7 @@ void DrawButton(const DRAWITEMSTRUCT *d) {
       if (b->selected) {
         Op o;
         o.kind = Op::kText;
-        o.r = M(br);
+        o.r = br;
         o.text = std::wstring(1, kGlyphCheck);
         o.font = kFIcon;
         o.c = c.accentText;
@@ -965,7 +953,7 @@ int LayoutOptions(Builder &bd, int x, int w, int y) {
     Button *b = Find(kIdSize + i);
     if (!b) continue;
     const gt::Id label = i == 0 ? gt::kSize256 : i == 1 ? gt::kSize512 : gt::kSize1024;
-    const std::wstring sub = TF(gt::kEstimate, {Size(est[i]), gt::About(g.lang, EstimateSeconds(source, est[i]))});
+    const std::wstring sub = TF(gt::kEstimate, {Size(est[i]), gt::About(EstimateSeconds(source, est[i]))});
     SetButtonText(b, T(label), sub);
     b->selected = kSizes[i] == g.size;
     const int tw = w - S(64);
@@ -1060,9 +1048,9 @@ int LayoutConverting(Builder &bd, int x, int w, int y) {
     cy += statLabel + S(2) + statValue + S(14);
     bd.Text(x + pad, cy, iw, kFSmall, c.sub, p.current.empty() ? std::wstring() : TF(gt::kNow, {p.current}), 0, false, true);
     cy += lineH + S(10);
-    bd.Text(x + pad, cy, iw / 2, kFBody, c.text, TF(gt::kElapsed, {gt::Duration(g.lang, Elapsed())}), 0, false);
+    bd.Text(x + pad, cy, iw / 2, kFBody, c.text, TF(gt::kElapsed, {gt::Duration(Elapsed())}), 0, false);
     if (!finishing && !g.cancelling)
-      bd.Text(x + pad + iw / 2, cy, iw - iw / 2, kFBody, c.text, TF(gt::kTimeLeft, {gt::About(g.lang, SecondsLeft())}), 2, false);
+      bd.Text(x + pad + iw / 2, cy, iw - iw / 2, kFBody, c.text, TF(gt::kTimeLeft, {gt::About(SecondsLeft())}), 2, false);
     y += cardH + S(12);
   }
   if (g.cancelling) y += bd.Text(x, y, w, kFBody, c.warn, T(gt::kCancelling)) + S(8);
@@ -1092,7 +1080,7 @@ int LayoutDone(Builder &bd, int x, int w, int y) {
   y += bd.Text(x, y, w, kFBodyBold, c.text, TF(gt::kSaved, {U8(out.filename().wstring()), Size(r.fileBytes)})) + S(2);
   y += bd.Text(x, y, w, kFSmall, c.sub, TF(gt::kInFolder, {U8(out.parent_path().wstring())}), 0, false, true) + S(12);
   y += bd.Text(x, y, w, kFBody, c.text,
-               TF(gt::kConvertedIn, {Count(r.entries), gt::Duration(g.lang, r.seconds)}) + L" " +
+               TF(gt::kConvertedIn, {Count(r.entries), gt::Duration(r.seconds)}) + L" " +
                    TF(gt::kKinds, {Count(r.counts[1]), Count(r.counts[2]), Count(r.counts[3])})) +
        S(8);
   if (r.skipped) y += bd.Text(x, y, w, kFBody, c.sub, TF(gt::kSkippedDone, {Count(r.skipped)})) + S(8);
@@ -1165,10 +1153,6 @@ void LayoutBar(int W, int H) {
   }
 }
 
-void Mirror(std::vector<Op> &ops, int width) {
-  for (Op &o : ops) o.r = RECT{width - o.r.right, o.r.top, width - o.r.left, o.r.bottom};
-}
-
 // (one by one: DeferWindowPos needs all windows under one parent, and the bar's buttons are not under the content)
 void PositionButtons() {
   for (auto &b : g.buttons) {
@@ -1223,14 +1207,6 @@ void Layout() {
   GetClientRect(g.content, &cc);
   g.contentWidth = cc.right;
   LayoutBar(W, H);
-  if (g.rtl) {
-    Mirror(g.ops, cc.right);
-    Mirror(g.barOps, W);
-    for (auto &b : g.buttons) {
-      const int width = b->bar ? W : cc.right;
-      b->rc = RECT{width - b->rc.right, b->rc.top, width - b->rc.left, b->rc.bottom};
-    }
-  }
   g.animRect = RECT{};
   for (const Op &o : g.ops)
     if (o.kind == Op::kSpin || o.kind == Op::kMarquee) UnionRect(&g.animRect, &g.animRect, &o.r);
@@ -1693,7 +1669,7 @@ bool AskStop() {
   c.cbSize = sizeof(c);
   c.hwndParent = g.hwnd;
   c.hInstance = g.inst;
-  c.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW | (g.rtl ? TDF_RTL_LAYOUT : 0);
+  c.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_POSITION_RELATIVE_TO_WINDOW;
   const std::wstring main = T(gt::kCancelAsk), text = T(gt::kCancelAskText), stop = T(gt::kStop), keep = T(gt::kKeepGoing);
   const TASKDIALOG_BUTTON buttons[] = {{IDYES, stop.c_str()}, {IDNO, keep.c_str()}};
   c.pszWindowTitle = kTitle;
@@ -2033,7 +2009,7 @@ LRESULT CALLBACK MainProc(HWND h, UINT m, WPARAM w, LPARAM l) {
   switch (m) {
     case WM_CREATE: {
       g.hwnd = h;
-      g.content = CreateWindowExW(WS_EX_CONTROLPARENT | (g.rtl ? WS_EX_LEFTSCROLLBAR : 0), kContentClass, L"",
+      g.content = CreateWindowExW(WS_EX_CONTROLPARENT, kContentClass, L"",
                                   WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN, 0, 0, 10, 10, h, nullptr,
                                   g.inst, nullptr);
       return 0;
@@ -2201,14 +2177,7 @@ void ConsoleHint() {
     }
     FreeConsole();
   }
-  MessageBoxW(nullptr, text.c_str(), kTitle, MB_OK | MB_ICONINFORMATION | (g.rtl ? MB_RTLREADING | MB_RIGHT : 0));
-}
-
-gt::Lang WindowsLanguage() {
-  wchar_t name[LOCALE_NAME_MAX_LENGTH] = {};
-  if (LCIDToLocaleName(MAKELCID(GetUserDefaultUILanguage(), SORT_DEFAULT), name, LOCALE_NAME_MAX_LENGTH, 0) > 0)
-    return gt::FromCode(U8(name));
-  return gt::kEn;
+  MessageBoxW(nullptr, text.c_str(), kTitle, MB_OK | MB_ICONINFORMATION);
 }
 
 }  // namespace
@@ -2221,8 +2190,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int show) {
     if (auto fn = reinterpret_cast<Fn>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetProcessDpiAwarenessContext")))
       fn(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
   }
-  g.lang = WindowsLanguage();
-  // the command line: a pack (dropped onto the program's icon), -lang <code>, -theme light|dark; for the tests
+  // the command line: a pack (dropped onto the program's icon), -theme light|dark; for the tests
   // -testdrop <pack>: hands the pack to the window's drop target as Explorer does when it is dragged in (the same data
   // object), the mouse button let go after 1.5 seconds; -testsave <file.c4tex>: that file instead of the Save dialog
   std::wstring startPath, testDrop;
@@ -2232,8 +2200,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int show) {
     LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     for (int i = 1; argv && i < argc; i++) {
       const std::wstring a = Lower(argv[i]);
-      if ((a == L"-lang" || a == L"--lang") && i + 1 < argc) g.lang = gt::FromCode(U8(argv[++i]));
-      else if ((a == L"-testdrop" || a == L"--testdrop") && i + 1 < argc) testDrop = argv[++i];
+      if ((a == L"-testdrop" || a == L"--testdrop") && i + 1 < argc) testDrop = argv[++i];
       else if ((a == L"-testsave" || a == L"--testsave") && i + 1 < argc) g.testSave = argv[++i];
       else if ((a == L"-theme" || a == L"--theme") && i + 1 < argc) {
         const std::wstring t = Lower(argv[++i]);
@@ -2243,7 +2210,6 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int show) {
     }
     if (argv) LocalFree(argv);
   }
-  g.rtl = gt::RightToLeft(g.lang);
   if (unknown) {
     ConsoleHint();
     return 2;
@@ -2273,7 +2239,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int show) {
   wc.lpszClassName = kMainClass;
   RegisterClassExW(&wc);
 
-  const DWORD exStyle = g.rtl ? WS_EX_RTLREADING | WS_EX_RIGHT : 0;
+  const DWORD exStyle = 0;
   HWND h = CreateWindowExW(exStyle, kMainClass, kTitle, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT,
                            800, 760, nullptr, nullptr, inst, nullptr);
   if (!h) return 1;

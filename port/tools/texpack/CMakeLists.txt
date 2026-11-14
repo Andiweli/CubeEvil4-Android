@@ -29,7 +29,7 @@ find_package(Threads REQUIRED)
 add_library(texpack_core STATIC etc2.cpp image.cpp bc7.cpp jpeg.cpp zip.cpp packer.cpp)
 target_include_directories(texpack_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# the window version's texts in 11 languages (plain C++, also checked by the tests on Linux)
+# the window version's texts, English only (plain C++, also checked by the tests on Linux)
 add_library(texpack_guitext STATIC gui_text.cpp)
 target_include_directories(texpack_guitext PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

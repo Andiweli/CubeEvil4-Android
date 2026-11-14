@@ -215,7 +215,7 @@ same texture as several files, it takes the DDS, then the PNG, then the JPG.
      source in `port/tools/texpack`). Double-click it, drag the pack's folder or its ZIP file into its window
      (or choose it there) and pick the size: 256 (about 0.27 GB for a full pack, saves memory on weak phones),
      512 (recommended, about 0.72 GB) or 1024 (about 2.3 GB, for strong devices). Then choose where to save the
-     file; the window shows what it is doing and, at the end, a summary. Its texts follow the Windows language.
+     file; the window shows what it is doing and, at the end, a summary.
      `CubeEvil4-TexturePacker-Console.exe` does the same on the command line.
    - **Android:** the app **CubeEvil4 Texture Packer** (an APK of its own on the release page, Android 7 and
      later; source in `port/android-decomp/packer`). Choose the pack's ZIP file or folder, the size and the

@@ -40,33 +40,34 @@ Eine einzige `.exe` (etwa 0,6 MB), ohne Installation, ohne .NET oder andere Lauf
 Vier Seiten in einem Fenster:
 
 1. **Paket:** Kurzerklärung, der Rechtshinweis (keine Texturen, keine Links), eine große Ablagefläche mit
-   „Zieh dein Texturpaket hierher – eine ZIP-Datei oder den ausgepackten Ordner“ und den Knöpfen „ZIP-Datei wählen …“
-   und „Ordner wählen …“. Beim Darüberziehen färbt sich die Fläche und sagt „Loslassen, um das Paket zu öffnen“. Danach
-   „Paket wird gelesen …“ mit Laufbalken und Zähler (Dateien, dann Bildgrößen). 7z/RAR: Hinweis, erst auszupacken.
-2. **Optionen:** das Paket (Name, Bilder, Größe, ZIP oder Ordner, ausgelassene Dateien) mit „Anderes Paket …“; die
+   „Drag your texture pack here – a ZIP file or the unpacked folder“ und den Knöpfen „Choose ZIP file…“ und
+   „Choose folder…“. Beim Darüberziehen färbt sich die Fläche und sagt „Release to open the pack“ (auf den anderen
+   Seiten sagt es die untere Leiste). Danach „Reading the pack …“ mit Laufbalken und Zähler (Dateien, dann
+   Bildgrößen). 7z/RAR: Hinweis, erst auszupacken.
+2. **Optionen:** das Paket (Name, Bilder, Größe, ZIP oder Ordner, ausgelassene Dateien) mit „Other pack…“; die
    Auswahl im Paket (Varianten als Knöpfe nebeneinander, z. B. Kofferfarbe; Zusatzordner als Haken); die Größe 256 / 512
-   / 1024 mit denselben Kurzerklärungen wie in der Android-App und je „bis … · etwa … min“ (Dateigröße höchstens und
-   Dauer auf diesem PC). „Speichern und starten …“.
+   / 1024 mit denselben Kurzerklärungen wie in der Android-App und je „up to … · about … min“ (Dateigröße höchstens
+   und Dauer auf diesem PC). „Save and start…“.
 3. **Speichern-Dialog von Windows** mit dem üblichen Namen `CubeEvil4-textures-512.c4tex`. Er beginnt beim ersten Mal im
    Ordner des Pakets, danach im zuletzt gewählten Ordner, und fragt vor dem Ersetzen einer vorhandenen Datei. Danach die
    Platzprüfung (Schätzung plus 100 MB, wie die Android-App): Reicht der Platz nicht, steht auf der Optionsseite, wie
    viel nötig und frei ist und welche kleinere Größe passen würde. Speichern im Paketordner selbst wird abgelehnt.
-4. **Umwandeln:** drei Schritte mit Häkchen (Vorbereiten – Bilder umwandeln – Datei fertigstellen, der laufende dreht
-   sich), großer Prozentwert, Fortschrittsbalken, „x von y Bildern“, vier Zähler (Umgewandelt, Geschrieben, Ausgelassen,
-   Abgelehnt), das Bild in Arbeit, vergangene Zeit und Restzeit. Der Fortschritt steht auch in der Titelleiste und im
-   Taskleisten-Symbol (grüner Balken). Der PC geht währenddessen nicht in den Ruhezustand. „Abbrechen“ fragt nach und
-   löscht dann die halbe Datei; dasselbe beim Schließen des Fensters.
-5. **Ende:** grünes Häkchen „Fertig!“ (oder rot „Umwandeln fehlgeschlagen“ mit Grund, grau „Abgebrochen“): Datei,
-   Größe, Ordner, Zahl der Bilder und Dauer, wie viele deckend / harte / weiche Transparenz, ausgelassene Dateien,
-   abgelehnte Bilder mit Grund (bis 6, der Rest im Bericht), der nächste Schritt in CubeEvil4 (App-Menü (SELECT) →
-   Cheats & Mods → Mods → Texturpaket importieren). Knöpfe „Ordner öffnen“ (Explorer mit markierter Datei), „Bericht
-   zeigen“ (die `.txt` neben der Datei), „Zurück“ (zu den Optionen, z. B. für eine zweite Größe) und „Schließen“.
+4. **Umwandeln:** drei Schritte mit Häkchen (Prepare – Convert the images – Finish the file, der laufende dreht sich),
+   großer Prozentwert, Fortschrittsbalken, „x of y images“, vier Zähler (Converted, Written, Skipped, Refused), das
+   Bild in Arbeit, vergangene Zeit und Restzeit. Der Fortschritt steht auch in der Titelleiste und im
+   Taskleisten-Symbol (grüner Balken). Der PC geht währenddessen nicht in den Ruhezustand. „Cancel“ fragt nach
+   („Stop converting?“ – Stop / Keep converting) und löscht dann die halbe Datei; dasselbe beim Schließen des Fensters.
+5. **Ende:** grünes Häkchen „Done!“ (oder rot „Converting failed“ mit Grund, grau „Cancelled“): Datei, Größe, Ordner,
+   Zahl der Bilder und Dauer, wie viele deckend / harte / weiche Transparenz, ausgelassene Dateien, abgelehnte Bilder
+   mit Grund (bis 6, der Rest im Bericht), der nächste Schritt in CubeEvil4 (app menu (SELECT) → Cheats & Mods → Mods →
+   Import texture pack). Knöpfe „Open folder“ (Explorer mit markierter Datei), „Show report“ (die `.txt` neben der
+   Datei), „Back“ (zu den Optionen, z. B. für eine zweite Größe) und „Close“.
 
 Weitere Eigenschaften:
-- **Sprache:** die Anzeigesprache von Windows, dieselben 11 Sprachen wie die Android-Packer-App (Englisch als
-  Rückfall). Texte, die es dort schon gibt, sind wörtlich übernommen. Arabisch von rechts nach links. Zum Ausprobieren:
-  `CubeEvil4-TexturePacker.exe -lang en` (oder `de`, `fr`, `es`, `it`, `pt`, `ru`, `ar`, `hi`, `id`, `zh`).
-  Der Bericht (`.txt`) bleibt englisch wie bisher.
+- **Sprache: nur Englisch** (Entscheidung des Projektinhabers, 14.11.2026: „die windows app braucht nur englisch
+  sein!“). Keine Spracherkennung, keine weiteren Sprachen. Texte, die es in der Android-Packer-App schon gibt, haben
+  dieselben Worte. Der Bericht (`.txt`) ist wie bisher englisch. (Eine erste Fassung mit den 11 Sprachen der
+  Android-App wurde danach wieder entfernt.)
 - **Hell und dunkel** wie Windows (auch die Titelleiste), Hoher Kontrast mit den Systemfarben. Zum Ausprobieren:
   `-theme light` / `-theme dark`.
 - **Scharf auf jedem Bildschirm** (Skalierung je Monitor, auch beim Verschieben auf einen anderen Monitor).
@@ -77,8 +78,9 @@ Weitere Eigenschaften:
 
 ## Code
 
-- `port/tools/texpack/gui.cpp`: das Fenster. `gui_text.h/.cpp`: die Texte in 11 Sprachen, Zahlen, Größen und Zeiten
-  im Stil der Sprache. `pc.h`: was Fenster und Konsole teilen (Datei schreiben, Speicher, Datum).
+- `port/tools/texpack/gui.cpp`: das Fenster. `gui_text.h/.cpp`: die englischen Texte (90), Zahlen, Größen und
+  Zeiten („5,916“, „0.72 GB“, „4 min 22 s“; „1 file“ statt „1 files“). `pc.h`: was Fenster und Konsole teilen
+  (Datei schreiben, Speicher, Datum).
   `res/`: Symbol (`packer.ico`, aus dem Zeichen der Android-Packer-App mit `res/make_ico.py`), Versionsangaben
   (`texpack.rc`), Manifest (DPI, Windows-10/11-Dialoge).
 - Kern (`packer.h/.cpp`), nur Ergänzungen, die Datei bleibt gleich: der Fortschritt nennt das Bild in Arbeit und die
@@ -116,10 +118,10 @@ Die Android-App bleibt 1.3 und wird nicht neu gebaut. Wird sie später neu gebau
 
 - `build.ps1` (Visual Studio 2026, x64): beide `.exe` ohne Fehler und Warnungen. Abhängig nur von Windows-eigenen DLLs
   (user32, gdi32, shell32, ole32, comctl32, dwmapi, uxtheme, gdiplus, kernel32, advapi32), keine Laufzeit nötig.
-- `texpack_tests`: 636 Prüfungen ohne Fehler, mit allen Testbildern (PNG, BC7, JPG) 1.001 (vorher 910). Neu: alle 90
-  Fenstertexte in allen 11 Sprachen vorhanden und mit denselben Platzhaltern, Zahlen/Größen/Zeiten je Sprache,
-  Sprachwahl aus den Windows-Namen, `EstimateEach` gleich `EstimateSizes`, Fortschritt mit Bildnamen und abgelehnten
-  Bildern, abgelehnte Bilder mit Grund im Ergebnis. Unter Linux (WSL, GCC) ebenfalls 636 ohne Fehler und ohne Warnung.
+- `texpack_tests`: 601 Prüfungen ohne Fehler, mit allen Testbildern (PNG, BC7, JPG) 966 (vorher 910). Neu: alle 90
+  Fenstertexte an ihrem Platz, keiner leer, Platzhalter ohne Lücke; Zahlen, Größen, Zeiten, Einzahl („1 file“);
+  `EstimateEach` gleich `EstimateSizes`, Fortschritt mit Bildnamen und abgelehnten Bildern, abgelehnte Bilder mit Grund
+  im Ergebnis. Unter Linux (WSL, GCC) ebenfalls 601 ohne Fehler und ohne Warnung.
 - `run_e2e.py` gegen `CubeEvil4-TexturePacker-Console.exe`: 36 von 36 Punkten.
 - Das HD Project des Inhabers als ZIP (11,9 GB, 5.916 Bilder), Größe 256:
   - im Fenster: Paket gelesen (beim ersten Mal 40 s, die Festplatte war noch kalt), Optionen mit beiden Auswahlgruppen,
@@ -136,10 +138,11 @@ Die Android-App bleibt 1.3 und wird nicht neu gebaut. Wird sie später neu gebau
 - Hineinziehen: mit demselben Windows-Datenobjekt, das der Explorer beim Ziehen liefert (`-testdrop`): Markierung
   „Loslassen …“, danach wird gelesen. Falsche Dateien: `.txt` und `.7z` mit Hinweis.
 - Fenster mit Befehlszeilen-Optionen: nennt die Konsolen-Version, Rückgabewert 2.
-- Sprachen: Deutsch, Englisch, Arabisch (von rechts nach links), Chinesisch und Hindi angesehen; hell und dunkel.
-- Bildschirmfotos: `E:\Development\Android\builds\converter-tool\screenshots\` (die meisten auf einem unsichtbaren
-  zweiten Desktop gemacht, damit die Tests den Inhaber nicht stören: dort fehlt der Windows-11-Fensterrahmen;
-  `17-windows11-frame-reading.png` zeigt ihn).
+- Hell und dunkel angesehen (`-theme light` / `-theme dark`).
+- Bildschirmfotos (englisch): `E:\Development\Android\builds\converter-tool\screenshots\`, auf einem
+  unsichtbaren zweiten Desktop gemacht, damit die Tests den Inhaber nicht stören; dort zeigt Windows keinen
+  Fensterrahmen (die Fotos zeigen nur den Inhalt des Fensters; der Speichern-Dialog und die Nachfrage beim Abbrechen
+  haben dort den alten Rahmen, und ihre Windows-eigenen Knöpfe sind in der Sprache von Windows).
 
 **Nicht geprüft:**
 - Das Ziehen mit der echten Maus aus dem Explorer: Windows lässt diese Sitzung die Maus nicht bewegen. Der Weg dahinter
