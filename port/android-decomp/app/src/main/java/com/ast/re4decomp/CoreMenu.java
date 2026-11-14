@@ -2305,6 +2305,10 @@ final class CoreMenu extends Dialog {
       width = area.getWidth() - area.getPaddingLeft() - area.getPaddingRight();
       height = area.getHeight() - area.getPaddingTop() - area.getPaddingBottom();
     }
+    // the game's window reaches over the camera's cutout (0.99.15), the menu's window does not (Cutout)
+    final int[] cutout = Cutout.safe(hostDecor);
+    width -= cutout[0] + cutout[2];
+    height -= cutout[1] + cutout[3];
     getWindow().setLayout(Math.min(dp(1000), Math.round(width * .96f)),
         Math.min(dp(650), Math.round(height * .94f)));
   }

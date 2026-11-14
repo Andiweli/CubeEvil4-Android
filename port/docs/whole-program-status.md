@@ -120,6 +120,36 @@ Management-Teile.
   NDK-Bau `:app:externalNativeBuildCoreDebug` (armeabi-v7a, arm64-v8a) ohne Fehler, keine neue Warnung.
 - **Nicht geprüft:** auf einem Gerät (Vulkan mit 30 FPS und „Dynamisch“ in einem schweren Raum).
 
+### 3. Moto G22: das Spiel füllt den Bildschirm nicht, „die Kameraleiste bleibt sichtbar“ (Nutzerbericht, 14.11.2026)
+
+„I can now play RE4 at 30 FPS on my Moto G22. However, it doesn't go into full screen, the camera bar remains
+visible.“ Bild `E:\Development\Androideports 9915-moto-g22-cutout\moto-g22-ingame.png` (1280 × 576, 20:9,
+Bildformat „Gestreckt“ oder „Nativ“: Minikarte 23 Pixel vom linken Fensterrand): links ein schwarzer Streifen von
+etwa 76 Pixeln (beim Telefon 1600 × 720 etwa 95), keine Status- und keine Navigationsleiste.
+
+- **Ursache:** `CoreActivity` setzte keinen `layoutInDisplayCutoutMode`; im Querformat hält Android ein Fenster dann von
+  der kurzen Kante mit der Kamera fern (Standard-Modus). Nur `StartupActivity` (alte App) setzte ihn. Die Leisten
+  waren in Ordnung (der Vollbildmodus wirkt).
+- **Behoben (`Cutout.java`, `CoreActivity`, `CoreMenu`):** das Spielfenster reicht über die Kamera-Kante (ab Android 11
+  `ALWAYS`, auf 9 und 10 `SHORT_EDGES`), das Bild füllt den Bildschirm wie das Bildformat sagt. Die Touch-Ebene wird
+  um die sicheren Abstände der Aussparung eingerückt (Ränder der Ansicht, bei jeder neuen Einrückung, auch nach dem
+  Drehen um 180°): die Knöpfe liegen genau dort, wo sie vorher waren, ein gespeichertes Layout bleibt gleich (die
+  Tipp- und Wisch-Koordinaten rechnen schon mit der Lage im Fenster). Die FPS-Anzeige hält über `CornerInset` Abstand
+  zur Aussparung; das App-Menü rechnet seine Größe ohne den Streifen (seine Fragen und Fenster behalten Androids
+  Standard und bleiben von der Kamera weg). Auf Autos unverändert (`CarDisplay` polstert selbst).
+- **Bildformate auf 20:9 (gerechnet mit `minimap_view.h`, `09915-cutout_formats.cpp` im Notizordner; 1600 × 720 mit 95,
+  2400 × 1080 mit 120, 2340 × 1080 mit 110 Pixeln Streifen, links oder rechts gleich):** „16:9“, „4:3“, „4:3 (GC)“:
+  Bild und Anzeigen ganz außerhalb des Streifens (wie vorher, jetzt mittig auf dem ganzen Bildschirm). „Gestreckt“ und
+  „Nativ“: das Bild über die volle Breite; Minikarte (unten links) und Lebensanzeige (unten rechts) 28–43 Pixel vom
+  Rand, also innerhalb der Streifenbreite, aber unten. Beim Moto G22 sitzt das Kameraloch mittig an der Kante (bei
+  1600 × 720 etwa Zeilen 310–410), die Minikarte reicht von Zeile 498 bis 692: frei. Bei einem Kameraloch in einer
+  Ecke (selten, z. B. Galaxy S10) könnte in „Gestreckt“/„Nativ“ in einer der beiden Lagen eine der Anzeigen darunter
+  liegen; dann „16:9“ wählen oder das Gerät drehen.
+- **Geprüft am PC:** App-Tests 149 grün (neu `CutoutTest`: Modus `ALWAYS` ab Android 11, `SHORT_EDGES` auf 10, sichere
+  Abstände links und nach dem Drehen rechts, ohne Aussparung 0).
+- **Nicht geprüft:** auf einem Gerät mit Kameraloch (das Bild über die Kante, die Touch-Knöpfe, das Drehen um 180°,
+  das App-Menü).
+
 ## Version 0.99.14-rc (veröffentlicht 13.11.2026, Branch `09914`, Basis e72b2c80 = Release 0.99.13-rc; Tag 0.99.14-rc = 62f8e946)
 
 Version 0.99.14-rc (versionCode 116), Releasetext `port/android-decomp/docs/releases/v0.99.14-rc.md` („Changes since

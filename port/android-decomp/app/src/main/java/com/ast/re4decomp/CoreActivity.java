@@ -274,6 +274,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // no force dark over the game, its touch controls and displays (FocusLook, 0.99.11)
     FocusLook.noForceDark(getWindow());
     hideSystemUi();
+    // the game's window over the camera's cutout too (0.99.15, a user's Moto G22: a black strip on the camera's side);
+    // the touch controls keep clear of it below (Cutout)
+    Cutout.extend(getWindow());
     ImportManager imports = ((Re4Application) getApplication()).imports;
     // test switches of the core (port/scripts/test-core-app.ps1 passes them)
     settings = getIntent().getStringExtra("coreSettings");
@@ -414,6 +417,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
+    // the touch controls clear of the camera's cutout, where they were before the game's window reached over it (a
+    // saved layout stays as it was); again when the screen turns by 180 degrees and the camera changes sides
+    root.setOnApplyWindowInsetsListener((v, insets) -> {
+      placeTouch(Cutout.safe(insets));
+      return v.onApplyWindowInsets(insets);
+    });
     benchFlow = new BenchmarkFlow(benchHost);
     if (startProblem.isEmpty()) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
@@ -622,6 +631,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         time, time ? InfoHud.time(CoreBridge.cheatAction(InfoHud.PLAY_TIME_COMMAND)) : "");
     fpsView.setText(text);
     fpsView.setVisibility(fpsPlace != 0 && menuSupported && !text.isEmpty() ? View.VISIBLE : View.GONE);
+  }
+
+  /** The touch controls' area: the window less the camera cutout's safe insets (Cutout; {left, top, right, bottom}). */
+  private void placeTouch(int[] safe) {
+    final View v = touchControls != null ? touchControls.view() : null;
+    if (v == null) return;
+    final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) v.getLayoutParams();
+    if (lp.leftMargin == safe[0] && lp.topMargin == safe[1] && lp.rightMargin == safe[2] && lp.bottomMargin == safe[3]) return;
+    lp.setMargins(safe[0], safe[1], safe[2], safe[3]);
+    v.setLayoutParams(lp);
+    Log.i(TAG, "touch controls: clear of the camera's cutout (left " + safe[0] + ", top " + safe[1] + ", right " + safe[2]
+        + ", bottom " + safe[3] + " pixels)");
   }
 
   /** The FPS display at its place, kept clear of rounded corners, a cutout and bars that stay (CornerInset). */
