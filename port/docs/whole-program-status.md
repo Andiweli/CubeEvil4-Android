@@ -218,8 +218,10 @@ Auge?“
   `app/THIRD_PARTY_NOTICES.md` (neu, wie die von RetroTouch in `app/libs/`) und ein Satz in `LICENSE-PLATFORM.txt`.
   Die Augen sind ein Stück nach einem Leerzeichen: so hoch wie die Buchstaben (115 % der Schriftgröße), in der Farbe
   des Textes (sie folgen dem Zustand des Knopfes wie der Text), in einem schmalen Knopf auf der nächsten Zeile, nie
-  abgeschnitten; bei Arabisch stehen sie auf der linken Seite (nach dem Text). TalkBack liest nur den Text.
-- **Geprüft am PC:** App-Tests je Variante grün (siehe unten); neu `viewDistanceMovesThroughFiveStepsWithEyes`
+  abgeschnitten; bei Arabisch stehen sie auf der linken Seite (nach dem Text). TalkBack liest nur den Text. Der Knopf
+  steht allein in einer einfachen Zeile über die ganze Breite (die Knopfzeilen sind ein GridLayout, das die Höhe bei
+  der Breite des ungebrochenen Textes misst).
+- **Geprüft am PC:** App-Tests 179 je Variante grün (Core und Classic); neu `viewDistanceMovesThroughFiveStepsWithEyes`
   (Reihenfolge, Hervorhebung, Text, Augenzahl, TalkBack-Text) und `CoreMenuRowsTest.viewDistanceEyesNeverCutTheText`
   (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, 5 Stufen, 320–960 dp: nichts abgeschnitten, die Augen nach
   dem Text, bei normaler Schrift ab 700 dp eine Zeile); `check_translations.py` ohne Befund. Bilder des Knopfes in allen
