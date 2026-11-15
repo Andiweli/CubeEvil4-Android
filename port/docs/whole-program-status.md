@@ -31,6 +31,14 @@ aktiviert, nicht wenn man Release baut. Erst nach 1.0 kommen sie ins Release.“
 (`port/docs/echtzeit-schatten-studie.md`, Notizen und Versuchs-Code `port/docs/echtzeit-schatten/`). **Nicht in den
 Releasetext für Tester:** Release-Builds haben die Funktion nicht.
 
+**In `release-candidate` übernommen (15.11.2026, Auftrag der Hauptsitzung):** Stufen 1–3 (9c975bd0) per Fast-Forward
+in 0.99.19. **Nur in Debug-Builds bis nach 1.0**; der Releasetext v0.99.19-rc bekommt nichts davon. Geprüft am PC nach
+dem Fast-Forward: Kern i686 -O2 mit Patch 0240 gebaut (0 Fehler, Kern- und Laufzeittests bestanden, Stubs wie
+erwartet), App-Tests 185 je Variante grün (neu `RealtimeShadowsTest`), `check_translations.py` ohne Befund,
+`assembleCoreRelease` gebaut (die APK ist nicht „debuggable“, die Menüzeile fehlt dort). Die Menüzeile erscheint im
+Debug-Build erst, wenn der Benchmark auf einem starken Gerät gelaufen ist. Stufe 4 (Gegenstände, drei Stufen) folgt
+auf `realtime-shadows` und kommt später auf dieselbe Weise.
+
 - **Kern** (`runtime/rt_shadow.cpp`, Patch 0240, Tabelle unten): Die App schaltet mit Bit 5 der Potato-Maske ein
   (`re4_core_set_potato`, auch über den 32-bit-Kernprozess, keine neue Nachricht; `potato.cpp` trennt das Bit von den
   Potato-Schaltern ab). Pro Bild prüft `re4_rt_shadow_frame` am Anfang von `Render`:
