@@ -7,6 +7,7 @@ import android.app.Application;
 import android.content.res.Configuration;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Locale;
@@ -74,11 +75,11 @@ public class CoreMenuRowsTest {
     assertTrue("widths with two buttons a row were checked", checked > 100);
   }
 
-  /** The installed version small under the update button's label, or alone in its place without GitHub's answer
-   *  (0.99.18, the project owner, 15.11.2026), with real text sizes: in every language and font scale the label and
-   *  the version keep a line each, the button is no taller than "Back to the game" beside it, and the header stays
-   *  inside the window from a handheld's 320 dp up. */
-  @Test public void versionUnderTheUpdateButton() throws Exception {
+  /** The installed version left of the update button (0.99.18, the project owner, 15.11.2026, as in the OUYA menu),
+   *  also while the button is hidden, with real text sizes: in every language and font scale the version stays on one
+   *  line beside the buttons (on the side away from "Back to the game"; right to left mirrored), the buttons as
+   *  before on one line each, and the header inside the window from a handheld's 320 dp up. */
+  @Test public void versionLeftOfTheUpdateButton() throws Exception {
     int checked = 0;
     for (String language : new String[] {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"})
       for (float scale : new float[] {1f, 1.3f, 1.5f}) {
@@ -93,23 +94,33 @@ public class CoreMenuRowsTest {
           root.setLayoutDirection(config.getLayoutDirection());
           Button update = (Button) CoreMenuLayoutTest.field(menu, "update");
           Button resume = (Button) CoreMenuLayoutTest.field(menu, "resume");
+          TextView version = (TextView) CoreMenuLayoutTest.field(menu, "versionLabel");
+          boolean rtl = config.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
           float density = activity.getResources().getDisplayMetrics().density;
           for (int state : new int[] {AppUpdate.UNKNOWN, AppUpdate.CURRENT, AppUpdate.OLDER}) {
             menu.showUpdate(state);
             String where = language + "/" + scale + "/state " + state;
             View header = ((android.view.ViewGroup) root).getChildAt(0);
+            View beside = state == AppUpdate.UNKNOWN ? resume : update;  // the button the version is next to
             for (int width : new int[] {320, 480, 700, 960}) {
               CoreMenuLayoutTest.measure(root, Math.round(width * density), Math.round(300 * density));
               assertTrue(where + "/" + width + ": the header inside the window", header.getRight() <= root.getWidth()
                   && header.getBottom() <= root.getHeight());
               CoreMenuLayoutTest.checkBounds(header, where + "/" + width);
+              assertEquals(where + "/" + width + ": the version on one line", 1, version.getLayout().getLineCount());
+              int besideLeft = CoreMenuLayoutTest.leftIn(beside, header);
+              int buttonsBottom = CoreMenuLayoutTest.topIn(resume, header) + resume.getHeight();
+              if (version.getTop() >= buttonsBottom) {
+                // under the buttons: only where a narrow window leaves no room beside them
+                assertTrue(where + "/" + width + ": the version under the buttons only in a narrow window", width < 680 * scale);
+              } else {
+                assertTrue(where + "/" + width + ": the version beside the buttons",
+                    rtl ? version.getLeft() >= besideLeft + beside.getWidth() : version.getRight() <= besideLeft);
+              }
               if (width >= 700) {
-                assertEquals(where + "/" + width + ": a line each", state == AppUpdate.UNKNOWN ? 1 : 2,
-                    update.getLayout().getLineCount());
-                assertEquals(where + "/" + width + ": as tall as Back to the game", resume.getHeight(), update.getHeight());
-                if (scale == 1f && resume.getLayout().getLineCount() == 1 && !"ar".equals(language))
-                  assertEquals(where + "/" + width + ": the buttons' 48 dp at the normal font size", Math.round(48 * density),
-                      update.getHeight());
+                if (state != AppUpdate.UNKNOWN)
+                  assertEquals(where + "/" + width + ": the update button on one line", 1, update.getLayout().getLineCount());
+                assertEquals(where + "/" + width + ": Back to the game on one line", 1, resume.getLayout().getLineCount());
                 checked++;
               }
             }

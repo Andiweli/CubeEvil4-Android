@@ -214,6 +214,7 @@ final class CoreMenu extends Dialog {
   private TextView hdStatus;
   private Button hdImport;
   private boolean updateAsked;  // the question after an update (PerfProfile.FIRST_ASK) shown in this menu
+  private TextView versionLabel;  // "v0.99.18-rc" left of the update button (0.99.18); null without a versionName
   private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
   private Button exportAll, exportZip, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
@@ -236,22 +237,22 @@ final class CoreMenu extends Dialog {
     back = button(s(R.string.ingame_return), v -> goBack());
     title = text("", 22, true);
     resume = button(s(R.string.ingame_back), v -> close());
-    // the update button left of "Back to the game" (wish of the project owner, 30.10.2026; AppUpdate); since 0.99.18
-    // with the installed version small under its label, and the version alone there until GitHub answered (showUpdate)
+    // the update button left of "Back to the game" (wish of the project owner, 30.10.2026; AppUpdate): hidden
+    // until GitHub answered
     update = button(s(R.string.ingame_update), v -> { if (host != null) host.openUpdate(); });
-    update.setIncludeFontPadding(false);
-    update.setPadding(dp(12), dp(2), dp(12), dp(2));  // two lines in the 48 dp of "Back to the game"
-    showUpdate(AppUpdate.UNKNOWN);
+    update.setVisibility(View.GONE);
     LinearLayout actions = row();
-    // both as tall as the taller one (0.99.18: the update button's second line, the version, with a large font or the
-    // taller Arabic lines)
     LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-        ViewGroup.LayoutParams.MATCH_PARENT);
+        ViewGroup.LayoutParams.WRAP_CONTENT);
     gap.setMarginEnd(dp(8));
-    actions.addView(update, gap);
-    actions.addView(resume, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-        ViewGroup.LayoutParams.MATCH_PARENT));
-    root.addView(new MenuLayout.Header(context, back, title, actions), new LinearLayout.LayoutParams(-1, -2));
+    actions.addView(update, gap); actions.addView(resume);
+    // the installed version left of them, small, with some room (the project owner, 15.11.2026, "wie in der OUYA
+    // Version links vom Button"; until 0.99.17 in brackets after the start page's title): "v0.99.18-rc", also while the
+    // update button is hidden (no internet); MenuLayout.Header places it (under the buttons where a narrow window
+    // leaves no room beside them)
+    String installed = version();
+    if (installed != null) versionLabel = text("v" + installed, 14, false);
+    root.addView(new MenuLayout.Header(context, back, title, versionLabel, actions), new LinearLayout.LayoutParams(-1, -2));
     separator(root);
     scroll = new ScrollView(context);
     scroll.setFillViewport(false);
@@ -265,24 +266,11 @@ final class CoreMenu extends Dialog {
     if (host != null) host.checkUpdate(updates);
   }
 
-  /** The update button's look: green "Up to date" (off), red "Update" (opens the release's page); under the label,
-   *  small, the installed version (wish of the project owner, 15.11.2026: in the button, not in brackets after the
-   *  title). Without GitHub's answer (no internet, or not yet) the version alone in its place: small, grey, no frame,
-   *  not a button. */
+  /** The update button's look: green "Up to date" (off), red "Update" (opens the release's page). */
   private final AppUpdate.Listener updates = this::showUpdate;
 
   void showUpdate(int state) {
-    String installed = version();
-    if (state == AppUpdate.UNKNOWN) {
-      if (installed == null) { update.setVisibility(View.GONE); return; }
-      update.setBackground(null);
-      update.setTextColor(MUTED);
-      update.setText(small(new SpannableStringBuilder(), installed));
-      update.setEnabled(false);
-      update.setFocusable(false);
-      update.setVisibility(View.VISIBLE);
-      return;
-    }
+    if (state == AppUpdate.UNKNOWN) { update.setVisibility(View.GONE); return; }
     boolean older = state == AppUpdate.OLDER;
     int fill = older ? UPDATE_RED : UPDATE_GREEN, stroke = older ? UPDATE_RED_EDGE : UPDATE_GREEN_EDGE;
     StateListDrawable look = new StateListDrawable();
@@ -291,19 +279,10 @@ final class CoreMenu extends Dialog {
     look.addState(new int[0], shape(fill, stroke, 6));
     update.setBackground(look);
     update.setTextColor(FocusLook.text(ColorStateList.valueOf(INK)));
-    SpannableStringBuilder label = new SpannableStringBuilder(s(older ? R.string.ingame_update : R.string.ingame_up_to_date));
-    if (installed != null) small(label.append('\n'), installed);
-    update.setText(label);
+    update.setText(s(older ? R.string.ingame_update : R.string.ingame_up_to_date));
     update.setEnabled(older);
     update.setFocusable(older);
     update.setVisibility(View.VISIBLE);
-  }
-  /** `text` with `small` appended at 60 % of the button's size, not bold (the version under the update's label). */
-  private static SpannableStringBuilder small(SpannableStringBuilder text, String small) {
-    int start = text.length(); text.append(small);
-    text.setSpan(new RelativeSizeSpan(.6f), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-    text.setSpan(new StyleSpan(Typeface.NORMAL), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-    return text;
   }
 
   private String s(int id) { return getContext().getString(id); }
@@ -646,7 +625,7 @@ final class CoreMenu extends Dialog {
     int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_audio,
         R.string.ingame_controls_page, R.string.ingame_performance, R.string.ingame_cheats,
         R.string.ingame_management, R.string.ingame_controller_config};
-    // only the page's name; the installed version is small under the update button since 0.99.18 (showUpdate)
+    // only the page's name; the installed version is left of the update button since 0.99.18 (versionLabel)
     title.setText(s(titles[page]));
     if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == AUDIO) audio();
     else if (page == CONTROLS) controls(); else if (page == PERFORMANCE) performance();

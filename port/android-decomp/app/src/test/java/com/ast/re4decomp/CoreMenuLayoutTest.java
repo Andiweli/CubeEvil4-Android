@@ -272,30 +272,44 @@ public class CoreMenuLayoutTest {
       setVersion(activity, "0.99.18-rc-core");
       CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
       Button update = (Button) field(menu, "update"), resume = (Button) field(menu, "resume");
-      // 0.99.18 (the project owner, 15.11.2026): until GitHub answered (or without internet) the installed version
-      // alone in the button's place, without brackets, "v" and "-core"; not a button
-      assertEquals("the version before GitHub answered", View.VISIBLE, update.getVisibility());
-      assertEquals("0.99.18-rc", update.getText().toString());
-      assertFalse("the version alone: not clickable", update.isEnabled());
-      assertFalse("the version alone: no focus", update.isFocusable());
+      TextView version = (TextView) field(menu, "versionLabel");
+      View root = (View) field(menu, "root");
+      int width = Math.round(960 * activity.getResources().getDisplayMetrics().density);
+      int height = Math.round(300 * activity.getResources().getDisplayMetrics().density);
+      assertEquals("hidden until GitHub answered", View.GONE, update.getVisibility());
+      // 0.99.18 (the project owner, 15.11.2026, as in the OUYA menu): "v0.99.18-rc" left of the update button, without
+      // "-core"; the title only the page's name; the version also while the update button is hidden (no internet)
       TextView title = (TextView) field(menu, "title");
       assertEquals("the title without the version", activity.getString(R.string.ingame_title), title.getText().toString());
+      assertEquals("v0.99.18-rc", version.getText().toString());
+      measure(root, width, height);
+      View header = (View) version.getParent();
+      assertEquals("the version without an answer from GitHub", View.VISIBLE, version.getVisibility());
+      assertTrue("then left of Back to the game", version.getRight() <= leftIn(resume, header));
       menu.showUpdate(AppUpdate.CURRENT);
-      View root = (View) field(menu, "root");
-      measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
-          Math.round(300 * activity.getResources().getDisplayMetrics().density));
-      assertEquals(activity.getString(R.string.ingame_up_to_date) + "\n0.99.18-rc", update.getText().toString());
+      measure(root, width, height);
+      assertEquals(activity.getString(R.string.ingame_up_to_date), update.getText().toString());
       assertFalse("up to date: not clickable", update.isEnabled());
       assertTrue("left of Back to the game", update.getRight() <= resume.getLeft());
-      // (centred in the row: the heights with real text are CoreMenuRowsTest.versionUnderTheUpdateButton's)
-      assertEquals("in the same row", update.getTop() + update.getHeight() / 2f, resume.getTop() + resume.getHeight() / 2f, 1f);
+      assertTrue("the version left of the update button", version.getRight() <= leftIn(update, header));
+      assertEquals("in the same row", update.getTop(), resume.getTop());
       menu.showUpdate(AppUpdate.OLDER);
-      assertEquals(activity.getString(R.string.ingame_update) + "\n0.99.18-rc", update.getText().toString());
+      assertEquals(activity.getString(R.string.ingame_update), update.getText().toString());
       assertTrue("an update: clickable", update.isEnabled());
-      menu.showUpdate(AppUpdate.UNKNOWN);
-      assertEquals("no answer: the version alone again", "0.99.18-rc", update.getText().toString());
-      assertFalse(update.isEnabled());
+      assertFalse("the version is no button", version.isFocusable() || version.isClickable());
     }
+  }
+
+  /** `v`'s left and top edge in `ancestor`'s coordinates (views in different groups compared). */
+  static int leftIn(View v, View ancestor) {
+    int x = 0;
+    for (View at = v; at != ancestor; at = (View) at.getParent()) x += at.getLeft();
+    return x;
+  }
+  static int topIn(View v, View ancestor) {
+    int y = 0;
+    for (View at = v; at != ancestor; at = (View) at.getParent()) y += at.getTop();
+    return y;
   }
 
   /** The APK's versionName as the package manager gives it to CoreMenu.version() (the tests' own is not set). */

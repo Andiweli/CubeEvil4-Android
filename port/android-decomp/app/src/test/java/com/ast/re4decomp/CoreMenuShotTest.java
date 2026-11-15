@@ -75,14 +75,15 @@ public class CoreMenuShotTest {
             picture.compress(Bitmap.CompressFormat.PNG, 100, out);
           }
         }
-        // the menu's header with the version under the update button (0.99.18): up to date, an update, no answer from
-        // GitHub (the version alone); 900 px wide and 480 (a handheld's portrait: the buttons under the title)
+        // the menu's header with the version left of the update button (0.99.18): up to date, an update, no answer from
+        // GitHub (the button hidden); 900 px wide, 480 (the buttons under the title) and 340 (no room beside them: the
+        // version under them)
         show.invoke(menu, 0, false);
         String[] states = {"offline", "current", "update"};
         int[] codes = {AppUpdate.UNKNOWN, AppUpdate.CURRENT, AppUpdate.OLDER};
         for (int s = 0; s < states.length; s++) {
           menu.showUpdate(codes[s]);
-          for (int width : new int[] {900, 480}) {
+          for (int width : new int[] {900, 480, 340}) {
             root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY));
             root.layout(0, 0, width, 600);

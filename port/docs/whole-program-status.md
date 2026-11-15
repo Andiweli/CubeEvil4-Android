@@ -170,31 +170,32 @@ Bisher las `GxCore::UploadHd` ein Ersatzbild beim ersten Gebrauch sofort auf dem
   Speicher, Vulkan auf dem Gerät); EU- und US-Discs (dieselbe Kennung je Bild, der Weg ist gleich); ein Raumwechsel
   mitten im Spiel über eine Tür (gemessen ab dem Debug-Start eines Raums).
 
-### 4. Die Versionsnummer im Knopf (Projektinhaber, 15.11.2026)
+### 4. Die Versionsnummer links vom Update-Knopf (Projektinhaber, 15.11.2026)
 
-„Bitte ändere noch die Platzierung der Versionsnummer im Ingame Menü: die Version soll nun direkt im Button stehen
-[Aktuell] und darunter klein die Versionsnummer aber nicht mehr in Klammer.“
+Erster Wunsch: „Bitte ändere noch die Platzierung der Versionsnummer im Ingame Menü: die Version soll nun direkt im
+Button stehen [Aktuell] und darunter klein die Versionsnummer aber nicht mehr in Klammer.“ Gebaut als a197d95c (die
+Version klein unter „Aktuell“/„Update“ im Knopf). Danach geändert: „Die Versionsnummer doch nicht im Button sondern wie
+in der OUYA Version links vom Button.“ Gebaut nach dem OUYA-Menü (`OuyaMenu.java` auf `ouya-discarded`, nur gelesen).
 
-- **Titel:** nur noch der Name der Seite (bisher auf der Startseite „Einstellungen (v0.99.17-rc)“ mit kleiner Version).
-- **Update-Knopf** links von „Zurück zum Spiel“ (`CoreMenu.showUpdate`): zwei Zeilen, oben wie bisher „Aktuell“ (grün,
-  nicht anklickbar) bzw. „Update“ (rot, öffnet die Release-Seite), darunter klein (60 %, nicht fett) die installierte
-  Version ohne Klammern, ohne „v“ und ohne „-core“ (`version()`, z. B. „0.99.18-rc“). Innen 2 statt 8 dp Rand oben
-  und unten: bei normaler Schrift bleibt der Knopf 48 dp hoch; beide Knöpfe sind immer gleich hoch (mit großer Schrift
-  oder den höheren arabischen Zeilen wächst „Zurück zum Spiel“ mit).
-- **Schmales Fenster** (Knöpfe unter dem Titel, `MenuLayout.Header`): die Knöpfe bekommen dort die Breite, die der
-  Zurück-Knopf übrig lässt, statt der halben (sonst brach „Back to the game“ bei 480 px um und die Version Zeichen für
-  Zeichen bei 320 dp). Neben dem Titel unverändert die halbe Breite.
-- **Ohne Antwort von GitHub** (kein Internet, oder noch nicht da; bisher war der Knopf dann ganz weg): an derselben
-  Stelle nur die Version, klein, grau, ohne Rahmen; kein Knopf (nicht anklickbar, kein Fokus). Kommt die Antwort,
-  wird daraus der Knopf.
-- **Geprüft am PC:** App-Tests 178 je Variante grün (Core und Classic), neu `CoreMenuRowsTest.versionUnderTheUpdateButton`
-  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, alle drei Zustände: Beschriftung und Version je eine Zeile,
-  so hoch wie „Zurück zum Spiel“, bei normaler Schrift 48 dp, der Kopf bei 320–960 dp im Fenster),
-  `updateButtonSitsLeftOfResumeAndComparesVersions` erweitert (Titel ohne Version, Text der drei Zustände). Bilder des
-  Kopfes (Deutsch und Englisch, je ohne Antwort, aktuell, Update; 900 und 480 px breit) in
+- **Titel:** nur noch der Name der Seite (bis 0.99.17 auf der Startseite „… (v0.99.17-rc)“ mit kleiner Version).
+- **Kopf:** `[Titel] … v0.99.18-rc  [Aktuell/Update] [Zurück zum Spiel]`: die Version (`version()` ohne „-core“, mit
+  „v“ wie im OUYA-Menü) 14 sp, nicht fett, grau, 18 dp vor den Knöpfen; kein Knopf. Sie steht auch da, wenn der
+  Update-Knopf ohne Antwort von GitHub (kein Internet) fehlt, dann direkt vor „Zurück zum Spiel“. Die Knöpfe sind wie in
+  0.99.17 (der Stand von a197d95c in den Knöpfen ist zurückgenommen). Sie steht auf jeder Seite des Menüs, wie der
+  Update-Knopf.
+- **Schmale Fenster** (`MenuLayout.Header`, Knöpfe unter dem Titel): die Knöpfe bekommen dort die Breite, die der
+  Zurück-Knopf übrig lässt, statt der halben (vorher brach „Back to the game“ bei 480 px um). Reicht die Zeile für
+  Version und Knöpfe nicht (z. B. 320–340 dp), steht die Version klein unter den Knöpfen an ihrem Ende, statt sie zu
+  zerdrücken.
+- **Geprüft am PC:** App-Tests 178 je Variante grün (Core und Classic); neu `CoreMenuRowsTest.versionLeftOfTheUpdateButton`
+  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, ohne Antwort, aktuell, Update, 320–960 dp: der Kopf im
+  Fenster, die Version auf einer Zeile neben den Knöpfen, rechts nach links gespiegelt, unter ihnen nur in schmalen
+  Fenstern; ab 700 dp beide Knöpfe einzeilig), `updateButtonSitsLeftOfResumeAndComparesVersions` erweitert (Titel ohne
+  Version, „v0.99.18-rc“ links vom Update-Knopf, auch ohne ihn, kein Knopf). Bilder des Kopfes (Deutsch und Englisch,
+  je ohne Antwort, aktuell, Update; 900, 480 und 340 px breit) in
   `E:\Development\Android\builds\release-candidate\menu-header\`.
 - **Nebenbefund (nicht geändert):** mit echten Textbreiten ragt auf der Startseite bei 320 dp und 130 % Schrift eine
-  Linie (eine `View` im Inhalt, nicht im Kopf) rechts über den Rand; der Inhalt ist von dieser Änderung unberührt.
+  Linie im Seiteninhalt (nicht im Kopf) rechts über den Rand; der Inhalt ist von dieser Änderung unberührt.
 - **Nicht geprüft:** auf einem Gerät.
 
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
