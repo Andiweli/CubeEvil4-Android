@@ -15,6 +15,24 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - Gerätestand des Projektinhabers (14.11.2026): HD-Texturen, Bloom, der 120-Hz-Rhythmushalter und die dynamische
   Auflösung laufen. Noch nicht richtig auf einem Gerät geprüft: Zufällige Gegner Stufe 1.5, der ZIP-Export und
   „Alle Daten löschen“.
+- Gerätestand des Projektinhabers (15.11.2026, über die Hauptsitzung): **alles aus 0.99.17 auf dem Gerät geprüft, es
+  läuft.** Von Nutzern noch nicht geprüft (aus 0.99.15): die sanfteren QTEs, der C-Stick auf Tasten und der Zoom.
+- **Vor 1.0 nicht behoben (Entscheidung des Projektinhabers, 15.11.2026):** Fackelflackern bei 60 FPS, Leons Ruckeln
+  mit dem linken Stick mancher Controller, alte importierte Spielstände mit vertauschten Räumen. Ihre Zeilen in den
+  Known issues bleiben, weil sie weiter stimmen.
+- **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
+  Sprachen, zwei neue Stufen der Sichtweite (Nah, Weit), HD-Texturen im Hintergrund laden (T4).
+
+## Version 0.99.18-rc (in Arbeit, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc)
+
+Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
+Projektinhaber aus b6025eb9); seine Sitzung führt `master` in `E:\Development\Android\RE4-Fixed` vor (fast-forward),
+`origin/master` nur mit dem OK des Inhabers. Version 0.99.18-rc (versionCode 120), Releasetext
+`port/android-decomp/docs/releases/v0.99.18-rc.md` („Changes since v0.99.17.“, Known issues aus 0.99.17 übernommen).
+Release-APK `CubeEvil4-0.99.18-Android.apk`. Nächste freie Patchnummer weiter 0233.
+
+Aufgaben in dieser Reihenfolge (Hauptsitzung, 15.11.2026): 1. „Abbrechen“ statt „Abbruch“ in allen Sprachen;
+2. Sichtweite „Nah“ und „Weit“; 3. T4, HD-Texturen im Hintergrund laden.
 
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 
@@ -48,10 +66,12 @@ Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs
   Fenster ziehen) und seinem OK („Ja, nach dem Test“) über `09915` (507e72b1) nach `master`; im Releasetext von
   0.99.16.
 
-## Version 0.99.17-rc (in Arbeit, Branch `09917`, Basis 650b543e = Release 0.99.16-rc)
+## Version 0.99.17-rc (veröffentlicht 15.11.2026, Branch `09917`, Basis 650b543e = Release 0.99.16-rc; Tag 0.99.17-rc = b6025eb9)
 
 Version 0.99.17-rc (versionCode 119), Releasetext `port/android-decomp/docs/releases/v0.99.17-rc.md` („Changes since
 v0.99.16.“, Known issues aus 0.99.16 übernommen, zwei neue). Nächste freie Patchnummer weiter 0233. Nur App.
+**Auf dem Gerät geprüft (Projektinhaber, 15.11.2026):** alles aus 0.99.17 läuft; die Punkte „Nicht geprüft“ der
+Abschnitte unten sind damit erledigt.
 
 ### 1. Kamera-Aussparung neu: Bild über die Aussparung, Touch über den ganzen Bildschirm (Projektinhaber, 15.11.2026)
 
@@ -180,7 +200,8 @@ Feature-Freeze. Version 0.99.16-rc (versionCode 118), Releasetext `port/android-
   Windows mit Fenster und die Android-Packer-App 1.4 nur Englisch (Branch `converter-tool`, oben), die README des
   Projektinhabers (9f9f74fe).
 - `v0.99.15-rc.md` hat die Zeile zur Kamera-Aussparung wieder: 0.99.15 wurde mit dieser Änderung veröffentlicht.
-- **Auffällig:** der Tag `0.99.15-rc` auf GitHub zeigt auf 62f8e946, denselben Commit wie `0.99.14-rc`.
+- Der Tag `0.99.15-rc` auf GitHub zeigte erst auf 62f8e946 (denselben Commit wie `0.99.14-rc`); die Hauptsitzung hat
+  ihn mit dem OK des Inhabers am 14.11.2026 auf f193f9e0 verschoben.
 
 ## Version 0.99.15-rc (veröffentlicht 14.11.2026, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc; Stand f193f9e0)
 
