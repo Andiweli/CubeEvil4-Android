@@ -2291,9 +2291,27 @@ final class CoreMenu extends Dialog {
     return name + " (" + f[2] + " blocks)";
   }
 
+  /**
+   * The menu's window animation (0.99.17, wish of the project owner): up from the screen's bottom as it opens, back down
+   * as it closes, however it opens and closes (Android plays it on the window, the game does not wait for it); none
+   * when Android's animations are off.
+   */
+  static int windowAnimations(boolean animationsOn) {
+    return animationsOn ? R.style.CoreMenuSlide : R.style.CoreMenuNoAnimation;
+  }
+
+  /** Android's animations are on: the animator duration scale is not 0 ("Remove animations" sets it to 0). */
+  static boolean animationsOn(Context c) {
+    if (android.os.Build.VERSION.SDK_INT >= 26) return android.animation.ValueAnimator.areAnimatorsEnabled();
+    return android.provider.Settings.Global.getFloat(c.getContentResolver(),
+        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f;
+  }
+
   @Override protected void onStart() {
     super.onStart();
     if (getWindow() != null) {
+      // before the window is added (Dialog.show calls onStart first): the opening slides too
+      getWindow().setWindowAnimations(windowAnimations(animationsOn(getContext())));
       getWindow().setBackgroundDrawableResource(android.R.color.transparent);
       resizeWindow();
       getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);

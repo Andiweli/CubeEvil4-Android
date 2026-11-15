@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the in-game menu comes up from the screen's bottom (CoreMenu, 0.99.17, wish of the project owner) -->
+<translate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="220"
+    android:fromYDelta="100%p"
+    android:interpolator="@android:interpolator/decelerate_cubic"
+    android:toYDelta="0" />

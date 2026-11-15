@@ -104,6 +104,48 @@ bearbeitet.
   180° mit altem und neuem Layout, Editor-Leiste, App-Menü, die Protokollzeile bei einem Telefon mit eigener
   Einstellung).
 
+### 2. Name der APK (Projektinhaber, 15.11.2026)
+
+Ab 0.99.17 heißt die APK im Release `CubeEvil4-<Version ohne -rc>-Android.apk` (0.99.17: `CubeEvil4-0.99.17-Android.apk`;
+die von 0.99.16 benennt der Inhaber selbst um). Tag und `versionName` bleiben `0.99.17-rc`. `AppUpdate` vergleicht seit
+0.99.6 nur den Tag mit dem `versionName` und nimmt irgendeine Datei auf „.apk“: keine Änderung nötig (geprüft von der
+Hauptsitzung). Geändert: der Update-Abschnitt in `v0.99.17-rc.md`; sonst nennt keine Datei (README, Doku, Skripte in
+`port/tools`, `port/scripts`) die Release-APK. Die veröffentlichten Releasetexte bis 0.99.16 bleiben, wie sie sind.
+
+### 3. Das Ingame-Menü gleitet hinein und hinaus (Projektinhaber, 15.11.2026)
+
+- `CoreMenu.onStart` gibt dem Fenster vor dem Anzeigen die Animation `CoreMenuSlide` (`res/anim/menu_slide_in.xml`:
+  aus einer Bildschirmhöhe unterhalb, 220 ms, abbremsend; `menu_slide_out.xml`: zurück nach unten, 200 ms,
+  beschleunigend). Android spielt sie am Fenster ab: gilt für jeden Weg hinein (SELECT, F1, Zahnrad, Zurück) und
+  hinaus; das Spiel läuft beim Schließen sofort weiter (der Dismiss-Listener kommt vor dem Ende der Animation), beim
+  Öffnen steht es wie bisher sofort. Jedes Öffnen ist ein neues Fenster, schnelles Auf-Zu-Auf stört sich nicht.
+- Android-Animationen aus (Animator-Dauer 0, `ValueAnimator.areAnimatorsEnabled`; unter Android 8 die Einstellung
+  selbst): `CoreMenuNoAnimation`, das Menü erscheint und geht sofort. Die Fensteranimationen selbst folgen außerdem
+  Androids Skala für Fensteranimationen.
+- Unterfenster (Fragen wie „Delete All Data“) behalten ihre Animation; die Größe des Menüs um die Kamera-Aussparung
+  (Abschnitt 1) ist davon unberührt. Nur die Haupt-App; die OUYA-App ist nicht berührt.
+
+### 4. Der Benchmark endet mit B nicht (Meldungen von Nutzern, über den Projektinhaber, 15.11.2026)
+
+- **Ursache:** `CoreActivity.dispatchKeyEvent` beendete den Benchmark nur bei Androids Tastencodes `BUTTON_B`, `BACK`
+  und `ESCAPE`. Das B der Touch-Steuerung (RetroTouch) ist kein Tastendruck: `CoreTouch.action` gibt es als
+  GameCube-Knopf an `CoreInput.touchButton`, also nur ans Spiel; der Benchmark sah es nie, obwohl seine Zeile
+  „B / Back: cancel“ sagt. Ebenso fiel durch: ein Controller-B, das die Tastenbelegung auf eine andere Taste legt
+  oder das mit „Swap A/B“ Androids A-Code sendet, und die B-Taste der Tastatur-Belegung.
+- **Behoben:** `BenchmarkFlow.cancels(Taste, GC-Knöpfe)`: Zurück, Esc, jede Taste, die über die Belegung des Controllers
+  (`CoreInput.gcButton`) oder der Tastatur (`keyboardButton`) das B des Spiels drückt, und Androids B-Code, wenn er
+  nichts drückt. Das Touch-B: `CoreActivity.benchTouch` bei jedem Touch-Ereignis (`CoreInput.touchHeld`, neu), ein
+  Druck beendet ihn; auch mit „B einrasten“. Eine Protokollzeile nennt, womit er beendet wurde. Ein eigenes Feld zum
+  Antippen war nicht nötig: das Touch-B ist sichtbar.
+
+### 5. Geprüft und offen (Abschnitte 2–4)
+
+- **Geprüft am PC:** App-Tests 175 je Variante grün (Core und Classic), `CoreInputTests` 1851; neu `BenchmarkCancelTest` (4: Zurück, Esc und das B des Spiels; Controller
+  mit und ohne „Swap A/B“; jede Taste der Tastatur-Belegung für B; das Touch-B) und `CoreMenuSlideTest` (3: Dauer und
+  Weg der beiden Animationen, die Stile, Animationen aus).
+- **Nicht geprüft:** auf einem Gerät (das Gleiten, Auf-Zu-Auf schnell hintereinander, Unterfenster, das Menü bei
+  Kameraloch; den Benchmark mit Touch-B, Controller und Tastatur beenden).
+
 ## Version 0.99.16-rc (veröffentlicht, Branch `09916`, Basis 507e72b1; Tag 0.99.16-rc = 650b543e)
 
 „sorry 0.99.15 ist ja schon released, wir sind schon bei 0.99.16“ (Projektinhaber, 14.11.2026): 0.99.15-rc ist bei

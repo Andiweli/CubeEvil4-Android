@@ -261,6 +261,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private WindowInsets fpsInsets;
   // the camera cutout's last line in the error log (cutoutInsets)
   private String cutoutLine = "";
+  // the touch controls' B at the last touch event (benchTouch: a press ends the benchmark)
+  private boolean touchBenchB;
   private long fpsFrames = -1, fpsPictures, fpsSince;
   // a game that stands without a pause (a hang): reported once per stand
   private long lastFrames = -1, framesSince;
@@ -1250,7 +1252,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
     @Override public void editing(boolean on) { touchEditing(on); }
 
-    @Override public void send() { CoreActivity.this.send(); }
+    @Override public void send() {
+      benchTouch();
+      CoreActivity.this.send();
+    }
 
     @Override public void r3(boolean down) {
       Log.i(TAG, "touch R3 -> app " + (tools ? "graphics capture" : "nothing (tools off)"));
@@ -1978,6 +1983,19 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         || (e.getSource() & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
   }
 
+  /**
+   * The touch controls' B pressed while the benchmark runs: it ends it as a controller's B does (0.99.17, users could
+   * not end it by touch: the touch B went to the game as its button only, never to the benchmark's keys).
+   */
+  private void benchTouch() {
+    final boolean b = input.touchHeld(CoreInput.GC_B);
+    if (b && !touchBenchB && benchFlow != null && benchFlow.running()) {
+      Log.i(TAG, "benchmark: cancelled by the touch controls' B");
+      benchFlow.cancel();
+    }
+    touchBenchB = b;
+  }
+
   private void send() {
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
@@ -2101,10 +2119,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int code = e.getKeyCode();
     boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
     boolean first = down && e.getRepeatCount() == 0;
-    // the benchmark: the keys belong to it; B, Back or Esc cancel it
+    // the benchmark: the keys belong to it; the game's B (through the controller's or the keyboard's mapping), Back or
+    // Esc cancel it (BenchmarkFlow.cancels; the touch controls' B: benchTouch)
     if (benchFlow != null && benchFlow.running()) {
-      if (first && (code == KeyEvent.KEYCODE_BUTTON_B || code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_ESCAPE)) {
-        benchFlow.cancel();
+      if (first) {
+        final boolean keys = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
+        if (BenchmarkFlow.cancels(code, keys ? input.keyboardButton(code) : input.gcButton(code))) {
+          Log.i(TAG, "benchmark: cancelled by " + KeyEvent.keyCodeToString(code) + (keys ? " (keyboard)" : ""));
+          benchFlow.cancel();
+        }
       }
       return true;
     }
