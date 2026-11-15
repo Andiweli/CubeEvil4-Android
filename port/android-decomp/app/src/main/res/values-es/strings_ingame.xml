@@ -63,7 +63,7 @@
     <string name="ingame_view_very_short">Ninguna</string>
     <string name="ingame_view_far">Larga</string>
     <string name="ingame_potato_help">Efectos climáticos: bancos de niebla, lluvia, salpicaduras de agua. Efectos especiales: vapor, calima, agua. Efectos de partículas: sangre, polvo, humo, salpicaduras, chispas y fuego; Menos dibuja la mitad, Ninguno los quita todos salvo el fuego y las explosiones, que quedan a la mitad como aviso. Sombras y luz: desactivado quita las sombras (también en las escenas), los destellos y los rayos de luz; las salas conservan su iluminación. Cada ajuste ahorra trabajo gráfico en dispositivos menos potentes; el punto del impacto, las pistas, el láser y todos los efectos de las escenas se mantienen.</string>
-    <string name="ingame_view_help">Distancia de visión: Media, Corta y Ninguna acercan la niebla lejana, y lo que queda detrás no se dibuja. Ayuda donde el procesador o la cantidad de objetos frenan el juego, en móviles más lentos con resolución baja: en el pueblo desaparece cerca de la mitad de los objetos. Con resolución alta el chip gráfico está ocupado con los píxeles y gana poco. Ninguna es la más corta: niebla espesa ya de cerca, para móviles lentos; lo que está cerca de ti se dibuja como siempre. Larga mantiene la niebla del juego, pero sigue dibujando hasta que la niebla lo oculta todo, así que los árboles y las casas lejanos ya no surgen de golpe de ella: un cambio pequeño que cuesta algo más. Las salas sin niebla lejana, y aquellas cuya niebla queda muy por detrás de lo que ves (el castillo, la isla), quedan igual.</string>
+    <string name="ingame_view_help">Distancia de visión: Media, Corta y Ninguna acercan la niebla lejana, y lo que queda detrás no se dibuja. Ayuda donde el procesador o la cantidad de objetos frenan el juego, en móviles más lentos con resolución baja: en el pueblo desaparece cerca de la mitad de los objetos. Con resolución alta el chip gráfico está ocupado con los píxeles y gana poco. Ninguna es la más corta: niebla espesa ya de cerca, para móviles lentos; lo que está cerca de ti se dibuja como siempre. Larga aleja la propia niebla, así que ves claramente más lejos: dibuja más y es la que más cuesta. Las salas sin niebla lejana quedan igual.</string>
     <string name="ingame_resolution_line">Resolución: %1$d × %2$d píxeles (nivel %3$s) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Los niveles más altos requieren más potencia.</string>
     <string name="ingame_resolution_line_auto">Resolución: %1$d × %2$d píxeles (nivel %3$s, Dinámica) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Dinámica baja un nivel mientras la GPU no da abasto.</string>
 
@@ -139,6 +139,8 @@
 
     <string name="ingame_source">Código fuente y actualizaciones</string>
     <string name="ingame_source_line">Más sobre este port en %1$s</string>
+    <string name="ingame_source_only">CubeEvil4 para Android y OUYA/Potato solo está disponible aquí.</string>
+    <string name="ingame_source_avoid">Evita descargarlo de otros sitios o plataformas de juegos.</string>
     <string name="ingame_no_browser">No hay navegador en este dispositivo</string>
 
     <string name="ingame_fps_none">-- FPS (juego)</string>

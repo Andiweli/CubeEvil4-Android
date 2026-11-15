@@ -1730,6 +1730,19 @@ final class CoreMenu extends Dialog {
     // "Source and updates" (wish of the project owner, 14.11.2026): the releases are on the same page
     heading(R.string.ingame_source);
     cellAction(buttonsRow(body), getContext().getString(R.string.ingame_source_line, SOURCE_URL), v -> openSource());
+    // under the link a quiet note, its two lines centred (wish of the project owner, 15.11.2026): CubeEvil4 is only
+    // on this page, not on other sites or game platforms
+    body.addView(sourceNote(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
+  }
+
+  /** The note under "Source and updates": two lines, centred, small and muted as the other help texts. */
+  TextView sourceNote() {
+    TextView note = text(s(R.string.ingame_source_only) + "\n" + s(R.string.ingame_source_avoid), 14, false);
+    note.setGravity(Gravity.CENTER_HORIZONTAL);
+    note.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+    note.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    return note;
   }
 
   /** "Delete All Data" in a quiet red (the Benchmark button's way, in red). */

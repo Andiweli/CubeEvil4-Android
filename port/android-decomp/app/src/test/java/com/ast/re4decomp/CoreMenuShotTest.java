@@ -125,6 +125,27 @@ public class CoreMenuShotTest {
           }
         }
         graphics.edit().remove(CoreBridge.VIEW_DISTANCE).apply();
+        // the note under "Source and updates" (0.99.18): the management page's end from its heading on, 900 px and a
+        // handheld's 360 px wide
+        show.invoke(menu, 6, false);
+        for (int width : new int[] {900, 360}) {
+          body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+              View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+          body.layout(0, 0, width, body.getMeasuredHeight());
+          View heading = null;
+          android.view.ViewGroup page = (android.view.ViewGroup) body;
+          for (int i = 0; i < page.getChildCount(); i++)
+            if (page.getChildAt(i) instanceof CoreMenu.Heading) heading = page.getChildAt(i);  // the last: the source's
+          int top = heading.getTop(), height = body.getMeasuredHeight() - top;
+          Bitmap picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+          Canvas canvas = new Canvas(picture);
+          canvas.drawColor(0xff191f1c);
+          canvas.translate(0, -top);
+          body.draw(canvas);
+          try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-source-note-" + width + ".png"))) {
+            picture.compress(Bitmap.CompressFormat.PNG, 100, out);
+          }
+        }
         // the controller's focus (0.99.11, FocusLook): "Performance" on the start page, a resolution level beside the
         // selected one on the display page, the benchmark button
         show.invoke(menu, 0, false);

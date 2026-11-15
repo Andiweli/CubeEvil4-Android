@@ -198,4 +198,68 @@ public class CoreMenuRowsTest {
     assertTrue("languages, font sizes and states checked", checked >= 11 * 3 * 3 * 2);
   }
 
+  /** The note under "Source and updates" (the project owner, 15.11.2026), with real text widths: in every language
+   *  and font scale, from a handheld's 320 dp up, it stands under the link, whole (nothing cut), inside the page, each
+   *  line centred, its second sentence on a line of its own; at the normal font size from 700 dp on two lines. */
+  private static TextView textIn(View view, String text) {
+    if (view instanceof TextView && !(view instanceof Button) && ((TextView) view).getText().toString().equals(text))
+      return (TextView) view;
+    if (view instanceof android.view.ViewGroup) {
+      android.view.ViewGroup g = (android.view.ViewGroup) view;
+      for (int i = 0; i < g.getChildCount(); i++) {
+        TextView t = textIn(g.getChildAt(i), text);
+        if (t != null) return t;
+      }
+    }
+    return null;
+  }
+
+  @Test public void sourceNoteCentredUnderTheLink() throws Exception {
+    Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+    int checked = 0;
+    for (String language : new String[] {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"})
+      for (float scale : new float[] {1f, 1.3f, 1.5f}) {
+        try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+          Activity activity = controller.get();
+          Configuration config = new Configuration(activity.getResources().getConfiguration());
+          config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
+          activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+          CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+          show.invoke(menu, 6, false);  // MANAGEMENT
+          View root = (View) CoreMenuLayoutTest.field(menu, "root");
+          root.setLayoutDirection(config.getLayoutDirection());
+          String only = activity.getString(R.string.ingame_source_only);
+          String avoid = activity.getString(R.string.ingame_source_avoid);
+          for (String kept : new String[] {"CubeEvil4", "Android", "OUYA/Potato"})
+            assertTrue(language + ": keeps " + kept, only.contains(kept));
+          TextView note = textIn(root, only + "\n" + avoid);
+          assertNotNull(language + ": the note", note);
+          Button link = withLabel(root, activity.getString(R.string.ingame_source_line, CoreMenu.SOURCE_URL));
+          assertNotNull(language + ": the link", link);
+          float density = activity.getResources().getDisplayMetrics().density;
+          for (int width : new int[] {320, 480, 700, 960}) {
+            String where = language + "/" + scale + "/" + width;
+            CoreMenuLayoutTest.measure(root, Math.round(width * density), Math.round(300 * density));
+            View page = (View) note.getParent();
+            assertTrue(where + ": under the link", CoreMenuLayoutTest.topIn(note, page)
+                >= CoreMenuLayoutTest.topIn(link, page) + link.getHeight());
+            assertTrue(where + ": inside the page", note.getLeft() >= 0 && note.getRight() <= page.getWidth());
+            CoreMenuLayoutTest.checkBounds(note, where);
+            android.text.Layout layout = note.getLayout();
+            int second = only.length() + 1;
+            assertEquals(where + ": the second sentence on a line of its own", second,
+                layout.getLineStart(layout.getLineForOffset(second)));
+            int inner = note.getWidth() - note.getTotalPaddingLeft() - note.getTotalPaddingRight();
+            for (int line = 0; line < layout.getLineCount(); line++) {
+              float left = layout.getLineLeft(line), right = inner - layout.getLineRight(line);
+              assertTrue(where + ": line " + line + " centred (" + left + " / " + right + ")", Math.abs(left - right) <= 2);
+            }
+            if (scale == 1f && width >= 700) assertEquals(where + ": two lines", 2, layout.getLineCount());
+            checked++;
+          }
+        }
+      }
+    assertEquals("languages, font sizes and widths", 11 * 3 * 4, checked);
+  }
+
 }

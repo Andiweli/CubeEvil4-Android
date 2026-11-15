@@ -63,7 +63,7 @@
     <string name="ingame_view_very_short">Nessuna</string>
     <string name="ingame_view_far">Lunga</string>
     <string name="ingame_potato_help">Effetti meteo: banchi di nebbia, pioggia, schizzi d\'acqua. Effetti speciali: vapore, distorsione da calore, acqua. Effetti particellari: sangue, polvere, fumo, schizzi, scintille e fuoco; Ridotti ne disegna la metà, Nessuno li toglie tutti tranne fuoco ed esplosioni, che restano a metà come avviso. Ombre e luce: disattivato toglie ombre (anche nei filmati), aloni e raggi di luce; le stanze mantengono la loro illuminazione. Ogni impostazione riduce il lavoro grafico sui dispositivi meno potenti; il punto colpito, le indicazioni, il laser e tutti gli effetti dei filmati restano.</string>
-    <string name="ingame_view_help">Distanza visiva: Media, Corta e Nessuna avvicinano la nebbia in lontananza, e ciò che sta oltre non viene disegnato. Aiuta dove il processore o il numero di oggetti frenano il gioco, sui telefoni più lenti a bassa risoluzione: nel villaggio sparisce circa metà degli oggetti. Ad alta risoluzione il chip grafico è impegnato con i pixel e guadagna poco. Nessuna è la più corta: nebbia fitta già da vicino, per i telefoni lenti; ciò che hai vicino viene disegnato come sempre. Lunga mantiene la nebbia del gioco ma continua a disegnare finché la nebbia non nasconde tutto, così alberi e case lontani non spuntano più all\'improvviso: un piccolo cambiamento che costa un po\' di più. Le stanze senza nebbia in lontananza, e quelle la cui nebbia sta ben oltre ciò che vedi (il castello, l\'isola), restano come sono.</string>
+    <string name="ingame_view_help">Distanza visiva: Media, Corta e Nessuna avvicinano la nebbia in lontananza, e ciò che sta oltre non viene disegnato. Aiuta dove il processore o il numero di oggetti frenano il gioco, sui telefoni più lenti a bassa risoluzione: nel villaggio sparisce circa metà degli oggetti. Ad alta risoluzione il chip grafico è impegnato con i pixel e guadagna poco. Nessuna è la più corta: nebbia fitta già da vicino, per i telefoni lenti; ciò che hai vicino viene disegnato come sempre. Lunga allontana la nebbia stessa, così vedi chiaramente più lontano: disegna di più ed è quella che costa di più. Le stanze senza nebbia in lontananza restano come sono.</string>
     <string name="ingame_resolution_line">Risoluzione: %1$d × %2$d pixel (livello %3$s) · schermo %4$d × %5$d · si applica alla chiusura del menu. I livelli più alti richiedono più potenza.</string>
     <string name="ingame_resolution_line_auto">Risoluzione: %1$d × %2$d pixel (livello %3$s, Dinamica) · schermo %4$d × %5$d · si applica alla chiusura del menu. Dinamica scende di un livello finché la GPU non tiene il passo.</string>
 
@@ -139,6 +139,8 @@
 
     <string name="ingame_source">Codice sorgente e aggiornamenti</string>
     <string name="ingame_source_line">Maggiori informazioni su questo port: %1$s</string>
+    <string name="ingame_source_only">CubeEvil4 per Android e OUYA/Potato è disponibile solo qui.</string>
+    <string name="ingame_source_avoid">Evita di scaricarlo da altri siti o piattaforme di gioco.</string>
     <string name="ingame_no_browser">Nessun browser su questo dispositivo</string>
 
     <string name="ingame_fps_none">-- FPS (gioco)</string>

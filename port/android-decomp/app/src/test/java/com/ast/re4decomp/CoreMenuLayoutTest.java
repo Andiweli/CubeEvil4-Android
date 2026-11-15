@@ -935,6 +935,9 @@ public class CoreMenuLayoutTest {
       assertEquals(1, zips[0]);
       // the summary and the heading at the bottom (wish of the project owner, 14.11.2026)
       assertNotNull(findText(root, activity.getString(R.string.ingame_source).toUpperCase(Locale.getDefault())));
+      // and under the link the note that CubeEvil4 is only there (the project owner, 15.11.2026)
+      assertNotNull(findText(root, activity.getString(R.string.ingame_source_only) + "\n"
+          + activity.getString(R.string.ingame_source_avoid)));
       wipe.performClick();
       TestLooper.idle();
       android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
@@ -1108,7 +1111,8 @@ public class CoreMenuLayoutTest {
     android.content.SharedPreferences g = org.robolectric.RuntimeEnvironment.getApplication()
         .getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
     g.edit().clear().apply();
-    int[] percent = {100, 75, 50, 35};
+    // (since 0.99.19 Medium 65 % and Far 160 %: a saved level keeps its meaning, only its percent changed)
+    int[] percent = {100, 65, 50, 35, 160};
     for (int i = 0; i < percent.length; i++) {
       g.edit().putInt(CoreBridge.VIEW_DISTANCE, i).apply();
       assertEquals(i, CoreBridge.viewDistance(g));
