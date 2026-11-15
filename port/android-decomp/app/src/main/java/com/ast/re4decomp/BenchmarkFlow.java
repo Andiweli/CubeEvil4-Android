@@ -471,8 +471,8 @@ final class BenchmarkFlow {
       if (v[PerfProfile.PARTICLES] != 0)
         out.add(toggle(R.string.ingame_potato_particles, s(particles[Math.min(2, v[PerfProfile.PARTICLES])])));
       if (v[PerfProfile.SHADOWS] == 0) out.add(toggle(R.string.ingame_potato_shadows, s(R.string.ingame_off)));
-      int[] view = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short};
-      if (v[PerfProfile.VIEW] != 0) out.add(toggle(R.string.ingame_potato_view, s(view[Math.min(2, v[PerfProfile.VIEW])])));
+      int view = CoreBridge.viewLevel(v[PerfProfile.VIEW]);
+      if (view != CoreBridge.VIEW_NORMAL) out.add(toggle(R.string.ingame_potato_view, s(CoreBridge.VIEW_LABEL[view])));
     }
     return out;
   }

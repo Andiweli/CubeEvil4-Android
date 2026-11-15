@@ -2541,7 +2541,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFastCores(v[PerfProfile.CORES] == 1);
       CoreBridge.setPotato((v[PerfProfile.WEATHER] != 0 ? 0 : 1) | (v[PerfProfile.SPECIAL] != 0 ? 0 : 2)
           | (v[PerfProfile.PARTICLES] << 2) | (v[PerfProfile.SHADOWS] != 0 ? 0 : 16));
-      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[Math.max(0, Math.min(2, v[PerfProfile.VIEW]))]);
+      CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewLevel(v[PerfProfile.VIEW])]);
     }
     @Override public void progress(String text) {
       benchView.setText(text != null ? text : "");

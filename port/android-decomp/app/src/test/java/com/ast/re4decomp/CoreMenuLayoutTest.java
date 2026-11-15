@@ -1030,8 +1030,8 @@ public class CoreMenuLayoutTest {
   }
 
   /** Potato mode, 0.99.6: "View distance" in a third row, Normal (the default, lit), Medium (lit), Short (off), with its
-   *  own line of help. */
-  @Test public void viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort() throws Exception {
+   *  own line of help; since 0.99.18 then Very short (off) and Far (lit), then Normal again. */
+  @Test public void viewDistanceMovesThroughFiveStepsAndIsOffOnlyWhenShorter() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
@@ -1053,9 +1053,52 @@ public class CoreMenuLayoutTest {
       assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_short)));
       assertEquals(50, CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
       view.performClick();
+      assertEquals(3, CoreBridge.viewDistance(g)); assertFalse(view.isSelected());
+      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_very_short)));
+      assertEquals(35, CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
+      view.performClick();
+      assertEquals(4, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
+      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_far)));
+      assertTrue(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)] > 100);
+      view.performClick();
       assertEquals(0, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
       assertTrue(hasText(root, activity.getString(R.string.ingame_view_help)));
     }
+  }
+
+  /** 0.99.18: the levels saved before (0 Normal, 1 Medium, 2 Short) mean what they meant, the new ones keep their
+   *  numbers (3 Very short, 4 Far), an unknown value is Normal; Far keeps the bloom as Normal does, the shorter levels
+   *  turn it off; a profile's Far reaches the core as Far. */
+  @Test public void viewDistanceLevelsKeepSavedValuesAndTheBloom() {
+    android.content.SharedPreferences g = org.robolectric.RuntimeEnvironment.getApplication()
+        .getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
+    g.edit().clear().apply();
+    int[] percent = {100, 75, 50, 35};
+    for (int i = 0; i < percent.length; i++) {
+      g.edit().putInt(CoreBridge.VIEW_DISTANCE, i).apply();
+      assertEquals(i, CoreBridge.viewDistance(g));
+      assertEquals(percent[i], CoreBridge.VIEW_PERCENT[i]);
+    }
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, 4).apply();
+    assertEquals(CoreBridge.VIEW_FAR, CoreBridge.viewDistance(g));
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, 9).apply();
+    assertEquals(CoreBridge.VIEW_NORMAL, CoreBridge.viewDistance(g));
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, -1).apply();
+    assertEquals(CoreBridge.VIEW_NORMAL, CoreBridge.viewDistance(g));
+    g.edit().putInt(CoreMenu.BLOOM_LEVEL, 2).putInt(CoreBridge.VIEW_DISTANCE, CoreBridge.VIEW_FAR).apply();
+    assertEquals(2, CoreBridge.bloomSent(g));
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, CoreBridge.VIEW_VERY_SHORT).apply();
+    assertEquals(0, CoreBridge.bloomSent(g));
+    // the menu's order round: Normal, Medium, Short, Very short, Far, Normal
+    int level = CoreBridge.VIEW_NORMAL;
+    int[] seen = new int[6];
+    for (int i = 0; i < seen.length; i++) { seen[i] = level; level = CoreBridge.nextView(level); }
+    assertArrayEquals(new int[] {0, 1, 2, 3, 4, 0}, seen);
+    // a profile with Far (the Custom profile holds the raw value): the core gets Far's percent
+    int[] v = PerfProfile.current(g);
+    assertEquals(CoreBridge.VIEW_VERY_SHORT, v[PerfProfile.VIEW]);
+    assertEquals(CoreBridge.VIEW_PERCENT[CoreBridge.VIEW_FAR],
+        CoreBridge.VIEW_PERCENT[CoreBridge.viewLevel(CoreBridge.VIEW_FAR)]);
   }
 
   /** The performance profiles in one row with the benchmark at its end, the lines under it over the whole width (the

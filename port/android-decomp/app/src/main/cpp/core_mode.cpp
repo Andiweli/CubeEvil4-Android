@@ -965,7 +965,8 @@ int fastSent = -1;    // what the core was told last (-1: nothing yet)
 std::atomic<int> optPotato{0};
 int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU bench sets its own)
 // The menu's "View distance" (CoreBridge.setViewDistance, wish of the project owner, 09.11.2026; patch 0223): percent of
-// the room's distance fog and far plane, 100 Normal, 75 Medium, 50 Short
+// the room's distance fog and far plane, 100 Normal, 75 Medium, 50 Short; since 0.99.18 also 35 Very short and above
+// 100 Far (the core: the far plane out into the room's own fog)
 std::atomic<int> optViewDistance{100};
 int viewDistanceSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's "Aggressive frame skip" (CoreBridge.setCpuSkip, wish of the project owner, 10.11.2026; patch 0227): the
@@ -2588,7 +2589,8 @@ bool drawGx() {
       viewDistanceSent = viewDistance;
       // (the reports: what the core was told; the core logs each fog it shortens, "view: fog type ...")
       LOG("view distance to the core: %s (%d %% of each room's distance fog and far plane)",
-          viewDistance >= 100 ? "Normal" : viewDistance >= 75 ? "Medium" : "Short", viewDistance);
+          viewDistance > 100 ? "Far" : viewDistance == 100 ? "Normal" : viewDistance >= 75 ? "Medium"
+          : viewDistance >= 50 ? "Short" : "Very short", viewDistance);
     }
     // (60 FPS and the game's frame skip exclude each other: the in-between pictures need every picture)
     const int cpuSkip = optCpuSkip.load() != 0 && !smoothOn ? 1 : 0;
@@ -3540,9 +3542,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPotato(JN
     LOG("Potato mode: %s", want ? PotatoName(want).c_str() + 2 : "everything drawn");
 }
 
-// The menu's "View distance" (PERFORMANCE, Potato mode; drawGx tells the core): 100 Normal, 75 Medium, 50 Short.
+// The menu's "View distance" (PERFORMANCE, Potato mode; drawGx tells the core): 100 Normal, 75 Medium, 50 Short, 35 Very
+// short, 150 Far (0.99.18).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setViewDistance(JNIEnv *, jclass, jint percent) {
-  const int want = percent < 20 ? 20 : percent > 100 ? 100 : static_cast<int>(percent);
+  const int want = percent < 20 ? 20 : percent > 300 ? 300 : static_cast<int>(percent);
   if (optViewDistance.exchange(want) != want) LOG("view distance: %d %%", want);
 }
 

@@ -30,7 +30,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RES = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "app/src/main/res"
 NAME = "strings_ingame.xml"
-JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java",
+JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java", "CoreBridge.java",
                                                                   "AppUpdate.java", "BenchmarkFlow.java",
                                                                   "PerfProfile.java", "TextureImportActivity.java")]
 PREFIX = "ingame_"

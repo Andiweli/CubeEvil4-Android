@@ -1556,20 +1556,20 @@ final class CoreMenu extends Dialog {
     toggle(morePotato, R.string.ingame_potato_shadows, graphics.getBoolean("shadowsLight", true), on -> {
       graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
-    // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance" in three steps, each
-    // press moves it on (Normal, Medium, Short; off only at Short), the distance fog nearer and nothing drawn beyond it
-    // (patch 0223, in the core: OpenGL ES and Vulkan alike)
-    final int[] viewLabels = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short};
+    // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance", each press moves it
+    // on, the distance fog nearer and nothing drawn beyond it (patch 0223, in the core: OpenGL ES and Vulkan alike);
+    // since 0.99.18 (the project owner, 15.11.2026) five steps, Normal, Medium, Short, Very short, Far (off at Short
+    // and Very short)
     MenuLayout.Buttons lastPotato = buttonsRow(body);
     Button view = cellAction(lastPotato, "", v -> {
-      int next = (CoreBridge.viewDistance(graphics) + 1) % 3;
+      int next = CoreBridge.nextView(CoreBridge.viewDistance(graphics));
       graphics.edit().putInt(CoreBridge.VIEW_DISTANCE, next).apply();
-      valueLabel((Button) v, R.string.ingame_potato_view, viewLabels[next], next != 2);
+      valueLabel((Button) v, R.string.ingame_potato_view, CoreBridge.VIEW_LABEL[next], !CoreBridge.viewReduced(next));
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[next]);
       CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
-    valueLabel(view, R.string.ingame_potato_view, viewLabels[CoreBridge.viewDistance(graphics)],
-        CoreBridge.viewDistance(graphics) != 2);
+    valueLabel(view, R.string.ingame_potato_view, CoreBridge.VIEW_LABEL[CoreBridge.viewDistance(graphics)],
+        !CoreBridge.viewReduced(CoreBridge.viewDistance(graphics)));
     help(R.string.ingame_potato_help);
     help(R.string.ingame_view_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026

@@ -322,8 +322,10 @@ int re4_core_room_outline(float* out, int maxEdges, unsigned* info);
  * 1 blue, 2 green, 3 yellow; the beam and the dot. Any thread. */
 void re4_core_set_laser_colour(int colour);
 /* The app menu's "View distance" (cores since 09.11.2026, patch 0223, runtime/view_distance.cpp): the distance fog and
- * the far plane of the view at `percent` of the room's (20..100; the menu: 100 Normal, 75 Medium, 50 Short); what lies
- * beyond is not drawn. Rooms without fog keep their view. Takes effect at the next game frame. Any thread. */
+ * the far plane of the view at `percent` of the room's (20..100; the menu: 100 Normal, 75 Medium, 50 Short, since
+ * 0.99.18 35 Very short); what lies beyond is not drawn. Above 100 (cores since 0.99.18, the menu's 150 "Far"): the
+ * room's fog stays, the far plane moves out to where it is 95 % dense. Rooms without fog keep their view. Takes
+ * effect at the next game frame. Any thread. */
 void re4_core_set_view_distance(int percent);
 /* The app menu's "Aggressive frame skip" (saves CPU; cores since 10.11.2026, patch 0227, runtime/cpu_skip.cpp): while
  * the game's frames run late (longer than two fields) it leaves a picture out itself (at most one in a row), the logic runs on.

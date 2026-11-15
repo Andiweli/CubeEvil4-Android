@@ -149,11 +149,34 @@ public final class CoreBridge {
     return g.getBoolean("flares", false) ? 2 : 0;
   }
   /** The Potato mode's "View distance" (0.99.6, wish of the project owner, 09.11.2026, from the OUYA branch): 0 Normal
-   *  (the default, the game's), 1 Medium, 2 Short (the OUYA's setting); in percent of the room's view VIEW_PERCENT. */
+   *  (the default, the game's), 1 Medium, 2 Short; since 0.99.18 (the project owner, 15.11.2026) also 3 Very short
+   *  (the OUYA's setting) and 4 Far, so a value saved before stays what it was; in percent of the room's view
+   *  VIEW_PERCENT (Far: the core decides per room how far it may go, runtime/view_distance.cpp). The menu shows them in
+   *  VIEW_ORDER, from the farthest to the nearest. */
   static final String VIEW_DISTANCE = "viewDistance";
-  static final int[] VIEW_PERCENT = {100, 75, 50};
+  static final int VIEW_NORMAL = 0, VIEW_SHORT = 2, VIEW_VERY_SHORT = 3, VIEW_FAR = 4;
+  static final int[] VIEW_PERCENT = {100, 75, 50, 35, 150};
+  static final int[] VIEW_ORDER = {VIEW_FAR, VIEW_NORMAL, 1, VIEW_SHORT, VIEW_VERY_SHORT};
+  static final int[] VIEW_LABEL = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short,
+      R.string.ingame_view_very_short, R.string.ingame_view_far};
   static int viewDistance(android.content.SharedPreferences g) {
-    return Math.max(0, Math.min(2, g.getInt(VIEW_DISTANCE, 0)));
+    return viewLevel(g.getInt(VIEW_DISTANCE, 0));
+  }
+  /** A saved or profile value as a level (anything unknown: Normal). */
+  static int viewLevel(int v) {
+    return v >= 0 && v < VIEW_PERCENT.length ? v : VIEW_NORMAL;
+  }
+  /** The level after `level` when the menu's button is pressed: Normal, Medium, Short, Very short, Far, Normal ...
+   *  (VIEW_ORDER from the far end round again). */
+  static int nextView(int level) {
+    for (int i = 0; i < VIEW_ORDER.length; i++) {
+      if (VIEW_ORDER[i] == level) return VIEW_ORDER[(i + 1) % VIEW_ORDER.length];
+    }
+    return VIEW_NORMAL;
+  }
+  /** A level that leaves things out (lit in the menu while it does not: Far, Normal, Medium). */
+  static boolean viewReduced(int level) {
+    return level == VIEW_SHORT || level == VIEW_VERY_SHORT;
   }
   /** The Potato mode's "Particle effects" (0.99.3): 0 normal (the default), 1 less, 2 none. */
   static int particleEffects(android.content.SharedPreferences g) {
@@ -270,7 +293,9 @@ public final class CoreBridge {
   public static native void setBloom(int level);
   /** The bloom the renderer gets: the menu's, off while a Potato mode switch is on (0.99.13). */
   static int bloomSent(android.content.SharedPreferences g) {
-    return potatoMask(g) == 0 && viewDistance(g) == 0 ? CoreMenu.bloomLevel(g) : 0;
+    // (Far is no Potato setting: the bloom stays, as at Normal)
+    int view = viewDistance(g);
+    return potatoMask(g) == 0 && (view == VIEW_NORMAL || view == VIEW_FAR) ? CoreMenu.bloomLevel(g) : 0;
   }
   /** Colour (0.99.9): mode 0 off, 1 warm film, 2 survival horror; level 1 light, 2 strong. */
   public static native void setColour(int mode, int level);

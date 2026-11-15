@@ -52,6 +52,66 @@ Der Inhaber will die Abbrechen-Taste jeder Frage als Verb, in jeder Sprache so w
   und Classic).
 - **Nicht geprüft:** auf einem Gerät (reine Textänderung).
 
+### 2. Sichtweite „Weit“ und „Sehr kurz“ (Projektinhaber, 15.11.2026)
+
+Namen vom Inhaber bestätigt („Ja, so“): **Weit · Normal · Mittel · Kurz · Sehr kurz** (Far, Normal, Medium, Short,
+Very short). Vorgabe: „Sehr kurz“ mit dichtem Nebel an der Sichtgrenze wie im OUYA-Zweig; „Weit“ nur mit einer
+sicheren Regel nach Messung, ohne kaputte oder unfertige Geometrie, Bereiche außerhalb der Karte oder Löcher, die das
+Original hinter seinem Nebel versteckt.
+
+- **Messung 1, Nebel aller Räume** (Raum-Rundgang über alle 126 Räume, Debug-Discs, i686, `RE4_VIEW_LOG=1`, Tabelle
+  `rc-fog_table.py` im Notizordner): 48 Räume zeichnen schon bei „Normal“ nur bis 20–60 % ihres Nebelendes
+  (`LightEnv.far_play_ratio` 0,3–0,8): Dorf r101/r40x 70 von 175 m (linearer Nebel dort 42 % dicht), Wald r100 43 von
+  107 m, See r107 29–118 m, Steinbruch r10f 330 von 825 m, r118 59 von 297 m, Insel r300 223–282 m, r30f 96 von 485 m,
+  vier Burgräume (r205, r209, r20b, r21b). Die übrigen Nebelräume (fast die ganze Burg und ein großer Teil der Insel)
+  zeichnen bis zum Nebelende (`far_play_ratio` 0).
+- **Messung 2, Bilder:** in allen 46 dieser Räume, die per Debug-Start erreichbar sind (r101 bleibt im Akten-Menü
+  stehen, dafür das gleiche Dorf r400–r409), läuft Leon 150 Bilder in den Raum und dreht sich dann einmal: 8 Bilder je
+  Stufe (`rc-view_shots.sh`, `rc-view_batch.sh` im Notizordner, Bilder über `gx_chunk_render` GLES), verglichen
+  Normal, „Weit“ (sichere Regel) und zum Vergleich „Nebel hinausgeschoben“ (Beginn und Ende × 1,5). 43 Räume wurden
+  frei (r104, r22b, r316 nicht).
+  - **Rauschen:** zwei Läufe mit gleicher Einstellung unterscheiden sich schon in 200–900 Bildpunkten je Bild (Wind,
+    Effekte).
+  - **„Weit“ mit sicherer Regel:** in 42 von 43 Räumen bleibt der Unterschied im Rauschen (mittel 200–600 Bildpunkte);
+    sichtbar im Wald r100 (ferne Baumstämme im Nebel statt einer hellen Lücke, bis 2160 Bildpunkte). Mehr
+    Zeichenaufrufe: See r107 +53 %, Burg r205 +33 %, r209 +23 %, r21b +16 %, r108 +13 %, r118/r11c/r30f +12 %,
+    sonst 0–4 % (Dinge hinter Felsen oder im fast dichten Nebel). Tabelle
+    `E:\Development\Android\builds\release-candidate\view-distance\far-measurements-46-rooms.txt`.
+  - **Nebel hinausgeschoben (nicht gebaut):** bis 68 000 von 229 000 Bildpunkten anders; auf der Insel r300 werden der
+    Wolkenhimmel und die fernen Ufer klar, im Wald der Hügel, im Dorf r111 der Zaun bis zum Ende. Kaputtes war in den
+    Bildern nicht zu sehen, aber genau das zeigt, was der Nebel des Originals verbirgt, und eine Drehung je Raum kann
+    nicht alle Blickwinkel prüfen: darum nicht genommen.
+- **Regel „Weit“:** der Nebel des Raums bleibt genau, wie er ist; nur die Sichtgrenze rückt hinaus bis dorthin, wo
+  dieser Nebel 95 % dicht ist (GX-Nebelkurven der Typen 2/4/5/6/7 wie im Renderer), nie über das Nebelende und nie
+  näher als die des Spiels. Bäume und Häuser tauchen nicht mehr aus halb dünnem Nebel auf; hinter dem Nebelende wird
+  nichts gezeichnet. Räume mit `far_play_ratio` 0 und Räume ohne Nebel bleiben gleich. Die Sichtgrenze wirkt nur aufs
+  Zeichnen (`trans_ot.cpp`, `CameraViewFrustumPtr`), nicht auf die Spiellogik. Ehrlich: eine kleine sichtbare
+  Änderung, die je nach Raum bis zur Hälfte mehr Zeichenaufrufe kostet; so steht es im Hilfetext.
+- **Regel „Sehr kurz“:** 35 % (die OUYA-Einstellung, dort vom Inhaber getestet), sonst wie Kurz; dazu endet der Nebel
+  der GPU an der Sichtgrenze (OUYA-Patch 0901, nicht näher als 6 m). Ohne das sah man im Dorf leeren Boden, wo die
+  Häuser verschwanden (Bild). Mittel und Kurz bleiben, wie sie seit 0.99.6 sind (`kDenseBelow` 50 %).
+- **Kern:** Patch 0223 ruft jetzt `re4_view_fog(Typ, far_play_ratio, &Beginn, &Ende, &Sichtgrenze)`; bei „Normal“
+  Bit für Bit die Werte des Spiels. `re4_core_set_view_distance` nimmt 20–300 %. Messschalter: `RE4_VIEW_LOG=1` (auch
+  „Normal“ ins Protokoll), `RE4_VIEW_DENSE=0/2`, `RE4_VIEW_FAR_MODE=scale`, `RE4_VIEW_FAR_DENSITY`.
+- **App:** `CoreBridge.VIEW_PERCENT` {100, 75, 50, 35, 150}, gespeicherte Werte 0–2 bleiben (3 Sehr kurz, 4 Weit,
+  Unbekanntes wird Normal); jeder Druck: Normal → Mittel → Kurz → Sehr kurz → Weit → Normal; aus (nicht gelb) bei Kurz
+  und Sehr kurz; Bloom bleibt bei Weit an (wie bei Normal). Benchmark-Zusammenfassung und Leistungsprofile kennen die
+  neuen Stufen (bisher auf 0–2 geklemmt). Texte `ingame_view_very_short`, `ingame_view_far`, neuer Hilfetext, 11
+  Sprachen. Protokoll „view distance to the core: Far/Very short …“.
+- **Bilder** (englisch beschriftet) in `E:\Development\Android\builds\release-candidate\view-distance\`:
+  `very-short-*` (Normal, Kurz, Sehr kurz ohne und mit dichtem Nebel), `far-*` (Normal, Weit, Nebel hinausgeschoben;
+  `far-lake-r107` gleiches Bild bei 53 % mehr Zeichenaufrufen).
+- **Geprüft am PC:** Kern i686 -O2 (`whole_build.sh`, Baum `~/re4-rc`) 0 Fehler, Stubs wie erwartet, `--runtime-test`
+  0 failed mit neuer Prüfung `viewfog` (Normal Bit für Bit, Kurz, Sehr kurz mit 6-m-Grenze, Weit für fünf
+  Nebelarten, Räume ohne Nebel und mit `far_play_ratio` 0); Kern für Android (`whole_build_android.sh --abi all`)
+  0 Fehler in beiden ABIs, Stubs wie erwartet; App-Tests 177 je Variante grün (Core und Classic; neu
+  `viewDistanceMovesThroughFiveStepsAndIsOffOnlyWhenShorter`, `viewDistanceLevelsKeepSavedValuesAndTheBloom`; alle
+  Seiten passen in allen Sprachen), `:app:externalNativeBuildCoreDebug` ohne neue Warnung; `check_translations.py`
+  450 Texte je Sprache ohne Befund.
+- **Nicht geprüft:** auf einem Gerät; EU- und US-Discs (der Kern rechnet aus denselben Raumdaten); Vulkan eigens (der
+  Kern zeichnet weniger oder mehr, für beide Renderer gleich); r101 selbst, r104, r22b, r316 (beim Debug-Start nicht
+  frei); je Raum nur eine Stelle und eine Drehung.
+
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 
 Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit
@@ -16811,7 +16871,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0220 `r100.cpp` | Port-Fehler (Sofortwechsel der Spielfigur, `cheats.cpp switchNow`: Raum neu durch eine Tür in sich selbst, und damit auch der Rücksetzpunkt für „Retry“): `R100Init` liest die Startszene s40 (2,2 MB ARAM) nur noch, wenn `r100_StartEvent` läuft und sie freigibt (Raum-Flag 13 frei), und s03/s20 wieder, wenn Bereich 6 schon passiert ist (Flag 0; s03 bis zur Haus-Szene, Flag 3). Vorher fehlten die Haus-Szene („ARAM over: evd/r100s03.evd“) und nach einem Wechsel hinter Bereich 6 auch die Szene nach dem Ganado; EU-/US-`st1_0.rel` lesen genauso vor. In jedem Zustand, den das Spiel selbst erreicht, unverändert. Bericht eines Nutzers 07.11.2026 (Xiaomi, EU-Discs, 0.99.2) |
 | 0221 `r227.cpp` | Port-Fehler (Schnellspeicher der App überall im Raum): `r227_initGondola` stellt die Gondel (Objekt 0xA2, 6850 zwischen den Stationen) beim Laden (`SYS_LOAD_GAME`) nur noch oben ab, wenn der Spieler über der Mitte ihres Wegs steht (Starthöhe + 3425); aus r228 kommend wie bisher immer oben. Die Schreibmaschine des Raums (Bereich 1, Typ SAVE, Höhe 39 500) liegt über der oberen Station: Spielstände des Spiels selbst laden unverändert. Vorher nach dem Schnellladen unterhalb der Gondel: Gondel oben, unten trotzdem „Benutzen“. EU-`st2_3.rel` prüft genauso. Rückmeldung des Projektinhabers 08.11.2026 (Retroid, EU-Discs, 0.99.4) |
 | 0222 `game.cpp` | Port-Fehler (Patch 0195): `GameContinue` setzt nach `GameSave.load` die Ersatzfigur der Story (Ada, HUNK, Krauser, Wesker; `re4_story_char_continue`) wieder ein, bevor `PlSetCostume` und `ContinueWepData` den Spielertyp lesen. Der Continue-Punkt hält absichtlich Leon (`re4_story_char_save`); vorher las `ContinueWepData` eine seit dem Speichern gewechselte Waffe nach Leons Tabelle nach `WEP_DATA_ADDR` in Krausers Spielerarchiv mit seinem Modul `pl0a`, und `OSLink` stürzte ab. Nutzerbericht 09.11.2026 (Xiaomi peridot, 0.99.5: Absturz bei Tod oder Retry mit anderen Figuren) |
-| 0223 `light.cpp` | Port-Funktion (Wunsch des Projektinhabers 09.11.2026, aus dem OUYA-Zweig, dort Patch 0900): Sichtweite im App-Menü (Potato-Modus). `cLightMgr::setFog` und `hokanMove` geben GX den Nebel aus `re4_view_distance` (`runtime/view_distance.cpp`: Beginn und Ende mal 1 / 0,75 / 0,5, das Ende nicht unter 6 m, Räume ohne Nebel unverändert) und setzen die Sichtgrenze auf dieses Ende; `LightEnv.Fog` bleibt. `hokanMove` setzt den Nebel neu, wenn das Menü umgeschaltet hat (`re4_view_distance_changed`): wirkt sofort. Bei „Normal“ genau wie das Spiel. |
+| 0223 `light.cpp` | Port-Funktion (Wunsch des Projektinhabers 09.11.2026, aus dem OUYA-Zweig, dort Patch 0900): Sichtweite im App-Menü (Potato-Modus). `cLightMgr::setFog` und `hokanMove` geben GX den Nebel aus `re4_view_distance` (`runtime/view_distance.cpp`: Beginn und Ende mal 1 / 0,75 / 0,5, das Ende nicht unter 6 m, Räume ohne Nebel unverändert) und setzen die Sichtgrenze auf dieses Ende; `LightEnv.Fog` bleibt. `hokanMove` setzt den Nebel neu, wenn das Menü umgeschaltet hat (`re4_view_distance_changed`): wirkt sofort. Bei „Normal“ genau wie das Spiel. **Seit 0.99.18:** ein Aufruf `re4_view_fog(Typ, far_play_ratio, &Beginn, &Ende, &Sichtgrenze)` liefert Nebel und Sichtgrenze; neu „Sehr kurz“ (35 %, Nebel der GPU dicht an der Sichtgrenze wie Patch 0901 des OUYA-Zweigs) und „Weit“ (Nebel des Raums, Sichtgrenze bis 95 % Dichte, nie über das Nebelende); Abschnitt 2 von 0.99.18. |
 | 0224 `cam_motion.cpp` | Port (undefiniertes Verhalten im Originalcode): `CameraMotion::move` beginnt `pos`, `at`, `fov` mit (0, 0, 0). Die Röntgen-Kameras von r330s00 (`etc_s00_0NN.fcv`) haben kein Ziel-Gelenk; das uninitialisierte `at` machte im Port die Kamera NaN, die Monitore des Operationsraums blieben grün. Nutzerbericht 09.11.2026 (zwei Bilder) |
 | 0225 `roomdata.cpp` | Port-Fehler (`.gci`-Import bis 0.99.6, `runtime/gci.cpp` drehte `RoomNo` als u16): `cRoomData::load`/`clear` drehen die Kennungen der Raum-Datensätze eines Spielstands zurück, wenn mit umgedrehten Kennungen mehr Räume passen als mit den eigenen (Spielstände der App bleiben unberührt). Vorher verloren importierte Spielstände 109 von 121 Räumen, r102/r201, r103/r301, r204/r402, r304/r403 tauschten ihre Merker (Garrador in r201 angekettet, Schlüssel fehlt). Nutzerbericht 09.11.2026 (17 `.gci`, EU) |
 | 0226 `r201.cpp` | Sicherheitsnetz neben 0225: Merker 0 von r201 („Garrador tot“) ohne sein Todes-Bit in der Gegnerliste (Eintrag 0x56) wird zurückgesetzt, der Garrador kommt frei (nicht bei Sprungpunkt 2). Für Spielstände, die nach einem alten Import in der App neu gespeichert wurden. Nutzerbericht 09.11.2026 |
