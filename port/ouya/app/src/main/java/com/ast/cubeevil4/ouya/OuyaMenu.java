@@ -160,8 +160,7 @@ final class OuyaMenu extends Dialog {
                 dismiss();
             }
         });
-        header.addView(resume);
-        // the version, as in the main app's menu ("v0.99-Ouya"), right of the button with some room (wish of the
+        // the version, as in the main app's menu ("v0.99-Ouya"), left of the button with some room (wish of the
         // project owner, 15.11.2026)
         try {
             String version = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
@@ -169,13 +168,14 @@ final class OuyaMenu extends Dialog {
                 TextView v = text("v" + version, 14, false);
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT);
-                lp.leftMargin = dp(18);
-                lp.rightMargin = dp(GAP);
+                lp.leftMargin = dp(GAP);
+                lp.rightMargin = dp(18);
                 header.addView(v, lp);
             }
         } catch (android.content.pm.PackageManager.NameNotFoundException e) {
             // no version line
         }
+        header.addView(resume);
         root.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         separator(root);
