@@ -229,6 +229,18 @@ Auge?“
   `E:\Development\Android\builds\release-candidate\view-distance-button\`.
 - **Nicht geprüft:** auf einem Gerät.
 
+### 6. Nur „Andiweli“, nicht der volle Name (Projektinhaber, 15.11.2026)
+
+- Der Startbildschirm (`MainActivity`, `core_author`, nur Englisch) sagt „By Andiweli“ statt des vollen Namens; ebenso
+  die Beschreibung des Startbildschirms in dieser Datei (Abschnitt zu MainActivity).
+- **Gesucht** (alle Dateien des Repositorys, auch Binärdateien und UTF-16; ohne die RetroTouch-AAR, deren
+  Lizenzzeile die Hauptsitzung mit dem Inhaber klärt): sonst nirgends ein Vor- oder Nachname („Andreas“,
+  „Stürmer“/„Stuermer“, „A. St…“), weder in den Texten der App noch im Launcher, in „Quelle und Updates“, den beiden
+  Packer-Apps oder der Versions-Ressource des Windows-Packers (`texpack.rc`: „CC0 (public domain)“, kein Name). Die
+  „Stürmer“ in den Abschnitten zu den Ganados mit Dynamit sind die angreifenden Gegner, kein Name.
+- **Geprüft am PC:** App-Tests 179 je Variante grün (Core und Classic).
+- **Nicht geprüft:** auf einem Gerät.
+
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 
 Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit
@@ -12454,7 +12466,7 @@ Daten noch nicht gelaufen). Der Projektinhaber verzichtet auf ein eigenes Logo
   ebenso im Betreff des Fehlerberichts.
 - **Startbildschirm** (nur zu sehen, solange Disc 1 fehlt; sonst startet das
   Spiel sofort): zentriert „Resident Evil 4 Android“, darunter kleiner
-  „By Andreas ‘Andiweli’ Stürmer“, eine Linie, „Start game“, dann
+  „By Andiweli“, eine Linie, „Start game“, dann
   „Controls“ und „Select ISO/GCM files of the November 25, 2004 debug build“
   (ohne Punkt) jeweils zentriert zwischen zwei Linien mit der Tastenbelegung
   und dem Tausch-Schalter bzw. den Import-Zeilen darunter: „Import Disc 1“

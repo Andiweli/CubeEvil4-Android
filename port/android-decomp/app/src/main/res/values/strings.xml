@@ -6,7 +6,8 @@
     <string name="test_title">Original texture · Graphics and controller test</string>
     <string name="swap_layout">Swap A/B and X/Y (alternate controller layout)</string>
     <string name="core_title">CubeEvil4</string>
-    <string name="core_author">By Andreas ‘Andiweli’ Stürmer</string>
+    <!-- only the project owner's handle, never the full name (the project owner's wish, 15.11.2026) -->
+    <string name="core_author">By Andiweli</string>
     <string name="core_notice">Requires your own game discs. Not affiliated with Capcom.</string>
     <string name="core_start">Start game</string>
     <string name="core_import_heading">Select ISO/GCM/RVZ files of the debug build, the European, the US or the Japanese release. RVZ files are unpacked first and need extra free storage (about 3 GB per disc).</string>
