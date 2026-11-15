@@ -935,6 +935,9 @@ public class CoreMenuLayoutTest {
       assertEquals(1, zips[0]);
       // the summary and the heading at the bottom (wish of the project owner, 14.11.2026)
       assertNotNull(findText(root, activity.getString(R.string.ingame_source).toUpperCase(Locale.getDefault())));
+      // and under the link the note that CubeEvil4 is only there (the project owner, 15.11.2026)
+      assertNotNull(findText(root, activity.getString(R.string.ingame_source_only) + "\n"
+          + activity.getString(R.string.ingame_source_avoid)));
       wipe.performClick();
       TestLooper.idle();
       android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();

@@ -140,6 +140,8 @@
 
     <string name="ingame_source">Código-fonte e atualizações</string>
     <string name="ingame_source_line">Mais sobre este port em %1$s</string>
+    <string name="ingame_source_only">CubeEvil4 para Android e OUYA/Potato só está disponível aqui.</string>
+    <string name="ingame_source_avoid">Evite baixá-lo de outros sites ou plataformas de jogos.</string>
     <string name="ingame_no_browser">Nenhum navegador neste dispositivo</string>
 
     <string name="ingame_fps_none">-- FPS (jogo)</string>

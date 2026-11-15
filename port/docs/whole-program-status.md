@@ -270,6 +270,23 @@ weiter“); Bilder und Tabellen in `E:\Development\Android\builds\release-candid
   Bauernhof, Burgzufahrt, Insel: Ufer und Wolken klarer, Stimmung heller); Kosten wie Weit heute. Mittel 65 % statt
   75 %; Kurz 50 % und Keine 35 % bleiben. Vor einem Einbau alle 126 Räume mit beiden Disc-Arten am PC drehen lassen.
 - **Nicht gefunden:** die genaue Stelle der Schlucht-Bilder des Inhabers (vermutlich r10a; Frage an die Hauptsitzung).
+  Antwort des Inhabers: Kapitel 1-2, draußen links von der Tür des Startgebäudes, also r104 (Kapitel 1-1 endet in
+  r106); die Stelle wird nachgereicht.
+
+### 8. Hinweis unter „Quelle und Updates“ (Projektinhaber, 15.11.2026; nach dem Release 0.99.18-rc)
+
+- Im App-Menü auf der Seite „Verwaltung“ steht unter dem Knopf mit dem GitHub-Link ein kleiner, gedämpfter Hinweis,
+  zwei Zeilen, mittig (`CoreMenu.sourceNote`, Texte `ingame_source_only` und `ingame_source_avoid` in allen 11
+  Sprachen; „CubeEvil4“, „Android“ und „OUYA/Potato“ bleiben überall gleich). Deutsch: „CubeEvil4 für Android und
+  OUYA/Potato ist nur hier verfügbar.“ / „Vermeide den Download von Fremdseiten oder Spieleplattformen.“ Nur die
+  Android-App; die OUYA-App klärt die Hauptsitzung mit dem Inhaber.
+- `check_translations.py` prüft neu (KEEP), dass die drei Namen in jeder Sprache unverändert im Text stehen.
+- **Geprüft am PC:** App-Tests 180 je Variante grün (Core und Classic), neu `CoreMenuRowsTest.sourceNoteCentredUnderTheLink`
+  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, 320–960 dp: unter dem Link, nichts abgeschnitten, jede Zeile
+  mittig, der zweite Satz auf eigener Zeile, bei normaler Schrift ab 700 dp genau zwei Zeilen);
+  `check_translations.py` ohne Befund. Bilder (Deutsch und Englisch, 900 und 360 px breit, dazu die ganze Seite) in
+  `E:\Development\Android\builds\release-candidate\menu-source-note\`.
+- **Nicht geprüft:** auf einem Gerät.
 
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 

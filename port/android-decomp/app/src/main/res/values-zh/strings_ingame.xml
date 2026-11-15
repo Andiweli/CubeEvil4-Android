@@ -140,6 +140,8 @@
 
     <string name="ingame_source">源代码与更新</string>
     <string name="ingame_source_line">关于此移植版的更多信息：%1$s</string>
+    <string name="ingame_source_only">适用于 Android 和 OUYA/Potato 的 CubeEvil4 仅在此处提供。</string>
+    <string name="ingame_source_avoid">请勿从其他网站或游戏平台下载。</string>
     <string name="ingame_no_browser">此设备上没有浏览器</string>
 
     <string name="ingame_fps_none">-- FPS（游戏）</string>
