@@ -269,21 +269,39 @@ public class CoreMenuLayoutTest {
     assertEquals(1, AppUpdate.compare("0.96.0-beta", "0.95.2-beta"));
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
+      setVersion(activity, "0.99.18-rc-core");
       CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
       Button update = (Button) field(menu, "update"), resume = (Button) field(menu, "resume");
-      assertEquals("hidden until GitHub answered", View.GONE, update.getVisibility());
+      // 0.99.18 (the project owner, 15.11.2026): until GitHub answered (or without internet) the installed version
+      // alone in the button's place, without brackets, "v" and "-core"; not a button
+      assertEquals("the version before GitHub answered", View.VISIBLE, update.getVisibility());
+      assertEquals("0.99.18-rc", update.getText().toString());
+      assertFalse("the version alone: not clickable", update.isEnabled());
+      assertFalse("the version alone: no focus", update.isFocusable());
+      TextView title = (TextView) field(menu, "title");
+      assertEquals("the title without the version", activity.getString(R.string.ingame_title), title.getText().toString());
       menu.showUpdate(AppUpdate.CURRENT);
       View root = (View) field(menu, "root");
       measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
-      assertEquals(activity.getString(R.string.ingame_up_to_date), update.getText().toString());
+      assertEquals(activity.getString(R.string.ingame_up_to_date) + "\n0.99.18-rc", update.getText().toString());
       assertFalse("up to date: not clickable", update.isEnabled());
       assertTrue("left of Back to the game", update.getRight() <= resume.getLeft());
-      assertEquals("in the same row", update.getTop(), resume.getTop());
+      // (centred in the row: the heights with real text are CoreMenuRowsTest.versionUnderTheUpdateButton's)
+      assertEquals("in the same row", update.getTop() + update.getHeight() / 2f, resume.getTop() + resume.getHeight() / 2f, 1f);
       menu.showUpdate(AppUpdate.OLDER);
-      assertEquals(activity.getString(R.string.ingame_update), update.getText().toString());
+      assertEquals(activity.getString(R.string.ingame_update) + "\n0.99.18-rc", update.getText().toString());
       assertTrue("an update: clickable", update.isEnabled());
+      menu.showUpdate(AppUpdate.UNKNOWN);
+      assertEquals("no answer: the version alone again", "0.99.18-rc", update.getText().toString());
+      assertFalse(update.isEnabled());
     }
+  }
+
+  /** The APK's versionName as the package manager gives it to CoreMenu.version() (the tests' own is not set). */
+  static void setVersion(Activity activity, String versionName) {
+    org.robolectric.Shadows.shadowOf(activity.getPackageManager())
+        .getInternalMutablePackageInfo(activity.getPackageName()).versionName = versionName;
   }
 
   @Test public void controlsPageHasMotionComfortAndControllerSectionsWithOneGap() throws Exception {

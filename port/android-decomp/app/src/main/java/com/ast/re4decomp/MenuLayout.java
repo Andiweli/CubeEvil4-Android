@@ -232,8 +232,11 @@ final class MenuLayout {
       int actionSpec = MeasureSpec.makeMeasureSpec(actionsWidth, MeasureSpec.AT_MOST);
       int freeHeight = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
       if (back.getVisibility() != GONE) back.measure(actionSpec, freeHeight);
-      resume.measure(actionSpec, freeHeight);
       int backWidth = back.getVisibility() == GONE ? 0 : back.getMeasuredWidth() + gap;
+      // beside the title half the width; under it (a narrow window) what the back button leaves of the row, so the
+      // update button with the version under its label (0.99.18) and "Back to the game" do not break letter by letter
+      resume.measure(horizontal ? actionSpec
+          : MeasureSpec.makeMeasureSpec(Math.max(1, width - backWidth), MeasureSpec.AT_MOST), freeHeight);
       int titleWidth = horizontal ? Math.max(1, width - backWidth - resume.getMeasuredWidth() - gap) : width;
       title.measure(MeasureSpec.makeMeasureSpec(titleWidth, MeasureSpec.EXACTLY), freeHeight);
       int actionsHeight = Math.max(back.getVisibility() == GONE ? 0 : back.getMeasuredHeight(), resume.getMeasuredHeight());

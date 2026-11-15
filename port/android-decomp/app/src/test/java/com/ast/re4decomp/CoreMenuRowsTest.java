@@ -74,4 +74,49 @@ public class CoreMenuRowsTest {
     assertTrue("widths with two buttons a row were checked", checked > 100);
   }
 
+  /** The installed version small under the update button's label, or alone in its place without GitHub's answer
+   *  (0.99.18, the project owner, 15.11.2026), with real text sizes: in every language and font scale the label and
+   *  the version keep a line each, the button is no taller than "Back to the game" beside it, and the header stays
+   *  inside the window from a handheld's 320 dp up. */
+  @Test public void versionUnderTheUpdateButton() throws Exception {
+    int checked = 0;
+    for (String language : new String[] {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"})
+      for (float scale : new float[] {1f, 1.3f, 1.5f}) {
+        try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+          Activity activity = controller.get();
+          Configuration config = new Configuration(activity.getResources().getConfiguration());
+          config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
+          activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+          CoreMenuLayoutTest.setVersion(activity, "0.99.18-rc-core");
+          CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+          View root = (View) CoreMenuLayoutTest.field(menu, "root");
+          root.setLayoutDirection(config.getLayoutDirection());
+          Button update = (Button) CoreMenuLayoutTest.field(menu, "update");
+          Button resume = (Button) CoreMenuLayoutTest.field(menu, "resume");
+          float density = activity.getResources().getDisplayMetrics().density;
+          for (int state : new int[] {AppUpdate.UNKNOWN, AppUpdate.CURRENT, AppUpdate.OLDER}) {
+            menu.showUpdate(state);
+            String where = language + "/" + scale + "/state " + state;
+            View header = ((android.view.ViewGroup) root).getChildAt(0);
+            for (int width : new int[] {320, 480, 700, 960}) {
+              CoreMenuLayoutTest.measure(root, Math.round(width * density), Math.round(300 * density));
+              assertTrue(where + "/" + width + ": the header inside the window", header.getRight() <= root.getWidth()
+                  && header.getBottom() <= root.getHeight());
+              CoreMenuLayoutTest.checkBounds(header, where + "/" + width);
+              if (width >= 700) {
+                assertEquals(where + "/" + width + ": a line each", state == AppUpdate.UNKNOWN ? 1 : 2,
+                    update.getLayout().getLineCount());
+                assertEquals(where + "/" + width + ": as tall as Back to the game", resume.getHeight(), update.getHeight());
+                if (scale == 1f && resume.getLayout().getLineCount() == 1 && !"ar".equals(language))
+                  assertEquals(where + "/" + width + ": the buttons' 48 dp at the normal font size", Math.round(48 * density),
+                      update.getHeight());
+                checked++;
+              }
+            }
+          }
+        }
+      }
+    assertTrue("languages, font sizes and states checked", checked >= 11 * 3 * 3 * 2);
+  }
+
 }

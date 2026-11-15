@@ -170,6 +170,33 @@ Bisher las `GxCore::UploadHd` ein Ersatzbild beim ersten Gebrauch sofort auf dem
   Speicher, Vulkan auf dem Gerät); EU- und US-Discs (dieselbe Kennung je Bild, der Weg ist gleich); ein Raumwechsel
   mitten im Spiel über eine Tür (gemessen ab dem Debug-Start eines Raums).
 
+### 4. Die Versionsnummer im Knopf (Projektinhaber, 15.11.2026)
+
+„Bitte ändere noch die Platzierung der Versionsnummer im Ingame Menü: die Version soll nun direkt im Button stehen
+[Aktuell] und darunter klein die Versionsnummer aber nicht mehr in Klammer.“
+
+- **Titel:** nur noch der Name der Seite (bisher auf der Startseite „Einstellungen (v0.99.17-rc)“ mit kleiner Version).
+- **Update-Knopf** links von „Zurück zum Spiel“ (`CoreMenu.showUpdate`): zwei Zeilen, oben wie bisher „Aktuell“ (grün,
+  nicht anklickbar) bzw. „Update“ (rot, öffnet die Release-Seite), darunter klein (60 %, nicht fett) die installierte
+  Version ohne Klammern, ohne „v“ und ohne „-core“ (`version()`, z. B. „0.99.18-rc“). Innen 2 statt 8 dp Rand oben
+  und unten: bei normaler Schrift bleibt der Knopf 48 dp hoch; beide Knöpfe sind immer gleich hoch (mit großer Schrift
+  oder den höheren arabischen Zeilen wächst „Zurück zum Spiel“ mit).
+- **Schmales Fenster** (Knöpfe unter dem Titel, `MenuLayout.Header`): die Knöpfe bekommen dort die Breite, die der
+  Zurück-Knopf übrig lässt, statt der halben (sonst brach „Back to the game“ bei 480 px um und die Version Zeichen für
+  Zeichen bei 320 dp). Neben dem Titel unverändert die halbe Breite.
+- **Ohne Antwort von GitHub** (kein Internet, oder noch nicht da; bisher war der Knopf dann ganz weg): an derselben
+  Stelle nur die Version, klein, grau, ohne Rahmen; kein Knopf (nicht anklickbar, kein Fokus). Kommt die Antwort,
+  wird daraus der Knopf.
+- **Geprüft am PC:** App-Tests 178 je Variante grün (Core und Classic), neu `CoreMenuRowsTest.versionUnderTheUpdateButton`
+  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, alle drei Zustände: Beschriftung und Version je eine Zeile,
+  so hoch wie „Zurück zum Spiel“, bei normaler Schrift 48 dp, der Kopf bei 320–960 dp im Fenster),
+  `updateButtonSitsLeftOfResumeAndComparesVersions` erweitert (Titel ohne Version, Text der drei Zustände). Bilder des
+  Kopfes (Deutsch und Englisch, je ohne Antwort, aktuell, Update; 900 und 480 px breit) in
+  `E:\Development\Android\builds\release-candidate\menu-header\`.
+- **Nebenbefund (nicht geändert):** mit echten Textbreiten ragt auf der Startseite bei 320 dp und 130 % Schrift eine
+  Linie (eine `View` im Inhalt, nicht im Kopf) rechts über den Rand; der Inhalt ist von dieser Änderung unberührt.
+- **Nicht geprüft:** auf einem Gerät.
+
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 
 Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit

@@ -48,6 +48,7 @@ public class CoreMenuShotTest {
         Configuration config = new Configuration(activity.getResources().getConfiguration());
         config.setLocale(Locale.forLanguageTag(language));
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+        CoreMenuLayoutTest.setVersion(activity, "0.99.18-rc-core");
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         Field rootField = CoreMenu.class.getDeclaredField("root"); rootField.setAccessible(true);
         Field bodyField = CoreMenu.class.getDeclaredField("body"); bodyField.setAccessible(true);
@@ -74,6 +75,29 @@ public class CoreMenuShotTest {
             picture.compress(Bitmap.CompressFormat.PNG, 100, out);
           }
         }
+        // the menu's header with the version under the update button (0.99.18): up to date, an update, no answer from
+        // GitHub (the version alone); 900 px wide and 480 (a handheld's portrait: the buttons under the title)
+        show.invoke(menu, 0, false);
+        String[] states = {"offline", "current", "update"};
+        int[] codes = {AppUpdate.UNKNOWN, AppUpdate.CURRENT, AppUpdate.OLDER};
+        for (int s = 0; s < states.length; s++) {
+          menu.showUpdate(codes[s]);
+          for (int width : new int[] {900, 480}) {
+            root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY));
+            root.layout(0, 0, width, 600);
+            View header = ((android.view.ViewGroup) root).getChildAt(0);
+            int height = header.getBottom() + 12;
+            Bitmap picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(picture);
+            canvas.drawColor(0xff191f1c);
+            canvas.save(); canvas.clipRect(0, 0, width, height); root.draw(canvas); canvas.restore();
+            try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-header-" + states[s] + "-" + width + ".png"))) {
+              picture.compress(Bitmap.CompressFormat.PNG, 100, out);
+            }
+          }
+        }
+        menu.showUpdate(AppUpdate.UNKNOWN);
         // the controller's focus (0.99.11, FocusLook): "Performance" on the start page, a resolution level beside the
         // selected one on the display page, the benchmark button
         show.invoke(menu, 0, false);
