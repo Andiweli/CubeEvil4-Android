@@ -1113,9 +1113,10 @@ final class OuyaMenu extends Dialog {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         final int key = event.getKeyCode();
-        // A (KEYCODE_BUTTON_B), L3, the OUYA button (only its release arrives: KEYCODE_MENU), START: back
+        // A (KEYCODE_BUTTON_B), L3, SELECT, the OUYA button (only its release arrives: KEYCODE_MENU), START: back
         if (key == KeyEvent.KEYCODE_BUTTON_B || key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_THUMBL
-                || key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU) {
+                || key == KeyEvent.KEYCODE_BUTTON_SELECT || key == KeyEvent.KEYCODE_BUTTON_START
+                || key == KeyEvent.KEYCODE_MENU) {
             if (event.getRepeatCount() == 0 && (event.getAction() == KeyEvent.ACTION_DOWN || key == KeyEvent.KEYCODE_MENU))
                 dismiss();
             return true;

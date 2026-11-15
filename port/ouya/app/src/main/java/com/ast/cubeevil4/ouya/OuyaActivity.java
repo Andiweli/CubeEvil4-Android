@@ -35,7 +35,8 @@ import javax.microedition.khronos.opengles.GL10;
  * Controller (as the main app's CoreInput, its default layout): O = A, A = B, U = X, Y = Y, R1 = Z,
  * L2 / R2 = L / R (analog), the left stick the main stick, the right stick the C stick, the D-pad the
  * D-pad. The OUYA has no START button: the system button's short press (MENU) is START. L3 opens the
- * app's menu (OuyaMenu, the main app's SELECT menu for the OUYA; wish of the project owner, 07.11.2026).
+ * app's menu (OuyaMenu, the main app's SELECT menu for the OUYA; wish of the project owner, 07.11.2026), and
+ * SELECT of other controllers too (15.11.2026).
  * The picture fills the screen as the main app's default: the game's 16:9 rows (56..391).
  */
 public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstaller.Host {
@@ -358,7 +359,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
             }
             return true;
         }
-        if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_THUMBL) {
+        // L3, and SELECT of other controllers (wish of the project owner, 15.11.2026; the OUYA's has none)
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_THUMBL || event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_SELECT) {
             if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
                 openMenu();
             }
