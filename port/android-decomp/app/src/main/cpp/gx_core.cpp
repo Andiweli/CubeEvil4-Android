@@ -1482,6 +1482,9 @@ void GxCore::ShadowMark(const std::uint32_t *p) {
   const float m[16] = {sx * R[0], sx * U[0], sz * D[0], 0.0f, sx * R[1], sx * U[1], sz * D[1], 0.0f,
                        sx * R[2], sx * U[2], sz * D[2], 0.0f, -sx * mx,  -sx * my,  tz,        1.0f};
   std::memcpy(s.toLight, m, sizeof(m));
+  for (int r = 0; r < 3; r++)
+    for (int c = 0; c < 4; c++)
+      s.lightRow[r][c] = m[c * 4 + r];
   std::memcpy(s.dir, D, sizeof(D));
   static const int sizeEnv = [] {
     const char *v = std::getenv("RE4_GX_SHADOW_SIZE");

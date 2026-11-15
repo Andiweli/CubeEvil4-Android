@@ -159,6 +159,8 @@ final class CoreMenu extends Dialog {
     PerfProfile.Device perfDevice();
     /** A performance profile chosen on the start page (PerfProfile.CUSTOM .. HIGH): stored and applied. */
     void profileChosen(int profile);
+    /** A switch the real-time shadows depend on changed (debug builds only, RealtimeShadows): their level anew. */
+    void shadowsChanged();
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -1585,10 +1587,10 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_potato);
     MenuLayout.Buttons potato = buttonsRow(body);
     toggle(potato, R.string.ingame_potato_weather, graphics.getBoolean("weatherEffects", true), on -> {
-      graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     toggle(potato, R.string.ingame_potato_special, graphics.getBoolean("specialEffects", true), on -> {
-      graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     // two more on a user's wish (08.11.2026, through the project owner): the particles of fights, weapons and
     // fires in three steps (each press moves it on: normal, less, none, as the sharpening), and shadows with the
@@ -1600,13 +1602,14 @@ final class CoreMenu extends Dialog {
       int next = (CoreBridge.particleEffects(graphics) + 1) % 3;
       graphics.edit().putInt("particleEffects", next).apply();
       valueLabel((Button) v, R.string.ingame_potato_particles, particleLabels[next], next != 2);
-      CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     // lit while there are particles, "Less" too; off only at "None" (wish of the project owner, 09.11.2026)
     valueLabel(particles, R.string.ingame_potato_particles, particleLabels[CoreBridge.particleEffects(graphics)],
         CoreBridge.particleEffects(graphics) != 2);
     toggle(morePotato, R.string.ingame_potato_shadows, graphics.getBoolean("shadowsLight", true), on -> {
-      graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      if (host != null) host.shadowsChanged();
     });
     // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance", each press moves it
     // on, the distance fog nearer and nothing drawn beyond it (patch 0223, in the core: OpenGL ES and Vulkan alike);
@@ -1626,8 +1629,30 @@ final class CoreMenu extends Dialog {
     wide.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
     body.addView(view, wide);
     viewLabel(view, CoreBridge.viewDistance(graphics));
+    // Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows):
+    // "Off / Characters", a row of its own over the whole width as the view distance, only in a debug build on a
+    // capable device (weak devices never see it); a release build has no row
+    final boolean shadowsRow = host != null && RealtimeShadows.offered(RealtimeShadows.built(getContext()), host.perfDevice(),
+        PerfProfile.Bench.of(graphics), host.vulkanRunning());
+    if (shadowsRow) {
+      Button shadows = button("", v -> {
+        int next = RealtimeShadows.choice(graphics) == 1 ? 0 : 1;
+        graphics.edit().putInt(RealtimeShadows.KEY, next).apply();
+        valueLabel((Button) v, R.string.ingame_rt_shadows, next == 1 ? R.string.ingame_rt_shadows_figures
+            : R.string.ingame_off, next == 1);
+        host.shadowsChanged();
+      });
+      LinearLayout.LayoutParams wideShadows = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+          ViewGroup.LayoutParams.WRAP_CONTENT);
+      wideShadows.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
+      body.addView(shadows, wideShadows);
+      final boolean shadowsOn = RealtimeShadows.choice(graphics) == 1;
+      valueLabel(shadows, R.string.ingame_rt_shadows, shadowsOn ? R.string.ingame_rt_shadows_figures : R.string.ingame_off,
+          shadowsOn);
+    }
     help(R.string.ingame_potato_help);
     help(R.string.ingame_view_help);
+    if (shadowsRow) help(R.string.ingame_rt_shadows_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
     // without a row label in two columns, the explanations over the whole width. Since 10.11.2026 (wish of the
     // project owner): Frame skip | 60 FPS, under them merged draws | vertex ring as before, then "Save bandwidth"

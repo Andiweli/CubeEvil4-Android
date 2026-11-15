@@ -2365,9 +2365,9 @@ struct GlRenderer final : GxCore {
   // --- real-time shadows of the figures (GxCore::ShadowMark; debug builds only until after 1.0) ---------------------
 
   GLuint shadowDepthProg = 0, shadowMarkProg = 0, shadowMaskProg = 0, shadowApplyProg = 0;
-  GLint shadowDepthToLight = -1, shadowMarkVp0 = -1, shadowMarkVp1 = -1, shadowMarkPr0 = -1, shadowMarkPr1 = -1,
+  GLint shadowDepthRows = -1, shadowMaskRows = -1, shadowMarkVp0 = -1, shadowMarkVp1 = -1, shadowMarkPr0 = -1, shadowMarkPr1 = -1,
         shadowMaskRegion = -1, shadowMaskGrid = -1, shadowMaskVp0 = -1, shadowMaskVp1 = -1, shadowMaskPr0 = -1,
-        shadowMaskPr1 = -1, shadowMaskToLight = -1, shadowMaskLook = -1, shadowMaskBias = -1, shadowMaskLdir = -1,
+        shadowMaskPr1 = -1, shadowMaskLook = -1, shadowMaskBias = -1, shadowMaskLdir = -1,
         shadowApplyRegion = -1;
   // the depth map (and its frame buffer), the figures' corners, their marks (the EFB's size, with the EFB's depth),
   // the mask (a texel per GameCube pixel of the scene's part)
@@ -2389,7 +2389,7 @@ struct GlRenderer final : GxCore {
       ShadowRelease();
       return false;
     }
-    shadowDepthToLight = glGetUniformLocation(shadowDepthProg, "toLight");
+    shadowDepthRows = glGetUniformLocation(shadowDepthProg, "lx");
     shadowMarkVp0 = glGetUniformLocation(shadowMarkProg, "vp0");
     shadowMarkVp1 = glGetUniformLocation(shadowMarkProg, "vp1");
     shadowMarkPr0 = glGetUniformLocation(shadowMarkProg, "pr0");
@@ -2411,7 +2411,7 @@ struct GlRenderer final : GxCore {
     shadowMaskVp1 = glGetUniformLocation(shadowMaskProg, "vp1");
     shadowMaskPr0 = glGetUniformLocation(shadowMaskProg, "pr0");
     shadowMaskPr1 = glGetUniformLocation(shadowMaskProg, "pr1");
-    shadowMaskToLight = glGetUniformLocation(shadowMaskProg, "toLight");
+    shadowMaskRows = glGetUniformLocation(shadowMaskProg, "lx");
     shadowMaskLook = glGetUniformLocation(shadowMaskProg, "look");
     shadowMaskBias = glGetUniformLocation(shadowMaskProg, "bias");
     shadowMaskLdir = glGetUniformLocation(shadowMaskProg, "ldir");
@@ -2490,6 +2490,13 @@ struct GlRenderer final : GxCore {
     return true;
   }
 
+  // the light's rows lx, ly, lz of the program in use
+  static void ShadowRows(GLuint prog, const ShadowParams &s) {
+    glUniform4fv(glGetUniformLocation(prog, "lx"), 1, s.lightRow[0]);
+    glUniform4fv(glGetUniformLocation(prog, "ly"), 1, s.lightRow[1]);
+    glUniform4fv(glGetUniformLocation(prog, "lz"), 1, s.lightRow[2]);
+  }
+
   void ShadowPass(const ShadowParams &s) override {
     if (shadowFailed)
       return;
@@ -2529,7 +2536,7 @@ struct GlRenderer final : GxCore {
     glEnable(GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(1.5f, 2.0f);
     glUseProgram(shadowDepthProg);
-    glUniformMatrix4fv(shadowDepthToLight, 1, GL_FALSE, s.toLight);
+    ShadowRows(shadowDepthProg, s);
     glDrawArrays(GL_TRIANGLES, 0, corners);
     // 2. the figures' marks: the same triangles with the scene's camera where they are the visible surface (the EFB's
     // depth, resolved with MSAA)
@@ -2565,7 +2572,7 @@ struct GlRenderer final : GxCore {
     glUniform4fv(shadowMaskVp1, 1, s.vp1);
     glUniform4fv(shadowMaskPr0, 1, s.pr0);
     glUniform4fv(shadowMaskPr1, 1, s.pr1);
-    glUniformMatrix4fv(shadowMaskToLight, 1, GL_FALSE, s.toLight);
+    ShadowRows(shadowMaskProg, s);
     glUniform4fv(shadowMaskLook, 1, s.look);
     glUniform4fv(shadowMaskBias, 1, s.bias);
     glUniform4f(shadowMaskLdir, s.dir[0], s.dir[1], s.dir[2], 0.0f);

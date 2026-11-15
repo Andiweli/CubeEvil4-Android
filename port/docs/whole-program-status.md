@@ -23,25 +23,86 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
   Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
 
-## Branch `realtime-shadows`: Machbarkeitsstudie Echtzeit-Schatten und Raytracing (15.11.2026, Basis 9d46444b)
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt)
 
-Studie für die Zeit nach 1.0 (Feature-Freeze). Nichts in der App geändert. Bericht:
-`port/docs/echtzeit-schatten-studie.md`, Notizen und Versuchs-Code: `port/docs/echtzeit-schatten/`. Vergleichsbilder:
-`E:\Development\Android\builds\realtime-shadows\`.
+**Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
+dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
+aktiviert, nicht wenn man Release baut. Erst nach 1.0 kommen sie ins Release.“ Weg B der Studie
+(`port/docs/echtzeit-schatten-studie.md`, Notizen und Versuchs-Code `port/docs/echtzeit-schatten/`). **Nicht in den
+Releasetext für Tester:** Release-Builds haben die Funktion nicht.
 
-- **Ergebnis:** Echte Schatten für Figuren und Gegner sind mit einer Schattenkarte und einer Maske nach der 3D-Szene
-  machbar, ohne die TEV-Shader zu ändern. Der Versuch lief nur in `gx_chunk_render` am PC, GLES. Raytracing (Vulkan Ray
-  Query) gibt es nur auf Spitzenhandys (Adreno 740 und neuer, Immortalis, Xclipse), nicht auf dem Retroid.
-- **Empfehlung für 1.1** (offen, Entscheidung des Projektinhabers steht aus): „Real-time shadows · Off / Characters“,
-  ab Werk aus. Die Zeile erscheint nur auf starken Geräten (Chip, Benchmark, Prozessor, Speicher). Die Blob-Schatten
-  werden dabei ersetzt. Etwa 8 bis 10 Sitzungen.
-- **Befunde:**
-  - 108 von 127 Räumen haben ein Fußschatten-Licht der Entwickler (LIT `Id 4`, `Kind 5`), das ist die Lichtrichtung.
-  - 103 Räume haben Kamera-Parallellichter (Typ 5, Flag Bit 0). Diese sind für Schatten unbrauchbar: In r101 steht das
-    stärkste Licht auf den Figuren in jedem Bild an der Kamera.
-  - Figuren und Raum teilen Ordnungstabelle 0x0B. Nur das FIGURE-Bit im Owner-Tag unterscheidet sie.
-  - Der Versuch kostet am PC (llvmpipe) 15 bis 20 % der Bildzeit, in voller Auflösung, unoptimiert.
-- **Nicht geprüft:** Gerät (keine Kosten auf dem Adreno gemessen), Vulkan, EU-Disc.
+- **Kern** (`runtime/rt_shadow.cpp`, Patch 0240, Tabelle unten): Die App schaltet mit Bit 5 der Potato-Maske ein
+  (`re4_core_set_potato`, auch über den 32-bit-Kernprozess, keine neue Nachricht; `potato.cpp` trennt das Bit von den
+  Potato-Schaltern ab). Pro Bild prüft `re4_rt_shadow_frame` am Anfang von `Render`:
+  - der Schalter an, Potato „Schatten & Licht“ an,
+  - im Spiel (`Rno0 == 3`; kein Ereignis, kein Unterbildschirm, kein Tod/Fortsetzen `STA_DIEDEMO`, kein Film, kein
+    Wärmebild, nicht `DPF_SHADOW`),
+  - ein Fußschatten-Licht (LIT `Id 4`, `Kind 5`) erreicht Leon, ausgewählt wie `DrawFootShadow`.
+
+  Dann zeichnet `DrawFootShadow` keine Flecken. Nach Ordnungstabelle 14 (Raum und Figuren in Tabelle 11, die
+  Empfänger der Spiel-Schatten in 14, die Effekte erst danach) setzt `re4_rt_shadow_mark` den Port-Befehl 0x03 →
+  `RE4_GX_OP_SHADOW` mit der Lichtrichtung in Kamera-Koordinaten und der Stärke (Rot des Lichts mal Schattenfarbe der
+  Figur). In Räumen ohne solches Licht (19 von 127) passiert nichts: Dort gibt es auch keine Flecken.
+- **Renderer** (`GxRenderer::SetShadows`, `GxCore::ShadowCollect`/`ShadowMark`, GLES `ShadowPass` in `gx_gl.cpp`,
+  Shader `kShadow*` in `gx_fixed_shaders.h`):
+  - Bis zur Marke sammelt er die festen Zeichnungen der Figuren (Owner-Bit FIGURE, Tiefe geschrieben, höchstens 15 m
+    von der Kamera) als Dreiecke in Kamera-Koordinaten.
+  - An der Marke: eine Tiefenkarte von 1024² längs des Lichts, die Pixel, an denen eine Figur die sichtbare Fläche ist
+    (dieselben Dreiecke gegen die EFB-Tiefe), und eine Maske je GameCube-Pixel aus der EFB-Tiefe (8 PCF-Abfragen, nur
+    zum Licht gewandte Flächen). Die Maske wird mit der EFB-Farbe multipliziert.
+  - Figuren empfangen keinen Schatten. Das behebt die Streifen aus der Studie (r30f). Ein Schatten reicht höchstens
+    4 m hinter die Figur (sonst fiel er durch Wände, r101), und er blendet zwischen 12 und 20 m Abstand aus.
+  - Stärke 0,25 bis 0,6. Kein Schatten in Menübildern (`RE4_GX_CHUNK_STILL`), auch im 60-FPS-Zwischenbild (mit den
+    gemischten Matrizen).
+  - Aus (Standard): kein Suchen der Marke, kein Sammeln, kein Durchgang, kein Programm.
+  - Vulkan: noch nicht (Stufe 3). Die App bietet die Schatten mit Vulkan solange nicht an
+    (`RealtimeShadows.VULKAN_READY`).
+- **App:** `RealtimeShadows.java`.
+  - Ein Debug-Build ist das Android-Kennzeichen „debuggable“ (coreDebug; ein signierter Release-Build hat es nicht;
+    `BuildConfig` erzeugt das Projekt nicht).
+  - Freigabe: Debug-Build, starker Grafikchip, Benchmark mit 3× bei 30 oder 2× bei 60 Bildern, Prozessor nicht am
+    Limit, mindestens 4 GB Speicher, GLES-Renderer.
+  - Dann und mit Potato „Schatten & Licht“ an ist es ab Werk **an** (`rtShadows`).
+  - `CoreActivity.checkShadows` prüft jeden Tick (der Chip ist erst mit dem Renderer bekannt) und nach Menü-Änderungen.
+    Es schickt `CoreBridge.setShadows` und das Bit mit `CoreBridge.potatoSent` (an allen sechs Stellen statt
+    `potatoMask`; `bloomSent` liest weiter `potatoMask`).
+  - Ins Fehlerprotokoll schreibt es „real-time shadows (debug build): on/off (Grund)“.
+  - Menü Leistung, unter der Sichtweite: „Echtzeitschatten · Aus / Figuren“ mit Hilfetext, nur wo freigegeben, 11
+    Sprachen (`ingame_rt_shadows`, `_figures`, `_help`; `check_translations.py` 455 Texte ok).
+  - Release-Build: keine Zeile, kein Lesen der Einstellung, kein Aufruf zu Kern oder Renderer, kein Log.
+- **Geprüft (PC):**
+  - Kern i686 -O2 `whole_build.sh`: alle Prüfungen grün.
+  - `gx_gl_check` 0 Fehler, neu `TestShadows` bei 1× und 2× und mit magentafarben gemachten vergessenen Inhalten: Aus
+    oder ohne Kern-Marke ändert sich kein Byte und es läuft kein Durchgang. An: die Wand neben der Figur 160 → 66, die
+    Figur, die übrige Wand und das HUD unverändert, kein Schatten im Menübild.
+  - **Release unverändert, Renderer:** 22 Bilder ohne Marke (r101, r403, r205, r30f) und 18 mit Marke (r101, r403)
+    zeichnet der neue Renderer mit Schatten aus Byte für Byte wie der Renderer von release-candidate c2f5dcda
+    (`~/pshd/same.sh`).
+  - **Kern:** Zwei Läufe des unveränderten Kerns unterscheiden sich schon in jeder Aufnahme (Adressen in den
+    Owner-Marken, Zeitabhängiges). Ein Byte-Vergleich ist dort nicht möglich. Ohne Bit 5 kehren die drei Haken sofort
+    zurück. Im Lauf ohne Bit gab es keine Log-Zeile zu Schatten.
+  - App-Tests 185 von 185 grün (core und classic), darunter `RealtimeShadowsTest`: Release-Build nie, Potato-Maske ohne Bit gleich wie vorher; Debug auf Retroid-Daten
+    an; Potato oder Menü aus; schwache Geräte, kein Benchmark, Prozessor am Limit, wenig Speicher nie; die Menüzeile nur
+    wo freigegeben.
+  - Gradle `externalNativeBuildCoreDebug` und Java beider Varianten übersetzt.
+  - Kosten am PC (llvmpipe, 2×, ohne das erste Bild):
+
+    | Raum | Bilder | Durchgang | Anteil am Bild | Dreiecke der Figuren |
+    |---|---|---|---|---|
+    | r101 Dorfkampf | 4 | 12,3 ms | 11 % | 9 956–15 799 |
+    | r403 Dorf | 7 | 9,6 ms | 8 % | 11 349–20 751 |
+    | r30f | 7 | 14,4 ms | 15 % | 19 736 |
+    | r100 Wald | 7 | 12,6 ms | 6 % | 7 127–9 127 |
+    | r207 Schloss | 5 | 30,5 ms (ein Ausreißer 81 ms) | 13 % | 8 033–19 683 |
+
+  - Schätzung Retroid (Adreno 650, 3×), nicht gemessen: etwa 1 bis 2 ms pro Bild. Bei 30 Bildern genug Reserve, bei
+    60 Bildern pendelt sich die dynamische Auflösung vermutlich eine halbe Stufe tiefer ein.
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\debug-build\` (links heute mit Flecken, Mitte mit
+  Echtzeitschatten, rechts die Maske). Die Bilder der Studie liegen eine Ebene höher.
+- **Nicht geprüft:** Gerät (Retroid, Kosten auf dem Adreno, Bild in Bewegung), MSAA am Gerät, Vulkan (Stufe 3 offen),
+  EU-Disc, ARM64-Kern.
+- **Offene Grenzen (so gewollt):** Haare und Laub zeichnet das Spiel erst nach der Marke: Sie werfen keinen Schatten.
+  Gebäude werfen keinen Schatten auf Figuren. Der Benchmark misst ohne Schatten.
 
 ## Version 0.99.19-rc (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc)
 

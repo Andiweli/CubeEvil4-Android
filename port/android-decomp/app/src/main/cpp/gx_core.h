@@ -669,6 +669,7 @@ struct GxCore {
   static constexpr float kShadowReach = 4000.0f;
   struct ShadowParams {
     float toLight[16];               // view space to the map's clip space (column-major; x, y, z within -1..1)
+    float lightRow[3][4];            // its first three rows (the shaders' lx, ly, lz)
     float dir[3];                    // the light's direction in view space (unit)
     int size;                        // the map's texels each way
     int region[4];                   // the scene's part of the EFB in the renderer's texels

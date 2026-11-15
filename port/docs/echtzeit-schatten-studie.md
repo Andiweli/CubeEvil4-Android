@@ -5,6 +5,22 @@ gedacht (Feature-Freeze, Entscheidung des Projektinhabers vom 14.11.2026). Gebau
 Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL-Ordner. Vergleichsbilder:
 `E:\Development\Android\builds\realtime-shadows\`. Versuchs-Code und Messwerkzeuge: `port/docs/echtzeit-schatten/`.
 
+> **Nachtrag 15.11.2026: Weg B ist eingebaut, aber nur in Debug-Builds bis nach 1.0.** Entscheidung des
+> Projektinhabers: „Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze aktiviert, nicht
+> wenn man Release baut. Erst nach 1.0 kommen sie ins Release.“
+>
+> - Im Debug-Build (coreDebug) gibt es unter Leistung die Zeile „Echtzeitschatten · Aus / Figuren“. Sie erscheint nur
+>   auf freigegebenen Geräten (T7) und ist dort ab Werk an.
+> - Release-Builds haben weder die Zeile noch die Funktion.
+> - Abweichend vom Entwurf in T3/T4 (nach den Bildern mit dem echten Kern):
+>   - Figuren empfangen gar keinen Schatten, statt 30 cm Toleranz. Das beseitigt die Streifen ganz.
+>   - Ein Schatten reicht höchstens 4 m hinter die Figur (sonst fiel er durch Wände).
+>   - Die Maske hat ein Texel je GameCube-Pixel, mit 8 Abfragen.
+>   - Die Marke setzt der Kern genau hinter Ordnungstabelle 14, vor die Effekte.
+>   - Der Fortsetzen-Bildschirm ist über `STA_DIEDEMO` ausgenommen.
+> - Stand, Tests und Kosten: `port/docs/whole-program-status.md`, Abschnitt „Branch `realtime-shadows`“.
+> - Bilder: `E:\Development\Android\builds\realtime-shadows\debug-build\`.
+
 ---
 
 ## Teil 1: Für den Projektinhaber (kurz und ohne Fachsprache)

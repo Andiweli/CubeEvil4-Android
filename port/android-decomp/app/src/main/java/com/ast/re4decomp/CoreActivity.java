@@ -480,7 +480,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       // "Dynamic" up to the benchmark's levels on this device, when it ran
       CoreBridge.setDynamicCaps(g.getInt(CoreMenu.DYN_CAP_30, 0), g.getInt(CoreMenu.DYN_CAP_60, 0));
       CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
-      CoreBridge.setPotato(CoreBridge.potatoMask(g));
+      CoreBridge.setPotato(CoreBridge.potatoSent(g));
       CoreBridge.sendSoundVolume(g);
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
       CoreBridge.setGentleQte(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(GENTLE_QTE, GENTLE_QTE_DEFAULT));
@@ -628,9 +628,36 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     checkCoreProcess();
     checkDiscProblem();
     checkFirstBenchmark();
+    checkShadows();
     int room = CoreBridge.wantedRoom();
     if (room >= 0 && room != preparedRoom && !roomBusy) prepareRoom(room);
     main.postDelayed(this::tick, 500);
+  }
+
+  // the real-time shadows' level last sent (-1 none yet) and its reason (checkShadows)
+  private int shadowLevel = -1;
+  private String shadowWhy = "";
+
+  /** The real-time shadows (debug builds only until after 1.0, RealtimeShadows): their level from the device, the
+   *  benchmark, the renderer, Potato's "Shadows & light" and the menu, sent to the renderer and the core when it
+   *  changes, with a line in the error log saying on or off and why. Each tick (the graphics chip is known once the
+   *  renderer runs, a benchmark changes the levels) and at once after the menu changed a switch; not while the
+   *  benchmark measures (it sets the Potato mask itself). A release build: nothing at all. */
+  private void checkShadows() {
+    if (!RealtimeShadows.built(this) || (benchFlow != null && benchFlow.running())) return;
+    SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
+    String[] why = new String[1];
+    int level = RealtimeShadows.level(true, g, perfDevice(), PerfProfile.Bench.of(g), surface instanceof VulkanSurface,
+        why);
+    if (level == shadowLevel && why[0].equals(shadowWhy)) return;
+    boolean changed = level != shadowLevel;
+    shadowLevel = level;
+    shadowWhy = why[0];
+    Log.i(TAG, "real-time shadows (debug build): " + (level > 0 ? "on" : "off") + " (" + why[0] + ")");
+    if (!changed) return;
+    CoreBridge.shadowBit = level > 0 ? RealtimeShadows.CORE_BIT : 0;
+    CoreBridge.setShadows(level);
+    CoreBridge.setPotato(CoreBridge.potatoSent(g));
   }
 
   /** The FPS display's place (FPS_PLACE, else the old switch "fps": bottom left). */
@@ -1101,6 +1128,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public boolean debugMenu() { return !retail; }
     @Override public void startBenchmark() { benchFlow.start(false); }
     @Override public PerfProfile.Device perfDevice() { return CoreActivity.this.perfDevice(); }
+    @Override public void shadowsChanged() { checkShadows(); }
     @Override public void profileChosen(int profile) {
       SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
       PerfProfile.Device d = perfDevice();
@@ -2507,7 +2535,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
     CoreBridge.setDynamicCaps(g.getInt(CoreMenu.DYN_CAP_30, 0), g.getInt(CoreMenu.DYN_CAP_60, 0));
     CoreBridge.setFastCores(g.getInt("fastCores", 0) == 1);
-    CoreBridge.setPotato(CoreBridge.potatoMask(g));
+    CoreBridge.setPotato(CoreBridge.potatoSent(g));
   }
 
   private final BenchmarkFlow.Host benchHost = new BenchmarkFlow.Host() {

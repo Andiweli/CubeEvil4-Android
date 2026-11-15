@@ -734,12 +734,17 @@ constexpr char kBloomAddFs[] =
     "}\n";
 
 // --- real-time shadows of the figures (GxCore::ShadowMark; debug builds only until after 1.0) -----------------------
-// The figures' triangles (view space, three floats a corner) from the light: only their depth (the map's clip space
-// by toLight).
+// The figures' triangles (view space, three floats a corner) from the light: only their depth (the map's clip space:
+// the rows lx, ly, lz of the light's affine matrix; as rows, since the Vulkan renderer's constants have no mat4).
 constexpr char kShadowDepthVs[] = "#version 300 es\n"
                                   "layout(location = 0) in vec3 aPos;\n"
-                                  "uniform mat4 toLight;\n"
-                                  "void main() { gl_Position = toLight * vec4(aPos, 1.0); }\n";
+                                  "uniform vec4 lx;\n"
+                                  "uniform vec4 ly;\n"
+                                  "uniform vec4 lz;\n"
+                                  "void main() {\n"
+                                  "  vec4 p = vec4(aPos, 1.0);\n"
+                                  "  gl_Position = vec4(dot(lx, p), dot(ly, p), dot(lz, p), 1.0);\n"
+                                  "}\n";
 constexpr char kShadowDepthFs[] = "#version 300 es\nprecision mediump float;\nout vec4 o;\nvoid main() { o = vec4(0.0); }\n";
 // The same triangles with the scene's camera, as the GX vertex shader places them (gx_gl_shader.cpp: XF viewport and
 // projection, the pixel centre's twelfth), tested against the EFB's depth: 1 where a figure is the visible surface
@@ -783,7 +788,9 @@ constexpr char kShadowMaskFs[] =
     "uniform vec4 vp1;\n"
     "uniform vec4 pr0;\n"
     "uniform vec4 pr1;\n"
-    "uniform mat4 toLight;\n"
+    "uniform vec4 lx;\n"
+    "uniform vec4 ly;\n"
+    "uniform vec4 lz;\n"
     "uniform vec4 look;\n"
     "uniform vec4 bias;\n"
     "uniform vec4 ldir;\n"
@@ -813,8 +820,8 @@ constexpr char kShadowMaskFs[] =
     "  float facing = dot(n, -ldir.xyz);\n"
     "  float fade = 1.0 - smoothstep(look.y, look.z, -e.z);\n"
     "  if (fade <= 0.0 || facing <= 0.0) return;\n"
-    "  vec4 l = toLight * vec4(e + n * bias.z, 1.0);\n"
-    "  vec3 c = l.xyz * 0.5 + 0.5;\n"
+    "  vec4 p = vec4(e + n * bias.z, 1.0);\n"
+    "  vec3 c = vec3(dot(lx, p), dot(ly, p), dot(lz, p)) * 0.5 + 0.5;\n"
     "  if (any(lessThan(c.xy, vec2(0.0))) || any(greaterThan(c.xy, vec2(1.0))) || c.z > 1.0) return;\n"
     "  float behind = c.z - texture(raw, c.xy).r;\n"
     "  float reach = 1.0 - smoothstep(0.75 * grid.w, grid.w, behind);\n"

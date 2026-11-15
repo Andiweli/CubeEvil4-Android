@@ -297,6 +297,16 @@ public final class CoreBridge {
    * what the game draws, not the touch controls nor the app's overlays.
    */
   public static native void setCrt(int level);
+  /** Real-time shadows of the figures (debug builds only until after 1.0, RealtimeShadows; core_mode.cpp,
+   *  GxRenderer::SetShadows): 0 off, 1 the figures. Never called in a release build. */
+  public static native void setShadows(int level);
+  /** Bit 5 of the Potato mask while the real-time shadows are on (CoreActivity.checkShadows; always 0 in a release
+   *  build): the core marks where they go and leaves its foot shadow blobs out there (runtime/rt_shadow.cpp). */
+  static volatile int shadowBit;
+  /** The Potato mask the core gets: the menu's switches (potatoMask), and bit 5 while the real-time shadows are on. */
+  static int potatoSent(android.content.SharedPreferences g) {
+    return potatoMask(g) | shadowBit;
+  }
   /** Bloom (0.99.13; core_mode.cpp, GxRenderer::SetBloom): 0 off, 1 light, 2 strong. */
   public static native void setBloom(int level);
   /** The bloom the renderer gets: the menu's, off while a Potato mode switch is on (0.99.13). */
