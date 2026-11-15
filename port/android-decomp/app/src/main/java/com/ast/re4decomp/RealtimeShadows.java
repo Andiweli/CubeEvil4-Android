@@ -12,7 +12,7 @@ import android.content.SharedPreferences;
  *
  * In a debug build the figures cast shadows when all of these hold: the device is capable (a strong graphics chip, the
  * benchmark measured with 3x at 30 or 2x at 60 pictures a second, the processor not at its limit, 4 GB of memory;
- * weak devices never see the row), the renderer can draw them (OpenGL ES; Vulkan from its own stage on, VULKAN_READY),
+ * weak devices never see the row), the renderer can draw them (OpenGL ES and Vulkan, VULKAN_READY),
  * the Potato mode's "Shadows &amp; light" is on, and the menu's "Real-time shadows" is "Characters" (the default on a
  * capable device). The game core then marks where they go (bit 5 of the Potato mask, runtime/rt_shadow.cpp) and leaves
  * its round foot shadows out there; the renderer draws them (CoreBridge.setShadows, GxRenderer::SetShadows).
@@ -22,8 +22,8 @@ final class RealtimeShadows {
   static final String KEY = "rtShadows";
   /** Bit 5 of the Potato mask the core gets (CoreBridge.setPotato): the core's mark and no foot shadow blobs. */
   static final int CORE_BIT = 32;
-  /** The Vulkan renderer draws them too (gx_vk.cpp ShadowPass). */
-  static final boolean VULKAN_READY = false;
+  /** The Vulkan renderer draws them too (gx_vk.cpp ShadowPass, stage 3; the same picture as OpenGL ES on the PC). */
+  static final boolean VULKAN_READY = true;
 
   private RealtimeShadows() {}
 

@@ -18,6 +18,8 @@ Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL
 >   - Die Maske hat ein Texel je GameCube-Pixel, mit 8 Abfragen.
 >   - Die Marke setzt der Kern genau hinter Ordnungstabelle 14, vor die Effekte.
 >   - Der Fortsetzen-Bildschirm ist über `STA_DIEDEMO` ausgenommen.
+> - GLES und Vulkan zeichnen die Schatten mit denselben Shadern. Am PC sind die Bilder beider Renderer gleich, auch
+>   mit MSAA.
 > - Stand, Tests und Kosten: `port/docs/whole-program-status.md`, Abschnitt „Branch `realtime-shadows`“.
 > - Bilder: `E:\Development\Android\builds\realtime-shadows\debug-build\`.
 

@@ -736,16 +736,19 @@ constexpr char kBloomAddFs[] =
 // --- real-time shadows of the figures (GxCore::ShadowMark; debug builds only until after 1.0) -----------------------
 // The figures' triangles (view space, three floats a corner) from the light: only their depth (the map's clip space:
 // the rows lx, ly, lz of the light's affine matrix; as rows, since the Vulkan renderer's constants have no mat4).
+// glz.x: 1 GL's clip depth (-w..w), 0 Vulkan's (0..w); the map holds the same 0..1 depth either way.
 constexpr char kShadowDepthVs[] = "#version 300 es\n"
                                   "layout(location = 0) in vec3 aPos;\n"
                                   "uniform vec4 lx;\n"
                                   "uniform vec4 ly;\n"
                                   "uniform vec4 lz;\n"
+                                  "uniform vec4 glz;\n"
                                   "void main() {\n"
                                   "  vec4 p = vec4(aPos, 1.0);\n"
-                                  "  gl_Position = vec4(dot(lx, p), dot(ly, p), dot(lz, p), 1.0);\n"
+                                  "  float z = dot(lz, p);\n"
+                                  "  gl_Position = vec4(dot(lx, p), dot(ly, p), mix(0.5 * z + 0.5, z, glz.x), 1.0);\n"
                                   "}\n";
-constexpr char kShadowDepthFs[] = "#version 300 es\nprecision mediump float;\nout vec4 o;\nvoid main() { o = vec4(0.0); }\n";
+constexpr char kShadowDepthFs[] = "#version 300 es\nprecision mediump float;\nvoid main() {}\n";
 // The same triangles with the scene's camera, as the GX vertex shader places them (gx_gl_shader.cpp: XF viewport and
 // projection, the pixel centre's twelfth), tested against the EFB's depth: 1 where a figure is the visible surface
 // (its own pixels: kShadowMaskFs leaves them as they are, so a figure does not stripe itself).
@@ -756,12 +759,15 @@ constexpr char kShadowMarkVs[] =
     "uniform vec4 vp1;\n"  // oy zo W H
     "uniform vec4 pr0;\n"  // p0 p1 p2 p3
     "uniform vec4 pr1;\n"  // p4 p5
+    "uniform vec4 glz;\n"  // x: 1 GL's clip depth, 0 Vulkan's
     "void main() {\n"
     "  vec4 clip = vec4(pr0.x * aPos.x + pr0.y * aPos.z, pr0.z * aPos.y + pr0.w * aPos.z, pr1.x * aPos.z + pr1.y, -aPos.z);\n"
     "  float W = vp1.z, H = vp1.w;\n"
     "  gl_Position = vec4(((vp0.w - 342.0) * 2.0 / W - 1.0) * clip.w + vp0.x * 2.0 / W * clip.x,\n"
     "                     ((vp1.x - 342.0) * 2.0 / H - 1.0) * clip.w + vp0.y * 2.0 / H * clip.y,\n"
-    "                     2.0 * (vp0.z * clip.z + vp1.y * clip.w) / 16777215.0 - clip.w, clip.w);\n"
+    "                     0.0, clip.w);\n"
+    "  float z01 = (vp0.z * clip.z + vp1.y * clip.w) / 16777215.0;\n"
+    "  gl_Position.z = mix(z01, 2.0 * z01 - clip.w, glz.x);\n"
     "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n"
     "}\n";
 constexpr char kShadowMarkFs[] = "#version 300 es\nprecision mediump float;\nout vec4 o;\nvoid main() { o = vec4(1.0); }\n";

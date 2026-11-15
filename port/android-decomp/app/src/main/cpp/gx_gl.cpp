@@ -2537,6 +2537,7 @@ struct GlRenderer final : GxCore {
     glPolygonOffset(1.5f, 2.0f);
     glUseProgram(shadowDepthProg);
     ShadowRows(shadowDepthProg, s);
+    glUniform4f(glGetUniformLocation(shadowDepthProg, "glz"), 1.0f, 0.0f, 0.0f, 0.0f);  // GL's clip depth
     glDrawArrays(GL_TRIANGLES, 0, corners);
     // 2. the figures' marks: the same triangles with the scene's camera where they are the visible surface (the EFB's
     // depth, resolved with MSAA)
@@ -2556,6 +2557,7 @@ struct GlRenderer final : GxCore {
     glUniform4fv(shadowMarkVp1, 1, s.markVp1);
     glUniform4fv(shadowMarkPr0, 1, s.pr0);
     glUniform4fv(shadowMarkPr1, 1, s.pr1);
+    glUniform4f(glGetUniformLocation(shadowMarkProg, "glz"), 1.0f, 0.0f, 0.0f, 0.0f);
     glDrawArrays(GL_TRIANGLES, 0, corners);
     glDisable(GL_POLYGON_OFFSET_FILL);
     glDisable(GL_DEPTH_TEST);

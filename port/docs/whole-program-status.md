@@ -55,13 +55,16 @@ Releasetext für Tester:** Release-Builds haben die Funktion nicht.
   - Stärke 0,25 bis 0,6. Kein Schatten in Menübildern (`RE4_GX_CHUNK_STILL`), auch im 60-FPS-Zwischenbild (mit den
     gemischten Matrizen).
   - Aus (Standard): kein Suchen der Marke, kein Sammeln, kein Durchgang, kein Programm.
-  - Vulkan: noch nicht (Stufe 3). Die App bietet die Schatten mit Vulkan solange nicht an
-    (`RealtimeShadows.VULKAN_READY`).
+  - Vulkan (Stufe 3, `gx_vk.cpp` `ShadowPass`, dieselben Shader): ein eigener Durchgang nur mit Tiefe für die Karte
+    (D16, Vergleichs-Sampler, linear wo das Format es kann), die Markierungen mit der EFB-Tiefe (bei MSAA die
+    aufgelöste) als Tiefe zum Prüfen, Maske und Multiplikation (neue Mischart 4) wie beim Bloom. Die Shader nehmen die
+    Lichtmatrix als drei Zeilen (der Vulkan-Umwandler kennt kein mat4) und `glz` für die Tiefe von GL (-w..w) oder
+    Vulkan (0..w).
 - **App:** `RealtimeShadows.java`.
   - Ein Debug-Build ist das Android-Kennzeichen „debuggable“ (coreDebug; ein signierter Release-Build hat es nicht;
     `BuildConfig` erzeugt das Projekt nicht).
   - Freigabe: Debug-Build, starker Grafikchip, Benchmark mit 3× bei 30 oder 2× bei 60 Bildern, Prozessor nicht am
-    Limit, mindestens 4 GB Speicher, GLES-Renderer.
+    Limit, mindestens 4 GB Speicher (GLES und Vulkan).
   - Dann und mit Potato „Schatten & Licht“ an ist es ab Werk **an** (`rtShadows`).
   - `CoreActivity.checkShadows` prüft jeden Tick (der Chip ist erst mit dem Renderer bekannt) und nach Menü-Änderungen.
     Es schickt `CoreBridge.setShadows` und das Bit mit `CoreBridge.potatoSent` (an allen sechs Stellen statt
@@ -85,6 +88,9 @@ Releasetext für Tester:** Release-Builds haben die Funktion nicht.
     an; Potato oder Menü aus; schwache Geräte, kein Benchmark, Prozessor am Limit, wenig Speicher nie; die Menüzeile nur
     wo freigegeben.
   - Gradle `externalNativeBuildCoreDebug` und Java beider Varianten übersetzt.
+  - Vulkan (lavapipe): `gx_gl_check` mit Vulkan 0 Fehler, `TestShadows` „Vulkan 2x“ mit denselben Werten wie GLES.
+    18 Bilder mit Marke (r101, r403): Vulkan und GLES mit Schatten ohne ein Pixel über 3 % Abstand; mit 4× MSAA ebenso
+    (Schatten vorhanden, 8 514 statt 8 520 geänderte Pixel). Der Android-Kern ARM32 und ARM64 baut ohne Fehler.
   - Kosten am PC (llvmpipe, 2×, ohne das erste Bild):
 
     | Raum | Bilder | Durchgang | Anteil am Bild | Dreiecke der Figuren |
@@ -99,8 +105,7 @@ Releasetext für Tester:** Release-Builds haben die Funktion nicht.
     60 Bildern pendelt sich die dynamische Auflösung vermutlich eine halbe Stufe tiefer ein.
 - **Bilder:** `E:\Development\Android\builds\realtime-shadows\debug-build\` (links heute mit Flecken, Mitte mit
   Echtzeitschatten, rechts die Maske). Die Bilder der Studie liegen eine Ebene höher.
-- **Nicht geprüft:** Gerät (Retroid, Kosten auf dem Adreno, Bild in Bewegung), MSAA am Gerät, Vulkan (Stufe 3 offen),
-  EU-Disc, ARM64-Kern.
+- **Nicht geprüft:** Gerät (Retroid, Kosten auf dem Adreno, Bild in Bewegung), MSAA und Vulkan am Gerät, EU-Disc.
 - **Offene Grenzen (so gewollt):** Haare und Laub zeichnet das Spiel erst nach der Marke: Sie werfen keinen Schatten.
   Gebäude werfen keinen Schatten auf Figuren. Der Benchmark misst ohne Schatten.
 

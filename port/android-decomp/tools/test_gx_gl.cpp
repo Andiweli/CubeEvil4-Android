@@ -5162,6 +5162,7 @@ int main() {
       std::string error;
       Require(vr.Init(2, &error), error.c_str());
       TestBloom(vr, "Vulkan 2x");
+      TestShadows(vr, "Vulkan 2x");
       vr.Release();
     }
   }
