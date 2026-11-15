@@ -161,6 +161,21 @@ final class OuyaMenu extends Dialog {
             }
         });
         header.addView(resume);
+        // the version, as in the main app's menu ("v0.99-Ouya"), right of the button with some room (wish of the
+        // project owner, 15.11.2026)
+        try {
+            String version = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
+            if (version != null) {
+                TextView v = text("v" + version, 14, false);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.leftMargin = dp(18);
+                lp.rightMargin = dp(GAP);
+                header.addView(v, lp);
+            }
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            // no version line
+        }
         root.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         separator(root);
@@ -701,6 +716,9 @@ final class OuyaMenu extends Dialog {
             }
         }), cell());
         help(R.string.ingame_discs_help);
+        // the game's language before "Source and updates", as in the main app (wish of the project owner, 15.11.2026)
+        if (host.gameLanguages())
+            gameLanguage();
         heading(R.string.ingame_source);
         LinearLayout source = buttonsRow();
         source.addView(button(getContext().getString(R.string.ingame_source_line, SOURCE_URL),
@@ -714,8 +732,12 @@ final class OuyaMenu extends Dialog {
         sourceLine.setPadding(dp(GAP), dp(2), dp(GAP), dp(2));
         sourceLine.setVisibility(View.GONE);
         body.addView(sourceLine);
-        if (host.gameLanguages())
-            gameLanguage();
+        // below the link, centred (wish of the project owner, 15.11.2026): where the app comes from
+        TextView only = text(s(R.string.ouya_source_only), 15, false);
+        only.setGravity(Gravity.CENTER_HORIZONTAL);
+        only.setPadding(dp(GAP), dp(6), dp(GAP), dp(10));
+        body.addView(only, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     /** The game's language with the European discs, as in the main app (CoreMenu.gameLanguage): the device's or one

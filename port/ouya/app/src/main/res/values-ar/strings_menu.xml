@@ -145,5 +145,6 @@
     <string name="ouya_no_browser">لا يوجد متصفح ويب على هذا الجهاز. العنوان: %1$s</string>
     <string name="ouya_light_detail">إضاءة مفصلة</string>
     <string name="ouya_light_help">إضاءة مفصلة: عند إيقافها تُضاء البيئة مرة واحدة لكل جسم بدل كل نقطة (تحتفظ الشخصيات بإضاءتها)؛ أسرع بوضوح على OUYA، وتبدو الأرض والأشجار أكثر تسطحًا قليلًا. يسري فورًا.</string>
+    <string name="ouya_source_only">هذا الإصدار والإصدار الكامل لـ CubeEvil4 على Android متاحان هنا فقط.\nتجنّب التنزيل من مواقع أخرى أو منصات ألعاب.</string>
     <string name="ouya_gentle_qte_help">أحداث QTE أسهل: في Professional تمنح أحداث الأزرار السريعة (المراوغة وقتال السكاكين والضغط السريع) الوقت نفسه وتطلب عدد الضغطات نفسه كما في Normal؛ ويبقى الضرر والأعداء كما في Professional.</string>
 </resources>

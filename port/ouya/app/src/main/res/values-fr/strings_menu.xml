@@ -142,5 +142,6 @@
     <string name="ouya_no_browser">Aucun navigateur web sur cet appareil. L’adresse : %1$s</string>
     <string name="ouya_light_detail">Éclairage détaillé</string>
     <string name="ouya_light_help">Éclairage détaillé : désactivé, l’environnement est éclairé une fois par objet au lieu de chaque point (les personnages gardent le leur) ; nettement plus rapide sur l’OUYA, le sol et les arbres paraissent un peu plus plats. S’applique aussitôt.</string>
+    <string name="ouya_source_only">Cette version et la version Android complète de CubeEvil4 ne sont disponibles qu’ici.\nÉvitez les téléchargements depuis d’autres sites ou plateformes de jeux.</string>
     <string name="ouya_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons (esquiver, le combat au couteau, appuyer vite) laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional.</string>
 </resources>

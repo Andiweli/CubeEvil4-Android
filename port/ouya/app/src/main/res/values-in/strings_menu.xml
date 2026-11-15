@@ -140,5 +140,6 @@
     <string name="ouya_no_browser">Tidak ada peramban web di perangkat ini. Alamatnya: %1$s</string>
     <string name="ouya_light_detail">Pencahayaan detail</string>
     <string name="ouya_light_help">Pencahayaan detail: jika mati, lingkungan diterangi sekali per objek, bukan di setiap titik (karakter tetap memakai pencahayaannya); jauh lebih cepat di OUYA, tanah dan pohon tampak sedikit lebih datar. Langsung berlaku.</string>
+    <string name="ouya_source_only">Versi ini dan versi Android lengkap CubeEvil4 hanya tersedia di sini.\nHindari unduhan dari situs lain atau platform game.</string>
     <string name="ouya_gentle_qte_help">QTE Lebih Ringan: di Professional, event tombol (menghindar, duel pisau, menekan cepat) memberi waktu dan meminta jumlah tekanan sama seperti di Normal; kerusakan dan musuh tetap seperti Professional.</string>
 </resources>

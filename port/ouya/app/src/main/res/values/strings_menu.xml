@@ -141,5 +141,6 @@
     <string name="ouya_no_browser">No web browser on this device. The address: %1$s</string>
     <string name="ouya_light_detail">Detailed lighting</string>
     <string name="ouya_light_help">Detailed lighting: off lights the surroundings once per object instead of at every point (figures keep theirs); clearly faster on the OUYA, the ground and the trees look a little flatter. It takes effect at once.</string>
+    <string name="ouya_source_only">This version and the full Android version of CubeEvil4 are only available here.\nAvoid downloads from other sites or game platforms.</string>
     <string name="ouya_gentle_qte_help">Gentler QTEs: in Professional the quick-time events (dodging, the knife fight, pressing a button fast) give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s.</string>
 </resources>
