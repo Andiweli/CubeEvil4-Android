@@ -781,10 +781,10 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
   Breite Bildschirme (Retroid): `android.max_aspect`/`maxAspectRatio` 2.4, `resizeableActivity`, Vollbild mit
   ausgeblendeten Systemleisten (ab Android 4.4 dauerhaft) und ab Android 9 bis in die Kamera-Aussparung; vorher bekam
   die App für Android 4.1 höchstens das Seitenverhältnis 1,86 (graue Streifen). Auf den Geräten noch nicht geprüft.
-- **Update-Knopf** (15.11.2026, Wunsch des Projektinhabers): links neben „Zurück zum Spiel“ (und der Version) wie in
-  der Haupt-App: grün „Aktuell“ (aus) oder rot „Update“ (öffnet die Release-Seite auf GitHub; ohne Browser die
+- **Update-Knopf** (15.11.2026, Wunsch des Projektinhabers): links neben â€žZurÃ¼ck zum Spielâ€œ (und der Version) wie in
+  der Haupt-App: grÃ¼n â€žAktuellâ€œ (aus) oder rot â€žUpdateâ€œ (Ã¶ffnet die Release-Seite auf GitHub; ohne Browser die
   Adresse als Hinweis). `OuyaUpdate` sucht in den 15 neuesten Releases die neueste OUYA-APK (`CubeEvil4-0.99-OUYA.apk`
-  oder `CubeEvil4-Potato-1.0.apk`) und vergleicht ihre Versionsnummer mit der installierten; schaltet für Android 4.1
-  TLS 1.2 ein. Ohne Antwort (kein Internet) bleibt die letzte Antwort stehen, anfangs „Aktuell“ (Wunsch des
+  oder `CubeEvil4-Potato-1.0.apk`) und vergleicht ihre Versionsnummer mit der installierten; schaltet fÃ¼r Android 4.1
+  TLS 1.2 ein. Ohne Antwort (kein Internet) bleibt die letzte Antwort stehen, anfangs â€žAktuellâ€œ (Wunsch des
   Projektinhabers). Neue Berechtigung `INTERNET`. Ob die OUYA GitHub mit ihren alten Zertifikaten erreicht, ist nicht
-  geprüft; wenn nicht, bleibt „Aktuell“.
+  geprÃ¼ft; wenn nicht, bleibt â€žAktuellâ€œ.
