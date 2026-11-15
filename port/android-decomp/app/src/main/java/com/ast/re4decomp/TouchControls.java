@@ -211,6 +211,9 @@ final class TouchControls implements CoreTouch.Host {
   void setSafeInsets(int[] insets) {
     if (java.util.Arrays.equals(insets, safe)) return;
     System.arraycopy(insets, 0, safe, 0, 4);
+    // RetroTouch 1.0.0-beta.11: its editor's bar, the "DRAG / Selected" line and the gear's default place keep clear of
+    // the camera; the controls and their saved places are not touched
+    view.setSafeInsets(safe[0], safe[1], safe[2], safe[3]);
     if (width <= 0 || height <= 0) return;  // the first layout does it
     if (editing) reshape = true;
     else reshape();

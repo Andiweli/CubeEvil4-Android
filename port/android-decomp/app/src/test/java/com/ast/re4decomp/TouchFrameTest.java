@@ -271,4 +271,55 @@ public class TouchFrameTest {
     assertNull(TouchFrame.legacyLayout(prefs));
     assertEquals(0.03, find(saved(), "z").getX(), 0.01);
   }
+
+  // --- RetroTouch 1.0.0-beta.11: the editor's bar and the gear's default place keep clear of the camera -------------
+
+  private static Object field(Object o, String name) throws Exception {
+    java.lang.reflect.Field f = o.getClass().getDeclaredField(name);
+    f.setAccessible(true);
+    return f.get(o);
+  }
+
+  private static int[] insets(com.ast.retrotouch.RetroTouchView v) throws Exception {
+    return new int[] {(Integer) field(v, "safeInsetLeft"), (Integer) field(v, "safeInsetTop"),
+        (Integer) field(v, "safeInsetRight"), (Integer) field(v, "safeInsetBottom")};
+  }
+
+  private static android.graphics.RectF gear(com.ast.retrotouch.RetroTouchView v) throws Exception {
+    java.lang.reflect.Method m = v.getClass().getDeclaredMethod("gearRect");
+    m.setAccessible(true);
+    return (android.graphics.RectF) m.invoke(v);
+  }
+
+  @Test public void retroTouchGetsTheInsetsOnEitherSide() throws Exception {
+    TouchControls t = new TouchControls(RuntimeEnvironment.getApplication(), new CoreInput(), TouchShowRule.FORCE,
+        new TouchControls.Host() {
+          @Override public void select(boolean down, boolean finger) {}
+          @Override public void editing(boolean on) {}
+          @Override public void send() {}
+          @Override public void r3(boolean down) {}
+          @Override public void zoom(int direction, boolean down) {}
+        });
+    com.ast.retrotouch.RetroTouchView view = (com.ast.retrotouch.RetroTouchView) t.view();
+    view.layout(0, 0, W, H);
+    assertArrayEquals(new int[4], insets(view));
+    final float widthWithout = gear(view).right;
+    // the camera on the left, then turned by 180 degrees: on the right
+    t.setSafeInsets(LEFT);
+    assertArrayEquals(LEFT, insets(view));
+    assertArrayEquals(LEFT, t.safeInsets());
+    t.setSafeInsets(RIGHT);
+    assertArrayEquals(RIGHT, insets(view));
+    // the gear's default place (top right) keeps clear of a camera on the right ...
+    assertEquals(widthWithout - S, gear(view).right, 0.5f);
+    assertTrue(gear(view).right <= W - S);
+    // ... a place the player gave it stays (a fraction of the whole width, TouchFrame converts it)
+    java.lang.reflect.Field x = view.getClass().getDeclaredField("settingsX");
+    x.setAccessible(true);
+    x.setFloat(view, 0.98f);
+    assertEquals(0.98f * W, gear(view).centerX(), 0.5f);
+    assertTrue("into the strip", gear(view).right > W - S);
+    t.setSafeInsets(new int[4]);
+    assertArrayEquals(new int[4], insets(view));
+  }
 }

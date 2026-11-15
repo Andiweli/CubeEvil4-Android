@@ -172,5 +172,9 @@ dependencies {
     // Now 1.0.0-beta.10 (09.11.2026, the AAR as the project owner built it): the ICONS button style next to
     // LABELS, icons, ROUNDED_RECT and CAPSULE shapes, pressed and latched colours (TouchStyle). The icons'
     // licence (Lucide, ISC): libs/retrotouch-THIRD_PARTY_NOTICES.md, RetroTouch's own notice file.
+    // Now 1.0.0-beta.11 (15.11.2026, the AAR as the project owner's RetroTouch session built it): beta.10 and
+    // RetroTouchView.setSafeInsets(left, top, right, bottom), the camera cutout's insets for the editor's bar, its
+    // "DRAG / Selected" line, their touch areas and the gear's default place (TouchControls.setSafeInsets, 0.99.17);
+    // the controls and their saved places as before. Nothing else of the public API changed; notices unchanged.
     implementation files('libs/retrotouch.aar')
 }

@@ -14,9 +14,9 @@ import android.view.WindowManager;
  * The game's window reaches over it (extend) and the picture fills the screen as the picture format says; the touch
  * controls cover the whole window, so a button can go into the camera's strip too, and their layouts keep their spots
  * (TouchFrame). What must not lie under the camera keeps clear of its strip with the cutout's safe insets (safe): the
- * FPS display (CornerInset), the app menu (CoreMenu.resizeWindow). RetroTouch draws its editor's bar over the whole
- * width (1.0.0-beta.10 has no insets for it): the player drags it up or down. The app's questions keep Android's
- * default: their windows stay off the cutout. Some phones (Xiaomi, Samsung, Motorola) keep an app off the cutout by a setting of their own per app
+ * FPS display (CornerInset), the app menu (CoreMenu.resizeWindow), the touch editor's bar and the gear's default place
+ * (RetroTouch 1.0.0-beta.11, TouchControls.setSafeInsets). The app's questions keep Android's default: their windows
+ * stay off the cutout. Some phones (Xiaomi, Samsung, Motorola) keep an app off the cutout by a setting of their own per app
  * whatever the app asks; the error log says what the window got (describe).
  */
 final class Cutout {

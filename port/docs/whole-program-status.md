@@ -90,7 +90,8 @@ bearbeitet.
 - **Editor-Leiste:** RetroTouch 1.0.0-beta.10 zeichnet sie und die Zeile „DRAG / Selected“ immer über die volle Breite
   (keine Schnittstelle für Ränder, `RetroTouchView` ist final). Bleibt so (Entscheidung des Inhabers); sie lässt
   sich nach oben oder unten ziehen. Die Idee `setSafeInsets` geht an den RetroTouch-Chat des Inhabers; `app/libs`
-  und `E:\Development\Android\RetroTouch` unverändert. Steht in den Known issues.
+  und `E:\Development\Android\RetroTouch` unverändert. Steht in den Known issues. **Überholt:** mit RetroTouch
+  1.0.0-beta.11 hält die Leiste Abstand (Abschnitt 6).
 - **Diagnose:** eine Zeile `camera cutout: …` im Fehlerprotokoll (und so im Bericht), bei jeder Änderung: Fenstergröße
   und -lage, Bildschirmgröße, sichere Abstände und Kamera-Seite, angefragter und tatsächlicher Fenstermodus, und ob
   das Fenster über die Aussparung reicht oder einen Streifen freilässt (dann hält das Telefon die App mit einer
@@ -145,6 +146,28 @@ Hauptsitzung). Geändert: der Update-Abschnitt in `v0.99.17-rc.md`; sonst nennt 
   Weg der beiden Animationen, die Stile, Animationen aus).
 - **Nicht geprüft:** auf einem Gerät (das Gleiten, Auf-Zu-Auf schnell hintereinander, Unterfenster, das Menü bei
   Kameraloch; den Benchmark mit Touch-B, Controller und Tastatur beenden).
+
+### 6. RetroTouch 1.0.0-beta.11: Editor-Leiste und Zahnrad weg von der Kamera (Projektinhaber, 15.11.2026)
+
+„hier beta11, bitte um einbau“: die AAR aus der RetroTouch-Sitzung des Inhabers
+(`C:\Users\andiw\Downloads\RetroTouch-1.0.0-beta.11.aar`, 48 743 Bytes, SHA1 ed1aa1d4…) ersetzt
+`app/libs/retrotouch.aar`; der Ordner `E:\Development\Android\RetroTouch` bleibt unberührt.
+
+- **Geprüft gegen beta.10 (javap):** dieselben 20 Klassen; die öffentliche Schnittstelle aller Klassen gleich bis auf
+  das neue `RetroTouchView.setSafeInsets(int, int, int, int)`; Manifest, `proguard.txt`, `R.txt` und `META-INF/LICENSE`
+  gleich, die Hinweisdatei `retrotouch-THIRD_PARTY_NOTICES.md` bleibt. Im Bytecode nutzen die Abstände nur die
+  Leiste (`drawToolbar`, `toolbarTop`, `toolbarHeight`, `toolbarIndex`, `isInsideToolbar`, ihr Ziehen in
+  `movePointer`) und den Standardplatz des Zahnrads (`gearRect` nur bei `settingsX/Y` NaN); ein gespeicherter Platz
+  des Zahnrads und alle Knöpfe bleiben Anteile des ganzen Fensters. Wie vereinbart.
+- **Eingebaut:** `TouchControls.setSafeInsets` gibt die Abstände der Aussparung bei jeder Änderung (auch nach dem
+  Drehen um 180°) an `RetroTouchView.setSafeInsets`. Die Umrechnung (`TouchFrame`) bleibt: gespeicherte Plätze des
+  Zahnrads rechnet sie wie bisher um, der Standardplatz folgt jetzt von selbst der Kamera-Seite.
+- Releasetext: die Known-issues-Zeile zur Leiste über die volle Breite gestrichen, unter Fixed „The touch editor's bar
+  and the gear keep clear of the camera hole (RetroTouch 1.0.0-beta.11).“
+- **Geprüft am PC:** App-Tests 176 je Variante grün (Core und Classic); neu in `TouchFrameTest`: RetroTouch bekommt die Abstände links, nach dem
+  Drehen rechts und ohne Kamera wieder 0; der Standardplatz des Zahnrads rückt um den Streifen nach innen, ein
+  gespeicherter Platz bleibt (auch im Streifen).
+- **Nicht geprüft:** auf einem Gerät mit Kameraloch (Leiste, „DRAG“-Zeile und Zahnrad neben der Kamera).
 
 ## Version 0.99.16-rc (veröffentlicht, Branch `09916`, Basis 507e72b1; Tag 0.99.16-rc = 650b543e)
 
