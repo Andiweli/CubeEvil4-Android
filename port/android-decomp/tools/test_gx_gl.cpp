@@ -3018,94 +3018,94 @@ void TestBloom(re4gx::GxRenderer &r, const char *tag) {
   r.SetBloom(0);
 }
 
-// Real-time shadows of the figures (debug builds only until after 1.0; GxCore::ShadowMark): a grey wall 3 m away, a
-// figure (owner tag with RE4_GX_OWNER_FIGURE) 2 m away in front of it, the core's mark after them with a light shining
-// into the picture and a little to the right. On: the figure's shadow on the wall to its right, the figure itself and
-// the wall away from it as drawn. Off (every release build) or without the core's mark: the picture byte for byte as
-// without the mark, no pass. None on a menu screen of the game (RE4_GX_CHUNK_STILL).
-void TestShadows(re4gx::GxRenderer &r, const char *tag) {
-  const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255};
-  auto scene = [&](bool mark, bool still) {
-    Builder b;
-    Baseline(b);
-    DisplayCopy(b, true, kBlack);
-    const float n = 100.0f, f = 1000000.0f;
-    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
-    b.Xf(0x1026, {0});
-    b.Owner(0x80001000u, 0x80002000u, 0x0B);  // the room
-    QuadAt(b, 0, 0, 640, 528, 3000.0f, kWall);
-    b.Owner(0x80001100u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // a figure
-    QuadAt(b, 280, 200, 360, 330, 2000.0f, kFigure);
-    b.Owner(0, 0, 0xFF);
-    if (mark) {
-      // the light along (0.3, 0, -1) in view space, the strength of a bright foot shadow light (200 of 255)
-      const float l = std::sqrt(0.3f * 0.3f + 1.0f);
-      const float d[3] = {0.3f / l, 0.0f, -1.0f / l};
-      std::uint32_t p[4];
-      std::memcpy(&p[0], &d[0], 4);
-      std::memcpy(&p[1], &d[1], 4);
-      std::memcpy(&p[2], &d[2], 4);
-      p[3] = 200;
-      b.Op(RE4_GX_OP_SHADOW, p, 4);
-    }
-    // the HUD after the mark: orthographic, untouched
-    b.XfF(0x1020, {1.0f / 320.0f, -1.0f, -2.0f / 528.0f, 1.0f, -1.0f, -1.0f});
-    b.Xf(0x1026, {1});
-    b.Bp(0x40, 0);
-    Quad(b, 560, 40, 600, 80, 0, kWhite);
-    if (still)
-      b.flags |= RE4_GX_CHUNK_STILL;
-    DisplayCopy(b, false, kBlack);
-    r.Run(b.Chunk());
-    std::vector<std::uint8_t> rgba;
-    unsigned w = 0, h = 0;
-    Require(r.ReadXfb(&rgba, &w, &h), "shadows: the display copy read back");
-    return rgba;
-  };
-  const int s = r.Scale();
-  auto px = [&](const std::vector<std::uint8_t> &p, int x, int y) {
-    const std::size_t at = (static_cast<std::size_t>(y * s) * static_cast<std::size_t>(640 * s) +
-                            static_cast<std::size_t>(x * s)) * 4;
-    return at + 2 < p.size() ? std::array<int, 3>{p[at], p[at + 1], p[at + 2]} : std::array<int, 3>{-1, -1, -1};
-  };
-  char what[200];
-  r.SetShadows(0);
-  const auto plain = scene(false, false);
-  const unsigned before = r.Stats().shadowPasses;
-  const auto offMarked = scene(true, false);
-  std::snprintf(what, sizeof(what), "shadows (%s): off (release builds), the core's mark changes no byte, no pass", tag);
-  Check(offMarked == plain && r.Stats().shadowPasses == before, what);
-  r.SetShadows(1);
-  const auto onUnmarked = scene(false, false);
-  std::snprintf(what, sizeof(what), "shadows (%s): on without the core's mark (no foot shadow light, not in play): no "
-                "byte changed, no pass", tag);
-  Check(onUnmarked == plain && r.Stats().shadowPasses == before, what);
-  const auto on = scene(true, false);
-  // the shadow: the figure's right edge (x 360) seen 2 m away, its shadow on the wall 1 m behind moves 0.3 m right,
-  // about 32 game pixels at 3 m
-  const auto wallBeside = px(on, 375, 264), wallBesideOff = px(plain, 375, 264);
-  const auto wallFar = px(on, 100, 100), figure = px(on, 320, 264), hud = px(on, 580, 60);
-  std::fprintf(stderr, "  shadows (%s): wall beside the figure %d (off %d), far wall %d, figure %d, HUD %d\n", tag,
-               wallBeside[0], wallBesideOff[0], wallFar[0], figure[0], hud[0]);
-  std::snprintf(what, sizeof(what), "shadows (%s): on, one pass, the figure's shadow on the wall beside it", tag);
-  Check(r.Stats().shadowPasses == before + 1 && wallBeside[0] < wallBesideOff[0] - 30 &&
-            wallBeside[0] > wallBesideOff[0] / 4,
-        what);
-  std::snprintf(what, sizeof(what), "shadows (%s): on, the wall away from it, the figure itself and the HUD as drawn",
-                tag);
-  Check(wallFar == px(plain, 100, 100) && figure == px(plain, 320, 264) && hud == px(plain, 580, 60) &&
-            px(on, 250, 264) == px(plain, 250, 264),
-        what);
-  const unsigned beforeStill = r.Stats().shadowPasses;
-  const auto still = scene(true, true);
-  std::snprintf(what, sizeof(what), "shadows (%s): none on a menu screen of the game", tag);
-  Check(r.Stats().shadowPasses == beforeStill && px(still, 375, 264) == wallBesideOff, what);
-  r.SetShadows(0);
-  const auto offAgain = scene(true, false);
-  std::snprintf(what, sizeof(what), "shadows (%s): off again, as drawn", tag);
-  Check(offAgain == plain, what);
-}
-
+// Real-time shadows of the figures (debug builds only until after 1.0; GxCore::ShadowMark): a grey wall 3 m away, a
+// figure (owner tag with RE4_GX_OWNER_FIGURE) 2 m away in front of it, the core's mark after them with a light shining
+// into the picture and a little to the right. On: the figure's shadow on the wall to its right, the figure itself and
+// the wall away from it as drawn. Off (every release build) or without the core's mark: the picture byte for byte as
+// without the mark, no pass. None on a menu screen of the game (RE4_GX_CHUNK_STILL).
+void TestShadows(re4gx::GxRenderer &r, const char *tag) {
+  const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255};
+  auto scene = [&](bool mark, bool still) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    b.Owner(0x80001000u, 0x80002000u, 0x0B);  // the room
+    QuadAt(b, 0, 0, 640, 528, 3000.0f, kWall);
+    b.Owner(0x80001100u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // a figure
+    QuadAt(b, 280, 200, 360, 330, 2000.0f, kFigure);
+    b.Owner(0, 0, 0xFF);
+    if (mark) {
+      // the light along (0.3, 0, -1) in view space, the strength of a bright foot shadow light (200 of 255)
+      const float l = std::sqrt(0.3f * 0.3f + 1.0f);
+      const float d[3] = {0.3f / l, 0.0f, -1.0f / l};
+      std::uint32_t p[4];
+      std::memcpy(&p[0], &d[0], 4);
+      std::memcpy(&p[1], &d[1], 4);
+      std::memcpy(&p[2], &d[2], 4);
+      p[3] = 200;
+      b.Op(RE4_GX_OP_SHADOW, p, 4);
+    }
+    // the HUD after the mark: orthographic, untouched
+    b.XfF(0x1020, {1.0f / 320.0f, -1.0f, -2.0f / 528.0f, 1.0f, -1.0f, -1.0f});
+    b.Xf(0x1026, {1});
+    b.Bp(0x40, 0);
+    Quad(b, 560, 40, 600, 80, 0, kWhite);
+    if (still)
+      b.flags |= RE4_GX_CHUNK_STILL;
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&rgba, &w, &h), "shadows: the display copy read back");
+    return rgba;
+  };
+  const int s = r.Scale();
+  auto px = [&](const std::vector<std::uint8_t> &p, int x, int y) {
+    const std::size_t at = (static_cast<std::size_t>(y * s) * static_cast<std::size_t>(640 * s) +
+                            static_cast<std::size_t>(x * s)) * 4;
+    return at + 2 < p.size() ? std::array<int, 3>{p[at], p[at + 1], p[at + 2]} : std::array<int, 3>{-1, -1, -1};
+  };
+  char what[200];
+  r.SetShadows(0);
+  const auto plain = scene(false, false);
+  const unsigned before = r.Stats().shadowPasses;
+  const auto offMarked = scene(true, false);
+  std::snprintf(what, sizeof(what), "shadows (%s): off (release builds), the core's mark changes no byte, no pass", tag);
+  Check(offMarked == plain && r.Stats().shadowPasses == before, what);
+  r.SetShadows(1);
+  const auto onUnmarked = scene(false, false);
+  std::snprintf(what, sizeof(what), "shadows (%s): on without the core's mark (no foot shadow light, not in play): no "
+                "byte changed, no pass", tag);
+  Check(onUnmarked == plain && r.Stats().shadowPasses == before, what);
+  const auto on = scene(true, false);
+  // the shadow: the figure's right edge (x 360) seen 2 m away, its shadow on the wall 1 m behind moves 0.3 m right,
+  // about 32 game pixels at 3 m
+  const auto wallBeside = px(on, 375, 264), wallBesideOff = px(plain, 375, 264);
+  const auto wallFar = px(on, 100, 100), figure = px(on, 320, 264), hud = px(on, 580, 60);
+  std::fprintf(stderr, "  shadows (%s): wall beside the figure %d (off %d), far wall %d, figure %d, HUD %d\n", tag,
+               wallBeside[0], wallBesideOff[0], wallFar[0], figure[0], hud[0]);
+  std::snprintf(what, sizeof(what), "shadows (%s): on, one pass, the figure's shadow on the wall beside it", tag);
+  Check(r.Stats().shadowPasses == before + 1 && wallBeside[0] < wallBesideOff[0] - 30 &&
+            wallBeside[0] > wallBesideOff[0] / 4,
+        what);
+  std::snprintf(what, sizeof(what), "shadows (%s): on, the wall away from it, the figure itself and the HUD as drawn",
+                tag);
+  Check(wallFar == px(plain, 100, 100) && figure == px(plain, 320, 264) && hud == px(plain, 580, 60) &&
+            px(on, 250, 264) == px(plain, 250, 264),
+        what);
+  const unsigned beforeStill = r.Stats().shadowPasses;
+  const auto still = scene(true, true);
+  std::snprintf(what, sizeof(what), "shadows (%s): none on a menu screen of the game", tag);
+  Check(r.Stats().shadowPasses == beforeStill && px(still, 375, 264) == wallBesideOff, what);
+  r.SetShadows(0);
+  const auto offAgain = scene(true, false);
+  std::snprintf(what, sizeof(what), "shadows (%s): off again, as drawn", tag);
+  Check(offAgain == plain, what);
+}
+
 void TestAutofocus(re4gx::GxRenderer &r, bool multisampled = false) {
   char tag[64];
   std::snprintf(tag, sizeof(tag), "autofocus%s%s", multisampled ? " (multisampled)" : "",
