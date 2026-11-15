@@ -147,7 +147,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         root.addView(message, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
-        view.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        fullScreen();
 
         // the discs: installed by the app's installer (OuyaInstaller), else the developer's folder of
         // port/scripts/ouya-app.ps1 (disc 1 as /sdcard/RE4-OUYA/disc0), else the installer
@@ -171,6 +171,36 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
 
     private File existing;  // the discs installed before, while the installer runs again
 
+    /**
+     * The whole screen (15.11.2026: on a Retroid the picture had grey stripes at its sides): the system bars hidden for
+     * good (immersive, Android 4.4 and later; before only the navigation until a touch), and from Android 9 on into
+     * the camera cutout. The manifest lets the window take any aspect up to 2.4 (an app for Android 4.1 got at most
+     * 1.86 otherwise).
+     */
+    @SuppressWarnings("deprecation")
+    private void fullScreen() {
+        int flags = View.SYSTEM_UI_FLAG_LOW_PROFILE | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+        if (android.os.Build.VERSION.SDK_INT >= 19)
+            flags |= View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        getWindow().getDecorView().setSystemUiVisibility(flags);
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            if (lp.layoutInDisplayCutoutMode != WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES) {
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                getWindow().setAttributes(lp);
+            }
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean focus) {
+        super.onWindowFocusChanged(focus);
+        if (focus)
+            fullScreen();
+    }
+
     @Override
     public void cancelled() {
         getSharedPreferences(OuyaInstaller.PREFS, MODE_PRIVATE).edit().putBoolean(OuyaInstaller.AGAIN, false).apply();
@@ -190,12 +220,19 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
 
     /** The app ends and starts again in a moment (the core cannot start a second time in this process) */
     private void restartApp() {
-        android.app.AlarmManager alarms = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
-        android.content.Intent start = new android.content.Intent(this, OuyaActivity.class);
-        alarms.set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 800, android.app.PendingIntent.getActivity(
-                this, 0, start, android.app.PendingIntent.FLAG_CANCEL_CURRENT));
+        // OuyaRestart (a process of its own) opens the app again once this process is gone (15.11.2026: the alarm
+        // before left the OUYA in Android's menu)
+        android.content.Intent start = new android.content.Intent(this, OuyaRestart.class);
+        start.putExtra(OuyaRestart.PID, android.os.Process.myPid());
+        startActivity(start);
+        overridePendingTransition(0, 0);
         finish();
-        android.os.Process.killProcess(android.os.Process.myPid());
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                android.os.Process.killProcess(android.os.Process.myPid());
+            }
+        }, 300);
     }
 
     @Override

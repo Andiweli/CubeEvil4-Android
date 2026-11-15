@@ -68,12 +68,11 @@ final class OuyaInstaller extends ScrollView {
             this.release = release;
         }
 
-        /** What the list shows: the disc and the release (or the game ID of an RVZ) */
-        String what() {
+        /** The release (or the game ID of an RVZ) and the format */
+        String releaseText() {
             if (release != null)
-                return "Disc " + disc + ", " + GameCubeDisc.releaseTitle(release) + (rvz ? " (RVZ)" : "");
-            return "Disc " + disc + ", " + ("G4BJ08".equals(id) ? "Japanese or Korean" : "US release or debug build")
-                    + " (RVZ)";
+                return GameCubeDisc.releaseTitle(release) + (rvz ? ", RVZ" : ", ISO");
+            return ("G4BJ08".equals(id) ? "Japanese or Korean" : "US release or debug build") + ", RVZ";
         }
 
         /** An image of the same release can be disc 2 to this disc 1 (an RVZ by its game ID until unpacked) */
@@ -229,23 +228,30 @@ final class OuyaInstaller extends ScrollView {
         found.clear();
         for (File root : storages())
             look(root, 0);
-        // disc 1 to install: the first one with a disc 2 of its release, else the first one
+        // disc 1 to install: the first complete bundle (an ISO before an RVZ: nothing to unpack), else the first one
         chosen = null;
-        for (Found f : found)
-            if (f.disc == 1 && chosen == null && secondFor(f) != null)
-                chosen = f;
-        for (Found f : found)
-            if (f.disc == 1 && chosen == null)
-                chosen = f;
+        for (int pass = 0; pass < 3 && chosen == null; pass++)
+            for (Found f : found)
+                if (f.disc == 1 && chosen == null && (pass == 2 || secondFor(f) != null && f.rvz == (pass == 1)))
+                    chosen = f;
         show();
     }
 
-    /** A disc 2 image of the release of disc 1 `f`, or null */
+    /** The disc 2 that belongs to disc 1 `f` (the bundle, wish of the project owner, 15.11.2026): of its release, the
+     *  same format in the same folder first, then the same format, then any; null when there is none */
     private Found secondFor(Found f) {
-        for (Found g : found)
-            if (g.disc == 2 && f.matches(g.id, g.release))
+        Found sameFormat = null, any = null;
+        for (Found g : found) {
+            if (g.disc != 2 || !f.matches(g.id, g.release))
+                continue;
+            if (g.rvz == f.rvz && g.file.getParentFile() != null && g.file.getParentFile().equals(f.file.getParentFile()))
                 return g;
-        return null;
+            if (g.rvz == f.rvz && sameFormat == null)
+                sameFormat = g;
+            if (any == null)
+                any = g;
+        }
+        return sameFormat != null ? sameFormat : any;
     }
 
     private void look(File dir, int depth) {
@@ -300,15 +306,19 @@ final class OuyaInstaller extends ScrollView {
             body.addView(again, cell());
         } else {
             heading("Found");
+            // only the disc 1 images, each with its disc 2 as a bundle (wish of the project owner, 15.11.2026)
             int ones = 0;
             for (Found f : found)
                 if (f.disc == 1)
                     ones++;
             if (ones > 1)
-                help("Several disc 1 images: choose the one to install (disc 2 of its release comes along).");
+                help("Choose the discs to install:");
             for (final Found f : found) {
-                String what = f.what() + "   " + f.file.getName();
-                if (ones > 1 && f.disc == 1) {
+                if (f.disc != 1)
+                    continue;
+                String what = (secondFor(f) != null ? "Disc bundle 1+2" : "Disc 1 only") + ", " + f.releaseText()
+                        + "   " + f.file.getName();
+                if (ones > 1) {
                     // a choice: the disc 1 to install
                     final Button pick = button((f == chosen ? "\u2713 " : "") + what, new OnClickListener() {
                         @Override
@@ -325,15 +335,16 @@ final class OuyaInstaller extends ScrollView {
                     body.addView(pick, cell());
                     continue;
                 }
-                boolean used = f.disc == 1 ? f == chosen : chosen != null && chosen.matches(f.id, f.release);
                 TextView row = text(what, 15, false);
-                row.setTextColor(used ? INK : MUTED);
+                row.setTextColor(INK);
                 row.setSingleLine(true);
                 row.setPadding(dp(7), dp(2), dp(7), dp(2));
                 body.addView(row);
             }
             if (chosen == null)
-                help("No disc 1 among them: disc 1 is needed.");
+                help("Only disc 2 found: disc 1 is needed.");
+            else if (secondFor(chosen) == null)
+                help("Without disc 2 the game runs up to the end of disc 1; disc 2 can be added later.");
         }
         heading("Install to");
         LinearLayout targets = new LinearLayout(getContext());
@@ -437,11 +448,15 @@ final class OuyaInstaller extends ScrollView {
             throw new IOException("Disc 1 was not among the images");
         List<Found> order = new ArrayList<Found>();
         order.add(chosen);
+        // its disc 2 (the bundle), then any other of its release in case that one does not fit
+        Found second = secondFor(chosen);
+        if (second != null)
+            order.add(second);
         for (Found f : found)
-            if (f.disc == 2 && !f.rvz && chosen.matches(f.id, f.release))
+            if (f.disc == 2 && f != second && !f.rvz && chosen.matches(f.id, f.release))
                 order.add(f);
         for (Found f : found)
-            if (f.disc == 2 && f.rvz && chosen.matches(f.id, f.release))
+            if (f.disc == 2 && f != second && f.rvz && chosen.matches(f.id, f.release))
                 order.add(f);
         File incoming = new File(root, ".incoming");
         for (Found f : order) {

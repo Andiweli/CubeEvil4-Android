@@ -773,3 +773,11 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
   Datei aus 0.99.17; ebenfalls nichts Neueres als Android 4.1), Button-Stil RE (Symbole) voreingestellt.
   „Leistungskerne nutzen“ der Haupt-App ist auf der OUYA nicht nötig: der Tegra 3 hat vier gleiche Kerne (der
   fünfte Stromspar-Kern wird vom System selbst geschaltet), es gibt keine schnelleren, an die man binden könnte.
+- **15.11.2026, nach Tests des Projektinhabers:** Installer zeigt nur noch Disc 1 je Fassung und Format als
+  **„Disc bundle 1+2“** (Disc 2 derselben Fassung, gleiches Format, gleicher Ordner zuerst, kommt automatisch mit)
+  oder „Disc 1 only“; geprüft werden ISO/GCM und RVZ (Disc-Kennung im RVZ-Kopf bei 0x58). „Andere Discs importieren“
+  und „Alle Daten löschen“ starten die App über `OuyaRestart` (eigener Prozess, wartet bis der alte weg ist) neu statt
+  über einen Wecker: auf der OUYA blieb man damit im Android-Menü, ab Android 10 darf ein Wecker kein Fenster öffnen.
+  Breite Bildschirme (Retroid): `android.max_aspect`/`maxAspectRatio` 2.4, `resizeableActivity`, Vollbild mit
+  ausgeblendeten Systemleisten (ab Android 4.4 dauerhaft) und ab Android 9 bis in die Kamera-Aussparung; vorher bekam
+  die App für Android 4.1 höchstens das Seitenverhältnis 1,86 (graue Streifen). Auf den Geräten noch nicht geprüft.
