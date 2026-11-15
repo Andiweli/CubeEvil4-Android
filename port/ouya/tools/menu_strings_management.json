@@ -20,7 +20,7 @@
     "ouya_no_browser": "Kein Webbrowser auf diesem Gerät. Die Adresse: %1$s",
     "ouya_light_detail": "Detailliertes Licht",
     "ouya_light_help": "Detailliertes Licht: aus beleuchtet die Umgebung einmal je Objekt statt an jedem Punkt (Figuren behalten ihres); auf der OUYA deutlich schneller, Boden und Bäume wirken etwas flacher. Wirkt sofort.",
-    "ouya_source_only": "Diese Version und auch die Android-Vollversion zu CubeEvil4 ist nur hier verfügbar.\\nVermeidet den Download von Fremdseiten oder Spieleplattformen."
+    "ouya_source_only": "Diese Version und auch die Android-Vollversion zu CubeEvil4 ist nur hier verfügbar.\\nVermeide den Download von Fremdseiten oder Spieleplattformen."
   },
   "values-fr": {
     "ouya_card_help": "Exporter les données de jeu : les sauvegardes au format .gci (pour Dolphin ou GameCube), ou tout dans un .zip (sauvegardes et sauvegarde instantanée ; CubeEvil4 sur un téléphone le lit aussi). Les fichiers vont dans le dossier CubeEvil4-Potato sur le support des données du jeu ; l’importation liste les fichiers .gci et .zip qui s’y trouvent et dans le dossier Download. Supprimer toutes les données vide la carte mémoire.",
