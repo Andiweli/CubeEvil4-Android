@@ -3,9 +3,12 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstring>
 
 #include <fcntl.h>
+#include <pthread.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -270,6 +273,92 @@ bool TexPack::Read(const c4tex::Entry &e, unsigned firstLevel, std::vector<std::
 std::string TexPack::Info(const std::string &key) const {
   auto it = info_.find(key);
   return it == info_.end() ? std::string() : it->second;
+}
+
+TexLoader::TexLoader(std::shared_ptr<const TexPack> pack, std::size_t maxReady)
+    : pack_(std::move(pack)), maxReady_(maxReady ? maxReady : 1) {
+  thread_ = std::thread([this] { Loop(); });
+}
+
+TexLoader::~TexLoader() {
+  {
+    std::lock_guard<std::mutex> lock(m_);
+    stop_ = true;
+  }
+  cv_.notify_all();
+  if (thread_.joinable())
+    thread_.join();
+}
+
+void TexLoader::Add(const Job &job) {
+  {
+    std::lock_guard<std::mutex> lock(m_);
+    jobs_.push_back(job);
+  }
+  cv_.notify_all();
+}
+
+bool TexLoader::Take(Done &out) {
+  {
+    std::lock_guard<std::mutex> lock(m_);
+    if (ready_.empty())
+      return false;
+    out = std::move(ready_.front());
+    ready_.pop_front();
+    readyBytes_ -= std::min(readyBytes_, out.data.size());
+  }
+  cv_.notify_all();  // room for the next read
+  return true;
+}
+
+void TexLoader::Cancel() {
+  {
+    std::lock_guard<std::mutex> lock(m_);
+    jobs_.clear();
+    ready_.clear();
+    readyBytes_ = 0;
+    epoch_++;
+  }
+  cv_.notify_all();
+}
+
+std::size_t TexLoader::Waiting() const {
+  std::lock_guard<std::mutex> lock(m_);
+  return jobs_.size() + ready_.size() + (reading_ ? 1 : 0);
+}
+
+std::size_t TexLoader::ReadyBytes() const {
+  std::lock_guard<std::mutex> lock(m_);
+  return readyBytes_;
+}
+
+void TexLoader::Loop() {
+#ifdef __linux__
+  pthread_setname_np(pthread_self(), "re4-hd-load");
+  setpriority(PRIO_PROCESS, 0, 10);  // (this thread: below the game and the renderer)
+#endif
+  std::unique_lock<std::mutex> lock(m_);
+  for (;;) {
+    cv_.wait(lock, [this] { return stop_ || (!jobs_.empty() && readyBytes_ < maxReady_); });
+    if (stop_)
+      return;
+    Done d;
+    d.job = jobs_.front();
+    jobs_.pop_front();
+    const std::uint64_t epoch = epoch_;
+    reading_ = true;
+    lock.unlock();
+    const auto start = std::chrono::steady_clock::now();
+    d.ok = pack_ && pack_->Read(d.job.entry, d.job.first, d.data);
+    d.readUs = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count());
+    lock.lock();
+    reading_ = false;
+    if (epoch == epoch_ && !stop_) {
+      readyBytes_ += d.data.size();
+      ready_.push_back(std::move(d));
+    }
+  }
 }
 
 }  // namespace re4gx

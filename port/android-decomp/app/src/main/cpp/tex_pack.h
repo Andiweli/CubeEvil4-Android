@@ -3,11 +3,15 @@
 // The file is only read (pread); the texels go to the GPU as they are (ETC2 / EAC).
 #pragma once
 
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "c4tex.h"
@@ -65,5 +69,52 @@ class TexPack {
 
 // bytes of an entry's levels from `firstLevel` on, and the first of them's size
 std::size_t LevelsBytes(const c4tex::Entry &e, unsigned firstLevel, unsigned *width = nullptr, unsigned *height = nullptr);
+
+// T4 (0.99.18, port/docs/textur-lader-plan.md "Nachladen ohne Ruckeln"): the replacements read on a thread of their
+// own, so the render thread never waits for the pack file. GxCore::UploadHd asks for an entry (Add) and shows the
+// game's own texture meanwhile; at the start of a chunk GxCore::ApplyHd takes the finished reads (Take) and puts them
+// on the GPU in place of the game's. At most `maxReady` bytes wait read and not yet taken (the thread waits then):
+// the memory a busy render thread could otherwise pile up on a weak device. The thread runs below the game and the
+// renderer.
+class TexLoader {
+ public:
+  struct Job {
+    std::uint64_t key = 0, ticket = 0;  // the game texture's key, GxCore's ticket for this request
+    c4tex::Entry entry{};
+    unsigned first = 0;                 // the first level read (Sharpness: Half)
+  };
+  struct Done {
+    Job job;
+    std::vector<std::uint8_t> data;
+    bool ok = false;
+    std::uint64_t readUs = 0;  // the read's time on the loader thread
+  };
+  TexLoader(std::shared_ptr<const TexPack> pack, std::size_t maxReady);
+  ~TexLoader();
+  TexLoader(const TexLoader &) = delete;
+  TexLoader &operator=(const TexLoader &) = delete;
+
+  void Add(const Job &job);
+  // the oldest finished read; false: none yet
+  bool Take(Done &out);
+  // queued and finished reads go (a read under way is dropped when it ends)
+  void Cancel();
+  // requests not yet taken (queued, being read, finished) and the bytes finished
+  std::size_t Waiting() const;
+  std::size_t ReadyBytes() const;
+
+ private:
+  void Loop();
+  std::shared_ptr<const TexPack> pack_;
+  std::size_t maxReady_;
+  mutable std::mutex m_;
+  std::condition_variable cv_;
+  std::deque<Job> jobs_;
+  std::deque<Done> ready_;
+  std::size_t readyBytes_ = 0;
+  std::uint64_t epoch_ = 0;
+  bool reading_ = false, stop_ = false;
+  std::thread thread_;
+};
 
 }  // namespace re4gx

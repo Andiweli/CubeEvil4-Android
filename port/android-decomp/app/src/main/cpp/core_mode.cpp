@@ -2337,13 +2337,16 @@ bool drawGx() {
     static unsigned loggedLookups = 0;
     static std::chrono::steady_clock::time_point loggedAt;
     const auto at = std::chrono::steady_clock::now();
-    if (st.hdLookups != loggedLookups && at - loggedAt > std::chrono::seconds(5)) {
-      loggedLookups = st.hdLookups;
+    // (the replacements read in the background count too: they come after their lookups)
+    if (st.hdLookups + st.hdSwapped != loggedLookups && at - loggedAt > std::chrono::seconds(5)) {
+      loggedLookups = st.hdLookups + st.hdSwapped;
       loggedAt = at;
       LOG("HD textures so far: %u of %u replaced, %u over the budget, %u not readable, %.1f MB on the GPU; key %.0f ms, "
-          "reading %.0f ms, GPU upload %.0f ms",
+          "reading %.0f ms, GPU upload %.0f ms; in the background (0.99.18): %u read, %zu waiting, %u dropped, the "
+          "loader read %.0f ms, longest wait %.0f ms",
           st.hdTextures, st.hdLookups, st.hdOverBudget, st.hdReadErrors, st.hdBytesNow / 1048576.0, st.hdKeyUs / 1000.0,
-          st.hdReadUs / 1000.0, st.hdUploadUs / 1000.0);
+          st.hdReadUs / 1000.0, st.hdUploadUs / 1000.0, st.hdSwapped, st.hdWaitingNow, st.hdStale,
+          st.hdLoaderReadUs / 1000.0, st.hdWaitMaxUs / 1000.0);
     }
   }
   static const int crtEnv = getenv("RE4_GX_CRT") ? atoi(getenv("RE4_GX_CRT")) : 0;

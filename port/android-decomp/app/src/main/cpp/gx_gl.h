@@ -57,6 +57,12 @@ struct GxStats {
   std::size_t hdBytesNow = 0;
   // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)
   std::uint64_t hdKeyUs = 0, hdReadUs = 0, hdUploadUs = 0;
+  // T4 (0.99.18), the reads in the background: asked for, put in place of the game's texture, dropped (the texture or
+  // the pack went first); waiting now; the loader thread's reading (not the render thread's) and the longest wait
+  // from the request to the replacement on the screen (microseconds)
+  unsigned hdQueued = 0, hdSwapped = 0, hdStale = 0;
+  std::size_t hdWaitingNow = 0;
+  std::uint64_t hdLoaderReadUs = 0, hdWaitMaxUs = 0;
   // 0.99.14: the render thread's loading (microseconds, summed): HD textures (UploadHd), shader programs (GL) and
   // shaders and pipelines (Vulkan) made on it. "Dynamic" (gx_auto_level.h) does not judge a window with much of it:
   // pictures late while it loads are not the resolution's doing

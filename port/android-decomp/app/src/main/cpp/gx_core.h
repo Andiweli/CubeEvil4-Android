@@ -75,6 +75,12 @@ struct Texture {
 };
 
 class TexPack;
+class TexLoader;
+}  // namespace re4gx
+namespace c4tex {
+struct Entry;
+}
+namespace re4gx {
 
 // An EFB copy to a texture: the texels as the matching texture format reads
 // them (8-bit copies as I8: value in all four channels; two-channel copies as
@@ -237,8 +243,27 @@ struct GxCore {
   bool texPackActive = false, texturesDropped = false;
   std::vector<std::uint8_t> hdData;  // a replacement's texels on their way to the GPU
   void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
-  // the replacement of the texture Upload is at (into tex); false: none, keep the game's
+  // the replacement of the texture Upload is at (into tex); false: none (or not read yet), keep the game's
   bool UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex);
+  // T4 (0.99.18): the replacements read in the background (TexLoader): UploadHd asks for the read and the game's own
+  // texture shows meanwhile; ApplyHd, at the start of each chunk, puts the finished ones on the GPU in its place
+  // (within `budgetMs`, at least one). hdWaiting: the textures asked for (by key), each with its ticket and the bytes
+  // of the budget kept for it (hdReserved). RE4_TEX_PACK_SYNC=1: read on the render thread as before (tests).
+  struct HdWait {
+    std::uint64_t ticket = 0;
+    std::size_t reserved = 0;
+    std::chrono::steady_clock::time_point since;
+  };
+  std::shared_ptr<TexLoader> hdLoader;
+  std::unordered_map<std::uint64_t, HdWait> hdWaiting;
+  std::size_t hdReserved = 0;
+  std::uint64_t hdTicket = 0;
+  void ApplyHd(double budgetMs);
+  void CancelHd();
+  // a read replacement onto the GPU (ETC2, or decoded where the API cannot take it): `gameW` x `gameH` the game's
+  // texture; false when the API failed or the decoded levels do not fit the budget
+  bool PutHd(const c4tex::Entry &e, unsigned first, unsigned gameW, unsigned gameH, const std::vector<std::uint8_t> &data,
+             Texture &tex);
   std::unordered_map<std::uint32_t, Copy> copies;  // by destination address
   std::unordered_map<std::uint64_t, Texture> paletted; // copies read through a palette
   bool dofStrong = false;

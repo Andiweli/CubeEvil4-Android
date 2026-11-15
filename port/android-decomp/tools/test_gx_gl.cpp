@@ -23,6 +23,9 @@
 #include "gx_selfcheck.h"
 #include "gx_texture.h"
 #include "re4_gx_frame.h"
+#include "c4tex.h"
+#include "etc2.h"
+#include "tex_pack.h"
 #include "texture.h"
 
 #include <EGL/egl.h>
@@ -4867,6 +4870,155 @@ void TestPrewarm() {
   rmdir(folder);
 }
 
+// T4 (0.99.18): HD replacements read in the background (GxCore::UploadHd, re4gx::TexLoader, GxCore::ApplyHd). A pack
+// made here holds one replacement, 8x8 ETC2 red, for a 4x4 RGBA8 game texture that is blue. The first picture shows
+// the game's own texture and asks for the read, a later one the replacement; a reset while a read waits drops it and
+// the next picture asks again; the loader keeps at most its limit read and not taken, and Cancel empties it. GL looks
+// at the pixels, Vulkan (lavapipe takes no ETC2: the decoded levels) at the counts.
+std::string MakeHdPack(const std::vector<std::uint8_t> &game, unsigned format, unsigned w, unsigned h,
+                       std::uint8_t red, std::uint8_t green, std::uint8_t blue, re4gx::TexKey *key) {
+  *key = re4gx::DolphinKey(format, w, h, false, game.data(), re4gx::GxTextureLevelBytes(format, w, h), nullptr, 0);
+  std::vector<std::uint8_t> rgba(8 * 8 * 4);
+  for (int i = 0; i < 64; i++) {
+    rgba[i * 4] = red;
+    rgba[i * 4 + 1] = green;
+    rgba[i * 4 + 2] = blue;
+    rgba[i * 4 + 3] = 255;
+  }
+  std::vector<std::uint8_t> data;
+  etc2::EncodeLevel(etc2::kRgb, rgba.data(), 8, 8, 0, data);
+  const std::string info = "name=gx_gl_check\n";
+  c4tex::Header head{};
+  std::memcpy(head.magic, c4tex::kMagic, 8);
+  head.version = c4tex::kVersion;
+  head.headerBytes = c4tex::kHeaderBytes;
+  head.entryCount = 1;
+  head.entryBytes = c4tex::kEntryBytes;
+  head.infoOffset = c4tex::kHeaderBytes;
+  head.infoBytes = static_cast<std::uint32_t>(info.size());
+  head.dataOffset = (c4tex::kHeaderBytes + info.size() + 15) / 16 * 16;
+  head.indexOffset = (head.dataOffset + data.size() + 15) / 16 * 16;
+  head.fileBytes = head.indexOffset + c4tex::kEntryBytes;
+  head.maxSide = 512;
+  c4tex::Entry e{};
+  e.texHash = key->tex;
+  e.origWidth = static_cast<std::uint16_t>(w);
+  e.origHeight = static_cast<std::uint16_t>(h);
+  e.gxFormat = static_cast<std::uint8_t>(format);
+  e.encoding = c4tex::kEtc2Rgb;
+  e.levels = 1;
+  e.width = 8;
+  e.height = 8;
+  e.dataCrc = c4tex::Crc32(data.data(), data.size());
+  e.dataOffset = head.dataOffset;
+  e.dataBytes = static_cast<std::uint32_t>(data.size());
+  head.indexCrc = c4tex::Crc32(&e, sizeof(e));
+  head.headerCrc = c4tex::HeaderCrc(head);
+  std::vector<std::uint8_t> file(head.fileBytes, 0);
+  std::memcpy(file.data(), &head, sizeof(head));
+  std::memcpy(file.data() + head.infoOffset, info.data(), info.size());
+  std::memcpy(file.data() + head.dataOffset, data.data(), data.size());
+  std::memcpy(file.data() + head.indexOffset, &e, sizeof(e));
+  const std::string path = "/tmp/re4-gx-hd-check-" + std::to_string(getpid()) + ".c4tex";
+  FILE *f = std::fopen(path.c_str(), "wb");
+  Require(f && std::fwrite(file.data(), 1, file.size(), f) == file.size(), "HD background: the test pack written");
+  std::fclose(f);
+  return path;
+}
+
+void TestHdBackground(re4gx::GxApi api, const char *name) {
+  // the game's texture: 4x4 RGBA8 (format 6), blue (one tile: AR AR ... then GB GB ...)
+  std::vector<std::uint8_t> game(64);
+  for (int i = 0; i < 16; i++) {
+    game[i * 2] = 255, game[i * 2 + 1] = 0;          // A, R
+    game[32 + i * 2] = 0, game[32 + i * 2 + 1] = 255;  // G, B
+  }
+  re4gx::TexKey key;
+  const std::string path = MakeHdPack(game, 6, 4, 4, 255, 0, 0, &key);
+  auto pack = std::make_shared<re4gx::TexPack>();
+  std::string error;
+  Require(pack->Open(path, &error), ("HD background: the test pack opens: " + error).c_str());
+  const c4tex::Entry *entry = pack->Find(key);
+  Require(entry != nullptr, "HD background: the test pack has the game texture's replacement");
+  const std::string what = std::string("HD background (") + name + "): ";
+  const bool gl = api == re4gx::GxApi::kGl;
+  {
+    re4gx::GxRenderer r(api);
+    Require(r.Init(1, &error), error.c_str());
+    r.SetTexturePack(pack, 0, 64u << 20);
+    auto run = [&](bool reset, bool withData) {
+      Builder b;
+      Baseline(b);
+      if (!reset)
+        b.flags = 0;
+      DisplayCopy(b, true, kBlack);
+      b.Bp(0x00, 1u | 1u << 4);
+      b.Xf(0x103F, {1});
+      b.Xf(0x1040, {5u << 7});
+      b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+      b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);  // colour = texture
+      b.Bp(0x80, 0);
+      b.Bp(0x84, 0);
+      b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+      b.Bp(0x30, 3);
+      b.Bp(0x31, 3);
+      b.Texture(0, 0x5678, 0, 0x100000, 4, 4, 6, withData ? game : std::vector<std::uint8_t>{});
+      std::vector<std::uint8_t> v;
+      VT(v, 100, 100, 0, kWhite, 0, 0);
+      VT(v, 164, 100, 0, kWhite, 1, 0);
+      VT(v, 164, 164, 0, kWhite, 1, 1);
+      VT(v, 100, 164, 0, kWhite, 0, 1);
+      b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+      r.Run(b.Chunk());
+    };
+    auto settle = [] { std::this_thread::sleep_for(std::chrono::milliseconds(300)); };
+    run(true, true);
+    Check(r.Stats().hdQueued == 1 && r.Stats().hdWaitingNow == 1 && r.Stats().hdTextures == 0,
+          (what + "the first picture asks for the read and does not wait for it").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 0, 0, 255), (what + "meanwhile the game's own texture (blue)").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().hdSwapped == 1 && r.Stats().hdTextures == 1 && r.Stats().hdWaitingNow == 0,
+          (what + "a later picture puts the replacement in place").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "then the replacement shows (red)").c_str());
+    Check(r.Stats().missingTextures == 0 && r.Stats().hdReadErrors == 0, (what + "nothing missing, read").c_str());
+    // a reset while a read waits: dropped, the next picture asks again, the one after shows it
+    run(true, true);
+    run(true, true);
+    Check(r.Stats().hdQueued == 3 && r.Stats().hdWaitingNow == 1, (what + "a reset drops the waiting read").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().hdSwapped == 2 && r.Stats().hdWaitingNow == 0, (what + "after the reset the replacement again").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "red again after the reset").c_str());
+    r.Release();
+  }
+  if (gl) {
+    // the loader alone: at most its limit read and not taken (here 1 byte: one read, then it waits), Cancel empties it
+    re4gx::TexLoader loader(pack, 1);
+    for (int i = 0; i < 3; i++) {
+      re4gx::TexLoader::Job job;
+      job.key = static_cast<std::uint64_t>(i);
+      job.ticket = static_cast<std::uint64_t>(i + 1);
+      job.entry = *entry;
+      loader.Add(job);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    Check(loader.ReadyBytes() == entry->dataBytes && loader.Waiting() == 3,
+          "HD background: the loader reads one and waits while it is not taken");
+    re4gx::TexLoader::Done d;
+    Check(loader.Take(d) && d.ok && d.data.size() == entry->dataBytes && d.job.ticket == 1,
+          "HD background: the first read taken, its bytes");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    Check(loader.ReadyBytes() == entry->dataBytes && loader.Waiting() == 2, "HD background: then the next one");
+    loader.Cancel();
+    Check(loader.Waiting() == 0 && loader.ReadyBytes() == 0 && !loader.Take(d), "HD background: Cancel empties it");
+  }
+  std::remove(path.c_str());
+}
+
 int main() {
   // the rules alone, without a GPU (RE4_CHECK_RULES=1: Dynamic and the benchmark's steps, quick to run)
   if (const char *rules = std::getenv("RE4_CHECK_RULES")) {
@@ -4905,8 +5057,10 @@ int main() {
   TestAutoLevelGpu();
   TestBenchSteps();
   TestHandOverCopies();
+  TestHdBackground(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN
   if (VulkanStarts()) {
+    TestHdBackground(re4gx::GxApi::kVulkan, "Vulkan");
     TestVkRescale();
     TestVkHandOverCopies();
     TestVkOverlay();

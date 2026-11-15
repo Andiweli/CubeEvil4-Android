@@ -21,7 +21,7 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
   mit dem linken Stick mancher Controller, alte importierte Spielstände mit vertauschten Räumen. Ihre Zeilen in den
   Known issues bleiben, weil sie weiter stimmen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
-  Sprachen, zwei neue Stufen der Sichtweite (Nah, Weit), HD-Texturen im Hintergrund laden (T4).
+  Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
 
 ## Version 0.99.18-rc (in Arbeit, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc)
 
@@ -32,7 +32,7 @@ Projektinhaber aus b6025eb9); seine Sitzung führt `master` in `E:\Development\A
 Release-APK `CubeEvil4-0.99.18-Android.apk`. Nächste freie Patchnummer weiter 0233.
 
 Aufgaben in dieser Reihenfolge (Hauptsitzung, 15.11.2026): 1. „Abbrechen“ statt „Abbruch“ in allen Sprachen;
-2. Sichtweite „Nah“ und „Weit“; 3. T4, HD-Texturen im Hintergrund laden.
+2. Sichtweite „Sehr kurz“ und „Weit“; 3. T4, HD-Texturen im Hintergrund laden.
 
 ### 1. „Abbrechen“ statt „Abbruch“ (Projektinhaber, 15.11.2026)
 
@@ -111,6 +111,64 @@ Original hinter seinem Nebel versteckt.
 - **Nicht geprüft:** auf einem Gerät; EU- und US-Discs (der Kern rechnet aus denselben Raumdaten); Vulkan eigens (der
   Kern zeichnet weniger oder mehr, für beide Renderer gleich); r101 selbst, r104, r22b, r316 (beim Debug-Start nicht
   frei); je Raum nur eine Stelle und eine Drehung.
+
+### 3. T4: HD-Texturen im Hintergrund laden (Projektinhaber, 15.11.2026)
+
+Bisher las `GxCore::UploadHd` ein Ersatzbild beim ersten Gebrauch sofort auf dem Zeichen-Thread aus der Paketdatei
+(`TexPack::Read`, `pread`) und lud es hoch: der erste Blick in einen Raum wartete auf alle seine Ersatzbilder
+(Known issue seit 0.99.12). Plan: `port/docs/textur-lader-plan.md`, Schritt T4.
+
+- **Messung vorher** (am PC, Pakete des Inhabers aus `builds\textures`, nach WSL kopiert, Linux-Dateicache vor jedem Lauf
+  geleert; 300 aufeinanderfolgende GX-Bilder ab dem Raumstart, `RE4_GX_DUMP_SERIES`, gezeichnet mit `gx_chunk_render`
+  GLES; Skripte `rc-hd_series.sh`, `rc-hd_measure.sh`, `rc-hd_compare.ps1`, `rc-hd_table.py` im Notizordner): fast
+  alles fällt in das erste Bild des Raums, das beim Einblenden fast schwarz ist (Helligkeit 6 von 255) – aber kein
+  schwarzes Bild des Spiels (`VISetBlack`): Warten „bei schwarzem Bild“ wie im Plan hätte es nicht getroffen.
+- **Gebaut:**
+  - `re4gx::TexLoader` (`tex_pack.h/.cpp`): ein eigener Faden („re4-hd-load“, Priorität unter Spiel und Renderer) liest
+    die angefragten Ersatzbilder; höchstens 24 MB (32 bit) bzw. 64 MB (64 bit) gelesen und noch nicht hochgeladen, dann
+    wartet er (Speicher auf schwachen Geräten); `Cancel` verwirft Warteschlange und Fertiges.
+  - `GxCore::UploadHd`: findet es ein Ersatzbild, fragt es den Lader und gibt dem Spiel bis dahin dessen eigenes Bild
+    (keine Unschärfe-Stufe, das Original); das Budget des Grafikspeichers hält den Platz frei (`hdReserved`).
+  - `GxCore::ApplyHd` am Anfang jedes Bildes (nicht im Zwischenbild von 60 FPS): fertige Ersatzbilder auf die GPU und
+    an die Stelle des Originals, höchstens 4 ms je Bild, 12 ms solange 32 oder mehr warten (Raumanfang), 50 ms bei
+    schwarzem Bild (`RE4_TEX_PACK_APPLY_MS`). Ein Raumwechsel (Reset) oder ein anderes Paket verwirft Wartendes, ein
+    vom Spiel freigegebenes Bild auch (`Forget`).
+  - Die Ersatzbilder ändern nur den Sampler (`lodShift`), keinen Shader: das Einsetzen baut kein Programm und keine
+    Vulkan-Pipeline. Vulkan löscht das Original erst nach dem laufenden Bild (`Trash`).
+  - Protokoll („HD textures so far …; in the background: … read, … waiting, … dropped, the loader read … ms, longest
+    wait … ms“), `gx_chunk_render` je Bild „HD later: …“. `RE4_TEX_PACK_SYNC=1`: wie bisher (Vergleich).
+  - Nicht gebaut: das „Gedächtnis je Raum“ des Plans (Vorladen beim nächsten Besuch); nach der Messung nicht nötig.
+- **Messung vorher/nachher** (HD-Arbeit auf dem Zeichen-Thread: Lesen + Hochladen; je Raum das schlimmste Bild und
+  alles in den 300 Bildern; neu dazu: nach wie vielen Bildern alle Ersatzbilder da sind; Tabelle auch in
+  `E:\Development\Android\builds\release-candidate\hd-background\measurements.txt`):
+
+  | Raum | 512 bisher | 512 neu | 1024 bisher | 1024 neu |
+  |---|---|---|---|---|
+  | Bauernhof r103 | 1306 ms / 1917 ms | 15 ms / 156 ms, alle nach 14 Bildern | 2270 / 2797 ms | 34 / 606 ms, 40 Bilder |
+  | Burg r200 | 771 / 1845 ms | 31 / 215 ms, 15 Bilder | 1072 / 2412 ms | 24 / 614 ms, 25 Bilder |
+  | Insel r300 | 1526 / 2585 ms | 13 / 149 ms, 10 Bilder | 1128 / 2575 ms | 30 / 601 ms, 35 Bilder |
+  | Dorf r400 (Mercenaries) | 1959 / 2608 ms | 15 / 236 ms, 20 Bilder | 2720 / 3360 ms | 28 / 928 ms, 59 Bilder |
+
+  Neu bleibt auf dem Zeichen-Thread nur das Hochladen; am PC entpackt die Software-Grafik (llvmpipe) ETC2 selbst und
+  ist dabei langsam; ein Handy gibt ETC2 dem Grafikchip, wie es ist (schneller). Bei 30 Bildern je Sekunde sind alle
+  Ersatzbilder mit 512 nach 0,3–0,7 s da, mit 1024 nach 0,8–2 s, am PC durch das langsame Hochladen begrenzt, am
+  Handy durch das Lesen. Die Insel lief, während daneben die Vulkan-Prüfung mit zwei Kernen übersetzt wurde: ihre
+  Hochladezeiten können etwas zu hoch sein. Gesamtzeiten je Bild („Run“) taugen am PC nicht zum Vergleich: die
+  Software-Grafik baut im ersten Raumbild Shader, mit geleertem Dateicache sogar aus dem Programm-Cache neu
+  (Sekunden in beiden Fassungen).
+- **Gleiches Ergebnis:** das 150. und das letzte Bild jeder Serie sind mit beiden Wegen gleich (0 Bildpunkte anders, 4
+  Räume × 512/1024): am Ende stehen dieselben Ersatzbilder. Bilder des Einblendens (Bauernhof, 512, oben bisher, unten
+  neu): `builds\release-candidate\hd-background\farm-r103-fade-in-512.png`: die HD-Bilder kommen zwischen Bild 506 und
+  518 dazu, während die Szene noch dunkel ist.
+- **Geprüft am PC:** `gx_gl_check` (WSL, Baum `~/re4-rc`, GL und Vulkan mit lavapipe) 0 failed, neu
+  `TestHdBackground` mit einem Paket, das die Prüfung selbst schreibt (4×4-Spielbild blau, 8×8-Ersatz rot): erst das
+  Original, später der Ersatz, ein Reset verwirft das Wartende, Vulkan über den entpackten Ersatzweg; der Lader liest
+  höchstens bis zu seiner Grenze vor, `Cancel` leert ihn. Gegenprobe mit `RE4_TEX_PACK_SYNC=1` (der alte Weg): 5
+  Prüfungen schlagen an. App-Tests 177 je Variante grün, `:app:externalNativeBuildCoreDebug` (beide ABIs) ohne neue
+  Warnung. Der Spielkern ist unverändert.
+- **Nicht geprüft:** auf einem Gerät (Lesen vom Flash-Speicher, echtes ETC2-Hochladen, schwache Geräte mit wenig
+  Speicher, Vulkan auf dem Gerät); EU- und US-Discs (dieselbe Kennung je Bild, der Weg ist gleich); ein Raumwechsel
+  mitten im Spiel über eine Tür (gemessen ab dem Debug-Start eines Raums).
 
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 

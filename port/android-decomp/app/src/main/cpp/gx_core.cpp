@@ -1328,6 +1328,12 @@ void GxCore::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstL
     DropTextures();
     texturesDropped = true;
   }
+  // T4 (0.99.18): a loader thread for this pack (none for the old one; RE4_TEX_PACK_SYNC=1: none, the render thread
+  // reads as before). Read and not yet on the GPU at most 24 MB in the 32-bit app, 64 MB in the 64-bit one.
+  static const bool sync = std::getenv("RE4_TEX_PACK_SYNC") && *std::getenv("RE4_TEX_PACK_SYNC") == '1';
+  hdLoader.reset();
+  if (texPackActive && !sync)
+    hdLoader = std::make_shared<TexLoader>(texPack, (sizeof(void *) == 4 ? 24u : 64u) << 20);
 }
 void GxCore::SetCrt(int level) { this->crtLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 void GxCore::SetColour(int mode, int level) {
@@ -1526,6 +1532,16 @@ void GxCore::Run(const Re4GxChunk &chunk) {
   if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
     m.stats.resets++;
     m.DropTextures();
+  }
+  // T4 (0.99.18): the HD replacements read in the background since the last chunk take their game textures' place,
+  // for at most 4 ms of GPU uploads a chunk (RE4_TEX_PACK_APPLY_MS), three times that while 32 or more wait (a room's
+  // first pictures: they are in place sooner), 50 ms while the screen is black
+  if (!m.interpPass && m.hdLoader) {
+    static const double applyMs = [] {
+      const char *v = std::getenv("RE4_TEX_PACK_APPLY_MS");
+      return v && *v ? std::atof(v) : 4.0;
+    }();
+    m.ApplyHd(m.viBlack ? std::max(applyMs, 50.0) : m.hdWaiting.size() >= 32 ? applyMs * 3 : applyMs);
   }
   const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
   m.uploadedBy = nullptr;
@@ -2311,6 +2327,12 @@ void GxCore::Forget(std::uint64_t key) {
     DeleteTexture(it->second.id);
     textures.erase(it);
   }
+  // its replacement, if still being read, is not wanted any more (ApplyHd drops the read)
+  auto w = hdWaiting.find(key);
+  if (w != hdWaiting.end()) {
+    hdReserved -= std::min(hdReserved, w->second.reserved);
+    hdWaiting.erase(w);
+  }
 }
 
 void GxCore::DropTextures() {
@@ -2323,6 +2345,62 @@ void GxCore::DropTextures() {
   for (auto &t : paletted)
     DeleteTexture(t.second.id);
   paletted.clear();
+  CancelHd();
+}
+
+void GxCore::CancelHd() {
+  if (hdLoader)
+    hdLoader->Cancel();
+  hdWaiting.clear();
+  hdReserved = 0;
+  stats.hdWaitingNow = 0;
+}
+
+void GxCore::ApplyHd(double budgetMs) {
+  if (!hdLoader)
+    return;
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point start = Clock::now();
+  TexLoader::Done d;
+  bool any = false;
+  while ((!any || std::chrono::duration<double, std::milli>(Clock::now() - start).count() < budgetMs) &&
+         hdLoader->Take(d)) {
+    any = true;
+    stats.hdLoaderReadUs += d.readUs;
+    auto w = hdWaiting.find(d.job.key);
+    if (w == hdWaiting.end() || w->second.ticket != d.job.ticket) {
+      stats.hdStale++;  // forgotten, or asked for again since
+      continue;
+    }
+    hdReserved -= std::min(hdReserved, w->second.reserved);
+    const Clock::time_point since = w->second.since;
+    hdWaiting.erase(w);
+    auto it = textures.find(d.job.key);
+    if (it == textures.end()) {
+      stats.hdStale++;
+      continue;
+    }
+    if (!d.ok) {
+      stats.hdReadErrors++;
+      continue;
+    }
+    Texture tex;
+    if (!PutHd(d.job.entry, d.job.first, it->second.width, it->second.height, d.data, tex))
+      continue;
+    // the game's own texture goes, the replacement takes its key
+    Touched();
+    hdBytes -= it->second.hdBytes;
+    DeleteTexture(it->second.id);
+    it->second = tex;
+    hdBytes += tex.hdBytes;
+    stats.hdBytesNow = hdBytes;
+    stats.hdTextures++;
+    stats.hdSwapped++;
+    const std::uint64_t waited = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - since).count());
+    stats.hdWaitMaxUs = std::max(stats.hdWaitMaxUs, waited);
+  }
+  stats.hdWaitingNow = hdWaiting.size();
 }
 
 void GxCore::EfbCopy(std::uint32_t control) {
@@ -2798,8 +2876,29 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     first--;
   unsigned w = 0, h = 0;
   const std::size_t need = LevelsBytes(*e, first, &w, &h);
-  if (hdBytes + need > texPackBudget) {
+  const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
+  if (hdLoader && hdWaiting.count(key))
+    return false;  // asked for already: the game's own texture until it is read
+  if (hdBytes + hdReserved + need > texPackBudget) {
     stats.hdOverBudget++;
+    return false;
+  }
+  // T4 (0.99.18): read in the background, the game's own texture until then (ApplyHd puts the replacement in its place)
+  if (hdLoader) {
+    HdWait wait;
+    wait.ticket = ++hdTicket;
+    wait.reserved = need;
+    wait.since = Clock::now();
+    hdWaiting[key] = wait;
+    hdReserved += need;
+    TexLoader::Job job;
+    job.key = key;
+    job.ticket = wait.ticket;
+    job.entry = *e;
+    job.first = first;
+    hdLoader->Add(job);
+    stats.hdQueued++;
+    stats.hdWaitingNow = hdWaiting.size();
     return false;
   }
   if (!texPack->Read(*e, first, hdData)) {
@@ -2809,15 +2908,29 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
   const Clock::time_point t2 = Clock::now();
   stats.hdReadUs += us(t1, t2);
   stats.loadUs += us(t1, t2);
-  const unsigned levels = e->levels - first;
+  if (!PutHd(*e, first, t.width, t.height, hdData, tex))
+    return false;
+  stats.hdTextures++;
+  return true;
+}
+
+bool GxCore::PutHd(const c4tex::Entry &e, unsigned first, unsigned gameW, unsigned gameH,
+                   const std::vector<std::uint8_t> &data, Texture &tex) {
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point t0 = Clock::now();
+  unsigned w = 0, h = 0;
+  const std::size_t need = LevelsBytes(e, first, &w, &h);
+  if (data.size() < need)
+    return false;
+  const unsigned levels = e.levels - first;
   std::size_t gpuBytes = need;
-  unsigned id = BeginCompressed(e->encoding, w, h, levels);
+  unsigned id = BeginCompressed(e.encoding, w, h, levels);
   if (id) {
     std::size_t at = 0;
     unsigned lw = w, lh = h;
     for (unsigned l = 0; l < levels; l++) {
-      const std::size_t b = c4tex::LevelBytes(e->encoding, lw, lh);
-      CompressedLevel(id, l, lw, lh, hdData.data() + at, b);
+      const std::size_t b = c4tex::LevelBytes(e.encoding, lw, lh);
+      CompressedLevel(id, l, lw, lh, data.data() + at, b);
       at += b;
       lw = std::max(1u, lw / 2);
       lh = std::max(1u, lh / 2);
@@ -2833,7 +2946,7 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     gpuBytes = 0;
     for (unsigned l = 0, lw = w, lh = h; l < levels; l++, lw = std::max(1u, lw / 2), lh = std::max(1u, lh / 2))
       gpuBytes += static_cast<std::size_t>(lw) * lh * 4;
-    if (hdBytes + gpuBytes > texPackBudget) {
+    if (hdBytes + hdReserved + gpuBytes > texPackBudget) {
       stats.hdOverBudget++;
       return false;
     }
@@ -2844,32 +2957,33 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     unsigned lw = w, lh = h;
     for (unsigned l = 0; l < levels; l++) {
       decoded.resize(static_cast<std::size_t>(lw) * lh * 4);
-      etc2::DecodeLevel(static_cast<etc2::Kind>(e->encoding), hdData.data() + at, lw, lh, decoded.data());
+      etc2::DecodeLevel(static_cast<etc2::Kind>(e.encoding), data.data() + at, lw, lh, decoded.data());
       TextureLevel(id, l, lw, lh, decoded.data());
-      at += c4tex::LevelBytes(e->encoding, lw, lh);
+      at += c4tex::LevelBytes(e.encoding, lw, lh);
       lw = std::max(1u, lw / 2);
       lh = std::max(1u, lh / 2);
     }
   }
   EndTexture(id, levels);
   {
-    const std::uint64_t up = us(t2, Clock::now());
+    const std::uint64_t up = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - t0).count());
     stats.hdUploadUs += up;
     stats.loadUs += up;
   }
   tex.id = id;
-  tex.width = t.width;
-  tex.height = t.height;
+  tex.width = gameW;
+  tex.height = gameH;
   tex.levels = levels;
   // how many levels finer than the game's texture (the sampler's levels move by it)
-  const float sx = static_cast<float>(w) / static_cast<float>(t.width ? t.width : 1);
-  const float sy = static_cast<float>(h) / static_cast<float>(t.height ? t.height : 1);
+  const float sx = static_cast<float>(w) / static_cast<float>(gameW ? gameW : 1);
+  const float sy = static_cast<float>(h) / static_cast<float>(gameH ? gameH : 1);
   tex.lodShift = std::max(0.0f, std::log2(std::max(sx, sy)));
   tex.hdBytes = static_cast<std::uint32_t>(gpuBytes);
+  static const bool logKeys = std::getenv("RE4_TEX_PACK_LOG") && *std::getenv("RE4_TEX_PACK_LOG") == '1';
   if (logKeys)
-    GXLOG("texture pack: the game's %ux%u shown as %ux%u (the pack's level %u of %ux%u)", t.width, t.height, w, h, first,
-          static_cast<unsigned>(e->width), static_cast<unsigned>(e->height));
-  stats.hdTextures++;
+    GXLOG("texture pack: the game's %ux%u shown as %ux%u (the pack's level %u of %ux%u)", gameW, gameH, w, h, first,
+          static_cast<unsigned>(e.width), static_cast<unsigned>(e.height));
   return true;
 }
 
