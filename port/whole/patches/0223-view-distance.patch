@@ -4,7 +4,8 @@
 # returns (re4_view_fog: the fog's start and end scaled by the menu's level, the far plane from that end as the game
 # computes it from the room's; rooms without fog, type 0, unchanged): what lies beyond the nearer fog is not drawn
 # (scenery, figures, effects). Since 0.99.18 (wish of the project owner, 15.11.2026) re4_view_fog also makes the fog
-# dense at a nearer far plane (the OUYA branch's patch 0901) and decides the level "Far". LightEnv.Fog itself is not
+# dense at a nearer far plane (the OUYA branch's patch 0901) and decides the level "Far" (since 0.99.19 the fog's end
+# times 1.6, the far plane where that fog is 95 % dense; the project owner, 15.11.2026). LightEnv.Fog itself is not
 # changed (the interpolation between two cuts reads it every frame). A new choice in the menu takes effect at once:
 # hokanMove, which the light manager runs every frame, sets the fog again when the level changed and no interpolation
 # runs (one that runs sets it itself). At "Normal": exactly as the game.

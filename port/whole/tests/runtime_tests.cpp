@@ -2166,18 +2166,26 @@ static void testViewFog()
     // ... a 20 m fog (7 m at 35 %): dense at 6 m, not at its far plane of 2.8 m
     run(0.35f, 1, 5, 0.6f, 0.0f, 20000.0f, o);
     if (!near(o[1], 6000.0f) || !near(o[2], 7000.0f * 0.4f + 1.0f)) bad |= 1 << 6;
-    // Far: the fog as the room's, the far plane where the linear fog is 95 % dense
-    run(1.5f, 1, 2, 0.6f, -7075.0f, 175030.0f, o);
-    if (o[0] != -7075.0f || o[1] != 175030.0f || !near(o[2], -7075.0f + 0.95f * 182105.0f + 1.0f)) bad |= 1 << 7;
-    // ... an exp2 fog (type 5): 95 % at sqrt(log2(20) / 8) of the way
-    run(1.5f, 1, 5, 0.6f, -1100.0f, 106900.0f, o);
-    if (!near(o[2], -1100.0f + sqrtf(log2f(20.0f) / 8.0f) * 108000.0f + 1.0f) || o[1] != 106900.0f) bad |= 1 << 8;
-    // ... a room that already draws to its fog's end (far_play_ratio 0, the castle): unchanged
-    run(1.5f, 1, 4, 0.0f, -1700.0f, 508600.0f, o);
-    if (o[2] != 508600.0f + 1.0f || o[1] != 508600.0f) bad |= 1 << 9;
-    // ... never nearer than the game's far plane (a reverse exp fog is dense only at its end; ratio 0.1)
-    run(1.5f, 1, 6, 0.1f, 0.0f, 100000.0f, o);
-    if (o[2] < 100000.0f * 0.9f + 1.0f || o[2] > 100001.0f) bad |= 1 << 10;
+    // Far (since 0.99.19, 160 %): the fog's end times 1.6, its start the room's, the far plane where that linear fog
+    // is 95 % dense (the village)
+    run(1.6f, 1, 2, 0.6f, -7075.0f, 175030.0f, o);
+    if (o[0] != -7075.0f || !near(o[1], 175030.0f * 1.6f) ||
+        !near(o[2], -7075.0f + 0.95f * (175030.0f * 1.6f + 7075.0f) + 1.0f)) bad |= 1 << 7;
+    // ... an exp2 fog (type 5, the forest): 95 % at sqrt(log2(20) / 8) of the way
+    run(1.6f, 1, 5, 0.6f, -1100.0f, 106900.0f, o);
+    if (!near(o[2], -1100.0f + sqrtf(log2f(20.0f) / 8.0f) * (106900.0f * 1.6f + 1100.0f) + 1.0f) ||
+        !near(o[1], 106900.0f * 1.6f) || o[0] != -1100.0f) bad |= 1 << 8;
+    // ... a room that already drew to its fog's end (far_play_ratio 0, the castle): an exp fog is 95 % dense at 54 %
+    // of the longer way, short of the game's far plane, which stays; the fog ends further out
+    run(1.6f, 1, 4, 0.0f, -1700.0f, 508600.0f, o);
+    if (o[2] != 508600.0f + 1.0f || !near(o[1], 508600.0f * 1.6f)) bad |= 1 << 9;
+    // ... a reverse exp fog (dense only near its end; ratio 0.1): out to 95 % of the longer fog, short of its end
+    run(1.6f, 1, 6, 0.1f, 0.0f, 100000.0f, o);
+    if (!near(o[2], (1.0f + log2f(0.95f) / 8.0f) * 160000.0f + 1.0f) || o[2] > 160001.0f) bad |= 1 << 10;
+    // ... 0.99.18's Far (farMode 2, measurements): the room's fog, only the far plane out
+    o[0] = -7075.0f; o[1] = 175030.0f; o[2] = 175030.0f * 0.4f + 1.0f;
+    re4_view_fog_at(1.5f, 1, 2, 0.95f, 2, 0.6f, &o[0], &o[1], &o[2]);
+    if (o[1] != 175030.0f || !near(o[2], -7075.0f + 0.95f * 182105.0f + 1.0f)) bad |= 1 << 13;
     // the curves: no fog at the start, all at the end, 95 % for each type where GX's formula says
     const int types[] = {2, 4, 5, 6, 7};
     for (int t : types) {

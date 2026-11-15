@@ -7,20 +7,19 @@
 // between two cuts reads it each frame). A new choice takes effect at once: hokanMove sets the fog again when
 // re4_view_distance_changed says so.
 //
-// The factor: re4_core_set_view_distance (percent; the menu sends 100 "Normal", 75 "Medium", 50 "Short", since 0.99.18
-// 35 "Very short", the OUYA's own setting, and 150 "Far") or RE4_VIEW_DISTANCE=f at the start. At 1: the game's values
-// unchanged. Rooms without fog (type 0, mostly indoors) keep their view at every level.
+// The factor: re4_core_set_view_distance (percent; the menu sends 100 "Normal", 65 "Medium" (75 until 0.99.18), 50
+// "Short", since 0.99.18 35 "None" (the OUYA's own setting, "Very short" at first) and 160 "Far" (150 in 0.99.18)) or
+// RE4_VIEW_DISTANCE=f at the start. At 1: the game's values unchanged. Rooms without fog (type 0, mostly indoors) keep
+// their view at every level.
 // - Below 1: start and end times f, the end not below kMinEnd (a room's own end below it stays), the far plane from
-//   that end as the game does. Below Short (kDenseBelow, "Very short") the GPU's fog then ends at the far plane (the
-//   OUYA branch's patch 0901): where the game stops drawing the fog is dense, so houses do not vanish from a thin fog.
-// - Above 1 ("Far", 0.99.18): the room's fog stays as it is; only the far plane moves out, to where that fog is
-//   kFarDensity dense, never past the fog's end. Many outdoor rooms stop drawing at 20-60 % of their fog's end
-//   (LightEnv.far_play_ratio 0.3-0.8: the village 70 of 175 m, where the linear fog is 42 % dense); there trees and
-//   houses no longer pop out of a half-thin fog. Nothing the room's fog hides is shown: what lies beyond its end stays
-//   undrawn, and its thickness is the game's. Rooms that already draw to the fog's end (ratio 0: most of the castle
-//   and of the island) stay as they are. Measured on the PC with the debug discs (port/docs/whole-program-status.md,
-//   0.99.18): pushing the fog itself out (RE4_VIEW_FAR_MODE=scale) showed the island's sky and far shores the fog
-//   hides and was left out.
+//   that end as the game does. Below Short (kDenseBelow, "None") the GPU's fog then ends at the far plane (the OUYA
+//   branch's patch 0901): where the game stops drawing the fog is dense, so houses do not vanish from a thin fog.
+// - Above 1 ("Far", since 0.99.19, the project owner's choice after the analysis in port/docs/whole-program-status.md,
+//   0.99.19 section 1): the fog's end times f, its start as the room's, and the far plane out to where that fog is
+//   kFarDensity dense (never nearer than the game's own, never past the fog's end). The view reaches further in every
+//   room with fog (the forest's half-dense distance 37 -> 60 m). 0.99.18's Far kept the room's fog and only moved the
+//   far plane; in rooms with a dense fog at the game's far plane (forest, gorge, lake) that drew up to twice as much
+//   behind walls and in the fog and showed nothing more (RE4_VIEW_FAR_MODE=keep, measurements).
 //
 // Checks: one log line for each new fog the GPU gets ("view: ..."), at most kLogLines; RE4_VIEW_LOG=1 logs the
 // room's fog at "Normal" as well (the measurements for the levels, 0.99.18). Unit check: re4_host --runtime-test
@@ -39,7 +38,7 @@ const float kMinEnd = 6000.0f;  // 6 m (1000 units a metre): the shortest end a 
 const int kLogLines = 300;
 const int kMinPercent = 20, kMaxPercent = 300;
 const float kDenseBelow = 0.5f;  // levels below Short's 50 % ("Very short") get the GPU's fog dense at the far plane
-const float kFarDensity = 0.95f; // "Far": the far plane out to where the room's fog is this dense
+const float kFarDensity = 0.95f; // "Far": the far plane out to where its fog is this dense
 
 std::atomic<int> gPercent(-1);   // -1: not read yet (RE4_VIEW_DISTANCE)
 std::atomic<int> gChanged(0);    // set by the menu, taken by re4_view_distance_changed (the game thread)
@@ -135,8 +134,9 @@ extern "C" float re4_view_fog_reach(int type, float start, float end, float dens
 
 // The fog the GPU gets and the far plane (patch 0223): `start`, `end` the room's fog (LightEnv.Fog) in, the GPU's out;
 // `farPlane` the game's (end * (1 - farRatio) + 1) in, the one to cull against out. Type 0 (no fog): unchanged.
-// `farMode` (f above 1, measurements): 0 the far plane out to where the fog is `farDensity` dense, the fog as the
-// room's; 1 the fog's start and end times f as below 1 (the far plane follows)
+// `farMode` (f above 1): 0 "Far", the fog's end times f, its start kept, the far plane out to where that fog is
+// `farDensity` dense; (measurements) 1 the fog's start and end times f as below 1 (the far plane follows), 2 0.99.18's
+// Far, the room's fog kept and only the far plane out to where it is `farDensity` dense
 extern "C" void re4_view_fog_at(float f, int dense, int farMode, float farDensity, int type, float farRatio,
                                 float* start, float* end, float* farPlane)
 {
@@ -144,12 +144,14 @@ extern "C" void re4_view_fog_at(float f, int dense, int farMode, float farDensit
     if (type == 0 || f == 1.0f || e <= 0.0f) {
         return;
     }
-    if (f > 1.0f && farMode == 0) {
-        float reach = re4_view_fog_reach(type, s, e, farDensity) + 1.0f;
-        reach = reach > e + 1.0f ? e + 1.0f : reach;
+    if (f > 1.0f && farMode != 1) {
+        const float ne = farMode == 2 ? e : e * f;
+        float reach = re4_view_fog_reach(type, s, ne, farDensity) + 1.0f;
+        reach = reach > ne + 1.0f ? ne + 1.0f : reach;
         if (reach > *farPlane) {
             *farPlane = reach;
         }
+        *end = ne;
         return;
     }
     float ne = e * f;
@@ -186,11 +188,12 @@ extern "C" void re4_view_fog(int type, float farRatio, float* start, float* end,
         denseMode = v && *v ? atoi(v) : 1;
     }
     const int dense = denseMode == 2 ? 1 : denseMode == 1 ? f < kDenseBelow : 0;
-    static int farMode = -1;  // (measurements) RE4_VIEW_FAR_MODE=scale: "Far" scales the fog as the shorter levels do
+    // (measurements) RE4_VIEW_FAR_MODE=scale: "Far" scales the fog as the shorter levels do; keep: 0.99.18's Far
+    static int farMode = -1;
     static float farDensity = kFarDensity;  // (measurements) RE4_VIEW_FAR_DENSITY
     if (farMode < 0) {
         const char* v = getenv("RE4_VIEW_FAR_MODE");
-        farMode = v && strcmp(v, "scale") == 0 ? 1 : 0;
+        farMode = v && strcmp(v, "scale") == 0 ? 1 : v && strcmp(v, "keep") == 0 ? 2 : 0;
         const char* d = getenv("RE4_VIEW_FAR_DENSITY");
         if (d && *d) {
             farDensity = (float) atof(d);
