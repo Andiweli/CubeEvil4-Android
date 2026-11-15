@@ -206,13 +206,37 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         startGame(data);
     }
 
-    /** The European discs: the game's language from the OUYA's (as the main app's default, CoreActivity) */
-    private static int gameLanguage(File data) {
+    /** The European discs: the game's language, the menu's choice (OuyaMenu.Settings.GAME_LANGUAGE) or the
+     *  device's (as the main app's default, CoreActivity) */
+    private int gameLanguage(File data) {
         if (!GameCubeDisc.EUROPEAN.equals(DiscInstaller.release(new File(data, "disc1"))))
             return 0;
+        return effectiveLanguage(OuyaMenu.Settings.gameLanguage(getSharedPreferences(OuyaMenu.Settings.PREFS,
+                MODE_PRIVATE)));
+    }
+
+    /** RE4_GAME_LANGUAGE of a choice: 2 English .. 6 Italian as they are, 0 (the device's) by the device's language */
+    static int effectiveLanguage(int choice) {
+        if (choice >= 2 && choice <= 6)
+            return choice;
         String language = Locale.getDefault().getLanguage();
         return "de".equals(language) ? 3 : "fr".equals(language) ? 4 : "es".equals(language) ? 5
                 : "it".equals(language) ? 6 : 2;
+    }
+
+    private boolean european;  // the European discs are installed (the menu's game language)
+
+    @Override
+    public boolean gameLanguages() {
+        return european;
+    }
+
+    @Override
+    public void gameLanguageChanged(int language, boolean restart) {
+        getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE).edit().putInt(OuyaMenu.Settings.GAME_LANGUAGE,
+                language).apply();
+        if (restart && running)
+            nativeRestartGame(effectiveLanguage(language));
     }
 
     private File gameData;  // the running game's data folder (the menu's MANAGEMENT)
@@ -227,6 +251,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         gameData = data;
         startTouch();
         final int language = gameLanguage(data);
+        european = language != 0;
         message.setText("Starting the game ...");
         settingsChanged();
         new Thread(new Runnable() {

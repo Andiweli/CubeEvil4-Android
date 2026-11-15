@@ -41,7 +41,9 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         # RetroTouch (wish of the project owner, 15.11.2026): the main app's touch settings
         'ingame_touch_controls', 'ingame_touch_auto', 'ingame_touch_force', 'ingame_touch_suppress',
         'ingame_button_style', 'ingame_button_icons', 'ingame_button_labels', 'ingame_button_style_help',
-        'ingame_touch_help', 'ingame_latch', 'ingame_latch_b', 'ingame_latch_help']
+        'ingame_touch_help', 'ingame_latch', 'ingame_latch_b', 'ingame_latch_help',
+        # the game's language with the European discs (15.11.2026)
+        'ingame_game_language', 'ingame_language_device', 'ingame_language_help', 'ingame_language_restart_text']
 Q = "\\'"  # an apostrophe in an Android string
 own = {
     'values': {
@@ -189,7 +191,7 @@ for d in sorted(os.listdir(src)):
             line = m.group(0).strip()
             if k == 'ingame_title':
                 # the OUYA app's name (decision of the project owner, 14.11.2026)
-                line = line.replace('CubeEvil4', 'CubeEvil4-Potato')
+                line = line.replace('CubeEvil4', 'CubeEvil4 Potato')
             lines.append('    ' + line)
         elif d == 'values':
             sys.exit('missing ' + k)

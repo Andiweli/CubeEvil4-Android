@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4-Potato · Menu en jeu</string>
+    <string name="ingame_title">CubeEvil4 Potato · Menu en jeu</string>
     <string name="ingame_back">Retour au jeu</string>
     <string name="ingame_graphics">Graphismes</string>
     <string name="ingame_resolution">Résolution</string>
@@ -124,6 +124,10 @@
     <string name="ingame_latch">Verrouiller L et R</string>
     <string name="ingame_latch_b">Verrouiller B</string>
     <string name="ingame_latch_help">Verrouiller\u00A0: un appui (bouton ou écran) maintient L, R ou B jusqu’à l’appui suivant (B verrouillé\u00A0: Leon court en permanence).</string>
+    <string name="ingame_game_language">Langue du jeu</string>
+    <string name="ingame_language_device">Langue de l\'appareil</string>
+    <string name="ingame_language_help">La langue des textes et des sous-titres du jeu. Langue de l\'appareil : celle de l\'appareil si le jeu la propose, sinon l\'anglais. Un changement redémarre le jeu.</string>
+    <string name="ingame_language_restart_text">La nouvelle langue s\'applique après un redémarrage du jeu. La progression depuis la dernière sauvegarde est perdue.</string>
     <string name="ouya_cheats">Triches</string>
     <string name="ouya_view_distance">Distance de vue</string>
     <string name="ouya_colours">Calcul des couleurs</string>

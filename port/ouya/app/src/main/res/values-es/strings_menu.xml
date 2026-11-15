@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4-Potato · Menú del juego</string>
+    <string name="ingame_title">CubeEvil4 Potato · Menú del juego</string>
     <string name="ingame_back">Volver al juego</string>
     <string name="ingame_graphics">Gráficos</string>
     <string name="ingame_resolution">Resolución</string>
@@ -124,6 +124,10 @@
     <string name="ingame_latch">Fijar L y R</string>
     <string name="ingame_latch_b">Fijar B</string>
     <string name="ingame_latch_help">Fijar: una pulsación (botón o toque) mantiene L, R o B hasta la siguiente (con B fijado, Leon corre siempre).</string>
+    <string name="ingame_game_language">Idioma del juego</string>
+    <string name="ingame_language_device">Idioma del dispositivo</string>
+    <string name="ingame_language_help">El idioma de los textos y subtítulos del juego. Idioma del dispositivo: el del dispositivo si el juego lo tiene; si no, inglés. Un cambio reinicia el juego.</string>
+    <string name="ingame_language_restart_text">El nuevo idioma se aplica tras reiniciar el juego. Se pierde el progreso desde la última vez que guardaste.</string>
     <string name="ouya_cheats">Trucos</string>
     <string name="ouya_view_distance">Distancia de visión</string>
     <string name="ouya_colours">Cálculo de colores</string>

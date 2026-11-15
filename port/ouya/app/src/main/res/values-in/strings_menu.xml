@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">Menu Dalam Game CubeEvil4-Potato</string>
+    <string name="ingame_title">Menu Dalam Game CubeEvil4 Potato</string>
     <string name="ingame_back">Kembali ke game</string>
     <string name="ingame_graphics">Grafis</string>
     <string name="ingame_resolution">Resolusi</string>
@@ -122,6 +122,10 @@
     <string name="ingame_latch">Kunci L dan R</string>
     <string name="ingame_latch_b">Kunci B</string>
     <string name="ingame_latch_help">Kunci: satu tekanan (tombol atau sentuh) menahan L, R atau B sampai tekanan berikutnya (B terkunci: Leon terus berlari).</string>
+    <string name="ingame_game_language">Bahasa game</string>
+    <string name="ingame_language_device">Bahasa perangkat</string>
+    <string name="ingame_language_help">Bahasa teks dan subtitel game. Bahasa perangkat: bahasa perangkat jika tersedia di game, jika tidak bahasa Inggris. Perubahan akan memulai ulang game.</string>
+    <string name="ingame_language_restart_text">Bahasa baru dipakai setelah game dimulai ulang. Kemajuan sejak penyimpanan terakhir akan hilang.</string>
     <string name="ouya_cheats">Cheat</string>
     <string name="ouya_view_distance">Jarak pandang</string>
     <string name="ouya_colours">Perhitungan warna</string>

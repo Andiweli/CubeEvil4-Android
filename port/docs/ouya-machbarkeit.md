@@ -765,3 +765,11 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
   Layout (Name `cubeevil4`, wie in der Haupt-App), Editor und Button-Stil RE / GC wie dort, MENU öffnet das Menü;
   Festhalten von L/R und B. Abschnitt im Menü nur mit Touchscreen. `OuyaTouch`, `OuyaTouchControls`, `TouchStyle`,
   `TouchShowRule`. Gebaut; auf einem Touch-Gerät noch nicht getestet.
+- **15.11.2026, Wünsche des Projektinhabers:** als Spiel gemeldet (`android:isGame`, `android:appCategory="game"`,
+  dazu wie bisher `tv.ouya.intent.category.GAME`); Name **„CubeEvil4 Potato“** (ohne Bindestrich; der Export-Ordner
+  heißt weiter `CubeEvil4-Potato`); **Spielsprache** mit den EU-Discs ganz unten im Menü (Gerätesprache, Englisch,
+  Deutsch, Französisch, Spanisch, Italienisch; eine andere Sprache startet das Spiel nach Rückfrage neu,
+  `re4ipc_restart_game`; gemerkt als `gameLanguage`, gilt auch beim nächsten Start); RetroTouch 1.0.0-beta.11 (die
+  Datei aus 0.99.17; ebenfalls nichts Neueres als Android 4.1), Button-Stil RE (Symbole) voreingestellt.
+  „Leistungskerne nutzen“ der Haupt-App ist auf der OUYA nicht nötig: der Tegra 3 hat vier gleiche Kerne (der
+  fünfte Stromspar-Kern wird vom System selbst geschaltet), es gibt keine schnelleren, an die man binden könnte.

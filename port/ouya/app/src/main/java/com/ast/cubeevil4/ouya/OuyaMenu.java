@@ -52,6 +52,11 @@ final class OuyaMenu extends Dialog {
         void wipePlayerData();
         /** The game starts over in its process (the extra games' title menu), the language stays. */
         void restartGame();
+        /** The European discs are installed: the game has the languages English .. Italian. */
+        boolean gameLanguages();
+        /** The game's language (0 the device's, 2 English .. 6 Italian, Settings.GAME_LANGUAGE): kept; `restart`: the
+         *  game starts over with it now. */
+        void gameLanguageChanged(int language, boolean restart);
         /** The device has a touch screen (the section "Touch Controls" shows only then). */
         boolean touchAvailable();
         /** RetroTouch's button style is "RE" (icons), not "GC" (labels). */
@@ -89,6 +94,9 @@ final class OuyaMenu extends Dialog {
         static boolean gentleQte(SharedPreferences p) { return p.getBoolean(GENTLE_QTE, true); }
         // RetroTouch (15.11.2026): "Touch Controls" (TouchShowRule AUTO 0, FORCE 1, SUPPRESS 2), the latches
         static final String TOUCH_MODE = "touchMode", TOUCH_LATCH = "touchLatchLR", TOUCH_LATCH_B = "touchLatchB";
+        // the game's language with the European discs (15.11.2026): 0 the device's, 2 English .. 6 Italian
+        static final String GAME_LANGUAGE = "gameLanguage";
+        static int gameLanguage(SharedPreferences p) { return p.getInt(GAME_LANGUAGE, 0); }
         static int touchMode(SharedPreferences p) { return p.getInt(TOUCH_MODE, TouchShowRule.AUTO); }
         static boolean touchLatch(SharedPreferences p) { return p.getBoolean(TOUCH_LATCH, false); }
         static boolean touchLatchB(SharedPreferences p) { return p.getBoolean(TOUCH_LATCH_B, false); }
@@ -704,6 +712,60 @@ final class OuyaMenu extends Dialog {
         sourceLine.setPadding(dp(GAP), dp(2), dp(GAP), dp(2));
         sourceLine.setVisibility(View.GONE);
         body.addView(sourceLine);
+        if (host.gameLanguages())
+            gameLanguage();
+    }
+
+    /** The game's language with the European discs, as in the main app (CoreMenu.gameLanguage): the device's or one
+     *  of the five; another language than now restarts the game (asked first). At the bottom of the menu (wish of
+     *  the project owner, 15.11.2026). */
+    private void gameLanguage() {
+        heading(R.string.ingame_game_language);
+        final String[] labels = {s(R.string.ingame_language_device), "English", "Deutsch", "Français", "Español",
+                "Italiano"};
+        final int[] values = {0, 2, 3, 4, 5, 6};
+        final Button[] buttons = new Button[labels.length];
+        final int now = Settings.gameLanguage(prefs);
+        LinearLayout row = null;
+        for (int i = 0; i < labels.length; i++) {
+            if (i % 3 == 0)
+                row = buttonsRow();
+            final int index = i;
+            buttons[i] = button(labels[i], new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    chooseLanguage(buttons, values, index);
+                }
+            });
+            buttons[i].setSelected(values[i] == now);
+            row.addView(buttons[i], cell());
+        }
+        help(R.string.ingame_language_help);
+    }
+
+    private void chooseLanguage(final Button[] buttons, final int[] values, final int index) {
+        final int was = Settings.gameLanguage(prefs), want = values[index];
+        if (want == was)
+            return;
+        if (OuyaActivity.effectiveLanguage(want) == OuyaActivity.effectiveLanguage(was)) {
+            // the same language for the game (the device's is that one): kept, no restart
+            select(buttons, index);
+            host.gameLanguageChanged(want, false);
+            return;
+        }
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext())
+                .setTitle(R.string.ingame_language_restart_title)
+                .setMessage(R.string.ingame_language_restart_text)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.ingame_restart, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface d, int which) {
+                        select(buttons, index);
+                        dismiss();
+                        host.gameLanguageChanged(want, true);
+                    }
+                }).create();
+        showDialog(dialog, true);
     }
 
     private void cardMessage(final String text) {
@@ -807,10 +869,10 @@ final class OuyaMenu extends Dialog {
 
     private String appVersion() {
         try {
-            return "CubeEvil4-Potato " + getContext().getPackageManager()
+            return "CubeEvil4 Potato " + getContext().getPackageManager()
                     .getPackageInfo(getContext().getPackageName(), 0).versionName;
         } catch (android.content.pm.PackageManager.NameNotFoundException e) {
-            return "CubeEvil4-Potato";
+            return "CubeEvil4 Potato";
         }
     }
 
