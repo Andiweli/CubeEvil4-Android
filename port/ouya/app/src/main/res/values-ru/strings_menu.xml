@@ -113,6 +113,18 @@
     <string name="ingame_import_exists">%1$s уже есть на карте. Заменить?</string>
     <string name="ingame_source">Исходный код и обновления</string>
     <string name="ingame_source_line">Подробнее об этом порте: %1$s</string>
+    <string name="ingame_touch_controls">Сенсорное управление</string>
+    <string name="ingame_touch_auto">Авто</string>
+    <string name="ingame_touch_force">Всегда</string>
+    <string name="ingame_touch_suppress">Скрывать</string>
+    <string name="ingame_button_style">Стиль кнопок</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE: значок того, что делает кнопка (по умолчанию); GC: буквы в цветах GameCube, как раньше. В редакторе (шестерёнка справа вверху) тот же переключатель.</string>
+    <string name="ingame_touch_help">Авто: кнопки видны без контроллера, касание экрана показывает их, нажатие кнопки скрывает. Всегда: кнопки видны всегда. Скрывать: кнопки скрыты, пока подключён контроллер. MENU = SELECT.</string>
+    <string name="ingame_latch">Фиксация L и R</string>
+    <string name="ingame_latch_b">Фиксация B</string>
+    <string name="ingame_latch_help">Фиксация: одно нажатие (кнопки или касание) удерживает L, R или B до следующего нажатия (с фиксацией B Леон всё время бежит).</string>
     <string name="ouya_cheats">Читы</string>
     <string name="ouya_view_distance">Дальность обзора</string>
     <string name="ouya_colours">Расчёт цветов</string>

@@ -110,6 +110,18 @@
     <string name="ingame_import_exists">%1$s sudah ada di kartu. Ganti?</string>
     <string name="ingame_source">Sumber dan pembaruan</string>
     <string name="ingame_source_line">Info lebih lanjut tentang port ini di %1$s</string>
+    <string name="ingame_touch_controls">Kontrol Sentuh</string>
+    <string name="ingame_touch_auto">Otomatis</string>
+    <string name="ingame_touch_force">Selalu</string>
+    <string name="ingame_touch_suppress">Sembunyikan</string>
+    <string name="ingame_button_style">Gaya tombol</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE: simbol untuk fungsi tiap tombol (bawaan); GC: huruf dengan warna GameCube, seperti sebelumnya. Editor (roda gigi di kanan atas) punya pilihan yang sama.</string>
+    <string name="ingame_touch_help">Otomatis: tampil tanpa controller, ketukan menampilkannya, tombol menyembunyikannya. Selalu: selalu tampil. Sembunyikan: tersembunyi selama controller terhubung. MENU = SELECT.</string>
+    <string name="ingame_latch">Kunci L dan R</string>
+    <string name="ingame_latch_b">Kunci B</string>
+    <string name="ingame_latch_help">Kunci: satu tekanan (tombol atau sentuh) menahan L, R atau B sampai tekanan berikutnya (B terkunci: Leon terus berlari).</string>
     <string name="ouya_cheats">Cheat</string>
     <string name="ouya_view_distance">Jarak pandang</string>
     <string name="ouya_colours">Perhitungan warna</string>

@@ -52,6 +52,12 @@ final class OuyaMenu extends Dialog {
         void wipePlayerData();
         /** The game starts over in its process (the extra games' title menu), the language stays. */
         void restartGame();
+        /** The device has a touch screen (the section "Touch Controls" shows only then). */
+        boolean touchAvailable();
+        /** RetroTouch's button style is "RE" (icons), not "GC" (labels). */
+        boolean touchIcons();
+        /** The touch settings changed (Settings), `icons` the button style chosen. */
+        void touchSettingsChanged(boolean icons);
     }
 
     /** The preferences and their defaults: the light OUYA version (port/docs/ouya-machbarkeit.md). */
@@ -81,6 +87,11 @@ final class OuyaMenu extends Dialog {
         /** "Gentler QTEs (Professional)" (runtime/qte_touch.cpp, patch 0232): on by default, as in the main app
          *  (decision of the project owner, 14.11.2026). */
         static boolean gentleQte(SharedPreferences p) { return p.getBoolean(GENTLE_QTE, true); }
+        // RetroTouch (15.11.2026): "Touch Controls" (TouchShowRule AUTO 0, FORCE 1, SUPPRESS 2), the latches
+        static final String TOUCH_MODE = "touchMode", TOUCH_LATCH = "touchLatchLR", TOUCH_LATCH_B = "touchLatchB";
+        static int touchMode(SharedPreferences p) { return p.getInt(TOUCH_MODE, TouchShowRule.AUTO); }
+        static boolean touchLatch(SharedPreferences p) { return p.getBoolean(TOUCH_LATCH, false); }
+        static boolean touchLatchB(SharedPreferences p) { return p.getBoolean(TOUCH_LATCH_B, false); }
         /** The room's light once per draw (the renderer's levelLight): when "Detailed lighting" is off. */
         static boolean simpleLight(SharedPreferences p) { return !p.getBoolean(DETAILED_LIGHT, false); }
         /** The Potato mode's particle effects, a switch since 14.11.2026 (wish of the project owner): on Normal (0),
@@ -208,8 +219,65 @@ final class OuyaMenu extends Dialog {
         help(R.string.ingame_always_run_help);
         help(R.string.ingame_far_camera_help);
         help(R.string.ouya_gentle_qte_help);
+        if (host.touchAvailable())
+            touch();
         cheats();
         management();
+    }
+
+    // --- RetroTouch (wish of the project owner, 15.11.2026; the main app's touch settings) ----------------------
+
+    private void touch() {
+        heading(R.string.ingame_touch_controls);
+        choices(s(R.string.ingame_touch_controls), new String[] {s(R.string.ingame_touch_auto),
+                s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
+                new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, Settings.touchMode(prefs),
+                null);
+        final Button[] mode = lastChoices;
+        for (int i = 0; i < mode.length; i++) {
+            final int index = i, value = i == 0 ? TouchShowRule.AUTO : i == 1 ? TouchShowRule.FORCE : TouchShowRule.SUPPRESS;
+            mode[i].setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    select(mode, index);
+                    prefs.edit().putInt(Settings.TOUCH_MODE, value).apply();
+                    host.touchSettingsChanged(host.touchIcons());
+                }
+            });
+        }
+        final Button[] style = choices(s(R.string.ingame_button_style), new String[] {s(R.string.ingame_button_icons),
+                s(R.string.ingame_button_labels)}, new int[] {1, 0}, host.touchIcons() ? 1 : 0, null);
+        for (int i = 0; i < style.length; i++) {
+            final int index = i;
+            style[i].setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    select(style, index);
+                    host.touchSettingsChanged(index == 0);
+                }
+            });
+        }
+        LinearLayout latches = buttonsRow();
+        touchToggle(latches, R.string.ingame_latch, Settings.TOUCH_LATCH);
+        touchToggle(latches, R.string.ingame_latch_b, Settings.TOUCH_LATCH_B);
+        help(R.string.ingame_touch_help);
+        help(R.string.ingame_button_style_help);
+        help(R.string.ingame_latch_help);
+    }
+
+    private void touchToggle(LinearLayout parent, final int label, final String key) {
+        final Button b = button("", null);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean next = !b.isSelected();
+                toggleLabel(b, label, next);
+                prefs.edit().putBoolean(key, next).apply();
+                host.touchSettingsChanged(host.touchIcons());
+            }
+        });
+        toggleLabel(b, label, prefs.getBoolean(key, false));
+        parent.addView(b, cell());
     }
 
     // --- the cheats (the main app's CoreMenu.cheats, without the characters and the extra games) ---
@@ -422,6 +490,7 @@ final class OuyaMenu extends Dialog {
 
     // --- the instant save (wish of the project owner, 14.11.2026; the main app's CoreMenu.home) ------------
 
+    private Button[] lastChoices;  // the buttons of the last choices() row
     private Button saveSlot, loadSlot;
     private TextView slotDetails, slotDate, slotStatus;
     private boolean slotPresent, working;
@@ -1063,6 +1132,7 @@ final class OuyaMenu extends Dialog {
         // three columns of choices whatever their count (the rows line up)
         for (int i = labels.length; lineUp && i < 3; i++)
             r.addView(new View(getContext()), cell());
+        lastChoices = buttons;
         return buttons;
     }
 

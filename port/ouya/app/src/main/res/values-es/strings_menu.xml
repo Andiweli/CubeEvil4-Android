@@ -112,6 +112,18 @@
     <string name="ingame_import_exists">%1$s ya está en la tarjeta. ¿Reemplazarlo?</string>
     <string name="ingame_source">Código fuente y actualizaciones</string>
     <string name="ingame_source_line">Más sobre este port en %1$s</string>
+    <string name="ingame_touch_controls">Controles táctiles</string>
+    <string name="ingame_touch_auto">Auto</string>
+    <string name="ingame_touch_force">Forzar</string>
+    <string name="ingame_touch_suppress">Ocultar</string>
+    <string name="ingame_button_style">Estilo de botones</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE: un símbolo de lo que hace cada botón (por defecto); GC: las letras con los colores de GameCube, como antes. El editor (el engranaje arriba a la derecha) tiene el mismo interruptor.</string>
+    <string name="ingame_touch_help">Auto: visibles sin mando; un toque los muestra y un botón los oculta. Forzar: siempre visibles. Ocultar: ocultos mientras haya un mando conectado. MENU = SELECT.</string>
+    <string name="ingame_latch">Fijar L y R</string>
+    <string name="ingame_latch_b">Fijar B</string>
+    <string name="ingame_latch_help">Fijar: una pulsación (botón o toque) mantiene L, R o B hasta la siguiente (con B fijado, Leon corre siempre).</string>
     <string name="ouya_cheats">Trucos</string>
     <string name="ouya_view_distance">Distancia de visión</string>
     <string name="ouya_colours">Cálculo de colores</string>

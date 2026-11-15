@@ -115,6 +115,18 @@
     <string name="ingame_import_exists">&#x200F;%1$s موجود على البطاقة بالفعل. هل تريد استبداله؟</string>
     <string name="ingame_source">الشيفرة المصدرية والتحديثات</string>
     <string name="ingame_source_line">المزيد عن هذه النسخة المنقولة على %1$s</string>
+    <string name="ingame_touch_controls">التحكم باللمس</string>
+    <string name="ingame_touch_auto">تلقائي</string>
+    <string name="ingame_touch_force">دائمًا</string>
+    <string name="ingame_touch_suppress">إخفاء</string>
+    <string name="ingame_button_style">نمط الأزرار</string>
+    <string name="ingame_button_icons">‏RE</string>
+    <string name="ingame_button_labels">‏GC</string>
+    <string name="ingame_button_style_help">‏RE: رمز لما يفعله كل زر (الافتراضي)؛ GC: الحروف بألوان GameCube كما كانت. وفي المحرر (الترس أعلى اليمين) الخيار نفسه.</string>
+    <string name="ingame_touch_help">تلقائي: تظهر الأزرار دون يد تحكم، وتُظهرها لمسة على الشاشة، ويُخفيها الضغط على أي زر. دائمًا: تظهر دائمًا. إخفاء: مخفية ما دامت يد التحكم متصلة. MENU = SELECT.</string>
+    <string name="ingame_latch">تثبيت L و R</string>
+    <string name="ingame_latch_b">تثبيت B</string>
+    <string name="ingame_latch_help">التثبيت: ضغطة واحدة (زر أو لمسة) تُبقي L أو R أو B مضغوطًا حتى الضغطة التالية (مع تثبيت B يركض ليون دائمًا).</string>
     <string name="ouya_cheats">الغش</string>
     <string name="ouya_view_distance">مدى الرؤية</string>
     <string name="ouya_colours">حساب الألوان</string>

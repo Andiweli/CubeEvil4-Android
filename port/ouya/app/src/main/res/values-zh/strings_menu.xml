@@ -110,6 +110,18 @@
     <string name="ingame_import_exists">%1$s 已在记忆卡上。是否替换？</string>
     <string name="ingame_source">源代码与更新</string>
     <string name="ingame_source_line">关于此移植版的更多信息：%1$s</string>
+    <string name="ingame_touch_controls">触屏操作</string>
+    <string name="ingame_touch_auto">自动</string>
+    <string name="ingame_touch_force">始终显示</string>
+    <string name="ingame_touch_suppress">隐藏</string>
+    <string name="ingame_button_style">按钮样式</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE：按钮显示其功能的图标（默认）；GC：GameCube 配色的字母，与以前相同。编辑器（右上角的齿轮）里也有同样的开关。</string>
+    <string name="ingame_touch_help">自动：未连接手柄时显示，轻触屏幕即显示，按下任意按键即隐藏。始终显示：一直显示。隐藏：连接手柄时隐藏。MENU = SELECT。</string>
+    <string name="ingame_latch">锁定 L 和 R</string>
+    <string name="ingame_latch_b">锁定 B</string>
+    <string name="ingame_latch_help">锁定：按一次（按键或轻触）即保持按住 L、R 或 B，再按一次松开（锁定 B 时里昂一直奔跑）。</string>
     <string name="ouya_cheats">作弊</string>
     <string name="ouya_view_distance">视距</string>
     <string name="ouya_colours">颜色计算</string>

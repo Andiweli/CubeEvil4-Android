@@ -756,3 +756,12 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
 - **Schalter „Detailliertes Licht“ im Potato-Modus** (Entscheidung des Projektinhabers, 15.11.2026: als neuer Schalter,
   voreingestellt schneller): aus (Voreinstellung) = Licht der Umgebung einmal je Zeichenauftrag
   (`GxOptions::levelLight`), an = je Eckpunkt wie bisher; wirkt sofort (neuer Renderer). Texte in 11 Sprachen.
+- **SELECT** (15.11.2026, Wunsch des Projektinhabers): öffnet und schließt das Menü wie L3 (andere Controller; der
+  OUYA-Controller hat keine SELECT-Taste).
+- **RetroTouch** (15.11.2026, Wunsch des Projektinhabers): die Touch-Steuerung der Haupt-App (`libs/retrotouch.aar`,
+  dieselbe Datei; keiner ihrer 76 Android-Aufrufe ist neuer als Android 4.1, Lint ohne `NewApi`) für die OUYA-APK auf
+  einem Handy oder Tablet mit Android 4.x: nur sichtbar, wo Android einen Touchscreen meldet (die OUYA selbst hat
+  keinen), nach der Einstellung „Touch-Steuerung“ Auto / Immer / Unterdrücken wie in der Haupt-App; Belegung,
+  Layout (Name `cubeevil4`, wie in der Haupt-App), Editor und Button-Stil RE / GC wie dort, MENU öffnet das Menü;
+  Festhalten von L/R und B. Abschnitt im Menü nur mit Touchscreen. `OuyaTouch`, `OuyaTouchControls`, `TouchStyle`,
+  `TouchShowRule`. Gebaut; auf einem Touch-Gerät noch nicht getestet.

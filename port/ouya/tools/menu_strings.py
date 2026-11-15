@@ -37,7 +37,11 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_management', 'ingame_card_busy', 'ingame_card_none', 'ingame_export', 'ingame_export_zip',
         'ingame_import', 'ingame_wipe', 'ingame_wipe_cancel', 'ingame_wipe_yes', 'ingame_exported', 'ingame_imported',
         'ingame_import_no_space', 'ingame_import_busy', 'ingame_import_no_card', 'ingame_import_bad',
-        'ingame_import_exists', 'ingame_source', 'ingame_source_line']
+        'ingame_import_exists', 'ingame_source', 'ingame_source_line',
+        # RetroTouch (wish of the project owner, 15.11.2026): the main app's touch settings
+        'ingame_touch_controls', 'ingame_touch_auto', 'ingame_touch_force', 'ingame_touch_suppress',
+        'ingame_button_style', 'ingame_button_icons', 'ingame_button_labels', 'ingame_button_style_help',
+        'ingame_touch_help', 'ingame_latch', 'ingame_latch_b', 'ingame_latch_help']
 Q = "\\'"  # an apostrophe in an Android string
 own = {
     'values': {

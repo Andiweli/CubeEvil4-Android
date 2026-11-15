@@ -111,6 +111,18 @@
     <string name="ingame_import_exists">%1$s पहले से कार्ड पर है। बदलें?</string>
     <string name="ingame_source">सोर्स कोड और अपडेट</string>
     <string name="ingame_source_line">इस पोर्ट के बारे में और जानकारी: %1$s</string>
+    <string name="ingame_touch_controls">टच नियंत्रण</string>
+    <string name="ingame_touch_auto">ऑटो</string>
+    <string name="ingame_touch_force">हमेशा</string>
+    <string name="ingame_touch_suppress">छिपाएँ</string>
+    <string name="ingame_button_style">बटन शैली</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE: हर बटन के काम का आइकन (डिफ़ॉल्ट); GC: GameCube के रंगों में अक्षर, पहले जैसे। एडिटर (ऊपर दाईं ओर गियर) में भी यही स्विच है।</string>
+    <string name="ingame_touch_help">ऑटो: कंट्रोलर न होने पर दिखते हैं, स्क्रीन छूने पर दिखते हैं, कोई बटन दबाने पर छिप जाते हैं। हमेशा: हमेशा दिखते हैं। छिपाएँ: कंट्रोलर जुड़ा रहने तक छिपे रहते हैं। MENU = SELECT।</string>
+    <string name="ingame_latch">L और R लॉक करें</string>
+    <string name="ingame_latch_b">B लॉक करें</string>
+    <string name="ingame_latch_help">लॉक: एक बार दबाने (बटन या टच) पर L, R या B अगली बार दबाने तक दबा रहता है (B लॉक होने पर लियोन लगातार दौड़ता है)।</string>
     <string name="ouya_cheats">चीट्स</string>
     <string name="ouya_view_distance">दृश्य दूरी</string>
     <string name="ouya_colours">रंग गणना</string>

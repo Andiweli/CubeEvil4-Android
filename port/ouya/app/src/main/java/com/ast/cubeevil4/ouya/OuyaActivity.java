@@ -90,6 +90,20 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     private FrameLayout root;
     private boolean paused;                 // the activity is in the background
     private final Handler handler = new Handler();
+    // RetroTouch (wish of the project owner, 15.11.2026): the touch controls' controller beside the real one
+    private OuyaTouchControls touchControls;
+    private int touchKeys;                                   // GameCube buttons held by touch
+    private float touchX, touchY, lookX, lookY, cStickX, cStickY;  // -1..1, y down
+    private boolean touchEditing;
+    private final Runnable touchWatch = new Runnable() {
+        @Override
+        public void run() {
+            // twice a second: a controller connected or gone shows or hides the touch controls
+            if (touchControls != null)
+                touchControls.update();
+            handler.postDelayed(this, 500);
+        }
+    };
     private final Runnable untap = new Runnable() {
         @Override
         public void run() {
@@ -211,6 +225,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
             wipe.edit().remove(OuyaPlayerData.WIPE_AT_START).commit();
         }
         gameData = data;
+        startTouch();
         final int language = gameLanguage(data);
         message.setText("Starting the game ...");
         settingsChanged();
@@ -249,6 +264,9 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         paused = true;
         view.onPause();
         nativePause(true);
+        handler.removeCallbacks(touchWatch);
+        if (touchControls != null)
+            touchControls.reset();
     }
 
     @Override
@@ -256,9 +274,103 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         super.onResume();
         paused = false;
         view.onResume();
-        if (menu == null) {
+        if (menu == null && !touchEditing) {
             nativePause(false);
         }
+        if (touchControls != null)
+            handler.post(touchWatch);
+    }
+
+    // --- RetroTouch (wish of the project owner, 15.11.2026) ----------------------------------------
+    // For the APK on a phone or tablet with Android 4.x: the OUYA has no touch screen, the controls show only where
+    // Android has one (OuyaTouchControls), by the menu's "Touch Controls".
+
+    private void startTouch() {
+        if (touchControls != null)
+            return;
+        SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
+        touchControls = new OuyaTouchControls(this, new OuyaTouch.Input() {
+            @Override
+            public void touchButton(int gcBit, boolean on) {
+                touchKeys = on ? touchKeys | gcBit : touchKeys & ~gcBit;
+            }
+
+            @Override
+            public void touchStick(float x, float y) {
+                touchX = x;
+                touchY = y;
+            }
+
+            @Override
+            public void touchLook(float lx, float ly, float cx, float cy) {
+                lookX = lx;
+                lookY = ly;
+                cStickX = cx;
+                cStickY = cy;
+            }
+
+            @Override
+            public void touchClear() {
+                touchKeys = 0;
+                touchX = touchY = lookX = lookY = cStickX = cStickY = 0;
+            }
+        }, OuyaMenu.Settings.touchMode(p), new OuyaTouchControls.Host() {
+            @Override
+            public void openMenu() {
+                OuyaActivity.this.openMenu();
+            }
+
+            @Override
+            public void editing(boolean on) {
+                // the game stands while the layout is edited
+                touchEditing = on;
+                if (!paused && menu == null)
+                    nativePause(on);
+            }
+
+            @Override
+            public void send() {
+                sendPad();
+            }
+        });
+        touchControls.setLatch(OuyaMenu.Settings.touchLatch(p));
+        touchControls.setLatchB(OuyaMenu.Settings.touchLatchB(p));
+        // above the picture, below the start message
+        root.addView(touchControls.view(), 1, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        handler.post(touchWatch);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (touchControls == null)
+            return super.dispatchTouchEvent(event);
+        touchControls.before(event);
+        boolean handled = super.dispatchTouchEvent(event);
+        touchControls.after(event);
+        return handled;
+    }
+
+    @Override
+    public boolean touchAvailable() {
+        return getPackageManager().hasSystemFeature("android.hardware.touchscreen");
+    }
+
+    @Override
+    public boolean touchIcons() {
+        return touchControls == null || touchControls.icons();
+    }
+
+    @Override
+    public void touchSettingsChanged(boolean icons) {
+        if (touchControls == null)
+            return;
+        SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
+        touchControls.setMode(OuyaMenu.Settings.touchMode(p));
+        touchControls.setLatch(OuyaMenu.Settings.touchLatch(p));
+        touchControls.setLatchB(OuyaMenu.Settings.touchLatchB(p));
+        if (icons != touchControls.icons())
+            touchControls.setIcons(icons);
     }
 
     // --- the app's menu (L3) -----------------------------------------------------------------------
@@ -303,6 +415,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         keys = hat = tapped = 0;
         lx = ly = rx = ry = lt = rt = 0;
         handler.removeCallbacks(untap);
+        if (touchControls != null)
+            touchControls.reset();
         sendPad();
         nativePause(true);
         menu = new OuyaMenu(this, this);
@@ -370,6 +484,9 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         if (bit == 0) {
             return super.dispatchKeyEvent(event);
         }
+        if (touchControls != null && event.getAction() == KeyEvent.ACTION_DOWN
+                && (event.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD)
+            touchControls.controllerUsed();
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             keys |= bit;
         } else if (event.getAction() == KeyEvent.ACTION_UP) {
@@ -392,6 +509,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         rt = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS));
         float hx = event.getAxisValue(MotionEvent.AXIS_HAT_X), hy = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
         hat = (hx < -0.5f ? GC_LEFT : 0) | (hx > 0.5f ? GC_RIGHT : 0) | (hy < -0.5f ? GC_UP : 0) | (hy > 0.5f ? GC_DOWN : 0);
+        if (touchControls != null && TouchShowRule.moved(lx, ly, rx, ry, lt, rt, hx, hy))
+            touchControls.controllerUsed();
         sendPad();
         return true;
     }
@@ -400,7 +519,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         if (!running) {
             return;
         }
-        int buttons = keys | hat | tapped;
+        int buttons = keys | hat | tapped | touchKeys;
         // the analog triggers pressed through: the digital L / R as well (as on the GameCube)
         if (lt > 0.9f) {
             buttons |= GC_L;
@@ -408,10 +527,25 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         if (rt > 0.9f) {
             buttons |= GC_R;
         }
-        int triggerL = (keys & GC_L) != 0 ? 255 : Math.round(lt * 255);
-        int triggerR = (keys & GC_R) != 0 ? 255 : Math.round(rt * 255);
+        int triggerL = ((keys | touchKeys) & GC_L) != 0 ? 255 : Math.round(lt * 255);
+        int triggerR = ((keys | touchKeys) & GC_R) != 0 ? 255 : Math.round(rt * 255);
+        // the touch controls' sticks where they are tilted further than the controller's
+        float sx = lx, sy = ly, cx = rx, cy = ry;
+        if (touchX * touchX + touchY * touchY > sx * sx + sy * sy) {
+            sx = touchX;
+            sy = touchY;
+        }
+        float tcx = lookX, tcy = lookY;
+        if (cStickX * cStickX + cStickY * cStickY > tcx * tcx + tcy * tcy) {
+            tcx = cStickX;
+            tcy = cStickY;
+        }
+        if (tcx * tcx + tcy * tcy > cx * cx + cy * cy) {
+            cx = Math.max(-1f, Math.min(1f, tcx));
+            cy = Math.max(-1f, Math.min(1f, tcy));
+        }
         // Android's y grows downwards, the GameCube's upwards; the game applies its own dead zones
-        nativePad(buttons, Math.round(lx * 100), Math.round(-ly * 100), Math.round(rx * 90), Math.round(-ry * 90),
+        nativePad(buttons, Math.round(sx * 100), Math.round(-sy * 100), Math.round(cx * 90), Math.round(-cy * 90),
                 triggerL, triggerR);
     }
 }

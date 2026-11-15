@@ -111,6 +111,18 @@
     <string name="ingame_import_exists">%1$s is on the card already. Replace it?</string>
     <string name="ingame_source">Source and updates</string>
     <string name="ingame_source_line">More on this port at %1$s</string>
+    <string name="ingame_touch_controls">Touch Controls</string>
+    <string name="ingame_touch_auto">Auto</string>
+    <string name="ingame_touch_force">Force</string>
+    <string name="ingame_touch_suppress">Suppress</string>
+    <string name="ingame_button_style">Button style</string>
+    <string name="ingame_button_icons">RE</string>
+    <string name="ingame_button_labels">GC</string>
+    <string name="ingame_button_style_help">RE: a symbol for what each button does (the default); GC: the letters in the GameCube\'s colours, as before. The editor (the gear at the top right) has the same switch.</string>
+    <string name="ingame_touch_help">Auto: shown without a controller, a tap shows them, a button hides them. Force: always shown. Suppress: hidden while a controller is connected. MENU = SELECT.</string>
+    <string name="ingame_latch">Latch L and R</string>
+    <string name="ingame_latch_b">Latch B</string>
+    <string name="ingame_latch_help">Latch: one press (button or touch) holds L, R or B until the next press (B latched: Leon keeps running).</string>
     <string name="ouya_cheats">Cheats</string>
     <string name="ouya_view_distance">View distance</string>
     <string name="ouya_colours">Colour calculation</string>

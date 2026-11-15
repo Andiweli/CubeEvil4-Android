@@ -39,3 +39,9 @@ android {
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
     lint { checkReleaseBuilds false; abortOnError false }
 }
+
+dependencies {
+    // RetroTouch (wish of the project owner, 15.11.2026): the main app's library (port/android-decomp/app/libs, its
+    // licence notes beside it); none of its Android calls is newer than Android 4.1 (checked 15.11.2026)
+    implementation files('libs/retrotouch.aar')
+}
