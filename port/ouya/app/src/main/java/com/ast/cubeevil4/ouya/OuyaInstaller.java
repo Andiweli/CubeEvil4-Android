@@ -51,18 +51,73 @@ final class OuyaInstaller extends ScrollView {
     private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
     private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
 
-    /** A disc image found */
+    /** A disc image of Resident Evil 4 found (other games' images are left out: the disc ID, wish of the project
+     *  owner, 15.11.2026) */
     static final class Found {
         final File file;
         final boolean rvz;
-        final int disc;         // 1, 2; 0: not known yet (RVZ: after unpacking)
-        final String release;   // GameCubeDisc.DEBUG ..., null for RVZ
-        Found(File file, boolean rvz, int disc, String release) {
+        final int disc;         // 1 or 2
+        final String id;        // G4BE08, G4BP08 or G4BJ08
+        final String release;   // GameCubeDisc.DEBUG ...; an RVZ: EUROPEAN for G4BP08, else null (the debug build and
+                                // the US release share G4BE08, the Japanese and the Korean G4BJ08: known once unpacked)
+        Found(File file, boolean rvz, int disc, String id, String release) {
             this.file = file;
             this.rvz = rvz;
             this.disc = disc;
+            this.id = id;
             this.release = release;
         }
+
+        /** What the list shows: the disc and the release (or the game ID of an RVZ) */
+        String what() {
+            if (release != null)
+                return "Disc " + disc + ", " + GameCubeDisc.releaseTitle(release) + (rvz ? " (RVZ)" : "");
+            return "Disc " + disc + ", " + ("G4BJ08".equals(id) ? "Japanese or Korean" : "US release or debug build")
+                    + " (RVZ)";
+        }
+
+        /** An image of the same release can be disc 2 to this disc 1 (an RVZ by its game ID until unpacked) */
+        boolean matches(String otherId, String otherRelease) {
+            if (!id.equals(otherId))
+                return false;
+            return release == null || otherRelease == null || release.equals(otherRelease);
+        }
+    }
+
+    private Found chosen;  // the disc 1 to install (the first one found, or the one chosen in the list)
+
+    /** The game ID and disc number of an RVZ image without unpacking it: Dolphin's WIA/RVZ format keeps the disc's
+     *  first 0x80 bytes in its second header (at 0x58: header 1 is 0x48 bytes, then disc type, compression, level and
+     *  chunk size); null when it is no RVZ of Resident Evil 4 */
+    static Found rvzDisc(File f) {
+        byte[] head = new byte[0x60];
+        java.io.RandomAccessFile in = null;
+        try {
+            in = new java.io.RandomAccessFile(f, "r");
+            in.readFully(head);
+        } catch (IOException e) {
+            return null;
+        } finally {
+            if (in != null)
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    // read already
+                }
+        }
+        if (!RvzImage.isRvz(head, head.length))
+            return null;
+        String id;
+        try {
+            id = new String(head, 0x58, 6, "US-ASCII");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return null;
+        }
+        int disc = (head[0x5E] & 255) + 1;
+        if (!id.equals("G4BE08") && !id.equals("G4BP08") && !id.equals("G4BJ08") || disc < 1 || disc > 2
+                || head[0x5F] != 0)
+            return null;
+        return new Found(f, true, disc, id, id.equals("G4BP08") ? GameCubeDisc.EUROPEAN : null);
     }
 
     private final Host host;
@@ -174,7 +229,23 @@ final class OuyaInstaller extends ScrollView {
         found.clear();
         for (File root : storages())
             look(root, 0);
+        // disc 1 to install: the first one with a disc 2 of its release, else the first one
+        chosen = null;
+        for (Found f : found)
+            if (f.disc == 1 && chosen == null && secondFor(f) != null)
+                chosen = f;
+        for (Found f : found)
+            if (f.disc == 1 && chosen == null)
+                chosen = f;
         show();
+    }
+
+    /** A disc 2 image of the release of disc 1 `f`, or null */
+    private Found secondFor(Found f) {
+        for (Found g : found)
+            if (g.disc == 2 && f.matches(g.id, g.release))
+                return g;
+        return null;
     }
 
     private void look(File dir, int depth) {
@@ -189,9 +260,10 @@ final class OuyaInstaller extends ScrollView {
                     look(f, depth + 1);
             } else if (name.endsWith(".iso") || name.endsWith(".gcm")) {
                 try {
+                    // the disc ID (G4BE08, G4BP08, G4BJ08) and the file table: another game's image is left out
                     GameCubeDisc disc = new GameCubeDisc(f);
                     try {
-                        found.add(new Found(f, false, disc.discNumber, disc.release));
+                        found.add(new Found(f, false, disc.discNumber, GameCubeDisc.gameId(disc.release), disc.release));
                     } finally {
                         disc.close();
                     }
@@ -199,7 +271,9 @@ final class OuyaInstaller extends ScrollView {
                     // not a disc of the game: left out
                 }
             } else if (name.endsWith(".rvz")) {
-                found.add(new Found(f, true, 0, null));
+                Found disc = rvzDisc(f);
+                if (disc != null)
+                    found.add(disc);
             }
         }
     }
@@ -226,14 +300,40 @@ final class OuyaInstaller extends ScrollView {
             body.addView(again, cell());
         } else {
             heading("Found");
-            for (Found f : found) {
-                String what = f.rvz ? "RVZ image" : "Disc " + f.disc + ", " + GameCubeDisc.releaseTitle(f.release);
-                TextView row = text(what + "   " + f.file.getName(), 15, false);
-                row.setTextColor(INK);
+            int ones = 0;
+            for (Found f : found)
+                if (f.disc == 1)
+                    ones++;
+            if (ones > 1)
+                help("Several disc 1 images: choose the one to install (disc 2 of its release comes along).");
+            for (final Found f : found) {
+                String what = f.what() + "   " + f.file.getName();
+                if (ones > 1 && f.disc == 1) {
+                    // a choice: the disc 1 to install
+                    final Button pick = button((f == chosen ? "\u2713 " : "") + what, new OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            if (working)
+                                return;
+                            chosen = f;
+                            show();
+                        }
+                    });
+                    pick.setSelected(f == chosen);
+                    pick.setSingleLine(true);
+                    pick.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+                    body.addView(pick, cell());
+                    continue;
+                }
+                boolean used = f.disc == 1 ? f == chosen : chosen != null && chosen.matches(f.id, f.release);
+                TextView row = text(what, 15, false);
+                row.setTextColor(used ? INK : MUTED);
                 row.setSingleLine(true);
                 row.setPadding(dp(7), dp(2), dp(7), dp(2));
                 body.addView(row);
             }
+            if (chosen == null)
+                help("No disc 1 among them: disc 1 is needed.");
         }
         heading("Install to");
         LinearLayout targets = new LinearLayout(getContext());
@@ -253,7 +353,7 @@ final class OuyaInstaller extends ScrollView {
                 }
             });
             b.setGravity(Gravity.CENTER);
-            b.setEnabled(writable && !found.isEmpty());
+            b.setEnabled(writable && chosen != null);
             targets.addView(b, side());
             if (first == null && b.isEnabled())
                 first = b;
@@ -332,17 +432,20 @@ final class OuyaInstaller extends ScrollView {
         };
         boolean[] done = new boolean[3];
         String release = null;
-        // the plain images first (an RVZ of the same disc is then not needed)
+        // the disc 1 chosen, then the disc 2 images of its release (the plain ones first: an RVZ is then not needed)
+        if (chosen == null)
+            throw new IOException("Disc 1 was not among the images");
         List<Found> order = new ArrayList<Found>();
+        order.add(chosen);
         for (Found f : found)
-            if (!f.rvz)
+            if (f.disc == 2 && !f.rvz && chosen.matches(f.id, f.release))
                 order.add(f);
         for (Found f : found)
-            if (f.rvz)
+            if (f.disc == 2 && f.rvz && chosen.matches(f.id, f.release))
                 order.add(f);
         File incoming = new File(root, ".incoming");
         for (Found f : order) {
-            if (!f.rvz && (f.disc < 1 || f.disc > 2 || done[f.disc]))
+            if (f.disc < 1 || f.disc > 2 || done[f.disc])
                 continue;
             File image = f.file;
             if (f.rvz) {
@@ -376,10 +479,9 @@ final class OuyaInstaller extends ScrollView {
                 }
                 if (number < 1 || number > 2 || done[number])
                     continue;
+                // a disc 2 of another release (an RVZ shows it only now): left out, another one may fit
                 if (release != null && !release.equals(discRelease))
-                    throw new IOException("Disc " + number + " is of another release ("
-                            + GameCubeDisc.releaseTitle(discRelease) + ") than the other disc ("
-                            + GameCubeDisc.releaseTitle(release) + ")");
+                    continue;
                 final String label = "Disc " + number + " (" + GameCubeDisc.releaseTitle(discRelease) + "): ";
                 DiscInstaller.install(image, root, number, catalogs, new GameCubeDisc.Progress() {
                     @Override
