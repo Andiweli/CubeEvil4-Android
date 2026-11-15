@@ -58,9 +58,12 @@ weiter“); Bilder und Tabellen in `E:\Development\Android\builds\release-candid
   dicht ist (Messmodus `fogout`); in 9 Räumen × 8 Blickrichtungen keine Löcher, sichtbar weiter (Wald, See,
   Bauernhof, Burgzufahrt, Insel: Ufer und Wolken klarer, Stimmung heller); Kosten wie Weit heute. Mittel 65 % statt
   75 %; Kurz 50 % und Keine 35 % bleiben. Vor einem Einbau alle 126 Räume mit beiden Disc-Arten am PC drehen lassen.
-- **Nicht gefunden:** die genaue Stelle der Schlucht-Bilder des Inhabers (vermutlich r10a; Frage an die Hauptsitzung).
-  Antwort des Inhabers: Kapitel 1-2, draußen links von der Tür des Startgebäudes, also r104 (Kapitel 1-1 endet in
-  r106); die Stelle wird nachgereicht.
+- **Die Schlucht des Inhabers:** Kapitel 1-2, draußen links von der Tür des Startgebäudes (Antwort des Inhabers):
+  r104, Platz `-6200,0,4900`, 2,3 rad, Blick auf das Metalltor zwischen den Steinmauern. Dort zeichnen Normal, Weit
+  und „ohne Grenze“ dasselbe (888 Zeichenaufträge, Weit 858 Pixel anders): im Blick steht nichts weiter als 61 m,
+  wo der Nebel bei Normal schon 78 % dicht ist. Zeichenaufträge: Mittel 0 % (Vorschlag 65 %: −2 %), Kurz −19 %,
+  Keine −29 %; Vorschlag Weit
+  118 000 Pixel anders (Felsen und Bäume hinter dem Tor klarer). Bilder 10 und 11.
 
 ### 2. Hinweis unter „Quelle und Updates“ (Projektinhaber, 15.11.2026)
 
