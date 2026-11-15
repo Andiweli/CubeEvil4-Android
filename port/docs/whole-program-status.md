@@ -234,12 +234,42 @@ Auge?“
 - Der Startbildschirm (`MainActivity`, `core_author`, nur Englisch) sagt „By Andiweli“ statt des vollen Namens; ebenso
   die Beschreibung des Startbildschirms in dieser Datei (Abschnitt zu MainActivity).
 - **Gesucht** (alle Dateien des Repositorys, auch Binärdateien und UTF-16; ohne die RetroTouch-AAR, deren
-  Lizenzzeile die Hauptsitzung mit dem Inhaber klärt): sonst nirgends sein Vor- oder Nachname, auch nicht abgekürzt
+  Lizenzzeile die Hauptsitzung mit dem Inhaber klärt): sonst nirgends der Vor- oder Nachname, auch nicht abgekürzt
   oder in anderer Schreibweise, weder in den Texten der App noch im Launcher, in „Quelle und Updates“, den beiden
   Packer-Apps oder der Versions-Ressource des Windows-Packers (`texpack.rc`: „CC0 (public domain)“, kein Name). Die
   „Stürmer“ in den Abschnitten zu den Ganados mit Dynamit sind die angreifenden Gegner, kein Name.
 - **Geprüft am PC:** App-Tests 179 je Variante grün (Core und Classic).
 - **Nicht geprüft:** auf einem Gerät.
+
+### 7. Sichtweite: warum die Stufen kaum anders aussehen (Analyse, Projektinhaber, 15.11.2026; kein Code)
+
+Frage des Inhabers: Weit, Normal, Mittel und Kurz zeigen kaum Unterschied, Weit und Normal gar keinen. Nur Analyse
+und Vorschlag, nichts an der App geändert. Gemessen am PC (i686-Kern von 9d46444b, Debug-Discs) mit Messcode nur in
+der WSL-Kopie (Zählung jeder Prüfung gegen den Sichtkegel in `trans_ot.cpp`, Modi „ohne Sichtgrenze“ und „Nebel
+weiter“); Bilder und Tabellen in `E:\Development\Android\builds\release-candidate\view-distance-analysis\`
+(`messwerte.txt`), Werkzeuge im Notizordner der Sitzungen (`rc-measure/`).
+
+- **Was die Sicht begrenzt:** (1) der Nebel der GPU; (2) die Sichtgrenze des Spiels, `Nebelende × (1 −
+  far_play_ratio)`: nur ganze Objekte, deren Hülle dahinter liegt, fallen weg (`trans_ot.cpp`); die Projektion
+  reicht immer 1000 m, große Raummodelle (Gelände) werden immer gezeichnet und verschwinden nur im Nebel; (3) das
+  Nachladen der Raumteile (`block.cpp`: Teil des Bereichs und seine Nachbarn sichtbar, der nächste Ring im ARAM
+  versteckt, der Rest gelöscht). Keine Entfernungs- oder Detailstufen je Objekt gefunden.
+- **Warum Weit = Normal:** in den Räumen mit dicht werdendem Nebel (Wald r100, Schlucht r10a, See r107) ist der
+  Nebel an der Grenze schon 60–94 % dicht; was Weit (heute) zusätzlich zeichnet, liegt in dichtem Nebel oder hinter
+  Mauern und Felsen. Hängebrücke r100: 2 Objekte mehr, auch ganz ohne Grenze nicht mehr (im geladenen Teil steht
+  hinter 46 m nichts). Dafür kostet Weit viel: Weg zum See r107 253 → 465 Zeichenaufträge (+84 %), Burghof r205
+  293 → 422 (an der Mauerecke 575 → 1132), bei 73–1600 geänderten Pixeln von 229 000.
+- **Warum Mittel und Kurz nah an Normal:** sie stauchen den Nebel (Halbdicht-Entfernung im Wald 37 → 28 → 19 m), das
+  meiste Sichtbare liegt aber näher als 30–40 m und wird nur etwas trüber; was ihre Grenze wegschneidet, liegt hinter
+  Mauern oder in dichtem Nebel. Sie sparen trotzdem Arbeit (Mittel/Kurz): See −22/−32 %, Burghof −14/−21 %, Wald und
+  Dorf 0 bis −3 %; Keine See −34 %, Burghof −26 % (an der Mauerecke −51 %), Dorf −12 %, Wald −6 %.
+- **Mehr vom Raum laden:** der Debug-Modus „alle Raumteile zeigen“ bricht im Port mangels Debug-Speicher ab; an der
+  Brücke gäbe es im geladenen Teil ohnehin nichts weiter. Nicht weiter verfolgt.
+- **Vorschlag (wartet auf den Inhaber):** Weit = Nebelende × 1,6 (Beginn bleibt), Grenze dort, wo dieser Nebel 95 %
+  dicht ist (Messmodus `fogout`); in 9 Räumen × 8 Blickrichtungen keine Löcher, sichtbar weiter (Wald, See,
+  Bauernhof, Burgzufahrt, Insel: Ufer und Wolken klarer, Stimmung heller); Kosten wie Weit heute. Mittel 65 % statt
+  75 %; Kurz 50 % und Keine 35 % bleiben. Vor einem Einbau alle 126 Räume mit beiden Disc-Arten am PC drehen lassen.
+- **Nicht gefunden:** die genaue Stelle der Schlucht-Bilder des Inhabers (vermutlich r10a; Frage an die Hauptsitzung).
 
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 
