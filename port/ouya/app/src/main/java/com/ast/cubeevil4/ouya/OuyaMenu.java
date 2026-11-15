@@ -254,7 +254,7 @@ final class OuyaMenu extends Dialog {
             });
         }
         final Button[] style = choices(s(R.string.ingame_button_style), new String[] {s(R.string.ingame_button_icons),
-                s(R.string.ingame_button_labels)}, new int[] {1, 0}, host.touchIcons() ? 1 : 0, null);
+                s(R.string.ingame_button_labels)}, new int[] {1, 0}, host.touchIcons() ? 1 : 0, null, false);
         for (int i = 0; i < style.length; i++) {
             final int index = i;
             style[i].setOnClickListener(new View.OnClickListener() {
@@ -265,7 +265,9 @@ final class OuyaMenu extends Dialog {
                 }
             });
         }
-        LinearLayout latches = buttonsRow();
+        // the two switches beside the label "Comfort Controls", as wide as the rows above (wish of the project
+        // owner, 15.11.2026)
+        LinearLayout latches = captionRow(s(R.string.ingame_comfort));
         touchToggle(latches, R.string.ingame_latch, Settings.TOUCH_LATCH);
         touchToggle(latches, R.string.ingame_latch_b, Settings.TOUCH_LATCH_B);
         help(R.string.ingame_touch_help);
@@ -1168,15 +1170,21 @@ final class OuyaMenu extends Dialog {
         return choices(label, labels, values, selected, key, true);
     }
 
-    /** lineUp false: the buttons share the whole row, however few (the colour calculation's two). */
-    private Button[] choices(String label, String[] labels, int[] values, int selected, final String key,
-            boolean lineUp) {
+    /** A row with its label in the column of 170 dp (as choices), for buttons added after it. */
+    private LinearLayout captionRow(String label) {
         LinearLayout r = buttonsRow();
         TextView caption = text(label, 16, true);
         caption.setPadding(dp(GAP), 0, dp(8), 0);
         caption.setMinHeight(dp(48 + 2 * GAP));
         caption.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
         r.addView(caption, new LinearLayout.LayoutParams(dp(170), ViewGroup.LayoutParams.WRAP_CONTENT));
+        return r;
+    }
+
+    /** lineUp false: the buttons share the whole row, however few (the colour calculation's two). */
+    private Button[] choices(String label, String[] labels, int[] values, int selected, final String key,
+            boolean lineUp) {
+        LinearLayout r = captionRow(label);
         final Button[] buttons = new Button[labels.length];
         for (int i = 0; i < labels.length; i++) {
             final int value = values[i], index = i;
