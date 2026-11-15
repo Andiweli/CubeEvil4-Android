@@ -248,7 +248,9 @@ std::vector<std::pair<re4gx2::ShaderKey, GLuint>> gDone;  // built, not yet adop
 int gDoneGeneration = 0;
 std::atomic<int> gGeneration{0};        // a new GL context (nativeSurfaceCreated): older builds are lost
 std::atomic<bool> gRunning{false};      // a thread builds
-const re4gx2::GxRenderer *gFor = nullptr;  // GL thread: the renderer the last thread built for
+// GL thread: the renderer the last thread built for, by number (MakeRenderer counts them): a renderer made anew
+// after the menu changed the resolution often had the old one's address, and got no shaders ahead (log of 15.11.2026)
+unsigned gRenderers = 0, gFor = 0;
 unsigned gAdopted = 0, gTaken = 0;      // since the last log line: adopted, built twice (dropped)
 
 std::string Bytes(const re4gx2::ShaderKey &k) { return std::string(reinterpret_cast<const char *>(&k), sizeof(k)); }
@@ -359,8 +361,8 @@ void Frame() {
     }
     Read();
   }
-  if (gFor != gRenderer.get() && !gRunning.load()) {
-    gFor = gRenderer.get();
+  if (gFor != gRenderers && !gRunning.load()) {
+    gFor = gRenderers;
     const re4gx2::GxOptions options = gRenderer->Options();
     std::vector<re4gx2::ShaderKey> keys;
     for (const auto &k : gFileKeys)
@@ -483,6 +485,7 @@ void MakeRenderer() {
   // r100 and r101 differ by at most 43.6 dB PSNR from the full ones, no difference to the eye)
   options.softCopies = true;
   gRenderer.reset(new re4gx2::GxRenderer);
+  ahead::gRenderers++;
   gRenderer->SetOptions(options);  // RE4_GX2_* in the environment (settings.txt) still override them
   std::string error;
   if (!gRenderer->Init(1, &error)) {
@@ -554,7 +557,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     StartOver();
   }
   ahead::gGeneration++;  // shaders built ahead for the old context are lost with it
-  ahead::gFor = nullptr;
+  ahead::gFor = 0;
   MakeRenderer();
 }
 
