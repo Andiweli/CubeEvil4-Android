@@ -559,6 +559,56 @@ final class CoreMenu extends Dialog {
     b.setSelected(on);
     b.setText(getContext().getString(R.string.ingame_toggle_value, s(name), s(value)));
   }
+  /** "View distance · Normal" and its eyes after the text (the project owner, 15.11.2026): 4 Far, 3 Normal, 2 Medium,
+   *  1 Short, a crossed-out eye None; lit but at None. The eyes are one piece after a space: a narrow button puts them
+   *  on the next line, never cuts the text; TalkBack reads the text alone. */
+  private void viewLabel(Button b, int level) {
+    valueLabel(b, R.string.ingame_potato_view, CoreBridge.VIEW_LABEL[level], !CoreBridge.viewOff(level));
+    String text = b.getText().toString();
+    int eyes = CoreBridge.viewEyes(level);
+    SpannableStringBuilder t = new SpannableStringBuilder(text).append(' ');
+    int start = t.length(); t.append('\uFFFC');
+    t.setSpan(new Eyes(getContext().getDrawable(eyes > 0 ? R.drawable.ic_eye : R.drawable.ic_eye_off), Math.max(1, eyes)),
+        start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    b.setText(t);
+    b.setContentDescription(text);
+  }
+  /** `count` icons side by side in the text (CoreMenu.viewLabel): Lucide's "eye" / "eye-off" (res/drawable/ic_eye*.xml,
+   *  ISC, app/THIRD_PARTY_NOTICES.md), each as high as the text's letters with a little room, drawn in the paint's
+   *  colour, so they follow the button's state as its text does. Identical icons: the same in either direction. */
+  static final class Eyes extends android.text.style.ReplacementSpan {
+    private final android.graphics.drawable.Drawable icon;
+    final int count;
+
+    Eyes(android.graphics.drawable.Drawable icon, int count) {
+      this.icon = icon.mutate();
+      this.count = count;
+    }
+    private static int size(android.graphics.Paint paint) { return Math.round(paint.getTextSize() * 1.15f); }
+    private static int gap(android.graphics.Paint paint) { return Math.round(paint.getTextSize() * .25f); }
+
+    @Override public int getSize(android.graphics.Paint paint, CharSequence text, int start, int end,
+                                 android.graphics.Paint.FontMetricsInt fm) {
+      if (fm != null) {
+        android.graphics.Paint.FontMetricsInt m = paint.getFontMetricsInt();
+        fm.ascent = m.ascent; fm.descent = m.descent; fm.top = m.top; fm.bottom = m.bottom; fm.leading = m.leading;
+      }
+      return count * size(paint) + (count - 1) * gap(paint);
+    }
+
+    @Override public void draw(android.graphics.Canvas canvas, CharSequence text, int start, int end, float x, int top,
+                               int y, int bottom, android.graphics.Paint paint) {
+      int size = size(paint), gap = gap(paint);
+      android.graphics.Paint.FontMetricsInt m = paint.getFontMetricsInt();
+      int iconTop = y + (m.ascent + m.descent) / 2 - size / 2;  // centred on the letters' middle
+      icon.setTint(paint.getColor());
+      for (int i = 0; i < count; i++) {
+        int left = Math.round(x) + i * (size + gap);
+        icon.setBounds(left, iconTop, left + size, iconTop + size);
+        icon.draw(canvas);
+      }
+    }
+  }
   /**
    * Frame skip (0.99.8, one button; wish of the project owner, 10.11.2026): 0 off, 1 Normal (the renderer leaves out a
    * picture while it is behind, CoreBridge.setFrameSkip), 2 Aggressive (the game itself, CoreBridge.setCpuSkip).
@@ -1560,18 +1610,22 @@ final class CoreMenu extends Dialog {
     });
     // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance", each press moves it
     // on, the distance fog nearer and nothing drawn beyond it (patch 0223, in the core: OpenGL ES and Vulkan alike);
-    // since 0.99.18 (the project owner, 15.11.2026) five steps, Normal, Medium, Short, Very short, Far (off at Short
-    // and Very short)
-    MenuLayout.Buttons lastPotato = buttonsRow(body);
-    Button view = cellAction(lastPotato, "", v -> {
+    // since 0.99.18 (the project owner, 15.11.2026) five steps, Normal, Medium, Short, None (the 35 % with thick fog),
+    // Far; lit but at None, with eyes after the text (viewLabel). Alone in a plain row over the whole width, as the
+    // buttons' rows lay out one button (MenuLayout.GAP all round): a GridLayout measures its height at the unbroken
+    // text's width, and the eyes put on the next line in a narrow window were cut off
+    Button view = button("", v -> {
       int next = CoreBridge.nextView(CoreBridge.viewDistance(graphics));
       graphics.edit().putInt(CoreBridge.VIEW_DISTANCE, next).apply();
-      valueLabel((Button) v, R.string.ingame_potato_view, CoreBridge.VIEW_LABEL[next], !CoreBridge.viewReduced(next));
+      viewLabel((Button) v, next);
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[next]);
       CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
-    valueLabel(view, R.string.ingame_potato_view, CoreBridge.VIEW_LABEL[CoreBridge.viewDistance(graphics)],
-        !CoreBridge.viewReduced(CoreBridge.viewDistance(graphics)));
+    LinearLayout.LayoutParams wide = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    wide.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
+    body.addView(view, wide);
+    viewLabel(view, CoreBridge.viewDistance(graphics));
     help(R.string.ingame_potato_help);
     help(R.string.ingame_view_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026

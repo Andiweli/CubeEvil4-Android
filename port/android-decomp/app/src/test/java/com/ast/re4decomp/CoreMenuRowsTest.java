@@ -75,6 +75,74 @@ public class CoreMenuRowsTest {
     assertTrue("widths with two buttons a row were checked", checked > 100);
   }
 
+  /** The view distance button with its eyes (0.99.18, the project owner, 15.11.2026), with real text widths: in every
+   *  language, font scale and level the text is whole (nothing cut, nothing ellipsized, the button as high as its lines)
+   *  and inside the window from 320 dp up; the eyes come after the text, on its line or the next (one piece); at the
+   *  normal font size and 700 dp or more everything on one line. */
+  private static Button withLabel(View view, String label) {
+    if (view instanceof Button && ((Button) view).getText().toString().startsWith(label)) return (Button) view;
+    if (view instanceof android.view.ViewGroup) {
+      android.view.ViewGroup g = (android.view.ViewGroup) view;
+      for (int i = 0; i < g.getChildCount(); i++) {
+        Button b = withLabel(g.getChildAt(i), label);
+        if (b != null) return b;
+      }
+    }
+    return null;
+  }
+
+  @Test public void viewDistanceEyesNeverCutTheText() throws Exception {
+    java.lang.reflect.Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class);
+    show.setAccessible(true);
+    int checked = 0;
+    for (String language : new String[] {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"})
+      for (float scale : new float[] {1f, 1.3f, 1.5f}) {
+        // one menu for each language and font size, the levels by the button's own clicks (Normal, Medium, Short,
+        // None, Far: CoreBridge.nextView); a menu each with real graphics ran the tests out of memory
+        try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+          Activity activity = controller.get();
+          Configuration config = new Configuration(activity.getResources().getConfiguration());
+          config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
+          activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+          activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).edit()
+              .putInt(CoreBridge.VIEW_DISTANCE, CoreBridge.VIEW_NORMAL).apply();
+          CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+          show.invoke(menu, 4, false);  // PERFORMANCE
+          View root = (View) CoreMenuLayoutTest.field(menu, "root");
+          root.setLayoutDirection(config.getLayoutDirection());
+          // (by its value's text: the Arabic one begins with the right-to-left mark)
+          Button view = withLabel(root, activity.getString(R.string.ingame_toggle_value,
+              activity.getString(R.string.ingame_potato_view), activity.getString(R.string.ingame_view_normal)));
+          assertNotNull(language + ": the view distance button", view);
+          float density = activity.getResources().getDisplayMetrics().density;
+          // the window's width fixed, the levels clicked through, as in the app (each click lays the button out anew)
+          for (int width : new int[] {320, 480, 700, 960}) {
+            for (int level = CoreBridge.VIEW_NORMAL, step = 0; step < CoreBridge.VIEW_PERCENT.length;
+                 step++, level = CoreBridge.nextView(level)) {
+              if (step > 0) view.performClick();
+              String where = language + "/" + scale + "/level " + level + "/" + width;
+              assertTrue(where + ": its name", view.getText().toString().contains(
+                  activity.getString(CoreBridge.VIEW_LABEL[level])));
+              CoreMenuLayoutTest.measure(root, Math.round(width * density), Math.round(300 * density));
+              View row = (View) view.getParent();
+              assertTrue(where + ": inside the page", view.getLeft() >= 0 && view.getRight() <= row.getWidth());
+              CoreMenuLayoutTest.checkBounds(view, where);
+              android.text.Layout layout = view.getLayout();
+              int eyes = view.getText().toString().indexOf('\uFFFC');
+              assertTrue(where + ": the eyes after the text", eyes > 0);
+              assertTrue(where + ": the eyes on the text's last line or the next",
+                  layout.getLineForOffset(eyes) == layout.getLineCount() - 1);
+              if (scale == 1f && width >= 700)
+                assertEquals(where + ": on one line", 1, layout.getLineCount());
+              checked++;
+            }
+            view.performClick();  // round to Normal again for the next width
+          }
+        }
+      }
+    assertEquals("languages, font sizes, levels and widths", 11 * 3 * 5 * 4, checked);
+  }
+
   /** The installed version left of the update button (0.99.18, the project owner, 15.11.2026, as in the OUYA menu),
    *  also while the button is hidden, with real text sizes: in every language and font scale the version stays on one
    *  line beside the buttons (on the side away from "Back to the game"; right to left mirrored), the buttons as

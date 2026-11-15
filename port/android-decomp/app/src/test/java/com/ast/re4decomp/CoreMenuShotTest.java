@@ -99,6 +99,32 @@ public class CoreMenuShotTest {
           }
         }
         menu.showUpdate(AppUpdate.UNKNOWN);
+        // the view distance button in its five levels with the eyes (0.99.18): the button alone, the page 900 px and
+        // 360 px wide (narrow: the eyes may go to the next line)
+        android.content.SharedPreferences graphics = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS,
+            android.content.Context.MODE_PRIVATE);
+        int[] levels = {CoreBridge.VIEW_FAR, CoreBridge.VIEW_NORMAL, 1, CoreBridge.VIEW_SHORT, CoreBridge.VIEW_VERY_SHORT};
+        String[] levelNames = {"1-far", "2-normal", "3-medium", "4-short", "5-none"};
+        for (int l = 0; l < levels.length; l++) {
+          graphics.edit().putInt(CoreBridge.VIEW_DISTANCE, levels[l]).apply();
+          show.invoke(menu, 4, false);
+          for (int width : new int[] {900, 360}) {
+            body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            body.layout(0, 0, width, body.getMeasuredHeight());
+            Button view = firstButton(body, b -> b.getText().toString().startsWith(activity.getString(R.string.ingame_potato_view)));
+            Bitmap picture = Bitmap.createBitmap(view.getWidth() + 16, view.getHeight() + 16, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(picture);
+            canvas.drawColor(0xff191f1c);
+            canvas.translate(8, 8);
+            view.draw(canvas);
+            try (FileOutputStream out = new FileOutputStream(new File(folder,
+                language + "-view-" + levelNames[l] + "-" + width + ".png"))) {
+              picture.compress(Bitmap.CompressFormat.PNG, 100, out);
+            }
+          }
+        }
+        graphics.edit().remove(CoreBridge.VIEW_DISTANCE).apply();
         // the controller's focus (0.99.11, FocusLook): "Performance" on the start page, a resolution level beside the
         // selected one on the display page, the benchmark button
         show.invoke(menu, 0, false);

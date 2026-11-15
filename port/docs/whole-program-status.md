@@ -198,6 +198,35 @@ in der OUYA Version links vom Button.“ Gebaut nach dem OUYA-Menü (`OuyaMenu.j
   Linie im Seiteninhalt (nicht im Kopf) rechts über den Rand; der Inhalt ist von dieser Änderung unberührt.
 - **Nicht geprüft:** auf einem Gerät.
 
+### 5. Sichtweite „Keine“ und Augen im Knopf (Projektinhaber, 15.11.2026)
+
+„"Sichtweite Sehr Kurz" wird zu "Sichtweite Keine" und der Button soll nur hier nicht gehighlighted sein. Alle anderen
+Einstellungen bleiben gehighlighted (von Weit bis Kurz). Kannst du außerdem (weil der Button eh die volle Breite hat)
+hinter den Text im Button je nach Sichtweite 4, 3, 2 oder 1 Augen-Icons machen und bei "Keine" ein durchgestrichenes
+Auge?“
+
+- **Name:** die Stufe „Sehr kurz“ (Abschnitt 2: 35 %, Nebel dicht an der Sichtgrenze) heißt jetzt „Keine“ (en None, es
+  Ninguna, fr Aucune, it Nessuna, pt Nenhuma, ru Нет, ar لا شيء, hi कोई नहीं, in Tidak ada, zh 无); die Stufe selbst
+  ist unverändert, ebenso der Schlüssel `ingame_view_very_short` und der gespeicherte Wert 3. Der Hilfetext sagt in
+  11 Sprachen, was sie tut, ohne dass „Keine“ nach „nichts gezeichnet“ klingt: die kürzeste, dichter Nebel schon in der
+  Nähe, für langsame Handys, was nah ist, wird wie immer gezeichnet.
+- **Hervorgehoben** (gelb) bei Weit, Normal, Mittel und Kurz, nicht bei Keine (`CoreBridge.viewOff`; bisher aus bei Kurz
+  und Sehr kurz).
+- **Augen hinter dem Text** (`CoreMenu.viewLabel`, `CoreMenu.Eyes`): Weit 4, Normal 3, Mittel 2, Kurz 1, Keine ein
+  durchgestrichenes Auge (`CoreBridge.viewEyes`). Lucide „eye“ und „eye-off“ als Vektorgrafiken
+  (`res/drawable/ic_eye.xml`, `ic_eye_off.xml`, die Pfade aus Lucides SVG, die Bögen ausgeschrieben); ISC-Lizenz in
+  `app/THIRD_PARTY_NOTICES.md` (neu, wie die von RetroTouch in `app/libs/`) und ein Satz in `LICENSE-PLATFORM.txt`.
+  Die Augen sind ein Stück nach einem Leerzeichen: so hoch wie die Buchstaben (115 % der Schriftgröße), in der Farbe
+  des Textes (sie folgen dem Zustand des Knopfes wie der Text), in einem schmalen Knopf auf der nächsten Zeile, nie
+  abgeschnitten; bei Arabisch stehen sie auf der linken Seite (nach dem Text). TalkBack liest nur den Text.
+- **Geprüft am PC:** App-Tests je Variante grün (siehe unten); neu `viewDistanceMovesThroughFiveStepsWithEyes`
+  (Reihenfolge, Hervorhebung, Text, Augenzahl, TalkBack-Text) und `CoreMenuRowsTest.viewDistanceEyesNeverCutTheText`
+  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, 5 Stufen, 320–960 dp: nichts abgeschnitten, die Augen nach
+  dem Text, bei normaler Schrift ab 700 dp eine Zeile); `check_translations.py` ohne Befund. Bilder des Knopfes in allen
+  fünf Stufen (Deutsch und Englisch, 900 und 360 px breit) in
+  `E:\Development\Android\builds\release-candidate\view-distance-button\`.
+- **Nicht geprüft:** auf einem Gerät.
+
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 
 Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit

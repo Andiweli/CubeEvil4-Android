@@ -150,7 +150,8 @@ public final class CoreBridge {
   }
   /** The Potato mode's "View distance" (0.99.6, wish of the project owner, 09.11.2026, from the OUYA branch): 0 Normal
    *  (the default, the game's), 1 Medium, 2 Short; since 0.99.18 (the project owner, 15.11.2026) also 3 Very short
-   *  (the OUYA's setting) and 4 Far, so a value saved before stays what it was; in percent of the room's view
+   *  (the OUYA's setting; the menu calls it "None", ingame_view_very_short) and 4 Far, so a value saved before stays
+   *  what it was; in percent of the room's view
    *  VIEW_PERCENT (Far: the core decides per room how far it may go, runtime/view_distance.cpp). The menu shows them in
    *  VIEW_ORDER, from the farthest to the nearest. */
   static final String VIEW_DISTANCE = "viewDistance";
@@ -174,9 +175,15 @@ public final class CoreBridge {
     }
     return VIEW_NORMAL;
   }
-  /** A level that leaves things out (lit in the menu while it does not: Far, Normal, Medium). */
-  static boolean viewReduced(int level) {
-    return level == VIEW_SHORT || level == VIEW_VERY_SHORT;
+  /** The level the menu shows unlit (the project owner, 15.11.2026: "nur hier nicht gehighlighted"): Very short,
+   *  shown as "None" since then (35 % with thick fog, as before); Far, Normal, Medium and Short are lit. */
+  static boolean viewOff(int level) {
+    return level == VIEW_VERY_SHORT;
+  }
+  /** The eyes after the menu button's text (the project owner, 15.11.2026): 4 Far, 3 Normal, 2 Medium, 1 Short, 0 None
+   *  (a crossed-out eye instead). */
+  static int viewEyes(int level) {
+    return new int[] {3, 2, 1, 0, 4}[viewLevel(level)];
   }
   /** The Potato mode's "Particle effects" (0.99.3): 0 normal (the default), 1 less, 2 none. */
   static int particleEffects(android.content.SharedPreferences g) {

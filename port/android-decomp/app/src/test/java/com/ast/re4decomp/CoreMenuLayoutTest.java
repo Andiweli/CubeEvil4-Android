@@ -229,7 +229,7 @@ public class CoreMenuLayoutTest {
     return y;
   }
 
-  private static Button findButton(View view, String start) {
+  static Button findButton(View view, String start) {
     if (view instanceof Button && ((Button) view).getText().toString().startsWith(start)) return (Button) view;
     if (view instanceof ViewGroup) {
       ViewGroup g = (ViewGroup) view;
@@ -1061,9 +1061,10 @@ public class CoreMenuLayoutTest {
     }
   }
 
-  /** Potato mode, 0.99.6: "View distance" in a third row, Normal (the default, lit), Medium (lit), Short (off), with its
-   *  own line of help; since 0.99.18 then Very short (off) and Far (lit), then Normal again. */
-  @Test public void viewDistanceMovesThroughFiveStepsAndIsOffOnlyWhenShorter() throws Exception {
+  /** Potato mode, 0.99.6: "View distance" in a third row with its own line of help, each press one step on; since
+   *  0.99.18 (the project owner, 15.11.2026) Normal, Medium, Short, None (the 35 %), Far, then Normal again, lit but at
+   *  None, and after the text eyes: 3, 2, 1, a crossed-out one, 4 (CoreMenu.Eyes); TalkBack reads the text alone. */
+  @Test public void viewDistanceMovesThroughFiveStepsWithEyes() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
@@ -1075,25 +1076,27 @@ public class CoreMenuLayoutTest {
       Button view = findButton(root, activity.getString(R.string.ingame_potato_view));
       Button particles = findButton(root, activity.getString(R.string.ingame_potato_particles));
       assertNotNull(view); assertNotSame(particles.getParent(), view.getParent());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_normal)));
-      assertTrue(view.isSelected());
-      view.performClick();
-      assertEquals(1, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_medium)));
-      view.performClick();
-      assertEquals(2, CoreBridge.viewDistance(g)); assertFalse(view.isSelected());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_short)));
-      assertEquals(50, CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
-      view.performClick();
-      assertEquals(3, CoreBridge.viewDistance(g)); assertFalse(view.isSelected());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_very_short)));
-      assertEquals(35, CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
-      view.performClick();
-      assertEquals(4, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_far)));
-      assertTrue(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)] > 100);
-      view.performClick();
-      assertEquals(0, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
+      int[] levels = {0, 1, 2, 3, 4, 0};
+      int[] labels = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short,
+          R.string.ingame_view_very_short, R.string.ingame_view_far, R.string.ingame_view_normal};
+      int[] eyes = {3, 2, 1, 1, 4, 3};
+      boolean[] lit = {true, true, true, false, true, true};
+      for (int i = 0; i < levels.length; i++) {
+        if (i > 0) view.performClick();
+        String where = "step " + i;
+        assertEquals(where, levels[i], CoreBridge.viewDistance(g));
+        assertEquals(where + ": lit", lit[i], view.isSelected());
+        CharSequence text = view.getText();
+        String words = activity.getString(R.string.ingame_toggle_value, activity.getString(R.string.ingame_potato_view),
+            activity.getString(labels[i]));
+        assertEquals(where + ": the text, a space, the eyes", words + " \uFFFC", text.toString());
+        assertEquals(where + ": TalkBack reads the text", words, view.getContentDescription().toString());
+        CoreMenu.Eyes[] spans = ((android.text.Spanned) text).getSpans(0, text.length(), CoreMenu.Eyes.class);
+        assertEquals(where + ": one piece of eyes", 1, spans.length);
+        assertEquals(where + ": eyes", eyes[i], spans[0].count);
+      }
+      assertEquals(35, CoreBridge.VIEW_PERCENT[3]);
+      assertTrue(CoreBridge.VIEW_PERCENT[4] > 100);
       assertTrue(hasText(root, activity.getString(R.string.ingame_view_help)));
     }
   }
