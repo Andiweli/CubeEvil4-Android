@@ -34,6 +34,24 @@ Release-APK `CubeEvil4-0.99.18-Android.apk`. Nächste freie Patchnummer weiter 0
 Aufgaben in dieser Reihenfolge (Hauptsitzung, 15.11.2026): 1. „Abbrechen“ statt „Abbruch“ in allen Sprachen;
 2. Sichtweite „Nah“ und „Weit“; 3. T4, HD-Texturen im Hintergrund laden.
 
+### 1. „Abbrechen“ statt „Abbruch“ (Projektinhaber, 15.11.2026)
+
+Der Inhaber will die Abbrechen-Taste jeder Frage als Verb, in jeder Sprache so wie Androids eigene Taste.
+
+- **Befund:** alle App-Fragen nehmen `ingame_cancel` (Neustart für Sprache und Renderer, Bericht, Import, Löschen
+  von HD-Texturen, `TextureImportActivity` …), nur „Delete All Data“ hat seit 0.99.15 eine eigene Taste
+  `ingame_wipe_cancel`. Einziges Hauptwort war das deutsche `ingame_cancel` „Abbruch“. Die anderen 10 Sprachen
+  sagen schon, was Android selbst auf die Taste schreibt (ar إلغاء, es/pt Cancelar, fr Annuler, hi रद्द करें,
+  in Batal, it Annulla, ru Отмена, zh 取消); ebenso „Import abbrechen“, „Rennen / Abbrechen“ und „B / Zurück:
+  abbrechen“ und ihre Gegenstücke. Androids eigene Taste (`android.R.string.cancel`, zwei Stellen) übersetzt Android
+  selbst. Die englischen Texte der Classic-App (`strings.xml`) und der Packer-App sagen „Cancel“.
+- **Geändert:** `values-de` `ingame_cancel` „Abbrechen“. `tools/check_translations.py` prüft neu, dass
+  `ingame_cancel` und `ingame_wipe_cancel` in jeder Sprache gleich lauten (`SAME`; mit dem alten deutschen Text
+  meldet es den Fehler).
+- **Geprüft am PC:** `check_translations.py` 448 Texte je Sprache ohne Befund; App-Tests 176 je Variante grün (Core
+  und Classic).
+- **Nicht geprüft:** auf einem Gerät (reine Textänderung).
+
 ## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
 
 Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit
@@ -259,7 +277,8 @@ erscheinen mit zwei Button "Abbrechen" und "Löschen" … 2. ganz unten benenne 
   Kartenverzeichnis und Systemdaten im Speicher und hätte sie beim nächsten Speichern zurückgeschrieben.
 - **„Quelle“ → „Quelle und Updates“** (Englisch „Source and updates“), Zusammenfassung „Speicherkarte, Discs,
   Berichte, Quelle & Updates“; 20 neue Texte, 1 Pluralform, alle 11 Sprachen (`check_translations.py` 440 Texte ohne
-  Befund). Die neue Frage sagt „Abbrechen“; die älteren Fragen der App sagen weiter „Abbruch“ (`ingame_cancel`).
+  Befund). Die neue Frage sagt „Abbrechen“; die älteren Fragen der App sagen weiter „Abbruch“ (`ingame_cancel`;
+  seit 0.99.18 auch „Abbrechen“, Abschnitt 1 von 0.99.18).
 - **Geprüft am PC:**
   - App-Tests beider Varianten je 146 grün (Core 0, Classic 2 übersprungen). Neu `PlayerBackupTest` (12): Einstellungen
     mit allen Typen zurück, Vulkan-Wächter und RetroTouch-Layout nicht in der Datei, Standard für Fehlendes, anderes
