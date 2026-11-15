@@ -128,6 +128,9 @@
     <string name="ingame_language_device">Lingua del dispositivo</string>
     <string name="ingame_language_help">La lingua dei testi e dei sottotitoli del gioco. Lingua del dispositivo: quella del dispositivo se il gioco la offre, altrimenti l\'inglese. Una modifica riavvia il gioco.</string>
     <string name="ingame_language_restart_text">La nuova lingua vale dopo un riavvio del gioco. I progressi dall\'ultimo salvataggio vanno persi.</string>
+    <string name="ingame_update">Aggiorna</string>
+    <string name="ingame_up_to_date">Aggiornato</string>
+    <string name="ingame_update_page">L\'ultima versione si apre su GitHub: scarica lì l\'APK e installalo.</string>
     <string name="ouya_cheats">Trucchi</string>
     <string name="ouya_view_distance">Distanza visiva</string>
     <string name="ouya_colours">Calcolo dei colori</string>

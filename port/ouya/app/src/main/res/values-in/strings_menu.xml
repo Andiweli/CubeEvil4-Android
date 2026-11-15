@@ -126,6 +126,9 @@
     <string name="ingame_language_device">Bahasa perangkat</string>
     <string name="ingame_language_help">Bahasa teks dan subtitel game. Bahasa perangkat: bahasa perangkat jika tersedia di game, jika tidak bahasa Inggris. Perubahan akan memulai ulang game.</string>
     <string name="ingame_language_restart_text">Bahasa baru dipakai setelah game dimulai ulang. Kemajuan sejak penyimpanan terakhir akan hilang.</string>
+    <string name="ingame_update">Perbarui</string>
+    <string name="ingame_up_to_date">Sudah terbaru</string>
+    <string name="ingame_update_page">Rilis terbaru terbuka di GitHub: unduh APK di sana lalu pasang.</string>
     <string name="ouya_cheats">Cheat</string>
     <string name="ouya_view_distance">Jarak pandang</string>
     <string name="ouya_colours">Perhitungan warna</string>

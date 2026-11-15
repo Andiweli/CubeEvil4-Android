@@ -127,6 +127,9 @@
     <string name="ingame_language_device">डिवाइस की भाषा</string>
     <string name="ingame_language_help">गेम के टेक्स्ट और सबटाइटल की भाषा। डिवाइस की भाषा: अगर गेम में डिवाइस की भाषा है तो वही, नहीं तो अंग्रेज़ी। बदलाव करने पर गेम फिर से शुरू होता है।</string>
     <string name="ingame_language_restart_text">नई भाषा गेम दोबारा शुरू होने के बाद लागू होगी। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
+    <string name="ingame_update">अपडेट</string>
+    <string name="ingame_up_to_date">नवीनतम</string>
+    <string name="ingame_update_page">नई रिलीज़ GitHub पर खुलती है: वहाँ से APK डाउनलोड करें और इंस्टॉल करें।</string>
     <string name="ouya_cheats">चीट्स</string>
     <string name="ouya_view_distance">दृश्य दूरी</string>
     <string name="ouya_colours">रंग गणना</string>

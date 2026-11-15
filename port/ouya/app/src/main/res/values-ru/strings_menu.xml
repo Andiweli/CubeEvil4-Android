@@ -129,6 +129,9 @@
     <string name="ingame_language_device">Язык устройства</string>
     <string name="ingame_language_help">Язык текстов и субтитров игры. Язык устройства: язык устройства, если он есть в игре, иначе английский. Изменение перезапускает игру.</string>
     <string name="ingame_language_restart_text">Новый язык применится после перезапуска игры. Прогресс после последнего сохранения будет потерян.</string>
+    <string name="ingame_update">Обновить</string>
+    <string name="ingame_up_to_date">Актуально</string>
+    <string name="ingame_update_page">Новый выпуск откроется на GitHub: скачайте там APK и установите его.</string>
     <string name="ouya_cheats">Читы</string>
     <string name="ouya_view_distance">Дальность обзора</string>
     <string name="ouya_colours">Расчёт цветов</string>

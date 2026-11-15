@@ -43,7 +43,9 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_button_style', 'ingame_button_icons', 'ingame_button_labels', 'ingame_button_style_help',
         'ingame_touch_help', 'ingame_latch', 'ingame_latch_b', 'ingame_latch_help',
         # the game's language with the European discs (15.11.2026)
-        'ingame_game_language', 'ingame_language_device', 'ingame_language_help', 'ingame_language_restart_text']
+        'ingame_game_language', 'ingame_language_device', 'ingame_language_help', 'ingame_language_restart_text',
+        # the update button (15.11.2026)
+        'ingame_update', 'ingame_up_to_date', 'ingame_update_page']
 Q = "\\'"  # an apostrophe in an Android string
 own = {
     'values': {

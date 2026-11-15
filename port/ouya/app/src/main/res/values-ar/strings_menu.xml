@@ -131,6 +131,9 @@
     <string name="ingame_language_device">لغة الجهاز</string>
     <string name="ingame_language_help">لغة نصوص اللعبة وترجماتها. لغة الجهاز: لغة الجهاز إذا كانت اللعبة تدعمها، وإلا فالإنجليزية. يؤدي التغيير إلى إعادة تشغيل اللعبة.</string>
     <string name="ingame_language_restart_text">تُطبَّق اللغة الجديدة بعد إعادة تشغيل اللعبة. يضيع التقدم منذ آخر حفظ.</string>
+    <string name="ingame_update">تحديث</string>
+    <string name="ingame_up_to_date">محدَّث</string>
+    <string name="ingame_update_page">يُفتح أحدث إصدار على GitHub: نزّل ملف APK من هناك وثبّته.</string>
     <string name="ouya_cheats">الغش</string>
     <string name="ouya_view_distance">مدى الرؤية</string>
     <string name="ouya_colours">حساب الألوان</string>

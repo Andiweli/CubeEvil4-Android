@@ -175,6 +175,26 @@ final class OuyaMenu extends Dialog {
         } catch (android.content.pm.PackageManager.NameNotFoundException e) {
             // no version line
         }
+        // the update button left of "Back to the game", as in the main app (wish of the project owner, 15.11.2026;
+        // OuyaUpdate): "Up to date" until GitHub names a newer OUYA APK, also without the internet
+        update = button("", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openUpdate();
+            }
+        });
+        LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        gap.rightMargin = dp(GAP);
+        header.addView(update, gap);
+        showUpdate(OuyaUpdate.state(context));
+        OuyaUpdate.check(context, new OuyaUpdate.Listener() {
+            @Override
+            public void checked(int state) {
+                if (isShowing())
+                    showUpdate(state);
+            }
+        });
         header.addView(resume);
         root.addView(header, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -516,6 +536,40 @@ final class OuyaMenu extends Dialog {
     // --- the instant save (wish of the project owner, 14.11.2026; the main app's CoreMenu.home) ------------
 
     private Button[] lastChoices;  // the buttons of the last choices() row
+    private Button update;         // the update button in the header (OuyaUpdate)
+    private static final int UPDATE_GREEN = 0xff2d5233, UPDATE_GREEN_EDGE = 0xff4f8a57;  // the main app's
+    private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
+
+    /** Green "Up to date" (off) or red "Update" (opens the release's page), as in the main app. */
+    private void showUpdate(int state) {
+        boolean older = state == OuyaUpdate.OLDER;
+        int fill = older ? UPDATE_RED : UPDATE_GREEN, stroke = older ? UPDATE_RED_EDGE : UPDATE_GREEN_EDGE;
+        StateListDrawable look = new StateListDrawable();
+        look.addState(new int[] {android.R.attr.state_focused}, focused(fill));
+        look.addState(new int[] {android.R.attr.state_pressed}, shape(fill, INK, 6));
+        look.addState(new int[0], shape(fill, stroke, 6));
+        update.setBackgroundDrawable(look);
+        update.setTextColor(INK);
+        update.setText(s(older ? R.string.ingame_update : R.string.ingame_up_to_date));
+        update.setEnabled(older);
+        update.setFocusable(older);
+    }
+
+    /** The newest release's page on GitHub in the browser; the OUYA may have none: then its address */
+    private void openUpdate() {
+        String page = OuyaUpdate.page(getContext());
+        try {
+            android.content.Intent view = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(page));
+            view.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(view);
+            android.widget.Toast.makeText(getContext(), R.string.ingame_update_page, android.widget.Toast.LENGTH_LONG)
+                    .show();
+        } catch (android.content.ActivityNotFoundException e) {
+            android.widget.Toast.makeText(getContext(), getContext().getString(R.string.ouya_no_browser, page),
+                    android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
     private Button saveSlot, loadSlot;
     private TextView slotDetails, slotDate, slotStatus;
     private boolean slotPresent, working;
