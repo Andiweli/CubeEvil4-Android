@@ -1,0 +1,26 @@
+  // --- realtime-shadows study (throw-away prototype, RE4_SHD_PROTO=1; not for the app) ---------------------------
+  // The figures' solid triangles (owner tag FIGURE, depth written) in view space, collected while the scene draws;
+  // after its last 3D draw the GL pass renders them from the main light into a depth map and darkens the EFB
+  // where the depth buffer's surfaces lie behind them (a deferred shadow mask). The main light: the GX light with
+  // the highest score on the figures' draws (colour x attenuation at the draw's centre).
+  struct ShdLight {
+    float pos[3];
+    float score;
+    unsigned uses;
+  };
+  int shdMode = -1;
+  std::uint32_t shdAfter = 0;
+  bool shdDone = false;
+  std::vector<float> shdTris;
+  std::vector<float> shdVerts;
+  std::vector<ShdLight> shdLights;
+  double shdCenter[3] = {0.0, 0.0, 0.0};
+  double shdCenterW = 0.0;
+  unsigned shdBlobs = 0, shdCasterDraws = 0;
+  std::uint32_t shdTables[32] = {};
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> shdFuncs;
+  float shdView[3][4] = {};  // the camera's view matrix, from a foot shadow blob's draw
+  bool shdHaveView = false;
+  bool ShdBlob(const Re4GxDraw &d) const;
+  void ShdCollect(const Re4GxDraw &d, const Re4GxChunk &chunk);
+  virtual void ShadowProtoPass() {}

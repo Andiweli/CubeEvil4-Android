@@ -1,0 +1,164 @@
+
+// --- realtime-shadows study (throw-away prototype) -----------------------------------------------------------------
+// The game's foot shadow blob (foot_shadow.cpp drawShadowParts): a figure's quad of positions and one texture
+// coordinate, one TEV stage with colour 0, blended SRCALPHA / INVSRCALPHA, depth tested without writing.
+bool GxCore::ShdBlob(const Re4GxDraw &d) const {
+  if (ownerWords[2] == 0xFF || !(ownerWords[2] & RE4_GX_OWNER_FIGURE))
+    return false;
+  if (d.layout != RE4_GX_V_TEX0 || (d.primitive & 0xFF) != RE4_GX_TRIANGLES)
+    return false;
+  if (key.numStages != 1 || (key.colorEnv[0] & 0xFFFF) != 0xFFFF)
+    return false;
+  const std::uint32_t c = bp[0x41];
+  if (!(c & 1) || ((c >> 8) & 7) != 4 || ((c >> 5) & 7) != 5)
+    return false;
+  const std::uint32_t z = bp[0x40];
+  return (z & 1) && !((z >> 4) & 1);
+}
+
+void GxCore::ShdCollect(const Re4GxDraw &d, const Re4GxChunk &chunk) {
+  if ((d.primitive & 0xFF) != RE4_GX_TRIANGLES || (xfReg[0x26] & 1) || !(AsFloat(xfReg[0x1A]) * 2.0f >= 500.0f))
+    return;
+  const unsigned table = ownerWords[2] == 0xFF ? 31u : (ownerWords[2] & 0x1F);
+  // dumps of before 0.99.6 have no FIGURE bit: RE4_SHD_FUNCS lists the owners' draw functions (word 1, hex) that
+  // are figures in that dump (RE4_SHD_LOG=1 lists the functions of table 0x0b by triangles)
+  static const std::vector<std::uint32_t> funcs = [] {
+    std::vector<std::uint32_t> f;
+    if (const char *v = std::getenv("RE4_SHD_FUNCS"))
+      for (const char *p = v; *p;) {
+        char *end = nullptr;
+        const unsigned long x = std::strtoul(p, &end, 16);
+        if (end == p)
+          break;
+        f.push_back(static_cast<std::uint32_t>(x));
+        p = *end ? end + 1 : end;
+      }
+    return f;
+  }();
+  bool figure = ownerWords[2] != 0xFF && (ownerWords[2] & RE4_GX_OWNER_FIGURE);
+  if (!figure && ownerWords[2] != 0xFF)
+    for (std::uint32_t f : funcs)
+      figure = figure || ownerWords[1] == f;
+  shdTables[table] += d.indexCount / 3;
+  if (table == 0x0b) {
+    bool found = false;
+    for (auto &fc : shdFuncs)
+      if (fc.first == ownerWords[1]) {
+        fc.second += d.indexCount / 3;
+        found = true;
+      }
+    if (!found)
+      shdFuncs.emplace_back(ownerWords[1], d.indexCount / 3);
+  }
+  // RE4_SHD_TABLES: a bit per owner table whose draws cast as well (objects), e.g. 0x800 for table 11
+  static const std::uint32_t extra = [] {
+    const char *v = std::getenv("RE4_SHD_TABLES");
+    return v && *v ? static_cast<std::uint32_t>(std::strtoul(v, nullptr, 0)) : 0u;
+  }();
+  if (!figure && !(table < 31 && (extra >> table) & 1))
+    return;
+  const std::uint32_t z = bp[0x40];
+  if (!(z & 1) || !((z >> 4) & 1))  // the solid parts: depth tested and written
+    return;
+  if (d.stride < 12 || d.vertexCount == 0)
+    return;
+  unsigned mtxAt = 12;
+  if (d.layout & RE4_GX_V_NORMAL)
+    mtxAt += (d.layout & RE4_GX_V_BINORMAL_TANGENT) ? 36 : 12;
+  mtxAt += ((d.layout & RE4_GX_V_COLOR0) ? 4 : 0) + ((d.layout & RE4_GX_V_COLOR1) ? 4 : 0);
+  for (int t = 0; t < 8; t++)
+    mtxAt += (d.layout & (RE4_GX_V_TEX0 << t)) ? 8 : 0;
+  shdVerts.resize(static_cast<std::size_t>(d.vertexCount) * 3);
+  double cx = 0.0, cy = 0.0, cz = 0.0;
+  for (std::uint32_t v = 0; v < d.vertexCount; v++) {
+    const std::uint8_t *at = chunk.vertices + d.vertexOffset + static_cast<std::size_t>(v) * d.stride;
+    float pos[3];
+    std::memcpy(pos, at, 12);
+    unsigned row = d.matrices[0] & 63;
+    if ((d.layout & RE4_GX_V_MATRIX) && mtxAt < d.stride)
+      row = at[mtxAt] & 63;
+    if (row > 61)
+      row = 0;
+    float *e = &shdVerts[static_cast<std::size_t>(v) * 3];
+    for (int r = 0; r < 3; r++)
+      e[r] = xf.posTex[row + r][0] * pos[0] + xf.posTex[row + r][1] * pos[1] + xf.posTex[row + r][2] * pos[2] +
+             xf.posTex[row + r][3];
+    cx += e[0];
+    cy += e[1];
+    cz += e[2];
+  }
+  // RE4_SHD_RANGE: only casters whose draw's centre lies within this distance of the camera (view units, 0 all)
+  static const float range = [] {
+    const char *v = std::getenv("RE4_SHD_RANGE");
+    return v && *v ? static_cast<float>(std::atof(v)) : 15000.0f;
+  }();
+  if (range > 0.0f) {
+    const double n0 = static_cast<double>(d.vertexCount);
+    const double mx = cx / n0, my = cy / n0, mz = cz / n0;
+    if (mx * mx + my * my + mz * mz > static_cast<double>(range) * range)
+      return;
+  }
+  for (std::uint32_t i = 0; i + 2 < d.indexCount; i += 3) {
+    for (int k = 0; k < 3; k++) {
+      const std::uint32_t idx = chunk.indices[d.indexOffset + i + k];
+      if (idx >= d.vertexCount)
+        return;
+      const float *e = &shdVerts[static_cast<std::size_t>(idx) * 3];
+      shdTris.insert(shdTris.end(), e, e + 3);
+    }
+  }
+  shdCasterDraws++;
+  const double n = static_cast<double>(d.vertexCount);
+  cx /= n;
+  cy /= n;
+  cz /= n;
+  if (!figure)
+    return;  // the light from the figures only
+  shdCenter[0] += cx * n;
+  shdCenter[1] += cy * n;
+  shdCenter[2] += cz * n;
+  shdCenterW += n;
+  // the GX lights of colour channel 0 (XF 0x100E): enable bit 1, lights 0-3 bits 2-5, 4-7 bits 11-14,
+  // attenuation bit 9 (bit 10: spot, else specular)
+  const std::uint32_t c = xfReg[0x0E];
+  if (!((c >> 1) & 1))
+    return;
+  const unsigned mask = ((c >> 2) & 0xF) | (((c >> 11) & 0xF) << 4);
+  for (unsigned l = 0; l < 8; l++) {
+    if (!((mask >> l) & 1))
+      continue;
+    const float *col = xf.light[l][0], *A = xf.light[l][1], *K = xf.light[l][2], *P = xf.light[l][3],
+                *dir = xf.light[l][4];
+    const float lum = 0.3f * col[0] + 0.59f * col[1] + 0.11f * col[2];
+    float att = 1.0f;
+    if ((c >> 9) & 1) {
+      if (!((c >> 10) & 1))
+        continue;  // specular lights cast nothing here
+      float L[3] = {P[0] - static_cast<float>(cx), P[1] - static_cast<float>(cy), P[2] - static_cast<float>(cz)};
+      const float dist = std::sqrt(L[0] * L[0] + L[1] * L[1] + L[2] * L[2]);
+      if (!(dist > 1e-3f))
+        continue;
+      for (float &x : L)
+        x /= dist;
+      const float cs = std::max(0.0f, L[0] * dir[0] + L[1] * dir[1] + L[2] * dir[2]);
+      const float ca = std::max(0.0f, A[0] + A[1] * cs + A[2] * cs * cs);
+      const float da = K[0] + K[1] * dist + K[2] * dist * dist;
+      att = da > 1e-6f ? std::min(4.0f, ca / da) : 4.0f;
+    }
+    const float score = lum * att * static_cast<float>(n);
+    if (!(score > 0.0f))
+      continue;
+    bool found = false;
+    for (ShdLight &s : shdLights) {
+      const float dx = s.pos[0] - P[0], dy = s.pos[1] - P[1], dz = s.pos[2] - P[2];
+      if (dx * dx + dy * dy + dz * dz < 1.0f) {
+        s.score += score;
+        s.uses++;
+        found = true;
+        break;
+      }
+    }
+    if (!found)
+      shdLights.push_back(ShdLight{{P[0], P[1], P[2]}, score, 1u});
+  }
+}

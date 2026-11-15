@@ -1,0 +1,334 @@
+  // --- realtime-shadows study (throw-away prototype, RE4_SHD_PROTO=1; GxCore::ShdCollect) --------------------------
+  GLuint shdDepthProg = 0, shdMaskProg = 0, shdApplyProg = 0, shdFbo = 0, shdTex = 0, shdVbo = 0, shdVao = 0;
+  GLuint shdMaskTex = 0;
+  int shdMaskW = 0, shdMaskH = 0, shdSize = 0;
+  GLint shdDepthM = -1, shdMaskRegion = -1, shdMaskVp0 = -1, shdMaskVp1 = -1, shdMaskPr0 = -1, shdMaskPr1 = -1,
+        shdMaskToLight = -1, shdMaskLook = -1, shdMaskBias = -1, shdMaskLdir = -1, shdApplyRegion = -1,
+        shdApplyShow = -1;
+  bool shdFailed = false;
+
+  static float ShdEnv(const char *name, float fallback) {
+    const char *v = std::getenv(name);
+    return v && *v ? static_cast<float>(std::atof(v)) : fallback;
+  }
+
+  bool ShdMake() {
+    static const char kDepthVs[] = "#version 300 es\n"
+                                   "layout(location = 0) in vec3 aPos;\n"
+                                   "uniform mat4 m;\n"
+                                   "void main() { gl_Position = m * vec4(aPos, 1.0); }\n";
+    static const char kDepthFs[] = "#version 300 es\nprecision mediump float;\nvoid main() {}\n";
+    static const char kMaskFs[] =
+        "#version 300 es\n"
+        "precision highp float;\n"
+        "precision highp sampler2DShadow;\n"
+        "uniform highp sampler2D src;\n"
+        "uniform highp sampler2DShadow shd;\n"
+        "uniform vec4 region;\n"
+        "uniform vec4 vp0;\n"
+        "uniform vec4 vp1;\n"
+        "uniform vec4 pr0;\n"
+        "uniform vec4 pr1;\n"
+        "uniform mat4 toLight;\n"
+        "uniform vec4 look;\n"
+        "uniform vec4 bias;\n"
+        "uniform vec3 ldir;\n"
+        "out vec4 color;\n"
+        "vec3 ViewAt(vec2 fc, out float d) {\n"
+        "  d = texelFetch(src, ivec2(fc), 0).r;\n"
+        "  vec2 gc = fc / vp1.z;\n"
+        "  float zz = (d * 16777215.0 - vp1.y) / vp0.z;\n"
+        "  float dist = pr1.y / (zz + pr1.x);\n"
+        "  vec2 ndc = vec2((gc.x - (vp0.w - 342.0)) / vp0.x, (gc.y - (vp1.x - 342.0)) / vp0.y);\n"
+        "  return vec3((ndc.x + pr0.y) * dist / pr0.x, (ndc.y + pr0.w) * dist / pr0.z, -dist);\n"
+        "}\n"
+        "const vec2 taps[12] = vec2[12](vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457),\n"
+        "  vec2(-0.203, 0.621), vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893),\n"
+        "  vec2(0.507, 0.064), vec2(0.896, 0.412), vec2(-0.322, -0.933), vec2(-0.792, -0.598));\n"
+        "void main() {\n"
+        "  vec2 fc = region.xy + gl_FragCoord.xy;\n"
+        "  float d, d1, d2, d3, d4;\n"
+        "  vec3 e = ViewAt(fc, d);\n"
+        "  color = vec4(1.0);\n"
+        "  if (d >= 0.9999995) return;\n"
+        "  vec3 ex1 = ViewAt(fc + vec2(1.0, 0.0), d1), ex0 = ViewAt(fc - vec2(1.0, 0.0), d2);\n"
+        "  vec3 ey1 = ViewAt(fc + vec2(0.0, 1.0), d3), ey0 = ViewAt(fc - vec2(0.0, 1.0), d4);\n"
+        "  vec3 dx = abs(ex1.z - e.z) < abs(e.z - ex0.z) ? ex1 - e : e - ex0;\n"
+        "  vec3 dy = abs(ey1.z - e.z) < abs(e.z - ey0.z) ? ey1 - e : e - ey0;\n"
+        "  vec3 n = normalize(cross(dx, dy));\n"
+        "  if (dot(n, e) > 0.0) n = -n;\n"
+        "  float facing = dot(n, -ldir);\n"
+        "  float dist = -e.z;\n"
+        "  float fade = 1.0 - smoothstep(look.y, look.z, dist);\n"
+        "  if (fade <= 0.0 || facing <= 0.0) return;\n"
+        "  vec4 l = toLight * vec4(e + n * bias.z, 1.0);\n"
+        "  vec3 c = l.xyz * 0.5 + 0.5;\n"
+        "  if (any(lessThan(c.xy, vec2(0.0))) || any(greaterThan(c.xy, vec2(1.0)))) return;\n"
+        "  float slope = sqrt(max(0.0, 1.0 - facing * facing)) / max(facing, 0.1);\n"
+        "  float ref = min(c.z, 1.0) - bias.x - bias.y * slope;\n"
+        "  float lit = 0.0;\n"
+        "  for (int i = 0; i < 12; i++) lit += texture(shd, vec3(c.xy + taps[i] * bias.w * look.w, ref));\n"
+        "  lit /= 12.0;\n"
+        "  float occ = (1.0 - lit) * fade * smoothstep(0.0, 0.3, facing);\n"
+        "  color = vec4(vec3(1.0 - look.x * occ), 1.0);\n"
+        "}\n";
+    static const char kApplyFs[] = "#version 300 es\n"
+                                   "precision mediump float;\n"
+                                   "uniform sampler2D mask;\n"
+                                   "uniform vec4 region;\n"
+                                   "uniform float show;\n"
+                                   "out vec4 color;\n"
+                                   "void main() {\n"
+                                   "  float m = texture(mask, (gl_FragCoord.xy - region.xy) / region.zw).r;\n"
+                                   "  color = vec4(m, m, m, 1.0);\n"
+                                   "}\n";
+    std::string log;
+    shdDepthProg = Link(kDepthVs, kDepthFs, &log);
+    shdMaskProg = shdDepthProg ? Link(fixed::kQuadVs, kMaskFs, &log) : 0;
+    shdApplyProg = shdMaskProg ? Link(fixed::kQuadVs, kApplyFs, &log) : 0;
+    if (!shdApplyProg) {
+      GXLOG("shd: shader failed: %s", log.c_str());
+      return false;
+    }
+    shdDepthM = glGetUniformLocation(shdDepthProg, "m");
+    glUseProgram(shdMaskProg);
+    glUniform1i(glGetUniformLocation(shdMaskProg, "src"), 0);
+    glUniform1i(glGetUniformLocation(shdMaskProg, "shd"), 1);
+    shdMaskRegion = glGetUniformLocation(shdMaskProg, "region");
+    shdMaskVp0 = glGetUniformLocation(shdMaskProg, "vp0");
+    shdMaskVp1 = glGetUniformLocation(shdMaskProg, "vp1");
+    shdMaskPr0 = glGetUniformLocation(shdMaskProg, "pr0");
+    shdMaskPr1 = glGetUniformLocation(shdMaskProg, "pr1");
+    shdMaskToLight = glGetUniformLocation(shdMaskProg, "toLight");
+    shdMaskLook = glGetUniformLocation(shdMaskProg, "look");
+    shdMaskBias = glGetUniformLocation(shdMaskProg, "bias");
+    shdMaskLdir = glGetUniformLocation(shdMaskProg, "ldir");
+    glUseProgram(shdApplyProg);
+    glUniform1i(glGetUniformLocation(shdApplyProg, "mask"), 0);
+    shdApplyRegion = glGetUniformLocation(shdApplyProg, "region");
+    shdApplyShow = glGetUniformLocation(shdApplyProg, "show");
+    glGenBuffers(1, &shdVbo);
+    glGenVertexArrays(1, &shdVao);
+    glBindVertexArray(shdVao);
+    glBindBuffer(GL_ARRAY_BUFFER, shdVbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, nullptr);
+    glBindVertexArray(0);
+    return true;
+  }
+
+  void ShadowProtoPass() override {
+    static const bool log = ShdEnv("RE4_SHD_LOG", 0.0f) > 0.0f;
+    static const bool timed = ShdEnv("RE4_SHD_TIME", 0.0f) > 0.0f;
+    static const bool show = ShdEnv("RE4_SHD_SHOW", 0.0f) > 0.0f;
+    int region[4];
+    if (log) {
+      std::string t;
+      for (int i = 0; i < 32; i++)
+        if (shdTables[i]) {
+          char b[48];
+          std::snprintf(b, sizeof(b), " %02x:%u", i, shdTables[i]);
+          t += b;
+        }
+      GXLOG("shd: triangles by owner table:%s", t.c_str());
+      std::string f;
+      for (const auto &fc : shdFuncs) {
+        char b[48];
+        std::snprintf(b, sizeof(b), " %08x:%u", fc.first, fc.second);
+        f += b;
+      }
+      GXLOG("shd: table 0b by draw function:%s", f.c_str());
+    }
+    if (shdFailed || shdTris.empty() || shdLights.empty() || !(shdCenterW > 0.0) || !BloomRegion(region)) {
+      if (log)
+        GXLOG("shd: nothing to do (caster triangles %zu, lights %zu)", shdTris.size() / 9, shdLights.size());
+      return;
+    }
+    const auto from = std::chrono::steady_clock::now();
+    if (timed)
+      glFinish();
+    // the main light and the direction its light travels (view space)
+    const ShdLight *best = &shdLights[0];
+    for (const ShdLight &l : shdLights)
+      if (l.score > best->score)
+        best = &l;
+    const float cx = static_cast<float>(shdCenter[0] / shdCenterW), cy = static_cast<float>(shdCenter[1] / shdCenterW),
+                cz = static_cast<float>(shdCenter[2] / shdCenterW);
+    float D[3] = {cx - best->pos[0], cy - best->pos[1], cz - best->pos[2]};
+    if (const char *dir = std::getenv("RE4_SHD_DIR"))  // a fixed direction in view space, "x,y,z"
+      std::sscanf(dir, "%f,%f,%f", &D[0], &D[1], &D[2]);
+    // RE4_SHD_FOOT="ax,ay": the room's foot shadow light (LIT, id 4 kind 5, type 1: Ang_x / Ang_y in degrees), its
+    // world direction (foot_shadow.cpp: RotY(ay) * RotX(ax) * (0,-1,0)) into view space with the camera matrix the
+    // blobs were drawn with
+    bool foot = false;
+    if (const char *f = std::getenv("RE4_SHD_FOOT")) {
+      float ax = 0.0f, ay = 0.0f;
+      if (shdHaveView && std::sscanf(f, "%f,%f", &ax, &ay) == 2) {
+        const float a = ax * 3.14159265f / 180.0f, b = ay * 3.14159265f / 180.0f;
+        const float w[3] = {-std::sin(a) * std::sin(b), -std::cos(a), -std::sin(a) * std::cos(b)};
+        for (int r = 0; r < 3; r++)
+          D[r] = shdView[r][0] * w[0] + shdView[r][1] * w[1] + shdView[r][2] * w[2];
+        foot = true;
+      }
+    }
+    {
+      const float len = std::sqrt(D[0] * D[0] + D[1] * D[1] + D[2] * D[2]);
+      if (!(len > 1e-3f))
+        return;
+      for (float &x : D)
+        x /= len;
+    }
+    float up[3] = {0.0f, 1.0f, 0.0f};
+    if (std::fabs(D[1]) > 0.9f) {
+      up[0] = 1.0f;
+      up[1] = 0.0f;
+    }
+    float R[3] = {up[1] * D[2] - up[2] * D[1], up[2] * D[0] - up[0] * D[2], up[0] * D[1] - up[1] * D[0]};
+    {
+      const float len = std::sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2]);
+      for (float &x : R)
+        x /= len;
+    }
+    const float U[3] = {D[1] * R[2] - D[2] * R[1], D[2] * R[0] - D[0] * R[2], D[0] * R[1] - D[1] * R[0]};
+    float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
+    for (std::size_t i = 0; i + 2 < shdTris.size(); i += 3) {
+      const float *v = &shdTris[i];
+      const float l[3] = {R[0] * v[0] + R[1] * v[1] + R[2] * v[2], U[0] * v[0] + U[1] * v[1] + U[2] * v[2],
+                          D[0] * v[0] + D[1] * v[1] + D[2] * v[2]};
+      for (int k = 0; k < 3; k++) {
+        lo[k] = std::min(lo[k], l[k]);
+        hi[k] = std::max(hi[k], l[k]);
+      }
+    }
+    const float extent = std::max(hi[0] - lo[0], hi[1] - lo[1]);
+    const float margin = 0.02f * extent + 20.0f;
+    // a square map: the larger side, centred
+    const float half = 0.5f * extent + margin;
+    const float mx = 0.5f * (lo[0] + hi[0]), my = 0.5f * (lo[1] + hi[1]);
+    const float reach = ShdEnv("RE4_SHD_REACH", 15000.0f);
+    const float zn = lo[2] - 100.0f, zf = hi[2] + reach;
+    const float sx = 1.0f / half, sz = 2.0f / (zf - zn), tz = -(zf + zn) / (zf - zn);
+    // view -> light clip, column-major
+    const float m[16] = {sx * R[0], sx * U[0], sz * D[0], 0.0f, sx * R[1], sx * U[1], sz * D[1], 0.0f,
+                         sx * R[2], sx * U[2], sz * D[2], 0.0f, -sx * mx,  -sx * my,  tz,        1.0f};
+    const int size = static_cast<int>(ShdEnv("RE4_SHD_SIZE", 2048.0f));
+    const float texel = 2.0f * half / static_cast<float>(size);  // view units per map texel
+    Touched();
+    SaveAndPlainState();
+    if (!shdDepthProg && !ShdMake()) {
+      shdFailed = true;
+      BindFbo(DrawFbo());
+      return;
+    }
+    if (shdSize != size) {
+      if (shdTex)
+        glDeleteTextures(1, &shdTex);
+      if (shdFbo)
+        glDeleteFramebuffers(1, &shdFbo);
+      glGenTextures(1, &shdTex);
+      glBindTexture(GL_TEXTURE_2D, shdTex);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, size, size, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+      glGenFramebuffers(1, &shdFbo);
+      glBindFramebuffer(GL_FRAMEBUFFER, shdFbo);
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shdTex, 0);
+      const GLenum none = GL_NONE;
+      glDrawBuffers(1, &none);
+      if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        GXLOG("shd: depth map frame buffer not complete");
+        shdFailed = true;
+        BindFbo(DrawFbo());
+        return;
+      }
+      shdSize = size;
+    }
+    // 1. the casters from the light
+    BindFbo(shdFbo);
+    glViewport(0, 0, size, size);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glClearDepthf(1.0f);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(1.5f, 2.0f);
+    glUseProgram(shdDepthProg);
+    glUniformMatrix4fv(shdDepthM, 1, GL_FALSE, m);
+    glBindVertexArray(shdVao);
+    glBindBuffer(GL_ARRAY_BUFFER, shdVbo);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(shdTris.size() * sizeof(float)), shdTris.data(),
+                 GL_STREAM_DRAW);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(shdTris.size() / 3));
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glBindVertexArray(0);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDisable(GL_DEPTH_TEST);
+    // 2. the mask from the EFB's depth (a texel per EFB texel of the scene's part)
+    PassTexture(&shdMaskTex, &shdMaskW, &shdMaskH, region[2], region[3]);
+    glUseProgram(shdMaskProg);
+    glUniform4f(shdMaskRegion, float(region[0]), float(region[1]), float(region[2]), float(region[3]));
+    glUniform4f(shdMaskVp0, AsFloat(xfReg[0x1A]), AsFloat(xfReg[0x1B]), AsFloat(xfReg[0x1C]), AsFloat(xfReg[0x1D]));
+    glUniform4f(shdMaskVp1, AsFloat(xfReg[0x1E]), AsFloat(xfReg[0x1F]), static_cast<float>(halves) * 0.5f, 0.0f);
+    glUniform4f(shdMaskPr0, AsFloat(xfReg[0x20]), AsFloat(xfReg[0x21]), AsFloat(xfReg[0x22]), AsFloat(xfReg[0x23]));
+    glUniform4f(shdMaskPr1, AsFloat(xfReg[0x24]), AsFloat(xfReg[0x25]), 0.0f, 0.0f);
+    glUniformMatrix4fv(shdMaskToLight, 1, GL_FALSE, m);
+    glUniform4f(shdMaskLook, ShdEnv("RE4_SHD_STRENGTH", 0.5f), ShdEnv("RE4_SHD_FADE0", 12000.0f),
+                ShdEnv("RE4_SHD_FADE1", 20000.0f), 1.0f / static_cast<float>(size));
+    // depth bias in the map's 0..1 (1.5 texels' worth of depth), its slope part, the normal offset (view units),
+    // the PCF radius in texels
+    const float dz = texel / (zf - zn);
+    // RE4_SHD_SELF: view units a surface may lie behind the casters' depth and still count as lit (the figures'
+    // own shading left to the game; contact shadows within it are lost)
+    glUniform4f(shdMaskBias, ShdEnv("RE4_SHD_BIAS", 1.5f) * dz + ShdEnv("RE4_SHD_SELF", 0.0f) / (zf - zn),
+                ShdEnv("RE4_SHD_SLOPE", 1.0f) * dz,
+                ShdEnv("RE4_SHD_NORMAL", 1.5f) * texel, ShdEnv("RE4_SHD_PCF", 2.5f));
+    glUniform3f(shdMaskLdir, D[0], D[1], D[2]);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, shdTex);
+    glBindSampler(1, 0);
+    FilterDraw(shdMaskProg, shdMaskTex, region[2], region[3], efbDepth);
+    // 3. the mask times the EFB's colour
+    SaveAndPlainState();
+    glDepthMask(GL_FALSE);
+    BindFbo(DrawFbo());
+    glViewport(0, 0, Lo(kEfbWidth), Lo(kEfbHeight));
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(region[0], region[1], region[2], region[3]);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    if (!show) {
+      glEnable(GL_BLEND);
+      glBlendEquation(GL_FUNC_ADD);
+      glBlendFunc(GL_DST_COLOR, GL_ZERO);
+    }
+    glUseProgram(shdApplyProg);
+    glUniform4f(shdApplyRegion, float(region[0]), float(region[1]), float(region[2]), float(region[3]));
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shdMaskTex);
+    glBindSampler(0, 0);
+    glBindVertexArray(quadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDisable(GL_BLEND);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+    current = nullptr;
+    Touched();
+    double ms = 0.0;
+    if (timed) {
+      glFinish();
+      ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count();
+    }
+    if (log)
+      GXLOG("shd: %s light (%.0f %.0f %.0f) score %.0f of %zu lights, dir (%.3f %.3f %.3f), casters %u draws %zu "
+            "triangles, map %.0f x %.0f view units (%.1f a texel), depth %.0f, blobs left out %u, %.2f ms",
+            foot ? "FOOT (room's foot shadow light), strongest GX" : "strongest GX", best->pos[0], best->pos[1],
+            best->pos[2], best->score, shdLights.size(), D[0], D[1], D[2],
+            shdCasterDraws, shdTris.size() / 9, 2.0f * half, 2.0f * half, texel, zf - zn, shdBlobs, ms);
+  }
+

@@ -23,6 +23,26 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
   Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
 
+## Branch `realtime-shadows`: Machbarkeitsstudie Echtzeit-Schatten und Raytracing (15.11.2026, Basis 9d46444b)
+
+Studie für die Zeit nach 1.0 (Feature-Freeze). Nichts in der App geändert. Bericht:
+`port/docs/echtzeit-schatten-studie.md`, Notizen und Versuchs-Code: `port/docs/echtzeit-schatten/`. Vergleichsbilder:
+`E:\Development\Android\builds\realtime-shadows\`.
+
+- **Ergebnis:** Echte Schatten für Figuren und Gegner sind mit einer Schattenkarte und einer Maske nach der 3D-Szene
+  machbar, ohne die TEV-Shader zu ändern. Der Versuch lief nur in `gx_chunk_render` am PC, GLES. Raytracing (Vulkan Ray
+  Query) gibt es nur auf Spitzenhandys (Adreno 740 und neuer, Immortalis, Xclipse), nicht auf dem Retroid.
+- **Empfehlung für 1.1** (offen, Entscheidung des Projektinhabers steht aus): „Real-time shadows · Off / Characters“,
+  ab Werk aus. Die Zeile erscheint nur auf starken Geräten (Chip, Benchmark, Prozessor, Speicher). Die Blob-Schatten
+  werden dabei ersetzt. Etwa 8 bis 10 Sitzungen.
+- **Befunde:**
+  - 108 von 127 Räumen haben ein Fußschatten-Licht der Entwickler (LIT `Id 4`, `Kind 5`), das ist die Lichtrichtung.
+  - 103 Räume haben Kamera-Parallellichter (Typ 5, Flag Bit 0). Diese sind für Schatten unbrauchbar: In r101 steht das
+    stärkste Licht auf den Figuren in jedem Bild an der Kamera.
+  - Figuren und Raum teilen Ordnungstabelle 0x0B. Nur das FIGURE-Bit im Owner-Tag unterscheidet sie.
+  - Der Versuch kostet am PC (llvmpipe) 15 bis 20 % der Bildzeit, in voller Auflösung, unoptimiert.
+- **Nicht geprüft:** Gerät (keine Kosten auf dem Adreno gemessen), Vulkan, EU-Disc.
+
 ## Version 0.99.18-rc (in Arbeit, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
