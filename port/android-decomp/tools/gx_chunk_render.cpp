@@ -234,6 +234,10 @@ int main(int argc, char **argv) {
       renderer->SetFlares(flares && *flares == '1');
       const char *dofStrong = std::getenv("RE4_GX_DOF_STRONG");
       renderer->SetDofStrong(dofStrong && *dofStrong == '1');
+      // RE4_GX_SHADOWS=1: the real-time shadows of the figures (SetShadows; debug builds of the app only), where the
+      // dump has the core's mark (a core run with RE4_POTATO=32)
+      const char *shadows = std::getenv("RE4_GX_SHADOWS");
+      renderer->SetShadows(shadows && *shadows == '1' ? 1 : 0);
       // RE4_TEX_PACK=<file.c4tex>: the player's HD texture pack (GxRenderer::SetTexturePack); RE4_TEX_PACK_HALF=1 the
       // menu's "Sharpness: Half", RE4_TEX_PACK_MB the replacements' budget (default 512)
       if (const char *packPath = std::getenv("RE4_TEX_PACK")) {

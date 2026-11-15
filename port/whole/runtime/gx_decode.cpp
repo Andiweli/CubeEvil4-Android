@@ -2253,6 +2253,17 @@ size_t command(const u8* p, size_t n, size_t* need, bool be, int depth)
         }
         return 17;
     }
+    case 0x03: {  // the port's real-time shadow mark (gx_fifo.cpp re4_gx_put_shadow, runtime/rt_shadow.cpp)
+        *need = 17;
+        if (n < 17) {
+            return 0;
+        }
+        const u32 shadow[4] = {rd32(p + 1, be), rd32(p + 5, be), rd32(p + 9, be), rd32(p + 13, be)};
+        if (chunk()) {
+            emit(RE4_GX_OP_SHADOW, shadow, 4);
+        }
+        return 17;
+    }
     case 0x44:  // metrics
     case 0x48:  // invalidate the vertex cache
         gStats.commands++;

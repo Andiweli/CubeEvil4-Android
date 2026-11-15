@@ -80,7 +80,15 @@ enum Re4GxOp {
      * another id or fewer frames), else 0xFFFFFFFF. The same object in two pictures is the same
      * thing, whatever its draws look like (a flame's next texture). A renderer that does not know
      * the op skips it by its length. */
-    RE4_GX_OP_OWNER = 8
+    RE4_GX_OP_OWNER = 8,
+    /* payload 4 words (real-time shadows, debug builds until after 1.0, port/docs/echtzeit-schatten-studie.md;
+     * runtime/rt_shadow.cpp, patch 0240): the scene's opaque part is drawn (the game's ordering tables up to
+     * 14, its own shadow receivers; before the effects), now the figures' shadows go on it. [0..2] the
+     * direction the room's foot shadow light shines in, in view space (floats as their bits), [3] bits 0-7
+     * its strength (0..255), bits 8.. 0. Sent only while the app switched the shadows on, in play (no event,
+     * no sub screen, no death or continue screen) and with a foot shadow light reaching the player; the core
+     * then draws no foot shadow blobs. A renderer that does not know the op skips it by its length. */
+    RE4_GX_OP_SHADOW = 9
 };
 
 /* RE4_GX_OP_OWNER word 2: the object is a figure (Leon, Ashley, Luis, an enemy, the merchant: a work of

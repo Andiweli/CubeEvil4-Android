@@ -733,6 +733,117 @@ constexpr char kBloomAddFs[] =
     "  o = vec4(texture(bloom, t).rgb * size.w + texture(core, t).rgb * glow.x, 0.0);\n"
     "}\n";
 
+// --- real-time shadows of the figures (GxCore::ShadowMark; debug builds only until after 1.0) -----------------------
+// The figures' triangles (view space, three floats a corner) from the light: only their depth (the map's clip space
+// by toLight).
+constexpr char kShadowDepthVs[] = "#version 300 es\n"
+                                  "layout(location = 0) in vec3 aPos;\n"
+                                  "uniform mat4 toLight;\n"
+                                  "void main() { gl_Position = toLight * vec4(aPos, 1.0); }\n";
+constexpr char kShadowDepthFs[] = "#version 300 es\nprecision mediump float;\nout vec4 o;\nvoid main() { o = vec4(0.0); }\n";
+// The same triangles with the scene's camera, as the GX vertex shader places them (gx_gl_shader.cpp: XF viewport and
+// projection, the pixel centre's twelfth), tested against the EFB's depth: 1 where a figure is the visible surface
+// (its own pixels: kShadowMaskFs leaves them as they are, so a figure does not stripe itself).
+constexpr char kShadowMarkVs[] =
+    "#version 300 es\n"
+    "layout(location = 0) in vec3 aPos;\n"
+    "uniform vec4 vp0;\n"  // xs ys zs ox
+    "uniform vec4 vp1;\n"  // oy zo W H
+    "uniform vec4 pr0;\n"  // p0 p1 p2 p3
+    "uniform vec4 pr1;\n"  // p4 p5
+    "void main() {\n"
+    "  vec4 clip = vec4(pr0.x * aPos.x + pr0.y * aPos.z, pr0.z * aPos.y + pr0.w * aPos.z, pr1.x * aPos.z + pr1.y, -aPos.z);\n"
+    "  float W = vp1.z, H = vp1.w;\n"
+    "  gl_Position = vec4(((vp0.w - 342.0) * 2.0 / W - 1.0) * clip.w + vp0.x * 2.0 / W * clip.x,\n"
+    "                     ((vp1.x - 342.0) * 2.0 / H - 1.0) * clip.w + vp0.y * 2.0 / H * clip.y,\n"
+    "                     2.0 * (vp0.z * clip.z + vp1.y * clip.w) / 16777215.0 - clip.w, clip.w);\n"
+    "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n"
+    "}\n";
+constexpr char kShadowMarkFs[] = "#version 300 es\nprecision mediump float;\nout vec4 o;\nvoid main() { o = vec4(1.0); }\n";
+// The shadow mask, a texel per `grid` EFB texels of the scene's part (region): each texel's surface from the EFB
+// depth back into view space (the XF viewport and projection as the vertex shader uses them; vp1.z texels per
+// GameCube pixel), its normal from the nearer neighbours, moved along it (bias.z) into the map, compared at 8 taps
+// (bias.w texels apart; each a 2 x 2 comparison of the hardware). Only surfaces that face the light; the darkening
+// (look.x) fades from look.y to look.z view units away. Where a figure is the visible surface (fig) nothing darkens:
+// the game lights its figures with lights of their own, and a figure shading itself striped it (r30f).
+// The shadow reaches grid.w (map depth) behind the caster the map holds there (raw: the map read without comparing):
+// the room itself casts nothing, so a figure's shadow must not fall through a wall onto what lies far behind it.
+// 1 where lit, 1 - strength in full shadow; the sky (depth 1) stays lit.
+constexpr char kShadowMaskFs[] =
+    "#version 300 es\n"
+    "precision highp float;\n"
+    "precision highp sampler2DShadow;\n"
+    "uniform highp sampler2D src;\n"
+    "uniform highp sampler2DShadow shd;\n"
+    "uniform highp sampler2D fig;\n"
+    "uniform highp sampler2D raw;\n"
+    "uniform vec4 region;\n"   // x y w h (EFB texels)
+    "uniform vec4 grid;\n"     // EFB texels per mask texel (x, y), 0, the reach (map depth)
+    "uniform vec4 vp0;\n"
+    "uniform vec4 vp1;\n"
+    "uniform vec4 pr0;\n"
+    "uniform vec4 pr1;\n"
+    "uniform mat4 toLight;\n"
+    "uniform vec4 look;\n"
+    "uniform vec4 bias;\n"
+    "uniform vec4 ldir;\n"
+    "out vec4 o;\n"
+    "vec3 ViewAt(vec2 fc, out float d) {\n"
+    "  d = texelFetch(src, ivec2(fc), 0).r;\n"
+    "  vec2 gc = fc / vp1.z;\n"
+    "  float zz = (d * 16777215.0 - vp1.y) / vp0.z;\n"
+    "  float dist = pr1.y / (zz + pr1.x);\n"
+    "  vec2 ndc = vec2((gc.x - (vp0.w - 342.0)) / vp0.x, (gc.y - (vp1.x - 342.0)) / vp0.y);\n"
+    "  return vec3((ndc.x + pr0.y) * dist / pr0.x, (ndc.y + pr0.w) * dist / pr0.z, -dist);\n"
+    "}\n"
+    "void main() {\n"
+    "  o = vec4(1.0);\n"
+    "  vec2 fc = region.xy + floor((gl_FragCoord.xy - 0.5) * grid.xy + 0.5 * grid.xy) + 0.5;\n"
+    "  float d, d1, d2, d3, d4;\n"
+    "  vec3 e = ViewAt(fc, d);\n"
+    "  if (d >= 0.9999995 || texelFetch(fig, ivec2(fc), 0).r > 0.5) return;\n"
+    "  vec3 ex1 = ViewAt(fc + vec2(1.0, 0.0), d1), ex0 = ViewAt(fc - vec2(1.0, 0.0), d2);\n"
+    "  vec3 ey1 = ViewAt(fc + vec2(0.0, 1.0), d3), ey0 = ViewAt(fc - vec2(0.0, 1.0), d4);\n"
+    "  vec3 dx = abs(ex1.z - e.z) < abs(e.z - ex0.z) ? ex1 - e : e - ex0;\n"
+    "  vec3 dy = abs(ey1.z - e.z) < abs(e.z - ey0.z) ? ey1 - e : e - ey0;\n"
+    "  vec3 n = cross(dx, dy);\n"
+    "  if (dot(n, n) < 1e-12) return;\n"
+    "  n = normalize(n);\n"
+    "  if (dot(n, e) > 0.0) n = -n;\n"
+    "  float facing = dot(n, -ldir.xyz);\n"
+    "  float fade = 1.0 - smoothstep(look.y, look.z, -e.z);\n"
+    "  if (fade <= 0.0 || facing <= 0.0) return;\n"
+    "  vec4 l = toLight * vec4(e + n * bias.z, 1.0);\n"
+    "  vec3 c = l.xyz * 0.5 + 0.5;\n"
+    "  if (any(lessThan(c.xy, vec2(0.0))) || any(greaterThan(c.xy, vec2(1.0))) || c.z > 1.0) return;\n"
+    "  float behind = c.z - texture(raw, c.xy).r;\n"
+    "  float reach = 1.0 - smoothstep(0.75 * grid.w, grid.w, behind);\n"
+    "  if (reach <= 0.0) return;\n"
+    "  float slope = sqrt(max(0.0, 1.0 - facing * facing)) / max(facing, 0.1);\n"
+    "  float ref = c.z - bias.x - bias.y * slope;\n"
+    "  vec2 r = vec2(bias.w * look.w);\n"
+    "  float lit = texture(shd, vec3(c.xy + vec2(-0.326, -0.406) * r, ref));\n"
+    "  lit += texture(shd, vec3(c.xy + vec2(-0.840, -0.074) * r, ref));\n"
+    "  lit += texture(shd, vec3(c.xy + vec2(-0.696, 0.457) * r, ref));\n"
+    "  lit += texture(shd, vec3(c.xy + vec2(-0.203, 0.621) * r, ref));\n"
+    "  lit += texture(shd, vec3(c.xy + vec2(0.962, -0.195) * r, ref));\n"
+    "  lit += texture(shd, vec3(c.xy + vec2(0.473, -0.480) * r, ref));\n"
+    "  lit += texture(shd, vec3(c.xy + vec2(0.519, 0.767) * r, ref));\n"
+    "  lit += texture(shd, vec3(c.xy + vec2(0.185, -0.893) * r, ref));\n"
+    "  float occ = (1.0 - lit * 0.125) * fade * reach * smoothstep(0.0, 0.3, facing);\n"
+    "  o = vec4(vec3(1.0 - look.x * occ), 1.0);\n"
+    "}\n";
+// The mask times the EFB's colour (blending: destination colour, zero; alpha not written), smoothed from its texels.
+constexpr char kShadowApplyFs[] = "#version 300 es\n"
+                                  "precision mediump float;\n"
+                                  "uniform sampler2D mask;\n"
+                                  "uniform vec4 region;\n"
+                                  "out vec4 o;\n"
+                                  "void main() {\n"
+                                  "  float m = texture(mask, (gl_FragCoord.xy - region.xy) / region.zw).r;\n"
+                                  "  o = vec4(m, m, m, 1.0);\n"
+                                  "}\n";
+
 // CRT, the screen (instead of kPresentFs): the box's picture through a curved glass (shape.xy) with rounded
 // corners (shape.z, in box heights) and darker edges (shape.w); each game line a beam (beam.xy: its width, wider
 // where bright; beam.z: the brightness the gaps take), the glow on top (beam.w); the phosphors' mask in screen

@@ -44,6 +44,8 @@ struct GxStats {
   unsigned colourPasses = 0;     // display copies graded (SetColour)
   unsigned crtPasses = 0;        // display copies made into the CRT's lines and glow (SetCrt)
   unsigned bloomPasses = 0;      // pictures whose scene's bright parts glow (SetBloom)
+  unsigned shadowPasses = 0;     // pictures with the figures' real-time shadows (SetShadows)
+  unsigned shadowTriangles = 0;  // the figures' triangles of the last of them
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
   unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
@@ -331,6 +333,11 @@ public:
   // picture of one texel per 4 x 4 game pixels, blurred, added into the EFB); not where "Halos + lens flares" draw
   // their halo, not on the game's menu screens. Takes effect with the next chunk.
   void SetBloom(int level);
+  // Real-time shadows of the figures (debug builds only until after 1.0, decision of the project owner, 15.11.2026;
+  // port/docs/echtzeit-schatten-studie.md): 0 off (the default), 1 the figures. Where the game core marks the place
+  // (RE4_GX_OP_SHADOW: in play, with the room's foot shadow light), the figures cast their shadows on the scene. Off,
+  // nothing of it runs. Takes effect with the next chunk.
+  void SetShadows(int level);
   // the menu's depth of field "Strong" (0.98.4): the gameplay autofocus blurs more and wider than "Light"
   void SetDofStrong(bool on);
   // HD textures (port/docs/textur-lader-plan.md): the player's texture pack (null: none), the first of each

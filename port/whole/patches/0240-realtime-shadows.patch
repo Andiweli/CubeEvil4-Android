@@ -1,0 +1,60 @@
+# Port patch, real-time shadows of the figures (port/docs/echtzeit-schatten-studie.md; the project owner, 15.11.2026:
+# built now, active only in debug builds of the app until after 1.0). Render asks runtime/rt_shadow.cpp at its start
+# whether this frame casts the app's real-time shadows (the app's switch, bit 5 of the Potato mask; in play; a foot
+# shadow light of the room reaching the player) and, after the ordering table 14 (the room and the figures, table 11,
+# and the game's own shadow receivers are drawn, the effects not yet), lets it mark the place in the GX stream with the
+# light's direction (re4_gx_frame.h RE4_GX_OP_SHADOW); the renderer draws the shadows there. DrawFootShadow draws no
+# blobs in such a frame, so no figure has both. Off (every release build) nothing changes: Render and DrawFootShadow
+# do what they did. The game reads nothing of it.
+--- a/src/game/trans.cpp
++++ b/src/game/trans.cpp
+@@ -904,6 +904,8 @@
+ }
+
+ extern "C" int re4_letterbox_open(void);  /* port: runtime/picture.cpp (patch 0105) */
++extern "C" void re4_rt_shadow_frame(void); /* port: runtime/rt_shadow.cpp (patch 0240) */
++extern "C" void re4_rt_shadow_mark(void);  /* port: runtime/rt_shadow.cpp (patch 0240) */
+
+ // Per frame, the draw pass: runs the ordering tables in order (render textures, shadow setup,
+ // far sub screen, scroll, sub screen, models, shadow draw, near sub screen, effects, world, VU1
+@@ -925,6 +927,9 @@
+         SetScissorState();
+     }
+     LightMgr.setFog();
++    /* port (patch 0240): does this frame cast the app's real-time shadows (debug builds; the foot shadow blobs are
++       left out then; runtime/rt_shadow.cpp) */
++    re4_rt_shadow_frame();
+     ExecOt(0);
+     SetDrawTmpBufType(0);
+     ExecOt(OT_TYPE_TEX_RENDER1);
+@@ -950,6 +955,9 @@
+     ExecOt(OT_TYPE_SCREEN);
+     ExecOt(OT_TYPE_COCKPIT);
+     ExecOt(OT_TYPE_ID_MODEL);
++    /* port (patch 0240): the room, the figures (table 11) and the game's own shadow receivers (table 14) are drawn,
++       the effects not yet: the app's real-time shadows go on the scene here (debug builds; runtime/rt_shadow.cpp) */
++    re4_rt_shadow_mark();
+     ExecOt(OT_TYPE_MESSAGE);
+     ExecOt(OT_TYPE_AFTER_RENDER);
+     ExecOt(OT_TYPE_DEBUG);
+--- a/src/game/foot_shadow.cpp
++++ b/src/game/foot_shadow.cpp
+@@ -11,6 +11,7 @@
+ #include "foot_shadow.h"
+
+ extern "C" int re4_potato_no_shadows(void); /* port: runtime/potato.cpp (patch 0219) */
++extern "C" int re4_rt_shadow_blobs_off(void); /* port: runtime/rt_shadow.cpp (patch 0240) */
+
+ // One shadow quad.
+ struct SHD_DISP {
+@@ -47,6 +48,10 @@
+     if (re4_potato_no_shadows()) {
+         return;
+     }
++    /* port (patch 0240): none in a frame with the app's real-time shadows (debug builds; runtime/rt_shadow.cpp) */
++    if (re4_rt_shadow_blobs_off()) {
++        return;
++    }
+     if (pMod->Shd_color == 0xFF) {
+         return;
+     }
