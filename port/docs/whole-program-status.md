@@ -418,6 +418,17 @@ rotes Popup `UnofficialWarning` (Texte `ingame_unofficial_*`, 11 Sprachen), das 
 muss (MainActivity hält den Start an, CoreActivity schickt einen neuen Prozess zuerst dorthin), und eine Zeile in
 `device.txt` (`core_unofficial`). Debug-Builds lesen nichts, nicht lesbar = nichts. Test `OfficialBuildTest`.
 
+Nachtrag (17.11.2026, Projektinhaber über die Hauptsitzung): „Die Meldung / Popup wenn die Signatur verändert wurde
+soll nur beim ersten App Start kommen und nicht bei jedem.“
+- Nach dem Bestätigen merkt sich die App die fremde Signatur (SHA-256 der Zertifikate, sortiert; Datei
+  `official_build`, Schlüssel `confirmedSigner`). Das Popup kommt für sie nicht wieder, auch nicht nach einem
+  Kaltstart oder einem Update mit demselben Schlüssel.
+- Eine andere fremde Signatur warnt noch einmal; gelöschte App-Daten auch.
+- Die offizielle Signatur warnt nie, Debug-Builds unverändert. Die Zeile in `device.txt` bleibt bei jedem
+  Fehlerbericht.
+- Kein Wort dazu in README und Releasetext (Vorgabe).
+- `OfficialBuildTest.onceForEachSignature` und ein Kaltstart in `theGameWaitsForTheWarning`. Emulator: CHECKS_ONCE
+
 ### 1. Sichtweite: warum die Stufen kaum anders aussehen (Analyse, Projektinhaber, 15.11.2026; kein Code)
 
 Frage des Inhabers: Weit, Normal, Mittel und Kurz zeigen kaum Unterschied, Weit und Normal gar keinen. Nur Analyse

@@ -1,22 +1,28 @@
 package com.ast.re4decomp;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.os.Build;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 /**
  * Whether this APK is one of the project owner's own releases (1.0.0, the project owner, 16.11.2026: "Nur der Hinweis
  * reicht. Den Debug Build nimm aber raus. Es soll nur mit Release Versionen geprüft werden."). Copies of CubeEvil4 turn
- * up on other sites and game platforms; a release build signed with another key than the owner's warns at every start
- * of the app (once per process): a red popup that has to be confirmed before the game starts (UnofficialWarning; the
- * owner, 16.11.2026: "als popup das man mit rotem button bestätigen muss bei jedem start"), and one line in the error
- * log (CoreLog.deviceText, R.string.core_unofficial). Nothing is locked and the game is unchanged.
+ * up on other sites and game platforms; a release build signed with another key than the owner's warns with a red
+ * popup that has to be confirmed before the game starts (UnofficialWarning; the owner, 16.11.2026: "als popup das man
+ * mit rotem button bestätigen muss"), and every error log has one line (CoreLog.deviceText, R.string.core_unofficial).
+ * Nothing is locked and the game is unchanged. The popup comes at the app's first start only (the owner, 17.11.2026:
+ * "Die Meldung / Popup wenn die Signatur verändert wurde soll nur beim ersten App Start kommen und nicht bei jedem"):
+ * once confirmed, the signature it warned about is kept (PREFS, CONFIRMED) and the popup does not come again for it;
+ * another foreign signature (an update signed with yet another key) warns once more, and so does the app after its
+ * data were cleared. Until then (0.99.19) it came at every cold start.
  *
  * Only release builds are checked: a debug build (Android Studio's coreDebug, debuggable, debuggable()) never
  * reads its signature and never warns. A signature Android does not give (or that cannot be read) gives no warning
@@ -30,8 +36,12 @@ final class OfficialBuild {
       "a3810c7ae720118333f68c55f49cd4145fd4a02ec01127f8cc6256d6a507f41a",
   };
 
+  /** The app's preferences of this check and the signature whose warning was confirmed (signerKey). */
+  static final String PREFS = "official_build", CONFIRMED = "confirmedSigner";
+
   private static Boolean cached;  // the answer for this process (the APK does not change while it runs)
-  private static boolean confirmed;  // the warning confirmed in this process (a cold start asks again)
+  private static String cachedKey;  // its signatures (signerKey), "" for none
+  private static boolean confirmed;  // the warning confirmed in this process
 
   private OfficialBuild() {}
 
@@ -57,25 +67,51 @@ final class OfficialBuild {
   static synchronized boolean unofficial(Context c) {
     if (cached == null) {
       boolean debug = debuggable(c);
-      cached = noticeFor(debug, debug ? null : signers(c));
+      List<String> signers = debug ? null : signers(c);
+      cached = noticeFor(debug, signers);
+      cachedKey = signerKey(signers);
     }
     return cached;
   }
 
-  /** The warning is due: an unofficial build whose warning was not confirmed in this process yet. The game waits for
-   *  it (MainActivity before it starts the game, CoreActivity when Android brings the game back in a new process). */
+  /** The signatures as one text (their SHA-256, sorted, joined by commas); "" for none. */
+  static String signerKey(List<String> signers) {
+    if (signers == null || signers.isEmpty()) return "";
+    List<String> sorted = new ArrayList<>();
+    for (String s : signers) sorted.add(s.toLowerCase(Locale.ROOT));
+    Collections.sort(sorted);
+    return String.join(",", sorted);
+  }
+
+  /** The decision: an unofficial build warns unless its signature's warning was confirmed before (`stored`). */
+  static boolean warnFor(boolean unofficial, String key, String stored) {
+    return unofficial && !key.isEmpty() && !key.equals(stored);
+  }
+
+  /** The warning is due: an unofficial build whose signature's warning was not confirmed yet (in this process or at
+   *  an earlier start). The game waits for it (MainActivity before it starts the game, CoreActivity when Android
+   *  brings the game back in a new process). */
   static synchronized boolean mustWarn(Context c) {
-    return !confirmed && unofficial(c);
+    if (confirmed || !unofficial(c)) return false;
+    return warnFor(true, cachedKey, prefs(c).getString(CONFIRMED, ""));
   }
 
-  /** The player confirmed the warning: not again until the app's next cold start. */
-  static synchronized void confirm() {
+  /** The player confirmed the warning: not again for this signature, also at later starts. */
+  static synchronized void confirm(Context c) {
     confirmed = true;
+    if (c != null && unofficial(c) && !cachedKey.isEmpty()) {
+      prefs(c).edit().putString(CONFIRMED, cachedKey).apply();
+    }
   }
 
-  /** (tests) the next unofficial() asks again, the warning is due again */
+  private static SharedPreferences prefs(Context c) {
+    return c.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+  }
+
+  /** (tests) the next unofficial() asks again, as a new process (the stored confirmation stays) */
   static synchronized void forget() {
     cached = null;
+    cachedKey = null;
     confirmed = false;
   }
 

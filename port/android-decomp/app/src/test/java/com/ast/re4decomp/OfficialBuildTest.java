@@ -118,20 +118,43 @@ public class OfficialBuildTest {
     assertFalse("nothing to read: no warning", OfficialBuild.unofficial(app));
   }
 
-  @Test public void oncePerProcess() {
+  /** The popup at the first start only (the owner, 17.11.2026): once confirmed, not again for that signature, also
+   *  after a cold start; another foreign signature warns once more, and so does the app after its data were cleared. */
+  @Test public void onceForEachSignature() {
     Application app = RuntimeEnvironment.getApplication();
     sign(new Signature[] {new Signature(new byte[] {1})}, null);
     release();
-    assertTrue("due at the start", OfficialBuild.mustWarn(app));
+    assertTrue("due at the first start", OfficialBuild.mustWarn(app));
     assertTrue("still due until confirmed", OfficialBuild.mustWarn(app));
-    OfficialBuild.confirm();
+    OfficialBuild.confirm(app);
     assertFalse("confirmed: not again in this process", OfficialBuild.mustWarn(app));
     assertTrue("the error log still names it", OfficialBuild.unofficial(app));
     OfficialBuild.forget();  // as a new process
-    assertTrue("a cold start asks again", OfficialBuild.mustWarn(app));
+    assertFalse("a cold start: not again for this signature", OfficialBuild.mustWarn(app));
+    assertTrue("the error log still names it", OfficialBuild.unofficial(app));
+    // an update signed with yet another foreign key: once more
+    OfficialBuild.forget();
+    sign(new Signature[] {new Signature(new byte[] {2})}, null);
+    assertTrue("another foreign signature warns once more", OfficialBuild.mustWarn(app));
+    OfficialBuild.confirm(app);
+    OfficialBuild.forget();
+    assertFalse(OfficialBuild.mustWarn(app));
+    // the app's data cleared: the first start again
+    app.getSharedPreferences(OfficialBuild.PREFS, 0).edit().clear().commit();
+    OfficialBuild.forget();
+    assertTrue("cleared data: warns again", OfficialBuild.mustWarn(app));
+    // the official key: never; a debug build: never
     OfficialBuild.forget();
     app.getApplicationInfo().flags |= ApplicationInfo.FLAG_DEBUGGABLE;
     assertFalse("a debug build: never", OfficialBuild.mustWarn(app));
+    // the decision alone
+    assertTrue(OfficialBuild.warnFor(true, "aa", ""));
+    assertFalse(OfficialBuild.warnFor(true, "aa", "aa"));
+    assertTrue(OfficialBuild.warnFor(true, "bb", "aa"));
+    assertFalse(OfficialBuild.warnFor(false, "aa", ""));
+    assertFalse("no signature read: no warning", OfficialBuild.warnFor(true, "", ""));
+    assertEquals("a,b", OfficialBuild.signerKey(java.util.Arrays.asList("B", "a")));
+    assertEquals("", OfficialBuild.signerKey(null));
   }
 
   /** The start screen needs Re4Application, whose core this sandbox cannot load. */
@@ -242,6 +265,16 @@ public class OfficialBuildTest {
       android.app.AlertDialog again = shownDialog();
       assertTrue("once per process", again == null
           || withText(again.getWindow().getDecorView(), app.getString(R.string.ingame_unofficial_ok)) == null);
+    }
+    // a cold start (a new process) after it was confirmed: no warning any more (the owner, 17.11.2026: only at the
+    // app's first start), the game starts at once
+    OfficialBuild.forget();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      TestLooper.idle();
+      android.app.AlertDialog again = shownDialog();
+      assertTrue("not at the next start", again == null || !again.isShowing()
+          || withText(again.getWindow().getDecorView(), app.getString(R.string.ingame_unofficial_ok)) == null);
+      assertFalse(OfficialBuild.mustWarn(app));
     }
   }
 
