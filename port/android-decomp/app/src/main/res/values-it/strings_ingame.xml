@@ -106,7 +106,7 @@
     <string name="ingame_aim_move_stick">Stick di movimento</string>
     <string name="ingame_aim_touch_area">Area touch</string>
     <string name="ingame_aim_c_stick">Stick C</string>
-    <string name="ingame_touch_aim_help">Mira touch: finché L o R tiene un’arma, scorri sulla metà destra per mirare, oppure usa lo stick C touch (aggiungilo con l’ingranaggio in alto a destra). Stick di movimento: come su GameCube.</string>
+    <string name="ingame_touch_aim_help">Mira touch: finché L o R tiene un’arma, scorri sulla metà destra per mirare, oppure usa lo stick C touch (aggiungilo con l’ingranaggio in alto a destra). Stick di movimento: come su GameCube. Stick AIM e KNIFE (ingranaggio): un dito sopra tiene premuto R o L, la loro inclinazione mira.</string>
     <string name="ingame_touch_zoom_help">Zoom nel mirino o nel binocolo col touch: trascina su o giù sulla metà destra o sullo stick C touch, oppure aggiungi i pulsanti zoom + e − con l’ingranaggio in alto a destra.</string>
     <string name="ingame_gyro_sensitivity">Sensibilità del giroscopio</string>
     <string name="ingame_gyro_invert_v">Inverti verticale</string>

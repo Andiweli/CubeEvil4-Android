@@ -22,6 +22,8 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
   Known issues bleiben, weil sie weiter stimmen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
   Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
+- **Ausnahme für 1.0 (Projektinhaber, 16.11.2026):** Ziel- und Messer-Stick für die Touch-Steuerung („Die Funktion 8
+  baue auch ein. Wir nehmen sie dann mit 1.0 mit.“); Abschnitt 5 von 0.99.19.
 
 ## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b)
 
@@ -359,6 +361,43 @@ Freigabe des Inhabers für den Vorschlag aus Abschnitt 1: „Ja die Sichtweite-V
   Cheat-Seite (Deutsch und Englisch, 360 px hochkant, 960 px quer) in
   `E:\Development\Android\builds\release-candidate\cheats-layout\`.
 - **Nicht geprüft:** auf einem Gerät, ARM32/ARM64, mit EU-Discs im Spiel.
+
+### 5. Ziel-Stick und Messer-Stick für die Touch-Steuerung (für 1.0, Projektinhaber, 16.11.2026)
+
+Wunsch eines Spielers, vom Inhaber für 1.0 angenommen. Zwei Sticks, die der Editor (Zahnrad) hinzufügt; das
+Standard-Layout bleibt unverändert.
+
+- **AIM** (Ziel-Stick): solange ein Finger darauf liegt (auch ruhig in der Mitte), ist R gedrückt; seine Neigung ist
+  der Hauptstick, der bei gehaltenem R zielt (Waffe, Zielfernrohr). **KNIFE** (Messer-Stick): dasselbe mit L. Der
+  andere Daumen schießt mit A. Beschriftung „AIM“ und „KNIFE“, grau wie die übrigen Tasten.
+- `CoreTouch`: `AIM_STICK`/`KNIFE_STICK` in `ACTIONS` (Anmeldung über `registerStickAction` wie der C-Stick).
+  RetroTouch meldet einen Finger in der Mitte eines Sticks als (0, 0), genau wie das Loslassen; deshalb hält der
+  Finger, in dessen Ereignis der erste `onStick` kam (`fingerDown`), den Stick, bis er sich hebt (`fingerUp`); ist der
+  Finger unbekannt, beendet das (0, 0) des Loslassens. L und R der Tasten und der Sticks addieren sich (keiner lässt
+  den anderen los, auch nicht mit „Halten“ / Latch); Hauptstick = Bewegungs-, Ziel- oder Messer-Stick, der weiter
+  geneigte. `cancel`/`reset` lassen alles los. Hebt sich der Finger, schickt `TouchControls` den Zustand sofort
+  (`fingerUp` meldet das; das letzte (0, 0) von RetroTouch kam vorher, sonst bliebe R bis zur nächsten Berührung
+  gedrückt). RetroTouch meldet (0, 0) auch außerhalb jeder Berührung (Belegung geladen oder zurückgesetzt, auch für
+  nicht gelegte Sticks; im Emulator gefunden): gehalten wird nur, wenn die erste Meldung im Ereignis kommt, in dem
+  ein Finger aufsetzt (`beginEvent(down)` … `endEvent` aus `TouchControls.before/after`); eine Meldung außerhalb
+  lässt einen gehaltenen Stick los. Keine Änderung an RetroTouch.
+- **Grenze von RetroTouch:** höchstens zwei Sticks je Layout (`RetroTouchLayout.validate`; der Editor überspringt
+  beim Durchschalten Stick-Aktionen, wenn schon zwei liegen). Mit dem Bewegungsstick passt also nur einer von C-Stick,
+  Ziel-Stick und Messer-Stick dazu. Für Ziel- und Messer-Stick zusammen (oder mit dem C-Stick) braucht RetroTouch
+  mindestens vier Sticks je Layout. **Zweite Lücke:** im Symbol-Stil (RE, Standard) zeichnet RetroTouch hinzugefügte
+  Sticks ohne Beschriftung und ohne Symbol (`drawIconStick`): C-, Ziel- und Messer-Stick sehen gleich aus; nur der
+  GC-Stil zeigt „C“, „AIM“, „KNIFE“. Dafür bräuchte `registerStickAction` ein Symbol (wie `registerAction`).
+- Hilfetext `ingame_touch_aim_help` um einen Satz ergänzt (11 Sprachen); `check_translations.py` prüft „AIM“ und
+  „KNIFE“ (KEEP).
+- **Geprüft am PC:** `CoreTouchTests` 364 Prüfungen (Halten in der Mitte, Neigung, weiter geneigter Stick gewinnt,
+  Taste und Stick zusammen, Latch, unbekannter Finger, Meldungen außerhalb einer Berührung, `cancel`); App-Tests je
+  Variante grün; `check_translations.py` ohne Befund. **Emulator** (x86_64-Telefon, Debug-Hülle ohne Kern,
+  Platzhalter-Discs): im Editor C, AIM, KNIFE wählbar und gespeichert; mit zwei Sticks keine weiteren; mit einer
+  Wegwerf-APK, die den gesendeten Pad-Zustand ins Log schreibt: Finger ruhig in der Mitte R gedrückt, Neigung zielt
+  (97 rechts, 81/60 schräg), zurück zur Mitte R bleibt, Abheben lässt los; Messer-Stick ebenso mit L. Bilder und
+  Protokoll in `E:\Development\Android\builds\release-candidate\aim-stick\`.
+- **Nicht geprüft:** im Spiel (Zielen und Zielfernrohr mit dem Kern), zwei Finger gleichzeitig im Emulator (nur in
+  `CoreTouchTests`), auf einem Gerät.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 

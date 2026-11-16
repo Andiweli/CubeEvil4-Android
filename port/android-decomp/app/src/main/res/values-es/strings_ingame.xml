@@ -106,7 +106,7 @@
     <string name="ingame_aim_move_stick">Stick de movimiento</string>
     <string name="ingame_aim_touch_area">Zona táctil</string>
     <string name="ingame_aim_c_stick">Stick C</string>
-    <string name="ingame_touch_aim_help">Apuntar táctil: mientras L o R mantiene un arma, desliza en la mitad derecha para apuntar o usa el stick C táctil (añádelo con el engranaje de arriba a la derecha). Stick de movimiento: como en GameCube.</string>
+    <string name="ingame_touch_aim_help">Apuntar táctil: mientras L o R mantiene un arma, desliza en la mitad derecha para apuntar o usa el stick C táctil (añádelo con el engranaje de arriba a la derecha). Stick de movimiento: como en GameCube. Sticks AIM y KNIFE (engranaje): un dedo encima mantiene R o L y su inclinación apunta.</string>
     <string name="ingame_touch_zoom_help">Zoom en la mira o los prismáticos por táctil: arrastra hacia arriba o abajo en la mitad derecha o en el stick C táctil, o añade los botones de zoom + y − con el engranaje de arriba a la derecha.</string>
     <string name="ingame_gyro_sensitivity">Sensibilidad del giroscopio</string>
     <string name="ingame_gyro_invert_v">Invertir vertical</string>

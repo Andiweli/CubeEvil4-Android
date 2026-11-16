@@ -110,7 +110,7 @@
     <string name="ingame_aim_move_stick">عصا الحركة</string>
     <string name="ingame_aim_touch_area">منطقة اللمس</string>
     <string name="ingame_aim_c_stick">عصا C</string>
-    <string name="ingame_touch_aim_help">التصويب باللمس: ما دام L أو R يُبقي السلاح، اسحب على النصف الأيمن للتصويب أو استخدم عصا C اللمسية (أضفها من الترس أعلى اليمين). عصا الحركة: كما في GameCube.</string>
+    <string name="ingame_touch_aim_help">التصويب باللمس: ما دام L أو R يُبقي السلاح، اسحب على النصف الأيمن للتصويب أو استخدم عصا C اللمسية (أضفها من الترس أعلى اليمين). عصا الحركة: كما في GameCube. عصا AIM وعصا KNIFE (الترس): ما دام الإصبع عليهما يبقى R أو L مضغوطًا، وإمالتهما تصوّب.</string>
     <string name="ingame_touch_zoom_help">التكبير في المنظار أو المنظار المزدوج باللمس: اسحب لأعلى أو لأسفل على النصف الأيمن أو على عصا C اللمسية، أو أضف زرَّي التكبير + و − من الترس أعلى اليمين.</string>
     <string name="ingame_gyro_sensitivity">حساسية الجيروسكوب</string>
     <string name="ingame_gyro_invert_v">عكس الاتجاه الرأسي</string>
