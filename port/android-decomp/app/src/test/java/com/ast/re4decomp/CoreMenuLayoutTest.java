@@ -1175,7 +1175,7 @@ public class CoreMenuLayoutTest {
     android.content.SharedPreferences g = org.robolectric.RuntimeEnvironment.getApplication()
         .getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
     g.edit().clear().apply();
-    // (since 0.99.19 Medium 65 % and Far 160 %: a saved level keeps its meaning, only its percent changed)
+    // (since 1.0.0 Medium 65 % and Far 160 %: a saved level keeps its meaning, only its percent changed)
     int[] percent = {100, 65, 50, 35, 160};
     for (int i = 0; i < percent.length; i++) {
       g.edit().putInt(CoreBridge.VIEW_DISTANCE, i).apply();

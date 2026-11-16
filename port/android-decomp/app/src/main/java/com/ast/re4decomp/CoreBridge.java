@@ -152,7 +152,7 @@ public final class CoreBridge {
    *  (the default, the game's), 1 Medium, 2 Short; since 0.99.18 (the project owner, 15.11.2026) also 3 Very short
    *  (the OUYA's setting; the menu calls it "None", ingame_view_very_short) and 4 Far, so a value saved before stays
    *  what it was; in percent of the room's view
-   *  VIEW_PERCENT (the room's fog end times it, runtime/view_distance.cpp; since 0.99.19, the project owner's choice
+   *  VIEW_PERCENT (the room's fog end times it, runtime/view_distance.cpp; since 1.0.0, the project owner's choice
    *  after the analysis: Medium 65 instead of 75, Far 160 instead of 150 with the fog itself further out). The menu
    *  shows them in VIEW_ORDER, from the farthest to the nearest. */
   static final String VIEW_DISTANCE = "viewDistance";

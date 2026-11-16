@@ -2166,7 +2166,7 @@ static void testViewFog()
     // ... a 20 m fog (7 m at 35 %): dense at 6 m, not at its far plane of 2.8 m
     run(0.35f, 1, 5, 0.6f, 0.0f, 20000.0f, o);
     if (!near(o[1], 6000.0f) || !near(o[2], 7000.0f * 0.4f + 1.0f)) bad |= 1 << 6;
-    // Far (since 0.99.19, 160 %): the fog's end times 1.6, its start the room's, the far plane where that linear fog
+    // Far (since 1.0.0, 160 %): the fog's end times 1.6, its start the room's, the far plane where that linear fog
     // is 95 % dense (the village)
     run(1.6f, 1, 2, 0.6f, -7075.0f, 175030.0f, o);
     if (o[0] != -7075.0f || !near(o[1], 175030.0f * 1.6f) ||

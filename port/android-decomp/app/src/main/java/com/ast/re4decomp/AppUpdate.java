@@ -50,8 +50,8 @@ final class AppUpdate {
   }
 
   /**
-   * A version without the flavour's suffix, as the releases on GitHub name it: "0.99.19-rc-core" and "1.0-sideload"
-   * (the flavour "sideload", 1.0: the same release, its own APK) are "0.99.19-rc" and "1.0"; anything else as it is.
+   * A version without the flavour's suffix, as the releases on GitHub name it: "1.0.0-core" and "1.0.0-sideload"
+   * (the flavour "sideload", 1.0.0: the same release, its own APK) are both "1.0.0"; anything else as it is.
    */
   static String plain(String v) {
     if (v == null) return null;

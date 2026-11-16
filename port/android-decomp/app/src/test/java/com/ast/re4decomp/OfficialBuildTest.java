@@ -32,7 +32,7 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowSigningInfo;
 
-/** The warning of unofficial builds (OfficialBuild, UnofficialWarning, 0.99.19): the decision, the reading of the APK's
+/** The warning of unofficial builds (OfficialBuild, UnofficialWarning, 1.0.0): the decision, the reading of the APK's
  *  certificates, once per process, and the popup before the game starts (with RE4_MENU_SHOTS set, its pictures go
  *  there). */
 @RunWith(org.robolectric.RobolectricTestRunner.class)

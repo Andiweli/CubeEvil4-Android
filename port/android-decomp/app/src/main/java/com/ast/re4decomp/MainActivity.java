@@ -125,7 +125,7 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     if (bold) t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
     t.setPadding(0, top, 0, 0); body.addView(t); return t;
   }
-  /** A release build signed with another key than the project owner's (OfficialBuild, 0.99.19): the red warning at
+  /** A release build signed with another key than the project owner's (OfficialBuild, 1.0.0): the red warning at
    *  each start of the app, before the game starts (also the game's own start once the discs are there); confirmed,
    *  the start screen goes on as it would have (changed(): the game starts by itself when its discs are ready).
    *  True while it is due. */

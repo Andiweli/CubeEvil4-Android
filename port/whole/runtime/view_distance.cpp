@@ -14,8 +14,8 @@
 // - Below 1: start and end times f, the end not below kMinEnd (a room's own end below it stays), the far plane from
 //   that end as the game does. Below Short (kDenseBelow, "None") the GPU's fog then ends at the far plane (the OUYA
 //   branch's patch 0901): where the game stops drawing the fog is dense, so houses do not vanish from a thin fog.
-// - Above 1 ("Far", since 0.99.19, the project owner's choice after the analysis in port/docs/whole-program-status.md,
-//   0.99.19 section 1): the fog's end times f, its start as the room's, and the far plane out to where that fog is
+// - Above 1 ("Far", since 1.0.0, the project owner's choice after the analysis in port/docs/whole-program-status.md,
+//   1.0.0 section 1): the fog's end times f, its start as the room's, and the far plane out to where that fog is
 //   kFarDensity dense (never nearer than the game's own, never past the fog's end). The view reaches further in every
 //   room with fog (the forest's half-dense distance 37 -> 60 m). 0.99.18's Far kept the room's fog and only moved the
 //   far plane; in rooms with a dense fog at the game's far plane (forest, gorge, lake) that drew up to twice as much

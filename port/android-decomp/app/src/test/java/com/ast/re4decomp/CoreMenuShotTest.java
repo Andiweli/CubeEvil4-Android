@@ -125,7 +125,7 @@ public class CoreMenuShotTest {
           }
         }
         graphics.edit().remove(CoreBridge.VIEW_DISTANCE).apply();
-        // the Cheats & Mods page (0.99.19, the project owner's new order): a phone upright (360 px) and a handheld on
+        // the Cheats & Mods page (1.0.0, the project owner's new order): a phone upright (360 px) and a handheld on
         // its side (960 px)
         show.invoke(menu, 5, false);
         for (int width : new int[] {360, 960}) {

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Whether this APK is one of the project owner's own releases (0.99.19, the project owner, 16.11.2026: "Nur der Hinweis
+ * Whether this APK is one of the project owner's own releases (1.0.0, the project owner, 16.11.2026: "Nur der Hinweis
  * reicht. Den Debug Build nimm aber raus. Es soll nur mit Release Versionen geprüft werden."). Copies of CubeEvil4 turn
  * up on other sites and game platforms; a release build signed with another key than the owner's warns at every start
  * of the app (once per process): a red popup that has to be confirmed before the game starts (UnofficialWarning; the

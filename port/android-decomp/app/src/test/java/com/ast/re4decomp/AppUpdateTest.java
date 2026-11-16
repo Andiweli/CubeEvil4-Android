@@ -88,6 +88,23 @@ public class AppUpdateTest {
     assertNull(AppUpdate.plain(null));
   }
 
+  /** 1.0.0 (16.11.2026, the release that was to be 0.99.19-rc): its APKs ("1.0.0-core", "1.0.0-sideload") are the
+   *  tag 1.0.0, newer than 0.99.18-rc (and than 0.99.19-rc, never released), older than 1.0.1. */
+  @Test public void theFirstReleaseWithoutSuffix() {
+    for (String apk : new String[] {"1.0.0-core", "1.0.0-sideload", "1.0.0"}) {
+      same(apk, "1.0.0");
+      same(apk, "v1.0.0");
+      same(apk, "1.0");
+      older("0.99.18-rc", apk);
+      older("0.99.18-rc-core", apk);
+      older("0.99.19-rc", apk);
+      older(apk, "1.0.1");
+      older(apk, "1.1.0");
+    }
+    assertEquals("1.0.0", AppUpdate.plain("1.0.0-core"));
+    assertEquals("1.0.0", AppUpdate.plain("1.0.0-sideload"));
+  }
+
   @Test public void prefixCaseAndBlanksDoNotCount() {
     same("v0.99.1-rc", "0.99.1-rc");
     same("V0.99.1-RC", " 0.99.1-rc ");

@@ -25,7 +25,7 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - **Ausnahme für 1.0 (Projektinhaber, 16.11.2026):** Ziel- und Messer-Stick für die Touch-Steuerung („Die Funktion 8
   baue auch ein. Wir nehmen sie dann mit 1.0 mit.“); Abschnitt 5 von 0.99.19. Die nächste Veröffentlichung ist 1.0
   („Yes, next is 1.0“, 16.11.2026, kein weiteres 0.99.x): die Sticks bleiben sichtbar, Zeile unter New im Releasetext;
-  die Version heißt bis zur Umbenennung weiter 0.99.19-rc (versionCode 121). Ebenso für 1.0 (Projektinhaber,
+  die Version hieß bis zur Umbenennung am 16.11.2026 weiter 0.99.19-rc (versionCode 121), seitdem 1.0.0. Ebenso für 1.0 (Projektinhaber,
   16.11.2026: „Nimm das auch noch als Feature für 1.0 mit auf“): die Option „Leon mit Maus / Blickfeld drehen“,
   Abschnitt 7 von 0.99.19; und der Flavor „sideload“ mit Datenordner nach Wahl, Abschnitt 8. Ebenso (Projektinhaber,
   16.11.2026, nach dem Bericht zur Meldung „immer dieselben Gegner“): „Zufällige Gegner“ Stufe 2, Abschnitt 9.
@@ -397,17 +397,19 @@ Beachtung der Lichtquelle(n).“
   Die Objekte werfen nur vom stärksten Licht. Punktlichter werfen mit einer Richtung (von der Lampe zu Leon), nicht
   strahlenförmig. Die Baumschatten beim Blitz zeichnet das Spiel selbst.
 
-## Version 0.99.19-rc (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc)
+## Version 1.0.0 (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc; bis 16.11.2026 als 0.99.19-rc)
 
-Version 0.99.19-rc (versionCode 121), Releasetext `port/android-decomp/docs/releases/v0.99.19-rc.md`
-(„Changes since v0.99.18.“, Known issues aus 0.99.18 übernommen). Release-APK `CubeEvil4-0.99.19-Android.apk`.
+Version **1.0.0** (versionCode 122; bis zur Umbenennung am 16.11.2026 0.99.19-rc, versionCode 121), Releasetext
+`port/android-decomp/docs/releases/v1.0.0.md` (bis dahin `v0.99.19-rc.md`; „Changes since v0.99.18.“, Known issues
+aus 0.99.18 übernommen). Release-APKs `CubeEvil4-1.0.0-Android.apk` und `CubeEvil4-1.0.0-Android-sideload.apk`. Die
+Abschnitte unten nennen den Releasetext noch mit seinem alten Namen.
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
 nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0235.
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
-sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche ja erst Freitag und teste bis dahin lokal.“ Die Umbenennung
-kommt als eigener Commit. Der Tag `1.0.0` entsteht erst, wenn der Inhaber veröffentlicht (voraussichtlich Freitag,
+sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche ja erst Freitag und teste bis dahin lokal.“ Umbenannt am
+16.11.2026 (Abschnitt 14). Der Tag `1.0.0` entsteht erst, wenn der Inhaber veröffentlicht (voraussichtlich Freitag,
 20.11.2026) und es freigibt.
 
 Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
@@ -829,6 +831,34 @@ beantwortet die drei Lücken aus Abschnitt 5.
     - GC-Stil wie bisher.
   - Bilder und Protokoll: `E:\Development\Android\builds\release-candidate\retrotouch-beta12\` (`pruefung.txt`).
 - **Nicht geprüft:** auf einem Gerät mit Spielkern; zwei Finger zugleich im Emulator (nur in den Host-Tests).
+
+### 14. Umbenennung in 1.0.0 (Projektinhaber, 16.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Du kannst sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche
+ja erst Freitag und teste bis dahin lokal.“
+
+- **Version:** versionName `1.0.0`, versionCode 122. Die Varianten hängen ihre Endung an wie bisher: `1.0.0-core`,
+  `1.0.0-sideload`; `car` ebenfalls `1.0.0-core`.
+- **Releasetext:** `v0.99.19-rc.md` per `git mv` zu `v1.0.0.md`.
+  - Titel „CubeEvil4 v1.0.0“; der Kopf ohne „Release Candidate“ und ohne „Expect bugs“; der Hinweis zur Sicherung der
+    Spielstände bleibt.
+  - Die APK-Namen im Abschnitt Update sind `CubeEvil4-1.0.0-Android.apk` und `…-sideload.apk`.
+  - Die Änderungen bleiben „Changes since v0.99.18“. Keine Wunschliste für 1.1.
+- **Kommentare:** Wo der Code „seit 0.99.19“ sagte (Sichtweite, `OfficialBuild`, Cheat-Seite, Patch-Kopf 0223), steht
+  jetzt 1.0.0. `AppUpdate.plain` hat neue Beispiele. Ebenso der Plan `gegner-randomizer-plan.md`.
+  - README und `lokal-bauen.md` nennen keine feste Version (`CubeEvil4-<version>-Android-sideload.apk`) und bleiben
+    unverändert.
+- **Update-Prüfung:** neuer Test `AppUpdateTest.theFirstReleaseWithoutSuffix`:
+  - `1.0.0-core`, `1.0.0-sideload` und `1.0.0` gleich den Tags `1.0.0`, `v1.0.0` und `1.0`;
+  - neuer als `0.99.18-rc` (auch mit `-core`) und als `0.99.19-rc`;
+  - älter als `1.0.1` und `1.1.0`.
+- **Kein Tag, kein Push auf `origin/master`:** Den Tag `1.0.0` setzt erst die Veröffentlichung am Freitag mit der
+  Freigabe des Inhabers.
+- **Geprüft am PC:**
+  - App-Tests 216 je Variante grün (core, classic, sideload; neu `theFirstReleaseWithoutSuffix`).
+  - `assembleCoreRelease` und `assembleSideloadRelease` bauen `1.0.0-core` bzw. `1.0.0-sideload` mit versionCode 122;
+    `lintVitalCoreRelease` ohne Befund.
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; Patch 0223 mit dem geänderten Kopf angewendet.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
