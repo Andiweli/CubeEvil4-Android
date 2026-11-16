@@ -2322,8 +2322,7 @@ final class CoreMenu extends Dialog {
   }
   private String version() {
     try {
-      String v = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName;
-      return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
+      return AppUpdate.plain(getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName);
     } catch (android.content.pm.PackageManager.NameNotFoundException e) { return null; }
   }
   /** "+5°", "0°", "−5°": the field of view's change in degrees, digits 0..9 in every language. */

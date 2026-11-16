@@ -139,6 +139,18 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 3. Choose **Start game**. If your controller's face buttons are labelled the other way round,
    tick "Swap A/B and X/Y" on the start screen.
 
+**Data folder**
+
+- CubeEvil4 keeps its data (imported discs, memory card, instant save, texture packs, error logs) in
+  its own folder, `Android/data/com.ast.cubeevil4/files`. Uninstalling the app deletes that folder.
+- The **sideload** APK (`CubeEvil4-<version>-Android-sideload.apk`) can keep them in a folder of your
+  choice instead, for example on an SD card: on the start screen, under **Data folder**, choose
+  **Choose folder** (with both discs imported, open the start screen through app menu → Management →
+  Import other discs). Android then asks for **All files access** (Android 11 and later; the storage
+  permission on Android 7 to 10): CubeEvil4 needs it to read and write outside its own folder.
+  CubeEvil4 offers to move the existing data along; **Restore default** goes back to its own folder.
+- The sideload APK and the normal one are the same app: either installs over the other.
+
 **SELECT button**
 
 - **Press SELECT** (with touch controls: **MENU**): the app menu, in your phone's language where
@@ -243,7 +255,8 @@ No disc images or game files ever go into the repository.
    does the same through WSL). The libraries land in
    `port/android-decomp/app/src/core/jniLibs/` (not in git).
 2. Open `port/android-decomp` in Android Studio, choose the build variant **coreRelease** and
-   build a signed APK (Build → Generate Signed App Bundle or APK).
+   build a signed APK (Build → Generate Signed App Bundle or APK). The sideload APK with the data
+   folder of your choice is the build variant **sideloadRelease**, signed the same way.
 3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO, GCM or RVZ of the
    European, US or Japanese retail release).
 

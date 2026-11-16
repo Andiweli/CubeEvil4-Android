@@ -1,6 +1,7 @@
 package com.ast.re4decomp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import android.app.Application;
 import org.junit.Test;
@@ -70,6 +71,21 @@ public class AppUpdateTest {
     older("1.0-rc.2", "1.0-rc-3");
     same("1.0-rc2", "1.0-RC2");
     same("1.0-beta2", "1.0-rc1");  // different words: the same version
+  }
+
+  @Test public void theSideloadBuildIsTheSameVersion() {
+    // the flavour "sideload" (1.0): "-sideload" as "-core", no update offered for its own release, the next one is
+    same("0.99.19-rc-sideload", "0.99.19-rc");
+    same("1.0-sideload", "1.0");
+    same("1.0-sideload", "v1.0.0");
+    same("1.0-SIDELOAD", "1.0");
+    older("1.0-sideload", "1.0.1");
+    older("0.99.19-rc-sideload", "1.0");
+    assertEquals("1.0", AppUpdate.plain("1.0-sideload"));
+    assertEquals("0.99.19-rc", AppUpdate.plain("0.99.19-rc-core"));
+    assertEquals("0.99.19-rc", AppUpdate.plain("0.99.19-rc"));
+    assertEquals("1.0-sideloader", AppUpdate.plain("1.0-sideloader"));
+    assertNull(AppUpdate.plain(null));
   }
 
   @Test public void prefixCaseAndBlanksDoNotCount() {

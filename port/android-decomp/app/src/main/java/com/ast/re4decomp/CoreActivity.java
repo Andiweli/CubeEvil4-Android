@@ -1521,8 +1521,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The app's version ("0.99.2-rc"), for the touch layout file. */
   private String appVersion() {
     try {
-      String v = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-      return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
+      return AppUpdate.plain(getPackageManager().getPackageInfo(getPackageName(), 0).versionName);
     } catch (android.content.pm.PackageManager.NameNotFoundException e) {
       return "";
     }
