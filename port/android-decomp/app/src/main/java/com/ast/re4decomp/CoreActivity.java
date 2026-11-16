@@ -155,6 +155,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    *  extra games kept unlocked, the story's player character << 5 (2 Ada, 3 HUNK, 4 Krauser, 5 Wesker), 256 the
    *  special costume; off). */
   static final String CHEATS = "cheats";
+  /** The cheat "Costumes · Leon's jacket" (1.0, GAME_PREFS; CoreBridge.setLeonJacket): Leon keeps his brown jacket. */
+  static final String LEON_JACKET = "leonJacket";
   /** The cheat "Random enemies" (0.99.12): its seed, 0 off (CoreBridge.setEnemyRandom). */
   static final String ENEMY_SEED = "enemySeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
@@ -474,6 +476,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setVkBandwidth(g.getBoolean("vkBandwidth", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
+      CoreBridge.setSharperText(CoreMenu.sharperText(g));
       CoreBridge.setCrt(CoreMenu.crtLevel(g));
       CoreBridge.setBloom(CoreBridge.bloomSent(g));
       CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
@@ -500,6 +503,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (!settings.contains("RE4_CHEATS=")) {
         if (cheats != 0) Log.i(TAG, "cheats: " + cheats);
         CoreBridge.setCheats(cheats);
+      }
+      // the cheat "Leon's jacket" (1.0; a test script's RE4_LEON_JACKET wins)
+      if (!settings.contains("RE4_LEON_JACKET=")) {
+        final boolean jacket = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(LEON_JACKET, false);
+        if (jacket) Log.i(TAG, "cheats: Leon's jacket");
+        CoreBridge.setLeonJacket(jacket);
       }
       int enemySeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(ENEMY_SEED, 0);
       if (enemySeed != 0) Log.i(TAG, "cheats: random enemies with seed " + enemySeed);
@@ -1176,6 +1185,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
           + ((bits & CoreMenu.RANDOM_ITEMS_BIT) != 0 ? ", random items with seed "
               + ((bits & CoreMenu.SEED_BITS) >>> CoreMenu.SEED_SHIFT) : "") + ")");
       CoreBridge.setCheats(bits);
+    }
+
+    @Override public void leonJacketChanged(boolean on) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putBoolean(LEON_JACKET, on).apply();
+      Log.i(TAG, "cheats: Leon's jacket " + (on ? "on" : "off"));
+      CoreBridge.setLeonJacket(on);
     }
 
     @Override public void enemyRandomChanged(int seed) {
@@ -2544,6 +2559,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     CoreBridge.setCpuSkip(skip == 2);
     CoreBridge.setFxaa(g.getBoolean("fxaa", false));
     CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
+    CoreBridge.setSharperText(CoreMenu.sharperText(g));
     CoreBridge.setCrt(CoreMenu.crtLevel(g));
     CoreBridge.setBloom(CoreBridge.bloomSent(g));
     CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));

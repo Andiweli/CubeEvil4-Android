@@ -72,10 +72,12 @@ struct Texture {
   unsigned width = 0, height = 0, levels = 1;
   float lodShift = 0.0f;
   std::uint32_t hdBytes = 0;
+  std::uint32_t wordBytes = 0;  // a sharper menu word (word_sharpen.h): its levels' bytes
 };
 
 class TexPack;
 class TexLoader;
+class WordSharpener;
 }  // namespace re4gx
 namespace c4tex {
 struct Entry;
@@ -260,6 +262,28 @@ struct GxCore {
   std::uint64_t hdTicket = 0;
   void ApplyHd(double budgetMs);
   void CancelHd();
+  // "Sharper menu text" (1.0.0, word_sharpen.h; GxRenderer::SetWordSharpen): Upload shows a menu word's own picture
+  // and asks wordSharpener for a sharper one (wordWaiting: by key, each with its ticket); ApplyWords, at the start of
+  // each chunk, puts the finished ones on the GPU in its place (within `budgetMs`, at least one), while they take at
+  // most wordBudget bytes (wordBytes now). Off, at 1x, in the PSone demake: none, Upload as before.
+  // RE4_WORD_SHARPEN_SYNC=1: sharpened on the render thread at once (tests).
+  struct WordWait {
+    std::uint64_t ticket = 0;
+    std::chrono::steady_clock::time_point since;
+  };
+  bool wordSharpenOn = false, wordActive = false;
+  std::shared_ptr<WordSharpener> wordSharpener;
+  std::unordered_map<std::uint64_t, WordWait> wordWaiting;
+  std::uint64_t wordTicket = 0;
+  std::size_t wordBytes = 0, wordBudget = 0;
+  void SetWordSharpen(bool on);
+  void UpdateWordSharpener();
+  // after Upload put a game texture under `key`: a menu word's sharper picture asked for (or made at once)
+  void AskWord(const Re4GxTexture &t, const std::uint8_t *data, std::uint64_t key,
+               const std::vector<std::uint8_t> &rgba);
+  void ApplyWords(double budgetMs);
+  // a sharpened word's levels in place of the game's texture under `key`; false when they do not fit wordBudget
+  bool PutWord(std::uint64_t key, unsigned factor, const std::vector<std::uint8_t> &levels, unsigned levelCount);
   // a read replacement onto the GPU (ETC2, or decoded where the API cannot take it): `gameW` x `gameH` the game's
   // texture; false when the API failed or the decoded levels do not fit the budget
   bool PutHd(const c4tex::Entry &e, unsigned first, unsigned gameW, unsigned gameH, const std::vector<std::uint8_t> &data,

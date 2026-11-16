@@ -504,6 +504,23 @@ rotes Popup `UnofficialWarning` (Texte `ingame_unofficial_*`, 11 Sprachen), das 
 muss (MainActivity hält den Start an, CoreActivity schickt einen neuen Prozess zuerst dorthin), und eine Zeile in
 `device.txt` (`core_unofficial`). Debug-Builds lesen nichts, nicht lesbar = nichts. Test `OfficialBuildTest`.
 
+Nachtrag (17.11.2026, Projektinhaber über die Hauptsitzung): „Die Meldung / Popup wenn die Signatur verändert wurde
+soll nur beim ersten App Start kommen und nicht bei jedem.“
+- Nach dem Bestätigen merkt sich die App die fremde Signatur (SHA-256 der Zertifikate, sortiert; Datei
+  `official_build`, Schlüssel `confirmedSigner`). Das Popup kommt für sie nicht wieder, auch nicht nach einem
+  Kaltstart oder einem Update mit demselben Schlüssel.
+- Eine andere fremde Signatur warnt noch einmal; gelöschte App-Daten auch.
+- Die offizielle Signatur warnt nie, Debug-Builds unverändert. Die Zeile in `device.txt` bleibt bei jedem
+  Fehlerbericht.
+- Kein Wort dazu in README und Releasetext (Vorgabe).
+- Geprüft: `OfficialBuildTest.onceForEachSignature` und ein Kaltstart in `theGameWaitsForTheWarning`; App-Tests 216 je
+  Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund. Emulator (x86_64-Telefon, Release-Hülle mit
+  Wegwerf-Schlüssel, Skript `rc-measure/emu_warning_once.sh`):
+  - der erste Start mit Popup;
+  - nach A zwei Kaltstarts und ein Update mit demselben Schlüssel ohne;
+  - nach gelöschten App-Daten wieder mit.
+  - Bilder: `E:\Development\Android\builds\release-candidate\unofficial-once\`.
+
 ### 1. Sichtweite: warum die Stufen kaum anders aussehen (Analyse, Projektinhaber, 15.11.2026; kein Code)
 
 Frage des Inhabers: Weit, Normal, Mittel und Kurz zeigen kaum Unterschied, Weit und Normal gar keinen. Nur Analyse
@@ -968,6 +985,93 @@ des Titel- und Schwierigkeitsmenüs nie (`tex_pack.cpp`, `KeepsGameTexture`). Re
     Android-Build.
   - Geprüft hier: `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler; App-Tests core 216 grün;
     `assembleCoreRelease` und `assembleSideloadRelease` bauen. Nicht auf dem Gerät geprüft.
+
+### 16. Framedrops: Bildwiederholrate falsch gemessen, 30 FPS auf 90 Hz (Spielerberichte über den Projektinhaber, 16.11.2026)
+
+Zwei Berichte von 0.99.18-rc: Xiaomi 2412DPC0AG (Mali-G720, 120 Hz LTPO) und Samsung SM-A175F (Mali-G57, nur 90 Hz).
+Analyse, Zusammenfassung für den Inhaber und Antwort für die Spieler: `E:\Development\Android\reports\framedrops-2026-11-16\analysis.md`.
+
+- **Ursache auf dem Xiaomi:** Der Kern maß die Vsync-Periode seit 0.99.9 mit einem gleitenden Wert, der bei einem
+  Abstand unter der halben Periode von vorn begann.
+  - Android meldete alle paar Sekunden einen Vsync ~2,2 ms nach dem vorigen (Choreographers Zeit für ein spätes Bild,
+    neben dem Raster dieses Bildschirms).
+  - Die Periode fiel auf 2,2 ms („448 Hz“) und kam nie zurück.
+  - Damit waren der 120-Hz-Rhythmus (0.99.13, `PresentPacer`; lief nur für 7 Bilder) und der 30-FPS-Rhythmus
+    (0.99.12) aus. 60 FPS zeigte der Bildschirm daher als 1, 2 und 3 Vsyncs im Wechsel.
+- **Behoben:**
+  - `picture_cadence.h` `VsyncPeriod`: Median der letzten 32 Abstände, wie `FramePacing` in der App.
+  - `FramePacing.step`: Ein Aufruf weniger als einen halben Vsync nach dem vorigen zählt nicht als eigener Vsync.
+  - `PictureHold` auch auf 85–95 Hz: 3 Vsyncs je Bild bei 30 FPS; ein Bild, das nach 1 oder 2 Vsyncs fertig ist,
+    wartet einen.
+- **Nicht geändert:**
+  - 60 FPS auf 90 Hz (geht nicht gleichmäßig; das Menü empfiehlt 30);
+  - Prozessorgrenze und Wärme des Samsung;
+  - die festen 3× mit 2 Samples des Xiaomi;
+  - MIUIs „QueueBuffer time out“;
+  - der neue Benchmark nach dem Update (lief vom Titelmenü aus, wie gewollt).
+- **Releasetext:** zwei Zeilen unter Fixed.
+- **Geprüft am PC:** `gx_gl_check` GLES und Vulkan 0 Fehler, mit `TestVsyncPeriod` (120 Hz mit verrutschten und
+  späten Vsyncs: 8,333 ms; die alte Regel fällt auf den kurzen Abstand; folgt 120 → 60 → 90 Hz) und `TestPictureHold`
+  auf 90 Hz (ohne Halten 2/3/4 Vsyncs und 54 % daneben, mit Halten alle 3 und 0 %, 330 von 330 gezeigt; 60 Hz wie
+  vorher); beide auch im schnellen Lauf `RE4_CHECK_RULES=1`. `FramePacingTests` 4084 Prüfungen (die neue schlägt mit
+  dem alten Code an). App-Tests 216 je Variante grün, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät (120-Hz-Xiaomi/POCO, 90-Hz-Samsung).
+
+### 17. Cheat „Kostüme“: Normal / Leons Jacke / Spezial (für 1.0, Projektinhaber, 16.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Bei den CHEATS gibt es den Button für Spezialkostüme, dieser soll ein
+Toggle-Button werden und nur mehr 'Kostüme' heißen (auch ohne Untertitel '(nur Leon/Ashley)'). Der Zusatz nach dem
+Punkt 'Normal' ist der Standardfall, wo alles funktioniert wie im Spiel vorgesehen (Button nicht gehighlighted); dann
+soll es neu den Zusatz geben 'Leon's Jacke', wo Leon dann seine braune Jacke immer an hat und nicht im Laufe des
+Spiels durch sein schwarzes Shirt ersetzt; als drittes dann den Zusatz 'Spezial', was unser bisheriges
+'Spezialkostüme an' ist.“
+
+- **App:**
+  - `CoreMenu.costumeSwitch` ist ein Knopf, der wie Frame skip weiterschaltet: „Kostüme · Normal / Leons Jacke /
+    Spezial“, leuchtet außer bei Normal. Der Zusatz „(nur Leon/Ashley)“ ist weg.
+  - Spezial ist das Bit 256 der Cheats wie bisher; das alte „Spezialkostüme an“ zeigt also von selbst Spezial.
+  - Leons Jacke ist eine eigene Einstellung (`CoreActivity.LEON_JACKET` in `core_game`), weil alle 32 Bits der
+    Cheats belegt sind (das Bit des Zufallswerts der Gegenstände umzuwidmen hätte alte Einstellungen falsch gelesen).
+  - Weg in den Kern: `CoreBridge.setLeonJacket` → `re4_core_set_leon_jacket`, für den 32-bit-Kernprozess die Nachricht
+    `kLeonJacket` = 48.
+  - Texte in 11 Sprachen (Name, drei Werte, Satz im Hilfetext der Cheats).
+- **Kern** (`runtime/cheats.cpp`, Patch 0235):
+  - In der Geschichte gibt `PlSetCostume` Leon die Jacke (Kostüm 0), wo seine Regel Hemd (1) oder Weste (2) gäbe.
+    Das gilt auch für die Ersatzfiguren in seinem Kostüm. Die Ereignisse laden dann Leons `pl00` (`loadLeon`).
+  - Die Weste schützt mit dem Cheat über den Gegenstand selbst.
+  - Umschalten wirkt sofort wie beim Spezialkostüm: Der Raum startet dort neu, wo Leon steht (`switchNow`, nur wenn
+    sich sein Aussehen wirklich ändert; `jacketChange`).
+  - Spezial gewinnt. Separate Ways, The Mercenaries und Ashley sind unberührt.
+  - Kein Eintrag im Spielstand: Jedes Laden wählt das Kostüm neu (`PlSetCostume` in `game.cpp`).
+  - Testschalter `RE4_LEON_JACKET=1` und `RE4_TEST_LEON_JACKET="free+N:J,..."` (J 0/1, `s` Kostüm neu wählen,
+    `v` die Weste wie vom Händler).
+- **Releasetext:** eine Zeile unter Changed (der Knopf), eine unter New (Leons Jacke).
+- **Geprüft am PC** (Kern i686 -O2, Debug-Discs, r100; Skript `rc-measure/jacket_run.sh` im Notizordner):
+  - Jacke an, r106-Flag gesetzt, Jacke aus: Der Raum startet neu, Kostüm 1 (Hemd).
+  - Hemd (Kostüm 1), Jacke an: Kostüm 0.
+  - Weste und Jacke an: Kostüm 0, die Weste schützt. Jacke aus: Kostüm 2, schützt.
+  - Weste ohne Jacke (Kostüm 2), Jacke an: Kostüm 0, schützt.
+  - Spezial und Jacke zugleich: Kostüm 3.
+  - Kern- und Laufzeittests bestanden; Android-Kern ARM32 und ARM64 0 Fehler (mit dem 32-bit-Kernprozess); App-Tests
+    216 je Variante grün (`CoreMenuLayoutTest`: Normal > Leons Jacke > Spezial > Normal, das alte Bit 256 zeigt Spezial);
+    `check_translations.py` ohne Befund (471 Texte); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+  - Nebenbefund der Testumgebung: Nach dem Neustart eines Raums (auch beim bisherigen Spezialkostüm) kommt der
+    PC-Lauf mit Raumauswahl nicht mehr in die Hauptschleife („step 6“). Der bisherige Spezialkostüm-Wechsel verhält
+    sich dort genauso; auf dem Gerät ist er seit 0.98 im Einsatz. Deshalb je Lauf nur ein Wechsel.
+- **Nicht geprüft:** auf einem Gerät; die Ereignisse in Burg und Insel mit Jacke (Modell, Stoff) nur aus dem Code.
+
+### 18. Option „Schärfere Menütexte“ (Texturen-Sitzung, Projektinhaber, 16.11.2026)
+
+`origin/textures` 187a2648 (6bf588ef „Sharper menu text“ und das Hineinmischen von release-candidate 759daa46)
+hineingemischt. Einzelheiten im Abschnitt des Texture Packers und in `port/docs/textur-lader-plan.md`
+(`word_sharpen.cpp`). Kein Kern-Patch. Releasetext: eine Zeile unter New, die die Texturen-Sitzung vorgab; README:
+„sharper menu text“ in der Liste der Grafik-Optionen.
+
+- Beim Mischen keine Konflikte. Der Kostüm-Knopf (Abschnitt 17) und die neue Zeile im App-Menü bestehen nebeneinander;
+  `check_translations.py` ohne Befund (473 Texte).
+- **Geprüft hier nach dem Mischen:** `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler; App-Tests 216 je Variante
+  (core, classic, sideload); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
@@ -2165,6 +2269,30 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   71 Ersetzungen wie vorher, nur die Namensschilder der Anzeige bleiben original; `TestHdKeptWords` mit Wörtern aus
   Optionen, Koffer, Kapitelende und Anzeige sowie Zeichen und Balken, die ersetzt bleiben (Gegenprobe: 6 Fehler).
   Nicht auf dem Gerät geprüft.
+- **„Sharper menu text“ (1.0.0; Entscheidung des Projektinhabers 16.11.2026: „Bitte baue den Schärfefilter für die
+  Schrift auch in 1.0.0 ein.“; Test vorher auf `menu-words-upscale` 3a237eaa; Basis `release-candidate` f43d61c8):**
+  Die 677 Wort-Bilder aus `tex_pack_words.h` werden auf dem Gerät aus den eigenen Discs vergrößert und geschärft
+  (`word_sharpen.h/.cpp`): Kontur-Schärfung (Catmull-Rom vergrößert, dann je Farbkanal zwischen dem dunkelsten und
+  hellsten der vier Ausgangspunkte wie ein Distanzfeld gelesen, Kante etwa einen Bildpunkt breit; nur wo die vier
+  deutlich verschieden sind, Holzmaserung und Verläufe bleiben weich). 2× für alle Wörter, 4× für kleine Wörter (höchstens
+  64 Zeilen und 32.768 Bildpunkte) ab 3× Auflösung, große Textseiten bleiben 2×; unter 1,5× und im PSone-Modus nichts.
+  Wie T4: `GxCore::Upload` zeigt das eigene Bild und fragt den Thread `WordSharpener` (niedrige Priorität), `ApplyWords`
+  setzt fertige Wörter zu Beginn jedes Bildes ein (2 ms, mindestens eins; 50 ms bei schwarzem Bild), eigene kleinere
+  Stufen bis zur Spielgröße, `lodShift` wie bei HD-Ersatzbildern; GLES und Vulkan über denselben Weg. Grenzen: fertig und
+  noch nicht hochgeladen höchstens 16/48 MB (32/64 bit), auf der GPU höchstens 32/96 MB, darüber bleibt das eigene Bild;
+  nur die Wörter des offenen Bildschirms liegen auf der GPU (die übrigen gibt der Kern frei). Mit HD-Paket: Wörter bleiben
+  Buchstaben des Spiels (nur schärfer), die Buchstaben-Schrift des Pakets bleibt. Umschalten verwirft die Texturen, der
+  Kern schickt sie neu. Menü: Grafik, unter „Texture filter“, Schalter „Sharper menu text“ (an), Hilfetext, 11 Sprachen
+  (`check_translations.py` ohne Befund); `CoreBridge.setSharperText`, `RE4_WORD_SHARPEN=0/1` (App und `gx_chunk_render`),
+  `RE4_WORD_SHARPEN_SYNC=1` (sofort, für Einzelbilder). Geprüft am PC: aus = Bild für Bild gleich wie `release-candidate`
+  (32 von 32: Titel, Optionen, Koffer, Karte, Dorf; 1× und 2,5×; mit und ohne Paket); an: Titel, Optionen, Koffer (US/Debug
+  und EU deutsch) bei 2,5× und 3×, Ergebnisseite aus ihren echten Wort-Bildern zusammengesetzt (kein Bildschirmfoto: das
+  Kapitelende braucht einen Kern-Testhaken), Bilder `builds\textures\pics\sharper-menu-text\`. Kosten (Ryzen 7 5700X, ein
+  Kern): je Bildschirm 4–40 ms (2,5×) bzw. 17–50 ms (3×) im Hintergrund, zusätzlich 0,4–4 MB auf der GPU; alle Wörter einer
+  Disc 0,5–0,6 s (2×) bzw. 0,8–0,9 s (3×), 33–43 bzw. 68–85 MB, wenn alle zugleich geladen wären. `gx_gl_check`
+  GLES und Vulkan 0 Fehler (`TestWordSharpenParts`, `TestWordSharpen`: erst das eigene Bild, dann das schärfere, Reset,
+  aus, 1×, PSone; Gegenprobe ohne Schärfen 7 Fehler); Android-Bau beider ABIs, App-Tests je 216 ohne Fehler. Nicht auf dem
+  Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 
@@ -17986,6 +18114,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0232 `r226.cpp`, `emrock.cpp`, `pl0f.cpp`, `objTrolley.cpp`, `em39.cpp`, `em2b.cpp`, `em32.cpp` | „Sanftere QTEs“ (0.99.15, Wunsch des Projektinhabers; Schalter der Komfortsteuerung, Standard an): die QTE-Abfragen des Schwierigkeitsrangs (74 Stellen: Statuen-Lauf, Felsbrocken, Schwimmen nach Del Lago, Lore, Krauser, El Gigantes Parasit, U-3) lesen `re4_qte_level()` (`runtime/qte_touch.cpp`): mit dem Schalter in Professional höchstens Rang 5 (Normals Start), sonst der Rang des Spiels; Schaden und Gegnerverhalten lesen weiter `pG->Game_level`. Port-Merkmal |
 | 0233 `pl_wep.cpp`, `cam_extra.cpp` | Cheat „Atemstopp beim Zielen“ / „Steady aim“ (0.99.19, Wunsch des Projektinhabers 16.11.2026): solange `runtime/cheats.cpp` `re4_steady_aim` es sagt (Bit 31 der Cheat-Schalter; die Schalter sind nur vor dem Lesen −1, die Prüfungen darauf seitdem genau `== -1`), hält `PlWepLockRand` das Ziel des Lasers dort, wo der Spieler es gelassen hat (kein Wandern darum herum), und `CameraScope::move` gibt dem Zielfernrohr (Gewehre, Minenwerfer) keine Atembewegung. Das Fernglas hat eine eigene Kamera und bleibt. Aus: wie das Spiel. |
 | 0234 `player.cpp` | „Leon mit Maus / Blickfeld drehen“ (1.0, Wunsch eines Spielers, vom Projektinhaber angenommen 16.11.2026): `runtime/gyro.cpp re4_core_body_turn` dreht Leon (`pPL->ang.y`) nur in seinen eigenen Bewegungsroutinen 0/0..4. Steht er still auf der Stelle (Routine 0/0/1, gleiche Lage), gab `cPlayer::move` der Schulterkamera seine Richtung nicht weiter (`moved` 0); ein Bild, in dem die Drehung ihn drehte (`re4_body_turned`), zählt jetzt als bewegt, die Kamera folgt wie beim Gehen. Ohne die Option: wie das Spiel. |
+| 0235 `pl_sub.cpp` | Cheat „Kostüme · Leons Jacke“ (1.0, Projektinhaber 16.11.2026): `PlSetCostume` gibt Leon (und einer Ersatzfigur in seinem Kostüm) Kostüm 0, die braune Jacke aus Kapitel 1, auch wo seine Regel das schwarze Hemd (1, nach dem Ereignis in r106) oder die Weste (2) gäbe, solange `runtime/cheats.cpp re4_cheat_leon_jacket` es sagt (an, Geschichte, nicht am Benchmark-Platz; das Spezialkostüm gewinnt). Der Schutz der Weste hängt im Spiel am Kostüm (`PlIsArmor`: 2 oder 3): mit dem Cheat schützt die Weste selbst (Gegenstand 0xFE), Profi-Modus wie bisher ohne. Separate Ways, The Mercenaries (`PlSetCostume` kehrt vorher zurück) und Ashleys Teil unberührt; ein Spielstand merkt sich nichts davon. Ohne den Cheat: wie das Spiel. |
 | 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

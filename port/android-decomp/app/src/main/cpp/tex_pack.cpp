@@ -165,12 +165,33 @@ TexKey DolphinKey(unsigned format, unsigned width, unsigned height, bool mip, co
 // reading all their UI files (port/docs/textur-lader-plan.md). Icons, item and map pictures, digits, logos and the
 // letter font are still replaced. A word is its texels' hash (the first part of Dolphin's name), its size and its
 // format, with any palette: other pictures of the same size still get replaced.
+namespace {
+// gx_gl_check's words (AddTestMenuWord); empty in the app
+std::vector<KeptTexture> &TestWords() {
+  static std::vector<KeptTexture> words;
+  return words;
+}
+}  // namespace
+
 bool KeepsGameTexture(const TexKey &key) {
   const auto *end = std::end(kMenuWords);
   auto it = std::lower_bound(std::begin(kMenuWords), end, key.tex,
                              [](const KeptTexture &k, std::uint64_t tex) { return k.tex < tex; });
   for (; it != end && it->tex == key.tex; ++it)
     if (it->width == key.width && it->height == key.height && it->format == key.format) return true;
+  for (const KeptTexture &k : TestWords())
+    if (k.tex == key.tex && k.width == key.width && k.height == key.height && k.format == key.format) return true;
+  return false;
+}
+
+void AddTestMenuWord(std::uint64_t tex, unsigned width, unsigned height, unsigned format) {
+  TestWords().push_back({tex, static_cast<std::uint16_t>(width), static_cast<std::uint16_t>(height),
+                         static_cast<std::uint8_t>(format)});
+}
+
+bool IsTestMenuWordSize(unsigned format, unsigned width, unsigned height) {
+  for (const KeptTexture &k : TestWords())
+    if (k.width == width && k.height == height && k.format == format) return true;
   return false;
 }
 

@@ -276,6 +276,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtro de TV original do GameCube</string>
     <string name="ingame_fxaa_help">Suaviza bordas serrilhadas em uma etapa final. Funciona com ou sem MSAA; a imagem fica um pouco mais suave.</string>
+    <string name="ingame_sharper_text">Texto dos menus mais nítido</string>
+    <string name="ingame_sharper_text_help">Texto dos menus mais nítido desenha as palavras dos menus do jogo com contornos nítidos em resoluções altas, em todos os idiomas.</string>
     <string name="ingame_psx">Filtro de píxeis retro</string>
     <string name="ingame_filter">Filtros</string>
     <string name="ingame_filter_help">Os filtros mudam o aspeto de toda a imagem e podem ser combinados.</string>
@@ -320,7 +322,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Maleta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Os interruptores ficam ligados até você desligá-los; os saves não os guardam. Alguns ataques ainda matam Leon na hora (motosserra, agarrão, pedra). Invisibilidade: os inimigos ignoram você, chefes e cenas fixas não. Mira firme: o laser e a luneta não balançam. Trajes especiais: Leon e Ashley usam seus trajes especiais. Os botões mudam seu jogo: as armas, a maleta e o dinheiro ficam no seu próximo save. Desbloquear jogos extras coloca Assignment Ada e The Mercenaries no menu principal.</string>
+    <string name="ingame_cheats_help">Os interruptores ficam ligados até você desligá-los; os saves não os guardam. Alguns ataques ainda matam Leon na hora (motosserra, agarrão, pedra). Invisibilidade: os inimigos ignoram você, chefes e cenas fixas não. Mira firme: o laser e a luneta não balançam. Trajes: Jaqueta do Leon mantém Leon com a jaqueta marrom o jogo todo; Especial veste Leon e Ashley com seus trajes especiais. Os botões mudam seu jogo: as armas, a maleta e o dinheiro ficam no seu próximo save. Desbloquear jogos extras coloca Assignment Ada e The Mercenaries no menu principal.</string>
     <string name="ingame_cheat_done">Feito: %1$s.</string>
     <string name="ingame_cheat_already">Já existe: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s já existe: agora nos níveis máximos.</string>
@@ -338,8 +340,11 @@
     <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada e The Mercenaries aparecem no menu principal após o próximo reinício.</string>
     <string name="ingame_cheat_extras_already">Já desbloqueados: Assignment Ada e The Mercenaries estão no menu principal.</string>
     <string name="ingame_cheat_character">Personagem</string>
-    <string name="ingame_cheat_costume">Trajes especiais</string>
-    <string name="ingame_cheat_costume_note">(só Leon/Ashley)</string>
+    <string name="ingame_cheat_costume">Trajes</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Jaqueta do Leon</string>
+    <string name="ingame_cheat_costume_special">Especial</string>
     <string name="ingame_cheat_character_help">O personagem toma na hora o lugar de Leon (a sala carrega de novo onde você está). A maleta, a vida e o dinheiro de Leon continuam; as cenas e as chamadas de rádio continuam mostrando Leon, e a parte de Ashley continua sendo de Ashley. Krauser traz seu arco e Wesker seu silenciador enquanto estiverem escolhidos. Seus jogos salvos guardam sempre Leon. Os personagens além de Leon não foram feitos para o jogo principal, por isso antes aparece um aviso.</string>
     <string name="ingame_cheat_character_warning">Atenção: este personagem não foi feito para o jogo principal. Erros podem acontecer e vão acontecer, e são inevitáveis!</string>
     <string name="ingame_understood">Entendi</string>

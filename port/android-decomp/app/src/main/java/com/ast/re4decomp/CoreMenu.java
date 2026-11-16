@@ -119,6 +119,8 @@ final class CoreMenu extends Dialog {
     void bodyTurnChanged(boolean on);
     /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's (CoreBridge.setGentleQte). */
     void gentleQteChanged(boolean on);
+    /** The cheat "Costumes · Leon's jacket" (1.0): Leon keeps his brown jacket (CoreBridge.setLeonJacket). */
+    void leonJacketChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
     boolean gameLanguages();
     /** The debug build's discs are imported: SELECT held opens the game's debug menu (the button mapping says so). */
@@ -655,6 +657,11 @@ final class CoreMenu extends Dialog {
     if (g.contains(DOF_LEVEL)) return Math.max(0, Math.min(2, g.getInt(DOF_LEVEL, 1)));
     return g.getBoolean("dof", true) ? 1 : 0;
   }
+  /** "Sharper menu text" (1.0.0): the game's own menu words drawn sharper at high resolutions; on by default. */
+  static final String SHARPER_TEXT = "sharperText";
+  static boolean sharperText(SharedPreferences g) {
+    return g.getBoolean(SHARPER_TEXT, true);
+  }
   /** The filter "Sharpen" (0.99.2): 0 off (the default), 1 light, 2 strong. */
   static final String SHARPEN_LEVEL = "sharpenLevel";
   static int sharpenLevel(SharedPreferences g) {
@@ -918,6 +925,12 @@ final class CoreMenu extends Dialog {
     indentedHelp(s(R.string.ingame_fxaa_help));
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
+    // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026: "Bitte baue den Schärfefilter für die
+    // Schrift auch in 1.0.0 ein."): the game's own menu words drawn sharper at high resolutions; on by default
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_sharper_text, sharperText(graphics), on -> {
+      graphics.edit().putBoolean(SHARPER_TEXT, on).apply(); CoreBridge.setSharperText(on);
+    });
+    indentedHelp(s(R.string.ingame_sharper_text_help));
     heading(R.string.ingame_postprocessing);
     LinearLayout effects = labelledOptions(R.string.ingame_effects);
     // each press moves the depth of field on: off, light (as before), strong (wish of the project owner, 05.11.2026)
@@ -2173,29 +2186,42 @@ final class CoreMenu extends Dialog {
     dialog.setOnShowListener(d -> understood.requestFocus());
     Immersive.show(dialog);
   }
-  /** "Special costumes · On/Off" over a smaller "(Leon/Ashley only)", as tall as one line's button (the
-   *  owner, 03.11.2026: the second row as high as the first). */
+  /** The costumes' choices (costumeSwitch): the game's own, Leon's jacket, the special costumes. */
+  static final int COSTUME_NORMAL = 0, COSTUME_JACKET = 1, COSTUME_SPECIAL = 2;
+
+  /** The costume in force: Special with the cheats' bit (COSTUME_BIT, the switch "Special costumes on" of before
+   *  0.99.19 as well), Leon's jacket with its setting (CoreActivity.LEON_JACKET), else Normal. */
+  static int costumeChoice(int bits, boolean jacket) {
+    return (bits & COSTUME_BIT) != 0 ? COSTUME_SPECIAL : jacket ? COSTUME_JACKET : COSTUME_NORMAL;
+  }
+
+  /** The cheat bits of a costume choice (Special: COSTUME_BIT, the others without it). */
+  static int costumeBits(int bits, int choice) {
+    return choice == COSTUME_SPECIAL ? bits | COSTUME_BIT : bits & ~COSTUME_BIT;
+  }
+
+  /** "Costumes · Normal / Leon's jacket / Special" (1.0, the project owner, 16.11.2026: "ein Toggle-Button ... und nur
+   *  mehr 'Kostüme'", without the note "(Leon/Ashley only)"): each press the next, as Frame skip; lit but at Normal.
+   *  Normal: the game's own costumes. Leon's jacket: Leon keeps his brown jacket for the whole game (patch 0235,
+   *  CoreBridge.setLeonJacket). Special: the special costumes of Leon and Ashley (COSTUME_BIT). */
   private void costumeSwitch(MenuLayout.Buttons parent) {
-    final Button[] b = new Button[1];
-    Runnable label = () -> {
-      boolean on = (cheatBits & COSTUME_BIT) != 0;
-      SpannableStringBuilder t = new SpannableStringBuilder(getContext().getString(R.string.ingame_toggle_value,
-          s(R.string.ingame_cheat_costume), s(on ? R.string.ingame_on : R.string.ingame_off)));
-      int from = t.length(); t.append('\n').append(s(R.string.ingame_cheat_costume_note));
-      t.setSpan(new RelativeSizeSpan(.75f), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-      t.setSpan(new StyleSpan(Typeface.NORMAL), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-      b[0].setSelected(on); b[0].setText(t);
-    };
-    b[0] = cellAction(parent, "", v -> {
-      cheatBits ^= COSTUME_BIT; host.cheatsChanged(cheatBits); label.run();
-    });
-    b[0].setPadding(dp(12), dp(2), dp(12), dp(2));
-    b[0].setAccessibilityDelegate(new View.AccessibilityDelegate() {
-      @Override public void onInitializeAccessibilityNodeInfo(View view, AccessibilityNodeInfo info) {
-        super.onInitializeAccessibilityNodeInfo(view, info); info.setCheckable(true); info.setChecked(view.isSelected());
+    final int[] labels = {R.string.ingame_cheat_costume_normal, R.string.ingame_cheat_costume_jacket,
+        R.string.ingame_cheat_costume_special};
+    final android.content.SharedPreferences game =
+        getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE);
+    Button b = cellAction(parent, "", v -> {
+      final boolean jacket = game.getBoolean(CoreActivity.LEON_JACKET, false);
+      final int next = (costumeChoice(cheatBits, jacket) + 1) % 3;
+      final int bits = costumeBits(cheatBits, next);
+      if (bits != cheatBits) {
+        cheatBits = bits;
+        host.cheatsChanged(cheatBits);
       }
+      if ((next == COSTUME_JACKET) != jacket) host.leonJacketChanged(next == COSTUME_JACKET);
+      valueLabel((Button) v, R.string.ingame_cheat_costume, labels[next], next != COSTUME_NORMAL);
     });
-    label.run();
+    final int now = costumeChoice(cheatBits, game.getBoolean(CoreActivity.LEON_JACKET, false));
+    valueLabel(b, R.string.ingame_cheat_costume, labels[now], now != COSTUME_NORMAL);
   }
   /** The game is held while the menu is open: the core does a button at once and answers. */
   private void cheatAction(int what, int label) {

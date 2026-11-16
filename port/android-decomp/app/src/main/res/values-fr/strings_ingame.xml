@@ -277,6 +277,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtre TV GameCube d\'origine</string>
     <string name="ingame_fxaa_help">Lisse les bords crénelés lors d’une dernière passe. Fonctionne avec ou sans MSAA ; l’image devient un peu plus douce.</string>
+    <string name="ingame_sharper_text">Texte des menus plus net</string>
+    <string name="ingame_sharper_text_help">Texte des menus plus net affiche les mots des menus du jeu avec des contours nets en haute résolution, dans toutes les langues.</string>
     <string name="ingame_psx">Filtre pixels rétro</string>
     <string name="ingame_filter">Filtres</string>
     <string name="ingame_filter_help">Les filtres changent l\'aspect de toute l\'image et peuvent être combinés.</string>
@@ -321,7 +323,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Mallette L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
-    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez\u00A0; les sauvegardes ne les gardent pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Invisibilité\u00A0: les ennemis vous ignorent, pas les boss ni les scènes scriptées. Visée stable\u00A0: le laser et la lunette n’oscillent pas. Costumes spéciaux\u00A0: Leon et Ashley portent leurs tenues spéciales. Les boutons modifient votre partie\u00A0: les armes, la mallette et l’argent restent dans votre prochaine sauvegarde. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre.</string>
+    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez\u00A0; les sauvegardes ne les gardent pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Invisibilité\u00A0: les ennemis vous ignorent, pas les boss ni les scènes scriptées. Visée stable\u00A0: le laser et la lunette n’oscillent pas. Costumes\u00A0: Veste de Leon garde à Leon sa veste marron pendant tout le jeu\u00A0; Spécial habille Leon et Ashley de leurs tenues spéciales. Les boutons modifient votre partie\u00A0: les armes, la mallette et l’argent restent dans votre prochaine sauvegarde. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre.</string>
     <string name="ingame_cheat_done">Fait : %1$s.</string>
     <string name="ingame_cheat_already">Déjà là : %1$s.</string>
     <string name="ingame_cheat_raised">%1$s déjà possédé : maintenant à ses niveaux maximaux.</string>
@@ -339,8 +341,11 @@
     <string name="ingame_cheat_extras_later">Débloqués : Assignment Ada et The Mercenaries apparaîtront dans le menu titre au prochain redémarrage.</string>
     <string name="ingame_cheat_extras_already">Déjà débloqués : Assignment Ada et The Mercenaries sont dans le menu titre.</string>
     <string name="ingame_cheat_character">Personnage joué</string>
-    <string name="ingame_cheat_costume">Costumes spéciaux</string>
-    <string name="ingame_cheat_costume_note">(Leon/Ashley seulement)</string>
+    <string name="ingame_cheat_costume">Costumes</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Veste de Leon</string>
+    <string name="ingame_cheat_costume_special">Spécial</string>
     <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon (la pièce se recharge là où vous vous trouvez). La mallette, la vie et l’argent de Leon restent\u00A0; les cinématiques et les appels radio montrent toujours Leon, et la partie d’Ashley reste à Ashley. Krauser apporte son arc et Wesker son silencieux tant qu’ils sont choisis. Vos sauvegardes gardent toujours Leon. Les personnages autres que Leon ne sont pas prévus pour le jeu principal, un avertissement s’affiche donc d’abord.</string>
     <string name="ingame_cheat_character_warning">Attention\u00A0: ce personnage n\'est pas prévu pour le jeu principal. Des bugs peuvent survenir et surviendront, ils sont inévitables\u00A0!</string>
     <string name="ingame_understood">J\'ai compris</string>

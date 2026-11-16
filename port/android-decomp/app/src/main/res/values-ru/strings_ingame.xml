@@ -278,6 +278,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Оригинальный ТВ-фильтр GameCube</string>
     <string name="ingame_fxaa_help">Сглаживает зубчатые края на последнем шаге. Работает с MSAA и без него; картинка становится чуть мягче.</string>
+    <string name="ingame_sharper_text">Чёткий текст меню</string>
+    <string name="ingame_sharper_text_help">Чёткий текст меню рисует слова в меню игры с чёткими краями при высоком разрешении, на любом языке.</string>
     <string name="ingame_psx">Ретро-пиксельный фильтр</string>
     <string name="ingame_filter">Фильтры</string>
     <string name="ingame_filter_help">Фильтры меняют вид всего изображения, их можно сочетать.</string>
@@ -322,7 +324,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Кейс L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
-    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранения их не запоминают. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). «Невидимость»: враги вас игнорируют, а боссы и постановочные сцены — нет. «Устойчивый прицел»: лазер и оптический прицел не качаются. «Особые костюмы»: Леон и Эшли носят свои особые костюмы. Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню.</string>
+    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранения их не запоминают. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). «Невидимость»: враги вас игнорируют, а боссы и постановочные сцены — нет. «Устойчивый прицел»: лазер и оптический прицел не качаются. «Костюмы»: «Куртка Леона» оставляет Леона в коричневой куртке всю игру; «Особый» одевает Леона и Эшли в их особые костюмы. Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню.</string>
     <string name="ingame_cheat_done">Готово: %1$s.</string>
     <string name="ingame_cheat_already">Уже есть: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s уже есть: теперь на максимальных уровнях.</string>
@@ -340,8 +342,11 @@
     <string name="ingame_cheat_extras_later">Открыто: Assignment Ada и The Mercenaries появятся в главном меню после следующего перезапуска.</string>
     <string name="ingame_cheat_extras_already">Уже открыто: Assignment Ada и The Mercenaries есть в главном меню.</string>
     <string name="ingame_cheat_character">Персонаж</string>
-    <string name="ingame_cheat_costume">Особые костюмы</string>
-    <string name="ingame_cheat_costume_note">(только Леон/Эшли)</string>
+    <string name="ingame_cheat_costume">Костюмы</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Обычный</string>
+    <string name="ingame_cheat_costume_jacket">Куртка Леона</string>
+    <string name="ingame_cheat_costume_special">Особый</string>
     <string name="ingame_cheat_character_help">Персонаж сразу заменяет Леона (комната загружается заново там, где вы стоите). Кейс, здоровье и деньги Леона остаются; в роликах и радиовызовах по-прежнему Леон, а часть Эшли остаётся за Эшли. Краузер приносит свой лук, а Вескер — свой глушитель, пока они выбраны. Сохранения всегда хранят Леона. Персонажи кроме Леона не предназначены для основной игры, поэтому сначала появляется предупреждение.</string>
     <string name="ingame_cheat_character_warning">Внимание: этот персонаж не предназначен для основной игры. Ошибки могут возникнуть и обязательно возникнут, их не избежать!</string>
     <string name="ingame_understood">Понятно</string>

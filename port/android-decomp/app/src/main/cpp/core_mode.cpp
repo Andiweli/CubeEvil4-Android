@@ -122,6 +122,7 @@ struct CoreApi {
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
+  void (*setLeonJacket)(int){};   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
   int (*rtShadows)(void){};       // optional (cores since 16.11.2026): the real-time shadows the core knows
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -476,6 +477,7 @@ void loadCore(JNIEnv *env) {
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
+  api.setLeonJacket = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_leon_jacket"));
   api.rtShadows = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_rt_shadows"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -713,6 +715,7 @@ Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof: 0 off, 1 light, 2 strong); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSharpen{0};  // the menu's sharpening (CoreBridge.setSharpen: 0 off, 1 light, 2 strong)
+std::atomic<int> optSharperText{1};  // "Sharper menu text" (CoreBridge.setSharperText; on by default)
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares: 0 off, 1 lens flares, 2 halos + lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
@@ -2320,6 +2323,9 @@ bool drawGx() {
   gx->SetFxaa(optFxaa.load() != 0);
   static const int sharpenEnv = getenv("RE4_GX_SHARPEN") ? atoi(getenv("RE4_GX_SHARPEN")) : 0;
   gx->SetSharpen(sharpenEnv > 0 ? sharpenEnv : optSharpen.load());
+  // "Sharper menu text" (1.0.0): RE4_WORD_SHARPEN=0/1 wins over the menu
+  static const char *wordsEnv = getenv("RE4_WORD_SHARPEN");
+  gx->SetWordSharpen(wordsEnv && *wordsEnv ? *wordsEnv == '1' : optSharperText.load() != 0);
   static const bool tvEnv = getenv("RE4_GX_TV_FILTER") && *getenv("RE4_GX_TV_FILTER") == '1';
   gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
   gx->SetBandwidthSave(optVkBandwidth.load() != 0);
@@ -2431,8 +2437,9 @@ bool drawGx() {
   // A steady rhythm (0.99.12, a user's Helio G85 phone at 30 FPS on 60 Hz: 46 % of the new pictures two vsyncs apart,
   // the others 1 and 3 in turn, felt as small frame drops): a new game picture that is ready one vsync after the last
   // one (that one came late) waits for the next vsync, so every picture shows for two. Only at 30 game pictures a
-  // second without 60 FPS on a screen near 60 Hz, and only while the render thread keeps up (this refresh is the vsync
-  // right after the last new picture); never twice for a chunk (skipNext draws it at the next refresh).
+  // second without 60 FPS on a screen near 60 Hz (since 1.0.0 also near 90 Hz: three vsyncs a picture, one ready after
+  // one or two waits one), and only while the render thread keeps up; never twice for a chunk (skipNext draws it at
+  // the next refresh).
   if (chunk && fresh && !smoothOn) {
     const long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
@@ -2441,8 +2448,8 @@ bool drawGx() {
       skipNext = chunk;
       chunk = nullptr;
       if (pictureHold.held == 1 || pictureHold.held % 600 == 0)
-        LOG("picture pacing: %u new pictures held back one vsync so far (a steady two-vsync rhythm at 30 a second)",
-            pictureHold.held);
+        LOG("picture pacing: %u new pictures held back one vsync so far (a steady rhythm at 30 a second: %d vsyncs a "
+            "picture)", pictureHold.held, re4gx::PictureHold::Target(period));
     }
   }
   // Behind: the core has finished the next chunk already. Then the in-between picture (60 FPS) is
@@ -3127,6 +3134,7 @@ void useCoreProcess(const std::string &why) {
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
   api.setGentleQte = re4ipc_set_gentle_qte;
+  api.setLeonJacket = re4ipc_set_leon_jacket;
   api.rtShadows = re4ipc_rt_shadows;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -3363,15 +3371,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPictureEv
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_vsync(JNIEnv *, jclass, jlong ns) {
   if (api.vsync) api.vsync(static_cast<int64_t>(ns));
-  // the display's vsyncs for the pictures' cadence (NotePicture)
-  const long long last = displayVsyncAt.exchange(ns), p = displayVsyncPeriod.load();
-  if (last > 0 && ns > last) {
-    const long long d = ns - last;
-    if (p <= 0 || d < p / 2)
-      displayVsyncPeriod.store(d);  // (the first, or much shorter than thought: start over)
-    else if (d < p * 3 / 2)
-      displayVsyncPeriod.store(p + (d - p) / 16);
-  }
+  // the display's vsyncs for the pictures' cadence (NotePicture), the 120 Hz rhythm (present::pacer) and the 30 FPS
+  // one (pictureHold): the latest and the period, the median of the last intervals (picture_cadence.h VsyncPeriod,
+  // 1.0.0; only this thread, the app's beat, calls it)
+  static re4gx::VsyncPeriod vsyncPeriod;
+  displayVsyncAt.store(ns);
+  const long long period = vsyncPeriod.Note(ns);
+  if (period > 0)
+    displayVsyncPeriod.store(period);
 }
 
 // The room the game is in (for the Java room loader), -1 outside a room.
@@ -3843,6 +3850,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharpen(J
     LOG("sharpen: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
 }
 
+// "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words drawn sharper at
+// high resolutions (GxRenderer::SetWordSharpen, word_sharpen.h); on by default.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharperText(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optSharperText.exchange(want) != want)
+    LOG("sharper menu text: %s", want ? "on" : "off");
+}
+
 // 60 FPS (experimental): in-between pictures of the renderer (drawGx).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSmooth(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
@@ -3887,6 +3902,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_zoom(JNIEnv 
 }
 
 // The cheat "Random enemies" (CoreMenu): its seed, 0 off (cores since 12.11.2026, 0.99.12; older ones: nothing).
+// The cheat "Leon's jacket" (1.0, CoreMenu's "Costumes"; runtime/cheats.cpp)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLeonJacket(JNIEnv *, jclass, jboolean on) {
+  if (api.setLeonJacket) api.setLeonJacket(on ? 1 : 0);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGentleQte(JNIEnv *, jclass, jboolean on) {
   if (api.setGentleQte) api.setGentleQte(on ? 1 : 0);
 }

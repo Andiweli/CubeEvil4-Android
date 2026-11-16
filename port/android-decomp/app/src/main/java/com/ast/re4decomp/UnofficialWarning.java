@@ -58,7 +58,7 @@ final class UnofficialWarning {
     ok.setBackground(look);
     ok.setTextColor(FocusLook.text(ColorStateList.valueOf(CoreMenu.INK)));
     ok.setOnClickListener(v -> {
-      OfficialBuild.confirm();
+      OfficialBuild.confirm(activity);
       shown[0].dismiss();
       if (confirmed != null) confirmed.run();
     });

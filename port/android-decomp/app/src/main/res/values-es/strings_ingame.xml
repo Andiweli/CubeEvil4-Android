@@ -275,6 +275,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filtro de TV original de GameCube</string>
     <string name="ingame_fxaa_help">Suaviza los bordes dentados en un último paso. Funciona con o sin MSAA; la imagen queda algo más suave.</string>
+    <string name="ingame_sharper_text">Texto de menús más nítido</string>
+    <string name="ingame_sharper_text_help">Texto de menús más nítido dibuja las palabras de los menús del juego con bordes nítidos en altas resoluciones, en todos los idiomas.</string>
     <string name="ingame_psx">Filtro de píxeles retro</string>
     <string name="ingame_filter">Filtros</string>
     <string name="ingame_filter_help">Los filtros cambian el aspecto de toda la imagen y se pueden combinar.</string>
@@ -319,7 +321,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Maletín L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; las partidas guardadas no los conservan. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Invisibilidad: los enemigos te ignoran; los jefes y las escenas fijas, no. Puntería estable: el láser y la mira telescópica no oscilan. Trajes especiales: Leon y Ashley llevan sus trajes especiales. Los botones cambian tu partida: las armas, el maletín y el dinero quedan en tu próxima partida guardada. Desbloquear juegos extra añade Assignment Ada y The Mercenaries al menú principal.</string>
+    <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; las partidas guardadas no los conservan. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Invisibilidad: los enemigos te ignoran; los jefes y las escenas fijas, no. Puntería estable: el láser y la mira telescópica no oscilan. Trajes: Chaqueta de Leon mantiene a Leon con su chaqueta marrón todo el juego; Especial viste a Leon y Ashley con sus trajes especiales. Los botones cambian tu partida: las armas, el maletín y el dinero quedan en tu próxima partida guardada. Desbloquear juegos extra añade Assignment Ada y The Mercenaries al menú principal.</string>
     <string name="ingame_cheat_done">Hecho: %1$s.</string>
     <string name="ingame_cheat_already">Ya lo tienes: %1$s.</string>
     <string name="ingame_cheat_raised">Ya lo tienes: %1$s, ahora con sus niveles máximos.</string>
@@ -337,8 +339,11 @@
     <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada y The Mercenaries aparecerán en el menú principal tras el próximo reinicio.</string>
     <string name="ingame_cheat_extras_already">Ya desbloqueados: Assignment Ada y The Mercenaries están en el menú principal.</string>
     <string name="ingame_cheat_character">Personaje</string>
-    <string name="ingame_cheat_costume">Trajes especiales</string>
-    <string name="ingame_cheat_costume_note">(solo Leon/Ashley)</string>
+    <string name="ingame_cheat_costume">Trajes</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Chaqueta de Leon</string>
+    <string name="ingame_cheat_costume_special">Especial</string>
     <string name="ingame_cheat_character_help">El personaje ocupa al instante el lugar de Leon (la sala se vuelve a cargar donde estás). El maletín, la vida y el dinero de Leon se mantienen; las escenas y las llamadas de radio siguen mostrando a Leon, y la parte de Ashley sigue siendo de Ashley. Krauser trae su arco y Wesker su silenciador mientras estén elegidos. Tus partidas guardadas siempre conservan a Leon. Los personajes distintos de Leon no están pensados para el juego principal, así que antes aparece un aviso.</string>
     <string name="ingame_cheat_character_warning">Atención: este personaje no está pensado para el juego principal. ¡Pueden aparecer y aparecerán errores, y son inevitables!</string>
     <string name="ingame_understood">Entendido</string>

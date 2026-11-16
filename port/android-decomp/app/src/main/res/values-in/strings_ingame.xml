@@ -269,6 +269,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filter TV GameCube asli</string>
     <string name="ingame_fxaa_help">Menghaluskan tepi bergerigi pada langkah terakhir. Bekerja dengan atau tanpa MSAA; gambar menjadi sedikit lebih lembut.</string>
+    <string name="ingame_sharper_text">Teks menu lebih tajam</string>
+    <string name="ingame_sharper_text_help">Teks menu lebih tajam menggambar kata-kata menu bawaan game dengan tepi yang tajam pada resolusi tinggi, dalam semua bahasa.</string>
     <string name="ingame_psx">Filter piksel retro</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filter mengubah tampilan seluruh gambar dan dapat digabungkan.</string>
@@ -312,7 +314,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Koper L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; simpanan tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tak terlihat: musuh mengabaikan Anda, tetapi bos dan adegan tertentu tidak. Bidikan stabil: laser dan teropong senapan tidak bergoyang. Kostum spesial: Leon dan Ashley memakai kostum spesial mereka. Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul.</string>
+    <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; simpanan tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tak terlihat: musuh mengabaikan Anda, tetapi bos dan adegan tertentu tidak. Bidikan stabil: laser dan teropong senapan tidak bergoyang. Kostum: Jaket Leon membuat Leon memakai jaket cokelatnya sepanjang permainan; Spesial memakaikan Leon dan Ashley kostum spesial mereka. Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul.</string>
     <string name="ingame_cheat_done">Selesai: %1$s.</string>
     <string name="ingame_cheat_already">Sudah ada: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s sudah dimiliki: kini di tingkat tertingginya.</string>
@@ -330,8 +332,11 @@
     <string name="ingame_cheat_extras_later">Terbuka: Assignment Ada dan The Mercenaries ada di menu judul setelah dimulai ulang.</string>
     <string name="ingame_cheat_extras_already">Sudah terbuka: Assignment Ada dan The Mercenaries ada di menu judul.</string>
     <string name="ingame_cheat_character">Karakter pemain</string>
-    <string name="ingame_cheat_costume">Kostum spesial</string>
-    <string name="ingame_cheat_costume_note">(hanya Leon/Ashley)</string>
+    <string name="ingame_cheat_costume">Kostum</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Jaket Leon</string>
+    <string name="ingame_cheat_costume_special">Spesial</string>
     <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon (ruangan dimuat ulang di tempatmu berdiri). Koper, nyawa, dan uang Leon tetap; adegan film dan panggilan radio tetap menampilkan Leon, dan bagian Ashley tetap milik Ashley. Selama dipilih, Krauser membawa busurnya dan Wesker membawa peredamnya. Simpananmu selalu menyimpan Leon. Karakter selain Leon tidak dibuat untuk permainan utama, jadi peringatan muncul lebih dulu.</string>
     <string name="ingame_cheat_character_warning">Perhatian: karakter ini tidak dibuat untuk permainan utama. Bug bisa dan akan terjadi, dan tidak bisa dihindari!</string>
     <string name="ingame_understood">Saya mengerti</string>

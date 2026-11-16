@@ -293,6 +293,11 @@ public final class CoreBridge {
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
   public static native void setSharpen(int level);
   /**
+   * "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words are enlarged with
+   * clean edges on a thread of their own and drawn sharper at high resolutions (word_sharpen.h); on by default.
+   */
+  public static native void setSharperText(boolean on);
+  /**
    * CRT (0.99.9; 0 off, 1 light, 2 strong): the picture as a tube TV showed it (lines, a curved glass, a glow); only
    * what the game draws, not the touch controls nor the app's overlays.
    */
@@ -346,6 +351,9 @@ public final class CoreBridge {
   /** "Gentler QTEs" (CoreMenu, comfort controls, 0.99.15): Professional's quick-time events as Normal's
    *  (runtime/qte_touch.cpp re4_qte_level, patch 0232); cores before 0.99.15 leave it out. */
   public static native void setGentleQte(boolean on);
+  /** The cheat "Costumes · Leon's jacket" (1.0, runtime/cheats.cpp, patch 0235): Leon keeps the brown jacket of chapter
+   *  1 for the whole story; the story's Leon changes at once (his room starts again where he stands). */
+  public static native void setLeonJacket(boolean on);
   /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores
